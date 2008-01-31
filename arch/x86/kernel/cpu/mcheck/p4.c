@@ -57,7 +57,7 @@ static void intel_thermal_interrupt(struct pt_regs *regs)
 /* Thermal interrupt handler for this CPU setup */
 static void (*vendor_thermal_interrupt)(struct pt_regs *regs) = unexpected_thermal_interrupt;
 
-fastcall void smp_thermal_interrupt(struct pt_regs *regs)
+void smp_thermal_interrupt(struct pt_regs *regs)
 {
 	irq_enter();
 	vendor_thermal_interrupt(regs);
@@ -141,7 +141,7 @@ static inline void intel_get_extended_msrs(struct intel_mce_extended_msrs *r)
 	rdmsr (MSR_IA32_MCG_EIP, r->eip, h);
 }
 
-static fastcall void intel_machine_check(struct pt_regs * regs, long error_code)
+static void intel_machine_check(struct pt_regs * regs, long error_code)
 {
 	int recover=1;
 	u32 alow, ahigh, high, low;
@@ -152,38 +152,41 @@ static fastcall void intel_machine_check(struct pt_regs * regs, long error_code)
 	if (mcgstl & (1<<0))	/* Recoverable ? */
 		recover=0;
 
-	printk (KERN_EMERG "CPU %d: Machine Check Exception: %08x%08x\n",
+	printk(KERN_EMERG "CPU %d: Machine Check Exception: %08x%08x\n",
 		smp_processor_id(), mcgsth, mcgstl);
 
 	if (mce_num_extended_msrs > 0) {
 		struct intel_mce_extended_msrs dbg;
 		intel_get_extended_msrs(&dbg);
-		printk (KERN_DEBUG "CPU %d: EIP: %08x EFLAGS: %08x\n",
-			smp_processor_id(), dbg.eip, dbg.eflags);
-		printk (KERN_DEBUG "\teax: %08x ebx: %08x ecx: %08x edx: %08x\n",
-			dbg.eax, dbg.ebx, dbg.ecx, dbg.edx);
-		printk (KERN_DEBUG "\tesi: %08x edi: %08x ebp: %08x esp: %08x\n",
+		printk(KERN_DEBUG "CPU %d: EIP: %08x EFLAGS: %08x\n"
+			"\teax: %08x ebx: %08x ecx: %08x edx: %08x\n"
+			"\tesi: %08x edi: %08x ebp: %08x esp: %08x\n",
+			smp_processor_id(), dbg.eip, dbg.eflags,
+			dbg.eax, dbg.ebx, dbg.ecx, dbg.edx,
 			dbg.esi, dbg.edi, dbg.ebp, dbg.esp);
 	}
 
-	for (i=0; i<nr_mce_banks; i++) {
-		rdmsr (MSR_IA32_MC0_STATUS+i*4,low, high);
+	for (i = 0; i < nr_mce_banks; i++) {
+		rdmsr(MSR_IA32_MC0_STATUS+i*4, low, high);
 		if (high & (1<<31)) {
+			char misc[20];
+			char addr[24];
+			misc[0] = addr[0] = '\0';
 			if (high & (1<<29))
 				recover |= 1;
 			if (high & (1<<25))
 				recover |= 2;
-			printk (KERN_EMERG "Bank %d: %08x%08x", i, high, low);
 			high &= ~(1<<31);
 			if (high & (1<<27)) {
-				rdmsr (MSR_IA32_MC0_MISC+i*4, alow, ahigh);
-				printk ("[%08x%08x]", ahigh, alow);
+				rdmsr(MSR_IA32_MC0_MISC+i*4, alow, ahigh);
+				snprintf(misc, 20, "[%08x%08x]", ahigh, alow);
 			}
 			if (high & (1<<26)) {
-				rdmsr (MSR_IA32_MC0_ADDR+i*4, alow, ahigh);
-				printk (" at %08x%08x", ahigh, alow);
+				rdmsr(MSR_IA32_MC0_ADDR+i*4, alow, ahigh);
+				snprintf(addr, 24, " at %08x%08x", ahigh, alow);
 			}
-			printk ("\n");
+			printk(KERN_EMERG "CPU %d: Bank %d: %08x%08x%s%s\n",
+				smp_processor_id(), i, high, low, misc, addr);
 		}
 	}
 

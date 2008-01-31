@@ -179,7 +179,7 @@ int cxio_create_cq(struct cxio_rdev *rdev_p, struct t3_cq *cq)
 	setup.size = 1UL << cq->size_log2;
 	setup.credits = 65535;
 	setup.credit_thres = 1;
-	if (rdev_p->t3cdev_p->type == T3B)
+	if (rdev_p->t3cdev_p->type != T3A)
 		setup.ovfl_mode = 0;
 	else
 		setup.ovfl_mode = 1;
@@ -584,7 +584,7 @@ static int cxio_hal_ctrl_qp_write_mem(struct cxio_rdev *rdev_p, u32 addr,
 {
 	u32 i, nr_wqe, copy_len;
 	u8 *copy_data;
-	u8 wr_len, utx_len;	/* lenght in 8 byte flit */
+	u8 wr_len, utx_len;	/* length in 8 byte flit */
 	enum t3_wr_flags flag;
 	__be64 *wqe;
 	u64 utx_cmd;

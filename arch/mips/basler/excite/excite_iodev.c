@@ -48,7 +48,7 @@ static DECLARE_WAIT_QUEUE_HEAD(wq);
 
 
 
-static struct file_operations fops =
+static const struct file_operations fops =
 {
 	.owner		= THIS_MODULE,
 	.open		= iodev_open,

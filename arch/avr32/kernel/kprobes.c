@@ -48,6 +48,7 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 void __kprobes arch_arm_kprobe(struct kprobe *p)
 {
 	pr_debug("arming kprobe at %p\n", p->addr);
+	ocd_enable(NULL);
 	*p->addr = BREAKPOINT_INSTRUCTION;
 	flush_icache_range((unsigned long)p->addr,
 			   (unsigned long)p->addr + sizeof(kprobe_opcode_t));
@@ -56,6 +57,7 @@ void __kprobes arch_arm_kprobe(struct kprobe *p)
 void __kprobes arch_disarm_kprobe(struct kprobe *p)
 {
 	pr_debug("disarming kprobe at %p\n", p->addr);
+	ocd_disable(NULL);
 	*p->addr = p->opcode;
 	flush_icache_range((unsigned long)p->addr,
 			   (unsigned long)p->addr + sizeof(kprobe_opcode_t));
@@ -260,9 +262,6 @@ int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 
 int __init arch_init_kprobes(void)
 {
-	printk("KPROBES: Enabling monitor mode (MM|DBE)...\n");
-	ocd_write(DC, (1 << OCD_DC_MM_BIT) | (1 << OCD_DC_DBE_BIT));
-
 	/* TODO: Register kretprobe trampoline */
 	return 0;
 }

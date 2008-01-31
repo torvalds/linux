@@ -684,6 +684,9 @@ static int dib3000mc_set_frontend(struct dvb_frontend* fe,
 				struct dvb_frontend_parameters *fep)
 {
 	struct dib3000mc_state *state = fe->demodulator_priv;
+    int ret;
+
+	dib3000mc_set_output_mode(state, OUTMODE_HIGH_Z);
 
 	state->current_bandwidth = fep->u.ofdm.bandwidth;
 	dib3000mc_set_bandwidth(state, BANDWIDTH_TO_KHZ(fep->u.ofdm.bandwidth));
@@ -700,7 +703,7 @@ static int dib3000mc_set_frontend(struct dvb_frontend* fe,
 		fep->u.ofdm.guard_interval    == GUARD_INTERVAL_AUTO ||
 		fep->u.ofdm.constellation     == QAM_AUTO ||
 		fep->u.ofdm.code_rate_HP      == FEC_AUTO) {
-		int i = 100, found;
+		int i = 1000, found;
 
 		dib3000mc_autosearch_start(fe, fep);
 		do {
@@ -715,10 +718,11 @@ static int dib3000mc_set_frontend(struct dvb_frontend* fe,
 		dib3000mc_get_frontend(fe, fep);
 	}
 
+    ret = dib3000mc_tune(fe, fep);
+
 	/* make this a config parameter */
 	dib3000mc_set_output_mode(state, OUTMODE_MPEG2_FIFO);
-
-	return dib3000mc_tune(fe, fep);
+    return ret;
 }
 
 static int dib3000mc_read_status(struct dvb_frontend *fe, fe_status_t *stat)

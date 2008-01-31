@@ -465,7 +465,7 @@ static int aac_rx_restart_adapter(struct aac_dev *dev, int bled)
 	u32 var;
 
 	if (!(dev->supplement_adapter_info.SupportedOptions2 &
-	  le32_to_cpu(AAC_OPTION_MU_RESET)) || (bled >= 0) || (bled == -2)) {
+	  AAC_OPTION_MU_RESET) || (bled >= 0) || (bled == -2)) {
 		if (bled)
 			printk(KERN_ERR "%s%d: adapter kernel panic'd %x.\n",
 				dev->name, dev->id, bled);
@@ -549,7 +549,9 @@ int _aac_rx_init(struct aac_dev *dev)
 	dev->OIMR = status = rx_readb (dev, MUnit.OIMR);
 	if ((((status & 0x0c) != 0x0c) || aac_reset_devices || reset_devices) &&
 	  !aac_rx_restart_adapter(dev, 0))
-		++restart;
+		/* Make sure the Hardware FIFO is empty */
+		while ((++restart < 512) &&
+		  (rx_readl(dev, MUnit.OutboundQueue) != 0xFFFFFFFFL));
 	/*
 	 *	Check to see if the board panic'd while booting.
 	 */

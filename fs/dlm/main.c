@@ -18,16 +18,6 @@
 #include "memory.h"
 #include "config.h"
 
-#ifdef CONFIG_DLM_DEBUG
-int dlm_register_debugfs(void);
-void dlm_unregister_debugfs(void);
-#else
-static inline int dlm_register_debugfs(void) { return 0; }
-static inline void dlm_unregister_debugfs(void) { }
-#endif
-int dlm_netlink_init(void);
-void dlm_netlink_exit(void);
-
 static int __init init_dlm(void)
 {
 	int error;

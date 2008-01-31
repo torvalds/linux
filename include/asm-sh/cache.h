@@ -12,11 +12,6 @@
 #include <linux/init.h>
 #include <asm/cpu/cache.h>
 
-#define SH_CACHE_VALID		1
-#define SH_CACHE_UPDATED	2
-#define SH_CACHE_COMBINED	4
-#define SH_CACHE_ASSOC		8
-
 #define L1_CACHE_BYTES		(1 << L1_CACHE_SHIFT)
 
 #define __read_mostly __attribute__((__section__(".data.read_mostly")))

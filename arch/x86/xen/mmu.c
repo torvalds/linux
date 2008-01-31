@@ -58,7 +58,8 @@
 
 xmaddr_t arbitrary_virt_to_machine(unsigned long address)
 {
-	pte_t *pte = lookup_address(address);
+	int level;
+	pte_t *pte = lookup_address(address, &level);
 	unsigned offset = address & PAGE_MASK;
 
 	BUG_ON(pte == NULL);
@@ -70,8 +71,9 @@ void make_lowmem_page_readonly(void *vaddr)
 {
 	pte_t *pte, ptev;
 	unsigned long address = (unsigned long)vaddr;
+	int level;
 
-	pte = lookup_address(address);
+	pte = lookup_address(address, &level);
 	BUG_ON(pte == NULL);
 
 	ptev = pte_wrprotect(*pte);
@@ -84,8 +86,9 @@ void make_lowmem_page_readwrite(void *vaddr)
 {
 	pte_t *pte, ptev;
 	unsigned long address = (unsigned long)vaddr;
+	int level;
 
-	pte = lookup_address(address);
+	pte = lookup_address(address, &level);
 	BUG_ON(pte == NULL);
 
 	ptev = pte_mkwrite(*pte);
@@ -241,12 +244,12 @@ unsigned long long xen_pgd_val(pgd_t pgd)
 
 pte_t xen_make_pte(unsigned long long pte)
 {
-	if (pte & 1)
+	if (pte & _PAGE_PRESENT) {
 		pte = phys_to_machine(XPADDR(pte)).maddr;
+		pte &= ~(_PAGE_PCD | _PAGE_PWT);
+	}
 
-	pte &= ~_PAGE_PCD;
-
-	return (pte_t){ pte, pte >> 32 };
+	return (pte_t){ .pte = pte };
 }
 
 pmd_t xen_make_pmd(unsigned long long pmd)
@@ -290,10 +293,10 @@ unsigned long xen_pgd_val(pgd_t pgd)
 
 pte_t xen_make_pte(unsigned long pte)
 {
-	if (pte & _PAGE_PRESENT)
+	if (pte & _PAGE_PRESENT) {
 		pte = phys_to_machine(XPADDR(pte)).maddr;
-
-	pte &= ~_PAGE_PCD;
+		pte &= ~(_PAGE_PCD | _PAGE_PWT);
+	}
 
 	return (pte_t){ pte };
 }

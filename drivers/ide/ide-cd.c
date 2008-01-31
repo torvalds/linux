@@ -655,9 +655,9 @@ static void cdrom_end_request (ide_drive_t *drive, int uptodate)
 					BUG();
 			} else {
 				spin_lock_irqsave(&ide_lock, flags);
-				end_that_request_chunk(failed, 0,
-							failed->data_len);
-				end_that_request_last(failed, 0);
+				if (__blk_end_request(failed, -EIO,
+						      failed->data_len))
+					BUG();
 				spin_unlock_irqrestore(&ide_lock, flags);
 			}
 		} else
@@ -917,19 +917,13 @@ static ide_startstop_t cdrom_start_packet_command(ide_drive_t *drive,
 	if (ide_wait_stat(&startstop, drive, 0, BUSY_STAT, WAIT_READY))
 		return startstop;
 
+	/* FIXME: for Virtual DMA we must check harder */
 	if (info->dma)
 		info->dma = !hwif->dma_setup(drive);
 
 	/* Set up the controller registers. */
-	/* FIXME: for Virtual DMA we must check harder */
-	HWIF(drive)->OUTB(info->dma, IDE_FEATURE_REG);
-	HWIF(drive)->OUTB(0, IDE_IREASON_REG);
-	HWIF(drive)->OUTB(0, IDE_SECTOR_REG);
-
-	HWIF(drive)->OUTB(xferlen & 0xff, IDE_BCOUNTL_REG);
-	HWIF(drive)->OUTB(xferlen >> 8  , IDE_BCOUNTH_REG);
-	if (IDE_CONTROL_REG)
-		HWIF(drive)->OUTB(drive->ctl, IDE_CONTROL_REG);
+	ide_pktcmd_tf_load(drive, IDE_TFLAG_OUT_NSECT | IDE_TFLAG_OUT_LBAL |
+			   IDE_TFLAG_NO_SELECT_MASK, xferlen, info->dma);
  
 	if (CDROM_CONFIG_FLAGS (drive)->drq_interrupt) {
 		/* waiting for CDB interrupt, not DMA yet. */
@@ -1653,6 +1647,17 @@ static int cdrom_write_check_ireason(ide_drive_t *drive, int len, int ireason)
 	return 1;
 }
 
+/*
+ * Called from blk_end_request_callback() after the data of the request
+ * is completed and before the request is completed.
+ * By returning value '1', blk_end_request_callback() returns immediately
+ * without completing the request.
+ */
+static int cdrom_newpc_intr_dummy_cb(struct request *rq)
+{
+	return 1;
+}
+
 typedef void (xfer_func_t)(ide_drive_t *, void *, u32);
 
 /*
@@ -1691,9 +1696,13 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 			return ide_error(drive, "dma error", stat);
 		}
 
-		end_that_request_chunk(rq, 1, rq->data_len);
-		rq->data_len = 0;
-		goto end_request;
+		spin_lock_irqsave(&ide_lock, flags);
+		if (__blk_end_request(rq, 0, rq->data_len))
+			BUG();
+		HWGROUP(drive)->rq = NULL;
+		spin_unlock_irqrestore(&ide_lock, flags);
+
+		return ide_stopped;
 	}
 
 	/*
@@ -1711,8 +1720,15 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	/*
 	 * If DRQ is clear, the command has completed.
 	 */
-	if ((stat & DRQ_STAT) == 0)
-		goto end_request;
+	if ((stat & DRQ_STAT) == 0) {
+		spin_lock_irqsave(&ide_lock, flags);
+		if (__blk_end_request(rq, 0, 0))
+			BUG();
+		HWGROUP(drive)->rq = NULL;
+		spin_unlock_irqrestore(&ide_lock, flags);
+
+		return ide_stopped;
+	}
 
 	/*
 	 * check which way to transfer data
@@ -1765,7 +1781,14 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 		rq->data_len -= blen;
 
 		if (rq->bio)
-			end_that_request_chunk(rq, 1, blen);
+			/*
+			 * The request can't be completed until DRQ is cleared.
+			 * So complete the data, but don't complete the request
+			 * using the dummy function for the callback feature
+			 * of blk_end_request_callback().
+			 */
+			blk_end_request_callback(rq, 0, blen,
+						 cdrom_newpc_intr_dummy_cb);
 		else
 			rq->data += blen;
 	}
@@ -1786,14 +1809,6 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 
 	ide_set_handler(drive, cdrom_newpc_intr, rq->timeout, NULL);
 	return ide_started;
-
-end_request:
-	spin_lock_irqsave(&ide_lock, flags);
-	blkdev_dequeue_request(rq);
-	end_that_request_last(rq, 1);
-	HWGROUP(drive)->rq = NULL;
-	spin_unlock_irqrestore(&ide_lock, flags);
-	return ide_stopped;
 }
 
 static ide_startstop_t cdrom_write_intr(ide_drive_t *drive)

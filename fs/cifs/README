@@ -56,7 +56,8 @@ the CIFS VFS web site) copy it to the same directory in which mount.smbfs and
 similar files reside (usually /sbin).  Although the helper software is not  
 required, mount.cifs is recommended.  Eventually the Samba 3.0 utility program 
 "net" may also be helpful since it may someday provide easier mount syntax for
-users who are used to Windows e.g.  net use <mount point> <UNC name or cifs URL>
+users who are used to Windows e.g.
+	net use <mount point> <UNC name or cifs URL>
 Note that running the Winbind pam/nss module (logon service) on all of your
 Linux clients is useful in mapping Uids and Gids consistently across the
 domain to the proper network user.  The mount.cifs mount helper can be
@@ -248,7 +249,7 @@ A partial list of the supported mount options follows:
 		the CIFS session.
   password	The user password.  If the mount helper is
 		installed, the user will be prompted for password
-		if it is not supplied.
+		if not supplied.
   ip		The ip address of the target server
   unc		The target server Universal Network Name (export) to 
 		mount.	
@@ -283,7 +284,7 @@ A partial list of the supported mount options follows:
 		can be enabled by specifying file_mode and dir_mode on 
 		the client.  Note that the mount.cifs helper must be
 		at version 1.10 or higher to support specifying the uid
-		(or gid) in non-numberic form.
+		(or gid) in non-numeric form.
   gid		Set the default gid for inodes (similar to above).
   file_mode     If CIFS Unix extensions are not supported by the server
 		this overrides the default mode for file inodes.
@@ -417,9 +418,10 @@ A partial list of the supported mount options follows:
   acl   	Allow setfacl and getfacl to manage posix ACLs if server
 		supports them.  (default)
   noacl 	Do not allow setfacl and getfacl calls on this mount
-  user_xattr    Allow getting and setting user xattrs as OS/2 EAs (extended
-		attributes) to the server (default) e.g. via setfattr 
-		and getfattr utilities. 
+  user_xattr    Allow getting and setting user xattrs (those attributes whose
+		name begins with "user." or "os2.") as OS/2 EAs (extended
+		attributes) to the server.  This allows support of the
+		setfattr and getfattr utilities. (default)
   nouser_xattr  Do not allow getfattr/setfattr to get/set/list xattrs 
   mapchars      Translate six of the seven reserved characters (not backslash)
 			*?<>|:
@@ -434,6 +436,7 @@ A partial list of the supported mount options follows:
  nomapchars     Do not translate any of these seven characters (default).
  nocase         Request case insensitive path name matching (case
 		sensitive is the default if the server suports it).
+		(mount option "ignorecase" is identical to "nocase")
  posixpaths     If CIFS Unix extensions are supported, attempt to
 		negotiate posix path name support which allows certain
 		characters forbidden in typical CIFS filenames, without
@@ -485,6 +488,9 @@ A partial list of the supported mount options follows:
 			ntlmv2i Use NTLMv2 password hashing with packet signing
 			lanman  (if configured in kernel config) use older
 				lanman hash
+hard		Retry file operations if server is not responding
+soft		Limit retries to unresponsive servers (usually only
+		one retry) before returning an error.  (default)
 
 The mount.cifs mount helper also accepts a few mount options before -o
 including:
@@ -535,8 +541,8 @@ SecurityFlags		Flags which control security negotiation and
 			must use NTLM					0x02002
 			may use NTLMv2					0x00004
 			must use NTLMv2					0x04004
-			may use Kerberos security (not implemented yet) 0x00008
-			must use Kerberos (not implemented yet)         0x08008
+			may use Kerberos security			0x00008
+			must use Kerberos				0x08008
 			may use lanman (weak) password hash  		0x00010
 			must use lanman password hash			0x10010
 			may use plaintext passwords    			0x00020
@@ -626,6 +632,6 @@ returned success.
 	
 Also note that "cat /proc/fs/cifs/DebugData" will display information about 
 the active sessions and the shares that are mounted.
-Enabling Kerberos (extended security) works when CONFIG_CIFS_EXPERIMENTAL is enabled
-but requires a user space helper (from the Samba project). NTLM and NTLMv2 and
-LANMAN support do not require this helpr.
+Enabling Kerberos (extended security) works when CONFIG_CIFS_EXPERIMENTAL is
+on but requires a user space helper (from the Samba project). NTLM and NTLMv2 and
+LANMAN support do not require this helper.

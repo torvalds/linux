@@ -1210,16 +1210,19 @@ static void __init pci_sort_breadthfirst_klist(void)
 	struct klist_node *n;
 	struct device *dev;
 	struct pci_dev *pdev;
+	struct klist *device_klist;
 
-	spin_lock(&pci_bus_type.klist_devices.k_lock);
-	list_for_each_safe(pos, tmp, &pci_bus_type.klist_devices.k_list) {
+	device_klist = bus_get_device_klist(&pci_bus_type);
+
+	spin_lock(&device_klist->k_lock);
+	list_for_each_safe(pos, tmp, &device_klist->k_list) {
 		n = container_of(pos, struct klist_node, n_node);
 		dev = container_of(n, struct device, knode_bus);
 		pdev = to_pci_dev(dev);
 		pci_insertion_sort_klist(pdev, &sorted_devices);
 	}
-	list_splice(&sorted_devices, &pci_bus_type.klist_devices.k_list);
-	spin_unlock(&pci_bus_type.klist_devices.k_lock);
+	list_splice(&sorted_devices, &device_klist->k_list);
+	spin_unlock(&device_klist->k_lock);
 }
 
 static void __init pci_insertion_sort_devices(struct pci_dev *a, struct list_head *list)

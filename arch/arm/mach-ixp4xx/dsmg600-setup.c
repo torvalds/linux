@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
+#include <linux/i2c-gpio.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -37,15 +38,17 @@ static struct platform_device dsmg600_flash = {
 	.resource		= &dsmg600_flash_resource,
 };
 
-static struct ixp4xx_i2c_pins dsmg600_i2c_gpio_pins = {
+static struct i2c_gpio_platform_data dsmg600_i2c_gpio_data = {
 	.sda_pin		= DSMG600_SDA_PIN,
 	.scl_pin		= DSMG600_SCL_PIN,
 };
 
-static struct platform_device dsmg600_i2c_controller = {
-	.name			= "IXP4XX-I2C",
+static struct platform_device dsmg600_i2c_gpio = {
+	.name			= "i2c-gpio",
 	.id			= 0,
-	.dev.platform_data	= &dsmg600_i2c_gpio_pins,
+	.dev	 = {
+		.platform_data	= &dsmg600_i2c_gpio_data,
+	},
 };
 
 #ifdef CONFIG_LEDS_CLASS
@@ -116,7 +119,7 @@ static struct platform_device dsmg600_uart = {
 };
 
 static struct platform_device *dsmg600_devices[] __initdata = {
-	&dsmg600_i2c_controller,
+	&dsmg600_i2c_gpio,
 	&dsmg600_flash,
 };
 

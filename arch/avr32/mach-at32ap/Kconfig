@@ -3,9 +3,9 @@ if PLATFORM_AT32AP
 menu "Atmel AVR32 AP options"
 
 choice
-	prompt "AT32AP7000 static memory bus width"
-	depends on CPU_AT32AP7000
-	default AP7000_16_BIT_SMC
+	prompt "AT32AP700x static memory bus width"
+	depends on CPU_AT32AP700X
+	default AP700X_16_BIT_SMC
 	help
 	  Define the width of the AP7000 external static memory interface.
 	  This is used to determine how to mangle the address and/or data
@@ -15,13 +15,13 @@ choice
 	  width for all chip selects, excluding the flash (which is using
 	  raw access and is thus not affected by any of this.)
 
-config AP7000_32_BIT_SMC
+config AP700X_32_BIT_SMC
 	bool "32 bit"
 
-config AP7000_16_BIT_SMC
+config AP700X_16_BIT_SMC
 	bool "16 bit"
 
-config AP7000_8_BIT_SMC
+config AP700X_8_BIT_SMC
 	bool "8 bit"
 
 endchoice

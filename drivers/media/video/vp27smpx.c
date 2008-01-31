@@ -30,15 +30,12 @@
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
+#include <media/v4l2-i2c-drv.h>
 
 MODULE_DESCRIPTION("vp27smpx driver");
 MODULE_AUTHOR("Hans Verkuil");
 MODULE_LICENSE("GPL");
 
-static unsigned short normal_i2c[] = { 0xb6 >> 1, I2C_CLIENT_END };
-
-
-I2C_CLIENT_INSMOD;
 
 /* ----------------------------------------------------------------------- */
 
@@ -53,28 +50,26 @@ static void vp27smpx_set_audmode(struct i2c_client *client, u32 audmode)
 	u8 data[3] = { 0x00, 0x00, 0x04 };
 
 	switch (audmode) {
-		case V4L2_TUNER_MODE_MONO:
-		case V4L2_TUNER_MODE_LANG1:
-			break;
-		case V4L2_TUNER_MODE_STEREO:
-		case V4L2_TUNER_MODE_LANG1_LANG2:
-			data[1] = 0x01;
-			break;
-		case V4L2_TUNER_MODE_LANG2:
-			data[1] = 0x02;
-			break;
+	case V4L2_TUNER_MODE_MONO:
+	case V4L2_TUNER_MODE_LANG1:
+		break;
+	case V4L2_TUNER_MODE_STEREO:
+	case V4L2_TUNER_MODE_LANG1_LANG2:
+		data[1] = 0x01;
+		break;
+	case V4L2_TUNER_MODE_LANG2:
+		data[1] = 0x02;
+		break;
 	}
 
-	if (i2c_master_send(client, data, sizeof(data)) != sizeof(data)) {
-		v4l_err(client, "%s: I/O error setting audmode\n", client->name);
-	}
-	else {
+	if (i2c_master_send(client, data, sizeof(data)) != sizeof(data))
+		v4l_err(client, "%s: I/O error setting audmode\n",
+				client->name);
+	else
 		state->audmode = audmode;
-	}
 }
 
-static int vp27smpx_command(struct i2c_client *client, unsigned int cmd,
-			  void *arg)
+static int vp27smpx_command(struct i2c_client *client, unsigned cmd, void *arg)
 {
 	struct vp27smpx_state *state = i2c_get_clientdata(client);
 	struct v4l2_tuner *vt = arg;
@@ -103,7 +98,8 @@ static int vp27smpx_command(struct i2c_client *client, unsigned int cmd,
 		break;
 
 	case VIDIOC_G_CHIP_IDENT:
-		return v4l2_chip_ident_i2c_client(client, arg, V4L2_IDENT_VP27SMPX, 0);
+		return v4l2_chip_ident_i2c_client(client, arg,
+				V4L2_IDENT_VP27SMPX, 0);
 
 	case VIDIOC_LOG_STATUS:
 		v4l_info(client, "Audio Mode: %u%s\n", state->audmode,
@@ -125,88 +121,43 @@ static int vp27smpx_command(struct i2c_client *client, unsigned int cmd,
  * concerning the addresses: i2c wants 7 bit (without the r/w bit), so '>>1'
  */
 
-static struct i2c_driver i2c_driver;
-
-static int vp27smpx_attach(struct i2c_adapter *adapter, int address, int kind)
+static int vp27smpx_probe(struct i2c_client *client)
 {
-	struct i2c_client *client;
 	struct vp27smpx_state *state;
 
 	/* Check if the adapter supports the needed features */
-	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return 0;
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
+		return -EIO;
 
-	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
-	if (client == 0)
-		return -ENOMEM;
-
-	client->addr = address;
-	client->adapter = adapter;
-	client->driver = &i2c_driver;
 	snprintf(client->name, sizeof(client->name) - 1, "vp27smpx");
 
-	v4l_info(client, "chip found @ 0x%x (%s)\n", address << 1, adapter->name);
+	v4l_info(client, "chip found @ 0x%x (%s)\n",
+			client->addr << 1, client->adapter->name);
 
 	state = kzalloc(sizeof(struct vp27smpx_state), GFP_KERNEL);
-	if (state == NULL) {
-		kfree(client);
+	if (state == NULL)
 		return -ENOMEM;
-	}
 	state->audmode = V4L2_TUNER_MODE_STEREO;
 	i2c_set_clientdata(client, state);
 
 	/* initialize vp27smpx */
 	vp27smpx_set_audmode(client, state->audmode);
-	i2c_attach_client(client);
-
 	return 0;
 }
 
-static int vp27smpx_probe(struct i2c_adapter *adapter)
+static int vp27smpx_remove(struct i2c_client *client)
 {
-	if (adapter->class & I2C_CLASS_TV_ANALOG)
-		return i2c_probe(adapter, &addr_data, vp27smpx_attach);
-	return 0;
-}
-
-static int vp27smpx_detach(struct i2c_client *client)
-{
-	struct vp27smpx_state *state = i2c_get_clientdata(client);
-	int err;
-
-	err = i2c_detach_client(client);
-	if (err) {
-		return err;
-	}
-	kfree(state);
-	kfree(client);
-
+	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 
 /* ----------------------------------------------------------------------- */
 
-/* i2c implementation */
-static struct i2c_driver i2c_driver = {
-	.driver = {
-		.name = "vp27smpx",
-	},
-	.id             = I2C_DRIVERID_VP27SMPX,
-	.attach_adapter = vp27smpx_probe,
-	.detach_client  = vp27smpx_detach,
-	.command        = vp27smpx_command,
+static struct v4l2_i2c_driver_data v4l2_i2c_data = {
+	.name = "vp27smpx",
+	.driverid = I2C_DRIVERID_VP27SMPX,
+	.command = vp27smpx_command,
+	.probe = vp27smpx_probe,
+	.remove = vp27smpx_remove,
 };
 
-
-static int __init vp27smpx_init_module(void)
-{
-	return i2c_add_driver(&i2c_driver);
-}
-
-static void __exit vp27smpx_cleanup_module(void)
-{
-	i2c_del_driver(&i2c_driver);
-}
-
-module_init(vp27smpx_init_module);
-module_exit(vp27smpx_cleanup_module);

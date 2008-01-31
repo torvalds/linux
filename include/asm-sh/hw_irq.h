@@ -33,13 +33,6 @@ struct intc_vect {
 #define INTC_VECT(enum_id, vect) { enum_id, vect }
 #define INTC_IRQ(enum_id, irq) INTC_VECT(enum_id, irq2evt(irq))
 
-struct intc_prio {
-	intc_enum enum_id;
-	unsigned char priority;
-};
-
-#define INTC_PRIO(enum_id, prio) { enum_id, prio }
-
 struct intc_group {
 	intc_enum enum_id;
 	intc_enum enum_ids[32];
@@ -79,8 +72,6 @@ struct intc_desc {
 	unsigned int nr_vectors;
 	struct intc_group *groups;
 	unsigned int nr_groups;
-	struct intc_prio *priorities;
-	unsigned int nr_priorities;
 	struct intc_mask_reg *mask_regs;
 	unsigned int nr_mask_regs;
 	struct intc_prio_reg *prio_regs;
@@ -92,10 +83,9 @@ struct intc_desc {
 
 #define _INTC_ARRAY(a) a, sizeof(a)/sizeof(*a)
 #define DECLARE_INTC_DESC(symbol, chipname, vectors, groups,		\
-	priorities, mask_regs, prio_regs, sense_regs)			\
+	mask_regs, prio_regs, sense_regs)				\
 struct intc_desc symbol __initdata = {					\
 	_INTC_ARRAY(vectors), _INTC_ARRAY(groups),			\
-	_INTC_ARRAY(priorities),					\
 	_INTC_ARRAY(mask_regs), _INTC_ARRAY(prio_regs),			\
 	_INTC_ARRAY(sense_regs),					\
 	chipname,							\

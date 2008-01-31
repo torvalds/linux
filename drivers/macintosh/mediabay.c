@@ -563,7 +563,8 @@ static void media_bay_step(int i)
 				ide_init_hwif_ports(&hw, (unsigned long) bay->cd_base, (unsigned long) 0, NULL);
 				hw.irq = bay->cd_irq;
 				hw.chipset = ide_pmac;
-				bay->cd_index = ide_register_hw(&hw, NULL, 0, NULL);
+				bay->cd_index =
+					ide_register_hw(&hw, NULL, NULL);
 				pmu_resume();
 			}
 			if (bay->cd_index == -1) {

@@ -76,7 +76,7 @@
 		typeof(desc) _desc					\
 			     __attribute__((aligned(sizeof(Elf##size##_Word)))); \
 	} _ELFNOTE_PASTE(_note_, unique)				\
-		__attribute_used__					\
+		__used							\
 		__attribute__((section(".note." name),			\
 			       aligned(sizeof(Elf##size##_Word)),	\
 			       unused)) = {				\

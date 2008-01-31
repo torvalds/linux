@@ -54,7 +54,7 @@ extern int pfn_is_nosave(unsigned long);
 extern struct mutex pm_mutex;
 
 #define power_attr(_name) \
-static struct subsys_attribute _name##_attr = {	\
+static struct kobj_attribute _name##_attr = {	\
 	.attr	= {				\
 		.name = __stringify(_name),	\
 		.mode = 0644,			\
@@ -62,8 +62,6 @@ static struct subsys_attribute _name##_attr = {	\
 	.show	= _name##_show,			\
 	.store	= _name##_store,		\
 }
-
-extern struct kset power_subsys;
 
 /* Preferred image size in bytes (default 500 MB) */
 extern unsigned long image_size;

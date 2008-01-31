@@ -179,7 +179,7 @@ static void nfnetlink_rcv(struct sk_buff *skb)
 static void __exit nfnetlink_exit(void)
 {
 	printk("Removing netfilter NETLINK layer.\n");
-	sock_release(nfnl->sk_socket);
+	netlink_kernel_release(nfnl);
 	return;
 }
 

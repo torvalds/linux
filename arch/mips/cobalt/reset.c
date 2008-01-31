@@ -10,8 +10,9 @@
  */
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/jiffies.h>
 #include <linux/leds.h>
+
+#include <asm/processor.h>
 
 #include <cobalt.h>
 
@@ -29,28 +30,15 @@ device_initcall(ledtrig_power_off_init);
 
 void cobalt_machine_halt(void)
 {
-	int state, last, diff;
-	unsigned long mark;
-
 	/*
 	 * turn on power off LED on RaQ
-	 *
-	 * restart if ENTER and SELECT are pressed
 	 */
-
-	last = COBALT_KEY_PORT;
-
 	led_trigger_event(power_off_led_trigger, LED_FULL);
 
-	for (state = 0;;) {
-		diff = COBALT_KEY_PORT ^ last;
-		last ^= diff;
-
-		if((diff & (COBALT_KEY_ENTER | COBALT_KEY_SELECT)) && !(~last & (COBALT_KEY_ENTER | COBALT_KEY_SELECT)))
-			writeb(RESET, RESET_PORT);
-
-		for (mark = jiffies; jiffies - mark < HZ;)
-			;
+	local_irq_disable();
+	while (1) {
+		if (cpu_wait)
+			cpu_wait();
 	}
 }
 

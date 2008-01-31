@@ -18,6 +18,7 @@
 #include <linux/tty.h>
 #include <linux/serial_8250.h>
 #include <linux/slab.h>
+#include <linux/i2c-gpio.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -47,18 +48,17 @@ static struct platform_device avila_flash = {
 	.resource	= &avila_flash_resource,
 };
 
-static struct ixp4xx_i2c_pins avila_i2c_gpio_pins = {
+static struct i2c_gpio_platform_data avila_i2c_gpio_data = {
 	.sda_pin	= AVILA_SDA_PIN,
 	.scl_pin	= AVILA_SCL_PIN,
 };
 
-static struct platform_device avila_i2c_controller = {
-	.name		= "IXP4XX-I2C",
+static struct platform_device avila_i2c_gpio = {
+	.name		= "i2c-gpio",
 	.id		= 0,
-	.dev		= {
-		.platform_data = &avila_i2c_gpio_pins,
+	.dev	 = {
+		.platform_data	= &avila_i2c_gpio_data,
 	},
-	.num_resources	= 0
 };
 
 static struct resource avila_uart_resources[] = {
@@ -133,7 +133,7 @@ static struct platform_device avila_pata = {
 };
 
 static struct platform_device *avila_devices[] __initdata = {
-	&avila_i2c_controller,
+	&avila_i2c_gpio,
 	&avila_flash,
 	&avila_uart
 };

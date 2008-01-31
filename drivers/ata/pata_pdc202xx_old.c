@@ -168,8 +168,7 @@ static void pdc2026x_bmdma_start(struct ata_queued_cmd *qc)
 	pdc202xx_set_dmamode(ap, qc->dev);
 
 	/* Cases the state machine will not complete correctly without help */
-	if ((tf->flags & ATA_TFLAG_LBA48) ||  tf->protocol == ATA_PROT_ATAPI_DMA)
-	{
+	if ((tf->flags & ATA_TFLAG_LBA48) ||  tf->protocol == ATAPI_PROT_DMA) {
 		len = qc->nbytes / 2;
 
 		if (tf->flags & ATA_TFLAG_WRITE)
@@ -208,7 +207,7 @@ static void pdc2026x_bmdma_stop(struct ata_queued_cmd *qc)
 	void __iomem *atapi_reg = master + 0x20 + (4 * ap->port_no);
 
 	/* Cases the state machine will not complete correctly */
-	if (tf->protocol == ATA_PROT_ATAPI_DMA || ( tf->flags & ATA_TFLAG_LBA48)) {
+	if (tf->protocol == ATAPI_PROT_DMA || (tf->flags & ATA_TFLAG_LBA48)) {
 		iowrite32(0, atapi_reg);
 		iowrite8(ioread8(clock) & ~sel66, clock);
 	}

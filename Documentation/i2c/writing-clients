@@ -267,9 +267,9 @@ insmod parameter of the form force_<kind>.
 Fortunately, as a module writer, you just have to define the `normal_i2c' 
 parameter. The complete declaration could look like this:
 
-  /* Scan 0x37, and 0x48 to 0x4f */
-  static unsigned short normal_i2c[] = { 0x37, 0x48, 0x49, 0x4a, 0x4b, 0x4c,
-                                         0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
+  /* Scan 0x4c to 0x4f */
+  static const unsigned short normal_i2c[] = { 0x4c, 0x4d, 0x4e, 0x4f,
+                                               I2C_CLIENT_END };
 
   /* Magic definition of all other variables and things */
   I2C_CLIENT_INSMOD;

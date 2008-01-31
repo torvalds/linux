@@ -22,7 +22,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Netfilter Core Team <coreteam@netfilter.org>");
-MODULE_DESCRIPTION("x_tables multiple port match module");
+MODULE_DESCRIPTION("Xtables: multiple port matching for TCP, UDP, UDP-Lite, SCTP and DCCP");
 MODULE_ALIAS("ipt_multiport");
 MODULE_ALIAS("ip6t_multiport");
 
@@ -34,8 +34,8 @@ MODULE_ALIAS("ip6t_multiport");
 
 /* Returns 1 if the port is matched by the test, 0 otherwise. */
 static inline bool
-ports_match(const u_int16_t *portlist, enum xt_multiport_flags flags,
-	    u_int8_t count, u_int16_t src, u_int16_t dst)
+ports_match_v0(const u_int16_t *portlist, enum xt_multiport_flags flags,
+	       u_int8_t count, u_int16_t src, u_int16_t dst)
 {
 	unsigned int i;
 	for (i = 0; i < count; i++) {
@@ -95,14 +95,10 @@ ports_match_v1(const struct xt_multiport_v1 *minfo,
 }
 
 static bool
-match(const struct sk_buff *skb,
-      const struct net_device *in,
-      const struct net_device *out,
-      const struct xt_match *match,
-      const void *matchinfo,
-      int offset,
-      unsigned int protoff,
-      bool *hotdrop)
+multiport_mt_v0(const struct sk_buff *skb, const struct net_device *in,
+                const struct net_device *out, const struct xt_match *match,
+                const void *matchinfo, int offset, unsigned int protoff,
+                bool *hotdrop)
 {
 	__be16 _ports[2], *pptr;
 	const struct xt_multiport *multiinfo = matchinfo;
@@ -120,20 +116,15 @@ match(const struct sk_buff *skb,
 		return false;
 	}
 
-	return ports_match(multiinfo->ports,
-			   multiinfo->flags, multiinfo->count,
-			   ntohs(pptr[0]), ntohs(pptr[1]));
+	return ports_match_v0(multiinfo->ports, multiinfo->flags,
+	       multiinfo->count, ntohs(pptr[0]), ntohs(pptr[1]));
 }
 
 static bool
-match_v1(const struct sk_buff *skb,
-	 const struct net_device *in,
-	 const struct net_device *out,
-	 const struct xt_match *match,
-	 const void *matchinfo,
-	 int offset,
-	 unsigned int protoff,
-	 bool *hotdrop)
+multiport_mt(const struct sk_buff *skb, const struct net_device *in,
+             const struct net_device *out, const struct xt_match *match,
+             const void *matchinfo, int offset, unsigned int protoff,
+             bool *hotdrop)
 {
 	__be16 _ports[2], *pptr;
 	const struct xt_multiport_v1 *multiinfo = matchinfo;
@@ -173,11 +164,9 @@ check(u_int16_t proto,
 
 /* Called when user tries to insert an entry of this type. */
 static bool
-checkentry(const char *tablename,
-	   const void *info,
-	   const struct xt_match *match,
-	   void *matchinfo,
-	   unsigned int hook_mask)
+multiport_mt_check_v0(const char *tablename, const void *info,
+                      const struct xt_match *match, void *matchinfo,
+                      unsigned int hook_mask)
 {
 	const struct ipt_ip *ip = info;
 	const struct xt_multiport *multiinfo = matchinfo;
@@ -187,11 +176,9 @@ checkentry(const char *tablename,
 }
 
 static bool
-checkentry_v1(const char *tablename,
-	      const void *info,
-	      const struct xt_match *match,
-	      void *matchinfo,
-	      unsigned int hook_mask)
+multiport_mt_check(const char *tablename, const void *info,
+                   const struct xt_match *match, void *matchinfo,
+                   unsigned int hook_mask)
 {
 	const struct ipt_ip *ip = info;
 	const struct xt_multiport_v1 *multiinfo = matchinfo;
@@ -201,11 +188,9 @@ checkentry_v1(const char *tablename,
 }
 
 static bool
-checkentry6(const char *tablename,
-	    const void *info,
-	    const struct xt_match *match,
-	    void *matchinfo,
-	    unsigned int hook_mask)
+multiport_mt6_check_v0(const char *tablename, const void *info,
+                       const struct xt_match *match, void *matchinfo,
+                       unsigned int hook_mask)
 {
 	const struct ip6t_ip6 *ip = info;
 	const struct xt_multiport *multiinfo = matchinfo;
@@ -215,11 +200,9 @@ checkentry6(const char *tablename,
 }
 
 static bool
-checkentry6_v1(const char *tablename,
-	       const void *info,
-	       const struct xt_match *match,
-	       void *matchinfo,
-	       unsigned int hook_mask)
+multiport_mt6_check(const char *tablename, const void *info,
+                    const struct xt_match *match, void *matchinfo,
+                    unsigned int hook_mask)
 {
 	const struct ip6t_ip6 *ip = info;
 	const struct xt_multiport_v1 *multiinfo = matchinfo;
@@ -228,13 +211,13 @@ checkentry6_v1(const char *tablename,
 		     multiinfo->count);
 }
 
-static struct xt_match xt_multiport_match[] __read_mostly = {
+static struct xt_match multiport_mt_reg[] __read_mostly = {
 	{
 		.name		= "multiport",
 		.family		= AF_INET,
 		.revision	= 0,
-		.checkentry	= checkentry,
-		.match		= match,
+		.checkentry	= multiport_mt_check_v0,
+		.match		= multiport_mt_v0,
 		.matchsize	= sizeof(struct xt_multiport),
 		.me		= THIS_MODULE,
 	},
@@ -242,8 +225,8 @@ static struct xt_match xt_multiport_match[] __read_mostly = {
 		.name		= "multiport",
 		.family		= AF_INET,
 		.revision	= 1,
-		.checkentry	= checkentry_v1,
-		.match		= match_v1,
+		.checkentry	= multiport_mt_check,
+		.match		= multiport_mt,
 		.matchsize	= sizeof(struct xt_multiport_v1),
 		.me		= THIS_MODULE,
 	},
@@ -251,8 +234,8 @@ static struct xt_match xt_multiport_match[] __read_mostly = {
 		.name		= "multiport",
 		.family		= AF_INET6,
 		.revision	= 0,
-		.checkentry	= checkentry6,
-		.match		= match,
+		.checkentry	= multiport_mt6_check_v0,
+		.match		= multiport_mt_v0,
 		.matchsize	= sizeof(struct xt_multiport),
 		.me		= THIS_MODULE,
 	},
@@ -260,24 +243,23 @@ static struct xt_match xt_multiport_match[] __read_mostly = {
 		.name		= "multiport",
 		.family		= AF_INET6,
 		.revision	= 1,
-		.checkentry	= checkentry6_v1,
-		.match		= match_v1,
+		.checkentry	= multiport_mt6_check,
+		.match		= multiport_mt,
 		.matchsize	= sizeof(struct xt_multiport_v1),
 		.me		= THIS_MODULE,
 	},
 };
 
-static int __init xt_multiport_init(void)
+static int __init multiport_mt_init(void)
 {
-	return xt_register_matches(xt_multiport_match,
-				   ARRAY_SIZE(xt_multiport_match));
+	return xt_register_matches(multiport_mt_reg,
+	       ARRAY_SIZE(multiport_mt_reg));
 }
 
-static void __exit xt_multiport_fini(void)
+static void __exit multiport_mt_exit(void)
 {
-	xt_unregister_matches(xt_multiport_match,
-			      ARRAY_SIZE(xt_multiport_match));
+	xt_unregister_matches(multiport_mt_reg, ARRAY_SIZE(multiport_mt_reg));
 }
 
-module_init(xt_multiport_init);
-module_exit(xt_multiport_fini);
+module_init(multiport_mt_init);
+module_exit(multiport_mt_exit);

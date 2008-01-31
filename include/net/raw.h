@@ -22,27 +22,39 @@
 
 extern struct proto raw_prot;
 
-extern void 	raw_err(struct sock *, struct sk_buff *, u32 info);
+void raw_icmp_error(struct sk_buff *, int, u32);
+int raw_local_deliver(struct sk_buff *, int);
+
 extern int 	raw_rcv(struct sock *, struct sk_buff *);
 
-/* Note: v4 ICMP wants to get at this stuff, if you change the
- *       hashing mechanism, make sure you update icmp.c as well.
- */
-#define RAWV4_HTABLE_SIZE	MAX_INET_PROTOS
-extern struct hlist_head raw_v4_htable[RAWV4_HTABLE_SIZE];
+#define RAW_HTABLE_SIZE	MAX_INET_PROTOS
 
-extern rwlock_t raw_v4_lock;
-
-
-extern struct sock *__raw_v4_lookup(struct sock *sk, unsigned short num,
-				    __be32 raddr, __be32 laddr,
-				    int dif);
-
-extern int raw_v4_input(struct sk_buff *skb, struct iphdr *iph, int hash);
+struct raw_hashinfo {
+	rwlock_t lock;
+	struct hlist_head ht[RAW_HTABLE_SIZE];
+};
 
 #ifdef CONFIG_PROC_FS
 extern int  raw_proc_init(void);
 extern void raw_proc_exit(void);
+
+struct raw_iter_state {
+	struct seq_net_private p;
+	int bucket;
+	unsigned short family;
+	struct raw_hashinfo *h;
+};
+
+#define raw_seq_private(seq) ((struct raw_iter_state *)(seq)->private)
+void *raw_seq_start(struct seq_file *seq, loff_t *pos);
+void *raw_seq_next(struct seq_file *seq, void *v, loff_t *pos);
+void raw_seq_stop(struct seq_file *seq, void *v);
+int raw_seq_open(struct inode *ino, struct file *file, struct raw_hashinfo *h,
+		unsigned short family);
+
 #endif
+
+void raw_hash_sk(struct sock *sk, struct raw_hashinfo *h);
+void raw_unhash_sk(struct sock *sk, struct raw_hashinfo *h);
 
 #endif	/* _RAW_H */

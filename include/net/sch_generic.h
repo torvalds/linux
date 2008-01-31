@@ -66,7 +66,7 @@ struct Qdisc_class_ops
 	unsigned long		(*get)(struct Qdisc *, u32 classid);
 	void			(*put)(struct Qdisc *, unsigned long);
 	int			(*change)(struct Qdisc *, u32, u32,
-					struct rtattr **, unsigned long *);
+					struct nlattr **, unsigned long *);
 	int			(*delete)(struct Qdisc *, unsigned long);
 	void			(*walk)(struct Qdisc *, struct qdisc_walker * arg);
 
@@ -86,7 +86,7 @@ struct Qdisc_class_ops
 struct Qdisc_ops
 {
 	struct Qdisc_ops	*next;
-	struct Qdisc_class_ops	*cl_ops;
+	const struct Qdisc_class_ops	*cl_ops;
 	char			id[IFNAMSIZ];
 	int			priv_size;
 
@@ -95,10 +95,10 @@ struct Qdisc_ops
 	int 			(*requeue)(struct sk_buff *, struct Qdisc *);
 	unsigned int		(*drop)(struct Qdisc *);
 
-	int			(*init)(struct Qdisc *, struct rtattr *arg);
+	int			(*init)(struct Qdisc *, struct nlattr *arg);
 	void			(*reset)(struct Qdisc *);
 	void			(*destroy)(struct Qdisc *);
-	int			(*change)(struct Qdisc *, struct rtattr *arg);
+	int			(*change)(struct Qdisc *, struct nlattr *arg);
 
 	int			(*dump)(struct Qdisc *, struct sk_buff *);
 	int			(*dump_stats)(struct Qdisc *, struct gnet_dump *);
@@ -126,7 +126,7 @@ struct tcf_proto_ops
 	unsigned long		(*get)(struct tcf_proto*, u32 handle);
 	void			(*put)(struct tcf_proto*, unsigned long);
 	int			(*change)(struct tcf_proto*, unsigned long,
-					u32 handle, struct rtattr **,
+					u32 handle, struct nlattr **,
 					unsigned long *);
 	int			(*delete)(struct tcf_proto*, unsigned long);
 	void			(*walk)(struct tcf_proto*, struct tcf_walker *arg);

@@ -4,6 +4,11 @@ S/390 common I/O-Layer - command line parameters, procfs and debugfs entries
 Command line parameters
 -----------------------
 
+* ccw_timeout_log
+
+  Enable logging of debug information in case of ccw device timeouts.
+
+
 * cio_msg = yes | no
   
   Determines whether information on found devices and sensed device 

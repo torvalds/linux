@@ -1179,13 +1179,15 @@ static int __devinit ibmveth_probe(struct vio_dev *dev, const struct vio_device_
 
 	for(i = 0; i<IbmVethNumBufferPools; i++) {
 		struct kobject *kobj = &adapter->rx_buff_pool[i].kobj;
+		int error;
+
 		ibmveth_init_buffer_pool(&adapter->rx_buff_pool[i], i,
 					 pool_count[i], pool_size[i],
 					 pool_active[i]);
-		kobj->parent = &dev->dev.kobj;
-		kobject_set_name(kobj, "pool%d", i);
-		kobj->ktype = &ktype_veth_pool;
-		kobject_register(kobj);
+		error = kobject_init_and_add(kobj, &ktype_veth_pool,
+					     &dev->dev.kobj, "pool%d", i);
+		if (!error)
+			kobject_uevent(kobj, KOBJ_ADD);
 	}
 
 	ibmveth_debug_printk("adapter @ 0x%p\n", adapter);
@@ -1234,7 +1236,7 @@ static int __devexit ibmveth_remove(struct vio_dev *dev)
 	int i;
 
 	for(i = 0; i<IbmVethNumBufferPools; i++)
-		kobject_unregister(&adapter->rx_buff_pool[i].kobj);
+		kobject_put(&adapter->rx_buff_pool[i].kobj);
 
 	unregister_netdev(netdev);
 

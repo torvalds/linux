@@ -33,26 +33,33 @@ static struct tcf_hashinfo pedit_hash_info = {
 	.lock	=	&pedit_lock,
 };
 
-static int tcf_pedit_init(struct rtattr *rta, struct rtattr *est,
+static const struct nla_policy pedit_policy[TCA_PEDIT_MAX + 1] = {
+	[TCA_PEDIT_PARMS]	= { .len = sizeof(struct tcf_pedit) },
+};
+
+static int tcf_pedit_init(struct nlattr *nla, struct nlattr *est,
 			  struct tc_action *a, int ovr, int bind)
 {
-	struct rtattr *tb[TCA_PEDIT_MAX];
+	struct nlattr *tb[TCA_PEDIT_MAX + 1];
 	struct tc_pedit *parm;
-	int ret = 0;
+	int ret = 0, err;
 	struct tcf_pedit *p;
 	struct tcf_common *pc;
 	struct tc_pedit_key *keys = NULL;
 	int ksize;
 
-	if (rta == NULL || rtattr_parse_nested(tb, TCA_PEDIT_MAX, rta) < 0)
+	if (nla == NULL)
 		return -EINVAL;
 
-	if (tb[TCA_PEDIT_PARMS - 1] == NULL ||
-	    RTA_PAYLOAD(tb[TCA_PEDIT_PARMS-1]) < sizeof(*parm))
+	err = nla_parse_nested(tb, TCA_PEDIT_MAX, nla, pedit_policy);
+	if (err < 0)
+		return err;
+
+	if (tb[TCA_PEDIT_PARMS] == NULL)
 		return -EINVAL;
-	parm = RTA_DATA(tb[TCA_PEDIT_PARMS-1]);
+	parm = nla_data(tb[TCA_PEDIT_PARMS]);
 	ksize = parm->nkeys * sizeof(struct tc_pedit_key);
-	if (RTA_PAYLOAD(tb[TCA_PEDIT_PARMS-1]) < sizeof(*parm) + ksize)
+	if (nla_len(tb[TCA_PEDIT_PARMS]) < sizeof(*parm) + ksize)
 		return -EINVAL;
 
 	pc = tcf_hash_check(parm->index, a, bind, &pedit_hash_info);
@@ -206,15 +213,15 @@ static int tcf_pedit_dump(struct sk_buff *skb, struct tc_action *a,
 	opt->refcnt = p->tcf_refcnt - ref;
 	opt->bindcnt = p->tcf_bindcnt - bind;
 
-	RTA_PUT(skb, TCA_PEDIT_PARMS, s, opt);
+	NLA_PUT(skb, TCA_PEDIT_PARMS, s, opt);
 	t.install = jiffies_to_clock_t(jiffies - p->tcf_tm.install);
 	t.lastuse = jiffies_to_clock_t(jiffies - p->tcf_tm.lastuse);
 	t.expires = jiffies_to_clock_t(p->tcf_tm.expires);
-	RTA_PUT(skb, TCA_PEDIT_TM, sizeof(t), &t);
+	NLA_PUT(skb, TCA_PEDIT_TM, sizeof(t), &t);
 	kfree(opt);
 	return skb->len;
 
-rtattr_failure:
+nla_put_failure:
 	nlmsg_trim(skb, b);
 	kfree(opt);
 	return -1;

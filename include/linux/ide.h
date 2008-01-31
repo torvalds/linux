@@ -27,25 +27,10 @@
 #include <asm/semaphore.h>
 #include <asm/mutex.h>
 
-/******************************************************************************
- * IDE driver configuration options (play with these as desired):
- *
- * REALLY_SLOW_IO can be defined in ide.c and ide-cd.c, if necessary
- */
-#define INITIAL_MULT_COUNT	0	/* off=0; on=2,4,8,16,32, etc.. */
-
-#ifndef SUPPORT_SLOW_DATA_PORTS		/* 1 to support slow data ports */
-#define SUPPORT_SLOW_DATA_PORTS	1	/* 0 to reduce kernel size */
-#endif
-#ifndef SUPPORT_VLB_SYNC		/* 1 to support weird 32-bit chips */
-#define SUPPORT_VLB_SYNC	1	/* 0 to reduce kernel size */
-#endif
-#ifndef OK_TO_RESET_CONTROLLER		/* 1 needed for good error recovery */
-#define OK_TO_RESET_CONTROLLER	1	/* 0 for use with AH2372A/B interface */
-#endif
-
-#ifndef DISABLE_IRQ_NOSYNC
-#define DISABLE_IRQ_NOSYNC	0
+#if defined(CRIS) || defined(FRV)
+# define SUPPORT_VLB_SYNC 0
+#else
+# define SUPPORT_VLB_SYNC 1
 #endif
 
 /*
@@ -54,10 +39,6 @@
  */
  
 #define IDE_NO_IRQ		(-1)
-
-/*
- *  "No user-serviceable parts" beyond this point  :)
- *****************************************************************************/
 
 typedef unsigned char	byte;	/* used everywhere */
 
@@ -103,8 +84,6 @@ typedef unsigned char	byte;	/* used everywhere */
 #define IDE_FEATURE_OFFSET	IDE_ERROR_OFFSET
 #define IDE_COMMAND_OFFSET	IDE_STATUS_OFFSET
 
-#define IDE_CONTROL_OFFSET_HOB	(7)
-
 #define IDE_DATA_REG		(HWIF(drive)->io_ports[IDE_DATA_OFFSET])
 #define IDE_ERROR_REG		(HWIF(drive)->io_ports[IDE_ERROR_OFFSET])
 #define IDE_NSECTOR_REG		(HWIF(drive)->io_ports[IDE_NSECTOR_OFFSET])
@@ -128,7 +107,6 @@ typedef unsigned char	byte;	/* used everywhere */
 #define BAD_W_STAT		(BAD_R_STAT  | WRERR_STAT)
 #define BAD_STAT		(BAD_R_STAT  | DRQ_STAT)
 #define DRIVE_READY		(READY_STAT  | SEEK_STAT)
-#define DATA_READY		(DRQ_STAT)
 
 #define BAD_CRC			(ABRT_ERR    | ICRC_ERR)
 
@@ -219,8 +197,11 @@ typedef struct hw_regs_s {
 } hw_regs_t;
 
 struct hwif_s * ide_find_port(unsigned long);
+void ide_init_port_data(struct hwif_s *, unsigned int);
+void ide_init_port_hw(struct hwif_s *, hw_regs_t *);
 
-int ide_register_hw(hw_regs_t *, void (*)(struct hwif_s *), int,
+struct ide_drive_s;
+int ide_register_hw(hw_regs_t *, void (*)(struct ide_drive_s *),
 		    struct hwif_s **);
 
 void ide_setup_ports(	hw_regs_t *hw,
@@ -327,45 +308,14 @@ static inline void ide_init_hwif_ports(hw_regs_t *hw,
 typedef union {
 	unsigned all			: 8;
 	struct {
-#if defined(__LITTLE_ENDIAN_BITFIELD)
 		unsigned set_geometry	: 1;
 		unsigned recalibrate	: 1;
 		unsigned set_multmode	: 1;
 		unsigned set_tune	: 1;
 		unsigned serviced	: 1;
 		unsigned reserved	: 3;
-#elif defined(__BIG_ENDIAN_BITFIELD)
-		unsigned reserved	: 3;
-		unsigned serviced	: 1;
-		unsigned set_tune	: 1;
-		unsigned set_multmode	: 1;
-		unsigned recalibrate	: 1;
-		unsigned set_geometry	: 1;
-#else
-#error "Please fix <asm/byteorder.h>"
-#endif
 	} b;
 } special_t;
-
-/*
- * ATA DATA Register Special.
- * ATA NSECTOR Count Register().
- * ATAPI Byte Count Register.
- */
-typedef union {
-	unsigned all			:16;
-	struct {
-#if defined(__LITTLE_ENDIAN_BITFIELD)
-		unsigned low		:8;	/* LSB */
-		unsigned high		:8;	/* MSB */
-#elif defined(__BIG_ENDIAN_BITFIELD)
-		unsigned high		:8;	/* MSB */
-		unsigned low		:8;	/* LSB */
-#else
-#error "Please fix <asm/byteorder.h>"
-#endif
-	} b;
-} ata_nsector_t, ata_data_t, atapi_bcount_t;
 
 /*
  * ATA-IDE Select Register, aka Device-Head
@@ -396,131 +346,6 @@ typedef union {
 #endif
 	} b;
 } select_t, ata_select_t;
-
-/*
- * The ATA-IDE Status Register.
- * The ATAPI Status Register.
- *
- * check	: Error occurred
- * idx		: Index Error
- * corr		: Correctable error occurred
- * drq		: Data is request by the device
- * dsc		: Disk Seek Complete			: ata
- *		: Media access command finished		: atapi
- * df		: Device Fault				: ata
- *		: Reserved				: atapi
- * drdy		: Ready, Command Mode Capable		: ata
- *		: Ignored for ATAPI commands		: atapi
- * bsy		: Disk is Busy
- *		: The device has access to the command block
- */
-typedef union {
-	unsigned all			:8;
-	struct {
-#if defined(__LITTLE_ENDIAN_BITFIELD)
-		unsigned check		:1;
-		unsigned idx		:1;
-		unsigned corr		:1;
-		unsigned drq		:1;
-		unsigned dsc		:1;
-		unsigned df		:1;
-		unsigned drdy		:1;
-		unsigned bsy		:1;
-#elif defined(__BIG_ENDIAN_BITFIELD)
-		unsigned bsy		:1;
-		unsigned drdy		:1;
-		unsigned df		:1;
-		unsigned dsc		:1;
-		unsigned drq		:1;
-		unsigned corr           :1;
-		unsigned idx		:1;
-		unsigned check		:1;
-#else
-#error "Please fix <asm/byteorder.h>"
-#endif
-	} b;
-} ata_status_t, atapi_status_t;
-
-/*
- * ATAPI Feature Register
- *
- * dma		: Using DMA or PIO
- * reserved321	: Reserved
- * reserved654	: Reserved (Tag Type)
- * reserved7	: Reserved
- */
-typedef union {
-	unsigned all			:8;
-	struct {
-#if defined(__LITTLE_ENDIAN_BITFIELD)
-		unsigned dma		:1;
-		unsigned reserved321	:3;
-		unsigned reserved654	:3;
-		unsigned reserved7	:1;
-#elif defined(__BIG_ENDIAN_BITFIELD)
-		unsigned reserved7	:1;
-		unsigned reserved654	:3;
-		unsigned reserved321	:3;
-		unsigned dma		:1;
-#else
-#error "Please fix <asm/byteorder.h>"
-#endif
-	} b;
-} atapi_feature_t;
-
-/*
- * ATAPI Interrupt Reason Register.
- *
- * cod		: Information transferred is command (1) or data (0)
- * io		: The device requests us to read (1) or write (0)
- * reserved	: Reserved
- */
-typedef union {
-	unsigned all			:8;
-	struct {
-#if defined(__LITTLE_ENDIAN_BITFIELD)
-		unsigned cod		:1;
-		unsigned io		:1;
-		unsigned reserved	:6;
-#elif defined(__BIG_ENDIAN_BITFIELD)
-		unsigned reserved	:6;
-		unsigned io		:1;
-		unsigned cod		:1;
-#else
-#error "Please fix <asm/byteorder.h>"
-#endif
-	} b;
-} atapi_ireason_t;
-
-/*
- * The ATAPI error register.
- *
- * ili		: Illegal Length Indication
- * eom		: End Of Media Detected
- * abrt		: Aborted command - As defined by ATA
- * mcr		: Media Change Requested - As defined by ATA
- * sense_key	: Sense key of the last failed packet command
- */
-typedef union {
-	unsigned all			:8;
-	struct {
-#if defined(__LITTLE_ENDIAN_BITFIELD)
-		unsigned ili		:1;
-		unsigned eom		:1;
-		unsigned abrt		:1;
-		unsigned mcr		:1;
-		unsigned sense_key	:4;
-#elif defined(__BIG_ENDIAN_BITFIELD)
-		unsigned sense_key	:4;
-		unsigned mcr		:1;
-		unsigned abrt		:1;
-		unsigned eom		:1;
-		unsigned ili		:1;
-#else
-#error "Please fix <asm/byteorder.h>"
-#endif
-	} b;
-} atapi_error_t;
 
 /*
  * Status returned from various ide_ functions
@@ -568,7 +393,6 @@ typedef struct ide_drive_s {
 	u8	state;			/* retry state */
 	u8	waiting_for_dma;	/* dma currently in progress */
 	u8	unmask;			/* okay to unmask other irqs */
-	u8	bswap;			/* byte swap data */
 	u8	noflush;		/* don't attempt flushes */
 	u8	dsc_overlap;		/* DSC overlap */
 	u8	nice1;			/* give potential excess bandwidth */
@@ -701,19 +525,15 @@ typedef struct hwif_s {
 	void	(*pre_reset)(ide_drive_t *);
 	/* routine to reset controller after a disk reset */
 	void	(*resetproc)(ide_drive_t *);
-	/* special interrupt handling for shared pci interrupts */
-	void	(*intrproc)(ide_drive_t *);
 	/* special host masking for drive selection */
 	void	(*maskproc)(ide_drive_t *, int);
 	/* check host's drive quirk list */
-	int	(*quirkproc)(ide_drive_t *);
+	void	(*quirkproc)(ide_drive_t *);
 	/* driver soft-power interface */
 	int	(*busproc)(ide_drive_t *, int);
 #endif
 	u8 (*mdma_filter)(ide_drive_t *);
 	u8 (*udma_filter)(ide_drive_t *);
-
-	void (*fixup)(struct hwif_s *);
 
 	void (*ata_input_data)(ide_drive_t *, void *, u32);
 	void (*ata_output_data)(ide_drive_t *, void *, u32);
@@ -721,16 +541,13 @@ typedef struct hwif_s {
 	void (*atapi_input_bytes)(ide_drive_t *, void *, u32);
 	void (*atapi_output_bytes)(ide_drive_t *, void *, u32);
 
+	void (*dma_host_set)(ide_drive_t *, int);
 	int (*dma_setup)(ide_drive_t *);
 	void (*dma_exec_cmd)(ide_drive_t *, u8);
 	void (*dma_start)(ide_drive_t *);
 	int (*ide_dma_end)(ide_drive_t *drive);
-	int (*ide_dma_on)(ide_drive_t *drive);
-	void (*dma_off_quietly)(ide_drive_t *drive);
 	int (*ide_dma_test_irq)(ide_drive_t *drive);
 	void (*ide_dma_clear_irq)(ide_drive_t *drive);
-	void (*dma_host_on)(ide_drive_t *drive);
-	void (*dma_host_off)(ide_drive_t *drive);
 	void (*dma_lost_irq)(ide_drive_t *drive);
 	void (*dma_timeout)(ide_drive_t *drive);
 
@@ -766,7 +583,6 @@ typedef struct hwif_s {
 	int		rqsize;		/* max sectors per request */
 	int		irq;		/* our irq number */
 
-	unsigned long	dma_master;	/* reference base addr dmabase */
 	unsigned long	dma_base;	/* base addr for dma ports */
 	unsigned long	dma_command;	/* dma command register */
 	unsigned long	dma_vendor1;	/* dma vendor 1 register */
@@ -806,7 +622,6 @@ typedef struct hwif_s {
 /*
  *  internal ide interrupt handler type
  */
-typedef ide_startstop_t (ide_pre_handler_t)(ide_drive_t *, struct request *);
 typedef ide_startstop_t (ide_handler_t)(ide_drive_t *);
 typedef int (ide_expiry_t)(ide_drive_t *);
 
@@ -1020,7 +835,8 @@ int ide_end_dequeued_request(ide_drive_t *drive, struct request *rq,
 
 extern void ide_set_handler (ide_drive_t *drive, ide_handler_t *handler, unsigned int timeout, ide_expiry_t *expiry);
 
-extern void ide_execute_command(ide_drive_t *, task_ioreg_t cmd, ide_handler_t *, unsigned int, ide_expiry_t *);
+void ide_execute_command(ide_drive_t *, u8, ide_handler_t *, unsigned int,
+			 ide_expiry_t *);
 
 ide_startstop_t __ide_error(ide_drive_t *, struct request *, u8, u8);
 
@@ -1054,60 +870,126 @@ extern int ide_do_drive_cmd(ide_drive_t *, struct request *, ide_action_t);
 
 extern void ide_end_drive_cmd(ide_drive_t *, u8, u8);
 
-/*
- * Issue ATA command and wait for completion.
- * Use for implementing commands in kernel
- *
- *  (ide_drive_t *drive, u8 cmd, u8 nsect, u8 feature, u8 sectors, u8 *buf)
- */
-extern int ide_wait_cmd(ide_drive_t *, u8, u8, u8, u8, u8 *);
+enum {
+	IDE_TFLAG_LBA48			= (1 << 0),
+	IDE_TFLAG_NO_SELECT_MASK	= (1 << 1),
+	IDE_TFLAG_FLAGGED		= (1 << 2),
+	IDE_TFLAG_OUT_DATA		= (1 << 3),
+	IDE_TFLAG_OUT_HOB_FEATURE	= (1 << 4),
+	IDE_TFLAG_OUT_HOB_NSECT		= (1 << 5),
+	IDE_TFLAG_OUT_HOB_LBAL		= (1 << 6),
+	IDE_TFLAG_OUT_HOB_LBAM		= (1 << 7),
+	IDE_TFLAG_OUT_HOB_LBAH		= (1 << 8),
+	IDE_TFLAG_OUT_HOB		= IDE_TFLAG_OUT_HOB_FEATURE |
+					  IDE_TFLAG_OUT_HOB_NSECT |
+					  IDE_TFLAG_OUT_HOB_LBAL |
+					  IDE_TFLAG_OUT_HOB_LBAM |
+					  IDE_TFLAG_OUT_HOB_LBAH,
+	IDE_TFLAG_OUT_FEATURE		= (1 << 9),
+	IDE_TFLAG_OUT_NSECT		= (1 << 10),
+	IDE_TFLAG_OUT_LBAL		= (1 << 11),
+	IDE_TFLAG_OUT_LBAM		= (1 << 12),
+	IDE_TFLAG_OUT_LBAH		= (1 << 13),
+	IDE_TFLAG_OUT_TF		= IDE_TFLAG_OUT_FEATURE |
+					  IDE_TFLAG_OUT_NSECT |
+					  IDE_TFLAG_OUT_LBAL |
+					  IDE_TFLAG_OUT_LBAM |
+					  IDE_TFLAG_OUT_LBAH,
+	IDE_TFLAG_OUT_DEVICE		= (1 << 14),
+	IDE_TFLAG_WRITE			= (1 << 15),
+	IDE_TFLAG_FLAGGED_SET_IN_FLAGS	= (1 << 16),
+	IDE_TFLAG_IN_DATA		= (1 << 17),
+	IDE_TFLAG_CUSTOM_HANDLER	= (1 << 18),
+	IDE_TFLAG_DMA_PIO_FALLBACK	= (1 << 19),
+	IDE_TFLAG_IN_HOB_FEATURE	= (1 << 20),
+	IDE_TFLAG_IN_HOB_NSECT		= (1 << 21),
+	IDE_TFLAG_IN_HOB_LBAL		= (1 << 22),
+	IDE_TFLAG_IN_HOB_LBAM		= (1 << 23),
+	IDE_TFLAG_IN_HOB_LBAH		= (1 << 24),
+	IDE_TFLAG_IN_HOB_LBA		= IDE_TFLAG_IN_HOB_LBAL |
+					  IDE_TFLAG_IN_HOB_LBAM |
+					  IDE_TFLAG_IN_HOB_LBAH,
+	IDE_TFLAG_IN_HOB		= IDE_TFLAG_IN_HOB_FEATURE |
+					  IDE_TFLAG_IN_HOB_NSECT |
+					  IDE_TFLAG_IN_HOB_LBA,
+	IDE_TFLAG_IN_NSECT		= (1 << 25),
+	IDE_TFLAG_IN_LBAL		= (1 << 26),
+	IDE_TFLAG_IN_LBAM		= (1 << 27),
+	IDE_TFLAG_IN_LBAH		= (1 << 28),
+	IDE_TFLAG_IN_LBA		= IDE_TFLAG_IN_LBAL |
+					  IDE_TFLAG_IN_LBAM |
+					  IDE_TFLAG_IN_LBAH,
+	IDE_TFLAG_IN_TF			= IDE_TFLAG_IN_NSECT |
+					  IDE_TFLAG_IN_LBA,
+	IDE_TFLAG_IN_DEVICE		= (1 << 29),
+	IDE_TFLAG_HOB			= IDE_TFLAG_OUT_HOB |
+					  IDE_TFLAG_IN_HOB,
+	IDE_TFLAG_TF			= IDE_TFLAG_OUT_TF |
+					  IDE_TFLAG_IN_TF,
+	IDE_TFLAG_DEVICE		= IDE_TFLAG_OUT_DEVICE |
+					  IDE_TFLAG_IN_DEVICE,
+	/* force 16-bit I/O operations */
+	IDE_TFLAG_IO_16BIT		= (1 << 30),
+};
+
+struct ide_taskfile {
+	u8	hob_data;	/*  0: high data byte (for TASKFILE IOCTL) */
+
+	u8	hob_feature;	/*  1-5: additional data to support LBA48 */
+	u8	hob_nsect;
+	u8	hob_lbal;
+	u8	hob_lbam;
+	u8	hob_lbah;
+
+	u8	data;		/*  6: low data byte (for TASKFILE IOCTL) */
+
+	union {			/*  7: */
+		u8 error;	/*   read:  error */
+		u8 feature;	/*  write: feature */
+	};
+
+	u8	nsect;		/*  8: number of sectors */
+	u8	lbal;		/*  9: LBA low */
+	u8	lbam;		/* 10: LBA mid */
+	u8	lbah;		/* 11: LBA high */
+
+	u8	device;		/* 12: device select */
+
+	union {			/* 13: */
+		u8 status;	/*  read: status  */
+		u8 command;	/* write: command */
+	};
+};
 
 typedef struct ide_task_s {
-/*
- *	struct hd_drive_task_hdr	tf;
- *	task_struct_t		tf;
- *	struct hd_drive_hob_hdr		hobf;
- *	hob_struct_t		hobf;
- */
-	task_ioreg_t		tfRegister[8];
-	task_ioreg_t		hobRegister[8];
-	ide_reg_valid_t		tf_out_flags;
-	ide_reg_valid_t		tf_in_flags;
+	union {
+		struct ide_taskfile	tf;
+		u8			tf_array[14];
+	};
+	u32			tf_flags;
 	int			data_phase;
-	int			command_type;
-	ide_pre_handler_t	*prehandler;
-	ide_handler_t		*handler;
 	struct request		*rq;		/* copy of request */
 	void			*special;	/* valid_t generally */
 } ide_task_t;
 
-extern u32 ide_read_24(ide_drive_t *);
+void ide_tf_load(ide_drive_t *, ide_task_t *);
+void ide_tf_read(ide_drive_t *, ide_task_t *);
 
 extern void SELECT_DRIVE(ide_drive_t *);
-extern void SELECT_INTERRUPT(ide_drive_t *);
 extern void SELECT_MASK(ide_drive_t *, int);
-extern void QUIRK_LIST(ide_drive_t *);
 
 extern int drive_is_ready(ide_drive_t *);
 
-/*
- * taskfile io for disks for now...and builds request from ide_ioctl
- */
-extern ide_startstop_t do_rw_taskfile(ide_drive_t *, ide_task_t *);
+void ide_pktcmd_tf_load(ide_drive_t *, u32, u16, u8);
 
-/*
- * Special Flagged Register Validation Caller
- */
-extern ide_startstop_t flagged_taskfile(ide_drive_t *, ide_task_t *);
+ide_startstop_t do_rw_taskfile(ide_drive_t *, ide_task_t *);
 
-extern ide_startstop_t set_multmode_intr(ide_drive_t *);
-extern ide_startstop_t set_geometry_intr(ide_drive_t *);
-extern ide_startstop_t recal_intr(ide_drive_t *);
-extern ide_startstop_t task_no_data_intr(ide_drive_t *);
-extern ide_startstop_t task_in_intr(ide_drive_t *);
-extern ide_startstop_t pre_task_out_intr(ide_drive_t *, struct request *);
+void task_end_request(ide_drive_t *, struct request *, u8);
 
-extern int ide_raw_taskfile(ide_drive_t *, ide_task_t *, u8 *);
+u8 wait_drive_not_busy(ide_drive_t *);
+
+int ide_raw_taskfile(ide_drive_t *, ide_task_t *, u8 *, u16);
+int ide_no_data_taskfile(ide_drive_t *, ide_task_t *);
 
 int ide_taskfile_ioctl(ide_drive_t *, unsigned int, unsigned long);
 int ide_cmd_ioctl(ide_drive_t *, unsigned int, unsigned long);
@@ -1133,10 +1015,9 @@ extern void do_ide_request(struct request_queue *);
 
 void ide_init_disk(struct gendisk *, ide_drive_t *);
 
-extern int ideprobe_init(void);
-
 #ifdef CONFIG_IDEPCI_PCIBUS_ORDER
-extern void ide_scan_pcibus(int scan_direction) __init;
+extern int ide_scan_direction;
+int __init ide_scan_pcibus(void);
 extern int __ide_pci_register_driver(struct pci_driver *driver, struct module *owner, const char *mod_name);
 #define ide_pci_register_driver(d) __ide_pci_register_driver(d, THIS_MODULE, KBUILD_MODNAME)
 #else
@@ -1212,6 +1093,9 @@ enum {
 	IDE_HFLAG_IO_32BIT		= (1 << 24),
 	/* unmask IRQs */
 	IDE_HFLAG_UNMASK_IRQS		= (1 << 25),
+	IDE_HFLAG_ABUSE_SET_DMA_MODE	= (1 << 26),
+	/* host is CY82C693 */
+	IDE_HFLAG_CY82C693		= (1 << 27),
 };
 
 #ifdef CONFIG_BLK_DEV_OFFBOARD
@@ -1226,10 +1110,9 @@ struct ide_port_info {
 	void			(*init_iops)(ide_hwif_t *);
 	void                    (*init_hwif)(ide_hwif_t *);
 	void			(*init_dma)(ide_hwif_t *, unsigned long);
-	void			(*fixup)(ide_hwif_t *);
 	ide_pci_enablebit_t	enablebits[2];
 	hwif_chipset_t		chipset;
-	unsigned int		extra;
+	u8			extra;
 	u32			host_flags;
 	u8			pio_mask;
 	u8			swdma_mask;
@@ -1264,7 +1147,9 @@ static inline u8 ide_max_dma_mode(ide_drive_t *drive)
 	return ide_find_dma_mode(drive, XFER_UDMA_6);
 }
 
+void ide_dma_off_quietly(ide_drive_t *);
 void ide_dma_off(ide_drive_t *);
+void ide_dma_on(ide_drive_t *);
 int ide_set_dma(ide_drive_t *);
 ide_startstop_t ide_dma_intr(ide_drive_t *);
 
@@ -1275,10 +1160,7 @@ extern void ide_destroy_dmatable(ide_drive_t *);
 extern int ide_release_dma(ide_hwif_t *);
 extern void ide_setup_dma(ide_hwif_t *, unsigned long, unsigned int);
 
-void ide_dma_host_off(ide_drive_t *);
-void ide_dma_off_quietly(ide_drive_t *);
-void ide_dma_host_on(ide_drive_t *);
-extern int __ide_dma_on(ide_drive_t *);
+void ide_dma_host_set(ide_drive_t *, int);
 extern int ide_dma_setup(ide_drive_t *);
 extern void ide_dma_start(ide_drive_t *);
 extern int __ide_dma_end(ide_drive_t *);
@@ -1290,7 +1172,9 @@ extern void ide_dma_timeout(ide_drive_t *);
 static inline int ide_id_dma_bug(ide_drive_t *drive) { return 0; }
 static inline u8 ide_find_dma_mode(ide_drive_t *drive, u8 speed) { return 0; }
 static inline u8 ide_max_dma_mode(ide_drive_t *drive) { return 0; }
+static inline void ide_dma_off_quietly(ide_drive_t *drive) { ; }
 static inline void ide_dma_off(ide_drive_t *drive) { ; }
+static inline void ide_dma_on(ide_drive_t *drive) { ; }
 static inline void ide_dma_verbose(ide_drive_t *drive) { ; }
 static inline int ide_set_dma(ide_drive_t *drive) { return 1; }
 #endif /* CONFIG_BLK_DEV_IDEDMA */
@@ -1320,8 +1204,9 @@ extern void ide_unregister (unsigned int index);
 void ide_register_region(struct gendisk *);
 void ide_unregister_region(struct gendisk *);
 
-void ide_undecoded_slave(ide_hwif_t *);
+void ide_undecoded_slave(ide_drive_t *);
 
+int ide_device_add_all(u8 *idx);
 int ide_device_add(u8 idx[4]);
 
 static inline void *ide_get_hwifdata (ide_hwif_t * hwif)
@@ -1356,6 +1241,7 @@ static inline int ide_dev_is_sata(struct hd_driveid *id)
 	return 0;
 }
 
+u64 ide_get_lba_addr(struct ide_taskfile *, int);
 u8 ide_dump_status(ide_drive_t *, const char *, u8);
 
 typedef struct ide_pio_timings_s {
@@ -1416,6 +1302,11 @@ static inline ide_drive_t *ide_get_paired_drive(ide_drive_t *drive)
 	ide_hwif_t *hwif	= HWIF(drive);
 
 	return &hwif->drives[(drive->dn ^ 1) & 1];
+}
+
+static inline void ide_set_irq(ide_drive_t *drive, int on)
+{
+	drive->hwif->OUTB(drive->ctl | (on ? 0 : 2), IDE_CONTROL_REG);
 }
 
 #endif /* _IDE_H */

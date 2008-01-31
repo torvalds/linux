@@ -42,17 +42,6 @@
 #include "aic7xxx_osm.h"
 #include "aic7xxx_pci.h"
 
-static int	ahc_linux_pci_dev_probe(struct pci_dev *pdev,
-					const struct pci_device_id *ent);
-static int	ahc_linux_pci_reserve_io_region(struct ahc_softc *ahc,
-						u_long *base);
-static int	ahc_linux_pci_reserve_mem_region(struct ahc_softc *ahc,
-						 u_long *bus_addr,
-						 uint8_t __iomem **maddr);
-static int	ahc_linux_pci_dev_suspend(struct pci_dev *pdev, pm_message_t mesg);
-static int	ahc_linux_pci_dev_resume(struct pci_dev *pdev);
-static void	ahc_linux_pci_dev_remove(struct pci_dev *pdev);
-
 /* Define the macro locally since it's different for different class of chips.
 */
 #define ID(x)	ID_C(x, PCI_CLASS_STORAGE_SCSI)
@@ -132,17 +121,7 @@ static struct pci_device_id ahc_linux_pci_id_table[] = {
 
 MODULE_DEVICE_TABLE(pci, ahc_linux_pci_id_table);
 
-static struct pci_driver aic7xxx_pci_driver = {
-	.name		= "aic7xxx",
-	.probe		= ahc_linux_pci_dev_probe,
 #ifdef CONFIG_PM
-	.suspend	= ahc_linux_pci_dev_suspend,
-	.resume		= ahc_linux_pci_dev_resume,
-#endif
-	.remove		= ahc_linux_pci_dev_remove,
-	.id_table	= ahc_linux_pci_id_table
-};
-
 static int
 ahc_linux_pci_dev_suspend(struct pci_dev *pdev, pm_message_t mesg)
 {
@@ -182,6 +161,7 @@ ahc_linux_pci_dev_resume(struct pci_dev *pdev)
 
 	return (ahc_resume(ahc));
 }
+#endif
 
 static void
 ahc_linux_pci_dev_remove(struct pci_dev *pdev)
@@ -288,6 +268,17 @@ ahc_linux_pci_dev_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ahc_linux_register_host(ahc, &aic7xxx_driver_template);
 	return (0);
 }
+
+static struct pci_driver aic7xxx_pci_driver = {
+	.name		= "aic7xxx",
+	.probe		= ahc_linux_pci_dev_probe,
+#ifdef CONFIG_PM
+	.suspend	= ahc_linux_pci_dev_suspend,
+	.resume		= ahc_linux_pci_dev_resume,
+#endif
+	.remove		= ahc_linux_pci_dev_remove,
+	.id_table	= ahc_linux_pci_id_table
+};
 
 int
 ahc_linux_pci_init(void)

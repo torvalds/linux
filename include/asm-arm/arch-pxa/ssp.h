@@ -13,10 +13,37 @@
  *       PXA255     SSP, NSSP
  *       PXA26x     SSP, NSSP, ASSP
  *       PXA27x     SSP1, SSP2, SSP3
+ *       PXA3xx     SSP1, SSP2, SSP3, SSP4
  */
 
-#ifndef SSP_H
-#define SSP_H
+#ifndef __ASM_ARCH_SSP_H
+#define __ASM_ARCH_SSP_H
+
+#include <linux/list.h>
+
+enum pxa_ssp_type {
+	SSP_UNDEFINED = 0,
+	PXA25x_SSP,  /* pxa 210, 250, 255, 26x */
+	PXA25x_NSSP, /* pxa 255, 26x (including ASSP) */
+	PXA27x_SSP,
+};
+
+struct ssp_device {
+	struct platform_device *pdev;
+	struct list_head	node;
+
+	struct clk	*clk;
+	void __iomem	*mmio_base;
+	unsigned long	phys_base;
+
+	const char	*label;
+	int		port_id;
+	int		type;
+	int		use_count;
+	int		irq;
+	int		drcmr_rx;
+	int		drcmr_tx;
+};
 
 /*
  * SSP initialisation flags
@@ -31,6 +58,7 @@ struct ssp_state {
 };
 
 struct ssp_dev {
+	struct ssp_device *ssp;
 	u32 port;
 	u32 mode;
 	u32 flags;
@@ -50,4 +78,6 @@ int ssp_init(struct ssp_dev *dev, u32 port, u32 init_flags);
 int ssp_config(struct ssp_dev *dev, u32 mode, u32 flags, u32 psp_flags, u32 speed);
 void ssp_exit(struct ssp_dev *dev);
 
-#endif
+struct ssp_device *ssp_request(int port, const char *label);
+void ssp_free(struct ssp_device *);
+#endif /* __ASM_ARCH_SSP_H */

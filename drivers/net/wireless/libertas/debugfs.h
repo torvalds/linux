@@ -1,6 +1,10 @@
-void libertas_debugfs_init(void);
-void libertas_debugfs_remove(void);
+#ifndef _LBS_DEBUGFS_H_
+#define _LBS_DEBUGFS_H_
 
-void libertas_debugfs_init_one(wlan_private *priv, struct net_device *dev);
-void libertas_debugfs_remove_one(wlan_private *priv);
+void lbs_debugfs_init(void);
+void lbs_debugfs_remove(void);
 
+void lbs_debugfs_init_one(struct lbs_private *priv, struct net_device *dev);
+void lbs_debugfs_remove_one(struct lbs_private *priv);
+
+#endif

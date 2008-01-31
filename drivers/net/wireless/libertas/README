@@ -195,45 +195,33 @@ setuserscan
 
          where [ARGS]:
 
-      chan=[chan#][band][mode] where band is [a,b,g] and mode is
-                               blank for active or 'p' for passive
       bssid=xx:xx:xx:xx:xx:xx  specify a BSSID filter for the scan
       ssid="[SSID]"            specify a SSID filter for the scan
       keep=[0 or 1]            keep the previous scan results (1), discard (0)
       dur=[scan time]          time to scan for each channel in milliseconds
-      probes=[#]               number of probe requests to send on each chan
       type=[1,2,3]             BSS type: 1 (Infra), 2(Adhoc), 3(Any)
 
-    Any combination of the above arguments can be supplied on the command line.
-      If the chan token is absent, a full channel scan will be completed by
-      the driver.  If the dur or probes tokens are absent, the driver default
-      setting will be used.  The bssid and ssid fields, if blank,
-      will produce an unfiltered scan. The type field will default to 3 (Any)
-      and the keep field will default to 0 (Discard).
+    Any combination of the above arguments can be supplied on the command
+    line. If dur tokens are absent, the driver default setting will be used.
+    The bssid and ssid fields, if blank, will produce an unfiltered scan.
+    The type field will default to 3 (Any) and the keep field will default
+    to 0 (Discard).
 
     Examples:
-    1) Perform an active scan on channels 1, 6, and 11 in the 'g' band:
-            echo "chan=1g,6g,11g" > setuserscan
+    1) Perform a passive scan on all channels for 20 ms per channel:
+            echo "dur=20" > setuserscan
 
-    2) Perform a passive scan on channel 11 for 20 ms:
-            echo "chan=11gp dur=20" > setuserscan
+    2) Perform an active scan for a specific SSID:
+            echo "ssid="TestAP"" > setuserscan
 
-    3) Perform an active scan on channels 1, 6, and 11; and a passive scan on
-       channel 36 in the 'a' band:
-
-            echo "chan=1g,6g,11g,36ap" > setuserscan
-
-    4) Perform an active scan on channel 6 and 36 for a specific SSID:
-            echo "chan=6g,36a ssid="TestAP"" > setuserscan
-
-    5) Scan all available channels (B/G, A bands) for a specific BSSID, keep
+    3) Scan all available channels (B/G, A bands) for a specific BSSID, keep
        the current scan table intact, update existing or append new scan data:
             echo "bssid=00:50:43:20:12:82 keep=1" > setuserscan
 
-    6) Scan channel 6, for all infrastructure networks, sending two probe
-       requests.  Keep the previous scan table intact. Update any duplicate
-       BSSID/SSID matches with the new scan data:
-            echo "chan=6g type=1 probes=2 keep=1" > setuserscan
+    4) Scan for all infrastructure networks.
+       Keep the previous scan table intact. Update any duplicate BSSID/SSID
+       matches with the new scan data:
+            echo "type=1 keep=1" > setuserscan
 
     All entries in the scan table (not just the new scan data when keep=1)
     will be displayed upon completion by use of the getscantable ioctl.

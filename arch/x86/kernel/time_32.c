@@ -28,97 +28,19 @@
  *	serialize accesses to xtime/lost_ticks).
  */
 
-#include <linux/errno.h>
-#include <linux/sched.h>
-#include <linux/kernel.h>
-#include <linux/param.h>
-#include <linux/string.h>
-#include <linux/mm.h>
+#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/time.h>
-#include <linux/delay.h>
-#include <linux/init.h>
-#include <linux/smp.h>
-#include <linux/module.h>
-#include <linux/sysdev.h>
-#include <linux/bcd.h>
-#include <linux/efi.h>
 #include <linux/mca.h>
 
-#include <asm/io.h>
-#include <asm/smp.h>
-#include <asm/irq.h>
-#include <asm/msr.h>
-#include <asm/delay.h>
-#include <asm/mpspec.h>
-#include <asm/uaccess.h>
-#include <asm/processor.h>
-#include <asm/timer.h>
-#include <asm/time.h>
-
-#include "mach_time.h"
-
-#include <linux/timex.h>
-
-#include <asm/hpet.h>
-
 #include <asm/arch_hooks.h>
-
-#include "io_ports.h"
-
-#include <asm/i8259.h>
+#include <asm/hpet.h>
+#include <asm/time.h>
 
 #include "do_timer.h"
 
 unsigned int cpu_khz;	/* Detected as we calibrate the TSC */
 EXPORT_SYMBOL(cpu_khz);
-
-DEFINE_SPINLOCK(rtc_lock);
-EXPORT_SYMBOL(rtc_lock);
-
-/*
- * This is a special lock that is owned by the CPU and holds the index
- * register we are working with.  It is required for NMI access to the
- * CMOS/RTC registers.  See include/asm-i386/mc146818rtc.h for details.
- */
-volatile unsigned long cmos_lock = 0;
-EXPORT_SYMBOL(cmos_lock);
-
-/* Routines for accessing the CMOS RAM/RTC. */
-unsigned char rtc_cmos_read(unsigned char addr)
-{
-	unsigned char val;
-	lock_cmos_prefix(addr);
-	outb_p(addr, RTC_PORT(0));
-	val = inb_p(RTC_PORT(1));
-	lock_cmos_suffix(addr);
-	return val;
-}
-EXPORT_SYMBOL(rtc_cmos_read);
-
-void rtc_cmos_write(unsigned char val, unsigned char addr)
-{
-	lock_cmos_prefix(addr);
-	outb_p(addr, RTC_PORT(0));
-	outb_p(val, RTC_PORT(1));
-	lock_cmos_suffix(addr);
-}
-EXPORT_SYMBOL(rtc_cmos_write);
-
-static int set_rtc_mmss(unsigned long nowtime)
-{
-	int retval;
-	unsigned long flags;
-
-	/* gets recalled with irq locally disabled */
-	/* XXX - does irqsave resolve this? -johnstul */
-	spin_lock_irqsave(&rtc_lock, flags);
-	retval = set_wallclock(nowtime);
-	spin_unlock_irqrestore(&rtc_lock, flags);
-
-	return retval;
-}
-
 
 int timer_ack;
 
@@ -127,17 +49,17 @@ unsigned long profile_pc(struct pt_regs *regs)
 	unsigned long pc = instruction_pointer(regs);
 
 #ifdef CONFIG_SMP
-	if (!v8086_mode(regs) && SEGMENT_IS_KERNEL_CODE(regs->xcs) &&
+	if (!v8086_mode(regs) && SEGMENT_IS_KERNEL_CODE(regs->cs) &&
 	    in_lock_functions(pc)) {
 #ifdef CONFIG_FRAME_POINTER
-		return *(unsigned long *)(regs->ebp + 4);
+		return *(unsigned long *)(regs->bp + 4);
 #else
-		unsigned long *sp = (unsigned long *)&regs->esp;
+		unsigned long *sp = (unsigned long *)&regs->sp;
 
 		/* Return address is either directly at stack pointer
-		   or above a saved eflags. Eflags has bits 22-31 zero,
+		   or above a saved flags. Eflags has bits 22-31 zero,
 		   kernel addresses don't. */
- 		if (sp[0] >> 22)
+		if (sp[0] >> 22)
 			return sp[0];
 		if (sp[1] >> 22)
 			return sp[1];
@@ -191,26 +113,6 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 	}
 
 	return IRQ_HANDLED;
-}
-
-/* not static: needed by APM */
-unsigned long read_persistent_clock(void)
-{
-	unsigned long retval;
-	unsigned long flags;
-
-	spin_lock_irqsave(&rtc_lock, flags);
-
-	retval = get_wallclock();
-
-	spin_unlock_irqrestore(&rtc_lock, flags);
-
-	return retval;
-}
-
-int update_persistent_clock(struct timespec now)
-{
-	return set_rtc_mmss(now.tv_sec);
 }
 
 extern void (*late_time_init)(void);

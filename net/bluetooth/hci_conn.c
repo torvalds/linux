@@ -208,13 +208,8 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst)
 
 	skb_queue_head_init(&conn->data_q);
 
-	init_timer(&conn->disc_timer);
-	conn->disc_timer.function = hci_conn_timeout;
-	conn->disc_timer.data = (unsigned long) conn;
-
-	init_timer(&conn->idle_timer);
-	conn->idle_timer.function = hci_conn_idle;
-	conn->idle_timer.data = (unsigned long) conn;
+	setup_timer(&conn->disc_timer, hci_conn_timeout, (unsigned long)conn);
+	setup_timer(&conn->idle_timer, hci_conn_idle, (unsigned long)conn);
 
 	atomic_set(&conn->refcnt, 0);
 

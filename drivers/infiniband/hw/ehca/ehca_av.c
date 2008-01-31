@@ -1,7 +1,7 @@
 /*
  *  IBM eServer eHCA Infiniband device driver for Linux on POWER
  *
- *  adress vector functions
+ *  address vector functions
  *
  *  Authors: Hoang-Nam Nguyen <hnguyen@de.ibm.com>
  *           Khadija Souissi <souissik@de.ibm.com>

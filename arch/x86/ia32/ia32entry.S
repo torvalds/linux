@@ -12,7 +12,6 @@
 #include <asm/ia32_unistd.h>	
 #include <asm/thread_info.h>	
 #include <asm/segment.h>
-#include <asm/vsyscall32.h>
 #include <asm/irqflags.h>
 #include <linux/linkage.h>
 
@@ -104,7 +103,7 @@ ENTRY(ia32_sysenter_target)
 	pushfq
 	CFI_ADJUST_CFA_OFFSET 8
 	/*CFI_REL_OFFSET rflags,0*/
-	movl	$VSYSCALL32_SYSEXIT, %r10d
+	movl	8*3-THREAD_SIZE+threadinfo_sysenter_return(%rsp), %r10d
 	CFI_REGISTER rip,r10
 	pushq	$__USER32_CS
 	CFI_ADJUST_CFA_OFFSET 8
@@ -142,6 +141,8 @@ sysenter_do_call:
 	andl    $~TS_COMPAT,threadinfo_status(%r10)
 	/* clear IF, that popfq doesn't enable interrupts early */
 	andl  $~0x200,EFLAGS-R11(%rsp) 
+	movl	RIP-R11(%rsp),%edx		/* User %eip */
+	CFI_REGISTER rip,rdx
 	RESTORE_ARGS 1,24,1,1,1,1
 	popfq
 	CFI_ADJUST_CFA_OFFSET -8
@@ -149,8 +150,6 @@ sysenter_do_call:
 	popq	%rcx				/* User %esp */
 	CFI_ADJUST_CFA_OFFSET -8
 	CFI_REGISTER rsp,rcx
-	movl	$VSYSCALL32_SYSEXIT,%edx	/* User %eip */
-	CFI_REGISTER rip,rdx
 	TRACE_IRQS_ON
 	swapgs
 	sti		/* sti only takes effect after the next instruction */
@@ -644,8 +643,8 @@ ia32_sys_call_table:
 	.quad compat_sys_futex		/* 240 */
 	.quad compat_sys_sched_setaffinity
 	.quad compat_sys_sched_getaffinity
-	.quad sys32_set_thread_area
-	.quad sys32_get_thread_area
+	.quad sys_set_thread_area
+	.quad sys_get_thread_area
 	.quad compat_sys_io_setup	/* 245 */
 	.quad sys_io_destroy
 	.quad compat_sys_io_getevents

@@ -66,9 +66,7 @@ MODULE_AUTHOR("Cast of dozens");
 MODULE_DESCRIPTION("IPv6 protocol stack for Linux");
 MODULE_LICENSE("GPL");
 
-int sysctl_ipv6_bindv6only __read_mostly;
-
-/* The inetsw table contains everything that inet_create needs to
+/* The inetsw6 table contains everything that inet6_create needs to
  * build a new socket.
  */
 static struct list_head inetsw6[SOCK_MAX];
@@ -193,7 +191,7 @@ lookup_protocol:
 	np->mcast_hops	= -1;
 	np->mc_loop	= 1;
 	np->pmtudisc	= IPV6_PMTUDISC_WANT;
-	np->ipv6only	= sysctl_ipv6_bindv6only;
+	np->ipv6only	= init_net.ipv6.sysctl.bindv6only;
 
 	/* Init the ipv4 part of the socket since we can have sockets
 	 * using v6 API for ipv4.
@@ -280,7 +278,7 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	/* Check if the address belongs to the host. */
 	if (addr_type == IPV6_ADDR_MAPPED) {
 		v4addr = addr->sin6_addr.s6_addr32[3];
-		if (inet_addr_type(v4addr) != RTN_LOCAL) {
+		if (inet_addr_type(&init_net, v4addr) != RTN_LOCAL) {
 			err = -EADDRNOTAVAIL;
 			goto out;
 		}
@@ -314,7 +312,8 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 			 */
 			v4addr = LOOPBACK4_IPV6;
 			if (!(addr_type & IPV6_ADDR_MULTICAST))	{
-				if (!ipv6_chk_addr(&addr->sin6_addr, dev, 0)) {
+				if (!ipv6_chk_addr(&init_net, &addr->sin6_addr,
+						   dev, 0)) {
 					if (dev)
 						dev_put(dev);
 					err = -EADDRNOTAVAIL;
@@ -491,6 +490,7 @@ const struct proto_ops inet6_stream_ops = {
 	.recvmsg	   = sock_common_recvmsg,	/* ok		*/
 	.mmap		   = sock_no_mmap,
 	.sendpage	   = tcp_sendpage,
+	.splice_read	   = tcp_splice_read,
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_sock_common_setsockopt,
 	.compat_getsockopt = compat_sock_common_getsockopt,
@@ -528,57 +528,23 @@ static struct net_proto_family inet6_family_ops = {
 	.owner	= THIS_MODULE,
 };
 
-/* Same as inet6_dgram_ops, sans udp_poll.  */
-static const struct proto_ops inet6_sockraw_ops = {
-	.family		   = PF_INET6,
-	.owner		   = THIS_MODULE,
-	.release	   = inet6_release,
-	.bind		   = inet6_bind,
-	.connect	   = inet_dgram_connect,	/* ok		*/
-	.socketpair	   = sock_no_socketpair,	/* a do nothing	*/
-	.accept		   = sock_no_accept,		/* a do nothing	*/
-	.getname	   = inet6_getname,
-	.poll		   = datagram_poll,		/* ok		*/
-	.ioctl		   = inet6_ioctl,		/* must change  */
-	.listen		   = sock_no_listen,		/* ok		*/
-	.shutdown	   = inet_shutdown,		/* ok		*/
-	.setsockopt	   = sock_common_setsockopt,	/* ok		*/
-	.getsockopt	   = sock_common_getsockopt,	/* ok		*/
-	.sendmsg	   = inet_sendmsg,		/* ok		*/
-	.recvmsg	   = sock_common_recvmsg,	/* ok		*/
-	.mmap		   = sock_no_mmap,
-	.sendpage	   = sock_no_sendpage,
-#ifdef CONFIG_COMPAT
-	.compat_setsockopt = compat_sock_common_setsockopt,
-	.compat_getsockopt = compat_sock_common_getsockopt,
-#endif
-};
-
-static struct inet_protosw rawv6_protosw = {
-	.type		= SOCK_RAW,
-	.protocol	= IPPROTO_IP,	/* wild card */
-	.prot		= &rawv6_prot,
-	.ops		= &inet6_sockraw_ops,
-	.capability	= CAP_NET_RAW,
-	.no_check	= UDP_CSUM_DEFAULT,
-	.flags		= INET_PROTOSW_REUSE,
-};
-
-void
-inet6_register_protosw(struct inet_protosw *p)
+int inet6_register_protosw(struct inet_protosw *p)
 {
 	struct list_head *lh;
 	struct inet_protosw *answer;
-	int protocol = p->protocol;
 	struct list_head *last_perm;
+	int protocol = p->protocol;
+	int ret;
 
 	spin_lock_bh(&inetsw6_lock);
 
+	ret = -EINVAL;
 	if (p->type >= SOCK_MAX)
 		goto out_illegal;
 
 	/* If we are trying to override a permanent protocol, bail. */
 	answer = NULL;
+	ret = -EPERM;
 	last_perm = &inetsw6[p->type];
 	list_for_each(lh, &inetsw6[p->type]) {
 		answer = list_entry(lh, struct inet_protosw, list);
@@ -602,9 +568,10 @@ inet6_register_protosw(struct inet_protosw *p)
 	 * system automatically returns to the old behavior.
 	 */
 	list_add_rcu(&p->list, last_perm);
+	ret = 0;
 out:
 	spin_unlock_bh(&inetsw6_lock);
-	return;
+	return ret;
 
 out_permanent:
 	printk(KERN_ERR "Attempt to override permanent protocol %d.\n",
@@ -713,20 +680,19 @@ EXPORT_SYMBOL_GPL(ipv6_opt_accepted);
 
 static int __init init_ipv6_mibs(void)
 {
-	if (snmp_mib_init((void **)ipv6_statistics, sizeof (struct ipstats_mib),
-			  __alignof__(struct ipstats_mib)) < 0)
+	if (snmp_mib_init((void **)ipv6_statistics,
+			  sizeof(struct ipstats_mib)) < 0)
 		goto err_ip_mib;
-	if (snmp_mib_init((void **)icmpv6_statistics, sizeof (struct icmpv6_mib),
-			  __alignof__(struct icmpv6_mib)) < 0)
+	if (snmp_mib_init((void **)icmpv6_statistics,
+			  sizeof(struct icmpv6_mib)) < 0)
 		goto err_icmp_mib;
 	if (snmp_mib_init((void **)icmpv6msg_statistics,
-	    sizeof (struct icmpv6msg_mib), __alignof__(struct icmpv6_mib)) < 0)
+			  sizeof(struct icmpv6msg_mib)) < 0)
 		goto err_icmpmsg_mib;
-	if (snmp_mib_init((void **)udp_stats_in6, sizeof (struct udp_mib),
-			  __alignof__(struct udp_mib)) < 0)
+	if (snmp_mib_init((void **)udp_stats_in6, sizeof (struct udp_mib)) < 0)
 		goto err_udp_mib;
-	if (snmp_mib_init((void **)udplite_stats_in6, sizeof (struct udp_mib),
-			  __alignof__(struct udp_mib)) < 0)
+	if (snmp_mib_init((void **)udplite_stats_in6,
+			  sizeof (struct udp_mib)) < 0)
 		goto err_udplite_mib;
 	return 0;
 
@@ -752,6 +718,32 @@ static void cleanup_ipv6_mibs(void)
 	snmp_mib_free((void **)udplite_stats_in6);
 }
 
+static int inet6_net_init(struct net *net)
+{
+	net->ipv6.sysctl.bindv6only = 0;
+	net->ipv6.sysctl.flush_delay = 0;
+	net->ipv6.sysctl.ip6_rt_max_size = 4096;
+	net->ipv6.sysctl.ip6_rt_gc_min_interval = HZ / 2;
+	net->ipv6.sysctl.ip6_rt_gc_timeout = 60*HZ;
+	net->ipv6.sysctl.ip6_rt_gc_interval = 30*HZ;
+	net->ipv6.sysctl.ip6_rt_gc_elasticity = 9;
+	net->ipv6.sysctl.ip6_rt_mtu_expires = 10*60*HZ;
+	net->ipv6.sysctl.ip6_rt_min_advmss = IPV6_MIN_MTU - 20 - 40;
+	net->ipv6.sysctl.icmpv6_time = 1*HZ;
+
+	return 0;
+}
+
+static void inet6_net_exit(struct net *net)
+{
+	return;
+}
+
+static struct pernet_operations inet6_net_ops = {
+	.init = inet6_net_init,
+	.exit = inet6_net_exit,
+};
+
 static int __init inet6_init(void)
 {
 	struct sk_buff *dummy_skb;
@@ -768,7 +760,6 @@ static int __init inet6_init(void)
 	__this_module.can_unload = &ipv6_unload;
 #endif
 #endif
-
 	err = proto_register(&tcpv6_prot, 1);
 	if (err)
 		goto out;
@@ -793,14 +784,16 @@ static int __init inet6_init(void)
 	/* We MUST register RAW sockets before we create the ICMP6,
 	 * IGMP6, or NDISC control sockets.
 	 */
-	inet6_register_protosw(&rawv6_protosw);
+	err = rawv6_init();
+	if (err)
+		goto out_unregister_raw_proto;
 
 	/* Register the family here so that the init calls below will
 	 * be able to create sockets. (?? is this dangerous ??)
 	 */
 	err = sock_register(&inet6_family_ops);
 	if (err)
-		goto out_unregister_raw_proto;
+		goto out_sock_register_fail;
 
 	/* Initialise ipv6 mibs */
 	err = init_ipv6_mibs();
@@ -814,8 +807,14 @@ static int __init inet6_init(void)
 	 *	able to communicate via both network protocols.
 	 */
 
+	err = register_pernet_subsys(&inet6_net_ops);
+	if (err)
+		goto register_pernet_fail;
+
 #ifdef CONFIG_SYSCTL
-	ipv6_sysctl_register();
+	err = ipv6_sysctl_register();
+	if (err)
+		goto sysctl_fail;
 #endif
 	err = icmpv6_init(&inet6_family_ops);
 	if (err)
@@ -848,31 +847,61 @@ static int __init inet6_init(void)
 	if (if6_proc_init())
 		goto proc_if6_fail;
 #endif
-	ip6_route_init();
-	ip6_flowlabel_init();
+	err = ip6_route_init();
+	if (err)
+		goto ip6_route_fail;
+	err = ip6_flowlabel_init();
+	if (err)
+		goto ip6_flowlabel_fail;
 	err = addrconf_init();
 	if (err)
 		goto addrconf_fail;
 
 	/* Init v6 extension headers. */
-	ipv6_rthdr_init();
-	ipv6_frag_init();
-	ipv6_nodata_init();
-	ipv6_destopt_init();
+	err = ipv6_exthdrs_init();
+	if (err)
+		goto ipv6_exthdrs_fail;
+
+	err = ipv6_frag_init();
+	if (err)
+		goto ipv6_frag_fail;
 
 	/* Init v6 transport protocols. */
-	udpv6_init();
-	udplitev6_init();
-	tcpv6_init();
+	err = udpv6_init();
+	if (err)
+		goto udpv6_fail;
 
-	ipv6_packet_init();
-	err = 0;
+	err = udplitev6_init();
+	if (err)
+		goto udplitev6_fail;
+
+	err = tcpv6_init();
+	if (err)
+		goto tcpv6_fail;
+
+	err = ipv6_packet_init();
+	if (err)
+		goto ipv6_packet_fail;
 out:
 	return err;
 
+ipv6_packet_fail:
+	tcpv6_exit();
+tcpv6_fail:
+	udplitev6_exit();
+udplitev6_fail:
+	udpv6_exit();
+udpv6_fail:
+	ipv6_frag_exit();
+ipv6_frag_fail:
+	ipv6_exthdrs_exit();
+ipv6_exthdrs_fail:
+	addrconf_cleanup();
 addrconf_fail:
 	ip6_flowlabel_cleanup();
+ip6_flowlabel_fail:
 	ip6_route_cleanup();
+ip6_route_fail:
 #ifdef CONFIG_PROC_FS
 	if6_proc_exit();
 proc_if6_fail:
@@ -899,10 +928,16 @@ ndisc_fail:
 icmp_fail:
 #ifdef CONFIG_SYSCTL
 	ipv6_sysctl_unregister();
+sysctl_fail:
 #endif
+	unregister_pernet_subsys(&inet6_net_ops);
+register_pernet_fail:
 	cleanup_ipv6_mibs();
 out_unregister_sock:
 	sock_unregister(PF_INET6);
+	rtnl_unregister_all(PF_INET6);
+out_sock_register_fail:
+	rawv6_exit();
 out_unregister_raw_proto:
 	proto_unregister(&rawv6_prot);
 out_unregister_udplite_proto:
@@ -922,9 +957,14 @@ static void __exit inet6_exit(void)
 	/* Disallow any further netlink messages */
 	rtnl_unregister_all(PF_INET6);
 
+	udpv6_exit();
+	udplitev6_exit();
+	tcpv6_exit();
+
 	/* Cleanup code parts. */
 	ipv6_packet_cleanup();
-
+	ipv6_frag_exit();
+	ipv6_exthdrs_exit();
 	addrconf_cleanup();
 	ip6_flowlabel_cleanup();
 	ip6_route_cleanup();
@@ -943,9 +983,11 @@ static void __exit inet6_exit(void)
 	igmp6_cleanup();
 	ndisc_cleanup();
 	icmpv6_cleanup();
+	rawv6_exit();
 #ifdef CONFIG_SYSCTL
 	ipv6_sysctl_unregister();
 #endif
+	unregister_pernet_subsys(&inet6_net_ops);
 	cleanup_ipv6_mibs();
 	proto_unregister(&rawv6_prot);
 	proto_unregister(&udplitev6_prot);

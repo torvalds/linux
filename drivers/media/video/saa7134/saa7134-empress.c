@@ -161,152 +161,176 @@ ts_mmap(struct file *file, struct vm_area_struct * vma)
  * video_generic_ioctl (and maybe others).  userspace
  * copying is done already, arg is a kernel pointer.
  */
-static int ts_do_ioctl(struct inode *inode, struct file *file,
-		       unsigned int cmd, void *arg)
+
+static int empress_querycap(struct file *file, void  *priv,
+					struct v4l2_capability *cap)
 {
-	struct saa7134_dev *dev = file->private_data;
-	struct v4l2_ext_controls *ctrls = arg;
+	struct saa7134_fh *fh = priv;
+	struct saa7134_dev *dev = fh->dev;
 
-	if (debug > 1)
-		v4l_print_ioctl(dev->name,cmd);
-	switch (cmd) {
-	case VIDIOC_QUERYCAP:
-	{
-		struct v4l2_capability *cap = arg;
-
-		memset(cap,0,sizeof(*cap));
-		strcpy(cap->driver, "saa7134");
-		strlcpy(cap->card, saa7134_boards[dev->board].name,
-			sizeof(cap->card));
-		sprintf(cap->bus_info,"PCI:%s",pci_name(dev->pci));
-		cap->version = SAA7134_VERSION_CODE;
-		cap->capabilities =
-			V4L2_CAP_VIDEO_CAPTURE |
-			V4L2_CAP_READWRITE |
-			V4L2_CAP_STREAMING;
-		return 0;
-	}
-
-	/* --- input switching --------------------------------------- */
-	case VIDIOC_ENUMINPUT:
-	{
-		struct v4l2_input *i = arg;
-
-		if (i->index != 0)
-			return -EINVAL;
-		i->type = V4L2_INPUT_TYPE_CAMERA;
-		strcpy(i->name,"CCIR656");
-		return 0;
-	}
-	case VIDIOC_G_INPUT:
-	{
-		int *i = arg;
-		*i = 0;
-		return 0;
-	}
-	case VIDIOC_S_INPUT:
-	{
-		int *i = arg;
-
-		if (*i != 0)
-			return -EINVAL;
-		return 0;
-	}
-	/* --- capture ioctls ---------------------------------------- */
-
-	case VIDIOC_ENUM_FMT:
-	{
-		struct v4l2_fmtdesc *f = arg;
-		int index;
-
-		index = f->index;
-		if (index != 0)
-			return -EINVAL;
-
-		memset(f,0,sizeof(*f));
-		f->index = index;
-		strlcpy(f->description, "MPEG TS", sizeof(f->description));
-		f->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		f->pixelformat = V4L2_PIX_FMT_MPEG;
-		return 0;
-	}
-
-	case VIDIOC_G_FMT:
-	{
-		struct v4l2_format *f = arg;
-
-		memset(f,0,sizeof(*f));
-		f->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-
-		saa7134_i2c_call_clients(dev, cmd, arg);
-		f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
-		f->fmt.pix.sizeimage    = TS_PACKET_SIZE * dev->ts.nr_packets;
-		return 0;
-	}
-
-	case VIDIOC_S_FMT:
-	{
-		struct v4l2_format *f = arg;
-
-		if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		    return -EINVAL;
-
-		saa7134_i2c_call_clients(dev, cmd, arg);
-		f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
-		f->fmt.pix.sizeimage    = TS_PACKET_SIZE* dev->ts.nr_packets;
-		return 0;
-	}
-
-	case VIDIOC_REQBUFS:
-		return videobuf_reqbufs(&dev->empress_tsq,arg);
-
-	case VIDIOC_QUERYBUF:
-		return videobuf_querybuf(&dev->empress_tsq,arg);
-
-	case VIDIOC_QBUF:
-		return videobuf_qbuf(&dev->empress_tsq,arg);
-
-	case VIDIOC_DQBUF:
-		return videobuf_dqbuf(&dev->empress_tsq,arg,
-				      file->f_flags & O_NONBLOCK);
-
-	case VIDIOC_STREAMON:
-		return videobuf_streamon(&dev->empress_tsq);
-
-	case VIDIOC_STREAMOFF:
-		return videobuf_streamoff(&dev->empress_tsq);
-
-	case VIDIOC_QUERYCTRL:
-	case VIDIOC_G_CTRL:
-	case VIDIOC_S_CTRL:
-		return saa7134_common_ioctl(dev, cmd, arg);
-
-	case VIDIOC_S_EXT_CTRLS:
-		/* count == 0 is abused in saa6752hs.c, so that special
-		   case is handled here explicitly. */
-		if (ctrls->count == 0)
-			return 0;
-		if (ctrls->ctrl_class != V4L2_CTRL_CLASS_MPEG)
-			return -EINVAL;
-		saa7134_i2c_call_clients(dev, VIDIOC_S_EXT_CTRLS, arg);
-		ts_init_encoder(dev);
-		return 0;
-	case VIDIOC_G_EXT_CTRLS:
-		if (ctrls->ctrl_class != V4L2_CTRL_CLASS_MPEG)
-			return -EINVAL;
-		saa7134_i2c_call_clients(dev, VIDIOC_G_EXT_CTRLS, arg);
-		return 0;
-
-	default:
-		return -ENOIOCTLCMD;
-	}
+	strcpy(cap->driver, "saa7134");
+	strlcpy(cap->card, saa7134_boards[dev->board].name,
+		sizeof(cap->card));
+	sprintf(cap->bus_info, "PCI:%s", pci_name(dev->pci));
+	cap->version = SAA7134_VERSION_CODE;
+	cap->capabilities =
+		V4L2_CAP_VIDEO_CAPTURE |
+		V4L2_CAP_READWRITE |
+		V4L2_CAP_STREAMING;
 	return 0;
 }
 
-static int ts_ioctl(struct inode *inode, struct file *file,
-		     unsigned int cmd, unsigned long arg)
+static int empress_enum_input(struct file *file, void *priv,
+					struct v4l2_input *i)
 {
-	return video_usercopy(inode, file, cmd, arg, ts_do_ioctl);
+	if (i->index != 0)
+		return -EINVAL;
+
+	i->type = V4L2_INPUT_TYPE_CAMERA;
+	strcpy(i->name, "CCIR656");
+
+	return 0;
+}
+
+static int empress_g_input(struct file *file, void *priv, unsigned int *i)
+{
+	*i = 0;
+	return 0;
+}
+
+static int empress_s_input(struct file *file, void *priv, unsigned int i)
+{
+	if (i != 0)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int empress_enum_fmt_cap(struct file *file, void  *priv,
+					struct v4l2_fmtdesc *f)
+{
+	if (f->index != 0)
+		return -EINVAL;
+
+	strlcpy(f->description, "MPEG TS", sizeof(f->description));
+	f->pixelformat = V4L2_PIX_FMT_MPEG;
+
+	return 0;
+}
+
+static int empress_g_fmt_cap(struct file *file, void *priv,
+				struct v4l2_format *f)
+{
+	struct saa7134_fh *fh = priv;
+	struct saa7134_dev *dev = fh->dev;
+
+	saa7134_i2c_call_clients(dev, VIDIOC_G_FMT, f);
+
+	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
+	f->fmt.pix.sizeimage    = TS_PACKET_SIZE * dev->ts.nr_packets;
+
+	return 0;
+}
+
+static int empress_s_fmt_cap(struct file *file, void *priv,
+				struct v4l2_format *f)
+{
+	struct saa7134_fh *fh = priv;
+	struct saa7134_dev *dev = fh->dev;
+
+	saa7134_i2c_call_clients(dev, VIDIOC_S_FMT, f);
+
+	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
+	f->fmt.pix.sizeimage    = TS_PACKET_SIZE * dev->ts.nr_packets;
+
+	return 0;
+}
+
+
+static int empress_reqbufs(struct file *file, void *priv,
+					struct v4l2_requestbuffers *p)
+{
+	struct saa7134_fh *fh = priv;
+	struct saa7134_dev *dev = fh->dev;
+
+	return videobuf_reqbufs(&dev->empress_tsq, p);
+}
+
+static int empress_querybuf(struct file *file, void *priv,
+					struct v4l2_buffer *b)
+{
+	struct saa7134_fh *fh = priv;
+	struct saa7134_dev *dev = fh->dev;
+
+	return videobuf_querybuf(&dev->empress_tsq, b);
+}
+
+static int empress_qbuf(struct file *file, void *priv, struct v4l2_buffer *b)
+{
+	struct saa7134_fh *fh = priv;
+	struct saa7134_dev *dev = fh->dev;
+
+	return videobuf_qbuf(&dev->empress_tsq, b);
+}
+
+static int empress_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b)
+{
+	struct saa7134_fh *fh = priv;
+	struct saa7134_dev *dev = fh->dev;
+
+	return videobuf_dqbuf(&dev->empress_tsq, b,
+				file->f_flags & O_NONBLOCK);
+}
+
+static int empress_streamon(struct file *file, void *priv,
+					enum v4l2_buf_type type)
+{
+	struct saa7134_fh *fh = priv;
+	struct saa7134_dev *dev = fh->dev;
+
+	return videobuf_streamon(&dev->empress_tsq);
+}
+
+static int empress_streamoff(struct file *file, void *priv,
+					enum v4l2_buf_type type)
+{
+	struct saa7134_fh *fh = priv;
+	struct saa7134_dev *dev = fh->dev;
+
+	return videobuf_streamoff(&dev->empress_tsq);
+}
+
+static int empress_s_ext_ctrls(struct file *file, void *priv,
+			       struct v4l2_ext_controls *ctrls)
+{
+	struct saa7134_fh *fh = priv;
+	struct saa7134_dev *dev = fh->dev;
+
+	/* count == 0 is abused in saa6752hs.c, so that special
+		case is handled here explicitly. */
+	if (ctrls->count == 0)
+		return 0;
+
+	if (ctrls->ctrl_class != V4L2_CTRL_CLASS_MPEG)
+		return -EINVAL;
+
+	saa7134_i2c_call_clients(dev, VIDIOC_S_EXT_CTRLS, ctrls);
+	ts_init_encoder(dev);
+
+	return 0;
+}
+
+static int empress_g_ext_ctrls(struct file *file, void *priv,
+			       struct v4l2_ext_controls *ctrls)
+{
+	struct saa7134_fh *fh = priv;
+	struct saa7134_dev *dev = fh->dev;
+
+	if (ctrls->ctrl_class != V4L2_CTRL_CLASS_MPEG)
+		return -EINVAL;
+	saa7134_i2c_call_clients(dev, VIDIOC_G_EXT_CTRLS, ctrls);
+
+	return 0;
 }
 
 static const struct file_operations ts_fops =
@@ -317,7 +341,7 @@ static const struct file_operations ts_fops =
 	.read	  = ts_read,
 	.poll	  = ts_poll,
 	.mmap	  = ts_mmap,
-	.ioctl	  = ts_ioctl,
+	.ioctl	  = video_ioctl2,
 	.llseek   = no_llseek,
 };
 
@@ -330,6 +354,29 @@ static struct video_device saa7134_empress_template =
 	.type2         = 0 /* FIXME */,
 	.fops          = &ts_fops,
 	.minor	       = -1,
+
+	.vidioc_querycap		= empress_querycap,
+	.vidioc_enum_fmt_cap		= empress_enum_fmt_cap,
+	.vidioc_s_fmt_cap		= empress_s_fmt_cap,
+	.vidioc_g_fmt_cap		= empress_g_fmt_cap,
+	.vidioc_reqbufs			= empress_reqbufs,
+	.vidioc_querybuf		= empress_querybuf,
+	.vidioc_qbuf			= empress_qbuf,
+	.vidioc_dqbuf			= empress_dqbuf,
+	.vidioc_streamon		= empress_streamon,
+	.vidioc_streamoff		= empress_streamoff,
+	.vidioc_s_ext_ctrls		= empress_s_ext_ctrls,
+	.vidioc_g_ext_ctrls		= empress_g_ext_ctrls,
+	.vidioc_enum_input		= empress_enum_input,
+	.vidioc_g_input			= empress_g_input,
+	.vidioc_s_input			= empress_s_input,
+
+	.vidioc_queryctrl		= saa7134_queryctrl,
+	.vidioc_g_ctrl			= saa7134_g_ctrl,
+	.vidioc_s_ctrl			= saa7134_s_ctrl,
+
+	.tvnorms			= SAA7134_NORMS,
+	.current_norm			= V4L2_STD_PAL,
 };
 
 static void empress_signal_update(struct work_struct *work)

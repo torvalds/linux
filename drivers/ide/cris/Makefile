@@ -1,3 +1,3 @@
 EXTRA_CFLAGS				+= -Idrivers/ide
 
-obj-y					+= ide-cris.o
+obj-$(CONFIG_IDE_ETRAX)			+= ide-cris.o

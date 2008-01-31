@@ -5,6 +5,7 @@
 #include <linux/jiffies.h>
 #include <linux/init.h>
 #include <linux/dmi.h>
+#include <linux/percpu.h>
 
 #include <asm/delay.h>
 #include <asm/tsc.h>
@@ -23,8 +24,6 @@ static int tsc_enabled;
 unsigned int tsc_khz;
 EXPORT_SYMBOL_GPL(tsc_khz);
 
-int tsc_disable;
-
 #ifdef CONFIG_X86_TSC
 static int __init tsc_setup(char *str)
 {
@@ -39,8 +38,7 @@ static int __init tsc_setup(char *str)
  */
 static int __init tsc_setup(char *str)
 {
-	tsc_disable = 1;
-
+	setup_clear_cpu_cap(X86_FEATURE_TSC);
 	return 1;
 }
 #endif
@@ -80,13 +78,31 @@ EXPORT_SYMBOL_GPL(check_tsc_unstable);
  *
  *			-johnstul@us.ibm.com "math is hard, lets go shopping!"
  */
-unsigned long cyc2ns_scale __read_mostly;
 
-#define CYC2NS_SCALE_FACTOR 10 /* 2^10, carefully chosen */
+DEFINE_PER_CPU(unsigned long, cyc2ns);
 
-static inline void set_cyc2ns_scale(unsigned long cpu_khz)
+static void set_cyc2ns_scale(unsigned long cpu_khz, int cpu)
 {
-	cyc2ns_scale = (1000000 << CYC2NS_SCALE_FACTOR)/cpu_khz;
+	unsigned long flags, prev_scale, *scale;
+	unsigned long long tsc_now, ns_now;
+
+	local_irq_save(flags);
+	sched_clock_idle_sleep_event();
+
+	scale = &per_cpu(cyc2ns, cpu);
+
+	rdtscll(tsc_now);
+	ns_now = __cycles_2_ns(tsc_now);
+
+	prev_scale = *scale;
+	if (cpu_khz)
+		*scale = (NSEC_PER_MSEC << CYC2NS_SCALE_FACTOR)/cpu_khz;
+
+	/*
+	 * Start smoothly with the new frequency:
+	 */
+	sched_clock_idle_wakeup_event(0);
+	local_irq_restore(flags);
 }
 
 /*
@@ -239,7 +255,9 @@ time_cpufreq_notifier(struct notifier_block *nb, unsigned long val, void *data)
 						ref_freq, freq->new);
 			if (!(freq->flags & CPUFREQ_CONST_LOOPS)) {
 				tsc_khz = cpu_khz;
-				set_cyc2ns_scale(cpu_khz);
+				preempt_disable();
+				set_cyc2ns_scale(cpu_khz, smp_processor_id());
+				preempt_enable();
 				/*
 				 * TSC based sched_clock turns
 				 * to junk w/ cpufreq
@@ -333,6 +351,11 @@ __cpuinit int unsynchronized_tsc(void)
 {
 	if (!cpu_has_tsc || tsc_unstable)
 		return 1;
+
+	/* Anything with constant TSC should be synchronized */
+	if (boot_cpu_has(X86_FEATURE_CONSTANT_TSC))
+		return 0;
+
 	/*
 	 * Intel systems are normally all synchronized.
 	 * Exceptions must mark TSC as unstable:
@@ -367,7 +390,9 @@ static inline void check_geode_tsc_reliable(void) { }
 
 void __init tsc_init(void)
 {
-	if (!cpu_has_tsc || tsc_disable)
+	int cpu;
+
+	if (!cpu_has_tsc)
 		goto out_no_tsc;
 
 	cpu_khz = calculate_cpu_khz();
@@ -380,7 +405,15 @@ void __init tsc_init(void)
 				(unsigned long)cpu_khz / 1000,
 				(unsigned long)cpu_khz % 1000);
 
-	set_cyc2ns_scale(cpu_khz);
+	/*
+	 * Secondary CPUs do not run through tsc_init(), so set up
+	 * all the scale factors for all CPUs, assuming the same
+	 * speed as the bootup CPU. (cpufreq notifiers will fix this
+	 * up if their speed diverges)
+	 */
+	for_each_possible_cpu(cpu)
+		set_cyc2ns_scale(cpu_khz, cpu);
+
 	use_tsc_delay();
 
 	/* Check and install the TSC clocksource */
@@ -403,10 +436,5 @@ void __init tsc_init(void)
 	return;
 
 out_no_tsc:
-	/*
-	 * Set the tsc_disable flag if there's no TSC support, this
-	 * makes it a fast flag for the kernel to see whether it
-	 * should be using the TSC.
-	 */
-	tsc_disable = 1;
+	setup_clear_cpu_cap(X86_FEATURE_TSC);
 }

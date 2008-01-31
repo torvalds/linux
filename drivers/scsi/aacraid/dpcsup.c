@@ -120,6 +120,7 @@ unsigned int aac_response_normal(struct aac_queue * q)
 			 *	NOTE:  we cannot touch the fib after this
 			 *	    call, because it may have been deallocated.
 			 */
+			fib->flags = 0;
 			fib->callback(fib->callback_data, fib);
 		} else {
 			unsigned long flagv;
@@ -229,11 +230,9 @@ unsigned int aac_command_normal(struct aac_queue *q)
  *	all QE there are and wake up all the waiters before exiting.
  */
 
-unsigned int aac_intr_normal(struct aac_dev * dev, u32 Index)
+unsigned int aac_intr_normal(struct aac_dev * dev, u32 index)
 {
-	u32 index = le32_to_cpu(Index);
-
-	dprintk((KERN_INFO "aac_intr_normal(%p,%x)\n", dev, Index));
+	dprintk((KERN_INFO "aac_intr_normal(%p,%x)\n", dev, index));
 	if ((index & 0x00000002L)) {
 		struct hw_fib * hw_fib;
 		struct fib * fib;
@@ -301,7 +300,7 @@ unsigned int aac_intr_normal(struct aac_dev * dev, u32 Index)
 
 		if (hwfib->header.Command == cpu_to_le16(NuFileSystem))
 		{
-			u32 *pstatus = (u32 *)hwfib->data;
+			__le32 *pstatus = (__le32 *)hwfib->data;
 			if (*pstatus & cpu_to_le32(0xffff0000))
 				*pstatus = cpu_to_le32(ST_OK);
 		}
@@ -315,6 +314,7 @@ unsigned int aac_intr_normal(struct aac_dev * dev, u32 Index)
 			 *	NOTE:  we cannot touch the fib after this
 			 *	    call, because it may have been deallocated.
 			 */
+			fib->flags = 0;
 			fib->callback(fib->callback_data, fib);
 		} else {
 			unsigned long flagv;

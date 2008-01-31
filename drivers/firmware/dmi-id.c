@@ -173,8 +173,6 @@ static struct device *dmi_dev;
 	if (dmi_get_system_info(_field)) \
 		sys_dmi_attributes[i++] = &sys_dmi_##_name##_attr.dev_attr.attr;
 
-extern int dmi_available;
-
 /* In a separate function to keep gcc 3.2 happy - do NOT merge this in
    dmi_id_init! */
 static void __init dmi_id_init_attr_table(void)

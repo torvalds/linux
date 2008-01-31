@@ -125,10 +125,10 @@ static struct proc_dir_entry *proc_vlan_conf;
 
 /* Strings */
 static const char *vlan_name_type_str[VLAN_NAME_TYPE_HIGHEST] = {
-    [VLAN_NAME_TYPE_RAW_PLUS_VID]       = "VLAN_NAME_TYPE_RAW_PLUS_VID",
-    [VLAN_NAME_TYPE_PLUS_VID_NO_PAD]	= "VLAN_NAME_TYPE_PLUS_VID_NO_PAD",
-    [VLAN_NAME_TYPE_RAW_PLUS_VID_NO_PAD]= "VLAN_NAME_TYPE_RAW_PLUS_VID_NO_PAD",
-    [VLAN_NAME_TYPE_PLUS_VID]		= "VLAN_NAME_TYPE_PLUS_VID",
+    [VLAN_NAME_TYPE_RAW_PLUS_VID]        = "VLAN_NAME_TYPE_RAW_PLUS_VID",
+    [VLAN_NAME_TYPE_PLUS_VID_NO_PAD]	 = "VLAN_NAME_TYPE_PLUS_VID_NO_PAD",
+    [VLAN_NAME_TYPE_RAW_PLUS_VID_NO_PAD] = "VLAN_NAME_TYPE_RAW_PLUS_VID_NO_PAD",
+    [VLAN_NAME_TYPE_PLUS_VID]		 = "VLAN_NAME_TYPE_PLUS_VID",
 };
 /*
  *	Interface functions
@@ -158,15 +158,18 @@ void vlan_proc_cleanup(void)
 int __init vlan_proc_init(void)
 {
 	proc_vlan_dir = proc_mkdir(name_root, init_net.proc_net);
-	if (proc_vlan_dir) {
-		proc_vlan_conf = create_proc_entry(name_conf,
-						   S_IFREG|S_IRUSR|S_IWUSR,
-						   proc_vlan_dir);
-		if (proc_vlan_conf) {
-			proc_vlan_conf->proc_fops = &vlan_fops;
-			return 0;
-		}
-	}
+	if (!proc_vlan_dir)
+		goto err;
+
+	proc_vlan_conf = create_proc_entry(name_conf, S_IFREG|S_IRUSR|S_IWUSR,
+					   proc_vlan_dir);
+	if (!proc_vlan_conf)
+		goto err;
+	proc_vlan_conf->proc_fops = &vlan_fops;
+	return 0;
+
+err:
+	pr_err("%s: can't create entry in proc filesystem!\n", __FUNCTION__);
 	vlan_proc_cleanup();
 	return -ENOBUFS;
 }
@@ -175,16 +178,9 @@ int __init vlan_proc_init(void)
  *	Add directory entry for VLAN device.
  */
 
-int vlan_proc_add_dev (struct net_device *vlandev)
+int vlan_proc_add_dev(struct net_device *vlandev)
 {
-	struct vlan_dev_info *dev_info = VLAN_DEV_INFO(vlandev);
-
-	if (!(vlandev->priv_flags & IFF_802_1Q_VLAN)) {
-		printk(KERN_ERR
-		       "ERROR:	vlan_proc_add, device -:%s:- is NOT a VLAN\n",
-		       vlandev->name);
-		return -EINVAL;
-	}
+	struct vlan_dev_info *dev_info = vlan_dev_info(vlandev);
 
 	dev_info->dent = create_proc_entry(vlandev->name,
 					   S_IFREG|S_IRUSR|S_IWUSR,
@@ -194,11 +190,6 @@ int vlan_proc_add_dev (struct net_device *vlandev)
 
 	dev_info->dent->proc_fops = &vlandev_fops;
 	dev_info->dent->data = vlandev;
-
-#ifdef VLAN_DEBUG
-	printk(KERN_ERR "vlan_proc_add, device -:%s:- being added.\n",
-	       vlandev->name);
-#endif
 	return 0;
 }
 
@@ -207,28 +198,12 @@ int vlan_proc_add_dev (struct net_device *vlandev)
  */
 int vlan_proc_rem_dev(struct net_device *vlandev)
 {
-	if (!vlandev) {
-		printk(VLAN_ERR "%s: invalid argument: %p\n",
-			__FUNCTION__, vlandev);
-		return -EINVAL;
-	}
-
-	if (!(vlandev->priv_flags & IFF_802_1Q_VLAN)) {
-		printk(VLAN_DBG "%s: invalid argument, device: %s is not a VLAN device, priv_flags: 0x%4hX.\n",
-			__FUNCTION__, vlandev->name, vlandev->priv_flags);
-		return -EINVAL;
-	}
-
-#ifdef VLAN_DEBUG
-	printk(VLAN_DBG "%s: dev: %p\n", __FUNCTION__, vlandev);
-#endif
-
 	/** NOTE:  This will consume the memory pointed to by dent, it seems. */
-	if (VLAN_DEV_INFO(vlandev)->dent) {
-		remove_proc_entry(VLAN_DEV_INFO(vlandev)->dent->name, proc_vlan_dir);
-		VLAN_DEV_INFO(vlandev)->dent = NULL;
+	if (vlan_dev_info(vlandev)->dent) {
+		remove_proc_entry(vlan_dev_info(vlandev)->dent->name,
+				  proc_vlan_dir);
+		vlan_dev_info(vlandev)->dent = NULL;
 	}
-
 	return 0;
 }
 
@@ -245,6 +220,7 @@ static inline int is_vlan_dev(struct net_device *dev)
 
 /* start read of /proc/net/vlan/config */
 static void *vlan_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(dev_base_lock)
 {
 	struct net_device *dev;
 	loff_t i = 1;
@@ -286,6 +262,7 @@ static void *vlan_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void vlan_seq_stop(struct seq_file *seq, void *v)
+	__releases(dev_base_lock)
 {
 	read_unlock(&dev_base_lock);
 }
@@ -301,10 +278,10 @@ static int vlan_seq_show(struct seq_file *seq, void *v)
 		    nmtype =  vlan_name_type_str[vlan_name_type];
 
 		seq_printf(seq, "Name-Type: %s\n",
-			   nmtype ? nmtype :  "UNKNOWN" );
+			   nmtype ? nmtype :  "UNKNOWN");
 	} else {
 		const struct net_device *vlandev = v;
-		const struct vlan_dev_info *dev_info = VLAN_DEV_INFO(vlandev);
+		const struct vlan_dev_info *dev_info = vlan_dev_info(vlandev);
 
 		seq_printf(seq, "%-15s| %d  | %s\n",  vlandev->name,
 			   dev_info->vlan_id,    dev_info->real_dev->name);
@@ -315,20 +292,18 @@ static int vlan_seq_show(struct seq_file *seq, void *v)
 static int vlandev_seq_show(struct seq_file *seq, void *offset)
 {
 	struct net_device *vlandev = (struct net_device *) seq->private;
-	const struct vlan_dev_info *dev_info = VLAN_DEV_INFO(vlandev);
-	struct net_device_stats *stats;
+	const struct vlan_dev_info *dev_info = vlan_dev_info(vlandev);
+	struct net_device_stats *stats = &vlandev->stats;
 	static const char fmt[] = "%30s %12lu\n";
 	int i;
 
 	if (!(vlandev->priv_flags & IFF_802_1Q_VLAN))
 		return 0;
 
-	seq_printf(seq, "%s  VID: %d	 REORDER_HDR: %i  dev->priv_flags: %hx\n",
-		       vlandev->name, dev_info->vlan_id,
-		       (int)(dev_info->flags & 1), vlandev->priv_flags);
-
-
-	stats = vlan_dev_get_stats(vlandev);
+	seq_printf(seq,
+		   "%s  VID: %d	 REORDER_HDR: %i  dev->priv_flags: %hx\n",
+		   vlandev->name, dev_info->vlan_id,
+		   (int)(dev_info->flags & 1), vlandev->priv_flags);
 
 	seq_printf(seq, fmt, "total frames received", stats->rx_packets);
 	seq_printf(seq, fmt, "total bytes received", stats->rx_bytes);
@@ -342,16 +317,16 @@ static int vlandev_seq_show(struct seq_file *seq, void *offset)
 		   dev_info->cnt_encap_on_xmit);
 	seq_printf(seq, "Device: %s", dev_info->real_dev->name);
 	/* now show all PRIORITY mappings relating to this VLAN */
-	seq_printf(seq,
-		       "\nINGRESS priority mappings: 0:%u  1:%u  2:%u  3:%u  4:%u  5:%u  6:%u 7:%u\n",
-		       dev_info->ingress_priority_map[0],
-		       dev_info->ingress_priority_map[1],
-		       dev_info->ingress_priority_map[2],
-		       dev_info->ingress_priority_map[3],
-		       dev_info->ingress_priority_map[4],
-		       dev_info->ingress_priority_map[5],
-		       dev_info->ingress_priority_map[6],
-		       dev_info->ingress_priority_map[7]);
+	seq_printf(seq, "\nINGRESS priority mappings: "
+			"0:%u  1:%u  2:%u  3:%u  4:%u  5:%u  6:%u 7:%u\n",
+		   dev_info->ingress_priority_map[0],
+		   dev_info->ingress_priority_map[1],
+		   dev_info->ingress_priority_map[2],
+		   dev_info->ingress_priority_map[3],
+		   dev_info->ingress_priority_map[4],
+		   dev_info->ingress_priority_map[5],
+		   dev_info->ingress_priority_map[6],
+		   dev_info->ingress_priority_map[7]);
 
 	seq_printf(seq, "EGRESSS priority Mappings: ");
 	for (i = 0; i < 16; i++) {

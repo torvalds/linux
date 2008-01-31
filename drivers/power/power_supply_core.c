@@ -20,28 +20,29 @@
 
 struct class *power_supply_class;
 
+static int __power_supply_changed_work(struct device *dev, void *data)
+{
+	struct power_supply *psy = (struct power_supply *)data;
+	struct power_supply *pst = dev_get_drvdata(dev);
+	int i;
+
+	for (i = 0; i < psy->num_supplicants; i++)
+		if (!strcmp(psy->supplied_to[i], pst->name)) {
+			if (pst->external_power_changed)
+				pst->external_power_changed(pst);
+		}
+	return 0;
+}
+
 static void power_supply_changed_work(struct work_struct *work)
 {
 	struct power_supply *psy = container_of(work, struct power_supply,
 						changed_work);
-	int i;
 
 	dev_dbg(psy->dev, "%s\n", __FUNCTION__);
 
-	for (i = 0; i < psy->num_supplicants; i++) {
-		struct device *dev;
-
-		down(&power_supply_class->sem);
-		list_for_each_entry(dev, &power_supply_class->devices, node) {
-			struct power_supply *pst = dev_get_drvdata(dev);
-
-			if (!strcmp(psy->supplied_to[i], pst->name)) {
-				if (pst->external_power_changed)
-					pst->external_power_changed(pst);
-			}
-		}
-		up(&power_supply_class->sem);
-	}
+	class_for_each_device(power_supply_class, psy,
+			      __power_supply_changed_work);
 
 	power_supply_update_leds(psy);
 
@@ -55,32 +56,35 @@ void power_supply_changed(struct power_supply *psy)
 	schedule_work(&psy->changed_work);
 }
 
-int power_supply_am_i_supplied(struct power_supply *psy)
+static int __power_supply_am_i_supplied(struct device *dev, void *data)
 {
 	union power_supply_propval ret = {0,};
-	struct device *dev;
+	struct power_supply *psy = (struct power_supply *)data;
+	struct power_supply *epsy = dev_get_drvdata(dev);
+	int i;
 
-	down(&power_supply_class->sem);
-	list_for_each_entry(dev, &power_supply_class->devices, node) {
-		struct power_supply *epsy = dev_get_drvdata(dev);
-		int i;
-
-		for (i = 0; i < epsy->num_supplicants; i++) {
-			if (!strcmp(epsy->supplied_to[i], psy->name)) {
-				if (epsy->get_property(epsy,
-					  POWER_SUPPLY_PROP_ONLINE, &ret))
-					continue;
-				if (ret.intval)
-					goto out;
-			}
+	for (i = 0; i < epsy->num_supplicants; i++) {
+		if (!strcmp(epsy->supplied_to[i], psy->name)) {
+			if (epsy->get_property(epsy,
+				  POWER_SUPPLY_PROP_ONLINE, &ret))
+				continue;
+			if (ret.intval)
+				return ret.intval;
 		}
 	}
-out:
-	up(&power_supply_class->sem);
+	return 0;
+}
 
-	dev_dbg(psy->dev, "%s %d\n", __FUNCTION__, ret.intval);
+int power_supply_am_i_supplied(struct power_supply *psy)
+{
+	int error;
 
-	return ret.intval;
+	error = class_for_each_device(power_supply_class, psy,
+				      __power_supply_am_i_supplied);
+
+	dev_dbg(psy->dev, "%s %d\n", __FUNCTION__, error);
+
+	return error;
 }
 
 int power_supply_register(struct device *parent, struct power_supply *psy)

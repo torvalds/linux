@@ -34,6 +34,22 @@ config B43LEGACY_PCICORE_AUTOSELECT
 	select SSB_DRIVER_PCICORE
 	default y
 
+# LED support
+# This config option automatically enables b43legacy LEDS support,
+# if it's possible.
+config B43LEGACY_LEDS
+	bool
+	depends on B43LEGACY && MAC80211_LEDS && (LEDS_CLASS = y || LEDS_CLASS = B43LEGACY)
+	default y
+
+# RFKILL support
+# This config option automatically enables b43legacy RFKILL support,
+# if it's possible.
+config B43LEGACY_RFKILL
+	bool
+	depends on B43LEGACY && (RFKILL = y || RFKILL = B43LEGACY) && RFKILL_INPUT && (INPUT_POLLDEV = y || INPUT_POLLDEV = B43LEGACY)
+	default y
+
 config B43LEGACY_DEBUG
 	bool "Broadcom 43xx-legacy debugging"
 	depends on B43LEGACY

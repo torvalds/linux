@@ -284,7 +284,7 @@ static int rxkad_secure_packet(const struct rxrpc_call *call,
 
 	/* calculate the security checksum */
 	x = htonl(call->channel << (32 - RXRPC_CIDSHIFT));
-	x |= sp->hdr.seq & __constant_cpu_to_be32(0x3fffffff);
+	x |= sp->hdr.seq & cpu_to_be32(0x3fffffff);
 	tmpbuf.x[0] = sp->hdr.callNumber;
 	tmpbuf.x[1] = x;
 
@@ -518,7 +518,7 @@ static int rxkad_verify_packet(const struct rxrpc_call *call,
 
 	/* validate the security checksum */
 	x = htonl(call->channel << (32 - RXRPC_CIDSHIFT));
-	x |= sp->hdr.seq & __constant_cpu_to_be32(0x3fffffff);
+	x |= sp->hdr.seq & cpu_to_be32(0x3fffffff);
 	tmpbuf.x[0] = call->call_id;
 	tmpbuf.x[1] = x;
 

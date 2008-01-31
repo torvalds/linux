@@ -451,6 +451,7 @@ union sctp_params {
 	struct sctp_random_param *random;
 	struct sctp_chunks_param *chunks;
 	struct sctp_hmac_algo_param *hmac_algo;
+	struct sctp_addip_param *addip;
 };
 
 /* RFC 2960.  Section 3.3.5 Heartbeat.
@@ -743,6 +744,7 @@ struct sctp_chunk {
 	__u8 tsn_missing_report; /* Data chunk missing counter. */
 	__u8 data_accepted; 	/* At least 1 chunk in this packet accepted */
 	__u8 auth;		/* IN: was auth'ed | OUT: needs auth */
+	__u8 has_asconf;	/* IN: have seen an asconf before */
 };
 
 void sctp_chunk_hold(struct sctp_chunk *);
@@ -758,12 +760,18 @@ void sctp_init_addrs(struct sctp_chunk *, union sctp_addr *,
 		     union sctp_addr *);
 const union sctp_addr *sctp_source(const struct sctp_chunk *chunk);
 
+enum {
+	SCTP_ADDR_NEW,		/* new address added to assoc/ep */
+	SCTP_ADDR_SRC,		/* address can be used as source */
+	SCTP_ADDR_DEL,		/* address about to be deleted */
+};
+
 /* This is a structure for holding either an IPv6 or an IPv4 address.  */
 struct sctp_sockaddr_entry {
 	struct list_head list;
 	struct rcu_head	rcu;
 	union sctp_addr a;
-	__u8 use_as_src;
+	__u8 state;
 	__u8 valid;
 };
 
@@ -1188,10 +1196,12 @@ int sctp_bind_addr_dup(struct sctp_bind_addr *dest,
 			const struct sctp_bind_addr *src,
 			gfp_t gfp);
 int sctp_add_bind_addr(struct sctp_bind_addr *, union sctp_addr *,
-		       __u8 use_as_src, gfp_t gfp);
+		       __u8 addr_state, gfp_t gfp);
 int sctp_del_bind_addr(struct sctp_bind_addr *, union sctp_addr *);
 int sctp_bind_addr_match(struct sctp_bind_addr *, const union sctp_addr *,
 			 struct sctp_sock *);
+int sctp_bind_addr_state(const struct sctp_bind_addr *bp,
+			 const union sctp_addr *addr);
 union sctp_addr *sctp_find_unmatch_addr(struct sctp_bind_addr	*bp,
 					const union sctp_addr	*addrs,
 					int			addrcnt,
@@ -1784,20 +1794,16 @@ struct sctp_association {
 	 */
 	struct sctp_chunk *addip_last_asconf;
 
-	/* ADDIP Section 4.2 Upon reception of an ASCONF Chunk.
+	/* ADDIP Section 5.2 Upon reception of an ASCONF Chunk.
 	 *
-	 * IMPLEMENTATION NOTE: As an optimization a receiver may wish
-	 * to save the last ASCONF-ACK for some predetermined period
-	 * of time and instead of re-processing the ASCONF (with the
-	 * same serial number) it may just re-transmit the
-	 * ASCONF-ACK. It may wish to use the arrival of a new serial
-	 * number to discard the previously saved ASCONF-ACK or any
-	 * other means it may choose to expire the saved ASCONF-ACK.
+	 * This is needed to implement itmes E1 - E4 of the updated
+	 * spec.  Here is the justification:
 	 *
-	 * [This is our saved ASCONF-ACK.  We invalidate it when a new
-	 * ASCONF serial number arrives.]
+	 * Since the peer may bundle multiple ASCONF chunks toward us,
+	 * we now need the ability to cache multiple ACKs.  The section
+	 * describes in detail how they are cached and cleaned up.
 	 */
-	struct sctp_chunk *addip_last_asconf_ack;
+	struct list_head asconf_ack_list;
 
 	/* These ASCONF chunks are waiting to be sent.
 	 *
@@ -1938,12 +1944,19 @@ void sctp_assoc_rwnd_increase(struct sctp_association *, unsigned);
 void sctp_assoc_rwnd_decrease(struct sctp_association *, unsigned);
 void sctp_assoc_set_primary(struct sctp_association *,
 			    struct sctp_transport *);
+void sctp_assoc_del_nonprimary_peers(struct sctp_association *,
+				    struct sctp_transport *);
 int sctp_assoc_set_bind_addr_from_ep(struct sctp_association *,
 				     gfp_t);
 int sctp_assoc_set_bind_addr_from_cookie(struct sctp_association *,
 					 struct sctp_cookie*,
 					 gfp_t gfp);
 int sctp_assoc_set_id(struct sctp_association *, gfp_t);
+void sctp_assoc_clean_asconf_ack_cache(const struct sctp_association *asoc);
+struct sctp_chunk *sctp_assoc_lookup_asconf_ack(
+					const struct sctp_association *asoc,
+					__be32 serial);
+
 
 int sctp_cmp_addr_exact(const union sctp_addr *ss1,
 			const union sctp_addr *ss2);

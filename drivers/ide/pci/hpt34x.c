@@ -129,14 +129,18 @@ static void __devinit init_hwif_hpt34x(ide_hwif_t *hwif)
 	hwif->set_dma_mode = &hpt34x_set_mode;
 }
 
+#define IDE_HFLAGS_HPT34X \
+	(IDE_HFLAG_NO_ATAPI_DMA | \
+	 IDE_HFLAG_ABUSE_SET_DMA_MODE | \
+	 IDE_HFLAG_NO_AUTODMA)
+
 static const struct ide_port_info hpt34x_chipsets[] __devinitdata = {
 	{ /* 0 */
 		.name		= "HPT343",
 		.init_chipset	= init_chipset_hpt34x,
 		.init_hwif	= init_hwif_hpt34x,
 		.extra		= 16,
-		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA |
-				  IDE_HFLAG_NO_AUTODMA,
+		.host_flags	= IDE_HFLAGS_HPT34X,
 		.pio_mask	= ATA_PIO5,
 	},
 	{ /* 1 */
@@ -144,9 +148,7 @@ static const struct ide_port_info hpt34x_chipsets[] __devinitdata = {
 		.init_chipset	= init_chipset_hpt34x,
 		.init_hwif	= init_hwif_hpt34x,
 		.extra		= 16,
-		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA |
-				  IDE_HFLAG_NO_AUTODMA |
-				  IDE_HFLAG_OFF_BOARD,
+		.host_flags	= IDE_HFLAGS_HPT34X | IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO5,
 #ifdef CONFIG_HPT34X_AUTODMA
 		.swdma_mask	= ATA_SWDMA2,

@@ -170,29 +170,15 @@ static ctl_table nr_table[] = {
 	{ .ctl_name = 0 }
 };
 
-static ctl_table nr_dir_table[] = {
-	{
-		.ctl_name	= NET_NETROM,
-		.procname	= "netrom",
-		.mode		= 0555,
-		.child		= nr_table
-	},
-	{ .ctl_name = 0 }
-};
-
-static ctl_table nr_root_table[] = {
-	{
-		.ctl_name	= CTL_NET,
-		.procname	= "net",
-		.mode		= 0555,
-		.child		= nr_dir_table
-	},
-	{ .ctl_name = 0 }
+static struct ctl_path nr_path[] = {
+	{ .procname = "net", .ctl_name = CTL_NET, },
+	{ .procname = "netrom", .ctl_name = NET_NETROM, },
+	{ }
 };
 
 void __init nr_register_sysctl(void)
 {
-	nr_table_header = register_sysctl_table(nr_root_table);
+	nr_table_header = register_sysctl_paths(nr_path, nr_table);
 }
 
 void nr_unregister_sysctl(void)

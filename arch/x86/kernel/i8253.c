@@ -13,9 +13,16 @@
 #include <asm/delay.h>
 #include <asm/i8253.h>
 #include <asm/io.h>
+#include <asm/hpet.h>
 
 DEFINE_SPINLOCK(i8253_lock);
 EXPORT_SYMBOL(i8253_lock);
+
+#ifdef CONFIG_X86_32
+static void pit_disable_clocksource(void);
+#else
+static inline void pit_disable_clocksource(void) { }
+#endif
 
 /*
  * HPET replaces the PIT, when enabled. So we need to know, which of
@@ -31,38 +38,38 @@ struct clock_event_device *global_clock_event;
 static void init_pit_timer(enum clock_event_mode mode,
 			   struct clock_event_device *evt)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&i8253_lock, flags);
+	spin_lock(&i8253_lock);
 
 	switch(mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
 		/* binary, mode 2, LSB/MSB, ch 0 */
-		outb_p(0x34, PIT_MODE);
-		outb_p(LATCH & 0xff , PIT_CH0);	/* LSB */
-		outb(LATCH >> 8 , PIT_CH0);	/* MSB */
+		outb_pit(0x34, PIT_MODE);
+		outb_pit(LATCH & 0xff , PIT_CH0);	/* LSB */
+		outb_pit(LATCH >> 8 , PIT_CH0);		/* MSB */
 		break;
 
 	case CLOCK_EVT_MODE_SHUTDOWN:
 	case CLOCK_EVT_MODE_UNUSED:
 		if (evt->mode == CLOCK_EVT_MODE_PERIODIC ||
 		    evt->mode == CLOCK_EVT_MODE_ONESHOT) {
-			outb_p(0x30, PIT_MODE);
-			outb_p(0, PIT_CH0);
-			outb_p(0, PIT_CH0);
+			outb_pit(0x30, PIT_MODE);
+			outb_pit(0, PIT_CH0);
+			outb_pit(0, PIT_CH0);
 		}
+		pit_disable_clocksource();
 		break;
 
 	case CLOCK_EVT_MODE_ONESHOT:
 		/* One shot setup */
-		outb_p(0x38, PIT_MODE);
+		pit_disable_clocksource();
+		outb_pit(0x38, PIT_MODE);
 		break;
 
 	case CLOCK_EVT_MODE_RESUME:
 		/* Nothing to do here */
 		break;
 	}
-	spin_unlock_irqrestore(&i8253_lock, flags);
+	spin_unlock(&i8253_lock);
 }
 
 /*
@@ -72,12 +79,10 @@ static void init_pit_timer(enum clock_event_mode mode,
  */
 static int pit_next_event(unsigned long delta, struct clock_event_device *evt)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&i8253_lock, flags);
-	outb_p(delta & 0xff , PIT_CH0);	/* LSB */
-	outb(delta >> 8 , PIT_CH0);	/* MSB */
-	spin_unlock_irqrestore(&i8253_lock, flags);
+	spin_lock(&i8253_lock);
+	outb_pit(delta & 0xff , PIT_CH0);	/* LSB */
+	outb_pit(delta >> 8 , PIT_CH0);		/* MSB */
+	spin_unlock(&i8253_lock);
 
 	return 0;
 }
@@ -148,15 +153,15 @@ static cycle_t pit_read(void)
 	 * count), it cannot be newer.
 	 */
 	jifs = jiffies;
-	outb_p(0x00, PIT_MODE);	/* latch the count ASAP */
-	count = inb_p(PIT_CH0);	/* read the latched count */
-	count |= inb_p(PIT_CH0) << 8;
+	outb_pit(0x00, PIT_MODE);	/* latch the count ASAP */
+	count = inb_pit(PIT_CH0);	/* read the latched count */
+	count |= inb_pit(PIT_CH0) << 8;
 
 	/* VIA686a test code... reset the latch if count > max + 1 */
 	if (count > LATCH) {
-		outb_p(0x34, PIT_MODE);
-		outb_p(LATCH & 0xff, PIT_CH0);
-		outb(LATCH >> 8, PIT_CH0);
+		outb_pit(0x34, PIT_MODE);
+		outb_pit(LATCH & 0xff, PIT_CH0);
+		outb_pit(LATCH >> 8, PIT_CH0);
 		count = LATCH - 1;
 	}
 
@@ -195,9 +200,28 @@ static struct clocksource clocksource_pit = {
 	.shift	= 20,
 };
 
+static void pit_disable_clocksource(void)
+{
+	/*
+	 * Use mult to check whether it is registered or not
+	 */
+	if (clocksource_pit.mult) {
+		clocksource_unregister(&clocksource_pit);
+		clocksource_pit.mult = 0;
+	}
+}
+
 static int __init init_pit_clocksource(void)
 {
-	if (num_possible_cpus() > 1) /* PIT does not scale! */
+	 /*
+	  * Several reasons not to register PIT as a clocksource:
+	  *
+	  * - On SMP PIT does not scale due to i8253_lock
+	  * - when HPET is enabled
+	  * - when local APIC timer is active (PIT is switched off)
+	  */
+	if (num_possible_cpus() > 1 || is_hpet_enabled() ||
+	    pit_clockevent.mode != CLOCK_EVT_MODE_PERIODIC)
 		return 0;
 
 	clocksource_pit.mult = clocksource_hz2mult(CLOCK_TICK_RATE, 20);

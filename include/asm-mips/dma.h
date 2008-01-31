@@ -84,10 +84,9 @@
  * Deskstations or Acer PICA but not the much more versatile DMA logic used
  * for the local devices on Acer PICA or Magnums.
  */
-#ifdef CONFIG_SGI_IP22
-/* Horrible hack to have a correct DMA window on IP22 */
-#include <asm/sgi/mc.h>
-#define MAX_DMA_ADDRESS		(PAGE_OFFSET + SGIMC_SEG0_BADDR + 0x01000000)
+#if defined(CONFIG_SGI_IP22) || defined(CONFIG_SGI_IP28)
+/* don't care; ISA bus master won't work, ISA slave DMA supports 32bit addr */
+#define MAX_DMA_ADDRESS		PAGE_OFFSET
 #else
 #define MAX_DMA_ADDRESS		(PAGE_OFFSET + 0x01000000)
 #endif

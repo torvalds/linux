@@ -128,6 +128,11 @@ enum dibx000_adc_states {
 			     (v) == BANDWIDTH_7_MHZ  ? 7000 : \
 			     (v) == BANDWIDTH_6_MHZ  ? 6000 : 8000 )
 
+#define BANDWIDTH_TO_INDEX(v) ( \
+	(v) == 8000 ? BANDWIDTH_8_MHZ : \
+		(v) == 7000 ? BANDWIDTH_7_MHZ : \
+		(v) == 6000 ? BANDWIDTH_6_MHZ : BANDWIDTH_8_MHZ )
+
 /* Chip output mode. */
 #define OUTMODE_HIGH_Z              0
 #define OUTMODE_MPEG2_PAR_GATED_CLK 1

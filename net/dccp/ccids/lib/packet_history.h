@@ -1,9 +1,8 @@
 /*
- *  net/dccp/packet_history.h
+ *  Packet RX/TX history data structures and routines for TFRC-based protocols.
  *
+ *  Copyright (c) 2007   The University of Aberdeen, Scotland, UK
  *  Copyright (c) 2005-6 The University of Waikato, Hamilton, New Zealand.
- *
- *  An implementation of the DCCP protocol
  *
  *  This code has been developed by the University of Waikato WAND
  *  research group. For further information please see http://www.wand.net.nz/
@@ -37,165 +36,128 @@
 #ifndef _DCCP_PKT_HIST_
 #define _DCCP_PKT_HIST_
 
-#include <linux/ktime.h>
 #include <linux/list.h>
 #include <linux/slab.h>
+#include "tfrc.h"
 
-#include "../../dccp.h"
+struct tfrc_tx_hist_entry;
 
-/* Number of later packets received before one is considered lost */
-#define TFRC_RECV_NUM_LATE_LOSS	 3
+extern int  tfrc_tx_hist_add(struct tfrc_tx_hist_entry **headp, u64 seqno);
+extern void tfrc_tx_hist_purge(struct tfrc_tx_hist_entry **headp);
+extern u32  tfrc_tx_hist_rtt(struct tfrc_tx_hist_entry *head,
+			     const u64 seqno, const ktime_t now);
 
-#define TFRC_WIN_COUNT_PER_RTT	 4
-#define TFRC_WIN_COUNT_LIMIT	16
+/* Subtraction a-b modulo-16, respects circular wrap-around */
+#define SUB16(a, b) (((a) + 16 - (b)) & 0xF)
 
-/*
- * 	Transmitter History data structures and declarations
+/* Number of packets to wait after a missing packet (RFC 4342, 6.1) */
+#define TFRC_NDUPACK 3
+
+/**
+ * tfrc_rx_hist_entry - Store information about a single received packet
+ * @tfrchrx_seqno:	DCCP packet sequence number
+ * @tfrchrx_ccval:	window counter value of packet (RFC 4342, 8.1)
+ * @tfrchrx_ndp:	the NDP count (if any) of the packet
+ * @tfrchrx_tstamp:	actual receive time of packet
  */
-struct dccp_tx_hist_entry {
-	struct list_head dccphtx_node;
-	u64		 dccphtx_seqno:48,
-			 dccphtx_sent:1;
-	u32		 dccphtx_rtt;
-	ktime_t		 dccphtx_tstamp;
+struct tfrc_rx_hist_entry {
+	u64		 tfrchrx_seqno:48,
+			 tfrchrx_ccval:4,
+			 tfrchrx_type:4;
+	u32		 tfrchrx_ndp; /* In fact it is from 8 to 24 bits */
+	ktime_t		 tfrchrx_tstamp;
 };
 
-struct dccp_tx_hist {
-	struct kmem_cache *dccptxh_slab;
-};
-
-extern struct dccp_tx_hist *dccp_tx_hist_new(const char *name);
-extern void 		    dccp_tx_hist_delete(struct dccp_tx_hist *hist);
-
-static inline struct dccp_tx_hist_entry *
-			dccp_tx_hist_entry_new(struct dccp_tx_hist *hist,
-					       const gfp_t prio)
-{
-	struct dccp_tx_hist_entry *entry = kmem_cache_alloc(hist->dccptxh_slab,
-							    prio);
-
-	if (entry != NULL)
-		entry->dccphtx_sent = 0;
-
-	return entry;
-}
-
-static inline struct dccp_tx_hist_entry *
-			dccp_tx_hist_head(struct list_head *list)
-{
-	struct dccp_tx_hist_entry *head = NULL;
-
-	if (!list_empty(list))
-		head = list_entry(list->next, struct dccp_tx_hist_entry,
-				  dccphtx_node);
-	return head;
-}
-
-extern struct dccp_tx_hist_entry *
-			dccp_tx_hist_find_entry(const struct list_head *list,
-						const u64 seq);
-
-static inline void dccp_tx_hist_add_entry(struct list_head *list,
-					  struct dccp_tx_hist_entry *entry)
-{
-	list_add(&entry->dccphtx_node, list);
-}
-
-static inline void dccp_tx_hist_entry_delete(struct dccp_tx_hist *hist,
-					     struct dccp_tx_hist_entry *entry)
-{
-	if (entry != NULL)
-		kmem_cache_free(hist->dccptxh_slab, entry);
-}
-
-extern void dccp_tx_hist_purge(struct dccp_tx_hist *hist,
-			       struct list_head *list);
-
-extern void dccp_tx_hist_purge_older(struct dccp_tx_hist *hist,
-				     struct list_head *list,
-				     struct dccp_tx_hist_entry *next);
-
-/*
- * 	Receiver History data structures and declarations
+/**
+ * tfrc_rx_hist  -  RX history structure for TFRC-based protocols
+ *
+ * @ring:		Packet history for RTT sampling and loss detection
+ * @loss_count:		Number of entries in circular history
+ * @loss_start:		Movable index (for loss detection)
+ * @rtt_sample_prev:	Used during RTT sampling, points to candidate entry
  */
-struct dccp_rx_hist_entry {
-	struct list_head dccphrx_node;
-	u64		 dccphrx_seqno:48,
-			 dccphrx_ccval:4,
-			 dccphrx_type:4;
-	u32		 dccphrx_ndp; /* In fact it is from 8 to 24 bits */
-	ktime_t		 dccphrx_tstamp;
+struct tfrc_rx_hist {
+	struct tfrc_rx_hist_entry *ring[TFRC_NDUPACK + 1];
+	u8			  loss_count:2,
+				  loss_start:2;
+#define rtt_sample_prev		  loss_start
 };
 
-struct dccp_rx_hist {
-	struct kmem_cache *dccprxh_slab;
-};
-
-extern struct dccp_rx_hist *dccp_rx_hist_new(const char *name);
-extern void 		dccp_rx_hist_delete(struct dccp_rx_hist *hist);
-
-static inline struct dccp_rx_hist_entry *
-			dccp_rx_hist_entry_new(struct dccp_rx_hist *hist,
-					       const u32 ndp,
-					       const struct sk_buff *skb,
-					       const gfp_t prio)
+/**
+ * tfrc_rx_hist_index - index to reach n-th entry after loss_start
+ */
+static inline u8 tfrc_rx_hist_index(const struct tfrc_rx_hist *h, const u8 n)
 {
-	struct dccp_rx_hist_entry *entry = kmem_cache_alloc(hist->dccprxh_slab,
-							    prio);
-
-	if (entry != NULL) {
-		const struct dccp_hdr *dh = dccp_hdr(skb);
-
-		entry->dccphrx_seqno = DCCP_SKB_CB(skb)->dccpd_seq;
-		entry->dccphrx_ccval = dh->dccph_ccval;
-		entry->dccphrx_type  = dh->dccph_type;
-		entry->dccphrx_ndp   = ndp;
-		entry->dccphrx_tstamp = ktime_get_real();
-	}
-
-	return entry;
+	return (h->loss_start + n) & TFRC_NDUPACK;
 }
 
-static inline struct dccp_rx_hist_entry *
-			dccp_rx_hist_head(struct list_head *list)
+/**
+ * tfrc_rx_hist_last_rcv - entry with highest-received-seqno so far
+ */
+static inline struct tfrc_rx_hist_entry *
+			tfrc_rx_hist_last_rcv(const struct tfrc_rx_hist *h)
 {
-	struct dccp_rx_hist_entry *head = NULL;
-
-	if (!list_empty(list))
-		head = list_entry(list->next, struct dccp_rx_hist_entry,
-				  dccphrx_node);
-	return head;
+	return h->ring[tfrc_rx_hist_index(h, h->loss_count)];
 }
 
-extern int dccp_rx_hist_find_entry(const struct list_head *list, const u64 seq,
-				   u8 *ccval);
-extern struct dccp_rx_hist_entry *
-		dccp_rx_hist_find_data_packet(const struct list_head *list);
-
-extern void dccp_rx_hist_add_packet(struct dccp_rx_hist *hist,
-				    struct list_head *rx_list,
-				    struct list_head *li_list,
-				    struct dccp_rx_hist_entry *packet,
-				    u64 nonloss_seqno);
-
-static inline void dccp_rx_hist_entry_delete(struct dccp_rx_hist *hist,
-					     struct dccp_rx_hist_entry *entry)
+/**
+ * tfrc_rx_hist_entry - return the n-th history entry after loss_start
+ */
+static inline struct tfrc_rx_hist_entry *
+			tfrc_rx_hist_entry(const struct tfrc_rx_hist *h, const u8 n)
 {
-	if (entry != NULL)
-		kmem_cache_free(hist->dccprxh_slab, entry);
+	return h->ring[tfrc_rx_hist_index(h, n)];
 }
 
-extern void dccp_rx_hist_purge(struct dccp_rx_hist *hist,
-			       struct list_head *list);
-
-static inline int
-	dccp_rx_hist_entry_data_packet(const struct dccp_rx_hist_entry *entry)
+/**
+ * tfrc_rx_hist_loss_prev - entry with highest-received-seqno before loss was detected
+ */
+static inline struct tfrc_rx_hist_entry *
+			tfrc_rx_hist_loss_prev(const struct tfrc_rx_hist *h)
 {
-	return entry->dccphrx_type == DCCP_PKT_DATA ||
-	       entry->dccphrx_type == DCCP_PKT_DATAACK;
+	return h->ring[h->loss_start];
 }
 
-extern u64 dccp_rx_hist_detect_loss(struct list_head *rx_list,
-				    struct list_head *li_list, u8 *win_loss);
+/* initialise loss detection and disable RTT sampling */
+static inline void tfrc_rx_hist_loss_indicated(struct tfrc_rx_hist *h)
+{
+	h->loss_count = 1;
+}
+
+/* indicate whether previously a packet was detected missing */
+static inline int tfrc_rx_hist_loss_pending(const struct tfrc_rx_hist *h)
+{
+	return h->loss_count;
+}
+
+/* any data packets missing between last reception and skb ? */
+static inline int tfrc_rx_hist_new_loss_indicated(struct tfrc_rx_hist *h,
+						  const struct sk_buff *skb,
+						  u32 ndp)
+{
+	int delta = dccp_delta_seqno(tfrc_rx_hist_last_rcv(h)->tfrchrx_seqno,
+				     DCCP_SKB_CB(skb)->dccpd_seq);
+
+	if (delta > 1 && ndp < delta)
+		tfrc_rx_hist_loss_indicated(h);
+
+	return tfrc_rx_hist_loss_pending(h);
+}
+
+extern void tfrc_rx_hist_add_packet(struct tfrc_rx_hist *h,
+				    const struct sk_buff *skb, const u32 ndp);
+
+extern int tfrc_rx_hist_duplicate(struct tfrc_rx_hist *h, struct sk_buff *skb);
+
+struct tfrc_loss_hist;
+extern int  tfrc_rx_handle_loss(struct tfrc_rx_hist *h,
+				struct tfrc_loss_hist *lh,
+				struct sk_buff *skb, u32 ndp,
+				u32 (*first_li)(struct sock *sk),
+				struct sock *sk);
+extern u32 tfrc_rx_hist_sample_rtt(struct tfrc_rx_hist *h,
+				   const struct sk_buff *skb);
+extern int tfrc_rx_hist_alloc(struct tfrc_rx_hist *h);
+extern void tfrc_rx_hist_purge(struct tfrc_rx_hist *h);
 
 #endif /* _DCCP_PKT_HIST_ */

@@ -43,17 +43,6 @@
 #include "aic79xx_inline.h"
 #include "aic79xx_pci.h"
 
-static int	ahd_linux_pci_dev_probe(struct pci_dev *pdev,
-					const struct pci_device_id *ent);
-static int	ahd_linux_pci_reserve_io_regions(struct ahd_softc *ahd,
-						 u_long *base, u_long *base2);
-static int	ahd_linux_pci_reserve_mem_region(struct ahd_softc *ahd,
-						 u_long *bus_addr,
-						 uint8_t __iomem **maddr);
-static int	ahd_linux_pci_dev_suspend(struct pci_dev *pdev, pm_message_t mesg);
-static int	ahd_linux_pci_dev_resume(struct pci_dev *pdev);
-static void	ahd_linux_pci_dev_remove(struct pci_dev *pdev);
-
 /* Define the macro locally since it's different for different class of chips.
  */
 #define ID(x)            \
@@ -85,17 +74,7 @@ static struct pci_device_id ahd_linux_pci_id_table[] = {
 
 MODULE_DEVICE_TABLE(pci, ahd_linux_pci_id_table);
 
-static struct pci_driver aic79xx_pci_driver = {
-	.name		= "aic79xx",
-	.probe		= ahd_linux_pci_dev_probe,
 #ifdef CONFIG_PM
-	.suspend	= ahd_linux_pci_dev_suspend,
-	.resume		= ahd_linux_pci_dev_resume,
-#endif
-	.remove		= ahd_linux_pci_dev_remove,
-	.id_table	= ahd_linux_pci_id_table
-};
-
 static int
 ahd_linux_pci_dev_suspend(struct pci_dev *pdev, pm_message_t mesg)
 {
@@ -139,6 +118,7 @@ ahd_linux_pci_dev_resume(struct pci_dev *pdev)
 
 	return rc;
 }
+#endif
 
 static void
 ahd_linux_pci_dev_remove(struct pci_dev *pdev)
@@ -244,6 +224,17 @@ ahd_linux_pci_dev_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ahd_linux_register_host(ahd, &aic79xx_driver_template);
 	return (0);
 }
+
+static struct pci_driver aic79xx_pci_driver = {
+	.name		= "aic79xx",
+	.probe		= ahd_linux_pci_dev_probe,
+#ifdef CONFIG_PM
+	.suspend	= ahd_linux_pci_dev_suspend,
+	.resume		= ahd_linux_pci_dev_resume,
+#endif
+	.remove		= ahd_linux_pci_dev_remove,
+	.id_table	= ahd_linux_pci_id_table
+};
 
 int
 ahd_linux_pci_init(void)

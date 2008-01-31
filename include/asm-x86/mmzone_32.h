@@ -87,9 +87,6 @@ static inline int pfn_to_nid(unsigned long pfn)
 	__pgdat->node_start_pfn + __pgdat->node_spanned_pages;		\
 })
 
-/* XXX: FIXME -- wli */
-#define kern_addr_valid(kaddr)	(0)
-
 #ifdef CONFIG_X86_NUMAQ            /* we have contiguous memory on NUMA-Q */
 #define pfn_valid(pfn)          ((pfn) < num_physpages)
 #else

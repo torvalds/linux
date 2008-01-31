@@ -21,6 +21,11 @@ struct rate_control_alg {
 static LIST_HEAD(rate_ctrl_algs);
 static DEFINE_MUTEX(rate_ctrl_mutex);
 
+static char *ieee80211_default_rc_algo = CONFIG_MAC80211_RC_DEFAULT;
+module_param(ieee80211_default_rc_algo, charp, 0644);
+MODULE_PARM_DESC(ieee80211_default_rc_algo,
+		 "Default rate control algorithm for mac80211 to use");
+
 int ieee80211_rate_control_register(struct rate_control_ops *ops)
 {
 	struct rate_control_alg *alg;
@@ -89,21 +94,31 @@ ieee80211_try_rate_control_ops_get(const char *name)
 	return ops;
 }
 
-/* Get the rate control algorithm. If `name' is NULL, get the first
- * available algorithm. */
+/* Get the rate control algorithm. */
 static struct rate_control_ops *
 ieee80211_rate_control_ops_get(const char *name)
 {
 	struct rate_control_ops *ops;
+	const char *alg_name;
 
 	if (!name)
-		name = "simple";
+		alg_name = ieee80211_default_rc_algo;
+	else
+		alg_name = name;
 
-	ops = ieee80211_try_rate_control_ops_get(name);
+	ops = ieee80211_try_rate_control_ops_get(alg_name);
 	if (!ops) {
-		request_module("rc80211_%s", name);
-		ops = ieee80211_try_rate_control_ops_get(name);
+		request_module("rc80211_%s", alg_name);
+		ops = ieee80211_try_rate_control_ops_get(alg_name);
 	}
+	if (!ops && name)
+		/* try default if specific alg requested but not found */
+		ops = ieee80211_try_rate_control_ops_get(ieee80211_default_rc_algo);
+
+	/* try built-in one if specific alg requested but not found */
+	if (!ops && strlen(CONFIG_MAC80211_RC_DEFAULT))
+		ops = ieee80211_try_rate_control_ops_get(CONFIG_MAC80211_RC_DEFAULT);
+
 	return ops;
 }
 
@@ -145,6 +160,37 @@ static void rate_control_release(struct kref *kref)
 	ctrl_ref->ops->free(ctrl_ref->priv);
 	ieee80211_rate_control_ops_put(ctrl_ref->ops);
 	kfree(ctrl_ref);
+}
+
+void rate_control_get_rate(struct net_device *dev,
+			   struct ieee80211_hw_mode *mode, struct sk_buff *skb,
+			   struct rate_selection *sel)
+{
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct rate_control_ref *ref = local->rate_ctrl;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct sta_info *sta = sta_info_get(local, hdr->addr1);
+	int i;
+
+	memset(sel, 0, sizeof(struct rate_selection));
+
+	ref->ops->get_rate(ref->priv, dev, mode, skb, sel);
+
+	/* Select a non-ERP backup rate. */
+	if (!sel->nonerp) {
+		for (i = 0; i < mode->num_rates - 1; i++) {
+			struct ieee80211_rate *rate = &mode->rates[i];
+			if (sel->rate->rate < rate->rate)
+				break;
+
+			if (rate_supported(sta, mode, i) &&
+			    !(rate->flags & IEEE80211_RATE_ERP))
+				sel->nonerp = rate;
+		}
+	}
+
+	if (sta)
+		sta_info_put(sta);
 }
 
 struct rate_control_ref *rate_control_get(struct rate_control_ref *ref)
@@ -197,3 +243,4 @@ void rate_control_deinitialize(struct ieee80211_local *local)
 	local->rate_ctrl = NULL;
 	rate_control_put(ref);
 }
+

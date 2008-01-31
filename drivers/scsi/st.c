@@ -9,7 +9,7 @@
    Steve Hirsch, Andreas Koppenh"ofer, Michael Leodolter, Eyal Lebedinsky,
    Michael Schaefer, J"org Weule, and Eric Youngdale.
 
-   Copyright 1992 - 2007 Kai Makisara
+   Copyright 1992 - 2008 Kai Makisara
    email Kai.Makisara@kolumbus.fi
 
    Some small formal changes - aeb, 950809
@@ -17,7 +17,7 @@
    Last modified: 18-JAN-1998 Richard Gooch <rgooch@atnf.csiro.au> Devfs support
  */
 
-static const char *verstr = "20070203";
+static const char *verstr = "20080117";
 
 #include <linux/module.h>
 
@@ -3214,8 +3214,7 @@ static int partition_tape(struct scsi_tape *STp, int size)
 
 
 /* The ioctl command */
-static int st_ioctl(struct inode *inode, struct file *file,
-		    unsigned int cmd_in, unsigned long arg)
+static long st_ioctl(struct file *file, unsigned int cmd_in, unsigned long arg)
 {
 	int i, cmd_nr, cmd_type, bt;
 	int retval = 0;
@@ -3870,7 +3869,7 @@ static const struct file_operations st_fops =
 	.owner =	THIS_MODULE,
 	.read =		st_read,
 	.write =	st_write,
-	.ioctl =	st_ioctl,
+	.unlocked_ioctl = st_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = st_compat_ioctl,
 #endif

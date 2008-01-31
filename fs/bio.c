@@ -248,11 +248,13 @@ inline int bio_hw_segments(struct request_queue *q, struct bio *bio)
  */
 void __bio_clone(struct bio *bio, struct bio *bio_src)
 {
-	struct request_queue *q = bdev_get_queue(bio_src->bi_bdev);
-
 	memcpy(bio->bi_io_vec, bio_src->bi_io_vec,
 		bio_src->bi_max_vecs * sizeof(struct bio_vec));
 
+	/*
+	 * most users will be overriding ->bi_bdev with a new target,
+	 * so we don't set nor calculate new physical/hw segment counts here
+	 */
 	bio->bi_sector = bio_src->bi_sector;
 	bio->bi_bdev = bio_src->bi_bdev;
 	bio->bi_flags |= 1 << BIO_CLONED;
@@ -260,8 +262,6 @@ void __bio_clone(struct bio *bio, struct bio *bio_src)
 	bio->bi_vcnt = bio_src->bi_vcnt;
 	bio->bi_size = bio_src->bi_size;
 	bio->bi_idx = bio_src->bi_idx;
-	bio_phys_segments(q, bio);
-	bio_hw_segments(q, bio);
 }
 
 /**

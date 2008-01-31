@@ -533,7 +533,7 @@ ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	fl.fl4_dst = eiph->saddr;
 	fl.fl4_tos = RT_TOS(eiph->tos);
 	fl.proto = IPPROTO_IPIP;
-	if (ip_route_output_key(&rt, &fl))
+	if (ip_route_output_key(&init_net, &rt, &fl))
 		goto out;
 
 	skb2->dev = rt->u.dst.dev;
@@ -545,7 +545,7 @@ ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		fl.fl4_dst = eiph->daddr;
 		fl.fl4_src = eiph->saddr;
 		fl.fl4_tos = eiph->tos;
-		if (ip_route_output_key(&rt, &fl) ||
+		if (ip_route_output_key(&init_net, &rt, &fl) ||
 		    rt->u.dst.dev->type != ARPHRD_TUNNEL) {
 			ip_rt_put(rt);
 			goto out;
@@ -635,7 +635,7 @@ static void ip6ip6_dscp_ecn_decapsulate(struct ip6_tnl *t,
 					struct sk_buff *skb)
 {
 	if (t->parms.flags & IP6_TNL_F_RCV_DSCP_COPY)
-		ipv6_copy_dscp(ipv6h, ipv6_hdr(skb));
+		ipv6_copy_dscp(ipv6_get_dsfield(ipv6h), ipv6_hdr(skb));
 
 	if (INET_ECN_is_ce(ipv6_get_dsfield(ipv6h)))
 		IP6_ECN_set_ce(ipv6_hdr(skb));
@@ -653,8 +653,8 @@ static inline int ip6_tnl_rcv_ctl(struct ip6_tnl *t)
 			ldev = dev_get_by_index(&init_net, p->link);
 
 		if ((ipv6_addr_is_multicast(&p->laddr) ||
-		     likely(ipv6_chk_addr(&p->laddr, ldev, 0))) &&
-		    likely(!ipv6_chk_addr(&p->raddr, NULL, 0)))
+		     likely(ipv6_chk_addr(&init_net, &p->laddr, ldev, 0))) &&
+		    likely(!ipv6_chk_addr(&init_net, &p->raddr, NULL, 0)))
 			ret = 1;
 
 		if (ldev)
@@ -788,12 +788,12 @@ static inline int ip6_tnl_xmit_ctl(struct ip6_tnl *t)
 		if (p->link)
 			ldev = dev_get_by_index(&init_net, p->link);
 
-		if (unlikely(!ipv6_chk_addr(&p->laddr, ldev, 0)))
+		if (unlikely(!ipv6_chk_addr(&init_net, &p->laddr, ldev, 0)))
 			printk(KERN_WARNING
 			       "%s xmit: Local address not yet configured!\n",
 			       p->name);
 		else if (!ipv6_addr_is_multicast(&p->raddr) &&
-			 unlikely(ipv6_chk_addr(&p->raddr, NULL, 0)))
+			 unlikely(ipv6_chk_addr(&init_net, &p->raddr, NULL, 0)))
 			printk(KERN_WARNING
 			       "%s xmit: Routing loop! "
 			       "Remote address found on this node!\n",
@@ -910,15 +910,13 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 	*(__be32*)ipv6h = fl->fl6_flowlabel | htonl(0x60000000);
 	dsfield = INET_ECN_encapsulate(0, dsfield);
 	ipv6_change_dsfield(ipv6h, ~INET_ECN_MASK, dsfield);
-	ipv6h->payload_len = htons(skb->len - sizeof(struct ipv6hdr));
 	ipv6h->hop_limit = t->parms.hop_limit;
 	ipv6h->nexthdr = proto;
 	ipv6_addr_copy(&ipv6h->saddr, &fl->fl6_src);
 	ipv6_addr_copy(&ipv6h->daddr, &fl->fl6_dst);
 	nf_reset(skb);
 	pkt_len = skb->len;
-	err = NF_HOOK(PF_INET6, NF_IP6_LOCAL_OUT, skb, NULL,
-		      skb->dst->dev, dst_output);
+	err = ip6_local_out(skb);
 
 	if (net_xmit_eval(err) == 0) {
 		stats->tx_bytes += pkt_len;

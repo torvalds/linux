@@ -149,7 +149,7 @@ static void tifm_7xx1_switch_media(struct work_struct *work)
 	socket_change_set = fm->socket_change_set;
 	fm->socket_change_set = 0;
 
-	dev_dbg(fm->cdev.dev, "checking media set %x\n",
+	dev_dbg(fm->dev.parent, "checking media set %x\n",
 		socket_change_set);
 
 	if (!socket_change_set) {
@@ -164,7 +164,7 @@ static void tifm_7xx1_switch_media(struct work_struct *work)
 		if (sock) {
 			printk(KERN_INFO
 			       "%s : demand removing card from socket %u:%u\n",
-			       fm->cdev.class_id, fm->id, cnt);
+			       fm->dev.bus_id, fm->id, cnt);
 			fm->sockets[cnt] = NULL;
 			sock_addr = sock->addr;
 			spin_unlock_irqrestore(&fm->lock, flags);

@@ -8233,7 +8233,7 @@ static void adv_isr_callback(ADV_DVC_VAR *adv_dvc_varp, ADV_SCSI_REQ_Q *scsiqp)
 			if (scsiqp->scsi_status == SAM_STAT_CHECK_CONDITION) {
 				ASC_DBG(2, "SAM_STAT_CHECK_CONDITION\n");
 				ASC_DBG_PRT_SENSE(2, scp->sense_buffer,
-						  sizeof(scp->sense_buffer));
+						  SCSI_SENSE_BUFFERSIZE);
 				/*
 				 * Note: The 'status_byte()' macro used by
 				 * target drivers defined in scsi.h shifts the
@@ -9136,7 +9136,7 @@ static void asc_isr_callback(ASC_DVC_VAR *asc_dvc_varp, ASC_QDONE_INFO *qdonep)
 	BUG_ON(asc_dvc_varp != &boardp->dvc_var.asc_dvc_var);
 
 	dma_unmap_single(boardp->dev, scp->SCp.dma_handle,
-			sizeof(scp->sense_buffer), DMA_FROM_DEVICE);
+			 SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
 	/*
 	 * 'qdonep' contains the command's ending status.
 	 */
@@ -9166,7 +9166,7 @@ static void asc_isr_callback(ASC_DVC_VAR *asc_dvc_varp, ASC_QDONE_INFO *qdonep)
 			if (qdonep->d3.scsi_stat == SAM_STAT_CHECK_CONDITION) {
 				ASC_DBG(2, "SAM_STAT_CHECK_CONDITION\n");
 				ASC_DBG_PRT_SENSE(2, scp->sense_buffer,
-						  sizeof(scp->sense_buffer));
+						  SCSI_SENSE_BUFFERSIZE);
 				/*
 				 * Note: The 'status_byte()' macro used by
 				 * target drivers defined in scsi.h shifts the
@@ -9881,9 +9881,9 @@ static __le32 advansys_get_sense_buffer_dma(struct scsi_cmnd *scp)
 {
 	struct asc_board *board = shost_priv(scp->device->host);
 	scp->SCp.dma_handle = dma_map_single(board->dev, scp->sense_buffer,
-				sizeof(scp->sense_buffer), DMA_FROM_DEVICE);
+					     SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
 	dma_cache_sync(board->dev, scp->sense_buffer,
-				sizeof(scp->sense_buffer), DMA_FROM_DEVICE);
+		       SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
 	return cpu_to_le32(scp->SCp.dma_handle);
 }
 
@@ -9914,7 +9914,7 @@ static int asc_build_req(struct asc_board *boardp, struct scsi_cmnd *scp,
 	asc_scsi_q->q2.target_ix =
 	    ASC_TIDLUN_TO_IX(scp->device->id, scp->device->lun);
 	asc_scsi_q->q1.sense_addr = advansys_get_sense_buffer_dma(scp);
-	asc_scsi_q->q1.sense_len = sizeof(scp->sense_buffer);
+	asc_scsi_q->q1.sense_len = SCSI_SENSE_BUFFERSIZE;
 
 	/*
 	 * If there are any outstanding requests for the current target,
@@ -10173,7 +10173,7 @@ adv_build_req(struct asc_board *boardp, struct scsi_cmnd *scp,
 	scsiqp->target_lun = scp->device->lun;
 
 	scsiqp->sense_addr = cpu_to_le32(virt_to_bus(&scp->sense_buffer[0]));
-	scsiqp->sense_len = sizeof(scp->sense_buffer);
+	scsiqp->sense_len = SCSI_SENSE_BUFFERSIZE;
 
 	/* Build ADV_SCSI_REQ_Q */
 

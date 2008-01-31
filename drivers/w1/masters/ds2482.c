@@ -29,7 +29,7 @@
  * However, the chip cannot be detected without doing an i2c write,
  * so use the force module parameter.
  */
-static unsigned short normal_i2c[] = {I2C_CLIENT_END};
+static const unsigned short normal_i2c[] = { I2C_CLIENT_END };
 
 /**
  * Insmod parameters

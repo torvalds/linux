@@ -73,8 +73,8 @@ void nf_ct_unexpect_related(struct nf_conntrack_expect *exp);
    nf_ct_expect_related.  You will have to call put afterwards. */
 struct nf_conntrack_expect *nf_ct_expect_alloc(struct nf_conn *me);
 void nf_ct_expect_init(struct nf_conntrack_expect *, int,
-		       union nf_conntrack_address *,
-		       union nf_conntrack_address *,
+		       union nf_inet_addr *,
+		       union nf_inet_addr *,
 		       u_int8_t, __be16 *, __be16 *);
 void nf_ct_expect_put(struct nf_conntrack_expect *exp);
 int nf_ct_expect_related(struct nf_conntrack_expect *expect);

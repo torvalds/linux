@@ -1145,7 +1145,7 @@ static void etr_work_fn(struct work_struct *work)
  * Sysfs interface functions
  */
 static struct sysdev_class etr_sysclass = {
-	set_kset_name("etr")
+	.name	= "etr",
 };
 
 static struct sys_device etr_port0_dev = {

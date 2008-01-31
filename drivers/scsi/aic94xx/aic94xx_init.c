@@ -29,6 +29,7 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
+#include <linux/firmware.h>
 
 #include <scsi/scsi_host.h>
 
@@ -36,6 +37,7 @@
 #include "aic94xx_reg.h"
 #include "aic94xx_hwi.h"
 #include "aic94xx_seq.h"
+#include "aic94xx_sds.h"
 
 /* The format is "version.release.patchlevel" */
 #define ASD_DRIVER_VERSION "1.0.3"
@@ -134,7 +136,7 @@ Err:
 	return err;
 }
 
-static void __devexit asd_unmap_memio(struct asd_ha_struct *asd_ha)
+static void asd_unmap_memio(struct asd_ha_struct *asd_ha)
 {
 	struct asd_ha_addrspace *io_handle;
 
@@ -171,7 +173,7 @@ static int __devinit asd_map_ioport(struct asd_ha_struct *asd_ha)
 	return err;
 }
 
-static void __devexit asd_unmap_ioport(struct asd_ha_struct *asd_ha)
+static void asd_unmap_ioport(struct asd_ha_struct *asd_ha)
 {
 	pci_release_region(asd_ha->pcidev, PCI_IOBAR_OFFSET);
 }
@@ -208,7 +210,7 @@ Err:
 	return err;
 }
 
-static void __devexit asd_unmap_ha(struct asd_ha_struct *asd_ha)
+static void asd_unmap_ha(struct asd_ha_struct *asd_ha)
 {
 	if (asd_ha->iospace)
 		asd_unmap_ioport(asd_ha);
@@ -313,6 +315,181 @@ static ssize_t asd_show_dev_pcba_sn(struct device *dev,
 }
 static DEVICE_ATTR(pcba_sn, S_IRUGO, asd_show_dev_pcba_sn, NULL);
 
+#define FLASH_CMD_NONE      0x00
+#define FLASH_CMD_UPDATE    0x01
+#define FLASH_CMD_VERIFY    0x02
+
+struct flash_command {
+     u8      command[8];
+     int     code;
+};
+
+static struct flash_command flash_command_table[] =
+{
+     {"verify",      FLASH_CMD_VERIFY},
+     {"update",      FLASH_CMD_UPDATE},
+     {"",            FLASH_CMD_NONE}      /* Last entry should be NULL. */
+};
+
+struct error_bios {
+     char    *reason;
+     int     err_code;
+};
+
+static struct error_bios flash_error_table[] =
+{
+     {"Failed to open bios image file",      FAIL_OPEN_BIOS_FILE},
+     {"PCI ID mismatch",                     FAIL_CHECK_PCI_ID},
+     {"Checksum mismatch",                   FAIL_CHECK_SUM},
+     {"Unknown Error",                       FAIL_UNKNOWN},
+     {"Failed to verify.",                   FAIL_VERIFY},
+     {"Failed to reset flash chip.",         FAIL_RESET_FLASH},
+     {"Failed to find flash chip type.",     FAIL_FIND_FLASH_ID},
+     {"Failed to erash flash chip.",         FAIL_ERASE_FLASH},
+     {"Failed to program flash chip.",       FAIL_WRITE_FLASH},
+     {"Flash in progress",                   FLASH_IN_PROGRESS},
+     {"Image file size Error",               FAIL_FILE_SIZE},
+     {"Input parameter error",               FAIL_PARAMETERS},
+     {"Out of memory",                       FAIL_OUT_MEMORY},
+     {"OK", 0}	/* Last entry err_code = 0. */
+};
+
+static ssize_t asd_store_update_bios(struct device *dev,
+	struct device_attribute *attr,
+	const char *buf, size_t count)
+{
+	struct asd_ha_struct *asd_ha = dev_to_asd_ha(dev);
+	char *cmd_ptr, *filename_ptr;
+	struct bios_file_header header, *hdr_ptr;
+	int res, i;
+	u32 csum = 0;
+	int flash_command = FLASH_CMD_NONE;
+	int err = 0;
+
+	cmd_ptr = kzalloc(count*2, GFP_KERNEL);
+
+	if (!cmd_ptr) {
+		err = FAIL_OUT_MEMORY;
+		goto out;
+	}
+
+	filename_ptr = cmd_ptr + count;
+	res = sscanf(buf, "%s %s", cmd_ptr, filename_ptr);
+	if (res != 2) {
+		err = FAIL_PARAMETERS;
+		goto out1;
+	}
+
+	for (i = 0; flash_command_table[i].code != FLASH_CMD_NONE; i++) {
+		if (!memcmp(flash_command_table[i].command,
+				 cmd_ptr, strlen(cmd_ptr))) {
+			flash_command = flash_command_table[i].code;
+			break;
+		}
+	}
+	if (flash_command == FLASH_CMD_NONE) {
+		err = FAIL_PARAMETERS;
+		goto out1;
+	}
+
+	if (asd_ha->bios_status == FLASH_IN_PROGRESS) {
+		err = FLASH_IN_PROGRESS;
+		goto out1;
+	}
+	err = request_firmware(&asd_ha->bios_image,
+				   filename_ptr,
+				   &asd_ha->pcidev->dev);
+	if (err) {
+		asd_printk("Failed to load bios image file %s, error %d\n",
+			   filename_ptr, err);
+		err = FAIL_OPEN_BIOS_FILE;
+		goto out1;
+	}
+
+	hdr_ptr = (struct bios_file_header *)asd_ha->bios_image->data;
+
+	if ((hdr_ptr->contrl_id.vendor != asd_ha->pcidev->vendor ||
+		hdr_ptr->contrl_id.device != asd_ha->pcidev->device) &&
+		(hdr_ptr->contrl_id.sub_vendor != asd_ha->pcidev->vendor ||
+		hdr_ptr->contrl_id.sub_device != asd_ha->pcidev->device)) {
+
+		ASD_DPRINTK("The PCI vendor or device id does not match\n");
+		ASD_DPRINTK("vendor=%x dev=%x sub_vendor=%x sub_dev=%x"
+		" pci vendor=%x pci dev=%x\n",
+		hdr_ptr->contrl_id.vendor,
+		hdr_ptr->contrl_id.device,
+		hdr_ptr->contrl_id.sub_vendor,
+		hdr_ptr->contrl_id.sub_device,
+		asd_ha->pcidev->vendor,
+		asd_ha->pcidev->device);
+		err = FAIL_CHECK_PCI_ID;
+		goto out2;
+	}
+
+	if (hdr_ptr->filelen != asd_ha->bios_image->size) {
+		err = FAIL_FILE_SIZE;
+		goto out2;
+	}
+
+	/* calculate checksum */
+	for (i = 0; i < hdr_ptr->filelen; i++)
+		csum += asd_ha->bios_image->data[i];
+
+	if ((csum & 0x0000ffff) != hdr_ptr->checksum) {
+		ASD_DPRINTK("BIOS file checksum mismatch\n");
+		err = FAIL_CHECK_SUM;
+		goto out2;
+	}
+	if (flash_command == FLASH_CMD_UPDATE) {
+		asd_ha->bios_status = FLASH_IN_PROGRESS;
+		err = asd_write_flash_seg(asd_ha,
+			&asd_ha->bios_image->data[sizeof(*hdr_ptr)],
+			0, hdr_ptr->filelen-sizeof(*hdr_ptr));
+		if (!err)
+			err = asd_verify_flash_seg(asd_ha,
+				&asd_ha->bios_image->data[sizeof(*hdr_ptr)],
+				0, hdr_ptr->filelen-sizeof(*hdr_ptr));
+	} else {
+		asd_ha->bios_status = FLASH_IN_PROGRESS;
+		err = asd_verify_flash_seg(asd_ha,
+			&asd_ha->bios_image->data[sizeof(header)],
+			0, hdr_ptr->filelen-sizeof(header));
+	}
+
+out2:
+	release_firmware(asd_ha->bios_image);
+out1:
+	kfree(cmd_ptr);
+out:
+	asd_ha->bios_status = err;
+
+	if (!err)
+		return count;
+	else
+		return -err;
+}
+
+static ssize_t asd_show_update_bios(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	int i;
+	struct asd_ha_struct *asd_ha = dev_to_asd_ha(dev);
+
+	for (i = 0; flash_error_table[i].err_code != 0; i++) {
+		if (flash_error_table[i].err_code == asd_ha->bios_status)
+			break;
+	}
+	if (asd_ha->bios_status != FLASH_IN_PROGRESS)
+		asd_ha->bios_status = FLASH_OK;
+
+	return snprintf(buf, PAGE_SIZE, "status=%x %s\n",
+			flash_error_table[i].err_code,
+			flash_error_table[i].reason);
+}
+
+static DEVICE_ATTR(update_bios, S_IRUGO|S_IWUGO,
+	asd_show_update_bios, asd_store_update_bios);
+
 static int asd_create_dev_attrs(struct asd_ha_struct *asd_ha)
 {
 	int err;
@@ -328,9 +505,14 @@ static int asd_create_dev_attrs(struct asd_ha_struct *asd_ha)
 	err = device_create_file(&asd_ha->pcidev->dev, &dev_attr_pcba_sn);
 	if (err)
 		goto err_biosb;
+	err = device_create_file(&asd_ha->pcidev->dev, &dev_attr_update_bios);
+	if (err)
+		goto err_update_bios;
 
 	return 0;
 
+err_update_bios:
+	device_remove_file(&asd_ha->pcidev->dev, &dev_attr_pcba_sn);
 err_biosb:
 	device_remove_file(&asd_ha->pcidev->dev, &dev_attr_bios_build);
 err_rev:
@@ -343,6 +525,7 @@ static void asd_remove_dev_attrs(struct asd_ha_struct *asd_ha)
 	device_remove_file(&asd_ha->pcidev->dev, &dev_attr_revision);
 	device_remove_file(&asd_ha->pcidev->dev, &dev_attr_bios_build);
 	device_remove_file(&asd_ha->pcidev->dev, &dev_attr_pcba_sn);
+	device_remove_file(&asd_ha->pcidev->dev, &dev_attr_update_bios);
 }
 
 /* The first entry, 0, is used for dynamic ids, the rest for devices
@@ -589,6 +772,7 @@ static int __devinit asd_pci_probe(struct pci_dev *dev,
 	asd_ha->sas_ha.dev = &asd_ha->pcidev->dev;
 	asd_ha->sas_ha.lldd_ha = asd_ha;
 
+	asd_ha->bios_status = FLASH_OK;
 	asd_ha->name = asd_dev->name;
 	asd_printk("found %s, device %s\n", asd_ha->name, pci_name(dev));
 

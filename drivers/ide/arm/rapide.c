@@ -13,26 +13,18 @@
 
 #include <asm/ecard.h>
 
-static ide_hwif_t *
-rapide_locate_hwif(void __iomem *base, void __iomem *ctrl, unsigned int sz, int irq)
+static void rapide_setup_ports(hw_regs_t *hw, void __iomem *base,
+			       void __iomem *ctrl, unsigned int sz, int irq)
 {
 	unsigned long port = (unsigned long)base;
-	ide_hwif_t *hwif = ide_find_port(port);
 	int i;
 
-	if (hwif == NULL)
-		goto out;
-
 	for (i = IDE_DATA_OFFSET; i <= IDE_STATUS_OFFSET; i++) {
-		hwif->io_ports[i] = port;
+		hw->io_ports[i] = port;
 		port += sz;
 	}
-	hwif->io_ports[IDE_CONTROL_OFFSET] = (unsigned long)ctrl;
-	hwif->irq = irq;
-	hwif->mmio = 1;
-	default_hwif_mmiops(hwif);
-out:
-	return hwif;
+	hw->io_ports[IDE_CONTROL_OFFSET] = (unsigned long)ctrl;
+	hw->irq = irq;
 }
 
 static int __devinit
@@ -42,6 +34,7 @@ rapide_probe(struct expansion_card *ec, const struct ecard_id *id)
 	void __iomem *base;
 	int ret;
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
+	hw_regs_t hw;
 
 	ret = ecard_request_resources(ec);
 	if (ret)
@@ -53,11 +46,17 @@ rapide_probe(struct expansion_card *ec, const struct ecard_id *id)
 		goto release;
 	}
 
-	hwif = rapide_locate_hwif(base, base + 0x818, 1 << 6, ec->irq);
+	hwif = ide_find_port((unsigned long)base);
 	if (hwif) {
-		hwif->hwif_data = base;
-		hwif->gendev.parent = &ec->dev;
-		hwif->noprobe = 0;
+		memset(&hw, 0, sizeof(hw));
+		rapide_setup_ports(&hw, base, base + 0x818, 1 << 6, ec->irq);
+		hw.chipset = ide_generic;
+		hw.dev = &ec->dev;
+
+		ide_init_port_hw(hwif, &hw);
+
+		hwif->mmio = 1;
+		default_hwif_mmiops(hwif);
 
 		idx[0] = hwif->index;
 

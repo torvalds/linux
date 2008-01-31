@@ -122,9 +122,6 @@ struct scsi_device {
 	unsigned tagged_supported:1;	/* Supports SCSI-II tagged queuing */
 	unsigned simple_tags:1;	/* simple queue tag messages are enabled */
 	unsigned ordered_tags:1;/* ordered queue tag messages are enabled */
-	unsigned single_lun:1;	/* Indicates we should only allow I/O to
-				 * one of the luns for the device at a 
-				 * time. */
 	unsigned was_reset:1;	/* There was a bus reset on the bus for 
 				 * this device */
 	unsigned expecting_cc_ua:1; /* Expecting a CHECK_CONDITION/UNIT_ATTN
@@ -142,6 +139,7 @@ struct scsi_device {
 	unsigned fix_capacity:1;	/* READ_CAPACITY is too high by 1 */
 	unsigned guess_capacity:1;	/* READ_CAPACITY might be too high by 1 */
 	unsigned retry_hwerror:1;	/* Retry HARDWARE_ERROR */
+	unsigned last_sector_bug:1;	/* Always read last sector in a 1 sector read */
 
 	DECLARE_BITMAP(supported_events, SDEV_EVT_MAXBITS); /* supported events */
 	struct list_head event_list;	/* asserted events */
@@ -202,6 +200,9 @@ struct scsi_target {
 	unsigned int		id; /* target id ... replace
 				     * scsi_device.id eventually */
 	unsigned int		create:1; /* signal that it needs to be added */
+	unsigned int		single_lun:1;	/* Indicates we should only
+						 * allow I/O to one of the luns
+						 * for the device at a time. */
 	unsigned int		pdt_1f_for_no_lun;	/* PDT = 0x1f */
 						/* means no lun present */
 
@@ -295,7 +296,7 @@ extern int scsi_mode_select(struct scsi_device *sdev, int pf, int sp,
 			    struct scsi_mode_data *data,
 			    struct scsi_sense_hdr *);
 extern int scsi_test_unit_ready(struct scsi_device *sdev, int timeout,
-				int retries);
+				int retries, struct scsi_sense_hdr *sshdr);
 extern int scsi_device_set_state(struct scsi_device *sdev,
 				 enum scsi_device_state state);
 extern struct scsi_event *sdev_evt_alloc(enum scsi_device_event evt_type,
@@ -385,6 +386,10 @@ static inline int scsi_device_qas(struct scsi_device *sdev)
 	if (sdev->inquiry_len < 57)
 		return 0;
 	return sdev->inquiry[56] & 0x02;
+}
+static inline int scsi_device_enclosure(struct scsi_device *sdev)
+{
+	return sdev->inquiry[6] & (1<<6);
 }
 
 #define MODULE_ALIAS_SCSI_DEVICE(type) \

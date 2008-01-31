@@ -21,13 +21,15 @@
 #ifndef ISCSI_PROTO_H
 #define ISCSI_PROTO_H
 
+#include <linux/types.h>
+
 #define ISCSI_DRAFT20_VERSION	0x00
 
 /* default iSCSI listen port for incoming connections */
 #define ISCSI_LISTEN_PORT	3260
 
 /* Padding word length */
-#define PAD_WORD_LEN		4
+#define ISCSI_PAD_LEN		4
 
 /*
  * useful common(control and data pathes) macro
@@ -145,6 +147,14 @@ struct iscsi_rlength_ahdr {
 	uint8_t ahstype;
 	uint8_t reserved;
 	__be32 read_length;
+};
+
+/* Extended CDB AHS */
+struct iscsi_ecdb_ahdr {
+	__be16 ahslength;	/* CDB length - 15, including reserved byte */
+	uint8_t ahstype;
+	uint8_t reserved;
+	uint8_t ecdb[260 - 16];	/* 4-byte aligned extended CDB spillover */
 };
 
 /* SCSI Response Header */
@@ -599,6 +609,8 @@ struct iscsi_reject {
 #define ISCSI_DEF_MAX_BURST_LEN			262144
 #define ISCSI_MIN_MAX_BURST_LEN			512
 #define ISCSI_MAX_MAX_BURST_LEN			16777215
+
+#define ISCSI_DEF_TIME2WAIT			2
 
 /************************* RFC 3720 End *****************************/
 

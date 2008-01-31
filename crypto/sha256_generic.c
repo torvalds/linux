@@ -9,6 +9,7 @@
  * Copyright (c) Jean-Luc Cooke <jlcooke@certainkey.com>
  * Copyright (c) Andrew McDonald <andrew@mcdonald.org.uk>
  * Copyright (c) 2002 James Morris <jmorris@intercode.com.au>
+ * SHA224 Support Copyright 2007 Intel Corporation <jonathan.lynch@intel.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -218,6 +219,22 @@ static void sha256_transform(u32 *state, const u8 *input)
 	memset(W, 0, 64 * sizeof(u32));
 }
 
+
+static void sha224_init(struct crypto_tfm *tfm)
+{
+	struct sha256_ctx *sctx = crypto_tfm_ctx(tfm);
+	sctx->state[0] = SHA224_H0;
+	sctx->state[1] = SHA224_H1;
+	sctx->state[2] = SHA224_H2;
+	sctx->state[3] = SHA224_H3;
+	sctx->state[4] = SHA224_H4;
+	sctx->state[5] = SHA224_H5;
+	sctx->state[6] = SHA224_H6;
+	sctx->state[7] = SHA224_H7;
+	sctx->count[0] = 0;
+	sctx->count[1] = 0;
+}
+
 static void sha256_init(struct crypto_tfm *tfm)
 {
 	struct sha256_ctx *sctx = crypto_tfm_ctx(tfm);
@@ -294,8 +311,17 @@ static void sha256_final(struct crypto_tfm *tfm, u8 *out)
 	memset(sctx, 0, sizeof(*sctx));
 }
 
+static void sha224_final(struct crypto_tfm *tfm, u8 *hash)
+{
+	u8 D[SHA256_DIGEST_SIZE];
 
-static struct crypto_alg alg = {
+	sha256_final(tfm, D);
+
+	memcpy(hash, D, SHA224_DIGEST_SIZE);
+	memset(D, 0, SHA256_DIGEST_SIZE);
+}
+
+static struct crypto_alg sha256 = {
 	.cra_name	=	"sha256",
 	.cra_driver_name=	"sha256-generic",
 	.cra_flags	=	CRYPTO_ALG_TYPE_DIGEST,
@@ -303,28 +329,58 @@ static struct crypto_alg alg = {
 	.cra_ctxsize	=	sizeof(struct sha256_ctx),
 	.cra_module	=	THIS_MODULE,
 	.cra_alignmask	=	3,
-	.cra_list       =       LIST_HEAD_INIT(alg.cra_list),
+	.cra_list	=	LIST_HEAD_INIT(sha256.cra_list),
 	.cra_u		=	{ .digest = {
 	.dia_digestsize	=	SHA256_DIGEST_SIZE,
-	.dia_init   	= 	sha256_init,
-	.dia_update 	=	sha256_update,
-	.dia_final  	=	sha256_final } }
+	.dia_init	=	sha256_init,
+	.dia_update	=	sha256_update,
+	.dia_final	=	sha256_final } }
+};
+
+static struct crypto_alg sha224 = {
+	.cra_name	= "sha224",
+	.cra_driver_name = "sha224-generic",
+	.cra_flags	= CRYPTO_ALG_TYPE_DIGEST,
+	.cra_blocksize	= SHA224_BLOCK_SIZE,
+	.cra_ctxsize	= sizeof(struct sha256_ctx),
+	.cra_module	= THIS_MODULE,
+	.cra_alignmask	= 3,
+	.cra_list	= LIST_HEAD_INIT(sha224.cra_list),
+	.cra_u		= { .digest = {
+	.dia_digestsize = SHA224_DIGEST_SIZE,
+	.dia_init	= sha224_init,
+	.dia_update	= sha256_update,
+	.dia_final	= sha224_final } }
 };
 
 static int __init init(void)
 {
-	return crypto_register_alg(&alg);
+	int ret = 0;
+
+	ret = crypto_register_alg(&sha224);
+
+	if (ret < 0)
+		return ret;
+
+	ret = crypto_register_alg(&sha256);
+
+	if (ret < 0)
+		crypto_unregister_alg(&sha224);
+
+	return ret;
 }
 
 static void __exit fini(void)
 {
-	crypto_unregister_alg(&alg);
+	crypto_unregister_alg(&sha224);
+	crypto_unregister_alg(&sha256);
 }
 
 module_init(init);
 module_exit(fini);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("SHA256 Secure Hash Algorithm");
+MODULE_DESCRIPTION("SHA-224 and SHA-256 Secure Hash Algorithm");
 
+MODULE_ALIAS("sha224");
 MODULE_ALIAS("sha256");

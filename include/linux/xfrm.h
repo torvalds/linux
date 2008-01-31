@@ -91,9 +91,9 @@ struct xfrm_replay_state
 };
 
 struct xfrm_algo {
-	char	alg_name[64];
-	int	alg_key_len;    /* in bits */
-	char	alg_key[0];
+	char		alg_name[64];
+	unsigned int	alg_key_len;    /* in bits */
+	char		alg_key[0];
 };
 
 struct xfrm_stats {
@@ -114,6 +114,7 @@ enum
 	XFRM_POLICY_IN	= 0,
 	XFRM_POLICY_OUT	= 1,
 	XFRM_POLICY_FWD	= 2,
+	XFRM_POLICY_MASK = 3,
 	XFRM_POLICY_MAX	= 3
 };
 
@@ -328,6 +329,7 @@ struct xfrm_usersa_info {
 #define XFRM_STATE_DECAP_DSCP	2
 #define XFRM_STATE_NOPMTUDISC	4
 #define XFRM_STATE_WILDRECV	8
+#define XFRM_STATE_ICMP		16
 };
 
 struct xfrm_usersa_id {
@@ -362,6 +364,8 @@ struct xfrm_userpolicy_info {
 #define XFRM_POLICY_BLOCK	1
 	__u8				flags;
 #define XFRM_POLICY_LOCALOK	1	/* Allow user to override global policy */
+	/* Automatically expand selector to include matching ICMP payloads. */
+#define XFRM_POLICY_ICMP	2
 	__u8				share;
 };
 

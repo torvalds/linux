@@ -9,8 +9,8 @@
  * your option) any later version.
  */
 
-#ifndef LIBERTAS_IF_SDIO_H
-#define LIBERTAS_IF_SDIO_H
+#ifndef _LBS_IF_SDIO_H
+#define _LBS_IF_SDIO_H
 
 #define IF_SDIO_IOPORT		0x00
 

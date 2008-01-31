@@ -40,13 +40,13 @@
  * and both the standard and SIMD floating point data can be accessed via
  * the new ptrace requests.  In either case, changes to the FPU environment
  * will be reflected in the task's state as expected.
- * 
+ *
  * x86-64 support by Andi Kleen.
  */
 
 /* This matches the 64bit FXSAVE format as defined by AMD. It is the same
    as the 32bit format defined by Intel, except that the selector:offset pairs for
-   data and eip are replaced with flat 64bit pointers. */ 
+   data and eip are replaced with flat 64bit pointers. */
 struct user_i387_struct {
 	unsigned short	cwd;
 	unsigned short	swd;
@@ -65,13 +65,34 @@ struct user_i387_struct {
  * Segment register layout in coredumps.
  */
 struct user_regs_struct {
-	unsigned long r15,r14,r13,r12,rbp,rbx,r11,r10;
-	unsigned long r9,r8,rax,rcx,rdx,rsi,rdi,orig_rax;
-	unsigned long rip,cs,eflags;
-	unsigned long rsp,ss;
-  	unsigned long fs_base, gs_base;
-	unsigned long ds,es,fs,gs; 
-}; 
+	unsigned long	r15;
+	unsigned long	r14;
+	unsigned long	r13;
+	unsigned long	r12;
+	unsigned long	bp;
+	unsigned long	bx;
+	unsigned long	r11;
+	unsigned long	r10;
+	unsigned long	r9;
+	unsigned long	r8;
+	unsigned long	ax;
+	unsigned long	cx;
+	unsigned long	dx;
+	unsigned long	si;
+	unsigned long	di;
+	unsigned long	orig_ax;
+	unsigned long	ip;
+	unsigned long	cs;
+	unsigned long	flags;
+	unsigned long	sp;
+	unsigned long	ss;
+	unsigned long	fs_base;
+	unsigned long	gs_base;
+	unsigned long	ds;
+	unsigned long	es;
+	unsigned long	fs;
+	unsigned long	gs;
+};
 
 /* When the kernel dumps core, it starts by dumping the user struct -
    this will be used by gdb to figure out where the data and stack segments
@@ -94,7 +115,7 @@ struct user{
 				   This is actually the bottom of the stack,
 				   the top of the stack is always found in the
 				   esp register.  */
-  long int signal;     		/* Signal that caused the core dump. */
+  long int signal;		/* Signal that caused the core dump. */
   int reserved;			/* No longer used */
   int pad1;
   struct user_pt_regs * u_ar0;	/* Used by gdb to help find the values for */

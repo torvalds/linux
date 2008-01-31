@@ -68,7 +68,7 @@ unsigned int def_to_bigsmp = 0;
 /* Processor that is doing the boot up */
 unsigned int boot_cpu_physical_apicid = -1U;
 /* Internal processor count */
-unsigned int __cpuinitdata num_processors;
+unsigned int num_processors;
 
 /* Bitmask of physically existing CPUs */
 physid_mask_t phys_cpu_present_map;
@@ -258,7 +258,7 @@ static void __init MP_ioapic_info (struct mpc_config_ioapic *m)
 	if (!(m->mpc_flags & MPC_APIC_USABLE))
 		return;
 
-	printk(KERN_INFO "I/O APIC #%d Version %d at 0x%lX.\n",
+	printk(KERN_INFO "I/O APIC #%d Version %d at 0x%X.\n",
 		m->mpc_apicid, m->mpc_apicver, m->mpc_apicaddr);
 	if (nr_ioapics >= MAX_IO_APICS) {
 		printk(KERN_CRIT "Max # of I/O APICs (%d) exceeded (found %d).\n",
@@ -405,9 +405,9 @@ static int __init smp_read_mpc(struct mp_config_table *mpc)
 
 	mps_oem_check(mpc, oem, str);
 
-	printk("APIC at: 0x%lX\n",mpc->mpc_lapic);
+	printk("APIC at: 0x%X\n", mpc->mpc_lapic);
 
-	/* 
+	/*
 	 * Save the local APIC address (it might be non-default) -- but only
 	 * if we're not using ACPI.
 	 */
@@ -721,7 +721,7 @@ static int __init smp_scan_config (unsigned long base, unsigned long length)
 	unsigned long *bp = phys_to_virt(base);
 	struct intel_mp_floating *mpf;
 
-	Dprintk("Scan SMP from %p for %ld bytes.\n", bp,length);
+	printk(KERN_INFO "Scan SMP from %p for %ld bytes.\n", bp,length);
 	if (sizeof(*mpf) != 16)
 		printk("Error: MPF size\n");
 
@@ -734,8 +734,8 @@ static int __init smp_scan_config (unsigned long base, unsigned long length)
 				|| (mpf->mpf_specification == 4)) ) {
 
 			smp_found_config = 1;
-			printk(KERN_INFO "found SMP MP-table at %08lx\n",
-						virt_to_phys(mpf));
+			printk(KERN_INFO "found SMP MP-table at [%p] %08lx\n",
+				mpf, virt_to_phys(mpf));
 			reserve_bootmem(virt_to_phys(mpf), PAGE_SIZE);
 			if (mpf->mpf_physptr) {
 				/*
@@ -918,14 +918,14 @@ void __init mp_register_ioapic(u8 id, u32 address, u32 gsi_base)
 	 */
 	mp_ioapic_routing[idx].apic_id = mp_ioapics[idx].mpc_apicid;
 	mp_ioapic_routing[idx].gsi_base = gsi_base;
-	mp_ioapic_routing[idx].gsi_end = gsi_base + 
+	mp_ioapic_routing[idx].gsi_end = gsi_base +
 		io_apic_get_redir_entries(idx);
 
-	printk("IOAPIC[%d]: apic_id %d, version %d, address 0x%lx, "
-		"GSI %d-%d\n", idx, mp_ioapics[idx].mpc_apicid, 
-		mp_ioapics[idx].mpc_apicver, mp_ioapics[idx].mpc_apicaddr,
-		mp_ioapic_routing[idx].gsi_base,
-		mp_ioapic_routing[idx].gsi_end);
+	printk("IOAPIC[%d]: apic_id %d, version %d, address 0x%x, "
+	       "GSI %d-%d\n", idx, mp_ioapics[idx].mpc_apicid,
+	       mp_ioapics[idx].mpc_apicver, mp_ioapics[idx].mpc_apicaddr,
+	       mp_ioapic_routing[idx].gsi_base,
+	       mp_ioapic_routing[idx].gsi_end);
 }
 
 void __init
@@ -1041,15 +1041,16 @@ void __init mp_config_acpi_legacy_irqs (void)
 }
 
 #define MAX_GSI_NUM	4096
+#define IRQ_COMPRESSION_START	64
 
 int mp_register_gsi(u32 gsi, int triggering, int polarity)
 {
 	int ioapic = -1;
 	int ioapic_pin = 0;
 	int idx, bit = 0;
-	static int pci_irq = 16;
+	static int pci_irq = IRQ_COMPRESSION_START;
 	/*
-	 * Mapping between Global System Interrups, which
+	 * Mapping between Global System Interrupts, which
 	 * represent all possible interrupts, and IRQs
 	 * assigned to actual devices.
 	 */
@@ -1086,12 +1087,16 @@ int mp_register_gsi(u32 gsi, int triggering, int polarity)
 	if ((1<<bit) & mp_ioapic_routing[ioapic].pin_programmed[idx]) {
 		Dprintk(KERN_DEBUG "Pin %d-%d already programmed\n",
 			mp_ioapic_routing[ioapic].apic_id, ioapic_pin);
-		return gsi_to_irq[gsi];
+		return (gsi < IRQ_COMPRESSION_START ? gsi : gsi_to_irq[gsi]);
 	}
 
 	mp_ioapic_routing[ioapic].pin_programmed[idx] |= (1<<bit);
 
-	if (triggering == ACPI_LEVEL_SENSITIVE) {
+	/*
+	 * For GSI >= 64, use IRQ compression
+	 */
+	if ((gsi >= IRQ_COMPRESSION_START)
+		&& (triggering == ACPI_LEVEL_SENSITIVE)) {
 		/*
 		 * For PCI devices assign IRQs in order, avoiding gaps
 		 * due to unused I/O APIC pins.

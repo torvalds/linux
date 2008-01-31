@@ -684,7 +684,7 @@ static void process_rmpp_ack(struct ib_mad_agent_private *agent,
 
 	if (seg_num > mad_send_wr->last_ack) {
 		adjust_last_ack(mad_send_wr, seg_num);
-		mad_send_wr->retries = mad_send_wr->send_buf.retries;
+		mad_send_wr->retries_left = mad_send_wr->max_retries;
 	}
 	mad_send_wr->newwin = newwin;
 	if (mad_send_wr->last_ack == mad_send_wr->send_buf.seg_count) {

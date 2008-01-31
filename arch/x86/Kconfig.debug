@@ -6,7 +6,7 @@ config TRACE_IRQFLAGS_SUPPORT
 source "lib/Kconfig.debug"
 
 config EARLY_PRINTK
-	bool "Early printk" if EMBEDDED && DEBUG_KERNEL && X86_32
+	bool "Early printk" if EMBEDDED
 	default y
 	help
 	  Write kernel log output directly into the VGA buffer or to a serial
@@ -40,22 +40,49 @@ comment "Page alloc debug is incompatible with Software Suspend on i386"
 
 config DEBUG_PAGEALLOC
 	bool "Debug page memory allocations"
-	depends on DEBUG_KERNEL && !HIBERNATION && !HUGETLBFS
-	depends on X86_32
+	depends on DEBUG_KERNEL && X86_32
 	help
 	  Unmap pages from the kernel linear mapping after free_pages().
 	  This results in a large slowdown, but helps to find certain types
 	  of memory corruptions.
 
+config DEBUG_PER_CPU_MAPS
+	bool "Debug access to per_cpu maps"
+	depends on DEBUG_KERNEL
+	depends on X86_64_SMP
+	default n
+	help
+	  Say Y to verify that the per_cpu map being accessed has
+	  been setup.  Adds a fair amount of code to kernel memory
+	  and decreases performance.
+
+	  Say N if unsure.
+
 config DEBUG_RODATA
 	bool "Write protect kernel read-only data structures"
+	default y
 	depends on DEBUG_KERNEL
 	help
 	  Mark the kernel read-only data as write-protected in the pagetables,
 	  in order to catch accidental (and incorrect) writes to such const
-	  data. This option may have a slight performance impact because a
-	  portion of the kernel code won't be covered by a 2MB TLB anymore.
-	  If in doubt, say "N".
+	  data. This is recommended so that we can catch kernel bugs sooner.
+	  If in doubt, say "Y".
+
+config DEBUG_RODATA_TEST
+	bool "Testcase for the DEBUG_RODATA feature"
+	depends on DEBUG_RODATA
+	help
+	  This option enables a testcase for the DEBUG_RODATA
+	  feature as well as for the change_page_attr() infrastructure.
+	  If in doubt, say "N"
+
+config DEBUG_NX_TEST
+	tristate "Testcase for the NX non-executable stack feature"
+	depends on DEBUG_KERNEL && m
+	help
+	  This option enables a testcase for the CPU NX capability
+	  and the software setup of this feature.
+	  If in doubt, say "N"
 
 config 4KSTACKS
 	bool "Use 4Kb for kernel stacks instead of 8Kb"
@@ -75,8 +102,7 @@ config X86_FIND_SMP_CONFIG
 
 config X86_MPPARSE
 	def_bool y
-	depends on X86_LOCAL_APIC && !X86_VISWS
-	depends on X86_32
+	depends on (X86_32 && (X86_LOCAL_APIC && !X86_VISWS)) || X86_64
 
 config DOUBLEFAULT
 	default y
@@ -111,5 +137,92 @@ config IOMMU_LEAK
 	help
 	  Add a simple leak tracer to the IOMMU code. This is useful when you
 	  are debugging a buggy device driver that leaks IOMMU mappings.
+
+#
+# IO delay types:
+#
+
+config IO_DELAY_TYPE_0X80
+	int
+	default "0"
+
+config IO_DELAY_TYPE_0XED
+	int
+	default "1"
+
+config IO_DELAY_TYPE_UDELAY
+	int
+	default "2"
+
+config IO_DELAY_TYPE_NONE
+	int
+	default "3"
+
+choice
+	prompt "IO delay type"
+	default IO_DELAY_0XED
+
+config IO_DELAY_0X80
+	bool "port 0x80 based port-IO delay [recommended]"
+	help
+	  This is the traditional Linux IO delay used for in/out_p.
+	  It is the most tested hence safest selection here.
+
+config IO_DELAY_0XED
+	bool "port 0xed based port-IO delay"
+	help
+	  Use port 0xed as the IO delay. This frees up port 0x80 which is
+	  often used as a hardware-debug port.
+
+config IO_DELAY_UDELAY
+	bool "udelay based port-IO delay"
+	help
+	  Use udelay(2) as the IO delay method. This provides the delay
+	  while not having any side-effect on the IO port space.
+
+config IO_DELAY_NONE
+	bool "no port-IO delay"
+	help
+	  No port-IO delay. Will break on old boxes that require port-IO
+	  delay for certain operations. Should work on most new machines.
+
+endchoice
+
+if IO_DELAY_0X80
+config DEFAULT_IO_DELAY_TYPE
+	int
+	default IO_DELAY_TYPE_0X80
+endif
+
+if IO_DELAY_0XED
+config DEFAULT_IO_DELAY_TYPE
+	int
+	default IO_DELAY_TYPE_0XED
+endif
+
+if IO_DELAY_UDELAY
+config DEFAULT_IO_DELAY_TYPE
+	int
+	default IO_DELAY_TYPE_UDELAY
+endif
+
+if IO_DELAY_NONE
+config DEFAULT_IO_DELAY_TYPE
+	int
+	default IO_DELAY_TYPE_NONE
+endif
+
+config DEBUG_BOOT_PARAMS
+	bool "Debug boot parameters"
+	depends on DEBUG_KERNEL
+	depends on DEBUG_FS
+	help
+	  This option will cause struct boot_params to be exported via debugfs.
+
+config CPA_DEBUG
+	bool "CPA self test code"
+	depends on DEBUG_KERNEL
+	help
+	  Do change_page_attr self tests at boot.
 
 endmenu

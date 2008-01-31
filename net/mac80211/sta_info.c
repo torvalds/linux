@@ -104,6 +104,7 @@ static void sta_info_release(struct kref *kref)
 	struct sta_info *sta = container_of(kref, struct sta_info, kref);
 	struct ieee80211_local *local = sta->local;
 	struct sk_buff *skb;
+	int i;
 
 	/* free sta structure; it has already been removed from
 	 * hash table etc. external structures. Make sure that all
@@ -116,6 +117,8 @@ static void sta_info_release(struct kref *kref)
 	while ((skb = skb_dequeue(&sta->tx_filtered)) != NULL) {
 		dev_kfree_skb_any(skb);
 	}
+	for (i = 0; i <  STA_TID_NUM; i++)
+		del_timer_sync(&sta->ampdu_mlme.tid_rx[i].session_timer);
 	rate_control_free_sta(sta->rate_ctrl, sta->rate_ctrl_priv);
 	rate_control_put(sta->rate_ctrl);
 	kfree(sta);
@@ -133,6 +136,7 @@ struct sta_info * sta_info_add(struct ieee80211_local *local,
 			       struct net_device *dev, u8 *addr, gfp_t gfp)
 {
 	struct sta_info *sta;
+	int i;
 	DECLARE_MAC_BUF(mac);
 
 	sta = kzalloc(sizeof(*sta), gfp);
@@ -152,6 +156,19 @@ struct sta_info * sta_info_add(struct ieee80211_local *local,
 	memcpy(sta->addr, addr, ETH_ALEN);
 	sta->local = local;
 	sta->dev = dev;
+	spin_lock_init(&sta->ampdu_mlme.ampdu_rx);
+	for (i = 0; i < STA_TID_NUM; i++) {
+		/* timer_to_tid must be initialized with identity mapping to
+		 * enable session_timer's data differentiation. refer to
+		 * sta_rx_agg_session_timer_expired for useage */
+		sta->timer_to_tid[i] = i;
+		/* rx timers */
+		sta->ampdu_mlme.tid_rx[i].session_timer.function =
+			sta_rx_agg_session_timer_expired;
+		sta->ampdu_mlme.tid_rx[i].session_timer.data =
+			(unsigned long)&sta->timer_to_tid[i];
+		init_timer(&sta->ampdu_mlme.tid_rx[i].session_timer);
+	}
 	skb_queue_head_init(&sta->ps_tx_buf);
 	skb_queue_head_init(&sta->tx_filtered);
 	__sta_info_get(sta);	/* sta used by caller, decremented by
@@ -160,9 +177,16 @@ struct sta_info * sta_info_add(struct ieee80211_local *local,
 	list_add(&sta->list, &local->sta_list);
 	local->num_sta++;
 	sta_info_hash_add(local, sta);
-	if (local->ops->sta_notify)
-		local->ops->sta_notify(local_to_hw(local), dev->ifindex,
-					STA_NOTIFY_ADD, addr);
+	if (local->ops->sta_notify) {
+		struct ieee80211_sub_if_data *sdata;
+
+		sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+		if (sdata->vif.type == IEEE80211_IF_TYPE_VLAN)
+			sdata = sdata->u.vlan.ap;
+
+		local->ops->sta_notify(local_to_hw(local), &sdata->vif,
+				       STA_NOTIFY_ADD, addr);
+	}
 	write_unlock_bh(&local->sta_lock);
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
@@ -230,9 +254,17 @@ void sta_info_free(struct sta_info *sta)
 	ieee80211_key_free(sta->key);
 	sta->key = NULL;
 
-	if (local->ops->sta_notify)
-		local->ops->sta_notify(local_to_hw(local), sta->dev->ifindex,
-					STA_NOTIFY_REMOVE, sta->addr);
+	if (local->ops->sta_notify) {
+		struct ieee80211_sub_if_data *sdata;
+
+		sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
+
+		if (sdata->vif.type == IEEE80211_IF_TYPE_VLAN)
+			sdata = sdata->u.vlan.ap;
+
+		local->ops->sta_notify(local_to_hw(local), &sdata->vif,
+				       STA_NOTIFY_REMOVE, sta->addr);
+	}
 
 	rate_control_remove_sta_debugfs(sta);
 	ieee80211_sta_debugfs_remove(sta);
@@ -346,11 +378,10 @@ void sta_info_init(struct ieee80211_local *local)
 	rwlock_init(&local->sta_lock);
 	INIT_LIST_HEAD(&local->sta_list);
 
-	init_timer(&local->sta_cleanup);
+	setup_timer(&local->sta_cleanup, sta_info_cleanup,
+		    (unsigned long)local);
 	local->sta_cleanup.expires =
 		round_jiffies(jiffies + STA_INFO_CLEANUP_INTERVAL);
-	local->sta_cleanup.data = (unsigned long) local;
-	local->sta_cleanup.function = sta_info_cleanup;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	INIT_WORK(&local->sta_debugfs_add, sta_info_debugfs_add_task);

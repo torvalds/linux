@@ -264,7 +264,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 					       { .sport = th->dest,
 						 .dport = th->source } } };
 		security_req_classify_flow(req, &fl);
-		if (ip_route_output_key(&rt, &fl)) {
+		if (ip_route_output_key(&init_net, &rt, &fl)) {
 			reqsk_free(req);
 			goto out;
 		}

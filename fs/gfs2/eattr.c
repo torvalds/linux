@@ -1418,7 +1418,7 @@ out:
 static int ea_dealloc_block(struct gfs2_inode *ip)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	struct gfs2_alloc *al = &ip->i_alloc;
+	struct gfs2_alloc *al = ip->i_alloc;
 	struct gfs2_rgrpd *rgd;
 	struct buffer_head *dibh;
 	int error;

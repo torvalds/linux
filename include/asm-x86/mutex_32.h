@@ -26,7 +26,7 @@ do {									\
 	unsigned int dummy;						\
 									\
 	typecheck(atomic_t *, count);					\
-	typecheck_fn(fastcall void (*)(atomic_t *), fail_fn);		\
+	typecheck_fn(void (*)(atomic_t *), fail_fn);		\
 									\
 	__asm__ __volatile__(						\
 		LOCK_PREFIX "   decl (%%eax)	\n"			\
@@ -51,8 +51,7 @@ do {									\
  * or anything the slow path function returns
  */
 static inline int
-__mutex_fastpath_lock_retval(atomic_t *count,
-			     int fastcall (*fail_fn)(atomic_t *))
+__mutex_fastpath_lock_retval(atomic_t *count, int (*fail_fn)(atomic_t *))
 {
 	if (unlikely(atomic_dec_return(count) < 0))
 		return fail_fn(count);
@@ -78,7 +77,7 @@ do {									\
 	unsigned int dummy;						\
 									\
 	typecheck(atomic_t *, count);					\
-	typecheck_fn(fastcall void (*)(atomic_t *), fail_fn);		\
+	typecheck_fn(void (*)(atomic_t *), fail_fn);		\
 									\
 	__asm__ __volatile__(						\
 		LOCK_PREFIX "   incl (%%eax)	\n"			\

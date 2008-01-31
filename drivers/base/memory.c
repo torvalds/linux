@@ -26,7 +26,7 @@
 #define MEMORY_CLASS_NAME	"memory"
 
 static struct sysdev_class memory_sysdev_class = {
-	set_kset_name(MEMORY_CLASS_NAME),
+	.name = MEMORY_CLASS_NAME,
 };
 
 static const char *memory_uevent_name(struct kset *kset, struct kobject *kobj)

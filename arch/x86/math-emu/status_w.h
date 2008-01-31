@@ -10,7 +10,7 @@
 #ifndef _STATUS_H_
 #define _STATUS_H_
 
-#include "fpu_emu.h"    /* for definition of PECULIAR_486 */
+#include "fpu_emu.h"		/* for definition of PECULIAR_486 */
 
 #ifdef __ASSEMBLY__
 #define	Const__(x)	$##x
@@ -34,7 +34,7 @@
 #define SW_Denorm_Op   	Const__(0x0002)	/* denormalized operand */
 #define SW_Invalid     	Const__(0x0001)	/* invalid operation */
 
-#define SW_Exc_Mask     Const__(0x27f)  /* Status word exception bit mask */
+#define SW_Exc_Mask     Const__(0x27f)	/* Status word exception bit mask */
 
 #ifndef __ASSEMBLY__
 
@@ -50,8 +50,8 @@
   ((partial_status & ~SW_Top & 0xffff) | ((top << SW_Top_Shift) & SW_Top))
 static inline void setcc(int cc)
 {
-	partial_status &= ~(SW_C0|SW_C1|SW_C2|SW_C3);
-	partial_status |= (cc) & (SW_C0|SW_C1|SW_C2|SW_C3);
+	partial_status &= ~(SW_C0 | SW_C1 | SW_C2 | SW_C3);
+	partial_status |= (cc) & (SW_C0 | SW_C1 | SW_C2 | SW_C3);
 }
 
 #ifdef PECULIAR_486

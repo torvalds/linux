@@ -200,7 +200,7 @@ int acpi_bus_set_power(acpi_handle handle, int state)
 	 * Get device's current power state
 	 */
 	acpi_bus_get_power(device->handle, &device->power.state);
-	if (state == device->power.state) {
+	if ((state == device->power.state) && !device->flags.force_power_state) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device is already at D%d\n",
 				  state));
 		return 0;
@@ -743,7 +743,7 @@ static int __init acpi_bus_init(void)
 	return -ENODEV;
 }
 
-decl_subsys(acpi, NULL, NULL);
+struct kobject *acpi_kobj;
 
 static int __init acpi_init(void)
 {
@@ -755,10 +755,11 @@ static int __init acpi_init(void)
 		return -ENODEV;
 	}
 
-	result = firmware_register(&acpi_subsys);
-	if (result < 0)
-		printk(KERN_WARNING "%s: firmware_register error: %d\n",
-			__FUNCTION__, result);
+	acpi_kobj = kobject_create_and_add("acpi", firmware_kobj);
+	if (!acpi_kobj) {
+		printk(KERN_WARNING "%s: kset create error\n", __FUNCTION__);
+		acpi_kobj = NULL;
+	}
 
 	result = acpi_bus_init();
 

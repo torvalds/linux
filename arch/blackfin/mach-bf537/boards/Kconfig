@@ -21,6 +21,12 @@ config PNAV10
 	help
 	  PNAV board support.
 
+config CAMSIG_MINOTAUR
+	bool "Cambridge Signal Processing LTD Minotaur"
+	depends on (BF537)
+	help
+	  Board supply package for CSP Minotaur
+
 config GENERIC_BF537_BOARD
 	bool "Generic"
 	help

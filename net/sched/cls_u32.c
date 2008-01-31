@@ -460,10 +460,20 @@ static u32 gen_new_kid(struct tc_u_hnode *ht, u32 handle)
 	return handle|(i>0xFFF ? 0xFFF : i);
 }
 
+static const struct nla_policy u32_policy[TCA_U32_MAX + 1] = {
+	[TCA_U32_CLASSID]	= { .type = NLA_U32 },
+	[TCA_U32_HASH]		= { .type = NLA_U32 },
+	[TCA_U32_LINK]		= { .type = NLA_U32 },
+	[TCA_U32_DIVISOR]	= { .type = NLA_U32 },
+	[TCA_U32_SEL]		= { .len = sizeof(struct tc_u32_sel) },
+	[TCA_U32_INDEV]		= { .type = NLA_STRING, .len = IFNAMSIZ },
+	[TCA_U32_MARK]		= { .len = sizeof(struct tc_u32_mark) },
+};
+
 static int u32_set_parms(struct tcf_proto *tp, unsigned long base,
 			 struct tc_u_hnode *ht,
-			 struct tc_u_knode *n, struct rtattr **tb,
-			 struct rtattr *est)
+			 struct tc_u_knode *n, struct nlattr **tb,
+			 struct nlattr *est)
 {
 	int err;
 	struct tcf_exts e;
@@ -473,8 +483,8 @@ static int u32_set_parms(struct tcf_proto *tp, unsigned long base,
 		return err;
 
 	err = -EINVAL;
-	if (tb[TCA_U32_LINK-1]) {
-		u32 handle = *(u32*)RTA_DATA(tb[TCA_U32_LINK-1]);
+	if (tb[TCA_U32_LINK]) {
+		u32 handle = nla_get_u32(tb[TCA_U32_LINK]);
 		struct tc_u_hnode *ht_down = NULL;
 
 		if (TC_U32_KEY(handle))
@@ -495,14 +505,14 @@ static int u32_set_parms(struct tcf_proto *tp, unsigned long base,
 		if (ht_down)
 			ht_down->refcnt--;
 	}
-	if (tb[TCA_U32_CLASSID-1]) {
-		n->res.classid = *(u32*)RTA_DATA(tb[TCA_U32_CLASSID-1]);
+	if (tb[TCA_U32_CLASSID]) {
+		n->res.classid = nla_get_u32(tb[TCA_U32_CLASSID]);
 		tcf_bind_filter(tp, &n->res, base);
 	}
 
 #ifdef CONFIG_NET_CLS_IND
-	if (tb[TCA_U32_INDEV-1]) {
-		err = tcf_change_indev(tp, n->indev, tb[TCA_U32_INDEV-1]);
+	if (tb[TCA_U32_INDEV]) {
+		err = tcf_change_indev(tp, n->indev, tb[TCA_U32_INDEV]);
 		if (err < 0)
 			goto errout;
 	}
@@ -516,33 +526,34 @@ errout:
 }
 
 static int u32_change(struct tcf_proto *tp, unsigned long base, u32 handle,
-		      struct rtattr **tca,
+		      struct nlattr **tca,
 		      unsigned long *arg)
 {
 	struct tc_u_common *tp_c = tp->data;
 	struct tc_u_hnode *ht;
 	struct tc_u_knode *n;
 	struct tc_u32_sel *s;
-	struct rtattr *opt = tca[TCA_OPTIONS-1];
-	struct rtattr *tb[TCA_U32_MAX];
+	struct nlattr *opt = tca[TCA_OPTIONS];
+	struct nlattr *tb[TCA_U32_MAX + 1];
 	u32 htid;
 	int err;
 
 	if (opt == NULL)
 		return handle ? -EINVAL : 0;
 
-	if (rtattr_parse_nested(tb, TCA_U32_MAX, opt) < 0)
-		return -EINVAL;
+	err = nla_parse_nested(tb, TCA_U32_MAX, opt, u32_policy);
+	if (err < 0)
+		return err;
 
 	if ((n = (struct tc_u_knode*)*arg) != NULL) {
 		if (TC_U32_KEY(n->handle) == 0)
 			return -EINVAL;
 
-		return u32_set_parms(tp, base, n->ht_up, n, tb, tca[TCA_RATE-1]);
+		return u32_set_parms(tp, base, n->ht_up, n, tb, tca[TCA_RATE]);
 	}
 
-	if (tb[TCA_U32_DIVISOR-1]) {
-		unsigned divisor = *(unsigned*)RTA_DATA(tb[TCA_U32_DIVISOR-1]);
+	if (tb[TCA_U32_DIVISOR]) {
+		unsigned divisor = nla_get_u32(tb[TCA_U32_DIVISOR]);
 
 		if (--divisor > 0x100)
 			return -EINVAL;
@@ -567,8 +578,8 @@ static int u32_change(struct tcf_proto *tp, unsigned long base, u32 handle,
 		return 0;
 	}
 
-	if (tb[TCA_U32_HASH-1]) {
-		htid = *(unsigned*)RTA_DATA(tb[TCA_U32_HASH-1]);
+	if (tb[TCA_U32_HASH]) {
+		htid = nla_get_u32(tb[TCA_U32_HASH]);
 		if (TC_U32_HTID(htid) == TC_U32_ROOT) {
 			ht = tp->root;
 			htid = ht->handle;
@@ -592,11 +603,10 @@ static int u32_change(struct tcf_proto *tp, unsigned long base, u32 handle,
 	} else
 		handle = gen_new_kid(ht, htid);
 
-	if (tb[TCA_U32_SEL-1] == NULL ||
-	    RTA_PAYLOAD(tb[TCA_U32_SEL-1]) < sizeof(struct tc_u32_sel))
+	if (tb[TCA_U32_SEL] == NULL)
 		return -EINVAL;
 
-	s = RTA_DATA(tb[TCA_U32_SEL-1]);
+	s = nla_data(tb[TCA_U32_SEL]);
 
 	n = kzalloc(sizeof(*n) + s->nkeys*sizeof(struct tc_u32_key), GFP_KERNEL);
 	if (n == NULL)
@@ -616,23 +626,16 @@ static int u32_change(struct tcf_proto *tp, unsigned long base, u32 handle,
 	n->fshift = s->hmask ? ffs(ntohl(s->hmask)) - 1 : 0;
 
 #ifdef CONFIG_CLS_U32_MARK
-	if (tb[TCA_U32_MARK-1]) {
+	if (tb[TCA_U32_MARK]) {
 		struct tc_u32_mark *mark;
 
-		if (RTA_PAYLOAD(tb[TCA_U32_MARK-1]) < sizeof(struct tc_u32_mark)) {
-#ifdef CONFIG_CLS_U32_PERF
-			kfree(n->pf);
-#endif
-			kfree(n);
-			return -EINVAL;
-		}
-		mark = RTA_DATA(tb[TCA_U32_MARK-1]);
+		mark = nla_data(tb[TCA_U32_MARK]);
 		memcpy(&n->mark, mark, sizeof(struct tc_u32_mark));
 		n->mark.success = 0;
 	}
 #endif
 
-	err = u32_set_parms(tp, base, ht, n, tb, tca[TCA_RATE-1]);
+	err = u32_set_parms(tp, base, ht, n, tb, tca[TCA_RATE]);
 	if (err == 0) {
 		struct tc_u_knode **ins;
 		for (ins = &ht->ht[TC_U32_HASH(handle)]; *ins; ins = &(*ins)->next)
@@ -693,66 +696,66 @@ static int u32_dump(struct tcf_proto *tp, unsigned long fh,
 		     struct sk_buff *skb, struct tcmsg *t)
 {
 	struct tc_u_knode *n = (struct tc_u_knode*)fh;
-	unsigned char *b = skb_tail_pointer(skb);
-	struct rtattr *rta;
+	struct nlattr *nest;
 
 	if (n == NULL)
 		return skb->len;
 
 	t->tcm_handle = n->handle;
 
-	rta = (struct rtattr*)b;
-	RTA_PUT(skb, TCA_OPTIONS, 0, NULL);
+	nest = nla_nest_start(skb, TCA_OPTIONS);
+	if (nest == NULL)
+		goto nla_put_failure;
 
 	if (TC_U32_KEY(n->handle) == 0) {
 		struct tc_u_hnode *ht = (struct tc_u_hnode*)fh;
 		u32 divisor = ht->divisor+1;
-		RTA_PUT(skb, TCA_U32_DIVISOR, 4, &divisor);
+		NLA_PUT_U32(skb, TCA_U32_DIVISOR, divisor);
 	} else {
-		RTA_PUT(skb, TCA_U32_SEL,
+		NLA_PUT(skb, TCA_U32_SEL,
 			sizeof(n->sel) + n->sel.nkeys*sizeof(struct tc_u32_key),
 			&n->sel);
 		if (n->ht_up) {
 			u32 htid = n->handle & 0xFFFFF000;
-			RTA_PUT(skb, TCA_U32_HASH, 4, &htid);
+			NLA_PUT_U32(skb, TCA_U32_HASH, htid);
 		}
 		if (n->res.classid)
-			RTA_PUT(skb, TCA_U32_CLASSID, 4, &n->res.classid);
+			NLA_PUT_U32(skb, TCA_U32_CLASSID, n->res.classid);
 		if (n->ht_down)
-			RTA_PUT(skb, TCA_U32_LINK, 4, &n->ht_down->handle);
+			NLA_PUT_U32(skb, TCA_U32_LINK, n->ht_down->handle);
 
 #ifdef CONFIG_CLS_U32_MARK
 		if (n->mark.val || n->mark.mask)
-			RTA_PUT(skb, TCA_U32_MARK, sizeof(n->mark), &n->mark);
+			NLA_PUT(skb, TCA_U32_MARK, sizeof(n->mark), &n->mark);
 #endif
 
 		if (tcf_exts_dump(skb, &n->exts, &u32_ext_map) < 0)
-			goto rtattr_failure;
+			goto nla_put_failure;
 
 #ifdef CONFIG_NET_CLS_IND
 		if(strlen(n->indev))
-			RTA_PUT(skb, TCA_U32_INDEV, IFNAMSIZ, n->indev);
+			NLA_PUT_STRING(skb, TCA_U32_INDEV, n->indev);
 #endif
 #ifdef CONFIG_CLS_U32_PERF
-		RTA_PUT(skb, TCA_U32_PCNT,
+		NLA_PUT(skb, TCA_U32_PCNT,
 		sizeof(struct tc_u32_pcnt) + n->sel.nkeys*sizeof(u64),
 			n->pf);
 #endif
 	}
 
-	rta->rta_len = skb_tail_pointer(skb) - b;
+	nla_nest_end(skb, nest);
+
 	if (TC_U32_KEY(n->handle))
 		if (tcf_exts_dump_stats(skb, &n->exts, &u32_ext_map) < 0)
-			goto rtattr_failure;
+			goto nla_put_failure;
 	return skb->len;
 
-rtattr_failure:
-	nlmsg_trim(skb, b);
+nla_put_failure:
+	nla_nest_cancel(skb, nest);
 	return -1;
 }
 
-static struct tcf_proto_ops cls_u32_ops = {
-	.next		=	NULL,
+static struct tcf_proto_ops cls_u32_ops __read_mostly = {
 	.kind		=	"u32",
 	.classify	=	u32_classify,
 	.init		=	u32_init,

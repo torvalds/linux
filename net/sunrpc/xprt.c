@@ -501,9 +501,10 @@ EXPORT_SYMBOL_GPL(xprt_set_retrans_timeout_def);
 void xprt_set_retrans_timeout_rtt(struct rpc_task *task)
 {
 	int timer = task->tk_msg.rpc_proc->p_timer;
-	struct rpc_rtt *rtt = task->tk_client->cl_rtt;
+	struct rpc_clnt *clnt = task->tk_client;
+	struct rpc_rtt *rtt = clnt->cl_rtt;
 	struct rpc_rqst *req = task->tk_rqstp;
-	unsigned long max_timeout = req->rq_xprt->timeout.to_maxval;
+	unsigned long max_timeout = clnt->cl_timeout->to_maxval;
 
 	task->tk_timeout = rpc_calc_rto(rtt, timer);
 	task->tk_timeout <<= rpc_ntimeo(rtt, timer) + req->rq_retries;
@@ -514,7 +515,7 @@ EXPORT_SYMBOL_GPL(xprt_set_retrans_timeout_rtt);
 
 static void xprt_reset_majortimeo(struct rpc_rqst *req)
 {
-	struct rpc_timeout *to = &req->rq_xprt->timeout;
+	const struct rpc_timeout *to = req->rq_task->tk_client->cl_timeout;
 
 	req->rq_majortimeo = req->rq_timeout;
 	if (to->to_exponential)
@@ -534,7 +535,7 @@ static void xprt_reset_majortimeo(struct rpc_rqst *req)
 int xprt_adjust_timeout(struct rpc_rqst *req)
 {
 	struct rpc_xprt *xprt = req->rq_xprt;
-	struct rpc_timeout *to = &xprt->timeout;
+	const struct rpc_timeout *to = req->rq_task->tk_client->cl_timeout;
 	int status = 0;
 
 	if (time_before(jiffies, req->rq_majortimeo)) {
@@ -568,17 +569,17 @@ static void xprt_autoclose(struct work_struct *work)
 	struct rpc_xprt *xprt =
 		container_of(work, struct rpc_xprt, task_cleanup);
 
-	xprt_disconnect(xprt);
 	xprt->ops->close(xprt);
+	clear_bit(XPRT_CLOSE_WAIT, &xprt->state);
 	xprt_release_write(xprt, NULL);
 }
 
 /**
- * xprt_disconnect - mark a transport as disconnected
+ * xprt_disconnect_done - mark a transport as disconnected
  * @xprt: transport to flag for disconnect
  *
  */
-void xprt_disconnect(struct rpc_xprt *xprt)
+void xprt_disconnect_done(struct rpc_xprt *xprt)
 {
 	dprintk("RPC:       disconnected transport %p\n", xprt);
 	spin_lock_bh(&xprt->transport_lock);
@@ -586,7 +587,26 @@ void xprt_disconnect(struct rpc_xprt *xprt)
 	xprt_wake_pending_tasks(xprt, -ENOTCONN);
 	spin_unlock_bh(&xprt->transport_lock);
 }
-EXPORT_SYMBOL_GPL(xprt_disconnect);
+EXPORT_SYMBOL_GPL(xprt_disconnect_done);
+
+/**
+ * xprt_force_disconnect - force a transport to disconnect
+ * @xprt: transport to disconnect
+ *
+ */
+void xprt_force_disconnect(struct rpc_xprt *xprt)
+{
+	/* Don't race with the test_bit() in xprt_clear_locked() */
+	spin_lock_bh(&xprt->transport_lock);
+	set_bit(XPRT_CLOSE_WAIT, &xprt->state);
+	/* Try to schedule an autoclose RPC call */
+	if (test_and_set_bit(XPRT_LOCKED, &xprt->state) == 0)
+		queue_work(rpciod_workqueue, &xprt->task_cleanup);
+	else if (xprt->snd_task != NULL)
+		rpc_wake_up_task(xprt->snd_task);
+	spin_unlock_bh(&xprt->transport_lock);
+}
+EXPORT_SYMBOL_GPL(xprt_force_disconnect);
 
 static void
 xprt_init_autodisconnect(unsigned long data)
@@ -909,7 +929,7 @@ static void xprt_request_init(struct rpc_task *task, struct rpc_xprt *xprt)
 {
 	struct rpc_rqst	*req = task->tk_rqstp;
 
-	req->rq_timeout = xprt->timeout.to_initval;
+	req->rq_timeout = task->tk_client->cl_timeout->to_initval;
 	req->rq_task	= task;
 	req->rq_xprt    = xprt;
 	req->rq_buffer  = NULL;
@@ -959,22 +979,6 @@ void xprt_release(struct rpc_task *task)
 }
 
 /**
- * xprt_set_timeout - set constant RPC timeout
- * @to: RPC timeout parameters to set up
- * @retr: number of retries
- * @incr: amount of increase after each retry
- *
- */
-void xprt_set_timeout(struct rpc_timeout *to, unsigned int retr, unsigned long incr)
-{
-	to->to_initval   =
-	to->to_increment = incr;
-	to->to_maxval    = to->to_initval + (incr * retr);
-	to->to_retries   = retr;
-	to->to_exponential = 0;
-}
-
-/**
  * xprt_create_transport - create an RPC transport
  * @args: rpc transport creation arguments
  *
@@ -1011,9 +1015,8 @@ found:
 	INIT_LIST_HEAD(&xprt->free);
 	INIT_LIST_HEAD(&xprt->recv);
 	INIT_WORK(&xprt->task_cleanup, xprt_autoclose);
-	init_timer(&xprt->timer);
-	xprt->timer.function = xprt_init_autodisconnect;
-	xprt->timer.data = (unsigned long) xprt;
+	setup_timer(&xprt->timer, xprt_init_autodisconnect,
+			(unsigned long)xprt);
 	xprt->last_used = jiffies;
 	xprt->cwnd = RPC_INITCWND;
 	xprt->bind_index = 0;

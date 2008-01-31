@@ -111,15 +111,17 @@ static const char *q40_ide_names[Q40IDE_NUM_HWIFS]={
  *  Probe for Q40 IDE interfaces
  */
 
-void __init q40ide_init(void)
+static int __init q40ide_init(void)
 {
     int i;
     ide_hwif_t *hwif;
-    int index;
     const char *name;
+    u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
     if (!MACH_IS_Q40)
-      return ;
+      return -ENODEV;
+
+    printk(KERN_INFO "ide: Q40 IDE controller\n");
 
     for (i = 0; i < Q40IDE_NUM_HWIFS; i++) {
 	hw_regs_t hw;
@@ -141,10 +143,20 @@ void __init q40ide_init(void)
 			0, NULL,
 //			m68kide_iops,
 			q40ide_default_irq(pcide_bases[i]));
-	index = ide_register_hw(&hw, NULL, 1, &hwif);
-	// **FIXME**
-	if (index != -1)
+
+	hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
+	if (hwif) {
+		ide_init_port_data(hwif, hwif->index);
+		ide_init_port_hw(hwif, &hw);
 		hwif->mmio = 1;
+
+		idx[i] = hwif->index;
+	}
     }
+
+    ide_device_add(idx);
+
+    return 0;
 }
 
+module_init(q40ide_init);

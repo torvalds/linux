@@ -14,7 +14,7 @@
  * Only AT32AP7000 is defined for now. We can identify the specific
  * chip at runtime, but I'm not sure if it's really worth it.
  */
-#ifdef CONFIG_CPU_AT32AP7000
+#ifdef CONFIG_CPU_AT32AP700X
 # define cpu_is_at32ap7000()	(1)
 #else
 # define cpu_is_at32ap7000()	(0)
@@ -30,5 +30,6 @@
 #define cpu_is_at91sam9261()	(0)
 #define cpu_is_at91sam9263()	(0)
 #define cpu_is_at91sam9rl()	(0)
+#define cpu_is_at91cap9()	(0)
 
 #endif /* __ASM_ARCH_CPU_H */

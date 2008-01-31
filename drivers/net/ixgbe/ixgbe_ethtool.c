@@ -96,8 +96,7 @@ static struct ixgbe_stats ixgbe_gstrings_stats[] = {
 		((((struct ixgbe_adapter *)netdev->priv)->num_tx_queues + \
 		 ((struct ixgbe_adapter *)netdev->priv)->num_rx_queues) * \
 		 (sizeof(struct ixgbe_queue_stats) / sizeof(u64)))
-#define IXGBE_GLOBAL_STATS_LEN \
-	sizeof(ixgbe_gstrings_stats) / sizeof(struct ixgbe_stats)
+#define IXGBE_GLOBAL_STATS_LEN	ARRAY_SIZE(ixgbe_gstrings_stats)
 #define IXGBE_STATS_LEN (IXGBE_GLOBAL_STATS_LEN + IXGBE_QUEUE_STATS_LEN)
 
 static int ixgbe_get_settings(struct net_device *netdev,

@@ -935,7 +935,7 @@ out_free_table:
 
 static void __exit inet_diag_exit(void)
 {
-	sock_release(idiagnl->sk_socket);
+	netlink_kernel_release(idiagnl);
 	kfree(inet_diag_table);
 }
 

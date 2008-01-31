@@ -364,7 +364,7 @@ mpc52xx_ata_probe(struct of_device *op, const struct of_device_id *match)
 {
 	unsigned int ipb_freq;
 	struct resource res_mem;
-	int ata_irq = NO_IRQ;
+	int ata_irq;
 	struct mpc52xx_ata __iomem *ata_regs;
 	struct mpc52xx_ata_priv *priv;
 	int rv;

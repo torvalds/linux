@@ -661,9 +661,6 @@ static irqreturn_t cpmac_irq(int irq, void *dev_id)
 	int queue;
 	u32 status;
 
-	if (!dev)
-		return IRQ_NONE;
-
 	priv = netdev_priv(dev);
 
 	status = cpmac_read(priv->regs, CPMAC_MAC_INT_VECTOR);

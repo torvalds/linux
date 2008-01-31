@@ -1775,7 +1775,8 @@ static int __init smc_findirq(void __iomem *ioaddr)
  * o  actually GRAB the irq.
  * o  GRAB the region
  */
-static int __init smc_probe(struct net_device *dev, void __iomem *ioaddr)
+static int __init smc_probe(struct net_device *dev, void __iomem *ioaddr,
+			    unsigned long irq_flags)
 {
 	struct smc_local *lp = netdev_priv(dev);
 	static int version_printed = 0;
@@ -1941,7 +1942,7 @@ static int __init smc_probe(struct net_device *dev, void __iomem *ioaddr)
 	}
 
 	/* Grab the IRQ */
-      	retval = request_irq(dev->irq, &smc_interrupt, SMC_IRQ_FLAGS, dev->name, dev);
+	retval = request_irq(dev->irq, &smc_interrupt, irq_flags, dev->name, dev);
       	if (retval)
       		goto err_out;
 
@@ -2123,8 +2124,9 @@ static void smc_release_datacs(struct platform_device *pdev, struct net_device *
 static int smc_drv_probe(struct platform_device *pdev)
 {
 	struct net_device *ndev;
-	struct resource *res;
+	struct resource *res, *ires;
 	unsigned int __iomem *addr;
+	unsigned long irq_flags = SMC_IRQ_FLAGS;
 	int ret;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "smc91x-regs");
@@ -2150,11 +2152,16 @@ static int smc_drv_probe(struct platform_device *pdev)
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
 	ndev->dma = (unsigned char)-1;
-	ndev->irq = platform_get_irq(pdev, 0);
-	if (ndev->irq < 0) {
+
+	ires = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	if (!ires) {
 		ret = -ENODEV;
 		goto out_free_netdev;
 	}
+
+	ndev->irq = ires->start;
+	if (SMC_IRQ_FLAGS == -1)
+		irq_flags = ires->flags & IRQF_TRIGGER_MASK;
 
 	ret = smc_request_attrib(pdev);
 	if (ret)
@@ -2181,7 +2188,7 @@ static int smc_drv_probe(struct platform_device *pdev)
 #endif
 
 	platform_set_drvdata(pdev, ndev);
-	ret = smc_probe(ndev, addr);
+	ret = smc_probe(ndev, addr, irq_flags);
 	if (ret != 0)
 		goto out_iounmap;
 

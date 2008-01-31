@@ -377,18 +377,18 @@ static int __init alim7101_wdt_init(void)
 			timeout);
 	}
 
-	rc = misc_register(&wdt_miscdev);
-	if (rc) {
-		printk(KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
-			wdt_miscdev.minor, rc);
-		goto err_out;
-	}
-
 	rc = register_reboot_notifier(&wdt_notifier);
 	if (rc) {
 		printk(KERN_ERR PFX "cannot register reboot notifier (err=%d)\n",
 			rc);
-		goto err_out_miscdev;
+		goto err_out;
+	}
+
+	rc = misc_register(&wdt_miscdev);
+	if (rc) {
+		printk(KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
+			wdt_miscdev.minor, rc);
+		goto err_out_reboot;
 	}
 
 	if (nowayout) {
@@ -399,8 +399,8 @@ static int __init alim7101_wdt_init(void)
 		timeout, nowayout);
 	return 0;
 
-err_out_miscdev:
-	misc_deregister(&wdt_miscdev);
+err_out_reboot:
+	unregister_reboot_notifier(&wdt_notifier);
 err_out:
 	pci_dev_put(alim7101_pmu);
 	return rc;

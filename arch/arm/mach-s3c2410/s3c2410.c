@@ -100,7 +100,7 @@ void __init s3c2410_init_clocks(int xtal)
 }
 
 struct sysdev_class s3c2410_sysclass = {
-	set_kset_name("s3c2410-core"),
+	.name = "s3c2410-core",
 };
 
 static struct sys_device s3c2410_sysdev = {

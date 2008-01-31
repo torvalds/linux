@@ -5,13 +5,12 @@
 #include <linux/if_arp.h>
 #include <net/neighbour.h>
 
-#define HAVE_ARP_CREATE
 
 extern struct neigh_table arp_tbl;
 
 extern void	arp_init(void);
 extern int	arp_find(unsigned char *haddr, struct sk_buff *skb);
-extern int	arp_ioctl(unsigned int cmd, void __user *arg);
+extern int	arp_ioctl(struct net *net, unsigned int cmd, void __user *arg);
 extern void     arp_send(int type, int ptype, __be32 dest_ip,
 			 struct net_device *dev, __be32 src_ip,
 			 unsigned char *dest_hw, unsigned char *src_hw, unsigned char *th);

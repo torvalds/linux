@@ -77,7 +77,7 @@ extern int unregister_qdisc(struct Qdisc_ops *qops);
 extern struct Qdisc *qdisc_lookup(struct net_device *dev, u32 handle);
 extern struct Qdisc *qdisc_lookup_class(struct net_device *dev, u32 handle);
 extern struct qdisc_rate_table *qdisc_get_rtab(struct tc_ratespec *r,
-		struct rtattr *tab);
+		struct nlattr *tab);
 extern void qdisc_put_rtab(struct qdisc_rate_table *tab);
 
 extern void __qdisc_run(struct net_device *dev);

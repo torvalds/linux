@@ -121,9 +121,15 @@ extern int geode_get_dev_base(unsigned int dev);
 #define GPIO_MAP_Z		0xE8
 #define GPIO_MAP_W		0xEC
 
-extern void geode_gpio_set(unsigned int, unsigned int);
-extern void geode_gpio_clear(unsigned int, unsigned int);
-extern int geode_gpio_isset(unsigned int, unsigned int);
+static inline u32 geode_gpio(unsigned int nr)
+{
+	BUG_ON(nr > 28);
+	return 1 << nr;
+}
+
+extern void geode_gpio_set(u32, unsigned int);
+extern void geode_gpio_clear(u32, unsigned int);
+extern int geode_gpio_isset(u32, unsigned int);
 extern void geode_gpio_setup_event(unsigned int, int, int);
 extern void geode_gpio_set_irq(unsigned int, unsigned int);
 

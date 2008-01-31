@@ -6,7 +6,7 @@
 #include <linux/module.h>
 #include <linux/netfilter_ipv6/ip6_tables.h>
 
-#define RAW_VALID_HOOKS ((1 << NF_IP6_PRE_ROUTING) | (1 << NF_IP6_LOCAL_OUT))
+#define RAW_VALID_HOOKS ((1 << NF_INET_PRE_ROUTING) | (1 << NF_INET_LOCAL_OUT))
 
 static struct
 {
@@ -20,12 +20,12 @@ static struct
 		.num_entries = 3,
 		.size = sizeof(struct ip6t_standard) * 2 + sizeof(struct ip6t_error),
 		.hook_entry = {
-			[NF_IP6_PRE_ROUTING] = 0,
-			[NF_IP6_LOCAL_OUT] = sizeof(struct ip6t_standard)
+			[NF_INET_PRE_ROUTING] = 0,
+			[NF_INET_LOCAL_OUT] = sizeof(struct ip6t_standard)
 		},
 		.underflow = {
-			[NF_IP6_PRE_ROUTING] = 0,
-			[NF_IP6_LOCAL_OUT] = sizeof(struct ip6t_standard)
+			[NF_INET_PRE_ROUTING] = 0,
+			[NF_INET_LOCAL_OUT] = sizeof(struct ip6t_standard)
 		},
 	},
 	.entries = {
@@ -54,18 +54,18 @@ ip6t_hook(unsigned int hook,
 	return ip6t_do_table(skb, hook, in, out, &packet_raw);
 }
 
-static struct nf_hook_ops ip6t_ops[] = {
+static struct nf_hook_ops ip6t_ops[] __read_mostly = {
 	{
 	  .hook = ip6t_hook,
 	  .pf = PF_INET6,
-	  .hooknum = NF_IP6_PRE_ROUTING,
+	  .hooknum = NF_INET_PRE_ROUTING,
 	  .priority = NF_IP6_PRI_FIRST,
 	  .owner = THIS_MODULE,
 	},
 	{
 	  .hook = ip6t_hook,
 	  .pf = PF_INET6,
-	  .hooknum = NF_IP6_LOCAL_OUT,
+	  .hooknum = NF_INET_LOCAL_OUT,
 	  .priority = NF_IP6_PRI_FIRST,
 	  .owner = THIS_MODULE,
 	},

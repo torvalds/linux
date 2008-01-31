@@ -8,7 +8,7 @@
  *
  * Modified:
  *               Copyright 2005 National ICT Australia (NICTA)
- *               Copyright 2004-2007 Analog Devices Inc.
+ *               Copyright 2004-2008 Analog Devices Inc.
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
  *
@@ -29,6 +29,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/etherdevice.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -204,12 +205,8 @@ static struct resource sl811_hcd_resources[] = {
 void sl811_port_power(struct device *dev, int is_on)
 {
 	gpio_request(CONFIG_USB_SL811_BFIN_GPIO_VBUS, "usb:SL811_VBUS");
-	gpio_direction_output(CONFIG_USB_SL811_BFIN_GPIO_VBUS);
+	gpio_direction_output(CONFIG_USB_SL811_BFIN_GPIO_VBUS, is_on);
 
-	if (is_on)
-		gpio_set_value(CONFIG_USB_SL811_BFIN_GPIO_VBUS, 1);
-	else
-		gpio_set_value(CONFIG_USB_SL811_BFIN_GPIO_VBUS, 0);
 }
 #endif
 
@@ -733,9 +730,11 @@ void native_machine_restart(char *cmd)
 		bfin_gpio_reset_spi0_ssel1();
 }
 
+#if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
 void bfin_get_ether_addr(char *addr)
 {
 	random_ether_addr(addr);
 	printk(KERN_WARNING "%s:%s: Setting Ethernet MAC to a random one\n", __FILE__, __func__);
 }
 EXPORT_SYMBOL(bfin_get_ether_addr);
+#endif

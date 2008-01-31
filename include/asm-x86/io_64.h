@@ -35,12 +35,24 @@
   *  - Arnaldo Carvalho de Melo <acme@conectiva.com.br>
   */
 
-#define __SLOW_DOWN_IO "\noutb %%al,$0x80"
+extern void native_io_delay(void);
 
-#ifdef REALLY_SLOW_IO
-#define __FULL_SLOW_DOWN_IO __SLOW_DOWN_IO __SLOW_DOWN_IO __SLOW_DOWN_IO __SLOW_DOWN_IO
+extern int io_delay_type;
+extern void io_delay_init(void);
+
+#if defined(CONFIG_PARAVIRT)
+#include <asm/paravirt.h>
 #else
-#define __FULL_SLOW_DOWN_IO __SLOW_DOWN_IO
+
+static inline void slow_down_io(void)
+{
+	native_io_delay();
+#ifdef REALLY_SLOW_IO
+	native_io_delay();
+	native_io_delay();
+	native_io_delay();
+#endif
+}
 #endif
 
 /*
@@ -52,9 +64,15 @@ static inline void out##s(unsigned x value, unsigned short port) {
 #define __OUT2(s,s1,s2) \
 __asm__ __volatile__ ("out" #s " %" s1 "0,%" s2 "1"
 
+#ifndef REALLY_SLOW_IO
+#define REALLY_SLOW_IO
+#define UNSET_REALLY_SLOW_IO
+#endif
+
 #define __OUT(s,s1,x) \
 __OUT1(s,x) __OUT2(s,s1,"w") : : "a" (value), "Nd" (port)); } \
-__OUT1(s##_p,x) __OUT2(s,s1,"w") __FULL_SLOW_DOWN_IO : : "a" (value), "Nd" (port));} \
+__OUT1(s##_p, x) __OUT2(s, s1, "w") : : "a" (value), "Nd" (port)); \
+		slow_down_io(); }
 
 #define __IN1(s) \
 static inline RETURN_TYPE in##s(unsigned short port) { RETURN_TYPE _v;
@@ -63,8 +81,13 @@ static inline RETURN_TYPE in##s(unsigned short port) { RETURN_TYPE _v;
 __asm__ __volatile__ ("in" #s " %" s2 "1,%" s1 "0"
 
 #define __IN(s,s1,i...) \
-__IN1(s) __IN2(s,s1,"w") : "=a" (_v) : "Nd" (port) ,##i ); return _v; } \
-__IN1(s##_p) __IN2(s,s1,"w") __FULL_SLOW_DOWN_IO : "=a" (_v) : "Nd" (port) ,##i ); return _v; } \
+__IN1(s) __IN2(s, s1, "w") : "=a" (_v) : "Nd" (port), ##i); return _v; } \
+__IN1(s##_p) __IN2(s, s1, "w") : "=a" (_v) : "Nd" (port), ##i);	  \
+				slow_down_io(); return _v; }
+
+#ifdef UNSET_REALLY_SLOW_IO
+#undef REALLY_SLOW_IO
+#endif
 
 #define __INS(s) \
 static inline void ins##s(unsigned short port, void * addr, unsigned long count) \
@@ -127,13 +150,6 @@ static inline void * phys_to_virt(unsigned long address)
 
 #include <asm-generic/iomap.h>
 
-extern void __iomem *__ioremap(unsigned long offset, unsigned long size, unsigned long flags);
-
-static inline void __iomem * ioremap (unsigned long offset, unsigned long size)
-{
-	return __ioremap(offset, size, 0);
-}
-
 extern void *early_ioremap(unsigned long addr, unsigned long size);
 extern void early_iounmap(void *addr, unsigned long size);
 
@@ -142,8 +158,19 @@ extern void early_iounmap(void *addr, unsigned long size);
  * it's useful if some control registers are in such an area and write combining
  * or read caching is not desirable:
  */
-extern void __iomem * ioremap_nocache (unsigned long offset, unsigned long size);
+extern void __iomem *ioremap_nocache(unsigned long offset, unsigned long size);
+extern void __iomem *ioremap_cache(unsigned long offset, unsigned long size);
+
+/*
+ * The default ioremap() behavior is non-cached:
+ */
+static inline void __iomem *ioremap(unsigned long offset, unsigned long size)
+{
+	return ioremap_nocache(offset, size);
+}
+
 extern void iounmap(volatile void __iomem *addr);
+
 extern void __iomem *fix_ioremap(unsigned idx, unsigned long phys);
 
 /*

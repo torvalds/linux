@@ -847,15 +847,16 @@ static u32 hpt374_read_freq(struct pci_dev *pdev)
 	u32 freq;
 	unsigned long io_base = pci_resource_start(pdev, 4);
 	if (PCI_FUNC(pdev->devfn) & 1) {
-		struct pci_dev *pdev_0 = pci_get_slot(pdev->bus, pdev->devfn - 1);
+		struct pci_dev *pdev_0;
+
+		pdev_0 = pci_get_slot(pdev->bus, pdev->devfn - 1);
 		/* Someone hot plugged the controller on us ? */
 		if (pdev_0 == NULL)
 			return 0;
 		io_base = pci_resource_start(pdev_0, 4);
 		freq = inl(io_base + 0x90);
 		pci_dev_put(pdev_0);
-	}
-	else
+	} else
 		freq = inl(io_base + 0x90);
 	return freq;
 }

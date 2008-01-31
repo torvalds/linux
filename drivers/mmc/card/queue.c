@@ -94,8 +94,8 @@ static void mmc_request(struct request_queue *q)
 		printk(KERN_ERR "MMC: killing requests for dead queue\n");
 		while ((req = elv_next_request(q)) != NULL) {
 			do {
-				ret = end_that_request_chunk(req, 0,
-					req->current_nr_sectors << 9);
+				ret = __blk_end_request(req, -EIO,
+							blk_rq_cur_bytes(req));
 			} while (ret);
 		}
 		return;

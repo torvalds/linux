@@ -138,29 +138,15 @@ static ctl_table rose_table[] = {
 	{ .ctl_name = 0 }
 };
 
-static ctl_table rose_dir_table[] = {
-	{
-		.ctl_name	= NET_ROSE,
-		.procname	= "rose",
-		.mode		= 0555,
-		.child		= rose_table
-	},
-	{ .ctl_name = 0 }
-};
-
-static ctl_table rose_root_table[] = {
-	{
-		.ctl_name	= CTL_NET,
-		.procname	= "net",
-		.mode		= 0555,
-		.child		= rose_dir_table
-	},
-	{ .ctl_name = 0 }
+static struct ctl_path rose_path[] = {
+	{ .procname = "net", .ctl_name = CTL_NET, },
+	{ .procname = "rose", .ctl_name = NET_ROSE, },
+	{ }
 };
 
 void __init rose_register_sysctl(void)
 {
-	rose_table_header = register_sysctl_table(rose_root_table);
+	rose_table_header = register_sysctl_paths(rose_path, rose_table);
 }
 
 void rose_unregister_sysctl(void)

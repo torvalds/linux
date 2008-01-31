@@ -490,7 +490,6 @@ iop3xx_i2c_probe(struct platform_device *pdev)
 	 * Default values...should these come in from board code?
 	 */
 	new_adapter->timeout = 100;	
-	new_adapter->retries = 3;
 	new_adapter->algo = &iop3xx_i2c_algo;
 
 	init_waitqueue_head(&adapter_data->waitq);

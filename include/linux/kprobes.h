@@ -182,6 +182,15 @@ static inline void kretprobe_assert(struct kretprobe_instance *ri,
 	}
 }
 
+#ifdef CONFIG_KPROBES_SANITY_TEST
+extern int init_test_probes(void);
+#else
+static inline int init_test_probes(void)
+{
+	return 0;
+}
+#endif /* CONFIG_KPROBES_SANITY_TEST */
+
 extern spinlock_t kretprobe_lock;
 extern struct mutex kprobe_mutex;
 extern int arch_prepare_kprobe(struct kprobe *p);
@@ -227,6 +236,7 @@ void unregister_kretprobe(struct kretprobe *rp);
 
 void kprobe_flush_task(struct task_struct *tk);
 void recycle_rp_inst(struct kretprobe_instance *ri, struct hlist_head *head);
+
 #else /* CONFIG_KPROBES */
 
 #define __kprobes	/**/

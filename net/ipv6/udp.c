@@ -34,6 +34,7 @@
 #include <linux/ipv6.h>
 #include <linux/icmpv6.h>
 #include <linux/init.h>
+#include <linux/module.h>
 #include <linux/skbuff.h>
 #include <asm/uaccess.h>
 
@@ -49,8 +50,6 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include "udp_impl.h"
-
-DEFINE_SNMP_STAT(struct udp_mib, udp_stats_in6) __read_mostly;
 
 static inline int udp_v6_get_port(struct sock *sk, unsigned short snum)
 {
@@ -121,6 +120,7 @@ int udpv6_recvmsg(struct kiocb *iocb, struct sock *sk,
 	struct inet_sock *inet = inet_sk(sk);
 	struct sk_buff *skb;
 	unsigned int ulen, copied;
+	int peeked;
 	int err;
 	int is_udplite = IS_UDPLITE(sk);
 
@@ -131,7 +131,8 @@ int udpv6_recvmsg(struct kiocb *iocb, struct sock *sk,
 		return ipv6_recv_error(sk, msg, len);
 
 try_again:
-	skb = skb_recv_datagram(sk, flags, noblock, &err);
+	skb = __skb_recv_datagram(sk, flags | (noblock ? MSG_DONTWAIT : 0),
+				  &peeked, &err);
 	if (!skb)
 		goto out;
 
@@ -163,6 +164,9 @@ try_again:
 	}
 	if (err)
 		goto out_free;
+
+	if (!peeked)
+		UDP6_INC_STATS_USER(UDP_MIB_INDATAGRAMS, is_udplite);
 
 	sock_recv_timestamp(msg, sk, skb);
 
@@ -200,13 +204,17 @@ try_again:
 		err = ulen;
 
 out_free:
+	lock_sock(sk);
 	skb_free_datagram(sk, skb);
+	release_sock(sk);
 out:
 	return err;
 
 csum_copy_err:
-	UDP6_INC_STATS_USER(UDP_MIB_INERRORS, is_udplite);
-	skb_kill_datagram(sk, skb, flags);
+	lock_sock(sk);
+	if (!skb_kill_datagram(sk, skb, flags))
+		UDP6_INC_STATS_USER(UDP_MIB_INERRORS, is_udplite);
+	release_sock(sk);
 
 	if (flags & MSG_DONTWAIT)
 		return -EAGAIN;
@@ -251,13 +259,14 @@ static __inline__ void udpv6_err(struct sk_buff *skb,
 				 struct inet6_skb_parm *opt, int type,
 				 int code, int offset, __be32 info     )
 {
-	return __udp6_lib_err(skb, opt, type, code, offset, info, udp_hash);
+	__udp6_lib_err(skb, opt, type, code, offset, info, udp_hash);
 }
 
 int udpv6_queue_rcv_skb(struct sock * sk, struct sk_buff *skb)
 {
 	struct udp_sock *up = udp_sk(sk);
 	int rc;
+	int is_udplite = IS_UDPLITE(sk);
 
 	if (!xfrm6_policy_check(sk, XFRM_POLICY_IN, skb))
 		goto drop;
@@ -265,7 +274,7 @@ int udpv6_queue_rcv_skb(struct sock * sk, struct sk_buff *skb)
 	/*
 	 * UDP-Lite specific tests, ignored on UDP sockets (see net/ipv4/udp.c).
 	 */
-	if ((up->pcflag & UDPLITE_RECV_CC)  &&  UDP_SKB_CB(skb)->partial_cov) {
+	if ((is_udplite & UDPLITE_RECV_CC)  &&  UDP_SKB_CB(skb)->partial_cov) {
 
 		if (up->pcrlen == 0) {          /* full coverage was set  */
 			LIMIT_NETDEBUG(KERN_WARNING "UDPLITE6: partial coverage"
@@ -289,13 +298,13 @@ int udpv6_queue_rcv_skb(struct sock * sk, struct sk_buff *skb)
 	if ((rc = sock_queue_rcv_skb(sk,skb)) < 0) {
 		/* Note that an ENOMEM error is charged twice */
 		if (rc == -ENOMEM)
-			UDP6_INC_STATS_BH(UDP_MIB_RCVBUFERRORS, up->pcflag);
+			UDP6_INC_STATS_BH(UDP_MIB_RCVBUFERRORS, is_udplite);
 		goto drop;
 	}
-	UDP6_INC_STATS_BH(UDP_MIB_INDATAGRAMS, up->pcflag);
+
 	return 0;
 drop:
-	UDP6_INC_STATS_BH(UDP_MIB_INERRORS, up->pcflag);
+	UDP6_INC_STATS_BH(UDP_MIB_INERRORS, is_udplite);
 	kfree_skb(skb);
 	return -1;
 }
@@ -361,10 +370,21 @@ static int __udp6_lib_mcast_deliver(struct sk_buff *skb, struct in6_addr *saddr,
 	while ((sk2 = udp_v6_mcast_next(sk_next(sk2), uh->dest, daddr,
 					uh->source, saddr, dif))) {
 		struct sk_buff *buff = skb_clone(skb, GFP_ATOMIC);
-		if (buff)
-			udpv6_queue_rcv_skb(sk2, buff);
+		if (buff) {
+			bh_lock_sock_nested(sk2);
+			if (!sock_owned_by_user(sk2))
+				udpv6_queue_rcv_skb(sk2, buff);
+			else
+				sk_add_backlog(sk2, buff);
+			bh_unlock_sock(sk2);
+		}
 	}
-	udpv6_queue_rcv_skb(sk, skb);
+	bh_lock_sock_nested(sk);
+	if (!sock_owned_by_user(sk))
+		udpv6_queue_rcv_skb(sk, skb);
+	else
+		sk_add_backlog(sk, skb);
+	bh_unlock_sock(sk);
 out:
 	read_unlock(&udp_hash_lock);
 	return 0;
@@ -477,7 +497,12 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct hlist_head udptable[],
 
 	/* deliver */
 
-	udpv6_queue_rcv_skb(sk, skb);
+	bh_lock_sock_nested(sk);
+	if (!sock_owned_by_user(sk))
+		udpv6_queue_rcv_skb(sk, skb);
+	else
+		sk_add_backlog(sk, skb);
+	bh_unlock_sock(sk);
 	sock_put(sk);
 	return 0;
 
@@ -523,6 +548,7 @@ static int udp_v6_push_pending_frames(struct sock *sk)
 	struct inet_sock *inet = inet_sk(sk);
 	struct flowi *fl = &inet->cork.fl;
 	int err = 0;
+	int is_udplite = IS_UDPLITE(sk);
 	__wsum csum = 0;
 
 	/* Grab the skbuff where UDP header space exists. */
@@ -538,7 +564,7 @@ static int udp_v6_push_pending_frames(struct sock *sk)
 	uh->len = htons(up->len);
 	uh->check = 0;
 
-	if (up->pcflag)
+	if (is_udplite)
 		csum = udplite_csum_outgoing(sk, skb);
 	 else
 		csum = udp_csum_outgoing(sk, skb);
@@ -554,7 +580,7 @@ out:
 	up->len = 0;
 	up->pending = 0;
 	if (!err)
-		UDP6_INC_STATS_USER(UDP_MIB_OUTDATAGRAMS, up->pcflag);
+		UDP6_INC_STATS_USER(UDP_MIB_OUTDATAGRAMS, is_udplite);
 	return err;
 }
 
@@ -578,7 +604,7 @@ int udpv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 	int corkreq = up->corkflag || msg->msg_flags&MSG_MORE;
 	int err;
 	int connected = 0;
-	int is_udplite = up->pcflag;
+	int is_udplite = IS_UDPLITE(sk);
 	int (*getfrag)(void *, char *, int, int, int, struct sk_buff *);
 
 	/* destination address check */
@@ -748,7 +774,7 @@ do_udp_sendmsg:
 	if (final_p)
 		ipv6_addr_copy(&fl.fl6_dst, final_p);
 
-	if ((err = __xfrm_lookup(&dst, &fl, sk, 1)) < 0) {
+	if ((err = __xfrm_lookup(&dst, &fl, sk, XFRM_LOOKUP_WAIT)) < 0) {
 		if (err == -EREMOTE)
 			err = ip6_dst_blackhole(sk, &dst, &fl);
 		if (err < 0)
@@ -988,6 +1014,10 @@ struct proto udpv6_prot = {
 	.hash		   = udp_lib_hash,
 	.unhash		   = udp_lib_unhash,
 	.get_port	   = udp_v6_get_port,
+	.memory_allocated  = &udp_memory_allocated,
+	.sysctl_mem	   = sysctl_udp_mem,
+	.sysctl_wmem	   = &sysctl_udp_wmem_min,
+	.sysctl_rmem	   = &sysctl_udp_rmem_min,
 	.obj_size	   = sizeof(struct udp6_sock),
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_udpv6_setsockopt,
@@ -1007,9 +1037,27 @@ static struct inet_protosw udpv6_protosw = {
 };
 
 
-void __init udpv6_init(void)
+int __init udpv6_init(void)
 {
-	if (inet6_add_protocol(&udpv6_protocol, IPPROTO_UDP) < 0)
-		printk(KERN_ERR "udpv6_init: Could not register protocol\n");
-	inet6_register_protosw(&udpv6_protosw);
+	int ret;
+
+	ret = inet6_add_protocol(&udpv6_protocol, IPPROTO_UDP);
+	if (ret)
+		goto out;
+
+	ret = inet6_register_protosw(&udpv6_protosw);
+	if (ret)
+		goto out_udpv6_protocol;
+out:
+	return ret;
+
+out_udpv6_protocol:
+	inet6_del_protocol(&udpv6_protocol, IPPROTO_UDP);
+	goto out;
+}
+
+void udpv6_exit(void)
+{
+	inet6_unregister_protosw(&udpv6_protosw);
+	inet6_del_protocol(&udpv6_protocol, IPPROTO_UDP);
 }

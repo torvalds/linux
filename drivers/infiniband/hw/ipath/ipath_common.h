@@ -82,6 +82,16 @@
 #define IPATH_IB_LINK_EXTERNAL	7 /* normal, disable local loopback */
 
 /*
+ * These 3 values (SDR and DDR may be ORed for auto-speed
+ * negotiation) are used for the 3rd argument to path_f_set_ib_cfg
+ * with cmd IPATH_IB_CFG_SPD_ENB, by direct calls or via sysfs.  They
+ * are also the the possible values for ipath_link_speed_enabled and active
+ * The values were chosen to match values used within the IB spec.
+ */
+#define IPATH_IB_SDR 1
+#define IPATH_IB_DDR 2
+
+/*
  * stats maintained by the driver.  For now, at least, this is global
  * to all minor devices.
  */
@@ -433,8 +443,9 @@ struct ipath_user_info {
 #define IPATH_CMD_UNUSED_2	26
 #define IPATH_CMD_PIOAVAILUPD	27	/* force an update of PIOAvail reg */
 #define IPATH_CMD_POLL_TYPE	28	/* set the kind of polling we want */
+#define IPATH_CMD_ARMLAUNCH_CTRL	29 /* armlaunch detection control */
 
-#define IPATH_CMD_MAX		28
+#define IPATH_CMD_MAX		29
 
 /*
  * Poll types
@@ -477,6 +488,8 @@ struct ipath_cmd {
 		__u64 port_info;
 		/* enable/disable receipt of packets */
 		__u32 recv_ctrl;
+		/* enable/disable armlaunch errors (non-zero to enable) */
+		__u32 armlaunch_ctrl;
 		/* partition key to set */
 		__u16 part_key;
 		/* user address of __u32 bitmask of active slaves */
@@ -579,7 +592,7 @@ struct ipath_flash {
 struct infinipath_counters {
 	__u64 LBIntCnt;
 	__u64 LBFlowStallCnt;
-	__u64 Reserved1;
+	__u64 TxSDmaDescCnt;	/* was Reserved1 */
 	__u64 TxUnsupVLErrCnt;
 	__u64 TxDataPktCnt;
 	__u64 TxFlowPktCnt;
@@ -615,12 +628,26 @@ struct infinipath_counters {
 	__u64 RxP6HdrEgrOvflCnt;
 	__u64 RxP7HdrEgrOvflCnt;
 	__u64 RxP8HdrEgrOvflCnt;
-	__u64 Reserved6;
-	__u64 Reserved7;
+	__u64 RxP9HdrEgrOvflCnt;	/* was Reserved6 */
+	__u64 RxP10HdrEgrOvflCnt;	/* was Reserved7 */
+	__u64 RxP11HdrEgrOvflCnt;	/* new for IBA7220 */
+	__u64 RxP12HdrEgrOvflCnt;	/* new for IBA7220 */
+	__u64 RxP13HdrEgrOvflCnt;	/* new for IBA7220 */
+	__u64 RxP14HdrEgrOvflCnt;	/* new for IBA7220 */
+	__u64 RxP15HdrEgrOvflCnt;	/* new for IBA7220 */
+	__u64 RxP16HdrEgrOvflCnt;	/* new for IBA7220 */
 	__u64 IBStatusChangeCnt;
 	__u64 IBLinkErrRecoveryCnt;
 	__u64 IBLinkDownedCnt;
 	__u64 IBSymbolErrCnt;
+	/* The following are new for IBA7220 */
+	__u64 RxVL15DroppedPktCnt;
+	__u64 RxOtherLocalPhyErrCnt;
+	__u64 PcieRetryBufDiagQwordCnt;
+	__u64 ExcessBufferOvflCnt;
+	__u64 LocalLinkIntegrityErrCnt;
+	__u64 RxVlErrCnt;
+	__u64 RxDlidFltrCnt;
 };
 
 /*

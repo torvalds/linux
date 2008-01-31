@@ -90,7 +90,8 @@ MODULE_PARM_DESC(hw_level,
 		 "hardware level"
 		 " (0: autosensing (default), 1: v. 0.20, 2: v. 0.21)");
 MODULE_PARM_DESC(nr_ports,
-		 "number of connected ports (default: 2)");
+		 "number of connected ports (-1: autodetect, 1: port one only, "
+		 "2: two ports (default)");
 MODULE_PARM_DESC(use_hp_mr,
 		 "high performance MRs (0: no (default), 1: yes)");
 MODULE_PARM_DESC(port_act_time,
@@ -511,7 +512,7 @@ static int ehca_create_aqp1(struct ehca_shca *shca, u32 port)
 	}
 	sport->ibcq_aqp1 = ibcq;
 
-	if (sport->ibqp_aqp1) {
+	if (sport->ibqp_sqp[IB_QPT_GSI]) {
 		ehca_err(&shca->ib_device, "AQP1 QP is already created.");
 		ret = -EPERM;
 		goto create_aqp1;
@@ -537,7 +538,7 @@ static int ehca_create_aqp1(struct ehca_shca *shca, u32 port)
 		ret = PTR_ERR(ibqp);
 		goto create_aqp1;
 	}
-	sport->ibqp_aqp1 = ibqp;
+	sport->ibqp_sqp[IB_QPT_GSI] = ibqp;
 
 	return 0;
 
@@ -550,7 +551,7 @@ static int ehca_destroy_aqp1(struct ehca_sport *sport)
 {
 	int ret;
 
-	ret = ib_destroy_qp(sport->ibqp_aqp1);
+	ret = ib_destroy_qp(sport->ibqp_sqp[IB_QPT_GSI]);
 	if (ret) {
 		ehca_gen_err("Cannot destroy AQP1 QP. ret=%i", ret);
 		return ret;
@@ -588,6 +589,11 @@ static struct attribute *ehca_drv_attrs[] = {
 
 static struct attribute_group ehca_drv_attr_grp = {
 	.attrs = ehca_drv_attrs
+};
+
+static struct attribute_group *ehca_drv_attr_groups[] = {
+	&ehca_drv_attr_grp,
+	NULL,
 };
 
 #define EHCA_RESOURCE_ATTR(name)                                           \
@@ -688,7 +694,7 @@ static int __devinit ehca_probe(struct of_device *dev,
 	struct ehca_shca *shca;
 	const u64 *handle;
 	struct ib_pd *ibpd;
-	int ret;
+	int ret, i;
 
 	handle = of_get_property(dev->node, "ibm,hca-handle", NULL);
 	if (!handle) {
@@ -709,6 +715,8 @@ static int __devinit ehca_probe(struct of_device *dev,
 		return -ENOMEM;
 	}
 	mutex_init(&shca->modify_mutex);
+	for (i = 0; i < ARRAY_SIZE(shca->sport); i++)
+		spin_lock_init(&shca->sport[i].mod_sqp_lock);
 
 	shca->ofdev = dev;
 	shca->ipz_hca_handle.handle = *handle;
@@ -899,6 +907,9 @@ static struct of_platform_driver ehca_driver = {
 	.match_table = ehca_device_table,
 	.probe       = ehca_probe,
 	.remove      = ehca_remove,
+	.driver	     = {
+		.groups = ehca_drv_attr_groups,
+	},
 };
 
 void ehca_poll_eqs(unsigned long data)
@@ -926,7 +937,7 @@ void ehca_poll_eqs(unsigned long data)
 				ehca_process_eq(shca, 0);
 		}
 	}
-	mod_timer(&poll_eqs_timer, jiffies + HZ);
+	mod_timer(&poll_eqs_timer, round_jiffies(jiffies + HZ));
 	spin_unlock(&shca_list_lock);
 }
 
@@ -957,10 +968,6 @@ int __init ehca_module_init(void)
 		goto module_init2;
 	}
 
-	ret = sysfs_create_group(&ehca_driver.driver.kobj, &ehca_drv_attr_grp);
-	if (ret) /* only complain; we can live without attributes */
-		ehca_gen_err("Cannot create driver attributes  ret=%d", ret);
-
 	if (ehca_poll_all_eqs != 1) {
 		ehca_gen_err("WARNING!!!");
 		ehca_gen_err("It is possible to lose interrupts.");
@@ -986,7 +993,6 @@ void __exit ehca_module_exit(void)
 	if (ehca_poll_all_eqs == 1)
 		del_timer_sync(&poll_eqs_timer);
 
-	sysfs_remove_group(&ehca_driver.driver.kobj, &ehca_drv_attr_grp);
 	ibmebus_unregister_driver(&ehca_driver);
 
 	ehca_destroy_slab_caches();

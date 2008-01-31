@@ -1871,7 +1871,7 @@ ppp_mp_insert(struct ppp *ppp, struct sk_buff *skb)
  * complete packet, or we get to the sequence number for a fragment
  * which hasn't arrived but might still do so.
  */
-struct sk_buff *
+static struct sk_buff *
 ppp_mp_reconstruct(struct ppp *ppp)
 {
 	u32 seq = ppp->nextseq;

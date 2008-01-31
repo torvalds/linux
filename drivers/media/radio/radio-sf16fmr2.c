@@ -476,8 +476,7 @@ static int __init fmr2_init(void)
 		return -EBUSY;
 	}
 
-	if(video_register_device(&fmr2_radio, VFL_TYPE_RADIO, radio_nr)==-1)
-	{
+	if (video_register_device(&fmr2_radio, VFL_TYPE_RADIO, radio_nr) < 0) {
 		release_region(io, 2);
 		return -EINVAL;
 	}

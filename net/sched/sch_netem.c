@@ -313,21 +313,21 @@ static void netem_reset(struct Qdisc *sch)
 /* Pass size change message down to embedded FIFO */
 static int set_fifo_limit(struct Qdisc *q, int limit)
 {
-	struct rtattr *rta;
+	struct nlattr *nla;
 	int ret = -ENOMEM;
 
 	/* Hack to avoid sending change message to non-FIFO */
 	if (strncmp(q->ops->id + 1, "fifo", 4) != 0)
 		return 0;
 
-	rta = kmalloc(RTA_LENGTH(sizeof(struct tc_fifo_qopt)), GFP_KERNEL);
-	if (rta) {
-		rta->rta_type = RTM_NEWQDISC;
-		rta->rta_len = RTA_LENGTH(sizeof(struct tc_fifo_qopt));
-		((struct tc_fifo_qopt *)RTA_DATA(rta))->limit = limit;
+	nla = kmalloc(nla_attr_size(sizeof(struct tc_fifo_qopt)), GFP_KERNEL);
+	if (nla) {
+		nla->nla_type = RTM_NEWQDISC;
+		nla->nla_len = nla_attr_size(sizeof(struct tc_fifo_qopt));
+		((struct tc_fifo_qopt *)nla_data(nla))->limit = limit;
 
-		ret = q->ops->change(q, rta);
-		kfree(rta);
+		ret = q->ops->change(q, nla);
+		kfree(nla);
 	}
 	return ret;
 }
@@ -336,11 +336,11 @@ static int set_fifo_limit(struct Qdisc *q, int limit)
  * Distribution data is a variable size payload containing
  * signed 16 bit values.
  */
-static int get_dist_table(struct Qdisc *sch, const struct rtattr *attr)
+static int get_dist_table(struct Qdisc *sch, const struct nlattr *attr)
 {
 	struct netem_sched_data *q = qdisc_priv(sch);
-	unsigned long n = RTA_PAYLOAD(attr)/sizeof(__s16);
-	const __s16 *data = RTA_DATA(attr);
+	unsigned long n = nla_len(attr)/sizeof(__s16);
+	const __s16 *data = nla_data(attr);
 	struct disttable *d;
 	int i;
 
@@ -363,13 +363,10 @@ static int get_dist_table(struct Qdisc *sch, const struct rtattr *attr)
 	return 0;
 }
 
-static int get_correlation(struct Qdisc *sch, const struct rtattr *attr)
+static int get_correlation(struct Qdisc *sch, const struct nlattr *attr)
 {
 	struct netem_sched_data *q = qdisc_priv(sch);
-	const struct tc_netem_corr *c = RTA_DATA(attr);
-
-	if (RTA_PAYLOAD(attr) != sizeof(*c))
-		return -EINVAL;
+	const struct tc_netem_corr *c = nla_data(attr);
 
 	init_crandom(&q->delay_cor, c->delay_corr);
 	init_crandom(&q->loss_cor, c->loss_corr);
@@ -377,43 +374,48 @@ static int get_correlation(struct Qdisc *sch, const struct rtattr *attr)
 	return 0;
 }
 
-static int get_reorder(struct Qdisc *sch, const struct rtattr *attr)
+static int get_reorder(struct Qdisc *sch, const struct nlattr *attr)
 {
 	struct netem_sched_data *q = qdisc_priv(sch);
-	const struct tc_netem_reorder *r = RTA_DATA(attr);
-
-	if (RTA_PAYLOAD(attr) != sizeof(*r))
-		return -EINVAL;
+	const struct tc_netem_reorder *r = nla_data(attr);
 
 	q->reorder = r->probability;
 	init_crandom(&q->reorder_cor, r->correlation);
 	return 0;
 }
 
-static int get_corrupt(struct Qdisc *sch, const struct rtattr *attr)
+static int get_corrupt(struct Qdisc *sch, const struct nlattr *attr)
 {
 	struct netem_sched_data *q = qdisc_priv(sch);
-	const struct tc_netem_corrupt *r = RTA_DATA(attr);
-
-	if (RTA_PAYLOAD(attr) != sizeof(*r))
-		return -EINVAL;
+	const struct tc_netem_corrupt *r = nla_data(attr);
 
 	q->corrupt = r->probability;
 	init_crandom(&q->corrupt_cor, r->correlation);
 	return 0;
 }
 
+static const struct nla_policy netem_policy[TCA_NETEM_MAX + 1] = {
+	[TCA_NETEM_CORR]	= { .len = sizeof(struct tc_netem_corr) },
+	[TCA_NETEM_REORDER]	= { .len = sizeof(struct tc_netem_reorder) },
+	[TCA_NETEM_CORRUPT]	= { .len = sizeof(struct tc_netem_corrupt) },
+};
+
 /* Parse netlink message to set options */
-static int netem_change(struct Qdisc *sch, struct rtattr *opt)
+static int netem_change(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct netem_sched_data *q = qdisc_priv(sch);
+	struct nlattr *tb[TCA_NETEM_MAX + 1];
 	struct tc_netem_qopt *qopt;
 	int ret;
 
-	if (opt == NULL || RTA_PAYLOAD(opt) < sizeof(*qopt))
+	if (opt == NULL)
 		return -EINVAL;
 
-	qopt = RTA_DATA(opt);
+	ret = nla_parse_nested_compat(tb, TCA_NETEM_MAX, opt, netem_policy,
+				      qopt, sizeof(*qopt));
+	if (ret < 0)
+		return ret;
+
 	ret = set_fifo_limit(q->qdisc, qopt->limit);
 	if (ret) {
 		pr_debug("netem: can't set fifo limit\n");
@@ -434,39 +436,28 @@ static int netem_change(struct Qdisc *sch, struct rtattr *opt)
 	if (q->gap)
 		q->reorder = ~0;
 
-	/* Handle nested options after initial queue options.
-	 * Should have put all options in nested format but too late now.
-	 */
-	if (RTA_PAYLOAD(opt) > sizeof(*qopt)) {
-		struct rtattr *tb[TCA_NETEM_MAX];
-		if (rtattr_parse(tb, TCA_NETEM_MAX,
-				 RTA_DATA(opt) + sizeof(*qopt),
-				 RTA_PAYLOAD(opt) - sizeof(*qopt)))
-			return -EINVAL;
+	if (tb[TCA_NETEM_CORR]) {
+		ret = get_correlation(sch, tb[TCA_NETEM_CORR]);
+		if (ret)
+			return ret;
+	}
 
-		if (tb[TCA_NETEM_CORR-1]) {
-			ret = get_correlation(sch, tb[TCA_NETEM_CORR-1]);
-			if (ret)
-				return ret;
-		}
+	if (tb[TCA_NETEM_DELAY_DIST]) {
+		ret = get_dist_table(sch, tb[TCA_NETEM_DELAY_DIST]);
+		if (ret)
+			return ret;
+	}
 
-		if (tb[TCA_NETEM_DELAY_DIST-1]) {
-			ret = get_dist_table(sch, tb[TCA_NETEM_DELAY_DIST-1]);
-			if (ret)
-				return ret;
-		}
+	if (tb[TCA_NETEM_REORDER]) {
+		ret = get_reorder(sch, tb[TCA_NETEM_REORDER]);
+		if (ret)
+			return ret;
+	}
 
-		if (tb[TCA_NETEM_REORDER-1]) {
-			ret = get_reorder(sch, tb[TCA_NETEM_REORDER-1]);
-			if (ret)
-				return ret;
-		}
-
-		if (tb[TCA_NETEM_CORRUPT-1]) {
-			ret = get_corrupt(sch, tb[TCA_NETEM_CORRUPT-1]);
-			if (ret)
-				return ret;
-		}
+	if (tb[TCA_NETEM_CORRUPT]) {
+		ret = get_corrupt(sch, tb[TCA_NETEM_CORRUPT]);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -515,13 +506,13 @@ static int tfifo_enqueue(struct sk_buff *nskb, struct Qdisc *sch)
 	return qdisc_reshape_fail(nskb, sch);
 }
 
-static int tfifo_init(struct Qdisc *sch, struct rtattr *opt)
+static int tfifo_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct fifo_sched_data *q = qdisc_priv(sch);
 
 	if (opt) {
-		struct tc_fifo_qopt *ctl = RTA_DATA(opt);
-		if (RTA_PAYLOAD(opt) < sizeof(*ctl))
+		struct tc_fifo_qopt *ctl = nla_data(opt);
+		if (nla_len(opt) < sizeof(*ctl))
 			return -EINVAL;
 
 		q->limit = ctl->limit;
@@ -537,14 +528,14 @@ static int tfifo_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct fifo_sched_data *q = qdisc_priv(sch);
 	struct tc_fifo_qopt opt = { .limit = q->limit };
 
-	RTA_PUT(skb, TCA_OPTIONS, sizeof(opt), &opt);
+	NLA_PUT(skb, TCA_OPTIONS, sizeof(opt), &opt);
 	return skb->len;
 
-rtattr_failure:
+nla_put_failure:
 	return -1;
 }
 
-static struct Qdisc_ops tfifo_qdisc_ops = {
+static struct Qdisc_ops tfifo_qdisc_ops __read_mostly = {
 	.id		=	"tfifo",
 	.priv_size	=	sizeof(struct fifo_sched_data),
 	.enqueue	=	tfifo_enqueue,
@@ -557,7 +548,7 @@ static struct Qdisc_ops tfifo_qdisc_ops = {
 	.dump		=	tfifo_dump,
 };
 
-static int netem_init(struct Qdisc *sch, struct rtattr *opt)
+static int netem_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct netem_sched_data *q = qdisc_priv(sch);
 	int ret;
@@ -595,7 +586,7 @@ static int netem_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	const struct netem_sched_data *q = qdisc_priv(sch);
 	unsigned char *b = skb_tail_pointer(skb);
-	struct rtattr *rta = (struct rtattr *) b;
+	struct nlattr *nla = (struct nlattr *) b;
 	struct tc_netem_qopt qopt;
 	struct tc_netem_corr cor;
 	struct tc_netem_reorder reorder;
@@ -607,26 +598,26 @@ static int netem_dump(struct Qdisc *sch, struct sk_buff *skb)
 	qopt.loss = q->loss;
 	qopt.gap = q->gap;
 	qopt.duplicate = q->duplicate;
-	RTA_PUT(skb, TCA_OPTIONS, sizeof(qopt), &qopt);
+	NLA_PUT(skb, TCA_OPTIONS, sizeof(qopt), &qopt);
 
 	cor.delay_corr = q->delay_cor.rho;
 	cor.loss_corr = q->loss_cor.rho;
 	cor.dup_corr = q->dup_cor.rho;
-	RTA_PUT(skb, TCA_NETEM_CORR, sizeof(cor), &cor);
+	NLA_PUT(skb, TCA_NETEM_CORR, sizeof(cor), &cor);
 
 	reorder.probability = q->reorder;
 	reorder.correlation = q->reorder_cor.rho;
-	RTA_PUT(skb, TCA_NETEM_REORDER, sizeof(reorder), &reorder);
+	NLA_PUT(skb, TCA_NETEM_REORDER, sizeof(reorder), &reorder);
 
 	corrupt.probability = q->corrupt;
 	corrupt.correlation = q->corrupt_cor.rho;
-	RTA_PUT(skb, TCA_NETEM_CORRUPT, sizeof(corrupt), &corrupt);
+	NLA_PUT(skb, TCA_NETEM_CORRUPT, sizeof(corrupt), &corrupt);
 
-	rta->rta_len = skb_tail_pointer(skb) - b;
+	nla->nla_len = skb_tail_pointer(skb) - b;
 
 	return skb->len;
 
-rtattr_failure:
+nla_put_failure:
 	nlmsg_trim(skb, b);
 	return -1;
 }
@@ -678,7 +669,7 @@ static void netem_put(struct Qdisc *sch, unsigned long arg)
 }
 
 static int netem_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
-			    struct rtattr **tca, unsigned long *arg)
+			    struct nlattr **tca, unsigned long *arg)
 {
 	return -ENOSYS;
 }
@@ -705,7 +696,7 @@ static struct tcf_proto **netem_find_tcf(struct Qdisc *sch, unsigned long cl)
 	return NULL;
 }
 
-static struct Qdisc_class_ops netem_class_ops = {
+static const struct Qdisc_class_ops netem_class_ops = {
 	.graft		=	netem_graft,
 	.leaf		=	netem_leaf,
 	.get		=	netem_get,
@@ -717,7 +708,7 @@ static struct Qdisc_class_ops netem_class_ops = {
 	.dump		=	netem_dump_class,
 };
 
-static struct Qdisc_ops netem_qdisc_ops = {
+static struct Qdisc_ops netem_qdisc_ops __read_mostly = {
 	.id		=	"netem",
 	.cl_ops		=	&netem_class_ops,
 	.priv_size	=	sizeof(struct netem_sched_data),

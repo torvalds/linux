@@ -43,7 +43,7 @@
 #include "ivtv-cards.h"
 #include "ivtv-streams.h"
 
-static struct file_operations ivtv_v4l2_enc_fops = {
+static const struct file_operations ivtv_v4l2_enc_fops = {
       .owner = THIS_MODULE,
       .read = ivtv_v4l2_read,
       .write = ivtv_v4l2_write,
@@ -53,7 +53,7 @@ static struct file_operations ivtv_v4l2_enc_fops = {
       .poll = ivtv_v4l2_enc_poll,
 };
 
-static struct file_operations ivtv_v4l2_dec_fops = {
+static const struct file_operations ivtv_v4l2_dec_fops = {
       .owner = THIS_MODULE,
       .read = ivtv_v4l2_read,
       .write = ivtv_v4l2_write,
@@ -572,10 +572,10 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 		clear_bit(IVTV_F_I_EOS, &itv->i_flags);
 
 		/* Initialize Digitizer for Capture */
-		itv->video_dec_func(itv, VIDIOC_STREAMOFF, 0);
+		itv->video_dec_func(itv, VIDIOC_STREAMOFF, NULL);
 		ivtv_msleep_timeout(300, 1);
 		ivtv_vapi(itv, CX2341X_ENC_INITIALIZE_INPUT, 0);
-		itv->video_dec_func(itv, VIDIOC_STREAMON, 0);
+		itv->video_dec_func(itv, VIDIOC_STREAMON, NULL);
 	}
 
 	/* begin_capture */
@@ -661,27 +661,12 @@ int ivtv_start_v4l2_decode_stream(struct ivtv_stream *s, int gop_offset)
 
 	IVTV_DEBUG_INFO("Starting decode stream %s (gop_offset %d)\n", s->name, gop_offset);
 
-	/* Clear Streamoff */
-	if (s->type == IVTV_DEC_STREAM_TYPE_YUV) {
-		/* Initialize Decoder */
-		/* Reprogram Decoder YUV Buffers for YUV */
-		write_reg(yuv_offset[0] >> 4, 0x82c);
-		write_reg((yuv_offset[0] + IVTV_YUV_BUFFER_UV_OFFSET) >> 4, 0x830);
-		write_reg(yuv_offset[0] >> 4, 0x834);
-		write_reg((yuv_offset[0] + IVTV_YUV_BUFFER_UV_OFFSET) >> 4, 0x838);
-
-		write_reg_sync(0x00000000 | (0x0c << 16) | (0x0b << 8), 0x2d24);
-
-		write_reg_sync(0x00108080, 0x2898);
-		/* Enable YUV decoder output */
-		write_reg_sync(0x01, IVTV_REG_VDM);
-	}
-
 	ivtv_setup_v4l2_decode_stream(s);
 
 	/* set dma size to 65536 bytes */
 	ivtv_vapi(itv, CX2341X_DEC_SET_DMA_BLOCK_SIZE, 1, 65536);
 
+	/* Clear Streamoff */
 	clear_bit(IVTV_F_S_STREAMOFF, &s->s_flags);
 
 	/* Zero out decoder counters */

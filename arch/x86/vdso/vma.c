@@ -11,23 +11,20 @@
 #include <asm/vsyscall.h>
 #include <asm/vgtod.h>
 #include <asm/proto.h>
-#include "voffset.h"
+#include <asm/vdso.h>
+
+#include "vextern.h"		/* Just for VMAGIC.  */
+#undef VEXTERN
 
 int vdso_enabled = 1;
 
-#define VEXTERN(x) extern typeof(__ ## x) *vdso_ ## x;
-#include "vextern.h"
-#undef VEXTERN
-
-extern char vdso_kernel_start[], vdso_start[], vdso_end[];
+extern char vdso_start[], vdso_end[];
 extern unsigned short vdso_sync_cpuid;
 
 struct page **vdso_pages;
 
-static inline void *var_ref(void *vbase, char *var, char *name)
+static inline void *var_ref(void *p, char *name)
 {
-	unsigned offset = var - &vdso_kernel_start[0] + VDSO_TEXT_OFFSET;
-	void *p = vbase + offset;
 	if (*(void **)p != (void *)VMAGIC) {
 		printk("VDSO: variable %s broken\n", name);
 		vdso_enabled = 0;
@@ -62,9 +59,8 @@ static int __init init_vdso_vars(void)
 		vdso_enabled = 0;
 	}
 
-#define V(x) *(typeof(x) *) var_ref(vbase, (char *)RELOC_HIDE(&x, 0), #x)
 #define VEXTERN(x) \
-	V(vdso_ ## x) = &__ ## x;
+	*(typeof(__ ## x) **) var_ref(VDSO64_SYMBOL(vbase, x), #x) = &__ ## x;
 #include "vextern.h"
 #undef VEXTERN
 	return 0;

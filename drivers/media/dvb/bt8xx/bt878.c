@@ -378,23 +378,37 @@ bt878_device_control(struct bt878 *bt, unsigned int cmd, union dst_gpio_packet *
 
 EXPORT_SYMBOL(bt878_device_control);
 
+#define BROOKTREE_878_DEVICE(vend, dev, name) \
+	{ \
+		.vendor = PCI_VENDOR_ID_BROOKTREE, \
+		.device = PCI_DEVICE_ID_BROOKTREE_878, \
+		.subvendor = (vend), .subdevice = (dev), \
+		.driver_data = (unsigned long) name \
+	}
 
-static struct cards card_list[] __devinitdata = {
-
-	{ 0x01010071, BTTV_BOARD_NEBULA_DIGITV,			"Nebula Electronics DigiTV" },
-	{ 0x07611461, BTTV_BOARD_AVDVBT_761,			"AverMedia AverTV DVB-T 761" },
-	{ 0x001c11bd, BTTV_BOARD_PINNACLESAT,			"Pinnacle PCTV Sat" },
-	{ 0x002611bd, BTTV_BOARD_TWINHAN_DST,			"Pinnacle PCTV SAT CI" },
-	{ 0x00011822, BTTV_BOARD_TWINHAN_DST,			"Twinhan VisionPlus DVB" },
-	{ 0xfc00270f, BTTV_BOARD_TWINHAN_DST,			"ChainTech digitop DST-1000 DVB-S" },
-	{ 0x07711461, BTTV_BOARD_AVDVBT_771,			"AVermedia AverTV DVB-T 771" },
-	{ 0xdb1018ac, BTTV_BOARD_DVICO_DVBT_LITE,		"DViCO FusionHDTV DVB-T Lite" },
-	{ 0xdb1118ac, BTTV_BOARD_DVICO_DVBT_LITE,		"Ultraview DVB-T Lite" },
-	{ 0xd50018ac, BTTV_BOARD_DVICO_FUSIONHDTV_5_LITE,	"DViCO FusionHDTV 5 Lite" },
-	{ 0x20007063, BTTV_BOARD_PC_HDTV,			"pcHDTV HD-2000 TV" },
-	{ 0x00261822, BTTV_BOARD_TWINHAN_DST,			"DNTV Live! Mini" }
+static struct pci_device_id bt878_pci_tbl[] __devinitdata = {
+	BROOKTREE_878_DEVICE(0x0071, 0x0101, "Nebula Electronics DigiTV"),
+	BROOKTREE_878_DEVICE(0x1461, 0x0761, "AverMedia AverTV DVB-T 761"),
+	BROOKTREE_878_DEVICE(0x11bd, 0x001c, "Pinnacle PCTV Sat"),
+	BROOKTREE_878_DEVICE(0x11bd, 0x0026, "Pinnacle PCTV SAT CI"),
+	BROOKTREE_878_DEVICE(0x1822, 0x0001, "Twinhan VisionPlus DVB"),
+	BROOKTREE_878_DEVICE(0x270f, 0xfc00,
+				"ChainTech digitop DST-1000 DVB-S"),
+	BROOKTREE_878_DEVICE(0x1461, 0x0771, "AVermedia AverTV DVB-T 771"),
+	BROOKTREE_878_DEVICE(0x18ac, 0xdb10, "DViCO FusionHDTV DVB-T Lite"),
+	BROOKTREE_878_DEVICE(0x18ac, 0xdb11, "Ultraview DVB-T Lite"),
+	BROOKTREE_878_DEVICE(0x18ac, 0xd500, "DViCO FusionHDTV 5 Lite"),
+	BROOKTREE_878_DEVICE(0x7063, 0x2000, "pcHDTV HD-2000 TV"),
+	BROOKTREE_878_DEVICE(0x1822, 0x0026, "DNTV Live! Mini"),
+	{ }
 };
 
+MODULE_DEVICE_TABLE(pci, bt878_pci_tbl);
+
+static const char * __devinit card_name(const struct pci_device_id *id)
+{
+	return id->driver_data ? (const char *)id->driver_data : "Unknown";
+}
 
 /***********************/
 /* PCI device handling */
@@ -403,15 +417,13 @@ static struct cards card_list[] __devinitdata = {
 static int __devinit bt878_probe(struct pci_dev *dev,
 				 const struct pci_device_id *pci_id)
 {
-	int result = 0, has_dvb = 0, i;
+	int result = 0;
 	unsigned char lat;
 	struct bt878 *bt;
 #if defined(__powerpc__)
 	unsigned int cmd;
 #endif
 	unsigned int cardid;
-	unsigned short id;
-	struct cards *dvb_cards;
 
 	printk(KERN_INFO "bt878: Bt878 AUDIO function found (%d).\n",
 	       bt878_num);
@@ -423,25 +435,11 @@ static int __devinit bt878_probe(struct pci_dev *dev,
 	if (pci_enable_device(dev))
 		return -EIO;
 
-	pci_read_config_word(dev, PCI_SUBSYSTEM_ID, &id);
-	cardid = id << 16;
-	pci_read_config_word(dev, PCI_SUBSYSTEM_VENDOR_ID, &id);
-	cardid |= id;
+	cardid = dev->subsystem_device << 16;
+	cardid |= dev->subsystem_vendor;
 
-	for (i = 0, dvb_cards = card_list; i < ARRAY_SIZE(card_list); i++, dvb_cards++) {
-		if (cardid == dvb_cards->pci_id) {
-			printk("%s: card id=[0x%x],[ %s ] has DVB functions.\n",
-				__func__, cardid, dvb_cards->name);
-			has_dvb = 1;
-		}
-	}
-
-	if (!has_dvb) {
-		printk("%s: card id=[0x%x], Unknown card.\nExiting..\n", __func__, cardid);
-		result = -EINVAL;
-
-		goto fail0;
-	}
+	printk(KERN_INFO "%s: card id=[0x%x],[ %s ] has DVB functions.\n",
+				__func__, cardid, card_name(pci_id));
 
 	bt = &bt878[bt878_num];
 	bt->dev = dev;
@@ -571,14 +569,6 @@ static void __devexit bt878_remove(struct pci_dev *pci_dev)
 	pci_disable_device(pci_dev);
 	return;
 }
-
-static struct pci_device_id bt878_pci_tbl[] __devinitdata = {
-	{PCI_VENDOR_ID_BROOKTREE, PCI_DEVICE_ID_BROOKTREE_878,
-	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0,}
-};
-
-MODULE_DEVICE_TABLE(pci, bt878_pci_tbl);
 
 static struct pci_driver bt878_pci_driver = {
       .name	= "bt878",

@@ -27,6 +27,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/hw_random.h>
+#include <linux/delay.h>
 #include <asm/io.h>
 #include <asm/msr.h>
 #include <asm/cpufeature.h>
@@ -77,10 +78,11 @@ static inline u32 xstore(u32 *addr, u32 edx_in)
 	return eax_out;
 }
 
-static int via_rng_data_present(struct hwrng *rng)
+static int via_rng_data_present(struct hwrng *rng, int wait)
 {
 	u32 bytes_out;
 	u32 *via_rng_datum = (u32 *)(&rng->priv);
+	int i;
 
 	/* We choose the recommended 1-byte-per-instruction RNG rate,
 	 * for greater randomness at the expense of speed.  Larger
@@ -95,12 +97,15 @@ static int via_rng_data_present(struct hwrng *rng)
 	 * completes.
 	 */
 
-	*via_rng_datum = 0; /* paranoia, not really necessary */
-	bytes_out = xstore(via_rng_datum, VIA_RNG_CHUNK_1);
-	bytes_out &= VIA_XSTORE_CNT_MASK;
-	if (bytes_out == 0)
-		return 0;
-	return 1;
+	for (i = 0; i < 20; i++) {
+		*via_rng_datum = 0; /* paranoia, not really necessary */
+		bytes_out = xstore(via_rng_datum, VIA_RNG_CHUNK_1);
+		bytes_out &= VIA_XSTORE_CNT_MASK;
+		if (bytes_out || !wait)
+			break;
+		udelay(10);
+	}
+	return bytes_out ? 1 : 0;
 }
 
 static int via_rng_data_read(struct hwrng *rng, u32 *data)

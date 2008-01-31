@@ -25,8 +25,6 @@
 
 #include "base.h"
 
-extern struct kset devices_subsys;
-
 #define to_sysdev(k) container_of(k, struct sys_device, kobj)
 #define to_sysdev_attr(a) container_of(a, struct sysdev_attribute, attr)
 
@@ -128,18 +126,17 @@ void sysdev_class_remove_file(struct sysdev_class *c,
 }
 EXPORT_SYMBOL_GPL(sysdev_class_remove_file);
 
-/*
- * declare system_subsys
- */
-static decl_subsys(system, &ktype_sysdev_class, NULL);
+static struct kset *system_kset;
 
 int sysdev_class_register(struct sysdev_class * cls)
 {
 	pr_debug("Registering sysdev class '%s'\n",
 		 kobject_name(&cls->kset.kobj));
 	INIT_LIST_HEAD(&cls->drivers);
-	cls->kset.kobj.parent = &system_subsys.kobj;
-	cls->kset.kobj.kset = &system_subsys;
+	cls->kset.kobj.parent = &system_kset->kobj;
+	cls->kset.kobj.ktype = &ktype_sysdev_class;
+	cls->kset.kobj.kset = system_kset;
+	kobject_set_name(&cls->kset.kobj, cls->name);
 	return kset_register(&cls->kset);
 }
 
@@ -228,20 +225,15 @@ int sysdev_register(struct sys_device * sysdev)
 	if (!cls)
 		return -EINVAL;
 
+	pr_debug("Registering sys device '%s'\n", kobject_name(&sysdev->kobj));
+
 	/* Make sure the kset is set */
 	sysdev->kobj.kset = &cls->kset;
 
-	/* But make sure we point to the right type for sysfs translation */
-	sysdev->kobj.ktype = &ktype_sysdev;
-	error = kobject_set_name(&sysdev->kobj, "%s%d",
-			 kobject_name(&cls->kset.kobj), sysdev->id);
-	if (error)
-		return error;
-
-	pr_debug("Registering sys device '%s'\n", kobject_name(&sysdev->kobj));
-
 	/* Register the object */
-	error = kobject_register(&sysdev->kobj);
+	error = kobject_init_and_add(&sysdev->kobj, &ktype_sysdev, NULL,
+				     "%s%d", kobject_name(&cls->kset.kobj),
+				     sysdev->id);
 
 	if (!error) {
 		struct sysdev_driver * drv;
@@ -258,6 +250,7 @@ int sysdev_register(struct sys_device * sysdev)
 		}
 		mutex_unlock(&sysdev_drivers_lock);
 	}
+	kobject_uevent(&sysdev->kobj, KOBJ_ADD);
 	return error;
 }
 
@@ -272,7 +265,7 @@ void sysdev_unregister(struct sys_device * sysdev)
 	}
 	mutex_unlock(&sysdev_drivers_lock);
 
-	kobject_unregister(&sysdev->kobj);
+	kobject_put(&sysdev->kobj);
 }
 
 
@@ -298,8 +291,7 @@ void sysdev_shutdown(void)
 	pr_debug("Shutting Down System Devices\n");
 
 	mutex_lock(&sysdev_drivers_lock);
-	list_for_each_entry_reverse(cls, &system_subsys.list,
-				    kset.kobj.entry) {
+	list_for_each_entry_reverse(cls, &system_kset->list, kset.kobj.entry) {
 		struct sys_device * sysdev;
 
 		pr_debug("Shutting down type '%s':\n",
@@ -361,9 +353,7 @@ int sysdev_suspend(pm_message_t state)
 
 	pr_debug("Suspending System Devices\n");
 
-	list_for_each_entry_reverse(cls, &system_subsys.list,
-				    kset.kobj.entry) {
-
+	list_for_each_entry_reverse(cls, &system_kset->list, kset.kobj.entry) {
 		pr_debug("Suspending type '%s':\n",
 			 kobject_name(&cls->kset.kobj));
 
@@ -414,8 +404,7 @@ aux_driver:
 	}
 
 	/* resume other classes */
-	list_for_each_entry_continue(cls, &system_subsys.list,
-					kset.kobj.entry) {
+	list_for_each_entry_continue(cls, &system_kset->list, kset.kobj.entry) {
 		list_for_each_entry(err_dev, &cls->kset.list, kobj.entry) {
 			pr_debug(" %s\n", kobject_name(&err_dev->kobj));
 			__sysdev_resume(err_dev);
@@ -440,7 +429,7 @@ int sysdev_resume(void)
 
 	pr_debug("Resuming System Devices\n");
 
-	list_for_each_entry(cls, &system_subsys.list, kset.kobj.entry) {
+	list_for_each_entry(cls, &system_kset->list, kset.kobj.entry) {
 		struct sys_device * sysdev;
 
 		pr_debug("Resuming type '%s':\n",
@@ -458,8 +447,10 @@ int sysdev_resume(void)
 
 int __init system_bus_init(void)
 {
-	system_subsys.kobj.parent = &devices_subsys.kobj;
-	return subsystem_register(&system_subsys);
+	system_kset = kset_create_and_add("system", NULL, &devices_kset->kobj);
+	if (!system_kset)
+		return -ENOMEM;
+	return 0;
 }
 
 EXPORT_SYMBOL_GPL(sysdev_register);

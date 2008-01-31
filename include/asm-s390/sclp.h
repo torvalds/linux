@@ -27,7 +27,25 @@ struct sclp_ipl_info {
 	char loadparm[LOADPARM_LEN];
 };
 
-void sclp_readinfo_early(void);
+struct sclp_cpu_entry {
+	u8 address;
+	u8 reserved0[13];
+	u8 type;
+	u8 reserved1;
+} __attribute__((packed));
+
+struct sclp_cpu_info {
+	unsigned int configured;
+	unsigned int standby;
+	unsigned int combined;
+	int has_cpu_type;
+	struct sclp_cpu_entry cpu[255];
+};
+
+int sclp_get_cpu_info(struct sclp_cpu_info *info);
+int sclp_cpu_configure(u8 cpu);
+int sclp_cpu_deconfigure(u8 cpu);
+void sclp_read_info_early(void);
 void sclp_facilities_detect(void);
 unsigned long long sclp_memory_detect(void);
 int sclp_sdias_blk_count(void);

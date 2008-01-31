@@ -479,6 +479,9 @@ void free_irq(unsigned int irq, void *dev_id)
 			return;
 		}
 		printk(KERN_ERR "Trying to free already-free IRQ %d\n", irq);
+#ifdef CONFIG_DEBUG_SHIRQ
+		dump_stack();
+#endif
 		spin_unlock_irqrestore(&desc->lock, flags);
 		return;
 	}

@@ -246,13 +246,69 @@ struct sockaddr_in {
 #include <asm/byteorder.h> 
 
 #ifdef __KERNEL__
-/* Some random defines to make it easier in the kernel.. */
-#define LOOPBACK(x)	(((x) & htonl(0xff000000)) == htonl(0x7f000000))
-#define MULTICAST(x)	(((x) & htonl(0xf0000000)) == htonl(0xe0000000))
-#define BADCLASS(x)	(((x) & htonl(0xf0000000)) == htonl(0xf0000000))
-#define ZERONET(x)	(((x) & htonl(0xff000000)) == htonl(0x00000000))
-#define LOCAL_MCAST(x)	(((x) & htonl(0xFFFFFF00)) == htonl(0xE0000000))
 
+static inline bool ipv4_is_loopback(__be32 addr)
+{
+	return (addr & htonl(0xff000000)) == htonl(0x7f000000);
+}
+
+static inline bool ipv4_is_multicast(__be32 addr)
+{
+	return (addr & htonl(0xf0000000)) == htonl(0xe0000000);
+}
+
+static inline bool ipv4_is_local_multicast(__be32 addr)
+{
+	return (addr & htonl(0xffffff00)) == htonl(0xe0000000);
+}
+
+static inline bool ipv4_is_lbcast(__be32 addr)
+{
+	/* limited broadcast */
+	return addr == INADDR_BROADCAST;
+}
+
+static inline bool ipv4_is_zeronet(__be32 addr)
+{
+	return (addr & htonl(0xff000000)) == htonl(0x00000000);
+}
+
+/* Special-Use IPv4 Addresses (RFC3330) */
+
+static inline bool ipv4_is_private_10(__be32 addr)
+{
+	return (addr & htonl(0xff000000)) == htonl(0x0a000000);
+}
+
+static inline bool ipv4_is_private_172(__be32 addr)
+{
+	return (addr & htonl(0xfff00000)) == htonl(0xac100000);
+}
+
+static inline bool ipv4_is_private_192(__be32 addr)
+{
+	return (addr & htonl(0xffff0000)) == htonl(0xc0a80000);
+}
+
+static inline bool ipv4_is_linklocal_169(__be32 addr)
+{
+	return (addr & htonl(0xffff0000)) == htonl(0xa9fe0000);
+}
+
+static inline bool ipv4_is_anycast_6to4(__be32 addr)
+{
+	return (addr & htonl(0xffffff00)) == htonl(0xc0586300);
+}
+
+static inline bool ipv4_is_test_192(__be32 addr)
+{
+	return (addr & htonl(0xffffff00)) == htonl(0xc0000200);
+}
+
+static inline bool ipv4_is_test_198(__be32 addr)
+{
+	return (addr & htonl(0xfffe0000)) == htonl(0xc6120000);
+}
 #endif
 
 #endif	/* _LINUX_IN_H */

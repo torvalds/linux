@@ -91,7 +91,7 @@
  * a buffer allocated by kmalloc. Failure to do so can lead
  * to unexpected behavior depending on the architecture.
  */
-int rt2x00usb_vendor_request(const struct rt2x00_dev *rt2x00dev,
+int rt2x00usb_vendor_request(struct rt2x00_dev *rt2x00dev,
 			     const u8 request, const u8 requesttype,
 			     const u16 offset, const u16 value,
 			     void *buffer, const u16 buffer_length,
@@ -107,18 +107,25 @@ int rt2x00usb_vendor_request(const struct rt2x00_dev *rt2x00dev,
  * kmalloc. Hence the reason for using a previously allocated cache
  * which has been allocated properly.
  */
-int rt2x00usb_vendor_request_buff(const struct rt2x00_dev *rt2x00dev,
+int rt2x00usb_vendor_request_buff(struct rt2x00_dev *rt2x00dev,
 				  const u8 request, const u8 requesttype,
 				  const u16 offset, void *buffer,
 				  const u16 buffer_length, const int timeout);
+
+/*
+ * A version of rt2x00usb_vendor_request_buff which must be called
+ * if the usb_cache_mutex is already held. */
+int rt2x00usb_vendor_req_buff_lock(struct rt2x00_dev *rt2x00dev,
+				   const u8 request, const u8 requesttype,
+				   const u16 offset, void *buffer,
+				   const u16 buffer_length, const int timeout);
 
 /*
  * Simple wrapper around rt2x00usb_vendor_request to write a single
  * command to the device. Since we don't use the buffer argument we
  * don't have to worry about kmalloc here.
  */
-static inline int rt2x00usb_vendor_request_sw(const struct rt2x00_dev
-					      *rt2x00dev,
+static inline int rt2x00usb_vendor_request_sw(struct rt2x00_dev *rt2x00dev,
 					      const u8 request,
 					      const u16 offset,
 					      const u16 value,
@@ -134,8 +141,8 @@ static inline int rt2x00usb_vendor_request_sw(const struct rt2x00_dev
  * from the device. Note that the eeprom argument _must_ be allocated using
  * kmalloc for correct handling inside the kernel USB layer.
  */
-static inline int rt2x00usb_eeprom_read(const struct rt2x00_dev *rt2x00dev,
-					 __le16 *eeprom, const u16 lenght)
+static inline int rt2x00usb_eeprom_read(struct rt2x00_dev *rt2x00dev,
+					__le16 *eeprom, const u16 lenght)
 {
 	int timeout = REGISTER_TIMEOUT * (lenght / sizeof(u16));
 
@@ -147,7 +154,6 @@ static inline int rt2x00usb_eeprom_read(const struct rt2x00_dev *rt2x00dev,
 /*
  * Radio handlers
  */
-void rt2x00usb_enable_radio(struct rt2x00_dev *rt2x00dev);
 void rt2x00usb_disable_radio(struct rt2x00_dev *rt2x00dev);
 
 /*
@@ -160,6 +166,10 @@ int rt2x00usb_write_tx_data(struct rt2x00_dev *rt2x00dev,
 /*
  * Device initialization handlers.
  */
+void rt2x00usb_init_rxentry(struct rt2x00_dev *rt2x00dev,
+			    struct data_entry *entry);
+void rt2x00usb_init_txentry(struct rt2x00_dev *rt2x00dev,
+			    struct data_entry *entry);
 int rt2x00usb_initialize(struct rt2x00_dev *rt2x00dev);
 void rt2x00usb_uninitialize(struct rt2x00_dev *rt2x00dev);
 

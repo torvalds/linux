@@ -78,6 +78,18 @@ Example:
 For a full list of card ID's please see Documentation/video4linux/CARDLIST.bttv.
 In case of further problems please subscribe and send questions to the mailing list: linux-dvb@linuxtv.org.
 
+2c) Probing the cards with broken PCI subsystem ID
+--------------------------------------------------
+There are some TwinHan cards that the EEPROM has become corrupted for some
+reason. The cards do not have correct PCI subsystem ID. But we can force
+probing the cards with broken PCI subsystem ID
+
+	$ echo 109e 0878 $subvendor $subdevice > \
+		/sys/bus/pci/drivers/bt878/new_id
+
+109e: PCI_VENDOR_ID_BROOKTREE
+0878: PCI_DEVICE_ID_BROOKTREE_878
+
 Authors: Richard Walker,
 	 Jamie Honan,
 	 Michael Hunold,

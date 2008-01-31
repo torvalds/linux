@@ -22,7 +22,7 @@ static void qla2x00_nv_write(scsi_qla_host_t *, uint16_t);
  * qla2x00_lock_nvram_access() -
  * @ha: HA context
  */
-void
+static void
 qla2x00_lock_nvram_access(scsi_qla_host_t *ha)
 {
 	uint16_t data;
@@ -55,7 +55,7 @@ qla2x00_lock_nvram_access(scsi_qla_host_t *ha)
  * qla2x00_unlock_nvram_access() -
  * @ha: HA context
  */
-void
+static void
 qla2x00_unlock_nvram_access(scsi_qla_host_t *ha)
 {
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
@@ -74,7 +74,7 @@ qla2x00_unlock_nvram_access(scsi_qla_host_t *ha)
  *
  * Returns the word read from nvram @addr.
  */
-uint16_t
+static uint16_t
 qla2x00_get_nvram_word(scsi_qla_host_t *ha, uint32_t addr)
 {
 	uint16_t	data;
@@ -93,7 +93,7 @@ qla2x00_get_nvram_word(scsi_qla_host_t *ha, uint32_t addr)
  * @addr: Address in NVRAM to write
  * @data: word to program
  */
-void
+static void
 qla2x00_write_nvram_word(scsi_qla_host_t *ha, uint32_t addr, uint16_t data)
 {
 	int count;
@@ -550,7 +550,7 @@ qla24xx_write_flash_data(scsi_qla_host_t *ha, uint32_t *dwptr, uint32_t faddr,
 	int ret;
 	uint32_t liter, miter;
 	uint32_t sec_mask, rest_addr, conf_addr;
-	uint32_t fdata, findex ;
+	uint32_t fdata, findex, cnt;
 	uint8_t	man_id, flash_id;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 	dma_addr_t optrom_dma;
@@ -690,8 +690,14 @@ qla24xx_write_flash_data(scsi_qla_host_t *ha, uint32_t *dwptr, uint32_t faddr,
 			    0xff0000) | ((fdata >> 16) & 0xff));
 	}
 
-	/* Enable flash write-protection. */
+	/* Enable flash write-protection and wait for completion. */
 	qla24xx_write_flash_dword(ha, flash_conf_to_access_addr(0x101), 0x9c);
+	for (cnt = 300; cnt &&
+	    qla24xx_read_flash_dword(ha,
+		    flash_conf_to_access_addr(0x005)) & BIT_0;
+	    cnt--) {
+		udelay(10);
+	}
 
 	/* Disable flash write. */
 	WRT_REG_DWORD(&reg->ctrl_status,

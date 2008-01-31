@@ -5,6 +5,7 @@
  *
  * Copyright (C) 1998, 1999, 2000 by Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
+ * Copyright (C) 2007  Maciej W. Rozycki
  */
 #include <asm/asm.h>
 #include <asm/asm-offsets.h>
@@ -71,34 +72,45 @@ LEAF(memset)
 
 FEXPORT(__bzero)
 	sltiu		t0, a2, LONGSIZE	/* very small region? */
-	bnez		t0, small_memset
+	bnez		t0, .Lsmall_memset
 	 andi		t0, a0, LONGMASK	/* aligned? */
 
+#ifndef CONFIG_CPU_DADDI_WORKAROUNDS
 	beqz		t0, 1f
 	 PTR_SUBU	t0, LONGSIZE		/* alignment in bytes */
+#else
+	.set		noat
+	li		AT, LONGSIZE
+	beqz		t0, 1f
+	 PTR_SUBU	t0, AT			/* alignment in bytes */
+	.set		at
+#endif
 
+	R10KCBARRIER(0(ra))
 #ifdef __MIPSEB__
-	EX(LONG_S_L, a1, (a0), first_fixup)	/* make word/dword aligned */
+	EX(LONG_S_L, a1, (a0), .Lfirst_fixup)	/* make word/dword aligned */
 #endif
 #ifdef __MIPSEL__
-	EX(LONG_S_R, a1, (a0), first_fixup)	/* make word/dword aligned */
+	EX(LONG_S_R, a1, (a0), .Lfirst_fixup)	/* make word/dword aligned */
 #endif
 	PTR_SUBU	a0, t0			/* long align ptr */
 	PTR_ADDU	a2, t0			/* correct size */
 
 1:	ori		t1, a2, 0x3f		/* # of full blocks */
 	xori		t1, 0x3f
-	beqz		t1, memset_partial	/* no block to fill */
+	beqz		t1, .Lmemset_partial	/* no block to fill */
 	 andi		t0, a2, 0x40-LONGSIZE
 
 	PTR_ADDU	t1, a0			/* end address */
 	.set		reorder
 1:	PTR_ADDIU	a0, 64
-	f_fill64 a0, -64, a1, fwd_fixup
+	R10KCBARRIER(0(ra))
+	f_fill64 a0, -64, a1, .Lfwd_fixup
 	bne		t1, a0, 1b
 	.set		noreorder
 
-memset_partial:
+.Lmemset_partial:
+	R10KCBARRIER(0(ra))
 	PTR_LA		t1, 2f			/* where to start */
 #if LONGSIZE == 4
 	PTR_SUBU	t1, t0
@@ -106,7 +118,7 @@ memset_partial:
 	.set		noat
 	LONG_SRL		AT, t0, 1
 	PTR_SUBU	t1, AT
-	.set		noat
+	.set		at
 #endif
 	jr		t1
 	 PTR_ADDU	a0, t0			/* dest ptr */
@@ -114,26 +126,28 @@ memset_partial:
 	.set		push
 	.set		noreorder
 	.set		nomacro
-	f_fill64 a0, -64, a1, partial_fixup	/* ... but first do longs ... */
+	f_fill64 a0, -64, a1, .Lpartial_fixup	/* ... but first do longs ... */
 2:	.set		pop
 	andi		a2, LONGMASK		/* At most one long to go */
 
 	beqz		a2, 1f
 	 PTR_ADDU	a0, a2			/* What's left */
+	R10KCBARRIER(0(ra))
 #ifdef __MIPSEB__
-	EX(LONG_S_R, a1, -1(a0), last_fixup)
+	EX(LONG_S_R, a1, -1(a0), .Llast_fixup)
 #endif
 #ifdef __MIPSEL__
-	EX(LONG_S_L, a1, -1(a0), last_fixup)
+	EX(LONG_S_L, a1, -1(a0), .Llast_fixup)
 #endif
 1:	jr		ra
 	 move		a2, zero
 
-small_memset:
+.Lsmall_memset:
 	beqz		a2, 2f
 	 PTR_ADDU	t1, a0, a2
 
 1:	PTR_ADDIU	a0, 1			/* fill bytewise */
+	R10KCBARRIER(0(ra))
 	bne		t1, a0, 1b
 	 sb		a1, -1(a0)
 
@@ -141,11 +155,11 @@ small_memset:
 	 move		a2, zero
 	END(memset)
 
-first_fixup:
+.Lfirst_fixup:
 	jr	ra
 	 nop
 
-fwd_fixup:
+.Lfwd_fixup:
 	PTR_L		t0, TI_TASK($28)
 	LONG_L		t0, THREAD_BUADDR(t0)
 	andi		a2, 0x3f
@@ -153,7 +167,7 @@ fwd_fixup:
 	jr		ra
 	 LONG_SUBU	a2, t0
 
-partial_fixup:
+.Lpartial_fixup:
 	PTR_L		t0, TI_TASK($28)
 	LONG_L		t0, THREAD_BUADDR(t0)
 	andi		a2, LONGMASK
@@ -161,6 +175,6 @@ partial_fixup:
 	jr		ra
 	 LONG_SUBU	a2, t0
 
-last_fixup:
+.Llast_fixup:
 	jr		ra
 	 andi		v1, a2, LONGMASK

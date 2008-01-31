@@ -12,7 +12,7 @@
 #include <linux/init.h>
 #include <net/x25.h>
 
-struct list_head x25_forward_list = LIST_HEAD_INIT(x25_forward_list);
+LIST_HEAD(x25_forward_list);
 DEFINE_RWLOCK(x25_forward_list_lock);
 
 int x25_forward_call(struct x25_address *dest_addr, struct x25_neigh *from,

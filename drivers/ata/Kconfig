@@ -459,6 +459,15 @@ config PATA_NETCELL
 
 	  If unsure, say N.
 
+config PATA_NINJA32
+	tristate "Ninja32/Delkin Cardbus ATA support (Experimental)"
+	depends on PCI && EXPERIMENTAL
+	help
+	  This option enables support for the Ninja32, Delkin and
+	  possibly other brands of Cardbus ATA adapter
+
+	  If unsure, say N.
+
 config PATA_NS87410
 	tristate "Nat Semi NS87410 PATA support (Experimental)"
 	depends on PCI && EXPERIMENTAL

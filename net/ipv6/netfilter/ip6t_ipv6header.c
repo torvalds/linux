@@ -23,18 +23,14 @@
 #include <linux/netfilter_ipv6/ip6t_ipv6header.h>
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("IPv6 headers match");
+MODULE_DESCRIPTION("Xtables: IPv6 header types match");
 MODULE_AUTHOR("Andras Kis-Szabo <kisza@sch.bme.hu>");
 
 static bool
-ipv6header_match(const struct sk_buff *skb,
-		 const struct net_device *in,
-		 const struct net_device *out,
-		 const struct xt_match *match,
-		 const void *matchinfo,
-		 int offset,
-		 unsigned int protoff,
-		 bool *hotdrop)
+ipv6header_mt6(const struct sk_buff *skb, const struct net_device *in,
+               const struct net_device *out, const struct xt_match *match,
+               const void *matchinfo, int offset, unsigned int protoff,
+               bool *hotdrop)
 {
 	const struct ip6t_ipv6header_info *info = matchinfo;
 	unsigned int temp;
@@ -125,11 +121,9 @@ ipv6header_match(const struct sk_buff *skb,
 }
 
 static bool
-ipv6header_checkentry(const char *tablename,
-		      const void *ip,
-		      const struct xt_match *match,
-		      void *matchinfo,
-		      unsigned int hook_mask)
+ipv6header_mt6_check(const char *tablename, const void *ip,
+                     const struct xt_match *match, void *matchinfo,
+                     unsigned int hook_mask)
 {
 	const struct ip6t_ipv6header_info *info = matchinfo;
 
@@ -141,25 +135,25 @@ ipv6header_checkentry(const char *tablename,
 	return true;
 }
 
-static struct xt_match ip6t_ipv6header_match __read_mostly = {
+static struct xt_match ipv6header_mt6_reg __read_mostly = {
 	.name		= "ipv6header",
 	.family		= AF_INET6,
-	.match		= &ipv6header_match,
+	.match		= ipv6header_mt6,
 	.matchsize	= sizeof(struct ip6t_ipv6header_info),
-	.checkentry	= &ipv6header_checkentry,
+	.checkentry	= ipv6header_mt6_check,
 	.destroy	= NULL,
 	.me		= THIS_MODULE,
 };
 
-static int __init ipv6header_init(void)
+static int __init ipv6header_mt6_init(void)
 {
-	return xt_register_match(&ip6t_ipv6header_match);
+	return xt_register_match(&ipv6header_mt6_reg);
 }
 
-static void __exit ipv6header_exit(void)
+static void __exit ipv6header_mt6_exit(void)
 {
-	xt_unregister_match(&ip6t_ipv6header_match);
+	xt_unregister_match(&ipv6header_mt6_reg);
 }
 
-module_init(ipv6header_init);
-module_exit(ipv6header_exit);
+module_init(ipv6header_mt6_init);
+module_exit(ipv6header_mt6_exit);

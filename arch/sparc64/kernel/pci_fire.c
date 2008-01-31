@@ -30,7 +30,7 @@
 			       "i" (ASI_PHYS_BYPASS_EC_E) \
 			     : "memory")
 
-static void pci_fire_scan_bus(struct pci_pbm_info *pbm)
+static void __init pci_fire_scan_bus(struct pci_pbm_info *pbm)
 {
 	pbm->pci_bus = pci_scan_one_pbm(pbm);
 
@@ -434,8 +434,8 @@ static void pci_fire_hw_init(struct pci_pbm_info *pbm)
 	fire_write(pbm->pbm_regs + FIRE_PEC_IENAB, ~(u64)0);
 }
 
-static int pci_fire_pbm_init(struct pci_controller_info *p,
-			     struct device_node *dp, u32 portid)
+static int __init pci_fire_pbm_init(struct pci_controller_info *p,
+				    struct device_node *dp, u32 portid)
 {
 	const struct linux_prom64_registers *regs;
 	struct pci_pbm_info *pbm;
@@ -488,7 +488,7 @@ static inline int portid_compare(u32 x, u32 y)
 	return 0;
 }
 
-void fire_pci_init(struct device_node *dp, const char *model_name)
+void __init fire_pci_init(struct device_node *dp, const char *model_name)
 {
 	struct pci_controller_info *p;
 	u32 portid = of_getintprop_default(dp, "portid", 0xff);

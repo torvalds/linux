@@ -201,6 +201,8 @@ static inline struct proc_dir_entry *create_proc_info_entry(const char *name,
 extern struct proc_dir_entry *proc_net_fops_create(struct net *net,
 	const char *name, mode_t mode, const struct file_operations *fops);
 extern void proc_net_remove(struct net *net, const char *name);
+extern struct proc_dir_entry *proc_net_mkdir(struct net *net, const char *name,
+	struct proc_dir_entry *parent);
 
 #else
 

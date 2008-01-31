@@ -661,9 +661,18 @@ void avc_audit(u32 ssid, u32 tsid,
 						    "daddr", "dest");
 				break;
 			}
-			if (a->u.net.netif)
-				audit_log_format(ab, " netif=%s",
-					a->u.net.netif);
+			if (a->u.net.netif > 0) {
+				struct net_device *dev;
+
+				/* NOTE: we always use init's namespace */
+				dev = dev_get_by_index(&init_net,
+						       a->u.net.netif);
+				if (dev) {
+					audit_log_format(ab, " netif=%s",
+							 dev->name);
+					dev_put(dev);
+				}
+			}
 			break;
 		}
 	}

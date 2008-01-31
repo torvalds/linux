@@ -33,9 +33,7 @@ void x25_init_timers(struct sock *sk)
 {
 	struct x25_sock *x25 = x25_sk(sk);
 
-	init_timer(&x25->timer);
-	x25->timer.data     = (unsigned long)sk;
-	x25->timer.function = &x25_timer_expiry;
+	setup_timer(&x25->timer, x25_timer_expiry, (unsigned long)sk);
 
 	/* initialized by sock_init_data */
 	sk->sk_timer.data     = (unsigned long)sk;

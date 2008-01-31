@@ -43,6 +43,16 @@ config OPROFILE_MPCORE
 config OPROFILE_ARM11_CORE
 	bool
 
+config KPROBES
+	bool "Kprobes"
+	depends on KALLSYMS && MODULES && !UML && !XIP_KERNEL
+	help
+	  Kprobes allows you to trap at almost any kernel address and
+	  execute a callback function.  register_kprobe() establishes
+	  a probepoint and specifies the callback.  Kprobes is useful
+	  for kernel debugging, non-intrusive instrumentation and testing.
+	  If in doubt, say "N".
+
 config MARKERS
 	bool "Activate markers"
 	help

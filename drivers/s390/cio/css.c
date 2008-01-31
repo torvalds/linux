@@ -51,6 +51,62 @@ for_each_subchannel(int(*fn)(struct subchannel_id, void *), void *data)
 	return ret;
 }
 
+struct cb_data {
+	void *data;
+	struct idset *set;
+	int (*fn_known_sch)(struct subchannel *, void *);
+	int (*fn_unknown_sch)(struct subchannel_id, void *);
+};
+
+static int call_fn_known_sch(struct device *dev, void *data)
+{
+	struct subchannel *sch = to_subchannel(dev);
+	struct cb_data *cb = data;
+	int rc = 0;
+
+	idset_sch_del(cb->set, sch->schid);
+	if (cb->fn_known_sch)
+		rc = cb->fn_known_sch(sch, cb->data);
+	return rc;
+}
+
+static int call_fn_unknown_sch(struct subchannel_id schid, void *data)
+{
+	struct cb_data *cb = data;
+	int rc = 0;
+
+	if (idset_sch_contains(cb->set, schid))
+		rc = cb->fn_unknown_sch(schid, cb->data);
+	return rc;
+}
+
+int for_each_subchannel_staged(int (*fn_known)(struct subchannel *, void *),
+			       int (*fn_unknown)(struct subchannel_id,
+			       void *), void *data)
+{
+	struct cb_data cb;
+	int rc;
+
+	cb.set = idset_sch_new();
+	if (!cb.set)
+		return -ENOMEM;
+	idset_fill(cb.set);
+	cb.data = data;
+	cb.fn_known_sch = fn_known;
+	cb.fn_unknown_sch = fn_unknown;
+	/* Process registered subchannels. */
+	rc = bus_for_each_dev(&css_bus_type, NULL, &cb, call_fn_known_sch);
+	if (rc)
+		goto out;
+	/* Process unregistered subchannels. */
+	if (fn_unknown)
+		rc = for_each_subchannel(call_fn_unknown_sch, &cb);
+out:
+	idset_free(cb.set);
+
+	return rc;
+}
+
 static struct subchannel *
 css_alloc_subchannel(struct subchannel_id schid)
 {
@@ -77,7 +133,7 @@ css_alloc_subchannel(struct subchannel_id schid)
 	 * This is fine even on 64bit since the subchannel is always located
 	 * under 2G.
 	 */
-	sch->schib.pmcw.intparm = (__u32)(unsigned long)sch;
+	sch->schib.pmcw.intparm = (u32)(addr_t)sch;
 	ret = cio_modify(sch);
 	if (ret) {
 		kfree(sch->lock);
@@ -237,11 +293,25 @@ get_subchannel_by_schid(struct subchannel_id schid)
 	return dev ? to_subchannel(dev) : NULL;
 }
 
+/**
+ * css_sch_is_valid() - check if a subchannel is valid
+ * @schib: subchannel information block for the subchannel
+ */
+int css_sch_is_valid(struct schib *schib)
+{
+	if ((schib->pmcw.st == SUBCHANNEL_TYPE_IO) && !schib->pmcw.dnv)
+		return 0;
+	return 1;
+}
+EXPORT_SYMBOL_GPL(css_sch_is_valid);
+
 static int css_get_subchannel_status(struct subchannel *sch)
 {
 	struct schib schib;
 
-	if (stsch(sch->schid, &schib) || !schib.pmcw.dnv)
+	if (stsch(sch->schid, &schib))
+		return CIO_GONE;
+	if (!css_sch_is_valid(&schib))
 		return CIO_GONE;
 	if (sch->schib.pmcw.dnv && (schib.pmcw.dev != sch->schib.pmcw.dev))
 		return CIO_REVALIDATE;
@@ -293,7 +363,7 @@ static int css_evaluate_known_subchannel(struct subchannel *sch, int slow)
 		action = UNREGISTER;
 		if (sch->driver && sch->driver->notify) {
 			spin_unlock_irqrestore(sch->lock, flags);
-			ret = sch->driver->notify(&sch->dev, event);
+			ret = sch->driver->notify(sch, event);
 			spin_lock_irqsave(sch->lock, flags);
 			if (ret)
 				action = NONE;
@@ -349,7 +419,7 @@ static int css_evaluate_new_subchannel(struct subchannel_id schid, int slow)
 		/* Will be done on the slow path. */
 		return -EAGAIN;
 	}
-	if (stsch_err(schid, &schib) || !schib.pmcw.dnv) {
+	if (stsch_err(schid, &schib) || !css_sch_is_valid(&schib)) {
 		/* Unusable - ignore. */
 		return 0;
 	}
@@ -388,20 +458,56 @@ static int __init slow_subchannel_init(void)
 	return 0;
 }
 
+static int slow_eval_known_fn(struct subchannel *sch, void *data)
+{
+	int eval;
+	int rc;
+
+	spin_lock_irq(&slow_subchannel_lock);
+	eval = idset_sch_contains(slow_subchannel_set, sch->schid);
+	idset_sch_del(slow_subchannel_set, sch->schid);
+	spin_unlock_irq(&slow_subchannel_lock);
+	if (eval) {
+		rc = css_evaluate_known_subchannel(sch, 1);
+		if (rc == -EAGAIN)
+			css_schedule_eval(sch->schid);
+	}
+	return 0;
+}
+
+static int slow_eval_unknown_fn(struct subchannel_id schid, void *data)
+{
+	int eval;
+	int rc = 0;
+
+	spin_lock_irq(&slow_subchannel_lock);
+	eval = idset_sch_contains(slow_subchannel_set, schid);
+	idset_sch_del(slow_subchannel_set, schid);
+	spin_unlock_irq(&slow_subchannel_lock);
+	if (eval) {
+		rc = css_evaluate_new_subchannel(schid, 1);
+		switch (rc) {
+		case -EAGAIN:
+			css_schedule_eval(schid);
+			rc = 0;
+			break;
+		case -ENXIO:
+		case -ENOMEM:
+		case -EIO:
+			/* These should abort looping */
+			break;
+		default:
+			rc = 0;
+		}
+	}
+	return rc;
+}
+
 static void css_slow_path_func(struct work_struct *unused)
 {
-	struct subchannel_id schid;
-
 	CIO_TRACE_EVENT(4, "slowpath");
-	spin_lock_irq(&slow_subchannel_lock);
-	init_subchannel_id(&schid);
-	while (idset_sch_get_first(slow_subchannel_set, &schid)) {
-		idset_sch_del(slow_subchannel_set, schid);
-		spin_unlock_irq(&slow_subchannel_lock);
-		css_evaluate_subchannel(schid, 1);
-		spin_lock_irq(&slow_subchannel_lock);
-	}
-	spin_unlock_irq(&slow_subchannel_lock);
+	for_each_subchannel_staged(slow_eval_known_fn, slow_eval_unknown_fn,
+				   NULL);
 }
 
 static DECLARE_WORK(slow_path_work, css_slow_path_func);
@@ -430,20 +536,12 @@ void css_schedule_eval_all(void)
 /* Reprobe subchannel if unregistered. */
 static int reprobe_subchannel(struct subchannel_id schid, void *data)
 {
-	struct subchannel *sch;
 	int ret;
 
 	CIO_MSG_EVENT(6, "cio: reprobe 0.%x.%04x\n",
 		      schid.ssid, schid.sch_no);
 	if (need_reprobe)
 		return -EAGAIN;
-
-	sch = get_subchannel_by_schid(schid);
-	if (sch) {
-		/* Already known. */
-		put_device(&sch->dev);
-		return 0;
-	}
 
 	ret = css_probe_device(schid);
 	switch (ret) {
@@ -472,7 +570,7 @@ static void reprobe_all(struct work_struct *unused)
 	/* Make sure initial subchannel scan is done. */
 	wait_event(ccw_device_init_wq,
 		   atomic_read(&ccw_device_init_count) == 0);
-	ret = for_each_subchannel(reprobe_subchannel, NULL);
+	ret = for_each_subchannel_staged(NULL, reprobe_subchannel, NULL);
 
 	CIO_MSG_EVENT(2, "reprobe done (rc=%d, need_reprobe=%d)\n", ret,
 		      need_reprobe);
@@ -787,8 +885,8 @@ int sch_is_pseudo_sch(struct subchannel *sch)
 static int
 css_bus_match (struct device *dev, struct device_driver *drv)
 {
-	struct subchannel *sch = container_of (dev, struct subchannel, dev);
-	struct css_driver *driver = container_of (drv, struct css_driver, drv);
+	struct subchannel *sch = to_subchannel(dev);
+	struct css_driver *driver = to_cssdriver(drv);
 
 	if (sch->st == driver->subchannel_type)
 		return 1;
@@ -796,32 +894,36 @@ css_bus_match (struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
-static int
-css_probe (struct device *dev)
+static int css_probe(struct device *dev)
 {
 	struct subchannel *sch;
+	int ret;
 
 	sch = to_subchannel(dev);
-	sch->driver = container_of (dev->driver, struct css_driver, drv);
-	return (sch->driver->probe ? sch->driver->probe(sch) : 0);
+	sch->driver = to_cssdriver(dev->driver);
+	ret = sch->driver->probe ? sch->driver->probe(sch) : 0;
+	if (ret)
+		sch->driver = NULL;
+	return ret;
 }
 
-static int
-css_remove (struct device *dev)
+static int css_remove(struct device *dev)
 {
 	struct subchannel *sch;
+	int ret;
 
 	sch = to_subchannel(dev);
-	return (sch->driver->remove ? sch->driver->remove(sch) : 0);
+	ret = sch->driver->remove ? sch->driver->remove(sch) : 0;
+	sch->driver = NULL;
+	return ret;
 }
 
-static void
-css_shutdown (struct device *dev)
+static void css_shutdown(struct device *dev)
 {
 	struct subchannel *sch;
 
 	sch = to_subchannel(dev);
-	if (sch->driver->shutdown)
+	if (sch->driver && sch->driver->shutdown)
 		sch->driver->shutdown(sch);
 }
 
@@ -832,6 +934,34 @@ struct bus_type css_bus_type = {
 	.remove   = css_remove,
 	.shutdown = css_shutdown,
 };
+
+/**
+ * css_driver_register - register a css driver
+ * @cdrv: css driver to register
+ *
+ * This is mainly a wrapper around driver_register that sets name
+ * and bus_type in the embedded struct device_driver correctly.
+ */
+int css_driver_register(struct css_driver *cdrv)
+{
+	cdrv->drv.name = cdrv->name;
+	cdrv->drv.bus = &css_bus_type;
+	cdrv->drv.owner = cdrv->owner;
+	return driver_register(&cdrv->drv);
+}
+EXPORT_SYMBOL_GPL(css_driver_register);
+
+/**
+ * css_driver_unregister - unregister a css driver
+ * @cdrv: css driver to unregister
+ *
+ * This is a wrapper around driver_unregister.
+ */
+void css_driver_unregister(struct css_driver *cdrv)
+{
+	driver_unregister(&cdrv->drv);
+}
+EXPORT_SYMBOL_GPL(css_driver_unregister);
 
 subsys_initcall(init_channel_subsystem);
 

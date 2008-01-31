@@ -34,8 +34,6 @@
 static struct pmac_keywest *keywest_ctx;
 
 
-#define I2C_DRIVERID_KEYWEST	0xFEBA
-
 static int keywest_attach_adapter(struct i2c_adapter *adapter);
 static int keywest_detach_client(struct i2c_client *client);
 
@@ -43,7 +41,6 @@ struct i2c_driver keywest_driver = {
 	.driver = {
 		.name = "PMac Keywest Audio",
 	},
-	.id = I2C_DRIVERID_KEYWEST,
 	.attach_adapter = &keywest_attach_adapter,
 	.detach_client = &keywest_detach_client,
 };

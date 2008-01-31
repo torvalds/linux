@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <net/rtnetlink.h>
 #include <net/net_namespace.h>
+#include <net/sock.h>
 #include "br_private.h"
 
 static inline size_t br_nlmsg_size(void)
@@ -96,10 +97,10 @@ void br_ifinfo_notify(int event, struct net_bridge_port *port)
 		kfree_skb(skb);
 		goto errout;
 	}
-	err = rtnl_notify(skb, 0, RTNLGRP_LINK, NULL, GFP_ATOMIC);
+	err = rtnl_notify(skb, &init_net,0, RTNLGRP_LINK, NULL, GFP_ATOMIC);
 errout:
 	if (err < 0)
-		rtnl_set_sk_err(RTNLGRP_LINK, err);
+		rtnl_set_sk_err(&init_net, RTNLGRP_LINK, err);
 }
 
 /*
@@ -107,8 +108,12 @@ errout:
  */
 static int br_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct net *net = skb->sk->sk_net;
 	struct net_device *dev;
 	int idx;
+
+	if (net != &init_net)
+		return 0;
 
 	idx = 0;
 	for_each_netdev(&init_net, dev) {
@@ -135,11 +140,15 @@ skip:
  */
 static int br_rtm_setlink(struct sk_buff *skb,  struct nlmsghdr *nlh, void *arg)
 {
+	struct net *net = skb->sk->sk_net;
 	struct ifinfomsg *ifm;
 	struct nlattr *protinfo;
 	struct net_device *dev;
 	struct net_bridge_port *p;
 	u8 new_state;
+
+	if (net != &init_net)
+		return -EINVAL;
 
 	if (nlmsg_len(nlh) < sizeof(*ifm))
 		return -EINVAL;

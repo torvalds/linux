@@ -6,12 +6,16 @@
  *
  * Copyright (c) 2002 James Morris <jmorris@intercode.com.au>
  * Copyright (c) 2002 Jean-Francois Dive <jef@linuxbe.org>
+ * Copyright (c) 2007 Nokia Siemens Networks
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
  * Software Foundation; either version 2 of the License, or (at your option)
  * any later version.
  *
+ * 2007-11-13 Added GCM tests
+ * 2007-11-13 Added AEAD support
+ * 2007-11-06 Added SHA-224 and SHA-224-HMAC tests
  * 2006-12-07 Added SHA384 HMAC and SHA512 HMAC tests
  * 2004-08-09 Added cipher speed tests (Reyk Floeter <reyk@vantronix.net>)
  * 2003-09-14 Rewritten by Kartikey Mahendra Bhatt
@@ -71,22 +75,23 @@ static unsigned int sec;
 
 static int mode;
 static char *xbuf;
+static char *axbuf;
 static char *tvmem;
 
 static char *check[] = {
-	"des", "md5", "des3_ede", "rot13", "sha1", "sha256", "blowfish",
-	"twofish", "serpent", "sha384", "sha512", "md4", "aes", "cast6",
+	"des", "md5", "des3_ede", "rot13", "sha1", "sha224", "sha256",
+	"blowfish", "twofish", "serpent", "sha384", "sha512", "md4", "aes",
+	"cast6", "arc4", "michael_mic", "deflate", "crc32c", "tea", "xtea",
 	"arc4", "michael_mic", "deflate", "crc32c", "tea", "xtea",
 	"khazad", "wp512", "wp384", "wp256", "tnepres", "xeta",  "fcrypt",
-	"camellia", "seed", NULL
+	"camellia", "seed", "salsa20", "lzo", NULL
 };
 
 static void hexdump(unsigned char *buf, unsigned int len)
 {
-	while (len--)
-		printk("%02x", *buf++);
-
-	printk("\n");
+	print_hex_dump(KERN_CONT, "", DUMP_PREFIX_OFFSET,
+			16, 1,
+			buf, len, false);
 }
 
 static void tcrypt_complete(struct crypto_async_request *req, int err)
@@ -215,6 +220,238 @@ out:
 	crypto_free_hash(tfm);
 }
 
+static void test_aead(char *algo, int enc, struct aead_testvec *template,
+		      unsigned int tcount)
+{
+	unsigned int ret, i, j, k, temp;
+	unsigned int tsize;
+	char *q;
+	struct crypto_aead *tfm;
+	char *key;
+	struct aead_testvec *aead_tv;
+	struct aead_request *req;
+	struct scatterlist sg[8];
+	struct scatterlist asg[8];
+	const char *e;
+	struct tcrypt_result result;
+	unsigned int authsize;
+
+	if (enc == ENCRYPT)
+		e = "encryption";
+	else
+		e = "decryption";
+
+	printk(KERN_INFO "\ntesting %s %s\n", algo, e);
+
+	tsize = sizeof(struct aead_testvec);
+	tsize *= tcount;
+
+	if (tsize > TVMEMSIZE) {
+		printk(KERN_INFO "template (%u) too big for tvmem (%u)\n",
+		       tsize, TVMEMSIZE);
+		return;
+	}
+
+	memcpy(tvmem, template, tsize);
+	aead_tv = (void *)tvmem;
+
+	init_completion(&result.completion);
+
+	tfm = crypto_alloc_aead(algo, 0, 0);
+
+	if (IS_ERR(tfm)) {
+		printk(KERN_INFO "failed to load transform for %s: %ld\n",
+		       algo, PTR_ERR(tfm));
+		return;
+	}
+
+	req = aead_request_alloc(tfm, GFP_KERNEL);
+	if (!req) {
+		printk(KERN_INFO "failed to allocate request for %s\n", algo);
+		goto out;
+	}
+
+	aead_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+				  tcrypt_complete, &result);
+
+	for (i = 0, j = 0; i < tcount; i++) {
+		if (!aead_tv[i].np) {
+			printk(KERN_INFO "test %u (%d bit key):\n",
+			       ++j, aead_tv[i].klen * 8);
+
+			crypto_aead_clear_flags(tfm, ~0);
+			if (aead_tv[i].wk)
+				crypto_aead_set_flags(
+					tfm, CRYPTO_TFM_REQ_WEAK_KEY);
+			key = aead_tv[i].key;
+
+			ret = crypto_aead_setkey(tfm, key,
+						 aead_tv[i].klen);
+			if (ret) {
+				printk(KERN_INFO "setkey() failed flags=%x\n",
+				       crypto_aead_get_flags(tfm));
+
+				if (!aead_tv[i].fail)
+					goto out;
+			}
+
+			authsize = abs(aead_tv[i].rlen - aead_tv[i].ilen);
+			ret = crypto_aead_setauthsize(tfm, authsize);
+			if (ret) {
+				printk(KERN_INFO
+				       "failed to set authsize = %u\n",
+				       authsize);
+				goto out;
+			}
+
+			sg_init_one(&sg[0], aead_tv[i].input,
+				    aead_tv[i].ilen + (enc ? authsize : 0));
+
+			sg_init_one(&asg[0], aead_tv[i].assoc,
+				    aead_tv[i].alen);
+
+			aead_request_set_crypt(req, sg, sg,
+					       aead_tv[i].ilen,
+					       aead_tv[i].iv);
+
+			aead_request_set_assoc(req, asg, aead_tv[i].alen);
+
+			ret = enc ?
+				crypto_aead_encrypt(req) :
+				crypto_aead_decrypt(req);
+
+			switch (ret) {
+			case 0:
+				break;
+			case -EINPROGRESS:
+			case -EBUSY:
+				ret = wait_for_completion_interruptible(
+					&result.completion);
+				if (!ret && !(ret = result.err)) {
+					INIT_COMPLETION(result.completion);
+					break;
+				}
+				/* fall through */
+			default:
+				printk(KERN_INFO "%s () failed err=%d\n",
+				       e, -ret);
+				goto out;
+			}
+
+			q = kmap(sg_page(&sg[0])) + sg[0].offset;
+			hexdump(q, aead_tv[i].rlen);
+
+			printk(KERN_INFO "enc/dec: %s\n",
+			       memcmp(q, aead_tv[i].result,
+				      aead_tv[i].rlen) ? "fail" : "pass");
+		}
+	}
+
+	printk(KERN_INFO "\ntesting %s %s across pages (chunking)\n", algo, e);
+	memset(xbuf, 0, XBUFSIZE);
+	memset(axbuf, 0, XBUFSIZE);
+
+	for (i = 0, j = 0; i < tcount; i++) {
+		if (aead_tv[i].np) {
+			printk(KERN_INFO "test %u (%d bit key):\n",
+			       ++j, aead_tv[i].klen * 8);
+
+			crypto_aead_clear_flags(tfm, ~0);
+			if (aead_tv[i].wk)
+				crypto_aead_set_flags(
+					tfm, CRYPTO_TFM_REQ_WEAK_KEY);
+			key = aead_tv[i].key;
+
+			ret = crypto_aead_setkey(tfm, key, aead_tv[i].klen);
+			if (ret) {
+				printk(KERN_INFO "setkey() failed flags=%x\n",
+				       crypto_aead_get_flags(tfm));
+
+				if (!aead_tv[i].fail)
+					goto out;
+			}
+
+			sg_init_table(sg, aead_tv[i].np);
+			for (k = 0, temp = 0; k < aead_tv[i].np; k++) {
+				memcpy(&xbuf[IDX[k]],
+				       aead_tv[i].input + temp,
+				       aead_tv[i].tap[k]);
+				temp += aead_tv[i].tap[k];
+				sg_set_buf(&sg[k], &xbuf[IDX[k]],
+					   aead_tv[i].tap[k]);
+			}
+
+			authsize = abs(aead_tv[i].rlen - aead_tv[i].ilen);
+			ret = crypto_aead_setauthsize(tfm, authsize);
+			if (ret) {
+				printk(KERN_INFO
+				       "failed to set authsize = %u\n",
+				       authsize);
+				goto out;
+			}
+
+			if (enc)
+				sg[k - 1].length += authsize;
+
+			sg_init_table(asg, aead_tv[i].anp);
+			for (k = 0, temp = 0; k < aead_tv[i].anp; k++) {
+				memcpy(&axbuf[IDX[k]],
+				       aead_tv[i].assoc + temp,
+				       aead_tv[i].atap[k]);
+				temp += aead_tv[i].atap[k];
+				sg_set_buf(&asg[k], &axbuf[IDX[k]],
+					   aead_tv[i].atap[k]);
+			}
+
+			aead_request_set_crypt(req, sg, sg,
+					       aead_tv[i].ilen,
+					       aead_tv[i].iv);
+
+			aead_request_set_assoc(req, asg, aead_tv[i].alen);
+
+			ret = enc ?
+				crypto_aead_encrypt(req) :
+				crypto_aead_decrypt(req);
+
+			switch (ret) {
+			case 0:
+				break;
+			case -EINPROGRESS:
+			case -EBUSY:
+				ret = wait_for_completion_interruptible(
+					&result.completion);
+				if (!ret && !(ret = result.err)) {
+					INIT_COMPLETION(result.completion);
+					break;
+				}
+				/* fall through */
+			default:
+				printk(KERN_INFO "%s () failed err=%d\n",
+				       e, -ret);
+				goto out;
+			}
+
+			for (k = 0, temp = 0; k < aead_tv[i].np; k++) {
+				printk(KERN_INFO "page %u\n", k);
+				q = kmap(sg_page(&sg[k])) + sg[k].offset;
+				hexdump(q, aead_tv[i].tap[k]);
+				printk(KERN_INFO "%s\n",
+				       memcmp(q, aead_tv[i].result + temp,
+					      aead_tv[i].tap[k] -
+					      (k < aead_tv[i].np - 1 || enc ?
+					       0 : authsize)) ?
+				       "fail" : "pass");
+
+				temp += aead_tv[i].tap[k];
+			}
+		}
+	}
+
+out:
+	crypto_free_aead(tfm);
+	aead_request_free(req);
+}
+
 static void test_cipher(char *algo, int enc,
 			struct cipher_testvec *template, unsigned int tcount)
 {
@@ -237,15 +474,11 @@ static void test_cipher(char *algo, int enc,
 	printk("\ntesting %s %s\n", algo, e);
 
 	tsize = sizeof (struct cipher_testvec);
-	tsize *= tcount;
-
 	if (tsize > TVMEMSIZE) {
 		printk("template (%u) too big for tvmem (%u)\n", tsize,
 		       TVMEMSIZE);
 		return;
 	}
-
-	memcpy(tvmem, template, tsize);
 	cipher_tv = (void *)tvmem;
 
 	init_completion(&result.completion);
@@ -269,33 +502,34 @@ static void test_cipher(char *algo, int enc,
 
 	j = 0;
 	for (i = 0; i < tcount; i++) {
-		if (!(cipher_tv[i].np)) {
+		memcpy(cipher_tv, &template[i], tsize);
+		if (!(cipher_tv->np)) {
 			j++;
 			printk("test %u (%d bit key):\n",
-			j, cipher_tv[i].klen * 8);
+			j, cipher_tv->klen * 8);
 
 			crypto_ablkcipher_clear_flags(tfm, ~0);
-			if (cipher_tv[i].wk)
+			if (cipher_tv->wk)
 				crypto_ablkcipher_set_flags(
 					tfm, CRYPTO_TFM_REQ_WEAK_KEY);
-			key = cipher_tv[i].key;
+			key = cipher_tv->key;
 
 			ret = crypto_ablkcipher_setkey(tfm, key,
-						       cipher_tv[i].klen);
+						       cipher_tv->klen);
 			if (ret) {
 				printk("setkey() failed flags=%x\n",
 				       crypto_ablkcipher_get_flags(tfm));
 
-				if (!cipher_tv[i].fail)
+				if (!cipher_tv->fail)
 					goto out;
 			}
 
-			sg_init_one(&sg[0], cipher_tv[i].input,
-				    cipher_tv[i].ilen);
+			sg_init_one(&sg[0], cipher_tv->input,
+				    cipher_tv->ilen);
 
 			ablkcipher_request_set_crypt(req, sg, sg,
-						     cipher_tv[i].ilen,
-						     cipher_tv[i].iv);
+						     cipher_tv->ilen,
+						     cipher_tv->iv);
 
 			ret = enc ?
 				crypto_ablkcipher_encrypt(req) :
@@ -319,11 +553,11 @@ static void test_cipher(char *algo, int enc,
 			}
 
 			q = kmap(sg_page(&sg[0])) + sg[0].offset;
-			hexdump(q, cipher_tv[i].rlen);
+			hexdump(q, cipher_tv->rlen);
 
 			printk("%s\n",
-			       memcmp(q, cipher_tv[i].result,
-				      cipher_tv[i].rlen) ? "fail" : "pass");
+			       memcmp(q, cipher_tv->result,
+				      cipher_tv->rlen) ? "fail" : "pass");
 		}
 	}
 
@@ -332,41 +566,42 @@ static void test_cipher(char *algo, int enc,
 
 	j = 0;
 	for (i = 0; i < tcount; i++) {
-		if (cipher_tv[i].np) {
+		memcpy(cipher_tv, &template[i], tsize);
+		if (cipher_tv->np) {
 			j++;
 			printk("test %u (%d bit key):\n",
-			j, cipher_tv[i].klen * 8);
+			j, cipher_tv->klen * 8);
 
 			crypto_ablkcipher_clear_flags(tfm, ~0);
-			if (cipher_tv[i].wk)
+			if (cipher_tv->wk)
 				crypto_ablkcipher_set_flags(
 					tfm, CRYPTO_TFM_REQ_WEAK_KEY);
-			key = cipher_tv[i].key;
+			key = cipher_tv->key;
 
 			ret = crypto_ablkcipher_setkey(tfm, key,
-						       cipher_tv[i].klen);
+						       cipher_tv->klen);
 			if (ret) {
 				printk("setkey() failed flags=%x\n",
 				       crypto_ablkcipher_get_flags(tfm));
 
-				if (!cipher_tv[i].fail)
+				if (!cipher_tv->fail)
 					goto out;
 			}
 
 			temp = 0;
-			sg_init_table(sg, cipher_tv[i].np);
-			for (k = 0; k < cipher_tv[i].np; k++) {
+			sg_init_table(sg, cipher_tv->np);
+			for (k = 0; k < cipher_tv->np; k++) {
 				memcpy(&xbuf[IDX[k]],
-				       cipher_tv[i].input + temp,
-				       cipher_tv[i].tap[k]);
-				temp += cipher_tv[i].tap[k];
+				       cipher_tv->input + temp,
+				       cipher_tv->tap[k]);
+				temp += cipher_tv->tap[k];
 				sg_set_buf(&sg[k], &xbuf[IDX[k]],
-					   cipher_tv[i].tap[k]);
+					   cipher_tv->tap[k]);
 			}
 
 			ablkcipher_request_set_crypt(req, sg, sg,
-						     cipher_tv[i].ilen,
-						     cipher_tv[i].iv);
+						     cipher_tv->ilen,
+						     cipher_tv->iv);
 
 			ret = enc ?
 				crypto_ablkcipher_encrypt(req) :
@@ -390,15 +625,15 @@ static void test_cipher(char *algo, int enc,
 			}
 
 			temp = 0;
-			for (k = 0; k < cipher_tv[i].np; k++) {
+			for (k = 0; k < cipher_tv->np; k++) {
 				printk("page %u\n", k);
 				q = kmap(sg_page(&sg[k])) + sg[k].offset;
-				hexdump(q, cipher_tv[i].tap[k]);
+				hexdump(q, cipher_tv->tap[k]);
 				printk("%s\n",
-					memcmp(q, cipher_tv[i].result + temp,
-						cipher_tv[i].tap[k]) ? "fail" :
+					memcmp(q, cipher_tv->result + temp,
+						cipher_tv->tap[k]) ? "fail" :
 					"pass");
-				temp += cipher_tv[i].tap[k];
+				temp += cipher_tv->tap[k];
 			}
 		}
 	}
@@ -800,7 +1035,8 @@ out:
 	crypto_free_hash(tfm);
 }
 
-static void test_deflate(void)
+static void test_comp(char *algo, struct comp_testvec *ctemplate,
+		       struct comp_testvec *dtemplate, int ctcount, int dtcount)
 {
 	unsigned int i;
 	char result[COMP_BUF_SIZE];
@@ -808,25 +1044,26 @@ static void test_deflate(void)
 	struct comp_testvec *tv;
 	unsigned int tsize;
 
-	printk("\ntesting deflate compression\n");
+	printk("\ntesting %s compression\n", algo);
 
-	tsize = sizeof (deflate_comp_tv_template);
+	tsize = sizeof(struct comp_testvec);
+	tsize *= ctcount;
 	if (tsize > TVMEMSIZE) {
 		printk("template (%u) too big for tvmem (%u)\n", tsize,
 		       TVMEMSIZE);
 		return;
 	}
 
-	memcpy(tvmem, deflate_comp_tv_template, tsize);
+	memcpy(tvmem, ctemplate, tsize);
 	tv = (void *)tvmem;
 
-	tfm = crypto_alloc_comp("deflate", 0, CRYPTO_ALG_ASYNC);
+	tfm = crypto_alloc_comp(algo, 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(tfm)) {
-		printk("failed to load transform for deflate\n");
+		printk("failed to load transform for %s\n", algo);
 		return;
 	}
 
-	for (i = 0; i < DEFLATE_COMP_TEST_VECTORS; i++) {
+	for (i = 0; i < ctcount; i++) {
 		int ilen, ret, dlen = COMP_BUF_SIZE;
 
 		printk("test %u:\n", i + 1);
@@ -845,19 +1082,20 @@ static void test_deflate(void)
 		       ilen, dlen);
 	}
 
-	printk("\ntesting deflate decompression\n");
+	printk("\ntesting %s decompression\n", algo);
 
-	tsize = sizeof (deflate_decomp_tv_template);
+	tsize = sizeof(struct comp_testvec);
+	tsize *= dtcount;
 	if (tsize > TVMEMSIZE) {
 		printk("template (%u) too big for tvmem (%u)\n", tsize,
 		       TVMEMSIZE);
 		goto out;
 	}
 
-	memcpy(tvmem, deflate_decomp_tv_template, tsize);
+	memcpy(tvmem, dtemplate, tsize);
 	tv = (void *)tvmem;
 
-	for (i = 0; i < DEFLATE_DECOMP_TEST_VECTORS; i++) {
+	for (i = 0; i < dtcount; i++) {
 		int ilen, ret, dlen = COMP_BUF_SIZE;
 
 		printk("test %u:\n", i + 1);
@@ -918,6 +1156,8 @@ static void do_test(void)
 
 		test_hash("md4", md4_tv_template, MD4_TEST_VECTORS);
 
+		test_hash("sha224", sha224_tv_template, SHA224_TEST_VECTORS);
+
 		test_hash("sha256", sha256_tv_template, SHA256_TEST_VECTORS);
 
 		//BLOWFISH
@@ -969,6 +1209,18 @@ static void do_test(void)
 			    AES_XTS_ENC_TEST_VECTORS);
 		test_cipher("xts(aes)", DECRYPT, aes_xts_dec_tv_template,
 			    AES_XTS_DEC_TEST_VECTORS);
+		test_cipher("rfc3686(ctr(aes))", ENCRYPT, aes_ctr_enc_tv_template,
+			    AES_CTR_ENC_TEST_VECTORS);
+		test_cipher("rfc3686(ctr(aes))", DECRYPT, aes_ctr_dec_tv_template,
+			    AES_CTR_DEC_TEST_VECTORS);
+		test_aead("gcm(aes)", ENCRYPT, aes_gcm_enc_tv_template,
+			  AES_GCM_ENC_TEST_VECTORS);
+		test_aead("gcm(aes)", DECRYPT, aes_gcm_dec_tv_template,
+			  AES_GCM_DEC_TEST_VECTORS);
+		test_aead("ccm(aes)", ENCRYPT, aes_ccm_enc_tv_template,
+			  AES_CCM_ENC_TEST_VECTORS);
+		test_aead("ccm(aes)", DECRYPT, aes_ccm_dec_tv_template,
+			  AES_CCM_DEC_TEST_VECTORS);
 
 		//CAST5
 		test_cipher("ecb(cast5)", ENCRYPT, cast5_enc_tv_template,
@@ -1057,12 +1309,18 @@ static void do_test(void)
 		test_hash("tgr192", tgr192_tv_template, TGR192_TEST_VECTORS);
 		test_hash("tgr160", tgr160_tv_template, TGR160_TEST_VECTORS);
 		test_hash("tgr128", tgr128_tv_template, TGR128_TEST_VECTORS);
-		test_deflate();
+		test_comp("deflate", deflate_comp_tv_template,
+			  deflate_decomp_tv_template, DEFLATE_COMP_TEST_VECTORS,
+			  DEFLATE_DECOMP_TEST_VECTORS);
+		test_comp("lzo", lzo_comp_tv_template, lzo_decomp_tv_template,
+			  LZO_COMP_TEST_VECTORS, LZO_DECOMP_TEST_VECTORS);
 		test_hash("crc32c", crc32c_tv_template, CRC32C_TEST_VECTORS);
 		test_hash("hmac(md5)", hmac_md5_tv_template,
 			  HMAC_MD5_TEST_VECTORS);
 		test_hash("hmac(sha1)", hmac_sha1_tv_template,
 			  HMAC_SHA1_TEST_VECTORS);
+		test_hash("hmac(sha224)", hmac_sha224_tv_template,
+			  HMAC_SHA224_TEST_VECTORS);
 		test_hash("hmac(sha256)", hmac_sha256_tv_template,
 			  HMAC_SHA256_TEST_VECTORS);
 		test_hash("hmac(sha384)", hmac_sha384_tv_template,
@@ -1156,6 +1414,10 @@ static void do_test(void)
 			    AES_XTS_ENC_TEST_VECTORS);
 		test_cipher("xts(aes)", DECRYPT, aes_xts_dec_tv_template,
 			    AES_XTS_DEC_TEST_VECTORS);
+		test_cipher("rfc3686(ctr(aes))", ENCRYPT, aes_ctr_enc_tv_template,
+			    AES_CTR_ENC_TEST_VECTORS);
+		test_cipher("rfc3686(ctr(aes))", DECRYPT, aes_ctr_dec_tv_template,
+			    AES_CTR_DEC_TEST_VECTORS);
 		break;
 
 	case 11:
@@ -1167,7 +1429,9 @@ static void do_test(void)
 		break;
 
 	case 13:
-		test_deflate();
+		test_comp("deflate", deflate_comp_tv_template,
+			  deflate_decomp_tv_template, DEFLATE_COMP_TEST_VECTORS,
+			  DEFLATE_DECOMP_TEST_VECTORS);
 		break;
 
 	case 14:
@@ -1291,6 +1555,34 @@ static void do_test(void)
 			    camellia_cbc_dec_tv_template,
 			    CAMELLIA_CBC_DEC_TEST_VECTORS);
 		break;
+	case 33:
+		test_hash("sha224", sha224_tv_template, SHA224_TEST_VECTORS);
+		break;
+
+	case 34:
+		test_cipher("salsa20", ENCRYPT,
+			    salsa20_stream_enc_tv_template,
+			    SALSA20_STREAM_ENC_TEST_VECTORS);
+		break;
+
+	case 35:
+		test_aead("gcm(aes)", ENCRYPT, aes_gcm_enc_tv_template,
+			  AES_GCM_ENC_TEST_VECTORS);
+		test_aead("gcm(aes)", DECRYPT, aes_gcm_dec_tv_template,
+			  AES_GCM_DEC_TEST_VECTORS);
+		break;
+
+	case 36:
+		test_comp("lzo", lzo_comp_tv_template, lzo_decomp_tv_template,
+			  LZO_COMP_TEST_VECTORS, LZO_DECOMP_TEST_VECTORS);
+		break;
+
+	case 37:
+		test_aead("ccm(aes)", ENCRYPT, aes_ccm_enc_tv_template,
+			  AES_CCM_ENC_TEST_VECTORS);
+		test_aead("ccm(aes)", DECRYPT, aes_ccm_dec_tv_template,
+			  AES_CCM_DEC_TEST_VECTORS);
+		break;
 
 	case 100:
 		test_hash("hmac(md5)", hmac_md5_tv_template,
@@ -1317,6 +1609,15 @@ static void do_test(void)
 			  HMAC_SHA512_TEST_VECTORS);
 		break;
 
+	case 105:
+		test_hash("hmac(sha224)", hmac_sha224_tv_template,
+			  HMAC_SHA224_TEST_VECTORS);
+		break;
+
+	case 106:
+		test_hash("xcbc(aes)", aes_xcbc128_tv_template,
+			  XCBC_AES_TEST_VECTORS);
+		break;
 
 	case 200:
 		test_cipher_speed("ecb(aes)", ENCRYPT, sec, NULL, 0,
@@ -1400,6 +1701,11 @@ static void do_test(void)
 				camellia_speed_template);
 		break;
 
+	case 206:
+		test_cipher_speed("salsa20", ENCRYPT, sec, NULL, 0,
+				  salsa20_speed_template);
+		break;
+
 	case 300:
 		/* fall through */
 
@@ -1451,6 +1757,10 @@ static void do_test(void)
 		test_hash_speed("tgr192", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
 
+	case 313:
+		test_hash_speed("sha224", sec, generic_hash_speed_template);
+		if (mode > 300 && mode < 400) break;
+
 	case 399:
 		break;
 
@@ -1467,20 +1777,21 @@ static void do_test(void)
 
 static int __init init(void)
 {
+	int err = -ENOMEM;
+
 	tvmem = kmalloc(TVMEMSIZE, GFP_KERNEL);
 	if (tvmem == NULL)
-		return -ENOMEM;
+		return err;
 
 	xbuf = kmalloc(XBUFSIZE, GFP_KERNEL);
-	if (xbuf == NULL) {
-		kfree(tvmem);
-		return -ENOMEM;
-	}
+	if (xbuf == NULL)
+		goto err_free_tv;
+
+	axbuf = kmalloc(XBUFSIZE, GFP_KERNEL);
+	if (axbuf == NULL)
+		goto err_free_xbuf;
 
 	do_test();
-
-	kfree(xbuf);
-	kfree(tvmem);
 
 	/* We intentionaly return -EAGAIN to prevent keeping
 	 * the module. It does all its work from init()
@@ -1488,7 +1799,15 @@ static int __init init(void)
 	 * => we don't need it in the memory, do we?
 	 *                                        -- mludvig
 	 */
-	return -EAGAIN;
+	err = -EAGAIN;
+
+	kfree(axbuf);
+ err_free_xbuf:
+	kfree(xbuf);
+ err_free_tv:
+	kfree(tvmem);
+
+	return err;
 }
 
 /*

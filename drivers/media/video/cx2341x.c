@@ -34,7 +34,7 @@ MODULE_DESCRIPTION("cx23415/6 driver");
 MODULE_AUTHOR("Hans Verkuil");
 MODULE_LICENSE("GPL");
 
-static int debug = 0;
+static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
@@ -75,6 +75,7 @@ const u32 cx2341x_mpeg_ctrls[] = {
 	V4L2_CID_MPEG_CX2341X_STREAM_INSERT_NAV_PACKETS,
 	0
 };
+EXPORT_SYMBOL(cx2341x_mpeg_ctrls);
 
 
 /* Map the control ID to the correct field in the cx2341x_mpeg_params
@@ -281,13 +282,14 @@ static int cx2341x_set_ctrl(struct cx2341x_mpeg_params *params, int busy,
 			return -EBUSY;
 		params->stream_type = ctrl->value;
 		params->video_encoding =
-			(params->stream_type == V4L2_MPEG_STREAM_TYPE_MPEG1_SS ||
-			 params->stream_type == V4L2_MPEG_STREAM_TYPE_MPEG1_VCD) ?
-			V4L2_MPEG_VIDEO_ENCODING_MPEG_1 : V4L2_MPEG_VIDEO_ENCODING_MPEG_2;
-		if (params->video_encoding == V4L2_MPEG_VIDEO_ENCODING_MPEG_1) {
+		    (params->stream_type == V4L2_MPEG_STREAM_TYPE_MPEG1_SS ||
+		     params->stream_type == V4L2_MPEG_STREAM_TYPE_MPEG1_VCD) ?
+			V4L2_MPEG_VIDEO_ENCODING_MPEG_1 :
+			V4L2_MPEG_VIDEO_ENCODING_MPEG_2;
+		if (params->video_encoding == V4L2_MPEG_VIDEO_ENCODING_MPEG_1)
 			/* MPEG-1 implies CBR */
-			params->video_bitrate_mode = V4L2_MPEG_VIDEO_BITRATE_MODE_CBR;
-		}
+			params->video_bitrate_mode =
+				V4L2_MPEG_VIDEO_BITRATE_MODE_CBR;
 		break;
 	case V4L2_CID_MPEG_STREAM_VBI_FMT:
 		params->stream_vbi_fmt = ctrl->value;
@@ -334,7 +336,8 @@ static int cx2341x_set_ctrl(struct cx2341x_mpeg_params *params, int busy,
 	return 0;
 }
 
-static int cx2341x_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 step, s32 def)
+static int cx2341x_ctrl_query_fill(struct v4l2_queryctrl *qctrl,
+				   s32 min, s32 max, s32 step, s32 def)
 {
 	const char *name;
 
@@ -417,7 +420,8 @@ static int cx2341x_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 ma
 	return 0;
 }
 
-int cx2341x_ctrl_query(struct cx2341x_mpeg_params *params, struct v4l2_queryctrl *qctrl)
+int cx2341x_ctrl_query(struct cx2341x_mpeg_params *params,
+		       struct v4l2_queryctrl *qctrl)
 {
 	int err;
 
@@ -440,7 +444,8 @@ int cx2341x_ctrl_query(struct cx2341x_mpeg_params *params, struct v4l2_queryctrl
 
 	case V4L2_CID_MPEG_AUDIO_MODE_EXTENSION:
 		err = v4l2_ctrl_query_fill_std(qctrl);
-		if (err == 0 && params->audio_mode != V4L2_MPEG_AUDIO_MODE_JOINT_STEREO)
+		if (err == 0 &&
+		    params->audio_mode != V4L2_MPEG_AUDIO_MODE_JOINT_STEREO)
 			qctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
 		return err;
 
@@ -455,13 +460,16 @@ int cx2341x_ctrl_query(struct cx2341x_mpeg_params *params, struct v4l2_queryctrl
 
 	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE:
 		err = v4l2_ctrl_query_fill_std(qctrl);
-		if (err == 0 && params->video_encoding == V4L2_MPEG_VIDEO_ENCODING_MPEG_1)
+		if (err == 0 &&
+		    params->video_encoding == V4L2_MPEG_VIDEO_ENCODING_MPEG_1)
 			qctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
 		return err;
 
 	case V4L2_CID_MPEG_VIDEO_BITRATE_PEAK:
 		err = v4l2_ctrl_query_fill_std(qctrl);
-		if (err == 0 && params->video_bitrate_mode == V4L2_MPEG_VIDEO_BITRATE_MODE_CBR)
+		if (err == 0 &&
+		    params->video_bitrate_mode ==
+				V4L2_MPEG_VIDEO_BITRATE_MODE_CBR)
 			qctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
 		return err;
 
@@ -476,80 +484,90 @@ int cx2341x_ctrl_query(struct cx2341x_mpeg_params *params, struct v4l2_queryctrl
 	/* CX23415/6 specific */
 	case V4L2_CID_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE:
 		return cx2341x_ctrl_query_fill(qctrl,
-				V4L2_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE_MANUAL,
-				V4L2_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE_AUTO, 1,
-				V4L2_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE_MANUAL);
+			V4L2_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE_MANUAL,
+			V4L2_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE_AUTO, 1,
+			V4L2_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE_MANUAL);
 
 	case V4L2_CID_MPEG_CX2341X_VIDEO_SPATIAL_FILTER:
 		cx2341x_ctrl_query_fill(qctrl, 0, 15, 1, 0);
 		qctrl->flags |= V4L2_CTRL_FLAG_SLIDER;
-		if (params->video_spatial_filter_mode == V4L2_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE_AUTO)
-		       qctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
+		if (params->video_spatial_filter_mode ==
+			    V4L2_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE_AUTO)
+			qctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
 		return 0;
 
 	case V4L2_CID_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE:
 		cx2341x_ctrl_query_fill(qctrl,
-				V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_OFF,
-				V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_2D_SYM_NON_SEPARABLE, 1,
-				V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_OFF);
-		if (params->video_spatial_filter_mode == V4L2_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE_AUTO)
-		       qctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
+			V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_OFF,
+			V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_2D_SYM_NON_SEPARABLE,
+			1,
+			V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_OFF);
+		if (params->video_spatial_filter_mode ==
+			    V4L2_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE_AUTO)
+			qctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
 		return 0;
 
 	case V4L2_CID_MPEG_CX2341X_VIDEO_CHROMA_SPATIAL_FILTER_TYPE:
 		cx2341x_ctrl_query_fill(qctrl,
-				V4L2_MPEG_CX2341X_VIDEO_CHROMA_SPATIAL_FILTER_TYPE_OFF,
-				V4L2_MPEG_CX2341X_VIDEO_CHROMA_SPATIAL_FILTER_TYPE_1D_HOR, 1,
-				V4L2_MPEG_CX2341X_VIDEO_CHROMA_SPATIAL_FILTER_TYPE_OFF);
-		if (params->video_spatial_filter_mode == V4L2_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE_AUTO)
-		       qctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
+		    V4L2_MPEG_CX2341X_VIDEO_CHROMA_SPATIAL_FILTER_TYPE_OFF,
+		    V4L2_MPEG_CX2341X_VIDEO_CHROMA_SPATIAL_FILTER_TYPE_1D_HOR,
+		    1,
+		    V4L2_MPEG_CX2341X_VIDEO_CHROMA_SPATIAL_FILTER_TYPE_OFF);
+		if (params->video_spatial_filter_mode ==
+			V4L2_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE_AUTO)
+			qctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
 		return 0;
 
 	case V4L2_CID_MPEG_CX2341X_VIDEO_TEMPORAL_FILTER_MODE:
 		return cx2341x_ctrl_query_fill(qctrl,
-				V4L2_MPEG_CX2341X_VIDEO_TEMPORAL_FILTER_MODE_MANUAL,
-				V4L2_MPEG_CX2341X_VIDEO_TEMPORAL_FILTER_MODE_AUTO, 1,
-				V4L2_MPEG_CX2341X_VIDEO_TEMPORAL_FILTER_MODE_MANUAL);
+			V4L2_MPEG_CX2341X_VIDEO_TEMPORAL_FILTER_MODE_MANUAL,
+			V4L2_MPEG_CX2341X_VIDEO_TEMPORAL_FILTER_MODE_AUTO, 1,
+			V4L2_MPEG_CX2341X_VIDEO_TEMPORAL_FILTER_MODE_MANUAL);
 
 	case V4L2_CID_MPEG_CX2341X_VIDEO_TEMPORAL_FILTER:
 		cx2341x_ctrl_query_fill(qctrl, 0, 31, 1, 0);
 		qctrl->flags |= V4L2_CTRL_FLAG_SLIDER;
-		if (params->video_temporal_filter_mode == V4L2_MPEG_CX2341X_VIDEO_TEMPORAL_FILTER_MODE_AUTO)
-		       qctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
+		if (params->video_temporal_filter_mode ==
+			V4L2_MPEG_CX2341X_VIDEO_TEMPORAL_FILTER_MODE_AUTO)
+			qctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
 		return 0;
 
 	case V4L2_CID_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE:
 		return cx2341x_ctrl_query_fill(qctrl,
-				V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_OFF,
-				V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_DIAG, 1,
-				V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_OFF);
+			V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_OFF,
+			V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_DIAG, 1,
+			V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_OFF);
 
 	case V4L2_CID_MPEG_CX2341X_VIDEO_LUMA_MEDIAN_FILTER_TOP:
 		cx2341x_ctrl_query_fill(qctrl, 0, 255, 1, 255);
 		qctrl->flags |= V4L2_CTRL_FLAG_SLIDER;
-		if (params->video_median_filter_type == V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_OFF)
-		       qctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
+		if (params->video_median_filter_type ==
+				V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_OFF)
+			qctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
 		return 0;
 
 	case V4L2_CID_MPEG_CX2341X_VIDEO_LUMA_MEDIAN_FILTER_BOTTOM:
 		cx2341x_ctrl_query_fill(qctrl, 0, 255, 1, 0);
 		qctrl->flags |= V4L2_CTRL_FLAG_SLIDER;
-		if (params->video_median_filter_type == V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_OFF)
-		       qctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
+		if (params->video_median_filter_type ==
+				V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_OFF)
+			qctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
 		return 0;
 
 	case V4L2_CID_MPEG_CX2341X_VIDEO_CHROMA_MEDIAN_FILTER_TOP:
 		cx2341x_ctrl_query_fill(qctrl, 0, 255, 1, 255);
 		qctrl->flags |= V4L2_CTRL_FLAG_SLIDER;
-		if (params->video_median_filter_type == V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_OFF)
-		       qctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
+		if (params->video_median_filter_type ==
+				V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_OFF)
+			qctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
 		return 0;
 
 	case V4L2_CID_MPEG_CX2341X_VIDEO_CHROMA_MEDIAN_FILTER_BOTTOM:
 		cx2341x_ctrl_query_fill(qctrl, 0, 255, 1, 0);
 		qctrl->flags |= V4L2_CTRL_FLAG_SLIDER;
-		if (params->video_median_filter_type == V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_OFF)
-		       qctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
+		if (params->video_median_filter_type ==
+				V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_OFF)
+			qctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
 		return 0;
 
 	case V4L2_CID_MPEG_CX2341X_STREAM_INSERT_NAV_PACKETS:
@@ -560,6 +578,7 @@ int cx2341x_ctrl_query(struct cx2341x_mpeg_params *params, struct v4l2_queryctrl
 
 	}
 }
+EXPORT_SYMBOL(cx2341x_ctrl_query);
 
 const char **cx2341x_ctrl_get_menu(u32 id)
 {
@@ -629,6 +648,7 @@ const char **cx2341x_ctrl_get_menu(u32 id)
 		return v4l2_ctrl_get_menu(id);
 	}
 }
+EXPORT_SYMBOL(cx2341x_ctrl_get_menu);
 
 static void cx2341x_calc_audio_properties(struct cx2341x_mpeg_params *params)
 {
@@ -637,9 +657,8 @@ static void cx2341x_calc_audio_properties(struct cx2341x_mpeg_params *params)
 		((1 + params->audio_l2_bitrate) << 4) |
 		(params->audio_mode << 8) |
 		(params->audio_mode_extension << 10) |
-		(((params->audio_emphasis == V4L2_MPEG_AUDIO_EMPHASIS_CCITT_J17) ?
-		  3 :
-		  params->audio_emphasis) << 12) |
+		(((params->audio_emphasis == V4L2_MPEG_AUDIO_EMPHASIS_CCITT_J17)
+		  ? 3 : params->audio_emphasis) << 12) |
 		(params->audio_crc << 14);
 }
 
@@ -679,19 +698,19 @@ int cx2341x_ext_ctrls(struct cx2341x_mpeg_params *params, int busy,
 		if (err)
 			break;
 	}
-	if (err == 0 && params->video_bitrate_mode == V4L2_MPEG_VIDEO_BITRATE_MODE_VBR &&
-			params->video_bitrate_peak < params->video_bitrate) {
+	if (err == 0 &&
+	    params->video_bitrate_mode == V4L2_MPEG_VIDEO_BITRATE_MODE_VBR &&
+	    params->video_bitrate_peak < params->video_bitrate) {
 		err = -ERANGE;
 		ctrls->error_idx = ctrls->count;
 	}
-	if (err) {
+	if (err)
 		ctrls->error_idx = i;
-	}
-	else {
+	else
 		cx2341x_calc_audio_properties(params);
-	}
 	return err;
 }
+EXPORT_SYMBOL(cx2341x_ext_ctrls);
 
 void cx2341x_fill_defaults(struct cx2341x_mpeg_params *p)
 {
@@ -732,13 +751,18 @@ void cx2341x_fill_defaults(struct cx2341x_mpeg_params *p)
 	.video_mute_yuv = 0x008080,  /* YCbCr value for black */
 
 	/* encoding filters */
-	.video_spatial_filter_mode = V4L2_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE_MANUAL,
+	.video_spatial_filter_mode =
+		V4L2_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE_MANUAL,
 	.video_spatial_filter = 0,
-	.video_luma_spatial_filter_type = V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_1D_HOR,
-	.video_chroma_spatial_filter_type = V4L2_MPEG_CX2341X_VIDEO_CHROMA_SPATIAL_FILTER_TYPE_1D_HOR,
-	.video_temporal_filter_mode = V4L2_MPEG_CX2341X_VIDEO_TEMPORAL_FILTER_MODE_MANUAL,
+	.video_luma_spatial_filter_type =
+		V4L2_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE_1D_HOR,
+	.video_chroma_spatial_filter_type =
+		V4L2_MPEG_CX2341X_VIDEO_CHROMA_SPATIAL_FILTER_TYPE_1D_HOR,
+	.video_temporal_filter_mode =
+		V4L2_MPEG_CX2341X_VIDEO_TEMPORAL_FILTER_MODE_MANUAL,
 	.video_temporal_filter = 8,
-	.video_median_filter_type = V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_OFF,
+	.video_median_filter_type =
+		V4L2_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE_OFF,
 	.video_luma_median_filter_top = 255,
 	.video_luma_median_filter_bottom = 0,
 	.video_chroma_median_filter_top = 255,
@@ -748,8 +772,10 @@ void cx2341x_fill_defaults(struct cx2341x_mpeg_params *p)
 	*p = default_params;
 	cx2341x_calc_audio_properties(p);
 }
+EXPORT_SYMBOL(cx2341x_fill_defaults);
 
-static int cx2341x_api(void *priv, cx2341x_mbox_func func, int cmd, int args, ...)
+static int cx2341x_api(void *priv, cx2341x_mbox_func func,
+		       u32 cmd, int args, ...)
 {
 	u32 data[CX2341X_MBOX_MAX_DATA];
 	va_list vargs;
@@ -757,15 +783,17 @@ static int cx2341x_api(void *priv, cx2341x_mbox_func func, int cmd, int args, ..
 
 	va_start(vargs, args);
 
-	for (i = 0; i < args; i++) {
+	for (i = 0; i < args; i++)
 		data[i] = va_arg(vargs, int);
-	}
 	va_end(vargs);
 	return func(priv, cmd, args, 0, data);
 }
 
+#define NEQ(field) (old->field != new->field)
+
 int cx2341x_update(void *priv, cx2341x_mbox_func func,
-		const struct cx2341x_mpeg_params *old, const struct cx2341x_mpeg_params *new)
+		   const struct cx2341x_mpeg_params *old,
+		   const struct cx2341x_mpeg_params *new)
 {
 	static int mpeg_stream_type[] = {
 		0,	/* MPEG-2 PS */
@@ -777,17 +805,18 @@ int cx2341x_update(void *priv, cx2341x_mbox_func func,
 	};
 
 	int err = 0;
+	int force = (old == NULL);
 	u16 temporal = new->video_temporal_filter;
 
 	cx2341x_api(priv, func, CX2341X_ENC_SET_OUTPUT_PORT, 2, new->port, 0);
 
-	if (old == NULL || old->is_50hz != new->is_50hz) {
-		err = cx2341x_api(priv, func, CX2341X_ENC_SET_FRAME_RATE, 1, new->is_50hz);
+	if (force || NEQ(is_50hz)) {
+		err = cx2341x_api(priv, func, CX2341X_ENC_SET_FRAME_RATE, 1,
+				  new->is_50hz);
 		if (err) return err;
 	}
 
-	if (old == NULL || old->width != new->width || old->height != new->height ||
-			old->video_encoding != new->video_encoding) {
+	if (force || NEQ(width) || NEQ(height) || NEQ(video_encoding)) {
 		u16 w = new->width;
 		u16 h = new->height;
 
@@ -795,69 +824,74 @@ int cx2341x_update(void *priv, cx2341x_mbox_func func,
 			w /= 2;
 			h /= 2;
 		}
-		err = cx2341x_api(priv, func, CX2341X_ENC_SET_FRAME_SIZE, 2, h, w);
+		err = cx2341x_api(priv, func, CX2341X_ENC_SET_FRAME_SIZE, 2,
+				  h, w);
 		if (err) return err;
 	}
 
 	if (new->width != 720 || new->height != (new->is_50hz ? 576 : 480)) {
-		/* Adjust temporal filter if necessary. The problem with the temporal
-		   filter is that it works well with full resolution capturing, but
-		   not when the capture window is scaled (the filter introduces
-		   a ghosting effect). So if the capture window is scaled, then
-		   force the filter to 0.
+		/* Adjust temporal filter if necessary. The problem with the
+		   temporal filter is that it works well with full resolution
+		   capturing, but not when the capture window is scaled (the
+		   filter introduces a ghosting effect). So if the capture
+		   window is scaled, then force the filter to 0.
 
 		   For full resolution the filter really improves the video
-		   quality, especially if the original video quality is suboptimal. */
+		   quality, especially if the original video quality is
+		   suboptimal. */
 		temporal = 0;
 	}
 
-	if (old == NULL || old->stream_type != new->stream_type) {
-		err = cx2341x_api(priv, func, CX2341X_ENC_SET_STREAM_TYPE, 1, mpeg_stream_type[new->stream_type]);
+	if (force || NEQ(stream_type)) {
+		err = cx2341x_api(priv, func, CX2341X_ENC_SET_STREAM_TYPE, 1,
+				  mpeg_stream_type[new->stream_type]);
 		if (err) return err;
 	}
-	if (old == NULL || old->video_aspect != new->video_aspect) {
-		err = cx2341x_api(priv, func, CX2341X_ENC_SET_ASPECT_RATIO, 1, 1 + new->video_aspect);
+	if (force || NEQ(video_aspect)) {
+		err = cx2341x_api(priv, func, CX2341X_ENC_SET_ASPECT_RATIO, 1,
+				  1 + new->video_aspect);
 		if (err) return err;
 	}
-	if (old == NULL || old->video_b_frames != new->video_b_frames ||
-		old->video_gop_size != new->video_gop_size) {
+	if (force || NEQ(video_b_frames) || NEQ(video_gop_size)) {
 		err = cx2341x_api(priv, func, CX2341X_ENC_SET_GOP_PROPERTIES, 2,
 				new->video_gop_size, new->video_b_frames + 1);
 		if (err) return err;
 	}
-	if (old == NULL || old->video_gop_closure != new->video_gop_closure) {
-		err = cx2341x_api(priv, func, CX2341X_ENC_SET_GOP_CLOSURE, 1, new->video_gop_closure);
+	if (force || NEQ(video_gop_closure)) {
+		err = cx2341x_api(priv, func, CX2341X_ENC_SET_GOP_CLOSURE, 1,
+				  new->video_gop_closure);
 		if (err) return err;
 	}
-	if (old == NULL || old->audio_properties != new->audio_properties) {
-		err = cx2341x_api(priv, func, CX2341X_ENC_SET_AUDIO_PROPERTIES, 1, new->audio_properties);
+	if (force || NEQ(audio_properties)) {
+		err = cx2341x_api(priv, func, CX2341X_ENC_SET_AUDIO_PROPERTIES,
+				  1, new->audio_properties);
 		if (err) return err;
 	}
-	if (old == NULL || old->audio_mute != new->audio_mute) {
-		err = cx2341x_api(priv, func, CX2341X_ENC_MUTE_AUDIO, 1, new->audio_mute);
+	if (force || NEQ(audio_mute)) {
+		err = cx2341x_api(priv, func, CX2341X_ENC_MUTE_AUDIO, 1,
+				  new->audio_mute);
 		if (err) return err;
 	}
-	if (old == NULL || old->video_bitrate_mode != new->video_bitrate_mode ||
-		old->video_bitrate != new->video_bitrate ||
-		old->video_bitrate_peak != new->video_bitrate_peak) {
+	if (force || NEQ(video_bitrate_mode) || NEQ(video_bitrate) ||
+						NEQ(video_bitrate_peak)) {
 		err = cx2341x_api(priv, func, CX2341X_ENC_SET_BIT_RATE, 5,
 				new->video_bitrate_mode, new->video_bitrate,
 				new->video_bitrate_peak / 400, 0, 0);
 		if (err) return err;
 	}
-	if (old == NULL || old->video_spatial_filter_mode != new->video_spatial_filter_mode ||
-		old->video_temporal_filter_mode != new->video_temporal_filter_mode ||
-		old->video_median_filter_type != new->video_median_filter_type) {
-		err = cx2341x_api(priv, func, CX2341X_ENC_SET_DNR_FILTER_MODE, 2,
-				new->video_spatial_filter_mode | (new->video_temporal_filter_mode << 1),
+	if (force || NEQ(video_spatial_filter_mode) ||
+		     NEQ(video_temporal_filter_mode) ||
+		     NEQ(video_median_filter_type)) {
+		err = cx2341x_api(priv, func, CX2341X_ENC_SET_DNR_FILTER_MODE,
+				  2, new->video_spatial_filter_mode |
+					(new->video_temporal_filter_mode << 1),
 				new->video_median_filter_type);
 		if (err) return err;
 	}
-	if (old == NULL ||
-		old->video_luma_median_filter_bottom != new->video_luma_median_filter_bottom ||
-		old->video_luma_median_filter_top != new->video_luma_median_filter_top ||
-		old->video_chroma_median_filter_bottom != new->video_chroma_median_filter_bottom ||
-		old->video_chroma_median_filter_top != new->video_chroma_median_filter_top) {
+	if (force || NEQ(video_luma_median_filter_bottom) ||
+		     NEQ(video_luma_median_filter_top) ||
+		     NEQ(video_chroma_median_filter_bottom) ||
+		     NEQ(video_chroma_median_filter_top)) {
 		err = cx2341x_api(priv, func, CX2341X_ENC_SET_CORING_LEVELS, 4,
 				new->video_luma_median_filter_bottom,
 				new->video_luma_median_filter_top,
@@ -865,36 +899,39 @@ int cx2341x_update(void *priv, cx2341x_mbox_func func,
 				new->video_chroma_median_filter_top);
 		if (err) return err;
 	}
-	if (old == NULL ||
-		old->video_luma_spatial_filter_type != new->video_luma_spatial_filter_type ||
-		old->video_chroma_spatial_filter_type != new->video_chroma_spatial_filter_type) {
-		err = cx2341x_api(priv, func, CX2341X_ENC_SET_SPATIAL_FILTER_TYPE, 2,
-			new->video_luma_spatial_filter_type, new->video_chroma_spatial_filter_type);
+	if (force || NEQ(video_luma_spatial_filter_type) ||
+		     NEQ(video_chroma_spatial_filter_type)) {
+		err = cx2341x_api(priv, func,
+				  CX2341X_ENC_SET_SPATIAL_FILTER_TYPE,
+				  2, new->video_luma_spatial_filter_type,
+				  new->video_chroma_spatial_filter_type);
 		if (err) return err;
 	}
-	if (old == NULL ||
-		old->video_spatial_filter != new->video_spatial_filter ||
-		old->video_temporal_filter != temporal) {
-		err = cx2341x_api(priv, func, CX2341X_ENC_SET_DNR_FILTER_PROPS, 2,
-			new->video_spatial_filter, temporal);
+	if (force || NEQ(video_spatial_filter) ||
+		     old->video_temporal_filter != temporal) {
+		err = cx2341x_api(priv, func, CX2341X_ENC_SET_DNR_FILTER_PROPS,
+				  2, new->video_spatial_filter, temporal);
 		if (err) return err;
 	}
-	if (old == NULL || old->video_temporal_decimation != new->video_temporal_decimation) {
-		err = cx2341x_api(priv, func, CX2341X_ENC_SET_FRAME_DROP_RATE, 1,
-			new->video_temporal_decimation);
+	if (force || NEQ(video_temporal_decimation)) {
+		err = cx2341x_api(priv, func, CX2341X_ENC_SET_FRAME_DROP_RATE,
+				  1, new->video_temporal_decimation);
 		if (err) return err;
 	}
-	if (old == NULL || old->video_mute != new->video_mute ||
-			(new->video_mute && old->video_mute_yuv != new->video_mute_yuv)) {
-		err = cx2341x_api(priv, func, CX2341X_ENC_MUTE_VIDEO, 1, new->video_mute | (new->video_mute_yuv << 8));
+	if (force || NEQ(video_mute) ||
+		(new->video_mute && NEQ(video_mute_yuv))) {
+		err = cx2341x_api(priv, func, CX2341X_ENC_MUTE_VIDEO, 1,
+				new->video_mute | (new->video_mute_yuv << 8));
 		if (err) return err;
 	}
-	if (old == NULL || old->stream_insert_nav_packets != new->stream_insert_nav_packets) {
-		err = cx2341x_api(priv, func, CX2341X_ENC_MISC, 2, 7, new->stream_insert_nav_packets);
+	if (force || NEQ(stream_insert_nav_packets)) {
+		err = cx2341x_api(priv, func, CX2341X_ENC_MISC, 2,
+				7, new->stream_insert_nav_packets);
 		if (err) return err;
 	}
 	return 0;
 }
+EXPORT_SYMBOL(cx2341x_update);
 
 static const char *cx2341x_menu_item(struct cx2341x_mpeg_params *p, u32 id)
 {
@@ -943,18 +980,17 @@ void cx2341x_log_status(struct cx2341x_mpeg_params *p, const char *prefix)
 		cx2341x_menu_item(p, V4L2_CID_MPEG_VIDEO_ASPECT),
 		cx2341x_menu_item(p, V4L2_CID_MPEG_VIDEO_BITRATE_MODE),
 		p->video_bitrate);
-	if (p->video_bitrate_mode == V4L2_MPEG_VIDEO_BITRATE_MODE_VBR) {
+	if (p->video_bitrate_mode == V4L2_MPEG_VIDEO_BITRATE_MODE_VBR)
 		printk(", Peak %d", p->video_bitrate_peak);
-	}
 	printk("\n");
-	printk(KERN_INFO "%s: Video:  GOP Size %d, %d B-Frames, %sGOP Closure\n",
+	printk(KERN_INFO
+		"%s: Video:  GOP Size %d, %d B-Frames, %sGOP Closure\n",
 		prefix,
 		p->video_gop_size, p->video_b_frames,
 		p->video_gop_closure ? "" : "No ");
-	if (p->video_temporal_decimation) {
+	if (p->video_temporal_decimation)
 		printk(KERN_INFO "%s: Video: Temporal Decimation %d\n",
 			prefix, p->video_temporal_decimation);
-	}
 
 	/* Audio */
 	printk(KERN_INFO "%s: Audio:  %s, %s, %s, %s%s",
@@ -964,10 +1000,9 @@ void cx2341x_log_status(struct cx2341x_mpeg_params *p, const char *prefix)
 		cx2341x_menu_item(p, V4L2_CID_MPEG_AUDIO_L2_BITRATE),
 		cx2341x_menu_item(p, V4L2_CID_MPEG_AUDIO_MODE),
 		p->audio_mute ? " (muted)" : "");
-	if (p->audio_mode == V4L2_MPEG_AUDIO_MODE_JOINT_STEREO) {
-		printk(", %s",
-			cx2341x_menu_item(p, V4L2_CID_MPEG_AUDIO_MODE_EXTENSION));
-	}
+	if (p->audio_mode == V4L2_MPEG_AUDIO_MODE_JOINT_STEREO)
+		printk(", %s", cx2341x_menu_item(p,
+				V4L2_CID_MPEG_AUDIO_MODE_EXTENSION));
 	printk(", %s, %s\n",
 		cx2341x_menu_item(p, V4L2_CID_MPEG_AUDIO_EMPHASIS),
 		cx2341x_menu_item(p, V4L2_CID_MPEG_AUDIO_CRC));
@@ -975,33 +1010,33 @@ void cx2341x_log_status(struct cx2341x_mpeg_params *p, const char *prefix)
 	/* Encoding filters */
 	printk(KERN_INFO "%s: Spatial Filter:  %s, Luma %s, Chroma %s, %d\n",
 		prefix,
-		cx2341x_menu_item(p, V4L2_CID_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE),
-		cx2341x_menu_item(p, V4L2_CID_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE),
-		cx2341x_menu_item(p, V4L2_CID_MPEG_CX2341X_VIDEO_CHROMA_SPATIAL_FILTER_TYPE),
+		cx2341x_menu_item(p,
+		    V4L2_CID_MPEG_CX2341X_VIDEO_SPATIAL_FILTER_MODE),
+		cx2341x_menu_item(p,
+		    V4L2_CID_MPEG_CX2341X_VIDEO_LUMA_SPATIAL_FILTER_TYPE),
+		cx2341x_menu_item(p,
+		    V4L2_CID_MPEG_CX2341X_VIDEO_CHROMA_SPATIAL_FILTER_TYPE),
 		p->video_spatial_filter);
-	if (p->width != 720 || p->height != (p->is_50hz ? 576 : 480)) {
+
+	if (p->width != 720 || p->height != (p->is_50hz ? 576 : 480))
 		temporal = 0;
-	}
+
 	printk(KERN_INFO "%s: Temporal Filter: %s, %d\n",
 		prefix,
-		cx2341x_menu_item(p, V4L2_CID_MPEG_CX2341X_VIDEO_TEMPORAL_FILTER_MODE),
+		cx2341x_menu_item(p,
+			V4L2_CID_MPEG_CX2341X_VIDEO_TEMPORAL_FILTER_MODE),
 		temporal);
-	printk(KERN_INFO "%s: Median Filter:   %s, Luma [%d, %d], Chroma [%d, %d]\n",
+	printk(KERN_INFO
+		"%s: Median Filter:   %s, Luma [%d, %d], Chroma [%d, %d]\n",
 		prefix,
-		cx2341x_menu_item(p, V4L2_CID_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE),
+		cx2341x_menu_item(p,
+			V4L2_CID_MPEG_CX2341X_VIDEO_MEDIAN_FILTER_TYPE),
 		p->video_luma_median_filter_bottom,
 		p->video_luma_median_filter_top,
 		p->video_chroma_median_filter_bottom,
 		p->video_chroma_median_filter_top);
 }
-
-EXPORT_SYMBOL(cx2341x_fill_defaults);
-EXPORT_SYMBOL(cx2341x_ctrl_query);
-EXPORT_SYMBOL(cx2341x_ctrl_get_menu);
-EXPORT_SYMBOL(cx2341x_ext_ctrls);
-EXPORT_SYMBOL(cx2341x_update);
 EXPORT_SYMBOL(cx2341x_log_status);
-EXPORT_SYMBOL(cx2341x_mpeg_ctrls);
 
 /*
  * Local variables:

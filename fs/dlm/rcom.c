@@ -2,7 +2,7 @@
 *******************************************************************************
 **
 **  Copyright (C) Sistina Software, Inc.  1997-2003  All rights reserved.
-**  Copyright (C) 2005-2007 Red Hat, Inc.  All rights reserved.
+**  Copyright (C) 2005-2008 Red Hat, Inc.  All rights reserved.
 **
 **  This copyrighted material is made available to anyone wishing to use,
 **  modify, copy, or redistribute it subject to the terms and conditions
@@ -197,11 +197,6 @@ static void receive_sync_reply(struct dlm_ls *ls, struct dlm_rcom *rc_in)
 	spin_unlock(&ls->ls_rcom_spin);
 }
 
-static void receive_rcom_status_reply(struct dlm_ls *ls, struct dlm_rcom *rc_in)
-{
-	receive_sync_reply(ls, rc_in);
-}
-
 int dlm_rcom_names(struct dlm_ls *ls, int nodeid, char *last_name, int last_len)
 {
 	struct dlm_rcom *rc;
@@ -252,11 +247,6 @@ static void receive_rcom_names(struct dlm_ls *ls, struct dlm_rcom *rc_in)
 	dlm_copy_master_names(ls, rc_in->rc_buf, inlen, rc->rc_buf, outlen,
 			      nodeid);
 	send_rcom(ls, mh, rc);
-}
-
-static void receive_rcom_names_reply(struct dlm_ls *ls, struct dlm_rcom *rc_in)
-{
-	receive_sync_reply(ls, rc_in);
 }
 
 int dlm_send_rcom_lookup(struct dlm_rsb *r, int dir_nodeid)
@@ -381,11 +371,6 @@ static void receive_rcom_lock(struct dlm_ls *ls, struct dlm_rcom *rc_in)
 	send_rcom(ls, mh, rc);
 }
 
-static void receive_rcom_lock_reply(struct dlm_ls *ls, struct dlm_rcom *rc_in)
-{
-	dlm_recover_process_copy(ls, rc_in);
-}
-
 /* If the lockspace doesn't exist then still send a status message
    back; it's possible that it just doesn't have its global_id yet. */
 
@@ -481,11 +466,11 @@ void dlm_receive_rcom(struct dlm_ls *ls, struct dlm_rcom *rc, int nodeid)
 		break;
 
 	case DLM_RCOM_STATUS_REPLY:
-		receive_rcom_status_reply(ls, rc);
+		receive_sync_reply(ls, rc);
 		break;
 
 	case DLM_RCOM_NAMES_REPLY:
-		receive_rcom_names_reply(ls, rc);
+		receive_sync_reply(ls, rc);
 		break;
 
 	case DLM_RCOM_LOOKUP_REPLY:
@@ -493,11 +478,11 @@ void dlm_receive_rcom(struct dlm_ls *ls, struct dlm_rcom *rc, int nodeid)
 		break;
 
 	case DLM_RCOM_LOCK_REPLY:
-		receive_rcom_lock_reply(ls, rc);
+		dlm_recover_process_copy(ls, rc);
 		break;
 
 	default:
-		DLM_ASSERT(0, printk("rc_type=%x\n", rc->rc_type););
+		log_error(ls, "receive_rcom bad type %d", rc->rc_type);
 	}
  out:
 	return;

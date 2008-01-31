@@ -744,9 +744,6 @@ static inline void unregister_fuseblk(void)
 }
 #endif
 
-static decl_subsys(fuse, NULL, NULL);
-static decl_subsys(connections, NULL, NULL);
-
 static void fuse_inode_init_once(struct kmem_cache *cachep, void *foo)
 {
 	struct inode * inode = foo;
@@ -791,32 +788,37 @@ static void fuse_fs_cleanup(void)
 	kmem_cache_destroy(fuse_inode_cachep);
 }
 
+static struct kobject *fuse_kobj;
+static struct kobject *connections_kobj;
+
 static int fuse_sysfs_init(void)
 {
 	int err;
 
-	kobj_set_kset_s(&fuse_subsys, fs_subsys);
-	err = subsystem_register(&fuse_subsys);
-	if (err)
+	fuse_kobj = kobject_create_and_add("fuse", fs_kobj);
+	if (!fuse_kobj) {
+		err = -ENOMEM;
 		goto out_err;
+	}
 
-	kobj_set_kset_s(&connections_subsys, fuse_subsys);
-	err = subsystem_register(&connections_subsys);
-	if (err)
+	connections_kobj = kobject_create_and_add("connections", fuse_kobj);
+	if (!connections_kobj) {
+		err = -ENOMEM;
 		goto out_fuse_unregister;
+	}
 
 	return 0;
 
  out_fuse_unregister:
-	subsystem_unregister(&fuse_subsys);
+	kobject_put(fuse_kobj);
  out_err:
 	return err;
 }
 
 static void fuse_sysfs_cleanup(void)
 {
-	subsystem_unregister(&connections_subsys);
-	subsystem_unregister(&fuse_subsys);
+	kobject_put(connections_kobj);
+	kobject_put(fuse_kobj);
 }
 
 static int __init fuse_init(void)

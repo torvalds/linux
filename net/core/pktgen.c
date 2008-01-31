@@ -397,62 +397,6 @@ struct pktgen_thread {
 #define REMOVE 1
 #define FIND   0
 
-/*  This code works around the fact that do_div cannot handle two 64-bit
-    numbers, and regular 64-bit division doesn't work on x86 kernels.
-    --Ben
-*/
-
-#define PG_DIV 0
-
-/* This was emailed to LMKL by: Chris Caputo <ccaputo@alt.net>
- * Function copied/adapted/optimized from:
- *
- *  nemesis.sourceforge.net/browse/lib/static/intmath/ix86/intmath.c.html
- *
- * Copyright 1994, University of Cambridge Computer Laboratory
- * All Rights Reserved.
- *
- */
-static inline s64 divremdi3(s64 x, s64 y, int type)
-{
-	u64 a = (x < 0) ? -x : x;
-	u64 b = (y < 0) ? -y : y;
-	u64 res = 0, d = 1;
-
-	if (b > 0) {
-		while (b < a) {
-			b <<= 1;
-			d <<= 1;
-		}
-	}
-
-	do {
-		if (a >= b) {
-			a -= b;
-			res += d;
-		}
-		b >>= 1;
-		d >>= 1;
-	}
-	while (d);
-
-	if (PG_DIV == type) {
-		return (((x ^ y) & (1ll << 63)) == 0) ? res : -(s64) res;
-	} else {
-		return ((x & (1ll << 63)) == 0) ? a : -(s64) a;
-	}
-}
-
-/* End of hacks to deal with 64-bit math on x86 */
-
-/** Convert to milliseconds */
-static inline __u64 tv_to_ms(const struct timeval *tv)
-{
-	__u64 ms = tv->tv_usec / 1000;
-	ms += (__u64) tv->tv_sec * (__u64) 1000;
-	return ms;
-}
-
 /** Convert to micro-seconds */
 static inline __u64 tv_to_us(const struct timeval *tv)
 {
@@ -461,49 +405,11 @@ static inline __u64 tv_to_us(const struct timeval *tv)
 	return us;
 }
 
-static inline __u64 pg_div(__u64 n, __u32 base)
-{
-	__u64 tmp = n;
-	do_div(tmp, base);
-	/* printk("pktgen: pg_div, n: %llu  base: %d  rv: %llu\n",
-	   n, base, tmp); */
-	return tmp;
-}
-
-static inline __u64 pg_div64(__u64 n, __u64 base)
-{
-	__u64 tmp = n;
-/*
- * How do we know if the architecture we are running on
- * supports division with 64 bit base?
- *
- */
-#if defined(__sparc_v9__) || defined(__powerpc64__) || defined(__alpha__) || defined(__x86_64__) || defined(__ia64__)
-
-	do_div(tmp, base);
-#else
-	tmp = divremdi3(n, base, PG_DIV);
-#endif
-	return tmp;
-}
-
-static inline __u64 getCurMs(void)
-{
-	struct timeval tv;
-	do_gettimeofday(&tv);
-	return tv_to_ms(&tv);
-}
-
-static inline __u64 getCurUs(void)
+static __u64 getCurUs(void)
 {
 	struct timeval tv;
 	do_gettimeofday(&tv);
 	return tv_to_us(&tv);
-}
-
-static inline __u64 tv_diff(const struct timeval *a, const struct timeval *b)
-{
-	return tv_to_us(a) - tv_to_us(b);
 }
 
 /* old include end */
@@ -2358,9 +2264,11 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
 					t = random32() % (imx - imn) + imn;
 					s = htonl(t);
 
-					while (LOOPBACK(s) || MULTICAST(s)
-					       || BADCLASS(s) || ZERONET(s)
-					       || LOCAL_MCAST(s)) {
+					while (ipv4_is_loopback(s) ||
+					       ipv4_is_multicast(s) ||
+					       ipv4_is_lbcast(s) ||
+					       ipv4_is_zeronet(s) ||
+					       ipv4_is_local_multicast(s)) {
 						t = random32() % (imx - imn) + imn;
 						s = htonl(t);
 					}

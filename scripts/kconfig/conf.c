@@ -3,12 +3,13 @@
  * Released under the terms of the GNU GPL v2.0.
  */
 
+#include <locale.h>
 #include <ctype.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <time.h>
+#include <unistd.h>
 #include <sys/stat.h>
 
 #define LKC_DIRECT_LINK
@@ -40,7 +41,7 @@ static char nohelp_text[] = N_("Sorry, no help available for this option yet.\n"
 static const char *get_help(struct menu *menu)
 {
 	if (menu_has_help(menu))
-		return menu_get_help(menu);
+		return _(menu_get_help(menu));
 	else
 		return nohelp_text;
 }
@@ -78,7 +79,7 @@ static int conf_askvalue(struct symbol *sym, const char *def)
 	tristate val;
 
 	if (!sym_has_value(sym))
-		printf("(NEW) ");
+		printf(_("(NEW) "));
 
 	line[0] = '\n';
 	line[1] = 0;
@@ -160,7 +161,7 @@ static int conf_askvalue(struct symbol *sym, const char *def)
 		}
 	case set_random:
 		do {
-			val = (tristate)(random() % 3);
+			val = (tristate)(rand() % 3);
 		} while (!sym_tristate_within_range(sym, val));
 		switch (val) {
 		case no: line[0] = 'n'; break;
@@ -183,7 +184,7 @@ int conf_string(struct menu *menu)
 	const char *def;
 
 	while (1) {
-		printf("%*s%s ", indent - 1, "", menu->prompt->text);
+		printf("%*s%s ", indent - 1, "", _(menu->prompt->text));
 		printf("(%s) ", sym->name);
 		def = sym_get_string_value(sym);
 		if (sym_get_string_value(sym))
@@ -216,7 +217,7 @@ static int conf_sym(struct menu *menu)
 	tristate oldval, newval;
 
 	while (1) {
-		printf("%*s%s ", indent - 1, "", menu->prompt->text);
+		printf("%*s%s ", indent - 1, "", _(menu->prompt->text));
 		if (sym->name)
 			printf("(%s) ", sym->name);
 		type = sym_get_type(sym);
@@ -306,7 +307,7 @@ static int conf_choice(struct menu *menu)
 		case no:
 			return 1;
 		case mod:
-			printf("%*s%s\n", indent - 1, "", menu_get_prompt(menu));
+			printf("%*s%s\n", indent - 1, "", _(menu_get_prompt(menu)));
 			return 0;
 		case yes:
 			break;
@@ -316,7 +317,7 @@ static int conf_choice(struct menu *menu)
 	while (1) {
 		int cnt, def;
 
-		printf("%*s%s\n", indent - 1, "", menu_get_prompt(menu));
+		printf("%*s%s\n", indent - 1, "", _(menu_get_prompt(menu)));
 		def_sym = sym_get_choice_value(sym);
 		cnt = def = 0;
 		line[0] = 0;
@@ -324,7 +325,7 @@ static int conf_choice(struct menu *menu)
 			if (!menu_is_visible(child))
 				continue;
 			if (!child->sym) {
-				printf("%*c %s\n", indent, '*', menu_get_prompt(child));
+				printf("%*c %s\n", indent, '*', _(menu_get_prompt(child)));
 				continue;
 			}
 			cnt++;
@@ -333,14 +334,14 @@ static int conf_choice(struct menu *menu)
 				printf("%*c", indent, '>');
 			} else
 				printf("%*c", indent, ' ');
-			printf(" %d. %s", cnt, menu_get_prompt(child));
+			printf(" %d. %s", cnt, _(menu_get_prompt(child)));
 			if (child->sym->name)
 				printf(" (%s)", child->sym->name);
 			if (!sym_has_value(child->sym))
-				printf(" (NEW)");
+				printf(_(" (NEW)"));
 			printf("\n");
 		}
-		printf("%*schoice", indent - 1, "");
+		printf(_("%*schoice"), indent - 1, "");
 		if (cnt == 1) {
 			printf("[1]: 1\n");
 			goto conf_childs;
@@ -375,7 +376,7 @@ static int conf_choice(struct menu *menu)
 			break;
 		case set_random:
 			if (is_new)
-				def = (random() % cnt) + 1;
+				def = (rand() % cnt) + 1;
 		case set_default:
 		case set_yes:
 		case set_mod:
@@ -399,9 +400,9 @@ static int conf_choice(struct menu *menu)
 			continue;
 		}
 		sym_set_choice_value(sym, child->sym);
-		if (child->list) {
+		for (child = child->list; child; child = child->next) {
 			indent += 2;
-			conf(child->list);
+			conf(child);
 			indent -= 2;
 		}
 		return 1;
@@ -433,7 +434,7 @@ static void conf(struct menu *menu)
 			if (prompt)
 				printf("%*c\n%*c %s\n%*c\n",
 					indent, '*',
-					indent, '*', prompt,
+					indent, '*', _(prompt),
 					indent, '*');
 		default:
 			;
@@ -495,12 +496,16 @@ static void check_conf(struct menu *menu)
 
 int main(int ac, char **av)
 {
-	int i = 1;
+	int opt;
 	const char *name;
 	struct stat tmpstat;
 
-	if (ac > i && av[i][0] == '-') {
-		switch (av[i++][1]) {
+	setlocale(LC_ALL, "");
+	bindtextdomain(PACKAGE, LOCALEDIR);
+	textdomain(PACKAGE);
+
+	while ((opt = getopt(ac, av, "osdD:nmyrh")) != -1) {
+		switch (opt) {
 		case 'o':
 			input_mode = ask_new;
 			break;
@@ -513,12 +518,7 @@ int main(int ac, char **av)
 			break;
 		case 'D':
 			input_mode = set_default;
-			defconfig_file = av[i++];
-			if (!defconfig_file) {
-				printf(_("%s: No default config file specified\n"),
-					av[0]);
-				exit(1);
-			}
+			defconfig_file = optarg;
 			break;
 		case 'n':
 			input_mode = set_no;
@@ -531,19 +531,22 @@ int main(int ac, char **av)
 			break;
 		case 'r':
 			input_mode = set_random;
-			srandom(time(NULL));
+			srand(time(NULL));
 			break;
 		case 'h':
-		case '?':
-			fprintf(stderr, "See README for usage info\n");
+			printf(_("See README for usage info\n"));
 			exit(0);
+			break;
+		default:
+			fprintf(stderr, _("See README for usage info\n"));
+			exit(1);
 		}
 	}
-  	name = av[i];
-	if (!name) {
+	if (ac == optind) {
 		printf(_("%s: Kconfig file missing\n"), av[0]);
 		exit(1);
 	}
+	name = av[optind];
 	conf_parse(name);
 	//zconfdump(stdout);
 	switch (input_mode) {
@@ -551,9 +554,9 @@ int main(int ac, char **av)
 		if (!defconfig_file)
 			defconfig_file = conf_get_default_confname();
 		if (conf_read(defconfig_file)) {
-			printf("***\n"
+			printf(_("***\n"
 				"*** Can't find default configuration \"%s\"!\n"
-				"***\n", defconfig_file);
+				"***\n"), defconfig_file);
 			exit(1);
 		}
 		break;

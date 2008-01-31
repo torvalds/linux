@@ -712,7 +712,7 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 			smc->mib.priv.fddiPRIVECF_Reply_Rx++ ;
 			DB_SMT("SMT: received ECF reply from %s\n",
 				addr_to_string(&sm->smt_source),0) ;
-			if (sm_to_para(smc,sm,SMT_P_ECHODATA) == 0) {
+			if (sm_to_para(smc,sm,SMT_P_ECHODATA) == NULL) {
 				DB_SMT("SMT: ECHODATA missing\n",0,0) ;
 				break ;
 			}

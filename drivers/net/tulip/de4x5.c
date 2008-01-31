@@ -4168,7 +4168,7 @@ de4x5_bad_srom(struct de4x5_private *lp)
 {
     int i, status = 0;
 
-    for (i=0; i<sizeof(enet_det)/ETH_ALEN; i++) {
+    for (i = 0; i < ARRAY_SIZE(enet_det); i++) {
 	if (!de4x5_strncmp((char *)&lp->srom, (char *)&enet_det[i], 3) &&
 	    !de4x5_strncmp((char *)&lp->srom+0x10, (char *)&enet_det[i], 3)) {
 	    if (i == 0) {
@@ -4188,7 +4188,7 @@ de4x5_strncmp(char *a, char *b, int n)
 {
     int ret=0;
 
-    for (;n && !ret;n--) {
+    for (;n && !ret; n--) {
 	ret = *a++ - *b++;
     }
 

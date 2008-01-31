@@ -153,6 +153,7 @@ config SPI_OMAP24XX
 config SPI_PXA2XX
 	tristate "PXA2xx SSP SPI master"
 	depends on SPI_MASTER && ARCH_PXA && EXPERIMENTAL
+	select PXA_SSP
 	help
 	  This enables using a PXA2xx SSP port as a SPI master controller.
 	  The driver can be configured to use any SSP port and additional

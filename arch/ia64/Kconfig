@@ -42,6 +42,11 @@ config MMU
 config SWIOTLB
        bool
 
+config GENERIC_LOCKBREAK
+	bool
+	default y
+	depends on SMP && PREEMPT
+
 config RWSEM_XCHGADD_ALGORITHM
 	bool
 	default y
@@ -74,6 +79,9 @@ config GENERIC_TIME
 config GENERIC_TIME_VSYSCALL
 	bool
 	default y
+
+config ARCH_SETS_UP_PER_CPU_AREA
+	def_bool y
 
 config DMI
 	bool

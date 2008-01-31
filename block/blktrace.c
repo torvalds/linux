@@ -235,7 +235,7 @@ static void blk_trace_cleanup(struct blk_trace *bt)
 	kfree(bt);
 }
 
-static int blk_trace_remove(struct request_queue *q)
+int blk_trace_remove(struct request_queue *q)
 {
 	struct blk_trace *bt;
 
@@ -249,6 +249,7 @@ static int blk_trace_remove(struct request_queue *q)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(blk_trace_remove);
 
 static int blk_dropped_open(struct inode *inode, struct file *filp)
 {
@@ -316,18 +317,17 @@ static struct rchan_callbacks blk_relay_callbacks = {
 /*
  * Setup everything required to start tracing
  */
-int do_blk_trace_setup(struct request_queue *q, struct block_device *bdev,
+int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 			struct blk_user_trace_setup *buts)
 {
 	struct blk_trace *old_bt, *bt = NULL;
 	struct dentry *dir = NULL;
-	char b[BDEVNAME_SIZE];
 	int ret, i;
 
 	if (!buts->buf_size || !buts->buf_nr)
 		return -EINVAL;
 
-	strcpy(buts->name, bdevname(bdev, b));
+	strcpy(buts->name, name);
 
 	/*
 	 * some device names have larger paths - convert the slashes
@@ -352,7 +352,7 @@ int do_blk_trace_setup(struct request_queue *q, struct block_device *bdev,
 		goto err;
 
 	bt->dir = dir;
-	bt->dev = bdev->bd_dev;
+	bt->dev = dev;
 	atomic_set(&bt->dropped, 0);
 
 	ret = -EIO;
@@ -399,8 +399,8 @@ err:
 	return ret;
 }
 
-static int blk_trace_setup(struct request_queue *q, struct block_device *bdev,
-			   char __user *arg)
+int blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
+		    char __user *arg)
 {
 	struct blk_user_trace_setup buts;
 	int ret;
@@ -409,7 +409,7 @@ static int blk_trace_setup(struct request_queue *q, struct block_device *bdev,
 	if (ret)
 		return -EFAULT;
 
-	ret = do_blk_trace_setup(q, bdev, &buts);
+	ret = do_blk_trace_setup(q, name, dev, &buts);
 	if (ret)
 		return ret;
 
@@ -418,8 +418,9 @@ static int blk_trace_setup(struct request_queue *q, struct block_device *bdev,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(blk_trace_setup);
 
-static int blk_trace_startstop(struct request_queue *q, int start)
+int blk_trace_startstop(struct request_queue *q, int start)
 {
 	struct blk_trace *bt;
 	int ret;
@@ -452,6 +453,7 @@ static int blk_trace_startstop(struct request_queue *q, int start)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(blk_trace_startstop);
 
 /**
  * blk_trace_ioctl: - handle the ioctls associated with tracing
@@ -464,6 +466,7 @@ int blk_trace_ioctl(struct block_device *bdev, unsigned cmd, char __user *arg)
 {
 	struct request_queue *q;
 	int ret, start = 0;
+	char b[BDEVNAME_SIZE];
 
 	q = bdev_get_queue(bdev);
 	if (!q)
@@ -473,7 +476,8 @@ int blk_trace_ioctl(struct block_device *bdev, unsigned cmd, char __user *arg)
 
 	switch (cmd) {
 	case BLKTRACESETUP:
-		ret = blk_trace_setup(q, bdev, arg);
+		strcpy(b, bdevname(bdev, b));
+		ret = blk_trace_setup(q, b, bdev->bd_dev, arg);
 		break;
 	case BLKTRACESTART:
 		start = 1;

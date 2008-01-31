@@ -31,6 +31,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
+#include <linux/kref.h>
 #include <linux/device.h>
 #include <linux/input.h>
 
@@ -92,24 +93,25 @@ struct command {
 	unsigned char		*buffer;
 	size_t			buffer_size;
 	int			status;
-	struct kobject		kobj;
+	struct kref		kref;
 	spinlock_t		*lock;
 };
-#define to_command(c) container_of(c, struct command, kobj)
+#define to_command(c) container_of(c, struct command, kref)
 
+void ibmasm_free_command(struct kref *kref);
 static inline void command_put(struct command *cmd)
 {
 	unsigned long flags;
 	spinlock_t *lock = cmd->lock;
 
 	spin_lock_irqsave(lock, flags);
-	kobject_put(&cmd->kobj);
+	kref_put(&cmd->kref, ibmasm_free_command);
 	spin_unlock_irqrestore(lock, flags);
 }
 
 static inline void command_get(struct command *cmd)
 {
-	kobject_get(&cmd->kobj);
+	kref_get(&cmd->kref);
 }
 
 

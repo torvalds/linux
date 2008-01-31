@@ -70,6 +70,8 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=" _
 static int io=0x240;
 static int irq=11;
 
+static DEFINE_SPINLOCK(wdt_lock);
+
 module_param(io, int, 0);
 MODULE_PARM_DESC(io, "WDT io port (default=0x240)");
 module_param(irq, int, 0);
@@ -109,6 +111,8 @@ static void wdt_ctr_load(int ctr, int val)
 
 static int wdt_start(void)
 {
+	unsigned long flags;
+	spin_lock_irqsave(&wdt_lock, flags);
 	inb_p(WDT_DC);			/* Disable watchdog */
 	wdt_ctr_mode(0,3);		/* Program CTR0 for Mode 3: Square Wave Generator */
 	wdt_ctr_mode(1,2);		/* Program CTR1 for Mode 2: Rate Generator */
@@ -117,6 +121,7 @@ static int wdt_start(void)
 	wdt_ctr_load(1,wd_heartbeat);	/* Heartbeat */
 	wdt_ctr_load(2,65535);		/* Length of reset pulse */
 	outb_p(0, WDT_DC);		/* Enable watchdog */
+	spin_unlock_irqrestore(&wdt_lock, flags);
 	return 0;
 }
 
@@ -128,9 +133,12 @@ static int wdt_start(void)
 
 static int wdt_stop (void)
 {
+	unsigned long flags;
+	spin_lock_irqsave(&wdt_lock, flags);
 	/* Turn the card off */
 	inb_p(WDT_DC);			/* Disable watchdog */
 	wdt_ctr_load(2,0);		/* 0 length reset pulses now */
+	spin_unlock_irqrestore(&wdt_lock, flags);
 	return 0;
 }
 
@@ -143,11 +151,14 @@ static int wdt_stop (void)
 
 static int wdt_ping(void)
 {
+	unsigned long flags;
+	spin_lock_irqsave(&wdt_lock, flags);
 	/* Write a watchdog value */
 	inb_p(WDT_DC);			/* Disable watchdog */
 	wdt_ctr_mode(1,2);		/* Re-Program CTR1 for Mode 2: Rate Generator */
 	wdt_ctr_load(1,wd_heartbeat);	/* Heartbeat */
 	outb_p(0, WDT_DC);		/* Enable watchdog */
+	spin_unlock_irqrestore(&wdt_lock, flags);
 	return 0;
 }
 
@@ -182,7 +193,12 @@ static int wdt_set_heartbeat(int t)
 
 static int wdt_get_status(int *status)
 {
-	unsigned char new_status=inb_p(WDT_SR);
+	unsigned char new_status;
+	unsigned long flags;
+
+	spin_lock_irqsave(&wdt_lock, flags);
+	new_status = inb_p(WDT_SR);
+	spin_unlock_irqrestore(&wdt_lock, flags);
 
 	*status=0;
 	if (new_status & WDC_SR_ISOI0)
@@ -214,8 +230,12 @@ static int wdt_get_status(int *status)
 
 static int wdt_get_temperature(int *temperature)
 {
-	unsigned short c=inb_p(WDT_RT);
+	unsigned short c;
+	unsigned long flags;
 
+	spin_lock_irqsave(&wdt_lock, flags);
+	c = inb_p(WDT_RT);
+	spin_unlock_irqrestore(&wdt_lock, flags);
 	*temperature = (c * 11 / 15) + 7;
 	return 0;
 }
@@ -237,7 +257,10 @@ static irqreturn_t wdt_interrupt(int irq, void *dev_id)
 	 *	Read the status register see what is up and
 	 *	then printk it.
 	 */
-	unsigned char status=inb_p(WDT_SR);
+	unsigned char status;
+
+	spin_lock(&wdt_lock);
+	status = inb_p(WDT_SR);
 
 	printk(KERN_CRIT "WDT status %d\n", status);
 
@@ -265,6 +288,7 @@ static irqreturn_t wdt_interrupt(int irq, void *dev_id)
 		printk(KERN_CRIT "Reset in 5ms.\n");
 #endif
 	}
+	spin_unlock(&wdt_lock);
 	return IRQ_HANDLED;
 }
 

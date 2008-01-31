@@ -30,6 +30,7 @@
 
 #include "aic94xx.h"
 #include "aic94xx_reg.h"
+#include "aic94xx_sds.h"
 
 /* ---------- OCM stuff ---------- */
 
@@ -1082,4 +1083,392 @@ int asd_read_flash(struct asd_ha_struct *asd_ha)
 out:
 	kfree(flash_dir);
 	return err;
+}
+
+/**
+ * asd_verify_flash_seg - verify data with flash memory
+ * @asd_ha: pointer to the host adapter structure
+ * @src: pointer to the source data to be verified
+ * @dest_offset: offset from flash memory
+ * @bytes_to_verify: total bytes to verify
+ */
+int asd_verify_flash_seg(struct asd_ha_struct *asd_ha,
+		void *src, u32 dest_offset, u32 bytes_to_verify)
+{
+	u8 *src_buf;
+	u8 flash_char;
+	int err;
+	u32 nv_offset, reg, i;
+
+	reg = asd_ha->hw_prof.flash.bar;
+	src_buf = NULL;
+
+	err = FLASH_OK;
+	nv_offset = dest_offset;
+	src_buf = (u8 *)src;
+	for (i = 0; i < bytes_to_verify; i++) {
+		flash_char = asd_read_reg_byte(asd_ha, reg + nv_offset + i);
+		if (flash_char != src_buf[i]) {
+			err = FAIL_VERIFY;
+			break;
+		}
+	}
+	return err;
+}
+
+/**
+ * asd_write_flash_seg - write data into flash memory
+ * @asd_ha: pointer to the host adapter structure
+ * @src: pointer to the source data to be written
+ * @dest_offset: offset from flash memory
+ * @bytes_to_write: total bytes to write
+ */
+int asd_write_flash_seg(struct asd_ha_struct *asd_ha,
+		void *src, u32 dest_offset, u32 bytes_to_write)
+{
+	u8 *src_buf;
+	u32 nv_offset, reg, i;
+	int err;
+
+	reg = asd_ha->hw_prof.flash.bar;
+	src_buf = NULL;
+
+	err = asd_check_flash_type(asd_ha);
+	if (err) {
+		ASD_DPRINTK("couldn't find the type of flash. err=%d\n", err);
+		return err;
+	}
+
+	nv_offset = dest_offset;
+	err = asd_erase_nv_sector(asd_ha, nv_offset, bytes_to_write);
+	if (err) {
+		ASD_DPRINTK("Erase failed at offset:0x%x\n",
+			nv_offset);
+		return err;
+	}
+
+	err = asd_reset_flash(asd_ha);
+	if (err) {
+		ASD_DPRINTK("couldn't reset flash. err=%d\n", err);
+		return err;
+	}
+
+	src_buf = (u8 *)src;
+	for (i = 0; i < bytes_to_write; i++) {
+		/* Setup program command sequence */
+		switch (asd_ha->hw_prof.flash.method) {
+		case FLASH_METHOD_A:
+		{
+			asd_write_reg_byte(asd_ha,
+					(reg + 0xAAA), 0xAA);
+			asd_write_reg_byte(asd_ha,
+					(reg + 0x555), 0x55);
+			asd_write_reg_byte(asd_ha,
+					(reg + 0xAAA), 0xA0);
+			asd_write_reg_byte(asd_ha,
+					(reg + nv_offset + i),
+					(*(src_buf + i)));
+			break;
+		}
+		case FLASH_METHOD_B:
+		{
+			asd_write_reg_byte(asd_ha,
+					(reg + 0x555), 0xAA);
+			asd_write_reg_byte(asd_ha,
+					(reg + 0x2AA), 0x55);
+			asd_write_reg_byte(asd_ha,
+					(reg + 0x555), 0xA0);
+			asd_write_reg_byte(asd_ha,
+					(reg + nv_offset + i),
+					(*(src_buf + i)));
+			break;
+		}
+		default:
+			break;
+		}
+		if (asd_chk_write_status(asd_ha,
+				(nv_offset + i), 0) != 0) {
+			ASD_DPRINTK("aicx: Write failed at offset:0x%x\n",
+				reg + nv_offset + i);
+			return FAIL_WRITE_FLASH;
+		}
+	}
+
+	err = asd_reset_flash(asd_ha);
+	if (err) {
+		ASD_DPRINTK("couldn't reset flash. err=%d\n", err);
+		return err;
+	}
+	return 0;
+}
+
+int asd_chk_write_status(struct asd_ha_struct *asd_ha,
+	 u32 sector_addr, u8 erase_flag)
+{
+	u32 reg;
+	u32 loop_cnt;
+	u8  nv_data1, nv_data2;
+	u8  toggle_bit1;
+
+	/*
+	 * Read from DQ2 requires sector address
+	 * while it's dont care for DQ6
+	 */
+	reg = asd_ha->hw_prof.flash.bar;
+
+	for (loop_cnt = 0; loop_cnt < 50000; loop_cnt++) {
+		nv_data1 = asd_read_reg_byte(asd_ha, reg);
+		nv_data2 = asd_read_reg_byte(asd_ha, reg);
+
+		toggle_bit1 = ((nv_data1 & FLASH_STATUS_BIT_MASK_DQ6)
+				 ^ (nv_data2 & FLASH_STATUS_BIT_MASK_DQ6));
+
+		if (toggle_bit1 == 0) {
+			return 0;
+		} else {
+			if (nv_data2 & FLASH_STATUS_BIT_MASK_DQ5) {
+				nv_data1 = asd_read_reg_byte(asd_ha,
+								reg);
+				nv_data2 = asd_read_reg_byte(asd_ha,
+								reg);
+				toggle_bit1 =
+				((nv_data1 & FLASH_STATUS_BIT_MASK_DQ6)
+				^ (nv_data2 & FLASH_STATUS_BIT_MASK_DQ6));
+
+				if (toggle_bit1 == 0)
+					return 0;
+			}
+		}
+
+		/*
+		 * ERASE is a sector-by-sector operation and requires
+		 * more time to finish while WRITE is byte-byte-byte
+		 * operation and takes lesser time to finish.
+		 *
+		 * For some strange reason a reduced ERASE delay gives different
+		 * behaviour across different spirit boards. Hence we set
+		 * a optimum balance of 50mus for ERASE which works well
+		 * across all boards.
+		 */
+		if (erase_flag) {
+			udelay(FLASH_STATUS_ERASE_DELAY_COUNT);
+		} else {
+			udelay(FLASH_STATUS_WRITE_DELAY_COUNT);
+		}
+	}
+	return -1;
+}
+
+/**
+ * asd_hwi_erase_nv_sector - Erase the flash memory sectors.
+ * @asd_ha: pointer to the host adapter structure
+ * @flash_addr: pointer to offset from flash memory
+ * @size: total bytes to erase.
+ */
+int asd_erase_nv_sector(struct asd_ha_struct *asd_ha, u32 flash_addr, u32 size)
+{
+	u32 reg;
+	u32 sector_addr;
+
+	reg = asd_ha->hw_prof.flash.bar;
+
+	/* sector staring address */
+	sector_addr = flash_addr & FLASH_SECTOR_SIZE_MASK;
+
+	/*
+	 * Erasing an flash sector needs to be done in six consecutive
+	 * write cyles.
+	 */
+	while (sector_addr < flash_addr+size) {
+		switch (asd_ha->hw_prof.flash.method) {
+		case FLASH_METHOD_A:
+			asd_write_reg_byte(asd_ha, (reg + 0xAAA), 0xAA);
+			asd_write_reg_byte(asd_ha, (reg + 0x555), 0x55);
+			asd_write_reg_byte(asd_ha, (reg + 0xAAA), 0x80);
+			asd_write_reg_byte(asd_ha, (reg + 0xAAA), 0xAA);
+			asd_write_reg_byte(asd_ha, (reg + 0x555), 0x55);
+			asd_write_reg_byte(asd_ha, (reg + sector_addr), 0x30);
+			break;
+		case FLASH_METHOD_B:
+			asd_write_reg_byte(asd_ha, (reg + 0x555), 0xAA);
+			asd_write_reg_byte(asd_ha, (reg + 0x2AA), 0x55);
+			asd_write_reg_byte(asd_ha, (reg + 0x555), 0x80);
+			asd_write_reg_byte(asd_ha, (reg + 0x555), 0xAA);
+			asd_write_reg_byte(asd_ha, (reg + 0x2AA), 0x55);
+			asd_write_reg_byte(asd_ha, (reg + sector_addr), 0x30);
+			break;
+		default:
+			break;
+		}
+
+		if (asd_chk_write_status(asd_ha, sector_addr, 1) != 0)
+			return FAIL_ERASE_FLASH;
+
+		sector_addr += FLASH_SECTOR_SIZE;
+	}
+
+	return 0;
+}
+
+int asd_check_flash_type(struct asd_ha_struct *asd_ha)
+{
+	u8 manuf_id;
+	u8 dev_id;
+	u8 sec_prot;
+	u32 inc;
+	u32 reg;
+	int err;
+
+	/* get Flash memory base address */
+	reg = asd_ha->hw_prof.flash.bar;
+
+	/* Determine flash info */
+	err = asd_reset_flash(asd_ha);
+	if (err) {
+		ASD_DPRINTK("couldn't reset flash. err=%d\n", err);
+		return err;
+	}
+
+	asd_ha->hw_prof.flash.method = FLASH_METHOD_UNKNOWN;
+	asd_ha->hw_prof.flash.manuf = FLASH_MANUF_ID_UNKNOWN;
+	asd_ha->hw_prof.flash.dev_id = FLASH_DEV_ID_UNKNOWN;
+
+	/* Get flash info. This would most likely be AMD Am29LV family flash.
+	 * First try the sequence for word mode.  It is the same as for
+	 * 008B (byte mode only), 160B (word mode) and 800D (word mode).
+	 */
+	inc = asd_ha->hw_prof.flash.wide ? 2 : 1;
+	asd_write_reg_byte(asd_ha, reg + 0xAAA, 0xAA);
+	asd_write_reg_byte(asd_ha, reg + 0x555, 0x55);
+	asd_write_reg_byte(asd_ha, reg + 0xAAA, 0x90);
+	manuf_id = asd_read_reg_byte(asd_ha, reg);
+	dev_id = asd_read_reg_byte(asd_ha, reg + inc);
+	sec_prot = asd_read_reg_byte(asd_ha, reg + inc + inc);
+	/* Get out of autoselect mode. */
+	err = asd_reset_flash(asd_ha);
+	if (err) {
+		ASD_DPRINTK("couldn't reset flash. err=%d\n", err);
+		return err;
+	}
+	ASD_DPRINTK("Flash MethodA manuf_id(0x%x) dev_id(0x%x) "
+		"sec_prot(0x%x)\n", manuf_id, dev_id, sec_prot);
+	err = asd_reset_flash(asd_ha);
+	if (err != 0)
+		return err;
+
+	switch (manuf_id) {
+	case FLASH_MANUF_ID_AMD:
+		switch (sec_prot) {
+		case FLASH_DEV_ID_AM29LV800DT:
+		case FLASH_DEV_ID_AM29LV640MT:
+		case FLASH_DEV_ID_AM29F800B:
+			asd_ha->hw_prof.flash.method = FLASH_METHOD_A;
+			break;
+		default:
+			break;
+		}
+		break;
+	case FLASH_MANUF_ID_ST:
+		switch (sec_prot) {
+		case FLASH_DEV_ID_STM29W800DT:
+		case FLASH_DEV_ID_STM29LV640:
+			asd_ha->hw_prof.flash.method = FLASH_METHOD_A;
+			break;
+		default:
+			break;
+		}
+		break;
+	case FLASH_MANUF_ID_FUJITSU:
+		switch (sec_prot) {
+		case FLASH_DEV_ID_MBM29LV800TE:
+		case FLASH_DEV_ID_MBM29DL800TA:
+			asd_ha->hw_prof.flash.method = FLASH_METHOD_A;
+			break;
+		}
+		break;
+	case FLASH_MANUF_ID_MACRONIX:
+		switch (sec_prot) {
+		case FLASH_DEV_ID_MX29LV800BT:
+			asd_ha->hw_prof.flash.method = FLASH_METHOD_A;
+			break;
+		}
+		break;
+	}
+
+	if (asd_ha->hw_prof.flash.method == FLASH_METHOD_UNKNOWN) {
+		err = asd_reset_flash(asd_ha);
+		if (err) {
+			ASD_DPRINTK("couldn't reset flash. err=%d\n", err);
+			return err;
+		}
+
+		/* Issue Unlock sequence for AM29LV008BT */
+		asd_write_reg_byte(asd_ha, (reg + 0x555), 0xAA);
+		asd_write_reg_byte(asd_ha, (reg + 0x2AA), 0x55);
+		asd_write_reg_byte(asd_ha, (reg + 0x555), 0x90);
+		manuf_id = asd_read_reg_byte(asd_ha, reg);
+		dev_id = asd_read_reg_byte(asd_ha, reg + inc);
+		sec_prot = asd_read_reg_byte(asd_ha, reg + inc + inc);
+
+		ASD_DPRINTK("Flash MethodB manuf_id(0x%x) dev_id(0x%x) sec_prot"
+			"(0x%x)\n", manuf_id, dev_id, sec_prot);
+
+		err = asd_reset_flash(asd_ha);
+		if (err != 0) {
+			ASD_DPRINTK("couldn't reset flash. err=%d\n", err);
+			return err;
+		}
+
+		switch (manuf_id) {
+		case FLASH_MANUF_ID_AMD:
+			switch (dev_id) {
+			case FLASH_DEV_ID_AM29LV008BT:
+				asd_ha->hw_prof.flash.method = FLASH_METHOD_B;
+				break;
+			default:
+				break;
+			}
+			break;
+		case FLASH_MANUF_ID_ST:
+			switch (dev_id) {
+			case FLASH_DEV_ID_STM29008:
+				asd_ha->hw_prof.flash.method = FLASH_METHOD_B;
+				break;
+			default:
+				break;
+			}
+			break;
+		case FLASH_MANUF_ID_FUJITSU:
+			switch (dev_id) {
+			case FLASH_DEV_ID_MBM29LV008TA:
+				asd_ha->hw_prof.flash.method = FLASH_METHOD_B;
+				break;
+			}
+			break;
+		case FLASH_MANUF_ID_INTEL:
+			switch (dev_id) {
+			case FLASH_DEV_ID_I28LV00TAT:
+				asd_ha->hw_prof.flash.method = FLASH_METHOD_B;
+				break;
+			}
+			break;
+		case FLASH_MANUF_ID_MACRONIX:
+			switch (dev_id) {
+			case FLASH_DEV_ID_I28LV00TAT:
+				asd_ha->hw_prof.flash.method = FLASH_METHOD_B;
+				break;
+			}
+			break;
+		default:
+			return FAIL_FIND_FLASH_ID;
+		}
+	}
+
+	if (asd_ha->hw_prof.flash.method == FLASH_METHOD_UNKNOWN)
+	      return FAIL_FIND_FLASH_ID;
+
+	asd_ha->hw_prof.flash.manuf = manuf_id;
+	asd_ha->hw_prof.flash.dev_id = dev_id;
+	asd_ha->hw_prof.flash.sec_prot = sec_prot;
+	return 0;
 }

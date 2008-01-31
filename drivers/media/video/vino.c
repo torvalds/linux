@@ -2589,11 +2589,7 @@ static int vino_acquire_input(struct vino_channel_settings *vcs)
 	/* First try D1 and then SAA7191 */
 	if (vino_drvdata->camera.driver
 	    && (vino_drvdata->camera.owner == VINO_NO_CHANNEL)) {
-		if (i2c_use_client(vino_drvdata->camera.driver)) {
-			ret = -ENODEV;
-			goto out;
-		}
-
+		i2c_use_client(vino_drvdata->camera.driver);
 		vino_drvdata->camera.owner = vcs->channel;
 		vcs->input = VINO_INPUT_D1;
 		vcs->data_norm = VINO_DATA_NORM_D1;
@@ -2602,11 +2598,7 @@ static int vino_acquire_input(struct vino_channel_settings *vcs)
 		int input, data_norm;
 		int saa7191_input;
 
-		if (i2c_use_client(vino_drvdata->decoder.driver)) {
-			ret = -ENODEV;
-			goto out;
-		}
-
+		i2c_use_client(vino_drvdata->decoder.driver);
 		input = VINO_INPUT_COMPOSITE;
 
 		saa7191_input = vino_get_saa7191_input(input);
@@ -2688,10 +2680,7 @@ static int vino_set_input(struct vino_channel_settings *vcs, int input)
 		}
 
 		if (vino_drvdata->decoder.owner == VINO_NO_CHANNEL) {
-			if (i2c_use_client(vino_drvdata->decoder.driver)) {
-				ret = -ENODEV;
-				goto out;
-			}
+			i2c_use_client(vino_drvdata->decoder.driver);
 			vino_drvdata->decoder.owner = vcs->channel;
 		}
 
@@ -2759,10 +2748,7 @@ static int vino_set_input(struct vino_channel_settings *vcs, int input)
 		}
 
 		if (vino_drvdata->camera.owner == VINO_NO_CHANNEL) {
-			if (i2c_use_client(vino_drvdata->camera.driver)) {
-				ret = -ENODEV;
-				goto out;
-			}
+			i2c_use_client(vino_drvdata->camera.driver);
 			vino_drvdata->camera.owner = vcs->channel;
 		}
 

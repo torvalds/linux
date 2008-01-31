@@ -25,6 +25,8 @@
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/mtd/physmap.h>
+#include <linux/input.h>
+#include <linux/gpio_keys.h>
 
 #include <asm/hardware.h>
 #include <asm/setup.h>
@@ -156,6 +158,85 @@ static struct platform_device csb_flash = {
 	.num_resources	= ARRAY_SIZE(csb_flash_resources),
 };
 
+/*
+ * GPIO Buttons (on CSB300)
+ */
+#if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
+static struct gpio_keys_button csb300_buttons[] = {
+	{
+		.gpio		= AT91_PIN_PB29,
+		.code		= BTN_0,
+		.desc		= "sw0",
+		.active_low	= 1,
+		.wakeup		= 1,
+	},
+	{
+		.gpio		= AT91_PIN_PB28,
+		.code		= BTN_1,
+		.desc		= "sw1",
+		.active_low	= 1,
+		.wakeup		= 1,
+	},
+	{
+		.gpio		= AT91_PIN_PA21,
+		.code		= BTN_2,
+		.desc		= "sw2",
+		.active_low	= 1,
+		.wakeup		= 1,
+	}
+};
+
+static struct gpio_keys_platform_data csb300_button_data = {
+	.buttons	= csb300_buttons,
+	.nbuttons	= ARRAY_SIZE(csb300_buttons),
+};
+
+static struct platform_device csb300_button_device = {
+	.name		= "gpio-keys",
+	.id		= -1,
+	.num_resources	= 0,
+	.dev		= {
+		.platform_data	= &csb300_button_data,
+	}
+};
+
+static void __init csb300_add_device_buttons(void)
+{
+	at91_set_gpio_input(AT91_PIN_PB29, 0);	/* sw0 */
+	at91_set_deglitch(AT91_PIN_PB29, 1);
+	at91_set_gpio_input(AT91_PIN_PB28, 0);	/* sw1 */
+	at91_set_deglitch(AT91_PIN_PB28, 1);
+	at91_set_gpio_input(AT91_PIN_PA21, 0);	/* sw2 */
+	at91_set_deglitch(AT91_PIN_PA21, 1);
+
+	platform_device_register(&csb300_button_device);
+}
+#else
+static void __init csb300_add_device_buttons(void) {}
+#endif
+
+static struct gpio_led csb_leds[] = {
+	{	/* "led0", yellow */
+		.name			= "led0",
+		.gpio			= AT91_PIN_PB2,
+		.active_low		= 1,
+		.default_trigger	= "heartbeat",
+	},
+	{	/* "led1", green */
+		.name			= "led1",
+		.gpio			= AT91_PIN_PB1,
+		.active_low		= 1,
+		.default_trigger	= "mmc0",
+	},
+	{	/* "led2", yellow */
+		.name			= "led2",
+		.gpio			= AT91_PIN_PB0,
+		.active_low		= 1,
+		.default_trigger	= "ide-disk",
+	},
+};
+
+
 static void __init csb337_board_init(void)
 {
 	/* Serial */
@@ -177,6 +258,10 @@ static void __init csb337_board_init(void)
 	at91_add_device_mmc(0, &csb337_mmc_data);
 	/* NOR flash */
 	platform_device_register(&csb_flash);
+	/* LEDs */
+	at91_gpio_leds(csb_leds, ARRAY_SIZE(csb_leds));
+	/* Switches on CSB300 */
+	csb300_add_device_buttons();
 }
 
 MACHINE_START(CSB337, "Cogent CSB337")

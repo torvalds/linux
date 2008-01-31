@@ -60,6 +60,7 @@
 
 #include <net/sctp/sctp.h>
 #include <net/sctp/sm.h>
+#include <net/sctp/checksum.h>
 
 /* Forward declarations for private helpers. */
 static sctp_xmit_t sctp_packet_append_data(struct sctp_packet *packet,

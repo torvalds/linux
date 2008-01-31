@@ -276,8 +276,7 @@ EXPORT_SYMBOL(pm_suspend);
 
 #endif /* CONFIG_SUSPEND */
 
-decl_subsys(power,NULL,NULL);
-
+struct kobject *power_kobj;
 
 /**
  *	state - control system power state.
@@ -290,7 +289,8 @@ decl_subsys(power,NULL,NULL);
  *	proper enumerated value, and initiates a suspend transition.
  */
 
-static ssize_t state_show(struct kset *kset, char *buf)
+static ssize_t state_show(struct kobject *kobj, struct kobj_attribute *attr,
+			  char *buf)
 {
 	char *s = buf;
 #ifdef CONFIG_SUSPEND
@@ -311,7 +311,8 @@ static ssize_t state_show(struct kset *kset, char *buf)
 	return (s - buf);
 }
 
-static ssize_t state_store(struct kset *kset, const char *buf, size_t n)
+static ssize_t state_store(struct kobject *kobj, struct kobj_attribute *attr,
+			   const char *buf, size_t n)
 {
 #ifdef CONFIG_SUSPEND
 	suspend_state_t state = PM_SUSPEND_STANDBY;
@@ -348,13 +349,15 @@ power_attr(state);
 #ifdef CONFIG_PM_TRACE
 int pm_trace_enabled;
 
-static ssize_t pm_trace_show(struct kset *kset, char *buf)
+static ssize_t pm_trace_show(struct kobject *kobj, struct kobj_attribute *attr,
+			     char *buf)
 {
 	return sprintf(buf, "%d\n", pm_trace_enabled);
 }
 
 static ssize_t
-pm_trace_store(struct kset *kset, const char *buf, size_t n)
+pm_trace_store(struct kobject *kobj, struct kobj_attribute *attr,
+	       const char *buf, size_t n)
 {
 	int val;
 
@@ -386,10 +389,10 @@ static struct attribute_group attr_group = {
 
 static int __init pm_init(void)
 {
-	int error = subsystem_register(&power_subsys);
-	if (!error)
-		error = sysfs_create_group(&power_subsys.kobj,&attr_group);
-	return error;
+	power_kobj = kobject_create_and_add("power", NULL);
+	if (!power_kobj)
+		return -ENOMEM;
+	return sysfs_create_group(power_kobj, &attr_group);
 }
 
 core_initcall(pm_init);

@@ -8,5 +8,5 @@ config INFINIBAND_ISER
           that speak iSCSI over iSER over InfiniBand.
 
 	  The iSER protocol is defined by IETF.
-	  See <http://www.ietf.org/internet-drafts/draft-ietf-ips-iser-05.txt>
-	  and <http://www.infinibandta.org/members/spec/iser_annex_060418.pdf>
+	  See <http://www.ietf.org/rfc/rfc5046.txt>
+	  and <http://www.infinibandta.org/members/spec/Annex_iSER.PDF>

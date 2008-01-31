@@ -747,7 +747,6 @@ struct scsi_host_template aic7xxx_driver_template = {
 	.max_sectors		= 8192,
 	.cmd_per_lun		= 2,
 	.use_clustering		= ENABLE_CLUSTERING,
-	.use_sg_chaining	= ENABLE_SG_CHAINING,
 	.slave_alloc		= ahc_linux_slave_alloc,
 	.slave_configure	= ahc_linux_slave_configure,
 	.target_alloc		= ahc_linux_target_alloc,
@@ -1658,9 +1657,12 @@ ahc_done(struct ahc_softc *ahc, struct scb *scb)
 		untagged_q = &(ahc->untagged_queues[target_offset]);
 		TAILQ_REMOVE(untagged_q, scb, links.tqe);
 		BUG_ON(!TAILQ_EMPTY(untagged_q));
-	}
-
-	if ((scb->flags & SCB_ACTIVE) == 0) {
+	} else if ((scb->flags & SCB_ACTIVE) == 0) {
+		/*
+		 * Transactions aborted from the untagged queue may
+		 * not have been dispatched to the controller, so
+		 * only check the SCB_ACTIVE flag for tagged transactions.
+		 */
 		printf("SCB %d done'd twice\n", scb->hscb->tag);
 		ahc_dump_card_state(ahc);
 		panic("Stopping for safety");
@@ -1801,12 +1803,12 @@ ahc_linux_handle_scsi_status(struct ahc_softc *ahc,
 
 			sense_size = min(sizeof(struct scsi_sense_data)
 				       - ahc_get_sense_residual(scb),
-					 (u_long)sizeof(cmd->sense_buffer));
+					 (u_long)SCSI_SENSE_BUFFERSIZE);
 			memcpy(cmd->sense_buffer,
 			       ahc_get_sense_buf(ahc, scb), sense_size);
-			if (sense_size < sizeof(cmd->sense_buffer))
+			if (sense_size < SCSI_SENSE_BUFFERSIZE)
 				memset(&cmd->sense_buffer[sense_size], 0,
-				       sizeof(cmd->sense_buffer) - sense_size);
+				       SCSI_SENSE_BUFFERSIZE - sense_size);
 			cmd->result |= (DRIVER_SENSE << 24);
 #ifdef AHC_DEBUG
 			if (ahc_debug & AHC_SHOW_SENSE) {

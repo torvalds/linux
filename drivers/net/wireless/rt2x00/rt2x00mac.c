@@ -23,11 +23,6 @@
 	Abstract: rt2x00 generic mac80211 routines.
  */
 
-/*
- * Set enviroment defines for rt2x00.h
- */
-#define DRV_NAME "rt2x00lib"
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 
@@ -89,7 +84,7 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	 */
 	if (!test_bit(DEVICE_PRESENT, &rt2x00dev->flags)) {
 		ieee80211_stop_queues(hw);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	/*
@@ -115,15 +110,24 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	if (!is_rts_frame(frame_control) && !is_cts_frame(frame_control) &&
 	    (control->flags & (IEEE80211_TXCTL_USE_RTS_CTS |
 			       IEEE80211_TXCTL_USE_CTS_PROTECT))) {
-		if (rt2x00_ring_free(ring) <= 1)
+		if (rt2x00_ring_free(ring) <= 1) {
+			ieee80211_stop_queue(rt2x00dev->hw, control->queue);
 			return NETDEV_TX_BUSY;
+		}
 
-		if (rt2x00mac_tx_rts_cts(rt2x00dev, ring, skb, control))
+		if (rt2x00mac_tx_rts_cts(rt2x00dev, ring, skb, control)) {
+			ieee80211_stop_queue(rt2x00dev->hw, control->queue);
 			return NETDEV_TX_BUSY;
+		}
 	}
 
-	if (rt2x00dev->ops->lib->write_tx_data(rt2x00dev, ring, skb, control))
+	if (rt2x00dev->ops->lib->write_tx_data(rt2x00dev, ring, skb, control)) {
+		ieee80211_stop_queue(rt2x00dev->hw, control->queue);
 		return NETDEV_TX_BUSY;
+	}
+
+	if (rt2x00_ring_full(ring))
+		ieee80211_stop_queue(rt2x00dev->hw, control->queue);
 
 	if (rt2x00dev->ops->lib->kick_tx_queue)
 		rt2x00dev->ops->lib->kick_tx_queue(rt2x00dev, control->queue);
@@ -135,41 +139,11 @@ EXPORT_SYMBOL_GPL(rt2x00mac_tx);
 int rt2x00mac_start(struct ieee80211_hw *hw)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
-	int status;
 
-	if (!test_bit(DEVICE_PRESENT, &rt2x00dev->flags) ||
-	    test_bit(DEVICE_STARTED, &rt2x00dev->flags))
+	if (!test_bit(DEVICE_PRESENT, &rt2x00dev->flags))
 		return 0;
 
-	/*
-	 * If this is the first interface which is added,
-	 * we should load the firmware now.
-	 */
-	if (test_bit(DRIVER_REQUIRE_FIRMWARE, &rt2x00dev->flags)) {
-		status = rt2x00lib_load_firmware(rt2x00dev);
-		if (status)
-			return status;
-	}
-
-	/*
-	 * Initialize the device.
-	 */
-	status = rt2x00lib_initialize(rt2x00dev);
-	if (status)
-		return status;
-
-	/*
-	 * Enable radio.
-	 */
-	status = rt2x00lib_enable_radio(rt2x00dev);
-	if (status) {
-		rt2x00lib_uninitialize(rt2x00dev);
-		return status;
-	}
-
-	__set_bit(DEVICE_STARTED, &rt2x00dev->flags);
-
-	return 0;
+	return rt2x00lib_start(rt2x00dev);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_start);
 
@@ -180,13 +154,7 @@ void rt2x00mac_stop(struct ieee80211_hw *hw)
 	if (!test_bit(DEVICE_PRESENT, &rt2x00dev->flags))
 		return;
 
-	/*
-	 * Perhaps we can add something smarter here,
-	 * but for now just disabling the radio should do.
-	 */
-	rt2x00lib_disable_radio(rt2x00dev);
-
-	__clear_bit(DEVICE_STARTED, &rt2x00dev->flags);
+	rt2x00lib_stop(rt2x00dev);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_stop);
 
@@ -213,7 +181,7 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 	    is_interface_present(intf))
 		return -ENOBUFS;
 
-	intf->id = conf->if_id;
+	intf->id = conf->vif;
 	intf->type = conf->type;
 	if (conf->type == IEEE80211_IF_TYPE_AP)
 		memcpy(&intf->bssid, conf->mac_addr, ETH_ALEN);
@@ -247,7 +215,7 @@ void rt2x00mac_remove_interface(struct ieee80211_hw *hw,
 		return;
 
 	intf->id = 0;
-	intf->type = INVALID_INTERFACE;
+	intf->type = IEEE80211_IF_TYPE_INVALID;
 	memset(&intf->bssid, 0x00, ETH_ALEN);
 	memset(&intf->mac, 0x00, ETH_ALEN);
 
@@ -297,7 +265,8 @@ int rt2x00mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_config);
 
-int rt2x00mac_config_interface(struct ieee80211_hw *hw, int if_id,
+int rt2x00mac_config_interface(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
 			       struct ieee80211_if_conf *conf)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
@@ -373,23 +342,27 @@ int rt2x00mac_get_tx_stats(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_get_tx_stats);
 
-void rt2x00mac_erp_ie_changed(struct ieee80211_hw *hw, u8 changes,
-			      int cts_protection, int preamble)
+void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif,
+				struct ieee80211_bss_conf *bss_conf,
+				u32 changes)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	int short_preamble;
 	int ack_timeout;
 	int ack_consume_time;
 	int difs;
+	int preamble;
 
 	/*
 	 * We only support changing preamble mode.
 	 */
-	if (!(changes & IEEE80211_ERP_CHANGE_PREAMBLE))
+	if (!(changes & BSS_CHANGED_ERP_PREAMBLE))
 		return;
 
-	short_preamble = !preamble;
-	preamble = !!(preamble) ? PREAMBLE : SHORT_PREAMBLE;
+	short_preamble = bss_conf->use_short_preamble;
+	preamble = bss_conf->use_short_preamble ?
+				SHORT_PREAMBLE : PREAMBLE;
 
 	difs = (hw->conf.flags & IEEE80211_CONF_SHORT_SLOT_TIME) ?
 		SHORT_DIFS : DIFS;
@@ -405,7 +378,7 @@ void rt2x00mac_erp_ie_changed(struct ieee80211_hw *hw, u8 changes,
 	rt2x00dev->ops->lib->config_preamble(rt2x00dev, short_preamble,
 					     ack_timeout, ack_consume_time);
 }
-EXPORT_SYMBOL_GPL(rt2x00mac_erp_ie_changed);
+EXPORT_SYMBOL_GPL(rt2x00mac_bss_info_changed);
 
 int rt2x00mac_conf_tx(struct ieee80211_hw *hw, int queue,
 		      const struct ieee80211_tx_queue_params *params)

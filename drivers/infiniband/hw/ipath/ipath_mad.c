@@ -934,6 +934,7 @@ static int recv_pma_get_portsamplescontrol(struct ib_perf *pmp,
 	struct ib_pma_portsamplescontrol *p =
 		(struct ib_pma_portsamplescontrol *)pmp->data;
 	struct ipath_ibdev *dev = to_idev(ibdev);
+	struct ipath_cregs const *crp = dev->dd->ipath_cregs;
 	unsigned long flags;
 	u8 port_select = p->port_select;
 
@@ -955,7 +956,10 @@ static int recv_pma_get_portsamplescontrol(struct ib_perf *pmp,
 	p->counter_width = 4;	/* 32 bit counters */
 	p->counter_mask0_9 = COUNTER_MASK0_9;
 	spin_lock_irqsave(&dev->pending_lock, flags);
-	p->sample_status = dev->pma_sample_status;
+	if (crp->cr_psstat)
+		p->sample_status = ipath_read_creg32(dev->dd, crp->cr_psstat);
+	else
+		p->sample_status = dev->pma_sample_status;
 	p->sample_start = cpu_to_be32(dev->pma_sample_start);
 	p->sample_interval = cpu_to_be32(dev->pma_sample_interval);
 	p->tag = cpu_to_be16(dev->pma_tag);
@@ -975,8 +979,9 @@ static int recv_pma_set_portsamplescontrol(struct ib_perf *pmp,
 	struct ib_pma_portsamplescontrol *p =
 		(struct ib_pma_portsamplescontrol *)pmp->data;
 	struct ipath_ibdev *dev = to_idev(ibdev);
+	struct ipath_cregs const *crp = dev->dd->ipath_cregs;
 	unsigned long flags;
-	u32 start;
+	u8 status;
 	int ret;
 
 	if (pmp->attr_mod != 0 ||
@@ -986,59 +991,67 @@ static int recv_pma_set_portsamplescontrol(struct ib_perf *pmp,
 		goto bail;
 	}
 
-	start = be32_to_cpu(p->sample_start);
-	if (start != 0) {
-		spin_lock_irqsave(&dev->pending_lock, flags);
-		if (dev->pma_sample_status == IB_PMA_SAMPLE_STATUS_DONE) {
-			dev->pma_sample_status =
-				IB_PMA_SAMPLE_STATUS_STARTED;
-			dev->pma_sample_start = start;
-			dev->pma_sample_interval =
-				be32_to_cpu(p->sample_interval);
-			dev->pma_tag = be16_to_cpu(p->tag);
-			if (p->counter_select[0])
-				dev->pma_counter_select[0] =
-					p->counter_select[0];
-			if (p->counter_select[1])
-				dev->pma_counter_select[1] =
-					p->counter_select[1];
-			if (p->counter_select[2])
-				dev->pma_counter_select[2] =
-					p->counter_select[2];
-			if (p->counter_select[3])
-				dev->pma_counter_select[3] =
-					p->counter_select[3];
-			if (p->counter_select[4])
-				dev->pma_counter_select[4] =
-					p->counter_select[4];
-		}
-		spin_unlock_irqrestore(&dev->pending_lock, flags);
+	spin_lock_irqsave(&dev->pending_lock, flags);
+	if (crp->cr_psstat)
+		status = ipath_read_creg32(dev->dd, crp->cr_psstat);
+	else
+		status = dev->pma_sample_status;
+	if (status == IB_PMA_SAMPLE_STATUS_DONE) {
+		dev->pma_sample_start = be32_to_cpu(p->sample_start);
+		dev->pma_sample_interval = be32_to_cpu(p->sample_interval);
+		dev->pma_tag = be16_to_cpu(p->tag);
+		dev->pma_counter_select[0] = p->counter_select[0];
+		dev->pma_counter_select[1] = p->counter_select[1];
+		dev->pma_counter_select[2] = p->counter_select[2];
+		dev->pma_counter_select[3] = p->counter_select[3];
+		dev->pma_counter_select[4] = p->counter_select[4];
+		if (crp->cr_psstat) {
+			ipath_write_creg(dev->dd, crp->cr_psinterval,
+					 dev->pma_sample_interval);
+			ipath_write_creg(dev->dd, crp->cr_psstart,
+					 dev->pma_sample_start);
+		} else
+			dev->pma_sample_status = IB_PMA_SAMPLE_STATUS_STARTED;
 	}
+	spin_unlock_irqrestore(&dev->pending_lock, flags);
+
 	ret = recv_pma_get_portsamplescontrol(pmp, ibdev, port);
 
 bail:
 	return ret;
 }
 
-static u64 get_counter(struct ipath_ibdev *dev, __be16 sel)
+static u64 get_counter(struct ipath_ibdev *dev,
+		       struct ipath_cregs const *crp,
+		       __be16 sel)
 {
 	u64 ret;
 
 	switch (sel) {
 	case IB_PMA_PORT_XMIT_DATA:
-		ret = dev->ipath_sword;
+		ret = (crp->cr_psxmitdatacount) ?
+			ipath_read_creg32(dev->dd, crp->cr_psxmitdatacount) :
+			dev->ipath_sword;
 		break;
 	case IB_PMA_PORT_RCV_DATA:
-		ret = dev->ipath_rword;
+		ret = (crp->cr_psrcvdatacount) ?
+			ipath_read_creg32(dev->dd, crp->cr_psrcvdatacount) :
+			dev->ipath_rword;
 		break;
 	case IB_PMA_PORT_XMIT_PKTS:
-		ret = dev->ipath_spkts;
+		ret = (crp->cr_psxmitpktscount) ?
+			ipath_read_creg32(dev->dd, crp->cr_psxmitpktscount) :
+			dev->ipath_spkts;
 		break;
 	case IB_PMA_PORT_RCV_PKTS:
-		ret = dev->ipath_rpkts;
+		ret = (crp->cr_psrcvpktscount) ?
+			ipath_read_creg32(dev->dd, crp->cr_psrcvpktscount) :
+			dev->ipath_rpkts;
 		break;
 	case IB_PMA_PORT_XMIT_WAIT:
-		ret = dev->ipath_xmit_wait;
+		ret = (crp->cr_psxmitwaitcount) ?
+			ipath_read_creg32(dev->dd, crp->cr_psxmitwaitcount) :
+			dev->ipath_xmit_wait;
 		break;
 	default:
 		ret = 0;
@@ -1053,14 +1066,21 @@ static int recv_pma_get_portsamplesresult(struct ib_perf *pmp,
 	struct ib_pma_portsamplesresult *p =
 		(struct ib_pma_portsamplesresult *)pmp->data;
 	struct ipath_ibdev *dev = to_idev(ibdev);
+	struct ipath_cregs const *crp = dev->dd->ipath_cregs;
+	u8 status;
 	int i;
 
 	memset(pmp->data, 0, sizeof(pmp->data));
 	p->tag = cpu_to_be16(dev->pma_tag);
-	p->sample_status = cpu_to_be16(dev->pma_sample_status);
+	if (crp->cr_psstat)
+		status = ipath_read_creg32(dev->dd, crp->cr_psstat);
+	else
+		status = dev->pma_sample_status;
+	p->sample_status = cpu_to_be16(status);
 	for (i = 0; i < ARRAY_SIZE(dev->pma_counter_select); i++)
-		p->counter[i] = cpu_to_be32(
-			get_counter(dev, dev->pma_counter_select[i]));
+		p->counter[i] = (status != IB_PMA_SAMPLE_STATUS_DONE) ? 0 :
+		    cpu_to_be32(
+			get_counter(dev, crp, dev->pma_counter_select[i]));
 
 	return reply((struct ib_smp *) pmp);
 }
@@ -1071,16 +1091,23 @@ static int recv_pma_get_portsamplesresult_ext(struct ib_perf *pmp,
 	struct ib_pma_portsamplesresult_ext *p =
 		(struct ib_pma_portsamplesresult_ext *)pmp->data;
 	struct ipath_ibdev *dev = to_idev(ibdev);
+	struct ipath_cregs const *crp = dev->dd->ipath_cregs;
+	u8 status;
 	int i;
 
 	memset(pmp->data, 0, sizeof(pmp->data));
 	p->tag = cpu_to_be16(dev->pma_tag);
-	p->sample_status = cpu_to_be16(dev->pma_sample_status);
+	if (crp->cr_psstat)
+		status = ipath_read_creg32(dev->dd, crp->cr_psstat);
+	else
+		status = dev->pma_sample_status;
+	p->sample_status = cpu_to_be16(status);
 	/* 64 bits */
 	p->extended_width = __constant_cpu_to_be32(0x80000000);
 	for (i = 0; i < ARRAY_SIZE(dev->pma_counter_select); i++)
-		p->counter[i] = cpu_to_be64(
-			get_counter(dev, dev->pma_counter_select[i]));
+		p->counter[i] = (status != IB_PMA_SAMPLE_STATUS_DONE) ? 0 :
+		    cpu_to_be64(
+			get_counter(dev, crp, dev->pma_counter_select[i]));
 
 	return reply((struct ib_smp *) pmp);
 }
@@ -1113,6 +1140,8 @@ static int recv_pma_get_portcounters(struct ib_perf *pmp,
 		dev->z_local_link_integrity_errors;
 	cntrs.excessive_buffer_overrun_errors -=
 		dev->z_excessive_buffer_overrun_errors;
+	cntrs.vl15_dropped -= dev->z_vl15_dropped;
+	cntrs.vl15_dropped += dev->n_vl15_dropped;
 
 	memset(pmp->data, 0, sizeof(pmp->data));
 
@@ -1156,10 +1185,10 @@ static int recv_pma_get_portcounters(struct ib_perf *pmp,
 		cntrs.excessive_buffer_overrun_errors = 0xFUL;
 	p->lli_ebor_errors = (cntrs.local_link_integrity_errors << 4) |
 		cntrs.excessive_buffer_overrun_errors;
-	if (dev->n_vl15_dropped > 0xFFFFUL)
+	if (cntrs.vl15_dropped > 0xFFFFUL)
 		p->vl15_dropped = __constant_cpu_to_be16(0xFFFF);
 	else
-		p->vl15_dropped = cpu_to_be16((u16)dev->n_vl15_dropped);
+		p->vl15_dropped = cpu_to_be16((u16)cntrs.vl15_dropped);
 	if (cntrs.port_xmit_data > 0xFFFFFFFFUL)
 		p->port_xmit_data = __constant_cpu_to_be32(0xFFFFFFFF);
 	else
@@ -1262,8 +1291,10 @@ static int recv_pma_set_portcounters(struct ib_perf *pmp,
 		dev->z_excessive_buffer_overrun_errors =
 			cntrs.excessive_buffer_overrun_errors;
 
-	if (p->counter_select & IB_PMA_SEL_PORT_VL15_DROPPED)
+	if (p->counter_select & IB_PMA_SEL_PORT_VL15_DROPPED) {
 		dev->n_vl15_dropped = 0;
+		dev->z_vl15_dropped = cntrs.vl15_dropped;
+	}
 
 	if (p->counter_select & IB_PMA_SEL_PORT_XMIT_DATA)
 		dev->z_port_xmit_data = cntrs.port_xmit_data;
@@ -1434,7 +1465,7 @@ static int process_subn(struct ib_device *ibdev, int mad_flags,
 		 * before checking for other consumers.
 		 * Just tell the caller to process it normally.
 		 */
-		ret = IB_MAD_RESULT_FAILURE;
+		ret = IB_MAD_RESULT_SUCCESS;
 		goto bail;
 	default:
 		smp->status |= IB_SMP_UNSUP_METHOD;
@@ -1516,7 +1547,7 @@ static int process_perf(struct ib_device *ibdev, u8 port_num,
 		 * before checking for other consumers.
 		 * Just tell the caller to process it normally.
 		 */
-		ret = IB_MAD_RESULT_FAILURE;
+		ret = IB_MAD_RESULT_SUCCESS;
 		goto bail;
 	default:
 		pmp->status |= IB_SMP_UNSUP_METHOD;

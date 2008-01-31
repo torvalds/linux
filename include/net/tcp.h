@@ -309,6 +309,9 @@ extern int			tcp_twsk_unique(struct sock *sk,
 
 extern void			tcp_twsk_destructor(struct sock *sk);
 
+extern ssize_t			tcp_splice_read(struct socket *sk, loff_t *ppos,
+					        struct pipe_inode_info *pipe, size_t len, unsigned int flags);
+
 static inline void tcp_dec_quickack_mode(struct sock *sk,
 					 const unsigned int pkts)
 {
@@ -575,10 +578,6 @@ struct tcp_skb_cb {
 #define TCPCB_EVER_RETRANS	0x80	/* Ever retransmitted frame	*/
 #define TCPCB_RETRANS		(TCPCB_SACKED_RETRANS|TCPCB_EVER_RETRANS)
 
-#define TCPCB_URG		0x20	/* Urgent pointer advanced here	*/
-
-#define TCPCB_AT_TAIL		(TCPCB_URG)
-
 	__u16		urg_ptr;	/* Valid w/URG flags is set.	*/
 	__u32		ack_seq;	/* Sequence number ACK'd	*/
 };
@@ -649,7 +648,7 @@ struct tcp_congestion_ops {
 	/* lower bound for congestion window (optional) */
 	u32 (*min_cwnd)(const struct sock *sk);
 	/* do new cwnd calculation (required) */
-	void (*cong_avoid)(struct sock *sk, u32 ack, u32 in_flight, int good_ack);
+	void (*cong_avoid)(struct sock *sk, u32 ack, u32 in_flight);
 	/* call before changing ca_state (optional) */
 	void (*set_state)(struct sock *sk, u8 new_state);
 	/* call when cwnd event occurs (optional) */
@@ -680,7 +679,7 @@ extern void tcp_slow_start(struct tcp_sock *tp);
 
 extern struct tcp_congestion_ops tcp_init_congestion_ops;
 extern u32 tcp_reno_ssthresh(struct sock *sk);
-extern void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 in_flight, int flag);
+extern void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 in_flight);
 extern u32 tcp_reno_min_cwnd(const struct sock *sk);
 extern struct tcp_congestion_ops tcp_reno;
 
@@ -782,26 +781,12 @@ static __inline__ __u32 tcp_max_burst(const struct tcp_sock *tp)
 	return 3;
 }
 
-/* RFC2861 Check whether we are limited by application or congestion window
- * This is the inverse of cwnd check in tcp_tso_should_defer
- */
-static inline int tcp_is_cwnd_limited(const struct sock *sk, u32 in_flight)
+/* Returns end sequence number of the receiver's advertised window */
+static inline u32 tcp_wnd_end(const struct tcp_sock *tp)
 {
-	const struct tcp_sock *tp = tcp_sk(sk);
-	u32 left;
-
-	if (in_flight >= tp->snd_cwnd)
-		return 1;
-
-	if (!sk_can_gso(sk))
-		return 0;
-
-	left = tp->snd_cwnd - in_flight;
-	if (sysctl_tcp_tso_win_divisor)
-		return left * sysctl_tcp_tso_win_divisor < tp->snd_cwnd;
-	else
-		return left <= tcp_max_burst(tp);
+	return tp->snd_una + tp->snd_wnd;
 }
+extern int tcp_is_cwnd_limited(const struct sock *sk, u32 in_flight);
 
 static inline void tcp_minshall_update(struct tcp_sock *tp, unsigned int mss,
 				       const struct sk_buff *skb)
@@ -921,40 +906,7 @@ static const char *statename[]={
 	"Close Wait","Last ACK","Listen","Closing"
 };
 #endif
-
-static inline void tcp_set_state(struct sock *sk, int state)
-{
-	int oldstate = sk->sk_state;
-
-	switch (state) {
-	case TCP_ESTABLISHED:
-		if (oldstate != TCP_ESTABLISHED)
-			TCP_INC_STATS(TCP_MIB_CURRESTAB);
-		break;
-
-	case TCP_CLOSE:
-		if (oldstate == TCP_CLOSE_WAIT || oldstate == TCP_ESTABLISHED)
-			TCP_INC_STATS(TCP_MIB_ESTABRESETS);
-
-		sk->sk_prot->unhash(sk);
-		if (inet_csk(sk)->icsk_bind_hash &&
-		    !(sk->sk_userlocks & SOCK_BINDPORT_LOCK))
-			inet_put_port(&tcp_hashinfo, sk);
-		/* fall through */
-	default:
-		if (oldstate==TCP_ESTABLISHED)
-			TCP_DEC_STATS(TCP_MIB_CURRESTAB);
-	}
-
-	/* Change state AFTER socket is unhashed to avoid closed
-	 * socket sitting in hash tables.
-	 */
-	sk->sk_state = state;
-
-#ifdef STATE_TRACE
-	SOCK_DEBUG(sk, "TCP sk=%p, State %s -> %s\n",sk, statename[oldstate],statename[state]);
-#endif	
-}
+extern void tcp_set_state(struct sock *sk, int state);
 
 extern void tcp_done(struct sock *sk);
 
@@ -1078,7 +1030,6 @@ static inline void tcp_clear_retrans_hints_partial(struct tcp_sock *tp)
 static inline void tcp_clear_all_retrans_hints(struct tcp_sock *tp)
 {
 	tcp_clear_retrans_hints_partial(tp);
-	tp->fastpath_skb_hint = NULL;
 }
 
 /* MD5 Signature */
@@ -1153,7 +1104,8 @@ extern int			tcp_v4_calc_md5_hash(char *md5_hash,
 						     struct dst_entry *dst,
 						     struct request_sock *req,
 						     struct tcphdr *th,
-						     int protocol, int tcplen);
+						     int protocol,
+						     unsigned int tcplen);
 extern struct tcp_md5sig_key	*tcp_v4_md5_lookup(struct sock *sk,
 						   struct sock *addr_sk);
 
@@ -1193,8 +1145,8 @@ static inline void tcp_write_queue_purge(struct sock *sk)
 	struct sk_buff *skb;
 
 	while ((skb = __skb_dequeue(&sk->sk_write_queue)) != NULL)
-		sk_stream_free_skb(sk, skb);
-	sk_stream_mem_reclaim(sk);
+		sk_wmem_free_skb(sk, skb);
+	sk_mem_reclaim(sk);
 }
 
 static inline struct sk_buff *tcp_write_queue_head(struct sock *sk)
@@ -1227,6 +1179,11 @@ static inline struct sk_buff *tcp_write_queue_next(struct sock *sk, struct sk_bu
 		for (; (skb != (struct sk_buff *)&(sk)->sk_write_queue);\
 		     skb = skb->next)
 
+#define tcp_for_write_queue_from_safe(skb, tmp, sk)			\
+		for (tmp = skb->next;					\
+		     (skb != (struct sk_buff *)&(sk)->sk_write_queue);	\
+		     skb = tmp, tmp = skb->next)
+
 static inline struct sk_buff *tcp_send_head(struct sock *sk)
 {
 	return sk->sk_send_head;
@@ -1234,14 +1191,9 @@ static inline struct sk_buff *tcp_send_head(struct sock *sk)
 
 static inline void tcp_advance_send_head(struct sock *sk, struct sk_buff *skb)
 {
-	struct tcp_sock *tp = tcp_sk(sk);
-
 	sk->sk_send_head = skb->next;
 	if (sk->sk_send_head == (struct sk_buff *)&sk->sk_write_queue)
 		sk->sk_send_head = NULL;
-	/* Don't override Nagle indefinately with F-RTO */
-	if (tp->frto_counter == 2)
-		tp->frto_counter = 3;
 }
 
 static inline void tcp_check_send_head(struct sock *sk, struct sk_buff *skb_unlinked)
@@ -1265,8 +1217,12 @@ static inline void tcp_add_write_queue_tail(struct sock *sk, struct sk_buff *skb
 	__tcp_add_write_queue_tail(sk, skb);
 
 	/* Queue it, remembering where we must start sending. */
-	if (sk->sk_send_head == NULL)
+	if (sk->sk_send_head == NULL) {
 		sk->sk_send_head = skb;
+
+		if (tcp_sk(sk)->highest_sack == NULL)
+			tcp_sk(sk)->highest_sack = skb;
+	}
 }
 
 static inline void __tcp_add_write_queue_head(struct sock *sk, struct sk_buff *skb)
@@ -1307,6 +1263,45 @@ static inline int tcp_skb_is_last(const struct sock *sk,
 static inline int tcp_write_queue_empty(struct sock *sk)
 {
 	return skb_queue_empty(&sk->sk_write_queue);
+}
+
+/* Start sequence of the highest skb with SACKed bit, valid only if
+ * sacked > 0 or when the caller has ensured validity by itself.
+ */
+static inline u32 tcp_highest_sack_seq(struct tcp_sock *tp)
+{
+	if (!tp->sacked_out)
+		return tp->snd_una;
+
+	if (tp->highest_sack == NULL)
+		return tp->snd_nxt;
+
+	return TCP_SKB_CB(tp->highest_sack)->seq;
+}
+
+static inline void tcp_advance_highest_sack(struct sock *sk, struct sk_buff *skb)
+{
+	tcp_sk(sk)->highest_sack = tcp_skb_is_last(sk, skb) ? NULL :
+						tcp_write_queue_next(sk, skb);
+}
+
+static inline struct sk_buff *tcp_highest_sack(struct sock *sk)
+{
+	return tcp_sk(sk)->highest_sack;
+}
+
+static inline void tcp_highest_sack_reset(struct sock *sk)
+{
+	tcp_sk(sk)->highest_sack = tcp_write_queue_head(sk);
+}
+
+/* Called when old skb is about to be deleted (to be combined with new skb) */
+static inline void tcp_highest_sack_combine(struct sock *sk,
+					    struct sk_buff *old,
+					    struct sk_buff *new)
+{
+	if (tcp_sk(sk)->sacked_out && (old == tcp_sk(sk)->highest_sack))
+		tcp_sk(sk)->highest_sack = new;
 }
 
 /* /proc */
@@ -1359,7 +1354,8 @@ struct tcp_sock_af_ops {
 						  struct dst_entry *dst,
 						  struct request_sock *req,
 						  struct tcphdr *th,
-						  int protocol, int len);
+						  int protocol,
+						  unsigned int len);
 	int			(*md5_add) (struct sock *sk,
 					    struct sock *addr_sk,
 					    u8 *newkey,

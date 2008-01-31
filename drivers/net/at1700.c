@@ -465,8 +465,9 @@ found:
 	/* Snarf the interrupt vector now. */
 	ret = request_irq(irq, &net_interrupt, 0, DRV_NAME, dev);
 	if (ret) {
-		printk ("  AT1700 at %#3x is unusable due to a conflict on"
-				"IRQ %d.\n", ioaddr, irq);
+		printk(KERN_ERR "AT1700 at %#3x is unusable due to a "
+		       "conflict on IRQ %d.\n",
+		       ioaddr, irq);
 		goto err_mca;
 	}
 

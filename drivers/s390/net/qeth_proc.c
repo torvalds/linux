@@ -146,7 +146,7 @@ qeth_procfile_seq_show(struct seq_file *s, void *it)
 	return 0;
 }
 
-static struct seq_operations qeth_procfile_seq_ops = {
+static const struct seq_operations qeth_procfile_seq_ops = {
 	.start = qeth_procfile_seq_start,
 	.stop  = qeth_procfile_seq_stop,
 	.next  = qeth_procfile_seq_next,
@@ -264,7 +264,7 @@ qeth_perf_procfile_seq_show(struct seq_file *s, void *it)
 	return 0;
 }
 
-static struct seq_operations qeth_perf_procfile_seq_ops = {
+static const struct seq_operations qeth_perf_procfile_seq_ops = {
 	.start = qeth_procfile_seq_start,
 	.stop  = qeth_procfile_seq_stop,
 	.next  = qeth_procfile_seq_next,

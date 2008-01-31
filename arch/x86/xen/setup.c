@@ -10,6 +10,7 @@
 #include <linux/pm.h>
 
 #include <asm/elf.h>
+#include <asm/vdso.h>
 #include <asm/e820.h>
 #include <asm/setup.h>
 #include <asm/xen/hypervisor.h>
@@ -59,12 +60,10 @@ static void xen_idle(void)
 /*
  * Set the bit indicating "nosegneg" library variants should be used.
  */
-static void fiddle_vdso(void)
+static void __init fiddle_vdso(void)
 {
-	extern u32 VDSO_NOTE_MASK; /* See ../kernel/vsyscall-note.S.  */
-	extern char vsyscall_int80_start;
-	u32 *mask = (u32 *) ((unsigned long) &VDSO_NOTE_MASK - VDSO_PRELINK +
-			     &vsyscall_int80_start);
+	extern const char vdso32_default_start;
+	u32 *mask = VDSO32_SYMBOL(&vdso32_default_start, NOTE_MASK);
 	*mask |= 1 << VDSO_NOTE_NONEGSEG_BIT;
 }
 

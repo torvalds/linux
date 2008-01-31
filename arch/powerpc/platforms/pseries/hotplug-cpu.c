@@ -153,7 +153,7 @@ static int pseries_add_processor(struct device_node *np)
 	for (i = 0; i < nthreads; i++)
 		cpu_set(i, tmp);
 
-	lock_cpu_hotplug();
+	cpu_maps_update_begin();
 
 	BUG_ON(!cpus_subset(cpu_present_map, cpu_possible_map));
 
@@ -190,7 +190,7 @@ static int pseries_add_processor(struct device_node *np)
 	}
 	err = 0;
 out_unlock:
-	unlock_cpu_hotplug();
+	cpu_maps_update_done();
 	return err;
 }
 
@@ -211,7 +211,7 @@ static void pseries_remove_processor(struct device_node *np)
 
 	nthreads = len / sizeof(u32);
 
-	lock_cpu_hotplug();
+	cpu_maps_update_begin();
 	for (i = 0; i < nthreads; i++) {
 		for_each_present_cpu(cpu) {
 			if (get_hard_smp_processor_id(cpu) != intserv[i])
@@ -225,7 +225,7 @@ static void pseries_remove_processor(struct device_node *np)
 			printk(KERN_WARNING "Could not find cpu to remove "
 			       "with physical id 0x%x\n", intserv[i]);
 	}
-	unlock_cpu_hotplug();
+	cpu_maps_update_done();
 }
 
 static int pseries_smp_notifier(struct notifier_block *nb,

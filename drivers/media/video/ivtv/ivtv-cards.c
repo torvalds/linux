@@ -23,6 +23,7 @@
 #include "ivtv-i2c.h"
 
 #include <media/msp3400.h>
+#include <media/m52790.h>
 #include <media/wm8775.h>
 #include <media/cs53l32a.h>
 #include <media/cx25840.h>
@@ -38,6 +39,27 @@
 				MSP_DSP_IN_SCART, MSP_DSP_IN_SCART)
 #define MSP_MONO   MSP_INPUT(MSP_IN_MONO, MSP_IN_TUNER1, \
 				MSP_DSP_IN_SCART, MSP_DSP_IN_SCART)
+
+/* usual i2c tuner addresses to probe */
+static struct ivtv_card_tuner_i2c ivtv_i2c_std = {
+	.radio = { I2C_CLIENT_END },
+	.demod = { 0x43, I2C_CLIENT_END },
+	.tv    = { 0x61, 0x60, I2C_CLIENT_END },
+};
+
+/* as above, but with possible radio tuner */
+static struct ivtv_card_tuner_i2c ivtv_i2c_radio = {
+	.radio = { 0x60, I2C_CLIENT_END },
+	.demod = { 0x43, I2C_CLIENT_END },
+	.tv    = { 0x61, I2C_CLIENT_END },
+};
+
+/* using the tda8290+75a combo */
+static struct ivtv_card_tuner_i2c ivtv_i2c_tda8290 = {
+	.radio = { I2C_CLIENT_END },
+	.demod = { I2C_CLIENT_END },
+	.tv    = { 0x4b, I2C_CLIENT_END },
+};
 
 /********************** card configuration *******************************/
 
@@ -72,6 +94,7 @@ static const struct ivtv_card ivtv_card_pvr250 = {
 		{ IVTV_CARD_INPUT_LINE_IN2,   MSP_SCART3 },
 	},
 	.radio_input = { IVTV_CARD_INPUT_AUD_TUNER, MSP_SCART2 },
+	.i2c = &ivtv_i2c_std,
 };
 
 /* ------------------------------------------------------------------------- */
@@ -126,6 +149,7 @@ static const struct ivtv_card ivtv_card_pvr350 = {
 		{ IVTV_CARD_INPUT_LINE_IN2,   MSP_SCART3 },
 	},
 	.radio_input = { IVTV_CARD_INPUT_AUD_TUNER, MSP_SCART2 },
+	.i2c = &ivtv_i2c_std,
 };
 
 /* PVR-350 V1 boards have a different audio tuner input and use a
@@ -157,6 +181,7 @@ static const struct ivtv_card ivtv_card_pvr350_v1 = {
 		{ IVTV_CARD_INPUT_LINE_IN2,   MSP_SCART3 },
 	},
 	.radio_input = { IVTV_CARD_INPUT_AUD_TUNER, MSP_SCART2 },
+	.i2c = &ivtv_i2c_std,
 };
 
 /* ------------------------------------------------------------------------- */
@@ -192,6 +217,7 @@ static const struct ivtv_card ivtv_card_pvr150 = {
 			 CX25840_AUDIO_SERIAL, WM8775_AIN4 },
 	/* apparently needed for the IR blaster */
 	.gpio_init = { .direction = 0x1f01, .initial_value = 0x26f3 },
+	.i2c = &ivtv_i2c_std,
 };
 
 /* ------------------------------------------------------------------------- */
@@ -234,6 +260,7 @@ static const struct ivtv_card ivtv_card_m179 = {
 		{ .std = V4L2_STD_ALL, .tuner = TUNER_PHILIPS_NTSC },
 	},
 	.pci_list = ivtv_pci_m179,
+	.i2c = &ivtv_i2c_std,
 };
 
 /* ------------------------------------------------------------------------- */
@@ -275,6 +302,7 @@ static const struct ivtv_card ivtv_card_mpg600 = {
 		{ .std = V4L2_STD_ALL, .tuner = TUNER_PHILIPS_FQ1286 },
 	},
 	.pci_list = ivtv_pci_mpg600,
+	.i2c = &ivtv_i2c_std,
 };
 
 /* ------------------------------------------------------------------------- */
@@ -315,6 +343,7 @@ static const struct ivtv_card ivtv_card_mpg160 = {
 		{ .std = V4L2_STD_ALL, .tuner = TUNER_PHILIPS_FQ1286 },
 	},
 	.pci_list = ivtv_pci_mpg160,
+	.i2c = &ivtv_i2c_std,
 };
 
 /* ------------------------------------------------------------------------- */
@@ -350,6 +379,7 @@ static const struct ivtv_card ivtv_card_pg600 = {
 		{ .std = V4L2_STD_ALL, .tuner = TUNER_PHILIPS_FQ1286 },
 	},
 	.pci_list = ivtv_pci_pg600,
+	.i2c = &ivtv_i2c_std,
 };
 
 /* ------------------------------------------------------------------------- */
@@ -393,6 +423,7 @@ static const struct ivtv_card ivtv_card_avc2410 = {
 		{ .std = V4L2_STD_ALL, .tuner = TUNER_PHILIPS_FM1236_MK3 },
 	},
 	.pci_list = ivtv_pci_avc2410,
+	.i2c = &ivtv_i2c_std,
 };
 
 /* ------------------------------------------------------------------------- */
@@ -463,6 +494,7 @@ static const struct ivtv_card ivtv_card_tg5000tv = {
 		{ .std = V4L2_STD_525_60, .tuner = TUNER_PHILIPS_FQ1286 },
 	},
 	.pci_list = ivtv_pci_tg5000tv,
+	.i2c = &ivtv_i2c_std,
 };
 
 /* ------------------------------------------------------------------------- */
@@ -493,6 +525,7 @@ static const struct ivtv_card ivtv_card_va2000 = {
 		{ .std = V4L2_STD_525_60, .tuner = TUNER_PHILIPS_FQ1286 },
 	},
 	.pci_list = ivtv_pci_va2000,
+	.i2c = &ivtv_i2c_std,
 };
 
 /* ------------------------------------------------------------------------- */
@@ -537,6 +570,7 @@ static const struct ivtv_card ivtv_card_cx23416gyc = {
 		{ .std = V4L2_STD_ALL, .tuner = TUNER_PHILIPS_FM1236_MK3 },
 	},
 	.pci_list = ivtv_pci_cx23416gyc,
+	.i2c = &ivtv_i2c_std,
 };
 
 static const struct ivtv_card ivtv_card_cx23416gyc_nogr = {
@@ -567,6 +601,7 @@ static const struct ivtv_card ivtv_card_cx23416gyc_nogr = {
 		{ .std = V4L2_STD_625_50, .tuner = TUNER_PHILIPS_FM1216ME_MK3 },
 		{ .std = V4L2_STD_ALL, .tuner = TUNER_PHILIPS_FM1236_MK3 },
 	},
+	.i2c = &ivtv_i2c_std,
 };
 
 static const struct ivtv_card ivtv_card_cx23416gyc_nogrycs = {
@@ -596,6 +631,7 @@ static const struct ivtv_card ivtv_card_cx23416gyc_nogrycs = {
 		{ .std = V4L2_STD_625_50, .tuner = TUNER_PHILIPS_FM1216ME_MK3 },
 		{ .std = V4L2_STD_ALL, .tuner = TUNER_PHILIPS_FM1236_MK3 },
 	},
+	.i2c = &ivtv_i2c_std,
 };
 
 /* ------------------------------------------------------------------------- */
@@ -635,6 +671,7 @@ static const struct ivtv_card ivtv_card_gv_mvprx = {
 		{ .std = V4L2_STD_525_60, .tuner = TUNER_PANASONIC_VP27 },
 	},
 	.pci_list = ivtv_pci_gv_mvprx,
+	.i2c = &ivtv_i2c_std,
 };
 
 /* ------------------------------------------------------------------------- */
@@ -671,6 +708,7 @@ static const struct ivtv_card ivtv_card_gv_mvprx2e = {
 		{ .std = V4L2_STD_525_60, .tuner = TUNER_PANASONIC_VP27 },
 	},
 	.pci_list = ivtv_pci_gv_mvprx2e,
+	.i2c = &ivtv_i2c_std,
 };
 
 /* ------------------------------------------------------------------------- */
@@ -705,6 +743,7 @@ static const struct ivtv_card ivtv_card_gotview_pci_dvd = {
 		{ .std = V4L2_STD_625_50, .tuner = TUNER_PHILIPS_FM1216ME_MK3 },
 	},
 	.pci_list = ivtv_pci_gotview_pci_dvd,
+	.i2c = &ivtv_i2c_std,
 };
 
 /* ------------------------------------------------------------------------- */
@@ -743,6 +782,7 @@ static const struct ivtv_card ivtv_card_gotview_pci_dvd2 = {
 		{ .std = V4L2_STD_625_50, .tuner = TUNER_PHILIPS_FM1216ME_MK3 },
 	},
 	.pci_list = ivtv_pci_gotview_pci_dvd2,
+	.i2c = &ivtv_i2c_std,
 };
 
 /* ------------------------------------------------------------------------- */
@@ -778,6 +818,7 @@ static const struct ivtv_card ivtv_card_yuan_mpc622 = {
 		{ .std = V4L2_STD_ALL, .tuner = TUNER_PHILIPS_TDA8290 },
 	},
 	.pci_list = ivtv_pci_yuan_mpc622,
+	.i2c = &ivtv_i2c_tda8290,
 };
 
 /* ------------------------------------------------------------------------- */
@@ -819,6 +860,7 @@ static const struct ivtv_card ivtv_card_dctmvtvp1 = {
 		{ .std = V4L2_STD_525_60, .tuner = TUNER_PHILIPS_FQ1286 },
 	},
 	.pci_list = ivtv_pci_dctmvtvp1,
+	.i2c = &ivtv_i2c_std,
 };
 
 /* ------------------------------------------------------------------------- */
@@ -838,7 +880,7 @@ static const struct ivtv_card ivtv_card_pg600v2 = {
 	.hw_video = IVTV_HW_CX25840,
 	.hw_audio = IVTV_HW_CX25840,
 	.hw_audio_ctrl = IVTV_HW_CX25840,
-	.hw_all = IVTV_HW_CX25840 | IVTV_HW_TUNER,
+	.hw_all = IVTV_HW_CX25840,
 	.video_inputs = {
 		{ IVTV_CARD_INPUT_SVIDEO1,    0,
 		  CX25840_SVIDEO_LUMA3 | CX25840_SVIDEO_CHROMA4 },
@@ -847,10 +889,8 @@ static const struct ivtv_card ivtv_card_pg600v2 = {
 	.audio_inputs = {
 		{ IVTV_CARD_INPUT_LINE_IN1,   CX25840_AUDIO_SERIAL },
 	},
-	.tuners = {
-		{ .std = V4L2_STD_ALL, .tuner = TUNER_XCEIVE_XC3028 },
-	},
 	.pci_list = ivtv_pci_pg600v2,
+	.i2c = &ivtv_i2c_std,
 };
 
 /* ------------------------------------------------------------------------- */
@@ -871,17 +911,22 @@ static const struct ivtv_card ivtv_card_club3d = {
 	.hw_audio_ctrl = IVTV_HW_CX25840,
 	.hw_all = IVTV_HW_CX25840 | IVTV_HW_TUNER,
 	.video_inputs = {
-		{ IVTV_CARD_INPUT_SVIDEO1,    0,
+		{ IVTV_CARD_INPUT_VID_TUNER,  0, CX25840_COMPOSITE2 },
+		{ IVTV_CARD_INPUT_SVIDEO1,    1,
 		  CX25840_SVIDEO_LUMA3 | CX25840_SVIDEO_CHROMA4 },
-		{ IVTV_CARD_INPUT_COMPOSITE1, 0, CX25840_COMPOSITE3 },
+		{ IVTV_CARD_INPUT_COMPOSITE1, 1, CX25840_COMPOSITE3 },
 	},
 	.audio_inputs = {
+		{ IVTV_CARD_INPUT_AUD_TUNER,  CX25840_AUDIO5       },
 		{ IVTV_CARD_INPUT_LINE_IN1,   CX25840_AUDIO_SERIAL },
 	},
+	.radio_input = { IVTV_CARD_INPUT_AUD_TUNER, CX25840_AUDIO5 },
+	.gpio_init = { .direction = 0x1000, .initial_value = 0x1000 }, /* tuner reset */
 	.tuners = {
-		{ .std = V4L2_STD_ALL, .tuner = TUNER_XCEIVE_XC3028 },
+		{ .std = V4L2_STD_ALL, .tuner = TUNER_XC2028 },
 	},
 	.pci_list = ivtv_pci_club3d,
+	.i2c = &ivtv_i2c_std,
 };
 
 /* ------------------------------------------------------------------------- */
@@ -900,7 +945,7 @@ static const struct ivtv_card ivtv_card_avertv_mce116 = {
 	.hw_video = IVTV_HW_CX25840,
 	.hw_audio = IVTV_HW_CX25840,
 	.hw_audio_ctrl = IVTV_HW_CX25840,
-	.hw_all = IVTV_HW_CX25840 | IVTV_HW_TUNER | IVTV_HW_WM8739,
+	.hw_all = IVTV_HW_CX25840 | IVTV_HW_WM8739,
 	.video_inputs = {
 		{ IVTV_CARD_INPUT_SVIDEO1,    0, CX25840_SVIDEO3    },
 		{ IVTV_CARD_INPUT_COMPOSITE1, 0, CX25840_COMPOSITE1 },
@@ -909,10 +954,115 @@ static const struct ivtv_card ivtv_card_avertv_mce116 = {
 		{ IVTV_CARD_INPUT_LINE_IN1,   CX25840_AUDIO_SERIAL, 1 },
 	},
 	.gpio_init = { .direction = 0xe000, .initial_value = 0x4000 }, /* enable line-in */
-	.tuners = {
-		{ .std = V4L2_STD_ALL, .tuner = TUNER_XCEIVE_XC3028 },
-	},
 	.pci_list = ivtv_pci_avertv_mce116,
+	.i2c = &ivtv_i2c_std,
+};
+
+/* ------------------------------------------------------------------------- */
+
+/* AVerMedia PVR-150 Plus (M113) card */
+
+static const struct ivtv_card_pci_info ivtv_pci_aver_pvr150[] = {
+	{ PCI_DEVICE_ID_IVTV16, IVTV_PCI_ID_AVERMEDIA, 0xc035 },
+	{ 0, 0, 0 }
+};
+
+static const struct ivtv_card ivtv_card_aver_pvr150 = {
+	.type = IVTV_CARD_AVER_PVR150PLUS,
+	.name = "AVerMedia PVR-150 Plus",
+	.v4l2_capabilities = IVTV_CAP_ENCODER,
+	.hw_video = IVTV_HW_CX25840,
+	.hw_audio = IVTV_HW_CX25840,
+	.hw_audio_ctrl = IVTV_HW_CX25840,
+	.hw_muxer = IVTV_HW_GPIO,
+	.hw_all = IVTV_HW_CX25840 | IVTV_HW_TUNER,
+	.video_inputs = {
+		{ IVTV_CARD_INPUT_VID_TUNER,  0, CX25840_COMPOSITE2 },
+		{ IVTV_CARD_INPUT_SVIDEO1,    1,
+		  CX25840_SVIDEO_LUMA3 | CX25840_SVIDEO_CHROMA4 },
+		{ IVTV_CARD_INPUT_COMPOSITE1, 1, CX25840_COMPOSITE1 },
+	},
+	.audio_inputs = {
+		{ IVTV_CARD_INPUT_AUD_TUNER,  CX25840_AUDIO5,       0 },
+		{ IVTV_CARD_INPUT_LINE_IN1,   CX25840_AUDIO_SERIAL, 1 },
+	},
+	.radio_input = { IVTV_CARD_INPUT_AUD_TUNER, CX25840_AUDIO_SERIAL, 2 },
+	.gpio_init = { .direction = 0x0800, .initial_value = 0 },
+	.gpio_audio_input  = { .mask = 0x0800, .tuner = 0, .linein = 0, .radio = 0x0800 },
+	.tuners = {
+		/* This card has a Partsnic PTI-5NF05 tuner */
+		{ .std = V4L2_STD_525_60, .tuner = TUNER_TCL_2002N },
+	},
+	.pci_list = ivtv_pci_aver_pvr150,
+	.i2c = &ivtv_i2c_radio,
+};
+
+/* ------------------------------------------------------------------------- */
+
+/* AVerMedia EZMaker PCI Deluxe card */
+
+static const struct ivtv_card_pci_info ivtv_pci_aver_ezmaker[] = {
+	{ PCI_DEVICE_ID_IVTV16, IVTV_PCI_ID_AVERMEDIA, 0xc03f },
+	{ 0, 0, 0 }
+};
+
+static const struct ivtv_card ivtv_card_aver_ezmaker = {
+	.type = IVTV_CARD_AVER_EZMAKER,
+	.name = "AVerMedia EZMaker PCI Deluxe",
+	.v4l2_capabilities = IVTV_CAP_ENCODER,
+	.hw_video = IVTV_HW_CX25840,
+	.hw_audio = IVTV_HW_CX25840,
+	.hw_audio_ctrl = IVTV_HW_CX25840,
+	.hw_all = IVTV_HW_CX25840 | IVTV_HW_WM8739,
+	.video_inputs = {
+		{ IVTV_CARD_INPUT_SVIDEO1,    0, CX25840_SVIDEO3 },
+		{ IVTV_CARD_INPUT_COMPOSITE1, 0, CX25840_COMPOSITE1 },
+	},
+	.audio_inputs = {
+		{ IVTV_CARD_INPUT_LINE_IN1,   CX25840_AUDIO_SERIAL, 0 },
+	},
+	.gpio_init = { .direction = 0x4000, .initial_value = 0x4000 },
+	/* Does not have a tuner */
+	.pci_list = ivtv_pci_aver_ezmaker,
+};
+
+/* ------------------------------------------------------------------------- */
+
+/* ASUS Falcon2 */
+
+static const struct ivtv_card_pci_info ivtv_pci_asus_falcon2[] = {
+	{ PCI_DEVICE_ID_IVTV16, IVTV_PCI_ID_ASUSTEK, 0x4b66 },
+	{ PCI_DEVICE_ID_IVTV16, IVTV_PCI_ID_ASUSTEK, 0x462e },
+	{ PCI_DEVICE_ID_IVTV16, IVTV_PCI_ID_ASUSTEK, 0x4b2e },
+	{ 0, 0, 0 }
+};
+
+static const struct ivtv_card ivtv_card_asus_falcon2 = {
+	.type = IVTV_CARD_ASUS_FALCON2,
+	.name = "ASUS Falcon2",
+	.v4l2_capabilities = IVTV_CAP_ENCODER,
+	.hw_video = IVTV_HW_CX25840,
+	.hw_audio = IVTV_HW_CX25840,
+	.hw_audio_ctrl = IVTV_HW_CX25840,
+	.hw_muxer = IVTV_HW_M52790,
+	.hw_all = IVTV_HW_CX25840 | IVTV_HW_M52790 | IVTV_HW_TUNER,
+	.video_inputs = {
+		{ IVTV_CARD_INPUT_VID_TUNER,  0, CX25840_COMPOSITE2 },
+		{ IVTV_CARD_INPUT_SVIDEO1,    1, CX25840_SVIDEO3    },
+		{ IVTV_CARD_INPUT_COMPOSITE1, 2, CX25840_COMPOSITE2 },
+	},
+	.audio_inputs = {
+		{ IVTV_CARD_INPUT_AUD_TUNER, CX25840_AUDIO5, M52790_IN_TUNER },
+		{ IVTV_CARD_INPUT_LINE_IN1, CX25840_AUDIO_SERIAL,
+			M52790_IN_V2 | M52790_SW1_YCMIX | M52790_SW2_YCMIX },
+		{ IVTV_CARD_INPUT_LINE_IN1, CX25840_AUDIO_SERIAL, M52790_IN_V2 },
+	},
+	.radio_input = { IVTV_CARD_INPUT_AUD_TUNER, CX25840_AUDIO_SERIAL, M52790_IN_TUNER },
+	.tuners = {
+		{ .std = V4L2_STD_525_60, .tuner = TUNER_PHILIPS_FM1236_MK3 },
+	},
+	.pci_list = ivtv_pci_asus_falcon2,
+	.i2c = &ivtv_i2c_std,
 };
 
 static const struct ivtv_card *ivtv_card_list[] = {
@@ -937,6 +1087,9 @@ static const struct ivtv_card *ivtv_card_list[] = {
 	&ivtv_card_pg600v2,
 	&ivtv_card_club3d,
 	&ivtv_card_avertv_mce116,
+	&ivtv_card_asus_falcon2,
+	&ivtv_card_aver_pvr150,
+	&ivtv_card_aver_ezmaker,
 
 	/* Variations of standard cards but with the same PCI IDs.
 	   These cards must come last in this list. */

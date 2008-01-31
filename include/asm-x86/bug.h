@@ -33,9 +33,6 @@
 	} while(0)
 #endif
 
-void out_of_line_bug(void);
-#else /* CONFIG_BUG */
-static inline void out_of_line_bug(void) { }
 #endif /* !CONFIG_BUG */
 
 #include <asm-generic/bug.h>

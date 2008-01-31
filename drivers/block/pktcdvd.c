@@ -110,17 +110,18 @@ static struct pktcdvd_kobj* pkt_kobj_create(struct pktcdvd_device *pd,
 					struct kobj_type* ktype)
 {
 	struct pktcdvd_kobj *p;
+	int error;
+
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
 		return NULL;
-	kobject_set_name(&p->kobj, "%s", name);
-	p->kobj.parent = parent;
-	p->kobj.ktype = ktype;
 	p->pd = pd;
-	if (kobject_register(&p->kobj) != 0) {
+	error = kobject_init_and_add(&p->kobj, ktype, parent, "%s", name);
+	if (error) {
 		kobject_put(&p->kobj);
 		return NULL;
 	}
+	kobject_uevent(&p->kobj, KOBJ_ADD);
 	return p;
 }
 /*
@@ -129,7 +130,7 @@ static struct pktcdvd_kobj* pkt_kobj_create(struct pktcdvd_device *pd,
 static void pkt_kobj_remove(struct pktcdvd_kobj *p)
 {
 	if (p)
-		kobject_unregister(&p->kobj);
+		kobject_put(&p->kobj);
 }
 /*
  * default release function for pktcdvd kernel objects.
@@ -301,18 +302,16 @@ static struct kobj_type kobj_pkt_type_wqueue = {
 static void pkt_sysfs_dev_new(struct pktcdvd_device *pd)
 {
 	if (class_pktcdvd) {
-		pd->clsdev = class_device_create(class_pktcdvd,
-					NULL, pd->pkt_dev,
-					NULL, "%s", pd->name);
-		if (IS_ERR(pd->clsdev))
-			pd->clsdev = NULL;
+		pd->dev = device_create(class_pktcdvd, NULL, pd->pkt_dev, "%s", pd->name);
+		if (IS_ERR(pd->dev))
+			pd->dev = NULL;
 	}
-	if (pd->clsdev) {
+	if (pd->dev) {
 		pd->kobj_stat = pkt_kobj_create(pd, "stat",
-					&pd->clsdev->kobj,
+					&pd->dev->kobj,
 					&kobj_pkt_type_stat);
 		pd->kobj_wqueue = pkt_kobj_create(pd, "write_queue",
-					&pd->clsdev->kobj,
+					&pd->dev->kobj,
 					&kobj_pkt_type_wqueue);
 	}
 }
@@ -322,7 +321,7 @@ static void pkt_sysfs_dev_remove(struct pktcdvd_device *pd)
 	pkt_kobj_remove(pd->kobj_stat);
 	pkt_kobj_remove(pd->kobj_wqueue);
 	if (class_pktcdvd)
-		class_device_destroy(class_pktcdvd, pd->pkt_dev);
+		device_destroy(class_pktcdvd, pd->pkt_dev);
 }
 
 

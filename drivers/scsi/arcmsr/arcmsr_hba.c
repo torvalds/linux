@@ -122,7 +122,6 @@ static struct scsi_host_template arcmsr_scsi_host_template = {
 	.max_sectors    	= ARCMSR_MAX_XFER_SECTORS,
 	.cmd_per_lun		= ARCMSR_MAX_CMD_PERLUN,
 	.use_clustering		= ENABLE_CLUSTERING,
-	.use_sg_chaining	= ENABLE_SG_CHAINING,
 	.shost_attrs		= arcmsr_host_attrs,
 };
 #ifdef CONFIG_SCSI_ARCMSR_AER
@@ -634,9 +633,9 @@ static void arcmsr_report_sense_info(struct CommandControlBlock *ccb)
 	pcmd->result = DID_OK << 16;
 	if (sensebuffer) {
 		int sense_data_length =
-			sizeof(struct SENSE_DATA) < sizeof(pcmd->sense_buffer)
-			? sizeof(struct SENSE_DATA) : sizeof(pcmd->sense_buffer);
-		memset(sensebuffer, 0, sizeof(pcmd->sense_buffer));
+			sizeof(struct SENSE_DATA) < SCSI_SENSE_BUFFERSIZE
+			? sizeof(struct SENSE_DATA) : SCSI_SENSE_BUFFERSIZE;
+		memset(sensebuffer, 0, SCSI_SENSE_BUFFERSIZE);
 		memcpy(sensebuffer, ccb->arcmsr_cdb.SenseData, sense_data_length);
 		sensebuffer->ErrorCode = SCSI_SENSE_CURRENT_ERRORS;
 		sensebuffer->Valid = 1;

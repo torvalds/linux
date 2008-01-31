@@ -171,22 +171,6 @@ static int gp8psk_power_ctrl(struct dvb_usb_device *d, int onoff)
 	return 0;
 }
 
-int gp8psk_bcm4500_reload(struct dvb_usb_device *d)
-{
-	u8 buf;
-	int gp_product_id = le16_to_cpu(d->udev->descriptor.idProduct);
-	/* Turn off 8psk power */
-	if (gp8psk_usb_in_op(d, BOOT_8PSK, 0, 0, &buf, 1))
-		return -EINVAL;
-	/* Turn On 8psk power */
-	if (gp8psk_usb_in_op(d, BOOT_8PSK, 1, 0, &buf, 1))
-		return -EINVAL;
-	/* load BCM4500 firmware */
-	if (gp_product_id == USB_PID_GENPIX_8PSK_REV_1_WARM)
-		if (gp8psk_load_bcm4500fw(d))
-			return EINVAL;
-	return 0;
-}
 
 static int gp8psk_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 {

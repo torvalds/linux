@@ -1,39 +1,37 @@
 #
-# x86-64 vDSO.
+# Building vDSO images for x86.
 #
 
+VDSO64-$(CONFIG_X86_64)		:= y
+VDSO32-$(CONFIG_X86_32)		:= y
+VDSO32-$(CONFIG_COMPAT)		:= y
+
+vdso-install-$(VDSO64-y)	+= vdso.so
+vdso-install-$(VDSO32-y)	+= $(vdso32-y:=.so)
+
+
 # files to link into the vdso
-# vdso-start.o has to be first
-vobjs-y := vdso-start.o vdso-note.o vclock_gettime.o vgetcpu.o vvar.o
+vobjs-y := vdso-note.o vclock_gettime.o vgetcpu.o vvar.o
 
 # files to link into kernel
-obj-y := vma.o vdso.o vdso-syms.o
+obj-$(VDSO64-y)			+= vma.o vdso.o
+obj-$(VDSO32-y)			+= vdso32.o vdso32-setup.o
 
 vobjs := $(foreach F,$(vobjs-y),$(obj)/$F)
 
 $(obj)/vdso.o: $(obj)/vdso.so
 
-targets += vdso.so vdso.so.dbg vdso.lds $(vobjs-y) vdso-syms.o
-
-# The DSO images are built using a special linker script.
-quiet_cmd_syscall = SYSCALL $@
-      cmd_syscall = $(CC) -m elf_x86_64 -nostdlib $(SYSCFLAGS_$(@F)) \
-		          -Wl,-T,$(filter-out FORCE,$^) -o $@
+targets += vdso.so vdso.so.dbg vdso.lds $(vobjs-y)
 
 export CPPFLAGS_vdso.lds += -P -C
 
-vdso-flags = -fPIC -shared -Wl,-soname=linux-vdso.so.1 \
-		 $(call ld-option, -Wl$(comma)--hash-style=sysv) \
-		-Wl,-z,max-page-size=4096 -Wl,-z,common-page-size=4096
-SYSCFLAGS_vdso.so = $(vdso-flags)
-SYSCFLAGS_vdso.so.dbg = $(vdso-flags)
+VDSO_LDFLAGS_vdso.lds = -m elf_x86_64 -Wl,-soname=linux-vdso.so.1 \
+		      	-Wl,-z,max-page-size=4096 -Wl,-z,common-page-size=4096
 
 $(obj)/vdso.o: $(src)/vdso.S $(obj)/vdso.so
 
-$(obj)/vdso.so: $(src)/vdso.lds $(vobjs) FORCE
-
 $(obj)/vdso.so.dbg: $(src)/vdso.lds $(vobjs) FORCE
-	$(call if_changed,syscall)
+	$(call if_changed,vdso)
 
 $(obj)/%.so: OBJCOPYFLAGS := -S
 $(obj)/%.so: $(obj)/%.so.dbg FORCE
@@ -41,24 +39,96 @@ $(obj)/%.so: $(obj)/%.so.dbg FORCE
 
 CFL := $(PROFILING) -mcmodel=small -fPIC -g0 -O2 -fasynchronous-unwind-tables -m64
 
-$(obj)/vclock_gettime.o: KBUILD_CFLAGS = $(CFL)
-$(obj)/vgetcpu.o: KBUILD_CFLAGS = $(CFL)
+$(vobjs): KBUILD_CFLAGS = $(CFL)
 
-# We also create a special relocatable object that should mirror the symbol
-# table and layout of the linked DSO.  With ld -R we can then refer to
-# these symbols in the kernel code rather than hand-coded addresses.
-extra-y += vdso-syms.o
-$(obj)/built-in.o: $(obj)/vdso-syms.o
-$(obj)/built-in.o: ld_flags += -R $(obj)/vdso-syms.o
+targets += vdso-syms.lds
+obj-$(VDSO64-y)			+= vdso-syms.lds
 
-SYSCFLAGS_vdso-syms.o = -r -d
-$(obj)/vdso-syms.o: $(src)/vdso.lds $(vobjs) FORCE
-	$(call if_changed,syscall)
+#
+# Match symbols in the DSO that look like VDSO*; produce a file of constants.
+#
+sed-vdsosym := -e 's/^00*/0/' \
+	-e 's/^\([0-9a-fA-F]*\) . \(VDSO[a-zA-Z0-9_]*\)$$/\2 = 0x\1;/p'
+quiet_cmd_vdsosym = VDSOSYM $@
+      cmd_vdsosym = $(NM) $< | sed -n $(sed-vdsosym) | LC_ALL=C sort > $@
 
+$(obj)/%-syms.lds: $(obj)/%.so.dbg FORCE
+	$(call if_changed,vdsosym)
+
+#
+# Build multiple 32-bit vDSO images to choose from at boot time.
+#
+obj-$(VDSO32-y)			+= vdso32-syms.lds
+vdso32.so-$(CONFIG_X86_32)	+= int80
+vdso32.so-$(CONFIG_COMPAT)	+= syscall
+vdso32.so-$(VDSO32-y)		+= sysenter
+
+CPPFLAGS_vdso32.lds = $(CPPFLAGS_vdso.lds)
+VDSO_LDFLAGS_vdso32.lds = -m elf_i386 -Wl,-soname=linux-gate.so.1
+
+# This makes sure the $(obj) subdirectory exists even though vdso32/
+# is not a kbuild sub-make subdirectory.
+override obj-dirs = $(dir $(obj)) $(obj)/vdso32/
+
+targets += vdso32/vdso32.lds
+targets += $(vdso32.so-y:%=vdso32-%.so.dbg) $(vdso32.so-y:%=vdso32-%.so)
+targets += vdso32/note.o $(vdso32.so-y:%=vdso32/%.o)
+
+extra-y	+= $(vdso32.so-y:%=vdso32-%.so)
+
+$(obj)/vdso32.o: $(vdso32.so-y:%=$(obj)/vdso32-%.so)
+
+KBUILD_AFLAGS_32 := $(filter-out -m64,$(KBUILD_AFLAGS))
+$(vdso32.so-y:%=$(obj)/vdso32-%.so.dbg): KBUILD_AFLAGS = $(KBUILD_AFLAGS_32)
+$(vdso32.so-y:%=$(obj)/vdso32-%.so.dbg): asflags-$(CONFIG_X86_64) += -m32
+
+$(vdso32.so-y:%=$(obj)/vdso32-%.so.dbg): $(obj)/vdso32-%.so.dbg: FORCE \
+					 $(obj)/vdso32/vdso32.lds \
+					 $(obj)/vdso32/note.o \
+					 $(obj)/vdso32/%.o
+	$(call if_changed,vdso)
+
+# Make vdso32-*-syms.lds from each image, and then make sure they match.
+# The only difference should be that some do not define VDSO32_SYSENTER_RETURN.
+
+targets += vdso32-syms.lds $(vdso32.so-y:%=vdso32-%-syms.lds)
+
+quiet_cmd_vdso32sym = VDSOSYM $@
+define cmd_vdso32sym
+	if LC_ALL=C sort -u $(filter-out FORCE,$^) > $(@D)/.tmp_$(@F) && \
+	   $(foreach H,$(filter-out FORCE,$^),\
+		     if grep -q VDSO32_SYSENTER_RETURN $H; \
+		     then diff -u $(@D)/.tmp_$(@F) $H; \
+		     else sed /VDSO32_SYSENTER_RETURN/d $(@D)/.tmp_$(@F) | \
+			  diff -u - $H; fi &&) : ;\
+	then mv -f $(@D)/.tmp_$(@F) $@; \
+	else rm -f $(@D)/.tmp_$(@F); exit 1; \
+	fi
+endef
+
+$(obj)/vdso32-syms.lds: $(vdso32.so-y:%=$(obj)/vdso32-%-syms.lds) FORCE
+	$(call if_changed,vdso32sym)
+
+#
+# The DSO images are built using a special linker script.
+#
+quiet_cmd_vdso = VDSO    $@
+      cmd_vdso = $(CC) -nostdlib -o $@ \
+		       $(VDSO_LDFLAGS) $(VDSO_LDFLAGS_$(filter %.lds,$(^F))) \
+		       -Wl,-T,$(filter %.lds,$^) $(filter %.o,$^)
+
+VDSO_LDFLAGS = -fPIC -shared $(call ld-option, -Wl$(comma)--hash-style=sysv)
+
+#
+# Install the unstripped copy of vdso*.so listed in $(vdso-install-y).
+#
 quiet_cmd_vdso_install = INSTALL $@
       cmd_vdso_install = cp $(obj)/$@.dbg $(MODLIB)/vdso/$@
-vdso.so:
+$(vdso-install-y): %.so: $(obj)/%.so.dbg FORCE
 	@mkdir -p $(MODLIB)/vdso
 	$(call cmd,vdso_install)
 
-vdso_install: vdso.so
+PHONY += vdso_install $(vdso-install-y)
+vdso_install: $(vdso-install-y)
+
+clean-files := vdso32-syscall* vdso32-sysenter* vdso32-int80*

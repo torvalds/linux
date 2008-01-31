@@ -173,6 +173,7 @@ static void sas_smp_request(struct request_queue *q, struct Scsi_Host *shost,
 
 		handler = to_sas_internal(shost->transportt)->f->smp_handler;
 		ret = handler(shost, rphy, req);
+		req->errors = ret;
 
 		spin_lock_irq(q->queue_lock);
 
@@ -323,7 +324,7 @@ static int do_sas_phy_delete(struct device *dev, void *data)
 }
 
 /**
- * sas_remove_children  --  tear down a devices SAS data structures
+ * sas_remove_children  -  tear down a devices SAS data structures
  * @dev:	device belonging to the sas object
  *
  * Removes all SAS PHYs and remote PHYs for a given object
@@ -336,7 +337,7 @@ void sas_remove_children(struct device *dev)
 EXPORT_SYMBOL(sas_remove_children);
 
 /**
- * sas_remove_host  --  tear down a Scsi_Host's SAS data structures
+ * sas_remove_host  -  tear down a Scsi_Host's SAS data structures
  * @shost:	Scsi Host that is torn down
  *
  * Removes all SAS PHYs and remote PHYs for a given Scsi_Host.
@@ -577,7 +578,7 @@ static void sas_phy_release(struct device *dev)
 }
 
 /**
- * sas_phy_alloc  --  allocates and initialize a SAS PHY structure
+ * sas_phy_alloc  -  allocates and initialize a SAS PHY structure
  * @parent:	Parent device
  * @number:	Phy index
  *
@@ -618,7 +619,7 @@ struct sas_phy *sas_phy_alloc(struct device *parent, int number)
 EXPORT_SYMBOL(sas_phy_alloc);
 
 /**
- * sas_phy_add  --  add a SAS PHY to the device hierarchy
+ * sas_phy_add  -  add a SAS PHY to the device hierarchy
  * @phy:	The PHY to be added
  *
  * Publishes a SAS PHY to the rest of the system.
@@ -638,7 +639,7 @@ int sas_phy_add(struct sas_phy *phy)
 EXPORT_SYMBOL(sas_phy_add);
 
 /**
- * sas_phy_free  --  free a SAS PHY
+ * sas_phy_free  -  free a SAS PHY
  * @phy:	SAS PHY to free
  *
  * Frees the specified SAS PHY.
@@ -655,7 +656,7 @@ void sas_phy_free(struct sas_phy *phy)
 EXPORT_SYMBOL(sas_phy_free);
 
 /**
- * sas_phy_delete  --  remove SAS PHY
+ * sas_phy_delete  -  remove SAS PHY
  * @phy:	SAS PHY to remove
  *
  * Removes the specified SAS PHY.  If the SAS PHY has an
@@ -677,7 +678,7 @@ sas_phy_delete(struct sas_phy *phy)
 EXPORT_SYMBOL(sas_phy_delete);
 
 /**
- * scsi_is_sas_phy  --  check if a struct device represents a SAS PHY
+ * scsi_is_sas_phy  -  check if a struct device represents a SAS PHY
  * @dev:	device to check
  *
  * Returns:
@@ -843,7 +844,6 @@ EXPORT_SYMBOL(sas_port_alloc_num);
 
 /**
  * sas_port_add - add a SAS port to the device hierarchy
- *
  * @port:	port to be added
  *
  * publishes a port to the rest of the system
@@ -868,7 +868,7 @@ int sas_port_add(struct sas_port *port)
 EXPORT_SYMBOL(sas_port_add);
 
 /**
- * sas_port_free  --  free a SAS PORT
+ * sas_port_free  -  free a SAS PORT
  * @port:	SAS PORT to free
  *
  * Frees the specified SAS PORT.
@@ -885,7 +885,7 @@ void sas_port_free(struct sas_port *port)
 EXPORT_SYMBOL(sas_port_free);
 
 /**
- * sas_port_delete  --  remove SAS PORT
+ * sas_port_delete  -  remove SAS PORT
  * @port:	SAS PORT to remove
  *
  * Removes the specified SAS PORT.  If the SAS PORT has an
@@ -924,7 +924,7 @@ void sas_port_delete(struct sas_port *port)
 EXPORT_SYMBOL(sas_port_delete);
 
 /**
- * scsi_is_sas_port --  check if a struct device represents a SAS port
+ * scsi_is_sas_port -  check if a struct device represents a SAS port
  * @dev:	device to check
  *
  * Returns:
@@ -1309,6 +1309,7 @@ static void sas_rphy_initialize(struct sas_rphy *rphy)
 
 /**
  * sas_end_device_alloc - allocate an rphy for an end device
+ * @parent: which port
  *
  * Allocates an SAS remote PHY structure, connected to @parent.
  *
@@ -1345,6 +1346,8 @@ EXPORT_SYMBOL(sas_end_device_alloc);
 
 /**
  * sas_expander_alloc - allocate an rphy for an end device
+ * @parent: which port
+ * @type: SAS_EDGE_EXPANDER_DEVICE or SAS_FANOUT_EXPANDER_DEVICE
  *
  * Allocates an SAS remote PHY structure, connected to @parent.
  *
@@ -1383,7 +1386,7 @@ struct sas_rphy *sas_expander_alloc(struct sas_port *parent,
 EXPORT_SYMBOL(sas_expander_alloc);
 
 /**
- * sas_rphy_add  --  add a SAS remote PHY to the device hierarchy
+ * sas_rphy_add  -  add a SAS remote PHY to the device hierarchy
  * @rphy:	The remote PHY to be added
  *
  * Publishes a SAS remote PHY to the rest of the system.
@@ -1430,8 +1433,8 @@ int sas_rphy_add(struct sas_rphy *rphy)
 EXPORT_SYMBOL(sas_rphy_add);
 
 /**
- * sas_rphy_free  --  free a SAS remote PHY
- * @rphy	SAS remote PHY to free
+ * sas_rphy_free  -  free a SAS remote PHY
+ * @rphy: SAS remote PHY to free
  *
  * Frees the specified SAS remote PHY.
  *
@@ -1459,7 +1462,7 @@ void sas_rphy_free(struct sas_rphy *rphy)
 EXPORT_SYMBOL(sas_rphy_free);
 
 /**
- * sas_rphy_delete  --  remove and free SAS remote PHY
+ * sas_rphy_delete  -  remove and free SAS remote PHY
  * @rphy:	SAS remote PHY to remove and free
  *
  * Removes the specified SAS remote PHY and frees it.
@@ -1473,7 +1476,7 @@ sas_rphy_delete(struct sas_rphy *rphy)
 EXPORT_SYMBOL(sas_rphy_delete);
 
 /**
- * sas_rphy_remove  --  remove SAS remote PHY
+ * sas_rphy_remove  -  remove SAS remote PHY
  * @rphy:	SAS remote phy to remove
  *
  * Removes the specified SAS remote PHY.
@@ -1504,7 +1507,7 @@ sas_rphy_remove(struct sas_rphy *rphy)
 EXPORT_SYMBOL(sas_rphy_remove);
 
 /**
- * scsi_is_sas_rphy  --  check if a struct device represents a SAS remote PHY
+ * scsi_is_sas_rphy  -  check if a struct device represents a SAS remote PHY
  * @dev:	device to check
  *
  * Returns:
@@ -1604,7 +1607,7 @@ static int sas_user_scan(struct Scsi_Host *shost, uint channel,
 	SETUP_TEMPLATE(expander_attrs, expander_##field, S_IRUGO, 1)
 
 /**
- * sas_attach_transport  --  instantiate SAS transport template
+ * sas_attach_transport  -  instantiate SAS transport template
  * @ft:		SAS transport class function template
  */
 struct scsi_transport_template *
@@ -1715,7 +1718,7 @@ sas_attach_transport(struct sas_function_template *ft)
 EXPORT_SYMBOL(sas_attach_transport);
 
 /**
- * sas_release_transport  --  release SAS transport template instance
+ * sas_release_transport  -  release SAS transport template instance
  * @t:		transport template instance
  */
 void sas_release_transport(struct scsi_transport_template *t)

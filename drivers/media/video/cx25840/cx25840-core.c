@@ -13,6 +13,8 @@
  * NTSC sliced VBI support by Christopher Neufeld <television@cneufeld.ca>
  * with additional fixes by Hans Verkuil <hverkuil@xs4all.nl>.
  *
+ * CX23885 support by Steven Toth <stoth@hauppauge.com>.
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -37,6 +39,7 @@
 #include <linux/delay.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
+#include <media/v4l2-i2c-drv-legacy.h>
 #include <media/cx25840.h>
 
 #include "cx25840-core.h"
@@ -72,10 +75,10 @@ int cx25840_write4(struct i2c_client *client, u16 addr, u32 value)
 	u8 buffer[6];
 	buffer[0] = addr >> 8;
 	buffer[1] = addr & 0xff;
-	buffer[2] = value >> 24;
-	buffer[3] = (value >> 16) & 0xff;
-	buffer[4] = (value >> 8) & 0xff;
-	buffer[5] = value & 0xff;
+	buffer[2] = value & 0xff;
+	buffer[3] = (value >> 8) & 0xff;
+	buffer[4] = (value >> 16) & 0xff;
+	buffer[5] = value >> 24;
 	return i2c_master_send(client, buffer, 6);
 }
 
@@ -122,8 +125,6 @@ int cx25840_and_or(struct i2c_client *client, u16 addr, unsigned and_mask,
 
 static int set_input(struct i2c_client *client, enum cx25840_video_input vid_input,
 						enum cx25840_audio_input aud_input);
-static void log_audio_status(struct i2c_client *client);
-static void log_video_status(struct i2c_client *client);
 
 /* ----------------------------------------------------------------------- */
 
@@ -256,6 +257,96 @@ static void cx25840_initialize(struct i2c_client *client)
 	cx25840_and_or(client, 0x803, ~0x10, 0x10);
 }
 
+static void cx23885_initialize(struct i2c_client *client)
+{
+	DEFINE_WAIT(wait);
+	struct cx25840_state *state = i2c_get_clientdata(client);
+	struct workqueue_struct *q;
+
+	/* Internal Reset */
+	cx25840_and_or(client, 0x102, ~0x01, 0x01);
+	cx25840_and_or(client, 0x102, ~0x01, 0x00);
+
+	/* Stop microcontroller */
+	cx25840_and_or(client, 0x803, ~0x10, 0x00);
+
+	/* DIF in reset? */
+	cx25840_write(client, 0x398, 0);
+
+	/* Trust the default xtal, no division */
+	/* This changes for the cx23888 products */
+	cx25840_write(client, 0x2, 0x76);
+
+	/* Bring down the regulator for AUX clk */
+	cx25840_write(client, 0x1, 0x40);
+
+	/* Sys PLL frac */
+	cx25840_write4(client, 0x11c, 0x01d1744c);
+
+	/* Sys PLL int */
+	cx25840_write4(client, 0x118, 0x00000416);
+
+	/* Disable DIF bypass */
+	cx25840_write4(client, 0x33c, 0x00000001);
+
+	/* DIF Src phase inc */
+	cx25840_write4(client, 0x340, 0x0df7df83);
+
+	/* Vid PLL frac */
+	cx25840_write4(client, 0x10c, 0x01b6db7b);
+
+	/* Vid PLL int */
+	cx25840_write4(client, 0x108, 0x00000512);
+
+	/* Luma */
+	cx25840_write4(client, 0x414, 0x00107d12);
+
+	/* Chroma */
+	cx25840_write4(client, 0x420, 0x3d008282);
+
+	/* Aux PLL frac */
+	cx25840_write4(client, 0x114, 0x017dbf48);
+
+	/* Aux PLL int */
+	cx25840_write4(client, 0x110, 0x000a030e);
+
+	/* ADC2 input select */
+	cx25840_write(client, 0x102, 0x10);
+
+	/* VIN1 & VIN5 */
+	cx25840_write(client, 0x103, 0x11);
+
+	/* Enable format auto detect */
+	cx25840_write(client, 0x400, 0);
+	/* Fast subchroma lock */
+	/* White crush, Chroma AGC & Chroma Killer enabled */
+	cx25840_write(client, 0x401, 0xe8);
+
+	/* Select AFE clock pad output source */
+	cx25840_write(client, 0x144, 0x05);
+
+	/* Do the firmware load in a work handler to prevent.
+	   Otherwise the kernel is blocked waiting for the
+	   bit-banging i2c interface to finish uploading the
+	   firmware. */
+	INIT_WORK(&state->fw_work, cx25840_work_handler);
+	init_waitqueue_head(&state->fw_wait);
+	q = create_singlethread_workqueue("cx25840_fw");
+	prepare_to_wait(&state->fw_wait, &wait, TASK_UNINTERRUPTIBLE);
+	queue_work(q, &state->fw_work);
+	schedule();
+	finish_wait(&state->fw_wait, &wait);
+	destroy_workqueue(q);
+
+	cx25840_vbi_setup(client);
+
+	/* (re)set input */
+	set_input(client, state->vid_input, state->aud_input);
+
+	/* start microcontroller */
+	cx25840_and_or(client, 0x803, ~0x10, 0x10);
+}
+
 /* ----------------------------------------------------------------------- */
 
 static void input_change(struct i2c_client *client)
@@ -319,9 +410,22 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 			   vid_input <= CX25840_COMPOSITE8);
 	u8 reg;
 
-	v4l_dbg(1, cx25840_debug, client, "decoder set video input %d, audio input %d\n",
-			vid_input, aud_input);
+	v4l_dbg(1, cx25840_debug, client,
+		"decoder set video input %d, audio input %d\n",
+		vid_input, aud_input);
 
+	if (vid_input >= CX25840_VIN1_CH1) {
+		v4l_dbg(1, cx25840_debug, client, "vid_input 0x%x\n",
+			vid_input);
+		reg = vid_input & 0xff;
+		if ((vid_input & CX25840_SVIDEO_ON) == CX25840_SVIDEO_ON)
+			is_composite = 0;
+		else
+			is_composite = 1;
+
+		v4l_dbg(1, cx25840_debug, client, "mux cfg 0x%x comp=%d\n",
+			reg, is_composite);
+	} else
 	if (is_composite) {
 		reg = 0xf0 + (vid_input - CX25840_COMPOSITE1);
 	} else {
@@ -331,7 +435,8 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 		if ((vid_input & ~0xff0) ||
 		    luma < CX25840_SVIDEO_LUMA1 || luma > CX25840_SVIDEO_LUMA4 ||
 		    chroma < CX25840_SVIDEO_CHROMA4 || chroma > CX25840_SVIDEO_CHROMA8) {
-			v4l_err(client, "0x%04x is not a valid video input!\n", vid_input);
+			v4l_err(client, "0x%04x is not a valid video input!\n",
+				vid_input);
 			return -EINVAL;
 		}
 		reg = 0xf0 + ((luma - CX25840_SVIDEO_LUMA1) >> 4);
@@ -344,31 +449,49 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 		}
 	}
 
-	switch (aud_input) {
-	case CX25840_AUDIO_SERIAL:
-		/* do nothing, use serial audio input */
-		break;
-	case CX25840_AUDIO4: reg &= ~0x30; break;
-	case CX25840_AUDIO5: reg &= ~0x30; reg |= 0x10; break;
-	case CX25840_AUDIO6: reg &= ~0x30; reg |= 0x20; break;
-	case CX25840_AUDIO7: reg &= ~0xc0; break;
-	case CX25840_AUDIO8: reg &= ~0xc0; reg |= 0x40; break;
+	/* The caller has previously prepared the correct routing
+	 * configuration in reg (for the cx23885) so we have no
+	 * need to attempt to flip bits for earlier av decoders.
+	 */
+	if (!state->is_cx23885) {
+		switch (aud_input) {
+		case CX25840_AUDIO_SERIAL:
+			/* do nothing, use serial audio input */
+			break;
+		case CX25840_AUDIO4: reg &= ~0x30; break;
+		case CX25840_AUDIO5: reg &= ~0x30; reg |= 0x10; break;
+		case CX25840_AUDIO6: reg &= ~0x30; reg |= 0x20; break;
+		case CX25840_AUDIO7: reg &= ~0xc0; break;
+		case CX25840_AUDIO8: reg &= ~0xc0; reg |= 0x40; break;
 
-	default:
-		v4l_err(client, "0x%04x is not a valid audio input!\n", aud_input);
-		return -EINVAL;
+		default:
+			v4l_err(client, "0x%04x is not a valid audio input!\n",
+				aud_input);
+			return -EINVAL;
+		}
 	}
 
 	cx25840_write(client, 0x103, reg);
+
 	/* Set INPUT_MODE to Composite (0) or S-Video (1) */
 	cx25840_and_or(client, 0x401, ~0x6, is_composite ? 0 : 0x02);
-	/* Set CH_SEL_ADC2 to 1 if input comes from CH3 */
-	cx25840_and_or(client, 0x102, ~0x2, (reg & 0x80) == 0 ? 2 : 0);
-	/* Set DUAL_MODE_ADC2 to 1 if input comes from both CH2 and CH3 */
-	if ((reg & 0xc0) != 0xc0 && (reg & 0x30) != 0x30)
-		cx25840_and_or(client, 0x102, ~0x4, 4);
-	else
-		cx25840_and_or(client, 0x102, ~0x4, 0);
+
+	if (!state->is_cx23885) {
+		/* Set CH_SEL_ADC2 to 1 if input comes from CH3 */
+		cx25840_and_or(client, 0x102, ~0x2, (reg & 0x80) == 0 ? 2 : 0);
+		/* Set DUAL_MODE_ADC2 to 1 if input comes from both CH2&CH3 */
+		if ((reg & 0xc0) != 0xc0 && (reg & 0x30) != 0x30)
+			cx25840_and_or(client, 0x102, ~0x4, 4);
+		else
+			cx25840_and_or(client, 0x102, ~0x4, 0);
+	} else {
+		if (is_composite)
+			/* ADC2 input select channel 2 */
+			cx25840_and_or(client, 0x102, ~0x2, 0);
+		else
+			/* ADC2 input select channel 3 */
+			cx25840_and_or(client, 0x102, ~0x2, 2);
+	}
 
 	state->vid_input = vid_input;
 	state->aud_input = aud_input;
@@ -376,6 +499,25 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 		cx25840_audio_set_path(client);
 		input_change(client);
 	}
+
+	if (state->is_cx23885) {
+		/* Audio channel 1 src : Parallel 1 */
+		cx25840_write(client, 0x124, 0x03);
+
+		/* Select AFE clock pad output source */
+		cx25840_write(client, 0x144, 0x05);
+
+		/* I2S_IN_CTL: I2S_IN_SONY_MODE, LEFT SAMPLE on WS=1 */
+		cx25840_write(client, 0x914, 0xa0);
+
+		/* I2S_OUT_CTL:
+		 * I2S_IN_SONY_MODE, LEFT SAMPLE on WS=1
+		 * I2S_OUT_MASTER_MODE = Master
+		 */
+		cx25840_write(client, 0x918, 0xa0);
+		cx25840_write(client, 0x919, 0x01);
+	}
+
 	return 0;
 }
 
@@ -641,370 +783,6 @@ static int set_v4lfmt(struct i2c_client *client, struct v4l2_format *fmt)
 
 /* ----------------------------------------------------------------------- */
 
-static int cx25840_command(struct i2c_client *client, unsigned int cmd,
-			   void *arg)
-{
-	struct cx25840_state *state = i2c_get_clientdata(client);
-	struct v4l2_tuner *vt = arg;
-	struct v4l2_routing *route = arg;
-
-	/* ignore these commands */
-	switch (cmd) {
-		case TUNER_SET_TYPE_ADDR:
-			return 0;
-	}
-
-	if (!state->is_initialized) {
-		v4l_dbg(1, cx25840_debug, client, "cmd %08x triggered fw load\n", cmd);
-		/* initialize on first use */
-		state->is_initialized = 1;
-		if (state->is_cx25836)
-			cx25836_initialize(client);
-		else
-			cx25840_initialize(client);
-	}
-
-	switch (cmd) {
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-	/* ioctls to allow direct access to the
-	 * cx25840 registers for testing */
-	case VIDIOC_DBG_G_REGISTER:
-	case VIDIOC_DBG_S_REGISTER:
-	{
-		struct v4l2_register *reg = arg;
-
-		if (!v4l2_chip_match_i2c_client(client, reg->match_type, reg->match_chip))
-			return -EINVAL;
-		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
-		if (cmd == VIDIOC_DBG_G_REGISTER)
-			reg->val = cx25840_read(client, reg->reg & 0x0fff);
-		else
-			cx25840_write(client, reg->reg & 0x0fff, reg->val & 0xff);
-		break;
-	}
-#endif
-
-	case VIDIOC_INT_DECODE_VBI_LINE:
-		return cx25840_vbi(client, cmd, arg);
-
-	case VIDIOC_INT_AUDIO_CLOCK_FREQ:
-		return cx25840_audio(client, cmd, arg);
-
-	case VIDIOC_STREAMON:
-		v4l_dbg(1, cx25840_debug, client, "enable output\n");
-		cx25840_write(client, 0x115, state->is_cx25836 ? 0x0c : 0x8c);
-		cx25840_write(client, 0x116, state->is_cx25836 ? 0x04 : 0x07);
-		break;
-
-	case VIDIOC_STREAMOFF:
-		v4l_dbg(1, cx25840_debug, client, "disable output\n");
-		cx25840_write(client, 0x115, 0x00);
-		cx25840_write(client, 0x116, 0x00);
-		break;
-
-	case VIDIOC_LOG_STATUS:
-		log_video_status(client);
-		if (!state->is_cx25836)
-			log_audio_status(client);
-		break;
-
-	case VIDIOC_G_CTRL:
-		return get_v4lctrl(client, (struct v4l2_control *)arg);
-
-	case VIDIOC_S_CTRL:
-		return set_v4lctrl(client, (struct v4l2_control *)arg);
-
-	case VIDIOC_QUERYCTRL:
-	{
-		struct v4l2_queryctrl *qc = arg;
-
-		switch (qc->id) {
-			case V4L2_CID_BRIGHTNESS:
-			case V4L2_CID_CONTRAST:
-			case V4L2_CID_SATURATION:
-			case V4L2_CID_HUE:
-				return v4l2_ctrl_query_fill_std(qc);
-			default:
-				break;
-		}
-		if (state->is_cx25836)
-			return -EINVAL;
-
-		switch (qc->id) {
-			case V4L2_CID_AUDIO_VOLUME:
-			case V4L2_CID_AUDIO_MUTE:
-			case V4L2_CID_AUDIO_BALANCE:
-			case V4L2_CID_AUDIO_BASS:
-			case V4L2_CID_AUDIO_TREBLE:
-				return v4l2_ctrl_query_fill_std(qc);
-			default:
-				return -EINVAL;
-		}
-		return -EINVAL;
-	}
-
-	case VIDIOC_G_STD:
-		*(v4l2_std_id *)arg = cx25840_get_v4lstd(client);
-		break;
-
-	case VIDIOC_S_STD:
-		state->radio = 0;
-		return set_v4lstd(client, *(v4l2_std_id *)arg);
-
-	case AUDC_SET_RADIO:
-		state->radio = 1;
-		break;
-
-	case VIDIOC_INT_G_VIDEO_ROUTING:
-		route->input = state->vid_input;
-		route->output = 0;
-		break;
-
-	case VIDIOC_INT_S_VIDEO_ROUTING:
-		return set_input(client, route->input, state->aud_input);
-
-	case VIDIOC_INT_G_AUDIO_ROUTING:
-		if (state->is_cx25836)
-			return -EINVAL;
-		route->input = state->aud_input;
-		route->output = 0;
-		break;
-
-	case VIDIOC_INT_S_AUDIO_ROUTING:
-		if (state->is_cx25836)
-			return -EINVAL;
-		return set_input(client, state->vid_input, route->input);
-
-	case VIDIOC_S_FREQUENCY:
-		if (!state->is_cx25836) {
-			input_change(client);
-		}
-		break;
-
-	case VIDIOC_G_TUNER:
-	{
-		u8 vpres = cx25840_read(client, 0x40e) & 0x20;
-		u8 mode;
-		int val = 0;
-
-		if (state->radio)
-			break;
-
-		vt->signal = vpres ? 0xffff : 0x0;
-		if (state->is_cx25836)
-			break;
-
-		vt->capability |=
-		    V4L2_TUNER_CAP_STEREO | V4L2_TUNER_CAP_LANG1 |
-		    V4L2_TUNER_CAP_LANG2 | V4L2_TUNER_CAP_SAP;
-
-		mode = cx25840_read(client, 0x804);
-
-		/* get rxsubchans and audmode */
-		if ((mode & 0xf) == 1)
-			val |= V4L2_TUNER_SUB_STEREO;
-		else
-			val |= V4L2_TUNER_SUB_MONO;
-
-		if (mode == 2 || mode == 4)
-			val = V4L2_TUNER_SUB_LANG1 | V4L2_TUNER_SUB_LANG2;
-
-		if (mode & 0x10)
-			val |= V4L2_TUNER_SUB_SAP;
-
-		vt->rxsubchans = val;
-		vt->audmode = state->audmode;
-		break;
-	}
-
-	case VIDIOC_S_TUNER:
-		if (state->radio || state->is_cx25836)
-			break;
-
-		switch (vt->audmode) {
-		case V4L2_TUNER_MODE_MONO:
-			/* mono      -> mono
-			   stereo    -> mono
-			   bilingual -> lang1 */
-			cx25840_and_or(client, 0x809, ~0xf, 0x00);
-			break;
-		case V4L2_TUNER_MODE_STEREO:
-		case V4L2_TUNER_MODE_LANG1:
-			/* mono      -> mono
-			   stereo    -> stereo
-			   bilingual -> lang1 */
-			cx25840_and_or(client, 0x809, ~0xf, 0x04);
-			break;
-		case V4L2_TUNER_MODE_LANG1_LANG2:
-			/* mono      -> mono
-			   stereo    -> stereo
-			   bilingual -> lang1/lang2 */
-			cx25840_and_or(client, 0x809, ~0xf, 0x07);
-			break;
-		case V4L2_TUNER_MODE_LANG2:
-			/* mono      -> mono
-			   stereo    -> stereo
-			   bilingual -> lang2 */
-			cx25840_and_or(client, 0x809, ~0xf, 0x01);
-			break;
-		default:
-			return -EINVAL;
-		}
-		state->audmode = vt->audmode;
-		break;
-
-	case VIDIOC_G_FMT:
-		return get_v4lfmt(client, (struct v4l2_format *)arg);
-
-	case VIDIOC_S_FMT:
-		return set_v4lfmt(client, (struct v4l2_format *)arg);
-
-	case VIDIOC_INT_RESET:
-		if (state->is_cx25836)
-			cx25836_initialize(client);
-		else
-			cx25840_initialize(client);
-		break;
-
-	case VIDIOC_G_CHIP_IDENT:
-		return v4l2_chip_ident_i2c_client(client, arg, state->id, state->rev);
-
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-/* ----------------------------------------------------------------------- */
-
-static struct i2c_driver i2c_driver_cx25840;
-
-static int cx25840_detect_client(struct i2c_adapter *adapter, int address,
-				 int kind)
-{
-	struct i2c_client *client;
-	struct cx25840_state *state;
-	u32 id;
-	u16 device_id;
-
-	/* Check if the adapter supports the needed features
-	 * Not until kernel version 2.6.11 did the bit-algo
-	 * correctly report that it would do an I2C-level xfer */
-	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C))
-		return 0;
-
-	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
-	if (client == 0)
-		return -ENOMEM;
-
-	client->addr = address;
-	client->adapter = adapter;
-	client->driver = &i2c_driver_cx25840;
-	snprintf(client->name, sizeof(client->name) - 1, "cx25840");
-
-	v4l_dbg(1, cx25840_debug, client, "detecting cx25840 client on address 0x%x\n", client->addr << 1);
-
-	device_id = cx25840_read(client, 0x101) << 8;
-	device_id |= cx25840_read(client, 0x100);
-
-	/* The high byte of the device ID should be
-	 * 0x83 for the cx2583x and 0x84 for the cx2584x */
-	if ((device_id & 0xff00) == 0x8300) {
-		id = V4L2_IDENT_CX25836 + ((device_id >> 4) & 0xf) - 6;
-	}
-	else if ((device_id & 0xff00) == 0x8400) {
-		id = V4L2_IDENT_CX25840 + ((device_id >> 4) & 0xf);
-	}
-	else {
-		v4l_dbg(1, cx25840_debug, client, "cx25840 not found\n");
-		kfree(client);
-		return 0;
-	}
-
-	state = kzalloc(sizeof(struct cx25840_state), GFP_KERNEL);
-	if (state == NULL) {
-		kfree(client);
-		return -ENOMEM;
-	}
-
-	/* Note: revision '(device_id & 0x0f) == 2' was never built. The
-	   marking skips from 0x1 == 22 to 0x3 == 23. */
-	v4l_info(client, "cx25%3x-2%x found @ 0x%x (%s)\n",
-		    (device_id & 0xfff0) >> 4,
-		    (device_id & 0x0f) < 3 ? (device_id & 0x0f) + 1 : (device_id & 0x0f),
-		    client->addr << 1, client->adapter->name);
-
-	i2c_set_clientdata(client, state);
-	state->c = client;
-	state->is_cx25836 = ((device_id & 0xff00) == 0x8300);
-	state->vid_input = CX25840_COMPOSITE7;
-	state->aud_input = CX25840_AUDIO8;
-	state->audclk_freq = 48000;
-	state->pvr150_workaround = 0;
-	state->audmode = V4L2_TUNER_MODE_LANG1;
-	state->unmute_volume = -1;
-	state->vbi_line_offset = 8;
-	state->id = id;
-	state->rev = device_id;
-
-	i2c_attach_client(client);
-
-	return 0;
-}
-
-static int cx25840_attach_adapter(struct i2c_adapter *adapter)
-{
-	if (adapter->class & I2C_CLASS_TV_ANALOG)
-		return i2c_probe(adapter, &addr_data, &cx25840_detect_client);
-	return 0;
-}
-
-static int cx25840_detach_client(struct i2c_client *client)
-{
-	struct cx25840_state *state = i2c_get_clientdata(client);
-	int err;
-
-	err = i2c_detach_client(client);
-	if (err) {
-		return err;
-	}
-
-	kfree(state);
-	kfree(client);
-
-	return 0;
-}
-
-/* ----------------------------------------------------------------------- */
-
-static struct i2c_driver i2c_driver_cx25840 = {
-	.driver = {
-		.name = "cx25840",
-	},
-	.id = I2C_DRIVERID_CX25840,
-	.attach_adapter = cx25840_attach_adapter,
-	.detach_client = cx25840_detach_client,
-	.command = cx25840_command,
-};
-
-
-static int __init m__init(void)
-{
-	return i2c_add_driver(&i2c_driver_cx25840);
-}
-
-static void __exit m__exit(void)
-{
-	i2c_del_driver(&i2c_driver_cx25840);
-}
-
-module_init(m__init);
-module_exit(m__exit);
-
-/* ----------------------------------------------------------------------- */
-
 static void log_video_status(struct i2c_client *client)
 {
 	static const char *const fmt_strs[] = {
@@ -1196,3 +974,336 @@ static void log_audio_status(struct i2c_client *client)
 		v4l_info(client, "Selected 45 MHz format:    %s\n", p);
 	}
 }
+
+/* ----------------------------------------------------------------------- */
+
+static int cx25840_command(struct i2c_client *client, unsigned int cmd,
+			   void *arg)
+{
+	struct cx25840_state *state = i2c_get_clientdata(client);
+	struct v4l2_tuner *vt = arg;
+	struct v4l2_routing *route = arg;
+
+	/* ignore these commands */
+	switch (cmd) {
+		case TUNER_SET_TYPE_ADDR:
+			return 0;
+	}
+
+	if (!state->is_initialized) {
+		v4l_dbg(1, cx25840_debug, client, "cmd %08x triggered fw load\n", cmd);
+		/* initialize on first use */
+		state->is_initialized = 1;
+		if (state->is_cx25836)
+			cx25836_initialize(client);
+		else if (state->is_cx23885)
+			cx23885_initialize(client);
+		else
+			cx25840_initialize(client);
+	}
+
+	switch (cmd) {
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	/* ioctls to allow direct access to the
+	 * cx25840 registers for testing */
+	case VIDIOC_DBG_G_REGISTER:
+	case VIDIOC_DBG_S_REGISTER:
+	{
+		struct v4l2_register *reg = arg;
+
+		if (!v4l2_chip_match_i2c_client(client, reg->match_type, reg->match_chip))
+			return -EINVAL;
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
+
+		if (cmd == VIDIOC_DBG_G_REGISTER)
+			reg->val = cx25840_read(client, reg->reg & 0x0fff);
+		else
+			cx25840_write(client, reg->reg & 0x0fff, reg->val & 0xff);
+		break;
+	}
+#endif
+
+	case VIDIOC_INT_DECODE_VBI_LINE:
+		return cx25840_vbi(client, cmd, arg);
+
+	case VIDIOC_INT_AUDIO_CLOCK_FREQ:
+		return cx25840_audio(client, cmd, arg);
+
+	case VIDIOC_STREAMON:
+		v4l_dbg(1, cx25840_debug, client, "enable output\n");
+		if (state->is_cx23885) {
+			u8 v = (cx25840_read(client, 0x421) | 0x0b);
+			cx25840_write(client, 0x421, v);
+		} else {
+			cx25840_write(client, 0x115,
+				state->is_cx25836 ? 0x0c : 0x8c);
+			cx25840_write(client, 0x116,
+				state->is_cx25836 ? 0x04 : 0x07);
+		}
+		break;
+
+	case VIDIOC_STREAMOFF:
+		v4l_dbg(1, cx25840_debug, client, "disable output\n");
+		if (state->is_cx23885) {
+			u8 v = cx25840_read(client, 0x421) & ~(0x0b);
+			cx25840_write(client, 0x421, v);
+		} else {
+			cx25840_write(client, 0x115, 0x00);
+			cx25840_write(client, 0x116, 0x00);
+		}
+		break;
+
+	case VIDIOC_LOG_STATUS:
+		log_video_status(client);
+		if (!state->is_cx25836)
+			log_audio_status(client);
+		break;
+
+	case VIDIOC_G_CTRL:
+		return get_v4lctrl(client, (struct v4l2_control *)arg);
+
+	case VIDIOC_S_CTRL:
+		return set_v4lctrl(client, (struct v4l2_control *)arg);
+
+	case VIDIOC_QUERYCTRL:
+	{
+		struct v4l2_queryctrl *qc = arg;
+
+		switch (qc->id) {
+			case V4L2_CID_BRIGHTNESS:
+			case V4L2_CID_CONTRAST:
+			case V4L2_CID_SATURATION:
+			case V4L2_CID_HUE:
+				return v4l2_ctrl_query_fill_std(qc);
+			default:
+				break;
+		}
+		if (state->is_cx25836)
+			return -EINVAL;
+
+		switch (qc->id) {
+			case V4L2_CID_AUDIO_VOLUME:
+			case V4L2_CID_AUDIO_MUTE:
+			case V4L2_CID_AUDIO_BALANCE:
+			case V4L2_CID_AUDIO_BASS:
+			case V4L2_CID_AUDIO_TREBLE:
+				return v4l2_ctrl_query_fill_std(qc);
+			default:
+				return -EINVAL;
+		}
+		return -EINVAL;
+	}
+
+	case VIDIOC_G_STD:
+		*(v4l2_std_id *)arg = cx25840_get_v4lstd(client);
+		break;
+
+	case VIDIOC_S_STD:
+		state->radio = 0;
+		return set_v4lstd(client, *(v4l2_std_id *)arg);
+
+	case AUDC_SET_RADIO:
+		state->radio = 1;
+		break;
+
+	case VIDIOC_INT_G_VIDEO_ROUTING:
+		route->input = state->vid_input;
+		route->output = 0;
+		break;
+
+	case VIDIOC_INT_S_VIDEO_ROUTING:
+		return set_input(client, route->input, state->aud_input);
+
+	case VIDIOC_INT_G_AUDIO_ROUTING:
+		if (state->is_cx25836)
+			return -EINVAL;
+		route->input = state->aud_input;
+		route->output = 0;
+		break;
+
+	case VIDIOC_INT_S_AUDIO_ROUTING:
+		if (state->is_cx25836)
+			return -EINVAL;
+		return set_input(client, state->vid_input, route->input);
+
+	case VIDIOC_S_FREQUENCY:
+		if (!state->is_cx25836) {
+			input_change(client);
+		}
+		break;
+
+	case VIDIOC_G_TUNER:
+	{
+		u8 vpres = cx25840_read(client, 0x40e) & 0x20;
+		u8 mode;
+		int val = 0;
+
+		if (state->radio)
+			break;
+
+		vt->signal = vpres ? 0xffff : 0x0;
+		if (state->is_cx25836)
+			break;
+
+		vt->capability |=
+		    V4L2_TUNER_CAP_STEREO | V4L2_TUNER_CAP_LANG1 |
+		    V4L2_TUNER_CAP_LANG2 | V4L2_TUNER_CAP_SAP;
+
+		mode = cx25840_read(client, 0x804);
+
+		/* get rxsubchans and audmode */
+		if ((mode & 0xf) == 1)
+			val |= V4L2_TUNER_SUB_STEREO;
+		else
+			val |= V4L2_TUNER_SUB_MONO;
+
+		if (mode == 2 || mode == 4)
+			val = V4L2_TUNER_SUB_LANG1 | V4L2_TUNER_SUB_LANG2;
+
+		if (mode & 0x10)
+			val |= V4L2_TUNER_SUB_SAP;
+
+		vt->rxsubchans = val;
+		vt->audmode = state->audmode;
+		break;
+	}
+
+	case VIDIOC_S_TUNER:
+		if (state->radio || state->is_cx25836)
+			break;
+
+		switch (vt->audmode) {
+		case V4L2_TUNER_MODE_MONO:
+			/* mono      -> mono
+			   stereo    -> mono
+			   bilingual -> lang1 */
+			cx25840_and_or(client, 0x809, ~0xf, 0x00);
+			break;
+		case V4L2_TUNER_MODE_STEREO:
+		case V4L2_TUNER_MODE_LANG1:
+			/* mono      -> mono
+			   stereo    -> stereo
+			   bilingual -> lang1 */
+			cx25840_and_or(client, 0x809, ~0xf, 0x04);
+			break;
+		case V4L2_TUNER_MODE_LANG1_LANG2:
+			/* mono      -> mono
+			   stereo    -> stereo
+			   bilingual -> lang1/lang2 */
+			cx25840_and_or(client, 0x809, ~0xf, 0x07);
+			break;
+		case V4L2_TUNER_MODE_LANG2:
+			/* mono      -> mono
+			   stereo    -> stereo
+			   bilingual -> lang2 */
+			cx25840_and_or(client, 0x809, ~0xf, 0x01);
+			break;
+		default:
+			return -EINVAL;
+		}
+		state->audmode = vt->audmode;
+		break;
+
+	case VIDIOC_G_FMT:
+		return get_v4lfmt(client, (struct v4l2_format *)arg);
+
+	case VIDIOC_S_FMT:
+		return set_v4lfmt(client, (struct v4l2_format *)arg);
+
+	case VIDIOC_INT_RESET:
+		if (state->is_cx25836)
+			cx25836_initialize(client);
+		else if (state->is_cx23885)
+			cx23885_initialize(client);
+		else
+			cx25840_initialize(client);
+		break;
+
+	case VIDIOC_G_CHIP_IDENT:
+		return v4l2_chip_ident_i2c_client(client, arg, state->id, state->rev);
+
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/* ----------------------------------------------------------------------- */
+
+static int cx25840_probe(struct i2c_client *client)
+{
+	struct cx25840_state *state;
+	u32 id;
+	u16 device_id;
+
+	/* Check if the adapter supports the needed features */
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
+		return -EIO;
+
+	v4l_dbg(1, cx25840_debug, client, "detecting cx25840 client on address 0x%x\n", client->addr << 1);
+
+	device_id = cx25840_read(client, 0x101) << 8;
+	device_id |= cx25840_read(client, 0x100);
+	v4l_dbg(1, cx25840_debug, client, "device_id = 0x%04x\n", device_id);
+
+	/* The high byte of the device ID should be
+	 * 0x83 for the cx2583x and 0x84 for the cx2584x */
+	if ((device_id & 0xff00) == 0x8300) {
+		id = V4L2_IDENT_CX25836 + ((device_id >> 4) & 0xf) - 6;
+	}
+	else if ((device_id & 0xff00) == 0x8400) {
+		id = V4L2_IDENT_CX25840 + ((device_id >> 4) & 0xf);
+	} else if (device_id == 0x0000) {
+		id = V4L2_IDENT_CX25836 + ((device_id >> 4) & 0xf) - 6;
+	} else if (device_id == 0x1313) {
+		id = V4L2_IDENT_CX25836 + ((device_id >> 4) & 0xf) - 6;
+	}
+	else {
+		v4l_dbg(1, cx25840_debug, client, "cx25840 not found\n");
+		return -ENODEV;
+	}
+
+	state = kzalloc(sizeof(struct cx25840_state), GFP_KERNEL);
+	if (state == NULL) {
+		return -ENOMEM;
+	}
+
+	/* Note: revision '(device_id & 0x0f) == 2' was never built. The
+	   marking skips from 0x1 == 22 to 0x3 == 23. */
+	v4l_info(client, "cx25%3x-2%x found @ 0x%x (%s)\n",
+		    (device_id & 0xfff0) >> 4,
+		    (device_id & 0x0f) < 3 ? (device_id & 0x0f) + 1 : (device_id & 0x0f),
+		    client->addr << 1, client->adapter->name);
+
+	i2c_set_clientdata(client, state);
+	state->c = client;
+	state->is_cx25836 = ((device_id & 0xff00) == 0x8300);
+	state->is_cx23885 = (device_id == 0x0000) || (device_id == 0x1313);
+	state->vid_input = CX25840_COMPOSITE7;
+	state->aud_input = CX25840_AUDIO8;
+	state->audclk_freq = 48000;
+	state->pvr150_workaround = 0;
+	state->audmode = V4L2_TUNER_MODE_LANG1;
+	state->unmute_volume = -1;
+	state->vbi_line_offset = 8;
+	state->id = id;
+	state->rev = device_id;
+
+	return 0;
+}
+
+static int cx25840_remove(struct i2c_client *client)
+{
+	kfree(i2c_get_clientdata(client));
+	return 0;
+}
+
+static struct v4l2_i2c_driver_data v4l2_i2c_data = {
+	.name = "cx25840",
+	.driverid = I2C_DRIVERID_CX25840,
+	.command = cx25840_command,
+	.probe = cx25840_probe,
+	.remove = cx25840_remove,
+};

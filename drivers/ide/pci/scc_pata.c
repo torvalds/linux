@@ -254,19 +254,7 @@ static void scc_set_dma_mode(ide_drive_t *drive, const u8 speed)
 		offset = 0; /* 100MHz */
 	}
 
-	switch (speed) {
-	case XFER_UDMA_6:
-	case XFER_UDMA_5:
-	case XFER_UDMA_4:
-	case XFER_UDMA_3:
-	case XFER_UDMA_2:
-	case XFER_UDMA_1:
-	case XFER_UDMA_0:
-		idx = speed - XFER_UDMA_0;
-		break;
-	default:
-		return;
-	}
+	idx = speed - XFER_UDMA_0;
 
 	jcactsel = JCACTSELtbl[offset][idx];
 	if (is_slave) {

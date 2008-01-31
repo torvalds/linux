@@ -12,11 +12,36 @@ cd "${1:-.}" || usage
 if head=`git rev-parse --verify HEAD 2>/dev/null`; then
 	# Do we have an untagged version?
 	if git name-rev --tags HEAD | grep -E '^HEAD[[:space:]]+(.*~[0-9]*|undefined)$' > /dev/null; then
-		printf '%s%s' -g `echo "$head" | cut -c1-8`
+	        git describe | awk -F- '{printf("-%05d-%s", $(NF-1),$(NF))}'
 	fi
 
 	# Are there uncommitted changes?
-	if git diff-index HEAD | read dummy; then
+	git update-index --refresh --unmerged > /dev/null
+	if git diff-index --name-only HEAD | grep -v "^scripts/package" \
+	    | read dummy; then
 		printf '%s' -dirty
 	fi
+
+	# All done with git
+	exit
+fi
+
+# Check for mercurial and a mercurial repo.
+if hgid=`hg id 2>/dev/null`; then
+	tag=`printf '%s' "$hgid" | cut -d' ' -f2`
+
+	# Do we have an untagged version?
+	if [ -z "$tag" -o "$tag" = tip ]; then
+		id=`printf '%s' "$hgid" | sed 's/[+ ].*//'`
+		printf '%s%s' -hg "$id"
+	fi
+
+	# Are there uncommitted changes?
+	# These are represented by + after the changeset id.
+	case "$hgid" in
+		*+|*+\ *) printf '%s' -dirty ;;
+	esac
+
+	# All done with mercurial
+	exit
 fi

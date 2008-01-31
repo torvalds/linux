@@ -21,7 +21,10 @@ KBUILD_DEFCONFIG := BF537-STAMP_defconfig
 
 # setup the machine name and the machine dependent settings
 machine-$(CONFIG_BF522) := bf527
+machine-$(CONFIG_BF523) := bf527
+machine-$(CONFIG_BF524) := bf527
 machine-$(CONFIG_BF525) := bf527
+machine-$(CONFIG_BF526) := bf527
 machine-$(CONFIG_BF527) := bf527
 machine-$(CONFIG_BF531) := bf533
 machine-$(CONFIG_BF532) := bf533
@@ -39,7 +42,10 @@ MACHINE := $(machine-y)
 export MACHINE
 
 cpu-$(CONFIG_BF522) := bf522
+cpu-$(CONFIG_BF523) := bf523
+cpu-$(CONFIG_BF524) := bf524
 cpu-$(CONFIG_BF525) := bf525
+cpu-$(CONFIG_BF526) := bf526
 cpu-$(CONFIG_BF527) := bf527
 cpu-$(CONFIG_BF531) := bf531
 cpu-$(CONFIG_BF532) := bf532
@@ -74,6 +80,12 @@ core-y   += arch/$(ARCH)/kernel/ arch/$(ARCH)/mm/ arch/$(ARCH)/mach-common/
 ifneq ($(machine-y),)
 core-y   += arch/$(ARCH)/mach-$(MACHINE)/
 core-y   += arch/$(ARCH)/mach-$(MACHINE)/boards/
+endif
+
+ifeq ($(CONFIG_MPU),y)
+core-y	+= arch/$(ARCH)/kernel/cplb-mpu/
+else
+core-y	+= arch/$(ARCH)/kernel/cplb-nompu/
 endif
 
 libs-y   += arch/$(ARCH)/lib/

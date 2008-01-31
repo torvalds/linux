@@ -359,6 +359,8 @@ static __inline__ int test_le_bit(unsigned long nr,
 unsigned long generic_find_next_zero_le_bit(const unsigned long *addr,
 				    unsigned long size, unsigned long offset);
 
+unsigned long generic_find_next_le_bit(const unsigned long *addr,
+				    unsigned long size, unsigned long offset);
 /* Bitmap functions for the ext2 filesystem */
 
 #define ext2_set_bit(nr,addr) \
@@ -378,6 +380,8 @@ unsigned long generic_find_next_zero_le_bit(const unsigned long *addr,
 #define ext2_find_next_zero_bit(addr, size, off) \
 	generic_find_next_zero_le_bit((unsigned long*)addr, size, off)
 
+#define ext2_find_next_bit(addr, size, off) \
+	generic_find_next_le_bit((unsigned long *)addr, size, off)
 /* Bitmap functions for the minix filesystem.  */
 
 #define minix_test_and_set_bit(nr,addr) \

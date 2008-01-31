@@ -585,7 +585,7 @@ static struct ata_port_operations inic_port_ops = {
 };
 
 static struct ata_port_info inic_port_info = {
-	/* For some reason, ATA_PROT_ATAPI is broken on this
+	/* For some reason, ATAPI_PROT_PIO is broken on this
 	 * controller, and no, PIO_POLLING does't fix it.  It somehow
 	 * manages to report the wrong ireason and ignoring ireason
 	 * results in machine lock up.  Tell libata to always prefer

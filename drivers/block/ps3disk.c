@@ -229,7 +229,7 @@ static irqreturn_t ps3disk_interrupt(int irq, void *data)
 	struct ps3_storage_device *dev = data;
 	struct ps3disk_private *priv;
 	struct request *req;
-	int res, read, uptodate;
+	int res, read, error;
 	u64 tag, status;
 	unsigned long num_sectors;
 	const char *op;
@@ -270,21 +270,17 @@ static irqreturn_t ps3disk_interrupt(int irq, void *data)
 	if (status) {
 		dev_dbg(&dev->sbd.core, "%s:%u: %s failed 0x%lx\n", __func__,
 			__LINE__, op, status);
-		uptodate = 0;
+		error = -EIO;
 	} else {
 		dev_dbg(&dev->sbd.core, "%s:%u: %s completed\n", __func__,
 			__LINE__, op);
-		uptodate = 1;
+		error = 0;
 		if (read)
 			ps3disk_scatter_gather(dev, req, 0);
 	}
 
 	spin_lock(&priv->lock);
-	if (!end_that_request_first(req, uptodate, num_sectors)) {
-		add_disk_randomness(req->rq_disk);
-		blkdev_dequeue_request(req);
-		end_that_request_last(req, uptodate);
-	}
+	__blk_end_request(req, error, num_sectors << 9);
 	priv->req = NULL;
 	ps3disk_do_request(dev, priv->queue);
 	spin_unlock(&priv->lock);

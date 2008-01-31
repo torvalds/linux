@@ -298,8 +298,6 @@ extern unsigned long ioc_timer_gettimeoffset(void);
 static irqreturn_t
 clps7500_timer_interrupt(int irq, void *dev_id)
 {
-	write_seqlock(&xtime_lock);
-
 	timer_tick();
 
 	/* Why not using do_leds interface?? */
@@ -312,8 +310,6 @@ clps7500_timer_interrupt(int irq, void *dev_id)
 			*((volatile unsigned int *)LED_ADDRESS) = state;
 		}
 	}
-
-	write_sequnlock(&xtime_lock);
 
 	return IRQ_HANDLED;
 }

@@ -62,7 +62,7 @@ int t3_wait_op_done_val(struct adapter *adapter, int reg, u32 mask,
 			return 0;
 		}
 		if (--attempts == 0)
- 			return -EAGAIN;
+			return -EAGAIN;
 		if (delay)
 			udelay(delay);
 	}
@@ -537,10 +537,11 @@ struct t3_vpd {
  *	addres is written to the control register.  The hardware device will
  *	set the flag to 1 when 4 bytes have been read into the data register.
  */
-int t3_seeprom_read(struct adapter *adapter, u32 addr, u32 *data)
+int t3_seeprom_read(struct adapter *adapter, u32 addr, __le32 *data)
 {
 	u16 val;
 	int attempts = EEPROM_MAX_POLL;
+	u32 v;
 	unsigned int base = adapter->params.pci.vpd_cap_addr;
 
 	if ((addr >= EEPROMSIZE && addr != EEPROM_STAT_ADDR) || (addr & 3))
@@ -556,8 +557,8 @@ int t3_seeprom_read(struct adapter *adapter, u32 addr, u32 *data)
 		CH_ERR(adapter, "reading EEPROM address 0x%x failed\n", addr);
 		return -EIO;
 	}
-	pci_read_config_dword(adapter->pdev, base + PCI_VPD_DATA, data);
-	*data = le32_to_cpu(*data);
+	pci_read_config_dword(adapter->pdev, base + PCI_VPD_DATA, &v);
+	*data = cpu_to_le32(v);
 	return 0;
 }
 
@@ -570,7 +571,7 @@ int t3_seeprom_read(struct adapter *adapter, u32 addr, u32 *data)
  *	Write a 32-bit word to a location in VPD EEPROM using the card's PCI
  *	VPD ROM capability.
  */
-int t3_seeprom_write(struct adapter *adapter, u32 addr, u32 data)
+int t3_seeprom_write(struct adapter *adapter, u32 addr, __le32 data)
 {
 	u16 val;
 	int attempts = EEPROM_MAX_POLL;
@@ -580,7 +581,7 @@ int t3_seeprom_write(struct adapter *adapter, u32 addr, u32 data)
 		return -EINVAL;
 
 	pci_write_config_dword(adapter->pdev, base + PCI_VPD_DATA,
-			       cpu_to_le32(data));
+			       le32_to_cpu(data));
 	pci_write_config_word(adapter->pdev,base + PCI_VPD_ADDR,
 			      addr | PCI_VPD_ADDR_F);
 	do {
@@ -631,14 +632,14 @@ static int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 	 * Card information is normally at VPD_BASE but some early cards had
 	 * it at 0.
 	 */
-	ret = t3_seeprom_read(adapter, VPD_BASE, (u32 *)&vpd);
+	ret = t3_seeprom_read(adapter, VPD_BASE, (__le32 *)&vpd);
 	if (ret)
 		return ret;
 	addr = vpd.id_tag == 0x82 ? VPD_BASE : 0;
 
 	for (i = 0; i < sizeof(vpd); i += 4) {
 		ret = t3_seeprom_read(adapter, addr + i,
-				      (u32 *)((u8 *)&vpd + i));
+				      (__le32 *)((u8 *)&vpd + i));
 		if (ret)
 			return ret;
 	}
@@ -865,7 +866,7 @@ int t3_get_tp_version(struct adapter *adapter, u32 *vers)
 			      1, 1, 5, 1);
 	if (ret)
 		return ret;
-	
+
 	*vers = t3_read_reg(adapter, A_TP_EMBED_OP_FIELD1);
 
 	return 0;
@@ -896,7 +897,7 @@ int t3_check_tpsram_version(struct adapter *adapter, int *must_load)
 	major = G_TP_VERSION_MAJOR(vers);
 	minor = G_TP_VERSION_MINOR(vers);
 
-	if (major == TP_VERSION_MAJOR && minor == TP_VERSION_MINOR) 
+	if (major == TP_VERSION_MAJOR && minor == TP_VERSION_MINOR)
 		return 0;
 
 	if (major != TP_VERSION_MAJOR)
@@ -913,7 +914,7 @@ int t3_check_tpsram_version(struct adapter *adapter, int *must_load)
 }
 
 /**
- *	t3_check_tpsram - check if provided protocol SRAM 
+ *	t3_check_tpsram - check if provided protocol SRAM
  *			  is compatible with this driver
  *	@adapter: the adapter
  *	@tp_sram: the firmware image to write
@@ -926,7 +927,7 @@ int t3_check_tpsram(struct adapter *adapter, u8 *tp_sram, unsigned int size)
 {
 	u32 csum;
 	unsigned int i;
-	const u32 *p = (const u32 *)tp_sram;
+	const __be32 *p = (const __be32 *)tp_sram;
 
 	/* Verify checksum */
 	for (csum = 0, i = 0; i < size / sizeof(csum); i++)
@@ -988,13 +989,17 @@ int t3_check_fw_version(struct adapter *adapter, int *must_load)
 		CH_ERR(adapter, "found wrong FW version(%u.%u), "
 		       "driver needs version %u.%u\n", major, minor,
 		       FW_VERSION_MAJOR, FW_VERSION_MINOR);
-	else {
+	else if (minor < FW_VERSION_MINOR) {
 		*must_load = 0;
-		CH_WARN(adapter, "found wrong FW minor version(%u.%u), "
+		CH_WARN(adapter, "found old FW minor version(%u.%u), "
 		        "driver compiled for version %u.%u\n", major, minor,
 			FW_VERSION_MAJOR, FW_VERSION_MINOR);
+	} else {
+		CH_WARN(adapter, "found newer FW version(%u.%u), "
+		        "driver compiled for version %u.%u\n", major, minor,
+			FW_VERSION_MAJOR, FW_VERSION_MINOR);
+			return 0;
 	}
-
 	return -EINVAL;
 }
 
@@ -1036,7 +1041,7 @@ int t3_load_fw(struct adapter *adapter, const u8 *fw_data, unsigned int size)
 {
 	u32 csum;
 	unsigned int i;
-	const u32 *p = (const u32 *)fw_data;
+	const __be32 *p = (const __be32 *)fw_data;
 	int ret, addr, fw_sector = FW_FLASH_BOOT_ADDR >> 16;
 
 	if ((size & 3) || size < FW_MIN_SIZE)
@@ -1259,7 +1264,13 @@ static int t3_handle_intr_status(struct adapter *adapter, unsigned int reg,
 	return fatal;
 }
 
-#define SGE_INTR_MASK (F_RSPQDISABLED)
+#define SGE_INTR_MASK (F_RSPQDISABLED | \
+		       F_UC_REQ_FRAMINGERROR | F_R_REQ_FRAMINGERROR | \
+		       F_CPPARITYERROR | F_OCPARITYERROR | F_RCPARITYERROR | \
+		       F_IRPARITYERROR | V_ITPARITYERROR(M_ITPARITYERROR) | \
+		       V_FLPARITYERROR(M_FLPARITYERROR) | F_LODRBPARITYERROR | \
+		       F_HIDRBPARITYERROR | F_LORCQPARITYERROR | \
+		       F_HIRCQPARITYERROR)
 #define MC5_INTR_MASK (F_PARITYERR | F_ACTRGNFULL | F_UNKNOWNCMD | \
 		       F_REQQPARERR | F_DISPQPARERR | F_DELACTEMPTY | \
 		       F_NFASRCHFAIL)
@@ -1276,16 +1287,23 @@ static int t3_handle_intr_status(struct adapter *adapter, unsigned int reg,
 #define PCIE_INTR_MASK (F_UNXSPLCPLERRR | F_UNXSPLCPLERRC | F_PCIE_PIOPARERR |\
 			F_PCIE_WFPARERR | F_PCIE_RFPARERR | F_PCIE_CFPARERR | \
 			/* V_PCIE_MSIXPARERR(M_PCIE_MSIXPARERR) | */ \
-			V_BISTERR(M_BISTERR) | F_PEXERR)
-#define ULPRX_INTR_MASK F_PARERR
-#define ULPTX_INTR_MASK 0
-#define CPLSW_INTR_MASK (F_TP_FRAMING_ERROR | \
+			F_RETRYBUFPARERR | F_RETRYLUTPARERR | F_RXPARERR | \
+			F_TXPARERR | V_BISTERR(M_BISTERR))
+#define ULPRX_INTR_MASK (F_PARERRDATA | F_PARERRPCMD | F_ARBPF1PERR | \
+			 F_ARBPF0PERR | F_ARBFPERR | F_PCMDMUXPERR | \
+			 F_DATASELFRAMEERR1 | F_DATASELFRAMEERR0)
+#define ULPTX_INTR_MASK 0xfc
+#define CPLSW_INTR_MASK (F_CIM_OP_MAP_PERR | F_TP_FRAMING_ERROR | \
 			 F_SGE_FRAMING_ERROR | F_CIM_FRAMING_ERROR | \
 			 F_ZERO_SWITCH_ERROR)
 #define CIM_INTR_MASK (F_BLKWRPLINT | F_BLKRDPLINT | F_BLKWRCTLINT | \
 		       F_BLKRDCTLINT | F_BLKWRFLASHINT | F_BLKRDFLASHINT | \
 		       F_SGLWRFLASHINT | F_WRBLKFLASHINT | F_BLKWRBOOTINT | \
-	 	       F_FLASHRANGEINT | F_SDRAMRANGEINT | F_RSVDSPACEINT)
+	 	       F_FLASHRANGEINT | F_SDRAMRANGEINT | F_RSVDSPACEINT | \
+		       F_DRAMPARERR | F_ICACHEPARERR | F_DCACHEPARERR | \
+		       F_OBQSGEPARERR | F_OBQULPHIPARERR | F_OBQULPLOPARERR | \
+		       F_IBQSGELOPARERR | F_IBQSGEHIPARERR | F_IBQULPPARERR | \
+		       F_IBQTPPARERR | F_ITAGPARERR | F_DTAGPARERR)
 #define PMTX_INTR_MASK (F_ZERO_C_CMD_ERROR | ICSPI_FRM_ERR | OESPI_FRM_ERR | \
 			V_ICSPI_PAR_ERROR(M_ICSPI_PAR_ERROR) | \
 			V_OESPI_PAR_ERROR(M_OESPI_PAR_ERROR))
@@ -1354,6 +1372,10 @@ static void pcie_intr_handler(struct adapter *adapter)
 		{F_PCIE_CFPARERR, "PCI command FIFO parity error", -1, 1},
 		{V_PCIE_MSIXPARERR(M_PCIE_MSIXPARERR),
 		 "PCI MSI-X table/PBA parity error", -1, 1},
+		{F_RETRYBUFPARERR, "PCI retry buffer parity error", -1, 1},
+		{F_RETRYLUTPARERR, "PCI retry LUT parity error", -1, 1},
+		{F_RXPARERR, "PCI Rx parity error", -1, 1},
+		{F_TXPARERR, "PCI Tx parity error", -1, 1},
 		{V_BISTERR(M_BISTERR), "PCI BIST error", -1, 1},
 		{0}
 	};
@@ -1379,8 +1401,16 @@ static void tp_intr_handler(struct adapter *adapter)
 		{0}
 	};
 
+	static struct intr_info tp_intr_info_t3c[] = {
+		{0x1fffffff, "TP parity error", -1, 1},
+		{F_FLMRXFLSTEMPTY, "TP out of Rx pages", -1, 1},
+		{F_FLMTXFLSTEMPTY, "TP out of Tx pages", -1, 1},
+		{0}
+	};
+
 	if (t3_handle_intr_status(adapter, A_TP_INT_CAUSE, 0xffffffff,
-				  tp_intr_info, NULL))
+				  adapter->params.rev < T3_REV_C ?
+				  tp_intr_info : tp_intr_info_t3c, NULL))
 		t3_fatal_err(adapter);
 }
 
@@ -1402,6 +1432,18 @@ static void cim_intr_handler(struct adapter *adapter)
 		{F_BLKWRCTLINT, "CIM block write to CTL space", -1, 1},
 		{F_BLKRDPLINT, "CIM block read from PL space", -1, 1},
 		{F_BLKWRPLINT, "CIM block write to PL space", -1, 1},
+		{F_DRAMPARERR, "CIM DRAM parity error", -1, 1},
+		{F_ICACHEPARERR, "CIM icache parity error", -1, 1},
+		{F_DCACHEPARERR, "CIM dcache parity error", -1, 1},
+		{F_OBQSGEPARERR, "CIM OBQ SGE parity error", -1, 1},
+		{F_OBQULPHIPARERR, "CIM OBQ ULPHI parity error", -1, 1},
+		{F_OBQULPLOPARERR, "CIM OBQ ULPLO parity error", -1, 1},
+		{F_IBQSGELOPARERR, "CIM IBQ SGELO parity error", -1, 1},
+		{F_IBQSGEHIPARERR, "CIM IBQ SGEHI parity error", -1, 1},
+		{F_IBQULPPARERR, "CIM IBQ ULP parity error", -1, 1},
+		{F_IBQTPPARERR, "CIM IBQ TP parity error", -1, 1},
+		{F_ITAGPARERR, "CIM itag parity error", -1, 1},
+		{F_DTAGPARERR, "CIM dtag parity error", -1, 1},
 		{0}
 	};
 
@@ -1416,7 +1458,14 @@ static void cim_intr_handler(struct adapter *adapter)
 static void ulprx_intr_handler(struct adapter *adapter)
 {
 	static const struct intr_info ulprx_intr_info[] = {
-		{F_PARERR, "ULP RX parity error", -1, 1},
+		{F_PARERRDATA, "ULP RX data parity error", -1, 1},
+		{F_PARERRPCMD, "ULP RX command parity error", -1, 1},
+		{F_ARBPF1PERR, "ULP RX ArbPF1 parity error", -1, 1},
+		{F_ARBPF0PERR, "ULP RX ArbPF0 parity error", -1, 1},
+		{F_ARBFPERR, "ULP RX ArbF parity error", -1, 1},
+		{F_PCMDMUXPERR, "ULP RX PCMDMUX parity error", -1, 1},
+		{F_DATASELFRAMEERR1, "ULP RX frame error", -1, 1},
+		{F_DATASELFRAMEERR0, "ULP RX frame error", -1, 1},
 		{0}
 	};
 
@@ -1435,6 +1484,7 @@ static void ulptx_intr_handler(struct adapter *adapter)
 		 STAT_ULP_CH0_PBL_OOB, 0},
 		{F_PBL_BOUND_ERR_CH1, "ULP TX channel 1 PBL out of bounds",
 		 STAT_ULP_CH1_PBL_OOB, 0},
+		{0xfc, "ULP TX parity error", -1, 1},
 		{0}
 	};
 
@@ -1509,7 +1559,8 @@ static void pmrx_intr_handler(struct adapter *adapter)
 static void cplsw_intr_handler(struct adapter *adapter)
 {
 	static const struct intr_info cplsw_intr_info[] = {
-/*		{ F_CIM_OVFL_ERROR, "CPL switch CIM overflow", -1, 1 }, */
+		{F_CIM_OP_MAP_PERR, "CPL switch CIM parity error", -1, 1},
+		{F_CIM_OVFL_ERROR, "CPL switch CIM overflow", -1, 1},
 		{F_TP_FRAMING_ERROR, "CPL switch TP framing error", -1, 1},
 		{F_SGE_FRAMING_ERROR, "CPL switch SGE framing error", -1, 1},
 		{F_CIM_FRAMING_ERROR, "CPL switch CIM framing error", -1, 1},
@@ -1730,7 +1781,6 @@ void t3_intr_enable(struct adapter *adapter)
 		 MC7_INTR_MASK},
 		{A_MC5_DB_INT_ENABLE, MC5_INTR_MASK},
 		{A_ULPRX_INT_ENABLE, ULPRX_INTR_MASK},
-		{A_TP_INT_ENABLE, 0x3bfffff},
 		{A_PM1_TX_INT_ENABLE, PMTX_INTR_MASK},
 		{A_PM1_RX_INT_ENABLE, PMRX_INTR_MASK},
 		{A_CIM_HOST_INT_ENABLE, CIM_INTR_MASK},
@@ -1740,6 +1790,8 @@ void t3_intr_enable(struct adapter *adapter)
 	adapter->slow_intr_mask = PL_INTR_MASK;
 
 	t3_write_regs(adapter, intr_en_avp, ARRAY_SIZE(intr_en_avp), 0);
+	t3_write_reg(adapter, A_TP_INT_ENABLE,
+		     adapter->params.rev >= T3_REV_C ? 0x2bfffff : 0x3bfffff);
 
 	if (adapter->params.rev > 0) {
 		t3_write_reg(adapter, A_CPL_INTR_ENABLE,
@@ -1892,6 +1944,16 @@ static int t3_sge_write_context(struct adapter *adapter, unsigned int id,
 		     V_CONTEXT_CMD_OPCODE(1) | type | V_CONTEXT(id));
 	return t3_wait_op_done(adapter, A_SG_CONTEXT_CMD, F_CONTEXT_CMD_BUSY,
 			       0, SG_CONTEXT_CMD_ATTEMPTS, 1);
+}
+
+static int clear_sge_ctxt(struct adapter *adap, unsigned int id,
+			  unsigned int type)
+{
+	t3_write_reg(adap, A_SG_CONTEXT_DATA0, 0);
+	t3_write_reg(adap, A_SG_CONTEXT_DATA1, 0);
+	t3_write_reg(adap, A_SG_CONTEXT_DATA2, 0);
+	t3_write_reg(adap, A_SG_CONTEXT_DATA3, 0);
+	return t3_sge_write_context(adap, id, type);
 }
 
 /**
@@ -2395,7 +2457,7 @@ static inline unsigned int pm_num_pages(unsigned int mem_size,
 	t3_write_reg((adap), A_ ## reg, (start)); \
 	start += size
 
-/*
+/**
  *	partition_mem - partition memory and configure TP memory settings
  *	@adap: the adapter
  *	@p: the TP parameters
@@ -2480,7 +2542,7 @@ static void tp_config(struct adapter *adap, const struct tp_params *p)
 		     V_AUTOSTATE2(1) | V_AUTOSTATE1(0) |
 		     V_BYTETHRESHOLD(16384) | V_MSSTHRESHOLD(2) |
 		     F_AUTOCAREFUL | F_AUTOENABLE | V_DACK_MODE(1));
-	t3_set_reg_field(adap, A_TP_IN_CONFIG, F_IPV6ENABLE | F_NICMODE,
+	t3_set_reg_field(adap, A_TP_IN_CONFIG, F_RXFBARBPRIO | F_TXFBARBPRIO,
 			 F_IPV6ENABLE | F_NICMODE);
 	t3_write_reg(adap, A_TP_TX_RESOURCE_LIMIT, 0x18141814);
 	t3_write_reg(adap, A_TP_PARA_REG4, 0x5050105);
@@ -2492,10 +2554,12 @@ static void tp_config(struct adapter *adap, const struct tp_params *p)
 			 F_ENABLEEPCMDAFULL,
 			 F_ENABLEOCSPIFULL |F_TXDEFERENABLE | F_HEARBEATDACK |
 			 F_TXCONGESTIONMODE | F_RXCONGESTIONMODE);
-	t3_set_reg_field(adap, A_TP_PC_CONFIG2, F_CHDRAFULL, 0);
+	t3_set_reg_field(adap, A_TP_PC_CONFIG2, F_CHDRAFULL,
+			 F_ENABLEIPV6RSS | F_ENABLENONOFDTNLSYN |
+			 F_ENABLEARPMISS | F_DISBLEDAPARBIT0);
 	t3_write_reg(adap, A_TP_PROXY_FLOW_CNTL, 1080);
 	t3_write_reg(adap, A_TP_PROXY_FLOW_CNTL, 1000);
-	
+
 	if (adap->params.rev > 0) {
 		tp_wr_indirect(adap, A_TP_EGRESS_CONFIG, F_REWRITEFORCETOSIZE);
 		t3_set_reg_field(adap, A_TP_PARA_REG3, F_TXPACEAUTO,
@@ -2504,6 +2568,11 @@ static void tp_config(struct adapter *adap, const struct tp_params *p)
 		t3_set_reg_field(adap, A_TP_PARA_REG3, 0, F_TXPACEAUTOSTRICT);
 	} else
 		t3_set_reg_field(adap, A_TP_PARA_REG3, 0, F_TXPACEFIXED);
+
+	if (adap->params.rev == T3_REV_C)
+		t3_set_reg_field(adap, A_TP_PC_CONFIG,
+				 V_TABLELATENCYDELTA(M_TABLELATENCYDELTA),
+				 V_TABLELATENCYDELTA(4));
 
 	t3_write_reg(adap, A_TP_TX_MOD_QUEUE_WEIGHT1, 0);
 	t3_write_reg(adap, A_TP_TX_MOD_QUEUE_WEIGHT0, 0);
@@ -2809,15 +2878,15 @@ static void ulp_config(struct adapter *adap, const struct tp_params *p)
 int t3_set_proto_sram(struct adapter *adap, u8 *data)
 {
 	int i;
-	u32 *buf = (u32 *)data;
+	__be32 *buf = (__be32 *)data;
 
 	for (i = 0; i < PROTO_SRAM_LINES; i++) {
-		t3_write_reg(adap, A_TP_EMBED_OP_FIELD5, cpu_to_be32(*buf++));
-		t3_write_reg(adap, A_TP_EMBED_OP_FIELD4, cpu_to_be32(*buf++));
-		t3_write_reg(adap, A_TP_EMBED_OP_FIELD3, cpu_to_be32(*buf++));
-		t3_write_reg(adap, A_TP_EMBED_OP_FIELD2, cpu_to_be32(*buf++));
-		t3_write_reg(adap, A_TP_EMBED_OP_FIELD1, cpu_to_be32(*buf++));
-		
+		t3_write_reg(adap, A_TP_EMBED_OP_FIELD5, be32_to_cpu(*buf++));
+		t3_write_reg(adap, A_TP_EMBED_OP_FIELD4, be32_to_cpu(*buf++));
+		t3_write_reg(adap, A_TP_EMBED_OP_FIELD3, be32_to_cpu(*buf++));
+		t3_write_reg(adap, A_TP_EMBED_OP_FIELD2, be32_to_cpu(*buf++));
+		t3_write_reg(adap, A_TP_EMBED_OP_FIELD1, be32_to_cpu(*buf++));
+
 		t3_write_reg(adap, A_TP_EMBED_OP_FIELD0, i << 1 | 1 << 31);
 		if (t3_wait_op_done(adap, A_TP_EMBED_OP_FIELD0, 1, 1, 5, 1))
 			return -EIO;
@@ -3194,7 +3263,8 @@ static void config_pcie(struct adapter *adap)
 			 V_REPLAYLMT(rpllmt));
 
 	t3_write_reg(adap, A_PCIE_PEX_ERR, 0xffffffff);
-	t3_set_reg_field(adap, A_PCIE_CFG, F_PCIE_CLIDECEN, F_PCIE_CLIDECEN);
+	t3_set_reg_field(adap, A_PCIE_CFG, 0,
+			 F_PCIE_DMASTOPEN | F_PCIE_CLIDECEN);
 }
 
 /*
@@ -3207,7 +3277,7 @@ static void config_pcie(struct adapter *adap)
  */
 int t3_init_hw(struct adapter *adapter, u32 fw_params)
 {
-	int err = -EIO, attempts = 100;
+	int err = -EIO, attempts, i;
 	const struct vpd_params *vpd = &adapter->params.vpd;
 
 	if (adapter->params.rev > 0)
@@ -3225,6 +3295,10 @@ int t3_init_hw(struct adapter *adapter, u32 fw_params)
 				adapter->params.mc5.nfilters,
 				adapter->params.mc5.nroutes))
 			goto out_err;
+
+		for (i = 0; i < 32; i++)
+			if (clear_sge_ctxt(adapter, i, F_CQ))
+				goto out_err;
 	}
 
 	if (tp_init(adapter, &adapter->params.tp))
@@ -3240,7 +3314,12 @@ int t3_init_hw(struct adapter *adapter, u32 fw_params)
 	if (is_pcie(adapter))
 		config_pcie(adapter);
 	else
-		t3_set_reg_field(adapter, A_PCIX_CFG, 0, F_CLIDECEN);
+		t3_set_reg_field(adapter, A_PCIX_CFG, 0,
+				 F_DMASTOPEN | F_CLIDECEN);
+
+	if (adapter->params.rev == T3_REV_C)
+		t3_set_reg_field(adapter, A_ULPTX_CONFIG, 0,
+				 F_CFG_CQE_SOP_MASK);
 
 	t3_write_reg(adapter, A_PM1_RX_CFG, 0xffffffff);
 	t3_write_reg(adapter, A_PM1_RX_MODE, 0);
@@ -3253,6 +3332,7 @@ int t3_init_hw(struct adapter *adapter, u32 fw_params)
 		     V_BOOTADDR(FW_FLASH_BOOT_ADDR >> 2));
 	t3_read_reg(adapter, A_CIM_BOOT_CFG);	/* flush */
 
+	attempts = 100;
 	do {			/* wait for uP to initialize */
 		msleep(20);
 	} while (t3_read_reg(adapter, A_CIM_HOST_ACC_DATA) && --attempts);
@@ -3387,6 +3467,7 @@ void early_hw_init(struct adapter *adapter, const struct adapter_info *ai)
 	t3_write_reg(adapter, A_T3DBG_GPIO_EN,
 		     ai->gpio_out | F_GPIO0_OEN | F_GPIO0_OUT_VAL);
 	t3_write_reg(adapter, A_MC5_DB_SERVER_INDEX, 0);
+	t3_write_reg(adapter, A_SG_OCO_BASE, V_BASE1(0xfff));
 
 	if (adapter->params.rev == 0 || !uses_xaui(adapter))
 		val |= F_ENRGMII;
@@ -3403,13 +3484,13 @@ void early_hw_init(struct adapter *adapter, const struct adapter_info *ai)
 }
 
 /*
- * Reset the adapter. 
+ * Reset the adapter.
  * Older PCIe cards lose their config space during reset, PCI-X
  * ones don't.
  */
 static int t3_reset_adapter(struct adapter *adapter)
 {
-	int i, save_and_restore_pcie = 
+	int i, save_and_restore_pcie =
 	    adapter->params.rev < T3_REV_B2 && is_pcie(adapter);
 	uint16_t devid = 0;
 
@@ -3433,6 +3514,36 @@ static int t3_reset_adapter(struct adapter *adapter)
 
 	if (save_and_restore_pcie)
 		pci_restore_state(adapter->pdev);
+	return 0;
+}
+
+static int __devinit init_parity(struct adapter *adap)
+{
+		int i, err, addr;
+
+	if (t3_read_reg(adap, A_SG_CONTEXT_CMD) & F_CONTEXT_CMD_BUSY)
+		return -EBUSY;
+
+	for (err = i = 0; !err && i < 16; i++)
+		err = clear_sge_ctxt(adap, i, F_EGRESS);
+	for (i = 0xfff0; !err && i <= 0xffff; i++)
+		err = clear_sge_ctxt(adap, i, F_EGRESS);
+	for (i = 0; !err && i < SGE_QSETS; i++)
+		err = clear_sge_ctxt(adap, i, F_RESPONSEQ);
+	if (err)
+		return err;
+
+	t3_write_reg(adap, A_CIM_IBQ_DBG_DATA, 0);
+	for (i = 0; i < 4; i++)
+		for (addr = 0; addr <= M_IBQDBGADDR; addr++) {
+			t3_write_reg(adap, A_CIM_IBQ_DBG_CFG, F_IBQDBGEN |
+				     F_IBQDBGWR | V_IBQDBGQID(i) |
+				     V_IBQDBGADDR(addr));
+			err = t3_wait_op_done(adap, A_CIM_IBQ_DBG_CFG,
+					      F_IBQDBGBUSY, 0, 2, 1);
+			if (err)
+				return err;
+		}
 	return 0;
 }
 
@@ -3503,6 +3614,9 @@ int __devinit t3_prep_adapter(struct adapter *adapter,
 	}
 
 	early_hw_init(adapter, ai);
+	ret = init_parity(adapter);
+	if (ret)
+		return ret;
 
 	for_each_port(adapter, i) {
 		u8 hw_addr[6];

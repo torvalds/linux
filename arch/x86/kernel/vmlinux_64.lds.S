@@ -37,16 +37,15 @@ SECTIONS
 	KPROBES_TEXT
 	*(.fixup)
 	*(.gnu.warning)
-	} :text = 0x9090
-  				/* out-of-line lock text */
-  .text.lock : AT(ADDR(.text.lock) - LOAD_OFFSET) { *(.text.lock) }
-
-  _etext = .;			/* End of text section */
+	_etext = .;			/* End of text section */
+  } :text = 0x9090
 
   . = ALIGN(16);		/* Exception table */
-  __start___ex_table = .;
-  __ex_table : AT(ADDR(__ex_table) - LOAD_OFFSET) { *(__ex_table) }
-  __stop___ex_table = .;
+  __ex_table : AT(ADDR(__ex_table) - LOAD_OFFSET) {
+  	__start___ex_table = .;
+	 *(__ex_table)
+  	__stop___ex_table = .;
+  }
 
   NOTES :text :note
 
@@ -155,12 +154,15 @@ SECTIONS
   __init_begin = .;
   .init.text : AT(ADDR(.init.text) - LOAD_OFFSET) {
 	_sinittext = .;
-	*(.init.text)
+	INIT_TEXT
 	_einittext = .;
   }
-  __initdata_begin = .;
-  .init.data : AT(ADDR(.init.data) - LOAD_OFFSET) { *(.init.data) }
-  __initdata_end = .;
+  .init.data : AT(ADDR(.init.data) - LOAD_OFFSET) {
+	__initdata_begin = .;
+	INIT_DATA
+	__initdata_end = .;
+   }
+
   . = ALIGN(16);
   __setup_start = .;
   .init.setup : AT(ADDR(.init.setup) - LOAD_OFFSET) { *(.init.setup) }
@@ -176,6 +178,14 @@ SECTIONS
   }
   __con_initcall_end = .;
   SECURITY_INIT
+
+  . = ALIGN(8);
+  .parainstructions : AT(ADDR(.parainstructions) - LOAD_OFFSET) {
+  __parainstructions = .;
+       *(.parainstructions)
+  __parainstructions_end = .;
+  }
+
   . = ALIGN(8);
   __alt_instructions = .;
   .altinstructions : AT(ADDR(.altinstructions) - LOAD_OFFSET) {
@@ -187,8 +197,12 @@ SECTIONS
   }
   /* .exit.text is discard at runtime, not link time, to deal with references
      from .altinstructions and .eh_frame */
-  .exit.text : AT(ADDR(.exit.text) - LOAD_OFFSET) { *(.exit.text) }
-  .exit.data : AT(ADDR(.exit.data) - LOAD_OFFSET) { *(.exit.data) }
+  .exit.text : AT(ADDR(.exit.text) - LOAD_OFFSET) {
+	EXIT_TEXT
+  }
+  .exit.data : AT(ADDR(.exit.data) - LOAD_OFFSET) {
+	EXIT_DATA
+  }
 
 /* vdso blob that is mapped into user space */
   vdso_start = . ;

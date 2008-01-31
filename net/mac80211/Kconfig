@@ -10,27 +10,84 @@ config MAC80211
 	select CFG80211
 	select NET_SCH_FIFO
 	---help---
-	This option enables the hardware independent IEEE 802.11
-	networking stack.
+	  This option enables the hardware independent IEEE 802.11
+	  networking stack.
 
-config MAC80211_RCSIMPLE
-	bool "'simple' rate control algorithm" if EMBEDDED
-	default y
-	depends on MAC80211
+menu "Rate control algorithm selection"
+	depends on MAC80211 != n
+
+choice
+	prompt "Default rate control algorithm"
+	default MAC80211_RC_DEFAULT_PID
+	---help---
+	  This option selects the default rate control algorithm
+	  mac80211 will use. Note that this default can still be
+	  overriden through the ieee80211_default_rc_algo module
+	  parameter if different algorithms are available.
+
+config MAC80211_RC_DEFAULT_PID
+	bool "PID controller based rate control algorithm"
+	select MAC80211_RC_PID
+	---help---
+	  Select the PID controller based rate control as the
+	  default rate control algorithm. You should choose
+	  this unless you know what you are doing.
+
+config MAC80211_RC_DEFAULT_SIMPLE
+	bool "Simple rate control algorithm"
+	select MAC80211_RC_SIMPLE
+	---help---
+	  Select the simple rate control as the default rate
+	  control algorithm. Note that this is a non-responsive,
+	  dumb algorithm. You should choose the PID rate control
+	  instead.
+
+config MAC80211_RC_DEFAULT_NONE
+	bool "No default algorithm"
+	depends on EMBEDDED
 	help
-	  This option allows you to turn off the 'simple' rate
-	  control algorithm in mac80211. If you do turn it off,
-	  you absolutely need another rate control algorithm.
+	  Selecting this option will select no default algorithm
+	  and allow you to not build any. Do not choose this
+	  option unless you know your driver comes with another
+	  suitable algorithm.
+endchoice
 
-	  Say Y unless you know you will have another algorithm
-	  available.
+comment "Selecting 'y' for an algorithm will"
+comment "build the algorithm into mac80211."
+
+config MAC80211_RC_DEFAULT
+	string
+	default "pid" if MAC80211_RC_DEFAULT_PID
+	default "simple" if MAC80211_RC_DEFAULT_SIMPLE
+	default ""
+
+config MAC80211_RC_PID
+	tristate "PID controller based rate control algorithm"
+	---help---
+	  This option enables a TX rate control algorithm for
+	  mac80211 that uses a PID controller to select the TX
+	  rate.
+
+	  Say Y or M unless you're sure you want to use a
+	  different rate control algorithm.
+
+config MAC80211_RC_SIMPLE
+	tristate "Simple rate control algorithm (DEPRECATED)"
+	---help---
+	  This option enables a very simple, non-responsive TX
+	  rate control algorithm. This algorithm is deprecated
+	  and will be removed from the kernel in the near future.
+	  It has been replaced by the PID algorithm.
+
+	  Say N unless you know what you are doing.
+endmenu
 
 config MAC80211_LEDS
 	bool "Enable LED triggers"
 	depends on MAC80211 && LEDS_TRIGGERS
 	---help---
-	This option enables a few LED triggers for different
-	packet receive/transmit events.
+	  This option enables a few LED triggers for different
+	  packet receive/transmit events.
 
 config MAC80211_DEBUGFS
 	bool "Export mac80211 internals in DebugFS"
@@ -49,6 +106,16 @@ config MAC80211_DEBUG
 	  ieee80211 network stack.
 
 	  If you are not trying to debug or develop the ieee80211
+	  subsystem, you most likely want to say N here.
+
+config MAC80211_HT_DEBUG
+	bool "Enable HT debugging output"
+	depends on MAC80211_DEBUG
+	---help---
+	  This option enables 802.11n High Throughput features
+	  debug tracing output.
+
+	  If you are not trying to debug of develop the ieee80211
 	  subsystem, you most likely want to say N here.
 
 config MAC80211_VERBOSE_DEBUG

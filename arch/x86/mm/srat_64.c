@@ -130,6 +130,9 @@ void __init
 acpi_numa_processor_affinity_init(struct acpi_srat_cpu_affinity *pa)
 {
 	int pxm, node;
+	int apic_id;
+
+	apic_id = pa->apic_id;
 	if (srat_disabled())
 		return;
 	if (pa->header.length != sizeof(struct acpi_srat_cpu_affinity)) {
@@ -145,68 +148,12 @@ acpi_numa_processor_affinity_init(struct acpi_srat_cpu_affinity *pa)
 		bad_srat();
 		return;
 	}
-	apicid_to_node[pa->apic_id] = node;
+	apicid_to_node[apic_id] = node;
 	acpi_numa = 1;
 	printk(KERN_INFO "SRAT: PXM %u -> APIC %u -> Node %u\n",
-	       pxm, pa->apic_id, node);
+	       pxm, apic_id, node);
 }
 
-#ifdef CONFIG_MEMORY_HOTPLUG_RESERVE
-/*
- * Protect against too large hotadd areas that would fill up memory.
- */
-static int hotadd_enough_memory(struct bootnode *nd)
-{
-	static unsigned long allocated;
-	static unsigned long last_area_end;
-	unsigned long pages = (nd->end - nd->start) >> PAGE_SHIFT;
-	long mem = pages * sizeof(struct page);
-	unsigned long addr;
-	unsigned long allowed;
-	unsigned long oldpages = pages;
-
-	if (mem < 0)
-		return 0;
-	allowed = (end_pfn - absent_pages_in_range(0, end_pfn)) * PAGE_SIZE;
-	allowed = (allowed / 100) * hotadd_percent;
-	if (allocated + mem > allowed) {
-		unsigned long range;
-		/* Give them at least part of their hotadd memory upto hotadd_percent
-		   It would be better to spread the limit out
-		   over multiple hotplug areas, but that is too complicated
-		   right now */
-		if (allocated >= allowed)
-			return 0;
-		range = allowed - allocated;
-		pages = (range / PAGE_SIZE);
-		mem = pages * sizeof(struct page);
-		nd->end = nd->start + range;
-	}
-	/* Not completely fool proof, but a good sanity check */
-	addr = find_e820_area(last_area_end, end_pfn<<PAGE_SHIFT, mem);
-	if (addr == -1UL)
-		return 0;
-	if (pages != oldpages)
-		printk(KERN_NOTICE "SRAT: Hotadd area limited to %lu bytes\n",
-			pages << PAGE_SHIFT);
-	last_area_end = addr + mem;
-	allocated += mem;
-	return 1;
-}
-
-static int update_end_of_memory(unsigned long end)
-{
-	found_add_area = 1;
-	if ((end >> PAGE_SHIFT) > end_pfn)
-		end_pfn = end >> PAGE_SHIFT;
-	return 1;
-}
-
-static inline int save_add_info(void)
-{
-	return hotadd_percent > 0;
-}
-#else
 int update_end_of_memory(unsigned long end) {return -1;}
 static int hotadd_enough_memory(struct bootnode *nd) {return 1;}
 #ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
@@ -214,10 +161,9 @@ static inline int save_add_info(void) {return 1;}
 #else
 static inline int save_add_info(void) {return 0;}
 #endif
-#endif
 /*
  * Update nodes_add and decide if to include add are in the zone.
- * Both SPARSE and RESERVE need nodes_add infomation.
+ * Both SPARSE and RESERVE need nodes_add information.
  * This code supports one contiguous hot add area per node.
  */
 static int reserve_hotadd(int node, unsigned long start, unsigned long end)
@@ -377,7 +323,7 @@ static int __init nodes_cover_memory(const struct bootnode *nodes)
 	return 1;
 }
 
-static void unparse_node(int node)
+static void __init unparse_node(int node)
 {
 	int i;
 	node_clear(node, nodes_parsed);
@@ -400,7 +346,12 @@ int __init acpi_scan_nodes(unsigned long start, unsigned long end)
 	/* First clean up the node list */
 	for (i = 0; i < MAX_NUMNODES; i++) {
 		cutoff_node(i, start, end);
-		if ((nodes[i].end - nodes[i].start) < NODE_MIN_SIZE) {
+		/*
+		 * don't confuse VM with a node that doesn't have the
+		 * minimum memory.
+		 */
+		if (nodes[i].end &&
+			(nodes[i].end - nodes[i].start) < NODE_MIN_SIZE) {
 			unparse_node(i);
 			node_set_offline(i);
 		}
@@ -431,9 +382,11 @@ int __init acpi_scan_nodes(unsigned long start, unsigned long end)
 			setup_node_bootmem(i, nodes[i].start, nodes[i].end);
 
 	for (i = 0; i < NR_CPUS; i++) {
-		if (cpu_to_node(i) == NUMA_NO_NODE)
+		int node = early_cpu_to_node(i);
+
+		if (node == NUMA_NO_NODE)
 			continue;
-		if (!node_isset(cpu_to_node(i), node_possible_map))
+		if (!node_isset(node, node_possible_map))
 			numa_set_node(i, NUMA_NO_NODE);
 	}
 	numa_init_array();
@@ -441,6 +394,12 @@ int __init acpi_scan_nodes(unsigned long start, unsigned long end)
 }
 
 #ifdef CONFIG_NUMA_EMU
+static int fake_node_to_pxm_map[MAX_NUMNODES] __initdata = {
+	[0 ... MAX_NUMNODES-1] = PXM_INVAL
+};
+static s16 fake_apicid_to_node[MAX_LOCAL_APIC] __initdata = {
+	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
+};
 static int __init find_node_by_addr(unsigned long addr)
 {
 	int ret = NUMA_NO_NODE;
@@ -457,7 +416,7 @@ static int __init find_node_by_addr(unsigned long addr)
 			break;
 		}
 	}
-	return i;
+	return ret;
 }
 
 /*
@@ -471,12 +430,6 @@ static int __init find_node_by_addr(unsigned long addr)
 void __init acpi_fake_nodes(const struct bootnode *fake_nodes, int num_nodes)
 {
 	int i, j;
-	int fake_node_to_pxm_map[MAX_NUMNODES] = {
-		[0 ... MAX_NUMNODES-1] = PXM_INVAL
-	};
-	unsigned char fake_apicid_to_node[MAX_LOCAL_APIC] = {
-		[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
-	};
 
 	printk(KERN_INFO "Faking PXM affinity for fake nodes on real "
 			 "topology.\n");

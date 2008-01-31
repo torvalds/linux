@@ -26,6 +26,7 @@
 #include <linux/delay.h>
 
 #include "cx88.h"
+#include "tea5767.h"
 
 static unsigned int tuner[] = {[0 ... (CX88_MAXBOARDS - 1)] = UNSET };
 static unsigned int radio[] = {[0 ... (CX88_MAXBOARDS - 1)] = UNSET };
@@ -245,6 +246,10 @@ static const struct cx88_board cx88_boards[] = {
 		}},
 		.radio = {
 			 .type   = CX88_RADIO,
+			 .vmux   = 3,
+			 .gpio0  = 0x000040bf,
+			 .gpio1  = 0x000080c0,
+			 .gpio2  = 0x0000ff20,
 		},
 	},
 	[CX88_BOARD_WINFAST_DV2000] = {
@@ -297,22 +302,22 @@ static const struct cx88_board cx88_boards[] = {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x0000bde2,
-			.extadc = 1,
+			.audioroute = 1,
 		},{
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x0000bde6,
-			.extadc = 1,
+			.audioroute = 1,
 		},{
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x0000bde6,
-			.extadc = 1,
+			.audioroute = 1,
 		}},
 		.radio = {
 			.type   = CX88_RADIO,
 			.gpio0  = 0x0000bd62,
-			.extadc = 1,
+			.audioroute = 1,
 		},
 		.mpeg           = CX88_MPEG_BLACKBIRD,
 	},
@@ -373,7 +378,7 @@ static const struct cx88_board cx88_boards[] = {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x0000fde6, // 0x0000fda6 L,R RCA audio in?
-			.extadc = 1,
+			.audioroute = 1,
 		}},
 		.radio = {
 			.type   = CX88_RADIO,
@@ -544,7 +549,7 @@ static const struct cx88_board cx88_boards[] = {
 		.input          = {{
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
-			.extadc = 1,
+			.audioroute = 1,
 		}},
 		.mpeg           = CX88_MPEG_BLACKBIRD,
 	},
@@ -667,22 +672,22 @@ static const struct cx88_board cx88_boards[] = {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x00009d80,
-			.extadc = 1,
+			.audioroute = 1,
 		},{
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x00009d76,
-			.extadc = 1,
+			.audioroute = 1,
 		},{
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x00009d76,
-			.extadc = 1,
+			.audioroute = 1,
 		}},
 		.radio = {
 			.type   = CX88_RADIO,
 			.gpio0  = 0x00009d00,
-			.extadc = 1,
+			.audioroute = 1,
 		},
 		.mpeg           = CX88_MPEG_BLACKBIRD,
 	},
@@ -821,23 +826,23 @@ static const struct cx88_board cx88_boards[] = {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 0,
 			.gpio0  = 0x0000cd73,
-			.extadc = 1,
+			.audioroute = 1,
 		},{
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 1,
 			.gpio0  = 0x0000cd73,
-			.extadc = 1,
+			.audioroute = 1,
 		},{
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 3,
 			.gpio0  = 0x0000cdb3,
-			.extadc = 1,
+			.audioroute = 1,
 		}},
 		.radio = {
 			.type   = CX88_RADIO,
 			.vmux   = 2,
 			.gpio0  = 0x0000cdf3,
-			.extadc = 1,
+			.audioroute = 1,
 		},
 		.mpeg           = CX88_MPEG_BLACKBIRD,
 	},
@@ -1105,12 +1110,12 @@ static const struct cx88_board cx88_boards[] = {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x3de6,
-			.extadc = 1,
+			.audioroute = 1,
 		},{
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x3de6,
-			.extadc = 1,
+			.audioroute = 1,
 		}},
 		.radio = {
 			.type   = CX88_RADIO,
@@ -1335,17 +1340,17 @@ static const struct cx88_board cx88_boards[] = {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0	= 0xe780,
-			.extadc = 1,
+			.audioroute = 1,
 		},{
 			.type	= CX88_VMUX_COMPOSITE1,
 			.vmux	= 1,
 			.gpio0	= 0xe780,
-			.extadc = 1,
+			.audioroute = 2,
 		},{
 			.type	= CX88_VMUX_SVIDEO,
 			.vmux	= 2,
 			.gpio0	= 0xe780,
-			.extadc = 1,
+			.audioroute = 2,
 		}},
 		/* fixme: Add radio support */
 		.mpeg           = CX88_MPEG_DVB | CX88_MPEG_BLACKBIRD,
@@ -1369,6 +1374,32 @@ static const struct cx88_board cx88_boards[] = {
 			.vmux   = 2,
 			.gpio0  = 0x07fa,
 		}},
+	},
+	[CX88_BOARD_PINNACLE_PCTV_HD_800i] = {
+		.name           = "Pinnacle PCTV HD 800i",
+		.tuner_type     = TUNER_XC5000,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.input          = {{
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+			.gpio0  = 0x04fb,
+			.gpio1  = 0x10ff,
+		},{
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+			.gpio0  = 0x04fb,
+			.gpio1  = 0x10ef,
+			.audioroute = 1,
+		},{
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
+			.gpio0  = 0x04fb,
+			.gpio1  = 0x10ef,
+			.audioroute = 1,
+		}},
+		.mpeg           = CX88_MPEG_DVB,
 	},
 };
 
@@ -1679,6 +1710,10 @@ static const struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x1421,
 		.subdevice = 0x0390,
 		.card      = CX88_BOARD_ADSTECH_PTV_390,
+	},{
+		.subvendor = 0x11bd,
+		.subdevice = 0x0051,
+		.card      = CX88_BOARD_PINNACLE_PCTV_HD_800i,
 	},
 };
 
@@ -1846,6 +1881,36 @@ static void dvico_fusionhdtv_hybrid_init(struct cx88_core *core)
 }
 
 /* ----------------------------------------------------------------------- */
+/* Tuner callback function. Currently only needed for the Pinnacle 	   *
+ * PCTV HD 800i with an xc5000 sillicon tuner. This is used for both	   *
+ * analog tuner attach (tuner-core.c) and dvb tuner attach (cx88-dvb.c)    */
+
+int cx88_tuner_callback(void *priv, int command, int arg)
+{
+	struct i2c_algo_bit_data *i2c_algo = priv;
+	struct cx88_core *core = i2c_algo->data;
+
+	switch(core->boardnr) {
+	case CX88_BOARD_PINNACLE_PCTV_HD_800i:
+		if(command == 0) { /* This is the reset command from xc5000 */
+			/* Reset XC5000 tuner via SYS_RSTO_pin */
+			cx_write(MO_SRST_IO, 0);
+			msleep(10);
+			cx_write(MO_SRST_IO, 1);
+			return 0;
+		}
+		else {
+			printk(KERN_ERR
+				"xc5000: unknown tuner callback command.\n");
+			return -EINVAL;
+		}
+		break;
+	}
+	return 0; /* Should never be here */
+}
+EXPORT_SYMBOL(cx88_tuner_callback);
+
+/* ----------------------------------------------------------------------- */
 
 static void cx88_card_list(struct cx88_core *core, struct pci_dev *pci)
 {
@@ -1979,6 +2044,23 @@ static void cx88_card_setup(struct cx88_core *core)
 						core->name, i);
 		}
 		break;
+	case CX88_BOARD_MSI_TVANYWHERE_MASTER:
+	{
+		struct v4l2_priv_tun_config tea5767_cfg;
+		struct tea5767_ctrl ctl;
+
+		memset(&ctl, 0, sizeof(ctl));
+
+		ctl.high_cut  = 1;
+		ctl.st_noise  = 1;
+		ctl.deemph_75 = 1;
+		ctl.xtal_freq = TEA5767_HIGH_LO_13MHz;
+
+		tea5767_cfg.tuner = TUNER_TEA5767;
+		tea5767_cfg.priv  = &ctl;
+
+		cx88_call_i2c_clients(core, TUNER_SET_CONFIG, &tea5767_cfg);
+	}
 	}
 }
 

@@ -2,8 +2,8 @@
   * This header file contains global constant/enum definitions,
   * global variable declaration.
   */
-#ifndef _WLAN_DEFS_H_
-#define _WLAN_DEFS_H_
+#ifndef _LBS_DEFS_H_
+#define _LBS_DEFS_H_
 
 #include <linux/spinlock.h>
 
@@ -41,11 +41,11 @@
 #define LBS_DEB_HEX	0x00200000
 #define LBS_DEB_SDIO	0x00400000
 
-extern unsigned int libertas_debug;
+extern unsigned int lbs_debug;
 
 #ifdef DEBUG
 #define LBS_DEB_LL(grp, grpnam, fmt, args...) \
-do { if ((libertas_debug & (grp)) == (grp)) \
+do { if ((lbs_debug & (grp)) == (grp)) \
   printk(KERN_DEBUG DRV_NAME grpnam "%s: " fmt, \
          in_interrupt() ? " (INT)" : "", ## args); } while (0)
 #else
@@ -96,8 +96,8 @@ static inline void lbs_deb_hex(unsigned int grp, const char *prompt, u8 *buf, in
 	int i = 0;
 
 	if (len &&
-	    (libertas_debug & LBS_DEB_HEX) &&
-	    (libertas_debug & grp))
+	    (lbs_debug & LBS_DEB_HEX) &&
+	    (lbs_debug & grp))
 	{
 		for (i = 1; i <= len; i++) {
 			if ((i & 0xf) == 1) {
@@ -132,14 +132,21 @@ static inline void lbs_deb_hex(unsigned int grp, const char *prompt, u8 *buf, in
 */
 
 #define MRVDRV_MAX_MULTICAST_LIST_SIZE	32
-#define MRVDRV_NUM_OF_CMD_BUFFER        10
-#define MRVDRV_SIZE_OF_CMD_BUFFER       (2 * 1024)
+#define LBS_NUM_CMD_BUFFERS             10
+#define LBS_CMD_BUFFER_SIZE             (2 * 1024)
 #define MRVDRV_MAX_CHANNEL_SIZE		14
 #define MRVDRV_ASSOCIATION_TIME_OUT	255
 #define MRVDRV_SNAP_HEADER_LEN          8
 
-#define	WLAN_UPLD_SIZE			2312
+#define	LBS_UPLD_SIZE			2312
 #define DEV_NAME_LEN			32
+
+/* Wake criteria for HOST_SLEEP_CFG command */
+#define EHS_WAKE_ON_BROADCAST_DATA	0x0001
+#define EHS_WAKE_ON_UNICAST_DATA	0x0002
+#define EHS_WAKE_ON_MAC_EVENT		0x0004
+#define EHS_WAKE_ON_MULTICAST_DATA	0x0008
+#define EHS_REMOVE_WAKEUP		0xFFFFFFFF
 
 /** Misc constants */
 /* This section defines 802.11 specific contants */
@@ -257,17 +264,11 @@ static inline void lbs_deb_hex(unsigned int grp, const char *prompt, u8 *buf, in
 
 #define	MAX_LEDS			8
 
-#define IS_MESH_FRAME(x) (x->cb[6])
-#define SET_MESH_FRAME(x) (x->cb[6]=1)
-#define UNSET_MESH_FRAME(x) (x->cb[6]=0)
-
 /** Global Variable Declaration */
-typedef struct _wlan_private wlan_private;
-typedef struct _wlan_adapter wlan_adapter;
-extern const char libertas_driver_version[];
-extern u16 libertas_region_code_to_index[MRVDRV_MAX_REGION_CODE];
+extern const char lbs_driver_version[];
+extern u16 lbs_region_code_to_index[MRVDRV_MAX_REGION_CODE];
 
-extern u8 libertas_bg_rates[MAX_RATES];
+extern u8 lbs_bg_rates[MAX_RATES];
 
 /** ENUM definition*/
 /** SNRNF_TYPE */
@@ -284,13 +285,13 @@ enum SNRNF_DATA {
 	MAX_TYPE_AVG
 };
 
-/** WLAN_802_11_POWER_MODE */
-enum WLAN_802_11_POWER_MODE {
-	WLAN802_11POWERMODECAM,
-	WLAN802_11POWERMODEMAX_PSP,
-	WLAN802_11POWERMODEFAST_PSP,
+/** LBS_802_11_POWER_MODE */
+enum LBS_802_11_POWER_MODE {
+	LBS802_11POWERMODECAM,
+	LBS802_11POWERMODEMAX_PSP,
+	LBS802_11POWERMODEFAST_PSP,
 	/*not a real mode, defined as an upper bound */
-	WLAN802_11POWEMODEMAX
+	LBS802_11POWEMODEMAX
 };
 
 /** PS_STATE */
@@ -308,16 +309,16 @@ enum DNLD_STATE {
 	DNLD_CMD_SENT
 };
 
-/** WLAN_MEDIA_STATE */
-enum WLAN_MEDIA_STATE {
-	LIBERTAS_CONNECTED,
-	LIBERTAS_DISCONNECTED
+/** LBS_MEDIA_STATE */
+enum LBS_MEDIA_STATE {
+	LBS_CONNECTED,
+	LBS_DISCONNECTED
 };
 
-/** WLAN_802_11_PRIVACY_FILTER */
-enum WLAN_802_11_PRIVACY_FILTER {
-	WLAN802_11PRIVFILTERACCEPTALL,
-	WLAN802_11PRIVFILTER8021XWEP
+/** LBS_802_11_PRIVACY_FILTER */
+enum LBS_802_11_PRIVACY_FILTER {
+	LBS802_11PRIVFILTERACCEPTALL,
+	LBS802_11PRIVFILTER8021XWEP
 };
 
 /** mv_ms_type */
@@ -382,4 +383,4 @@ enum SNMP_MIB_VALUE_e {
 #define FWT_DEFAULT_SLEEPMODE 0
 #define FWT_DEFAULT_SNR 0
 
-#endif				/* _WLAN_DEFS_H_ */
+#endif

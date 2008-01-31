@@ -21,11 +21,11 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Netfilter Core Team <coreteam@netfilter.org>");
 MODULE_DESCRIPTION("iptables mangle table");
 
-#define MANGLE_VALID_HOOKS ((1 << NF_IP_PRE_ROUTING) | \
-			    (1 << NF_IP_LOCAL_IN) | \
-			    (1 << NF_IP_FORWARD) | \
-			    (1 << NF_IP_LOCAL_OUT) | \
-			    (1 << NF_IP_POST_ROUTING))
+#define MANGLE_VALID_HOOKS ((1 << NF_INET_PRE_ROUTING) | \
+			    (1 << NF_INET_LOCAL_IN) | \
+			    (1 << NF_INET_FORWARD) | \
+			    (1 << NF_INET_LOCAL_OUT) | \
+			    (1 << NF_INET_POST_ROUTING))
 
 /* Ouch - five different hooks? Maybe this should be a config option..... -- BC */
 static struct
@@ -40,18 +40,18 @@ static struct
 		.num_entries = 6,
 		.size = sizeof(struct ipt_standard) * 5 + sizeof(struct ipt_error),
 		.hook_entry = {
-			[NF_IP_PRE_ROUTING] 	= 0,
-			[NF_IP_LOCAL_IN] 	= sizeof(struct ipt_standard),
-			[NF_IP_FORWARD] 	= sizeof(struct ipt_standard) * 2,
-			[NF_IP_LOCAL_OUT] 	= sizeof(struct ipt_standard) * 3,
-			[NF_IP_POST_ROUTING] 	= sizeof(struct ipt_standard) * 4,
+			[NF_INET_PRE_ROUTING] 	= 0,
+			[NF_INET_LOCAL_IN] 	= sizeof(struct ipt_standard),
+			[NF_INET_FORWARD] 	= sizeof(struct ipt_standard) * 2,
+			[NF_INET_LOCAL_OUT] 	= sizeof(struct ipt_standard) * 3,
+			[NF_INET_POST_ROUTING] 	= sizeof(struct ipt_standard) * 4,
 		},
 		.underflow = {
-			[NF_IP_PRE_ROUTING] 	= 0,
-			[NF_IP_LOCAL_IN] 	= sizeof(struct ipt_standard),
-			[NF_IP_FORWARD] 	= sizeof(struct ipt_standard) * 2,
-			[NF_IP_LOCAL_OUT] 	= sizeof(struct ipt_standard) * 3,
-			[NF_IP_POST_ROUTING]	= sizeof(struct ipt_standard) * 4,
+			[NF_INET_PRE_ROUTING] 	= 0,
+			[NF_INET_LOCAL_IN] 	= sizeof(struct ipt_standard),
+			[NF_INET_FORWARD] 	= sizeof(struct ipt_standard) * 2,
+			[NF_INET_LOCAL_OUT] 	= sizeof(struct ipt_standard) * 3,
+			[NF_INET_POST_ROUTING]	= sizeof(struct ipt_standard) * 4,
 		},
 	},
 	.entries = {
@@ -128,40 +128,40 @@ ipt_local_hook(unsigned int hook,
 	return ret;
 }
 
-static struct nf_hook_ops ipt_ops[] = {
+static struct nf_hook_ops ipt_ops[] __read_mostly = {
 	{
 		.hook		= ipt_route_hook,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET,
-		.hooknum	= NF_IP_PRE_ROUTING,
+		.hooknum	= NF_INET_PRE_ROUTING,
 		.priority	= NF_IP_PRI_MANGLE,
 	},
 	{
 		.hook		= ipt_route_hook,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET,
-		.hooknum	= NF_IP_LOCAL_IN,
+		.hooknum	= NF_INET_LOCAL_IN,
 		.priority	= NF_IP_PRI_MANGLE,
 	},
 	{
 		.hook		= ipt_route_hook,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET,
-		.hooknum	= NF_IP_FORWARD,
+		.hooknum	= NF_INET_FORWARD,
 		.priority	= NF_IP_PRI_MANGLE,
 	},
 	{
 		.hook		= ipt_local_hook,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET,
-		.hooknum	= NF_IP_LOCAL_OUT,
+		.hooknum	= NF_INET_LOCAL_OUT,
 		.priority	= NF_IP_PRI_MANGLE,
 	},
 	{
 		.hook		= ipt_route_hook,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET,
-		.hooknum	= NF_IP_POST_ROUTING,
+		.hooknum	= NF_INET_POST_ROUTING,
 		.priority	= NF_IP_PRI_MANGLE,
 	},
 };

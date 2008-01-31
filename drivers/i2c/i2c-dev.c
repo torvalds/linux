@@ -182,27 +182,22 @@ static ssize_t i2cdev_write (struct file *file, const char __user *buf, size_t c
 	return ret;
 }
 
+static int i2cdev_check(struct device *dev, void *addrp)
+{
+	struct i2c_client *client = i2c_verify_client(dev);
+
+	if (!client || client->addr != *(unsigned int *)addrp)
+		return 0;
+
+	return dev->driver ? -EBUSY : 0;
+}
+
 /* This address checking function differs from the one in i2c-core
    in that it considers an address with a registered device, but no
-   bound driver, as NOT busy. */
+   driver bound to it, as NOT busy. */
 static int i2cdev_check_addr(struct i2c_adapter *adapter, unsigned int addr)
 {
-	struct list_head *item;
-	struct i2c_client *client;
-	int res = 0;
-
-	mutex_lock(&adapter->clist_lock);
-	list_for_each(item, &adapter->clients) {
-		client = list_entry(item, struct i2c_client, list);
-		if (client->addr == addr) {
-			if (client->driver)
-				res = -EBUSY;
-			break;
-		}
-	}
-	mutex_unlock(&adapter->clist_lock);
-
-	return res;
+	return device_for_each_child(&adapter->dev, &addr, i2cdev_check);
 }
 
 static int i2cdev_ioctl(struct inode *inode, struct file *file,

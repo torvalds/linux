@@ -28,9 +28,11 @@ SVGA_MODE := -DSVGA_MODE=NORMAL_VGA
 targets		:= vmlinux.bin setup.bin setup.elf zImage bzImage
 subdir- 	:= compressed
 
-setup-y		+= a20.o apm.o cmdline.o copy.o cpu.o cpucheck.o edd.o
+setup-y		+= a20.o cmdline.o copy.o cpu.o cpucheck.o edd.o
 setup-y		+= header.o main.o mca.o memory.o pm.o pmjump.o
-setup-y		+= printf.o string.o tty.o video.o version.o voyager.o
+setup-y		+= printf.o string.o tty.o video.o version.o
+setup-$(CONFIG_X86_APM_BOOT) += apm.o
+setup-$(CONFIG_X86_VOYAGER) += voyager.o
 
 # The link order of the video-*.o modules can matter.  In particular,
 # video-vga.o *must* be listed first, followed by video-vesa.o.
@@ -49,10 +51,7 @@ HOSTCFLAGS_build.o := $(LINUXINCLUDE)
 
 # How to compile the 16-bit code.  Note we always compile for -march=i386,
 # that way we can complain to the user if the CPU is insufficient.
-cflags-$(CONFIG_X86_32) :=
-cflags-$(CONFIG_X86_64) := -m32
 KBUILD_CFLAGS	:= $(LINUXINCLUDE) -g -Os -D_SETUP -D__KERNEL__ \
-		   $(cflags-y) \
 		   -Wall -Wstrict-prototypes \
 		   -march=i386 -mregparm=3 \
 		   -include $(srctree)/$(src)/code16gcc.h \
@@ -62,6 +61,7 @@ KBUILD_CFLAGS	:= $(LINUXINCLUDE) -g -Os -D_SETUP -D__KERNEL__ \
 			$(call cc-option, -fno-unit-at-a-time)) \
 		   $(call cc-option, -fno-stack-protector) \
 		   $(call cc-option, -mpreferred-stack-boundary=2)
+KBUILD_CFLAGS +=   $(call cc-option,-m32)
 KBUILD_AFLAGS	:= $(KBUILD_CFLAGS) -D__ASSEMBLY__
 
 $(obj)/zImage:  IMAGE_OFFSET := 0x1000

@@ -37,9 +37,7 @@ MODULE_LICENSE("GPL");
 
 
 #define DEBUG_MSG(args...) if (debug) printk (KERN_DEBUG "ebt_vlan: " args)
-#define INV_FLAG(_inv_flag_) (info->invflags & _inv_flag_) ? "!" : ""
 #define GET_BITMASK(_BIT_MASK_) info->bitmask & _BIT_MASK_
-#define SET_BITMASK(_BIT_MASK_) info->bitmask |= _BIT_MASK_
 #define EXIT_ON_MISMATCH(_MATCH_,_MASK_) {if (!((info->_MATCH_ == _MATCH_)^!!(info->invflags & _MASK_))) return EBT_NOMATCH;}
 
 static int

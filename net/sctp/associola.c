@@ -61,6 +61,7 @@
 
 /* Forward declarations for internal functions. */
 static void sctp_assoc_bh_rcv(struct work_struct *work);
+static void sctp_assoc_free_asconf_acks(struct sctp_association *asoc);
 
 
 /* 1st Level Abstractions. */
@@ -167,11 +168,9 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 		sp->autoclose * HZ;
 
 	/* Initilizes the timers */
-	for (i = SCTP_EVENT_TIMEOUT_NONE; i < SCTP_NUM_TIMEOUT_TYPES; ++i) {
-		init_timer(&asoc->timers[i]);
-		asoc->timers[i].function = sctp_timer_events[i];
-		asoc->timers[i].data = (unsigned long) asoc;
-	}
+	for (i = SCTP_EVENT_TIMEOUT_NONE; i < SCTP_NUM_TIMEOUT_TYPES; ++i)
+		setup_timer(&asoc->timers[i], sctp_timer_events[i],
+				(unsigned long)asoc);
 
 	/* Pull default initialization values from the sock options.
 	 * Note: This assumes that the values have already been
@@ -244,6 +243,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	asoc->addip_serial = asoc->c.initial_tsn;
 
 	INIT_LIST_HEAD(&asoc->addip_chunk_list);
+	INIT_LIST_HEAD(&asoc->asconf_ack_list);
 
 	/* Make an empty list of remote transport addresses.  */
 	INIT_LIST_HEAD(&asoc->peer.transport_addr_list);
@@ -433,8 +433,7 @@ void sctp_association_free(struct sctp_association *asoc)
 	asoc->peer.transport_count = 0;
 
 	/* Free any cached ASCONF_ACK chunk. */
-	if (asoc->addip_last_asconf_ack)
-		sctp_chunk_free(asoc->addip_last_asconf_ack);
+	sctp_assoc_free_asconf_acks(asoc);
 
 	/* Free any cached ASCONF chunk. */
 	if (asoc->addip_last_asconf)
@@ -730,6 +729,23 @@ struct sctp_transport *sctp_assoc_lookup_paddr(
 	}
 
 	return NULL;
+}
+
+/* Remove all transports except a give one */
+void sctp_assoc_del_nonprimary_peers(struct sctp_association *asoc,
+				     struct sctp_transport *primary)
+{
+	struct sctp_transport	*temp;
+	struct sctp_transport	*t;
+
+	list_for_each_entry_safe(t, temp, &asoc->peer.transport_addr_list,
+				 transports) {
+		/* if the current transport is not the primary one, delete it */
+		if (t != primary)
+			sctp_assoc_rm_peer(asoc, t);
+	}
+
+	return;
 }
 
 /* Engage in transport control operations.
@@ -1469,4 +1485,57 @@ retry:
 
 	asoc->assoc_id = (sctp_assoc_t) assoc_id;
 	return error;
+}
+
+/* Free asconf_ack cache */
+static void sctp_assoc_free_asconf_acks(struct sctp_association *asoc)
+{
+	struct sctp_chunk *ack;
+	struct sctp_chunk *tmp;
+
+	list_for_each_entry_safe(ack, tmp, &asoc->asconf_ack_list,
+				transmitted_list) {
+		list_del_init(&ack->transmitted_list);
+		sctp_chunk_free(ack);
+	}
+}
+
+/* Clean up the ASCONF_ACK queue */
+void sctp_assoc_clean_asconf_ack_cache(const struct sctp_association *asoc)
+{
+	struct sctp_chunk *ack;
+	struct sctp_chunk *tmp;
+
+	/* We can remove all the entries from the queue upto
+	 * the "Peer-Sequence-Number".
+	 */
+	list_for_each_entry_safe(ack, tmp, &asoc->asconf_ack_list,
+				transmitted_list) {
+		if (ack->subh.addip_hdr->serial ==
+				htonl(asoc->peer.addip_serial))
+			break;
+
+		list_del_init(&ack->transmitted_list);
+		sctp_chunk_free(ack);
+	}
+}
+
+/* Find the ASCONF_ACK whose serial number matches ASCONF */
+struct sctp_chunk *sctp_assoc_lookup_asconf_ack(
+					const struct sctp_association *asoc,
+					__be32 serial)
+{
+	struct sctp_chunk *ack = NULL;
+
+	/* Walk through the list of cached ASCONF-ACKs and find the
+	 * ack chunk whose serial number matches that of the request.
+	 */
+	list_for_each_entry(ack, &asoc->asconf_ack_list, transmitted_list) {
+		if (ack->subh.addip_hdr->serial == serial) {
+			sctp_chunk_hold(ack);
+			break;
+		}
+	}
+
+	return ack;
 }

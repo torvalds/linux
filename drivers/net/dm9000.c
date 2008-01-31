@@ -66,6 +66,7 @@
 #include <linux/dm9000.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
+#include <linux/irq.h>
 
 #include <asm/delay.h>
 #include <asm/irq.h>
@@ -113,7 +114,7 @@
 #define writesl	outsl
 #define DM9000_IRQ_FLAGS	(IRQF_SHARED | IRQF_TRIGGER_HIGH)
 #else
-#define DM9000_IRQ_FLAGS	IRQF_SHARED
+#define DM9000_IRQ_FLAGS	(IRQF_SHARED | IRQT_RISING)
 #endif
 
 /*

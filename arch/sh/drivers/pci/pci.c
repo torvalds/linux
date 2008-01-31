@@ -71,7 +71,7 @@ subsys_initcall(pcibios_init);
  *  Called after each bus is probed, but before its children
  *  are examined.
  */
-void __devinit pcibios_fixup_bus(struct pci_bus *bus)
+void __devinit __weak pcibios_fixup_bus(struct pci_bus *bus)
 {
 	pci_read_bridge_bases(bus);
 }

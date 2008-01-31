@@ -903,11 +903,11 @@ void asd_dump_frame_rcvd(struct asd_phy *phy,
 	int i;
 
 	switch ((dl->status_block[1] & 0x70) >> 3) {
-	case SAS_PROTO_STP:
+	case SAS_PROTOCOL_STP:
 		ASD_DPRINTK("STP proto device-to-host FIS:\n");
 		break;
 	default:
-	case SAS_PROTO_SSP:
+	case SAS_PROTOCOL_SSP:
 		ASD_DPRINTK("SAS proto IDENTIFY:\n");
 		break;
 	}

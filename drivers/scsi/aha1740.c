@@ -286,7 +286,7 @@ static irqreturn_t aha1740_intr_handle(int irq, void *dev_id)
 			   cdb when we come back */
 			if ( (adapstat & G2INTST_MASK) == G2INTST_CCBERROR ) {
 				memcpy(SCtmp->sense_buffer, ecbptr->sense, 
-				       sizeof(SCtmp->sense_buffer));
+				       SCSI_SENSE_BUFFERSIZE);
 				errstatus = aha1740_makecode(ecbptr->sense,ecbptr->status);
 			} else
 				errstatus = 0;
@@ -563,7 +563,6 @@ static struct scsi_host_template aha1740_template = {
 	.sg_tablesize     = AHA1740_SCATTER,
 	.cmd_per_lun      = AHA1740_CMDLUN,
 	.use_clustering   = ENABLE_CLUSTERING,
-	.use_sg_chaining  = ENABLE_SG_CHAINING,
 	.eh_abort_handler = aha1740_eh_abort_handler,
 };
 

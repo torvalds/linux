@@ -81,8 +81,6 @@ static void triflex_set_mode(ide_drive_t *drive, const u8 speed)
 		case XFER_PIO_0:
 			timing = 0x0808;
 			break;
-		default:
-			return;
 	}
 
 	triflex_timings &= ~(0xFFFF << (16 * unit));

@@ -8,11 +8,6 @@
 
 extern struct bus_type pci_bus_type;
 
-/* arch/sh/mm/consistent.c */
-extern void *consistent_alloc(gfp_t gfp, size_t size, dma_addr_t *handle);
-extern void consistent_free(void *vaddr, size_t size);
-extern void consistent_sync(void *vaddr, size_t size, int direction);
-
 #define dma_supported(dev, mask)	(1)
 
 static inline int dma_set_mask(struct device *dev, u64 mask)
@@ -25,43 +20,18 @@ static inline int dma_set_mask(struct device *dev, u64 mask)
 	return 0;
 }
 
-static inline void *dma_alloc_coherent(struct device *dev, size_t size,
-			 dma_addr_t *dma_handle, gfp_t flag)
-{
-	if (sh_mv.mv_consistent_alloc) {
-		void *ret;
+void *dma_alloc_coherent(struct device *dev, size_t size,
+			 dma_addr_t *dma_handle, gfp_t flag);
 
-		ret = sh_mv.mv_consistent_alloc(dev, size, dma_handle, flag);
-		if (ret != NULL)
-			return ret;
-	}
+void dma_free_coherent(struct device *dev, size_t size,
+		       void *vaddr, dma_addr_t dma_handle);
 
-	return consistent_alloc(flag, size, dma_handle);
-}
-
-static inline void dma_free_coherent(struct device *dev, size_t size,
-		       void *vaddr, dma_addr_t dma_handle)
-{
-	if (sh_mv.mv_consistent_free) {
-		int ret;
-
-		ret = sh_mv.mv_consistent_free(dev, size, vaddr, dma_handle);
-		if (ret == 0)
-			return;
-	}
-
-	consistent_free(vaddr, size);
-}
+void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
+		    enum dma_data_direction dir);
 
 #define dma_alloc_noncoherent(d, s, h, f) dma_alloc_coherent(d, s, h, f)
 #define dma_free_noncoherent(d, s, v, h) dma_free_coherent(d, s, v, h)
 #define dma_is_consistent(d, h) (1)
-
-static inline void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
-				  enum dma_data_direction dir)
-{
-	consistent_sync(vaddr, size, (int)dir);
-}
 
 static inline dma_addr_t dma_map_single(struct device *dev,
 					void *ptr, size_t size,
@@ -205,4 +175,18 @@ static inline int dma_mapping_error(dma_addr_t dma_addr)
 {
 	return dma_addr == 0;
 }
+
+#define ARCH_HAS_DMA_DECLARE_COHERENT_MEMORY
+
+extern int
+dma_declare_coherent_memory(struct device *dev, dma_addr_t bus_addr,
+			    dma_addr_t device_addr, size_t size, int flags);
+
+extern void
+dma_release_declared_memory(struct device *dev);
+
+extern void *
+dma_mark_declared_memory_occupied(struct device *dev,
+				  dma_addr_t device_addr, size_t size);
+
 #endif /* __ASM_SH_DMA_MAPPING_H */

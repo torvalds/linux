@@ -1596,9 +1596,7 @@ static const struct ethtool_ops ethtool_ops = {
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct netdev_private *np = netdev_priv(dev);
-	void __iomem *ioaddr = np->base;
 	int rc;
-	int i;
 
 	if (!netif_running(dev))
 		return -EINVAL;
@@ -1606,30 +1604,6 @@ static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	spin_lock_irq(&np->lock);
 	rc = generic_mii_ioctl(&np->mii_if, if_mii(rq), cmd, NULL);
 	spin_unlock_irq(&np->lock);
-	switch (cmd) {
-		case SIOCDEVPRIVATE:
-		for (i=0; i<TX_RING_SIZE; i++) {
-			printk(KERN_DEBUG "%02x %08llx %08x %08x(%02x) %08x %08x\n", i,
-				(unsigned long long)(np->tx_ring_dma + i*sizeof(*np->tx_ring)),
-				le32_to_cpu(np->tx_ring[i].next_desc),
-				le32_to_cpu(np->tx_ring[i].status),
-				(le32_to_cpu(np->tx_ring[i].status) >> 2)
-					& 0xff,
-				le32_to_cpu(np->tx_ring[i].frag[0].addr),
-				le32_to_cpu(np->tx_ring[i].frag[0].length));
-		}
-		printk(KERN_DEBUG "TxListPtr=%08x netif_queue_stopped=%d\n",
-			ioread32(np->base + TxListPtr),
-			netif_queue_stopped(dev));
-		printk(KERN_DEBUG "cur_tx=%d(%02x) dirty_tx=%d(%02x)\n",
-			np->cur_tx, np->cur_tx % TX_RING_SIZE,
-			np->dirty_tx, np->dirty_tx % TX_RING_SIZE);
-		printk(KERN_DEBUG "cur_rx=%d dirty_rx=%d\n", np->cur_rx, np->dirty_rx);
-		printk(KERN_DEBUG "cur_task=%d\n", np->cur_task);
-		printk(KERN_DEBUG "TxStatus=%04x\n", ioread16(ioaddr + TxStatus));
-			return 0;
-	}
-
 
 	return rc;
 }

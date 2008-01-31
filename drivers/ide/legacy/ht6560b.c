@@ -307,8 +307,7 @@ int probe_ht6560b = 0;
 module_param_named(probe, probe_ht6560b, bool, 0);
 MODULE_PARM_DESC(probe, "probe for HT6560B chipset");
 
-/* Can be called directly from ide.c. */
-int __init ht6560b_init(void)
+static int __init ht6560b_init(void)
 {
 	ide_hwif_t *hwif, *mate;
 	static u8 idx[4] = { 0, 1, 0xff, 0xff };
@@ -369,9 +368,7 @@ release_region:
 	return -ENODEV;
 }
 
-#ifdef MODULE
 module_init(ht6560b_init);
-#endif
 
 MODULE_AUTHOR("See Local File");
 MODULE_DESCRIPTION("HT-6560B EIDE-controller support");

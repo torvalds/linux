@@ -109,26 +109,32 @@ static int attach_inform(struct i2c_client *client)
 
 	if (core->board.radio_type != UNSET) {
 		if ((core->board.radio_addr==ADDR_UNSET)||(core->board.radio_addr==client->addr)) {
-			tun_setup.mode_mask = T_RADIO;
-			tun_setup.type = core->board.radio_type;
-			tun_setup.addr = core->board.radio_addr;
-
+			tun_setup.mode_mask	 = T_RADIO;
+			tun_setup.type		 = core->board.radio_type;
+			tun_setup.addr		 = core->board.radio_addr;
+			tun_setup.tuner_callback = cx88_tuner_callback;
 			client->driver->command (client, TUNER_SET_TYPE_ADDR, &tun_setup);
 		}
 	}
 	if (core->board.tuner_type != UNSET) {
 		if ((core->board.tuner_addr==ADDR_UNSET)||(core->board.tuner_addr==client->addr)) {
 
-			tun_setup.mode_mask = T_ANALOG_TV;
-			tun_setup.type = core->board.tuner_type;
-			tun_setup.addr = core->board.tuner_addr;
-
+			tun_setup.mode_mask	 = T_ANALOG_TV;
+			tun_setup.type		 = core->board.tuner_type;
+			tun_setup.addr		 = core->board.tuner_addr;
+			tun_setup.tuner_callback = cx88_tuner_callback;
 			client->driver->command (client,TUNER_SET_TYPE_ADDR, &tun_setup);
 		}
 	}
 
-	if (core->board.tda9887_conf)
-		client->driver->command(client, TDA9887_SET_CONFIG, &core->board.tda9887_conf);
+	if (core->board.tda9887_conf) {
+		struct v4l2_priv_tun_config tda9887_cfg;
+
+		tda9887_cfg.tuner = TUNER_TDA9887;
+		tda9887_cfg.priv  = &core->board.tda9887_conf;
+
+		client->driver->command(client, TUNER_SET_CONFIG, &tda9887_cfg);
+	}
 	return 0;
 }
 
@@ -176,6 +182,7 @@ static char *i2c_devs[128] = {
 	[ 0xa0 >> 1 ] = "eeprom",
 	[ 0xc0 >> 1 ] = "tuner (analog)",
 	[ 0xc2 >> 1 ] = "tuner (analog/dvb)",
+	[ 0xc8 >> 1 ] = "xc5000",
 };
 
 static void do_i2c_scan(char *name, struct i2c_client *c)

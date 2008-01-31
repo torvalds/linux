@@ -44,9 +44,12 @@
 #include <linux/crash_dump.h>
 #include <linux/dmi.h>
 #include <linux/pfn.h>
+#include <linux/pci.h>
+#include <linux/init_ohci1394_dma.h>
 
 #include <video/edid.h>
 
+#include <asm/mtrr.h>
 #include <asm/apic.h>
 #include <asm/e820.h>
 #include <asm/mpspec.h>
@@ -67,14 +70,83 @@
    address, and must not be in the .bss segment! */
 unsigned long init_pg_tables_end __initdata = ~0UL;
 
-int disable_pse __cpuinitdata = 0;
-
 /*
  * Machine setup..
  */
-extern struct resource code_resource;
-extern struct resource data_resource;
-extern struct resource bss_resource;
+static struct resource data_resource = {
+	.name	= "Kernel data",
+	.start	= 0,
+	.end	= 0,
+	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
+};
+
+static struct resource code_resource = {
+	.name	= "Kernel code",
+	.start	= 0,
+	.end	= 0,
+	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
+};
+
+static struct resource bss_resource = {
+	.name	= "Kernel bss",
+	.start	= 0,
+	.end	= 0,
+	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
+};
+
+static struct resource video_ram_resource = {
+	.name	= "Video RAM area",
+	.start	= 0xa0000,
+	.end	= 0xbffff,
+	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
+};
+
+static struct resource standard_io_resources[] = { {
+	.name	= "dma1",
+	.start	= 0x0000,
+	.end	= 0x001f,
+	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
+}, {
+	.name	= "pic1",
+	.start	= 0x0020,
+	.end	= 0x0021,
+	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
+}, {
+	.name   = "timer0",
+	.start	= 0x0040,
+	.end    = 0x0043,
+	.flags  = IORESOURCE_BUSY | IORESOURCE_IO
+}, {
+	.name   = "timer1",
+	.start  = 0x0050,
+	.end    = 0x0053,
+	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
+}, {
+	.name	= "keyboard",
+	.start	= 0x0060,
+	.end	= 0x006f,
+	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
+}, {
+	.name	= "dma page reg",
+	.start	= 0x0080,
+	.end	= 0x008f,
+	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
+}, {
+	.name	= "pic2",
+	.start	= 0x00a0,
+	.end	= 0x00a1,
+	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
+}, {
+	.name	= "dma2",
+	.start	= 0x00c0,
+	.end	= 0x00df,
+	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
+}, {
+	.name	= "fpu",
+	.start	= 0x00f0,
+	.end	= 0x00ff,
+	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
+} };
 
 /* cpu data as detected by the assembly code in head.S */
 struct cpuinfo_x86 new_cpu_data __cpuinitdata = { 0, 0, 0, 0, -1, 1, 0, 0, -1 };
@@ -116,13 +188,17 @@ extern int root_mountflags;
 
 unsigned long saved_videomode;
 
-#define RAMDISK_IMAGE_START_MASK  	0x07FF
+#define RAMDISK_IMAGE_START_MASK	0x07FF
 #define RAMDISK_PROMPT_FLAG		0x8000
-#define RAMDISK_LOAD_FLAG		0x4000	
+#define RAMDISK_LOAD_FLAG		0x4000
 
 static char __initdata command_line[COMMAND_LINE_SIZE];
 
+#ifndef CONFIG_DEBUG_BOOT_PARAMS
 struct boot_params __initdata boot_params;
+#else
+struct boot_params boot_params;
+#endif
 
 #if defined(CONFIG_EDD) || defined(CONFIG_EDD_MODULE)
 struct edd edd;
@@ -166,8 +242,7 @@ static int __init parse_mem(char *arg)
 		return -EINVAL;
 
 	if (strcmp(arg, "nopentium") == 0) {
-		clear_bit(X86_FEATURE_PSE, boot_cpu_data.x86_capability);
-		disable_pse = 1;
+		setup_clear_cpu_cap(X86_FEATURE_PSE);
 	} else {
 		/* If the user specifies memory size, we
 		 * limit the BIOS-provided memory map to
@@ -176,7 +251,7 @@ static int __init parse_mem(char *arg)
 		 * trim the existing memory map.
 		 */
 		unsigned long long mem_size;
- 
+
 		mem_size = memparse(arg, &arg);
 		limit_regions(mem_size);
 		user_defined_memmap = 1;
@@ -315,7 +390,7 @@ static void __init reserve_ebda_region(void)
 	unsigned int addr;
 	addr = get_bios_ebda();
 	if (addr)
-		reserve_bootmem(addr, PAGE_SIZE);	
+		reserve_bootmem(addr, PAGE_SIZE);
 }
 
 #ifndef CONFIG_NEED_MULTIPLE_NODES
@@ -420,6 +495,100 @@ static inline void __init reserve_crashkernel(void)
 {}
 #endif
 
+#ifdef CONFIG_BLK_DEV_INITRD
+
+static bool do_relocate_initrd = false;
+
+static void __init reserve_initrd(void)
+{
+	unsigned long ramdisk_image = boot_params.hdr.ramdisk_image;
+	unsigned long ramdisk_size  = boot_params.hdr.ramdisk_size;
+	unsigned long ramdisk_end   = ramdisk_image + ramdisk_size;
+	unsigned long end_of_lowmem = max_low_pfn << PAGE_SHIFT;
+	unsigned long ramdisk_here;
+
+	initrd_start = 0;
+
+	if (!boot_params.hdr.type_of_loader ||
+	    !ramdisk_image || !ramdisk_size)
+		return;		/* No initrd provided by bootloader */
+
+	if (ramdisk_end < ramdisk_image) {
+		printk(KERN_ERR "initrd wraps around end of memory, "
+		       "disabling initrd\n");
+		return;
+	}
+	if (ramdisk_size >= end_of_lowmem/2) {
+		printk(KERN_ERR "initrd too large to handle, "
+		       "disabling initrd\n");
+		return;
+	}
+	if (ramdisk_end <= end_of_lowmem) {
+		/* All in lowmem, easy case */
+		reserve_bootmem(ramdisk_image, ramdisk_size);
+		initrd_start = ramdisk_image + PAGE_OFFSET;
+		initrd_end = initrd_start+ramdisk_size;
+		return;
+	}
+
+	/* We need to move the initrd down into lowmem */
+	ramdisk_here = (end_of_lowmem - ramdisk_size) & PAGE_MASK;
+
+	/* Note: this includes all the lowmem currently occupied by
+	   the initrd, we rely on that fact to keep the data intact. */
+	reserve_bootmem(ramdisk_here, ramdisk_size);
+	initrd_start = ramdisk_here + PAGE_OFFSET;
+	initrd_end   = initrd_start + ramdisk_size;
+
+	do_relocate_initrd = true;
+}
+
+#define MAX_MAP_CHUNK	(NR_FIX_BTMAPS << PAGE_SHIFT)
+
+static void __init relocate_initrd(void)
+{
+	unsigned long ramdisk_image = boot_params.hdr.ramdisk_image;
+	unsigned long ramdisk_size  = boot_params.hdr.ramdisk_size;
+	unsigned long end_of_lowmem = max_low_pfn << PAGE_SHIFT;
+	unsigned long ramdisk_here;
+	unsigned long slop, clen, mapaddr;
+	char *p, *q;
+
+	if (!do_relocate_initrd)
+		return;
+
+	ramdisk_here = initrd_start - PAGE_OFFSET;
+
+	q = (char *)initrd_start;
+
+	/* Copy any lowmem portion of the initrd */
+	if (ramdisk_image < end_of_lowmem) {
+		clen = end_of_lowmem - ramdisk_image;
+		p = (char *)__va(ramdisk_image);
+		memcpy(q, p, clen);
+		q += clen;
+		ramdisk_image += clen;
+		ramdisk_size  -= clen;
+	}
+
+	/* Copy the highmem portion of the initrd */
+	while (ramdisk_size) {
+		slop = ramdisk_image & ~PAGE_MASK;
+		clen = ramdisk_size;
+		if (clen > MAX_MAP_CHUNK-slop)
+			clen = MAX_MAP_CHUNK-slop;
+		mapaddr = ramdisk_image & PAGE_MASK;
+		p = early_ioremap(mapaddr, clen+slop);
+		memcpy(q, p+slop, clen);
+		early_iounmap(p, clen+slop);
+		q += clen;
+		ramdisk_image += clen;
+		ramdisk_size  -= clen;
+	}
+}
+
+#endif /* CONFIG_BLK_DEV_INITRD */
+
 void __init setup_bootmem_allocator(void)
 {
 	unsigned long bootmap_size;
@@ -475,26 +644,10 @@ void __init setup_bootmem_allocator(void)
 	 */
 	find_smp_config();
 #endif
-	numa_kva_reserve();
 #ifdef CONFIG_BLK_DEV_INITRD
-	if (boot_params.hdr.type_of_loader && boot_params.hdr.ramdisk_image) {
-		unsigned long ramdisk_image = boot_params.hdr.ramdisk_image;
-		unsigned long ramdisk_size  = boot_params.hdr.ramdisk_size;
-		unsigned long ramdisk_end   = ramdisk_image + ramdisk_size;
-		unsigned long end_of_lowmem = max_low_pfn << PAGE_SHIFT;
-
-		if (ramdisk_end <= end_of_lowmem) {
-			reserve_bootmem(ramdisk_image, ramdisk_size);
-			initrd_start = ramdisk_image + PAGE_OFFSET;
-			initrd_end = initrd_start+ramdisk_size;
-		} else {
-			printk(KERN_ERR "initrd extends beyond end of memory "
-			       "(0x%08lx > 0x%08lx)\ndisabling initrd\n",
-			       ramdisk_end, end_of_lowmem);
-			initrd_start = 0;
-		}
-	}
+	reserve_initrd();
 #endif
+	numa_kva_reserve();
 	reserve_crashkernel();
 }
 
@@ -545,17 +698,11 @@ void __init setup_arch(char **cmdline_p)
 	memcpy(&boot_cpu_data, &new_cpu_data, sizeof(new_cpu_data));
 	pre_setup_arch_hook();
 	early_cpu_init();
+	early_ioremap_init();
 
-	/*
-	 * FIXME: This isn't an official loader_type right
-	 * now but does currently work with elilo.
-	 * If we were configured as an EFI kernel, check to make
-	 * sure that we were loaded correctly from elilo and that
-	 * the system table is valid.  If not, then initialize normally.
-	 */
 #ifdef CONFIG_EFI
-	if ((boot_params.hdr.type_of_loader == 0x50) &&
-	    boot_params.efi_info.efi_systab)
+	if (!strncmp((char *)&boot_params.efi_info.efi_loader_signature,
+		     "EL32", 4))
 		efi_enabled = 1;
 #endif
 
@@ -579,12 +726,9 @@ void __init setup_arch(char **cmdline_p)
 	rd_doload = ((boot_params.hdr.ram_size & RAMDISK_LOAD_FLAG) != 0);
 #endif
 	ARCH_SETUP
-	if (efi_enabled)
-		efi_init();
-	else {
-		printk(KERN_INFO "BIOS-provided physical RAM map:\n");
-		print_memory_map(memory_setup());
-	}
+
+	printk(KERN_INFO "BIOS-provided physical RAM map:\n");
+	print_memory_map(memory_setup());
 
 	copy_edd();
 
@@ -612,7 +756,15 @@ void __init setup_arch(char **cmdline_p)
 	strlcpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
 	*cmdline_p = command_line;
 
+	if (efi_enabled)
+		efi_init();
+
 	max_low_pfn = setup_memory();
+
+	/* update e820 for memory not covered by WB MTRRs */
+	mtrr_bp_init();
+	if (mtrr_trim_uncached_memory(max_pfn))
+		max_low_pfn = setup_memory();
 
 #ifdef CONFIG_VMI
 	/*
@@ -636,6 +788,16 @@ void __init setup_arch(char **cmdline_p)
 	smp_alloc_memory(); /* AP processor realmode stacks in low memory*/
 #endif
 	paging_init();
+
+	/*
+	 * NOTE: On x86-32, only from this point on, fixmaps are ready for use.
+	 */
+
+#ifdef CONFIG_PROVIDE_OHCI1394_DMA_INIT
+	if (init_ohci1394_dma_early)
+		init_ohci1394_dma_on_all_controllers();
+#endif
+
 	remapped_pgdat_init();
 	sparse_init();
 	zone_sizes_init();
@@ -644,15 +806,19 @@ void __init setup_arch(char **cmdline_p)
 	 * NOTE: at this point the bootmem allocator is fully available.
 	 */
 
+#ifdef CONFIG_BLK_DEV_INITRD
+	relocate_initrd();
+#endif
+
 	paravirt_post_allocator_init();
 
 	dmi_scan_machine();
 
+	io_delay_init();
+
 #ifdef CONFIG_X86_GENERICARCH
 	generic_apic_probe();
-#endif	
-	if (efi_enabled)
-		efi_map_memmap();
+#endif
 
 #ifdef CONFIG_ACPI
 	/*
@@ -661,9 +827,7 @@ void __init setup_arch(char **cmdline_p)
 	acpi_boot_table_init();
 #endif
 
-#ifdef CONFIG_PCI
 	early_quirks();
-#endif
 
 #ifdef CONFIG_ACPI
 	acpi_boot_init();
@@ -692,3 +856,26 @@ void __init setup_arch(char **cmdline_p)
 #endif
 #endif
 }
+
+/*
+ * Request address space for all standard resources
+ *
+ * This is called just before pcibios_init(), which is also a
+ * subsys_initcall, but is linked in later (in arch/i386/pci/common.c).
+ */
+static int __init request_standard_resources(void)
+{
+	int i;
+
+	printk(KERN_INFO "Setting up standard PCI resources\n");
+	init_iomem_resources(&code_resource, &data_resource, &bss_resource);
+
+	request_resource(&iomem_resource, &video_ram_resource);
+
+	/* request I/O space for devices used on all i[345]86 PCs */
+	for (i = 0; i < ARRAY_SIZE(standard_io_resources); i++)
+		request_resource(&ioport_resource, &standard_io_resources[i]);
+	return 0;
+}
+
+subsys_initcall(request_standard_resources);

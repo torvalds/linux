@@ -64,8 +64,6 @@ struct pcpu_lstats {
 	unsigned long bytes;
 };
 
-#define LOOPBACK_OVERHEAD (128 + MAX_HEADER + 16 + 16)
-
 /* KISS: just allocate small chunks and copy bits.
  *
  * So, in fact, this is documentation, explaining what we expect

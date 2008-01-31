@@ -120,7 +120,7 @@ struct rpc_xprt {
 	struct kref		kref;		/* Reference count */
 	struct rpc_xprt_ops *	ops;		/* transport methods */
 
-	struct rpc_timeout	timeout;	/* timeout parms */
+	const struct rpc_timeout *timeout;	/* timeout parms */
 	struct sockaddr_storage	addr;		/* server address */
 	size_t			addrlen;	/* size of server address */
 	int			prot;		/* IP protocol */
@@ -183,7 +183,7 @@ struct rpc_xprt {
 					bklog_u;	/* backlog queue utilization */
 	} stat;
 
-	char *			address_strings[RPC_DISPLAY_MAX];
+	const char		*address_strings[RPC_DISPLAY_MAX];
 };
 
 struct xprt_create {
@@ -191,7 +191,6 @@ struct xprt_create {
 	struct sockaddr *	srcaddr;	/* optional local address */
 	struct sockaddr *	dstaddr;	/* remote peer address */
 	size_t			addrlen;
-	struct rpc_timeout *	timeout;	/* optional timeout parameters */
 };
 
 struct xprt_class {
@@ -201,11 +200,6 @@ struct xprt_class {
 	struct module		*owner;
 	char			name[32];
 };
-
-/*
- * Transport operations used by ULPs
- */
-void			xprt_set_timeout(struct rpc_timeout *to, unsigned int retr, unsigned long incr);
 
 /*
  * Generic internal transport functions
@@ -245,7 +239,8 @@ void			xprt_adjust_cwnd(struct rpc_task *task, int result);
 struct rpc_rqst *	xprt_lookup_rqst(struct rpc_xprt *xprt, __be32 xid);
 void			xprt_complete_rqst(struct rpc_task *task, int copied);
 void			xprt_release_rqst_cong(struct rpc_task *task);
-void			xprt_disconnect(struct rpc_xprt *xprt);
+void			xprt_disconnect_done(struct rpc_xprt *xprt);
+void			xprt_force_disconnect(struct rpc_xprt *xprt);
 
 /*
  * Reserved bit positions in xprt->state
@@ -256,6 +251,7 @@ void			xprt_disconnect(struct rpc_xprt *xprt);
 #define XPRT_CLOSE_WAIT		(3)
 #define XPRT_BOUND		(4)
 #define XPRT_BINDING		(5)
+#define XPRT_CLOSING		(6)
 
 static inline void xprt_set_connected(struct rpc_xprt *xprt)
 {

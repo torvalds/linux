@@ -67,7 +67,7 @@ ebt_hook(unsigned int hook, struct sk_buff *skb, const struct net_device *in,
 	return ebt_do_table(hook, skb, in, out, &frame_filter);
 }
 
-static struct nf_hook_ops ebt_ops_filter[] = {
+static struct nf_hook_ops ebt_ops_filter[] __read_mostly = {
 	{
 		.hook		= ebt_hook,
 		.owner		= THIS_MODULE,

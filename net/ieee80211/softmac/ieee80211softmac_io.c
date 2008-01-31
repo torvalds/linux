@@ -148,11 +148,11 @@ ieee80211softmac_hdr_3addr(struct ieee80211softmac_device *mac,
 	 * shouldn't the sequence number be in ieee80211? */
 }
 
-static u16
+static __le16
 ieee80211softmac_capabilities(struct ieee80211softmac_device *mac,
 	struct ieee80211softmac_network *net)
 {
-	u16 capability = 0;
+	__le16 capability = 0;
 
 	/* ESS and IBSS bits are set according to the current mode */
 	switch (mac->ieee->iw_mode) {
@@ -163,8 +163,8 @@ ieee80211softmac_capabilities(struct ieee80211softmac_device *mac,
 		capability = cpu_to_le16(WLAN_CAPABILITY_IBSS);
 		break;
 	case IW_MODE_AUTO:
-		capability = net->capabilities &
-			(WLAN_CAPABILITY_ESS|WLAN_CAPABILITY_IBSS);
+		capability = cpu_to_le16(net->capabilities &
+			(WLAN_CAPABILITY_ESS|WLAN_CAPABILITY_IBSS));
 		break;
 	default:
 		/* bleh. we don't ever go to these modes */
@@ -182,7 +182,7 @@ ieee80211softmac_capabilities(struct ieee80211softmac_device *mac,
 	/* Short Preamble */
 	/* Always supported: we probably won't ever be powering devices which
 	 * dont support this... */
-	capability |= WLAN_CAPABILITY_SHORT_PREAMBLE;
+	capability |= cpu_to_le16(WLAN_CAPABILITY_SHORT_PREAMBLE);
 
 	/* PBCC */
 	/* Not widely used */

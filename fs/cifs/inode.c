@@ -54,9 +54,9 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 					    MAX_TREE_SIZE + 1) +
 				    strnlen(search_path, MAX_PATHCONF) + 1,
 				    GFP_KERNEL);
-			if (tmp_path == NULL) {
+			if (tmp_path == NULL)
 				return -ENOMEM;
-			}
+
 			/* have to skip first of the double backslash of
 			   UNC name */
 			strncpy(tmp_path, pTcon->treeName, MAX_TREE_SIZE);
@@ -511,7 +511,8 @@ int cifs_get_inode_info(struct inode **pinode,
 		}
 
 		spin_lock(&inode->i_lock);
-		if (is_size_safe_to_change(cifsInfo, le64_to_cpu(pfindData->EndOfFile))) {
+		if (is_size_safe_to_change(cifsInfo,
+					   le64_to_cpu(pfindData->EndOfFile))) {
 			/* can not safely shrink the file size here if the
 			   client is writing to it due to potential races */
 			i_size_write(inode, le64_to_cpu(pfindData->EndOfFile));
@@ -931,7 +932,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 		(CIFS_UNIX_POSIX_PATH_OPS_CAP &
 			le64_to_cpu(pTcon->fsUnixInfo.Capability))) {
 		u32 oplock = 0;
-		FILE_UNIX_BASIC_INFO * pInfo =
+		FILE_UNIX_BASIC_INFO *pInfo =
 			kzalloc(sizeof(FILE_UNIX_BASIC_INFO), GFP_KERNEL);
 		if (pInfo == NULL) {
 			rc = -ENOMEM;
@@ -1607,7 +1608,14 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 	else if (attrs->ia_valid & ATTR_MODE) {
 		rc = 0;
-		if ((mode & S_IWUGO) == 0) /* not writeable */ {
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL)
+			rc = mode_to_acl(direntry->d_inode, full_path, mode);
+		else if ((mode & S_IWUGO) == 0) {
+#else
+		if ((mode & S_IWUGO) == 0) {
+#endif
+			/* not writeable */
 			if ((cifsInode->cifsAttrs & ATTR_READONLY) == 0) {
 				set_dosattr = TRUE;
 				time_buf.Attributes =
@@ -1626,10 +1634,10 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 			if (time_buf.Attributes == 0)
 				time_buf.Attributes |= cpu_to_le32(ATTR_NORMAL);
 		}
-		/* BB to be implemented -
-		   via Windows security descriptors or streams */
-		/* CIFSSMBWinSetPerms(xid, pTcon, full_path, mode, uid, gid,
-				      cifs_sb->local_nls); */
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL)
+			mode_to_acl(direntry->d_inode, full_path, mode);
+#endif
 	}
 
 	if (attrs->ia_valid & ATTR_ATIME) {

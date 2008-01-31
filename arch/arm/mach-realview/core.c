@@ -530,8 +530,6 @@ static unsigned long realview_gettimeoffset(void)
  */
 static irqreturn_t realview_timer_interrupt(int irq, void *dev_id)
 {
-	write_seqlock(&xtime_lock);
-
 	// ...clear the interrupt
 	writel(1, TIMER0_VA_BASE + TIMER_INTCLR);
 
@@ -541,8 +539,6 @@ static irqreturn_t realview_timer_interrupt(int irq, void *dev_id)
 	smp_send_timer();
 	update_process_times(user_mode(get_irq_regs()));
 #endif
-
-	write_sequnlock(&xtime_lock);
 
 	return IRQ_HANDLED;
 }

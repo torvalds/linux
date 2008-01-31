@@ -19,31 +19,39 @@
 #include <net/ipv6.h>
 #include <net/xfrm.h>
 
+static void xfrm6_beet_make_header(struct sk_buff *skb)
+{
+	struct ipv6hdr *iph = ipv6_hdr(skb);
+
+	iph->version = 6;
+
+	memcpy(iph->flow_lbl, XFRM_MODE_SKB_CB(skb)->flow_lbl,
+	       sizeof(iph->flow_lbl));
+	iph->nexthdr = XFRM_MODE_SKB_CB(skb)->protocol;
+
+	ipv6_change_dsfield(iph, 0, XFRM_MODE_SKB_CB(skb)->tos);
+	iph->hop_limit = XFRM_MODE_SKB_CB(skb)->ttl;
+}
+
 /* Add encapsulation header.
  *
  * The top IP header will be constructed per draft-nikander-esp-beet-mode-06.txt.
  */
 static int xfrm6_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 {
-	struct ipv6hdr *iph, *top_iph;
-	u8 *prevhdr;
-	int hdr_len;
+	struct ipv6hdr *top_iph;
 
-	iph = ipv6_hdr(skb);
-
-	hdr_len = ip6_find_1stfragopt(skb, &prevhdr);
-
-	skb_set_mac_header(skb, (prevhdr - x->props.header_len) - skb->data);
 	skb_set_network_header(skb, -x->props.header_len);
-	skb->transport_header = skb->network_header + hdr_len;
-	__skb_pull(skb, hdr_len);
+	skb->mac_header = skb->network_header +
+			  offsetof(struct ipv6hdr, nexthdr);
+	skb->transport_header = skb->network_header + sizeof(*top_iph);
+
+	xfrm6_beet_make_header(skb);
 
 	top_iph = ipv6_hdr(skb);
-	memmove(top_iph, iph, hdr_len);
 
 	ipv6_addr_copy(&top_iph->saddr, (struct in6_addr *)&x->props.saddr);
 	ipv6_addr_copy(&top_iph->daddr, (struct in6_addr *)&x->id.daddr);
-
 	return 0;
 }
 
@@ -52,18 +60,20 @@ static int xfrm6_beet_input(struct xfrm_state *x, struct sk_buff *skb)
 	struct ipv6hdr *ip6h;
 	const unsigned char *old_mac;
 	int size = sizeof(struct ipv6hdr);
-	int err = -EINVAL;
+	int err;
 
-	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
+	err = skb_cow_head(skb, size + skb->mac_len);
+	if (err)
 		goto out;
 
-	skb_push(skb, size);
-	memmove(skb->data, skb_network_header(skb), size);
+	__skb_push(skb, size);
 	skb_reset_network_header(skb);
 
 	old_mac = skb_mac_header(skb);
 	skb_set_mac_header(skb, -skb->mac_len);
 	memmove(skb_mac_header(skb), old_mac, skb->mac_len);
+
+	xfrm6_beet_make_header(skb);
 
 	ip6h = ipv6_hdr(skb);
 	ip6h->payload_len = htons(skb->len - size);
@@ -75,8 +85,10 @@ out:
 }
 
 static struct xfrm_mode xfrm6_beet_mode = {
-	.input = xfrm6_beet_input,
-	.output = xfrm6_beet_output,
+	.input2 = xfrm6_beet_input,
+	.input = xfrm_prepare_input,
+	.output2 = xfrm6_beet_output,
+	.output = xfrm6_prepare_output,
 	.owner = THIS_MODULE,
 	.encap = XFRM_MODE_BEET,
 	.flags = XFRM_MODE_FLAG_TUNNEL,

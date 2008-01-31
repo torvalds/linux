@@ -1136,9 +1136,10 @@ static void mv_fill_sg(struct ata_queued_cmd *qc)
 	struct mv_port_priv *pp = qc->ap->private_data;
 	struct scatterlist *sg;
 	struct mv_sg *mv_sg, *last_sg = NULL;
+	unsigned int si;
 
 	mv_sg = pp->sg_tbl;
-	ata_for_each_sg(sg, qc) {
+	for_each_sg(qc->sg, sg, qc->n_elem, si) {
 		dma_addr_t addr = sg_dma_address(sg);
 		u32 sg_len = sg_dma_len(sg);
 

@@ -72,6 +72,7 @@ struct flash_struct {
 	u8     manuf;
 	u8     dev_id;
 	u8     sec_prot;
+	u8     method;
 
 	u32    dir_offs;
 };
@@ -216,6 +217,8 @@ struct asd_ha_struct {
 	struct dma_pool  *scb_pool;
 
 	struct asd_seq_data  seq; /* sequencer related */
+	u32    bios_status;
+	const struct firmware *bios_image;
 };
 
 /* ---------- Common macros ---------- */

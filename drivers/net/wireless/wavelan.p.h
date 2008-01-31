@@ -400,7 +400,6 @@
  */
 #undef SET_PSA_CRC		/* Calculate and set the CRC on PSA (slower) */
 #define USE_PSA_CONFIG		/* Use info from the PSA. */
-#undef STRUCT_CHECK		/* Verify padding of structures. */
 #undef EEPROM_IS_PROTECTED	/* doesn't seem to be necessary */
 #define MULTICAST_AVOID		/* Avoid extra multicast (I'm sceptical). */
 #undef SET_MAC_ADDRESS		/* Experimental */

@@ -271,6 +271,55 @@ static struct platform_device spitzled_device = {
 /*
  * Spitz Touch Screen Device
  */
+
+static unsigned long (*get_hsync_invperiod)(struct device *dev);
+
+static void inline sharpsl_wait_sync(int gpio)
+{
+	while((GPLR(gpio) & GPIO_bit(gpio)) == 0);
+	while((GPLR(gpio) & GPIO_bit(gpio)) != 0);
+}
+
+static struct device *spitz_pxafb_dev;
+
+static int is_pxafb_device(struct device * dev, void * data)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+
+	return (strncmp(pdev->name, "pxa2xx-fb", 9) == 0);
+}
+
+static unsigned long spitz_get_hsync_invperiod(void)
+{
+#ifdef CONFIG_FB_PXA
+	if (!spitz_pxafb_dev) {
+		spitz_pxafb_dev = bus_find_device(&platform_bus_type, NULL, NULL, is_pxafb_device);
+		if (!spitz_pxafb_dev)
+			return 0;
+	}
+	if (!get_hsync_invperiod)
+		get_hsync_invperiod = symbol_get(pxafb_get_hsync_time);
+	if (!get_hsync_invperiod)
+#endif
+		return 0;
+
+	return get_hsync_invperiod(spitz_pxafb_dev);
+}
+
+static void spitz_put_hsync(void)
+{
+	put_device(spitz_pxafb_dev);
+	if (get_hsync_invperiod)
+		symbol_put(pxafb_get_hsync_time);
+	spitz_pxafb_dev = NULL;
+	get_hsync_invperiod = NULL;
+}
+
+static void spitz_wait_hsync(void)
+{
+	sharpsl_wait_sync(SPITZ_GPIO_HSYNC);
+}
+
 static struct resource spitzts_resources[] = {
 	[0] = {
 		.start		= SPITZ_IRQ_GPIO_TP_INT,
@@ -280,9 +329,9 @@ static struct resource spitzts_resources[] = {
 };
 
 static struct corgits_machinfo  spitz_ts_machinfo = {
-	.get_hsync_len   = spitz_get_hsync_len,
-	.put_hsync       = spitz_put_hsync,
-	.wait_hsync      = spitz_wait_hsync,
+	.get_hsync_invperiod = spitz_get_hsync_invperiod,
+	.put_hsync           = spitz_put_hsync,
+	.wait_hsync          = spitz_wait_hsync,
 };
 
 static struct platform_device spitzts_device = {
@@ -325,12 +374,10 @@ static int spitz_mci_init(struct device *dev, irq_handler_t spitz_detect_int, vo
 	err = request_irq(SPITZ_IRQ_GPIO_nSD_DETECT, spitz_detect_int,
 			  IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 			  "MMC card detect", data);
-	if (err) {
+	if (err)
 		printk(KERN_ERR "spitz_mci_init: MMC/SD: can't request MMC card detect IRQ\n");
-		return -1;
-	}
 
-	return 0;
+	return err;
 }
 
 static void spitz_mci_setpower(struct device *dev, unsigned int vdd)
@@ -422,6 +469,14 @@ static struct pxaficp_platform_data spitz_ficp_platform_data = {
 /*
  * Spitz PXA Framebuffer
  */
+
+static void spitz_lcd_power(int on, struct fb_var_screeninfo *var)
+{
+	if (on)
+		corgi_lcdtg_hw_init(var->xres);
+	else
+		corgi_lcdtg_suspend();
+}
 
 static struct pxafb_mode_info spitz_pxafb_modes[] = {
 {
@@ -520,6 +575,27 @@ static void __init common_init(void)
 	set_pxa_fb_info(&spitz_pxafb_info);
 }
 
+#if defined(CONFIG_MACH_SPITZ) || defined(CONFIG_MACH_BORZOI)
+static void spitz_bl_set_intensity(int intensity)
+{
+	if (intensity > 0x10)
+		intensity += 0x10;
+
+	/* Bits 0-4 are accessed via the SSP interface */
+	corgi_ssp_blduty_set(intensity & 0x1f);
+
+	/* Bit 5 is via SCOOP */
+	if (intensity & 0x0020)
+		reset_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_BACKLIGHT_CONT);
+	else
+		set_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_BACKLIGHT_CONT);
+
+	if (intensity)
+		set_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_BACKLIGHT_ON);
+	else
+		reset_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_BACKLIGHT_ON);
+}
+
 static void __init spitz_init(void)
 {
 	platform_scoop_config = &spitz_pcmcia_config;
@@ -530,6 +606,7 @@ static void __init spitz_init(void)
 
 	platform_device_register(&spitzscoop2_device);
 }
+#endif
 
 #ifdef CONFIG_MACH_AKITA
 /*
@@ -541,6 +618,26 @@ struct platform_device akitaioexp_device = {
 };
 
 EXPORT_SYMBOL_GPL(akitaioexp_device);
+
+static void akita_bl_set_intensity(int intensity)
+{
+	if (intensity > 0x10)
+		intensity += 0x10;
+
+	/* Bits 0-4 are accessed via the SSP interface */
+	corgi_ssp_blduty_set(intensity & 0x1f);
+
+	/* Bit 5 is via IO-Expander */
+	if (intensity & 0x0020)
+		akita_reset_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_BACKLIGHT_CONT);
+	else
+		akita_set_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_BACKLIGHT_CONT);
+
+	if (intensity)
+		akita_set_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_BACKLIGHT_ON);
+	else
+		akita_reset_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_BACKLIGHT_ON);
+}
 
 static void __init akita_init(void)
 {
@@ -557,7 +654,6 @@ static void __init akita_init(void)
 	common_init();
 }
 #endif
-
 
 static void __init fixup_spitz(struct machine_desc *desc,
 		struct tag *tags, char **cmdline, struct meminfo *mi)

@@ -149,10 +149,33 @@ struct mxb
 
 static struct saa7146_extension extension;
 
+static int mxb_check_clients(struct device *dev, void *data)
+{
+	struct mxb* mxb = data;
+	struct i2c_client *client = i2c_verify_client(dev);
+
+	if( !client )
+		return 0;
+
+	if( I2C_ADDR_TEA6420_1 == client->addr )
+		mxb->tea6420_1 = client;
+	if( I2C_ADDR_TEA6420_2 == client->addr )
+		mxb->tea6420_2 = client;
+	if( I2C_TEA6415C_2 == client->addr )
+		mxb->tea6415c = client;
+	if( I2C_ADDR_TDA9840 == client->addr )
+		mxb->tda9840 = client;
+	if( I2C_SAA7111 == client->addr )
+		mxb->saa7111a = client;
+	if( 0x60 == client->addr )
+		mxb->tuner = client;
+
+	return 0;
+}
+
 static int mxb_probe(struct saa7146_dev* dev)
 {
 	struct mxb* mxb = NULL;
-	struct i2c_client *client;
 	int result;
 
 	if ((result = request_module("saa7111")) < 0) {
@@ -195,20 +218,7 @@ static int mxb_probe(struct saa7146_dev* dev)
 	}
 
 	/* loop through all i2c-devices on the bus and look who is there */
-	list_for_each_entry(client, &mxb->i2c_adapter.clients, list) {
-		if( I2C_ADDR_TEA6420_1 == client->addr )
-			mxb->tea6420_1 = client;
-		if( I2C_ADDR_TEA6420_2 == client->addr )
-			mxb->tea6420_2 = client;
-		if( I2C_TEA6415C_2 == client->addr )
-			mxb->tea6415c = client;
-		if( I2C_ADDR_TDA9840 == client->addr )
-			mxb->tda9840 = client;
-		if( I2C_SAA7111 == client->addr )
-			mxb->saa7111a = client;
-		if( 0x60 == client->addr )
-			mxb->tuner = client;
-	}
+	device_for_each_child(&mxb->i2c_adapter.dev, mxb, mxb_check_clients);
 
 	/* check if all devices are present */
 	if(    0 == mxb->tea6420_1	|| 0 == mxb->tea6420_2	|| 0 == mxb->tea6415c

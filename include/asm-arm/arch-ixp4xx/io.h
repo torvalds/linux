@@ -61,13 +61,13 @@ __ixp4xx_ioremap(unsigned long addr, size_t size, unsigned int mtype)
 	if((addr < PCIBIOS_MIN_MEM) || (addr > 0x4fffffff))
 		return __arm_ioremap(addr, size, mtype);
 
-	return (void *)addr;
+	return (void __iomem *)addr;
 }
 
 static inline void
 __ixp4xx_iounmap(void __iomem *addr)
 {
-	if ((u32)addr >= VMALLOC_START)
+	if ((__force u32)addr >= VMALLOC_START)
 		__iounmap(addr);
 }
 
@@ -141,9 +141,9 @@ __ixp4xx_writesw(volatile void __iomem *bus_addr, const u16 *vaddr, int count)
 static inline void 
 __ixp4xx_writel(u32 value, volatile void __iomem *p)
 {
-	u32 addr = (u32)p;
+	u32 addr = (__force u32)p;
 	if (addr >= VMALLOC_START) {
-		__raw_writel(value, addr);
+		__raw_writel(value, p);
 		return;
 	}
 
@@ -208,11 +208,11 @@ __ixp4xx_readsw(const volatile void __iomem *bus_addr, u16 *vaddr, u32 count)
 static inline unsigned long 
 __ixp4xx_readl(const volatile void __iomem *p)
 {
-	u32 addr = (u32)p;
+	u32 addr = (__force u32)p;
 	u32 data;
 
 	if (addr >= VMALLOC_START)
-		return __raw_readl(addr);
+		return __raw_readl(p);
 
 	if (ixp4xx_pci_read(addr, NP_CMD_MEMREAD, &data))
 		return 0xffffffff;
@@ -438,7 +438,7 @@ __ixp4xx_ioread32(const void __iomem *addr)
 		return	(unsigned int)__ixp4xx_inl(port & PIO_MASK);
 	else {
 #ifndef CONFIG_IXP4XX_INDIRECT_PCI
-		return le32_to_cpu(__raw_readl((u32)port));
+		return le32_to_cpu((__force __le32)__raw_readl(addr));
 #else
 		return (unsigned int)__ixp4xx_readl(addr);
 #endif
@@ -523,7 +523,7 @@ __ixp4xx_iowrite32(u32 value, void __iomem *addr)
 		__ixp4xx_outl(value, port & PIO_MASK);
 	else
 #ifndef CONFIG_IXP4XX_INDIRECT_PCI
-		__raw_writel(cpu_to_le32(value), port);
+		__raw_writel((u32 __force)cpu_to_le32(value), addr);
 #else
 		__ixp4xx_writel(value, addr);
 #endif

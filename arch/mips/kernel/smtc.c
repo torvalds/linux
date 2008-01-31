@@ -16,7 +16,6 @@
 #include <asm/hazards.h>
 #include <asm/irq.h>
 #include <asm/mmu_context.h>
-#include <asm/smp.h>
 #include <asm/mipsregs.h>
 #include <asm/cacheflush.h>
 #include <asm/time.h>

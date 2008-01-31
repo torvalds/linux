@@ -63,7 +63,7 @@ In case you forgot to enable debugging on the kernel command line: It is
 possible to enable debugging manually when the kernel is up. Look at the
 contents of:
 
-/sys/slab/<slab name>/
+/sys/kernel/slab/<slab name>/
 
 Look at the writable files. Writing 1 to them will enable the
 corresponding debug option. All options can be set on a slab that does

@@ -13,6 +13,7 @@
 #include <linux/power_supply.h>
 #include <linux/apm-emulation.h>
 
+static DEFINE_MUTEX(apm_mutex);
 #define PSY_PROP(psy, prop, val) psy->get_property(psy, \
 			 POWER_SUPPLY_PROP_##prop, val)
 
@@ -23,67 +24,86 @@
 
 static struct power_supply *main_battery;
 
-static void find_main_battery(void)
-{
-	struct device *dev;
-	struct power_supply *bat = NULL;
-	struct power_supply *max_charge_bat = NULL;
-	struct power_supply *max_energy_bat = NULL;
+struct find_bat_param {
+	struct power_supply *main;
+	struct power_supply *bat;
+	struct power_supply *max_charge_bat;
+	struct power_supply *max_energy_bat;
 	union power_supply_propval full;
-	int max_charge = 0;
-	int max_energy = 0;
+	int max_charge;
+	int max_energy;
+};
 
-	main_battery = NULL;
+static int __find_main_battery(struct device *dev, void *data)
+{
+	struct find_bat_param *bp = (struct find_bat_param *)data;
 
-	list_for_each_entry(dev, &power_supply_class->devices, node) {
-		bat = dev_get_drvdata(dev);
+	bp->bat = dev_get_drvdata(dev);
 
-		if (bat->use_for_apm) {
-			/* nice, we explicitly asked to report this battery. */
-			main_battery = bat;
-			return;
-		}
-
-		if (!PSY_PROP(bat, CHARGE_FULL_DESIGN, &full) ||
-				!PSY_PROP(bat, CHARGE_FULL, &full)) {
-			if (full.intval > max_charge) {
-				max_charge_bat = bat;
-				max_charge = full.intval;
-			}
-		} else if (!PSY_PROP(bat, ENERGY_FULL_DESIGN, &full) ||
-				!PSY_PROP(bat, ENERGY_FULL, &full)) {
-			if (full.intval > max_energy) {
-				max_energy_bat = bat;
-				max_energy = full.intval;
-			}
-		}
+	if (bp->bat->use_for_apm) {
+		/* nice, we explicitly asked to report this battery. */
+		bp->main = bp->bat;
+		return 1;
 	}
 
-	if ((max_energy_bat && max_charge_bat) &&
-			(max_energy_bat != max_charge_bat)) {
+	if (!PSY_PROP(bp->bat, CHARGE_FULL_DESIGN, &bp->full) ||
+			!PSY_PROP(bp->bat, CHARGE_FULL, &bp->full)) {
+		if (bp->full.intval > bp->max_charge) {
+			bp->max_charge_bat = bp->bat;
+			bp->max_charge = bp->full.intval;
+		}
+	} else if (!PSY_PROP(bp->bat, ENERGY_FULL_DESIGN, &bp->full) ||
+			!PSY_PROP(bp->bat, ENERGY_FULL, &bp->full)) {
+		if (bp->full.intval > bp->max_energy) {
+			bp->max_energy_bat = bp->bat;
+			bp->max_energy = bp->full.intval;
+		}
+	}
+	return 0;
+}
+
+static void find_main_battery(void)
+{
+	struct find_bat_param bp;
+	int error;
+
+	memset(&bp, 0, sizeof(struct find_bat_param));
+	main_battery = NULL;
+	bp.main = main_battery;
+
+	error = class_for_each_device(power_supply_class, &bp,
+				      __find_main_battery);
+	if (error) {
+		main_battery = bp.main;
+		return;
+	}
+
+	if ((bp.max_energy_bat && bp.max_charge_bat) &&
+			(bp.max_energy_bat != bp.max_charge_bat)) {
 		/* try guess battery with more capacity */
-		if (!PSY_PROP(max_charge_bat, VOLTAGE_MAX_DESIGN, &full)) {
-			if (max_energy > max_charge * full.intval)
-				main_battery = max_energy_bat;
+		if (!PSY_PROP(bp.max_charge_bat, VOLTAGE_MAX_DESIGN,
+			      &bp.full)) {
+			if (bp.max_energy > bp.max_charge * bp.full.intval)
+				main_battery = bp.max_energy_bat;
 			else
-				main_battery = max_charge_bat;
-		} else if (!PSY_PROP(max_energy_bat, VOLTAGE_MAX_DESIGN,
-								  &full)) {
-			if (max_charge > max_energy / full.intval)
-				main_battery = max_charge_bat;
+				main_battery = bp.max_charge_bat;
+		} else if (!PSY_PROP(bp.max_energy_bat, VOLTAGE_MAX_DESIGN,
+								  &bp.full)) {
+			if (bp.max_charge > bp.max_energy / bp.full.intval)
+				main_battery = bp.max_charge_bat;
 			else
-				main_battery = max_energy_bat;
+				main_battery = bp.max_energy_bat;
 		} else {
 			/* give up, choice any */
-			main_battery = max_energy_bat;
+			main_battery = bp.max_energy_bat;
 		}
-	} else if (max_charge_bat) {
-		main_battery = max_charge_bat;
-	} else if (max_energy_bat) {
-		main_battery = max_energy_bat;
+	} else if (bp.max_charge_bat) {
+		main_battery = bp.max_charge_bat;
+	} else if (bp.max_energy_bat) {
+		main_battery = bp.max_energy_bat;
 	} else {
 		/* give up, try the last if any */
-		main_battery = bat;
+		main_battery = bp.bat;
 	}
 }
 
@@ -207,10 +227,10 @@ static void apm_battery_apm_get_power_status(struct apm_power_info *info)
 	union power_supply_propval status;
 	union power_supply_propval capacity, time_to_full, time_to_empty;
 
-	down(&power_supply_class->sem);
+	mutex_lock(&apm_mutex);
 	find_main_battery();
 	if (!main_battery) {
-		up(&power_supply_class->sem);
+		mutex_unlock(&apm_mutex);
 		return;
 	}
 
@@ -278,7 +298,7 @@ static void apm_battery_apm_get_power_status(struct apm_power_info *info)
 		}
 	}
 
-	up(&power_supply_class->sem);
+	mutex_unlock(&apm_mutex);
 }
 
 static int __init apm_battery_init(void)

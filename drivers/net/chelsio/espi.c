@@ -297,6 +297,7 @@ struct peespi *t1_espi_create(adapter_t *adapter)
 	return espi;
 }
 
+#if 0
 void t1_espi_set_misc_ctrl(adapter_t *adapter, u32 val)
 {
 	struct peespi *espi = adapter->espi;
@@ -309,6 +310,7 @@ void t1_espi_set_misc_ctrl(adapter_t *adapter, u32 val)
 	writel(espi->misc_ctrl, adapter->regs + A_ESPI_MISC_CONTROL);
 	spin_unlock(&espi->lock);
 }
+#endif  /*  0  */
 
 u32 t1_espi_get_mon(adapter_t *adapter, u32 addr, u8 wait)
 {

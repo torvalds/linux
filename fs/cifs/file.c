@@ -1179,12 +1179,10 @@ static int cifs_partialpagewrite(struct page *page, unsigned from, unsigned to)
 		atomic_dec(&open_file->wrtPending);
 		/* Does mm or vfs already set times? */
 		inode->i_atime = inode->i_mtime = current_fs_time(inode->i_sb);
-		if ((bytes_written > 0) && (offset)) {
+		if ((bytes_written > 0) && (offset))
 			rc = 0;
-		} else if (bytes_written < 0) {
-			if (rc != -EBADF)
-				rc = bytes_written;
-		}
+		else if (bytes_written < 0)
+			rc = bytes_written;
 	} else {
 		cFYI(1, ("No writeable filehandles for inode"));
 		rc = -EIO;

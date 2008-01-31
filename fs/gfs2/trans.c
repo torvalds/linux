@@ -114,11 +114,6 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 		gfs2_log_flush(sdp, NULL);
 }
 
-void gfs2_trans_add_gl(struct gfs2_glock *gl)
-{
-	lops_add(gl->gl_sbd, &gl->gl_le);
-}
-
 /**
  * gfs2_trans_add_bh - Add a to-be-modified buffer to the current transaction
  * @gl: the glock the buffer belongs to

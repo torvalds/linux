@@ -54,9 +54,7 @@ static const char ixgbe_copyright[] =
 	 "Copyright (c) 1999-2007 Intel Corporation.";
 
 static const struct ixgbe_info *ixgbe_info_tbl[] = {
-	[board_82598AF]			= &ixgbe_82598AF_info,
-	[board_82598EB]			= &ixgbe_82598EB_info,
-	[board_82598AT]			= &ixgbe_82598AT_info,
+	[board_82598]			= &ixgbe_82598_info,
 };
 
 /* ixgbe_pci_tbl - PCI Device ID Table
@@ -69,13 +67,13 @@ static const struct ixgbe_info *ixgbe_info_tbl[] = {
  */
 static struct pci_device_id ixgbe_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598AF_DUAL_PORT),
-	 board_82598AF },
+	 board_82598 },
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598AF_SINGLE_PORT),
-	 board_82598AF },
+	 board_82598 },
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598AT_DUAL_PORT),
-	 board_82598AT },
+	 board_82598 },
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598EB_CX4),
-	 board_82598EB },
+	 board_82598 },
 
 	/* required last entry */
 	{0, }
@@ -734,7 +732,7 @@ static int ixgbe_request_irq(struct ixgbe_adapter *adapter, u32 *num_rx_queues)
 {
 	struct net_device *netdev = adapter->netdev;
 	int flags, err;
-	irqreturn_t(*handler) (int, void *) = &ixgbe_intr;
+	irq_handler_t handler = ixgbe_intr;
 
 	flags = IRQF_SHARED;
 
@@ -1570,8 +1568,8 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 		dev_err(&pdev->dev, "HW Init failed\n");
 		return -EIO;
 	}
-	if (hw->phy.ops.setup_speed(hw, IXGBE_LINK_SPEED_10GB_FULL, true,
-				   false)) {
+	if (hw->mac.ops.setup_link_speed(hw, IXGBE_LINK_SPEED_10GB_FULL, true,
+					 false)) {
 		dev_err(&pdev->dev, "Link Speed setup failed\n");
 		return -EIO;
 	}
@@ -2038,7 +2036,7 @@ static void ixgbe_watchdog(unsigned long data)
 	bool link_up;
 	u32 link_speed = 0;
 
-	adapter->hw.phy.ops.check(&adapter->hw, &(link_speed), &link_up);
+	adapter->hw.mac.ops.check_link(&adapter->hw, &(link_speed), &link_up);
 
 	if (link_up) {
 		if (!netif_carrier_ok(netdev)) {
@@ -2108,7 +2106,7 @@ static int ixgbe_tso(struct ixgbe_adapter *adapter,
 		l4len = tcp_hdrlen(skb);
 		*hdr_len += l4len;
 
-		if (skb->protocol == ntohs(ETH_P_IP)) {
+		if (skb->protocol == htons(ETH_P_IP)) {
 			struct iphdr *iph = ip_hdr(skb);
 			iph->tot_len = 0;
 			iph->check = 0;
@@ -2149,7 +2147,7 @@ static int ixgbe_tso(struct ixgbe_adapter *adapter,
 		type_tucmd_mlhl |= (IXGBE_TXD_CMD_DEXT |
 				    IXGBE_ADVTXD_DTYP_CTXT);
 
-		if (skb->protocol == ntohs(ETH_P_IP))
+		if (skb->protocol == htons(ETH_P_IP))
 			type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_IPV4;
 		type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_L4T_TCP;
 		context_desc->type_tucmd_mlhl = cpu_to_le32(type_tucmd_mlhl);
@@ -2204,7 +2202,7 @@ static bool ixgbe_tx_csum(struct ixgbe_adapter *adapter,
 				    IXGBE_ADVTXD_DTYP_CTXT);
 
 		if (skb->ip_summed == CHECKSUM_PARTIAL) {
-			if (skb->protocol == ntohs(ETH_P_IP))
+			if (skb->protocol == htons(ETH_P_IP))
 				type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_IPV4;
 
 			if (skb->sk->sk_protocol == IPPROTO_TCP)
@@ -2404,7 +2402,7 @@ static int ixgbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		tx_flags |= (vlan_tx_tag_get(skb) << IXGBE_TX_FLAGS_VLAN_SHIFT);
 	}
 
-	if (skb->protocol == ntohs(ETH_P_IP))
+	if (skb->protocol == htons(ETH_P_IP))
 		tx_flags |= IXGBE_TX_FLAGS_IPV4;
 	first = tx_ring->next_to_use;
 	tso = ixgbe_tso(adapter, tx_ring, skb, tx_flags, &hdr_len);
@@ -2606,7 +2604,6 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 
 	/* Setup hw api */
 	memcpy(&hw->mac.ops, ii->mac_ops, sizeof(hw->mac.ops));
-	memcpy(&hw->phy.ops, ii->phy_ops, sizeof(hw->phy.ops));
 
 	err = ii->get_invariants(hw);
 	if (err)

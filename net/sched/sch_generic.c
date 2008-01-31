@@ -40,16 +40,22 @@
  */
 
 void qdisc_lock_tree(struct net_device *dev)
+	__acquires(dev->queue_lock)
+	__acquires(dev->ingress_lock)
 {
 	spin_lock_bh(&dev->queue_lock);
 	spin_lock(&dev->ingress_lock);
 }
+EXPORT_SYMBOL(qdisc_lock_tree);
 
 void qdisc_unlock_tree(struct net_device *dev)
+	__releases(dev->ingress_lock)
+	__releases(dev->queue_lock)
 {
 	spin_unlock(&dev->ingress_lock);
 	spin_unlock_bh(&dev->queue_lock);
 }
+EXPORT_SYMBOL(qdisc_unlock_tree);
 
 static inline int qdisc_qlen(struct Qdisc *q)
 {
@@ -211,13 +217,6 @@ static void dev_watchdog(unsigned long arg)
 	dev_put(dev);
 }
 
-static void dev_watchdog_init(struct net_device *dev)
-{
-	init_timer(&dev->watchdog_timer);
-	dev->watchdog_timer.data = (unsigned long)dev;
-	dev->watchdog_timer.function = dev_watchdog;
-}
-
 void __netdev_watchdog_up(struct net_device *dev)
 {
 	if (dev->tx_timeout) {
@@ -256,6 +255,7 @@ void netif_carrier_on(struct net_device *dev)
 			__netdev_watchdog_up(dev);
 	}
 }
+EXPORT_SYMBOL(netif_carrier_on);
 
 /**
  *	netif_carrier_off - clear carrier
@@ -268,6 +268,7 @@ void netif_carrier_off(struct net_device *dev)
 	if (!test_and_set_bit(__LINK_STATE_NOCARRIER, &dev->state))
 		linkwatch_fire_event(dev);
 }
+EXPORT_SYMBOL(netif_carrier_off);
 
 /* "NOOP" scheduler: the best scheduler, recommended for all interfaces
    under all circumstances. It is difficult to invent anything faster or
@@ -294,7 +295,7 @@ static int noop_requeue(struct sk_buff *skb, struct Qdisc* qdisc)
 	return NET_XMIT_CN;
 }
 
-struct Qdisc_ops noop_qdisc_ops = {
+struct Qdisc_ops noop_qdisc_ops __read_mostly = {
 	.id		=	"noop",
 	.priv_size	=	0,
 	.enqueue	=	noop_enqueue,
@@ -310,8 +311,9 @@ struct Qdisc noop_qdisc = {
 	.ops		=	&noop_qdisc_ops,
 	.list		=	LIST_HEAD_INIT(noop_qdisc.list),
 };
+EXPORT_SYMBOL(noop_qdisc);
 
-static struct Qdisc_ops noqueue_qdisc_ops = {
+static struct Qdisc_ops noqueue_qdisc_ops __read_mostly = {
 	.id		=	"noqueue",
 	.priv_size	=	0,
 	.enqueue	=	noop_enqueue,
@@ -395,14 +397,14 @@ static int pfifo_fast_dump(struct Qdisc *qdisc, struct sk_buff *skb)
 	struct tc_prio_qopt opt = { .bands = PFIFO_FAST_BANDS };
 
 	memcpy(&opt.priomap, prio2band, TC_PRIO_MAX+1);
-	RTA_PUT(skb, TCA_OPTIONS, sizeof(opt), &opt);
+	NLA_PUT(skb, TCA_OPTIONS, sizeof(opt), &opt);
 	return skb->len;
 
-rtattr_failure:
+nla_put_failure:
 	return -1;
 }
 
-static int pfifo_fast_init(struct Qdisc *qdisc, struct rtattr *opt)
+static int pfifo_fast_init(struct Qdisc *qdisc, struct nlattr *opt)
 {
 	int prio;
 	struct sk_buff_head *list = qdisc_priv(qdisc);
@@ -413,7 +415,7 @@ static int pfifo_fast_init(struct Qdisc *qdisc, struct rtattr *opt)
 	return 0;
 }
 
-static struct Qdisc_ops pfifo_fast_ops = {
+static struct Qdisc_ops pfifo_fast_ops __read_mostly = {
 	.id		=	"pfifo_fast",
 	.priv_size	=	PFIFO_FAST_BANDS * sizeof(struct sk_buff_head),
 	.enqueue	=	pfifo_fast_enqueue,
@@ -474,16 +476,18 @@ struct Qdisc * qdisc_create_dflt(struct net_device *dev, struct Qdisc_ops *ops,
 errout:
 	return NULL;
 }
+EXPORT_SYMBOL(qdisc_create_dflt);
 
 /* Under dev->queue_lock and BH! */
 
 void qdisc_reset(struct Qdisc *qdisc)
 {
-	struct Qdisc_ops *ops = qdisc->ops;
+	const struct Qdisc_ops *ops = qdisc->ops;
 
 	if (ops->reset)
 		ops->reset(qdisc);
 }
+EXPORT_SYMBOL(qdisc_reset);
 
 /* this is the rcu callback function to clean up a qdisc when there
  * are no further references to it */
@@ -498,7 +502,7 @@ static void __qdisc_destroy(struct rcu_head *head)
 
 void qdisc_destroy(struct Qdisc *qdisc)
 {
-	struct Qdisc_ops  *ops = qdisc->ops;
+	const struct Qdisc_ops  *ops = qdisc->ops;
 
 	if (qdisc->flags & TCQ_F_BUILTIN ||
 	    !atomic_dec_and_test(&qdisc->refcnt))
@@ -515,6 +519,7 @@ void qdisc_destroy(struct Qdisc *qdisc)
 	dev_put(qdisc->dev);
 	call_rcu(&qdisc->q_rcu, __qdisc_destroy);
 }
+EXPORT_SYMBOL(qdisc_destroy);
 
 void dev_activate(struct net_device *dev)
 {
@@ -608,7 +613,7 @@ void dev_init_scheduler(struct net_device *dev)
 	INIT_LIST_HEAD(&dev->qdisc_list);
 	qdisc_unlock_tree(dev);
 
-	dev_watchdog_init(dev);
+	setup_timer(&dev->watchdog_timer, dev_watchdog, (unsigned long)dev);
 }
 
 void dev_shutdown(struct net_device *dev)
@@ -629,12 +634,3 @@ void dev_shutdown(struct net_device *dev)
 	BUG_TRAP(!timer_pending(&dev->watchdog_timer));
 	qdisc_unlock_tree(dev);
 }
-
-EXPORT_SYMBOL(netif_carrier_on);
-EXPORT_SYMBOL(netif_carrier_off);
-EXPORT_SYMBOL(noop_qdisc);
-EXPORT_SYMBOL(qdisc_create_dflt);
-EXPORT_SYMBOL(qdisc_destroy);
-EXPORT_SYMBOL(qdisc_reset);
-EXPORT_SYMBOL(qdisc_lock_tree);
-EXPORT_SYMBOL(qdisc_unlock_tree);

@@ -545,6 +545,62 @@ config USB_ZD1201
 	  To compile this driver as a module, choose M here: the
 	  module will be called zd1201.
 
+config RTL8180
+	tristate "Realtek 8180/8185 PCI support"
+	depends on MAC80211 && PCI && WLAN_80211 && EXPERIMENTAL
+	select EEPROM_93CX6
+	---help---
+	  This is a driver for RTL8180 and RTL8185 based cards.
+	  These are PCI based chips found in cards such as:
+
+	  (RTL8185 802.11g)
+	  A-Link WL54PC
+
+	  (RTL8180 802.11b)
+	  Belkin F5D6020 v3
+	  Belkin F5D6020 v3
+	  Dlink DWL-610
+	  Dlink DWL-510
+	  Netgear MA521
+	  Level-One WPC-0101
+	  Acer Aspire 1357 LMi
+	  VCTnet PC-11B1
+	  Ovislink AirLive WL-1120PCM
+	  Mentor WL-PCI
+	  Linksys WPC11 v4
+	  TrendNET TEW-288PI
+	  D-Link DWL-520 Rev D
+	  Repotec RP-WP7126
+	  TP-Link TL-WN250/251
+	  Zonet ZEW1000
+	  Longshine LCS-8031-R
+	  HomeLine HLW-PCC200
+	  GigaFast WF721-AEX
+	  Planet WL-3553
+	  Encore ENLWI-PCI1-NT
+	  TrendNET TEW-266PC
+	  Gigabyte GN-WLMR101
+	  Siemens-fujitsu Amilo D1840W
+	  Edimax EW-7126
+	  PheeNet WL-11PCIR
+	  Tonze PC-2100T
+	  Planet WL-8303
+	  Dlink DWL-650 v M1
+	  Edimax EW-7106
+	  Q-Tec 770WC
+	  Topcom Skyr@cer 4011b
+	  Roper FreeLan 802.11b (edition 2004)
+	  Wistron Neweb Corp CB-200B
+	  Pentagram HorNET
+	  QTec 775WC
+	  TwinMOS Booming B Series
+	  Micronet SP906BB
+	  Sweex LC700010
+	  Surecom EP-9428
+	  Safecom SWLCR-1100
+
+	  Thanks to Realtek for their support!
+
 config RTL8187
 	tristate "Realtek 8187 USB support"
 	depends on MAC80211 && USB && WLAN_80211 && EXPERIMENTAL
@@ -647,6 +703,23 @@ config P54_PCI
 	  http://prism54.org/
 
 	  If you choose to build a module, it'll be called p54pci.
+
+config ATH5K
+	tristate "Atheros 5xxx wireless cards support"
+	depends on PCI && MAC80211 && WLAN_80211 && EXPERIMENTAL
+	---help---
+	  This module adds support for wireless adapters based on
+	  Atheros 5xxx chipset.
+
+	  Currently the following chip versions are supported:
+
+	  MAC: AR5211 AR5212
+	  PHY: RF5111/2111 RF5112/2112 RF5413/2413
+
+	  This driver uses the kernel's mac80211 subsystem.
+
+	  If you choose to build a module, it'll be called ath5k. Say M if
+	  unsure.
 
 source "drivers/net/wireless/iwlwifi/Kconfig"
 source "drivers/net/wireless/hostap/Kconfig"

@@ -24,6 +24,8 @@ baycom.txt
 	- info on the driver for Baycom style amateur radio modems
 bridge.txt
 	- where to get user space programs for ethernet bridging with Linux.
+can.txt
+	- documentation on CAN protocol family.
 cops.txt
 	- info on the COPS LocalTalk Linux driver
 cs89x0.txt
@@ -82,8 +84,6 @@ policy-routing.txt
 	- IP policy-based routing
 ray_cs.txt
 	- Raylink Wireless LAN card driver info.
-shaper.txt
-	- info on the module that can shape/limit transmitted traffic.
 sk98lin.txt
 	- Marvell Yukon Chipset / SysKonnect SK-98xx compliant Gigabit
 	  Ethernet Adapter family driver info

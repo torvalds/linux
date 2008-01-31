@@ -370,7 +370,7 @@ static int i2o_scsi_reply(struct i2o_controller *c, u32 m,
 	 */
 	if (cmd->result)
 		memcpy(cmd->sense_buffer, &msg->body[3],
-		       min(sizeof(cmd->sense_buffer), (size_t) 40));
+		       min(SCSI_SENSE_BUFFERSIZE, 40));
 
 	/* only output error code if AdapterStatus is not HBA_SUCCESS */
 	if ((error >> 8) & 0xff)

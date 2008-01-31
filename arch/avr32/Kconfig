@@ -54,6 +54,9 @@ config ARCH_HAS_ILOG2_U32
 config ARCH_HAS_ILOG2_U64
 	def_bool n
 
+config ARCH_SUPPORTS_OPROFILE
+	def_bool y
+
 config GENERIC_HWEIGHT
 	def_bool y
 
@@ -81,19 +84,23 @@ config PLATFORM_AT32AP
 	select MMU
 	select PERFORMANCE_COUNTERS
 
-choice
-	prompt "AVR32 CPU type"
-	default CPU_AT32AP7000
-
-config CPU_AT32AP7000
-	bool "AT32AP7000"
-	select PLATFORM_AT32AP
-endchoice
-
 #
-# CPU Daughterboards for ATSTK1000
-config BOARD_ATSTK1002
+# CPU types
+#
+
+# AP7000 derivatives
+config CPU_AT32AP700X
 	bool
+	select PLATFORM_AT32AP
+config CPU_AT32AP7000
+	bool
+	select CPU_AT32AP700X
+config CPU_AT32AP7001
+	bool
+	select CPU_AT32AP700X
+config CPU_AT32AP7002
+	bool
+	select CPU_AT32AP700X
 
 choice
 	prompt "AVR32 board type"
@@ -101,10 +108,10 @@ choice
 
 config BOARD_ATSTK1000
 	bool "ATSTK1000 evaluation board"
-	select BOARD_ATSTK1002 if CPU_AT32AP7000
 
 config BOARD_ATNGW100
 	bool "ATNGW100 Network Gateway"
+	select CPU_AT32AP7000
 endchoice
 
 if BOARD_ATSTK1000
@@ -123,15 +130,15 @@ source "arch/avr32/mach-at32ap/Kconfig"
 
 config LOAD_ADDRESS
 	hex
-	default 0x10000000 if LOADER_U_BOOT=y && CPU_AT32AP7000=y
+	default 0x10000000 if LOADER_U_BOOT=y && CPU_AT32AP700X=y
 
 config ENTRY_ADDRESS
 	hex
-	default 0x90000000 if LOADER_U_BOOT=y && CPU_AT32AP7000=y
+	default 0x90000000 if LOADER_U_BOOT=y && CPU_AT32AP700X=y
 
 config PHYS_OFFSET
 	hex
-	default 0x10000000 if CPU_AT32AP7000=y
+	default 0x10000000 if CPU_AT32AP700X=y
 
 source "kernel/Kconfig.preempt"
 
@@ -162,6 +169,16 @@ config OWNERSHIP_TRACE
 	  Say Y to generate an Ownership Trace message on every context switch,
 	  enabling Nexus-compliant debuggers to keep track of the PID of the
 	  currently executing task.
+
+config NMI_DEBUGGING
+	bool "NMI Debugging"
+	default n
+	help
+	  Say Y here and pass the nmi_debug command-line parameter to
+	  the kernel to turn on NMI debugging. Depending on the value
+	  of the nmi_debug option, various pieces of information will
+	  be dumped to the console when a Non-Maskable Interrupt
+	  happens.
 
 # FPU emulation goes here
 
@@ -218,6 +235,8 @@ source "net/Kconfig"
 source "drivers/Kconfig"
 
 source "fs/Kconfig"
+
+source "kernel/Kconfig.instrumentation"
 
 source "arch/avr32/Kconfig.debug"
 

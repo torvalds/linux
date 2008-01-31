@@ -232,7 +232,8 @@ __flush_batch(journal_t *journal, struct buffer_head **bhs, int *batch_count)
  * Called under jbd_lock_bh_state(jh2bh(jh)), and drops it
  */
 static int __process_buffer(journal_t *journal, struct journal_head *jh,
-			struct buffer_head **bhs, int *batch_count)
+			struct buffer_head **bhs, int *batch_count,
+			transaction_t *transaction)
 {
 	struct buffer_head *bh = jh2bh(jh);
 	int ret = 0;
@@ -250,6 +251,7 @@ static int __process_buffer(journal_t *journal, struct journal_head *jh,
 		transaction_t *t = jh->b_transaction;
 		tid_t tid = t->t_tid;
 
+		transaction->t_chp_stats.cs_forced_to_close++;
 		spin_unlock(&journal->j_list_lock);
 		jbd_unlock_bh_state(bh);
 		jbd2_log_start_commit(journal, tid);
@@ -279,6 +281,7 @@ static int __process_buffer(journal_t *journal, struct journal_head *jh,
 		bhs[*batch_count] = bh;
 		__buffer_relink_io(jh);
 		jbd_unlock_bh_state(bh);
+		transaction->t_chp_stats.cs_written++;
 		(*batch_count)++;
 		if (*batch_count == NR_BATCH) {
 			spin_unlock(&journal->j_list_lock);
@@ -322,6 +325,8 @@ int jbd2_log_do_checkpoint(journal_t *journal)
 	if (!journal->j_checkpoint_transactions)
 		goto out;
 	transaction = journal->j_checkpoint_transactions;
+	if (transaction->t_chp_stats.cs_chp_time == 0)
+		transaction->t_chp_stats.cs_chp_time = jiffies;
 	this_tid = transaction->t_tid;
 restart:
 	/*
@@ -346,8 +351,10 @@ restart:
 				retry = 1;
 				break;
 			}
-			retry = __process_buffer(journal, jh, bhs,&batch_count);
-			if (!retry && lock_need_resched(&journal->j_list_lock)){
+			retry = __process_buffer(journal, jh, bhs, &batch_count,
+						 transaction);
+			if (!retry && (need_resched() ||
+				spin_needbreak(&journal->j_list_lock))) {
 				spin_unlock(&journal->j_list_lock);
 				retry = 1;
 				break;
@@ -602,15 +609,15 @@ int __jbd2_journal_remove_checkpoint(struct journal_head *jh)
 
 	/*
 	 * There is one special case to worry about: if we have just pulled the
-	 * buffer off a committing transaction's forget list, then even if the
-	 * checkpoint list is empty, the transaction obviously cannot be
-	 * dropped!
+	 * buffer off a running or committing transaction's checkpoing list,
+	 * then even if the checkpoint list is empty, the transaction obviously
+	 * cannot be dropped!
 	 *
-	 * The locking here around j_committing_transaction is a bit sleazy.
+	 * The locking here around t_state is a bit sleazy.
 	 * See the comment at the end of jbd2_journal_commit_transaction().
 	 */
-	if (transaction == journal->j_committing_transaction) {
-		JBUFFER_TRACE(jh, "belongs to committing transaction");
+	if (transaction->t_state != T_FINISHED) {
+		JBUFFER_TRACE(jh, "belongs to running/committing transaction");
 		goto out;
 	}
 

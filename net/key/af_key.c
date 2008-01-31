@@ -2291,8 +2291,7 @@ static int pfkey_spdadd(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	return 0;
 
 out:
-	security_xfrm_policy_free(xp);
-	kfree(xp);
+	xfrm_policy_destroy(xp);
 	return err;
 }
 
@@ -3236,8 +3235,7 @@ static struct xfrm_policy *pfkey_compile_policy(struct sock *sk, int opt,
 	return xp;
 
 out:
-	security_xfrm_policy_free(xp);
-	kfree(xp);
+	xfrm_policy_destroy(xp);
 	return NULL;
 }
 

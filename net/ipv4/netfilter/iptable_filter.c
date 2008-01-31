@@ -19,7 +19,9 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Netfilter Core Team <coreteam@netfilter.org>");
 MODULE_DESCRIPTION("iptables filter table");
 
-#define FILTER_VALID_HOOKS ((1 << NF_IP_LOCAL_IN) | (1 << NF_IP_FORWARD) | (1 << NF_IP_LOCAL_OUT))
+#define FILTER_VALID_HOOKS ((1 << NF_INET_LOCAL_IN) | \
+			    (1 << NF_INET_FORWARD) | \
+			    (1 << NF_INET_LOCAL_OUT))
 
 static struct
 {
@@ -33,14 +35,14 @@ static struct
 		.num_entries = 4,
 		.size = sizeof(struct ipt_standard) * 3 + sizeof(struct ipt_error),
 		.hook_entry = {
-			[NF_IP_LOCAL_IN] = 0,
-			[NF_IP_FORWARD] = sizeof(struct ipt_standard),
-			[NF_IP_LOCAL_OUT] = sizeof(struct ipt_standard) * 2,
+			[NF_INET_LOCAL_IN] = 0,
+			[NF_INET_FORWARD] = sizeof(struct ipt_standard),
+			[NF_INET_LOCAL_OUT] = sizeof(struct ipt_standard) * 2,
 		},
 		.underflow = {
-			[NF_IP_LOCAL_IN] = 0,
-			[NF_IP_FORWARD] = sizeof(struct ipt_standard),
-			[NF_IP_LOCAL_OUT] = sizeof(struct ipt_standard) * 2,
+			[NF_INET_LOCAL_IN] = 0,
+			[NF_INET_FORWARD] = sizeof(struct ipt_standard),
+			[NF_INET_LOCAL_OUT] = sizeof(struct ipt_standard) * 2,
 		},
 	},
 	.entries = {
@@ -89,26 +91,26 @@ ipt_local_out_hook(unsigned int hook,
 	return ipt_do_table(skb, hook, in, out, &packet_filter);
 }
 
-static struct nf_hook_ops ipt_ops[] = {
+static struct nf_hook_ops ipt_ops[] __read_mostly = {
 	{
 		.hook		= ipt_hook,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET,
-		.hooknum	= NF_IP_LOCAL_IN,
+		.hooknum	= NF_INET_LOCAL_IN,
 		.priority	= NF_IP_PRI_FILTER,
 	},
 	{
 		.hook		= ipt_hook,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET,
-		.hooknum	= NF_IP_FORWARD,
+		.hooknum	= NF_INET_FORWARD,
 		.priority	= NF_IP_PRI_FILTER,
 	},
 	{
 		.hook		= ipt_local_out_hook,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET,
-		.hooknum	= NF_IP_LOCAL_OUT,
+		.hooknum	= NF_INET_LOCAL_OUT,
 		.priority	= NF_IP_PRI_FILTER,
 	},
 };

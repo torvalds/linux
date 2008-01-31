@@ -5078,6 +5078,7 @@ ahc_pause_and_flushwork(struct ahc_softc *ahc)
 	ahc->flags &= ~AHC_ALL_INTERRUPTS;
 }
 
+#ifdef CONFIG_PM
 int
 ahc_suspend(struct ahc_softc *ahc)
 {
@@ -5113,7 +5114,7 @@ ahc_resume(struct ahc_softc *ahc)
 	ahc_restart(ahc);
 	return (0);
 }
-
+#endif
 /************************** Busy Target Table *********************************/
 /*
  * Return the untagged transaction id for a given target/channel lun.

@@ -3,8 +3,12 @@
 
 #include <linux/list.h>
 #include <linux/backing-dev.h>
+#include <linux/wait.h>
+
+#include <asm/atomic.h>
 
 struct nfs_iostats;
+struct nlm_host;
 
 /*
  * The nfs_client identifies our client state to the server.
@@ -14,20 +18,19 @@ struct nfs_client {
 	int			cl_cons_state;	/* current construction state (-ve: init error) */
 #define NFS_CS_READY		0		/* ready to be used */
 #define NFS_CS_INITING		1		/* busy initialising */
-	int			cl_nfsversion;	/* NFS protocol version */
 	unsigned long		cl_res_state;	/* NFS resources state */
 #define NFS_CS_CALLBACK		1		/* - callback started */
 #define NFS_CS_IDMAP		2		/* - idmap started */
 #define NFS_CS_RENEWD		3		/* - renewd started */
-	struct sockaddr_in	cl_addr;	/* server identifier */
+	struct sockaddr_storage	cl_addr;	/* server identifier */
+	size_t			cl_addrlen;
 	char *			cl_hostname;	/* hostname of server */
 	struct list_head	cl_share_link;	/* link in global client list */
 	struct list_head	cl_superblocks;	/* List of nfs_server structs */
 
 	struct rpc_clnt *	cl_rpcclient;
 	const struct nfs_rpc_ops *rpc_ops;	/* NFS protocol vector */
-	unsigned long		retrans_timeo;	/* retransmit timeout */
-	unsigned int		retrans_count;	/* number of retransmit tries */
+	int			cl_proto;	/* Network transport protocol */
 
 #ifdef CONFIG_NFS_V4
 	u64			cl_clientid;	/* constant */
@@ -62,7 +65,7 @@ struct nfs_client {
 	/* Our own IP address, as a null-terminated string.
 	 * This is used to generate the clientid, and the callback address.
 	 */
-	char			cl_ipaddr[16];
+	char			cl_ipaddr[48];
 	unsigned char		cl_id_uniquifier;
 #endif
 };
@@ -78,6 +81,7 @@ struct nfs_server {
 	struct list_head	master_link;	/* link in master servers list */
 	struct rpc_clnt *	client;		/* RPC client handle */
 	struct rpc_clnt *	client_acl;	/* ACL RPC client handle */
+	struct nlm_host		*nlm_host;	/* NLM client handle */
 	struct nfs_iostats *	io_stats;	/* I/O statistics */
 	struct backing_dev_info	backing_dev_info;
 	atomic_long_t		writeback;	/* number of writeback pages */
@@ -110,6 +114,9 @@ struct nfs_server {
 						   filesystem */
 #endif
 	void (*destroy)(struct nfs_server *);
+
+	atomic_t active; /* Keep trace of any activity to this server */
+	wait_queue_head_t active_wq;  /* Wait for any activity to stop  */
 };
 
 /* Server capabilities */

@@ -335,31 +335,6 @@ static intc_enum __init intc_grp_id(struct intc_desc *desc,
 	return 0;
 }
 
-static unsigned int __init intc_prio_value(struct intc_desc *desc,
-					   intc_enum enum_id, int do_grps)
-{
-	struct intc_prio *p = desc->priorities;
-	unsigned int i;
-
-	for (i = 0; p && enum_id && i < desc->nr_priorities; i++) {
-		p = desc->priorities + i;
-
-		if (p->enum_id != enum_id)
-			continue;
-
-		return p->priority;
-	}
-
-	if (do_grps)
-		return intc_prio_value(desc, intc_grp_id(desc, enum_id), 0);
-
-	/* default to the lowest priority possible if no priority is set
-	 * - this needs to be at least 2 for 5-bit priorities on 7780
-	 */
-
-	return 2;
-}
-
 static unsigned int __init intc_mask_data(struct intc_desc *desc,
 					  struct intc_desc_int *d,
 					  intc_enum enum_id, int do_grps)
@@ -518,8 +493,10 @@ static void __init intc_register_irq(struct intc_desc *desc,
 				      handle_level_irq, "level");
 	set_irq_chip_data(irq, (void *)data[primary]);
 
-	/* record the desired priority level */
-	intc_prio_level[irq] = intc_prio_value(desc, enum_id, 1);
+	/* set priority level
+	 * - this needs to be at least 2 for 5-bit priorities on 7780
+	 */
+	intc_prio_level[irq] = 2;
 
 	/* enable secondary masking method if present */
 	if (data[!primary])

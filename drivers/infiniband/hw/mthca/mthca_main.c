@@ -65,14 +65,9 @@ static int msi_x = 1;
 module_param(msi_x, int, 0444);
 MODULE_PARM_DESC(msi_x, "attempt to use MSI-X if nonzero");
 
-static int msi = 0;
-module_param(msi, int, 0444);
-MODULE_PARM_DESC(msi, "attempt to use MSI if nonzero (deprecated, use MSI-X instead)");
-
 #else /* CONFIG_PCI_MSI */
 
 #define msi_x (0)
-#define msi   (0)
 
 #endif /* CONFIG_PCI_MSI */
 
@@ -816,13 +811,11 @@ static int mthca_setup_hca(struct mthca_dev *dev)
 
 	err = mthca_NOP(dev, &status);
 	if (err || status) {
-		if (dev->mthca_flags & (MTHCA_FLAG_MSI | MTHCA_FLAG_MSI_X)) {
+		if (dev->mthca_flags & MTHCA_FLAG_MSI_X) {
 			mthca_warn(dev, "NOP command failed to generate interrupt "
 				   "(IRQ %d).\n",
-				   dev->mthca_flags & MTHCA_FLAG_MSI_X ?
-				   dev->eq_table.eq[MTHCA_EQ_CMD].msi_x_vector :
-				   dev->pdev->irq);
-			mthca_warn(dev, "Trying again with MSI/MSI-X disabled.\n");
+				   dev->eq_table.eq[MTHCA_EQ_CMD].msi_x_vector);
+			mthca_warn(dev, "Trying again with MSI-X disabled.\n");
 		} else {
 			mthca_err(dev, "NOP command failed to generate interrupt "
 				  "(IRQ %d), aborting.\n",
@@ -1005,7 +998,7 @@ static struct {
 			   .flags     = 0 },
 	[ARBEL_COMPAT] = { .latest_fw = MTHCA_FW_VER(4, 8, 200),
 			   .flags     = MTHCA_FLAG_PCIE },
-	[ARBEL_NATIVE] = { .latest_fw = MTHCA_FW_VER(5, 2, 0),
+	[ARBEL_NATIVE] = { .latest_fw = MTHCA_FW_VER(5, 3, 0),
 			   .flags     = MTHCA_FLAG_MEMFREE |
 					MTHCA_FLAG_PCIE },
 	[SINAI]        = { .latest_fw = MTHCA_FW_VER(1, 2, 0),
@@ -1128,29 +1121,12 @@ static int __mthca_init_one(struct pci_dev *pdev, int hca_type)
 
 	if (msi_x && !mthca_enable_msi_x(mdev))
 		mdev->mthca_flags |= MTHCA_FLAG_MSI_X;
-	else if (msi) {
-		static int warned;
-
-		if (!warned) {
-			printk(KERN_WARNING PFX "WARNING: MSI support will be "
-			       "removed from the ib_mthca driver in January 2008.\n");
-			printk(KERN_WARNING "    If you are using MSI and cannot "
-			       "switch to MSI-X, please tell "
-			       "<general@lists.openfabrics.org>.\n");
-			++warned;
-		}
-
-		if (!pci_enable_msi(pdev))
-			mdev->mthca_flags |= MTHCA_FLAG_MSI;
-	}
 
 	err = mthca_setup_hca(mdev);
-	if (err == -EBUSY && (mdev->mthca_flags & (MTHCA_FLAG_MSI | MTHCA_FLAG_MSI_X))) {
+	if (err == -EBUSY && (mdev->mthca_flags & MTHCA_FLAG_MSI_X)) {
 		if (mdev->mthca_flags & MTHCA_FLAG_MSI_X)
 			pci_disable_msix(pdev);
-		if (mdev->mthca_flags & MTHCA_FLAG_MSI)
-			pci_disable_msi(pdev);
-		mdev->mthca_flags &= ~(MTHCA_FLAG_MSI_X | MTHCA_FLAG_MSI);
+		mdev->mthca_flags &= ~MTHCA_FLAG_MSI_X;
 
 		err = mthca_setup_hca(mdev);
 	}
@@ -1192,8 +1168,6 @@ err_cleanup:
 err_close:
 	if (mdev->mthca_flags & MTHCA_FLAG_MSI_X)
 		pci_disable_msix(pdev);
-	if (mdev->mthca_flags & MTHCA_FLAG_MSI)
-		pci_disable_msi(pdev);
 
 	mthca_close_hca(mdev);
 
@@ -1246,8 +1220,6 @@ static void __mthca_remove_one(struct pci_dev *pdev)
 
 		if (mdev->mthca_flags & MTHCA_FLAG_MSI_X)
 			pci_disable_msix(pdev);
-		if (mdev->mthca_flags & MTHCA_FLAG_MSI)
-			pci_disable_msi(pdev);
 
 		ib_dealloc_device(&mdev->ib_dev);
 		mthca_release_regions(pdev, mdev->mthca_flags &

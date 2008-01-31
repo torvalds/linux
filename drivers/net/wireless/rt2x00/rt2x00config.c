@@ -23,11 +23,6 @@
 	Abstract: rt2x00 generic configuration routines.
  */
 
-/*
- * Set enviroment defines for rt2x00.h
- */
-#define DRV_NAME "rt2x00lib"
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 
@@ -94,12 +89,44 @@ void rt2x00lib_config_type(struct rt2x00_dev *rt2x00dev, const int type)
 	rt2x00dev->ops->lib->config_type(rt2x00dev, type, tsf_sync);
 }
 
+void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
+			      enum antenna rx, enum antenna tx)
+{
+	struct rt2x00lib_conf libconf;
+
+	libconf.ant.rx = rx;
+	libconf.ant.tx = tx;
+
+	/*
+	 * Antenna setup changes require the RX to be disabled,
+	 * else the changes will be ignored by the device.
+	 */
+	if (test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags))
+		rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_OFF);
+
+	/*
+	 * Write new antenna setup to device and reset the link tuner.
+	 * The latter is required since we need to recalibrate the
+	 * noise-sensitivity ratio for the new setup.
+	 */
+	rt2x00dev->ops->lib->config(rt2x00dev, CONFIG_UPDATE_ANTENNA, &libconf);
+	rt2x00lib_reset_link_tuner(rt2x00dev);
+
+	rt2x00dev->link.ant.active.rx = libconf.ant.rx;
+	rt2x00dev->link.ant.active.tx = libconf.ant.tx;
+
+	if (test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags))
+		rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_ON);
+}
+
 void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 		      struct ieee80211_conf *conf, const int force_config)
 {
 	struct rt2x00lib_conf libconf;
 	struct ieee80211_hw_mode *mode;
 	struct ieee80211_rate *rate;
+	struct antenna_setup *default_ant = &rt2x00dev->default_ant;
+	struct antenna_setup *active_ant = &rt2x00dev->link.ant.active;
 	int flags = 0;
 	int short_slot_time;
 
@@ -122,7 +149,39 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 		flags |= CONFIG_UPDATE_CHANNEL;
 	if (rt2x00dev->tx_power != conf->power_level)
 		flags |= CONFIG_UPDATE_TXPOWER;
-	if (rt2x00dev->rx_status.antenna == conf->antenna_sel_rx)
+
+	/*
+	 * Determining changes in the antenna setups request several checks:
+	 * antenna_sel_{r,t}x = 0
+	 *    -> Does active_{r,t}x match default_{r,t}x
+	 *    -> Is default_{r,t}x SW_DIVERSITY
+	 * antenna_sel_{r,t}x = 1/2
+	 *    -> Does active_{r,t}x match antenna_sel_{r,t}x
+	 * The reason for not updating the antenna while SW diversity
+	 * should be used is simple: Software diversity means that
+	 * we should switch between the antenna's based on the
+	 * quality. This means that the current antenna is good enough
+	 * to work with untill the link tuner decides that an antenna
+	 * switch should be performed.
+	 */
+	if (!conf->antenna_sel_rx &&
+	    default_ant->rx != ANTENNA_SW_DIVERSITY &&
+	    default_ant->rx != active_ant->rx)
+		flags |= CONFIG_UPDATE_ANTENNA;
+	else if (conf->antenna_sel_rx &&
+		 conf->antenna_sel_rx != active_ant->rx)
+		flags |= CONFIG_UPDATE_ANTENNA;
+	else if (active_ant->rx == ANTENNA_SW_DIVERSITY)
+		flags |= CONFIG_UPDATE_ANTENNA;
+
+	if (!conf->antenna_sel_tx &&
+	    default_ant->tx != ANTENNA_SW_DIVERSITY &&
+	    default_ant->tx != active_ant->tx)
+		flags |= CONFIG_UPDATE_ANTENNA;
+	else if (conf->antenna_sel_tx &&
+		 conf->antenna_sel_tx != active_ant->tx)
+		flags |= CONFIG_UPDATE_ANTENNA;
+	else if (active_ant->tx == ANTENNA_SW_DIVERSITY)
 		flags |= CONFIG_UPDATE_ANTENNA;
 
 	/*
@@ -171,6 +230,22 @@ config:
 		       sizeof(libconf.rf));
 	}
 
+	if (flags & CONFIG_UPDATE_ANTENNA) {
+		if (conf->antenna_sel_rx)
+			libconf.ant.rx = conf->antenna_sel_rx;
+		else if (default_ant->rx != ANTENNA_SW_DIVERSITY)
+			libconf.ant.rx = default_ant->rx;
+		else if (active_ant->rx == ANTENNA_SW_DIVERSITY)
+			libconf.ant.rx = ANTENNA_B;
+
+		if (conf->antenna_sel_tx)
+			libconf.ant.tx = conf->antenna_sel_tx;
+		else if (default_ant->tx != ANTENNA_SW_DIVERSITY)
+			libconf.ant.tx = default_ant->tx;
+		else if (active_ant->tx == ANTENNA_SW_DIVERSITY)
+			libconf.ant.tx = ANTENNA_B;
+	}
+
 	if (flags & CONFIG_UPDATE_SLOT_TIME) {
 		short_slot_time = conf->flags & IEEE80211_CONF_SHORT_SLOT_TIME;
 
@@ -196,10 +271,17 @@ config:
 	if (flags & (CONFIG_UPDATE_CHANNEL | CONFIG_UPDATE_ANTENNA))
 		rt2x00lib_reset_link_tuner(rt2x00dev);
 
-	rt2x00dev->curr_hwmode = libconf.phymode;
-	rt2x00dev->rx_status.phymode = conf->phymode;
+	if (flags & CONFIG_UPDATE_PHYMODE) {
+		rt2x00dev->curr_hwmode = libconf.phymode;
+		rt2x00dev->rx_status.phymode = conf->phymode;
+	}
+
 	rt2x00dev->rx_status.freq = conf->freq;
 	rt2x00dev->rx_status.channel = conf->channel;
 	rt2x00dev->tx_power = conf->power_level;
-	rt2x00dev->rx_status.antenna = conf->antenna_sel_rx;
+
+	if (flags & CONFIG_UPDATE_ANTENNA) {
+		rt2x00dev->link.ant.active.rx = libconf.ant.rx;
+		rt2x00dev->link.ant.active.tx = libconf.ant.tx;
+	}
 }

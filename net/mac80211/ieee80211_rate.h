@@ -18,21 +18,14 @@
 #include "ieee80211_i.h"
 #include "sta_info.h"
 
-#define RATE_CONTROL_NUM_DOWN 20
-#define RATE_CONTROL_NUM_UP   15
-
-
-struct rate_control_extra {
-	/* values from rate_control_get_rate() to the caller: */
-	struct ieee80211_rate *probe; /* probe with this rate, or NULL for no
-				       * probing */
+struct rate_selection {
+	/* Selected transmission rate */
+	struct ieee80211_rate *rate;
+	/* Non-ERP rate to use if mac80211 decides it cannot use an ERP rate */
 	struct ieee80211_rate *nonerp;
-
-	/* parameters from the caller to rate_control_get_rate(): */
-	struct ieee80211_hw_mode *mode;
-	u16 ethertype;
+	/* probe with this rate, or NULL for no probing */
+	struct ieee80211_rate *probe;
 };
-
 
 struct rate_control_ops {
 	struct module *module;
@@ -40,9 +33,9 @@ struct rate_control_ops {
 	void (*tx_status)(void *priv, struct net_device *dev,
 			  struct sk_buff *skb,
 			  struct ieee80211_tx_status *status);
-	struct ieee80211_rate *(*get_rate)(void *priv, struct net_device *dev,
-					   struct sk_buff *skb,
-					   struct rate_control_extra *extra);
+	void (*get_rate)(void *priv, struct net_device *dev,
+			 struct ieee80211_hw_mode *mode, struct sk_buff *skb,
+			 struct rate_selection *sel);
 	void (*rate_init)(void *priv, void *priv_sta,
 			  struct ieee80211_local *local, struct sta_info *sta);
 	void (*clear)(void *priv);
@@ -65,9 +58,6 @@ struct rate_control_ref {
 	struct kref kref;
 };
 
-/* default 'simple' algorithm */
-extern struct rate_control_ops mac80211_rcsimple;
-
 int ieee80211_rate_control_register(struct rate_control_ops *ops);
 void ieee80211_rate_control_unregister(struct rate_control_ops *ops);
 
@@ -75,25 +65,20 @@ void ieee80211_rate_control_unregister(struct rate_control_ops *ops);
  * first available algorithm. */
 struct rate_control_ref *rate_control_alloc(const char *name,
 					    struct ieee80211_local *local);
+void rate_control_get_rate(struct net_device *dev,
+			   struct ieee80211_hw_mode *mode, struct sk_buff *skb,
+			   struct rate_selection *sel);
 struct rate_control_ref *rate_control_get(struct rate_control_ref *ref);
 void rate_control_put(struct rate_control_ref *ref);
 
-static inline void rate_control_tx_status(struct ieee80211_local *local,
-					  struct net_device *dev,
+static inline void rate_control_tx_status(struct net_device *dev,
 					  struct sk_buff *skb,
 					  struct ieee80211_tx_status *status)
 {
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct rate_control_ref *ref = local->rate_ctrl;
+
 	ref->ops->tx_status(ref->priv, dev, skb, status);
-}
-
-
-static inline struct ieee80211_rate *
-rate_control_get_rate(struct ieee80211_local *local, struct net_device *dev,
-		      struct sk_buff *skb, struct rate_control_extra *extra)
-{
-	struct rate_control_ref *ref = local->rate_ctrl;
-	return ref->ops->get_rate(ref->priv, dev, skb, extra);
 }
 
 
@@ -142,10 +127,73 @@ static inline void rate_control_remove_sta_debugfs(struct sta_info *sta)
 #endif
 }
 
+static inline int
+rate_supported(struct sta_info *sta, struct ieee80211_hw_mode *mode, int index)
+{
+	return (sta == NULL || sta->supp_rates & BIT(index)) &&
+	       (mode->rates[index].flags & IEEE80211_RATE_SUPPORTED);
+}
+
+static inline int
+rate_lowest_index(struct ieee80211_local *local, struct ieee80211_hw_mode *mode,
+		  struct sta_info *sta)
+{
+	int i;
+
+	for (i = 0; i < mode->num_rates; i++) {
+		if (rate_supported(sta, mode, i))
+			return i;
+	}
+
+	/* warn when we cannot find a rate. */
+	WARN_ON(1);
+
+	return 0;
+}
+
+static inline struct ieee80211_rate *
+rate_lowest(struct ieee80211_local *local, struct ieee80211_hw_mode *mode,
+	    struct sta_info *sta)
+{
+	return &mode->rates[rate_lowest_index(local, mode, sta)];
+}
+
 
 /* functions for rate control related to a device */
 int ieee80211_init_rate_ctrl_alg(struct ieee80211_local *local,
 				 const char *name);
 void rate_control_deinitialize(struct ieee80211_local *local);
+
+
+/* Rate control algorithms */
+#if defined(RC80211_SIMPLE_COMPILE) || \
+	(defined(CONFIG_MAC80211_RC_SIMPLE) && \
+	 !defined(CONFIG_MAC80211_RC_SIMPLE_MODULE))
+extern int rc80211_simple_init(void);
+extern void rc80211_simple_exit(void);
+#else
+static inline int rc80211_simple_init(void)
+{
+	return 0;
+}
+static inline void rc80211_simple_exit(void)
+{
+}
+#endif
+
+#if defined(RC80211_PID_COMPILE) || \
+	(defined(CONFIG_MAC80211_RC_PID) && \
+	 !defined(CONFIG_MAC80211_RC_PID_MODULE))
+extern int rc80211_pid_init(void);
+extern void rc80211_pid_exit(void);
+#else
+static inline int rc80211_pid_init(void)
+{
+	return 0;
+}
+static inline void rc80211_pid_exit(void)
+{
+}
+#endif
 
 #endif /* IEEE80211_RATE_H */

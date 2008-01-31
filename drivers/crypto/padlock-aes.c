@@ -44,6 +44,7 @@
  */
 
 #include <crypto/algapi.h>
+#include <crypto/aes.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
@@ -53,9 +54,6 @@
 #include <asm/byteorder.h>
 #include "padlock.h"
 
-#define AES_MIN_KEY_SIZE	16	/* in uint8_t units */
-#define AES_MAX_KEY_SIZE	32	/* ditto */
-#define AES_BLOCK_SIZE		16	/* ditto */
 #define AES_EXTENDED_KEY_SIZE	64	/* in uint32_t units */
 #define AES_EXTENDED_KEY_SIZE_B	(AES_EXTENDED_KEY_SIZE * sizeof(uint32_t))
 
@@ -419,6 +417,11 @@ static int aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 /* ====== Encryption/decryption routines ====== */
 
 /* These are the real call to PadLock. */
+static inline void padlock_reset_key(void)
+{
+	asm volatile ("pushfl; popfl");
+}
+
 static inline void padlock_xcrypt(const u8 *input, u8 *output, void *key,
 				  void *control_word)
 {
@@ -439,8 +442,6 @@ static void aes_crypt_copy(const u8 *in, u8 *out, u32 *key, struct cword *cword)
 static inline void aes_crypt(const u8 *in, u8 *out, u32 *key,
 			     struct cword *cword)
 {
-	asm volatile ("pushfl; popfl");
-
 	/* padlock_xcrypt requires at least two blocks of data. */
 	if (unlikely(!(((unsigned long)in ^ (PAGE_SIZE - AES_BLOCK_SIZE)) &
 		       (PAGE_SIZE - 1)))) {
@@ -459,7 +460,6 @@ static inline void padlock_xcrypt_ecb(const u8 *input, u8 *output, void *key,
 		return;
 	}
 
-	asm volatile ("pushfl; popfl");		/* enforce key reload. */
 	asm volatile ("test $1, %%cl;"
 		      "je 1f;"
 		      "lea -1(%%ecx), %%eax;"
@@ -476,8 +476,6 @@ static inline void padlock_xcrypt_ecb(const u8 *input, u8 *output, void *key,
 static inline u8 *padlock_xcrypt_cbc(const u8 *input, u8 *output, void *key,
 				     u8 *iv, void *control_word, u32 count)
 {
-	/* Enforce key reload. */
-	asm volatile ("pushfl; popfl");
 	/* rep xcryptcbc */
 	asm volatile (".byte 0xf3,0x0f,0xa7,0xd0"
 		      : "+S" (input), "+D" (output), "+a" (iv)
@@ -488,12 +486,14 @@ static inline u8 *padlock_xcrypt_cbc(const u8 *input, u8 *output, void *key,
 static void aes_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
 	struct aes_ctx *ctx = aes_ctx(tfm);
+	padlock_reset_key();
 	aes_crypt(in, out, ctx->E, &ctx->cword.encrypt);
 }
 
 static void aes_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
 	struct aes_ctx *ctx = aes_ctx(tfm);
+	padlock_reset_key();
 	aes_crypt(in, out, ctx->D, &ctx->cword.decrypt);
 }
 
@@ -526,6 +526,8 @@ static int ecb_aes_encrypt(struct blkcipher_desc *desc,
 	struct blkcipher_walk walk;
 	int err;
 
+	padlock_reset_key();
+
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);
 
@@ -547,6 +549,8 @@ static int ecb_aes_decrypt(struct blkcipher_desc *desc,
 	struct aes_ctx *ctx = blk_aes_ctx(desc->tfm);
 	struct blkcipher_walk walk;
 	int err;
+
+	padlock_reset_key();
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);
@@ -592,6 +596,8 @@ static int cbc_aes_encrypt(struct blkcipher_desc *desc,
 	struct blkcipher_walk walk;
 	int err;
 
+	padlock_reset_key();
+
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);
 
@@ -615,6 +621,8 @@ static int cbc_aes_decrypt(struct blkcipher_desc *desc,
 	struct aes_ctx *ctx = blk_aes_ctx(desc->tfm);
 	struct blkcipher_walk walk;
 	int err;
+
+	padlock_reset_key();
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);

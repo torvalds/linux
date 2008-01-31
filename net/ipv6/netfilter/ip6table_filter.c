@@ -17,7 +17,9 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Netfilter Core Team <coreteam@netfilter.org>");
 MODULE_DESCRIPTION("ip6tables filter table");
 
-#define FILTER_VALID_HOOKS ((1 << NF_IP6_LOCAL_IN) | (1 << NF_IP6_FORWARD) | (1 << NF_IP6_LOCAL_OUT))
+#define FILTER_VALID_HOOKS ((1 << NF_INET_LOCAL_IN) | \
+			    (1 << NF_INET_FORWARD) | \
+			    (1 << NF_INET_LOCAL_OUT))
 
 static struct
 {
@@ -31,14 +33,14 @@ static struct
 		.num_entries = 4,
 		.size = sizeof(struct ip6t_standard) * 3 + sizeof(struct ip6t_error),
 		.hook_entry = {
-			[NF_IP6_LOCAL_IN] = 0,
-			[NF_IP6_FORWARD] = sizeof(struct ip6t_standard),
-			[NF_IP6_LOCAL_OUT] = sizeof(struct ip6t_standard) * 2
+			[NF_INET_LOCAL_IN] = 0,
+			[NF_INET_FORWARD] = sizeof(struct ip6t_standard),
+			[NF_INET_LOCAL_OUT] = sizeof(struct ip6t_standard) * 2
 		},
 		.underflow = {
-			[NF_IP6_LOCAL_IN] = 0,
-			[NF_IP6_FORWARD] = sizeof(struct ip6t_standard),
-			[NF_IP6_LOCAL_OUT] = sizeof(struct ip6t_standard) * 2
+			[NF_INET_LOCAL_IN] = 0,
+			[NF_INET_FORWARD] = sizeof(struct ip6t_standard),
+			[NF_INET_LOCAL_OUT] = sizeof(struct ip6t_standard) * 2
 		},
 	},
 	.entries = {
@@ -88,26 +90,26 @@ ip6t_local_out_hook(unsigned int hook,
 	return ip6t_do_table(skb, hook, in, out, &packet_filter);
 }
 
-static struct nf_hook_ops ip6t_ops[] = {
+static struct nf_hook_ops ip6t_ops[] __read_mostly = {
 	{
 		.hook		= ip6t_hook,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET6,
-		.hooknum	= NF_IP6_LOCAL_IN,
+		.hooknum	= NF_INET_LOCAL_IN,
 		.priority	= NF_IP6_PRI_FILTER,
 	},
 	{
 		.hook		= ip6t_hook,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET6,
-		.hooknum	= NF_IP6_FORWARD,
+		.hooknum	= NF_INET_FORWARD,
 		.priority	= NF_IP6_PRI_FILTER,
 	},
 	{
 		.hook		= ip6t_local_out_hook,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET6,
-		.hooknum	= NF_IP6_LOCAL_OUT,
+		.hooknum	= NF_INET_LOCAL_OUT,
 		.priority	= NF_IP6_PRI_FILTER,
 	},
 };

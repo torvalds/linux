@@ -537,15 +537,8 @@ int mls_compute_sid(struct context *scontext,
 			/* Use the process effective MLS attributes. */
 			return mls_context_cpy_low(newcontext, scontext);
 	case AVTAB_MEMBER:
-		/* Only polyinstantiate the MLS attributes if
-		   the type is being polyinstantiated */
-		if (newcontext->type != tcontext->type) {
-			/* Use the process effective MLS attributes. */
-			return mls_context_cpy_low(newcontext, scontext);
-		} else {
-			/* Use the related object MLS attributes. */
-			return mls_context_cpy(newcontext, tcontext);
-		}
+		/* Use the process effective MLS attributes. */
+		return mls_context_cpy_low(newcontext, scontext);
 	default:
 		return -EINVAL;
 	}
@@ -569,7 +562,7 @@ void mls_export_netlbl_lvl(struct context *context,
 	if (!selinux_mls_enabled)
 		return;
 
-	secattr->mls_lvl = context->range.level[0].sens - 1;
+	secattr->attr.mls.lvl = context->range.level[0].sens - 1;
 	secattr->flags |= NETLBL_SECATTR_MLS_LVL;
 }
 
@@ -589,7 +582,7 @@ void mls_import_netlbl_lvl(struct context *context,
 	if (!selinux_mls_enabled)
 		return;
 
-	context->range.level[0].sens = secattr->mls_lvl + 1;
+	context->range.level[0].sens = secattr->attr.mls.lvl + 1;
 	context->range.level[1].sens = context->range.level[0].sens;
 }
 
@@ -612,8 +605,8 @@ int mls_export_netlbl_cat(struct context *context,
 		return 0;
 
 	rc = ebitmap_netlbl_export(&context->range.level[0].cat,
-				   &secattr->mls_cat);
-	if (rc == 0 && secattr->mls_cat != NULL)
+				   &secattr->attr.mls.cat);
+	if (rc == 0 && secattr->attr.mls.cat != NULL)
 		secattr->flags |= NETLBL_SECATTR_MLS_CAT;
 
 	return rc;
@@ -640,7 +633,7 @@ int mls_import_netlbl_cat(struct context *context,
 		return 0;
 
 	rc = ebitmap_netlbl_import(&context->range.level[0].cat,
-				   secattr->mls_cat);
+				   secattr->attr.mls.cat);
 	if (rc != 0)
 		goto import_netlbl_cat_failure;
 

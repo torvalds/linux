@@ -758,6 +758,7 @@ static int gem_rx(struct gem *gp, int work_to_do)
 {
 	int entry, drops, work_done = 0;
 	u32 done;
+	__sum16 csum;
 
 	if (netif_msg_rx_status(gp))
 		printk(KERN_DEBUG "%s: rx interrupt, done: %d, rx_new: %d\n",
@@ -769,7 +770,7 @@ static int gem_rx(struct gem *gp, int work_to_do)
 	for (;;) {
 		struct gem_rxd *rxd = &gp->init_block->rxd[entry];
 		struct sk_buff *skb;
-		u64 status = cpu_to_le64(rxd->status_word);
+		u64 status = le64_to_cpu(rxd->status_word);
 		dma_addr_t dma_addr;
 		int len;
 
@@ -811,7 +812,7 @@ static int gem_rx(struct gem *gp, int work_to_do)
 			goto next;
 		}
 
-		dma_addr = cpu_to_le64(rxd->buffer);
+		dma_addr = le64_to_cpu(rxd->buffer);
 		if (len > RX_COPY_THRESHOLD) {
 			struct sk_buff *new_skb;
 
@@ -853,7 +854,8 @@ static int gem_rx(struct gem *gp, int work_to_do)
 			skb = copy_skb;
 		}
 
-		skb->csum = ntohs((status & RXDCTRL_TCPCSUM) ^ 0xffff);
+		csum = (__force __sum16)htons((status & RXDCTRL_TCPCSUM) ^ 0xffff);
+		skb->csum = csum_unfold(csum);
 		skb->ip_summed = CHECKSUM_COMPLETE;
 		skb->protocol = eth_type_trans(skb, gp->dev);
 
@@ -3054,7 +3056,7 @@ static int __devinit gem_init_one(struct pci_dev *pdev,
 	netif_carrier_off(dev);
 
 	gp->regs = ioremap(gemreg_base, gemreg_len);
-	if (gp->regs == 0UL) {
+	if (!gp->regs) {
 		printk(KERN_ERR PFX "Cannot map device registers, "
 		       "aborting.\n");
 		err = -EIO;

@@ -216,10 +216,10 @@ struct ip6t_getinfo
 	unsigned int valid_hooks;
 
 	/* Hook entry points: one per netfilter hook. */
-	unsigned int hook_entry[NF_IP6_NUMHOOKS];
+	unsigned int hook_entry[NF_INET_NUMHOOKS];
 
 	/* Underflow points. */
-	unsigned int underflow[NF_IP6_NUMHOOKS];
+	unsigned int underflow[NF_INET_NUMHOOKS];
 
 	/* Number of entries */
 	unsigned int num_entries;
@@ -245,10 +245,10 @@ struct ip6t_replace
 	unsigned int size;
 
 	/* Hook entry points. */
-	unsigned int hook_entry[NF_IP6_NUMHOOKS];
+	unsigned int hook_entry[NF_INET_NUMHOOKS];
 
 	/* Underflow points. */
-	unsigned int underflow[NF_IP6_NUMHOOKS];
+	unsigned int underflow[NF_INET_NUMHOOKS];
 
 	/* Information about old entries: */
 	/* Number of counters (must be equal to current number of entries). */
@@ -289,40 +289,12 @@ ip6t_get_target(struct ip6t_entry *e)
 }
 
 /* fn returns 0 to continue iteration */
-#define IP6T_MATCH_ITERATE(e, fn, args...)	\
-({						\
-	unsigned int __i;			\
-	int __ret = 0;				\
-	struct ip6t_entry_match *__m;		\
-						\
-	for (__i = sizeof(struct ip6t_entry);	\
-	     __i < (e)->target_offset;		\
-	     __i += __m->u.match_size) {	\
-		__m = (void *)(e) + __i;	\
-						\
-		__ret = fn(__m , ## args);	\
-		if (__ret != 0)			\
-			break;			\
-	}					\
-	__ret;					\
-})
+#define IP6T_MATCH_ITERATE(e, fn, args...) \
+	XT_MATCH_ITERATE(struct ip6t_entry, e, fn, ## args)
 
 /* fn returns 0 to continue iteration */
-#define IP6T_ENTRY_ITERATE(entries, size, fn, args...)		\
-({								\
-	unsigned int __i;					\
-	int __ret = 0;						\
-	struct ip6t_entry *__e;					\
-								\
-	for (__i = 0; __i < (size); __i += __e->next_offset) {	\
-		__e = (void *)(entries) + __i;			\
-								\
-		__ret = fn(__e , ## args);			\
-		if (__ret != 0)					\
-			break;					\
-	}							\
-	__ret;							\
-})
+#define IP6T_ENTRY_ITERATE(entries, size, fn, args...) \
+	XT_ENTRY_ITERATE(struct ip6t_entry, entries, size, fn, ## args)
 
 /*
  *	Main firewall chains definitions and global var's definitions.
@@ -352,7 +324,42 @@ extern int ip6_masked_addrcmp(const struct in6_addr *addr1,
 			      const struct in6_addr *mask,
 			      const struct in6_addr *addr2);
 
-#define IP6T_ALIGN(s) (((s) + (__alignof__(struct ip6t_entry)-1)) & ~(__alignof__(struct ip6t_entry)-1))
+#define IP6T_ALIGN(s) XT_ALIGN(s)
 
+#ifdef CONFIG_COMPAT
+#include <net/compat.h>
+
+struct compat_ip6t_entry
+{
+	struct ip6t_ip6 ipv6;
+	compat_uint_t nfcache;
+	u_int16_t target_offset;
+	u_int16_t next_offset;
+	compat_uint_t comefrom;
+	struct compat_xt_counters counters;
+	unsigned char elems[0];
+};
+
+static inline struct ip6t_entry_target *
+compat_ip6t_get_target(struct compat_ip6t_entry *e)
+{
+	return (void *)e + e->target_offset;
+}
+
+#define COMPAT_IP6T_ALIGN(s)	COMPAT_XT_ALIGN(s)
+
+/* fn returns 0 to continue iteration */
+#define COMPAT_IP6T_MATCH_ITERATE(e, fn, args...) \
+	XT_MATCH_ITERATE(struct compat_ip6t_entry, e, fn, ## args)
+
+/* fn returns 0 to continue iteration */
+#define COMPAT_IP6T_ENTRY_ITERATE(entries, size, fn, args...) \
+	XT_ENTRY_ITERATE(struct compat_ip6t_entry, entries, size, fn, ## args)
+
+#define COMPAT_IP6T_ENTRY_ITERATE_CONTINUE(entries, size, n, fn, args...) \
+	XT_ENTRY_ITERATE_CONTINUE(struct compat_ip6t_entry, entries, size, n, \
+				  fn, ## args)
+
+#endif /* CONFIG_COMPAT */
 #endif /*__KERNEL__*/
 #endif /* _IP6_TABLES_H */

@@ -716,7 +716,29 @@ int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 		new_transport = chunk->transport;
 
 		if (!new_transport) {
-			new_transport = asoc->peer.active_path;
+			/*
+			 * If we have a prior transport pointer, see if
+			 * the destination address of the chunk
+			 * matches the destination address of the
+			 * current transport.  If not a match, then
+			 * try to look up the transport with a given
+			 * destination address.  We do this because
+			 * after processing ASCONFs, we may have new
+			 * transports created.
+			 */
+			if (transport &&
+			    sctp_cmp_addr_exact(&chunk->dest,
+						&transport->ipaddr))
+					new_transport = transport;
+			else
+				new_transport = sctp_assoc_lookup_paddr(asoc,
+								&chunk->dest);
+
+			/* if we still don't have a new transport, then
+			 * use the current active path.
+			 */
+			if (!new_transport)
+				new_transport = asoc->peer.active_path;
 		} else if ((new_transport->state == SCTP_INACTIVE) ||
 			   (new_transport->state == SCTP_UNCONFIRMED)) {
 			/* If the chunk is Heartbeat or Heartbeat Ack,
@@ -729,9 +751,12 @@ int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 			 * address of the IP datagram containing the
 			 * HEARTBEAT chunk to which this ack is responding.
 			 * ...
+			 *
+			 * ASCONF_ACKs also must be sent to the source.
 			 */
 			if (chunk->chunk_hdr->type != SCTP_CID_HEARTBEAT &&
-			    chunk->chunk_hdr->type != SCTP_CID_HEARTBEAT_ACK)
+			    chunk->chunk_hdr->type != SCTP_CID_HEARTBEAT_ACK &&
+			    chunk->chunk_hdr->type != SCTP_CID_ASCONF_ACK)
 				new_transport = asoc->peer.active_path;
 		}
 

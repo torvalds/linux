@@ -94,7 +94,6 @@ static struct scsi_host_template qla4xxx_driver_template = {
 	.this_id		= -1,
 	.cmd_per_lun		= 3,
 	.use_clustering		= ENABLE_CLUSTERING,
-	.use_sg_chaining	= ENABLE_SG_CHAINING,
 	.sg_tablesize		= SG_ALL,
 
 	.max_sectors		= 0xFFFF,
@@ -173,18 +172,6 @@ static void qla4xxx_conn_stop(struct iscsi_cls_conn *conn, int flag)
 		printk(KERN_ERR "iscsi: invalid stop flag %d\n", flag);
 }
 
-static ssize_t format_addr(char *buf, const unsigned char *addr, int len)
-{
-	int i;
-	char *cp = buf;
-
-	for (i = 0; i < len; i++)
-		cp += sprintf(cp, "%02x%c", addr[i],
-			      i == (len - 1) ? '\n' : ':');
-	return cp - buf;
-}
-
-
 static int qla4xxx_host_get_param(struct Scsi_Host *shost,
 				  enum iscsi_host_param param, char *buf)
 {
@@ -193,7 +180,7 @@ static int qla4xxx_host_get_param(struct Scsi_Host *shost,
 
 	switch (param) {
 	case ISCSI_HOST_PARAM_HWADDRESS:
-		len = format_addr(buf, ha->my_mac, MAC_ADDR_LEN);
+		len = sysfs_format_mac(buf, ha->my_mac, MAC_ADDR_LEN);
 		break;
 	case ISCSI_HOST_PARAM_IPADDRESS:
 		len = sprintf(buf, "%d.%d.%d.%d\n", ha->ip_address[0],
@@ -298,8 +285,7 @@ void qla4xxx_destroy_sess(struct ddb_entry *ddb_entry)
 		return;
 
 	if (ddb_entry->conn) {
-		iscsi_if_destroy_session_done(ddb_entry->conn);
-		iscsi_destroy_conn(ddb_entry->conn);
+		atomic_set(&ddb_entry->state, DDB_STATE_DEAD);
 		iscsi_remove_session(ddb_entry->sess);
 	}
 	iscsi_free_session(ddb_entry->sess);
@@ -309,6 +295,7 @@ int qla4xxx_add_sess(struct ddb_entry *ddb_entry)
 {
 	int err;
 
+	ddb_entry->sess->recovery_tmo = ddb_entry->ha->port_down_retry_count;
 	err = iscsi_add_session(ddb_entry->sess, ddb_entry->fw_ddb_index);
 	if (err) {
 		DEBUG2(printk(KERN_ERR "Could not add session.\n"));
@@ -321,9 +308,6 @@ int qla4xxx_add_sess(struct ddb_entry *ddb_entry)
 		DEBUG2(printk(KERN_ERR "Could not add connection.\n"));
 		return -ENOMEM;
 	}
-
-	ddb_entry->sess->recovery_tmo = ddb_entry->ha->port_down_retry_count;
-	iscsi_if_create_session_done(ddb_entry->conn);
 	return 0;
 }
 

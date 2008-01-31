@@ -23,6 +23,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/hw_random.h>
+#include <linux/delay.h>
 #include <asm/of_platform.h>
 #include <asm/io.h>
 
@@ -41,12 +42,19 @@
 
 #define MODULE_NAME "pasemi_rng"
 
-static int pasemi_rng_data_present(struct hwrng *rng)
+static int pasemi_rng_data_present(struct hwrng *rng, int wait)
 {
 	void __iomem *rng_regs = (void __iomem *)rng->priv;
+	int data, i;
 
-	return (in_le32(rng_regs + SDCRNG_CTL_REG)
-		& SDCRNG_CTL_FVLD_M) ? 1 : 0;
+	for (i = 0; i < 20; i++) {
+		data = (in_le32(rng_regs + SDCRNG_CTL_REG)
+			& SDCRNG_CTL_FVLD_M) ? 1 : 0;
+		if (data || !wait)
+			break;
+		udelay(10);
+	}
+	return data;
 }
 
 static int pasemi_rng_data_read(struct hwrng *rng, u32 *data)

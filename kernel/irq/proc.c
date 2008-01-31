@@ -75,6 +75,18 @@ static int irq_affinity_write_proc(struct file *file, const char __user *buffer,
 
 #endif
 
+static int irq_spurious_read(char *page, char **start, off_t off,
+				  int count, int *eof, void *data)
+{
+	struct irq_desc *d = &irq_desc[(long) data];
+	return sprintf(page, "count %u\n"
+			     "unhandled %u\n"
+			     "last_unhandled %u ms\n",
+			d->irq_count,
+			d->irqs_unhandled,
+			jiffies_to_msecs(d->last_unhandled));
+}
+
 #define MAX_NAMELEN 128
 
 static int name_unique(unsigned int irq, struct irqaction *new_action)
@@ -118,6 +130,7 @@ void register_handler_proc(unsigned int irq, struct irqaction *action)
 void register_irq_proc(unsigned int irq)
 {
 	char name [MAX_NAMELEN];
+	struct proc_dir_entry *entry;
 
 	if (!root_irq_dir ||
 		(irq_desc[irq].chip == &no_irq_chip) ||
@@ -132,8 +145,6 @@ void register_irq_proc(unsigned int irq)
 
 #ifdef CONFIG_SMP
 	{
-		struct proc_dir_entry *entry;
-
 		/* create /proc/irq/<irq>/smp_affinity */
 		entry = create_proc_entry("smp_affinity", 0600, irq_desc[irq].dir);
 
@@ -144,6 +155,12 @@ void register_irq_proc(unsigned int irq)
 		}
 	}
 #endif
+
+	entry = create_proc_entry("spurious", 0444, irq_desc[irq].dir);
+	if (entry) {
+		entry->data = (void *)(long)irq;
+		entry->read_proc = irq_spurious_read;
+	}
 }
 
 #undef MAX_NAMELEN

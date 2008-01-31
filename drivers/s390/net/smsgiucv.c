@@ -42,7 +42,7 @@ MODULE_DESCRIPTION ("Linux for S/390 IUCV special message driver");
 static struct iucv_path *smsg_path;
 
 static DEFINE_SPINLOCK(smsg_list_lock);
-static struct list_head smsg_list = LIST_HEAD_INIT(smsg_list);
+static LIST_HEAD(smsg_list);
 
 static int smsg_path_pending(struct iucv_path *, u8 ipvmid[8], u8 ipuser[16]);
 static void smsg_message_pending(struct iucv_path *, struct iucv_message *);

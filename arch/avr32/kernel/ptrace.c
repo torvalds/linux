@@ -58,6 +58,7 @@ void ptrace_disable(struct task_struct *child)
 {
 	clear_tsk_thread_flag(child, TIF_SINGLE_STEP);
 	clear_tsk_thread_flag(child, TIF_BREAKPOINT);
+	ocd_disable(child);
 }
 
 /*
@@ -143,10 +144,6 @@ static int ptrace_setregs(struct task_struct *tsk, const void __user *uregs)
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
 	int ret;
-
-	pr_debug("ptrace: Enabling monitor mode...\n");
-	ocd_write(DC, ocd_read(DC) | (1 << OCD_DC_MM_BIT)
-			| (1 << OCD_DC_DBE_BIT));
 
 	switch (request) {
 	/* Read the word at location addr in the child process */

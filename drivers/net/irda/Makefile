@@ -5,8 +5,6 @@
 # Rewritten to use lists instead of if-statements.
 #
 
-# Old SIR drivers 
-obj-$(CONFIG_IRPORT_SIR)	+= 		irport.o
 # FIR drivers
 obj-$(CONFIG_USB_IRDA)		+= irda-usb.o
 obj-$(CONFIG_SIGMATEL_FIR)	+= stir4200.o
@@ -20,21 +18,10 @@ obj-$(CONFIG_VLSI_FIR)		+= vlsi_ir.o
 obj-$(CONFIG_VIA_FIR)		+= via-ircc.o
 obj-$(CONFIG_PXA_FICP)	        += pxaficp_ir.o
 obj-$(CONFIG_MCS_FIR)	        += mcs7780.o
-# Old dongle drivers for old SIR drivers
-obj-$(CONFIG_ESI_DONGLE_OLD)		+= esi.o
-obj-$(CONFIG_TEKRAM_DONGLE_OLD)	+= tekram.o
-obj-$(CONFIG_ACTISYS_DONGLE_OLD)	+= actisys.o
-obj-$(CONFIG_GIRBIL_DONGLE_OLD)	+= girbil.o
-obj-$(CONFIG_LITELINK_DONGLE_OLD)	+= litelink.o
-obj-$(CONFIG_OLD_BELKIN_DONGLE_OLD)	+= old_belkin.o
-obj-$(CONFIG_MCP2120_DONGLE_OLD)	+= mcp2120.o
-obj-$(CONFIG_ACT200L_DONGLE_OLD)	+= act200l.o
-obj-$(CONFIG_MA600_DONGLE_OLD)	+= ma600.o
-obj-$(CONFIG_EP7211_IR)		+= ep7211_ir.o
 obj-$(CONFIG_AU1000_FIR)	+= au1k_ir.o
-# New SIR drivers
+# SIR drivers
 obj-$(CONFIG_IRTTY_SIR)		+= irtty-sir.o	sir-dev.o
-# New dongles drivers for new SIR drivers
+# dongle drivers for SIR drivers
 obj-$(CONFIG_ESI_DONGLE)	+= esi-sir.o
 obj-$(CONFIG_TEKRAM_DONGLE)	+= tekram-sir.o
 obj-$(CONFIG_ACTISYS_DONGLE)	+= actisys-sir.o

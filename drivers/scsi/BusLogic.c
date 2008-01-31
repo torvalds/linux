@@ -2947,7 +2947,7 @@ static int BusLogic_QueueCommand(struct scsi_cmnd *Command, void (*CompletionRou
 		}
 	}
 	memcpy(CCB->CDB, CDB, CDB_Length);
-	CCB->SenseDataLength = sizeof(Command->sense_buffer);
+	CCB->SenseDataLength = SCSI_SENSE_BUFFERSIZE;
 	CCB->SenseDataPointer = pci_map_single(HostAdapter->PCI_Device, Command->sense_buffer, CCB->SenseDataLength, PCI_DMA_FROMDEVICE);
 	CCB->Command = Command;
 	Command->scsi_done = CompletionRoutine;
@@ -3575,7 +3575,6 @@ static struct scsi_host_template Bus_Logic_template = {
 	.unchecked_isa_dma = 1,
 	.max_sectors = 128,
 	.use_clustering = ENABLE_CLUSTERING,
-	.use_sg_chaining = ENABLE_SG_CHAINING,
 };
 
 /*

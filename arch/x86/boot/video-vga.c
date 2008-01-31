@@ -18,22 +18,22 @@
 #include "video.h"
 
 static struct mode_info vga_modes[] = {
-	{ VIDEO_80x25,  80, 25 },
-	{ VIDEO_8POINT, 80, 50 },
-	{ VIDEO_80x43,  80, 43 },
-	{ VIDEO_80x28,  80, 28 },
-	{ VIDEO_80x30,  80, 30 },
-	{ VIDEO_80x34,  80, 34 },
-	{ VIDEO_80x60,  80, 60 },
+	{ VIDEO_80x25,  80, 25, 0 },
+	{ VIDEO_8POINT, 80, 50, 0 },
+	{ VIDEO_80x43,  80, 43, 0 },
+	{ VIDEO_80x28,  80, 28, 0 },
+	{ VIDEO_80x30,  80, 30, 0 },
+	{ VIDEO_80x34,  80, 34, 0 },
+	{ VIDEO_80x60,  80, 60, 0 },
 };
 
 static struct mode_info ega_modes[] = {
-	{ VIDEO_80x25,  80, 25 },
-	{ VIDEO_8POINT, 80, 43 },
+	{ VIDEO_80x25,  80, 25, 0 },
+	{ VIDEO_8POINT, 80, 43, 0 },
 };
 
 static struct mode_info cga_modes[] = {
-	{ VIDEO_80x25,  80, 25 },
+	{ VIDEO_80x25,  80, 25, 0 },
 };
 
 __videocard video_vga;

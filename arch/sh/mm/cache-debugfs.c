@@ -22,7 +22,8 @@ enum cache_type {
 	CACHE_TYPE_UNIFIED,
 };
 
-static int cache_seq_show(struct seq_file *file, void *iter)
+static int __uses_jump_to_uncached cache_seq_show(struct seq_file *file,
+						  void *iter)
 {
 	unsigned int cache_type = (unsigned int)file->private;
 	struct cache_info *cache;
@@ -34,11 +35,11 @@ static int cache_seq_show(struct seq_file *file, void *iter)
 	 * Go uncached immediately so we don't skew the results any
 	 * more than we already are..
 	 */
-	jump_to_P2();
+	jump_to_uncached();
 
 	ccr = ctrl_inl(CCR);
 	if ((ccr & CCR_CACHE_ENABLE) == 0) {
-		back_to_P1();
+		back_to_cached();
 
 		seq_printf(file, "disabled\n");
 		return 0;
@@ -104,7 +105,7 @@ static int cache_seq_show(struct seq_file *file, void *iter)
 		addrstart += cache->way_incr;
 	}
 
-	back_to_P1();
+	back_to_cached();
 
 	return 0;
 }

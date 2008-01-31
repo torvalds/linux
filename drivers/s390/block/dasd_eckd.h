@@ -39,6 +39,8 @@
 #define DASD_ECKD_CCW_READ_CKD_MT	 0x9e
 #define DASD_ECKD_CCW_WRITE_CKD_MT	 0x9d
 #define DASD_ECKD_CCW_RESERVE		 0xB4
+#define DASD_ECKD_CCW_PFX		 0xE7
+#define DASD_ECKD_CCW_RSCK		 0xF9
 
 /*
  * Perform Subsystem Function / Sub-Orders
@@ -135,6 +137,25 @@ struct LO_eckd_data {
 	struct chr_t search_arg;
 	__u8 sector;
 	__u16 length;
+} __attribute__ ((packed));
+
+/* Prefix data for format 0x00 and 0x01 */
+struct PFX_eckd_data {
+	unsigned char format;
+	struct {
+		unsigned char define_extend:1;
+		unsigned char time_stamp:1;
+		unsigned char verify_base:1;
+		unsigned char hyper_pav:1;
+		unsigned char reserved:4;
+	} __attribute__ ((packed)) validity;
+	__u8 base_address;
+	__u8 aux;
+	__u8 base_lss;
+	__u8 reserved[7];
+	struct DE_eckd_data define_extend;
+	struct LO_eckd_data locate_record;
+	__u8 LO_extended_data[4];
 } __attribute__ ((packed));
 
 struct dasd_eckd_characteristics {
@@ -254,7 +275,9 @@ struct dasd_eckd_confdata {
 		} __attribute__ ((packed)) ned;
 		struct {
 			unsigned char flags;            /* byte  0    */
-			unsigned char res2[7];          /* byte  1- 7 */
+			unsigned char res1;		/* byte  1    */
+			__u16 format;			/* byte  2-3  */
+			unsigned char res2[4];		/* byte  4-7  */
 			unsigned char sua_flags;	/* byte  8    */
 			__u8 base_unit_addr;            /* byte  9    */
 			unsigned char res3[22];	        /* byte 10-31 */
@@ -343,6 +366,11 @@ struct dasd_eckd_path {
 	__u8 npm;
 };
 
+struct dasd_rssd_features {
+	char feature[256];
+} __attribute__((packed));
+
+
 /*
  * Perform Subsystem Function - Prepare for Read Subsystem Data
  */
@@ -364,5 +392,100 @@ struct dasd_psf_ssc_data {
 	unsigned char suborder;
 	unsigned char reserved[59];
 } __attribute__((packed));
+
+
+/*
+ * some structures and definitions for alias handling
+ */
+struct dasd_unit_address_configuration {
+	struct {
+		char ua_type;
+		char base_ua;
+	} unit[256];
+} __attribute__((packed));
+
+
+#define MAX_DEVICES_PER_LCU 256
+
+/* flags on the LCU  */
+#define NEED_UAC_UPDATE  0x01
+#define UPDATE_PENDING	0x02
+
+enum pavtype {NO_PAV, BASE_PAV, HYPER_PAV};
+
+
+struct alias_root {
+	struct list_head serverlist;
+	spinlock_t lock;
+};
+
+struct alias_server {
+	struct list_head server;
+	struct dasd_uid uid;
+	struct list_head lculist;
+};
+
+struct summary_unit_check_work_data {
+	char reason;
+	struct dasd_device *device;
+	struct work_struct worker;
+};
+
+struct read_uac_work_data {
+	struct dasd_device *device;
+	struct delayed_work dwork;
+};
+
+struct alias_lcu {
+	struct list_head lcu;
+	struct dasd_uid uid;
+	enum pavtype pav;
+	char flags;
+	spinlock_t lock;
+	struct list_head grouplist;
+	struct list_head active_devices;
+	struct list_head inactive_devices;
+	struct dasd_unit_address_configuration *uac;
+	struct summary_unit_check_work_data suc_data;
+	struct read_uac_work_data ruac_data;
+	struct dasd_ccw_req *rsu_cqr;
+};
+
+struct alias_pav_group {
+	struct list_head group;
+	struct dasd_uid uid;
+	struct alias_lcu *lcu;
+	struct list_head baselist;
+	struct list_head aliaslist;
+	struct dasd_device *next;
+};
+
+
+struct dasd_eckd_private {
+	struct dasd_eckd_characteristics rdc_data;
+	struct dasd_eckd_confdata conf_data;
+	struct dasd_eckd_path path_data;
+	struct eckd_count count_area[5];
+	int init_cqr_status;
+	int uses_cdl;
+	struct attrib_data_t attrib;	/* e.g. cache operations */
+	struct dasd_rssd_features features;
+
+	/* alias managemnet */
+	struct dasd_uid uid;
+	struct alias_pav_group *pavgroup;
+	struct alias_lcu *lcu;
+	int count;
+};
+
+
+
+int dasd_alias_make_device_known_to_lcu(struct dasd_device *);
+void dasd_alias_disconnect_device_from_lcu(struct dasd_device *);
+int dasd_alias_add_device(struct dasd_device *);
+int dasd_alias_remove_device(struct dasd_device *);
+struct dasd_device *dasd_alias_get_start_dev(struct dasd_device *);
+void dasd_alias_handle_summary_unit_check(struct dasd_device *, struct irb *);
+void dasd_eckd_reset_ccw_to_base_io(struct dasd_ccw_req *);
 
 #endif				/* DASD_ECKD_H */

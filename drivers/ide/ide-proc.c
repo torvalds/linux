@@ -346,14 +346,20 @@ static int ide_write_setting(ide_drive_t *drive, ide_settings_t *setting, int va
 
 static int set_xfer_rate (ide_drive_t *drive, int arg)
 {
+	ide_task_t task;
 	int err;
 
 	if (arg < 0 || arg > 70)
 		return -EINVAL;
 
-	err = ide_wait_cmd(drive,
-			WIN_SETFEATURES, (u8) arg,
-			SETFEATURES_XFER, 0, NULL);
+	memset(&task, 0, sizeof(task));
+	task.tf.command = WIN_SETFEATURES;
+	task.tf.feature = SETFEATURES_XFER;
+	task.tf.nsect   = (u8)arg;
+	task.tf_flags = IDE_TFLAG_OUT_FEATURE | IDE_TFLAG_OUT_NSECT |
+			IDE_TFLAG_IN_NSECT;
+
+	err = ide_no_data_taskfile(drive, &task);
 
 	if (!err && arg) {
 		ide_set_xfer_rate(drive, (u8) arg);

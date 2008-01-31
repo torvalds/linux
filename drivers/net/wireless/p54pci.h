@@ -85,8 +85,8 @@ struct p54p_ring_control {
 	struct p54p_desc tx_mgmt[4];
 } __attribute__ ((packed));
 
-#define P54P_READ(r) __raw_readl(&priv->map->r)
-#define P54P_WRITE(r, val) __raw_writel((__force u32)(val), &priv->map->r)
+#define P54P_READ(r) (__force __le32)__raw_readl(&priv->map->r)
+#define P54P_WRITE(r, val) __raw_writel((__force u32)(__le32)(val), &priv->map->r)
 
 struct p54p_priv {
 	struct p54_common common;

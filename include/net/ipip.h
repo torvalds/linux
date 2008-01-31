@@ -2,6 +2,7 @@
 #define __NET_IPIP_H 1
 
 #include <linux/if_tunnel.h>
+#include <net/ip.h>
 
 /* Keep error state on tunnel for 30 sec */
 #define IPTUNNEL_ERR_TIMEO	(30*HZ)
@@ -30,11 +31,9 @@ struct ip_tunnel
 	int pkt_len = skb->len;						\
 									\
 	skb->ip_summed = CHECKSUM_NONE;					\
-	iph->tot_len = htons(skb->len);					\
 	ip_select_ident(iph, &rt->u.dst, NULL);				\
-	ip_send_check(iph);						\
 									\
-	err = NF_HOOK(PF_INET, NF_IP_LOCAL_OUT, skb, NULL, rt->u.dst.dev, dst_output);\
+	err = ip_local_out(skb);					\
 	if (net_xmit_eval(err) == 0) {					\
 		stats->tx_bytes += pkt_len;				\
 		stats->tx_packets++;					\

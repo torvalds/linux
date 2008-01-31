@@ -101,6 +101,7 @@ enum ocfs2_unlock_action {
 					       * about to be
 					       * dropped. */
 #define OCFS2_LOCK_QUEUED        (0x00000100) /* queued for downconvert */
+#define OCFS2_LOCK_NOCACHE       (0x00000200) /* don't use a holder count */
 
 struct ocfs2_lock_res_ops;
 
@@ -170,6 +171,7 @@ enum ocfs2_mount_options
 	OCFS2_MOUNT_NOINTR  = 1 << 2,   /* Don't catch signals */
 	OCFS2_MOUNT_ERRORS_PANIC = 1 << 3, /* Panic on errors */
 	OCFS2_MOUNT_DATA_WRITEBACK = 1 << 4, /* No data ordering */
+	OCFS2_MOUNT_LOCALFLOCKS = 1 << 5, /* No cluster aware user file locks */
 };
 
 #define OCFS2_OSB_SOFT_RO	0x0001
@@ -189,9 +191,7 @@ struct ocfs2_super
 	struct ocfs2_slot_info *slot_info;
 
 	spinlock_t node_map_lock;
-	struct ocfs2_node_map mounted_map;
 	struct ocfs2_node_map recovery_map;
-	struct ocfs2_node_map umount_map;
 
 	u64 root_blkno;
 	u64 system_dir_blkno;
@@ -231,7 +231,9 @@ struct ocfs2_super
 	wait_queue_head_t checkpoint_event;
 	atomic_t needs_checkpoint;
 	struct ocfs2_journal *journal;
+	unsigned long osb_commit_interval;
 
+	int local_alloc_size;
 	enum ocfs2_local_alloc_state local_alloc_state;
 	struct buffer_head *local_alloc_bh;
 	u64 la_last_gd;
@@ -254,27 +256,20 @@ struct ocfs2_super
 
 	wait_queue_head_t recovery_event;
 
-	spinlock_t vote_task_lock;
-	struct task_struct *vote_task;
-	wait_queue_head_t vote_event;
-	unsigned long vote_wake_sequence;
-	unsigned long vote_work_sequence;
+	spinlock_t dc_task_lock;
+	struct task_struct *dc_task;
+	wait_queue_head_t dc_event;
+	unsigned long dc_wake_sequence;
+	unsigned long dc_work_sequence;
 
+	/*
+	 * Any thread can add locks to the list, but the downconvert
+	 * thread is the only one allowed to remove locks. Any change
+	 * to this rule requires updating
+	 * ocfs2_downconvert_thread_do_work().
+	 */
 	struct list_head blocked_lock_list;
 	unsigned long blocked_lock_count;
-
-	struct list_head vote_list;
-	int vote_count;
-
-	u32 net_key;
-	spinlock_t net_response_lock;
-	unsigned int net_response_ids;
-	struct list_head net_response_list;
-
-	struct o2hb_callback_func osb_hb_up;
-	struct o2hb_callback_func osb_hb_down;
-
-	struct list_head	osb_net_handlers;
 
 	wait_queue_head_t		osb_mount_event;
 

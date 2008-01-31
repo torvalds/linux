@@ -6,6 +6,7 @@
  * Copyright (C) 1994, 95, 96, 99, 2001 Ralf Baechle
  * Copyright (C) 1994, 1995, 1996 Paul M. Antoine.
  * Copyright (C) 1999 Silicon Graphics, Inc.
+ * Copyright (C) 2007  Maciej W. Rozycki
  */
 #ifndef _ASM_STACKFRAME_H
 #define _ASM_STACKFRAME_H
@@ -145,8 +146,16 @@
 		.set	reorder
 		/* Called from user mode, new stack. */
 		get_saved_sp
+#ifndef CONFIG_CPU_DADDI_WORKAROUNDS
 8:		move	k0, sp
 		PTR_SUBU sp, k1, PT_SIZE
+#else
+		.set	at=k0
+8:		PTR_SUBU k1, PT_SIZE
+		.set	noat
+		move	k0, sp
+		move	sp, k1
+#endif
 		LONG_S	k0, PT_R29(sp)
 		LONG_S	$3, PT_R3(sp)
 		/*

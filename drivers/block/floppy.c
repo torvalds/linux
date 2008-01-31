@@ -2287,21 +2287,19 @@ static int do_format(int drive, struct format_descr *tmp_format_req)
  * =============================
  */
 
-static void floppy_end_request(struct request *req, int uptodate)
+static void floppy_end_request(struct request *req, int error)
 {
 	unsigned int nr_sectors = current_count_sectors;
+	unsigned int drive = (unsigned long)req->rq_disk->private_data;
 
 	/* current_count_sectors can be zero if transfer failed */
-	if (!uptodate)
+	if (error)
 		nr_sectors = req->current_nr_sectors;
-	if (end_that_request_first(req, uptodate, nr_sectors))
+	if (__blk_end_request(req, error, nr_sectors << 9))
 		return;
-	add_disk_randomness(req->rq_disk);
-	floppy_off((long)req->rq_disk->private_data);
-	blkdev_dequeue_request(req);
-	end_that_request_last(req, uptodate);
 
 	/* We're done with the request */
+	floppy_off(drive);
 	current_req = NULL;
 }
 
@@ -2332,7 +2330,7 @@ static void request_done(int uptodate)
 
 		/* unlock chained buffers */
 		spin_lock_irqsave(q->queue_lock, flags);
-		floppy_end_request(req, 1);
+		floppy_end_request(req, 0);
 		spin_unlock_irqrestore(q->queue_lock, flags);
 	} else {
 		if (rq_data_dir(req) == WRITE) {
@@ -2346,7 +2344,7 @@ static void request_done(int uptodate)
 			DRWE->last_error_generation = DRS->generation;
 		}
 		spin_lock_irqsave(q->queue_lock, flags);
-		floppy_end_request(req, 0);
+		floppy_end_request(req, -EIO);
 		spin_unlock_irqrestore(q->queue_lock, flags);
 	}
 }

@@ -101,12 +101,6 @@
 #define BTTV_BOARD_DVICO_DVBT_LITE         0x80
 #define BTTV_BOARD_DVICO_FUSIONHDTV_5_LITE 0x87
 
-struct cards {
-	__u32 pci_id;
-	__u16 card_id;
-	char  *name;
-};
-
 extern int bt878_num;
 
 struct bt878 {

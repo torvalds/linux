@@ -20,12 +20,13 @@
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/xt_CONNSECMARK.h>
 #include <net/netfilter/nf_conntrack.h>
+#include <net/netfilter/nf_conntrack_ecache.h>
 
 #define PFX "CONNSECMARK: "
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("James Morris <jmorris@redhat.com>");
-MODULE_DESCRIPTION("ip[6]tables CONNSECMARK module");
+MODULE_DESCRIPTION("Xtables: target for copying between connection and security mark");
 MODULE_ALIAS("ipt_CONNSECMARK");
 MODULE_ALIAS("ip6t_CONNSECMARK");
 
@@ -40,8 +41,10 @@ static void secmark_save(const struct sk_buff *skb)
 		enum ip_conntrack_info ctinfo;
 
 		ct = nf_ct_get(skb, &ctinfo);
-		if (ct && !ct->secmark)
+		if (ct && !ct->secmark) {
 			ct->secmark = skb->secmark;
+			nf_conntrack_event_cache(IPCT_SECMARK, skb);
+		}
 	}
 }
 
@@ -61,10 +64,10 @@ static void secmark_restore(struct sk_buff *skb)
 	}
 }
 
-static unsigned int target(struct sk_buff *skb, const struct net_device *in,
-			   const struct net_device *out, unsigned int hooknum,
-			   const struct xt_target *target,
-			   const void *targinfo)
+static unsigned int
+connsecmark_tg(struct sk_buff *skb, const struct net_device *in,
+               const struct net_device *out, unsigned int hooknum,
+               const struct xt_target *target, const void *targinfo)
 {
 	const struct xt_connsecmark_target_info *info = targinfo;
 
@@ -84,9 +87,10 @@ static unsigned int target(struct sk_buff *skb, const struct net_device *in,
 	return XT_CONTINUE;
 }
 
-static bool checkentry(const char *tablename, const void *entry,
-		       const struct xt_target *target, void *targinfo,
-		       unsigned int hook_mask)
+static bool
+connsecmark_tg_check(const char *tablename, const void *entry,
+                     const struct xt_target *target, void *targinfo,
+                     unsigned int hook_mask)
 {
 	const struct xt_connsecmark_target_info *info = targinfo;
 
@@ -102,25 +106,25 @@ static bool checkentry(const char *tablename, const void *entry,
 
 	if (nf_ct_l3proto_try_module_get(target->family) < 0) {
 		printk(KERN_WARNING "can't load conntrack support for "
-				    "proto=%d\n", target->family);
+				    "proto=%u\n", target->family);
 		return false;
 	}
 	return true;
 }
 
 static void
-destroy(const struct xt_target *target, void *targinfo)
+connsecmark_tg_destroy(const struct xt_target *target, void *targinfo)
 {
 	nf_ct_l3proto_module_put(target->family);
 }
 
-static struct xt_target xt_connsecmark_target[] __read_mostly = {
+static struct xt_target connsecmark_tg_reg[] __read_mostly = {
 	{
 		.name		= "CONNSECMARK",
 		.family		= AF_INET,
-		.checkentry	= checkentry,
-		.destroy	= destroy,
-		.target		= target,
+		.checkentry	= connsecmark_tg_check,
+		.destroy	= connsecmark_tg_destroy,
+		.target		= connsecmark_tg,
 		.targetsize	= sizeof(struct xt_connsecmark_target_info),
 		.table		= "mangle",
 		.me		= THIS_MODULE,
@@ -128,26 +132,26 @@ static struct xt_target xt_connsecmark_target[] __read_mostly = {
 	{
 		.name		= "CONNSECMARK",
 		.family		= AF_INET6,
-		.checkentry	= checkentry,
-		.destroy	= destroy,
-		.target		= target,
+		.checkentry	= connsecmark_tg_check,
+		.destroy	= connsecmark_tg_destroy,
+		.target		= connsecmark_tg,
 		.targetsize	= sizeof(struct xt_connsecmark_target_info),
 		.table		= "mangle",
 		.me		= THIS_MODULE,
 	},
 };
 
-static int __init xt_connsecmark_init(void)
+static int __init connsecmark_tg_init(void)
 {
-	return xt_register_targets(xt_connsecmark_target,
-				   ARRAY_SIZE(xt_connsecmark_target));
+	return xt_register_targets(connsecmark_tg_reg,
+	       ARRAY_SIZE(connsecmark_tg_reg));
 }
 
-static void __exit xt_connsecmark_fini(void)
+static void __exit connsecmark_tg_exit(void)
 {
-	xt_unregister_targets(xt_connsecmark_target,
-			      ARRAY_SIZE(xt_connsecmark_target));
+	xt_unregister_targets(connsecmark_tg_reg,
+	                      ARRAY_SIZE(connsecmark_tg_reg));
 }
 
-module_init(xt_connsecmark_init);
-module_exit(xt_connsecmark_fini);
+module_init(connsecmark_tg_init);
+module_exit(connsecmark_tg_exit);

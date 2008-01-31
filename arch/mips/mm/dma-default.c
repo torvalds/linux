@@ -383,7 +383,7 @@ void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 	BUG_ON(direction == DMA_NONE);
 
 	if (!plat_device_is_coherent(dev))
-		dma_cache_wback_inv((unsigned long)vaddr, size);
+		__dma_sync((unsigned long)vaddr, size, direction);
 }
 
 EXPORT_SYMBOL(dma_cache_sync);

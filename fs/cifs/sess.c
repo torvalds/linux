@@ -528,9 +528,11 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 			rc = -EOVERFLOW;
 			goto ssetup_exit;
 		}
-		ses->server->mac_signing_key.len = msg->sesskey_len;
-		memcpy(ses->server->mac_signing_key.data.krb5, msg->data,
-			msg->sesskey_len);
+		if (first_time) {
+			ses->server->mac_signing_key.len = msg->sesskey_len;
+			memcpy(ses->server->mac_signing_key.data.krb5,
+				msg->data, msg->sesskey_len);
+		}
 		pSMB->req.hdr.Flags2 |= SMBFLG2_EXT_SEC;
 		capabilities |= CAP_EXTENDED_SECURITY;
 		pSMB->req.Capabilities = cpu_to_le32(capabilities);
@@ -540,7 +542,7 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 
 		if (ses->capabilities & CAP_UNICODE) {
 			/* unicode strings must be word aligned */
-			if (iov[0].iov_len % 2) {
+			if ((iov[0].iov_len + iov[1].iov_len) % 2) {
 				*bcc_ptr = 0;
 				bcc_ptr++;
 			}

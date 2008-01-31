@@ -32,6 +32,7 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mtd/physmap.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 #if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
@@ -101,6 +102,30 @@ void __exit bfin_isp1761_exit(void)
 }
 
 arch_initcall(bfin_isp1761_init);
+#endif
+
+#if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
+#include <linux/input.h>
+#include <linux/gpio_keys.h>
+
+static struct gpio_keys_button bfin_gpio_keys_table[] = {
+	{BTN_0, GPIO_PF2, 1, "gpio-keys: BTN0"},
+	{BTN_1, GPIO_PF3, 1, "gpio-keys: BTN1"},
+	{BTN_2, GPIO_PF4, 1, "gpio-keys: BTN2"},
+	{BTN_3, GPIO_PF5, 1, "gpio-keys: BTN3"},
+};
+
+static struct gpio_keys_platform_data bfin_gpio_keys_data = {
+	.buttons        = bfin_gpio_keys_table,
+	.nbuttons       = ARRAY_SIZE(bfin_gpio_keys_table),
+};
+
+static struct platform_device bfin_device_gpiokeys = {
+	.name      = "gpio-keys",
+	.dev = {
+		.platform_data = &bfin_gpio_keys_data,
+	},
+};
 #endif
 
 #if defined(CONFIG_BFIN_CFPCMCIA) || defined(CONFIG_BFIN_CFPCMCIA_MODULE)
@@ -226,12 +251,7 @@ static struct resource sl811_hcd_resources[] = {
 void sl811_port_power(struct device *dev, int is_on)
 {
 	gpio_request(CONFIG_USB_SL811_BFIN_GPIO_VBUS, "usb:SL811_VBUS");
-	gpio_direction_output(CONFIG_USB_SL811_BFIN_GPIO_VBUS);
-
-	if (is_on)
-		gpio_set_value(CONFIG_USB_SL811_BFIN_GPIO_VBUS, 1);
-	else
-		gpio_set_value(CONFIG_USB_SL811_BFIN_GPIO_VBUS, 0);
+	gpio_direction_output(CONFIG_USB_SL811_BFIN_GPIO_VBUS, is_on);
 }
 #endif
 
@@ -319,6 +339,49 @@ static struct platform_device net2272_bfin_device = {
 	.resource = net2272_bfin_resources,
 };
 #endif
+
+static struct mtd_partition stamp_partitions[] = {
+	{
+		.name       = "Bootloader",
+		.size       = 0x20000,
+		.offset     = 0,
+	}, {
+		.name       = "Kernel",
+		.size       = 0xE0000,
+		.offset     = MTDPART_OFS_APPEND,
+	}, {
+		.name       = "RootFS",
+		.size       = 0x400000 - 0x20000 - 0xE0000 - 0x10000,
+		.offset     = MTDPART_OFS_APPEND,
+	}, {
+		.name       = "MAC Address",
+		.size       = MTDPART_SIZ_FULL,
+		.offset     = 0x3F0000,
+		.mask_flags = MTD_WRITEABLE,
+	}
+};
+
+static struct physmap_flash_data stamp_flash_data = {
+	.width      = 2,
+	.parts      = stamp_partitions,
+	.nr_parts   = ARRAY_SIZE(stamp_partitions),
+};
+
+static struct resource stamp_flash_resource = {
+	.start = 0x20000000,
+	.end   = 0x203fffff,
+	.flags = IORESOURCE_MEM,
+};
+
+static struct platform_device stamp_flash_device = {
+	.name          = "physmap-flash",
+	.id            = 0,
+	.dev = {
+		.platform_data = &stamp_flash_data,
+	},
+	.num_resources = 1,
+	.resource      = &stamp_flash_resource,
+};
 
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 /* all SPI peripherals info goes here */
@@ -738,6 +801,11 @@ static struct platform_device *stamp_devices[] __initdata = {
 #if defined(CONFIG_PATA_PLATFORM) || defined(CONFIG_PATA_PLATFORM_MODULE)
 	&bfin_pata_device,
 #endif
+
+#if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
+	&bfin_device_gpiokeys,
+#endif
+	&stamp_flash_device,
 };
 
 static int __init stamp_init(void)

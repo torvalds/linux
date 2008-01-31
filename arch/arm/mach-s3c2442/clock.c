@@ -115,14 +115,9 @@ static struct clk s3c2442_clk_cam_upll = {
 
 static int s3c2442_clk_add(struct sys_device *sysdev)
 {
-	unsigned long camdivn = __raw_readl(S3C2440_CAMDIVN);
-	unsigned long clkdivn;
+	struct clk *clock_upll;
 	struct clk *clock_h;
 	struct clk *clock_p;
-	struct clk *clock_upll;
-
-	printk("S3C2442: Clock Support, DVS %s\n",
-	       (camdivn & S3C2440_CAMDIVN_DVSEN) ? "on" : "off");
 
 	clock_p = clk_get(NULL, "pclk");
 	clock_h = clk_get(NULL, "hclk");
@@ -131,21 +126,6 @@ static int s3c2442_clk_add(struct sys_device *sysdev)
 	if (IS_ERR(clock_p) || IS_ERR(clock_h) || IS_ERR(clock_upll)) {
 		printk(KERN_ERR "S3C2442: Failed to get parent clocks\n");
 		return -EINVAL;
-	}
-
-	/* check rate of UPLL, and if it is near 96MHz, then change
-	 * to using half the UPLL rate for the system */
-
-	if (clk_get_rate(clock_upll) > (94 * MHZ)) {
-		clk_usb_bus.rate = clk_get_rate(clock_upll) / 2;
-
-		mutex_lock(&clocks_mutex);
-
-		clkdivn = __raw_readl(S3C2410_CLKDIVN);
-		clkdivn |= S3C2440_CLKDIVN_UCLK;
-		__raw_writel(clkdivn, S3C2410_CLKDIVN);
-
-		mutex_unlock(&clocks_mutex);
 	}
 
 	s3c2442_clk_cam.parent = clock_h;

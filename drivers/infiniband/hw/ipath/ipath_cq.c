@@ -421,7 +421,7 @@ int ipath_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 	else
 		n = head - tail;
 	if (unlikely((u32)cqe < n)) {
-		ret = -EOVERFLOW;
+		ret = -EINVAL;
 		goto bail_unlock;
 	}
 	for (n = 0; tail != head; n++) {

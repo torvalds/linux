@@ -442,40 +442,77 @@ static int ata_dev_get_GTF(struct ata_device *dev, struct ata_acpi_gtf **gtf)
 }
 
 /**
+ * ata_acpi_gtm_xfermode - determine xfermode from GTM parameter
+ * @dev: target device
+ * @gtm: GTM parameter to use
+ *
+ * Determine xfermask for @dev from @gtm.
+ *
+ * LOCKING:
+ * None.
+ *
+ * RETURNS:
+ * Determined xfermask.
+ */
+unsigned long ata_acpi_gtm_xfermask(struct ata_device *dev,
+				    const struct ata_acpi_gtm *gtm)
+{
+	unsigned long xfer_mask = 0;
+	unsigned int type;
+	int unit;
+	u8 mode;
+
+	/* we always use the 0 slot for crap hardware */
+	unit = dev->devno;
+	if (!(gtm->flags & 0x10))
+		unit = 0;
+
+	/* PIO */
+	mode = ata_timing_cycle2mode(ATA_SHIFT_PIO, gtm->drive[unit].pio);
+	xfer_mask |= ata_xfer_mode2mask(mode);
+
+	/* See if we have MWDMA or UDMA data. We don't bother with
+	 * MWDMA if UDMA is available as this means the BIOS set UDMA
+	 * and our error changedown if it works is UDMA to PIO anyway.
+	 */
+	if (!(gtm->flags & (1 << (2 * unit))))
+		type = ATA_SHIFT_MWDMA;
+	else
+		type = ATA_SHIFT_UDMA;
+
+	mode = ata_timing_cycle2mode(type, gtm->drive[unit].dma);
+	xfer_mask |= ata_xfer_mode2mask(mode);
+
+	return xfer_mask;
+}
+EXPORT_SYMBOL_GPL(ata_acpi_gtm_xfermask);
+
+/**
  * ata_acpi_cbl_80wire		-	Check for 80 wire cable
  * @ap: Port to check
+ * @gtm: GTM data to use
  *
- * Return 1 if the ACPI mode data for this port indicates the BIOS selected
- * an 80wire mode.
+ * Return 1 if the @gtm indicates the BIOS selected an 80wire mode.
  */
-
-int ata_acpi_cbl_80wire(struct ata_port *ap)
+int ata_acpi_cbl_80wire(struct ata_port *ap, const struct ata_acpi_gtm *gtm)
 {
-	const struct ata_acpi_gtm *gtm = ata_acpi_init_gtm(ap);
-	int valid = 0;
+	struct ata_device *dev;
 
-	if (!gtm)
-		return 0;
+	ata_link_for_each_dev(dev, &ap->link) {
+		unsigned long xfer_mask, udma_mask;
 
-	/* Split timing, DMA enabled */
-	if ((gtm->flags & 0x11) == 0x11 && gtm->drive[0].dma < 55)
-		valid |= 1;
-	if ((gtm->flags & 0x14) == 0x14 && gtm->drive[1].dma < 55)
-		valid |= 2;
-	/* Shared timing, DMA enabled */
-	if ((gtm->flags & 0x11) == 0x01 && gtm->drive[0].dma < 55)
-		valid |= 1;
-	if ((gtm->flags & 0x14) == 0x04 && gtm->drive[0].dma < 55)
-		valid |= 2;
+		if (!ata_dev_enabled(dev))
+			continue;
 
-	/* Drive check */
-	if ((valid & 1) && ata_dev_enabled(&ap->link.device[0]))
-		return 1;
-	if ((valid & 2) && ata_dev_enabled(&ap->link.device[1]))
-		return 1;
+		xfer_mask = ata_acpi_gtm_xfermask(dev, gtm);
+		ata_unpack_xfermask(xfer_mask, NULL, NULL, &udma_mask);
+
+		if (udma_mask & ~ATA_UDMA_MASK_40C)
+			return 1;
+	}
+
 	return 0;
 }
-
 EXPORT_SYMBOL_GPL(ata_acpi_cbl_80wire);
 
 static void ata_acpi_gtf_to_tf(struct ata_device *dev,
@@ -773,6 +810,36 @@ void ata_acpi_on_resume(struct ata_port *ap)
 			dev->flags |= ATA_DFLAG_ACPI_PENDING;
 		}
 	}
+}
+
+/**
+ * ata_acpi_set_state - set the port power state
+ * @ap: target ATA port
+ * @state: state, on/off
+ *
+ * This function executes the _PS0/_PS3 ACPI method to set the power state.
+ * ACPI spec requires _PS0 when IDE power on and _PS3 when power off
+ */
+void ata_acpi_set_state(struct ata_port *ap, pm_message_t state)
+{
+	struct ata_device *dev;
+
+	if (!ap->acpi_handle || (ap->flags & ATA_FLAG_ACPI_SATA))
+		return;
+
+	/* channel first and then drives for power on and vica versa
+	   for power off */
+	if (state.event == PM_EVENT_ON)
+		acpi_bus_set_power(ap->acpi_handle, ACPI_STATE_D0);
+
+	ata_link_for_each_dev(dev, &ap->link) {
+		if (dev->acpi_handle && ata_dev_enabled(dev))
+			acpi_bus_set_power(dev->acpi_handle,
+				state.event == PM_EVENT_ON ?
+					ACPI_STATE_D0 : ACPI_STATE_D3);
+	}
+	if (state.event != PM_EVENT_ON)
+		acpi_bus_set_power(ap->acpi_handle, ACPI_STATE_D3);
 }
 
 /**

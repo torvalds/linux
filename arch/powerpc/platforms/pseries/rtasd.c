@@ -382,7 +382,7 @@ static void do_event_scan_all_cpus(long delay)
 {
 	int cpu;
 
-	lock_cpu_hotplug();
+	get_online_cpus();
 	cpu = first_cpu(cpu_online_map);
 	for (;;) {
 		set_cpus_allowed(current, cpumask_of_cpu(cpu));
@@ -390,15 +390,15 @@ static void do_event_scan_all_cpus(long delay)
 		set_cpus_allowed(current, CPU_MASK_ALL);
 
 		/* Drop hotplug lock, and sleep for the specified delay */
-		unlock_cpu_hotplug();
+		put_online_cpus();
 		msleep_interruptible(delay);
-		lock_cpu_hotplug();
+		get_online_cpus();
 
 		cpu = next_cpu(cpu, cpu_online_map);
 		if (cpu == NR_CPUS)
 			break;
 	}
-	unlock_cpu_hotplug();
+	put_online_cpus();
 }
 
 static int rtasd(void *unused)

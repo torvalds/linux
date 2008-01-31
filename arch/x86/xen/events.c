@@ -465,7 +465,7 @@ void xen_send_IPI_one(unsigned int cpu, enum ipi_vector vector)
  * a bitset of words which contain pending event bits.  The second
  * level is a bitset of pending events themselves.
  */
-fastcall void xen_evtchn_do_upcall(struct pt_regs *regs)
+void xen_evtchn_do_upcall(struct pt_regs *regs)
 {
 	int cpu = get_cpu();
 	struct shared_info *s = HYPERVISOR_shared_info;
@@ -487,7 +487,7 @@ fastcall void xen_evtchn_do_upcall(struct pt_regs *regs)
 			int irq = evtchn_to_irq[port];
 
 			if (irq != -1) {
-				regs->orig_eax = ~irq;
+				regs->orig_ax = ~irq;
 				do_IRQ(regs);
 			}
 		}

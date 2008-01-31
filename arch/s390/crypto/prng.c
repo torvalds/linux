@@ -90,7 +90,7 @@ static ssize_t prng_read(struct file *file, char __user *ubuf, size_t nbytes,
 	int ret = 0;
 	int tmp;
 
-	/* nbytes can be arbitrary long, we spilt it into chunks */
+	/* nbytes can be arbitrary length, we split it into chunks */
 	while (nbytes) {
 		/* same as in extract_entropy_user in random.c */
 		if (need_resched()) {
@@ -146,7 +146,7 @@ static ssize_t prng_read(struct file *file, char __user *ubuf, size_t nbytes,
 	return ret;
 }
 
-static struct file_operations prng_fops = {
+static const struct file_operations prng_fops = {
 	.owner		= THIS_MODULE,
 	.open		= &prng_open,
 	.release	= NULL,

@@ -29,21 +29,17 @@
 
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/kdev_t.h>
 #include <linux/types.h>
 #include <linux/pci.h>
-#include <linux/ide.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/platform_device.h>
+#include <linux/clk.h>
 #ifdef CONFIG_SERIAL_TXX9
-#include <linux/tty.h>
-#include <linux/serial.h>
 #include <linux/serial_core.h>
 #endif
 
-#include <asm/addrspace.h>
 #include <asm/txx9tmr.h>
 #include <asm/reboot.h>
 #include <asm/jmr3927/jmr3927.h>
@@ -238,6 +234,8 @@ static void __init tx3927_setup(void)
 	tx3927_ccfgptr->ccfg &= ~TX3927_CCFG_BEOW;
 	/* Disable PCI snoop */
 	tx3927_ccfgptr->ccfg &= ~TX3927_CCFG_PSNP;
+	/* do reset on watchdog */
+	tx3927_ccfgptr->ccfg |= TX3927_CCFG_WR;
 
 #ifdef DO_WRITE_THROUGH
 	/* Enable PCI SNOOP - with write through only */
@@ -388,3 +386,55 @@ static int __init jmr3927_rtc_init(void)
 	return IS_ERR(dev) ? PTR_ERR(dev) : 0;
 }
 device_initcall(jmr3927_rtc_init);
+
+/* Watchdog support */
+
+static int __init txx9_wdt_init(unsigned long base)
+{
+	struct resource res = {
+		.start	= base,
+		.end	= base + 0x100 - 1,
+		.flags	= IORESOURCE_MEM,
+	};
+	struct platform_device *dev =
+		platform_device_register_simple("txx9wdt", -1, &res, 1);
+	return IS_ERR(dev) ? PTR_ERR(dev) : 0;
+}
+
+static int __init jmr3927_wdt_init(void)
+{
+	return txx9_wdt_init(TX3927_TMR_REG(2));
+}
+device_initcall(jmr3927_wdt_init);
+
+/* Minimum CLK support */
+
+struct clk *clk_get(struct device *dev, const char *id)
+{
+	if (!strcmp(id, "imbus_clk"))
+		return (struct clk *)JMR3927_IMCLK;
+	return ERR_PTR(-ENOENT);
+}
+EXPORT_SYMBOL(clk_get);
+
+int clk_enable(struct clk *clk)
+{
+	return 0;
+}
+EXPORT_SYMBOL(clk_enable);
+
+void clk_disable(struct clk *clk)
+{
+}
+EXPORT_SYMBOL(clk_disable);
+
+unsigned long clk_get_rate(struct clk *clk)
+{
+	return (unsigned long)clk;
+}
+EXPORT_SYMBOL(clk_get_rate);
+
+void clk_put(struct clk *clk)
+{
+}
+EXPORT_SYMBOL(clk_put);

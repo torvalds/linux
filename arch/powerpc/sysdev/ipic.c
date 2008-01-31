@@ -894,7 +894,7 @@ unsigned int ipic_get_irq(void)
 }
 
 static struct sysdev_class ipic_sysclass = {
-	set_kset_name("ipic"),
+	.name = "ipic",
 };
 
 static struct sys_device device_ipic = {

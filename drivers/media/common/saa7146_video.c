@@ -1235,7 +1235,7 @@ static int buffer_activate (struct saa7146_dev *dev,
 {
 	struct saa7146_vv *vv = dev->vv_data;
 
-	buf->vb.state = STATE_ACTIVE;
+	buf->vb.state = VIDEOBUF_ACTIVE;
 	saa7146_set_capture(dev,buf,next);
 
 	mod_timer(&vv->video_q.timeout, jiffies+BUFFER_TIMEOUT);
@@ -1281,7 +1281,7 @@ static int buffer_prepare(struct videobuf_queue *q,
 		saa7146_dma_free(dev,q,buf);
 	}
 
-	if (STATE_NEEDS_INIT == buf->vb.state) {
+	if (VIDEOBUF_NEEDS_INIT == buf->vb.state) {
 		struct saa7146_format *sfmt;
 
 		buf->vb.bytesperline  = fh->video_fmt.bytesperline;
@@ -1314,7 +1314,7 @@ static int buffer_prepare(struct videobuf_queue *q,
 		if (err)
 			goto oops;
 	}
-	buf->vb.state = STATE_PREPARED;
+	buf->vb.state = VIDEOBUF_PREPARED;
 	buf->activate = buffer_activate;
 
 	return 0;
@@ -1453,7 +1453,7 @@ static void video_irq_done(struct saa7146_dev *dev, unsigned long st)
 
 	/* only finish the buffer if we have one... */
 	if( NULL != q->curr ) {
-		saa7146_buffer_finish(dev,q,STATE_DONE);
+		saa7146_buffer_finish(dev,q,VIDEOBUF_DONE);
 	}
 	saa7146_buffer_next(dev,q,0);
 

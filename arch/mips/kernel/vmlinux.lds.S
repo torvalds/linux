@@ -114,11 +114,11 @@ SECTIONS
 	__init_begin = .;
 	.init.text : {
 		_sinittext = .;
-		*(.init.text)
+		INIT_TEXT
 		_einittext = .;
 	}
 	.init.data : {
-		*(.init.data)
+		INIT_DATA
 	}
 	. = ALIGN(16);
 	.init.setup : {
@@ -144,10 +144,10 @@ SECTIONS
 	 * references from .rodata
 	 */
 	.exit.text : {
-		*(.exit.text)
+		EXIT_TEXT
 	}
 	.exit.data : {
-		*(.exit.data)
+		EXIT_DATA
 	}
 #if defined(CONFIG_BLK_DEV_INITRD)
 	. = ALIGN(_PAGE_SIZE);

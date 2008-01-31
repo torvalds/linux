@@ -1,13 +1,13 @@
 /*
 
-  Broadcom B43legacy wireless driver
+  Broadcom B43 wireless driver
+  LED control
 
   Copyright (c) 2005 Martin Langer <martin-langer@gmx.de>,
-		     Stefano Brivio <st3@riseup.net>
-		     Michael Buesch <mb@bu3sch.de>
-		     Danny van Dyk <kugelfang@gentoo.org>
-		     Andreas Jaggi <andreas.jaggi@waterwave.ch>
-  Copyright (c) 2007 Larry Finger <Larry.Finger@lwfinger.net>
+  Copyright (c) 2005 Stefano Brivio <stefano.brivio@polimi.it>
+  Copyright (c) 2005-2007 Michael Buesch <mb@bu3sch.de>
+  Copyright (c) 2005 Danny van Dyk <kugelfang@gentoo.org>
+  Copyright (c) 2005 Andreas Jaggi <andreas.jaggi@waterwave.ch>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -26,273 +26,216 @@
 
 */
 
-#include "leds.h"
 #include "b43legacy.h"
-#include "main.h"
+#include "leds.h"
 
-static void b43legacy_led_changestate(struct b43legacy_led *led)
+
+static void b43legacy_led_turn_on(struct b43legacy_wldev *dev, u8 led_index,
+			    bool activelow)
 {
-	struct b43legacy_wldev *dev = led->dev;
-	const int index = led->index;
-	u16 ledctl;
-
-	B43legacy_WARN_ON(!(index >= 0 && index < B43legacy_NR_LEDS));
-	B43legacy_WARN_ON(!led->blink_interval);
-	ledctl = b43legacy_read16(dev, B43legacy_MMIO_GPIO_CONTROL);
-	ledctl ^= (1 << index);
-	b43legacy_write16(dev, B43legacy_MMIO_GPIO_CONTROL, ledctl);
-}
-
-static void b43legacy_led_blink(unsigned long d)
-{
-	struct b43legacy_led *led = (struct b43legacy_led *)d;
-	struct b43legacy_wldev *dev = led->dev;
+	struct b43legacy_wl *wl = dev->wl;
 	unsigned long flags;
+	u16 ctl;
 
-	spin_lock_irqsave(&dev->wl->leds_lock, flags);
-	if (led->blink_interval) {
-		b43legacy_led_changestate(led);
-		mod_timer(&led->blink_timer, jiffies + led->blink_interval);
-	}
-	spin_unlock_irqrestore(&dev->wl->leds_lock, flags);
+	spin_lock_irqsave(&wl->leds_lock, flags);
+	ctl = b43legacy_read16(dev, B43legacy_MMIO_GPIO_CONTROL);
+	if (activelow)
+		ctl &= ~(1 << led_index);
+	else
+		ctl |= (1 << led_index);
+	b43legacy_write16(dev, B43legacy_MMIO_GPIO_CONTROL, ctl);
+	spin_unlock_irqrestore(&wl->leds_lock, flags);
 }
 
-static void b43legacy_led_blink_start(struct b43legacy_led *led,
-				      unsigned long interval)
+static void b43legacy_led_turn_off(struct b43legacy_wldev *dev, u8 led_index,
+			     bool activelow)
 {
-	if (led->blink_interval)
-		return;
-	led->blink_interval = interval;
-	b43legacy_led_changestate(led);
-	led->blink_timer.expires = jiffies + interval;
-	add_timer(&led->blink_timer);
+	struct b43legacy_wl *wl = dev->wl;
+	unsigned long flags;
+	u16 ctl;
+
+	spin_lock_irqsave(&wl->leds_lock, flags);
+	ctl = b43legacy_read16(dev, B43legacy_MMIO_GPIO_CONTROL);
+	if (activelow)
+		ctl |= (1 << led_index);
+	else
+		ctl &= ~(1 << led_index);
+	b43legacy_write16(dev, B43legacy_MMIO_GPIO_CONTROL, ctl);
+	spin_unlock_irqrestore(&wl->leds_lock, flags);
 }
 
-static void b43legacy_led_blink_stop(struct b43legacy_led *led, int sync)
+/* Callback from the LED subsystem. */
+static void b43legacy_led_brightness_set(struct led_classdev *led_dev,
+				   enum led_brightness brightness)
 {
+	struct b43legacy_led *led = container_of(led_dev, struct b43legacy_led,
+				    led_dev);
 	struct b43legacy_wldev *dev = led->dev;
-	const int index = led->index;
-	u16 ledctl;
+	bool radio_enabled;
 
-	if (!led->blink_interval)
-		return;
-	if (unlikely(sync))
-		del_timer_sync(&led->blink_timer);
-	else
-		del_timer(&led->blink_timer);
-	led->blink_interval = 0;
+	/* Checking the radio-enabled status here is slightly racy,
+	 * but we want to avoid the locking overhead and we don't care
+	 * whether the LED has the wrong state for a second. */
+	radio_enabled = (dev->phy.radio_on && dev->radio_hw_enable);
 
-	/* Make sure the LED is turned off. */
-	B43legacy_WARN_ON(!(index >= 0 && index < B43legacy_NR_LEDS));
-	ledctl = b43legacy_read16(dev, B43legacy_MMIO_GPIO_CONTROL);
-	if (led->activelow)
-		ledctl |= (1 << index);
+	if (brightness == LED_OFF || !radio_enabled)
+		b43legacy_led_turn_off(dev, led->index, led->activelow);
 	else
-		ledctl &= ~(1 << index);
-	b43legacy_write16(dev, B43legacy_MMIO_GPIO_CONTROL, ledctl);
+		b43legacy_led_turn_on(dev, led->index, led->activelow);
 }
 
-static void b43legacy_led_init_hardcoded(struct b43legacy_wldev *dev,
-					 struct b43legacy_led *led,
-					 int led_index)
+static int b43legacy_register_led(struct b43legacy_wldev *dev,
+				  struct b43legacy_led *led,
+				  const char *name, char *default_trigger,
+				  u8 led_index, bool activelow)
 {
-	struct ssb_bus *bus = dev->dev->bus;
+	int err;
 
-	/* This function is called, if the behaviour (and activelow)
-	 * information for a LED is missing in the SPROM.
-	 * We hardcode the behaviour values for various devices here.
-	 * Note that the B43legacy_LED_TEST_XXX behaviour values can
-	 * be used to figure out which led is mapped to which index.
-	 */
+	b43legacy_led_turn_off(dev, led_index, activelow);
+	if (led->dev)
+		return -EEXIST;
+	if (!default_trigger)
+		return -EINVAL;
+	led->dev = dev;
+	led->index = led_index;
+	led->activelow = activelow;
+	strncpy(led->name, name, sizeof(led->name));
 
-	switch (led_index) {
-	case 0:
-		led->behaviour = B43legacy_LED_ACTIVITY;
-		led->activelow = 1;
-		if (bus->boardinfo.vendor == PCI_VENDOR_ID_COMPAQ)
-			led->behaviour = B43legacy_LED_RADIO_ALL;
+	led->led_dev.name = led->name;
+	led->led_dev.default_trigger = default_trigger;
+	led->led_dev.brightness_set = b43legacy_led_brightness_set;
+
+	err = led_classdev_register(dev->dev->dev, &led->led_dev);
+	if (err) {
+		b43legacywarn(dev->wl, "LEDs: Failed to register %s\n", name);
+		led->dev = NULL;
+		return err;
+	}
+	return 0;
+}
+
+static void b43legacy_unregister_led(struct b43legacy_led *led)
+{
+	if (!led->dev)
+		return;
+	led_classdev_unregister(&led->led_dev);
+	b43legacy_led_turn_off(led->dev, led->index, led->activelow);
+	led->dev = NULL;
+}
+
+static void b43legacy_map_led(struct b43legacy_wldev *dev,
+			u8 led_index,
+			enum b43legacy_led_behaviour behaviour,
+			bool activelow)
+{
+	struct ieee80211_hw *hw = dev->wl->hw;
+	char name[B43legacy_LED_MAX_NAME_LEN + 1];
+
+	/* Map the b43 specific LED behaviour value to the
+	 * generic LED triggers. */
+	switch (behaviour) {
+	case B43legacy_LED_INACTIVE:
 		break;
-	case 1:
-		led->behaviour = B43legacy_LED_RADIO_B;
-		if (bus->boardinfo.vendor == PCI_VENDOR_ID_ASUSTEK)
-			led->behaviour = B43legacy_LED_ASSOC;
+	case B43legacy_LED_OFF:
+		b43legacy_led_turn_off(dev, led_index, activelow);
 		break;
-	case 2:
-		led->behaviour = B43legacy_LED_RADIO_A;
+	case B43legacy_LED_ON:
+		b43legacy_led_turn_on(dev, led_index, activelow);
 		break;
-	case 3:
-		led->behaviour = B43legacy_LED_OFF;
+	case B43legacy_LED_ACTIVITY:
+	case B43legacy_LED_TRANSFER:
+	case B43legacy_LED_APTRANSFER:
+		snprintf(name, sizeof(name),
+			 "b43legacy-%s:tx", wiphy_name(hw->wiphy));
+		b43legacy_register_led(dev, &dev->led_tx, name,
+				 ieee80211_get_tx_led_name(hw),
+				 led_index, activelow);
+		snprintf(name, sizeof(name),
+			 "b43legacy-%s:rx", wiphy_name(hw->wiphy));
+		b43legacy_register_led(dev, &dev->led_rx, name,
+				 ieee80211_get_rx_led_name(hw),
+				 led_index, activelow);
+		break;
+	case B43legacy_LED_RADIO_ALL:
+	case B43legacy_LED_RADIO_A:
+	case B43legacy_LED_RADIO_B:
+	case B43legacy_LED_MODE_BG:
+		snprintf(name, sizeof(name),
+			 "b43legacy-%s:radio", wiphy_name(hw->wiphy));
+		b43legacy_register_led(dev, &dev->led_radio, name,
+				 b43legacy_rfkill_led_name(dev),
+				 led_index, activelow);
+		/* Sync the RF-kill LED state with the switch state. */
+		if (dev->radio_hw_enable)
+			b43legacy_led_turn_on(dev, led_index, activelow);
+		break;
+	case B43legacy_LED_WEIRD:
+	case B43legacy_LED_ASSOC:
+		snprintf(name, sizeof(name),
+			 "b43legacy-%s:assoc", wiphy_name(hw->wiphy));
+		b43legacy_register_led(dev, &dev->led_assoc, name,
+				 ieee80211_get_assoc_led_name(hw),
+				 led_index, activelow);
 		break;
 	default:
-		B43legacy_BUG_ON(1);
+		b43legacywarn(dev->wl, "LEDs: Unknown behaviour 0x%02X\n",
+			behaviour);
+		break;
 	}
 }
 
-int b43legacy_leds_init(struct b43legacy_wldev *dev)
+void b43legacy_leds_init(struct b43legacy_wldev *dev)
 {
-	struct b43legacy_led *led;
+	struct ssb_bus *bus = dev->dev->bus;
 	u8 sprom[4];
 	int i;
+	enum b43legacy_led_behaviour behaviour;
+	bool activelow;
 
-	sprom[0] = dev->dev->bus->sprom.r1.gpio0;
-	sprom[1] = dev->dev->bus->sprom.r1.gpio1;
-	sprom[2] = dev->dev->bus->sprom.r1.gpio2;
-	sprom[3] = dev->dev->bus->sprom.r1.gpio3;
+	sprom[0] = bus->sprom.gpio0;
+	sprom[1] = bus->sprom.gpio1;
+	sprom[2] = bus->sprom.gpio2;
+	sprom[3] = bus->sprom.gpio3;
 
-	for (i = 0; i < B43legacy_NR_LEDS; i++) {
-		led = &(dev->leds[i]);
-		led->index = i;
-		led->dev = dev;
-		setup_timer(&led->blink_timer,
-			    b43legacy_led_blink,
-			    (unsigned long)led);
-
-		if (sprom[i] == 0xFF)
-			b43legacy_led_init_hardcoded(dev, led, i);
-		else {
-			led->behaviour = sprom[i] & B43legacy_LED_BEHAVIOUR;
-			led->activelow = !!(sprom[i] &
-					   B43legacy_LED_ACTIVELOW);
+	for (i = 0; i < 4; i++) {
+		if (sprom[i] == 0xFF) {
+			/* There is no LED information in the SPROM
+			 * for this LED. Hardcode it here. */
+			activelow = 0;
+			switch (i) {
+			case 0:
+				behaviour = B43legacy_LED_ACTIVITY;
+				activelow = 1;
+				if (bus->boardinfo.vendor == PCI_VENDOR_ID_COMPAQ)
+					behaviour = B43legacy_LED_RADIO_ALL;
+				break;
+			case 1:
+				behaviour = B43legacy_LED_RADIO_B;
+				if (bus->boardinfo.vendor == PCI_VENDOR_ID_ASUSTEK)
+					behaviour = B43legacy_LED_ASSOC;
+				break;
+			case 2:
+				behaviour = B43legacy_LED_RADIO_A;
+				break;
+			case 3:
+				behaviour = B43legacy_LED_OFF;
+				break;
+			default:
+				B43legacy_WARN_ON(1);
+				return;
+			}
+		} else {
+			behaviour = sprom[i] & B43legacy_LED_BEHAVIOUR;
+			activelow = !!(sprom[i] & B43legacy_LED_ACTIVELOW);
 		}
+		b43legacy_map_led(dev, i, behaviour, activelow);
 	}
-
-	return 0;
 }
 
 void b43legacy_leds_exit(struct b43legacy_wldev *dev)
 {
-	struct b43legacy_led *led;
-	int i;
-
-	for (i = 0; i < B43legacy_NR_LEDS; i++) {
-		led = &(dev->leds[i]);
-		b43legacy_led_blink_stop(led, 1);
-	}
-	b43legacy_leds_switch_all(dev, 0);
-}
-
-void b43legacy_leds_update(struct b43legacy_wldev *dev, int activity)
-{
-	struct b43legacy_led *led;
-	struct b43legacy_phy *phy = &dev->phy;
-	const int transferring = (jiffies - dev->stats.last_tx)
-				  < B43legacy_LED_XFER_THRES;
-	int i;
-	int turn_on;
-	unsigned long interval = 0;
-	u16 ledctl;
-	unsigned long flags;
-	bool radio_enabled = (phy->radio_on && dev->radio_hw_enable);
-
-	spin_lock_irqsave(&dev->wl->leds_lock, flags);
-	ledctl = b43legacy_read16(dev, B43legacy_MMIO_GPIO_CONTROL);
-	for (i = 0; i < B43legacy_NR_LEDS; i++) {
-		led = &(dev->leds[i]);
-
-		turn_on = 0;
-		switch (led->behaviour) {
-		case B43legacy_LED_INACTIVE:
-			continue;
-		case B43legacy_LED_OFF:
-			break;
-		case B43legacy_LED_ON:
-			turn_on = 1;
-			break;
-		case B43legacy_LED_ACTIVITY:
-			turn_on = activity;
-			break;
-		case B43legacy_LED_RADIO_ALL:
-			turn_on = radio_enabled;
-			break;
-		case B43legacy_LED_RADIO_A:
-			break;
-		case B43legacy_LED_RADIO_B:
-			turn_on = radio_enabled;
-			break;
-		case B43legacy_LED_MODE_BG:
-			if (phy->type == B43legacy_PHYTYPE_G && radio_enabled)
-				turn_on = 1;
-			break;
-		case B43legacy_LED_TRANSFER:
-			if (transferring)
-				b43legacy_led_blink_start(led,
-						B43legacy_LEDBLINK_MEDIUM);
-			else
-				b43legacy_led_blink_stop(led, 0);
-			continue;
-		case B43legacy_LED_APTRANSFER:
-			if (b43legacy_is_mode(dev->wl,
-						IEEE80211_IF_TYPE_AP)) {
-				if (transferring) {
-					interval = B43legacy_LEDBLINK_FAST;
-					turn_on = 1;
-				}
-			} else {
-				turn_on = 1;
-				if (transferring)
-					interval = B43legacy_LEDBLINK_FAST;
-				else
-					turn_on = 0;
-			}
-			if (turn_on)
-				b43legacy_led_blink_start(led, interval);
-			else
-				b43legacy_led_blink_stop(led, 0);
-			continue;
-		case B43legacy_LED_WEIRD:
-			break;
-		case B43legacy_LED_ASSOC:
-			turn_on = 1;
-#ifdef CONFIG_B43LEGACY_DEBUG
-		case B43legacy_LED_TEST_BLINKSLOW:
-			b43legacy_led_blink_start(led, B43legacy_LEDBLINK_SLOW);
-			continue;
-		case B43legacy_LED_TEST_BLINKMEDIUM:
-			b43legacy_led_blink_start(led,
-						   B43legacy_LEDBLINK_MEDIUM);
-			continue;
-		case B43legacy_LED_TEST_BLINKFAST:
-			b43legacy_led_blink_start(led, B43legacy_LEDBLINK_FAST);
-			continue;
-#endif /* CONFIG_B43LEGACY_DEBUG */
-		default:
-			B43legacy_BUG_ON(1);
-		};
-
-		if (led->activelow)
-			turn_on = !turn_on;
-		if (turn_on)
-			ledctl |= (1 << i);
-		else
-			ledctl &= ~(1 << i);
-	}
-	b43legacy_write16(dev, B43legacy_MMIO_GPIO_CONTROL, ledctl);
-	spin_unlock_irqrestore(&dev->wl->leds_lock, flags);
-}
-
-void b43legacy_leds_switch_all(struct b43legacy_wldev *dev, int on)
-{
-	struct b43legacy_led *led;
-	u16 ledctl;
-	int i;
-	int bit_on;
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->wl->leds_lock, flags);
-	ledctl = b43legacy_read16(dev, B43legacy_MMIO_GPIO_CONTROL);
-	for (i = 0; i < B43legacy_NR_LEDS; i++) {
-		led = &(dev->leds[i]);
-		if (led->behaviour == B43legacy_LED_INACTIVE)
-			continue;
-		if (on)
-			bit_on = led->activelow ? 0 : 1;
-		else
-			bit_on = led->activelow ? 1 : 0;
-		if (bit_on)
-			ledctl |= (1 << i);
-		else
-			ledctl &= ~(1 << i);
-	}
-	b43legacy_write16(dev, B43legacy_MMIO_GPIO_CONTROL, ledctl);
-	spin_unlock_irqrestore(&dev->wl->leds_lock, flags);
+	b43legacy_unregister_led(&dev->led_tx);
+	b43legacy_unregister_led(&dev->led_rx);
+	b43legacy_unregister_led(&dev->led_assoc);
+	b43legacy_unregister_led(&dev->led_radio);
 }

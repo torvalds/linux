@@ -24,8 +24,7 @@
 #include "lvb_table.h"
 #include "user.h"
 
-static const char *name_prefix="dlm";
-static struct miscdevice ctl_device;
+static const char name_prefix[] = "dlm";
 static const struct file_operations device_fops;
 
 #ifdef CONFIG_COMPAT
@@ -82,7 +81,8 @@ struct dlm_lock_result32 {
 };
 
 static void compat_input(struct dlm_write_request *kb,
-			 struct dlm_write_request32 *kb32)
+			 struct dlm_write_request32 *kb32,
+			 int max_namelen)
 {
 	kb->version[0] = kb32->version[0];
 	kb->version[1] = kb32->version[1];
@@ -112,7 +112,11 @@ static void compat_input(struct dlm_write_request *kb,
 		kb->i.lock.bastaddr = (void *)(long)kb32->i.lock.bastaddr;
 		kb->i.lock.lksb = (void *)(long)kb32->i.lock.lksb;
 		memcpy(kb->i.lock.lvb, kb32->i.lock.lvb, DLM_USER_LVB_LEN);
-		memcpy(kb->i.lock.name, kb32->i.lock.name, kb->i.lock.namelen);
+		if (kb->i.lock.namelen <= max_namelen)
+			memcpy(kb->i.lock.name, kb32->i.lock.name,
+			       kb->i.lock.namelen);
+		else
+			kb->i.lock.namelen = max_namelen;
 	}
 }
 
@@ -236,12 +240,12 @@ void dlm_user_add_ast(struct dlm_lkb *lkb, int type)
 	spin_unlock(&proc->asts_spin);
 
 	if (eol) {
-		spin_lock(&ua->proc->locks_spin);
+		spin_lock(&proc->locks_spin);
 		if (!list_empty(&lkb->lkb_ownqueue)) {
 			list_del_init(&lkb->lkb_ownqueue);
 			dlm_put_lkb(lkb);
 		}
-		spin_unlock(&ua->proc->locks_spin);
+		spin_unlock(&proc->locks_spin);
 	}
  out:
 	mutex_unlock(&ls->ls_clear_proc_locks);
@@ -529,7 +533,8 @@ static ssize_t device_write(struct file *file, const char __user *buf,
 
 		if (proc)
 			set_bit(DLM_PROC_FLAGS_COMPAT, &proc->flags);
-		compat_input(kbuf, k32buf);
+		compat_input(kbuf, k32buf,
+			     count - sizeof(struct dlm_write_request32));
 		kfree(k32buf);
 	}
 #endif
@@ -896,13 +901,15 @@ static const struct file_operations ctl_device_fops = {
 	.owner   = THIS_MODULE,
 };
 
+static struct miscdevice ctl_device = {
+	.name  = "dlm-control",
+	.fops  = &ctl_device_fops,
+	.minor = MISC_DYNAMIC_MINOR,
+};
+
 int dlm_user_init(void)
 {
 	int error;
-
-	ctl_device.name = "dlm-control";
-	ctl_device.fops = &ctl_device_fops;
-	ctl_device.minor = MISC_DYNAMIC_MINOR;
 
 	error = misc_register(&ctl_device);
 	if (error)

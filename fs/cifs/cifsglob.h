@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/cifsglob.h
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2007
+ *   Copyright (C) International Business Machines  Corp., 2002,2008
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *              Jeremy Allison (jra@samba.org)
  *
@@ -68,14 +68,6 @@
 #ifndef XATTR_DOS_ATTRIB
 #define XATTR_DOS_ATTRIB "user.DOSATTRIB"
 #endif
-
-/*
- * This information is kept on every Server we know about.
- *
- * Some things to note:
- *
- */
-#define SERVER_NAME_LEN_WITH_NULL	(SERVER_NAME_LENGTH + 1)
 
 /*
  * CIFS vfs client Status information (based on what we know.)
@@ -459,6 +451,37 @@ struct dir_notify_req {
        int multishot;
        struct file *pfile;
 };
+
+struct dfs_info3_param {
+	int flags; /* DFSREF_REFERRAL_SERVER, DFSREF_STORAGE_SERVER*/
+	int PathConsumed;
+	int server_type;
+	int ref_flag;
+	char *path_name;
+	char *node_name;
+};
+
+static inline void free_dfs_info_param(struct dfs_info3_param *param)
+{
+	if (param) {
+		kfree(param->path_name);
+		kfree(param->node_name);
+		kfree(param);
+	}
+}
+
+static inline void free_dfs_info_array(struct dfs_info3_param *param,
+				       int number_of_items)
+{
+	int i;
+	if ((number_of_items == 0) || (param == NULL))
+		return;
+	for (i = 0; i < number_of_items; i++) {
+		kfree(param[i].path_name);
+		kfree(param[i].node_name);
+	}
+	kfree(param);
+}
 
 #define   MID_FREE 0
 #define   MID_REQUEST_ALLOCATED 1

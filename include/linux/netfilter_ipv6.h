@@ -40,8 +40,6 @@
 #define NFC_IP6_DST_PT           0x0400
 /* Something else about the proto */
 #define NFC_IP6_PROTO_UNKNOWN    0x2000
-#endif /* ! __KERNEL__ */
-
 
 /* IP6 Hooks */
 /* After promisc drops, checksum checks. */
@@ -55,6 +53,7 @@
 /* Packets about to hit the wire. */
 #define NF_IP6_POST_ROUTING	4
 #define NF_IP6_NUMHOOKS		5
+#endif /* ! __KERNEL__ */
 
 
 enum nf_ip6_hook_priorities {

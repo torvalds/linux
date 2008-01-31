@@ -22,6 +22,7 @@
 #include "css.h"
 #include "device.h"
 #include "ioasm.h"
+#include "io_sch.h"
 
 /*
  * Helper function called from interrupt context to decide whether an
@@ -155,10 +156,13 @@ __ccw_device_check_sense_pgid(struct ccw_device *cdev)
 		return -EAGAIN;
 	}
 	if (irb->scsw.cc == 3) {
+		u8 lpm;
+
+		lpm = to_io_private(sch)->orb.lpm;
 		CIO_MSG_EVENT(2, "SNID - Device %04x on Subchannel 0.%x.%04x,"
 			      " lpm %02X, became 'not operational'\n",
 			      cdev->private->dev_id.devno, sch->schid.ssid,
-			      sch->schid.sch_no, sch->orb.lpm);
+			      sch->schid.sch_no, lpm);
 		return -EACCES;
 	}
 	i = 8 - ffs(cdev->private->imask);

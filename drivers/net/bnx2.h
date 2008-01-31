@@ -154,6 +154,33 @@ struct status_block {
 #endif
 };
 
+/*
+ *  status_block definition
+ */
+struct status_block_msix {
+#if defined(__BIG_ENDIAN)
+	u16 status_tx_quick_consumer_index;
+	u16 status_rx_quick_consumer_index;
+	u16 status_completion_producer_index;
+	u16 status_cmd_consumer_index;
+	u32 status_unused;
+	u16 status_idx;
+	u8 status_unused2;
+	u8 status_blk_num;
+#elif defined(__LITTLE_ENDIAN)
+	u16 status_rx_quick_consumer_index;
+	u16 status_tx_quick_consumer_index;
+	u16 status_cmd_consumer_index;
+	u16 status_completion_producer_index;
+	u32 status_unused;
+	u8 status_blk_num;
+	u8 status_unused2;
+	u16 status_idx;
+#endif
+};
+
+#define BNX2_SBLK_MSIX_ALIGN_SIZE	128
+
 
 /*
  *  statistics_block definition
@@ -259,6 +286,7 @@ struct l2_fhdr {
 		#define L2_FHDR_STATUS_TCP_SEGMENT	(1<<14)
 		#define L2_FHDR_STATUS_UDP_DATAGRAM	(1<<15)
 
+		#define L2_FHDR_STATUS_SPLIT		(1<<16)
 		#define L2_FHDR_ERRORS_BAD_CRC		(1<<17)
 		#define L2_FHDR_ERRORS_PHY_DECODE	(1<<18)
 		#define L2_FHDR_ERRORS_ALIGNMENT	(1<<19)
@@ -332,6 +360,12 @@ struct l2_fhdr {
 #define BNX2_L2CTX_NX_BDHADDR_LO			0x00000014
 #define BNX2_L2CTX_NX_BDIDX				0x00000018
 
+#define BNX2_L2CTX_HOST_PG_BDIDX			0x00000044
+#define BNX2_L2CTX_PG_BUF_SIZE				0x00000048
+#define BNX2_L2CTX_RBDC_KEY				0x0000004c
+#define BNX2_L2CTX_RBDC_JUMBO_KEY			 0x3ffe
+#define BNX2_L2CTX_NX_PG_BDHADDR_HI			0x00000050
+#define BNX2_L2CTX_NX_PG_BDHADDR_LO			0x00000054
 
 /*
  *  pci_config_l definition
@@ -406,6 +440,7 @@ struct l2_fhdr {
 #define BNX2_PCICFG_INT_ACK_CMD_USE_INT_HC_PARAM	 (1L<<17)
 #define BNX2_PCICFG_INT_ACK_CMD_MASK_INT		 (1L<<18)
 #define BNX2_PCICFG_INT_ACK_CMD_INTERRUPT_NUM		 (0xfL<<24)
+#define BNX2_PCICFG_INT_ACK_CMD_INT_NUM_SHIFT		 24
 
 #define BNX2_PCICFG_STATUS_BIT_SET_CMD			0x00000088
 #define BNX2_PCICFG_STATUS_BIT_CLEAR_CMD		0x0000008c
@@ -420,6 +455,9 @@ struct l2_fhdr {
 #define BNX2_PCI_GRC_WINDOW_ADDR			0x00000400
 #define BNX2_PCI_GRC_WINDOW_ADDR_VALUE			 (0x1ffL<<13)
 #define BNX2_PCI_GRC_WINDOW_ADDR_SEP_WIN		 (1L<<31)
+
+#define BNX2_PCI_GRC_WINDOW2_BASE		 	 0xc000
+#define BNX2_PCI_GRC_WINDOW3_BASE		 	 0xe000
 
 #define BNX2_PCI_CONFIG_1				0x00000404
 #define BNX2_PCI_CONFIG_1_RESERVED0			 (0xffL<<0)
@@ -693,6 +731,8 @@ struct l2_fhdr {
 #define BNX2_PCI_GRC_WINDOW3_ADDR			0x00000618
 #define BNX2_PCI_GRC_WINDOW3_ADDR_VALUE			 (0x1ffL<<13)
 
+#define BNX2_MSIX_TABLE_ADDR				 0x318000
+#define BNX2_MSIX_PBA_ADDR				 0x31c000
 
 /*
  *  misc_reg definition
@@ -4445,6 +4485,14 @@ struct l2_fhdr {
 #define BNX2_MQ_MEM_RD_DATA2_VALUE			 (0x3fffffffL<<0)
 #define BNX2_MQ_MEM_RD_DATA2_VALUE_XI			 (0x7fffffffL<<0)
 
+#define BNX2_MQ_MAP_L2_3				0x00003d2c
+#define BNX2_MQ_MAP_L2_3_MQ_OFFSET			 (0xffL<<0)
+#define BNX2_MQ_MAP_L2_3_SZ				 (0x3L<<8)
+#define BNX2_MQ_MAP_L2_3_CTX_OFFSET			 (0x2ffL<<10)
+#define BNX2_MQ_MAP_L2_3_BIN_OFFSET			 (0x7L<<23)
+#define BNX2_MQ_MAP_L2_3_ARM				 (0x3L<<26)
+#define BNX2_MQ_MAP_L2_3_ENA				 (0x1L<<31)
+#define BNX2_MQ_MAP_L2_3_DEFAULT			 0x82004646
 
 /*
  *  tsch_reg definition
@@ -6296,6 +6344,15 @@ struct l2_fhdr {
 #define MII_BNX2_DSP_RW_PORT			0x15
 #define MII_BNX2_DSP_ADDRESS			0x17
 #define MII_BNX2_DSP_EXPAND_REG			 0x0f00
+#define MII_EXPAND_REG1				  (MII_BNX2_DSP_EXPAND_REG | 1)
+#define MII_EXPAND_REG1_RUDI_C			   0x20
+#define MII_EXPAND_SERDES_CTL			  (MII_BNX2_DSP_EXPAND_REG | 2)
+
+#define MII_BNX2_MISC_SHADOW			0x1c
+#define MISC_SHDW_AN_DBG			 0x6800
+#define MISC_SHDW_AN_DBG_NOSYNC			  0x0002
+#define MISC_SHDW_MODE_CTL			 0x7c00
+#define MISC_SHDW_MODE_CTL_SIG_DET		  0x0010
 
 #define MII_BNX2_BLK_ADDR			0x1f
 #define MII_BNX2_BLK_ADDR_IEEE0			 0x0000
@@ -6336,7 +6393,7 @@ struct l2_fhdr {
 #define MAX_ETHERNET_PACKET_SIZE	1514
 #define MAX_ETHERNET_JUMBO_PACKET_SIZE	9014
 
-#define RX_COPY_THRESH			92
+#define RX_COPY_THRESH			128
 
 #define BNX2_MISC_ENABLE_DEFAULT	0x7ffffff
 
@@ -6355,9 +6412,11 @@ struct l2_fhdr {
 #define MAX_TX_DESC_CNT (TX_DESC_CNT - 1)
 
 #define MAX_RX_RINGS	4
+#define MAX_RX_PG_RINGS	16
 #define RX_DESC_CNT  (BCM_PAGE_SIZE / sizeof(struct rx_bd))
 #define MAX_RX_DESC_CNT (RX_DESC_CNT - 1)
 #define MAX_TOTAL_RX_DESC_CNT (MAX_RX_DESC_CNT * MAX_RX_RINGS)
+#define MAX_TOTAL_RX_PG_DESC_CNT (MAX_RX_DESC_CNT * MAX_RX_PG_RINGS)
 
 #define NEXT_TX_BD(x) (((x) & (MAX_TX_DESC_CNT - 1)) ==			\
 		(MAX_TX_DESC_CNT - 1)) ?				\
@@ -6370,6 +6429,7 @@ struct l2_fhdr {
 	(x) + 2 : (x) + 1
 
 #define RX_RING_IDX(x) ((x) & bp->rx_max_ring_idx)
+#define RX_PG_RING_IDX(x) ((x) & bp->rx_max_pg_ring_idx)
 
 #define RX_RING(x) (((x) & ~MAX_RX_DESC_CNT) >> (BCM_PAGE_BITS - 4))
 #define RX_IDX(x) ((x) & MAX_RX_DESC_CNT)
@@ -6407,6 +6467,17 @@ struct sw_bd {
 	struct sk_buff		*skb;
 	DECLARE_PCI_UNMAP_ADDR(mapping)
 };
+
+struct sw_pg {
+	struct page		*page;
+	DECLARE_PCI_UNMAP_ADDR(mapping)
+};
+
+#define SW_RXBD_RING_SIZE (sizeof(struct sw_bd) * RX_DESC_CNT)
+#define SW_RXPG_RING_SIZE (sizeof(struct sw_pg) * RX_DESC_CNT)
+#define RXBD_RING_SIZE (sizeof(struct rx_bd) * RX_DESC_CNT)
+#define SW_TXBD_RING_SIZE (sizeof(struct sw_bd) * TX_DESC_CNT)
+#define TXBD_RING_SIZE (sizeof(struct tx_bd) * TX_DESC_CNT)
 
 /* Buffered flash (Atmel: AT45DB011B) specific information */
 #define SEEPROM_PAGE_BITS			2
@@ -6465,6 +6536,39 @@ struct flash_spec {
 	u8  *name;
 };
 
+#define BNX2_MAX_MSIX_HW_VEC	9
+#define BNX2_MAX_MSIX_VEC	2
+#define BNX2_BASE_VEC		0
+#define BNX2_TX_VEC		1
+#define BNX2_TX_INT_NUM	(BNX2_TX_VEC << BNX2_PCICFG_INT_ACK_CMD_INT_NUM_SHIFT)
+
+struct bnx2_irq {
+	irq_handler_t	handler;
+	u16		vector;
+	u8		requested;
+	char		name[16];
+};
+
+struct bnx2_napi {
+	struct napi_struct	napi		____cacheline_aligned;
+	struct bnx2		*bp;
+	struct status_block	*status_blk;
+	struct status_block_msix	*status_blk_msix;
+	u32 			last_status_idx;
+	u32			int_num;
+
+	u16			tx_cons;
+	u16			hw_tx_cons;
+
+	u32			rx_prod_bseq;
+	u16			rx_prod;
+	u16			rx_cons;
+
+	u16			rx_pg_prod;
+	u16			rx_pg_cons;
+
+};
+
 struct bnx2 {
 	/* Fields used in the tx and intr/napi performance paths are grouped */
 	/* together in the beginning of the structure. */
@@ -6473,33 +6577,32 @@ struct bnx2 {
 	struct net_device	*dev;
 	struct pci_dev		*pdev;
 
-	struct napi_struct	napi;
-
 	atomic_t		intr_sem;
 
-	struct status_block	*status_blk;
-	u32 			last_status_idx;
-
 	u32			flags;
-#define PCIX_FLAG			0x00000001
-#define PCI_32BIT_FLAG			0x00000002
-#define ONE_TDMA_FLAG			0x00000004	/* no longer used */
-#define NO_WOL_FLAG			0x00000008
-#define USING_MSI_FLAG			0x00000020
-#define ASF_ENABLE_FLAG			0x00000040
-#define MSI_CAP_FLAG			0x00000080
-#define ONE_SHOT_MSI_FLAG		0x00000100
-#define PCIE_FLAG			0x00000200
+#define BNX2_FLAG_PCIX			0x00000001
+#define BNX2_FLAG_PCI_32BIT		0x00000002
+#define BNX2_FLAG_MSIX_CAP		0x00000004
+#define BNX2_FLAG_NO_WOL		0x00000008
+#define BNX2_FLAG_USING_MSI		0x00000020
+#define BNX2_FLAG_ASF_ENABLE		0x00000040
+#define BNX2_FLAG_MSI_CAP		0x00000080
+#define BNX2_FLAG_ONE_SHOT_MSI		0x00000100
+#define BNX2_FLAG_PCIE			0x00000200
+#define BNX2_FLAG_USING_MSIX		0x00000400
+#define BNX2_FLAG_USING_MSI_OR_MSIX	(BNX2_FLAG_USING_MSI | \
+					 BNX2_FLAG_USING_MSIX)
+#define BNX2_FLAG_JUMBO_BROKEN		0x00000800
 
 	/* Put tx producer and consumer fields in separate cache lines. */
 
 	u32		tx_prod_bseq __attribute__((aligned(L1_CACHE_BYTES)));
 	u16		tx_prod;
+	u8		tx_vec;
 	u32		tx_bidx_addr;
 	u32		tx_bseq_addr;
 
-	u16		tx_cons __attribute__((aligned(L1_CACHE_BYTES)));
-	u16		hw_tx_cons;
+	struct bnx2_napi	bnx2_napi[BNX2_MAX_MSIX_VEC];
 
 #ifdef BCM_VLAN
 	struct			vlan_group *vlgrp;
@@ -6508,16 +6611,17 @@ struct bnx2 {
 	u32			rx_offset;
 	u32			rx_buf_use_size;	/* useable size */
 	u32			rx_buf_size;		/* with alignment */
+	u32			rx_copy_thresh;
+	u32			rx_jumbo_thresh;
 	u32			rx_max_ring_idx;
-
-	u32			rx_prod_bseq;
-	u16			rx_prod;
-	u16			rx_cons;
+	u32			rx_max_pg_ring_idx;
 
 	u32			rx_csum;
 
 	struct sw_bd		*rx_buf_ring;
 	struct rx_bd		*rx_desc_ring[MAX_RX_RINGS];
+	struct sw_pg		*rx_pg_ring;
+	struct rx_bd		*rx_pg_desc_ring[MAX_RX_PG_RINGS];
 
 	/* TX constants */
 	struct tx_bd	*tx_desc_ring;
@@ -6540,15 +6644,16 @@ struct bnx2 {
 	spinlock_t		indirect_lock;
 
 	u32			phy_flags;
-#define PHY_SERDES_FLAG			1
-#define PHY_CRC_FIX_FLAG		2
-#define PHY_PARALLEL_DETECT_FLAG	4
-#define PHY_2_5G_CAPABLE_FLAG		8
-#define PHY_INT_MODE_MASK_FLAG		0x300
-#define PHY_INT_MODE_AUTO_POLLING_FLAG	0x100
-#define PHY_INT_MODE_LINK_READY_FLAG	0x200
-#define PHY_DIS_EARLY_DAC_FLAG		0x400
-#define REMOTE_PHY_CAP_FLAG		0x800
+#define BNX2_PHY_FLAG_SERDES			0x00000001
+#define BNX2_PHY_FLAG_CRC_FIX			0x00000002
+#define BNX2_PHY_FLAG_PARALLEL_DETECT		0x00000004
+#define BNX2_PHY_FLAG_2_5G_CAPABLE		0x00000008
+#define BNX2_PHY_FLAG_INT_MODE_MASK		0x00000300
+#define BNX2_PHY_FLAG_INT_MODE_AUTO_POLLING	0x00000100
+#define BNX2_PHY_FLAG_INT_MODE_LINK_READY	0x00000200
+#define BNX2_PHY_FLAG_DIS_EARLY_DAC		0x00000400
+#define BNX2_PHY_FLAG_REMOTE_PHY_CAP		0x00000800
+#define BNX2_PHY_FLAG_FORCED_DOWN		0x00001000
 
 	u32			mii_bmcr;
 	u32			mii_bmsr;
@@ -6605,6 +6710,10 @@ struct bnx2 {
 	int			rx_ring_size;
 	dma_addr_t		rx_desc_mapping[MAX_RX_RINGS];
 
+	int			rx_max_pg_ring;
+	int			rx_pg_ring_size;
+	dma_addr_t		rx_pg_desc_mapping[MAX_RX_PG_RINGS];
+
 	u16			tx_quick_cons_trip;
 	u16			tx_quick_cons_trip_int;
 	u16			rx_quick_cons_trip;
@@ -6622,6 +6731,7 @@ struct bnx2 {
 
 	u32			stats_ticks;
 
+	struct status_block	*status_blk;
 	dma_addr_t		status_blk_mapping;
 
 	struct statistics_block	*stats_blk;
@@ -6680,6 +6790,9 @@ struct bnx2 {
 	u32			flash_size;
 
 	int			status_stats_size;
+
+	struct bnx2_irq		irq_tbl[BNX2_MAX_MSIX_VEC];
+	int			irq_nvecs;
 };
 
 static u32 bnx2_reg_rd_ind(struct bnx2 *bp, u32 offset);
@@ -6737,7 +6850,7 @@ struct fw_info {
 	const u32 text_addr;
 	const u32 text_len;
 	const u32 text_index;
-	u32 *text;
+	__le32 *text;
 	u8 *gz_text;
 	const u32 gz_text_len;
 

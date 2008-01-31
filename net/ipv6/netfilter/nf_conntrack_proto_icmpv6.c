@@ -24,6 +24,7 @@
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/ipv6/nf_conntrack_icmpv6.h>
+#include <net/netfilter/nf_log.h>
 
 static unsigned long nf_ct_icmpv6_timeout __read_mostly = 30*HZ;
 
@@ -72,13 +73,6 @@ static int icmpv6_print_tuple(struct seq_file *s,
 			  tuple->dst.u.icmp.type,
 			  tuple->dst.u.icmp.code,
 			  ntohs(tuple->src.u.icmp.id));
-}
-
-/* Print out the private part of the conntrack. */
-static int icmpv6_print_conntrack(struct seq_file *s,
-				  const struct nf_conn *conntrack)
-{
-	return 0;
 }
 
 /* Returns verdict for packet, or -1 for invalid. */
@@ -192,7 +186,7 @@ icmpv6_error(struct sk_buff *skb, unsigned int dataoff,
 		return -NF_ACCEPT;
 	}
 
-	if (nf_conntrack_checksum && hooknum == NF_IP6_PRE_ROUTING &&
+	if (nf_conntrack_checksum && hooknum == NF_INET_PRE_ROUTING &&
 	    nf_ip6_checksum(skb, hooknum, dataoff, IPPROTO_ICMPV6)) {
 		nf_log_packet(PF_INET6, 0, skb, NULL, NULL, NULL,
 			      "nf_ct_icmpv6: ICMPv6 checksum failed\n");
@@ -213,12 +207,9 @@ icmpv6_error(struct sk_buff *skb, unsigned int dataoff,
 static int icmpv6_tuple_to_nlattr(struct sk_buff *skb,
 				  const struct nf_conntrack_tuple *t)
 {
-	NLA_PUT(skb, CTA_PROTO_ICMPV6_ID, sizeof(u_int16_t),
-		&t->src.u.icmp.id);
-	NLA_PUT(skb, CTA_PROTO_ICMPV6_TYPE, sizeof(u_int8_t),
-		&t->dst.u.icmp.type);
-	NLA_PUT(skb, CTA_PROTO_ICMPV6_CODE, sizeof(u_int8_t),
-		&t->dst.u.icmp.code);
+	NLA_PUT_BE16(skb, CTA_PROTO_ICMPV6_ID, t->src.u.icmp.id);
+	NLA_PUT_U8(skb, CTA_PROTO_ICMPV6_TYPE, t->dst.u.icmp.type);
+	NLA_PUT_U8(skb, CTA_PROTO_ICMPV6_CODE, t->dst.u.icmp.code);
 
 	return 0;
 
@@ -240,12 +231,9 @@ static int icmpv6_nlattr_to_tuple(struct nlattr *tb[],
 	    || !tb[CTA_PROTO_ICMPV6_ID])
 		return -EINVAL;
 
-	tuple->dst.u.icmp.type =
-			*(u_int8_t *)nla_data(tb[CTA_PROTO_ICMPV6_TYPE]);
-	tuple->dst.u.icmp.code =
-			*(u_int8_t *)nla_data(tb[CTA_PROTO_ICMPV6_CODE]);
-	tuple->src.u.icmp.id =
-			*(__be16 *)nla_data(tb[CTA_PROTO_ICMPV6_ID]);
+	tuple->dst.u.icmp.type = nla_get_u8(tb[CTA_PROTO_ICMPV6_TYPE]);
+	tuple->dst.u.icmp.code = nla_get_u8(tb[CTA_PROTO_ICMPV6_CODE]);
+	tuple->src.u.icmp.id = nla_get_be16(tb[CTA_PROTO_ICMPV6_ID]);
 
 	if (tuple->dst.u.icmp.type < 128
 	    || tuple->dst.u.icmp.type - 128 >= sizeof(invmap)
@@ -280,7 +268,6 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_icmpv6 __read_mostly =
 	.pkt_to_tuple		= icmpv6_pkt_to_tuple,
 	.invert_tuple		= icmpv6_invert_tuple,
 	.print_tuple		= icmpv6_print_tuple,
-	.print_conntrack	= icmpv6_print_conntrack,
 	.packet			= icmpv6_packet,
 	.new			= icmpv6_new,
 	.error			= icmpv6_error,

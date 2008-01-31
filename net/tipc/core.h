@@ -212,9 +212,7 @@ static inline void k_init_timer(struct timer_list *timer, Handler routine,
 				unsigned long argument)
 {
 	dbg("initializing timer %p\n", timer);
-	init_timer(timer);
-	timer->function = routine;
-	timer->data = argument;
+	setup_timer(timer, routine, argument);
 }
 
 /**

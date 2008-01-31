@@ -194,6 +194,8 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 		break;
 	case E1000_DEV_ID_82571EB_SERDES:
 	case E1000_DEV_ID_82572EI_SERDES:
+	case E1000_DEV_ID_82571EB_SERDES_DUAL:
+	case E1000_DEV_ID_82571EB_SERDES_QUAD:
 		hw->media_type = e1000_media_type_internal_serdes;
 		break;
 	default:
@@ -260,6 +262,7 @@ static s32 e1000_get_invariants_82571(struct e1000_adapter *adapter)
 	case E1000_DEV_ID_82571EB_QUAD_COPPER:
 	case E1000_DEV_ID_82571EB_QUAD_FIBER:
 	case E1000_DEV_ID_82571EB_QUAD_COPPER_LP:
+	case E1000_DEV_ID_82571PT_QUAD_COPPER:
 		adapter->flags |= FLAG_IS_QUAD_PORT;
 		/* mark the first port */
 		if (global_quad_port_a == 0)
@@ -284,6 +287,9 @@ static s32 e1000_get_invariants_82571(struct e1000_adapter *adapter)
 		/* quad ports only support WoL on port A */
 		if (adapter->flags & FLAG_IS_QUAD_PORT &&
 		    (!(adapter->flags & FLAG_IS_QUAD_PORT_A)))
+			adapter->flags &= ~FLAG_HAS_WOL;
+		/* Does not support WoL on any port */
+		if (pdev->device == E1000_DEV_ID_82571EB_SERDES_QUAD)
 			adapter->flags &= ~FLAG_HAS_WOL;
 		break;
 
@@ -751,6 +757,10 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 	/* Clear any pending interrupt events. */
 	ew32(IMC, 0xffffffff);
 	icr = er32(ICR);
+
+	if (hw->mac.type == e1000_82571 &&
+		hw->dev_spec.e82571.alt_mac_addr_is_present)
+			e1000e_set_laa_state_82571(hw, true);
 
 	return 0;
 }
@@ -1339,7 +1349,6 @@ struct e1000_info e1000_82573_info = {
 				  | FLAG_HAS_STATS_ICR_ICT
 				  | FLAG_HAS_SMART_POWER_DOWN
 				  | FLAG_HAS_AMT
-				  | FLAG_HAS_ASPM
 				  | FLAG_HAS_ERT
 				  | FLAG_HAS_SWSM_ON_LOAD,
 	.pba			= 20,

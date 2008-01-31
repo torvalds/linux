@@ -1003,19 +1003,19 @@
 struct ixgbe_legacy_tx_desc {
 	u64 buffer_addr;       /* Address of the descriptor's data buffer */
 	union {
-		u32 data;
+		__le32 data;
 		struct {
-			u16 length;    /* Data buffer length */
+			__le16 length;    /* Data buffer length */
 			u8 cso; /* Checksum offset */
 			u8 cmd; /* Descriptor control */
 		} flags;
 	} lower;
 	union {
-		u32 data;
+		__le32 data;
 		struct {
 			u8 status;     /* Descriptor status */
 			u8 css; /* Checksum start */
-			u16 vlan;
+			__le16 vlan;
 		} fields;
 	} upper;
 };
@@ -1023,61 +1023,61 @@ struct ixgbe_legacy_tx_desc {
 /* Transmit Descriptor - Advanced */
 union ixgbe_adv_tx_desc {
 	struct {
-		u64 buffer_addr;       /* Address of descriptor's data buf */
-		u32 cmd_type_len;
-		u32 olinfo_status;
+		__le64 buffer_addr;       /* Address of descriptor's data buf */
+		__le32 cmd_type_len;
+		__le32 olinfo_status;
 	} read;
 	struct {
-		u64 rsvd;       /* Reserved */
-		u32 nxtseq_seed;
-		u32 status;
+		__le64 rsvd;       /* Reserved */
+		__le32 nxtseq_seed;
+		__le32 status;
 	} wb;
 };
 
 /* Receive Descriptor - Legacy */
 struct ixgbe_legacy_rx_desc {
-	u64 buffer_addr; /* Address of the descriptor's data buffer */
-	u16 length;      /* Length of data DMAed into data buffer */
+	__le64 buffer_addr; /* Address of the descriptor's data buffer */
+	__le16 length;      /* Length of data DMAed into data buffer */
 	u16 csum;        /* Packet checksum */
 	u8 status;       /* Descriptor status */
 	u8 errors;       /* Descriptor Errors */
-	u16 vlan;
+	__le16 vlan;
 };
 
 /* Receive Descriptor - Advanced */
 union ixgbe_adv_rx_desc {
 	struct {
-		u64 pkt_addr; /* Packet buffer address */
-		u64 hdr_addr; /* Header buffer address */
+		__le64 pkt_addr; /* Packet buffer address */
+		__le64 hdr_addr; /* Header buffer address */
 	} read;
 	struct {
 		struct {
 			struct {
-				u16 pkt_info; /* RSS type, Packet type */
-				u16 hdr_info; /* Split Header, header len */
+				__le16 pkt_info; /* RSS type, Packet type */
+				__le16 hdr_info; /* Split Header, header len */
 			} lo_dword;
 			union {
-				u32 rss; /* RSS Hash */
+				__le32 rss; /* RSS Hash */
 				struct {
-					u16 ip_id; /* IP id */
+					__le16 ip_id; /* IP id */
 					u16 csum; /* Packet Checksum */
 				} csum_ip;
 			} hi_dword;
 		} lower;
 		struct {
-			u32 status_error; /* ext status/error */
-			u16 length; /* Packet length */
-			u16 vlan; /* VLAN tag */
+			__le32 status_error; /* ext status/error */
+			__le16 length; /* Packet length */
+			__le16 vlan; /* VLAN tag */
 		} upper;
 	} wb;  /* writeback */
 };
 
 /* Context descriptors */
 struct ixgbe_adv_tx_context_desc {
-	u32 vlan_macip_lens;
-	u32 seqnum_seed;
-	u32 type_tucmd_mlhl;
-	u32 mss_l4len_idx;
+	__le32 vlan_macip_lens;
+	__le32 seqnum_seed;
+	__le32 type_tucmd_mlhl;
+	__le32 mss_l4len_idx;
 };
 
 /* Adv Transmit Descriptor Config Masks */
@@ -1244,13 +1244,16 @@ struct ixgbe_hw;
 struct ixgbe_mac_operations {
 	s32 (*reset)(struct ixgbe_hw *);
 	enum ixgbe_media_type (*get_media_type)(struct ixgbe_hw *);
+	s32 (*setup_link)(struct ixgbe_hw *);
+	s32 (*check_link)(struct ixgbe_hw *, u32 *, bool *);
+	s32 (*setup_link_speed)(struct ixgbe_hw *, u32, bool, bool);
+	s32 (*get_link_settings)(struct ixgbe_hw *, u32 *, bool *);
 };
 
 struct ixgbe_phy_operations {
-	s32 (*setup)(struct ixgbe_hw *);
-	s32 (*check)(struct ixgbe_hw *, u32 *, bool *);
-	s32 (*setup_speed)(struct ixgbe_hw *, u32, bool, bool);
-	s32 (*get_settings)(struct ixgbe_hw *, u32 *, bool *);
+	s32 (*setup_link)(struct ixgbe_hw *);
+	s32 (*check_link)(struct ixgbe_hw *, u32 *, bool *);
+	s32 (*setup_link_speed)(struct ixgbe_hw *, u32, bool, bool);
 };
 
 struct ixgbe_mac_info {
@@ -1266,7 +1269,6 @@ struct ixgbe_mac_info {
 	u32				link_mode_select;
 	bool				link_settings_loaded;
 };
-
 
 struct ixgbe_eeprom_info {
 	enum ixgbe_eeprom_type		type;
@@ -1290,7 +1292,6 @@ struct ixgbe_info {
 	enum ixgbe_mac_type		mac;
 	s32 				(*get_invariants)(struct ixgbe_hw *);
 	struct ixgbe_mac_operations	*mac_ops;
-	struct ixgbe_phy_operations	*phy_ops;
 };
 
 struct ixgbe_hw {

@@ -60,8 +60,8 @@ typedef void (o2net_post_msg_handler_func)(int status, void *data,
 /* same as hb delay, we're waiting for another node to recognize our hb */
 #define O2NET_RECONNECT_DELAY_MS_DEFAULT	2000
 
-#define O2NET_KEEPALIVE_DELAY_MS_DEFAULT	5000
-#define O2NET_IDLE_TIMEOUT_MS_DEFAULT		10000
+#define O2NET_KEEPALIVE_DELAY_MS_DEFAULT	2000
+#define O2NET_IDLE_TIMEOUT_MS_DEFAULT		30000
 
 
 /* TODO: figure this out.... */

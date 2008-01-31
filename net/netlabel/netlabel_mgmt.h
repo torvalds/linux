@@ -32,6 +32,7 @@
 #define _NETLABEL_MGMT_H
 
 #include <net/netlabel.h>
+#include <asm/atomic.h>
 
 /*
  * The following NetLabel payloads are supported by the management interface.
@@ -168,9 +169,7 @@ enum {
 /* NetLabel protocol functions */
 int netlbl_mgmt_genl_init(void);
 
-/* NetLabel misc management functions */
-void netlbl_mgmt_protocount_inc(void);
-void netlbl_mgmt_protocount_dec(void);
-u32 netlbl_mgmt_protocount_value(void);
+/* NetLabel configured protocol reference counter */
+extern atomic_t netlabel_mgmt_protocount;
 
 #endif

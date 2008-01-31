@@ -56,8 +56,6 @@ struct rpc_task {
 	__u8			tk_garb_retry;
 	__u8			tk_cred_retry;
 
-	unsigned long		tk_cookie;	/* Cookie for batching tasks */
-
 	/*
 	 * timeout_fn   to be executed by timer bottom half
 	 * callback	to be executed after waking up
@@ -78,7 +76,6 @@ struct rpc_task {
 	struct timer_list	tk_timer;	/* kernel timer */
 	unsigned long		tk_timeout;	/* timeout for rpc_sleep() */
 	unsigned short		tk_flags;	/* misc flags */
-	unsigned char		tk_priority : 2;/* Task priority */
 	unsigned long		tk_runstate;	/* Task run status */
 	struct workqueue_struct	*tk_workqueue;	/* Normally rpciod, but could
 						 * be any workqueue
@@ -93,6 +90,9 @@ struct rpc_task {
 	size_t			tk_bytes_sent;	/* total bytes sent */
 	unsigned long		tk_start;	/* RPC task init timestamp */
 	long			tk_rtt;		/* round-trip time (jiffies) */
+
+	pid_t			tk_owner;	/* Process id for batching tasks */
+	unsigned char		tk_priority : 2;/* Task priority */
 
 #ifdef RPC_DEBUG
 	unsigned short		tk_pid;		/* debugging aid */
@@ -117,6 +117,15 @@ struct rpc_call_ops {
 	void (*rpc_release)(void *);
 };
 
+struct rpc_task_setup {
+	struct rpc_task *task;
+	struct rpc_clnt *rpc_client;
+	const struct rpc_message *rpc_message;
+	const struct rpc_call_ops *callback_ops;
+	void *callback_data;
+	unsigned short flags;
+	signed char priority;
+};
 
 /*
  * RPC task flags
@@ -180,10 +189,10 @@ struct rpc_call_ops {
  * Note: if you change these, you must also change
  * the task initialization definitions below.
  */
-#define RPC_PRIORITY_LOW	0
-#define RPC_PRIORITY_NORMAL	1
-#define RPC_PRIORITY_HIGH	2
-#define RPC_NR_PRIORITY		(RPC_PRIORITY_HIGH+1)
+#define RPC_PRIORITY_LOW	(-1)
+#define RPC_PRIORITY_NORMAL	(0)
+#define RPC_PRIORITY_HIGH	(1)
+#define RPC_NR_PRIORITY		(1 + RPC_PRIORITY_HIGH - RPC_PRIORITY_LOW)
 
 /*
  * RPC synchronization objects
@@ -191,7 +200,7 @@ struct rpc_call_ops {
 struct rpc_wait_queue {
 	spinlock_t		lock;
 	struct list_head	tasks[RPC_NR_PRIORITY];	/* task queue for each priority level */
-	unsigned long		cookie;			/* cookie of last task serviced */
+	pid_t			owner;			/* process id of last task serviced */
 	unsigned char		maxpriority;		/* maximum priority (0 if queue is not a priority queue) */
 	unsigned char		priority;		/* current priority */
 	unsigned char		count;			/* # task groups remaining serviced so far */
@@ -208,41 +217,13 @@ struct rpc_wait_queue {
  * performance of NFS operations such as read/write.
  */
 #define RPC_BATCH_COUNT			16
-
-#ifndef RPC_DEBUG
-# define RPC_WAITQ_INIT(var,qname) { \
-		.lock = __SPIN_LOCK_UNLOCKED(var.lock), \
-		.tasks = { \
-			[0] = LIST_HEAD_INIT(var.tasks[0]), \
-			[1] = LIST_HEAD_INIT(var.tasks[1]), \
-			[2] = LIST_HEAD_INIT(var.tasks[2]), \
-		}, \
-	}
-#else
-# define RPC_WAITQ_INIT(var,qname) { \
-		.lock = __SPIN_LOCK_UNLOCKED(var.lock), \
-		.tasks = { \
-			[0] = LIST_HEAD_INIT(var.tasks[0]), \
-			[1] = LIST_HEAD_INIT(var.tasks[1]), \
-			[2] = LIST_HEAD_INIT(var.tasks[2]), \
-		}, \
-		.name = qname, \
-	}
-#endif
-# define RPC_WAITQ(var,qname)      struct rpc_wait_queue var = RPC_WAITQ_INIT(var,qname)
-
 #define RPC_IS_PRIORITY(q)		((q)->maxpriority > 0)
 
 /*
  * Function prototypes
  */
-struct rpc_task *rpc_new_task(struct rpc_clnt *, int flags,
-				const struct rpc_call_ops *ops, void *data);
-struct rpc_task *rpc_run_task(struct rpc_clnt *clnt, int flags,
-				const struct rpc_call_ops *ops, void *data);
-void		rpc_init_task(struct rpc_task *task, struct rpc_clnt *clnt,
-				int flags, const struct rpc_call_ops *ops,
-				void *data);
+struct rpc_task *rpc_new_task(const struct rpc_task_setup *);
+struct rpc_task *rpc_run_task(const struct rpc_task_setup *);
 void		rpc_put_task(struct rpc_task *);
 void		rpc_exit_task(struct rpc_task *);
 void		rpc_release_calldata(const struct rpc_call_ops *, void *);

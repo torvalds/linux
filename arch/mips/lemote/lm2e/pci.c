@@ -81,9 +81,6 @@ static void __init ict_pcimap(void)
 
 static int __init pcibios_init(void)
 {
-	extern int pci_probe_only;
-	pci_probe_only = 0;
-
 	ict_pcimap();
 	register_pci_controller(&loongson2e_pci_controller);
 

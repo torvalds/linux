@@ -676,8 +676,8 @@ static int __init pg_init(void)
 	for (unit = 0; unit < PG_UNITS; unit++) {
 		struct pg *dev = &devices[unit];
 		if (dev->present)
-			class_device_create(pg_class, NULL, MKDEV(major, unit),
-					NULL, "pg%u", unit);
+			device_create(pg_class, NULL, MKDEV(major, unit),
+				      "pg%u", unit);
 	}
 	err = 0;
 	goto out;
@@ -695,7 +695,7 @@ static void __exit pg_exit(void)
 	for (unit = 0; unit < PG_UNITS; unit++) {
 		struct pg *dev = &devices[unit];
 		if (dev->present)
-			class_device_destroy(pg_class, MKDEV(major, unit));
+			device_destroy(pg_class, MKDEV(major, unit));
 	}
 	class_destroy(pg_class);
 	unregister_chrdev(major, name);

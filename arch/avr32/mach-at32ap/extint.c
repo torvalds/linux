@@ -26,16 +26,10 @@
 #define EIC_MODE				0x0014
 #define EIC_EDGE				0x0018
 #define EIC_LEVEL				0x001c
-#define EIC_TEST				0x0020
 #define EIC_NMIC				0x0024
 
-/* Bitfields in TEST */
-#define EIC_TESTEN_OFFSET			31
-#define EIC_TESTEN_SIZE				1
-
 /* Bitfields in NMIC */
-#define EIC_EN_OFFSET				0
-#define EIC_EN_SIZE				1
+#define EIC_NMIC_ENABLE				(1 << 0)
 
 /* Bit manipulation macros */
 #define EIC_BIT(name)					\
@@ -62,6 +56,9 @@ struct eic {
 	struct irq_chip *chip;
 	unsigned int first_irq;
 };
+
+static struct eic *nmi_eic;
+static bool nmi_enabled;
 
 static void eic_ack_irq(unsigned int irq)
 {
@@ -133,8 +130,11 @@ static int eic_set_irq_type(unsigned int irq, unsigned int flow_type)
 		eic_writel(eic, EDGE, edge);
 		eic_writel(eic, LEVEL, level);
 
-		if (flow_type & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_LEVEL_HIGH))
+		if (flow_type & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_LEVEL_HIGH)) {
 			flow_type |= IRQ_LEVEL;
+			__set_irq_handler_unlocked(irq, handle_level_irq);
+		} else
+			__set_irq_handler_unlocked(irq, handle_edge_irq);
 		desc->status &= ~(IRQ_TYPE_SENSE_MASK | IRQ_LEVEL);
 		desc->status |= flow_type;
 	}
@@ -154,9 +154,8 @@ static struct irq_chip eic_chip = {
 static void demux_eic_irq(unsigned int irq, struct irq_desc *desc)
 {
 	struct eic *eic = desc->handler_data;
-	struct irq_desc *ext_desc;
 	unsigned long status, pending;
-	unsigned int i, ext_irq;
+	unsigned int i;
 
 	status = eic_readl(eic, ISR);
 	pending = status & eic_readl(eic, IMR);
@@ -165,13 +164,26 @@ static void demux_eic_irq(unsigned int irq, struct irq_desc *desc)
 		i = fls(pending) - 1;
 		pending &= ~(1 << i);
 
-		ext_irq = i + eic->first_irq;
-		ext_desc = irq_desc + ext_irq;
-		if (ext_desc->status & IRQ_LEVEL)
-			handle_level_irq(ext_irq, ext_desc);
-		else
-			handle_edge_irq(ext_irq, ext_desc);
+		generic_handle_irq(i + eic->first_irq);
 	}
+}
+
+int nmi_enable(void)
+{
+	nmi_enabled = true;
+
+	if (nmi_eic)
+		eic_writel(nmi_eic, NMIC, EIC_NMIC_ENABLE);
+
+	return 0;
+}
+
+void nmi_disable(void)
+{
+	if (nmi_eic)
+		eic_writel(nmi_eic, NMIC, 0);
+
+	nmi_enabled = false;
 }
 
 static int __init eic_probe(struct platform_device *pdev)
@@ -214,14 +226,13 @@ static int __init eic_probe(struct platform_device *pdev)
 	pattern = eic_readl(eic, MODE);
 	nr_irqs = fls(pattern);
 
-	/* Trigger on falling edge unless overridden by driver */
-	eic_writel(eic, MODE, 0UL);
+	/* Trigger on low level unless overridden by driver */
 	eic_writel(eic, EDGE, 0UL);
+	eic_writel(eic, LEVEL, 0UL);
 
 	eic->chip = &eic_chip;
 
 	for (i = 0; i < nr_irqs; i++) {
-		/* NOTE the handler we set here is ignored by the demux */
 		set_irq_chip_and_handler(eic->first_irq + i, &eic_chip,
 					 handle_level_irq);
 		set_irq_chip_data(eic->first_irq + i, eic);
@@ -229,6 +240,16 @@ static int __init eic_probe(struct platform_device *pdev)
 
 	set_irq_chained_handler(int_irq, demux_eic_irq);
 	set_irq_data(int_irq, eic);
+
+	if (pdev->id == 0) {
+		nmi_eic = eic;
+		if (nmi_enabled)
+			/*
+			 * Someone tried to enable NMI before we were
+			 * ready. Do it now.
+			 */
+			nmi_enable();
+	}
 
 	dev_info(&pdev->dev,
 		 "External Interrupt Controller at 0x%p, IRQ %u\n",

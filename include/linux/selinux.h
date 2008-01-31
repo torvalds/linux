@@ -120,16 +120,35 @@ void selinux_get_task_sid(struct task_struct *tsk, u32 *sid);
 int selinux_string_to_sid(char *str, u32 *sid);
 
 /**
- *     selinux_relabel_packet_permission - check permission to relabel a packet
- *     @sid: ID value to be applied to network packet (via SECMARK, most likely)
+ *     selinux_secmark_relabel_packet_permission - secmark permission check
+ *     @sid: SECMARK ID value to be applied to network packet
  *
- *     Returns 0 if the current task is allowed to label packets with the
- *     supplied security ID.  Note that it is implicit that the packet is always
- *     being relabeled from the default unlabled value, and that the access
- *     control decision is made in the AVC.
+ *     Returns 0 if the current task is allowed to set the SECMARK label of
+ *     packets with the supplied security ID.  Note that it is implicit that
+ *     the packet is always being relabeled from the default unlabeled value,
+ *     and that the access control decision is made in the AVC.
  */
-int selinux_relabel_packet_permission(u32 sid);
+int selinux_secmark_relabel_packet_permission(u32 sid);
 
+/**
+ *     selinux_secmark_refcount_inc - increments the secmark use counter
+ *
+ *     SELinux keeps track of the current SECMARK targets in use so it knows
+ *     when to apply SECMARK label access checks to network packets.  This
+ *     function incements this reference count to indicate that a new SECMARK
+ *     target has been configured.
+ */
+void selinux_secmark_refcount_inc(void);
+
+/**
+ *     selinux_secmark_refcount_dec - decrements the secmark use counter
+ *
+ *     SELinux keeps track of the current SECMARK targets in use so it knows
+ *     when to apply SECMARK label access checks to network packets.  This
+ *     function decements this reference count to indicate that one of the
+ *     existing SECMARK targets has been removed/flushed.
+ */
+void selinux_secmark_refcount_dec(void);
 #else
 
 static inline int selinux_audit_rule_init(u32 field, u32 op,
@@ -184,9 +203,19 @@ static inline int selinux_string_to_sid(const char *str, u32 *sid)
        return 0;
 }
 
-static inline int selinux_relabel_packet_permission(u32 sid)
+static inline int selinux_secmark_relabel_packet_permission(u32 sid)
 {
 	return 0;
+}
+
+static inline void selinux_secmark_refcount_inc(void)
+{
+	return;
+}
+
+static inline void selinux_secmark_refcount_dec(void)
+{
+	return;
 }
 
 #endif	/* CONFIG_SECURITY_SELINUX */

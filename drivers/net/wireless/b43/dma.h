@@ -170,8 +170,6 @@ struct b43_dmadesc_generic {
 #define B43_DMA0_RX_BUFFERSIZE	(2304 + 100)
 #define B43_DMA3_RX_BUFFERSIZE	16
 
-#ifdef CONFIG_B43_DMA
-
 struct sk_buff;
 struct b43_private;
 struct b43_txstatus;
@@ -286,52 +284,4 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 
 void b43_dma_rx(struct b43_dmaring *ring);
 
-#else /* CONFIG_B43_DMA */
-
-static inline int b43_dma_init(struct b43_wldev *dev)
-{
-	return 0;
-}
-static inline void b43_dma_free(struct b43_wldev *dev)
-{
-}
-static inline
-    int b43_dmacontroller_rx_reset(struct b43_wldev *dev,
-				   u16 dmacontroller_mmio_base, int dma64)
-{
-	return 0;
-}
-static inline
-    int b43_dmacontroller_tx_reset(struct b43_wldev *dev,
-				   u16 dmacontroller_mmio_base, int dma64)
-{
-	return 0;
-}
-static inline
-    void b43_dma_get_tx_stats(struct b43_wldev *dev,
-			      struct ieee80211_tx_queue_stats *stats)
-{
-}
-static inline
-    int b43_dma_tx(struct b43_wldev *dev,
-		   struct sk_buff *skb, struct ieee80211_tx_control *ctl)
-{
-	return 0;
-}
-static inline
-    void b43_dma_handle_txstatus(struct b43_wldev *dev,
-				 const struct b43_txstatus *status)
-{
-}
-static inline void b43_dma_rx(struct b43_dmaring *ring)
-{
-}
-static inline void b43_dma_tx_suspend(struct b43_wldev *dev)
-{
-}
-static inline void b43_dma_tx_resume(struct b43_wldev *dev)
-{
-}
-
-#endif /* CONFIG_B43_DMA */
 #endif /* B43_DMA_H_ */

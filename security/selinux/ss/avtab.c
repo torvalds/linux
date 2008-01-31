@@ -280,7 +280,7 @@ int avtab_alloc(struct avtab *h, u32 nrules)
 	h->nel = 0;
 	h->nslot = nslot;
 	h->mask = mask;
-	printk(KERN_DEBUG "SELinux:%d avtab hash slots allocated."
+	printk(KERN_DEBUG "SELinux:%d avtab hash slots allocated. "
 	       "Num of rules:%d\n", h->nslot, nrules);
 	return 0;
 }

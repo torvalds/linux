@@ -17,6 +17,7 @@
 
 #define IPV6_MAX_ADDRESSES		16
 
+#include <linux/in.h>
 #include <linux/in6.h>
 
 struct prefix_info {
@@ -58,15 +59,20 @@ extern int			addrconf_add_ifaddr(void __user *arg);
 extern int			addrconf_del_ifaddr(void __user *arg);
 extern int			addrconf_set_dstaddr(void __user *arg);
 
-extern int			ipv6_chk_addr(struct in6_addr *addr,
+extern int			ipv6_chk_addr(struct net *net,
+					      struct in6_addr *addr,
 					      struct net_device *dev,
 					      int strict);
+
 #if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
-extern int			ipv6_chk_home_addr(struct in6_addr *addr);
+extern int			ipv6_chk_home_addr(struct net *net,
+						   struct in6_addr *addr);
 #endif
-extern struct inet6_ifaddr *	ipv6_get_ifaddr(struct in6_addr *addr,
-						struct net_device *dev,
-						int strict);
+extern struct inet6_ifaddr      *ipv6_get_ifaddr(struct net *net,
+						 struct in6_addr *addr,
+						 struct net_device *dev,
+						 int strict);
+
 extern int			ipv6_get_saddr(struct dst_entry *dst, 
 					       struct in6_addr *daddr,
 					       struct in6_addr *saddr);
@@ -82,6 +88,14 @@ extern void			addrconf_join_solict(struct net_device *dev,
 					struct in6_addr *addr);
 extern void			addrconf_leave_solict(struct inet6_dev *idev,
 					struct in6_addr *addr);
+
+/*
+ *	IPv6 Address Label subsystem (addrlabel.c)
+ */
+extern int			ipv6_addr_label_init(void);
+extern void			ipv6_addr_label_rtnl_register(void);
+extern u32			ipv6_addr_label(const struct in6_addr *addr,
+						int type, int ifindex);
 
 /*
  *	multicast prototypes (mcast.c)
@@ -239,6 +253,26 @@ static inline int ipv6_addr_is_ll_all_routers(const struct in6_addr *addr)
 		addr->s6_addr32[1] == 0 &&
 		addr->s6_addr32[2] == 0 &&
 		addr->s6_addr32[3] == htonl(0x00000002));
+}
+
+static inline int ipv6_isatap_eui64(u8 *eui, __be32 addr)
+{
+	eui[0] = (ipv4_is_zeronet(addr) || ipv4_is_private_10(addr) ||
+		  ipv4_is_loopback(addr) || ipv4_is_linklocal_169(addr) ||
+		  ipv4_is_private_172(addr) || ipv4_is_test_192(addr) ||
+		  ipv4_is_anycast_6to4(addr) || ipv4_is_private_192(addr) ||
+		  ipv4_is_test_198(addr) || ipv4_is_multicast(addr) ||
+		  ipv4_is_lbcast(addr)) ? 0x00 : 0x02;
+	eui[1] = 0;
+	eui[2] = 0x5E;
+	eui[3] = 0xFE;
+	memcpy (eui+4, &addr, 4);
+	return 0;
+}
+
+static inline int ipv6_addr_is_isatap(const struct in6_addr *addr)
+{
+	return ((addr->s6_addr32[2] | htonl(0x02000000)) == htonl(0x02005EFE));
 }
 
 #ifdef CONFIG_PROC_FS

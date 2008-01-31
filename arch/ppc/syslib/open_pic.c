@@ -1043,7 +1043,7 @@ int openpic_resume(struct sys_device *sysdev)
 #endif /* CONFIG_PM */
 
 static struct sysdev_class openpic_sysclass = {
-	set_kset_name("openpic"),
+	.name = "openpic",
 };
 
 static struct sys_device device_openpic = {

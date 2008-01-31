@@ -1127,6 +1127,7 @@ struct handle {
 };
 
 static void *c_start(struct seq_file *m, loff_t *pos)
+	__acquires(cd->hash_lock)
 {
 	loff_t n = *pos;
 	unsigned hash, entry;
@@ -1183,6 +1184,7 @@ static void *c_next(struct seq_file *m, void *p, loff_t *pos)
 }
 
 static void c_stop(struct seq_file *m, void *p)
+	__releases(cd->hash_lock)
 {
 	struct cache_detail *cd = ((struct handle*)m->private)->cd;
 	read_unlock(&cd->hash_lock);

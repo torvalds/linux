@@ -241,11 +241,7 @@ static int trm290_ide_dma_test_irq (ide_drive_t *drive)
 	return (status == 0x00ff);
 }
 
-static void trm290_dma_host_on(ide_drive_t *drive)
-{
-}
-
-static void trm290_dma_host_off(ide_drive_t *drive)
+static void trm290_dma_host_set(ide_drive_t *drive, int on)
 {
 }
 
@@ -289,8 +285,7 @@ static void __devinit init_hwif_trm290(ide_hwif_t *hwif)
 
 	ide_setup_dma(hwif, (hwif->config_data + 4) ^ (hwif->channel ? 0x0080 : 0x0000), 3);
 
-	hwif->dma_host_off	= &trm290_dma_host_off;
-	hwif->dma_host_on	= &trm290_dma_host_on;
+	hwif->dma_host_set	= &trm290_dma_host_set;
 	hwif->dma_setup 	= &trm290_dma_setup;
 	hwif->dma_exec_cmd	= &trm290_dma_exec_cmd;
 	hwif->dma_start 	= &trm290_dma_start;

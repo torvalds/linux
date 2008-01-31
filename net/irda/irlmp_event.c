@@ -174,9 +174,7 @@ void irlmp_discovery_timer_expired(void *data)
 	/* We always cleanup the log (active & passive discovery) */
 	irlmp_do_expiry();
 
-	/* Active discovery is conditional */
-	if (sysctl_discovery)
-		irlmp_do_discovery(sysctl_discovery_slots);
+	irlmp_do_discovery(sysctl_discovery_slots);
 
 	/* Restart timer */
 	irlmp_start_discovery_timer(irlmp, sysctl_discovery_timeout * HZ);

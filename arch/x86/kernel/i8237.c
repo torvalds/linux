@@ -51,7 +51,7 @@ static int i8237A_suspend(struct sys_device *dev, pm_message_t state)
 }
 
 static struct sysdev_class i8237_sysdev_class = {
-	set_kset_name("i8237"),
+	.name = "i8237",
 	.suspend = i8237A_suspend,
 	.resume = i8237A_resume,
 };

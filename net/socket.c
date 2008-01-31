@@ -112,6 +112,9 @@ static long compat_sock_ioctl(struct file *file,
 static int sock_fasync(int fd, struct file *filp, int on);
 static ssize_t sock_sendpage(struct file *file, struct page *page,
 			     int offset, size_t size, loff_t *ppos, int more);
+static ssize_t sock_splice_read(struct file *file, loff_t *ppos,
+			        struct pipe_inode_info *pipe, size_t len,
+				unsigned int flags);
 
 /*
  *	Socket files have a set of 'special' operations as well as the generic file ones. These don't appear
@@ -134,6 +137,7 @@ static const struct file_operations socket_file_ops = {
 	.fasync =	sock_fasync,
 	.sendpage =	sock_sendpage,
 	.splice_write = generic_splice_sendpage,
+	.splice_read =	sock_splice_read,
 };
 
 /*
@@ -691,6 +695,15 @@ static ssize_t sock_sendpage(struct file *file, struct page *page,
 	return sock->ops->sendpage(sock, page, offset, size, flags);
 }
 
+static ssize_t sock_splice_read(struct file *file, loff_t *ppos,
+			        struct pipe_inode_info *pipe, size_t len,
+				unsigned int flags)
+{
+	struct socket *sock = file->private_data;
+
+	return sock->ops->splice_read(sock, ppos, pipe, len, flags);
+}
+
 static struct sock_iocb *alloc_sock_iocb(struct kiocb *iocb,
 					 struct sock_iocb *siocb)
 {
@@ -1057,20 +1070,19 @@ int sock_wake_async(struct socket *sock, int how, int band)
 	if (!sock || !sock->fasync_list)
 		return -1;
 	switch (how) {
-	case 1:
-
+	case SOCK_WAKE_WAITD:
 		if (test_bit(SOCK_ASYNC_WAITDATA, &sock->flags))
 			break;
 		goto call_kill;
-	case 2:
+	case SOCK_WAKE_SPACE:
 		if (!test_and_clear_bit(SOCK_ASYNC_NOSPACE, &sock->flags))
 			break;
 		/* fall through */
-	case 0:
+	case SOCK_WAKE_IO:
 call_kill:
 		__kill_fasync(sock->fasync_list, SIGIO, band);
 		break;
-	case 3:
+	case SOCK_WAKE_URG:
 		__kill_fasync(sock->fasync_list, SIGURG, band);
 	}
 	return 0;
@@ -1353,17 +1365,17 @@ asmlinkage long sys_bind(int fd, struct sockaddr __user *umyaddr, int addrlen)
  *	ready for listening.
  */
 
-int sysctl_somaxconn __read_mostly = SOMAXCONN;
-
 asmlinkage long sys_listen(int fd, int backlog)
 {
 	struct socket *sock;
 	int err, fput_needed;
+	int somaxconn;
 
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (sock) {
-		if ((unsigned)backlog > sysctl_somaxconn)
-			backlog = sysctl_somaxconn;
+		somaxconn = sock->sk->sk_net->sysctl_somaxconn;
+		if ((unsigned)backlog > somaxconn)
+			backlog = somaxconn;
 
 		err = security_socket_listen(sock, backlog);
 		if (!err)
@@ -1581,16 +1593,11 @@ asmlinkage long sys_sendto(int fd, void __user *buff, size_t len,
 	struct msghdr msg;
 	struct iovec iov;
 	int fput_needed;
-	struct file *sock_file;
 
-	sock_file = fget_light(fd, &fput_needed);
-	err = -EBADF;
-	if (!sock_file)
+	sock = sockfd_lookup_light(fd, &err, &fput_needed);
+	if (!sock)
 		goto out;
 
-	sock = sock_from_file(sock_file, &err);
-	if (!sock)
-		goto out_put;
 	iov.iov_base = buff;
 	iov.iov_len = len;
 	msg.msg_name = NULL;
@@ -1612,7 +1619,7 @@ asmlinkage long sys_sendto(int fd, void __user *buff, size_t len,
 	err = sock_sendmsg(sock, &msg, len);
 
 out_put:
-	fput_light(sock_file, fput_needed);
+	fput_light(sock->file, fput_needed);
 out:
 	return err;
 }
@@ -1641,17 +1648,11 @@ asmlinkage long sys_recvfrom(int fd, void __user *ubuf, size_t size,
 	struct msghdr msg;
 	char address[MAX_SOCK_ADDR];
 	int err, err2;
-	struct file *sock_file;
 	int fput_needed;
 
-	sock_file = fget_light(fd, &fput_needed);
-	err = -EBADF;
-	if (!sock_file)
-		goto out;
-
-	sock = sock_from_file(sock_file, &err);
+	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (!sock)
-		goto out_put;
+		goto out;
 
 	msg.msg_control = NULL;
 	msg.msg_controllen = 0;
@@ -1670,8 +1671,8 @@ asmlinkage long sys_recvfrom(int fd, void __user *ubuf, size_t size,
 		if (err2 < 0)
 			err = err2;
 	}
-out_put:
-	fput_light(sock_file, fput_needed);
+
+	fput_light(sock->file, fput_needed);
 out:
 	return err;
 }

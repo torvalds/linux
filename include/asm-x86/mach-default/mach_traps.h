@@ -1,6 +1,4 @@
 /*
- *  include/asm-i386/mach-default/mach_traps.h
- *
  *  Machine specific NMI handling for generic.
  *  Split out from traps.c by Osamu Tomita <tomita@cinet.co.jp>
  */

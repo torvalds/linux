@@ -34,6 +34,12 @@
 #include <linux/xfrm.h>
 #include <net/flow.h>
 
+/* only a char in selinux superblock security struct flags */
+#define FSCONTEXT_MNT		0x01
+#define CONTEXT_MNT		0x02
+#define ROOTCONTEXT_MNT		0x04
+#define DEFCONTEXT_MNT		0x08
+
 /*
  * Bounding set
  */
@@ -243,9 +249,6 @@ struct request_sock;
  *	@mnt contains the mounted file system.
  *	@flags contains the new filesystem flags.
  *	@data contains the filesystem-specific data.
- * @sb_post_mountroot:
- *	Update the security module's state when the root filesystem is mounted.
- *	This hook is only called if the mount was successful.
  * @sb_post_addmount:
  *	Update the security module's state when a filesystem is mounted.
  *	This hook is called any time a mount is successfully grafetd to
@@ -261,6 +264,22 @@ struct request_sock;
  *	Update module state after a successful pivot.
  *	@old_nd contains the nameidata structure for the old root.
  *      @new_nd contains the nameidata structure for the new root.
+ * @sb_get_mnt_opts:
+ *	Get the security relevant mount options used for a superblock
+ *	@sb the superblock to get security mount options from
+ *	@mount_options array for pointers to mount options
+ *	@mount_flags array of ints specifying what each mount options is
+ *	@num_opts number of options in the arrays
+ * @sb_set_mnt_opts:
+ *	Set the security relevant mount options used for a superblock
+ *	@sb the superblock to set security mount options for
+ *	@mount_options array for pointers to mount options
+ *	@mount_flags array of ints specifying what each mount options is
+ *	@num_opts number of options in the arrays
+ * @sb_clone_mnt_opts:
+ *	Copy all security options from a given superblock to another
+ *	@oldsb old superblock which contain information to clone
+ *	@newsb new superblock which needs filled in
  *
  * Security hooks for inode operations.
  *
@@ -1183,6 +1202,10 @@ struct request_sock;
  *	Convert secid to security context.
  *	@secid contains the security ID.
  *	@secdata contains the pointer that stores the converted security context.
+ * @secctx_to_secid:
+ *      Convert security context to secid.
+ *      @secid contains the pointer to the generated security ID.
+ *      @secdata contains the security context.
  *
  * @release_secctx:
  *	Release the security context.
@@ -1235,13 +1258,19 @@ struct security_operations {
 	void (*sb_umount_busy) (struct vfsmount * mnt);
 	void (*sb_post_remount) (struct vfsmount * mnt,
 				 unsigned long flags, void *data);
-	void (*sb_post_mountroot) (void);
 	void (*sb_post_addmount) (struct vfsmount * mnt,
 				  struct nameidata * mountpoint_nd);
 	int (*sb_pivotroot) (struct nameidata * old_nd,
 			     struct nameidata * new_nd);
 	void (*sb_post_pivotroot) (struct nameidata * old_nd,
 				   struct nameidata * new_nd);
+	int (*sb_get_mnt_opts) (const struct super_block *sb,
+				char ***mount_options, int **flags,
+				int *num_opts);
+	int (*sb_set_mnt_opts) (struct super_block *sb, char **mount_options,
+				int *flags, int num_opts);
+	void (*sb_clone_mnt_opts) (const struct super_block *oldsb,
+				   struct super_block *newsb);
 
 	int (*inode_alloc_security) (struct inode *inode);	
 	void (*inode_free_security) (struct inode *inode);
@@ -1371,6 +1400,7 @@ struct security_operations {
  	int (*getprocattr)(struct task_struct *p, char *name, char **value);
  	int (*setprocattr)(struct task_struct *p, char *name, void *value, size_t size);
 	int (*secid_to_secctx)(u32 secid, char **secdata, u32 *seclen);
+	int (*secctx_to_secid)(char *secdata, u32 seclen, u32 *secid);
 	void (*release_secctx)(char *secdata, u32 seclen);
 
 #ifdef CONFIG_SECURITY_NETWORK
@@ -1495,10 +1525,16 @@ int security_sb_umount(struct vfsmount *mnt, int flags);
 void security_sb_umount_close(struct vfsmount *mnt);
 void security_sb_umount_busy(struct vfsmount *mnt);
 void security_sb_post_remount(struct vfsmount *mnt, unsigned long flags, void *data);
-void security_sb_post_mountroot(void);
 void security_sb_post_addmount(struct vfsmount *mnt, struct nameidata *mountpoint_nd);
 int security_sb_pivotroot(struct nameidata *old_nd, struct nameidata *new_nd);
 void security_sb_post_pivotroot(struct nameidata *old_nd, struct nameidata *new_nd);
+int security_sb_get_mnt_opts(const struct super_block *sb, char ***mount_options,
+			     int **flags, int *num_opts);
+int security_sb_set_mnt_opts(struct super_block *sb, char **mount_options,
+			     int *flags, int num_opts);
+void security_sb_clone_mnt_opts(const struct super_block *oldsb,
+				struct super_block *newsb);
+
 int security_inode_alloc(struct inode *inode);
 void security_inode_free(struct inode *inode);
 int security_inode_init_security(struct inode *inode, struct inode *dir,
@@ -1603,6 +1639,7 @@ int security_setprocattr(struct task_struct *p, char *name, void *value, size_t 
 int security_netlink_send(struct sock *sk, struct sk_buff *skb);
 int security_netlink_recv(struct sk_buff *skb, int cap);
 int security_secid_to_secctx(u32 secid, char **secdata, u32 *seclen);
+int security_secctx_to_secid(char *secdata, u32 seclen, u32 *secid);
 void security_release_secctx(char *secdata, u32 seclen);
 
 #else /* CONFIG_SECURITY */
@@ -1775,9 +1812,6 @@ static inline void security_sb_umount_busy (struct vfsmount *mnt)
 
 static inline void security_sb_post_remount (struct vfsmount *mnt,
 					     unsigned long flags, void *data)
-{ }
-
-static inline void security_sb_post_mountroot (void)
 { }
 
 static inline void security_sb_post_addmount (struct vfsmount *mnt,
@@ -2266,7 +2300,7 @@ static inline struct dentry *securityfs_create_file(const char *name,
 						mode_t mode,
 						struct dentry *parent,
 						void *data,
-						struct file_operations *fops)
+						const struct file_operations *fops)
 {
 	return ERR_PTR(-ENODEV);
 }
@@ -2276,6 +2310,13 @@ static inline void securityfs_remove(struct dentry *dentry)
 }
 
 static inline int security_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int security_secctx_to_secid(char *secdata,
+					   u32 seclen,
+					   u32 *secid)
 {
 	return -EOPNOTSUPP;
 }

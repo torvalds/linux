@@ -11,7 +11,7 @@ DOCBOOKS := wanbook.xml z8530book.xml mcabook.xml videobook.xml \
 	    procfs-guide.xml writing_usb_driver.xml \
 	    kernel-api.xml filesystems.xml lsm.xml usb.xml \
 	    gadget.xml libata.xml mtdnand.xml librs.xml rapidio.xml \
-	    genericirq.xml s390-drivers.xml uio-howto.xml
+	    genericirq.xml s390-drivers.xml uio-howto.xml scsi.xml
 
 ###
 # The build process is as follows (targets):

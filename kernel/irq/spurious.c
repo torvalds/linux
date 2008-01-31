@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/kallsyms.h>
 #include <linux/interrupt.h>
+#include <linux/moduleparam.h>
 
 static int irqfixup __read_mostly;
 
@@ -225,6 +226,8 @@ int noirqdebug_setup(char *str)
 }
 
 __setup("noirqdebug", noirqdebug_setup);
+module_param(noirqdebug, bool, 0644);
+MODULE_PARM_DESC(noirqdebug, "Disable irq lockup detection when true");
 
 static int __init irqfixup_setup(char *str)
 {
@@ -236,6 +239,8 @@ static int __init irqfixup_setup(char *str)
 }
 
 __setup("irqfixup", irqfixup_setup);
+module_param(irqfixup, int, 0644);
+MODULE_PARM_DESC("irqfixup", "0: No fixup, 1: irqfixup mode 2: irqpoll mode");
 
 static int __init irqpoll_setup(char *str)
 {

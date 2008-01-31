@@ -417,20 +417,6 @@ static const int event_type_size[] = {
 	IW_EV_QUAL_LEN,			/* IW_HEADER_TYPE_QUAL */
 };
 
-/* Size (in bytes) of various events, as packed */
-static const int event_type_pk_size[] = {
-	IW_EV_LCP_PK_LEN,		/* IW_HEADER_TYPE_NULL */
-	0,
-	IW_EV_CHAR_PK_LEN,		/* IW_HEADER_TYPE_CHAR */
-	0,
-	IW_EV_UINT_PK_LEN,		/* IW_HEADER_TYPE_UINT */
-	IW_EV_FREQ_PK_LEN,		/* IW_HEADER_TYPE_FREQ */
-	IW_EV_ADDR_PK_LEN,		/* IW_HEADER_TYPE_ADDR */
-	0,
-	IW_EV_POINT_PK_LEN,		/* Without variable payload */
-	IW_EV_PARAM_PK_LEN,		/* IW_HEADER_TYPE_PARAM */
-	IW_EV_QUAL_PK_LEN,		/* IW_HEADER_TYPE_QUAL */
-};
 
 /************************ COMMON SUBROUTINES ************************/
 /*
@@ -673,26 +659,8 @@ static const struct seq_operations wireless_seq_ops = {
 
 static int wireless_seq_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq;
-	int res;
-	res = seq_open(file, &wireless_seq_ops);
-	if (!res) {
-		seq = file->private_data;
-		seq->private = get_proc_net(inode);
-		if (!seq->private) {
-			seq_release(inode, file);
-			res = -ENXIO;
-		}
-	}
-	return res;
-}
-
-static int wireless_seq_release(struct inode *inode, struct file *file)
-{
-	struct seq_file *seq = file->private_data;
-	struct net *net = seq->private;
-	put_net(net);
-	return seq_release(inode, file);
+	return seq_open_net(inode, file, &wireless_seq_ops,
+			    sizeof(struct seq_net_private));
 }
 
 static const struct file_operations wireless_seq_fops = {
@@ -700,7 +668,7 @@ static const struct file_operations wireless_seq_fops = {
 	.open    = wireless_seq_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
-	.release = wireless_seq_release,
+	.release = seq_release_net,
 };
 
 int wext_proc_init(struct net *net)
@@ -1137,7 +1105,7 @@ static void wireless_nlevent_process(unsigned long data)
 	struct sk_buff *skb;
 
 	while ((skb = skb_dequeue(&wireless_nlevent_queue)))
-		rtnl_notify(skb, 0, RTNLGRP_LINK, NULL, GFP_ATOMIC);
+		rtnl_notify(skb, &init_net, 0, RTNLGRP_LINK, NULL, GFP_ATOMIC);
 }
 
 static DECLARE_TASKLET(wireless_nlevent_tasklet, wireless_nlevent_process, 0);
@@ -1188,6 +1156,9 @@ static void rtmsg_iwinfo(struct net_device *dev, char *event, int event_len)
 {
 	struct sk_buff *skb;
 	int err;
+
+	if (dev->nd_net != &init_net)
+		return;
 
 	skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
 	if (!skb)

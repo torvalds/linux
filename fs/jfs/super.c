@@ -598,6 +598,12 @@ static int jfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 		seq_printf(seq, ",umask=%03o", sbi->umask);
 	if (sbi->flag & JFS_NOINTEGRITY)
 		seq_puts(seq, ",nointegrity");
+	if (sbi->nls_tab)
+		seq_printf(seq, ",iocharset=%s", sbi->nls_tab->charset);
+	if (sbi->flag & JFS_ERR_CONTINUE)
+		seq_printf(seq, ",errors=continue");
+	if (sbi->flag & JFS_ERR_PANIC)
+		seq_printf(seq, ",errors=panic");
 
 #ifdef CONFIG_QUOTA
 	if (sbi->flag & JFS_USRQUOTA)

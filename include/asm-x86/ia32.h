@@ -159,12 +159,6 @@ struct ustat32 {
 #define IA32_STACK_TOP IA32_PAGE_OFFSET
 
 #ifdef __KERNEL__
-struct user_desc;
-struct siginfo_t;
-int do_get_thread_area(struct thread_struct *t, struct user_desc __user *info);
-int do_set_thread_area(struct thread_struct *t, struct user_desc __user *info);
-int ia32_child_tls(struct task_struct *p, struct pt_regs *childregs);
-
 struct linux_binprm;
 extern int ia32_setup_arg_pages(struct linux_binprm *bprm,
 				unsigned long stack_top, int exec_stack);

@@ -52,6 +52,7 @@ struct fib_node {
 	struct hlist_node	fn_hash;
 	struct list_head	fn_alias;
 	__be32			fn_key;
+	struct fib_alias        fn_embedded_alias;
 };
 
 struct fn_zone {
@@ -102,10 +103,10 @@ static struct hlist_head *fz_hash_alloc(int divisor)
 	unsigned long size = divisor * sizeof(struct hlist_head);
 
 	if (size <= PAGE_SIZE) {
-		return kmalloc(size, GFP_KERNEL);
+		return kzalloc(size, GFP_KERNEL);
 	} else {
 		return (struct hlist_head *)
-			__get_free_pages(GFP_KERNEL, get_order(size));
+			__get_free_pages(GFP_KERNEL | __GFP_ZERO, get_order(size));
 	}
 }
 
@@ -168,14 +169,13 @@ static void fn_rehash_zone(struct fn_zone *fz)
 	new_hashmask = (new_divisor - 1);
 
 #if RT_CACHE_DEBUG >= 2
-	printk("fn_rehash_zone: hash for zone %d grows from %d\n", fz->fz_order, old_divisor);
+	printk(KERN_DEBUG "fn_rehash_zone: hash for zone %d grows from %d\n",
+	       fz->fz_order, old_divisor);
 #endif
 
 	ht = fz_hash_alloc(new_divisor);
 
 	if (ht)	{
-		memset(ht, 0, new_divisor * sizeof(struct hlist_head));
-
 		write_lock_bh(&fib_hash_lock);
 		old_ht = fz->fz_hash;
 		fz->fz_hash = ht;
@@ -194,10 +194,13 @@ static inline void fn_free_node(struct fib_node * f)
 	kmem_cache_free(fn_hash_kmem, f);
 }
 
-static inline void fn_free_alias(struct fib_alias *fa)
+static inline void fn_free_alias(struct fib_alias *fa, struct fib_node *f)
 {
 	fib_release_info(fa->fa_info);
-	kmem_cache_free(fn_alias_kmem, fa);
+	if (fa == &f->fn_embedded_alias)
+		fa->fa_info = NULL;
+	else
+		kmem_cache_free(fn_alias_kmem, fa);
 }
 
 static struct fn_zone *
@@ -219,7 +222,6 @@ fn_new_zone(struct fn_hash *table, int z)
 		kfree(fz);
 		return NULL;
 	}
-	memset(fz->fz_hash, 0, fz->fz_divisor * sizeof(struct hlist_head *));
 	fz->fz_order = z;
 	fz->fz_mask = inet_make_mask(z);
 
@@ -275,8 +277,6 @@ out:
 	return err;
 }
 
-static int fn_hash_last_dflt=-1;
-
 static void
 fn_hash_select_default(struct fib_table *tb, const struct flowi *flp, struct fib_result *res)
 {
@@ -317,12 +317,9 @@ fn_hash_select_default(struct fib_table *tb, const struct flowi *flp, struct fib
 				if (next_fi != res->fi)
 					break;
 			} else if (!fib_detect_death(fi, order, &last_resort,
-						     &last_idx, &fn_hash_last_dflt)) {
-				if (res->fi)
-					fib_info_put(res->fi);
-				res->fi = fi;
-				atomic_inc(&fi->fib_clntref);
-				fn_hash_last_dflt = order;
+						&last_idx, tb->tb_default)) {
+				fib_result_assign(res, fi);
+				tb->tb_default = order;
 				goto out;
 			}
 			fi = next_fi;
@@ -331,27 +328,20 @@ fn_hash_select_default(struct fib_table *tb, const struct flowi *flp, struct fib
 	}
 
 	if (order <= 0 || fi == NULL) {
-		fn_hash_last_dflt = -1;
+		tb->tb_default = -1;
 		goto out;
 	}
 
-	if (!fib_detect_death(fi, order, &last_resort, &last_idx, &fn_hash_last_dflt)) {
-		if (res->fi)
-			fib_info_put(res->fi);
-		res->fi = fi;
-		atomic_inc(&fi->fib_clntref);
-		fn_hash_last_dflt = order;
+	if (!fib_detect_death(fi, order, &last_resort, &last_idx,
+				tb->tb_default)) {
+		fib_result_assign(res, fi);
+		tb->tb_default = order;
 		goto out;
 	}
 
-	if (last_idx >= 0) {
-		if (res->fi)
-			fib_info_put(res->fi);
-		res->fi = last_resort;
-		if (last_resort)
-			atomic_inc(&last_resort->fib_clntref);
-	}
-	fn_hash_last_dflt = last_idx;
+	if (last_idx >= 0)
+		fib_result_assign(res, last_resort);
+	tb->tb_default = last_idx;
 out:
 	read_unlock(&fib_hash_lock);
 }
@@ -490,15 +480,12 @@ static int fn_hash_insert(struct fib_table *tb, struct fib_config *cfg)
 		goto out;
 
 	err = -ENOBUFS;
-	new_fa = kmem_cache_alloc(fn_alias_kmem, GFP_KERNEL);
-	if (new_fa == NULL)
-		goto out;
 
 	new_f = NULL;
 	if (!f) {
-		new_f = kmem_cache_alloc(fn_hash_kmem, GFP_KERNEL);
+		new_f = kmem_cache_zalloc(fn_hash_kmem, GFP_KERNEL);
 		if (new_f == NULL)
-			goto out_free_new_fa;
+			goto out;
 
 		INIT_HLIST_NODE(&new_f->fn_hash);
 		INIT_LIST_HEAD(&new_f->fn_alias);
@@ -506,6 +493,12 @@ static int fn_hash_insert(struct fib_table *tb, struct fib_config *cfg)
 		f = new_f;
 	}
 
+	new_fa = &f->fn_embedded_alias;
+	if (new_fa->fa_info != NULL) {
+		new_fa = kmem_cache_alloc(fn_alias_kmem, GFP_KERNEL);
+		if (new_fa == NULL)
+			goto out_free_new_f;
+	}
 	new_fa->fa_info = fi;
 	new_fa->fa_tos = tos;
 	new_fa->fa_type = cfg->fc_type;
@@ -532,8 +525,8 @@ static int fn_hash_insert(struct fib_table *tb, struct fib_config *cfg)
 		  &cfg->fc_nlinfo, 0);
 	return 0;
 
-out_free_new_fa:
-	kmem_cache_free(fn_alias_kmem, new_fa);
+out_free_new_f:
+	kmem_cache_free(fn_hash_kmem, new_f);
 out:
 	fib_release_info(fi);
 	return err;
@@ -609,7 +602,7 @@ static int fn_hash_delete(struct fib_table *tb, struct fib_config *cfg)
 
 		if (fa->fa_state & FA_S_ACCESSED)
 			rt_cache_flush(-1);
-		fn_free_alias(fa);
+		fn_free_alias(fa, f);
 		if (kill_fn) {
 			fn_free_node(f);
 			fz->fz_nent--;
@@ -645,7 +638,7 @@ static int fn_flush_list(struct fn_zone *fz, int idx)
 				fib_hash_genid++;
 				write_unlock_bh(&fib_hash_lock);
 
-				fn_free_alias(fa);
+				fn_free_alias(fa, f);
 				found++;
 			}
 		}
@@ -761,25 +754,19 @@ static int fn_hash_dump(struct fib_table *tb, struct sk_buff *skb, struct netlin
 	return skb->len;
 }
 
-#ifdef CONFIG_IP_MULTIPLE_TABLES
-struct fib_table * fib_hash_init(u32 id)
-#else
-struct fib_table * __init fib_hash_init(u32 id)
-#endif
+void __init fib_hash_init(void)
+{
+	fn_hash_kmem = kmem_cache_create("ip_fib_hash", sizeof(struct fib_node),
+					 0, SLAB_PANIC, NULL);
+
+	fn_alias_kmem = kmem_cache_create("ip_fib_alias", sizeof(struct fib_alias),
+					  0, SLAB_PANIC, NULL);
+
+}
+
+struct fib_table *fib_hash_table(u32 id)
 {
 	struct fib_table *tb;
-
-	if (fn_hash_kmem == NULL)
-		fn_hash_kmem = kmem_cache_create("ip_fib_hash",
-						 sizeof(struct fib_node),
-						 0, SLAB_HWCACHE_ALIGN,
-						 NULL);
-
-	if (fn_alias_kmem == NULL)
-		fn_alias_kmem = kmem_cache_create("ip_fib_alias",
-						  sizeof(struct fib_alias),
-						  0, SLAB_HWCACHE_ALIGN,
-						  NULL);
 
 	tb = kmalloc(sizeof(struct fib_table) + sizeof(struct fn_hash),
 		     GFP_KERNEL);
@@ -787,6 +774,7 @@ struct fib_table * __init fib_hash_init(u32 id)
 		return NULL;
 
 	tb->tb_id = id;
+	tb->tb_default = -1;
 	tb->tb_lookup = fn_hash_lookup;
 	tb->tb_insert = fn_hash_insert;
 	tb->tb_delete = fn_hash_delete;
@@ -801,6 +789,7 @@ struct fib_table * __init fib_hash_init(u32 id)
 #ifdef CONFIG_PROC_FS
 
 struct fib_iter_state {
+	struct seq_net_private p;
 	struct fn_zone	*zone;
 	int		bucket;
 	struct hlist_head *hash_head;
@@ -814,7 +803,11 @@ struct fib_iter_state {
 static struct fib_alias *fib_get_first(struct seq_file *seq)
 {
 	struct fib_iter_state *iter = seq->private;
-	struct fn_hash *table = (struct fn_hash *) ip_fib_main_table->tb_data;
+	struct fib_table *main_table;
+	struct fn_hash *table;
+
+	main_table = fib_get_table(iter->p.net, RT_TABLE_MAIN);
+	table = (struct fn_hash *)main_table->tb_data;
 
 	iter->bucket    = 0;
 	iter->hash_head = NULL;
@@ -949,11 +942,13 @@ static struct fib_alias *fib_get_idx(struct seq_file *seq, loff_t pos)
 }
 
 static void *fib_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(fib_hash_lock)
 {
+	struct fib_iter_state *iter = seq->private;
 	void *v = NULL;
 
 	read_lock(&fib_hash_lock);
-	if (ip_fib_main_table)
+	if (fib_get_table(iter->p.net, RT_TABLE_MAIN))
 		v = *pos ? fib_get_idx(seq, *pos - 1) : SEQ_START_TOKEN;
 	return v;
 }
@@ -965,6 +960,7 @@ static void *fib_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void fib_seq_stop(struct seq_file *seq, void *v)
+	__releases(fib_hash_lock)
 {
 	read_unlock(&fib_hash_lock);
 }
@@ -1040,8 +1036,8 @@ static const struct seq_operations fib_seq_ops = {
 
 static int fib_seq_open(struct inode *inode, struct file *file)
 {
-	return seq_open_private(file, &fib_seq_ops,
-			sizeof(struct fib_iter_state));
+	return seq_open_net(inode, file, &fib_seq_ops,
+			    sizeof(struct fib_iter_state));
 }
 
 static const struct file_operations fib_seq_fops = {
@@ -1049,18 +1045,18 @@ static const struct file_operations fib_seq_fops = {
 	.open           = fib_seq_open,
 	.read           = seq_read,
 	.llseek         = seq_lseek,
-	.release	= seq_release_private,
+	.release	= seq_release_net,
 };
 
-int __init fib_proc_init(void)
+int __net_init fib_proc_init(struct net *net)
 {
-	if (!proc_net_fops_create(&init_net, "route", S_IRUGO, &fib_seq_fops))
+	if (!proc_net_fops_create(net, "route", S_IRUGO, &fib_seq_fops))
 		return -ENOMEM;
 	return 0;
 }
 
-void __init fib_proc_exit(void)
+void __net_exit fib_proc_exit(struct net *net)
 {
-	proc_net_remove(&init_net, "route");
+	proc_net_remove(net, "route");
 }
 #endif /* CONFIG_PROC_FS */

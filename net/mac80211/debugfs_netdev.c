@@ -91,8 +91,7 @@ static const struct file_operations name##_ops = {			\
 /* common attributes */
 IEEE80211_IF_FILE(channel_use, channel_use, DEC);
 IEEE80211_IF_FILE(drop_unencrypted, drop_unencrypted, DEC);
-IEEE80211_IF_FILE(eapol, eapol, DEC);
-IEEE80211_IF_FILE(ieee8021_x, ieee802_1x, DEC);
+IEEE80211_IF_FILE(ieee802_1x_pac, ieee802_1x_pac, DEC);
 
 /* STA/IBSS attributes */
 IEEE80211_IF_FILE(state, u.sta.state, DEC);
@@ -119,13 +118,12 @@ static ssize_t ieee80211_if_fmt_flags(
 		 sdata->u.sta.flags & IEEE80211_STA_AUTHENTICATED ? "AUTH\n" : "",
 		 sdata->u.sta.flags & IEEE80211_STA_ASSOCIATED ? "ASSOC\n" : "",
 		 sdata->u.sta.flags & IEEE80211_STA_PROBEREQ_POLL ? "PROBEREQ POLL\n" : "",
-		 sdata->flags & IEEE80211_SDATA_USE_PROTECTION ? "CTS prot\n" : "");
+		 sdata->bss_conf.use_cts_prot ? "CTS prot\n" : "");
 }
 __IEEE80211_IF_FILE(flags);
 
 /* AP attributes */
 IEEE80211_IF_FILE(num_sta_ps, u.ap.num_sta_ps, ATOMIC);
-IEEE80211_IF_FILE(dtim_period, u.ap.dtim_period, DEC);
 IEEE80211_IF_FILE(dtim_count, u.ap.dtim_count, DEC);
 IEEE80211_IF_FILE(num_beacons, u.ap.num_beacons, DEC);
 IEEE80211_IF_FILE(force_unicast_rateidx, u.ap.force_unicast_rateidx, DEC);
@@ -139,26 +137,6 @@ static ssize_t ieee80211_if_fmt_num_buffered_multicast(
 }
 __IEEE80211_IF_FILE(num_buffered_multicast);
 
-static ssize_t ieee80211_if_fmt_beacon_head_len(
-	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
-{
-	if (sdata->u.ap.beacon_head)
-		return scnprintf(buf, buflen, "%d\n",
-				 sdata->u.ap.beacon_head_len);
-	return scnprintf(buf, buflen, "\n");
-}
-__IEEE80211_IF_FILE(beacon_head_len);
-
-static ssize_t ieee80211_if_fmt_beacon_tail_len(
-	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
-{
-	if (sdata->u.ap.beacon_tail)
-		return scnprintf(buf, buflen, "%d\n",
-				 sdata->u.ap.beacon_tail_len);
-	return scnprintf(buf, buflen, "\n");
-}
-__IEEE80211_IF_FILE(beacon_tail_len);
-
 /* WDS attributes */
 IEEE80211_IF_FILE(peer, u.wds.remote_addr, MAC);
 
@@ -170,8 +148,7 @@ static void add_sta_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_ADD(channel_use, sta);
 	DEBUGFS_ADD(drop_unencrypted, sta);
-	DEBUGFS_ADD(eapol, sta);
-	DEBUGFS_ADD(ieee8021_x, sta);
+	DEBUGFS_ADD(ieee802_1x_pac, sta);
 	DEBUGFS_ADD(state, sta);
 	DEBUGFS_ADD(bssid, sta);
 	DEBUGFS_ADD(prev_bssid, sta);
@@ -192,25 +169,20 @@ static void add_ap_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_ADD(channel_use, ap);
 	DEBUGFS_ADD(drop_unencrypted, ap);
-	DEBUGFS_ADD(eapol, ap);
-	DEBUGFS_ADD(ieee8021_x, ap);
+	DEBUGFS_ADD(ieee802_1x_pac, ap);
 	DEBUGFS_ADD(num_sta_ps, ap);
-	DEBUGFS_ADD(dtim_period, ap);
 	DEBUGFS_ADD(dtim_count, ap);
 	DEBUGFS_ADD(num_beacons, ap);
 	DEBUGFS_ADD(force_unicast_rateidx, ap);
 	DEBUGFS_ADD(max_ratectrl_rateidx, ap);
 	DEBUGFS_ADD(num_buffered_multicast, ap);
-	DEBUGFS_ADD(beacon_head_len, ap);
-	DEBUGFS_ADD(beacon_tail_len, ap);
 }
 
 static void add_wds_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_ADD(channel_use, wds);
 	DEBUGFS_ADD(drop_unencrypted, wds);
-	DEBUGFS_ADD(eapol, wds);
-	DEBUGFS_ADD(ieee8021_x, wds);
+	DEBUGFS_ADD(ieee802_1x_pac, wds);
 	DEBUGFS_ADD(peer, wds);
 }
 
@@ -218,8 +190,7 @@ static void add_vlan_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_ADD(channel_use, vlan);
 	DEBUGFS_ADD(drop_unencrypted, vlan);
-	DEBUGFS_ADD(eapol, vlan);
-	DEBUGFS_ADD(ieee8021_x, vlan);
+	DEBUGFS_ADD(ieee802_1x_pac, vlan);
 }
 
 static void add_monitor_files(struct ieee80211_sub_if_data *sdata)
@@ -231,7 +202,7 @@ static void add_files(struct ieee80211_sub_if_data *sdata)
 	if (!sdata->debugfsdir)
 		return;
 
-	switch (sdata->type) {
+	switch (sdata->vif.type) {
 	case IEEE80211_IF_TYPE_STA:
 	case IEEE80211_IF_TYPE_IBSS:
 		add_sta_files(sdata);
@@ -263,8 +234,7 @@ static void del_sta_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_DEL(channel_use, sta);
 	DEBUGFS_DEL(drop_unencrypted, sta);
-	DEBUGFS_DEL(eapol, sta);
-	DEBUGFS_DEL(ieee8021_x, sta);
+	DEBUGFS_DEL(ieee802_1x_pac, sta);
 	DEBUGFS_DEL(state, sta);
 	DEBUGFS_DEL(bssid, sta);
 	DEBUGFS_DEL(prev_bssid, sta);
@@ -285,25 +255,20 @@ static void del_ap_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_DEL(channel_use, ap);
 	DEBUGFS_DEL(drop_unencrypted, ap);
-	DEBUGFS_DEL(eapol, ap);
-	DEBUGFS_DEL(ieee8021_x, ap);
+	DEBUGFS_DEL(ieee802_1x_pac, ap);
 	DEBUGFS_DEL(num_sta_ps, ap);
-	DEBUGFS_DEL(dtim_period, ap);
 	DEBUGFS_DEL(dtim_count, ap);
 	DEBUGFS_DEL(num_beacons, ap);
 	DEBUGFS_DEL(force_unicast_rateidx, ap);
 	DEBUGFS_DEL(max_ratectrl_rateidx, ap);
 	DEBUGFS_DEL(num_buffered_multicast, ap);
-	DEBUGFS_DEL(beacon_head_len, ap);
-	DEBUGFS_DEL(beacon_tail_len, ap);
 }
 
 static void del_wds_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_DEL(channel_use, wds);
 	DEBUGFS_DEL(drop_unencrypted, wds);
-	DEBUGFS_DEL(eapol, wds);
-	DEBUGFS_DEL(ieee8021_x, wds);
+	DEBUGFS_DEL(ieee802_1x_pac, wds);
 	DEBUGFS_DEL(peer, wds);
 }
 
@@ -311,8 +276,7 @@ static void del_vlan_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_DEL(channel_use, vlan);
 	DEBUGFS_DEL(drop_unencrypted, vlan);
-	DEBUGFS_DEL(eapol, vlan);
-	DEBUGFS_DEL(ieee8021_x, vlan);
+	DEBUGFS_DEL(ieee802_1x_pac, vlan);
 }
 
 static void del_monitor_files(struct ieee80211_sub_if_data *sdata)
@@ -362,7 +326,7 @@ void ieee80211_debugfs_add_netdev(struct ieee80211_sub_if_data *sdata)
 
 void ieee80211_debugfs_remove_netdev(struct ieee80211_sub_if_data *sdata)
 {
-	del_files(sdata, sdata->type);
+	del_files(sdata, sdata->vif.type);
 	debugfs_remove(sdata->debugfsdir);
 	sdata->debugfsdir = NULL;
 }

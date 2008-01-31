@@ -22,13 +22,13 @@ int nr_mce_banks;
 EXPORT_SYMBOL_GPL(nr_mce_banks);	/* non-fatal.o */
 
 /* Handle unconfigured int18 (should never happen) */
-static fastcall void unexpected_machine_check(struct pt_regs * regs, long error_code)
+static void unexpected_machine_check(struct pt_regs * regs, long error_code)
 {	
 	printk(KERN_ERR "CPU#%d: Unexpected int18 (Machine Check).\n", smp_processor_id());
 }
 
 /* Call the installed machine check handler for this CPU setup. */
-void fastcall (*machine_check_vector)(struct pt_regs *, long error_code) = unexpected_machine_check;
+void (*machine_check_vector)(struct pt_regs *, long error_code) = unexpected_machine_check;
 
 /* This has to be run for each processor */
 void mcheck_init(struct cpuinfo_x86 *c)

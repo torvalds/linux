@@ -250,6 +250,8 @@ void __init mips_ejtag_setup(void)
 	flush_icache_range((unsigned long)base, (unsigned long)base + 0x80);
 }
 
+extern struct plat_smp_ops msmtc_smp_ops;
+
 void __init prom_init(void)
 {
 	prom_argc = fw_arg0;
@@ -415,5 +417,11 @@ void __init prom_init(void)
 	prom_meminit();
 #ifdef CONFIG_SERIAL_8250_CONSOLE
 	console_config();
+#endif
+#ifdef CONFIG_MIPS_MT_SMP
+	register_smp_ops(&vsmp_smp_ops);
+#endif
+#ifdef CONFIG_MIPS_MT_SMTC
+	register_smp_ops(&msmtc_smp_ops);
 #endif
 }

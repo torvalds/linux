@@ -234,7 +234,7 @@ static int cs4270_set_dai_fmt(struct snd_soc_codec_dai *codec_dai,
  * lower three bits are determined via the AD2, AD1, and AD0 pins
  * (respectively).
  */
-static unsigned short normal_i2c[] = {
+static const unsigned short normal_i2c[] = {
 	0x48, 0x49, 0x4A, 0x4B, 0x4C, 0x4D, 0x4E, 0x4F, I2C_CLIENT_END
 };
 I2C_CLIENT_INSMOD;

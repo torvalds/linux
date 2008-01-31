@@ -92,10 +92,17 @@ static int tcf_ipt_release(struct tcf_ipt *ipt, int bind)
 	return ret;
 }
 
-static int tcf_ipt_init(struct rtattr *rta, struct rtattr *est,
+static const struct nla_policy ipt_policy[TCA_IPT_MAX + 1] = {
+	[TCA_IPT_TABLE]	= { .type = NLA_STRING, .len = IFNAMSIZ },
+	[TCA_IPT_HOOK]	= { .type = NLA_U32 },
+	[TCA_IPT_INDEX]	= { .type = NLA_U32 },
+	[TCA_IPT_TARG]	= { .len = sizeof(struct ipt_entry_target) },
+};
+
+static int tcf_ipt_init(struct nlattr *nla, struct nlattr *est,
 			struct tc_action *a, int ovr, int bind)
 {
-	struct rtattr *tb[TCA_IPT_MAX];
+	struct nlattr *tb[TCA_IPT_MAX + 1];
 	struct tcf_ipt *ipt;
 	struct tcf_common *pc;
 	struct ipt_entry_target *td, *t;
@@ -104,22 +111,24 @@ static int tcf_ipt_init(struct rtattr *rta, struct rtattr *est,
 	u32 hook = 0;
 	u32 index = 0;
 
-	if (rta == NULL || rtattr_parse_nested(tb, TCA_IPT_MAX, rta) < 0)
+	if (nla == NULL)
 		return -EINVAL;
 
-	if (tb[TCA_IPT_HOOK-1] == NULL ||
-	    RTA_PAYLOAD(tb[TCA_IPT_HOOK-1]) < sizeof(u32))
+	err = nla_parse_nested(tb, TCA_IPT_MAX, nla, ipt_policy);
+	if (err < 0)
+		return err;
+
+	if (tb[TCA_IPT_HOOK] == NULL)
 		return -EINVAL;
-	if (tb[TCA_IPT_TARG-1] == NULL ||
-	    RTA_PAYLOAD(tb[TCA_IPT_TARG-1]) < sizeof(*t))
-		return -EINVAL;
-	td = (struct ipt_entry_target *)RTA_DATA(tb[TCA_IPT_TARG-1]);
-	if (RTA_PAYLOAD(tb[TCA_IPT_TARG-1]) < td->u.target_size)
+	if (tb[TCA_IPT_TARG] == NULL)
 		return -EINVAL;
 
-	if (tb[TCA_IPT_INDEX-1] != NULL &&
-	    RTA_PAYLOAD(tb[TCA_IPT_INDEX-1]) >= sizeof(u32))
-		index = *(u32 *)RTA_DATA(tb[TCA_IPT_INDEX-1]);
+	td = (struct ipt_entry_target *)nla_data(tb[TCA_IPT_TARG]);
+	if (nla_len(tb[TCA_IPT_TARG]) < td->u.target_size)
+		return -EINVAL;
+
+	if (tb[TCA_IPT_INDEX] != NULL)
+		index = nla_get_u32(tb[TCA_IPT_INDEX]);
 
 	pc = tcf_hash_check(index, a, bind, &ipt_hash_info);
 	if (!pc) {
@@ -136,14 +145,14 @@ static int tcf_ipt_init(struct rtattr *rta, struct rtattr *est,
 	}
 	ipt = to_ipt(pc);
 
-	hook = *(u32 *)RTA_DATA(tb[TCA_IPT_HOOK-1]);
+	hook = nla_get_u32(tb[TCA_IPT_HOOK]);
 
 	err = -ENOMEM;
 	tname = kmalloc(IFNAMSIZ, GFP_KERNEL);
 	if (unlikely(!tname))
 		goto err1;
-	if (tb[TCA_IPT_TABLE - 1] == NULL ||
-	    rtattr_strlcpy(tname, tb[TCA_IPT_TABLE-1], IFNAMSIZ) >= IFNAMSIZ)
+	if (tb[TCA_IPT_TABLE] == NULL ||
+	    nla_strlcpy(tname, tb[TCA_IPT_TABLE], IFNAMSIZ) >= IFNAMSIZ)
 		strcpy(tname, "mangle");
 
 	t = kmemdup(td, td->u.target_size, GFP_KERNEL);
@@ -243,25 +252,25 @@ static int tcf_ipt_dump(struct sk_buff *skb, struct tc_action *a, int bind, int 
 
 	t = kmemdup(ipt->tcfi_t, ipt->tcfi_t->u.user.target_size, GFP_ATOMIC);
 	if (unlikely(!t))
-		goto rtattr_failure;
+		goto nla_put_failure;
 
 	c.bindcnt = ipt->tcf_bindcnt - bind;
 	c.refcnt = ipt->tcf_refcnt - ref;
 	strcpy(t->u.user.name, ipt->tcfi_t->u.kernel.target->name);
 
-	RTA_PUT(skb, TCA_IPT_TARG, ipt->tcfi_t->u.user.target_size, t);
-	RTA_PUT(skb, TCA_IPT_INDEX, 4, &ipt->tcf_index);
-	RTA_PUT(skb, TCA_IPT_HOOK, 4, &ipt->tcfi_hook);
-	RTA_PUT(skb, TCA_IPT_CNT, sizeof(struct tc_cnt), &c);
-	RTA_PUT(skb, TCA_IPT_TABLE, IFNAMSIZ, ipt->tcfi_tname);
+	NLA_PUT(skb, TCA_IPT_TARG, ipt->tcfi_t->u.user.target_size, t);
+	NLA_PUT_U32(skb, TCA_IPT_INDEX, ipt->tcf_index);
+	NLA_PUT_U32(skb, TCA_IPT_HOOK, ipt->tcfi_hook);
+	NLA_PUT(skb, TCA_IPT_CNT, sizeof(struct tc_cnt), &c);
+	NLA_PUT_STRING(skb, TCA_IPT_TABLE, ipt->tcfi_tname);
 	tm.install = jiffies_to_clock_t(jiffies - ipt->tcf_tm.install);
 	tm.lastuse = jiffies_to_clock_t(jiffies - ipt->tcf_tm.lastuse);
 	tm.expires = jiffies_to_clock_t(ipt->tcf_tm.expires);
-	RTA_PUT(skb, TCA_IPT_TM, sizeof (tm), &tm);
+	NLA_PUT(skb, TCA_IPT_TM, sizeof (tm), &tm);
 	kfree(t);
 	return skb->len;
 
-rtattr_failure:
+nla_put_failure:
 	nlmsg_trim(skb, b);
 	kfree(t);
 	return -1;

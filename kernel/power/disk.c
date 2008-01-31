@@ -567,7 +567,8 @@ static const char * const hibernation_modes[] = {
  *	supports it (as determined by having hibernation_ops).
  */
 
-static ssize_t disk_show(struct kset *kset, char *buf)
+static ssize_t disk_show(struct kobject *kobj, struct kobj_attribute *attr,
+			 char *buf)
 {
 	int i;
 	char *start = buf;
@@ -597,7 +598,8 @@ static ssize_t disk_show(struct kset *kset, char *buf)
 }
 
 
-static ssize_t disk_store(struct kset *kset, const char *buf, size_t n)
+static ssize_t disk_store(struct kobject *kobj, struct kobj_attribute *attr,
+			  const char *buf, size_t n)
 {
 	int error = 0;
 	int i;
@@ -642,13 +644,15 @@ static ssize_t disk_store(struct kset *kset, const char *buf, size_t n)
 
 power_attr(disk);
 
-static ssize_t resume_show(struct kset *kset, char *buf)
+static ssize_t resume_show(struct kobject *kobj, struct kobj_attribute *attr,
+			   char *buf)
 {
 	return sprintf(buf,"%d:%d\n", MAJOR(swsusp_resume_device),
 		       MINOR(swsusp_resume_device));
 }
 
-static ssize_t resume_store(struct kset *kset, const char *buf, size_t n)
+static ssize_t resume_store(struct kobject *kobj, struct kobj_attribute *attr,
+			    const char *buf, size_t n)
 {
 	unsigned int maj, min;
 	dev_t res;
@@ -674,12 +678,14 @@ static ssize_t resume_store(struct kset *kset, const char *buf, size_t n)
 
 power_attr(resume);
 
-static ssize_t image_size_show(struct kset *kset, char *buf)
+static ssize_t image_size_show(struct kobject *kobj, struct kobj_attribute *attr,
+			       char *buf)
 {
 	return sprintf(buf, "%lu\n", image_size);
 }
 
-static ssize_t image_size_store(struct kset *kset, const char *buf, size_t n)
+static ssize_t image_size_store(struct kobject *kobj, struct kobj_attribute *attr,
+				const char *buf, size_t n)
 {
 	unsigned long size;
 
@@ -708,7 +714,7 @@ static struct attribute_group attr_group = {
 
 static int __init pm_disk_init(void)
 {
-	return sysfs_create_group(&power_subsys.kobj, &attr_group);
+	return sysfs_create_group(power_kobj, &attr_group);
 }
 
 core_initcall(pm_disk_init);

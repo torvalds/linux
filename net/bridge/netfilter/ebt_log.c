@@ -17,6 +17,7 @@
 #include <linux/in.h>
 #include <linux/if_arp.h>
 #include <linux/spinlock.h>
+#include <net/netfilter/nf_log.h>
 
 static DEFINE_SPINLOCK(ebt_log_lock);
 
@@ -182,7 +183,7 @@ static struct ebt_watcher log =
 	.me		= THIS_MODULE,
 };
 
-static struct nf_logger ebt_log_logger = {
+static const struct nf_logger ebt_log_logger = {
 	.name 		= "ebt_log",
 	.logfn		= &ebt_log_packet,
 	.me		= THIS_MODULE,

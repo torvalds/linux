@@ -56,12 +56,6 @@ static int ipv4_print_tuple(struct seq_file *s,
 			  NIPQUAD(tuple->dst.u3.ip));
 }
 
-static int ipv4_print_conntrack(struct seq_file *s,
-				const struct nf_conn *conntrack)
-{
-	return 0;
-}
-
 /* Returns new sk_buff, or NULL */
 static int nf_ct_ipv4_gather_frags(struct sk_buff *skb, u_int32_t user)
 {
@@ -150,7 +144,7 @@ static unsigned int ipv4_conntrack_defrag(unsigned int hooknum,
 	/* Gather fragments. */
 	if (ip_hdr(skb)->frag_off & htons(IP_MF | IP_OFFSET)) {
 		if (nf_ct_ipv4_gather_frags(skb,
-					    hooknum == NF_IP_PRE_ROUTING ?
+					    hooknum == NF_INET_PRE_ROUTING ?
 					    IP_DEFRAG_CONNTRACK_IN :
 					    IP_DEFRAG_CONNTRACK_OUT))
 			return NF_STOLEN;
@@ -185,61 +179,61 @@ static unsigned int ipv4_conntrack_local(unsigned int hooknum,
 
 /* Connection tracking may drop packets, but never alters them, so
    make it the first hook. */
-static struct nf_hook_ops ipv4_conntrack_ops[] = {
+static struct nf_hook_ops ipv4_conntrack_ops[] __read_mostly = {
 	{
 		.hook		= ipv4_conntrack_defrag,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET,
-		.hooknum	= NF_IP_PRE_ROUTING,
+		.hooknum	= NF_INET_PRE_ROUTING,
 		.priority	= NF_IP_PRI_CONNTRACK_DEFRAG,
 	},
 	{
 		.hook		= ipv4_conntrack_in,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET,
-		.hooknum	= NF_IP_PRE_ROUTING,
+		.hooknum	= NF_INET_PRE_ROUTING,
 		.priority	= NF_IP_PRI_CONNTRACK,
 	},
 	{
 		.hook           = ipv4_conntrack_defrag,
 		.owner          = THIS_MODULE,
 		.pf             = PF_INET,
-		.hooknum        = NF_IP_LOCAL_OUT,
+		.hooknum        = NF_INET_LOCAL_OUT,
 		.priority       = NF_IP_PRI_CONNTRACK_DEFRAG,
 	},
 	{
 		.hook		= ipv4_conntrack_local,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET,
-		.hooknum	= NF_IP_LOCAL_OUT,
+		.hooknum	= NF_INET_LOCAL_OUT,
 		.priority	= NF_IP_PRI_CONNTRACK,
 	},
 	{
 		.hook		= ipv4_conntrack_help,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET,
-		.hooknum	= NF_IP_POST_ROUTING,
+		.hooknum	= NF_INET_POST_ROUTING,
 		.priority	= NF_IP_PRI_CONNTRACK_HELPER,
 	},
 	{
 		.hook		= ipv4_conntrack_help,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET,
-		.hooknum	= NF_IP_LOCAL_IN,
+		.hooknum	= NF_INET_LOCAL_IN,
 		.priority	= NF_IP_PRI_CONNTRACK_HELPER,
 	},
 	{
 		.hook		= ipv4_confirm,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET,
-		.hooknum	= NF_IP_POST_ROUTING,
+		.hooknum	= NF_INET_POST_ROUTING,
 		.priority	= NF_IP_PRI_CONNTRACK_CONFIRM,
 	},
 	{
 		.hook		= ipv4_confirm,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET,
-		.hooknum	= NF_IP_LOCAL_IN,
+		.hooknum	= NF_INET_LOCAL_IN,
 		.priority	= NF_IP_PRI_CONNTRACK_CONFIRM,
 	},
 };
@@ -363,10 +357,8 @@ getorigdst(struct sock *sk, int optval, void __user *user, int *len)
 static int ipv4_tuple_to_nlattr(struct sk_buff *skb,
 				const struct nf_conntrack_tuple *tuple)
 {
-	NLA_PUT(skb, CTA_IP_V4_SRC, sizeof(u_int32_t),
-		&tuple->src.u3.ip);
-	NLA_PUT(skb, CTA_IP_V4_DST, sizeof(u_int32_t),
-		&tuple->dst.u3.ip);
+	NLA_PUT_BE32(skb, CTA_IP_V4_SRC, tuple->src.u3.ip);
+	NLA_PUT_BE32(skb, CTA_IP_V4_DST, tuple->dst.u3.ip);
 	return 0;
 
 nla_put_failure:
@@ -384,8 +376,8 @@ static int ipv4_nlattr_to_tuple(struct nlattr *tb[],
 	if (!tb[CTA_IP_V4_SRC] || !tb[CTA_IP_V4_DST])
 		return -EINVAL;
 
-	t->src.u3.ip = *(__be32 *)nla_data(tb[CTA_IP_V4_SRC]);
-	t->dst.u3.ip = *(__be32 *)nla_data(tb[CTA_IP_V4_DST]);
+	t->src.u3.ip = nla_get_be32(tb[CTA_IP_V4_SRC]);
+	t->dst.u3.ip = nla_get_be32(tb[CTA_IP_V4_DST]);
 
 	return 0;
 }
@@ -405,7 +397,6 @@ struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv4 __read_mostly = {
 	.pkt_to_tuple	 = ipv4_pkt_to_tuple,
 	.invert_tuple	 = ipv4_invert_tuple,
 	.print_tuple	 = ipv4_print_tuple,
-	.print_conntrack = ipv4_print_conntrack,
 	.get_l4proto	 = ipv4_get_l4proto,
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
 	.tuple_to_nlattr = ipv4_tuple_to_nlattr,

@@ -17,13 +17,13 @@
 	.endm
 
 	.macro  get_irqnr_preamble, base, tmp
+	ldr	\base, =(AT91_VA_BASE_SYS + AT91_AIC)		@ base virtual address of AIC peripheral
 	.endm
 
 	.macro  arch_ret_to_user, tmp1, tmp2
 	.endm
 
 	.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
-	ldr	\base, =(AT91_VA_BASE_SYS + AT91_AIC)		@ base virtual address of AIC peripheral
 	ldr	\irqnr, [\base, #(AT91_AIC_IVR - AT91_AIC)]	@ read IRQ vector register: de-asserts nIRQ to processor (and clears interrupt)
 	ldr	\irqstat, [\base, #(AT91_AIC_ISR - AT91_AIC)]	@ read interrupt source number
 	teq	\irqstat, #0					@ ISR is 0 when no current interrupt, or spurious interrupt

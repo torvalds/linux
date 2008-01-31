@@ -2296,9 +2296,8 @@ static s32 adpt_i2o_to_scsi(void __iomem *reply, struct scsi_cmnd* cmd)
 
 		// copy over the request sense data if it was a check
 		// condition status
-		if(dev_status == 0x02 /*CHECK_CONDITION*/) {
-			u32 len = sizeof(cmd->sense_buffer);
-			len = (len > 40) ?  40 : len;
+		if (dev_status == SAM_STAT_CHECK_CONDITION) {
+			u32 len = min(SCSI_SENSE_BUFFERSIZE, 40);
 			// Copy over the sense data
 			memcpy_fromio(cmd->sense_buffer, (reply+28) , len);
 			if(cmd->sense_buffer[0] == 0x70 /* class 7 */ && 
@@ -3341,7 +3340,6 @@ static struct scsi_host_template driver_template = {
 	.this_id		= 7,
 	.cmd_per_lun		= 1,
 	.use_clustering		= ENABLE_CLUSTERING,
-	.use_sg_chaining	= ENABLE_SG_CHAINING,
 };
 #include "scsi_module.c"
 MODULE_LICENSE("GPL");

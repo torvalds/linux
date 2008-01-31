@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/connect.c
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2007
+ *   Copyright (C) International Business Machines  Corp., 2002,2008
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -1410,7 +1410,7 @@ connect_to_dfs_path(int xid, struct cifsSesInfo *pSesInfo,
 		    const char *old_path, const struct nls_table *nls_codepage,
 		    int remap)
 {
-	unsigned char *referrals = NULL;
+	struct dfs_info3_param *referrals = NULL;
 	unsigned int num_referrals;
 	int rc = 0;
 
@@ -1429,12 +1429,14 @@ connect_to_dfs_path(int xid, struct cifsSesInfo *pSesInfo,
 int
 get_dfs_path(int xid, struct cifsSesInfo *pSesInfo, const char *old_path,
 	     const struct nls_table *nls_codepage, unsigned int *pnum_referrals,
-	     unsigned char **preferrals, int remap)
+	     struct dfs_info3_param **preferrals, int remap)
 {
 	char *temp_unc;
 	int rc = 0;
+	unsigned char *targetUNCs;
 
 	*pnum_referrals = 0;
+	*preferrals = NULL;
 
 	if (pSesInfo->ipc_tid == 0) {
 		temp_unc = kmalloc(2 /* for slashes */ +
@@ -1454,8 +1456,10 @@ get_dfs_path(int xid, struct cifsSesInfo *pSesInfo, const char *old_path,
 		kfree(temp_unc);
 	}
 	if (rc == 0)
-		rc = CIFSGetDFSRefer(xid, pSesInfo, old_path, preferrals,
+		rc = CIFSGetDFSRefer(xid, pSesInfo, old_path, &targetUNCs,
 				     pnum_referrals, nls_codepage, remap);
+	/* BB map targetUNCs to dfs_info3 structures, here or
+		in CIFSGetDFSRefer BB */
 
 	return rc;
 }
@@ -1964,7 +1968,15 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 
 	if (existingCifsSes) {
 		pSesInfo = existingCifsSes;
-		cFYI(1, ("Existing smb sess found"));
+		cFYI(1, ("Existing smb sess found (status=%d)",
+			pSesInfo->status));
+		down(&pSesInfo->sesSem);
+		if (pSesInfo->status == CifsNeedReconnect) {
+			cFYI(1, ("Session needs reconnect"));
+			rc = cifs_setup_session(xid, pSesInfo,
+						cifs_sb->local_nls);
+		}
+		up(&pSesInfo->sesSem);
 	} else if (!rc) {
 		cFYI(1, ("Existing smb sess not found"));
 		pSesInfo = sesInfoAlloc();
@@ -3514,7 +3526,7 @@ cifs_umount(struct super_block *sb, struct cifs_sb_info *cifs_sb)
 		sesInfoFree(ses);
 
 	FreeXid(xid);
-	return rc;	/* BB check if we should always return zero here */
+	return rc;
 }
 
 int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,

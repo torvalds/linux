@@ -65,7 +65,11 @@
 #define SIZE_1M 0x00100000      /* 1M */
 #define SIZE_4M 0x00400000      /* 4M */
 
+#ifdef CONFIG_MPU
+#define MAX_CPLBS 16
+#else
 #define MAX_CPLBS (16 * 2)
+#endif
 
 #define ASYNC_MEMORY_CPLB_COVERAGE	((ASYNC_BANK0_SIZE + ASYNC_BANK1_SIZE + \
 				 ASYNC_BANK2_SIZE + ASYNC_BANK3_SIZE) / SIZE_4M)

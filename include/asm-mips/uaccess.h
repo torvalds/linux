@@ -5,6 +5,7 @@
  *
  * Copyright (C) 1996, 1997, 1998, 1999, 2000, 03, 04 by Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
+ * Copyright (C) 2007  Maciej W. Rozycki
  */
 #ifndef _ASM_UACCESS_H
 #define _ASM_UACCESS_H
@@ -387,6 +388,12 @@ extern void __put_user_unknown(void);
 	"jal\t" #destination "\n\t"
 #endif
 
+#ifndef CONFIG_CPU_DADDI_WORKAROUNDS
+#define DADDI_SCRATCH "$0"
+#else
+#define DADDI_SCRATCH "$3"
+#endif
+
 extern size_t __copy_user(void *__to, const void *__from, size_t __n);
 
 #define __invoke_copy_to_user(to, from, n)				\
@@ -403,7 +410,7 @@ extern size_t __copy_user(void *__to, const void *__from, size_t __n);
 	: "+r" (__cu_to_r), "+r" (__cu_from_r), "+r" (__cu_len_r)	\
 	:								\
 	: "$8", "$9", "$10", "$11", "$12", "$15", "$24", "$31",		\
-	  "memory");							\
+	  DADDI_SCRATCH, "memory");					\
 	__cu_len_r;							\
 })
 
@@ -512,7 +519,7 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 	: "+r" (__cu_to_r), "+r" (__cu_from_r), "+r" (__cu_len_r)	\
 	:								\
 	: "$8", "$9", "$10", "$11", "$12", "$15", "$24", "$31",		\
-	  "memory");							\
+	  DADDI_SCRATCH, "memory");					\
 	__cu_len_r;							\
 })
 
@@ -535,7 +542,7 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 	: "+r" (__cu_to_r), "+r" (__cu_from_r), "+r" (__cu_len_r)	\
 	:								\
 	: "$8", "$9", "$10", "$11", "$12", "$15", "$24", "$31",		\
-	  "memory");							\
+	  DADDI_SCRATCH, "memory");					\
 	__cu_len_r;							\
 })
 

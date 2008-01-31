@@ -211,9 +211,6 @@ static inline int hibernate(void) { return -ENOSYS; }
 #ifdef CONFIG_PM_SLEEP
 void save_processor_state(void);
 void restore_processor_state(void);
-struct saved_context;
-void __save_processor_state(struct saved_context *ctxt);
-void __restore_processor_state(struct saved_context *ctxt);
 
 /* kernel/power/main.c */
 extern struct blocking_notifier_head pm_chain_head;

@@ -98,6 +98,8 @@ int __init detect_cpu_and_cache_system(void)
 	case 0x200A:
 		if (prr == 0x61)
 			boot_cpu_data.type = CPU_SH7781;
+		else if (prr == 0xa1)
+			boot_cpu_data.type = CPU_SH7763;
 		else
 			boot_cpu_data.type = CPU_SH7780;
 

@@ -200,6 +200,7 @@ static int pirq_ali_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
 {
 	static const unsigned char irqmap[16] = { 0, 9, 3, 10, 4, 5, 7, 6, 1, 11, 0, 12, 0, 14, 0, 15 };
 
+	WARN_ON_ONCE(pirq >= 16);
 	return irqmap[read_config_nybble(router, 0x48, pirq-1)];
 }
 
@@ -207,7 +208,8 @@ static int pirq_ali_set(struct pci_dev *router, struct pci_dev *dev, int pirq, i
 {
 	static const unsigned char irqmap[16] = { 0, 8, 0, 2, 4, 5, 7, 6, 0, 1, 3, 9, 11, 0, 13, 15 };
 	unsigned int val = irqmap[irq];
-		
+
+	WARN_ON_ONCE(pirq >= 16);
 	if (val) {
 		write_config_nybble(router, 0x48, pirq-1, val);
 		return 1;
@@ -257,12 +259,16 @@ static int pirq_via_set(struct pci_dev *router, struct pci_dev *dev, int pirq, i
 static int pirq_via586_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
 {
 	static const unsigned int pirqmap[5] = { 3, 2, 5, 1, 1 };
+
+	WARN_ON_ONCE(pirq >= 5);
 	return read_config_nybble(router, 0x55, pirqmap[pirq-1]);
 }
 
 static int pirq_via586_set(struct pci_dev *router, struct pci_dev *dev, int pirq, int irq)
 {
 	static const unsigned int pirqmap[5] = { 3, 2, 5, 1, 1 };
+
+	WARN_ON_ONCE(pirq >= 5);
 	write_config_nybble(router, 0x55, pirqmap[pirq-1], irq);
 	return 1;
 }
@@ -275,12 +281,16 @@ static int pirq_via586_set(struct pci_dev *router, struct pci_dev *dev, int pirq
 static int pirq_ite_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
 {
 	static const unsigned char pirqmap[4] = { 1, 0, 2, 3 };
+
+	WARN_ON_ONCE(pirq >= 4);
 	return read_config_nybble(router,0x43, pirqmap[pirq-1]);
 }
 
 static int pirq_ite_set(struct pci_dev *router, struct pci_dev *dev, int pirq, int irq)
 {
 	static const unsigned char pirqmap[4] = { 1, 0, 2, 3 };
+
+	WARN_ON_ONCE(pirq >= 4);
 	write_config_nybble(router, 0x43, pirqmap[pirq-1], irq);
 	return 1;
 }
@@ -419,6 +429,7 @@ static int pirq_sis_set(struct pci_dev *router, struct pci_dev *dev, int pirq, i
 
 static int pirq_vlsi_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
 {
+	WARN_ON_ONCE(pirq >= 9);
 	if (pirq > 8) {
 		printk(KERN_INFO "VLSI router pirq escape (%d)\n", pirq);
 		return 0;
@@ -428,6 +439,7 @@ static int pirq_vlsi_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
 
 static int pirq_vlsi_set(struct pci_dev *router, struct pci_dev *dev, int pirq, int irq)
 {
+	WARN_ON_ONCE(pirq >= 9);
 	if (pirq > 8) {
 		printk(KERN_INFO "VLSI router pirq escape (%d)\n", pirq);
 		return 0;
@@ -449,14 +461,14 @@ static int pirq_vlsi_set(struct pci_dev *router, struct pci_dev *dev, int pirq, 
  */
 static int pirq_serverworks_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
 {
-	outb_p(pirq, 0xc00);
+	outb(pirq, 0xc00);
 	return inb(0xc01) & 0xf;
 }
 
 static int pirq_serverworks_set(struct pci_dev *router, struct pci_dev *dev, int pirq, int irq)
 {
-	outb_p(pirq, 0xc00);
-	outb_p(irq, 0xc01);
+	outb(pirq, 0xc00);
+	outb(irq, 0xc01);
 	return 1;
 }
 

@@ -30,12 +30,10 @@
 #include <asm/mtrr.h>
 #include <asm/msr.h>
 
-
 struct task_struct *voyager_thread;
 static __u8 set_timeout;
 
-static int
-execute(const char *string)
+static int execute(const char *string)
 {
 	int ret;
 
@@ -52,48 +50,48 @@ execute(const char *string)
 		NULL,
 	};
 
-	if ((ret = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_PROC)) != 0) {
-		printk(KERN_ERR "Voyager failed to run \"%s\": %i\n",
-		       string, ret);
+	if ((ret =
+	     call_usermodehelper(argv[0], argv, envp, UMH_WAIT_PROC)) != 0) {
+		printk(KERN_ERR "Voyager failed to run \"%s\": %i\n", string,
+		       ret);
 	}
 	return ret;
 }
 
-static void
-check_from_kernel(void)
+static void check_from_kernel(void)
 {
-	if(voyager_status.switch_off) {
-		
+	if (voyager_status.switch_off) {
+
 		/* FIXME: This should be configurable via proc */
 		execute("umask 600; echo 0 > /etc/initrunlvl; kill -HUP 1");
-	} else if(voyager_status.power_fail) {
+	} else if (voyager_status.power_fail) {
 		VDEBUG(("Voyager daemon detected AC power failure\n"));
-		
+
 		/* FIXME: This should be configureable via proc */
 		execute("umask 600; echo F > /etc/powerstatus; kill -PWR 1");
 		set_timeout = 1;
 	}
 }
 
-static void
-check_continuing_condition(void)
+static void check_continuing_condition(void)
 {
-	if(voyager_status.power_fail) {
+	if (voyager_status.power_fail) {
 		__u8 data;
-		voyager_cat_psi(VOYAGER_PSI_SUBREAD, 
+		voyager_cat_psi(VOYAGER_PSI_SUBREAD,
 				VOYAGER_PSI_AC_FAIL_REG, &data);
-		if((data & 0x1f) == 0) {
+		if ((data & 0x1f) == 0) {
 			/* all power restored */
-			printk(KERN_NOTICE "VOYAGER AC power restored, cancelling shutdown\n");
+			printk(KERN_NOTICE
+			       "VOYAGER AC power restored, cancelling shutdown\n");
 			/* FIXME: should be user configureable */
-			execute("umask 600; echo O > /etc/powerstatus; kill -PWR 1");
+			execute
+			    ("umask 600; echo O > /etc/powerstatus; kill -PWR 1");
 			set_timeout = 0;
 		}
 	}
 }
 
-static int
-thread(void *unused)
+static int thread(void *unused)
 {
 	printk(KERN_NOTICE "Voyager starting monitor thread\n");
 
@@ -102,7 +100,7 @@ thread(void *unused)
 		schedule_timeout(set_timeout ? HZ : MAX_SCHEDULE_TIMEOUT);
 
 		VDEBUG(("Voyager Daemon awoken\n"));
-		if(voyager_status.request_from_kernel == 0) {
+		if (voyager_status.request_from_kernel == 0) {
 			/* probably awoken from timeout */
 			check_continuing_condition();
 		} else {
@@ -112,20 +110,18 @@ thread(void *unused)
 	}
 }
 
-static int __init
-voyager_thread_start(void)
+static int __init voyager_thread_start(void)
 {
 	voyager_thread = kthread_run(thread, NULL, "kvoyagerd");
 	if (IS_ERR(voyager_thread)) {
-		printk(KERN_ERR "Voyager: Failed to create system monitor thread.\n");
+		printk(KERN_ERR
+		       "Voyager: Failed to create system monitor thread.\n");
 		return PTR_ERR(voyager_thread);
 	}
 	return 0;
 }
 
-
-static void __exit
-voyager_thread_stop(void)
+static void __exit voyager_thread_stop(void)
 {
 	kthread_stop(voyager_thread);
 }

@@ -1,24 +1,64 @@
-config IWLWIFI
-	bool "Intel Wireless WiFi Link Drivers"
+config IWL4965
+	tristate "Intel Wireless WiFi 4965AGN"
 	depends on PCI && MAC80211 && WLAN_80211 && EXPERIMENTAL
 	select FW_LOADER
-	default n
 	---help---
-	  Select to enable drivers based on the iwlwifi project.  This
-	  project provides a common foundation for Intel's wireless
-	  drivers designed to use the mac80211 subsystem.
+	  Select to build the driver supporting the:
 
-	  See <file:Documentation/networking/README.iwlwifi> for
-	  information on the capabilities currently enabled in this
-	  driver and for tips for debugging issues and problems.
+	  Intel Wireless WiFi Link 4965AGN
 
-config IWLWIFI_DEBUG
-	bool "Enable full debugging output in iwlwifi drivers"
-	depends on IWLWIFI
-	default y
+	  This driver uses the kernel's mac80211 subsystem.
+
+	  In order to use this driver, you will need a microcode (uCode)
+	  image for it. You can obtain the microcode from:
+
+	          <http://intellinuxwireless.org/>.
+
+	  The microcode is typically installed in /lib/firmware. You can
+	  look in the hotplug script /etc/hotplug/firmware.agent to
+	  determine which directory FIRMWARE_DIR is set to when the script
+	  runs.
+
+	  If you want to compile the driver as a module ( = code which can be
+	  inserted in and remvoed from the running kernel whenever you want),
+	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
+	  module will be called iwl4965.ko.
+
+config IWL4965_QOS
+	bool "Enable Wireless QoS in iwl4965 driver"
+	depends on IWL4965
 	---help---
-	  This option will enable debug tracing output for the iwlwifi
-	  drivers.
+	  This option will enable wireless quality of service (QoS) for the
+	  iwl4965 driver.
+
+config IWL4965_HT
+	bool "Enable 802.11n HT features in iwl4965 driver"
+	depends on EXPERIMENTAL
+	depends on IWL4965 && IWL4965_QOS
+	depends on n
+	---help---
+	  This option enables IEEE 802.11n High Throughput features
+	  for the iwl4965 driver.
+
+config IWL4965_SPECTRUM_MEASUREMENT
+	bool "Enable Spectrum Measurement in iwl4965 driver"
+	depends on IWL4965
+	---help---
+	  This option will enable spectrum measurement for the iwl4965 driver.
+
+config IWL4965_SENSITIVITY
+	bool "Enable Sensitivity Calibration in iwl4965 driver"
+	depends on IWL4965
+	---help---
+	  This option will enable sensitivity calibration for the iwl4965
+	  driver.
+
+config IWL4965_DEBUG
+	bool "Enable full debugging output in iwl4965 driver"
+	depends on IWL4965
+	---help---
+	  This option will enable debug tracing output for the iwl4965
+	  driver.
 
 	  This will result in the kernel module being ~100k larger.  You can
 	  control which debug output is sent to the kernel log by setting the
@@ -33,76 +73,16 @@ config IWLWIFI_DEBUG
 		  % echo 0x43fff > /sys/bus/pci/drivers/${DRIVER}/debug_level
 
 	  You can find the list of debug mask values in:
-		  drivers/net/wireless/mac80211/iwlwifi/iwl-debug.h
+		  drivers/net/wireless/iwlwifi/iwl-4965-debug.h
 
 	  If this is your first time using this driver, you should say Y here
 	  as the debug information can assist others in helping you resolve
 	  any problems you may encounter.
 
-config IWLWIFI_SENSITIVITY
-	bool "Enable Sensitivity Calibration in iwlwifi drivers"
-	depends on IWLWIFI
-	default y
-	---help---
-	  This option will enable sensitivity calibration for the iwlwifi
-	  drivers.
-
-config IWLWIFI_SPECTRUM_MEASUREMENT
-	bool "Enable Spectrum Measurement in iwlwifi drivers"
-	depends on IWLWIFI
-	default y
-	---help---
-	  This option will enable spectrum measurement for the iwlwifi drivers.
-
-config IWLWIFI_QOS
-	bool "Enable Wireless QoS in iwlwifi drivers"
-	depends on IWLWIFI
-	default y
-	---help---
-	  This option will enable wireless quality of service (QoS) for the
-	  iwlwifi drivers.
-
-config IWLWIFI_HT
-	bool "Enable 802.11n HT features in iwlwifi drivers"
-	depends on EXPERIMENTAL
-	depends on IWLWIFI && MAC80211_HT
-	default n
-	---help---
-	  This option enables IEEE 802.11n High Throughput features
-	  for the iwlwifi drivers.
-
-config IWL4965
-	tristate "Intel Wireless WiFi 4965AGN"
-	depends on m && IWLWIFI && EXPERIMENTAL
-	default m
-	---help---
-	  Select to build the driver supporting the:
-
-	  Intel Wireless WiFi Link 4965AGN
-
-	  This driver uses the kernel's mac80211 subsystem.
-
-	  See <file:Documentation/networking/README.iwlwifi> for
-	  information on the capabilities currently enabled in this
-	  driver and for tips for debugging any issues or problems.
-
-	  In order to use this driver, you will need a microcode (uCode)
-	  image for it. You can obtain the microcode from:
-
-	          <http://intellinuxwireless.org/>.
-
-	  See the above referenced README.iwlwifi for information on where
-	  to install the microcode images.
-
-	  If you want to compile the driver as a module ( = code which can be
-	  inserted in and remvoed from the running kernel whenever you want),
-	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
-	  module will be called iwl4965.ko.
-
 config IWL3945
 	tristate "Intel PRO/Wireless 3945ABG/BG Network Connection"
-	depends on m && IWLWIFI && EXPERIMENTAL
-	default m
+	depends on PCI && MAC80211 && WLAN_80211 && EXPERIMENTAL
+	select FW_LOADER
 	---help---
 	  Select to build the driver supporting the:
 
@@ -110,19 +90,57 @@ config IWL3945
 
 	  This driver uses the kernel's mac80211 subsystem.
 
-	  See <file:Documentation/networking/README.iwlwifi> for
-	  information on the capabilities currently enabled in this
-	  driver and for tips for debugging any issues or problems.
-
 	  In order to use this driver, you will need a microcode (uCode)
 	  image for it. You can obtain the microcode from:
 
 	          <http://intellinuxwireless.org/>.
 
-	  See the above referenced README.iwlwifi for information on where
-	  to install the microcode images.
+	  The microcode is typically installed in /lib/firmware. You can
+	  look in the hotplug script /etc/hotplug/firmware.agent to
+	  determine which directory FIRMWARE_DIR is set to when the script
+	  runs.
 
 	  If you want to compile the driver as a module ( = code which can be
 	  inserted in and remvoed from the running kernel whenever you want),
 	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
 	  module will be called iwl3945.ko.
+
+config IWL3945_QOS
+	bool "Enable Wireless QoS in iwl3945 driver"
+	depends on IWL3945
+	---help---
+	  This option will enable wireless quality of service (QoS) for the
+	  iwl3945 driver.
+
+config IWL3945_SPECTRUM_MEASUREMENT
+	bool "Enable Spectrum Measurement in iwl3945 drivers"
+	depends on IWL3945
+	---help---
+	  This option will enable spectrum measurement for the iwl3945 driver.
+
+config IWL3945_DEBUG
+	bool "Enable full debugging output in iwl3945 driver"
+	depends on IWL3945
+	---help---
+	  This option will enable debug tracing output for the iwl3945
+	  driver.
+
+	  This will result in the kernel module being ~100k larger.  You can
+	  control which debug output is sent to the kernel log by setting the
+	  value in
+
+	          /sys/bus/pci/drivers/${DRIVER}/debug_level
+
+	  This entry will only exist if this option is enabled.
+
+	  To set a value, simply echo an 8-byte hex value to the same file:
+
+		  % echo 0x43fff > /sys/bus/pci/drivers/${DRIVER}/debug_level
+
+	  You can find the list of debug mask values in:
+		  drivers/net/wireless/iwlwifi/iwl-3945-debug.h
+
+	  If this is your first time using this driver, you should say Y here
+	  as the debug information can assist others in helping you resolve
+	  any problems you may encounter.
+

@@ -7,7 +7,6 @@
 #include <linux/kexec.h>
 #include <linux/module.h>
 #include <linux/mm.h>
-#include <linux/efi.h>
 #include <linux/pfn.h>
 #include <linux/uaccess.h>
 #include <linux/suspend.h>
@@ -16,11 +15,6 @@
 #include <asm/page.h>
 #include <asm/e820.h>
 #include <asm/setup.h>
-
-#ifdef CONFIG_EFI
-int efi_enabled = 0;
-EXPORT_SYMBOL(efi_enabled);
-#endif
 
 struct e820map e820;
 struct change_member {
@@ -37,26 +31,6 @@ unsigned long pci_mem_start = 0x10000000;
 EXPORT_SYMBOL(pci_mem_start);
 #endif
 extern int user_defined_memmap;
-struct resource data_resource = {
-	.name	= "Kernel data",
-	.start	= 0,
-	.end	= 0,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
-};
-
-struct resource code_resource = {
-	.name	= "Kernel code",
-	.start	= 0,
-	.end	= 0,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
-};
-
-struct resource bss_resource = {
-	.name	= "Kernel bss",
-	.start	= 0,
-	.end	= 0,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
-};
 
 static struct resource system_rom_resource = {
 	.name	= "System ROM",
@@ -110,60 +84,6 @@ static struct resource video_rom_resource = {
 	.end	= 0xc7fff,
 	.flags	= IORESOURCE_BUSY | IORESOURCE_READONLY | IORESOURCE_MEM
 };
-
-static struct resource video_ram_resource = {
-	.name	= "Video RAM area",
-	.start	= 0xa0000,
-	.end	= 0xbffff,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
-};
-
-static struct resource standard_io_resources[] = { {
-	.name	= "dma1",
-	.start	= 0x0000,
-	.end	= 0x001f,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
-}, {
-	.name	= "pic1",
-	.start	= 0x0020,
-	.end	= 0x0021,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
-}, {
-	.name   = "timer0",
-	.start	= 0x0040,
-	.end    = 0x0043,
-	.flags  = IORESOURCE_BUSY | IORESOURCE_IO
-}, {
-	.name   = "timer1",
-	.start  = 0x0050,
-	.end    = 0x0053,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
-}, {
-	.name	= "keyboard",
-	.start	= 0x0060,
-	.end	= 0x006f,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
-}, {
-	.name	= "dma page reg",
-	.start	= 0x0080,
-	.end	= 0x008f,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
-}, {
-	.name	= "pic2",
-	.start	= 0x00a0,
-	.end	= 0x00a1,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
-}, {
-	.name	= "dma2",
-	.start	= 0x00c0,
-	.end	= 0x00df,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
-}, {
-	.name	= "fpu",
-	.start	= 0x00f0,
-	.end	= 0x00ff,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
-} };
 
 #define ROMSIGNATURE 0xaa55
 
@@ -260,10 +180,9 @@ static void __init probe_roms(void)
  * Request address space for all standard RAM and ROM resources
  * and also for regions reported as reserved by the e820.
  */
-static void __init
-legacy_init_iomem_resources(struct resource *code_resource,
-			    struct resource *data_resource,
-			    struct resource *bss_resource)
+void __init init_iomem_resources(struct resource *code_resource,
+		struct resource *data_resource,
+		struct resource *bss_resource)
 {
 	int i;
 
@@ -305,35 +224,6 @@ legacy_init_iomem_resources(struct resource *code_resource,
 	}
 }
 
-/*
- * Request address space for all standard resources
- *
- * This is called just before pcibios_init(), which is also a
- * subsys_initcall, but is linked in later (in arch/i386/pci/common.c).
- */
-static int __init request_standard_resources(void)
-{
-	int i;
-
-	printk("Setting up standard PCI resources\n");
-	if (efi_enabled)
-		efi_initialize_iomem_resources(&code_resource,
-				&data_resource, &bss_resource);
-	else
-		legacy_init_iomem_resources(&code_resource,
-				&data_resource, &bss_resource);
-
-	/* EFI systems may still have VGA */
-	request_resource(&iomem_resource, &video_ram_resource);
-
-	/* request I/O space for devices used on all i[345]86 PCs */
-	for (i = 0; i < ARRAY_SIZE(standard_io_resources); i++)
-		request_resource(&ioport_resource, &standard_io_resources[i]);
-	return 0;
-}
-
-subsys_initcall(request_standard_resources);
-
 #if defined(CONFIG_PM) && defined(CONFIG_HIBERNATION)
 /**
  * e820_mark_nosave_regions - Find the ranges of physical addresses that do not
@@ -370,19 +260,17 @@ void __init add_memory_region(unsigned long long start,
 {
 	int x;
 
-	if (!efi_enabled) {
-       		x = e820.nr_map;
+	x = e820.nr_map;
 
-		if (x == E820MAX) {
-		    printk(KERN_ERR "Ooops! Too many entries in the memory map!\n");
-		    return;
-		}
-
-		e820.map[x].addr = start;
-		e820.map[x].size = size;
-		e820.map[x].type = type;
-		e820.nr_map++;
+	if (x == E820MAX) {
+		printk(KERN_ERR "Ooops! Too many entries in the memory map!\n");
+		return;
 	}
+
+	e820.map[x].addr = start;
+	e820.map[x].size = size;
+	e820.map[x].type = type;
+	e820.nr_map++;
 } /* add_memory_region */
 
 /*
@@ -598,29 +486,6 @@ int __init copy_e820_map(struct e820entry * biosmap, int nr_map)
 }
 
 /*
- * Callback for efi_memory_walk.
- */
-static int __init
-efi_find_max_pfn(unsigned long start, unsigned long end, void *arg)
-{
-	unsigned long *max_pfn = arg, pfn;
-
-	if (start < end) {
-		pfn = PFN_UP(end -1);
-		if (pfn > *max_pfn)
-			*max_pfn = pfn;
-	}
-	return 0;
-}
-
-static int __init
-efi_memory_present_wrapper(unsigned long start, unsigned long end, void *arg)
-{
-	memory_present(0, PFN_UP(start), PFN_DOWN(end));
-	return 0;
-}
-
-/*
  * Find the highest page frame number we have available
  */
 void __init find_max_pfn(void)
@@ -628,11 +493,6 @@ void __init find_max_pfn(void)
 	int i;
 
 	max_pfn = 0;
-	if (efi_enabled) {
-		efi_memmap_walk(efi_find_max_pfn, &max_pfn);
-		efi_memmap_walk(efi_memory_present_wrapper, NULL);
-		return;
-	}
 
 	for (i = 0; i < e820.nr_map; i++) {
 		unsigned long start, end;
@@ -650,34 +510,12 @@ void __init find_max_pfn(void)
 }
 
 /*
- * Free all available memory for boot time allocation.  Used
- * as a callback function by efi_memory_walk()
- */
-
-static int __init
-free_available_memory(unsigned long start, unsigned long end, void *arg)
-{
-	/* check max_low_pfn */
-	if (start >= (max_low_pfn << PAGE_SHIFT))
-		return 0;
-	if (end >= (max_low_pfn << PAGE_SHIFT))
-		end = max_low_pfn << PAGE_SHIFT;
-	if (start < end)
-		free_bootmem(start, end - start);
-
-	return 0;
-}
-/*
  * Register fully available low RAM pages with the bootmem allocator.
  */
 void __init register_bootmem_low_pages(unsigned long max_low_pfn)
 {
 	int i;
 
-	if (efi_enabled) {
-		efi_memmap_walk(free_available_memory, NULL);
-		return;
-	}
 	for (i = 0; i < e820.nr_map; i++) {
 		unsigned long curr_pfn, last_pfn, size;
 		/*
@@ -785,56 +623,12 @@ void __init print_memory_map(char *who)
 	}
 }
 
-static __init __always_inline void efi_limit_regions(unsigned long long size)
-{
-	unsigned long long current_addr = 0;
-	efi_memory_desc_t *md, *next_md;
-	void *p, *p1;
-	int i, j;
-
-	j = 0;
-	p1 = memmap.map;
-	for (p = p1, i = 0; p < memmap.map_end; p += memmap.desc_size, i++) {
-		md = p;
-		next_md = p1;
-		current_addr = md->phys_addr +
-			PFN_PHYS(md->num_pages);
-		if (is_available_memory(md)) {
-			if (md->phys_addr >= size) continue;
-			memcpy(next_md, md, memmap.desc_size);
-			if (current_addr >= size) {
-				next_md->num_pages -=
-					PFN_UP(current_addr-size);
-			}
-			p1 += memmap.desc_size;
-			next_md = p1;
-			j++;
-		} else if ((md->attribute & EFI_MEMORY_RUNTIME) ==
-			   EFI_MEMORY_RUNTIME) {
-			/* In order to make runtime services
-			 * available we have to include runtime
-			 * memory regions in memory map */
-			memcpy(next_md, md, memmap.desc_size);
-			p1 += memmap.desc_size;
-			next_md = p1;
-			j++;
-		}
-	}
-	memmap.nr_map = j;
-	memmap.map_end = memmap.map +
-		(memmap.nr_map * memmap.desc_size);
-}
-
 void __init limit_regions(unsigned long long size)
 {
 	unsigned long long current_addr;
 	int i;
 
 	print_memory_map("limit_regions start");
-	if (efi_enabled) {
-		efi_limit_regions(size);
-		return;
-	}
 	for (i = 0; i < e820.nr_map; i++) {
 		current_addr = e820.map[i].addr + e820.map[i].size;
 		if (current_addr < size)
@@ -955,3 +749,14 @@ static int __init parse_memmap(char *arg)
 	return 0;
 }
 early_param("memmap", parse_memmap);
+void __init update_e820(void)
+{
+	u8 nr_map;
+
+	nr_map = e820.nr_map;
+	if (sanitize_e820_map(e820.map, &nr_map))
+		return;
+	e820.nr_map = nr_map;
+	printk(KERN_INFO "modified physical RAM map:\n");
+	print_memory_map("modified");
+}

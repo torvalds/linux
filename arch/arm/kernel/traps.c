@@ -19,6 +19,7 @@
 #include <linux/kallsyms.h>
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/kprobes.h>
 
 #include <asm/atomic.h>
 #include <asm/cacheflush.h>
@@ -45,15 +46,6 @@ __setup("user_debug=", user_debug_setup);
 #endif
 
 static void dump_mem(const char *str, unsigned long bottom, unsigned long top);
-
-static inline int in_exception_text(unsigned long ptr)
-{
-	extern char __exception_text_start[];
-	extern char __exception_text_end[];
-
-	return ptr >= (unsigned long)&__exception_text_start &&
-	       ptr < (unsigned long)&__exception_text_end;
-}
 
 void dump_backtrace_entry(unsigned long where, unsigned long from, unsigned long frame)
 {
@@ -321,6 +313,17 @@ asmlinkage void __exception do_undefinstr(struct pt_regs *regs)
 	} else {
 		get_user(instr, (u32 __user *)pc);
 	}
+
+#ifdef CONFIG_KPROBES
+	/*
+	 * It is possible to have recursive kprobes, so we can't call
+	 * the kprobe trap handler with the undef_lock held.
+	 */
+	if (instr == KPROBE_BREAKPOINT_INSTRUCTION && !user_mode(regs)) {
+		kprobe_trap_handler(regs, instr);
+		return;
+	}
+#endif
 
 	spin_lock_irqsave(&undef_lock, flags);
 	list_for_each_entry(hook, &undef_hook, node) {

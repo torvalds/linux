@@ -29,6 +29,7 @@
 #include <asm/irq.h>
 #include <asm/system.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-regs.h>
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>

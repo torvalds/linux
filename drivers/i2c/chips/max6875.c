@@ -34,7 +34,7 @@
 #include <linux/mutex.h>
 
 /* Do not scan - the MAX6875 access method will write to some EEPROM chips */
-static unsigned short normal_i2c[] = {I2C_CLIENT_END};
+static const unsigned short normal_i2c[] = { I2C_CLIENT_END };
 
 /* Insmod parameters */
 I2C_CLIENT_INSMOD_1(max6875);

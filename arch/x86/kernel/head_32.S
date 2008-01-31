@@ -9,6 +9,7 @@
 
 .text
 #include <linux/threads.h>
+#include <linux/init.h>
 #include <linux/linkage.h>
 #include <asm/segment.h>
 #include <asm/page.h>
@@ -151,7 +152,9 @@ WEAK(xen_entry)
 	/* Unknown implementation; there's really
 	   nothing we can do at this point. */
 	ud2a
-.data
+
+	__INITDATA
+
 subarch_entries:
 	.long default_entry		/* normal x86/PC */
 	.long lguest_entry		/* lguest hypervisor */
@@ -199,7 +202,6 @@ default_entry:
 	addl $0x67, %eax			/* 0x67 == _PAGE_TABLE */
 	movl %eax, 4092(%edx)
 
-	xorl %ebx,%ebx				/* This is the boot CPU (BSP) */
 	jmp 3f
 /*
  * Non-boot CPU entry point; entered from trampoline.S
@@ -222,6 +224,8 @@ ENTRY(startup_32_smp)
 	movl %eax,%es
 	movl %eax,%fs
 	movl %eax,%gs
+#endif /* CONFIG_SMP */
+3:
 
 /*
  *	New page tables may be in 4Mbyte page mode and may
@@ -268,12 +272,6 @@ ENTRY(startup_32_smp)
 	wrmsr
 
 6:
-	/* This is a secondary processor (AP) */
-	xorl %ebx,%ebx
-	incl %ebx
-
-#endif /* CONFIG_SMP */
-3:
 
 /*
  * Enable paging
@@ -297,7 +295,7 @@ ENTRY(startup_32_smp)
 	popfl
 
 #ifdef CONFIG_SMP
-	andl %ebx,%ebx
+	cmpb $0, ready
 	jz  1f				/* Initial CPU cleans BSS */
 	jmp checkCPUtype
 1:
@@ -502,6 +500,7 @@ early_fault:
 	call printk
 #endif
 #endif
+	call dump_stack
 hlt_loop:
 	hlt
 	jmp hlt_loop

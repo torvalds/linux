@@ -45,6 +45,6 @@ void __cpuinit init_scattered_cpuid_features(struct cpuinfo_x86 *c)
 			&regs[CR_ECX], &regs[CR_EDX]);
 
 		if (regs[cb->reg] & (1 << cb->bit))
-			set_bit(cb->feature, c->x86_capability);
+			set_cpu_cap(c, cb->feature);
 	}
 }

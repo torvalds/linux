@@ -663,7 +663,7 @@ static int pmacpic_resume(struct sys_device *sysdev)
 #endif /* CONFIG_PM && CONFIG_PPC32 */
 
 static struct sysdev_class pmacpic_sysclass = {
-	set_kset_name("pmac_pic"),
+	.name = "pmac_pic",
 };
 
 static struct sys_device device_pmacpic = {

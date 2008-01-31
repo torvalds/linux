@@ -402,9 +402,6 @@ static void ali_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	u8 tmpbyte		= 0x00;
 	int m5229_udma		= (hwif->channel) ? 0x57 : 0x56;
 
-	if (speed < XFER_PIO_0)
-		return;
-
 	if (speed == XFER_UDMA_6)
 		speed1 = 0x47;
 

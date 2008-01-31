@@ -11,4 +11,9 @@
 
 #define irq_canonicalize(i)	(i)
 
+#ifndef __ASSEMBLER__
+int nmi_enable(void);
+void nmi_disable(void);
+#endif
+
 #endif /* __ASM_AVR32_IOCTLS_H */

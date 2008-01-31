@@ -16,6 +16,7 @@
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
 #include <linux/leds.h>
+#include <linux/i2c-gpio.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -68,16 +69,17 @@ static struct platform_device nas100d_leds = {
 };
 #endif
 
-static struct ixp4xx_i2c_pins nas100d_i2c_gpio_pins = {
+static struct i2c_gpio_platform_data nas100d_i2c_gpio_data = {
 	.sda_pin		= NAS100D_SDA_PIN,
 	.scl_pin		= NAS100D_SCL_PIN,
 };
 
-static struct platform_device nas100d_i2c_controller = {
-	.name			= "IXP4XX-I2C",
+static struct platform_device nas100d_i2c_gpio = {
+	.name			= "i2c-gpio",
 	.id			= 0,
-	.dev.platform_data	= &nas100d_i2c_gpio_pins,
-	.num_resources		= 0,
+	.dev	 = {
+		.platform_data	= &nas100d_i2c_gpio_data,
+	},
 };
 
 static struct resource nas100d_uart_resources[] = {
@@ -124,7 +126,7 @@ static struct platform_device nas100d_uart = {
 };
 
 static struct platform_device *nas100d_devices[] __initdata = {
-	&nas100d_i2c_controller,
+	&nas100d_i2c_gpio,
 	&nas100d_flash,
 #ifdef CONFIG_LEDS_IXP4XX
 	&nas100d_leds,

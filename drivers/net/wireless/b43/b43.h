@@ -35,8 +35,8 @@
 #define B43_MMIO_DMA4_IRQ_MASK		0x44
 #define B43_MMIO_DMA5_REASON		0x48
 #define B43_MMIO_DMA5_IRQ_MASK		0x4C
-#define B43_MMIO_MACCTL			0x120
-#define B43_MMIO_STATUS2_BITFIELD	0x124
+#define B43_MMIO_MACCTL			0x120	/* MAC control */
+#define B43_MMIO_MACCMD			0x124	/* MAC command */
 #define B43_MMIO_GEN_IRQ_REASON		0x128
 #define B43_MMIO_GEN_IRQ_MASK		0x12C
 #define B43_MMIO_RAM_CONTROL		0x130
@@ -50,6 +50,9 @@
 #define B43_MMIO_XMITSTAT_1		0x174
 #define B43_MMIO_REV3PLUS_TSF_LOW	0x180	/* core rev >= 3 only */
 #define B43_MMIO_REV3PLUS_TSF_HIGH	0x184	/* core rev >= 3 only */
+#define B43_MMIO_TSF_CFP_REP		0x188
+#define B43_MMIO_TSF_CFP_START		0x18C
+#define B43_MMIO_TSF_CFP_MAXDUR		0x190
 
 /* 32-bit DMA */
 #define B43_MMIO_DMA32_BASE0		0x200
@@ -65,11 +68,6 @@
 #define B43_MMIO_DMA64_BASE3		0x2C0
 #define B43_MMIO_DMA64_BASE4		0x300
 #define B43_MMIO_DMA64_BASE5		0x340
-/* PIO */
-#define B43_MMIO_PIO1_BASE		0x300
-#define B43_MMIO_PIO2_BASE		0x310
-#define B43_MMIO_PIO3_BASE		0x320
-#define B43_MMIO_PIO4_BASE		0x330
 
 #define B43_MMIO_PHY_VER		0x3E0
 #define B43_MMIO_PHY_RADIO		0x3E2
@@ -88,6 +86,8 @@
 #define B43_MMIO_RADIO_HWENABLED_LO	0x49A
 #define B43_MMIO_GPIO_CONTROL		0x49C
 #define B43_MMIO_GPIO_MASK		0x49E
+#define B43_MMIO_TSF_CFP_START_LOW	0x604
+#define B43_MMIO_TSF_CFP_START_HIGH	0x606
 #define B43_MMIO_TSF_0			0x632	/* core rev < 3 only */
 #define B43_MMIO_TSF_1			0x634	/* core rev < 3 only */
 #define B43_MMIO_TSF_2			0x636	/* core rev < 3 only */
@@ -170,14 +170,17 @@ enum {
 #define B43_SHM_SH_SLOTT		0x0010	/* Slot time */
 #define B43_SHM_SH_DTIMPER		0x0012	/* DTIM period */
 #define B43_SHM_SH_NOSLPZNATDTIM	0x004C	/* NOSLPZNAT DTIM */
-/* SHM_SHARED beacon variables */
+/* SHM_SHARED beacon/AP variables */
 #define B43_SHM_SH_BTL0			0x0018	/* Beacon template length 0 */
 #define B43_SHM_SH_BTL1			0x001A	/* Beacon template length 1 */
 #define B43_SHM_SH_BTSFOFF		0x001C	/* Beacon TSF offset */
 #define B43_SHM_SH_TIMBPOS		0x001E	/* TIM B position in beacon */
+#define B43_SHM_SH_DTIMP		0x0012	/* DTIP period */
+#define B43_SHM_SH_MCASTCOOKIE		0x00A8	/* Last bcast/mcast frame ID */
 #define B43_SHM_SH_SFFBLIM		0x0044	/* Short frame fallback retry limit */
 #define B43_SHM_SH_LFFBLIM		0x0046	/* Long frame fallback retry limit */
 #define B43_SHM_SH_BEACPHYCTL		0x0054	/* Beacon PHY TX control word (see PHY TX control) */
+#define B43_SHM_SH_EXTNPHYCTL		0x00B0	/* Extended bytes for beacon PHY control (N) */
 /* SHM_SHARED ACK/CTS control */
 #define B43_SHM_SH_ACKCTSPHYCTL		0x0022	/* ACK/CTS PHY control word (see PHY TX control) */
 /* SHM_SHARED probe response variables */
@@ -321,17 +324,29 @@ enum {
 #define B43_MACCTL_DISCPMQ		0x40000000	/* Discard Power Management Queue */
 #define B43_MACCTL_GMODE		0x80000000	/* G Mode */
 
-/* 802.11 core specific TM State Low flags */
+/* MAC Command bitfield */
+#define B43_MACCMD_BEACON0_VALID	0x00000001	/* Beacon 0 in template RAM is busy/valid */
+#define B43_MACCMD_BEACON1_VALID	0x00000002	/* Beacon 1 in template RAM is busy/valid */
+#define B43_MACCMD_DFQ_VALID		0x00000004	/* Directed frame queue valid (IBSS PS mode, ATIM) */
+#define B43_MACCMD_CCA			0x00000008	/* Clear channel assessment */
+#define B43_MACCMD_BGNOISE		0x00000010	/* Background noise */
+
+/* 802.11 core specific TM State Low (SSB_TMSLOW) flags */
 #define B43_TMSLOW_GMODE		0x20000000	/* G Mode Enable */
-#define B43_TMSLOW_PLLREFSEL		0x00200000	/* PLL Frequency Reference Select */
+#define B43_TMSLOW_PHYCLKSPEED		0x00C00000	/* PHY clock speed mask (N-PHY only) */
+#define  B43_TMSLOW_PHYCLKSPEED_40MHZ	0x00000000	/* 40 MHz PHY */
+#define  B43_TMSLOW_PHYCLKSPEED_80MHZ	0x00400000	/* 80 MHz PHY */
+#define  B43_TMSLOW_PHYCLKSPEED_160MHZ	0x00800000	/* 160 MHz PHY */
+#define B43_TMSLOW_PLLREFSEL		0x00200000	/* PLL Frequency Reference Select (rev >= 5) */
 #define B43_TMSLOW_MACPHYCLKEN		0x00100000	/* MAC PHY Clock Control Enable (rev >= 5) */
 #define B43_TMSLOW_PHYRESET		0x00080000	/* PHY Reset */
 #define B43_TMSLOW_PHYCLKEN		0x00040000	/* PHY Clock Enable */
 
-/* 802.11 core specific TM State High flags */
+/* 802.11 core specific TM State High (SSB_TMSHIGH) flags */
+#define B43_TMSHIGH_DUALBAND_PHY	0x00080000	/* Dualband PHY available */
 #define B43_TMSHIGH_FCLOCK		0x00040000	/* Fast Clock Available (rev >= 5) */
-#define B43_TMSHIGH_APHY		0x00020000	/* A-PHY available (rev >= 5) */
-#define B43_TMSHIGH_GPHY		0x00010000	/* G-PHY available (rev >= 5) */
+#define B43_TMSHIGH_HAVE_5GHZ_PHY	0x00020000	/* 5 GHz PHY available (rev >= 5) */
+#define B43_TMSHIGH_HAVE_2GHZ_PHY	0x00010000	/* 2.4 GHz PHY available (rev >= 5) */
 
 /* Generic-Interrupt reasons. */
 #define B43_IRQ_MAC_SUSPENDED		0x00000001
@@ -392,6 +407,8 @@ enum {
 
 #define B43_DEFAULT_SHORT_RETRY_LIMIT	7
 #define B43_DEFAULT_LONG_RETRY_LIMIT	4
+
+#define B43_PHY_TX_BADNESS_LIMIT	1000
 
 /* Max size of a security key */
 #define B43_SEC_KEYSIZE			16
@@ -462,7 +479,6 @@ struct b43_phy {
 	u16 radio_ver;		/* Radio version */
 	u8 radio_rev;		/* Radio revision */
 
-	bool locked;		/* Only used in b43_phy_{un}lock() */
 	bool dyn_tssi_tbl;	/* tssi2dbm is kmalloc()ed. */
 
 	/* ACI (adjacent channel interference) flags. */
@@ -499,11 +515,6 @@ struct b43_phy {
 	s16 lna_gain;		/* LNA */
 	s16 pga_gain;		/* PGA */
 
-	/* PHY lock for core.rev < 3
-	 * This lock is only used by b43_phy_{un}lock()
-	 */
-	spinlock_t lock;
-
 	/* Desired TX power level (in dBm).
 	 * This is set by the user and adjusted in b43_phy_xmitpower(). */
 	u8 power_level;
@@ -514,9 +525,7 @@ struct b43_phy {
 	struct b43_bbatt bbatt;
 	struct b43_rfatt rfatt;
 	u8 tx_control;		/* B43_TXCTL_XXX */
-#ifdef CONFIG_B43_DEBUG
-	bool manual_txpower_control;	/* Manual TX-power control enabled? */
-#endif
+
 	/* Hardware Power Control enabled? */
 	bool hardware_power_control;
 
@@ -544,6 +553,26 @@ struct b43_phy {
 	u16 lofcal;
 
 	u16 initval;		//FIXME rename?
+
+	/* PHY TX errors counter. */
+	atomic_t txerr_cnt;
+
+	/* The device does address auto increment for the OFDM tables.
+	 * We cache the previously used address here and omit the address
+	 * write on the next table access, if possible. */
+	u16 ofdmtab_addr; /* The address currently set in hardware. */
+	enum { /* The last data flow direction. */
+		B43_OFDMTAB_DIRECTION_UNKNOWN = 0,
+		B43_OFDMTAB_DIRECTION_READ,
+		B43_OFDMTAB_DIRECTION_WRITE,
+	} ofdmtab_addr_direction;
+
+#if B43_DEBUG
+	/* Manual TX-power control enabled? */
+	bool manual_txpower_control;
+	/* PHY registers locked by b43_phy_lock()? */
+	bool phy_locked;
+#endif /* B43_DEBUG */
 };
 
 /* Data structures for DMA transmission, per 80211 core. */
@@ -557,14 +586,6 @@ struct b43_dma {
 
 	struct b43_dmaring *rx_ring0;
 	struct b43_dmaring *rx_ring3;	/* only available on core.rev < 5 */
-};
-
-/* Data structures for PIO transmission, per 80211 core. */
-struct b43_pio {
-	struct b43_pioqueue *queue0;
-	struct b43_pioqueue *queue1;
-	struct b43_pioqueue *queue2;
-	struct b43_pioqueue *queue3;
 };
 
 /* Context information for a noise calculation (Link Quality). */
@@ -599,18 +620,18 @@ struct b43_wl {
 	/* Pointer to the ieee80211 hardware data structure */
 	struct ieee80211_hw *hw;
 
-	spinlock_t irq_lock;
 	struct mutex mutex;
+	spinlock_t irq_lock;
+	/* Lock for LEDs access. */
 	spinlock_t leds_lock;
+	/* Lock for SHM access. */
+	spinlock_t shm_lock;
 
 	/* We can only have one operating interface (802.11 core)
 	 * at a time. General information about this interface follows.
 	 */
 
-	/* Opaque ID of the operating interface from the ieee80211
-	 * subsystem. Do not modify.
-	 */
-	int if_id;
+	struct ieee80211_vif *vif;
 	/* The MAC address of the operating interface. */
 	u8 mac_addr[ETH_ALEN];
 	/* Current BSSID */
@@ -634,18 +655,33 @@ struct b43_wl {
 	/* List of all wireless devices on this chip */
 	struct list_head devlist;
 	u8 nr_devs;
+
+	bool radiotap_enabled;
+
+	/* The beacon we are currently using (AP or IBSS mode).
+	 * This beacon stuff is protected by the irq_lock. */
+	struct sk_buff *current_beacon;
+	bool beacon0_uploaded;
+	bool beacon1_uploaded;
+};
+
+/* In-memory representation of a cached microcode file. */
+struct b43_firmware_file {
+	const char *filename;
+	const struct firmware *data;
 };
 
 /* Pointers to the firmware data and meta information about it. */
 struct b43_firmware {
 	/* Microcode */
-	const struct firmware *ucode;
+	struct b43_firmware_file ucode;
 	/* PCM code */
-	const struct firmware *pcm;
+	struct b43_firmware_file pcm;
 	/* Initial MMIO values for the firmware */
-	const struct firmware *initvals;
+	struct b43_firmware_file initvals;
 	/* Initial MMIO values for the firmware, band-specific */
-	const struct firmware *initvals_band;
+	struct b43_firmware_file initvals_band;
+
 	/* Firmware revision */
 	u16 rev;
 	/* Firmware patchlevel */
@@ -683,21 +719,17 @@ struct b43_wldev {
 	/* Saved init status for handling suspend. */
 	int suspend_init_status;
 
-	bool __using_pio;	/* Internal, use b43_using_pio(). */
 	bool bad_frames_preempt;	/* Use "Bad Frames Preemption" (default off) */
-	bool reg124_set_0x4;	/* Some variable to keep track of IRQ stuff. */
+	bool dfq_valid;		/* Directed frame queue valid (IBSS PS mode, ATIM) */
 	bool short_preamble;	/* TRUE, if short preamble is enabled. */
 	bool short_slot;	/* TRUE, if short slot timing is enabled. */
 	bool radio_hw_enable;	/* saved state of radio hardware enabled state */
 
 	/* PHY/Radio device. */
 	struct b43_phy phy;
-	union {
-		/* DMA engines. */
-		struct b43_dma dma;
-		/* PIO engines. */
-		struct b43_pio pio;
-	};
+
+	/* DMA engines. */
+	struct b43_dma dma;
 
 	/* Various statistics about the physical device. */
 	struct b43_stats stats;
@@ -732,9 +764,6 @@ struct b43_wldev {
 	u8 max_nr_keys;
 	struct b43_key key[58];
 
-	/* Cached beacon template while uploading the template. */
-	struct sk_buff *cached_beacon;
-
 	/* Firmware data */
 	struct b43_firmware fw;
 
@@ -751,28 +780,6 @@ static inline struct b43_wl *hw_to_b43_wl(struct ieee80211_hw *hw)
 {
 	return hw->priv;
 }
-
-/* Helper function, which returns a boolean.
- * TRUE, if PIO is used; FALSE, if DMA is used.
- */
-#if defined(CONFIG_B43_DMA) && defined(CONFIG_B43_PIO)
-static inline int b43_using_pio(struct b43_wldev *dev)
-{
-	return dev->__using_pio;
-}
-#elif defined(CONFIG_B43_DMA)
-static inline int b43_using_pio(struct b43_wldev *dev)
-{
-	return 0;
-}
-#elif defined(CONFIG_B43_PIO)
-static inline int b43_using_pio(struct b43_wldev *dev)
-{
-	return 1;
-}
-#else
-# error "Using neither DMA nor PIO? Confused..."
-#endif
 
 static inline struct b43_wldev *dev_to_b43_wldev(struct device *dev)
 {

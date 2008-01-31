@@ -67,7 +67,7 @@ static int videobuf_dvb_thread(void *data)
 
 		/* feed buffer data to demux */
 		dma=videobuf_to_dma(buf);
-		if (buf->state == STATE_DONE)
+		if (buf->state == VIDEOBUF_DONE)
 			dvb_dmx_swfilter(&dvb->demux, dma->vmalloc,
 					 buf->size);
 

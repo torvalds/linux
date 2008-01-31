@@ -574,6 +574,8 @@ int __init at91_clock_init(unsigned long main_clock)
 	} else if (cpu_is_at91sam9260() || cpu_is_at91sam9261() || cpu_is_at91sam9263()) {
 		uhpck.pmc_mask = AT91SAM926x_PMC_UHP;
 		udpck.pmc_mask = AT91SAM926x_PMC_UDP;
+	} else if (cpu_is_at91cap9()) {
+		uhpck.pmc_mask = AT91CAP9_PMC_UHP;
 	}
 	at91_sys_write(AT91_CKGR_PLLBR, 0);
 

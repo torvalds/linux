@@ -48,6 +48,21 @@ static void __inet_twsk_kill(struct inet_timewait_sock *tw,
 	inet_twsk_put(tw);
 }
 
+void inet_twsk_put(struct inet_timewait_sock *tw)
+{
+	if (atomic_dec_and_test(&tw->tw_refcnt)) {
+		struct module *owner = tw->tw_prot->owner;
+		twsk_destructor((struct sock *)tw);
+#ifdef SOCK_REFCNT_DEBUG
+		printk(KERN_DEBUG "%s timewait_sock %p released\n",
+		       tw->tw_prot->name, tw);
+#endif
+		kmem_cache_free(tw->tw_prot->twsk_prot->twsk_slab, tw);
+		module_put(owner);
+	}
+}
+EXPORT_SYMBOL_GPL(inet_twsk_put);
+
 /*
  * Enter the time wait state. This is called with locally disabled BH.
  * Essentially we whip up a timewait bucket, copy the relevant info into it
@@ -76,7 +91,7 @@ void __inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
 
 	/* Step 2: Remove SK from established hash. */
 	if (__sk_del_node_init(sk))
-		sock_prot_dec_use(sk->sk_prot);
+		sock_prot_inuse_add(sk->sk_prot, -1);
 
 	/* Step 3: Hash TW into TIMEWAIT chain. */
 	inet_twsk_add_node(tw, &ehead->twchain);
@@ -194,16 +209,14 @@ out:
 
 EXPORT_SYMBOL_GPL(inet_twdr_hangman);
 
-extern void twkill_slots_invalid(void);
-
 void inet_twdr_twkill_work(struct work_struct *work)
 {
 	struct inet_timewait_death_row *twdr =
 		container_of(work, struct inet_timewait_death_row, twkill_work);
 	int i;
 
-	if ((INET_TWDR_TWKILL_SLOTS - 1) > (sizeof(twdr->thread_slots) * 8))
-		twkill_slots_invalid();
+	BUILD_BUG_ON((INET_TWDR_TWKILL_SLOTS - 1) >
+			(sizeof(twdr->thread_slots) * 8));
 
 	while (twdr->thread_slots) {
 		spin_lock_bh(&twdr->death_lock);

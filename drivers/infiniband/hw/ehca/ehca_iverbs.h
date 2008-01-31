@@ -200,4 +200,6 @@ void ehca_free_fw_ctrlblock(void *ptr);
 #define ehca_free_fw_ctrlblock(ptr) free_page((unsigned long)(ptr))
 #endif
 
+void ehca_recover_sqp(struct ib_qp *sqp);
+
 #endif

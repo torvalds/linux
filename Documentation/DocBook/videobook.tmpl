@@ -96,7 +96,6 @@ static struct video_device my_radio
 {
         "My radio",
         VID_TYPE_TUNER,
-        VID_HARDWARE_MYRADIO,
         radio_open.
         radio_close,
         NULL,                /* no read */
@@ -117,13 +116,6 @@ static struct video_device my_radio
         The only defined value relevant for a radio card is VID_TYPE_TUNER which
         indicates that the device can be tuned. Clearly our radio is going to have some
         way to change channel so it is tuneable.
-  </para>
-  <para>
-        The VID_HARDWARE_ types are unique to each device. Numbers are assigned by
-        <email>alan@redhat.com</email> when device drivers are going to be released. Until then you
-        can pull a suitably large number out of your hat and use it. 10000 should be
-        safe for a very long time even allowing for the huge number of vendors
-        making new and different radio cards at the moment.
   </para>
   <para>
         We declare an open and close routine, but we do not need read or write,
@@ -844,7 +836,6 @@ static struct video_device my_camera
         "My Camera",
         VID_TYPE_OVERLAY|VID_TYPE_SCALES|\
         VID_TYPE_CAPTURE|VID_TYPE_CHROMAKEY,
-        VID_HARDWARE_MYCAMERA,
         camera_open.
         camera_close,
         camera_read,      /* no read */

@@ -139,17 +139,54 @@ enum ieee80211_phymode {
 };
 
 /**
+ * struct ieee80211_ht_info - describing STA's HT capabilities
+ *
+ * This structure describes most essential parameters needed
+ * to describe 802.11n HT capabilities for an STA.
+ *
+ * @ht_supported: is HT supported by STA, 0: no, 1: yes
+ * @cap: HT capabilities map as described in 802.11n spec
+ * @ampdu_factor: Maximum A-MPDU length factor
+ * @ampdu_density: Minimum A-MPDU spacing
+ * @supp_mcs_set: Supported MCS set as described in 802.11n spec
+ */
+struct ieee80211_ht_info {
+	u8 ht_supported;
+	u16 cap; /* use IEEE80211_HT_CAP_ */
+	u8 ampdu_factor;
+	u8 ampdu_density;
+	u8 supp_mcs_set[16];
+};
+
+/**
+ * struct ieee80211_ht_bss_info - describing BSS's HT characteristics
+ *
+ * This structure describes most essential parameters needed
+ * to describe 802.11n HT characteristics in a BSS
+ *
+ * @primary_channel: channel number of primery channel
+ * @bss_cap: 802.11n's general BSS capabilities (e.g. channel width)
+ * @bss_op_mode: 802.11n's BSS operation modes (e.g. HT protection)
+ */
+struct ieee80211_ht_bss_info {
+	u8 primary_channel;
+	u8 bss_cap;  /* use IEEE80211_HT_IE_CHA_ */
+	u8 bss_op_mode; /* use IEEE80211_HT_IE_ */
+};
+
+/**
  * struct ieee80211_hw_mode - PHY mode definition
  *
  * This structure describes the capabilities supported by the device
  * in a single PHY mode.
  *
+ * @list: internal
+ * @channels: pointer to array of supported channels
+ * @rates: pointer to array of supported bitrates
  * @mode: the PHY mode for this definition
  * @num_channels: number of supported channels
- * @channels: pointer to array of supported channels
  * @num_rates: number of supported bitrates
- * @rates: pointer to array of supported bitrates
- * @list: internal
+ * @ht_info: PHY's 802.11n HT abilities for this mode
  */
 struct ieee80211_hw_mode {
 	struct list_head list;
@@ -158,6 +195,7 @@ struct ieee80211_hw_mode {
 	enum ieee80211_phymode mode;
 	int num_channels;
 	int num_rates;
+	struct ieee80211_ht_info ht_info;
 };
 
 /**
@@ -237,11 +275,49 @@ struct ieee80211_low_level_stats {
 	unsigned int dot11RTSSuccessCount;
 };
 
+/**
+ * enum ieee80211_bss_change - BSS change notification flags
+ *
+ * These flags are used with the bss_info_changed() callback
+ * to indicate which BSS parameter changed.
+ *
+ * @BSS_CHANGED_ASSOC: association status changed (associated/disassociated),
+ *	also implies a change in the AID.
+ * @BSS_CHANGED_ERP_CTS_PROT: CTS protection changed
+ * @BSS_CHANGED_ERP_PREAMBLE: preamble changed
+ */
+enum ieee80211_bss_change {
+	BSS_CHANGED_ASSOC		= 1<<0,
+	BSS_CHANGED_ERP_CTS_PROT	= 1<<1,
+	BSS_CHANGED_ERP_PREAMBLE	= 1<<2,
+};
+
+/**
+ * struct ieee80211_bss_conf - holds the BSS's changing parameters
+ *
+ * This structure keeps information about a BSS (and an association
+ * to that BSS) that can change during the lifetime of the BSS.
+ *
+ * @assoc: association status
+ * @aid: association ID number, valid only when @assoc is true
+ * @use_cts_prot: use CTS protection
+ * @use_short_preamble: use 802.11b short preamble
+ */
+struct ieee80211_bss_conf {
+	/* association related data */
+	bool assoc;
+	u16 aid;
+	/* erp related data */
+	bool use_cts_prot;
+	bool use_short_preamble;
+};
+
 /* Transmit control fields. This data structure is passed to low-level driver
  * with each TX frame. The low-level driver is responsible for configuring
  * the hardware to use given values (depending on what is supported). */
 
 struct ieee80211_tx_control {
+	struct ieee80211_vif *vif;
 	int tx_rate; /* Transmit rate, given as the hw specific value for the
 		      * rate (from struct ieee80211_rate) */
 	int rts_cts_rate; /* Transmit rate for RTS/CTS frame, given as the hw
@@ -269,6 +345,9 @@ struct ieee80211_tx_control {
 						  * using the through
 						  * set_retry_limit configured
 						  * long retry value */
+#define IEEE80211_TXCTL_EAPOL_FRAME	(1<<11) /* internal to mac80211 */
+#define IEEE80211_TXCTL_SEND_AFTER_DTIM	(1<<12) /* send this frame after DTIM
+						 * beacon */
 	u32 flags;			       /* tx control flags defined
 						* above */
 	u8 key_idx;		/* keyidx from hw->set_key(), undefined if
@@ -291,7 +370,6 @@ struct ieee80211_tx_control {
 			     * packet dropping when probing higher rates, if hw
 			     * supports multiple retry rates. -1 = not used */
 	int type;	/* internal */
-	int ifindex;	/* internal */
 };
 
 
@@ -312,6 +390,8 @@ struct ieee80211_tx_control {
  *	the frame.
  * @RX_FLAG_FAILED_PLCP_CRC: Set this flag if the PCLP check failed on
  *	the frame.
+ * @RX_FLAG_TSFT: The timestamp passed in the RX status (@mactime field)
+ *	is valid.
  */
 enum mac80211_rx_flags {
 	RX_FLAG_MMIC_ERROR	= 1<<0,
@@ -321,6 +401,7 @@ enum mac80211_rx_flags {
 	RX_FLAG_IV_STRIPPED	= 1<<4,
 	RX_FLAG_FAILED_FCS_CRC	= 1<<5,
 	RX_FLAG_FAILED_PLCP_CRC = 1<<6,
+	RX_FLAG_TSFT		= 1<<7,
 };
 
 /**
@@ -406,11 +487,12 @@ struct ieee80211_tx_status {
  *
  * @IEEE80211_CONF_SHORT_SLOT_TIME: use 802.11g short slot time
  * @IEEE80211_CONF_RADIOTAP: add radiotap header at receive time (if supported)
- *
+ * @IEEE80211_CONF_SUPPORT_HT_MODE: use 802.11n HT capabilities (if supported)
  */
 enum ieee80211_conf_flags {
-	IEEE80211_CONF_SHORT_SLOT_TIME	= 1<<0,
-	IEEE80211_CONF_RADIOTAP		= 1<<1,
+	IEEE80211_CONF_SHORT_SLOT_TIME	= (1<<0),
+	IEEE80211_CONF_RADIOTAP		= (1<<1),
+	IEEE80211_CONF_SUPPORT_HT_MODE	= (1<<2),
 };
 
 /**
@@ -434,6 +516,8 @@ enum ieee80211_conf_flags {
  * @antenna_sel_tx: transmit antenna selection, 0: default/diversity,
  *	1/2: antenna 0/1
  * @antenna_sel_rx: receive antenna selection, like @antenna_sel_tx
+ * @ht_conf: describes current self configuration of 802.11n HT capabilies
+ * @ht_bss_conf: describes current BSS configuration of 802.11n HT parameters
  */
 struct ieee80211_conf {
 	int channel;			/* IEEE 802.11 channel number */
@@ -452,6 +536,9 @@ struct ieee80211_conf {
 	u8 antenna_max;
 	u8 antenna_sel_tx;
 	u8 antenna_sel_rx;
+
+	struct ieee80211_ht_info ht_conf;
+	struct ieee80211_ht_bss_info ht_bss_conf;
 };
 
 /**
@@ -480,13 +567,27 @@ enum ieee80211_if_types {
 };
 
 /**
+ * struct ieee80211_vif - per-interface data
+ *
+ * Data in this structure is continually present for driver
+ * use during the life of a virtual interface.
+ *
+ * @type: type of this virtual interface
+ * @drv_priv: data area for driver use, will always be aligned to
+ *	sizeof(void *).
+ */
+struct ieee80211_vif {
+	enum ieee80211_if_types type;
+	/* must be last */
+	u8 drv_priv[0] __attribute__((__aligned__(sizeof(void *))));
+};
+
+/**
  * struct ieee80211_if_init_conf - initial configuration of an interface
  *
- * @if_id: internal interface ID. This number has no particular meaning to
- *	drivers and the only allowed usage is to pass it to
- *	ieee80211_beacon_get() and ieee80211_get_buffered_bc() functions.
- *	This field is not valid for monitor interfaces
- *	(interfaces of %IEEE80211_IF_TYPE_MNTR type).
+ * @vif: pointer to a driver-use per-interface structure. The pointer
+ *	itself is also used for various functions including
+ *	ieee80211_beacon_get() and ieee80211_get_buffered_bc().
  * @type: one of &enum ieee80211_if_types constants. Determines the type of
  *	added/removed interface.
  * @mac_addr: pointer to MAC address of the interface. This pointer is valid
@@ -503,8 +604,8 @@ enum ieee80211_if_types {
  * in pure monitor mode.
  */
 struct ieee80211_if_init_conf {
-	int if_id;
 	enum ieee80211_if_types type;
+	struct ieee80211_vif *vif;
 	void *mac_addr;
 };
 
@@ -596,9 +697,6 @@ struct ieee80211_key_conf {
 	u8 keylen;
 	u8 key[0];
 };
-
-#define IEEE80211_SEQ_COUNTER_RX	0
-#define IEEE80211_SEQ_COUNTER_TX	1
 
 /**
  * enum set_key_cmd - key command
@@ -710,6 +808,9 @@ enum ieee80211_hw_flags {
  * @rate_control_algorithm: rate control algorithm for this hardware.
  *	If unset (NULL), the default algorithm will be used. Must be
  *	set before calling ieee80211_register_hw().
+ *
+ * @vif_data_size: size (in bytes) of the drv_priv data area
+ *	within &struct ieee80211_vif.
  */
 struct ieee80211_hw {
 	struct ieee80211_conf conf;
@@ -720,6 +821,7 @@ struct ieee80211_hw {
 	u32 flags;
 	unsigned int extra_tx_headroom;
 	int channel_change_time;
+	int vif_data_size;
 	u8 queues;
 	s8 max_rssi;
 	s8 max_signal;
@@ -859,18 +961,17 @@ enum ieee80211_filter_flags {
 };
 
 /**
- * enum ieee80211_erp_change_flags - erp change flags
+ * enum ieee80211_ampdu_mlme_action - A-MPDU actions
  *
- * These flags are used with the erp_ie_changed() callback in
- * &struct ieee80211_ops to indicate which parameter(s) changed.
- * @IEEE80211_ERP_CHANGE_PROTECTION: protection changed
- * @IEEE80211_ERP_CHANGE_PREAMBLE: barker preamble mode changed
+ * These flags are used with the ampdu_action() callback in
+ * &struct ieee80211_ops to indicate which action is needed.
+ * @IEEE80211_AMPDU_RX_START: start Rx aggregation
+ * @IEEE80211_AMPDU_RX_STOP: stop Rx aggregation
  */
-enum ieee80211_erp_change_flags {
-	IEEE80211_ERP_CHANGE_PROTECTION	= 1<<0,
-	IEEE80211_ERP_CHANGE_PREAMBLE	= 1<<1,
+enum ieee80211_ampdu_mlme_action {
+	IEEE80211_AMPDU_RX_START,
+	IEEE80211_AMPDU_RX_STOP,
 };
-
 
 /**
  * struct ieee80211_ops - callbacks from mac80211 to the driver
@@ -927,6 +1028,14 @@ enum ieee80211_erp_change_flags {
  * @config_interface: Handler for configuration requests related to interfaces
  *	(e.g. BSSID changes.)
  *
+ * @bss_info_changed: Handler for configuration requests related to BSS
+ *	parameters that may vary during BSS's lifespan, and may affect low
+ *	level driver (e.g. assoc/disassoc status, erp parameters).
+ *	This function should not be used if no BSS has been set, unless
+ *	for association indication. The @changed parameter indicates which
+ *	of the bss parameters has changed when a call is made. This callback
+ *	has to be atomic.
+ *
  * @configure_filter: Configure the device's RX filter.
  *	See the section "Frame filtering" for more information.
  *	This callback must be implemented and atomic.
@@ -946,9 +1055,9 @@ enum ieee80211_erp_change_flags {
  *
  * @get_stats: return low-level statistics
  *
- * @get_sequence_counter: For devices that have internal sequence counters this
- *	callback allows mac80211 to access the current value of a counter.
- *	This callback seems not well-defined, tell us if you need it.
+ * @get_tkip_seq: If your device implements TKIP encryption in hardware this
+ *	callback should be provided to read the TKIP transmit IVs (both IV32
+ *	and IV16) for the given key from hardware.
  *
  * @set_rts_threshold: Configuration of RTS threshold (if device needs it)
  *
@@ -960,8 +1069,6 @@ enum ieee80211_erp_change_flags {
  *
  * @sta_notify: Notifies low level driver about addition or removal
  *	of assocaited station or AP.
- *
- * @erp_ie_changed: Handle ERP IE change notifications. Must be atomic.
  *
  * @conf_tx: Configure TX queue parameters (EDCF (aifs, cw_min, cw_max),
  *	bursting) for a hardware TX queue. The @queue parameter uses the
@@ -997,6 +1104,14 @@ enum ieee80211_erp_change_flags {
  * @tx_last_beacon: Determine whether the last IBSS beacon was sent by us.
  *	This is needed only for IBSS mode and the result of this function is
  *	used to determine whether to reply to Probe Requests.
+ *
+ * @conf_ht: Configures low level driver with 802.11n HT data. Must be atomic.
+ *
+ * @ampdu_action: Perform a certain A-MPDU action
+ * 	The RA/TID combination determines the destination and TID we want
+ * 	the ampdu action to be performed for. The action is defined through
+ * 	ieee80211_ampdu_mlme_action. Starting sequence number (@ssn)
+ * 	is the first frame we expect to perform the action on.
  */
 struct ieee80211_ops {
 	int (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb,
@@ -1009,7 +1124,12 @@ struct ieee80211_ops {
 				 struct ieee80211_if_init_conf *conf);
 	int (*config)(struct ieee80211_hw *hw, struct ieee80211_conf *conf);
 	int (*config_interface)(struct ieee80211_hw *hw,
-				int if_id, struct ieee80211_if_conf *conf);
+				struct ieee80211_vif *vif,
+				struct ieee80211_if_conf *conf);
+	void (*bss_info_changed)(struct ieee80211_hw *hw,
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_bss_conf *info,
+				 u32 changed);
 	void (*configure_filter)(struct ieee80211_hw *hw,
 				 unsigned int changed_flags,
 				 unsigned int *total_flags,
@@ -1021,17 +1141,14 @@ struct ieee80211_ops {
 	int (*hw_scan)(struct ieee80211_hw *hw, u8 *ssid, size_t len);
 	int (*get_stats)(struct ieee80211_hw *hw,
 			 struct ieee80211_low_level_stats *stats);
-	int (*get_sequence_counter)(struct ieee80211_hw *hw,
-				    u8* addr, u8 keyidx, u8 txrx,
-				    u32* iv32, u16* iv16);
+	void (*get_tkip_seq)(struct ieee80211_hw *hw, u8 hw_key_idx,
+			     u32 *iv32, u16 *iv16);
 	int (*set_rts_threshold)(struct ieee80211_hw *hw, u32 value);
 	int (*set_frag_threshold)(struct ieee80211_hw *hw, u32 value);
 	int (*set_retry_limit)(struct ieee80211_hw *hw,
 			       u32 short_retry, u32 long_retr);
-	void (*sta_notify)(struct ieee80211_hw *hw, int if_id,
+	void (*sta_notify)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			enum sta_notify_cmd, const u8 *addr);
-	void (*erp_ie_changed)(struct ieee80211_hw *hw, u8 changes,
-			       int cts_protection, int preamble);
 	int (*conf_tx)(struct ieee80211_hw *hw, int queue,
 		       const struct ieee80211_tx_queue_params *params);
 	int (*get_tx_stats)(struct ieee80211_hw *hw,
@@ -1042,6 +1159,10 @@ struct ieee80211_ops {
 			     struct sk_buff *skb,
 			     struct ieee80211_tx_control *control);
 	int (*tx_last_beacon)(struct ieee80211_hw *hw);
+	int (*conf_ht)(struct ieee80211_hw *hw, struct ieee80211_conf *conf);
+	int (*ampdu_action)(struct ieee80211_hw *hw,
+			    enum ieee80211_ampdu_mlme_action action,
+			    const u8 *ra, u16 tid, u16 ssn);
 };
 
 /**
@@ -1073,6 +1194,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw);
 extern char *__ieee80211_get_tx_led_name(struct ieee80211_hw *hw);
 extern char *__ieee80211_get_rx_led_name(struct ieee80211_hw *hw);
 extern char *__ieee80211_get_assoc_led_name(struct ieee80211_hw *hw);
+extern char *__ieee80211_get_radio_led_name(struct ieee80211_hw *hw);
 #endif
 /**
  * ieee80211_get_tx_led_name - get name of TX LED
@@ -1112,6 +1234,16 @@ static inline char *ieee80211_get_rx_led_name(struct ieee80211_hw *hw)
 #endif
 }
 
+/**
+ * ieee80211_get_assoc_led_name - get name of association LED
+ *
+ * mac80211 creates a association LED trigger for each wireless hardware
+ * that can be used to drive LEDs if your driver registers a LED device.
+ * This function returns the name (or %NULL if not configured for LEDs)
+ * of the trigger so you can automatically link the LED device.
+ *
+ * @hw: the hardware to get the LED trigger name for
+ */
 static inline char *ieee80211_get_assoc_led_name(struct ieee80211_hw *hw)
 {
 #ifdef CONFIG_MAC80211_LEDS
@@ -1121,6 +1253,24 @@ static inline char *ieee80211_get_assoc_led_name(struct ieee80211_hw *hw)
 #endif
 }
 
+/**
+ * ieee80211_get_radio_led_name - get name of radio LED
+ *
+ * mac80211 creates a radio change LED trigger for each wireless hardware
+ * that can be used to drive LEDs if your driver registers a LED device.
+ * This function returns the name (or %NULL if not configured for LEDs)
+ * of the trigger so you can automatically link the LED device.
+ *
+ * @hw: the hardware to get the LED trigger name for
+ */
+static inline char *ieee80211_get_radio_led_name(struct ieee80211_hw *hw)
+{
+#ifdef CONFIG_MAC80211_LEDS
+	return __ieee80211_get_radio_led_name(hw);
+#else
+	return NULL;
+#endif
+}
 
 /* Register a new hardware PHYMODE capability to the stack. */
 int ieee80211_register_hwmode(struct ieee80211_hw *hw,
@@ -1210,7 +1360,7 @@ void ieee80211_tx_status_irqsafe(struct ieee80211_hw *hw,
 /**
  * ieee80211_beacon_get - beacon generation function
  * @hw: pointer obtained from ieee80211_alloc_hw().
- * @if_id: interface ID from &struct ieee80211_if_init_conf.
+ * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf.
  * @control: will be filled with information needed to send this beacon.
  *
  * If the beacon frames are generated by the host system (i.e., not in
@@ -1221,13 +1371,13 @@ void ieee80211_tx_status_irqsafe(struct ieee80211_hw *hw,
  * is responsible of freeing it.
  */
 struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
-				     int if_id,
+				     struct ieee80211_vif *vif,
 				     struct ieee80211_tx_control *control);
 
 /**
  * ieee80211_rts_get - RTS frame generation function
  * @hw: pointer obtained from ieee80211_alloc_hw().
- * @if_id: interface ID from &struct ieee80211_if_init_conf.
+ * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf.
  * @frame: pointer to the frame that is going to be protected by the RTS.
  * @frame_len: the frame length (in octets).
  * @frame_txctl: &struct ieee80211_tx_control of the frame.
@@ -1238,7 +1388,7 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
  * the next RTS frame from the 802.11 code. The low-level is responsible
  * for calling this function before and RTS frame is needed.
  */
-void ieee80211_rts_get(struct ieee80211_hw *hw, int if_id,
+void ieee80211_rts_get(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       const void *frame, size_t frame_len,
 		       const struct ieee80211_tx_control *frame_txctl,
 		       struct ieee80211_rts *rts);
@@ -1246,7 +1396,7 @@ void ieee80211_rts_get(struct ieee80211_hw *hw, int if_id,
 /**
  * ieee80211_rts_duration - Get the duration field for an RTS frame
  * @hw: pointer obtained from ieee80211_alloc_hw().
- * @if_id: interface ID from &struct ieee80211_if_init_conf.
+ * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf.
  * @frame_len: the length of the frame that is going to be protected by the RTS.
  * @frame_txctl: &struct ieee80211_tx_control of the frame.
  *
@@ -1254,14 +1404,14 @@ void ieee80211_rts_get(struct ieee80211_hw *hw, int if_id,
  * the duration field, the low-level driver uses this function to receive
  * the duration field value in little-endian byteorder.
  */
-__le16 ieee80211_rts_duration(struct ieee80211_hw *hw, int if_id,
-			      size_t frame_len,
+__le16 ieee80211_rts_duration(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif, size_t frame_len,
 			      const struct ieee80211_tx_control *frame_txctl);
 
 /**
  * ieee80211_ctstoself_get - CTS-to-self frame generation function
  * @hw: pointer obtained from ieee80211_alloc_hw().
- * @if_id: interface ID from &struct ieee80211_if_init_conf.
+ * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf.
  * @frame: pointer to the frame that is going to be protected by the CTS-to-self.
  * @frame_len: the frame length (in octets).
  * @frame_txctl: &struct ieee80211_tx_control of the frame.
@@ -1272,7 +1422,8 @@ __le16 ieee80211_rts_duration(struct ieee80211_hw *hw, int if_id,
  * the next CTS-to-self frame from the 802.11 code. The low-level is responsible
  * for calling this function before and CTS-to-self frame is needed.
  */
-void ieee80211_ctstoself_get(struct ieee80211_hw *hw, int if_id,
+void ieee80211_ctstoself_get(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif,
 			     const void *frame, size_t frame_len,
 			     const struct ieee80211_tx_control *frame_txctl,
 			     struct ieee80211_cts *cts);
@@ -1280,7 +1431,7 @@ void ieee80211_ctstoself_get(struct ieee80211_hw *hw, int if_id,
 /**
  * ieee80211_ctstoself_duration - Get the duration field for a CTS-to-self frame
  * @hw: pointer obtained from ieee80211_alloc_hw().
- * @if_id: interface ID from &struct ieee80211_if_init_conf.
+ * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf.
  * @frame_len: the length of the frame that is going to be protected by the CTS-to-self.
  * @frame_txctl: &struct ieee80211_tx_control of the frame.
  *
@@ -1288,28 +1439,30 @@ void ieee80211_ctstoself_get(struct ieee80211_hw *hw, int if_id,
  * the duration field, the low-level driver uses this function to receive
  * the duration field value in little-endian byteorder.
  */
-__le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw, int if_id,
+__le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw,
+				    struct ieee80211_vif *vif,
 				    size_t frame_len,
 				    const struct ieee80211_tx_control *frame_txctl);
 
 /**
  * ieee80211_generic_frame_duration - Calculate the duration field for a frame
  * @hw: pointer obtained from ieee80211_alloc_hw().
- * @if_id: interface ID from &struct ieee80211_if_init_conf.
+ * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf.
  * @frame_len: the length of the frame.
  * @rate: the rate (in 100kbps) at which the frame is going to be transmitted.
  *
  * Calculate the duration field of some generic frame, given its
  * length and transmission rate (in 100kbps).
  */
-__le16 ieee80211_generic_frame_duration(struct ieee80211_hw *hw, int if_id,
+__le16 ieee80211_generic_frame_duration(struct ieee80211_hw *hw,
+					struct ieee80211_vif *vif,
 					size_t frame_len,
 					int rate);
 
 /**
  * ieee80211_get_buffered_bc - accessing buffered broadcast and multicast frames
  * @hw: pointer as obtained from ieee80211_alloc_hw().
- * @if_id: interface ID from &struct ieee80211_if_init_conf.
+ * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf.
  * @control: will be filled with information needed to send returned frame.
  *
  * Function for accessing buffered broadcast and multicast frames. If
@@ -1328,7 +1481,7 @@ __le16 ieee80211_generic_frame_duration(struct ieee80211_hw *hw, int if_id,
  * use common code for all beacons.
  */
 struct sk_buff *
-ieee80211_get_buffered_bc(struct ieee80211_hw *hw, int if_id,
+ieee80211_get_buffered_bc(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			  struct ieee80211_tx_control *control);
 
 /**
@@ -1405,5 +1558,20 @@ void ieee80211_wake_queues(struct ieee80211_hw *hw);
  * @hw: the hardware that finished the scan
  */
 void ieee80211_scan_completed(struct ieee80211_hw *hw);
+
+/**
+ * ieee80211_iterate_active_interfaces - iterate active interfaces
+ *
+ * This function iterates over the interfaces associated with a given
+ * hardware that are currently active and calls the callback for them.
+ *
+ * @hw: the hardware struct of which the interfaces should be iterated over
+ * @iterator: the iterator function to call, cannot sleep
+ * @data: first argument of the iterator function
+ */
+void ieee80211_iterate_active_interfaces(struct ieee80211_hw *hw,
+					 void (*iterator)(void *data, u8 *mac,
+						struct ieee80211_vif *vif),
+					 void *data);
 
 #endif /* MAC80211_H */

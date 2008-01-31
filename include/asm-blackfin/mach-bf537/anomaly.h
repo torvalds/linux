@@ -7,9 +7,7 @@
  */
 
 /* This file shoule be up to date with:
- *  - Revision M, March 13, 2007; ADSP-BF537 Blackfin Processor Anomaly List
- *  - Revision L, March 13, 2007; ADSP-BF536 Blackfin Processor Anomaly List
- *  - Revision M, March 13, 2007; ADSP-BF534 Blackfin Processor Anomaly List
+ *  - Revision A, 09/04/2007; ADSP-BF534/ADSP-BF536/ADSP-BF537 Blackfin Processor Anomaly List
  */
 
 #ifndef _MACH_ANOMALY_H_
@@ -17,7 +15,7 @@
 
 /* We do not support 0.1 silicon - sorry */
 #if __SILICON_REVISION__ < 2
-# error Kernel will not work on BF537 silicon version 0.0 or 0.1
+# error will not work on BF537 silicon version 0.0 or 0.1
 #endif
 
 #if defined(__ADSPBF534__)
@@ -44,6 +42,8 @@
 #define ANOMALY_05000122 (1)
 /* Killed 32-bit MMR write leads to next system MMR access thinking it should be 32-bit */
 #define ANOMALY_05000157 (__SILICON_REVISION__ < 2)
+/* Turning SPORTs on while External Frame Sync Is Active May Corrupt Data */
+#define ANOMALY_05000167 (1)
 /* PPI_DELAY not functional in PPI modes with 0 frame syncs */
 #define ANOMALY_05000180 (1)
 /* Instruction Cache Is Not Functional */
@@ -130,6 +130,12 @@
 #define ANOMALY_05000321 (__SILICON_REVISION__ < 3)
 /* EMAC RMII mode at 10-Base-T speed: RX frames not received properly */
 #define ANOMALY_05000322 (1)
+/* Ethernet MAC MDIO Reads Do Not Meet IEEE Specification */
+#define ANOMALY_05000341 (__SILICON_REVISION__ >= 3)
+/* Serial Port (SPORT) Multichannel Transmit Failure when Channel 0 Is Disabled */
+#define ANOMALY_05000357 (1)
+/* DMAs that Go Urgent during Tight Core Writes to External Memory Are Blocked */
+#define ANOMALY_05000359 (1)
 
 /* Anomalies that don't exist on this proc */
 #define ANOMALY_05000125 (0)

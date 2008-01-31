@@ -646,6 +646,17 @@ M:	ecashin@coraid.com
 W:	http://www.coraid.com/support/linux
 S:	Supported
 
+ATHEROS ATH5K WIRELESS DRIVER
+P:	Jiri Slaby
+M:	jirislaby@gmail.com
+P:	Nick Kossifidis
+M:	mickflemm@gmail.com
+P:	Luis R. Rodriguez
+M:	mcgrof@gmail.com
+L:	linux-wireless@vger.kernel.org
+L:	ath5k-devel@lists.ath5k.org
+S:	Maintained
+
 ATL1 ETHERNET DRIVER
 P:	Jay Cliburn
 M:	jcliburn@gmail.com
@@ -758,22 +769,20 @@ S:	Supported
 
 BLACKFIN RTC DRIVER
 P:	Mike Frysinger
-M:	michael.frysinger@analog.com
 M:	vapier.adi@gmail.com
 L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
 W:	http://blackfin.uclinux.org
 S:	Supported
 
 BLACKFIN SERIAL DRIVER
-P:	Aubrey Li
-M:	aubrey.li@analog.com
+P:	Sonic Zhang
+M:	sonic.zhang@analog.com
 L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
 W:	http://blackfin.uclinux.org
 S:	Supported
 
 BLACKFIN WATCHDOG DRIVER
 P:	Mike Frysinger
-M:	michael.frysinger@analog.com
 M:	vapier.adi@gmail.com
 L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
 W:	http://blackfin.uclinux.org
@@ -811,7 +820,7 @@ P:	Stefano Brivio
 M:	stefano.brivio@polimi.it
 L:	linux-wireless@vger.kernel.org
 W:	http://bcm43xx.berlios.de/
-S:	Maintained
+S:	Obsolete
 
 BEFS FILE SYSTEM
 P:	Sergey S. Kostyliov
@@ -982,6 +991,15 @@ CAFE CMOS INTEGRATED CAMERA CONTROLLER DRIVER
 P:   	Jonathan Corbet
 M:	corbet@lwn.net
 L:	video4linux-list@redhat.com
+S:	Maintained
+
+CAN NETWORK LAYER
+P:	Urs Thuermann
+M:	urs.thuermann@volkswagen.de
+P:	Oliver Hartkopp
+M:	oliver.hartkopp@volkswagen.de
+L:	socketcan-core@lists.berlios.de
+W:	http://developer.berlios.de/projects/socketcan/
 S:	Maintained
 
 CALGARY x86-64 IOMMU
@@ -2029,10 +2047,12 @@ W:	http://sourceforge.net/projects/e1000/
 S:	Supported
 
 INTEL PRO/WIRELESS 2100 NETWORK CONNECTION SUPPORT
-P:	Yi Zhu
+P:	Zhu Yi
 M:	yi.zhu@intel.com
 P:	James Ketrenos
 M:	jketreno@linux.intel.com
+P:	Reinette Chatre
+M:	reinette.chatre@intel.com
 L:	linux-wireless@vger.kernel.org
 L:	ipw2100-devel@lists.sourceforge.net
 W:	http://lists.sourceforge.net/mailman/listinfo/ipw2100-devel
@@ -2040,10 +2060,12 @@ W:	http://ipw2100.sourceforge.net
 S:	Supported
 
 INTEL PRO/WIRELESS 2915ABG NETWORK CONNECTION SUPPORT
-P:	Yi Zhu
+P:	Zhu Yi
 M:	yi.zhu@intel.com
 P:	James Ketrenos
 M:	jketreno@linux.intel.com
+P:	Reinette Chatre
+M:	reinette.chatre@intel.com
 L:	linux-wireless@vger.kernel.org
 L:	ipw2100-devel@lists.sourceforge.net
 W:	http://lists.sourceforge.net/mailman/listinfo/ipw2100-devel
@@ -2053,6 +2075,8 @@ S:	Supported
 INTEL WIRELESS WIFI LINK (iwlwifi)
 P:	Zhu Yi
 M:	yi.zhu@intel.com
+P:	Reinette Chatre
+M:	reinette.chatre@intel.com
 L:	linux-wireless@vger.kernel.org
 L:	ipw3945-devel@lists.sourceforge.net
 W:	http://intellinuxwireless.org
@@ -2139,6 +2163,15 @@ P:	Armin Schindler
 M:	mac@melware.de
 L:	isdn4linux@listserv.isdn4linux.de
 W:	http://www.melware.de
+S:	Maintained
+
+IVTV VIDEO4LINUX DRIVER
+P:	Hans Verkuil
+M:	hverkuil@xs4all.nl
+L:	ivtv-devel@ivtvdriver.org
+L:	ivtv-users@ivtvdriver.org
+L:	video4linux-list@redhat.com
+W:	http://www.ivtvdriver.org
 S:	Maintained
 
 JOURNALLING FLASH FILE SYSTEM V2 (JFFS2)
@@ -2472,6 +2505,16 @@ P:	Jiri Benc
 M:	jbenc@suse.cz
 L:	linux-wireless@vger.kernel.org
 W:	http://linuxwireless.org/
+T:	git kernel.org:/pub/scm/linux/kernel/git/linville/wireless-2.6.git
+S:	Maintained
+
+MAC80211 PID RATE CONTROL
+P:	Stefano Brivio
+M:	stefano.brivio@polimi.it
+P:	Mattias Nissler
+M:	mattias.nissler@gmx.de
+L:	linux-wireless@vger.kernel.org
+W:	http://linuxwireless.org/en/developers/Documentation/mac80211/RateControl/PID
 T:	git kernel.org:/pub/scm/linux/kernel/git/linville/wireless-2.6.git
 S:	Maintained
 
@@ -3176,6 +3219,12 @@ M:	mporter@kernel.crashing.org
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
+RDC R6040 FAST ETHERNET DRIVER
+P:	Florian Fainelli
+M:	florian.fainelli@telecomint.eu
+L:	netdev@vger.kernel.org
+S:	Maintained
+
 READ-COPY UPDATE (RCU)
 P:	Dipankar Sarma
 M:	dipankar@in.ibm.com
@@ -3260,8 +3309,10 @@ W:	http://www.ibm.com/developerworks/linux/linux390/
 S:	Supported
 
 S390 ZFCP DRIVER
-P:	Swen Schillig
-M:	swen@vnet.ibm.com
+P:	Christof Schmitt
+M:	christof.schmitt@de.ibm.com
+P:	Martin Peschke
+M:	mp3@de.ibm.com
 M:	linux390@de.ibm.com
 L:	linux-s390@vger.kernel.org
 W:	http://www.ibm.com/developerworks/linux/linux390/

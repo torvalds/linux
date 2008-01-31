@@ -45,7 +45,7 @@ static void ieee80211_monitor_rx(struct ieee80211_device *ieee,
 	skb_reset_mac_header(skb);
 	skb_pull(skb, ieee80211_get_hdrlen(fc));
 	skb->pkt_type = PACKET_OTHERHOST;
-	skb->protocol = __constant_htons(ETH_P_80211_RAW);
+	skb->protocol = htons(ETH_P_80211_RAW);
 	memset(skb->cb, 0, sizeof(skb->cb));
 	netif_rx(skb);
 }
@@ -754,7 +754,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		memcpy(skb_push(skb, ETH_ALEN), src, ETH_ALEN);
 		memcpy(skb_push(skb, ETH_ALEN), dst, ETH_ALEN);
 	} else {
-		u16 len;
+		__be16 len;
 		/* Leave Ethernet header part of hdr and full payload */
 		skb_pull(skb, hdrlen);
 		len = htons(skb->len);
@@ -800,7 +800,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	if (skb2 != NULL) {
 		/* send to wireless media */
 		skb2->dev = dev;
-		skb2->protocol = __constant_htons(ETH_P_802_3);
+		skb2->protocol = htons(ETH_P_802_3);
 		skb_reset_mac_header(skb2);
 		skb_reset_network_header(skb2);
 		/* skb2->network_header += ETH_HLEN; */
@@ -1032,16 +1032,16 @@ static int ieee80211_qos_convert_ac_to_parameters(struct
 		qos_param->aifs[i] -= (qos_param->aifs[i] < 2) ? 0 : 2;
 
 		cw_min = ac_params->ecw_min_max & 0x0F;
-		qos_param->cw_min[i] = (u16) ((1 << cw_min) - 1);
+		qos_param->cw_min[i] = cpu_to_le16((1 << cw_min) - 1);
 
 		cw_max = (ac_params->ecw_min_max & 0xF0) >> 4;
-		qos_param->cw_max[i] = (u16) ((1 << cw_max) - 1);
+		qos_param->cw_max[i] = cpu_to_le16((1 << cw_max) - 1);
 
 		qos_param->flag[i] =
 		    (ac_params->aci_aifsn & 0x10) ? 0x01 : 0x00;
 
 		txop = le16_to_cpu(ac_params->tx_op_limit) * 32;
-		qos_param->tx_op_limit[i] = (u16) txop;
+		qos_param->tx_op_limit[i] = cpu_to_le16(txop);
 	}
 	return rc;
 }
@@ -1585,26 +1585,25 @@ static void ieee80211_process_probe_response(struct ieee80211_device
 	DECLARE_MAC_BUF(mac);
 
 	IEEE80211_DEBUG_SCAN("'%s' (%s"
-			     "): %c%c%c%c %c%c%c%c-%c%c%c%c %c%c%c%c\n",
-			     escape_essid(info_element->data,
-					  info_element->len),
-			     print_mac(mac, beacon->header.addr3),
-			     (beacon->capability & (1 << 0xf)) ? '1' : '0',
-			     (beacon->capability & (1 << 0xe)) ? '1' : '0',
-			     (beacon->capability & (1 << 0xd)) ? '1' : '0',
-			     (beacon->capability & (1 << 0xc)) ? '1' : '0',
-			     (beacon->capability & (1 << 0xb)) ? '1' : '0',
-			     (beacon->capability & (1 << 0xa)) ? '1' : '0',
-			     (beacon->capability & (1 << 0x9)) ? '1' : '0',
-			     (beacon->capability & (1 << 0x8)) ? '1' : '0',
-			     (beacon->capability & (1 << 0x7)) ? '1' : '0',
-			     (beacon->capability & (1 << 0x6)) ? '1' : '0',
-			     (beacon->capability & (1 << 0x5)) ? '1' : '0',
-			     (beacon->capability & (1 << 0x4)) ? '1' : '0',
-			     (beacon->capability & (1 << 0x3)) ? '1' : '0',
-			     (beacon->capability & (1 << 0x2)) ? '1' : '0',
-			     (beacon->capability & (1 << 0x1)) ? '1' : '0',
-			     (beacon->capability & (1 << 0x0)) ? '1' : '0');
+		     "): %c%c%c%c %c%c%c%c-%c%c%c%c %c%c%c%c\n",
+		     escape_essid(info_element->data, info_element->len),
+		     print_mac(mac, beacon->header.addr3),
+		     (beacon->capability & cpu_to_le16(1 << 0xf)) ? '1' : '0',
+		     (beacon->capability & cpu_to_le16(1 << 0xe)) ? '1' : '0',
+		     (beacon->capability & cpu_to_le16(1 << 0xd)) ? '1' : '0',
+		     (beacon->capability & cpu_to_le16(1 << 0xc)) ? '1' : '0',
+		     (beacon->capability & cpu_to_le16(1 << 0xb)) ? '1' : '0',
+		     (beacon->capability & cpu_to_le16(1 << 0xa)) ? '1' : '0',
+		     (beacon->capability & cpu_to_le16(1 << 0x9)) ? '1' : '0',
+		     (beacon->capability & cpu_to_le16(1 << 0x8)) ? '1' : '0',
+		     (beacon->capability & cpu_to_le16(1 << 0x7)) ? '1' : '0',
+		     (beacon->capability & cpu_to_le16(1 << 0x6)) ? '1' : '0',
+		     (beacon->capability & cpu_to_le16(1 << 0x5)) ? '1' : '0',
+		     (beacon->capability & cpu_to_le16(1 << 0x4)) ? '1' : '0',
+		     (beacon->capability & cpu_to_le16(1 << 0x3)) ? '1' : '0',
+		     (beacon->capability & cpu_to_le16(1 << 0x2)) ? '1' : '0',
+		     (beacon->capability & cpu_to_le16(1 << 0x1)) ? '1' : '0',
+		     (beacon->capability & cpu_to_le16(1 << 0x0)) ? '1' : '0');
 
 	if (ieee80211_network_init(ieee, beacon, &network, stats)) {
 		IEEE80211_DEBUG_SCAN("Dropped '%s' (%s) via %s.\n",

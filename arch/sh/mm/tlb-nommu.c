@@ -9,6 +9,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <asm/pgtable.h>
 
 /*
  * Nothing too terribly exciting here ..
@@ -48,4 +49,13 @@ void update_mmu_cache(struct vm_area_struct * vma,
 		      unsigned long address, pte_t pte)
 {
 	BUG();
+}
+
+void __init page_table_range_init(unsigned long start, unsigned long end,
+				  pgd_t *pgd_base)
+{
+}
+
+void __set_fixmap(enum fixed_addresses idx, unsigned long phys, pgprot_t prot)
+{
 }

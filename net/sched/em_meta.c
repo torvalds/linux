@@ -542,11 +542,11 @@ static int meta_var_compare(struct meta_obj *a, struct meta_obj *b)
 	return r;
 }
 
-static int meta_var_change(struct meta_value *dst, struct rtattr *rta)
+static int meta_var_change(struct meta_value *dst, struct nlattr *nla)
 {
-	int len = RTA_PAYLOAD(rta);
+	int len = nla_len(nla);
 
-	dst->val = (unsigned long)kmemdup(RTA_DATA(rta), len, GFP_KERNEL);
+	dst->val = (unsigned long)kmemdup(nla_data(nla), len, GFP_KERNEL);
 	if (dst->val == 0UL)
 		return -ENOMEM;
 	dst->len = len;
@@ -570,10 +570,10 @@ static void meta_var_apply_extras(struct meta_value *v,
 static int meta_var_dump(struct sk_buff *skb, struct meta_value *v, int tlv)
 {
 	if (v->val && v->len)
-		RTA_PUT(skb, tlv, v->len, (void *) v->val);
+		NLA_PUT(skb, tlv, v->len, (void *) v->val);
 	return 0;
 
-rtattr_failure:
+nla_put_failure:
 	return -1;
 }
 
@@ -594,13 +594,13 @@ static int meta_int_compare(struct meta_obj *a, struct meta_obj *b)
 		return 1;
 }
 
-static int meta_int_change(struct meta_value *dst, struct rtattr *rta)
+static int meta_int_change(struct meta_value *dst, struct nlattr *nla)
 {
-	if (RTA_PAYLOAD(rta) >= sizeof(unsigned long)) {
-		dst->val = *(unsigned long *) RTA_DATA(rta);
+	if (nla_len(nla) >= sizeof(unsigned long)) {
+		dst->val = *(unsigned long *) nla_data(nla);
 		dst->len = sizeof(unsigned long);
-	} else if (RTA_PAYLOAD(rta) == sizeof(u32)) {
-		dst->val = *(u32 *) RTA_DATA(rta);
+	} else if (nla_len(nla) == sizeof(u32)) {
+		dst->val = nla_get_u32(nla);
 		dst->len = sizeof(u32);
 	} else
 		return -EINVAL;
@@ -621,15 +621,14 @@ static void meta_int_apply_extras(struct meta_value *v,
 static int meta_int_dump(struct sk_buff *skb, struct meta_value *v, int tlv)
 {
 	if (v->len == sizeof(unsigned long))
-		RTA_PUT(skb, tlv, sizeof(unsigned long), &v->val);
+		NLA_PUT(skb, tlv, sizeof(unsigned long), &v->val);
 	else if (v->len == sizeof(u32)) {
-		u32 d = v->val;
-		RTA_PUT(skb, tlv, sizeof(d), &d);
+		NLA_PUT_U32(skb, tlv, v->val);
 	}
 
 	return 0;
 
-rtattr_failure:
+nla_put_failure:
 	return -1;
 }
 
@@ -641,7 +640,7 @@ struct meta_type_ops
 {
 	void	(*destroy)(struct meta_value *);
 	int	(*compare)(struct meta_obj *, struct meta_obj *);
-	int	(*change)(struct meta_value *, struct rtattr *);
+	int	(*change)(struct meta_value *, struct nlattr *);
 	void	(*apply_extras)(struct meta_value *, struct meta_obj *);
 	int	(*dump)(struct sk_buff *, struct meta_value *, int);
 };
@@ -729,13 +728,13 @@ static inline void meta_delete(struct meta_match *meta)
 	kfree(meta);
 }
 
-static inline int meta_change_data(struct meta_value *dst, struct rtattr *rta)
+static inline int meta_change_data(struct meta_value *dst, struct nlattr *nla)
 {
-	if (rta) {
-		if (RTA_PAYLOAD(rta) == 0)
+	if (nla) {
+		if (nla_len(nla) == 0)
 			return -EINVAL;
 
-		return meta_type_ops(dst)->change(dst, rta);
+		return meta_type_ops(dst)->change(dst, nla);
 	}
 
 	return 0;
@@ -746,21 +745,26 @@ static inline int meta_is_supported(struct meta_value *val)
 	return (!meta_id(val) || meta_ops(val)->get);
 }
 
+static const struct nla_policy meta_policy[TCA_EM_META_MAX + 1] = {
+	[TCA_EM_META_HDR]	= { .len = sizeof(struct tcf_meta_hdr) },
+};
+
 static int em_meta_change(struct tcf_proto *tp, void *data, int len,
 			  struct tcf_ematch *m)
 {
-	int err = -EINVAL;
-	struct rtattr *tb[TCA_EM_META_MAX];
+	int err;
+	struct nlattr *tb[TCA_EM_META_MAX + 1];
 	struct tcf_meta_hdr *hdr;
 	struct meta_match *meta = NULL;
 
-	if (rtattr_parse(tb, TCA_EM_META_MAX, data, len) < 0)
+	err = nla_parse(tb, TCA_EM_META_MAX, data, len, meta_policy);
+	if (err < 0)
 		goto errout;
 
-	if (tb[TCA_EM_META_HDR-1] == NULL ||
-	    RTA_PAYLOAD(tb[TCA_EM_META_HDR-1]) < sizeof(*hdr))
+	err = -EINVAL;
+	if (tb[TCA_EM_META_HDR] == NULL)
 		goto errout;
-	hdr = RTA_DATA(tb[TCA_EM_META_HDR-1]);
+	hdr = nla_data(tb[TCA_EM_META_HDR]);
 
 	if (TCF_META_TYPE(hdr->left.kind) != TCF_META_TYPE(hdr->right.kind) ||
 	    TCF_META_TYPE(hdr->left.kind) > TCF_META_TYPE_MAX ||
@@ -781,8 +785,8 @@ static int em_meta_change(struct tcf_proto *tp, void *data, int len,
 		goto errout;
 	}
 
-	if (meta_change_data(&meta->lvalue, tb[TCA_EM_META_LVALUE-1]) < 0 ||
-	    meta_change_data(&meta->rvalue, tb[TCA_EM_META_RVALUE-1]) < 0)
+	if (meta_change_data(&meta->lvalue, tb[TCA_EM_META_LVALUE]) < 0 ||
+	    meta_change_data(&meta->rvalue, tb[TCA_EM_META_RVALUE]) < 0)
 		goto errout;
 
 	m->datalen = sizeof(*meta);
@@ -811,16 +815,16 @@ static int em_meta_dump(struct sk_buff *skb, struct tcf_ematch *em)
 	memcpy(&hdr.left, &meta->lvalue.hdr, sizeof(hdr.left));
 	memcpy(&hdr.right, &meta->rvalue.hdr, sizeof(hdr.right));
 
-	RTA_PUT(skb, TCA_EM_META_HDR, sizeof(hdr), &hdr);
+	NLA_PUT(skb, TCA_EM_META_HDR, sizeof(hdr), &hdr);
 
 	ops = meta_type_ops(&meta->lvalue);
 	if (ops->dump(skb, &meta->lvalue, TCA_EM_META_LVALUE) < 0 ||
 	    ops->dump(skb, &meta->rvalue, TCA_EM_META_RVALUE) < 0)
-		goto rtattr_failure;
+		goto nla_put_failure;
 
 	return 0;
 
-rtattr_failure:
+nla_put_failure:
 	return -1;
 }
 

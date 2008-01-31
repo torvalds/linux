@@ -35,7 +35,7 @@ static int udplite_rcv(struct sk_buff *skb)
 
 static void udplite_err(struct sk_buff *skb, u32 info)
 {
-	return __udp4_lib_err(skb, info, udplite_hash);
+	__udp4_lib_err(skb, info, udplite_hash);
 }
 
 static	struct net_protocol udplite_protocol = {

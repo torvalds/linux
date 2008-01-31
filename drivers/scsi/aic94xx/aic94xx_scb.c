@@ -788,12 +788,12 @@ void asd_build_control_phy(struct asd_ascb *ascb, int phy_id, u8 subfunc)
 
 		/* initiator port settings are in the hi nibble */
 		if (phy->sas_phy.role == PHY_ROLE_INITIATOR)
-			control_phy->port_type = SAS_PROTO_ALL << 4;
+			control_phy->port_type = SAS_PROTOCOL_ALL << 4;
 		else if (phy->sas_phy.role == PHY_ROLE_TARGET)
-			control_phy->port_type = SAS_PROTO_ALL;
+			control_phy->port_type = SAS_PROTOCOL_ALL;
 		else
 			control_phy->port_type =
-				(SAS_PROTO_ALL << 4) | SAS_PROTO_ALL;
+				(SAS_PROTOCOL_ALL << 4) | SAS_PROTOCOL_ALL;
 
 		/* link reset retries, this should be nominal */
 		control_phy->link_reset_retries = 10;

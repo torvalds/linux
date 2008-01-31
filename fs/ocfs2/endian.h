@@ -37,11 +37,6 @@ static inline void le64_add_cpu(__le64 *var, u64 val)
 	*var = cpu_to_le64(le64_to_cpu(*var) + val);
 }
 
-static inline void le32_and_cpu(__le32 *var, u32 val)
-{
-	*var = cpu_to_le32(le32_to_cpu(*var) & val);
-}
-
 static inline void be32_add_cpu(__be32 *var, u32 val)
 {
 	*var = cpu_to_be32(be32_to_cpu(*var) + val);

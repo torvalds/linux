@@ -64,7 +64,6 @@ extern void sn_timer_init(void);
 extern unsigned long last_time_offset;
 extern void (*ia64_mark_idle) (int);
 extern void snidle(int);
-extern unsigned long long (*ia64_printk_clock)(void);
 
 unsigned long sn_rtc_cycles_per_second;
 EXPORT_SYMBOL(sn_rtc_cycles_per_second);
@@ -360,14 +359,6 @@ sn_scan_pcdp(void)
 
 static unsigned long sn2_rtc_initial;
 
-static unsigned long long ia64_sn2_printk_clock(void)
-{
-	unsigned long rtc_now = rtc_time();
-
-	return (rtc_now - sn2_rtc_initial) *
-		(1000000000 / sn_rtc_cycles_per_second);
-}
-
 /**
  * sn_setup - SN platform setup routine
  * @cmdline_p: kernel command line
@@ -467,8 +458,6 @@ void __init sn_setup(char **cmdline_p)
 		sn_rtc_cycles_per_second = ticks_per_sec;
 
 	platform_intr_list[ACPI_INTERRUPT_CPEI] = IA64_CPE_VECTOR;
-
-	ia64_printk_clock = ia64_sn2_printk_clock;
 
 	printk("SGI SAL version %x.%02x\n", version >> 8, version & 0x00FF);
 

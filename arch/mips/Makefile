@@ -141,6 +141,10 @@ cflags-$(CONFIG_CPU_R8000)	+= -march=r8000 -Wa,--trap
 cflags-$(CONFIG_CPU_R10000)	+= $(call cc-option,-march=r10000,-march=r8000) \
 			-Wa,--trap
 
+cflags-$(CONFIG_CPU_R4000_WORKAROUNDS)	+= $(call cc-option,-mfix-r4000,)
+cflags-$(CONFIG_CPU_R4400_WORKAROUNDS)	+= $(call cc-option,-mfix-r4400,)
+cflags-$(CONFIG_CPU_DADDI_WORKAROUNDS)	+= $(call cc-option,-mno-daddi,)
+
 ifdef CONFIG_CPU_SB1
 ifdef CONFIG_SB1_PASS_1_WORKAROUNDS
 MODFLAGS	+= -msb1-pass1-workarounds
@@ -152,6 +156,8 @@ endif
 #
 libs-$(CONFIG_ARC)		+= arch/mips/fw/arc/
 libs-$(CONFIG_CFE)		+= arch/mips/fw/cfe/
+libs-$(CONFIG_SNIPROM)		+= arch/mips/fw/sni/
+libs-y				+= arch/mips/fw/lib/
 libs-$(CONFIG_SIBYTE_CFE)	+= arch/mips/sibyte/cfe/
 
 #
@@ -308,7 +314,7 @@ core-$(CONFIG_MIPS_ATLAS)	+= arch/mips/mips-boards/atlas/
 cflags-$(CONFIG_MIPS_ATLAS)	+= -Iinclude/asm-mips/mach-atlas
 cflags-$(CONFIG_MIPS_ATLAS)	+= -Iinclude/asm-mips/mach-mips
 load-$(CONFIG_MIPS_ATLAS)	+= 0xffffffff80100000
-all-$(CONFIG_MIPS_ATLAS)	:= vmlinux.srec
+all-$(CONFIG_MIPS_ATLAS)	:= vmlinux.bin
 
 #
 # MIPS Malta board
@@ -316,7 +322,7 @@ all-$(CONFIG_MIPS_ATLAS)	:= vmlinux.srec
 core-$(CONFIG_MIPS_MALTA)	+= arch/mips/mips-boards/malta/
 cflags-$(CONFIG_MIPS_MALTA)	+= -Iinclude/asm-mips/mach-mips
 load-$(CONFIG_MIPS_MALTA)	+= 0xffffffff80100000
-all-$(CONFIG_MIPS_MALTA)	:= vmlinux.srec
+all-$(CONFIG_MIPS_MALTA)	:= vmlinux.bin
 
 #
 # MIPS SEAD board
@@ -347,14 +353,6 @@ load-$(CONFIG_PMC_MSP)		+= 0xffffffff80100000
 core-$(CONFIG_PMC_YOSEMITE)	+= arch/mips/pmc-sierra/yosemite/
 cflags-$(CONFIG_PMC_YOSEMITE)	+= -Iinclude/asm-mips/mach-yosemite
 load-$(CONFIG_PMC_YOSEMITE)	+= 0xffffffff80100000
-
-#
-# Qemu simulating MIPS32 4Kc
-#
-core-$(CONFIG_QEMU)		+= arch/mips/qemu/
-cflags-$(CONFIG_QEMU)		+= -Iinclude/asm-mips/mach-qemu
-load-$(CONFIG_QEMU)		+= 0xffffffff80010000
-all-$(CONFIG_QEMU)		:= vmlinux.bin
 
 #
 # Basler eXcite
@@ -473,6 +471,20 @@ load-$(CONFIG_SGI_IP27)		+= 0xa80000000001c000
 OBJCOPYFLAGS			:= --change-addresses=0x57ffffff80000000
 endif
 endif
+
+#
+# SGI IP28 (Indigo2 R10k)
+#
+# Set the load address to >= 0xa800000020080000 if you want to leave space for
+# symmon, 0xa800000020004000 for production kernels ?  Note that the value must
+# be 16kb aligned or the handling of the current variable will break.
+# Simplified: what IP22 does at 128MB+ in ksegN, IP28 does at 512MB+ in xkphys
+#
+#core-$(CONFIG_SGI_IP28)		+= arch/mips/sgi-ip22/ arch/mips/arc/arc_con.o
+core-$(CONFIG_SGI_IP28)		+= arch/mips/sgi-ip22/
+cflags-$(CONFIG_SGI_IP28)	+= -mr10k-cache-barrier=1 -Iinclude/asm-mips/mach-ip28
+#cflags-$(CONFIG_SGI_IP28)	+= -Iinclude/asm-mips/mach-ip28
+load-$(CONFIG_SGI_IP28)		+= 0xa800000020004000
 
 #
 # SGI-IP32 (O2)
@@ -602,9 +614,11 @@ ifdef CONFIG_64BIT
     endif
   endif
 
-  ifeq ($(KBUILD_SYM32), y)
-    ifeq ($(call cc-option-yn,-msym32), y)
-      cflags-y += -msym32 -DKBUILD_64BIT_SYM32
+  ifeq ($(KBUILD_SYM32)$(call cc-option-yn,-msym32), yy)
+    cflags-y += -msym32 -DKBUILD_64BIT_SYM32
+  else
+    ifeq ($(CONFIG_CPU_DADDI_WORKAROUNDS), y)
+      $(error CONFIG_CPU_DADDI_WORKAROUNDS unsupported without -msym32)
     endif
   endif
 endif

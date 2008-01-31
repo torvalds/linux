@@ -814,7 +814,7 @@ static int get_eeprom(struct net_device *dev, struct ethtool_eeprom *e,
 
 	e->magic = EEPROM_MAGIC(adapter);
 	for (i = e->offset & ~3; i < e->offset + e->len; i += sizeof(u32))
-		t1_seeprom_read(adapter, i, (u32 *)&buf[i]);
+		t1_seeprom_read(adapter, i, (__le32 *)&buf[i]);
 	memcpy(data, buf + e->offset, e->len);
 	return 0;
 }
@@ -1042,7 +1042,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 		pci_using_dac = 1;
 
 		if (pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK)) {
-			CH_ERR("%s: unable to obtain 64-bit DMA for"
+			CH_ERR("%s: unable to obtain 64-bit DMA for "
 			       "consistent allocations\n", pci_name(pdev));
 			err = -ENODEV;
 			goto out_disable_pdev;

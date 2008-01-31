@@ -278,27 +278,14 @@ static void sil_set_dma_mode(ide_drive_t *drive, const u8 speed)
 
 	scsc = is_sata(hwif) ? 1 : scsc;
 
-	switch(speed) {
-		case XFER_MW_DMA_2:
-		case XFER_MW_DMA_1:
-		case XFER_MW_DMA_0:
-			multi = dma[speed - XFER_MW_DMA_0];
-			mode |= ((unit) ? 0x20 : 0x02);
-			break;
-		case XFER_UDMA_6:
-		case XFER_UDMA_5:
-		case XFER_UDMA_4:
-		case XFER_UDMA_3:
-		case XFER_UDMA_2:
-		case XFER_UDMA_1:
-		case XFER_UDMA_0:
-			multi = dma[2];
-			ultra |= ((scsc) ? (ultra6[speed - XFER_UDMA_0]) :
-					   (ultra5[speed - XFER_UDMA_0]));
-			mode |= ((unit) ? 0x30 : 0x03);
-			break;
-		default:
-			return;
+	if (speed >= XFER_UDMA_0) {
+		multi = dma[2];
+		ultra |= (scsc ? ultra6[speed - XFER_UDMA_0] :
+				 ultra5[speed - XFER_UDMA_0]);
+		mode |= (unit ? 0x30 : 0x03);
+	} else {
+		multi = dma[speed - XFER_MW_DMA_0];
+		mode |= (unit ? 0x20 : 0x02);
 	}
 
 	if (hwif->mmio) {
@@ -726,9 +713,6 @@ static int is_dev_seagate_sata(ide_drive_t *drive)
 	const char *s = &drive->id->model[0];
 	unsigned len;
 
-	if (!drive->present)
-		return 0;
-
 	len = strnlen(s, sizeof(drive->id->model));
 
 	if ((len > 4) && (!memcmp(s, "ST", 2))) {
@@ -743,18 +727,20 @@ static int is_dev_seagate_sata(ide_drive_t *drive)
 }
 
 /**
- *	siimage_fixup		-	post probe fixups
- *	@hwif: interface to fix up
+ *	sil_quirkproc		-	post probe fixups
+ *	@drive: drive
  *
  *	Called after drive probe we use this to decide whether the
  *	Seagate fixup must be applied. This used to be in init_iops but
  *	that can occur before we know what drives are present.
  */
 
-static void __devinit siimage_fixup(ide_hwif_t *hwif)
+static void __devinit sil_quirkproc(ide_drive_t *drive)
 {
+	ide_hwif_t *hwif = drive->hwif;
+
 	/* Try and raise the rqsize */
-	if (!is_sata(hwif) || !is_dev_seagate_sata(&hwif->drives[0]))
+	if (!is_sata(hwif) || !is_dev_seagate_sata(drive))
 		hwif->rqsize = 128;
 }
 
@@ -817,6 +803,7 @@ static void __devinit init_hwif_siimage(ide_hwif_t *hwif)
 
 	hwif->set_pio_mode = &sil_set_pio_mode;
 	hwif->set_dma_mode = &sil_set_dma_mode;
+	hwif->quirkproc = &sil_quirkproc;
 
 	if (sata) {
 		static int first = 1;
@@ -855,7 +842,6 @@ static void __devinit init_hwif_siimage(ide_hwif_t *hwif)
 		.init_chipset	= init_chipset_siimage,	\
 		.init_iops	= init_iops_siimage,	\
 		.init_hwif	= init_hwif_siimage,	\
-		.fixup		= siimage_fixup,	\
 		.host_flags	= IDE_HFLAG_BOOTABLE,	\
 		.pio_mask	= ATA_PIO4,		\
 		.mwdma_mask	= ATA_MWDMA2,		\

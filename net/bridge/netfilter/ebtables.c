@@ -15,8 +15,6 @@
  *  2 of the License, or (at your option) any later version.
  */
 
-/* used for print_string */
-#include <linux/tty.h>
 
 #include <linux/kmod.h>
 #include <linux/module.h>

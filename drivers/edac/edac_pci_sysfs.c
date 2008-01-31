@@ -162,14 +162,6 @@ static int edac_pci_create_instance_kobj(struct edac_pci_ctl_info *pci, int idx)
 
 	debugf0("%s()\n", __func__);
 
-	/* Set the parent and the instance's ktype */
-	pci->kobj.parent = &edac_pci_top_main_kobj;
-	pci->kobj.ktype = &ktype_pci_instance;
-
-	err = kobject_set_name(&pci->kobj, "pci%d", idx);
-	if (err)
-		return err;
-
 	/* First bump the ref count on the top main kobj, which will
 	 * track the number of PCI instances we have, and thus nest
 	 * properly on keeping the module loaded
@@ -181,7 +173,8 @@ static int edac_pci_create_instance_kobj(struct edac_pci_ctl_info *pci, int idx)
 	}
 
 	/* And now register this new kobject under the main kobj */
-	err = kobject_register(&pci->kobj);
+	err = kobject_init_and_add(&pci->kobj, &ktype_pci_instance,
+				   &edac_pci_top_main_kobj, "pci%d", idx);
 	if (err != 0) {
 		debugf2("%s() failed to register instance pci%d\n",
 			__func__, idx);
@@ -189,6 +182,7 @@ static int edac_pci_create_instance_kobj(struct edac_pci_ctl_info *pci, int idx)
 		goto error_out;
 	}
 
+	kobject_uevent(&pci->kobj, KOBJ_ADD);
 	debugf1("%s() Register instance 'pci%d' kobject\n", __func__, idx);
 
 	return 0;
@@ -211,7 +205,7 @@ void edac_pci_unregister_sysfs_instance_kobj(struct edac_pci_ctl_info *pci)
 	 * function release the main reference count and then
 	 * kfree the memory
 	 */
-	kobject_unregister(&pci->kobj);
+	kobject_put(&pci->kobj);
 }
 
 /***************************** EDAC PCI sysfs root **********************/
@@ -364,14 +358,6 @@ int edac_pci_main_kobj_setup(void)
 		goto decrement_count_fail;
 	}
 
-	/* Need the kobject hook ups, and name setting */
-	edac_pci_top_main_kobj.ktype = &ktype_edac_pci_main_kobj;
-	edac_pci_top_main_kobj.parent = &edac_class->kset.kobj;
-
-	err = kobject_set_name(&edac_pci_top_main_kobj, "pci");
-	if (err)
-		goto decrement_count_fail;
-
 	/* Bump the reference count on this module to ensure the
 	 * modules isn't unloaded until we deconstruct the top
 	 * level main kobj for EDAC PCI
@@ -383,23 +369,24 @@ int edac_pci_main_kobj_setup(void)
 	}
 
 	/* Instanstiate the pci object */
-	/* FIXME: maybe new sysdev_create_subdir() */
-	err = kobject_register(&edac_pci_top_main_kobj);
+	err = kobject_init_and_add(&edac_pci_top_main_kobj, &ktype_edac_pci_main_kobj,
+				   &edac_class->kset.kobj, "pci");
 	if (err) {
 		debugf1("Failed to register '.../edac/pci'\n");
-		goto kobject_register_fail;
+		goto kobject_init_and_add_fail;
 	}
 
 	/* At this point, to 'release' the top level kobject
 	 * for EDAC PCI, then edac_pci_main_kobj_teardown()
 	 * must be used, for resources to be cleaned up properly
 	 */
+	kobject_uevent(&edac_pci_top_main_kobj, KOBJ_ADD);
 	debugf1("Registered '.../edac/pci' kobject\n");
 
 	return 0;
 
 	/* Error unwind statck */
-kobject_register_fail:
+kobject_init_and_add_fail:
 	module_put(THIS_MODULE);
 
 decrement_count_fail:
@@ -424,9 +411,9 @@ static void edac_pci_main_kobj_teardown(void)
 	 * main kobj
 	 */
 	if (atomic_dec_return(&edac_pci_sysfs_refcount) == 0) {
-		debugf0("%s() called kobject_unregister on main kobj\n",
+		debugf0("%s() called kobject_put on main kobj\n",
 			__func__);
-		kobject_unregister(&edac_pci_top_main_kobj);
+		kobject_put(&edac_pci_top_main_kobj);
 	}
 }
 

@@ -361,6 +361,7 @@ end:
 
 static int inet6_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct net *net = skb->sk->sk_net;
 	unsigned int h, s_h;
 	unsigned int e = 0, s_e;
 	struct rt6_rtnl_dump_arg arg;
@@ -368,6 +369,9 @@ static int inet6_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 	struct fib6_table *tb;
 	struct hlist_node *node;
 	int res = 0;
+
+	if (net != &init_net)
+		return 0;
 
 	s_h = cb->args[0];
 	s_e = cb->args[1];
@@ -677,13 +681,15 @@ static __inline__ void fib6_start_gc(struct rt6_info *rt)
 {
 	if (ip6_fib_timer.expires == 0 &&
 	    (rt->rt6i_flags & (RTF_EXPIRES|RTF_CACHE)))
-		mod_timer(&ip6_fib_timer, jiffies + ip6_rt_gc_interval);
+		mod_timer(&ip6_fib_timer, jiffies +
+			  init_net.ipv6.sysctl.ip6_rt_gc_interval);
 }
 
 void fib6_force_start_gc(void)
 {
 	if (ip6_fib_timer.expires == 0)
-		mod_timer(&ip6_fib_timer, jiffies + ip6_rt_gc_interval);
+		mod_timer(&ip6_fib_timer, jiffies +
+			  init_net.ipv6.sysctl.ip6_rt_gc_interval);
 }
 
 /*
@@ -1122,9 +1128,6 @@ static void fib6_del_route(struct fib6_node *fn, struct rt6_info **rtp,
 
 	rt->u.dst.rt6_next = NULL;
 
-	if (fn->leaf == NULL && fn->fn_flags&RTN_TL_ROOT)
-		fn->leaf = &ip6_null_entry;
-
 	/* If it was last route, expunge its radix tree node */
 	if (fn->leaf == NULL) {
 		fn->fn_flags &= ~RTN_RTINFO;
@@ -1311,6 +1314,9 @@ static int fib6_walk(struct fib6_walker_t *w)
 
 static int fib6_clean_node(struct fib6_walker_t *w)
 {
+	struct nl_info info = {
+		.nl_net = &init_net,
+	};
 	int res;
 	struct rt6_info *rt;
 	struct fib6_cleaner_t *c = container_of(w, struct fib6_cleaner_t, w);
@@ -1319,7 +1325,7 @@ static int fib6_clean_node(struct fib6_walker_t *w)
 		res = c->func(rt, c->arg);
 		if (res < 0) {
 			w->leaf = rt;
-			res = fib6_del(rt, NULL);
+			res = fib6_del(rt, &info);
 			if (res) {
 #if RT6_DEBUG >= 2
 				printk(KERN_DEBUG "fib6_clean_node: del failed: rt=%p@%p err=%d\n", rt, rt->rt6i_node, res);
@@ -1445,7 +1451,8 @@ void fib6_run_gc(unsigned long dummy)
 {
 	if (dummy != ~0UL) {
 		spin_lock_bh(&fib6_gc_lock);
-		gc_args.timeout = dummy ? (int)dummy : ip6_rt_gc_interval;
+		gc_args.timeout = dummy ? (int)dummy :
+			init_net.ipv6.sysctl.ip6_rt_gc_interval;
 	} else {
 		local_bh_disable();
 		if (!spin_trylock(&fib6_gc_lock)) {
@@ -1453,7 +1460,7 @@ void fib6_run_gc(unsigned long dummy)
 			local_bh_enable();
 			return;
 		}
-		gc_args.timeout = ip6_rt_gc_interval;
+		gc_args.timeout = init_net.ipv6.sysctl.ip6_rt_gc_interval;
 	}
 	gc_args.more = 0;
 
@@ -1461,7 +1468,8 @@ void fib6_run_gc(unsigned long dummy)
 	fib6_clean_all(fib6_age, 0, NULL);
 
 	if (gc_args.more)
-		mod_timer(&ip6_fib_timer, jiffies + ip6_rt_gc_interval);
+		mod_timer(&ip6_fib_timer, jiffies +
+			  init_net.ipv6.sysctl.ip6_rt_gc_interval);
 	else {
 		del_timer(&ip6_fib_timer);
 		ip6_fib_timer.expires = 0;
@@ -1469,16 +1477,27 @@ void fib6_run_gc(unsigned long dummy)
 	spin_unlock_bh(&fib6_gc_lock);
 }
 
-void __init fib6_init(void)
+int __init fib6_init(void)
 {
+	int ret;
 	fib6_node_kmem = kmem_cache_create("fib6_nodes",
 					   sizeof(struct fib6_node),
-					   0, SLAB_HWCACHE_ALIGN|SLAB_PANIC,
+					   0, SLAB_HWCACHE_ALIGN,
 					   NULL);
+	if (!fib6_node_kmem)
+		return -ENOMEM;
 
 	fib6_tables_init();
 
-	__rtnl_register(PF_INET6, RTM_GETROUTE, NULL, inet6_dump_fib);
+	ret = __rtnl_register(PF_INET6, RTM_GETROUTE, NULL, inet6_dump_fib);
+	if (ret)
+		goto out_kmem_cache_create;
+out:
+	return ret;
+
+out_kmem_cache_create:
+	kmem_cache_destroy(fib6_node_kmem);
+	goto out;
 }
 
 void fib6_gc_cleanup(void)

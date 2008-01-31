@@ -34,12 +34,21 @@ MODULE_DESCRIPTION("[ip,ip6,arp]_tables backend module");
 
 #define SMP_ALIGN(x) (((x) + SMP_CACHE_BYTES-1) & ~(SMP_CACHE_BYTES-1))
 
+struct compat_delta {
+	struct compat_delta *next;
+	unsigned int offset;
+	short delta;
+};
+
 struct xt_af {
 	struct mutex mutex;
 	struct list_head match;
 	struct list_head target;
 	struct list_head tables;
+#ifdef CONFIG_COMPAT
 	struct mutex compat_mutex;
+	struct compat_delta *compat_offsets;
+#endif
 };
 
 static struct xt_af *xt;
@@ -335,6 +344,54 @@ int xt_check_match(const struct xt_match *match, unsigned short family,
 EXPORT_SYMBOL_GPL(xt_check_match);
 
 #ifdef CONFIG_COMPAT
+int xt_compat_add_offset(int af, unsigned int offset, short delta)
+{
+	struct compat_delta *tmp;
+
+	tmp = kmalloc(sizeof(struct compat_delta), GFP_KERNEL);
+	if (!tmp)
+		return -ENOMEM;
+
+	tmp->offset = offset;
+	tmp->delta = delta;
+
+	if (xt[af].compat_offsets) {
+		tmp->next = xt[af].compat_offsets->next;
+		xt[af].compat_offsets->next = tmp;
+	} else {
+		xt[af].compat_offsets = tmp;
+		tmp->next = NULL;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(xt_compat_add_offset);
+
+void xt_compat_flush_offsets(int af)
+{
+	struct compat_delta *tmp, *next;
+
+	if (xt[af].compat_offsets) {
+		for (tmp = xt[af].compat_offsets; tmp; tmp = next) {
+			next = tmp->next;
+			kfree(tmp);
+		}
+		xt[af].compat_offsets = NULL;
+	}
+}
+EXPORT_SYMBOL_GPL(xt_compat_flush_offsets);
+
+short xt_compat_calc_jump(int af, unsigned int offset)
+{
+	struct compat_delta *tmp;
+	short delta;
+
+	for (tmp = xt[af].compat_offsets, delta = 0; tmp; tmp = tmp->next)
+		if (tmp->offset < offset)
+			delta += tmp->delta;
+	return delta;
+}
+EXPORT_SYMBOL_GPL(xt_compat_calc_jump);
+
 int xt_compat_match_offset(struct xt_match *match)
 {
 	u_int16_t csize = match->compatsize ? : match->matchsize;
@@ -342,8 +399,8 @@ int xt_compat_match_offset(struct xt_match *match)
 }
 EXPORT_SYMBOL_GPL(xt_compat_match_offset);
 
-void xt_compat_match_from_user(struct xt_entry_match *m, void **dstptr,
-			       int *size)
+int xt_compat_match_from_user(struct xt_entry_match *m, void **dstptr,
+			      int *size)
 {
 	struct xt_match *match = m->u.kernel.match;
 	struct compat_xt_entry_match *cm = (struct compat_xt_entry_match *)m;
@@ -365,6 +422,7 @@ void xt_compat_match_from_user(struct xt_entry_match *m, void **dstptr,
 
 	*size += off;
 	*dstptr += msize;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(xt_compat_match_from_user);
 
@@ -499,7 +557,7 @@ struct xt_table_info *xt_alloc_table_info(unsigned int size)
 	if ((SMP_ALIGN(size) >> PAGE_SHIFT) + 2 > num_physpages)
 		return NULL;
 
-	newinfo = kzalloc(sizeof(struct xt_table_info), GFP_KERNEL);
+	newinfo = kzalloc(XT_TABLE_INFO_SZ, GFP_KERNEL);
 	if (!newinfo)
 		return NULL;
 
@@ -872,6 +930,7 @@ static int __init xt_init(void)
 		mutex_init(&xt[i].mutex);
 #ifdef CONFIG_COMPAT
 		mutex_init(&xt[i].compat_mutex);
+		xt[i].compat_offsets = NULL;
 #endif
 		INIT_LIST_HEAD(&xt[i].target);
 		INIT_LIST_HEAD(&xt[i].match);

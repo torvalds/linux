@@ -4,6 +4,7 @@
 #include <asm/mtrr.h>
 #include <asm/msr.h>
 #include <asm/processor-cyrix.h>
+#include <asm/processor-flags.h>
 #include "mtrr.h"
 
 
@@ -25,7 +26,7 @@ void set_mtrr_prepare_save(struct set_mtrr_context *ctxt)
 
 		/*  Disable and flush caches. Note that wbinvd flushes the TLBs as
 		    a side-effect  */
-		cr0 = read_cr0() | 0x40000000;
+		cr0 = read_cr0() | X86_CR0_CD;
 		wbinvd();
 		write_cr0(cr0);
 		wbinvd();

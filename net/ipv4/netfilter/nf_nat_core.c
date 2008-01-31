@@ -33,27 +33,28 @@
 
 static DEFINE_RWLOCK(nf_nat_lock);
 
-static struct nf_conntrack_l3proto *l3proto = NULL;
+static struct nf_conntrack_l3proto *l3proto __read_mostly;
 
 /* Calculated at init based on memory size */
-static unsigned int nf_nat_htable_size;
+static unsigned int nf_nat_htable_size __read_mostly;
 static int nf_nat_vmalloced;
 
-static struct hlist_head *bysource;
+static struct hlist_head *bysource __read_mostly;
 
 #define MAX_IP_NAT_PROTO 256
-static struct nf_nat_protocol *nf_nat_protos[MAX_IP_NAT_PROTO];
+static const struct nf_nat_protocol *nf_nat_protos[MAX_IP_NAT_PROTO]
+						__read_mostly;
 
-static inline struct nf_nat_protocol *
+static inline const struct nf_nat_protocol *
 __nf_nat_proto_find(u_int8_t protonum)
 {
 	return rcu_dereference(nf_nat_protos[protonum]);
 }
 
-struct nf_nat_protocol *
+const struct nf_nat_protocol *
 nf_nat_proto_find_get(u_int8_t protonum)
 {
-	struct nf_nat_protocol *p;
+	const struct nf_nat_protocol *p;
 
 	rcu_read_lock();
 	p = __nf_nat_proto_find(protonum);
@@ -66,7 +67,7 @@ nf_nat_proto_find_get(u_int8_t protonum)
 EXPORT_SYMBOL_GPL(nf_nat_proto_find_get);
 
 void
-nf_nat_proto_put(struct nf_nat_protocol *p)
+nf_nat_proto_put(const struct nf_nat_protocol *p)
 {
 	module_put(p->me);
 }
@@ -76,10 +77,13 @@ EXPORT_SYMBOL_GPL(nf_nat_proto_put);
 static inline unsigned int
 hash_by_src(const struct nf_conntrack_tuple *tuple)
 {
+	unsigned int hash;
+
 	/* Original src, to ensure we map it consistently if poss. */
-	return jhash_3words((__force u32)tuple->src.u3.ip,
+	hash = jhash_3words((__force u32)tuple->src.u3.ip,
 			    (__force u32)tuple->src.u.all,
-			    tuple->dst.protonum, 0) % nf_nat_htable_size;
+			    tuple->dst.protonum, 0);
+	return ((u64)hash * nf_nat_htable_size) >> 32;
 }
 
 /* Is this tuple already taken? (not by us) */
@@ -105,7 +109,7 @@ static int
 in_range(const struct nf_conntrack_tuple *tuple,
 	 const struct nf_nat_range *range)
 {
-	struct nf_nat_protocol *proto;
+	const struct nf_nat_protocol *proto;
 	int ret = 0;
 
 	/* If we are supposed to map IPs, then we must be in the
@@ -210,12 +214,13 @@ find_best_ips_proto(struct nf_conntrack_tuple *tuple,
 	maxip = ntohl(range->max_ip);
 	j = jhash_2words((__force u32)tuple->src.u3.ip,
 			 (__force u32)tuple->dst.u3.ip, 0);
-	*var_ipp = htonl(minip + j % (maxip - minip + 1));
+	j = ((u64)j * (maxip - minip + 1)) >> 32;
+	*var_ipp = htonl(minip + j);
 }
 
-/* Manipulate the tuple into the range given.  For NF_IP_POST_ROUTING,
- * we change the source to map into the range.  For NF_IP_PRE_ROUTING
- * and NF_IP_LOCAL_OUT, we change the destination to map into the
+/* Manipulate the tuple into the range given.  For NF_INET_POST_ROUTING,
+ * we change the source to map into the range.  For NF_INET_PRE_ROUTING
+ * and NF_INET_LOCAL_OUT, we change the destination to map into the
  * range.  It might not be possible to get a unique tuple, but we try.
  * At worst (or if we race), we will end up with a final duplicate in
  * __ip_conntrack_confirm and drop the packet. */
@@ -226,7 +231,7 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 		 struct nf_conn *ct,
 		 enum nf_nat_manip_type maniptype)
 {
-	struct nf_nat_protocol *proto;
+	const struct nf_nat_protocol *proto;
 
 	/* 1) If this srcip/proto/src-proto-part is currently mapped,
 	   and that same mapping gives a unique tuple within the given
@@ -276,12 +281,11 @@ out:
 unsigned int
 nf_nat_setup_info(struct nf_conn *ct,
 		  const struct nf_nat_range *range,
-		  unsigned int hooknum)
+		  enum nf_nat_manip_type maniptype)
 {
 	struct nf_conntrack_tuple curr_tuple, new_tuple;
 	struct nf_conn_nat *nat;
 	int have_to_hash = !(ct->status & IPS_NAT_DONE_MASK);
-	enum nf_nat_manip_type maniptype = HOOK2MANIP(hooknum);
 
 	/* nat helper or nfctnetlink also setup binding */
 	nat = nfct_nat(ct);
@@ -293,10 +297,8 @@ nf_nat_setup_info(struct nf_conn *ct,
 		}
 	}
 
-	NF_CT_ASSERT(hooknum == NF_IP_PRE_ROUTING ||
-		     hooknum == NF_IP_POST_ROUTING ||
-		     hooknum == NF_IP_LOCAL_IN ||
-		     hooknum == NF_IP_LOCAL_OUT);
+	NF_CT_ASSERT(maniptype == IP_NAT_MANIP_SRC ||
+		     maniptype == IP_NAT_MANIP_DST);
 	BUG_ON(nf_nat_initialized(ct, maniptype));
 
 	/* What we've got will look like inverse of reply. Normally
@@ -355,7 +357,7 @@ manip_pkt(u_int16_t proto,
 	  enum nf_nat_manip_type maniptype)
 {
 	struct iphdr *iph;
-	struct nf_nat_protocol *p;
+	const struct nf_nat_protocol *p;
 
 	if (!skb_make_writable(skb, iphdroff + sizeof(*iph)))
 		return 0;
@@ -372,10 +374,10 @@ manip_pkt(u_int16_t proto,
 	iph = (void *)skb->data + iphdroff;
 
 	if (maniptype == IP_NAT_MANIP_SRC) {
-		nf_csum_replace4(&iph->check, iph->saddr, target->src.u3.ip);
+		csum_replace4(&iph->check, iph->saddr, target->src.u3.ip);
 		iph->saddr = target->src.u3.ip;
 	} else {
-		nf_csum_replace4(&iph->check, iph->daddr, target->dst.u3.ip);
+		csum_replace4(&iph->check, iph->daddr, target->dst.u3.ip);
 		iph->daddr = target->dst.u3.ip;
 	}
 	return 1;
@@ -515,7 +517,7 @@ int nf_nat_icmp_reply_translation(struct nf_conn *ct,
 EXPORT_SYMBOL_GPL(nf_nat_icmp_reply_translation);
 
 /* Protocol registration. */
-int nf_nat_protocol_register(struct nf_nat_protocol *proto)
+int nf_nat_protocol_register(const struct nf_nat_protocol *proto)
 {
 	int ret = 0;
 
@@ -532,7 +534,7 @@ int nf_nat_protocol_register(struct nf_nat_protocol *proto)
 EXPORT_SYMBOL(nf_nat_protocol_register);
 
 /* Noone stores the protocol anywhere; simply delete it. */
-void nf_nat_protocol_unregister(struct nf_nat_protocol *proto)
+void nf_nat_protocol_unregister(const struct nf_nat_protocol *proto)
 {
 	write_lock_bh(&nf_nat_lock);
 	rcu_assign_pointer(nf_nat_protos[proto->protonum],
@@ -547,10 +549,8 @@ int
 nf_nat_port_range_to_nlattr(struct sk_buff *skb,
 			    const struct nf_nat_range *range)
 {
-	NLA_PUT(skb, CTA_PROTONAT_PORT_MIN, sizeof(__be16),
-		&range->min.tcp.port);
-	NLA_PUT(skb, CTA_PROTONAT_PORT_MAX, sizeof(__be16),
-		&range->max.tcp.port);
+	NLA_PUT_BE16(skb, CTA_PROTONAT_PORT_MIN, range->min.tcp.port);
+	NLA_PUT_BE16(skb, CTA_PROTONAT_PORT_MAX, range->max.tcp.port);
 
 	return 0;
 
@@ -568,8 +568,7 @@ nf_nat_port_nlattr_to_range(struct nlattr *tb[], struct nf_nat_range *range)
 
 	if (tb[CTA_PROTONAT_PORT_MIN]) {
 		ret = 1;
-		range->min.tcp.port =
-			*(__be16 *)nla_data(tb[CTA_PROTONAT_PORT_MIN]);
+		range->min.tcp.port = nla_get_be16(tb[CTA_PROTONAT_PORT_MIN]);
 	}
 
 	if (!tb[CTA_PROTONAT_PORT_MAX]) {
@@ -577,8 +576,7 @@ nf_nat_port_nlattr_to_range(struct nlattr *tb[], struct nf_nat_range *range)
 			range->max.tcp.port = range->min.tcp.port;
 	} else {
 		ret = 1;
-		range->max.tcp.port =
-			*(__be16 *)nla_data(tb[CTA_PROTONAT_PORT_MAX]);
+		range->max.tcp.port = nla_get_be16(tb[CTA_PROTONAT_PORT_MAX]);
 	}
 
 	return ret;

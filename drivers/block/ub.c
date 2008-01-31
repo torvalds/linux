@@ -808,16 +808,16 @@ static void ub_rw_cmd_done(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 
 static void ub_end_rq(struct request *rq, unsigned int scsi_status)
 {
-	int uptodate;
+	int error;
 
 	if (scsi_status == 0) {
-		uptodate = 1;
+		error = 0;
 	} else {
-		uptodate = 0;
+		error = -EIO;
 		rq->errors = scsi_status;
 	}
-	end_that_request_first(rq, uptodate, rq->hard_nr_sectors);
-	end_that_request_last(rq, uptodate);
+	if (__blk_end_request(rq, error, blk_rq_bytes(rq)))
+		BUG();
 }
 
 static int ub_rw_cmd_retry(struct ub_dev *sc, struct ub_lun *lun,

@@ -31,52 +31,32 @@
 
 static void pvr2_context_destroy(struct pvr2_context *mp)
 {
-	if (mp->hdw) pvr2_hdw_destroy(mp->hdw);
 	pvr2_trace(PVR2_TRACE_STRUCT,"Destroying pvr_main id=%p",mp);
-	if (mp->workqueue) {
-		flush_workqueue(mp->workqueue);
-		destroy_workqueue(mp->workqueue);
-	}
+	if (mp->hdw) pvr2_hdw_destroy(mp->hdw);
 	kfree(mp);
 }
 
 
-static void pvr2_context_trigger_poll(struct pvr2_context *mp)
+static void pvr2_context_state_check(struct pvr2_context *mp)
 {
-	queue_work(mp->workqueue,&mp->workpoll);
-}
+	if (mp->init_flag) return;
 
-
-static void pvr2_context_poll(struct work_struct *work)
-{
-	struct pvr2_context *mp =
-		container_of(work, struct pvr2_context, workpoll);
-	pvr2_context_enter(mp); do {
-		pvr2_hdw_poll(mp->hdw);
-	} while (0); pvr2_context_exit(mp);
-}
-
-
-static void pvr2_context_setup(struct work_struct *work)
-{
-	struct pvr2_context *mp =
-		container_of(work, struct pvr2_context, workinit);
+	switch (pvr2_hdw_get_state(mp->hdw)) {
+	case PVR2_STATE_WARM: break;
+	case PVR2_STATE_ERROR: break;
+	case PVR2_STATE_READY: break;
+	case PVR2_STATE_RUN: break;
+	default: return;
+	}
 
 	pvr2_context_enter(mp); do {
-		if (!pvr2_hdw_dev_ok(mp->hdw)) break;
-		pvr2_hdw_setup(mp->hdw);
-		pvr2_hdw_setup_poll_trigger(
-			mp->hdw,
-			(void (*)(void *))pvr2_context_trigger_poll,
-			mp);
-		if (!pvr2_hdw_dev_ok(mp->hdw)) break;
-		if (!pvr2_hdw_init_ok(mp->hdw)) break;
+		mp->init_flag = !0;
 		mp->video_stream.stream = pvr2_hdw_get_video_stream(mp->hdw);
 		if (mp->setup_func) {
 			mp->setup_func(mp);
 		}
 	} while (0); pvr2_context_exit(mp);
-}
+ }
 
 
 struct pvr2_context *pvr2_context_create(
@@ -96,11 +76,10 @@ struct pvr2_context *pvr2_context_create(
 		mp = NULL;
 		goto done;
 	}
-
-	mp->workqueue = create_singlethread_workqueue("pvrusb2");
-	INIT_WORK(&mp->workinit, pvr2_context_setup);
-	INIT_WORK(&mp->workpoll, pvr2_context_poll);
-	queue_work(mp->workqueue,&mp->workinit);
+	pvr2_hdw_set_state_callback(mp->hdw,
+				    (void (*)(void *))pvr2_context_state_check,
+				    mp);
+	pvr2_context_state_check(mp);
  done:
 	return mp;
 }

@@ -66,6 +66,7 @@ extern int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 
 
 #ifdef CONFIG_PCI
+extern void early_quirks(void);
 static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 					enum pci_dma_burst_strategy *strat,
 					unsigned long *strategy_parameter)
@@ -73,8 +74,9 @@ static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 	*strat = PCI_DMA_BURST_INFINITY;
 	*strategy_parameter = ~0UL;
 }
+#else
+static inline void early_quirks(void) { }
 #endif
-
 
 #endif  /* __KERNEL__ */
 
@@ -90,6 +92,19 @@ static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 /* generic pci stuff */
 #include <asm-generic/pci.h>
 
+#ifdef CONFIG_NUMA
+/* Returns the node based on pci bus */
+static inline int __pcibus_to_node(struct pci_bus *bus)
+{
+	struct pci_sysdata *sd = bus->sysdata;
 
+	return sd->node;
+}
+
+static inline cpumask_t __pcibus_to_cpumask(struct pci_bus *bus)
+{
+	return node_to_cpumask(__pcibus_to_node(bus));
+}
+#endif
 
 #endif

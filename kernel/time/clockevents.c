@@ -41,6 +41,11 @@ unsigned long clockevent_delta2ns(unsigned long latch,
 {
 	u64 clc = ((u64) latch << evt->shift);
 
+	if (unlikely(!evt->mult)) {
+		evt->mult = 1;
+		WARN_ON(1);
+	}
+
 	do_div(clc, evt->mult);
 	if (clc < 1000)
 		clc = 1000;
@@ -151,6 +156,14 @@ static void clockevents_notify_released(void)
 void clockevents_register_device(struct clock_event_device *dev)
 {
 	BUG_ON(dev->mode != CLOCK_EVT_MODE_UNUSED);
+	/*
+	 * A nsec2cyc multiplicator of 0 is invalid and we'd crash
+	 * on it, so fix it up and emit a warning:
+	 */
+	if (unlikely(!dev->mult)) {
+		dev->mult = 1;
+		WARN_ON(1);
+	}
 
 	spin_lock(&clockevents_lock);
 

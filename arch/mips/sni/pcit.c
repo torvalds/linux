@@ -76,6 +76,11 @@ static struct platform_device pcit_cmos_device = {
         .resource       = pcit_cmos_rsrc
 };
 
+static struct platform_device pcit_pcspeaker_pdev = {
+	.name		= "pcspkr",
+	.id		= -1,
+};
+
 static struct resource sni_io_resource = {
 	.start	= 0x00000000UL,
 	.end	= 0x03bfffffUL,
@@ -277,11 +282,13 @@ static int __init snirm_pcit_setup_devinit(void)
 	case SNI_BRD_PCI_TOWER:
 	        platform_device_register(&pcit_serial8250_device);
 	        platform_device_register(&pcit_cmos_device);
+		platform_device_register(&pcit_pcspeaker_pdev);
 	        break;
 
 	case SNI_BRD_PCI_TOWER_CPLUS:
 	        platform_device_register(&pcit_cplus_serial8250_device);
 	        platform_device_register(&pcit_cmos_device);
+		platform_device_register(&pcit_pcspeaker_pdev);
 	        break;
 	}
 	return 0;

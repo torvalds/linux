@@ -89,24 +89,25 @@ struct mtrr_gentry
 extern void mtrr_save_fixed_ranges(void *);
 extern void mtrr_save_state(void);
 extern int mtrr_add (unsigned long base, unsigned long size,
-		     unsigned int type, char increment);
+		     unsigned int type, bool increment);
 extern int mtrr_add_page (unsigned long base, unsigned long size,
-		     unsigned int type, char increment);
+		     unsigned int type, bool increment);
 extern int mtrr_del (int reg, unsigned long base, unsigned long size);
 extern int mtrr_del_page (int reg, unsigned long base, unsigned long size);
 extern void mtrr_centaur_report_mcr(int mcr, u32 lo, u32 hi);
 extern void mtrr_ap_init(void);
 extern void mtrr_bp_init(void);
+extern int mtrr_trim_uncached_memory(unsigned long end_pfn);
 #  else
 #define mtrr_save_fixed_ranges(arg) do {} while (0)
 #define mtrr_save_state() do {} while (0)
 static __inline__ int mtrr_add (unsigned long base, unsigned long size,
-				unsigned int type, char increment)
+				unsigned int type, bool increment)
 {
     return -ENODEV;
 }
 static __inline__ int mtrr_add_page (unsigned long base, unsigned long size,
-				unsigned int type, char increment)
+				unsigned int type, bool increment)
 {
     return -ENODEV;
 }
@@ -120,7 +121,10 @@ static __inline__ int mtrr_del_page (int reg, unsigned long base,
 {
     return -ENODEV;
 }
-
+static inline int mtrr_trim_uncached_memory(unsigned long end_pfn)
+{
+	return 0;
+}
 static __inline__ void mtrr_centaur_report_mcr(int mcr, u32 lo, u32 hi) {;}
 
 #define mtrr_ap_init() do {} while (0)

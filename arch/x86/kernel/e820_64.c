@@ -1,4 +1,4 @@
-/* 
+/*
  * Handle the memory map.
  * The functions here do the job until bootmem takes over.
  *
@@ -26,80 +26,87 @@
 #include <asm/proto.h>
 #include <asm/setup.h>
 #include <asm/sections.h>
+#include <asm/kdebug.h>
 
 struct e820map e820;
 
-/* 
+/*
  * PFN of last memory page.
  */
-unsigned long end_pfn; 
-EXPORT_SYMBOL(end_pfn);
+unsigned long end_pfn;
 
-/* 
+/*
  * end_pfn only includes RAM, while end_pfn_map includes all e820 entries.
  * The direct mapping extends to end_pfn_map, so that we can directly access
  * apertures, ACPI and other tables without having to play with fixmaps.
- */ 
-unsigned long end_pfn_map; 
+ */
+unsigned long end_pfn_map;
 
-/* 
+/*
  * Last pfn which the user wants to use.
  */
 static unsigned long __initdata end_user_pfn = MAXMEM>>PAGE_SHIFT;
 
-extern struct resource code_resource, data_resource, bss_resource;
+/*
+ * Early reserved memory areas.
+ */
+#define MAX_EARLY_RES 20
 
-/* Check for some hardcoded bad areas that early boot is not allowed to touch */ 
+struct early_res {
+	unsigned long start, end;
+};
+static struct early_res early_res[MAX_EARLY_RES] __initdata = {
+	{ 0, PAGE_SIZE },			/* BIOS data page */
+#ifdef CONFIG_SMP
+	{ SMP_TRAMPOLINE_BASE, SMP_TRAMPOLINE_BASE + 2*PAGE_SIZE },
+#endif
+	{}
+};
+
+void __init reserve_early(unsigned long start, unsigned long end)
+{
+	int i;
+	struct early_res *r;
+	for (i = 0; i < MAX_EARLY_RES && early_res[i].end; i++) {
+		r = &early_res[i];
+		if (end > r->start && start < r->end)
+			panic("Overlapping early reservations %lx-%lx to %lx-%lx\n",
+			      start, end, r->start, r->end);
+	}
+	if (i >= MAX_EARLY_RES)
+		panic("Too many early reservations");
+	r = &early_res[i];
+	r->start = start;
+	r->end = end;
+}
+
+void __init early_res_to_bootmem(void)
+{
+	int i;
+	for (i = 0; i < MAX_EARLY_RES && early_res[i].end; i++) {
+		struct early_res *r = &early_res[i];
+		reserve_bootmem_generic(r->start, r->end - r->start);
+	}
+}
+
+/* Check for already reserved areas */
 static inline int bad_addr(unsigned long *addrp, unsigned long size)
-{ 
-	unsigned long addr = *addrp, last = addr + size; 
-
-	/* various gunk below that needed for SMP startup */
-	if (addr < 0x8000) { 
-		*addrp = PAGE_ALIGN(0x8000);
-		return 1; 
-	}
-
-	/* direct mapping tables of the kernel */
-	if (last >= table_start<<PAGE_SHIFT && addr < table_end<<PAGE_SHIFT) { 
-		*addrp = PAGE_ALIGN(table_end << PAGE_SHIFT);
-		return 1;
-	} 
-
-	/* initrd */ 
-#ifdef CONFIG_BLK_DEV_INITRD
-	if (boot_params.hdr.type_of_loader && boot_params.hdr.ramdisk_image) {
-		unsigned long ramdisk_image = boot_params.hdr.ramdisk_image;
-		unsigned long ramdisk_size  = boot_params.hdr.ramdisk_size;
-		unsigned long ramdisk_end   = ramdisk_image+ramdisk_size;
-
-		if (last >= ramdisk_image && addr < ramdisk_end) {
-			*addrp = PAGE_ALIGN(ramdisk_end);
-			return 1;
+{
+	int i;
+	unsigned long addr = *addrp, last;
+	int changed = 0;
+again:
+	last = addr + size;
+	for (i = 0; i < MAX_EARLY_RES && early_res[i].end; i++) {
+		struct early_res *r = &early_res[i];
+		if (last >= r->start && addr < r->end) {
+			*addrp = addr = r->end;
+			changed = 1;
+			goto again;
 		}
-	} 
-#endif
-	/* kernel code */
-	if (last >= __pa_symbol(&_text) && addr < __pa_symbol(&_end)) {
-		*addrp = PAGE_ALIGN(__pa_symbol(&_end));
-		return 1;
 	}
-
-	if (last >= ebda_addr && addr < ebda_addr + ebda_size) {
-		*addrp = PAGE_ALIGN(ebda_addr + ebda_size);
-		return 1;
-	}
-
-#ifdef CONFIG_NUMA
-	/* NUMA memory to node map */
-	if (last >= nodemap_addr && addr < nodemap_addr + nodemap_size) {
-		*addrp = nodemap_addr + nodemap_size;
-		return 1;
-	}
-#endif
-	/* XXX ramdisk image here? */ 
-	return 0;
-} 
+	return changed;
+}
 
 /*
  * This function checks if any part of the range <start,end> is mapped
@@ -107,16 +114,18 @@ static inline int bad_addr(unsigned long *addrp, unsigned long size)
  */
 int
 e820_any_mapped(unsigned long start, unsigned long end, unsigned type)
-{ 
+{
 	int i;
-	for (i = 0; i < e820.nr_map; i++) { 
-		struct e820entry *ei = &e820.map[i]; 
-		if (type && ei->type != type) 
+
+	for (i = 0; i < e820.nr_map; i++) {
+		struct e820entry *ei = &e820.map[i];
+
+		if (type && ei->type != type)
 			continue;
 		if (ei->addr >= end || ei->addr + ei->size <= start)
-			continue; 
-		return 1; 
-	} 
+			continue;
+		return 1;
+	}
 	return 0;
 }
 EXPORT_SYMBOL_GPL(e820_any_mapped);
@@ -127,11 +136,14 @@ EXPORT_SYMBOL_GPL(e820_any_mapped);
  * Note: this function only works correct if the e820 table is sorted and
  * not-overlapping, which is the case
  */
-int __init e820_all_mapped(unsigned long start, unsigned long end, unsigned type)
+int __init e820_all_mapped(unsigned long start, unsigned long end,
+			   unsigned type)
 {
 	int i;
+
 	for (i = 0; i < e820.nr_map; i++) {
 		struct e820entry *ei = &e820.map[i];
+
 		if (type && ei->type != type)
 			continue;
 		/* is the region (part) in overlap with the current region ?*/
@@ -143,65 +155,73 @@ int __init e820_all_mapped(unsigned long start, unsigned long end, unsigned type
 		 */
 		if (ei->addr <= start)
 			start = ei->addr + ei->size;
-		/* if start is now at or beyond end, we're done, full coverage */
+		/*
+		 * if start is now at or beyond end, we're done, full
+		 * coverage
+		 */
 		if (start >= end)
-			return 1; /* we're done */
+			return 1;
 	}
 	return 0;
 }
 
-/* 
- * Find a free area in a specific range. 
- */ 
-unsigned long __init find_e820_area(unsigned long start, unsigned long end, unsigned size) 
-{ 
-	int i; 
-	for (i = 0; i < e820.nr_map; i++) { 
-		struct e820entry *ei = &e820.map[i]; 
-		unsigned long addr = ei->addr, last; 
-		if (ei->type != E820_RAM) 
-			continue; 
-		if (addr < start) 
+/*
+ * Find a free area in a specific range.
+ */
+unsigned long __init find_e820_area(unsigned long start, unsigned long end,
+				    unsigned size)
+{
+	int i;
+
+	for (i = 0; i < e820.nr_map; i++) {
+		struct e820entry *ei = &e820.map[i];
+		unsigned long addr = ei->addr, last;
+
+		if (ei->type != E820_RAM)
+			continue;
+		if (addr < start)
 			addr = start;
-		if (addr > ei->addr + ei->size) 
-			continue; 
+		if (addr > ei->addr + ei->size)
+			continue;
 		while (bad_addr(&addr, size) && addr+size <= ei->addr+ei->size)
 			;
 		last = PAGE_ALIGN(addr) + size;
 		if (last > ei->addr + ei->size)
 			continue;
-		if (last > end) 
+		if (last > end)
 			continue;
-		return addr; 
-	} 
-	return -1UL;		
-} 
+		return addr;
+	}
+	return -1UL;
+}
 
 /*
  * Find the highest page frame number we have available
  */
 unsigned long __init e820_end_of_ram(void)
 {
-	unsigned long end_pfn = 0;
+	unsigned long end_pfn;
+
 	end_pfn = find_max_pfn_with_active_regions();
-	
-	if (end_pfn > end_pfn_map) 
+
+	if (end_pfn > end_pfn_map)
 		end_pfn_map = end_pfn;
 	if (end_pfn_map > MAXMEM>>PAGE_SHIFT)
 		end_pfn_map = MAXMEM>>PAGE_SHIFT;
 	if (end_pfn > end_user_pfn)
 		end_pfn = end_user_pfn;
-	if (end_pfn > end_pfn_map) 
-		end_pfn = end_pfn_map; 
+	if (end_pfn > end_pfn_map)
+		end_pfn = end_pfn_map;
 
-	printk("end_pfn_map = %lu\n", end_pfn_map);
-	return end_pfn;	
+	printk(KERN_INFO "end_pfn_map = %lu\n", end_pfn_map);
+	return end_pfn;
 }
 
 /*
  * Mark e820 reserved areas as busy for the resource manager.
  */
-void __init e820_reserve_resources(void)
+void __init e820_reserve_resources(struct resource *code_resource,
+		struct resource *data_resource, struct resource *bss_resource)
 {
 	int i;
 	for (i = 0; i < e820.nr_map; i++) {
@@ -219,13 +239,13 @@ void __init e820_reserve_resources(void)
 		request_resource(&iomem_resource, res);
 		if (e820.map[i].type == E820_RAM) {
 			/*
-			 *  We don't know which RAM region contains kernel data,
-			 *  so we try it repeatedly and let the resource manager
-			 *  test it.
+			 * We don't know which RAM region contains kernel data,
+			 * so we try it repeatedly and let the resource manager
+			 * test it.
 			 */
-			request_resource(res, &code_resource);
-			request_resource(res, &data_resource);
-			request_resource(res, &bss_resource);
+			request_resource(res, code_resource);
+			request_resource(res, data_resource);
+			request_resource(res, bss_resource);
 #ifdef CONFIG_KEXEC
 			if (crashk_res.start != crashk_res.end)
 				request_resource(res, &crashk_res);
@@ -322,9 +342,9 @@ e820_register_active_regions(int nid, unsigned long start_pfn,
 			add_active_range(nid, ei_startpfn, ei_endpfn);
 }
 
-/* 
+/*
  * Add a memory region to the kernel e820 map.
- */ 
+ */
 void __init add_memory_region(unsigned long start, unsigned long size, int type)
 {
 	int x = e820.nr_map;
@@ -349,9 +369,7 @@ unsigned long __init e820_hole_size(unsigned long start, unsigned long end)
 {
 	unsigned long start_pfn = start >> PAGE_SHIFT;
 	unsigned long end_pfn = end >> PAGE_SHIFT;
-	unsigned long ei_startpfn;
-	unsigned long ei_endpfn;
-	unsigned long ram = 0;
+	unsigned long ei_startpfn, ei_endpfn, ram = 0;
 	int i;
 
 	for (i = 0; i < e820.nr_map; i++) {
@@ -363,28 +381,31 @@ unsigned long __init e820_hole_size(unsigned long start, unsigned long end)
 	return end - start - (ram << PAGE_SHIFT);
 }
 
-void __init e820_print_map(char *who)
+static void __init e820_print_map(char *who)
 {
 	int i;
 
 	for (i = 0; i < e820.nr_map; i++) {
 		printk(KERN_INFO " %s: %016Lx - %016Lx ", who,
-			(unsigned long long) e820.map[i].addr,
-			(unsigned long long) (e820.map[i].addr + e820.map[i].size));
+		       (unsigned long long) e820.map[i].addr,
+		       (unsigned long long)
+		       (e820.map[i].addr + e820.map[i].size));
 		switch (e820.map[i].type) {
-		case E820_RAM:	printk("(usable)\n");
-				break;
+		case E820_RAM:
+			printk(KERN_CONT "(usable)\n");
+			break;
 		case E820_RESERVED:
-				printk("(reserved)\n");
-				break;
+			printk(KERN_CONT "(reserved)\n");
+			break;
 		case E820_ACPI:
-				printk("(ACPI data)\n");
-				break;
+			printk(KERN_CONT "(ACPI data)\n");
+			break;
 		case E820_NVS:
-				printk("(ACPI NVS)\n");
-				break;
-		default:	printk("type %u\n", e820.map[i].type);
-				break;
+			printk(KERN_CONT "(ACPI NVS)\n");
+			break;
+		default:
+			printk(KERN_CONT "type %u\n", e820.map[i].type);
+			break;
 		}
 	}
 }
@@ -392,11 +413,11 @@ void __init e820_print_map(char *who)
 /*
  * Sanitize the BIOS e820 map.
  *
- * Some e820 responses include overlapping entries.  The following 
+ * Some e820 responses include overlapping entries. The following
  * replaces the original e820 map with a new one, removing overlaps.
  *
  */
-static int __init sanitize_e820_map(struct e820entry * biosmap, char * pnr_map)
+static int __init sanitize_e820_map(struct e820entry *biosmap, char *pnr_map)
 {
 	struct change_member {
 		struct e820entry *pbios; /* pointer to original bios entry */
@@ -416,7 +437,8 @@ static int __init sanitize_e820_map(struct e820entry * biosmap, char * pnr_map)
 	int i;
 
 	/*
-		Visually we're performing the following (1,2,3,4 = memory types)...
+		Visually we're performing the following
+		(1,2,3,4 = memory types)...
 
 		Sample memory map (w/overlaps):
 		   ____22__________________
@@ -458,22 +480,23 @@ static int __init sanitize_e820_map(struct e820entry * biosmap, char * pnr_map)
 	old_nr = *pnr_map;
 
 	/* bail out if we find any unreasonable addresses in bios map */
-	for (i=0; i<old_nr; i++)
+	for (i = 0; i < old_nr; i++)
 		if (biosmap[i].addr + biosmap[i].size < biosmap[i].addr)
 			return -1;
 
 	/* create pointers for initial change-point information (for sorting) */
-	for (i=0; i < 2*old_nr; i++)
+	for (i = 0; i < 2 * old_nr; i++)
 		change_point[i] = &change_point_list[i];
 
 	/* record all known change-points (starting and ending addresses),
 	   omitting those that are for empty memory regions */
 	chgidx = 0;
-	for (i=0; i < old_nr; i++)	{
+	for (i = 0; i < old_nr; i++)	{
 		if (biosmap[i].size != 0) {
 			change_point[chgidx]->addr = biosmap[i].addr;
 			change_point[chgidx++]->pbios = &biosmap[i];
-			change_point[chgidx]->addr = biosmap[i].addr + biosmap[i].size;
+			change_point[chgidx]->addr = biosmap[i].addr +
+				biosmap[i].size;
 			change_point[chgidx++]->pbios = &biosmap[i];
 		}
 	}
@@ -483,75 +506,106 @@ static int __init sanitize_e820_map(struct e820entry * biosmap, char * pnr_map)
 	still_changing = 1;
 	while (still_changing)	{
 		still_changing = 0;
-		for (i=1; i < chg_nr; i++)  {
-			/* if <current_addr> > <last_addr>, swap */
-			/* or, if current=<start_addr> & last=<end_addr>, swap */
-			if ((change_point[i]->addr < change_point[i-1]->addr) ||
-				((change_point[i]->addr == change_point[i-1]->addr) &&
-				 (change_point[i]->addr == change_point[i]->pbios->addr) &&
-				 (change_point[i-1]->addr != change_point[i-1]->pbios->addr))
-			   )
-			{
+		for (i = 1; i < chg_nr; i++)  {
+			unsigned long long curaddr, lastaddr;
+			unsigned long long curpbaddr, lastpbaddr;
+
+			curaddr = change_point[i]->addr;
+			lastaddr = change_point[i - 1]->addr;
+			curpbaddr = change_point[i]->pbios->addr;
+			lastpbaddr = change_point[i - 1]->pbios->addr;
+
+			/*
+			 * swap entries, when:
+			 *
+			 * curaddr > lastaddr or
+			 * curaddr == lastaddr and curaddr == curpbaddr and
+			 * lastaddr != lastpbaddr
+			 */
+			if (curaddr < lastaddr ||
+			    (curaddr == lastaddr && curaddr == curpbaddr &&
+			     lastaddr != lastpbaddr)) {
 				change_tmp = change_point[i];
 				change_point[i] = change_point[i-1];
 				change_point[i-1] = change_tmp;
-				still_changing=1;
+				still_changing = 1;
 			}
 		}
 	}
 
 	/* create a new bios memory map, removing overlaps */
-	overlap_entries=0;	 /* number of entries in the overlap table */
-	new_bios_entry=0;	 /* index for creating new bios map entries */
+	overlap_entries = 0;	 /* number of entries in the overlap table */
+	new_bios_entry = 0;	 /* index for creating new bios map entries */
 	last_type = 0;		 /* start with undefined memory type */
 	last_addr = 0;		 /* start with 0 as last starting address */
+
 	/* loop through change-points, determining affect on the new bios map */
-	for (chgidx=0; chgidx < chg_nr; chgidx++)
-	{
+	for (chgidx = 0; chgidx < chg_nr; chgidx++) {
 		/* keep track of all overlapping bios entries */
-		if (change_point[chgidx]->addr == change_point[chgidx]->pbios->addr)
-		{
-			/* add map entry to overlap list (> 1 entry implies an overlap) */
-			overlap_list[overlap_entries++]=change_point[chgidx]->pbios;
-		}
-		else
-		{
-			/* remove entry from list (order independent, so swap with last) */
-			for (i=0; i<overlap_entries; i++)
-			{
-				if (overlap_list[i] == change_point[chgidx]->pbios)
-					overlap_list[i] = overlap_list[overlap_entries-1];
+		if (change_point[chgidx]->addr ==
+		    change_point[chgidx]->pbios->addr) {
+			/*
+			 * add map entry to overlap list (> 1 entry
+			 * implies an overlap)
+			 */
+			overlap_list[overlap_entries++] =
+				change_point[chgidx]->pbios;
+		} else {
+			/*
+			 * remove entry from list (order independent,
+			 * so swap with last)
+			 */
+			for (i = 0; i < overlap_entries; i++) {
+				if (overlap_list[i] ==
+				    change_point[chgidx]->pbios)
+					overlap_list[i] =
+						overlap_list[overlap_entries-1];
 			}
 			overlap_entries--;
 		}
-		/* if there are overlapping entries, decide which "type" to use */
-		/* (larger value takes precedence -- 1=usable, 2,3,4,4+=unusable) */
+		/*
+		 * if there are overlapping entries, decide which
+		 * "type" to use (larger value takes precedence --
+		 * 1=usable, 2,3,4,4+=unusable)
+		 */
 		current_type = 0;
-		for (i=0; i<overlap_entries; i++)
+		for (i = 0; i < overlap_entries; i++)
 			if (overlap_list[i]->type > current_type)
 				current_type = overlap_list[i]->type;
-		/* continue building up new bios map based on this information */
+		/*
+		 * continue building up new bios map based on this
+		 * information
+		 */
 		if (current_type != last_type)	{
 			if (last_type != 0)	 {
 				new_bios[new_bios_entry].size =
 					change_point[chgidx]->addr - last_addr;
-				/* move forward only if the new size was non-zero */
+				/*
+				 * move forward only if the new size
+				 * was non-zero
+				 */
 				if (new_bios[new_bios_entry].size != 0)
+					/*
+					 * no more space left for new
+					 * bios entries ?
+					 */
 					if (++new_bios_entry >= E820MAX)
-						break; 	/* no more space left for new bios entries */
+						break;
 			}
 			if (current_type != 0)	{
-				new_bios[new_bios_entry].addr = change_point[chgidx]->addr;
+				new_bios[new_bios_entry].addr =
+					change_point[chgidx]->addr;
 				new_bios[new_bios_entry].type = current_type;
-				last_addr=change_point[chgidx]->addr;
+				last_addr = change_point[chgidx]->addr;
 			}
 			last_type = current_type;
 		}
 	}
-	new_nr = new_bios_entry;   /* retain count for new bios entries */
+	/* retain count for new bios entries */
+	new_nr = new_bios_entry;
 
 	/* copy new bios mapping into original location */
-	memcpy(biosmap, new_bios, new_nr*sizeof(struct e820entry));
+	memcpy(biosmap, new_bios, new_nr * sizeof(struct e820entry));
 	*pnr_map = new_nr;
 
 	return 0;
@@ -566,7 +620,7 @@ static int __init sanitize_e820_map(struct e820entry * biosmap, char * pnr_map)
  * will have given us a memory map that we can use to properly
  * set up memory.  If we aren't, we'll fake a memory map.
  */
-static int __init copy_e820_map(struct e820entry * biosmap, int nr_map)
+static int __init copy_e820_map(struct e820entry *biosmap, int nr_map)
 {
 	/* Only one memory region (or negative)? Ignore it */
 	if (nr_map < 2)
@@ -583,18 +637,20 @@ static int __init copy_e820_map(struct e820entry * biosmap, int nr_map)
 			return -1;
 
 		add_memory_region(start, size, type);
-	} while (biosmap++,--nr_map);
+	} while (biosmap++, --nr_map);
 	return 0;
 }
 
-void early_panic(char *msg)
+static void early_panic(char *msg)
 {
 	early_printk(msg);
 	panic(msg);
 }
 
-void __init setup_memory_region(void)
+/* We're not void only for x86 32-bit compat */
+char * __init machine_specific_memory_setup(void)
 {
+	char *who = "BIOS-e820";
 	/*
 	 * Try to copy the BIOS-supplied E820-map.
 	 *
@@ -605,7 +661,10 @@ void __init setup_memory_region(void)
 	if (copy_e820_map(boot_params.e820_map, boot_params.e820_entries) < 0)
 		early_panic("Cannot find a valid memory map");
 	printk(KERN_INFO "BIOS-provided physical RAM map:\n");
-	e820_print_map("BIOS-e820");
+	e820_print_map(who);
+
+	/* In case someone cares... */
+	return who;
 }
 
 static int __init parse_memopt(char *p)
@@ -613,9 +672,9 @@ static int __init parse_memopt(char *p)
 	if (!p)
 		return -EINVAL;
 	end_user_pfn = memparse(p, &p);
-	end_user_pfn >>= PAGE_SHIFT;	
+	end_user_pfn >>= PAGE_SHIFT;
 	return 0;
-} 
+}
 early_param("mem", parse_memopt);
 
 static int userdef __initdata;
@@ -627,9 +686,9 @@ static int __init parse_memmap_opt(char *p)
 
 	if (!strcmp(p, "exactmap")) {
 #ifdef CONFIG_CRASH_DUMP
-		/* If we are doing a crash dump, we
-		 * still need to know the real mem
-		 * size before original memory map is
+		/*
+		 * If we are doing a crash dump, we still need to know
+		 * the real mem size before original memory map is
 		 * reset.
 		 */
 		e820_register_active_regions(0, 0, -1UL);
@@ -646,6 +705,8 @@ static int __init parse_memmap_opt(char *p)
 	mem_size = memparse(p, &p);
 	if (p == oldp)
 		return -EINVAL;
+
+	userdef = 1;
 	if (*p == '@') {
 		start_at = memparse(p+1, &p);
 		add_memory_region(start_at, mem_size, E820_RAM);
@@ -665,9 +726,27 @@ early_param("memmap", parse_memmap_opt);
 void __init finish_e820_parsing(void)
 {
 	if (userdef) {
+		char nr = e820.nr_map;
+
+		if (sanitize_e820_map(e820.map, &nr) < 0)
+			early_panic("Invalid user supplied memory map");
+		e820.nr_map = nr;
+
 		printk(KERN_INFO "user-defined physical RAM map:\n");
 		e820_print_map("user");
 	}
+}
+
+void __init update_e820(void)
+{
+	u8 nr_map;
+
+	nr_map = e820.nr_map;
+	if (sanitize_e820_map(e820.map, &nr_map))
+		return;
+	e820.nr_map = nr_map;
+	printk(KERN_INFO "modified physical RAM map:\n");
+	e820_print_map("modified");
 }
 
 unsigned long pci_mem_start = 0xaeedbabe;
@@ -713,8 +792,10 @@ __init void e820_setup_gap(void)
 
 	if (!found) {
 		gapstart = (end_pfn << PAGE_SHIFT) + 1024*1024;
-		printk(KERN_ERR "PCI: Warning: Cannot find a gap in the 32bit address range\n"
-		       KERN_ERR "PCI: Unassigned devices with 32bit resource registers may break!\n");
+		printk(KERN_ERR "PCI: Warning: Cannot find a gap in the 32bit "
+		       "address range\n"
+		       KERN_ERR "PCI: Unassigned devices with 32bit resource "
+		       "registers may break!\n");
 	}
 
 	/*
@@ -727,8 +808,9 @@ __init void e820_setup_gap(void)
 	/* Fun with two's complement */
 	pci_mem_start = (gapstart + round) & -round;
 
-	printk(KERN_INFO "Allocating PCI resources starting at %lx (gap: %lx:%lx)\n",
-		pci_mem_start, gapstart, gapsize);
+	printk(KERN_INFO
+	       "Allocating PCI resources starting at %lx (gap: %lx:%lx)\n",
+	       pci_mem_start, gapstart, gapsize);
 }
 
 int __init arch_get_ram_range(int slot, u64 *addr, u64 *size)

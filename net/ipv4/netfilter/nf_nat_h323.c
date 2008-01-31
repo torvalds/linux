@@ -76,7 +76,7 @@ static int set_addr(struct sk_buff *skb,
 static int set_h225_addr(struct sk_buff *skb,
 			 unsigned char **data, int dataoff,
 			 TransportAddress *taddr,
-			 union nf_conntrack_address *addr, __be16 port)
+			 union nf_inet_addr *addr, __be16 port)
 {
 	return set_addr(skb, data, dataoff, taddr->ipAddress.ip,
 			addr->ip, port);
@@ -86,7 +86,7 @@ static int set_h225_addr(struct sk_buff *skb,
 static int set_h245_addr(struct sk_buff *skb,
 			 unsigned char **data, int dataoff,
 			 H245_TransportAddress *taddr,
-			 union nf_conntrack_address *addr, __be16 port)
+			 union nf_inet_addr *addr, __be16 port)
 {
 	return set_addr(skb, data, dataoff,
 			taddr->unicastAddress.iPAddress.network,
@@ -103,7 +103,7 @@ static int set_sig_addr(struct sk_buff *skb, struct nf_conn *ct,
 	int dir = CTINFO2DIR(ctinfo);
 	int i;
 	__be16 port;
-	union nf_conntrack_address addr;
+	union nf_inet_addr addr;
 
 	for (i = 0; i < count; i++) {
 		if (get_h225_addr(ct, *data, &taddr[i], &addr, &port)) {
@@ -155,7 +155,7 @@ static int set_ras_addr(struct sk_buff *skb, struct nf_conn *ct,
 	int dir = CTINFO2DIR(ctinfo);
 	int i;
 	__be16 port;
-	union nf_conntrack_address addr;
+	union nf_inet_addr addr;
 
 	for (i = 0; i < count; i++) {
 		if (get_h225_addr(ct, *data, &taddr[i], &addr, &port) &&
@@ -389,18 +389,14 @@ static void ip_nat_q931_expect(struct nf_conn *new,
 	/* Change src to where master sends to */
 	range.flags = IP_NAT_RANGE_MAP_IPS;
 	range.min_ip = range.max_ip = new->tuplehash[!this->dir].tuple.src.u3.ip;
-
-	/* hook doesn't matter, but it has to do source manip */
-	nf_nat_setup_info(new, &range, NF_IP_POST_ROUTING);
+	nf_nat_setup_info(new, &range, IP_NAT_MANIP_SRC);
 
 	/* For DST manip, map port here to where it's expected. */
 	range.flags = (IP_NAT_RANGE_MAP_IPS | IP_NAT_RANGE_PROTO_SPECIFIED);
 	range.min = range.max = this->saved_proto;
 	range.min_ip = range.max_ip =
 	    new->master->tuplehash[!this->dir].tuple.src.u3.ip;
-
-	/* hook doesn't matter, but it has to do destination manip */
-	nf_nat_setup_info(new, &range, NF_IP_PRE_ROUTING);
+	nf_nat_setup_info(new, &range, IP_NAT_MANIP_DST);
 }
 
 /****************************************************************************/
@@ -412,7 +408,7 @@ static int nat_q931(struct sk_buff *skb, struct nf_conn *ct,
 	struct nf_ct_h323_master *info = &nfct_help(ct)->help.ct_h323_info;
 	int dir = CTINFO2DIR(ctinfo);
 	u_int16_t nated_port = ntohs(port);
-	union nf_conntrack_address addr;
+	union nf_inet_addr addr;
 
 	/* Set expectations for NAT */
 	exp->saved_proto.tcp.port = exp->tuple.dst.u.tcp.port;
@@ -479,17 +475,13 @@ static void ip_nat_callforwarding_expect(struct nf_conn *new,
 	/* Change src to where master sends to */
 	range.flags = IP_NAT_RANGE_MAP_IPS;
 	range.min_ip = range.max_ip = new->tuplehash[!this->dir].tuple.src.u3.ip;
-
-	/* hook doesn't matter, but it has to do source manip */
-	nf_nat_setup_info(new, &range, NF_IP_POST_ROUTING);
+	nf_nat_setup_info(new, &range, IP_NAT_MANIP_SRC);
 
 	/* For DST manip, map port here to where it's expected. */
 	range.flags = (IP_NAT_RANGE_MAP_IPS | IP_NAT_RANGE_PROTO_SPECIFIED);
 	range.min = range.max = this->saved_proto;
 	range.min_ip = range.max_ip = this->saved_ip;
-
-	/* hook doesn't matter, but it has to do destination manip */
-	nf_nat_setup_info(new, &range, NF_IP_PRE_ROUTING);
+	nf_nat_setup_info(new, &range, IP_NAT_MANIP_DST);
 }
 
 /****************************************************************************/

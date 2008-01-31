@@ -52,8 +52,6 @@ s16 ocfs2_node_num_to_slot(struct ocfs2_slot_info *si,
 void ocfs2_clear_slot(struct ocfs2_slot_info *si,
 		      s16 slot_num);
 
-void ocfs2_populate_mounted_map(struct ocfs2_super *osb);
-
 static inline int ocfs2_is_empty_slot(struct ocfs2_slot_info *si,
 				      int slot_num)
 {

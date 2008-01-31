@@ -6,6 +6,7 @@
 #include <linux/uaccess.h>
 #include <linux/miscdevice.h>
 #include <linux/fs.h>
+#include <linux/sched.h>
 #include "lg.h"
 
 /*L:055 When something happens, the Waker process needs a way to stop the
@@ -13,7 +14,7 @@
  * LHREQ_BREAK and the value "1" to /dev/lguest to do this.  Once the Launcher
  * has done whatever needs attention, it writes LHREQ_BREAK and "0" to release
  * the Waker. */
-static int break_guest_out(struct lguest *lg, const unsigned long __user *input)
+static int break_guest_out(struct lg_cpu *cpu, const unsigned long __user*input)
 {
 	unsigned long on;
 
@@ -22,21 +23,21 @@ static int break_guest_out(struct lguest *lg, const unsigned long __user *input)
 		return -EFAULT;
 
 	if (on) {
-		lg->break_out = 1;
+		cpu->break_out = 1;
 		/* Pop it out of the Guest (may be running on different CPU) */
-		wake_up_process(lg->tsk);
+		wake_up_process(cpu->tsk);
 		/* Wait for them to reset it */
-		return wait_event_interruptible(lg->break_wq, !lg->break_out);
+		return wait_event_interruptible(cpu->break_wq, !cpu->break_out);
 	} else {
-		lg->break_out = 0;
-		wake_up(&lg->break_wq);
+		cpu->break_out = 0;
+		wake_up(&cpu->break_wq);
 		return 0;
 	}
 }
 
 /*L:050 Sending an interrupt is done by writing LHREQ_IRQ and an interrupt
  * number to /dev/lguest. */
-static int user_send_irq(struct lguest *lg, const unsigned long __user *input)
+static int user_send_irq(struct lg_cpu *cpu, const unsigned long __user *input)
 {
 	unsigned long irq;
 
@@ -46,7 +47,7 @@ static int user_send_irq(struct lguest *lg, const unsigned long __user *input)
 		return -EINVAL;
 	/* Next time the Guest runs, the core code will see if it can deliver
 	 * this interrupt. */
-	set_bit(irq, lg->irqs_pending);
+	set_bit(irq, cpu->irqs_pending);
 	return 0;
 }
 
@@ -55,13 +56,21 @@ static int user_send_irq(struct lguest *lg, const unsigned long __user *input)
 static ssize_t read(struct file *file, char __user *user, size_t size,loff_t*o)
 {
 	struct lguest *lg = file->private_data;
+	struct lg_cpu *cpu;
+	unsigned int cpu_id = *o;
 
 	/* You must write LHREQ_INITIALIZE first! */
 	if (!lg)
 		return -EINVAL;
 
+	/* Watch out for arbitrary vcpu indexes! */
+	if (cpu_id >= lg->nr_cpus)
+		return -EINVAL;
+
+	cpu = &lg->cpus[cpu_id];
+
 	/* If you're not the task which owns the Guest, go away. */
-	if (current != lg->tsk)
+	if (current != cpu->tsk)
 		return -EPERM;
 
 	/* If the guest is already dead, we indicate why */
@@ -81,11 +90,53 @@ static ssize_t read(struct file *file, char __user *user, size_t size,loff_t*o)
 
 	/* If we returned from read() last time because the Guest notified,
 	 * clear the flag. */
-	if (lg->pending_notify)
-		lg->pending_notify = 0;
+	if (cpu->pending_notify)
+		cpu->pending_notify = 0;
 
 	/* Run the Guest until something interesting happens. */
-	return run_guest(lg, (unsigned long __user *)user);
+	return run_guest(cpu, (unsigned long __user *)user);
+}
+
+static int lg_cpu_start(struct lg_cpu *cpu, unsigned id, unsigned long start_ip)
+{
+	if (id >= NR_CPUS)
+		return -EINVAL;
+
+	cpu->id = id;
+	cpu->lg = container_of((cpu - id), struct lguest, cpus[0]);
+	cpu->lg->nr_cpus++;
+	init_clockdev(cpu);
+
+	/* We need a complete page for the Guest registers: they are accessible
+	 * to the Guest and we can only grant it access to whole pages. */
+	cpu->regs_page = get_zeroed_page(GFP_KERNEL);
+	if (!cpu->regs_page)
+		return -ENOMEM;
+
+	/* We actually put the registers at the bottom of the page. */
+	cpu->regs = (void *)cpu->regs_page + PAGE_SIZE - sizeof(*cpu->regs);
+
+	/* Now we initialize the Guest's registers, handing it the start
+	 * address. */
+	lguest_arch_setup_regs(cpu, start_ip);
+
+	/* Initialize the queue for the waker to wait on */
+	init_waitqueue_head(&cpu->break_wq);
+
+	/* We keep a pointer to the Launcher task (ie. current task) for when
+	 * other Guests want to wake this one (inter-Guest I/O). */
+	cpu->tsk = current;
+
+	/* We need to keep a pointer to the Launcher's memory map, because if
+	 * the Launcher dies we need to clean it up.  If we don't keep a
+	 * reference, it is destroyed before close() is called. */
+	cpu->mm = get_task_mm(cpu->tsk);
+
+	/* We remember which CPU's pages this Guest used last, for optimization
+	 * when the same Guest runs on the same CPU twice. */
+	cpu->last_pages = NULL;
+
+	return 0;
 }
 
 /*L:020 The initialization write supplies 4 pointer sized (32 or 64 bit)
@@ -134,15 +185,10 @@ static int initialize(struct file *file, const unsigned long __user *input)
 	lg->mem_base = (void __user *)(long)args[0];
 	lg->pfn_limit = args[1];
 
-	/* We need a complete page for the Guest registers: they are accessible
-	 * to the Guest and we can only grant it access to whole pages. */
-	lg->regs_page = get_zeroed_page(GFP_KERNEL);
-	if (!lg->regs_page) {
-		err = -ENOMEM;
+	/* This is the first cpu */
+	err = lg_cpu_start(&lg->cpus[0], 0, args[3]);
+	if (err)
 		goto release_guest;
-	}
-	/* We actually put the registers at the bottom of the page. */
-	lg->regs = (void *)lg->regs_page + PAGE_SIZE - sizeof(*lg->regs);
 
 	/* Initialize the Guest's shadow page tables, using the toplevel
 	 * address the Launcher gave us.  This allocates memory, so can
@@ -150,28 +196,6 @@ static int initialize(struct file *file, const unsigned long __user *input)
 	err = init_guest_pagetable(lg, args[2]);
 	if (err)
 		goto free_regs;
-
-	/* Now we initialize the Guest's registers, handing it the start
-	 * address. */
-	lguest_arch_setup_regs(lg, args[3]);
-
-	/* The timer for lguest's clock needs initialization. */
-	init_clockdev(lg);
-
-	/* We keep a pointer to the Launcher task (ie. current task) for when
-	 * other Guests want to wake this one (inter-Guest I/O). */
-	lg->tsk = current;
-	/* We need to keep a pointer to the Launcher's memory map, because if
-	 * the Launcher dies we need to clean it up.  If we don't keep a
-	 * reference, it is destroyed before close() is called. */
-	lg->mm = get_task_mm(lg->tsk);
-
-	/* Initialize the queue for the waker to wait on */
-	init_waitqueue_head(&lg->break_wq);
-
-	/* We remember which CPU's pages this Guest used last, for optimization
-	 * when the same Guest runs on the same CPU twice. */
-	lg->last_pages = NULL;
 
 	/* We keep our "struct lguest" in the file's private_data. */
 	file->private_data = lg;
@@ -182,7 +206,8 @@ static int initialize(struct file *file, const unsigned long __user *input)
 	return sizeof(args);
 
 free_regs:
-	free_page(lg->regs_page);
+	/* FIXME: This should be in free_vcpu */
+	free_page(lg->cpus[0].regs_page);
 release_guest:
 	kfree(lg);
 unlock:
@@ -202,30 +227,37 @@ static ssize_t write(struct file *file, const char __user *in,
 	struct lguest *lg = file->private_data;
 	const unsigned long __user *input = (const unsigned long __user *)in;
 	unsigned long req;
+	struct lg_cpu *uninitialized_var(cpu);
+	unsigned int cpu_id = *off;
 
 	if (get_user(req, input) != 0)
 		return -EFAULT;
 	input++;
 
 	/* If you haven't initialized, you must do that first. */
-	if (req != LHREQ_INITIALIZE && !lg)
-		return -EINVAL;
+	if (req != LHREQ_INITIALIZE) {
+		if (!lg || (cpu_id >= lg->nr_cpus))
+			return -EINVAL;
+		cpu = &lg->cpus[cpu_id];
+		if (!cpu)
+			return -EINVAL;
+	}
 
 	/* Once the Guest is dead, all you can do is read() why it died. */
 	if (lg && lg->dead)
 		return -ENOENT;
 
 	/* If you're not the task which owns the Guest, you can only break */
-	if (lg && current != lg->tsk && req != LHREQ_BREAK)
+	if (lg && current != cpu->tsk && req != LHREQ_BREAK)
 		return -EPERM;
 
 	switch (req) {
 	case LHREQ_INITIALIZE:
 		return initialize(file, input);
 	case LHREQ_IRQ:
-		return user_send_irq(lg, input);
+		return user_send_irq(cpu, input);
 	case LHREQ_BREAK:
-		return break_guest_out(lg, input);
+		return break_guest_out(cpu, input);
 	default:
 		return -EINVAL;
 	}
@@ -241,6 +273,7 @@ static ssize_t write(struct file *file, const char __user *in,
 static int close(struct inode *inode, struct file *file)
 {
 	struct lguest *lg = file->private_data;
+	unsigned int i;
 
 	/* If we never successfully initialized, there's nothing to clean up */
 	if (!lg)
@@ -249,19 +282,23 @@ static int close(struct inode *inode, struct file *file)
 	/* We need the big lock, to protect from inter-guest I/O and other
 	 * Launchers initializing guests. */
 	mutex_lock(&lguest_lock);
-	/* Cancels the hrtimer set via LHCALL_SET_CLOCKEVENT. */
-	hrtimer_cancel(&lg->hrt);
+
 	/* Free up the shadow page tables for the Guest. */
 	free_guest_pagetable(lg);
-	/* Now all the memory cleanups are done, it's safe to release the
-	 * Launcher's memory management structure. */
-	mmput(lg->mm);
+
+	for (i = 0; i < lg->nr_cpus; i++) {
+		/* Cancels the hrtimer set via LHCALL_SET_CLOCKEVENT. */
+		hrtimer_cancel(&lg->cpus[i].hrt);
+		/* We can free up the register page we allocated. */
+		free_page(lg->cpus[i].regs_page);
+		/* Now all the memory cleanups are done, it's safe to release
+		 * the Launcher's memory management structure. */
+		mmput(lg->cpus[i].mm);
+	}
 	/* If lg->dead doesn't contain an error code it will be NULL or a
 	 * kmalloc()ed string, either of which is ok to hand to kfree(). */
 	if (!IS_ERR(lg->dead))
 		kfree(lg->dead);
-	/* We can free up the register page we allocated. */
-	free_page(lg->regs_page);
 	/* We clear the entire structure, which also marks it as free for the
 	 * next user. */
 	memset(lg, 0, sizeof(*lg));

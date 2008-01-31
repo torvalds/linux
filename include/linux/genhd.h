@@ -10,8 +10,18 @@
  */
 
 #include <linux/types.h>
+#include <linux/kdev_t.h>
 
 #ifdef CONFIG_BLOCK
+
+#define kobj_to_dev(k) container_of(k, struct device, kobj)
+#define dev_to_disk(device) container_of(device, struct gendisk, dev)
+#define dev_to_part(device) container_of(device, struct hd_struct, dev)
+
+extern struct device_type disk_type;
+extern struct device_type part_type;
+extern struct kobject *block_depr;
+extern struct class block_class;
 
 enum {
 /* These three have identical behaviour; use the second one if DOS FDISK gets
@@ -84,7 +94,7 @@ struct partition {
 struct hd_struct {
 	sector_t start_sect;
 	sector_t nr_sects;
-	struct kobject kobj;
+	struct device dev;
 	struct kobject *holder_dir;
 	unsigned ios[2], sectors[2];	/* READs and WRITEs */
 	int policy, partno;
@@ -117,15 +127,14 @@ struct gendisk {
                                          * disks that can't be partitioned. */
 	char disk_name[32];		/* name of major driver */
 	struct hd_struct **part;	/* [indexed by minor] */
-	int part_uevent_suppress;
 	struct block_device_operations *fops;
 	struct request_queue *queue;
 	void *private_data;
 	sector_t capacity;
 
 	int flags;
-	struct device *driverfs_dev;
-	struct kobject kobj;
+	struct device *driverfs_dev;  // FIXME: remove
+	struct device dev;
 	struct kobject *holder_dir;
 	struct kobject *slave_dir;
 
@@ -141,13 +150,6 @@ struct gendisk {
 	struct disk_stats dkstats;
 #endif
 	struct work_struct async_notify;
-};
-
-/* Structure for sysfs attributes on block devices */
-struct disk_attribute {
-	struct attribute attr;
-	ssize_t (*show)(struct gendisk *, char *);
-	ssize_t (*store)(struct gendisk *, const char *, size_t);
 };
 
 /* 
@@ -411,7 +413,8 @@ struct unixware_disklabel {
 #define ADDPART_FLAG_RAID	1
 #define ADDPART_FLAG_WHOLEDISK	2
 
-char *disk_name (struct gendisk *hd, int part, char *buf);
+extern dev_t blk_lookup_devt(const char *name);
+extern char *disk_name (struct gendisk *hd, int part, char *buf);
 
 extern int rescan_partitions(struct gendisk *disk, struct block_device *bdev);
 extern void add_partition(struct gendisk *, int, sector_t, sector_t, int);
@@ -423,12 +426,12 @@ extern struct gendisk *alloc_disk(int minors);
 extern struct kobject *get_disk(struct gendisk *disk);
 extern void put_disk(struct gendisk *disk);
 extern void genhd_media_change_notify(struct gendisk *disk);
-extern void blk_register_region(dev_t dev, unsigned long range,
+extern void blk_register_region(dev_t devt, unsigned long range,
 			struct module *module,
 			struct kobject *(*probe)(dev_t, int *, void *),
 			int (*lock)(dev_t, void *),
 			void *data);
-extern void blk_unregister_region(dev_t dev, unsigned long range);
+extern void blk_unregister_region(dev_t devt, unsigned long range);
 
 static inline struct block_device *bdget_disk(struct gendisk *disk, int index)
 {
@@ -440,6 +443,12 @@ static inline struct block_device *bdget_disk(struct gendisk *disk, int index)
 #else /* CONFIG_BLOCK */
 
 static inline void printk_all_partitions(void) { }
+
+static inline dev_t blk_lookup_devt(const char *name)
+{
+	dev_t devt = MKDEV(0, 0);
+	return devt;
+}
 
 #endif /* CONFIG_BLOCK */
 

@@ -29,6 +29,7 @@
 struct sys_device;
 
 struct sysdev_class {
+	const char *name;
 	struct list_head	drivers;
 
 	/* Default operations for these types of devices */

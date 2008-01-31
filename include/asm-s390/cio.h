@@ -24,8 +24,8 @@
  * @fmt: format
  * @pfch: prefetch
  * @isic: initial-status interruption control
- * @alcc: adress-limit checking control
- * @ssi: supress-suspended interruption
+ * @alcc: address-limit checking control
+ * @ssi: suppress-suspended interruption
  * @zcc: zero condition code
  * @ectl: extended control
  * @pno: path not operational

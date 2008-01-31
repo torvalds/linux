@@ -430,7 +430,7 @@ static unsigned int it821x_smart_qc_issue_prot(struct ata_queued_cmd *qc)
 			return ata_qc_issue_prot(qc);
 	}
 	printk(KERN_DEBUG "it821x: can't process command 0x%02X\n", qc->tf.command);
-	return AC_ERR_INVALID;
+	return AC_ERR_DEV;
 }
 
 /**
@@ -516,6 +516,37 @@ static void it821x_dev_config(struct ata_device *adev)
 			printk("(%dK stripe)", adev->id[146]);
 		printk(".\n");
 	}
+	/* This is a controller firmware triggered funny, don't
+	   report the drive faulty! */
+	adev->horkage &= ~ATA_HORKAGE_DIAGNOSTIC;
+}
+
+/**
+ *	it821x_ident_hack	-	Hack identify data up
+ *	@ap: Port
+ *
+ *	Walk the devices on this firmware driven port and slightly
+ *	mash the identify data to stop us and common tools trying to
+ *	use features not firmware supported. The firmware itself does
+ *	some masking (eg SMART) but not enough.
+ *
+ *	This is a bit of an abuse of the cable method, but it is the
+ *	only method called at the right time. We could modify the libata
+ *	core specifically for ident hacking but while we have one offender
+ *	it seems better to keep the fallout localised.
+ */
+
+static int it821x_ident_hack(struct ata_port *ap)
+{
+	struct ata_device *adev;
+	ata_link_for_each_dev(adev, &ap->link) {
+		if (ata_dev_enabled(adev)) {
+			adev->id[84] &= ~(1 << 6);	/* No FUA */
+			adev->id[85] &= ~(1 << 10);	/* No HPA */
+			adev->id[76] = 0;		/* No NCQ/AN etc */
+		}
+	}
+	return ata_cable_unknown(ap);
 }
 
 
@@ -634,7 +665,7 @@ static struct ata_port_operations it821x_smart_port_ops = {
 	.thaw		= ata_bmdma_thaw,
 	.error_handler	= ata_bmdma_error_handler,
 	.post_internal_cmd = ata_bmdma_post_internal_cmd,
-	.cable_detect	= ata_cable_unknown,
+	.cable_detect	= it821x_ident_hack,
 
 	.bmdma_setup 	= ata_bmdma_setup,
 	.bmdma_start 	= ata_bmdma_start,

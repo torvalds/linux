@@ -54,7 +54,7 @@ static struct resource smc91x_resources[] = {
 	[1] = {
 		.start	= IRQ_GPIO(4),
 		.end	= IRQ_GPIO(4),
-		.flags	= IORESOURCE_IRQ,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
 	}
 };
 

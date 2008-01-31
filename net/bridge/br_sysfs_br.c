@@ -426,16 +426,10 @@ int br_sysfs_addbr(struct net_device *dev)
 		goto out2;
 	}
 
-
-	kobject_set_name(&br->ifobj, SYSFS_BRIDGE_PORT_SUBDIR);
-	br->ifobj.ktype = NULL;
-	br->ifobj.kset = NULL;
-	br->ifobj.parent = brobj;
-
-	err = kobject_register(&br->ifobj);
-	if (err) {
+	br->ifobj = kobject_create_and_add(SYSFS_BRIDGE_PORT_SUBDIR, brobj);
+	if (!br->ifobj) {
 		pr_info("%s: can't add kobject (directory) %s/%s\n",
-			__FUNCTION__, dev->name, kobject_name(&br->ifobj));
+			__FUNCTION__, dev->name, SYSFS_BRIDGE_PORT_SUBDIR);
 		goto out3;
 	}
 	return 0;
@@ -453,7 +447,7 @@ void br_sysfs_delbr(struct net_device *dev)
 	struct kobject *kobj = &dev->dev.kobj;
 	struct net_bridge *br = netdev_priv(dev);
 
-	kobject_unregister(&br->ifobj);
+	kobject_put(br->ifobj);
 	sysfs_remove_bin_file(kobj, &bridge_forward);
 	sysfs_remove_group(kobj, &bridge_group);
 }

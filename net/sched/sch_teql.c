@@ -168,7 +168,7 @@ teql_destroy(struct Qdisc* sch)
 	}
 }
 
-static int teql_qdisc_init(struct Qdisc *sch, struct rtattr *opt)
+static int teql_qdisc_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct net_device *dev = sch->dev;
 	struct teql_master *m = (struct teql_master*)sch->ops;

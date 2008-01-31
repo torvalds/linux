@@ -109,8 +109,9 @@ struct frag_hdr {
 #include <net/sock.h>
 
 /* sysctls */
-extern int sysctl_ipv6_bindv6only;
 extern int sysctl_mld_max_msf;
+
+extern struct ctl_path net_ipv6_ctl_path[];
 
 #define _DEVINC(statname, modifier, idev, field)			\
 ({									\
@@ -143,14 +144,6 @@ DECLARE_SNMP_STAT(struct icmpv6msg_mib, icmpv6msg_statistics);
 #define ICMP6_INC_STATS_BH(idev, field)	_DEVINC(icmpv6, _BH, idev, field)
 #define ICMP6_INC_STATS_USER(idev, field) _DEVINC(icmpv6, _USER, idev, field)
 
-#define ICMP6_INC_STATS_OFFSET_BH(idev, field, offset)	({			\
-	struct inet6_dev *_idev = idev;						\
-	__typeof__(offset) _offset = (offset);					\
-	if (likely(_idev != NULL))						\
-		SNMP_INC_STATS_OFFSET_BH(_idev->stats.icmpv6, field, _offset);	\
-	SNMP_INC_STATS_OFFSET_BH(icmpv6_statistics, field, _offset);    	\
-})
-
 #define ICMP6MSGOUT_INC_STATS(idev, field) \
 	_DEVINC(icmpv6msg, , idev, field +256)
 #define ICMP6MSGOUT_INC_STATS_BH(idev, field) \
@@ -163,15 +156,6 @@ DECLARE_SNMP_STAT(struct icmpv6msg_mib, icmpv6msg_statistics);
 	_DEVINC(icmpv6msg, _BH, idev, field)
 #define ICMP6MSGIN_INC_STATS_USER(idev, field) \
 	_DEVINC(icmpv6msg, _USER, idev, field)
-
-DECLARE_SNMP_STAT(struct udp_mib, udp_stats_in6);
-DECLARE_SNMP_STAT(struct udp_mib, udplite_stats_in6);
-#define UDP6_INC_STATS_BH(field, is_udplite) 			      do  {  \
-	if (is_udplite) SNMP_INC_STATS_BH(udplite_stats_in6, field);         \
-	else		SNMP_INC_STATS_BH(udp_stats_in6, field);    } while(0)
-#define UDP6_INC_STATS_USER(field, is_udplite)			       do {    \
-	if (is_udplite) SNMP_INC_STATS_USER(udplite_stats_in6, field);         \
-	else		SNMP_INC_STATS_USER(udp_stats_in6, field);    } while(0)
 
 struct ip6_ra_chain
 {
@@ -236,7 +220,7 @@ extern struct ipv6_txoptions	*fl6_merge_options(struct ipv6_txoptions * opt_spac
 						   struct ipv6_txoptions * fopt);
 extern void			fl6_free_socklist(struct sock *sk);
 extern int			ipv6_flowlabel_opt(struct sock *sk, char __user *optval, int optlen);
-extern void			ip6_flowlabel_init(void);
+extern int			ip6_flowlabel_init(void);
 extern void			ip6_flowlabel_cleanup(void);
 
 static inline void fl6_sock_release(struct ip6_flowlabel *fl)
@@ -261,8 +245,8 @@ struct ipv6_txoptions *ipv6_fixup_options(struct ipv6_txoptions *opt_space,
 
 extern int ipv6_opt_accepted(struct sock *sk, struct sk_buff *skb);
 
-int ip6_frag_nqueues(void);
-int ip6_frag_mem(void);
+int ip6_frag_nqueues(struct net *net);
+int ip6_frag_mem(struct net *net);
 
 #define IPV6_FRAG_TIMEOUT	(60*HZ)		/* 60 seconds */
 
@@ -509,6 +493,9 @@ extern int			ip6_forward(struct sk_buff *skb);
 extern int			ip6_input(struct sk_buff *skb);
 extern int			ip6_mc_input(struct sk_buff *skb);
 
+extern int			__ip6_local_out(struct sk_buff *skb);
+extern int			ip6_local_out(struct sk_buff *skb);
+
 /*
  *	Extension header (options) processing
  */
@@ -559,7 +546,7 @@ extern int			compat_ipv6_getsockopt(struct sock *sk,
 						char __user *optval,
 						int __user *optlen);
 
-extern void			ipv6_packet_init(void);
+extern int			ipv6_packet_init(void);
 
 extern void			ipv6_packet_cleanup(void);
 
@@ -585,9 +572,6 @@ extern int inet6_hash_connect(struct inet_timewait_death_row *death_row,
 /*
  * reassembly.c
  */
-struct inet_frags_ctl;
-extern struct inet_frags_ctl ip6_frags_ctl;
-
 extern const struct proto_ops inet6_stream_ops;
 extern const struct proto_ops inet6_dgram_ops;
 
@@ -602,6 +586,9 @@ extern int ip6_mc_msfget(struct sock *sk, struct group_filter *gsf,
 			 int __user *optlen);
 
 #ifdef CONFIG_PROC_FS
+extern struct ctl_table *ipv6_icmp_sysctl_init(struct net *net);
+extern struct ctl_table *ipv6_route_sysctl_init(struct net *net);
+
 extern int  ac6_proc_init(void);
 extern void ac6_proc_exit(void);
 extern int  raw6_proc_init(void);
@@ -631,10 +618,10 @@ static inline int snmp6_unregister_dev(struct inet6_dev *idev)
 #endif
 
 #ifdef CONFIG_SYSCTL
-extern ctl_table ipv6_route_table[];
-extern ctl_table ipv6_icmp_table[];
+extern ctl_table ipv6_route_table_template[];
+extern ctl_table ipv6_icmp_table_template[];
 
-extern void ipv6_sysctl_register(void);
+extern int ipv6_sysctl_register(void);
 extern void ipv6_sysctl_unregister(void);
 #endif
 

@@ -431,49 +431,35 @@ static u8 __devinit ata66_it821x(ide_hwif_t *hwif)
 }
 
 /**
- *	it821x_fixup	-	post init callback
- *	@hwif: interface
+ *	it821x_quirkproc	-	post init callback
+ *	@drive: drive
  *
- *	This callback is run after the drives have been probed but
+ *	This callback is run after the drive has been probed but
  *	before anything gets attached. It allows drivers to do any
  *	final tuning that is needed, or fixups to work around bugs.
  */
 
-static void __devinit it821x_fixups(ide_hwif_t *hwif)
+static void __devinit it821x_quirkproc(ide_drive_t *drive)
 {
-	struct it821x_dev *itdev = ide_get_hwifdata(hwif);
-	int i;
+	struct it821x_dev *itdev = ide_get_hwifdata(drive->hwif);
+	struct hd_driveid *id = drive->id;
+	u16 *idbits = (u16 *)drive->id;
 
-	if(!itdev->smart) {
+	if (!itdev->smart) {
 		/*
 		 *	If we are in pass through mode then not much
 		 *	needs to be done, but we do bother to clear the
 		 *	IRQ mask as we may well be in PIO (eg rev 0x10)
 		 *	for now and we know unmasking is safe on this chipset.
 		 */
-		for (i = 0; i < 2; i++) {
-			ide_drive_t *drive = &hwif->drives[i];
-			if(drive->present)
-				drive->unmask = 1;
-		}
-		return;
-	}
+		drive->unmask = 1;
+	} else {
 	/*
 	 *	Perform fixups on smart mode. We need to "lose" some
 	 *	capabilities the firmware lacks but does not filter, and
 	 *	also patch up some capability bits that it forgets to set
 	 *	in RAID mode.
 	 */
-
-	for(i = 0; i < 2; i++) {
-		ide_drive_t *drive = &hwif->drives[i];
-		struct hd_driveid *id;
-		u16 *idbits;
-
-		if(!drive->present)
-			continue;
-		id = drive->id;
-		idbits = (u16 *)drive->id;
 
 		/* Check for RAID v native */
 		if(strstr(id->model, "Integrated Technology Express")) {
@@ -536,6 +522,8 @@ static void __devinit init_hwif_it821x(ide_hwif_t *hwif)
 {
 	struct it821x_dev *idev = kzalloc(sizeof(struct it821x_dev), GFP_KERNEL);
 	u8 conf;
+
+	hwif->quirkproc = &it821x_quirkproc;
 
 	if (idev == NULL) {
 		printk(KERN_ERR "it821x: out of memory, falling back to legacy behaviour.\n");
@@ -633,7 +621,6 @@ static unsigned int __devinit init_chipset_it821x(struct pci_dev *dev, const cha
 		.name		= name_str,		\
 		.init_chipset	= init_chipset_it821x,	\
 		.init_hwif	= init_hwif_it821x,	\
-		.fixup	 	= it821x_fixups,	\
 		.host_flags	= IDE_HFLAG_BOOTABLE,	\
 		.pio_mask	= ATA_PIO4,		\
 	}

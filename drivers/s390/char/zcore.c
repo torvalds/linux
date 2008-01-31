@@ -470,7 +470,7 @@ static loff_t zcore_lseek(struct file *file, loff_t offset, int orig)
 	return rc;
 }
 
-static struct file_operations zcore_fops = {
+static const struct file_operations zcore_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= zcore_lseek,
 	.read		= zcore_read,

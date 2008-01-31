@@ -49,24 +49,15 @@ static const char *sctp_conntrack_names[] = {
 #define HOURS * 60 MINS
 #define DAYS  * 24 HOURS
 
-static unsigned int nf_ct_sctp_timeout_closed __read_mostly          =  10 SECS;
-static unsigned int nf_ct_sctp_timeout_cookie_wait __read_mostly     =   3 SECS;
-static unsigned int nf_ct_sctp_timeout_cookie_echoed __read_mostly   =   3 SECS;
-static unsigned int nf_ct_sctp_timeout_established __read_mostly     =   5 DAYS;
-static unsigned int nf_ct_sctp_timeout_shutdown_sent __read_mostly   = 300 SECS / 1000;
-static unsigned int nf_ct_sctp_timeout_shutdown_recd __read_mostly   = 300 SECS / 1000;
-static unsigned int nf_ct_sctp_timeout_shutdown_ack_sent __read_mostly = 3 SECS;
-
-static unsigned int * sctp_timeouts[]
-= { NULL,                                  /* SCTP_CONNTRACK_NONE  */
-    &nf_ct_sctp_timeout_closed,	           /* SCTP_CONNTRACK_CLOSED */
-    &nf_ct_sctp_timeout_cookie_wait,       /* SCTP_CONNTRACK_COOKIE_WAIT */
-    &nf_ct_sctp_timeout_cookie_echoed,     /* SCTP_CONNTRACK_COOKIE_ECHOED */
-    &nf_ct_sctp_timeout_established,       /* SCTP_CONNTRACK_ESTABLISHED */
-    &nf_ct_sctp_timeout_shutdown_sent,     /* SCTP_CONNTRACK_SHUTDOWN_SENT */
-    &nf_ct_sctp_timeout_shutdown_recd,     /* SCTP_CONNTRACK_SHUTDOWN_RECD */
-    &nf_ct_sctp_timeout_shutdown_ack_sent  /* SCTP_CONNTRACK_SHUTDOWN_ACK_SENT */
- };
+static unsigned int sctp_timeouts[SCTP_CONNTRACK_MAX] __read_mostly = {
+	[SCTP_CONNTRACK_CLOSED]			= 10 SECS,
+	[SCTP_CONNTRACK_COOKIE_WAIT]		= 3 SECS,
+	[SCTP_CONNTRACK_COOKIE_ECHOED]		= 3 SECS,
+	[SCTP_CONNTRACK_ESTABLISHED]		= 5 DAYS,
+	[SCTP_CONNTRACK_SHUTDOWN_SENT]		= 300 SECS / 1000,
+	[SCTP_CONNTRACK_SHUTDOWN_RECD]		= 300 SECS / 1000,
+	[SCTP_CONNTRACK_SHUTDOWN_ACK_SENT]	= 3 SECS,
+};
 
 #define sNO SCTP_CONNTRACK_NONE
 #define	sCL SCTP_CONNTRACK_CLOSED
@@ -110,7 +101,7 @@ cookie echoed to closed.
 */
 
 /* SCTP conntrack state transitions */
-static enum sctp_conntrack sctp_conntracks[2][9][SCTP_CONNTRACK_MAX] = {
+static const u8 sctp_conntracks[2][9][SCTP_CONNTRACK_MAX] = {
 	{
 /*	ORIGINAL	*/
 /*                  sNO, sCL, sCW, sCE, sES, sSS, sSR, sSA */
@@ -173,29 +164,28 @@ static int sctp_print_tuple(struct seq_file *s,
 }
 
 /* Print out the private part of the conntrack. */
-static int sctp_print_conntrack(struct seq_file *s,
-				const struct nf_conn *conntrack)
+static int sctp_print_conntrack(struct seq_file *s, const struct nf_conn *ct)
 {
 	enum sctp_conntrack state;
 
 	read_lock_bh(&sctp_lock);
-	state = conntrack->proto.sctp.state;
+	state = ct->proto.sctp.state;
 	read_unlock_bh(&sctp_lock);
 
 	return seq_printf(s, "%s ", sctp_conntrack_names[state]);
 }
 
 #define for_each_sctp_chunk(skb, sch, _sch, offset, dataoff, count)	\
-for (offset = dataoff + sizeof(sctp_sctphdr_t), count = 0;		\
-	offset < skb->len &&						\
-	(sch = skb_header_pointer(skb, offset, sizeof(_sch), &_sch));	\
-	offset += (ntohs(sch->length) + 3) & ~3, count++)
+for ((offset) = (dataoff) + sizeof(sctp_sctphdr_t), (count) = 0;	\
+	(offset) < (skb)->len &&					\
+	((sch) = skb_header_pointer((skb), (offset), sizeof(_sch), &(_sch)));	\
+	(offset) += (ntohs((sch)->length) + 3) & ~3, (count)++)
 
 /* Some validity checks to make sure the chunks are fine */
-static int do_basic_checks(struct nf_conn *conntrack,
+static int do_basic_checks(struct nf_conn *ct,
 			   const struct sk_buff *skb,
 			   unsigned int dataoff,
-			   char *map)
+			   unsigned long *map)
 {
 	u_int32_t offset, count;
 	sctp_chunkhdr_t _sch, *sch;
@@ -206,76 +196,83 @@ static int do_basic_checks(struct nf_conn *conntrack,
 	for_each_sctp_chunk (skb, sch, _sch, offset, dataoff, count) {
 		pr_debug("Chunk Num: %d  Type: %d\n", count, sch->type);
 
-		if (sch->type == SCTP_CID_INIT
-			|| sch->type == SCTP_CID_INIT_ACK
-			|| sch->type == SCTP_CID_SHUTDOWN_COMPLETE) {
+		if (sch->type == SCTP_CID_INIT ||
+		    sch->type == SCTP_CID_INIT_ACK ||
+		    sch->type == SCTP_CID_SHUTDOWN_COMPLETE)
 			flag = 1;
-		}
 
 		/*
 		 * Cookie Ack/Echo chunks not the first OR
 		 * Init / Init Ack / Shutdown compl chunks not the only chunks
 		 * OR zero-length.
 		 */
-		if (((sch->type == SCTP_CID_COOKIE_ACK
-			|| sch->type == SCTP_CID_COOKIE_ECHO
-			|| flag)
-		      && count !=0) || !sch->length) {
+		if (((sch->type == SCTP_CID_COOKIE_ACK ||
+		      sch->type == SCTP_CID_COOKIE_ECHO ||
+		      flag) &&
+		     count != 0) || !sch->length) {
 			pr_debug("Basic checks failed\n");
 			return 1;
 		}
 
-		if (map) {
-			set_bit(sch->type, (void *)map);
-		}
+		if (map)
+			set_bit(sch->type, map);
 	}
 
 	pr_debug("Basic checks passed\n");
 	return count == 0;
 }
 
-static int new_state(enum ip_conntrack_dir dir,
-		     enum sctp_conntrack cur_state,
-		     int chunk_type)
+static int sctp_new_state(enum ip_conntrack_dir dir,
+			  enum sctp_conntrack cur_state,
+			  int chunk_type)
 {
 	int i;
 
 	pr_debug("Chunk type: %d\n", chunk_type);
 
 	switch (chunk_type) {
-		case SCTP_CID_INIT:
-			pr_debug("SCTP_CID_INIT\n");
-			i = 0; break;
-		case SCTP_CID_INIT_ACK:
-			pr_debug("SCTP_CID_INIT_ACK\n");
-			i = 1; break;
-		case SCTP_CID_ABORT:
-			pr_debug("SCTP_CID_ABORT\n");
-			i = 2; break;
-		case SCTP_CID_SHUTDOWN:
-			pr_debug("SCTP_CID_SHUTDOWN\n");
-			i = 3; break;
-		case SCTP_CID_SHUTDOWN_ACK:
-			pr_debug("SCTP_CID_SHUTDOWN_ACK\n");
-			i = 4; break;
-		case SCTP_CID_ERROR:
-			pr_debug("SCTP_CID_ERROR\n");
-			i = 5; break;
-		case SCTP_CID_COOKIE_ECHO:
-			pr_debug("SCTP_CID_COOKIE_ECHO\n");
-			i = 6; break;
-		case SCTP_CID_COOKIE_ACK:
-			pr_debug("SCTP_CID_COOKIE_ACK\n");
-			i = 7; break;
-		case SCTP_CID_SHUTDOWN_COMPLETE:
-			pr_debug("SCTP_CID_SHUTDOWN_COMPLETE\n");
-			i = 8; break;
-		default:
-			/* Other chunks like DATA, SACK, HEARTBEAT and
-			its ACK do not cause a change in state */
-			pr_debug("Unknown chunk type, Will stay in %s\n",
-				 sctp_conntrack_names[cur_state]);
-			return cur_state;
+	case SCTP_CID_INIT:
+		pr_debug("SCTP_CID_INIT\n");
+		i = 0;
+		break;
+	case SCTP_CID_INIT_ACK:
+		pr_debug("SCTP_CID_INIT_ACK\n");
+		i = 1;
+		break;
+	case SCTP_CID_ABORT:
+		pr_debug("SCTP_CID_ABORT\n");
+		i = 2;
+		break;
+	case SCTP_CID_SHUTDOWN:
+		pr_debug("SCTP_CID_SHUTDOWN\n");
+		i = 3;
+		break;
+	case SCTP_CID_SHUTDOWN_ACK:
+		pr_debug("SCTP_CID_SHUTDOWN_ACK\n");
+		i = 4;
+		break;
+	case SCTP_CID_ERROR:
+		pr_debug("SCTP_CID_ERROR\n");
+		i = 5;
+		break;
+	case SCTP_CID_COOKIE_ECHO:
+		pr_debug("SCTP_CID_COOKIE_ECHO\n");
+		i = 6;
+		break;
+	case SCTP_CID_COOKIE_ACK:
+		pr_debug("SCTP_CID_COOKIE_ACK\n");
+		i = 7;
+		break;
+	case SCTP_CID_SHUTDOWN_COMPLETE:
+		pr_debug("SCTP_CID_SHUTDOWN_COMPLETE\n");
+		i = 8;
+		break;
+	default:
+		/* Other chunks like DATA, SACK, HEARTBEAT and
+		its ACK do not cause a change in state */
+		pr_debug("Unknown chunk type, Will stay in %s\n",
+			 sctp_conntrack_names[cur_state]);
+		return cur_state;
 	}
 
 	pr_debug("dir: %d   cur_state: %s  chunk_type: %d  new_state: %s\n",
@@ -285,154 +282,145 @@ static int new_state(enum ip_conntrack_dir dir,
 	return sctp_conntracks[dir][i][cur_state];
 }
 
-/* Returns verdict for packet, or -1 for invalid. */
-static int sctp_packet(struct nf_conn *conntrack,
+/* Returns verdict for packet, or -NF_ACCEPT for invalid. */
+static int sctp_packet(struct nf_conn *ct,
 		       const struct sk_buff *skb,
 		       unsigned int dataoff,
 		       enum ip_conntrack_info ctinfo,
 		       int pf,
 		       unsigned int hooknum)
 {
-	enum sctp_conntrack newconntrack, oldsctpstate;
+	enum sctp_conntrack new_state, old_state;
+	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	sctp_sctphdr_t _sctph, *sh;
 	sctp_chunkhdr_t _sch, *sch;
 	u_int32_t offset, count;
-	char map[256 / sizeof (char)] = {0};
+	unsigned long map[256 / sizeof(unsigned long)] = { 0 };
 
 	sh = skb_header_pointer(skb, dataoff, sizeof(_sctph), &_sctph);
 	if (sh == NULL)
-		return -1;
+		goto out;
 
-	if (do_basic_checks(conntrack, skb, dataoff, map) != 0)
-		return -1;
+	if (do_basic_checks(ct, skb, dataoff, map) != 0)
+		goto out;
 
 	/* Check the verification tag (Sec 8.5) */
-	if (!test_bit(SCTP_CID_INIT, (void *)map)
-		&& !test_bit(SCTP_CID_SHUTDOWN_COMPLETE, (void *)map)
-		&& !test_bit(SCTP_CID_COOKIE_ECHO, (void *)map)
-		&& !test_bit(SCTP_CID_ABORT, (void *)map)
-		&& !test_bit(SCTP_CID_SHUTDOWN_ACK, (void *)map)
-		&& (sh->vtag != conntrack->proto.sctp.vtag[CTINFO2DIR(ctinfo)])) {
+	if (!test_bit(SCTP_CID_INIT, map) &&
+	    !test_bit(SCTP_CID_SHUTDOWN_COMPLETE, map) &&
+	    !test_bit(SCTP_CID_COOKIE_ECHO, map) &&
+	    !test_bit(SCTP_CID_ABORT, map) &&
+	    !test_bit(SCTP_CID_SHUTDOWN_ACK, map) &&
+	    sh->vtag != ct->proto.sctp.vtag[dir]) {
 		pr_debug("Verification tag check failed\n");
-		return -1;
+		goto out;
 	}
 
-	oldsctpstate = newconntrack = SCTP_CONNTRACK_MAX;
+	old_state = new_state = SCTP_CONNTRACK_MAX;
+	write_lock_bh(&sctp_lock);
 	for_each_sctp_chunk (skb, sch, _sch, offset, dataoff, count) {
-		write_lock_bh(&sctp_lock);
-
 		/* Special cases of Verification tag check (Sec 8.5.1) */
 		if (sch->type == SCTP_CID_INIT) {
 			/* Sec 8.5.1 (A) */
-			if (sh->vtag != 0) {
-				write_unlock_bh(&sctp_lock);
-				return -1;
-			}
+			if (sh->vtag != 0)
+				goto out_unlock;
 		} else if (sch->type == SCTP_CID_ABORT) {
 			/* Sec 8.5.1 (B) */
-			if (!(sh->vtag == conntrack->proto.sctp.vtag[CTINFO2DIR(ctinfo)])
-				&& !(sh->vtag == conntrack->proto.sctp.vtag
-							[1 - CTINFO2DIR(ctinfo)])) {
-				write_unlock_bh(&sctp_lock);
-				return -1;
-			}
+			if (sh->vtag != ct->proto.sctp.vtag[dir] &&
+			    sh->vtag != ct->proto.sctp.vtag[!dir])
+				goto out_unlock;
 		} else if (sch->type == SCTP_CID_SHUTDOWN_COMPLETE) {
 			/* Sec 8.5.1 (C) */
-			if (!(sh->vtag == conntrack->proto.sctp.vtag[CTINFO2DIR(ctinfo)])
-				&& !(sh->vtag == conntrack->proto.sctp.vtag
-							[1 - CTINFO2DIR(ctinfo)]
-					&& (sch->flags & 1))) {
-				write_unlock_bh(&sctp_lock);
-				return -1;
-			}
+			if (sh->vtag != ct->proto.sctp.vtag[dir] &&
+			    sh->vtag != ct->proto.sctp.vtag[!dir] &&
+			    sch->flags & SCTP_CHUNK_FLAG_T)
+				goto out_unlock;
 		} else if (sch->type == SCTP_CID_COOKIE_ECHO) {
 			/* Sec 8.5.1 (D) */
-			if (!(sh->vtag == conntrack->proto.sctp.vtag[CTINFO2DIR(ctinfo)])) {
-				write_unlock_bh(&sctp_lock);
-				return -1;
-			}
+			if (sh->vtag != ct->proto.sctp.vtag[dir])
+				goto out_unlock;
 		}
 
-		oldsctpstate = conntrack->proto.sctp.state;
-		newconntrack = new_state(CTINFO2DIR(ctinfo), oldsctpstate, sch->type);
+		old_state = ct->proto.sctp.state;
+		new_state = sctp_new_state(dir, old_state, sch->type);
 
 		/* Invalid */
-		if (newconntrack == SCTP_CONNTRACK_MAX) {
+		if (new_state == SCTP_CONNTRACK_MAX) {
 			pr_debug("nf_conntrack_sctp: Invalid dir=%i ctype=%u "
 				 "conntrack=%u\n",
-				 CTINFO2DIR(ctinfo), sch->type, oldsctpstate);
-			write_unlock_bh(&sctp_lock);
-			return -1;
+				 dir, sch->type, old_state);
+			goto out_unlock;
 		}
 
 		/* If it is an INIT or an INIT ACK note down the vtag */
-		if (sch->type == SCTP_CID_INIT
-			|| sch->type == SCTP_CID_INIT_ACK) {
+		if (sch->type == SCTP_CID_INIT ||
+		    sch->type == SCTP_CID_INIT_ACK) {
 			sctp_inithdr_t _inithdr, *ih;
 
 			ih = skb_header_pointer(skb, offset + sizeof(sctp_chunkhdr_t),
 						sizeof(_inithdr), &_inithdr);
-			if (ih == NULL) {
-					write_unlock_bh(&sctp_lock);
-					return -1;
-			}
+			if (ih == NULL)
+				goto out_unlock;
 			pr_debug("Setting vtag %x for dir %d\n",
-				 ih->init_tag, !CTINFO2DIR(ctinfo));
-			conntrack->proto.sctp.vtag[!CTINFO2DIR(ctinfo)] = ih->init_tag;
+				 ih->init_tag, !dir);
+			ct->proto.sctp.vtag[!dir] = ih->init_tag;
 		}
 
-		conntrack->proto.sctp.state = newconntrack;
-		if (oldsctpstate != newconntrack)
+		ct->proto.sctp.state = new_state;
+		if (old_state != new_state)
 			nf_conntrack_event_cache(IPCT_PROTOINFO, skb);
-		write_unlock_bh(&sctp_lock);
 	}
+	write_unlock_bh(&sctp_lock);
 
-	nf_ct_refresh_acct(conntrack, ctinfo, skb, *sctp_timeouts[newconntrack]);
+	nf_ct_refresh_acct(ct, ctinfo, skb, sctp_timeouts[new_state]);
 
-	if (oldsctpstate == SCTP_CONNTRACK_COOKIE_ECHOED
-		&& CTINFO2DIR(ctinfo) == IP_CT_DIR_REPLY
-		&& newconntrack == SCTP_CONNTRACK_ESTABLISHED) {
+	if (old_state == SCTP_CONNTRACK_COOKIE_ECHOED &&
+	    dir == IP_CT_DIR_REPLY &&
+	    new_state == SCTP_CONNTRACK_ESTABLISHED) {
 		pr_debug("Setting assured bit\n");
-		set_bit(IPS_ASSURED_BIT, &conntrack->status);
+		set_bit(IPS_ASSURED_BIT, &ct->status);
 		nf_conntrack_event_cache(IPCT_STATUS, skb);
 	}
 
 	return NF_ACCEPT;
+
+out_unlock:
+	write_unlock_bh(&sctp_lock);
+out:
+	return -NF_ACCEPT;
 }
 
 /* Called when a new connection for this protocol found. */
-static int sctp_new(struct nf_conn *conntrack, const struct sk_buff *skb,
+static int sctp_new(struct nf_conn *ct, const struct sk_buff *skb,
 		    unsigned int dataoff)
 {
-	enum sctp_conntrack newconntrack;
+	enum sctp_conntrack new_state;
 	sctp_sctphdr_t _sctph, *sh;
 	sctp_chunkhdr_t _sch, *sch;
 	u_int32_t offset, count;
-	char map[256 / sizeof (char)] = {0};
+	unsigned long map[256 / sizeof(unsigned long)] = { 0 };
 
 	sh = skb_header_pointer(skb, dataoff, sizeof(_sctph), &_sctph);
 	if (sh == NULL)
 		return 0;
 
-	if (do_basic_checks(conntrack, skb, dataoff, map) != 0)
+	if (do_basic_checks(ct, skb, dataoff, map) != 0)
 		return 0;
 
 	/* If an OOTB packet has any of these chunks discard (Sec 8.4) */
-	if ((test_bit (SCTP_CID_ABORT, (void *)map))
-		|| (test_bit (SCTP_CID_SHUTDOWN_COMPLETE, (void *)map))
-		|| (test_bit (SCTP_CID_COOKIE_ACK, (void *)map))) {
+	if (test_bit(SCTP_CID_ABORT, map) ||
+	    test_bit(SCTP_CID_SHUTDOWN_COMPLETE, map) ||
+	    test_bit(SCTP_CID_COOKIE_ACK, map))
 		return 0;
-	}
 
-	newconntrack = SCTP_CONNTRACK_MAX;
+	new_state = SCTP_CONNTRACK_MAX;
 	for_each_sctp_chunk (skb, sch, _sch, offset, dataoff, count) {
 		/* Don't need lock here: this conntrack not in circulation yet */
-		newconntrack = new_state(IP_CT_DIR_ORIGINAL,
-					 SCTP_CONNTRACK_NONE, sch->type);
+		new_state = sctp_new_state(IP_CT_DIR_ORIGINAL,
+					   SCTP_CONNTRACK_NONE, sch->type);
 
 		/* Invalid: delete conntrack */
-		if (newconntrack == SCTP_CONNTRACK_NONE ||
-		    newconntrack == SCTP_CONNTRACK_MAX) {
+		if (new_state == SCTP_CONNTRACK_NONE ||
+		    new_state == SCTP_CONNTRACK_MAX) {
 			pr_debug("nf_conntrack_sctp: invalid new deleting.\n");
 			return 0;
 		}
@@ -450,7 +438,7 @@ static int sctp_new(struct nf_conn *conntrack, const struct sk_buff *skb,
 				pr_debug("Setting vtag %x for new conn\n",
 					 ih->init_tag);
 
-				conntrack->proto.sctp.vtag[IP_CT_DIR_REPLY] =
+				ct->proto.sctp.vtag[IP_CT_DIR_REPLY] =
 								ih->init_tag;
 			} else {
 				/* Sec 8.5.1 (A) */
@@ -462,10 +450,10 @@ static int sctp_new(struct nf_conn *conntrack, const struct sk_buff *skb,
 		else {
 			pr_debug("Setting vtag %x for new conn OOTB\n",
 				 sh->vtag);
-			conntrack->proto.sctp.vtag[IP_CT_DIR_REPLY] = sh->vtag;
+			ct->proto.sctp.vtag[IP_CT_DIR_REPLY] = sh->vtag;
 		}
 
-		conntrack->proto.sctp.state = newconntrack;
+		ct->proto.sctp.state = new_state;
 	}
 
 	return 1;
@@ -477,49 +465,49 @@ static struct ctl_table_header *sctp_sysctl_header;
 static struct ctl_table sctp_sysctl_table[] = {
 	{
 		.procname	= "nf_conntrack_sctp_timeout_closed",
-		.data		= &nf_ct_sctp_timeout_closed,
+		.data		= &sctp_timeouts[SCTP_CONNTRACK_CLOSED],
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
 		.procname	= "nf_conntrack_sctp_timeout_cookie_wait",
-		.data		= &nf_ct_sctp_timeout_cookie_wait,
+		.data		= &sctp_timeouts[SCTP_CONNTRACK_COOKIE_WAIT],
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
 		.procname	= "nf_conntrack_sctp_timeout_cookie_echoed",
-		.data		= &nf_ct_sctp_timeout_cookie_echoed,
+		.data		= &sctp_timeouts[SCTP_CONNTRACK_COOKIE_ECHOED],
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
 		.procname	= "nf_conntrack_sctp_timeout_established",
-		.data		= &nf_ct_sctp_timeout_established,
+		.data		= &sctp_timeouts[SCTP_CONNTRACK_ESTABLISHED],
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
 		.procname	= "nf_conntrack_sctp_timeout_shutdown_sent",
-		.data		= &nf_ct_sctp_timeout_shutdown_sent,
+		.data		= &sctp_timeouts[SCTP_CONNTRACK_SHUTDOWN_SENT],
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
 		.procname	= "nf_conntrack_sctp_timeout_shutdown_recd",
-		.data		= &nf_ct_sctp_timeout_shutdown_recd,
+		.data		= &sctp_timeouts[SCTP_CONNTRACK_SHUTDOWN_RECD],
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
 		.procname	= "nf_conntrack_sctp_timeout_shutdown_ack_sent",
-		.data		= &nf_ct_sctp_timeout_shutdown_ack_sent,
+		.data		= &sctp_timeouts[SCTP_CONNTRACK_SHUTDOWN_ACK_SENT],
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,
@@ -533,49 +521,49 @@ static struct ctl_table sctp_sysctl_table[] = {
 static struct ctl_table sctp_compat_sysctl_table[] = {
 	{
 		.procname	= "ip_conntrack_sctp_timeout_closed",
-		.data		= &nf_ct_sctp_timeout_closed,
+		.data		= &sctp_timeouts[SCTP_CONNTRACK_CLOSED],
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
 		.procname	= "ip_conntrack_sctp_timeout_cookie_wait",
-		.data		= &nf_ct_sctp_timeout_cookie_wait,
+		.data		= &sctp_timeouts[SCTP_CONNTRACK_COOKIE_WAIT],
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
 		.procname	= "ip_conntrack_sctp_timeout_cookie_echoed",
-		.data		= &nf_ct_sctp_timeout_cookie_echoed,
+		.data		= &sctp_timeouts[SCTP_CONNTRACK_COOKIE_ECHOED],
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
 		.procname	= "ip_conntrack_sctp_timeout_established",
-		.data		= &nf_ct_sctp_timeout_established,
+		.data		= &sctp_timeouts[SCTP_CONNTRACK_ESTABLISHED],
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
 		.procname	= "ip_conntrack_sctp_timeout_shutdown_sent",
-		.data		= &nf_ct_sctp_timeout_shutdown_sent,
+		.data		= &sctp_timeouts[SCTP_CONNTRACK_SHUTDOWN_SENT],
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
 		.procname	= "ip_conntrack_sctp_timeout_shutdown_recd",
-		.data		= &nf_ct_sctp_timeout_shutdown_recd,
+		.data		= &sctp_timeouts[SCTP_CONNTRACK_SHUTDOWN_RECD],
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
 		.procname	= "ip_conntrack_sctp_timeout_shutdown_ack_sent",
-		.data		= &nf_ct_sctp_timeout_shutdown_ack_sent,
+		.data		= &sctp_timeouts[SCTP_CONNTRACK_SHUTDOWN_ACK_SENT],
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,
@@ -598,6 +586,11 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4 __read_mostly = {
 	.packet 		= sctp_packet,
 	.new 			= sctp_new,
 	.me 			= THIS_MODULE,
+#if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
+	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,
+	.nlattr_to_tuple	= nf_ct_port_nlattr_to_tuple,
+	.nla_policy		= nf_ct_port_nla_policy,
+#endif
 #ifdef CONFIG_SYSCTL
 	.ctl_table_users	= &sctp_sysctl_table_users,
 	.ctl_table_header	= &sctp_sysctl_header,
@@ -619,6 +612,11 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp6 __read_mostly = {
 	.packet 		= sctp_packet,
 	.new 			= sctp_new,
 	.me 			= THIS_MODULE,
+#if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
+	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,
+	.nlattr_to_tuple	= nf_ct_port_nlattr_to_tuple,
+	.nla_policy		= nf_ct_port_nla_policy,
+#endif
 #ifdef CONFIG_SYSCTL
 	.ctl_table_users	= &sctp_sysctl_table_users,
 	.ctl_table_header	= &sctp_sysctl_header,

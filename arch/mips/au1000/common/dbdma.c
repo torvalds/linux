@@ -179,7 +179,7 @@ static dbdev_tab_t dbdev_tab[] = {
 	{ 0, 0, 0, 0, 0, 0, 0 },
 };
 
-#define DBDEV_TAB_SIZE (sizeof(dbdev_tab) / sizeof(dbdev_tab_t))
+#define DBDEV_TAB_SIZE	ARRAY_SIZE(dbdev_tab)
 
 static chan_tab_t *chan_tab_ptr[NUM_DBDMA_CHANS];
 

@@ -40,11 +40,8 @@
  */
 
 
-#include <linux/module.h>
-#include <linux/err.h>
 #include "ehca_classes.h"
 #include "ehca_tools.h"
-#include "ehca_qes.h"
 #include "ehca_iverbs.h"
 #include "hcp_if.h"
 
@@ -92,6 +89,9 @@ u64 ehca_define_sqp(struct ehca_shca *shca,
 			 qp_init_attr->qp_type);
 		return H_PARAMETER;
 	}
+
+	if (ehca_nr_ports < 0) /* autodetect mode */
+		return H_SUCCESS;
 
 	for (counter = 0;
 	     shca->sport[port - 1].port_state != IB_PORT_ACTIVE &&

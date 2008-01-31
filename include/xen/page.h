@@ -156,16 +156,16 @@ static inline pte_t mfn_pte(unsigned long page_nr, pgprot_t pgprot)
 
 static inline unsigned long long pte_val_ma(pte_t x)
 {
-	return ((unsigned long long)x.pte_high << 32) | x.pte_low;
+	return x.pte;
 }
 #define pmd_val_ma(v) ((v).pmd)
 #define pud_val_ma(v) ((v).pgd.pgd)
-#define __pte_ma(x)	((pte_t) { .pte_low = (x), .pte_high = (x)>>32 } )
+#define __pte_ma(x)	((pte_t) { .pte = (x) })
 #define __pmd_ma(x)	((pmd_t) { (x) } )
 #else  /* !X86_PAE */
 #define pte_mfn(_pte) ((_pte).pte_low >> PAGE_SHIFT)
 #define mfn_pte(pfn, prot)	__pte_ma(((pfn) << PAGE_SHIFT) | pgprot_val(prot))
-#define pte_val_ma(x)	((x).pte_low)
+#define pte_val_ma(x)	((x).pte)
 #define pmd_val_ma(v)	((v).pud.pgd.pgd)
 #define __pte_ma(x)	((pte_t) { (x) } )
 #endif	/* CONFIG_X86_PAE */

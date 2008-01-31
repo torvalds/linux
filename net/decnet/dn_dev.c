@@ -173,10 +173,6 @@ static int dn_forwarding_sysctl(ctl_table *table, int __user *name, int nlen,
 static struct dn_dev_sysctl_table {
 	struct ctl_table_header *sysctl_header;
 	ctl_table dn_dev_vars[5];
-	ctl_table dn_dev_dev[2];
-	ctl_table dn_dev_conf_dir[2];
-	ctl_table dn_dev_proto_dir[2];
-	ctl_table dn_dev_root_dir[2];
 } dn_dev_sysctl = {
 	NULL,
 	{
@@ -224,36 +220,22 @@ static struct dn_dev_sysctl_table {
 	},
 	{0}
 	},
-	{{
-		.ctl_name = 0,
-		.procname = "",
-		.mode = 0555,
-		.child = dn_dev_sysctl.dn_dev_vars
-	}, {0}},
-	{{
-		.ctl_name = NET_DECNET_CONF,
-		.procname = "conf",
-		.mode = 0555,
-		.child = dn_dev_sysctl.dn_dev_dev
-	}, {0}},
-	{{
-		.ctl_name = NET_DECNET,
-		.procname = "decnet",
-		.mode = 0555,
-		.child = dn_dev_sysctl.dn_dev_conf_dir
-	}, {0}},
-	{{
-		.ctl_name = CTL_NET,
-		.procname = "net",
-		.mode = 0555,
-		.child = dn_dev_sysctl.dn_dev_proto_dir
-	}, {0}}
 };
 
 static void dn_dev_sysctl_register(struct net_device *dev, struct dn_dev_parms *parms)
 {
 	struct dn_dev_sysctl_table *t;
 	int i;
+
+#define DN_CTL_PATH_DEV	3
+
+	struct ctl_path dn_ctl_path[] = {
+		{ .procname = "net", .ctl_name = CTL_NET, },
+		{ .procname = "decnet", .ctl_name = NET_DECNET, },
+		{ .procname = "conf", .ctl_name = NET_DECNET_CONF, },
+		{ /* to be set */ },
+		{ },
+	};
 
 	t = kmemdup(&dn_dev_sysctl, sizeof(*t), GFP_KERNEL);
 	if (t == NULL)
@@ -265,20 +247,16 @@ static void dn_dev_sysctl_register(struct net_device *dev, struct dn_dev_parms *
 	}
 
 	if (dev) {
-		t->dn_dev_dev[0].procname = dev->name;
-		t->dn_dev_dev[0].ctl_name = dev->ifindex;
+		dn_ctl_path[DN_CTL_PATH_DEV].procname = dev->name;
+		dn_ctl_path[DN_CTL_PATH_DEV].ctl_name = dev->ifindex;
 	} else {
-		t->dn_dev_dev[0].procname = parms->name;
-		t->dn_dev_dev[0].ctl_name = parms->ctl_name;
+		dn_ctl_path[DN_CTL_PATH_DEV].procname = parms->name;
+		dn_ctl_path[DN_CTL_PATH_DEV].ctl_name = parms->ctl_name;
 	}
 
-	t->dn_dev_dev[0].child = t->dn_dev_vars;
-	t->dn_dev_conf_dir[0].child = t->dn_dev_dev;
-	t->dn_dev_proto_dir[0].child = t->dn_dev_conf_dir;
-	t->dn_dev_root_dir[0].child = t->dn_dev_proto_dir;
 	t->dn_dev_vars[0].extra1 = (void *)dev;
 
-	t->sysctl_header = register_sysctl_table(t->dn_dev_root_dir);
+	t->sysctl_header = register_sysctl_paths(dn_ctl_path, t->dn_dev_vars);
 	if (t->sysctl_header == NULL)
 		kfree(t);
 	else
@@ -647,11 +625,15 @@ static const struct nla_policy dn_ifa_policy[IFA_MAX+1] = {
 
 static int dn_nl_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
+	struct net *net = skb->sk->sk_net;
 	struct nlattr *tb[IFA_MAX+1];
 	struct dn_dev *dn_db;
 	struct ifaddrmsg *ifm;
 	struct dn_ifaddr *ifa, **ifap;
-	int err;
+	int err = -EINVAL;
+
+	if (net != &init_net)
+		goto errout;
 
 	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, dn_ifa_policy);
 	if (err < 0)
@@ -681,12 +663,16 @@ errout:
 
 static int dn_nl_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
+	struct net *net = skb->sk->sk_net;
 	struct nlattr *tb[IFA_MAX+1];
 	struct net_device *dev;
 	struct dn_dev *dn_db;
 	struct ifaddrmsg *ifm;
 	struct dn_ifaddr *ifa;
 	int err;
+
+	if (net != &init_net)
+		return -EINVAL;
 
 	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, dn_ifa_policy);
 	if (err < 0)
@@ -785,18 +771,22 @@ static void dn_ifaddr_notify(int event, struct dn_ifaddr *ifa)
 		kfree_skb(skb);
 		goto errout;
 	}
-	err = rtnl_notify(skb, 0, RTNLGRP_DECnet_IFADDR, NULL, GFP_KERNEL);
+	err = rtnl_notify(skb, &init_net, 0, RTNLGRP_DECnet_IFADDR, NULL, GFP_KERNEL);
 errout:
 	if (err < 0)
-		rtnl_set_sk_err(RTNLGRP_DECnet_IFADDR, err);
+		rtnl_set_sk_err(&init_net, RTNLGRP_DECnet_IFADDR, err);
 }
 
 static int dn_nl_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct net *net = skb->sk->sk_net;
 	int idx, dn_idx = 0, skip_ndevs, skip_naddr;
 	struct net_device *dev;
 	struct dn_dev *dn_db;
 	struct dn_ifaddr *ifa;
+
+	if (net != &init_net)
+		return 0;
 
 	skip_ndevs = cb->args[0];
 	skip_naddr = cb->args[1];

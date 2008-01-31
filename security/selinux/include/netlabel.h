@@ -46,13 +46,17 @@ void selinux_netlbl_sk_security_init(struct sk_security_struct *ssec,
 void selinux_netlbl_sk_security_clone(struct sk_security_struct *ssec,
 				      struct sk_security_struct *newssec);
 
-int selinux_netlbl_skbuff_getsid(struct sk_buff *skb, u32 base_sid, u32 *sid);
+int selinux_netlbl_skbuff_getsid(struct sk_buff *skb,
+				 u16 family,
+				 u32 *type,
+				 u32 *sid);
 
 void selinux_netlbl_sock_graft(struct sock *sk, struct socket *sock);
 int selinux_netlbl_socket_post_create(struct socket *sock);
 int selinux_netlbl_inode_permission(struct inode *inode, int mask);
 int selinux_netlbl_sock_rcv_skb(struct sk_security_struct *sksec,
 				struct sk_buff *skb,
+				u16 family,
 				struct avc_audit_data *ad);
 int selinux_netlbl_socket_setsockopt(struct socket *sock,
 				     int level,
@@ -83,9 +87,11 @@ static inline void selinux_netlbl_sk_security_clone(
 }
 
 static inline int selinux_netlbl_skbuff_getsid(struct sk_buff *skb,
-					       u32 base_sid,
+					       u16 family,
+					       u32 *type,
 					       u32 *sid)
 {
+	*type = NETLBL_NLTYPE_NONE;
 	*sid = SECSID_NULL;
 	return 0;
 }
@@ -106,6 +112,7 @@ static inline int selinux_netlbl_inode_permission(struct inode *inode,
 }
 static inline int selinux_netlbl_sock_rcv_skb(struct sk_security_struct *sksec,
 					      struct sk_buff *skb,
+					      u16 family,
 					      struct avc_audit_data *ad)
 {
 	return 0;

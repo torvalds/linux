@@ -341,17 +341,18 @@ static int __devinit sq_sysdev_add(struct sys_device *sysdev)
 {
 	unsigned int cpu = sysdev->id;
 	struct kobject *kobj;
+	int error;
 
 	sq_kobject[cpu] = kzalloc(sizeof(struct kobject), GFP_KERNEL);
 	if (unlikely(!sq_kobject[cpu]))
 		return -ENOMEM;
 
 	kobj = sq_kobject[cpu];
-	kobj->parent = &sysdev->kobj;
-	kobject_set_name(kobj, "%s", "sq");
-	kobj->ktype = &ktype_percpu_entry;
-
-	return kobject_register(kobj);
+	error = kobject_init_and_add(kobj, &ktype_percpu_entry, &sysdev->kobj,
+				     "%s", "sq");
+	if (!error)
+		kobject_uevent(kobj, KOBJ_ADD);
+	return error;
 }
 
 static int __devexit sq_sysdev_remove(struct sys_device *sysdev)
@@ -359,7 +360,7 @@ static int __devexit sq_sysdev_remove(struct sys_device *sysdev)
 	unsigned int cpu = sysdev->id;
 	struct kobject *kobj = sq_kobject[cpu];
 
-	kobject_unregister(kobj);
+	kobject_put(kobj);
 	return 0;
 }
 

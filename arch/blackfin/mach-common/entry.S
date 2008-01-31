@@ -95,6 +95,9 @@ ENTRY(_ex_workaround_261)
 	R6 = 0x26;	/* Data CPLB Miss */
 	cc = R6 == R7;
 	if cc jump _ex_dcplb_miss (BP);
+	R6 = 0x23;	/* Data CPLB Miss */
+	cc = R6 == R7;
+	if cc jump _ex_dcplb_viol (BP);
 	/* Handle 0x23 Data CPLB Protection Violation
 	 * and Data CPLB Multiple Hits - Linux Trap Zero
 	 */
@@ -102,17 +105,33 @@ ENTRY(_ex_workaround_261)
 ENDPROC(_ex_workaround_261)
 
 #else
+#ifdef CONFIG_MPU
+#define _ex_dviol _ex_dcplb_viol
+#else
 #define _ex_dviol _ex_trap_c
+#endif
 #define _ex_dmiss _ex_dcplb_miss
 #define _ex_dmult _ex_trap_c
 #endif
 
+
+ENTRY(_ex_dcplb_viol)
 ENTRY(_ex_dcplb_miss)
 ENTRY(_ex_icplb_miss)
 	(R7:6,P5:4) = [sp++];
 	ASTAT = [sp++];
 	SAVE_ALL_SYS
+#ifdef CONFIG_MPU
+	R0 = SEQSTAT;
+	R1 = SP;
+	sp += -12;
+	call _cplb_hdr;
+	sp += 12;
+	CC = R0 == 0;
+	IF !CC JUMP _handle_bad_cplb;
+#else
 	call __cplb_hdr;
+#endif
 	DEBUG_START_HWTRACE(p5, r7)
 	RESTORE_ALL_SYS
 	SP = EX_SCRATCH_REG;
@@ -329,7 +348,7 @@ ENTRY(_exception_to_level5)
 	R7 = R7 + R6;
 	P5 = R7;
 	R1 = [P5];
-	[SP + 8] = r1;
+	[SP + PT_SEQSTAT] = r1;
 
 	r0 = sp; 	/* stack frame pt_regs pointer argument ==> r0 */
 	SP += -12;
@@ -633,9 +652,7 @@ ENTRY(_ret_from_exception)
 	[sp + PT_IPEND] = r0;
 
 1:
-	r1 = 0x37(Z);
-	r2 = ~r1;
-	r2.h = 0;
+	r2 = LO(~0x37) (Z);
 	r0 = r2 & r0;
 	cc = r0 == 0;
 	if !cc jump 4f;	/* if not return to user mode, get out */
@@ -1364,6 +1381,7 @@ ENTRY(_sys_call_table)
 	.long _sys_set_robust_list
 	.long _sys_get_robust_list	/* 355 */
 	.long _sys_fallocate
+	.long _sys_semtimedop
 	.rept NR_syscalls-(.-_sys_call_table)/4
 	.long _sys_ni_syscall
 	.endr

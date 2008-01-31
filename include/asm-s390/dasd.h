@@ -105,7 +105,7 @@ typedef struct dasd_information_t {
 } dasd_information_t;
 
 /*
- * Read Subsystem Data - Perfomance Statistics
+ * Read Subsystem Data - Performance Statistics
  */ 
 typedef struct dasd_rssd_perf_stats_t {
 	unsigned char  invalid:1;

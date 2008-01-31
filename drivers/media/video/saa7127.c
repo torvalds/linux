@@ -55,10 +55,11 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
+#include <media/v4l2-i2c-drv.h>
 #include <media/saa7127.h>
 
-static int debug = 0;
-static int test_image = 0;
+static int debug;
+static int test_image;
 
 MODULE_DESCRIPTION("Philips SAA7127/9 video encoder driver");
 MODULE_AUTHOR("Kevin Thayer, Chris Kennedy, Hans Verkuil");
@@ -68,10 +69,6 @@ module_param(test_image, int, 0644);
 MODULE_PARM_DESC(debug, "debug level (0-2)");
 MODULE_PARM_DESC(test_image, "test_image (0-1)");
 
-static unsigned short normal_i2c[] = { 0x88 >> 1, I2C_CLIENT_END };
-
-
-I2C_CLIENT_INSMOD;
 
 /*
  * SAA7127 registers
@@ -360,9 +357,10 @@ static int saa7127_set_cc(struct i2c_client *client, struct v4l2_sliced_vbi_data
 	if (enable && (data->field != 0 || data->line != 21))
 		return -EINVAL;
 	if (state->cc_enable != enable) {
-		v4l_dbg(1, debug, client, "Turn CC %s\n", enable ? "on" : "off");
+		v4l_dbg(1, debug, client,
+			"Turn CC %s\n", enable ? "on" : "off");
 		saa7127_write(client, SAA7127_REG_CLOSED_CAPTION,
-				(state->xds_enable << 7) | (enable << 6) | 0x11);
+			(state->xds_enable << 7) | (enable << 6) | 0x11);
 		state->cc_enable = enable;
 	}
 	if (!enable)
@@ -420,7 +418,8 @@ static int saa7127_set_wss(struct i2c_client *client, struct v4l2_sliced_vbi_dat
 
 	saa7127_write(client, 0x26, data->data[0]);
 	saa7127_write(client, 0x27, 0x80 | (data->data[1] & 0x3f));
-	v4l_dbg(1, debug, client, "WSS mode: %s\n", wss_strs[data->data[0] & 0xf]);
+	v4l_dbg(1, debug, client,
+		"WSS mode: %s\n", wss_strs[data->data[0] & 0xf]);
 	state->wss_mode = (data->data[1] & 0x3f) << 8 | data->data[0];
 	return 0;
 }
@@ -507,7 +506,8 @@ static int saa7127_set_output_type(struct i2c_client *client, int output)
 	default:
 		return -EINVAL;
 	}
-	v4l_dbg(1, debug, client, "Selecting %s output type\n", output_strs[output]);
+	v4l_dbg(1, debug, client,
+		"Selecting %s output type\n", output_strs[output]);
 
 	/* Configure Encoder */
 	saa7127_write(client, 0x2d, state->reg_2d);
@@ -569,12 +569,10 @@ static int saa7127_command(struct i2c_client *client,
 	{
 		int rc = 0;
 
-		if (state->input_type != route->input) {
+		if (state->input_type != route->input)
 			rc = saa7127_set_input_type(client, route->input);
-		}
-		if (rc == 0 && state->output_type != route->output) {
+		if (rc == 0 && state->output_type != route->output)
 			rc = saa7127_set_output_type(client, route->output);
-		}
 		return rc;
 	}
 
@@ -620,7 +618,8 @@ static int saa7127_command(struct i2c_client *client,
 	{
 		struct v4l2_register *reg = arg;
 
-		if (!v4l2_chip_match_i2c_client(client, reg->match_type, reg->match_chip))
+		if (!v4l2_chip_match_i2c_client(client,
+					reg->match_type, reg->match_chip))
 			return -EINVAL;
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
@@ -637,16 +636,16 @@ static int saa7127_command(struct i2c_client *client,
 		struct v4l2_sliced_vbi_data *data = arg;
 
 		switch (data->id) {
-			case V4L2_SLICED_WSS_625:
-				return saa7127_set_wss(client, data);
-			case V4L2_SLICED_VPS:
-				return saa7127_set_vps(client, data);
-			case V4L2_SLICED_CAPTION_525:
-				if (data->field == 0)
-					return saa7127_set_cc(client, data);
-				return saa7127_set_xds(client, data);
-			default:
-				return -EINVAL;
+		case V4L2_SLICED_WSS_625:
+			return saa7127_set_wss(client, data);
+		case V4L2_SLICED_VPS:
+			return saa7127_set_vps(client, data);
+		case V4L2_SLICED_CAPTION_525:
+			if (data->field == 0)
+				return saa7127_set_cc(client, data);
+			return saa7127_set_xds(client, data);
+		default:
+			return -EINVAL;
 		}
 		break;
 	}
@@ -662,31 +661,20 @@ static int saa7127_command(struct i2c_client *client,
 
 /* ----------------------------------------------------------------------- */
 
-static struct i2c_driver i2c_driver_saa7127;
-
-/* ----------------------------------------------------------------------- */
-
-static int saa7127_attach(struct i2c_adapter *adapter, int address, int kind)
+static int saa7127_probe(struct i2c_client *client)
 {
-	struct i2c_client *client;
 	struct saa7127_state *state;
 	struct v4l2_sliced_vbi_data vbi = { 0, 0, 0, 0 };  /* set to disabled */
 	int read_result = 0;
 
 	/* Check if the adapter supports the needed features */
-	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return 0;
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
+		return -EIO;
 
-	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
-	if (client == 0)
-		return -ENOMEM;
-
-	client->addr = address;
-	client->adapter = adapter;
-	client->driver = &i2c_driver_saa7127;
 	snprintf(client->name, sizeof(client->name) - 1, "saa7127");
 
-	v4l_dbg(1, debug, client, "detecting saa7127 client on address 0x%x\n", address << 1);
+	v4l_dbg(1, debug, client, "detecting saa7127 client on address 0x%x\n",
+			client->addr << 1);
 
 	/* First test register 0: Bits 5-7 are a version ID (should be 0),
 	   and bit 2 should also be 0.
@@ -696,15 +684,12 @@ static int saa7127_attach(struct i2c_adapter *adapter, int address, int kind)
 	if ((saa7127_read(client, 0) & 0xe4) != 0 ||
 			(saa7127_read(client, 0x29) & 0x3f) != 0x1d) {
 		v4l_dbg(1, debug, client, "saa7127 not found\n");
-		kfree(client);
-		return 0;
+		return -ENODEV;
 	}
 	state = kzalloc(sizeof(struct saa7127_state), GFP_KERNEL);
 
-	if (state == NULL) {
-		kfree(client);
-		return (-ENOMEM);
-	}
+	if (state == NULL)
+		return -ENOMEM;
 
 	i2c_set_clientdata(client, state);
 
@@ -718,91 +703,48 @@ static int saa7127_attach(struct i2c_adapter *adapter, int address, int kind)
 	saa7127_set_wss(client, &vbi);
 	saa7127_set_cc(client, &vbi);
 	saa7127_set_xds(client, &vbi);
-	if (test_image == 1) {
+	if (test_image == 1)
 		/* The Encoder has an internal Colorbar generator */
 		/* This can be used for debugging */
 		saa7127_set_input_type(client, SAA7127_INPUT_TYPE_TEST_IMAGE);
-	} else {
+	else
 		saa7127_set_input_type(client, SAA7127_INPUT_TYPE_NORMAL);
-	}
 	saa7127_set_video_enable(client, 1);
 
 	/* Detect if it's an saa7129 */
 	read_result = saa7127_read(client, SAA7129_REG_FADE_KEY_COL2);
 	saa7127_write(client, SAA7129_REG_FADE_KEY_COL2, 0xaa);
 	if (saa7127_read(client, SAA7129_REG_FADE_KEY_COL2) == 0xaa) {
-		v4l_info(client, "saa7129 found @ 0x%x (%s)\n", address << 1, adapter->name);
+		v4l_info(client, "saa7129 found @ 0x%x (%s)\n",
+				client->addr << 1, client->adapter->name);
 		saa7127_write(client, SAA7129_REG_FADE_KEY_COL2, read_result);
 		saa7127_write_inittab(client, saa7129_init_config_extra);
 		state->ident = V4L2_IDENT_SAA7129;
 	} else {
-		v4l_info(client, "saa7127 found @ 0x%x (%s)\n", address << 1, adapter->name);
+		v4l_info(client, "saa7127 found @ 0x%x (%s)\n",
+				client->addr << 1, client->adapter->name);
 		state->ident = V4L2_IDENT_SAA7127;
 	}
-
-	i2c_attach_client(client);
-
 	return 0;
 }
 
 /* ----------------------------------------------------------------------- */
 
-static int saa7127_probe(struct i2c_adapter *adapter)
+static int saa7127_remove(struct i2c_client *client)
 {
-	if (adapter->class & I2C_CLASS_TV_ANALOG)
-		return i2c_probe(adapter, &addr_data, saa7127_attach);
-	return 0;
-}
-
-/* ----------------------------------------------------------------------- */
-
-static int saa7127_detach(struct i2c_client *client)
-{
-	struct saa7127_state *state = i2c_get_clientdata(client);
-	int err;
-
 	/* Turn off TV output */
 	saa7127_set_video_enable(client, 0);
-
-	err = i2c_detach_client(client);
-
-	if (err) {
-		return err;
-	}
-
-	kfree(state);
-	kfree(client);
+	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 
 /* ----------------------------------------------------------------------- */
 
-static struct i2c_driver i2c_driver_saa7127 = {
-	.driver = {
-		.name = "saa7127",
-	},
-	.id = I2C_DRIVERID_SAA7127,
-	.attach_adapter = saa7127_probe,
-	.detach_client = saa7127_detach,
+static struct v4l2_i2c_driver_data v4l2_i2c_data = {
+	.name = "saa7127",
+	.driverid = I2C_DRIVERID_SAA7127,
 	.command = saa7127_command,
+	.probe = saa7127_probe,
+	.remove = saa7127_remove,
 };
 
-
-/* ----------------------------------------------------------------------- */
-
-static int __init saa7127_init_module(void)
-{
-	return i2c_add_driver(&i2c_driver_saa7127);
-}
-
-/* ----------------------------------------------------------------------- */
-
-static void __exit saa7127_cleanup_module(void)
-{
-	i2c_del_driver(&i2c_driver_saa7127);
-}
-
-/* ----------------------------------------------------------------------- */
-
-module_init(saa7127_init_module);
-module_exit(saa7127_cleanup_module);

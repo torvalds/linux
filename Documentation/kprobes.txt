@@ -141,6 +141,7 @@ architectures:
 - ppc64
 - ia64 (Does not support probes on instruction slot1.)
 - sparc64 (Return probes not yet implemented.)
+- arm
 
 3. Configuring Kprobes
 

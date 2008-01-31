@@ -440,17 +440,21 @@ void error_with_pos(const char *fmt, ...)
 
 static void genksyms_usage(void)
 {
-	fputs("Usage:\n" "genksyms [-dDwqhV] > /path/to/.tmp_obj.ver\n" "\n"
+	fputs("Usage:\n" "genksyms [-adDTwqhV] > /path/to/.tmp_obj.ver\n" "\n"
 #ifdef __GNU_LIBRARY__
+	      "  -a, --arch            Select architecture\n"
 	      "  -d, --debug           Increment the debug level (repeatable)\n"
 	      "  -D, --dump            Dump expanded symbol defs (for debugging only)\n"
+	      "  -T, --dump-types file Dump expanded types into file (for debugging only)\n"
 	      "  -w, --warnings        Enable warnings\n"
 	      "  -q, --quiet           Disable warnings (default)\n"
 	      "  -h, --help            Print this message\n"
 	      "  -V, --version         Print the release version\n"
 #else				/* __GNU_LIBRARY__ */
+	      "  -a                    Select architecture\n"
 	      "  -d                    Increment the debug level (repeatable)\n"
 	      "  -D                    Dump expanded symbol defs (for debugging only)\n"
+	      "  -T file               Dump expanded types into file (for debugging only)\n"
 	      "  -w                    Enable warnings\n"
 	      "  -q                    Disable warnings (default)\n"
 	      "  -h                    Print this message\n"
@@ -477,10 +481,10 @@ int main(int argc, char **argv)
 		{0, 0, 0, 0}
 	};
 
-	while ((o = getopt_long(argc, argv, "a:dwqVDT:k:p:",
+	while ((o = getopt_long(argc, argv, "a:dwqVDT:h",
 				&long_opts[0], NULL)) != EOF)
 #else				/* __GNU_LIBRARY__ */
-	while ((o = getopt(argc, argv, "a:dwqVDT:k:p:")) != EOF)
+	while ((o = getopt(argc, argv, "a:dwqVDT:h")) != EOF)
 #endif				/* __GNU_LIBRARY__ */
 		switch (o) {
 		case 'a':

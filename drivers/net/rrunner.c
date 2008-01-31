@@ -877,7 +877,7 @@ static u32 rr_handle_event(struct net_device *dev, u32 prodidx, u32 eidx)
 			       dev->name);
 			goto drop;
 		case E_FLG_SYN_ERR:
-			printk(KERN_WARNING "%s: Flag sync. lost during"
+			printk(KERN_WARNING "%s: Flag sync. lost during "
 			       "packet\n", dev->name);
 			goto drop;
 		case E_RX_INV_BUF:

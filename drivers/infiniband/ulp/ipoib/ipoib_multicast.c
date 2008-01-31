@@ -702,7 +702,7 @@ void ipoib_mcast_send(struct net_device *dev, void *mgid, struct sk_buff *skb)
 
 out:
 	if (mcast && mcast->ah) {
-		if (skb->dst            &&
+		if (skb->dst		&&
 		    skb->dst->neighbour &&
 		    !*to_ipoib_neigh(skb->dst->neighbour)) {
 			struct ipoib_neigh *neigh = ipoib_neigh_alloc(skb->dst->neighbour,
@@ -710,7 +710,7 @@ out:
 
 			if (neigh) {
 				kref_get(&mcast->ah->ref);
-				neigh->ah  	= mcast->ah;
+				neigh->ah	= mcast->ah;
 				list_add_tail(&neigh->list, &mcast->neigh_list);
 			}
 		}
@@ -787,10 +787,6 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 		union ib_gid mgid;
 
 		memcpy(mgid.raw, mclist->dmi_addr + 4, sizeof mgid);
-
-		/* Add in the P_Key */
-		mgid.raw[4] = (priv->pkey >> 8) & 0xff;
-		mgid.raw[5] = priv->pkey & 0xff;
 
 		mcast = __ipoib_mcast_find(dev, &mgid);
 		if (!mcast || test_bit(IPOIB_MCAST_FLAG_SENDONLY, &mcast->flags)) {

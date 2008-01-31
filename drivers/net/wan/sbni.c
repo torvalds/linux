@@ -391,8 +391,8 @@ sbni_probe1( struct net_device  *dev,  unsigned long  ioaddr,  int  irq )
 	spin_lock_init( &nl->lock );
 
 	/* store MAC address (generate if that isn't known) */
-	*(u16 *)dev->dev_addr = htons( 0x00ff );
-	*(u32 *)(dev->dev_addr + 2) = htonl( 0x01000000 |
+	*(__be16 *)dev->dev_addr = htons( 0x00ff );
+	*(__be32 *)(dev->dev_addr + 2) = htonl( 0x01000000 |
 		( (mac[num]  ?  mac[num]  :  (u32)((long)dev->priv)) & 0x00ffffff) );
 
 	/* store link settings (speed, receive level ) */

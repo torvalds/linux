@@ -1084,7 +1084,7 @@ static void pbm_config_busmastering(struct pci_pbm_info *pbm)
 	pci_config_write8(addr, 64);
 }
 
-static void schizo_scan_bus(struct pci_pbm_info *pbm)
+static void __init schizo_scan_bus(struct pci_pbm_info *pbm)
 {
 	pbm_config_busmastering(pbm);
 	pbm->is_66mhz_capable =
@@ -1333,9 +1333,9 @@ static void schizo_pbm_hw_init(struct pci_pbm_info *pbm)
 	}
 }
 
-static int schizo_pbm_init(struct pci_controller_info *p,
-			   struct device_node *dp, u32 portid,
-			   int chip_type)
+static int __init schizo_pbm_init(struct pci_controller_info *p,
+				  struct device_node *dp, u32 portid,
+				  int chip_type)
 {
 	const struct linux_prom64_registers *regs;
 	struct pci_pbm_info *pbm;
@@ -1430,7 +1430,8 @@ static inline int portid_compare(u32 x, u32 y, int chip_type)
 	return (x == y);
 }
 
-static void __schizo_init(struct device_node *dp, char *model_name, int chip_type)
+static void __init __schizo_init(struct device_node *dp, char *model_name,
+				 int chip_type)
 {
 	struct pci_controller_info *p;
 	struct pci_pbm_info *pbm;
@@ -1474,17 +1475,17 @@ fatal_memory_error:
 	prom_halt();
 }
 
-void schizo_init(struct device_node *dp, char *model_name)
+void __init schizo_init(struct device_node *dp, char *model_name)
 {
 	__schizo_init(dp, model_name, PBM_CHIP_TYPE_SCHIZO);
 }
 
-void schizo_plus_init(struct device_node *dp, char *model_name)
+void __init schizo_plus_init(struct device_node *dp, char *model_name)
 {
 	__schizo_init(dp, model_name, PBM_CHIP_TYPE_SCHIZO_PLUS);
 }
 
-void tomatillo_init(struct device_node *dp, char *model_name)
+void __init tomatillo_init(struct device_node *dp, char *model_name)
 {
 	__schizo_init(dp, model_name, PBM_CHIP_TYPE_TOMATILLO);
 }

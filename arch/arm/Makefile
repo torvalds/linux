@@ -139,6 +139,8 @@ endif
  machine-$(CONFIG_ARCH_KS8695)     := ks8695
   incdir-$(CONFIG_ARCH_MXC)	   := mxc
  machine-$(CONFIG_ARCH_MX3)	   := mx3
+ machine-$(CONFIG_ARCH_ORION)	   := orion
+ machine-$(CONFIG_ARCH_MSM7X00A)   := msm
 
 ifeq ($(CONFIG_ARCH_EBSA110),y)
 # This is what happens if you forget the IOCS16 line.

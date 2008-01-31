@@ -198,6 +198,7 @@ config NET_SCH_NETEM
 
 config NET_SCH_INGRESS
 	tristate "Ingress Qdisc"
+	depends on NET_CLS_ACT || NETFILTER
 	---help---
 	  Say Y here if you want to use classifiers for incoming packets.
 	  If unsure, say Y.
@@ -445,7 +446,6 @@ config NET_ACT_IPT
 config NET_ACT_NAT
         tristate "Stateless NAT"
         depends on NET_CLS_ACT
-        select NETFILTER
         ---help---
 	  Say Y here to do stateless NAT on IPv4 packets.  You should use
 	  netfilter for NAT unless you know what you are doing.
@@ -475,15 +475,6 @@ config NET_ACT_SIMP
 
 	  To compile this code as a module, choose M here: the
 	  module will be called simple.
-
-config NET_CLS_POLICE
-	bool "Traffic Policing (obsolete)"
-	select NET_CLS_ACT
-	select NET_ACT_POLICE
-	---help---
-	  Say Y here if you want to do traffic policing, i.e. strict
-	  bandwidth limiting. This option is obsolete and just selects
-	  the option replacing it. It will be removed in the future.
 
 config NET_CLS_IND
 	bool "Incoming device classification"

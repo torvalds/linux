@@ -33,7 +33,8 @@
     defined(CONFIG_CPU_SUBTYPE_SH7709) || \
     defined(CONFIG_CPU_SUBTYPE_SH7710) || \
     defined(CONFIG_CPU_SUBTYPE_SH7712) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7720)
+    defined(CONFIG_CPU_SUBTYPE_SH7720) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7721)
 #define INTEVT	0xa4000000	/* INTEVTE2(0xa4000000) */
 #else
 #define INTEVT	0xffffffd8

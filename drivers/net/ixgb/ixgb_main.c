@@ -36,7 +36,7 @@ static char ixgb_driver_string[] = "Intel(R) PRO/10GbE Network Driver";
 #else
 #define DRIVERNAPI "-NAPI"
 #endif
-#define DRV_VERSION		"1.0.126-k2"DRIVERNAPI
+#define DRV_VERSION		"1.0.126-k4"DRIVERNAPI
 const char ixgb_driver_version[] = DRV_VERSION;
 static const char ixgb_copyright[] = "Copyright (c) 1999-2006 Intel Corporation.";
 
@@ -212,9 +212,11 @@ static void
 ixgb_irq_enable(struct ixgb_adapter *adapter)
 {
 	if(atomic_dec_and_test(&adapter->irq_sem)) {
-		IXGB_WRITE_REG(&adapter->hw, IMS,
-			       IXGB_INT_RXT0 | IXGB_INT_RXDMT0 | IXGB_INT_TXDW |
-			       IXGB_INT_LSC);
+		u32 val = IXGB_INT_RXT0 | IXGB_INT_RXDMT0 |
+			  IXGB_INT_TXDW | IXGB_INT_LSC;
+		if (adapter->hw.subsystem_vendor_id == SUN_SUBVENDOR_ID)
+			val |= IXGB_INT_GPI0;
+		IXGB_WRITE_REG(&adapter->hw, IMS, val);
 		IXGB_WRITE_FLUSH(&adapter->hw);
 	}
 }

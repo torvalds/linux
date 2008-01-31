@@ -146,7 +146,7 @@ static void bfin_serial_hw_init(struct bfin_serial_port *uart)
 
 	if (uart->rts_pin >= 0) {
 		gpio_request(uart->rts_pin, DRIVER_NAME);
-		gpio_direction_output(uart->rts_pin);
+		gpio_direction_output(uart->rts_pin, 0);
 	}
 #endif
 }

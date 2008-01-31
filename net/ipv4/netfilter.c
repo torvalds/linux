@@ -7,6 +7,7 @@
 #include <net/route.h>
 #include <net/xfrm.h>
 #include <net/ip.h>
+#include <net/netfilter/nf_queue.h>
 
 /* route_me_harder function, used by iptable_nat, iptable_mangle + ip_queue */
 int ip_route_me_harder(struct sk_buff *skb, unsigned addr_type)
@@ -18,12 +19,12 @@ int ip_route_me_harder(struct sk_buff *skb, unsigned addr_type)
 	unsigned int hh_len;
 	unsigned int type;
 
-	type = inet_addr_type(iph->saddr);
+	type = inet_addr_type(&init_net, iph->saddr);
 	if (addr_type == RTN_UNSPEC)
 		addr_type = type;
 
 	/* some non-standard hacks like ipt_REJECT.c:send_reset() can cause
-	 * packets with foreign saddr to appear on the NF_IP_LOCAL_OUT hook.
+	 * packets with foreign saddr to appear on the NF_INET_LOCAL_OUT hook.
 	 */
 	if (addr_type == RTN_LOCAL) {
 		fl.nl_u.ip4_u.daddr = iph->daddr;
@@ -32,7 +33,7 @@ int ip_route_me_harder(struct sk_buff *skb, unsigned addr_type)
 		fl.nl_u.ip4_u.tos = RT_TOS(iph->tos);
 		fl.oif = skb->sk ? skb->sk->sk_bound_dev_if : 0;
 		fl.mark = skb->mark;
-		if (ip_route_output_key(&rt, &fl) != 0)
+		if (ip_route_output_key(&init_net, &rt, &fl) != 0)
 			return -1;
 
 		/* Drop old route. */
@@ -42,7 +43,7 @@ int ip_route_me_harder(struct sk_buff *skb, unsigned addr_type)
 		/* non-local src, find valid iif to satisfy
 		 * rp-filter when calling ip_route_input. */
 		fl.nl_u.ip4_u.daddr = iph->saddr;
-		if (ip_route_output_key(&rt, &fl) != 0)
+		if (ip_route_output_key(&init_net, &rt, &fl) != 0)
 			return -1;
 
 		odst = skb->dst;
@@ -122,11 +123,12 @@ struct ip_rt_info {
 	u_int8_t tos;
 };
 
-static void nf_ip_saveroute(const struct sk_buff *skb, struct nf_info *info)
+static void nf_ip_saveroute(const struct sk_buff *skb,
+			    struct nf_queue_entry *entry)
 {
-	struct ip_rt_info *rt_info = nf_info_reroute(info);
+	struct ip_rt_info *rt_info = nf_queue_entry_reroute(entry);
 
-	if (info->hook == NF_IP_LOCAL_OUT) {
+	if (entry->hook == NF_INET_LOCAL_OUT) {
 		const struct iphdr *iph = ip_hdr(skb);
 
 		rt_info->tos = iph->tos;
@@ -135,11 +137,12 @@ static void nf_ip_saveroute(const struct sk_buff *skb, struct nf_info *info)
 	}
 }
 
-static int nf_ip_reroute(struct sk_buff *skb, const struct nf_info *info)
+static int nf_ip_reroute(struct sk_buff *skb,
+			 const struct nf_queue_entry *entry)
 {
-	const struct ip_rt_info *rt_info = nf_info_reroute(info);
+	const struct ip_rt_info *rt_info = nf_queue_entry_reroute(entry);
 
-	if (info->hook == NF_IP_LOCAL_OUT) {
+	if (entry->hook == NF_INET_LOCAL_OUT) {
 		const struct iphdr *iph = ip_hdr(skb);
 
 		if (!(iph->tos == rt_info->tos
@@ -158,7 +161,7 @@ __sum16 nf_ip_checksum(struct sk_buff *skb, unsigned int hook,
 
 	switch (skb->ip_summed) {
 	case CHECKSUM_COMPLETE:
-		if (hook != NF_IP_PRE_ROUTING && hook != NF_IP_LOCAL_IN)
+		if (hook != NF_INET_PRE_ROUTING && hook != NF_INET_LOCAL_IN)
 			break;
 		if ((protocol == 0 && !csum_fold(skb->csum)) ||
 		    !csum_tcpudp_magic(iph->saddr, iph->daddr,
@@ -182,9 +185,15 @@ __sum16 nf_ip_checksum(struct sk_buff *skb, unsigned int hook,
 
 EXPORT_SYMBOL(nf_ip_checksum);
 
-static struct nf_afinfo nf_ip_afinfo = {
+static int nf_ip_route(struct dst_entry **dst, struct flowi *fl)
+{
+	return ip_route_output_key(&init_net, (struct rtable **)dst, fl);
+}
+
+static const struct nf_afinfo nf_ip_afinfo = {
 	.family		= AF_INET,
 	.checksum	= nf_ip_checksum,
+	.route		= nf_ip_route,
 	.saveroute	= nf_ip_saveroute,
 	.reroute	= nf_ip_reroute,
 	.route_key_size	= sizeof(struct ip_rt_info),
@@ -202,3 +211,13 @@ static void ipv4_netfilter_fini(void)
 
 module_init(ipv4_netfilter_init);
 module_exit(ipv4_netfilter_fini);
+
+#ifdef CONFIG_SYSCTL
+struct ctl_path nf_net_ipv4_netfilter_sysctl_path[] = {
+	{ .procname = "net", .ctl_name = CTL_NET, },
+	{ .procname = "ipv4", .ctl_name = NET_IPV4, },
+	{ .procname = "netfilter", .ctl_name = NET_IPV4_NETFILTER, },
+	{ }
+};
+EXPORT_SYMBOL_GPL(nf_net_ipv4_netfilter_sysctl_path);
+#endif /* CONFIG_SYSCTL */

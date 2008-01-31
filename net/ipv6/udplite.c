@@ -26,7 +26,7 @@ static void udplitev6_err(struct sk_buff *skb,
 			  struct inet6_skb_parm *opt,
 			  int type, int code, int offset, __be32 info)
 {
-	return __udp6_lib_err(skb, opt, type, code, offset, info, udplite_hash);
+	__udp6_lib_err(skb, opt, type, code, offset, info, udplite_hash);
 }
 
 static struct inet6_protocol udplitev6_protocol = {
@@ -77,12 +77,29 @@ static struct inet_protosw udplite6_protosw = {
 	.flags		= INET_PROTOSW_PERMANENT,
 };
 
-void __init udplitev6_init(void)
+int __init udplitev6_init(void)
 {
-	if (inet6_add_protocol(&udplitev6_protocol, IPPROTO_UDPLITE) < 0)
-		printk(KERN_ERR "%s: Could not register.\n", __FUNCTION__);
+	int ret;
 
-	inet6_register_protosw(&udplite6_protosw);
+	ret = inet6_add_protocol(&udplitev6_protocol, IPPROTO_UDPLITE);
+	if (ret)
+		goto out;
+
+	ret = inet6_register_protosw(&udplite6_protosw);
+	if (ret)
+		goto out_udplitev6_protocol;
+out:
+	return ret;
+
+out_udplitev6_protocol:
+	inet6_del_protocol(&udplitev6_protocol, IPPROTO_UDPLITE);
+	goto out;
+}
+
+void udplitev6_exit(void)
+{
+	inet6_unregister_protosw(&udplite6_protosw);
+	inet6_del_protocol(&udplitev6_protocol, IPPROTO_UDPLITE);
 }
 
 #ifdef CONFIG_PROC_FS

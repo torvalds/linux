@@ -208,7 +208,7 @@ void lmc_proto_close(lmc_softc_t *sc) /*FOLD00*/
     lmc_trace(sc->lmc_device, "lmc_proto_close out");
 }
 
-unsigned short lmc_proto_type(lmc_softc_t *sc, struct sk_buff *skb) /*FOLD00*/
+__be16 lmc_proto_type(lmc_softc_t *sc, struct sk_buff *skb) /*FOLD00*/
 {
     lmc_trace(sc->lmc_device, "lmc_proto_type in");
     switch(sc->if_type){

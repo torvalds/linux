@@ -216,7 +216,7 @@ void __init isa_init_dma(dma_t *dma)
 
 		request_dma(DMA_ISA_CASCADE, "cascade");
 
-		for (i = 0; i < sizeof(dma_resources) / sizeof(dma_resources[0]); i++)
+		for (i = 0; i < ARRAY_SIZE(dma_resources); i++)
 			request_resource(&ioport_resource, dma_resources + i);
 	}
 }

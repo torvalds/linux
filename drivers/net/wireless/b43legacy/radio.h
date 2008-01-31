@@ -3,7 +3,7 @@
   Broadcom B43legacy wireless driver
 
   Copyright (c) 2005 Martin Langer <martin-langer@gmx.de>,
-		     Stefano Brivio <st3@riseup.net>
+		     Stefano Brivio <stefano.brivio@polimi.it>
 		     Michael Buesch <mbuesch@freenet.de>
 		     Danny van Dyk <kugelfang@gentoo.org>
 		     Andreas Jaggi <andreas.jaggi@waterwave.ch>
@@ -61,7 +61,7 @@ void b43legacy_radio_write16(struct b43legacy_wldev *dev, u16 offset, u16 val);
 u16 b43legacy_radio_init2050(struct b43legacy_wldev *dev);
 
 void b43legacy_radio_turn_on(struct b43legacy_wldev *dev);
-void b43legacy_radio_turn_off(struct b43legacy_wldev *dev);
+void b43legacy_radio_turn_off(struct b43legacy_wldev *dev, bool force);
 
 int b43legacy_radio_selectchannel(struct b43legacy_wldev *dev, u8 channel,
 				  int synthetic_pu_workaround);

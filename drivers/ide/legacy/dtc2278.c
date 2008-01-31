@@ -150,8 +150,7 @@ int probe_dtc2278 = 0;
 module_param_named(probe, probe_dtc2278, bool, 0);
 MODULE_PARM_DESC(probe, "probe for DTC2278xx chipsets");
 
-/* Can be called directly from ide.c. */
-int __init dtc2278_init(void)
+static int __init dtc2278_init(void)
 {
 	if (probe_dtc2278 == 0)
 		return -ENODEV;
@@ -163,9 +162,7 @@ int __init dtc2278_init(void)
 	return 0;
 }
 
-#ifdef MODULE
 module_init(dtc2278_init);
-#endif
 
 MODULE_AUTHOR("See Local File");
 MODULE_DESCRIPTION("support of DTC-2278 VLB IDE chipsets");

@@ -32,7 +32,7 @@ static int backtrace_stack(void *data, char *name)
 	return 0;
 }
 
-static void backtrace_address(void *data, unsigned long addr)
+static void backtrace_address(void *data, unsigned long addr, int reliable)
 {
 	unsigned int *depth = data;
 
@@ -48,7 +48,7 @@ static struct stacktrace_ops backtrace_ops = {
 };
 
 struct frame_head {
-	struct frame_head *ebp;
+	struct frame_head *bp;
 	unsigned long ret;
 } __attribute__((packed));
 
@@ -67,21 +67,21 @@ dump_user_backtrace(struct frame_head * head)
 
 	/* frame pointers should strictly progress back up the stack
 	 * (towards higher addresses) */
-	if (head >= bufhead[0].ebp)
+	if (head >= bufhead[0].bp)
 		return NULL;
 
-	return bufhead[0].ebp;
+	return bufhead[0].bp;
 }
 
 void
 x86_backtrace(struct pt_regs * const regs, unsigned int depth)
 {
 	struct frame_head *head = (struct frame_head *)frame_pointer(regs);
-	unsigned long stack = stack_pointer(regs);
+	unsigned long stack = kernel_trap_sp(regs);
 
 	if (!user_mode_vm(regs)) {
 		if (depth)
-			dump_trace(NULL, regs, (unsigned long *)stack,
+			dump_trace(NULL, regs, (unsigned long *)stack, 0,
 				   &backtrace_ops, &depth);
 		return;
 	}

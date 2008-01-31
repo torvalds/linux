@@ -21,11 +21,6 @@
 #ifndef IVTV_YUV_H
 #define IVTV_YUV_H
 
-/* Buffers on hardware offsets */
-#define IVTV_YUV_BUFFER_OFFSET    0x001a8600	/* First YUV Buffer */
-#define IVTV_YUV_BUFFER_OFFSET_1  0x00240400	/* Second YUV Buffer */
-#define IVTV_YUV_BUFFER_OFFSET_2  0x002d8200	/* Third YUV Buffer */
-#define IVTV_YUV_BUFFER_OFFSET_3  0x00370000	/* Fourth YUV Buffer */
 #define IVTV_YUV_BUFFER_UV_OFFSET 0x65400	/* Offset to UV Buffer */
 
 /* Offset to filter table in firmware */
@@ -36,11 +31,14 @@
 #define IVTV_YUV_UPDATE_VERTICAL    0x02
 #define IVTV_YUV_UPDATE_INVALID     0x04
 
-extern const u32 yuv_offset[4];
+extern const u32 yuv_offset[IVTV_YUV_BUFFERS];
 
 int ivtv_yuv_filter_check(struct ivtv *itv);
+void ivtv_yuv_setup_stream_frame(struct ivtv *itv);
+int ivtv_yuv_udma_stream_frame(struct ivtv *itv, void *src);
+void ivtv_yuv_frame_complete(struct ivtv *itv);
 int ivtv_yuv_prep_frame(struct ivtv *itv, struct ivtv_dma_frame *args);
 void ivtv_yuv_close(struct ivtv *itv);
-void ivtv_yuv_work_handler (struct ivtv *itv);
+void ivtv_yuv_work_handler(struct ivtv *itv);
 
 #endif

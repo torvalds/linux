@@ -17,9 +17,13 @@
 #include <linux/selinux.h>
 #include <linux/fs.h>
 #include <linux/ipc.h>
+#include <asm/atomic.h>
 
 #include "security.h"
 #include "objsec.h"
+
+/* SECMARK reference count */
+extern atomic_t selinux_secmark_refcount;
 
 int selinux_sid_to_string(u32 sid, char **ctx, u32 *ctxlen)
 {
@@ -74,7 +78,7 @@ int selinux_string_to_sid(char *str, u32 *sid)
 }
 EXPORT_SYMBOL_GPL(selinux_string_to_sid);
 
-int selinux_relabel_packet_permission(u32 sid)
+int selinux_secmark_relabel_packet_permission(u32 sid)
 {
 	if (selinux_enabled) {
 		struct task_security_struct *tsec = current->security;
@@ -84,4 +88,16 @@ int selinux_relabel_packet_permission(u32 sid)
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(selinux_relabel_packet_permission);
+EXPORT_SYMBOL_GPL(selinux_secmark_relabel_packet_permission);
+
+void selinux_secmark_refcount_inc(void)
+{
+	atomic_inc(&selinux_secmark_refcount);
+}
+EXPORT_SYMBOL_GPL(selinux_secmark_refcount_inc);
+
+void selinux_secmark_refcount_dec(void)
+{
+	atomic_dec(&selinux_secmark_refcount);
+}
+EXPORT_SYMBOL_GPL(selinux_secmark_refcount_dec);

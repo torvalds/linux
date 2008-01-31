@@ -147,11 +147,10 @@ static void localtime_3(struct xtm *r, time_t time)
 	return;
 }
 
-static bool xt_time_match(const struct sk_buff *skb,
-                          const struct net_device *in,
-                          const struct net_device *out,
-                          const struct xt_match *match, const void *matchinfo,
-                          int offset, unsigned int protoff, bool *hotdrop)
+static bool
+time_mt(const struct sk_buff *skb, const struct net_device *in,
+        const struct net_device *out, const struct xt_match *match,
+        const void *matchinfo, int offset, unsigned int protoff, bool *hotdrop)
 {
 	const struct xt_time_info *info = matchinfo;
 	unsigned int packet_time;
@@ -216,9 +215,10 @@ static bool xt_time_match(const struct sk_buff *skb,
 	return true;
 }
 
-static bool xt_time_check(const char *tablename, const void *ip,
-                          const struct xt_match *match, void *matchinfo,
-                          unsigned int hook_mask)
+static bool
+time_mt_check(const char *tablename, const void *ip,
+              const struct xt_match *match, void *matchinfo,
+              unsigned int hook_mask)
 {
 	struct xt_time_info *info = matchinfo;
 
@@ -232,39 +232,39 @@ static bool xt_time_check(const char *tablename, const void *ip,
 	return true;
 }
 
-static struct xt_match xt_time_reg[] __read_mostly = {
+static struct xt_match time_mt_reg[] __read_mostly = {
 	{
 		.name       = "time",
 		.family     = AF_INET,
-		.match      = xt_time_match,
+		.match      = time_mt,
 		.matchsize  = sizeof(struct xt_time_info),
-		.checkentry = xt_time_check,
+		.checkentry = time_mt_check,
 		.me         = THIS_MODULE,
 	},
 	{
 		.name       = "time",
 		.family     = AF_INET6,
-		.match      = xt_time_match,
+		.match      = time_mt,
 		.matchsize  = sizeof(struct xt_time_info),
-		.checkentry = xt_time_check,
+		.checkentry = time_mt_check,
 		.me         = THIS_MODULE,
 	},
 };
 
-static int __init xt_time_init(void)
+static int __init time_mt_init(void)
 {
-	return xt_register_matches(xt_time_reg, ARRAY_SIZE(xt_time_reg));
+	return xt_register_matches(time_mt_reg, ARRAY_SIZE(time_mt_reg));
 }
 
-static void __exit xt_time_exit(void)
+static void __exit time_mt_exit(void)
 {
-	xt_unregister_matches(xt_time_reg, ARRAY_SIZE(xt_time_reg));
+	xt_unregister_matches(time_mt_reg, ARRAY_SIZE(time_mt_reg));
 }
 
-module_init(xt_time_init);
-module_exit(xt_time_exit);
+module_init(time_mt_init);
+module_exit(time_mt_exit);
 MODULE_AUTHOR("Jan Engelhardt <jengelh@computergmbh.de>");
-MODULE_DESCRIPTION("netfilter time match");
+MODULE_DESCRIPTION("Xtables: time-based matching");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_time");
 MODULE_ALIAS("ip6t_time");

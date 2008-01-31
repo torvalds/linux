@@ -81,17 +81,6 @@ static void pacpi_error_handler(struct ata_port *ap)
 				  NULL, ata_std_postreset);
 }
 
-/* Welcome to ACPI, bring a bucket */
-static const unsigned int pio_cycle[7] = {
-	600, 383, 240, 180, 120, 100, 80
-};
-static const unsigned int mwdma_cycle[5] = {
-	480, 150, 120, 100, 80
-};
-static const unsigned int udma_cycle[7] = {
-	120, 80, 60, 45, 30, 20, 15
-};
-
 /**
  *	pacpi_discover_modes	-	filter non ACPI modes
  *	@adev: ATA device
@@ -103,56 +92,20 @@ static const unsigned int udma_cycle[7] = {
 
 static unsigned long pacpi_discover_modes(struct ata_port *ap, struct ata_device *adev)
 {
-	int unit = adev->devno;
 	struct pata_acpi *acpi = ap->private_data;
-	int i;
-	u32 t;
-	unsigned long mask = (0x7f << ATA_SHIFT_UDMA) | (0x7 << ATA_SHIFT_MWDMA) | (0x1F << ATA_SHIFT_PIO);
-
 	struct ata_acpi_gtm probe;
+	unsigned int xfer_mask;
 
 	probe = acpi->gtm;
 
-	/* We always use the 0 slot for crap hardware */
-	if (!(probe.flags & 0x10))
-		unit = 0;
-
 	ata_acpi_gtm(ap, &probe);
 
-	/* Start by scanning for PIO modes */
-	for (i = 0; i < 7; i++) {
-		t = probe.drive[unit].pio;
-		if (t <= pio_cycle[i]) {
-			mask |= (2 << (ATA_SHIFT_PIO + i)) - 1;
-			break;
-		}
-	}
+	xfer_mask = ata_acpi_gtm_xfermask(adev, &probe);
 
-	/* See if we have MWDMA or UDMA data. We don't bother with MWDMA
-	   if UDMA is availabe as this means the BIOS set UDMA and our
-	   error changedown if it works is UDMA to PIO anyway */
-	if (probe.flags & (1 << (2 * unit))) {
-		/* MWDMA */
-		for (i = 0; i < 5; i++) {
-			t = probe.drive[unit].dma;
-			if (t <= mwdma_cycle[i]) {
-				mask |= (2 << (ATA_SHIFT_MWDMA + i)) - 1;
-				break;
-			}
-		}
-	} else {
-		/* UDMA */
-		for (i = 0; i < 7; i++) {
-			t = probe.drive[unit].dma;
-			if (t <= udma_cycle[i]) {
-				mask |= (2 << (ATA_SHIFT_UDMA + i)) - 1;
-				break;
-			}
-		}
-	}
-	if (mask & (0xF8 << ATA_SHIFT_UDMA))
+	if (xfer_mask & (0xF8 << ATA_SHIFT_UDMA))
 		ap->cbl = ATA_CBL_PATA80;
-	return mask;
+
+	return xfer_mask;
 }
 
 /**
@@ -180,12 +133,14 @@ static void pacpi_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
 	int unit = adev->devno;
 	struct pata_acpi *acpi = ap->private_data;
+	const struct ata_timing *t;
 
 	if (!(acpi->gtm.flags & 0x10))
 		unit = 0;
 
 	/* Now stuff the nS values into the structure */
-	acpi->gtm.drive[unit].pio = pio_cycle[adev->pio_mode - XFER_PIO_0];
+	t = ata_timing_find_mode(adev->pio_mode);
+	acpi->gtm.drive[unit].pio = t->cycle;
 	ata_acpi_stm(ap, &acpi->gtm);
 	/* See what mode we actually got */
 	ata_acpi_gtm(ap, &acpi->gtm);
@@ -201,16 +156,18 @@ static void pacpi_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
 	int unit = adev->devno;
 	struct pata_acpi *acpi = ap->private_data;
+	const struct ata_timing *t;
 
 	if (!(acpi->gtm.flags & 0x10))
 		unit = 0;
 
 	/* Now stuff the nS values into the structure */
+	t = ata_timing_find_mode(adev->dma_mode);
 	if (adev->dma_mode >= XFER_UDMA_0) {
-		acpi->gtm.drive[unit].dma = udma_cycle[adev->dma_mode - XFER_UDMA_0];
+		acpi->gtm.drive[unit].dma = t->udma;
 		acpi->gtm.flags |= (1 << (2 * unit));
 	} else {
-		acpi->gtm.drive[unit].dma = mwdma_cycle[adev->dma_mode - XFER_MW_DMA_0];
+		acpi->gtm.drive[unit].dma = t->cycle;
 		acpi->gtm.flags &= ~(1 << (2 * unit));
 	}
 	ata_acpi_stm(ap, &acpi->gtm);

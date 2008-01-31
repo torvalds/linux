@@ -369,27 +369,6 @@ typedef struct ide_floppy_obj {
 #define	IDEFLOPPY_IOCTL_FORMAT_START		0x4602
 #define IDEFLOPPY_IOCTL_FORMAT_GET_PROGRESS	0x4603
 
-#if 0
-/*
- *	Special requests for our block device strategy routine.
- */
-#define	IDEFLOPPY_FIRST_RQ	90
-
-/*
- * 	IDEFLOPPY_PC_RQ is used to queue a packet command in the request queue.
- */
-#define	IDEFLOPPY_PC_RQ		90
-
-#define IDEFLOPPY_LAST_RQ	90
-
-/*
- *	A macro which can be used to check if a given request command
- *	originated in the driver or in the buffer cache layer.
- */
-#define IDEFLOPPY_RQ_CMD(cmd) 	((cmd >= IDEFLOPPY_FIRST_RQ) && (cmd <= IDEFLOPPY_LAST_RQ))
-
-#endif
-
 /*
  *	Error codes which are returned in rq->errors to the higher part
  *	of the driver.
@@ -793,9 +772,8 @@ static void idefloppy_retry_pc (ide_drive_t *drive)
 {
 	idefloppy_pc_t *pc;
 	struct request *rq;
-	atapi_error_t error;
 
-	error.all = HWIF(drive)->INB(IDE_ERROR_REG);
+	(void)drive->hwif->INB(IDE_ERROR_REG);
 	pc = idefloppy_next_pc_storage(drive);
 	rq = idefloppy_next_rq_storage(drive);
 	idefloppy_create_request_sense_cmd(pc);
@@ -809,12 +787,12 @@ static void idefloppy_retry_pc (ide_drive_t *drive)
 static ide_startstop_t idefloppy_pc_intr (ide_drive_t *drive)
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
-	atapi_status_t status;
-	atapi_bcount_t bcount;
-	atapi_ireason_t ireason;
+	ide_hwif_t *hwif = drive->hwif;
 	idefloppy_pc_t *pc = floppy->pc;
 	struct request *rq = pc->rq;
 	unsigned int temp;
+	u16 bcount;
+	u8 stat, ireason;
 
 	debug_log(KERN_INFO "ide-floppy: Reached %s interrupt handler\n",
 		__FUNCTION__);
@@ -830,16 +808,16 @@ static ide_startstop_t idefloppy_pc_intr (ide_drive_t *drive)
 	}
 
 	/* Clear the interrupt */
-	status.all = HWIF(drive)->INB(IDE_STATUS_REG);
+	stat = drive->hwif->INB(IDE_STATUS_REG);
 
-	if (!status.b.drq) {			/* No more interrupts */
+	if ((stat & DRQ_STAT) == 0) {		/* No more interrupts */
 		debug_log(KERN_INFO "Packet command completed, %d bytes "
 			"transferred\n", pc->actually_transferred);
 		clear_bit(PC_DMA_IN_PROGRESS, &pc->flags);
 
 		local_irq_enable_in_hardirq();
 
-		if (status.b.check || test_bit(PC_DMA_ERROR, &pc->flags)) {
+		if ((stat & ERR_STAT) || test_bit(PC_DMA_ERROR, &pc->flags)) {
 			/* Error detected */
 			debug_log(KERN_INFO "ide-floppy: %s: I/O error\n",
 				drive->name);
@@ -870,32 +848,32 @@ static ide_startstop_t idefloppy_pc_intr (ide_drive_t *drive)
 	}
 
 	/* Get the number of bytes to transfer */
-	bcount.b.high = HWIF(drive)->INB(IDE_BCOUNTH_REG);
-	bcount.b.low = HWIF(drive)->INB(IDE_BCOUNTL_REG);
+	bcount = (hwif->INB(IDE_BCOUNTH_REG) << 8) |
+		  hwif->INB(IDE_BCOUNTL_REG);
 	/* on this interrupt */
-	ireason.all = HWIF(drive)->INB(IDE_IREASON_REG);
+	ireason = hwif->INB(IDE_IREASON_REG);
 
-	if (ireason.b.cod) {
+	if (ireason & CD) {
 		printk(KERN_ERR "ide-floppy: CoD != 0 in idefloppy_pc_intr\n");
 		return ide_do_reset(drive);
 	}
-	if (ireason.b.io == test_bit(PC_WRITING, &pc->flags)) {
+	if (((ireason & IO) == IO) == test_bit(PC_WRITING, &pc->flags)) {
 		/* Hopefully, we will never get here */
 		printk(KERN_ERR "ide-floppy: We wanted to %s, ",
-			ireason.b.io ? "Write":"Read");
+				(ireason & IO) ? "Write" : "Read");
 		printk(KERN_ERR "but the floppy wants us to %s !\n",
-			ireason.b.io ? "Read":"Write");
+				(ireason & IO) ? "Read" : "Write");
 		return ide_do_reset(drive);
 	}
 	if (!test_bit(PC_WRITING, &pc->flags)) {
 		/* Reading - Check that we have enough space */
-		temp = pc->actually_transferred + bcount.all;
+		temp = pc->actually_transferred + bcount;
 		if (temp > pc->request_transfer) {
 			if (temp > pc->buffer_size) {
 				printk(KERN_ERR "ide-floppy: The floppy wants "
 					"to send us more data than expected "
 					"- discarding data\n");
-				idefloppy_discard_data(drive,bcount.all);
+				idefloppy_discard_data(drive, bcount);
 				BUG_ON(HWGROUP(drive)->handler != NULL);
 				ide_set_handler(drive,
 						&idefloppy_pc_intr,
@@ -911,23 +889,21 @@ static ide_startstop_t idefloppy_pc_intr (ide_drive_t *drive)
 	if (test_bit(PC_WRITING, &pc->flags)) {
 		if (pc->buffer != NULL)
 			/* Write the current buffer */
-			HWIF(drive)->atapi_output_bytes(drive,
-						pc->current_position,
-						bcount.all);
+			hwif->atapi_output_bytes(drive, pc->current_position,
+						 bcount);
 		else
-			idefloppy_output_buffers(drive, pc, bcount.all);
+			idefloppy_output_buffers(drive, pc, bcount);
 	} else {
 		if (pc->buffer != NULL)
 			/* Read the current buffer */
-			HWIF(drive)->atapi_input_bytes(drive,
-						pc->current_position,
-						bcount.all);
+			hwif->atapi_input_bytes(drive, pc->current_position,
+						bcount);
 		else
-			idefloppy_input_buffers(drive, pc, bcount.all);
+			idefloppy_input_buffers(drive, pc, bcount);
 	}
 	/* Update the current position */
-	pc->actually_transferred += bcount.all;
-	pc->current_position += bcount.all;
+	pc->actually_transferred += bcount;
+	pc->current_position += bcount;
 
 	BUG_ON(HWGROUP(drive)->handler != NULL);
 	ide_set_handler(drive, &idefloppy_pc_intr, IDEFLOPPY_WAIT_CMD, NULL);		/* And set the interrupt handler again */
@@ -943,15 +919,15 @@ static ide_startstop_t idefloppy_transfer_pc (ide_drive_t *drive)
 {
 	ide_startstop_t startstop;
 	idefloppy_floppy_t *floppy = drive->driver_data;
-	atapi_ireason_t ireason;
+	u8 ireason;
 
 	if (ide_wait_stat(&startstop, drive, DRQ_STAT, BUSY_STAT, WAIT_READY)) {
 		printk(KERN_ERR "ide-floppy: Strange, packet command "
 				"initiated yet DRQ isn't asserted\n");
 		return startstop;
 	}
-	ireason.all = HWIF(drive)->INB(IDE_IREASON_REG);
-	if (!ireason.b.cod || ireason.b.io) {
+	ireason = drive->hwif->INB(IDE_IREASON_REG);
+	if ((ireason & CD) == 0 || (ireason & IO)) {
 		printk(KERN_ERR "ide-floppy: (IO,CoD) != (0,1) while "
 				"issuing a packet command\n");
 		return ide_do_reset(drive);
@@ -991,15 +967,15 @@ static ide_startstop_t idefloppy_transfer_pc1 (ide_drive_t *drive)
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
 	ide_startstop_t startstop;
-	atapi_ireason_t ireason;
+	u8 ireason;
 
 	if (ide_wait_stat(&startstop, drive, DRQ_STAT, BUSY_STAT, WAIT_READY)) {
 		printk(KERN_ERR "ide-floppy: Strange, packet command "
 				"initiated yet DRQ isn't asserted\n");
 		return startstop;
 	}
-	ireason.all = HWIF(drive)->INB(IDE_IREASON_REG);
-	if (!ireason.b.cod || ireason.b.io) {
+	ireason = drive->hwif->INB(IDE_IREASON_REG);
+	if ((ireason & CD) == 0 || (ireason & IO)) {
 		printk(KERN_ERR "ide-floppy: (IO,CoD) != (0,1) "
 				"while issuing a packet command\n");
 		return ide_do_reset(drive);
@@ -1041,21 +1017,9 @@ static ide_startstop_t idefloppy_issue_pc (ide_drive_t *drive, idefloppy_pc_t *p
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
 	ide_hwif_t *hwif = drive->hwif;
-	atapi_feature_t feature;
-	atapi_bcount_t bcount;
 	ide_handler_t *pkt_xfer_routine;
-
-#if 0 /* Accessing floppy->pc is not valid here, the previous pc may be gone
-         and have lived on another thread's stack; that stack may have become
-         unmapped meanwhile (CONFIG_DEBUG_PAGEALLOC). */
-#if IDEFLOPPY_DEBUG_BUGS
-	if (floppy->pc->c[0] == IDEFLOPPY_REQUEST_SENSE_CMD &&
-	    pc->c[0] == IDEFLOPPY_REQUEST_SENSE_CMD) {
-		printk(KERN_ERR "ide-floppy: possible ide-floppy.c bug - "
-			"Two request sense in serial were issued\n");
-	}
-#endif /* IDEFLOPPY_DEBUG_BUGS */
-#endif
+	u16 bcount;
+	u8 dma;
 
 	if (floppy->failed_pc == NULL &&
 	    pc->c[0] != IDEFLOPPY_REQUEST_SENSE_CMD)
@@ -1093,25 +1057,20 @@ static ide_startstop_t idefloppy_issue_pc (ide_drive_t *drive, idefloppy_pc_t *p
 	/* We haven't transferred any data yet */
 	pc->actually_transferred = 0;
 	pc->current_position = pc->buffer;
-	bcount.all = min(pc->request_transfer, 63 * 1024);
+	bcount = min(pc->request_transfer, 63 * 1024);
 
 	if (test_and_clear_bit(PC_DMA_ERROR, &pc->flags))
 		ide_dma_off(drive);
 
-	feature.all = 0;
+	dma = 0;
 
 	if (test_bit(PC_DMA_RECOMMENDED, &pc->flags) && drive->using_dma)
-		feature.b.dma = !hwif->dma_setup(drive);
+		dma = !hwif->dma_setup(drive);
 
-	if (IDE_CONTROL_REG)
-		HWIF(drive)->OUTB(drive->ctl, IDE_CONTROL_REG);
-	/* Use PIO/DMA */
-	HWIF(drive)->OUTB(feature.all, IDE_FEATURE_REG);
-	HWIF(drive)->OUTB(bcount.b.high, IDE_BCOUNTH_REG);
-	HWIF(drive)->OUTB(bcount.b.low, IDE_BCOUNTL_REG);
-	HWIF(drive)->OUTB(drive->select.all, IDE_SELECT_REG);
+	ide_pktcmd_tf_load(drive, IDE_TFLAG_NO_SELECT_MASK |
+			   IDE_TFLAG_OUT_DEVICE, bcount, dma);
 
-	if (feature.b.dma) {	/* Begin DMA, if necessary */
+	if (dma) {	/* Begin DMA, if necessary */
 		set_bit(PC_DMA_IN_PROGRESS, &pc->flags);
 		hwif->dma_start(drive);
 	}
@@ -1665,14 +1624,14 @@ static int idefloppy_get_format_progress(ide_drive_t *drive, int __user *arg)
 		/* Else assume format_unit has finished, and we're
 		** at 0x10000 */
 	} else {
-		atapi_status_t status;
 		unsigned long flags;
+		u8 stat;
 
 		local_irq_save(flags);
-		status.all = HWIF(drive)->INB(IDE_STATUS_REG);
+		stat = drive->hwif->INB(IDE_STATUS_REG);
 		local_irq_restore(flags);
 
-		progress_indication = !status.b.dsc ? 0 : 0x10000;
+		progress_indication = ((stat & SEEK_STAT) == 0) ? 0 : 0x10000;
 	}
 	if (put_user(progress_indication, arg))
 		return (-EFAULT);

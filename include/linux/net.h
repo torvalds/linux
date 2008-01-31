@@ -22,6 +22,7 @@
 #include <asm/socket.h>
 
 struct poll_table_struct;
+struct pipe_inode_info;
 struct inode;
 struct net;
 
@@ -172,6 +173,8 @@ struct proto_ops {
 				      struct vm_area_struct * vma);
 	ssize_t		(*sendpage)  (struct socket *sock, struct page *page,
 				      int offset, size_t size, int flags);
+	ssize_t 	(*splice_read)(struct socket *sock,  loff_t *ppos,
+				       struct pipe_inode_info *pipe, size_t len, unsigned int flags);
 };
 
 struct net_proto_family {
@@ -182,6 +185,13 @@ struct net_proto_family {
 
 struct iovec;
 struct kvec;
+
+enum {
+	SOCK_WAKE_IO,
+	SOCK_WAKE_WAITD,
+	SOCK_WAKE_SPACE,
+	SOCK_WAKE_URG,
+};
 
 extern int	     sock_wake_async(struct socket *sk, int how, int band);
 extern int	     sock_register(const struct net_proto_family *fam);
@@ -327,7 +337,6 @@ static const struct proto_ops name##_ops = {			\
 
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>
-extern ctl_table net_table[];
 extern int net_msg_cost;
 extern int net_msg_burst;
 #endif

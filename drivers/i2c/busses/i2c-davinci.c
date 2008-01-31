@@ -510,7 +510,6 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 
 	/* FIXME */
 	adap->timeout = 1;
-	adap->retries = 1;
 
 	adap->nr = pdev->id;
 	r = i2c_add_numbered_adapter(adap);

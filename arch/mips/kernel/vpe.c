@@ -53,7 +53,6 @@
 #include <asm/system.h>
 #include <asm/vpe.h>
 #include <asm/kspd.h>
-#include <asm/mips_mt.h>
 
 typedef void *vpe_handle;
 

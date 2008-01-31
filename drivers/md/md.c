@@ -231,7 +231,7 @@ static void mddev_put(mddev_t *mddev)
 		list_del(&mddev->all_mddevs);
 		spin_unlock(&all_mddevs_lock);
 		blk_cleanup_queue(mddev->queue);
-		kobject_unregister(&mddev->kobj);
+		kobject_put(&mddev->kobj);
 	} else
 		spin_unlock(&all_mddevs_lock);
 }
@@ -1383,22 +1383,19 @@ static int bind_rdev_to_array(mdk_rdev_t * rdev, mddev_t * mddev)
 			return -EBUSY;
 	}
 	bdevname(rdev->bdev,b);
-	if (kobject_set_name(&rdev->kobj, "dev-%s", b) < 0)
-		return -ENOMEM;
-	while ( (s=strchr(rdev->kobj.k_name, '/')) != NULL)
+	while ( (s=strchr(b, '/')) != NULL)
 		*s = '!';
-			
+
 	rdev->mddev = mddev;
 	printk(KERN_INFO "md: bind<%s>\n", b);
 
-	rdev->kobj.parent = &mddev->kobj;
-	if ((err = kobject_add(&rdev->kobj)))
+	if ((err = kobject_add(&rdev->kobj, &mddev->kobj, "dev-%s", b)))
 		goto fail;
 
 	if (rdev->bdev->bd_part)
-		ko = &rdev->bdev->bd_part->kobj;
+		ko = &rdev->bdev->bd_part->dev.kobj;
 	else
-		ko = &rdev->bdev->bd_disk->kobj;
+		ko = &rdev->bdev->bd_disk->dev.kobj;
 	if ((err = sysfs_create_link(&rdev->kobj, ko, "block"))) {
 		kobject_del(&rdev->kobj);
 		goto fail;
@@ -2036,9 +2033,7 @@ static mdk_rdev_t *md_import_device(dev_t newdev, int super_format, int super_mi
 	if (err)
 		goto abort_free;
 
-	rdev->kobj.parent = NULL;
-	rdev->kobj.ktype = &rdev_ktype;
-	kobject_init(&rdev->kobj);
+	kobject_init(&rdev->kobj, &rdev_ktype);
 
 	rdev->desc_nr = -1;
 	rdev->saved_raid_disk = -1;
@@ -3054,6 +3049,7 @@ static struct kobject *md_probe(dev_t dev, int *part, void *data)
 	int partitioned = (MAJOR(dev) != MD_MAJOR);
 	int shift = partitioned ? MdpMinorShift : 0;
 	int unit = MINOR(dev) >> shift;
+	int error;
 
 	if (!mddev)
 		return NULL;
@@ -3082,12 +3078,13 @@ static struct kobject *md_probe(dev_t dev, int *part, void *data)
 	add_disk(disk);
 	mddev->gendisk = disk;
 	mutex_unlock(&disks_mutex);
-	mddev->kobj.parent = &disk->kobj;
-	kobject_set_name(&mddev->kobj, "%s", "md");
-	mddev->kobj.ktype = &md_ktype;
-	if (kobject_register(&mddev->kobj))
+	error = kobject_init_and_add(&mddev->kobj, &md_ktype, &disk->dev.kobj,
+				     "%s", "md");
+	if (error)
 		printk(KERN_WARNING "md: cannot register %s/md - name in use\n",
 		       disk->disk_name);
+	else
+		kobject_uevent(&mddev->kobj, KOBJ_ADD);
 	return NULL;
 }
 
@@ -3359,7 +3356,7 @@ static int do_md_run(mddev_t * mddev)
 
 	mddev->changed = 1;
 	md_new_event(mddev);
-	kobject_uevent(&mddev->gendisk->kobj, KOBJ_CHANGE);
+	kobject_uevent(&mddev->gendisk->dev.kobj, KOBJ_CHANGE);
 	return 0;
 }
 

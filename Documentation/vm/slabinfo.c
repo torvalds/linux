@@ -1021,7 +1021,7 @@ void read_slab_dir(void)
 	char *t;
 	int count;
 
-	if (chdir("/sys/slab"))
+	if (chdir("/sys/kernel/slab"))
 		fatal("SYSFS support for SLUB not active\n");
 
 	dir = opendir(".");

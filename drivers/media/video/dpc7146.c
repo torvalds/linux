@@ -87,11 +87,24 @@ struct dpc
 	int cur_input;	/* current input */
 };
 
+static int dpc_check_clients(struct device *dev, void *data)
+{
+	struct dpc* dpc = data;
+	struct i2c_client *client = i2c_verify_client(dev);
+
+	if( !client )
+		return 0;
+
+	if( I2C_SAA7111A == client->addr )
+		dpc->saa7111a = client;
+
+	return 0;
+}
+
 /* fixme: add vbi stuff here */
 static int dpc_probe(struct saa7146_dev* dev)
 {
 	struct dpc* dpc = NULL;
-	struct i2c_client *client;
 
 	dpc = kzalloc(sizeof(struct dpc), GFP_KERNEL);
 	if( NULL == dpc ) {
@@ -115,9 +128,7 @@ static int dpc_probe(struct saa7146_dev* dev)
 	}
 
 	/* loop through all i2c-devices on the bus and look who is there */
-	list_for_each_entry(client, &dpc->i2c_adapter.clients, list)
-		if( I2C_SAA7111A == client->addr )
-			dpc->saa7111a = client;
+	device_for_each_child(&dpc->i2c_adapter.dev, dpc, dpc_check_clients);
 
 	/* check if all devices are present */
 	if( 0 == dpc->saa7111a ) {

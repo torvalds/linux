@@ -110,7 +110,7 @@ static const char e1000_gstrings_test[][ETH_GSTRING_LEN] = {
 	"Interrupt test (offline)", "Loopback test  (offline)",
 	"Link test   (on/offline)"
 };
-#define E1000_TEST_LEN sizeof(e1000_gstrings_test) / ETH_GSTRING_LEN
+#define E1000_TEST_LEN	ARRAY_SIZE(e1000_gstrings_test)
 
 static int
 e1000_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
@@ -728,38 +728,64 @@ err_setup:
 	return err;
 }
 
-#define REG_PATTERN_TEST(R, M, W)                                              \
-{                                                                              \
-	uint32_t pat, val;                                                     \
-	const uint32_t test[] = 					       \
-		{0x5A5A5A5A, 0xA5A5A5A5, 0x00000000, 0xFFFFFFFF};              \
-	for (pat = 0; pat < ARRAY_SIZE(test); pat++) {           	       \
-		E1000_WRITE_REG(&adapter->hw, R, (test[pat] & W));             \
-		val = E1000_READ_REG(&adapter->hw, R);                         \
-		if (val != (test[pat] & W & M)) {                              \
-			DPRINTK(DRV, ERR, "pattern test reg %04X failed: got " \
-			        "0x%08X expected 0x%08X\n",                    \
-			        E1000_##R, val, (test[pat] & W & M));          \
-			*data = (adapter->hw.mac_type < e1000_82543) ?         \
-				E1000_82542_##R : E1000_##R;                   \
-			return 1;                                              \
-		}                                                              \
-	}                                                                      \
+static bool reg_pattern_test(struct e1000_adapter *adapter, uint64_t *data,
+			     int reg, uint32_t mask, uint32_t write)
+{
+	static const uint32_t test[] =
+		{0x5A5A5A5A, 0xA5A5A5A5, 0x00000000, 0xFFFFFFFF};
+	uint8_t __iomem *address = adapter->hw.hw_addr + reg;
+	uint32_t read;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(test); i++) {
+		writel(write & test[i], address);
+		read = readl(address);
+		if (read != (write & test[i] & mask)) {
+			DPRINTK(DRV, ERR, "pattern test reg %04X failed: "
+				"got 0x%08X expected 0x%08X\n",
+				reg, read, (write & test[i] & mask));
+			*data = reg;
+			return true;
+		}
+	}
+	return false;
 }
 
-#define REG_SET_AND_CHECK(R, M, W)                                             \
-{                                                                              \
-	uint32_t val;                                                          \
-	E1000_WRITE_REG(&adapter->hw, R, W & M);                               \
-	val = E1000_READ_REG(&adapter->hw, R);                                 \
-	if ((W & M) != (val & M)) {                                            \
-		DPRINTK(DRV, ERR, "set/check reg %04X test failed: got 0x%08X "\
-		        "expected 0x%08X\n", E1000_##R, (val & M), (W & M));   \
-		*data = (adapter->hw.mac_type < e1000_82543) ?                 \
-			E1000_82542_##R : E1000_##R;                           \
-		return 1;                                                      \
-	}                                                                      \
+static bool reg_set_and_check(struct e1000_adapter *adapter, uint64_t *data,
+			      int reg, uint32_t mask, uint32_t write)
+{
+	uint8_t __iomem *address = adapter->hw.hw_addr + reg;
+	uint32_t read;
+
+	writel(write & mask, address);
+	read = readl(address);
+	if ((read & mask) != (write & mask)) {
+		DPRINTK(DRV, ERR, "set/check reg %04X test failed: "
+			"got 0x%08X expected 0x%08X\n",
+			reg, (read & mask), (write & mask));
+		*data = reg;
+		return true;
+	}
+	return false;
 }
+
+#define REG_PATTERN_TEST(reg, mask, write)			     \
+	do {							     \
+		if (reg_pattern_test(adapter, data,		     \
+			     (adapter->hw.mac_type >= e1000_82543)   \
+			     ? E1000_##reg : E1000_82542_##reg,	     \
+			     mask, write))			     \
+			return 1;				     \
+	} while (0)
+
+#define REG_SET_AND_CHECK(reg, mask, write)			     \
+	do {							     \
+		if (reg_set_and_check(adapter, data,		     \
+			      (adapter->hw.mac_type >= e1000_82543)  \
+			      ? E1000_##reg : E1000_82542_##reg,     \
+			      mask, write))			     \
+			return 1;				     \
+	} while (0)
 
 static int
 e1000_reg_test(struct e1000_adapter *adapter, uint64_t *data)

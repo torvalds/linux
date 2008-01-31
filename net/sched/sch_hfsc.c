@@ -986,41 +986,46 @@ hfsc_change_usc(struct hfsc_class *cl, struct tc_service_curve *usc,
 	cl->cl_flags |= HFSC_USC;
 }
 
+static const struct nla_policy hfsc_policy[TCA_HFSC_MAX + 1] = {
+	[TCA_HFSC_RSC]	= { .len = sizeof(struct tc_service_curve) },
+	[TCA_HFSC_FSC]	= { .len = sizeof(struct tc_service_curve) },
+	[TCA_HFSC_USC]	= { .len = sizeof(struct tc_service_curve) },
+};
+
 static int
 hfsc_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
-		  struct rtattr **tca, unsigned long *arg)
+		  struct nlattr **tca, unsigned long *arg)
 {
 	struct hfsc_sched *q = qdisc_priv(sch);
 	struct hfsc_class *cl = (struct hfsc_class *)*arg;
 	struct hfsc_class *parent = NULL;
-	struct rtattr *opt = tca[TCA_OPTIONS-1];
-	struct rtattr *tb[TCA_HFSC_MAX];
+	struct nlattr *opt = tca[TCA_OPTIONS];
+	struct nlattr *tb[TCA_HFSC_MAX + 1];
 	struct tc_service_curve *rsc = NULL, *fsc = NULL, *usc = NULL;
 	u64 cur_time;
+	int err;
 
-	if (opt == NULL || rtattr_parse_nested(tb, TCA_HFSC_MAX, opt))
+	if (opt == NULL)
 		return -EINVAL;
 
-	if (tb[TCA_HFSC_RSC-1]) {
-		if (RTA_PAYLOAD(tb[TCA_HFSC_RSC-1]) < sizeof(*rsc))
-			return -EINVAL;
-		rsc = RTA_DATA(tb[TCA_HFSC_RSC-1]);
+	err = nla_parse_nested(tb, TCA_HFSC_MAX, opt, hfsc_policy);
+	if (err < 0)
+		return err;
+
+	if (tb[TCA_HFSC_RSC]) {
+		rsc = nla_data(tb[TCA_HFSC_RSC]);
 		if (rsc->m1 == 0 && rsc->m2 == 0)
 			rsc = NULL;
 	}
 
-	if (tb[TCA_HFSC_FSC-1]) {
-		if (RTA_PAYLOAD(tb[TCA_HFSC_FSC-1]) < sizeof(*fsc))
-			return -EINVAL;
-		fsc = RTA_DATA(tb[TCA_HFSC_FSC-1]);
+	if (tb[TCA_HFSC_FSC]) {
+		fsc = nla_data(tb[TCA_HFSC_FSC]);
 		if (fsc->m1 == 0 && fsc->m2 == 0)
 			fsc = NULL;
 	}
 
-	if (tb[TCA_HFSC_USC-1]) {
-		if (RTA_PAYLOAD(tb[TCA_HFSC_USC-1]) < sizeof(*usc))
-			return -EINVAL;
-		usc = RTA_DATA(tb[TCA_HFSC_USC-1]);
+	if (tb[TCA_HFSC_USC]) {
+		usc = nla_data(tb[TCA_HFSC_USC]);
 		if (usc->m1 == 0 && usc->m2 == 0)
 			usc = NULL;
 	}
@@ -1050,10 +1055,10 @@ hfsc_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 		}
 		sch_tree_unlock(sch);
 
-		if (tca[TCA_RATE-1])
+		if (tca[TCA_RATE])
 			gen_replace_estimator(&cl->bstats, &cl->rate_est,
 					      &sch->dev->queue_lock,
-					      tca[TCA_RATE-1]);
+					      tca[TCA_RATE]);
 		return 0;
 	}
 
@@ -1106,9 +1111,9 @@ hfsc_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 	cl->cl_pcvtoff = parent->cl_cvtoff;
 	sch_tree_unlock(sch);
 
-	if (tca[TCA_RATE-1])
+	if (tca[TCA_RATE])
 		gen_new_estimator(&cl->bstats, &cl->rate_est,
-				  &sch->dev->queue_lock, tca[TCA_RATE-1]);
+				  &sch->dev->queue_lock, tca[TCA_RATE]);
 	*arg = (unsigned long)cl;
 	return 0;
 }
@@ -1304,11 +1309,11 @@ hfsc_dump_sc(struct sk_buff *skb, int attr, struct internal_sc *sc)
 	tsc.m1 = sm2m(sc->sm1);
 	tsc.d  = dx2d(sc->dx);
 	tsc.m2 = sm2m(sc->sm2);
-	RTA_PUT(skb, attr, sizeof(tsc), &tsc);
+	NLA_PUT(skb, attr, sizeof(tsc), &tsc);
 
 	return skb->len;
 
- rtattr_failure:
+ nla_put_failure:
 	return -1;
 }
 
@@ -1317,19 +1322,19 @@ hfsc_dump_curves(struct sk_buff *skb, struct hfsc_class *cl)
 {
 	if ((cl->cl_flags & HFSC_RSC) &&
 	    (hfsc_dump_sc(skb, TCA_HFSC_RSC, &cl->cl_rsc) < 0))
-		goto rtattr_failure;
+		goto nla_put_failure;
 
 	if ((cl->cl_flags & HFSC_FSC) &&
 	    (hfsc_dump_sc(skb, TCA_HFSC_FSC, &cl->cl_fsc) < 0))
-		goto rtattr_failure;
+		goto nla_put_failure;
 
 	if ((cl->cl_flags & HFSC_USC) &&
 	    (hfsc_dump_sc(skb, TCA_HFSC_USC, &cl->cl_usc) < 0))
-		goto rtattr_failure;
+		goto nla_put_failure;
 
 	return skb->len;
 
- rtattr_failure:
+ nla_put_failure:
 	return -1;
 }
 
@@ -1338,22 +1343,23 @@ hfsc_dump_class(struct Qdisc *sch, unsigned long arg, struct sk_buff *skb,
 		struct tcmsg *tcm)
 {
 	struct hfsc_class *cl = (struct hfsc_class *)arg;
-	unsigned char *b = skb_tail_pointer(skb);
-	struct rtattr *rta = (struct rtattr *)b;
+	struct nlattr *nest;
 
 	tcm->tcm_parent = cl->cl_parent ? cl->cl_parent->classid : TC_H_ROOT;
 	tcm->tcm_handle = cl->classid;
 	if (cl->level == 0)
 		tcm->tcm_info = cl->qdisc->handle;
 
-	RTA_PUT(skb, TCA_OPTIONS, 0, NULL);
+	nest = nla_nest_start(skb, TCA_OPTIONS);
+	if (nest == NULL)
+		goto nla_put_failure;
 	if (hfsc_dump_curves(skb, cl) < 0)
-		goto rtattr_failure;
-	rta->rta_len = skb_tail_pointer(skb) - b;
+		goto nla_put_failure;
+	nla_nest_end(skb, nest);
 	return skb->len;
 
- rtattr_failure:
-	nlmsg_trim(skb, b);
+ nla_put_failure:
+	nla_nest_cancel(skb, nest);
 	return -1;
 }
 
@@ -1423,15 +1429,15 @@ hfsc_schedule_watchdog(struct Qdisc *sch)
 }
 
 static int
-hfsc_init_qdisc(struct Qdisc *sch, struct rtattr *opt)
+hfsc_init_qdisc(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct hfsc_sched *q = qdisc_priv(sch);
 	struct tc_hfsc_qopt *qopt;
 	unsigned int i;
 
-	if (opt == NULL || RTA_PAYLOAD(opt) < sizeof(*qopt))
+	if (opt == NULL || nla_len(opt) < sizeof(*qopt))
 		return -EINVAL;
-	qopt = RTA_DATA(opt);
+	qopt = nla_data(opt);
 
 	q->defcls = qopt->defcls;
 	for (i = 0; i < HFSC_HSIZE; i++)
@@ -1459,14 +1465,14 @@ hfsc_init_qdisc(struct Qdisc *sch, struct rtattr *opt)
 }
 
 static int
-hfsc_change_qdisc(struct Qdisc *sch, struct rtattr *opt)
+hfsc_change_qdisc(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct hfsc_sched *q = qdisc_priv(sch);
 	struct tc_hfsc_qopt *qopt;
 
-	if (opt == NULL || RTA_PAYLOAD(opt) < sizeof(*qopt))
+	if (opt == NULL || nla_len(opt) < sizeof(*qopt))
 		return -EINVAL;
-	qopt = RTA_DATA(opt);
+	qopt = nla_data(opt);
 
 	sch_tree_lock(sch);
 	q->defcls = qopt->defcls;
@@ -1550,10 +1556,10 @@ hfsc_dump_qdisc(struct Qdisc *sch, struct sk_buff *skb)
 	struct tc_hfsc_qopt qopt;
 
 	qopt.defcls = q->defcls;
-	RTA_PUT(skb, TCA_OPTIONS, sizeof(qopt), &qopt);
+	NLA_PUT(skb, TCA_OPTIONS, sizeof(qopt), &qopt);
 	return skb->len;
 
- rtattr_failure:
+ nla_put_failure:
 	nlmsg_trim(skb, b);
 	return -1;
 }
@@ -1698,7 +1704,7 @@ hfsc_drop(struct Qdisc *sch)
 	return 0;
 }
 
-static struct Qdisc_class_ops hfsc_class_ops = {
+static const struct Qdisc_class_ops hfsc_class_ops = {
 	.change		= hfsc_change_class,
 	.delete		= hfsc_delete_class,
 	.graft		= hfsc_graft_class,
@@ -1714,7 +1720,7 @@ static struct Qdisc_class_ops hfsc_class_ops = {
 	.walk		= hfsc_walk
 };
 
-static struct Qdisc_ops hfsc_qdisc_ops = {
+static struct Qdisc_ops hfsc_qdisc_ops __read_mostly = {
 	.id		= "hfsc",
 	.init		= hfsc_init_qdisc,
 	.change		= hfsc_change_qdisc,

@@ -45,14 +45,11 @@ struct pvr2_context {
 	struct pvr2_context_stream video_stream;
 	struct mutex mutex;
 	int disconnect_flag;
+	int init_flag;
 
 	/* Called after pvr2_context initialization is complete */
 	void (*setup_func)(struct pvr2_context *);
 
-	/* Work queue overhead for out-of-line processing */
-	struct workqueue_struct *workqueue;
-	struct work_struct workinit;
-	struct work_struct workpoll;
 };
 
 struct pvr2_channel {

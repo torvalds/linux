@@ -27,6 +27,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/input.h>
+#include <linux/i2c/tps65010.h>
 
 #include <asm/hardware.h>
 #include <asm/gpio.h>
@@ -36,7 +37,6 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 
-#include <asm/arch/tps65010.h>
 #include <asm/arch/mux.h>
 #include <asm/arch/tc.h>
 #include <asm/arch/irda.h>
@@ -209,7 +209,7 @@ static struct resource h2_smc91x_resources[] = {
 	[1] = {
 		.start	= OMAP_GPIO_IRQ(0),
 		.end	= OMAP_GPIO_IRQ(0),
-		.flags	= IORESOURCE_IRQ,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWEDGE,
 	},
 };
 

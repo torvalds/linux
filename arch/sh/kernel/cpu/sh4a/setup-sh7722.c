@@ -157,14 +157,6 @@ static struct intc_group groups[] __initdata = {
 	INTC_GROUP(SDHI, SDHI0, SDHI1, SDHI2, SDHI3),
 };
 
-static struct intc_prio priorities[] __initdata = {
-	INTC_PRIO(SCIF0, 3),
-	INTC_PRIO(SCIF1, 3),
-	INTC_PRIO(SCIF2, 3),
-	INTC_PRIO(TMU0, 2),
-	INTC_PRIO(TMU1, 2),
-};
-
 static struct intc_mask_reg mask_registers[] __initdata = {
 	{ 0xa4080080, 0xa40800c0, 8, /* IMR0 / IMCR0 */
 	  { } },
@@ -217,7 +209,7 @@ static struct intc_sense_reg sense_registers[] __initdata = {
 	  { IRQ0, IRQ1, IRQ2, IRQ3, IRQ4, IRQ5, IRQ6, IRQ7 } },
 };
 
-static DECLARE_INTC_DESC(intc_desc, "sh7722", vectors, groups, priorities,
+static DECLARE_INTC_DESC(intc_desc, "sh7722", vectors, groups,
 			 mask_registers, prio_registers, sense_registers);
 
 void __init plat_irq_setup(void)

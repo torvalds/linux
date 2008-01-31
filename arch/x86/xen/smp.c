@@ -146,7 +146,7 @@ void __init xen_smp_prepare_boot_cpu(void)
 	   old memory can be recycled */
 	make_lowmem_page_readwrite(&per_cpu__gdt_page);
 
-	for (cpu = 0; cpu < NR_CPUS; cpu++) {
+	for_each_possible_cpu(cpu) {
 		cpus_clear(per_cpu(cpu_sibling_map, cpu));
 		/*
 		 * cpu_core_map lives in a per cpu area that is cleared
@@ -163,7 +163,7 @@ void __init xen_smp_prepare_cpus(unsigned int max_cpus)
 {
 	unsigned cpu;
 
-	for (cpu = 0; cpu < NR_CPUS; cpu++) {
+	for_each_possible_cpu(cpu) {
 		cpus_clear(per_cpu(cpu_sibling_map, cpu));
 		/*
 		 * cpu_core_ map will be zeroed when the per
@@ -239,10 +239,10 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 	ctxt->gdt_ents      = ARRAY_SIZE(gdt->gdt);
 
 	ctxt->user_regs.cs = __KERNEL_CS;
-	ctxt->user_regs.esp = idle->thread.esp0 - sizeof(struct pt_regs);
+	ctxt->user_regs.esp = idle->thread.sp0 - sizeof(struct pt_regs);
 
 	ctxt->kernel_ss = __KERNEL_DS;
-	ctxt->kernel_sp = idle->thread.esp0;
+	ctxt->kernel_sp = idle->thread.sp0;
 
 	ctxt->event_callback_cs     = __KERNEL_CS;
 	ctxt->event_callback_eip    = (unsigned long)xen_hypervisor_callback;

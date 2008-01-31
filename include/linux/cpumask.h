@@ -218,8 +218,8 @@ int __first_cpu(const cpumask_t *srcp);
 int __next_cpu(int n, const cpumask_t *srcp);
 #define next_cpu(n, src) __next_cpu((n), &(src))
 #else
-#define first_cpu(src)		0
-#define next_cpu(n, src)	1
+#define first_cpu(src)		({ (void)(src); 0; })
+#define next_cpu(n, src)	({ (void)(src); 1; })
 #endif
 
 #define cpumask_of_cpu(cpu)						\

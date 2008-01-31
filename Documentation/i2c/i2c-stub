@@ -25,15 +25,15 @@ The typical use-case is like this:
 	3. load the target sensors chip driver module
 	4. observe its behavior in the kernel log
 
+There's a script named i2c-stub-from-dump in the i2c-tools package which
+can load register values automatically from a chip dump.
+
 PARAMETERS:
 
 int chip_addr[10]:
 	The SMBus addresses to emulate chips at.
 
 CAVEATS:
-
-There are independent arrays for byte/data and word/data commands.  Depending
-on if/how a target driver mixes them, you'll need to be careful.
 
 If your target driver polls some byte or word waiting for it to change, the
 stub could lock it up.  Use i2cset to unlock it.

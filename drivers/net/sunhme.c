@@ -194,21 +194,21 @@ static u32 sbus_hme_read32(void __iomem *reg)
 
 static void sbus_hme_write_rxd(struct happy_meal_rxd *rxd, u32 flags, u32 addr)
 {
-	rxd->rx_addr = addr;
+	rxd->rx_addr = (__force hme32)addr;
 	wmb();
-	rxd->rx_flags = flags;
+	rxd->rx_flags = (__force hme32)flags;
 }
 
 static void sbus_hme_write_txd(struct happy_meal_txd *txd, u32 flags, u32 addr)
 {
-	txd->tx_addr = addr;
+	txd->tx_addr = (__force hme32)addr;
 	wmb();
-	txd->tx_flags = flags;
+	txd->tx_flags = (__force hme32)flags;
 }
 
-static u32 sbus_hme_read_desc32(u32 *p)
+static u32 sbus_hme_read_desc32(hme32 *p)
 {
-	return *p;
+	return (__force u32)*p;
 }
 
 static void pci_hme_write32(void __iomem *reg, u32 val)
@@ -223,21 +223,21 @@ static u32 pci_hme_read32(void __iomem *reg)
 
 static void pci_hme_write_rxd(struct happy_meal_rxd *rxd, u32 flags, u32 addr)
 {
-	rxd->rx_addr = cpu_to_le32(addr);
+	rxd->rx_addr = (__force hme32)cpu_to_le32(addr);
 	wmb();
-	rxd->rx_flags = cpu_to_le32(flags);
+	rxd->rx_flags = (__force hme32)cpu_to_le32(flags);
 }
 
 static void pci_hme_write_txd(struct happy_meal_txd *txd, u32 flags, u32 addr)
 {
-	txd->tx_addr = cpu_to_le32(addr);
+	txd->tx_addr = (__force hme32)cpu_to_le32(addr);
 	wmb();
-	txd->tx_flags = cpu_to_le32(flags);
+	txd->tx_flags = (__force hme32)cpu_to_le32(flags);
 }
 
-static u32 pci_hme_read_desc32(u32 *p)
+static u32 pci_hme_read_desc32(hme32 *p)
 {
-	return cpu_to_le32p(p);
+	return le32_to_cpup((__le32 *)p);
 }
 
 #define hme_write32(__hp, __reg, __val) \
@@ -266,16 +266,16 @@ static u32 pci_hme_read_desc32(u32 *p)
 #define hme_read32(__hp, __reg) \
 	sbus_readl(__reg)
 #define hme_write_rxd(__hp, __rxd, __flags, __addr) \
-do {	(__rxd)->rx_addr = (__addr); \
+do {	(__rxd)->rx_addr = (__force hme32)(u32)(__addr); \
 	wmb(); \
-	(__rxd)->rx_flags = (__flags); \
+	(__rxd)->rx_flags = (__force hme32)(u32)(__flags); \
 } while(0)
 #define hme_write_txd(__hp, __txd, __flags, __addr) \
-do {	(__txd)->tx_addr = (__addr); \
+do {	(__txd)->tx_addr = (__force hme32)(u32)(__addr); \
 	wmb(); \
-	(__txd)->tx_flags = (__flags); \
+	(__txd)->tx_flags = (__force hme32)(u32)(__flags); \
 } while(0)
-#define hme_read_desc32(__hp, __p)	(*(__p))
+#define hme_read_desc32(__hp, __p)	((__force u32)(hme32)*(__p))
 #define hme_dma_map(__hp, __ptr, __size, __dir) \
 	sbus_map_single((__hp)->happy_dev, (__ptr), (__size), (__dir))
 #define hme_dma_unmap(__hp, __addr, __size, __dir) \
@@ -291,16 +291,19 @@ do {	(__txd)->tx_addr = (__addr); \
 #define hme_read32(__hp, __reg) \
 	readl(__reg)
 #define hme_write_rxd(__hp, __rxd, __flags, __addr) \
-do {	(__rxd)->rx_addr = cpu_to_le32(__addr); \
+do {	(__rxd)->rx_addr = (__force hme32)cpu_to_le32(__addr); \
 	wmb(); \
-	(__rxd)->rx_flags = cpu_to_le32(__flags); \
+	(__rxd)->rx_flags = (__force hme32)cpu_to_le32(__flags); \
 } while(0)
 #define hme_write_txd(__hp, __txd, __flags, __addr) \
-do {	(__txd)->tx_addr = cpu_to_le32(__addr); \
+do {	(__txd)->tx_addr = (__force hme32)cpu_to_le32(__addr); \
 	wmb(); \
-	(__txd)->tx_flags = cpu_to_le32(__flags); \
+	(__txd)->tx_flags = (__force hme32)cpu_to_le32(__flags); \
 } while(0)
-#define hme_read_desc32(__hp, __p)	cpu_to_le32p(__p)
+static inline u32 hme_read_desc32(struct happy_meal *hp, hme32 *p)
+{
+	return le32_to_cpup((__le32 *)p);
+}
 #define hme_dma_map(__hp, __ptr, __size, __dir) \
 	pci_map_single((__hp)->happy_dev, (__ptr), (__size), (__dir))
 #define hme_dma_unmap(__hp, __addr, __size, __dir) \
@@ -2075,7 +2078,7 @@ static void happy_meal_rx(struct happy_meal *hp, struct net_device *dev)
 		}
 
 		/* This card is _fucking_ hot... */
-		skb->csum = ntohs(csum ^ 0xffff);
+		skb->csum = csum_unfold(~(__force __sum16)htons(csum));
 		skb->ip_summed = CHECKSUM_COMPLETE;
 
 		RXD(("len=%d csum=%4x]", len, csum));
@@ -3057,7 +3060,7 @@ static int __devinit happy_meal_pci_probe(struct pci_dev *pdev,
 		goto err_out_clear_quattro;
 	}
 
-	if ((hpreg_base = ioremap(hpreg_res, 0x8000)) == 0) {
+	if ((hpreg_base = ioremap(hpreg_res, 0x8000)) == NULL) {
 		printk(KERN_ERR "happymeal(PCI): Unable to remap card memory.\n");
 		goto err_out_free_res;
 	}

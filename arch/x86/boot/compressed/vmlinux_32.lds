@@ -3,17 +3,17 @@ OUTPUT_ARCH(i386)
 ENTRY(startup_32)
 SECTIONS
 {
-        /* Be careful parts of head.S assume startup_32 is at
-         * address 0.
+	/* Be careful parts of head_32.S assume startup_32 is at
+	 * address 0.
 	 */
-	. =  0 	;
+	. = 0;
 	.text.head : {
 		_head = . ;
 		*(.text.head)
 		_ehead = . ;
 	}
-	.data.compressed : {
-		*(.data.compressed)
+	.rodata.compressed : {
+		*(.rodata.compressed)
 	}
 	.text :	{
 		_text = .; 	/* Text */

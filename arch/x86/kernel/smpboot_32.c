@@ -83,7 +83,6 @@ EXPORT_SYMBOL(cpu_online_map);
 
 cpumask_t cpu_callin_map;
 cpumask_t cpu_callout_map;
-EXPORT_SYMBOL(cpu_callout_map);
 cpumask_t cpu_possible_map;
 EXPORT_SYMBOL(cpu_possible_map);
 static cpumask_t smp_commenced_mask;
@@ -92,15 +91,10 @@ static cpumask_t smp_commenced_mask;
 DEFINE_PER_CPU_SHARED_ALIGNED(struct cpuinfo_x86, cpu_info);
 EXPORT_PER_CPU_SYMBOL(cpu_info);
 
-/*
- * The following static array is used during kernel startup
- * and the x86_cpu_to_apicid_ptr contains the address of the
- * array during this time.  Is it zeroed when the per_cpu
- * data area is removed.
- */
+/* which logical CPU number maps to which CPU (physical APIC ID) */
 u8 x86_cpu_to_apicid_init[NR_CPUS] __initdata =
 			{ [0 ... NR_CPUS-1] = BAD_APICID };
-void *x86_cpu_to_apicid_ptr;
+void *x86_cpu_to_apicid_early_ptr;
 DEFINE_PER_CPU(u8, x86_cpu_to_apicid) = BAD_APICID;
 EXPORT_PER_CPU_SYMBOL(x86_cpu_to_apicid);
 
@@ -113,7 +107,6 @@ u8 apicid_2_node[MAX_APICID];
 extern const unsigned char trampoline_data [];
 extern const unsigned char trampoline_end  [];
 static unsigned char *trampoline_base;
-static int trampoline_exec;
 
 static void map_cpu_to_logical_apicid(void);
 
@@ -138,17 +131,13 @@ static unsigned long __cpuinit setup_trampoline(void)
  */
 void __init smp_alloc_memory(void)
 {
-	trampoline_base = (void *) alloc_bootmem_low_pages(PAGE_SIZE);
+	trampoline_base = alloc_bootmem_low_pages(PAGE_SIZE);
 	/*
 	 * Has to be in very low memory so we can execute
 	 * real-mode AP code.
 	 */
 	if (__pa(trampoline_base) >= 0x9F000)
 		BUG();
-	/*
-	 * Make the SMP trampoline executable:
-	 */
-	trampoline_exec = set_kernel_exec((unsigned long)trampoline_base, 1);
 }
 
 /*
@@ -405,7 +394,7 @@ static void __cpuinit start_secondary(void *unused)
 	setup_secondary_clock();
 	if (nmi_watchdog == NMI_IO_APIC) {
 		disable_8259A_irq(0);
-		enable_NMI_through_LVT0(NULL);
+		enable_NMI_through_LVT0();
 		enable_8259A_irq(0);
 	}
 	/*
@@ -448,38 +437,38 @@ void __devinit initialize_secondary(void)
 {
 	/*
 	 * We don't actually need to load the full TSS,
-	 * basically just the stack pointer and the eip.
+	 * basically just the stack pointer and the ip.
 	 */
 
 	asm volatile(
 		"movl %0,%%esp\n\t"
 		"jmp *%1"
 		:
-		:"m" (current->thread.esp),"m" (current->thread.eip));
+		:"m" (current->thread.sp),"m" (current->thread.ip));
 }
 
 /* Static state in head.S used to set up a CPU */
 extern struct {
-	void * esp;
+	void * sp;
 	unsigned short ss;
 } stack_start;
 
 #ifdef CONFIG_NUMA
 
 /* which logical CPUs are on which nodes */
-cpumask_t node_2_cpu_mask[MAX_NUMNODES] __read_mostly =
+cpumask_t node_to_cpumask_map[MAX_NUMNODES] __read_mostly =
 				{ [0 ... MAX_NUMNODES-1] = CPU_MASK_NONE };
-EXPORT_SYMBOL(node_2_cpu_mask);
+EXPORT_SYMBOL(node_to_cpumask_map);
 /* which node each logical CPU is on */
-int cpu_2_node[NR_CPUS] __read_mostly = { [0 ... NR_CPUS-1] = 0 };
-EXPORT_SYMBOL(cpu_2_node);
+int cpu_to_node_map[NR_CPUS] __read_mostly = { [0 ... NR_CPUS-1] = 0 };
+EXPORT_SYMBOL(cpu_to_node_map);
 
 /* set up a mapping between cpu and node. */
 static inline void map_cpu_to_node(int cpu, int node)
 {
 	printk("Mapping cpu %d to node %d\n", cpu, node);
-	cpu_set(cpu, node_2_cpu_mask[node]);
-	cpu_2_node[cpu] = node;
+	cpu_set(cpu, node_to_cpumask_map[node]);
+	cpu_to_node_map[cpu] = node;
 }
 
 /* undo a mapping between cpu and node. */
@@ -489,8 +478,8 @@ static inline void unmap_cpu_to_node(int cpu)
 
 	printk("Unmapping cpu %d from all nodes\n", cpu);
 	for (node = 0; node < MAX_NUMNODES; node ++)
-		cpu_clear(cpu, node_2_cpu_mask[node]);
-	cpu_2_node[cpu] = 0;
+		cpu_clear(cpu, node_to_cpumask_map[node]);
+	cpu_to_node_map[cpu] = 0;
 }
 #else /* !CONFIG_NUMA */
 
@@ -668,7 +657,7 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 	 * target processor state.
 	 */
 	startup_ipi_hook(phys_apicid, (unsigned long) start_secondary,
-		         (unsigned long) stack_start.esp);
+		         (unsigned long) stack_start.sp);
 
 	/*
 	 * Run STARTUP IPI loop.
@@ -754,7 +743,7 @@ static inline struct task_struct * __cpuinit alloc_idle_task(int cpu)
 		/* initialize thread_struct.  we really want to avoid destroy
 		 * idle tread
 		 */
-		idle->thread.esp = (unsigned long)task_pt_regs(idle);
+		idle->thread.sp = (unsigned long)task_pt_regs(idle);
 		init_idle(idle, cpu);
 		return idle;
 	}
@@ -799,7 +788,7 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
  	per_cpu(current_task, cpu) = idle;
 	early_gdt_descr.address = (unsigned long)get_cpu_gdt_table(cpu);
 
-	idle->thread.eip = (unsigned long) start_secondary;
+	idle->thread.ip = (unsigned long) start_secondary;
 	/* start_eip had better be page-aligned! */
 	start_eip = setup_trampoline();
 
@@ -807,9 +796,9 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
 	alternatives_smp_switch(1);
 
 	/* So we see what's up   */
-	printk("Booting processor %d/%d eip %lx\n", cpu, apicid, start_eip);
+	printk("Booting processor %d/%d ip %lx\n", cpu, apicid, start_eip);
 	/* Stack for startup_32 can be just as for start_secondary onwards */
-	stack_start.esp = (void *) idle->thread.esp;
+	stack_start.sp = (void *) idle->thread.sp;
 
 	irq_ctx_init(cpu);
 
@@ -1091,7 +1080,7 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 	 * Allow the user to impress friends.
 	 */
 	Dprintk("Before bogomips.\n");
-	for (cpu = 0; cpu < NR_CPUS; cpu++)
+	for_each_possible_cpu(cpu)
 		if (cpu_isset(cpu, cpu_callout_map))
 			bogosum += cpu_data(cpu).loops_per_jiffy;
 	printk(KERN_INFO
@@ -1122,7 +1111,7 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 	 * construct cpu_sibling_map, so that we can tell sibling CPUs
 	 * efficiently.
 	 */
-	for (cpu = 0; cpu < NR_CPUS; cpu++) {
+	for_each_possible_cpu(cpu) {
 		cpus_clear(per_cpu(cpu_sibling_map, cpu));
 		cpus_clear(per_cpu(cpu_core_map, cpu));
 	}
@@ -1296,12 +1285,6 @@ void __init native_smp_cpus_done(unsigned int max_cpus)
 	setup_ioapic_dest();
 #endif
 	zap_low_mappings();
-#ifndef CONFIG_HOTPLUG_CPU
-	/*
-	 * Disable executability of the SMP trampoline:
-	 */
-	set_kernel_exec((unsigned long)trampoline_base, trampoline_exec);
-#endif
 }
 
 void __init smp_intr_init(void)

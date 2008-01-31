@@ -95,6 +95,7 @@
 
 struct net_device;
 struct scatterlist;
+struct pipe_inode_info;
 
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 struct nf_conntrack {
@@ -287,6 +288,7 @@ struct sk_buff {
 	__u8			pkt_type:3,
 				fclone:2,
 				ipvs_property:1,
+				peeked:1,
 				nf_trace:1;
 	__be16			protocol;
 
@@ -1537,6 +1539,8 @@ static inline int pskb_trim_rcsum(struct sk_buff *skb, unsigned int len)
 		     skb = skb->prev)
 
 
+extern struct sk_buff *__skb_recv_datagram(struct sock *sk, unsigned flags,
+					   int *peeked, int *err);
 extern struct sk_buff *skb_recv_datagram(struct sock *sk, unsigned flags,
 					 int noblock, int *err);
 extern unsigned int    datagram_poll(struct file *file, struct socket *sock,
@@ -1548,7 +1552,7 @@ extern int	       skb_copy_and_csum_datagram_iovec(struct sk_buff *skb,
 							int hlen,
 							struct iovec *iov);
 extern void	       skb_free_datagram(struct sock *sk, struct sk_buff *skb);
-extern void	       skb_kill_datagram(struct sock *sk, struct sk_buff *skb,
+extern int	       skb_kill_datagram(struct sock *sk, struct sk_buff *skb,
 					 unsigned int flags);
 extern __wsum	       skb_checksum(const struct sk_buff *skb, int offset,
 				    int len, __wsum csum);
@@ -1559,6 +1563,11 @@ extern int	       skb_store_bits(struct sk_buff *skb, int offset,
 extern __wsum	       skb_copy_and_csum_bits(const struct sk_buff *skb,
 					      int offset, u8 *to, int len,
 					      __wsum csum);
+extern int             skb_splice_bits(struct sk_buff *skb,
+						unsigned int offset,
+						struct pipe_inode_info *pipe,
+						unsigned int len,
+						unsigned int flags);
 extern void	       skb_copy_and_csum_dev(const struct sk_buff *skb, u8 *to);
 extern void	       skb_split(struct sk_buff *skb,
 				 struct sk_buff *skb1, const u32 len);

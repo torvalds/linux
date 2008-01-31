@@ -502,7 +502,7 @@ zfcp_fsf_fsfstatus_qual_eval(struct zfcp_fsf_req *fsf_req)
 		fsf_req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
 	case FSF_SQ_NO_RECOM:
-		ZFCP_LOG_NORMAL("bug: No recommendation could be given for a"
+		ZFCP_LOG_NORMAL("bug: No recommendation could be given for a "
 				"problem on the adapter %s "
 				"Stopping all operations on this adapter. ",
 				zfcp_get_busid_by_adapter(fsf_req->adapter));
@@ -813,7 +813,7 @@ zfcp_fsf_status_read_port_closed(struct zfcp_fsf_req *fsf_req)
 	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
 
 	if (!port || (port->d_id != (status_buffer->d_id & ZFCP_DID_MASK))) {
-		ZFCP_LOG_NORMAL("bug: Reopen port indication received for"
+		ZFCP_LOG_NORMAL("bug: Reopen port indication received for "
 				"nonexisting port with d_id 0x%06x on "
 				"adapter %s. Ignored.\n",
 				status_buffer->d_id & ZFCP_DID_MASK,
@@ -1116,6 +1116,10 @@ zfcp_fsf_abort_fcp_command(unsigned long old_req_id,
 		goto out;
 	}
 
+	if (unlikely(!atomic_test_mask(ZFCP_STATUS_COMMON_UNBLOCKED,
+			&unit->status)))
+		goto unit_blocked;
+
 	sbale = zfcp_qdio_sbale_req(fsf_req, fsf_req->sbal_curr, 0);
         sbale[0].flags |= SBAL_FLAGS0_TYPE_READ;
         sbale[1].flags |= SBAL_FLAGS_LAST_ENTRY;
@@ -1131,22 +1135,13 @@ zfcp_fsf_abort_fcp_command(unsigned long old_req_id,
 
 	zfcp_fsf_start_timer(fsf_req, ZFCP_SCSI_ER_TIMEOUT);
 	retval = zfcp_fsf_req_send(fsf_req);
-	if (retval) {
-		ZFCP_LOG_INFO("error: Failed to send abort command request "
-			      "on adapter %s, port 0x%016Lx, unit 0x%016Lx\n",
-			      zfcp_get_busid_by_adapter(adapter),
-			      unit->port->wwpn, unit->fcp_lun);
+	if (!retval)
+		goto out;
+
+ unit_blocked:
 		zfcp_fsf_req_free(fsf_req);
 		fsf_req = NULL;
-		goto out;
-	}
 
-	ZFCP_LOG_DEBUG("Abort FCP Command request initiated "
-		       "(adapter%s, port d_id=0x%06x, "
-		       "unit x%016Lx, old_req_id=0x%lx)\n",
-		       zfcp_get_busid_by_adapter(adapter),
-		       unit->port->d_id,
-		       unit->fcp_lun, old_req_id);
  out:
 	write_unlock_irqrestore(&adapter->request_queue.queue_lock, lock_flags);
 	return fsf_req;
@@ -1164,8 +1159,8 @@ zfcp_fsf_abort_fcp_command_handler(struct zfcp_fsf_req *new_fsf_req)
 {
 	int retval = -EINVAL;
 	struct zfcp_unit *unit;
-	unsigned char status_qual =
-	    new_fsf_req->qtcb->header.fsf_status_qual.word[0];
+	union fsf_status_qual *fsf_stat_qual =
+		&new_fsf_req->qtcb->header.fsf_status_qual;
 
 	if (new_fsf_req->status & ZFCP_STATUS_FSFREQ_ERROR) {
 		/* do not set ZFCP_STATUS_FSFREQ_ABORTSUCCEEDED */
@@ -1178,7 +1173,7 @@ zfcp_fsf_abort_fcp_command_handler(struct zfcp_fsf_req *new_fsf_req)
 	switch (new_fsf_req->qtcb->header.fsf_status) {
 
 	case FSF_PORT_HANDLE_NOT_VALID:
-		if (status_qual >> 4 != status_qual % 0xf) {
+		if (fsf_stat_qual->word[0] != fsf_stat_qual->word[1]) {
 			debug_text_event(new_fsf_req->adapter->erp_dbf, 3,
 					 "fsf_s_phand_nv0");
 			/*
@@ -1207,8 +1202,7 @@ zfcp_fsf_abort_fcp_command_handler(struct zfcp_fsf_req *new_fsf_req)
 		break;
 
 	case FSF_LUN_HANDLE_NOT_VALID:
-		if (status_qual >> 4 != status_qual % 0xf) {
-			/* 2 */
+		if (fsf_stat_qual->word[0] != fsf_stat_qual->word[1]) {
 			debug_text_event(new_fsf_req->adapter->erp_dbf, 3,
 					 "fsf_s_lhand_nv0");
 			/*
@@ -1674,6 +1668,12 @@ zfcp_fsf_send_els(struct zfcp_send_els *els)
                 goto failed_req;
 	}
 
+	if (unlikely(!atomic_test_mask(ZFCP_STATUS_COMMON_UNBLOCKED,
+			&els->port->status))) {
+		ret = -EBUSY;
+		goto port_blocked;
+	}
+
 	sbale = zfcp_qdio_sbale_req(fsf_req, fsf_req->sbal_curr, 0);
         if (zfcp_use_one_sbal(els->req, els->req_count,
                               els->resp, els->resp_count)){
@@ -1755,6 +1755,7 @@ zfcp_fsf_send_els(struct zfcp_send_els *els)
 		       "0x%06x)\n", zfcp_get_busid_by_adapter(adapter), d_id);
 	goto out;
 
+ port_blocked:
  failed_send:
 	zfcp_fsf_req_free(fsf_req);
 
@@ -2280,7 +2281,7 @@ zfcp_fsf_exchange_port_data(struct zfcp_erp_action *erp_action)
 				     &lock_flags, &fsf_req);
 	if (retval) {
 		ZFCP_LOG_INFO("error: Out of resources. Could not create an "
-			      "exchange port data request for"
+			      "exchange port data request for "
 			      "the adapter %s.\n",
 			      zfcp_get_busid_by_adapter(adapter));
 		write_unlock_irqrestore(&adapter->request_queue.queue_lock,
@@ -2339,7 +2340,7 @@ zfcp_fsf_exchange_port_data_sync(struct zfcp_adapter *adapter,
 				0, NULL, &lock_flags, &fsf_req);
 	if (retval) {
 		ZFCP_LOG_INFO("error: Out of resources. Could not create an "
-			      "exchange port data request for"
+			      "exchange port data request for "
 			      "the adapter %s.\n",
 			      zfcp_get_busid_by_adapter(adapter));
 		write_unlock_irqrestore(&adapter->request_queue.queue_lock,
@@ -3592,6 +3593,12 @@ zfcp_fsf_send_fcp_command_task(struct zfcp_adapter *adapter,
 		goto failed_req_create;
 	}
 
+	if (unlikely(!atomic_test_mask(ZFCP_STATUS_COMMON_UNBLOCKED,
+			&unit->status))) {
+		retval = -EBUSY;
+		goto unit_blocked;
+	}
+
 	zfcp_unit_get(unit);
 	fsf_req->unit = unit;
 
@@ -3732,6 +3739,7 @@ zfcp_fsf_send_fcp_command_task(struct zfcp_adapter *adapter,
  send_failed:
  no_fit:
  failed_scsi_cmnd:
+ unit_blocked:
 	zfcp_unit_put(unit);
 	zfcp_fsf_req_free(fsf_req);
 	fsf_req = NULL;
@@ -3766,6 +3774,10 @@ zfcp_fsf_send_fcp_command_task_management(struct zfcp_adapter *adapter,
 		goto out;
 	}
 
+	if (unlikely(!atomic_test_mask(ZFCP_STATUS_COMMON_UNBLOCKED,
+			&unit->status)))
+		goto unit_blocked;
+
 	/*
 	 * Used to decide on proper handler in the return path,
 	 * could be either zfcp_fsf_send_fcp_command_task_handler or
@@ -3799,25 +3811,13 @@ zfcp_fsf_send_fcp_command_task_management(struct zfcp_adapter *adapter,
 
 	zfcp_fsf_start_timer(fsf_req, ZFCP_SCSI_ER_TIMEOUT);
 	retval = zfcp_fsf_req_send(fsf_req);
-	if (retval) {
-		ZFCP_LOG_INFO("error: Could not send an FCP-command (task "
-			      "management) on adapter %s, port 0x%016Lx for "
-			      "unit LUN 0x%016Lx\n",
-			      zfcp_get_busid_by_adapter(adapter),
-			      unit->port->wwpn,
-			      unit->fcp_lun);
-		zfcp_fsf_req_free(fsf_req);
-		fsf_req = NULL;
+	if (!retval)
 		goto out;
-	}
 
-	ZFCP_LOG_TRACE("Send FCP Command (task management function) initiated "
-		       "(adapter %s, port 0x%016Lx, unit 0x%016Lx, "
-		       "tm_flags=0x%x)\n",
-		       zfcp_get_busid_by_adapter(adapter),
-		       unit->port->wwpn,
-		       unit->fcp_lun,
-		       tm_flags);
+ unit_blocked:
+	zfcp_fsf_req_free(fsf_req);
+	fsf_req = NULL;
+
  out:
 	write_unlock_irqrestore(&adapter->request_queue.queue_lock, lock_flags);
 	return fsf_req;
@@ -4224,10 +4224,10 @@ zfcp_fsf_send_fcp_command_task_handler(struct zfcp_fsf_req *fsf_req)
 
 		ZFCP_LOG_TRACE("%i bytes sense data provided by FCP\n",
 			       fcp_rsp_iu->fcp_sns_len);
-		memcpy(&scpnt->sense_buffer,
+		memcpy(scpnt->sense_buffer,
 		       zfcp_get_fcp_sns_info_ptr(fcp_rsp_iu), sns_len);
 		ZFCP_HEX_DUMP(ZFCP_LOG_LEVEL_TRACE,
-			      (void *) &scpnt->sense_buffer, sns_len);
+			      (void *)scpnt->sense_buffer, sns_len);
 	}
 
 	/* check for overrun */
@@ -4725,7 +4725,7 @@ zfcp_fsf_req_create(struct zfcp_adapter *adapter, u32 fsf_cmd, int req_flags,
 	/* allocate new FSF request */
 	fsf_req = zfcp_fsf_req_alloc(pool, req_flags);
 	if (unlikely(NULL == fsf_req)) {
-		ZFCP_LOG_DEBUG("error: Could not put an FSF request into"
+		ZFCP_LOG_DEBUG("error: Could not put an FSF request into "
 			       "the outbound (send) queue.\n");
 		ret = -ENOMEM;
 		goto failed_fsf_req;

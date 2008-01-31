@@ -30,7 +30,7 @@
 #include <linux/init.h>
 #include <net/x25.h>
 
-static struct list_head x25_neigh_list = LIST_HEAD_INIT(x25_neigh_list);
+static LIST_HEAD(x25_neigh_list);
 static DEFINE_RWLOCK(x25_neigh_list_lock);
 
 static void x25_t20timer_expiry(unsigned long);
@@ -247,10 +247,7 @@ void x25_link_device_up(struct net_device *dev)
 		return;
 
 	skb_queue_head_init(&nb->queue);
-
-	init_timer(&nb->t20timer);
-	nb->t20timer.data     = (unsigned long)nb;
-	nb->t20timer.function = &x25_t20timer_expiry;
+	setup_timer(&nb->t20timer, x25_t20timer_expiry, (unsigned long)nb);
 
 	dev_hold(dev);
 	nb->dev      = dev;

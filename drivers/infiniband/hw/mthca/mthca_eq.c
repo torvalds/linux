@@ -827,8 +827,7 @@ int mthca_init_eq_table(struct mthca_dev *dev)
 	if (err)
 		goto err_out_free;
 
-	if (dev->mthca_flags & MTHCA_FLAG_MSI ||
-	    dev->mthca_flags & MTHCA_FLAG_MSI_X) {
+	if (dev->mthca_flags & MTHCA_FLAG_MSI_X) {
 		dev->eq_table.clr_mask = 0;
 	} else {
 		dev->eq_table.clr_mask =
@@ -839,8 +838,7 @@ int mthca_init_eq_table(struct mthca_dev *dev)
 
 	dev->eq_table.arm_mask = 0;
 
-	intr = (dev->mthca_flags & MTHCA_FLAG_MSI) ?
-		128 : dev->eq_table.inta_pin;
+	intr = dev->eq_table.inta_pin;
 
 	err = mthca_create_eq(dev, dev->limits.num_cqs + MTHCA_NUM_SPARE_EQE,
 			      (dev->mthca_flags & MTHCA_FLAG_MSI_X) ? 128 : intr,

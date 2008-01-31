@@ -444,7 +444,7 @@ static int dc390_pci_map (struct dc390_srb* pSRB)
 
 	/* Map sense buffer */
 	if (pSRB->SRBFlag & AUTO_REQSENSE) {
-		pSRB->pSegmentList	= dc390_sg_build_single(&pSRB->Segmentx, pcmd->sense_buffer, sizeof(pcmd->sense_buffer));
+		pSRB->pSegmentList	= dc390_sg_build_single(&pSRB->Segmentx, pcmd->sense_buffer, SCSI_SENSE_BUFFERSIZE);
 		pSRB->SGcount		= pci_map_sg(pdev, pSRB->pSegmentList, 1,
 						     DMA_FROM_DEVICE);
 		cmdp->saved_dma_handle	= sg_dma_address(pSRB->pSegmentList);
@@ -599,7 +599,7 @@ dc390_StartSCSI( struct dc390_acb* pACB, struct dc390_dcb* pDCB, struct dc390_sr
 	    DC390_write8 (ScsiFifo, pDCB->TargetLUN << 5);
 	    DC390_write8 (ScsiFifo, 0);
 	    DC390_write8 (ScsiFifo, 0);
-	    DC390_write8 (ScsiFifo, sizeof(scmd->sense_buffer));
+	    DC390_write8 (ScsiFifo, SCSI_SENSE_BUFFERSIZE);
 	    DC390_write8 (ScsiFifo, 0);
 	    DEBUG1(printk (KERN_DEBUG "DC390: AutoReqSense !\n"));
 	  }
@@ -1389,7 +1389,7 @@ dc390_CommandPhase( struct dc390_acb* pACB, struct dc390_srb* pSRB, u8 *psstatus
 	DC390_write8 (ScsiFifo, pDCB->TargetLUN << 5);
 	DC390_write8 (ScsiFifo, 0);
 	DC390_write8 (ScsiFifo, 0);
-	DC390_write8 (ScsiFifo, sizeof(pSRB->pcmd->sense_buffer));
+	DC390_write8 (ScsiFifo, SCSI_SENSE_BUFFERSIZE);
 	DC390_write8 (ScsiFifo, 0);
 	DEBUG0(printk(KERN_DEBUG "DC390: AutoReqSense (CmndPhase)!\n"));
     }

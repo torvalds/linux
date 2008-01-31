@@ -26,6 +26,10 @@
 #include <linux/sysctl.h>
 #include <net/rtnetlink.h>
 
+/*
+ * NUD stands for "neighbor unreachability detection"
+ */
+
 #define NUD_IN_TIMER	(NUD_INCOMPLETE|NUD_REACHABLE|NUD_DELAY|NUD_PROBE)
 #define NUD_VALID	(NUD_PERMANENT|NUD_NOARP|NUD_REACHABLE|NUD_PROBE|NUD_STALE|NUD_DELAY)
 #define NUD_CONNECTED	(NUD_PERMANENT|NUD_NOARP|NUD_REACHABLE)
@@ -34,6 +38,7 @@ struct neighbour;
 
 struct neigh_parms
 {
+	struct net *net;
 	struct net_device *dev;
 	struct neigh_parms *next;
 	int	(*neigh_setup)(struct neighbour *);
@@ -126,7 +131,8 @@ struct neigh_ops
 struct pneigh_entry
 {
 	struct pneigh_entry	*next;
-	struct net_device		*dev;
+	struct net		*net;
+	struct net_device	*dev;
 	u8			flags;
 	u8			key[0];
 };
@@ -187,6 +193,7 @@ extern struct neighbour *	neigh_lookup(struct neigh_table *tbl,
 					     const void *pkey,
 					     struct net_device *dev);
 extern struct neighbour *	neigh_lookup_nodev(struct neigh_table *tbl,
+						   struct net *net,
 						   const void *pkey);
 extern struct neighbour *	neigh_create(struct neigh_table *tbl,
 					     const void *pkey,
@@ -206,13 +213,12 @@ extern struct neighbour 	*neigh_event_ns(struct neigh_table *tbl,
 
 extern struct neigh_parms	*neigh_parms_alloc(struct net_device *dev, struct neigh_table *tbl);
 extern void			neigh_parms_release(struct neigh_table *tbl, struct neigh_parms *parms);
-extern void			neigh_parms_destroy(struct neigh_parms *parms);
 extern unsigned long		neigh_rand_reach_time(unsigned long base);
 
 extern void			pneigh_enqueue(struct neigh_table *tbl, struct neigh_parms *p,
 					       struct sk_buff *skb);
-extern struct pneigh_entry	*pneigh_lookup(struct neigh_table *tbl, const void *key, struct net_device *dev, int creat);
-extern int			pneigh_delete(struct neigh_table *tbl, const void *key, struct net_device *dev);
+extern struct pneigh_entry	*pneigh_lookup(struct neigh_table *tbl, struct net *net, const void *key, struct net_device *dev, int creat);
+extern int			pneigh_delete(struct neigh_table *tbl, struct net *net, const void *key, struct net_device *dev);
 
 extern void neigh_app_ns(struct neighbour *n);
 extern void neigh_for_each(struct neigh_table *tbl, void (*cb)(struct neighbour *, void *), void *cookie);
@@ -220,6 +226,7 @@ extern void __neigh_for_each_release(struct neigh_table *tbl, int (*cb)(struct n
 extern void pneigh_for_each(struct neigh_table *tbl, void (*cb)(struct pneigh_entry *));
 
 struct neigh_seq_state {
+	struct seq_net_private p;
 	struct neigh_table *tbl;
 	void *(*neigh_sub_iter)(struct neigh_seq_state *state,
 				struct neighbour *n, loff_t *pos);
@@ -244,12 +251,6 @@ extern void			neigh_sysctl_unregister(struct neigh_parms *p);
 static inline void __neigh_parms_put(struct neigh_parms *parms)
 {
 	atomic_dec(&parms->refcnt);
-}
-
-static inline void neigh_parms_put(struct neigh_parms *parms)
-{
-	if (atomic_dec_and_test(&parms->refcnt))
-		neigh_parms_destroy(parms);
 }
 
 static inline struct neigh_parms *neigh_parms_clone(struct neigh_parms *parms)
@@ -288,10 +289,6 @@ static inline int neigh_is_connected(struct neighbour *neigh)
 	return neigh->nud_state&NUD_CONNECTED;
 }
 
-static inline int neigh_is_valid(struct neighbour *neigh)
-{
-	return neigh->nud_state&NUD_VALID;
-}
 
 static inline int neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 {

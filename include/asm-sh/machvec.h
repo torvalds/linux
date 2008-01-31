@@ -56,9 +56,6 @@ struct sh_machine_vector {
 
 	void (*mv_heartbeat)(void);
 
-	void *(*mv_consistent_alloc)(struct device *, size_t, dma_addr_t *, gfp_t);
-	int (*mv_consistent_free)(struct device *, size_t, void *, dma_addr_t);
-
 	void __iomem *(*mv_ioport_map)(unsigned long port, unsigned int size);
 	void (*mv_ioport_unmap)(void __iomem *);
 };
@@ -68,6 +65,6 @@ extern struct sh_machine_vector sh_mv;
 #define get_system_type()	sh_mv.mv_name
 
 #define __initmv \
-	__attribute_used__ __attribute__((__section__ (".machvec.init")))
+	__used __section(.machvec.init)
 
 #endif /* _ASM_SH_MACHVEC_H */

@@ -50,6 +50,9 @@
 #include "hcp_if.h"
 #include "hipz_fns.h"
 
+/* in RC traffic, insert an empty RDMA READ every this many packets */
+#define ACK_CIRC_THRESHOLD 2000000
+
 static inline int ehca_write_rwqe(struct ipz_queue *ipz_rqueue,
 				  struct ehca_wqe *wqe_p,
 				  struct ib_recv_wr *recv_wr)
@@ -81,7 +84,7 @@ static inline int ehca_write_rwqe(struct ipz_queue *ipz_rqueue,
 	if (ehca_debug_level) {
 		ehca_gen_dbg("RECEIVE WQE written into ipz_rqueue=%p",
 			     ipz_rqueue);
-		ehca_dmp( wqe_p, 16*(6 + wqe_p->nr_of_data_seg), "recv wqe");
+		ehca_dmp(wqe_p, 16*(6 + wqe_p->nr_of_data_seg), "recv wqe");
 	}
 
 	return 0;
@@ -135,7 +138,8 @@ static void trace_send_wr_ud(const struct ib_send_wr *send_wr)
 
 static inline int ehca_write_swqe(struct ehca_qp *qp,
 				  struct ehca_wqe *wqe_p,
-				  const struct ib_send_wr *send_wr)
+				  const struct ib_send_wr *send_wr,
+				  int hidden)
 {
 	u32 idx;
 	u64 dma_length;
@@ -176,7 +180,9 @@ static inline int ehca_write_swqe(struct ehca_qp *qp,
 
 	wqe_p->wr_flag = 0;
 
-	if (send_wr->send_flags & IB_SEND_SIGNALED)
+	if ((send_wr->send_flags & IB_SEND_SIGNALED ||
+	    qp->init_attr.sq_sig_type == IB_SIGNAL_ALL_WR)
+	    && !hidden)
 		wqe_p->wr_flag |= WQE_WRFLAG_REQ_SIGNAL_COM;
 
 	if (send_wr->opcode == IB_WR_SEND_WITH_IMM ||
@@ -199,7 +205,7 @@ static inline int ehca_write_swqe(struct ehca_qp *qp,
 
 		wqe_p->destination_qp_number = send_wr->wr.ud.remote_qpn << 8;
 		wqe_p->local_ee_context_qkey = remote_qkey;
-		if (!send_wr->wr.ud.ah) {
+		if (unlikely(!send_wr->wr.ud.ah)) {
 			ehca_gen_err("wr.ud.ah is NULL. qp=%p", qp);
 			return -EINVAL;
 		}
@@ -254,6 +260,15 @@ static inline int ehca_write_swqe(struct ehca_qp *qp,
 			dma_length += send_wr->sg_list[idx].length;
 		} /* eof idx */
 		wqe_p->u.nud.atomic_1st_op_dma_len = dma_length;
+
+		/* unsolicited ack circumvention */
+		if (send_wr->opcode == IB_WR_RDMA_READ) {
+			/* on RDMA read, switch on and reset counters */
+			qp->message_count = qp->packet_count = 0;
+			qp->unsol_ack_circ = 1;
+		} else
+			/* else estimate #packets */
+			qp->packet_count += (dma_length >> qp->mtu_shift) + 1;
 
 		break;
 
@@ -355,13 +370,49 @@ static inline void map_ib_wc_status(u32 cqe_status,
 		*wc_status = IB_WC_SUCCESS;
 }
 
+static inline int post_one_send(struct ehca_qp *my_qp,
+			 struct ib_send_wr *cur_send_wr,
+			 struct ib_send_wr **bad_send_wr,
+			 int hidden)
+{
+	struct ehca_wqe *wqe_p;
+	int ret;
+	u64 start_offset = my_qp->ipz_squeue.current_q_offset;
+
+	/* get pointer next to free WQE */
+	wqe_p = ipz_qeit_get_inc(&my_qp->ipz_squeue);
+	if (unlikely(!wqe_p)) {
+		/* too many posted work requests: queue overflow */
+		if (bad_send_wr)
+			*bad_send_wr = cur_send_wr;
+		ehca_err(my_qp->ib_qp.device, "Too many posted WQEs "
+			 "qp_num=%x", my_qp->ib_qp.qp_num);
+		return -ENOMEM;
+	}
+	/* write a SEND WQE into the QUEUE */
+	ret = ehca_write_swqe(my_qp, wqe_p, cur_send_wr, hidden);
+	/*
+	 * if something failed,
+	 * reset the free entry pointer to the start value
+	 */
+	if (unlikely(ret)) {
+		my_qp->ipz_squeue.current_q_offset = start_offset;
+		if (bad_send_wr)
+			*bad_send_wr = cur_send_wr;
+		ehca_err(my_qp->ib_qp.device, "Could not write WQE "
+			 "qp_num=%x", my_qp->ib_qp.qp_num);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 int ehca_post_send(struct ib_qp *qp,
 		   struct ib_send_wr *send_wr,
 		   struct ib_send_wr **bad_send_wr)
 {
 	struct ehca_qp *my_qp = container_of(qp, struct ehca_qp, ib_qp);
 	struct ib_send_wr *cur_send_wr;
-	struct ehca_wqe *wqe_p;
 	int wqe_cnt = 0;
 	int ret = 0;
 	unsigned long flags;
@@ -369,37 +420,33 @@ int ehca_post_send(struct ib_qp *qp,
 	/* LOCK the QUEUE */
 	spin_lock_irqsave(&my_qp->spinlock_s, flags);
 
+	/* Send an empty extra RDMA read if:
+	 *  1) there has been an RDMA read on this connection before
+	 *  2) no RDMA read occurred for ACK_CIRC_THRESHOLD link packets
+	 *  3) we can be sure that any previous extra RDMA read has been
+	 *     processed so we don't overflow the SQ
+	 */
+	if (unlikely(my_qp->unsol_ack_circ &&
+		     my_qp->packet_count > ACK_CIRC_THRESHOLD &&
+		     my_qp->message_count > my_qp->init_attr.cap.max_send_wr)) {
+		/* insert an empty RDMA READ to fix up the remote QP state */
+		struct ib_send_wr circ_wr;
+		memset(&circ_wr, 0, sizeof(circ_wr));
+		circ_wr.opcode = IB_WR_RDMA_READ;
+		post_one_send(my_qp, &circ_wr, NULL, 1); /* ignore retcode */
+		wqe_cnt++;
+		ehca_dbg(qp->device, "posted circ wr  qp_num=%x", qp->qp_num);
+		my_qp->message_count = my_qp->packet_count = 0;
+	}
+
 	/* loop processes list of send reqs */
 	for (cur_send_wr = send_wr; cur_send_wr != NULL;
 	     cur_send_wr = cur_send_wr->next) {
-		u64 start_offset = my_qp->ipz_squeue.current_q_offset;
-		/* get pointer next to free WQE */
-		wqe_p = ipz_qeit_get_inc(&my_qp->ipz_squeue);
-		if (unlikely(!wqe_p)) {
-			/* too many posted work requests: queue overflow */
-			if (bad_send_wr)
-				*bad_send_wr = cur_send_wr;
-			if (wqe_cnt == 0) {
-				ret = -ENOMEM;
-				ehca_err(qp->device, "Too many posted WQEs "
-					 "qp_num=%x", qp->qp_num);
-			}
-			goto post_send_exit0;
-		}
-		/* write a SEND WQE into the QUEUE */
-		ret = ehca_write_swqe(my_qp, wqe_p, cur_send_wr);
-		/*
-		 * if something failed,
-		 * reset the free entry pointer to the start value
-		 */
+		ret = post_one_send(my_qp, cur_send_wr, bad_send_wr, 0);
 		if (unlikely(ret)) {
-			my_qp->ipz_squeue.current_q_offset = start_offset;
-			*bad_send_wr = cur_send_wr;
-			if (wqe_cnt == 0) {
-				ret = -EINVAL;
-				ehca_err(qp->device, "Could not write WQE "
-					 "qp_num=%x", qp->qp_num);
-			}
+			/* if one or more WQEs were successful, don't fail */
+			if (wqe_cnt)
+				ret = 0;
 			goto post_send_exit0;
 		}
 		wqe_cnt++;
@@ -410,6 +457,7 @@ int ehca_post_send(struct ib_qp *qp,
 post_send_exit0:
 	iosync(); /* serialize GAL register access */
 	hipz_update_sqa(my_qp, wqe_cnt);
+	my_qp->message_count += wqe_cnt;
 	spin_unlock_irqrestore(&my_qp->spinlock_s, flags);
 	return ret;
 }

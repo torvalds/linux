@@ -69,11 +69,13 @@ source "drivers/media/common/Kconfig"
 config VIDEO_TUNER
 	tristate
 	depends on I2C
+	select TUNER_XC2028 if !VIDEO_TUNER_CUSTOMIZE
 	select TUNER_MT20XX if !VIDEO_TUNER_CUSTOMIZE
 	select TUNER_TDA8290 if !VIDEO_TUNER_CUSTOMIZE
 	select TUNER_TEA5761 if !VIDEO_TUNER_CUSTOMIZE
 	select TUNER_TEA5767 if !VIDEO_TUNER_CUSTOMIZE
 	select TUNER_SIMPLE if !VIDEO_TUNER_CUSTOMIZE
+	select TUNER_TDA9887 if !VIDEO_TUNER_CUSTOMIZE
 
 menuconfig VIDEO_TUNER_CUSTOMIZE
 	bool "Customize analog tuner modules to build"
@@ -89,6 +91,13 @@ menuconfig VIDEO_TUNER_CUSTOMIZE
 
 if VIDEO_TUNER_CUSTOMIZE
 
+config TUNER_XC2028
+	tristate "XCeive xc2028/xc3028 tuners"
+	depends on I2C
+	default m if VIDEO_TUNER_CUSTOMIZE
+	help
+	  Say Y here to include support for the xc2028/xc3028 tuners.
+
 config TUNER_MT20XX
 	tristate "Microtune 2032 / 2050 tuners"
 	depends on I2C
@@ -97,8 +106,10 @@ config TUNER_MT20XX
 	  Say Y here to include support for the MT2032 / MT2050 tuner.
 
 config TUNER_TDA8290
-	tristate "TDA 8290+8275(a) tuner combo"
+	tristate "TDA 8290/8295 + 8275(a)/18271 tuner combo"
 	depends on I2C
+	select DVB_TDA827X
+	select DVB_TDA18271
 	default m if VIDEO_TUNER_CUSTOMIZE
 	help
 	  Say Y here to include support for Philips TDA8290+8275(a) tuner.
@@ -120,9 +131,18 @@ config TUNER_TEA5767
 config TUNER_SIMPLE
 	tristate "Simple tuner support"
 	depends on I2C
+	select TUNER_TDA9887
 	default m if VIDEO_TUNER_CUSTOMIZE
 	help
 	  Say Y here to include support for various simple tuners.
+
+config TUNER_TDA9887
+	tristate "TDA 9885/6/7 analog IF demodulator"
+	depends on I2C
+	default m if VIDEO_TUNER_CUSTOMIZE
+	help
+	  Say Y here to include support for Philips TDA9885/6/7
+	  analog IF demodulator.
 
 endif # VIDEO_TUNER_CUSTOMIZE
 

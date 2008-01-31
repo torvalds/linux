@@ -481,9 +481,9 @@ struct bcm43xx_dmaring;
 struct bcm43xx_pioqueue;
 
 struct bcm43xx_initval {
-	u16 offset;
-	u16 size;
-	u32 value;
+	__be16 offset;
+	__be16 size;
+	__be32 value;
 } __attribute__((__packed__));
 
 /* Values for bcm430x_sprominfo.locale */

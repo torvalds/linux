@@ -165,13 +165,17 @@ static unsigned long ide_get_or_set_dma_base(const struct ide_port_info *d, ide_
 
 		dma_base = pci_resource_start(dev, baridx);
 
-		if (dma_base == 0)
+		if (dma_base == 0) {
 			printk(KERN_ERR "%s: DMA base is invalid\n", d->name);
+			return 0;
+		}
 	}
 
-	if ((d->host_flags & IDE_HFLAG_CS5520) == 0 && dma_base) {
+	if (hwif->channel)
+		dma_base += 8;
+
+	if ((d->host_flags & IDE_HFLAG_CS5520) == 0) {
 		u8 simplex_stat = 0;
-		dma_base += hwif->channel ? 8 : 0;
 
 		switch(dev->device) {
 			case PCI_DEVICE_ID_AL_M5219:
@@ -359,6 +363,8 @@ static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev, const struct ide_port
 	unsigned long ctl = 0, base = 0;
 	ide_hwif_t *hwif;
 	u8 bootable = (d->host_flags & IDE_HFLAG_BOOTABLE) ? 1 : 0;
+	u8 oldnoprobe = 0;
+	struct hw_regs_s hw;
 
 	if ((d->host_flags & IDE_HFLAG_ISA_PORTS) == 0) {
 		/*  Possibly we should fail if these checks report true */
@@ -381,26 +387,25 @@ static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev, const struct ide_port
 	}
 	if ((hwif = ide_match_hwif(base, bootable, d->name)) == NULL)
 		return NULL;	/* no room in ide_hwifs[] */
-	if (hwif->io_ports[IDE_DATA_OFFSET] != base ||
-	    hwif->io_ports[IDE_CONTROL_OFFSET] != (ctl | 2)) {
-		hw_regs_t hw;
 
-		memset(&hw, 0, sizeof(hw));
-#ifndef CONFIG_IDE_ARCH_OBSOLETE_INIT
-		ide_std_init_ports(&hw, base, ctl | 2);
-#else
-		ide_init_hwif_ports(&hw, base, ctl | 2, NULL);
-#endif
-		memcpy(hwif->io_ports, hw.io_ports, sizeof(hwif->io_ports));
-		hwif->noprobe = !hwif->io_ports[IDE_DATA_OFFSET];
-	}
-	hwif->chipset = d->chipset ? d->chipset : ide_pci;
+	memset(&hw, 0, sizeof(hw));
+	hw.irq = hwif->irq ? hwif->irq : irq;
+	hw.dev = &dev->dev;
+	hw.chipset = d->chipset ? d->chipset : ide_pci;
+	ide_std_init_ports(&hw, base, ctl | 2);
+
+	if (hwif->io_ports[IDE_DATA_OFFSET] == base &&
+	    hwif->io_ports[IDE_CONTROL_OFFSET] == (ctl | 2))
+		oldnoprobe = hwif->noprobe;
+
+	ide_init_port_hw(hwif, &hw);
+
+	hwif->noprobe = oldnoprobe;
+
 	hwif->pci_dev = dev;
 	hwif->cds = d;
 	hwif->channel = port;
 
-	if (!hwif->irq)
-		hwif->irq = irq;
 	if (mate) {
 		hwif->mate = mate;
 		mate->mate = hwif;
@@ -535,12 +540,8 @@ void ide_pci_setup_ports(struct pci_dev *dev, const struct ide_port_info *d, int
 		if ((hwif = ide_hwif_configure(dev, d, mate, port, pciirq)) == NULL)
 			continue;
 
-		/* setup proper ancestral information */
-		hwif->gendev.parent = &dev->dev;
-
 		*(idx + port) = hwif->index;
 
-		
 		if (d->init_iops)
 			d->init_iops(hwif);
 
@@ -550,8 +551,6 @@ void ide_pci_setup_ports(struct pci_dev *dev, const struct ide_port_info *d, int
 		if ((!hwif->irq && (d->host_flags & IDE_HFLAG_LEGACY_IRQS)) ||
 		    (d->host_flags & IDE_HFLAG_FORCE_LEGACY_IRQS))
 			hwif->irq = port ? 15 : 14;
-
-		hwif->fixup = d->fixup;
 
 		hwif->host_flags = d->host_flags;
 		hwif->pio_mask = d->pio_mask;
@@ -699,105 +698,3 @@ out:
 }
 
 EXPORT_SYMBOL_GPL(ide_setup_pci_devices);
-
-#ifdef CONFIG_IDEPCI_PCIBUS_ORDER
-/*
- *	Module interfaces
- */
-
-static int pre_init = 1;		/* Before first ordered IDE scan */
-static LIST_HEAD(ide_pci_drivers);
-
-/*
- *	__ide_pci_register_driver	-	attach IDE driver
- *	@driver: pci driver
- *	@module: owner module of the driver
- *
- *	Registers a driver with the IDE layer. The IDE layer arranges that
- *	boot time setup is done in the expected device order and then
- *	hands the controllers off to the core PCI code to do the rest of
- *	the work.
- *
- *	Returns are the same as for pci_register_driver
- */
-
-int __ide_pci_register_driver(struct pci_driver *driver, struct module *module,
-			      const char *mod_name)
-{
-	if (!pre_init)
-		return __pci_register_driver(driver, module, mod_name);
-	driver->driver.owner = module;
-	list_add_tail(&driver->node, &ide_pci_drivers);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(__ide_pci_register_driver);
-
-/**
- *	ide_scan_pcidev		-	find an IDE driver for a device
- *	@dev: PCI device to check
- *
- *	Look for an IDE driver to handle the device we are considering.
- *	This is only used during boot up to get the ordering correct. After
- *	boot up the pci layer takes over the job.
- */
-
-static int __init ide_scan_pcidev(struct pci_dev *dev)
-{
-	struct list_head *l;
-	struct pci_driver *d;
-
-	list_for_each(l, &ide_pci_drivers) {
-		d = list_entry(l, struct pci_driver, node);
-		if (d->id_table) {
-			const struct pci_device_id *id =
-				pci_match_id(d->id_table, dev);
-
-			if (id != NULL && d->probe(dev, id) >= 0) {
-				dev->driver = d;
-				pci_dev_get(dev);
-				return 1;
-			}
-		}
-	}
-	return 0;
-}
-
-/**
- *	ide_scan_pcibus		-	perform the initial IDE driver scan
- *	@scan_direction: set for reverse order scanning
- *
- *	Perform the initial bus rather than driver ordered scan of the
- *	PCI drivers. After this all IDE pci handling becomes standard
- *	module ordering not traditionally ordered.
- */
- 	
-void __init ide_scan_pcibus (int scan_direction)
-{
-	struct pci_dev *dev = NULL;
-	struct pci_driver *d;
-	struct list_head *l, *n;
-
-	pre_init = 0;
-	if (!scan_direction)
-		while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)))
-			ide_scan_pcidev(dev);
-	else
-		while ((dev = pci_get_device_reverse(PCI_ANY_ID, PCI_ANY_ID,
-						     dev)))
-			ide_scan_pcidev(dev);
-
-	/*
-	 *	Hand the drivers over to the PCI layer now we
-	 *	are post init.
-	 */
-
-	list_for_each_safe(l, n, &ide_pci_drivers) {
-		list_del(l);
-		d = list_entry(l, struct pci_driver, node);
-		if (__pci_register_driver(d, d->driver.owner,
-					  d->driver.mod_name))
-			printk(KERN_ERR "%s: failed to register %s driver\n",
-					__FUNCTION__, d->driver.mod_name);
-	}
-}
-#endif

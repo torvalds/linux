@@ -312,8 +312,7 @@ pcmcia_create_newid_file(struct pcmcia_driver *drv)
 {
 	int error = 0;
 	if (drv->probe != NULL)
-		error = sysfs_create_file(&drv->drv.kobj,
-					  &driver_attr_new_id.attr);
+		error = driver_create_file(&drv->drv, &driver_attr_new_id);
 	return error;
 }
 

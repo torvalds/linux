@@ -23,6 +23,10 @@ config BINFMT_ELF
 	  ld.so (check the file <file:Documentation/Changes> for location and
 	  latest version).
 
+config COMPAT_BINFMT_ELF
+	bool
+	depends on COMPAT && MMU
+
 config BINFMT_ELF_FDPIC
 	bool "Kernel support for FDPIC ELF binaries"
 	default y

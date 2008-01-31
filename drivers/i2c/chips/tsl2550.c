@@ -432,11 +432,32 @@ static int __devexit tsl2550_remove(struct i2c_client *client)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+
+static int tsl2550_suspend(struct i2c_client *client, pm_message_t mesg)
+{
+	return tsl2550_set_power_state(client, 0);
+}
+
+static int tsl2550_resume(struct i2c_client *client)
+{
+	return tsl2550_set_power_state(client, 1);
+}
+
+#else
+
+#define tsl2550_suspend		NULL
+#define tsl2550_resume		NULL
+
+#endif /* CONFIG_PM */
+
 static struct i2c_driver tsl2550_driver = {
 	.driver = {
 		.name	= TSL2550_DRV_NAME,
 		.owner	= THIS_MODULE,
 	},
+	.suspend = tsl2550_suspend,
+	.resume	= tsl2550_resume,
 	.probe	= tsl2550_probe,
 	.remove	= __devexit_p(tsl2550_remove),
 };

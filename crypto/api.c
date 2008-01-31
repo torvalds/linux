@@ -137,7 +137,7 @@ static struct crypto_alg *crypto_larval_alloc(const char *name, u32 type,
 	return alg;
 }
 
-static void crypto_larval_kill(struct crypto_alg *alg)
+void crypto_larval_kill(struct crypto_alg *alg)
 {
 	struct crypto_larval *larval = (void *)alg;
 
@@ -147,6 +147,7 @@ static void crypto_larval_kill(struct crypto_alg *alg)
 	complete_all(&larval->completion);
 	crypto_alg_put(alg);
 }
+EXPORT_SYMBOL_GPL(crypto_larval_kill);
 
 static struct crypto_alg *crypto_larval_wait(struct crypto_alg *alg)
 {
@@ -176,11 +177,9 @@ static struct crypto_alg *crypto_alg_lookup(const char *name, u32 type,
 	return alg;
 }
 
-struct crypto_alg *crypto_alg_mod_lookup(const char *name, u32 type, u32 mask)
+struct crypto_alg *crypto_larval_lookup(const char *name, u32 type, u32 mask)
 {
 	struct crypto_alg *alg;
-	struct crypto_alg *larval;
-	int ok;
 
 	if (!name)
 		return ERR_PTR(-ENOENT);
@@ -193,7 +192,17 @@ struct crypto_alg *crypto_alg_mod_lookup(const char *name, u32 type, u32 mask)
 	if (alg)
 		return crypto_is_larval(alg) ? crypto_larval_wait(alg) : alg;
 
-	larval = crypto_larval_alloc(name, type, mask);
+	return crypto_larval_alloc(name, type, mask);
+}
+EXPORT_SYMBOL_GPL(crypto_larval_lookup);
+
+struct crypto_alg *crypto_alg_mod_lookup(const char *name, u32 type, u32 mask)
+{
+	struct crypto_alg *alg;
+	struct crypto_alg *larval;
+	int ok;
+
+	larval = crypto_larval_lookup(name, type, mask);
 	if (IS_ERR(larval) || !crypto_is_larval(larval))
 		return larval;
 

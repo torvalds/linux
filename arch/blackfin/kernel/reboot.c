@@ -19,6 +19,11 @@
 #define SYSCR_VAL 	0x10
 #endif
 
+/*
+ * Delay min 5 SCLK cycles using worst case CCLK/SCLK ratio (15)
+ */
+#define SWRST_DELAY	(5 * 15)
+
 /* A system soft reset makes external memory unusable
  * so force this function into L1.
  */
@@ -34,7 +39,13 @@ void bfin_reset(void)
 	while (1) {
 		/* initiate system soft reset with magic 0x7 */
 		bfin_write_SWRST(0x7);
-		asm("ssync;");
+
+		/* Wait for System reset to actually reset, needs to be 5 SCLKs, */
+		/* Assume CCLK / SCLK ratio is worst case (15), and use 5*15     */
+
+		asm("LSETUP(.Lfoo,.Lfoo) LC0 = %0\n .Lfoo: NOP;\n"
+		 : : "a" (SWRST_DELAY) : "LC0", "LT0", "LB0");
+
 		/* clear system soft reset */
 		bfin_write_SWRST(0);
 		asm("ssync;");

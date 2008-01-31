@@ -11,6 +11,7 @@
 #include <linux/utsname.h>
 #include <asm/bugs.h>
 #include <asm/processor.h>
+#include <asm/processor-flags.h>
 #include <asm/i387.h>
 #include <asm/msr.h>
 #include <asm/paravirt.h>
@@ -35,7 +36,7 @@ __setup("mca-pentium", mca_pentium);
 static int __init no_387(char *s)
 {
 	boot_cpu_data.hard_math = 0;
-	write_cr0(0xE | read_cr0());
+	write_cr0(X86_CR0_TS | X86_CR0_EM | X86_CR0_MP | read_cr0());
 	return 1;
 }
 
@@ -153,7 +154,7 @@ static void __init check_config(void)
  * If we configured ourselves for a TSC, we'd better have one!
  */
 #ifdef CONFIG_X86_TSC
-	if (!cpu_has_tsc && !tsc_disable)
+	if (!cpu_has_tsc)
 		panic("Kernel compiled for Pentium+, requires TSC feature!");
 #endif
 

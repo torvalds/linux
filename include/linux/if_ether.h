@@ -90,6 +90,7 @@
 #define ETH_P_WAN_PPP   0x0007          /* Dummy type for WAN PPP frames*/
 #define ETH_P_PPP_MP    0x0008          /* Dummy type for PPP MP frames */
 #define ETH_P_LOCALTALK 0x0009		/* Localtalk pseudo type 	*/
+#define ETH_P_CAN	0x000C		/* Controller Area Network      */
 #define ETH_P_PPPTALK	0x0010		/* Dummy type for Atalk over PPP*/
 #define ETH_P_TR_802_2	0x0011		/* 802.2 frames 		*/
 #define ETH_P_MOBITEX	0x0015		/* Mobitex (kaz@cafe.net)	*/
@@ -123,12 +124,15 @@ int eth_header_parse(const struct sk_buff *skb, unsigned char *haddr);
 extern struct ctl_table ether_table[];
 #endif
 
+extern ssize_t sysfs_format_mac(char *buf, const unsigned char *addr, int len);
+
 /*
  *	Display a 6 byte device address (MAC) in a readable format.
  */
+extern char *print_mac(char *buf, const unsigned char *addr);
 #define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
-extern char *print_mac(char *buf, const u8 *addr);
-#define DECLARE_MAC_BUF(var) char var[18] __maybe_unused
+#define MAC_BUF_SIZE	18
+#define DECLARE_MAC_BUF(var) char var[MAC_BUF_SIZE] __maybe_unused
 
 #endif
 

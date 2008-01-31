@@ -408,7 +408,7 @@ struct sock *dccp_v4_request_recv_sock(struct sock *sk, struct sk_buff *skb,
 
 	dccp_sync_mss(newsk, dst_mtu(dst));
 
-	__inet_hash(&dccp_hashinfo, newsk, 0);
+	__inet_hash_nolisten(&dccp_hashinfo, newsk);
 	__inet_inherit_port(&dccp_hashinfo, sk, newsk);
 
 	return newsk;
@@ -469,7 +469,7 @@ static struct dst_entry* dccp_v4_route_skb(struct sock *sk,
 			  };
 
 	security_skb_classify_flow(skb, &fl);
-	if (ip_route_output_flow(&rt, &fl, sk, 0)) {
+	if (ip_route_output_flow(&init_net, &rt, &fl, sk, 0)) {
 		IP_INC_STATS_BH(IPSTATS_MIB_OUTNOROUTES);
 		return NULL;
 	}
@@ -600,10 +600,11 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	if (req == NULL)
 		goto drop;
 
-	if (dccp_parse_options(sk, skb))
-		goto drop_and_free;
-
 	dccp_reqsk_init(req, skb);
+
+	dreq = dccp_rsk(req);
+	if (dccp_parse_options(sk, dreq, skb))
+		goto drop_and_free;
 
 	if (security_inet_conn_request(sk, skb, req))
 		goto drop_and_free;
@@ -621,7 +622,6 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	 * In fact we defer setting S.GSR, S.SWL, S.SWH to
 	 * dccp_create_openreq_child.
 	 */
-	dreq = dccp_rsk(req);
 	dreq->dreq_isr	   = dcb->dccpd_seq;
 	dreq->dreq_iss	   = dccp_v4_init_sequence(skb);
 	dreq->dreq_service = service;

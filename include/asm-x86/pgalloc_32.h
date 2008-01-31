@@ -3,31 +3,33 @@
 
 #include <linux/threads.h>
 #include <linux/mm.h>		/* for struct page */
+#include <asm/tlb.h>
+#include <asm-generic/tlb.h>
 
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #else
 #define paravirt_alloc_pt(mm, pfn) do { } while (0)
-#define paravirt_alloc_pd(pfn) do { } while (0)
-#define paravirt_alloc_pd(pfn) do { } while (0)
+#define paravirt_alloc_pd(mm, pfn) do { } while (0)
 #define paravirt_alloc_pd_clone(pfn, clonepfn, start, count) do { } while (0)
 #define paravirt_release_pt(pfn) do { } while (0)
 #define paravirt_release_pd(pfn) do { } while (0)
 #endif
 
-#define pmd_populate_kernel(mm, pmd, pte)			\
-do {								\
-	paravirt_alloc_pt(mm, __pa(pte) >> PAGE_SHIFT);		\
-	set_pmd(pmd, __pmd(_PAGE_TABLE + __pa(pte)));		\
-} while (0)
+static inline void pmd_populate_kernel(struct mm_struct *mm,
+				       pmd_t *pmd, pte_t *pte)
+{
+	paravirt_alloc_pt(mm, __pa(pte) >> PAGE_SHIFT);
+	set_pmd(pmd, __pmd(__pa(pte) | _PAGE_TABLE));
+}
 
-#define pmd_populate(mm, pmd, pte) 				\
-do {								\
-	paravirt_alloc_pt(mm, page_to_pfn(pte));		\
-	set_pmd(pmd, __pmd(_PAGE_TABLE +			\
-		((unsigned long long)page_to_pfn(pte) <<	\
-			(unsigned long long) PAGE_SHIFT)));	\
-} while (0)
+static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd, struct page *pte)
+{
+	unsigned long pfn = page_to_pfn(pte);
+
+	paravirt_alloc_pt(mm, pfn);
+	set_pmd(pmd, __pmd(((pteval_t)pfn << PAGE_SHIFT) | _PAGE_TABLE));
+}
 
 /*
  * Allocate and free page tables.
@@ -49,20 +51,55 @@ static inline void pte_free(struct page *pte)
 }
 
 
-#define __pte_free_tlb(tlb,pte) 					\
-do {									\
-	paravirt_release_pt(page_to_pfn(pte));				\
-	tlb_remove_page((tlb),(pte));					\
-} while (0)
+static inline void __pte_free_tlb(struct mmu_gather *tlb, struct page *pte)
+{
+	paravirt_release_pt(page_to_pfn(pte));
+	tlb_remove_page(tlb, pte);
+}
 
 #ifdef CONFIG_X86_PAE
 /*
  * In the PAE case we free the pmds as part of the pgd.
  */
-#define pmd_alloc_one(mm, addr)		({ BUG(); ((pmd_t *)2); })
-#define pmd_free(x)			do { } while (0)
-#define __pmd_free_tlb(tlb,x)		do { } while (0)
-#define pud_populate(mm, pmd, pte)	BUG()
-#endif
+static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
+{
+	return (pmd_t *)get_zeroed_page(GFP_KERNEL|__GFP_REPEAT);
+}
+
+static inline void pmd_free(pmd_t *pmd)
+{
+	BUG_ON((unsigned long)pmd & (PAGE_SIZE-1));
+	free_page((unsigned long)pmd);
+}
+
+static inline void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd)
+{
+	/* This is called just after the pmd has been detached from
+	   the pgd, which requires a full tlb flush to be recognized
+	   by the CPU.  Rather than incurring multiple tlb flushes
+	   while the address space is being pulled down, make the tlb
+	   gathering machinery do a full flush when we're done. */
+	tlb->fullmm = 1;
+
+	paravirt_release_pd(__pa(pmd) >> PAGE_SHIFT);
+	tlb_remove_page(tlb, virt_to_page(pmd));
+}
+
+static inline void pud_populate(struct mm_struct *mm, pud_t *pudp, pmd_t *pmd)
+{
+	paravirt_alloc_pd(mm, __pa(pmd) >> PAGE_SHIFT);
+
+	/* Note: almost everything apart from _PAGE_PRESENT is
+	   reserved at the pmd (PDPT) level. */
+	set_pud(pudp, __pud(__pa(pmd) | _PAGE_PRESENT));
+
+	/*
+	 * Pentium-II erratum A13: in PAE mode we explicitly have to flush
+	 * the TLB via cr3 if the top-level pgd is changed...
+	 */
+	if (mm == current->active_mm)
+		write_cr3(read_cr3());
+}
+#endif	/* CONFIG_X86_PAE */
 
 #endif /* _I386_PGALLOC_H */

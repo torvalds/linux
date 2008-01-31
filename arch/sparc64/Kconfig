@@ -66,6 +66,9 @@ config AUDIT_ARCH
 	bool
 	default y
 
+config ARCH_SETS_UP_PER_CPU_AREA
+	def_bool y
+
 config ARCH_NO_VIRT_TO_BUS
 	def_bool y
 
@@ -200,6 +203,11 @@ config US2E_FREQ
 	  If in doubt, say N.
 
 # Global things across all Sun machines.
+config GENERIC_LOCKBREAK
+	bool
+	default y
+	depends on SMP && PREEMPT
+
 config RWSEM_GENERIC_SPINLOCK
 	bool
 

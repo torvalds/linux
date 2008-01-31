@@ -9,7 +9,6 @@
 
 #define map_page_into_agp(page)		/* nothing */
 #define unmap_page_from_agp(page)	/* nothing */
-#define flush_agp_mappings()		/* nothing */
 #define flush_agp_cache()		mb()
 
 /* Convert a physical address to an address suitable for the GART. */

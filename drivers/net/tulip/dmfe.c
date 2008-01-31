@@ -1909,7 +1909,7 @@ static void dmfe_parse_srom(struct dmfe_board_info * db)
 	if ( ( (int) srom[18] & 0xff) == SROM_V41_CODE) {
 		/* SROM V4.01 */
 		/* Get NIC support media mode */
-		db->NIC_capability = le16_to_cpup((__le16 *)srom + 34/2);
+		db->NIC_capability = le16_to_cpup((__le16 *) (srom + 34));
 		db->PHY_reg4 = 0;
 		for (tmp_reg = 1; tmp_reg < 0x10; tmp_reg <<= 1) {
 			switch( db->NIC_capability & tmp_reg ) {
@@ -1921,8 +1921,8 @@ static void dmfe_parse_srom(struct dmfe_board_info * db)
 		}
 
 		/* Media Mode Force or not check */
-		dmfe_mode = le32_to_cpup((__le32 *)srom + 34/4) &
-				le32_to_cpup((__le32 *)srom + 36/4);
+		dmfe_mode = (le32_to_cpup((__le32 *) (srom + 34)) &
+			     le32_to_cpup((__le32 *) (srom + 36)));
 		switch(dmfe_mode) {
 		case 0x4: dmfe_media_mode = DMFE_100MHF; break;	/* 100MHF */
 		case 0x2: dmfe_media_mode = DMFE_10MFD; break;	/* 10MFD */

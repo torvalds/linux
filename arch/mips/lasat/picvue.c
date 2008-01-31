@@ -22,8 +22,6 @@
 
 struct pvc_defs *picvue;
 
-DECLARE_MUTEX(pvc_sem);
-
 static void pvc_reg_write(u32 val)
 {
 	*picvue->reg = val;

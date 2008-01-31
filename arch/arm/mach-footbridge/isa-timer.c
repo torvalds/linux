@@ -64,9 +64,7 @@ static unsigned long isa_gettimeoffset(void)
 static irqreturn_t
 isa_timer_interrupt(int irq, void *dev_id)
 {
-	write_seqlock(&xtime_lock);
 	timer_tick();
-	write_sequnlock(&xtime_lock);
 	return IRQ_HANDLED;
 }
 

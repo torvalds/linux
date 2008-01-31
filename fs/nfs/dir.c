@@ -192,7 +192,7 @@ int nfs_readdir_filler(nfs_readdir_descriptor_t *desc, struct page *page)
 		/* We requested READDIRPLUS, but the server doesn't grok it */
 		if (error == -ENOTSUPP && desc->plus) {
 			NFS_SERVER(inode)->caps &= ~NFS_CAP_READDIRPLUS;
-			clear_bit(NFS_INO_ADVISE_RDPLUS, &NFS_FLAGS(inode));
+			clear_bit(NFS_INO_ADVISE_RDPLUS, &NFS_I(inode)->flags);
 			desc->plus = 0;
 			goto again;
 		}
@@ -537,12 +537,6 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
 	lock_kernel();
 
-	res = nfs_revalidate_mapping_nolock(inode, filp->f_mapping);
-	if (res < 0) {
-		unlock_kernel();
-		return res;
-	}
-
 	/*
 	 * filp->f_pos points to the dirent entry number.
 	 * *desc->dir_cookie has the cookie for the next entry. We have
@@ -564,6 +558,10 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	desc->entry = &my_entry;
 
 	nfs_block_sillyrename(dentry);
+	res = nfs_revalidate_mapping_nolock(inode, filp->f_mapping);
+	if (res < 0)
+		goto out;
+
 	while(!desc->entry->eof) {
 		res = readdir_search_pagecache(desc);
 
@@ -579,7 +577,7 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 			break;
 		}
 		if (res == -ETOOSMALL && desc->plus) {
-			clear_bit(NFS_INO_ADVISE_RDPLUS, &NFS_FLAGS(inode));
+			clear_bit(NFS_INO_ADVISE_RDPLUS, &NFS_I(inode)->flags);
 			nfs_zap_caches(inode);
 			desc->plus = 0;
 			desc->entry->eof = 0;
@@ -594,6 +592,7 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 			break;
 		}
 	}
+out:
 	nfs_unblock_sillyrename(dentry);
 	unlock_kernel();
 	if (res > 0)
@@ -637,6 +636,21 @@ static int nfs_fsync_dir(struct file *filp, struct dentry *dentry, int datasync)
 			datasync);
 
 	return 0;
+}
+
+/**
+ * nfs_force_lookup_revalidate - Mark the directory as having changed
+ * @dir - pointer to directory inode
+ *
+ * This forces the revalidation code in nfs_lookup_revalidate() to do a
+ * full lookup on all child dentries of 'dir' whenever a change occurs
+ * on the server that might have invalidated our dcache.
+ *
+ * The caller should be holding dir->i_lock
+ */
+void nfs_force_lookup_revalidate(struct inode *dir)
+{
+	NFS_I(dir)->cache_change_attribute = jiffies;
 }
 
 /*
@@ -827,6 +841,10 @@ static int nfs_dentry_delete(struct dentry *dentry)
 		dentry->d_parent->d_name.name, dentry->d_name.name,
 		dentry->d_flags);
 
+	/* Unhash any dentry with a stale inode */
+	if (dentry->d_inode != NULL && NFS_STALE(dentry->d_inode))
+		return 1;
+
 	if (dentry->d_flags & DCACHE_NFSFS_RENAMED) {
 		/* Unhash it, so that ->d_iput() would be called */
 		return 1;
@@ -846,7 +864,6 @@ static int nfs_dentry_delete(struct dentry *dentry)
  */
 static void nfs_dentry_iput(struct dentry *dentry, struct inode *inode)
 {
-	nfs_inode_return_delegation(inode);
 	if (S_ISDIR(inode->i_mode))
 		/* drop any readdir cache as it could easily be old */
 		NFS_I(inode)->cache_validity |= NFS_INO_INVALID_DATA;
@@ -1268,6 +1285,12 @@ out_err:
 	return error;
 }
 
+static void nfs_dentry_handle_enoent(struct dentry *dentry)
+{
+	if (dentry->d_inode != NULL && !d_unhashed(dentry))
+		d_delete(dentry);
+}
+
 static int nfs_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	int error;
@@ -1280,6 +1303,8 @@ static int nfs_rmdir(struct inode *dir, struct dentry *dentry)
 	/* Ensure the VFS deletes this inode */
 	if (error == 0 && dentry->d_inode != NULL)
 		clear_nlink(dentry->d_inode);
+	else if (error == -ENOENT)
+		nfs_dentry_handle_enoent(dentry);
 	unlock_kernel();
 
 	return error;
@@ -1386,6 +1411,8 @@ static int nfs_safe_remove(struct dentry *dentry)
 		nfs_mark_for_revalidate(inode);
 	} else
 		error = NFS_PROTO(dir)->remove(dir, &dentry->d_name);
+	if (error == -ENOENT)
+		nfs_dentry_handle_enoent(dentry);
 out:
 	return error;
 }
@@ -1422,7 +1449,7 @@ static int nfs_unlink(struct inode *dir, struct dentry *dentry)
 	spin_unlock(&dentry->d_lock);
 	spin_unlock(&dcache_lock);
 	error = nfs_safe_remove(dentry);
-	if (!error) {
+	if (!error || error == -ENOENT) {
 		nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 	} else if (need_rehash)
 		d_rehash(dentry);
@@ -1635,7 +1662,8 @@ out:
 		d_move(old_dentry, new_dentry);
 		nfs_set_verifier(new_dentry,
 					nfs_save_change_attribute(new_dir));
-	}
+	} else if (error == -ENOENT)
+		nfs_dentry_handle_enoent(old_dentry);
 
 	/* new dentry created? */
 	if (dentry)
@@ -1666,13 +1694,19 @@ int nfs_access_cache_shrinker(int nr_to_scan, gfp_t gfp_mask)
 restart:
 	spin_lock(&nfs_access_lru_lock);
 	list_for_each_entry(nfsi, &nfs_access_lru_list, access_cache_inode_lru) {
+		struct rw_semaphore *s_umount;
 		struct inode *inode;
 
 		if (nr_to_scan-- == 0)
 			break;
-		inode = igrab(&nfsi->vfs_inode);
-		if (inode == NULL)
+		s_umount = &nfsi->vfs_inode.i_sb->s_umount;
+		if (!down_read_trylock(s_umount))
 			continue;
+		inode = igrab(&nfsi->vfs_inode);
+		if (inode == NULL) {
+			up_read(s_umount);
+			continue;
+		}
 		spin_lock(&inode->i_lock);
 		if (list_empty(&nfsi->access_cache_entry_lru))
 			goto remove_lru_entry;
@@ -1691,6 +1725,7 @@ remove_lru_entry:
 		spin_unlock(&inode->i_lock);
 		spin_unlock(&nfs_access_lru_lock);
 		iput(inode);
+		up_read(s_umount);
 		goto restart;
 	}
 	spin_unlock(&nfs_access_lru_lock);
@@ -1731,7 +1766,7 @@ static void __nfs_access_zap_cache(struct inode *inode)
 void nfs_access_zap_cache(struct inode *inode)
 {
 	/* Remove from global LRU init */
-	if (test_and_clear_bit(NFS_INO_ACL_LRU_SET, &NFS_FLAGS(inode))) {
+	if (test_and_clear_bit(NFS_INO_ACL_LRU_SET, &NFS_I(inode)->flags)) {
 		spin_lock(&nfs_access_lru_lock);
 		list_del_init(&NFS_I(inode)->access_cache_inode_lru);
 		spin_unlock(&nfs_access_lru_lock);
@@ -1845,7 +1880,7 @@ static void nfs_access_add_cache(struct inode *inode, struct nfs_access_entry *s
 	smp_mb__after_atomic_inc();
 
 	/* Add inode to global LRU list */
-	if (!test_and_set_bit(NFS_INO_ACL_LRU_SET, &NFS_FLAGS(inode))) {
+	if (!test_and_set_bit(NFS_INO_ACL_LRU_SET, &NFS_I(inode)->flags)) {
 		spin_lock(&nfs_access_lru_lock);
 		list_add_tail(&NFS_I(inode)->access_cache_inode_lru, &nfs_access_lru_list);
 		spin_unlock(&nfs_access_lru_lock);

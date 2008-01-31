@@ -188,7 +188,7 @@ static struct vfsmount *nfs_do_clone_mount(struct nfs_server *server,
 {
 #ifdef CONFIG_NFS_V4
 	struct vfsmount *mnt = NULL;
-	switch (server->nfs_client->cl_nfsversion) {
+	switch (server->nfs_client->rpc_ops->version) {
 		case 2:
 		case 3:
 			mnt = vfs_kern_mount(&nfs_xdev_fs_type, 0, devname, mountdata);

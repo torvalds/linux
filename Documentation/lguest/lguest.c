@@ -79,6 +79,9 @@ static void *guest_base;
 /* The maximum guest physical address allowed, and maximum possible. */
 static unsigned long guest_limit, guest_max;
 
+/* a per-cpu variable indicating whose vcpu is currently running */
+static unsigned int __thread cpu_id;
+
 /* This is our list of devices. */
 struct device_list
 {
@@ -152,6 +155,9 @@ struct virtqueue
 	/* The routine to call when the Guest pings us. */
 	void (*handle_output)(int fd, struct virtqueue *me);
 };
+
+/* Remember the arguments to the program so we can "reboot" */
+static char **main_args;
 
 /* Since guest is UP and we don't run at the same time, we don't need barriers.
  * But I include them in the code in case others copy it. */
@@ -554,7 +560,7 @@ static void wake_parent(int pipefd, int lguest_fd)
 			else
 				FD_CLR(-fd - 1, &devices.infds);
 		} else /* Send LHREQ_BREAK command. */
-			write(lguest_fd, args, sizeof(args));
+			pwrite(lguest_fd, args, sizeof(args), cpu_id);
 	}
 }
 
@@ -1489,7 +1495,9 @@ static void setup_block_file(const char *filename)
 
 	/* Create stack for thread and run it */
 	stack = malloc(32768);
-	if (clone(io_thread, stack + 32768, CLONE_VM, dev) == -1)
+	/* SIGCHLD - We dont "wait" for our cloned thread, so prevent it from
+	 * becoming a zombie. */
+	if (clone(io_thread, stack + 32768,  CLONE_VM | SIGCHLD, dev) == -1)
 		err(1, "Creating clone");
 
 	/* We don't need to keep the I/O thread's end of the pipes open. */
@@ -1499,7 +1507,21 @@ static void setup_block_file(const char *filename)
 	verbose("device %u: virtblock %llu sectors\n",
 		devices.device_num, cap);
 }
-/* That's the end of device setup. */
+/* That's the end of device setup. :*/
+
+/* Reboot */
+static void __attribute__((noreturn)) restart_guest(void)
+{
+	unsigned int i;
+
+	/* Closing pipes causes the waker thread and io_threads to die, and
+	 * closing /dev/lguest cleans up the Guest.  Since we don't track all
+	 * open fds, we simply close everything beyond stderr. */
+	for (i = 3; i < FD_SETSIZE; i++)
+		close(i);
+	execv(main_args[0], main_args);
+	err(1, "Could not exec %s", main_args[0]);
+}
 
 /*L:220 Finally we reach the core of the Launcher, which runs the Guest, serves
  * its input and output, and finally, lays it to rest. */
@@ -1511,7 +1533,8 @@ static void __attribute__((noreturn)) run_guest(int lguest_fd)
 		int readval;
 
 		/* We read from the /dev/lguest device to run the Guest. */
-		readval = read(lguest_fd, &notify_addr, sizeof(notify_addr));
+		readval = pread(lguest_fd, &notify_addr,
+				sizeof(notify_addr), cpu_id);
 
 		/* One unsigned long means the Guest did HCALL_NOTIFY */
 		if (readval == sizeof(notify_addr)) {
@@ -1521,16 +1544,23 @@ static void __attribute__((noreturn)) run_guest(int lguest_fd)
 		/* ENOENT means the Guest died.  Reading tells us why. */
 		} else if (errno == ENOENT) {
 			char reason[1024] = { 0 };
-			read(lguest_fd, reason, sizeof(reason)-1);
+			pread(lguest_fd, reason, sizeof(reason)-1, cpu_id);
 			errx(1, "%s", reason);
+		/* ERESTART means that we need to reboot the guest */
+		} else if (errno == ERESTART) {
+			restart_guest();
 		/* EAGAIN means the Waker wanted us to look at some input.
 		 * Anything else means a bug or incompatible change. */
 		} else if (errno != EAGAIN)
 			err(1, "Running guest failed");
 
+		/* Only service input on thread for CPU 0. */
+		if (cpu_id != 0)
+			continue;
+
 		/* Service input, then unset the BREAK to release the Waker. */
 		handle_input(lguest_fd);
-		if (write(lguest_fd, args, sizeof(args)) < 0)
+		if (pwrite(lguest_fd, args, sizeof(args), cpu_id) < 0)
 			err(1, "Resetting break");
 	}
 }
@@ -1571,6 +1601,12 @@ int main(int argc, char *argv[])
 	/* If they specify an initrd file to load. */
 	const char *initrd_name = NULL;
 
+	/* Save the args: we "reboot" by execing ourselves again. */
+	main_args = argv;
+	/* We don't "wait" for the children, so prevent them from becoming
+	 * zombies. */
+	signal(SIGCHLD, SIG_IGN);
+
 	/* First we initialize the device list.  Since console and network
 	 * device receive input from a file descriptor, we keep an fdset
 	 * (infds) and the maximum fd number (max_infd) with the head of the
@@ -1582,6 +1618,7 @@ int main(int argc, char *argv[])
 	devices.lastdev = &devices.dev;
 	devices.next_irq = 1;
 
+	cpu_id = 0;
 	/* We need to know how much memory so we can set up the device
 	 * descriptor and memory pages for the devices as we parse the command
 	 * line.  So we quickly look through the arguments to find the amount

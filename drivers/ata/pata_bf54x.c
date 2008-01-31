@@ -832,6 +832,7 @@ static void bfin_bmdma_setup(struct ata_queued_cmd *qc)
 {
 	unsigned short config = WDSIZE_16;
 	struct scatterlist *sg;
+	unsigned int si;
 
 	pr_debug("in atapi dma setup\n");
 	/* Program the ATA_CTRL register with dir */
@@ -839,7 +840,7 @@ static void bfin_bmdma_setup(struct ata_queued_cmd *qc)
 		/* fill the ATAPI DMA controller */
 		set_dma_config(CH_ATAPI_TX, config);
 		set_dma_x_modify(CH_ATAPI_TX, 2);
-		ata_for_each_sg(sg, qc) {
+		for_each_sg(qc->sg, sg, qc->n_elem, si) {
 			set_dma_start_addr(CH_ATAPI_TX, sg_dma_address(sg));
 			set_dma_x_count(CH_ATAPI_TX, sg_dma_len(sg) >> 1);
 		}
@@ -848,7 +849,7 @@ static void bfin_bmdma_setup(struct ata_queued_cmd *qc)
 		/* fill the ATAPI DMA controller */
 		set_dma_config(CH_ATAPI_RX, config);
 		set_dma_x_modify(CH_ATAPI_RX, 2);
-		ata_for_each_sg(sg, qc) {
+		for_each_sg(qc->sg, sg, qc->n_elem, si) {
 			set_dma_start_addr(CH_ATAPI_RX, sg_dma_address(sg));
 			set_dma_x_count(CH_ATAPI_RX, sg_dma_len(sg) >> 1);
 		}
@@ -867,6 +868,7 @@ static void bfin_bmdma_start(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	void __iomem *base = (void __iomem *)ap->ioaddr.ctl_addr;
 	struct scatterlist *sg;
+	unsigned int si;
 
 	pr_debug("in atapi dma start\n");
 	if (!(ap->udma_mask || ap->mwdma_mask))
@@ -881,7 +883,7 @@ static void bfin_bmdma_start(struct ata_queued_cmd *qc)
 		 * data cache is enabled. Otherwise, this loop
 		 * is an empty loop and optimized out.
 		 */
-		ata_for_each_sg(sg, qc) {
+		for_each_sg(qc->sg, sg, qc->n_elem, si) {
 			flush_dcache_range(sg_dma_address(sg),
 				sg_dma_address(sg) + sg_dma_len(sg));
 		}
@@ -910,7 +912,7 @@ static void bfin_bmdma_start(struct ata_queued_cmd *qc)
 	ATAPI_SET_CONTROL(base, ATAPI_GET_CONTROL(base) | TFRCNT_RST);
 
 		/* Set transfer length to buffer len */
-	ata_for_each_sg(sg, qc) {
+	for_each_sg(qc->sg, sg, qc->n_elem, si) {
 		ATAPI_SET_XFER_LEN(base, (sg_dma_len(sg) >> 1));
 	}
 
@@ -932,6 +934,7 @@ static void bfin_bmdma_stop(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct scatterlist *sg;
+	unsigned int si;
 
 	pr_debug("in atapi dma stop\n");
 	if (!(ap->udma_mask || ap->mwdma_mask))
@@ -950,7 +953,7 @@ static void bfin_bmdma_stop(struct ata_queued_cmd *qc)
 			 * data cache is enabled. Otherwise, this loop
 			 * is an empty loop and optimized out.
 			 */
-			ata_for_each_sg(sg, qc) {
+			for_each_sg(qc->sg, sg, qc->n_elem, si) {
 				invalidate_dcache_range(
 					sg_dma_address(sg),
 					sg_dma_address(sg)
@@ -1167,34 +1170,36 @@ static unsigned char bfin_bmdma_status(struct ata_port *ap)
  *	Note: Original code is ata_data_xfer().
  */
 
-static void bfin_data_xfer(struct ata_device *adev, unsigned char *buf,
-			   unsigned int buflen, int write_data)
+static unsigned int bfin_data_xfer(struct ata_device *dev, unsigned char *buf,
+				   unsigned int buflen, int rw)
 {
-	struct ata_port *ap = adev->link->ap;
-	unsigned int words = buflen >> 1;
-	unsigned short *buf16 = (u16 *) buf;
+	struct ata_port *ap = dev->link->ap;
 	void __iomem *base = (void __iomem *)ap->ioaddr.ctl_addr;
+	unsigned int words = buflen >> 1;
+	unsigned short *buf16 = (u16 *)buf;
 
 	/* Transfer multiple of 2 bytes */
-	if (write_data) {
-		write_atapi_data(base, words, buf16);
-	} else {
+	if (rw == READ)
 		read_atapi_data(base, words, buf16);
-	}
+	else
+		write_atapi_data(base, words, buf16);
 
 	/* Transfer trailing 1 byte, if any. */
 	if (unlikely(buflen & 0x01)) {
 		unsigned short align_buf[1] = { 0 };
 		unsigned char *trailing_buf = buf + buflen - 1;
 
-		if (write_data) {
-			memcpy(align_buf, trailing_buf, 1);
-			write_atapi_data(base, 1, align_buf);
-		} else {
+		if (rw == READ) {
 			read_atapi_data(base, 1, align_buf);
 			memcpy(trailing_buf, align_buf, 1);
+		} else {
+			memcpy(align_buf, trailing_buf, 1);
+			write_atapi_data(base, 1, align_buf);
 		}
+		words++;
 	}
+
+	return words << 1;
 }
 
 /**

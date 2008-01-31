@@ -412,13 +412,13 @@ static void i2o_block_delayed_request_fn(struct work_struct *work)
 /**
  *	i2o_block_end_request - Post-processing of completed commands
  *	@req: request which should be completed
- *	@uptodate: 1 for success, 0 for I/O error, < 0 for specific error
+ *	@error: 0 for success, < 0 for error
  *	@nr_bytes: number of bytes to complete
  *
  *	Mark the request as complete. The lock must not be held when entering.
  *
  */
-static void i2o_block_end_request(struct request *req, int uptodate,
+static void i2o_block_end_request(struct request *req, int error,
 				  int nr_bytes)
 {
 	struct i2o_block_request *ireq = req->special;
@@ -426,21 +426,17 @@ static void i2o_block_end_request(struct request *req, int uptodate,
 	struct request_queue *q = req->q;
 	unsigned long flags;
 
-	if (end_that_request_chunk(req, uptodate, nr_bytes)) {
+	if (blk_end_request(req, error, nr_bytes)) {
 		int leftover = (req->hard_nr_sectors << KERNEL_SECTOR_SHIFT);
 
 		if (blk_pc_request(req))
 			leftover = req->data_len;
 
-		if (end_io_error(uptodate))
-			end_that_request_chunk(req, 0, leftover);
+		if (error)
+			blk_end_request(req, -EIO, leftover);
 	}
 
-	add_disk_randomness(req->rq_disk);
-
 	spin_lock_irqsave(q->queue_lock, flags);
-
-	end_that_request_last(req, uptodate);
 
 	if (likely(dev)) {
 		dev->open_queue_depth--;
@@ -468,7 +464,7 @@ static int i2o_block_reply(struct i2o_controller *c, u32 m,
 			   struct i2o_message *msg)
 {
 	struct request *req;
-	int uptodate = 1;
+	int error = 0;
 
 	req = i2o_cntxt_list_get(c, le32_to_cpu(msg->u.s.tcntxt));
 	if (unlikely(!req)) {
@@ -501,10 +497,10 @@ static int i2o_block_reply(struct i2o_controller *c, u32 m,
 
 		req->errors++;
 
-		uptodate = 0;
+		error = -EIO;
 	}
 
-	i2o_block_end_request(req, uptodate, le32_to_cpu(msg->body[1]));
+	i2o_block_end_request(req, error, le32_to_cpu(msg->body[1]));
 
 	return 1;
 };

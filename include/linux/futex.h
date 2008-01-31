@@ -1,8 +1,12 @@
 #ifndef _LINUX_FUTEX_H
 #define _LINUX_FUTEX_H
 
-#include <linux/sched.h>
+#include <linux/compiler.h>
+#include <linux/types.h>
 
+struct inode;
+struct mm_struct;
+struct task_struct;
 union ktime;
 
 /* Second argument to futex syscall */

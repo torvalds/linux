@@ -47,7 +47,7 @@ static void inet_frag_secret_rebuild(unsigned long dummy)
 	}
 	write_unlock(&f->lock);
 
-	mod_timer(&f->secret_timer, now + f->ctl->secret_interval);
+	mod_timer(&f->secret_timer, now + f->secret_interval);
 }
 
 void inet_frags_init(struct inet_frags *f)
@@ -57,22 +57,25 @@ void inet_frags_init(struct inet_frags *f)
 	for (i = 0; i < INETFRAGS_HASHSZ; i++)
 		INIT_HLIST_HEAD(&f->hash[i]);
 
-	INIT_LIST_HEAD(&f->lru_list);
 	rwlock_init(&f->lock);
 
 	f->rnd = (u32) ((num_physpages ^ (num_physpages>>7)) ^
 				   (jiffies ^ (jiffies >> 6)));
 
-	f->nqueues = 0;
-	atomic_set(&f->mem, 0);
-
-	init_timer(&f->secret_timer);
-	f->secret_timer.function = inet_frag_secret_rebuild;
-	f->secret_timer.data = (unsigned long)f;
-	f->secret_timer.expires = jiffies + f->ctl->secret_interval;
+	setup_timer(&f->secret_timer, inet_frag_secret_rebuild,
+			(unsigned long)f);
+	f->secret_timer.expires = jiffies + f->secret_interval;
 	add_timer(&f->secret_timer);
 }
 EXPORT_SYMBOL(inet_frags_init);
+
+void inet_frags_init_net(struct netns_frags *nf)
+{
+	nf->nqueues = 0;
+	atomic_set(&nf->mem, 0);
+	INIT_LIST_HEAD(&nf->lru_list);
+}
+EXPORT_SYMBOL(inet_frags_init_net);
 
 void inet_frags_fini(struct inet_frags *f)
 {
@@ -80,12 +83,19 @@ void inet_frags_fini(struct inet_frags *f)
 }
 EXPORT_SYMBOL(inet_frags_fini);
 
+void inet_frags_exit_net(struct netns_frags *nf, struct inet_frags *f)
+{
+	nf->low_thresh = 0;
+	inet_frag_evictor(nf, f);
+}
+EXPORT_SYMBOL(inet_frags_exit_net);
+
 static inline void fq_unlink(struct inet_frag_queue *fq, struct inet_frags *f)
 {
 	write_lock(&f->lock);
 	hlist_del(&fq->list);
 	list_del(&fq->lru_list);
-	f->nqueues--;
+	fq->net->nqueues--;
 	write_unlock(&f->lock);
 }
 
@@ -103,13 +113,13 @@ void inet_frag_kill(struct inet_frag_queue *fq, struct inet_frags *f)
 
 EXPORT_SYMBOL(inet_frag_kill);
 
-static inline void frag_kfree_skb(struct inet_frags *f, struct sk_buff *skb,
-						int *work)
+static inline void frag_kfree_skb(struct netns_frags *nf, struct inet_frags *f,
+		struct sk_buff *skb, int *work)
 {
 	if (work)
 		*work -= skb->truesize;
 
-	atomic_sub(skb->truesize, &f->mem);
+	atomic_sub(skb->truesize, &nf->mem);
 	if (f->skb_free)
 		f->skb_free(skb);
 	kfree_skb(skb);
@@ -119,22 +129,24 @@ void inet_frag_destroy(struct inet_frag_queue *q, struct inet_frags *f,
 					int *work)
 {
 	struct sk_buff *fp;
+	struct netns_frags *nf;
 
 	BUG_TRAP(q->last_in & COMPLETE);
 	BUG_TRAP(del_timer(&q->timer) == 0);
 
 	/* Release all fragment data. */
 	fp = q->fragments;
+	nf = q->net;
 	while (fp) {
 		struct sk_buff *xp = fp->next;
 
-		frag_kfree_skb(f, fp, work);
+		frag_kfree_skb(nf, f, fp, work);
 		fp = xp;
 	}
 
 	if (work)
 		*work -= f->qsize;
-	atomic_sub(f->qsize, &f->mem);
+	atomic_sub(f->qsize, &nf->mem);
 
 	if (f->destructor)
 		f->destructor(q);
@@ -143,20 +155,20 @@ void inet_frag_destroy(struct inet_frag_queue *q, struct inet_frags *f,
 }
 EXPORT_SYMBOL(inet_frag_destroy);
 
-int inet_frag_evictor(struct inet_frags *f)
+int inet_frag_evictor(struct netns_frags *nf, struct inet_frags *f)
 {
 	struct inet_frag_queue *q;
 	int work, evicted = 0;
 
-	work = atomic_read(&f->mem) - f->ctl->low_thresh;
+	work = atomic_read(&nf->mem) - nf->low_thresh;
 	while (work > 0) {
 		read_lock(&f->lock);
-		if (list_empty(&f->lru_list)) {
+		if (list_empty(&nf->lru_list)) {
 			read_unlock(&f->lock);
 			break;
 		}
 
-		q = list_first_entry(&f->lru_list,
+		q = list_first_entry(&nf->lru_list,
 				struct inet_frag_queue, lru_list);
 		atomic_inc(&q->refcnt);
 		read_unlock(&f->lock);
@@ -175,8 +187,9 @@ int inet_frag_evictor(struct inet_frags *f)
 }
 EXPORT_SYMBOL(inet_frag_evictor);
 
-static struct inet_frag_queue *inet_frag_intern(struct inet_frag_queue *qp_in,
-		struct inet_frags *f, unsigned int hash, void *arg)
+static struct inet_frag_queue *inet_frag_intern(struct netns_frags *nf,
+		struct inet_frag_queue *qp_in, struct inet_frags *f,
+		unsigned int hash, void *arg)
 {
 	struct inet_frag_queue *qp;
 #ifdef CONFIG_SMP
@@ -190,7 +203,7 @@ static struct inet_frag_queue *inet_frag_intern(struct inet_frag_queue *qp_in,
 	 * promoted read lock to write lock.
 	 */
 	hlist_for_each_entry(qp, n, &f->hash[hash], list) {
-		if (f->match(qp, arg)) {
+		if (qp->net == nf && f->match(qp, arg)) {
 			atomic_inc(&qp->refcnt);
 			write_unlock(&f->lock);
 			qp_in->last_in |= COMPLETE;
@@ -200,18 +213,19 @@ static struct inet_frag_queue *inet_frag_intern(struct inet_frag_queue *qp_in,
 	}
 #endif
 	qp = qp_in;
-	if (!mod_timer(&qp->timer, jiffies + f->ctl->timeout))
+	if (!mod_timer(&qp->timer, jiffies + nf->timeout))
 		atomic_inc(&qp->refcnt);
 
 	atomic_inc(&qp->refcnt);
 	hlist_add_head(&qp->list, &f->hash[hash]);
-	list_add_tail(&qp->lru_list, &f->lru_list);
-	f->nqueues++;
+	list_add_tail(&qp->lru_list, &nf->lru_list);
+	nf->nqueues++;
 	write_unlock(&f->lock);
 	return qp;
 }
 
-static struct inet_frag_queue *inet_frag_alloc(struct inet_frags *f, void *arg)
+static struct inet_frag_queue *inet_frag_alloc(struct netns_frags *nf,
+		struct inet_frags *f, void *arg)
 {
 	struct inet_frag_queue *q;
 
@@ -220,35 +234,36 @@ static struct inet_frag_queue *inet_frag_alloc(struct inet_frags *f, void *arg)
 		return NULL;
 
 	f->constructor(q, arg);
-	atomic_add(f->qsize, &f->mem);
+	atomic_add(f->qsize, &nf->mem);
 	setup_timer(&q->timer, f->frag_expire, (unsigned long)q);
 	spin_lock_init(&q->lock);
 	atomic_set(&q->refcnt, 1);
+	q->net = nf;
 
 	return q;
 }
 
-static struct inet_frag_queue *inet_frag_create(struct inet_frags *f,
-		void *arg, unsigned int hash)
+static struct inet_frag_queue *inet_frag_create(struct netns_frags *nf,
+		struct inet_frags *f, void *arg, unsigned int hash)
 {
 	struct inet_frag_queue *q;
 
-	q = inet_frag_alloc(f, arg);
+	q = inet_frag_alloc(nf, f, arg);
 	if (q == NULL)
 		return NULL;
 
-	return inet_frag_intern(q, f, hash, arg);
+	return inet_frag_intern(nf, q, f, hash, arg);
 }
 
-struct inet_frag_queue *inet_frag_find(struct inet_frags *f, void *key,
-		unsigned int hash)
+struct inet_frag_queue *inet_frag_find(struct netns_frags *nf,
+		struct inet_frags *f, void *key, unsigned int hash)
 {
 	struct inet_frag_queue *q;
 	struct hlist_node *n;
 
 	read_lock(&f->lock);
 	hlist_for_each_entry(q, n, &f->hash[hash], list) {
-		if (f->match(q, key)) {
+		if (q->net == nf && f->match(q, key)) {
 			atomic_inc(&q->refcnt);
 			read_unlock(&f->lock);
 			return q;
@@ -256,6 +271,6 @@ struct inet_frag_queue *inet_frag_find(struct inet_frags *f, void *key,
 	}
 	read_unlock(&f->lock);
 
-	return inet_frag_create(f, key, hash);
+	return inet_frag_create(nf, f, key, hash);
 }
 EXPORT_SYMBOL(inet_frag_find);

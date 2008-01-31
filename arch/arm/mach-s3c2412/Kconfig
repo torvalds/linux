@@ -10,6 +10,7 @@ config CPU_S3C2412
 	select CPU_LLSERIAL_S3C2440
 	select S3C2412_PM if PM
 	select S3C2412_DMA if S3C2410_DMA
+	select S3C2410_GPIO
 	help
 	  Support for the S3C2412 and S3C2413 SoCs from the S3C24XX line
 

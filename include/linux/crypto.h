@@ -33,10 +33,13 @@
 #define CRYPTO_ALG_TYPE_DIGEST		0x00000002
 #define CRYPTO_ALG_TYPE_HASH		0x00000003
 #define CRYPTO_ALG_TYPE_BLKCIPHER	0x00000004
-#define CRYPTO_ALG_TYPE_COMPRESS	0x00000005
-#define CRYPTO_ALG_TYPE_AEAD		0x00000006
+#define CRYPTO_ALG_TYPE_ABLKCIPHER	0x00000005
+#define CRYPTO_ALG_TYPE_GIVCIPHER	0x00000006
+#define CRYPTO_ALG_TYPE_COMPRESS	0x00000008
+#define CRYPTO_ALG_TYPE_AEAD		0x00000009
 
 #define CRYPTO_ALG_TYPE_HASH_MASK	0x0000000e
+#define CRYPTO_ALG_TYPE_BLKCIPHER_MASK	0x0000000c
 
 #define CRYPTO_ALG_LARVAL		0x00000010
 #define CRYPTO_ALG_DEAD			0x00000020
@@ -48,6 +51,12 @@
  * the same type to handle corner cases.
  */
 #define CRYPTO_ALG_NEED_FALLBACK	0x00000100
+
+/*
+ * This bit is set for symmetric key ciphers that have already been wrapped
+ * with a generic IV generator to prevent them from being wrapped again.
+ */
+#define CRYPTO_ALG_GENIV		0x00000200
 
 /*
  * Transform masks and values (for crt_flags).
@@ -81,13 +90,11 @@
 #define CRYPTO_MINALIGN ARCH_KMALLOC_MINALIGN
 #elif defined(ARCH_SLAB_MINALIGN)
 #define CRYPTO_MINALIGN ARCH_SLAB_MINALIGN
+#else
+#define CRYPTO_MINALIGN __alignof__(unsigned long long)
 #endif
 
-#ifdef CRYPTO_MINALIGN
 #define CRYPTO_MINALIGN_ATTR __attribute__ ((__aligned__(CRYPTO_MINALIGN)))
-#else
-#define CRYPTO_MINALIGN_ATTR
-#endif
 
 struct scatterlist;
 struct crypto_ablkcipher;
@@ -97,6 +104,8 @@ struct crypto_blkcipher;
 struct crypto_hash;
 struct crypto_tfm;
 struct crypto_type;
+struct aead_givcrypt_request;
+struct skcipher_givcrypt_request;
 
 typedef void (*crypto_completion_t)(struct crypto_async_request *req, int err);
 
@@ -176,6 +185,10 @@ struct ablkcipher_alg {
 	              unsigned int keylen);
 	int (*encrypt)(struct ablkcipher_request *req);
 	int (*decrypt)(struct ablkcipher_request *req);
+	int (*givencrypt)(struct skcipher_givcrypt_request *req);
+	int (*givdecrypt)(struct skcipher_givcrypt_request *req);
+
+	const char *geniv;
 
 	unsigned int min_keysize;
 	unsigned int max_keysize;
@@ -185,11 +198,16 @@ struct ablkcipher_alg {
 struct aead_alg {
 	int (*setkey)(struct crypto_aead *tfm, const u8 *key,
 	              unsigned int keylen);
+	int (*setauthsize)(struct crypto_aead *tfm, unsigned int authsize);
 	int (*encrypt)(struct aead_request *req);
 	int (*decrypt)(struct aead_request *req);
+	int (*givencrypt)(struct aead_givcrypt_request *req);
+	int (*givdecrypt)(struct aead_givcrypt_request *req);
+
+	const char *geniv;
 
 	unsigned int ivsize;
-	unsigned int authsize;
+	unsigned int maxauthsize;
 };
 
 struct blkcipher_alg {
@@ -201,6 +219,8 @@ struct blkcipher_alg {
 	int (*decrypt)(struct blkcipher_desc *desc,
 		       struct scatterlist *dst, struct scatterlist *src,
 		       unsigned int nbytes);
+
+	const char *geniv;
 
 	unsigned int min_keysize;
 	unsigned int max_keysize;
@@ -317,6 +337,11 @@ struct ablkcipher_tfm {
 	              unsigned int keylen);
 	int (*encrypt)(struct ablkcipher_request *req);
 	int (*decrypt)(struct ablkcipher_request *req);
+	int (*givencrypt)(struct skcipher_givcrypt_request *req);
+	int (*givdecrypt)(struct skcipher_givcrypt_request *req);
+
+	struct crypto_ablkcipher *base;
+
 	unsigned int ivsize;
 	unsigned int reqsize;
 };
@@ -326,6 +351,11 @@ struct aead_tfm {
 	              unsigned int keylen);
 	int (*encrypt)(struct aead_request *req);
 	int (*decrypt)(struct aead_request *req);
+	int (*givencrypt)(struct aead_givcrypt_request *req);
+	int (*givdecrypt)(struct aead_givcrypt_request *req);
+
+	struct crypto_aead *base;
+
 	unsigned int ivsize;
 	unsigned int authsize;
 	unsigned int reqsize;
@@ -525,16 +555,22 @@ static inline struct crypto_ablkcipher *__crypto_ablkcipher_cast(
 	return (struct crypto_ablkcipher *)tfm;
 }
 
-static inline struct crypto_ablkcipher *crypto_alloc_ablkcipher(
-	const char *alg_name, u32 type, u32 mask)
+static inline u32 crypto_skcipher_type(u32 type)
 {
-	type &= ~CRYPTO_ALG_TYPE_MASK;
+	type &= ~(CRYPTO_ALG_TYPE_MASK | CRYPTO_ALG_GENIV);
 	type |= CRYPTO_ALG_TYPE_BLKCIPHER;
-	mask |= CRYPTO_ALG_TYPE_MASK;
-
-	return __crypto_ablkcipher_cast(
-		crypto_alloc_base(alg_name, type, mask));
+	return type;
 }
+
+static inline u32 crypto_skcipher_mask(u32 mask)
+{
+	mask &= ~(CRYPTO_ALG_TYPE_MASK | CRYPTO_ALG_GENIV);
+	mask |= CRYPTO_ALG_TYPE_BLKCIPHER_MASK;
+	return mask;
+}
+
+struct crypto_ablkcipher *crypto_alloc_ablkcipher(const char *alg_name,
+						  u32 type, u32 mask);
 
 static inline struct crypto_tfm *crypto_ablkcipher_tfm(
 	struct crypto_ablkcipher *tfm)
@@ -550,11 +586,8 @@ static inline void crypto_free_ablkcipher(struct crypto_ablkcipher *tfm)
 static inline int crypto_has_ablkcipher(const char *alg_name, u32 type,
 					u32 mask)
 {
-	type &= ~CRYPTO_ALG_TYPE_MASK;
-	type |= CRYPTO_ALG_TYPE_BLKCIPHER;
-	mask |= CRYPTO_ALG_TYPE_MASK;
-
-	return crypto_has_alg(alg_name, type, mask);
+	return crypto_has_alg(alg_name, crypto_skcipher_type(type),
+			      crypto_skcipher_mask(mask));
 }
 
 static inline struct ablkcipher_tfm *crypto_ablkcipher_crt(
@@ -601,7 +634,9 @@ static inline void crypto_ablkcipher_clear_flags(struct crypto_ablkcipher *tfm,
 static inline int crypto_ablkcipher_setkey(struct crypto_ablkcipher *tfm,
 					   const u8 *key, unsigned int keylen)
 {
-	return crypto_ablkcipher_crt(tfm)->setkey(tfm, key, keylen);
+	struct ablkcipher_tfm *crt = crypto_ablkcipher_crt(tfm);
+
+	return crt->setkey(crt->base, key, keylen);
 }
 
 static inline struct crypto_ablkcipher *crypto_ablkcipher_reqtfm(
@@ -633,7 +668,7 @@ static inline unsigned int crypto_ablkcipher_reqsize(
 static inline void ablkcipher_request_set_tfm(
 	struct ablkcipher_request *req, struct crypto_ablkcipher *tfm)
 {
-	req->base.tfm = crypto_ablkcipher_tfm(tfm);
+	req->base.tfm = crypto_ablkcipher_tfm(crypto_ablkcipher_crt(tfm)->base);
 }
 
 static inline struct ablkcipher_request *ablkcipher_request_cast(
@@ -686,15 +721,7 @@ static inline struct crypto_aead *__crypto_aead_cast(struct crypto_tfm *tfm)
 	return (struct crypto_aead *)tfm;
 }
 
-static inline struct crypto_aead *crypto_alloc_aead(const char *alg_name,
-						    u32 type, u32 mask)
-{
-	type &= ~CRYPTO_ALG_TYPE_MASK;
-	type |= CRYPTO_ALG_TYPE_AEAD;
-	mask |= CRYPTO_ALG_TYPE_MASK;
-
-	return __crypto_aead_cast(crypto_alloc_base(alg_name, type, mask));
-}
+struct crypto_aead *crypto_alloc_aead(const char *alg_name, u32 type, u32 mask);
 
 static inline struct crypto_tfm *crypto_aead_tfm(struct crypto_aead *tfm)
 {
@@ -749,8 +776,12 @@ static inline void crypto_aead_clear_flags(struct crypto_aead *tfm, u32 flags)
 static inline int crypto_aead_setkey(struct crypto_aead *tfm, const u8 *key,
 				     unsigned int keylen)
 {
-	return crypto_aead_crt(tfm)->setkey(tfm, key, keylen);
+	struct aead_tfm *crt = crypto_aead_crt(tfm);
+
+	return crt->setkey(crt->base, key, keylen);
 }
+
+int crypto_aead_setauthsize(struct crypto_aead *tfm, unsigned int authsize);
 
 static inline struct crypto_aead *crypto_aead_reqtfm(struct aead_request *req)
 {
@@ -775,7 +806,7 @@ static inline unsigned int crypto_aead_reqsize(struct crypto_aead *tfm)
 static inline void aead_request_set_tfm(struct aead_request *req,
 					struct crypto_aead *tfm)
 {
-	req->base.tfm = crypto_aead_tfm(tfm);
+	req->base.tfm = crypto_aead_tfm(crypto_aead_crt(tfm)->base);
 }
 
 static inline struct aead_request *aead_request_alloc(struct crypto_aead *tfm,
@@ -841,9 +872,9 @@ static inline struct crypto_blkcipher *crypto_blkcipher_cast(
 static inline struct crypto_blkcipher *crypto_alloc_blkcipher(
 	const char *alg_name, u32 type, u32 mask)
 {
-	type &= ~(CRYPTO_ALG_TYPE_MASK | CRYPTO_ALG_ASYNC);
+	type &= ~CRYPTO_ALG_TYPE_MASK;
 	type |= CRYPTO_ALG_TYPE_BLKCIPHER;
-	mask |= CRYPTO_ALG_TYPE_MASK | CRYPTO_ALG_ASYNC;
+	mask |= CRYPTO_ALG_TYPE_MASK;
 
 	return __crypto_blkcipher_cast(crypto_alloc_base(alg_name, type, mask));
 }
@@ -861,9 +892,9 @@ static inline void crypto_free_blkcipher(struct crypto_blkcipher *tfm)
 
 static inline int crypto_has_blkcipher(const char *alg_name, u32 type, u32 mask)
 {
-	type &= ~(CRYPTO_ALG_TYPE_MASK | CRYPTO_ALG_ASYNC);
+	type &= ~CRYPTO_ALG_TYPE_MASK;
 	type |= CRYPTO_ALG_TYPE_BLKCIPHER;
-	mask |= CRYPTO_ALG_TYPE_MASK | CRYPTO_ALG_ASYNC;
+	mask |= CRYPTO_ALG_TYPE_MASK;
 
 	return crypto_has_alg(alg_name, type, mask);
 }
@@ -1081,6 +1112,7 @@ static inline struct crypto_hash *crypto_alloc_hash(const char *alg_name,
 						    u32 type, u32 mask)
 {
 	type &= ~CRYPTO_ALG_TYPE_MASK;
+	mask &= ~CRYPTO_ALG_TYPE_MASK;
 	type |= CRYPTO_ALG_TYPE_HASH;
 	mask |= CRYPTO_ALG_TYPE_HASH_MASK;
 
@@ -1100,6 +1132,7 @@ static inline void crypto_free_hash(struct crypto_hash *tfm)
 static inline int crypto_has_hash(const char *alg_name, u32 type, u32 mask)
 {
 	type &= ~CRYPTO_ALG_TYPE_MASK;
+	mask &= ~CRYPTO_ALG_TYPE_MASK;
 	type |= CRYPTO_ALG_TYPE_HASH;
 	mask |= CRYPTO_ALG_TYPE_HASH_MASK;
 

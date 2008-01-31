@@ -95,3 +95,68 @@ int cmdline_find_option(const char *option, char *buffer, int bufsize)
 
 	return len;
 }
+
+/*
+ * Find a boolean option (like quiet,noapic,nosmp....)
+ *
+ * Returns the position of that option (starts counting with 1)
+ * or 0 on not found
+ */
+int cmdline_find_option_bool(const char *option)
+{
+	u32 cmdline_ptr = boot_params.hdr.cmd_line_ptr;
+	addr_t cptr;
+	char c;
+	int pos = 0, wstart = 0;
+	const char *opptr = NULL;
+	enum {
+		st_wordstart,	/* Start of word/after whitespace */
+		st_wordcmp,	/* Comparing this word */
+		st_wordskip,	/* Miscompare, skip */
+	} state = st_wordstart;
+
+	if (!cmdline_ptr || cmdline_ptr >= 0x100000)
+		return -1;	/* No command line, or inaccessible */
+
+	cptr = cmdline_ptr & 0xf;
+	set_fs(cmdline_ptr >> 4);
+
+	while (cptr < 0x10000) {
+		c = rdfs8(cptr++);
+		pos++;
+
+		switch (state) {
+		case st_wordstart:
+			if (!c)
+				return 0;
+			else if (myisspace(c))
+				break;
+
+			state = st_wordcmp;
+			opptr = option;
+			wstart = pos;
+			/* fall through */
+
+		case st_wordcmp:
+			if (!*opptr)
+				if (!c || myisspace(c))
+					return wstart;
+				else
+					state = st_wordskip;
+			else if (!c)
+				return 0;
+			else if (c != *opptr++)
+				state = st_wordskip;
+			break;
+
+		case st_wordskip:
+			if (!c)
+				return 0;
+			else if (myisspace(c))
+				state = st_wordstart;
+			break;
+		}
+	}
+
+	return 0;	/* Buffer overrun */
+}

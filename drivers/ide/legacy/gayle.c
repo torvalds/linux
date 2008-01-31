@@ -110,12 +110,13 @@ static int gayle_ack_intr_a1200(ide_hwif_t *hwif)
      *  Probe for a Gayle IDE interface (and optionally for an IDE doubler)
      */
 
-void __init gayle_init(void)
+static int __init gayle_init(void)
 {
     int a4000, i;
+    u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
     if (!MACH_IS_AMIGA)
-	return;
+	return -ENODEV;
 
     if ((a4000 = AMIGAHW_PRESENT(A4000_IDE)) || AMIGAHW_PRESENT(A1200_IDE))
 	goto found;
@@ -125,15 +126,21 @@ void __init gayle_init(void)
 			  NULL))
 	goto found;
 #endif
-    return;
+    return -ENODEV;
 
 found:
+	printk(KERN_INFO "ide: Gayle IDE controller (A%d style%s)\n",
+			 a4000 ? 4000 : 1200,
+#ifdef CONFIG_BLK_DEV_IDEDOUBLER
+			 ide_doubler ? ", IDE doubler" :
+#endif
+			 "");
+
     for (i = 0; i < GAYLE_NUM_PROBE_HWIFS; i++) {
 	unsigned long base, ctrlport, irqport;
 	ide_ack_intr_t *ack_intr;
 	hw_regs_t hw;
 	ide_hwif_t *hwif;
-	int index;
 	unsigned long phys_base, res_start, res_n;
 
 	if (a4000) {
@@ -165,21 +172,23 @@ found:
 //			&gayle_iops,
 			IRQ_AMIGA_PORTS);
 
-	index = ide_register_hw(&hw, NULL, 1, &hwif);
-	if (index != -1) {
+	hwif = ide_find_port(base);
+	if (hwif) {
+	    u8 index = hwif->index;
+
+	    ide_init_port_data(hwif, index);
+	    ide_init_port_hw(hwif, &hw);
+
 	    hwif->mmio = 1;
-	    switch (i) {
-		case 0:
-		    printk("ide%d: Gayle IDE interface (A%d style)\n", index,
-			   a4000 ? 4000 : 1200);
-		    break;
-#ifdef CONFIG_BLK_DEV_IDEDOUBLER
-		case 1:
-		    printk("ide%d: IDE doubler\n", index);
-		    break;
-#endif /* CONFIG_BLK_DEV_IDEDOUBLER */
-	    }
+
+	    idx[i] = index;
 	} else
 	    release_mem_region(res_start, res_n);
     }
+
+    ide_device_add(idx);
+
+    return 0;
 }
+
+module_init(gayle_init);

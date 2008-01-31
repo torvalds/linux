@@ -34,10 +34,10 @@
 #include <linux/hid.h>
 #include <linux/hid-debug.h>
 
-static int hid_pb_fnmode = 1;
-module_param_named(pb_fnmode, hid_pb_fnmode, int, 0644);
+static int hid_apple_fnmode = 1;
+module_param_named(pb_fnmode, hid_apple_fnmode, int, 0644);
 MODULE_PARM_DESC(pb_fnmode,
-		"Mode of fn key on PowerBooks (0 = disabled, 1 = fkeyslast, 2 = fkeysfirst)");
+		"Mode of fn key on Apple keyboards (0 = disabled, 1 = fkeyslast, 2 = fkeysfirst)");
 
 #define unk	KEY_UNKNOWN
 
@@ -86,10 +86,6 @@ static const struct {
 #define map_abs_clear(c)	do { map_abs(c); clear_bit(c, bit); } while (0)
 #define map_key_clear(c)	do { map_key(c); clear_bit(c, bit); } while (0)
 
-/* hardware needing special handling due to colliding MSVENDOR page usages */
-#define IS_CHICONY_TACTICAL_PAD(x) (x->vendor == 0x04f2 && device->product == 0x0418)
-#define IS_MS_KB(x) (x->vendor == 0x045e && (x->product == 0x00db || x->product == 0x00f9))
-
 #ifdef CONFIG_USB_HIDINPUT_POWERBOOK
 
 struct hidinput_key_translation {
@@ -98,20 +94,36 @@ struct hidinput_key_translation {
 	u8 flags;
 };
 
-#define POWERBOOK_FLAG_FKEY 0x01
+#define APPLE_FLAG_FKEY 0x01
+
+static struct hidinput_key_translation apple_fn_keys[] = {
+	{ KEY_F1,       KEY_BRIGHTNESSDOWN,     APPLE_FLAG_FKEY },
+	{ KEY_F2,       KEY_BRIGHTNESSUP,       APPLE_FLAG_FKEY },
+	{ KEY_F3,       KEY_CYCLEWINDOWS,       APPLE_FLAG_FKEY }, /* Exposé */
+	{ KEY_F4,       KEY_FN_F4,              APPLE_FLAG_FKEY }, /* Dashboard */
+	{ KEY_F5,       KEY_FN_F5 },
+	{ KEY_F6,       KEY_FN_F6 },
+	{ KEY_F7,       KEY_BACK,               APPLE_FLAG_FKEY },
+	{ KEY_F8,       KEY_PLAYPAUSE,          APPLE_FLAG_FKEY },
+	{ KEY_F9,       KEY_FORWARD,            APPLE_FLAG_FKEY },
+	{ KEY_F10,      KEY_MUTE,               APPLE_FLAG_FKEY },
+	{ KEY_F11,      KEY_VOLUMEDOWN,         APPLE_FLAG_FKEY },
+	{ KEY_F12,      KEY_VOLUMEUP,           APPLE_FLAG_FKEY },
+	{ }
+};
 
 static struct hidinput_key_translation powerbook_fn_keys[] = {
 	{ KEY_BACKSPACE, KEY_DELETE },
-	{ KEY_F1,       KEY_BRIGHTNESSDOWN,     POWERBOOK_FLAG_FKEY },
-	{ KEY_F2,       KEY_BRIGHTNESSUP,       POWERBOOK_FLAG_FKEY },
-	{ KEY_F3,       KEY_MUTE,               POWERBOOK_FLAG_FKEY },
-	{ KEY_F4,       KEY_VOLUMEDOWN,         POWERBOOK_FLAG_FKEY },
-	{ KEY_F5,       KEY_VOLUMEUP,           POWERBOOK_FLAG_FKEY },
-	{ KEY_F6,       KEY_NUMLOCK,            POWERBOOK_FLAG_FKEY },
-	{ KEY_F7,       KEY_SWITCHVIDEOMODE,    POWERBOOK_FLAG_FKEY },
-	{ KEY_F8,       KEY_KBDILLUMTOGGLE,     POWERBOOK_FLAG_FKEY },
-	{ KEY_F9,       KEY_KBDILLUMDOWN,       POWERBOOK_FLAG_FKEY },
-	{ KEY_F10,      KEY_KBDILLUMUP,         POWERBOOK_FLAG_FKEY },
+	{ KEY_F1,       KEY_BRIGHTNESSDOWN,     APPLE_FLAG_FKEY },
+	{ KEY_F2,       KEY_BRIGHTNESSUP,       APPLE_FLAG_FKEY },
+	{ KEY_F3,       KEY_MUTE,               APPLE_FLAG_FKEY },
+	{ KEY_F4,       KEY_VOLUMEDOWN,         APPLE_FLAG_FKEY },
+	{ KEY_F5,       KEY_VOLUMEUP,           APPLE_FLAG_FKEY },
+	{ KEY_F6,       KEY_NUMLOCK,            APPLE_FLAG_FKEY },
+	{ KEY_F7,       KEY_SWITCHVIDEOMODE,    APPLE_FLAG_FKEY },
+	{ KEY_F8,       KEY_KBDILLUMTOGGLE,     APPLE_FLAG_FKEY },
+	{ KEY_F9,       KEY_KBDILLUMDOWN,       APPLE_FLAG_FKEY },
+	{ KEY_F10,      KEY_KBDILLUMUP,         APPLE_FLAG_FKEY },
 	{ KEY_UP,       KEY_PAGEUP },
 	{ KEY_DOWN,     KEY_PAGEDOWN },
 	{ KEY_LEFT,     KEY_HOME },
@@ -142,7 +154,7 @@ static struct hidinput_key_translation powerbook_numlock_keys[] = {
 	{ }
 };
 
-static struct hidinput_key_translation powerbook_iso_keyboard[] = {
+static struct hidinput_key_translation apple_iso_keyboard[] = {
 	{ KEY_GRAVE,    KEY_102ND },
 	{ KEY_102ND,    KEY_GRAVE },
 	{ }
@@ -160,39 +172,42 @@ static struct hidinput_key_translation *find_translation(struct hidinput_key_tra
 	return NULL;
 }
 
-static int hidinput_pb_event(struct hid_device *hid, struct input_dev *input,
+int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 		struct hid_usage *usage, __s32 value)
 {
 	struct hidinput_key_translation *trans;
 
 	if (usage->code == KEY_FN) {
-		if (value) hid->quirks |=  HID_QUIRK_POWERBOOK_FN_ON;
-		else       hid->quirks &= ~HID_QUIRK_POWERBOOK_FN_ON;
+		if (value) hid->quirks |=  HID_QUIRK_APPLE_FN_ON;
+		else       hid->quirks &= ~HID_QUIRK_APPLE_FN_ON;
 
 		input_event(input, usage->type, usage->code, value);
 
 		return 1;
 	}
 
-	if (hid_pb_fnmode) {
+	if (hid_apple_fnmode) {
 		int do_translate;
 
-		trans = find_translation(powerbook_fn_keys, usage->code);
+		trans = find_translation((hid->product < 0x220 ||
+					  hid->product >= 0x300) ?
+					 powerbook_fn_keys : apple_fn_keys,
+					 usage->code);
 		if (trans) {
-			if (test_bit(usage->code, hid->pb_pressed_fn))
+			if (test_bit(usage->code, hid->apple_pressed_fn))
 				do_translate = 1;
-			else if (trans->flags & POWERBOOK_FLAG_FKEY)
+			else if (trans->flags & APPLE_FLAG_FKEY)
 				do_translate =
-					(hid_pb_fnmode == 2 &&  (hid->quirks & HID_QUIRK_POWERBOOK_FN_ON)) ||
-					(hid_pb_fnmode == 1 && !(hid->quirks & HID_QUIRK_POWERBOOK_FN_ON));
+					(hid_apple_fnmode == 2 &&  (hid->quirks & HID_QUIRK_APPLE_FN_ON)) ||
+					(hid_apple_fnmode == 1 && !(hid->quirks & HID_QUIRK_APPLE_FN_ON));
 			else
-				do_translate = (hid->quirks & HID_QUIRK_POWERBOOK_FN_ON);
+				do_translate = (hid->quirks & HID_QUIRK_APPLE_FN_ON);
 
 			if (do_translate) {
 				if (value)
-					set_bit(usage->code, hid->pb_pressed_fn);
+					set_bit(usage->code, hid->apple_pressed_fn);
 				else
-					clear_bit(usage->code, hid->pb_pressed_fn);
+					clear_bit(usage->code, hid->apple_pressed_fn);
 
 				input_event(input, usage->type, trans->to, value);
 
@@ -217,8 +232,8 @@ static int hidinput_pb_event(struct hid_device *hid, struct input_dev *input,
 		}
 	}
 
-	if (hid->quirks & HID_QUIRK_POWERBOOK_ISO_KEYBOARD) {
-		trans = find_translation(powerbook_iso_keyboard, usage->code);
+	if (hid->quirks & HID_QUIRK_APPLE_ISO_KEYBOARD) {
+		trans = find_translation(apple_iso_keyboard, usage->code);
 		if (trans) {
 			input_event(input, usage->type, trans->to, value);
 			return 1;
@@ -228,31 +243,35 @@ static int hidinput_pb_event(struct hid_device *hid, struct input_dev *input,
 	return 0;
 }
 
-static void hidinput_pb_setup(struct input_dev *input)
+static void hidinput_apple_setup(struct input_dev *input)
 {
 	struct hidinput_key_translation *trans;
 
 	set_bit(KEY_NUMLOCK, input->keybit);
 
 	/* Enable all needed keys */
+	for (trans = apple_fn_keys; trans->from; trans++)
+		set_bit(trans->to, input->keybit);
+
 	for (trans = powerbook_fn_keys; trans->from; trans++)
 		set_bit(trans->to, input->keybit);
 
 	for (trans = powerbook_numlock_keys; trans->from; trans++)
 		set_bit(trans->to, input->keybit);
 
-	for (trans = powerbook_iso_keyboard; trans->from; trans++)
+	for (trans = apple_iso_keyboard; trans->from; trans++)
 		set_bit(trans->to, input->keybit);
 
 }
 #else
-static inline int hidinput_pb_event(struct hid_device *hid, struct input_dev *input,
-		struct hid_usage *usage, __s32 value)
+inline int hidinput_apple_event(struct hid_device *hid,
+				       struct input_dev *input,
+				       struct hid_usage *usage, __s32 value)
 {
 	return 0;
 }
 
-static inline void hidinput_pb_setup(struct input_dev *input)
+static inline void hidinput_apple_setup(struct input_dev *input)
 {
 }
 #endif
@@ -343,7 +362,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 {
 	struct input_dev *input = hidinput->input;
 	struct hid_device *device = input_get_drvdata(input);
-	int max = 0, code;
+	int max = 0, code, ret;
 	unsigned long *bit = NULL;
 
 	field->hidinput = hidinput;
@@ -361,6 +380,11 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		dbg_hid_line(" [non-LED output field] ");
 		goto ignore;
 	}
+
+	/* handle input mappings for quirky devices */
+	ret = hidinput_mapping_quirks(usage, input, &bit, &max);
+	if (ret)
+		goto mapped;
 
 	switch (usage->hid & HID_USAGE_PAGE) {
 
@@ -549,14 +573,6 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x000: goto ignore;
 				case 0x034: map_key_clear(KEY_SLEEP);		break;
 				case 0x036: map_key_clear(BTN_MISC);		break;
-				/*
-				 * The next three are reported by Belkin wireless
-				 * keyboard (1020:0006). These values are "reserved"
-				 * in HUT 1.12.
-				 */
-				case 0x03a: map_key_clear(KEY_SOUND);           break;
-				case 0x03b: map_key_clear(KEY_CAMERA);          break;
-				case 0x03c: map_key_clear(KEY_DOCUMENTS);       break;
 
 				case 0x040: map_key_clear(KEY_MENU);		break;
 				case 0x045: map_key_clear(KEY_RADIO);		break;
@@ -601,10 +617,6 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x0e5: map_key_clear(KEY_BASSBOOST);	break;
 				case 0x0e9: map_key_clear(KEY_VOLUMEUP);	break;
 				case 0x0ea: map_key_clear(KEY_VOLUMEDOWN);	break;
-
-				/* reserved in HUT 1.12. Reported on Petalynx remote */
-				case 0x0f6: map_key_clear(KEY_NEXT);		break;
-				case 0x0fa: map_key_clear(KEY_BACK);		break;
 
 				case 0x182: map_key_clear(KEY_BOOKMARKS);	break;
 				case 0x183: map_key_clear(KEY_CONFIG);		break;
@@ -665,51 +677,6 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x28b: map_key_clear(KEY_FORWARDMAIL);	break;
 				case 0x28c: map_key_clear(KEY_SEND);		break;
 
-				/* Reported on a Cherry Cymotion keyboard */
-				case 0x301: map_key_clear(KEY_PROG1);		break;
-				case 0x302: map_key_clear(KEY_PROG2);		break;
-				case 0x303: map_key_clear(KEY_PROG3);		break;
-
-				/* Reported on certain Logitech wireless keyboards */
-				case 0x1001: map_key_clear(KEY_MESSENGER);	break;
-				case 0x1003: map_key_clear(KEY_SOUND);		break;
-				case 0x1004: map_key_clear(KEY_VIDEO);		break;
-				case 0x1005: map_key_clear(KEY_AUDIO);		break;
-				case 0x100a: map_key_clear(KEY_DOCUMENTS);	break;
-				case 0x1011: map_key_clear(KEY_PREVIOUSSONG);	break;
-				case 0x1012: map_key_clear(KEY_NEXTSONG);	break;
-				case 0x1013: map_key_clear(KEY_CAMERA);		break;
-				case 0x1014: map_key_clear(KEY_MESSENGER);	break;
-				case 0x1015: map_key_clear(KEY_RECORD);		break;
-				case 0x1016: map_key_clear(KEY_PLAYER);		break;
-				case 0x1017: map_key_clear(KEY_EJECTCD);	break;
-				case 0x1018: map_key_clear(KEY_MEDIA);          break;
-				case 0x1019: map_key_clear(KEY_PROG1);		break;
-				case 0x101a: map_key_clear(KEY_PROG2);		break;
-				case 0x101b: map_key_clear(KEY_PROG3);		break;
-				case 0x101f: map_key_clear(KEY_ZOOMIN);		break;
-				case 0x1020: map_key_clear(KEY_ZOOMOUT);	break;
-				case 0x1021: map_key_clear(KEY_ZOOMRESET);	break;
-				case 0x1023: map_key_clear(KEY_CLOSE);		break;
-				case 0x1027: map_key_clear(KEY_MENU);           break;
-				/* this one is marked as 'Rotate' */
-				case 0x1028: map_key_clear(KEY_ANGLE);		break;
-				case 0x1029: map_key_clear(KEY_SHUFFLE);	break;
-				case 0x102a: map_key_clear(KEY_BACK);           break;
-				case 0x102b: map_key_clear(KEY_CYCLEWINDOWS);   break;
-				case 0x1041: map_key_clear(KEY_BATTERY);	break;
-				case 0x1042: map_key_clear(KEY_WORDPROCESSOR);	break;
-				case 0x1043: map_key_clear(KEY_SPREADSHEET);	break;
-				case 0x1044: map_key_clear(KEY_PRESENTATION);	break;
-				case 0x1045: map_key_clear(KEY_UNDO);		break;
-				case 0x1046: map_key_clear(KEY_REDO);		break;
-				case 0x1047: map_key_clear(KEY_PRINT);		break;
-				case 0x1048: map_key_clear(KEY_SAVE);		break;
-				case 0x1049: map_key_clear(KEY_PROG1);		break;
-				case 0x104a: map_key_clear(KEY_PROG2);		break;
-				case 0x104b: map_key_clear(KEY_PROG3);		break;
-				case 0x104c: map_key_clear(KEY_PROG4);		break;
-
 				default:    goto ignore;
 			}
 			break;
@@ -736,63 +703,16 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 
 		case HID_UP_MSVENDOR:
 
-			/* Unfortunately, there are multiple devices which
-			 * emit usages from MSVENDOR page that require different
-			 * handling. If this list grows too much in the future,
-			 * more general handling will have to be introduced here
-			 * (i.e. another blacklist).
-			 */
+			goto ignore;
 
-			/* Chicony Chicony KU-0418 tactical pad */
-			if (IS_CHICONY_TACTICAL_PAD(device)) {
-				set_bit(EV_REP, input->evbit);
-				switch(usage->hid & HID_USAGE) {
-					case 0xff01: map_key_clear(BTN_1);		break;
-					case 0xff02: map_key_clear(BTN_2);		break;
-					case 0xff03: map_key_clear(BTN_3);		break;
-					case 0xff04: map_key_clear(BTN_4);		break;
-					case 0xff05: map_key_clear(BTN_5);		break;
-					case 0xff06: map_key_clear(BTN_6);		break;
-					case 0xff07: map_key_clear(BTN_7);		break;
-					case 0xff08: map_key_clear(BTN_8);		break;
-					case 0xff09: map_key_clear(BTN_9);		break;
-					case 0xff0a: map_key_clear(BTN_A);		break;
-					case 0xff0b: map_key_clear(BTN_B);		break;
-					default:    goto ignore;
-				}
-
-			/* Microsoft Natural Ergonomic Keyboard 4000 */
-			} else if (IS_MS_KB(device)) {
-				switch(usage->hid & HID_USAGE) {
-					case 0xfd06:
-						map_key_clear(KEY_CHAT);
-						break;
-					case 0xfd07:
-						map_key_clear(KEY_PHONE);
-						break;
-					case 0xff05:
-						set_bit(EV_REP, input->evbit);
-						map_key_clear(KEY_F13);
-						set_bit(KEY_F14, input->keybit);
-						set_bit(KEY_F15, input->keybit);
-						set_bit(KEY_F16, input->keybit);
-						set_bit(KEY_F17, input->keybit);
-						set_bit(KEY_F18, input->keybit);
-					default:	goto ignore;
-				}
-			} else {
-				goto ignore;
-			}
-			break;
-
-		case HID_UP_CUSTOM: /* Reported on Logitech and Powerbook USB keyboards */
+		case HID_UP_CUSTOM: /* Reported on Logitech and Apple USB keyboards */
 
 			set_bit(EV_REP, input->evbit);
 			switch(usage->hid & HID_USAGE) {
 				case 0x003:
-					/* The fn key on Apple PowerBooks */
+					/* The fn key on Apple USB keyboards */
 					map_key_clear(KEY_FN);
-					hidinput_pb_setup(input);
+					hidinput_apple_setup(input);
 					break;
 
 				default:    goto ignore;
@@ -800,38 +720,9 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 			break;
 
 		case HID_UP_LOGIVENDOR:
-			set_bit(EV_REP, input->evbit);
-			switch(usage->hid & HID_USAGE) {
-				/* Reported on Logitech Ultra X Media Remote */
-				case 0x004: map_key_clear(KEY_AGAIN);		break;
-				case 0x00d: map_key_clear(KEY_HOME);		break;
-				case 0x024: map_key_clear(KEY_SHUFFLE);		break;
-				case 0x025: map_key_clear(KEY_TV);		break;
-				case 0x026: map_key_clear(KEY_MENU);		break;
-				case 0x031: map_key_clear(KEY_AUDIO);		break;
-				case 0x032: map_key_clear(KEY_TEXT);		break;
-				case 0x033: map_key_clear(KEY_LAST);		break;
-				case 0x047: map_key_clear(KEY_MP3);		break;
-				case 0x048: map_key_clear(KEY_DVD);		break;
-				case 0x049: map_key_clear(KEY_MEDIA);		break;
-				case 0x04a: map_key_clear(KEY_VIDEO);		break;
-				case 0x04b: map_key_clear(KEY_ANGLE);		break;
-				case 0x04c: map_key_clear(KEY_LANGUAGE);	break;
-				case 0x04d: map_key_clear(KEY_SUBTITLE);	break;
-				case 0x051: map_key_clear(KEY_RED);		break;
-				case 0x052: map_key_clear(KEY_CLOSE);		break;
 
-				/* Reported on Petalynx Maxter remote */
-				case 0x05a: map_key_clear(KEY_TEXT);		break;
-				case 0x05b: map_key_clear(KEY_RED);		break;
-				case 0x05c: map_key_clear(KEY_GREEN);		break;
-				case 0x05d: map_key_clear(KEY_YELLOW);		break;
-				case 0x05e: map_key_clear(KEY_BLUE);		break;
-
-				default:    goto ignore;
-			}
-			break;
-
+			goto ignore;
+		
 		case HID_UP_PID:
 
 			switch(usage->hid & HID_USAGE) {
@@ -858,6 +749,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 			break;
 	}
 
+mapped:
 	if (device->quirks & HID_QUIRK_MIGHTYMOUSE) {
 		if (usage->hid == HID_GD_Z)
 			map_rel(REL_HWHEEL);
@@ -867,9 +759,10 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 			map_key(BTN_1);
 	}
 
-	if ((device->quirks & (HID_QUIRK_2WHEEL_MOUSE_HACK_7 | HID_QUIRK_2WHEEL_MOUSE_HACK_5)) &&
-		 (usage->type == EV_REL) && (usage->code == REL_WHEEL))
-			set_bit(REL_HWHEEL, bit);
+	if ((device->quirks & (HID_QUIRK_2WHEEL_MOUSE_HACK_7 | HID_QUIRK_2WHEEL_MOUSE_HACK_5 |
+			HID_QUIRK_2WHEEL_MOUSE_HACK_B8)) && (usage->type == EV_REL) &&
+			(usage->code == REL_WHEEL))
+		set_bit(REL_HWHEEL, bit);
 
 	if (((device->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_5) && (usage->hid == 0x00090005))
 		|| ((device->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_7) && (usage->hid == 0x00090007)))
@@ -960,25 +853,8 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 	if (!usage->type)
 		return;
 
-	if (((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_5) && (usage->hid == 0x00090005))
-		|| ((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_7) && (usage->hid == 0x00090007))) {
-		if (value) hid->quirks |=  HID_QUIRK_2WHEEL_MOUSE_HACK_ON;
-		else       hid->quirks &= ~HID_QUIRK_2WHEEL_MOUSE_HACK_ON;
-		return;
-	}
-
-	if ((hid->quirks & HID_QUIRK_INVERT_HWHEEL) && (usage->code == REL_HWHEEL)) {
-		input_event(input, usage->type, usage->code, -value);
-		return;
-	}
-
-	if ((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_ON) && (usage->code == REL_WHEEL)) {
-		input_event(input, usage->type, REL_HWHEEL, value);
-		return;
-	}
-
-	if ((hid->quirks & HID_QUIRK_POWERBOOK_HAS_FN) && hidinput_pb_event(hid, input, usage, value))
-		return;
+	/* handle input events for quirky devices */
+	hidinput_event_quirks(hid, field, usage, value);
 
 	if (usage->hat_min < usage->hat_max || usage->hat_dir) {
 		int hat_dir = usage->hat_dir;
@@ -1039,25 +915,6 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 		return;
 	}
 
-	/* Handling MS keyboards special buttons */
-	if (IS_MS_KB(hid) && usage->hid == (HID_UP_MSVENDOR | 0xff05)) {
-		int key = 0;
-		static int last_key = 0;
-		switch (value) {
-			case 0x01: key = KEY_F14; break;
-			case 0x02: key = KEY_F15; break;
-			case 0x04: key = KEY_F16; break;
-			case 0x08: key = KEY_F17; break;
-			case 0x10: key = KEY_F18; break;
-			default: break;
-		}
-		if (key) {
-			input_event(input, usage->type, key, 1);
-			last_key = key;
-		} else {
-			input_event(input, usage->type, last_key, 0);
-		}
-	}
 	/* report the usage code as scancode if the key status has changed */
 	if (usage->type == EV_KEY && !!test_bit(usage->code, input->key) != value)
 		input_event(input, EV_MSC, MSC_SCAN, usage->hid);

@@ -11,7 +11,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kiran Kumar Immidi");
-MODULE_DESCRIPTION("Match for SCTP protocol packets");
+MODULE_DESCRIPTION("Xtables: SCTP protocol packet match");
 MODULE_ALIAS("ipt_sctp");
 MODULE_ALIAS("ip6t_sctp");
 
@@ -116,14 +116,9 @@ match_packet(const struct sk_buff *skb,
 }
 
 static bool
-match(const struct sk_buff *skb,
-      const struct net_device *in,
-      const struct net_device *out,
-      const struct xt_match *match,
-      const void *matchinfo,
-      int offset,
-      unsigned int protoff,
-      bool *hotdrop)
+sctp_mt(const struct sk_buff *skb, const struct net_device *in,
+        const struct net_device *out, const struct xt_match *match,
+        const void *matchinfo, int offset, unsigned int protoff, bool *hotdrop)
 {
 	const struct xt_sctp_info *info = matchinfo;
 	sctp_sctphdr_t _sh, *sh;
@@ -153,11 +148,9 @@ match(const struct sk_buff *skb,
 }
 
 static bool
-checkentry(const char *tablename,
-	   const void *inf,
-	   const struct xt_match *match,
-	   void *matchinfo,
-	   unsigned int hook_mask)
+sctp_mt_check(const char *tablename, const void *inf,
+              const struct xt_match *match, void *matchinfo,
+              unsigned int hook_mask)
 {
 	const struct xt_sctp_info *info = matchinfo;
 
@@ -171,12 +164,12 @@ checkentry(const char *tablename,
 				| SCTP_CHUNK_MATCH_ONLY)));
 }
 
-static struct xt_match xt_sctp_match[] __read_mostly = {
+static struct xt_match sctp_mt_reg[] __read_mostly = {
 	{
 		.name		= "sctp",
 		.family		= AF_INET,
-		.checkentry	= checkentry,
-		.match		= match,
+		.checkentry	= sctp_mt_check,
+		.match		= sctp_mt,
 		.matchsize	= sizeof(struct xt_sctp_info),
 		.proto		= IPPROTO_SCTP,
 		.me		= THIS_MODULE
@@ -184,23 +177,23 @@ static struct xt_match xt_sctp_match[] __read_mostly = {
 	{
 		.name		= "sctp",
 		.family		= AF_INET6,
-		.checkentry	= checkentry,
-		.match		= match,
+		.checkentry	= sctp_mt_check,
+		.match		= sctp_mt,
 		.matchsize	= sizeof(struct xt_sctp_info),
 		.proto		= IPPROTO_SCTP,
 		.me		= THIS_MODULE
 	},
 };
 
-static int __init xt_sctp_init(void)
+static int __init sctp_mt_init(void)
 {
-	return xt_register_matches(xt_sctp_match, ARRAY_SIZE(xt_sctp_match));
+	return xt_register_matches(sctp_mt_reg, ARRAY_SIZE(sctp_mt_reg));
 }
 
-static void __exit xt_sctp_fini(void)
+static void __exit sctp_mt_exit(void)
 {
-	xt_unregister_matches(xt_sctp_match, ARRAY_SIZE(xt_sctp_match));
+	xt_unregister_matches(sctp_mt_reg, ARRAY_SIZE(sctp_mt_reg));
 }
 
-module_init(xt_sctp_init);
-module_exit(xt_sctp_fini);
+module_init(sctp_mt_init);
+module_exit(sctp_mt_exit);

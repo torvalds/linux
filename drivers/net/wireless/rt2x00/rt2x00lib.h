@@ -44,8 +44,8 @@ void rt2x00lib_reset_link_tuner(struct rt2x00_dev *rt2x00dev);
 /*
  * Initialization handlers.
  */
-int rt2x00lib_initialize(struct rt2x00_dev *rt2x00dev);
-void rt2x00lib_uninitialize(struct rt2x00_dev *rt2x00dev);
+int rt2x00lib_start(struct rt2x00_dev *rt2x00dev);
+void rt2x00lib_stop(struct rt2x00_dev *rt2x00dev);
 
 /*
  * Configuration handlers.
@@ -53,6 +53,8 @@ void rt2x00lib_uninitialize(struct rt2x00_dev *rt2x00dev);
 void rt2x00lib_config_mac_addr(struct rt2x00_dev *rt2x00dev, u8 *mac);
 void rt2x00lib_config_bssid(struct rt2x00_dev *rt2x00dev, u8 *bssid);
 void rt2x00lib_config_type(struct rt2x00_dev *rt2x00dev, const int type);
+void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
+			      enum antenna rx, enum antenna tx);
 void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 		      struct ieee80211_conf *conf, const int force_config);
 
@@ -78,12 +80,18 @@ static inline void rt2x00lib_free_firmware(struct rt2x00_dev *rt2x00dev)
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
 void rt2x00debug_register(struct rt2x00_dev *rt2x00dev);
 void rt2x00debug_deregister(struct rt2x00_dev *rt2x00dev);
+void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb);
 #else
 static inline void rt2x00debug_register(struct rt2x00_dev *rt2x00dev)
 {
 }
 
 static inline void rt2x00debug_deregister(struct rt2x00_dev *rt2x00dev)
+{
+}
+
+static inline void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
+					  struct sk_buff *skb)
 {
 }
 #endif /* CONFIG_RT2X00_LIB_DEBUGFS */

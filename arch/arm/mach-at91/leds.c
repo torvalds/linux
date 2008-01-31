@@ -14,10 +14,61 @@
 #include <linux/init.h>
 
 #include <asm/mach-types.h>
-#include <asm/leds.h>
 #include <asm/arch/board.h>
 #include <asm/arch/gpio.h>
 
+
+/* ------------------------------------------------------------------------- */
+
+#if defined(CONFIG_NEW_LEDS)
+
+#include <linux/platform_device.h>
+
+/*
+ * New cross-platform LED support.
+ */
+
+static struct gpio_led_platform_data led_data;
+
+static struct platform_device at91_leds = {
+	.name			= "leds-gpio",
+	.id			= -1,
+	.dev.platform_data	= &led_data,
+};
+
+void __init at91_gpio_leds(struct gpio_led *leds, int nr)
+{
+	int i;
+
+	if (!nr)
+		return;
+
+	for (i = 0; i < nr; i++)
+		at91_set_gpio_output(leds[i].gpio, leds[i].active_low);
+
+	led_data.leds = leds;
+	led_data.num_leds = nr;
+	platform_device_register(&at91_leds);
+}
+
+#else
+void __init at91_gpio_leds(struct gpio_led *leds, int nr) {}
+#endif
+
+
+/* ------------------------------------------------------------------------- */
+
+#if defined(CONFIG_LEDS)
+
+#include <asm/leds.h>
+
+/*
+ * Old ARM-specific LED framework; not fully functional when generic time is
+ * in use.
+ */
+
+static u8 at91_leds_cpu;
+static u8 at91_leds_timer;
 
 static inline void at91_led_on(unsigned int led)
 {
@@ -93,3 +144,18 @@ static int __init leds_init(void)
 }
 
 __initcall(leds_init);
+
+
+void __init at91_init_leds(u8 cpu_led, u8 timer_led)
+{
+	/* Enable GPIO to access the LEDs */
+	at91_set_gpio_output(cpu_led, 1);
+	at91_set_gpio_output(timer_led, 1);
+
+	at91_leds_cpu	= cpu_led;
+	at91_leds_timer	= timer_led;
+}
+
+#else
+void __init at91_init_leds(u8 cpu_led, u8 timer_led) {}
+#endif

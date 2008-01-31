@@ -37,6 +37,8 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/skbuff.h>
+#include <linux/etherdevice.h>
+
 
 /* 32bit DMA ops. */
 static
@@ -165,7 +167,7 @@ static void op64_fill_descriptor(struct b43_dmaring *ring,
 	addrhi = (((u64) dmaaddr >> 32) & ~SSB_DMA_TRANSLATION_MASK);
 	addrext = (((u64) dmaaddr >> 32) & SSB_DMA_TRANSLATION_MASK)
 	    >> SSB_DMA_TRANSLATION_SHIFT;
-	addrhi |= ssb_dma_translation(ring->dev->dev);
+	addrhi |= (ssb_dma_translation(ring->dev->dev) << 1);
 	if (slot == ring->nr_slots - 1)
 		ctl0 |= B43_DMA64_DCTL0_DTABLEEND;
 	if (start)
@@ -315,26 +317,24 @@ static struct b43_dmaring *priority_to_txring(struct b43_wldev *dev,
 	case 3:
 		ring = dev->dma.tx_ring0;
 		break;
-	case 4:
-		ring = dev->dma.tx_ring4;
-		break;
-	case 5:
-		ring = dev->dma.tx_ring5;
-		break;
 	}
 
 	return ring;
 }
 
-/* Bcm43xx-ring to mac80211-queue mapping */
+/* b43-ring to mac80211-queue mapping */
 static inline int txring_to_priority(struct b43_dmaring *ring)
 {
-	static const u8 idx_to_prio[] = { 3, 2, 1, 0, 4, 5, };
+	static const u8 idx_to_prio[] = { 3, 2, 1, 0, };
+	unsigned int index;
 
 /*FIXME: have only one queue, for now */
 	return 0;
 
-	return idx_to_prio[ring->index];
+	index = ring->index;
+	if (B43_WARN_ON(index >= ARRAY_SIZE(idx_to_prio)))
+		index = 0;
+	return idx_to_prio[index];
 }
 
 u16 b43_dmacontroller_base(int dma64bit, int controller_idx)
@@ -426,9 +426,21 @@ static inline
 static int alloc_ringmemory(struct b43_dmaring *ring)
 {
 	struct device *dev = ring->dev->dev->dev;
+	gfp_t flags = GFP_KERNEL;
 
+	/* The specs call for 4K buffers for 30- and 32-bit DMA with 4K
+	 * alignment and 8K buffers for 64-bit DMA with 8K alignment. Testing
+	 * has shown that 4K is sufficient for the latter as long as the buffer
+	 * does not cross an 8K boundary.
+	 *
+	 * For unknown reasons - possibly a hardware error - the BCM4311 rev
+	 * 02, which uses 64-bit DMA, needs the ring buffer in very low memory,
+	 * which accounts for the GFP_DMA flag below.
+	 */
+	if (ring->dma64)
+		flags |= GFP_DMA;
 	ring->descbase = dma_alloc_coherent(dev, B43_DMA_RINGMEMSIZE,
-					    &(ring->dmabase), GFP_KERNEL);
+					    &(ring->dmabase), flags);
 	if (!ring->descbase) {
 		b43err(ring->dev->wl, "DMA ringmemory allocation failed\n");
 		return -ENOMEM;
@@ -483,7 +495,7 @@ int b43_dmacontroller_rx_reset(struct b43_wldev *dev, u16 mmio_base, int dma64)
 	return 0;
 }
 
-/* Reset the RX DMA channel */
+/* Reset the TX DMA channel */
 int b43_dmacontroller_tx_reset(struct b43_wldev *dev, u16 mmio_base, int dma64)
 {
 	int i;
@@ -647,7 +659,7 @@ static int dmacontroller_setup(struct b43_dmaring *ring)
 			b43_dma_write(ring, B43_DMA64_TXRINGHI,
 				      ((ringbase >> 32) &
 				       ~SSB_DMA_TRANSLATION_MASK)
-				      | trans);
+				      | (trans << 1));
 		} else {
 			u32 ringbase = (u32) (ring->dmabase);
 
@@ -680,8 +692,9 @@ static int dmacontroller_setup(struct b43_dmaring *ring)
 			b43_dma_write(ring, B43_DMA64_RXRINGHI,
 				      ((ringbase >> 32) &
 				       ~SSB_DMA_TRANSLATION_MASK)
-				      | trans);
-			b43_dma_write(ring, B43_DMA64_RXINDEX, 200);
+				      | (trans << 1));
+			b43_dma_write(ring, B43_DMA64_RXINDEX, ring->nr_slots *
+				      sizeof(struct b43_dmadesc64));
 		} else {
 			u32 ringbase = (u32) (ring->dmabase);
 
@@ -695,11 +708,12 @@ static int dmacontroller_setup(struct b43_dmaring *ring)
 			b43_dma_write(ring, B43_DMA32_RXRING,
 				      (ringbase & ~SSB_DMA_TRANSLATION_MASK)
 				      | trans);
-			b43_dma_write(ring, B43_DMA32_RXINDEX, 200);
+			b43_dma_write(ring, B43_DMA32_RXINDEX, ring->nr_slots *
+				      sizeof(struct b43_dmadesc32));
 		}
 	}
 
-      out:
+out:
 	return err;
 }
 
@@ -793,7 +807,7 @@ struct b43_dmaring *b43_setup_dmaring(struct b43_wldev *dev,
 		goto err_kfree_ring;
 	if (for_tx) {
 		ring->txhdr_cache = kcalloc(nr_slots,
-					    sizeof(struct b43_txhdr_fw4),
+					    b43_txhdr_size(dev),
 					    GFP_KERNEL);
 		if (!ring->txhdr_cache)
 			goto err_kfree_meta;
@@ -801,22 +815,21 @@ struct b43_dmaring *b43_setup_dmaring(struct b43_wldev *dev,
 		/* test for ability to dma to txhdr_cache */
 		dma_test = dma_map_single(dev->dev->dev,
 					  ring->txhdr_cache,
-					  sizeof(struct b43_txhdr_fw4),
+					  b43_txhdr_size(dev),
 					  DMA_TO_DEVICE);
 
 		if (dma_mapping_error(dma_test)) {
 			/* ugh realloc */
 			kfree(ring->txhdr_cache);
 			ring->txhdr_cache = kcalloc(nr_slots,
-						    sizeof(struct
-							   b43_txhdr_fw4),
+						    b43_txhdr_size(dev),
 						    GFP_KERNEL | GFP_DMA);
 			if (!ring->txhdr_cache)
 				goto err_kfree_meta;
 
 			dma_test = dma_map_single(dev->dev->dev,
 						  ring->txhdr_cache,
-						  sizeof(struct b43_txhdr_fw4),
+						  b43_txhdr_size(dev),
 						  DMA_TO_DEVICE);
 
 			if (dma_mapping_error(dma_test))
@@ -824,7 +837,7 @@ struct b43_dmaring *b43_setup_dmaring(struct b43_wldev *dev,
 		}
 
 		dma_unmap_single(dev->dev->dev,
-				 dma_test, sizeof(struct b43_txhdr_fw4),
+				 dma_test, b43_txhdr_size(dev),
 				 DMA_TO_DEVICE);
 	}
 
@@ -901,11 +914,7 @@ static void b43_destroy_dmaring(struct b43_dmaring *ring)
 
 void b43_dma_free(struct b43_wldev *dev)
 {
-	struct b43_dma *dma;
-
-	if (b43_using_pio(dev))
-		return;
-	dma = &dev->dma;
+	struct b43_dma *dma = &dev->dma;
 
 	b43_destroy_dmaring(dma->rx_ring3);
 	dma->rx_ring3 = NULL;
@@ -940,16 +949,11 @@ int b43_dma_init(struct b43_wldev *dev)
 
 	err = ssb_dma_set_mask(dev->dev, dmamask);
 	if (err) {
-#ifdef B43_PIO
-		b43warn(dev->wl, "DMA for this device not supported. "
-			"Falling back to PIO\n");
-		dev->__using_pio = 1;
-		return -EAGAIN;
-#else
-		b43err(dev->wl, "DMA for this device not supported and "
-		       "no PIO support compiled in\n");
+		b43err(dev->wl, "The machine/kernel does not support "
+		       "the required DMA mask (0x%08X%08X)\n",
+		       (unsigned int)((dmamask & 0xFFFFFFFF00000000ULL) >> 32),
+		       (unsigned int)(dmamask & 0x00000000FFFFFFFFULL));
 		return -EOPNOTSUPP;
-#endif
 	}
 
 	err = -ENOMEM;
@@ -1038,26 +1042,30 @@ static u16 generate_cookie(struct b43_dmaring *ring, int slot)
 	 * in the lower 12 bits.
 	 * Note that the cookie must never be 0, as this
 	 * is a special value used in RX path.
+	 * It can also not be 0xFFFF because that is special
+	 * for multicast frames.
 	 */
 	switch (ring->index) {
 	case 0:
-		cookie = 0xA000;
+		cookie = 0x1000;
 		break;
 	case 1:
-		cookie = 0xB000;
+		cookie = 0x2000;
 		break;
 	case 2:
-		cookie = 0xC000;
+		cookie = 0x3000;
 		break;
 	case 3:
-		cookie = 0xD000;
+		cookie = 0x4000;
 		break;
 	case 4:
-		cookie = 0xE000;
+		cookie = 0x5000;
 		break;
 	case 5:
-		cookie = 0xF000;
+		cookie = 0x6000;
 		break;
+	default:
+		B43_WARN_ON(1);
 	}
 	B43_WARN_ON(slot & ~0x0FFF);
 	cookie |= (u16) slot;
@@ -1073,22 +1081,22 @@ struct b43_dmaring *parse_cookie(struct b43_wldev *dev, u16 cookie, int *slot)
 	struct b43_dmaring *ring = NULL;
 
 	switch (cookie & 0xF000) {
-	case 0xA000:
+	case 0x1000:
 		ring = dma->tx_ring0;
 		break;
-	case 0xB000:
+	case 0x2000:
 		ring = dma->tx_ring1;
 		break;
-	case 0xC000:
+	case 0x3000:
 		ring = dma->tx_ring2;
 		break;
-	case 0xD000:
+	case 0x4000:
 		ring = dma->tx_ring3;
 		break;
-	case 0xE000:
+	case 0x5000:
 		ring = dma->tx_ring4;
 		break;
-	case 0xF000:
+	case 0x6000:
 		ring = dma->tx_ring5;
 		break;
 	default:
@@ -1112,6 +1120,8 @@ static int dma_tx_fragment(struct b43_dmaring *ring,
 	struct b43_dmadesc_meta *meta;
 	struct b43_dmadesc_meta *meta_hdr;
 	struct sk_buff *bounce_skb;
+	u16 cookie;
+	size_t hdrsize = b43_txhdr_size(ring->dev);
 
 #define SLOTS_PER_PACKET  2
 	B43_WARN_ON(skb_shinfo(skb)->nr_frags);
@@ -1121,17 +1131,17 @@ static int dma_tx_fragment(struct b43_dmaring *ring,
 	desc = ops->idx2desc(ring, slot, &meta_hdr);
 	memset(meta_hdr, 0, sizeof(*meta_hdr));
 
-	header = &(ring->txhdr_cache[slot * sizeof(struct b43_txhdr_fw4)]);
+	header = &(ring->txhdr_cache[slot * hdrsize]);
+	cookie = generate_cookie(ring, slot);
 	b43_generate_txhdr(ring->dev, header,
-			   skb->data, skb->len, ctl,
-			   generate_cookie(ring, slot));
+			   skb->data, skb->len, ctl, cookie);
 
 	meta_hdr->dmaaddr = map_descbuffer(ring, (unsigned char *)header,
-					   sizeof(struct b43_txhdr_fw4), 1);
+					   hdrsize, 1);
 	if (dma_mapping_error(meta_hdr->dmaaddr))
 		return -EIO;
 	ops->fill_descriptor(ring, desc, meta_hdr->dmaaddr,
-			     sizeof(struct b43_txhdr_fw4), 1, 0, 0);
+			     hdrsize, 1, 0, 0);
 
 	/* Get a slot for the payload. */
 	slot = request_slot(ring);
@@ -1164,16 +1174,22 @@ static int dma_tx_fragment(struct b43_dmaring *ring,
 
 	ops->fill_descriptor(ring, desc, meta->dmaaddr, skb->len, 0, 1, 1);
 
+	if (ctl->flags & IEEE80211_TXCTL_SEND_AFTER_DTIM) {
+		/* Tell the firmware about the cookie of the last
+		 * mcast frame, so it can clear the more-data bit in it. */
+		b43_shm_write16(ring->dev, B43_SHM_SHARED,
+				B43_SHM_SH_MCASTCOOKIE, cookie);
+	}
 	/* Now transfer the whole frame. */
 	wmb();
 	ops->poke_tx(ring, next_slot(ring, slot));
 	return 0;
 
-      out_free_bounce:
+out_free_bounce:
 	dev_kfree_skb_any(skb);
-      out_unmap_hdr:
+out_unmap_hdr:
 	unmap_descbuffer(ring, meta_hdr->dmaaddr,
-			 sizeof(struct b43_txhdr_fw4), 1);
+			 hdrsize, 1);
 	return err;
 }
 
@@ -1202,10 +1218,27 @@ int b43_dma_tx(struct b43_wldev *dev,
 	       struct sk_buff *skb, struct ieee80211_tx_control *ctl)
 {
 	struct b43_dmaring *ring;
+	struct ieee80211_hdr *hdr;
 	int err = 0;
 	unsigned long flags;
 
-	ring = priority_to_txring(dev, ctl->queue);
+	if (unlikely(skb->len < 2 + 2 + 6)) {
+		/* Too short, this can't be a valid frame. */
+		return -EINVAL;
+	}
+
+	hdr = (struct ieee80211_hdr *)skb->data;
+	if (ctl->flags & IEEE80211_TXCTL_SEND_AFTER_DTIM) {
+		/* The multicast ring will be sent after the DTIM */
+		ring = dev->dma.tx_ring4;
+		/* Set the more-data bit. Ucode will clear it on
+		 * the last frame for us. */
+		hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_MOREDATA);
+	} else {
+		/* Decide by priority where to put this frame. */
+		ring = priority_to_txring(dev, ctl->queue);
+	}
+
 	spin_lock_irqsave(&ring->lock, flags);
 	B43_WARN_ON(!ring->tx);
 	if (unlikely(free_slots(ring) < SLOTS_PER_PACKET)) {
@@ -1233,7 +1266,7 @@ int b43_dma_tx(struct b43_wldev *dev,
 			b43dbg(dev->wl, "Stopped TX ring %d\n", ring->index);
 		}
 	}
-      out_unlock:
+out_unlock:
 	spin_unlock_irqrestore(&ring->lock, flags);
 
 	return err;
@@ -1265,7 +1298,7 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 					 1);
 		else
 			unmap_descbuffer(ring, meta->dmaaddr,
-					 sizeof(struct b43_txhdr_fw4), 1);
+					 b43_txhdr_size(dev), 1);
 
 		if (meta->is_last_fragment) {
 			B43_WARN_ON(!meta->skb);

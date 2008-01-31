@@ -27,18 +27,26 @@
 #define RT2X00RING_H
 
 /*
- * data_desc
- * Each data entry also contains a descriptor which is used by the
- * device to determine what should be done with the packet and
- * what the current status is.
- * This structure is greatly simplified, but the descriptors
- * are basically a list of little endian 32 bit values.
- * Make the array by default 1 word big, this will allow us
- * to use sizeof() correctly.
+ * skb_desc
+ * Descriptor information for the skb buffer
  */
-struct data_desc {
-	__le32 word[1];
+struct skb_desc {
+	unsigned int frame_type;
+
+	unsigned int desc_len;
+	unsigned int data_len;
+
+	void *desc;
+	void *data;
+
+	struct data_ring *ring;
+	struct data_entry *entry;
 };
+
+static inline struct skb_desc* get_skb_desc(struct sk_buff *skb)
+{
+	return (struct skb_desc*)&skb->cb[0];
+}
 
 /*
  * rxdata_entry_desc
@@ -51,6 +59,7 @@ struct rxdata_entry_desc {
 	int ofdm;
 	int size;
 	int flags;
+	int my_bss;
 };
 
 /*
@@ -66,6 +75,7 @@ struct txdata_entry_desc {
 #define ENTRY_TXD_MORE_FRAG	4
 #define ENTRY_TXD_REQ_TIMESTAMP	5
 #define ENTRY_TXD_BURST		6
+#define ENTRY_TXD_ACK		7
 
 /*
  * Queue ID. ID's 0-4 are data TX rings
@@ -134,6 +144,11 @@ struct data_entry {
 	 */
 	void *data_addr;
 	dma_addr_t data_dma;
+
+	/*
+	 * Entry identification number (index).
+	 */
+	unsigned int entry_idx;
 };
 
 /*
@@ -170,6 +185,13 @@ struct data_ring {
 	 */
 	dma_addr_t data_dma;
 	void *data_addr;
+
+	/*
+	 * Queue identification number:
+	 * RX: 0
+	 * TX: IEEE80211_TX_*
+	 */
+	unsigned int queue_idx;
 
 	/*
 	 * Index variables.
@@ -253,16 +275,16 @@ static inline int rt2x00_ring_free(struct data_ring *ring)
 /*
  * TX/RX Descriptor access functions.
  */
-static inline void rt2x00_desc_read(struct data_desc *desc,
+static inline void rt2x00_desc_read(__le32 *desc,
 				    const u8 word, u32 *value)
 {
-	*value = le32_to_cpu(desc->word[word]);
+	*value = le32_to_cpu(desc[word]);
 }
 
-static inline void rt2x00_desc_write(struct data_desc *desc,
+static inline void rt2x00_desc_write(__le32 *desc,
 				     const u8 word, const u32 value)
 {
-	desc->word[word] = cpu_to_le32(value);
+	desc[word] = cpu_to_le32(value);
 }
 
 #endif /* RT2X00RING_H */

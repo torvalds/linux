@@ -25,8 +25,12 @@
 #include <asm/arch/gpio.h>
 #include <asm/arch/pxafb.h>
 #include <asm/arch/zylonite.h>
+#include <asm/arch/mmc.h>
 
 #include "generic.h"
+
+#define MAX_SLOTS	3
+struct platform_mmc_slot zylonite_mmc_slot[MAX_SLOTS];
 
 int gpio_backlight;
 int gpio_eth_irq;
@@ -43,7 +47,7 @@ static struct resource smc91x_resources[] = {
 	[1] = {
 		.start	= -1,	/* for run-time assignment */
 		.end	= -1,
-		.flags	= IORESOURCE_IRQ,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
 	}
 };
 
@@ -156,6 +160,95 @@ static void __init zylonite_init_lcd(void)
 static inline void zylonite_init_lcd(void) {}
 #endif
 
+#if defined(CONFIG_MMC)
+static int zylonite_mci_ro(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+
+	return gpio_get_value(zylonite_mmc_slot[pdev->id].gpio_wp);
+}
+
+static int zylonite_mci_init(struct device *dev,
+			     irq_handler_t zylonite_detect_int,
+			     void *data)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	int err, cd_irq, gpio_cd, gpio_wp;
+
+	cd_irq = gpio_to_irq(zylonite_mmc_slot[pdev->id].gpio_cd);
+	gpio_cd = zylonite_mmc_slot[pdev->id].gpio_cd;
+	gpio_wp = zylonite_mmc_slot[pdev->id].gpio_wp;
+
+	/*
+	 * setup GPIO for Zylonite MMC controller
+	 */
+	err = gpio_request(gpio_cd, "mmc card detect");
+	if (err)
+		goto err_request_cd;
+	gpio_direction_input(gpio_cd);
+
+	err = gpio_request(gpio_wp, "mmc write protect");
+	if (err)
+		goto err_request_wp;
+	gpio_direction_input(gpio_wp);
+
+	err = request_irq(cd_irq, zylonite_detect_int,
+			  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+			  "MMC card detect", data);
+	if (err) {
+		printk(KERN_ERR "%s: MMC/SD/SDIO: "
+				"can't request card detect IRQ\n", __func__);
+		goto err_request_irq;
+	}
+
+	return 0;
+
+err_request_irq:
+	gpio_free(gpio_wp);
+err_request_wp:
+	gpio_free(gpio_cd);
+err_request_cd:
+	return err;
+}
+
+static void zylonite_mci_exit(struct device *dev, void *data)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	int cd_irq, gpio_cd, gpio_wp;
+
+	cd_irq = gpio_to_irq(zylonite_mmc_slot[pdev->id].gpio_cd);
+	gpio_cd = zylonite_mmc_slot[pdev->id].gpio_cd;
+	gpio_wp = zylonite_mmc_slot[pdev->id].gpio_wp;
+
+	free_irq(cd_irq, data);
+	gpio_free(gpio_cd);
+	gpio_free(gpio_wp);
+}
+
+static struct pxamci_platform_data zylonite_mci_platform_data = {
+	.detect_delay	= 20,
+	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
+	.init 		= zylonite_mci_init,
+	.exit		= zylonite_mci_exit,
+	.get_ro		= zylonite_mci_ro,
+};
+
+static struct pxamci_platform_data zylonite_mci2_platform_data = {
+	.detect_delay	= 20,
+	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
+};
+
+static void __init zylonite_init_mmc(void)
+{
+	pxa_set_mci_info(&zylonite_mci_platform_data);
+	pxa3xx_set_mci2_info(&zylonite_mci2_platform_data);
+	if (cpu_is_pxa310())
+		pxa3xx_set_mci3_info(&zylonite_mci_platform_data);
+}
+#else
+static inline void zylonite_init_mmc(void) {}
+#endif
+
 static void __init zylonite_init(void)
 {
 	/* board-processor specific initialization */
@@ -171,6 +264,7 @@ static void __init zylonite_init(void)
 	platform_device_register(&smc91x_device);
 
 	zylonite_init_lcd();
+	zylonite_init_mmc();
 }
 
 MACHINE_START(ZYLONITE, "PXA3xx Platform Development Kit (aka Zylonite)")

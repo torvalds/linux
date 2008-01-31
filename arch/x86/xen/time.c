@@ -592,7 +592,7 @@ __init void xen_time_init(void)
 	set_normalized_timespec(&wall_to_monotonic,
 				-xtime.tv_sec, -xtime.tv_nsec);
 
-	tsc_disable = 0;
+	setup_force_cpu_cap(X86_FEATURE_TSC);
 
 	xen_setup_timer(cpu);
 	xen_setup_cpu_clockevents();

@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/cy82c693.c		Version 0.42	Oct 23, 2007
+ * linux/drivers/ide/pci/cy82c693.c		Version 0.44	Nov 8, 2007
  *
  *  Copyright (C) 1998-2000 Andreas S. Krebs (akrebs@altavista.net), Maintainer
  *  Copyright (C) 1998-2002 Andre Hedrick <andre@linux-ide.org>, Integrator
@@ -176,17 +176,12 @@ static void compute_clocks (u8 pio, pio_clocks_t *p_pclk)
  * set DMA mode a specific channel for CY82C693
  */
 
-static void cy82c693_dma_enable (ide_drive_t *drive, int mode, int single)
+static void cy82c693_set_dma_mode(ide_drive_t *drive, const u8 mode)
 {
-	u8 index = 0, data = 0;
+	ide_hwif_t *hwif = drive->hwif;
+	u8 single = (mode & 0x10) >> 4, index = 0, data = 0;
 
-	if (mode>2)	/* make sure we set a valid mode */
-		mode = 2;
-			   
-	if (mode > drive->id->tDMA)  /* to be absolutly sure we have a valid mode */
-		mode = drive->id->tDMA;
-	
-	index = (HWIF(drive)->channel==0) ? CY82_INDEX_CHANNEL0 : CY82_INDEX_CHANNEL1;
+	index = hwif->channel ? CY82_INDEX_CHANNEL1 : CY82_INDEX_CHANNEL0;
 
 #if CY82C693_DEBUG_LOGS
 	/* for debug let's show the previous values */
@@ -199,7 +194,7 @@ static void cy82c693_dma_enable (ide_drive_t *drive, int mode, int single)
 		(data&0x3), ((data>>2)&1));
 #endif /* CY82C693_DEBUG_LOGS */
 
-	data = (u8)mode|(u8)(single<<2);
+	data = (mode & 3) | (single << 2);
 
 	outb(index, CY82_INDEX_PORT);
 	outb(data, CY82_DATA_PORT);
@@ -207,7 +202,7 @@ static void cy82c693_dma_enable (ide_drive_t *drive, int mode, int single)
 #if CY82C693_DEBUG_INFO
 	printk(KERN_INFO "%s (ch=%d, dev=%d): set DMA mode to %d (single=%d)\n",
 		drive->name, HWIF(drive)->channel, drive->select.b.unit,
-		mode, single);
+		mode & 3, single);
 #endif /* CY82C693_DEBUG_INFO */
 
 	/* 
@@ -228,39 +223,6 @@ static void cy82c693_dma_enable (ide_drive_t *drive, int mode, int single)
 	printk (KERN_INFO "%s: Set IDE Bus Master TimeOut Register to 0x%X\n",
 		drive->name, data);
 #endif /* CY82C693_DEBUG_INFO */
-}
-
-/* 
- * used to set DMA mode for CY82C693 (single and multi modes)
- */
-static int cy82c693_ide_dma_on (ide_drive_t *drive)
-{
-	struct hd_driveid *id = drive->id;
-
-#if CY82C693_DEBUG_INFO
-	printk (KERN_INFO "dma_on: %s\n", drive->name);
-#endif /* CY82C693_DEBUG_INFO */
-
-	if (id != NULL) {		
-		/* Enable DMA on any drive that has DMA
-		 * (multi or single) enabled
-		 */
-		if (id->field_valid & 2) {	/* regular DMA */
-			int mmode, smode;
-
-			mmode = id->dma_mword & (id->dma_mword >> 8);
-			smode = id->dma_1word & (id->dma_1word >> 8);
-			       		      
-			if (mmode != 0) {
-				/* enable multi */
-				cy82c693_dma_enable(drive, (mmode >> 1), 0);
-			} else if (smode != 0) {
-				/* enable single */
-				cy82c693_dma_enable(drive, (smode >> 1), 1);
-			}
-		}
-	}
-        return __ide_dma_on(drive);
 }
 
 static void cy82c693_set_pio_mode(ide_drive_t *drive, const u8 pio)
@@ -429,11 +391,7 @@ static unsigned int __devinit init_chipset_cy82c693(struct pci_dev *dev, const c
 static void __devinit init_hwif_cy82c693(ide_hwif_t *hwif)
 {
 	hwif->set_pio_mode = &cy82c693_set_pio_mode;
-
-	if (hwif->dma_base == 0)
-		return;
-
-	hwif->ide_dma_on = &cy82c693_ide_dma_on;
+	hwif->set_dma_mode = &cy82c693_set_dma_mode;
 }
 
 static void __devinit init_iops_cy82c693(ide_hwif_t *hwif)
@@ -454,11 +412,11 @@ static const struct ide_port_info cy82c693_chipset __devinitdata = {
 	.init_iops	= init_iops_cy82c693,
 	.init_hwif	= init_hwif_cy82c693,
 	.chipset	= ide_cy82c693,
-	.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_TRUST_BIOS_FOR_DMA |
+	.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_CY82C693 |
 			  IDE_HFLAG_BOOTABLE,
 	.pio_mask	= ATA_PIO4,
-	.swdma_mask	= ATA_SWDMA2_ONLY,
-	.mwdma_mask	= ATA_MWDMA2_ONLY,
+	.swdma_mask	= ATA_SWDMA2,
+	.mwdma_mask	= ATA_MWDMA2,
 };
 
 static int __devinit cy82c693_init_one(struct pci_dev *dev, const struct pci_device_id *id)

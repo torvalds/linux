@@ -608,7 +608,8 @@ NCR_700_scsi_done(struct NCR_700_Host_Parameters *hostdata,
 			scsi_print_sense("53c700", SCp);
 
 #endif
-			dma_unmap_single(hostdata->dev, slot->dma_handle, sizeof(SCp->sense_buffer), DMA_FROM_DEVICE);
+			dma_unmap_single(hostdata->dev, slot->dma_handle,
+					 SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
 			/* restore the old result if the request sense was
 			 * successful */
 			if (result == 0)
@@ -1010,7 +1011,7 @@ process_script_interrupt(__u32 dsps, __u32 dsp, struct scsi_cmnd *SCp,
 				cmnd[1] = (SCp->device->lun & 0x7) << 5;
 				cmnd[2] = 0;
 				cmnd[3] = 0;
-				cmnd[4] = sizeof(SCp->sense_buffer);
+				cmnd[4] = SCSI_SENSE_BUFFERSIZE;
 				cmnd[5] = 0;
 				/* Here's a quiet hack: the
 				 * REQUEST_SENSE command is six bytes,
@@ -1024,14 +1025,14 @@ process_script_interrupt(__u32 dsps, __u32 dsp, struct scsi_cmnd *SCp,
 				SCp->cmd_len = 6; /* command length for
 						   * REQUEST_SENSE */
 				slot->pCmd = dma_map_single(hostdata->dev, cmnd, MAX_COMMAND_SIZE, DMA_TO_DEVICE);
-				slot->dma_handle = dma_map_single(hostdata->dev, SCp->sense_buffer, sizeof(SCp->sense_buffer), DMA_FROM_DEVICE);
-				slot->SG[0].ins = bS_to_host(SCRIPT_MOVE_DATA_IN | sizeof(SCp->sense_buffer));
+				slot->dma_handle = dma_map_single(hostdata->dev, SCp->sense_buffer, SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
+				slot->SG[0].ins = bS_to_host(SCRIPT_MOVE_DATA_IN | SCSI_SENSE_BUFFERSIZE);
 				slot->SG[0].pAddr = bS_to_host(slot->dma_handle);
 				slot->SG[1].ins = bS_to_host(SCRIPT_RETURN);
 				slot->SG[1].pAddr = 0;
 				slot->resume_offset = hostdata->pScript;
 				dma_cache_sync(hostdata->dev, slot->SG, sizeof(slot->SG[0])*2, DMA_TO_DEVICE);
-				dma_cache_sync(hostdata->dev, SCp->sense_buffer, sizeof(SCp->sense_buffer), DMA_FROM_DEVICE);
+				dma_cache_sync(hostdata->dev, SCp->sense_buffer, SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
 
 				/* queue the command for reissue */
 				slot->state = NCR_700_SLOT_QUEUED;

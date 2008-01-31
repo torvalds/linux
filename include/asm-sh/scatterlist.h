@@ -13,7 +13,7 @@ struct scatterlist {
     unsigned int length;
 };
 
-#define ISA_DMA_THRESHOLD (0x1fffffff)
+#define ISA_DMA_THRESHOLD	PHYS_ADDR_MASK
 
 /* These macros should be used after a pci_map_sg call has been done
  * to get bus addresses of each of the SG entries and their lengths.

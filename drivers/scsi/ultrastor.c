@@ -298,9 +298,16 @@ static inline int find_and_clear_bit_16(unsigned long *field)
 {
   int rv;
 
-  if (*field == 0) panic("No free mscp");
-  asm("xorl %0,%0\n0:\tbsfw %1,%w0\n\tbtr %0,%1\n\tjnc 0b"
-      : "=&r" (rv), "=m" (*field) : "1" (*field));
+  if (*field == 0)
+    panic("No free mscp");
+
+  asm volatile (
+	"xorl %0,%0\n\t"
+	"0: bsfw %1,%w0\n\t"
+	"btr %0,%1\n\t"
+	"jnc 0b"
+	: "=&r" (rv), "=m" (*field) :);
+
   return rv;
 }
 
@@ -741,7 +748,7 @@ static int ultrastor_queuecommand(struct scsi_cmnd *SCpnt,
     }
     my_mscp->command_link = 0;		/*???*/
     my_mscp->scsi_command_link_id = 0;	/*???*/
-    my_mscp->length_of_sense_byte = sizeof SCpnt->sense_buffer;
+    my_mscp->length_of_sense_byte = SCSI_SENSE_BUFFERSIZE;
     my_mscp->length_of_scsi_cdbs = SCpnt->cmd_len;
     memcpy(my_mscp->scsi_cdbs, SCpnt->cmnd, my_mscp->length_of_scsi_cdbs);
     my_mscp->adapter_status = 0;
@@ -1197,6 +1204,5 @@ static struct scsi_host_template driver_template = {
 	.cmd_per_lun       = ULTRASTOR_MAX_CMDS_PER_LUN,
 	.unchecked_isa_dma = 1,
 	.use_clustering    = ENABLE_CLUSTERING,
-	.use_sg_chaining   = ENABLE_SG_CHAINING,
 };
 #include "scsi_module.c"

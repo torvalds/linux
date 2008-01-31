@@ -31,6 +31,7 @@
 #include <linux/reboot.h>
 #include <linux/kprobes.h>
 #include <linux/bug.h>
+#include <linux/utsname.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -168,9 +169,16 @@ void show_stack(struct task_struct *task, unsigned long *sp)
  */
 void dump_stack(void)
 {
+	printk("CPU: %d %s %s %.*s\n",
+	       task_thread_info(current)->cpu, print_tainted(),
+	       init_utsname()->release,
+	       (int)strcspn(init_utsname()->version, " "),
+	       init_utsname()->version);
+	printk("Process %s (pid: %d, task: %p, ksp: %p)\n",
+	       current->comm, current->pid, current,
+	       (void *) current->thread.ksp);
 	show_stack(NULL, NULL);
 }
-
 EXPORT_SYMBOL(dump_stack);
 
 static inline int mask_bits(struct pt_regs *regs, unsigned long bits)
@@ -258,8 +266,14 @@ void die(const char * str, struct pt_regs * regs, long err)
 	console_verbose();
 	spin_lock_irq(&die_lock);
 	bust_spinlocks(1);
-	printk("%s: %04lx [#%d]\n", str, err & 0xffff, ++die_counter);
-	print_modules();
+	printk("%s: %04lx [#%d] ", str, err & 0xffff, ++die_counter);
+#ifdef CONFIG_PREEMPT
+	printk("PREEMPT ");
+#endif
+#ifdef CONFIG_SMP
+	printk("SMP");
+#endif
+	printk("\n");
 	notify_die(DIE_OOPS, str, regs, err, current->thread.trap_no, SIGSEGV);
 	show_regs(regs);
 	bust_spinlocks(0);

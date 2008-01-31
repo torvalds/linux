@@ -116,10 +116,12 @@ static int nfs4_stat_to_errno(int);
 #define decode_renew_maxsz	(op_decode_hdr_maxsz)
 #define encode_setclientid_maxsz \
 				(op_encode_hdr_maxsz + \
-				4 /*server->ip_addr*/ + \
-				1 /*Netid*/ + \
-				6 /*uaddr*/ + \
-				6 + (NFS4_VERIFIER_SIZE >> 2))
+				XDR_QUADLEN(NFS4_VERIFIER_SIZE) + \
+				XDR_QUADLEN(NFS4_SETCLIENTID_NAMELEN) + \
+				1 /* sc_prog */ + \
+				XDR_QUADLEN(RPCBIND_MAXNETIDLEN) + \
+				XDR_QUADLEN(RPCBIND_MAXUADDRLEN) + \
+				1) /* sc_cb_ident */
 #define decode_setclientid_maxsz \
 				(op_decode_hdr_maxsz + \
 				2 + \
@@ -2515,14 +2517,12 @@ static int decode_attr_files_total(struct xdr_stream *xdr, uint32_t *bitmap, uin
 
 static int decode_pathname(struct xdr_stream *xdr, struct nfs4_pathname *path)
 {
-	int n;
+	u32 n;
 	__be32 *p;
 	int status = 0;
 
 	READ_BUF(4);
 	READ32(n);
-	if (n < 0)
-		goto out_eio;
 	if (n == 0)
 		goto root_path;
 	dprintk("path ");
@@ -2579,13 +2579,11 @@ static int decode_attr_fs_locations(struct xdr_stream *xdr, uint32_t *bitmap, st
 		goto out_eio;
 	res->nlocations = 0;
 	while (res->nlocations < n) {
-		int m;
+		u32 m;
 		struct nfs4_fs_location *loc = &res->locations[res->nlocations];
 
 		READ_BUF(4);
 		READ32(m);
-		if (m <= 0)
-			goto out_eio;
 
 		loc->nservers = 0;
 		dprintk("%s: servers ", __FUNCTION__);
@@ -2598,8 +2596,12 @@ static int decode_attr_fs_locations(struct xdr_stream *xdr, uint32_t *bitmap, st
 			if (loc->nservers < NFS4_FS_LOCATION_MAXSERVERS)
 				loc->nservers++;
 			else {
-				int i;
-				dprintk("%s: using first %d of %d servers returned for location %d\n", __FUNCTION__, NFS4_FS_LOCATION_MAXSERVERS, m, res->nlocations);
+				unsigned int i;
+				dprintk("%s: using first %u of %u servers "
+					"returned for location %u\n",
+						__FUNCTION__,
+						NFS4_FS_LOCATION_MAXSERVERS,
+						m, res->nlocations);
 				for (i = loc->nservers; i < m; i++) {
 					unsigned int len;
 					char *data;
@@ -3476,10 +3478,11 @@ static int decode_readdir(struct xdr_stream *xdr, struct rpc_rqst *req, struct n
 	struct xdr_buf	*rcvbuf = &req->rq_rcv_buf;
 	struct page	*page = *rcvbuf->pages;
 	struct kvec	*iov = rcvbuf->head;
-	unsigned int	nr, pglen = rcvbuf->page_len;
+	size_t		hdrlen;
+	u32		recvd, pglen = rcvbuf->page_len;
 	__be32		*end, *entry, *p, *kaddr;
-	uint32_t	len, attrlen, xlen;
-	int 		hdrlen, recvd, status;
+	unsigned int	nr;
+	int		status;
 
 	status = decode_op_hdr(xdr, OP_READDIR);
 	if (status)
@@ -3503,6 +3506,7 @@ static int decode_readdir(struct xdr_stream *xdr, struct rpc_rqst *req, struct n
 	end = p + ((pglen + readdir->pgbase) >> 2);
 	entry = p;
 	for (nr = 0; *p++; nr++) {
+		u32 len, attrlen, xlen;
 		if (end - p < 3)
 			goto short_pkt;
 		dprintk("cookie = %Lu, ", *((unsigned long long *)p));
@@ -3551,7 +3555,8 @@ static int decode_readlink(struct xdr_stream *xdr, struct rpc_rqst *req)
 {
 	struct xdr_buf *rcvbuf = &req->rq_rcv_buf;
 	struct kvec *iov = rcvbuf->head;
-	int hdrlen, len, recvd;
+	size_t hdrlen;
+	u32 len, recvd;
 	__be32 *p;
 	char *kaddr;
 	int status;
@@ -3646,7 +3651,8 @@ static int decode_getacl(struct xdr_stream *xdr, struct rpc_rqst *req,
 	if (unlikely(bitmap[0] & (FATTR4_WORD0_ACL - 1U)))
 		return -EIO;
 	if (likely(bitmap[0] & FATTR4_WORD0_ACL)) {
-		int hdrlen, recvd;
+		size_t hdrlen;
+		u32 recvd;
 
 		/* We ignore &savep and don't do consistency checks on
 		 * the attr length.  Let userspace figure it out.... */

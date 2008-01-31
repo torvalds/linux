@@ -29,8 +29,6 @@
 void ocfs2_init_node_maps(struct ocfs2_super *osb);
 
 void ocfs2_setup_hb_callbacks(struct ocfs2_super *osb);
-int ocfs2_register_hb_callbacks(struct ocfs2_super *osb);
-void ocfs2_clear_hb_callbacks(struct ocfs2_super *osb);
 void ocfs2_stop_heartbeat(struct ocfs2_super *osb);
 
 /* node map functions - used to keep track of mounted and in-recovery

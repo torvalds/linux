@@ -252,7 +252,7 @@ int em28xx_write_reg_bits(struct em28xx *dev, u16 reg, u8 val,
  * em28xx_write_ac97()
  * write a 16 bit value to the specified AC97 address (LSB first!)
  */
-int em28xx_write_ac97(struct em28xx *dev, u8 reg, u8 * val)
+static int em28xx_write_ac97(struct em28xx *dev, u8 reg, u8 *val)
 {
 	int ret;
 	u8 addr = reg & 0x7f;
@@ -268,16 +268,98 @@ int em28xx_write_ac97(struct em28xx *dev, u8 reg, u8 * val)
 	return 0;
 }
 
-int em28xx_audio_analog_set(struct em28xx *dev)
+int em28xx_set_audio_source(struct em28xx *dev)
 {
-	char s[2] = { 0x00, 0x00 };
-	s[0] |= 0x1f - dev->volume;
-	s[1] |= 0x1f - dev->volume;
-	if (dev->mute)
-		s[1] |= 0x80;
-	return em28xx_write_ac97(dev, MASTER_AC97, s);
+	static char *enable  = "\x08\x08";
+	static char *disable = "\x08\x88";
+	char *video = enable, *line = disable;
+	int ret, no_ac97;
+	u8 input;
+
+	if (dev->is_em2800) {
+		if (dev->ctl_ainput)
+			input = EM2800_AUDIO_SRC_LINE;
+		else
+			input = EM2800_AUDIO_SRC_TUNER;
+
+		ret = em28xx_write_regs(dev, EM2800_AUDIOSRC_REG, &input, 1);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (dev->has_msp34xx)
+		input = EM28XX_AUDIO_SRC_TUNER;
+	else {
+		switch (dev->ctl_ainput) {
+		case EM28XX_AMUX_VIDEO:
+			input = EM28XX_AUDIO_SRC_TUNER;
+			no_ac97 = 1;
+			break;
+		case EM28XX_AMUX_LINE_IN:
+			input = EM28XX_AUDIO_SRC_LINE;
+			no_ac97 = 1;
+			break;
+		case EM28XX_AMUX_AC97_VIDEO:
+			input = EM28XX_AUDIO_SRC_LINE;
+			break;
+		case EM28XX_AMUX_AC97_LINE_IN:
+			input = EM28XX_AUDIO_SRC_LINE;
+			video = disable;
+			line  = enable;
+			break;
+		}
+	}
+
+	ret = em28xx_write_reg_bits(dev, AUDIOSRC_REG, input, 0xc0);
+	if (ret < 0)
+		return ret;
+
+	if (no_ac97)
+		return 0;
+
+	/* Sets AC97 mixer registers */
+
+	ret = em28xx_write_ac97(dev, VIDEO_AC97, video);
+	if (ret < 0)
+		return ret;
+
+	ret = em28xx_write_ac97(dev, LINE_IN_AC97, line);
+
+	return ret;
 }
 
+int em28xx_audio_analog_set(struct em28xx *dev)
+{
+	int ret;
+	char s[2] = { 0x00, 0x00 };
+	u8 xclk = 0x07;
+
+	s[0] |= 0x1f - dev->volume;
+	s[1] |= 0x1f - dev->volume;
+
+	if (dev->mute)
+		s[1] |= 0x80;
+	ret = em28xx_write_ac97(dev, MASTER_AC97, s);
+	if (ret < 0)
+		return ret;
+
+	if (dev->has_12mhz_i2s)
+		xclk |= 0x20;
+
+	if (!dev->mute)
+		xclk |= 0x80;
+
+	ret = em28xx_write_reg_bits(dev, XCLK_REG, xclk, 0xa7);
+	if (ret < 0)
+		return ret;
+	msleep(10);
+
+	/* Selects the proper audio input */
+	ret = em28xx_set_audio_source(dev);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(em28xx_audio_analog_set);
 
 int em28xx_colorlevels_set_default(struct em28xx *dev)
 {

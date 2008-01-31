@@ -274,6 +274,27 @@ int tcp_set_congestion_control(struct sock *sk, const char *name)
 	return err;
 }
 
+/* RFC2861 Check whether we are limited by application or congestion window
+ * This is the inverse of cwnd check in tcp_tso_should_defer
+ */
+int tcp_is_cwnd_limited(const struct sock *sk, u32 in_flight)
+{
+	const struct tcp_sock *tp = tcp_sk(sk);
+	u32 left;
+
+	if (in_flight >= tp->snd_cwnd)
+		return 1;
+
+	if (!sk_can_gso(sk))
+		return 0;
+
+	left = tp->snd_cwnd - in_flight;
+	if (sysctl_tcp_tso_win_divisor)
+		return left * sysctl_tcp_tso_win_divisor < tp->snd_cwnd;
+	else
+		return left <= tcp_max_burst(tp);
+}
+EXPORT_SYMBOL_GPL(tcp_is_cwnd_limited);
 
 /*
  * Slow start is used when congestion window is less than slow start
@@ -324,7 +345,7 @@ EXPORT_SYMBOL_GPL(tcp_slow_start);
 /* This is Jacobson's slow start and congestion avoidance.
  * SIGCOMM '88, p. 328.
  */
-void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 in_flight, int flag)
+void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 in_flight)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 

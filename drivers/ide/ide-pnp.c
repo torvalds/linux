@@ -31,7 +31,6 @@ static int idepnp_probe(struct pnp_dev * dev, const struct pnp_device_id *dev_id
 {
 	hw_regs_t hw;
 	ide_hwif_t *hwif;
-	int index;
 
 	if (!(pnp_port_valid(dev, 0) && pnp_port_valid(dev, 1) && pnp_irq_valid(dev, 0)))
 		return -1;
@@ -41,11 +40,19 @@ static int idepnp_probe(struct pnp_dev * dev, const struct pnp_device_id *dev_id
 				pnp_port_start(dev, 1));
 	hw.irq = pnp_irq(dev, 0);
 
-	index = ide_register_hw(&hw, NULL, 1, &hwif);
+	hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
+	if (hwif) {
+		u8 index = hwif->index;
+		u8 idx[4] = { index, 0xff, 0xff, 0xff };
 
-	if (index != -1) {
-	    	printk(KERN_INFO "ide%d: generic PnP IDE interface\n", index);
+		ide_init_port_data(hwif, index);
+		ide_init_port_hw(hwif, &hw);
+
+		printk(KERN_INFO "ide%d: generic PnP IDE interface\n", index);
 		pnp_set_drvdata(dev,hwif);
+
+		ide_device_add(idx);
+
 		return 0;
 	}
 
@@ -68,12 +75,15 @@ static struct pnp_driver idepnp_driver = {
 	.remove		= idepnp_remove,
 };
 
-void __init pnpide_init(void)
+static int __init pnpide_init(void)
 {
-	pnp_register_driver(&idepnp_driver);
+	return pnp_register_driver(&idepnp_driver);
 }
 
-void __exit pnpide_exit(void)
+static void __exit pnpide_exit(void)
 {
 	pnp_unregister_driver(&idepnp_driver);
 }
+
+module_init(pnpide_init);
+module_exit(pnpide_exit);

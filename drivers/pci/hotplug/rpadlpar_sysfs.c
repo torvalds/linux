@@ -23,43 +23,43 @@
 
 #define MAX_DRC_NAME_LEN 64
 
-/* Store return code of dlpar operation in attribute struct */
-struct dlpar_io_attr {
+
+static ssize_t add_slot_store(struct kobject *kobj, struct kobj_attribute *attr,
+			      const char *buf, size_t nbytes)
+{
+	char drc_name[MAX_DRC_NAME_LEN];
+	char *end;
 	int rc;
-	struct attribute attr;
-	ssize_t (*store)(struct dlpar_io_attr *dlpar_attr, const char *buf,
-		size_t nbytes);
-};
 
-/* Common show callback for all attrs, display the return code
- * of the dlpar op */
-static ssize_t
-dlpar_attr_show(struct kobject * kobj, struct attribute * attr, char * buf)
-{
-	struct dlpar_io_attr *dlpar_attr = container_of(attr,
-						struct dlpar_io_attr, attr);
-	return sprintf(buf, "%d\n", dlpar_attr->rc);
+	if (nbytes >= MAX_DRC_NAME_LEN)
+		return 0;
+
+	memcpy(drc_name, buf, nbytes);
+
+	end = strchr(drc_name, '\n');
+	if (!end)
+		end = &drc_name[nbytes];
+	*end = '\0';
+
+	rc = dlpar_add_slot(drc_name);
+	if (rc)
+		return rc;
+
+	return nbytes;
 }
 
-static ssize_t
-dlpar_attr_store(struct kobject * kobj, struct attribute * attr,
-		 const char *buf, size_t nbytes)
+static ssize_t add_slot_show(struct kobject *kobj,
+			     struct kobj_attribute *attr, char *buf)
 {
-	struct dlpar_io_attr *dlpar_attr = container_of(attr,
-						struct dlpar_io_attr, attr);
-	return dlpar_attr->store ?
-		dlpar_attr->store(dlpar_attr, buf, nbytes) : -EIO;
+	return sprintf(buf, "0\n");
 }
 
-static struct sysfs_ops dlpar_attr_sysfs_ops = {
-	.show = dlpar_attr_show,
-	.store = dlpar_attr_store,
-};
-
-static ssize_t add_slot_store(struct dlpar_io_attr *dlpar_attr,
-				const char *buf, size_t nbytes)
+static ssize_t remove_slot_store(struct kobject *kobj,
+				 struct kobj_attribute *attr,
+				 const char *buf, size_t nbytes)
 {
 	char drc_name[MAX_DRC_NAME_LEN];
+	int rc;
 	char *end;
 
 	if (nbytes >= MAX_DRC_NAME_LEN)
@@ -72,43 +72,24 @@ static ssize_t add_slot_store(struct dlpar_io_attr *dlpar_attr,
 		end = &drc_name[nbytes];
 	*end = '\0';
 
-	dlpar_attr->rc = dlpar_add_slot(drc_name);
+	rc = dlpar_remove_slot(drc_name);
+	if (rc)
+		return rc;
 
 	return nbytes;
 }
 
-static ssize_t remove_slot_store(struct dlpar_io_attr *dlpar_attr,
-		 		const char *buf, size_t nbytes)
+static ssize_t remove_slot_show(struct kobject *kobj,
+				struct kobj_attribute *attr, char *buf)
 {
-	char drc_name[MAX_DRC_NAME_LEN];
-	char *end;
-
-	if (nbytes >= MAX_DRC_NAME_LEN)
-		return 0;
-
-	memcpy(drc_name, buf, nbytes);
-
-	end = strchr(drc_name, '\n');
-	if (!end)
-		end = &drc_name[nbytes];
-	*end = '\0';
-
-	dlpar_attr->rc = dlpar_remove_slot(drc_name);
-
-	return nbytes;
+	return sprintf(buf, "0\n");
 }
 
-static struct dlpar_io_attr add_slot_attr = {
-	.rc = 0,
-	.attr = { .name = ADD_SLOT_ATTR_NAME, .mode = 0644, },
-	.store = add_slot_store,
-};
+static struct kobj_attribute add_slot_attr =
+	__ATTR(ADD_SLOT_ATTR_NAME, 0644, add_slot_show, add_slot_store);
 
-static struct dlpar_io_attr remove_slot_attr = {
-	.rc = 0,
-	.attr = { .name = REMOVE_SLOT_ATTR_NAME, .mode = 0644},
-	.store = remove_slot_store,
-};
+static struct kobj_attribute remove_slot_attr =
+	__ATTR(REMOVE_SLOT_ATTR_NAME, 0644, remove_slot_show, remove_slot_store);
 
 static struct attribute *default_attrs[] = {
 	&add_slot_attr.attr,
@@ -116,37 +97,29 @@ static struct attribute *default_attrs[] = {
 	NULL,
 };
 
-static void dlpar_io_release(struct kobject *kobj)
-{
-	/* noop */
-	return;
-}
-
-struct kobj_type ktype_dlpar_io = {
-	.release = dlpar_io_release,
-	.sysfs_ops = &dlpar_attr_sysfs_ops,
-	.default_attrs = default_attrs,
+static struct attribute_group dlpar_attr_group = {
+	.attrs = default_attrs,
 };
 
-struct kset dlpar_io_kset = {
-	.kobj = {.ktype = &ktype_dlpar_io,
-		 .parent = &pci_hotplug_slots_subsys.kobj},
-	.ktype = &ktype_dlpar_io,
-};
+static struct kobject *dlpar_kobj;
 
 int dlpar_sysfs_init(void)
 {
-	kobject_set_name(&dlpar_io_kset.kobj, DLPAR_KOBJ_NAME);
-	if (kset_register(&dlpar_io_kset)) {
-		printk(KERN_ERR "rpadlpar_io: cannot register kset for %s\n",
-				kobject_name(&dlpar_io_kset.kobj));
-		return -EINVAL;
-	}
+	int error;
 
-	return 0;
+	dlpar_kobj = kobject_create_and_add(DLPAR_KOBJ_NAME,
+					    &pci_hotplug_slots_kset->kobj);
+	if (!dlpar_kobj)
+		return -EINVAL;
+
+	error = sysfs_create_group(dlpar_kobj, &dlpar_attr_group);
+	if (error)
+		kobject_put(dlpar_kobj);
+	return error;
 }
 
 void dlpar_sysfs_exit(void)
 {
-	kset_unregister(&dlpar_io_kset);
+	sysfs_remove_group(dlpar_kobj, &dlpar_attr_group);
+	kobject_put(dlpar_kobj);
 }

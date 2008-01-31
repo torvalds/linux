@@ -4,10 +4,16 @@
  *  An implementation of the DCCP protocol
  *  Andrea Bittau <a.bittau@cs.ucl.ac.uk>
  *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
+ *  ASSUMPTIONS
+ *  -----------
+ *  o All currently known SP features have 1-byte quantities. If in the future
+ *    extensions of RFCs 4340..42 define features with item lengths larger than
+ *    one byte, a feature-specific extension of the code will be required.
+ *
+ *  This program is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU General Public License
+ *  as published by the Free Software Foundation; either version
+ *  2 of the License, or (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -24,11 +30,7 @@ int dccp_feat_change(struct dccp_minisock *dmsk, u8 type, u8 feature,
 
 	dccp_feat_debug(type, feature, *val);
 
-	if (!dccp_feat_is_valid_type(type)) {
-		DCCP_WARN("option type %d invalid in negotiation\n", type);
-		return 1;
-	}
-	if (!dccp_feat_is_valid_length(type, feature, len)) {
+	if (len > 3) {
 		DCCP_WARN("invalid length %d\n", len);
 		return 1;
 	}
@@ -99,7 +101,6 @@ static int dccp_feat_update_ccid(struct sock *sk, u8 type, u8 new_ccid_nr)
 	return 0;
 }
 
-/* XXX taking only u8 vals */
 static int dccp_feat_update(struct sock *sk, u8 type, u8 feat, u8 val)
 {
 	dccp_feat_debug(type, feat, val);
@@ -144,7 +145,6 @@ static int dccp_feat_reconcile(struct sock *sk, struct dccp_opt_pend *opt,
 	/* FIXME sanity check vals */
 
 	/* Are values in any order?  XXX Lame "algorithm" here */
-	/* XXX assume values are 1 byte */
 	for (i = 0; i < slen; i++) {
 		for (j = 0; j < rlen; j++) {
 			if (spref[i] == rpref[j]) {
@@ -179,7 +179,6 @@ static int dccp_feat_reconcile(struct sock *sk, struct dccp_opt_pend *opt,
 	}
 
 	/* need to put result and our preference list */
-	/* XXX assume 1 byte vals */
 	rlen = 1 + opt->dccpop_len;
 	rpref = kmalloc(rlen, GFP_ATOMIC);
 	if (rpref == NULL)
@@ -637,11 +636,11 @@ const char *dccp_feat_name(const u8 feat)
 		[DCCPF_MIN_CSUM_COVER]	= "Min. Csum Coverage",
 		[DCCPF_DATA_CHECKSUM]	= "Send Data Checksum",
 	};
+	if (feat > DCCPF_DATA_CHECKSUM && feat < DCCPF_MIN_CCID_SPECIFIC)
+		return feature_names[DCCPF_RESERVED];
+
 	if (feat >= DCCPF_MIN_CCID_SPECIFIC)
 		return "CCID-specific";
-
-	if (dccp_feat_is_reserved(feat))
-		return feature_names[DCCPF_RESERVED];
 
 	return feature_names[feat];
 }

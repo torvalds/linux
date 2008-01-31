@@ -264,37 +264,14 @@ static inline void inet_listen_unlock(struct inet_hashinfo *hashinfo)
 		wake_up(&hashinfo->lhash_wait);
 }
 
-static inline void __inet_hash(struct inet_hashinfo *hashinfo,
-			       struct sock *sk, const int listen_possible)
-{
-	struct hlist_head *list;
-	rwlock_t *lock;
-
-	BUG_TRAP(sk_unhashed(sk));
-	if (listen_possible && sk->sk_state == TCP_LISTEN) {
-		list = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)];
-		lock = &hashinfo->lhash_lock;
-		inet_listen_wlock(hashinfo);
-	} else {
-		struct inet_ehash_bucket *head;
-		sk->sk_hash = inet_sk_ehashfn(sk);
-		head = inet_ehash_bucket(hashinfo, sk->sk_hash);
-		list = &head->chain;
-		lock = inet_ehash_lockp(hashinfo, sk->sk_hash);
-		write_lock(lock);
-	}
-	__sk_add_node(sk, list);
-	sock_prot_inc_use(sk->sk_prot);
-	write_unlock(lock);
-	if (listen_possible && sk->sk_state == TCP_LISTEN)
-		wake_up(&hashinfo->lhash_wait);
-}
+extern void __inet_hash(struct inet_hashinfo *hashinfo, struct sock *sk);
+extern void __inet_hash_nolisten(struct inet_hashinfo *hinfo, struct sock *sk);
 
 static inline void inet_hash(struct inet_hashinfo *hashinfo, struct sock *sk)
 {
 	if (sk->sk_state != TCP_CLOSE) {
 		local_bh_disable();
-		__inet_hash(hashinfo, sk, 1);
+		__inet_hash(hashinfo, sk);
 		local_bh_enable();
 	}
 }
@@ -316,7 +293,7 @@ static inline void inet_unhash(struct inet_hashinfo *hashinfo, struct sock *sk)
 	}
 
 	if (__sk_del_node_init(sk))
-		sock_prot_dec_use(sk->sk_prot);
+		sock_prot_inuse_add(sk->sk_prot, -1);
 	write_unlock_bh(lock);
 out:
 	if (sk->sk_state == TCP_LISTEN)
@@ -397,43 +374,9 @@ typedef __u64 __bitwise __addrpair;
  *
  * Local BH must be disabled here.
  */
-static inline struct sock *
-	__inet_lookup_established(struct inet_hashinfo *hashinfo,
-				  const __be32 saddr, const __be16 sport,
-				  const __be32 daddr, const u16 hnum,
-				  const int dif)
-{
-	INET_ADDR_COOKIE(acookie, saddr, daddr)
-	const __portpair ports = INET_COMBINED_PORTS(sport, hnum);
-	struct sock *sk;
-	const struct hlist_node *node;
-	/* Optimize here for direct hit, only listening connections can
-	 * have wildcards anyways.
-	 */
-	unsigned int hash = inet_ehashfn(daddr, hnum, saddr, sport);
-	struct inet_ehash_bucket *head = inet_ehash_bucket(hashinfo, hash);
-	rwlock_t *lock = inet_ehash_lockp(hashinfo, hash);
-
-	prefetch(head->chain.first);
-	read_lock(lock);
-	sk_for_each(sk, node, &head->chain) {
-		if (INET_MATCH(sk, hash, acookie, saddr, daddr, ports, dif))
-			goto hit; /* You sunk my battleship! */
-	}
-
-	/* Must check for a TIME_WAIT'er before going to listener hash. */
-	sk_for_each(sk, node, &head->twchain) {
-		if (INET_TW_MATCH(sk, hash, acookie, saddr, daddr, ports, dif))
-			goto hit;
-	}
-	sk = NULL;
-out:
-	read_unlock(lock);
-	return sk;
-hit:
-	sock_hold(sk);
-	goto out;
-}
+extern struct sock * __inet_lookup_established(struct inet_hashinfo *hashinfo,
+		const __be32 saddr, const __be16 sport,
+		const __be32 daddr, const u16 hnum, const int dif);
 
 static inline struct sock *
 	inet_lookup_established(struct inet_hashinfo *hashinfo,

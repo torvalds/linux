@@ -81,7 +81,7 @@ static u_int32_t __hash_conntrack(const struct nf_conntrack_tuple *tuple,
 		   ((__force __u16)tuple->src.u.all << 16) |
 		    (__force __u16)tuple->dst.u.all);
 
-	return jhash_2words(a, b, rnd) % size;
+	return ((u64)jhash_2words(a, b, rnd) * size) >> 32;
 }
 
 static inline u_int32_t hash_conntrack(const struct nf_conntrack_tuple *tuple)
@@ -831,10 +831,8 @@ EXPORT_SYMBOL_GPL(__nf_ct_refresh_acct);
 int nf_ct_port_tuple_to_nlattr(struct sk_buff *skb,
 			       const struct nf_conntrack_tuple *tuple)
 {
-	NLA_PUT(skb, CTA_PROTO_SRC_PORT, sizeof(u_int16_t),
-		&tuple->src.u.tcp.port);
-	NLA_PUT(skb, CTA_PROTO_DST_PORT, sizeof(u_int16_t),
-		&tuple->dst.u.tcp.port);
+	NLA_PUT_BE16(skb, CTA_PROTO_SRC_PORT, tuple->src.u.tcp.port);
+	NLA_PUT_BE16(skb, CTA_PROTO_DST_PORT, tuple->dst.u.tcp.port);
 	return 0;
 
 nla_put_failure:
@@ -854,8 +852,8 @@ int nf_ct_port_nlattr_to_tuple(struct nlattr *tb[],
 	if (!tb[CTA_PROTO_SRC_PORT] || !tb[CTA_PROTO_DST_PORT])
 		return -EINVAL;
 
-	t->src.u.tcp.port = *(__be16 *)nla_data(tb[CTA_PROTO_SRC_PORT]);
-	t->dst.u.tcp.port = *(__be16 *)nla_data(tb[CTA_PROTO_DST_PORT]);
+	t->src.u.tcp.port = nla_get_be16(tb[CTA_PROTO_SRC_PORT]);
+	t->dst.u.tcp.port = nla_get_be16(tb[CTA_PROTO_DST_PORT]);
 
 	return 0;
 }
@@ -863,7 +861,7 @@ EXPORT_SYMBOL_GPL(nf_ct_port_nlattr_to_tuple);
 #endif
 
 /* Used by ipt_REJECT and ip6t_REJECT. */
-void __nf_conntrack_attach(struct sk_buff *nskb, struct sk_buff *skb)
+static void nf_conntrack_attach(struct sk_buff *nskb, struct sk_buff *skb)
 {
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
@@ -880,7 +878,6 @@ void __nf_conntrack_attach(struct sk_buff *nskb, struct sk_buff *skb)
 	nskb->nfctinfo = ctinfo;
 	nf_conntrack_get(nskb->nfct);
 }
-EXPORT_SYMBOL_GPL(__nf_conntrack_attach);
 
 static inline int
 do_iter(const struct nf_conntrack_tuple_hash *i,
@@ -1124,7 +1121,7 @@ int __init nf_conntrack_init(void)
 		goto out_fini_expect;
 
 	/* For use by REJECT target */
-	rcu_assign_pointer(ip_ct_attach, __nf_conntrack_attach);
+	rcu_assign_pointer(ip_ct_attach, nf_conntrack_attach);
 	rcu_assign_pointer(nf_ct_destroy, destroy_conntrack);
 
 	/* Set up fake conntrack:

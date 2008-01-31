@@ -22,7 +22,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
-MODULE_DESCRIPTION("Match for DCCP protocol packets");
+MODULE_DESCRIPTION("Xtables: DCCP protocol packet match");
 MODULE_ALIAS("ipt_dccp");
 MODULE_ALIAS("ip6t_dccp");
 
@@ -93,14 +93,9 @@ match_option(u_int8_t option, const struct sk_buff *skb, unsigned int protoff,
 }
 
 static bool
-match(const struct sk_buff *skb,
-      const struct net_device *in,
-      const struct net_device *out,
-      const struct xt_match *match,
-      const void *matchinfo,
-      int offset,
-      unsigned int protoff,
-      bool *hotdrop)
+dccp_mt(const struct sk_buff *skb, const struct net_device *in,
+        const struct net_device *out, const struct xt_match *match,
+        const void *matchinfo, int offset, unsigned int protoff, bool *hotdrop)
 {
 	const struct xt_dccp_info *info = matchinfo;
 	struct dccp_hdr _dh, *dh;
@@ -128,11 +123,9 @@ match(const struct sk_buff *skb,
 }
 
 static bool
-checkentry(const char *tablename,
-	   const void *inf,
-	   const struct xt_match *match,
-	   void *matchinfo,
-	   unsigned int hook_mask)
+dccp_mt_check(const char *tablename, const void *inf,
+              const struct xt_match *match, void *matchinfo,
+              unsigned int hook_mask)
 {
 	const struct xt_dccp_info *info = matchinfo;
 
@@ -141,12 +134,12 @@ checkentry(const char *tablename,
 		&& !(info->invflags & ~info->flags);
 }
 
-static struct xt_match xt_dccp_match[] __read_mostly = {
+static struct xt_match dccp_mt_reg[] __read_mostly = {
 	{
 		.name 		= "dccp",
 		.family		= AF_INET,
-		.checkentry	= checkentry,
-		.match		= match,
+		.checkentry	= dccp_mt_check,
+		.match		= dccp_mt,
 		.matchsize	= sizeof(struct xt_dccp_info),
 		.proto		= IPPROTO_DCCP,
 		.me 		= THIS_MODULE,
@@ -154,15 +147,15 @@ static struct xt_match xt_dccp_match[] __read_mostly = {
 	{
 		.name 		= "dccp",
 		.family		= AF_INET6,
-		.checkentry	= checkentry,
-		.match		= match,
+		.checkentry	= dccp_mt_check,
+		.match		= dccp_mt,
 		.matchsize	= sizeof(struct xt_dccp_info),
 		.proto		= IPPROTO_DCCP,
 		.me 		= THIS_MODULE,
 	},
 };
 
-static int __init xt_dccp_init(void)
+static int __init dccp_mt_init(void)
 {
 	int ret;
 
@@ -172,7 +165,7 @@ static int __init xt_dccp_init(void)
 	dccp_optbuf = kmalloc(256 * 4, GFP_KERNEL);
 	if (!dccp_optbuf)
 		return -ENOMEM;
-	ret = xt_register_matches(xt_dccp_match, ARRAY_SIZE(xt_dccp_match));
+	ret = xt_register_matches(dccp_mt_reg, ARRAY_SIZE(dccp_mt_reg));
 	if (ret)
 		goto out_kfree;
 	return ret;
@@ -182,11 +175,11 @@ out_kfree:
 	return ret;
 }
 
-static void __exit xt_dccp_fini(void)
+static void __exit dccp_mt_exit(void)
 {
-	xt_unregister_matches(xt_dccp_match, ARRAY_SIZE(xt_dccp_match));
+	xt_unregister_matches(dccp_mt_reg, ARRAY_SIZE(dccp_mt_reg));
 	kfree(dccp_optbuf);
 }
 
-module_init(xt_dccp_init);
-module_exit(xt_dccp_fini);
+module_init(dccp_mt_init);
+module_exit(dccp_mt_exit);

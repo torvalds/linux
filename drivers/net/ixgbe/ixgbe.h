@@ -234,14 +234,10 @@ enum ixbge_state_t {
 };
 
 enum ixgbe_boards {
-	board_82598AF,
-	board_82598EB,
-	board_82598AT,
+	board_82598,
 };
 
-extern struct ixgbe_info ixgbe_82598AF_info;
-extern struct ixgbe_info ixgbe_82598EB_info;
-extern struct ixgbe_info ixgbe_82598AT_info;
+extern struct ixgbe_info ixgbe_82598_info;
 
 extern char ixgbe_driver_name[];
 extern const char ixgbe_driver_version[];

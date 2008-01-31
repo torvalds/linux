@@ -231,8 +231,7 @@ int probe_ali14xx = 0;
 module_param_named(probe, probe_ali14xx, bool, 0);
 MODULE_PARM_DESC(probe, "probe for ALI M14xx chipsets");
 
-/* Can be called directly from ide.c. */
-int __init ali14xx_init(void)
+static int __init ali14xx_init(void)
 {
 	if (probe_ali14xx == 0)
 		goto out;
@@ -248,9 +247,7 @@ out:
 	return -ENODEV;
 }
 
-#ifdef MODULE
 module_init(ali14xx_init);
-#endif
 
 MODULE_AUTHOR("see local file");
 MODULE_DESCRIPTION("support of ALI 14XX IDE chipsets");

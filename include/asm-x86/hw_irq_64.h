@@ -135,11 +135,13 @@ extern void init_8259A(int aeoi);
 extern void send_IPI_self(int vector);
 extern void init_VISWS_APIC_irqs(void);
 extern void setup_IO_APIC(void);
+extern void enable_IO_APIC(void);
 extern void disable_IO_APIC(void);
 extern void print_IO_APIC(void);
 extern int IO_APIC_get_PCI_irq_vector(int bus, int slot, int fn);
 extern void send_IPI(int dest, int vector);
 extern void setup_ioapic_dest(void);
+extern void native_init_IRQ(void);
 
 extern unsigned long io_apic_irqs;
 

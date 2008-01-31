@@ -33,6 +33,12 @@
 #include <asm/blackfin.h>
 #include <asm/cplb.h>
 
+#ifdef CONFIG_MPU
+
+#include <asm/cplb-mpu.h>
+
+#else
+
 #define INITIAL_T 0x1
 #define SWITCH_T  0x2
 #define I_CPLB    0x4
@@ -78,6 +84,8 @@ extern u_long dpdt_table[];
 extern u_long ipdt_swapcount_table[];
 extern u_long dpdt_swapcount_table[];
 #endif
+
+#endif /* CONFIG_MPU */
 
 extern unsigned long reserved_mem_dcache_on;
 extern unsigned long reserved_mem_icache_on;

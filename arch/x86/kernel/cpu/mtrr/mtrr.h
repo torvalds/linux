@@ -2,10 +2,8 @@
  * local mtrr defines.
  */
 
-#ifndef TRUE
-#define TRUE  1
-#define FALSE 0
-#endif
+#include <linux/types.h>
+#include <linux/stddef.h>
 
 #define MTRRcap_MSR     0x0fe
 #define MTRRdefType_MSR 0x2ff
@@ -14,6 +12,7 @@
 #define MTRRphysMask_MSR(reg) (0x200 + 2 * (reg) + 1)
 
 #define NUM_FIXED_RANGES 88
+#define MAX_VAR_RANGES 256
 #define MTRRfix64K_00000_MSR 0x250
 #define MTRRfix16K_80000_MSR 0x258
 #define MTRRfix16K_A0000_MSR 0x259
@@ -33,6 +32,8 @@
 /* In the Intel processor's MTRR interface, the MTRR type is always held in
    an 8 bit field: */
 typedef u8 mtrr_type;
+
+extern unsigned int mtrr_usage_table[MAX_VAR_RANGES];
 
 struct mtrr_ops {
 	u32	vendor;

@@ -164,25 +164,12 @@ static void svwks_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	ultra_timing	&= ~(0x0F << (4*unit));
 	ultra_enable	&= ~(0x01 << drive->dn);
 
-	switch(speed) {
-		case XFER_MW_DMA_2:
-		case XFER_MW_DMA_1:
-		case XFER_MW_DMA_0:
-			dma_timing |= dma_modes[speed - XFER_MW_DMA_0];
-			break;
-
-		case XFER_UDMA_5:
-		case XFER_UDMA_4:
-		case XFER_UDMA_3:
-		case XFER_UDMA_2:
-		case XFER_UDMA_1:
-		case XFER_UDMA_0:
-			dma_timing   |= dma_modes[2];
-			ultra_timing |= ((udma_modes[speed - XFER_UDMA_0]) << (4*unit));
-			ultra_enable |= (0x01 << drive->dn);
-		default:
-			break;
-	}
+	if (speed >= XFER_UDMA_0) {
+		dma_timing   |= dma_modes[2];
+		ultra_timing |= (udma_modes[speed - XFER_UDMA_0] << (4 * unit));
+		ultra_enable |= (0x01 << drive->dn);
+	} else if (speed >= XFER_MW_DMA_0)
+		dma_timing   |= dma_modes[speed - XFER_MW_DMA_0];
 
 	pci_write_config_byte(dev, drive_pci2[drive->dn], dma_timing);
 	pci_write_config_byte(dev, (0x56|hwif->channel), ultra_timing);
@@ -366,12 +353,17 @@ static void __devinit init_hwif_svwks (ide_hwif_t *hwif)
 	}
 }
 
+#define IDE_HFLAGS_SVWKS \
+	(IDE_HFLAG_LEGACY_IRQS | \
+	 IDE_HFLAG_ABUSE_SET_DMA_MODE | \
+	 IDE_HFLAG_BOOTABLE)
+
 static const struct ide_port_info serverworks_chipsets[] __devinitdata = {
 	{	/* 0 */
 		.name		= "SvrWks OSB4",
 		.init_chipset	= init_chipset_svwks,
 		.init_hwif	= init_hwif_svwks,
-		.host_flags	= IDE_HFLAG_LEGACY_IRQS | IDE_HFLAG_BOOTABLE,
+		.host_flags	= IDE_HFLAGS_SVWKS,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= 0x00, /* UDMA is problematic on OSB4 */
@@ -379,7 +371,7 @@ static const struct ide_port_info serverworks_chipsets[] __devinitdata = {
 		.name		= "SvrWks CSB5",
 		.init_chipset	= init_chipset_svwks,
 		.init_hwif	= init_hwif_svwks,
-		.host_flags	= IDE_HFLAG_LEGACY_IRQS | IDE_HFLAG_BOOTABLE,
+		.host_flags	= IDE_HFLAGS_SVWKS,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA5,
@@ -387,7 +379,7 @@ static const struct ide_port_info serverworks_chipsets[] __devinitdata = {
 		.name		= "SvrWks CSB6",
 		.init_chipset	= init_chipset_svwks,
 		.init_hwif	= init_hwif_svwks,
-		.host_flags	= IDE_HFLAG_LEGACY_IRQS | IDE_HFLAG_BOOTABLE,
+		.host_flags	= IDE_HFLAGS_SVWKS,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA5,
@@ -395,8 +387,7 @@ static const struct ide_port_info serverworks_chipsets[] __devinitdata = {
 		.name		= "SvrWks CSB6",
 		.init_chipset	= init_chipset_svwks,
 		.init_hwif	= init_hwif_svwks,
-		.host_flags	= IDE_HFLAG_LEGACY_IRQS | IDE_HFLAG_SINGLE |
-				  IDE_HFLAG_BOOTABLE,
+		.host_flags	= IDE_HFLAGS_SVWKS | IDE_HFLAG_SINGLE,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA5,
@@ -404,8 +395,7 @@ static const struct ide_port_info serverworks_chipsets[] __devinitdata = {
 		.name		= "SvrWks HT1000",
 		.init_chipset	= init_chipset_svwks,
 		.init_hwif	= init_hwif_svwks,
-		.host_flags	= IDE_HFLAG_LEGACY_IRQS | IDE_HFLAG_SINGLE |
-				  IDE_HFLAG_BOOTABLE,
+		.host_flags	= IDE_HFLAGS_SVWKS | IDE_HFLAG_SINGLE,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA5,

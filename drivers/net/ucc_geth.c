@@ -3614,9 +3614,6 @@ static irqreturn_t ucc_geth_irq_handler(int irq, void *info)
 
 	ugeth_vdbg("%s: IN", __FUNCTION__);
 
-	if (!ugeth)
-		return IRQ_NONE;
-
 	uccf = ugeth->uccf;
 	ug_info = ugeth->ug_info;
 

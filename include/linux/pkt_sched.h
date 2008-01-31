@@ -83,6 +83,8 @@ struct tc_ratespec
 	__u32		rate;
 };
 
+#define TC_RTAB_SIZE	1024
+
 /* FIFO section */
 
 struct tc_fifo_qopt

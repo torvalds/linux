@@ -190,7 +190,7 @@ void flush_icache_range(unsigned long start, unsigned long end)
  * .. which happens to be the same behavior as flush_icache_range().
  * So, we simply flush out a line.
  */
-void flush_cache_sigtramp(unsigned long addr)
+void __uses_jump_to_uncached flush_cache_sigtramp(unsigned long addr)
 {
 	unsigned long v, index;
 	unsigned long flags;
@@ -205,13 +205,13 @@ void flush_cache_sigtramp(unsigned long addr)
 			(v & boot_cpu_data.icache.entry_mask);
 
 	local_irq_save(flags);
-	jump_to_P2();
+	jump_to_uncached();
 
 	for (i = 0; i < boot_cpu_data.icache.ways;
 	     i++, index += boot_cpu_data.icache.way_incr)
 		ctrl_outl(0, index);	/* Clear out Valid-bit */
 
-	back_to_P1();
+	back_to_cached();
 	wmb();
 	local_irq_restore(flags);
 }
@@ -256,12 +256,12 @@ void flush_dcache_page(struct page *page)
 }
 
 /* TODO: Selective icache invalidation through IC address array.. */
-static inline void flush_icache_all(void)
+static inline void __uses_jump_to_uncached flush_icache_all(void)
 {
 	unsigned long flags, ccr;
 
 	local_irq_save(flags);
-	jump_to_P2();
+	jump_to_uncached();
 
 	/* Flush I-cache */
 	ccr = ctrl_inl(CCR);
@@ -269,11 +269,11 @@ static inline void flush_icache_all(void)
 	ctrl_outl(ccr, CCR);
 
 	/*
-	 * back_to_P1() will take care of the barrier for us, don't add
+	 * back_to_cached() will take care of the barrier for us, don't add
 	 * another one!
 	 */
 
-	back_to_P1();
+	back_to_cached();
 	local_irq_restore(flags);
 }
 

@@ -30,7 +30,7 @@
 ***
 ***  The CMD640 is also used on some Vesa Local Bus (VLB) cards, and is *NOT*
 ***  automatically detected by Linux.  For safe, reliable operation with such
-***  interfaces, one *MUST* use the "ide0=cmd640_vlb" kernel option.
+***  interfaces, one *MUST* use the "cmd640.probe_vlb" kernel option.
 ***
 ***  Use of the "serialize" option is no longer necessary.
 
@@ -244,10 +244,6 @@ Summary of ide driver parameters for kernel command line
 
  "hdx=nodma"		: disallow DMA
 
- "hdx=swapdata"		: when the drive is a disk, byte swap all data
-
- "hdx=bswap"		: same as above..........
-
  "hdx=scsi"		: the return of the ide-scsi flag, this is useful for
  			  allowing ide-floppy, ide-tape, and ide-cdrom|writers
  			  to use ide-scsi emulation on a device specific option.
@@ -292,9 +288,6 @@ The following are valid ONLY on ide0, which usually corresponds
 to the first ATA interface found on the particular host, and the defaults for
 the base,ctl ports must not be altered.
 
- "ide0=cmd640_vlb"	: *REQUIRED* for VLB cards with the CMD640 chip
-			  (not for PCI -- automatically detected)
-
  "ide=doubler"		: probe/support IDE doublers on Amiga
 
 There may be more options than shown -- use the source, Luke!
@@ -309,6 +302,10 @@ i.e. to enable probing for ALI M14xx chipsets (ali14xx host driver) use:
 
 * "probe" module parameter when ali14xx driver is compiled as module
   ("modprobe ali14xx probe")
+
+Also for legacy CMD640 host driver (cmd640) you need to use "probe_vlb"
+kernel paremeter to enable probing for VLB version of the chipset (PCI ones
+are detected automatically).
 
 ================================================================================
 

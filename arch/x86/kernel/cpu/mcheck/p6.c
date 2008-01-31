@@ -16,7 +16,7 @@
 #include "mce.h"
 
 /* Machine Check Handler For PII/PIII */
-static fastcall void intel_machine_check(struct pt_regs * regs, long error_code)
+static void intel_machine_check(struct pt_regs * regs, long error_code)
 {
 	int recover=1;
 	u32 alow, ahigh, high, low;
@@ -27,27 +27,30 @@ static fastcall void intel_machine_check(struct pt_regs * regs, long error_code)
 	if (mcgstl & (1<<0))	/* Recoverable ? */
 		recover=0;
 
-	printk (KERN_EMERG "CPU %d: Machine Check Exception: %08x%08x\n",
+	printk(KERN_EMERG "CPU %d: Machine Check Exception: %08x%08x\n",
 		smp_processor_id(), mcgsth, mcgstl);
 
-	for (i=0; i<nr_mce_banks; i++) {
-		rdmsr (MSR_IA32_MC0_STATUS+i*4,low, high);
+	for (i = 0; i < nr_mce_banks; i++) {
+		rdmsr(MSR_IA32_MC0_STATUS+i*4, low, high);
 		if (high & (1<<31)) {
+			char misc[20];
+			char addr[24];
+			misc[0] = addr[0] = '\0';
 			if (high & (1<<29))
 				recover |= 1;
 			if (high & (1<<25))
 				recover |= 2;
-			printk (KERN_EMERG "Bank %d: %08x%08x", i, high, low);
 			high &= ~(1<<31);
 			if (high & (1<<27)) {
-				rdmsr (MSR_IA32_MC0_MISC+i*4, alow, ahigh);
-				printk ("[%08x%08x]", ahigh, alow);
+				rdmsr(MSR_IA32_MC0_MISC+i*4, alow, ahigh);
+				snprintf(misc, 20, "[%08x%08x]", ahigh, alow);
 			}
 			if (high & (1<<26)) {
-				rdmsr (MSR_IA32_MC0_ADDR+i*4, alow, ahigh);
-				printk (" at %08x%08x", ahigh, alow);
+				rdmsr(MSR_IA32_MC0_ADDR+i*4, alow, ahigh);
+				snprintf(addr, 24, " at %08x%08x", ahigh, alow);
 			}
-			printk ("\n");
+			printk(KERN_EMERG "CPU %d: Bank %d: %08x%08x%s%s\n",
+				smp_processor_id(), i, high, low, misc, addr);
 		}
 	}
 
