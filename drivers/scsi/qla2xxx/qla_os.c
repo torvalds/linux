@@ -1117,6 +1117,27 @@ qla2x00_device_reset(scsi_qla_host_t *ha, fc_port_t *reset_fcport)
 	return ha->isp_ops->abort_target(reset_fcport);
 }
 
+void
+qla2x00_abort_all_cmds(scsi_qla_host_t *ha, int res)
+{
+	int cnt;
+	unsigned long flags;
+	srb_t *sp;
+
+	spin_lock_irqsave(&ha->hardware_lock, flags);
+	for (cnt = 1; cnt < MAX_OUTSTANDING_COMMANDS; cnt++) {
+		sp = ha->outstanding_cmds[cnt];
+		if (sp) {
+			ha->outstanding_cmds[cnt] = NULL;
+			sp->flags = 0;
+			sp->cmd->result = res;
+			sp->cmd->host_scribble = (unsigned char *)NULL;
+			qla2x00_sp_compl(ha, sp);
+		}
+	}
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+}
+
 static int
 qla2xxx_slave_alloc(struct scsi_device *sdev)
 {
@@ -1608,6 +1629,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	ha->parent = NULL;
 	ha->bars = bars;
 	ha->mem_only = mem_only;
+	spin_lock_init(&ha->hardware_lock);
 
 	/* Set ISP-type information. */
 	qla2x00_set_isp_flags(ha);
@@ -1620,8 +1642,6 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	qla_printk(KERN_INFO, ha,
 	    "Found an ISP%04X, irq %d, iobase 0x%p\n", pdev->device, pdev->irq,
 	    ha->iobase);
-
-	spin_lock_init(&ha->hardware_lock);
 
 	ha->prev_topology = 0;
 	ha->init_cb_size = sizeof(init_cb_t);
@@ -1848,9 +1868,13 @@ qla2x00_remove_one(struct pci_dev *pdev)
 static void
 qla2x00_free_device(scsi_qla_host_t *ha)
 {
+	qla2x00_abort_all_cmds(ha, DID_NO_CONNECT << 16);
+
 	/* Disable timer */
 	if (ha->timer_active)
 		qla2x00_stop_timer(ha);
+
+	ha->flags.online = 0;
 
 	/* Kill the kernel thread for this host */
 	if (ha->dpc_thread) {
@@ -1869,8 +1893,6 @@ qla2x00_free_device(scsi_qla_host_t *ha)
 
 	if (ha->eft)
 		qla2x00_disable_eft_trace(ha);
-
-	ha->flags.online = 0;
 
 	/* Stop currently executing firmware. */
 	qla2x00_try_to_stop_firmware(ha);
