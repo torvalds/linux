@@ -320,7 +320,7 @@ ieee80211_crypto_wep_decrypt(struct ieee80211_txrx_data *rx)
 				printk(KERN_DEBUG "%s: RX WEP frame, decrypt "
 				       "failed\n", rx->dev->name);
 #endif /* CONFIG_MAC80211_DEBUG */
-			return RX_DROP;
+			return RX_DROP_UNUSABLE;
 		}
 	} else if (!(rx->u.rx.status->flag & RX_FLAG_IV_STRIPPED)) {
 		ieee80211_wep_remove_iv(rx->local, rx->skb, rx->key);

@@ -114,9 +114,10 @@ typedef unsigned __bitwise__ ieee80211_tx_result;
 #define TX_QUEUED	((__force ieee80211_tx_result) 2u)
 
 typedef unsigned __bitwise__ ieee80211_rx_result;
-#define RX_CONTINUE	((__force ieee80211_rx_result) 0u)
-#define RX_DROP		((__force ieee80211_rx_result) 1u)
-#define RX_QUEUED	((__force ieee80211_rx_result) 2u)
+#define RX_CONTINUE		((__force ieee80211_rx_result) 0u)
+#define RX_DROP_UNUSABLE	((__force ieee80211_rx_result) 1u)
+#define RX_DROP_MONITOR		((__force ieee80211_rx_result) 2u)
+#define RX_QUEUED		((__force ieee80211_rx_result) 3u)
 
 
 /* flags used in struct ieee80211_txrx_data.flags */

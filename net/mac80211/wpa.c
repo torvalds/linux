@@ -148,7 +148,7 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_txrx_data *rx)
 
 	if (ieee80211_get_hdr_info(skb, &sa, &da, &qos_tid, &data, &data_len)
 	    || data_len < MICHAEL_MIC_LEN)
-		return RX_DROP;
+		return RX_DROP_UNUSABLE;
 
 	data_len -= MICHAEL_MIC_LEN;
 
@@ -162,14 +162,14 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_txrx_data *rx)
 	michael_mic(key, da, sa, qos_tid & 0x0f, data, data_len, mic);
 	if (memcmp(mic, data + data_len, MICHAEL_MIC_LEN) != 0 || wpa_test) {
 		if (!(rx->flags & IEEE80211_TXRXD_RXRA_MATCH))
-			return RX_DROP;
+			return RX_DROP_UNUSABLE;
 
 		printk(KERN_DEBUG "%s: invalid Michael MIC in data frame from "
 		       "%s\n", rx->dev->name, print_mac(mac, sa));
 
 		mac80211_ev_michael_mic_failure(rx->dev, rx->key->conf.keyidx,
 						(void *) skb->data);
-		return RX_DROP;
+		return RX_DROP_UNUSABLE;
 	}
 
 	/* remove Michael MIC from payload */
@@ -293,7 +293,7 @@ ieee80211_crypto_tkip_decrypt(struct ieee80211_txrx_data *rx)
 		return RX_CONTINUE;
 
 	if (!rx->sta || skb->len - hdrlen < 12)
-		return RX_DROP;
+		return RX_DROP_UNUSABLE;
 
 	if (rx->u.rx.status->flag & RX_FLAG_DECRYPTED) {
 		if (rx->u.rx.status->flag & RX_FLAG_IV_STRIPPED) {
@@ -322,7 +322,7 @@ ieee80211_crypto_tkip_decrypt(struct ieee80211_txrx_data *rx)
 			       "frame from %s (res=%d)\n", rx->dev->name,
 			       print_mac(mac, rx->sta->addr), res);
 #endif /* CONFIG_MAC80211_DEBUG */
-		return RX_DROP;
+		return RX_DROP_UNUSABLE;
 	}
 
 	/* Trim ICV */
@@ -545,7 +545,7 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_txrx_data *rx)
 
 	data_len = skb->len - hdrlen - CCMP_HDR_LEN - CCMP_MIC_LEN;
 	if (!rx->sta || data_len < 0)
-		return RX_DROP;
+		return RX_DROP_UNUSABLE;
 
 	if ((rx->u.rx.status->flag & RX_FLAG_DECRYPTED) &&
 	    (rx->u.rx.status->flag & RX_FLAG_IV_STRIPPED))
@@ -565,7 +565,7 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_txrx_data *rx)
 		       ppn[0], ppn[1], ppn[2], ppn[3], ppn[4], ppn[5]);
 #endif /* CONFIG_MAC80211_DEBUG */
 		key->u.ccmp.replays++;
-		return RX_DROP;
+		return RX_DROP_UNUSABLE;
 	}
 
 	if (!(rx->u.rx.status->flag & RX_FLAG_DECRYPTED)) {
@@ -589,7 +589,7 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_txrx_data *rx)
 				       "for RX frame from %s\n", rx->dev->name,
 				       print_mac(mac, rx->sta->addr));
 #endif /* CONFIG_MAC80211_DEBUG */
-			return RX_DROP;
+			return RX_DROP_UNUSABLE;
 		}
 	}
 

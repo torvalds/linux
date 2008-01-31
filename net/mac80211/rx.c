@@ -380,7 +380,7 @@ ieee80211_rx_h_passive_scan(struct ieee80211_txrx_data *rx)
 	if (unlikely(rx->flags & IEEE80211_TXRXD_RXIN_SCAN)) {
 		/* scanning finished during invoking of handlers */
 		I802_DEBUG_INC(local->rx_handlers_drop_passive_scan);
-		return RX_DROP;
+		return RX_DROP_UNUSABLE;
 	}
 
 	return RX_CONTINUE;
@@ -401,14 +401,14 @@ ieee80211_rx_h_check(struct ieee80211_txrx_data *rx)
 				rx->local->dot11FrameDuplicateCount++;
 				rx->sta->num_duplicates++;
 			}
-			return RX_DROP;
+			return RX_DROP_MONITOR;
 		} else
 			rx->sta->last_seq_ctrl[rx->u.rx.queue] = hdr->seq_ctrl;
 	}
 
 	if (unlikely(rx->skb->len < 16)) {
 		I802_DEBUG_INC(rx->local->rx_handlers_drop_short);
-		return RX_DROP;
+		return RX_DROP_MONITOR;
 	}
 
 	/* Drop disallowed frame classes based on STA auth/assoc state;
@@ -430,10 +430,10 @@ ieee80211_rx_h_check(struct ieee80211_txrx_data *rx)
 		    || !(rx->flags & IEEE80211_TXRXD_RXRA_MATCH)) {
 			/* Drop IBSS frames and frames for other hosts
 			 * silently. */
-			return RX_DROP;
+			return RX_DROP_MONITOR;
 		}
 
-		return RX_DROP;
+		return RX_DROP_MONITOR;
 	}
 
 	return RX_CONTINUE;
@@ -446,7 +446,7 @@ ieee80211_rx_h_decrypt(struct ieee80211_txrx_data *rx)
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) rx->skb->data;
 	int keyidx;
 	int hdrlen;
-	ieee80211_rx_result result = RX_DROP;
+	ieee80211_rx_result result = RX_DROP_UNUSABLE;
 	struct ieee80211_key *stakey = NULL;
 
 	/*
@@ -507,7 +507,7 @@ ieee80211_rx_h_decrypt(struct ieee80211_txrx_data *rx)
 		hdrlen = ieee80211_get_hdrlen(rx->fc);
 
 		if (rx->skb->len < 8 + hdrlen)
-			return RX_DROP; /* TODO: count this? */
+			return RX_DROP_UNUSABLE; /* TODO: count this? */
 
 		/*
 		 * no need to call ieee80211_wep_get_keyidx,
@@ -536,7 +536,7 @@ ieee80211_rx_h_decrypt(struct ieee80211_txrx_data *rx)
 			printk(KERN_DEBUG "%s: RX protected frame,"
 			       " but have no key\n", rx->dev->name);
 #endif /* CONFIG_MAC80211_DEBUG */
-		return RX_DROP;
+		return RX_DROP_MONITOR;
 	}
 
 	/* Check for weak IVs if possible */
@@ -821,7 +821,7 @@ ieee80211_rx_h_defragment(struct ieee80211_txrx_data *rx)
 					  rx->u.rx.queue, hdr);
 	if (!entry) {
 		I802_DEBUG_INC(rx->local->rx_handlers_drop_defrag);
-		return RX_DROP;
+		return RX_DROP_MONITOR;
 	}
 
 	/* Verify that MPDUs within one MSDU have sequential PN values.
@@ -830,7 +830,7 @@ ieee80211_rx_h_defragment(struct ieee80211_txrx_data *rx)
 		int i;
 		u8 pn[CCMP_PN_LEN], *rpn;
 		if (!rx->key || rx->key->conf.alg != ALG_CCMP)
-			return RX_DROP;
+			return RX_DROP_UNUSABLE;
 		memcpy(pn, entry->last_pn, CCMP_PN_LEN);
 		for (i = CCMP_PN_LEN - 1; i >= 0; i--) {
 			pn[i]++;
@@ -848,7 +848,7 @@ ieee80211_rx_h_defragment(struct ieee80211_txrx_data *rx)
 				       rpn[0], rpn[1], rpn[2], rpn[3], rpn[4],
 				       rpn[5], pn[0], pn[1], pn[2], pn[3],
 				       pn[4], pn[5]);
-			return RX_DROP;
+			return RX_DROP_UNUSABLE;
 		}
 		memcpy(entry->last_pn, pn, CCMP_PN_LEN);
 	}
@@ -869,7 +869,7 @@ ieee80211_rx_h_defragment(struct ieee80211_txrx_data *rx)
 					      GFP_ATOMIC))) {
 			I802_DEBUG_INC(rx->local->rx_handlers_drop_defrag);
 			__skb_queue_purge(&entry->skb_list);
-			return RX_DROP;
+			return RX_DROP_UNUSABLE;
 		}
 	}
 	while ((skb = __skb_dequeue(&entry->skb_list))) {
@@ -906,7 +906,7 @@ ieee80211_rx_h_ps_poll(struct ieee80211_txrx_data *rx)
 
 	if ((sdata->vif.type != IEEE80211_IF_TYPE_AP) &&
 	    (sdata->vif.type != IEEE80211_IF_TYPE_VLAN))
-		return RX_DROP;
+		return RX_DROP_UNUSABLE;
 
 	skb = skb_dequeue(&rx->sta->tx_filtered);
 	if (!skb) {
@@ -1257,14 +1257,14 @@ ieee80211_rx_h_amsdu(struct ieee80211_txrx_data *rx)
 		return RX_CONTINUE;
 
 	if (unlikely(!WLAN_FC_DATA_PRESENT(fc)))
-		return RX_DROP;
+		return RX_DROP_MONITOR;
 
 	if (!(rx->flags & IEEE80211_TXRXD_RX_AMSDU))
 		return RX_CONTINUE;
 
 	err = ieee80211_data_to_8023(rx);
 	if (unlikely(err))
-		return RX_DROP;
+		return RX_DROP_UNUSABLE;
 
 	skb->dev = dev;
 
@@ -1274,7 +1274,7 @@ ieee80211_rx_h_amsdu(struct ieee80211_txrx_data *rx)
 	/* skip the wrapping header */
 	eth = (struct ethhdr *) skb_pull(skb, sizeof(struct ethhdr));
 	if (!eth)
-		return RX_DROP;
+		return RX_DROP_UNUSABLE;
 
 	while (skb != frame) {
 		u8 padding;
@@ -1289,7 +1289,7 @@ ieee80211_rx_h_amsdu(struct ieee80211_txrx_data *rx)
 		/* the last MSDU has no padding */
 		if (subframe_len > remaining) {
 			printk(KERN_DEBUG "%s: wrong buffer size", dev->name);
-			return RX_DROP;
+			return RX_DROP_UNUSABLE;
 		}
 
 		skb_pull(skb, sizeof(struct ethhdr));
@@ -1301,7 +1301,7 @@ ieee80211_rx_h_amsdu(struct ieee80211_txrx_data *rx)
 					      subframe_len);
 
 			if (frame == NULL)
-				return RX_DROP;
+				return RX_DROP_UNUSABLE;
 
 			skb_reserve(frame, local->hw.extra_tx_headroom +
 				    sizeof(struct ethhdr));
@@ -1314,7 +1314,7 @@ ieee80211_rx_h_amsdu(struct ieee80211_txrx_data *rx)
 				printk(KERN_DEBUG "%s: wrong buffer size ",
 				       dev->name);
 				dev_kfree_skb(frame);
-				return RX_DROP;
+				return RX_DROP_UNUSABLE;
 			}
 		}
 
@@ -1344,7 +1344,7 @@ ieee80211_rx_h_amsdu(struct ieee80211_txrx_data *rx)
 
 		if (!ieee80211_frame_allowed(rx)) {
 			if (skb == frame) /* last frame */
-				return RX_DROP;
+				return RX_DROP_UNUSABLE;
 			dev_kfree_skb(frame);
 			continue;
 		}
@@ -1367,14 +1367,14 @@ ieee80211_rx_h_data(struct ieee80211_txrx_data *rx)
 		return RX_CONTINUE;
 
 	if (unlikely(!WLAN_FC_DATA_PRESENT(fc)))
-		return RX_DROP;
+		return RX_DROP_MONITOR;
 
 	err = ieee80211_data_to_8023(rx);
 	if (unlikely(err))
-		return RX_DROP;
+		return RX_DROP_UNUSABLE;
 
 	if (!ieee80211_frame_allowed(rx))
-		return RX_DROP;
+		return RX_DROP_MONITOR;
 
 	rx->skb->dev = dev;
 
@@ -1423,7 +1423,7 @@ ieee80211_rx_h_ctrl(struct ieee80211_txrx_data *rx)
 		ieee80211_sta_manage_reorder_buf(hw, tid_agg_rx, NULL,
 						 start_seq_num, 1);
 		rcu_read_unlock();
-		return RX_DROP;
+		return RX_DROP_UNUSABLE;
 	}
 
 	return RX_CONTINUE;
@@ -1435,7 +1435,7 @@ ieee80211_rx_h_mgmt(struct ieee80211_txrx_data *rx)
 	struct ieee80211_sub_if_data *sdata;
 
 	if (!(rx->flags & IEEE80211_TXRXD_RXRA_MATCH))
-		return RX_DROP;
+		return RX_DROP_MONITOR;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(rx->dev);
 	if ((sdata->vif.type == IEEE80211_IF_TYPE_STA ||
@@ -1443,7 +1443,7 @@ ieee80211_rx_h_mgmt(struct ieee80211_txrx_data *rx)
 	    !(sdata->flags & IEEE80211_SDATA_USERSPACE_MLME))
 		ieee80211_sta_rx_mgmt(rx->dev, rx->skb, rx->u.rx.status);
 	else
-		return RX_DROP;
+		return RX_DROP_MONITOR;
 
 	return RX_QUEUED;
 }
@@ -1455,7 +1455,7 @@ static inline ieee80211_rx_result __ieee80211_invoke_rx_handlers(
 				struct sta_info *sta)
 {
 	ieee80211_rx_handler *handler;
-	ieee80211_rx_result res = RX_DROP;
+	ieee80211_rx_result res = RX_DROP_MONITOR;
 
 	for (handler = handlers; *handler != NULL; handler++) {
 		res = (*handler)(rx);
@@ -1463,7 +1463,8 @@ static inline ieee80211_rx_result __ieee80211_invoke_rx_handlers(
 		switch (res) {
 		case RX_CONTINUE:
 			continue;
-		case RX_DROP:
+		case RX_DROP_UNUSABLE:
+		case RX_DROP_MONITOR:
 			I802_DEBUG_INC(local->rx_handlers_drop);
 			if (sta)
 				sta->rx_dropped++;
@@ -1475,7 +1476,7 @@ static inline ieee80211_rx_result __ieee80211_invoke_rx_handlers(
 		break;
 	}
 
-	if (res == RX_DROP)
+	if (res == RX_DROP_UNUSABLE || res == RX_DROP_MONITOR)
 		dev_kfree_skb(rx->skb);
 	return res;
 }
