@@ -124,16 +124,19 @@ static void qla4xxx_recovery_timedout(struct iscsi_cls_session *session)
 	struct ddb_entry *ddb_entry = session->dd_data;
 	struct scsi_qla_host *ha = ddb_entry->ha;
 
-	DEBUG2(printk("scsi%ld: %s: index [%d] port down retry count of (%d) "
-		      "secs exhausted, marking device DEAD.\n", ha->host_no,
-		      __func__, ddb_entry->fw_ddb_index,
-		      ha->port_down_retry_count));
+	if (atomic_read(&ddb_entry->state) != DDB_STATE_ONLINE) {
+		atomic_set(&ddb_entry->state, DDB_STATE_DEAD);
 
-	atomic_set(&ddb_entry->state, DDB_STATE_DEAD);
+		DEBUG2(printk("scsi%ld: %s: index [%d] port down retry count "
+			      "of (%d) secs exhausted, marking device DEAD.\n",
+			      ha->host_no, __func__, ddb_entry->fw_ddb_index,
+			      ha->port_down_retry_count));
 
-	DEBUG2(printk("scsi%ld: %s: scheduling dpc routine - dpc flags = "
-		      "0x%lx\n", ha->host_no, __func__, ha->dpc_flags));
-	queue_work(ha->dpc_thread, &ha->dpc_work);
+		DEBUG2(printk("scsi%ld: %s: scheduling dpc routine - dpc "
+			      "flags = 0x%lx\n",
+			      ha->host_no, __func__, ha->dpc_flags));
+		queue_work(ha->dpc_thread, &ha->dpc_work);
+	}
 }
 
 static int qla4xxx_host_get_param(struct Scsi_Host *shost,
