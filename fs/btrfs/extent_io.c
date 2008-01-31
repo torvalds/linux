@@ -262,7 +262,7 @@ static void set_state_cb(struct extent_io_tree *tree,
 {
 	if (tree->ops && tree->ops->set_bit_hook) {
 		tree->ops->set_bit_hook(tree->mapping->host, state->start,
-					state->end, bits);
+					state->end, state->state, bits);
 	}
 }
 
@@ -272,7 +272,7 @@ static void clear_state_cb(struct extent_io_tree *tree,
 {
 	if (tree->ops && tree->ops->set_bit_hook) {
 		tree->ops->clear_bit_hook(tree->mapping->host, state->start,
-					  state->end, bits);
+					  state->end, state->state, bits);
 	}
 }
 
@@ -298,10 +298,10 @@ static int insert_state(struct extent_io_tree *tree,
 	}
 	if (bits & EXTENT_DIRTY)
 		tree->dirty_bytes += end - start + 1;
+	set_state_cb(tree, state, bits);
 	state->state |= bits;
 	state->start = start;
 	state->end = end;
-	set_state_cb(tree, state, bits);
 	node = tree_insert(&tree->state, end, &state->rb_node);
 	if (node) {
 		struct extent_state *found;
@@ -369,8 +369,8 @@ static int clear_state_bit(struct extent_io_tree *tree,
 		WARN_ON(range > tree->dirty_bytes);
 		tree->dirty_bytes -= range;
 	}
-	state->state &= ~bits;
 	clear_state_cb(tree, state, bits);
+	state->state &= ~bits;
 	if (wake)
 		wake_up(&state->wq);
 	if (delete || state->state == 0) {
@@ -574,8 +574,8 @@ static void set_state_bits(struct extent_io_tree *tree,
 		u64 range = state->end - state->start + 1;
 		tree->dirty_bytes += range;
 	}
-	state->state |= bits;
 	set_state_cb(tree, state, bits);
+	state->state |= bits;
 }
 
 /*
@@ -997,8 +997,8 @@ search_again:
 			free_extent_state(state);
 			goto search_again;
 		}
-		state->state |= EXTENT_LOCKED;
 		set_state_cb(tree, state, EXTENT_LOCKED);
+		state->state |= EXTENT_LOCKED;
 		if (!found)
 			*start = state->start;
 		found++;
@@ -1497,8 +1497,8 @@ static int end_bio_extent_readpage(struct bio *bio,
 			} else {
 				state = NULL;
 			}
-			clear->state |= EXTENT_UPTODATE;
 			set_state_cb(tree, clear, EXTENT_UPTODATE);
+			clear->state |= EXTENT_UPTODATE;
 			clear_state_bit(tree, clear, EXTENT_LOCKED,
 					1, 0);
 			if (cur == start)

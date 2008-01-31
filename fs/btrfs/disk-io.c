@@ -861,6 +861,10 @@ int close_ctree(struct btrfs_root *root)
 	write_ctree_super(NULL, root);
 	mutex_unlock(&fs_info->fs_mutex);
 
+	if (fs_info->delalloc_bytes) {
+		printk("btrfs: at unmount delalloc count %Lu\n",
+		       fs_info->delalloc_bytes);
+	}
 	if (fs_info->extent_root->node)
 		free_extent_buffer(fs_info->extent_root->node);
 

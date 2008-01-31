@@ -260,9 +260,9 @@ static int run_delalloc_range(struct inode *inode, u64 start, u64 end)
 }
 
 int btrfs_set_bit_hook(struct inode *inode, u64 start, u64 end,
-		       unsigned long bits)
+		       unsigned long old, unsigned long bits)
 {
-	if ((bits & EXTENT_DELALLOC)) {
+	if (!(old & EXTENT_DELALLOC) && (bits & EXTENT_DELALLOC)) {
 		struct btrfs_root *root = BTRFS_I(inode)->root;
 		spin_lock(&root->fs_info->delalloc_lock);
 		root->fs_info->delalloc_bytes += end - start + 1;
@@ -272,12 +272,18 @@ int btrfs_set_bit_hook(struct inode *inode, u64 start, u64 end,
 }
 
 int btrfs_clear_bit_hook(struct inode *inode, u64 start, u64 end,
-			 unsigned long bits)
+			 unsigned long old, unsigned long bits)
 {
-	if ((bits & EXTENT_DELALLOC)) {
+	if ((old & EXTENT_DELALLOC) && (bits & EXTENT_DELALLOC)) {
 		struct btrfs_root *root = BTRFS_I(inode)->root;
 		spin_lock(&root->fs_info->delalloc_lock);
-		root->fs_info->delalloc_bytes -= end - start + 1;
+		if (end - start + 1 > root->fs_info->delalloc_bytes) {
+			printk("warning: delalloc account %Lu %Lu\n",
+			       end - start + 1, root->fs_info->delalloc_bytes);
+			root->fs_info->delalloc_bytes = 0;
+		} else {
+			root->fs_info->delalloc_bytes -= end - start + 1;
+		}
 		spin_unlock(&root->fs_info->delalloc_lock);
 	}
 	return 0;
@@ -3002,6 +3008,8 @@ static struct extent_io_ops btrfs_extent_io_ops = {
 	.writepage_io_hook = btrfs_writepage_io_hook,
 	.readpage_io_hook = btrfs_readpage_io_hook,
 	.readpage_end_io_hook = btrfs_readpage_end_io_hook,
+	.set_bit_hook = btrfs_set_bit_hook,
+	.clear_bit_hook = btrfs_clear_bit_hook,
 };
 
 static struct address_space_operations btrfs_aops = {
