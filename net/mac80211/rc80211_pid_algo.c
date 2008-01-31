@@ -538,7 +538,7 @@ int __init rc80211_pid_init(void)
 	return ieee80211_rate_control_register(&mac80211_rcpid);
 }
 
-void __exit rc80211_pid_exit(void)
+void rc80211_pid_exit(void)
 {
 	ieee80211_rate_control_unregister(&mac80211_rcpid);
 }
