@@ -73,15 +73,19 @@ static unsigned int nf_conntrack_hash_rnd;
 static u_int32_t __hash_conntrack(const struct nf_conntrack_tuple *tuple,
 				  unsigned int size, unsigned int rnd)
 {
-	unsigned int a, b;
+	unsigned int n;
+	u_int32_t h;
 
-	a = jhash2(tuple->src.u3.all, ARRAY_SIZE(tuple->src.u3.all),
-		   (tuple->src.l3num << 16) | tuple->dst.protonum);
-	b = jhash2(tuple->dst.u3.all, ARRAY_SIZE(tuple->dst.u3.all),
-		   ((__force __u16)tuple->src.u.all << 16) |
-		    (__force __u16)tuple->dst.u.all);
+	/* The direction must be ignored, so we hash everything up to the
+	 * destination ports (which is a multiple of 4) and treat the last
+	 * three bytes manually.
+	 */
+	n = (sizeof(tuple->src) + sizeof(tuple->dst.u3)) / sizeof(u32);
+	h = jhash2((u32 *)tuple, n,
+		   rnd ^ (((__force __u16)tuple->dst.u.all << 16) |
+			  tuple->dst.protonum));
 
-	return ((u64)jhash_2words(a, b, rnd) * size) >> 32;
+	return ((u64)h * size) >> 32;
 }
 
 static inline u_int32_t hash_conntrack(const struct nf_conntrack_tuple *tuple)
