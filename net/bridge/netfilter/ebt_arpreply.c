@@ -19,10 +19,13 @@ static int ebt_target_reply(struct sk_buff *skb, unsigned int hooknr,
    const struct net_device *in, const struct net_device *out,
    const void *data, unsigned int datalen)
 {
-	struct ebt_arpreply_info *info = (struct ebt_arpreply_info *)data;
-	__be32 _sip, *siptr, _dip, *diptr;
-	struct arphdr _ah, *ap;
-	unsigned char _sha[ETH_ALEN], *shp;
+	struct ebt_arpreply_info *info = (void *)data;
+	const __be32 *siptr, *diptr;
+	__be32 _sip, _dip;
+	const struct arphdr *ap;
+	struct arphdr _ah;
+	const unsigned char *shp;
+	unsigned char _sha[ETH_ALEN];
 
 	ap = skb_header_pointer(skb, 0, sizeof(_ah), &_ah);
 	if (ap == NULL)
@@ -58,7 +61,7 @@ static int ebt_target_reply(struct sk_buff *skb, unsigned int hooknr,
 static int ebt_target_reply_check(const char *tablename, unsigned int hookmask,
    const struct ebt_entry *e, void *data, unsigned int datalen)
 {
-	struct ebt_arpreply_info *info = (struct ebt_arpreply_info *)data;
+	const struct ebt_arpreply_info *info = data;
 
 	if (datalen != EBT_ALIGN(sizeof(struct ebt_arpreply_info)))
 		return -EINVAL;

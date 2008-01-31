@@ -21,7 +21,7 @@ static int ebt_target_mark(struct sk_buff *skb, unsigned int hooknr,
    const struct net_device *in, const struct net_device *out,
    const void *data, unsigned int datalen)
 {
-	struct ebt_mark_t_info *info = (struct ebt_mark_t_info *)data;
+	const struct ebt_mark_t_info *info = data;
 	int action = info->target & -16;
 
 	if (action == MARK_SET_VALUE)
@@ -39,7 +39,7 @@ static int ebt_target_mark(struct sk_buff *skb, unsigned int hooknr,
 static int ebt_target_mark_check(const char *tablename, unsigned int hookmask,
    const struct ebt_entry *e, void *data, unsigned int datalen)
 {
-	struct ebt_mark_t_info *info = (struct ebt_mark_t_info *)data;
+	const struct ebt_mark_t_info *info = data;
 	int tmp;
 
 	if (datalen != EBT_ALIGN(sizeof(struct ebt_mark_t_info)))

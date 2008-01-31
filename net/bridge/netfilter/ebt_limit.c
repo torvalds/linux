@@ -69,7 +69,7 @@ user2credits(u_int32_t user)
 static int ebt_limit_check(const char *tablename, unsigned int hookmask,
    const struct ebt_entry *e, void *data, unsigned int datalen)
 {
-	struct ebt_limit_info *info = (struct ebt_limit_info *)data;
+	struct ebt_limit_info *info = data;
 
 	if (datalen != EBT_ALIGN(sizeof(struct ebt_limit_info)))
 		return -EINVAL;

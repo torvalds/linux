@@ -19,7 +19,7 @@ static int ebt_target_redirect(struct sk_buff *skb, unsigned int hooknr,
    const struct net_device *in, const struct net_device *out,
    const void *data, unsigned int datalen)
 {
-	struct ebt_redirect_info *info = (struct ebt_redirect_info *)data;
+	const struct ebt_redirect_info *info = data;
 
 	if (skb_make_writable(skb, 0))
 		return NF_DROP;
@@ -36,7 +36,7 @@ static int ebt_target_redirect(struct sk_buff *skb, unsigned int hooknr,
 static int ebt_target_redirect_check(const char *tablename, unsigned int hookmask,
    const struct ebt_entry *e, void *data, unsigned int datalen)
 {
-	struct ebt_redirect_info *info = (struct ebt_redirect_info *)data;
+	const struct ebt_redirect_info *info = data;
 
 	if (datalen != EBT_ALIGN(sizeof(struct ebt_redirect_info)))
 		return -EINVAL;

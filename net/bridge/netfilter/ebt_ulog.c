@@ -249,7 +249,7 @@ static void ebt_ulog(const struct sk_buff *skb, unsigned int hooknr,
    const struct net_device *in, const struct net_device *out,
    const void *data, unsigned int datalen)
 {
-	struct ebt_ulog_info *uloginfo = (struct ebt_ulog_info *)data;
+	const struct ebt_ulog_info *uloginfo = data;
 
 	ebt_ulog_packet(hooknr, skb, in, out, uloginfo, NULL);
 }
@@ -258,7 +258,7 @@ static void ebt_ulog(const struct sk_buff *skb, unsigned int hooknr,
 static int ebt_ulog_check(const char *tablename, unsigned int hookmask,
    const struct ebt_entry *e, void *data, unsigned int datalen)
 {
-	struct ebt_ulog_info *uloginfo = (struct ebt_ulog_info *)data;
+	struct ebt_ulog_info *uloginfo = data;
 
 	if (datalen != EBT_ALIGN(sizeof(struct ebt_ulog_info)) ||
 	    uloginfo->nlgroup > 31)

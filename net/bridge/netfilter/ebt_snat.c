@@ -20,7 +20,7 @@ static int ebt_target_snat(struct sk_buff *skb, unsigned int hooknr,
    const struct net_device *in, const struct net_device *out,
    const void *data, unsigned int datalen)
 {
-	struct ebt_nat_info *info = (struct ebt_nat_info *) data;
+	const struct ebt_nat_info *info = data;
 
 	if (skb_make_writable(skb, 0))
 		return NF_DROP;
@@ -28,7 +28,8 @@ static int ebt_target_snat(struct sk_buff *skb, unsigned int hooknr,
 	memcpy(eth_hdr(skb)->h_source, info->mac, ETH_ALEN);
 	if (!(info->target & NAT_ARP_BIT) &&
 	    eth_hdr(skb)->h_proto == htons(ETH_P_ARP)) {
-		struct arphdr _ah, *ap;
+		const struct arphdr *ap;
+		struct arphdr _ah;
 
 		ap = skb_header_pointer(skb, 0, sizeof(_ah), &_ah);
 		if (ap == NULL)
@@ -45,7 +46,7 @@ out:
 static int ebt_target_snat_check(const char *tablename, unsigned int hookmask,
    const struct ebt_entry *e, void *data, unsigned int datalen)
 {
-	struct ebt_nat_info *info = (struct ebt_nat_info *) data;
+	const struct ebt_nat_info *info = data;
 	int tmp;
 
 	if (datalen != EBT_ALIGN(sizeof(struct ebt_nat_info)))

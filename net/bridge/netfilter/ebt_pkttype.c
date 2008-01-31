@@ -18,7 +18,7 @@ static int ebt_filter_pkttype(const struct sk_buff *skb,
    const void *data,
    unsigned int datalen)
 {
-	struct ebt_pkttype_info *info = (struct ebt_pkttype_info *)data;
+	const struct ebt_pkttype_info *info = data;
 
 	return (skb->pkt_type != info->pkt_type) ^ info->invert;
 }
@@ -26,7 +26,7 @@ static int ebt_filter_pkttype(const struct sk_buff *skb,
 static int ebt_pkttype_check(const char *tablename, unsigned int hookmask,
    const struct ebt_entry *e, void *data, unsigned int datalen)
 {
-	struct ebt_pkttype_info *info = (struct ebt_pkttype_info *)data;
+	const struct ebt_pkttype_info *info = data;
 
 	if (datalen != EBT_ALIGN(sizeof(struct ebt_pkttype_info)))
 		return -EINVAL;

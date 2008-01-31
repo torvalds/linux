@@ -46,8 +46,9 @@ ebt_filter_vlan(const struct sk_buff *skb,
 		const struct net_device *out,
 		const void *data, unsigned int datalen)
 {
-	struct ebt_vlan_info *info = (struct ebt_vlan_info *) data;
-	struct vlan_hdr _frame, *fp;
+	const struct ebt_vlan_info *info = data;
+	const struct vlan_hdr *fp;
+	struct vlan_hdr _frame;
 
 	unsigned short TCI;	/* Whole TCI, given from parsed frame */
 	unsigned short id;	/* VLAN ID, given from frame TCI */
@@ -91,7 +92,7 @@ ebt_check_vlan(const char *tablename,
 	       unsigned int hooknr,
 	       const struct ebt_entry *e, void *data, unsigned int datalen)
 {
-	struct ebt_vlan_info *info = (struct ebt_vlan_info *) data;
+	struct ebt_vlan_info *info = data;
 
 	/* Parameters buffer overflow check */
 	if (datalen != EBT_ALIGN(sizeof(struct ebt_vlan_info))) {
