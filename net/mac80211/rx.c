@@ -1450,7 +1450,6 @@ ieee80211_rx_h_mgmt(struct ieee80211_txrx_data *rx)
 
 static void ieee80211_rx_michael_mic_report(struct net_device *dev,
 					    struct ieee80211_hdr *hdr,
-					    struct sta_info *sta,
 					    struct ieee80211_txrx_data *rx)
 {
 	int keyidx, hdrlen;
@@ -1469,7 +1468,7 @@ static void ieee80211_rx_michael_mic_report(struct net_device *dev,
 		       dev->name, print_mac(mac, hdr->addr2),
 		       print_mac(mac2, hdr->addr1), keyidx);
 
-	if (!sta) {
+	if (!rx->sta) {
 		/*
 		 * Some hardware seem to generate incorrect Michael MIC
 		 * reports; ignore them to avoid triggering countermeasures.
@@ -1544,12 +1543,16 @@ static ieee80211_rx_handler ieee80211_rx_handlers[] =
 	NULL
 };
 
-static void ieee80211_invoke_rx_handlers(struct ieee80211_local *local,
+static void ieee80211_invoke_rx_handlers(struct ieee80211_sub_if_data *sdata,
 					 struct ieee80211_txrx_data *rx,
-					 struct sta_info *sta)
+					 struct sk_buff *skb)
 {
 	ieee80211_rx_handler *handler;
 	ieee80211_rx_result res = RX_DROP_MONITOR;
+
+	rx->skb = skb;
+	rx->sdata = sdata;
+	rx->dev = sdata->dev;
 
 	for (handler = ieee80211_rx_handlers; *handler != NULL; handler++) {
 		res = (*handler)(rx);
@@ -1559,12 +1562,12 @@ static void ieee80211_invoke_rx_handlers(struct ieee80211_local *local,
 			continue;
 		case RX_DROP_UNUSABLE:
 		case RX_DROP_MONITOR:
-			I802_DEBUG_INC(local->rx_handlers_drop);
-			if (sta)
-				sta->rx_dropped++;
+			I802_DEBUG_INC(sdata->local->rx_handlers_drop);
+			if (rx->sta)
+				rx->sta->rx_dropped++;
 			break;
 		case RX_QUEUED:
-			I802_DEBUG_INC(local->rx_handlers_queued);
+			I802_DEBUG_INC(sdata->local->rx_handlers_queued);
 			break;
 		}
 		break;
@@ -1669,7 +1672,6 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_sub_if_data *sdata;
-	struct sta_info *sta;
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_txrx_data rx;
 	u16 type;
@@ -1692,14 +1694,14 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	if (type == IEEE80211_FTYPE_DATA || type == IEEE80211_FTYPE_MGMT)
 		local->dot11ReceivedFragmentCount++;
 
-	sta = rx.sta = sta_info_get(local, hdr->addr2);
-	if (sta) {
+	rx.sta = sta_info_get(local, hdr->addr2);
+	if (rx.sta) {
 		rx.dev = rx.sta->dev;
 		rx.sdata = IEEE80211_DEV_TO_SUB_IF(rx.dev);
 	}
 
 	if ((status->flag & RX_FLAG_MMIC_ERROR)) {
-		ieee80211_rx_michael_mic_report(local->mdev, hdr, sta, &rx);
+		ieee80211_rx_michael_mic_report(local->mdev, hdr, &rx);
 		goto end;
 	}
 
@@ -1721,8 +1723,6 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 		bssid = ieee80211_get_bssid(hdr, skb->len, sdata->vif.type);
 		rx.flags |= IEEE80211_TXRXD_RXRA_MATCH;
 		prepares = prepare_for_handlers(sdata, bssid, &rx, hdr);
-		/* prepare_for_handlers can change sta */
-		sta = rx.sta;
 
 		if (!prepares)
 			continue;
@@ -1753,24 +1753,18 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 			continue;
 		}
 		rx.fc = le16_to_cpu(hdr->frame_control);
-		rx.skb = skb_new;
-		rx.dev = prev->dev;
-		rx.sdata = prev;
-		ieee80211_invoke_rx_handlers(local, &rx, sta);
+		ieee80211_invoke_rx_handlers(prev, &rx, skb_new);
 		prev = sdata;
 	}
 	if (prev) {
 		rx.fc = le16_to_cpu(hdr->frame_control);
-		rx.skb = skb;
-		rx.dev = prev->dev;
-		rx.sdata = prev;
-		ieee80211_invoke_rx_handlers(local, &rx, sta);
+		ieee80211_invoke_rx_handlers(prev, &rx, skb);
 	} else
 		dev_kfree_skb(skb);
 
  end:
-	if (sta)
-		sta_info_put(sta);
+	if (rx.sta)
+		sta_info_put(rx.sta);
 }
 
 #define SEQ_MODULO 0x1000
