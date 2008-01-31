@@ -962,13 +962,13 @@ static const struct seq_operations raw_seq_ops = {
 	.show  = raw_seq_show,
 };
 
-int raw_seq_open(struct inode *ino, struct file *file, struct raw_hashinfo *h)
+int raw_seq_open(struct inode *ino, struct file *file,
+		 struct raw_hashinfo *h, const struct seq_operations *ops)
 {
 	int err;
 	struct raw_iter_state *i;
 
-	err = seq_open_net(ino, file, &raw_seq_ops,
-			sizeof(struct raw_iter_state));
+	err = seq_open_net(ino, file, ops, sizeof(struct raw_iter_state));
 	if (err < 0)
 		return err;
 
@@ -980,7 +980,7 @@ EXPORT_SYMBOL_GPL(raw_seq_open);
 
 static int raw_v4_seq_open(struct inode *inode, struct file *file)
 {
-	return raw_seq_open(inode, file, &raw_v4_hashinfo);
+	return raw_seq_open(inode, file, &raw_v4_hashinfo, &raw_seq_ops);
 }
 
 static const struct file_operations raw_seq_fops = {
