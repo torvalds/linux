@@ -415,7 +415,7 @@ int ipath_error_qp(struct ipath_qp *qp, enum ib_wc_status err)
 		wc.wr_id = qp->r_wr_id;
 		wc.opcode = IB_WC_RECV;
 		wc.status = err;
-		ipath_cq_enter(to_icq(qp->ibqp.send_cq), &wc, 1);
+		ipath_cq_enter(to_icq(qp->ibqp.recv_cq), &wc, 1);
 	}
 	wc.status = IB_WC_WR_FLUSH_ERR;
 
