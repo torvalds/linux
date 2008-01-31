@@ -1,5 +1,5 @@
 /*
- * linux/drivers/input/keyboard/pxa27x_keyboard.c
+ * linux/drivers/input/keyboard/pxa27x_keypad.c
  *
  * Driver for the pxa27x matrix keyboard controller.
  *
@@ -33,21 +33,21 @@
 #include <asm/arch/hardware.h>
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/irqs.h>
-#include <asm/arch/pxa27x_keyboard.h>
+#include <asm/arch/pxa27x_keypad.h>
 
-#define DRIVER_NAME		"pxa27x-keyboard"
+#define DRIVER_NAME		"pxa27x-keypad"
 
 #define KPASMKP(col)		(col/2 == 0 ? KPASMKP0 : \
 				 col/2 == 1 ? KPASMKP1 : \
 				 col/2 == 2 ? KPASMKP2 : KPASMKP3)
 #define KPASMKPx_MKC(row, col)	(1 << (row + 16 * (col % 2)))
 
-static struct clk *pxakbd_clk;
+static struct clk *pxa27x_keypad_clk;
 
-static irqreturn_t pxakbd_irq_handler(int irq, void *dev_id)
+static irqreturn_t pxa27x_keypad_irq_handler(int irq, void *dev_id)
 {
 	struct platform_device *pdev = dev_id;
-	struct pxa27x_keyboard_platform_data *pdata = pdev->dev.platform_data;
+	struct pxa27x_keypad_platform_data *pdata = pdev->dev.platform_data;
 	struct input_dev *input_dev = platform_get_drvdata(pdev);
 	unsigned long kpc = KPC;
 	int p, row, col, rel;
@@ -93,7 +93,7 @@ static irqreturn_t pxakbd_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int pxakbd_open(struct input_dev *dev)
+static int pxa27x_keypad_open(struct input_dev *dev)
 {
 	/* Set keypad control register */
 	KPC |= (KPC_ASACT |
@@ -108,21 +108,21 @@ static int pxakbd_open(struct input_dev *dev)
 	KPREC = 0x7F;
 
 	/* Enable unit clock */
-	clk_enable(pxakbd_clk);
+	clk_enable(pxa27x_keypad_clk);
 
 	return 0;
 }
 
-static void pxakbd_close(struct input_dev *dev)
+static void pxa27x_keypad_close(struct input_dev *dev)
 {
 	/* Disable clock unit */
-	clk_disable(pxakbd_clk);
+	clk_disable(pxa27x_keypad_clk);
 }
 
 #ifdef CONFIG_PM
-static int pxakbd_suspend(struct platform_device *pdev, pm_message_t state)
+static int pxa27x_keypad_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	struct pxa27x_keyboard_platform_data *pdata = pdev->dev.platform_data;
+	struct pxa27x_keypad_platform_data *pdata = pdev->dev.platform_data;
 
 	/* Save controller status */
 	pdata->reg_kpc = KPC;
@@ -131,9 +131,9 @@ static int pxakbd_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int pxakbd_resume(struct platform_device *pdev)
+static int pxa27x_keypad_resume(struct platform_device *pdev)
 {
-	struct pxa27x_keyboard_platform_data *pdata = pdev->dev.platform_data;
+	struct pxa27x_keypad_platform_data *pdata = pdev->dev.platform_data;
 	struct input_dev *input_dev = platform_get_drvdata(pdev);
 
 	mutex_lock(&input_dev->mutex);
@@ -144,8 +144,8 @@ static int pxakbd_resume(struct platform_device *pdev)
 		KPREC = pdata->reg_kprec;
 
 		/* Enable unit clock */
-		clk_disable(pxakbd_clk);
-		clk_enable(pxakbd_clk);
+		clk_disable(pxa27x_keypad_clk);
+		clk_enable(pxa27x_keypad_clk);
 	}
 
 	mutex_unlock(&input_dev->mutex);
@@ -153,19 +153,19 @@ static int pxakbd_resume(struct platform_device *pdev)
 	return 0;
 }
 #else
-#define pxakbd_suspend	NULL
-#define pxakbd_resume	NULL
+#define pxa27x_keypad_suspend	NULL
+#define pxa27x_keypad_resume	NULL
 #endif
 
-static int __devinit pxakbd_probe(struct platform_device *pdev)
+static int __devinit pxa27x_keypad_probe(struct platform_device *pdev)
 {
-	struct pxa27x_keyboard_platform_data *pdata = pdev->dev.platform_data;
+	struct pxa27x_keypad_platform_data *pdata = pdev->dev.platform_data;
 	struct input_dev *input_dev;
 	int i, row, col, error;
 
-	pxakbd_clk = clk_get(&pdev->dev, "KBDCLK");
-	if (IS_ERR(pxakbd_clk)) {
-		error = PTR_ERR(pxakbd_clk);
+	pxa27x_keypad_clk = clk_get(&pdev->dev, "KBDCLK");
+	if (IS_ERR(pxa27x_keypad_clk)) {
+		error = PTR_ERR(pxa27x_keypad_clk);
 		goto err_clk;
 	}
 
@@ -179,8 +179,8 @@ static int __devinit pxakbd_probe(struct platform_device *pdev)
 
 	input_dev->name = DRIVER_NAME;
 	input_dev->id.bustype = BUS_HOST;
-	input_dev->open = pxakbd_open;
-	input_dev->close = pxakbd_close;
+	input_dev->open = pxa27x_keypad_open;
+	input_dev->close = pxa27x_keypad_close;
 	input_dev->dev.parent = &pdev->dev;
 
 	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REP) |
@@ -194,7 +194,7 @@ static int __devinit pxakbd_probe(struct platform_device *pdev)
 		}
 	}
 
-	error = request_irq(IRQ_KEYPAD, pxakbd_irq_handler, IRQF_DISABLED,
+	error = request_irq(IRQ_KEYPAD, pxa27x_keypad_irq_handler, IRQF_DISABLED,
 			    DRIVER_NAME, pdev);
 	if (error) {
 		printk(KERN_ERR "Cannot request keypad IRQ\n");
@@ -230,45 +230,45 @@ static int __devinit pxakbd_probe(struct platform_device *pdev)
  err_free_dev:
 	input_free_device(input_dev);
  err_alloc:
-	clk_put(pxakbd_clk);
+	clk_put(pxa27x_keypad_clk);
  err_clk:
 	return error;
 }
 
-static int __devexit pxakbd_remove(struct platform_device *pdev)
+static int __devexit pxa27x_keypad_remove(struct platform_device *pdev)
 {
 	struct input_dev *input_dev = platform_get_drvdata(pdev);
 
 	input_unregister_device(input_dev);
 	free_irq(IRQ_KEYPAD, pdev);
-	clk_put(pxakbd_clk);
+	clk_put(pxa27x_keypad_clk);
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
 
-static struct platform_driver pxakbd_driver = {
-	.probe		= pxakbd_probe,
-	.remove		= __devexit_p(pxakbd_remove),
-	.suspend	= pxakbd_suspend,
-	.resume		= pxakbd_resume,
+static struct platform_driver pxa27x_keypad_driver = {
+	.probe		= pxa27x_keypad_probe,
+	.remove		= __devexit_p(pxa27x_keypad_remove),
+	.suspend	= pxa27x_keypad_suspend,
+	.resume		= pxa27x_keypad_resume,
 	.driver		= {
 		.name	= DRIVER_NAME,
 	},
 };
 
-static int __init pxakbd_init(void)
+static int __init pxa27x_keypad_init(void)
 {
-	return platform_driver_register(&pxakbd_driver);
+	return platform_driver_register(&pxa27x_keypad_driver);
 }
 
-static void __exit pxakbd_exit(void)
+static void __exit pxa27x_keypad_exit(void)
 {
-	platform_driver_unregister(&pxakbd_driver);
+	platform_driver_unregister(&pxa27x_keypad_driver);
 }
 
-module_init(pxakbd_init);
-module_exit(pxakbd_exit);
+module_init(pxa27x_keypad_init);
+module_exit(pxa27x_keypad_exit);
 
-MODULE_DESCRIPTION("PXA27x Matrix Keyboard Driver");
+MODULE_DESCRIPTION("PXA27x Keypad Controller Driver");
 MODULE_LICENSE("GPL");
