@@ -491,11 +491,6 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 		    && ctnetlink_dump_helpinfo(skb, ct) < 0)
 			goto nla_put_failure;
 
-#ifdef CONFIG_NF_CONNTRACK_MARK
-		if ((events & IPCT_MARK || ct->mark)
-		    && ctnetlink_dump_mark(skb, ct) < 0)
-			goto nla_put_failure;
-#endif
 #ifdef CONFIG_NF_CONNTRACK_SECMARK
 		if ((events & IPCT_SECMARK || ct->secmark)
 		    && ctnetlink_dump_secmark(skb, ct) < 0)
@@ -515,6 +510,12 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 		    ctnetlink_dump_nat_seq_adj(skb, ct) < 0)
 			goto nla_put_failure;
 	}
+
+#ifdef CONFIG_NF_CONNTRACK_MARK
+	if ((events & IPCT_MARK || ct->mark)
+	    && ctnetlink_dump_mark(skb, ct) < 0)
+		goto nla_put_failure;
+#endif
 
 	nlh->nlmsg_len = skb->tail - b;
 	nfnetlink_send(skb, 0, group, 0);
