@@ -238,9 +238,10 @@ void iwl3945_hw_rx_statistics(struct iwl3945_priv *priv, struct iwl3945_rx_mem_b
 	priv->last_statistics_time = jiffies;
 }
 
-void iwl3945_add_radiotap(struct iwl3945_priv *priv, struct sk_buff *skb,
-			  struct iwl3945_rx_frame_hdr *rx_hdr,
-			  struct ieee80211_rx_status *stats)
+static void iwl3945_add_radiotap(struct iwl3945_priv *priv,
+				 struct sk_buff *skb,
+				 struct iwl3945_rx_frame_hdr *rx_hdr,
+				 struct ieee80211_rx_status *stats)
 {
 	/* First cache any information we need before we overwrite
 	 * the information provided in the skb from the hardware */
