@@ -128,11 +128,11 @@ static int iscsi_setup_host(struct transport_container *tc, struct device *dev,
 	INIT_LIST_HEAD(&ihost->sessions);
 	mutex_init(&ihost->mutex);
 
-	snprintf(ihost->unbind_workq_name, KOBJ_NAME_LEN, "iscsi_unbind_%d",
+	snprintf(ihost->scan_workq_name, KOBJ_NAME_LEN, "iscsi_scan_%d",
 		shost->host_no);
-	ihost->unbind_workq = create_singlethread_workqueue(
-						ihost->unbind_workq_name);
-	if (!ihost->unbind_workq)
+	ihost->scan_workq = create_singlethread_workqueue(
+						ihost->scan_workq_name);
+	if (!ihost->scan_workq)
 		return -ENOMEM;
 	return 0;
 }
@@ -143,7 +143,7 @@ static int iscsi_remove_host(struct transport_container *tc, struct device *dev,
 	struct Scsi_Host *shost = dev_to_shost(dev);
 	struct iscsi_host *ihost = shost->shost_data;
 
-	destroy_workqueue(ihost->unbind_workq);
+	destroy_workqueue(ihost->scan_workq);
 	return 0;
 }
 
@@ -302,6 +302,23 @@ static int iscsi_user_scan(struct Scsi_Host *shost, uint channel,
 	return 0;
 }
 
+static void iscsi_scan_session(struct work_struct *work)
+{
+	struct iscsi_cls_session *session =
+			container_of(work, struct iscsi_cls_session, scan_work);
+	unsigned long flags;
+
+	spin_lock_irqsave(&session->lock, flags);
+	if (session->state != ISCSI_SESSION_LOGGED_IN) {
+		spin_unlock_irqrestore(&session->lock, flags);
+		return;
+	}
+	spin_unlock_irqrestore(&session->lock, flags);
+
+	scsi_scan_target(&session->dev, 0, session->target_id,
+			 SCAN_WILD_CARD, 1);
+}
+
 static void session_recovery_timedout(struct work_struct *work)
 {
 	struct iscsi_cls_session *session =
@@ -340,6 +357,8 @@ void __iscsi_unblock_session(struct iscsi_cls_session *session)
 
 void iscsi_unblock_session(struct iscsi_cls_session *session)
 {
+	struct Scsi_Host *shost = iscsi_session_to_shost(session);
+	struct iscsi_host *ihost = shost->shost_data;
 	unsigned long flags;
 
 	spin_lock_irqsave(&session->lock, flags);
@@ -347,6 +366,7 @@ void iscsi_unblock_session(struct iscsi_cls_session *session)
 	spin_unlock_irqrestore(&session->lock, flags);
 
 	__iscsi_unblock_session(session);
+	queue_work(ihost->scan_workq, &session->scan_work);
 }
 EXPORT_SYMBOL_GPL(iscsi_unblock_session);
 
@@ -390,7 +410,7 @@ static int iscsi_unbind_session(struct iscsi_cls_session *session)
 	struct Scsi_Host *shost = iscsi_session_to_shost(session);
 	struct iscsi_host *ihost = shost->shost_data;
 
-	return queue_work(ihost->unbind_workq, &session->unbind_work);
+	return queue_work(ihost->scan_workq, &session->unbind_work);
 }
 
 struct iscsi_cls_session *
@@ -411,6 +431,7 @@ iscsi_alloc_session(struct Scsi_Host *shost,
 	INIT_LIST_HEAD(&session->host_list);
 	INIT_LIST_HEAD(&session->sess_list);
 	INIT_WORK(&session->unbind_work, __iscsi_unbind_session);
+	INIT_WORK(&session->scan_work, iscsi_scan_session);
 	spin_lock_init(&session->lock);
 
 	/* this is released in the dev's release function */
@@ -530,13 +551,15 @@ void iscsi_remove_session(struct iscsi_cls_session *session)
 	spin_unlock_irqrestore(&session->lock, flags);
 	__iscsi_unblock_session(session);
 	iscsi_unbind_session(session);
+
+	/* flush running scans */
+	flush_workqueue(ihost->scan_workq);
 	/*
 	 * If the session dropped while removing devices then we need to make
 	 * sure it is not blocked
 	 */
 	if (!cancel_delayed_work(&session->recovery_work))
 		flush_workqueue(iscsi_eh_timer_workq);
-	flush_workqueue(ihost->unbind_workq);
 
 	/* hw iscsi may not have removed all connections from session */
 	err = device_for_each_child(&session->dev, NULL,

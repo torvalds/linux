@@ -177,11 +177,12 @@ struct iscsi_cls_session {
 	struct list_head host_list;
 	struct iscsi_transport *transport;
 	spinlock_t lock;
+	struct work_struct scan_work;
+	struct work_struct unbind_work;
 
 	/* recovery fields */
 	int recovery_tmo;
 	struct delayed_work recovery_work;
-	struct work_struct unbind_work;
 
 	int target_id;
 
@@ -203,8 +204,8 @@ struct iscsi_cls_session {
 struct iscsi_host {
 	struct list_head sessions;
 	struct mutex mutex;
-	struct workqueue_struct *unbind_workq;
-	char unbind_workq_name[KOBJ_NAME_LEN];
+	struct workqueue_struct *scan_workq;
+	char scan_workq_name[KOBJ_NAME_LEN];
 };
 
 /*
