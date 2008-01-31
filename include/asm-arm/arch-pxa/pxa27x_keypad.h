@@ -13,11 +13,6 @@ struct pxa27x_keypad_platform_data {
 	unsigned int	matrix_key_cols;
 	unsigned int	*matrix_key_map;
 	int		matrix_key_map_size;
-
-#ifdef CONFIG_PM
-	u32 reg_kpc;
-	u32 reg_kprec;
-#endif
 };
 
 #define KEY(row, col, val)	(((row) << 28) | ((col) << 24) | (val))

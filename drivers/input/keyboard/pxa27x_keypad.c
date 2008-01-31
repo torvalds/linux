@@ -37,6 +37,10 @@
 
 #define DRIVER_NAME		"pxa27x-keypad"
 
+#define KPC_MKRN(n)	((((n) & 0x7) - 1) << 26) /* matrix key row number */
+#define KPC_MKCN(n)	((((n) & 0x7) - 1) << 23) /* matrix key column number */
+#define KPC_DKN(n)	((((n) & 0x7) - 1) << 6)  /* direct key number */
+
 #define KPAS_MUKP(n)		(((n) >> 26) & 0x1f)
 #define KPAS_RP(n)		(((n) >> 4) & 0xf)
 #define KPAS_CP(n)		((n) & 0xf)
@@ -145,6 +149,8 @@ scan:
 	memcpy(keypad->matrix_key_state, new_state, sizeof(new_state));
 }
 
+#define DEFAULT_KPREC	(0x007f007f)
+
 static irqreturn_t pxa27x_keypad_irq_handler(int irq, void *dev_id)
 {
 	struct pxa27x_keypad *keypad = dev_id;
@@ -181,24 +187,32 @@ static irqreturn_t pxa27x_keypad_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static void pxa27x_keypad_config(struct pxa27x_keypad *keypad)
+{
+	struct pxa27x_keypad_platform_data *pdata = keypad->pdata;
+	unsigned long kpc = 0;
+
+	/* enable matrix keys with automatic scan */
+	if (pdata->matrix_key_rows && pdata->matrix_key_cols) {
+		kpc |= KPC_ASACT | KPC_MIE | KPC_ME | KPC_MS_ALL;
+		kpc |= KPC_MKRN(pdata->matrix_key_rows) |
+		       KPC_MKCN(pdata->matrix_key_cols);
+	}
+
+	/* FIXME: hardcoded to enable rotary 0 _only_ */
+	kpc |= KPC_DKN(2) | KPC_REE0 | KPC_DI | KPC_DIE;
+
+	KPC = kpc;
+	KPREC = DEFAULT_KPREC;
+}
+
 static int pxa27x_keypad_open(struct input_dev *dev)
 {
 	struct pxa27x_keypad *keypad = input_get_drvdata(dev);
 
-	/* Set keypad control register */
-	KPC |= (KPC_ASACT |
-		KPC_MS_ALL |
-		(2 << 6) | KPC_REE0 | KPC_DK_DEB_SEL |
-		KPC_ME | KPC_MIE | KPC_DE | KPC_DIE);
-
-	KPC &= ~KPC_AS;         /* disable automatic scan */
-	KPC &= ~KPC_IMKP;       /* do not ignore multiple keypresses */
-
-	/* Set rotary count to mid-point value */
-	KPREC = 0x7F;
-
 	/* Enable unit clock */
 	clk_enable(keypad->clk);
+	pxa27x_keypad_config(keypad);
 
 	return 0;
 }
@@ -215,30 +229,22 @@ static void pxa27x_keypad_close(struct input_dev *dev)
 static int pxa27x_keypad_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct pxa27x_keypad *keypad = platform_get_drvdata(pdev);
-	struct pxa27x_keypad_platform_data *pdata = keypad->pdata;
 
-	/* Save controller status */
-	pdata->reg_kpc = KPC;
-	pdata->reg_kprec = KPREC;
-
+	clk_disable(keypad->clk);
 	return 0;
 }
 
 static int pxa27x_keypad_resume(struct platform_device *pdev)
 {
 	struct pxa27x_keypad *keypad = platform_get_drvdata(pdev);
-	struct pxa27x_keypad_platform_data *pdata = keypad->pdata;
 	struct input_dev *input_dev = keypad->input_dev;
 
 	mutex_lock(&input_dev->mutex);
 
 	if (input_dev->users) {
-		/* Restore controller status */
-		KPC = pdata->reg_kpc;
-		KPREC = pdata->reg_kprec;
-
 		/* Enable unit clock */
 		clk_enable(keypad->clk);
+		pxa27x_keypad_config(keypad);
 	}
 
 	mutex_unlock(&input_dev->mutex);
@@ -254,7 +260,7 @@ static int __devinit pxa27x_keypad_probe(struct platform_device *pdev)
 {
 	struct pxa27x_keypad *keypad;
 	struct input_dev *input_dev;
-	int col, error;
+	int error;
 
 	keypad = kzalloc(sizeof(struct pxa27x_keypad), GFP_KERNEL);
 	if (keypad == NULL) {
@@ -312,16 +318,6 @@ static int __devinit pxa27x_keypad_probe(struct platform_device *pdev)
 	error = input_register_device(input_dev);
 	if (error)
 		goto err_free_irq;
-
-	/*
-	 * Store rows/cols info into keyboard registers.
-	 */
-
-	KPC |= (keypad->pdata->matrix_key_rows - 1) << 26;
-	KPC |= (keypad->pdata->matrix_key_cols - 1) << 23;
-
-	for (col = 0; col < keypad->pdata->matrix_key_cols; col++)
-		KPC |= KPC_MS0 << col;
 
 	return 0;
 
