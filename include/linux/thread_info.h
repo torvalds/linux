@@ -23,6 +23,7 @@ struct restart_block {
 			u32 *uaddr;
 			u32 val;
 			u32 flags;
+			u32 bitset;
 			u64 time;
 		} futex;
 	};
