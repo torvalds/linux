@@ -2416,19 +2416,20 @@ int ide_cdrom_get_capabilities(ide_drive_t *drive, struct atapi_capabilities_pag
 static
 void ide_cdrom_update_speed (ide_drive_t *drive, struct atapi_capabilities_page *cap)
 {
+	u16 curspeed, maxspeed;
+
 	/* The ACER/AOpen 24X cdrom has the speed fields byte-swapped */
 	if (!drive->id->model[0] &&
 	    !strncmp(drive->id->fw_rev, "241N", 4)) {
-		CDROM_STATE_FLAGS(drive)->current_speed  =
-			(le16_to_cpu(cap->curspeed) + (176/2)) / 176;
-		CDROM_CONFIG_FLAGS(drive)->max_speed =
-			(le16_to_cpu(cap->maxspeed) + (176/2)) / 176;
+		curspeed = le16_to_cpu(cap->curspeed);
+		maxspeed = le16_to_cpu(cap->maxspeed);
 	} else {
-		CDROM_STATE_FLAGS(drive)->current_speed  =
-			(be16_to_cpu(cap->curspeed) + (176/2)) / 176;
-		CDROM_CONFIG_FLAGS(drive)->max_speed =
-			(be16_to_cpu(cap->maxspeed) + (176/2)) / 176;
+		curspeed = be16_to_cpu(cap->curspeed);
+		maxspeed = be16_to_cpu(cap->maxspeed);
 	}
+
+	CDROM_STATE_FLAGS(drive)->current_speed = (curspeed + (176/2)) / 176;
+	CDROM_CONFIG_FLAGS(drive)->max_speed = (maxspeed + (176/2)) / 176;
 }
 
 static
