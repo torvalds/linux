@@ -86,6 +86,7 @@ static void amd_set_speed(struct pci_dev *dev, u8 dn, u8 udma_mask,
 static void amd_set_drive(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif = drive->hwif;
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	ide_drive_t *peer = hwif->drives + (~drive->dn & 1);
 	struct ide_timing t, p;
 	int T, UT;
@@ -104,7 +105,7 @@ static void amd_set_drive(ide_drive_t *drive, const u8 speed)
 	if (speed == XFER_UDMA_5 && amd_clock <= 33333) t.udma = 1;
 	if (speed == XFER_UDMA_6 && amd_clock <= 33333) t.udma = 15;
 
-	amd_set_speed(hwif->pci_dev, drive->dn, udma_mask, &t);
+	amd_set_speed(dev, drive->dn, udma_mask, &t);
 }
 
 /*
@@ -202,8 +203,10 @@ static unsigned int __devinit init_chipset_amd74xx(struct pci_dev *dev,
 
 static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 {
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
+
 	if (hwif->irq == 0) /* 0 is bogus but will do for now */
-		hwif->irq = pci_get_legacy_ide_irq(hwif->pci_dev, hwif->channel);
+		hwif->irq = pci_get_legacy_ide_irq(dev, hwif->channel);
 
 	hwif->set_pio_mode = &amd_set_pio_mode;
 	hwif->set_dma_mode = &amd_set_drive;

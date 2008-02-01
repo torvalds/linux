@@ -162,8 +162,8 @@ static void ide_pci_clear_simplex(unsigned long dma_base, const char *name)
 
 static unsigned long ide_get_or_set_dma_base(const struct ide_port_info *d, ide_hwif_t *hwif)
 {
-	unsigned long	dma_base = 0;
-	struct pci_dev	*dev = hwif->pci_dev;
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
+	unsigned long dma_base = 0;
 	u8 dma_stat = 0;
 
 	if (hwif->mmio)
@@ -391,7 +391,7 @@ static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev, const struct ide_port
 
 	hwif->noprobe = oldnoprobe;
 
-	hwif->pci_dev = dev;
+	hwif->dev = &dev->dev;
 	hwif->cds = d;
 	hwif->channel = port;
 

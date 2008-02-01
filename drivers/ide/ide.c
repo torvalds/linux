@@ -405,8 +405,9 @@ static void ide_hwif_restore(ide_hwif_t *hwif, ide_hwif_t *tmp_hwif)
 	hwif->chipset			= tmp_hwif->chipset;
 	hwif->hold			= tmp_hwif->hold;
 
+	hwif->dev			= tmp_hwif->dev;
+
 #ifdef CONFIG_BLK_DEV_IDEPCI
-	hwif->pci_dev			= tmp_hwif->pci_dev;
 	hwif->cds			= tmp_hwif->cds;
 #endif
 

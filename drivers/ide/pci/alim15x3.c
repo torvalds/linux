@@ -293,7 +293,7 @@ static int ali_get_info (char *buffer, char **addr, off_t offset, int count)
 static void ali_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	ide_hwif_t *hwif = HWIF(drive);
-	struct pci_dev *dev = hwif->pci_dev;
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	int s_time, a_time, c_time;
 	u8 s_clc, a_clc, r_clc;
 	unsigned long flags;
@@ -396,7 +396,7 @@ static u8 ali_udma_filter(ide_drive_t *drive)
 static void ali_set_dma_mode(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-	struct pci_dev *dev	= hwif->pci_dev;
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	u8 speed1		= speed;
 	u8 unit			= (drive->select.b.unit & 0x01);
 	u8 tmpbyte		= 0x00;
@@ -625,7 +625,7 @@ static int ali_cable_override(struct pci_dev *pdev)
 
 static u8 __devinit ata66_ali15x3(ide_hwif_t *hwif)
 {
-	struct pci_dev *dev	= hwif->pci_dev;
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	unsigned long flags;
 	u8 cbl = ATA_CBL_PATA40, tmpbyte;
 
@@ -688,12 +688,13 @@ static void __devinit init_hwif_common_ali15x3 (ide_hwif_t *hwif)
 
 static void __devinit init_hwif_ali15x3 (ide_hwif_t *hwif)
 {
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	u8 ideic, inmir;
 	s8 irq_routing_table[] = { -1,  9, 3, 10, 4,  5, 7,  6,
 				      1, 11, 0, 12, 0, 14, 0, 15 };
 	int irq = -1;
 
-	if (hwif->pci_dev->device == PCI_DEVICE_ID_AL_M5229)
+	if (dev->device == PCI_DEVICE_ID_AL_M5229)
 		hwif->irq = hwif->channel ? 15 : 14;
 
 	if (isa_dev) {

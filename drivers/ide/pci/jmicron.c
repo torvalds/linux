@@ -30,7 +30,7 @@ typedef enum {
 
 static u8 __devinit ata66_jmicron(ide_hwif_t *hwif)
 {
-	struct pci_dev *pdev = hwif->pci_dev;
+	struct pci_dev *pdev = to_pci_dev(hwif->dev);
 
 	u32 control;
 	u32 control5;

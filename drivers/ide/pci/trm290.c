@@ -245,7 +245,7 @@ static void trm290_dma_host_set(ide_drive_t *drive, int on)
 
 static void __devinit init_hwif_trm290(ide_hwif_t *hwif)
 {
-	struct pci_dev *dev	= hwif->pci_dev;
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	unsigned int  cfg_base	= pci_resource_start(dev, 4);
 	unsigned long flags;
 	u8 reg = 0;

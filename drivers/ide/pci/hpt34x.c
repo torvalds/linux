@@ -45,7 +45,7 @@
 
 static void hpt34x_set_mode(ide_drive_t *drive, const u8 speed)
 {
-	struct pci_dev *dev	= HWIF(drive)->pci_dev;
+	struct pci_dev *dev = to_pci_dev(drive->hwif->dev);
 	u32 reg1= 0, tmp1 = 0, reg2 = 0, tmp2 = 0;
 	u8			hi_speed, lo_speed;
 

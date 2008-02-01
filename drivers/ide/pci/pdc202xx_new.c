@@ -149,6 +149,7 @@ static struct udma_timing {
 static void pdcnew_set_dma_mode(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	u8 adj			= (drive->dn & 1) ? 0x08 : 0x00;
 
 	/*
@@ -159,7 +160,7 @@ static void pdcnew_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	 * As we set up the PLL to output 133 MHz for UltraDMA/133 capable
 	 * chips, we must override the default register settings...
 	 */
-	if (max_dma_rate(hwif->pci_dev) == 4) {
+	if (max_dma_rate(dev) == 4) {
 		u8 mode = speed & 0x07;
 
 		if (speed >= XFER_UDMA_0) {
@@ -186,9 +187,10 @@ static void pdcnew_set_dma_mode(ide_drive_t *drive, const u8 speed)
 static void pdcnew_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	ide_hwif_t *hwif = drive->hwif;
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	u8 adj = (drive->dn & 1) ? 0x08 : 0x00;
 
-	if (max_dma_rate(hwif->pci_dev) == 4) {
+	if (max_dma_rate(dev) == 4) {
 		set_indexed_reg(hwif, 0x0c + adj, pio_timings[pio].reg0c);
 		set_indexed_reg(hwif, 0x0d + adj, pio_timings[pio].reg0d);
 		set_indexed_reg(hwif, 0x13 + adj, pio_timings[pio].reg13);

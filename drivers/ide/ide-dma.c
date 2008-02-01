@@ -184,6 +184,7 @@ static int ide_dma_good_drive(ide_drive_t *drive)
 int ide_build_sglist(ide_drive_t *drive, struct request *rq)
 {
 	ide_hwif_t *hwif = HWIF(drive);
+	struct pci_dev *pdev = to_pci_dev(hwif->dev);
 	struct scatterlist *sg = hwif->sg_table;
 
 	ide_map_sg(drive, rq);
@@ -193,7 +194,7 @@ int ide_build_sglist(ide_drive_t *drive, struct request *rq)
 	else
 		hwif->sg_dma_direction = PCI_DMA_TODEVICE;
 
-	return pci_map_sg(hwif->pci_dev, sg, hwif->sg_nents, hwif->sg_dma_direction);
+	return pci_map_sg(pdev, sg, hwif->sg_nents, hwif->sg_dma_direction);
 }
 
 EXPORT_SYMBOL_GPL(ide_build_sglist);
@@ -306,11 +307,11 @@ EXPORT_SYMBOL_GPL(ide_build_dmatable);
  
 void ide_destroy_dmatable (ide_drive_t *drive)
 {
-	struct pci_dev *dev = HWIF(drive)->pci_dev;
-	struct scatterlist *sg = HWIF(drive)->sg_table;
-	int nents = HWIF(drive)->sg_nents;
+	ide_hwif_t *hwif = drive->hwif;
+	struct pci_dev *pdev = to_pci_dev(hwif->dev);
 
-	pci_unmap_sg(dev, sg, nents, HWIF(drive)->sg_dma_direction);
+	pci_unmap_sg(pdev, hwif->sg_table, hwif->sg_nents,
+		     hwif->sg_dma_direction);
 }
 
 EXPORT_SYMBOL_GPL(ide_destroy_dmatable);
@@ -843,10 +844,10 @@ EXPORT_SYMBOL(ide_dma_timeout);
 static void ide_release_dma_engine(ide_hwif_t *hwif)
 {
 	if (hwif->dmatable_cpu) {
-		pci_free_consistent(hwif->pci_dev,
-				    PRD_ENTRIES * PRD_BYTES,
-				    hwif->dmatable_cpu,
-				    hwif->dmatable_dma);
+		struct pci_dev *pdev = to_pci_dev(hwif->dev);
+
+		pci_free_consistent(pdev, PRD_ENTRIES * PRD_BYTES,
+				    hwif->dmatable_cpu, hwif->dmatable_dma);
 		hwif->dmatable_cpu = NULL;
 	}
 }
@@ -874,7 +875,9 @@ int ide_release_dma(ide_hwif_t *hwif)
 
 static int ide_allocate_dma_engine(ide_hwif_t *hwif)
 {
-	hwif->dmatable_cpu = pci_alloc_consistent(hwif->pci_dev,
+	struct pci_dev *pdev = to_pci_dev(hwif->dev);
+
+	hwif->dmatable_cpu = pci_alloc_consistent(pdev,
 						  PRD_ENTRIES * PRD_BYTES,
 						  &hwif->dmatable_dma);
 

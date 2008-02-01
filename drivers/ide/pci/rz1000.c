@@ -32,8 +32,8 @@
 
 static void __devinit init_hwif_rz1000 (ide_hwif_t *hwif)
 {
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	u16 reg;
-	struct pci_dev *dev = hwif->pci_dev;
 
 	if (!pci_read_config_word (dev, 0x40, &reg) &&
 	    !pci_write_config_word(dev, 0x40, reg & 0xdfff)) {

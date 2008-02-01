@@ -87,7 +87,7 @@ delkin_cb_probe (struct pci_dev *dev, const struct pci_device_id *id)
 		return -ENODEV;
 	}
 	pci_set_drvdata(dev, hwif);
-	hwif->pci_dev = dev;
+	hwif->dev = &dev->dev;
 	drive = &hwif->drives[0];
 	if (drive->present) {
 		drive->io_32bit = 1;

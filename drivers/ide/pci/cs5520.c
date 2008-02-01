@@ -69,7 +69,7 @@ static struct pio_clocks cs5520_pio_clocks[]={
 static void cs5520_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	ide_hwif_t *hwif = HWIF(drive);
-	struct pci_dev *pdev = hwif->pci_dev;
+	struct pci_dev *pdev = to_pci_dev(hwif->dev);
 	int controller = drive->dn > 1 ? 1 : 0;
 
 	/* FIXME: if DMA = 1 do we need to set the DMA bit here ? */

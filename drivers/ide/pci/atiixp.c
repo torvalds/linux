@@ -55,7 +55,7 @@ static DEFINE_SPINLOCK(atiixp_lock);
 
 static void atiixp_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	struct pci_dev *dev = drive->hwif->pci_dev;
+	struct pci_dev *dev = to_pci_dev(drive->hwif->dev);
 	unsigned long flags;
 	int timing_shift = (drive->dn & 2) ? 16 : 0 + (drive->dn & 1) ? 0 : 8;
 	u32 pio_timing_data;
@@ -88,7 +88,7 @@ static void atiixp_set_pio_mode(ide_drive_t *drive, const u8 pio)
 
 static void atiixp_set_dma_mode(ide_drive_t *drive, const u8 speed)
 {
-	struct pci_dev *dev = drive->hwif->pci_dev;
+	struct pci_dev *dev = to_pci_dev(drive->hwif->dev);
 	unsigned long flags;
 	int timing_shift = (drive->dn & 2) ? 16 : 0 + (drive->dn & 1) ? 0 : 8;
 	u32 tmp32;
@@ -133,9 +133,8 @@ static void atiixp_set_dma_mode(ide_drive_t *drive, const u8 speed)
 
 static void __devinit init_hwif_atiixp(ide_hwif_t *hwif)
 {
-	u8 udma_mode = 0;
-	u8 ch = hwif->channel;
-	struct pci_dev *pdev = hwif->pci_dev;
+	struct pci_dev *pdev = to_pci_dev(hwif->dev);
+	u8 udma_mode = 0, ch = hwif->channel;
 
 	hwif->set_pio_mode = &atiixp_set_pio_mode;
 	hwif->set_dma_mode = &atiixp_set_dma_mode;

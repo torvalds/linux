@@ -622,8 +622,8 @@ static void hwif_register (ide_hwif_t *hwif)
 	strlcpy(hwif->gendev.bus_id,hwif->name,BUS_ID_SIZE);
 	hwif->gendev.driver_data = hwif;
 	if (hwif->gendev.parent == NULL) {
-		if (hwif->pci_dev)
-			hwif->gendev.parent = &hwif->pci_dev->dev;
+		if (hwif->dev)
+			hwif->gendev.parent = hwif->dev;
 		else
 			/* Would like to do = &device_legacy */
 			hwif->gendev.parent = NULL;

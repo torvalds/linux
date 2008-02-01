@@ -503,7 +503,8 @@ typedef struct hwif_s {
 
 	hwif_chipset_t chipset;	/* sub-module for tuning.. */
 
-	struct pci_dev  *pci_dev;	/* for pci chipsets */
+	struct device *dev;
+
 	const struct ide_port_info *cds;	/* chipset device struct */
 
 	ide_ack_intr_t *ack_intr;
@@ -1299,7 +1300,7 @@ static inline void ide_dump_identify(u8 *id)
 
 static inline int hwif_to_node(ide_hwif_t *hwif)
 {
-	struct pci_dev *dev = hwif->pci_dev;
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	return dev ? pcibus_to_node(dev->bus) : -1;
 }
 
