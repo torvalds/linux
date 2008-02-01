@@ -316,12 +316,9 @@ static void nfs4_opendata_put(struct nfs4_opendata *p)
 
 static int nfs4_wait_for_completion_rpc_task(struct rpc_task *task)
 {
-	sigset_t oldset;
 	int ret;
 
-	rpc_clnt_sigmask(task->tk_client, &oldset);
 	ret = rpc_wait_for_completion_task(task);
-	rpc_clnt_sigunmask(task->tk_client, &oldset);
 	return ret;
 }
 
@@ -2785,9 +2782,9 @@ nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server)
 	return 0;
 }
 
-static int nfs4_wait_bit_interruptible(void *word)
+static int nfs4_wait_bit_killable(void *word)
 {
-	if (signal_pending(current))
+	if (fatal_signal_pending(current))
 		return -ERESTARTSYS;
 	schedule();
 	return 0;
@@ -2795,18 +2792,14 @@ static int nfs4_wait_bit_interruptible(void *word)
 
 static int nfs4_wait_clnt_recover(struct rpc_clnt *clnt, struct nfs_client *clp)
 {
-	sigset_t oldset;
 	int res;
 
 	might_sleep();
 
 	rwsem_acquire(&clp->cl_sem.dep_map, 0, 0, _RET_IP_);
 
-	rpc_clnt_sigmask(clnt, &oldset);
 	res = wait_on_bit(&clp->cl_state, NFS4CLNT_STATE_RECOVER,
-			nfs4_wait_bit_interruptible,
-			TASK_INTERRUPTIBLE);
-	rpc_clnt_sigunmask(clnt, &oldset);
+			nfs4_wait_bit_killable, TASK_KILLABLE);
 
 	rwsem_release(&clp->cl_sem.dep_map, 1, _RET_IP_);
 	return res;
@@ -2814,7 +2807,6 @@ static int nfs4_wait_clnt_recover(struct rpc_clnt *clnt, struct nfs_client *clp)
 
 static int nfs4_delay(struct rpc_clnt *clnt, long *timeout)
 {
-	sigset_t oldset;
 	int res = 0;
 
 	might_sleep();
@@ -2823,14 +2815,9 @@ static int nfs4_delay(struct rpc_clnt *clnt, long *timeout)
 		*timeout = NFS4_POLL_RETRY_MIN;
 	if (*timeout > NFS4_POLL_RETRY_MAX)
 		*timeout = NFS4_POLL_RETRY_MAX;
-	rpc_clnt_sigmask(clnt, &oldset);
-	if (clnt->cl_intr) {
-		schedule_timeout_interruptible(*timeout);
-		if (signalled())
-			res = -ERESTARTSYS;
-	} else
-		schedule_timeout_uninterruptible(*timeout);
-	rpc_clnt_sigunmask(clnt, &oldset);
+	schedule_timeout_killable(*timeout);
+	if (fatal_signal_pending(current))
+		res = -ERESTARTSYS;
 	*timeout <<= 1;
 	return res;
 }
@@ -3069,7 +3056,7 @@ int nfs4_proc_delegreturn(struct inode *inode, struct rpc_cred *cred, const nfs4
 static unsigned long
 nfs4_set_lock_task_retry(unsigned long timeout)
 {
-	schedule_timeout_interruptible(timeout);
+	schedule_timeout_killable(timeout);
 	timeout <<= 1;
 	if (timeout > NFS4_LOCK_MAXTIMEOUT)
 		return NFS4_LOCK_MAXTIMEOUT;

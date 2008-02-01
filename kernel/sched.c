@@ -1350,7 +1350,7 @@ static int effective_prio(struct task_struct *p)
  */
 static void activate_task(struct rq *rq, struct task_struct *p, int wakeup)
 {
-	if (p->state == TASK_UNINTERRUPTIBLE)
+	if (task_contributes_to_load(p))
 		rq->nr_uninterruptible--;
 
 	enqueue_task(rq, p, wakeup);
@@ -1362,7 +1362,7 @@ static void activate_task(struct rq *rq, struct task_struct *p, int wakeup)
  */
 static void deactivate_task(struct rq *rq, struct task_struct *p, int sleep)
 {
-	if (p->state == TASK_UNINTERRUPTIBLE)
+	if (task_contributes_to_load(p))
 		rq->nr_uninterruptible++;
 
 	dequeue_task(rq, p, sleep);
@@ -1895,8 +1895,7 @@ out:
 
 int fastcall wake_up_process(struct task_struct *p)
 {
-	return try_to_wake_up(p, TASK_STOPPED | TASK_TRACED |
-				 TASK_INTERRUPTIBLE | TASK_UNINTERRUPTIBLE, 0);
+	return try_to_wake_up(p, TASK_ALL, 0);
 }
 EXPORT_SYMBOL(wake_up_process);
 
@@ -4124,8 +4123,7 @@ void complete(struct completion *x)
 
 	spin_lock_irqsave(&x->wait.lock, flags);
 	x->done++;
-	__wake_up_common(&x->wait, TASK_UNINTERRUPTIBLE | TASK_INTERRUPTIBLE,
-			 1, 0, NULL);
+	__wake_up_common(&x->wait, TASK_NORMAL, 1, 0, NULL);
 	spin_unlock_irqrestore(&x->wait.lock, flags);
 }
 EXPORT_SYMBOL(complete);
@@ -4136,8 +4134,7 @@ void complete_all(struct completion *x)
 
 	spin_lock_irqsave(&x->wait.lock, flags);
 	x->done += UINT_MAX/2;
-	__wake_up_common(&x->wait, TASK_UNINTERRUPTIBLE | TASK_INTERRUPTIBLE,
-			 0, 0, NULL);
+	__wake_up_common(&x->wait, TASK_NORMAL, 0, 0, NULL);
 	spin_unlock_irqrestore(&x->wait.lock, flags);
 }
 EXPORT_SYMBOL(complete_all);
@@ -4151,8 +4148,10 @@ do_wait_for_common(struct completion *x, long timeout, int state)
 		wait.flags |= WQ_FLAG_EXCLUSIVE;
 		__add_wait_queue_tail(&x->wait, &wait);
 		do {
-			if (state == TASK_INTERRUPTIBLE &&
-			    signal_pending(current)) {
+			if ((state == TASK_INTERRUPTIBLE &&
+			     signal_pending(current)) ||
+			    (state == TASK_KILLABLE &&
+			     fatal_signal_pending(current))) {
 				__remove_wait_queue(&x->wait, &wait);
 				return -ERESTARTSYS;
 			}
@@ -4211,6 +4210,15 @@ wait_for_completion_interruptible_timeout(struct completion *x,
 	return wait_for_common(x, timeout, TASK_INTERRUPTIBLE);
 }
 EXPORT_SYMBOL(wait_for_completion_interruptible_timeout);
+
+int __sched wait_for_completion_killable(struct completion *x)
+{
+	long t = wait_for_common(x, MAX_SCHEDULE_TIMEOUT, TASK_KILLABLE);
+	if (t == -ERESTARTSYS)
+		return t;
+	return 0;
+}
+EXPORT_SYMBOL(wait_for_completion_killable);
 
 static long __sched
 sleep_on_common(wait_queue_head_t *q, int state, long timeout)

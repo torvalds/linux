@@ -386,7 +386,7 @@ found_client:
 	if (new)
 		nfs_free_client(new);
 
-	error = wait_event_interruptible(nfs_client_active_wq,
+	error = wait_event_killable(nfs_client_active_wq,
 				clp->cl_cons_state != NFS_CS_INITING);
 	if (error < 0) {
 		nfs_put_client(clp);
@@ -588,10 +588,6 @@ static int nfs_init_server_rpcclient(struct nfs_server *server,
 	server->client->cl_softrtry = 0;
 	if (server->flags & NFS_MOUNT_SOFT)
 		server->client->cl_softrtry = 1;
-
-	server->client->cl_intr = 0;
-	if (server->flags & NFS4_MOUNT_INTR)
-		server->client->cl_intr = 1;
 
 	return 0;
 }

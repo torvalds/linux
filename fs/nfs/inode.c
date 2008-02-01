@@ -433,15 +433,11 @@ static int nfs_wait_schedule(void *word)
  */
 static int nfs_wait_on_inode(struct inode *inode)
 {
-	struct rpc_clnt	*clnt = NFS_CLIENT(inode);
 	struct nfs_inode *nfsi = NFS_I(inode);
-	sigset_t oldmask;
 	int error;
 
-	rpc_clnt_sigmask(clnt, &oldmask);
 	error = wait_on_bit_lock(&nfsi->flags, NFS_INO_REVALIDATING,
-					nfs_wait_schedule, TASK_INTERRUPTIBLE);
-	rpc_clnt_sigunmask(clnt, &oldmask);
+					nfs_wait_schedule, TASK_KILLABLE);
 
 	return error;
 }

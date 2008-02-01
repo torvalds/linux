@@ -385,7 +385,6 @@ rpcauth_bindcred(struct rpc_task *task)
 		.group_info = current->group_info,
 	};
 	struct rpc_cred *ret;
-	sigset_t oldset;
 	int flags = 0;
 
 	dprintk("RPC: %5u looking up %s cred\n",
@@ -393,9 +392,7 @@ rpcauth_bindcred(struct rpc_task *task)
 	get_group_info(acred.group_info);
 	if (task->tk_flags & RPC_TASK_ROOTCREDS)
 		flags |= RPCAUTH_LOOKUP_ROOTCREDS;
-	rpc_clnt_sigmask(task->tk_client, &oldset);
 	ret = auth->au_ops->lookup_cred(auth, &acred, flags);
-	rpc_clnt_sigunmask(task->tk_client, &oldset);
 	if (!IS_ERR(ret))
 		task->tk_msg.rpc_cred = ret;
 	else

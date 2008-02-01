@@ -199,7 +199,7 @@ static int proc_root_link(struct inode *inode, struct dentry **dentry, struct vf
 	(task == current || \
 	(task->parent == current && \
 	(task->ptrace & PT_PTRACED) && \
-	 (task->state == TASK_STOPPED || task->state == TASK_TRACED) && \
+	 (task_is_stopped_or_traced(task)) && \
 	 security_ptrace(current,task) == 0))
 
 struct mm_struct *mm_for_maps(struct task_struct *task)

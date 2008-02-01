@@ -488,7 +488,7 @@ int nfs_reschedule_unstable_write(struct nfs_page *req)
 /*
  * Wait for a request to complete.
  *
- * Interruptible by signals only if mounted with intr flag.
+ * Interruptible by fatal signals only.
  */
 static int nfs_wait_on_requests_locked(struct inode *inode, pgoff_t idx_start, unsigned int npages)
 {

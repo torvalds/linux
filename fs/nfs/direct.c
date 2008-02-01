@@ -188,17 +188,12 @@ static void nfs_direct_req_release(struct nfs_direct_req *dreq)
 static ssize_t nfs_direct_wait(struct nfs_direct_req *dreq)
 {
 	ssize_t result = -EIOCBQUEUED;
-	struct rpc_clnt *clnt;
-	sigset_t oldset;
 
 	/* Async requests don't wait here */
 	if (dreq->iocb)
 		goto out;
 
-	clnt = NFS_CLIENT(dreq->inode);
-	rpc_clnt_sigmask(clnt, &oldset);
-	result = wait_for_completion_interruptible(&dreq->completion);
-	rpc_clnt_sigunmask(clnt, &oldset);
+	result = wait_for_completion_killable(&dreq->completion);
 
 	if (!result)
 		result = dreq->error;

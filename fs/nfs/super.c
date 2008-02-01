@@ -448,7 +448,6 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss, 
 		const char *nostr;
 	} nfs_info[] = {
 		{ NFS_MOUNT_SOFT, ",soft", ",hard" },
-		{ NFS_MOUNT_INTR, ",intr", ",nointr" },
 		{ NFS_MOUNT_NOCTO, ",nocto", "" },
 		{ NFS_MOUNT_NOAC, ",noac", "" },
 		{ NFS_MOUNT_NONLM, ",nolock", "" },
@@ -708,10 +707,7 @@ static int nfs_parse_mount_options(char *raw,
 			mnt->flags &= ~NFS_MOUNT_SOFT;
 			break;
 		case Opt_intr:
-			mnt->flags |= NFS_MOUNT_INTR;
-			break;
 		case Opt_nointr:
-			mnt->flags &= ~NFS_MOUNT_INTR;
 			break;
 		case Opt_posix:
 			mnt->flags |= NFS_MOUNT_POSIX;

@@ -556,14 +556,7 @@ extern void * nfs_root_data(void);
 
 #define nfs_wait_event(clnt, wq, condition)				\
 ({									\
-	int __retval = 0;						\
-	if (clnt->cl_intr) {						\
-		sigset_t oldmask;					\
-		rpc_clnt_sigmask(clnt, &oldmask);			\
-		__retval = wait_event_interruptible(wq, condition);	\
-		rpc_clnt_sigunmask(clnt, &oldmask);			\
-	} else								\
-		wait_event(wq, condition);				\
+	int __retval = wait_event_killable(wq, condition);		\
 	__retval;							\
 })
 
