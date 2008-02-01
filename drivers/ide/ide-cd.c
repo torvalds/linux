@@ -2017,38 +2017,6 @@ static int ide_cd_read_tochdr(ide_drive_t *drive, void *arg)
 	return 0;
 }
 
-/* ATAPI cdrom drives are free to select the speed you request or any slower
-   rate :-( Requesting too fast a speed will _not_ produce an error. */
-static int cdrom_select_speed(ide_drive_t *drive, int speed,
-			      struct request_sense *sense)
-{
-	struct cdrom_info *cd = drive->driver_data;
-	struct cdrom_device_info *cdi = &cd->devinfo;
-	struct request req;
-	cdrom_prepare_request(drive, &req);
-
-	req.sense = sense;
-	if (speed == 0)
-		speed = 0xffff; /* set to max */
-	else
-		speed *= 177;   /* Nx to kbytes/s */
-
-	req.cmd[0] = GPCMD_SET_SPEED;
-	/* Read Drive speed in kbytes/second MSB */
-	req.cmd[2] = (speed >> 8) & 0xff;	
-	/* Read Drive speed in kbytes/second LSB */
-	req.cmd[3] = speed & 0xff;
-	if ((cdi->mask & (CDC_CD_R | CDC_CD_RW | CDC_DVD_R)) !=
-	    (CDC_CD_R | CDC_CD_RW | CDC_DVD_R)) {
-		/* Write Drive speed in kbytes/second MSB */
-		req.cmd[4] = (speed >> 8) & 0xff;
-		/* Write Drive speed in kbytes/second LSB */
-		req.cmd[5] = speed & 0xff;
-       }
-
-	return cdrom_queue_packet_command(drive, &req);
-}
-
 static int cdrom_get_toc_entry(ide_drive_t *drive, int track,
 				struct atapi_toc_entry **ent)
 {
@@ -2272,23 +2240,47 @@ static void ide_cdrom_update_speed(ide_drive_t *drive, u8 *buf)
 	cd->max_speed = (maxspeed + (176/2)) / 176;
 }
 
-static
-int ide_cdrom_select_speed (struct cdrom_device_info *cdi, int speed)
+/*
+ * ATAPI devices are free to select the speed you request or any slower
+ * rate. :-(  Requesting too fast a speed will _not_ produce an error.
+ */
+static int ide_cdrom_select_speed(struct cdrom_device_info *cdi, int speed)
 {
 	ide_drive_t *drive = cdi->handle;
 	struct cdrom_info *cd = drive->driver_data;
+	struct request rq;
 	struct request_sense sense;
 	u8 buf[ATAPI_CAPABILITIES_PAGE_SIZE];
 	int stat;
 
-	if ((stat = cdrom_select_speed(drive, speed, &sense)) < 0)
-		return stat;
+	cdrom_prepare_request(drive, &rq);
+
+	rq.sense = &sense;
+
+	if (speed == 0)
+		speed = 0xffff; /* set to max */
+	else
+		speed *= 177;   /* Nx to kbytes/s */
+
+	rq.cmd[0] = GPCMD_SET_SPEED;
+	/* Read Drive speed in kbytes/second MSB/LSB */
+	rq.cmd[2] = (speed >> 8) & 0xff;
+	rq.cmd[3] = speed & 0xff;
+	if ((cdi->mask & (CDC_CD_R | CDC_CD_RW | CDC_DVD_R)) !=
+	    (CDC_CD_R | CDC_CD_RW | CDC_DVD_R)) {
+		/* Write Drive speed in kbytes/second MSB/LSB */
+		rq.cmd[4] = (speed >> 8) & 0xff;
+		rq.cmd[5] = speed & 0xff;
+	}
+
+	stat = cdrom_queue_packet_command(drive, &rq);
 
 	if (!ide_cdrom_get_capabilities(drive, buf)) {
 		ide_cdrom_update_speed(drive, buf);
 		cdi->speed = cd->current_speed;
 	}
-        return 0;
+
+	return 0;
 }
 
 /*
