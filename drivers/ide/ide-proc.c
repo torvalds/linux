@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/ide/ide-proc.c	Version 1.05	Mar 05, 2003
- *
  *  Copyright (C) 1997-1998	Mark Lord
  *  Copyright (C) 2003		Red Hat <alan@redhat.com>
  *

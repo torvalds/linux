@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/ide/ide-disk.c	Version 1.18	Mar 05, 2003
- *
  *  Copyright (C) 1994-1998  Linus Torvalds & authors (see below)
  *  Copyright (C) 1998-2002  Linux ATA Development
  *				Andre Hedrick <andre@linux-ide.org>

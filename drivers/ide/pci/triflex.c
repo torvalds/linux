@@ -1,6 +1,4 @@
 /*
- * triflex.c
- * 
  * IDE Chipset driver for the Compaq TriFlex IDE controller.
  * 
  * Known to work with the Compaq Workstation 5x00 series.

@@ -1,6 +1,4 @@
 /*
- * linux/drivers/ide/pci/sis5513.c	Version 0.31	Aug 9, 2007
- *
  * Copyright (C) 1999-2000	Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2002		Lionel Bouton <Lionel.Bouton@inet6.fr>, Maintainer
  * Copyright (C) 2003		Vojtech Pavlik <vojtech@suse.cz>

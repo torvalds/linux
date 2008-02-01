@@ -1,6 +1,4 @@
 /*
- * linux/drivers/ide/pci/cs5535.c
- *
  * Copyright (C) 2004-2005 Advanced Micro Devices, Inc.
  * Copyright (C)      2007 Bartlomiej Zolnierkiewicz
  *

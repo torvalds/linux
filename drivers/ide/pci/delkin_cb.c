@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/ide/pci/delkin_cb.c
- *
  *  Created 20 Oct 2004 by Mark Lord
  *
  *  Basic support for Delkin/ASKA/Workbit Cardbus CompactFlash adapter

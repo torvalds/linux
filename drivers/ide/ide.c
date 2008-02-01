@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/ide/ide.c		Version 7.00beta2	Mar 05 2003
- *
  *  Copyright (C) 1994-1998  Linus Torvalds & authors (see below)
  */
 
@@ -46,7 +44,6 @@
  */
 
 #define	REVISION	"Revision: 7.00alpha2"
-#define	VERSION		"Id: ide.c 7.00a2 20020906"
 
 #define _IDE_C			/* Tell ide.h it's really us */
 

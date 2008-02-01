@@ -1,7 +1,6 @@
 /*
- *  linux/drivers/ide/ide-dma.c		Version 4.10	June 9, 2000
- *
  *  Copyright (c) 1999-2000	Andre Hedrick <andre@linux-ide.org>
+ *
  *  May be copied or modified under the terms of the GNU General Public License
  */
 

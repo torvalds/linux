@@ -1,8 +1,7 @@
 /*
- *  linux/drivers/ide/pci/trm290.c		Version 1.05	Dec. 30, 2007
- *
  *  Copyright (c) 1997-1998  Mark Lord
  *  Copyright (c) 2007       MontaVista Software, Inc. <source@mvista.com>
+ *
  *  May be copied or modified under the terms of the GNU General Public License
  *
  *  June 22, 2004 - get rid of check_region

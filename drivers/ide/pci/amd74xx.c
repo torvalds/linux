@@ -1,6 +1,4 @@
 /*
- * Version 2.25
- *
  * AMD 755/756/766/8111 and nVidia nForce/2/2s/3/3s/CK804/MCP04
  * IDE driver for Linux.
  *

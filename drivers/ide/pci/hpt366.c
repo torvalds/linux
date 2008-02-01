@@ -1,6 +1,4 @@
 /*
- * linux/drivers/ide/pci/hpt366.c		Version 1.30	Dec 12, 2007
- *
  * Copyright (C) 1999-2003		Andre Hedrick <andre@linux-ide.org>
  * Portions Copyright (C) 2001	        Sun Microsystems, Inc.
  * Portions Copyright (C) 2003		Red Hat Inc

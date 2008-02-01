@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/ide/pci/pdc202xx_old.c	Version 0.52	Aug 27, 2007
- *
  *  Copyright (C) 1998-2002		Andre Hedrick <andre@linux-ide.org>
  *  Copyright (C) 2006-2007		MontaVista Software, Inc.
  *  Copyright (C) 2007			Bartlomiej Zolnierkiewicz

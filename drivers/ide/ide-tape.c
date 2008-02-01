@@ -1,6 +1,4 @@
 /*
- * linux/drivers/ide/ide-tape.c		Version 1.19	Nov, 2003
- *
  * Copyright (C) 1995 - 1999 Gadi Oxman <gadio@netvision.net.il>
  *
  * $Header$

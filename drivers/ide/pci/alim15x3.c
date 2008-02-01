@@ -1,6 +1,4 @@
 /*
- * linux/drivers/ide/pci/alim15x3.c		Version 0.29	Sep 16 2007
- *
  *  Copyright (C) 1998-2000 Michel Aubry, Maintainer
  *  Copyright (C) 1998-2000 Andrzej Krzysztofowicz, Maintainer
  *  Copyright (C) 1999-2000 CJ, cjtsai@ali.com.tw, Maintainer

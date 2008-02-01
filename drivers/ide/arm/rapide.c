@@ -1,6 +1,4 @@
 /*
- * linux/drivers/ide/arm/rapide.c
- *
  * Copyright (c) 1996-2002 Russell King.
  */
 

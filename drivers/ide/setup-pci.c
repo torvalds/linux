@@ -1,9 +1,7 @@
 /*
- *  linux/drivers/ide/setup-pci.c		Version 1.10	2002/08/19
- *
  *  Copyright (c) 1998-2000  Andre Hedrick <andre@linux-ide.org>
- *
  *  Copyright (c) 1995-1998  Mark Lord
+ *
  *  May be copied or modified under the terms of the GNU General Public License
  */
 

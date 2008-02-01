@@ -1,6 +1,4 @@
 /*
- * linux/drivers/scsi/ide-scsi.c	Version 0.9		Jul   4, 1999
- *
  * Copyright (C) 1996 - 1999 Gadi Oxman <gadio@netvision.net.il>
  */
 

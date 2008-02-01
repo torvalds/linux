@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/ide/ide-probe.c	Version 1.11	Mar 05, 2003
- *
  *  Copyright (C) 1994-1998  Linus Torvalds & authors (see below)
  */
 

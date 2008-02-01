@@ -1,6 +1,4 @@
 /*
- * linux/drivers/ide/pci/siimage.c		Version 1.19	Nov 16 2007
- *
  * Copyright (C) 2001-2002	Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2003		Red Hat <alan@redhat.com>
  * Copyright (C) 2007		MontaVista Software, Inc.

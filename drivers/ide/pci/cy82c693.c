@@ -1,6 +1,4 @@
 /*
- * linux/drivers/ide/pci/cy82c693.c		Version 0.44	Nov 8, 2007
- *
  *  Copyright (C) 1998-2000 Andreas S. Krebs (akrebs@altavista.net), Maintainer
  *  Copyright (C) 1998-2002 Andre Hedrick <andre@linux-ide.org>, Integrator
  *

@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/ide/pci/rz1000.c	Version 0.06	January 12, 2003
- *
  *  Copyright (C) 1995-1998  Linus Torvalds & author (see below)
  */
 

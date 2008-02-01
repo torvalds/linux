@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/ide/pci/atiixp.c	Version 0.05	Nov 9 2007
- *
  *  Copyright (C) 2003 ATI Inc. <hyu@ati.com>
  *  Copyright (C) 2004,2007 Bartlomiej Zolnierkiewicz
  */

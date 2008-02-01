@@ -1,6 +1,4 @@
 /*
- * linux/drivers/ide/pci/cmd64x.c		Version 1.53	Dec 24, 2007
- *
  * cmd64x.c: Enable interrupts at initialization time on Ultra/PCI machines.
  *           Due to massive hardware bugs, UltraDMA is only supported
  *           on the 646U2 and not on the 646U.

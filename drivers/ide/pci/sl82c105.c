@@ -1,6 +1,4 @@
 /*
- * linux/drivers/ide/pci/sl82c105.c
- *
  * SL82C105/Winbond 553 IDE driver
  *
  * Maintainer unknown.

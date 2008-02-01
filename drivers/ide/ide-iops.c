@@ -1,6 +1,4 @@
 /*
- * linux/drivers/ide/ide-iops.c	Version 0.37	Mar 05, 2003
- *
  *  Copyright (C) 2000-2002	Andre Hedrick <andre@linux-ide.org>
  *  Copyright (C) 2003		Red Hat <alan@redhat.com>
  *

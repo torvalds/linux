@@ -1,6 +1,4 @@
 /*
- * drivers/ide/pci/tc86c001.c	Version 1.01	Sep 5, 2007
- *
  * Copyright (C) 2002 Toshiba Corporation
  * Copyright (C) 2005-2006 MontaVista Software, Inc. <source@mvista.com>
  *

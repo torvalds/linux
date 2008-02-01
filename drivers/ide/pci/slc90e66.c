@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/ide/pci/slc90e66.c	Version 0.19	Sep 24, 2007
- *
  *  Copyright (C) 2000-2002 Andre Hedrick <andre@linux-ide.org>
  *  Copyright (C) 2006-2007 MontaVista Software, Inc. <source@mvista.com>
  *

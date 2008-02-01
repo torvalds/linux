@@ -1,5 +1,4 @@
 /*
- * ide-acpi.c
  * Provides ACPI support for IDE drives.
  *
  * Copyright (C) 2005 Intel Corp.

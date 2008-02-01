@@ -1,7 +1,4 @@
-
 /*
- * linux/drivers/ide/pci/it821x.c		Version 0.16	Jul 3 2007
- *
  * Copyright (C) 2004		Red Hat <alan@redhat.com>
  * Copyright (C) 2007		Bartlomiej Zolnierkiewicz
  *
