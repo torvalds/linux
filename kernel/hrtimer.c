@@ -1340,8 +1340,6 @@ long __sched hrtimer_nanosleep_restart(struct restart_block *restart)
 	struct hrtimer_sleeper t;
 	struct timespec __user  *rmtp;
 
-	restart->fn = do_no_restart_syscall;
-
 	hrtimer_init(&t.timer, restart->arg0, HRTIMER_MODE_ABS);
 	t.timer.expires.tv64 = ((u64)restart->arg3 << 32) | (u64) restart->arg2;
 
@@ -1354,8 +1352,6 @@ long __sched hrtimer_nanosleep_restart(struct restart_block *restart)
 		if (ret <= 0)
 			return ret;
 	}
-
-	restart->fn = hrtimer_nanosleep_restart;
 
 	/* The other values in restart are already filled in */
 	return -ERESTART_RESTARTBLOCK;

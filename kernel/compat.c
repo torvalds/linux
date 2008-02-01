@@ -55,7 +55,6 @@ static long compat_nanosleep_restart(struct restart_block *restart)
 	set_fs(oldfs);
 
 	if (ret) {
-		restart->fn = compat_nanosleep_restart;
 		restart->arg1 = (unsigned long)rmtp;
 
 		if (rmtp && put_compat_timespec(&rmt, rmtp))
