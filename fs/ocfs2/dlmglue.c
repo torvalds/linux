@@ -112,7 +112,8 @@ static void ocfs2_dump_meta_lvb_info(u64 level,
 				     unsigned int line,
 				     struct ocfs2_lock_res *lockres)
 {
-	struct ocfs2_meta_lvb *lvb = (struct ocfs2_meta_lvb *) lockres->l_lksb.lvb;
+	struct ocfs2_meta_lvb *lvb =
+		(struct ocfs2_meta_lvb *)ocfs2_dlm_lvb(&lockres->l_lksb);
 
 	mlog(level, "LVB information for %s (called from %s:%u):\n",
 	     lockres->l_name, function, line);
@@ -799,14 +800,14 @@ static void ocfs2_blocking_ast(void *opaque, int level)
 static void ocfs2_locking_ast(void *opaque)
 {
 	struct ocfs2_lock_res *lockres = opaque;
-	struct dlm_lockstatus *lksb = &lockres->l_lksb;
 	unsigned long flags;
 
 	spin_lock_irqsave(&lockres->l_lock, flags);
 
-	if (lksb->status != DLM_NORMAL) {
-		mlog(ML_ERROR, "lockres %s: lksb status value of %u!\n",
-		     lockres->l_name, lksb->status);
+	if (ocfs2_dlm_lock_status(&lockres->l_lksb)) {
+		mlog(ML_ERROR, "lockres %s: lksb status value of %d!\n",
+		     lockres->l_name,
+		     ocfs2_dlm_lock_status(&lockres->l_lksb));
 		spin_unlock_irqrestore(&lockres->l_lock, flags);
 		return;
 	}
@@ -1634,7 +1635,7 @@ static void __ocfs2_stuff_meta_lvb(struct inode *inode)
 
 	mlog_entry_void();
 
-	lvb = (struct ocfs2_meta_lvb *) lockres->l_lksb.lvb;
+	lvb = (struct ocfs2_meta_lvb *)ocfs2_dlm_lvb(&lockres->l_lksb);
 
 	/*
 	 * Invalidate the LVB of a deleted inode - this way other
@@ -1686,7 +1687,7 @@ static void ocfs2_refresh_inode_from_lvb(struct inode *inode)
 
 	mlog_meta_lvb(0, lockres);
 
-	lvb = (struct ocfs2_meta_lvb *) lockres->l_lksb.lvb;
+	lvb = (struct ocfs2_meta_lvb *)ocfs2_dlm_lvb(&lockres->l_lksb);
 
 	/* We're safe here without the lockres lock... */
 	spin_lock(&oi->ip_lock);
@@ -1721,7 +1722,8 @@ static void ocfs2_refresh_inode_from_lvb(struct inode *inode)
 static inline int ocfs2_meta_lvb_is_trustable(struct inode *inode,
 					      struct ocfs2_lock_res *lockres)
 {
-	struct ocfs2_meta_lvb *lvb = (struct ocfs2_meta_lvb *) lockres->l_lksb.lvb;
+	struct ocfs2_meta_lvb *lvb =
+		(struct ocfs2_meta_lvb *)ocfs2_dlm_lvb(&lockres->l_lksb);
 
 	if (lvb->lvb_version == OCFS2_LVB_VERSION
 	    && be32_to_cpu(lvb->lvb_igeneration) == inode->i_generation)
@@ -2379,7 +2381,7 @@ static int ocfs2_dlm_seq_show(struct seq_file *m, void *v)
 		   lockres->l_blocking);
 
 	/* Dump the raw LVB */
-	lvb = lockres->l_lksb.lvb;
+	lvb = ocfs2_dlm_lvb(&lockres->l_lksb);
 	for(i = 0; i < DLM_LVB_LEN; i++)
 		seq_printf(m, "0x%x\t", lvb[i]);
 
@@ -2692,7 +2694,8 @@ static int ocfs2_drop_lock(struct ocfs2_super *osb,
 	if (ret) {
 		ocfs2_log_dlm_error("ocfs2_dlm_unlock", ret, lockres);
 		mlog(ML_ERROR, "lockres flags: %lu\n", lockres->l_flags);
-		dlm_print_one_lock(lockres->l_lksb.lockid);
+		/* XXX Need to abstract this */
+		dlm_print_one_lock(lockres->l_lksb.lksb_o2dlm.lockid);
 		BUG();
 	}
 	mlog(0, "lock %s, successfull return from ocfs2_dlm_unlock\n",

@@ -40,17 +40,24 @@ struct ocfs2_locking_protocol {
 	void (*lp_unlock_ast)(void *astarg, int error);
 };
 
+union ocfs2_dlm_lksb {
+	struct dlm_lockstatus lksb_o2dlm;
+};
+
 int ocfs2_dlm_lock(struct dlm_ctxt *dlm,
 		   int mode,
-		   struct dlm_lockstatus *lksb,
+		   union ocfs2_dlm_lksb *lksb,
 		   u32 flags,
 		   void *name,
 		   unsigned int namelen,
 		   void *astarg);
 int ocfs2_dlm_unlock(struct dlm_ctxt *dlm,
-		     struct dlm_lockstatus *lksb,
+		     union ocfs2_dlm_lksb *lksb,
 		     u32 flags,
 		     void *astarg);
+
+int ocfs2_dlm_lock_status(union ocfs2_dlm_lksb *lksb);
+void *ocfs2_dlm_lvb(union ocfs2_dlm_lksb *lksb);
 
 void o2cb_get_stack(struct ocfs2_locking_protocol *proto);
 void o2cb_put_stack(void);

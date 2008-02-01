@@ -40,7 +40,8 @@
 #include "cluster/heartbeat.h"
 #include "cluster/tcp.h"
 
-#include "dlm/dlmapi.h"
+/* For union ocfs2_dlm_lksb */
+#include "stackglue.h"
 
 #include "ocfs2_fs.h"
 #include "ocfs2_lockid.h"
@@ -120,7 +121,7 @@ struct ocfs2_lock_res {
 	int                      l_level;
 	unsigned int             l_ro_holders;
 	unsigned int             l_ex_holders;
-	struct dlm_lockstatus    l_lksb;
+	union ocfs2_dlm_lksb     l_lksb;
 
 	/* used from AST/BAST funcs. */
 	enum ocfs2_ast_action    l_action;

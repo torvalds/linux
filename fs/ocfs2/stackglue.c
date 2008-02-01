@@ -199,7 +199,7 @@ static void o2dlm_unlock_ast_wrapper(void *astarg, enum dlm_status status)
 
 int ocfs2_dlm_lock(struct dlm_ctxt *dlm,
 		   int mode,
-		   struct dlm_lockstatus *lksb,
+		   union ocfs2_dlm_lksb *lksb,
 		   u32 flags,
 		   void *name,
 		   unsigned int namelen,
@@ -212,15 +212,16 @@ int ocfs2_dlm_lock(struct dlm_ctxt *dlm,
 
 	BUG_ON(lproto == NULL);
 
-	status = dlmlock(dlm, o2dlm_mode, lksb, o2dlm_flags, name, namelen,
-		       o2dlm_lock_ast_wrapper, astarg,
-		       o2dlm_blocking_ast_wrapper);
+	status = dlmlock(dlm, o2dlm_mode, &lksb->lksb_o2dlm, o2dlm_flags,
+			 name, namelen,
+			 o2dlm_lock_ast_wrapper, astarg,
+			 o2dlm_blocking_ast_wrapper);
 	ret = dlm_status_to_errno(status);
 	return ret;
 }
 
 int ocfs2_dlm_unlock(struct dlm_ctxt *dlm,
-		     struct dlm_lockstatus *lksb,
+		     union ocfs2_dlm_lksb *lksb,
 		     u32 flags,
 		     void *astarg)
 {
@@ -230,12 +231,26 @@ int ocfs2_dlm_unlock(struct dlm_ctxt *dlm,
 
 	BUG_ON(lproto == NULL);
 
-	status = dlmunlock(dlm, lksb, o2dlm_flags,
-			 o2dlm_unlock_ast_wrapper, astarg);
+	status = dlmunlock(dlm, &lksb->lksb_o2dlm, o2dlm_flags,
+			   o2dlm_unlock_ast_wrapper, astarg);
 	ret = dlm_status_to_errno(status);
 	return ret;
 }
 
+int ocfs2_dlm_lock_status(union ocfs2_dlm_lksb *lksb)
+{
+	return dlm_status_to_errno(lksb->lksb_o2dlm.status);
+}
+
+/*
+ * Why don't we cast to ocfs2_meta_lvb?  The "clean" answer is that we
+ * don't cast at the glue level.  The real answer is that the header
+ * ordering is nigh impossible.
+ */
+void *ocfs2_dlm_lvb(union ocfs2_dlm_lksb *lksb)
+{
+	return (void *)(lksb->lksb_o2dlm.lvb);
+}
 
 void o2cb_get_stack(struct ocfs2_locking_protocol *proto)
 {
