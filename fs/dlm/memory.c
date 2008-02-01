@@ -18,7 +18,7 @@
 static struct kmem_cache *lkb_cache;
 
 
-int dlm_memory_init(void)
+int __init dlm_memory_init(void)
 {
 	int ret = 0;
 

@@ -902,7 +902,7 @@ static struct miscdevice ctl_device = {
 	.minor = MISC_DYNAMIC_MINOR,
 };
 
-int dlm_user_init(void)
+int __init dlm_user_init(void)
 {
 	int error;
 
