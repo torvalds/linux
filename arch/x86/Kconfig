@@ -44,6 +44,9 @@ config LOCKDEP_SUPPORT
 config STACKTRACE_SUPPORT
 	def_bool y
 
+config HAVE_LATENCYTOP_SUPPORT
+	def_bool y
+
 config SEMAPHORE_SLEEPERS
 	def_bool y
 
