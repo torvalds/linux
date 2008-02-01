@@ -179,6 +179,7 @@ enum ocfs2_mount_options
 #define OCFS2_DEFAULT_ATIME_QUANTUM	60
 
 struct ocfs2_journal;
+struct ocfs2_slot_info;
 struct ocfs2_super
 {
 	struct task_struct *commit_task;

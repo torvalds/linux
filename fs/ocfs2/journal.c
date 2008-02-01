@@ -1079,7 +1079,6 @@ static int ocfs2_recover_node(struct ocfs2_super *osb,
 {
 	int status = 0;
 	int slot_num;
-	struct ocfs2_slot_info *si = osb->slot_info;
 	struct ocfs2_dinode *la_copy = NULL;
 	struct ocfs2_dinode *tl_copy = NULL;
 
@@ -1092,8 +1091,8 @@ static int ocfs2_recover_node(struct ocfs2_super *osb,
 	 * case we should've called ocfs2_journal_load instead. */
 	BUG_ON(osb->node_num == node_num);
 
-	slot_num = ocfs2_node_num_to_slot(si, node_num);
-	if (slot_num == OCFS2_INVALID_SLOT) {
+	slot_num = ocfs2_node_num_to_slot(osb, node_num);
+	if (slot_num == -ENOENT) {
 		status = 0;
 		mlog(0, "no slot for this node, so no recovery required.\n");
 		goto done;
@@ -1183,23 +1182,24 @@ bail:
  * slot info struct has been updated from disk. */
 int ocfs2_mark_dead_nodes(struct ocfs2_super *osb)
 {
-	int status, i, node_num;
-	struct ocfs2_slot_info *si = osb->slot_info;
+	unsigned int node_num;
+	int status, i;
 
 	/* This is called with the super block cluster lock, so we
 	 * know that the slot map can't change underneath us. */
 
-	spin_lock(&si->si_lock);
-	for(i = 0; i < si->si_num_slots; i++) {
+	spin_lock(&osb->osb_lock);
+	for (i = 0; i < osb->max_slots; i++) {
 		if (i == osb->slot_num)
 			continue;
-		if (ocfs2_is_empty_slot(si, i))
+
+		status = ocfs2_slot_to_node_num_locked(osb, i, &node_num);
+		if (status == -ENOENT)
 			continue;
 
-		node_num = si->si_global_node_nums[i];
 		if (ocfs2_node_map_test_bit(osb, &osb->recovery_map, node_num))
 			continue;
-		spin_unlock(&si->si_lock);
+		spin_unlock(&osb->osb_lock);
 
 		/* Ok, we have a slot occupied by another node which
 		 * is not in the recovery map. We trylock his journal
@@ -1215,9 +1215,9 @@ int ocfs2_mark_dead_nodes(struct ocfs2_super *osb)
 			goto bail;
 		}
 
-		spin_lock(&si->si_lock);
+		spin_lock(&osb->osb_lock);
 	}
-	spin_unlock(&si->si_lock);
+	spin_unlock(&osb->osb_lock);
 
 	status = 0;
 bail:
