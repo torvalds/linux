@@ -469,6 +469,7 @@ static inline __be32 maskl(__be32 a, unsigned int l)
 	return htonl(ntohl(a) & ~(~(u_int32_t)0 >> l));
 }
 
+#if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
 static void hashlimit_ipv6_mask(__be32 *i, unsigned int p)
 {
 	switch (p) {
@@ -503,6 +504,7 @@ static void hashlimit_ipv6_mask(__be32 *i, unsigned int p)
 		break;
 	}
 }
+#endif
 
 static int
 hashlimit_init_dst(const struct xt_hashlimit_htable *hinfo,
