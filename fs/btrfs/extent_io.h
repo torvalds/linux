@@ -48,6 +48,7 @@ struct extent_io_tree {
 	spinlock_t lru_lock;
 	struct list_head buffer_lru;
 	int lru_size;
+	struct extent_state *last;
 };
 
 struct extent_state {

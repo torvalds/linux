@@ -90,6 +90,7 @@ void extent_io_tree_init(struct extent_io_tree *tree,
 	tree->mapping = mapping;
 	INIT_LIST_HEAD(&tree->buffer_lru);
 	tree->lru_size = 0;
+	tree->last = NULL;
 }
 EXPORT_SYMBOL(extent_io_tree_init);
 
@@ -158,16 +159,23 @@ static struct rb_node *tree_insert(struct rb_root *root, u64 offset,
 	return NULL;
 }
 
-static struct rb_node *__tree_search(struct rb_root *root, u64 offset,
+static struct rb_node *__etree_search(struct extent_io_tree *tree, u64 offset,
 				     struct rb_node **prev_ret,
 				     struct rb_node **next_ret)
 {
+	struct rb_root *root = &tree->state;
 	struct rb_node * n = root->rb_node;
 	struct rb_node *prev = NULL;
 	struct rb_node *orig_prev = NULL;
 	struct tree_entry *entry;
 	struct tree_entry *prev_entry = NULL;
 
+	if (tree->last) {
+		struct extent_state *state;
+		state = tree->last;
+		if (state->start <= offset && offset <= state->end)
+			return &tree->last->rb_node;
+	}
 	while(n) {
 		entry = rb_entry(n, struct tree_entry, rb_node);
 		prev = n;
@@ -177,8 +185,10 @@ static struct rb_node *__tree_search(struct rb_root *root, u64 offset,
 			n = n->rb_left;
 		else if (offset > entry->end)
 			n = n->rb_right;
-		else
+		else {
+			tree->last = rb_entry(n, struct extent_state, rb_node);
 			return n;
+		}
 	}
 
 	if (prev_ret) {
@@ -202,14 +212,20 @@ static struct rb_node *__tree_search(struct rb_root *root, u64 offset,
 	return NULL;
 }
 
-static inline struct rb_node *tree_search(struct rb_root *root, u64 offset)
+static inline struct rb_node *tree_search(struct extent_io_tree *tree,
+					  u64 offset)
 {
 	struct rb_node *prev = NULL;
 	struct rb_node *ret;
 
-	ret = __tree_search(root, offset, &prev, NULL);
-	if (!ret)
+	ret = __etree_search(tree, offset, &prev, NULL);
+	if (!ret) {
+		if (prev) {
+			tree->last = rb_entry(prev, struct extent_state,
+					      rb_node);
+		}
 		return prev;
+	}
 	return ret;
 }
 
@@ -238,6 +254,8 @@ static int merge_state(struct extent_io_tree *tree,
 		    other->state == state->state) {
 			state->start = other->start;
 			other->tree = NULL;
+			if (tree->last == other)
+				tree->last = NULL;
 			rb_erase(&other->rb_node, &tree->state);
 			free_extent_state(other);
 		}
@@ -249,6 +267,8 @@ static int merge_state(struct extent_io_tree *tree,
 		    other->state == state->state) {
 			other->start = state->start;
 			state->tree = NULL;
+			if (tree->last == state)
+				tree->last = NULL;
 			rb_erase(&state->rb_node, &tree->state);
 			free_extent_state(state);
 		}
@@ -311,6 +331,7 @@ static int insert_state(struct extent_io_tree *tree,
 		return -EEXIST;
 	}
 	state->tree = tree;
+	tree->last = state;
 	merge_state(tree, state);
 	return 0;
 }
@@ -375,6 +396,8 @@ static int clear_state_bit(struct extent_io_tree *tree,
 		wake_up(&state->wq);
 	if (delete || state->state == 0) {
 		if (state->tree) {
+			if (tree->last == state)
+				tree->last = NULL;
 			rb_erase(&state->rb_node, &tree->state);
 			state->tree = NULL;
 			free_extent_state(state);
@@ -422,7 +445,7 @@ again:
 	 * this search will find the extents that end after
 	 * our range starts
 	 */
-	node = tree_search(&tree->state, start);
+	node = tree_search(tree, start);
 	if (!node)
 		goto out;
 	state = rb_entry(node, struct extent_state, rb_node);
@@ -533,7 +556,7 @@ again:
 		 * this search will find all the extents that end after
 		 * our range starts
 		 */
-		node = tree_search(&tree->state, start);
+		node = tree_search(tree, start);
 		if (!node)
 			break;
 
@@ -612,7 +635,7 @@ again:
 	 * this search will find all the extents that end after
 	 * our range starts.
 	 */
-	node = tree_search(&tree->state, start);
+	node = tree_search(tree, start);
 	if (!node) {
 		err = insert_state(tree, prealloc, start, end, bits);
 		prealloc = NULL;
@@ -915,7 +938,7 @@ int find_first_extent_bit(struct extent_io_tree *tree, u64 start,
 	 * this search will find all the extents that end after
 	 * our range starts.
 	 */
-	node = tree_search(&tree->state, start);
+	node = tree_search(tree, start);
 	if (!node || IS_ERR(node)) {
 		goto out;
 	}
@@ -953,7 +976,7 @@ u64 find_lock_delalloc_range(struct extent_io_tree *tree,
 	 * our range starts.
 	 */
 search_again:
-	node = tree_search(&tree->state, cur_start);
+	node = tree_search(tree, cur_start);
 	if (!node || IS_ERR(node)) {
 		*end = (u64)-1;
 		goto out;
@@ -1041,7 +1064,7 @@ u64 count_range_bits(struct extent_io_tree *tree,
 	 * this search will find all the extents that end after
 	 * our range starts.
 	 */
-	node = tree_search(&tree->state, cur_start);
+	node = tree_search(tree, cur_start);
 	if (!node || IS_ERR(node)) {
 		goto out;
 	}
@@ -1142,7 +1165,7 @@ int set_state_private(struct extent_io_tree *tree, u64 start, u64 private)
 	 * this search will find all the extents that end after
 	 * our range starts.
 	 */
-	node = tree_search(&tree->state, start);
+	node = tree_search(tree, start);
 	if (!node || IS_ERR(node)) {
 		ret = -ENOENT;
 		goto out;
@@ -1169,7 +1192,7 @@ int get_state_private(struct extent_io_tree *tree, u64 start, u64 *private)
 	 * this search will find all the extents that end after
 	 * our range starts.
 	 */
-	node = tree_search(&tree->state, start);
+	node = tree_search(tree, start);
 	if (!node || IS_ERR(node)) {
 		ret = -ENOENT;
 		goto out;
@@ -1200,7 +1223,7 @@ int test_range_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	unsigned long flags;
 
 	spin_lock_irqsave(&tree->lock, flags);
-	node = tree_search(&tree->state, start);
+	node = tree_search(tree, start);
 	while (node && start <= end) {
 		state = rb_entry(node, struct extent_state, rb_node);
 
@@ -1348,7 +1371,7 @@ static int end_bio_extent_writepage(struct bio *bio,
 		spin_lock_irqsave(&tree->lock, flags);
 		if (!state || state->end != end) {
 			state = NULL;
-			node = __tree_search(&tree->state, start, NULL, NULL);
+			node = __etree_search(tree, start, NULL, NULL);
 			if (node) {
 				state = rb_entry(node, struct extent_state,
 						 rb_node);
@@ -1468,7 +1491,7 @@ static int end_bio_extent_readpage(struct bio *bio,
 		spin_lock_irqsave(&tree->lock, flags);
 		if (!state || state->end != end) {
 			state = NULL;
-			node = __tree_search(&tree->state, start, NULL, NULL);
+			node = __etree_search(tree, start, NULL, NULL);
 			if (node) {
 				state = rb_entry(node, struct extent_state,
 						 rb_node);
@@ -1631,7 +1654,7 @@ static int submit_one_bio(int rw, struct bio *bio)
 	end = start + bvec->bv_len - 1;
 
 	spin_lock_irq(&tree->lock);
-	node = __tree_search(&tree->state, start, NULL, NULL);
+	node = __etree_search(tree, start, NULL, NULL);
 	BUG_ON(!node);
 	state = rb_entry(node, struct extent_state, rb_node);
 	while(state->end < end) {
