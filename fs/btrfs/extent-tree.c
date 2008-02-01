@@ -1431,19 +1431,19 @@ static int noinline find_free_extent(struct btrfs_trans_handle *trans,
 		data = BTRFS_BLOCK_GROUP_MIXED;
 	}
 
-	/* for SSD, cluster allocations together as much as possible */
-	if (btrfs_test_opt(root, SSD)) {
-		if (data)
-			last_ptr = &root->fs_info->last_data_alloc;
-		else
-			last_ptr = &root->fs_info->last_alloc;
-		if (*last_ptr) {
+	if (!data)
+		last_ptr = &root->fs_info->last_alloc;
+
+	if (data && btrfs_test_opt(root, SSD))
+		last_ptr = &root->fs_info->last_data_alloc;
+
+	if (last_ptr) {
+		if (*last_ptr)
 			hint_byte = *last_ptr;
-		}
 		else {
 			hint_byte = hint_byte &
 				~((u64)BTRFS_BLOCK_GROUP_SIZE - 1);
-			empty_size += 16 * 1024 * 1024;
+			empty_size += 2 * 1024 * 1024;
 		}
 	}
 
@@ -1473,9 +1473,8 @@ check_failed:
 	search_start = find_search_start(root, &block_group, search_start,
 					 total_needed, data);
 
-	if (btrfs_test_opt(root, SSD) && *last_ptr &&
-	    search_start != *last_ptr) {
-		info->last_alloc = 0;
+	if (last_ptr && *last_ptr && search_start != *last_ptr) {
+		*last_ptr = 0;
 		if (!empty_size) {
 			empty_size += 16 * 1024 * 1024;
 			total_needed += empty_size;
@@ -1612,7 +1611,7 @@ check_pending:
 	}
 	ins->offset = num_bytes;
 	btrfs_free_path(path);
-	if (btrfs_test_opt(root, SSD))
+	if (last_ptr)
 		*last_ptr = ins->objectid + ins->offset;
 	return 0;
 
@@ -1827,8 +1826,7 @@ struct extent_buffer *__btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 			buf->start, buf->start + buf->len - 1,
 			EXTENT_CSUM, GFP_NOFS);
 	buf->flags |= EXTENT_CSUM;
-	if (!btrfs_test_opt(root, SSD))
-		btrfs_set_buffer_defrag(buf);
+	btrfs_set_buffer_defrag(buf);
 	trans->blocks_used++;
 	return buf;
 }
