@@ -566,15 +566,54 @@ static struct tcf_proto **sfq_find_tcf(struct Qdisc *sch, unsigned long cl)
 	return &q->filter_list;
 }
 
+static int sfq_dump_class(struct Qdisc *sch, unsigned long cl,
+			  struct sk_buff *skb, struct tcmsg *tcm)
+{
+	tcm->tcm_handle |= TC_H_MIN(cl);
+	return 0;
+}
+
+static int sfq_dump_class_stats(struct Qdisc *sch, unsigned long cl,
+				struct gnet_dump *d)
+{
+	struct sfq_sched_data *q = qdisc_priv(sch);
+	sfq_index idx = q->ht[cl-1];
+	struct gnet_stats_queue qs = { .qlen = q->qs[idx].qlen };
+	struct tc_sfq_xstats xstats = { .allot = q->allot[idx] };
+
+	if (gnet_stats_copy_queue(d, &qs) < 0)
+		return -1;
+	return gnet_stats_copy_app(d, &xstats, sizeof(xstats));
+}
+
 static void sfq_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 {
-	return;
+	struct sfq_sched_data *q = qdisc_priv(sch);
+	unsigned int i;
+
+	if (arg->stop)
+		return;
+
+	for (i = 0; i < SFQ_HASH_DIVISOR; i++) {
+		if (q->ht[i] == SFQ_DEPTH ||
+		    arg->count < arg->skip) {
+			arg->count++;
+			continue;
+		}
+		if (arg->fn(sch, i + 1, arg) < 0) {
+			arg->stop = 1;
+			break;
+		}
+		arg->count++;
+	}
 }
 
 static const struct Qdisc_class_ops sfq_class_ops = {
 	.get		=	sfq_get,
 	.change		=	sfq_change_class,
 	.tcf_chain	=	sfq_find_tcf,
+	.dump		=	sfq_dump_class,
+	.dump_stats	=	sfq_dump_class_stats,
 	.walk		=	sfq_walk,
 };
 
