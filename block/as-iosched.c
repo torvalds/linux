@@ -170,11 +170,11 @@ static void free_as_io_context(struct as_io_context *aic)
 
 static void as_trim(struct io_context *ioc)
 {
-	spin_lock(&ioc->lock);
+	spin_lock_irq(&ioc->lock);
 	if (ioc->aic)
 		free_as_io_context(ioc->aic);
 	ioc->aic = NULL;
-	spin_unlock(&ioc->lock);
+	spin_unlock_irq(&ioc->lock);
 }
 
 /* Called when the task exits */
@@ -235,10 +235,12 @@ static void as_put_io_context(struct request *rq)
 	aic = RQ_IOC(rq)->aic;
 
 	if (rq_is_sync(rq) && aic) {
-		spin_lock(&aic->lock);
+		unsigned long flags;
+
+		spin_lock_irqsave(&aic->lock, flags);
 		set_bit(AS_TASK_IORUNNING, &aic->state);
 		aic->last_end_request = jiffies;
-		spin_unlock(&aic->lock);
+		spin_unlock_irqrestore(&aic->lock, flags);
 	}
 
 	put_io_context(RQ_IOC(rq));
