@@ -1007,6 +1007,15 @@ static ide_startstop_t cdrom_transfer_packet_command (ide_drive_t *drive,
 
 typedef void (xfer_func_t)(ide_drive_t *, void *, u32);
 
+static void ide_cd_pad_transfer(ide_drive_t *drive, xfer_func_t *xf, int len)
+{
+	while (len > 0) {
+		int dum = 0;
+		xf(drive, &dum, sizeof(dum));
+		len -= sizeof(dum);
+	}
+}
+
 /*
  * Buffer up to SECTORS_TO_TRANSFER sectors from the drive in our sector
  * buffer.  Once the first sector is added, any subsequent sectors are
@@ -1063,17 +1072,15 @@ int cdrom_read_check_ireason (ide_drive_t *drive, int len, int ireason)
 	if (ireason == 2)
 		return 0;
 	else if (ireason == 0) {
+		ide_hwif_t *hwif = drive->hwif;
+
 		/* Whoops... The drive is expecting to receive data from us! */
 		printk(KERN_ERR "%s: %s: wrong transfer direction!\n",
 				drive->name, __FUNCTION__);
 
 		/* Throw some data at the drive so it doesn't hang
 		   and quit this request. */
-		while (len > 0) {
-			int dum = 0;
-			HWIF(drive)->atapi_output_bytes(drive, &dum, sizeof (dum));
-			len -= sizeof (dum);
-		}
+		ide_cd_pad_transfer(drive, hwif->atapi_output_bytes, len);
 	} else  if (ireason == 1) {
 		/* Some drives (ASUS) seem to tell us that status
 		 * info is available. just get it and ignore.
@@ -1500,15 +1507,8 @@ static ide_startstop_t cdrom_pc_intr (ide_drive_t *drive)
 		/* Transfer the data. */
 		xferfunc(drive, rq->data, thislen);
 
-		/* If we haven't moved enough data to satisfy the drive,
-		   add some padding. */
-		while (len > thislen) {
-			int dum = 0;
-			xferfunc(drive, &dum, sizeof(dum));
-			len -= sizeof(dum);
-		}
-
 		/* Keep count of how much data we've moved. */
+		len -= thislen;
 		rq->data += thislen;
 		rq->data_len -= thislen;
 
@@ -1524,6 +1524,13 @@ confused:
 		cdrom_end_request(drive, 0);
 		return ide_stopped;
 	}
+
+	/*
+	 * If we haven't moved enough data to satisfy the drive,
+	 * add some padding.
+	 */
+	if (len > 0)
+		ide_cd_pad_transfer(drive, xferfunc, len);
 
 	/* Now we wait for another interrupt. */
 	ide_set_handler(drive, &cdrom_pc_intr, ATAPI_WAIT_PC, cdrom_timer_expiry);
@@ -1617,15 +1624,13 @@ static int cdrom_write_check_ireason(ide_drive_t *drive, int len, int ireason)
 	if (ireason == 0)
 		return 0;
 	else if (ireason == 2) {
+		ide_hwif_t *hwif = drive->hwif;
+
 		/* Whoops... The drive wants to send data. */
 		printk(KERN_ERR "%s: %s: wrong transfer direction!\n",
 				drive->name, __FUNCTION__);
 
-		while (len > 0) {
-			int dum = 0;
-			HWIF(drive)->atapi_input_bytes(drive, &dum, sizeof(dum));
-			len -= sizeof(dum);
-		}
+		ide_cd_pad_transfer(drive, hwif->atapi_input_bytes, len);
 	} else {
 		/* Drive wants a command packet, or invalid ireason... */
 		printk(KERN_ERR "%s: %s: bad interrupt reason 0x%02x\n",
@@ -1783,14 +1788,8 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	/*
 	 * pad, if necessary
 	 */
-	if (len > 0) {
-		while (len > 0) {
-			int pad = 0;
-
-			xferfunc(drive, &pad, sizeof(pad));
-			len -= sizeof(pad);
-		}
-	}
+	if (len > 0)
+		ide_cd_pad_transfer(drive, xferfunc, len);
 
 	BUG_ON(HWGROUP(drive)->handler != NULL);
 
