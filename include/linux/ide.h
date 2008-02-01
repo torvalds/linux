@@ -1095,6 +1095,8 @@ enum {
 	IDE_HFLAG_CY82C693		= (1 << 27),
 	/* force host out of "simplex" mode */
 	IDE_HFLAG_CLEAR_SIMPLEX		= (1 << 28),
+	/* DSC overlap is unsupported */
+	IDE_HFLAG_NO_DSC		= (1 << 29),
 };
 
 #ifdef CONFIG_BLK_DEV_OFFBOARD

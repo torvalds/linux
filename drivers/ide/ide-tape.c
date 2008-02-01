@@ -4532,19 +4532,11 @@ static void idetape_setup (ide_drive_t *drive, idetape_tape_t *tape, int minor)
 
 	spin_lock_init(&tape->spinlock);
 	drive->dsc_overlap = 1;
-#ifdef CONFIG_BLK_DEV_IDEPCI
-	if (HWIF(drive)->pci_dev != NULL) {
-		/*
-		 * These two ide-pci host adapters appear to need DSC overlap disabled.
-		 * This probably needs further analysis.
-		 */
-		if ((HWIF(drive)->pci_dev->device == PCI_DEVICE_ID_ARTOP_ATP850UF) ||
-		    (HWIF(drive)->pci_dev->device == PCI_DEVICE_ID_TTI_HPT343)) {
-			printk(KERN_INFO "ide-tape: %s: disabling DSC overlap\n", tape->name);
-		    	drive->dsc_overlap = 0;
-		}
+	if (drive->hwif->host_flags & IDE_HFLAG_NO_DSC) {
+		printk(KERN_INFO "ide-tape: %s: disabling DSC overlap\n",
+				 tape->name);
+		drive->dsc_overlap = 0;
 	}
-#endif /* CONFIG_BLK_DEV_IDEPCI */
 	/* Seagate Travan drives do not support DSC overlap. */
 	if (strstr(drive->id->model, "Seagate STT3401"))
 		drive->dsc_overlap = 0;
