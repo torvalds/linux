@@ -720,6 +720,9 @@ static int balance_level(struct btrfs_trans_handle *trans,
 		/* promote the child to a root */
 		child = read_node_slot(root, mid, 0);
 		BUG_ON(!child);
+		ret = btrfs_cow_block(trans, root, child, mid, 0, &child);
+		BUG_ON(ret);
+
 		root->node = child;
 		path->nodes[level] = NULL;
 		clean_tree_block(trans, root, mid);
