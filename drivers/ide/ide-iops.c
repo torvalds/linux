@@ -1166,7 +1166,7 @@ EXPORT_SYMBOL(ide_do_reset);
 
 /*
  * ide_wait_not_busy() waits for the currently selected device on the hwif
- * to report a non-busy status, see comments in probe_hwif().
+ * to report a non-busy status, see comments in ide_probe_port().
  */
 int ide_wait_not_busy(ide_hwif_t *hwif, unsigned long timeout)
 {

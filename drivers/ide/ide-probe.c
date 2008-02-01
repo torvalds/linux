@@ -738,24 +738,20 @@ void ide_undecoded_slave(ide_drive_t *drive1)
 
 EXPORT_SYMBOL_GPL(ide_undecoded_slave);
 
-/*
- * This routine only knows how to look for drive units 0 and 1
- * on an interface, so any setting of MAX_DRIVES > 2 won't work here.
- */
-static void probe_hwif(ide_hwif_t *hwif)
+static int ide_probe_port(ide_hwif_t *hwif)
 {
 	unsigned long flags;
 	unsigned int irqd;
 	int unit;
 
 	if (hwif->noprobe)
-		return;
+		return -EACCES;
 
 	if ((hwif->chipset != ide_4drives || !hwif->mate || !hwif->mate->present) &&
 	    (ide_hwif_request_regions(hwif))) {
 		printk(KERN_ERR "%s: ports already in use, skipping probe\n",
 				hwif->name);
-		return;	
+		return -EBUSY;
 	}
 
 	/*
@@ -804,7 +800,7 @@ static void probe_hwif(ide_hwif_t *hwif)
 
 	if (!hwif->present) {
 		ide_hwif_release_regions(hwif);
-		return;
+		return -ENODEV;
 	}
 
 	for (unit = 0; unit < MAX_DRIVES; unit++) {
@@ -840,6 +836,8 @@ static void probe_hwif(ide_hwif_t *hwif)
 		else
 			drive->no_io_32bit = drive->id->dword_io ? 1 : 0;
 	}
+
+	return 0;
 }
 
 #if MAX_HWIFS > 1
@@ -1311,7 +1309,7 @@ int ide_device_add_all(u8 *idx)
 		if (idx[i] == 0xff)
 			continue;
 
-		probe_hwif(&ide_hwifs[idx[i]]);
+		(void)ide_probe_port(&ide_hwifs[idx[i]]);
 	}
 
 	for (i = 0; i < MAX_HWIFS; i++) {
