@@ -357,59 +357,6 @@ struct atapi_capabilities_page {
 	char pad[4];
 };
 
-
-struct atapi_mechstat_header {
-#if defined(__BIG_ENDIAN_BITFIELD)
-	__u8 fault         : 1;
-	__u8 changer_state : 2;
-	__u8 curslot       : 5;
-#elif defined(__LITTLE_ENDIAN_BITFIELD)
-	__u8 curslot       : 5;
-	__u8 changer_state : 2;
-	__u8 fault         : 1;
-#else
-#error "Please fix <asm/byteorder.h>"
-#endif
-
-#if defined(__BIG_ENDIAN_BITFIELD)
-	__u8 mech_state    : 3;
-	__u8 door_open     : 1;
-	__u8 reserved1     : 4;
-#elif defined(__LITTLE_ENDIAN_BITFIELD)
-	__u8 reserved1     : 4;
-	__u8 door_open     : 1;
-	__u8 mech_state    : 3;
-#else
-#error "Please fix <asm/byteorder.h>"
-#endif
-
-	byte     curlba[3];
-	byte     nslots;
-	__u16	 slot_tablelen;
-};
-
-
-struct atapi_slot {
-#if defined(__BIG_ENDIAN_BITFIELD)
-	__u8 disc_present : 1;
-	__u8 reserved1    : 6;
-	__u8 change       : 1;
-#elif defined(__LITTLE_ENDIAN_BITFIELD)
-	__u8 change       : 1;
-	__u8 reserved1    : 6;
-	__u8 disc_present : 1;
-#else
-#error "Please fix <asm/byteorder.h>"
-#endif
-
-	byte reserved2[3];
-};
-
-struct atapi_changer_info {
-	struct atapi_mechstat_header hdr;
-	struct atapi_slot slots[0];
-};
-
 /* Extra per-device info for cdrom drives. */
 struct cdrom_info {
 	ide_drive_t	*drive;
@@ -434,8 +381,6 @@ struct cdrom_info {
 	int dma;
 	unsigned long last_block;
 	unsigned long start_seek;
-	/* Buffer to hold mechanism status and changer slot table. */
-	struct atapi_changer_info *changer_info;
 
 	struct ide_cd_config_flags	config_flags;
 	struct ide_cd_state_flags	state_flags;

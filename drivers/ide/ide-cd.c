@@ -2969,7 +2969,6 @@ static void ide_cd_release(struct kref *kref)
 
 	kfree(info->buffer);
 	kfree(info->toc);
-	kfree(info->changer_info);
 	if (devinfo->handle == drive && unregister_cdrom(devinfo))
 		printk(KERN_ERR "%s: %s failed to unregister device from the cdrom "
 				"driver.\n", __FUNCTION__, drive->name);
