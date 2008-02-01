@@ -206,6 +206,15 @@ config BLK_DEV_IDECD
 	  To compile this driver as a module, choose M here: the
 	  module will be called ide-cd.
 
+config BLK_DEV_IDECD_VERBOSE_ERRORS
+	bool "Verbose error logging for IDE/ATAPI CDROM driver" if EMBEDDED
+	depends on BLK_DEV_IDECD
+	default y
+	help
+	  Turn this on to have the driver print out the meanings of the
+	  ATAPI error codes.  This will use up additional 8kB of kernel-space
+	  memory, though.
+
 config BLK_DEV_IDETAPE
 	tristate "Include IDE/ATAPI TAPE support (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
