@@ -26,7 +26,8 @@ int blk_queue_ordered(struct request_queue *q, unsigned ordered,
 {
 	if (ordered & (QUEUE_ORDERED_PREFLUSH | QUEUE_ORDERED_POSTFLUSH) &&
 	    prepare_flush_fn == NULL) {
-		printk(KERN_ERR "blk_queue_ordered: prepare_flush_fn required\n");
+		printk(KERN_ERR "%s: prepare_flush_fn required\n",
+								__FUNCTION__);
 		return -EINVAL;
 	}
 
@@ -47,7 +48,6 @@ int blk_queue_ordered(struct request_queue *q, unsigned ordered,
 
 	return 0;
 }
-
 EXPORT_SYMBOL(blk_queue_ordered);
 
 /*
@@ -315,5 +315,4 @@ int blkdev_issue_flush(struct block_device *bdev, sector_t *error_sector)
 	bio_put(bio);
 	return ret;
 }
-
 EXPORT_SYMBOL(blkdev_issue_flush);

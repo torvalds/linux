@@ -667,8 +667,6 @@ void add_disk_randomness(struct gendisk *disk)
 	add_timer_randomness(disk->random,
 			     0x100 + MKDEV(disk->major, disk->first_minor));
 }
-
-EXPORT_SYMBOL(add_disk_randomness);
 #endif
 
 #define EXTRACT_SIZE 10

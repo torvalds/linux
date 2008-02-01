@@ -10,8 +10,10 @@
 
 #include "blk.h"
 
-unsigned long blk_max_low_pfn, blk_max_pfn;
+unsigned long blk_max_low_pfn;
 EXPORT_SYMBOL(blk_max_low_pfn);
+
+unsigned long blk_max_pfn;
 EXPORT_SYMBOL(blk_max_pfn);
 
 /**
@@ -29,7 +31,6 @@ void blk_queue_prep_rq(struct request_queue *q, prep_rq_fn *pfn)
 {
 	q->prep_rq_fn = pfn;
 }
-
 EXPORT_SYMBOL(blk_queue_prep_rq);
 
 /**
@@ -52,14 +53,12 @@ void blk_queue_merge_bvec(struct request_queue *q, merge_bvec_fn *mbfn)
 {
 	q->merge_bvec_fn = mbfn;
 }
-
 EXPORT_SYMBOL(blk_queue_merge_bvec);
 
 void blk_queue_softirq_done(struct request_queue *q, softirq_done_fn *fn)
 {
 	q->softirq_done_fn = fn;
 }
-
 EXPORT_SYMBOL(blk_queue_softirq_done);
 
 /**
@@ -84,7 +83,7 @@ EXPORT_SYMBOL(blk_queue_softirq_done);
  *    __bio_kmap_atomic() to get a temporary kernel mapping, or by calling
  *    blk_queue_bounce() to create a buffer in normal memory.
  **/
-void blk_queue_make_request(struct request_queue * q, make_request_fn * mfn)
+void blk_queue_make_request(struct request_queue *q, make_request_fn *mfn)
 {
 	/*
 	 * set defaults
@@ -93,7 +92,8 @@ void blk_queue_make_request(struct request_queue * q, make_request_fn * mfn)
 	blk_queue_max_phys_segments(q, MAX_PHYS_SEGMENTS);
 	blk_queue_max_hw_segments(q, MAX_HW_SEGMENTS);
 	q->make_request_fn = mfn;
-	q->backing_dev_info.ra_pages = (VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
+	q->backing_dev_info.ra_pages =
+			(VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
 	q->backing_dev_info.state = 0;
 	q->backing_dev_info.capabilities = BDI_CAP_MAP_COPY;
 	blk_queue_max_sectors(q, SAFE_MAX_SECTORS);
@@ -117,7 +117,6 @@ void blk_queue_make_request(struct request_queue * q, make_request_fn * mfn)
 	 */
 	blk_queue_bounce_limit(q, BLK_BOUNCE_HIGH);
 }
-
 EXPORT_SYMBOL(blk_queue_make_request);
 
 /**
@@ -133,7 +132,7 @@ EXPORT_SYMBOL(blk_queue_make_request);
  **/
 void blk_queue_bounce_limit(struct request_queue *q, u64 dma_addr)
 {
-	unsigned long bounce_pfn = dma_addr >> PAGE_SHIFT;
+	unsigned long b_pfn = dma_addr >> PAGE_SHIFT;
 	int dma = 0;
 
 	q->bounce_gfp = GFP_NOIO;
@@ -141,21 +140,20 @@ void blk_queue_bounce_limit(struct request_queue *q, u64 dma_addr)
 	/* Assume anything <= 4GB can be handled by IOMMU.
 	   Actually some IOMMUs can handle everything, but I don't
 	   know of a way to test this here. */
-	if (bounce_pfn < (min_t(u64,0xffffffff,BLK_BOUNCE_HIGH) >> PAGE_SHIFT))
+	if (b_pfn < (min_t(u64, 0xffffffff, BLK_BOUNCE_HIGH) >> PAGE_SHIFT))
 		dma = 1;
 	q->bounce_pfn = max_low_pfn;
 #else
-	if (bounce_pfn < blk_max_low_pfn)
+	if (b_pfn < blk_max_low_pfn)
 		dma = 1;
-	q->bounce_pfn = bounce_pfn;
+	q->bounce_pfn = b_pfn;
 #endif
 	if (dma) {
 		init_emergency_isa_pool();
 		q->bounce_gfp = GFP_NOIO | GFP_DMA;
-		q->bounce_pfn = bounce_pfn;
+		q->bounce_pfn = b_pfn;
 	}
 }
-
 EXPORT_SYMBOL(blk_queue_bounce_limit);
 
 /**
@@ -171,7 +169,8 @@ void blk_queue_max_sectors(struct request_queue *q, unsigned int max_sectors)
 {
 	if ((max_sectors << 9) < PAGE_CACHE_SIZE) {
 		max_sectors = 1 << (PAGE_CACHE_SHIFT - 9);
-		printk("%s: set to minimum %d\n", __FUNCTION__, max_sectors);
+		printk(KERN_INFO "%s: set to minimum %d\n", __FUNCTION__,
+							max_sectors);
 	}
 
 	if (BLK_DEF_MAX_SECTORS > max_sectors)
@@ -181,7 +180,6 @@ void blk_queue_max_sectors(struct request_queue *q, unsigned int max_sectors)
 		q->max_hw_sectors = max_sectors;
 	}
 }
-
 EXPORT_SYMBOL(blk_queue_max_sectors);
 
 /**
@@ -199,12 +197,12 @@ void blk_queue_max_phys_segments(struct request_queue *q,
 {
 	if (!max_segments) {
 		max_segments = 1;
-		printk("%s: set to minimum %d\n", __FUNCTION__, max_segments);
+		printk(KERN_INFO "%s: set to minimum %d\n", __FUNCTION__,
+							max_segments);
 	}
 
 	q->max_phys_segments = max_segments;
 }
-
 EXPORT_SYMBOL(blk_queue_max_phys_segments);
 
 /**
@@ -223,12 +221,12 @@ void blk_queue_max_hw_segments(struct request_queue *q,
 {
 	if (!max_segments) {
 		max_segments = 1;
-		printk("%s: set to minimum %d\n", __FUNCTION__, max_segments);
+		printk(KERN_INFO "%s: set to minimum %d\n", __FUNCTION__,
+							max_segments);
 	}
 
 	q->max_hw_segments = max_segments;
 }
-
 EXPORT_SYMBOL(blk_queue_max_hw_segments);
 
 /**
@@ -244,12 +242,12 @@ void blk_queue_max_segment_size(struct request_queue *q, unsigned int max_size)
 {
 	if (max_size < PAGE_CACHE_SIZE) {
 		max_size = PAGE_CACHE_SIZE;
-		printk("%s: set to minimum %d\n", __FUNCTION__, max_size);
+		printk(KERN_INFO "%s: set to minimum %d\n", __FUNCTION__,
+							max_size);
 	}
 
 	q->max_segment_size = max_size;
 }
-
 EXPORT_SYMBOL(blk_queue_max_segment_size);
 
 /**
@@ -267,7 +265,6 @@ void blk_queue_hardsect_size(struct request_queue *q, unsigned short size)
 {
 	q->hardsect_size = size;
 }
-
 EXPORT_SYMBOL(blk_queue_hardsect_size);
 
 /*
@@ -283,17 +280,16 @@ EXPORT_SYMBOL(blk_queue_hardsect_size);
 void blk_queue_stack_limits(struct request_queue *t, struct request_queue *b)
 {
 	/* zero is "infinity" */
-	t->max_sectors = min_not_zero(t->max_sectors,b->max_sectors);
-	t->max_hw_sectors = min_not_zero(t->max_hw_sectors,b->max_hw_sectors);
+	t->max_sectors = min_not_zero(t->max_sectors, b->max_sectors);
+	t->max_hw_sectors = min_not_zero(t->max_hw_sectors, b->max_hw_sectors);
 
-	t->max_phys_segments = min(t->max_phys_segments,b->max_phys_segments);
-	t->max_hw_segments = min(t->max_hw_segments,b->max_hw_segments);
-	t->max_segment_size = min(t->max_segment_size,b->max_segment_size);
-	t->hardsect_size = max(t->hardsect_size,b->hardsect_size);
+	t->max_phys_segments = min(t->max_phys_segments, b->max_phys_segments);
+	t->max_hw_segments = min(t->max_hw_segments, b->max_hw_segments);
+	t->max_segment_size = min(t->max_segment_size, b->max_segment_size);
+	t->hardsect_size = max(t->hardsect_size, b->hardsect_size);
 	if (!test_bit(QUEUE_FLAG_CLUSTER, &b->queue_flags))
 		clear_bit(QUEUE_FLAG_CLUSTER, &t->queue_flags);
 }
-
 EXPORT_SYMBOL(blk_queue_stack_limits);
 
 /**
@@ -332,7 +328,6 @@ int blk_queue_dma_drain(struct request_queue *q, void *buf,
 
 	return 0;
 }
-
 EXPORT_SYMBOL_GPL(blk_queue_dma_drain);
 
 /**
@@ -344,12 +339,12 @@ void blk_queue_segment_boundary(struct request_queue *q, unsigned long mask)
 {
 	if (mask < PAGE_CACHE_SIZE - 1) {
 		mask = PAGE_CACHE_SIZE - 1;
-		printk("%s: set to minimum %lx\n", __FUNCTION__, mask);
+		printk(KERN_INFO "%s: set to minimum %lx\n", __FUNCTION__,
+							mask);
 	}
 
 	q->seg_boundary_mask = mask;
 }
-
 EXPORT_SYMBOL(blk_queue_segment_boundary);
 
 /**
@@ -366,7 +361,6 @@ void blk_queue_dma_alignment(struct request_queue *q, int mask)
 {
 	q->dma_alignment = mask;
 }
-
 EXPORT_SYMBOL(blk_queue_dma_alignment);
 
 /**
@@ -390,7 +384,6 @@ void blk_queue_update_dma_alignment(struct request_queue *q, int mask)
 	if (mask > q->dma_alignment)
 		q->dma_alignment = mask;
 }
-
 EXPORT_SYMBOL(blk_queue_update_dma_alignment);
 
 int __init blk_settings_init(void)

@@ -732,7 +732,7 @@ static struct vio_driver_ops vdc_vio_ops = {
 	.handshake_complete	= vdc_handshake_complete,
 };
 
-static void print_version(void)
+static void __devinit print_version(void)
 {
 	static int version_printed;
 

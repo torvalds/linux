@@ -53,7 +53,8 @@ static int __blk_rq_map_user(struct request_queue *q, struct request *rq,
 	 * direct dma. else, set up kernel bounce buffers
 	 */
 	uaddr = (unsigned long) ubuf;
-	if (!(uaddr & queue_dma_alignment(q)) && !(len & queue_dma_alignment(q)))
+	if (!(uaddr & queue_dma_alignment(q)) &&
+	    !(len & queue_dma_alignment(q)))
 		bio = bio_map_user(q, NULL, uaddr, len, reading);
 	else
 		bio = bio_copy_user(q, uaddr, len, reading);
@@ -144,7 +145,6 @@ unmap_rq:
 	blk_rq_unmap_user(bio);
 	return ret;
 }
-
 EXPORT_SYMBOL(blk_rq_map_user);
 
 /**
@@ -179,7 +179,8 @@ int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
 	/* we don't allow misaligned data like bio_map_user() does.  If the
 	 * user is using sg, they're expected to know the alignment constraints
 	 * and respect them accordingly */
-	bio = bio_map_user_iov(q, NULL, iov, iov_count, rq_data_dir(rq)== READ);
+	bio = bio_map_user_iov(q, NULL, iov, iov_count,
+				rq_data_dir(rq) == READ);
 	if (IS_ERR(bio))
 		return PTR_ERR(bio);
 
@@ -194,7 +195,6 @@ int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
 	rq->buffer = rq->data = NULL;
 	return 0;
 }
-
 EXPORT_SYMBOL(blk_rq_map_user_iov);
 
 /**
@@ -227,7 +227,6 @@ int blk_rq_unmap_user(struct bio *bio)
 
 	return ret;
 }
-
 EXPORT_SYMBOL(blk_rq_unmap_user);
 
 /**
@@ -260,5 +259,4 @@ int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 	rq->buffer = rq->data = NULL;
 	return 0;
 }
-
 EXPORT_SYMBOL(blk_rq_map_kern);

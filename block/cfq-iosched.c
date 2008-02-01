@@ -15,11 +15,13 @@
 /*
  * tunables
  */
-static const int cfq_quantum = 4;		/* max queue in one round of service */
+/* max queue in one round of service */
+static const int cfq_quantum = 4;
 static const int cfq_fifo_expire[2] = { HZ / 4, HZ / 8 };
-static const int cfq_back_max = 16 * 1024;	/* maximum backwards seek, in KiB */
-static const int cfq_back_penalty = 2;		/* penalty of a backwards seek */
-
+/* maximum backwards seek, in KiB */
+static const int cfq_back_max = 16 * 1024;
+/* penalty of a backwards seek */
+static const int cfq_back_penalty = 2;
 static const int cfq_slice_sync = HZ / 10;
 static int cfq_slice_async = HZ / 25;
 static const int cfq_slice_async_rq = 2;
@@ -37,7 +39,8 @@ static int cfq_slice_idle = HZ / 125;
 
 #define CFQ_SLICE_SCALE		(5)
 
-#define RQ_CIC(rq)		((struct cfq_io_context*)(rq)->elevator_private)
+#define RQ_CIC(rq)		\
+	((struct cfq_io_context *) (rq)->elevator_private)
 #define RQ_CFQQ(rq)		((rq)->elevator_private2)
 
 static struct kmem_cache *cfq_pool;
@@ -171,15 +174,15 @@ enum cfqq_state_flags {
 #define CFQ_CFQQ_FNS(name)						\
 static inline void cfq_mark_cfqq_##name(struct cfq_queue *cfqq)		\
 {									\
-	cfqq->flags |= (1 << CFQ_CFQQ_FLAG_##name);			\
+	(cfqq)->flags |= (1 << CFQ_CFQQ_FLAG_##name);			\
 }									\
 static inline void cfq_clear_cfqq_##name(struct cfq_queue *cfqq)	\
 {									\
-	cfqq->flags &= ~(1 << CFQ_CFQQ_FLAG_##name);			\
+	(cfqq)->flags &= ~(1 << CFQ_CFQQ_FLAG_##name);			\
 }									\
 static inline int cfq_cfqq_##name(const struct cfq_queue *cfqq)		\
 {									\
-	return (cfqq->flags & (1 << CFQ_CFQQ_FLAG_##name)) != 0;	\
+	return ((cfqq)->flags & (1 << CFQ_CFQQ_FLAG_##name)) != 0;	\
 }
 
 CFQ_CFQQ_FNS(on_rr);
@@ -1005,7 +1008,8 @@ __cfq_dispatch_requests(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		/*
 		 * follow expired path, else get first next available
 		 */
-		if ((rq = cfq_check_fifo(cfqq)) == NULL)
+		rq = cfq_check_fifo(cfqq);
+		if (rq == NULL)
 			rq = cfqq->next_rq;
 
 		/*
@@ -1294,28 +1298,28 @@ static void cfq_init_prio_data(struct cfq_queue *cfqq, struct io_context *ioc)
 
 	ioprio_class = IOPRIO_PRIO_CLASS(ioc->ioprio);
 	switch (ioprio_class) {
-		default:
-			printk(KERN_ERR "cfq: bad prio %x\n", ioprio_class);
-		case IOPRIO_CLASS_NONE:
-			/*
-			 * no prio set, place us in the middle of the BE classes
-			 */
-			cfqq->ioprio = task_nice_ioprio(tsk);
-			cfqq->ioprio_class = IOPRIO_CLASS_BE;
-			break;
-		case IOPRIO_CLASS_RT:
-			cfqq->ioprio = task_ioprio(ioc);
-			cfqq->ioprio_class = IOPRIO_CLASS_RT;
-			break;
-		case IOPRIO_CLASS_BE:
-			cfqq->ioprio = task_ioprio(ioc);
-			cfqq->ioprio_class = IOPRIO_CLASS_BE;
-			break;
-		case IOPRIO_CLASS_IDLE:
-			cfqq->ioprio_class = IOPRIO_CLASS_IDLE;
-			cfqq->ioprio = 7;
-			cfq_clear_cfqq_idle_window(cfqq);
-			break;
+	default:
+		printk(KERN_ERR "cfq: bad prio %x\n", ioprio_class);
+	case IOPRIO_CLASS_NONE:
+		/*
+		 * no prio set, place us in the middle of the BE classes
+		 */
+		cfqq->ioprio = task_nice_ioprio(tsk);
+		cfqq->ioprio_class = IOPRIO_CLASS_BE;
+		break;
+	case IOPRIO_CLASS_RT:
+		cfqq->ioprio = task_ioprio(ioc);
+		cfqq->ioprio_class = IOPRIO_CLASS_RT;
+		break;
+	case IOPRIO_CLASS_BE:
+		cfqq->ioprio = task_ioprio(ioc);
+		cfqq->ioprio_class = IOPRIO_CLASS_BE;
+		break;
+	case IOPRIO_CLASS_IDLE:
+		cfqq->ioprio_class = IOPRIO_CLASS_IDLE;
+		cfqq->ioprio = 7;
+		cfq_clear_cfqq_idle_window(cfqq);
+		break;
 	}
 
 	/*
@@ -1427,7 +1431,7 @@ out:
 static struct cfq_queue **
 cfq_async_queue_prio(struct cfq_data *cfqd, int ioprio_class, int ioprio)
 {
-	switch(ioprio_class) {
+	switch (ioprio_class) {
 	case IOPRIO_CLASS_RT:
 		return &cfqd->async_cfqq[0][ioprio];
 	case IOPRIO_CLASS_BE:
@@ -2018,7 +2022,8 @@ static void cfq_idle_slice_timer(unsigned long data)
 
 	spin_lock_irqsave(cfqd->queue->queue_lock, flags);
 
-	if ((cfqq = cfqd->active_queue) != NULL) {
+	cfqq = cfqd->active_queue;
+	if (cfqq) {
 		timed_out = 0;
 
 		/*
@@ -2212,14 +2217,18 @@ static ssize_t __FUNC(elevator_t *e, const char *page, size_t count)	\
 	return ret;							\
 }
 STORE_FUNCTION(cfq_quantum_store, &cfqd->cfq_quantum, 1, UINT_MAX, 0);
-STORE_FUNCTION(cfq_fifo_expire_sync_store, &cfqd->cfq_fifo_expire[1], 1, UINT_MAX, 1);
-STORE_FUNCTION(cfq_fifo_expire_async_store, &cfqd->cfq_fifo_expire[0], 1, UINT_MAX, 1);
+STORE_FUNCTION(cfq_fifo_expire_sync_store, &cfqd->cfq_fifo_expire[1], 1,
+		UINT_MAX, 1);
+STORE_FUNCTION(cfq_fifo_expire_async_store, &cfqd->cfq_fifo_expire[0], 1,
+		UINT_MAX, 1);
 STORE_FUNCTION(cfq_back_seek_max_store, &cfqd->cfq_back_max, 0, UINT_MAX, 0);
-STORE_FUNCTION(cfq_back_seek_penalty_store, &cfqd->cfq_back_penalty, 1, UINT_MAX, 0);
+STORE_FUNCTION(cfq_back_seek_penalty_store, &cfqd->cfq_back_penalty, 1,
+		UINT_MAX, 0);
 STORE_FUNCTION(cfq_slice_idle_store, &cfqd->cfq_slice_idle, 0, UINT_MAX, 1);
 STORE_FUNCTION(cfq_slice_sync_store, &cfqd->cfq_slice[1], 1, UINT_MAX, 1);
 STORE_FUNCTION(cfq_slice_async_store, &cfqd->cfq_slice[0], 1, UINT_MAX, 1);
-STORE_FUNCTION(cfq_slice_async_rq_store, &cfqd->cfq_slice_async_rq, 1, UINT_MAX, 0);
+STORE_FUNCTION(cfq_slice_async_rq_store, &cfqd->cfq_slice_async_rq, 1,
+		UINT_MAX, 0);
 #undef STORE_FUNCTION
 
 #define CFQ_ATTR(name) \

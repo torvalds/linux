@@ -3,7 +3,8 @@
  * Copyright (C) 1994,      Karl Keyte: Added support for disk statistics
  * Elevator latency, (C) 2000  Andrea Arcangeli <andrea@suse.de> SuSE
  * Queue request tables / lock, selectable elevator, Jens Axboe <axboe@suse.de>
- * kernel-doc documentation started by NeilBrown <neilb@cse.unsw.edu.au> -  July2000
+ * kernel-doc documentation started by NeilBrown <neilb@cse.unsw.edu.au>
+ *	-  July2000
  * bio rewrite, highmem i/o, etc, Jens Axboe <axboe@suse.de> - may 2001
  */
 
@@ -42,7 +43,7 @@ struct kmem_cache *request_cachep;
 /*
  * For queue allocation
  */
-struct kmem_cache *blk_requestq_cachep = NULL;
+struct kmem_cache *blk_requestq_cachep;
 
 /*
  * Controlling structure to kblockd
@@ -137,7 +138,7 @@ static void req_bio_endio(struct request *rq, struct bio *bio,
 			error = -EIO;
 
 		if (unlikely(nbytes > bio->bi_size)) {
-			printk("%s: want %u bytes done, only %u left\n",
+			printk(KERN_ERR "%s: want %u bytes done, %u left\n",
 			       __FUNCTION__, nbytes, bio->bi_size);
 			nbytes = bio->bi_size;
 		}
@@ -161,23 +162,26 @@ void blk_dump_rq_flags(struct request *rq, char *msg)
 {
 	int bit;
 
-	printk("%s: dev %s: type=%x, flags=%x\n", msg,
+	printk(KERN_INFO "%s: dev %s: type=%x, flags=%x\n", msg,
 		rq->rq_disk ? rq->rq_disk->disk_name : "?", rq->cmd_type,
 		rq->cmd_flags);
 
-	printk("\nsector %llu, nr/cnr %lu/%u\n", (unsigned long long)rq->sector,
-						       rq->nr_sectors,
-						       rq->current_nr_sectors);
-	printk("bio %p, biotail %p, buffer %p, data %p, len %u\n", rq->bio, rq->biotail, rq->buffer, rq->data, rq->data_len);
+	printk(KERN_INFO "  sector %llu, nr/cnr %lu/%u\n",
+						(unsigned long long)rq->sector,
+						rq->nr_sectors,
+						rq->current_nr_sectors);
+	printk(KERN_INFO "  bio %p, biotail %p, buffer %p, data %p, len %u\n",
+						rq->bio, rq->biotail,
+						rq->buffer, rq->data,
+						rq->data_len);
 
 	if (blk_pc_request(rq)) {
-		printk("cdb: ");
+		printk(KERN_INFO "  cdb: ");
 		for (bit = 0; bit < sizeof(rq->cmd); bit++)
 			printk("%02x ", rq->cmd[bit]);
 		printk("\n");
 	}
 }
-
 EXPORT_SYMBOL(blk_dump_rq_flags);
 
 /*
@@ -204,7 +208,6 @@ void blk_plug_device(struct request_queue *q)
 		blk_add_trace_generic(q, NULL, 0, BLK_TA_PLUG);
 	}
 }
-
 EXPORT_SYMBOL(blk_plug_device);
 
 /*
@@ -221,7 +224,6 @@ int blk_remove_plug(struct request_queue *q)
 	del_timer(&q->unplug_timer);
 	return 1;
 }
-
 EXPORT_SYMBOL(blk_remove_plug);
 
 /*
@@ -328,7 +330,6 @@ void blk_start_queue(struct request_queue *q)
 		kblockd_schedule_work(&q->unplug_work);
 	}
 }
-
 EXPORT_SYMBOL(blk_start_queue);
 
 /**
@@ -408,7 +409,7 @@ void blk_put_queue(struct request_queue *q)
 }
 EXPORT_SYMBOL(blk_put_queue);
 
-void blk_cleanup_queue(struct request_queue * q)
+void blk_cleanup_queue(struct request_queue *q)
 {
 	mutex_lock(&q->sysfs_lock);
 	set_bit(QUEUE_FLAG_DEAD, &q->queue_flags);
@@ -419,7 +420,6 @@ void blk_cleanup_queue(struct request_queue * q)
 
 	blk_put_queue(q);
 }
-
 EXPORT_SYMBOL(blk_cleanup_queue);
 
 static int blk_init_free_list(struct request_queue *q)
@@ -575,7 +575,6 @@ int blk_get_queue(struct request_queue *q)
 
 	return 1;
 }
-
 EXPORT_SYMBOL(blk_get_queue);
 
 static inline void blk_free_request(struct request_queue *q, struct request *rq)
@@ -774,7 +773,7 @@ rq_starved:
 	 */
 	if (ioc_batching(q, ioc))
 		ioc->nr_batch_requests--;
-	
+
 	rq_init(q, rq);
 
 	blk_add_trace_generic(q, bio, rw, BLK_TA_GETRQ);
@@ -888,7 +887,6 @@ void blk_requeue_request(struct request_queue *q, struct request *rq)
 
 	elv_requeue_request(q, rq);
 }
-
 EXPORT_SYMBOL(blk_requeue_request);
 
 /**
@@ -939,7 +937,6 @@ void blk_insert_request(struct request_queue *q, struct request *rq,
 	blk_start_queueing(q);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
-
 EXPORT_SYMBOL(blk_insert_request);
 
 /*
@@ -947,7 +944,7 @@ EXPORT_SYMBOL(blk_insert_request);
  * queue lock is held and interrupts disabled, as we muck with the
  * request queue list.
  */
-static inline void add_request(struct request_queue * q, struct request * req)
+static inline void add_request(struct request_queue *q, struct request *req)
 {
 	drive_stat_acct(req, 1);
 
@@ -957,7 +954,7 @@ static inline void add_request(struct request_queue * q, struct request * req)
 	 */
 	__elv_add_request(q, req, ELEVATOR_INSERT_SORT, 0);
 }
- 
+
 /*
  * disk_round_stats()	- Round off the performance stats on a struct
  * disk_stats.
@@ -987,7 +984,6 @@ void disk_round_stats(struct gendisk *disk)
 	}
 	disk->stamp = now;
 }
-
 EXPORT_SYMBOL_GPL(disk_round_stats);
 
 /*
@@ -1017,7 +1013,6 @@ void __blk_put_request(struct request_queue *q, struct request *req)
 		freed_request(q, rw, priv);
 	}
 }
-
 EXPORT_SYMBOL_GPL(__blk_put_request);
 
 void blk_put_request(struct request *req)
@@ -1035,7 +1030,6 @@ void blk_put_request(struct request *req)
 		spin_unlock_irqrestore(q->queue_lock, flags);
 	}
 }
-
 EXPORT_SYMBOL(blk_put_request);
 
 void init_request_from_bio(struct request *req, struct bio *bio)
@@ -1096,53 +1090,53 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 
 	el_ret = elv_merge(q, &req, bio);
 	switch (el_ret) {
-		case ELEVATOR_BACK_MERGE:
-			BUG_ON(!rq_mergeable(req));
+	case ELEVATOR_BACK_MERGE:
+		BUG_ON(!rq_mergeable(req));
 
-			if (!ll_back_merge_fn(q, req, bio))
-				break;
+		if (!ll_back_merge_fn(q, req, bio))
+			break;
 
-			blk_add_trace_bio(q, bio, BLK_TA_BACKMERGE);
+		blk_add_trace_bio(q, bio, BLK_TA_BACKMERGE);
 
-			req->biotail->bi_next = bio;
-			req->biotail = bio;
-			req->nr_sectors = req->hard_nr_sectors += nr_sectors;
-			req->ioprio = ioprio_best(req->ioprio, prio);
-			drive_stat_acct(req, 0);
-			if (!attempt_back_merge(q, req))
-				elv_merged_request(q, req, el_ret);
-			goto out;
+		req->biotail->bi_next = bio;
+		req->biotail = bio;
+		req->nr_sectors = req->hard_nr_sectors += nr_sectors;
+		req->ioprio = ioprio_best(req->ioprio, prio);
+		drive_stat_acct(req, 0);
+		if (!attempt_back_merge(q, req))
+			elv_merged_request(q, req, el_ret);
+		goto out;
 
-		case ELEVATOR_FRONT_MERGE:
-			BUG_ON(!rq_mergeable(req));
+	case ELEVATOR_FRONT_MERGE:
+		BUG_ON(!rq_mergeable(req));
 
-			if (!ll_front_merge_fn(q, req, bio))
-				break;
+		if (!ll_front_merge_fn(q, req, bio))
+			break;
 
-			blk_add_trace_bio(q, bio, BLK_TA_FRONTMERGE);
+		blk_add_trace_bio(q, bio, BLK_TA_FRONTMERGE);
 
-			bio->bi_next = req->bio;
-			req->bio = bio;
+		bio->bi_next = req->bio;
+		req->bio = bio;
 
-			/*
-			 * may not be valid. if the low level driver said
-			 * it didn't need a bounce buffer then it better
-			 * not touch req->buffer either...
-			 */
-			req->buffer = bio_data(bio);
-			req->current_nr_sectors = bio_cur_sectors(bio);
-			req->hard_cur_sectors = req->current_nr_sectors;
-			req->sector = req->hard_sector = bio->bi_sector;
-			req->nr_sectors = req->hard_nr_sectors += nr_sectors;
-			req->ioprio = ioprio_best(req->ioprio, prio);
-			drive_stat_acct(req, 0);
-			if (!attempt_front_merge(q, req))
-				elv_merged_request(q, req, el_ret);
-			goto out;
+		/*
+		 * may not be valid. if the low level driver said
+		 * it didn't need a bounce buffer then it better
+		 * not touch req->buffer either...
+		 */
+		req->buffer = bio_data(bio);
+		req->current_nr_sectors = bio_cur_sectors(bio);
+		req->hard_cur_sectors = req->current_nr_sectors;
+		req->sector = req->hard_sector = bio->bi_sector;
+		req->nr_sectors = req->hard_nr_sectors += nr_sectors;
+		req->ioprio = ioprio_best(req->ioprio, prio);
+		drive_stat_acct(req, 0);
+		if (!attempt_front_merge(q, req))
+			elv_merged_request(q, req, el_ret);
+		goto out;
 
-		/* ELV_NO_MERGE: elevator says don't/can't merge. */
-		default:
-			;
+	/* ELV_NO_MERGE: elevator says don't/can't merge. */
+	default:
+		;
 	}
 
 get_rq:
@@ -1350,7 +1344,7 @@ end_io:
 		}
 
 		if (unlikely(nr_sectors > q->max_hw_sectors)) {
-			printk("bio too big device %s (%u > %u)\n", 
+			printk(KERN_ERR "bio too big device %s (%u > %u)\n",
 				bdevname(bio->bi_bdev, b),
 				bio_sectors(bio),
 				q->max_hw_sectors);
@@ -1439,7 +1433,6 @@ void generic_make_request(struct bio *bio)
 	} while (bio);
 	current->bio_tail = NULL; /* deactivate */
 }
-
 EXPORT_SYMBOL(generic_make_request);
 
 /**
@@ -1480,13 +1473,12 @@ void submit_bio(int rw, struct bio *bio)
 			current->comm, task_pid_nr(current),
 				(rw & WRITE) ? "WRITE" : "READ",
 				(unsigned long long)bio->bi_sector,
-				bdevname(bio->bi_bdev,b));
+				bdevname(bio->bi_bdev, b));
 		}
 	}
 
 	generic_make_request(bio);
 }
-
 EXPORT_SYMBOL(submit_bio);
 
 /**
@@ -1518,9 +1510,8 @@ static int __end_that_request_first(struct request *req, int error,
 	if (!blk_pc_request(req))
 		req->errors = 0;
 
-	if (error) {
-		if (blk_fs_request(req) && !(req->cmd_flags & REQ_QUIET))
-			printk("end_request: I/O error, dev %s, sector %llu\n",
+	if (error && (blk_fs_request(req) && !(req->cmd_flags & REQ_QUIET))) {
+		printk(KERN_ERR "end_request: I/O error, dev %s, sector %llu\n",
 				req->rq_disk ? req->rq_disk->disk_name : "?",
 				(unsigned long long)req->sector);
 	}
@@ -1554,9 +1545,9 @@ static int __end_that_request_first(struct request *req, int error,
 
 			if (unlikely(bio->bi_idx >= bio->bi_vcnt)) {
 				blk_dump_rq_flags(req, "__end_that");
-				printk("%s: bio idx %d >= vcnt %d\n",
-						__FUNCTION__,
-						bio->bi_idx, bio->bi_vcnt);
+				printk(KERN_ERR "%s: bio idx %d >= vcnt %d\n",
+						__FUNCTION__, bio->bi_idx,
+						bio->bi_vcnt);
 				break;
 			}
 
@@ -1582,7 +1573,8 @@ static int __end_that_request_first(struct request *req, int error,
 		total_bytes += nbytes;
 		nr_bytes -= nbytes;
 
-		if ((bio = req->bio)) {
+		bio = req->bio;
+		if (bio) {
 			/*
 			 * end more in this run, or just return 'not-done'
 			 */
@@ -1626,15 +1618,16 @@ static void blk_done_softirq(struct softirq_action *h)
 	local_irq_enable();
 
 	while (!list_empty(&local_list)) {
-		struct request *rq = list_entry(local_list.next, struct request, donelist);
+		struct request *rq;
 
+		rq = list_entry(local_list.next, struct request, donelist);
 		list_del_init(&rq->donelist);
 		rq->q->softirq_done_fn(rq);
 	}
 }
 
-static int __cpuinit blk_cpu_notify(struct notifier_block *self, unsigned long action,
-			  void *hcpu)
+static int __cpuinit blk_cpu_notify(struct notifier_block *self,
+				    unsigned long action, void *hcpu)
 {
 	/*
 	 * If a CPU goes away, splice its entries to the current CPU
@@ -1676,7 +1669,7 @@ void blk_complete_request(struct request *req)
 	unsigned long flags;
 
 	BUG_ON(!req->q->softirq_done_fn);
-		
+
 	local_irq_save(flags);
 
 	cpu_list = &__get_cpu_var(blk_cpu_done);
@@ -1685,9 +1678,8 @@ void blk_complete_request(struct request *req)
 
 	local_irq_restore(flags);
 }
-
 EXPORT_SYMBOL(blk_complete_request);
-	
+
 /*
  * queue lock must be held
  */
@@ -1846,8 +1838,9 @@ EXPORT_SYMBOL(end_request);
  *     0 - we are done with this request
  *     1 - this request is not freed yet, it still has pending buffers.
  **/
-static int blk_end_io(struct request *rq, int error, int nr_bytes,
-		      int bidi_bytes, int (drv_callback)(struct request *))
+static int blk_end_io(struct request *rq, int error, unsigned int nr_bytes,
+		      unsigned int bidi_bytes,
+		      int (drv_callback)(struct request *))
 {
 	struct request_queue *q = rq->q;
 	unsigned long flags = 0UL;
@@ -1889,7 +1882,7 @@ static int blk_end_io(struct request *rq, int error, int nr_bytes,
  *     0 - we are done with this request
  *     1 - still buffers pending for this request
  **/
-int blk_end_request(struct request *rq, int error, int nr_bytes)
+int blk_end_request(struct request *rq, int error, unsigned int nr_bytes)
 {
 	return blk_end_io(rq, error, nr_bytes, 0, NULL);
 }
@@ -1908,7 +1901,7 @@ EXPORT_SYMBOL_GPL(blk_end_request);
  *     0 - we are done with this request
  *     1 - still buffers pending for this request
  **/
-int __blk_end_request(struct request *rq, int error, int nr_bytes)
+int __blk_end_request(struct request *rq, int error, unsigned int nr_bytes)
 {
 	if (blk_fs_request(rq) || blk_pc_request(rq)) {
 		if (__end_that_request_first(rq, error, nr_bytes))
@@ -1937,8 +1930,8 @@ EXPORT_SYMBOL_GPL(__blk_end_request);
  *     0 - we are done with this request
  *     1 - still buffers pending for this request
  **/
-int blk_end_bidi_request(struct request *rq, int error, int nr_bytes,
-			 int bidi_bytes)
+int blk_end_bidi_request(struct request *rq, int error, unsigned int nr_bytes,
+			 unsigned int bidi_bytes)
 {
 	return blk_end_io(rq, error, nr_bytes, bidi_bytes, NULL);
 }
@@ -1969,7 +1962,8 @@ EXPORT_SYMBOL_GPL(blk_end_bidi_request);
  *         this request still has pending buffers or
  *         the driver doesn't want to finish this request yet.
  **/
-int blk_end_request_callback(struct request *rq, int error, int nr_bytes,
+int blk_end_request_callback(struct request *rq, int error,
+			     unsigned int nr_bytes,
 			     int (drv_callback)(struct request *))
 {
 	return blk_end_io(rq, error, nr_bytes, 0, drv_callback);
@@ -2000,7 +1994,6 @@ int kblockd_schedule_work(struct work_struct *work)
 {
 	return queue_work(kblockd_workqueue, work);
 }
-
 EXPORT_SYMBOL(kblockd_schedule_work);
 
 void kblockd_flush_work(struct work_struct *work)
