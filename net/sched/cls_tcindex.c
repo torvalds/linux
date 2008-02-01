@@ -55,7 +55,7 @@ struct tcindex_data {
 	int fall_through;	/* 0: only classify if explicit match */
 };
 
-static struct tcf_ext_map tcindex_ext_map = {
+static const struct tcf_ext_map tcindex_ext_map = {
 	.police = TCA_TCINDEX_POLICE,
 	.action = TCA_TCINDEX_ACT
 };

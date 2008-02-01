@@ -131,14 +131,14 @@ tcf_exts_exec(struct sk_buff *skb, struct tcf_exts *exts,
 
 extern int tcf_exts_validate(struct tcf_proto *tp, struct nlattr **tb,
 	                     struct nlattr *rate_tlv, struct tcf_exts *exts,
-	                     struct tcf_ext_map *map);
+	                     const struct tcf_ext_map *map);
 extern void tcf_exts_destroy(struct tcf_proto *tp, struct tcf_exts *exts);
 extern void tcf_exts_change(struct tcf_proto *tp, struct tcf_exts *dst,
 	                     struct tcf_exts *src);
 extern int tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts,
-	                 struct tcf_ext_map *map);
+	                 const struct tcf_ext_map *map);
 extern int tcf_exts_dump_stats(struct sk_buff *skb, struct tcf_exts *exts,
-	                       struct tcf_ext_map *map);
+	                       const struct tcf_ext_map *map);
 
 /**
  * struct tcf_pkt_info - packet information

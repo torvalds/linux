@@ -47,7 +47,7 @@ struct fw_filter
 	struct tcf_exts		exts;
 };
 
-static struct tcf_ext_map fw_ext_map = {
+static const struct tcf_ext_map fw_ext_map = {
 	.action = TCA_FW_ACT,
 	.police = TCA_FW_POLICE
 };
