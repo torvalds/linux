@@ -451,7 +451,7 @@ static void ide_hwif_setup_dma(struct pci_dev *dev, const struct ide_port_info *
 			if (d->init_dma) {
 				d->init_dma(hwif, dma_base);
 			} else {
-				ide_setup_dma(hwif, dma_base, 8);
+				ide_setup_dma(hwif, dma_base);
 			}
 		} else {
 			printk(KERN_INFO "%s: %s Bus-Master DMA disabled "
