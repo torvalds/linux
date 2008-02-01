@@ -213,7 +213,6 @@ static void auide_set_dma_mode(ide_drive_t *drive, const u8 speed)
 static int auide_build_sglist(ide_drive_t *drive,  struct request *rq)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	_auide_hwif *ahwif = (_auide_hwif*)hwif->hwif_data;
 	struct scatterlist *sg = hwif->sg_table;
 
 	ide_map_sg(drive, rq);
@@ -223,7 +222,7 @@ static int auide_build_sglist(ide_drive_t *drive,  struct request *rq)
 	else
 		hwif->sg_dma_direction = DMA_TO_DEVICE;
 
-	return dma_map_sg(ahwif->dev, sg, hwif->sg_nents,
+	return dma_map_sg(hwif->dev, sg, hwif->sg_nents,
 			  hwif->sg_dma_direction);
 }
 
@@ -300,7 +299,7 @@ static int auide_build_dmatable(ide_drive_t *drive)
 		return 1;
 
  use_pio_instead:
-	dma_unmap_sg(ahwif->dev,
+	dma_unmap_sg(hwif->dev,
 		     hwif->sg_table,
 		     hwif->sg_nents,
 		     hwif->sg_dma_direction);
@@ -311,10 +310,9 @@ static int auide_build_dmatable(ide_drive_t *drive)
 static int auide_dma_end(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = HWIF(drive);
-	_auide_hwif *ahwif = (_auide_hwif*)hwif->hwif_data;
 
 	if (hwif->sg_nents) {
-		dma_unmap_sg(ahwif->dev, hwif->sg_table, hwif->sg_nents,
+		dma_unmap_sg(hwif->dev, hwif->sg_table, hwif->sg_nents,
 			     hwif->sg_dma_direction);
 		hwif->sg_nents = 0;
 	}
@@ -504,7 +502,7 @@ static int auide_ddma_init(_auide_hwif *auide) {
 	auide->rx_desc_head = (void*)au1xxx_dbdma_ring_alloc(auide->rx_chan,
 							     NUM_DESCRIPTORS);
  
-	hwif->dmatable_cpu = dma_alloc_coherent(auide->dev,
+	hwif->dmatable_cpu = dma_alloc_coherent(hwif->dev,
 						PRD_ENTRIES * PRD_BYTES,        /* 1 Page */
 						&hwif->dmatable_dma, GFP_KERNEL);
 	
@@ -592,9 +590,6 @@ static int au_ide_probe(struct device *dev)
 #endif
 
 	memset(&auide_hwif, 0, sizeof(_auide_hwif));
-	auide_hwif.dev                  = 0;
-
-	ahwif->dev = dev;
 	ahwif->irq = platform_get_irq(pdev, 0);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -632,6 +627,8 @@ static int au_ide_probe(struct device *dev)
 	hw.chipset = ide_au1xxx;
 
 	ide_init_port_hw(hwif, &hw);
+
+	hwif->dev = dev;
 
 	hwif->ultra_mask                = 0x0;  /* Disable Ultra DMA */
 #ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
