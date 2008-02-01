@@ -797,7 +797,7 @@ static int cdrom_read_from_buffer (ide_drive_t *drive)
 	return 0;
 }
 
-static ide_startstop_t cdrom_rw_intr(ide_drive_t *);
+static ide_startstop_t cdrom_newpc_intr(ide_drive_t *);
 
 /*
  * Routine to send a read/write packet command to the drive.
@@ -846,7 +846,7 @@ static ide_startstop_t cdrom_start_rw_cont(ide_drive_t *drive)
 	rq->timeout = ATAPI_WAIT_PC;
 
 	/* Send the command to the drive and return. */
-	return cdrom_transfer_packet_command(drive, rq, cdrom_rw_intr);
+	return cdrom_transfer_packet_command(drive, rq, cdrom_newpc_intr);
 }
 
 #define IDECD_SEEK_THRESHOLD	(1000)			/* 1000 blocks */
@@ -1024,17 +1024,12 @@ static int cdrom_newpc_intr_dummy_cb(struct request *rq)
 	return 1;
 }
 
-/*
- * best way to deal with dma that is not sector aligned right now... note
- * that in this path we are not using ->data or ->buffer at all. this irs
- * can replace cdrom_rw_intr() in the future.
- */
 static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 {
 	struct cdrom_info *info = drive->driver_data;
 	struct request *rq = HWGROUP(drive)->rq;
 	xfer_func_t *xferfunc;
-	ide_expiry_t *expiry;
+	ide_expiry_t *expiry = NULL;
 	int dma_error = 0, dma, stat, ireason, len, thislen, uptodate = 0;
 	int write = (rq_data_dir(rq) == WRITE) ? 1 : 0;
 	unsigned int timeout;
@@ -1061,6 +1056,10 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	if (dma) {
 		if (dma_error)
 			return ide_error(drive, "dma error", stat);
+		if (blk_fs_request(rq)) {
+			ide_end_request(drive, 1, rq->nr_sectors);
+			return ide_stopped;
+		}
 		goto end_request;
 	}
 
@@ -1072,7 +1071,8 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	highcyl = HWIF(drive)->INB(IDE_BCOUNTH_REG);
 
 	len = lowcyl + (256 * highcyl);
-	thislen = rq->data_len;
+
+	thislen = blk_fs_request(rq) ? len : rq->data_len;
 	if (thislen > len)
 		thislen = len;
 
@@ -1080,7 +1080,24 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	 * If DRQ is clear, the command has completed.
 	 */
 	if ((stat & DRQ_STAT) == 0) {
-		if (!blk_pc_request(rq)) {
+		if (blk_fs_request(rq)) {
+			/*
+			 * If we're not done reading/writing, complain.
+			 * Otherwise, complete the command normally.
+			 */
+			uptodate = 1;
+			if (rq->current_nr_sectors > 0) {
+				printk(KERN_ERR "%s: %s: data underrun "
+						"(%d blocks)\n",
+						drive->name, __FUNCTION__,
+						rq->current_nr_sectors);
+				if (!write)
+					rq->cmd_flags |= REQ_FAILED;
+				uptodate = 0;
+			}
+			cdrom_end_request(drive, uptodate);
+			return ide_stopped;
+		} else if (!blk_pc_request(rq)) {
 			ide_cd_request_sense_fixup(rq);
 			/* Complain if we still have data left to transfer. */
 			uptodate = rq->data_len ? 0 : 1;
@@ -1091,24 +1108,47 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	/*
 	 * check which way to transfer data
 	 */
-	if (blk_pc_request(rq) && rq_data_dir(rq) == WRITE) {
+	if ((blk_fs_request(rq) || blk_pc_request(rq)) && write) {
 		/*
 		 * write to drive
 		 */
 		if (cdrom_write_check_ireason(drive, len, ireason))
 			return ide_stopped;
-	} else if (blk_pc_request(rq)) {
+	} else if (blk_fs_request(rq) || blk_pc_request(rq)) {
 		/*
 		 * read from drive
 		 */
 		if (cdrom_read_check_ireason(drive, len, ireason))
 			return ide_stopped;
+
+		if (blk_fs_request(rq)) {
+			int nskip;
+
+			if (ide_cd_check_transfer_size(drive, len)) {
+				cdrom_end_request(drive, 0);
+				return ide_stopped;
+			}
+
+			/*
+			 * First, figure out if we need to bit-bucket
+			 * any of the leading sectors.
+			 */
+			nskip = min_t(int, rq->current_nr_sectors
+					   - bio_cur_sectors(rq->bio),
+					   thislen >> 9);
+			if (nskip > 0) {
+				ide_cd_drain_data(drive, nskip);
+				rq->current_nr_sectors -= nskip;
+				thislen -= (nskip << 9);
+			}
+		}
 	}
 
 	if (ireason == 0) {
 		write = 1;
 		xferfunc = HWIF(drive)->atapi_output_bytes;
-	} else if (ireason == 2 || (ireason == 1 && blk_pc_request(rq))) {
+	} else if (ireason == 2 || (ireason == 1 &&
+		   (blk_fs_request(rq) || blk_pc_request(rq)))) {
 		write = 0;
 		xferfunc = HWIF(drive)->atapi_input_bytes;
 	} else {
@@ -1123,23 +1163,37 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	 * transfer data
 	 */
 	while (thislen > 0) {
-		u8 *ptr = rq->data;
+		u8 *ptr = blk_fs_request(rq) ? NULL : rq->data;
 		int blen = rq->data_len;
 
 		/*
 		 * bio backed?
 		 */
 		if (rq->bio) {
-			ptr = bio_data(rq->bio);
-			blen = bio_iovec(rq->bio)->bv_len;
+			if (blk_fs_request(rq)) {
+				ptr = rq->buffer;
+				blen = rq->current_nr_sectors << 9;
+			} else {
+				ptr = bio_data(rq->bio);
+				blen = bio_iovec(rq->bio)->bv_len;
+			}
 		}
 
 		if (!ptr) {
-			printk(KERN_ERR "%s: confused, missing data\n",
-					drive->name);
-			blk_dump_rq_flags(rq, rq_data_dir(rq)
-					      ? "cdrom_newpc_intr, write"
-					      : "cdrom_newpc_intr, read");
+			if (blk_fs_request(rq) && !write)
+				/*
+				 * If the buffers are full, cache the rest
+				 * of the data in our internal buffer.
+				 */
+				cdrom_buffer_sectors(drive, rq->sector,
+						     thislen >> 9);
+			else {
+				printk(KERN_ERR "%s: confused, missing data\n",
+						drive->name);
+				blk_dump_rq_flags(rq, rq_data_dir(rq)
+						  ? "cdrom_newpc_intr, write"
+						  : "cdrom_newpc_intr, read");
+			}
 			break;
 		}
 
@@ -1150,19 +1204,30 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 
 		thislen -= blen;
 		len -= blen;
-		rq->data_len -= blen;
 
-		if (rq->bio)
+		if (blk_fs_request(rq)) {
+			rq->buffer += blen;
+			rq->nr_sectors -= (blen >> 9);
+			rq->current_nr_sectors -= (blen >> 9);
+			rq->sector += (blen >> 9);
+
+			if (rq->current_nr_sectors == 0 && rq->nr_sectors)
+				cdrom_end_request(drive, 1);
+		} else {
+			rq->data_len -= blen;
+
 			/*
 			 * The request can't be completed until DRQ is cleared.
 			 * So complete the data, but don't complete the request
 			 * using the dummy function for the callback feature
 			 * of blk_end_request_callback().
 			 */
-			blk_end_request_callback(rq, 0, blen,
+			if (rq->bio)
+				blk_end_request_callback(rq, 0, blen,
 						 cdrom_newpc_intr_dummy_cb);
-		else
-			rq->data += blen;
+			else
+				rq->data += blen;
+		}
 	}
 
 	if (write && blk_sense_request(rq))
@@ -1171,15 +1236,15 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	/*
 	 * pad, if necessary
 	 */
-	if (len > 0)
+	if (!blk_fs_request(rq) && len > 0)
 		ide_cd_pad_transfer(drive, xferfunc, len);
 
 	if (blk_pc_request(rq)) {
 		timeout = rq->timeout;
-		expiry = NULL;
 	} else {
 		timeout = ATAPI_WAIT_PC;
-		expiry = cdrom_timer_expiry;
+		if (!blk_fs_request(rq))
+			expiry = cdrom_timer_expiry;
 	}
 
 	ide_set_handler(drive, cdrom_newpc_intr, timeout, expiry);
@@ -1200,155 +1265,6 @@ end_request:
 		cdrom_end_request(drive, uptodate);
 	}
 	return ide_stopped;
-}
-
-static ide_startstop_t cdrom_rw_intr(ide_drive_t *drive)
-{
-	struct cdrom_info *info = drive->driver_data;
-	struct request *rq = HWGROUP(drive)->rq;
-	xfer_func_t *xferfunc;
-	int stat, ireason, len, thislen, uptodate, nskip;
-	int dma_error = 0, dma = info->dma, write = rq_data_dir(rq) == WRITE;
-	u8 lowcyl = 0, highcyl = 0;
-
-	/* Check for errors. */
-	if (dma) {
-		info->dma = 0;
-		dma_error = HWIF(drive)->ide_dma_end(drive);
-		if (dma_error) {
-			printk(KERN_ERR "%s: DMA %s error\n", drive->name,
-					write ? "write" : "read");
-			ide_dma_off(drive);
-		}
-	}
-
-	if (cdrom_decode_status(drive, 0, &stat))
-		return ide_stopped;
-
-	/*
-	 * using dma, transfer is complete now
-	 */
-	if (dma) {
-		if (dma_error)
-			return ide_error(drive, "dma error", stat);
-
-		ide_end_request(drive, 1, rq->nr_sectors);
-		return ide_stopped;
-	}
-
-	/* Read the interrupt reason and the transfer length. */
-	ireason = HWIF(drive)->INB(IDE_IREASON_REG) & 0x3;
-	lowcyl  = HWIF(drive)->INB(IDE_BCOUNTL_REG);
-	highcyl = HWIF(drive)->INB(IDE_BCOUNTH_REG);
-
-	len = lowcyl + (256 * highcyl);
-
-	/* If DRQ is clear, the command has completed. */
-	if ((stat & DRQ_STAT) == 0) {
-		/*
-		 * If we're not done reading/writing, complain.
-		 * Otherwise, complete the command normally.
-		 */
-		uptodate = 1;
-		if (rq->current_nr_sectors > 0) {
-			printk(KERN_ERR "%s: %s: data underrun (%d blocks)\n",
-					drive->name, __FUNCTION__,
-					rq->current_nr_sectors);
-			if (!write)
-				rq->cmd_flags |= REQ_FAILED;
-			uptodate = 0;
-		}
-		cdrom_end_request(drive, uptodate);
-		return ide_stopped;
-	}
-
-	thislen = len;
-
-	/* Check that the drive is expecting to do the same thing we are. */
-	if (write) {
-		if (cdrom_write_check_ireason(drive, len, ireason))
-			return ide_stopped;
-
-		xferfunc = HWIF(drive)->atapi_output_bytes;
-	} else {
-		if (cdrom_read_check_ireason(drive, len, ireason))
-			return ide_stopped;
-
-		if (ide_cd_check_transfer_size(drive, len)) {
-			cdrom_end_request(drive, 0);
-			return ide_stopped;
-		}
-
-		/*
-		 * First, figure out if we need to bit-bucket
-		 * any of the leading sectors.
-		 */
-		nskip = min_t(int, rq->current_nr_sectors
-				   - bio_cur_sectors(rq->bio),
-				   thislen >> 9);
-
-		if (nskip > 0) {
-			ide_cd_drain_data(drive, nskip);
-			rq->current_nr_sectors -= nskip;
-			thislen -= (nskip << 9);
-		}
-
-		xferfunc = HWIF(drive)->atapi_input_bytes;
-	}
-
-	/*
-	 * now loop and read/write the data
-	 */
-	while (thislen > 0) {
-		u8 *ptr = NULL;
-		int blen;
-
-		if (rq->bio) {
-			ptr = rq->buffer;
-			blen = rq->current_nr_sectors << 9;
-		}
-
-		if (!ptr) {
-			if (!write)
-				/*
-				 * If the buffers are full, cache the rest
-				 * of the data in our internal buffer.
-				 */
-				cdrom_buffer_sectors(drive, rq->sector,
-						     thislen >> 9);
-			else {
-				printk(KERN_ERR "%s: %s: confused, missing "
-						"data\n",
-						drive->name, __FUNCTION__);
-				blk_dump_rq_flags(rq, "cdrom_rw_intr, write");
-			}
-			break;
-		}
-
-		/*
-		 * Figure out how many sectors we can transfer
-		 */
-		if (blen > thislen)
-			blen = thislen;
-
-		xferfunc(drive, ptr, blen);
-
-		thislen -= blen;
-		rq->buffer += blen;
-		rq->nr_sectors -= (blen >> 9);
-		rq->current_nr_sectors -= (blen >> 9);
-		rq->sector += (blen >> 9);
-
-		/*
-		 * current buffer complete, move on
-		 */
-		if (rq->current_nr_sectors == 0 && rq->nr_sectors)
-			cdrom_end_request(drive, 1);
-	}
-
-	/* re-arm handler */
-	ide_set_handler(drive, cdrom_rw_intr, ATAPI_WAIT_PC, NULL);
-	return ide_started;
 }
 
 static ide_startstop_t cdrom_start_rw(ide_drive_t *drive, struct request *rq)
