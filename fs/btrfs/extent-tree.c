@@ -1664,12 +1664,13 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 	u64 root_used;
 	u64 search_start = 0;
 	u64 new_hint;
+	u32 sizes[2];
 	struct btrfs_fs_info *info = root->fs_info;
 	struct btrfs_root *extent_root = info->extent_root;
-	struct btrfs_extent_item extent_item;
+	struct btrfs_extent_item *extent_item;
+	struct btrfs_extent_ref *ref;
 	struct btrfs_path *path;
-
-	btrfs_set_stack_extent_refs(&extent_item, 1);
+	struct btrfs_key keys[2];
 
 	new_hint = max(hint_byte, root->fs_info->alloc_start);
 	if (new_hint < btrfs_super_total_bytes(&info->super_copy))
@@ -1707,20 +1708,37 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 	WARN_ON(trans->alloc_exclude_nr);
 	trans->alloc_exclude_start = ins->objectid;
 	trans->alloc_exclude_nr = ins->offset;
-	ret = btrfs_insert_item(trans, extent_root, ins, &extent_item,
-				sizeof(extent_item));
 
-	trans->alloc_exclude_start = 0;
-	trans->alloc_exclude_nr = 0;
-	BUG_ON(ret);
+	memcpy(&keys[0], ins, sizeof(*ins));
+	keys[1].offset = hash_extent_ref(root_objectid, ref_generation,
+					 owner, owner_offset);
+	keys[1].objectid = ins->objectid;
+	keys[1].type = BTRFS_EXTENT_REF_KEY;
+	sizes[0] = sizeof(*extent_item);
+	sizes[1] = sizeof(*ref);
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
-	ret = btrfs_insert_extent_backref(trans, extent_root, path,
-					  ins->objectid, root_objectid,
-					  ref_generation, owner, owner_offset);
+
+	ret = btrfs_insert_empty_items(trans, extent_root, path, keys,
+				       sizes, 2);
 
 	BUG_ON(ret);
+	extent_item = btrfs_item_ptr(path->nodes[0], path->slots[0],
+				     struct btrfs_extent_item);
+	btrfs_set_extent_refs(path->nodes[0], extent_item, 1);
+	ref = btrfs_item_ptr(path->nodes[0], path->slots[0] + 1,
+			     struct btrfs_extent_ref);
+
+	btrfs_set_ref_root(path->nodes[0], ref, root_objectid);
+	btrfs_set_ref_generation(path->nodes[0], ref, ref_generation);
+	btrfs_set_ref_objectid(path->nodes[0], ref, owner);
+	btrfs_set_ref_offset(path->nodes[0], ref, owner_offset);
+
+	btrfs_mark_buffer_dirty(path->nodes[0]);
+
+	trans->alloc_exclude_start = 0;
+	trans->alloc_exclude_nr = 0;
 	btrfs_free_path(path);
 	finish_current_insert(trans, extent_root);
 	pending_ret = del_pending_extents(trans, extent_root);
