@@ -1500,9 +1500,11 @@ static ide_startstop_t cdrom_pc_intr (ide_drive_t *drive)
 
 	if (xferfunc) {
 		if (!rq->data) {
+			printk(KERN_ERR "%s: confused, missing data\n",
+					drive->name);
 			blk_dump_rq_flags(rq, write ? "cdrom_pc_intr, write"
 						    : "cdrom_pc_intr, read");
-			goto confused;
+			goto pad;
 		}
 		/* Transfer the data. */
 		xferfunc(drive, rq->data, thislen);
@@ -1515,7 +1517,6 @@ static ide_startstop_t cdrom_pc_intr (ide_drive_t *drive)
 		if (write && blk_sense_request(rq))
 			rq->sense_len += thislen;
 	} else {
-confused:
 		printk (KERN_ERR "%s: cdrom_pc_intr: The drive "
 			"appears confused (ireason = 0x%02x). "
 			"Trying to recover by ending request.\n",
@@ -1524,7 +1525,7 @@ confused:
 		cdrom_end_request(drive, 0);
 		return ide_stopped;
 	}
-
+pad:
 	/*
 	 * If we haven't moved enough data to satisfy the drive,
 	 * add some padding.
