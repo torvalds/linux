@@ -37,17 +37,17 @@
 struct ocfs2_locking_protocol {
 	void (*lp_lock_ast)(void *astarg);
 	void (*lp_blocking_ast)(void *astarg, int level);
-	void (*lp_unlock_ast)(void *astarg, enum dlm_status status);
+	void (*lp_unlock_ast)(void *astarg, int error);
 };
 
-enum dlm_status ocfs2_dlm_lock(struct dlm_ctxt *dlm,
+int ocfs2_dlm_lock(struct dlm_ctxt *dlm,
 		   int mode,
 		   struct dlm_lockstatus *lksb,
 		   u32 flags,
 		   void *name,
 		   unsigned int namelen,
 		   void *astarg);
-enum dlm_status ocfs2_dlm_unlock(struct dlm_ctxt *dlm,
+int ocfs2_dlm_unlock(struct dlm_ctxt *dlm,
 		     struct dlm_lockstatus *lksb,
 		     u32 flags,
 		     void *astarg);
