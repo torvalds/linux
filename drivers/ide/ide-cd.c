@@ -1674,6 +1674,11 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	if (dma) {
 		info->dma = 0;
 		dma_error = HWIF(drive)->ide_dma_end(drive);
+		if (dma_error) {
+			printk(KERN_ERR "%s: DMA %s error\n", drive->name,
+					rq_data_dir(rq) ? "write" : "read");
+			ide_dma_off(drive);
+		}
 	}
 
 	if (cdrom_decode_status(drive, 0, &stat))
@@ -1683,11 +1688,8 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	 * using dma, transfer is complete now
 	 */
 	if (dma) {
-		if (dma_error) {
-			printk(KERN_ERR "ide-cd: dma error\n");
-			ide_dma_off(drive);
+		if (dma_error)
 			return ide_error(drive, "dma error", stat);
-		}
 
 		spin_lock_irqsave(&ide_lock, flags);
 		if (__blk_end_request(rq, 0, rq->data_len))
