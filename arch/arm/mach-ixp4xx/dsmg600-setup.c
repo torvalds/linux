@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
+#include <linux/leds.h>
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
 
@@ -58,29 +59,28 @@ static struct i2c_board_info __initdata dsmg600_i2c_board_info [] = {
 	},
 };
 
-#ifdef CONFIG_LEDS_CLASS
-static struct resource dsmg600_led_resources[] = {
+static struct gpio_led dsmg600_led_pins[] = {
 	{
-		.name           = "power",
-		.start          = DSMG600_LED_PWR_GPIO,
-		.end            = DSMG600_LED_PWR_GPIO,
-		.flags          = IXP4XX_GPIO_HIGH,
+		.name		= "power",
+		.gpio		= DSMG600_LED_PWR_GPIO,
 	},
 	{
-		.name           = "wlan",
-		.start		= DSMG600_LED_WLAN_GPIO,
-		.end            = DSMG600_LED_WLAN_GPIO,
-		.flags          = IXP4XX_GPIO_LOW,
+		.name		= "wlan",
+		.gpio		= DSMG600_LED_WLAN_GPIO,
+		.active_low	= true,
 	},
 };
 
-static struct platform_device dsmg600_leds = {
-        .name                   = "IXP4XX-GPIO-LED",
-        .id                     = -1,
-        .num_resources          = ARRAY_SIZE(dsmg600_led_resources),
-        .resource               = dsmg600_led_resources,
+static struct gpio_led_platform_data dsmg600_led_data = {
+	.num_leds		= ARRAY_SIZE(dsmg600_led_pins),
+	.leds			= dsmg600_led_pins,
 };
-#endif
+
+static struct platform_device dsmg600_leds = {
+	.name			= "leds-gpio",
+	.id			= -1,
+	.dev.platform_data	= &dsmg600_led_data,
+};
 
 static struct resource dsmg600_uart_resources[] = {
 	{
@@ -128,6 +128,7 @@ static struct platform_device dsmg600_uart = {
 static struct platform_device *dsmg600_devices[] __initdata = {
 	&dsmg600_i2c_gpio,
 	&dsmg600_flash,
+	&dsmg600_leds,
 };
 
 static void dsmg600_power_off(void)
@@ -175,11 +176,6 @@ static void __init dsmg600_init(void)
         (void)platform_device_register(&dsmg600_uart);
 
 	platform_add_devices(dsmg600_devices, ARRAY_SIZE(dsmg600_devices));
-
-#ifdef CONFIG_LEDS_CLASS
-        /* We don't care whether or not this works. */
-        (void)platform_device_register(&dsmg600_leds);
-#endif
 }
 
 MACHINE_START(DSMG600, "D-Link DSM-G600 RevA")

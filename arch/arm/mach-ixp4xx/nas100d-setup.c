@@ -46,35 +46,34 @@ static struct i2c_board_info __initdata nas100d_i2c_board_info [] = {
 	},
 };
 
-#ifdef CONFIG_LEDS_IXP4XX
-static struct resource nas100d_led_resources[] = {
+static struct gpio_led nas100d_led_pins[] = {
 	{
 		.name		= "wlan",   /* green led */
-		.start		= NAS100D_LED_WLAN_GPIO,
-		.end		= NAS100D_LED_WLAN_GPIO,
-		.flags		= IXP4XX_GPIO_LOW,
+		.gpio		= NAS100D_LED_WLAN_GPIO,
+		.active_low	= true,
 	},
 	{
 		.name		= "power",  /* blue power led (off=flashing) */
-		.start		= NAS100D_LED_PWR_GPIO,
-		.end		= NAS100D_LED_PWR_GPIO,
-		.flags		= IXP4XX_GPIO_LOW,
+		.gpio		= NAS100D_LED_PWR_GPIO,
+		.active_low	= true,
 	},
 	{
 		.name		= "disk",   /* yellow led */
-		.start		= NAS100D_LED_DISK_GPIO,
-		.end		= NAS100D_LED_DISK_GPIO,
-		.flags		= IXP4XX_GPIO_LOW,
+		.gpio		= NAS100D_LED_DISK_GPIO,
+		.active_low	= true,
 	},
 };
 
-static struct platform_device nas100d_leds = {
-	.name			= "IXP4XX-GPIO-LED",
-	.id			= -1,
-	.num_resources		= ARRAY_SIZE(nas100d_led_resources),
-	.resource		= nas100d_led_resources,
+static struct gpio_led_platform_data nas100d_led_data = {
+	.num_leds		= ARRAY_SIZE(nas100d_led_pins),
+	.leds			= nas100d_led_pins,
 };
-#endif
+
+static struct platform_device nas100d_leds = {
+	.name			= "leds-gpio",
+	.id			= -1,
+	.dev.platform_data	= &nas100d_led_data,
+};
 
 static struct i2c_gpio_platform_data nas100d_i2c_gpio_data = {
 	.sda_pin		= NAS100D_SDA_PIN,
@@ -135,9 +134,7 @@ static struct platform_device nas100d_uart = {
 static struct platform_device *nas100d_devices[] __initdata = {
 	&nas100d_i2c_gpio,
 	&nas100d_flash,
-#ifdef CONFIG_LEDS_IXP4XX
 	&nas100d_leds,
-#endif
 };
 
 static void nas100d_power_off(void)

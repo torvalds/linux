@@ -54,41 +54,37 @@ static struct i2c_board_info __initdata nslu2_i2c_board_info [] = {
 	},
 };
 
-#ifdef CONFIG_LEDS_IXP4XX
-static struct resource nslu2_led_resources[] = {
+static struct gpio_led nslu2_led_pins[] = {
 	{
 		.name		= "ready",  /* green led */
-		.start		= NSLU2_LED_GRN_GPIO,
-		.end		= NSLU2_LED_GRN_GPIO,
-		.flags		= IXP4XX_GPIO_HIGH,
+		.gpio		= NSLU2_LED_GRN_GPIO,
 	},
 	{
 		.name		= "status", /* red led */
-		.start		= NSLU2_LED_RED_GPIO,
-		.end		= NSLU2_LED_RED_GPIO,
-		.flags		= IXP4XX_GPIO_HIGH,
+		.gpio		= NSLU2_LED_RED_GPIO,
 	},
 	{
 		.name		= "disk-1",
-		.start		= NSLU2_LED_DISK1_GPIO,
-		.end		= NSLU2_LED_DISK1_GPIO,
-		.flags		= IXP4XX_GPIO_LOW,
+		.gpio		= NSLU2_LED_DISK1_GPIO,
+		.active_low	= true,
 	},
 	{
 		.name		= "disk-2",
-		.start		= NSLU2_LED_DISK2_GPIO,
-		.end		= NSLU2_LED_DISK2_GPIO,
-		.flags		= IXP4XX_GPIO_LOW,
+		.gpio		= NSLU2_LED_DISK2_GPIO,
+		.active_low	= true,
 	},
 };
 
-static struct platform_device nslu2_leds = {
-	.name			= "IXP4XX-GPIO-LED",
-	.id			= -1,
-	.num_resources		= ARRAY_SIZE(nslu2_led_resources),
-	.resource		= nslu2_led_resources,
+static struct gpio_led_platform_data nslu2_led_data = {
+	.num_leds		= ARRAY_SIZE(nslu2_led_pins),
+	.leds			= nslu2_led_pins,
 };
-#endif
+
+static struct platform_device nslu2_leds = {
+	.name			= "leds-gpio",
+	.id			= -1,
+	.dev.platform_data	= &nslu2_led_data,
+};
 
 static struct platform_device nslu2_i2c_gpio = {
 	.name			= "i2c-gpio",
@@ -151,9 +147,7 @@ static struct platform_device *nslu2_devices[] __initdata = {
 	&nslu2_i2c_gpio,
 	&nslu2_flash,
 	&nslu2_beeper,
-#ifdef CONFIG_LEDS_IXP4XX
 	&nslu2_leds,
-#endif
 };
 
 static void nslu2_power_off(void)
