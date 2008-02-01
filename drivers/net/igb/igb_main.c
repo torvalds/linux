@@ -438,7 +438,6 @@ static int igb_request_irq(struct igb_adapter *adapter)
 	if (adapter->msix_entries) {
 		err = igb_request_msix(adapter);
 		if (!err) {
-			struct e1000_hw *hw = &adapter->hw;
 			/* enable IAM, auto-mask,
 			 * DO NOT USE EIAME or IAME in legacy mode */
 			wr32(E1000_IAM, IMS_ENABLE_MASK);
