@@ -103,21 +103,41 @@ static int ixgbe_get_settings(struct net_device *netdev,
 			      struct ethtool_cmd *ecmd)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 link_speed = 0;
+	bool link_up;
 
-	ecmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_FIBRE);
-	ecmd->advertising = (ADVERTISED_10000baseT_Full | ADVERTISED_FIBRE);
-	ecmd->port = PORT_FIBRE;
+	ecmd->supported = SUPPORTED_10000baseT_Full;
+	ecmd->autoneg = AUTONEG_ENABLE;
 	ecmd->transceiver = XCVR_EXTERNAL;
+	if (hw->phy.media_type == ixgbe_media_type_copper) {
+		ecmd->supported |= (SUPPORTED_1000baseT_Full |
+				    SUPPORTED_TP | SUPPORTED_Autoneg);
 
-	if (netif_carrier_ok(adapter->netdev)) {
-		ecmd->speed = SPEED_10000;
+		ecmd->advertising = (ADVERTISED_TP | ADVERTISED_Autoneg);
+		if (hw->phy.autoneg_advertised & IXGBE_LINK_SPEED_10GB_FULL)
+			ecmd->advertising |= ADVERTISED_10000baseT_Full;
+		if (hw->phy.autoneg_advertised & IXGBE_LINK_SPEED_1GB_FULL)
+			ecmd->advertising |= ADVERTISED_1000baseT_Full;
+
+		ecmd->port = PORT_TP;
+	} else {
+		ecmd->supported |= SUPPORTED_FIBRE;
+		ecmd->advertising = (ADVERTISED_10000baseT_Full |
+				     ADVERTISED_FIBRE);
+		ecmd->port = PORT_FIBRE;
+	}
+
+	adapter->hw.mac.ops.check_link(hw, &(link_speed), &link_up);
+	if (link_up) {
+		ecmd->speed = (link_speed == IXGBE_LINK_SPEED_10GB_FULL) ?
+				SPEED_10000 : SPEED_1000;
 		ecmd->duplex = DUPLEX_FULL;
 	} else {
 		ecmd->speed = -1;
 		ecmd->duplex = -1;
 	}
 
-	ecmd->autoneg = AUTONEG_DISABLE;
 	return 0;
 }
 
@@ -125,17 +145,17 @@ static int ixgbe_set_settings(struct net_device *netdev,
 			      struct ethtool_cmd *ecmd)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_hw *hw = &adapter->hw;
 
-	if (ecmd->autoneg == AUTONEG_ENABLE ||
-	    ecmd->speed + ecmd->duplex != SPEED_10000 + DUPLEX_FULL)
-		return -EINVAL;
-
-	if (netif_running(adapter->netdev)) {
-		ixgbe_down(adapter);
-		ixgbe_reset(adapter);
-		ixgbe_up(adapter);
-	} else {
-		ixgbe_reset(adapter);
+	switch (hw->phy.media_type) {
+	case ixgbe_media_type_fiber:
+		if ((ecmd->autoneg == AUTONEG_ENABLE) ||
+		    (ecmd->speed + ecmd->duplex != SPEED_10000 + DUPLEX_FULL))
+			return -EINVAL;
+		/* in this case we currently only support 10Gb/FULL */
+		break;
+	default:
+		break;
 	}
 
 	return 0;
