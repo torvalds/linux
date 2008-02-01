@@ -88,7 +88,8 @@
 #define OCFS2_FEATURE_COMPAT_SUPP	OCFS2_FEATURE_COMPAT_BACKUP_SB
 #define OCFS2_FEATURE_INCOMPAT_SUPP	(OCFS2_FEATURE_INCOMPAT_LOCAL_MOUNT \
 					 | OCFS2_FEATURE_INCOMPAT_SPARSE_ALLOC \
-					 | OCFS2_FEATURE_INCOMPAT_INLINE_DATA)
+					 | OCFS2_FEATURE_INCOMPAT_INLINE_DATA \
+					 | OCFS2_FEATURE_INCOMPAT_EXTENDED_SLOT_MAP)
 #define OCFS2_FEATURE_RO_COMPAT_SUPP	OCFS2_FEATURE_RO_COMPAT_UNWRITTEN
 
 /*
@@ -124,6 +125,10 @@
 
 /* Support for data packed into inode blocks */
 #define OCFS2_FEATURE_INCOMPAT_INLINE_DATA	0x0040
+
+/* Support for the extended slot map */
+#define OCFS2_FEATURE_INCOMPAT_EXTENDED_SLOT_MAP 0x100
+
 
 /*
  * backup superblock flag is used to indicate that this volume
@@ -476,13 +481,35 @@ struct ocfs2_extent_block
 
 /*
  * On disk slot map for OCFS2.  This defines the contents of the "slot_map"
- * system file.
+ * system file.  A slot is valid if it contains a node number >= 0.  The
+ * value -1 (0xFFFF) is OCFS2_INVALID_SLOT.  This marks a slot empty.
  */
 struct ocfs2_slot_map {
 /*00*/	__le16 sm_slots[0];
 /*
  * Actual on-disk size is one block.  OCFS2_MAX_SLOTS is 255,
  * 255 * sizeof(__le16) == 512B, within the 512B block minimum blocksize.
+ */
+};
+
+struct ocfs2_extended_slot {
+/*00*/	__u8	es_valid;
+	__u8	es_reserved1[3];
+	__le32	es_node_num;
+/*10*/
+};
+
+/*
+ * The extended slot map, used when OCFS2_FEATURE_INCOMPAT_EXTENDED_SLOT_MAP
+ * is set.  It separates out the valid marker from the node number, and
+ * has room to grow.  Unlike the old slot map, this format is defined by
+ * i_size.
+ */
+struct ocfs2_slot_map_extended {
+/*00*/	struct ocfs2_extended_slot se_slots[0];
+/*
+ * Actual size is i_size of the slot_map system file.  It should
+ * match s_max_slots * sizeof(struct ocfs2_extended_slot)
  */
 };
 
