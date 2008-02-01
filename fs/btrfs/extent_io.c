@@ -396,6 +396,7 @@ static int clear_state_bit(struct extent_io_tree *tree,
 		wake_up(&state->wq);
 	if (delete || state->state == 0) {
 		if (state->tree) {
+			clear_state_cb(tree, state, state->state);
 			if (tree->last == state)
 				tree->last = NULL;
 			rb_erase(&state->rb_node, &tree->state);
