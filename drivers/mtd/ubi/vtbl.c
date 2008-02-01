@@ -111,7 +111,7 @@ int ubi_change_vtbl_record(struct ubi_device *ubi, int idx,
 	}
 
 	paranoid_vtbl_check(ubi);
-	return ubi_wl_flush(ubi);
+	return 0;
 }
 
 /**
