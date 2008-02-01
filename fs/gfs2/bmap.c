@@ -137,7 +137,7 @@ int gfs2_unstuff_dinode(struct gfs2_inode *ip, struct page *page)
 		   and write it out to disk */
 
 		if (isdir) {
-			block = gfs2_alloc_meta(ip);
+			block = gfs2_alloc_block(ip);
 			gfs2_trans_add_unrevoke(GFS2_SB(&ip->i_inode), block, 1);
 			error = gfs2_dir_get_new_buffer(ip, block, &bh);
 			if (error)
@@ -146,7 +146,7 @@ int gfs2_unstuff_dinode(struct gfs2_inode *ip, struct page *page)
 					      dibh, sizeof(struct gfs2_dinode));
 			brelse(bh);
 		} else {
-			block = gfs2_alloc_data(ip);
+			block = gfs2_alloc_block(ip);
 
 			error = gfs2_unstuffer_page(ip, dibh, block, page);
 			if (error)
@@ -205,7 +205,7 @@ static int build_height(struct inode *inode, struct metapath *mp, unsigned heigh
 		return error;
 
 	for(n = 0; n < new_height; n++) {
-		bn = gfs2_alloc_meta(ip);
+		bn = gfs2_alloc_block(ip);
 		gfs2_trans_add_unrevoke(GFS2_SB(inode), bn, 1);
 		mp->mp_bh[n] = gfs2_meta_new(ip->i_gl, bn);
 		gfs2_trans_add_bh(ip->i_gl, mp->mp_bh[n], 1);
@@ -369,12 +369,9 @@ static int lookup_block(struct gfs2_inode *ip, unsigned int height,
 	if (!create)
 		return 0;
 
-	if (height == ip->i_height - 1 && !gfs2_is_dir(ip))
-		*block = gfs2_alloc_data(ip);
-	else {
-		*block = gfs2_alloc_meta(ip);
+	*block = gfs2_alloc_block(ip);
+	if (height != ip->i_height - 1 || gfs2_is_dir(ip))
 		gfs2_trans_add_unrevoke(GFS2_SB(&ip->i_inode), *block, 1);
-	}
 
 	gfs2_trans_add_bh(ip->i_gl, mp->mp_bh[height], 1);
 

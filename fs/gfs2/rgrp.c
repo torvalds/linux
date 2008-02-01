@@ -1405,58 +1405,13 @@ static struct gfs2_rgrpd *rgblk_free(struct gfs2_sbd *sdp, u64 bstart,
 }
 
 /**
- * gfs2_alloc_data - Allocate a data block
- * @ip: the inode to allocate the data block for
+ * gfs2_alloc_block - Allocate a block
+ * @ip: the inode to allocate the block for
  *
  * Returns: the allocated block
  */
 
-u64 gfs2_alloc_data(struct gfs2_inode *ip)
-{
-	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	struct gfs2_alloc *al = ip->i_alloc;
-	struct gfs2_rgrpd *rgd = al->al_rgd;
-	u32 goal, blk;
-	u64 block;
-
-	if (rgrp_contains_block(rgd, ip->i_goal))
-		goal = ip->i_goal - rgd->rd_data0;
-	else
-		goal = rgd->rd_last_alloc;
-
-	blk = rgblk_search(rgd, goal, GFS2_BLKST_FREE, GFS2_BLKST_USED);
-	BUG_ON(blk == BFITNOENT);
-	rgd->rd_last_alloc = blk;
-
-	block = rgd->rd_data0 + blk;
-	ip->i_goal = block;
-
-	gfs2_assert_withdraw(sdp, rgd->rd_rg.rg_free);
-	rgd->rd_rg.rg_free--;
-
-	gfs2_trans_add_bh(rgd->rd_gl, rgd->rd_bits[0].bi_bh, 1);
-	gfs2_rgrp_out(rgd, rgd->rd_bits[0].bi_bh->b_data);
-
-	al->al_alloced++;
-
-	gfs2_statfs_change(sdp, 0, -1, 0);
-	gfs2_quota_change(ip, +1, ip->i_inode.i_uid, ip->i_inode.i_gid);
-
-	spin_lock(&sdp->sd_rindex_spin);
-	rgd->rd_free_clone--;
-	spin_unlock(&sdp->sd_rindex_spin);
-
-	return block;
-}
-
-/**
- * gfs2_alloc_meta - Allocate a metadata block
- * @ip: the inode to allocate the metadata block for
- *
- * Returns: the allocated block
- */
-
-u64 gfs2_alloc_meta(struct gfs2_inode *ip)
+u64 gfs2_alloc_block(struct gfs2_inode *ip)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_alloc *al = ip->i_alloc;

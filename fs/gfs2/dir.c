@@ -803,7 +803,7 @@ got_dent:
 static struct gfs2_leaf *new_leaf(struct inode *inode, struct buffer_head **pbh, u16 depth)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
-	u64 bn = gfs2_alloc_meta(ip);
+	u64 bn = gfs2_alloc_block(ip);
 	struct buffer_head *bh = gfs2_meta_new(ip->i_gl, bn);
 	struct gfs2_leaf *leaf;
 	struct gfs2_dirent *dent;
