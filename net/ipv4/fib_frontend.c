@@ -975,6 +975,7 @@ static struct notifier_block fib_netdev_notifier = {
 
 static int __net_init ip_fib_net_init(struct net *net)
 {
+	int err;
 	unsigned int i;
 
 	net->ipv4.fib_table_hash = kzalloc(
@@ -985,7 +986,14 @@ static int __net_init ip_fib_net_init(struct net *net)
 	for (i = 0; i < FIB_TABLE_HASHSZ; i++)
 		INIT_HLIST_HEAD(&net->ipv4.fib_table_hash[i]);
 
-	return fib4_rules_init(net);
+	err = fib4_rules_init(net);
+	if (err < 0)
+		goto fail;
+	return 0;
+
+fail:
+	kfree(net->ipv4.fib_table_hash);
+	return err;
 }
 
 static void __net_exit ip_fib_net_exit(struct net *net)
