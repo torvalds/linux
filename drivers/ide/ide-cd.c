@@ -2394,13 +2394,12 @@ int ide_cdrom_lock_door (struct cdrom_device_info *cdi, int lock)
 	return cdrom_lockdoor(drive, lock, NULL);
 }
 
-static
-int ide_cdrom_get_capabilities(ide_drive_t *drive, struct atapi_capabilities_page *cap)
+static int ide_cdrom_get_capabilities(ide_drive_t *drive, u8 *buf)
 {
 	struct cdrom_info *info = drive->driver_data;
 	struct cdrom_device_info *cdi = &info->devinfo;
 	struct packet_command cgc;
-	int stat, attempts = 3, size = sizeof(*cap);
+	int stat, attempts = 3, size = ATAPI_CAPABILITIES_PAGE_SIZE;
 
 	/*
 	 * ACER50 (and others?) require the full spec length mode sense
@@ -2408,9 +2407,9 @@ int ide_cdrom_get_capabilities(ide_drive_t *drive, struct atapi_capabilities_pag
 	 */
 	if (!(!strcmp(drive->id->model, "ATAPI CD ROM DRIVE 50X MAX") ||
 	    !strcmp(drive->id->model, "WPI CDS-32X")))
-		size -= sizeof(cap->pad);
+		size -= ATAPI_CAPABILITIES_PAGE_PAD_SIZE;
 
-	init_cdrom_command(&cgc, cap, size, CGC_DATA_UNKNOWN);
+	init_cdrom_command(&cgc, buf, size, CGC_DATA_UNKNOWN);
 	do { /* we seem to get stat=0x01,err=0x00 the first time (??) */
 		stat = cdrom_mode_sense(cdi, &cgc, GPMODE_CAPABILITIES_PAGE, 0);
 		if (!stat)
@@ -2419,20 +2418,22 @@ int ide_cdrom_get_capabilities(ide_drive_t *drive, struct atapi_capabilities_pag
 	return stat;
 }
 
-static
-void ide_cdrom_update_speed (ide_drive_t *drive, struct atapi_capabilities_page *cap)
+static void ide_cdrom_update_speed(ide_drive_t *drive, u8 *buf)
 {
 	struct cdrom_info *cd = drive->driver_data;
 	u16 curspeed, maxspeed;
 
+	curspeed = *(u16 *)&buf[8 + 14];
+	maxspeed = *(u16 *)&buf[8 +  8];
+
 	/* The ACER/AOpen 24X cdrom has the speed fields byte-swapped */
 	if (!drive->id->model[0] &&
 	    !strncmp(drive->id->fw_rev, "241N", 4)) {
-		curspeed = le16_to_cpu(cap->curspeed);
-		maxspeed = le16_to_cpu(cap->maxspeed);
+		curspeed = le16_to_cpu(curspeed);
+		maxspeed = le16_to_cpu(maxspeed);
 	} else {
-		curspeed = be16_to_cpu(cap->curspeed);
-		maxspeed = be16_to_cpu(cap->maxspeed);
+		curspeed = be16_to_cpu(curspeed);
+		maxspeed = be16_to_cpu(maxspeed);
 	}
 
 	cd->state_flags.current_speed = (curspeed + (176/2)) / 176;
@@ -2445,14 +2446,14 @@ int ide_cdrom_select_speed (struct cdrom_device_info *cdi, int speed)
 	ide_drive_t *drive = cdi->handle;
 	struct cdrom_info *cd = drive->driver_data;
 	struct request_sense sense;
-	struct atapi_capabilities_page cap;
+	u8 buf[ATAPI_CAPABILITIES_PAGE_SIZE];
 	int stat;
 
 	if ((stat = cdrom_select_speed(drive, speed, &sense)) < 0)
 		return stat;
 
-	if (!ide_cdrom_get_capabilities(drive, &cap)) {
-		ide_cdrom_update_speed(drive, &cap);
+	if (!ide_cdrom_get_capabilities(drive, buf)) {
+		ide_cdrom_update_speed(drive, buf);
 		cdi->speed = cd->state_flags.current_speed;
 	}
         return 0;
@@ -2636,7 +2637,8 @@ int ide_cdrom_probe_capabilities (ide_drive_t *drive)
 {
 	struct cdrom_info *cd = drive->driver_data;
 	struct cdrom_device_info *cdi = &cd->devinfo;
-	struct atapi_capabilities_page cap;
+	u8 buf[ATAPI_CAPABILITIES_PAGE_SIZE];
+	mechtype_t mechtype;
 	int nslots = 1;
 
 	cdi->mask = (CDC_CD_R | CDC_CD_RW | CDC_DVD | CDC_DVD_R |
@@ -2666,26 +2668,28 @@ int ide_cdrom_probe_capabilities (ide_drive_t *drive)
 	cdi->handle = drive;
 	cdi->ops = &ide_cdrom_dops;
 
-	if (ide_cdrom_get_capabilities(drive, &cap))
+	if (ide_cdrom_get_capabilities(drive, buf))
 		return 0;
 
-	if (cap.lock == 0)
+	if ((buf[8 + 6] & 0x01) == 0)
 		cd->config_flags.no_doorlock = 1;
-	if (cap.eject)
+	if (buf[8 + 6] & 0x08)
 		cd->config_flags.no_eject = 0;
-	if (cap.cd_r_write)
+	if (buf[8 + 3] & 0x01)
 		cdi->mask &= ~CDC_CD_R;
-	if (cap.cd_rw_write)
+	if (buf[8 + 3] & 0x02)
 		cdi->mask &= ~(CDC_CD_RW | CDC_RAM);
-	if (cap.dvd_ram_read || cap.dvd_r_read || cap.dvd_rom)
+	if (buf[8 + 2] & 0x38)
 		cdi->mask &= ~CDC_DVD;
-	if (cap.dvd_ram_write)
+	if (buf[8 + 3] & 0x20)
 		cdi->mask &= ~(CDC_DVD_RAM | CDC_RAM);
-	if (cap.dvd_r_write)
+	if (buf[8 + 3] & 0x10)
 		cdi->mask &= ~CDC_DVD_R;
-	if (cap.audio_play)
+	if (buf[8 + 4] & 0x01)
 		cdi->mask &= ~CDC_PLAY_AUDIO;
-	if (cap.mechtype == mechtype_caddy || cap.mechtype == mechtype_popup)
+
+	mechtype = buf[8 + 6] >> 5;
+	if (mechtype == mechtype_caddy || mechtype == mechtype_popup)
 		cdi->mask |= CDC_CLOSE_TRAY;
 
 	/* Some drives used by Apple don't advertise audio play
@@ -2705,14 +2709,14 @@ int ide_cdrom_probe_capabilities (ide_drive_t *drive)
 
 	else
 #endif /* not STANDARD_ATAPI */
-	if (cap.mechtype == mechtype_individual_changer ||
-	    cap.mechtype == mechtype_cartridge_changer) {
+	if (mechtype == mechtype_individual_changer ||
+	    mechtype == mechtype_cartridge_changer) {
 		nslots = cdrom_number_of_slots(cdi);
 		if (nslots > 1)
 			cdi->mask &= ~CDC_SELECT_DISC;
 	}
 
-	ide_cdrom_update_speed(drive, &cap);
+	ide_cdrom_update_speed(drive, buf);
 
 	printk(KERN_INFO "%s: ATAPI", drive->name);
 
@@ -2737,7 +2741,7 @@ int ide_cdrom_probe_capabilities (ide_drive_t *drive)
 	else
 		printk(KERN_CONT " drive");
 
-	printk(KERN_CONT ", %dkB Cache\n", be16_to_cpu(cap.buffer_size));
+	printk(KERN_CONT ", %dkB Cache\n", be16_to_cpu(*(u16 *)&buf[8 + 12]));
 
 	return nslots;
 }
