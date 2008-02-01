@@ -1047,6 +1047,20 @@ static ide_startstop_t cdrom_start_read (ide_drive_t *drive, unsigned int block)
  * Execute all other packet commands.
  */
 
+static void ide_cd_request_sense_fixup(struct request *rq)
+{
+	/*
+	 * Some of the trailing request sense fields are optional,
+	 * and some drives don't send them.  Sigh.
+	 */
+	if (rq->cmd[0] == GPCMD_REQUEST_SENSE &&
+	    rq->data_len > 0 && rq->data_len <= 5)
+		while (rq->data_len > 0) {
+			*(u8 *)rq->data++ = 0;
+			--rq->data_len;
+		}
+}
+
 /* Interrupt routine for packet command completion. */
 static ide_startstop_t cdrom_pc_intr (ide_drive_t *drive)
 {
@@ -1069,16 +1083,7 @@ static ide_startstop_t cdrom_pc_intr (ide_drive_t *drive)
 	/* If DRQ is clear, the command has completed.
 	   Complain if we still have data left to transfer. */
 	if ((stat & DRQ_STAT) == 0) {
-		/* Some of the trailing request sense fields are optional, and
-		   some drives don't send them.  Sigh. */
-		if (rq->cmd[0] == GPCMD_REQUEST_SENSE &&
-		    rq->data_len > 0 &&
-		    rq->data_len <= 5) {
-			while (rq->data_len > 0) {
-				*(unsigned char *)rq->data++ = 0;
-				--rq->data_len;
-			}
-		}
+		ide_cd_request_sense_fixup(rq);
 
 		if (rq->data_len == 0)
 			cdrom_end_request(drive, 1);
