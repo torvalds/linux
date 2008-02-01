@@ -48,7 +48,6 @@ static inline void __ocfs2_node_map_set_bit(struct ocfs2_node_map *map,
 					    int bit);
 static inline void __ocfs2_node_map_clear_bit(struct ocfs2_node_map *map,
 					      int bit);
-static inline int __ocfs2_node_map_is_empty(struct ocfs2_node_map *map);
 
 /* special case -1 for now
  * TODO: should *really* make sure the calling func never passes -1!!  */
@@ -62,7 +61,6 @@ static void ocfs2_node_map_init(struct ocfs2_node_map *map)
 void ocfs2_init_node_maps(struct ocfs2_super *osb)
 {
 	spin_lock_init(&osb->node_map_lock);
-	ocfs2_node_map_init(&osb->recovery_map);
 	ocfs2_node_map_init(&osb->osb_recovering_orphan_dirs);
 }
 
@@ -192,112 +190,3 @@ int ocfs2_node_map_test_bit(struct ocfs2_super *osb,
 	return ret;
 }
 
-static inline int __ocfs2_node_map_is_empty(struct ocfs2_node_map *map)
-{
-	int bit;
-	bit = find_next_bit(map->map, map->num_nodes, 0);
-	if (bit < map->num_nodes)
-		return 0;
-	return 1;
-}
-
-int ocfs2_node_map_is_empty(struct ocfs2_super *osb,
-			    struct ocfs2_node_map *map)
-{
-	int ret;
-	BUG_ON(map->num_nodes == 0);
-	spin_lock(&osb->node_map_lock);
-	ret = __ocfs2_node_map_is_empty(map);
-	spin_unlock(&osb->node_map_lock);
-	return ret;
-}
-
-#if 0
-
-static void __ocfs2_node_map_dup(struct ocfs2_node_map *target,
-				 struct ocfs2_node_map *from)
-{
-	BUG_ON(from->num_nodes == 0);
-	ocfs2_node_map_init(target);
-	__ocfs2_node_map_set(target, from);
-}
-
-/* returns 1 if bit is the only bit set in target, 0 otherwise */
-int ocfs2_node_map_is_only(struct ocfs2_super *osb,
-			   struct ocfs2_node_map *target,
-			   int bit)
-{
-	struct ocfs2_node_map temp;
-	int ret;
-
-	spin_lock(&osb->node_map_lock);
-	__ocfs2_node_map_dup(&temp, target);
-	__ocfs2_node_map_clear_bit(&temp, bit);
-	ret = __ocfs2_node_map_is_empty(&temp);
-	spin_unlock(&osb->node_map_lock);
-
-	return ret;
-}
-
-static void __ocfs2_node_map_set(struct ocfs2_node_map *target,
-				 struct ocfs2_node_map *from)
-{
-	int num_longs, i;
-
-	BUG_ON(target->num_nodes != from->num_nodes);
-	BUG_ON(target->num_nodes == 0);
-
-	num_longs = BITS_TO_LONGS(target->num_nodes);
-	for (i = 0; i < num_longs; i++)
-		target->map[i] = from->map[i];
-}
-
-#endif  /*  0  */
-
-/* Returns whether the recovery bit was actually set - it may not be
- * if a node is still marked as needing recovery */
-int ocfs2_recovery_map_set(struct ocfs2_super *osb,
-			   int num)
-{
-	int set = 0;
-
-	spin_lock(&osb->node_map_lock);
-
-	if (!test_bit(num, osb->recovery_map.map)) {
-	    __ocfs2_node_map_set_bit(&osb->recovery_map, num);
-	    set = 1;
-	}
-
-	spin_unlock(&osb->node_map_lock);
-
-	return set;
-}
-
-void ocfs2_recovery_map_clear(struct ocfs2_super *osb,
-			      int num)
-{
-	ocfs2_node_map_clear_bit(osb, &osb->recovery_map, num);
-}
-
-int ocfs2_node_map_iterate(struct ocfs2_super *osb,
-			   struct ocfs2_node_map *map,
-			   int idx)
-{
-	int i = idx;
-
-	idx = O2NM_INVALID_NODE_NUM;
-	spin_lock(&osb->node_map_lock);
-	if ((i != O2NM_INVALID_NODE_NUM) &&
-	    (i >= 0) &&
-	    (i < map->num_nodes)) {
-		while(i < map->num_nodes) {
-			if (test_bit(i, map->map)) {
-				idx = i;
-				break;
-			}
-			i++;
-		}
-	}
-	spin_unlock(&osb->node_map_lock);
-	return idx;
-}

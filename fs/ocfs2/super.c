@@ -1224,15 +1224,6 @@ leave:
 	return status;
 }
 
-/* we can't grab the goofy sem lock from inside wait_event, so we use
- * memory barriers to make sure that we'll see the null task before
- * being woken up */
-static int ocfs2_recovery_thread_running(struct ocfs2_super *osb)
-{
-	mb();
-	return osb->recovery_thread_task != NULL;
-}
-
 static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 {
 	int tmp;
@@ -1249,17 +1240,8 @@ static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 
 	ocfs2_truncate_log_shutdown(osb);
 
-	/* disable any new recovery threads and wait for any currently
-	 * running ones to exit. Do this before setting the vol_state. */
-	mutex_lock(&osb->recovery_lock);
-	osb->disable_recovery = 1;
-	mutex_unlock(&osb->recovery_lock);
-	wait_event(osb->recovery_event, !ocfs2_recovery_thread_running(osb));
-
-	/* At this point, we know that no more recovery threads can be
-	 * launched, so wait for any recovery completion work to
-	 * complete. */
-	flush_workqueue(ocfs2_wq);
+	/* This will disable recovery and flush any recovery work. */
+	ocfs2_recovery_exit(osb);
 
 	ocfs2_journal_shutdown(osb);
 
@@ -1368,7 +1350,6 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	osb->s_sectsize_bits = blksize_bits(sector_size);
 	BUG_ON(!osb->s_sectsize_bits);
 
-	init_waitqueue_head(&osb->recovery_event);
 	spin_lock_init(&osb->dc_task_lock);
 	init_waitqueue_head(&osb->dc_event);
 	osb->dc_work_sequence = 0;
@@ -1388,10 +1369,12 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	snprintf(osb->dev_str, sizeof(osb->dev_str), "%u,%u",
 		 MAJOR(osb->sb->s_dev), MINOR(osb->sb->s_dev));
 
-	mutex_init(&osb->recovery_lock);
-
-	osb->disable_recovery = 0;
-	osb->recovery_thread_task = NULL;
+	status = ocfs2_recovery_init(osb);
+	if (status) {
+		mlog(ML_ERROR, "Unable to initialize recovery state\n");
+		mlog_errno(status);
+		goto bail;
+	}
 
 	init_waitqueue_head(&osb->checkpoint_event);
 	atomic_set(&osb->needs_checkpoint, 0);

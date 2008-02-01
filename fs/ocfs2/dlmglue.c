@@ -1950,8 +1950,7 @@ int ocfs2_inode_lock_full(struct inode *inode,
 		goto local;
 
 	if (!(arg_flags & OCFS2_META_LOCK_RECOVERY))
-		wait_event(osb->recovery_event,
-			   ocfs2_node_map_is_empty(osb, &osb->recovery_map));
+		ocfs2_wait_for_recovery(osb);
 
 	lockres = &OCFS2_I(inode)->ip_inode_lockres;
 	level = ex ? LKM_EXMODE : LKM_PRMODE;
@@ -1974,8 +1973,7 @@ int ocfs2_inode_lock_full(struct inode *inode,
 	 * committed to owning this lock so we don't allow signals to
 	 * abort the operation. */
 	if (!(arg_flags & OCFS2_META_LOCK_RECOVERY))
-		wait_event(osb->recovery_event,
-			   ocfs2_node_map_is_empty(osb, &osb->recovery_map));
+		ocfs2_wait_for_recovery(osb);
 
 local:
 	/*

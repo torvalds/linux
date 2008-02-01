@@ -180,6 +180,7 @@ enum ocfs2_mount_options
 
 struct ocfs2_journal;
 struct ocfs2_slot_info;
+struct ocfs2_recovery_map;
 struct ocfs2_super
 {
 	struct task_struct *commit_task;
@@ -191,7 +192,6 @@ struct ocfs2_super
 	struct ocfs2_slot_info *slot_info;
 
 	spinlock_t node_map_lock;
-	struct ocfs2_node_map recovery_map;
 
 	u64 root_blkno;
 	u64 system_dir_blkno;
@@ -226,6 +226,7 @@ struct ocfs2_super
 
 	atomic_t vol_state;
 	struct mutex recovery_lock;
+	struct ocfs2_recovery_map *recovery_map;
 	struct task_struct *recovery_thread_task;
 	int disable_recovery;
 	wait_queue_head_t checkpoint_event;
