@@ -2068,21 +2068,6 @@ static int cdrom_select_speed(ide_drive_t *drive, int speed,
 	return cdrom_queue_packet_command(drive, &req);
 }
 
-static int cdrom_play_audio(ide_drive_t *drive, int lba_start, int lba_end)
-{
-	struct request_sense sense;
-	struct request req;
-
-	cdrom_prepare_request(drive, &req);
-
-	req.sense = &sense;
-	req.cmd[0] = GPCMD_PLAY_AUDIO_MSF;
-	lba_to_msf(lba_start, &req.cmd[3], &req.cmd[4], &req.cmd[5]);
-	lba_to_msf(lba_end-1, &req.cmd[6], &req.cmd[7], &req.cmd[8]);
-
-	return cdrom_queue_packet_command(drive, &req);
-}
-
 static int cdrom_get_toc_entry(ide_drive_t *drive, int track,
 				struct atapi_toc_entry **ent)
 {
@@ -2139,6 +2124,8 @@ static int ide_cd_fake_play_trkind(ide_drive_t *drive, void *arg)
 	struct atapi_toc_entry *first_toc, *last_toc;
 	unsigned long lba_start, lba_end;
 	int stat;
+	struct request rq;
+	struct request_sense sense;
 
 	stat = cdrom_get_toc_entry(drive, ti->cdti_trk0, &first_toc);
 	if (stat)
@@ -2156,7 +2143,14 @@ static int ide_cd_fake_play_trkind(ide_drive_t *drive, void *arg)
 	if (lba_end <= lba_start)
 		return -EINVAL;
 
-	return cdrom_play_audio(drive, lba_start, lba_end);
+	cdrom_prepare_request(drive, &rq);
+
+	rq.sense = &sense;
+	rq.cmd[0] = GPCMD_PLAY_AUDIO_MSF;
+	lba_to_msf(lba_start,   &rq.cmd[3], &rq.cmd[4], &rq.cmd[5]);
+	lba_to_msf(lba_end - 1, &rq.cmd[6], &rq.cmd[7], &rq.cmd[8]);
+
+	return cdrom_queue_packet_command(drive, &rq);
 }
 
 /* the generic packet interface to cdrom.c */
