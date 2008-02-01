@@ -2014,11 +2014,13 @@ static int cdrom_get_toc_entry(ide_drive_t *drive, int track,
 
 	/* Check validity of requested track number. */
 	ntracks = toc->hdr.last_track - toc->hdr.first_track + 1;
-	if (toc->hdr.first_track == CDROM_LEADOUT) ntracks = 0;
+
+	if (toc->hdr.first_track == CDROM_LEADOUT)
+		ntracks = 0;
+
 	if (track == CDROM_LEADOUT)
 		*ent = &toc->ent[ntracks];
-	else if (track < toc->hdr.first_track ||
-		 track > toc->hdr.last_track)
+	else if (track < toc->hdr.first_track || track > toc->hdr.last_track)
 		return -EINVAL;
 	else
 		*ent = &toc->ent[track - toc->hdr.first_track];
