@@ -1061,90 +1061,7 @@ static void ide_cd_request_sense_fixup(struct request *rq)
 		}
 }
 
-/* Interrupt routine for packet command completion. */
-static ide_startstop_t cdrom_pc_intr (ide_drive_t *drive)
-{
-	struct request *rq = HWGROUP(drive)->rq;
-	xfer_func_t *xferfunc = NULL;
-	int stat, ireason, len, thislen, write, update;
-	u8 lowcyl = 0, highcyl = 0;
-
-	/* Check for errors. */
-	if (cdrom_decode_status(drive, 0, &stat))
-		return ide_stopped;
-
-	/* Read the interrupt reason and the transfer length. */
-	ireason = HWIF(drive)->INB(IDE_IREASON_REG) & 0x3;
-	lowcyl  = HWIF(drive)->INB(IDE_BCOUNTL_REG);
-	highcyl = HWIF(drive)->INB(IDE_BCOUNTH_REG);
-
-	len = lowcyl + (256 * highcyl);
-
-	/* If DRQ is clear, the command has completed.
-	   Complain if we still have data left to transfer. */
-	if ((stat & DRQ_STAT) == 0) {
-		ide_cd_request_sense_fixup(rq);
-		update = rq->data_len ? 0 : 1;
-		goto end_request;
-	}
-
-	/* Figure out how much data to transfer. */
-	thislen = rq->data_len;
-	if (thislen > len)
-		thislen = len;
-
-	if (ireason == 0) {
-		write = 1;
-		xferfunc = HWIF(drive)->atapi_output_bytes;
-	} else if (ireason == 2) {
-		write = 0;
-		xferfunc = HWIF(drive)->atapi_input_bytes;
-	}
-
-	if (xferfunc) {
-		if (!rq->data) {
-			printk(KERN_ERR "%s: confused, missing data\n",
-					drive->name);
-			blk_dump_rq_flags(rq, write ? "cdrom_pc_intr, write"
-						    : "cdrom_pc_intr, read");
-			goto pad;
-		}
-		/* Transfer the data. */
-		xferfunc(drive, rq->data, thislen);
-
-		/* Keep count of how much data we've moved. */
-		len -= thislen;
-		rq->data += thislen;
-		rq->data_len -= thislen;
-
-		if (write && blk_sense_request(rq))
-			rq->sense_len += thislen;
-	} else {
-		printk (KERN_ERR "%s: cdrom_pc_intr: The drive "
-			"appears confused (ireason = 0x%02x). "
-			"Trying to recover by ending request.\n",
-			drive->name, ireason);
-		update = 0;
-		goto end_request;
-	}
-pad:
-	/*
-	 * If we haven't moved enough data to satisfy the drive,
-	 * add some padding.
-	 */
-	if (len > 0)
-		ide_cd_pad_transfer(drive, xferfunc, len);
-
-	/* Now we wait for another interrupt. */
-	ide_set_handler(drive, &cdrom_pc_intr, ATAPI_WAIT_PC, cdrom_timer_expiry);
-	return ide_started;
-
-end_request:
-	if (!update)
-		rq->cmd_flags |= REQ_FAILED;
-	cdrom_end_request(drive, update);
-	return ide_stopped;
-}
+static ide_startstop_t cdrom_newpc_intr(ide_drive_t *);
 
 static ide_startstop_t cdrom_do_pc_continuation (ide_drive_t *drive)
 {
@@ -1154,9 +1071,8 @@ static ide_startstop_t cdrom_do_pc_continuation (ide_drive_t *drive)
 		rq->timeout = ATAPI_WAIT_PC;
 
 	/* Send the command to the drive and return. */
-	return cdrom_transfer_packet_command(drive, rq, &cdrom_pc_intr);
+	return cdrom_transfer_packet_command(drive, rq, cdrom_newpc_intr);
 }
-
 
 static ide_startstop_t cdrom_do_packet_command (ide_drive_t *drive)
 {
@@ -1263,27 +1179,27 @@ static int cdrom_newpc_intr_dummy_cb(struct request *rq)
 /*
  * best way to deal with dma that is not sector aligned right now... note
  * that in this path we are not using ->data or ->buffer at all. this irs
- * can replace cdrom_pc_intr, cdrom_read_intr, and cdrom_write_intr in the
- * future.
+ * can replace cdrom_read_intr() and cdrom_write_intr() in the future.
  */
 static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 {
 	struct cdrom_info *info = drive->driver_data;
 	struct request *rq = HWGROUP(drive)->rq;
-	int dma_error, dma, stat, ireason, len, thislen;
-	u8 lowcyl, highcyl;
 	xfer_func_t *xferfunc;
-	unsigned long flags;
+	ide_expiry_t *expiry;
+	int dma_error = 0, dma, stat, ireason, len, thislen, uptodate = 0;
+	int write = (rq_data_dir(rq) == WRITE) ? 1 : 0;
+	unsigned int timeout;
+	u8 lowcyl, highcyl;
 
 	/* Check for errors. */
-	dma_error = 0;
 	dma = info->dma;
 	if (dma) {
 		info->dma = 0;
 		dma_error = HWIF(drive)->ide_dma_end(drive);
 		if (dma_error) {
 			printk(KERN_ERR "%s: DMA %s error\n", drive->name,
-					rq_data_dir(rq) ? "write" : "read");
+					write ? "write" : "read");
 			ide_dma_off(drive);
 		}
 	}
@@ -1297,14 +1213,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	if (dma) {
 		if (dma_error)
 			return ide_error(drive, "dma error", stat);
-
-		spin_lock_irqsave(&ide_lock, flags);
-		if (__blk_end_request(rq, 0, rq->data_len))
-			BUG();
-		HWGROUP(drive)->rq = NULL;
-		spin_unlock_irqrestore(&ide_lock, flags);
-
-		return ide_stopped;
+		goto end_request;
 	}
 
 	/*
@@ -1323,34 +1232,43 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	 * If DRQ is clear, the command has completed.
 	 */
 	if ((stat & DRQ_STAT) == 0) {
-		spin_lock_irqsave(&ide_lock, flags);
-		if (__blk_end_request(rq, 0, rq->data_len))
-			BUG();
-		HWGROUP(drive)->rq = NULL;
-		spin_unlock_irqrestore(&ide_lock, flags);
-
-		return ide_stopped;
+		if (!blk_pc_request(rq)) {
+			ide_cd_request_sense_fixup(rq);
+			/* Complain if we still have data left to transfer. */
+			uptodate = rq->data_len ? 0 : 1;
+		}
+		goto end_request;
 	}
 
 	/*
 	 * check which way to transfer data
 	 */
-	if (rq_data_dir(rq) == WRITE) {
+	if (blk_pc_request(rq) && rq_data_dir(rq) == WRITE) {
 		/*
 		 * write to drive
 		 */
 		if (cdrom_write_check_ireason(drive, len, ireason))
 			return ide_stopped;
-
-		xferfunc = HWIF(drive)->atapi_output_bytes;
-	} else  {
+	} else if (blk_pc_request(rq)) {
 		/*
 		 * read from drive
 		 */
 		if (cdrom_read_check_ireason(drive, len, ireason))
 			return ide_stopped;
+	}
 
+	if (ireason == 0) {
+		write = 1;
+		xferfunc = HWIF(drive)->atapi_output_bytes;
+	} else if (ireason == 2 || (ireason == 1 && blk_pc_request(rq))) {
+		write = 0;
 		xferfunc = HWIF(drive)->atapi_input_bytes;
+	} else {
+		printk(KERN_ERR "%s: %s: The drive "
+				"appears confused (ireason = 0x%02x). "
+				"Trying to recover by ending request.\n",
+				drive->name, __FUNCTION__, ireason);
+		goto end_request;
 	}
 
 	/*
@@ -1399,14 +1317,41 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 			rq->data += blen;
 	}
 
+	if (write && blk_sense_request(rq))
+		rq->sense_len += thislen;
+
 	/*
 	 * pad, if necessary
 	 */
 	if (len > 0)
 		ide_cd_pad_transfer(drive, xferfunc, len);
 
-	ide_set_handler(drive, cdrom_newpc_intr, rq->timeout, NULL);
+	if (blk_pc_request(rq)) {
+		timeout = rq->timeout;
+		expiry = NULL;
+	} else {
+		timeout = ATAPI_WAIT_PC;
+		expiry = cdrom_timer_expiry;
+	}
+
+	ide_set_handler(drive, cdrom_newpc_intr, timeout, expiry);
 	return ide_started;
+
+end_request:
+	if (blk_pc_request(rq)) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&ide_lock, flags);
+		if (__blk_end_request(rq, 0, rq->data_len))
+			BUG();
+		HWGROUP(drive)->rq = NULL;
+		spin_unlock_irqrestore(&ide_lock, flags);
+	} else {
+		if (!uptodate)
+			rq->cmd_flags |= REQ_FAILED;
+		cdrom_end_request(drive, uptodate);
+	}
+	return ide_stopped;
 }
 
 static ide_startstop_t cdrom_write_intr(ide_drive_t *drive)
