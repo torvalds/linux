@@ -1535,11 +1535,10 @@ pmac_ide_build_dmatable(ide_drive_t *drive, struct request *rq)
 	}
 
 	printk(KERN_DEBUG "%s: empty DMA table?\n", drive->name);
- use_pio_instead:
-	pci_unmap_sg(hwif->pci_dev,
-		     hwif->sg_table,
-		     hwif->sg_nents,
-		     hwif->sg_dma_direction);
+
+use_pio_instead:
+	ide_destroy_dmatable(drive);
+
 	return 0; /* revert to PIO for this request */
 }
 
@@ -1548,12 +1547,9 @@ static void
 pmac_ide_destroy_dmatable (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	struct pci_dev *dev = HWIF(drive)->pci_dev;
-	struct scatterlist *sg = hwif->sg_table;
-	int nents = hwif->sg_nents;
 
-	if (nents) {
-		pci_unmap_sg(dev, sg, nents, hwif->sg_dma_direction);
+	if (hwif->sg_nents) {
+		ide_destroy_dmatable(drive);
 		hwif->sg_nents = 0;
 	}
 }
