@@ -1775,7 +1775,6 @@ ide_do_rw_cdrom (ide_drive_t *drive, struct request *rq, sector_t block)
  * can also be NULL, in which case no sense information is returned.
  */
 
-#if ! STANDARD_ATAPI
 static inline
 int bin2bcd (int x)
 {
@@ -1796,9 +1795,6 @@ void msf_from_bcd (struct atapi_msf *msf)
 	msf->second = bcd2bin (msf->second);
 	msf->frame  = bcd2bin (msf->frame);
 }
-
-#endif /* not STANDARD_ATAPI */
-
 
 static inline
 void lba_to_msf (int lba, byte *m, byte *s, byte *f)
@@ -1830,12 +1826,11 @@ static int cdrom_check_status(ide_drive_t *drive, struct request_sense *sense)
 	req.cmd[0] = GPCMD_TEST_UNIT_READY;
 	req.cmd_flags |= REQ_QUIET;
 
-#if ! STANDARD_ATAPI
-        /* the Sanyo 3 CD changer uses byte 7 of TEST_UNIT_READY to 
-           switch CDs instead of supporting the LOAD_UNLOAD opcode   */
-
+	/*
+	 * Sanyo 3 CD changer uses byte 7 of TEST_UNIT_READY to
+	 * switch CDs instead of supporting the LOAD_UNLOAD opcode.
+	 */
 	req.cmd[7] = cdi->sanyo_slot % 3;
-#endif /* not STANDARD_ATAPI */
 
 	return cdrom_queue_packet_command(drive, &req);
 }
@@ -2024,12 +2019,10 @@ static int cdrom_read_toc(ide_drive_t *drive, struct request_sense *sense)
 	if (stat)
 		return stat;
 
-#if ! STANDARD_ATAPI
 	if (info->cd_flags & IDE_CD_FLAG_TOCTRACKS_AS_BCD) {
 		toc->hdr.first_track = bcd2bin(toc->hdr.first_track);
 		toc->hdr.last_track  = bcd2bin(toc->hdr.last_track);
 	}
-#endif  /* not STANDARD_ATAPI */
 
 	ntracks = toc->hdr.last_track - toc->hdr.first_track + 1;
 	if (ntracks <= 0)
@@ -2061,16 +2054,13 @@ static int cdrom_read_toc(ide_drive_t *drive, struct request_sense *sense)
 					   (ntracks + 1) *
 					   sizeof(struct atapi_toc_entry),
 					   sense);
-		if (stat) {
+		if (stat)
 			return stat;
-		}
-#if ! STANDARD_ATAPI
+
 		if (info->cd_flags & IDE_CD_FLAG_TOCTRACKS_AS_BCD) {
 			toc->hdr.first_track = bin2bcd(CDROM_LEADOUT);
 			toc->hdr.last_track = bin2bcd(CDROM_LEADOUT);
-		} else
-#endif  /* not STANDARD_ATAPI */
-		{
+		} else {
 			toc->hdr.first_track = CDROM_LEADOUT;
 			toc->hdr.last_track = CDROM_LEADOUT;
 		}
@@ -2081,21 +2071,17 @@ static int cdrom_read_toc(ide_drive_t *drive, struct request_sense *sense)
 
 	toc->hdr.toc_length = ntohs (toc->hdr.toc_length);
 
-#if ! STANDARD_ATAPI
 	if (info->cd_flags & IDE_CD_FLAG_TOCTRACKS_AS_BCD) {
 		toc->hdr.first_track = bcd2bin(toc->hdr.first_track);
 		toc->hdr.last_track  = bcd2bin(toc->hdr.last_track);
 	}
-#endif  /* not STANDARD_ATAPI */
 
-	for (i=0; i<=ntracks; i++) {
-#if ! STANDARD_ATAPI
+	for (i = 0; i <= ntracks; i++) {
 		if (info->cd_flags & IDE_CD_FLAG_TOCADDR_AS_BCD) {
 			if (info->cd_flags & IDE_CD_FLAG_TOCTRACKS_AS_BCD)
 				toc->ent[i].track = bcd2bin(toc->ent[i].track);
 			msf_from_bcd(&toc->ent[i].addr.msf);
 		}
-#endif  /* not STANDARD_ATAPI */
 		toc->ent[i].addr.lba = msf_to_lba (toc->ent[i].addr.msf.minute,
 						   toc->ent[i].addr.msf.second,
 						   toc->ent[i].addr.msf.frame);
@@ -2115,7 +2101,6 @@ static int cdrom_read_toc(ide_drive_t *drive, struct request_sense *sense)
 		toc->last_session_lba = msf_to_lba(0, 2, 0); /* 0m 2s 0f */
 	}
 
-#if ! STANDARD_ATAPI
 	if (info->cd_flags & IDE_CD_FLAG_TOCADDR_AS_BCD) {
 		/* Re-read multisession information using MSF format */
 		stat = cdrom_read_tocentry(drive, 0, 1, 1, (char *)&ms_tmp,
@@ -2128,7 +2113,6 @@ static int cdrom_read_toc(ide_drive_t *drive, struct request_sense *sense)
 					  	   ms_tmp.ent.addr.msf.second,
 						   ms_tmp.ent.addr.msf.frame);
 	}
-#endif  /* not STANDARD_ATAPI */
 
 	toc->xa_flag = (ms_tmp.hdr.first_track != ms_tmp.hdr.last_track);
 
@@ -2705,16 +2689,11 @@ int ide_cdrom_probe_capabilities (ide_drive_t *drive)
 	    strcmp(drive->id->model, "MATSHITADVD-ROM SR-8174") == 0)
 		cdi->mask &= ~CDC_PLAY_AUDIO;
 
-#if ! STANDARD_ATAPI
 	if (cdi->sanyo_slot > 0) {
 		cdi->mask &= ~CDC_SELECT_DISC;
 		nslots = 3;
-	}
-
-	else
-#endif /* not STANDARD_ATAPI */
-	if (mechtype == mechtype_individual_changer ||
-	    mechtype == mechtype_cartridge_changer) {
+	} else if (mechtype == mechtype_individual_changer ||
+		   mechtype == mechtype_cartridge_changer) {
 		nslots = cdrom_number_of_slots(cdi);
 		if (nslots > 1)
 			cdi->mask &= ~CDC_SELECT_DISC;
@@ -2868,7 +2847,6 @@ int ide_cdrom_setup (ide_drive_t *drive)
 	else if (!strcmp(drive->id->model, "SAMSUNG CD-ROM SCR-3231"))
 		cd->cd_flags |= IDE_CD_FLAG_NO_SPEED_SELECT;
 
-#if ! STANDARD_ATAPI
 	if (strcmp (drive->id->model, "V003S0DS") == 0 &&
 	    drive->id->fw_rev[4] == '1' &&
 	    drive->id->fw_rev[6] <= '2') {
@@ -2901,7 +2879,6 @@ int ide_cdrom_setup (ide_drive_t *drive)
                  /* uses CD in slot 0 when value is set to 3 */
                  cdi->sanyo_slot = 3;
         }
-#endif /* not STANDARD_ATAPI */
 
 	nslots = ide_cdrom_probe_capabilities (drive);
 

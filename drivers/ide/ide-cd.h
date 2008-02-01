@@ -18,16 +18,6 @@
 #define VERBOSE_IDE_CD_ERRORS 1
 #endif
 
-
-/* Turning this on will remove code to work around various nonstandard
-   ATAPI implementations.  If you know your drive follows the standard,
-   this will give you a slightly smaller kernel. */
-
-#ifndef STANDARD_ATAPI
-#define STANDARD_ATAPI 0
-#endif
-
-
 /*
  * typical timeout for packet command
  */
