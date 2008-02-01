@@ -98,6 +98,9 @@ enum ocfs2_unlock_action {
 					       * dropped. */
 #define OCFS2_LOCK_QUEUED        (0x00000100) /* queued for downconvert */
 #define OCFS2_LOCK_NOCACHE       (0x00000200) /* don't use a holder count */
+#define OCFS2_LOCK_PENDING       (0x00000400) /* This lockres is pending a
+						 call to dlm_lock.  Only
+						 exists with BUSY set. */
 
 struct ocfs2_lock_res_ops;
 
@@ -124,6 +127,7 @@ struct ocfs2_lock_res {
 	enum ocfs2_unlock_action l_unlock_action;
 	int                      l_requested;
 	int                      l_blocking;
+	unsigned int             l_pending_gen;
 
 	wait_queue_head_t        l_event;
 

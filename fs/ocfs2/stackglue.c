@@ -104,8 +104,8 @@ static int flags_to_o2dlm(u32 flags)
  *
  * DLM_NORMAL:		0
  * DLM_NOTQUEUED:	-EAGAIN
- * DLM_CANCELGRANT:	-DLM_ECANCEL
- * DLM_CANCEL:		-DLM_EUNLOCK
+ * DLM_CANCELGRANT:	-EBUSY
+ * DLM_CANCEL:		-DLM_ECANCEL
  */
 /* Keep in sync with dlmapi.h */
 static int status_map[] = {
@@ -113,13 +113,13 @@ static int status_map[] = {
 	[DLM_GRANTED]			= -EINVAL,
 	[DLM_DENIED]			= -EACCES,
 	[DLM_DENIED_NOLOCKS]		= -EACCES,
-	[DLM_WORKING]			= -EBUSY,
+	[DLM_WORKING]			= -EACCES,
 	[DLM_BLOCKED]			= -EINVAL,
 	[DLM_BLOCKED_ORPHAN]		= -EINVAL,
 	[DLM_DENIED_GRACE_PERIOD]	= -EACCES,
 	[DLM_SYSERR]			= -ENOMEM,	/* It is what it is */
 	[DLM_NOSUPPORT]			= -EPROTO,
-	[DLM_CANCELGRANT]		= -DLM_ECANCEL, /* Cancel after grant */
+	[DLM_CANCELGRANT]		= -EBUSY,	/* Cancel after grant */
 	[DLM_IVLOCKID]			= -EINVAL,
 	[DLM_SYNC]			= -EINVAL,
 	[DLM_BADTYPE]			= -EINVAL,
@@ -137,7 +137,7 @@ static int status_map[] = {
 	[DLM_VALNOTVALID]		= -EINVAL,
 	[DLM_REJECTED]			= -EPERM,
 	[DLM_ABORT]			= -EINVAL,
-	[DLM_CANCEL]			= -DLM_EUNLOCK,	/* Successful cancel */
+	[DLM_CANCEL]			= -DLM_ECANCEL,	/* Successful cancel */
 	[DLM_IVRESHANDLE]		= -EINVAL,
 	[DLM_DEADLOCK]			= -EDEADLK,
 	[DLM_DENIED_NOASTS]		= -EINVAL,
@@ -152,6 +152,7 @@ static int status_map[] = {
 	[DLM_MIGRATING]			= -ERESTART,
 	[DLM_MAXSTATS]			= -EINVAL,
 };
+
 static int dlm_status_to_errno(enum dlm_status status)
 {
 	BUG_ON(status > (sizeof(status_map) / sizeof(status_map[0])));
@@ -175,38 +176,23 @@ static void o2dlm_blocking_ast_wrapper(void *astarg, int level)
 
 static void o2dlm_unlock_ast_wrapper(void *astarg, enum dlm_status status)
 {
-	int error;
+	int error = dlm_status_to_errno(status);
 
 	BUG_ON(lproto == NULL);
 
 	/*
-	 * XXX: CANCEL values are sketchy.
-	 *
-	 * Currently we have preserved the o2dlm paradigm.  You can get
-	 * unlock_ast() whether the cancel succeded or not.
-	 *
-	 * First, we're going to pass DLM_EUNLOCK just like fs/dlm does for
-	 * successful unlocks.  That is a clean behavior.
-	 *
 	 * In o2dlm, you can get both the lock_ast() for the lock being
 	 * granted and the unlock_ast() for the CANCEL failing.  A
 	 * successful cancel sends DLM_NORMAL here.  If the
 	 * lock grant happened before the cancel arrived, you get
-	 * DLM_CANCELGRANT.  For now, we'll use DLM_ECANCEL to signify
-	 * CANCELGRANT - the CANCEL was supposed to happen but didn't.  We
-	 * can then use DLM_EUNLOCK to signify a successful CANCEL -
-	 * effectively, the CANCEL caused the lock to roll back.
+	 * DLM_CANCELGRANT.
 	 *
-	 * In the future, we will likely move the o2dlm to send only one
-	 * ast - either unlock_ast() for a successful CANCEL or lock_ast()
-	 * when the grant succeeds.  At that point, we'll send DLM_ECANCEL
-	 * for all cancel results (CANCELGRANT will no longer exist).
+	 * There's no need for the double-ast.  If we see DLM_CANCELGRANT,
+	 * we just ignore it.  We expect the lock_ast() to handle the
+	 * granted lock.
 	 */
-	error = dlm_status_to_errno(status);
-
-	/* Successful unlock is DLM_EUNLOCK */
-	if (!error)
-		error = -DLM_EUNLOCK;
+	if (status == DLM_CANCELGRANT)
+		return;
 
 	lproto->lp_unlock_ast(astarg, error);
 }
