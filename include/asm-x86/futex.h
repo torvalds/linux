@@ -30,7 +30,7 @@
 "1:	movl	%2, %0\n					\
 	movl	%0, %3\n"					\
 	insn "\n"						\
-"2:	" LOCK_PREFIX "cmpxchgl %3, %2\n			\
+"2:	lock; cmpxchgl %3, %2\n					\
 	jnz	1b\n						\
 3:	.section .fixup,\"ax\"\n				\
 4:	mov	%5, %1\n					\
@@ -72,7 +72,7 @@ futex_atomic_op_inuser(int encoded_op, int __user *uaddr)
 		__futex_atomic_op1("xchgl %0, %2", ret, oldval, uaddr, oparg);
 		break;
 	case FUTEX_OP_ADD:
-		__futex_atomic_op1(LOCK_PREFIX "xaddl %0, %2", ret, oldval,
+		__futex_atomic_op1("lock; xaddl %0, %2", ret, oldval,
 				   uaddr, oparg);
 		break;
 	case FUTEX_OP_OR:
@@ -111,8 +111,8 @@ futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval, int newval)
 		return -EFAULT;
 
 	__asm__ __volatile__(
-		"1:	" LOCK_PREFIX "cmpxchgl %3, %1		\n"
 
+		"1:	lock; cmpxchgl %3, %1			\n"
 		"2:	.section .fixup, \"ax\"			\n"
 		"3:	mov     %2, %0				\n"
 		"	jmp     2b				\n"

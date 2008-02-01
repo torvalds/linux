@@ -109,6 +109,9 @@ struct futex_q {
 	/* Optional priority inheritance state: */
 	struct futex_pi_state *pi_state;
 	struct task_struct *task;
+
+	/* Bitset for the optional bitmasked wakeup */
+	u32 bitset;
 };
 
 /*
@@ -722,13 +725,16 @@ double_lock_hb(struct futex_hash_bucket *hb1, struct futex_hash_bucket *hb2)
  * to this virtual address:
  */
 static int futex_wake(u32 __user *uaddr, struct rw_semaphore *fshared,
-		      int nr_wake)
+		      int nr_wake, u32 bitset)
 {
 	struct futex_hash_bucket *hb;
 	struct futex_q *this, *next;
 	struct plist_head *head;
 	union futex_key key;
 	int ret;
+
+	if (!bitset)
+		return -EINVAL;
 
 	futex_lock_mm(fshared);
 
@@ -746,6 +752,11 @@ static int futex_wake(u32 __user *uaddr, struct rw_semaphore *fshared,
 				ret = -EINVAL;
 				break;
 			}
+
+			/* Check if one of the bits is set in both bitsets */
+			if (!(this->bitset & bitset))
+				continue;
+
 			wake_futex(this);
 			if (++ret >= nr_wake)
 				break;
@@ -1156,7 +1167,7 @@ static int fixup_pi_state_owner(u32 __user *uaddr, struct futex_q *q,
 static long futex_wait_restart(struct restart_block *restart);
 
 static int futex_wait(u32 __user *uaddr, struct rw_semaphore *fshared,
-		      u32 val, ktime_t *abs_time)
+		      u32 val, ktime_t *abs_time, u32 bitset)
 {
 	struct task_struct *curr = current;
 	DECLARE_WAITQUEUE(wait, curr);
@@ -1167,7 +1178,11 @@ static int futex_wait(u32 __user *uaddr, struct rw_semaphore *fshared,
 	struct hrtimer_sleeper t;
 	int rem = 0;
 
+	if (!bitset)
+		return -EINVAL;
+
 	q.pi_state = NULL;
+	q.bitset = bitset;
  retry:
 	futex_lock_mm(fshared);
 
@@ -1252,6 +1267,8 @@ static int futex_wait(u32 __user *uaddr, struct rw_semaphore *fshared,
 			t.timer.expires = *abs_time;
 
 			hrtimer_start(&t.timer, t.timer.expires, HRTIMER_MODE_ABS);
+			if (!hrtimer_active(&t.timer))
+				t.task = NULL;
 
 			/*
 			 * the timer could have already expired, in which
@@ -1293,6 +1310,7 @@ static int futex_wait(u32 __user *uaddr, struct rw_semaphore *fshared,
 		restart->futex.uaddr = (u32 *)uaddr;
 		restart->futex.val = val;
 		restart->futex.time = abs_time->tv64;
+		restart->futex.bitset = bitset;
 		restart->futex.flags = 0;
 
 		if (fshared)
@@ -1319,7 +1337,8 @@ static long futex_wait_restart(struct restart_block *restart)
 	restart->fn = do_no_restart_syscall;
 	if (restart->futex.flags & FLAGS_SHARED)
 		fshared = &current->mm->mmap_sem;
-	return (long)futex_wait(uaddr, fshared, restart->futex.val, &t);
+	return (long)futex_wait(uaddr, fshared, restart->futex.val, &t,
+				restart->futex.bitset);
 }
 
 
@@ -1534,9 +1553,6 @@ static int futex_lock_pi(u32 __user *uaddr, struct rw_semaphore *fshared,
 
 				owner = rt_mutex_owner(&q.pi_state->pi_mutex);
 				res = fixup_pi_state_owner(uaddr, &q, owner);
-
-				WARN_ON(rt_mutex_owner(&q.pi_state->pi_mutex) !=
-					owner);
 
 				/* propagate -EFAULT, if the fixup failed */
 				if (res)
@@ -1943,7 +1959,8 @@ retry:
 		 * PI futexes happens in exit_pi_state():
 		 */
 		if (!pi && (uval & FUTEX_WAITERS))
-				futex_wake(uaddr, &curr->mm->mmap_sem, 1);
+			futex_wake(uaddr, &curr->mm->mmap_sem, 1,
+				   FUTEX_BITSET_MATCH_ANY);
 	}
 	return 0;
 }
@@ -2043,10 +2060,14 @@ long do_futex(u32 __user *uaddr, int op, u32 val, ktime_t *timeout,
 
 	switch (cmd) {
 	case FUTEX_WAIT:
-		ret = futex_wait(uaddr, fshared, val, timeout);
+		val3 = FUTEX_BITSET_MATCH_ANY;
+	case FUTEX_WAIT_BITSET:
+		ret = futex_wait(uaddr, fshared, val, timeout, val3);
 		break;
 	case FUTEX_WAKE:
-		ret = futex_wake(uaddr, fshared, val);
+		val3 = FUTEX_BITSET_MATCH_ANY;
+	case FUTEX_WAKE_BITSET:
+		ret = futex_wake(uaddr, fshared, val, val3);
 		break;
 	case FUTEX_FD:
 		/* non-zero val means F_SETOWN(getpid()) & F_SETSIG(val) */
@@ -2086,7 +2107,8 @@ asmlinkage long sys_futex(u32 __user *uaddr, int op, u32 val,
 	u32 val2 = 0;
 	int cmd = op & FUTEX_CMD_MASK;
 
-	if (utime && (cmd == FUTEX_WAIT || cmd == FUTEX_LOCK_PI)) {
+	if (utime && (cmd == FUTEX_WAIT || cmd == FUTEX_LOCK_PI ||
+		      cmd == FUTEX_WAIT_BITSET)) {
 		if (copy_from_user(&ts, utime, sizeof(ts)) != 0)
 			return -EFAULT;
 		if (!timespec_valid(&ts))

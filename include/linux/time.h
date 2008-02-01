@@ -122,6 +122,7 @@ extern void monotonic_to_bootbased(struct timespec *ts);
 extern struct timespec timespec_trunc(struct timespec t, unsigned gran);
 extern int timekeeping_is_continuous(void);
 extern void update_wall_time(void);
+extern void update_xtime_cache(u64 nsec);
 
 /**
  * timespec_to_ns - Convert timespec to nanoseconds
