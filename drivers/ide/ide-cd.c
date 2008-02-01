@@ -800,46 +800,54 @@ static int cdrom_read_from_buffer (ide_drive_t *drive)
 static ide_startstop_t cdrom_rw_intr(ide_drive_t *);
 
 /*
- * Routine to send a read packet command to the drive.
- * This is usually called directly from cdrom_start_read.
+ * Routine to send a read/write packet command to the drive.
+ * This is usually called directly from cdrom_start_{read,write}().
  * However, for drq_interrupt devices, it is called from an interrupt
  * when the drive is ready to accept the command.
  */
-static ide_startstop_t cdrom_start_read_continuation (ide_drive_t *drive)
+static ide_startstop_t cdrom_start_rw_cont(ide_drive_t *drive)
 {
 	struct request *rq = HWGROUP(drive)->rq;
-	unsigned short sectors_per_frame;
-	int nskip;
 
-	sectors_per_frame = queue_hardsect_size(drive->queue) >> SECTOR_BITS;
+	if (rq_data_dir(rq) == READ) {
+		unsigned short sectors_per_frame =
+			queue_hardsect_size(drive->queue) >> SECTOR_BITS;
+		int nskip = rq->sector & (sectors_per_frame - 1);
 
-	/* If the requested sector doesn't start on a cdrom block boundary,
-	   we must adjust the start of the transfer so that it does,
-	   and remember to skip the first few sectors.
-	   If the CURRENT_NR_SECTORS field is larger than the size
-	   of the buffer, it will mean that we're to skip a number
-	   of sectors equal to the amount by which CURRENT_NR_SECTORS
-	   is larger than the buffer size. */
-	nskip = rq->sector & (sectors_per_frame - 1);
-	if (nskip > 0) {
-		/* Sanity check... */
-		if (rq->current_nr_sectors != bio_cur_sectors(rq->bio) &&
-			(rq->sector & (sectors_per_frame - 1))) {
-			printk(KERN_ERR "%s: cdrom_start_read_continuation: buffer botch (%u)\n",
-				drive->name, rq->current_nr_sectors);
-			cdrom_end_request(drive, 0);
-			return ide_stopped;
+		/*
+		 * If the requested sector doesn't start on a frame boundary,
+		 * we must adjust the start of the transfer so that it does,
+		 * and remember to skip the first few sectors.
+		 *
+		 * If the rq->current_nr_sectors field is larger than the size
+		 * of the buffer, it will mean that we're to skip a number of
+		 * sectors equal to the amount by which rq->current_nr_sectors
+		 * is larger than the buffer size.
+		 */
+		if (nskip > 0) {
+			/* Sanity check... */
+			if (rq->current_nr_sectors !=
+			    bio_cur_sectors(rq->bio)) {
+				printk(KERN_ERR "%s: %s: buffer botch (%u)\n",
+						drive->name, __FUNCTION__,
+						rq->current_nr_sectors);
+				cdrom_end_request(drive, 0);
+				return ide_stopped;
+			}
+			rq->current_nr_sectors += nskip;
 		}
-		rq->current_nr_sectors += nskip;
 	}
-
+#if 0
+	else
+		/* the immediate bit */
+		rq->cmd[1] = 1 << 3;
+#endif
 	/* Set up the command */
 	rq->timeout = ATAPI_WAIT_PC;
 
 	/* Send the command to the drive and return. */
 	return cdrom_transfer_packet_command(drive, rq, cdrom_rw_intr);
 }
-
 
 #define IDECD_SEEK_THRESHOLD	(1000)			/* 1000 blocks */
 #define IDECD_SEEK_TIMER	(5 * WAIT_MIN_SLEEP)	/* 100 ms */
@@ -939,7 +947,7 @@ static ide_startstop_t cdrom_start_read (ide_drive_t *drive, unsigned int block)
 		info->dma = 0;
 
 	/* Start sending the read request to the drive. */
-	return cdrom_start_packet_command(drive, 32768, cdrom_start_read_continuation);
+	return cdrom_start_packet_command(drive, 32768, cdrom_start_rw_cont);
 }
 
 /****************************************************************************
@@ -1375,18 +1383,6 @@ static ide_startstop_t cdrom_rw_intr(ide_drive_t *drive)
 	return ide_started;
 }
 
-static ide_startstop_t cdrom_start_write_cont(ide_drive_t *drive)
-{
-	struct request *rq = HWGROUP(drive)->rq;
-
-#if 0	/* the immediate bit */
-	rq->cmd[1] = 1 << 3;
-#endif
-	rq->timeout = ATAPI_WAIT_PC;
-
-	return cdrom_transfer_packet_command(drive, rq, cdrom_rw_intr);
-}
-
 static ide_startstop_t cdrom_start_write(ide_drive_t *drive, struct request *rq)
 {
 	struct cdrom_info *info = drive->driver_data;
@@ -1419,7 +1415,7 @@ static ide_startstop_t cdrom_start_write(ide_drive_t *drive, struct request *rq)
 	info->devinfo.media_written = 1;
 
 	/* Start sending the write request to the drive. */
-	return cdrom_start_packet_command(drive, 32768, cdrom_start_write_cont);
+	return cdrom_start_packet_command(drive, 32768, cdrom_start_rw_cont);
 }
 
 static ide_startstop_t cdrom_do_newpc_cont(ide_drive_t *drive)
