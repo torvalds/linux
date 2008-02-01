@@ -998,6 +998,7 @@ int fastcall __fatal_signal_pending(struct task_struct *tsk)
 {
 	return sigismember(&tsk->pending.signal, SIGKILL);
 }
+EXPORT_SYMBOL(__fatal_signal_pending);
 
 /*
  * Must be called under rcu_read_lock() or with tasklist_lock read-held.
