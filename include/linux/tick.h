@@ -39,6 +39,8 @@ enum tick_nohz_mode {
  * @idle_calls:		Total number of idle calls
  * @idle_sleeps:	Number of idle calls, where the sched tick was stopped
  * @idle_entrytime:	Time when the idle call was entered
+ * @idle_waketime:	Time when the idle was interrupted
+ * @idle_exittime:	Time when the idle state was left
  * @idle_sleeptime:	Sum of the time slept in idle with sched tick stopped
  * @sleep_length:	Duration of the current idle sleep
  */
@@ -53,6 +55,8 @@ struct tick_sched {
 	unsigned long			idle_sleeps;
 	int				idle_active;
 	ktime_t				idle_entrytime;
+	ktime_t				idle_waketime;
+	ktime_t				idle_exittime;
 	ktime_t				idle_sleeptime;
 	ktime_t				idle_lastupdate;
 	ktime_t				sleep_length;

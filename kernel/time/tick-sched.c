@@ -137,6 +137,7 @@ void tick_nohz_update_jiffies(void)
 
 	cpu_clear(cpu, nohz_cpu_mask);
 	now = ktime_get();
+	ts->idle_waketime = now;
 
 	local_irq_save(flags);
 	tick_do_update_jiffies64(now);
@@ -400,6 +401,7 @@ void tick_nohz_restart_sched_tick(void)
 	 * Cancel the scheduled timer and restore the tick
 	 */
 	ts->tick_stopped  = 0;
+	ts->idle_exittime = now;
 	hrtimer_cancel(&ts->sched_timer);
 	ts->sched_timer.expires = ts->idle_tick;
 
