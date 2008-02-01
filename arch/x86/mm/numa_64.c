@@ -168,10 +168,9 @@ static void * __init early_node_mem(int nodeid, unsigned long start,
 	unsigned long mem = find_e820_area(start, end, size, align);
 	void *ptr;
 
-	if (mem != -1L) {
-		mem = round_up(mem, align);
+	if (mem != -1L)
 		return __va(mem);
-	}
+
 	ptr = __alloc_bootmem_nopanic(size, align, __pa(MAX_DMA_ADDRESS));
 	if (ptr == NULL) {
 		printk(KERN_ERR "Cannot find %lu bytes in node %d\n",
