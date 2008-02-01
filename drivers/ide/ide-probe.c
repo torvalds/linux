@@ -794,6 +794,13 @@ static int ide_probe_port(ide_hwif_t *hwif)
 	if (!hwif->present)
 		return -ENODEV;
 
+	return 0;
+}
+
+static void ide_port_tune_devices(ide_hwif_t *hwif)
+{
+	int unit;
+
 	for (unit = 0; unit < MAX_DRIVES; unit++) {
 		ide_drive_t *drive = &hwif->drives[unit];
 
@@ -827,8 +834,6 @@ static int ide_probe_port(ide_hwif_t *hwif)
 		else
 			drive->no_io_32bit = drive->id->dword_io ? 1 : 0;
 	}
-
-	return 0;
 }
 
 #if MAX_HWIFS > 1
@@ -1309,8 +1314,12 @@ int ide_device_add_all(u8 *idx)
 			continue;
 		}
 
-		if (ide_probe_port(hwif) < 0)
+		if (ide_probe_port(hwif) < 0) {
 			ide_hwif_release_regions(hwif);
+			continue;
+		}
+
+		ide_port_tune_devices(hwif);
 	}
 
 	for (i = 0; i < MAX_HWIFS; i++) {
