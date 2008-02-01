@@ -1429,7 +1429,7 @@ bnx2_setup_remote_phy(struct bnx2 *bp, u8 port)
 
 	if (pause_adv & (ADVERTISE_1000XPAUSE | ADVERTISE_PAUSE_CAP))
 		speed_arg |= BNX2_NETLINK_SET_LINK_FC_SYM_PAUSE;
-	if (pause_adv & (ADVERTISE_1000XPSE_ASYM | ADVERTISE_1000XPSE_ASYM))
+	if (pause_adv & (ADVERTISE_1000XPSE_ASYM | ADVERTISE_PAUSE_ASYM))
 		speed_arg |= BNX2_NETLINK_SET_LINK_FC_ASYM_PAUSE;
 
 	if (port == PORT_TP)
