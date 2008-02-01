@@ -1046,7 +1046,7 @@ __setup("noclflush", setup_noclflush);
 void __cpuinit print_cpu_info(struct cpuinfo_x86 *c)
 {
 	if (c->x86_model_id[0])
-		printk(KERN_INFO "%s", c->x86_model_id);
+		printk(KERN_CONT "%s", c->x86_model_id);
 
 	if (c->x86_mask || c->cpuid_level >= 0)
 		printk(KERN_CONT " stepping %02x\n", c->x86_mask);
