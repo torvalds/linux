@@ -613,7 +613,7 @@ static void hwif_release_dev (struct device *dev)
 	complete(&hwif->gendev_rel_comp);
 }
 
-static void hwif_register (ide_hwif_t *hwif)
+static void ide_register_port(ide_hwif_t *hwif)
 {
 	int ret;
 
@@ -742,7 +742,9 @@ static int ide_probe_port(ide_hwif_t *hwif)
 {
 	unsigned long flags;
 	unsigned int irqd;
-	int unit;
+	int unit, rc = -ENODEV;
+
+	BUG_ON(hwif->present);
 
 	if (hwif->noprobe)
 		return -EACCES;
@@ -767,14 +769,8 @@ static int ide_probe_port(ide_hwif_t *hwif)
 		ide_drive_t *drive = &hwif->drives[unit];
 		drive->dn = (hwif->channel ? 2 : 0) + unit;
 		(void) probe_for_drive(drive);
-		if (drive->present && !hwif->present) {
-			hwif->present = 1;
-			if (hwif->chipset != ide_4drives ||
-			    !hwif->mate || 
-			    !hwif->mate->present) {
-				hwif_register(hwif);
-			}
-		}
+		if (drive->present)
+			rc = 0;
 	}
 	if (hwif->io_ports[IDE_CONTROL_OFFSET] && hwif->reset) {
 		printk(KERN_WARNING "%s: reset\n", hwif->name);
@@ -791,10 +787,7 @@ static int ide_probe_port(ide_hwif_t *hwif)
 	if (irqd)
 		enable_irq(irqd);
 
-	if (!hwif->present)
-		return -ENODEV;
-
-	return 0;
+	return rc;
 }
 
 static void ide_port_tune_devices(ide_hwif_t *hwif)
@@ -1318,6 +1311,12 @@ int ide_device_add_all(u8 *idx)
 			ide_hwif_release_regions(hwif);
 			continue;
 		}
+
+		hwif->present = 1;
+
+		if (hwif->chipset != ide_4drives || !hwif->mate ||
+		    !hwif->mate->present)
+			ide_register_port(hwif);
 
 		ide_port_tune_devices(hwif);
 	}
