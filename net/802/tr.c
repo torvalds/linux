@@ -76,7 +76,7 @@ static DEFINE_SPINLOCK(rif_lock);
 
 static struct timer_list rif_timer;
 
-int sysctl_tr_rif_timeout = 60*10*HZ;
+static int sysctl_tr_rif_timeout = 60*10*HZ;
 
 static inline unsigned long rif_hash(const unsigned char *addr)
 {
