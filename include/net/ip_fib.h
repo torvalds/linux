@@ -69,6 +69,7 @@ struct fib_nh {
 struct fib_info {
 	struct hlist_node	fib_hash;
 	struct hlist_node	fib_lhash;
+	struct net		*fib_net;
 	int			fib_treeref;
 	atomic_t		fib_clntref;
 	int			fib_dead;
