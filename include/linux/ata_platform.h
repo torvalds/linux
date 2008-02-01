@@ -1,5 +1,5 @@
-#ifndef __LINUX_PATA_PLATFORM_H
-#define __LINUX_PATA_PLATFORM_H
+#ifndef __LINUX_ATA_PLATFORM_H
+#define __LINUX_ATA_PLATFORM_H
 
 struct pata_platform_info {
 	/*
@@ -24,4 +24,11 @@ extern int __devinit __pata_platform_probe(struct device *dev,
 
 extern int __devexit __pata_platform_remove(struct device *dev);
 
-#endif /* __LINUX_PATA_PLATFORM_H */
+/*
+ * Marvell SATA private data
+ */
+struct mv_sata_platform_data {
+	int	n_ports; /* number of sata ports */
+};
+
+#endif /* __LINUX_ATA_PLATFORM_H */
