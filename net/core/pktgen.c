@@ -170,8 +170,6 @@
 
 #define VERSION  "pktgen v2.69: Packet Generator for packet performance testing.\n"
 
-/* The buckets are exponential in 'width' */
-#define LAT_BUCKETS_MAX 32
 #define IP_NAME_SZ 32
 #define MAX_MPLS_LABELS 16 /* This is the max label stack depth */
 #define MPLS_STACK_BOTTOM htonl(0x00000100)
@@ -2044,7 +2042,6 @@ static void spin(struct pktgen_dev *pkt_dev, __u64 spin_until_us)
 	__u64 now;
 
 	start = now = getCurUs();
-	printk(KERN_INFO "sleeping for %d\n", (int)(spin_until_us - now));
 	while (now < spin_until_us) {
 		/* TODO: optimize sleeping behavior */
 		if (spin_until_us - now > jiffies_to_usecs(1) + 1)

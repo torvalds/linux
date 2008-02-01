@@ -174,11 +174,11 @@ size_t b43_txhdr_size(struct b43_wldev *dev)
 }
 
 
-void b43_generate_txhdr(struct b43_wldev *dev,
-			u8 * txhdr,
-			const unsigned char *fragment_data,
-			unsigned int fragment_len,
-			const struct ieee80211_tx_control *txctl, u16 cookie);
+int b43_generate_txhdr(struct b43_wldev *dev,
+		       u8 * txhdr,
+		       const unsigned char *fragment_data,
+		       unsigned int fragment_len,
+		       const struct ieee80211_tx_control *txctl, u16 cookie);
 
 /* Transmit Status */
 struct b43_txstatus {

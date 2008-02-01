@@ -352,6 +352,7 @@ static int raw_send_hdrinc(struct sock *sk, void *from, size_t length,
 	skb_reserve(skb, hh_len);
 
 	skb->priority = sk->sk_priority;
+	skb->mark = sk->sk_mark;
 	skb->dst = dst_clone(&rt->u.dst);
 
 	skb_reset_network_header(skb);
@@ -544,6 +545,7 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 
 	{
 		struct flowi fl = { .oif = ipc.oif,
+				    .mark = sk->sk_mark,
 				    .nl_u = { .ip4_u =
 					      { .daddr = daddr,
 						.saddr = saddr,
@@ -860,8 +862,7 @@ static struct sock *raw_get_first(struct seq_file *seq)
 		struct hlist_node *node;
 
 		sk_for_each(sk, node, &state->h->ht[state->bucket])
-			if (sk->sk_net == state->p.net &&
-					sk->sk_family == state->family)
+			if (sk->sk_net == state->p.net)
 				goto found;
 	}
 	sk = NULL;
@@ -877,8 +878,7 @@ static struct sock *raw_get_next(struct seq_file *seq, struct sock *sk)
 		sk = sk_next(sk);
 try_again:
 		;
-	} while (sk && sk->sk_net != state->p.net &&
-			sk->sk_family != state->family);
+	} while (sk && sk->sk_net != state->p.net);
 
 	if (!sk && ++state->bucket < RAW_HTABLE_SIZE) {
 		sk = sk_head(&state->h->ht[state->bucket]);
@@ -927,7 +927,7 @@ void raw_seq_stop(struct seq_file *seq, void *v)
 }
 EXPORT_SYMBOL_GPL(raw_seq_stop);
 
-static __inline__ char *get_raw_sock(struct sock *sp, char *tmpbuf, int i)
+static void raw_sock_seq_show(struct seq_file *seq, struct sock *sp, int i)
 {
 	struct inet_sock *inet = inet_sk(sp);
 	__be32 dest = inet->daddr,
@@ -935,33 +935,23 @@ static __inline__ char *get_raw_sock(struct sock *sp, char *tmpbuf, int i)
 	__u16 destp = 0,
 	      srcp  = inet->num;
 
-	sprintf(tmpbuf, "%4d: %08X:%04X %08X:%04X"
+	seq_printf(seq, "%4d: %08X:%04X %08X:%04X"
 		" %02X %08X:%08X %02X:%08lX %08X %5d %8d %lu %d %p %d",
 		i, src, srcp, dest, destp, sp->sk_state,
 		atomic_read(&sp->sk_wmem_alloc),
 		atomic_read(&sp->sk_rmem_alloc),
 		0, 0L, 0, sock_i_uid(sp), 0, sock_i_ino(sp),
 		atomic_read(&sp->sk_refcnt), sp, atomic_read(&sp->sk_drops));
-	return tmpbuf;
 }
-
-#define TMPSZ 128
 
 static int raw_seq_show(struct seq_file *seq, void *v)
 {
-	char tmpbuf[TMPSZ+1];
-
 	if (v == SEQ_START_TOKEN)
-		seq_printf(seq, "%-*s\n", TMPSZ-1,
-			       "  sl  local_address rem_address   st tx_queue "
-			       "rx_queue tr tm->when retrnsmt   uid  timeout "
-			       "inode  drops");
-	else {
-		struct raw_iter_state *state = raw_seq_private(seq);
-
-		seq_printf(seq, "%-*s\n", TMPSZ-1,
-			   get_raw_sock(v, tmpbuf, state->bucket));
-	}
+		seq_printf(seq, "  sl  local_address rem_address   st tx_queue "
+				"rx_queue tr tm->when retrnsmt   uid  timeout "
+				"inode  drops\n");
+	else
+		raw_sock_seq_show(seq, v, raw_seq_private(seq)->bucket);
 	return 0;
 }
 
@@ -972,27 +962,25 @@ static const struct seq_operations raw_seq_ops = {
 	.show  = raw_seq_show,
 };
 
-int raw_seq_open(struct inode *ino, struct file *file, struct raw_hashinfo *h,
-		unsigned short family)
+int raw_seq_open(struct inode *ino, struct file *file,
+		 struct raw_hashinfo *h, const struct seq_operations *ops)
 {
 	int err;
 	struct raw_iter_state *i;
 
-	err = seq_open_net(ino, file, &raw_seq_ops,
-			sizeof(struct raw_iter_state));
+	err = seq_open_net(ino, file, ops, sizeof(struct raw_iter_state));
 	if (err < 0)
 		return err;
 
 	i = raw_seq_private((struct seq_file *)file->private_data);
 	i->h = h;
-	i->family = family;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(raw_seq_open);
 
 static int raw_v4_seq_open(struct inode *inode, struct file *file)
 {
-	return raw_seq_open(inode, file, &raw_v4_hashinfo, PF_INET);
+	return raw_seq_open(inode, file, &raw_v4_hashinfo, &raw_seq_ops);
 }
 
 static const struct file_operations raw_seq_fops = {

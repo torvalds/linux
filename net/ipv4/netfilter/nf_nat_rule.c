@@ -58,13 +58,14 @@ static struct
 	.term = IPT_ERROR_INIT,			/* ERROR */
 };
 
-static struct xt_table nat_table = {
+static struct xt_table __nat_table = {
 	.name		= "nat",
 	.valid_hooks	= NAT_VALID_HOOKS,
 	.lock		= RW_LOCK_UNLOCKED,
 	.me		= THIS_MODULE,
 	.af		= AF_INET,
 };
+static struct xt_table *nat_table;
 
 /* Source NAT */
 static unsigned int ipt_snat_target(struct sk_buff *skb,
@@ -214,7 +215,7 @@ int nf_nat_rule_find(struct sk_buff *skb,
 {
 	int ret;
 
-	ret = ipt_do_table(skb, hooknum, in, out, &nat_table);
+	ret = ipt_do_table(skb, hooknum, in, out, nat_table);
 
 	if (ret == NF_ACCEPT) {
 		if (!nf_nat_initialized(ct, HOOK2MANIP(hooknum)))
@@ -248,9 +249,10 @@ int __init nf_nat_rule_init(void)
 {
 	int ret;
 
-	ret = ipt_register_table(&nat_table, &nat_initial_table.repl);
-	if (ret != 0)
-		return ret;
+	nat_table = ipt_register_table(&init_net, &__nat_table,
+				       &nat_initial_table.repl);
+	if (IS_ERR(nat_table))
+		return PTR_ERR(nat_table);
 	ret = xt_register_target(&ipt_snat_reg);
 	if (ret != 0)
 		goto unregister_table;
@@ -264,7 +266,7 @@ int __init nf_nat_rule_init(void)
  unregister_snat:
 	xt_unregister_target(&ipt_snat_reg);
  unregister_table:
-	ipt_unregister_table(&nat_table);
+	ipt_unregister_table(nat_table);
 
 	return ret;
 }
@@ -273,5 +275,5 @@ void nf_nat_rule_cleanup(void)
 {
 	xt_unregister_target(&ipt_dnat_reg);
 	xt_unregister_target(&ipt_snat_reg);
-	ipt_unregister_table(&nat_table);
+	ipt_unregister_table(nat_table);
 }

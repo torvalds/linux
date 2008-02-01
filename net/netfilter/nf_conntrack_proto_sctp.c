@@ -25,7 +25,7 @@
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_ecache.h>
 
-/* Protects conntrack->proto.sctp */
+/* Protects ct->proto.sctp */
 static DEFINE_RWLOCK(sctp_lock);
 
 /* FIXME: Examine ipfilter's timeouts and conntrack transitions more
@@ -624,7 +624,7 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp6 __read_mostly = {
 #endif
 };
 
-int __init nf_conntrack_proto_sctp_init(void)
+static int __init nf_conntrack_proto_sctp_init(void)
 {
 	int ret;
 
@@ -647,7 +647,7 @@ int __init nf_conntrack_proto_sctp_init(void)
 	return ret;
 }
 
-void __exit nf_conntrack_proto_sctp_fini(void)
+static void __exit nf_conntrack_proto_sctp_fini(void)
 {
 	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_sctp6);
 	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_sctp4);

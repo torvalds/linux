@@ -348,6 +348,12 @@ struct l2_fhdr {
 #define BNX2_L2CTX_BD_PRE_READ				0x00000000
 #define BNX2_L2CTX_CTX_SIZE				0x00000000
 #define BNX2_L2CTX_CTX_TYPE				0x00000000
+#define BNX2_L2CTX_LO_WATER_MARK_DEFAULT		 32
+#define BNX2_L2CTX_LO_WATER_MARK_SCALE			 4
+#define BNX2_L2CTX_LO_WATER_MARK_DIS			 0
+#define BNX2_L2CTX_HI_WATER_MARK_SHIFT			 4
+#define BNX2_L2CTX_HI_WATER_MARK_SCALE			 16
+#define BNX2_L2CTX_WATER_MARKS_MSK			 0x000000ff
 #define BNX2_L2CTX_CTX_TYPE_SIZE_L2			 ((0x20/20)<<16)
 #define BNX2_L2CTX_CTX_TYPE_CTX_BD_CHN_TYPE		 (0xf<<28)
 #define BNX2_L2CTX_CTX_TYPE_CTX_BD_CHN_TYPE_UNDEFINED	 (0<<28)
@@ -4494,6 +4500,9 @@ struct l2_fhdr {
 #define BNX2_MQ_MAP_L2_3_ENA				 (0x1L<<31)
 #define BNX2_MQ_MAP_L2_3_DEFAULT			 0x82004646
 
+#define BNX2_MQ_MAP_L2_5				0x00003d34
+#define BNX2_MQ_MAP_L2_5_ARM				 (0x3L<<26)
+
 /*
  *  tsch_reg definition
  *  offset: 0x4c00
@@ -5510,6 +5519,15 @@ struct l2_fhdr {
 #define BNX2_HC_PERIODIC_TICKS_8_HC_PERIODIC_TICKS	 (0xffffL<<0)
 #define BNX2_HC_PERIODIC_TICKS_8_HC_INT_PERIODIC_TICKS	 (0xffffL<<16)
 
+#define BNX2_HC_SB_CONFIG_SIZE	(BNX2_HC_SB_CONFIG_2 - BNX2_HC_SB_CONFIG_1)
+#define BNX2_HC_COMP_PROD_TRIP_OFF	(BNX2_HC_COMP_PROD_TRIP_1 -	\
+					 BNX2_HC_SB_CONFIG_1)
+#define BNX2_HC_COM_TICKS_OFF	(BNX2_HC_COM_TICKS_1 - BNX2_HC_SB_CONFIG_1)
+#define BNX2_HC_CMD_TICKS_OFF	(BNX2_HC_CMD_TICKS_1 - BNX2_HC_SB_CONFIG_1)
+#define BNX2_HC_TX_QUICK_CONS_TRIP_OFF	(BNX2_HC_TX_QUICK_CONS_TRIP_1 -	\
+					 BNX2_HC_SB_CONFIG_1)
+#define BNX2_HC_TX_TICKS_OFF	(BNX2_HC_TX_TICKS_1 - BNX2_HC_SB_CONFIG_1)
+
 
 /*
  *  txp_reg definition
@@ -6346,11 +6364,12 @@ struct l2_fhdr {
 #define MII_BNX2_DSP_EXPAND_REG			 0x0f00
 #define MII_EXPAND_REG1				  (MII_BNX2_DSP_EXPAND_REG | 1)
 #define MII_EXPAND_REG1_RUDI_C			   0x20
-#define MII_EXPAND_SERDES_CTL			  (MII_BNX2_DSP_EXPAND_REG | 2)
+#define MII_EXPAND_SERDES_CTL			  (MII_BNX2_DSP_EXPAND_REG | 3)
 
 #define MII_BNX2_MISC_SHADOW			0x1c
 #define MISC_SHDW_AN_DBG			 0x6800
 #define MISC_SHDW_AN_DBG_NOSYNC			  0x0002
+#define MISC_SHDW_AN_DBG_RUDI_INVALID		  0x0100
 #define MISC_SHDW_MODE_CTL			 0x7c00
 #define MISC_SHDW_MODE_CTL_SIG_DET		  0x0010
 
@@ -6395,7 +6414,7 @@ struct l2_fhdr {
 
 #define RX_COPY_THRESH			128
 
-#define BNX2_MISC_ENABLE_DEFAULT	0x7ffffff
+#define BNX2_MISC_ENABLE_DEFAULT	0x17ffffff
 
 #define DMA_READ_CHANS	5
 #define DMA_WRITE_CHANS	3
@@ -6795,9 +6814,6 @@ struct bnx2 {
 	int			irq_nvecs;
 };
 
-static u32 bnx2_reg_rd_ind(struct bnx2 *bp, u32 offset);
-static void bnx2_reg_wr_ind(struct bnx2 *bp, u32 offset, u32 val);
-
 #define REG_RD(bp, offset)					\
 	readl(bp->regview + offset)
 
@@ -6806,19 +6822,6 @@ static void bnx2_reg_wr_ind(struct bnx2 *bp, u32 offset, u32 val);
 
 #define REG_WR16(bp, offset, val)				\
 	writew(val, bp->regview + offset)
-
-#define REG_RD_IND(bp, offset)					\
-	bnx2_reg_rd_ind(bp, offset)
-
-#define REG_WR_IND(bp, offset, val)				\
-	bnx2_reg_wr_ind(bp, offset, val)
-
-/* Indirect context access.  Unlike the MBQ_WR, these macros will not
- * trigger a chip event. */
-static void bnx2_ctx_wr(struct bnx2 *bp, u32 cid_addr, u32 offset, u32 val);
-
-#define CTX_WR(bp, cid_addr, offset, val)			\
-	bnx2_ctx_wr(bp, cid_addr, offset, val)
 
 struct cpu_reg {
 	u32 mode;

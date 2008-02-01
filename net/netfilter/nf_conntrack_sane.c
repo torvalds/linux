@@ -62,8 +62,9 @@ static int help(struct sk_buff *skb,
 		enum ip_conntrack_info ctinfo)
 {
 	unsigned int dataoff, datalen;
-	struct tcphdr _tcph, *th;
-	char *sb_ptr;
+	const struct tcphdr *th;
+	struct tcphdr _tcph;
+	void *sb_ptr;
 	int ret = NF_ACCEPT;
 	int dir = CTINFO2DIR(ctinfo);
 	struct nf_ct_sane_master *ct_sane_info;
@@ -99,7 +100,7 @@ static int help(struct sk_buff *skb,
 		if (datalen != sizeof(struct sane_request))
 			goto out;
 
-		req = (struct sane_request *)sb_ptr;
+		req = sb_ptr;
 		if (req->RPC_code != htonl(SANE_NET_START)) {
 			/* Not an interesting command */
 			ct_sane_info->state = SANE_STATE_NORMAL;
@@ -123,7 +124,7 @@ static int help(struct sk_buff *skb,
 		goto out;
 	}
 
-	reply = (struct sane_reply_net_start *)sb_ptr;
+	reply = sb_ptr;
 	if (reply->status != htonl(SANE_STATUS_SUCCESS)) {
 		/* saned refused the command */
 		pr_debug("nf_ct_sane: unsuccessful SANE_STATUS = %u\n",

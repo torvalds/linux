@@ -26,7 +26,7 @@ static struct
 	struct ip6t_replace repl;
 	struct ip6t_standard entries[5];
 	struct ip6t_error term;
-} initial_table __initdata = {
+} initial_table __net_initdata = {
 	.repl = {
 		.name = "mangle",
 		.valid_hooks = MANGLE_VALID_HOOKS,
@@ -73,7 +73,7 @@ ip6t_route_hook(unsigned int hook,
 	 const struct net_device *out,
 	 int (*okfn)(struct sk_buff *))
 {
-	return ip6t_do_table(skb, hook, in, out, &packet_mangler);
+	return ip6t_do_table(skb, hook, in, out, init_net.ipv6.ip6table_mangle);
 }
 
 static unsigned int
@@ -108,7 +108,7 @@ ip6t_local_hook(unsigned int hook,
 	/* flowlabel and prio (includes version, which shouldn't change either */
 	flowlabel = *((u_int32_t *)ipv6_hdr(skb));
 
-	ret = ip6t_do_table(skb, hook, in, out, &packet_mangler);
+	ret = ip6t_do_table(skb, hook, in, out, init_net.ipv6.ip6table_mangle);
 
 	if (ret != NF_DROP && ret != NF_STOLEN
 		&& (memcmp(&ipv6_hdr(skb)->saddr, &saddr, sizeof(saddr))
@@ -158,12 +158,31 @@ static struct nf_hook_ops ip6t_ops[] __read_mostly = {
 	},
 };
 
+static int __net_init ip6table_mangle_net_init(struct net *net)
+{
+	/* Register table */
+	net->ipv6.ip6table_mangle =
+		ip6t_register_table(net, &packet_mangler, &initial_table.repl);
+	if (IS_ERR(net->ipv6.ip6table_mangle))
+		return PTR_ERR(net->ipv6.ip6table_mangle);
+	return 0;
+}
+
+static void __net_exit ip6table_mangle_net_exit(struct net *net)
+{
+	ip6t_unregister_table(net->ipv6.ip6table_mangle);
+}
+
+static struct pernet_operations ip6table_mangle_net_ops = {
+	.init = ip6table_mangle_net_init,
+	.exit = ip6table_mangle_net_exit,
+};
+
 static int __init ip6table_mangle_init(void)
 {
 	int ret;
 
-	/* Register table */
-	ret = ip6t_register_table(&packet_mangler, &initial_table.repl);
+	ret = register_pernet_subsys(&ip6table_mangle_net_ops);
 	if (ret < 0)
 		return ret;
 
@@ -175,14 +194,14 @@ static int __init ip6table_mangle_init(void)
 	return ret;
 
  cleanup_table:
-	ip6t_unregister_table(&packet_mangler);
+	unregister_pernet_subsys(&ip6table_mangle_net_ops);
 	return ret;
 }
 
 static void __exit ip6table_mangle_fini(void)
 {
 	nf_unregister_hooks(ip6t_ops, ARRAY_SIZE(ip6t_ops));
-	ip6t_unregister_table(&packet_mangler);
+	unregister_pernet_subsys(&ip6table_mangle_net_ops);
 }
 
 module_init(ip6table_mangle_init);

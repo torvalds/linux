@@ -1919,11 +1919,6 @@ max_size
 Maximum size  of  the routing cache. Old entries will be purged once the cache
 reached has this size.
 
-max_delay, min_delay
---------------------
-
-Delays for flushing the routing cache.
-
 redirect_load, redirect_number
 ------------------------------
 

@@ -76,13 +76,6 @@ clusterip_config_put(struct clusterip_config *c)
 		kfree(c);
 }
 
-/* increase the count of entries(rules) using/referencing this config */
-static inline void
-clusterip_config_entry_get(struct clusterip_config *c)
-{
-	atomic_inc(&c->entries);
-}
-
 /* decrease the count of entries using/referencing this config.  If last
  * entry(rule) is removed, remove the config from lists, but don't free it
  * yet, since proc-files could still be holding references */

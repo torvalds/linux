@@ -71,11 +71,6 @@ struct hostap_80211_rx_status {
 	u16 rate; /* in 100 kbps */
 };
 
-
-void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
-		     struct hostap_80211_rx_status *rx_stats);
-
-
 /* prism2_rx_80211 'type' argument */
 enum {
 	PRISM2_RX_MONITOR, PRISM2_RX_MGMT, PRISM2_RX_NON_ASSOC,

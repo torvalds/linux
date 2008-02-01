@@ -28,10 +28,9 @@
 #include <linux/workqueue.h>
 #include <linux/mii.h>
 #include <linux/usb.h>
+#include <linux/usb/usbnet.h>
 
 #include <asm/unaligned.h>
-
-#include "usbnet.h"
 
 
 /*

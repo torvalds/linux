@@ -28,12 +28,14 @@
  * The bindhash mutex for snum's hash chain must be held here.
  */
 struct inet_bind_bucket *inet_bind_bucket_create(struct kmem_cache *cachep,
+						 struct net *net,
 						 struct inet_bind_hashbucket *head,
 						 const unsigned short snum)
 {
 	struct inet_bind_bucket *tb = kmem_cache_alloc(cachep, GFP_ATOMIC);
 
 	if (tb != NULL) {
+		tb->ib_net       = net;
 		tb->port      = snum;
 		tb->fastreuse = 0;
 		INIT_HLIST_HEAD(&tb->owners);
@@ -125,7 +127,8 @@ EXPORT_SYMBOL(inet_listen_wlock);
  * remote address for the connection. So always assume those are both
  * wildcarded during the search since they can never be otherwise.
  */
-static struct sock *inet_lookup_listener_slow(const struct hlist_head *head,
+static struct sock *inet_lookup_listener_slow(struct net *net,
+					      const struct hlist_head *head,
 					      const __be32 daddr,
 					      const unsigned short hnum,
 					      const int dif)
@@ -137,7 +140,8 @@ static struct sock *inet_lookup_listener_slow(const struct hlist_head *head,
 	sk_for_each(sk, node, head) {
 		const struct inet_sock *inet = inet_sk(sk);
 
-		if (inet->num == hnum && !ipv6_only_sock(sk)) {
+		if (sk->sk_net == net && inet->num == hnum &&
+				!ipv6_only_sock(sk)) {
 			const __be32 rcv_saddr = inet->rcv_saddr;
 			int score = sk->sk_family == PF_INET ? 1 : 0;
 
@@ -163,7 +167,8 @@ static struct sock *inet_lookup_listener_slow(const struct hlist_head *head,
 }
 
 /* Optimize the common listener case. */
-struct sock *__inet_lookup_listener(struct inet_hashinfo *hashinfo,
+struct sock *__inet_lookup_listener(struct net *net,
+				    struct inet_hashinfo *hashinfo,
 				    const __be32 daddr, const unsigned short hnum,
 				    const int dif)
 {
@@ -178,9 +183,9 @@ struct sock *__inet_lookup_listener(struct inet_hashinfo *hashinfo,
 		if (inet->num == hnum && !sk->sk_node.next &&
 		    (!inet->rcv_saddr || inet->rcv_saddr == daddr) &&
 		    (sk->sk_family == PF_INET || !ipv6_only_sock(sk)) &&
-		    !sk->sk_bound_dev_if)
+		    !sk->sk_bound_dev_if && sk->sk_net == net)
 			goto sherry_cache;
-		sk = inet_lookup_listener_slow(head, daddr, hnum, dif);
+		sk = inet_lookup_listener_slow(net, head, daddr, hnum, dif);
 	}
 	if (sk) {
 sherry_cache:
@@ -191,7 +196,8 @@ sherry_cache:
 }
 EXPORT_SYMBOL_GPL(__inet_lookup_listener);
 
-struct sock * __inet_lookup_established(struct inet_hashinfo *hashinfo,
+struct sock * __inet_lookup_established(struct net *net,
+				  struct inet_hashinfo *hashinfo,
 				  const __be32 saddr, const __be16 sport,
 				  const __be32 daddr, const u16 hnum,
 				  const int dif)
@@ -210,13 +216,15 @@ struct sock * __inet_lookup_established(struct inet_hashinfo *hashinfo,
 	prefetch(head->chain.first);
 	read_lock(lock);
 	sk_for_each(sk, node, &head->chain) {
-		if (INET_MATCH(sk, hash, acookie, saddr, daddr, ports, dif))
+		if (INET_MATCH(sk, net, hash, acookie,
+					saddr, daddr, ports, dif))
 			goto hit; /* You sunk my battleship! */
 	}
 
 	/* Must check for a TIME_WAIT'er before going to listener hash. */
 	sk_for_each(sk, node, &head->twchain) {
-		if (INET_TW_MATCH(sk, hash, acookie, saddr, daddr, ports, dif))
+		if (INET_TW_MATCH(sk, net, hash, acookie,
+					saddr, daddr, ports, dif))
 			goto hit;
 	}
 	sk = NULL;
@@ -247,6 +255,7 @@ static int __inet_check_established(struct inet_timewait_death_row *death_row,
 	struct sock *sk2;
 	const struct hlist_node *node;
 	struct inet_timewait_sock *tw;
+	struct net *net = sk->sk_net;
 
 	prefetch(head->chain.first);
 	write_lock(lock);
@@ -255,7 +264,8 @@ static int __inet_check_established(struct inet_timewait_death_row *death_row,
 	sk_for_each(sk2, node, &head->twchain) {
 		tw = inet_twsk(sk2);
 
-		if (INET_TW_MATCH(sk2, hash, acookie, saddr, daddr, ports, dif)) {
+		if (INET_TW_MATCH(sk2, net, hash, acookie,
+					saddr, daddr, ports, dif)) {
 			if (twsk_unique(sk, sk2, twp))
 				goto unique;
 			else
@@ -266,7 +276,8 @@ static int __inet_check_established(struct inet_timewait_death_row *death_row,
 
 	/* And established part... */
 	sk_for_each(sk2, node, &head->chain) {
-		if (INET_MATCH(sk2, hash, acookie, saddr, daddr, ports, dif))
+		if (INET_MATCH(sk2, net, hash, acookie,
+					saddr, daddr, ports, dif))
 			goto not_unique;
 	}
 
@@ -348,17 +359,18 @@ void __inet_hash(struct inet_hashinfo *hashinfo, struct sock *sk)
 }
 EXPORT_SYMBOL_GPL(__inet_hash);
 
-/*
- * Bind a port for a connect operation and hash it.
- */
-int inet_hash_connect(struct inet_timewait_death_row *death_row,
-		      struct sock *sk)
+int __inet_hash_connect(struct inet_timewait_death_row *death_row,
+		struct sock *sk,
+		int (*check_established)(struct inet_timewait_death_row *,
+			struct sock *, __u16, struct inet_timewait_sock **),
+		void (*hash)(struct inet_hashinfo *, struct sock *))
 {
 	struct inet_hashinfo *hinfo = death_row->hashinfo;
 	const unsigned short snum = inet_sk(sk)->num;
 	struct inet_bind_hashbucket *head;
 	struct inet_bind_bucket *tb;
 	int ret;
+	struct net *net = sk->sk_net;
 
 	if (!snum) {
 		int i, remaining, low, high, port;
@@ -381,19 +393,19 @@ int inet_hash_connect(struct inet_timewait_death_row *death_row,
 			 * unique enough.
 			 */
 			inet_bind_bucket_for_each(tb, node, &head->chain) {
-				if (tb->port == port) {
+				if (tb->ib_net == net && tb->port == port) {
 					BUG_TRAP(!hlist_empty(&tb->owners));
 					if (tb->fastreuse >= 0)
 						goto next_port;
-					if (!__inet_check_established(death_row,
-								      sk, port,
-								      &tw))
+					if (!check_established(death_row, sk,
+								port, &tw))
 						goto ok;
 					goto next_port;
 				}
 			}
 
-			tb = inet_bind_bucket_create(hinfo->bind_bucket_cachep, head, port);
+			tb = inet_bind_bucket_create(hinfo->bind_bucket_cachep,
+					net, head, port);
 			if (!tb) {
 				spin_unlock(&head->lock);
 				break;
@@ -415,7 +427,7 @@ ok:
 		inet_bind_hash(sk, tb, port);
 		if (sk_unhashed(sk)) {
 			inet_sk(sk)->sport = htons(port);
-			__inet_hash_nolisten(hinfo, sk);
+			hash(hinfo, sk);
 		}
 		spin_unlock(&head->lock);
 
@@ -432,17 +444,28 @@ ok:
 	tb  = inet_csk(sk)->icsk_bind_hash;
 	spin_lock_bh(&head->lock);
 	if (sk_head(&tb->owners) == sk && !sk->sk_bind_node.next) {
-		__inet_hash_nolisten(hinfo, sk);
+		hash(hinfo, sk);
 		spin_unlock_bh(&head->lock);
 		return 0;
 	} else {
 		spin_unlock(&head->lock);
 		/* No definite answer... Walk to established hash table */
-		ret = __inet_check_established(death_row, sk, snum, NULL);
+		ret = check_established(death_row, sk, snum, NULL);
 out:
 		local_bh_enable();
 		return ret;
 	}
+}
+EXPORT_SYMBOL_GPL(__inet_hash_connect);
+
+/*
+ * Bind a port for a connect operation and hash it.
+ */
+int inet_hash_connect(struct inet_timewait_death_row *death_row,
+		      struct sock *sk)
+{
+	return __inet_hash_connect(death_row, sk,
+			__inet_check_established, __inet_hash_nolisten);
 }
 
 EXPORT_SYMBOL_GPL(inet_hash_connect);

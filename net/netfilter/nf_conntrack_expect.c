@@ -50,7 +50,7 @@ void nf_ct_unlink_expect(struct nf_conntrack_expect *exp)
 	NF_CT_ASSERT(master_help);
 	NF_CT_ASSERT(!timer_pending(&exp->timeout));
 
-	hlist_del(&exp->hnode);
+	hlist_del_rcu(&exp->hnode);
 	nf_ct_expect_count--;
 
 	hlist_del(&exp->lnode);
@@ -65,9 +65,9 @@ static void nf_ct_expectation_timed_out(unsigned long ul_expect)
 {
 	struct nf_conntrack_expect *exp = (void *)ul_expect;
 
-	write_lock_bh(&nf_conntrack_lock);
+	spin_lock_bh(&nf_conntrack_lock);
 	nf_ct_unlink_expect(exp);
-	write_unlock_bh(&nf_conntrack_lock);
+	spin_unlock_bh(&nf_conntrack_lock);
 	nf_ct_expect_put(exp);
 }
 
@@ -97,7 +97,7 @@ __nf_ct_expect_find(const struct nf_conntrack_tuple *tuple)
 		return NULL;
 
 	h = nf_ct_expect_dst_hash(tuple);
-	hlist_for_each_entry(i, n, &nf_ct_expect_hash[h], hnode) {
+	hlist_for_each_entry_rcu(i, n, &nf_ct_expect_hash[h], hnode) {
 		if (nf_ct_tuple_mask_cmp(tuple, &i->tuple, &i->mask))
 			return i;
 	}
@@ -111,11 +111,11 @@ nf_ct_expect_find_get(const struct nf_conntrack_tuple *tuple)
 {
 	struct nf_conntrack_expect *i;
 
-	read_lock_bh(&nf_conntrack_lock);
+	rcu_read_lock();
 	i = __nf_ct_expect_find(tuple);
-	if (i)
-		atomic_inc(&i->use);
-	read_unlock_bh(&nf_conntrack_lock);
+	if (i && !atomic_inc_not_zero(&i->use))
+		i = NULL;
+	rcu_read_unlock();
 
 	return i;
 }
@@ -201,12 +201,12 @@ static inline int expect_matches(const struct nf_conntrack_expect *a,
 /* Generally a bad idea to call this: could have matched already. */
 void nf_ct_unexpect_related(struct nf_conntrack_expect *exp)
 {
-	write_lock_bh(&nf_conntrack_lock);
+	spin_lock_bh(&nf_conntrack_lock);
 	if (del_timer(&exp->timeout)) {
 		nf_ct_unlink_expect(exp);
 		nf_ct_expect_put(exp);
 	}
-	write_unlock_bh(&nf_conntrack_lock);
+	spin_unlock_bh(&nf_conntrack_lock);
 }
 EXPORT_SYMBOL_GPL(nf_ct_unexpect_related);
 
@@ -223,6 +223,7 @@ struct nf_conntrack_expect *nf_ct_expect_alloc(struct nf_conn *me)
 
 	new->master = me;
 	atomic_set(&new->use, 1);
+	INIT_RCU_HEAD(&new->rcu);
 	return new;
 }
 EXPORT_SYMBOL_GPL(nf_ct_expect_alloc);
@@ -278,10 +279,18 @@ void nf_ct_expect_init(struct nf_conntrack_expect *exp, int family,
 }
 EXPORT_SYMBOL_GPL(nf_ct_expect_init);
 
+static void nf_ct_expect_free_rcu(struct rcu_head *head)
+{
+	struct nf_conntrack_expect *exp;
+
+	exp = container_of(head, struct nf_conntrack_expect, rcu);
+	kmem_cache_free(nf_ct_expect_cachep, exp);
+}
+
 void nf_ct_expect_put(struct nf_conntrack_expect *exp)
 {
 	if (atomic_dec_and_test(&exp->use))
-		kmem_cache_free(nf_ct_expect_cachep, exp);
+		call_rcu(&exp->rcu, nf_ct_expect_free_rcu);
 }
 EXPORT_SYMBOL_GPL(nf_ct_expect_put);
 
@@ -295,7 +304,7 @@ static void nf_ct_expect_insert(struct nf_conntrack_expect *exp)
 	hlist_add_head(&exp->lnode, &master_help->expectations);
 	master_help->expecting++;
 
-	hlist_add_head(&exp->hnode, &nf_ct_expect_hash[h]);
+	hlist_add_head_rcu(&exp->hnode, &nf_ct_expect_hash[h]);
 	nf_ct_expect_count++;
 
 	setup_timer(&exp->timeout, nf_ct_expectation_timed_out,
@@ -346,7 +355,7 @@ int nf_ct_expect_related(struct nf_conntrack_expect *expect)
 
 	NF_CT_ASSERT(master_help);
 
-	write_lock_bh(&nf_conntrack_lock);
+	spin_lock_bh(&nf_conntrack_lock);
 	if (!master_help->helper) {
 		ret = -ESHUTDOWN;
 		goto out;
@@ -381,7 +390,7 @@ int nf_ct_expect_related(struct nf_conntrack_expect *expect)
 	nf_ct_expect_event(IPEXP_NEW, expect);
 	ret = 0;
 out:
-	write_unlock_bh(&nf_conntrack_lock);
+	spin_unlock_bh(&nf_conntrack_lock);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_ct_expect_related);
@@ -394,10 +403,12 @@ struct ct_expect_iter_state {
 static struct hlist_node *ct_expect_get_first(struct seq_file *seq)
 {
 	struct ct_expect_iter_state *st = seq->private;
+	struct hlist_node *n;
 
 	for (st->bucket = 0; st->bucket < nf_ct_expect_hsize; st->bucket++) {
-		if (!hlist_empty(&nf_ct_expect_hash[st->bucket]))
-			return nf_ct_expect_hash[st->bucket].first;
+		n = rcu_dereference(nf_ct_expect_hash[st->bucket].first);
+		if (n)
+			return n;
 	}
 	return NULL;
 }
@@ -407,11 +418,11 @@ static struct hlist_node *ct_expect_get_next(struct seq_file *seq,
 {
 	struct ct_expect_iter_state *st = seq->private;
 
-	head = head->next;
+	head = rcu_dereference(head->next);
 	while (head == NULL) {
 		if (++st->bucket >= nf_ct_expect_hsize)
 			return NULL;
-		head = nf_ct_expect_hash[st->bucket].first;
+		head = rcu_dereference(nf_ct_expect_hash[st->bucket].first);
 	}
 	return head;
 }
@@ -427,8 +438,9 @@ static struct hlist_node *ct_expect_get_idx(struct seq_file *seq, loff_t pos)
 }
 
 static void *exp_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(RCU)
 {
-	read_lock_bh(&nf_conntrack_lock);
+	rcu_read_lock();
 	return ct_expect_get_idx(seq, *pos);
 }
 
@@ -439,8 +451,9 @@ static void *exp_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void exp_seq_stop(struct seq_file *seq, void *v)
+	__releases(RCU)
 {
-	read_unlock_bh(&nf_conntrack_lock);
+	rcu_read_unlock();
 }
 
 static int exp_seq_show(struct seq_file *s, void *v)

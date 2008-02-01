@@ -214,7 +214,7 @@ struct xt_match
 	/* Free to use by each match */
 	unsigned long data;
 
-	char *table;
+	const char *table;
 	unsigned int matchsize;
 	unsigned int compatsize;
 	unsigned int hooks;
@@ -261,7 +261,7 @@ struct xt_target
 	/* Set this to THIS_MODULE if you are a module, otherwise NULL */
 	struct module *me;
 
-	char *table;
+	const char *table;
 	unsigned int targetsize;
 	unsigned int compatsize;
 	unsigned int hooks;
@@ -277,7 +277,7 @@ struct xt_table
 	struct list_head list;
 
 	/* A unique name... */
-	char name[XT_TABLE_MAXNAMELEN];
+	const char name[XT_TABLE_MAXNAMELEN];
 
 	/* What hooks you will enter on */
 	unsigned int valid_hooks;
@@ -335,9 +335,10 @@ extern int xt_check_target(const struct xt_target *target, unsigned short family
 			   unsigned int size, const char *table, unsigned int hook,
 			   unsigned short proto, int inv_proto);
 
-extern int xt_register_table(struct xt_table *table,
-			     struct xt_table_info *bootstrap,
-			     struct xt_table_info *newinfo);
+extern struct xt_table *xt_register_table(struct net *net,
+					  struct xt_table *table,
+					  struct xt_table_info *bootstrap,
+					  struct xt_table_info *newinfo);
 extern void *xt_unregister_table(struct xt_table *table);
 
 extern struct xt_table_info *xt_replace_table(struct xt_table *table,
@@ -352,11 +353,12 @@ extern struct xt_target *xt_request_find_target(int af, const char *name,
 extern int xt_find_revision(int af, const char *name, u8 revision, int target,
 			    int *err);
 
-extern struct xt_table *xt_find_table_lock(int af, const char *name);
+extern struct xt_table *xt_find_table_lock(struct net *net, int af,
+					   const char *name);
 extern void xt_table_unlock(struct xt_table *t);
 
-extern int xt_proto_init(int af);
-extern void xt_proto_fini(int af);
+extern int xt_proto_init(struct net *net, int af);
+extern void xt_proto_fini(struct net *net, int af);
 
 extern struct xt_table_info *xt_alloc_table_info(unsigned int size);
 extern void xt_free_table_info(struct xt_table_info *info);
@@ -430,15 +432,15 @@ extern short xt_compat_calc_jump(int af, unsigned int offset);
 
 extern int xt_compat_match_offset(struct xt_match *match);
 extern int xt_compat_match_from_user(struct xt_entry_match *m,
-				     void **dstptr, int *size);
+				     void **dstptr, unsigned int *size);
 extern int xt_compat_match_to_user(struct xt_entry_match *m,
-				   void __user **dstptr, int *size);
+				   void __user **dstptr, unsigned int *size);
 
 extern int xt_compat_target_offset(struct xt_target *target);
 extern void xt_compat_target_from_user(struct xt_entry_target *t,
-				       void **dstptr, int *size);
+				       void **dstptr, unsigned int *size);
 extern int xt_compat_target_to_user(struct xt_entry_target *t,
-				    void __user **dstptr, int *size);
+				    void __user **dstptr, unsigned int *size);
 
 #endif /* CONFIG_COMPAT */
 #endif /* __KERNEL__ */

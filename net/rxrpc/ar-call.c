@@ -15,7 +15,7 @@
 #include <net/af_rxrpc.h>
 #include "ar-internal.h"
 
-const char *rxrpc_call_states[] = {
+const char *const rxrpc_call_states[] = {
 	[RXRPC_CALL_CLIENT_SEND_REQUEST]	= "ClSndReq",
 	[RXRPC_CALL_CLIENT_AWAIT_REPLY]		= "ClAwtRpl",
 	[RXRPC_CALL_CLIENT_RECV_REPLY]		= "ClRcvRpl",

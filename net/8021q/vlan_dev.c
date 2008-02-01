@@ -563,6 +563,7 @@ static int vlan_dev_stop(struct net_device *dev)
 	struct net_device *real_dev = vlan_dev_info(dev)->real_dev;
 
 	dev_mc_unsync(real_dev, dev);
+	dev_unicast_unsync(real_dev, dev);
 	if (dev->flags & IFF_ALLMULTI)
 		dev_set_allmulti(real_dev, -1);
 	if (dev->flags & IFF_PROMISC)
@@ -634,9 +635,10 @@ static void vlan_dev_change_rx_flags(struct net_device *dev, int change)
 		dev_set_promiscuity(real_dev, dev->flags & IFF_PROMISC ? 1 : -1);
 }
 
-static void vlan_dev_set_multicast_list(struct net_device *vlan_dev)
+static void vlan_dev_set_rx_mode(struct net_device *vlan_dev)
 {
 	dev_mc_sync(vlan_dev_info(vlan_dev)->real_dev, vlan_dev);
+	dev_unicast_sync(vlan_dev_info(vlan_dev)->real_dev, vlan_dev);
 }
 
 /*
@@ -702,7 +704,8 @@ void vlan_setup(struct net_device *dev)
 	dev->open		= vlan_dev_open;
 	dev->stop		= vlan_dev_stop;
 	dev->set_mac_address	= vlan_dev_set_mac_address;
-	dev->set_multicast_list	= vlan_dev_set_multicast_list;
+	dev->set_rx_mode	= vlan_dev_set_rx_mode;
+	dev->set_multicast_list	= vlan_dev_set_rx_mode;
 	dev->change_rx_flags	= vlan_dev_change_rx_flags;
 	dev->do_ioctl		= vlan_dev_ioctl;
 	dev->destructor		= free_netdev;

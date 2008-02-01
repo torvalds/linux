@@ -36,6 +36,7 @@ MODULE_LICENSE("GPL");
 static struct pci_device_id rtl8180_table[] __devinitdata = {
 	/* rtl8185 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8185) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_BELKIN, 0x700f) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_BELKIN, 0x701f) },
 
 	/* rtl8180 */

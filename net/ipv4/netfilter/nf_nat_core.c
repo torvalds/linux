@@ -31,7 +31,7 @@
 #include <net/netfilter/nf_conntrack_l3proto.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 
-static DEFINE_RWLOCK(nf_nat_lock);
+static DEFINE_SPINLOCK(nf_nat_lock);
 
 static struct nf_conntrack_l3proto *l3proto __read_mostly;
 
@@ -154,8 +154,8 @@ find_appropriate_src(const struct nf_conntrack_tuple *tuple,
 	struct nf_conn *ct;
 	struct hlist_node *n;
 
-	read_lock_bh(&nf_nat_lock);
-	hlist_for_each_entry(nat, n, &bysource[h], bysource) {
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(nat, n, &bysource[h], bysource) {
 		ct = nat->ct;
 		if (same_src(ct, tuple)) {
 			/* Copy source part from reply tuple. */
@@ -164,12 +164,12 @@ find_appropriate_src(const struct nf_conntrack_tuple *tuple,
 			result->dst = tuple->dst;
 
 			if (in_range(result, range)) {
-				read_unlock_bh(&nf_nat_lock);
+				rcu_read_unlock();
 				return 1;
 			}
 		}
 	}
-	read_unlock_bh(&nf_nat_lock);
+	rcu_read_unlock();
 	return 0;
 }
 
@@ -330,12 +330,12 @@ nf_nat_setup_info(struct nf_conn *ct,
 		unsigned int srchash;
 
 		srchash = hash_by_src(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
-		write_lock_bh(&nf_nat_lock);
+		spin_lock_bh(&nf_nat_lock);
 		/* nf_conntrack_alter_reply might re-allocate exntension aera */
 		nat = nfct_nat(ct);
 		nat->ct = ct;
-		hlist_add_head(&nat->bysource, &bysource[srchash]);
-		write_unlock_bh(&nf_nat_lock);
+		hlist_add_head_rcu(&nat->bysource, &bysource[srchash]);
+		spin_unlock_bh(&nf_nat_lock);
 	}
 
 	/* It's done. */
@@ -521,14 +521,14 @@ int nf_nat_protocol_register(const struct nf_nat_protocol *proto)
 {
 	int ret = 0;
 
-	write_lock_bh(&nf_nat_lock);
+	spin_lock_bh(&nf_nat_lock);
 	if (nf_nat_protos[proto->protonum] != &nf_nat_unknown_protocol) {
 		ret = -EBUSY;
 		goto out;
 	}
 	rcu_assign_pointer(nf_nat_protos[proto->protonum], proto);
  out:
-	write_unlock_bh(&nf_nat_lock);
+	spin_unlock_bh(&nf_nat_lock);
 	return ret;
 }
 EXPORT_SYMBOL(nf_nat_protocol_register);
@@ -536,10 +536,10 @@ EXPORT_SYMBOL(nf_nat_protocol_register);
 /* Noone stores the protocol anywhere; simply delete it. */
 void nf_nat_protocol_unregister(const struct nf_nat_protocol *proto)
 {
-	write_lock_bh(&nf_nat_lock);
+	spin_lock_bh(&nf_nat_lock);
 	rcu_assign_pointer(nf_nat_protos[proto->protonum],
 			   &nf_nat_unknown_protocol);
-	write_unlock_bh(&nf_nat_lock);
+	spin_unlock_bh(&nf_nat_lock);
 	synchronize_rcu();
 }
 EXPORT_SYMBOL(nf_nat_protocol_unregister);
@@ -594,10 +594,10 @@ static void nf_nat_cleanup_conntrack(struct nf_conn *ct)
 
 	NF_CT_ASSERT(nat->ct->status & IPS_NAT_DONE_MASK);
 
-	write_lock_bh(&nf_nat_lock);
-	hlist_del(&nat->bysource);
+	spin_lock_bh(&nf_nat_lock);
+	hlist_del_rcu(&nat->bysource);
 	nat->ct = NULL;
-	write_unlock_bh(&nf_nat_lock);
+	spin_unlock_bh(&nf_nat_lock);
 }
 
 static void nf_nat_move_storage(struct nf_conn *conntrack, void *old)
@@ -609,10 +609,10 @@ static void nf_nat_move_storage(struct nf_conn *conntrack, void *old)
 	if (!ct || !(ct->status & IPS_NAT_DONE_MASK))
 		return;
 
-	write_lock_bh(&nf_nat_lock);
+	spin_lock_bh(&nf_nat_lock);
 	hlist_replace_rcu(&old_nat->bysource, &new_nat->bysource);
 	new_nat->ct = ct;
-	write_unlock_bh(&nf_nat_lock);
+	spin_unlock_bh(&nf_nat_lock);
 }
 
 static struct nf_ct_ext_type nat_extend __read_mostly = {
@@ -646,17 +646,13 @@ static int __init nf_nat_init(void)
 	}
 
 	/* Sew in builtin protocols. */
-	write_lock_bh(&nf_nat_lock);
+	spin_lock_bh(&nf_nat_lock);
 	for (i = 0; i < MAX_IP_NAT_PROTO; i++)
 		rcu_assign_pointer(nf_nat_protos[i], &nf_nat_unknown_protocol);
 	rcu_assign_pointer(nf_nat_protos[IPPROTO_TCP], &nf_nat_protocol_tcp);
 	rcu_assign_pointer(nf_nat_protos[IPPROTO_UDP], &nf_nat_protocol_udp);
 	rcu_assign_pointer(nf_nat_protos[IPPROTO_ICMP], &nf_nat_protocol_icmp);
-	write_unlock_bh(&nf_nat_lock);
-
-	for (i = 0; i < nf_nat_htable_size; i++) {
-		INIT_HLIST_HEAD(&bysource[i]);
-	}
+	spin_unlock_bh(&nf_nat_lock);
 
 	/* Initialize fake conntrack so that NAT will skip it */
 	nf_conntrack_untracked.status |= IPS_NAT_DONE_MASK;

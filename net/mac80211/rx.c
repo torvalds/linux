@@ -340,9 +340,42 @@ static u32 ieee80211_rx_load_stats(struct ieee80211_local *local,
 	return load;
 }
 
+static ieee80211_txrx_result
+ieee80211_rx_h_verify_ip_alignment(struct ieee80211_txrx_data *rx)
+{
+	int hdrlen;
+
+	/*
+	 * Drivers are required to align the payload data in a way that
+	 * guarantees that the contained IP header is aligned to a four-
+	 * byte boundary. In the case of regular frames, this simply means
+	 * aligning the payload to a four-byte boundary (because either
+	 * the IP header is directly contained, or IV/RFC1042 headers that
+	 * have a length divisible by four are in front of it.
+	 *
+	 * With A-MSDU frames, however, the payload data address must
+	 * yield two modulo four because there are 14-byte 802.3 headers
+	 * within the A-MSDU frames that push the IP header further back
+	 * to a multiple of four again. Thankfully, the specs were sane
+	 * enough this time around to require padding each A-MSDU subframe
+	 * to a length that is a multiple of four.
+	 *
+	 * Padding like atheros hardware adds which is inbetween the 802.11
+	 * header and the payload is not supported, the driver is required
+	 * to move the 802.11 header further back in that case.
+	 */
+	hdrlen = ieee80211_get_hdrlen(rx->fc);
+	if (rx->flags & IEEE80211_TXRXD_RX_AMSDU)
+		hdrlen += ETH_HLEN;
+	WARN_ON_ONCE(((unsigned long)(rx->skb->data + hdrlen)) & 3);
+
+	return TXRX_CONTINUE;
+}
+
 ieee80211_rx_handler ieee80211_rx_pre_handlers[] =
 {
 	ieee80211_rx_h_parse_qos,
+	ieee80211_rx_h_verify_ip_alignment,
 	NULL
 };
 
@@ -1679,7 +1712,6 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	struct ieee80211_sub_if_data *prev = NULL;
 	struct sk_buff *skb_new;
 	u8 *bssid;
-	int hdrlen;
 
 	hdr = (struct ieee80211_hdr *) skb->data;
 	memset(&rx, 0, sizeof(rx));
@@ -1690,18 +1722,6 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	rx.u.rx.load = load;
 	rx.fc = le16_to_cpu(hdr->frame_control);
 	type = rx.fc & IEEE80211_FCTL_FTYPE;
-
-	/*
-	 * Drivers are required to align the payload data to a four-byte
-	 * boundary, so the last two bits of the address where it starts
-	 * may not be set. The header is required to be directly before
-	 * the payload data, padding like atheros hardware adds which is
-	 * inbetween the 802.11 header and the payload is not supported,
-	 * the driver is required to move the 802.11 header further back
-	 * in that case.
-	 */
-	hdrlen = ieee80211_get_hdrlen(rx.fc);
-	WARN_ON_ONCE(((unsigned long)(skb->data + hdrlen)) & 3);
 
 	if (type == IEEE80211_FTYPE_DATA || type == IEEE80211_FTYPE_MGMT)
 		local->dot11ReceivedFragmentCount++;
@@ -1952,7 +1972,7 @@ static u8 ieee80211_rx_reorder_ampdu(struct ieee80211_local *local,
 		goto end_reorder;
 
 	/* null data frames are excluded */
-	if (unlikely(fc & IEEE80211_STYPE_QOS_NULLFUNC))
+	if (unlikely(fc & IEEE80211_STYPE_NULLFUNC))
 		goto end_reorder;
 
 	/* new un-ordered ampdu frame - process it */

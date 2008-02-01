@@ -161,9 +161,11 @@ static int gre_pkt_to_tuple(const struct sk_buff *skb,
 			   unsigned int dataoff,
 			   struct nf_conntrack_tuple *tuple)
 {
-	struct gre_hdr_pptp _pgrehdr, *pgrehdr;
+	const struct gre_hdr_pptp *pgrehdr;
+	struct gre_hdr_pptp _pgrehdr;
 	__be16 srckey;
-	struct gre_hdr _grehdr, *grehdr;
+	const struct gre_hdr *grehdr;
+	struct gre_hdr _grehdr;
 
 	/* first only delinearize old RFC1701 GRE header */
 	grehdr = skb_header_pointer(skb, dataoff, sizeof(_grehdr), &_grehdr);

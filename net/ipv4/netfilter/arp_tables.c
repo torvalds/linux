@@ -22,6 +22,7 @@
 #include <linux/mutex.h>
 #include <linux/err.h>
 #include <net/compat.h>
+#include <net/sock.h>
 #include <asm/uaccess.h>
 
 #include <linux/netfilter/x_tables.h>
@@ -850,7 +851,7 @@ static int compat_table_info(const struct xt_table_info *info,
 }
 #endif
 
-static int get_info(void __user *user, int *len, int compat)
+static int get_info(struct net *net, void __user *user, int *len, int compat)
 {
 	char name[ARPT_TABLE_MAXNAMELEN];
 	struct arpt_table *t;
@@ -870,7 +871,7 @@ static int get_info(void __user *user, int *len, int compat)
 	if (compat)
 		xt_compat_lock(NF_ARP);
 #endif
-	t = try_then_request_module(xt_find_table_lock(NF_ARP, name),
+	t = try_then_request_module(xt_find_table_lock(net, NF_ARP, name),
 				    "arptable_%s", name);
 	if (t && !IS_ERR(t)) {
 		struct arpt_getinfo info;
@@ -908,7 +909,8 @@ static int get_info(void __user *user, int *len, int compat)
 	return ret;
 }
 
-static int get_entries(struct arpt_get_entries __user *uptr, int *len)
+static int get_entries(struct net *net, struct arpt_get_entries __user *uptr,
+		       int *len)
 {
 	int ret;
 	struct arpt_get_entries get;
@@ -926,7 +928,7 @@ static int get_entries(struct arpt_get_entries __user *uptr, int *len)
 		return -EINVAL;
 	}
 
-	t = xt_find_table_lock(NF_ARP, get.name);
+	t = xt_find_table_lock(net, NF_ARP, get.name);
 	if (t && !IS_ERR(t)) {
 		struct xt_table_info *private = t->private;
 		duprintf("t->private->number = %u\n",
@@ -947,7 +949,8 @@ static int get_entries(struct arpt_get_entries __user *uptr, int *len)
 	return ret;
 }
 
-static int __do_replace(const char *name, unsigned int valid_hooks,
+static int __do_replace(struct net *net, const char *name,
+			unsigned int valid_hooks,
 			struct xt_table_info *newinfo,
 			unsigned int num_counters,
 			void __user *counters_ptr)
@@ -966,7 +969,7 @@ static int __do_replace(const char *name, unsigned int valid_hooks,
 		goto out;
 	}
 
-	t = try_then_request_module(xt_find_table_lock(NF_ARP, name),
+	t = try_then_request_module(xt_find_table_lock(net, NF_ARP, name),
 				    "arptable_%s", name);
 	if (!t || IS_ERR(t)) {
 		ret = t ? PTR_ERR(t) : -ENOENT;
@@ -1019,7 +1022,7 @@ static int __do_replace(const char *name, unsigned int valid_hooks,
 	return ret;
 }
 
-static int do_replace(void __user *user, unsigned int len)
+static int do_replace(struct net *net, void __user *user, unsigned int len)
 {
 	int ret;
 	struct arpt_replace tmp;
@@ -1053,7 +1056,7 @@ static int do_replace(void __user *user, unsigned int len)
 
 	duprintf("arp_tables: Translated table\n");
 
-	ret = __do_replace(tmp.name, tmp.valid_hooks, newinfo,
+	ret = __do_replace(net, tmp.name, tmp.valid_hooks, newinfo,
 			   tmp.num_counters, tmp.counters);
 	if (ret)
 		goto free_newinfo_untrans;
@@ -1080,7 +1083,8 @@ static inline int add_counter_to_entry(struct arpt_entry *e,
 	return 0;
 }
 
-static int do_add_counters(void __user *user, unsigned int len, int compat)
+static int do_add_counters(struct net *net, void __user *user, unsigned int len,
+			   int compat)
 {
 	unsigned int i;
 	struct xt_counters_info tmp;
@@ -1132,7 +1136,7 @@ static int do_add_counters(void __user *user, unsigned int len, int compat)
 		goto free;
 	}
 
-	t = xt_find_table_lock(NF_ARP, name);
+	t = xt_find_table_lock(net, NF_ARP, name);
 	if (!t || IS_ERR(t)) {
 		ret = t ? PTR_ERR(t) : -ENOENT;
 		goto free;
@@ -1435,7 +1439,8 @@ struct compat_arpt_replace {
 	struct compat_arpt_entry	entries[0];
 };
 
-static int compat_do_replace(void __user *user, unsigned int len)
+static int compat_do_replace(struct net *net, void __user *user,
+			     unsigned int len)
 {
 	int ret;
 	struct compat_arpt_replace tmp;
@@ -1471,7 +1476,7 @@ static int compat_do_replace(void __user *user, unsigned int len)
 
 	duprintf("compat_do_replace: Translated table\n");
 
-	ret = __do_replace(tmp.name, tmp.valid_hooks, newinfo,
+	ret = __do_replace(net, tmp.name, tmp.valid_hooks, newinfo,
 			   tmp.num_counters, compat_ptr(tmp.counters));
 	if (ret)
 		goto free_newinfo_untrans;
@@ -1494,11 +1499,11 @@ static int compat_do_arpt_set_ctl(struct sock *sk, int cmd, void __user *user,
 
 	switch (cmd) {
 	case ARPT_SO_SET_REPLACE:
-		ret = compat_do_replace(user, len);
+		ret = compat_do_replace(sk->sk_net, user, len);
 		break;
 
 	case ARPT_SO_SET_ADD_COUNTERS:
-		ret = do_add_counters(user, len, 1);
+		ret = do_add_counters(sk->sk_net, user, len, 1);
 		break;
 
 	default:
@@ -1584,7 +1589,8 @@ struct compat_arpt_get_entries {
 	struct compat_arpt_entry entrytable[0];
 };
 
-static int compat_get_entries(struct compat_arpt_get_entries __user *uptr,
+static int compat_get_entries(struct net *net,
+			      struct compat_arpt_get_entries __user *uptr,
 			      int *len)
 {
 	int ret;
@@ -1604,7 +1610,7 @@ static int compat_get_entries(struct compat_arpt_get_entries __user *uptr,
 	}
 
 	xt_compat_lock(NF_ARP);
-	t = xt_find_table_lock(NF_ARP, get.name);
+	t = xt_find_table_lock(net, NF_ARP, get.name);
 	if (t && !IS_ERR(t)) {
 		struct xt_table_info *private = t->private;
 		struct xt_table_info info;
@@ -1641,10 +1647,10 @@ static int compat_do_arpt_get_ctl(struct sock *sk, int cmd, void __user *user,
 
 	switch (cmd) {
 	case ARPT_SO_GET_INFO:
-		ret = get_info(user, len, 1);
+		ret = get_info(sk->sk_net, user, len, 1);
 		break;
 	case ARPT_SO_GET_ENTRIES:
-		ret = compat_get_entries(user, len);
+		ret = compat_get_entries(sk->sk_net, user, len);
 		break;
 	default:
 		ret = do_arpt_get_ctl(sk, cmd, user, len);
@@ -1662,11 +1668,11 @@ static int do_arpt_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned
 
 	switch (cmd) {
 	case ARPT_SO_SET_REPLACE:
-		ret = do_replace(user, len);
+		ret = do_replace(sk->sk_net, user, len);
 		break;
 
 	case ARPT_SO_SET_ADD_COUNTERS:
-		ret = do_add_counters(user, len, 0);
+		ret = do_add_counters(sk->sk_net, user, len, 0);
 		break;
 
 	default:
@@ -1686,11 +1692,11 @@ static int do_arpt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len
 
 	switch (cmd) {
 	case ARPT_SO_GET_INFO:
-		ret = get_info(user, len, 0);
+		ret = get_info(sk->sk_net, user, len, 0);
 		break;
 
 	case ARPT_SO_GET_ENTRIES:
-		ret = get_entries(user, len);
+		ret = get_entries(sk->sk_net, user, len);
 		break;
 
 	case ARPT_SO_GET_REVISION_TARGET: {
@@ -1719,19 +1725,21 @@ static int do_arpt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len
 	return ret;
 }
 
-int arpt_register_table(struct arpt_table *table,
-			const struct arpt_replace *repl)
+struct arpt_table *arpt_register_table(struct net *net,
+				       struct arpt_table *table,
+				       const struct arpt_replace *repl)
 {
 	int ret;
 	struct xt_table_info *newinfo;
 	struct xt_table_info bootstrap
 		= { 0, 0, 0, { 0 }, { 0 }, { } };
 	void *loc_cpu_entry;
+	struct xt_table *new_table;
 
 	newinfo = xt_alloc_table_info(repl->size);
 	if (!newinfo) {
 		ret = -ENOMEM;
-		return ret;
+		goto out;
 	}
 
 	/* choose the copy on our node/cpu */
@@ -1745,24 +1753,27 @@ int arpt_register_table(struct arpt_table *table,
 			      repl->underflow);
 
 	duprintf("arpt_register_table: translate table gives %d\n", ret);
-	if (ret != 0) {
-		xt_free_table_info(newinfo);
-		return ret;
-	}
+	if (ret != 0)
+		goto out_free;
 
-	ret = xt_register_table(table, &bootstrap, newinfo);
-	if (ret != 0) {
-		xt_free_table_info(newinfo);
-		return ret;
+	new_table = xt_register_table(net, table, &bootstrap, newinfo);
+	if (IS_ERR(new_table)) {
+		ret = PTR_ERR(new_table);
+		goto out_free;
 	}
+	return new_table;
 
-	return 0;
+out_free:
+	xt_free_table_info(newinfo);
+out:
+	return ERR_PTR(ret);
 }
 
 void arpt_unregister_table(struct arpt_table *table)
 {
 	struct xt_table_info *private;
 	void *loc_cpu_entry;
+	struct module *table_owner = table->me;
 
 	private = xt_unregister_table(table);
 
@@ -1770,6 +1781,8 @@ void arpt_unregister_table(struct arpt_table *table)
 	loc_cpu_entry = private->entries[raw_smp_processor_id()];
 	ARPT_ENTRY_ITERATE(loc_cpu_entry, private->size,
 			   cleanup_entry, NULL);
+	if (private->number > private->initial_entries)
+		module_put(table_owner);
 	xt_free_table_info(private);
 }
 
@@ -1809,11 +1822,26 @@ static struct nf_sockopt_ops arpt_sockopts = {
 	.owner		= THIS_MODULE,
 };
 
+static int __net_init arp_tables_net_init(struct net *net)
+{
+	return xt_proto_init(net, NF_ARP);
+}
+
+static void __net_exit arp_tables_net_exit(struct net *net)
+{
+	xt_proto_fini(net, NF_ARP);
+}
+
+static struct pernet_operations arp_tables_net_ops = {
+	.init = arp_tables_net_init,
+	.exit = arp_tables_net_exit,
+};
+
 static int __init arp_tables_init(void)
 {
 	int ret;
 
-	ret = xt_proto_init(NF_ARP);
+	ret = register_pernet_subsys(&arp_tables_net_ops);
 	if (ret < 0)
 		goto err1;
 
@@ -1838,7 +1866,7 @@ err4:
 err3:
 	xt_unregister_target(&arpt_standard_target);
 err2:
-	xt_proto_fini(NF_ARP);
+	unregister_pernet_subsys(&arp_tables_net_ops);
 err1:
 	return ret;
 }
@@ -1848,7 +1876,7 @@ static void __exit arp_tables_fini(void)
 	nf_unregister_sockopt(&arpt_sockopts);
 	xt_unregister_target(&arpt_error_target);
 	xt_unregister_target(&arpt_standard_target);
-	xt_proto_fini(NF_ARP);
+	unregister_pernet_subsys(&arp_tables_net_ops);
 }
 
 EXPORT_SYMBOL(arpt_register_table);

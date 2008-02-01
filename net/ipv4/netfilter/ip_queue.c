@@ -512,6 +512,7 @@ static struct notifier_block ipq_nl_notifier = {
 	.notifier_call	= ipq_rcv_nl_event,
 };
 
+#ifdef CONFIG_SYSCTL
 static struct ctl_table_header *ipq_sysctl_header;
 
 static ctl_table ipq_table[] = {
@@ -525,7 +526,9 @@ static ctl_table ipq_table[] = {
 	},
 	{ .ctl_name = 0 }
 };
+#endif
 
+#ifdef CONFIG_PROC_FS
 static int ip_queue_show(struct seq_file *m, void *v)
 {
 	read_lock_bh(&queue_lock);
@@ -562,6 +565,7 @@ static const struct file_operations ip_queue_proc_fops = {
 	.release	= single_release,
 	.owner		= THIS_MODULE,
 };
+#endif
 
 static const struct nf_queue_handler nfqh = {
 	.name	= "ip_queue",
@@ -571,7 +575,7 @@ static const struct nf_queue_handler nfqh = {
 static int __init ip_queue_init(void)
 {
 	int status = -ENOMEM;
-	struct proc_dir_entry *proc;
+	struct proc_dir_entry *proc __maybe_unused;
 
 	netlink_register_notifier(&ipq_nl_notifier);
 	ipqnl = netlink_kernel_create(&init_net, NETLINK_FIREWALL, 0,
@@ -581,6 +585,7 @@ static int __init ip_queue_init(void)
 		goto cleanup_netlink_notifier;
 	}
 
+#ifdef CONFIG_PROC_FS
 	proc = create_proc_entry(IPQ_PROC_FS_NAME, 0, init_net.proc_net);
 	if (proc) {
 		proc->owner = THIS_MODULE;
@@ -589,10 +594,11 @@ static int __init ip_queue_init(void)
 		printk(KERN_ERR "ip_queue: failed to create proc entry\n");
 		goto cleanup_ipqnl;
 	}
-
+#endif
 	register_netdevice_notifier(&ipq_dev_notifier);
+#ifdef CONFIG_SYSCTL
 	ipq_sysctl_header = register_sysctl_paths(net_ipv4_ctl_path, ipq_table);
-
+#endif
 	status = nf_register_queue_handler(PF_INET, &nfqh);
 	if (status < 0) {
 		printk(KERN_ERR "ip_queue: failed to register queue handler\n");
@@ -601,10 +607,12 @@ static int __init ip_queue_init(void)
 	return status;
 
 cleanup_sysctl:
+#ifdef CONFIG_SYSCTL
 	unregister_sysctl_table(ipq_sysctl_header);
+#endif
 	unregister_netdevice_notifier(&ipq_dev_notifier);
 	proc_net_remove(&init_net, IPQ_PROC_FS_NAME);
-cleanup_ipqnl:
+cleanup_ipqnl: __maybe_unused
 	netlink_kernel_release(ipqnl);
 	mutex_lock(&ipqnl_mutex);
 	mutex_unlock(&ipqnl_mutex);
@@ -620,7 +628,9 @@ static void __exit ip_queue_fini(void)
 	synchronize_net();
 	ipq_flush(NULL, 0);
 
+#ifdef CONFIG_SYSCTL
 	unregister_sysctl_table(ipq_sysctl_header);
+#endif
 	unregister_netdevice_notifier(&ipq_dev_notifier);
 	proc_net_remove(&init_net, IPQ_PROC_FS_NAME);
 

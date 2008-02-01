@@ -32,7 +32,8 @@ static int set_addr(struct sk_buff *skb,
 		__be32 ip;
 		__be16 port;
 	} __attribute__ ((__packed__)) buf;
-	struct tcphdr _tcph, *th;
+	const struct tcphdr *th;
+	struct tcphdr _tcph;
 
 	buf.ip = ip;
 	buf.port = port;
@@ -99,7 +100,7 @@ static int set_sig_addr(struct sk_buff *skb, struct nf_conn *ct,
 			unsigned char **data,
 			TransportAddress *taddr, int count)
 {
-	struct nf_ct_h323_master *info = &nfct_help(ct)->help.ct_h323_info;
+	const struct nf_ct_h323_master *info = &nfct_help(ct)->help.ct_h323_info;
 	int dir = CTINFO2DIR(ctinfo);
 	int i;
 	__be16 port;

@@ -13,7 +13,7 @@ static struct
 	struct ip6t_replace repl;
 	struct ip6t_standard entries[2];
 	struct ip6t_error term;
-} initial_table __initdata = {
+} initial_table __net_initdata = {
 	.repl = {
 		.name = "raw",
 		.valid_hooks = RAW_VALID_HOOKS,
@@ -51,7 +51,7 @@ ip6t_hook(unsigned int hook,
 	 const struct net_device *out,
 	 int (*okfn)(struct sk_buff *))
 {
-	return ip6t_do_table(skb, hook, in, out, &packet_raw);
+	return ip6t_do_table(skb, hook, in, out, init_net.ipv6.ip6table_raw);
 }
 
 static struct nf_hook_ops ip6t_ops[] __read_mostly = {
@@ -71,12 +71,31 @@ static struct nf_hook_ops ip6t_ops[] __read_mostly = {
 	},
 };
 
+static int __net_init ip6table_raw_net_init(struct net *net)
+{
+	/* Register table */
+	net->ipv6.ip6table_raw =
+		ip6t_register_table(net, &packet_raw, &initial_table.repl);
+	if (IS_ERR(net->ipv6.ip6table_raw))
+		return PTR_ERR(net->ipv6.ip6table_raw);
+	return 0;
+}
+
+static void __net_exit ip6table_raw_net_exit(struct net *net)
+{
+	ip6t_unregister_table(net->ipv6.ip6table_raw);
+}
+
+static struct pernet_operations ip6table_raw_net_ops = {
+	.init = ip6table_raw_net_init,
+	.exit = ip6table_raw_net_exit,
+};
+
 static int __init ip6table_raw_init(void)
 {
 	int ret;
 
-	/* Register table */
-	ret = ip6t_register_table(&packet_raw, &initial_table.repl);
+	ret = register_pernet_subsys(&ip6table_raw_net_ops);
 	if (ret < 0)
 		return ret;
 
@@ -88,14 +107,14 @@ static int __init ip6table_raw_init(void)
 	return ret;
 
  cleanup_table:
-	ip6t_unregister_table(&packet_raw);
+	unregister_pernet_subsys(&ip6table_raw_net_ops);
 	return ret;
 }
 
 static void __exit ip6table_raw_fini(void)
 {
 	nf_unregister_hooks(ip6t_ops, ARRAY_SIZE(ip6t_ops));
-	ip6t_unregister_table(&packet_raw);
+	unregister_pernet_subsys(&ip6table_raw_net_ops);
 }
 
 module_init(ip6table_raw_init);

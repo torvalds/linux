@@ -249,14 +249,14 @@ static irqreturn_t if_cs_interrupt(int irq, void *data)
 	lbs_deb_enter(LBS_DEB_CS);
 
 	int_cause = if_cs_read16(card, IF_CS_C_INT_CAUSE);
-	if(int_cause == 0x0) {
+	if (int_cause == 0x0) {
 		/* Not for us */
 		return IRQ_NONE;
 
 	} else if (int_cause == 0xffff) {
 		/* Read in junk, the card has probably been removed */
 		card->priv->surpriseremoved = 1;
-
+		return IRQ_HANDLED;
 	} else {
 		if (int_cause & IF_CS_H_IC_TX_OVER)
 			lbs_host_to_card_done(card->priv);
@@ -717,8 +717,8 @@ static void if_cs_release(struct pcmcia_device *p_dev)
 
 	lbs_deb_enter(LBS_DEB_CS);
 
-	pcmcia_disable_device(p_dev);
 	free_irq(p_dev->irq.AssignedIRQ, card);
+	pcmcia_disable_device(p_dev);
 	if (card->iobase)
 		ioport_unmap(card->iobase);
 

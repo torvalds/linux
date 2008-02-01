@@ -108,9 +108,6 @@ struct nf_bridge_info {
 	atomic_t use;
 	struct net_device *physindev;
 	struct net_device *physoutdev;
-#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
-	struct net_device *netoutdev;
-#endif
 	unsigned int mask;
 	unsigned long data[32 / sizeof(unsigned long)];
 };

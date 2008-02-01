@@ -91,10 +91,10 @@ void b43legacy_radio_lock(struct b43legacy_wldev *dev)
 {
 	u32 status;
 
-	status = b43legacy_read32(dev, B43legacy_MMIO_STATUS_BITFIELD);
-	B43legacy_WARN_ON(status & B43legacy_SBF_RADIOREG_LOCK);
-	status |= B43legacy_SBF_RADIOREG_LOCK;
-	b43legacy_write32(dev, B43legacy_MMIO_STATUS_BITFIELD, status);
+	status = b43legacy_read32(dev, B43legacy_MMIO_MACCTL);
+	B43legacy_WARN_ON(status & B43legacy_MACCTL_RADIOLOCK);
+	status |= B43legacy_MACCTL_RADIOLOCK;
+	b43legacy_write32(dev, B43legacy_MMIO_MACCTL, status);
 	mmiowb();
 	udelay(10);
 }
@@ -104,10 +104,10 @@ void b43legacy_radio_unlock(struct b43legacy_wldev *dev)
 	u32 status;
 
 	b43legacy_read16(dev, B43legacy_MMIO_PHY_VER); /* dummy read */
-	status = b43legacy_read32(dev, B43legacy_MMIO_STATUS_BITFIELD);
-	B43legacy_WARN_ON(!(status & B43legacy_SBF_RADIOREG_LOCK));
-	status &= ~B43legacy_SBF_RADIOREG_LOCK;
-	b43legacy_write32(dev, B43legacy_MMIO_STATUS_BITFIELD, status);
+	status = b43legacy_read32(dev, B43legacy_MMIO_MACCTL);
+	B43legacy_WARN_ON(!(status & B43legacy_MACCTL_RADIOLOCK));
+	status &= ~B43legacy_MACCTL_RADIOLOCK;
+	b43legacy_write32(dev, B43legacy_MMIO_MACCTL, status);
 	mmiowb();
 }
 

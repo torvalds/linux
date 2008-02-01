@@ -272,6 +272,7 @@ static struct dst_ops xfrm6_dst_ops = {
 	.local_out =		__ip6_local_out,
 	.gc_thresh =		1024,
 	.entry_size =		sizeof(struct xfrm_dst),
+	.entries =		ATOMIC_INIT(0),
 };
 
 static struct xfrm_policy_afinfo xfrm6_policy_afinfo = {

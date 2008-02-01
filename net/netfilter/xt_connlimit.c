@@ -120,11 +120,11 @@ static int count_them(struct xt_connlimit_data *data,
 	else
 		hash = &data->iphash[connlimit_iphash(addr->ip & mask->ip)];
 
-	read_lock_bh(&nf_conntrack_lock);
+	rcu_read_lock();
 
 	/* check the saved connections */
 	list_for_each_entry_safe(conn, tmp, hash, list) {
-		found    = __nf_conntrack_find(&conn->tuple, NULL);
+		found    = __nf_conntrack_find(&conn->tuple);
 		found_ct = NULL;
 
 		if (found != NULL)
@@ -163,7 +163,7 @@ static int count_them(struct xt_connlimit_data *data,
 			++matches;
 	}
 
-	read_unlock_bh(&nf_conntrack_lock);
+	rcu_read_unlock();
 
 	if (addit) {
 		/* save the new connection in our list */

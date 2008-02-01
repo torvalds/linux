@@ -23,9 +23,6 @@ struct nf_conntrack_l4proto
 	/* L4 Protocol number. */
 	u_int8_t l4proto;
 
-	/* Protocol name */
-	const char *name;
-
 	/* Try to fill in the third arg: dataoff is offset past network protocol
            hdr.  Return true if possible. */
 	int (*pkt_to_tuple)(const struct sk_buff *skb,
@@ -38,15 +35,8 @@ struct nf_conntrack_l4proto
 	int (*invert_tuple)(struct nf_conntrack_tuple *inverse,
 			    const struct nf_conntrack_tuple *orig);
 
-	/* Print out the per-protocol part of the tuple. Return like seq_* */
-	int (*print_tuple)(struct seq_file *s,
-			   const struct nf_conntrack_tuple *);
-
-	/* Print out the private part of the conntrack. */
-	int (*print_conntrack)(struct seq_file *s, const struct nf_conn *);
-
 	/* Returns verdict for packet, or -1 for invalid. */
-	int (*packet)(struct nf_conn *conntrack,
+	int (*packet)(struct nf_conn *ct,
 		      const struct sk_buff *skb,
 		      unsigned int dataoff,
 		      enum ip_conntrack_info ctinfo,
@@ -55,15 +45,22 @@ struct nf_conntrack_l4proto
 
 	/* Called when a new connection for this protocol found;
 	 * returns TRUE if it's OK.  If so, packet() called next. */
-	int (*new)(struct nf_conn *conntrack, const struct sk_buff *skb,
+	int (*new)(struct nf_conn *ct, const struct sk_buff *skb,
 		   unsigned int dataoff);
 
 	/* Called when a conntrack entry is destroyed */
-	void (*destroy)(struct nf_conn *conntrack);
+	void (*destroy)(struct nf_conn *ct);
 
 	int (*error)(struct sk_buff *skb, unsigned int dataoff,
 		     enum ip_conntrack_info *ctinfo,
 		     int pf, unsigned int hooknum);
+
+	/* Print out the per-protocol part of the tuple. Return like seq_* */
+	int (*print_tuple)(struct seq_file *s,
+			   const struct nf_conntrack_tuple *);
+
+	/* Print out the private part of the conntrack. */
+	int (*print_conntrack)(struct seq_file *s, const struct nf_conn *);
 
 	/* convert protoinfo to nfnetink attributes */
 	int (*to_nlattr)(struct sk_buff *skb, struct nlattr *nla,
@@ -87,6 +84,8 @@ struct nf_conntrack_l4proto
 	struct ctl_table	*ctl_compat_table;
 #endif
 #endif
+	/* Protocol name */
+	const char *name;
 
 	/* Module (if any) which this is connected to. */
 	struct module *me;

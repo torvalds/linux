@@ -50,4 +50,7 @@
 #define SO_PASSSEC		34
 #define SO_TIMESTAMPNS		35
 #define SCM_TIMESTAMPNS		SO_TIMESTAMPNS
+
+#define SO_MARK			36
+
 #endif				/* _ASM_SOCKET_H */

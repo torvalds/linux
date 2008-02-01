@@ -17,8 +17,6 @@ struct ipv4_devconf
 	DECLARE_BITMAP(state, __NET_IPV4_CONF_MAX - 1);
 };
 
-extern struct ipv4_devconf ipv4_devconf;
-
 struct in_device
 {
 	struct net_device	*dev;

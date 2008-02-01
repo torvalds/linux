@@ -18,7 +18,7 @@ static int ebt_target_dnat(struct sk_buff *skb, unsigned int hooknr,
    const struct net_device *in, const struct net_device *out,
    const void *data, unsigned int datalen)
 {
-	struct ebt_nat_info *info = (struct ebt_nat_info *)data;
+	const struct ebt_nat_info *info = data;
 
 	if (skb_make_writable(skb, 0))
 		return NF_DROP;
@@ -30,7 +30,7 @@ static int ebt_target_dnat(struct sk_buff *skb, unsigned int hooknr,
 static int ebt_target_dnat_check(const char *tablename, unsigned int hookmask,
    const struct ebt_entry *e, void *data, unsigned int datalen)
 {
-	struct ebt_nat_info *info = (struct ebt_nat_info *)data;
+	const struct ebt_nat_info *info = data;
 
 	if (BASE_CHAIN && info->target == EBT_RETURN)
 		return -EINVAL;
@@ -46,8 +46,7 @@ static int ebt_target_dnat_check(const char *tablename, unsigned int hookmask,
 	return 0;
 }
 
-static struct ebt_target dnat =
-{
+static struct ebt_target dnat __read_mostly = {
 	.name		= EBT_DNAT_TARGET,
 	.target		= ebt_target_dnat,
 	.check		= ebt_target_dnat_check,
@@ -66,4 +65,5 @@ static void __exit ebt_dnat_fini(void)
 
 module_init(ebt_dnat_init);
 module_exit(ebt_dnat_fini);
+MODULE_DESCRIPTION("Ebtables: Destination MAC address translation");
 MODULE_LICENSE("GPL");

@@ -54,6 +54,6 @@ void nf_log_packet(int pf,
 		   const struct net_device *in,
 		   const struct net_device *out,
 		   const struct nf_loginfo *li,
-		   const char *fmt, ...);
+		   const char *fmt, ...) __attribute__ ((format(printf,7,8)));
 
 #endif /* _NF_LOG_H */

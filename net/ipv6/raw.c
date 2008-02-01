@@ -641,6 +641,7 @@ static int rawv6_send_hdrinc(struct sock *sk, void *from, int length,
 	skb_reserve(skb, hh_len);
 
 	skb->priority = sk->sk_priority;
+	skb->mark = sk->sk_mark;
 	skb->dst = dst_clone(&rt->u.dst);
 
 	skb_put(skb, length);
@@ -766,6 +767,8 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 	 *	Get and verify the address.
 	 */
 	memset(&fl, 0, sizeof(fl));
+
+	fl.mark = sk->sk_mark;
 
 	if (sin6) {
 		if (addr_len < SIN6_LEN_RFC2133)
@@ -1259,7 +1262,7 @@ static const struct seq_operations raw6_seq_ops = {
 
 static int raw6_seq_open(struct inode *inode, struct file *file)
 {
-	return raw_seq_open(inode, file, &raw_v6_hashinfo, PF_INET6);
+	return raw_seq_open(inode, file, &raw_v6_hashinfo, &raw6_seq_ops);
 }
 
 static const struct file_operations raw6_seq_fops = {

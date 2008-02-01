@@ -891,6 +891,9 @@ static struct pcmcia_device_id hostap_cs_ids[] = {
 	PCMCIA_DEVICE_PROD_ID123(
 		"The Linksys Group, Inc.", "Wireless Network CF Card", "ISL37300P",
 		0xa5f472c2, 0x9c05598d, 0xc9049a39),
+	PCMCIA_DEVICE_PROD_ID123(
+		"Wireless LAN" , "11Mbps PC Card", "Version 01.02",
+		0x4b8870ff, 0x70e946d1, 0x4b74baa0),
 	PCMCIA_DEVICE_NULL
 };
 MODULE_DEVICE_TABLE(pcmcia, hostap_cs_ids);

@@ -49,6 +49,8 @@ struct nf_conntrack_expect
 	/* Direction relative to the master connection. */
 	enum ip_conntrack_dir dir;
 #endif
+
+	struct rcu_head rcu;
 };
 
 #define NF_CT_EXPECT_PERMANENT 0x1

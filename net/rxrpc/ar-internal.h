@@ -565,9 +565,9 @@ extern void __exit rxrpc_destroy_all_peers(void);
 /*
  * ar-proc.c
  */
-extern const char *rxrpc_call_states[];
-extern struct file_operations rxrpc_call_seq_fops;
-extern struct file_operations rxrpc_connection_seq_fops;
+extern const char *const rxrpc_call_states[];
+extern const struct file_operations rxrpc_call_seq_fops;
+extern const struct file_operations rxrpc_connection_seq_fops;
 
 /*
  * ar-recvmsg.c

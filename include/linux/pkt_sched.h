@@ -150,6 +150,11 @@ struct tc_sfq_qopt
 	unsigned	flows;		/* Maximal number of flows  */
 };
 
+struct tc_sfq_xstats
+{
+	__s32		allot;
+};
+
 /*
  *  NOTE: limit, divisor and flows are hardwired to code at the moment.
  *

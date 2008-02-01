@@ -35,9 +35,9 @@ struct addr_map {
 	} addr[IP_CT_DIR_MAX];
 };
 
-static void addr_map_init(struct nf_conn *ct, struct addr_map *map)
+static void addr_map_init(const struct nf_conn *ct, struct addr_map *map)
 {
-	struct nf_conntrack_tuple *t;
+	const struct nf_conntrack_tuple *t;
 	enum ip_conntrack_dir dir;
 	unsigned int n;
 

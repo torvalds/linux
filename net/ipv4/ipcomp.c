@@ -74,6 +74,7 @@ out:
 
 static int ipcomp_input(struct xfrm_state *x, struct sk_buff *skb)
 {
+	int nexthdr;
 	int err = -ENOMEM;
 	struct ip_comp_hdr *ipch;
 
@@ -84,13 +85,15 @@ static int ipcomp_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	/* Remove ipcomp header and decompress original payload */
 	ipch = (void *)skb->data;
+	nexthdr = ipch->nexthdr;
+
 	skb->transport_header = skb->network_header + sizeof(*ipch);
 	__skb_pull(skb, sizeof(*ipch));
 	err = ipcomp_decompress(x, skb);
 	if (err)
 		goto out;
 
-	err = ipch->nexthdr;
+	err = nexthdr;
 
 out:
 	return err;
@@ -434,7 +437,7 @@ error:
 	goto out;
 }
 
-static struct xfrm_type ipcomp_type = {
+static const struct xfrm_type ipcomp_type = {
 	.description	= "IPCOMP4",
 	.owner		= THIS_MODULE,
 	.proto	     	= IPPROTO_COMP,

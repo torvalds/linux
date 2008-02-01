@@ -1557,6 +1557,20 @@ static void get_eeprom_mac(struct iwl3945_priv *priv, u8 *mac)
 	memcpy(mac, priv->eeprom.mac_address, 6);
 }
 
+/*
+ * Clear the OWNER_MSK, to establish driver (instead of uCode running on
+ * embedded controller) as EEPROM reader; each read is a series of pulses
+ * to/from the EEPROM chip, not a single event, so even reads could conflict
+ * if they weren't arbitrated by some ownership mechanism.  Here, the driver
+ * simply claims ownership, which should be safe when this function is called
+ * (i.e. before loading uCode!).
+ */
+static inline int iwl3945_eeprom_acquire_semaphore(struct iwl3945_priv *priv)
+{
+	_iwl3945_clear_bit(priv, CSR_EEPROM_GP, CSR_EEPROM_GP_IF_OWNER_MSK);
+	return 0;
+}
+
 /**
  * iwl3945_eeprom_init - read EEPROM contents
  *
@@ -2792,7 +2806,7 @@ static int iwl3945_tx_skb(struct iwl3945_priv *priv,
 #endif
 
 	/* drop all data frame if we are not associated */
-	if (!iwl3945_is_associated(priv) && !priv->assoc_id &&
+	if ((!iwl3945_is_associated(priv) || !priv->assoc_id) &&
 	    ((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA)) {
 		IWL_DEBUG_DROP("Dropping - !iwl3945_is_associated\n");
 		goto drop_unlock;
@@ -4745,8 +4759,9 @@ static void iwl3945_irq_tasklet(struct iwl3945_priv *priv)
 #ifdef CONFIG_IWL3945_DEBUG
 	if (iwl3945_debug_level & (IWL_DL_ISR)) {
 		/* NIC fires this, but we don't use it, redundant with WAKEUP */
-		if (inta & CSR_INT_BIT_MAC_CLK_ACTV)
-			IWL_DEBUG_ISR("Microcode started or stopped.\n");
+		if (inta & CSR_INT_BIT_SCD)
+			IWL_DEBUG_ISR("Scheduler finished to transmit "
+				      "the frame/frames.\n");
 
 		/* Alive notification via Rx interrupt will do the real work */
 		if (inta & CSR_INT_BIT_ALIVE)
@@ -4754,7 +4769,7 @@ static void iwl3945_irq_tasklet(struct iwl3945_priv *priv)
 	}
 #endif
 	/* Safely ignore these bits for debug checks below */
-	inta &= ~(CSR_INT_BIT_MAC_CLK_ACTV | CSR_INT_BIT_ALIVE);
+	inta &= ~(CSR_INT_BIT_SCD | CSR_INT_BIT_ALIVE);
 
 	/* HW RF KILL switch toggled (4965 only) */
 	if (inta & CSR_INT_BIT_RF_KILL) {
@@ -4890,8 +4905,11 @@ static irqreturn_t iwl3945_isr(int irq, void *data)
 	IWL_DEBUG_ISR("ISR inta 0x%08x, enabled 0x%08x, fh 0x%08x\n",
 		      inta, inta_mask, inta_fh);
 
+	inta &= ~CSR_INT_BIT_SCD;
+
 	/* iwl3945_irq_tasklet() will service interrupts and re-enable them */
-	tasklet_schedule(&priv->irq_tasklet);
+	if (likely(inta || inta_fh))
+		tasklet_schedule(&priv->irq_tasklet);
 unplugged:
 	spin_unlock(&priv->lock);
 
@@ -5144,6 +5162,15 @@ static int iwl3945_init_channel_map(struct iwl3945_priv *priv)
 		return -EIO;
 
 	return 0;
+}
+
+/*
+ * iwl3945_free_channel_map - undo allocations in iwl3945_init_channel_map
+ */
+static void iwl3945_free_channel_map(struct iwl3945_priv *priv)
+{
+	kfree(priv->channel_info);
+	priv->channel_count = 0;
 }
 
 /* For active scan, listen ACTIVE_DWELL_TIME (msec) on each channel after
@@ -5469,6 +5496,17 @@ static int iwl3945_init_geos(struct iwl3945_priv *priv)
 	set_bit(STATUS_GEO_CONFIGURED, &priv->status);
 
 	return 0;
+}
+
+/*
+ * iwl3945_free_geos - undo allocations in iwl3945_init_geos
+ */
+static void iwl3945_free_geos(struct iwl3945_priv *priv)
+{
+	kfree(priv->modes);
+	kfree(priv->ieee_channels);
+	kfree(priv->ieee_rates);
+	clear_bit(STATUS_GEO_CONFIGURED, &priv->status);
 }
 
 /******************************************************************************
@@ -6130,15 +6168,6 @@ static void iwl3945_alive_start(struct iwl3945_priv *priv)
 	/* Clear out the uCode error bit if it is set */
 	clear_bit(STATUS_FW_ERROR, &priv->status);
 
-	rc = iwl3945_init_channel_map(priv);
-	if (rc) {
-		IWL_ERROR("initializing regulatory failed: %d\n", rc);
-		return;
-	}
-
-	iwl3945_init_geos(priv);
-	iwl3945_reset_channel_flag(priv);
-
 	if (iwl3945_is_rfkill(priv))
 		return;
 
@@ -6599,7 +6628,7 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 	 * that based on the direct_mask added to each channel entry */
 	scan->tx_cmd.len = cpu_to_le16(
 		iwl3945_fill_probe_req(priv, (struct ieee80211_mgmt *)scan->data,
-			IWL_MAX_SCAN_SIZE - sizeof(scan), 0));
+			IWL_MAX_SCAN_SIZE - sizeof(*scan), 0));
 	scan->tx_cmd.tx_flags = TX_CMD_FLG_SEQ_CTL_MSK;
 	scan->tx_cmd.sta_id = priv->hw_setting.bcast_sta_id;
 	scan->tx_cmd.stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
@@ -7120,7 +7149,7 @@ static void iwl3945_config_ap(struct iwl3945_priv *priv)
 {
 	int rc = 0;
 
-	if (priv->status & STATUS_EXIT_PENDING)
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
 	/* The following should be done only at AP bring up */
@@ -8614,11 +8643,24 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	IWL_DEBUG_INFO("MAC address: %s\n", print_mac(mac, priv->mac_addr));
 	SET_IEEE80211_PERM_ADDR(priv->hw, priv->mac_addr);
 
+	err = iwl3945_init_channel_map(priv);
+	if (err) {
+		IWL_ERROR("initializing regulatory failed: %d\n", err);
+		goto out_remove_sysfs;
+	}
+
+	err = iwl3945_init_geos(priv);
+	if (err) {
+		IWL_ERROR("initializing geos failed: %d\n", err);
+		goto out_free_channel_map;
+	}
+	iwl3945_reset_channel_flag(priv);
+
 	iwl3945_rate_control_register(priv->hw);
 	err = ieee80211_register_hw(priv->hw);
 	if (err) {
 		IWL_ERROR("Failed to register network device (error %d)\n", err);
-		goto out_remove_sysfs;
+		goto out_free_geos;
 	}
 
 	priv->hw->conf.beacon_int = 100;
@@ -8628,6 +8670,10 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 
 	return 0;
 
+ out_free_geos:
+	iwl3945_free_geos(priv);
+ out_free_channel_map:
+	iwl3945_free_channel_map(priv);
  out_remove_sysfs:
 	sysfs_remove_group(&pdev->dev.kobj, &iwl3945_attribute_group);
 
@@ -8702,10 +8748,8 @@ static void iwl3945_pci_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 
-	kfree(priv->channel_info);
-
-	kfree(priv->ieee_channels);
-	kfree(priv->ieee_rates);
+	iwl3945_free_channel_map(priv);
+	iwl3945_free_geos(priv);
 
 	if (priv->ibss_beacon)
 		dev_kfree_skb(priv->ibss_beacon);

@@ -262,6 +262,8 @@ struct sock {
 	__u32			sk_sndmsg_off;
 	int			sk_write_pending;
 	void			*sk_security;
+	__u32			sk_mark;
+	/* XXX 4 bytes hole on 64 bit */
 	void			(*sk_state_change)(struct sock *sk);
 	void			(*sk_data_ready)(struct sock *sk, int bytes);
 	void			(*sk_write_space)(struct sock *sk);

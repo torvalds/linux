@@ -300,7 +300,7 @@ static void ah_destroy(struct xfrm_state *x)
 }
 
 
-static struct xfrm_type ah_type =
+static const struct xfrm_type ah_type =
 {
 	.description	= "AH4",
 	.owner		= THIS_MODULE,

@@ -113,32 +113,15 @@ int dev_mc_add(struct net_device *dev, void *addr, int alen, int glbl)
  * 	locked by netif_tx_lock_bh.
  *
  *	This function is intended to be called from the dev->set_multicast_list
- *	function of layered software devices.
+ *	or dev->set_rx_mode function of layered software devices.
  */
 int dev_mc_sync(struct net_device *to, struct net_device *from)
 {
-	struct dev_addr_list *da, *next;
 	int err = 0;
 
 	netif_tx_lock_bh(to);
-	da = from->mc_list;
-	while (da != NULL) {
-		next = da->next;
-		if (!da->da_synced) {
-			err = __dev_addr_add(&to->mc_list, &to->mc_count,
-					     da->da_addr, da->da_addrlen, 0);
-			if (err < 0)
-				break;
-			da->da_synced = 1;
-			da->da_users++;
-		} else if (da->da_users == 1) {
-			__dev_addr_delete(&to->mc_list, &to->mc_count,
-					  da->da_addr, da->da_addrlen, 0);
-			__dev_addr_delete(&from->mc_list, &from->mc_count,
-					  da->da_addr, da->da_addrlen, 0);
-		}
-		da = next;
-	}
+	err = __dev_addr_sync(&to->mc_list, &to->mc_count,
+			      &from->mc_list, &from->mc_count);
 	if (!err)
 		__dev_set_rx_mode(to);
 	netif_tx_unlock_bh(to);
@@ -160,23 +143,11 @@ EXPORT_SYMBOL(dev_mc_sync);
  */
 void dev_mc_unsync(struct net_device *to, struct net_device *from)
 {
-	struct dev_addr_list *da, *next;
-
 	netif_tx_lock_bh(from);
 	netif_tx_lock_bh(to);
 
-	da = from->mc_list;
-	while (da != NULL) {
-		next = da->next;
-		if (da->da_synced) {
-			__dev_addr_delete(&to->mc_list, &to->mc_count,
-					  da->da_addr, da->da_addrlen, 0);
-			da->da_synced = 0;
-			__dev_addr_delete(&from->mc_list, &from->mc_count,
-					  da->da_addr, da->da_addrlen, 0);
-		}
-		da = next;
-	}
+	__dev_addr_unsync(&to->mc_list, &to->mc_count,
+			  &from->mc_list, &from->mc_count);
 	__dev_set_rx_mode(to);
 
 	netif_tx_unlock_bh(to);

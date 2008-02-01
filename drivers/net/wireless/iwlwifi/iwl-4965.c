@@ -4961,11 +4961,4 @@ int iwl4965_eeprom_acquire_semaphore(struct iwl4965_priv *priv)
 	return rc;
 }
 
-inline void iwl4965_eeprom_release_semaphore(struct iwl4965_priv *priv)
-{
-	iwl4965_clear_bit(priv, CSR_HW_IF_CONFIG_REG,
-		CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM);
-}
-
-
 MODULE_DEVICE_TABLE(pci, iwl4965_hw_card_ids);

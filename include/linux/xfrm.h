@@ -96,6 +96,13 @@ struct xfrm_algo {
 	char		alg_key[0];
 };
 
+struct xfrm_algo_aead {
+	char	alg_name[64];
+	int	alg_key_len;	/* in bits */
+	int	alg_icv_len;	/* in bits */
+	char	alg_key[0];
+};
+
 struct xfrm_stats {
 	__u32	replay_window;
 	__u32	replay;
@@ -270,6 +277,7 @@ enum xfrm_attr_type_t {
 	XFRMA_LASTUSED,
 	XFRMA_POLICY_TYPE,	/* struct xfrm_userpolicy_type */
 	XFRMA_MIGRATE,
+	XFRMA_ALG_AEAD,		/* struct xfrm_algo_aead */
 	__XFRMA_MAX
 
 #define XFRMA_MAX (__XFRMA_MAX - 1)

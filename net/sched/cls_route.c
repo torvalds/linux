@@ -62,7 +62,7 @@ struct route4_filter
 
 #define ROUTE4_FAILURE ((struct route4_filter*)(-1L))
 
-static struct tcf_ext_map route_ext_map = {
+static const struct tcf_ext_map route_ext_map = {
 	.police = TCA_ROUTE4_POLICE,
 	.action = TCA_ROUTE4_ACT
 };

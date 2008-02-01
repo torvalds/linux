@@ -360,7 +360,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 
 	if (data_len) {
 		struct nlattr *nla;
-		int size = nla_attr_size(data_len);
+		int sz = nla_attr_size(data_len);
 
 		if (skb_tailroom(skb) < nla_total_size(data_len)) {
 			printk(KERN_WARNING "nf_queue: no tailroom!\n");
@@ -369,7 +369,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 
 		nla = (struct nlattr *)skb_put(skb, nla_total_size(data_len));
 		nla->nla_type = NFQA_PAYLOAD;
-		nla->nla_len = size;
+		nla->nla_len = sz;
 
 		if (skb_copy_bits(entskb, 0, nla_data(nla), data_len))
 			BUG();
@@ -845,6 +845,7 @@ static struct hlist_node *get_idx(struct seq_file *seq, loff_t pos)
 }
 
 static void *seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(instances_lock)
 {
 	spin_lock(&instances_lock);
 	return get_idx(seq, *pos);
@@ -857,6 +858,7 @@ static void *seq_next(struct seq_file *s, void *v, loff_t *pos)
 }
 
 static void seq_stop(struct seq_file *s, void *v)
+	__releases(instances_lock)
 {
 	spin_unlock(&instances_lock);
 }

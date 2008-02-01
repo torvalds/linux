@@ -38,7 +38,7 @@ static void ipip_destroy(struct xfrm_state *x)
 {
 }
 
-static struct xfrm_type ipip_type = {
+static const struct xfrm_type ipip_type = {
 	.description	= "IPIP",
 	.owner		= THIS_MODULE,
 	.proto	     	= IPPROTO_IPIP,
@@ -50,7 +50,7 @@ static struct xfrm_type ipip_type = {
 
 static int xfrm_tunnel_rcv(struct sk_buff *skb)
 {
-	return xfrm4_rcv_spi(skb, IPPROTO_IP, ip_hdr(skb)->saddr);
+	return xfrm4_rcv_spi(skb, IPPROTO_IPIP, ip_hdr(skb)->saddr);
 }
 
 static int xfrm_tunnel_err(struct sk_buff *skb, u32 info)

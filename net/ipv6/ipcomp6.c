@@ -64,6 +64,7 @@ static LIST_HEAD(ipcomp6_tfms_list);
 
 static int ipcomp6_input(struct xfrm_state *x, struct sk_buff *skb)
 {
+	int nexthdr;
 	int err = -ENOMEM;
 	struct ip_comp_hdr *ipch;
 	int plen, dlen;
@@ -79,6 +80,8 @@ static int ipcomp6_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	/* Remove ipcomp header and decompress original payload */
 	ipch = (void *)skb->data;
+	nexthdr = ipch->nexthdr;
+
 	skb->transport_header = skb->network_header + sizeof(*ipch);
 	__skb_pull(skb, sizeof(*ipch));
 
@@ -108,7 +111,7 @@ static int ipcomp6_input(struct xfrm_state *x, struct sk_buff *skb)
 	skb->truesize += dlen - plen;
 	__skb_put(skb, dlen - plen);
 	skb_copy_to_linear_data(skb, scratch, dlen);
-	err = ipch->nexthdr;
+	err = nexthdr;
 
 out_put_cpu:
 	put_cpu();
@@ -450,7 +453,7 @@ error:
 	goto out;
 }
 
-static struct xfrm_type ipcomp6_type =
+static const struct xfrm_type ipcomp6_type =
 {
 	.description	= "IPCOMP6",
 	.owner		= THIS_MODULE,

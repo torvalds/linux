@@ -1639,6 +1639,12 @@ static void get_eeprom_mac(struct iwl4965_priv *priv, u8 *mac)
 	memcpy(mac, priv->eeprom.mac_address, 6);
 }
 
+static inline void iwl4965_eeprom_release_semaphore(struct iwl4965_priv *priv)
+{
+	iwl4965_clear_bit(priv, CSR_HW_IF_CONFIG_REG,
+		CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM);
+}
+
 /**
  * iwl4965_eeprom_init - read EEPROM contents
  *
@@ -2927,8 +2933,10 @@ static int iwl4965_tx_skb(struct iwl4965_priv *priv,
 #endif
 
 	/* drop all data frame if we are not associated */
-	if (!iwl4965_is_associated(priv) && !priv->assoc_id &&
-	    ((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA)) {
+	if (((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA) &&
+	   (!iwl4965_is_associated(priv) ||
+	    !priv->assoc_id ||
+	    !priv->assoc_station_added)) {
 		IWL_DEBUG_DROP("Dropping - !iwl4965_is_associated\n");
 		goto drop_unlock;
 	}
@@ -5131,8 +5139,9 @@ static void iwl4965_irq_tasklet(struct iwl4965_priv *priv)
 #ifdef CONFIG_IWL4965_DEBUG
 	if (iwl4965_debug_level & (IWL_DL_ISR)) {
 		/* NIC fires this, but we don't use it, redundant with WAKEUP */
-		if (inta & CSR_INT_BIT_MAC_CLK_ACTV)
-			IWL_DEBUG_ISR("Microcode started or stopped.\n");
+		if (inta & CSR_INT_BIT_SCD)
+			IWL_DEBUG_ISR("Scheduler finished to transmit "
+				      "the frame/frames.\n");
 
 		/* Alive notification via Rx interrupt will do the real work */
 		if (inta & CSR_INT_BIT_ALIVE)
@@ -5140,7 +5149,7 @@ static void iwl4965_irq_tasklet(struct iwl4965_priv *priv)
 	}
 #endif
 	/* Safely ignore these bits for debug checks below */
-	inta &= ~(CSR_INT_BIT_MAC_CLK_ACTV | CSR_INT_BIT_ALIVE);
+	inta &= ~(CSR_INT_BIT_SCD | CSR_INT_BIT_ALIVE);
 
 	/* HW RF KILL switch toggled */
 	if (inta & CSR_INT_BIT_RF_KILL) {
@@ -5269,8 +5278,11 @@ static irqreturn_t iwl4965_isr(int irq, void *data)
 	IWL_DEBUG_ISR("ISR inta 0x%08x, enabled 0x%08x, fh 0x%08x\n",
 		      inta, inta_mask, inta_fh);
 
+	inta &= ~CSR_INT_BIT_SCD;
+
 	/* iwl4965_irq_tasklet() will service interrupts and re-enable them */
-	tasklet_schedule(&priv->irq_tasklet);
+	if (likely(inta || inta_fh))
+		tasklet_schedule(&priv->irq_tasklet);
 
  unplugged:
 	spin_unlock(&priv->lock);
@@ -5574,6 +5586,15 @@ static int iwl4965_init_channel_map(struct iwl4965_priv *priv)
 	}
 
 	return 0;
+}
+
+/*
+ * iwl4965_free_channel_map - undo allocations in iwl4965_init_channel_map
+ */
+static void iwl4965_free_channel_map(struct iwl4965_priv *priv)
+{
+	kfree(priv->channel_info);
+	priv->channel_count = 0;
 }
 
 /* For active scan, listen ACTIVE_DWELL_TIME (msec) on each channel after
@@ -5907,6 +5928,17 @@ static int iwl4965_init_geos(struct iwl4965_priv *priv)
 	set_bit(STATUS_GEO_CONFIGURED, &priv->status);
 
 	return 0;
+}
+
+/*
+ * iwl4965_free_geos - undo allocations in iwl4965_init_geos
+ */
+static void iwl4965_free_geos(struct iwl4965_priv *priv)
+{
+	kfree(priv->modes);
+	kfree(priv->ieee_channels);
+	kfree(priv->ieee_rates);
+	clear_bit(STATUS_GEO_CONFIGURED, &priv->status);
 }
 
 /******************************************************************************
@@ -6560,15 +6592,6 @@ static void iwl4965_alive_start(struct iwl4965_priv *priv)
 	/* Clear out the uCode error bit if it is set */
 	clear_bit(STATUS_FW_ERROR, &priv->status);
 
-	rc = iwl4965_init_channel_map(priv);
-	if (rc) {
-		IWL_ERROR("initializing regulatory failed: %d\n", rc);
-		return;
-	}
-
-	iwl4965_init_geos(priv);
-	iwl4965_reset_channel_flag(priv);
-
 	if (iwl4965_is_rfkill(priv))
 		return;
 
@@ -7023,7 +7046,7 @@ static void iwl4965_bg_request_scan(struct work_struct *data)
 	 * that based on the direct_mask added to each channel entry */
 	scan->tx_cmd.len = cpu_to_le16(
 		iwl4965_fill_probe_req(priv, (struct ieee80211_mgmt *)scan->data,
-			IWL_MAX_SCAN_SIZE - sizeof(scan), 0));
+			IWL_MAX_SCAN_SIZE - sizeof(*scan), 0));
 	scan->tx_cmd.tx_flags = TX_CMD_FLG_SEQ_CTL_MSK;
 	scan->tx_cmd.sta_id = priv->hw_setting.bcast_sta_id;
 	scan->tx_cmd.stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
@@ -7448,7 +7471,7 @@ static int iwl4965_mac_add_interface(struct ieee80211_hw *hw,
 
 	if (priv->vif) {
 		IWL_DEBUG_MAC80211("leave - vif != NULL\n");
-		return 0;
+		return -EOPNOTSUPP;
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -7580,7 +7603,7 @@ static void iwl4965_config_ap(struct iwl4965_priv *priv)
 {
 	int rc = 0;
 
-	if (priv->status & STATUS_EXIT_PENDING)
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
 	/* The following should be done only at AP bring up */
@@ -9198,11 +9221,24 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	IWL_DEBUG_INFO("MAC address: %s\n", print_mac(mac, priv->mac_addr));
 	SET_IEEE80211_PERM_ADDR(priv->hw, priv->mac_addr);
 
+	err = iwl4965_init_channel_map(priv);
+	if (err) {
+		IWL_ERROR("initializing regulatory failed: %d\n", err);
+		goto out_remove_sysfs;
+	}
+
+	err = iwl4965_init_geos(priv);
+	if (err) {
+		IWL_ERROR("initializing geos failed: %d\n", err);
+		goto out_free_channel_map;
+	}
+	iwl4965_reset_channel_flag(priv);
+
 	iwl4965_rate_control_register(priv->hw);
 	err = ieee80211_register_hw(priv->hw);
 	if (err) {
 		IWL_ERROR("Failed to register network device (error %d)\n", err);
-		goto out_remove_sysfs;
+		goto out_free_geos;
 	}
 
 	priv->hw->conf.beacon_int = 100;
@@ -9212,6 +9248,10 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 
 	return 0;
 
+ out_free_geos:
+	iwl4965_free_geos(priv);
+ out_free_channel_map:
+	iwl4965_free_channel_map(priv);
  out_remove_sysfs:
 	sysfs_remove_group(&pdev->dev.kobj, &iwl4965_attribute_group);
 
@@ -9286,10 +9326,8 @@ static void iwl4965_pci_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 
-	kfree(priv->channel_info);
-
-	kfree(priv->ieee_channels);
-	kfree(priv->ieee_rates);
+	iwl4965_free_channel_map(priv);
+	iwl4965_free_geos(priv);
 
 	if (priv->ibss_beacon)
 		dev_kfree_skb(priv->ibss_beacon);

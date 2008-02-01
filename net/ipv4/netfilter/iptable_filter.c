@@ -28,7 +28,7 @@ static struct
 	struct ipt_replace repl;
 	struct ipt_standard entries[3];
 	struct ipt_error term;
-} initial_table __initdata = {
+} initial_table __net_initdata = {
 	.repl = {
 		.name = "filter",
 		.valid_hooks = FILTER_VALID_HOOKS,
@@ -69,7 +69,7 @@ ipt_hook(unsigned int hook,
 	 const struct net_device *out,
 	 int (*okfn)(struct sk_buff *))
 {
-	return ipt_do_table(skb, hook, in, out, &packet_filter);
+	return ipt_do_table(skb, hook, in, out, init_net.ipv4.iptable_filter);
 }
 
 static unsigned int
@@ -88,7 +88,7 @@ ipt_local_out_hook(unsigned int hook,
 		return NF_ACCEPT;
 	}
 
-	return ipt_do_table(skb, hook, in, out, &packet_filter);
+	return ipt_do_table(skb, hook, in, out, init_net.ipv4.iptable_filter);
 }
 
 static struct nf_hook_ops ipt_ops[] __read_mostly = {
@@ -119,6 +119,26 @@ static struct nf_hook_ops ipt_ops[] __read_mostly = {
 static int forward = NF_ACCEPT;
 module_param(forward, bool, 0000);
 
+static int __net_init iptable_filter_net_init(struct net *net)
+{
+	/* Register table */
+	net->ipv4.iptable_filter =
+		ipt_register_table(net, &packet_filter, &initial_table.repl);
+	if (IS_ERR(net->ipv4.iptable_filter))
+		return PTR_ERR(net->ipv4.iptable_filter);
+	return 0;
+}
+
+static void __net_exit iptable_filter_net_exit(struct net *net)
+{
+	ipt_unregister_table(net->ipv4.iptable_filter);
+}
+
+static struct pernet_operations iptable_filter_net_ops = {
+	.init = iptable_filter_net_init,
+	.exit = iptable_filter_net_exit,
+};
+
 static int __init iptable_filter_init(void)
 {
 	int ret;
@@ -131,8 +151,7 @@ static int __init iptable_filter_init(void)
 	/* Entry 1 is the FORWARD hook */
 	initial_table.entries[1].target.verdict = -forward - 1;
 
-	/* Register table */
-	ret = ipt_register_table(&packet_filter, &initial_table.repl);
+	ret = register_pernet_subsys(&iptable_filter_net_ops);
 	if (ret < 0)
 		return ret;
 
@@ -144,14 +163,14 @@ static int __init iptable_filter_init(void)
 	return ret;
 
  cleanup_table:
-	ipt_unregister_table(&packet_filter);
+	unregister_pernet_subsys(&iptable_filter_net_ops);
 	return ret;
 }
 
 static void __exit iptable_filter_fini(void)
 {
 	nf_unregister_hooks(ipt_ops, ARRAY_SIZE(ipt_ops));
-	ipt_unregister_table(&packet_filter);
+	unregister_pernet_subsys(&iptable_filter_net_ops);
 }
 
 module_init(iptable_filter_init);

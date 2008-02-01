@@ -21,7 +21,7 @@ static int ebt_target_mark(struct sk_buff *skb, unsigned int hooknr,
    const struct net_device *in, const struct net_device *out,
    const void *data, unsigned int datalen)
 {
-	struct ebt_mark_t_info *info = (struct ebt_mark_t_info *)data;
+	const struct ebt_mark_t_info *info = data;
 	int action = info->target & -16;
 
 	if (action == MARK_SET_VALUE)
@@ -39,7 +39,7 @@ static int ebt_target_mark(struct sk_buff *skb, unsigned int hooknr,
 static int ebt_target_mark_check(const char *tablename, unsigned int hookmask,
    const struct ebt_entry *e, void *data, unsigned int datalen)
 {
-	struct ebt_mark_t_info *info = (struct ebt_mark_t_info *)data;
+	const struct ebt_mark_t_info *info = data;
 	int tmp;
 
 	if (datalen != EBT_ALIGN(sizeof(struct ebt_mark_t_info)))
@@ -57,8 +57,7 @@ static int ebt_target_mark_check(const char *tablename, unsigned int hookmask,
 	return 0;
 }
 
-static struct ebt_target mark_target =
-{
+static struct ebt_target mark_target __read_mostly = {
 	.name		= EBT_MARK_TARGET,
 	.target		= ebt_target_mark,
 	.check		= ebt_target_mark_check,
@@ -77,4 +76,5 @@ static void __exit ebt_mark_fini(void)
 
 module_init(ebt_mark_init);
 module_exit(ebt_mark_fini);
+MODULE_DESCRIPTION("Ebtables: Packet mark modification");
 MODULE_LICENSE("GPL");

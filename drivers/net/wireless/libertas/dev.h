@@ -349,7 +349,7 @@ struct assoc_request {
 	u8 channel;
 	u8 band;
 	u8 mode;
-	u8 bssid[ETH_ALEN];
+	u8 bssid[ETH_ALEN] __attribute__ ((aligned (2)));
 
 	/** WEP keys */
 	struct enc_key wep_keys[4];

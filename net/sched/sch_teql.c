@@ -71,7 +71,7 @@ struct teql_sched_data
 
 #define NEXT_SLAVE(q) (((struct teql_sched_data*)qdisc_priv(q))->next)
 
-#define FMASK (IFF_BROADCAST|IFF_POINTOPOINT|IFF_BROADCAST)
+#define FMASK (IFF_BROADCAST|IFF_POINTOPOINT)
 
 /* "teql*" qdisc routines */
 

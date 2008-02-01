@@ -246,10 +246,10 @@ static inline int iwl_check_bits(unsigned long field, unsigned long mask)
 static inline unsigned long elapsed_jiffies(unsigned long start,
 					    unsigned long end)
 {
-	if (end > start)
+	if (end >= start)
 		return end - start;
 
-	return end + (MAX_JIFFY_OFFSET - start);
+	return end + (MAX_JIFFY_OFFSET - start) + 1;
 }
 
 static inline u8 iwl_get_dma_hi_address(dma_addr_t addr)

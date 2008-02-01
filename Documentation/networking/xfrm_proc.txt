@@ -26,8 +26,9 @@ XfrmInStateProtoError:
 	e.g. SA key is wrong
 XfrmInStateModeError:
 	Transformation mode specific error
-XfrmInSeqOutOfWindow:
-	Sequence out of window
+XfrmInStateSeqError:
+	Sequence error
+	i.e. Sequence number is out of window
 XfrmInStateExpired:
 	State is expired
 XfrmInStateMismatch:
@@ -60,6 +61,9 @@ XfrmOutStateProtoError:
 	Transformation protocol specific error
 XfrmOutStateModeError:
 	Transformation mode specific error
+XfrmOutStateSeqError:
+	Sequence error
+	i.e. Sequence number overflow
 XfrmOutStateExpired:
 	State is expired
 XfrmOutPolBlock:

@@ -482,7 +482,7 @@ EXPORT_SYMBOL(tcf_exts_destroy);
 
 int tcf_exts_validate(struct tcf_proto *tp, struct nlattr **tb,
 		  struct nlattr *rate_tlv, struct tcf_exts *exts,
-		  struct tcf_ext_map *map)
+		  const struct tcf_ext_map *map)
 {
 	memset(exts, 0, sizeof(*exts));
 
@@ -535,7 +535,7 @@ void tcf_exts_change(struct tcf_proto *tp, struct tcf_exts *dst,
 EXPORT_SYMBOL(tcf_exts_change);
 
 int tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts,
-	      struct tcf_ext_map *map)
+		  const struct tcf_ext_map *map)
 {
 #ifdef CONFIG_NET_CLS_ACT
 	if (map->action && exts->action) {
@@ -571,7 +571,7 @@ EXPORT_SYMBOL(tcf_exts_dump);
 
 
 int tcf_exts_dump_stats(struct sk_buff *skb, struct tcf_exts *exts,
-			struct tcf_ext_map *map)
+			const struct tcf_ext_map *map)
 {
 #ifdef CONFIG_NET_CLS_ACT
 	if (exts->action)

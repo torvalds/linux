@@ -140,7 +140,7 @@ void b43legacy_phy_calibrate(struct b43legacy_wldev *dev)
 {
 	struct b43legacy_phy *phy = &dev->phy;
 
-	b43legacy_read32(dev, B43legacy_MMIO_STATUS_BITFIELD); /* Dummy read. */
+	b43legacy_read32(dev, B43legacy_MMIO_MACCTL); /* Dummy read. */
 	if (phy->calibrated)
 		return;
 	if (phy->type == B43legacy_PHYTYPE_G && phy->rev == 1) {
@@ -2231,16 +2231,16 @@ bit26 = 1;
 		 *	or the latest PS-Poll packet sent was successful,
 		 *	set bit26  */
 	}
-	status = b43legacy_read32(dev, B43legacy_MMIO_STATUS_BITFIELD);
+	status = b43legacy_read32(dev, B43legacy_MMIO_MACCTL);
 	if (bit25)
-		status |= B43legacy_SBF_PS1;
+		status |= B43legacy_MACCTL_HWPS;
 	else
-		status &= ~B43legacy_SBF_PS1;
+		status &= ~B43legacy_MACCTL_HWPS;
 	if (bit26)
-		status |= B43legacy_SBF_PS2;
+		status |= B43legacy_MACCTL_AWAKE;
 	else
-		status &= ~B43legacy_SBF_PS2;
-	b43legacy_write32(dev, B43legacy_MMIO_STATUS_BITFIELD, status);
+		status &= ~B43legacy_MACCTL_AWAKE;
+	b43legacy_write32(dev, B43legacy_MMIO_MACCTL, status);
 	if (bit26 && dev->dev->id.revision >= 5) {
 		for (i = 0; i < 100; i++) {
 			if (b43legacy_shm_read32(dev, B43legacy_SHM_SHARED,

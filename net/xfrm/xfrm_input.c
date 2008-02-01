@@ -81,7 +81,6 @@ int xfrm_parse_spi(struct sk_buff *skb, u8 nexthdr, __be32 *spi, __be32 *seq)
 	*seq = *(__be32*)(skb_transport_header(skb) + offset_seq);
 	return 0;
 }
-EXPORT_SYMBOL(xfrm_parse_spi);
 
 int xfrm_prepare_input(struct xfrm_state *x, struct sk_buff *skb)
 {
@@ -160,12 +159,12 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 		}
 
 		if ((x->encap ? x->encap->encap_type : 0) != encap_type) {
-			XFRM_INC_STATS(LINUX_MIB_XFRMINSTATEINVALID);
+			XFRM_INC_STATS(LINUX_MIB_XFRMINSTATEMISMATCH);
 			goto drop_unlock;
 		}
 
 		if (x->props.replay_window && xfrm_replay_check(x, skb, seq)) {
-			XFRM_INC_STATS(LINUX_MIB_XFRMINSEQOUTOFWINDOW);
+			XFRM_INC_STATS(LINUX_MIB_XFRMINSTATESEQERROR);
 			goto drop_unlock;
 		}
 

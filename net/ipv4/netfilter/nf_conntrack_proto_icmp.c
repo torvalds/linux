@@ -26,7 +26,8 @@ static int icmp_pkt_to_tuple(const struct sk_buff *skb,
 			     unsigned int dataoff,
 			     struct nf_conntrack_tuple *tuple)
 {
-	struct icmphdr _hdr, *hp;
+	const struct icmphdr *hp;
+	struct icmphdr _hdr;
 
 	hp = skb_header_pointer(skb, dataoff, sizeof(_hdr), &_hdr);
 	if (hp == NULL)
@@ -100,7 +101,7 @@ static int icmp_packet(struct nf_conn *ct,
 }
 
 /* Called when a new connection for this protocol found. */
-static int icmp_new(struct nf_conn *conntrack,
+static int icmp_new(struct nf_conn *ct,
 		    const struct sk_buff *skb, unsigned int dataoff)
 {
 	static const u_int8_t valid_new[] = {
@@ -110,15 +111,15 @@ static int icmp_new(struct nf_conn *conntrack,
 		[ICMP_ADDRESS] = 1
 	};
 
-	if (conntrack->tuplehash[0].tuple.dst.u.icmp.type >= sizeof(valid_new)
-	    || !valid_new[conntrack->tuplehash[0].tuple.dst.u.icmp.type]) {
+	if (ct->tuplehash[0].tuple.dst.u.icmp.type >= sizeof(valid_new)
+	    || !valid_new[ct->tuplehash[0].tuple.dst.u.icmp.type]) {
 		/* Can't create a new ICMP `conn' with this. */
 		pr_debug("icmp: can't create new conn with type %u\n",
-			 conntrack->tuplehash[0].tuple.dst.u.icmp.type);
-		NF_CT_DUMP_TUPLE(&conntrack->tuplehash[0].tuple);
+			 ct->tuplehash[0].tuple.dst.u.icmp.type);
+		NF_CT_DUMP_TUPLE(&ct->tuplehash[0].tuple);
 		return 0;
 	}
-	atomic_set(&conntrack->proto.icmp.count, 0);
+	atomic_set(&ct->proto.icmp.count, 0);
 	return 1;
 }
 
@@ -129,8 +130,8 @@ icmp_error_message(struct sk_buff *skb,
 		 unsigned int hooknum)
 {
 	struct nf_conntrack_tuple innertuple, origtuple;
-	struct nf_conntrack_l4proto *innerproto;
-	struct nf_conntrack_tuple_hash *h;
+	const struct nf_conntrack_l4proto *innerproto;
+	const struct nf_conntrack_tuple_hash *h;
 
 	NF_CT_ASSERT(skb->nfct == NULL);
 
@@ -176,7 +177,8 @@ static int
 icmp_error(struct sk_buff *skb, unsigned int dataoff,
 	   enum ip_conntrack_info *ctinfo, int pf, unsigned int hooknum)
 {
-	struct icmphdr _ih, *icmph;
+	const struct icmphdr *icmph;
+	struct icmphdr _ih;
 
 	/* Not enough header? */
 	icmph = skb_header_pointer(skb, ip_hdrlen(skb), sizeof(_ih), &_ih);

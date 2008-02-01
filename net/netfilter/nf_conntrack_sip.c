@@ -28,7 +28,7 @@ MODULE_ALIAS("ip_conntrack_sip");
 
 #define MAX_PORTS	8
 static unsigned short ports[MAX_PORTS];
-static int ports_c;
+static unsigned int ports_c;
 module_param_array(ports, ushort, &ports_c, 0400);
 MODULE_PARM_DESC(ports, "port numbers of SIP servers");
 
@@ -48,10 +48,10 @@ unsigned int (*nf_nat_sdp_hook)(struct sk_buff *skb,
 				const char *dptr) __read_mostly;
 EXPORT_SYMBOL_GPL(nf_nat_sdp_hook);
 
-static int digits_len(struct nf_conn *, const char *, const char *, int *);
-static int epaddr_len(struct nf_conn *, const char *, const char *, int *);
-static int skp_digits_len(struct nf_conn *, const char *, const char *, int *);
-static int skp_epaddr_len(struct nf_conn *, const char *, const char *, int *);
+static int digits_len(const struct nf_conn *, const char *, const char *, int *);
+static int epaddr_len(const struct nf_conn *, const char *, const char *, int *);
+static int skp_digits_len(const struct nf_conn *, const char *, const char *, int *);
+static int skp_epaddr_len(const struct nf_conn *, const char *, const char *, int *);
 
 struct sip_header_nfo {
 	const char	*lname;
@@ -61,7 +61,7 @@ struct sip_header_nfo {
 	size_t		snlen;
 	size_t		ln_strlen;
 	int		case_sensitive;
-	int		(*match_len)(struct nf_conn *, const char *,
+	int		(*match_len)(const struct nf_conn *, const char *,
 				     const char *, int *);
 };
 
@@ -225,7 +225,7 @@ const char *ct_sip_search(const char *needle, const char *haystack,
 }
 EXPORT_SYMBOL_GPL(ct_sip_search);
 
-static int digits_len(struct nf_conn *ct, const char *dptr,
+static int digits_len(const struct nf_conn *ct, const char *dptr,
 		      const char *limit, int *shift)
 {
 	int len = 0;
@@ -237,7 +237,7 @@ static int digits_len(struct nf_conn *ct, const char *dptr,
 }
 
 /* get digits length, skipping blank spaces. */
-static int skp_digits_len(struct nf_conn *ct, const char *dptr,
+static int skp_digits_len(const struct nf_conn *ct, const char *dptr,
 			  const char *limit, int *shift)
 {
 	for (; dptr <= limit && *dptr == ' '; dptr++)
@@ -246,8 +246,9 @@ static int skp_digits_len(struct nf_conn *ct, const char *dptr,
 	return digits_len(ct, dptr, limit, shift);
 }
 
-static int parse_addr(struct nf_conn *ct, const char *cp, const char **endp,
-		      union nf_inet_addr *addr, const char *limit)
+static int parse_addr(const struct nf_conn *ct, const char *cp,
+                      const char **endp, union nf_inet_addr *addr,
+                      const char *limit)
 {
 	const char *end;
 	int family = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num;
@@ -272,7 +273,7 @@ static int parse_addr(struct nf_conn *ct, const char *cp, const char **endp,
 }
 
 /* skip ip address. returns its length. */
-static int epaddr_len(struct nf_conn *ct, const char *dptr,
+static int epaddr_len(const struct nf_conn *ct, const char *dptr,
 		      const char *limit, int *shift)
 {
 	union nf_inet_addr addr;
@@ -292,7 +293,7 @@ static int epaddr_len(struct nf_conn *ct, const char *dptr,
 }
 
 /* get address length, skiping user info. */
-static int skp_epaddr_len(struct nf_conn *ct, const char *dptr,
+static int skp_epaddr_len(const struct nf_conn *ct, const char *dptr,
 			  const char *limit, int *shift)
 {
 	const char *start = dptr;
@@ -319,7 +320,7 @@ static int skp_epaddr_len(struct nf_conn *ct, const char *dptr,
 }
 
 /* Returns 0 if not found, -1 error parsing. */
-int ct_sip_get_info(struct nf_conn *ct,
+int ct_sip_get_info(const struct nf_conn *ct,
 		    const char *dptr, size_t dlen,
 		    unsigned int *matchoff,
 		    unsigned int *matchlen,
@@ -407,7 +408,7 @@ static int sip_help(struct sk_buff *skb,
 	unsigned int dataoff, datalen;
 	const char *dptr;
 	int ret = NF_ACCEPT;
-	int matchoff, matchlen;
+	unsigned int matchoff, matchlen;
 	u_int16_t port;
 	enum sip_header_pos pos;
 	typeof(nf_nat_sip_hook) nf_nat_sip;

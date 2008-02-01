@@ -95,6 +95,7 @@ struct sfq_sched_data
 	int		limit;
 
 /* Variables */
+	struct tcf_proto *filter_list;
 	struct timer_list perturb_timer;
 	u32		perturbation;
 	sfq_index	tail;		/* Index of current slot in round */
@@ -153,6 +154,39 @@ static unsigned sfq_hash(struct sfq_sched_data *q, struct sk_buff *skb)
 	}
 
 	return sfq_fold_hash(q, h, h2);
+}
+
+static unsigned int sfq_classify(struct sk_buff *skb, struct Qdisc *sch,
+				 int *qerr)
+{
+	struct sfq_sched_data *q = qdisc_priv(sch);
+	struct tcf_result res;
+	int result;
+
+	if (TC_H_MAJ(skb->priority) == sch->handle &&
+	    TC_H_MIN(skb->priority) > 0 &&
+	    TC_H_MIN(skb->priority) <= SFQ_HASH_DIVISOR)
+		return TC_H_MIN(skb->priority);
+
+	if (!q->filter_list)
+		return sfq_hash(q, skb) + 1;
+
+	*qerr = NET_XMIT_BYPASS;
+	result = tc_classify(skb, q->filter_list, &res);
+	if (result >= 0) {
+#ifdef CONFIG_NET_CLS_ACT
+		switch (result) {
+		case TC_ACT_STOLEN:
+		case TC_ACT_QUEUED:
+			*qerr = NET_XMIT_SUCCESS;
+		case TC_ACT_SHOT:
+			return 0;
+		}
+#endif
+		if (TC_H_MIN(res.classid) <= SFQ_HASH_DIVISOR)
+			return TC_H_MIN(res.classid);
+	}
+	return 0;
 }
 
 static inline void sfq_link(struct sfq_sched_data *q, sfq_index x)
@@ -245,8 +279,18 @@ static int
 sfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 {
 	struct sfq_sched_data *q = qdisc_priv(sch);
-	unsigned hash = sfq_hash(q, skb);
+	unsigned int hash;
 	sfq_index x;
+	int ret;
+
+	hash = sfq_classify(skb, sch, &ret);
+	if (hash == 0) {
+		if (ret == NET_XMIT_BYPASS)
+			sch->qstats.drops++;
+		kfree_skb(skb);
+		return ret;
+	}
+	hash--;
 
 	x = q->ht[hash];
 	if (x == SFQ_DEPTH) {
@@ -289,8 +333,18 @@ static int
 sfq_requeue(struct sk_buff *skb, struct Qdisc *sch)
 {
 	struct sfq_sched_data *q = qdisc_priv(sch);
-	unsigned hash = sfq_hash(q, skb);
+	unsigned int hash;
 	sfq_index x;
+	int ret;
+
+	hash = sfq_classify(skb, sch, &ret);
+	if (hash == 0) {
+		if (ret == NET_XMIT_BYPASS)
+			sch->qstats.drops++;
+		kfree_skb(skb);
+		return ret;
+	}
+	hash--;
 
 	x = q->ht[hash];
 	if (x == SFQ_DEPTH) {
@@ -465,6 +519,8 @@ static int sfq_init(struct Qdisc *sch, struct nlattr *opt)
 static void sfq_destroy(struct Qdisc *sch)
 {
 	struct sfq_sched_data *q = qdisc_priv(sch);
+
+	tcf_destroy_chain(q->filter_list);
 	del_timer(&q->perturb_timer);
 }
 
@@ -490,9 +546,79 @@ nla_put_failure:
 	return -1;
 }
 
+static int sfq_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
+			    struct nlattr **tca, unsigned long *arg)
+{
+	return -EOPNOTSUPP;
+}
+
+static unsigned long sfq_get(struct Qdisc *sch, u32 classid)
+{
+	return 0;
+}
+
+static struct tcf_proto **sfq_find_tcf(struct Qdisc *sch, unsigned long cl)
+{
+	struct sfq_sched_data *q = qdisc_priv(sch);
+
+	if (cl)
+		return NULL;
+	return &q->filter_list;
+}
+
+static int sfq_dump_class(struct Qdisc *sch, unsigned long cl,
+			  struct sk_buff *skb, struct tcmsg *tcm)
+{
+	tcm->tcm_handle |= TC_H_MIN(cl);
+	return 0;
+}
+
+static int sfq_dump_class_stats(struct Qdisc *sch, unsigned long cl,
+				struct gnet_dump *d)
+{
+	struct sfq_sched_data *q = qdisc_priv(sch);
+	sfq_index idx = q->ht[cl-1];
+	struct gnet_stats_queue qs = { .qlen = q->qs[idx].qlen };
+	struct tc_sfq_xstats xstats = { .allot = q->allot[idx] };
+
+	if (gnet_stats_copy_queue(d, &qs) < 0)
+		return -1;
+	return gnet_stats_copy_app(d, &xstats, sizeof(xstats));
+}
+
+static void sfq_walk(struct Qdisc *sch, struct qdisc_walker *arg)
+{
+	struct sfq_sched_data *q = qdisc_priv(sch);
+	unsigned int i;
+
+	if (arg->stop)
+		return;
+
+	for (i = 0; i < SFQ_HASH_DIVISOR; i++) {
+		if (q->ht[i] == SFQ_DEPTH ||
+		    arg->count < arg->skip) {
+			arg->count++;
+			continue;
+		}
+		if (arg->fn(sch, i + 1, arg) < 0) {
+			arg->stop = 1;
+			break;
+		}
+		arg->count++;
+	}
+}
+
+static const struct Qdisc_class_ops sfq_class_ops = {
+	.get		=	sfq_get,
+	.change		=	sfq_change_class,
+	.tcf_chain	=	sfq_find_tcf,
+	.dump		=	sfq_dump_class,
+	.dump_stats	=	sfq_dump_class_stats,
+	.walk		=	sfq_walk,
+};
+
 static struct Qdisc_ops sfq_qdisc_ops __read_mostly = {
-	.next		=	NULL,
-	.cl_ops		=	NULL,
+	.cl_ops		=	&sfq_class_ops,
 	.id		=	"sfq",
 	.priv_size	=	sizeof(struct sfq_sched_data),
 	.enqueue	=	sfq_enqueue,

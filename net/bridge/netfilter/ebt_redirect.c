@@ -19,7 +19,7 @@ static int ebt_target_redirect(struct sk_buff *skb, unsigned int hooknr,
    const struct net_device *in, const struct net_device *out,
    const void *data, unsigned int datalen)
 {
-	struct ebt_redirect_info *info = (struct ebt_redirect_info *)data;
+	const struct ebt_redirect_info *info = data;
 
 	if (skb_make_writable(skb, 0))
 		return NF_DROP;
@@ -36,7 +36,7 @@ static int ebt_target_redirect(struct sk_buff *skb, unsigned int hooknr,
 static int ebt_target_redirect_check(const char *tablename, unsigned int hookmask,
    const struct ebt_entry *e, void *data, unsigned int datalen)
 {
-	struct ebt_redirect_info *info = (struct ebt_redirect_info *)data;
+	const struct ebt_redirect_info *info = data;
 
 	if (datalen != EBT_ALIGN(sizeof(struct ebt_redirect_info)))
 		return -EINVAL;
@@ -51,8 +51,7 @@ static int ebt_target_redirect_check(const char *tablename, unsigned int hookmas
 	return 0;
 }
 
-static struct ebt_target redirect_target =
-{
+static struct ebt_target redirect_target __read_mostly = {
 	.name		= EBT_REDIRECT_TARGET,
 	.target		= ebt_target_redirect,
 	.check		= ebt_target_redirect_check,
@@ -71,4 +70,5 @@ static void __exit ebt_redirect_fini(void)
 
 module_init(ebt_redirect_init);
 module_exit(ebt_redirect_fini);
+MODULE_DESCRIPTION("Ebtables: Packet redirection to localhost");
 MODULE_LICENSE("GPL");

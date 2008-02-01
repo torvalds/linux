@@ -330,7 +330,7 @@ static void mip6_destopt_destroy(struct xfrm_state *x)
 {
 }
 
-static struct xfrm_type mip6_destopt_type =
+static const struct xfrm_type mip6_destopt_type =
 {
 	.description	= "MIP6DESTOPT",
 	.owner		= THIS_MODULE,
@@ -462,7 +462,7 @@ static void mip6_rthdr_destroy(struct xfrm_state *x)
 {
 }
 
-static struct xfrm_type mip6_rthdr_type =
+static const struct xfrm_type mip6_rthdr_type =
 {
 	.description	= "MIP6RT",
 	.owner		= THIS_MODULE,

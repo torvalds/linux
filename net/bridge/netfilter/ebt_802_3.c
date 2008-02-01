@@ -15,8 +15,8 @@
 static int ebt_filter_802_3(const struct sk_buff *skb, const struct net_device *in,
    const struct net_device *out, const void *data, unsigned int datalen)
 {
-	struct ebt_802_3_info *info = (struct ebt_802_3_info *)data;
-	struct ebt_802_3_hdr *hdr = ebt_802_3_hdr(skb);
+	const struct ebt_802_3_info *info = data;
+	const struct ebt_802_3_hdr *hdr = ebt_802_3_hdr(skb);
 	__be16 type = hdr->llc.ui.ctrl & IS_UI ? hdr->llc.ui.type : hdr->llc.ni.type;
 
 	if (info->bitmask & EBT_802_3_SAP) {
@@ -40,7 +40,7 @@ static struct ebt_match filter_802_3;
 static int ebt_802_3_check(const char *tablename, unsigned int hookmask,
    const struct ebt_entry *e, void *data, unsigned int datalen)
 {
-	struct ebt_802_3_info *info = (struct ebt_802_3_info *)data;
+	const struct ebt_802_3_info *info = data;
 
 	if (datalen < sizeof(struct ebt_802_3_info))
 		return -EINVAL;
@@ -50,8 +50,7 @@ static int ebt_802_3_check(const char *tablename, unsigned int hookmask,
 	return 0;
 }
 
-static struct ebt_match filter_802_3 =
-{
+static struct ebt_match filter_802_3 __read_mostly = {
 	.name		= EBT_802_3_MATCH,
 	.match		= ebt_filter_802_3,
 	.check		= ebt_802_3_check,
@@ -70,4 +69,5 @@ static void __exit ebt_802_3_fini(void)
 
 module_init(ebt_802_3_init);
 module_exit(ebt_802_3_fini);
+MODULE_DESCRIPTION("Ebtables: DSAP/SSAP field and SNAP type matching");
 MODULE_LICENSE("GPL");

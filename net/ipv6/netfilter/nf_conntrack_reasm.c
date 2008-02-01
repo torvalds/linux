@@ -39,6 +39,7 @@
 #include <net/rawv6.h>
 #include <net/ndisc.h>
 #include <net/addrconf.h>
+#include <net/netfilter/ipv6/nf_conntrack_ipv6.h>
 #include <linux/sysctl.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv6.h>
@@ -678,21 +679,6 @@ void nf_ct_frag6_output(unsigned int hooknum, struct sk_buff *skb,
 		s = s2;
 	}
 	nf_conntrack_put_reasm(skb);
-}
-
-int nf_ct_frag6_kfree_frags(struct sk_buff *skb)
-{
-	struct sk_buff *s, *s2;
-
-	for (s = NFCT_FRAG6_CB(skb)->orig; s; s = s2) {
-
-		s2 = s->next;
-		kfree_skb(s);
-	}
-
-	kfree_skb(skb);
-
-	return 0;
 }
 
 int nf_ct_frag6_init(void)

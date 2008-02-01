@@ -2153,7 +2153,7 @@ static void tcp_mark_head_lost(struct sock *sk, int packets, int fast_rexmit)
 		tp->lost_skb_hint = skb;
 		tp->lost_cnt_hint = cnt;
 
-		if (tcp_is_fack(tp) ||
+		if (tcp_is_fack(tp) || tcp_is_reno(tp) ||
 		    (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_ACKED))
 			cnt += tcp_skb_pcount(skb);
 

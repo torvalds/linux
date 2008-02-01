@@ -41,7 +41,6 @@ extern void raw_proc_exit(void);
 struct raw_iter_state {
 	struct seq_net_private p;
 	int bucket;
-	unsigned short family;
 	struct raw_hashinfo *h;
 };
 
@@ -49,8 +48,8 @@ struct raw_iter_state {
 void *raw_seq_start(struct seq_file *seq, loff_t *pos);
 void *raw_seq_next(struct seq_file *seq, void *v, loff_t *pos);
 void raw_seq_stop(struct seq_file *seq, void *v);
-int raw_seq_open(struct inode *ino, struct file *file, struct raw_hashinfo *h,
-		unsigned short family);
+int raw_seq_open(struct inode *ino, struct file *file,
+		 struct raw_hashinfo *h, const struct seq_operations *ops);
 
 #endif
 

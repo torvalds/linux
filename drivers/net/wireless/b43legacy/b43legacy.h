@@ -23,7 +23,7 @@
 #include "phy.h"
 
 
-#define B43legacy_IRQWAIT_MAX_RETRIES	100
+#define B43legacy_IRQWAIT_MAX_RETRIES	20
 
 #define B43legacy_RX_MAX_SSI		60 /* best guess at max ssi */
 
@@ -40,9 +40,8 @@
 #define B43legacy_MMIO_DMA4_IRQ_MASK	0x44
 #define B43legacy_MMIO_DMA5_REASON	0x48
 #define B43legacy_MMIO_DMA5_IRQ_MASK	0x4C
-#define B43legacy_MMIO_MACCTL		0x120
-#define B43legacy_MMIO_STATUS_BITFIELD	0x120
-#define B43legacy_MMIO_STATUS2_BITFIELD	0x124
+#define B43legacy_MMIO_MACCTL		0x120	/* MAC control */
+#define B43legacy_MMIO_MACCMD		0x124	/* MAC command */
 #define B43legacy_MMIO_GEN_IRQ_REASON	0x128
 #define B43legacy_MMIO_GEN_IRQ_MASK	0x12C
 #define B43legacy_MMIO_RAM_CONTROL	0x130
@@ -177,30 +176,24 @@
 #define B43legacy_RADIOCTL_ID		0x01
 
 /* MAC Control bitfield */
+#define B43legacy_MACCTL_ENABLED	0x00000001 /* MAC Enabled */
+#define B43legacy_MACCTL_PSM_RUN	0x00000002 /* Run Microcode */
+#define B43legacy_MACCTL_PSM_JMP0	0x00000004 /* Microcode jump to 0 */
+#define B43legacy_MACCTL_SHM_ENABLED	0x00000100 /* SHM Enabled */
 #define B43legacy_MACCTL_IHR_ENABLED	0x00000400 /* IHR Region Enabled */
+#define B43legacy_MACCTL_BE		0x00010000 /* Big Endian mode */
 #define B43legacy_MACCTL_INFRA		0x00020000 /* Infrastructure mode */
 #define B43legacy_MACCTL_AP		0x00040000 /* AccessPoint mode */
+#define B43legacy_MACCTL_RADIOLOCK	0x00080000 /* Radio lock */
 #define B43legacy_MACCTL_BEACPROMISC	0x00100000 /* Beacon Promiscuous */
 #define B43legacy_MACCTL_KEEP_BADPLCP	0x00200000 /* Keep bad PLCP frames */
 #define B43legacy_MACCTL_KEEP_CTL	0x00400000 /* Keep control frames */
 #define B43legacy_MACCTL_KEEP_BAD	0x00800000 /* Keep bad frames (FCS) */
 #define B43legacy_MACCTL_PROMISC	0x01000000 /* Promiscuous mode */
+#define B43legacy_MACCTL_HWPS		0x02000000 /* Hardware Power Saving */
+#define B43legacy_MACCTL_AWAKE		0x04000000 /* Device is awake */
+#define B43legacy_MACCTL_TBTTHOLD	0x10000000 /* TBTT Hold */
 #define B43legacy_MACCTL_GMODE		0x80000000 /* G Mode */
-
-/* StatusBitField */
-#define B43legacy_SBF_MAC_ENABLED	0x00000001
-#define B43legacy_SBF_CORE_READY	0x00000004
-#define B43legacy_SBF_400		0x00000400 /*FIXME: fix name*/
-#define B43legacy_SBF_XFER_REG_BYTESWAP	0x00010000
-#define B43legacy_SBF_MODE_NOTADHOC	0x00020000
-#define B43legacy_SBF_MODE_AP		0x00040000
-#define B43legacy_SBF_RADIOREG_LOCK	0x00080000
-#define B43legacy_SBF_MODE_MONITOR	0x00400000
-#define B43legacy_SBF_MODE_PROMISC	0x01000000
-#define B43legacy_SBF_PS1		0x02000000
-#define B43legacy_SBF_PS2		0x04000000
-#define B43legacy_SBF_NO_SSID_BCAST	0x08000000
-#define B43legacy_SBF_TIME_UPDATE	0x10000000
 
 /* 802.11 core specific TM State Low flags */
 #define B43legacy_TMSLOW_GMODE		0x20000000 /* G Mode Enable */

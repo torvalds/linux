@@ -225,8 +225,8 @@ static void b43legacy_ram_write(struct b43legacy_wldev *dev, u16 offset,
 
 	B43legacy_WARN_ON(offset % 4 != 0);
 
-	status = b43legacy_read32(dev, B43legacy_MMIO_STATUS_BITFIELD);
-	if (status & B43legacy_SBF_XFER_REG_BYTESWAP)
+	status = b43legacy_read32(dev, B43legacy_MMIO_MACCTL);
+	if (status & B43legacy_MACCTL_BE)
 		val = swab32(val);
 
 	b43legacy_write32(dev, B43legacy_MMIO_RAM_CONTROL, offset);
@@ -434,9 +434,9 @@ static void b43legacy_time_lock(struct b43legacy_wldev *dev)
 {
 	u32 status;
 
-	status = b43legacy_read32(dev, B43legacy_MMIO_STATUS_BITFIELD);
-	status |= B43legacy_SBF_TIME_UPDATE;
-	b43legacy_write32(dev, B43legacy_MMIO_STATUS_BITFIELD, status);
+	status = b43legacy_read32(dev, B43legacy_MMIO_MACCTL);
+	status |= B43legacy_MACCTL_TBTTHOLD;
+	b43legacy_write32(dev, B43legacy_MMIO_MACCTL, status);
 	mmiowb();
 }
 
@@ -444,9 +444,9 @@ static void b43legacy_time_unlock(struct b43legacy_wldev *dev)
 {
 	u32 status;
 
-	status = b43legacy_read32(dev, B43legacy_MMIO_STATUS_BITFIELD);
-	status &= ~B43legacy_SBF_TIME_UPDATE;
-	b43legacy_write32(dev, B43legacy_MMIO_STATUS_BITFIELD, status);
+	status = b43legacy_read32(dev, B43legacy_MMIO_MACCTL);
+	status &= ~B43legacy_MACCTL_TBTTHOLD;
+	b43legacy_write32(dev, B43legacy_MMIO_MACCTL, status);
 }
 
 static void b43legacy_tsf_write_locked(struct b43legacy_wldev *dev, u64 tsf)
@@ -647,7 +647,7 @@ void b43legacy_dummy_transmission(struct b43legacy_wldev *dev)
 		b43legacy_ram_write(dev, i * 4, buffer[i]);
 
 	/* dummy read follows */
-	b43legacy_read32(dev, B43legacy_MMIO_STATUS_BITFIELD);
+	b43legacy_read32(dev, B43legacy_MMIO_MACCTL);
 
 	b43legacy_write16(dev, 0x0568, 0x0000);
 	b43legacy_write16(dev, 0x07C0, 0x0000);
@@ -794,9 +794,9 @@ static void b43legacy_jssi_write(struct b43legacy_wldev *dev, u32 jssi)
 static void b43legacy_generate_noise_sample(struct b43legacy_wldev *dev)
 {
 	b43legacy_jssi_write(dev, 0x7F7F7F7F);
-	b43legacy_write32(dev, B43legacy_MMIO_STATUS2_BITFIELD,
+	b43legacy_write32(dev, B43legacy_MMIO_MACCMD,
 			  b43legacy_read32(dev,
-			  B43legacy_MMIO_STATUS2_BITFIELD)
+			  B43legacy_MMIO_MACCMD)
 			  | (1 << 4));
 	B43legacy_WARN_ON(dev->noisecalc.channel_at_start !=
 			    dev->phy.channel);
@@ -895,8 +895,8 @@ static void handle_irq_atim_end(struct b43legacy_wldev *dev)
 {
 	if (!dev->reg124_set_0x4) /*FIXME rename this variable*/
 		return;
-	b43legacy_write32(dev, B43legacy_MMIO_STATUS2_BITFIELD,
-			  b43legacy_read32(dev, B43legacy_MMIO_STATUS2_BITFIELD)
+	b43legacy_write32(dev, B43legacy_MMIO_MACCMD,
+			  b43legacy_read32(dev, B43legacy_MMIO_MACCMD)
 			  | 0x4);
 }
 
@@ -1106,9 +1106,9 @@ static void b43legacy_update_templates(struct b43legacy_wldev *dev)
 	b43legacy_write_probe_resp_template(dev, 0x268, 0x4A,
 					    B43legacy_CCK_RATE_11MB);
 
-	status = b43legacy_read32(dev, B43legacy_MMIO_STATUS2_BITFIELD);
+	status = b43legacy_read32(dev, B43legacy_MMIO_MACCMD);
 	status |= 0x03;
-	b43legacy_write32(dev, B43legacy_MMIO_STATUS2_BITFIELD, status);
+	b43legacy_write32(dev, B43legacy_MMIO_MACCMD, status);
 }
 
 static void b43legacy_refresh_templates(struct b43legacy_wldev *dev,
@@ -1166,7 +1166,7 @@ static void handle_irq_beacon(struct b43legacy_wldev *dev)
 		return;
 
 	dev->irq_savedstate &= ~B43legacy_IRQ_BEACON;
-	status = b43legacy_read32(dev, B43legacy_MMIO_STATUS2_BITFIELD);
+	status = b43legacy_read32(dev, B43legacy_MMIO_MACCMD);
 
 	if (!dev->cached_beacon || ((status & 0x1) && (status & 0x2))) {
 		/* ACK beacon IRQ. */
@@ -1182,14 +1182,14 @@ static void handle_irq_beacon(struct b43legacy_wldev *dev)
 		b43legacy_write_beacon_template(dev, 0x68, 0x18,
 						B43legacy_CCK_RATE_1MB);
 		status |= 0x1;
-		b43legacy_write32(dev, B43legacy_MMIO_STATUS2_BITFIELD,
+		b43legacy_write32(dev, B43legacy_MMIO_MACCMD,
 				  status);
 	}
 	if (!(status & 0x2)) {
 		b43legacy_write_beacon_template(dev, 0x468, 0x1A,
 						B43legacy_CCK_RATE_1MB);
 		status |= 0x2;
-		b43legacy_write32(dev, B43legacy_MMIO_STATUS2_BITFIELD,
+		b43legacy_write32(dev, B43legacy_MMIO_MACCMD,
 				  status);
 	}
 }
@@ -1548,8 +1548,19 @@ static int b43legacy_upload_microcode(struct b43legacy_wldev *dev)
 	u16 fwpatch;
 	u16 fwdate;
 	u16 fwtime;
-	u32 tmp;
+	u32 tmp, macctl;
 	int err = 0;
+
+	/* Jump the microcode PSM to offset 0 */
+	macctl = b43legacy_read32(dev, B43legacy_MMIO_MACCTL);
+	B43legacy_WARN_ON(macctl & B43legacy_MACCTL_PSM_RUN);
+	macctl |= B43legacy_MACCTL_PSM_JMP0;
+	b43legacy_write32(dev, B43legacy_MMIO_MACCTL, macctl);
+	/* Zero out all microcode PSM registers and shared memory. */
+	for (i = 0; i < 64; i++)
+		b43legacy_shm_write16(dev, B43legacy_SHM_WIRELESS, i, 0);
+	for (i = 0; i < 4096; i += 2)
+		b43legacy_shm_write16(dev, B43legacy_SHM_SHARED, i, 0);
 
 	/* Upload Microcode. */
 	data = (__be32 *) (dev->fw.ucode->data + hdr_len);
@@ -1581,7 +1592,12 @@ static int b43legacy_upload_microcode(struct b43legacy_wldev *dev)
 
 	b43legacy_write32(dev, B43legacy_MMIO_GEN_IRQ_REASON,
 			  B43legacy_IRQ_ALL);
-	b43legacy_write32(dev, B43legacy_MMIO_STATUS_BITFIELD, 0x00020402);
+
+	/* Start the microcode PSM */
+	macctl = b43legacy_read32(dev, B43legacy_MMIO_MACCTL);
+	macctl &= ~B43legacy_MACCTL_PSM_JMP0;
+	macctl |= B43legacy_MACCTL_PSM_RUN;
+	b43legacy_write32(dev, B43legacy_MMIO_MACCTL, macctl);
 
 	/* Wait for the microcode to load and respond */
 	i = 0;
@@ -1594,9 +1610,13 @@ static int b43legacy_upload_microcode(struct b43legacy_wldev *dev)
 			b43legacyerr(dev->wl, "Microcode not responding\n");
 			b43legacy_print_fw_helptext(dev->wl);
 			err = -ENODEV;
-			goto out;
+			goto error;
 		}
-		udelay(10);
+		msleep_interruptible(50);
+		if (signal_pending(current)) {
+			err = -EINTR;
+			goto error;
+		}
 	}
 	/* dummy read follows */
 	b43legacy_read32(dev, B43legacy_MMIO_GEN_IRQ_REASON);
@@ -1617,9 +1637,8 @@ static int b43legacy_upload_microcode(struct b43legacy_wldev *dev)
 			     " is supported. You must change your firmware"
 			     " files.\n");
 		b43legacy_print_fw_helptext(dev->wl);
-		b43legacy_write32(dev, B43legacy_MMIO_STATUS_BITFIELD, 0);
 		err = -EOPNOTSUPP;
-		goto out;
+		goto error;
 	}
 	b43legacydbg(dev->wl, "Loading firmware version 0x%X, patch level %u "
 	       "(20%.2i-%.2i-%.2i %.2i:%.2i:%.2i)\n", fwrev, fwpatch,
@@ -1629,7 +1648,14 @@ static int b43legacy_upload_microcode(struct b43legacy_wldev *dev)
 	dev->fw.rev = fwrev;
 	dev->fw.patch = fwpatch;
 
-out:
+	return 0;
+
+error:
+	macctl = b43legacy_read32(dev, B43legacy_MMIO_MACCTL);
+	macctl &= ~B43legacy_MACCTL_PSM_RUN;
+	macctl |= B43legacy_MACCTL_PSM_JMP0;
+	b43legacy_write32(dev, B43legacy_MMIO_MACCTL, macctl);
+
 	return err;
 }
 
@@ -1736,9 +1762,9 @@ static int b43legacy_gpio_init(struct b43legacy_wldev *dev)
 	u32 mask;
 	u32 set;
 
-	b43legacy_write32(dev, B43legacy_MMIO_STATUS_BITFIELD,
+	b43legacy_write32(dev, B43legacy_MMIO_MACCTL,
 			  b43legacy_read32(dev,
-			  B43legacy_MMIO_STATUS_BITFIELD)
+			  B43legacy_MMIO_MACCTL)
 			  & 0xFFFF3FFF);
 
 	b43legacy_write16(dev, B43legacy_MMIO_GPIO_MASK,
@@ -1798,14 +1824,14 @@ void b43legacy_mac_enable(struct b43legacy_wldev *dev)
 	B43legacy_WARN_ON(dev->mac_suspended < 0);
 	B43legacy_WARN_ON(irqs_disabled());
 	if (dev->mac_suspended == 0) {
-		b43legacy_write32(dev, B43legacy_MMIO_STATUS_BITFIELD,
+		b43legacy_write32(dev, B43legacy_MMIO_MACCTL,
 				  b43legacy_read32(dev,
-				  B43legacy_MMIO_STATUS_BITFIELD)
-				  | B43legacy_SBF_MAC_ENABLED);
+				  B43legacy_MMIO_MACCTL)
+				  | B43legacy_MACCTL_ENABLED);
 		b43legacy_write32(dev, B43legacy_MMIO_GEN_IRQ_REASON,
 				  B43legacy_IRQ_MAC_SUSPENDED);
 		/* the next two are dummy reads */
-		b43legacy_read32(dev, B43legacy_MMIO_STATUS_BITFIELD);
+		b43legacy_read32(dev, B43legacy_MMIO_MACCTL);
 		b43legacy_read32(dev, B43legacy_MMIO_GEN_IRQ_REASON);
 		b43legacy_power_saving_ctl_bits(dev, -1, -1);
 
@@ -1836,10 +1862,10 @@ void b43legacy_mac_suspend(struct b43legacy_wldev *dev)
 		dev->irq_savedstate = tmp;
 
 		b43legacy_power_saving_ctl_bits(dev, -1, 1);
-		b43legacy_write32(dev, B43legacy_MMIO_STATUS_BITFIELD,
+		b43legacy_write32(dev, B43legacy_MMIO_MACCTL,
 				  b43legacy_read32(dev,
-				  B43legacy_MMIO_STATUS_BITFIELD)
-				  & ~B43legacy_SBF_MAC_ENABLED);
+				  B43legacy_MMIO_MACCTL)
+				  & ~B43legacy_MACCTL_ENABLED);
 		b43legacy_read32(dev, B43legacy_MMIO_GEN_IRQ_REASON);
 		for (i = 40; i; i--) {
 			tmp = b43legacy_read32(dev,
@@ -2007,12 +2033,15 @@ static int b43legacy_chip_init(struct b43legacy_wldev *dev)
 	struct b43legacy_phy *phy = &dev->phy;
 	int err;
 	int tmp;
-	u32 value32;
+	u32 value32, macctl;
 	u16 value16;
 
-	b43legacy_write32(dev, B43legacy_MMIO_STATUS_BITFIELD,
-			  B43legacy_SBF_CORE_READY
-			  | B43legacy_SBF_400);
+	/* Initialize the MAC control */
+	macctl = B43legacy_MACCTL_IHR_ENABLED | B43legacy_MACCTL_SHM_ENABLED;
+	if (dev->phy.gmode)
+		macctl |= B43legacy_MACCTL_GMODE;
+	macctl |= B43legacy_MACCTL_INFRA;
+	b43legacy_write32(dev, B43legacy_MMIO_MACCTL, macctl);
 
 	err = b43legacy_request_firmware(dev);
 	if (err)
@@ -2052,12 +2081,12 @@ static int b43legacy_chip_init(struct b43legacy_wldev *dev)
 	if (dev->dev->id.revision < 5)
 		b43legacy_write32(dev, 0x010C, 0x01000000);
 
-	value32 = b43legacy_read32(dev, B43legacy_MMIO_STATUS_BITFIELD);
-	value32 &= ~B43legacy_SBF_MODE_NOTADHOC;
-	b43legacy_write32(dev, B43legacy_MMIO_STATUS_BITFIELD, value32);
-	value32 = b43legacy_read32(dev, B43legacy_MMIO_STATUS_BITFIELD);
-	value32 |= B43legacy_SBF_MODE_NOTADHOC;
-	b43legacy_write32(dev, B43legacy_MMIO_STATUS_BITFIELD, value32);
+	value32 = b43legacy_read32(dev, B43legacy_MMIO_MACCTL);
+	value32 &= ~B43legacy_MACCTL_INFRA;
+	b43legacy_write32(dev, B43legacy_MMIO_MACCTL, value32);
+	value32 = b43legacy_read32(dev, B43legacy_MMIO_MACCTL);
+	value32 |= B43legacy_MACCTL_INFRA;
+	b43legacy_write32(dev, B43legacy_MMIO_MACCTL, value32);
 
 	if (b43legacy_using_pio(dev)) {
 		b43legacy_write32(dev, 0x0210, 0x00000100);
@@ -2951,11 +2980,18 @@ static void b43legacy_wireless_core_exit(struct b43legacy_wldev *dev)
 {
 	struct b43legacy_wl *wl = dev->wl;
 	struct b43legacy_phy *phy = &dev->phy;
+	u32 macctl;
 
 	B43legacy_WARN_ON(b43legacy_status(dev) > B43legacy_STAT_INITIALIZED);
 	if (b43legacy_status(dev) != B43legacy_STAT_INITIALIZED)
 		return;
 	b43legacy_set_status(dev, B43legacy_STAT_UNINIT);
+
+	/* Stop the microcode PSM. */
+	macctl = b43legacy_read32(dev, B43legacy_MMIO_MACCTL);
+	macctl &= ~B43legacy_MACCTL_PSM_RUN;
+	macctl |= B43legacy_MACCTL_PSM_JMP0;
+	b43legacy_write32(dev, B43legacy_MMIO_MACCTL, macctl);
 
 	mutex_unlock(&wl->mutex);
 	/* Must unlock as it would otherwise deadlock. No races here.
@@ -3221,6 +3257,7 @@ static int b43legacy_op_start(struct ieee80211_hw *hw)
 	struct b43legacy_wldev *dev = wl->current_dev;
 	int did_init = 0;
 	int err = 0;
+	bool do_rfkill_exit = 0;
 
 	/* First register RFkill.
 	 * LEDs that are registered later depend on it. */
@@ -3230,8 +3267,10 @@ static int b43legacy_op_start(struct ieee80211_hw *hw)
 
 	if (b43legacy_status(dev) < B43legacy_STAT_INITIALIZED) {
 		err = b43legacy_wireless_core_init(dev);
-		if (err)
+		if (err) {
+			do_rfkill_exit = 1;
 			goto out_mutex_unlock;
+		}
 		did_init = 1;
 	}
 
@@ -3240,12 +3279,16 @@ static int b43legacy_op_start(struct ieee80211_hw *hw)
 		if (err) {
 			if (did_init)
 				b43legacy_wireless_core_exit(dev);
+			do_rfkill_exit = 1;
 			goto out_mutex_unlock;
 		}
 	}
 
 out_mutex_unlock:
 	mutex_unlock(&wl->mutex);
+
+	if (do_rfkill_exit)
+		b43legacy_rfkill_exit(dev);
 
 	return err;
 }

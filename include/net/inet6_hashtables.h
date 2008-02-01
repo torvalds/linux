@@ -57,34 +57,37 @@ extern void __inet6_hash(struct inet_hashinfo *hashinfo, struct sock *sk);
  *
  * The sockhash lock must be held as a reader here.
  */
-extern struct sock *__inet6_lookup_established(struct inet_hashinfo *hashinfo,
+extern struct sock *__inet6_lookup_established(struct net *net,
+					   struct inet_hashinfo *hashinfo,
 					   const struct in6_addr *saddr,
 					   const __be16 sport,
 					   const struct in6_addr *daddr,
 					   const u16 hnum,
 					   const int dif);
 
-extern struct sock *inet6_lookup_listener(struct inet_hashinfo *hashinfo,
+extern struct sock *inet6_lookup_listener(struct net *net,
+					  struct inet_hashinfo *hashinfo,
 					  const struct in6_addr *daddr,
 					  const unsigned short hnum,
 					  const int dif);
 
-static inline struct sock *__inet6_lookup(struct inet_hashinfo *hashinfo,
+static inline struct sock *__inet6_lookup(struct net *net,
+					  struct inet_hashinfo *hashinfo,
 					  const struct in6_addr *saddr,
 					  const __be16 sport,
 					  const struct in6_addr *daddr,
 					  const u16 hnum,
 					  const int dif)
 {
-	struct sock *sk = __inet6_lookup_established(hashinfo, saddr, sport,
-						     daddr, hnum, dif);
+	struct sock *sk = __inet6_lookup_established(net, hashinfo, saddr,
+						sport, daddr, hnum, dif);
 	if (sk)
 		return sk;
 
-	return inet6_lookup_listener(hashinfo, daddr, hnum, dif);
+	return inet6_lookup_listener(net, hashinfo, daddr, hnum, dif);
 }
 
-extern struct sock *inet6_lookup(struct inet_hashinfo *hashinfo,
+extern struct sock *inet6_lookup(struct net *net, struct inet_hashinfo *hashinfo,
 				 const struct in6_addr *saddr, const __be16 sport,
 				 const struct in6_addr *daddr, const __be16 dport,
 				 const int dif);

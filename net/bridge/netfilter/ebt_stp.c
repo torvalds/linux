@@ -40,10 +40,10 @@ struct stp_config_pdu {
 #define NR16(p) (p[0] << 8 | p[1])
 #define NR32(p) ((p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3])
 
-static int ebt_filter_config(struct ebt_stp_info *info,
-   struct stp_config_pdu *stpc)
+static int ebt_filter_config(const struct ebt_stp_info *info,
+   const struct stp_config_pdu *stpc)
 {
-	struct ebt_stp_config_info *c;
+	const struct ebt_stp_config_info *c;
 	uint16_t v16;
 	uint32_t v32;
 	int verdict, i;
@@ -122,9 +122,10 @@ static int ebt_filter_config(struct ebt_stp_info *info,
 static int ebt_filter_stp(const struct sk_buff *skb, const struct net_device *in,
    const struct net_device *out, const void *data, unsigned int datalen)
 {
-	struct ebt_stp_info *info = (struct ebt_stp_info *)data;
-	struct stp_header _stph, *sp;
-	uint8_t header[6] = {0x42, 0x42, 0x03, 0x00, 0x00, 0x00};
+	const struct ebt_stp_info *info = data;
+	const struct stp_header *sp;
+	struct stp_header _stph;
+	const uint8_t header[6] = {0x42, 0x42, 0x03, 0x00, 0x00, 0x00};
 
 	sp = skb_header_pointer(skb, 0, sizeof(_stph), &_stph);
 	if (sp == NULL)
@@ -140,7 +141,8 @@ static int ebt_filter_stp(const struct sk_buff *skb, const struct net_device *in
 
 	if (sp->type == BPDU_TYPE_CONFIG &&
 	    info->bitmask & EBT_STP_CONFIG_MASK) {
-		struct stp_config_pdu _stpc, *st;
+		const struct stp_config_pdu *st;
+		struct stp_config_pdu _stpc;
 
 		st = skb_header_pointer(skb, sizeof(_stph),
 					sizeof(_stpc), &_stpc);
@@ -154,10 +156,10 @@ static int ebt_filter_stp(const struct sk_buff *skb, const struct net_device *in
 static int ebt_stp_check(const char *tablename, unsigned int hookmask,
    const struct ebt_entry *e, void *data, unsigned int datalen)
 {
-	struct ebt_stp_info *info = (struct ebt_stp_info *)data;
-	int len = EBT_ALIGN(sizeof(struct ebt_stp_info));
-	uint8_t bridge_ula[6] = { 0x01, 0x80, 0xc2, 0x00, 0x00, 0x00 };
-	uint8_t msk[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+	const struct ebt_stp_info *info = data;
+	const unsigned int len = EBT_ALIGN(sizeof(struct ebt_stp_info));
+	const uint8_t bridge_ula[6] = {0x01, 0x80, 0xc2, 0x00, 0x00, 0x00};
+	const uint8_t msk[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 	if (info->bitmask & ~EBT_STP_MASK || info->invflags & ~EBT_STP_MASK ||
 	    !(info->bitmask & EBT_STP_MASK))
@@ -172,8 +174,7 @@ static int ebt_stp_check(const char *tablename, unsigned int hookmask,
 	return 0;
 }
 
-static struct ebt_match filter_stp =
-{
+static struct ebt_match filter_stp __read_mostly = {
 	.name		= EBT_STP_MATCH,
 	.match		= ebt_filter_stp,
 	.check		= ebt_stp_check,
@@ -192,4 +193,5 @@ static void __exit ebt_stp_fini(void)
 
 module_init(ebt_stp_init);
 module_exit(ebt_stp_fini);
+MODULE_DESCRIPTION("Ebtables: Spanning Tree Protocol packet match");
 MODULE_LICENSE("GPL");

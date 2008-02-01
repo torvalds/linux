@@ -16,7 +16,7 @@ static int ebt_filter_mark(const struct sk_buff *skb,
    const struct net_device *in, const struct net_device *out, const void *data,
    unsigned int datalen)
 {
-	struct ebt_mark_m_info *info = (struct ebt_mark_m_info *) data;
+	const struct ebt_mark_m_info *info = data;
 
 	if (info->bitmask & EBT_MARK_OR)
 		return !(!!(skb->mark & info->mask) ^ info->invert);
@@ -26,7 +26,7 @@ static int ebt_filter_mark(const struct sk_buff *skb,
 static int ebt_mark_check(const char *tablename, unsigned int hookmask,
    const struct ebt_entry *e, void *data, unsigned int datalen)
 {
-	struct ebt_mark_m_info *info = (struct ebt_mark_m_info *) data;
+	const struct ebt_mark_m_info *info = data;
 
 	if (datalen != EBT_ALIGN(sizeof(struct ebt_mark_m_info)))
 		return -EINVAL;
@@ -39,8 +39,7 @@ static int ebt_mark_check(const char *tablename, unsigned int hookmask,
 	return 0;
 }
 
-static struct ebt_match filter_mark =
-{
+static struct ebt_match filter_mark __read_mostly = {
 	.name		= EBT_MARK_MATCH,
 	.match		= ebt_filter_mark,
 	.check		= ebt_mark_check,
@@ -59,4 +58,5 @@ static void __exit ebt_mark_m_fini(void)
 
 module_init(ebt_mark_m_init);
 module_exit(ebt_mark_m_fini);
+MODULE_DESCRIPTION("Ebtables: Packet mark match");
 MODULE_LICENSE("GPL");

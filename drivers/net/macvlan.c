@@ -508,7 +508,7 @@ static int __init macvlan_init_module(void)
 		goto err1;
 	return 0;
 err1:
-	macvlan_handle_frame_hook = macvlan_handle_frame;
+	macvlan_handle_frame_hook = NULL;
 	unregister_netdevice_notifier(&macvlan_notifier_block);
 	return err;
 }

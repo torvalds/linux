@@ -291,7 +291,7 @@ static void trace_packet(struct sk_buff *skb,
 			 unsigned int hook,
 			 const struct net_device *in,
 			 const struct net_device *out,
-			 char *tablename,
+			 const char *tablename,
 			 struct xt_table_info *private,
 			 struct ipt_entry *e)
 {
@@ -1092,7 +1092,7 @@ static int compat_table_info(const struct xt_table_info *info,
 }
 #endif
 
-static int get_info(void __user *user, int *len, int compat)
+static int get_info(struct net *net, void __user *user, int *len, int compat)
 {
 	char name[IPT_TABLE_MAXNAMELEN];
 	struct xt_table *t;
@@ -1112,7 +1112,7 @@ static int get_info(void __user *user, int *len, int compat)
 	if (compat)
 		xt_compat_lock(AF_INET);
 #endif
-	t = try_then_request_module(xt_find_table_lock(AF_INET, name),
+	t = try_then_request_module(xt_find_table_lock(net, AF_INET, name),
 				    "iptable_%s", name);
 	if (t && !IS_ERR(t)) {
 		struct ipt_getinfo info;
@@ -1152,7 +1152,7 @@ static int get_info(void __user *user, int *len, int compat)
 }
 
 static int
-get_entries(struct ipt_get_entries __user *uptr, int *len)
+get_entries(struct net *net, struct ipt_get_entries __user *uptr, int *len)
 {
 	int ret;
 	struct ipt_get_entries get;
@@ -1170,7 +1170,7 @@ get_entries(struct ipt_get_entries __user *uptr, int *len)
 		return -EINVAL;
 	}
 
-	t = xt_find_table_lock(AF_INET, get.name);
+	t = xt_find_table_lock(net, AF_INET, get.name);
 	if (t && !IS_ERR(t)) {
 		struct xt_table_info *private = t->private;
 		duprintf("t->private->number = %u\n", private->number);
@@ -1191,7 +1191,7 @@ get_entries(struct ipt_get_entries __user *uptr, int *len)
 }
 
 static int
-__do_replace(const char *name, unsigned int valid_hooks,
+__do_replace(struct net *net, const char *name, unsigned int valid_hooks,
 	     struct xt_table_info *newinfo, unsigned int num_counters,
 	     void __user *counters_ptr)
 {
@@ -1208,7 +1208,7 @@ __do_replace(const char *name, unsigned int valid_hooks,
 		goto out;
 	}
 
-	t = try_then_request_module(xt_find_table_lock(AF_INET, name),
+	t = try_then_request_module(xt_find_table_lock(net, AF_INET, name),
 				    "iptable_%s", name);
 	if (!t || IS_ERR(t)) {
 		ret = t ? PTR_ERR(t) : -ENOENT;
@@ -1261,7 +1261,7 @@ __do_replace(const char *name, unsigned int valid_hooks,
 }
 
 static int
-do_replace(void __user *user, unsigned int len)
+do_replace(struct net *net, void __user *user, unsigned int len)
 {
 	int ret;
 	struct ipt_replace tmp;
@@ -1295,7 +1295,7 @@ do_replace(void __user *user, unsigned int len)
 
 	duprintf("ip_tables: Translated table\n");
 
-	ret = __do_replace(tmp.name, tmp.valid_hooks, newinfo,
+	ret = __do_replace(net, tmp.name, tmp.valid_hooks, newinfo,
 			   tmp.num_counters, tmp.counters);
 	if (ret)
 		goto free_newinfo_untrans;
@@ -1331,7 +1331,7 @@ add_counter_to_entry(struct ipt_entry *e,
 }
 
 static int
-do_add_counters(void __user *user, unsigned int len, int compat)
+do_add_counters(struct net *net, void __user *user, unsigned int len, int compat)
 {
 	unsigned int i;
 	struct xt_counters_info tmp;
@@ -1383,7 +1383,7 @@ do_add_counters(void __user *user, unsigned int len, int compat)
 		goto free;
 	}
 
-	t = xt_find_table_lock(AF_INET, name);
+	t = xt_find_table_lock(net, AF_INET, name);
 	if (!t || IS_ERR(t)) {
 		ret = t ? PTR_ERR(t) : -ENOENT;
 		goto free;
@@ -1429,7 +1429,7 @@ struct compat_ipt_replace {
 
 static int
 compat_copy_entry_to_user(struct ipt_entry *e, void __user **dstptr,
-			  compat_uint_t *size, struct xt_counters *counters,
+			  unsigned int *size, struct xt_counters *counters,
 			  unsigned int *i)
 {
 	struct ipt_entry_target *t;
@@ -1476,7 +1476,7 @@ compat_find_calc_match(struct ipt_entry_match *m,
 		       const char *name,
 		       const struct ipt_ip *ip,
 		       unsigned int hookmask,
-		       int *size, int *i)
+		       int *size, unsigned int *i)
 {
 	struct xt_match *match;
 
@@ -1534,7 +1534,8 @@ check_compat_entry_size_and_hooks(struct compat_ipt_entry *e,
 	struct ipt_entry_target *t;
 	struct xt_target *target;
 	unsigned int entry_offset;
-	int ret, off, h, j;
+	unsigned int j;
+	int ret, off, h;
 
 	duprintf("check_compat_entry_size_and_hooks %p\n", e);
 	if ((unsigned long)e % __alignof__(struct compat_ipt_entry) != 0
@@ -1647,7 +1648,8 @@ static int
 compat_check_entry(struct ipt_entry *e, const char *name,
 				     unsigned int *i)
 {
-	int j, ret;
+	unsigned int j;
+	int ret;
 
 	j = 0;
 	ret = IPT_MATCH_ITERATE(e, check_match, name, &e->ip,
@@ -1789,7 +1791,7 @@ out_unlock:
 }
 
 static int
-compat_do_replace(void __user *user, unsigned int len)
+compat_do_replace(struct net *net, void __user *user, unsigned int len)
 {
 	int ret;
 	struct compat_ipt_replace tmp;
@@ -1826,7 +1828,7 @@ compat_do_replace(void __user *user, unsigned int len)
 
 	duprintf("compat_do_replace: Translated table\n");
 
-	ret = __do_replace(tmp.name, tmp.valid_hooks, newinfo,
+	ret = __do_replace(net, tmp.name, tmp.valid_hooks, newinfo,
 			   tmp.num_counters, compat_ptr(tmp.counters));
 	if (ret)
 		goto free_newinfo_untrans;
@@ -1850,11 +1852,11 @@ compat_do_ipt_set_ctl(struct sock *sk,	int cmd, void __user *user,
 
 	switch (cmd) {
 	case IPT_SO_SET_REPLACE:
-		ret = compat_do_replace(user, len);
+		ret = compat_do_replace(sk->sk_net, user, len);
 		break;
 
 	case IPT_SO_SET_ADD_COUNTERS:
-		ret = do_add_counters(user, len, 1);
+		ret = do_add_counters(sk->sk_net, user, len, 1);
 		break;
 
 	default:
@@ -1903,7 +1905,8 @@ compat_copy_entries_to_user(unsigned int total_size, struct xt_table *table,
 }
 
 static int
-compat_get_entries(struct compat_ipt_get_entries __user *uptr, int *len)
+compat_get_entries(struct net *net, struct compat_ipt_get_entries __user *uptr,
+		   int *len)
 {
 	int ret;
 	struct compat_ipt_get_entries get;
@@ -1924,7 +1927,7 @@ compat_get_entries(struct compat_ipt_get_entries __user *uptr, int *len)
 	}
 
 	xt_compat_lock(AF_INET);
-	t = xt_find_table_lock(AF_INET, get.name);
+	t = xt_find_table_lock(net, AF_INET, get.name);
 	if (t && !IS_ERR(t)) {
 		struct xt_table_info *private = t->private;
 		struct xt_table_info info;
@@ -1960,10 +1963,10 @@ compat_do_ipt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 
 	switch (cmd) {
 	case IPT_SO_GET_INFO:
-		ret = get_info(user, len, 1);
+		ret = get_info(sk->sk_net, user, len, 1);
 		break;
 	case IPT_SO_GET_ENTRIES:
-		ret = compat_get_entries(user, len);
+		ret = compat_get_entries(sk->sk_net, user, len);
 		break;
 	default:
 		ret = do_ipt_get_ctl(sk, cmd, user, len);
@@ -1982,11 +1985,11 @@ do_ipt_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 
 	switch (cmd) {
 	case IPT_SO_SET_REPLACE:
-		ret = do_replace(user, len);
+		ret = do_replace(sk->sk_net, user, len);
 		break;
 
 	case IPT_SO_SET_ADD_COUNTERS:
-		ret = do_add_counters(user, len, 0);
+		ret = do_add_counters(sk->sk_net, user, len, 0);
 		break;
 
 	default:
@@ -2007,11 +2010,11 @@ do_ipt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 
 	switch (cmd) {
 	case IPT_SO_GET_INFO:
-		ret = get_info(user, len, 0);
+		ret = get_info(sk->sk_net, user, len, 0);
 		break;
 
 	case IPT_SO_GET_ENTRIES:
-		ret = get_entries(user, len);
+		ret = get_entries(sk->sk_net, user, len);
 		break;
 
 	case IPT_SO_GET_REVISION_MATCH:
@@ -2048,17 +2051,21 @@ do_ipt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 	return ret;
 }
 
-int ipt_register_table(struct xt_table *table, const struct ipt_replace *repl)
+struct xt_table *ipt_register_table(struct net *net, struct xt_table *table,
+				    const struct ipt_replace *repl)
 {
 	int ret;
 	struct xt_table_info *newinfo;
 	struct xt_table_info bootstrap
 		= { 0, 0, 0, { 0 }, { 0 }, { } };
 	void *loc_cpu_entry;
+	struct xt_table *new_table;
 
 	newinfo = xt_alloc_table_info(repl->size);
-	if (!newinfo)
-		return -ENOMEM;
+	if (!newinfo) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	/* choose the copy on our node/cpu, but dont care about preemption */
 	loc_cpu_entry = newinfo->entries[raw_smp_processor_id()];
@@ -2069,30 +2076,36 @@ int ipt_register_table(struct xt_table *table, const struct ipt_replace *repl)
 			      repl->num_entries,
 			      repl->hook_entry,
 			      repl->underflow);
-	if (ret != 0) {
-		xt_free_table_info(newinfo);
-		return ret;
+	if (ret != 0)
+		goto out_free;
+
+	new_table = xt_register_table(net, table, &bootstrap, newinfo);
+	if (IS_ERR(new_table)) {
+		ret = PTR_ERR(new_table);
+		goto out_free;
 	}
 
-	ret = xt_register_table(table, &bootstrap, newinfo);
-	if (ret != 0) {
-		xt_free_table_info(newinfo);
-		return ret;
-	}
+	return new_table;
 
-	return 0;
+out_free:
+	xt_free_table_info(newinfo);
+out:
+	return ERR_PTR(ret);
 }
 
 void ipt_unregister_table(struct xt_table *table)
 {
 	struct xt_table_info *private;
 	void *loc_cpu_entry;
+	struct module *table_owner = table->me;
 
 	private = xt_unregister_table(table);
 
 	/* Decrease module usage counts and free resources */
 	loc_cpu_entry = private->entries[raw_smp_processor_id()];
 	IPT_ENTRY_ITERATE(loc_cpu_entry, private->size, cleanup_entry, NULL);
+	if (private->number > private->initial_entries)
+		module_put(table_owner);
 	xt_free_table_info(private);
 }
 
@@ -2200,11 +2213,26 @@ static struct xt_match icmp_matchstruct __read_mostly = {
 	.family		= AF_INET,
 };
 
+static int __net_init ip_tables_net_init(struct net *net)
+{
+	return xt_proto_init(net, AF_INET);
+}
+
+static void __net_exit ip_tables_net_exit(struct net *net)
+{
+	xt_proto_fini(net, AF_INET);
+}
+
+static struct pernet_operations ip_tables_net_ops = {
+	.init = ip_tables_net_init,
+	.exit = ip_tables_net_exit,
+};
+
 static int __init ip_tables_init(void)
 {
 	int ret;
 
-	ret = xt_proto_init(AF_INET);
+	ret = register_pernet_subsys(&ip_tables_net_ops);
 	if (ret < 0)
 		goto err1;
 
@@ -2234,7 +2262,7 @@ err4:
 err3:
 	xt_unregister_target(&ipt_standard_target);
 err2:
-	xt_proto_fini(AF_INET);
+	unregister_pernet_subsys(&ip_tables_net_ops);
 err1:
 	return ret;
 }
@@ -2247,7 +2275,7 @@ static void __exit ip_tables_fini(void)
 	xt_unregister_target(&ipt_error_target);
 	xt_unregister_target(&ipt_standard_target);
 
-	xt_proto_fini(AF_INET);
+	unregister_pernet_subsys(&ip_tables_net_ops);
 }
 
 EXPORT_SYMBOL(ipt_register_table);

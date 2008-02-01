@@ -107,6 +107,7 @@ static struct dst_ops ip6_dst_ops = {
 	.update_pmtu		=	ip6_rt_update_pmtu,
 	.local_out		=	ip6_local_out,
 	.entry_size		=	sizeof(struct rt6_info),
+	.entries		=	ATOMIC_INIT(0),
 };
 
 static void ip6_rt_blackhole_update_pmtu(struct dst_entry *dst, u32 mtu)
@@ -120,6 +121,7 @@ static struct dst_ops ip6_dst_blackhole_ops = {
 	.check			=	ip6_dst_check,
 	.update_pmtu		=	ip6_rt_blackhole_update_pmtu,
 	.entry_size		=	sizeof(struct rt6_info),
+	.entries		=	ATOMIC_INIT(0),
 };
 
 struct rt6_info ip6_null_entry = {
@@ -1907,7 +1909,7 @@ static int rt6_mtu_change_route(struct rt6_info *rt, void *p_arg)
 	 */
 	if (rt->rt6i_dev == arg->dev &&
 	    !dst_metric_locked(&rt->u.dst, RTAX_MTU) &&
-	    (dst_mtu(&rt->u.dst) > arg->mtu ||
+	    (dst_mtu(&rt->u.dst) >= arg->mtu ||
 	     (dst_mtu(&rt->u.dst) < arg->mtu &&
 	      dst_mtu(&rt->u.dst) == idev->cnf.mtu6))) {
 		rt->u.dst.metrics[RTAX_MTU-1] = arg->mtu;
@@ -1960,6 +1962,7 @@ static int rtm_to_fib6_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	cfg->fc_nlinfo.pid = NETLINK_CB(skb).pid;
 	cfg->fc_nlinfo.nlh = nlh;
+	cfg->fc_nlinfo.nl_net = skb->sk->sk_net;
 
 	if (tb[RTA_GATEWAY]) {
 		nla_memcpy(&cfg->fc_gateway, tb[RTA_GATEWAY], 16);

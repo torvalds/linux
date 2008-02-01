@@ -319,7 +319,7 @@ static void xfrm6_tunnel_destroy(struct xfrm_state *x)
 	xfrm6_tunnel_free_spi((xfrm_address_t *)&x->props.saddr);
 }
 
-static struct xfrm_type xfrm6_tunnel_type = {
+static const struct xfrm_type xfrm6_tunnel_type = {
 	.description	= "IP6IP6",
 	.owner          = THIS_MODULE,
 	.proto		= IPPROTO_IPV6,

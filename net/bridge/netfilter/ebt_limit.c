@@ -69,7 +69,7 @@ user2credits(u_int32_t user)
 static int ebt_limit_check(const char *tablename, unsigned int hookmask,
    const struct ebt_entry *e, void *data, unsigned int datalen)
 {
-	struct ebt_limit_info *info = (struct ebt_limit_info *)data;
+	struct ebt_limit_info *info = data;
 
 	if (datalen != EBT_ALIGN(sizeof(struct ebt_limit_info)))
 		return -EINVAL;
@@ -90,8 +90,7 @@ static int ebt_limit_check(const char *tablename, unsigned int hookmask,
 	return 0;
 }
 
-static struct ebt_match ebt_limit_reg =
-{
+static struct ebt_match ebt_limit_reg __read_mostly = {
 	.name		= EBT_LIMIT_MATCH,
 	.match		= ebt_limit_match,
 	.check		= ebt_limit_check,
@@ -110,4 +109,5 @@ static void __exit ebt_limit_fini(void)
 
 module_init(ebt_limit_init);
 module_exit(ebt_limit_fini);
+MODULE_DESCRIPTION("Ebtables: Rate-limit match");
 MODULE_LICENSE("GPL");

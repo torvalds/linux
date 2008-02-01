@@ -82,7 +82,7 @@ struct tc_u_common
 	u32			hgenerator;
 };
 
-static struct tcf_ext_map u32_ext_map = {
+static const struct tcf_ext_map u32_ext_map = {
 	.action = TCA_U32_ACT,
 	.police = TCA_U32_POLICE
 };

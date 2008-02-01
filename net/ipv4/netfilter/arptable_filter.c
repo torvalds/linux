@@ -20,7 +20,7 @@ static struct
 	struct arpt_replace repl;
 	struct arpt_standard entries[3];
 	struct arpt_error term;
-} initial_table __initdata = {
+} initial_table __net_initdata = {
 	.repl = {
 		.name = "filter",
 		.valid_hooks = FILTER_VALID_HOOKS,
@@ -61,7 +61,7 @@ static unsigned int arpt_hook(unsigned int hook,
 			      const struct net_device *out,
 			      int (*okfn)(struct sk_buff *))
 {
-	return arpt_do_table(skb, hook, in, out, &packet_filter);
+	return arpt_do_table(skb, hook, in, out, init_net.ipv4.arptable_filter);
 }
 
 static struct nf_hook_ops arpt_ops[] __read_mostly = {
@@ -85,12 +85,31 @@ static struct nf_hook_ops arpt_ops[] __read_mostly = {
 	},
 };
 
+static int __net_init arptable_filter_net_init(struct net *net)
+{
+	/* Register table */
+	net->ipv4.arptable_filter =
+		arpt_register_table(net, &packet_filter, &initial_table.repl);
+	if (IS_ERR(net->ipv4.arptable_filter))
+		return PTR_ERR(net->ipv4.arptable_filter);
+	return 0;
+}
+
+static void __net_exit arptable_filter_net_exit(struct net *net)
+{
+	arpt_unregister_table(net->ipv4.arptable_filter);
+}
+
+static struct pernet_operations arptable_filter_net_ops = {
+	.init = arptable_filter_net_init,
+	.exit = arptable_filter_net_exit,
+};
+
 static int __init arptable_filter_init(void)
 {
 	int ret;
 
-	/* Register table */
-	ret = arpt_register_table(&packet_filter, &initial_table.repl);
+	ret = register_pernet_subsys(&arptable_filter_net_ops);
 	if (ret < 0)
 		return ret;
 
@@ -100,14 +119,14 @@ static int __init arptable_filter_init(void)
 	return ret;
 
 cleanup_table:
-	arpt_unregister_table(&packet_filter);
+	unregister_pernet_subsys(&arptable_filter_net_ops);
 	return ret;
 }
 
 static void __exit arptable_filter_fini(void)
 {
 	nf_unregister_hooks(arpt_ops, ARRAY_SIZE(arpt_ops));
-	arpt_unregister_table(&packet_filter);
+	unregister_pernet_subsys(&arptable_filter_net_ops);
 }
 
 module_init(arptable_filter_init);

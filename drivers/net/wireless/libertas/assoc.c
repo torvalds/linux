@@ -12,8 +12,10 @@
 #include "cmd.h"
 
 
-static const u8 bssid_any[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
-static const u8 bssid_off[ETH_ALEN] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+static const u8 bssid_any[ETH_ALEN]  __attribute__ ((aligned (2))) =
+	{ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+static const u8 bssid_off[ETH_ALEN]  __attribute__ ((aligned (2))) =
+	{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
 
 static int assoc_helper_essid(struct lbs_private *priv,

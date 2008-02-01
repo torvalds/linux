@@ -27,7 +27,8 @@
 static int ipv4_pkt_to_tuple(const struct sk_buff *skb, unsigned int nhoff,
 			     struct nf_conntrack_tuple *tuple)
 {
-	__be32 _addrs[2], *ap;
+	const __be32 *ap;
+	__be32 _addrs[2];
 	ap = skb_header_pointer(skb, nhoff + offsetof(struct iphdr, saddr),
 				sizeof(u_int32_t) * 2, _addrs);
 	if (ap == NULL)
@@ -76,7 +77,8 @@ static int nf_ct_ipv4_gather_frags(struct sk_buff *skb, u_int32_t user)
 static int ipv4_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,
 			    unsigned int *dataoff, u_int8_t *protonum)
 {
-	struct iphdr _iph, *iph;
+	const struct iphdr *iph;
+	struct iphdr _iph;
 
 	iph = skb_header_pointer(skb, nhoff, sizeof(_iph), &_iph);
 	if (iph == NULL)
@@ -111,8 +113,8 @@ static unsigned int ipv4_conntrack_help(unsigned int hooknum,
 {
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
-	struct nf_conn_help *help;
-	struct nf_conntrack_helper *helper;
+	const struct nf_conn_help *help;
+	const struct nf_conntrack_helper *helper;
 
 	/* This is where we call the helper: as the packet goes out. */
 	ct = nf_ct_get(skb, &ctinfo);
@@ -299,8 +301,8 @@ static ctl_table ip_ct_sysctl_table[] = {
 static int
 getorigdst(struct sock *sk, int optval, void __user *user, int *len)
 {
-	struct inet_sock *inet = inet_sk(sk);
-	struct nf_conntrack_tuple_hash *h;
+	const struct inet_sock *inet = inet_sk(sk);
+	const struct nf_conntrack_tuple_hash *h;
 	struct nf_conntrack_tuple tuple;
 
 	NF_CT_TUPLE_U_BLANK(&tuple);

@@ -30,7 +30,8 @@ static int udp_pkt_to_tuple(const struct sk_buff *skb,
 			     unsigned int dataoff,
 			     struct nf_conntrack_tuple *tuple)
 {
-	struct udphdr _hdr, *hp;
+	const struct udphdr *hp;
+	struct udphdr _hdr;
 
 	/* Actually only need first 8 bytes. */
 	hp = skb_header_pointer(skb, dataoff, sizeof(_hdr), &_hdr);
@@ -61,7 +62,7 @@ static int udp_print_tuple(struct seq_file *s,
 }
 
 /* Returns verdict for packet, and may modify conntracktype */
-static int udp_packet(struct nf_conn *conntrack,
+static int udp_packet(struct nf_conn *ct,
 		      const struct sk_buff *skb,
 		      unsigned int dataoff,
 		      enum ip_conntrack_info ctinfo,
@@ -70,20 +71,19 @@ static int udp_packet(struct nf_conn *conntrack,
 {
 	/* If we've seen traffic both ways, this is some kind of UDP
 	   stream.  Extend timeout. */
-	if (test_bit(IPS_SEEN_REPLY_BIT, &conntrack->status)) {
-		nf_ct_refresh_acct(conntrack, ctinfo, skb,
-				   nf_ct_udp_timeout_stream);
+	if (test_bit(IPS_SEEN_REPLY_BIT, &ct->status)) {
+		nf_ct_refresh_acct(ct, ctinfo, skb, nf_ct_udp_timeout_stream);
 		/* Also, more likely to be important, and not a probe */
-		if (!test_and_set_bit(IPS_ASSURED_BIT, &conntrack->status))
+		if (!test_and_set_bit(IPS_ASSURED_BIT, &ct->status))
 			nf_conntrack_event_cache(IPCT_STATUS, skb);
 	} else
-		nf_ct_refresh_acct(conntrack, ctinfo, skb, nf_ct_udp_timeout);
+		nf_ct_refresh_acct(ct, ctinfo, skb, nf_ct_udp_timeout);
 
 	return NF_ACCEPT;
 }
 
 /* Called when a new connection for this protocol found. */
-static int udp_new(struct nf_conn *conntrack, const struct sk_buff *skb,
+static int udp_new(struct nf_conn *ct, const struct sk_buff *skb,
 		   unsigned int dataoff)
 {
 	return 1;
@@ -95,7 +95,8 @@ static int udp_error(struct sk_buff *skb, unsigned int dataoff,
 		     unsigned int hooknum)
 {
 	unsigned int udplen = skb->len - dataoff;
-	struct udphdr _hdr, *hdr;
+	const struct udphdr *hdr;
+	struct udphdr _hdr;
 
 	/* Header is too small? */
 	hdr = skb_header_pointer(skb, dataoff, sizeof(_hdr), &_hdr);

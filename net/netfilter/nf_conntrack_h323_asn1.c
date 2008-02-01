@@ -87,7 +87,7 @@ typedef struct field_t {
 	unsigned char ub;
 	unsigned short attr;
 	unsigned short offset;
-	struct field_t *fields;
+	const struct field_t *fields;
 } field_t;
 
 /* Bit Stream */
@@ -96,7 +96,7 @@ typedef struct {
 	unsigned char *beg;
 	unsigned char *end;
 	unsigned char *cur;
-	unsigned bit;
+	unsigned int bit;
 } bitstr_t;
 
 /* Tool Functions */
@@ -104,29 +104,29 @@ typedef struct {
 #define INC_BITS(bs,b) if(((bs)->bit+=(b))>7){(bs)->cur+=(bs)->bit>>3;(bs)->bit&=7;}
 #define BYTE_ALIGN(bs) if((bs)->bit){(bs)->cur++;(bs)->bit=0;}
 #define CHECK_BOUND(bs,n) if((bs)->cur+(n)>(bs)->end)return(H323_ERROR_BOUND)
-static unsigned get_len(bitstr_t * bs);
-static unsigned get_bit(bitstr_t * bs);
-static unsigned get_bits(bitstr_t * bs, unsigned b);
-static unsigned get_bitmap(bitstr_t * bs, unsigned b);
-static unsigned get_uint(bitstr_t * bs, int b);
+static unsigned int get_len(bitstr_t *bs);
+static unsigned int get_bit(bitstr_t *bs);
+static unsigned int get_bits(bitstr_t *bs, unsigned int b);
+static unsigned int get_bitmap(bitstr_t *bs, unsigned int b);
+static unsigned int get_uint(bitstr_t *bs, int b);
 
 /* Decoder Functions */
-static int decode_nul(bitstr_t * bs, field_t * f, char *base, int level);
-static int decode_bool(bitstr_t * bs, field_t * f, char *base, int level);
-static int decode_oid(bitstr_t * bs, field_t * f, char *base, int level);
-static int decode_int(bitstr_t * bs, field_t * f, char *base, int level);
-static int decode_enum(bitstr_t * bs, field_t * f, char *base, int level);
-static int decode_bitstr(bitstr_t * bs, field_t * f, char *base, int level);
-static int decode_numstr(bitstr_t * bs, field_t * f, char *base, int level);
-static int decode_octstr(bitstr_t * bs, field_t * f, char *base, int level);
-static int decode_bmpstr(bitstr_t * bs, field_t * f, char *base, int level);
-static int decode_seq(bitstr_t * bs, field_t * f, char *base, int level);
-static int decode_seqof(bitstr_t * bs, field_t * f, char *base, int level);
-static int decode_choice(bitstr_t * bs, field_t * f, char *base, int level);
+static int decode_nul(bitstr_t *bs, const struct field_t *f, char *base, int level);
+static int decode_bool(bitstr_t *bs, const struct field_t *f, char *base, int level);
+static int decode_oid(bitstr_t *bs, const struct field_t *f, char *base, int level);
+static int decode_int(bitstr_t *bs, const struct field_t *f, char *base, int level);
+static int decode_enum(bitstr_t *bs, const struct field_t *f, char *base, int level);
+static int decode_bitstr(bitstr_t *bs, const struct field_t *f, char *base, int level);
+static int decode_numstr(bitstr_t *bs, const struct field_t *f, char *base, int level);
+static int decode_octstr(bitstr_t *bs, const struct field_t *f, char *base, int level);
+static int decode_bmpstr(bitstr_t *bs, const struct field_t *f, char *base, int level);
+static int decode_seq(bitstr_t *bs, const struct field_t *f, char *base, int level);
+static int decode_seqof(bitstr_t *bs, const struct field_t *f, char *base, int level);
+static int decode_choice(bitstr_t *bs, const struct field_t *f, char *base, int level);
 
 /* Decoder Functions Vector */
-typedef int (*decoder_t) (bitstr_t *, field_t *, char *, int);
-static decoder_t Decoders[] = {
+typedef int (*decoder_t)(bitstr_t *, const struct field_t *, char *, int);
+static const decoder_t Decoders[] = {
 	decode_nul,
 	decode_bool,
 	decode_oid,
@@ -150,9 +150,9 @@ static decoder_t Decoders[] = {
  * Functions
  ****************************************************************************/
 /* Assume bs is aligned && v < 16384 */
-unsigned get_len(bitstr_t * bs)
+static unsigned int get_len(bitstr_t *bs)
 {
-	unsigned v;
+	unsigned int v;
 
 	v = *bs->cur++;
 
@@ -166,9 +166,9 @@ unsigned get_len(bitstr_t * bs)
 }
 
 /****************************************************************************/
-unsigned get_bit(bitstr_t * bs)
+static unsigned int get_bit(bitstr_t *bs)
 {
-	unsigned b = (*bs->cur) & (0x80 >> bs->bit);
+	unsigned int b = (*bs->cur) & (0x80 >> bs->bit);
 
 	INC_BIT(bs);
 
@@ -177,9 +177,9 @@ unsigned get_bit(bitstr_t * bs)
 
 /****************************************************************************/
 /* Assume b <= 8 */
-unsigned get_bits(bitstr_t * bs, unsigned b)
+static unsigned int get_bits(bitstr_t *bs, unsigned int b)
 {
-	unsigned v, l;
+	unsigned int v, l;
 
 	v = (*bs->cur) & (0xffU >> bs->bit);
 	l = b + bs->bit;
@@ -203,9 +203,9 @@ unsigned get_bits(bitstr_t * bs, unsigned b)
 
 /****************************************************************************/
 /* Assume b <= 32 */
-unsigned get_bitmap(bitstr_t * bs, unsigned b)
+static unsigned int get_bitmap(bitstr_t *bs, unsigned int b)
 {
-	unsigned v, l, shift, bytes;
+	unsigned int v, l, shift, bytes;
 
 	if (!b)
 		return 0;
@@ -213,18 +213,18 @@ unsigned get_bitmap(bitstr_t * bs, unsigned b)
 	l = bs->bit + b;
 
 	if (l < 8) {
-		v = (unsigned) (*bs->cur) << (bs->bit + 24);
+		v = (unsigned int)(*bs->cur) << (bs->bit + 24);
 		bs->bit = l;
 	} else if (l == 8) {
-		v = (unsigned) (*bs->cur++) << (bs->bit + 24);
+		v = (unsigned int)(*bs->cur++) << (bs->bit + 24);
 		bs->bit = 0;
 	} else {
 		for (bytes = l >> 3, shift = 24, v = 0; bytes;
 		     bytes--, shift -= 8)
-			v |= (unsigned) (*bs->cur++) << shift;
+			v |= (unsigned int)(*bs->cur++) << shift;
 
 		if (l < 32) {
-			v |= (unsigned) (*bs->cur) << shift;
+			v |= (unsigned int)(*bs->cur) << shift;
 			v <<= bs->bit;
 		} else if (l > 32) {
 			v <<= bs->bit;
@@ -242,9 +242,9 @@ unsigned get_bitmap(bitstr_t * bs, unsigned b)
 /****************************************************************************
  * Assume bs is aligned and sizeof(unsigned int) == 4
  ****************************************************************************/
-unsigned get_uint(bitstr_t * bs, int b)
+static unsigned int get_uint(bitstr_t *bs, int b)
 {
-	unsigned v = 0;
+	unsigned int v = 0;
 
 	switch (b) {
 	case 4:
@@ -264,7 +264,8 @@ unsigned get_uint(bitstr_t * bs, int b)
 }
 
 /****************************************************************************/
-int decode_nul(bitstr_t * bs, field_t * f, char *base, int level)
+static int decode_nul(bitstr_t *bs, const struct field_t *f,
+                      char *base, int level)
 {
 	PRINT("%*.s%s\n", level * TAB_SIZE, " ", f->name);
 
@@ -272,7 +273,8 @@ int decode_nul(bitstr_t * bs, field_t * f, char *base, int level)
 }
 
 /****************************************************************************/
-int decode_bool(bitstr_t * bs, field_t * f, char *base, int level)
+static int decode_bool(bitstr_t *bs, const struct field_t *f,
+                       char *base, int level)
 {
 	PRINT("%*.s%s\n", level * TAB_SIZE, " ", f->name);
 
@@ -283,7 +285,8 @@ int decode_bool(bitstr_t * bs, field_t * f, char *base, int level)
 }
 
 /****************************************************************************/
-int decode_oid(bitstr_t * bs, field_t * f, char *base, int level)
+static int decode_oid(bitstr_t *bs, const struct field_t *f,
+                      char *base, int level)
 {
 	int len;
 
@@ -299,9 +302,10 @@ int decode_oid(bitstr_t * bs, field_t * f, char *base, int level)
 }
 
 /****************************************************************************/
-int decode_int(bitstr_t * bs, field_t * f, char *base, int level)
+static int decode_int(bitstr_t *bs, const struct field_t *f,
+                      char *base, int level)
 {
-	unsigned len;
+	unsigned int len;
 
 	PRINT("%*.s%s", level * TAB_SIZE, " ", f->name);
 
@@ -318,9 +322,9 @@ int decode_int(bitstr_t * bs, field_t * f, char *base, int level)
 		len = get_bits(bs, 2) + 1;
 		BYTE_ALIGN(bs);
 		if (base && (f->attr & DECODE)) {	/* timeToLive */
-			unsigned v = get_uint(bs, len) + f->lb;
+			unsigned int v = get_uint(bs, len) + f->lb;
 			PRINT(" = %u", v);
-			*((unsigned *) (base + f->offset)) = v;
+			*((unsigned int *)(base + f->offset)) = v;
 		}
 		bs->cur += len;
 		break;
@@ -342,7 +346,8 @@ int decode_int(bitstr_t * bs, field_t * f, char *base, int level)
 }
 
 /****************************************************************************/
-int decode_enum(bitstr_t * bs, field_t * f, char *base, int level)
+static int decode_enum(bitstr_t *bs, const struct field_t *f,
+                       char *base, int level)
 {
 	PRINT("%*.s%s\n", level * TAB_SIZE, " ", f->name);
 
@@ -357,9 +362,10 @@ int decode_enum(bitstr_t * bs, field_t * f, char *base, int level)
 }
 
 /****************************************************************************/
-int decode_bitstr(bitstr_t * bs, field_t * f, char *base, int level)
+static int decode_bitstr(bitstr_t *bs, const struct field_t *f,
+                         char *base, int level)
 {
-	unsigned len;
+	unsigned int len;
 
 	PRINT("%*.s%s\n", level * TAB_SIZE, " ", f->name);
 
@@ -390,9 +396,10 @@ int decode_bitstr(bitstr_t * bs, field_t * f, char *base, int level)
 }
 
 /****************************************************************************/
-int decode_numstr(bitstr_t * bs, field_t * f, char *base, int level)
+static int decode_numstr(bitstr_t *bs, const struct field_t *f,
+                         char *base, int level)
 {
-	unsigned len;
+	unsigned int len;
 
 	PRINT("%*.s%s\n", level * TAB_SIZE, " ", f->name);
 
@@ -407,9 +414,10 @@ int decode_numstr(bitstr_t * bs, field_t * f, char *base, int level)
 }
 
 /****************************************************************************/
-int decode_octstr(bitstr_t * bs, field_t * f, char *base, int level)
+static int decode_octstr(bitstr_t *bs, const struct field_t *f,
+                         char *base, int level)
 {
-	unsigned len;
+	unsigned int len;
 
 	PRINT("%*.s%s", level * TAB_SIZE, " ", f->name);
 
@@ -424,7 +432,7 @@ int decode_octstr(bitstr_t * bs, field_t * f, char *base, int level)
 					     bs->cur[0], bs->cur[1],
 					     bs->cur[2], bs->cur[3],
 					     bs->cur[4] * 256 + bs->cur[5]));
-				*((unsigned *) (base + f->offset)) =
+				*((unsigned int *)(base + f->offset)) =
 				    bs->cur - bs->buf;
 			}
 		}
@@ -455,9 +463,10 @@ int decode_octstr(bitstr_t * bs, field_t * f, char *base, int level)
 }
 
 /****************************************************************************/
-int decode_bmpstr(bitstr_t * bs, field_t * f, char *base, int level)
+static int decode_bmpstr(bitstr_t *bs, const struct field_t *f,
+                         char *base, int level)
 {
-	unsigned len;
+	unsigned int len;
 
 	PRINT("%*.s%s\n", level * TAB_SIZE, " ", f->name);
 
@@ -480,11 +489,12 @@ int decode_bmpstr(bitstr_t * bs, field_t * f, char *base, int level)
 }
 
 /****************************************************************************/
-int decode_seq(bitstr_t * bs, field_t * f, char *base, int level)
+static int decode_seq(bitstr_t *bs, const struct field_t *f,
+                      char *base, int level)
 {
-	unsigned ext, bmp, i, opt, len = 0, bmp2, bmp2_len;
+	unsigned int ext, bmp, i, opt, len = 0, bmp2, bmp2_len;
 	int err;
-	field_t *son;
+	const struct field_t *son;
 	unsigned char *beg = NULL;
 
 	PRINT("%*.s%s\n", level * TAB_SIZE, " ", f->name);
@@ -498,7 +508,7 @@ int decode_seq(bitstr_t * bs, field_t * f, char *base, int level)
 	/* Get fields bitmap */
 	bmp = get_bitmap(bs, f->sz);
 	if (base)
-		*(unsigned *) base = bmp;
+		*(unsigned int *)base = bmp;
 
 	/* Decode the root components */
 	for (i = opt = 0, son = f->fields; i < f->lb; i++, son++) {
@@ -550,7 +560,7 @@ int decode_seq(bitstr_t * bs, field_t * f, char *base, int level)
 	bmp2 = get_bitmap(bs, bmp2_len);
 	bmp |= bmp2 >> f->sz;
 	if (base)
-		*(unsigned *) base = bmp;
+		*(unsigned int *)base = bmp;
 	BYTE_ALIGN(bs);
 
 	/* Decode the extension components */
@@ -596,11 +606,12 @@ int decode_seq(bitstr_t * bs, field_t * f, char *base, int level)
 }
 
 /****************************************************************************/
-int decode_seqof(bitstr_t * bs, field_t * f, char *base, int level)
+static int decode_seqof(bitstr_t *bs, const struct field_t *f,
+                        char *base, int level)
 {
-	unsigned count, effective_count = 0, i, len = 0;
+	unsigned int count, effective_count = 0, i, len = 0;
 	int err;
-	field_t *son;
+	const struct field_t *son;
 	unsigned char *beg = NULL;
 
 	PRINT("%*.s%s\n", level * TAB_SIZE, " ", f->name);
@@ -636,8 +647,8 @@ int decode_seqof(bitstr_t * bs, field_t * f, char *base, int level)
 	/* Write Count */
 	if (base) {
 		effective_count = count > f->ub ? f->ub : count;
-		*(unsigned *) base = effective_count;
-		base += sizeof(unsigned);
+		*(unsigned int *)base = effective_count;
+		base += sizeof(unsigned int);
 	}
 
 	/* Decode nested field */
@@ -685,11 +696,12 @@ int decode_seqof(bitstr_t * bs, field_t * f, char *base, int level)
 
 
 /****************************************************************************/
-int decode_choice(bitstr_t * bs, field_t * f, char *base, int level)
+static int decode_choice(bitstr_t *bs, const struct field_t *f,
+                         char *base, int level)
 {
-	unsigned type, ext, len = 0;
+	unsigned int type, ext, len = 0;
 	int err;
-	field_t *son;
+	const struct field_t *son;
 	unsigned char *beg = NULL;
 
 	PRINT("%*.s%s\n", level * TAB_SIZE, " ", f->name);
@@ -710,7 +722,7 @@ int decode_choice(bitstr_t * bs, field_t * f, char *base, int level)
 
 	/* Write Type */
 	if (base)
-		*(unsigned *) base = type;
+		*(unsigned int *)base = type;
 
 	/* Check Range */
 	if (type >= f->ub) {	/* Newer version? */
@@ -754,9 +766,9 @@ int decode_choice(bitstr_t * bs, field_t * f, char *base, int level)
 }
 
 /****************************************************************************/
-int DecodeRasMessage(unsigned char *buf, size_t sz, RasMessage * ras)
+int DecodeRasMessage(unsigned char *buf, size_t sz, RasMessage *ras)
 {
-	static field_t ras_message = {
+	static const struct field_t ras_message = {
 		FNAME("RasMessage") CHOICE, 5, 24, 32, DECODE | EXT,
 		0, _RasMessage
 	};
@@ -771,9 +783,9 @@ int DecodeRasMessage(unsigned char *buf, size_t sz, RasMessage * ras)
 
 /****************************************************************************/
 static int DecodeH323_UserInformation(unsigned char *buf, unsigned char *beg,
-				      size_t sz, H323_UserInformation * uuie)
+				      size_t sz, H323_UserInformation *uuie)
 {
-	static field_t h323_userinformation = {
+	static const struct field_t h323_userinformation = {
 		FNAME("H323-UserInformation") SEQ, 1, 2, 2, DECODE | EXT,
 		0, _H323_UserInformation
 	};
@@ -792,7 +804,7 @@ int DecodeMultimediaSystemControlMessage(unsigned char *buf, size_t sz,
 					 MultimediaSystemControlMessage *
 					 mscm)
 {
-	static field_t multimediasystemcontrolmessage = {
+	static const struct field_t multimediasystemcontrolmessage = {
 		FNAME("MultimediaSystemControlMessage") CHOICE, 2, 4, 4,
 		DECODE | EXT, 0, _MultimediaSystemControlMessage
 	};
@@ -807,7 +819,7 @@ int DecodeMultimediaSystemControlMessage(unsigned char *buf, size_t sz,
 }
 
 /****************************************************************************/
-int DecodeQ931(unsigned char *buf, size_t sz, Q931 * q931)
+int DecodeQ931(unsigned char *buf, size_t sz, Q931 *q931)
 {
 	unsigned char *p = buf;
 	int len;

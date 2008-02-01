@@ -24,7 +24,7 @@ static DEFINE_SPINLOCK(ebt_log_lock);
 static int ebt_log_check(const char *tablename, unsigned int hookmask,
    const struct ebt_entry *e, void *data, unsigned int datalen)
 {
-	struct ebt_log_info *info = (struct ebt_log_info *)data;
+	struct ebt_log_info *info = data;
 
 	if (datalen != EBT_ALIGN(sizeof(struct ebt_log_info)))
 		return -EINVAL;
@@ -50,7 +50,7 @@ struct arppayload
 	unsigned char ip_dst[4];
 };
 
-static void print_MAC(unsigned char *p)
+static void print_MAC(const unsigned char *p)
 {
 	int i;
 
@@ -84,7 +84,8 @@ ebt_log_packet(unsigned int pf, unsigned int hooknum,
 
 	if ((bitmask & EBT_LOG_IP) && eth_hdr(skb)->h_proto ==
 	   htons(ETH_P_IP)){
-		struct iphdr _iph, *ih;
+		const struct iphdr *ih;
+		struct iphdr _iph;
 
 		ih = skb_header_pointer(skb, 0, sizeof(_iph), &_iph);
 		if (ih == NULL) {
@@ -99,7 +100,8 @@ ebt_log_packet(unsigned int pf, unsigned int hooknum,
 		    ih->protocol == IPPROTO_UDPLITE ||
 		    ih->protocol == IPPROTO_SCTP ||
 		    ih->protocol == IPPROTO_DCCP) {
-			struct tcpudphdr _ports, *pptr;
+			const struct tcpudphdr *pptr;
+			struct tcpudphdr _ports;
 
 			pptr = skb_header_pointer(skb, ih->ihl*4,
 						  sizeof(_ports), &_ports);
@@ -116,7 +118,8 @@ ebt_log_packet(unsigned int pf, unsigned int hooknum,
 	if ((bitmask & EBT_LOG_ARP) &&
 	    ((eth_hdr(skb)->h_proto == htons(ETH_P_ARP)) ||
 	     (eth_hdr(skb)->h_proto == htons(ETH_P_RARP)))) {
-		struct arphdr _arph, *ah;
+		const struct arphdr *ah;
+		struct arphdr _arph;
 
 		ah = skb_header_pointer(skb, 0, sizeof(_arph), &_arph);
 		if (ah == NULL) {
@@ -132,7 +135,8 @@ ebt_log_packet(unsigned int pf, unsigned int hooknum,
 		if (ah->ar_hrd == htons(1) &&
 		    ah->ar_hln == ETH_ALEN &&
 		    ah->ar_pln == sizeof(__be32)) {
-			struct arppayload _arpp, *ap;
+			const struct arppayload *ap;
+			struct arppayload _arpp;
 
 			ap = skb_header_pointer(skb, sizeof(_arph),
 						sizeof(_arpp), &_arpp);
@@ -160,7 +164,7 @@ static void ebt_log(const struct sk_buff *skb, unsigned int hooknr,
    const struct net_device *in, const struct net_device *out,
    const void *data, unsigned int datalen)
 {
-	struct ebt_log_info *info = (struct ebt_log_info *)data;
+	const struct ebt_log_info *info = data;
 	struct nf_loginfo li;
 
 	li.type = NF_LOG_TYPE_LOG;
@@ -208,4 +212,5 @@ static void __exit ebt_log_fini(void)
 
 module_init(ebt_log_init);
 module_exit(ebt_log_fini);
+MODULE_DESCRIPTION("Ebtables: Packet logging to syslog");
 MODULE_LICENSE("GPL");

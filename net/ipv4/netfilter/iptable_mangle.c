@@ -33,7 +33,7 @@ static struct
 	struct ipt_replace repl;
 	struct ipt_standard entries[5];
 	struct ipt_error term;
-} initial_table __initdata = {
+} initial_table __net_initdata = {
 	.repl = {
 		.name = "mangle",
 		.valid_hooks = MANGLE_VALID_HOOKS,
@@ -80,7 +80,7 @@ ipt_route_hook(unsigned int hook,
 	 const struct net_device *out,
 	 int (*okfn)(struct sk_buff *))
 {
-	return ipt_do_table(skb, hook, in, out, &packet_mangler);
+	return ipt_do_table(skb, hook, in, out, init_net.ipv4.iptable_mangle);
 }
 
 static unsigned int
@@ -112,7 +112,7 @@ ipt_local_hook(unsigned int hook,
 	daddr = iph->daddr;
 	tos = iph->tos;
 
-	ret = ipt_do_table(skb, hook, in, out, &packet_mangler);
+	ret = ipt_do_table(skb, hook, in, out, init_net.ipv4.iptable_mangle);
 	/* Reroute for ANY change. */
 	if (ret != NF_DROP && ret != NF_STOLEN && ret != NF_QUEUE) {
 		iph = ip_hdr(skb);
@@ -166,12 +166,31 @@ static struct nf_hook_ops ipt_ops[] __read_mostly = {
 	},
 };
 
+static int __net_init iptable_mangle_net_init(struct net *net)
+{
+	/* Register table */
+	net->ipv4.iptable_mangle =
+		ipt_register_table(net, &packet_mangler, &initial_table.repl);
+	if (IS_ERR(net->ipv4.iptable_mangle))
+		return PTR_ERR(net->ipv4.iptable_mangle);
+	return 0;
+}
+
+static void __net_exit iptable_mangle_net_exit(struct net *net)
+{
+	ipt_unregister_table(net->ipv4.iptable_mangle);
+}
+
+static struct pernet_operations iptable_mangle_net_ops = {
+	.init = iptable_mangle_net_init,
+	.exit = iptable_mangle_net_exit,
+};
+
 static int __init iptable_mangle_init(void)
 {
 	int ret;
 
-	/* Register table */
-	ret = ipt_register_table(&packet_mangler, &initial_table.repl);
+	ret = register_pernet_subsys(&iptable_mangle_net_ops);
 	if (ret < 0)
 		return ret;
 
@@ -183,14 +202,14 @@ static int __init iptable_mangle_init(void)
 	return ret;
 
  cleanup_table:
-	ipt_unregister_table(&packet_mangler);
+	unregister_pernet_subsys(&iptable_mangle_net_ops);
 	return ret;
 }
 
 static void __exit iptable_mangle_fini(void)
 {
 	nf_unregister_hooks(ipt_ops, ARRAY_SIZE(ipt_ops));
-	ipt_unregister_table(&packet_mangler);
+	unregister_pernet_subsys(&iptable_mangle_net_ops);
 }
 
 module_init(iptable_mangle_init);

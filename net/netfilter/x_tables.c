@@ -44,7 +44,6 @@ struct xt_af {
 	struct mutex mutex;
 	struct list_head match;
 	struct list_head target;
-	struct list_head tables;
 #ifdef CONFIG_COMPAT
 	struct mutex compat_mutex;
 	struct compat_delta *compat_offsets;
@@ -58,12 +57,6 @@ static struct xt_af *xt;
 #else
 #define duprintf(format, args...)
 #endif
-
-enum {
-	TABLE,
-	TARGET,
-	MATCH,
-};
 
 static const char *xt_prefix[NPROTO] = {
 	[AF_INET]	= "ip",
@@ -400,7 +393,7 @@ int xt_compat_match_offset(struct xt_match *match)
 EXPORT_SYMBOL_GPL(xt_compat_match_offset);
 
 int xt_compat_match_from_user(struct xt_entry_match *m, void **dstptr,
-			      int *size)
+			      unsigned int *size)
 {
 	struct xt_match *match = m->u.kernel.match;
 	struct compat_xt_entry_match *cm = (struct compat_xt_entry_match *)m;
@@ -427,7 +420,7 @@ int xt_compat_match_from_user(struct xt_entry_match *m, void **dstptr,
 EXPORT_SYMBOL_GPL(xt_compat_match_from_user);
 
 int xt_compat_match_to_user(struct xt_entry_match *m, void __user **dstptr,
-			    int *size)
+			    unsigned int *size)
 {
 	struct xt_match *match = m->u.kernel.match;
 	struct compat_xt_entry_match __user *cm = *dstptr;
@@ -494,7 +487,7 @@ int xt_compat_target_offset(struct xt_target *target)
 EXPORT_SYMBOL_GPL(xt_compat_target_offset);
 
 void xt_compat_target_from_user(struct xt_entry_target *t, void **dstptr,
-				int *size)
+				unsigned int *size)
 {
 	struct xt_target *target = t->u.kernel.target;
 	struct compat_xt_entry_target *ct = (struct compat_xt_entry_target *)t;
@@ -520,7 +513,7 @@ void xt_compat_target_from_user(struct xt_entry_target *t, void **dstptr,
 EXPORT_SYMBOL_GPL(xt_compat_target_from_user);
 
 int xt_compat_target_to_user(struct xt_entry_target *t, void __user **dstptr,
-			     int *size)
+			     unsigned int *size)
 {
 	struct xt_target *target = t->u.kernel.target;
 	struct compat_xt_entry_target __user *ct = *dstptr;
@@ -597,14 +590,14 @@ void xt_free_table_info(struct xt_table_info *info)
 EXPORT_SYMBOL(xt_free_table_info);
 
 /* Find table by name, grabs mutex & ref.  Returns ERR_PTR() on error. */
-struct xt_table *xt_find_table_lock(int af, const char *name)
+struct xt_table *xt_find_table_lock(struct net *net, int af, const char *name)
 {
 	struct xt_table *t;
 
 	if (mutex_lock_interruptible(&xt[af].mutex) != 0)
 		return ERR_PTR(-EINTR);
 
-	list_for_each_entry(t, &xt[af].tables, list)
+	list_for_each_entry(t, &net->xt.tables[af], list)
 		if (strcmp(t->name, name) == 0 && try_module_get(t->me))
 			return t;
 	mutex_unlock(&xt[af].mutex);
@@ -660,20 +653,27 @@ xt_replace_table(struct xt_table *table,
 }
 EXPORT_SYMBOL_GPL(xt_replace_table);
 
-int xt_register_table(struct xt_table *table,
-		      struct xt_table_info *bootstrap,
-		      struct xt_table_info *newinfo)
+struct xt_table *xt_register_table(struct net *net, struct xt_table *table,
+				   struct xt_table_info *bootstrap,
+				   struct xt_table_info *newinfo)
 {
 	int ret;
 	struct xt_table_info *private;
 	struct xt_table *t;
 
+	/* Don't add one object to multiple lists. */
+	table = kmemdup(table, sizeof(struct xt_table), GFP_KERNEL);
+	if (!table) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
 	ret = mutex_lock_interruptible(&xt[table->af].mutex);
 	if (ret != 0)
-		return ret;
+		goto out_free;
 
 	/* Don't autoload: we'd eat our tail... */
-	list_for_each_entry(t, &xt[table->af].tables, list) {
+	list_for_each_entry(t, &net->xt.tables[table->af], list) {
 		if (strcmp(t->name, table->name) == 0) {
 			ret = -EEXIST;
 			goto unlock;
@@ -692,12 +692,16 @@ int xt_register_table(struct xt_table *table,
 	/* save number of initial entries */
 	private->initial_entries = private->number;
 
-	list_add(&table->list, &xt[table->af].tables);
+	list_add(&table->list, &net->xt.tables[table->af]);
+	mutex_unlock(&xt[table->af].mutex);
+	return table;
 
-	ret = 0;
  unlock:
 	mutex_unlock(&xt[table->af].mutex);
-	return ret;
+out_free:
+	kfree(table);
+out:
+	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(xt_register_table);
 
@@ -709,130 +713,204 @@ void *xt_unregister_table(struct xt_table *table)
 	private = table->private;
 	list_del(&table->list);
 	mutex_unlock(&xt[table->af].mutex);
+	kfree(table);
 
 	return private;
 }
 EXPORT_SYMBOL_GPL(xt_unregister_table);
 
 #ifdef CONFIG_PROC_FS
-static struct list_head *xt_get_idx(struct list_head *list, struct seq_file *seq, loff_t pos)
+struct xt_names_priv {
+	struct seq_net_private p;
+	int af;
+};
+static void *xt_table_seq_start(struct seq_file *seq, loff_t *pos)
 {
-	struct list_head *head = list->next;
+	struct xt_names_priv *priv = seq->private;
+	struct net *net = priv->p.net;
+	int af = priv->af;
 
-	if (!head || list_empty(list))
-		return NULL;
-
-	while (pos && (head = head->next)) {
-		if (head == list)
-			return NULL;
-		pos--;
-	}
-	return pos ? NULL : head;
+	mutex_lock(&xt[af].mutex);
+	return seq_list_start(&net->xt.tables[af], *pos);
 }
 
-static struct list_head *type2list(u_int16_t af, u_int16_t type)
+static void *xt_table_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	struct list_head *list;
+	struct xt_names_priv *priv = seq->private;
+	struct net *net = priv->p.net;
+	int af = priv->af;
 
-	switch (type) {
-	case TARGET:
-		list = &xt[af].target;
-		break;
-	case MATCH:
-		list = &xt[af].match;
-		break;
-	case TABLE:
-		list = &xt[af].tables;
-		break;
-	default:
-		list = NULL;
-		break;
-	}
-
-	return list;
+	return seq_list_next(v, &net->xt.tables[af], pos);
 }
 
-static void *xt_tgt_seq_start(struct seq_file *seq, loff_t *pos)
+static void xt_table_seq_stop(struct seq_file *seq, void *v)
 {
-	struct proc_dir_entry *pde = (struct proc_dir_entry *) seq->private;
-	u_int16_t af = (unsigned long)pde->data & 0xffff;
-	u_int16_t type = (unsigned long)pde->data >> 16;
-	struct list_head *list;
-
-	if (af >= NPROTO)
-		return NULL;
-
-	list = type2list(af, type);
-	if (!list)
-		return NULL;
-
-	if (mutex_lock_interruptible(&xt[af].mutex) != 0)
-		return NULL;
-
-	return xt_get_idx(list, seq, *pos);
-}
-
-static void *xt_tgt_seq_next(struct seq_file *seq, void *v, loff_t *pos)
-{
-	struct proc_dir_entry *pde = seq->private;
-	u_int16_t af = (unsigned long)pde->data & 0xffff;
-	u_int16_t type = (unsigned long)pde->data >> 16;
-	struct list_head *list;
-
-	if (af >= NPROTO)
-		return NULL;
-
-	list = type2list(af, type);
-	if (!list)
-		return NULL;
-
-	(*pos)++;
-	return xt_get_idx(list, seq, *pos);
-}
-
-static void xt_tgt_seq_stop(struct seq_file *seq, void *v)
-{
-	struct proc_dir_entry *pde = seq->private;
-	u_int16_t af = (unsigned long)pde->data & 0xffff;
+	struct xt_names_priv *priv = seq->private;
+	int af = priv->af;
 
 	mutex_unlock(&xt[af].mutex);
 }
 
-static int xt_name_seq_show(struct seq_file *seq, void *v)
+static int xt_table_seq_show(struct seq_file *seq, void *v)
 {
-	char *name = (char *)v + sizeof(struct list_head);
+	struct xt_table *table = list_entry(v, struct xt_table, list);
 
-	if (strlen(name))
-		return seq_printf(seq, "%s\n", name);
+	if (strlen(table->name))
+		return seq_printf(seq, "%s\n", table->name);
 	else
 		return 0;
 }
 
-static const struct seq_operations xt_tgt_seq_ops = {
-	.start	= xt_tgt_seq_start,
-	.next	= xt_tgt_seq_next,
-	.stop	= xt_tgt_seq_stop,
-	.show	= xt_name_seq_show,
+static const struct seq_operations xt_table_seq_ops = {
+	.start	= xt_table_seq_start,
+	.next	= xt_table_seq_next,
+	.stop	= xt_table_seq_stop,
+	.show	= xt_table_seq_show,
 };
 
-static int xt_tgt_open(struct inode *inode, struct file *file)
+static int xt_table_open(struct inode *inode, struct file *file)
 {
 	int ret;
+	struct xt_names_priv *priv;
 
-	ret = seq_open(file, &xt_tgt_seq_ops);
+	ret = seq_open_net(inode, file, &xt_table_seq_ops,
+			   sizeof(struct xt_names_priv));
 	if (!ret) {
-		struct seq_file *seq = file->private_data;
-		struct proc_dir_entry *pde = PDE(inode);
-
-		seq->private = pde;
+		priv = ((struct seq_file *)file->private_data)->private;
+		priv->af = (unsigned long)PDE(inode)->data;
 	}
-
 	return ret;
 }
 
-static const struct file_operations xt_file_ops = {
+static const struct file_operations xt_table_ops = {
 	.owner	 = THIS_MODULE,
-	.open	 = xt_tgt_open,
+	.open	 = xt_table_open,
+	.read	 = seq_read,
+	.llseek	 = seq_lseek,
+	.release = seq_release,
+};
+
+static void *xt_match_seq_start(struct seq_file *seq, loff_t *pos)
+{
+	struct proc_dir_entry *pde = (struct proc_dir_entry *)seq->private;
+	u_int16_t af = (unsigned long)pde->data;
+
+	mutex_lock(&xt[af].mutex);
+	return seq_list_start(&xt[af].match, *pos);
+}
+
+static void *xt_match_seq_next(struct seq_file *seq, void *v, loff_t *pos)
+{
+	struct proc_dir_entry *pde = (struct proc_dir_entry *)seq->private;
+	u_int16_t af = (unsigned long)pde->data;
+
+	return seq_list_next(v, &xt[af].match, pos);
+}
+
+static void xt_match_seq_stop(struct seq_file *seq, void *v)
+{
+	struct proc_dir_entry *pde = seq->private;
+	u_int16_t af = (unsigned long)pde->data;
+
+	mutex_unlock(&xt[af].mutex);
+}
+
+static int xt_match_seq_show(struct seq_file *seq, void *v)
+{
+	struct xt_match *match = list_entry(v, struct xt_match, list);
+
+	if (strlen(match->name))
+		return seq_printf(seq, "%s\n", match->name);
+	else
+		return 0;
+}
+
+static const struct seq_operations xt_match_seq_ops = {
+	.start	= xt_match_seq_start,
+	.next	= xt_match_seq_next,
+	.stop	= xt_match_seq_stop,
+	.show	= xt_match_seq_show,
+};
+
+static int xt_match_open(struct inode *inode, struct file *file)
+{
+	int ret;
+
+	ret = seq_open(file, &xt_match_seq_ops);
+	if (!ret) {
+		struct seq_file *seq = file->private_data;
+
+		seq->private = PDE(inode);
+	}
+	return ret;
+}
+
+static const struct file_operations xt_match_ops = {
+	.owner	 = THIS_MODULE,
+	.open	 = xt_match_open,
+	.read	 = seq_read,
+	.llseek	 = seq_lseek,
+	.release = seq_release,
+};
+
+static void *xt_target_seq_start(struct seq_file *seq, loff_t *pos)
+{
+	struct proc_dir_entry *pde = (struct proc_dir_entry *)seq->private;
+	u_int16_t af = (unsigned long)pde->data;
+
+	mutex_lock(&xt[af].mutex);
+	return seq_list_start(&xt[af].target, *pos);
+}
+
+static void *xt_target_seq_next(struct seq_file *seq, void *v, loff_t *pos)
+{
+	struct proc_dir_entry *pde = (struct proc_dir_entry *)seq->private;
+	u_int16_t af = (unsigned long)pde->data;
+
+	return seq_list_next(v, &xt[af].target, pos);
+}
+
+static void xt_target_seq_stop(struct seq_file *seq, void *v)
+{
+	struct proc_dir_entry *pde = seq->private;
+	u_int16_t af = (unsigned long)pde->data;
+
+	mutex_unlock(&xt[af].mutex);
+}
+
+static int xt_target_seq_show(struct seq_file *seq, void *v)
+{
+	struct xt_target *target = list_entry(v, struct xt_target, list);
+
+	if (strlen(target->name))
+		return seq_printf(seq, "%s\n", target->name);
+	else
+		return 0;
+}
+
+static const struct seq_operations xt_target_seq_ops = {
+	.start	= xt_target_seq_start,
+	.next	= xt_target_seq_next,
+	.stop	= xt_target_seq_stop,
+	.show	= xt_target_seq_show,
+};
+
+static int xt_target_open(struct inode *inode, struct file *file)
+{
+	int ret;
+
+	ret = seq_open(file, &xt_target_seq_ops);
+	if (!ret) {
+		struct seq_file *seq = file->private_data;
+
+		seq->private = PDE(inode);
+	}
+	return ret;
+}
+
+static const struct file_operations xt_target_ops = {
+	.owner	 = THIS_MODULE,
+	.open	 = xt_target_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
 	.release = seq_release,
@@ -844,7 +922,7 @@ static const struct file_operations xt_file_ops = {
 
 #endif /* CONFIG_PROC_FS */
 
-int xt_proto_init(int af)
+int xt_proto_init(struct net *net, int af)
 {
 #ifdef CONFIG_PROC_FS
 	char buf[XT_FUNCTION_MAXNAMELEN];
@@ -858,25 +936,25 @@ int xt_proto_init(int af)
 #ifdef CONFIG_PROC_FS
 	strlcpy(buf, xt_prefix[af], sizeof(buf));
 	strlcat(buf, FORMAT_TABLES, sizeof(buf));
-	proc = proc_net_fops_create(&init_net, buf, 0440, &xt_file_ops);
+	proc = proc_net_fops_create(net, buf, 0440, &xt_table_ops);
 	if (!proc)
 		goto out;
-	proc->data = (void *) ((unsigned long) af | (TABLE << 16));
+	proc->data = (void *)(unsigned long)af;
 
 
 	strlcpy(buf, xt_prefix[af], sizeof(buf));
 	strlcat(buf, FORMAT_MATCHES, sizeof(buf));
-	proc = proc_net_fops_create(&init_net, buf, 0440, &xt_file_ops);
+	proc = proc_net_fops_create(net, buf, 0440, &xt_match_ops);
 	if (!proc)
 		goto out_remove_tables;
-	proc->data = (void *) ((unsigned long) af | (MATCH << 16));
+	proc->data = (void *)(unsigned long)af;
 
 	strlcpy(buf, xt_prefix[af], sizeof(buf));
 	strlcat(buf, FORMAT_TARGETS, sizeof(buf));
-	proc = proc_net_fops_create(&init_net, buf, 0440, &xt_file_ops);
+	proc = proc_net_fops_create(net, buf, 0440, &xt_target_ops);
 	if (!proc)
 		goto out_remove_matches;
-	proc->data = (void *) ((unsigned long) af | (TARGET << 16));
+	proc->data = (void *)(unsigned long)af;
 #endif
 
 	return 0;
@@ -885,42 +963,54 @@ int xt_proto_init(int af)
 out_remove_matches:
 	strlcpy(buf, xt_prefix[af], sizeof(buf));
 	strlcat(buf, FORMAT_MATCHES, sizeof(buf));
-	proc_net_remove(&init_net, buf);
+	proc_net_remove(net, buf);
 
 out_remove_tables:
 	strlcpy(buf, xt_prefix[af], sizeof(buf));
 	strlcat(buf, FORMAT_TABLES, sizeof(buf));
-	proc_net_remove(&init_net, buf);
+	proc_net_remove(net, buf);
 out:
 	return -1;
 #endif
 }
 EXPORT_SYMBOL_GPL(xt_proto_init);
 
-void xt_proto_fini(int af)
+void xt_proto_fini(struct net *net, int af)
 {
 #ifdef CONFIG_PROC_FS
 	char buf[XT_FUNCTION_MAXNAMELEN];
 
 	strlcpy(buf, xt_prefix[af], sizeof(buf));
 	strlcat(buf, FORMAT_TABLES, sizeof(buf));
-	proc_net_remove(&init_net, buf);
+	proc_net_remove(net, buf);
 
 	strlcpy(buf, xt_prefix[af], sizeof(buf));
 	strlcat(buf, FORMAT_TARGETS, sizeof(buf));
-	proc_net_remove(&init_net, buf);
+	proc_net_remove(net, buf);
 
 	strlcpy(buf, xt_prefix[af], sizeof(buf));
 	strlcat(buf, FORMAT_MATCHES, sizeof(buf));
-	proc_net_remove(&init_net, buf);
+	proc_net_remove(net, buf);
 #endif /*CONFIG_PROC_FS*/
 }
 EXPORT_SYMBOL_GPL(xt_proto_fini);
 
+static int __net_init xt_net_init(struct net *net)
+{
+	int i;
+
+	for (i = 0; i < NPROTO; i++)
+		INIT_LIST_HEAD(&net->xt.tables[i]);
+	return 0;
+}
+
+static struct pernet_operations xt_net_ops = {
+	.init = xt_net_init,
+};
 
 static int __init xt_init(void)
 {
-	int i;
+	int i, rv;
 
 	xt = kmalloc(sizeof(struct xt_af) * NPROTO, GFP_KERNEL);
 	if (!xt)
@@ -934,13 +1024,16 @@ static int __init xt_init(void)
 #endif
 		INIT_LIST_HEAD(&xt[i].target);
 		INIT_LIST_HEAD(&xt[i].match);
-		INIT_LIST_HEAD(&xt[i].tables);
 	}
-	return 0;
+	rv = register_pernet_subsys(&xt_net_ops);
+	if (rv < 0)
+		kfree(xt);
+	return rv;
 }
 
 static void __exit xt_fini(void)
 {
+	unregister_pernet_subsys(&xt_net_ops);
 	kfree(xt);
 }
 

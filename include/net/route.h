@@ -27,6 +27,7 @@
 #include <net/dst.h>
 #include <net/inetpeer.h>
 #include <net/flow.h>
+#include <net/sock.h>
 #include <linux/in_route.h>
 #include <linux/rtnetlink.h>
 #include <linux/route.h>
@@ -61,6 +62,7 @@ struct rtable
 
 	struct in_device	*idev;
 	
+	int			rt_genid;
 	unsigned		rt_flags;
 	__u16			rt_type;
 
@@ -149,6 +151,7 @@ static inline int ip_route_connect(struct rtable **rp, __be32 dst,
 				   int flags)
 {
 	struct flowi fl = { .oif = oif,
+			    .mark = sk->sk_mark,
 			    .nl_u = { .ip4_u = { .daddr = dst,
 						 .saddr = src,
 						 .tos   = tos } },

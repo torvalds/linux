@@ -44,8 +44,7 @@ adjust_tcp_sequence(u32 seq,
 	struct nf_nat_seq *this_way, *other_way;
 	struct nf_conn_nat *nat = nfct_nat(ct);
 
-	pr_debug("adjust_tcp_sequence: seq = %u, sizediff = %d\n",
-		 ntohl(seq), seq);
+	pr_debug("adjust_tcp_sequence: seq = %u, sizediff = %d\n", seq, seq);
 
 	dir = CTINFO2DIR(ctinfo);
 

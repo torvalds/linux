@@ -114,7 +114,8 @@ static int get_tpkt_data(struct sk_buff *skb, unsigned int protoff,
 {
 	struct nf_ct_h323_master *info = &nfct_help(ct)->help.ct_h323_info;
 	int dir = CTINFO2DIR(ctinfo);
-	struct tcphdr _tcph, *th;
+	const struct tcphdr *th;
+	struct tcphdr _tcph;
 	int tcpdatalen;
 	int tcpdataoff;
 	unsigned char *tpkt;
@@ -212,11 +213,11 @@ static int get_tpkt_data(struct sk_buff *skb, unsigned int protoff,
 }
 
 /****************************************************************************/
-static int get_h245_addr(struct nf_conn *ct, unsigned char *data,
+static int get_h245_addr(struct nf_conn *ct, const unsigned char *data,
 			 H245_TransportAddress *taddr,
 			 union nf_inet_addr *addr, __be16 *port)
 {
-	unsigned char *p;
+	const unsigned char *p;
 	int family = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num;
 	int len;
 
@@ -625,7 +626,7 @@ int get_h225_addr(struct nf_conn *ct, unsigned char *data,
 		  TransportAddress *taddr,
 		  union nf_inet_addr *addr, __be16 *port)
 {
-	unsigned char *p;
+	const unsigned char *p;
 	int family = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num;
 	int len;
 
@@ -704,9 +705,8 @@ static int expect_h245(struct sk_buff *skb, struct nf_conn *ct,
 
 /* If the calling party is on the same side of the forward-to party,
  * we don't need to track the second call */
-static int callforward_do_filter(union nf_inet_addr *src,
-				 union nf_inet_addr *dst,
-				 int family)
+static int callforward_do_filter(const union nf_inet_addr *src,
+                                 const union nf_inet_addr *dst, int family)
 {
 	const struct nf_afinfo *afinfo;
 	struct flowi fl1, fl2;
@@ -1185,7 +1185,8 @@ static struct nf_conntrack_helper nf_conntrack_helper_q931[] __read_mostly = {
 static unsigned char *get_udp_data(struct sk_buff *skb, unsigned int protoff,
 				   int *datalen)
 {
-	struct udphdr _uh, *uh;
+	const struct udphdr *uh;
+	struct udphdr _uh;
 	int dataoff;
 
 	uh = skb_header_pointer(skb, protoff, sizeof(_uh), &_uh);
@@ -1415,7 +1416,7 @@ static int process_rcf(struct sk_buff *skb, struct nf_conn *ct,
 		nf_ct_refresh(ct, skb, info->timeout * HZ);
 
 		/* Set expect timeout */
-		read_lock_bh(&nf_conntrack_lock);
+		spin_lock_bh(&nf_conntrack_lock);
 		exp = find_expect(ct, &ct->tuplehash[dir].tuple.dst.u3,
 				  info->sig_port[!dir]);
 		if (exp) {
@@ -1425,7 +1426,7 @@ static int process_rcf(struct sk_buff *skb, struct nf_conn *ct,
 			NF_CT_DUMP_TUPLE(&exp->tuple);
 			set_expect_timeout(exp, info->timeout);
 		}
-		read_unlock_bh(&nf_conntrack_lock);
+		spin_unlock_bh(&nf_conntrack_lock);
 	}
 
 	return 0;
@@ -1468,7 +1469,7 @@ static int process_arq(struct sk_buff *skb, struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo,
 		       unsigned char **data, AdmissionRequest *arq)
 {
-	struct nf_ct_h323_master *info = &nfct_help(ct)->help.ct_h323_info;
+	const struct nf_ct_h323_master *info = &nfct_help(ct)->help.ct_h323_info;
 	int dir = CTINFO2DIR(ctinfo);
 	__be16 port;
 	union nf_inet_addr addr;
