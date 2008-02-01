@@ -179,12 +179,10 @@ static int ixgbe_set_pauseparam(struct net_device *netdev,
 
 	hw->fc.original_type = hw->fc.type;
 
-	if (netif_running(adapter->netdev)) {
-		ixgbe_down(adapter);
-		ixgbe_up(adapter);
-	} else {
+	if (netif_running(netdev))
+		ixgbe_reinit_locked(adapter);
+	else
 		ixgbe_reset(adapter);
-	}
 
 	return 0;
 }
@@ -203,12 +201,10 @@ static int ixgbe_set_rx_csum(struct net_device *netdev, u32 data)
 	else
 		adapter->flags &= ~IXGBE_FLAG_RX_CSUM_ENABLED;
 
-	if (netif_running(netdev)) {
-		ixgbe_down(adapter);
-		ixgbe_up(adapter);
-	} else {
+	if (netif_running(netdev))
+		ixgbe_reinit_locked(adapter);
+	else
 		ixgbe_reset(adapter);
-	}
 
 	return 0;
 }
@@ -662,7 +658,10 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 		return 0;
 	}
 
-	if (netif_running(adapter->netdev))
+	while (test_and_set_bit(__IXGBE_RESETTING, &adapter->state))
+		msleep(1);
+
+	if (netif_running(netdev))
 		ixgbe_down(adapter);
 
 	/*
@@ -733,6 +732,7 @@ err_setup:
 	if (netif_running(adapter->netdev))
 		ixgbe_up(adapter);
 
+	clear_bit(__IXGBE_RESETTING, &adapter->state);
 	return err;
 }
 
@@ -820,11 +820,8 @@ static int ixgbe_nway_reset(struct net_device *netdev)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
-	if (netif_running(netdev)) {
-		ixgbe_down(adapter);
-		ixgbe_reset(adapter);
-		ixgbe_up(adapter);
-	}
+	if (netif_running(netdev))
+		ixgbe_reinit_locked(adapter);
 
 	return 0;
 }
