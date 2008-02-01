@@ -159,12 +159,12 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 		}
 
 		if ((x->encap ? x->encap->encap_type : 0) != encap_type) {
-			XFRM_INC_STATS(LINUX_MIB_XFRMINSTATEINVALID);
+			XFRM_INC_STATS(LINUX_MIB_XFRMINSTATEMISMATCH);
 			goto drop_unlock;
 		}
 
 		if (x->props.replay_window && xfrm_replay_check(x, skb, seq)) {
-			XFRM_INC_STATS(LINUX_MIB_XFRMINSEQOUTOFWINDOW);
+			XFRM_INC_STATS(LINUX_MIB_XFRMINSTATESEQERROR);
 			goto drop_unlock;
 		}
 
