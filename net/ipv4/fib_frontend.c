@@ -808,7 +808,7 @@ static void fib_del_ifaddr(struct in_ifaddr *ifa)
 			   First of all, we scan fib_info list searching
 			   for stray nexthop entries, then ignite fib_flush.
 			*/
-			if (fib_sync_down(ifa->ifa_local, NULL, 0))
+			if (fib_sync_down_addr(ifa->ifa_local))
 				fib_flush(dev->nd_net);
 		}
 	}
@@ -898,7 +898,7 @@ static void nl_fib_lookup_exit(struct net *net)
 
 static void fib_disable_ip(struct net_device *dev, int force)
 {
-	if (fib_sync_down(0, dev, force))
+	if (fib_sync_down_dev(dev, force))
 		fib_flush(dev->nd_net);
 	rt_cache_flush(0);
 	arp_ifdown(dev);

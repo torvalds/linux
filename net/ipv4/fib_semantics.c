@@ -1031,70 +1031,72 @@ nla_put_failure:
      referring to it.
    - device went down -> we must shutdown all nexthops going via it.
  */
+int fib_sync_down_addr(__be32 local)
+{
+	int ret = 0;
+	unsigned int hash = fib_laddr_hashfn(local);
+	struct hlist_head *head = &fib_info_laddrhash[hash];
+	struct hlist_node *node;
+	struct fib_info *fi;
 
-int fib_sync_down(__be32 local, struct net_device *dev, int force)
+	if (fib_info_laddrhash == NULL || local == 0)
+		return 0;
+
+	hlist_for_each_entry(fi, node, head, fib_lhash) {
+		if (fi->fib_prefsrc == local) {
+			fi->fib_flags |= RTNH_F_DEAD;
+			ret++;
+		}
+	}
+	return ret;
+}
+
+int fib_sync_down_dev(struct net_device *dev, int force)
 {
 	int ret = 0;
 	int scope = RT_SCOPE_NOWHERE;
+	struct fib_info *prev_fi = NULL;
+	unsigned int hash = fib_devindex_hashfn(dev->ifindex);
+	struct hlist_head *head = &fib_info_devhash[hash];
+	struct hlist_node *node;
+	struct fib_nh *nh;
 
 	if (force)
 		scope = -1;
 
-	if (local && fib_info_laddrhash) {
-		unsigned int hash = fib_laddr_hashfn(local);
-		struct hlist_head *head = &fib_info_laddrhash[hash];
-		struct hlist_node *node;
-		struct fib_info *fi;
+	hlist_for_each_entry(nh, node, head, nh_hash) {
+		struct fib_info *fi = nh->nh_parent;
+		int dead;
 
-		hlist_for_each_entry(fi, node, head, fib_lhash) {
-			if (fi->fib_prefsrc == local) {
-				fi->fib_flags |= RTNH_F_DEAD;
-				ret++;
-			}
-		}
-	}
-
-	if (dev) {
-		struct fib_info *prev_fi = NULL;
-		unsigned int hash = fib_devindex_hashfn(dev->ifindex);
-		struct hlist_head *head = &fib_info_devhash[hash];
-		struct hlist_node *node;
-		struct fib_nh *nh;
-
-		hlist_for_each_entry(nh, node, head, nh_hash) {
-			struct fib_info *fi = nh->nh_parent;
-			int dead;
-
-			BUG_ON(!fi->fib_nhs);
-			if (nh->nh_dev != dev || fi == prev_fi)
-				continue;
-			prev_fi = fi;
-			dead = 0;
-			change_nexthops(fi) {
-				if (nh->nh_flags&RTNH_F_DEAD)
-					dead++;
-				else if (nh->nh_dev == dev &&
-					 nh->nh_scope != scope) {
-					nh->nh_flags |= RTNH_F_DEAD;
+		BUG_ON(!fi->fib_nhs);
+		if (nh->nh_dev != dev || fi == prev_fi)
+			continue;
+		prev_fi = fi;
+		dead = 0;
+		change_nexthops(fi) {
+			if (nh->nh_flags&RTNH_F_DEAD)
+				dead++;
+			else if (nh->nh_dev == dev &&
+					nh->nh_scope != scope) {
+				nh->nh_flags |= RTNH_F_DEAD;
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
-					spin_lock_bh(&fib_multipath_lock);
-					fi->fib_power -= nh->nh_power;
-					nh->nh_power = 0;
-					spin_unlock_bh(&fib_multipath_lock);
+				spin_lock_bh(&fib_multipath_lock);
+				fi->fib_power -= nh->nh_power;
+				nh->nh_power = 0;
+				spin_unlock_bh(&fib_multipath_lock);
 #endif
-					dead++;
-				}
-#ifdef CONFIG_IP_ROUTE_MULTIPATH
-				if (force > 1 && nh->nh_dev == dev) {
-					dead = fi->fib_nhs;
-					break;
-				}
-#endif
-			} endfor_nexthops(fi)
-			if (dead == fi->fib_nhs) {
-				fi->fib_flags |= RTNH_F_DEAD;
-				ret++;
+				dead++;
 			}
+#ifdef CONFIG_IP_ROUTE_MULTIPATH
+			if (force > 1 && nh->nh_dev == dev) {
+				dead = fi->fib_nhs;
+				break;
+			}
+#endif
+		} endfor_nexthops(fi)
+		if (dead == fi->fib_nhs) {
+			fi->fib_flags |= RTNH_F_DEAD;
+			ret++;
 		}
 	}
 
