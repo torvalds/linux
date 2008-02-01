@@ -248,6 +248,7 @@ struct ocfs2_super
 	struct ocfs2_alloc_stats alloc_stats;
 	char dev_str[20];		/* "major,minor" of the device */
 
+	char osb_cluster_stack[OCFS2_STACK_LABEL_LEN + 1];
 	struct ocfs2_cluster_connection *cconn;
 	struct ocfs2_lock_res osb_super_lockres;
 	struct ocfs2_lock_res osb_rename_lockres;
@@ -366,6 +367,12 @@ static inline int ocfs2_is_soft_readonly(struct ocfs2_super *osb)
 	spin_unlock(&osb->osb_lock);
 
 	return ret;
+}
+
+static inline int ocfs2_userspace_stack(struct ocfs2_super *osb)
+{
+	return (osb->s_feature_incompat &
+		OCFS2_FEATURE_INCOMPAT_USERSPACE_STACK);
 }
 
 static inline int ocfs2_mount_local(struct ocfs2_super *osb)

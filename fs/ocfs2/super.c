@@ -87,6 +87,7 @@ struct mount_options
 	unsigned int	atime_quantum;
 	signed short	slot;
 	unsigned int	localalloc_opt;
+	char		cluster_stack[OCFS2_STACK_LABEL_LEN + 1];
 };
 
 static int ocfs2_parse_options(struct super_block *sb, char *options,
@@ -152,6 +153,7 @@ enum {
 	Opt_commit,
 	Opt_localalloc,
 	Opt_localflocks,
+	Opt_stack,
 	Opt_err,
 };
 
@@ -170,6 +172,7 @@ static match_table_t tokens = {
 	{Opt_commit, "commit=%u"},
 	{Opt_localalloc, "localalloc=%d"},
 	{Opt_localflocks, "localflocks"},
+	{Opt_stack, "cluster_stack=%s"},
 	{Opt_err, NULL}
 };
 
@@ -549,12 +552,50 @@ static int ocfs2_verify_heartbeat(struct ocfs2_super *osb)
 		}
 	}
 
+	if (ocfs2_userspace_stack(osb)) {
+		if (osb->s_mount_opt & OCFS2_MOUNT_HB_LOCAL) {
+			mlog(ML_ERROR, "Userspace stack expected, but "
+			     "o2cb heartbeat arguments passed to mount\n");
+			return -EINVAL;
+		}
+	}
+
 	if (!(osb->s_mount_opt & OCFS2_MOUNT_HB_LOCAL)) {
-		if (!ocfs2_mount_local(osb) && !ocfs2_is_hard_readonly(osb)) {
+		if (!ocfs2_mount_local(osb) && !ocfs2_is_hard_readonly(osb) &&
+		    !ocfs2_userspace_stack(osb)) {
 			mlog(ML_ERROR, "Heartbeat has to be started to mount "
 			     "a read-write clustered device.\n");
 			return -EINVAL;
 		}
+	}
+
+	return 0;
+}
+
+/*
+ * If we're using a userspace stack, mount should have passed
+ * a name that matches the disk.  If not, mount should not
+ * have passed a stack.
+ */
+static int ocfs2_verify_userspace_stack(struct ocfs2_super *osb,
+					struct mount_options *mopt)
+{
+	if (!ocfs2_userspace_stack(osb) && mopt->cluster_stack[0]) {
+		mlog(ML_ERROR,
+		     "cluster stack passed to mount, but this filesystem "
+		     "does not support it\n");
+		return -EINVAL;
+	}
+
+	if (ocfs2_userspace_stack(osb) &&
+	    strncmp(osb->osb_cluster_stack, mopt->cluster_stack,
+		    OCFS2_STACK_LABEL_LEN)) {
+		mlog(ML_ERROR,
+		     "cluster stack passed to mount (\"%s\") does not "
+		     "match the filesystem (\"%s\")\n",
+		     mopt->cluster_stack,
+		     osb->osb_cluster_stack);
+		return -EINVAL;
 	}
 
 	return 0;
@@ -597,6 +638,10 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 	osb->preferred_slot = parsed_options.slot;
 	osb->osb_commit_interval = parsed_options.commit_interval;
 	osb->local_alloc_size = parsed_options.localalloc_opt;
+
+	status = ocfs2_verify_userspace_stack(osb, &parsed_options);
+	if (status)
+		goto read_super_error;
 
 	sb->s_magic = OCFS2_SUPER_MAGIC;
 
@@ -752,6 +797,7 @@ static int ocfs2_parse_options(struct super_block *sb,
 	mopt->atime_quantum = OCFS2_DEFAULT_ATIME_QUANTUM;
 	mopt->slot = OCFS2_INVALID_SLOT;
 	mopt->localalloc_opt = OCFS2_DEFAULT_LOCAL_ALLOC_SIZE;
+	mopt->cluster_stack[0] = '\0';
 
 	if (!options) {
 		status = 1;
@@ -853,6 +899,25 @@ static int ocfs2_parse_options(struct super_block *sb,
 			if (!is_remount)
 				mopt->mount_opt |= OCFS2_MOUNT_LOCALFLOCKS;
 			break;
+		case Opt_stack:
+			/* Check both that the option we were passed
+			 * is of the right length and that it is a proper
+			 * string of the right length.
+			 */
+			if (((args[0].to - args[0].from) !=
+			     OCFS2_STACK_LABEL_LEN) ||
+			    (strnlen(args[0].from,
+				     OCFS2_STACK_LABEL_LEN) !=
+			     OCFS2_STACK_LABEL_LEN)) {
+				mlog(ML_ERROR,
+				     "Invalid cluster_stack option\n");
+				status = 0;
+				goto bail;
+			}
+			memcpy(mopt->cluster_stack, args[0].from,
+			       OCFS2_STACK_LABEL_LEN);
+			mopt->cluster_stack[OCFS2_STACK_LABEL_LEN] = '\0';
+			break;
 		default:
 			mlog(ML_ERROR,
 			     "Unrecognized mount option \"%s\" "
@@ -910,6 +975,10 @@ static int ocfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 
 	if (opts & OCFS2_MOUNT_LOCALFLOCKS)
 		seq_printf(s, ",localflocks,");
+
+	if (osb->osb_cluster_stack[0])
+		seq_printf(s, ",cluster_stack=%.*s", OCFS2_STACK_LABEL_LEN,
+			   osb->osb_cluster_stack);
 
 	return 0;
 }
@@ -1401,6 +1470,25 @@ static int ocfs2_initialize_super(struct super_block *sb,
 		     "unsupported optional features (%x).\n", i);
 		status = -EINVAL;
 		goto bail;
+	}
+
+	if (ocfs2_userspace_stack(osb)) {
+		memcpy(osb->osb_cluster_stack,
+		       OCFS2_RAW_SB(di)->s_cluster_info.ci_stack,
+		       OCFS2_STACK_LABEL_LEN);
+		osb->osb_cluster_stack[OCFS2_STACK_LABEL_LEN] = '\0';
+		if (strlen(osb->osb_cluster_stack) != OCFS2_STACK_LABEL_LEN) {
+			mlog(ML_ERROR,
+			     "couldn't mount because of an invalid "
+			     "cluster stack label (%s) \n",
+			     osb->osb_cluster_stack);
+			status = -EINVAL;
+			goto bail;
+		}
+	} else {
+		/* The empty string is identical with classic tools that
+		 * don't know about s_cluster_info. */
+		osb->osb_cluster_stack[0] = '\0';
 	}
 
 	get_random_bytes(&osb->s_next_generation, sizeof(u32));
