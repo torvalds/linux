@@ -2787,12 +2787,6 @@ int cdrom_ioctl(struct file * file, struct cdrom_device_info *cdi,
 	return -ENOSYS;
 }
 
-static inline
-int msf_to_lba(char m, char s, char f)
-{
-	return (((m * CD_SECS) + s) * CD_FRAMES + f) - CD_MSF_OFFSET;
-}
-
 /*
  * Required when we need to use READ_10 to issue other than 2048 block
  * reads

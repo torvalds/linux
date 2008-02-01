@@ -1664,24 +1664,6 @@ void msf_from_bcd (struct atapi_msf *msf)
 	msf->frame  = BCD2BIN(msf->frame);
 }
 
-static inline
-void lba_to_msf (int lba, byte *m, byte *s, byte *f)
-{
-	lba += CD_MSF_OFFSET;
-	lba &= 0xffffff;  /* negative lbas use only 24 bits */
-	*m = lba / (CD_SECS * CD_FRAMES);
-	lba %= (CD_SECS * CD_FRAMES);
-	*s = lba / CD_FRAMES;
-	*f = lba % CD_FRAMES;
-}
-
-
-static inline
-int msf_to_lba (byte m, byte s, byte f)
-{
-	return (((m * CD_SECS) + s) * CD_FRAMES + f) - CD_MSF_OFFSET;
-}
-
 static int cdrom_check_status(ide_drive_t *drive, struct request_sense *sense)
 {
 	struct request req;
