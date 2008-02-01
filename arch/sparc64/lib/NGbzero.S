@@ -10,7 +10,7 @@
 	.align 4;		\
 99:	retl;			\
 	 mov	%o1, %o0;	\
-	.section __ex_table;	\
+	.section __ex_table,"a";\
 	.align 4;		\
 	.word 98b, 99b;		\
 	.text;			\
