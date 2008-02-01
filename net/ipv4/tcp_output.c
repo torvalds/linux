@@ -2564,5 +2564,4 @@ EXPORT_SYMBOL(tcp_connect);
 EXPORT_SYMBOL(tcp_make_synack);
 EXPORT_SYMBOL(tcp_simple_retransmit);
 EXPORT_SYMBOL(tcp_sync_mss);
-EXPORT_SYMBOL(sysctl_tcp_tso_win_divisor);
 EXPORT_SYMBOL(tcp_mtup_init);
