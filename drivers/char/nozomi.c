@@ -395,7 +395,7 @@ struct buffer {
 } __attribute__ ((packed));
 
 /*    Global variables */
-static struct pci_device_id nozomi_pci_tbl[] __devinitdata = {
+static const struct pci_device_id nozomi_pci_tbl[] __devinitconst = {
 	{PCI_DEVICE(VENDOR1, DEVICE1)},
 	{},
 };
@@ -778,13 +778,13 @@ static void disable_transmit_dl(enum port_type port, struct nozomi *dc)
  * Return 1 - send buffer to card and ack.
  * Return 0 - don't ack, don't send buffer to card.
  */
-static int send_data(enum port_type index, struct nozomi *dc)
+static int send_data(enum port_type index, const struct nozomi *dc)
 {
 	u32 size = 0;
 	const struct port *port = &dc->port[index];
-	u8 toggle = port->toggle_ul;
+	const u8 toggle = port->toggle_ul;
 	void __iomem *addr = port->ul_addr[toggle];
-	u32 ul_size = port->ul_size[toggle];
+	const u32 ul_size = port->ul_size[toggle];
 	struct tty_struct *tty = port->tty;
 
 	/* Get data from tty and place in buf for now */
@@ -1732,7 +1732,7 @@ static int ntty_tiocmset(struct tty_struct *tty, struct file *file,
 static int ntty_cflags_changed(struct port *port, unsigned long flags,
 		struct async_icount *cprev)
 {
-	struct async_icount cnow = port->tty_icount;
+	const struct async_icount cnow = port->tty_icount;
 	int ret;
 
 	ret =	((flags & TIOCM_RNG) && (cnow.rng != cprev->rng)) ||
@@ -1747,7 +1747,7 @@ static int ntty_cflags_changed(struct port *port, unsigned long flags,
 
 static int ntty_ioctl_tiocgicount(struct port *port, void __user *argp)
 {
-	struct async_icount cnow = port->tty_icount;
+	const struct async_icount cnow = port->tty_icount;
 	struct serial_icounter_struct icount;
 
 	icount.cts = cnow.cts;
@@ -1858,7 +1858,7 @@ exit_in_buffer:
 	return rval;
 }
 
-static struct tty_operations tty_ops = {
+static const struct tty_operations tty_ops = {
 	.ioctl = ntty_ioctl,
 	.open = ntty_open,
 	.close = ntty_close,
