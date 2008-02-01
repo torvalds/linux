@@ -1066,7 +1066,7 @@ static ide_startstop_t cdrom_pc_intr (ide_drive_t *drive)
 {
 	struct request *rq = HWGROUP(drive)->rq;
 	xfer_func_t *xferfunc = NULL;
-	int stat, ireason, len, thislen, write;
+	int stat, ireason, len, thislen, write, update;
 	u8 lowcyl = 0, highcyl = 0;
 
 	/* Check for errors. */
@@ -1084,14 +1084,8 @@ static ide_startstop_t cdrom_pc_intr (ide_drive_t *drive)
 	   Complain if we still have data left to transfer. */
 	if ((stat & DRQ_STAT) == 0) {
 		ide_cd_request_sense_fixup(rq);
-
-		if (rq->data_len == 0)
-			cdrom_end_request(drive, 1);
-		else {
-			rq->cmd_flags |= REQ_FAILED;
-			cdrom_end_request(drive, 0);
-		}
-		return ide_stopped;
+		update = rq->data_len ? 0 : 1;
+		goto end_request;
 	}
 
 	/* Figure out how much data to transfer. */
@@ -1130,9 +1124,8 @@ static ide_startstop_t cdrom_pc_intr (ide_drive_t *drive)
 			"appears confused (ireason = 0x%02x). "
 			"Trying to recover by ending request.\n",
 			drive->name, ireason);
-		rq->cmd_flags |= REQ_FAILED;
-		cdrom_end_request(drive, 0);
-		return ide_stopped;
+		update = 0;
+		goto end_request;
 	}
 pad:
 	/*
@@ -1145,6 +1138,12 @@ pad:
 	/* Now we wait for another interrupt. */
 	ide_set_handler(drive, &cdrom_pc_intr, ATAPI_WAIT_PC, cdrom_timer_expiry);
 	return ide_started;
+
+end_request:
+	if (!update)
+		rq->cmd_flags |= REQ_FAILED;
+	cdrom_end_request(drive, update);
+	return ide_stopped;
 }
 
 static ide_startstop_t cdrom_do_pc_continuation (ide_drive_t *drive)
