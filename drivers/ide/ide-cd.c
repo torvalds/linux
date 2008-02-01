@@ -1365,7 +1365,11 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 		}
 
 		if (!ptr) {
-			printk(KERN_ERR "%s: confused, missing data\n", drive->name);
+			printk(KERN_ERR "%s: confused, missing data\n",
+					drive->name);
+			blk_dump_rq_flags(rq, rq_data_dir(rq)
+					      ? "cdrom_newpc_intr, write"
+					      : "cdrom_newpc_intr, read");
 			break;
 		}
 
