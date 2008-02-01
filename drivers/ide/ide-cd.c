@@ -626,6 +626,16 @@ static void ide_cd_pad_transfer(ide_drive_t *drive, xfer_func_t *xf, int len)
 	}
 }
 
+static void ide_cd_drain_data(ide_drive_t *drive, int nsects)
+{
+	while (nsects > 0) {
+		static char dum[SECTOR_SIZE];
+
+		drive->hwif->atapi_input_bytes(drive, dum, sizeof(dum));
+		nsects--;
+	}
+}
+
 /*
  * Buffer up to SECTORS_TO_TRANSFER sectors from the drive in our sector
  * buffer.  Once the first sector is added, any subsequent sectors are
@@ -664,11 +674,7 @@ static void cdrom_buffer_sectors (ide_drive_t *drive, unsigned long sector,
 	}
 
 	/* Throw away any remaining data. */
-	while (sectors_to_transfer > 0) {
-		static char dum[SECTOR_SIZE];
-		HWIF(drive)->atapi_input_bytes(drive, dum, sizeof (dum));
-		--sectors_to_transfer;
-	}
+	ide_cd_drain_data(drive, sectors_to_transfer);
 }
 
 /*
@@ -791,14 +797,10 @@ static ide_startstop_t cdrom_read_intr (ide_drive_t *drive)
 	   any of the leading sectors. */
 	nskip = min_t(int, rq->current_nr_sectors - bio_cur_sectors(rq->bio), sectors_to_transfer);
 
-	while (nskip > 0) {
-		/* We need to throw away a sector. */
-		static char dum[SECTOR_SIZE];
-		HWIF(drive)->atapi_input_bytes(drive, dum, sizeof (dum));
-
-		--rq->current_nr_sectors;
-		--nskip;
-		--sectors_to_transfer;
+	if (nskip > 0) {
+		ide_cd_drain_data(drive, nskip);
+		rq->current_nr_sectors -= nskip;
+		sectors_to_transfer -= nskip;
 	}
 
 	/* Now loop while we still have data to read from the drive. */
