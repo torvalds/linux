@@ -602,6 +602,7 @@ static int au_ide_probe(struct device *dev)
 	memset(&hw, 0, sizeof(hw));
 	auide_setup_ports(&hw, ahwif);
 	hw.irq = ahwif->irq;
+	hw.dev = dev;
 	hw.chipset = ide_au1xxx;
 
 	ide_init_port_hw(hwif, &hw);
