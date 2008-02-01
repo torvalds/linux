@@ -146,30 +146,25 @@ void gfs2_trans_add_revoke(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
 	lops_add(sdp, &bd->bd_le);
 }
 
-void gfs2_trans_add_unrevoke(struct gfs2_sbd *sdp, u64 blkno)
+void gfs2_trans_add_unrevoke(struct gfs2_sbd *sdp, u64 blkno, unsigned int len)
 {
-	struct gfs2_bufdata *bd;
-	int found = 0;
+	struct gfs2_bufdata *bd, *tmp;
+	struct gfs2_trans *tr = current->journal_info;
+	unsigned int n = len;
 
 	gfs2_log_lock(sdp);
-
-	list_for_each_entry(bd, &sdp->sd_log_le_revoke, bd_le.le_list) {
-		if (bd->bd_blkno == blkno) {
+	list_for_each_entry_safe(bd, tmp, &sdp->sd_log_le_revoke, bd_le.le_list) {
+		if ((bd->bd_blkno >= blkno) && (bd->bd_blkno < (blkno + len))) {
 			list_del_init(&bd->bd_le.le_list);
 			gfs2_assert_withdraw(sdp, sdp->sd_log_num_revoke);
 			sdp->sd_log_num_revoke--;
-			found = 1;
-			break;
+			kmem_cache_free(gfs2_bufdata_cachep, bd);
+			tr->tr_num_revoke_rm++;
+			if (--n == 0)
+				break;
 		}
 	}
-
 	gfs2_log_unlock(sdp);
-
-	if (found) {
-		struct gfs2_trans *tr = current->journal_info;
-		kmem_cache_free(gfs2_bufdata_cachep, bd);
-		tr->tr_num_revoke_rm++;
-	}
 }
 
 void gfs2_trans_add_rg(struct gfs2_rgrpd *rgd)

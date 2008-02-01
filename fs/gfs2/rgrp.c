@@ -1486,7 +1486,6 @@ u64 gfs2_alloc_meta(struct gfs2_inode *ip)
 
 	gfs2_statfs_change(sdp, 0, -1, 0);
 	gfs2_quota_change(ip, +1, ip->i_inode.i_uid, ip->i_inode.i_gid);
-	gfs2_trans_add_unrevoke(sdp, block);
 
 	spin_lock(&sdp->sd_rindex_spin);
 	rgd->rd_free_clone--;
@@ -1528,7 +1527,7 @@ u64 gfs2_alloc_di(struct gfs2_inode *dip, u64 *generation)
 	al->al_alloced++;
 
 	gfs2_statfs_change(sdp, 0, -1, +1);
-	gfs2_trans_add_unrevoke(sdp, block);
+	gfs2_trans_add_unrevoke(sdp, block, 1);
 
 	spin_lock(&sdp->sd_rindex_spin);
 	rgd->rd_free_clone--;
