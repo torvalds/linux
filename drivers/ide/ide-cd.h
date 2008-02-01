@@ -158,23 +158,6 @@ struct cdrom_info {
  */
 
 /* This stuff should be in cdrom.h, since it is now generic... */
-
-/* ATAPI sense keys (from table 140 of ATAPI 2.6) */
-#define NO_SENSE                0x00
-#define RECOVERED_ERROR         0x01
-#define NOT_READY               0x02
-#define MEDIUM_ERROR            0x03
-#define HARDWARE_ERROR          0x04
-#define ILLEGAL_REQUEST         0x05
-#define UNIT_ATTENTION          0x06
-#define DATA_PROTECT            0x07
-#define BLANK_CHECK             0x08
-#define ABORTED_COMMAND         0x0b
-#define MISCOMPARE              0x0e
-
- 
-
-/* This stuff should be in cdrom.h, since it is now generic... */
 #if VERBOSE_IDE_CD_ERRORS
 
  /* The generic packet command opcodes for CD/DVD Logical Units,
