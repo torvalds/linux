@@ -101,6 +101,10 @@ void softlockup_tick(void)
 
 	now = get_timestamp(this_cpu);
 
+	/* Wake up the high-prio watchdog task every second: */
+	if (now > (touch_timestamp + 1))
+		wake_up_process(per_cpu(watchdog_task, this_cpu));
+
 	/* Warn about unreasonable delays: */
 	if (now <= (touch_timestamp + softlockup_thresh))
 		return;
@@ -191,11 +195,11 @@ static void check_hung_uninterruptible_tasks(int this_cpu)
 	read_lock(&tasklist_lock);
 	do_each_thread(g, t) {
 		if (!--max_count)
-			break;
+			goto unlock;
 		if (t->state & TASK_UNINTERRUPTIBLE)
 			check_hung_task(t, now);
 	} while_each_thread(g, t);
-
+ unlock:
 	read_unlock(&tasklist_lock);
 }
 
@@ -218,14 +222,19 @@ static int watchdog(void *__bind_cpu)
 	 * debug-printout triggers in softlockup_tick().
 	 */
 	while (!kthread_should_stop()) {
+		set_current_state(TASK_INTERRUPTIBLE);
 		touch_softlockup_watchdog();
-		msleep_interruptible(10000);
+		schedule();
+
+		if (kthread_should_stop())
+			break;
 
 		if (this_cpu != check_cpu)
 			continue;
 
 		if (sysctl_hung_task_timeout_secs)
 			check_hung_uninterruptible_tasks(this_cpu);
+
 	}
 
 	return 0;
@@ -259,13 +268,6 @@ cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		wake_up_process(per_cpu(watchdog_task, hotcpu));
 		break;
 #ifdef CONFIG_HOTPLUG_CPU
-	case CPU_UP_CANCELED:
-	case CPU_UP_CANCELED_FROZEN:
-		if (!per_cpu(watchdog_task, hotcpu))
-			break;
-		/* Unbind so it can run.  Fall thru. */
-		kthread_bind(per_cpu(watchdog_task, hotcpu),
-			     any_online_cpu(cpu_online_map));
 	case CPU_DOWN_PREPARE:
 	case CPU_DOWN_PREPARE_FROZEN:
 		if (hotcpu == check_cpu) {
@@ -275,6 +277,14 @@ cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 			check_cpu = any_online_cpu(temp_cpu_online_map);
 		}
 		break;
+
+	case CPU_UP_CANCELED:
+	case CPU_UP_CANCELED_FROZEN:
+		if (!per_cpu(watchdog_task, hotcpu))
+			break;
+		/* Unbind so it can run.  Fall thru. */
+		kthread_bind(per_cpu(watchdog_task, hotcpu),
+			     any_online_cpu(cpu_online_map));
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:
 		p = per_cpu(watchdog_task, hotcpu);
