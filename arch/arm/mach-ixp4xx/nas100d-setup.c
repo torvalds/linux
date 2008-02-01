@@ -12,6 +12,7 @@
  *
  */
 
+#include <linux/if_ether.h>
 #include <linux/kernel.h>
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
@@ -22,6 +23,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
+#include <asm/io.h>
 
 static struct flash_platform_data nas100d_flash_data = {
 	.map_name		= "cfi_probe",
@@ -131,10 +133,28 @@ static struct platform_device nas100d_uart = {
 	.resource		= nas100d_uart_resources,
 };
 
+/* Built-in 10/100 Ethernet MAC interfaces */
+static struct eth_plat_info nas100d_plat_eth[] = {
+	{
+		.phy		= 0,
+		.rxq		= 3,
+		.txreadyq	= 20,
+	}
+};
+
+static struct platform_device nas100d_eth[] = {
+	{
+		.name			= "ixp4xx_eth",
+		.id			= IXP4XX_ETH_NPEB,
+		.dev.platform_data	= nas100d_plat_eth,
+	}
+};
+
 static struct platform_device *nas100d_devices[] __initdata = {
 	&nas100d_i2c_gpio,
 	&nas100d_flash,
 	&nas100d_leds,
+	&nas100d_eth[0],
 };
 
 static void nas100d_power_off(void)
@@ -150,6 +170,10 @@ static void nas100d_power_off(void)
 
 static void __init nas100d_init(void)
 {
+	DECLARE_MAC_BUF(mac_buf);
+	uint8_t __iomem *f;
+	int i;
+
 	ixp4xx_sys_init();
 
 	/* gpio 14 and 15 are _not_ clocks */
@@ -172,6 +196,25 @@ static void __init nas100d_init(void)
 	(void)platform_device_register(&nas100d_uart);
 
 	platform_add_devices(nas100d_devices, ARRAY_SIZE(nas100d_devices));
+
+	/*
+	 * Map in a portion of the flash and read the MAC address.
+	 * Since it is stored in BE in the flash itself, we need to
+	 * byteswap it if we're in LE mode.
+	 */
+	f = ioremap(IXP4XX_EXP_BUS_BASE(0), 0x1000000);
+	if (f) {
+		for (i = 0; i < 6; i++)
+#ifdef __ARMEB__
+			nas100d_plat_eth[0].hwaddr[i] = readb(f + 0xFC0FD8 + i);
+#else
+			nas100d_plat_eth[0].hwaddr[i] = readb(f + 0xFC0FD8 + (i^3));
+#endif
+		iounmap(f);
+	}
+	printk(KERN_INFO "NAS100D: Using MAC address %s for port 0\n",
+	       print_mac(mac_buf, nas100d_plat_eth[0].hwaddr));
+
 }
 
 MACHINE_START(NAS100D, "Iomega NAS 100d")

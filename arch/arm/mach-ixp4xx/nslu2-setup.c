@@ -14,6 +14,7 @@
  * Changed to conform to new style __init ixdp425 kas11 10/22/04
  */
 
+#include <linux/if_ether.h>
 #include <linux/kernel.h>
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
@@ -25,6 +26,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 #include <asm/mach/time.h>
+#include <asm/io.h>
 
 static struct flash_platform_data nslu2_flash_data = {
 	.map_name		= "cfi_probe",
@@ -143,11 +145,29 @@ static struct platform_device nslu2_uart = {
 	.resource		= nslu2_uart_resources,
 };
 
+/* Built-in 10/100 Ethernet MAC interfaces */
+static struct eth_plat_info nslu2_plat_eth[] = {
+	{
+		.phy		= 1,
+		.rxq		= 3,
+		.txreadyq	= 20,
+	}
+};
+
+static struct platform_device nslu2_eth[] = {
+	{
+		.name			= "ixp4xx_eth",
+		.id			= IXP4XX_ETH_NPEB,
+		.dev.platform_data	= nslu2_plat_eth,
+	}
+};
+
 static struct platform_device *nslu2_devices[] __initdata = {
 	&nslu2_i2c_gpio,
 	&nslu2_flash,
 	&nslu2_beeper,
 	&nslu2_leds,
+	&nslu2_eth[0],
 };
 
 static void nslu2_power_off(void)
@@ -176,6 +196,10 @@ static struct sys_timer nslu2_timer = {
 
 static void __init nslu2_init(void)
 {
+	DECLARE_MAC_BUF(mac_buf);
+	uint8_t __iomem *f;
+	int i;
+
 	ixp4xx_sys_init();
 
 	nslu2_flash_resource.start = IXP4XX_EXP_BUS_BASE(0);
@@ -195,6 +219,26 @@ static void __init nslu2_init(void)
 	(void)platform_device_register(&nslu2_uart);
 
 	platform_add_devices(nslu2_devices, ARRAY_SIZE(nslu2_devices));
+
+
+	/*
+	 * Map in a portion of the flash and read the MAC address.
+	 * Since it is stored in BE in the flash itself, we need to
+	 * byteswap it if we're in LE mode.
+	 */
+	f = ioremap(IXP4XX_EXP_BUS_BASE(0), 0x40000);
+	if (f) {
+		for (i = 0; i < 6; i++)
+#ifdef __ARMEB__
+			nslu2_plat_eth[0].hwaddr[i] = readb(f + 0x3FFB0 + i);
+#else
+			nslu2_plat_eth[0].hwaddr[i] = readb(f + 0x3FFB0 + (i^3));
+#endif
+		iounmap(f);
+	}
+	printk(KERN_INFO "NSLU2: Using MAC address %s for port 0\n",
+	       print_mac(mac_buf, nslu2_plat_eth[0].hwaddr));
+
 }
 
 MACHINE_START(NSLU2, "Linksys NSLU2")

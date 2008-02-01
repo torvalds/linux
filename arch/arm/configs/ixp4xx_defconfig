@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.24-rc8
-# Wed Jan 23 17:26:16 2008
+# Linux kernel version: 2.6.24
+# Sun Jan 27 07:33:38 2008
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -174,6 +174,8 @@ CONFIG_MACH_GTWX5715=y
 #
 CONFIG_DMABOUNCE=y
 # CONFIG_IXP4XX_INDIRECT_PCI is not set
+CONFIG_IXP4XX_QMGR=y
+CONFIG_IXP4XX_NPE=y
 
 #
 # Boot options
@@ -832,6 +834,7 @@ CONFIG_DUMMY=y
 # CONFIG_PHYLIB is not set
 CONFIG_NET_ETHERNET=y
 CONFIG_MII=y
+CONFIG_IXP4XX_ETH=y
 # CONFIG_AX88796 is not set
 # CONFIG_HAPPYMEAL is not set
 # CONFIG_SUNGEM is not set
@@ -925,6 +928,7 @@ CONFIG_HDLC_X25=m
 # CONFIG_PC300TOO is not set
 # CONFIG_FARSYNC is not set
 # CONFIG_DSCC4 is not set
+# CONFIG_IXP4XX_HSS is not set
 CONFIG_DLCI=m
 CONFIG_DLCI_MAX=8
 CONFIG_WAN_ROUTER_DRIVERS=m
