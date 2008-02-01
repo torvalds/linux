@@ -1465,10 +1465,9 @@ static void sbp2_prep_command_orb_sg(struct sbp2_command_orb *orb,
 	orb->misc |= ORB_SET_DIRECTION(orb_direction);
 
 	/* special case if only one element (and less than 64KB in size) */
-	if ((scsi_use_sg == 1) &&
-	    (sg_dma_len(sg) <= SBP2_MAX_SG_ELEMENT_LENGTH)) {
+	if (scsi_use_sg == 1 && sg->length <= SBP2_MAX_SG_ELEMENT_LENGTH) {
 
-		cmd->dma_size = sg_dma_len(sg);
+		cmd->dma_size = sg->length;
 		cmd->dma_type = CMD_DMA_PAGE;
 		cmd->cmd_dma = dma_map_page(hi->host->device.parent,
 					    sg_page(sg), sg->offset,
