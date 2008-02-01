@@ -1628,7 +1628,7 @@ struct cpuidle_driver acpi_idle_driver = {
  */
 static int acpi_processor_setup_cpuidle(struct acpi_processor *pr)
 {
-	int i, count = 0;
+	int i, count = CPUIDLE_DRIVER_STATE_START;
 	struct acpi_processor_cx *cx;
 	struct cpuidle_state *state;
 	struct cpuidle_device *dev = &pr->power.dev;
@@ -1687,6 +1687,8 @@ static int acpi_processor_setup_cpuidle(struct acpi_processor *pr)
 		}
 
 		count++;
+		if (count == CPUIDLE_STATE_MAX)
+			break;
 	}
 
 	dev->state_count = count;
