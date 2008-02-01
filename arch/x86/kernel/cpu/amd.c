@@ -304,7 +304,7 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 	if (c->x86 < 6)
 		clear_bit(X86_FEATURE_MCE, c->x86_capability);
 
-	if (cpu_has_xmm)
+	if (cpu_has_xmm2)
 		set_bit(X86_FEATURE_MFENCE_RDTSC, c->x86_capability);
 }
 
