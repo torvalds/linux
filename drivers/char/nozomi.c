@@ -395,7 +395,7 @@ struct buffer {
 } __attribute__ ((packed));
 
 /*    Global variables */
-static struct pci_device_id nozomi_pci_tbl[] = {
+static struct pci_device_id nozomi_pci_tbl[] __devinitdata = {
 	{PCI_DEVICE(VENDOR1, DEVICE1)},
 	{},
 };
@@ -471,12 +471,12 @@ out:
  * -Optimize
  * -Rewrite cleaner
  */
-static u32 write_mem32(void __iomem *mem_addr_start, u32 *buf,
+static u32 write_mem32(void __iomem *mem_addr_start, const u32 *buf,
 			u32 size_bytes)
 {
 	u32 i = 0;
 	u32 *ptr = (__force u32 *) mem_addr_start;
-	u16 *buf16;
+	const u16 *buf16;
 
 	if (unlikely(!ptr || !buf))
 		return 0;
@@ -484,7 +484,7 @@ static u32 write_mem32(void __iomem *mem_addr_start, u32 *buf,
 	/* shortcut for extremely often used cases */
 	switch (size_bytes) {
 	case 2:	/* 2 bytes */
-		buf16 = (u16 *) buf;
+		buf16 = (const u16 *)buf;
 		writew(__cpu_to_le16(*buf16), (void __iomem *)ptr);
 		return 2;
 		break;
@@ -501,7 +501,7 @@ static u32 write_mem32(void __iomem *mem_addr_start, u32 *buf,
 	while (i < size_bytes) {
 		if (size_bytes - i == 2) {
 			/* 2 bytes */
-			buf16 = (u16 *) buf;
+			buf16 = (const u16 *)buf;
 			writew(__cpu_to_le16(*buf16), (void __iomem *)ptr);
 			i += 2;
 		} else {
@@ -723,8 +723,7 @@ static int nozomi_read_config_table(struct nozomi *dc)
 /* Enable uplink interrupts  */
 static void enable_transmit_ul(enum port_type port, struct nozomi *dc)
 {
-	u16 mask[NOZOMI_MAX_PORTS] = \
-			{MDM_UL, DIAG_UL, APP1_UL, APP2_UL, CTRL_UL};
+	static const u16 mask[] = {MDM_UL, DIAG_UL, APP1_UL, APP2_UL, CTRL_UL};
 
 	if (port < NOZOMI_MAX_PORTS) {
 		dc->last_ier |= mask[port];
@@ -737,8 +736,8 @@ static void enable_transmit_ul(enum port_type port, struct nozomi *dc)
 /* Disable uplink interrupts  */
 static void disable_transmit_ul(enum port_type port, struct nozomi *dc)
 {
-	u16 mask[NOZOMI_MAX_PORTS] = \
-			{~MDM_UL, ~DIAG_UL, ~APP1_UL, ~APP2_UL, ~CTRL_UL};
+	static const u16 mask[] =
+		{~MDM_UL, ~DIAG_UL, ~APP1_UL, ~APP2_UL, ~CTRL_UL};
 
 	if (port < NOZOMI_MAX_PORTS) {
 		dc->last_ier &= mask[port];
@@ -751,8 +750,7 @@ static void disable_transmit_ul(enum port_type port, struct nozomi *dc)
 /* Enable downlink interrupts */
 static void enable_transmit_dl(enum port_type port, struct nozomi *dc)
 {
-	u16 mask[NOZOMI_MAX_PORTS] = \
-			{MDM_DL, DIAG_DL, APP1_DL, APP2_DL, CTRL_DL};
+	static const u16 mask[] = {MDM_DL, DIAG_DL, APP1_DL, APP2_DL, CTRL_DL};
 
 	if (port < NOZOMI_MAX_PORTS) {
 		dc->last_ier |= mask[port];
@@ -765,8 +763,8 @@ static void enable_transmit_dl(enum port_type port, struct nozomi *dc)
 /* Disable downlink interrupts */
 static void disable_transmit_dl(enum port_type port, struct nozomi *dc)
 {
-	u16 mask[NOZOMI_MAX_PORTS] = \
-			{~MDM_DL, ~DIAG_DL, ~APP1_DL, ~APP2_DL, ~CTRL_DL};
+	static const u16 mask[] =
+		{~MDM_DL, ~DIAG_DL, ~APP1_DL, ~APP2_DL, ~CTRL_DL};
 
 	if (port < NOZOMI_MAX_PORTS) {
 		dc->last_ier &= mask[port];
@@ -783,7 +781,7 @@ static void disable_transmit_dl(enum port_type port, struct nozomi *dc)
 static int send_data(enum port_type index, struct nozomi *dc)
 {
 	u32 size = 0;
-	struct port *port = &dc->port[index];
+	const struct port *port = &dc->port[index];
 	u8 toggle = port->toggle_ul;
 	void __iomem *addr = port->ul_addr[toggle];
 	u32 ul_size = port->ul_size[toggle];
@@ -1306,7 +1304,7 @@ static void nozomi_setup_private_data(struct nozomi *dc)
 static ssize_t card_type_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
-	struct nozomi *dc = pci_get_drvdata(to_pci_dev(dev));
+	const struct nozomi *dc = pci_get_drvdata(to_pci_dev(dev));
 
 	return sprintf(buf, "%d\n", dc->card_type);
 }
@@ -1315,7 +1313,7 @@ static DEVICE_ATTR(card_type, S_IRUGO, card_type_show, NULL);
 static ssize_t open_ttys_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
-	struct nozomi *dc = pci_get_drvdata(to_pci_dev(dev));
+	const struct nozomi *dc = pci_get_drvdata(to_pci_dev(dev));
 
 	return sprintf(buf, "%u\n", dc->open_ttys);
 }
@@ -1682,7 +1680,7 @@ static int ntty_write_room(struct tty_struct *tty)
 {
 	struct port *port = tty->driver_data;
 	int room = 0;
-	struct nozomi *dc = get_dc_by_tty(tty);
+	const struct nozomi *dc = get_dc_by_tty(tty);
 
 	if (!dc || !port)
 		return 0;
@@ -1702,9 +1700,9 @@ exit:
 /* Gets io control parameters */
 static int ntty_tiocmget(struct tty_struct *tty, struct file *file)
 {
-	struct port *port = tty->driver_data;
-	struct ctrl_dl *ctrl_dl = &port->ctrl_dl;
-	struct ctrl_ul *ctrl_ul = &port->ctrl_ul;
+	const struct port *port = tty->driver_data;
+	const struct ctrl_dl *ctrl_dl = &port->ctrl_dl;
+	const struct ctrl_ul *ctrl_ul = &port->ctrl_ul;
 
 	return	(ctrl_ul->RTS ? TIOCM_RTS : 0) |
 		(ctrl_ul->DTR ? TIOCM_DTR : 0) |
