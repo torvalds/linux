@@ -44,8 +44,8 @@ enum {
 	IDE_CD_FLAG_NO_DOORLOCK		= (1 << 1),
 	/* Drive cannot eject the disc. */
 	IDE_CD_FLAG_NO_EJECT		= (1 << 2),
-	/* Drive is a pre-1.2 NEC 260 drive. */
-	IDE_CD_FLAG_NEC260		= (1 << 3),
+	/* Drive is a pre ATAPI 1.2 drive. */
+	IDE_CD_FLAG_PRE_ATAPI12		= (1 << 3),
 	/* TOC addresses are in BCD. */
 	IDE_CD_FLAG_TOCADDR_AS_BCD	= (1 << 4),
 	/* TOC track numbers are in BCD. */
@@ -65,6 +65,12 @@ enum {
 	IDE_CD_FLAG_DOOR_LOCKED		= (1 << 10),
 	/* SET_CD_SPEED command is unsupported. */
 	IDE_CD_FLAG_NO_SPEED_SELECT	= (1 << 11),
+	IDE_CD_FLAG_VERTOS_300_SSD	= (1 << 12),
+	IDE_CD_FLAG_VERTOS_600_ESD	= (1 << 13),
+	IDE_CD_FLAG_SANYO_3CD		= (1 << 14),
+	IDE_CD_FLAG_FULL_CAPS_PAGE	= (1 << 15),
+	IDE_CD_FLAG_PLAY_AUDIO_OK	= (1 << 16),
+	IDE_CD_FLAG_LE_SPEED_FIELDS	= (1 << 17),
 };
 
 /* Structure of a MSF cdrom address. */

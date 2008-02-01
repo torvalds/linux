@@ -2377,12 +2377,7 @@ static int ide_cdrom_get_capabilities(ide_drive_t *drive, u8 *buf)
 	struct packet_command cgc;
 	int stat, attempts = 3, size = ATAPI_CAPABILITIES_PAGE_SIZE;
 
-	/*
-	 * ACER50 (and others?) require the full spec length mode sense
-	 * page capabilities size, but older drives break.
-	 */
-	if (!(!strcmp(drive->id->model, "ATAPI CD ROM DRIVE 50X MAX") ||
-	    !strcmp(drive->id->model, "WPI CDS-32X")))
+	if ((info->cd_flags & IDE_CD_FLAG_FULL_CAPS_PAGE) == 0)
 		size -= ATAPI_CAPABILITIES_PAGE_PAD_SIZE;
 
 	init_cdrom_command(&cgc, buf, size, CGC_DATA_UNKNOWN);
@@ -2402,9 +2397,7 @@ static void ide_cdrom_update_speed(ide_drive_t *drive, u8 *buf)
 	curspeed = *(u16 *)&buf[8 + 14];
 	maxspeed = *(u16 *)&buf[8 +  8];
 
-	/* The ACER/AOpen 24X cdrom has the speed fields byte-swapped */
-	if (!drive->id->model[0] &&
-	    !strncmp(drive->id->fw_rev, "241N", 4)) {
+	if (cd->cd_flags & IDE_CD_FLAG_LE_SPEED_FIELDS) {
 		curspeed = le16_to_cpu(curspeed);
 		maxspeed = le16_to_cpu(maxspeed);
 	} else {
@@ -2627,8 +2620,7 @@ int ide_cdrom_probe_capabilities (ide_drive_t *drive)
 		return nslots;
 	}
 
-	if ((cd->cd_flags & IDE_CD_FLAG_NEC260) ||
-	    !strcmp(drive->id->model,"STINGRAY 8422 IDE 8X CD-ROM 7-27-95")) {
+	if (cd->cd_flags & IDE_CD_FLAG_PRE_ATAPI12) {
 		cd->cd_flags &= ~IDE_CD_FLAG_NO_EJECT;
 		cdi->mask &= ~CDC_PLAY_AUDIO;
 		return nslots;
@@ -2661,21 +2653,12 @@ int ide_cdrom_probe_capabilities (ide_drive_t *drive)
 		cdi->mask &= ~(CDC_DVD_RAM | CDC_RAM);
 	if (buf[8 + 3] & 0x10)
 		cdi->mask &= ~CDC_DVD_R;
-	if (buf[8 + 4] & 0x01)
+	if ((buf[8 + 4] & 0x01) || (cd->cd_flags & IDE_CD_FLAG_PLAY_AUDIO_OK))
 		cdi->mask &= ~CDC_PLAY_AUDIO;
 
 	mechtype = buf[8 + 6] >> 5;
 	if (mechtype == mechtype_caddy || mechtype == mechtype_popup)
 		cdi->mask |= CDC_CLOSE_TRAY;
-
-	/* Some drives used by Apple don't advertise audio play
-	 * but they do support reading TOC & audio datas
-	 */
-	if (strcmp(drive->id->model, "MATSHITADVD-ROM SR-8187") == 0 ||
-	    strcmp(drive->id->model, "MATSHITADVD-ROM SR-8186") == 0 ||
-	    strcmp(drive->id->model, "MATSHITADVD-ROM SR-8176") == 0 ||
-	    strcmp(drive->id->model, "MATSHITADVD-ROM SR-8174") == 0)
-		cdi->mask &= ~CDC_PLAY_AUDIO;
 
 	if (cdi->sanyo_slot > 0) {
 		cdi->mask &= ~CDC_SELECT_DISC;
@@ -2805,11 +2788,74 @@ static int ide_cdrom_prep_fn(struct request_queue *q, struct request *rq)
 	return 0;
 }
 
+struct cd_list_entry {
+	const char	*id_model;
+	const char	*id_firmware;
+	unsigned int	cd_flags;
+};
+
+static const struct cd_list_entry ide_cd_quirks_list[] = {
+	/* Limit transfer size per interrupt. */
+	{ "SAMSUNG CD-ROM SCR-2430", NULL,   IDE_CD_FLAG_LIMIT_NFRAMES	    },
+	{ "SAMSUNG CD-ROM SCR-2432", NULL,   IDE_CD_FLAG_LIMIT_NFRAMES	    },
+	/* SCR-3231 doesn't support the SET_CD_SPEED command. */
+	{ "SAMSUNG CD-ROM SCR-3231", NULL,   IDE_CD_FLAG_NO_SPEED_SELECT    },
+	/* Old NEC260 (not R) was released before ATAPI 1.2 spec. */
+	{ "NEC CD-ROM DRIVE:260",    "1.01", IDE_CD_FLAG_TOCADDR_AS_BCD |
+					     IDE_CD_FLAG_PRE_ATAPI12,	    },
+	/* Vertos 300, some versions of this drive like to talk BCD. */
+	{ "V003S0DS",		     NULL,   IDE_CD_FLAG_VERTOS_300_SSD,    },
+	/* Vertos 600 ESD. */
+	{ "V006E0DS",		     NULL,   IDE_CD_FLAG_VERTOS_600_ESD,    },
+	/*
+	 * Sanyo 3 CD changer uses a non-standard command for CD changing
+	 * (by default standard ATAPI support for CD changers is used).
+	 */
+	{ "CD-ROM CDR-C3 G",	     NULL,   IDE_CD_FLAG_SANYO_3CD	    },
+	{ "CD-ROM CDR-C3G",	     NULL,   IDE_CD_FLAG_SANYO_3CD	    },
+	{ "CD-ROM CDR_C36",	     NULL,   IDE_CD_FLAG_SANYO_3CD	    },
+	/* Stingray 8X CD-ROM. */
+	{ "STINGRAY 8422 IDE 8X CD-ROM 7-27-95", NULL, IDE_CD_FLAG_PRE_ATAPI12},
+	/*
+	 * ACER 50X CD-ROM and WPI 32X CD-ROM require the full spec length
+	 * mode sense page capabilities size, but older drives break.
+	 */
+	{ "ATAPI CD ROM DRIVE 50X MAX",	NULL,	IDE_CD_FLAG_FULL_CAPS_PAGE  },
+	{ "WPI CDS-32X",		NULL,	IDE_CD_FLAG_FULL_CAPS_PAGE  },
+	/* ACER/AOpen 24X CD-ROM has the speed fields byte-swapped. */
+	{ "",			     "241N", IDE_CD_FLAG_LE_SPEED_FIELDS    },
+	/*
+	 * Some drives used by Apple don't advertise audio play
+	 * but they do support reading TOC & audio datas.
+	 */
+	{ "MATSHITADVD-ROM SR-8187", NULL,   IDE_CD_FLAG_PLAY_AUDIO_OK	    },
+	{ "MATSHITADVD-ROM SR-8186", NULL,   IDE_CD_FLAG_PLAY_AUDIO_OK	    },
+	{ "MATSHITADVD-ROM SR-8176", NULL,   IDE_CD_FLAG_PLAY_AUDIO_OK	    },
+	{ "MATSHITADVD-ROM SR-8174", NULL,   IDE_CD_FLAG_PLAY_AUDIO_OK	    },
+	{ NULL, NULL, 0 }
+};
+
+static unsigned int ide_cd_flags(struct hd_driveid *id)
+{
+	const struct cd_list_entry *cle = ide_cd_quirks_list;
+
+	while (cle->id_model) {
+		if (strcmp(cle->id_model, id->model) == 0 &&
+		    (cle->id_firmware == NULL ||
+		     strstr(id->fw_rev, cle->id_firmware)))
+			return cle->cd_flags;
+		cle++;
+	}
+
+	return 0;
+}
+
 static
 int ide_cdrom_setup (ide_drive_t *drive)
 {
 	struct cdrom_info *cd = drive->driver_data;
 	struct cdrom_device_info *cdi = &cd->devinfo;
+	struct hd_driveid *id = drive->id;
 	int nslots;
 
 	blk_queue_prep_rq(drive->queue, ide_cdrom_prep_fn);
@@ -2820,53 +2866,21 @@ int ide_cdrom_setup (ide_drive_t *drive)
 
 	drive->special.all	= 0;
 
-	cd->cd_flags |= IDE_CD_FLAG_MEDIA_CHANGED;
+	cd->cd_flags = IDE_CD_FLAG_MEDIA_CHANGED | IDE_CD_FLAG_NO_EJECT |
+		       ide_cd_flags(id);
 
-	if ((drive->id->config & 0x0060) == 0x20)
+	if ((id->config & 0x0060) == 0x20)
 		cd->cd_flags |= IDE_CD_FLAG_DRQ_INTERRUPT;
-	cd->cd_flags |= IDE_CD_FLAG_NO_EJECT;
 
-	/* limit transfer size per interrupt. */
-	/* a testament to the nice quality of Samsung drives... */
-	if (!strcmp(drive->id->model, "SAMSUNG CD-ROM SCR-2430") ||
-	    !strcmp(drive->id->model, "SAMSUNG CD-ROM SCR-2432"))
-		cd->cd_flags |= IDE_CD_FLAG_LIMIT_NFRAMES;
-	/* the 3231 model does not support the SET_CD_SPEED command */
-	else if (!strcmp(drive->id->model, "SAMSUNG CD-ROM SCR-3231"))
-		cd->cd_flags |= IDE_CD_FLAG_NO_SPEED_SELECT;
-
-	if (strcmp (drive->id->model, "V003S0DS") == 0 &&
-	    drive->id->fw_rev[4] == '1' &&
-	    drive->id->fw_rev[6] <= '2') {
-		/* Vertos 300.
-		   Some versions of this drive like to talk BCD. */
+	if ((cd->cd_flags & IDE_CD_FLAG_VERTOS_300_SSD) &&
+	    id->fw_rev[4] == '1' && id->fw_rev[6] <= '2')
 		cd->cd_flags |= (IDE_CD_FLAG_TOCTRACKS_AS_BCD |
 				 IDE_CD_FLAG_TOCADDR_AS_BCD);
-	}
-	else if (strcmp (drive->id->model, "V006E0DS") == 0 &&
-	    drive->id->fw_rev[4] == '1' &&
-	    drive->id->fw_rev[6] <= '2') {
-		/* Vertos 600 ESD. */
+	else if ((cd->cd_flags & IDE_CD_FLAG_VERTOS_600_ESD) &&
+		 id->fw_rev[4] == '1' && id->fw_rev[6] <= '2')
 		cd->cd_flags |= IDE_CD_FLAG_TOCTRACKS_AS_BCD;
-	}
-	else if (strcmp(drive->id->model, "NEC CD-ROM DRIVE:260") == 0 &&
-		 strncmp(drive->id->fw_rev, "1.01", 4) == 0) { /* FIXME */
-		/* Old NEC260 (not R).
-		   This drive was released before the 1.2 version
-		   of the spec. */
-		cd->cd_flags |= (IDE_CD_FLAG_TOCADDR_AS_BCD |
-				 IDE_CD_FLAG_NEC260);
-	}
-	/*
-	 * Sanyo 3 CD changer uses a non-standard command for CD changing
-	 * (by default standard ATAPI support for CD changers is used).
-	 */
-        else if ((strcmp(drive->id->model, "CD-ROM CDR-C3 G") == 0) ||
-                 (strcmp(drive->id->model, "CD-ROM CDR-C3G") == 0) ||
-                 (strcmp(drive->id->model, "CD-ROM CDR_C36") == 0)) {
-                 /* uses CD in slot 0 when value is set to 3 */
-                 cdi->sanyo_slot = 3;
-        }
+	else if (cd->cd_flags & IDE_CD_FLAG_SANYO_3CD)
+		cdi->sanyo_slot = 3;	/* 3 => use CD in slot 0 */
 
 	nslots = ide_cdrom_probe_capabilities (drive);
 
