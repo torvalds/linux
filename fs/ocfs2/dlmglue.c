@@ -2627,7 +2627,8 @@ int ocfs2_dlm_init(struct ocfs2_super *osb)
 	}
 
 	/* for now, uuid == domain */
-	status = ocfs2_cluster_connect(osb->uuid_str,
+	status = ocfs2_cluster_connect(osb->osb_cluster_stack,
+				       osb->uuid_str,
 				       strlen(osb->uuid_str),
 				       ocfs2_do_node_down, osb,
 				       &conn);

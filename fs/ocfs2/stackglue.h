@@ -209,7 +209,8 @@ struct ocfs2_stack_plugin {
 
 
 /* Used by the filesystem */
-int ocfs2_cluster_connect(const char *group,
+int ocfs2_cluster_connect(const char *stack_name,
+			  const char *group,
 			  int grouplen,
 			  void (*recovery_handler)(int node_num,
 						   void *recovery_data),
