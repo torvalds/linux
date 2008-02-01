@@ -1487,7 +1487,7 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 		 * remove all the ifdef PCI crap
 		 */
 #ifdef CONFIG_BLK_DEV_IDEPCI
-		if (hwif->pci_dev && !hwif->pci_dev->vendor)
+		if (hwif->chipset != ide_pci)
 #endif	/* CONFIG_BLK_DEV_IDEPCI */
 		{
 			/*

@@ -1,6 +1,4 @@
 /*
- * linux/drivers/ide/pci/ns87415.c		Version 2.00  Sep. 10, 2002
- *
  * Copyright (C) 1997-1998	Mark Lord <mlord@pobox.com>
  * Copyright (C) 1998		Eddie C. Dost <ecd@skynet.be>
  * Copyright (C) 1999-2000	Andre Hedrick <andre@linux-ide.org>
@@ -71,10 +69,9 @@ static u8 superio_ide_inb (unsigned long port)
 
 static void __devinit superio_ide_init_iops (struct hwif_s *hwif)
 {
+	struct pci_dev *pdev = to_pci_dev(hwif->dev);
 	u32 base, dmabase;
-	u8 tmp;
-	struct pci_dev *pdev = hwif->pci_dev;
-	u8 port = hwif->channel;
+	u8 port = hwif->channel, tmp;
 
 	base = pci_resource_start(pdev, port * 2) & ~3;
 	dmabase = pci_resource_start(pdev, 4) & ~3;
@@ -93,10 +90,11 @@ static void __devinit superio_ide_init_iops (struct hwif_s *hwif)
 
 static void __devinit init_iops_ns87415(ide_hwif_t *hwif)
 {
-	if (PCI_SLOT(hwif->pci_dev->devfn) == 0xE) {
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
+
+	if (PCI_SLOT(dev->devfn) == 0xE)
 		/* Built-in - assume it's under superio. */
 		superio_ide_init_iops(hwif);
-	}
 }
 #endif
 
@@ -110,8 +108,8 @@ static unsigned int ns87415_count = 0, ns87415_control[MAX_HWIFS] = { 0 };
 static void ns87415_prepare_drive (ide_drive_t *drive, unsigned int use_dma)
 {
 	ide_hwif_t *hwif = HWIF(drive);
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	unsigned int bit, other, new, *old = (unsigned int *) hwif->select_data;
-	struct pci_dev *dev = hwif->pci_dev;
 	unsigned long flags;
 
 	local_irq_save(flags);
@@ -189,7 +187,7 @@ static int ns87415_ide_dma_setup(ide_drive_t *drive)
 
 static void __devinit init_hwif_ns87415 (ide_hwif_t *hwif)
 {
-	struct pci_dev *dev = hwif->pci_dev;
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	unsigned int ctrl, using_inta;
 	u8 progif;
 #ifdef __sparc_v9__
@@ -231,8 +229,8 @@ static void __devinit init_hwif_ns87415 (ide_hwif_t *hwif)
 
 #ifdef __sparc_v9__
 		/*
-		 * XXX: Reset the device, if we don't it will not respond
-		 *      to SELECT_DRIVE() properly during first probe_hwif().
+		 * XXX: Reset the device, if we don't it will not respond to
+		 *      SELECT_DRIVE() properly during first ide_probe_port().
 		 */
 		timeout = 10000;
 		outb(12, hwif->io_ports[IDE_CONTROL_OFFSET]);

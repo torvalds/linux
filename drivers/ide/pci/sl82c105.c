@@ -1,6 +1,4 @@
 /*
- * linux/drivers/ide/pci/sl82c105.c
- *
  * SL82C105/Winbond 553 IDE driver
  *
  * Maintainer unknown.
@@ -78,7 +76,7 @@ static unsigned int get_pio_timings(ide_drive_t *drive, u8 pio)
  */
 static void sl82c105_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	struct pci_dev *dev	= HWIF(drive)->pci_dev;
+	struct pci_dev *dev	= to_pci_dev(drive->hwif->dev);
 	int reg			= 0x44 + drive->dn * 4;
 	u16 drv_ctrl;
 
@@ -147,7 +145,7 @@ static inline void sl82c105_reset_host(struct pci_dev *dev)
 static void sl82c105_dma_lost_irq(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-	struct pci_dev *dev	= hwif->pci_dev;
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	u32 val, mask		= hwif->channel ? CTRL_IDE_IRQB : CTRL_IDE_IRQA;
 	u8 dma_cmd;
 
@@ -184,7 +182,7 @@ static void sl82c105_dma_lost_irq(ide_drive_t *drive)
 static void sl82c105_dma_start(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-	struct pci_dev *dev	= hwif->pci_dev;
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	int reg 		= 0x44 + drive->dn * 4;
 
 	DBG(("%s(drive:%s)\n", __FUNCTION__, drive->name));
@@ -197,15 +195,17 @@ static void sl82c105_dma_start(ide_drive_t *drive)
 
 static void sl82c105_dma_timeout(ide_drive_t *drive)
 {
+	struct pci_dev *dev = to_pci_dev(drive->hwif->dev);
+
 	DBG(("sl82c105_dma_timeout(drive:%s)\n", drive->name));
 
-	sl82c105_reset_host(HWIF(drive)->pci_dev);
+	sl82c105_reset_host(dev);
 	ide_dma_timeout(drive);
 }
 
 static int sl82c105_dma_end(ide_drive_t *drive)
 {
-	struct pci_dev *dev	= HWIF(drive)->pci_dev;
+	struct pci_dev *dev	= to_pci_dev(drive->hwif->dev);
 	int reg 		= 0x44 + drive->dn * 4;
 	int ret;
 
@@ -224,7 +224,7 @@ static int sl82c105_dma_end(ide_drive_t *drive)
  */
 static void sl82c105_resetproc(ide_drive_t *drive)
 {
-	struct pci_dev *dev = HWIF(drive)->pci_dev;
+	struct pci_dev *dev = to_pci_dev(drive->hwif->dev);
 	u32 val;
 
 	DBG(("sl82c105_resetproc(drive:%s)\n", drive->name));
@@ -293,6 +293,7 @@ static unsigned int __devinit init_chipset_sl82c105(struct pci_dev *dev, const c
  */
 static void __devinit init_hwif_sl82c105(ide_hwif_t *hwif)
 {
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	unsigned int rev;
 
 	DBG(("init_hwif_sl82c105(hwif: ide%d)\n", hwif->index));
@@ -304,7 +305,7 @@ static void __devinit init_hwif_sl82c105(ide_hwif_t *hwif)
 	if (!hwif->dma_base)
 		return;
 
-	rev = sl82c105_bridge_revision(hwif->pci_dev);
+	rev = sl82c105_bridge_revision(dev);
 	if (rev <= 5) {
 		/*
 		 * Never ever EVER under any circumstances enable

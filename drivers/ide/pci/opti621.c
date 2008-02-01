@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/ide/pci/opti621.c		Version 0.9	Sep 24, 2007
- *
  *  Copyright (C) 1996-1998  Linus Torvalds & authors (see below)
  */
 

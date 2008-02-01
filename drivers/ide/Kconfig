@@ -206,6 +206,15 @@ config BLK_DEV_IDECD
 	  To compile this driver as a module, choose M here: the
 	  module will be called ide-cd.
 
+config BLK_DEV_IDECD_VERBOSE_ERRORS
+	bool "Verbose error logging for IDE/ATAPI CDROM driver" if EMBEDDED
+	depends on BLK_DEV_IDECD
+	default y
+	help
+	  Turn this on to have the driver print out the meanings of the
+	  ATAPI error codes.  This will use up additional 8kB of kernel-space
+	  memory, though.
+
 config BLK_DEV_IDETAPE
 	tristate "Include IDE/ATAPI TAPE support (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
@@ -617,8 +626,8 @@ config BLK_DEV_SC1200
 	tristate "National SCx200 chipset support"
 	select BLK_DEV_IDEDMA_PCI
 	help
-	  This driver adds support for the built in IDE on the National
-	  SCx200 series of embedded x86 "Geode" systems
+	  This driver adds support for the on-board IDE controller on the
+	  National SCx200 series of embedded x86 "Geode" systems.
 
 config BLK_DEV_PIIX
 	tristate "Intel PIIXn chipsets support"
@@ -793,22 +802,22 @@ config BLK_DEV_CELLEB
 	depends on PPC_CELLEB
 	select BLK_DEV_IDEDMA_PCI
 	help
-	  This driver provides support for the built-in IDE controller on
+	  This driver provides support for the on-board IDE controller on
 	  Toshiba Cell Reference Board.
 	  If unsure, say Y.
 
 endif
 
 config BLK_DEV_IDE_PMAC
-	tristate "Builtin PowerMac IDE support"
+	tristate "PowerMac on-board IDE support"
 	depends on PPC_PMAC && IDE=y && BLK_DEV_IDE=y
 	help
-	  This driver provides support for the built-in IDE controller on
+	  This driver provides support for the on-board IDE controller on
 	  most of the recent Apple Power Macintoshes and PowerBooks.
 	  If unsure, say Y.
 
 config BLK_DEV_IDE_PMAC_ATA100FIRST
-	bool "Probe internal ATA/100 (Kauai) first"
+	bool "Probe on-board ATA/100 (Kauai) first"
 	depends on BLK_DEV_IDE_PMAC
 	help
 	  This option will cause the ATA/100 controller found in UniNorth2
@@ -823,7 +832,7 @@ config BLK_DEV_IDEDMA_PMAC
 	depends on BLK_DEV_IDE_PMAC
 	select BLK_DEV_IDEDMA_PCI
 	help
-	  This option allows the driver for the built-in IDE controller on
+	  This option allows the driver for the on-board IDE controller on
 	  Power Macintoshes and PowerBooks to use DMA (direct memory access)
 	  to transfer data to and from memory.  Saying Y is safe and improves
 	  performance.
@@ -934,7 +943,7 @@ config BLK_DEV_GAYLE
 	help
 	  This is the IDE driver for the Amiga Gayle IDE interface. It supports
 	  both the `A1200 style' and `A4000 style' of the Gayle IDE interface,
-	  This includes builtin IDE interfaces on some Amiga models (A600,
+	  This includes on-board IDE interfaces on some Amiga models (A600,
 	  A1200, A4000, and A4000T), and IDE interfaces on the Zorro expansion
 	  bus (M-Tech E-Matrix 530 expansion card).
 	  Say Y if you have an Amiga with a Gayle IDE interface and want to use
@@ -948,10 +957,10 @@ config BLK_DEV_IDEDOUBLER
 	depends on BLK_DEV_GAYLE && EXPERIMENTAL
 	---help---
 	  This driver provides support for the so-called `IDE doublers' (made
-	  by various manufacturers, e.g. Eyetech) that can be connected to the
-	  builtin IDE interface of some Amiga models. Using such an IDE
-	  doubler, you can connect up to four instead of two IDE devices on
-	  the Amiga's builtin IDE interface.
+	  by various manufacturers, e.g. Eyetech) that can be connected to
+	  the on-board IDE interface of some Amiga models. Using such an IDE
+	  doubler, you can connect up to four instead of two IDE devices to
+	  the Amiga's on-board IDE interface.
 
 	  Note that the normal Amiga Gayle IDE driver may not work correctly
 	  if you have an IDE doubler and don't enable this driver!
@@ -963,9 +972,9 @@ config BLK_DEV_BUDDHA
 	tristate "Buddha/Catweasel/X-Surf IDE interface support (EXPERIMENTAL)"
 	depends on ZORRO && EXPERIMENTAL
 	help
-	  This is the IDE driver for the IDE interfaces on the Buddha, 
-	  Catweasel and X-Surf expansion boards.  It supports up to two interfaces 
-	  on the Buddha, three on the Catweasel and two on the X-Surf.
+	  This is the IDE driver for the IDE interfaces on the Buddha, Catweasel
+	  and X-Surf expansion boards.  It supports up to two interfaces on the
+	  Buddha, three on the Catweasel and two on the X-Surf.
 
 	  Say Y if you have a Buddha or Catweasel expansion board and want to
 	  use IDE devices (hard disks, CD-ROM drives, etc.) that are connected
@@ -975,23 +984,23 @@ config BLK_DEV_FALCON_IDE
 	tristate "Falcon IDE interface support"
 	depends on ATARI
 	help
-	  This is the IDE driver for the builtin IDE interface on the Atari
+	  This is the IDE driver for the on-board IDE interface on the Atari
 	  Falcon. Say Y if you have a Falcon and want to use IDE devices (hard
-	  disks, CD-ROM drives, etc.) that are connected to the builtin IDE
+	  disks, CD-ROM drives, etc.) that are connected to the on-board IDE
 	  interface.
 
 config BLK_DEV_MAC_IDE
 	tristate "Macintosh Quadra/Powerbook IDE interface support"
 	depends on MAC
 	help
-	  This is the IDE driver for the builtin IDE interface on some m68k
+	  This is the IDE driver for the on-board IDE interface on some m68k
 	  Macintosh models. It supports both the `Quadra style' (used in
 	  Quadra/ Centris 630 and Performa 588 models) and `Powerbook style'
 	  (used in the Powerbook 150 and 190 models) IDE interface.
 
 	  Say Y if you have such an Macintosh model and want to use IDE
 	  devices (hard disks, CD-ROM drives, etc.) that are connected to the
-	  builtin IDE interface.
+	  on-board IDE interface.
 
 config BLK_DEV_Q40IDE
 	tristate "Q40/Q60 IDE interface support"
@@ -1062,8 +1071,8 @@ config BLK_DEV_ALI14XX
 	  boot parameter.  It enables support for the secondary IDE interface
 	  of the ALI M1439/1443/1445/1487/1489 chipsets, and permits faster
 	  I/O speeds to be set as well.  See the files
-	  <file:Documentation/ide.txt> and <file:drivers/ide/legacy/ali14xx.c> for
-	  more info.
+	  <file:Documentation/ide.txt> and <file:drivers/ide/legacy/ali14xx.c>
+	  for more info.
 
 config BLK_DEV_DTC2278
 	tristate "DTC-2278 support"
@@ -1088,8 +1097,8 @@ config BLK_DEV_QD65XX
 	help
 	  This driver is enabled at runtime using the "qd65xx.probe" kernel
 	  boot parameter.  It permits faster I/O speeds to be set.  See the
-	  <file:Documentation/ide.txt> and <file:drivers/ide/legacy/qd65xx.c> for
-	  more info.
+	  <file:Documentation/ide.txt> and <file:drivers/ide/legacy/qd65xx.c>
+	  for more info.
 
 config BLK_DEV_UMC8672
 	tristate "UMC-8672 support"

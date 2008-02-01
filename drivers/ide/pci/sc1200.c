@@ -1,6 +1,4 @@
 /*
- * linux/drivers/ide/pci/sc1200.c		Version 0.97	Aug 3 2007
- *
  * Copyright (C) 2000-2002		Mark Lord <mlord@pobox.com>
  * Copyright (C)      2007		Bartlomiej Zolnierkiewicz
  *
@@ -87,7 +85,7 @@ static const unsigned int sc1200_pio_timings[4][5] =
 static void sc1200_tunepio(ide_drive_t *drive, u8 pio)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	struct pci_dev *pdev = hwif->pci_dev;
+	struct pci_dev *pdev = to_pci_dev(hwif->dev);
 	unsigned int basereg = hwif->channel ? 0x50 : 0x40, format = 0;
 
 	pci_read_config_dword(pdev, basereg + 4, &format);
@@ -130,6 +128,7 @@ out:
 static void sc1200_set_dma_mode(ide_drive_t *drive, const u8 mode)
 {
 	ide_hwif_t		*hwif = HWIF(drive);
+	struct pci_dev		*dev = to_pci_dev(hwif->dev);
 	int			unit = drive->select.b.unit;
 	unsigned int		reg, timings;
 	unsigned short		pci_clock;
@@ -160,12 +159,11 @@ static void sc1200_set_dma_mode(ide_drive_t *drive, const u8 mode)
 		timings = mwdma_timing[pci_clock][mode - XFER_MW_DMA_0];
 
 	if (unit == 0) {			/* are we configuring drive0? */
-		pci_read_config_dword(hwif->pci_dev, basereg+4, &reg);
+		pci_read_config_dword(dev, basereg + 4, &reg);
 		timings |= reg & 0x80000000;	/* preserve PIO format bit */
-		pci_write_config_dword(hwif->pci_dev, basereg+4, timings);
-	} else {
-		pci_write_config_dword(hwif->pci_dev, basereg+12, timings);
-	}
+		pci_write_config_dword(dev, basereg + 4, timings);
+	} else
+		pci_write_config_dword(dev, basereg + 12, timings);
 }
 
 /*  Replacement for the standard ide_dma_end action in

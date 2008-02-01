@@ -28,7 +28,7 @@
 static void it8213_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-	struct pci_dev *dev	= hwif->pci_dev;
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	int is_slave		= drive->dn & 1;
 	int master_port		= 0x40;
 	int slave_port		= 0x44;
@@ -85,7 +85,7 @@ static void it8213_set_pio_mode(ide_drive_t *drive, const u8 pio)
 static void it8213_set_dma_mode(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-	struct pci_dev *dev	= hwif->pci_dev;
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	u8 maslave		= 0x40;
 	int a_speed		= 3 << (drive->dn * 4);
 	int u_flag		= 1 << drive->dn;
@@ -152,6 +152,7 @@ static void it8213_set_dma_mode(ide_drive_t *drive, const u8 speed)
 
 static void __devinit init_hwif_it8213(ide_hwif_t *hwif)
 {
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	u8 reg42h = 0;
 
 	hwif->set_dma_mode = &it8213_set_dma_mode;
@@ -160,7 +161,7 @@ static void __devinit init_hwif_it8213(ide_hwif_t *hwif)
 	if (!hwif->dma_base)
 		return;
 
-	pci_read_config_byte(hwif->pci_dev, 0x42, &reg42h);
+	pci_read_config_byte(dev, 0x42, &reg42h);
 
 	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
 		hwif->cbl = (reg42h & 0x02) ? ATA_CBL_PATA40 : ATA_CBL_PATA80;

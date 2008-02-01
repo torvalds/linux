@@ -1,6 +1,4 @@
 /*
- * Version 2.24
- *
  * AMD 755/756/766/8111 and nVidia nForce/2/2s/3/3s/CK804/MCP04
  * IDE driver for Linux.
  *
@@ -28,81 +26,46 @@
 
 #include "ide-timing.h"
 
-#define AMD_IDE_CONFIG		(0x01 + amd_config->base)
-#define AMD_CABLE_DETECT	(0x02 + amd_config->base)
-#define AMD_DRIVE_TIMING	(0x08 + amd_config->base)
-#define AMD_8BIT_TIMING		(0x0e + amd_config->base)
-#define AMD_ADDRESS_SETUP	(0x0c + amd_config->base)
-#define AMD_UDMA_TIMING		(0x10 + amd_config->base)
-
-#define AMD_CHECK_SWDMA		0x08
-#define AMD_BAD_SWDMA		0x10
-#define AMD_BAD_FIFO		0x20
-#define AMD_CHECK_SERENADE	0x40
-
-/*
- * AMD SouthBridge chips.
- */
-
-static struct amd_ide_chip {
-	unsigned short id;
-	u8 base;
-	u8 udma_mask;
-	u8 flags;
-} amd_ide_chips[] = {
-	{ PCI_DEVICE_ID_AMD_COBRA_7401,		 0x40, ATA_UDMA2, AMD_BAD_SWDMA },
-	{ PCI_DEVICE_ID_AMD_VIPER_7409,		 0x40, ATA_UDMA4, AMD_CHECK_SWDMA },
-	{ PCI_DEVICE_ID_AMD_VIPER_7411,		 0x40, ATA_UDMA5, AMD_BAD_FIFO },
-	{ PCI_DEVICE_ID_AMD_OPUS_7441,		 0x40, ATA_UDMA5, },
-	{ PCI_DEVICE_ID_AMD_8111_IDE,		 0x40, ATA_UDMA6, AMD_CHECK_SERENADE },
-	{ PCI_DEVICE_ID_NVIDIA_NFORCE_IDE,	 0x50, ATA_UDMA5, },
-	{ PCI_DEVICE_ID_NVIDIA_NFORCE2_IDE,	 0x50, ATA_UDMA6, },
-	{ PCI_DEVICE_ID_NVIDIA_NFORCE2S_IDE,	 0x50, ATA_UDMA6, },
-	{ PCI_DEVICE_ID_NVIDIA_NFORCE2S_SATA,	 0x50, ATA_UDMA6, },
-	{ PCI_DEVICE_ID_NVIDIA_NFORCE3_IDE,	 0x50, ATA_UDMA6, },
-	{ PCI_DEVICE_ID_NVIDIA_NFORCE3S_IDE,	 0x50, ATA_UDMA6, },
-	{ PCI_DEVICE_ID_NVIDIA_NFORCE3S_SATA,	 0x50, ATA_UDMA6, },
-	{ PCI_DEVICE_ID_NVIDIA_NFORCE3S_SATA2,	 0x50, ATA_UDMA6, },
-	{ PCI_DEVICE_ID_NVIDIA_NFORCE_CK804_IDE, 0x50, ATA_UDMA6, },
-	{ PCI_DEVICE_ID_NVIDIA_NFORCE_MCP04_IDE, 0x50, ATA_UDMA6, },
-	{ PCI_DEVICE_ID_NVIDIA_NFORCE_MCP51_IDE, 0x50, ATA_UDMA6, },
-	{ PCI_DEVICE_ID_NVIDIA_NFORCE_MCP55_IDE, 0x50, ATA_UDMA6, },
-	{ PCI_DEVICE_ID_NVIDIA_NFORCE_MCP61_IDE, 0x50, ATA_UDMA6, },
-	{ PCI_DEVICE_ID_NVIDIA_NFORCE_MCP65_IDE, 0x50, ATA_UDMA6, },
-	{ PCI_DEVICE_ID_NVIDIA_NFORCE_MCP67_IDE, 0x50, ATA_UDMA6, },
-	{ PCI_DEVICE_ID_NVIDIA_NFORCE_MCP73_IDE, 0x50, ATA_UDMA6, },
-	{ PCI_DEVICE_ID_NVIDIA_NFORCE_MCP77_IDE, 0x50, ATA_UDMA6, },
-	{ PCI_DEVICE_ID_AMD_CS5536_IDE,		 0x40, ATA_UDMA5, },
-	{ 0 }
+enum {
+	AMD_IDE_CONFIG		= 0x41,
+	AMD_CABLE_DETECT	= 0x42,
+	AMD_DRIVE_TIMING	= 0x48,
+	AMD_8BIT_TIMING		= 0x4e,
+	AMD_ADDRESS_SETUP	= 0x4c,
+	AMD_UDMA_TIMING		= 0x50,
 };
 
-static struct amd_ide_chip *amd_config;
-static const struct ide_port_info *amd_chipset;
 static unsigned int amd_80w;
 static unsigned int amd_clock;
 
 static char *amd_dma[] = { "16", "25", "33", "44", "66", "100", "133" };
 static unsigned char amd_cyc2udma[] = { 6, 6, 5, 4, 0, 1, 1, 2, 2, 3, 3, 3, 3, 3, 3, 7 };
 
+static inline u8 amd_offset(struct pci_dev *dev)
+{
+	return (dev->vendor == PCI_VENDOR_ID_NVIDIA) ? 0x10 : 0;
+}
+
 /*
  * amd_set_speed() writes timing values to the chipset registers
  */
 
-static void amd_set_speed(struct pci_dev *dev, unsigned char dn, struct ide_timing *timing)
+static void amd_set_speed(struct pci_dev *dev, u8 dn, u8 udma_mask,
+			  struct ide_timing *timing)
 {
-	unsigned char t;
+	u8 t = 0, offset = amd_offset(dev);
 
-	pci_read_config_byte(dev, AMD_ADDRESS_SETUP, &t);
+	pci_read_config_byte(dev, AMD_ADDRESS_SETUP + offset, &t);
 	t = (t & ~(3 << ((3 - dn) << 1))) | ((FIT(timing->setup, 1, 4) - 1) << ((3 - dn) << 1));
-	pci_write_config_byte(dev, AMD_ADDRESS_SETUP, t);
+	pci_write_config_byte(dev, AMD_ADDRESS_SETUP + offset, t);
 
-	pci_write_config_byte(dev, AMD_8BIT_TIMING + (1 - (dn >> 1)),
+	pci_write_config_byte(dev, AMD_8BIT_TIMING + offset + (1 - (dn >> 1)),
 		((FIT(timing->act8b, 1, 16) - 1) << 4) | (FIT(timing->rec8b, 1, 16) - 1));
 
-	pci_write_config_byte(dev, AMD_DRIVE_TIMING + (3 - dn),
+	pci_write_config_byte(dev, AMD_DRIVE_TIMING + offset + (3 - dn),
 		((FIT(timing->active, 1, 16) - 1) << 4) | (FIT(timing->recover, 1, 16) - 1));
 
-	switch (amd_config->udma_mask) {
+	switch (udma_mask) {
 	case ATA_UDMA2: t = timing->udma ? (0xc0 | (FIT(timing->udma, 2, 5) - 2)) : 0x03; break;
 	case ATA_UDMA4: t = timing->udma ? (0xc0 | amd_cyc2udma[FIT(timing->udma, 2, 10)]) : 0x03; break;
 	case ATA_UDMA5: t = timing->udma ? (0xc0 | amd_cyc2udma[FIT(timing->udma, 1, 10)]) : 0x03; break;
@@ -110,7 +73,7 @@ static void amd_set_speed(struct pci_dev *dev, unsigned char dn, struct ide_timi
 	default: return;
 	}
 
-	pci_write_config_byte(dev, AMD_UDMA_TIMING + (3 - dn), t);
+	pci_write_config_byte(dev, AMD_UDMA_TIMING + offset + (3 - dn), t);
 }
 
 /*
@@ -120,12 +83,15 @@ static void amd_set_speed(struct pci_dev *dev, unsigned char dn, struct ide_timi
 
 static void amd_set_drive(ide_drive_t *drive, const u8 speed)
 {
-	ide_drive_t *peer = HWIF(drive)->drives + (~drive->dn & 1);
+	ide_hwif_t *hwif = drive->hwif;
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
+	ide_drive_t *peer = hwif->drives + (~drive->dn & 1);
 	struct ide_timing t, p;
 	int T, UT;
+	u8 udma_mask = hwif->ultra_mask;
 
 	T = 1000000000 / amd_clock;
-	UT = (amd_config->udma_mask == ATA_UDMA2) ? T : (T / 2);
+	UT = (udma_mask == ATA_UDMA2) ? T : (T / 2);
 
 	ide_timing_compute(drive, speed, &t, T, UT);
 
@@ -137,7 +103,7 @@ static void amd_set_drive(ide_drive_t *drive, const u8 speed)
 	if (speed == XFER_UDMA_5 && amd_clock <= 33333) t.udma = 1;
 	if (speed == XFER_UDMA_6 && amd_clock <= 33333) t.udma = 15;
 
-	amd_set_speed(HWIF(drive)->pci_dev, drive->dn, &t);
+	amd_set_speed(dev, drive->dn, udma_mask, &t);
 }
 
 /*
@@ -149,67 +115,68 @@ static void amd_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	amd_set_drive(drive, XFER_PIO_0 + pio);
 }
 
-/*
- * The initialization callback. Here we determine the IDE chip type
- * and initialize its drive independent registers.
- */
-
-static unsigned int __devinit init_chipset_amd74xx(struct pci_dev *dev, const char *name)
+static void __devinit amd7409_cable_detect(struct pci_dev *dev,
+					   const char *name)
 {
-	unsigned char t;
-	unsigned int u;
+	/* no host side cable detection */
+	amd_80w = 0x03;
+}
+
+static void __devinit amd7411_cable_detect(struct pci_dev *dev,
+					   const char *name)
+{
 	int i;
+	u32 u = 0;
+	u8 t = 0, offset = amd_offset(dev);
+
+	pci_read_config_byte(dev, AMD_CABLE_DETECT + offset, &t);
+	pci_read_config_dword(dev, AMD_UDMA_TIMING + offset, &u);
+	amd_80w = ((t & 0x3) ? 1 : 0) | ((t & 0xc) ? 2 : 0);
+	for (i = 24; i >= 0; i -= 8)
+		if (((u >> i) & 4) && !(amd_80w & (1 << (1 - (i >> 4))))) {
+			printk(KERN_WARNING "%s: BIOS didn't set cable bits "
+					    "correctly. Enabling workaround.\n",
+					    name);
+			amd_80w |= (1 << (1 - (i >> 4)));
+		}
+}
 
 /*
- * Check for bad SWDMA.
+ * The initialization callback.  Initialize drive independent registers.
  */
 
-	if (amd_config->flags & AMD_CHECK_SWDMA) {
-		if (dev->revision <= 7)
-			amd_config->flags |= AMD_BAD_SWDMA;
-	}
+static unsigned int __devinit init_chipset_amd74xx(struct pci_dev *dev,
+						   const char *name)
+{
+	u8 t = 0, offset = amd_offset(dev);
 
 /*
  * Check 80-wire cable presence.
  */
 
-	switch (amd_config->udma_mask) {
-
-		case ATA_UDMA6:
-		case ATA_UDMA5:
-			pci_read_config_byte(dev, AMD_CABLE_DETECT, &t);
-			pci_read_config_dword(dev, AMD_UDMA_TIMING, &u);
-			amd_80w = ((t & 0x3) ? 1 : 0) | ((t & 0xc) ? 2 : 0);
-			for (i = 24; i >= 0; i -= 8)
-				if (((u >> i) & 4) && !(amd_80w & (1 << (1 - (i >> 4))))) {
-					printk(KERN_WARNING "%s: BIOS didn't set cable bits correctly. Enabling workaround.\n",
-						amd_chipset->name);
-					amd_80w |= (1 << (1 - (i >> 4)));
-				}
-			break;
-
-		case ATA_UDMA4:
-			/* no host side cable detection */
-			amd_80w = 0x03;
-			break;
-	}
+	if (dev->vendor == PCI_VENDOR_ID_AMD &&
+	    dev->device == PCI_DEVICE_ID_AMD_COBRA_7401)
+		; /* no UDMA > 2 */
+	else if (dev->vendor == PCI_VENDOR_ID_AMD &&
+		 dev->device == PCI_DEVICE_ID_AMD_VIPER_7409)
+		amd7409_cable_detect(dev, name);
+	else
+		amd7411_cable_detect(dev, name);
 
 /*
  * Take care of prefetch & postwrite.
  */
 
-	pci_read_config_byte(dev, AMD_IDE_CONFIG, &t);
-	pci_write_config_byte(dev, AMD_IDE_CONFIG,
-		(amd_config->flags & AMD_BAD_FIFO) ? (t & 0x0f) : (t | 0xf0));
-
-/*
- * Take care of incorrectly wired Serenade mainboards.
- */
-
-	if ((amd_config->flags & AMD_CHECK_SERENADE) &&
-		dev->subsystem_vendor == PCI_VENDOR_ID_AMD &&
-		dev->subsystem_device == PCI_DEVICE_ID_AMD_SERENADE)
-			amd_config->udma_mask = ATA_UDMA5;
+	pci_read_config_byte(dev, AMD_IDE_CONFIG + offset, &t);
+	/*
+	 * Check for broken FIFO support.
+	 */
+	if (dev->vendor == PCI_VENDOR_ID_AMD &&
+	    dev->vendor == PCI_DEVICE_ID_AMD_VIPER_7411)
+		t &= 0x0f;
+	else
+		t |= 0xf0;
+	pci_write_config_byte(dev, AMD_IDE_CONFIG + offset, t);
 
 /*
  * Determine the system bus clock.
@@ -225,35 +192,25 @@ static unsigned int __devinit init_chipset_amd74xx(struct pci_dev *dev, const ch
 
 	if (amd_clock < 20000 || amd_clock > 50000) {
 		printk(KERN_WARNING "%s: User given PCI clock speed impossible (%d), using 33 MHz instead.\n",
-			amd_chipset->name, amd_clock);
+				    name, amd_clock);
 		amd_clock = 33333;
 	}
-
-/*
- * Print the boot message.
- */
-
-	printk(KERN_INFO "%s: %s (rev %02x) UDMA%s controller\n",
-		amd_chipset->name, pci_name(dev), dev->revision,
-		amd_dma[fls(amd_config->udma_mask) - 1]);
 
 	return dev->irq;
 }
 
 static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 {
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
+
 	if (hwif->irq == 0) /* 0 is bogus but will do for now */
-		hwif->irq = pci_get_legacy_ide_irq(hwif->pci_dev, hwif->channel);
+		hwif->irq = pci_get_legacy_ide_irq(dev, hwif->channel);
 
 	hwif->set_pio_mode = &amd_set_pio_mode;
 	hwif->set_dma_mode = &amd_set_drive;
 
 	if (!hwif->dma_base)
 		return;
-
-	hwif->ultra_mask = amd_config->udma_mask;
-	if (amd_config->flags & AMD_BAD_SWDMA)
-		hwif->swdma_mask = 0x00;
 
 	if (hwif->cbl != ATA_CBL_PATA40_SHORT) {
 		if ((amd_80w >> hwif->channel) & 1)
@@ -272,7 +229,7 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 	 IDE_HFLAG_UNMASK_IRQS | \
 	 IDE_HFLAG_BOOTABLE)
 
-#define DECLARE_AMD_DEV(name_str)					\
+#define DECLARE_AMD_DEV(name_str, swdma, udma)				\
 	{								\
 		.name		= name_str,				\
 		.init_chipset	= init_chipset_amd74xx,			\
@@ -280,11 +237,12 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 		.enablebits	= {{0x40,0x02,0x02}, {0x40,0x01,0x01}},	\
 		.host_flags	= IDE_HFLAGS_AMD,			\
 		.pio_mask	= ATA_PIO5,				\
-		.swdma_mask	= ATA_SWDMA2,				\
+		.swdma_mask	= swdma,				\
 		.mwdma_mask	= ATA_MWDMA2,				\
+		.udma_mask	= udma,					\
 	}
 
-#define DECLARE_NV_DEV(name_str)					\
+#define DECLARE_NV_DEV(name_str, udma)					\
 	{								\
 		.name		= name_str,				\
 		.init_chipset	= init_chipset_amd74xx,			\
@@ -294,45 +252,62 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 		.pio_mask	= ATA_PIO5,				\
 		.swdma_mask	= ATA_SWDMA2,				\
 		.mwdma_mask	= ATA_MWDMA2,				\
+		.udma_mask	= udma,					\
 	}
 
 static const struct ide_port_info amd74xx_chipsets[] __devinitdata = {
-	/*  0 */ DECLARE_AMD_DEV("AMD7401"),
-	/*  1 */ DECLARE_AMD_DEV("AMD7409"),
-	/*  2 */ DECLARE_AMD_DEV("AMD7411"),
-	/*  3 */ DECLARE_AMD_DEV("AMD7441"),
-	/*  4 */ DECLARE_AMD_DEV("AMD8111"),
+	/*  0 */ DECLARE_AMD_DEV("AMD7401",	  0x00, ATA_UDMA2),
+	/*  1 */ DECLARE_AMD_DEV("AMD7409", ATA_SWDMA2, ATA_UDMA4),
+	/*  2 */ DECLARE_AMD_DEV("AMD7411", ATA_SWDMA2, ATA_UDMA5),
+	/*  3 */ DECLARE_AMD_DEV("AMD7441", ATA_SWDMA2, ATA_UDMA5),
+	/*  4 */ DECLARE_AMD_DEV("AMD8111", ATA_SWDMA2, ATA_UDMA6),
 
-	/*  5 */ DECLARE_NV_DEV("NFORCE"),
-	/*  6 */ DECLARE_NV_DEV("NFORCE2"),
-	/*  7 */ DECLARE_NV_DEV("NFORCE2-U400R"),
-	/*  8 */ DECLARE_NV_DEV("NFORCE2-U400R-SATA"),
-	/*  9 */ DECLARE_NV_DEV("NFORCE3-150"),
-	/* 10 */ DECLARE_NV_DEV("NFORCE3-250"),
-	/* 11 */ DECLARE_NV_DEV("NFORCE3-250-SATA"),
-	/* 12 */ DECLARE_NV_DEV("NFORCE3-250-SATA2"),
-	/* 13 */ DECLARE_NV_DEV("NFORCE-CK804"),
-	/* 14 */ DECLARE_NV_DEV("NFORCE-MCP04"),
-	/* 15 */ DECLARE_NV_DEV("NFORCE-MCP51"),
-	/* 16 */ DECLARE_NV_DEV("NFORCE-MCP55"),
-	/* 17 */ DECLARE_NV_DEV("NFORCE-MCP61"),
-	/* 18 */ DECLARE_NV_DEV("NFORCE-MCP65"),
-	/* 19 */ DECLARE_NV_DEV("NFORCE-MCP67"),
-	/* 20 */ DECLARE_NV_DEV("NFORCE-MCP73"),
-	/* 21 */ DECLARE_NV_DEV("NFORCE-MCP77"),
-	/* 22 */ DECLARE_AMD_DEV("AMD5536"),
+	/*  5 */ DECLARE_NV_DEV("NFORCE",		ATA_UDMA5),
+	/*  6 */ DECLARE_NV_DEV("NFORCE2",		ATA_UDMA6),
+	/*  7 */ DECLARE_NV_DEV("NFORCE2-U400R",	ATA_UDMA6),
+	/*  8 */ DECLARE_NV_DEV("NFORCE2-U400R-SATA",	ATA_UDMA6),
+	/*  9 */ DECLARE_NV_DEV("NFORCE3-150",		ATA_UDMA6),
+	/* 10 */ DECLARE_NV_DEV("NFORCE3-250",		ATA_UDMA6),
+	/* 11 */ DECLARE_NV_DEV("NFORCE3-250-SATA",	ATA_UDMA6),
+	/* 12 */ DECLARE_NV_DEV("NFORCE3-250-SATA2",	ATA_UDMA6),
+	/* 13 */ DECLARE_NV_DEV("NFORCE-CK804",		ATA_UDMA6),
+	/* 14 */ DECLARE_NV_DEV("NFORCE-MCP04",		ATA_UDMA6),
+	/* 15 */ DECLARE_NV_DEV("NFORCE-MCP51",		ATA_UDMA6),
+	/* 16 */ DECLARE_NV_DEV("NFORCE-MCP55",		ATA_UDMA6),
+	/* 17 */ DECLARE_NV_DEV("NFORCE-MCP61",		ATA_UDMA6),
+	/* 18 */ DECLARE_NV_DEV("NFORCE-MCP65",		ATA_UDMA6),
+	/* 19 */ DECLARE_NV_DEV("NFORCE-MCP67",		ATA_UDMA6),
+	/* 20 */ DECLARE_NV_DEV("NFORCE-MCP73",		ATA_UDMA6),
+	/* 21 */ DECLARE_NV_DEV("NFORCE-MCP77",		ATA_UDMA6),
+
+	/* 22 */ DECLARE_AMD_DEV("AMD5536", ATA_SWDMA2, ATA_UDMA5),
 };
 
 static int __devinit amd74xx_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	amd_chipset = amd74xx_chipsets + id->driver_data;
-	amd_config = amd_ide_chips + id->driver_data;
-	if (dev->device != amd_config->id) {
-		printk(KERN_ERR "%s: assertion 0x%02x == 0x%02x failed !\n",
-		       pci_name(dev), dev->device, amd_config->id);
-		return -ENODEV;
+	struct ide_port_info d;
+	u8 idx = id->driver_data;
+
+	d = amd74xx_chipsets[idx];
+
+	/*
+	 * Check for bad SWDMA and incorrectly wired Serenade mainboards.
+	 */
+	if (idx == 1) {
+		if (dev->revision <= 7)
+			d.swdma_mask = 0;
+		d.host_flags |= IDE_HFLAG_CLEAR_SIMPLEX;
+	} else if (idx == 4) {
+		if (dev->subsystem_vendor == PCI_VENDOR_ID_AMD &&
+		    dev->subsystem_device == PCI_DEVICE_ID_AMD_SERENADE)
+			d.udma_mask = ATA_UDMA5;
 	}
-	return ide_setup_pci_device(dev, amd_chipset);
+
+	printk(KERN_INFO "%s: %s (rev %02x) UDMA%s controller\n",
+			 d.name, pci_name(dev), dev->revision,
+			 amd_dma[fls(d.udma_mask) - 1]);
+
+	return ide_setup_pci_device(dev, &d);
 }
 
 static const struct pci_device_id amd74xx_pci_tbl[] = {

@@ -159,6 +159,7 @@ sgiioc4_clearirq(ide_drive_t * drive)
 		}
 
 		if (intr_reg & 0x02) {
+			struct pci_dev *dev = to_pci_dev(hwif->dev);
 			/* Error when transferring DMA data on PCI bus */
 			u32 pci_err_addr_low, pci_err_addr_high,
 			    pci_stat_cmd_reg;
@@ -167,7 +168,7 @@ sgiioc4_clearirq(ide_drive_t * drive)
 				readl((void __iomem *)hwif->io_ports[IDE_IRQ_OFFSET]);
 			pci_err_addr_high =
 				readl((void __iomem *)(hwif->io_ports[IDE_IRQ_OFFSET] + 4));
-			pci_read_config_dword(hwif->pci_dev, PCI_COMMAND,
+			pci_read_config_dword(dev, PCI_COMMAND,
 					      &pci_stat_cmd_reg);
 			printk(KERN_ERR
 			       "%s(%s) : PCI Bus Error when doing DMA:"
@@ -178,8 +179,7 @@ sgiioc4_clearirq(ide_drive_t * drive)
 			       __FUNCTION__, drive->name,
 			       pci_err_addr_high, pci_err_addr_low);
 			/* Clear the PCI Error indicator */
-			pci_write_config_dword(hwif->pci_dev, PCI_COMMAND,
-					       0x00000146);
+			pci_write_config_dword(dev, PCI_COMMAND, 0x00000146);
 		}
 
 		/* Clear the Interrupt, Error bits on the IOC4 */
@@ -334,6 +334,7 @@ sgiioc4_INB(unsigned long port)
 static int __devinit
 ide_dma_sgiioc4(ide_hwif_t * hwif, unsigned long dma_base)
 {
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	void __iomem *virt_dma_base;
 	int num_ports = sizeof (ioc4_dma_regs_t);
 	void *pad;
@@ -359,7 +360,7 @@ ide_dma_sgiioc4(ide_hwif_t * hwif, unsigned long dma_base)
 	}
 	hwif->dma_base = (unsigned long) virt_dma_base;
 
-	hwif->dmatable_cpu = pci_alloc_consistent(hwif->pci_dev,
+	hwif->dmatable_cpu = pci_alloc_consistent(dev,
 					  IOC4_PRD_ENTRIES * IOC4_PRD_BYTES,
 					  &hwif->dmatable_dma);
 
@@ -368,7 +369,7 @@ ide_dma_sgiioc4(ide_hwif_t * hwif, unsigned long dma_base)
 
 	hwif->sg_max_nents = IOC4_PRD_ENTRIES;
 
-	pad = pci_alloc_consistent(hwif->pci_dev, IOC4_IDE_CACHELINE_SIZE,
+	pad = pci_alloc_consistent(dev, IOC4_IDE_CACHELINE_SIZE,
 				   (dma_addr_t *) &(hwif->dma_status));
 
 	if (pad) {
@@ -376,8 +377,7 @@ ide_dma_sgiioc4(ide_hwif_t * hwif, unsigned long dma_base)
 		return 0;
 	}
 
-	pci_free_consistent(hwif->pci_dev,
-			    IOC4_PRD_ENTRIES * IOC4_PRD_BYTES,
+	pci_free_consistent(dev, IOC4_PRD_ENTRIES * IOC4_PRD_BYTES,
 			    hwif->dmatable_cpu, hwif->dmatable_dma);
 	printk(KERN_INFO
 	       "%s() -- Error! Unable to allocate DMA Maps for drive %s\n",
@@ -517,8 +517,7 @@ sgiioc4_build_dma_table(ide_drive_t * drive, struct request *rq, int ddir)
 	}
 
 use_pio_instead:
-	pci_unmap_sg(hwif->pci_dev, hwif->sg_table, hwif->sg_nents,
-		     hwif->sg_dma_direction);
+	ide_destroy_dmatable(drive);
 
 	return 0;		/* revert to PIO for this request */
 }
@@ -641,7 +640,7 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	hw.dev = &dev->dev;
 	ide_init_port_hw(hwif, &hw);
 
-	hwif->pci_dev = dev;
+	hwif->dev = &dev->dev;
 	hwif->channel = 0;	/* Single Channel chip */
 
 	/* The IOC4 uses MMIO rather than Port IO. */

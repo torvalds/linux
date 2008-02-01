@@ -1,7 +1,6 @@
 /*
- * linux/drivers/ide/ide-tape.c		Version 1.19	Nov, 2003
- *
- * Copyright (C) 1995 - 1999 Gadi Oxman <gadio@netvision.net.il>
+ * Copyright (C) 1995-1999  Gadi Oxman <gadio@netvision.net.il>
+ * Copyright (C) 2003-2005  Bartlomiej Zolnierkiewicz
  *
  * $Header$
  *
@@ -4291,9 +4290,6 @@ static int idetape_identify_device (ide_drive_t *drive)
 {
 	struct idetape_id_gcw gcw;
 	struct hd_driveid *id = drive->id;
-#if IDETAPE_DEBUG_INFO
-	unsigned short mask,i;
-#endif /* IDETAPE_DEBUG_INFO */
 
 	if (drive->id_read == 0)
 		return 1;
@@ -4333,62 +4329,6 @@ static int idetape_identify_device (ide_drive_t *drive)
 		case 1: printk("16 bytes\n");break;
 		default: printk("Reserved\n");break;
 	}
-	printk(KERN_INFO "ide-tape: Model: %.40s\n",id->model);
-	printk(KERN_INFO "ide-tape: Firmware Revision: %.8s\n",id->fw_rev);
-	printk(KERN_INFO "ide-tape: Serial Number: %.20s\n",id->serial_no);
-	printk(KERN_INFO "ide-tape: Write buffer size: %d bytes\n",id->buf_size*512);
-	printk(KERN_INFO "ide-tape: DMA: %s",id->capability & 0x01 ? "Yes\n":"No\n");
-	printk(KERN_INFO "ide-tape: LBA: %s",id->capability & 0x02 ? "Yes\n":"No\n");
-	printk(KERN_INFO "ide-tape: IORDY can be disabled: %s",id->capability & 0x04 ? "Yes\n":"No\n");
-	printk(KERN_INFO "ide-tape: IORDY supported: %s",id->capability & 0x08 ? "Yes\n":"Unknown\n");
-	printk(KERN_INFO "ide-tape: ATAPI overlap supported: %s",id->capability & 0x20 ? "Yes\n":"No\n");
-	printk(KERN_INFO "ide-tape: PIO Cycle Timing Category: %d\n",id->tPIO);
-	printk(KERN_INFO "ide-tape: DMA Cycle Timing Category: %d\n",id->tDMA);
-	printk(KERN_INFO "ide-tape: Single Word DMA supported modes: ");
-	for (i=0,mask=1;i<8;i++,mask=mask << 1) {
-		if (id->dma_1word & mask)
-			printk("%d ",i);
-		if (id->dma_1word & (mask << 8))
-			printk("(active) ");
-	}
-	printk("\n");
-	printk(KERN_INFO "ide-tape: Multi Word DMA supported modes: ");
-	for (i=0,mask=1;i<8;i++,mask=mask << 1) {
-		if (id->dma_mword & mask)
-			printk("%d ",i);
-		if (id->dma_mword & (mask << 8))
-			printk("(active) ");
-	}
-	printk("\n");
-	if (id->field_valid & 0x0002) {
-		printk(KERN_INFO "ide-tape: Enhanced PIO Modes: %s\n",
-			id->eide_pio_modes & 1 ? "Mode 3":"None");
-		printk(KERN_INFO "ide-tape: Minimum Multi-word DMA cycle per word: ");
-		if (id->eide_dma_min == 0)
-			printk("Not supported\n");
-		else
-			printk("%d ns\n",id->eide_dma_min);
-
-		printk(KERN_INFO "ide-tape: Manufacturer\'s Recommended Multi-word cycle: ");
-		if (id->eide_dma_time == 0)
-			printk("Not supported\n");
-		else
-			printk("%d ns\n",id->eide_dma_time);
-
-		printk(KERN_INFO "ide-tape: Minimum PIO cycle without IORDY: ");
-		if (id->eide_pio == 0)
-			printk("Not supported\n");
-		else
-			printk("%d ns\n",id->eide_pio);
-
-		printk(KERN_INFO "ide-tape: Minimum PIO cycle with IORDY: ");
-		if (id->eide_pio_iordy == 0)
-			printk("Not supported\n");
-		else
-			printk("%d ns\n",id->eide_pio_iordy);
-		
-	} else
-		printk(KERN_INFO "ide-tape: According to the device, fields 64-70 are not valid.\n");
 #endif /* IDETAPE_DEBUG_INFO */
 
 	/* Check that we can support this device */
@@ -4591,19 +4531,11 @@ static void idetape_setup (ide_drive_t *drive, idetape_tape_t *tape, int minor)
 
 	spin_lock_init(&tape->spinlock);
 	drive->dsc_overlap = 1;
-#ifdef CONFIG_BLK_DEV_IDEPCI
-	if (HWIF(drive)->pci_dev != NULL) {
-		/*
-		 * These two ide-pci host adapters appear to need DSC overlap disabled.
-		 * This probably needs further analysis.
-		 */
-		if ((HWIF(drive)->pci_dev->device == PCI_DEVICE_ID_ARTOP_ATP850UF) ||
-		    (HWIF(drive)->pci_dev->device == PCI_DEVICE_ID_TTI_HPT343)) {
-			printk(KERN_INFO "ide-tape: %s: disabling DSC overlap\n", tape->name);
-		    	drive->dsc_overlap = 0;
-		}
+	if (drive->hwif->host_flags & IDE_HFLAG_NO_DSC) {
+		printk(KERN_INFO "ide-tape: %s: disabling DSC overlap\n",
+				 tape->name);
+		drive->dsc_overlap = 0;
 	}
-#endif /* CONFIG_BLK_DEV_IDEPCI */
 	/* Seagate Travan drives do not support DSC overlap. */
 	if (strstr(drive->id->model, "Seagate STT3401"))
 		drive->dsc_overlap = 0;

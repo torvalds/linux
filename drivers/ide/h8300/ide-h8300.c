@@ -1,5 +1,4 @@
 /*
- * drivers/ide/h8300/ide-h8300.c
  * H8/300 generic IDE interface
  */
 

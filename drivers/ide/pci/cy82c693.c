@@ -1,6 +1,4 @@
 /*
- * linux/drivers/ide/pci/cy82c693.c		Version 0.44	Nov 8, 2007
- *
  *  Copyright (C) 1998-2000 Andreas S. Krebs (akrebs@altavista.net), Maintainer
  *  Copyright (C) 1998-2002 Andre Hedrick <andre@linux-ide.org>, Integrator
  *
@@ -228,7 +226,7 @@ static void cy82c693_set_dma_mode(ide_drive_t *drive, const u8 mode)
 static void cy82c693_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	ide_hwif_t *hwif = HWIF(drive);
-	struct pci_dev *dev = hwif->pci_dev;
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	pio_clocks_t pclk;
 	unsigned int addrCtrl;
 
@@ -397,8 +395,9 @@ static void __devinit init_hwif_cy82c693(ide_hwif_t *hwif)
 static void __devinit init_iops_cy82c693(ide_hwif_t *hwif)
 {
 	static ide_hwif_t *primary;
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 
-	if (PCI_FUNC(hwif->pci_dev->devfn) == 1)
+	if (PCI_FUNC(dev->devfn) == 1)
 		primary = hwif;
 	else {
 		hwif->mate = primary;

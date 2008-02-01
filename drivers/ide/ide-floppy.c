@@ -1,13 +1,12 @@
 /*
- * linux/drivers/ide/ide-floppy.c	Version 0.99	Feb 24 2002
+ * IDE ATAPI floppy driver.
  *
- * Copyright (C) 1996 - 1999 Gadi Oxman <gadio@netvision.net.il>
- * Copyright (C) 2000 - 2002 Paul Bristow <paul@paulbristow.net>
+ * Copyright (C) 1996-1999  Gadi Oxman <gadio@netvision.net.il>
+ * Copyright (C) 2000-2002  Paul Bristow <paul@paulbristow.net>
+ * Copyright (C) 2005       Bartlomiej Zolnierkiewicz
  */
 
 /*
- * IDE ATAPI floppy driver.
- *
  * The driver currently doesn't have any fancy features, just the bare
  * minimum read/write support.
  *
@@ -17,67 +16,8 @@
  * Iomega Zip 100/250
  * Iomega PC Card Clik!/PocketZip
  *
- * Many thanks to Lode Leroy <Lode.Leroy@www.ibase.be>, who tested so many
- * ALPHA patches to this driver on an EASYSTOR LS-120 ATAPI floppy drive.
- *
- * Ver 0.1   Oct 17 96   Initial test version, mostly based on ide-tape.c.
- * Ver 0.2   Oct 31 96   Minor changes.
- * Ver 0.3   Dec  2 96   Fixed error recovery bug.
- * Ver 0.4   Jan 26 97   Add support for the HDIO_GETGEO ioctl.
- * Ver 0.5   Feb 21 97   Add partitions support.
- *                       Use the minimum of the LBA and CHS capacities.
- *                       Avoid hwgroup->rq == NULL on the last irq.
- *                       Fix potential null dereferencing with DEBUG_LOG.
- * Ver 0.8   Dec  7 97   Increase irq timeout from 10 to 50 seconds.
- *                       Add media write-protect detection.
- *                       Issue START command only if TEST UNIT READY fails.
- *                       Add work-around for IOMEGA ZIP revision 21.D.
- *                       Remove idefloppy_get_capabilities().
- * Ver 0.9   Jul  4 99   Fix a bug which might have caused the number of
- *                        bytes requested on each interrupt to be zero.
- *                        Thanks to <shanos@es.co.nz> for pointing this out.
- * Ver 0.9.sv Jan 6 01   Sam Varshavchik <mrsam@courier-mta.com>
- *                       Implement low level formatting.  Reimplemented
- *                       IDEFLOPPY_CAPABILITIES_PAGE, since we need the srfp
- *                       bit.  My LS-120 drive barfs on
- *                       IDEFLOPPY_CAPABILITIES_PAGE, but maybe it's just me.
- *                       Compromise by not reporting a failure to get this
- *                       mode page.  Implemented four IOCTLs in order to
- *                       implement formatting.  IOCTls begin with 0x4600,
- *                       0x46 is 'F' as in Format.
- *            Jan 9 01   Userland option to select format verify.
- *                       Added PC_SUPPRESS_ERROR flag - some idefloppy drives
- *                       do not implement IDEFLOPPY_CAPABILITIES_PAGE, and
- *                       return a sense error.  Suppress error reporting in
- *                       this particular case in order to avoid spurious
- *                       errors in syslog.  The culprit is
- *                       idefloppy_get_capability_page(), so move it to
- *                       idefloppy_begin_format() so that it's not used
- *                       unless absolutely necessary.
- *                       If drive does not support format progress indication
- *                       monitor the dsc bit in the status register.
- *                       Also, O_NDELAY on open will allow the device to be
- *                       opened without a disk available.  This can be used to
- *                       open an unformatted disk, or get the device capacity.
- * Ver 0.91  Dec 11 99   Added IOMEGA Clik! drive support by 
- *     		   <paul@paulbristow.net>
- * Ver 0.92  Oct 22 00   Paul Bristow became official maintainer for this 
- *           		   driver.  Included Powerbook internal zip kludge.
- * Ver 0.93  Oct 24 00   Fixed bugs for Clik! drive
- *                        no disk on insert and disk change now works
- * Ver 0.94  Oct 27 00   Tidied up to remove strstr(Clik) everywhere
- * Ver 0.95  Nov  7 00   Brought across to kernel 2.4
- * Ver 0.96  Jan  7 01   Actually in line with release version of 2.4.0
- *                       including set_bit patch from Rusty Russell
- * Ver 0.97  Jul 22 01   Merge 0.91-0.96 onto 0.9.sv for ac series
- * Ver 0.97.sv Aug 3 01  Backported from 2.4.7-ac3
- * Ver 0.98  Oct 26 01   Split idefloppy_transfer_pc into two pieces to
- *                        fix a lost interrupt problem. It appears the busy
- *                        bit was being deasserted by my IOMEGA ATAPI ZIP 100
- *                        drive before the drive was actually ready.
- * Ver 0.98a Oct 29 01   Expose delay value so we can play.
- * Ver 0.99  Feb 24 02   Remove duplicate code, modify clik! detection code 
- *                        to support new PocketZip drives 
+ * For a historical changelog see
+ * Documentation/ide/ChangeLog.ide-floppy.1996-2002
  */
 
 #define IDEFLOPPY_VERSION "0.99.newide"
@@ -1658,7 +1598,6 @@ static int idefloppy_identify_device (ide_drive_t *drive,struct hd_driveid *id)
 {
 	struct idefloppy_id_gcw gcw;
 #if IDEFLOPPY_DEBUG_INFO
-	u16 mask,i;
 	char buffer[80];
 #endif /* IDEFLOPPY_DEBUG_INFO */
 
@@ -1705,55 +1644,6 @@ static int idefloppy_identify_device (ide_drive_t *drive,struct hd_driveid *id)
 		default: sprintf(buffer, "Reserved");break;
 	}
 	printk(KERN_INFO "Command Packet Size: %s\n", buffer);
-	printk(KERN_INFO "Model: %.40s\n",id->model);
-	printk(KERN_INFO "Firmware Revision: %.8s\n",id->fw_rev);
-	printk(KERN_INFO "Serial Number: %.20s\n",id->serial_no);
-	printk(KERN_INFO "Write buffer size(?): %d bytes\n",id->buf_size*512);
-	printk(KERN_INFO "DMA: %s",id->capability & 0x01 ? "Yes\n":"No\n");
-	printk(KERN_INFO "LBA: %s",id->capability & 0x02 ? "Yes\n":"No\n");
-	printk(KERN_INFO "IORDY can be disabled: %s",id->capability & 0x04 ? "Yes\n":"No\n");
-	printk(KERN_INFO "IORDY supported: %s",id->capability & 0x08 ? "Yes\n":"Unknown\n");
-	printk(KERN_INFO "ATAPI overlap supported: %s",id->capability & 0x20 ? "Yes\n":"No\n");
-	printk(KERN_INFO "PIO Cycle Timing Category: %d\n",id->tPIO);
-	printk(KERN_INFO "DMA Cycle Timing Category: %d\n",id->tDMA);
-	printk(KERN_INFO "Single Word DMA supported modes:\n");
-	for (i=0,mask=1;i<8;i++,mask=mask << 1) {
-		if (id->dma_1word & mask)
-			printk(KERN_INFO "   Mode %d%s\n", i,
-			(id->dma_1word & (mask << 8)) ? " (active)" : "");
-	}
-	printk(KERN_INFO "Multi Word DMA supported modes:\n");
-	for (i=0,mask=1;i<8;i++,mask=mask << 1) {
-		if (id->dma_mword & mask)
-			printk(KERN_INFO "   Mode %d%s\n", i,
-			(id->dma_mword & (mask << 8)) ? " (active)" : "");
-	}
-	if (id->field_valid & 0x0002) {
-		printk(KERN_INFO "Enhanced PIO Modes: %s\n",
-			id->eide_pio_modes & 1 ? "Mode 3":"None");
-		if (id->eide_dma_min == 0)
-			sprintf(buffer, "Not supported");
-		else
-			sprintf(buffer, "%d ns",id->eide_dma_min);
-		printk(KERN_INFO "Minimum Multi-word DMA cycle per word: %s\n", buffer);
-		if (id->eide_dma_time == 0)
-			sprintf(buffer, "Not supported");
-		else
-			sprintf(buffer, "%d ns",id->eide_dma_time);
-		printk(KERN_INFO "Manufacturer\'s Recommended Multi-word cycle: %s\n", buffer);
-		if (id->eide_pio == 0)
-			sprintf(buffer, "Not supported");
-		else
-			sprintf(buffer, "%d ns",id->eide_pio);
-		printk(KERN_INFO "Minimum PIO cycle without IORDY: %s\n",
-			buffer);
-		if (id->eide_pio_iordy == 0)
-			sprintf(buffer, "Not supported");
-		else
-			sprintf(buffer, "%d ns",id->eide_pio_iordy);
-		printk(KERN_INFO "Minimum PIO cycle with IORDY: %s\n", buffer);
-	} else
-		printk(KERN_INFO "According to the device, fields 64-70 are not valid.\n");
 #endif /* IDEFLOPPY_DEBUG_INFO */
 
 	if (gcw.protocol != 2)

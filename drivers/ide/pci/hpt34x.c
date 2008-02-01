@@ -1,7 +1,6 @@
 /*
- * linux/drivers/ide/pci/hpt34x.c		Version 0.40	Sept 10, 2002
- *
  * Copyright (C) 1998-2000	Andre Hedrick <andre@linux-ide.org>
+ *
  * May be copied or modified under the terms of the GNU General Public License
  *
  *
@@ -45,7 +44,7 @@
 
 static void hpt34x_set_mode(ide_drive_t *drive, const u8 speed)
 {
-	struct pci_dev *dev	= HWIF(drive)->pci_dev;
+	struct pci_dev *dev = to_pci_dev(drive->hwif->dev);
 	u32 reg1= 0, tmp1 = 0, reg2 = 0, tmp2 = 0;
 	u8			hi_speed, lo_speed;
 
@@ -131,6 +130,7 @@ static void __devinit init_hwif_hpt34x(ide_hwif_t *hwif)
 
 #define IDE_HFLAGS_HPT34X \
 	(IDE_HFLAG_NO_ATAPI_DMA | \
+	 IDE_HFLAG_NO_DSC | \
 	 IDE_HFLAG_ABUSE_SET_DMA_MODE | \
 	 IDE_HFLAG_NO_AUTODMA)
 

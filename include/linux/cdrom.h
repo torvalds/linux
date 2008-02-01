@@ -1187,6 +1187,20 @@ struct media_event_desc {
 
 extern int cdrom_get_media_event(struct cdrom_device_info *cdi, struct media_event_desc *med);
 
+static inline void lba_to_msf(int lba, u8 *m, u8 *s, u8 *f)
+{
+	lba += CD_MSF_OFFSET;
+	lba &= 0xffffff;  /* negative lbas use only 24 bits */
+	*m = lba / (CD_SECS * CD_FRAMES);
+	lba %= (CD_SECS * CD_FRAMES);
+	*s = lba / CD_FRAMES;
+	*f = lba % CD_FRAMES;
+}
+
+static inline int msf_to_lba(u8 m, u8 s, u8 f)
+{
+	return (((m * CD_SECS) + s) * CD_FRAMES + f) - CD_MSF_OFFSET;
+}
 #endif  /* End of kernel only stuff */ 
 
 #endif  /* _LINUX_CDROM_H */

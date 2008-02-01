@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/ide/legacy/falconide.c -- Atari Falcon IDE Driver
+ *  Atari Falcon IDE Driver
  *
  *     Created 12 Jul 1997 by Geert Uytterhoeven
  *
@@ -66,6 +66,7 @@ static int __init falconide_init(void)
 {
     if (MACH_IS_ATARI && ATARIHW_PRESENT(IDE)) {
 	hw_regs_t hw;
+	ide_hwif_t *hwif;
 
 	printk(KERN_INFO "ide: Falcon IDE controller\n");
 

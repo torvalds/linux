@@ -1,6 +1,4 @@
 /*
- * triflex.c
- * 
  * IDE Chipset driver for the Compaq TriFlex IDE controller.
  * 
  * Known to work with the Compaq Workstation 5x00 series.
@@ -43,7 +41,7 @@
 static void triflex_set_mode(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif = HWIF(drive);
-	struct pci_dev *dev = hwif->pci_dev;
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	u8 channel_offset = hwif->channel ? 0x74 : 0x70;
 	u16 timing = 0;
 	u32 triflex_timings = 0;

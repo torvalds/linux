@@ -1,6 +1,4 @@
 /*
- * linux/drivers/ide/pci/alim15x3.c		Version 0.29	Sep 16 2007
- *
  *  Copyright (C) 1998-2000 Michel Aubry, Maintainer
  *  Copyright (C) 1998-2000 Andrzej Krzysztofowicz, Maintainer
  *  Copyright (C) 1999-2000 CJ, cjtsai@ali.com.tw, Maintainer
@@ -293,7 +291,7 @@ static int ali_get_info (char *buffer, char **addr, off_t offset, int count)
 static void ali_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	ide_hwif_t *hwif = HWIF(drive);
-	struct pci_dev *dev = hwif->pci_dev;
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	int s_time, a_time, c_time;
 	u8 s_clc, a_clc, r_clc;
 	unsigned long flags;
@@ -396,7 +394,7 @@ static u8 ali_udma_filter(ide_drive_t *drive)
 static void ali_set_dma_mode(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-	struct pci_dev *dev	= hwif->pci_dev;
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	u8 speed1		= speed;
 	u8 unit			= (drive->select.b.unit & 0x01);
 	u8 tmpbyte		= 0x00;
@@ -625,7 +623,7 @@ static int ali_cable_override(struct pci_dev *pdev)
 
 static u8 __devinit ata66_ali15x3(ide_hwif_t *hwif)
 {
-	struct pci_dev *dev	= hwif->pci_dev;
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	unsigned long flags;
 	u8 cbl = ATA_CBL_PATA40, tmpbyte;
 
@@ -688,12 +686,13 @@ static void __devinit init_hwif_common_ali15x3 (ide_hwif_t *hwif)
 
 static void __devinit init_hwif_ali15x3 (ide_hwif_t *hwif)
 {
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	u8 ideic, inmir;
 	s8 irq_routing_table[] = { -1,  9, 3, 10, 4,  5, 7,  6,
 				      1, 11, 0, 12, 0, 14, 0, 15 };
 	int irq = -1;
 
-	if (hwif->pci_dev->device == PCI_DEVICE_ID_AL_M5229)
+	if (dev->device == PCI_DEVICE_ID_AL_M5229)
 		hwif->irq = hwif->channel ? 15 : 14;
 
 	if (isa_dev) {
@@ -745,7 +744,7 @@ static void __devinit init_dma_ali15x3 (ide_hwif_t *hwif, unsigned long dmabase)
 		return;
 	if (!hwif->channel)
 		outb(inb(dmabase + 2) & 0x60, dmabase + 2);
-	ide_setup_dma(hwif, dmabase, 8);
+	ide_setup_dma(hwif, dmabase);
 }
 
 static const struct ide_port_info ali15x3_chipset __devinitdata = {
@@ -775,7 +774,7 @@ static int __devinit alim15x3_init_one(struct pci_dev *dev, const struct pci_dev
 	};
 
 	struct ide_port_info d = ali15x3_chipset;
-	u8 rev = dev->revision;
+	u8 rev = dev->revision, idx = id->driver_data;
 
 	if (pci_dev_present(ati_rs100))
 		printk(KERN_WARNING "alim15x3: ATI Radeon IGP Northbridge is not yet fully tested.\n");
@@ -798,6 +797,9 @@ static int __devinit alim15x3_init_one(struct pci_dev *dev, const struct pci_dev
 			d.udma_mask = ATA_UDMA6;
 	}
 
+	if (idx == 0)
+		d.host_flags |= IDE_HFLAG_CLEAR_SIMPLEX;
+
 #if defined(CONFIG_SPARC64)
 	d.init_hwif = init_hwif_common_ali15x3;
 #endif /* CONFIG_SPARC64 */
@@ -807,7 +809,7 @@ static int __devinit alim15x3_init_one(struct pci_dev *dev, const struct pci_dev
 
 static const struct pci_device_id alim15x3_pci_tbl[] = {
 	{ PCI_VDEVICE(AL, PCI_DEVICE_ID_AL_M5229), 0 },
-	{ PCI_VDEVICE(AL, PCI_DEVICE_ID_AL_M5228), 0 },
+	{ PCI_VDEVICE(AL, PCI_DEVICE_ID_AL_M5228), 1 },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, alim15x3_pci_tbl);

@@ -1,6 +1,4 @@
 /*
- * linux/drivers/ide/pci/cs5535.c
- *
  * Copyright (C) 2004-2005 Advanced Micro Devices, Inc.
  * Copyright (C)      2007 Bartlomiej Zolnierkiewicz
  *
@@ -177,13 +175,15 @@ static u8 __devinit cs5535_cable_detect(struct pci_dev *dev)
  */
 static void __devinit init_hwif_cs5535(ide_hwif_t *hwif)
 {
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
+
 	hwif->set_pio_mode = &cs5535_set_pio_mode;
 	hwif->set_dma_mode = &cs5535_set_dma_mode;
 
 	if (hwif->dma_base == 0)
 		return;
 
-	hwif->cbl = cs5535_cable_detect(hwif->pci_dev);
+	hwif->cbl = cs5535_cable_detect(dev);
 }
 
 static const struct ide_port_info cs5535_chipset __devinitdata = {

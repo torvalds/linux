@@ -1,5 +1,4 @@
-/* linux/drivers/ide/arm/bast-ide.c
- *
+/*
  * Copyright (c) 2003-2004 Simtec Electronics
  *  Ben Dooks <ben@simtec.co.uk>
  *

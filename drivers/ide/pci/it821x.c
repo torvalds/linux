@@ -1,7 +1,4 @@
-
 /*
- * linux/drivers/ide/pci/it821x.c		Version 0.16	Jul 3 2007
- *
  * Copyright (C) 2004		Red Hat <alan@redhat.com>
  * Copyright (C) 2007		Bartlomiej Zolnierkiewicz
  *
@@ -113,7 +110,8 @@ static int it8212_noraid;
 
 static void it821x_program(ide_drive_t *drive, u16 timing)
 {
-	ide_hwif_t *hwif	= drive->hwif;
+	ide_hwif_t *hwif = drive->hwif;
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	struct it821x_dev *itdev = ide_get_hwifdata(hwif);
 	int channel = hwif->channel;
 	u8 conf;
@@ -123,7 +121,8 @@ static void it821x_program(ide_drive_t *drive, u16 timing)
 		conf = timing >> 8;
 	else
 		conf = timing & 0xFF;
-	pci_write_config_byte(hwif->pci_dev, 0x54 + 4 * channel, conf);
+
+	pci_write_config_byte(dev, 0x54 + 4 * channel, conf);
 }
 
 /**
@@ -137,7 +136,8 @@ static void it821x_program(ide_drive_t *drive, u16 timing)
 
 static void it821x_program_udma(ide_drive_t *drive, u16 timing)
 {
-	ide_hwif_t *hwif	= drive->hwif;
+	ide_hwif_t *hwif = drive->hwif;
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	struct it821x_dev *itdev = ide_get_hwifdata(hwif);
 	int channel = hwif->channel;
 	int unit = drive->select.b.unit;
@@ -148,11 +148,12 @@ static void it821x_program_udma(ide_drive_t *drive, u16 timing)
 		conf = timing >> 8;
 	else
 		conf = timing & 0xFF;
-	if(itdev->timing10 == 0)
-		pci_write_config_byte(hwif->pci_dev, 0x56 + 4 * channel + unit, conf);
+
+	if (itdev->timing10 == 0)
+		pci_write_config_byte(dev, 0x56 + 4 * channel + unit, conf);
 	else {
-		pci_write_config_byte(hwif->pci_dev, 0x56 + 4 * channel, conf);
-		pci_write_config_byte(hwif->pci_dev, 0x56 + 4 * channel + 1, conf);
+		pci_write_config_byte(dev, 0x56 + 4 * channel, conf);
+		pci_write_config_byte(dev, 0x56 + 4 * channel + 1, conf);
 	}
 }
 
@@ -167,6 +168,7 @@ static void it821x_program_udma(ide_drive_t *drive, u16 timing)
 static void it821x_clock_strategy(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	struct it821x_dev *itdev = ide_get_hwifdata(hwif);
 
 	u8 unit = drive->select.b.unit;
@@ -205,10 +207,11 @@ static void it821x_clock_strategy(ide_drive_t *drive)
 		itdev->clock_mode = ATA_50;
 		sel = 1;
 	}
-	pci_read_config_byte(hwif->pci_dev, 0x50, &v);
+
+	pci_read_config_byte(dev, 0x50, &v);
 	v &= ~(1 << (1 + hwif->channel));
 	v |= sel << (1 + hwif->channel);
-	pci_write_config_byte(hwif->pci_dev, 0x50, v);
+	pci_write_config_byte(dev, 0x50, v);
 
 	/*
 	 *	Reprogram the UDMA/PIO of the pair drive for the switch
@@ -282,7 +285,8 @@ static void it821x_set_pio_mode(ide_drive_t *drive, const u8 pio)
 
 static void it821x_tune_mwdma (ide_drive_t *drive, byte mode_wanted)
 {
-	ide_hwif_t *hwif	= drive->hwif;
+	ide_hwif_t *hwif = drive->hwif;
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	struct it821x_dev *itdev = (void *)ide_get_hwifdata(hwif);
 	int unit = drive->select.b.unit;
 	int channel = hwif->channel;
@@ -297,12 +301,12 @@ static void it821x_tune_mwdma (ide_drive_t *drive, byte mode_wanted)
 	itdev->udma[unit] = UDMA_OFF;
 
 	/* UDMA bits off - Revision 0x10 do them in pairs */
-	pci_read_config_byte(hwif->pci_dev, 0x50, &conf);
-	if(itdev->timing10)
+	pci_read_config_byte(dev, 0x50, &conf);
+	if (itdev->timing10)
 		conf |= channel ? 0x60: 0x18;
 	else
 		conf |= 1 << (3 + 2 * channel + unit);
-	pci_write_config_byte(hwif->pci_dev, 0x50, conf);
+	pci_write_config_byte(dev, 0x50, conf);
 
 	it821x_clock_strategy(drive);
 	/* FIXME: do we need to program this ? */
@@ -320,7 +324,8 @@ static void it821x_tune_mwdma (ide_drive_t *drive, byte mode_wanted)
 
 static void it821x_tune_udma (ide_drive_t *drive, byte mode_wanted)
 {
-	ide_hwif_t *hwif	= drive->hwif;
+	ide_hwif_t *hwif = drive->hwif;
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	struct it821x_dev *itdev = ide_get_hwifdata(hwif);
 	int unit = drive->select.b.unit;
 	int channel = hwif->channel;
@@ -337,12 +342,12 @@ static void it821x_tune_udma (ide_drive_t *drive, byte mode_wanted)
 		itdev->udma[unit] |= 0x8080;	/* UDMA 5/6 select on */
 
 	/* UDMA on. Again revision 0x10 must do the pair */
-	pci_read_config_byte(hwif->pci_dev, 0x50, &conf);
-	if(itdev->timing10)
+	pci_read_config_byte(dev, 0x50, &conf);
+	if (itdev->timing10)
 		conf &= channel ? 0x9F: 0xE7;
 	else
 		conf &= ~ (1 << (3 + 2 * channel + unit));
-	pci_write_config_byte(hwif->pci_dev, 0x50, conf);
+	pci_write_config_byte(dev, 0x50, conf);
 
 	it821x_clock_strategy(drive);
 	it821x_program_udma(drive, itdev->udma[unit]);
@@ -520,6 +525,7 @@ static void __devinit it821x_quirkproc(ide_drive_t *drive)
 
 static void __devinit init_hwif_it821x(ide_hwif_t *hwif)
 {
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	struct it821x_dev *idev = kzalloc(sizeof(struct it821x_dev), GFP_KERNEL);
 	u8 conf;
 
@@ -532,7 +538,7 @@ static void __devinit init_hwif_it821x(ide_hwif_t *hwif)
 
 	ide_set_hwifdata(hwif, idev);
 
-	pci_read_config_byte(hwif->pci_dev, 0x50, &conf);
+	pci_read_config_byte(dev, 0x50, &conf);
 	if (conf & 1) {
 		idev->smart = 1;
 		hwif->host_flags |= IDE_HFLAG_NO_ATAPI_DMA;
@@ -555,7 +561,7 @@ static void __devinit init_hwif_it821x(ide_hwif_t *hwif)
 	 *	this is necessary.
 	 */
 
-	pci_read_config_byte(hwif->pci_dev, 0x08, &conf);
+	pci_read_config_byte(dev, 0x08, &conf);
 	if (conf == 0x10) {
 		idev->timing10 = 1;
 		hwif->host_flags |= IDE_HFLAG_NO_ATAPI_DMA;

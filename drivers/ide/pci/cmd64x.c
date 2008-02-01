@@ -1,6 +1,4 @@
 /*
- * linux/drivers/ide/pci/cmd64x.c		Version 1.53	Dec 24, 2007
- *
  * cmd64x.c: Enable interrupts at initialization time on Ultra/PCI machines.
  *           Due to massive hardware bugs, UltraDMA is only supported
  *           on the 646U2 and not on the 646U.
@@ -71,7 +69,7 @@ static u8 quantize_timing(int timing, int quant)
  */
 static void program_cycle_times (ide_drive_t *drive, int cycle_time, int active_time)
 {
-	struct pci_dev *dev	= HWIF(drive)->pci_dev;
+	struct pci_dev *dev	= to_pci_dev(drive->hwif->dev);
 	int clock_time		= 1000 / system_bus_clock();
 	u8  cycle_count, active_count, recovery_count, drwtim;
 	static const u8 recovery_values[] =
@@ -118,7 +116,7 @@ static void program_cycle_times (ide_drive_t *drive, int cycle_time, int active_
 static void cmd64x_tune_pio(ide_drive_t *drive, const u8 pio)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-	struct pci_dev *dev	= hwif->pci_dev;
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	unsigned int cycle_time;
 	u8 setup_count, arttim = 0;
 
@@ -183,7 +181,7 @@ static void cmd64x_set_pio_mode(ide_drive_t *drive, const u8 pio)
 static void cmd64x_set_dma_mode(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-	struct pci_dev *dev	= hwif->pci_dev;
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	u8 unit			= drive->dn & 0x01;
 	u8 regU = 0, pciU	= hwif->channel ? UDIDETCR1 : UDIDETCR0;
 
@@ -245,7 +243,7 @@ static int cmd648_ide_dma_end (ide_drive_t *drive)
 static int cmd64x_ide_dma_end (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-	struct pci_dev *dev	= hwif->pci_dev;
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	int irq_reg		= hwif->channel ? ARTTIM23 : CFR;
 	u8  irq_mask		= hwif->channel ? ARTTIM23_INTR_CH1 :
 						  CFR_INTR_CH0;
@@ -285,7 +283,7 @@ static int cmd648_ide_dma_test_irq (ide_drive_t *drive)
 static int cmd64x_ide_dma_test_irq (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-	struct pci_dev *dev	= hwif->pci_dev;
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	int irq_reg		= hwif->channel ? ARTTIM23 : CFR;
 	u8  irq_mask		= hwif->channel ? ARTTIM23_INTR_CH1 :
 						  CFR_INTR_CH0;
@@ -375,7 +373,7 @@ static unsigned int __devinit init_chipset_cmd64x(struct pci_dev *dev, const cha
 
 static u8 __devinit ata66_cmd64x(ide_hwif_t *hwif)
 {
-	struct pci_dev  *dev	= hwif->pci_dev;
+	struct pci_dev  *dev	= to_pci_dev(hwif->dev);
 	u8 bmidecsr = 0, mask	= hwif->channel ? 0x02 : 0x01;
 
 	switch (dev->device) {
@@ -390,7 +388,7 @@ static u8 __devinit ata66_cmd64x(ide_hwif_t *hwif)
 
 static void __devinit init_hwif_cmd64x(ide_hwif_t *hwif)
 {
-	struct pci_dev *dev	= hwif->pci_dev;
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 
 	hwif->set_pio_mode = &cmd64x_set_pio_mode;
 	hwif->set_dma_mode = &cmd64x_set_dma_mode;
@@ -443,7 +441,9 @@ static const struct ide_port_info cmd64x_chipsets[] __devinitdata = {
 		.init_chipset	= init_chipset_cmd64x,
 		.init_hwif	= init_hwif_cmd64x,
 		.enablebits	= {{0x00,0x00,0x00}, {0x51,0x08,0x08}},
-		.host_flags	= IDE_HFLAG_ABUSE_PREFETCH | IDE_HFLAG_BOOTABLE,
+		.host_flags	= IDE_HFLAG_CLEAR_SIMPLEX |
+				  IDE_HFLAG_ABUSE_PREFETCH |
+				  IDE_HFLAG_BOOTABLE,
 		.pio_mask	= ATA_PIO5,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= 0x00, /* no udma */

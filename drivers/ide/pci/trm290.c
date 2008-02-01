@@ -1,8 +1,7 @@
 /*
- *  linux/drivers/ide/pci/trm290.c		Version 1.05	Dec. 26, 2007
- *
  *  Copyright (c) 1997-1998  Mark Lord
  *  Copyright (c) 2007       MontaVista Software, Inc. <source@mvista.com>
+ *
  *  May be copied or modified under the terms of the GNU General Public License
  *
  *  June 22, 2004 - get rid of check_region
@@ -209,10 +208,10 @@ static int trm290_dma_setup(ide_drive_t *drive)
 	}
 	/* select DMA xfer */
 	trm290_prepare_drive(drive, 1);
-	outl(hwif->dmatable_dma | rw, hwif->dma_command);
+	outl(hwif->dmatable_dma | rw, hwif->dma_base);
 	drive->waiting_for_dma = 1;
 	/* start DMA */
-	outw((count * 2) - 1, hwif->dma_status);
+	outw(count * 2 - 1, hwif->dma_base + 2);
 	return 0;
 }
 
@@ -222,23 +221,21 @@ static void trm290_dma_start(ide_drive_t *drive)
 
 static int trm290_ide_dma_end (ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = HWIF(drive);
-	u16 status = 0;
+	u16 status;
 
 	drive->waiting_for_dma = 0;
 	/* purge DMA mappings */
 	ide_destroy_dmatable(drive);
-	status = inw(hwif->dma_status);
-	return (status != 0x00ff);
+	status = inw(HWIF(drive)->dma_base + 2);
+	return status != 0x00ff;
 }
 
 static int trm290_ide_dma_test_irq (ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = HWIF(drive);
-	u16 status = 0;
+	u16 status;
 
-	status = inw(hwif->dma_status);
-	return (status == 0x00ff);
+	status = inw(HWIF(drive)->dma_base + 2);
+	return status == 0x00ff;
 }
 
 static void trm290_dma_host_set(ide_drive_t *drive, int on)
@@ -247,21 +244,37 @@ static void trm290_dma_host_set(ide_drive_t *drive, int on)
 
 static void __devinit init_hwif_trm290(ide_hwif_t *hwif)
 {
-	unsigned int cfgbase = 0;
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
+	unsigned int  cfg_base	= pci_resource_start(dev, 4);
 	unsigned long flags;
 	u8 reg = 0;
-	struct pci_dev *dev = hwif->pci_dev;
 
-	cfgbase = pci_resource_start(dev, 4);
-	if ((dev->class & 5) && cfgbase) {
-		hwif->config_data = cfgbase;
-		printk(KERN_INFO "TRM290: chip config base at 0x%04lx\n",
-			hwif->config_data);
-	} else {
-		hwif->config_data = 0x3df0;
-		printk(KERN_INFO "TRM290: using default config base at 0x%04lx\n",
-			hwif->config_data);
+	if ((dev->class & 5) && cfg_base)
+		printk(KERN_INFO "TRM290: chip");
+	else {
+		cfg_base = 0x3df0;
+		printk(KERN_INFO "TRM290: using default");
 	}
+	printk(KERN_CONT " config base at 0x%04x\n", cfg_base);
+	hwif->config_data = cfg_base;
+	hwif->dma_base = (cfg_base + 4) ^ (hwif->channel ? 0x80 : 0);
+
+	printk(KERN_INFO "    %s: BM-DMA at 0x%04lx-0x%04lx",
+	       hwif->name, hwif->dma_base, hwif->dma_base + 3);
+
+	if (!request_region(hwif->dma_base, 4, hwif->name)) {
+		printk(KERN_CONT " -- Error, ports in use.\n");
+		return;
+	}
+
+	hwif->dmatable_cpu = pci_alloc_consistent(dev, PRD_ENTRIES * PRD_BYTES,
+						  &hwif->dmatable_dma);
+	if (!hwif->dmatable_cpu) {
+		printk(KERN_CONT " -- Error, unable to allocate DMA table.\n");
+		release_region(hwif->dma_base, 4);
+		return;
+	}
+	printk(KERN_CONT "\n");
 
 	local_irq_save(flags);
 	/* put config reg into first byte of hwif->select_data */
@@ -276,14 +289,12 @@ static void __devinit init_hwif_trm290(ide_hwif_t *hwif)
 	outb(reg, hwif->config_data + 3);
 	local_irq_restore(flags);
 
-	if ((reg & 0x10))
+	if (reg & 0x10)
 		/* legacy mode */
 		hwif->irq = hwif->channel ? 15 : 14;
 	else if (!hwif->irq && hwif->mate && hwif->mate->irq)
 		/* sharing IRQ with mate */
 		hwif->irq = hwif->mate->irq;
-
-	ide_setup_dma(hwif, (hwif->config_data + 4) ^ (hwif->channel ? 0x0080 : 0x0000), 3);
 
 	hwif->dma_host_set	= &trm290_dma_host_set;
 	hwif->dma_setup 	= &trm290_dma_setup;

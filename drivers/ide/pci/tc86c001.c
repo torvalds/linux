@@ -1,6 +1,4 @@
 /*
- * drivers/ide/pci/tc86c001.c	Version 1.01	Sep 5, 2007
- *
  * Copyright (C) 2002 Toshiba Corporation
  * Copyright (C) 2005-2006 MontaVista Software, Inc. <source@mvista.com>
  *
@@ -164,7 +162,8 @@ static int tc86c001_busproc(ide_drive_t *drive, int state)
 
 static void __devinit init_hwif_tc86c001(ide_hwif_t *hwif)
 {
-	unsigned long sc_base	= pci_resource_start(hwif->pci_dev, 5);
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
+	unsigned long sc_base	= pci_resource_start(dev, 5);
 	u16 scr1		= inw(sc_base + 0x00);
 
 	/* System Control 1 Register bit 15 (Soft Reset) set */

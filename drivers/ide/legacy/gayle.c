@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/ide/legacy/gayle.c -- Amiga Gayle IDE Driver
+ *  Amiga Gayle IDE Driver
  *
  *     Created 9 Jul 1997 by Geert Uytterhoeven
  *

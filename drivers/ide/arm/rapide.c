@@ -1,6 +1,4 @@
 /*
- * linux/drivers/ide/arm/rapide.c
- *
  * Copyright (c) 1996-2002 Russell King.
  */
 
@@ -78,8 +76,8 @@ static void __devexit rapide_remove(struct expansion_card *ec)
 
 	ecard_set_drvdata(ec, NULL);
 
-	/* there must be a better way */
-	ide_unregister(hwif - ide_hwifs);
+	ide_unregister(hwif->index);
+
 	ecard_release_resources(ec);
 }
 

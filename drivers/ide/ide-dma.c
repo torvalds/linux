@@ -1,15 +1,13 @@
 /*
- *  linux/drivers/ide/ide-dma.c		Version 4.10	June 9, 2000
+ *  Copyright (C) 1995-1998   Mark Lord
+ *  Copyright (C) 1999-2000   Andre Hedrick <andre@linux-ide.org>
+ *  Copyright (C) 2004, 2007  Bartlomiej Zolnierkiewicz
  *
- *  Copyright (c) 1999-2000	Andre Hedrick <andre@linux-ide.org>
  *  May be copied or modified under the terms of the GNU General Public License
  */
 
 /*
  *  Special Thanks to Mark for his Six years of work.
- *
- *  Copyright (c) 1995-1998  Mark Lord
- *  May be copied or modified under the terms of the GNU General Public License
  */
 
 /*
@@ -85,6 +83,7 @@
 #include <linux/ide.h>
 #include <linux/delay.h>
 #include <linux/scatterlist.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -169,16 +168,15 @@ static int ide_dma_good_drive(ide_drive_t *drive)
 	return ide_in_drive_list(drive->id, drive_whitelist);
 }
 
-#ifdef CONFIG_BLK_DEV_IDEDMA_PCI
 /**
  *	ide_build_sglist	-	map IDE scatter gather for DMA I/O
  *	@drive: the drive to build the DMA table for
  *	@rq: the request holding the sg list
  *
- *	Perform the PCI mapping magic necessary to access the source or
- *	target buffers of a request via PCI DMA. The lower layers of the
+ *	Perform the DMA mapping magic necessary to access the source or
+ *	target buffers of a request via DMA.  The lower layers of the
  *	kernel provide the necessary cache management so that we can
- *	operate in a portable fashion
+ *	operate in a portable fashion.
  */
 
 int ide_build_sglist(ide_drive_t *drive, struct request *rq)
@@ -186,20 +184,20 @@ int ide_build_sglist(ide_drive_t *drive, struct request *rq)
 	ide_hwif_t *hwif = HWIF(drive);
 	struct scatterlist *sg = hwif->sg_table;
 
-	BUG_ON((rq->cmd_type == REQ_TYPE_ATA_TASKFILE) && rq->nr_sectors > 256);
-
 	ide_map_sg(drive, rq);
 
 	if (rq_data_dir(rq) == READ)
-		hwif->sg_dma_direction = PCI_DMA_FROMDEVICE;
+		hwif->sg_dma_direction = DMA_FROM_DEVICE;
 	else
-		hwif->sg_dma_direction = PCI_DMA_TODEVICE;
+		hwif->sg_dma_direction = DMA_TO_DEVICE;
 
-	return pci_map_sg(hwif->pci_dev, sg, hwif->sg_nents, hwif->sg_dma_direction);
+	return dma_map_sg(hwif->dev, sg, hwif->sg_nents,
+			  hwif->sg_dma_direction);
 }
 
 EXPORT_SYMBOL_GPL(ide_build_sglist);
 
+#ifdef CONFIG_BLK_DEV_IDEDMA_PCI
 /**
  *	ide_build_dmatable	-	build IDE DMA table
  *
@@ -284,16 +282,17 @@ int ide_build_dmatable (ide_drive_t *drive, struct request *rq)
 			*--table |= cpu_to_le32(0x80000000);
 		return count;
 	}
+
 	printk(KERN_ERR "%s: empty DMA table?\n", drive->name);
+
 use_pio_instead:
-	pci_unmap_sg(hwif->pci_dev,
-		     hwif->sg_table,
-		     hwif->sg_nents,
-		     hwif->sg_dma_direction);
+	ide_destroy_dmatable(drive);
+
 	return 0; /* revert to PIO for this request */
 }
 
 EXPORT_SYMBOL_GPL(ide_build_dmatable);
+#endif
 
 /**
  *	ide_destroy_dmatable	-	clean up DMA mapping
@@ -308,15 +307,15 @@ EXPORT_SYMBOL_GPL(ide_build_dmatable);
  
 void ide_destroy_dmatable (ide_drive_t *drive)
 {
-	struct pci_dev *dev = HWIF(drive)->pci_dev;
-	struct scatterlist *sg = HWIF(drive)->sg_table;
-	int nents = HWIF(drive)->sg_nents;
+	ide_hwif_t *hwif = drive->hwif;
 
-	pci_unmap_sg(dev, sg, nents, HWIF(drive)->sg_dma_direction);
+	dma_unmap_sg(hwif->dev, hwif->sg_table, hwif->sg_nents,
+		     hwif->sg_dma_direction);
 }
 
 EXPORT_SYMBOL_GPL(ide_destroy_dmatable);
 
+#ifdef CONFIG_BLK_DEV_IDEDMA_PCI
 /**
  *	config_drive_for_dma	-	attempt to activate IDE DMA
  *	@drive: the drive to place in DMA mode
@@ -473,8 +472,6 @@ void ide_dma_on(ide_drive_t *drive)
 
 	drive->hwif->dma_host_set(drive, 1);
 }
-
-EXPORT_SYMBOL(ide_dma_on);
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_PCI
 /**
@@ -847,10 +844,10 @@ EXPORT_SYMBOL(ide_dma_timeout);
 static void ide_release_dma_engine(ide_hwif_t *hwif)
 {
 	if (hwif->dmatable_cpu) {
-		pci_free_consistent(hwif->pci_dev,
-				    PRD_ENTRIES * PRD_BYTES,
-				    hwif->dmatable_cpu,
-				    hwif->dmatable_dma);
+		struct pci_dev *pdev = to_pci_dev(hwif->dev);
+
+		pci_free_consistent(pdev, PRD_ENTRIES * PRD_BYTES,
+				    hwif->dmatable_cpu, hwif->dmatable_dma);
 		hwif->dmatable_cpu = NULL;
 	}
 }
@@ -878,7 +875,9 @@ int ide_release_dma(ide_hwif_t *hwif)
 
 static int ide_allocate_dma_engine(ide_hwif_t *hwif)
 {
-	hwif->dmatable_cpu = pci_alloc_consistent(hwif->pci_dev,
+	struct pci_dev *pdev = to_pci_dev(hwif->dev);
+
+	hwif->dmatable_cpu = pci_alloc_consistent(pdev,
 						  PRD_ENTRIES * PRD_BYTES,
 						  &hwif->dmatable_dma);
 
@@ -891,19 +890,19 @@ static int ide_allocate_dma_engine(ide_hwif_t *hwif)
 	return 1;
 }
 
-static int ide_mapped_mmio_dma(ide_hwif_t *hwif, unsigned long base, unsigned int ports)
+static int ide_mapped_mmio_dma(ide_hwif_t *hwif, unsigned long base)
 {
 	printk(KERN_INFO "    %s: MMIO-DMA ", hwif->name);
 
 	return 0;
 }
 
-static int ide_iomio_dma(ide_hwif_t *hwif, unsigned long base, unsigned int ports)
+static int ide_iomio_dma(ide_hwif_t *hwif, unsigned long base)
 {
 	printk(KERN_INFO "    %s: BM-DMA at 0x%04lx-0x%04lx",
-	       hwif->name, base, base + ports - 1);
+	       hwif->name, base, base + 7);
 
-	if (!request_region(base, ports, hwif->name)) {
+	if (!request_region(base, 8, hwif->name)) {
 		printk(" -- Error, ports in use.\n");
 		return 1;
 	}
@@ -915,7 +914,7 @@ static int ide_iomio_dma(ide_hwif_t *hwif, unsigned long base, unsigned int port
 			if (!request_region(hwif->extra_base,
 					    hwif->cds->extra, hwif->cds->name)) {
 				printk(" -- Error, extra ports in use.\n");
-				release_region(base, ports);
+				release_region(base, 8);
 				return 1;
 			}
 			hwif->extra_ports = hwif->cds->extra;
@@ -925,17 +924,19 @@ static int ide_iomio_dma(ide_hwif_t *hwif, unsigned long base, unsigned int port
 	return 0;
 }
 
-static int ide_dma_iobase(ide_hwif_t *hwif, unsigned long base, unsigned int ports)
+static int ide_dma_iobase(ide_hwif_t *hwif, unsigned long base)
 {
 	if (hwif->mmio)
-		return ide_mapped_mmio_dma(hwif, base,ports);
+		return ide_mapped_mmio_dma(hwif, base);
 
-	return ide_iomio_dma(hwif, base, ports);
+	return ide_iomio_dma(hwif, base);
 }
 
-void ide_setup_dma(ide_hwif_t *hwif, unsigned long base, unsigned num_ports)
+void ide_setup_dma(ide_hwif_t *hwif, unsigned long base)
 {
-	if (ide_dma_iobase(hwif, base, num_ports))
+	u8 dma_stat;
+
+	if (ide_dma_iobase(hwif, base))
 		return;
 
 	if (ide_allocate_dma_engine(hwif)) {
@@ -945,16 +946,16 @@ void ide_setup_dma(ide_hwif_t *hwif, unsigned long base, unsigned num_ports)
 
 	hwif->dma_base = base;
 
-	if (!(hwif->dma_command))
-		hwif->dma_command	= hwif->dma_base;
-	if (!(hwif->dma_vendor1))
-		hwif->dma_vendor1	= (hwif->dma_base + 1);
-	if (!(hwif->dma_status))
-		hwif->dma_status	= (hwif->dma_base + 2);
-	if (!(hwif->dma_vendor3))
-		hwif->dma_vendor3	= (hwif->dma_base + 3);
-	if (!(hwif->dma_prdtable))
-		hwif->dma_prdtable	= (hwif->dma_base + 4);
+	if (!hwif->dma_command)
+		hwif->dma_command	= hwif->dma_base + 0;
+	if (!hwif->dma_vendor1)
+		hwif->dma_vendor1	= hwif->dma_base + 1;
+	if (!hwif->dma_status)
+		hwif->dma_status	= hwif->dma_base + 2;
+	if (!hwif->dma_vendor3)
+		hwif->dma_vendor3	= hwif->dma_base + 3;
+	if (!hwif->dma_prdtable)
+		hwif->dma_prdtable	= hwif->dma_base + 4;
 
 	if (!hwif->dma_host_set)
 		hwif->dma_host_set = &ide_dma_host_set;
@@ -973,13 +974,10 @@ void ide_setup_dma(ide_hwif_t *hwif, unsigned long base, unsigned num_ports)
 	if (!hwif->dma_lost_irq)
 		hwif->dma_lost_irq = &ide_dma_lost_irq;
 
-	if (hwif->chipset != ide_trm290) {
-		u8 dma_stat = hwif->INB(hwif->dma_status);
-		printk(", BIOS settings: %s:%s, %s:%s",
-		       hwif->drives[0].name, (dma_stat & 0x20) ? "DMA" : "pio",
-		       hwif->drives[1].name, (dma_stat & 0x40) ? "DMA" : "pio");
-	}
-	printk("\n");
+	dma_stat = hwif->INB(hwif->dma_status);
+	printk(KERN_CONT ", BIOS settings: %s:%s, %s:%s\n",
+	       hwif->drives[0].name, (dma_stat & 0x20) ? "DMA" : "PIO",
+	       hwif->drives[1].name, (dma_stat & 0x40) ? "DMA" : "PIO");
 }
 
 EXPORT_SYMBOL_GPL(ide_setup_dma);

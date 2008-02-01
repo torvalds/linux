@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/ide/pci/pdc202xx_old.c	Version 0.52	Aug 27, 2007
- *
  *  Copyright (C) 1998-2002		Andre Hedrick <andre@linux-ide.org>
  *  Copyright (C) 2006-2007		MontaVista Software, Inc.
  *  Copyright (C) 2007			Bartlomiej Zolnierkiewicz
@@ -66,7 +64,7 @@ static void pdc_old_disable_66MHz_clock(ide_hwif_t *);
 static void pdc202xx_set_mode(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-	struct pci_dev *dev	= hwif->pci_dev;
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	u8 drive_pci		= 0x60 + (drive->dn << 2);
 
 	u8			AP = 0, BP = 0, CP = 0;
@@ -144,9 +142,10 @@ static void pdc202xx_set_pio_mode(ide_drive_t *drive, const u8 pio)
 
 static u8 pdc202xx_old_cable_detect (ide_hwif_t *hwif)
 {
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	u16 CIS = 0, mask = (hwif->channel) ? (1<<11) : (1<<10);
 
-	pci_read_config_word(hwif->pci_dev, 0x50, &CIS);
+	pci_read_config_word(dev, 0x50, &CIS);
 
 	return (CIS & mask) ? ATA_CBL_PATA40 : ATA_CBL_PATA80;
 }
@@ -305,12 +304,14 @@ static unsigned int __devinit init_chipset_pdc202xx(struct pci_dev *dev,
 
 static void __devinit init_hwif_pdc202xx(ide_hwif_t *hwif)
 {
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
+
 	hwif->set_pio_mode = &pdc202xx_set_pio_mode;
 	hwif->set_dma_mode = &pdc202xx_set_mode;
 
 	hwif->quirkproc = &pdc202xx_quirkproc;
 
-	if (hwif->pci_dev->device != PCI_DEVICE_ID_PROMISE_20246)
+	if (dev->device != PCI_DEVICE_ID_PROMISE_20246)
 		hwif->resetproc = &pdc202xx_reset;
 
 	if (hwif->dma_base == 0)
@@ -319,7 +320,7 @@ static void __devinit init_hwif_pdc202xx(ide_hwif_t *hwif)
 	hwif->dma_lost_irq = &pdc202xx_dma_lost_irq;
 	hwif->dma_timeout = &pdc202xx_dma_timeout;
 
-	if (hwif->pci_dev->device != PCI_DEVICE_ID_PROMISE_20246) {
+	if (dev->device != PCI_DEVICE_ID_PROMISE_20246) {
 		if (hwif->cbl != ATA_CBL_PATA40_SHORT)
 			hwif->cbl = pdc202xx_old_cable_detect(hwif);
 
@@ -334,7 +335,7 @@ static void __devinit init_dma_pdc202xx(ide_hwif_t *hwif, unsigned long dmabase)
 	u8 udma_speed_flag = 0, primary_mode = 0, secondary_mode = 0;
 
 	if (hwif->channel) {
-		ide_setup_dma(hwif, dmabase, 8);
+		ide_setup_dma(hwif, dmabase);
 		return;
 	}
 
@@ -358,7 +359,7 @@ static void __devinit init_dma_pdc202xx(ide_hwif_t *hwif, unsigned long dmabase)
 	}
 #endif /* CONFIG_PDC202XX_BURST */
 
-	ide_setup_dma(hwif, dmabase, 8);
+	ide_setup_dma(hwif, dmabase);
 }
 
 static void __devinit pdc202ata4_fixup_irq(struct pci_dev *dev,

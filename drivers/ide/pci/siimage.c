@@ -1,6 +1,4 @@
 /*
- * linux/drivers/ide/pci/siimage.c		Version 1.19	Nov 16 2007
- *
  * Copyright (C) 2001-2002	Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2003		Red Hat <alan@redhat.com>
  * Copyright (C) 2007		MontaVista Software, Inc.
@@ -79,7 +77,7 @@ static int pdev_is_sata(struct pci_dev *pdev)
  
 static inline int is_sata(ide_hwif_t *hwif)
 {
-	return pdev_is_sata(hwif->pci_dev);
+	return pdev_is_sata(to_pci_dev(hwif->dev));
 }
 
 /**
@@ -140,13 +138,14 @@ static inline unsigned long siimage_seldev(ide_drive_t *drive, int r)
 static u8 sil_pata_udma_filter(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	unsigned long base = (unsigned long) hwif->hwif_data;
 	u8 mask = 0, scsc = 0;
 
 	if (hwif->mmio)
 		scsc = hwif->INB(base + 0x4A);
 	else
-		pci_read_config_byte(hwif->pci_dev, 0x8A, &scsc);
+		pci_read_config_byte(dev, 0x8A, &scsc);
 
 	if ((scsc & 0x30) == 0x10)	/* 133 */
 		mask = ATA_UDMA6;
@@ -219,19 +218,21 @@ static void sil_set_pio_mode(ide_drive_t *drive, u8 pio)
 		mode |= (unit ? 0x10 : 0x01);
 		hwif->OUTB(mode, base + addr_mask);
 	} else {
-		pci_write_config_word(hwif->pci_dev, addr, speedp);
-		pci_write_config_word(hwif->pci_dev, tfaddr, speedt);
-		pci_read_config_word(hwif->pci_dev, tfaddr-2, &speedp);
+		struct pci_dev *dev = to_pci_dev(hwif->dev);
+
+		pci_write_config_word(dev, addr, speedp);
+		pci_write_config_word(dev, tfaddr, speedt);
+		pci_read_config_word(dev, tfaddr - 2, &speedp);
 		speedp &= ~0x200;
 		/* Set IORDY for mode 3 or 4 */
 		if (pio > 2)
 			speedp |= 0x200;
-		pci_write_config_word(hwif->pci_dev, tfaddr-2, speedp);
+		pci_write_config_word(dev, tfaddr - 2, speedp);
 
-		pci_read_config_byte(hwif->pci_dev, addr_mask, &mode);
+		pci_read_config_byte(dev, addr_mask, &mode);
 		mode &= ~(unit ? 0x30 : 0x03);
 		mode |= (unit ? 0x10 : 0x01);
-		pci_write_config_byte(hwif->pci_dev, addr_mask, mode);
+		pci_write_config_byte(dev, addr_mask, mode);
 	}
 }
 
@@ -250,6 +251,7 @@ static void sil_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	u16 dma[]		= { 0x2208, 0x10C2, 0x10C1 };
 
 	ide_hwif_t *hwif	= HWIF(drive);
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	u16 ultra = 0, multi	= 0;
 	u8 mode = 0, unit	= drive->select.b.unit;
 	unsigned long base	= (unsigned long)hwif->hwif_data;
@@ -266,10 +268,10 @@ static void sil_set_dma_mode(ide_drive_t *drive, const u8 speed)
 		multi = hwif->INW(ma);
 		ultra = hwif->INW(ua);
 	} else {
-		pci_read_config_byte(hwif->pci_dev, 0x8A, &scsc);
-		pci_read_config_byte(hwif->pci_dev, addr_mask, &mode);
-		pci_read_config_word(hwif->pci_dev, ma, &multi);
-		pci_read_config_word(hwif->pci_dev, ua, &ultra);
+		pci_read_config_byte(dev, 0x8A, &scsc);
+		pci_read_config_byte(dev, addr_mask, &mode);
+		pci_read_config_word(dev, ma, &multi);
+		pci_read_config_word(dev, ua, &ultra);
 	}
 
 	mode &= ~((unit) ? 0x30 : 0x03);
@@ -293,9 +295,9 @@ static void sil_set_dma_mode(ide_drive_t *drive, const u8 speed)
 		hwif->OUTW(multi, ma);
 		hwif->OUTW(ultra, ua);
 	} else {
-		pci_write_config_byte(hwif->pci_dev, addr_mask, mode);
-		pci_write_config_word(hwif->pci_dev, ma, multi);
-		pci_write_config_word(hwif->pci_dev, ua, ultra);
+		pci_write_config_byte(dev, addr_mask, mode);
+		pci_write_config_word(dev, ma, multi);
+		pci_write_config_word(dev, ua, ultra);
 	}
 }
 
@@ -303,6 +305,7 @@ static void sil_set_dma_mode(ide_drive_t *drive, const u8 speed)
 static int siimage_io_ide_dma_test_irq (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	u8 dma_altstat		= 0;
 	unsigned long addr	= siimage_selreg(hwif, 1);
 
@@ -311,7 +314,7 @@ static int siimage_io_ide_dma_test_irq (ide_drive_t *drive)
 		return 1;
 
 	/* return 1 if Device INTR asserted */
-	pci_read_config_byte(hwif->pci_dev, addr, &dma_altstat);
+	pci_read_config_byte(dev, addr, &dma_altstat);
 	if (dma_altstat & 8)
 		return 0;	//return 1;
 	return 0;
@@ -377,13 +380,14 @@ static int siimage_mmio_ide_dma_test_irq (ide_drive_t *drive)
 static int sil_sata_busproc(ide_drive_t * drive, int state)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	u32 stat_config		= 0;
 	unsigned long addr	= siimage_selreg(hwif, 0);
 
 	if (hwif->mmio)
 		stat_config = readl((void __iomem *)addr);
 	else
-		pci_read_config_dword(hwif->pci_dev, addr, &stat_config);
+		pci_read_config_dword(dev, addr, &stat_config);
 
 	switch (state) {
 		case BUSSTATE_ON:
@@ -643,7 +647,7 @@ static unsigned int __devinit init_chipset_siimage(struct pci_dev *dev, const ch
 
 static void __devinit init_mmio_iops_siimage(ide_hwif_t *hwif)
 {
-	struct pci_dev *dev	= hwif->pci_dev;
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	void *addr		= pci_get_drvdata(dev);
 	u8 ch			= hwif->channel;
 	hw_regs_t		hw;
@@ -756,12 +760,14 @@ static void __devinit sil_quirkproc(ide_drive_t *drive)
 
 static void __devinit init_iops_siimage(ide_hwif_t *hwif)
 {
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
+
 	hwif->hwif_data = NULL;
 
 	/* Pessimal until we finish probing */
 	hwif->rqsize = 15;
 
-	if (pci_get_drvdata(hwif->pci_dev) == NULL)
+	if (pci_get_drvdata(dev) == NULL)
 		return;
 
 	init_mmio_iops_siimage(hwif);
@@ -777,11 +783,12 @@ static void __devinit init_iops_siimage(ide_hwif_t *hwif)
 
 static u8 __devinit ata66_siimage(ide_hwif_t *hwif)
 {
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	unsigned long addr = siimage_selreg(hwif, 0);
 	u8 ata66 = 0;
 
-	if (pci_get_drvdata(hwif->pci_dev) == NULL)
-		pci_read_config_byte(hwif->pci_dev, addr, &ata66);
+	if (pci_get_drvdata(dev) == NULL)
+		pci_read_config_byte(dev, addr, &ata66);
 	else
 		ata66 = hwif->INB(addr);
 
