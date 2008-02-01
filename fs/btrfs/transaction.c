@@ -33,7 +33,7 @@ static struct workqueue_struct *trans_wq;
 #define BTRFS_ROOT_TRANS_TAG 0
 #define BTRFS_ROOT_DEFRAG_TAG 1
 
-static void put_transaction(struct btrfs_transaction *transaction)
+static noinline void put_transaction(struct btrfs_transaction *transaction)
 {
 	WARN_ON(transaction->use_count == 0);
 	transaction->use_count--;
@@ -46,7 +46,7 @@ static void put_transaction(struct btrfs_transaction *transaction)
 	}
 }
 
-static int join_transaction(struct btrfs_root *root)
+static noinline int join_transaction(struct btrfs_root *root)
 {
 	struct btrfs_transaction *cur_trans;
 	cur_trans = root->fs_info->running_transaction;
@@ -82,7 +82,7 @@ static int join_transaction(struct btrfs_root *root)
 	return 0;
 }
 
-static int record_root_in_trans(struct btrfs_root *root)
+static noinline int record_root_in_trans(struct btrfs_root *root)
 {
 	u64 running_trans_id = root->fs_info->running_transaction->transid;
 	if (root->ref_cows && root->last_trans < running_trans_id) {
@@ -225,8 +225,8 @@ int btrfs_commit_tree_roots(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-static int wait_for_commit(struct btrfs_root *root,
-			   struct btrfs_transaction *commit)
+static noinline int wait_for_commit(struct btrfs_root *root,
+				    struct btrfs_transaction *commit)
 {
 	DEFINE_WAIT(wait);
 	mutex_lock(&root->fs_info->trans_mutex);
@@ -265,9 +265,9 @@ int btrfs_add_dead_root(struct btrfs_root *root,
 	return 0;
 }
 
-static int add_dirty_roots(struct btrfs_trans_handle *trans,
-			   struct radix_tree_root *radix,
-			   struct list_head *list)
+static noinline int add_dirty_roots(struct btrfs_trans_handle *trans,
+				    struct radix_tree_root *radix,
+				    struct list_head *list)
 {
 	struct dirty_root *dirty;
 	struct btrfs_root *gang[8];
@@ -406,8 +406,8 @@ int btrfs_defrag_dirty_roots(struct btrfs_fs_info *info)
 	return err;
 }
 
-static int drop_dirty_roots(struct btrfs_root *tree_root,
-			    struct list_head *list)
+static noinline int drop_dirty_roots(struct btrfs_root *tree_root,
+				     struct list_head *list)
 {
 	struct dirty_root *dirty;
 	struct btrfs_trans_handle *trans;
@@ -529,23 +529,28 @@ int btrfs_write_ordered_inodes(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-static int create_pending_snapshot(struct btrfs_trans_handle *trans,
+static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 				   struct btrfs_fs_info *fs_info,
 				   struct btrfs_pending_snapshot *pending)
 {
 	struct btrfs_key key;
-	struct btrfs_root_item new_root_item;
+	struct btrfs_root_item *new_root_item;
 	struct btrfs_root *tree_root = fs_info->tree_root;
 	struct btrfs_root *root = pending->root;
 	struct extent_buffer *tmp;
 	int ret;
 	u64 objectid;
 
+	new_root_item = kmalloc(sizeof(*new_root_item), GFP_NOFS);
+	if (!new_root_item) {
+		ret = -ENOMEM;
+		goto fail;
+	}
 	ret = btrfs_find_free_objectid(trans, tree_root, 0, &objectid);
 	if (ret)
 		goto fail;
 
-	memcpy(&new_root_item, &root->root_item, sizeof(new_root_item));
+	memcpy(new_root_item, &root->root_item, sizeof(*new_root_item));
 
 	key.objectid = objectid;
 	key.offset = 1;
@@ -557,10 +562,10 @@ static int create_pending_snapshot(struct btrfs_trans_handle *trans,
 
 	btrfs_copy_root(trans, root, root->node, &tmp, objectid);
 
-	btrfs_set_root_bytenr(&new_root_item, tmp->start);
-	btrfs_set_root_level(&new_root_item, btrfs_header_level(tmp));
+	btrfs_set_root_bytenr(new_root_item, tmp->start);
+	btrfs_set_root_level(new_root_item, btrfs_header_level(tmp));
 	ret = btrfs_insert_root(trans, root->fs_info->tree_root, &key,
-				&new_root_item);
+				new_root_item);
 	free_extent_buffer(tmp);
 	if (ret)
 		goto fail;
@@ -581,11 +586,12 @@ static int create_pending_snapshot(struct btrfs_trans_handle *trans,
 			     pending->name, strlen(pending->name), objectid,
 			     root->fs_info->sb->s_root->d_inode->i_ino);
 fail:
+	kfree(new_root_item);
 	return ret;
 }
 
-static int create_pending_snapshots(struct btrfs_trans_handle *trans,
-				   struct btrfs_fs_info *fs_info)
+static noinline int create_pending_snapshots(struct btrfs_trans_handle *trans,
+					     struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_pending_snapshot *pending;
 	struct list_head *head = &trans->transaction->pending_snapshots;
