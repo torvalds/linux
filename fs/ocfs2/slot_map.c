@@ -49,7 +49,7 @@ static void __ocfs2_fill_slot(struct ocfs2_slot_info *si,
 			      s16 node_num);
 
 /* post the slot information on disk into our slot_info struct. */
-void ocfs2_update_slot_info(struct ocfs2_slot_info *si)
+static void ocfs2_update_slot_info(struct ocfs2_slot_info *si)
 {
 	int i;
 	__le16 *disk_info;
@@ -65,10 +65,27 @@ void ocfs2_update_slot_info(struct ocfs2_slot_info *si)
 	spin_unlock(&si->si_lock);
 }
 
+int ocfs2_refresh_slot_info(struct ocfs2_super *osb)
+{
+	int ret;
+	struct ocfs2_slot_info *si = osb->slot_info;
+	struct buffer_head *bh;
+
+	if (si == NULL)
+		return 0;
+
+	bh = si->si_bh;
+	ret = ocfs2_read_block(osb, bh->b_blocknr, &bh, 0, si->si_inode);
+	if (ret == 0)
+		ocfs2_update_slot_info(si);
+
+	return ret;
+}
+
 /* post the our slot info stuff into it's destination bh and write it
  * out. */
-int ocfs2_update_disk_slots(struct ocfs2_super *osb,
-			    struct ocfs2_slot_info *si)
+static int ocfs2_update_disk_slots(struct ocfs2_super *osb,
+				   struct ocfs2_slot_info *si)
 {
 	int status, i;
 	__le16 *disk_info = (__le16 *) si->si_bh->b_data;
@@ -135,6 +152,19 @@ s16 ocfs2_node_num_to_slot(struct ocfs2_slot_info *si,
 	return ret;
 }
 
+static void __ocfs2_free_slot_info(struct ocfs2_slot_info *si)
+{
+	if (si == NULL)
+		return;
+
+	if (si->si_inode)
+		iput(si->si_inode);
+	if (si->si_bh)
+		brelse(si->si_bh);
+
+	kfree(si);
+}
+
 static void __ocfs2_fill_slot(struct ocfs2_slot_info *si,
 			      s16 slot_num,
 			      s16 node_num)
@@ -147,12 +177,18 @@ static void __ocfs2_fill_slot(struct ocfs2_slot_info *si,
 	si->si_global_node_nums[slot_num] = node_num;
 }
 
-void ocfs2_clear_slot(struct ocfs2_slot_info *si,
-		      s16 slot_num)
+int ocfs2_clear_slot(struct ocfs2_super *osb, s16 slot_num)
 {
+	struct ocfs2_slot_info *si = osb->slot_info;
+
+	if (si == NULL)
+		return 0;
+
 	spin_lock(&si->si_lock);
 	__ocfs2_fill_slot(si, slot_num, OCFS2_INVALID_SLOT);
 	spin_unlock(&si->si_lock);
+
+	return ocfs2_update_disk_slots(osb, osb->slot_info);
 }
 
 int ocfs2_init_slot_info(struct ocfs2_super *osb)
@@ -202,18 +238,17 @@ int ocfs2_init_slot_info(struct ocfs2_super *osb)
 	osb->slot_info = si;
 bail:
 	if (status < 0 && si)
-		ocfs2_free_slot_info(si);
+		__ocfs2_free_slot_info(si);
 
 	return status;
 }
 
-void ocfs2_free_slot_info(struct ocfs2_slot_info *si)
+void ocfs2_free_slot_info(struct ocfs2_super *osb)
 {
-	if (si->si_inode)
-		iput(si->si_inode);
-	if (si->si_bh)
-		brelse(si->si_bh);
-	kfree(si);
+	struct ocfs2_slot_info *si = osb->slot_info;
+
+	osb->slot_info = NULL;
+	__ocfs2_free_slot_info(si);
 }
 
 int ocfs2_find_slot(struct ocfs2_super *osb)
@@ -285,7 +320,6 @@ void ocfs2_put_slot(struct ocfs2_super *osb)
 	}
 
 bail:
-	osb->slot_info = NULL;
-	ocfs2_free_slot_info(si);
+	ocfs2_free_slot_info(osb);
 }
 

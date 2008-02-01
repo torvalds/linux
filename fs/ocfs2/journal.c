@@ -1123,8 +1123,7 @@ static int ocfs2_recover_node(struct ocfs2_super *osb,
 
 	/* Likewise, this would be a strange but ultimately not so
 	 * harmful place to get an error... */
-	ocfs2_clear_slot(si, slot_num);
-	status = ocfs2_update_disk_slots(osb, si);
+	status = ocfs2_clear_slot(osb, slot_num);
 	if (status < 0)
 		mlog_errno(status);
 

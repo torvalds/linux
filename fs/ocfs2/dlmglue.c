@@ -2132,8 +2132,6 @@ int ocfs2_super_lock(struct ocfs2_super *osb,
 	int status = 0;
 	int level = ex ? LKM_EXMODE : LKM_PRMODE;
 	struct ocfs2_lock_res *lockres = &osb->osb_super_lockres;
-	struct buffer_head *bh;
-	struct ocfs2_slot_info *si = osb->slot_info;
 
 	mlog_entry_void();
 
@@ -2159,11 +2157,7 @@ int ocfs2_super_lock(struct ocfs2_super *osb,
 		goto bail;
 	}
 	if (status) {
-		bh = si->si_bh;
-		status = ocfs2_read_block(osb, bh->b_blocknr, &bh, 0,
-					  si->si_inode);
-		if (status == 0)
-			ocfs2_update_slot_info(si);
+		status = ocfs2_refresh_slot_info(osb);
 
 		ocfs2_complete_lock_res_refresh(lockres, status);
 

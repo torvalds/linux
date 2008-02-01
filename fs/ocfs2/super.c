@@ -1724,8 +1724,7 @@ static void ocfs2_delete_osb(struct ocfs2_super *osb)
 
 	/* This function assumes that the caller has the main osb resource */
 
-	if (osb->slot_info)
-		ocfs2_free_slot_info(osb->slot_info);
+	ocfs2_free_slot_info(osb);
 
 	kfree(osb->osb_orphan_wipes);
 	/* FIXME
