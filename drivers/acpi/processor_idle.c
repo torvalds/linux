@@ -1407,8 +1407,10 @@ static inline void acpi_idle_do_entry(struct acpi_processor_cx *cx)
 static int acpi_idle_enter_c1(struct cpuidle_device *dev,
 			      struct cpuidle_state *state)
 {
+	u32 t1, t2;
 	struct acpi_processor *pr;
 	struct acpi_processor_cx *cx = cpuidle_get_statedata(state);
+
 	pr = processors[smp_processor_id()];
 
 	if (unlikely(!pr))
@@ -1418,12 +1420,14 @@ static int acpi_idle_enter_c1(struct cpuidle_device *dev,
 	if (pr->flags.bm_check)
 		acpi_idle_update_bm_rld(pr, cx);
 
+	t1 = inl(acpi_gbl_FADT.xpm_timer_block.address);
 	acpi_idle_do_entry(cx);
+	t2 = inl(acpi_gbl_FADT.xpm_timer_block.address);
 
 	local_irq_enable();
 	cx->usage++;
 
-	return 0;
+	return ticks_elapsed_in_us(t1, t2);
 }
 
 /**
@@ -1660,6 +1664,7 @@ static int acpi_processor_setup_cpuidle(struct acpi_processor *pr)
 		switch (cx->type) {
 			case ACPI_STATE_C1:
 			state->flags |= CPUIDLE_FLAG_SHALLOW;
+			state->flags |= CPUIDLE_FLAG_TIME_VALID;
 			state->enter = acpi_idle_enter_c1;
 			dev->safe_state = state;
 			break;
