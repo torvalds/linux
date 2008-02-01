@@ -201,6 +201,10 @@ static inline u32 ticks_elapsed_in_us(u32 t1, u32 t2)
 		return PM_TIMER_TICKS_TO_US((0xFFFFFFFF - t1) + t2);
 }
 
+/*
+ * Callers should disable interrupts before the call and enable
+ * interrupts after return.
+ */
 static void acpi_safe_halt(void)
 {
 	current_thread_info()->status &= ~TS_POLLING;
@@ -413,6 +417,8 @@ static void acpi_processor_idle(void)
 			pm_idle_save();
 		else
 			acpi_safe_halt();
+
+		local_irq_enable();
 		return;
 	}
 
@@ -521,6 +527,7 @@ static void acpi_processor_idle(void)
 		 *       skew otherwise.
 		 */
 		sleep_ticks = 0xFFFFFFFF;
+		local_irq_enable();
 		break;
 
 	case ACPI_STATE_C2:
@@ -1403,11 +1410,13 @@ static int acpi_idle_enter_c1(struct cpuidle_device *dev,
 	if (unlikely(!pr))
 		return 0;
 
+	local_irq_disable();
 	if (pr->flags.bm_check)
 		acpi_idle_update_bm_rld(pr, cx);
 
 	acpi_safe_halt();
 
+	local_irq_enable();
 	cx->usage++;
 
 	return 0;
@@ -1517,7 +1526,9 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 		if (dev->safe_state) {
 			return dev->safe_state->enter(dev, dev->safe_state);
 		} else {
+			local_irq_disable();
 			acpi_safe_halt();
+			local_irq_enable();
 			return 0;
 		}
 	}
