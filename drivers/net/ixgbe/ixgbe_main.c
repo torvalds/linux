@@ -275,6 +275,8 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_adapter *adapter,
 	if (total_tx_packets >= tx_ring->work_limit)
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EICS, tx_ring->eims_value);
 
+	adapter->net_stats.tx_bytes += total_tx_bytes;
+	adapter->net_stats.tx_packets += total_tx_packets;
 	cleaned = total_tx_packets ? true : false;
 	return cleaned;
 }
@@ -443,6 +445,7 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_adapter *adapter,
 	u16 hdr_info, vlan_tag;
 	bool is_vlan, cleaned = false;
 	int cleaned_count = 0;
+	unsigned int total_rx_bytes = 0, total_rx_packets = 0;
 
 	i = rx_ring->next_to_clean;
 	upper_len = 0;
@@ -522,6 +525,11 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_adapter *adapter,
 		}
 
 		ixgbe_rx_checksum(adapter, staterr, skb);
+
+		/* probably a little skewed due to removing CRC */
+		total_rx_bytes += skb->len;
+		total_rx_packets++;
+
 		skb->protocol = eth_type_trans(skb, netdev);
 		ixgbe_receive_skb(adapter, skb, is_vlan, vlan_tag);
 		netdev->last_rx = jiffies;
@@ -549,6 +557,9 @@ next_desc:
 
 	if (cleaned_count)
 		ixgbe_alloc_rx_buffers(adapter, rx_ring, cleaned_count);
+
+	adapter->net_stats.rx_bytes += total_rx_bytes;
+	adapter->net_stats.rx_packets += total_rx_packets;
 
 	return cleaned;
 }
@@ -2088,10 +2099,6 @@ void ixgbe_update_stats(struct ixgbe_adapter *adapter)
 	adapter->stats.bptc += IXGBE_READ_REG(hw, IXGBE_BPTC);
 
 	/* Fill out the OS statistics structure */
-	adapter->net_stats.rx_packets = adapter->stats.gprc;
-	adapter->net_stats.tx_packets = adapter->stats.gptc;
-	adapter->net_stats.rx_bytes = adapter->stats.gorc;
-	adapter->net_stats.tx_bytes = adapter->stats.gotc;
 	adapter->net_stats.multicast = adapter->stats.mprc;
 
 	/* Rx Errors */
