@@ -34,6 +34,7 @@
 
 #define ACPI_CSTATE_SYSTEMIO	(0)
 #define ACPI_CSTATE_FFH		(1)
+#define ACPI_CSTATE_HALT	(2)
 
 /* Power Management */
 
@@ -64,7 +65,7 @@ struct acpi_processor_cx {
 	u8 valid;
 	u8 type;
 	u32 address;
-	u8 space_id;
+	u8 entry_method;
 	u8 index;
 	u32 latency;
 	u32 latency_ticks;

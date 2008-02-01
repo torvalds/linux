@@ -265,7 +265,7 @@ static atomic_t c3_cpu_count;
 /* Common C-state entry for C2, C3, .. */
 static void acpi_cstate_enter(struct acpi_processor_cx *cstate)
 {
-	if (cstate->space_id == ACPI_CSTATE_FFH) {
+	if (cstate->entry_method == ACPI_CSTATE_FFH) {
 		/* Call into architectural FFH based C-state */
 		acpi_processor_ffh_cstate_enter(cstate);
 	} else {
@@ -929,20 +929,20 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 		cx.address = reg->address;
 		cx.index = current_count + 1;
 
-		cx.space_id = ACPI_CSTATE_SYSTEMIO;
+		cx.entry_method = ACPI_CSTATE_SYSTEMIO;
 		if (reg->space_id == ACPI_ADR_SPACE_FIXED_HARDWARE) {
 			if (acpi_processor_ffh_cstate_probe
 					(pr->id, &cx, reg) == 0) {
-				cx.space_id = ACPI_CSTATE_FFH;
-			} else if (cx.type != ACPI_STATE_C1) {
+				cx.entry_method = ACPI_CSTATE_FFH;
+			} else if (cx.type == ACPI_STATE_C1) {
 				/*
 				 * C1 is a special case where FIXED_HARDWARE
 				 * can be handled in non-MWAIT way as well.
 				 * In that case, save this _CST entry info.
-				 * That is, we retain space_id of SYSTEM_IO for
-				 * halt based C1.
 				 * Otherwise, ignore this info and continue.
 				 */
+				cx.entry_method = ACPI_CSTATE_HALT;
+			} else {
 				continue;
 			}
 		}
@@ -1376,12 +1376,16 @@ static inline void acpi_idle_update_bm_rld(struct acpi_processor *pr,
 /**
  * acpi_idle_do_entry - a helper function that does C2 and C3 type entry
  * @cx: cstate data
+ *
+ * Caller disables interrupt before call and enables interrupt after return.
  */
 static inline void acpi_idle_do_entry(struct acpi_processor_cx *cx)
 {
-	if (cx->space_id == ACPI_CSTATE_FFH) {
+	if (cx->entry_method == ACPI_CSTATE_FFH) {
 		/* Call into architectural FFH based C-state */
 		acpi_processor_ffh_cstate_enter(cx);
+	} else if (cx->entry_method == ACPI_CSTATE_HALT) {
+		acpi_safe_halt();
 	} else {
 		int unused;
 		/* IO port based C-state */
@@ -1414,7 +1418,7 @@ static int acpi_idle_enter_c1(struct cpuidle_device *dev,
 	if (pr->flags.bm_check)
 		acpi_idle_update_bm_rld(pr, cx);
 
-	acpi_safe_halt();
+	acpi_idle_do_entry(cx);
 
 	local_irq_enable();
 	cx->usage++;
