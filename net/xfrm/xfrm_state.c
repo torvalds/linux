@@ -493,7 +493,7 @@ expired:
 		km_state_expired(x, 1, 0);
 
 	xfrm_audit_state_delete(x, err ? 0 : 1,
-				audit_get_loginuid(current->audit_context), 0);
+				audit_get_loginuid(current), 0);
 
 out:
 	spin_unlock(&x->lock);

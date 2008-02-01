@@ -114,6 +114,13 @@ extern struct group_info init_groups;
 	.pid = &init_struct_pid,				\
 }
 
+#ifdef CONFIG_AUDITSYSCALL
+#define INIT_IDS \
+	.loginuid = -1, \
+	.sessionid = -1,
+#else
+#define INIT_IDS
+#endif
 /*
  *  INIT_TASK is used to set up the first task table, touch at
  * your own risk!. Base=0, limit=0x1fffff (=2MB)
@@ -173,6 +180,7 @@ extern struct group_info init_groups;
 		[PIDTYPE_SID]  = INIT_PID_LINK(PIDTYPE_SID),		\
 	},								\
 	.dirties = INIT_PROP_LOCAL_SINGLE(dirties),			\
+	INIT_IDS							\
 	INIT_TRACE_IRQFLAGS						\
 	INIT_LOCKDEP							\
 }

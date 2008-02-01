@@ -73,6 +73,7 @@ static void tty_audit_buf_put(struct tty_audit_buf *buf)
  *	@tsk with @loginuid.  @buf->mutex must be locked.
  */
 static void tty_audit_buf_push(struct task_struct *tsk, uid_t loginuid,
+			       unsigned int sessionid,
 			       struct tty_audit_buf *buf)
 {
 	struct audit_buffer *ab;
@@ -85,9 +86,9 @@ static void tty_audit_buf_push(struct task_struct *tsk, uid_t loginuid,
 	if (ab) {
 		char name[sizeof(tsk->comm)];
 
-		audit_log_format(ab, "tty pid=%u uid=%u auid=%u major=%d "
-				 "minor=%d comm=", tsk->pid, tsk->uid,
-				 loginuid, buf->major, buf->minor);
+		audit_log_format(ab, "tty pid=%u uid=%u auid=%u ses=%u "
+				 "major=%d minor=%d comm=", tsk->pid, tsk->uid,
+				 loginuid, sessionid, buf->major, buf->minor);
 		get_task_comm(name, tsk);
 		audit_log_untrustedstring(ab, name);
 		audit_log_format(ab, " data=");
@@ -105,8 +106,9 @@ static void tty_audit_buf_push(struct task_struct *tsk, uid_t loginuid,
  */
 static void tty_audit_buf_push_current(struct tty_audit_buf *buf)
 {
-	tty_audit_buf_push(current, audit_get_loginuid(current->audit_context),
-			   buf);
+	uid_t auid = audit_get_loginuid(current);
+	unsigned int sessionid = audit_get_sessionid(current);
+	tty_audit_buf_push(current, auid, sessionid, buf);
 }
 
 /**
@@ -152,6 +154,11 @@ void tty_audit_fork(struct signal_struct *sig)
 void tty_audit_push_task(struct task_struct *tsk, uid_t loginuid)
 {
 	struct tty_audit_buf *buf;
+	/* FIXME I think this is correct.  Check against netlink once that is
+	 * I really need to read this code more closely.  But that's for
+	 * another patch.
+	 */
+	unsigned int sessionid = audit_get_sessionid(tsk);
 
 	spin_lock_irq(&tsk->sighand->siglock);
 	buf = tsk->signal->tty_audit_buf;
@@ -162,7 +169,7 @@ void tty_audit_push_task(struct task_struct *tsk, uid_t loginuid)
 		return;
 
 	mutex_lock(&buf->mutex);
-	tty_audit_buf_push(tsk, loginuid, buf);
+	tty_audit_buf_push(tsk, loginuid, sessionid, buf);
 	mutex_unlock(&buf->mutex);
 
 	tty_audit_buf_put(buf);

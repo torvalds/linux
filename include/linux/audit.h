@@ -98,6 +98,7 @@
 #define AUDIT_FD_PAIR		1317    /* audit record for pipe/socketpair */
 #define AUDIT_OBJ_PID		1318	/* ptrace target */
 #define AUDIT_TTY		1319	/* Input on an administrative TTY */
+#define AUDIT_EOE		1320	/* End of multi-record event */
 
 #define AUDIT_AVC		1400	/* SE Linux avc denial or grant */
 #define AUDIT_SELINUX_ERR	1401	/* Internal SE Linux Errors */
@@ -409,7 +410,8 @@ extern unsigned int audit_serial(void);
 extern void auditsc_get_stamp(struct audit_context *ctx,
 			      struct timespec *t, unsigned int *serial);
 extern int  audit_set_loginuid(struct task_struct *task, uid_t loginuid);
-extern uid_t audit_get_loginuid(struct audit_context *ctx);
+#define audit_get_loginuid(t) ((t)->loginuid)
+#define audit_get_sessionid(t) ((t)->sessionid)
 extern void audit_log_task_context(struct audit_buffer *ab);
 extern int __audit_ipc_obj(struct kern_ipc_perm *ipcp);
 extern int __audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode);
@@ -488,7 +490,8 @@ extern int audit_signals;
 #define audit_inode_child(d,i,p) do { ; } while (0)
 #define audit_core_dumps(i) do { ; } while (0)
 #define auditsc_get_stamp(c,t,s) do { BUG(); } while (0)
-#define audit_get_loginuid(c) ({ -1; })
+#define audit_get_loginuid(t) (-1)
+#define audit_get_sessionid(t) (-1)
 #define audit_log_task_context(b) do { ; } while (0)
 #define audit_ipc_obj(i) ({ 0; })
 #define audit_ipc_set_perm(q,u,g,m) ({ 0; })
@@ -522,9 +525,11 @@ extern void		    audit_log_end(struct audit_buffer *ab);
 extern void		    audit_log_hex(struct audit_buffer *ab,
 					  const unsigned char *buf,
 					  size_t len);
-extern const char *	    audit_log_untrustedstring(struct audit_buffer *ab,
+extern int		    audit_string_contains_control(const char *string,
+							  size_t len);
+extern void		    audit_log_untrustedstring(struct audit_buffer *ab,
 						      const char *string);
-extern const char *	    audit_log_n_untrustedstring(struct audit_buffer *ab,
+extern void		    audit_log_n_untrustedstring(struct audit_buffer *ab,
 							size_t n,
 							const char *string);
 extern void		    audit_log_d_path(struct audit_buffer *ab,
