@@ -71,7 +71,7 @@ static int ocfs2_commit_thread(void *arg);
  */
 
 struct ocfs2_recovery_map {
-	int rm_used;
+	unsigned int rm_used;
 	unsigned int *rm_entries;
 };
 

@@ -39,6 +39,6 @@ int ocfs2_node_num_to_slot(struct ocfs2_super *osb, unsigned int node_num);
 int ocfs2_slot_to_node_num_locked(struct ocfs2_super *osb, int slot_num,
 				  unsigned int *node_num);
 
-int ocfs2_clear_slot(struct ocfs2_super *osb, s16 slot_num);
+int ocfs2_clear_slot(struct ocfs2_super *osb, int slot_num);
 
 #endif

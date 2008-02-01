@@ -216,10 +216,10 @@ struct ocfs2_super
 	unsigned long s_mount_opt;
 	unsigned int s_atime_quantum;
 
-	u16 max_slots;
+	unsigned int max_slots;
 	s16 node_num;
-	s16 slot_num;
-	s16 preferred_slot;
+	int slot_num;
+	int preferred_slot;
 	int s_sectsize_bits;
 	int s_clustersize;
 	int s_clustersize_bits;
