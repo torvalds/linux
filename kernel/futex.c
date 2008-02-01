@@ -1252,6 +1252,8 @@ static int futex_wait(u32 __user *uaddr, struct rw_semaphore *fshared,
 			t.timer.expires = *abs_time;
 
 			hrtimer_start(&t.timer, t.timer.expires, HRTIMER_MODE_ABS);
+			if (!hrtimer_active(&t.timer))
+				t.task = NULL;
 
 			/*
 			 * the timer could have already expired, in which
