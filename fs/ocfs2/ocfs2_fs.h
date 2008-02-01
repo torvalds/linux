@@ -475,6 +475,18 @@ struct ocfs2_extent_block
 };
 
 /*
+ * On disk slot map for OCFS2.  This defines the contents of the "slot_map"
+ * system file.
+ */
+struct ocfs2_slot_map {
+/*00*/	__le16 sm_slots[0];
+/*
+ * Actual on-disk size is one block.  OCFS2_MAX_SLOTS is 255,
+ * 255 * sizeof(__le16) == 512B, within the 512B block minimum blocksize.
+ */
+};
+
+/*
  * On disk superblock for OCFS2
  * Note that it is contained inside an ocfs2_dinode, so all offsets
  * are relative to the start of ocfs2_dinode.id2.

@@ -85,17 +85,17 @@ static void ocfs2_set_slot(struct ocfs2_slot_info *si,
 static void ocfs2_update_slot_info(struct ocfs2_slot_info *si)
 {
 	int i;
-	__le16 *disk_info;
+	struct ocfs2_slot_map *sm;
 
 	/* we don't read the slot block here as ocfs2_super_lock
 	 * should've made sure we have the most recent copy. */
-	disk_info = (__le16 *) si->si_bh[0]->b_data;
+	sm = (struct ocfs2_slot_map *)si->si_bh[0]->b_data;
 
 	for (i = 0; i < si->si_num_slots; i++) {
-		if (le16_to_cpu(disk_info[i]) == (u16)OCFS2_INVALID_SLOT)
+		if (le16_to_cpu(sm->sm_slots[i]) == (u16)OCFS2_INVALID_SLOT)
 			ocfs2_invalidate_slot(si, i);
 		else
-			ocfs2_set_slot(si, i, le16_to_cpu(disk_info[i]));
+			ocfs2_set_slot(si, i, le16_to_cpu(sm->sm_slots[i]));
 	}
 }
 
@@ -135,15 +135,16 @@ static int ocfs2_update_disk_slots(struct ocfs2_super *osb,
 				   struct ocfs2_slot_info *si)
 {
 	int status, i;
-	__le16 *disk_info = (__le16 *) si->si_bh[0]->b_data;
+	struct ocfs2_slot_map *sm;
 
 	spin_lock(&osb->osb_lock);
+	sm = (struct ocfs2_slot_map *)si->si_bh[0]->b_data;
 	for (i = 0; i < si->si_num_slots; i++) {
 		if (si->si_slots[i].sl_valid)
-			disk_info[i] =
+			sm->sm_slots[i] =
 				cpu_to_le16(si->si_slots[i].sl_node_num);
 		else
-			disk_info[i] = cpu_to_le16(OCFS2_INVALID_SLOT);
+			sm->sm_slots[i] = cpu_to_le16(OCFS2_INVALID_SLOT);
 	}
 	spin_unlock(&osb->osb_lock);
 
