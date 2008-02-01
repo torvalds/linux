@@ -1,14 +1,14 @@
 /*
- * linux/drivers/ide/ide-cd.c
+ * ATAPI CD-ROM driver.
  *
- * Copyright (C) 1994, 1995, 1996  scott snyder  <snyder@fnald0.fnal.gov>
+ * Copyright (C) 1994-1996  Scott Snyder <snyder@fnald0.fnal.gov>
  * Copyright (C) 1996-1998  Erik Andersen <andersee@debian.org>
  * Copyright (C) 1998-2000  Jens Axboe <axboe@suse.de>
+ * Copyright (C)      2007  Bartlomiej Zolnierkiewicz
  *
  * May be copied or modified under the terms of the GNU General Public
  * License.  See linux/COPYING for more information.
  *
- * ATAPI CD-ROM driver.  To be used with ide.c.
  * See Documentation/cdrom/ide-cd for usage information.
  *
  * Suggestions are welcome. Patches that work are more welcome though. ;-)
@@ -19,20 +19,11 @@
  * ftp://fission.dt.wdc.com/pub/standards/SFF_atapi/spec/SFF8020-r2.6/PS/8020r26.ps
  * ftp://ftp.avc-pioneer.com/Mtfuji4/Spec/Fuji4r10.pdf
  *
- * Drives that deviate from these standards will be accommodated as much
- * as possible via compile time or command-line options.  Since I only have
- * a few drives, you generally need to send me patches...
- *
- * ----------------------------------
- * TO DO LIST:
- * -Make it so that Pioneer CD DR-A24X and friends don't get screwed up on
- *   boot
- *
  * For historical changelog please see:
  *	Documentation/ide/ChangeLog.ide-cd.1994-2004
  */
 
-#define IDECD_VERSION "4.61"
+#define IDECD_VERSION "5.00"
 
 #include <linux/module.h>
 #include <linux/types.h>
