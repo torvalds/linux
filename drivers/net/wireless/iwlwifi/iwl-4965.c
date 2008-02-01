@@ -3546,7 +3546,7 @@ static void iwl4965_rx_reply_rx(struct iwl4965_priv *priv,
 			(rx_start->phy_flags & RX_RES_PHY_FLAGS_BAND_24_MSK) ?
 			IEEE80211_BAND_2GHZ : IEEE80211_BAND_5GHZ,
 		.antenna = 0,
-		.rate_idx = iwl4965_hw_get_rate(
+		.rate_idx = iwl4965_rate_index_from_plcp(
 				le32_to_cpu(rx_start->rate_n_flags)),
 		.flag = 0,
 	};
