@@ -1123,8 +1123,8 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	 * transfer data
 	 */
 	while (thislen > 0) {
-		int blen = blen = rq->data_len;
-		char *ptr = rq->data;
+		u8 *ptr = rq->data;
+		int blen = rq->data_len;
 
 		/*
 		 * bio backed?
@@ -1207,7 +1207,7 @@ static ide_startstop_t cdrom_rw_intr(ide_drive_t *drive)
 	struct cdrom_info *info = drive->driver_data;
 	struct request *rq = HWGROUP(drive)->rq;
 	xfer_func_t *xferfunc;
-	int stat, ireason, len, sectors_to_transfer, uptodate, nskip;
+	int stat, ireason, len, thislen, uptodate, nskip;
 	int dma_error = 0, dma = info->dma, write = rq_data_dir(rq) == WRITE;
 	u8 lowcyl = 0, highcyl = 0;
 
@@ -1262,7 +1262,7 @@ static ide_startstop_t cdrom_rw_intr(ide_drive_t *drive)
 		return ide_stopped;
 	}
 
-	sectors_to_transfer = len / SECTOR_SIZE;
+	thislen = len;
 
 	/* Check that the drive is expecting to do the same thing we are. */
 	if (write) {
@@ -1285,12 +1285,12 @@ static ide_startstop_t cdrom_rw_intr(ide_drive_t *drive)
 		 */
 		nskip = min_t(int, rq->current_nr_sectors
 				   - bio_cur_sectors(rq->bio),
-				   sectors_to_transfer);
+				   thislen >> 9);
 
 		if (nskip > 0) {
 			ide_cd_drain_data(drive, nskip);
 			rq->current_nr_sectors -= nskip;
-			sectors_to_transfer -= nskip;
+			thislen -= (nskip << 9);
 		}
 
 		xferfunc = HWIF(drive)->atapi_input_bytes;
@@ -1299,17 +1299,23 @@ static ide_startstop_t cdrom_rw_intr(ide_drive_t *drive)
 	/*
 	 * now loop and read/write the data
 	 */
-	while (sectors_to_transfer > 0) {
-		int this_transfer;
+	while (thislen > 0) {
+		u8 *ptr = NULL;
+		int blen;
 
-		if (!rq->current_nr_sectors) {
+		if (rq->bio) {
+			ptr = rq->buffer;
+			blen = rq->current_nr_sectors << 9;
+		}
+
+		if (!ptr) {
 			if (!write)
 				/*
 				 * If the buffers are full, cache the rest
 				 * of the data in our internal buffer.
 				 */
 				cdrom_buffer_sectors(drive, rq->sector,
-						     sectors_to_transfer);
+						     thislen >> 9);
 			else
 				printk(KERN_ERR "%s: %s: confused, missing "
 						"data\n",
@@ -1320,17 +1326,16 @@ static ide_startstop_t cdrom_rw_intr(ide_drive_t *drive)
 		/*
 		 * Figure out how many sectors we can transfer
 		 */
-		this_transfer = min_t(int, sectors_to_transfer, rq->current_nr_sectors);
+		if (blen > thislen)
+			blen = thislen;
 
-		while (this_transfer > 0) {
-			xferfunc(drive, rq->buffer, SECTOR_SIZE);
-			rq->buffer += SECTOR_SIZE;
-			--rq->nr_sectors;
-			--rq->current_nr_sectors;
-			++rq->sector;
-			--this_transfer;
-			--sectors_to_transfer;
-		}
+		xferfunc(drive, ptr, blen);
+
+		thislen -= blen;
+		rq->buffer += blen;
+		rq->nr_sectors -= (blen >> 9);
+		rq->current_nr_sectors -= (blen >> 9);
+		rq->sector += (blen >> 9);
 
 		/*
 		 * current buffer complete, move on
