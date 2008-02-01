@@ -2962,6 +2962,102 @@ int dev_unicast_add(struct net_device *dev, void *addr, int alen)
 }
 EXPORT_SYMBOL(dev_unicast_add);
 
+int __dev_addr_sync(struct dev_addr_list **to, int *to_count,
+		    struct dev_addr_list **from, int *from_count)
+{
+	struct dev_addr_list *da, *next;
+	int err = 0;
+
+	da = *from;
+	while (da != NULL) {
+		next = da->next;
+		if (!da->da_synced) {
+			err = __dev_addr_add(to, to_count,
+					     da->da_addr, da->da_addrlen, 0);
+			if (err < 0)
+				break;
+			da->da_synced = 1;
+			da->da_users++;
+		} else if (da->da_users == 1) {
+			__dev_addr_delete(to, to_count,
+					  da->da_addr, da->da_addrlen, 0);
+			__dev_addr_delete(from, from_count,
+					  da->da_addr, da->da_addrlen, 0);
+		}
+		da = next;
+	}
+	return err;
+}
+
+void __dev_addr_unsync(struct dev_addr_list **to, int *to_count,
+		       struct dev_addr_list **from, int *from_count)
+{
+	struct dev_addr_list *da, *next;
+
+	da = *from;
+	while (da != NULL) {
+		next = da->next;
+		if (da->da_synced) {
+			__dev_addr_delete(to, to_count,
+					  da->da_addr, da->da_addrlen, 0);
+			da->da_synced = 0;
+			__dev_addr_delete(from, from_count,
+					  da->da_addr, da->da_addrlen, 0);
+		}
+		da = next;
+	}
+}
+
+/**
+ *	dev_unicast_sync - Synchronize device's unicast list to another device
+ *	@to: destination device
+ *	@from: source device
+ *
+ *	Add newly added addresses to the destination device and release
+ *	addresses that have no users left. The source device must be
+ *	locked by netif_tx_lock_bh.
+ *
+ *	This function is intended to be called from the dev->set_rx_mode
+ *	function of layered software devices.
+ */
+int dev_unicast_sync(struct net_device *to, struct net_device *from)
+{
+	int err = 0;
+
+	netif_tx_lock_bh(to);
+	err = __dev_addr_sync(&to->uc_list, &to->uc_count,
+			      &from->uc_list, &from->uc_count);
+	if (!err)
+		__dev_set_rx_mode(to);
+	netif_tx_unlock_bh(to);
+	return err;
+}
+EXPORT_SYMBOL(dev_unicast_sync);
+
+/**
+ *	dev_unicast_unsync - Remove synchronized addresses from the destination
+ *			     device
+ *	@to: destination device
+ *	@from: source device
+ *
+ *	Remove all addresses that were added to the destination device by
+ *	dev_unicast_sync(). This function is intended to be called from the
+ *	dev->stop function of layered software devices.
+ */
+void dev_unicast_unsync(struct net_device *to, struct net_device *from)
+{
+	netif_tx_lock_bh(from);
+	netif_tx_lock_bh(to);
+
+	__dev_addr_unsync(&to->uc_list, &to->uc_count,
+			  &from->uc_list, &from->uc_count);
+	__dev_set_rx_mode(to);
+
+	netif_tx_unlock_bh(to);
+	netif_tx_unlock_bh(from);
+}
+EXPORT_SYMBOL(dev_unicast_unsync);
+
 static void __dev_addr_discard(struct dev_addr_list **list)
 {
 	struct dev_addr_list *tmp;
