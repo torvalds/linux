@@ -1316,10 +1316,12 @@ static ide_startstop_t cdrom_rw_intr(ide_drive_t *drive)
 				 */
 				cdrom_buffer_sectors(drive, rq->sector,
 						     thislen >> 9);
-			else
+			else {
 				printk(KERN_ERR "%s: %s: confused, missing "
 						"data\n",
 						drive->name, __FUNCTION__);
+				blk_dump_rq_flags(rq, "cdrom_rw_intr, write");
+			}
 			break;
 		}
 
