@@ -747,13 +747,6 @@ static int ide_probe_port(ide_hwif_t *hwif)
 	if (hwif->noprobe)
 		return -EACCES;
 
-	if ((hwif->chipset != ide_4drives || !hwif->mate || !hwif->mate->present) &&
-	    (ide_hwif_request_regions(hwif))) {
-		printk(KERN_ERR "%s: ports already in use, skipping probe\n",
-				hwif->name);
-		return -EBUSY;
-	}
-
 	/*
 	 * We must always disable IRQ, as probe_for_drive will assert IRQ, but
 	 * we'll install our IRQ driver much later...
@@ -798,10 +791,8 @@ static int ide_probe_port(ide_hwif_t *hwif)
 	if (irqd)
 		enable_irq(irqd);
 
-	if (!hwif->present) {
-		ide_hwif_release_regions(hwif);
+	if (!hwif->present)
 		return -ENODEV;
-	}
 
 	for (unit = 0; unit < MAX_DRIVES; unit++) {
 		ide_drive_t *drive = &hwif->drives[unit];
@@ -1309,7 +1300,17 @@ int ide_device_add_all(u8 *idx)
 		if (idx[i] == 0xff)
 			continue;
 
-		(void)ide_probe_port(&ide_hwifs[idx[i]]);
+		hwif = &ide_hwifs[idx[i]];
+
+		if ((hwif->chipset != ide_4drives || !hwif->mate ||
+		     !hwif->mate->present) && ide_hwif_request_regions(hwif)) {
+			printk(KERN_ERR "%s: ports already in use, "
+					"skipping probe\n", hwif->name);
+			continue;
+		}
+
+		if (ide_probe_port(hwif) < 0)
+			ide_hwif_release_regions(hwif);
 	}
 
 	for (i = 0; i < MAX_HWIFS; i++) {
