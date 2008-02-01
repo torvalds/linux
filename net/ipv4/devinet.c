@@ -492,39 +492,34 @@ static struct in_ifaddr *rtm_to_ifaddr(struct nlmsghdr *nlh)
 	struct ifaddrmsg *ifm;
 	struct net_device *dev;
 	struct in_device *in_dev;
-	int err = -EINVAL;
+	int err;
 
 	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, ifa_ipv4_policy);
 	if (err < 0)
 		goto errout;
 
 	ifm = nlmsg_data(nlh);
-	if (ifm->ifa_prefixlen > 32 || tb[IFA_LOCAL] == NULL) {
-		err = -EINVAL;
+	err = -EINVAL;
+	if (ifm->ifa_prefixlen > 32 || tb[IFA_LOCAL] == NULL)
 		goto errout;
-	}
 
 	dev = __dev_get_by_index(&init_net, ifm->ifa_index);
-	if (dev == NULL) {
-		err = -ENODEV;
+	err = -ENODEV;
+	if (dev == NULL)
 		goto errout;
-	}
 
 	in_dev = __in_dev_get_rtnl(dev);
-	if (in_dev == NULL) {
-		err = -ENOBUFS;
+	err = -ENOBUFS;
+	if (in_dev == NULL)
 		goto errout;
-	}
 
 	ifa = inet_alloc_ifa();
-	if (ifa == NULL) {
+	if (ifa == NULL)
 		/*
 		 * A potential indev allocation can be left alive, it stays
 		 * assigned to its device and is destroy with it.
 		 */
-		err = -ENOBUFS;
 		goto errout;
-	}
 
 	ipv4_devconf_setall(in_dev);
 	in_dev_hold(in_dev);
