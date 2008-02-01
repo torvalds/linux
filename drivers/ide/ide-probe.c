@@ -1245,27 +1245,20 @@ static int hwif_init(ide_hwif_t *hwif)
 {
 	int old_irq;
 
-	/* Return success if no device is connected */
-	if (!hwif->present)
-		return 1;
-
 	if (!hwif->irq) {
 		if (!(hwif->irq = ide_default_irq(hwif->io_ports[IDE_DATA_OFFSET])))
 		{
 			printk("%s: DISABLED, NO IRQ\n", hwif->name);
-			return (hwif->present = 0);
+			return 0;
 		}
 	}
 #ifdef CONFIG_BLK_DEV_HD
 	if (hwif->irq == HD_IRQ && hwif->io_ports[IDE_DATA_OFFSET] != HD_DATA) {
 		printk("%s: CANNOT SHARE IRQ WITH OLD "
 			"HARDDISK DRIVER (hd.c)\n", hwif->name);
-		return (hwif->present = 0);
+		return 0;
 	}
 #endif /* CONFIG_BLK_DEV_HD */
-
-	/* we set it back to 1 if all is ok below */	
-	hwif->present = 0;
 
 	if (register_blkdev(hwif->major, hwif->name))
 		return 0;
@@ -1305,10 +1298,7 @@ static int hwif_init(ide_hwif_t *hwif)
 
 done:
 	init_gendisk(hwif);
-
 	ide_acpi_init(hwif);
-
-	hwif->present = 1;	/* success */
 	return 1;
 
 out:
@@ -1352,9 +1342,13 @@ int ide_device_add_all(u8 *idx)
 
 		hwif = &ide_hwifs[idx[i]];
 
+		if (!hwif->present)
+			continue;
+
 		if (hwif_init(hwif) == 0) {
 			printk(KERN_INFO "%s: failed to initialize IDE "
 					 "interface\n", hwif->name);
+			hwif->present = 0;
 			rc = -1;
 			continue;
 		}
