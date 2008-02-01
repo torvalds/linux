@@ -767,7 +767,7 @@ static int ehci_hub_control (
 		if (temp & PORT_POWER)
 			status |= 1 << USB_PORT_FEAT_POWER;
 
-#ifndef	EHCI_VERBOSE_DEBUG
+#ifndef	VERBOSE_DEBUG
 	if (status & ~0xffff)	/* only if wPortChange is interesting */
 #endif
 		dbg_port (ehci, "GetStatus", wIndex + 1, temp);

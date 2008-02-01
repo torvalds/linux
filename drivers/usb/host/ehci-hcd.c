@@ -57,35 +57,6 @@
  * Special thanks to Intel and VIA for providing host controllers to
  * test this driver on, and Cypress (including In-System Design) for
  * providing early devices for those host controllers to talk to!
- *
- * HISTORY:
- *
- * 2004-05-10 Root hub and PCI suspend/resume support; remote wakeup. (db)
- * 2004-02-24 Replace pci_* with generic dma_* API calls (dsaxena@plexity.net)
- * 2003-12-29 Rewritten high speed iso transfer support (by Michal Sojka,
- *	<sojkam@centrum.cz>, updates by DB).
- *
- * 2002-11-29	Correct handling for hw async_next register.
- * 2002-08-06	Handling for bulk and interrupt transfers is mostly shared;
- *	only scheduling is different, no arbitrary limitations.
- * 2002-07-25	Sanity check PCI reads, mostly for better cardbus support,
- *	clean up HC run state handshaking.
- * 2002-05-24	Preliminary FS/LS interrupts, using scheduling shortcuts
- * 2002-05-11	Clear TT errors for FS/LS ctrl/bulk.  Fill in some other
- *	missing pieces:  enabling 64bit dma, handoff from BIOS/SMM.
- * 2002-05-07	Some error path cleanups to report better errors; wmb();
- *	use non-CVS version id; better iso bandwidth claim.
- * 2002-04-19	Control/bulk/interrupt submit no longer uses giveback() on
- *	errors in submit path.  Bugfixes to interrupt scheduling/processing.
- * 2002-03-05	Initial high-speed ISO support; reduce ITD memory; shift
- *	more checking to generic hcd framework (db).  Make it work with
- *	Philips EHCI; reduce PCI traffic; shorten IRQ path (Rory Bolt).
- * 2002-01-14	Minor cleanup; version synch.
- * 2002-01-08	Fix roothub handoff of FS/LS to companion controllers.
- * 2002-01-04	Control/Bulk queuing behaves.
- *
- * 2001-12-12	Initial patch version for Linux 2.5.1 kernel.
- * 2001-June	Works with usb-storage and NEC EHCI on 2.4
  */
 
 #define DRIVER_VERSION "10 Dec 2004"
@@ -95,7 +66,7 @@
 static const char	hcd_name [] = "ehci_hcd";
 
 
-#undef EHCI_VERBOSE_DEBUG
+#undef VERBOSE_DEBUG
 #undef EHCI_URB_TRACE
 
 #ifdef DEBUG
@@ -676,7 +647,7 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 	cmd = ehci_readl(ehci, &ehci->regs->command);
 	bh = 0;
 
-#ifdef	EHCI_VERBOSE_DEBUG
+#ifdef	VERBOSE_DEBUG
 	/* unrequested/ignored: Frame List Rollover */
 	dbg_status (ehci, "irq", status);
 #endif

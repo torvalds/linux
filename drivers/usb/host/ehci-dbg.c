@@ -27,7 +27,7 @@
 #define ehci_warn(ehci, fmt, args...) \
 	dev_warn (ehci_to_hcd(ehci)->self.controller , fmt , ## args )
 
-#ifdef EHCI_VERBOSE_DEBUG
+#ifdef VERBOSE_DEBUG
 #	define vdbg dbg
 #	define ehci_vdbg ehci_dbg
 #else
