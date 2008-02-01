@@ -53,7 +53,7 @@ static inline void __flush_cache_all(void)
 #endif /* CONFIG_M5407 */
 #if defined(CONFIG_M527x) || defined(CONFIG_M528x)
 	__asm__ __volatile__ (
-        	"movel	#0x81400100, %%d0\n\t"
+		"movel	#0x81000200, %%d0\n\t"
         	"movec	%%d0, %%CACR\n\t"
 		"nop\n\t"
 		: : : "d0" );
