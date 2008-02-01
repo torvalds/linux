@@ -80,8 +80,6 @@ struct ide_cd_state_flags {
 	byte current_speed;	/* Current speed of the drive */
 };
 
-#define CDROM_STATE_FLAGS(drive) (&(((struct cdrom_info *)(drive->driver_data))->state_flags))
-
 /* Structure of a MSF cdrom address. */
 struct atapi_msf {
 	byte reserved;

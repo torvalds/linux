@@ -93,11 +93,11 @@ static void ide_cd_put(struct cdrom_info *cd)
    buffers. */
 static void cdrom_saw_media_change (ide_drive_t *drive)
 {
-	struct cdrom_info *info = drive->driver_data;
-	
-	CDROM_STATE_FLAGS (drive)->media_changed = 1;
-	CDROM_STATE_FLAGS (drive)->toc_valid = 0;
-	info->nsectors_buffered = 0;
+	struct cdrom_info *cd = drive->driver_data;
+
+	cd->state_flags.media_changed = 1;
+	cd->state_flags.toc_valid = 0;
+	cd->nsectors_buffered = 0;
 }
 
 static int cdrom_log_sense(ide_drive_t *drive, struct request *rq,
@@ -1880,7 +1880,7 @@ cdrom_lockdoor(ide_drive_t *drive, int lockflag, struct request_sense *sense)
 		stat = 0;
 
 	if (stat == 0)
-		CDROM_STATE_FLAGS(drive)->door_locked = lockflag;
+		cd->state_flags.door_locked = lockflag;
 
 	return stat;
 }
@@ -1900,7 +1900,7 @@ static int cdrom_eject(ide_drive_t *drive, int ejectflag,
 		return -EDRIVE_CANT_DO_THIS;
 
 	/* reload fails on some drives, if the tray is locked */
-	if (CDROM_STATE_FLAGS(drive)->door_locked && ejectflag)
+	if (cd->state_flags.door_locked && ejectflag)
 		return 0;
 
 	cdrom_prepare_request(drive, &req);
@@ -1998,7 +1998,7 @@ static int cdrom_read_toc(ide_drive_t *drive, struct request_sense *sense)
 	   If it is, just return. */
 	(void) cdrom_check_status(drive, sense);
 
-	if (CDROM_STATE_FLAGS(drive)->toc_valid)
+	if (info->state_flags.toc_valid)
 		return 0;
 
 	/* Try to get the total cdrom capacity and sector size. */
@@ -2137,7 +2137,7 @@ static int cdrom_read_toc(ide_drive_t *drive, struct request_sense *sense)
 	}
 
 	/* Remember that we've read this stuff. */
-	CDROM_STATE_FLAGS(drive)->toc_valid = 1;
+	info->state_flags.toc_valid = 1;
 
 	return 0;
 }
@@ -2219,7 +2219,7 @@ static int cdrom_get_toc_entry(ide_drive_t *drive, int track,
 	/*
 	 * don't serve cached data, if the toc isn't valid
 	 */
-	if (!CDROM_STATE_FLAGS(drive)->toc_valid)
+	if (!info->state_flags.toc_valid)
 		return -EINVAL;
 
 	/* Check validity of requested track number. */
@@ -2351,6 +2351,7 @@ static
 int ide_cdrom_reset (struct cdrom_device_info *cdi)
 {
 	ide_drive_t *drive = cdi->handle;
+	struct cdrom_info *cd = drive->driver_data;
 	struct request_sense sense;
 	struct request req;
 	int ret;
@@ -2364,7 +2365,7 @@ int ide_cdrom_reset (struct cdrom_device_info *cdi)
 	 * A reset will unlock the door. If it was previously locked,
 	 * lock it again.
 	 */
-	if (CDROM_STATE_FLAGS(drive)->door_locked)
+	if (cd->state_flags.door_locked)
 		(void) cdrom_lockdoor(drive, 1, &sense);
 
 	return ret;
@@ -2434,7 +2435,7 @@ void ide_cdrom_update_speed (ide_drive_t *drive, struct atapi_capabilities_page 
 		maxspeed = be16_to_cpu(cap->maxspeed);
 	}
 
-	CDROM_STATE_FLAGS(drive)->current_speed = (curspeed + (176/2)) / 176;
+	cd->state_flags.current_speed = (curspeed + (176/2)) / 176;
 	cd->config_flags.max_speed = (maxspeed + (176/2)) / 176;
 }
 
@@ -2442,6 +2443,7 @@ static
 int ide_cdrom_select_speed (struct cdrom_device_info *cdi, int speed)
 {
 	ide_drive_t *drive = cdi->handle;
+	struct cdrom_info *cd = drive->driver_data;
 	struct request_sense sense;
 	struct atapi_capabilities_page cap;
 	int stat;
@@ -2451,7 +2453,7 @@ int ide_cdrom_select_speed (struct cdrom_device_info *cdi, int speed)
 
 	if (!ide_cdrom_get_capabilities(drive, &cap)) {
 		ide_cdrom_update_speed(drive, &cap);
-		cdi->speed = CDROM_STATE_FLAGS(drive)->current_speed;
+		cdi->speed = cd->state_flags.current_speed;
 	}
         return 0;
 }
@@ -2512,7 +2514,7 @@ int ide_cdrom_get_last_session (struct cdrom_device_info *cdi,
 	struct request_sense sense;
 	int ret;
 
-	if (!CDROM_STATE_FLAGS(drive)->toc_valid || info->toc == NULL)
+	if (!info->state_flags.toc_valid || info->toc == NULL)
 		if ((ret = cdrom_read_toc(drive, &sense)))
 			return ret;
 
@@ -2554,12 +2556,13 @@ int ide_cdrom_check_media_change_real (struct cdrom_device_info *cdi,
 				       int slot_nr)
 {
 	ide_drive_t *drive = cdi->handle;
+	struct cdrom_info *cd = drive->driver_data;
 	int retval;
-	
+
 	if (slot_nr == CDSL_CURRENT) {
 		(void) cdrom_check_status(drive, NULL);
-		retval = CDROM_STATE_FLAGS(drive)->media_changed;
-		CDROM_STATE_FLAGS(drive)->media_changed = 0;
+		retval = cd->state_flags.media_changed;
+		cd->state_flags.media_changed = 0;
 		return retval;
 	} else {
 		return -EINVAL;
@@ -2581,9 +2584,10 @@ static
 void ide_cdrom_release_real (struct cdrom_device_info *cdi)
 {
 	ide_drive_t *drive = cdi->handle;
+	struct cdrom_info *cd = drive->driver_data;
 
 	if (!cdi->use_count)
-		CDROM_STATE_FLAGS(drive)->toc_valid = 0;
+		cd->state_flags.toc_valid = 0;
 }
 
 #define IDE_CD_CAPABILITIES \
@@ -2615,7 +2619,7 @@ static int ide_cdrom_register (ide_drive_t *drive, int nslots)
 	struct cdrom_device_info *devinfo = &info->devinfo;
 
 	devinfo->ops = &ide_cdrom_dops;
-	devinfo->speed = CDROM_STATE_FLAGS(drive)->current_speed;
+	devinfo->speed = info->state_flags.current_speed;
 	devinfo->capacity = nslots;
 	devinfo->handle = drive;
 	strcpy(devinfo->name, drive->name);
@@ -2841,7 +2845,7 @@ int ide_cdrom_setup (ide_drive_t *drive)
 
 	drive->special.all	= 0;
 
-	CDROM_STATE_FLAGS(drive)->media_changed = 1;
+	cd->state_flags.media_changed = 1;
 
 #if NO_DOOR_LOCKING
 	cd->config_flags.no_doorlock = 1;
