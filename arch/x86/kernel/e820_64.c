@@ -54,30 +54,33 @@ static unsigned long __initdata end_user_pfn = MAXMEM>>PAGE_SHIFT;
 
 struct early_res {
 	unsigned long start, end;
+	char name[16];
 };
 static struct early_res early_res[MAX_EARLY_RES] __initdata = {
-	{ 0, PAGE_SIZE },			/* BIOS data page */
+	{ 0, PAGE_SIZE, "BIOS data page" },			/* BIOS data page */
 #ifdef CONFIG_SMP
-	{ SMP_TRAMPOLINE_BASE, SMP_TRAMPOLINE_BASE + 2*PAGE_SIZE },
+	{ SMP_TRAMPOLINE_BASE, SMP_TRAMPOLINE_BASE + 2*PAGE_SIZE, "SMP_TRAMPOLINE" },
 #endif
 	{}
 };
 
-void __init reserve_early(unsigned long start, unsigned long end)
+void __init reserve_early(unsigned long start, unsigned long end, char *name)
 {
 	int i;
 	struct early_res *r;
 	for (i = 0; i < MAX_EARLY_RES && early_res[i].end; i++) {
 		r = &early_res[i];
 		if (end > r->start && start < r->end)
-			panic("Overlapping early reservations %lx-%lx to %lx-%lx\n",
-			      start, end, r->start, r->end);
+			panic("Overlapping early reservations %lx-%lx %s to %lx-%lx %s\n",
+			      start, end - 1, name?name:"", r->start, r->end - 1, r->name);
 	}
 	if (i >= MAX_EARLY_RES)
 		panic("Too many early reservations");
 	r = &early_res[i];
 	r->start = start;
 	r->end = end;
+	if (name)
+		strncpy(r->name, name, sizeof(r->name) - 1);
 }
 
 void __init early_res_to_bootmem(void)
@@ -85,6 +88,8 @@ void __init early_res_to_bootmem(void)
 	int i;
 	for (i = 0; i < MAX_EARLY_RES && early_res[i].end; i++) {
 		struct early_res *r = &early_res[i];
+		printk(KERN_INFO "early res: %d [%lx-%lx] %s\n", i,
+			r->start, r->end - 1, r->name);
 		reserve_bootmem_generic(r->start, r->end - r->start);
 	}
 }

@@ -420,7 +420,7 @@ void __init_refok init_memory_mapping(unsigned long start, unsigned long end)
 		mmu_cr4_features = read_cr4();
 	__flush_tlb_all();
 
-	reserve_early(table_start << PAGE_SHIFT, table_end << PAGE_SHIFT);
+	reserve_early(table_start << PAGE_SHIFT, table_end << PAGE_SHIFT, "PGTABLE");
 }
 
 #ifndef CONFIG_NUMA
