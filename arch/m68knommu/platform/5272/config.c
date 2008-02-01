@@ -123,19 +123,6 @@ void mcf_settimericr(int timer, int level)
 
 /***************************************************************************/
 
-int mcf_timerirqpending(int timer)
-{
-	volatile unsigned long *icrp;
-
-	if ((timer >= 1 ) && (timer <= 4)) {
-		icrp = (volatile unsigned long *) (MCF_MBAR + MCFSIM_ICR1);
-		return (*icrp & (0x8 << ((4 - timer) * 4)));
-	}
-	return 0;
-}
-
-/***************************************************************************/
-
 void __init config_BSP(char *commandp, int size)
 {
 #if defined (CONFIG_MOD5272)
