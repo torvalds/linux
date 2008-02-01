@@ -1889,6 +1889,8 @@ cdrom_lockdoor(ide_drive_t *drive, int lockflag, struct request_sense *sense)
 static int cdrom_eject(ide_drive_t *drive, int ejectflag,
 		       struct request_sense *sense)
 {
+	struct cdrom_info *cd = drive->driver_data;
+	struct cdrom_device_info *cdi = &cd->devinfo;
 	struct request req;
 	char loej = 0x02;
 
@@ -1902,7 +1904,7 @@ static int cdrom_eject(ide_drive_t *drive, int ejectflag,
 	cdrom_prepare_request(drive, &req);
 
 	/* only tell drive to close tray if open, if it can do that */
-	if (ejectflag && !CDROM_CONFIG_FLAGS(drive)->close_tray)
+	if (ejectflag && (cdi->mask & CDC_CLOSE_TRAY))
 		loej = 0;
 
 	req.sense = sense;
@@ -2163,6 +2165,8 @@ static int cdrom_read_subchannel(ide_drive_t *drive, int format, char *buf,
 static int cdrom_select_speed(ide_drive_t *drive, int speed,
 			      struct request_sense *sense)
 {
+	struct cdrom_info *cd = drive->driver_data;
+	struct cdrom_device_info *cdi = &cd->devinfo;
 	struct request req;
 	cdrom_prepare_request(drive, &req);
 
@@ -2177,9 +2181,8 @@ static int cdrom_select_speed(ide_drive_t *drive, int speed,
 	req.cmd[2] = (speed >> 8) & 0xff;	
 	/* Read Drive speed in kbytes/second LSB */
 	req.cmd[3] = speed & 0xff;
-	if (CDROM_CONFIG_FLAGS(drive)->cd_r ||
-	    CDROM_CONFIG_FLAGS(drive)->cd_rw ||
-	    CDROM_CONFIG_FLAGS(drive)->dvd_r) {
+	if ((cdi->mask & (CDC_CD_R | CDC_CD_RW | CDC_DVD_R)) !=
+	    (CDC_CD_R | CDC_CD_RW | CDC_DVD_R)) {
 		/* Write Drive speed in kbytes/second MSB */
 		req.cmd[4] = (speed >> 8) & 0xff;
 		/* Write Drive speed in kbytes/second LSB */
@@ -2609,33 +2612,10 @@ static int ide_cdrom_register (ide_drive_t *drive, int nslots)
 	struct cdrom_device_info *devinfo = &info->devinfo;
 
 	devinfo->ops = &ide_cdrom_dops;
-	devinfo->mask = 0;
 	devinfo->speed = CDROM_STATE_FLAGS(drive)->current_speed;
 	devinfo->capacity = nslots;
 	devinfo->handle = drive;
 	strcpy(devinfo->name, drive->name);
-	
-	/* set capability mask to match the probe. */
-	if (!CDROM_CONFIG_FLAGS(drive)->cd_r)
-		devinfo->mask |= CDC_CD_R;
-	if (!CDROM_CONFIG_FLAGS(drive)->cd_rw)
-		devinfo->mask |= CDC_CD_RW;
-	if (!CDROM_CONFIG_FLAGS(drive)->dvd)
-		devinfo->mask |= CDC_DVD;
-	if (!CDROM_CONFIG_FLAGS(drive)->dvd_r)
-		devinfo->mask |= CDC_DVD_R;
-	if (!CDROM_CONFIG_FLAGS(drive)->dvd_ram)
-		devinfo->mask |= CDC_DVD_RAM;
-	if (!CDROM_CONFIG_FLAGS(drive)->is_changer)
-		devinfo->mask |= CDC_SELECT_DISC;
-	if (!CDROM_CONFIG_FLAGS(drive)->audio_play)
-		devinfo->mask |= CDC_PLAY_AUDIO;
-	if (!CDROM_CONFIG_FLAGS(drive)->close_tray)
-		devinfo->mask |= CDC_CLOSE_TRAY;
-	if (!CDROM_CONFIG_FLAGS(drive)->mo_drive)
-		devinfo->mask |= CDC_MO_DRIVE;
-	if (!CDROM_CONFIG_FLAGS(drive)->ram)
-		devinfo->mask |= CDC_RAM;
 
 	if (CDROM_CONFIG_FLAGS(drive)->no_speed_select)
 		devinfo->mask |= CDC_SELECT_SPEED;
@@ -2652,9 +2632,12 @@ int ide_cdrom_probe_capabilities (ide_drive_t *drive)
 	struct atapi_capabilities_page cap;
 	int nslots = 1;
 
+	cdi->mask = (CDC_CD_R | CDC_CD_RW | CDC_DVD | CDC_DVD_R |
+		     CDC_DVD_RAM | CDC_SELECT_DISC | CDC_PLAY_AUDIO |
+		     CDC_MO_DRIVE | CDC_RAM);
+
 	if (drive->media == ide_optical) {
-		CDROM_CONFIG_FLAGS(drive)->mo_drive = 1;
-		CDROM_CONFIG_FLAGS(drive)->ram = 1;
+		cdi->mask &= ~(CDC_MO_DRIVE | CDC_RAM);
 		printk(KERN_ERR "%s: ATAPI magneto-optical drive\n", drive->name);
 		return nslots;
 	}
@@ -2662,7 +2645,7 @@ int ide_cdrom_probe_capabilities (ide_drive_t *drive)
 	if (CDROM_CONFIG_FLAGS(drive)->nec260 ||
 	    !strcmp(drive->id->model,"STINGRAY 8422 IDE 8X CD-ROM 7-27-95")) {
 		CDROM_CONFIG_FLAGS(drive)->no_eject = 0;
-		CDROM_CONFIG_FLAGS(drive)->audio_play = 1;
+		cdi->mask &= ~CDC_PLAY_AUDIO;
 		return nslots;
 	}
 
@@ -2684,23 +2667,19 @@ int ide_cdrom_probe_capabilities (ide_drive_t *drive)
 	if (cap.eject)
 		CDROM_CONFIG_FLAGS(drive)->no_eject = 0;
 	if (cap.cd_r_write)
-		CDROM_CONFIG_FLAGS(drive)->cd_r = 1;
-	if (cap.cd_rw_write) {
-		CDROM_CONFIG_FLAGS(drive)->cd_rw = 1;
-		CDROM_CONFIG_FLAGS(drive)->ram = 1;
-	}
+		cdi->mask &= ~CDC_CD_R;
+	if (cap.cd_rw_write)
+		cdi->mask &= ~(CDC_CD_RW | CDC_RAM);
 	if (cap.dvd_ram_read || cap.dvd_r_read || cap.dvd_rom)
-		CDROM_CONFIG_FLAGS(drive)->dvd = 1;
-	if (cap.dvd_ram_write) {
-		CDROM_CONFIG_FLAGS(drive)->dvd_ram = 1;
-		CDROM_CONFIG_FLAGS(drive)->ram = 1;
-	}
+		cdi->mask &= ~CDC_DVD;
+	if (cap.dvd_ram_write)
+		cdi->mask &= ~(CDC_DVD_RAM | CDC_RAM);
 	if (cap.dvd_r_write)
-		CDROM_CONFIG_FLAGS(drive)->dvd_r = 1;
+		cdi->mask &= ~CDC_DVD_R;
 	if (cap.audio_play)
-		CDROM_CONFIG_FLAGS(drive)->audio_play = 1;
+		cdi->mask &= ~CDC_PLAY_AUDIO;
 	if (cap.mechtype == mechtype_caddy || cap.mechtype == mechtype_popup)
-		CDROM_CONFIG_FLAGS(drive)->close_tray = 0;
+		cdi->mask |= CDC_CLOSE_TRAY;
 
 	/* Some drives used by Apple don't advertise audio play
 	 * but they do support reading TOC & audio datas
@@ -2709,11 +2688,11 @@ int ide_cdrom_probe_capabilities (ide_drive_t *drive)
 	    strcmp(drive->id->model, "MATSHITADVD-ROM SR-8186") == 0 ||
 	    strcmp(drive->id->model, "MATSHITADVD-ROM SR-8176") == 0 ||
 	    strcmp(drive->id->model, "MATSHITADVD-ROM SR-8174") == 0)
-		CDROM_CONFIG_FLAGS(drive)->audio_play = 1;
+		cdi->mask &= ~CDC_PLAY_AUDIO;
 
 #if ! STANDARD_ATAPI
 	if (cdi->sanyo_slot > 0) {
-		CDROM_CONFIG_FLAGS(drive)->is_changer = 1;
+		cdi->mask &= ~CDC_SELECT_DISC;
 		nslots = 3;
 	}
 
@@ -2723,7 +2702,7 @@ int ide_cdrom_probe_capabilities (ide_drive_t *drive)
 	    cap.mechtype == mechtype_cartridge_changer) {
 		nslots = cdrom_number_of_slots(cdi);
 		if (nslots > 1)
-			CDROM_CONFIG_FLAGS(drive)->is_changer = 1;
+			cdi->mask &= ~CDC_SELECT_DISC;
 	}
 
 	ide_cdrom_update_speed(drive, &cap);
@@ -2732,22 +2711,22 @@ int ide_cdrom_probe_capabilities (ide_drive_t *drive)
 	printk(KERN_INFO "%s: ATAPI", drive->name);
 	if (CDROM_CONFIG_FLAGS(drive)->max_speed)
 		printk(" %dX", CDROM_CONFIG_FLAGS(drive)->max_speed);
-	printk(" %s", CDROM_CONFIG_FLAGS(drive)->dvd ? "DVD-ROM" : "CD-ROM");
+	printk(KERN_CONT " %s", (cdi->mask & CDC_DVD) ? "CD-ROM" : "DVD-ROM");
 
-	if (CDROM_CONFIG_FLAGS(drive)->dvd_r|CDROM_CONFIG_FLAGS(drive)->dvd_ram)
-        	printk(" DVD%s%s", 
-        	(CDROM_CONFIG_FLAGS(drive)->dvd_r)? "-R" : "", 
-        	(CDROM_CONFIG_FLAGS(drive)->dvd_ram)? "-RAM" : "");
+	if ((cdi->mask & CDC_DVD_R) == 0 || (cdi->mask & CDC_DVD_RAM) == 0)
+		printk(KERN_CONT " DVD%s%s",
+				 (cdi->mask & CDC_DVD_R) ? "" : "-R",
+				 (cdi->mask & CDC_DVD_RAM) ? "" : "-RAM");
 
-        if (CDROM_CONFIG_FLAGS(drive)->cd_r|CDROM_CONFIG_FLAGS(drive)->cd_rw) 
-        	printk(" CD%s%s", 
-        	(CDROM_CONFIG_FLAGS(drive)->cd_r)? "-R" : "", 
-        	(CDROM_CONFIG_FLAGS(drive)->cd_rw)? "/RW" : "");
+	if ((cdi->mask & CDC_CD_R) == 0 || (cdi->mask & CDC_CD_RW) == 0)
+		printk(KERN_CONT " CD%s%s",
+				 (cdi->mask & CDC_CD_R) ? "" : "-R",
+				 (cdi->mask & CDC_CD_RW) ? "" : "/RW");
 
-        if (CDROM_CONFIG_FLAGS(drive)->is_changer) 
-        	printk(" changer w/%d slots", nslots);
-        else 	
-        	printk(" drive");
+	if ((cdi->mask & CDC_SELECT_DISC) == 0)
+		printk(KERN_CONT " changer w/%d slots", nslots);
+	else
+		printk(KERN_CONT " drive");
 
 	printk(KERN_CONT ", %dkB Cache\n", be16_to_cpu(cap.buffer_size));
 
@@ -2865,7 +2844,6 @@ int ide_cdrom_setup (ide_drive_t *drive)
 	if ((drive->id->config & 0x0060) == 0x20)
 		CDROM_CONFIG_FLAGS(drive)->drq_interrupt = 1;
 	CDROM_CONFIG_FLAGS(drive)->no_eject = 1;
-	CDROM_CONFIG_FLAGS(drive)->close_tray = 1;
 
 	/* limit transfer size per interrupt. */
 	/* a testament to the nice quality of Samsung drives... */
