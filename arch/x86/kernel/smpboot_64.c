@@ -1019,7 +1019,7 @@ static void remove_siblinginfo(int cpu)
 	cpu_clear(cpu, cpu_sibling_setup_map);
 }
 
-void remove_cpu_from_maps(void)
+static void __ref remove_cpu_from_maps(void)
 {
 	int cpu = smp_processor_id();
 
