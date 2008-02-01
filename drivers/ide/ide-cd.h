@@ -68,9 +68,7 @@ struct ide_cd_config_flags {
 	__u8 no_speed_select	: 1; /* SET_CD_SPEED command is unsupported. */
 	byte max_speed;		     /* Max speed of the drive */
 };
-#define CDROM_CONFIG_FLAGS(drive) (&(((struct cdrom_info *)(drive->driver_data))->config_flags))
 
- 
 /* State flags.  These give information about the current state of the
    drive, and will change during normal operation. */
 struct ide_cd_state_flags {
