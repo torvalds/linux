@@ -62,6 +62,7 @@ struct rtable
 
 	struct in_device	*idev;
 	
+	int			rt_genid;
 	unsigned		rt_flags;
 	__u16			rt_type;
 
