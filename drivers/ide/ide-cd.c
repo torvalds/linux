@@ -1061,22 +1061,6 @@ static void ide_cd_request_sense_fixup(struct request *rq)
 		}
 }
 
-static ide_startstop_t cdrom_do_newpc_cont(ide_drive_t *);
-
-static ide_startstop_t cdrom_do_packet_command (ide_drive_t *drive)
-{
-	int len;
-	struct request *rq = HWGROUP(drive)->rq;
-	struct cdrom_info *info = drive->driver_data;
-
-	info->dma = 0;
-	rq->cmd_flags &= ~REQ_FAILED;
-	len = rq->data_len;
-
-	/* Start sending the command to the drive. */
-	return cdrom_start_packet_command(drive, len, cdrom_do_newpc_cont);
-}
-
 int ide_cd_queue_pc(ide_drive_t *drive, struct request *rq)
 {
 	struct request_sense sense;
@@ -1505,7 +1489,10 @@ static ide_startstop_t cdrom_do_block_pc(ide_drive_t *drive, struct request *rq)
 {
 	struct cdrom_info *info = drive->driver_data;
 
-	rq->cmd_flags |= REQ_QUIET;
+	if (blk_pc_request(rq))
+		rq->cmd_flags |= REQ_QUIET;
+	else
+		rq->cmd_flags &= ~REQ_FAILED;
 
 	info->dma = 0;
 
@@ -1565,10 +1552,8 @@ ide_do_rw_cdrom (ide_drive_t *drive, struct request *rq, sector_t block)
 		}
 		info->last_block = block;
 		return action;
-	} else if (rq->cmd_type == REQ_TYPE_SENSE ||
+	} else if (blk_sense_request(rq) || blk_pc_request(rq) ||
 		   rq->cmd_type == REQ_TYPE_ATA_PC) {
-		return cdrom_do_packet_command(drive);
-	} else if (blk_pc_request(rq)) {
 		return cdrom_do_block_pc(drive, rq);
 	} else if (blk_special_request(rq)) {
 		/*
