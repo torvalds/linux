@@ -171,12 +171,13 @@ int __init e820_all_mapped(unsigned long start, unsigned long end,
 }
 
 /*
- * Find a free area in a specific range.
+ * Find a free area with specified alignment in a specific range.
  */
 unsigned long __init find_e820_area(unsigned long start, unsigned long end,
-				    unsigned size)
+				    unsigned size, unsigned long align)
 {
 	int i;
+	unsigned long mask = ~(align - 1);
 
 	for (i = 0; i < e820.nr_map; i++) {
 		struct e820entry *ei = &e820.map[i];
@@ -190,7 +191,8 @@ unsigned long __init find_e820_area(unsigned long start, unsigned long end,
 			continue;
 		while (bad_addr(&addr, size) && addr+size <= ei->addr+ei->size)
 			;
-		last = PAGE_ALIGN(addr) + size;
+		addr = (addr + align - 1) & mask;
+		last = addr + size;
 		if (last > ei->addr + ei->size)
 			continue;
 		if (last > end)
