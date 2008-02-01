@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 1995 - 1999 Gadi Oxman <gadio@netvision.net.il>
+ * Copyright (C) 1995-1999  Gadi Oxman <gadio@netvision.net.il>
+ * Copyright (C) 2003-2005  Bartlomiej Zolnierkiewicz
  *
  * $Header$
  *

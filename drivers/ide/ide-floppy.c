@@ -1,6 +1,7 @@
 /*
- * Copyright (C) 1996 - 1999 Gadi Oxman <gadio@netvision.net.il>
- * Copyright (C) 2000 - 2002 Paul Bristow <paul@paulbristow.net>
+ * Copyright (C) 1996-1999  Gadi Oxman <gadio@netvision.net.il>
+ * Copyright (C) 2000-2002  Paul Bristow <paul@paulbristow.net>
+ * Copyright (C) 2005       Bartlomiej Zolnierkiewicz
  */
 
 /*

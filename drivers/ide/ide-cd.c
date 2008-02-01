@@ -1,10 +1,10 @@
 /*
  * ATAPI CD-ROM driver.
  *
- * Copyright (C) 1994-1996  Scott Snyder <snyder@fnald0.fnal.gov>
- * Copyright (C) 1996-1998  Erik Andersen <andersee@debian.org>
- * Copyright (C) 1998-2000  Jens Axboe <axboe@suse.de>
- * Copyright (C)      2007  Bartlomiej Zolnierkiewicz
+ * Copyright (C) 1994-1996   Scott Snyder <snyder@fnald0.fnal.gov>
+ * Copyright (C) 1996-1998   Erik Andersen <andersee@debian.org>
+ * Copyright (C) 1998-2000   Jens Axboe <axboe@suse.de>
+ * Copyright (C) 2005, 2007  Bartlomiej Zolnierkiewicz
  *
  * May be copied or modified under the terms of the GNU General Public
  * License.  See linux/COPYING for more information.
