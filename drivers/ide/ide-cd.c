@@ -1302,13 +1302,6 @@ static ide_startstop_t cdrom_rw_intr(ide_drive_t *drive)
 	while (sectors_to_transfer > 0) {
 		int this_transfer;
 
-		/*
-		 * If we've filled the present buffer but there's another
-		 * chained buffer after it, move on.
-		 */
-		if (!write && rq->current_nr_sectors == 0 && rq->nr_sectors)
-			cdrom_end_request(drive, 1);
-
 		if (!rq->current_nr_sectors) {
 			if (!write)
 				/*
@@ -1342,7 +1335,7 @@ static ide_startstop_t cdrom_rw_intr(ide_drive_t *drive)
 		/*
 		 * current buffer complete, move on
 		 */
-		if (write && rq->current_nr_sectors == 0 && rq->nr_sectors)
+		if (rq->current_nr_sectors == 0 && rq->nr_sectors)
 			cdrom_end_request(drive, 1);
 	}
 
