@@ -229,6 +229,8 @@ static struct fib_info *fib_find_info(const struct fib_info *nfi)
 	head = &fib_info_hash[hash];
 
 	hlist_for_each_entry(fi, node, head, fib_hash) {
+		if (fi->fib_net != nfi->fib_net)
+			continue;
 		if (fi->fib_nhs != nfi->fib_nhs)
 			continue;
 		if (nfi->fib_protocol == fi->fib_protocol &&
@@ -1031,7 +1033,7 @@ nla_put_failure:
      referring to it.
    - device went down -> we must shutdown all nexthops going via it.
  */
-int fib_sync_down_addr(__be32 local)
+int fib_sync_down_addr(struct net *net, __be32 local)
 {
 	int ret = 0;
 	unsigned int hash = fib_laddr_hashfn(local);
@@ -1043,6 +1045,8 @@ int fib_sync_down_addr(__be32 local)
 		return 0;
 
 	hlist_for_each_entry(fi, node, head, fib_lhash) {
+		if (fi->fib_net != net)
+			continue;
 		if (fi->fib_prefsrc == local) {
 			fi->fib_flags |= RTNH_F_DEAD;
 			ret++;
