@@ -248,7 +248,7 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 {
 	struct gfs2_dinode_host *di = &ip->i_di;
 	const struct gfs2_dinode *str = buf;
-	u16 height;
+	u16 height, depth;
 
 	if (unlikely(ip->i_no_addr != be64_to_cpu(str->di_num.no_addr)))
 		goto corrupt;
@@ -293,7 +293,10 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 		goto corrupt;
 	ip->i_height = (u8)height;
 
-	di->di_depth = be16_to_cpu(str->di_depth);
+	depth = be16_to_cpu(str->di_depth);
+	if (unlikely(depth > GFS2_DIR_MAX_DEPTH))
+		goto corrupt;
+	ip->i_depth = (u8)depth;
 	di->di_entries = be32_to_cpu(str->di_entries);
 
 	di->di_eattr = be64_to_cpu(str->di_eattr);
@@ -1410,7 +1413,7 @@ void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 	str->di_payload_format = cpu_to_be32(S_ISDIR(ip->i_inode.i_mode) &&
 					     !(ip->i_di.di_flags & GFS2_DIF_EXHASH) ?
 					     GFS2_FORMAT_DE : 0);
-	str->di_depth = cpu_to_be16(di->di_depth);
+	str->di_depth = cpu_to_be16(ip->i_depth);
 	str->di_entries = cpu_to_be32(di->di_entries);
 
 	str->di_eattr = cpu_to_be64(di->di_eattr);
@@ -1436,7 +1439,7 @@ void gfs2_dinode_print(const struct gfs2_inode *ip)
 	       (unsigned long long)di->di_goal_data);
 	printk(KERN_INFO "  di_flags = 0x%.8X\n", di->di_flags);
 	printk(KERN_INFO "  i_height = %u\n", ip->i_height);
-	printk(KERN_INFO "  di_depth = %u\n", di->di_depth);
+	printk(KERN_INFO "  i_depth = %u\n", ip->i_depth);
 	printk(KERN_INFO "  di_entries = %u\n", di->di_entries);
 	printk(KERN_INFO "  di_eattr = %llu\n",
 	       (unsigned long long)di->di_eattr);

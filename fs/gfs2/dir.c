@@ -757,7 +757,7 @@ static struct gfs2_dirent *gfs2_dirent_search(struct inode *inode,
 
 	if (ip->i_di.di_flags & GFS2_DIF_EXHASH) {
 		struct gfs2_leaf *leaf;
-		unsigned hsize = 1 << ip->i_di.di_depth;
+		unsigned hsize = 1 << ip->i_depth;
 		unsigned index;
 		u64 ln;
 		if (hsize * sizeof(u64) != ip->i_di.di_size) {
@@ -765,7 +765,7 @@ static struct gfs2_dirent *gfs2_dirent_search(struct inode *inode,
 			return ERR_PTR(-EIO);
 		}
 
-		index = name->hash >> (32 - ip->i_di.di_depth);
+		index = name->hash >> (32 - ip->i_depth);
 		error = get_first_leaf(ip, index, &bh);
 		if (error)
 			return ERR_PTR(error);
@@ -910,7 +910,7 @@ static int dir_make_exhash(struct inode *inode)
 	dip->i_di.di_flags |= GFS2_DIF_EXHASH;
 
 	for (x = sdp->sd_hash_ptrs, y = -1; x; x >>= 1, y++) ;
-	dip->i_di.di_depth = y;
+	dip->i_depth = y;
 
 	gfs2_dinode_out(dip, dibh->b_data);
 
@@ -941,7 +941,7 @@ static int dir_split_leaf(struct inode *inode, const struct qstr *name)
 	int x, moved = 0;
 	int error;
 
-	index = name->hash >> (32 - dip->i_di.di_depth);
+	index = name->hash >> (32 - dip->i_depth);
 	error = get_leaf_nr(dip, index, &leaf_no);
 	if (error)
 		return error;
@@ -952,7 +952,7 @@ static int dir_split_leaf(struct inode *inode, const struct qstr *name)
 		return error;
 
 	oleaf = (struct gfs2_leaf *)obh->b_data;
-	if (dip->i_di.di_depth == be16_to_cpu(oleaf->lf_depth)) {
+	if (dip->i_depth == be16_to_cpu(oleaf->lf_depth)) {
 		brelse(obh);
 		return 1; /* can't split */
 	}
@@ -967,10 +967,10 @@ static int dir_split_leaf(struct inode *inode, const struct qstr *name)
 	bn = nbh->b_blocknr;
 
 	/*  Compute the start and len of leaf pointers in the hash table.  */
-	len = 1 << (dip->i_di.di_depth - be16_to_cpu(oleaf->lf_depth));
+	len = 1 << (dip->i_depth - be16_to_cpu(oleaf->lf_depth));
 	half_len = len >> 1;
 	if (!half_len) {
-		printk(KERN_WARNING "di_depth %u lf_depth %u index %u\n", dip->i_di.di_depth, be16_to_cpu(oleaf->lf_depth), index);
+		printk(KERN_WARNING "i_depth %u lf_depth %u index %u\n", dip->i_depth, be16_to_cpu(oleaf->lf_depth), index);
 		gfs2_consist_inode(dip);
 		error = -EIO;
 		goto fail_brelse;
@@ -997,7 +997,7 @@ static int dir_split_leaf(struct inode *inode, const struct qstr *name)
 	kfree(lp);
 
 	/*  Compute the divider  */
-	divider = (start + half_len) << (32 - dip->i_di.di_depth);
+	divider = (start + half_len) << (32 - dip->i_depth);
 
 	/*  Copy the entries  */
 	dirent_first(dip, obh, &dent);
@@ -1082,7 +1082,7 @@ static int dir_double_exhash(struct gfs2_inode *dip)
 	int x;
 	int error = 0;
 
-	hsize = 1 << dip->i_di.di_depth;
+	hsize = 1 << dip->i_depth;
 	if (hsize * sizeof(u64) != dip->i_di.di_size) {
 		gfs2_consist_inode(dip);
 		return -EIO;
@@ -1125,7 +1125,7 @@ static int dir_double_exhash(struct gfs2_inode *dip)
 
 	error = gfs2_meta_inode_buffer(dip, &dibh);
 	if (!gfs2_assert_withdraw(sdp, !error)) {
-		dip->i_di.di_depth++;
+		dip->i_depth++;
 		gfs2_dinode_out(dip, dibh->b_data);
 		brelse(dibh);
 	}
@@ -1370,14 +1370,14 @@ static int dir_e_read(struct inode *inode, u64 *offset, void *opaque,
 	int error = 0;
 	unsigned depth = 0;
 
-	hsize = 1 << dip->i_di.di_depth;
+	hsize = 1 << dip->i_depth;
 	if (hsize * sizeof(u64) != dip->i_di.di_size) {
 		gfs2_consist_inode(dip);
 		return -EIO;
 	}
 
 	hash = gfs2_dir_offset2hash(*offset);
-	index = hash >> (32 - dip->i_di.di_depth);
+	index = hash >> (32 - dip->i_depth);
 
 	lp = kmalloc(sdp->sd_hash_bsize, GFP_KERNEL);
 	if (!lp)
@@ -1405,7 +1405,7 @@ static int dir_e_read(struct inode *inode, u64 *offset, void *opaque,
 		if (error)
 			break;
 
-		len = 1 << (dip->i_di.di_depth - depth);
+		len = 1 << (dip->i_depth - depth);
 		index = (index & ~(len - 1)) + len;
 	}
 
@@ -1549,7 +1549,7 @@ static int dir_new_leaf(struct inode *inode, const struct qstr *name)
 	u32 index;
 	u64 bn;
 
-	index = name->hash >> (32 - ip->i_di.di_depth);
+	index = name->hash >> (32 - ip->i_depth);
 	error = get_first_leaf(ip, index, &obh);
 	if (error)
 		return error;
@@ -1641,7 +1641,7 @@ int gfs2_dir_add(struct inode *inode, const struct qstr *name,
 			continue;
 		if (error < 0)
 			break;
-		if (ip->i_di.di_depth < GFS2_DIR_MAX_DEPTH) {
+		if (ip->i_depth < GFS2_DIR_MAX_DEPTH) {
 			error = dir_double_exhash(ip);
 			if (error)
 				break;
@@ -1785,7 +1785,7 @@ static int foreach_leaf(struct gfs2_inode *dip, leaf_call_t lc, void *data)
 	u64 leaf_no;
 	int error = 0;
 
-	hsize = 1 << dip->i_di.di_depth;
+	hsize = 1 << dip->i_depth;
 	if (hsize * sizeof(u64) != dip->i_di.di_size) {
 		gfs2_consist_inode(dip);
 		return -EIO;
@@ -1817,7 +1817,7 @@ static int foreach_leaf(struct gfs2_inode *dip, leaf_call_t lc, void *data)
 			if (error)
 				goto out;
 			leaf = (struct gfs2_leaf *)bh->b_data;
-			len = 1 << (dip->i_di.di_depth - be16_to_cpu(leaf->lf_depth));
+			len = 1 << (dip->i_depth - be16_to_cpu(leaf->lf_depth));
 			brelse(bh);
 
 			error = lc(dip, index, len, leaf_no, data);

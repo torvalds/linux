@@ -246,7 +246,6 @@ struct gfs2_dinode_host {
 	u64 di_generation;	/* generation number for NFS */
 	u32 di_flags;		/* GFS2_DIF_... */
 	/* These only apply to directories  */
-	u16 di_depth;		/* Number of bits in the table */
 	u32 di_entries;		/* The number of entries in the directory */
 	u64 di_eattr;		/* extended attribute block number */
 };
@@ -267,6 +266,7 @@ struct gfs2_inode {
 
 	struct rw_semaphore i_rw_mutex;
 	u8 i_height;
+	u8 i_depth;
 };
 
 /*
