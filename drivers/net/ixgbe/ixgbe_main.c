@@ -87,6 +87,25 @@ MODULE_VERSION(DRV_VERSION);
 
 #define DEFAULT_DEBUG_LEVEL_SHIFT 3
 
+static void ixgbe_release_hw_control(struct ixgbe_adapter *adapter)
+{
+	u32 ctrl_ext;
+
+	/* Let firmware take over control of h/w */
+	ctrl_ext = IXGBE_READ_REG(&adapter->hw, IXGBE_CTRL_EXT);
+	IXGBE_WRITE_REG(&adapter->hw, IXGBE_CTRL_EXT,
+			ctrl_ext & ~IXGBE_CTRL_EXT_DRV_LOAD);
+}
+
+static void ixgbe_get_hw_control(struct ixgbe_adapter *adapter)
+{
+	u32 ctrl_ext;
+
+	/* Let firmware know the driver has taken over */
+	ctrl_ext = IXGBE_READ_REG(&adapter->hw, IXGBE_CTRL_EXT);
+	IXGBE_WRITE_REG(&adapter->hw, IXGBE_CTRL_EXT,
+			ctrl_ext | IXGBE_CTRL_EXT_DRV_LOAD);
+}
 
 #ifdef DEBUG
 /**
@@ -1204,6 +1223,8 @@ static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 	u32 txdctl, rxdctl, mhadd;
 	int max_frame = netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
 
+	ixgbe_get_hw_control(adapter);
+
 	if (adapter->flags & (IXGBE_FLAG_MSIX_ENABLED |
 			      IXGBE_FLAG_MSI_ENABLED)) {
 		if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED) {
@@ -1489,6 +1510,8 @@ static int ixgbe_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	pci_enable_wake(pdev, PCI_D3hot, 0);
 	pci_enable_wake(pdev, PCI_D3cold, 0);
+
+	ixgbe_release_hw_control(adapter);
 
 	pci_disable_device(pdev);
 
@@ -1891,13 +1914,7 @@ static int ixgbe_open(struct net_device *netdev)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	int err;
-	u32 ctrl_ext;
 	u32 num_rx_queues = adapter->num_rx_queues;
-
-	/* Let firmware know the driver has taken over */
-	ctrl_ext = IXGBE_READ_REG(&adapter->hw, IXGBE_CTRL_EXT);
-	IXGBE_WRITE_REG(&adapter->hw, IXGBE_CTRL_EXT,
-			ctrl_ext | IXGBE_CTRL_EXT_DRV_LOAD);
 
 try_intr_reinit:
 	/* allocate transmit descriptors */
@@ -1949,6 +1966,7 @@ try_intr_reinit:
 	return 0;
 
 err_up:
+	ixgbe_release_hw_control(adapter);
 	ixgbe_free_irq(adapter);
 err_req_irq:
 	ixgbe_free_all_rx_resources(adapter);
@@ -1974,7 +1992,6 @@ err_setup_tx:
 static int ixgbe_close(struct net_device *netdev)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-	u32 ctrl_ext;
 
 	ixgbe_down(adapter);
 	ixgbe_free_irq(adapter);
@@ -1982,9 +1999,7 @@ static int ixgbe_close(struct net_device *netdev)
 	ixgbe_free_all_tx_resources(adapter);
 	ixgbe_free_all_rx_resources(adapter);
 
-	ctrl_ext = IXGBE_READ_REG(&adapter->hw, IXGBE_CTRL_EXT);
-	IXGBE_WRITE_REG(&adapter->hw, IXGBE_CTRL_EXT,
-			ctrl_ext & ~IXGBE_CTRL_EXT_DRV_LOAD);
+	ixgbe_release_hw_control(adapter);
 
 	return 0;
 }
@@ -2749,6 +2764,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	return 0;
 
 err_register:
+	ixgbe_release_hw_control(adapter);
 err_hw_init:
 err_sw_init:
 err_eeprom:
@@ -2783,6 +2799,8 @@ static void __devexit ixgbe_remove(struct pci_dev *pdev)
 	flush_scheduled_work();
 
 	unregister_netdev(netdev);
+
+	ixgbe_release_hw_control(adapter);
 
 	kfree(adapter->tx_ring);
 	kfree(adapter->rx_ring);
