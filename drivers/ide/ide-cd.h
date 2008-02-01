@@ -54,34 +54,34 @@
 #define ATAPI_CAPABILITIES_PAGE_SIZE		(8 + 20)
 #define ATAPI_CAPABILITIES_PAGE_PAD_SIZE	4
 
-/* Configuration flags.  These describe the capabilities of the drive.
-   They generally do not change after initialization, unless we learn
-   more about the drive from stuff failing. */
-struct ide_cd_config_flags {
-	__u8 drq_interrupt	: 1; /* Device sends an interrupt when ready
-					for a packet command. */
-	__u8 no_doorlock	: 1; /* Drive cannot lock the door. */
-	__u8 no_eject		: 1; /* Drive cannot eject the disc. */
-	__u8 nec260		: 1; /* Drive is a pre-1.2 NEC 260 drive. */
-	__u8 tocaddr_as_bcd	: 1; /* TOC addresses are in BCD. */
-	__u8 toctracks_as_bcd	: 1; /* TOC track numbers are in BCD. */
-	__u8 limit_nframes	: 1; /* Drive does not provide data in
-					multiples of SECTOR_SIZE when more
-					than one interrupt is needed. */
-	__u8 seeking		: 1; /* Seeking in progress */
-	__u8 no_speed_select	: 1; /* SET_CD_SPEED command is unsupported. */
-	byte max_speed;		     /* Max speed of the drive */
-};
-
-/* State flags.  These give information about the current state of the
-   drive, and will change during normal operation. */
-struct ide_cd_state_flags {
-	__u8 media_changed : 1; /* Driver has noticed a media change. */
-	__u8 toc_valid     : 1; /* Saved TOC information is current. */
-	__u8 door_locked   : 1; /* We think that the drive door is locked. */
-	__u8 writing       : 1; /* the drive is currently writing */
-	__u8 reserved      : 4;
-	byte current_speed;	/* Current speed of the drive */
+enum {
+	/* Device sends an interrupt when ready for a packet command. */
+	IDE_CD_FLAG_DRQ_INTERRUPT	= (1 << 0),
+	/* Drive cannot lock the door. */
+	IDE_CD_FLAG_NO_DOORLOCK		= (1 << 1),
+	/* Drive cannot eject the disc. */
+	IDE_CD_FLAG_NO_EJECT		= (1 << 2),
+	/* Drive is a pre-1.2 NEC 260 drive. */
+	IDE_CD_FLAG_NEC260		= (1 << 3),
+	/* TOC addresses are in BCD. */
+	IDE_CD_FLAG_TOCADDR_AS_BCD	= (1 << 4),
+	/* TOC track numbers are in BCD. */
+	IDE_CD_FLAG_TOCTRACKS_AS_BCD	= (1 << 5),
+	/*
+	 * Drive does not provide data in multiples of SECTOR_SIZE
+	 * when more than one interrupt is needed.
+	 */
+	IDE_CD_FLAG_LIMIT_NFRAMES	= (1 << 6),
+	/* Seeking in progress. */
+	IDE_CD_FLAG_SEEKING		= (1 << 7),
+	/* Driver has noticed a media change. */
+	IDE_CD_FLAG_MEDIA_CHANGED	= (1 << 8),
+	/* Saved TOC information is current. */
+	IDE_CD_FLAG_TOC_VALID		= (1 << 9),
+	/* We think that the drive door is locked. */
+	IDE_CD_FLAG_DOOR_LOCKED		= (1 << 10),
+	/* SET_CD_SPEED command is unsupported. */
+	IDE_CD_FLAG_NO_SPEED_SELECT	= (1 << 11),
 };
 
 /* Structure of a MSF cdrom address. */
@@ -153,8 +153,10 @@ struct cdrom_info {
 	unsigned long last_block;
 	unsigned long start_seek;
 
-	struct ide_cd_config_flags	config_flags;
-	struct ide_cd_state_flags	state_flags;
+	unsigned int cd_flags;
+
+	u8 max_speed;		/* Max speed of the drive. */
+	u8 current_speed;	/* Current speed of the drive. */
 
         /* Per-device info needed by cdrom.c generic driver. */
         struct cdrom_device_info devinfo;
