@@ -684,10 +684,6 @@ static ide_startstop_t cdrom_start_packet_command(ide_drive_t *drive,
    by cdrom_start_packet_command.
    HANDLER is the interrupt handler to call when the command completes
    or there's data ready. */
-/*
- * changed 5 parameters to 3 for dvd-ram
- * struct packet_command *pc; now packet_command_t *pc;
- */
 #define ATAPI_MIN_CDB_BYTES 12
 static ide_startstop_t cdrom_transfer_packet_command (ide_drive_t *drive,
 					  struct request *rq,
