@@ -2809,34 +2809,6 @@ static void __devinit logical_port_release(struct device *dev)
 	of_node_put(port->ofdev.node);
 }
 
-static int ehea_driver_sysfs_add(struct device *dev,
-				 struct device_driver *driver)
-{
-	int ret;
-
-	ret = sysfs_create_link(&driver->kobj, &dev->kobj,
-				kobject_name(&dev->kobj));
-	if (ret == 0) {
-		ret = sysfs_create_link(&dev->kobj, &driver->kobj,
-					"driver");
-		if (ret)
-			sysfs_remove_link(&driver->kobj,
-					  kobject_name(&dev->kobj));
-	}
-	return ret;
-}
-
-static void ehea_driver_sysfs_remove(struct device *dev,
-				     struct device_driver *driver)
-{
-	struct device_driver *drv = driver;
-
-	if (drv) {
-		sysfs_remove_link(&drv->kobj, kobject_name(&dev->kobj));
-		sysfs_remove_link(&dev->kobj, "driver");
-	}
-}
-
 static struct device *ehea_register_port(struct ehea_port *port,
 					 struct device_node *dn)
 {
@@ -2861,16 +2833,8 @@ static struct device *ehea_register_port(struct ehea_port *port,
 		goto out_unreg_of_dev;
 	}
 
-	ret = ehea_driver_sysfs_add(&port->ofdev.dev, &ehea_driver.driver);
-	if (ret) {
-		ehea_error("failed to register sysfs driver link");
-		goto out_rem_dev_file;
-	}
-
 	return &port->ofdev.dev;
 
-out_rem_dev_file:
-	device_remove_file(&port->ofdev.dev, &dev_attr_log_port_id);
 out_unreg_of_dev:
 	of_device_unregister(&port->ofdev);
 out:
@@ -2879,7 +2843,6 @@ out:
 
 static void ehea_unregister_port(struct ehea_port *port)
 {
-	ehea_driver_sysfs_remove(&port->ofdev.dev, &ehea_driver.driver);
 	device_remove_file(&port->ofdev.dev, &dev_attr_log_port_id);
 	of_device_unregister(&port->ofdev);
 }
