@@ -58,7 +58,7 @@ struct ocfs2_meta_lvb {
 #define OCFS2_LOCK_NONBLOCK		(0x04)
 
 int ocfs2_dlm_init(struct ocfs2_super *osb);
-void ocfs2_dlm_shutdown(struct ocfs2_super *osb);
+void ocfs2_dlm_shutdown(struct ocfs2_super *osb, int hangup_pending);
 void ocfs2_lock_res_init_once(struct ocfs2_lock_res *res);
 void ocfs2_inode_lock_res_init(struct ocfs2_lock_res *res,
 			       enum ocfs2_lock_type type,

@@ -119,14 +119,21 @@ struct ocfs2_stack_operations {
 	 * Once ->disconnect() has returned, the connection structure will
 	 * be freed.  Thus, a stack must not return from ->disconnect()
 	 * until it will no longer reference the conn pointer.
+	 *
+	 * If hangup_pending is zero, ocfs2_cluster_disconnect() will also
+	 * be dropping the reference on the module.
 	 */
-	int (*disconnect)(struct ocfs2_cluster_connection *conn);
+	int (*disconnect)(struct ocfs2_cluster_connection *conn,
+			  int hangup_pending);
 
 	/*
 	 * ocfs2_cluster_hangup() exists for compatibility with older
 	 * ocfs2 tools.  Only the classic stack really needs it.  As such
 	 * ->hangup() is not required of all stacks.  See the comment by
 	 * ocfs2_cluster_hangup() for more details.
+	 *
+	 * Note that ocfs2_cluster_hangup() can only be called if
+	 * hangup_pending was passed to ocfs2_cluster_disconnect().
 	 */
 	void (*hangup)(const char *group, int grouplen);
 
@@ -184,13 +191,32 @@ struct ocfs2_stack_operations {
 	void (*dump_lksb)(union ocfs2_dlm_lksb *lksb);
 };
 
+/*
+ * Each stack plugin must describe itself by registering a
+ * ocfs2_stack_plugin structure.  This is only seen by stackglue and the
+ * stack driver.
+ */
+struct ocfs2_stack_plugin {
+	char *sp_name;
+	struct ocfs2_stack_operations *sp_ops;
+	struct module *sp_owner;
+
+	/* These are managed by the stackglue code. */
+	struct list_head sp_list;
+	unsigned int sp_count;
+	struct ocfs2_locking_protocol *sp_proto;
+};
+
+
+/* Used by the filesystem */
 int ocfs2_cluster_connect(const char *group,
 			  int grouplen,
 			  void (*recovery_handler)(int node_num,
 						   void *recovery_data),
 			  void *recovery_data,
 			  struct ocfs2_cluster_connection **conn);
-int ocfs2_cluster_disconnect(struct ocfs2_cluster_connection *conn);
+int ocfs2_cluster_disconnect(struct ocfs2_cluster_connection *conn,
+			     int hangup_pending);
 void ocfs2_cluster_hangup(const char *group, int grouplen);
 int ocfs2_cluster_this_node(unsigned int *node);
 
@@ -212,6 +238,8 @@ void ocfs2_dlm_dump_lksb(union ocfs2_dlm_lksb *lksb);
 
 void ocfs2_stack_glue_set_locking_protocol(struct ocfs2_locking_protocol *proto);
 
-extern struct ocfs2_locking_protocol *stack_glue_lproto;
-extern struct ocfs2_stack_operations o2cb_stack_ops;
+
+/* Used by stack plugins */
+int ocfs2_stack_glue_register(struct ocfs2_stack_plugin *plugin);
+void ocfs2_stack_glue_unregister(struct ocfs2_stack_plugin *plugin);
 #endif  /* STACKGLUE_H */

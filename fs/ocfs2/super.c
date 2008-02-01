@@ -1186,7 +1186,7 @@ leave:
 
 static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 {
-	int tmp;
+	int tmp, hangup_needed = 0;
 	struct ocfs2_super *osb = NULL;
 	char nodestr[8];
 
@@ -1225,19 +1225,21 @@ static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 
 	ocfs2_release_system_inodes(osb);
 
-	if (osb->cconn)
-		ocfs2_dlm_shutdown(osb);
-
-	debugfs_remove(osb->osb_debug_root);
-
 	/*
-	 * This is a small hack to move ocfs2_hb_ctl into stackglue.
 	 * If we're dismounting due to mount error, mount.ocfs2 will clean
 	 * up heartbeat.  If we're a local mount, there is no heartbeat.
 	 * If we failed before we got a uuid_str yet, we can't stop
 	 * heartbeat.  Otherwise, do it.
 	 */
 	if (!mnt_err && !ocfs2_mount_local(osb) && osb->uuid_str)
+		hangup_needed = 1;
+
+	if (osb->cconn)
+		ocfs2_dlm_shutdown(osb, hangup_needed);
+
+	debugfs_remove(osb->osb_debug_root);
+
+	if (hangup_needed)
 		ocfs2_cluster_hangup(osb->uuid_str, strlen(osb->uuid_str));
 
 	atomic_set(&osb->vol_state, VOLUME_DISMOUNTED);

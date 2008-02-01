@@ -18,7 +18,7 @@
  */
 
 #include <linux/crc32.h>
-#include <linux/kmod.h>
+#include <linux/module.h>
 
 /* Needed for AOP_TRUNCATED_PAGE in mlog_errno() */
 #include <linux/fs.h>
@@ -32,6 +32,8 @@
 struct o2dlm_private {
 	struct dlm_eviction_cb op_eviction_cb;
 };
+
+static struct ocfs2_stack_plugin o2cb_stack;
 
 /* These should be identical */
 #if (DLM_LOCK_IV != LKM_IVMODE)
@@ -158,23 +160,23 @@ static int dlm_status_to_errno(enum dlm_status status)
 
 static void o2dlm_lock_ast_wrapper(void *astarg)
 {
-	BUG_ON(stack_glue_lproto == NULL);
+	BUG_ON(o2cb_stack.sp_proto == NULL);
 
-	stack_glue_lproto->lp_lock_ast(astarg);
+	o2cb_stack.sp_proto->lp_lock_ast(astarg);
 }
 
 static void o2dlm_blocking_ast_wrapper(void *astarg, int level)
 {
-	BUG_ON(stack_glue_lproto == NULL);
+	BUG_ON(o2cb_stack.sp_proto == NULL);
 
-	stack_glue_lproto->lp_blocking_ast(astarg, level);
+	o2cb_stack.sp_proto->lp_blocking_ast(astarg, level);
 }
 
 static void o2dlm_unlock_ast_wrapper(void *astarg, enum dlm_status status)
 {
 	int error = dlm_status_to_errno(status);
 
-	BUG_ON(stack_glue_lproto == NULL);
+	BUG_ON(o2cb_stack.sp_proto == NULL);
 
 	/*
 	 * In o2dlm, you can get both the lock_ast() for the lock being
@@ -190,7 +192,7 @@ static void o2dlm_unlock_ast_wrapper(void *astarg, enum dlm_status status)
 	if (status == DLM_CANCELGRANT)
 		return;
 
-	stack_glue_lproto->lp_unlock_ast(astarg, error);
+	o2cb_stack.sp_proto->lp_unlock_ast(astarg, error);
 }
 
 static int o2cb_dlm_lock(struct ocfs2_cluster_connection *conn,
@@ -267,6 +269,7 @@ static int o2cb_cluster_connect(struct ocfs2_cluster_connection *conn)
 	struct dlm_protocol_version dlm_version;
 
 	BUG_ON(conn == NULL);
+	BUG_ON(o2cb_stack.sp_proto == NULL);
 
 	/* for now we only have one cluster/node, make sure we see it
 	 * in the heartbeat universe */
@@ -314,7 +317,8 @@ out:
 	return rc;
 }
 
-static int o2cb_cluster_disconnect(struct ocfs2_cluster_connection *conn)
+static int o2cb_cluster_disconnect(struct ocfs2_cluster_connection *conn,
+				   int hangup_pending)
 {
 	struct dlm_ctxt *dlm = conn->cc_lockspace;
 	struct o2dlm_private *priv = conn->cc_private;
@@ -393,3 +397,24 @@ struct ocfs2_stack_operations o2cb_stack_ops = {
 	.dump_lksb	= o2cb_dump_lksb,
 };
 
+static struct ocfs2_stack_plugin o2cb_stack = {
+	.sp_name	= "o2cb",
+	.sp_ops		= &o2cb_stack_ops,
+	.sp_owner	= THIS_MODULE,
+};
+
+static int __init o2cb_stack_init(void)
+{
+	return ocfs2_stack_glue_register(&o2cb_stack);
+}
+
+static void __exit o2cb_stack_exit(void)
+{
+	ocfs2_stack_glue_unregister(&o2cb_stack);
+}
+
+MODULE_AUTHOR("Oracle");
+MODULE_DESCRIPTION("ocfs2 driver for the classic o2cb stack");
+MODULE_LICENSE("GPL");
+module_init(o2cb_stack_init);
+module_exit(o2cb_stack_exit);

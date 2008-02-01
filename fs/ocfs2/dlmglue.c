@@ -2641,7 +2641,7 @@ int ocfs2_dlm_init(struct ocfs2_super *osb)
 		mlog_errno(status);
 		mlog(ML_ERROR,
 		     "could not find this host's node number\n");
-		ocfs2_cluster_disconnect(conn);
+		ocfs2_cluster_disconnect(conn, 0);
 		goto bail;
 	}
 
@@ -2663,7 +2663,8 @@ bail:
 	return status;
 }
 
-void ocfs2_dlm_shutdown(struct ocfs2_super *osb)
+void ocfs2_dlm_shutdown(struct ocfs2_super *osb,
+			int hangup_pending)
 {
 	mlog_entry_void();
 
@@ -2683,7 +2684,7 @@ void ocfs2_dlm_shutdown(struct ocfs2_super *osb)
 	ocfs2_lock_res_free(&osb->osb_super_lockres);
 	ocfs2_lock_res_free(&osb->osb_rename_lockres);
 
-	ocfs2_cluster_disconnect(osb->cconn);
+	ocfs2_cluster_disconnect(osb->cconn, hangup_pending);
 	osb->cconn = NULL;
 
 	ocfs2_dlm_shutdown_debug(osb);
