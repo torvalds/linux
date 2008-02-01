@@ -140,6 +140,16 @@ static int ide_setup_pci_baseregs (struct pci_dev *dev, const char *name)
 }
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_PCI
+static void ide_pci_clear_simplex(unsigned long dma_base, const char *name)
+{
+	u8 dma_stat = inb(dma_base + 2);
+
+	outb(dma_stat & 0x60, dma_base + 2);
+	dma_stat = inb(dma_base + 2);
+	if (dma_stat & 0x80)
+		printk(KERN_INFO "%s: simplex device: DMA forced\n", name);
+}
+
 /**
  *	ide_get_or_set_dma_base		-	setup BMIBA
  *	@d: IDE port info
@@ -154,6 +164,7 @@ static unsigned long ide_get_or_set_dma_base(const struct ide_port_info *d, ide_
 {
 	unsigned long	dma_base = 0;
 	struct pci_dev	*dev = hwif->pci_dev;
+	u8 dma_stat = 0;
 
 	if (hwif->mmio)
 		return hwif->dma_base;
@@ -174,52 +185,30 @@ static unsigned long ide_get_or_set_dma_base(const struct ide_port_info *d, ide_
 	if (hwif->channel)
 		dma_base += 8;
 
-	if ((d->host_flags & IDE_HFLAG_CS5520) == 0) {
-		u8 simplex_stat = 0;
+	if (d->host_flags & IDE_HFLAG_CS5520)
+		goto out;
 
-		switch(dev->device) {
-			case PCI_DEVICE_ID_AL_M5219:
-			case PCI_DEVICE_ID_AL_M5229:
-			case PCI_DEVICE_ID_AMD_VIPER_7409:
-			case PCI_DEVICE_ID_CMD_643:
-			case PCI_DEVICE_ID_SERVERWORKS_CSB5IDE:
-			case PCI_DEVICE_ID_REVOLUTION:
-				simplex_stat = inb(dma_base + 2);
-				outb(simplex_stat & 0x60, dma_base + 2);
-				simplex_stat = inb(dma_base + 2);
-				if (simplex_stat & 0x80) {
-					printk(KERN_INFO "%s: simplex device: "
-							 "DMA forced\n",
-							 d->name);
-				}
-				break;
-			default:
-				/*
-				 * If the device claims "simplex" DMA,
-				 * this means only one of the two interfaces
-				 * can be trusted with DMA at any point in time.
-				 * So we should enable DMA only on one of the
-				 * two interfaces.
-				 */
-				simplex_stat = hwif->INB(dma_base + 2);
-				if (simplex_stat & 0x80) {
-					/* simplex device? */
-/*
- *	At this point we haven't probed the drives so we can't make the
- *	appropriate decision. Really we should defer this problem
- *	until we tune the drive then try to grab DMA ownership if we want
- *	to be the DMA end. This has to be become dynamic to handle hot
- *	plug.
- */
-					if (hwif->mate && hwif->mate->dma_base) {
-						printk(KERN_INFO "%s: simplex device: "
-								 "DMA disabled\n",
-								 d->name);
-						dma_base = 0;
-					}
-				}
-		}
+	if (d->host_flags & IDE_HFLAG_CLEAR_SIMPLEX) {
+		ide_pci_clear_simplex(dma_base, d->name);
+		goto out;
 	}
+
+	/*
+	 * If the device claims "simplex" DMA, this means that only one of
+	 * the two interfaces can be trusted with DMA at any point in time
+	 * (so we should enable DMA only on one of the two interfaces).
+	 *
+	 * FIXME: At this point we haven't probed the drives so we can't make
+	 * the appropriate decision.  Really we should defer this problem until
+	 * we tune the drive then try to grab DMA ownership if we want to be
+	 * the DMA end.  This has to be become dynamic to handle hot-plug.
+	 */
+	dma_stat = hwif->INB(dma_base + 2);
+	if ((dma_stat & 0x80) && hwif->mate && hwif->mate->dma_base) {
+		printk(KERN_INFO "%s: simplex device: DMA disabled\n", d->name);
+		dma_base = 0;
+	}
+out:
 	return dma_base;
 }
 #endif /* CONFIG_BLK_DEV_IDEDMA_PCI */

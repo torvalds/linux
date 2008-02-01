@@ -775,7 +775,7 @@ static int __devinit alim15x3_init_one(struct pci_dev *dev, const struct pci_dev
 	};
 
 	struct ide_port_info d = ali15x3_chipset;
-	u8 rev = dev->revision;
+	u8 rev = dev->revision, idx = id->driver_data;
 
 	if (pci_dev_present(ati_rs100))
 		printk(KERN_WARNING "alim15x3: ATI Radeon IGP Northbridge is not yet fully tested.\n");
@@ -798,6 +798,9 @@ static int __devinit alim15x3_init_one(struct pci_dev *dev, const struct pci_dev
 			d.udma_mask = ATA_UDMA6;
 	}
 
+	if (idx == 0)
+		d.host_flags |= IDE_HFLAG_CLEAR_SIMPLEX;
+
 #if defined(CONFIG_SPARC64)
 	d.init_hwif = init_hwif_common_ali15x3;
 #endif /* CONFIG_SPARC64 */
@@ -807,7 +810,7 @@ static int __devinit alim15x3_init_one(struct pci_dev *dev, const struct pci_dev
 
 static const struct pci_device_id alim15x3_pci_tbl[] = {
 	{ PCI_VDEVICE(AL, PCI_DEVICE_ID_AL_M5229), 0 },
-	{ PCI_VDEVICE(AL, PCI_DEVICE_ID_AL_M5228), 0 },
+	{ PCI_VDEVICE(AL, PCI_DEVICE_ID_AL_M5228), 1 },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, alim15x3_pci_tbl);

@@ -418,7 +418,9 @@ static int __devinit svwks_init_one(struct pci_dev *dev, const struct pci_device
 
 	d = serverworks_chipsets[idx];
 
-	if (idx == 2 || idx == 3) {
+	if (idx == 1)
+		d.host_flags |= IDE_HFLAG_CLEAR_SIMPLEX;
+	else if (idx == 2 || idx == 3) {
 		if ((PCI_FUNC(dev->devfn) & 1) == 0) {
 			if (pci_resource_start(dev, 0) != 0x01f1)
 				d.host_flags &= ~IDE_HFLAG_BOOTABLE;

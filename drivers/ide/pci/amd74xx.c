@@ -295,6 +295,7 @@ static int __devinit amd74xx_probe(struct pci_dev *dev, const struct pci_device_
 	if (idx == 1) {
 		if (dev->revision <= 7)
 			d.swdma_mask = 0;
+		d.host_flags |= IDE_HFLAG_CLEAR_SIMPLEX;
 	} else if (idx == 4) {
 		if (dev->subsystem_vendor == PCI_VENDOR_ID_AMD &&
 		    dev->subsystem_device == PCI_DEVICE_ID_AMD_SERENADE)
