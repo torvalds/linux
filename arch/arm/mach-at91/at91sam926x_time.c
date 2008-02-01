@@ -49,8 +49,6 @@ static irqreturn_t at91sam926x_timer_interrupt(int irq, void *dev_id)
 	volatile long nr_ticks;
 
 	if (at91_sys_read(AT91_PIT_SR) & AT91_PIT_PITS) {	/* This is a shared interrupt */
-		write_seqlock(&xtime_lock);
-
 		/* Get number to ticks performed before interrupt and clear PIT interrupt */
 		nr_ticks = PIT_PICNT(at91_sys_read(AT91_PIT_PIVR));
 		do {
@@ -58,7 +56,6 @@ static irqreturn_t at91sam926x_timer_interrupt(int irq, void *dev_id)
 			nr_ticks--;
 		} while (nr_ticks);
 
-		write_sequnlock(&xtime_lock);
 		return IRQ_HANDLED;
 	} else
 		return IRQ_NONE;		/* not handled */
