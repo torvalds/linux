@@ -148,4 +148,21 @@ struct cdrom_info {
 /* ide-cd_verbose.c */
 void ide_cd_log_error(const char *, struct request *, struct request_sense *);
 
+/* ide-cd.c functions used by ide-cd_ioctl.c */
+void ide_cd_init_rq(ide_drive_t *, struct request *);
+int ide_cd_queue_pc(ide_drive_t *, struct request *);
+int ide_cd_lockdoor(ide_drive_t *, int, struct request_sense *);
+int ide_cd_read_toc(ide_drive_t *, struct request_sense *);
+int ide_cdrom_get_capabilities(ide_drive_t *, u8 *);
+void ide_cdrom_update_speed(ide_drive_t *, u8 *);
+
+/* ide-cd_ioctl.c */
+int ide_cdrom_lock_door(struct cdrom_device_info *, int);
+int ide_cdrom_select_speed(struct cdrom_device_info *, int);
+int ide_cdrom_get_last_session(struct cdrom_device_info *,
+			       struct cdrom_multisession *);
+int ide_cdrom_get_mcn(struct cdrom_device_info *, struct cdrom_mcn *);
+int ide_cdrom_reset(struct cdrom_device_info *cdi);
+int ide_cdrom_audio_ioctl(struct cdrom_device_info *, unsigned int, void *);
+
 #endif /* _IDE_CD_H */
