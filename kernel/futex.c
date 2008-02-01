@@ -1537,9 +1537,6 @@ static int futex_lock_pi(u32 __user *uaddr, struct rw_semaphore *fshared,
 				owner = rt_mutex_owner(&q.pi_state->pi_mutex);
 				res = fixup_pi_state_owner(uaddr, &q, owner);
 
-				WARN_ON(rt_mutex_owner(&q.pi_state->pi_mutex) !=
-					owner);
-
 				/* propagate -EFAULT, if the fixup failed */
 				if (res)
 					ret = res;
