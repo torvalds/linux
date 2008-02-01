@@ -956,7 +956,7 @@ static int fr_rx(struct sk_buff *skb)
 
 
 	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL) {
-		dev_to_desc(frad)->stats.rx_dropped++;
+		dev_to_hdlc(frad)->stats.rx_dropped++;
 		return NET_RX_DROP;
 	}
 
@@ -1017,7 +1017,7 @@ static int fr_rx(struct sk_buff *skb)
 	}
 
  rx_error:
-	dev_to_desc(frad)->stats.rx_errors++; /* Mark error */
+	dev_to_hdlc(frad)->stats.rx_errors++; /* Mark error */
 	dev_kfree_skb_any(skb);
 	return NET_RX_DROP;
 }
@@ -1217,6 +1217,7 @@ static struct hdlc_proto proto = {
 	.stop		= fr_stop,
 	.detach		= fr_destroy,
 	.ioctl		= fr_ioctl,
+	.netif_rx	= fr_rx,
 	.module		= THIS_MODULE,
 };
 
@@ -1275,7 +1276,7 @@ static int fr_ioctl(struct net_device *dev, struct ifreq *ifr)
 			return result;
 
 		if (dev_to_hdlc(dev)->proto != &proto) { /* Different proto */
-			result = attach_hdlc_protocol(dev, &proto, fr_rx,
+			result = attach_hdlc_protocol(dev, &proto,
 						      sizeof(struct frad_state));
 			if (result)
 				return result;
