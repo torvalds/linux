@@ -193,7 +193,7 @@ static struct console simnow_console = {
 };
 
 /* Direct interface for emergencies */
-struct console *early_console = &early_vga_console;
+static struct console *early_console = &early_vga_console;
 static int early_console_initialized = 0;
 
 void early_printk(const char *fmt, ...)
