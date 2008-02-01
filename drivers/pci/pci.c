@@ -823,7 +823,8 @@ int pcim_enable_device(struct pci_dev *pdev)
 	dr = get_pci_dr(pdev);
 	if (unlikely(!dr))
 		return -ENOMEM;
-	WARN_ON(!!dr->enabled);
+	if (dr->enabled)
+		return 0;
 
 	rc = pci_enable_device(pdev);
 	if (!rc) {

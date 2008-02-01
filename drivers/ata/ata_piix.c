@@ -267,6 +267,14 @@ static const struct pci_device_id piix_pci_tbl[] = {
 	{ 0x8086, 0x292e, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich8_sata_ahci },
 	/* SATA Controller IDE (Tolapai) */
 	{ 0x8086, 0x5028, PCI_ANY_ID, PCI_ANY_ID, 0, 0, tolapai_sata_ahci },
+	/* SATA Controller IDE (ICH10) */
+	{ 0x8086, 0x3a00, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich8_sata_ahci },
+	/* SATA Controller IDE (ICH10) */
+	{ 0x8086, 0x3a06, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich8_2port_sata },
+	/* SATA Controller IDE (ICH10) */
+	{ 0x8086, 0x3a20, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich8_sata_ahci },
+	/* SATA Controller IDE (ICH10) */
+	{ 0x8086, 0x3a26, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich8_2port_sata },
 
 	{ }	/* terminate list */
 };
@@ -1068,7 +1076,7 @@ static void piix_sidpr_write(struct ata_device *dev, unsigned int reg, u32 val)
 	iowrite32(val, hpriv->sidpr + PIIX_SIDPR_DATA);
 }
 
-u32 piix_merge_scr(u32 val0, u32 val1, const int * const *merge_tbl)
+static u32 piix_merge_scr(u32 val0, u32 val1, const int * const *merge_tbl)
 {
 	u32 val = 0;
 	int i, mi;
