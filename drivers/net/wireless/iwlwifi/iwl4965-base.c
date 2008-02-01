@@ -5815,6 +5815,7 @@ static int iwl4965_init_geos(struct iwl4965_priv *priv)
 		geo_ch->center_freq = ieee80211chan2mhz(ch->channel);
 		geo_ch->max_power = ch->max_power_avg;
 		geo_ch->max_antenna_gain = 0xff;
+		geo_ch->hw_value = ch->channel;
 
 		if (is_channel_valid(ch)) {
 			if (!(ch->flags & EEPROM_CHANNEL_IBSS))
