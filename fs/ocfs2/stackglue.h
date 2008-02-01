@@ -21,6 +21,19 @@
 #ifndef STACKGLUE_H
 #define STACKGLUE_H
 
+#include <linux/types.h>
+#include <linux/list.h>
+#include <linux/dlmconstants.h>
+
+/*
+ * dlmconstants.h does not have a LOCAL flag.  We hope to remove it
+ * some day, but right now we need it.  Let's fake it.  This value is larger
+ * than any flag in dlmconstants.h.
+ */
+#define DLM_LKF_LOCAL		0x00100000
+
+#include "dlm/dlmapi.h"
+
 struct ocfs2_locking_protocol {
 	void (*lp_lock_ast)(void *astarg);
 	void (*lp_blocking_ast)(void *astarg, int level);
