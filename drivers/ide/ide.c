@@ -530,13 +530,6 @@ void ide_unregister(unsigned int index)
 
 	spin_lock_irq(&ide_lock);
 	/*
-	 * Note that we only release the standard ports,
-	 * and do not even try to handle any extra ports
-	 * allocated for weird IDE interface chipsets.
-	 */
-	ide_hwif_release_regions(hwif);
-
-	/*
 	 * Remove us from the hwgroup, and free
 	 * the hwgroup if we were the only member
 	 */
@@ -589,6 +582,13 @@ void ide_unregister(unsigned int index)
 		hwif->extra_base  = 0;
 		hwif->extra_ports = 0;
 	}
+
+	/*
+	 * Note that we only release the standard ports,
+	 * and do not even try to handle any extra ports
+	 * allocated for weird IDE interface chipsets.
+	 */
+	ide_hwif_release_regions(hwif);
 
 	/* copy original settings */
 	tmp_hwif = *hwif;
