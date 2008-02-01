@@ -136,6 +136,10 @@ typedef struct pvc_device_struct {
 	}state;
 }pvc_device;
 
+struct pvc_desc {
+	struct net_device_stats stats;
+	pvc_device *pvc;
+};
 
 struct frad_state {
 	fr_proto settings;
@@ -171,17 +175,20 @@ static inline void dlci_to_q922(u8 *hdr, u16 dlci)
 }
 
 
-static inline struct frad_state * state(hdlc_device *hdlc)
+static inline struct frad_state* state(hdlc_device *hdlc)
 {
 	return(struct frad_state *)(hdlc->state);
 }
 
-
-static __inline__ pvc_device* dev_to_pvc(struct net_device *dev)
+static inline struct pvc_desc* pvcdev_to_desc(struct net_device *dev)
 {
 	return dev->priv;
 }
 
+static inline struct net_device_stats* pvc_get_stats(struct net_device *dev)
+{
+	return &pvcdev_to_desc(dev)->stats;
+}
 
 static inline pvc_device* find_pvc(hdlc_device *hdlc, u16 dlci)
 {
@@ -351,7 +358,7 @@ static int fr_hard_header(struct sk_buff **skb_p, u16 dlci)
 
 static int pvc_open(struct net_device *dev)
 {
-	pvc_device *pvc = dev_to_pvc(dev);
+	pvc_device *pvc = pvcdev_to_desc(dev)->pvc;
 
 	if ((pvc->frad->flags & IFF_UP) == 0)
 		return -EIO;  /* Frad must be UP in order to activate PVC */
@@ -371,7 +378,7 @@ static int pvc_open(struct net_device *dev)
 
 static int pvc_close(struct net_device *dev)
 {
-	pvc_device *pvc = dev_to_pvc(dev);
+	pvc_device *pvc = pvcdev_to_desc(dev)->pvc;
 
 	if (--pvc->open_count == 0) {
 		hdlc_device *hdlc = dev_to_hdlc(pvc->frad);
@@ -390,7 +397,7 @@ static int pvc_close(struct net_device *dev)
 
 static int pvc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
-	pvc_device *pvc = dev_to_pvc(dev);
+	pvc_device *pvc = pvcdev_to_desc(dev)->pvc;
 	fr_proto_pvc_info info;
 
 	if (ifr->ifr_settings.type == IF_GET_PROTO) {
@@ -416,17 +423,9 @@ static int pvc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return -EINVAL;
 }
 
-
-static inline struct net_device_stats *pvc_get_stats(struct net_device *dev)
-{
-	return &dev_to_desc(dev)->stats;
-}
-
-
-
 static int pvc_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	pvc_device *pvc = dev_to_pvc(dev);
+	pvc_device *pvc = pvcdev_to_desc(dev)->pvc;
 	struct net_device_stats *stats = pvc_get_stats(dev);
 
 	if (pvc->state.active) {
@@ -1109,11 +1108,10 @@ static int fr_add_pvc(struct net_device *frad, unsigned int dlci, int type)
 	used = pvc_is_used(pvc);
 
 	if (type == ARPHRD_ETHER)
-		dev = alloc_netdev(sizeof(struct net_device_stats),
-				   "pvceth%d", ether_setup);
+		dev = alloc_netdev(sizeof(struct pvc_desc), "pvceth%d",
+				   ether_setup);
 	else
-		dev = alloc_netdev(sizeof(struct net_device_stats),
-				   "pvc%d", pvc_setup);
+		dev = alloc_netdev(sizeof(struct pvc_desc), "pvc%d", pvc_setup);
 
 	if (!dev) {
 		printk(KERN_WARNING "%s: Memory squeeze on fr_pvc()\n",
@@ -1137,7 +1135,7 @@ static int fr_add_pvc(struct net_device *frad, unsigned int dlci, int type)
 	dev->change_mtu = pvc_change_mtu;
 	dev->mtu = HDLC_MAX_MTU;
 	dev->tx_queue_len = 0;
-	dev->priv = pvc;
+	pvcdev_to_desc(dev)->pvc = pvc;
 
 	result = dev_alloc_name(dev, dev->name);
 	if (result < 0) {
