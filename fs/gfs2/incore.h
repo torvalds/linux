@@ -90,8 +90,7 @@ struct gfs2_rgrpd {
 	struct mutex rd_mutex;
 	u32 rd_free_clone;
 	struct gfs2_log_element rd_le;
-	u32 rd_last_alloc_data;
-	u32 rd_last_alloc_meta;
+	u32 rd_last_alloc;
 	struct gfs2_sbd *rd_sbd;
 	unsigned char rd_flags;
 #define GFS2_RDF_CHECK        0x01      /* Need to check for unlinked inodes */

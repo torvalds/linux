@@ -1422,11 +1422,11 @@ u64 gfs2_alloc_data(struct gfs2_inode *ip)
 	if (rgrp_contains_block(rgd, ip->i_goal))
 		goal = ip->i_goal - rgd->rd_data0;
 	else
-		goal = rgd->rd_last_alloc_data;
+		goal = rgd->rd_last_alloc;
 
 	blk = rgblk_search(rgd, goal, GFS2_BLKST_FREE, GFS2_BLKST_USED);
 	BUG_ON(blk == BFITNOENT);
-	rgd->rd_last_alloc_data = blk;
+	rgd->rd_last_alloc = blk;
 
 	block = rgd->rd_data0 + blk;
 	ip->i_goal = block;
@@ -1467,11 +1467,11 @@ u64 gfs2_alloc_meta(struct gfs2_inode *ip)
 	if (rgrp_contains_block(rgd, ip->i_goal))
 		goal = ip->i_goal - rgd->rd_data0;
 	else
-		goal = rgd->rd_last_alloc_meta;
+		goal = rgd->rd_last_alloc;
 
 	blk = rgblk_search(rgd, goal, GFS2_BLKST_FREE, GFS2_BLKST_USED);
 	BUG_ON(blk == BFITNOENT);
-	rgd->rd_last_alloc_meta = blk;
+	rgd->rd_last_alloc = blk;
 
 	block = rgd->rd_data0 + blk;
 	ip->i_goal = block;
@@ -1510,11 +1510,11 @@ u64 gfs2_alloc_di(struct gfs2_inode *dip, u64 *generation)
 	u32 blk;
 	u64 block;
 
-	blk = rgblk_search(rgd, rgd->rd_last_alloc_meta,
+	blk = rgblk_search(rgd, rgd->rd_last_alloc,
 			   GFS2_BLKST_FREE, GFS2_BLKST_DINODE);
 	BUG_ON(blk == BFITNOENT);
 
-	rgd->rd_last_alloc_meta = blk;
+	rgd->rd_last_alloc = blk;
 
 	block = rgd->rd_data0 + blk;
 
