@@ -75,7 +75,8 @@ static int ioremap_change_attr(unsigned long paddr, unsigned long size,
 {
 	unsigned long vaddr = (unsigned long)__va(paddr);
 	unsigned long nrpages = size >> PAGE_SHIFT;
-	int err, level;
+	unsigned int level;
+	int err;
 
 	/* No change for pages after the last mapping */
 	if ((paddr + size - 1) >= (max_pfn_mapped << PAGE_SHIFT))

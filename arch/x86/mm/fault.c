@@ -382,7 +382,7 @@ static void show_fault_oops(struct pt_regs *regs, unsigned long error_code,
 
 #ifdef CONFIG_X86_PAE
 	if (error_code & PF_INSTR) {
-		int level;
+		unsigned int level;
 		pte_t *pte = lookup_address(address, &level);
 
 		if (pte && pte_present(*pte) && !pte_exec(*pte))

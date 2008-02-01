@@ -44,7 +44,7 @@ static void __init early_mapping_set_exec(unsigned long start,
 					  int executable)
 {
 	pte_t *kpte;
-	int level;
+	unsigned int level;
 
 	while (start < end) {
 		kpte = lookup_address((unsigned long)__va(start), &level);
