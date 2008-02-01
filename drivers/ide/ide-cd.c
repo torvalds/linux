@@ -2017,25 +2017,6 @@ static int ide_cd_read_tochdr(ide_drive_t *drive, void *arg)
 	return 0;
 }
 
-static int cdrom_read_subchannel(ide_drive_t *drive, int format, char *buf,
-				 int buflen, struct request_sense *sense)
-{
-	struct request req;
-
-	cdrom_prepare_request(drive, &req);
-
-	req.sense = sense;
-	req.data = buf;
-	req.data_len = buflen;
-	req.cmd[0] = GPCMD_READ_SUBCHANNEL;
-	req.cmd[1] = 2;     /* MSF addressing */
-	req.cmd[2] = 0x40;  /* request subQ data */
-	req.cmd[3] = format;
-	req.cmd[7] = (buflen >> 8);
-	req.cmd[8] = (buflen & 0xff);
-	return cdrom_queue_packet_command(drive, &req);
-}
-
 /* ATAPI cdrom drives are free to select the speed you request or any slower
    rate :-( Requesting too fast a speed will _not_ produce an error. */
 static int cdrom_select_speed(ide_drive_t *drive, int speed,
@@ -2377,27 +2358,35 @@ int ide_cdrom_get_last_session (struct cdrom_device_info *cdi,
 	return 0;
 }
 
-static
-int ide_cdrom_get_mcn (struct cdrom_device_info *cdi,
-		       struct cdrom_mcn *mcn_info)
+static int ide_cdrom_get_mcn(struct cdrom_device_info *cdi,
+			     struct cdrom_mcn *mcn_info)
 {
-	int stat;
-	char mcnbuf[24];
 	ide_drive_t *drive = cdi->handle;
+	int stat, mcnlen;
+	struct request rq;
+	char buf[24];
 
-/* get MCN */
-	if ((stat = cdrom_read_subchannel(drive, 2, mcnbuf, sizeof (mcnbuf), NULL)))
+	cdrom_prepare_request(drive, &rq);
+
+	rq.data = buf;
+	rq.data_len = sizeof(buf);
+
+	rq.cmd[0] = GPCMD_READ_SUBCHANNEL;
+	rq.cmd[1] = 2;		/* MSF addressing */
+	rq.cmd[2] = 0x40;	/* request subQ data */
+	rq.cmd[3] = 2;		/* format */
+	rq.cmd[8] = sizeof(buf);
+
+	stat = cdrom_queue_packet_command(drive, &rq);
+	if (stat)
 		return stat;
 
-	memcpy (mcn_info->medium_catalog_number, mcnbuf+9,
-		sizeof (mcn_info->medium_catalog_number)-1);
-	mcn_info->medium_catalog_number[sizeof (mcn_info->medium_catalog_number)-1]
-		= '\0';
+	mcnlen = sizeof(mcn_info->medium_catalog_number) - 1;
+	memcpy(mcn_info->medium_catalog_number, buf + 9, mcnlen);
+	mcn_info->medium_catalog_number[mcnlen] = '\0';
 
 	return 0;
 }
-
-
 
 /****************************************************************************
  * Other driver requests (open, close, check media change).
