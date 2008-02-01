@@ -714,6 +714,31 @@ int cdrom_read_check_ireason (ide_drive_t *drive, int len, int ireason)
 }
 
 /*
+ * Assume that the drive will always provide data in multiples of at least
+ * SECTOR_SIZE, as it gets hairy to keep track of the transfers otherwise.
+ */
+static int ide_cd_check_transfer_size(ide_drive_t *drive, int len)
+{
+	struct cdrom_info *cd = drive->driver_data;
+
+	if ((len % SECTOR_SIZE) == 0)
+		return 0;
+
+	printk(KERN_ERR "%s: %s: Bad transfer size %d\n",
+			drive->name, __FUNCTION__, len);
+
+	if (cd->cd_flags & IDE_CD_FLAG_LIMIT_NFRAMES)
+		printk(KERN_ERR "  This drive is not supported by "
+				"this version of the driver\n");
+	else {
+		printk(KERN_ERR "  Trying to limit transfer sizes\n");
+		cd->cd_flags |= IDE_CD_FLAG_LIMIT_NFRAMES;
+	}
+
+	return 1;
+}
+
+/*
  * Interrupt routine.  Called when a read request has completed.
  */
 static ide_startstop_t cdrom_read_intr (ide_drive_t *drive)
@@ -774,18 +799,7 @@ static ide_startstop_t cdrom_read_intr (ide_drive_t *drive)
 	if (cdrom_read_check_ireason (drive, len, ireason))
 		return ide_stopped;
 
-	/* Assume that the drive will always provide data in multiples
-	   of at least SECTOR_SIZE, as it gets hairy to keep track
-	   of the transfers otherwise. */
-	if ((len % SECTOR_SIZE) != 0) {
-		printk (KERN_ERR "%s: cdrom_read_intr: Bad transfer size %d\n",
-			drive->name, len);
-		if (info->cd_flags & IDE_CD_FLAG_LIMIT_NFRAMES)
-			printk (KERN_ERR "  This drive is not supported by this version of the driver\n");
-		else {
-			printk (KERN_ERR "  Trying to limit transfer sizes\n");
-			info->cd_flags |= IDE_CD_FLAG_LIMIT_NFRAMES;
-		}
+	if (ide_cd_check_transfer_size(drive, len)) {
 		cdrom_end_request(drive, 0);
 		return ide_stopped;
 	}
