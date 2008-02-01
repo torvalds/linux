@@ -1061,18 +1061,7 @@ static void ide_cd_request_sense_fixup(struct request *rq)
 		}
 }
 
-static ide_startstop_t cdrom_newpc_intr(ide_drive_t *);
-
-static ide_startstop_t cdrom_do_pc_continuation (ide_drive_t *drive)
-{
-	struct request *rq = HWGROUP(drive)->rq;
-
-	if (!rq->timeout)
-		rq->timeout = ATAPI_WAIT_PC;
-
-	/* Send the command to the drive and return. */
-	return cdrom_transfer_packet_command(drive, rq, cdrom_newpc_intr);
-}
+static ide_startstop_t cdrom_do_newpc_cont(ide_drive_t *);
 
 static ide_startstop_t cdrom_do_packet_command (ide_drive_t *drive)
 {
@@ -1085,7 +1074,7 @@ static ide_startstop_t cdrom_do_packet_command (ide_drive_t *drive)
 	len = rq->data_len;
 
 	/* Start sending the command to the drive. */
-	return cdrom_start_packet_command(drive, len, cdrom_do_pc_continuation);
+	return cdrom_start_packet_command(drive, len, cdrom_do_newpc_cont);
 }
 
 int ide_cd_queue_pc(ide_drive_t *drive, struct request *rq)
