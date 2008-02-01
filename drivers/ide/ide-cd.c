@@ -1381,7 +1381,7 @@ void msf_from_bcd (struct atapi_msf *msf)
 	msf->frame  = BCD2BIN(msf->frame);
 }
 
-static int cdrom_check_status(ide_drive_t *drive, struct request_sense *sense)
+int cdrom_check_status(ide_drive_t *drive, struct request_sense *sense)
 {
 	struct request req;
 	struct cdrom_info *info = drive->driver_data;
@@ -1398,85 +1398,6 @@ static int cdrom_check_status(ide_drive_t *drive, struct request_sense *sense)
 	 * switch CDs instead of supporting the LOAD_UNLOAD opcode.
 	 */
 	req.cmd[7] = cdi->sanyo_slot % 3;
-
-	return ide_cd_queue_pc(drive, &req);
-}
-
-/* Lock the door if LOCKFLAG is nonzero; unlock it otherwise. */
-int ide_cd_lockdoor(ide_drive_t *drive, int lockflag,
-		    struct request_sense *sense)
-{
-	struct cdrom_info *cd = drive->driver_data;
-	struct request_sense my_sense;
-	struct request req;
-	int stat;
-
-	if (sense == NULL)
-		sense = &my_sense;
-
-	/* If the drive cannot lock the door, just pretend. */
-	if (cd->cd_flags & IDE_CD_FLAG_NO_DOORLOCK) {
-		stat = 0;
-	} else {
-		ide_cd_init_rq(drive, &req);
-		req.sense = sense;
-		req.cmd[0] = GPCMD_PREVENT_ALLOW_MEDIUM_REMOVAL;
-		req.cmd[4] = lockflag ? 1 : 0;
-		stat = ide_cd_queue_pc(drive, &req);
-	}
-
-	/* If we got an illegal field error, the drive
-	   probably cannot lock the door. */
-	if (stat != 0 &&
-	    sense->sense_key == ILLEGAL_REQUEST &&
-	    (sense->asc == 0x24 || sense->asc == 0x20)) {
-		printk (KERN_ERR "%s: door locking not supported\n",
-			drive->name);
-		cd->cd_flags |= IDE_CD_FLAG_NO_DOORLOCK;
-		stat = 0;
-	}
-	
-	/* no medium, that's alright. */
-	if (stat != 0 && sense->sense_key == NOT_READY && sense->asc == 0x3a)
-		stat = 0;
-
-	if (stat == 0) {
-		if (lockflag)
-			cd->cd_flags |= IDE_CD_FLAG_DOOR_LOCKED;
-		else
-			cd->cd_flags &= ~IDE_CD_FLAG_DOOR_LOCKED;
-	}
-
-	return stat;
-}
-
-
-/* Eject the disk if EJECTFLAG is 0.
-   If EJECTFLAG is 1, try to reload the disk. */
-static int cdrom_eject(ide_drive_t *drive, int ejectflag,
-		       struct request_sense *sense)
-{
-	struct cdrom_info *cd = drive->driver_data;
-	struct cdrom_device_info *cdi = &cd->devinfo;
-	struct request req;
-	char loej = 0x02;
-
-	if ((cd->cd_flags & IDE_CD_FLAG_NO_EJECT) && !ejectflag)
-		return -EDRIVE_CANT_DO_THIS;
-
-	/* reload fails on some drives, if the tray is locked */
-	if ((cd->cd_flags & IDE_CD_FLAG_DOOR_LOCKED) && ejectflag)
-		return 0;
-
-	ide_cd_init_rq(drive, &req);
-
-	/* only tell drive to close tray if open, if it can do that */
-	if (ejectflag && (cdi->mask & CDC_CLOSE_TRAY))
-		loej = 0;
-
-	req.sense = sense;
-	req.cmd[0] = GPCMD_START_STOP_UNIT;
-	req.cmd[4] = loej | (ejectflag != 0);
 
 	return ide_cd_queue_pc(drive, &req);
 }
@@ -1696,53 +1617,6 @@ int ide_cd_read_toc(ide_drive_t *drive, struct request_sense *sense)
 	return 0;
 }
 
-/* the generic packet interface to cdrom.c */
-static int ide_cdrom_packet(struct cdrom_device_info *cdi,
-			    struct packet_command *cgc)
-{
-	struct request req;
-	ide_drive_t *drive = cdi->handle;
-
-	if (cgc->timeout <= 0)
-		cgc->timeout = ATAPI_WAIT_PC;
-
-	/* here we queue the commands from the uniform CD-ROM
-	   layer. the packet must be complete, as we do not
-	   touch it at all. */
-	ide_cd_init_rq(drive, &req);
-	memcpy(req.cmd, cgc->cmd, CDROM_PACKET_SIZE);
-	if (cgc->sense)
-		memset(cgc->sense, 0, sizeof(struct request_sense));
-	req.data = cgc->buffer;
-	req.data_len = cgc->buflen;
-	req.timeout = cgc->timeout;
-
-	if (cgc->quiet)
-		req.cmd_flags |= REQ_QUIET;
-
-	req.sense = cgc->sense;
-	cgc->stat = ide_cd_queue_pc(drive, &req);
-	if (!cgc->stat)
-		cgc->buflen -= req.data_len;
-	return cgc->stat;
-}
-
-static
-int ide_cdrom_tray_move (struct cdrom_device_info *cdi, int position)
-{
-	ide_drive_t *drive = cdi->handle;
-	struct request_sense sense;
-
-	if (position) {
-		int stat = ide_cd_lockdoor(drive, 0, &sense);
-
-		if (stat)
-			return stat;
-	}
-
-	return cdrom_eject(drive, !position, &sense);
-}
-
 int ide_cdrom_get_capabilities(ide_drive_t *drive, u8 *buf)
 {
 	struct cdrom_info *info = drive->driver_data;
@@ -1780,95 +1654,6 @@ void ide_cdrom_update_speed(ide_drive_t *drive, u8 *buf)
 
 	cd->current_speed = (curspeed + (176/2)) / 176;
 	cd->max_speed = (maxspeed + (176/2)) / 176;
-}
-
-/*
- * add logic to try GET_EVENT command first to check for media and tray
- * status. this should be supported by newer cd-r/w and all DVD etc
- * drives
- */
-static
-int ide_cdrom_drive_status (struct cdrom_device_info *cdi, int slot_nr)
-{
-	ide_drive_t *drive = cdi->handle;
-	struct media_event_desc med;
-	struct request_sense sense;
-	int stat;
-
-	if (slot_nr != CDSL_CURRENT)
-		return -EINVAL;
-
-	stat = cdrom_check_status(drive, &sense);
-	if (!stat || sense.sense_key == UNIT_ATTENTION)
-		return CDS_DISC_OK;
-
-	if (!cdrom_get_media_event(cdi, &med)) {
-		if (med.media_present)
-			return CDS_DISC_OK;
-		else if (med.door_open)
-			return CDS_TRAY_OPEN;
-		else
-			return CDS_NO_DISC;
-	}
-
-	if (sense.sense_key == NOT_READY && sense.asc == 0x04 && sense.ascq == 0x04)
-		return CDS_DISC_OK;
-
-	/*
-	 * If not using Mt Fuji extended media tray reports,
-	 * just return TRAY_OPEN since ATAPI doesn't provide
-	 * any other way to detect this...
-	 */
-	if (sense.sense_key == NOT_READY) {
-		if (sense.asc == 0x3a && sense.ascq == 1)
-			return CDS_NO_DISC;
-		else
-			return CDS_TRAY_OPEN;
-	}
-	return CDS_DRIVE_NOT_READY;
-}
-
-/****************************************************************************
- * Other driver requests (open, close, check media change).
- */
-
-static
-int ide_cdrom_check_media_change_real (struct cdrom_device_info *cdi,
-				       int slot_nr)
-{
-	ide_drive_t *drive = cdi->handle;
-	struct cdrom_info *cd = drive->driver_data;
-	int retval;
-
-	if (slot_nr == CDSL_CURRENT) {
-		(void) cdrom_check_status(drive, NULL);
-		retval = (cd->cd_flags & IDE_CD_FLAG_MEDIA_CHANGED) ? 1 : 0;
-		cd->cd_flags &= ~IDE_CD_FLAG_MEDIA_CHANGED;
-		return retval;
-	} else {
-		return -EINVAL;
-	}
-}
-
-
-static
-int ide_cdrom_open_real (struct cdrom_device_info *cdi, int purpose)
-{
-	return 0;
-}
-
-/*
- * Close down the device.  Invalidate all cached blocks.
- */
-
-static
-void ide_cdrom_release_real (struct cdrom_device_info *cdi)
-{
-	ide_drive_t *drive = cdi->handle;
-	struct cdrom_info *cd = drive->driver_data;
-
-	if (!cdi->use_count)
-		cd->cd_flags &= ~IDE_CD_FLAG_TOC_VALID;
 }
 
 #define IDE_CD_CAPABILITIES \

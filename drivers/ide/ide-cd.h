@@ -151,12 +151,17 @@ void ide_cd_log_error(const char *, struct request *, struct request_sense *);
 /* ide-cd.c functions used by ide-cd_ioctl.c */
 void ide_cd_init_rq(ide_drive_t *, struct request *);
 int ide_cd_queue_pc(ide_drive_t *, struct request *);
-int ide_cd_lockdoor(ide_drive_t *, int, struct request_sense *);
 int ide_cd_read_toc(ide_drive_t *, struct request_sense *);
 int ide_cdrom_get_capabilities(ide_drive_t *, u8 *);
 void ide_cdrom_update_speed(ide_drive_t *, u8 *);
+int cdrom_check_status(ide_drive_t *, struct request_sense *);
 
 /* ide-cd_ioctl.c */
+int ide_cdrom_open_real(struct cdrom_device_info *, int);
+void ide_cdrom_release_real(struct cdrom_device_info *);
+int ide_cdrom_drive_status(struct cdrom_device_info *, int);
+int ide_cdrom_check_media_change_real(struct cdrom_device_info *, int);
+int ide_cdrom_tray_move(struct cdrom_device_info *, int);
 int ide_cdrom_lock_door(struct cdrom_device_info *, int);
 int ide_cdrom_select_speed(struct cdrom_device_info *, int);
 int ide_cdrom_get_last_session(struct cdrom_device_info *,
@@ -164,5 +169,6 @@ int ide_cdrom_get_last_session(struct cdrom_device_info *,
 int ide_cdrom_get_mcn(struct cdrom_device_info *, struct cdrom_mcn *);
 int ide_cdrom_reset(struct cdrom_device_info *cdi);
 int ide_cdrom_audio_ioctl(struct cdrom_device_info *, unsigned int, void *);
+int ide_cdrom_packet(struct cdrom_device_info *, struct packet_command *);
 
 #endif /* _IDE_CD_H */
