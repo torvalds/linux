@@ -933,6 +933,8 @@ static int ide_dma_iobase(ide_hwif_t *hwif, unsigned long base, unsigned int por
 
 void ide_setup_dma(ide_hwif_t *hwif, unsigned long base, unsigned num_ports)
 {
+	u8 dma_stat;
+
 	if (ide_dma_iobase(hwif, base, num_ports))
 		return;
 
@@ -971,13 +973,10 @@ void ide_setup_dma(ide_hwif_t *hwif, unsigned long base, unsigned num_ports)
 	if (!hwif->dma_lost_irq)
 		hwif->dma_lost_irq = &ide_dma_lost_irq;
 
-	if (hwif->chipset != ide_trm290) {
-		u8 dma_stat = hwif->INB(hwif->dma_status);
-		printk(", BIOS settings: %s:%s, %s:%s",
-		       hwif->drives[0].name, (dma_stat & 0x20) ? "DMA" : "pio",
-		       hwif->drives[1].name, (dma_stat & 0x40) ? "DMA" : "pio");
-	}
-	printk("\n");
+	dma_stat = hwif->INB(hwif->dma_status);
+	printk(KERN_CONT ", BIOS settings: %s:%s, %s:%s\n",
+	       hwif->drives[0].name, (dma_stat & 0x20) ? "DMA" : "PIO",
+	       hwif->drives[1].name, (dma_stat & 0x40) ? "DMA" : "PIO");
 }
 
 EXPORT_SYMBOL_GPL(ide_setup_dma);
