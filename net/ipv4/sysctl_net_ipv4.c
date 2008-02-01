@@ -185,7 +185,7 @@ static int strategy_allowed_congestion_control(ctl_table *table, int __user *nam
 
 	tcp_get_available_congestion_control(tbl.data, tbl.maxlen);
 	ret = sysctl_string(&tbl, name, nlen, oldval, oldlenp, newval, newlen);
-	if (ret == 0 && newval && newlen)
+	if (ret == 1 && newval && newlen)
 		ret = tcp_set_allowed_congestion_control(tbl.data);
 	kfree(tbl.data);
 
