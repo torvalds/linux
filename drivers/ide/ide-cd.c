@@ -46,6 +46,7 @@
 #include <linux/ide.h>
 #include <linux/completion.h>
 #include <linux/mutex.h>
+#include <linux/bcd.h>
 
 #include <scsi/scsi.h>	/* For SCSI -> ATAPI command conversion */
 
@@ -1775,25 +1776,12 @@ ide_do_rw_cdrom (ide_drive_t *drive, struct request *rq, sector_t block)
  * can also be NULL, in which case no sense information is returned.
  */
 
-static inline
-int bin2bcd (int x)
-{
-	return (x%10) | ((x/10) << 4);
-}
-
-
-static inline
-int bcd2bin (int x)
-{
-	return (x >> 4) * 10 + (x & 0x0f);
-}
-
 static
 void msf_from_bcd (struct atapi_msf *msf)
 {
-	msf->minute = bcd2bin (msf->minute);
-	msf->second = bcd2bin (msf->second);
-	msf->frame  = bcd2bin (msf->frame);
+	msf->minute = BCD2BIN(msf->minute);
+	msf->second = BCD2BIN(msf->second);
+	msf->frame  = BCD2BIN(msf->frame);
 }
 
 static inline
@@ -2020,8 +2008,8 @@ static int cdrom_read_toc(ide_drive_t *drive, struct request_sense *sense)
 		return stat;
 
 	if (info->cd_flags & IDE_CD_FLAG_TOCTRACKS_AS_BCD) {
-		toc->hdr.first_track = bcd2bin(toc->hdr.first_track);
-		toc->hdr.last_track  = bcd2bin(toc->hdr.last_track);
+		toc->hdr.first_track = BCD2BIN(toc->hdr.first_track);
+		toc->hdr.last_track  = BCD2BIN(toc->hdr.last_track);
 	}
 
 	ntracks = toc->hdr.last_track - toc->hdr.first_track + 1;
@@ -2058,8 +2046,8 @@ static int cdrom_read_toc(ide_drive_t *drive, struct request_sense *sense)
 			return stat;
 
 		if (info->cd_flags & IDE_CD_FLAG_TOCTRACKS_AS_BCD) {
-			toc->hdr.first_track = bin2bcd(CDROM_LEADOUT);
-			toc->hdr.last_track = bin2bcd(CDROM_LEADOUT);
+			toc->hdr.first_track = (u8)BIN2BCD(CDROM_LEADOUT);
+			toc->hdr.last_track = (u8)BIN2BCD(CDROM_LEADOUT);
 		} else {
 			toc->hdr.first_track = CDROM_LEADOUT;
 			toc->hdr.last_track = CDROM_LEADOUT;
@@ -2072,14 +2060,14 @@ static int cdrom_read_toc(ide_drive_t *drive, struct request_sense *sense)
 	toc->hdr.toc_length = ntohs (toc->hdr.toc_length);
 
 	if (info->cd_flags & IDE_CD_FLAG_TOCTRACKS_AS_BCD) {
-		toc->hdr.first_track = bcd2bin(toc->hdr.first_track);
-		toc->hdr.last_track  = bcd2bin(toc->hdr.last_track);
+		toc->hdr.first_track = BCD2BIN(toc->hdr.first_track);
+		toc->hdr.last_track  = BCD2BIN(toc->hdr.last_track);
 	}
 
 	for (i = 0; i <= ntracks; i++) {
 		if (info->cd_flags & IDE_CD_FLAG_TOCADDR_AS_BCD) {
 			if (info->cd_flags & IDE_CD_FLAG_TOCTRACKS_AS_BCD)
-				toc->ent[i].track = bcd2bin(toc->ent[i].track);
+				toc->ent[i].track = BCD2BIN(toc->ent[i].track);
 			msf_from_bcd(&toc->ent[i].addr.msf);
 		}
 		toc->ent[i].addr.lba = msf_to_lba (toc->ent[i].addr.msf.minute,
