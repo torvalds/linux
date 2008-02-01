@@ -1201,13 +1201,6 @@ static ide_startstop_t cdrom_pc_intr (ide_drive_t *drive)
 		if (rq->data_len == 0)
 			cdrom_end_request(drive, 1);
 		else {
-			/* Comment this out, because this always happens 
-			   right after a reset occurs, and it is annoying to 
-			   always print expected stuff.  */
-			/*
-			printk ("%s: cdrom_pc_intr: data underrun %d\n",
-				drive->name, pc->buflen);
-			*/
 			rq->cmd_flags |= REQ_FAILED;
 			cdrom_end_request(drive, 0);
 		}
