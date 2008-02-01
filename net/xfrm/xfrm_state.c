@@ -1645,7 +1645,6 @@ err:
 	xfrm_audit_state_replay(x, skb, net_seq);
 	return -EINVAL;
 }
-EXPORT_SYMBOL(xfrm_replay_check);
 
 void xfrm_replay_advance(struct xfrm_state *x, __be32 net_seq)
 {
@@ -1667,7 +1666,6 @@ void xfrm_replay_advance(struct xfrm_state *x, __be32 net_seq)
 	if (xfrm_aevent_is_on())
 		xfrm_replay_notify(x, XFRM_REPLAY_UPDATE);
 }
-EXPORT_SYMBOL(xfrm_replay_advance);
 
 static LIST_HEAD(xfrm_km_list);
 static DEFINE_RWLOCK(xfrm_km_lock);
