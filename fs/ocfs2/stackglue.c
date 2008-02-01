@@ -197,20 +197,18 @@ static void o2dlm_unlock_ast_wrapper(void *astarg, enum dlm_status status)
 	lproto->lp_unlock_ast(astarg, error);
 }
 
-int ocfs2_dlm_lock(struct ocfs2_cluster_connection *conn,
-		   int mode,
-		   union ocfs2_dlm_lksb *lksb,
-		   u32 flags,
-		   void *name,
-		   unsigned int namelen,
-		   void *astarg)
+static int o2cb_dlm_lock(struct ocfs2_cluster_connection *conn,
+			 int mode,
+			 union ocfs2_dlm_lksb *lksb,
+			 u32 flags,
+			 void *name,
+			 unsigned int namelen,
+			 void *astarg)
 {
 	enum dlm_status status;
 	int o2dlm_mode = mode_to_o2dlm(mode);
 	int o2dlm_flags = flags_to_o2dlm(flags);
 	int ret;
-
-	BUG_ON(lproto == NULL);
 
 	status = dlmlock(conn->cc_lockspace, o2dlm_mode, &lksb->lksb_o2dlm,
 			 o2dlm_flags, name, namelen,
@@ -220,16 +218,28 @@ int ocfs2_dlm_lock(struct ocfs2_cluster_connection *conn,
 	return ret;
 }
 
-int ocfs2_dlm_unlock(struct ocfs2_cluster_connection *conn,
-		     union ocfs2_dlm_lksb *lksb,
-		     u32 flags,
-		     void *astarg)
+int ocfs2_dlm_lock(struct ocfs2_cluster_connection *conn,
+		   int mode,
+		   union ocfs2_dlm_lksb *lksb,
+		   u32 flags,
+		   void *name,
+		   unsigned int namelen,
+		   void *astarg)
+{
+	BUG_ON(lproto == NULL);
+
+	return o2cb_dlm_lock(conn, mode, lksb, flags,
+			     name, namelen, astarg);
+}
+
+static int o2cb_dlm_unlock(struct ocfs2_cluster_connection *conn,
+			   union ocfs2_dlm_lksb *lksb,
+			   u32 flags,
+			   void *astarg)
 {
 	enum dlm_status status;
 	int o2dlm_flags = flags_to_o2dlm(flags);
 	int ret;
-
-	BUG_ON(lproto == NULL);
 
 	status = dlmunlock(conn->cc_lockspace, &lksb->lksb_o2dlm,
 			   o2dlm_flags, o2dlm_unlock_ast_wrapper, astarg);
@@ -237,9 +247,24 @@ int ocfs2_dlm_unlock(struct ocfs2_cluster_connection *conn,
 	return ret;
 }
 
-int ocfs2_dlm_lock_status(union ocfs2_dlm_lksb *lksb)
+int ocfs2_dlm_unlock(struct ocfs2_cluster_connection *conn,
+		     union ocfs2_dlm_lksb *lksb,
+		     u32 flags,
+		     void *astarg)
+{
+	BUG_ON(lproto == NULL);
+
+	return o2cb_dlm_unlock(conn, lksb, flags, astarg);
+}
+
+static int o2cb_dlm_lock_status(union ocfs2_dlm_lksb *lksb)
 {
 	return dlm_status_to_errno(lksb->lksb_o2dlm.status);
+}
+
+int ocfs2_dlm_lock_status(union ocfs2_dlm_lksb *lksb)
+{
+	return o2cb_dlm_lock_status(lksb);
 }
 
 /*
@@ -247,14 +272,24 @@ int ocfs2_dlm_lock_status(union ocfs2_dlm_lksb *lksb)
  * don't cast at the glue level.  The real answer is that the header
  * ordering is nigh impossible.
  */
-void *ocfs2_dlm_lvb(union ocfs2_dlm_lksb *lksb)
+static void *o2cb_dlm_lvb(union ocfs2_dlm_lksb *lksb)
 {
 	return (void *)(lksb->lksb_o2dlm.lvb);
 }
 
-void ocfs2_dlm_dump_lksb(union ocfs2_dlm_lksb *lksb)
+void *ocfs2_dlm_lvb(union ocfs2_dlm_lksb *lksb)
+{
+	return o2cb_dlm_lvb(lksb);
+}
+
+static void o2cb_dlm_dump_lksb(union ocfs2_dlm_lksb *lksb)
 {
 	dlm_print_one_lock(lksb->lksb_o2dlm.lockid);
+}
+
+void ocfs2_dlm_dump_lksb(union ocfs2_dlm_lksb *lksb)
+{
+	o2cb_dlm_dump_lksb(lksb);
 }
 
 /*
@@ -271,6 +306,62 @@ static void o2dlm_eviction_cb(int node_num, void *data)
 	conn->cc_recovery_handler(node_num, conn->cc_recovery_data);
 }
 
+static int o2cb_cluster_connect(struct ocfs2_cluster_connection *conn)
+{
+	int rc = 0;
+	u32 dlm_key;
+	struct dlm_ctxt *dlm;
+	struct o2dlm_private *priv;
+	struct dlm_protocol_version dlm_version;
+
+	BUG_ON(conn == NULL);
+
+	/* for now we only have one cluster/node, make sure we see it
+	 * in the heartbeat universe */
+	if (!o2hb_check_local_node_heartbeating()) {
+		rc = -EINVAL;
+		goto out;
+	}
+
+	priv = kzalloc(sizeof(struct o2dlm_private), GFP_KERNEL);
+	if (!priv) {
+		rc = -ENOMEM;
+		goto out_free;
+	}
+
+	/* This just fills the structure in.  It is safe to pass conn. */
+	dlm_setup_eviction_cb(&priv->op_eviction_cb, o2dlm_eviction_cb,
+			      conn);
+
+	conn->cc_private = priv;
+
+	/* used by the dlm code to make message headers unique, each
+	 * node in this domain must agree on this. */
+	dlm_key = crc32_le(0, conn->cc_name, conn->cc_namelen);
+	dlm_version.pv_major = conn->cc_version.pv_major;
+	dlm_version.pv_minor = conn->cc_version.pv_minor;
+
+	dlm = dlm_register_domain(conn->cc_name, dlm_key, &dlm_version);
+	if (IS_ERR(dlm)) {
+		rc = PTR_ERR(dlm);
+		mlog_errno(rc);
+		goto out_free;
+	}
+
+	conn->cc_version.pv_major = dlm_version.pv_major;
+	conn->cc_version.pv_minor = dlm_version.pv_minor;
+	conn->cc_lockspace = dlm;
+
+	dlm_register_eviction_cb(dlm, &priv->op_eviction_cb);
+
+out_free:
+	if (rc && conn->cc_private)
+		kfree(conn->cc_private);
+
+out:
+	return rc;
+}
+
 int ocfs2_cluster_connect(const char *group,
 			  int grouplen,
 			  void (*recovery_handler)(int node_num,
@@ -280,23 +371,12 @@ int ocfs2_cluster_connect(const char *group,
 {
 	int rc = 0;
 	struct ocfs2_cluster_connection *new_conn;
-	u32 dlm_key;
-	struct dlm_ctxt *dlm;
-	struct o2dlm_private *priv;
-	struct dlm_protocol_version dlm_version;
 
 	BUG_ON(group == NULL);
 	BUG_ON(conn == NULL);
 	BUG_ON(recovery_handler == NULL);
 
 	if (grouplen > GROUP_NAME_MAX) {
-		rc = -EINVAL;
-		goto out;
-	}
-
-	/* for now we only have one cluster/node, make sure we see it
-	 * in the heartbeat universe */
-	if (!o2hb_check_local_node_heartbeating()) {
 		rc = -EINVAL;
 		goto out;
 	}
@@ -316,62 +396,51 @@ int ocfs2_cluster_connect(const char *group,
 	/* Start the new connection at our maximum compatibility level */
 	new_conn->cc_version = lproto->lp_max_version;
 
-	priv = kzalloc(sizeof(struct o2dlm_private), GFP_KERNEL);
-	if (!priv) {
-		rc = -ENOMEM;
-		goto out_free;
-	}
-
-	/* This just fills the structure in.  It is safe to use new_conn. */
-	dlm_setup_eviction_cb(&priv->op_eviction_cb, o2dlm_eviction_cb,
-			      new_conn);
-
-	new_conn->cc_private = priv;
-
-	/* used by the dlm code to make message headers unique, each
-	 * node in this domain must agree on this. */
-	dlm_key = crc32_le(0, group, grouplen);
-	dlm_version.pv_major = new_conn->cc_version.pv_major;
-	dlm_version.pv_minor = new_conn->cc_version.pv_minor;
-
-	dlm = dlm_register_domain(group, dlm_key, &dlm_version);
-	if (IS_ERR(dlm)) {
-		rc = PTR_ERR(dlm);
+	rc = o2cb_cluster_connect(new_conn);
+	if (rc) {
 		mlog_errno(rc);
 		goto out_free;
 	}
 
-	new_conn->cc_version.pv_major = dlm_version.pv_major;
-	new_conn->cc_version.pv_minor = dlm_version.pv_minor;
-	new_conn->cc_lockspace = dlm;
-
-	dlm_register_eviction_cb(dlm, &priv->op_eviction_cb);
-
 	*conn = new_conn;
 
 out_free:
-	if (rc) {
-		kfree(new_conn->cc_private);
+	if (rc)
 		kfree(new_conn);
-	}
 
 out:
 	return rc;
 }
 
 
-int ocfs2_cluster_disconnect(struct ocfs2_cluster_connection *conn)
+static int o2cb_cluster_disconnect(struct ocfs2_cluster_connection *conn)
 {
 	struct dlm_ctxt *dlm = conn->cc_lockspace;
 	struct o2dlm_private *priv = conn->cc_private;
 
 	dlm_unregister_eviction_cb(&priv->op_eviction_cb);
-	dlm_unregister_domain(dlm);
-
+	conn->cc_private = NULL;
 	kfree(priv);
-	kfree(conn);
+
+	dlm_unregister_domain(dlm);
+	conn->cc_lockspace = NULL;
 
 	return 0;
+}
+
+int ocfs2_cluster_disconnect(struct ocfs2_cluster_connection *conn)
+{
+	int ret;
+
+	BUG_ON(conn == NULL);
+
+	ret = o2cb_cluster_disconnect(conn);
+
+	/* XXX Should we free it anyway? */
+	if (!ret)
+		kfree(conn);
+
+	return ret;
 }
 
 static void o2hb_stop(const char *group)
@@ -406,15 +475,20 @@ static void o2hb_stop(const char *group)
  *
  * Other stacks will eventually provide a NULL ->hangup() pointer.
  */
+static void o2cb_cluster_hangup(const char *group, int grouplen)
+{
+	o2hb_stop(group);
+}
+
 void ocfs2_cluster_hangup(const char *group, int grouplen)
 {
 	BUG_ON(group == NULL);
 	BUG_ON(group[grouplen] != '\0');
 
-	o2hb_stop(group);
+	o2cb_cluster_hangup(group, grouplen);
 }
 
-int ocfs2_cluster_this_node(unsigned int *node)
+static int o2cb_cluster_this_node(unsigned int *node)
 {
 	int node_num;
 
@@ -427,6 +501,11 @@ int ocfs2_cluster_this_node(unsigned int *node)
 
 	*node = node_num;
 	return 0;
+}
+
+int ocfs2_cluster_this_node(unsigned int *node)
+{
+	return o2cb_cluster_this_node(node);
 }
 
 void ocfs2_stack_glue_set_locking_protocol(struct ocfs2_locking_protocol *proto)
