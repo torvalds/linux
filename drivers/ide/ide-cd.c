@@ -1397,8 +1397,6 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	if (len > 0)
 		ide_cd_pad_transfer(drive, xferfunc, len);
 
-	BUG_ON(HWGROUP(drive)->handler != NULL);
-
 	ide_set_handler(drive, cdrom_newpc_intr, rq->timeout, NULL);
 	return ide_started;
 }
