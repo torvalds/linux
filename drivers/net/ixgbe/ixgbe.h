@@ -136,8 +136,6 @@ struct ixgbe_ring {
 	u16 head;
 	u16 tail;
 
-	/* To protect race between sender and clean_tx_irq */
-	spinlock_t tx_lock;
 
 	struct ixgbe_queue_stats stats;
 
