@@ -209,23 +209,6 @@ static void auide_set_dma_mode(ide_drive_t *drive, const u8 speed)
  */
 
 #ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
-
-static int auide_build_sglist(ide_drive_t *drive,  struct request *rq)
-{
-	ide_hwif_t *hwif = drive->hwif;
-	struct scatterlist *sg = hwif->sg_table;
-
-	ide_map_sg(drive, rq);
-
-	if (rq_data_dir(rq) == READ)
-		hwif->sg_dma_direction = DMA_FROM_DEVICE;
-	else
-		hwif->sg_dma_direction = DMA_TO_DEVICE;
-
-	return dma_map_sg(hwif->dev, sg, hwif->sg_nents,
-			  hwif->sg_dma_direction);
-}
-
 static int auide_build_dmatable(ide_drive_t *drive)
 {
 	int i, iswrite, count = 0;
@@ -240,8 +223,7 @@ static int auide_build_dmatable(ide_drive_t *drive)
 	/* Save for interrupt context */
 	ahwif->drive = drive;
 
-	/* Build sglist */
-	hwif->sg_nents = i = auide_build_sglist(drive, rq);
+	hwif->sg_nents = i = ide_build_sglist(drive, rq);
 
 	if (!i)
 		return 0;
@@ -299,10 +281,7 @@ static int auide_build_dmatable(ide_drive_t *drive)
 		return 1;
 
  use_pio_instead:
-	dma_unmap_sg(hwif->dev,
-		     hwif->sg_table,
-		     hwif->sg_nents,
-		     hwif->sg_dma_direction);
+	ide_destroy_dmatable(drive);
 
 	return 0; /* revert to PIO for this request */
 }
@@ -312,8 +291,7 @@ static int auide_dma_end(ide_drive_t *drive)
 	ide_hwif_t *hwif = HWIF(drive);
 
 	if (hwif->sg_nents) {
-		dma_unmap_sg(hwif->dev, hwif->sg_table, hwif->sg_nents,
-			     hwif->sg_dma_direction);
+		ide_destroy_dmatable(drive);
 		hwif->sg_nents = 0;
 	}
 

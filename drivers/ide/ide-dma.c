@@ -170,7 +170,6 @@ static int ide_dma_good_drive(ide_drive_t *drive)
 	return ide_in_drive_list(drive->id, drive_whitelist);
 }
 
-#ifdef CONFIG_BLK_DEV_IDEDMA_PCI
 /**
  *	ide_build_sglist	-	map IDE scatter gather for DMA I/O
  *	@drive: the drive to build the DMA table for
@@ -200,6 +199,7 @@ int ide_build_sglist(ide_drive_t *drive, struct request *rq)
 
 EXPORT_SYMBOL_GPL(ide_build_sglist);
 
+#ifdef CONFIG_BLK_DEV_IDEDMA_PCI
 /**
  *	ide_build_dmatable	-	build IDE DMA table
  *
@@ -294,6 +294,7 @@ use_pio_instead:
 }
 
 EXPORT_SYMBOL_GPL(ide_build_dmatable);
+#endif
 
 /**
  *	ide_destroy_dmatable	-	clean up DMA mapping
@@ -316,6 +317,7 @@ void ide_destroy_dmatable (ide_drive_t *drive)
 
 EXPORT_SYMBOL_GPL(ide_destroy_dmatable);
 
+#ifdef CONFIG_BLK_DEV_IDEDMA_PCI
 /**
  *	config_drive_for_dma	-	attempt to activate IDE DMA
  *	@drive: the drive to place in DMA mode
