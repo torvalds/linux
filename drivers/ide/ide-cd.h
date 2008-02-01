@@ -159,9 +159,8 @@ struct cdrom_info {
 
 /* This stuff should be in cdrom.h, since it is now generic... */
 #if VERBOSE_IDE_CD_ERRORS
-
- /* The generic packet command opcodes for CD/DVD Logical Units,
- * From Table 57 of the SFF8090 Ver. 3 (Mt. Fuji) draft standard. */ 
+/* The generic packet command opcodes for CD/DVD Logical Units,
+ * From Table 57 of the SFF8090 Ver. 3 (Mt. Fuji) draft standard. */
 static const struct {
 	unsigned short packet_command;
 	const char * const text;
@@ -187,7 +186,8 @@ static const struct {
 	{ GPCMD_GET_CONFIGURATION, "Get Configuration" },
 	{ GPCMD_PLAY_AUDIO_MSF, "Play Audio MSF" },
 	{ GPCMD_PLAYAUDIO_TI, "Play Audio TrackIndex" },
-	{ GPCMD_GET_EVENT_STATUS_NOTIFICATION, "Get Event Status Notification" },
+	{ GPCMD_GET_EVENT_STATUS_NOTIFICATION,
+		"Get Event Status Notification" },
 	{ GPCMD_PAUSE_RESUME, "Pause/Resume" },
 	{ GPCMD_STOP_PLAY_SCAN, "Stop Play/Scan" },
 	{ GPCMD_READ_DISC_INFO, "Read Disc Info" },
@@ -216,8 +216,6 @@ static const struct {
 	{ GPCMD_MECHANISM_STATUS, "Mechanism Status" },
 	{ GPCMD_READ_CD, "Read CD" },
 };
-
-
 
 /* From Table 303 of the SFF8090 Ver. 3 (Mt. Fuji) draft standard. */
 static const char * const sense_key_texts[16] = {
@@ -262,16 +260,16 @@ static const struct {
 	{ 0x011802, "Recovered data - the data was auto-reallocated" },
 	{ 0x011803, "Recovered data with CIRC" },
 	{ 0x011804, "Recovered data with L-EC" },
-	{ 0x015d00, 
-	    "Failure prediction threshold exceeded - Predicted logical unit failure" },
-	{ 0x015d01, 
-	    "Failure prediction threshold exceeded - Predicted media failure" },
+	{ 0x015d00, "Failure prediction threshold exceeded"
+		    " - Predicted logical unit failure" },
+	{ 0x015d01, "Failure prediction threshold exceeded"
+		    " - Predicted media failure" },
 	{ 0x015dff, "Failure prediction threshold exceeded - False" },
 	{ 0x017301, "Power calibration area almost full" },
 	{ 0x020400, "Logical unit not ready - cause not reportable" },
 	/* Following is misspelled in ATAPI 2.6, _and_ in Mt. Fuji */
-	{ 0x020401,
-	  "Logical unit not ready - in progress [sic] of becoming ready" },
+	{ 0x020401, "Logical unit not ready"
+		    " - in progress [sic] of becoming ready" },
 	{ 0x020402, "Logical unit not ready - initializing command required" },
 	{ 0x020403, "Logical unit not ready - manual intervention required" },
 	{ 0x020404, "Logical unit not ready - format in progress" },
@@ -310,7 +308,6 @@ static const struct {
 	{ 0x037304, "Program memory area / RMA update failure" },
 	{ 0x037305, "Program memory area / RMA is full" },
 	{ 0x037306, "Program memory area / RMA is (almost) full" },
-
 	{ 0x040200, "No seek complete" },
 	{ 0x040300, "Write fault" },
 	{ 0x040900, "Track following error" },
@@ -344,12 +341,15 @@ static const struct {
 	{ 0x055500, "System resource failure" },
 	{ 0x056300, "End of user area encountered on this track" },
 	{ 0x056400, "Illegal mode for this track or incompatible medium" },
-	{ 0x056f00, "Copy protection key exchange failure - Authentication failure" },
+	{ 0x056f00, "Copy protection key exchange failure"
+		    " - Authentication failure" },
 	{ 0x056f01, "Copy protection key exchange failure - Key not present" },
-	{ 0x056f02, "Copy protection key exchange failure - Key not established" },
+	{ 0x056f02, "Copy protection key exchange failure"
+		     " - Key not established" },
 	{ 0x056f03, "Read of scrambled sector without authentication" },
 	{ 0x056f04, "Media region code is mismatched to logical unit" },
-	{ 0x056f05,  "Drive region must be permanent / region reset count error" },
+	{ 0x056f05, "Drive region must be permanent"
+		    " / region reset count error" },
 	{ 0x057203, "Session fixation error - incomplete track in session" },
 	{ 0x057204, "Empty or partially written reserved track" },
 	{ 0x057205, "No more RZONE reservations are allowed" },
@@ -364,7 +364,6 @@ static const struct {
 	{ 0x065a00, "Operator request or state change input (unspecified)" },
 	{ 0x065a01, "Operator medium removal request" },
 	{ 0x0bb900, "Play operation aborted" },
-
 	/* Here we use 0xff for the key (not a valid key) to signify
 	 * that these can have _any_ key value associated with them... */
 	{ 0xff0401, "Logical unit is in process of becoming ready" },

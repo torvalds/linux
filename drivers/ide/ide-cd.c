@@ -205,28 +205,30 @@ void cdrom_analyze_sense_data(ide_drive_t *drive,
 		const char *s = "bad sense key!";
 		char buf[80];
 
-		printk ("ATAPI device %s:\n", drive->name);
-		if (sense->error_code==0x70)
-			printk("  Error: ");
-		else if (sense->error_code==0x71)
+		printk(KERN_ERR "ATAPI device %s:\n", drive->name);
+		if (sense->error_code == 0x70)
+			printk(KERN_CONT "  Error: ");
+		else if (sense->error_code == 0x71)
 			printk("  Deferred Error: ");
 		else if (sense->error_code == 0x7f)
-			printk("  Vendor-specific Error: ");
+			printk(KERN_CONT "  Vendor-specific Error: ");
 		else
-			printk("  Unknown Error Type: ");
+			printk(KERN_CONT "  Unknown Error Type: ");
 
 		if (sense->sense_key < ARRAY_SIZE(sense_key_texts))
 			s = sense_key_texts[sense->sense_key];
 
-		printk("%s -- (Sense key=0x%02x)\n", s, sense->sense_key);
+		printk(KERN_CONT "%s -- (Sense key=0x%02x)\n",
+				 s, sense->sense_key);
 
 		if (sense->asc == 0x40) {
 			sprintf(buf, "Diagnostic failure on component 0x%02x",
-				 sense->ascq);
+				sense->ascq);
 			s = buf;
 		} else {
 			int lo = 0, mid, hi = ARRAY_SIZE(sense_data_texts);
 			unsigned long key = (sense->sense_key << 16);
+
 			key |= (sense->asc << 8);
 			if (!(sense->ascq >= 0x80 && sense->ascq <= 0xdd))
 				key |= sense->ascq;
@@ -238,11 +240,10 @@ void cdrom_analyze_sense_data(ide_drive_t *drive,
 				    sense_data_texts[mid].asc_ascq == (0xff0000|key)) {
 					s = sense_data_texts[mid].text;
 					break;
-				}
-				else if (sense_data_texts[mid].asc_ascq > key)
+				} else if (sense_data_texts[mid].asc_ascq > key)
 					hi = mid;
 				else
-					lo = mid+1;
+					lo = mid + 1;
 			}
 		}
 
@@ -254,11 +255,10 @@ void cdrom_analyze_sense_data(ide_drive_t *drive,
 		}
 
 		printk(KERN_ERR "  %s -- (asc=0x%02x, ascq=0x%02x)\n",
-			s, sense->asc, sense->ascq);
+				s, sense->asc, sense->ascq);
 
 		if (failed_command != NULL) {
-
-			int lo=0, mid, hi= ARRAY_SIZE(packet_command_texts);
+			int lo = 0, mid, hi = ARRAY_SIZE(packet_command_texts);
 			s = NULL;
 
 			while (hi > lo) {
@@ -272,13 +272,15 @@ void cdrom_analyze_sense_data(ide_drive_t *drive,
 				    failed_command->cmd[0])
 					hi = mid;
 				else
-					lo = mid+1;
+					lo = mid + 1;
 			}
 
-			printk (KERN_ERR "  The failed \"%s\" packet command was: \n  \"", s);
-			for (i=0; i<sizeof (failed_command->cmd); i++)
-				printk ("%02x ", failed_command->cmd[i]);
-			printk ("\"\n");
+			printk(KERN_ERR "  The failed \"%s\" packet command "
+					"was: \n  \"", s);
+			for (i = 0; i < sizeof(failed_command->cmd); i++)
+				printk(KERN_CONT "%02x ",
+						 failed_command->cmd[i]);
+			printk(KERN_CONT "\"\n");
 		}
 
 		/* The SKSV bit specifies validity of the sense_key_specific
@@ -288,38 +290,37 @@ void cdrom_analyze_sense_data(ide_drive_t *drive,
 		 */
 		if (sense->sense_key == NOT_READY && (sense->sks[0] & 0x80)) {
 			int progress = (sense->sks[1] << 8 | sense->sks[2]) * 100;
-			printk(KERN_ERR "  Command is %02d%% complete\n", progress / 0xffff);
 
+			printk(KERN_ERR "  Command is %02d%% complete\n",
+					progress / 0xffff);
 		}
 
 		if (sense->sense_key == ILLEGAL_REQUEST &&
 		    (sense->sks[0] & 0x80) != 0) {
 			printk(KERN_ERR "  Error in %s byte %d",
-				(sense->sks[0] & 0x40) != 0 ?
-				"command packet" : "command data",
-				(sense->sks[1] << 8) + sense->sks[2]);
+					(sense->sks[0] & 0x40) != 0 ?
+					"command packet" : "command data",
+					(sense->sks[1] << 8) + sense->sks[2]);
 
 			if ((sense->sks[0] & 0x40) != 0)
-				printk (" bit %d", sense->sks[0] & 0x07);
+				printk(KERN_CONT " bit %d",
+						 sense->sks[0] & 0x07);
 
-			printk ("\n");
+			printk(KERN_CONT "\n");
 		}
 	}
-
 #else /* not VERBOSE_IDE_CD_ERRORS */
-
 	/* Suppress printing unit attention and `in progress of becoming ready'
 	   errors when we're not being verbose. */
-
 	if (sense->sense_key == UNIT_ATTENTION ||
 	    (sense->sense_key == NOT_READY && (sense->asc == 4 ||
 						sense->asc == 0x3a)))
 		return;
 
-	printk(KERN_ERR "%s: error code: 0x%02x  sense_key: 0x%02x  asc: 0x%02x  ascq: 0x%02x\n",
-		drive->name,
-		sense->error_code, sense->sense_key,
-		sense->asc, sense->ascq);
+	printk(KERN_ERR "%s: error code: 0x%02x  sense_key: 0x%02x  "
+			"asc: 0x%02x  ascq: 0x%02x\n",
+			drive->name, sense->error_code, sense->sense_key,
+			sense->asc, sense->ascq);
 #endif /* not VERBOSE_IDE_CD_ERRORS */
 }
 
