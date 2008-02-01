@@ -10,7 +10,7 @@
  */
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/pata_platform.h>
+#include <linux/ata_platform.h>
 #include <linux/serial_8250.h>
 #include <linux/sm501.h>
 #include <linux/sm501-regs.h>

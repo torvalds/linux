@@ -17,7 +17,7 @@
 #include <linux/ide.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
-#include <linux/pata_platform.h>
+#include <linux/ata_platform.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 
