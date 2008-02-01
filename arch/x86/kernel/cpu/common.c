@@ -258,10 +258,10 @@ static int __cpuinit have_cpuid_p(void)
 void __init cpu_detect(struct cpuinfo_x86 *c)
 {
 	/* Get vendor name */
-	cpuid(0x00000000, &c->cpuid_level,
-	      (int *)&c->x86_vendor_id[0],
-	      (int *)&c->x86_vendor_id[8],
-	      (int *)&c->x86_vendor_id[4]);
+	cpuid(0x00000000, (unsigned int *)&c->cpuid_level,
+	      (unsigned int *)&c->x86_vendor_id[0],
+	      (unsigned int *)&c->x86_vendor_id[8],
+	      (unsigned int *)&c->x86_vendor_id[4]);
 
 	c->x86 = 4;
 	if (c->cpuid_level >= 0x00000001) {
@@ -283,7 +283,7 @@ void __init cpu_detect(struct cpuinfo_x86 *c)
 static void __cpuinit early_get_cap(struct cpuinfo_x86 *c)
 {
 	u32 tfms, xlvl;
-	int ebx;
+	unsigned int ebx;
 
 	memset(&c->x86_capability, 0, sizeof c->x86_capability);
 	if (have_cpuid_p()) {
@@ -343,14 +343,14 @@ static void __init early_cpu_detect(void)
 static void __cpuinit generic_identify(struct cpuinfo_x86 * c)
 {
 	u32 tfms, xlvl;
-	int ebx;
+	unsigned int ebx;
 
 	if (have_cpuid_p()) {
 		/* Get vendor name */
-		cpuid(0x00000000, &c->cpuid_level,
-		      (int *)&c->x86_vendor_id[0],
-		      (int *)&c->x86_vendor_id[8],
-		      (int *)&c->x86_vendor_id[4]);
+		cpuid(0x00000000, (unsigned int *)&c->cpuid_level,
+		      (unsigned int *)&c->x86_vendor_id[0],
+		      (unsigned int *)&c->x86_vendor_id[8],
+		      (unsigned int *)&c->x86_vendor_id[4]);
 		
 		get_cpu_vendor(c, 0);
 		/* Initialize the standard set of capabilities */

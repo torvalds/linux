@@ -42,7 +42,7 @@ static __init int print_split(struct split_state *s)
 	s->max_exec = 0;
 	for (i = 0; i < max_pfn_mapped; ) {
 		unsigned long addr = (unsigned long)__va(i << PAGE_SHIFT);
-		int level;
+		unsigned int level;
 		pte_t *pte;
 
 		pte = lookup_address(addr, &level);
@@ -106,7 +106,7 @@ static __init int exercise_pageattr(void)
 	unsigned long *bm;
 	pte_t *pte, pte0;
 	int failed = 0;
-	int level;
+	unsigned int level;
 	int i, k;
 	int err;
 

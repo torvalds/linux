@@ -15,7 +15,7 @@
 
 #ifndef __ASSEMBLY__
 extern unsigned long find_e820_area(unsigned long start, unsigned long end, 
-				    unsigned size);
+				    unsigned size, unsigned long align);
 extern void add_memory_region(unsigned long start, unsigned long size, 
 			      int type);
 extern void setup_memory_region(void);
@@ -41,7 +41,7 @@ extern void finish_e820_parsing(void);
 extern struct e820map e820;
 extern void update_e820(void);
 
-extern void reserve_early(unsigned long start, unsigned long end);
+extern void reserve_early(unsigned long start, unsigned long end, char *name);
 extern void early_res_to_bootmem(void);
 
 #endif/*!__ASSEMBLY__*/

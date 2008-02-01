@@ -57,11 +57,10 @@ void arch_unregister_cpu(int num)
 }
 EXPORT_SYMBOL(arch_unregister_cpu);
 #else
-int arch_register_cpu(int num)
+static int __init arch_register_cpu(int num)
 {
 	return register_cpu(&per_cpu(cpu_devices, num).cpu, num);
 }
-EXPORT_SYMBOL(arch_register_cpu);
 #endif /*CONFIG_HOTPLUG_CPU*/
 
 static int __init topology_init(void)

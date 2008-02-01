@@ -1006,7 +1006,7 @@ static void __init calgary_set_split_completion_timeout(void __iomem *bbar,
 	readq(target); /* flush */
 }
 
-static void calioc2_handle_quirks(struct iommu_table *tbl, struct pci_dev *dev)
+static void __init calioc2_handle_quirks(struct iommu_table *tbl, struct pci_dev *dev)
 {
 	unsigned char busnum = dev->bus->number;
 	void __iomem *bbar = tbl->bbar;
@@ -1022,7 +1022,7 @@ static void calioc2_handle_quirks(struct iommu_table *tbl, struct pci_dev *dev)
 	writel(cpu_to_be32(val), target);
 }
 
-static void calgary_handle_quirks(struct iommu_table *tbl, struct pci_dev *dev)
+static void __init calgary_handle_quirks(struct iommu_table *tbl, struct pci_dev *dev)
 {
 	unsigned char busnum = dev->bus->number;
 

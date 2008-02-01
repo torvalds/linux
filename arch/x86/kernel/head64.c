@@ -75,7 +75,7 @@ static __init void reserve_ebda(void)
 	if (ebda_size > 64*1024)
 		ebda_size = 64*1024;
 
-	reserve_early(ebda_addr, ebda_addr + ebda_size);
+	reserve_early(ebda_addr, ebda_addr + ebda_size, "EBDA");
 }
 
 void __init x86_64_start_kernel(char * real_mode_data)
@@ -105,14 +105,14 @@ void __init x86_64_start_kernel(char * real_mode_data)
 	pda_init(0);
 	copy_bootdata(__va(real_mode_data));
 
-	reserve_early(__pa_symbol(&_text), __pa_symbol(&_end));
+	reserve_early(__pa_symbol(&_text), __pa_symbol(&_end), "TEXT DATA BSS");
 
 	/* Reserve INITRD */
 	if (boot_params.hdr.type_of_loader && boot_params.hdr.ramdisk_image) {
 		unsigned long ramdisk_image = boot_params.hdr.ramdisk_image;
 		unsigned long ramdisk_size  = boot_params.hdr.ramdisk_size;
 		unsigned long ramdisk_end   = ramdisk_image + ramdisk_size;
-		reserve_early(ramdisk_image, ramdisk_end);
+		reserve_early(ramdisk_image, ramdisk_end, "RAMDISK");
 	}
 
 	reserve_ebda();

@@ -496,7 +496,8 @@ EXPORT_SYMBOL(acpi_register_gsi);
  *  ACPI based hotplug support for CPU
  */
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
-int acpi_map_lsapic(acpi_handle handle, int *pcpu)
+
+static int __cpuinit _acpi_map_lsapic(acpi_handle handle, int *pcpu)
 {
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *obj;
@@ -551,6 +552,11 @@ int acpi_map_lsapic(acpi_handle handle, int *pcpu)
 	return 0;
 }
 
+/* wrapper to silence section mismatch warning */
+int __ref acpi_map_lsapic(acpi_handle handle, int *pcpu)
+{
+	return _acpi_map_lsapic(handle, pcpu);
+}
 EXPORT_SYMBOL(acpi_map_lsapic);
 
 int acpi_unmap_lsapic(int cpu)

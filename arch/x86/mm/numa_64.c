@@ -84,26 +84,24 @@ static int __init populate_memnodemap(const struct bootnode *nodes,
 
 static int __init allocate_cachealigned_memnodemap(void)
 {
-	unsigned long pad, pad_addr;
+	unsigned long addr;
 
 	memnodemap = memnode.embedded_map;
 	if (memnodemapsize <= ARRAY_SIZE(memnode.embedded_map))
 		return 0;
 
-	pad = L1_CACHE_BYTES - 1;
-	pad_addr = 0x8000;
-	nodemap_size = pad + sizeof(s16) * memnodemapsize;
-	nodemap_addr = find_e820_area(pad_addr, end_pfn<<PAGE_SHIFT,
-				      nodemap_size);
+	addr = 0x8000;
+	nodemap_size = round_up(sizeof(s16) * memnodemapsize, L1_CACHE_BYTES);
+	nodemap_addr = find_e820_area(addr, end_pfn<<PAGE_SHIFT,
+				      nodemap_size, L1_CACHE_BYTES);
 	if (nodemap_addr == -1UL) {
 		printk(KERN_ERR
 		       "NUMA: Unable to allocate Memory to Node hash map\n");
 		nodemap_addr = nodemap_size = 0;
 		return -1;
 	}
-	pad_addr = (nodemap_addr + pad) & ~pad;
-	memnodemap = phys_to_virt(pad_addr);
-	reserve_early(nodemap_addr, nodemap_addr + nodemap_size);
+	memnodemap = phys_to_virt(nodemap_addr);
+	reserve_early(nodemap_addr, nodemap_addr + nodemap_size, "MEMNODEMAP");
 
 	printk(KERN_DEBUG "NUMA: Allocated memnodemap from %lx - %lx\n",
 	       nodemap_addr, nodemap_addr + nodemap_size);
@@ -164,15 +162,16 @@ int early_pfn_to_nid(unsigned long pfn)
 }
 
 static void * __init early_node_mem(int nodeid, unsigned long start,
-				    unsigned long end, unsigned long size)
+				    unsigned long end, unsigned long size,
+				    unsigned long align)
 {
-	unsigned long mem = find_e820_area(start, end, size);
+	unsigned long mem = find_e820_area(start, end, size, align);
 	void *ptr;
 
 	if (mem != -1L)
 		return __va(mem);
-	ptr = __alloc_bootmem_nopanic(size,
-				SMP_CACHE_BYTES, __pa(MAX_DMA_ADDRESS));
+
+	ptr = __alloc_bootmem_nopanic(size, align, __pa(MAX_DMA_ADDRESS));
 	if (ptr == NULL) {
 		printk(KERN_ERR "Cannot find %lu bytes in node %d\n",
 		       size, nodeid);
@@ -198,7 +197,8 @@ void __init setup_node_bootmem(int nodeid, unsigned long start,
 	start_pfn = start >> PAGE_SHIFT;
 	end_pfn = end >> PAGE_SHIFT;
 
-	node_data[nodeid] = early_node_mem(nodeid, start, end, pgdat_size);
+	node_data[nodeid] = early_node_mem(nodeid, start, end, pgdat_size,
+					   SMP_CACHE_BYTES);
 	if (node_data[nodeid] == NULL)
 		return;
 	nodedata_phys = __pa(node_data[nodeid]);
@@ -211,8 +211,12 @@ void __init setup_node_bootmem(int nodeid, unsigned long start,
 	/* Find a place for the bootmem map */
 	bootmap_pages = bootmem_bootmap_pages(end_pfn - start_pfn);
 	bootmap_start = round_up(nodedata_phys + pgdat_size, PAGE_SIZE);
+	/*
+	 * SMP_CAHCE_BYTES could be enough, but init_bootmem_node like
+	 * to use that to align to PAGE_SIZE
+	 */
 	bootmap = early_node_mem(nodeid, bootmap_start, end,
-					bootmap_pages<<PAGE_SHIFT);
+				 bootmap_pages<<PAGE_SHIFT, PAGE_SIZE);
 	if (bootmap == NULL)  {
 		if (nodedata_phys < start || nodedata_phys >= end)
 			free_bootmem((unsigned long)node_data[nodeid],
