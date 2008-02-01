@@ -1005,6 +1005,8 @@ static ide_startstop_t cdrom_transfer_packet_command (ide_drive_t *drive,
  * Block read functions.
  */
 
+typedef void (xfer_func_t)(ide_drive_t *, void *, u32);
+
 /*
  * Buffer up to SECTORS_TO_TRANSFER sectors from the drive in our sector
  * buffer.  Once the first sector is added, any subsequent sectors are
@@ -1430,10 +1432,10 @@ static ide_startstop_t cdrom_start_read (ide_drive_t *drive, unsigned int block)
 /* Interrupt routine for packet command completion. */
 static ide_startstop_t cdrom_pc_intr (ide_drive_t *drive)
 {
-	int ireason, len, thislen;
 	struct request *rq = HWGROUP(drive)->rq;
+	xfer_func_t *xferfunc = NULL;
+	int stat, ireason, len, thislen, write;
 	u8 lowcyl = 0, highcyl = 0;
-	int stat;
 
 	/* Check for errors. */
 	if (cdrom_decode_status(drive, 0, &stat))
@@ -1478,44 +1480,31 @@ static ide_startstop_t cdrom_pc_intr (ide_drive_t *drive)
 
 	/* Figure out how much data to transfer. */
 	thislen = rq->data_len;
-	if (thislen > len) thislen = len;
+	if (thislen > len)
+		thislen = len;
 
-	/* The drive wants to be written to. */
 	if (ireason == 0) {
-		if (!rq->data) {
-			blk_dump_rq_flags(rq, "cdrom_pc_intr, write");
-			goto confused;
-		}
-		/* Transfer the data. */
-		HWIF(drive)->atapi_output_bytes(drive, rq->data, thislen);
-
-		/* If we haven't moved enough data to satisfy the drive,
-		   add some padding. */
-		while (len > thislen) {
-			int dum = 0;
-			HWIF(drive)->atapi_output_bytes(drive, &dum, sizeof(dum));
-			len -= sizeof(dum);
-		}
-
-		/* Keep count of how much data we've moved. */
-		rq->data += thislen;
-		rq->data_len -= thislen;
+		write = 1;
+		xferfunc = HWIF(drive)->atapi_output_bytes;
+	} else if (ireason == 2) {
+		write = 0;
+		xferfunc = HWIF(drive)->atapi_input_bytes;
 	}
 
-	/* Same drill for reading. */
-	else if (ireason == 2) {
+	if (xferfunc) {
 		if (!rq->data) {
-			blk_dump_rq_flags(rq, "cdrom_pc_intr, read");
+			blk_dump_rq_flags(rq, write ? "cdrom_pc_intr, write"
+						    : "cdrom_pc_intr, read");
 			goto confused;
 		}
 		/* Transfer the data. */
-		HWIF(drive)->atapi_input_bytes(drive, rq->data, thislen);
+		xferfunc(drive, rq->data, thislen);
 
 		/* If we haven't moved enough data to satisfy the drive,
 		   add some padding. */
 		while (len > thislen) {
 			int dum = 0;
-			HWIF(drive)->atapi_input_bytes(drive, &dum, sizeof(dum));
+			xferfunc(drive, &dum, sizeof(dum));
 			len -= sizeof(dum);
 		}
 
@@ -1523,7 +1512,7 @@ static ide_startstop_t cdrom_pc_intr (ide_drive_t *drive)
 		rq->data += thislen;
 		rq->data_len -= thislen;
 
-		if (blk_sense_request(rq))
+		if (write && blk_sense_request(rq))
 			rq->sense_len += thislen;
 	} else {
 confused:
@@ -1657,8 +1646,6 @@ static int cdrom_newpc_intr_dummy_cb(struct request *rq)
 {
 	return 1;
 }
-
-typedef void (xfer_func_t)(ide_drive_t *, void *, u32);
 
 /*
  * best way to deal with dma that is not sector aligned right now... note
