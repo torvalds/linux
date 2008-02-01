@@ -81,7 +81,7 @@ static int __init ide_scan_pcidev(struct pci_dev *dev)
  *	module ordering not traditionally ordered.
  */
 
-int __init ide_scan_pcibus(void)
+static int __init ide_scan_pcibus(void)
 {
 	struct pci_dev *dev = NULL;
 	struct pci_driver *d;
@@ -113,9 +113,4 @@ int __init ide_scan_pcibus(void)
 	return 0;
 }
 
-static int __init ide_scan_pci(void)
-{
-	return ide_scan_pcibus();
-}
-
-module_init(ide_scan_pci);
+module_init(ide_scan_pcibus);
