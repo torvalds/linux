@@ -461,7 +461,7 @@ static void ide_hwif_restore(ide_hwif_t *hwif, ide_hwif_t *tmp_hwif)
 	hwif->hwif_data			= tmp_hwif->hwif_data;
 }
 
-static void ide_remove_port_from_hwgroup(ide_hwif_t *hwif)
+void ide_remove_port_from_hwgroup(ide_hwif_t *hwif)
 {
 	ide_hwgroup_t *hwgroup = hwif->hwgroup;
 
