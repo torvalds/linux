@@ -28,13 +28,6 @@
 #endif
 
 
-/* Turning this on will disable the door-locking functionality.
-   This is apparently needed for supermount. */
-
-#ifndef NO_DOOR_LOCKING
-#define NO_DOOR_LOCKING 0
-#endif
-
 /*
  * typical timeout for packet command
  */

@@ -2855,9 +2855,6 @@ int ide_cdrom_setup (ide_drive_t *drive)
 
 	cd->cd_flags |= IDE_CD_FLAG_MEDIA_CHANGED;
 
-#if NO_DOOR_LOCKING
-	cd->cd_flags |= IDE_CD_FLAG_NO_DOORLOCK;
-#endif
 	if ((drive->id->config & 0x0060) == 0x20)
 		cd->cd_flags |= IDE_CD_FLAG_DRQ_INTERRUPT;
 	cd->cd_flags |= IDE_CD_FLAG_NO_EJECT;
