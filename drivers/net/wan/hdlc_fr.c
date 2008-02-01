@@ -42,7 +42,6 @@
 #include <linux/init.h>
 #include <linux/skbuff.h>
 #include <linux/pkt_sched.h>
-#include <linux/random.h>
 #include <linux/inetdevice.h>
 #include <linux/lapb.h>
 #include <linux/rtnetlink.h>
@@ -1120,10 +1119,9 @@ static int fr_add_pvc(struct net_device *frad, unsigned int dlci, int type)
 		return -ENOBUFS;
 	}
 
-	if (type == ARPHRD_ETHER) {
-		memcpy(dev->dev_addr, "\x00\x01", 2);
-                get_random_bytes(dev->dev_addr + 2, ETH_ALEN - 2);
-	} else {
+	if (type == ARPHRD_ETHER)
+		random_ether_addr(dev->dev_addr);
+	else {
 		*(__be16*)dev->dev_addr = htons(dlci);
 		dlci_to_q922(dev->broadcast, dlci);
 	}
