@@ -170,8 +170,6 @@
 
 #define VERSION  "pktgen v2.69: Packet Generator for packet performance testing.\n"
 
-/* The buckets are exponential in 'width' */
-#define LAT_BUCKETS_MAX 32
 #define IP_NAME_SZ 32
 #define MAX_MPLS_LABELS 16 /* This is the max label stack depth */
 #define MPLS_STACK_BOTTOM htonl(0x00000100)
