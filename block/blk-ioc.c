@@ -176,15 +176,6 @@ void copy_io_context(struct io_context **pdst, struct io_context **psrc)
 }
 EXPORT_SYMBOL(copy_io_context);
 
-void swap_io_context(struct io_context **ioc1, struct io_context **ioc2)
-{
-	struct io_context *temp;
-	temp = *ioc1;
-	*ioc1 = *ioc2;
-	*ioc2 = temp;
-}
-EXPORT_SYMBOL(swap_io_context);
-
 int __init blk_ioc_init(void)
 {
 	iocontext_cachep = kmem_cache_create("blkdev_ioc",

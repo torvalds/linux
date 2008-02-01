@@ -1268,22 +1268,8 @@ static void as_merged_requests(struct request_queue *q, struct request *req,
 	 */
 	if (!list_empty(&req->queuelist) && !list_empty(&next->queuelist)) {
 		if (time_before(rq_fifo_time(next), rq_fifo_time(req))) {
-			struct io_context *rioc = RQ_IOC(req);
-			struct io_context *nioc = RQ_IOC(next);
-
 			list_move(&req->queuelist, &next->queuelist);
 			rq_set_fifo_time(req, rq_fifo_time(next));
-			/*
-			 * Don't copy here but swap, because when anext is
-			 * removed below, it must contain the unused context
-			 */
-			if (rioc != nioc) {
-				double_spin_lock(&rioc->lock, &nioc->lock,
-								rioc < nioc);
-				swap_io_context(&rioc, &nioc);
-				double_spin_unlock(&rioc->lock, &nioc->lock,
-								rioc < nioc);
-			}
 		}
 	}
 
