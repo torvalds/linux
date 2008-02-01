@@ -64,7 +64,7 @@
 #include <net/rtnetlink.h>
 #include <net/net_namespace.h>
 
-struct ipv4_devconf ipv4_devconf = {
+static struct ipv4_devconf ipv4_devconf = {
 	.data = {
 		[NET_IPV4_CONF_ACCEPT_REDIRECTS - 1] = 1,
 		[NET_IPV4_CONF_SEND_REDIRECTS - 1] = 1,
