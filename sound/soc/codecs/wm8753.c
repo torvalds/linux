@@ -279,7 +279,7 @@ SOC_DOUBLE_R("Speaker Playback ZC Switch", WM8753_LOUT2V, WM8753_ROUT2V, 7, 1, 0
 
 SOC_SINGLE("Mono Bypass Playback Volume", WM8753_MOUTM1, 4, 7, 1),
 SOC_SINGLE("Mono Sidetone Playback Volume", WM8753_MOUTM2, 4, 7, 1),
-SOC_SINGLE("Mono Voice Playback Volume", WM8753_MOUTM2, 4, 7, 1),
+SOC_SINGLE("Mono Voice Playback Volume", WM8753_MOUTM2, 0, 7, 1),
 SOC_SINGLE("Mono Playback ZC Switch", WM8753_MOUTV, 7, 1, 0),
 
 SOC_ENUM("Bass Boost", wm8753_enum[0]),
