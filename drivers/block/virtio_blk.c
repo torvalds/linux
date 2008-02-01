@@ -9,8 +9,7 @@
 #define VIRTIO_MAX_SG	(3+MAX_PHYS_SEGMENTS)
 #define PART_BITS 4
 
-static unsigned char virtblk_index = 'a';
-static int major, minor;
+static int major, index;
 
 struct virtio_blk
 {
@@ -171,6 +170,11 @@ static struct block_device_operations virtblk_fops = {
 	.getgeo = virtblk_getgeo,
 };
 
+static int index_to_minor(int index)
+{
+	return index << PART_BITS;
+}
+
 static int virtblk_probe(struct virtio_device *vdev)
 {
 	struct virtio_blk *vblk;
@@ -178,7 +182,7 @@ static int virtblk_probe(struct virtio_device *vdev)
 	u64 cap;
 	u32 v;
 
-	if (minor >= 1 << MINORBITS)
+	if (index_to_minor(index) >= 1 << MINORBITS)
 		return -ENOSPC;
 
 	vdev->priv = vblk = kmalloc(sizeof(*vblk), GFP_KERNEL);
@@ -217,13 +221,24 @@ static int virtblk_probe(struct virtio_device *vdev)
 		goto out_put_disk;
 	}
 
-	sprintf(vblk->disk->disk_name, "vd%c", virtblk_index++);
+	if (index < 26) {
+		sprintf(vblk->disk->disk_name, "vd%c", 'a' + index % 26);
+	} else if (index < (26 + 1) * 26) {
+		sprintf(vblk->disk->disk_name, "vd%c%c",
+			'a' + index / 26 - 1, 'a' + index % 26);
+	} else {
+		const unsigned int m1 = (index / 26 - 1) / 26 - 1;
+		const unsigned int m2 = (index / 26 - 1) % 26;
+		const unsigned int m3 =  index % 26;
+		sprintf(vblk->disk->disk_name, "vd%c%c%c",
+			'a' + m1, 'a' + m2, 'a' + m3);
+	}
+
 	vblk->disk->major = major;
-	vblk->disk->first_minor = minor;
+	vblk->disk->first_minor = index_to_minor(index);
 	vblk->disk->private_data = vblk;
 	vblk->disk->fops = &virtblk_fops;
-
-	minor += 1 << PART_BITS;
+	index++;
 
 	/* If barriers are supported, tell block layer that queue is ordered */
 	if (vdev->config->feature(vdev, VIRTIO_BLK_F_BARRIER))
