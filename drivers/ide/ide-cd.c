@@ -2693,8 +2693,6 @@ int ide_cdrom_probe_capabilities (ide_drive_t *drive)
 		CDROM_CONFIG_FLAGS(drive)->cd_rw = 1;
 		CDROM_CONFIG_FLAGS(drive)->ram = 1;
 	}
-	if (cap.test_write)
-		CDROM_CONFIG_FLAGS(drive)->test_write = 1;
 	if (cap.dvd_ram_read || cap.dvd_r_read || cap.dvd_rom)
 		CDROM_CONFIG_FLAGS(drive)->dvd = 1;
 	if (cap.dvd_ram_write) {
@@ -2727,10 +2725,9 @@ int ide_cdrom_probe_capabilities (ide_drive_t *drive)
 #endif /* not STANDARD_ATAPI */
 	if (cap.mechtype == mechtype_individual_changer ||
 	    cap.mechtype == mechtype_cartridge_changer) {
-		if ((nslots = cdrom_number_of_slots(cdi)) > 1) {
+		nslots = cdrom_number_of_slots(cdi);
+		if (nslots > 1)
 			CDROM_CONFIG_FLAGS(drive)->is_changer = 1;
-			CDROM_CONFIG_FLAGS(drive)->supp_disc_present = 1;
-		}
 	}
 
 	ide_cdrom_update_speed(drive, &cap);
@@ -2892,10 +2889,7 @@ int ide_cdrom_setup (ide_drive_t *drive)
 		   Some versions of this drive like to talk BCD. */
 		CDROM_CONFIG_FLAGS(drive)->toctracks_as_bcd = 1;
 		CDROM_CONFIG_FLAGS(drive)->tocaddr_as_bcd = 1;
-		CDROM_CONFIG_FLAGS(drive)->playmsf_as_bcd = 1;
-		CDROM_CONFIG_FLAGS(drive)->subchan_as_bcd = 1;
 	}
-
 	else if (strcmp (drive->id->model, "V006E0DS") == 0 &&
 	    drive->id->fw_rev[4] == '1' &&
 	    drive->id->fw_rev[6] <= '2') {
@@ -2908,15 +2902,7 @@ int ide_cdrom_setup (ide_drive_t *drive)
 		   This drive was released before the 1.2 version
 		   of the spec. */
 		CDROM_CONFIG_FLAGS(drive)->tocaddr_as_bcd = 1;
-		CDROM_CONFIG_FLAGS(drive)->playmsf_as_bcd = 1;
-		CDROM_CONFIG_FLAGS(drive)->subchan_as_bcd = 1;
 		CDROM_CONFIG_FLAGS(drive)->nec260         = 1;
-	}
-	else if (strcmp(drive->id->model, "WEARNES CDD-120") == 0 &&
-		 strncmp(drive->id->fw_rev, "A1.1", 4) == 0) { /* FIXME */
-		/* Wearnes */
-		CDROM_CONFIG_FLAGS(drive)->playmsf_as_bcd = 1;
-		CDROM_CONFIG_FLAGS(drive)->subchan_as_bcd = 1;
 	}
 	/*
 	 * Sanyo 3 CD changer uses a non-standard command for CD changing

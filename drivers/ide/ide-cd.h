@@ -59,10 +59,8 @@ struct ide_cd_config_flags {
 	__u8 no_doorlock	: 1; /* Drive cannot lock the door. */
 	__u8 no_eject		: 1; /* Drive cannot eject the disc. */
 	__u8 nec260		: 1; /* Drive is a pre-1.2 NEC 260 drive. */
-	__u8 playmsf_as_bcd	: 1; /* PLAYMSF command takes BCD args. */
 	__u8 tocaddr_as_bcd	: 1; /* TOC addresses are in BCD. */
 	__u8 toctracks_as_bcd	: 1; /* TOC track numbers are in BCD. */
-	__u8 subchan_as_bcd	: 1; /* Subchannel info is in BCD. */
 	__u8 is_changer		: 1; /* Drive is a changer. */
 	__u8 cd_r		: 1; /* Drive can write to CD-R media . */
 	__u8 cd_rw		: 1; /* Drive can write to CD-R/W media . */
@@ -70,19 +68,14 @@ struct ide_cd_config_flags {
 	__u8 dvd_r		: 1; /* Drive can write DVD-R */
 	__u8 dvd_ram		: 1; /* Drive can write DVD-RAM */
 	__u8 ram		: 1; /* generic WRITE (dvd-ram/mrw) */
-	__u8 test_write		: 1; /* Drive can fake writes */
-	__u8 supp_disc_present	: 1; /* Changer can report exact contents
-					of slots. */
 	__u8 limit_nframes	: 1; /* Drive does not provide data in
 					multiples of SECTOR_SIZE when more
 					than one interrupt is needed. */
 	__u8 seeking		: 1; /* Seeking in progress */
 	__u8 audio_play		: 1; /* can do audio related commands */
 	__u8 close_tray		: 1; /* can close the tray */
-	__u8 writing		: 1; /* pseudo write in progress */
 	__u8 mo_drive		: 1; /* drive is an MO device */
 	__u8 no_speed_select	: 1; /* SET_CD_SPEED command is unsupported. */
-	__u8 reserved		: 1;
 	byte max_speed;		     /* Max speed of the drive */
 };
 #define CDROM_CONFIG_FLAGS(drive) (&(((struct cdrom_info *)(drive->driver_data))->config_flags))
