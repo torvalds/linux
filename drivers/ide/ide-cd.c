@@ -683,21 +683,25 @@ static void cdrom_buffer_sectors (ide_drive_t *drive, unsigned long sector,
  * ok; nonzero if the request has been terminated.
  */
 static
-int cdrom_read_check_ireason (ide_drive_t *drive, int len, int ireason)
+int ide_cd_check_ireason(ide_drive_t *drive, int len, int ireason, int rw)
 {
-	if (ireason == 2)
+	/*
+	 * ireason == 0: the drive wants to receive data from us
+	 * ireason == 2: the drive is expecting to transfer data to us
+	 */
+	if (ireason == (!rw << 1))
 		return 0;
-	else if (ireason == 0) {
+	else if (ireason == (rw << 1)) {
 		ide_hwif_t *hwif = drive->hwif;
+		xfer_func_t *xf;
 
-		/* Whoops... The drive is expecting to receive data from us! */
+		/* Whoops... */
 		printk(KERN_ERR "%s: %s: wrong transfer direction!\n",
 				drive->name, __FUNCTION__);
 
-		/* Throw some data at the drive so it doesn't hang
-		   and quit this request. */
-		ide_cd_pad_transfer(drive, hwif->atapi_output_bytes, len);
-	} else  if (ireason == 1) {
+		xf = rw ? hwif->atapi_output_bytes : hwif->atapi_input_bytes;
+		ide_cd_pad_transfer(drive, xf, len);
+	} else  if (rw == 0 && ireason == 1) {
 		/* Some drives (ASUS) seem to tell us that status
 		 * info is available. just get it and ignore.
 		 */
@@ -985,35 +989,6 @@ int ide_cd_queue_pc(ide_drive_t *drive, struct request *rq)
 }
 
 /*
- * Write handling
- */
-static int cdrom_write_check_ireason(ide_drive_t *drive, int len, int ireason)
-{
-	/* Two notes about IDE interrupt reason here - 0 means that
-	 * the drive wants to receive data from us, 2 means that
-	 * the drive is expecting to transfer data to us.
-	 */
-	if (ireason == 0)
-		return 0;
-	else if (ireason == 2) {
-		ide_hwif_t *hwif = drive->hwif;
-
-		/* Whoops... The drive wants to send data. */
-		printk(KERN_ERR "%s: %s: wrong transfer direction!\n",
-				drive->name, __FUNCTION__);
-
-		ide_cd_pad_transfer(drive, hwif->atapi_input_bytes, len);
-	} else {
-		/* Drive wants a command packet, or invalid ireason... */
-		printk(KERN_ERR "%s: %s: bad interrupt reason 0x%02x\n",
-				drive->name, __FUNCTION__, ireason);
-	}
-
-	cdrom_end_request(drive, 0);
-	return 1;
-}
-
-/*
  * Called from blk_end_request_callback() after the data of the request
  * is completed and before the request is completed.
  * By returning value '1', blk_end_request_callback() returns immediately
@@ -1108,20 +1083,11 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	/*
 	 * check which way to transfer data
 	 */
-	if ((blk_fs_request(rq) || blk_pc_request(rq)) && write) {
-		/*
-		 * write to drive
-		 */
-		if (cdrom_write_check_ireason(drive, len, ireason))
-			return ide_stopped;
-	} else if (blk_fs_request(rq) || blk_pc_request(rq)) {
-		/*
-		 * read from drive
-		 */
-		if (cdrom_read_check_ireason(drive, len, ireason))
+	if (blk_fs_request(rq) || blk_pc_request(rq)) {
+		if (ide_cd_check_ireason(drive, len, ireason, write))
 			return ide_stopped;
 
-		if (blk_fs_request(rq)) {
+		if (blk_fs_request(rq) && write == 0) {
 			int nskip;
 
 			if (ide_cd_check_transfer_size(drive, len)) {
