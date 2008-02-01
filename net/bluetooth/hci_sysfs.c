@@ -282,6 +282,7 @@ static void add_conn(struct work_struct *work)
 	int i;
 
 	flush_workqueue(btdelconn);
+
 	if (device_add(&conn->dev) < 0) {
 		BT_ERR("Failed to register connection device");
 		return;
@@ -317,7 +318,6 @@ void hci_conn_add_sysfs(struct hci_conn *conn)
 	INIT_WORK(&conn->work, add_conn);
 
 	queue_work(btaddconn, &conn->work);
-	schedule_work(&conn->work);
 }
 
 static int __match_tty(struct device *dev, void *data)
@@ -354,7 +354,6 @@ void hci_conn_del_sysfs(struct hci_conn *conn)
 	INIT_WORK(&conn->work, del_conn);
 
 	queue_work(btdelconn, &conn->work);
-	schedule_work(&conn->work);
 }
 
 int hci_register_sysfs(struct hci_dev *hdev)
@@ -408,6 +407,7 @@ int __init bt_sysfs_init(void)
 		err = -ENOMEM;
 		goto out;
 	}
+
 	btdelconn = create_singlethread_workqueue("btdelconn");
 	if (!btdelconn) {
 		err = -ENOMEM;
@@ -447,8 +447,12 @@ out:
 void bt_sysfs_cleanup(void)
 {
 	destroy_workqueue(btaddconn);
+
 	destroy_workqueue(btdelconn);
+
 	class_destroy(bt_class);
+
 	bus_unregister(&bt_bus);
+
 	platform_device_unregister(bt_platform);
 }
