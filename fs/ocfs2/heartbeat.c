@@ -30,8 +30,6 @@
 #include <linux/highmem.h>
 #include <linux/kmod.h>
 
-#include <dlm/dlmapi.h>
-
 #define MLOG_MASK_PREFIX ML_SUPER
 #include <cluster/masklog.h>
 
@@ -64,47 +62,25 @@ void ocfs2_init_node_maps(struct ocfs2_super *osb)
 	ocfs2_node_map_init(&osb->osb_recovering_orphan_dirs);
 }
 
-static void ocfs2_do_node_down(int node_num,
-			       struct ocfs2_super *osb)
+void ocfs2_do_node_down(int node_num, void *data)
 {
+	struct ocfs2_super *osb = data;
+
 	BUG_ON(osb->node_num == node_num);
 
 	mlog(0, "ocfs2: node down event for %d\n", node_num);
 
-	if (!osb->dlm) {
+	if (!osb->cconn) {
 		/*
-		 * No DLM means we're not even ready to participate yet.
-		 * We check the slots after the DLM comes up, so we will
-		 * notice the node death then.  We can safely ignore it
-		 * here.
+		 * No cluster connection means we're not even ready to
+		 * participate yet.  We check the slots after the cluster
+		 * comes up, so we will notice the node death then.  We
+		 * can safely ignore it here.
 		 */
 		return;
 	}
 
 	ocfs2_recovery_thread(osb, node_num);
-}
-
-/* Called from the dlm when it's about to evict a node. We may also
- * get a heartbeat callback later. */
-static void ocfs2_dlm_eviction_cb(int node_num,
-				  void *data)
-{
-	struct ocfs2_super *osb = (struct ocfs2_super *) data;
-	struct super_block *sb = osb->sb;
-
-	mlog(ML_NOTICE, "device (%u,%u): dlm has evicted node %d\n",
-	     MAJOR(sb->s_dev), MINOR(sb->s_dev), node_num);
-
-	ocfs2_do_node_down(node_num, osb);
-}
-
-void ocfs2_setup_hb_callbacks(struct ocfs2_super *osb)
-{
-	/* Not exactly a heartbeat callback, but leads to essentially
-	 * the same path so we set it up here. */
-	dlm_setup_eviction_cb(&osb->osb_eviction_cb,
-			      ocfs2_dlm_eviction_cb,
-			      osb);
 }
 
 void ocfs2_stop_heartbeat(struct ocfs2_super *osb)

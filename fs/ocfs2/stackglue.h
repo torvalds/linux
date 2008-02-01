@@ -32,9 +32,22 @@
  */
 #define DLM_LKF_LOCAL		0x00100000
 
+/*
+ * This shadows DLM_LOCKSPACE_LEN in fs/dlm/dlm_internal.h.  That probably
+ * wants to be in a public header.
+ */
+#define GROUP_NAME_MAX		64
+
+
 #include "dlm/dlmapi.h"
 
+struct ocfs2_protocol_version {
+	u8 pv_major;
+	u8 pv_minor;
+};
+
 struct ocfs2_locking_protocol {
+	struct ocfs2_protocol_version lp_max_version;
 	void (*lp_lock_ast)(void *astarg);
 	void (*lp_blocking_ast)(void *astarg, int level);
 	void (*lp_unlock_ast)(void *astarg, int error);
@@ -44,14 +57,32 @@ union ocfs2_dlm_lksb {
 	struct dlm_lockstatus lksb_o2dlm;
 };
 
-int ocfs2_dlm_lock(struct dlm_ctxt *dlm,
+struct ocfs2_cluster_connection {
+	char cc_name[GROUP_NAME_MAX];
+	int cc_namelen;
+	struct ocfs2_protocol_version cc_version;
+	void (*cc_recovery_handler)(int node_num, void *recovery_data);
+	void *cc_recovery_data;
+	void *cc_lockspace;
+	void *cc_private;
+};
+
+int ocfs2_cluster_connect(const char *group,
+			  int grouplen,
+			  void (*recovery_handler)(int node_num,
+						   void *recovery_data),
+			  void *recovery_data,
+			  struct ocfs2_cluster_connection **conn);
+int ocfs2_cluster_disconnect(struct ocfs2_cluster_connection *conn);
+
+int ocfs2_dlm_lock(struct ocfs2_cluster_connection *conn,
 		   int mode,
 		   union ocfs2_dlm_lksb *lksb,
 		   u32 flags,
 		   void *name,
 		   unsigned int namelen,
 		   void *astarg);
-int ocfs2_dlm_unlock(struct dlm_ctxt *dlm,
+int ocfs2_dlm_unlock(struct ocfs2_cluster_connection *conn,
 		     union ocfs2_dlm_lksb *lksb,
 		     u32 flags,
 		     void *astarg);

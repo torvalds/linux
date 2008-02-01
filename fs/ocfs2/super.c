@@ -1251,9 +1251,9 @@ static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 
 	ocfs2_sync_blockdev(sb);
 
-	/* No dlm means we've failed during mount, so skip all the
-	 * steps which depended on that to complete. */
-	if (osb->dlm) {
+	/* No cluster connection means we've failed during mount, so skip
+	 * all the steps which depended on that to complete. */
+	if (osb->cconn) {
 		tmp = ocfs2_super_lock(osb, 1);
 		if (tmp < 0) {
 			mlog_errno(tmp);
@@ -1264,12 +1264,12 @@ static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 	if (osb->slot_num != OCFS2_INVALID_SLOT)
 		ocfs2_put_slot(osb);
 
-	if (osb->dlm)
+	if (osb->cconn)
 		ocfs2_super_unlock(osb, 1);
 
 	ocfs2_release_system_inodes(osb);
 
-	if (osb->dlm)
+	if (osb->cconn)
 		ocfs2_dlm_shutdown(osb);
 
 	debugfs_remove(osb->osb_debug_root);
@@ -1341,7 +1341,6 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	sb->s_fs_info = osb;
 	sb->s_op = &ocfs2_sops;
 	sb->s_export_op = &ocfs2_export_ops;
-	osb->osb_locking_proto = ocfs2_locking_protocol;
 	sb->s_time_gran = 1;
 	sb->s_flags |= MS_NOATIME;
 	/* this is needed to support O_LARGEFILE */
@@ -1390,8 +1389,6 @@ static int ocfs2_initialize_super(struct super_block *sb,
 
 	osb->local_alloc_state = OCFS2_LA_UNUSED;
 	osb->local_alloc_bh = NULL;
-
-	ocfs2_setup_hb_callbacks(osb);
 
 	init_waitqueue_head(&osb->osb_mount_event);
 
