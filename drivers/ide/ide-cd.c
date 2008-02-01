@@ -2865,30 +2865,16 @@ int ide_cdrom_setup (ide_drive_t *drive)
 	drive->special.all	= 0;
 
 	CDROM_STATE_FLAGS(drive)->media_changed = 1;
-	CDROM_STATE_FLAGS(drive)->toc_valid     = 0;
-	CDROM_STATE_FLAGS(drive)->door_locked   = 0;
 
 #if NO_DOOR_LOCKING
 	CDROM_CONFIG_FLAGS(drive)->no_doorlock = 1;
-#else
-	CDROM_CONFIG_FLAGS(drive)->no_doorlock = 0;
 #endif
-
-	CDROM_CONFIG_FLAGS(drive)->drq_interrupt = ((drive->id->config & 0x0060) == 0x20);
-	CDROM_CONFIG_FLAGS(drive)->is_changer = 0;
-	CDROM_CONFIG_FLAGS(drive)->cd_r = 0;
-	CDROM_CONFIG_FLAGS(drive)->cd_rw = 0;
-	CDROM_CONFIG_FLAGS(drive)->test_write = 0;
-	CDROM_CONFIG_FLAGS(drive)->dvd = 0;
-	CDROM_CONFIG_FLAGS(drive)->dvd_r = 0;
-	CDROM_CONFIG_FLAGS(drive)->dvd_ram = 0;
+	if ((drive->id->config & 0x0060) == 0x20)
+		CDROM_CONFIG_FLAGS(drive)->drq_interrupt = 1;
 	CDROM_CONFIG_FLAGS(drive)->no_eject = 1;
-	CDROM_CONFIG_FLAGS(drive)->supp_disc_present = 0;
-	CDROM_CONFIG_FLAGS(drive)->audio_play = 0;
 	CDROM_CONFIG_FLAGS(drive)->close_tray = 1;
-	
+
 	/* limit transfer size per interrupt. */
-	CDROM_CONFIG_FLAGS(drive)->limit_nframes = 0;
 	/* a testament to the nice quality of Samsung drives... */
 	if (!strcmp(drive->id->model, "SAMSUNG CD-ROM SCR-2430"))
 		CDROM_CONFIG_FLAGS(drive)->limit_nframes = 1;
@@ -2899,16 +2885,6 @@ int ide_cdrom_setup (ide_drive_t *drive)
 		CDROM_CONFIG_FLAGS(drive)->no_speed_select = 1;
 
 #if ! STANDARD_ATAPI
-	/* by default Sanyo 3 CD changer support is turned off and
-           ATAPI Rev 2.2+ standard support for CD changers is used */
-	cdi->sanyo_slot = 0;
-
-	CDROM_CONFIG_FLAGS(drive)->nec260 = 0;
-	CDROM_CONFIG_FLAGS(drive)->toctracks_as_bcd = 0;
-	CDROM_CONFIG_FLAGS(drive)->tocaddr_as_bcd = 0;
-	CDROM_CONFIG_FLAGS(drive)->playmsf_as_bcd = 0;
-	CDROM_CONFIG_FLAGS(drive)->subchan_as_bcd = 0;
-
 	if (strcmp (drive->id->model, "V003S0DS") == 0 &&
 	    drive->id->fw_rev[4] == '1' &&
 	    drive->id->fw_rev[6] <= '2') {
@@ -2942,8 +2918,10 @@ int ide_cdrom_setup (ide_drive_t *drive)
 		CDROM_CONFIG_FLAGS(drive)->playmsf_as_bcd = 1;
 		CDROM_CONFIG_FLAGS(drive)->subchan_as_bcd = 1;
 	}
-        /* Sanyo 3 CD changer uses a non-standard command
-           for CD changing */
+	/*
+	 * Sanyo 3 CD changer uses a non-standard command for CD changing
+	 * (by default standard ATAPI support for CD changers is used).
+	 */
         else if ((strcmp(drive->id->model, "CD-ROM CDR-C3 G") == 0) ||
                  (strcmp(drive->id->model, "CD-ROM CDR-C3G") == 0) ||
                  (strcmp(drive->id->model, "CD-ROM CDR_C36") == 0)) {
@@ -2951,14 +2929,6 @@ int ide_cdrom_setup (ide_drive_t *drive)
                  cdi->sanyo_slot = 3;
         }
 #endif /* not STANDARD_ATAPI */
-
-	info->toc		= NULL;
-	info->buffer		= NULL;
-	info->sector_buffered	= 0;
-	info->nsectors_buffered	= 0;
-	info->changer_info      = NULL;
-	info->last_block	= 0;
-	info->start_seek	= 0;
 
 	nslots = ide_cdrom_probe_capabilities (drive);
 
