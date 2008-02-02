@@ -401,20 +401,20 @@ static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev,
 	return hwif;
 }
 
+#ifdef CONFIG_BLK_DEV_IDEDMA_PCI
 /**
  *	ide_hwif_setup_dma	-	configure DMA interface
- *	@dev: PCI device
- *	@d: IDE port info
  *	@hwif: IDE interface
+ *	@d: IDE port info
  *
  *	Set up the DMA base for the interface. Enable the master bits as
  *	necessary and attempt to bring the device DMA into a ready to use
  *	state
  */
 
-static void ide_hwif_setup_dma(struct pci_dev *dev, const struct ide_port_info *d, ide_hwif_t *hwif)
+void ide_hwif_setup_dma(ide_hwif_t *hwif, const struct ide_port_info *d)
 {
-#ifdef CONFIG_BLK_DEV_IDEDMA_PCI
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	u16 pcicmd;
 
 	pci_read_config_word(dev, PCI_COMMAND, &pcicmd);
@@ -446,8 +446,8 @@ static void ide_hwif_setup_dma(struct pci_dev *dev, const struct ide_port_info *
 				"(BIOS)\n", hwif->name, d->name);
 		}
 	}
-#endif /* CONFIG_BLK_DEV_IDEDMA_PCI*/
 }
+#endif /* CONFIG_BLK_DEV_IDEDMA_PCI */
 
 /**
  *	ide_setup_pci_controller	-	set up IDE PCI
@@ -509,7 +509,7 @@ out:
 void ide_pci_setup_ports(struct pci_dev *dev, const struct ide_port_info *d, int pciirq, u8 *idx)
 {
 	int channels = (d->host_flags & IDE_HFLAG_SINGLE) ? 1 : 2, port;
-	ide_hwif_t *hwif, *mate = NULL;
+	ide_hwif_t *hwif;
 	u8 tmp;
 
 	/*
@@ -530,71 +530,6 @@ void ide_pci_setup_ports(struct pci_dev *dev, const struct ide_port_info *d, int
 			continue;
 
 		*(idx + port) = hwif->index;
-	}
-
-	for (port = 0; port < channels; ++port) {
-		if (*(idx + port) == 0xff)
-			continue;
-
-		hwif = &ide_hwifs[*(idx + port)];
-
-		if (mate) {
-			hwif->mate = mate;
-			mate->mate = hwif;
-		}
-
-		hwif->channel = port;
-
-		if (d->init_iops)
-			d->init_iops(hwif);
-
-		if ((d->host_flags & IDE_HFLAG_NO_DMA) == 0)
-			ide_hwif_setup_dma(dev, d, hwif);
-
-		if ((!hwif->irq && (d->host_flags & IDE_HFLAG_LEGACY_IRQS)) ||
-		    (d->host_flags & IDE_HFLAG_FORCE_LEGACY_IRQS))
-			hwif->irq = port ? 15 : 14;
-
-		hwif->host_flags = d->host_flags;
-		hwif->pio_mask = d->pio_mask;
-
-		if ((d->host_flags & IDE_HFLAG_SERIALIZE) && hwif->mate)
-			hwif->mate->serialized = hwif->serialized = 1;
-
-		if (d->host_flags & IDE_HFLAG_IO_32BIT) {
-			hwif->drives[0].io_32bit = 1;
-			hwif->drives[1].io_32bit = 1;
-		}
-
-		if (d->host_flags & IDE_HFLAG_UNMASK_IRQS) {
-			hwif->drives[0].unmask = 1;
-			hwif->drives[1].unmask = 1;
-		}
-
-		hwif->swdma_mask = d->swdma_mask;
-		hwif->mwdma_mask = d->mwdma_mask;
-		hwif->ultra_mask = d->udma_mask;
-
-		if ((d->host_flags && IDE_HFLAG_NO_DMA) == 0 &&
-		    hwif->dma_base == 0) {
-			hwif->swdma_mask = 0;
-			hwif->mwdma_mask = 0;
-			hwif->ultra_mask = 0;
-		}
-
-		hwif->drives[0].autotune = 1;
-		hwif->drives[1].autotune = 1;
-
-		if (d->host_flags & IDE_HFLAG_RQSIZE_256)
-			hwif->rqsize = 256;
-
-		if (d->init_hwif)
-			/* Call chipset-specific routine
-			 * for each enabled hwif
-			 */
-			d->init_hwif(hwif);
-
-		mate = hwif;
 	}
 }
 
@@ -676,7 +611,7 @@ int ide_setup_pci_device(struct pci_dev *dev, const struct ide_port_info *d)
 	ret = do_ide_setup_pci_device(dev, d, &idx[0], 1);
 
 	if (ret >= 0)
-		ide_device_add(idx);
+		ide_device_add(idx, d);
 
 	return ret;
 }
@@ -700,7 +635,7 @@ int ide_setup_pci_devices(struct pci_dev *dev1, struct pci_dev *dev2,
 			goto out;
 	}
 
-	ide_device_add(idx);
+	ide_device_add(idx, d);
 out:
 	return ret;
 }

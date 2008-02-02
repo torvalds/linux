@@ -186,7 +186,7 @@ found:
 	    release_mem_region(res_start, res_n);
     }
 
-    ide_device_add(idx);
+    ide_device_add(idx, NULL);
 
     return 0;
 }

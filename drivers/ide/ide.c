@@ -728,7 +728,7 @@ found:
 
 	idx[0] = index;
 
-	ide_device_add(idx);
+	ide_device_add(idx, NULL);
 
 	if (hwifp)
 		*hwifp = hwif;

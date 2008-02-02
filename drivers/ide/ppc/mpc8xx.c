@@ -848,7 +848,7 @@ static int __init mpc8xx_ide_probe(void)
 #endif
 #endif
 
-	ide_device_add(idx);
+	ide_device_add(idx, NULL);
 
 	return 0;
 }

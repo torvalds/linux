@@ -308,15 +308,10 @@ static int __init qd_testreg(int port)
 static void __init qd_setup(ide_hwif_t *hwif, int base, int config,
 			    unsigned int data0, unsigned int data1)
 {
-	hwif->chipset = ide_qd65xx;
-	hwif->channel = hwif->index;
 	hwif->select_data = base;
 	hwif->config_data = config;
 	hwif->drives[0].drive_data = data0;
 	hwif->drives[1].drive_data = data1;
-	hwif->drives[0].io_32bit =
-	hwif->drives[1].io_32bit = 1;
-	hwif->pio_mask = ATA_PIO4;
 }
 
 /*
@@ -355,6 +350,14 @@ static void __exit qd_unsetup(ide_hwif_t *hwif)
 	}
 }
 */
+
+static const struct ide_port_info qd65xx_port_info __initdata = {
+	.chipset		= ide_qd65xx,
+	.host_flags		= IDE_HFLAG_IO_32BIT |
+				  IDE_HFLAG_NO_DMA |
+				  IDE_HFLAG_NO_AUTOTUNE,
+	.pio_mask		= ATA_PIO4,
+};
 
 /*
  * qd_probe:
@@ -397,9 +400,9 @@ static int __init qd_probe(int base)
 
 		hwif->set_pio_mode = &qd6500_set_pio_mode;
 
-		idx[0] = unit;
+		idx[unit] = unit;
 
-		ide_device_add(idx);
+		ide_device_add(idx, &qd65xx_port_info);
 
 		return 1;
 	}
@@ -431,9 +434,9 @@ static int __init qd_probe(int base)
 
 			hwif->set_pio_mode = &qd6580_set_pio_mode;
 
-			idx[0] = unit;
+			idx[unit] = unit;
 
-			ide_device_add(idx);
+			ide_device_add(idx, &qd65xx_port_info);
 
 			outb(QD_DEF_CONTR, QD_CONTROL_PORT);
 
@@ -460,7 +463,7 @@ static int __init qd_probe(int base)
 			idx[0] = 0;
 			idx[1] = 1;
 
-			ide_device_add(idx);
+			ide_device_add(idx, &qd65xx_port_info);
 
 			outb(QD_DEF_CONTR, QD_CONTROL_PORT);
 

@@ -377,9 +377,6 @@ static void icside_dma_lost_irq(ide_drive_t *drive)
 
 static void icside_dma_init(ide_hwif_t *hwif)
 {
-	hwif->mwdma_mask	= 7; /* MW0..2 */
-	hwif->swdma_mask	= 7; /* SW0..2 */
-
 	hwif->dmatable_cpu	= NULL;
 	hwif->dmatable_dma	= 0;
 	hwif->set_dma_mode	= icside_set_dma_mode;
@@ -459,10 +456,18 @@ icside_register_v5(struct icside_state *state, struct expansion_card *ec)
 
 	idx[0] = hwif->index;
 
-	ide_device_add(idx);
+	ide_device_add(idx, NULL);
 
 	return 0;
 }
+
+static const struct ide_port_info icside_v6_port_info __initdata = {
+	.host_flags		= IDE_HFLAG_SERIALIZE |
+				  IDE_HFLAG_NO_DMA | /* no SFF-style DMA */
+				  IDE_HFLAG_NO_AUTOTUNE,
+	.mwdma_mask		= ATA_MWDMA2,
+	.swdma_mask		= ATA_SWDMA2,
+};
 
 static int __init
 icside_register_v6(struct icside_state *state, struct expansion_card *ec)
@@ -472,6 +477,7 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 	unsigned int sel = 0;
 	int ret;
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
+	struct ide_port_info d = icside_v6_port_info;
 
 	ioc_base = ecardm_iomap(ec, ECARD_RES_IOCFAST, 0, 0);
 	if (!ioc_base) {
@@ -521,30 +527,25 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 	state->hwif[1]    = mate;
 
 	hwif->maskproc    = icside_maskproc;
-	hwif->channel     = 0;
 	hwif->hwif_data   = state;
-	hwif->mate        = mate;
-	hwif->serialized  = 1;
 	hwif->config_data = (unsigned long)ioc_base;
 	hwif->select_data = sel;
 
 	mate->maskproc    = icside_maskproc;
-	mate->channel     = 1;
 	mate->hwif_data   = state;
-	mate->mate        = hwif;
-	mate->serialized  = 1;
 	mate->config_data = (unsigned long)ioc_base;
 	mate->select_data = sel | 1;
 
 	if (ec->dma != NO_DMA && !request_dma(ec->dma, hwif->name)) {
 		icside_dma_init(hwif);
 		icside_dma_init(mate);
-	}
+	} else
+		d.mwdma_mask = d.swdma_mask = 0;
 
 	idx[0] = hwif->index;
 	idx[1] = mate->index;
 
-	ide_device_add(idx);
+	ide_device_add(idx, &d);
 
 	return 0;
 

@@ -108,7 +108,7 @@ static int __devinit plat_ide_probe(struct platform_device *pdev)
 
 	idx[0] = hwif->index;
 
-	ide_device_add(idx);
+	ide_device_add(idx, NULL);
 
 	platform_set_drvdata(pdev, hwif);
 

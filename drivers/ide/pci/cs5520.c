@@ -180,7 +180,7 @@ static int __devinit cs5520_init_one(struct pci_dev *dev, const struct pci_devic
 
 	ide_pci_setup_ports(dev, d, 14, &idx[0]);
 
-	ide_device_add(idx);
+	ide_device_add(idx, d);
 
 	return 0;
 }

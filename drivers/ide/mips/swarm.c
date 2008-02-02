@@ -129,7 +129,7 @@ static int __devinit swarm_ide_probe(struct device *dev)
 
 	idx[0] = hwif->index;
 
-	ide_device_add(idx);
+	ide_device_add(idx, NULL);
 
 	dev_set_drvdata(dev, hwif);
 

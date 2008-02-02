@@ -125,7 +125,7 @@ static int __init macide_init(void)
 
 		hwif->mmio = 1;
 
-		ide_device_add(idx);
+		ide_device_add(idx, NULL);
 	}
 
 	return 0;

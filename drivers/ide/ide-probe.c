@@ -1289,10 +1289,84 @@ static void hwif_register_devices(ide_hwif_t *hwif)
 	}
 }
 
-int ide_device_add_all(u8 *idx)
+static void ide_init_port(ide_hwif_t *hwif, unsigned int port,
+			  const struct ide_port_info *d)
 {
-	ide_hwif_t *hwif;
+	if (d->chipset != ide_etrax100)
+		hwif->channel = port;
+
+	if (d->chipset)
+		hwif->chipset = d->chipset;
+
+	if (d->init_iops)
+		d->init_iops(hwif);
+
+	if ((d->host_flags & IDE_HFLAG_NO_DMA) == 0)
+		ide_hwif_setup_dma(hwif, d);
+
+	if ((!hwif->irq && (d->host_flags & IDE_HFLAG_LEGACY_IRQS)) ||
+	    (d->host_flags & IDE_HFLAG_FORCE_LEGACY_IRQS))
+		hwif->irq = port ? 15 : 14;
+
+	hwif->host_flags = d->host_flags;
+	hwif->pio_mask = d->pio_mask;
+
+	if ((d->host_flags & IDE_HFLAG_SERIALIZE) && hwif->mate)
+		hwif->mate->serialized = hwif->serialized = 1;
+
+	if (d->host_flags & IDE_HFLAG_IO_32BIT) {
+		hwif->drives[0].io_32bit = 1;
+		hwif->drives[1].io_32bit = 1;
+	}
+
+	if (d->host_flags & IDE_HFLAG_UNMASK_IRQS) {
+		hwif->drives[0].unmask = 1;
+		hwif->drives[1].unmask = 1;
+	}
+
+	hwif->swdma_mask = d->swdma_mask;
+	hwif->mwdma_mask = d->mwdma_mask;
+	hwif->ultra_mask = d->udma_mask;
+
+	/* reset DMA masks only for SFF-style DMA controllers */
+	if ((d->host_flags && IDE_HFLAG_NO_DMA) == 0 && hwif->dma_base == 0)
+		hwif->swdma_mask = hwif->mwdma_mask = hwif->ultra_mask = 0;
+
+	if ((d->host_flags & IDE_HFLAG_NO_AUTOTUNE) == 0) {
+		hwif->drives[0].autotune = 1;
+		hwif->drives[1].autotune = 1;
+	}
+
+	if (d->host_flags & IDE_HFLAG_RQSIZE_256)
+		hwif->rqsize = 256;
+
+	/* call chipset specific routine for each enabled port */
+	if (d->init_hwif)
+		d->init_hwif(hwif);
+}
+
+int ide_device_add_all(u8 *idx, const struct ide_port_info *d)
+{
+	ide_hwif_t *hwif, *mate = NULL;
 	int i, rc = 0;
+
+	for (i = 0; i < MAX_HWIFS; i++) {
+		if (d == NULL || idx[i] == 0xff) {
+			mate = NULL;
+			continue;
+		}
+
+		hwif = &ide_hwifs[idx[i]];
+
+		if (d->chipset != ide_etrax100 && (i & 1) && mate) {
+			hwif->mate = mate;
+			mate->mate = hwif;
+		}
+
+		mate = (i & 1) ? NULL : hwif;
+
+		ide_init_port(hwif, i & 1, d);
+	}
 
 	for (i = 0; i < MAX_HWIFS; i++) {
 		if (idx[i] == 0xff)
@@ -1362,7 +1436,7 @@ int ide_device_add_all(u8 *idx)
 }
 EXPORT_SYMBOL_GPL(ide_device_add_all);
 
-int ide_device_add(u8 idx[4])
+int ide_device_add(u8 idx[4], const struct ide_port_info *d)
 {
 	u8 idx_all[MAX_HWIFS];
 	int i;
@@ -1370,6 +1444,6 @@ int ide_device_add(u8 idx[4])
 	for (i = 0; i < MAX_HWIFS; i++)
 		idx_all[i] = (i < 4) ? idx[i] : 0xff;
 
-	return ide_device_add_all(idx_all);
+	return ide_device_add_all(idx_all, d);
 }
 EXPORT_SYMBOL_GPL(ide_device_add);

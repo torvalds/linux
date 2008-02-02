@@ -305,6 +305,15 @@ int probe_ht6560b = 0;
 module_param_named(probe, probe_ht6560b, bool, 0);
 MODULE_PARM_DESC(probe, "probe for HT6560B chipset");
 
+static const struct ide_port_info ht6560b_port_info __initdata = {
+	.chipset		= ide_ht6560b,
+	.host_flags		= IDE_HFLAG_SERIALIZE | /* is this needed? */
+				  IDE_HFLAG_NO_DMA |
+				  IDE_HFLAG_NO_AUTOTUNE |
+				  IDE_HFLAG_ABUSE_PREFETCH,
+	.pio_mask		= ATA_PIO5,
+};
+
 static int __init ht6560b_init(void)
 {
 	ide_hwif_t *hwif, *mate;
@@ -328,22 +337,11 @@ static int __init ht6560b_init(void)
 		goto release_region;
 	}
 
-	hwif->chipset = ide_ht6560b;
 	hwif->selectproc = &ht6560b_selectproc;
-	hwif->host_flags = IDE_HFLAG_ABUSE_PREFETCH;
-	hwif->pio_mask = ATA_PIO5;
 	hwif->set_pio_mode = &ht6560b_set_pio_mode;
-	hwif->serialized = 1;	/* is this needed? */
-	hwif->mate = mate;
 
-	mate->chipset = ide_ht6560b;
 	mate->selectproc = &ht6560b_selectproc;
-	mate->host_flags = IDE_HFLAG_ABUSE_PREFETCH;
-	mate->pio_mask = ATA_PIO5;
 	mate->set_pio_mode = &ht6560b_set_pio_mode;
-	mate->serialized = 1;	/* is this needed? */
-	mate->mate = hwif;
-	mate->channel = 1;
 
 	/*
 	 * Setting default configurations for drives
@@ -357,7 +355,7 @@ static int __init ht6560b_init(void)
 	mate->drives[0].drive_data = t;
 	mate->drives[1].drive_data = t;
 
-	ide_device_add(idx);
+	ide_device_add(idx, &ht6560b_port_info);
 
 	return 0;
 

@@ -1016,6 +1016,13 @@ extern int __ide_pci_register_driver(struct pci_driver *driver, struct module *o
 void ide_pci_setup_ports(struct pci_dev *, const struct ide_port_info *, int, u8 *);
 void ide_setup_pci_noise(struct pci_dev *, const struct ide_port_info *);
 
+#ifdef CONFIG_BLK_DEV_IDEDMA_PCI
+void ide_hwif_setup_dma(ide_hwif_t *, const struct ide_port_info *);
+#else
+static inline void ide_hwif_setup_dma(ide_hwif_t *hwif,
+				      const struct ide_port_info *d) { }
+#endif
+
 extern void default_hwif_iops(ide_hwif_t *);
 extern void default_hwif_mmiops(ide_hwif_t *);
 extern void default_hwif_transport(ide_hwif_t *);
@@ -1089,6 +1096,8 @@ enum {
 	IDE_HFLAG_CLEAR_SIMPLEX		= (1 << 28),
 	/* DSC overlap is unsupported */
 	IDE_HFLAG_NO_DSC		= (1 << 29),
+	/* don't autotune PIO */
+	IDE_HFLAG_NO_AUTOTUNE		= (1 << 30),
 };
 
 #ifdef CONFIG_BLK_DEV_OFFBOARD
@@ -1201,8 +1210,8 @@ void ide_unregister_region(struct gendisk *);
 
 void ide_undecoded_slave(ide_drive_t *);
 
-int ide_device_add_all(u8 *idx);
-int ide_device_add(u8 idx[4]);
+int ide_device_add_all(u8 *idx, const struct ide_port_info *);
+int ide_device_add(u8 idx[4], const struct ide_port_info *);
 
 static inline void *ide_get_hwifdata (ide_hwif_t * hwif)
 {
