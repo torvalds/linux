@@ -558,10 +558,15 @@ void ide_pci_setup_ports(struct pci_dev *dev, const struct ide_port_info *d, int
 			hwif->drives[1].unmask = 1;
 		}
 
-		if (hwif->dma_base) {
-			hwif->swdma_mask = d->swdma_mask;
-			hwif->mwdma_mask = d->mwdma_mask;
-			hwif->ultra_mask = d->udma_mask;
+		hwif->swdma_mask = d->swdma_mask;
+		hwif->mwdma_mask = d->mwdma_mask;
+		hwif->ultra_mask = d->udma_mask;
+
+		if ((d->host_flags && IDE_HFLAG_NO_DMA) == 0 &&
+		    hwif->dma_base == 0) {
+			hwif->swdma_mask = 0;
+			hwif->mwdma_mask = 0;
+			hwif->ultra_mask = 0;
 		}
 
 		hwif->drives[0].autotune = 1;
