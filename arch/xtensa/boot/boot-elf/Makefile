@@ -21,7 +21,7 @@ boot-y		:= bootstrap.o
 OBJS		:= $(addprefix $(obj)/,$(boot-y))
 
 Image:	vmlinux $(OBJS) arch/$(ARCH)/boot/boot-elf/boot.lds
-	$(OBJCOPY) --strip-all -R .comment -R .xt.insn -O binary \
+	$(OBJCOPY) --strip-all -R .comment -R .note.gnu.build-id -O binary \
 		vmlinux vmlinux.tmp
 	$(OBJCOPY) $(OBJCOPY_ARGS) -R .comment \
 		--add-section image=vmlinux.tmp \
@@ -33,7 +33,7 @@ Image:	vmlinux $(OBJS) arch/$(ARCH)/boot/boot-elf/boot.lds
 	rm -f $@.tmp vmlinux.tmp
 
 Image.initrd:	vmlinux $(OBJS)
-	$(OBJCOPY) --strip-all -R .comment -R .xt.insn -O binary \
+	$(OBJCOPY) --strip-all -R .comment -R .note.gnu.build-id -O binary \
 		--add-section .initrd=arch/$(ARCH)/boot/ramdisk \
 		--set-section-flags .initrd=contents,alloc,load,load,data \
 		vmlinux vmlinux.tmp
