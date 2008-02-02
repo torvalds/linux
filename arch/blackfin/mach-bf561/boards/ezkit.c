@@ -133,6 +133,27 @@ static struct platform_device isp1362_hcd_device = {
 };
 #endif
 
+#if defined(CONFIG_USB_NET2272) || defined(CONFIG_USB_NET2272_MODULE)
+static struct resource net2272_bfin_resources[] = {
+	{
+		.start = 0x2C000000,
+		.end = 0x2C000000 + 0x7F,
+		.flags = IORESOURCE_MEM,
+	}, {
+		.start = IRQ_PF10,
+		.end = IRQ_PF10,
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
+	},
+};
+
+static struct platform_device net2272_bfin_device = {
+	.name = "net2272",
+	.id = -1,
+	.num_resources = ARRAY_SIZE(net2272_bfin_resources),
+	.resource = net2272_bfin_resources,
+};
+#endif
+
 /*
  *  USB-LAN EzExtender board
  *  Driver needs to know address, irq and flag pin.
@@ -379,6 +400,10 @@ static struct platform_device *ezkit_devices[] __initdata = {
 
 #if defined(CONFIG_AX88180) || defined(CONFIG_AX88180_MODULE)
 	&ax88180_device,
+#endif
+
+#if defined(CONFIG_USB_NET2272) || defined(CONFIG_USB_NET2272_MODULE)
+	&net2272_bfin_device,
 #endif
 
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
