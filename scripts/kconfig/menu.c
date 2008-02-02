@@ -203,12 +203,9 @@ void sym_check_prop(struct symbol *sym)
 				prop_warn(prop,
 				    "config symbol '%s' uses select, but is "
 				    "not boolean or tristate", sym->name);
-			else if (sym2->type == S_UNKNOWN)
-				prop_warn(prop,
-				    "'select' used by config symbol '%s' "
-				    "refers to undefined symbol '%s'",
-				    sym->name, sym2->name);
-			else if (sym2->type != S_BOOLEAN && sym2->type != S_TRISTATE)
+			else if (sym2->type != S_UNKNOWN &&
+			         sym2->type != S_BOOLEAN &&
+			         sym2->type != S_TRISTATE)
 				prop_warn(prop,
 				    "'%s' has wrong type. 'select' only "
 				    "accept arguments of boolean and "
