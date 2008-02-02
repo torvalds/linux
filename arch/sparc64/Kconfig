@@ -8,6 +8,7 @@ mainmenu "Linux/UltraSPARC Kernel Configuration"
 config SPARC
 	bool
 	default y
+	select HAVE_OPROFILE
 
 config SPARC64
 	bool
