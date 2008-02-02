@@ -494,7 +494,6 @@ int ide_acpi_exec_tfs(ide_drive_t *drive)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(ide_acpi_exec_tfs);
 
 /**
  * ide_acpi_get_timing - get the channel (controller) timings
@@ -580,7 +579,6 @@ void ide_acpi_get_timing(ide_hwif_t *hwif)
 
 	kfree(output.pointer);
 }
-EXPORT_SYMBOL_GPL(ide_acpi_get_timing);
 
 /**
  * ide_acpi_push_timing - set the channel (controller) timings
@@ -634,7 +632,6 @@ void ide_acpi_push_timing(ide_hwif_t *hwif)
 	}
 	DEBPRINT("_STM status: %d\n", status);
 }
-EXPORT_SYMBOL_GPL(ide_acpi_push_timing);
 
 /**
  * ide_acpi_set_state - set the channel power state
@@ -762,4 +759,3 @@ void ide_acpi_init(ide_hwif_t *hwif)
 		}
 	}
 }
-EXPORT_SYMBOL_GPL(ide_acpi_init);
