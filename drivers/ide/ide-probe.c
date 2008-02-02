@@ -1200,8 +1200,6 @@ static void init_gendisk (ide_hwif_t *hwif)
 		drive->gendev.driver_data = drive;
 		drive->gendev.release = drive_release_dev;
 	}
-	blk_register_region(MKDEV(hwif->major, 0), MAX_DRIVES << PARTN_BITS,
-			THIS_MODULE, ata_probe, ata_lock, hwif);
 }
 
 static int hwif_init(ide_hwif_t *hwif)
@@ -1261,6 +1259,8 @@ static int hwif_init(ide_hwif_t *hwif)
 
 done:
 	init_gendisk(hwif);
+	blk_register_region(MKDEV(hwif->major, 0), MAX_DRIVES << PARTN_BITS,
+			    THIS_MODULE, ata_probe, ata_lock, hwif);
 	ide_acpi_init(hwif);
 	return 1;
 
