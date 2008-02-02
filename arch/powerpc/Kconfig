@@ -715,8 +715,6 @@ source "arch/powerpc/sysdev/qe_lib/Kconfig"
 
 source "lib/Kconfig"
 
-source "kernel/Kconfig.instrumentation"
-
 source "arch/powerpc/Kconfig.debug"
 
 source "security/Kconfig"
