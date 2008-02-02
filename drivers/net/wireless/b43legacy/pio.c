@@ -486,6 +486,9 @@ void b43legacy_pio_handle_txstatus(struct b43legacy_wldev *dev,
 	queue = parse_cookie(dev, status->cookie, &packet);
 	B43legacy_WARN_ON(!queue);
 
+	if (!packet->skb)
+		return;
+
 	queue->tx_devq_packets--;
 	queue->tx_devq_used -= (packet->skb->len +
 				sizeof(struct b43legacy_txhdr_fw3));
