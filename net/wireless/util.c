@@ -80,7 +80,7 @@ static void set_mandatory_flags_band(struct ieee80211_supported_band *sband,
 				sband->bitrates[i].flags |=
 					IEEE80211_RATE_ERP_G;
 		}
-		WARN_ON(want != 0 && want != 6);
+		WARN_ON(want != 0 && want != 3 && want != 6);
 		break;
 	case IEEE80211_NUM_BANDS:
 		WARN_ON(1);
