@@ -395,17 +395,9 @@
 #define  PCI_EXP_DEVSTA_AUXPD	0x10	/* AUX Power Detected */
 #define  PCI_EXP_DEVSTA_TRPND	0x20	/* Transactions Pending */
 #define PCI_EXP_LNKCAP		12	/* Link Capabilities */
-#define  PCI_EXP_LNKCAP_ASPMS	0xc00	/* ASPM Support */
-#define  PCI_EXP_LNKCAP_L0SEL	0x7000	/* L0s Exit Latency */
-#define  PCI_EXP_LNKCAP_L1EL	0x38000	/* L1 Exit Latency */
-#define  PCI_EXP_LNKCAP_CLKPM	0x40000	/* L1 Clock Power Management */
 #define PCI_EXP_LNKCTL		16	/* Link Control */
-#define  PCI_EXP_LNKCTL_RL	0x20	/* Retrain Link */
-#define  PCI_EXP_LNKCTL_CCC	0x40	/* Common Clock COnfiguration */
 #define  PCI_EXP_LNKCTL_CLKREQ_EN 0x100	/* Enable clkreq */
 #define PCI_EXP_LNKSTA		18	/* Link Status */
-#define  PCI_EXP_LNKSTA_LT	0x800	/* Link Training */
-#define  PCI_EXP_LNKSTA_SLC	0x1000	/* Slot Clock Configuration */
 #define PCI_EXP_SLTCAP		20	/* Slot Capabilities */
 #define PCI_EXP_SLTCTL		24	/* Slot Control */
 #define PCI_EXP_SLTSTA		26	/* Slot Status */

@@ -21,7 +21,6 @@
 #include <linux/topology.h>
 #include <linux/mm.h>
 #include <linux/capability.h>
-#include <linux/aspm.h>
 #include "pci.h"
 
 static int sysfs_initialized;	/* = 0 */
@@ -651,8 +650,6 @@ int __must_check pci_create_sysfs_dev_files (struct pci_dev *pdev)
 	if (pcibios_add_platform_entries(pdev))
 		goto err_rom_file;
 
-	pcie_aspm_create_sysfs_dev_files(pdev);
-
 	return 0;
 
 err_rom_file:
@@ -681,8 +678,6 @@ void pci_remove_sysfs_dev_files(struct pci_dev *pdev)
 {
 	if (!sysfs_initialized)
 		return;
-
-	pcie_aspm_remove_sysfs_dev_files(pdev);
 
 	if (pdev->cfg_size < 4096)
 		sysfs_remove_bin_file(&pdev->dev.kobj, &pci_config_attr);

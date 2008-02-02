@@ -18,7 +18,6 @@
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/log2.h>
-#include <linux/aspm.h>
 #include <asm/dma.h>	/* isa_dma_bridge_buggy */
 #include "pci.h"
 
@@ -519,9 +518,6 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	 */
 	if (need_restore)
 		pci_restore_bars(dev);
-
-	if (dev->bus->self)
-		pcie_aspm_pm_state_change(dev->bus->self);
 
 	return 0;
 }
