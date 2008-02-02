@@ -588,8 +588,6 @@ static ide_startstop_t idescsi_issue_pc (ide_drive_t *drive, idescsi_pc_t *pc)
 		hwif->sg_mapped = 0;
 	}
 
-	SELECT_DRIVE(drive);
-
 	ide_pktcmd_tf_load(drive, IDE_TFLAG_NO_SELECT_MASK, bcount, dma);
 
 	if (dma)
