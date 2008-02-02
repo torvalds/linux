@@ -25,8 +25,6 @@
 #include <linux/hdreg.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/timer.h>
-#include <linux/mm.h>
 #include <linux/ioport.h>
 #include <linux/blkdev.h>
 #include <linux/scatterlist.h>

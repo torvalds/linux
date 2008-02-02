@@ -16,15 +16,14 @@
  *  License.  See the file COPYING in the main directory of this archive for
  *  more details.
  */
-#include <linux/autoconf.h>
+
 #include <linux/types.h>
 #include <linux/module.h>
-#include <linux/mm.h>
-#include <linux/blkdev.h>
 #include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/init.h>
 #include <linux/pci.h>
+
 #include <asm/io.h>
 
 /*

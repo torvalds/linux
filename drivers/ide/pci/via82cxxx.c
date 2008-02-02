@@ -26,14 +26,10 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/ioport.h>
-#include <linux/blkdev.h>
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/ide.h>
 #include <linux/dmi.h>
-
-#include <asm/io.h>
 
 #ifdef CONFIG_PPC_CHRP
 #include <asm/processor.h>
