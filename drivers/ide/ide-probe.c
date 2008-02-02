@@ -1305,6 +1305,9 @@ static void ide_port_init_devices(ide_hwif_t *hwif)
 		if ((hwif->host_flags & IDE_HFLAG_NO_AUTOTUNE) == 0)
 			drive->autotune = 1;
 	}
+
+	if (hwif->port_init_devs)
+		hwif->port_init_devs(hwif);
 }
 
 static void ide_init_port(ide_hwif_t *hwif, unsigned int port,

@@ -300,6 +300,18 @@ static void ht6560b_set_pio_mode(ide_drive_t *drive, const u8 pio)
 #endif
 }
 
+static void __init ht6560b_port_init_devs(ide_hwif_t *hwif)
+{
+	/* Setting default configurations for drives. */
+	int t = (HT_CONFIG_DEFAULT << 8) | HT_TIMING_DEFAULT;
+
+	if (hwif->channel)
+		t |= (HT_SECONDARY_IF << 8);
+
+	hwif->drives[0].drive_data = t;
+	hwif->drives[1].drive_data = t;
+}
+
 int probe_ht6560b = 0;
 
 module_param_named(probe, probe_ht6560b, bool, 0);
@@ -318,7 +330,6 @@ static int __init ht6560b_init(void)
 {
 	ide_hwif_t *hwif, *mate;
 	static u8 idx[4] = { 0, 1, 0xff, 0xff };
-	int t;
 
 	if (probe_ht6560b == 0)
 		return -ENODEV;
@@ -343,17 +354,8 @@ static int __init ht6560b_init(void)
 	mate->selectproc = &ht6560b_selectproc;
 	mate->set_pio_mode = &ht6560b_set_pio_mode;
 
-	/*
-	 * Setting default configurations for drives
-	 */
-	t = (HT_CONFIG_DEFAULT << 8);
-	t |= HT_TIMING_DEFAULT;
-	hwif->drives[0].drive_data = t;
-	hwif->drives[1].drive_data = t;
-
-	t |= (HT_SECONDARY_IF << 8);
-	mate->drives[0].drive_data = t;
-	mate->drives[1].drive_data = t;
+	hwif->port_init_devs = ht6560b_port_init_devs;
+	mate->port_init_devs = ht6560b_port_init_devs;
 
 	ide_device_add(idx, &ht6560b_port_info);
 

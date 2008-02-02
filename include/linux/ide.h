@@ -514,6 +514,8 @@ typedef struct hwif_s {
 #if 0
 	ide_hwif_ops_t	*hwifops;
 #else
+	/* host specific initialization of devices on a port */
+	void	(*port_init_devs)(struct hwif_s *);
 	/* routine to program host for PIO mode */
 	void	(*set_pio_mode)(ide_drive_t *, const u8);
 	/* routine to program host for DMA mode */
