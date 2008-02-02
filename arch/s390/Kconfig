@@ -52,6 +52,7 @@ mainmenu "Linux Kernel Configuration"
 config S390
 	def_bool y
 	select HAVE_OPROFILE
+	select HAVE_KPROBES
 
 source "init/Kconfig"
 

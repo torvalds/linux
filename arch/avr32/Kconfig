@@ -11,6 +11,7 @@ config AVR32
 	# that we usually don't need on AVR32.
 	select EMBEDDED
 	select HAVE_OPROFILE
+	select HAVE_KPROBES
 	help
 	  AVR32 is a high-performance 32-bit RISC microprocessor core,
 	  designed for cost-sensitive embedded applications, with particular
