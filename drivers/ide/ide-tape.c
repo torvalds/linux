@@ -690,25 +690,6 @@ typedef struct {
 } idetape_parameter_block_descriptor_t;
 
 /*
- *	The Data Compression Page, as returned by the MODE SENSE packet command.
- */
-typedef struct {
-	unsigned	page_code	:6;	/* Page Code - Should be 0xf */
-	unsigned	reserved0	:1;	/* Reserved */
-	unsigned	ps		:1;
-	__u8		page_length;		/* Page Length - Should be 14 */
-	unsigned	reserved2	:6;	/* Reserved */
-	unsigned	dcc		:1;	/* Data Compression Capable */
-	unsigned	dce		:1;	/* Data Compression Enable */
-	unsigned	reserved3	:5;	/* Reserved */
-	unsigned	red		:2;	/* Report Exception on Decompression */
-	unsigned	dde		:1;	/* Data Decompression Enable */
-	__u32		ca;			/* Compression Algorithm */
-	__u32		da;			/* Decompression Algorithm */
-	__u8		reserved[4];		/* Reserved */
-} idetape_data_compression_page_t;
-
-/*
  *	The Medium Partition Page, as returned by the MODE SENSE packet command.
  */
 typedef struct {
