@@ -610,12 +610,14 @@ static DECLARE_RWSEM(idr_rwsem);
 static DEFINE_IDR(fw_device_idr);
 int fw_cdev_major;
 
-struct fw_device *fw_device_from_devt(dev_t devt)
+struct fw_device *fw_device_get_by_devt(dev_t devt)
 {
 	struct fw_device *device;
 
 	down_read(&idr_rwsem);
 	device = idr_find(&fw_device_idr, MINOR(devt));
+	if (device)
+		fw_device_get(device);
 	up_read(&idr_rwsem);
 
 	return device;
@@ -627,13 +629,14 @@ static void fw_device_shutdown(struct work_struct *work)
 		container_of(work, struct fw_device, work.work);
 	int minor = MINOR(device->device.devt);
 
-	down_write(&idr_rwsem);
-	idr_remove(&fw_device_idr, minor);
-	up_write(&idr_rwsem);
-
 	fw_device_cdev_remove(device);
 	device_for_each_child(&device->device, NULL, shutdown_unit);
 	device_unregister(&device->device);
+
+	down_write(&idr_rwsem);
+	idr_remove(&fw_device_idr, minor);
+	up_write(&idr_rwsem);
+	fw_device_put(device);
 }
 
 static struct device_type fw_device_type = {
@@ -682,10 +685,13 @@ static void fw_device_init(struct work_struct *work)
 	}
 
 	err = -ENOMEM;
+
+	fw_device_get(device);
 	down_write(&idr_rwsem);
 	if (idr_pre_get(&fw_device_idr, GFP_KERNEL))
 		err = idr_get_new(&fw_device_idr, device, &minor);
 	up_write(&idr_rwsem);
+
 	if (err < 0)
 		goto error;
 
@@ -741,7 +747,9 @@ static void fw_device_init(struct work_struct *work)
 	idr_remove(&fw_device_idr, minor);
 	up_write(&idr_rwsem);
  error:
-	put_device(&device->device);
+	fw_device_put(device);		/* fw_device_idr's reference */
+
+	put_device(&device->device);	/* our reference */
 }
 
 static int update_unit(struct device *dev, void *data)

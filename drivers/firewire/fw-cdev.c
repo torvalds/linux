@@ -109,15 +109,17 @@ static int fw_device_op_open(struct inode *inode, struct file *file)
 	struct client *client;
 	unsigned long flags;
 
-	device = fw_device_from_devt(inode->i_rdev);
+	device = fw_device_get_by_devt(inode->i_rdev);
 	if (device == NULL)
 		return -ENODEV;
 
 	client = kzalloc(sizeof(*client), GFP_KERNEL);
-	if (client == NULL)
+	if (client == NULL) {
+		fw_device_put(device);
 		return -ENOMEM;
+	}
 
-	client->device = fw_device_get(device);
+	client->device = device;
 	INIT_LIST_HEAD(&client->event_list);
 	INIT_LIST_HEAD(&client->resource_list);
 	spin_lock_init(&client->lock);
