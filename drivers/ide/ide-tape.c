@@ -42,43 +42,6 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/unaligned.h>
-
-/*
- * partition
- */
-typedef struct os_partition_s {
-	__u8	partition_num;
-	__u8	par_desc_ver;
-	__u16	wrt_pass_cntr;
-	__u32	first_frame_addr;
-	__u32	last_frame_addr;
-	__u32	eod_frame_addr;
-} os_partition_t;
-
-/*
- * DAT entry
- */
-typedef struct os_dat_entry_s {
-	__u32	blk_sz;
-	__u16	blk_cnt;
-	__u8	flags;
-	__u8	reserved;
-} os_dat_entry_t;
-
-/*
- * DAT
- */
-#define OS_DAT_FLAGS_DATA	(0xc)
-#define OS_DAT_FLAGS_MARK	(0x1)
-
-typedef struct os_dat_s {
-	__u8		dat_sz;
-	__u8		reserved1;
-	__u8		entry_cnt;
-	__u8		reserved3;
-	os_dat_entry_t	dat_list[16];
-} os_dat_t;
-
 #include <linux/mtio.h>
 
 /**************************** Tunable parameters *****************************/
