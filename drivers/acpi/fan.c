@@ -337,10 +337,12 @@ static int __init acpi_fan_init(void)
 	int result = 0;
 
 
+#ifdef CONFIG_ACPI_PROCFS
 	acpi_fan_dir = proc_mkdir(ACPI_FAN_CLASS, acpi_root_dir);
 	if (!acpi_fan_dir)
 		return -ENODEV;
 	acpi_fan_dir->owner = THIS_MODULE;
+#endif
 
 	result = acpi_bus_register_driver(&acpi_fan_driver);
 	if (result < 0) {
