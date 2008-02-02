@@ -16,15 +16,14 @@
  *  License.  See the file COPYING in the main directory of this archive for
  *  more details.
  */
-#include <linux/autoconf.h>
+
 #include <linux/types.h>
 #include <linux/module.h>
-#include <linux/mm.h>
-#include <linux/blkdev.h>
 #include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/init.h>
 #include <linux/pci.h>
+
 #include <asm/io.h>
 
 /*
@@ -52,6 +51,7 @@ delkin_cb_probe (struct pci_dev *dev, const struct pci_device_id *id)
 	ide_hwif_t *hwif = NULL;
 	ide_drive_t *drive;
 	int i, rc;
+	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
 	rc = pci_enable_device(dev);
 	if (rc) {
@@ -78,12 +78,27 @@ delkin_cb_probe (struct pci_dev *dev, const struct pci_device_id *id)
 	hw.irq = dev->irq;
 	hw.chipset = ide_pci;		/* this enables IRQ sharing */
 
-	rc = ide_register_hw(&hw, &ide_undecoded_slave, &hwif);
-	if (rc < 0) {
-		printk(KERN_ERR "delkin_cb: ide_register_hw failed (%d)\n", rc);
-		pci_disable_device(dev);
-		return -ENODEV;
-	}
+	hwif = ide_deprecated_find_port(hw.io_ports[IDE_DATA_OFFSET]);
+	if (hwif == NULL)
+		goto out_disable;
+
+	i = hwif->index;
+
+	if (hwif->present)
+		ide_unregister(i, 0, 0);
+	else if (!hwif->hold)
+		ide_init_port_data(hwif, i);
+
+	ide_init_port_hw(hwif, &hw);
+	hwif->quirkproc = &ide_undecoded_slave;
+
+	idx[0] = i;
+
+	ide_device_add(idx, NULL);
+
+	if (!hwif->present)
+		goto out_disable;
+
 	pci_set_drvdata(dev, hwif);
 	hwif->dev = &dev->dev;
 	drive = &hwif->drives[0];
@@ -92,6 +107,11 @@ delkin_cb_probe (struct pci_dev *dev, const struct pci_device_id *id)
 		drive->unmask   = 1;
 	}
 	return 0;
+
+out_disable:
+	printk(KERN_ERR "delkin_cb: no IDE devices found\n");
+	pci_disable_device(dev);
+	return -ENODEV;
 }
 
 static void
@@ -100,7 +120,8 @@ delkin_cb_remove (struct pci_dev *dev)
 	ide_hwif_t *hwif = pci_get_drvdata(dev);
 
 	if (hwif)
-		ide_unregister(hwif->index);
+		ide_unregister(hwif->index, 0, 0);
+
 	pci_disable_device(dev);
 }
 

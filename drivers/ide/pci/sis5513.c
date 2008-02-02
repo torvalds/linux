@@ -47,19 +47,10 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/delay.h>
-#include <linux/timer.h>
-#include <linux/mm.h>
-#include <linux/ioport.h>
-#include <linux/blkdev.h>
 #include <linux/hdreg.h>
-
-#include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/ide.h>
-
-#include <asm/irq.h>
 
 #include "ide-timing.h"
 
@@ -565,13 +556,12 @@ static void __devinit init_hwif_sis5513 (ide_hwif_t *hwif)
 	if (chipset_family >= ATA_133)
 		hwif->udma_filter = sis5513_ata133_udma_filter;
 
+	hwif->cable_detect = ata66_sis5513;
+
 	if (hwif->dma_base == 0)
 		return;
 
 	hwif->ultra_mask = udma_rates[chipset_family];
-
-	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
-		hwif->cbl = ata66_sis5513(hwif);
 }
 
 static const struct ide_port_info sis5513_chipset __devinitdata = {

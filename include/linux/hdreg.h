@@ -706,8 +706,10 @@ struct hd_driveid {
  */
 #define IDE_NICE_DSC_OVERLAP	(0)	/* per the DSC overlap protocol */
 #define IDE_NICE_ATAPI_OVERLAP	(1)	/* not supported yet */
-#define IDE_NICE_0		(2)	/* when sure that it won't affect us */
 #define IDE_NICE_1		(3)	/* when probably won't affect us much */
+#ifndef __KERNEL__
+#define IDE_NICE_0		(2)	/* when sure that it won't affect us */
 #define IDE_NICE_2		(4)	/* when we know it's on our expense */
+#endif
 
 #endif	/* _LINUX_HDREG_H */

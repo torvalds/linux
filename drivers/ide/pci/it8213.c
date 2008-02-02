@@ -10,12 +10,9 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/delay.h>
 #include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/init.h>
-
-#include <asm/io.h>
 
 /**
  *	it8213_set_pio_mode	-	set host controller for PIO mode
@@ -143,6 +140,16 @@ static void it8213_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	}
 }
 
+static u8 __devinit it8213_cable_detect(ide_hwif_t *hwif)
+{
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
+	u8 reg42h = 0;
+
+	pci_read_config_byte(dev, 0x42, &reg42h);
+
+	return (reg42h & 0x02) ? ATA_CBL_PATA40 : ATA_CBL_PATA80;
+}
+
 /**
  *	init_hwif_it8213	-	set up hwif structs
  *	@hwif: interface to set up
@@ -152,19 +159,10 @@ static void it8213_set_dma_mode(ide_drive_t *drive, const u8 speed)
 
 static void __devinit init_hwif_it8213(ide_hwif_t *hwif)
 {
-	struct pci_dev *dev = to_pci_dev(hwif->dev);
-	u8 reg42h = 0;
-
 	hwif->set_dma_mode = &it8213_set_dma_mode;
 	hwif->set_pio_mode = &it8213_set_pio_mode;
 
-	if (!hwif->dma_base)
-		return;
-
-	pci_read_config_byte(dev, 0x42, &reg42h);
-
-	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
-		hwif->cbl = (reg42h & 0x02) ? ATA_CBL_PATA40 : ATA_CBL_PATA80;
+	hwif->cable_detect = it8213_cable_detect;
 }
 
 

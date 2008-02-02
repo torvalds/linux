@@ -216,8 +216,7 @@ config BLK_DEV_IDECD_VERBOSE_ERRORS
 	  memory, though.
 
 config BLK_DEV_IDETAPE
-	tristate "Include IDE/ATAPI TAPE support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "Include IDE/ATAPI TAPE support"
 	help
 	  If you have an IDE tape drive using the ATAPI protocol, say Y.
 	  ATAPI is a newer protocol used by IDE tape and CD-ROM drives,

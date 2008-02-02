@@ -58,7 +58,7 @@ rapide_probe(struct expansion_card *ec, const struct ecard_id *id)
 
 		idx[0] = hwif->index;
 
-		ide_device_add(idx);
+		ide_device_add(idx, NULL);
 
 		ecard_set_drvdata(ec, hwif);
 		goto out;
@@ -76,7 +76,7 @@ static void __devexit rapide_remove(struct expansion_card *ec)
 
 	ecard_set_drvdata(ec, NULL);
 
-	ide_unregister(hwif->index);
+	ide_unregister(hwif->index, 0, 0);
 
 	ecard_release_resources(ec);
 }

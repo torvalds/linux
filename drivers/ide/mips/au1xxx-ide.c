@@ -548,6 +548,17 @@ static void auide_setup_ports(hw_regs_t *hw, _auide_hwif *ahwif)
 	*ata_regs = ahwif->regbase + (14 << AU1XXX_ATA_REG_OFFSET);
 }
 
+static const struct ide_port_info au1xxx_port_info = {
+	.host_flags		= IDE_HFLAG_POST_SET_MODE |
+				  IDE_HFLAG_NO_DMA | /* no SFF-style DMA */
+				  IDE_HFLAG_NO_IO_32BIT |
+				  IDE_HFLAG_UNMASK_IRQS,
+	.pio_mask		= ATA_PIO4,
+#ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
+	.mwdma_mask		= ATA_MWDMA2,
+#endif
+};
+
 static int au_ide_probe(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -606,21 +617,6 @@ static int au_ide_probe(struct device *dev)
 
 	hwif->dev = dev;
 
-	hwif->ultra_mask                = 0x0;  /* Disable Ultra DMA */
-#ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
-	hwif->mwdma_mask                = 0x07; /* Multimode-2 DMA  */
-	hwif->swdma_mask                = 0x00;
-#else
-	hwif->mwdma_mask                = 0x0;
-	hwif->swdma_mask                = 0x0;
-#endif
-
-	hwif->pio_mask = ATA_PIO4;
-	hwif->host_flags = IDE_HFLAG_POST_SET_MODE;
-
-	hwif->drives[0].unmask          = 1;
-	hwif->drives[1].unmask          = 1;
-
 	/* hold should be on in all cases */
 	hwif->hold                      = 1;
 
@@ -651,15 +647,8 @@ static int au_ide_probe(struct device *dev)
 	hwif->ide_dma_test_irq          = &auide_dma_test_irq;
 	hwif->dma_lost_irq		= &auide_dma_lost_irq;
 #endif
-	hwif->channel                   = 0;
 	hwif->select_data               = 0;    /* no chipset-specific code */
 	hwif->config_data               = 0;    /* no chipset-specific code */
-
-	hwif->drives[0].autotune        = 1;    /* 1=autotune, 2=noautotune, 0=default */
-	hwif->drives[1].autotune	= 1;
-
-	hwif->drives[0].no_io_32bit	= 1;
-	hwif->drives[1].no_io_32bit	= 1;
 
 	auide_hwif.hwif                 = hwif;
 	hwif->hwif_data                 = &auide_hwif;
@@ -671,7 +660,7 @@ static int au_ide_probe(struct device *dev)
 
 	idx[0] = hwif->index;
 
-	ide_device_add(idx);
+	ide_device_add(idx, &au1xxx_port_info);
 
 	dev_set_drvdata(dev, hwif);
 
@@ -688,7 +677,7 @@ static int au_ide_remove(struct device *dev)
 	ide_hwif_t *hwif = dev_get_drvdata(dev);
 	_auide_hwif *ahwif = &auide_hwif;
 
-	ide_unregister(hwif->index);
+	ide_unregister(hwif->index, 0, 0);
 
 	iounmap((void *)ahwif->regbase);
 

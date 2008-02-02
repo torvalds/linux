@@ -155,8 +155,9 @@ static void cs5535_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	cs5535_set_speed(drive, XFER_PIO_0 + pio);
 }
 
-static u8 __devinit cs5535_cable_detect(struct pci_dev *dev)
+static u8 __devinit cs5535_cable_detect(ide_hwif_t *hwif)
 {
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	u8 bit;
 
 	/* if a 80 wire cable was detected */
@@ -175,15 +176,10 @@ static u8 __devinit cs5535_cable_detect(struct pci_dev *dev)
  */
 static void __devinit init_hwif_cs5535(ide_hwif_t *hwif)
 {
-	struct pci_dev *dev = to_pci_dev(hwif->dev);
-
 	hwif->set_pio_mode = &cs5535_set_pio_mode;
 	hwif->set_dma_mode = &cs5535_set_dma_mode;
 
-	if (hwif->dma_base == 0)
-		return;
-
-	hwif->cbl = cs5535_cable_detect(dev);
+	hwif->cable_detect = cs5535_cable_detect;
 }
 
 static const struct ide_port_info cs5535_chipset __devinitdata = {

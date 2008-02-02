@@ -39,7 +39,7 @@ static int __init ide_arm_init(void)
 		ide_init_port_hw(hwif, &hw);
 		idx[0] = hwif->index;
 
-		ide_device_add(idx);
+		ide_device_add(idx, NULL);
 	}
 
 	return 0;

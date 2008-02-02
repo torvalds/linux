@@ -423,8 +423,9 @@ static int ide_busy_sleep(ide_hwif_t *hwif)
 
 static int do_probe (ide_drive_t *drive, u8 cmd)
 {
-	int rc;
 	ide_hwif_t *hwif = HWIF(drive);
+	int rc;
+	u8 stat;
 
 	if (drive->present) {
 		/* avoid waiting for inappropriate probes */
@@ -461,15 +462,17 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 			/* failed: try again */
 			rc = try_to_identify(drive,cmd);
 		}
-		if (hwif->INB(IDE_STATUS_REG) == (BUSY_STAT|READY_STAT))
+
+		stat = hwif->INB(IDE_STATUS_REG);
+
+		if (stat == (BUSY_STAT | READY_STAT))
 			return 4;
 
 		if ((rc == 1 && cmd == WIN_PIDENTIFY) &&
 			((drive->autotune == IDE_TUNE_DEFAULT) ||
 			(drive->autotune == IDE_TUNE_AUTO))) {
-			printk("%s: no response (status = 0x%02x), "
-				"resetting drive\n", drive->name,
-				hwif->INB(IDE_STATUS_REG));
+			printk(KERN_ERR "%s: no response (status = 0x%02x), "
+					"resetting drive\n", drive->name, stat);
 			msleep(50);
 			hwif->OUTB(drive->select.all, IDE_SELECT_REG);
 			msleep(50);
@@ -477,11 +480,13 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 			(void)ide_busy_sleep(hwif);
 			rc = try_to_identify(drive, cmd);
 		}
+
+		/* ensure drive IRQ is clear */
+		stat = hwif->INB(IDE_STATUS_REG);
+
 		if (rc == 1)
-			printk("%s: no response (status = 0x%02x)\n",
-				drive->name, hwif->INB(IDE_STATUS_REG));
-		/* ensure drive irq is clear */
-		(void) hwif->INB(IDE_STATUS_REG);
+			printk(KERN_ERR "%s: no response (status = 0x%02x)\n",
+					drive->name, stat);
 	} else {
 		/* not present or maybe ATAPI */
 		rc = 3;
@@ -502,6 +507,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 static void enable_nest (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = HWIF(drive);
+	u8 stat;
 
 	printk("%s: enabling %s -- ", hwif->name, drive->id->model);
 	SELECT_DRIVE(drive);
@@ -515,11 +521,12 @@ static void enable_nest (ide_drive_t *drive)
 
 	msleep(50);
 
-	if (!OK_STAT((hwif->INB(IDE_STATUS_REG)), 0, BAD_STAT)) {
-		printk("failed (status = 0x%02x)\n", hwif->INB(IDE_STATUS_REG));
-	} else {
-		printk("success\n");
-	}
+	stat = hwif->INB(IDE_STATUS_REG);
+
+	if (!OK_STAT(stat, 0, BAD_STAT))
+		printk(KERN_CONT "failed (status = 0x%02x)\n", stat);
+	else
+		printk(KERN_CONT "success\n");
 
 	/* if !(success||timed-out) */
 	if (do_probe(drive, WIN_IDENTIFY) >= 2) {
@@ -822,7 +829,7 @@ static void ide_port_tune_devices(ide_hwif_t *hwif)
 	for (unit = 0; unit < MAX_DRIVES; ++unit) {
 		ide_drive_t *drive = &hwif->drives[unit];
 
-		if (hwif->no_io_32bit)
+		if (hwif->host_flags & IDE_HFLAG_NO_IO_32BIT)
 			drive->no_io_32bit = 1;
 		else
 			drive->no_io_32bit = drive->id->dword_io ? 1 : 0;
@@ -881,13 +888,6 @@ static int ide_init_queue(ide_drive_t *drive)
 	q->queuedata = drive;
 	blk_queue_segment_boundary(q, 0xffff);
 
-	if (!hwif->rqsize) {
-		if ((hwif->host_flags & IDE_HFLAG_NO_LBA48) ||
-		    (hwif->host_flags & IDE_HFLAG_NO_LBA48_DMA))
-			hwif->rqsize = 256;
-		else
-			hwif->rqsize = 65536;
-	}
 	if (hwif->rqsize < max_sectors)
 		max_sectors = hwif->rqsize;
 	blk_queue_max_sectors(q, max_sectors);
@@ -916,6 +916,48 @@ static int ide_init_queue(ide_drive_t *drive)
 	ide_toggle_bounce(drive, 1);
 
 	return 0;
+}
+
+static void ide_add_drive_to_hwgroup(ide_drive_t *drive)
+{
+	ide_hwgroup_t *hwgroup = drive->hwif->hwgroup;
+
+	spin_lock_irq(&ide_lock);
+	if (!hwgroup->drive) {
+		/* first drive for hwgroup. */
+		drive->next = drive;
+		hwgroup->drive = drive;
+		hwgroup->hwif = HWIF(hwgroup->drive);
+	} else {
+		drive->next = hwgroup->drive->next;
+		hwgroup->drive->next = drive;
+	}
+	spin_unlock_irq(&ide_lock);
+}
+
+/*
+ * For any present drive:
+ * - allocate the block device queue
+ * - link drive into the hwgroup
+ */
+static void ide_port_setup_devices(ide_hwif_t *hwif)
+{
+	int i;
+
+	for (i = 0; i < MAX_DRIVES; i++) {
+		ide_drive_t *drive = &hwif->drives[i];
+
+		if (!drive->present)
+			continue;
+
+		if (ide_init_queue(drive)) {
+			printk(KERN_ERR "ide: failed to init %s\n",
+					drive->name);
+			continue;
+		}
+
+		ide_add_drive_to_hwgroup(drive);
+	}
 }
 
 /*
@@ -1019,30 +1061,12 @@ static int init_irq (ide_hwif_t *hwif)
 	       		goto out_unlink;
 	}
 
-	/*
-	 * For any present drive:
-	 * - allocate the block device queue
-	 * - link drive into the hwgroup
-	 */
-	for (index = 0; index < MAX_DRIVES; ++index) {
-		ide_drive_t *drive = &hwif->drives[index];
-		if (!drive->present)
-			continue;
-		if (ide_init_queue(drive)) {
-			printk(KERN_ERR "ide: failed to init %s\n",drive->name);
-			continue;
-		}
-		spin_lock_irq(&ide_lock);
-		if (!hwgroup->drive) {
-			/* first drive for hwgroup. */
-			drive->next = drive;
-			hwgroup->drive = drive;
-			hwgroup->hwif = HWIF(hwgroup->drive);
-		} else {
-			drive->next = hwgroup->drive->next;
-			hwgroup->drive->next = drive;
-		}
-		spin_unlock_irq(&ide_lock);
+	if (!hwif->rqsize) {
+		if ((hwif->host_flags & IDE_HFLAG_NO_LBA48) ||
+		    (hwif->host_flags & IDE_HFLAG_NO_LBA48_DMA))
+			hwif->rqsize = 256;
+		else
+			hwif->rqsize = 65536;
 	}
 
 #if !defined(__mc68000__) && !defined(CONFIG_APUS)
@@ -1058,6 +1082,9 @@ static int init_irq (ide_hwif_t *hwif)
 		printk(" (%sed with %s)",
 			hwif->sharing_irq ? "shar" : "serializ", match->name);
 	printk("\n");
+
+	ide_port_setup_devices(hwif);
+
 	mutex_unlock(&ide_cfg_mtx);
 	return 0;
 out_unlink:
@@ -1182,30 +1209,6 @@ static void drive_release_dev (struct device *dev)
 	complete(&drive->gendev_rel_comp);
 }
 
-/*
- * init_gendisk() (as opposed to ide_geninit) is called for each major device,
- * after probing for drives, to allocate partition tables and other data
- * structures needed for the routines in genhd.c.  ide_geninit() gets called
- * somewhat later, during the partition check.
- */
-static void init_gendisk (ide_hwif_t *hwif)
-{
-	unsigned int unit;
-
-	for (unit = 0; unit < MAX_DRIVES; ++unit) {
-		ide_drive_t * drive = &hwif->drives[unit];
-		ide_add_generic_settings(drive);
-		snprintf(drive->gendev.bus_id,BUS_ID_SIZE,"%u.%u",
-			 hwif->index,unit);
-		drive->gendev.parent = &hwif->gendev;
-		drive->gendev.bus = &ide_bus_type;
-		drive->gendev.driver_data = drive;
-		drive->gendev.release = drive_release_dev;
-	}
-	blk_register_region(MKDEV(hwif->major, 0), MAX_DRIVES << PARTN_BITS,
-			THIS_MODULE, ata_probe, ata_lock, hwif);
-}
-
 static int hwif_init(ide_hwif_t *hwif)
 {
 	int old_irq;
@@ -1262,8 +1265,8 @@ static int hwif_init(ide_hwif_t *hwif)
 		hwif->name, hwif->irq);
 
 done:
-	init_gendisk(hwif);
-	ide_acpi_init(hwif);
+	blk_register_region(MKDEV(hwif->major, 0), MAX_DRIVES << PARTN_BITS,
+			    THIS_MODULE, ata_probe, ata_lock, hwif);
 	return 1;
 
 out:
@@ -1277,22 +1280,117 @@ static void hwif_register_devices(ide_hwif_t *hwif)
 
 	for (i = 0; i < MAX_DRIVES; i++) {
 		ide_drive_t *drive = &hwif->drives[i];
+		struct device *dev = &drive->gendev;
+		int ret;
 
-		if (drive->present) {
-			int ret = device_register(&drive->gendev);
+		if (!drive->present)
+			continue;
 
-			if (ret < 0)
-				printk(KERN_WARNING "IDE: %s: "
-					"device_register error: %d\n",
-					__FUNCTION__, ret);
-		}
+		ide_add_generic_settings(drive);
+
+		snprintf(dev->bus_id, BUS_ID_SIZE, "%u.%u", hwif->index, i);
+		dev->parent = &hwif->gendev;
+		dev->bus = &ide_bus_type;
+		dev->driver_data = drive;
+		dev->release = drive_release_dev;
+
+		ret = device_register(dev);
+		if (ret < 0)
+			printk(KERN_WARNING "IDE: %s: device_register error: "
+					    "%d\n", __func__, ret);
 	}
 }
 
-int ide_device_add_all(u8 *idx)
+static void ide_port_init_devices(ide_hwif_t *hwif)
 {
-	ide_hwif_t *hwif;
+	int i;
+
+	for (i = 0; i < MAX_DRIVES; i++) {
+		ide_drive_t *drive = &hwif->drives[i];
+
+		if (hwif->host_flags & IDE_HFLAG_IO_32BIT)
+			drive->io_32bit = 1;
+		if (hwif->host_flags & IDE_HFLAG_UNMASK_IRQS)
+			drive->unmask = 1;
+		if (hwif->host_flags & IDE_HFLAG_NO_UNMASK_IRQS)
+			drive->no_unmask = 1;
+		if ((hwif->host_flags & IDE_HFLAG_NO_AUTOTUNE) == 0)
+			drive->autotune = 1;
+	}
+
+	if (hwif->port_init_devs)
+		hwif->port_init_devs(hwif);
+}
+
+static void ide_init_port(ide_hwif_t *hwif, unsigned int port,
+			  const struct ide_port_info *d)
+{
+	if (d->chipset != ide_etrax100)
+		hwif->channel = port;
+
+	if (d->chipset)
+		hwif->chipset = d->chipset;
+
+	if (d->init_iops)
+		d->init_iops(hwif);
+
+	if ((d->host_flags & IDE_HFLAG_NO_DMA) == 0)
+		ide_hwif_setup_dma(hwif, d);
+
+	if ((!hwif->irq && (d->host_flags & IDE_HFLAG_LEGACY_IRQS)) ||
+	    (d->host_flags & IDE_HFLAG_FORCE_LEGACY_IRQS))
+		hwif->irq = port ? 15 : 14;
+
+	hwif->host_flags = d->host_flags;
+	hwif->pio_mask = d->pio_mask;
+
+	if ((d->host_flags & IDE_HFLAG_SERIALIZE) && hwif->mate)
+		hwif->mate->serialized = hwif->serialized = 1;
+
+	hwif->swdma_mask = d->swdma_mask;
+	hwif->mwdma_mask = d->mwdma_mask;
+	hwif->ultra_mask = d->udma_mask;
+
+	/* reset DMA masks only for SFF-style DMA controllers */
+	if ((d->host_flags && IDE_HFLAG_NO_DMA) == 0 && hwif->dma_base == 0)
+		hwif->swdma_mask = hwif->mwdma_mask = hwif->ultra_mask = 0;
+
+	if (d->host_flags & IDE_HFLAG_RQSIZE_256)
+		hwif->rqsize = 256;
+
+	/* call chipset specific routine for each enabled port */
+	if (d->init_hwif)
+		d->init_hwif(hwif);
+
+	if (hwif->cable_detect && (hwif->ultra_mask & 0x78)) {
+		if (hwif->cbl != ATA_CBL_PATA40_SHORT)
+			hwif->cbl = hwif->cable_detect(hwif);
+	}
+}
+
+int ide_device_add_all(u8 *idx, const struct ide_port_info *d)
+{
+	ide_hwif_t *hwif, *mate = NULL;
 	int i, rc = 0;
+
+	for (i = 0; i < MAX_HWIFS; i++) {
+		if (d == NULL || idx[i] == 0xff) {
+			mate = NULL;
+			continue;
+		}
+
+		hwif = &ide_hwifs[idx[i]];
+
+		if (d->chipset != ide_etrax100 && (i & 1) && mate) {
+			hwif->mate = mate;
+			mate->mate = hwif;
+		}
+
+		mate = (i & 1) ? NULL : hwif;
+
+		ide_init_port(hwif, i & 1, d);
+		ide_port_init_devices(hwif);
+	}
 
 	for (i = 0; i < MAX_HWIFS; i++) {
 		if (idx[i] == 0xff)
@@ -1337,6 +1435,9 @@ int ide_device_add_all(u8 *idx)
 			rc = -1;
 			continue;
 		}
+
+		ide_acpi_init(hwif);
+		ide_acpi_port_init_devices(hwif);
 	}
 
 	for (i = 0; i < MAX_HWIFS; i++) {
@@ -1354,15 +1455,22 @@ int ide_device_add_all(u8 *idx)
 	}
 
 	for (i = 0; i < MAX_HWIFS; i++) {
-		if (idx[i] != 0xff)
-			ide_proc_register_port(&ide_hwifs[idx[i]]);
+		if (idx[i] == 0xff)
+			continue;
+
+		hwif = &ide_hwifs[idx[i]];
+
+		if (hwif->present) {
+			ide_proc_register_port(hwif);
+			ide_proc_port_register_devices(hwif);
+		}
 	}
 
 	return rc;
 }
 EXPORT_SYMBOL_GPL(ide_device_add_all);
 
-int ide_device_add(u8 idx[4])
+int ide_device_add(u8 idx[4], const struct ide_port_info *d)
 {
 	u8 idx_all[MAX_HWIFS];
 	int i;
@@ -1370,6 +1478,6 @@ int ide_device_add(u8 idx[4])
 	for (i = 0; i < MAX_HWIFS; i++)
 		idx_all[i] = (i < 4) ? idx[i] : 0xff;
 
-	return ide_device_add_all(idx_all);
+	return ide_device_add_all(idx_all, d);
 }
 EXPORT_SYMBOL_GPL(ide_device_add);

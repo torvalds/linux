@@ -232,7 +232,7 @@ fail_base2:
 			}
 		}
 
-		ide_device_add(idx);
+		ide_device_add(idx, NULL);
 	}
 
 	return 0;

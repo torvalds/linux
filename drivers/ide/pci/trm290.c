@@ -131,14 +131,12 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/mm.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/blkdev.h>
 #include <linux/init.h>
 #include <linux/hdreg.h>
 #include <linux/pci.h>
-#include <linux/delay.h>
 #include <linux/ide.h>
 
 #include <asm/io.h>
@@ -179,10 +177,7 @@ static void trm290_selectproc (ide_drive_t *drive)
 
 static void trm290_dma_exec_cmd(ide_drive_t *drive, u8 command)
 {
-	BUG_ON(HWGROUP(drive)->handler != NULL);	/* paranoia check */
-	ide_set_handler(drive, &ide_dma_intr, WAIT_CMD, NULL);
-	/* issue cmd to drive */
-	outb(command, IDE_COMMAND_REG);
+	ide_execute_command(drive, command, &ide_dma_intr, WAIT_CMD, NULL);
 }
 
 static int trm290_dma_setup(ide_drive_t *drive)

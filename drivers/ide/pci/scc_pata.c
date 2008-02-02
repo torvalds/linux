@@ -644,6 +644,11 @@ static void __devinit init_iops_scc(ide_hwif_t *hwif)
 	init_mmio_iops_scc(hwif);
 }
 
+static u8 __devinit scc_cable_detect(ide_hwif_t *hwif)
+{
+	return ATA_CBL_PATA80;
+}
+
 /**
  *	init_hwif_scc	-	set up hwif
  *	@hwif: interface to set up
@@ -678,8 +683,7 @@ static void __devinit init_hwif_scc(ide_hwif_t *hwif)
 	else
 		hwif->ultra_mask = ATA_UDMA5; /* 100MHz */
 
-	/* we support 80c cable only. */
-	hwif->cbl = ATA_CBL_PATA80;
+	hwif->cable_detect = scc_cable_detect;
 }
 
 #define DECLARE_SCC_DEV(name_str)			\
@@ -732,7 +736,7 @@ static void __devexit scc_remove(struct pci_dev *dev)
 		hwif->dmatable_cpu = NULL;
 	}
 
-	ide_unregister(hwif->index);
+	ide_unregister(hwif->index, 0, 0);
 
 	hwif->chipset = ide_unknown;
 	iounmap((void*)ports->dma);

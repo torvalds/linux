@@ -25,8 +25,6 @@
 #include <linux/hdreg.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/timer.h>
-#include <linux/mm.h>
 #include <linux/ioport.h>
 #include <linux/blkdev.h>
 #include <linux/scatterlist.h>
@@ -555,7 +553,6 @@ static void __devinit
 ide_init_sgiioc4(ide_hwif_t * hwif)
 {
 	hwif->mmio = 1;
-	hwif->pio_mask = 0x00;
 	hwif->set_pio_mode = NULL; /* Sets timing for PIO mode */
 	hwif->set_dma_mode = &sgiioc4_set_dma_mode;
 	hwif->selectproc = NULL;/* Use the default routine to select drive */
@@ -572,8 +569,6 @@ ide_init_sgiioc4(ide_hwif_t * hwif)
 	if (hwif->dma_base == 0)
 		return;
 
-	hwif->mwdma_mask = ATA_MWDMA2_ONLY;
-
 	hwif->dma_host_set = &sgiioc4_dma_host_set;
 	hwif->dma_setup = &sgiioc4_ide_dma_setup;
 	hwif->dma_start = &sgiioc4_ide_dma_start;
@@ -582,6 +577,13 @@ ide_init_sgiioc4(ide_hwif_t * hwif)
 	hwif->dma_lost_irq = &sgiioc4_dma_lost_irq;
 	hwif->dma_timeout = &ide_dma_timeout;
 }
+
+static const struct ide_port_info sgiioc4_port_info __devinitdata = {
+	.chipset		= ide_pci,
+	.host_flags		= IDE_HFLAG_NO_DMA | /* no SFF-style DMA */
+				  IDE_HFLAG_NO_AUTOTUNE,
+	.mwdma_mask		= ATA_MWDMA2_ONLY,
+};
 
 static int __devinit
 sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
@@ -593,6 +595,7 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	int h;
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 	hw_regs_t hw;
+	struct ide_port_info d = sgiioc4_port_info;
 
 	/*
 	 * Find an empty HWIF; if none available, return -ENOMEM.
@@ -641,7 +644,6 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	ide_init_port_hw(hwif, &hw);
 
 	hwif->dev = &dev->dev;
-	hwif->channel = 0;	/* Single Channel chip */
 
 	/* The IOC4 uses MMIO rather than Port IO. */
 	default_hwif_mmiops(hwif);
@@ -649,15 +651,17 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	/* Initializing chipset IRQ Registers */
 	writel(0x03, (void __iomem *)(irqport + IOC4_INTR_SET * 4));
 
-	if (dma_base == 0 || ide_dma_sgiioc4(hwif, dma_base))
+	if (dma_base == 0 || ide_dma_sgiioc4(hwif, dma_base)) {
 		printk(KERN_INFO "%s: %s Bus-Master DMA disabled\n",
 				 hwif->name, DRV_NAME);
+		d.mwdma_mask = 0;
+	}
 
 	ide_init_sgiioc4(hwif);
 
 	idx[0] = hwif->index;
 
-	if (ide_device_add(idx))
+	if (ide_device_add(idx, &d))
 		return -EIO;
 
 	return 0;

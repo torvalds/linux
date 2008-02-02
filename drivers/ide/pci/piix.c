@@ -47,11 +47,9 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/ioport.h>
 #include <linux/pci.h>
 #include <linux/hdreg.h>
 #include <linux/ide.h>
-#include <linux/delay.h>
 #include <linux/init.h>
 
 #include <asm/io.h>
@@ -290,13 +288,10 @@ static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 	hwif->set_pio_mode = &piix_set_pio_mode;
 	hwif->set_dma_mode = &piix_set_dma_mode;
 
+	hwif->cable_detect = piix_cable_detect;
+
 	if (!hwif->dma_base)
 		return;
-
-	if (hwif->ultra_mask & 0x78) {
-		if (hwif->cbl != ATA_CBL_PATA40_SHORT)
-			hwif->cbl = piix_cable_detect(hwif);
-	}
 
 	if (no_piix_dma)
 		hwif->ultra_mask = hwif->mwdma_mask = hwif->swdma_mask = 0;

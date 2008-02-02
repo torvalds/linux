@@ -35,21 +35,11 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/delay.h>
-#include <linux/timer.h>
-#include <linux/mm.h>
-#include <linux/ioport.h>
-#include <linux/blkdev.h>
 #include <linux/hdreg.h>
-
-#include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/ide.h>
 #include <linux/dma-mapping.h>
-
-#include <asm/io.h>
-#include <asm/irq.h>
 
 struct pio_clocks
 {
@@ -180,7 +170,7 @@ static int __devinit cs5520_init_one(struct pci_dev *dev, const struct pci_devic
 
 	ide_pci_setup_ports(dev, d, 14, &idx[0]);
 
-	ide_device_add(idx);
+	ide_device_add(idx, d);
 
 	return 0;
 }

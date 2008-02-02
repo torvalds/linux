@@ -13,7 +13,6 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/pci.h>
-#include <linux/delay.h>
 #include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/init.h>
@@ -393,6 +392,8 @@ static void __devinit init_hwif_cmd64x(ide_hwif_t *hwif)
 	hwif->set_pio_mode = &cmd64x_set_pio_mode;
 	hwif->set_dma_mode = &cmd64x_set_dma_mode;
 
+	hwif->cable_detect = ata66_cmd64x;
+
 	if (!hwif->dma_base)
 		return;
 
@@ -410,9 +411,6 @@ static void __devinit init_hwif_cmd64x(ide_hwif_t *hwif)
 	 */
 	if (dev->device == PCI_DEVICE_ID_CMD_646 && dev->revision < 5)
 		hwif->ultra_mask = 0x00;
-
-	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
-		hwif->cbl = ata66_cmd64x(hwif);
 
 	switch (dev->device) {
 	case PCI_DEVICE_ID_CMD_648:

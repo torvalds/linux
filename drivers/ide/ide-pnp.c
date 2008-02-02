@@ -49,7 +49,7 @@ static int idepnp_probe(struct pnp_dev * dev, const struct pnp_device_id *dev_id
 		printk(KERN_INFO "ide%d: generic PnP IDE interface\n", index);
 		pnp_set_drvdata(dev,hwif);
 
-		ide_device_add(idx);
+		ide_device_add(idx, NULL);
 
 		return 0;
 	}
@@ -60,9 +60,10 @@ static int idepnp_probe(struct pnp_dev * dev, const struct pnp_device_id *dev_id
 static void idepnp_remove(struct pnp_dev * dev)
 {
 	ide_hwif_t *hwif = pnp_get_drvdata(dev);
-	if (hwif) {
-		ide_unregister(hwif->index);
-	} else
+
+	if (hwif)
+		ide_unregister(hwif->index, 0, 0);
+	else
 		printk(KERN_ERR "idepnp: Unable to remove device, please report.\n");
 }
 

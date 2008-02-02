@@ -103,10 +103,6 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/timer.h>
-#include <linux/mm.h>
-#include <linux/ioport.h>
-#include <linux/blkdev.h>
 #include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/init.h>
@@ -703,6 +699,18 @@ static int pci_conf2(void)
 	return 0;
 }
 
+static const struct ide_port_info cmd640_port_info __initdata = {
+	.chipset		= ide_cmd640,
+	.host_flags		= IDE_HFLAG_SERIALIZE |
+				  IDE_HFLAG_NO_DMA |
+				  IDE_HFLAG_NO_AUTOTUNE |
+				  IDE_HFLAG_ABUSE_PREFETCH |
+				  IDE_HFLAG_ABUSE_FAST_DEVSEL,
+#ifdef CONFIG_BLK_DEV_CMD640_ENHANCED
+	.pio_mask		= ATA_PIO5,
+#endif
+};
+
 /*
  * Probe for a cmd640 chipset, and initialize it if found.
  */
@@ -760,11 +768,7 @@ static int __init cmd640x_init(void)
 	setup_device_ptrs ();
 	printk("%s: buggy cmd640%c interface on %s, config=0x%02x\n",
 	       cmd_hwif0->name, 'a' + cmd640_chip_version - 1, bus_type, cfr);
-	cmd_hwif0->chipset = ide_cmd640;
 #ifdef CONFIG_BLK_DEV_CMD640_ENHANCED
-	cmd_hwif0->host_flags = IDE_HFLAG_ABUSE_PREFETCH |
-				IDE_HFLAG_ABUSE_FAST_DEVSEL;
-	cmd_hwif0->pio_mask = ATA_PIO5;
 	cmd_hwif0->set_pio_mode = &cmd640_set_pio_mode;
 #endif /* CONFIG_BLK_DEV_CMD640_ENHANCED */
 
@@ -815,23 +819,14 @@ static int __init cmd640x_init(void)
 	 * Initialize data for secondary cmd640 port, if enabled
 	 */
 	if (second_port_cmd640) {
-		cmd_hwif0->serialized = 1;
-		cmd_hwif1->serialized = 1;
-		cmd_hwif1->chipset = ide_cmd640;
-		cmd_hwif0->mate = cmd_hwif1;
-		cmd_hwif1->mate = cmd_hwif0;
-		cmd_hwif1->channel = 1;
 #ifdef CONFIG_BLK_DEV_CMD640_ENHANCED
-		cmd_hwif1->host_flags = IDE_HFLAG_ABUSE_PREFETCH |
-					IDE_HFLAG_ABUSE_FAST_DEVSEL;
-		cmd_hwif1->pio_mask = ATA_PIO5;
 		cmd_hwif1->set_pio_mode = &cmd640_set_pio_mode;
 #endif /* CONFIG_BLK_DEV_CMD640_ENHANCED */
 
 		idx[1] = cmd_hwif1->index;
 	}
 	printk(KERN_INFO "%s: %sserialized, secondary interface %s\n", cmd_hwif1->name,
-		cmd_hwif0->serialized ? "" : "not ", port2);
+			 second_port_cmd640 ? "" : "not ", port2);
 
 	/*
 	 * Establish initial timings/prefetch for all drives.
@@ -876,7 +871,7 @@ static int __init cmd640x_init(void)
 	cmd640_dump_regs();
 #endif
 
-	ide_device_add(idx);
+	ide_device_add(idx, &cmd640_port_info);
 
 	return 1;
 }

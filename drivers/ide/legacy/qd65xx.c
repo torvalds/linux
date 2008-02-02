@@ -305,18 +305,33 @@ static int __init qd_testreg(int port)
  * called to setup an ata channel : adjusts attributes & links for tuning
  */
 
-static void __init qd_setup(ide_hwif_t *hwif, int base, int config,
-			    unsigned int data0, unsigned int data1)
+static void __init qd_setup(ide_hwif_t *hwif, int base, int config)
 {
-	hwif->chipset = ide_qd65xx;
-	hwif->channel = hwif->index;
 	hwif->select_data = base;
 	hwif->config_data = config;
-	hwif->drives[0].drive_data = data0;
-	hwif->drives[1].drive_data = data1;
-	hwif->drives[0].io_32bit =
-	hwif->drives[1].io_32bit = 1;
-	hwif->pio_mask = ATA_PIO4;
+}
+
+static void __init qd6500_port_init_devs(ide_hwif_t *hwif)
+{
+	u8 base = hwif->select_data, config = QD_CONFIG(hwif);
+
+	hwif->drives[0].drive_data = QD6500_DEF_DATA;
+	hwif->drives[1].drive_data = QD6500_DEF_DATA;
+}
+
+static void __init qd6580_port_init_devs(ide_hwif_t *hwif)
+{
+	u16 t1, t2;
+	u8 base = hwif->select_data, config = QD_CONFIG(hwif);
+
+	if (QD_CONTROL(hwif) & QD_CONTR_SEC_DISABLED) {
+		t1 = QD6580_DEF_DATA;
+		t2 = QD6580_DEF_DATA2;
+	} else
+		t2 = t1 = hwif->channel ? QD6580_DEF_DATA2 : QD6580_DEF_DATA;
+
+	hwif->drives[0].drive_data = t1;
+	hwif->drives[1].drive_data = t2;
 }
 
 /*
@@ -356,6 +371,14 @@ static void __exit qd_unsetup(ide_hwif_t *hwif)
 }
 */
 
+static const struct ide_port_info qd65xx_port_info __initdata = {
+	.chipset		= ide_qd65xx,
+	.host_flags		= IDE_HFLAG_IO_32BIT |
+				  IDE_HFLAG_NO_DMA |
+				  IDE_HFLAG_NO_AUTOTUNE,
+	.pio_mask		= ATA_PIO4,
+};
+
 /*
  * qd_probe:
  *
@@ -393,13 +416,14 @@ static int __init qd_probe(int base)
 			return 1;
 		}
 
-		qd_setup(hwif, base, config, QD6500_DEF_DATA, QD6500_DEF_DATA);
+		qd_setup(hwif, base, config);
 
+		hwif->port_init_devs = qd6500_port_init_devs;
 		hwif->set_pio_mode = &qd6500_set_pio_mode;
 
-		idx[0] = unit;
+		idx[unit] = unit;
 
-		ide_device_add(idx);
+		ide_device_add(idx, &qd65xx_port_info);
 
 		return 1;
 	}
@@ -426,14 +450,15 @@ static int __init qd_probe(int base)
 			hwif = &ide_hwifs[unit];
 			printk(KERN_INFO "%s: qd6580: single IDE board\n",
 					 hwif->name);
-			qd_setup(hwif, base, config | (control << 8),
-				 QD6580_DEF_DATA, QD6580_DEF_DATA2);
 
+			qd_setup(hwif, base, config | (control << 8));
+
+			hwif->port_init_devs = qd6580_port_init_devs;
 			hwif->set_pio_mode = &qd6580_set_pio_mode;
 
-			idx[0] = unit;
+			idx[unit] = unit;
 
-			ide_device_add(idx);
+			ide_device_add(idx, &qd65xx_port_info);
 
 			outb(QD_DEF_CONTR, QD_CONTROL_PORT);
 
@@ -447,20 +472,20 @@ static int __init qd_probe(int base)
 			printk(KERN_INFO "%s&%s: qd6580: dual IDE board\n",
 					hwif->name, mate->name);
 
-			qd_setup(hwif, base, config | (control << 8),
-				 QD6580_DEF_DATA, QD6580_DEF_DATA);
+			qd_setup(hwif, base, config | (control << 8));
 
+			hwif->port_init_devs = qd6580_port_init_devs;
 			hwif->set_pio_mode = &qd6580_set_pio_mode;
 
-			qd_setup(mate, base, config | (control << 8),
-				 QD6580_DEF_DATA2, QD6580_DEF_DATA2);
+			qd_setup(mate, base, config | (control << 8));
 
+			mate->port_init_devs = qd6580_port_init_devs;
 			mate->set_pio_mode = &qd6580_set_pio_mode;
 
 			idx[0] = 0;
 			idx[1] = 1;
 
-			ide_device_add(idx);
+			ide_device_add(idx, &qd65xx_port_info);
 
 			outb(QD_DEF_CONTR, QD_CONTROL_PORT);
 

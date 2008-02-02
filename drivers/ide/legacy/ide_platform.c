@@ -108,7 +108,7 @@ static int __devinit plat_ide_probe(struct platform_device *pdev)
 
 	idx[0] = hwif->index;
 
-	ide_device_add(idx);
+	ide_device_add(idx, NULL);
 
 	platform_set_drvdata(pdev, hwif);
 
@@ -122,7 +122,7 @@ static int __devexit plat_ide_remove(struct platform_device *pdev)
 {
 	ide_hwif_t *hwif = pdev->dev.driver_data;
 
-	ide_unregister(hwif->index);
+	ide_unregister(hwif->index, 0, 0);
 
 	return 0;
 }

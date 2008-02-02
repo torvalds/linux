@@ -17,12 +17,9 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/ioport.h>
-#include <linux/blkdev.h>
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/ide.h>
-#include <asm/io.h>
 
 #include "ide-timing.h"
 
@@ -199,6 +196,14 @@ static unsigned int __devinit init_chipset_amd74xx(struct pci_dev *dev,
 	return dev->irq;
 }
 
+static u8 __devinit amd_cable_detect(ide_hwif_t *hwif)
+{
+	if ((amd_80w >> hwif->channel) & 1)
+		return ATA_CBL_PATA80;
+	else
+		return ATA_CBL_PATA40;
+}
+
 static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
@@ -209,15 +214,7 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 	hwif->set_pio_mode = &amd_set_pio_mode;
 	hwif->set_dma_mode = &amd_set_drive;
 
-	if (!hwif->dma_base)
-		return;
-
-	if (hwif->cbl != ATA_CBL_PATA40_SHORT) {
-		if ((amd_80w >> hwif->channel) & 1)
-			hwif->cbl = ATA_CBL_PATA80;
-		else
-			hwif->cbl = ATA_CBL_PATA40;
-	}
+	hwif->cable_detect = amd_cable_detect;
 }
 
 #define IDE_HFLAGS_AMD \

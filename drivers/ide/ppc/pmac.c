@@ -412,7 +412,7 @@ kauai_lookup_timing(struct kauai_timing* table, int cycle_time)
  */
 #define IDE_WAKEUP_DELAY	(1*HZ)
 
-static void pmac_ide_setup_dma(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif);
+static int pmac_ide_setup_dma(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif);
 static int pmac_ide_build_dmatable(ide_drive_t *drive, struct request *rq);
 static void pmac_ide_selectproc(ide_drive_t *drive);
 static void pmac_ide_kauai_selectproc(ide_drive_t *drive);
@@ -1003,6 +1003,17 @@ pmac_ide_do_resume(ide_hwif_t *hwif)
 	return 0;
 }
 
+static const struct ide_port_info pmac_port_info = {
+	.chipset		= ide_pmac,
+	.host_flags		= IDE_HFLAG_SET_PIO_MODE_KEEP_DMA |
+				  IDE_HFLAG_PIO_NO_DOWNGRADE |
+				  IDE_HFLAG_POST_SET_MODE |
+				  IDE_HFLAG_NO_DMA | /* no SFF-style DMA */
+				  IDE_HFLAG_UNMASK_IRQS,
+	.pio_mask		= ATA_PIO4,
+	.mwdma_mask		= ATA_MWDMA2,
+};
+
 /*
  * Setup, register & probe an IDE channel driven by this driver, this is
  * called by one of the 2 probe functions (macio or PCI). Note that a channel
@@ -1016,23 +1027,28 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif, hw_regs_t *hw)
 	struct device_node *np = pmif->node;
 	const int *bidp;
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
+	struct ide_port_info d = pmac_port_info;
 
 	pmif->cable_80 = 0;
 	pmif->broken_dma = pmif->broken_dma_warn = 0;
-	if (of_device_is_compatible(np, "shasta-ata"))
+	if (of_device_is_compatible(np, "shasta-ata")) {
 		pmif->kind = controller_sh_ata6;
-	else if (of_device_is_compatible(np, "kauai-ata"))
+		d.udma_mask = ATA_UDMA6;
+	} else if (of_device_is_compatible(np, "kauai-ata")) {
 		pmif->kind = controller_un_ata6;
-	else if (of_device_is_compatible(np, "K2-UATA"))
+		d.udma_mask = ATA_UDMA5;
+	} else if (of_device_is_compatible(np, "K2-UATA")) {
 		pmif->kind = controller_k2_ata6;
-	else if (of_device_is_compatible(np, "keylargo-ata")) {
-		if (strcmp(np->name, "ata-4") == 0)
+		d.udma_mask = ATA_UDMA5;
+	} else if (of_device_is_compatible(np, "keylargo-ata")) {
+		if (strcmp(np->name, "ata-4") == 0) {
 			pmif->kind = controller_kl_ata4;
-		else
+			d.udma_mask = ATA_UDMA4;
+		} else
 			pmif->kind = controller_kl_ata3;
-	} else if (of_device_is_compatible(np, "heathrow-ata"))
+	} else if (of_device_is_compatible(np, "heathrow-ata")) {
 		pmif->kind = controller_heathrow;
-	else {
+	} else {
 		pmif->kind = controller_ohare;
 		pmif->broken_dma = 1;
 	}
@@ -1101,19 +1117,10 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif, hw_regs_t *hw)
 	/* Tell common code _not_ to mess with resources */
 	hwif->mmio = 1;
 	hwif->hwif_data = pmif;
-	hw->chipset = ide_pmac;
 	ide_init_port_hw(hwif, hw);
 	hwif->noprobe = pmif->mediabay;
 	hwif->hold = pmif->mediabay;
 	hwif->cbl = pmif->cable_80 ? ATA_CBL_PATA80 : ATA_CBL_PATA40;
-	hwif->drives[0].unmask = 1;
-	hwif->drives[1].unmask = 1;
-	hwif->drives[0].autotune = IDE_TUNE_AUTO;
-	hwif->drives[1].autotune = IDE_TUNE_AUTO;
-	hwif->host_flags = IDE_HFLAG_SET_PIO_MODE_KEEP_DMA |
-			   IDE_HFLAG_PIO_NO_DOWNGRADE |
-			   IDE_HFLAG_POST_SET_MODE;
-	hwif->pio_mask = ATA_PIO4;
 	hwif->set_pio_mode = pmac_ide_set_pio_mode;
 	if (pmif->kind == controller_un_ata6
 	    || pmif->kind == controller_k2_ata6
@@ -1133,14 +1140,16 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif, hw_regs_t *hw)
 #endif /* CONFIG_PMAC_MEDIABAY */
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_PMAC
+	if (pmif->cable_80 == 0)
+		d.udma_mask &= ATA_UDMA2;
 	/* has a DBDMA controller channel */
-	if (pmif->dma_regs)
-		pmac_ide_setup_dma(pmif, hwif);
-#endif /* CONFIG_BLK_DEV_IDEDMA_PMAC */
+	if (pmif->dma_regs == 0 || pmac_ide_setup_dma(pmif, hwif) < 0)
+#endif
+		d.udma_mask = d.mwdma_mask = 0;
 
 	idx[0] = hwif->index;
 
-	ide_device_add(idx);
+	ide_device_add(idx, &d);
 
 	return 0;
 }
@@ -1721,8 +1730,7 @@ pmac_ide_dma_lost_irq (ide_drive_t *drive)
  * Allocate the data structures needed for using DMA with an interface
  * and fill the proper list of functions pointers
  */
-static void __devinit
-pmac_ide_setup_dma(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
+static int __devinit pmac_ide_setup_dma(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 
@@ -1730,7 +1738,7 @@ pmac_ide_setup_dma(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 	 * DMA routines ...
 	 */
 	if (dev == NULL)
-		return;
+		return -ENODEV;
 	/*
 	 * Allocate space for the DBDMA commands.
 	 * The +2 is +1 for the stop command and +1 to allow for
@@ -1743,7 +1751,7 @@ pmac_ide_setup_dma(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 	if (pmif->dma_table_cpu == NULL) {
 		printk(KERN_ERR "%s: unable to allocate DMA command list\n",
 		       hwif->name);
-		return;
+		return -ENOMEM;
 	}
 
 	hwif->sg_max_nents = MAX_DCMDS;
@@ -1757,29 +1765,7 @@ pmac_ide_setup_dma(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 	hwif->dma_timeout = &ide_dma_timeout;
 	hwif->dma_lost_irq = &pmac_ide_dma_lost_irq;
 
-	switch(pmif->kind) {
-		case controller_sh_ata6:
-			hwif->ultra_mask = pmif->cable_80 ? 0x7f : 0x07;
-			hwif->mwdma_mask = 0x07;
-			hwif->swdma_mask = 0x00;
-			break;
-		case controller_un_ata6:
-		case controller_k2_ata6:
-			hwif->ultra_mask = pmif->cable_80 ? 0x3f : 0x07;
-			hwif->mwdma_mask = 0x07;
-			hwif->swdma_mask = 0x00;
-			break;
-		case controller_kl_ata4:
-			hwif->ultra_mask = pmif->cable_80 ? 0x1f : 0x07;
-			hwif->mwdma_mask = 0x07;
-			hwif->swdma_mask = 0x00;
-			break;
-		default:
-			hwif->ultra_mask = 0x00;
-			hwif->mwdma_mask = 0x07;
-			hwif->swdma_mask = 0x00;
-			break;
-	}
+	return 0;
 }
 
 #endif /* CONFIG_BLK_DEV_IDEDMA_PMAC */

@@ -26,14 +26,10 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/ioport.h>
-#include <linux/blkdev.h>
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/ide.h>
 #include <linux/dmi.h>
-
-#include <asm/io.h>
 
 #ifdef CONFIG_PPC_CHRP
 #include <asm/processor.h>
@@ -424,11 +420,7 @@ static void __devinit init_hwif_via82cxxx(ide_hwif_t *hwif)
 	hwif->set_pio_mode = &via_set_pio_mode;
 	hwif->set_dma_mode = &via_set_drive;
 
-	if (!hwif->dma_base)
-		return;
-
-	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
-		hwif->cbl = via82cxxx_cable_detect(hwif);
+	hwif->cable_detect = via82cxxx_cable_detect;
 }
 
 static const struct ide_port_info via82cxxx_chipset __devinitdata = {

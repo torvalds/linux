@@ -499,6 +499,8 @@ void ide_remove_port_from_hwgroup(ide_hwif_t *hwif)
 /**
  *	ide_unregister		-	free an IDE interface
  *	@index: index of interface (will change soon to a pointer)
+ *	@init_default: init default hwif flag
+ *	@restore: restore hwif flag
  *
  *	Perform the final unregister of an IDE interface. At the moment
  *	we don't refcount interfaces so this will also get split up.
@@ -518,7 +520,7 @@ void ide_remove_port_from_hwgroup(ide_hwif_t *hwif)
  *	This is raving bonkers.
  */
 
-void ide_unregister(unsigned int index)
+void ide_unregister(unsigned int index, int init_default, int restore)
 {
 	ide_drive_t *drive;
 	ide_hwif_t *hwif, *g;
@@ -602,9 +604,12 @@ void ide_unregister(unsigned int index)
 
 	/* restore hwif data to pristine status */
 	ide_init_port_data(hwif, index);
-	init_hwif_default(hwif, index);
 
-	ide_hwif_restore(hwif, &tmp_hwif);
+	if (init_default)
+		init_hwif_default(hwif, index);
+
+	if (restore)
+		ide_hwif_restore(hwif, &tmp_hwif);
 
 abort:
 	spin_unlock_irq(&ide_lock);
@@ -678,6 +683,31 @@ void ide_init_port_hw(ide_hwif_t *hwif, hw_regs_t *hw)
 }
 EXPORT_SYMBOL_GPL(ide_init_port_hw);
 
+ide_hwif_t *ide_deprecated_find_port(unsigned long base)
+{
+	ide_hwif_t *hwif;
+	int i;
+
+	for (i = 0; i < MAX_HWIFS; i++) {
+		hwif = &ide_hwifs[i];
+		if (hwif->io_ports[IDE_DATA_OFFSET] == base)
+			goto found;
+	}
+
+	for (i = 0; i < MAX_HWIFS; i++) {
+		hwif = &ide_hwifs[i];
+		if (hwif->hold)
+			continue;
+		if (!hwif->present && hwif->mate == NULL)
+			goto found;
+	}
+
+	hwif = NULL;
+found:
+	return hwif;
+}
+EXPORT_SYMBOL_GPL(ide_deprecated_find_port);
+
 /**
  *	ide_register_hw		-	register IDE interface
  *	@hw: hardware registers
@@ -697,38 +727,26 @@ int ide_register_hw(hw_regs_t *hw, void (*quirkproc)(ide_drive_t *),
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
 	do {
-		for (index = 0; index < MAX_HWIFS; ++index) {
-			hwif = &ide_hwifs[index];
-			if (hwif->io_ports[IDE_DATA_OFFSET] == hw->io_ports[IDE_DATA_OFFSET])
-				goto found;
-		}
-		for (index = 0; index < MAX_HWIFS; ++index) {
-			hwif = &ide_hwifs[index];
-			if (hwif->hold)
-				continue;
-			if (!hwif->present && hwif->mate == NULL)
-				goto found;
-		}
+		hwif = ide_deprecated_find_port(hw->io_ports[IDE_DATA_OFFSET]);
+		index = hwif->index;
+		if (hwif)
+			goto found;
 		for (index = 0; index < MAX_HWIFS; index++)
-			ide_unregister(index);
+			ide_unregister(index, 1, 1);
 	} while (retry--);
 	return -1;
 found:
 	if (hwif->present)
-		ide_unregister(index);
-	else if (!hwif->hold) {
+		ide_unregister(index, 0, 1);
+	else if (!hwif->hold)
 		ide_init_port_data(hwif, index);
-		init_hwif_default(hwif, index);
-	}
-	if (hwif->present)
-		return -1;
 
 	ide_init_port_hw(hwif, hw);
 	hwif->quirkproc = quirkproc;
 
 	idx[0] = index;
 
-	ide_device_add(idx);
+	ide_device_add(idx, NULL);
 
 	if (hwifp)
 		*hwifp = hwif;
@@ -791,10 +809,6 @@ int set_io_32bit(ide_drive_t *drive, int arg)
 		return -EBUSY;
 
 	drive->io_32bit = arg;
-#ifdef CONFIG_BLK_DEV_DTC2278
-	if (HWIF(drive)->chipset == ide_dtc2278)
-		HWIF(drive)->drives[!drive->select.b.unit].io_32bit = arg;
-#endif /* CONFIG_BLK_DEV_DTC2278 */
 
 	spin_unlock_irq(&ide_lock);
 
@@ -1021,11 +1035,8 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 		case HDIO_GET_NICE:
 			return put_user(drive->dsc_overlap	<<	IDE_NICE_DSC_OVERLAP	|
 					drive->atapi_overlap	<<	IDE_NICE_ATAPI_OVERLAP	|
-					drive->nice0		<< 	IDE_NICE_0		|
-					drive->nice1		<<	IDE_NICE_1		|
-					drive->nice2		<<	IDE_NICE_2,
+					drive->nice1 << IDE_NICE_1,
 					(long __user *) arg);
-
 #ifdef CONFIG_IDE_TASK_IOCTL
 		case HDIO_DRIVE_TASKFILE:
 		        if (!capable(CAP_SYS_ADMIN) || !capable(CAP_SYS_RAWIO))
@@ -1066,7 +1077,7 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 	        case HDIO_UNREGISTER_HWIF:
 			if (!capable(CAP_SYS_RAWIO)) return -EACCES;
 			/* (arg > MAX_HWIFS) checked in function */
-			ide_unregister(arg);
+			ide_unregister(arg, 1, 1);
 			return 0;
 		case HDIO_SET_NICE:
 			if (!capable(CAP_SYS_ADMIN)) return -EACCES;
@@ -1711,7 +1722,7 @@ void __exit cleanup_module (void)
 	int index;
 
 	for (index = 0; index < MAX_HWIFS; ++index)
-		ide_unregister(index);
+		ide_unregister(index, 0, 0);
 
 	proc_ide_destroy();
 

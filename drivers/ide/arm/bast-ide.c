@@ -28,8 +28,10 @@ static int __init
 bastide_register(unsigned int base, unsigned int aux, int irq,
 		 ide_hwif_t **hwif)
 {
+	ide_hwif_t *hwif;
 	hw_regs_t hw;
 	int i;
+	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
 	memset(&hw, 0, sizeof(hw));
 
@@ -44,8 +46,24 @@ bastide_register(unsigned int base, unsigned int aux, int irq,
 	hw.io_ports[IDE_CONTROL_OFFSET] = aux + (6 * 0x20);
 	hw.irq = irq;
 
-	ide_register_hw(&hw, NULL, hwif);
+	hwif = ide_deprecated_find_port(hw.io_ports[IDE_DATA_OFFSET]);
+	if (hwif == NULL)
+		goto out;
 
+	i = hwif->index;
+
+	if (hwif->present)
+		ide_unregister(i, 0, 0);
+	else if (!hwif->hold)
+		ide_init_port_data(hwif, i);
+
+	ide_init_port_hw(hwif, &hw);
+	hwif->quirkproc = NULL;
+
+	idx[0] = i;
+
+	ide_device_add(idx, NULL);
+out:
 	return 0;
 }
 

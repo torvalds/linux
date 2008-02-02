@@ -160,6 +160,19 @@ static int tc86c001_busproc(ide_drive_t *drive, int state)
 	return 0;
 }
 
+static u8 __devinit tc86c001_cable_detect(ide_hwif_t *hwif)
+{
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
+	unsigned long sc_base = pci_resource_start(dev, 5);
+	u16 scr1 = inw(sc_base + 0x00);
+
+	/*
+	 * System Control  1 Register bit 13 (PDIAGN):
+	 * 0=80-pin cable, 1=40-pin cable
+	 */
+	return (scr1 & 0x2000) ? ATA_CBL_PATA40 : ATA_CBL_PATA80;
+}
+
 static void __devinit init_hwif_tc86c001(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
@@ -183,6 +196,8 @@ static void __devinit init_hwif_tc86c001(ide_hwif_t *hwif)
 
 	hwif->busproc	= &tc86c001_busproc;
 
+	hwif->cable_detect = tc86c001_cable_detect;
+
 	if (!hwif->dma_base)
 		return;
 
@@ -196,15 +211,6 @@ static void __devinit init_hwif_tc86c001(ide_hwif_t *hwif)
 	hwif->rqsize	 = 0xffff;
 
 	hwif->dma_start 	= &tc86c001_dma_start;
-
-	if (hwif->cbl != ATA_CBL_PATA40_SHORT) {
-		/*
-		 * System Control  1 Register bit 13 (PDIAGN):
-		 * 0=80-pin cable, 1=40-pin cable
-		 */
-		scr1 = inw(sc_base + 0x00);
-		hwif->cbl = (scr1 & 0x2000) ? ATA_CBL_PATA40 : ATA_CBL_PATA80;
-	}
 }
 
 static unsigned int __devinit init_chipset_tc86c001(struct pci_dev *dev,

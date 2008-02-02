@@ -6,14 +6,10 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/ioport.h>
 #include <linux/pci.h>
 #include <linux/hdreg.h>
 #include <linux/ide.h>
-#include <linux/delay.h>
 #include <linux/init.h>
-
-#include <asm/io.h>
 
 #define ATIIXP_IDE_PIO_TIMING		0x40
 #define ATIIXP_IDE_MDMA_TIMING		0x44
@@ -121,6 +117,19 @@ static void atiixp_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	spin_unlock_irqrestore(&atiixp_lock, flags);
 }
 
+static u8 __devinit atiixp_cable_detect(ide_hwif_t *hwif)
+{
+	struct pci_dev *pdev = to_pci_dev(hwif->dev);
+	u8 udma_mode = 0, ch = hwif->channel;
+
+	pci_read_config_byte(pdev, ATIIXP_IDE_UDMA_MODE + ch, &udma_mode);
+
+	if ((udma_mode & 0x07) >= 0x04 || (udma_mode & 0x70) >= 0x40)
+		return ATA_CBL_PATA80;
+	else
+		return ATA_CBL_PATA40;
+}
+
 /**
  *	init_hwif_atiixp		-	fill in the hwif for the ATIIXP
  *	@hwif: IDE interface
@@ -131,21 +140,10 @@ static void atiixp_set_dma_mode(ide_drive_t *drive, const u8 speed)
 
 static void __devinit init_hwif_atiixp(ide_hwif_t *hwif)
 {
-	struct pci_dev *pdev = to_pci_dev(hwif->dev);
-	u8 udma_mode = 0, ch = hwif->channel;
-
 	hwif->set_pio_mode = &atiixp_set_pio_mode;
 	hwif->set_dma_mode = &atiixp_set_dma_mode;
 
-	if (!hwif->dma_base)
-		return;
-
-	pci_read_config_byte(pdev, ATIIXP_IDE_UDMA_MODE + ch, &udma_mode);
-
-	if ((udma_mode & 0x07) >= 0x04 || (udma_mode & 0x70) >= 0x40)
-		hwif->cbl = ATA_CBL_PATA80;
-	else
-		hwif->cbl = ATA_CBL_PATA40;
+	hwif->cable_detect = atiixp_cable_detect;
 }
 
 static const struct ide_port_info atiixp_pci_info[] __devinitdata = {

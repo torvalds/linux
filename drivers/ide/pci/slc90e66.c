@@ -10,14 +10,10 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/ioport.h>
 #include <linux/pci.h>
 #include <linux/hdreg.h>
 #include <linux/ide.h>
-#include <linux/delay.h>
 #include <linux/init.h>
-
-#include <asm/io.h>
 
 static DEFINE_SPINLOCK(slc90e66_lock);
 
@@ -118,23 +114,23 @@ static void slc90e66_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	}
 }
 
-static void __devinit init_hwif_slc90e66 (ide_hwif_t *hwif)
+static u8 __devinit slc90e66_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
-	u8 reg47 = 0;
-	u8 mask = hwif->channel ? 0x01 : 0x02;  /* bit0:Primary */
-
-	hwif->set_pio_mode = &slc90e66_set_pio_mode;
-	hwif->set_dma_mode = &slc90e66_set_dma_mode;
+	u8 reg47 = 0, mask = hwif->channel ? 0x01 : 0x02;
 
 	pci_read_config_byte(dev, 0x47, &reg47);
 
-	if (hwif->dma_base == 0)
-		return;
+	/* bit[0(1)]: 0:80, 1:40 */
+	return (reg47 & mask) ? ATA_CBL_PATA40 : ATA_CBL_PATA80;
+}
 
-	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
-		/* bit[0(1)]: 0:80, 1:40 */
-		hwif->cbl = (reg47 & mask) ? ATA_CBL_PATA40 : ATA_CBL_PATA80;
+static void __devinit init_hwif_slc90e66(ide_hwif_t *hwif)
+{
+	hwif->set_pio_mode = &slc90e66_set_pio_mode;
+	hwif->set_dma_mode = &slc90e66_set_dma_mode;
+
+	hwif->cable_detect = slc90e66_cable_detect;
 }
 
 static const struct ide_port_info slc90e66_chipset __devinitdata = {

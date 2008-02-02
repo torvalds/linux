@@ -163,8 +163,6 @@ void SELECT_DRIVE (ide_drive_t *drive)
 	HWIF(drive)->OUTB(drive->select.all, IDE_SELECT_REG);
 }
 
-EXPORT_SYMBOL(SELECT_DRIVE);
-
 void SELECT_MASK (ide_drive_t *drive, int mask)
 {
 	if (HWIF(drive)->maskproc)
@@ -614,66 +612,6 @@ no_80w:
 	return 0;
 }
 
-int ide_ata66_check (ide_drive_t *drive, ide_task_t *args)
-{
-	if (args->tf.command == WIN_SETFEATURES &&
-	    args->tf.nsect > XFER_UDMA_2 &&
-	    args->tf.feature == SETFEATURES_XFER) {
-		if (eighty_ninty_three(drive) == 0) {
-			printk(KERN_WARNING "%s: UDMA speeds >UDMA33 cannot "
-					    "be set\n", drive->name);
-			return 1;
-		}
-	}
-
-	return 0;
-}
-
-/*
- * Backside of HDIO_DRIVE_CMD call of SETFEATURES_XFER.
- * 1 : Safe to update drive->id DMA registers.
- * 0 : OOPs not allowed.
- */
-int set_transfer (ide_drive_t *drive, ide_task_t *args)
-{
-	if (args->tf.command == WIN_SETFEATURES &&
-	    args->tf.nsect >= XFER_SW_DMA_0 &&
-	    args->tf.feature == SETFEATURES_XFER &&
-	    (drive->id->dma_ultra ||
-	     drive->id->dma_mword ||
-	     drive->id->dma_1word))
-		return 1;
-
-	return 0;
-}
-
-#ifdef CONFIG_BLK_DEV_IDEDMA
-static u8 ide_auto_reduce_xfer (ide_drive_t *drive)
-{
-	if (!drive->crc_count)
-		return drive->current_speed;
-	drive->crc_count = 0;
-
-	switch(drive->current_speed) {
-		case XFER_UDMA_7:	return XFER_UDMA_6;
-		case XFER_UDMA_6:	return XFER_UDMA_5;
-		case XFER_UDMA_5:	return XFER_UDMA_4;
-		case XFER_UDMA_4:	return XFER_UDMA_3;
-		case XFER_UDMA_3:	return XFER_UDMA_2;
-		case XFER_UDMA_2:	return XFER_UDMA_1;
-		case XFER_UDMA_1:	return XFER_UDMA_0;
-			/*
-			 * OOPS we do not goto non Ultra DMA modes
-			 * without iCRC's available we force
-			 * the system to PIO and make the user
-			 * invoke the ATA-1 ATA-2 DMA modes.
-			 */
-		case XFER_UDMA_0:
-		default:		return XFER_PIO_4;
-	}
-}
-#endif /* CONFIG_BLK_DEV_IDEDMA */
-
 int ide_driveid_update(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
@@ -882,22 +820,17 @@ void ide_execute_command(ide_drive_t *drive, u8 cmd, ide_handler_t *handler,
 	unsigned long flags;
 	ide_hwgroup_t *hwgroup = HWGROUP(drive);
 	ide_hwif_t *hwif = HWIF(drive);
-	
+
 	spin_lock_irqsave(&ide_lock, flags);
-	
 	BUG_ON(hwgroup->handler);
-	hwgroup->handler	= handler;
-	hwgroup->expiry		= expiry;
-	hwgroup->timer.expires	= jiffies + timeout;
-	hwgroup->req_gen_timer = hwgroup->req_gen;
-	add_timer(&hwgroup->timer);
+	__ide_set_handler(drive, handler, timeout, expiry);
 	hwif->OUTBSYNC(drive, cmd, IDE_COMMAND_REG);
-	/* Drive takes 400nS to respond, we must avoid the IRQ being
-	   serviced before that. 
-	   
-	   FIXME: we could skip this delay with care on non shared
-	   devices 
-	*/
+	/*
+	 * Drive takes 400nS to respond, we must avoid the IRQ being
+	 * serviced before that.
+	 *
+	 * FIXME: we could skip this delay with care on non shared devices
+	 */
 	ndelay(400);
 	spin_unlock_irqrestore(&ide_lock, flags);
 }
@@ -1005,19 +938,6 @@ static ide_startstop_t reset_pollfunc (ide_drive_t *drive)
 	return ide_stopped;
 }
 
-static void check_dma_crc(ide_drive_t *drive)
-{
-#ifdef CONFIG_BLK_DEV_IDEDMA
-	if (drive->crc_count) {
-		ide_dma_off_quietly(drive);
-		ide_set_xfer_rate(drive, ide_auto_reduce_xfer(drive));
-		if (drive->current_speed >= XFER_SW_DMA_0)
-			ide_dma_on(drive);
-	} else
-		ide_dma_off(drive);
-#endif
-}
-
 static void ide_disk_pre_reset(ide_drive_t *drive)
 {
 	int legacy = (drive->id->cfs_enable_2 & 0x0400) ? 0 : 1;
@@ -1039,17 +959,20 @@ static void pre_reset(ide_drive_t *drive)
 	else
 		drive->post_reset = 1;
 
+	if (drive->using_dma) {
+		if (drive->crc_count)
+			ide_check_dma_crc(drive);
+		else
+			ide_dma_off(drive);
+	}
+
 	if (!drive->keep_settings) {
-		if (drive->using_dma) {
-			check_dma_crc(drive);
-		} else {
+		if (!drive->using_dma) {
 			drive->unmask = 0;
 			drive->io_32bit = 0;
 		}
 		return;
 	}
-	if (drive->using_dma)
-		check_dma_crc(drive);
 
 	if (HWIF(drive)->pre_reset != NULL)
 		HWIF(drive)->pre_reset(drive);

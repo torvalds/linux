@@ -31,12 +31,10 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/ioport.h>
 #include <linux/pci.h>
 #include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/init.h>
-#include <linux/delay.h>
 
 #include <asm/io.h>
 
@@ -346,13 +344,8 @@ static void __devinit init_hwif_svwks (ide_hwif_t *hwif)
 	hwif->set_dma_mode = &svwks_set_dma_mode;
 	hwif->udma_filter = &svwks_udma_filter;
 
-	if (!hwif->dma_base)
-		return;
-
-	if (dev->device != PCI_DEVICE_ID_SERVERWORKS_OSB4IDE) {
-		if (hwif->cbl != ATA_CBL_PATA40_SHORT)
-			hwif->cbl = ata66_svwks(hwif);
-	}
+	if (dev->device != PCI_DEVICE_ID_SERVERWORKS_OSB4IDE)
+		hwif->cable_detect = ata66_svwks;
 }
 
 #define IDE_HFLAGS_SVWKS \

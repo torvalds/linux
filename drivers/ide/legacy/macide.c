@@ -123,19 +123,9 @@ static int __init macide_init(void)
 		ide_init_port_data(hwif, index);
 		ide_init_port_hw(hwif, &hw);
 
-		if (macintosh_config->ide_type == MAC_IDE_BABOON &&
-		    macintosh_config->ident == MAC_MODEL_PB190) {
-			/* Fix breakage in ide-disk.c: drive capacity	*/
-			/* is not initialized for drives without a 	*/
-			/* hardware ID, and we can't get that without	*/
-			/* probing the drive which freezes a 190.	*/
-			ide_drive_t *drive = &hwif->drives[0];
-			drive->capacity64 = drive->cyl*drive->head*drive->sect;
-		}
-
 		hwif->mmio = 1;
 
-		ide_device_add(idx);
+		ide_device_add(idx, NULL);
 	}
 
 	return 0;

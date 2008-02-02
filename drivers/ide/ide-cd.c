@@ -604,8 +604,6 @@ static ide_startstop_t cdrom_transfer_packet_command (ide_drive_t *drive,
  * Block read functions.
  */
 
-typedef void (xfer_func_t)(ide_drive_t *, void *, u32);
-
 static void ide_cd_pad_transfer(ide_drive_t *drive, xfer_func_t *xf, int len)
 {
 	while (len > 0) {

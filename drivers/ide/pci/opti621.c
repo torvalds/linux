@@ -87,11 +87,6 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/delay.h>
-#include <linux/timer.h>
-#include <linux/mm.h>
-#include <linux/ioport.h>
-#include <linux/blkdev.h>
 #include <linux/pci.h>
 #include <linux/hdreg.h>
 #include <linux/ide.h>
@@ -320,14 +315,18 @@ static void opti621_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	spin_unlock_irqrestore(&opti621_lock, flags);
 }
 
+static void __devinit opti621_port_init_devs(ide_hwif_t *hwif)
+{
+	hwif->drives[0].drive_data = PIO_DONT_KNOW;
+	hwif->drives[1].drive_data = PIO_DONT_KNOW;
+}
+
 /*
  * init_hwif_opti621() is called once for each hwif found at boot.
  */
 static void __devinit init_hwif_opti621 (ide_hwif_t *hwif)
 {
-	hwif->drives[0].drive_data = PIO_DONT_KNOW;
-	hwif->drives[1].drive_data = PIO_DONT_KNOW;
-
+	hwif->port_init_devs = opti621_port_init_devs;
 	hwif->set_pio_mode = &opti621_set_pio_mode;
 }
 

@@ -84,13 +84,19 @@ static void dtc2278_set_pio_mode(ide_drive_t *drive, const u8 pio)
 		/* Actually we do - there is a data sheet available for the
 		   Winbond but does anyone actually care */
 	}
-
-	/*
-	 * 32bit I/O has to be enabled for *both* drives at the same time.
-	 */
-	drive->io_32bit = 1;
-	HWIF(drive)->drives[!drive->select.b.unit].io_32bit = 1;
 }
+
+static const struct ide_port_info dtc2278_port_info __initdata = {
+	.chipset		= ide_dtc2278,
+	.host_flags		= IDE_HFLAG_SERIALIZE |
+				  IDE_HFLAG_NO_UNMASK_IRQS |
+				  IDE_HFLAG_IO_32BIT |
+				  /* disallow ->io_32bit changes */
+				  IDE_HFLAG_NO_IO_32BIT |
+				  IDE_HFLAG_NO_DMA |
+				  IDE_HFLAG_NO_AUTOTUNE,
+	.pio_mask		= ATA_PIO4,
+};
 
 static int __init dtc2278_probe(void)
 {
@@ -122,23 +128,9 @@ static int __init dtc2278_probe(void)
 #endif
 	local_irq_restore(flags);
 
-	hwif->serialized = 1;
-	hwif->chipset = ide_dtc2278;
-	hwif->pio_mask = ATA_PIO4;
 	hwif->set_pio_mode = &dtc2278_set_pio_mode;
-	hwif->drives[0].no_unmask = 1;
-	hwif->drives[1].no_unmask = 1;
-	hwif->mate = mate;
 
-	mate->serialized = 1;
-	mate->chipset = ide_dtc2278;
-	mate->pio_mask = ATA_PIO4;
-	mate->drives[0].no_unmask = 1;
-	mate->drives[1].no_unmask = 1;
-	mate->mate = hwif;
-	mate->channel = 1;
-
-	ide_device_add(idx);
+	ide_device_add(idx, &dtc2278_port_info);
 
 	return 0;
 }

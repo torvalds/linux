@@ -154,7 +154,7 @@ static int __init q40ide_init(void)
 	}
     }
 
-    ide_device_add(idx);
+    ide_device_add(idx, NULL);
 
     return 0;
 }

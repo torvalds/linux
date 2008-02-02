@@ -7,7 +7,6 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/pci.h>
-#include <linux/delay.h>
 #include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/init.h>
@@ -166,6 +165,16 @@ static unsigned int __devinit init_chipset_aec62xx(struct pci_dev *dev, const ch
 	return dev->irq;
 }
 
+static u8 __devinit atp86x_cable_detect(ide_hwif_t *hwif)
+{
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
+	u8 ata66 = 0, mask = hwif->channel ? 0x02 : 0x01;
+
+	pci_read_config_byte(dev, 0x49, &ata66);
+
+	return (ata66 & mask) ? ATA_CBL_PATA40 : ATA_CBL_PATA80;
+}
+
 static void __devinit init_hwif_aec62xx(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
@@ -174,21 +183,10 @@ static void __devinit init_hwif_aec62xx(ide_hwif_t *hwif)
 
 	if (dev->device == PCI_DEVICE_ID_ARTOP_ATP850UF)
 		hwif->set_dma_mode = &aec6210_set_mode;
-	else
+	else {
 		hwif->set_dma_mode = &aec6260_set_mode;
 
-	if (hwif->dma_base == 0)
-		return;
-
-	if (dev->device == PCI_DEVICE_ID_ARTOP_ATP850UF)
-		return;
-
-	if (hwif->cbl != ATA_CBL_PATA40_SHORT) {
-		u8 ata66 = 0, mask = hwif->channel ? 0x02 : 0x01;
-
-		pci_read_config_byte(dev, 0x49, &ata66);
-
-		hwif->cbl = (ata66 & mask) ? ATA_CBL_PATA40 : ATA_CBL_PATA80;
+		hwif->cable_detect = atp86x_cable_detect;
 	}
 }
 

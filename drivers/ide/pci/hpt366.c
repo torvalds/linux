@@ -121,12 +121,8 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/timer.h>
-#include <linux/mm.h>
-#include <linux/ioport.h>
 #include <linux/blkdev.h>
 #include <linux/hdreg.h>
-
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/init.h>
@@ -134,7 +130,6 @@
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
-#include <asm/irq.h>
 
 /* various tuning parameters */
 #define HPT_RESET_STATE_ENGINE
@@ -1279,12 +1274,55 @@ static unsigned int __devinit init_chipset_hpt366(struct pci_dev *dev, const cha
 	return dev->irq;
 }
 
+static u8 __devinit hpt3xx_cable_detect(ide_hwif_t *hwif)
+{
+	struct pci_dev	*dev	= to_pci_dev(hwif->dev);
+	struct hpt_info *info	= pci_get_drvdata(dev);
+	u8 chip_type		= info->chip_type;
+	u8 scr1 = 0, ata66	= hwif->channel ? 0x01 : 0x02;
+
+	/*
+	 * The HPT37x uses the CBLID pins as outputs for MA15/MA16
+	 * address lines to access an external EEPROM.  To read valid
+	 * cable detect state the pins must be enabled as inputs.
+	 */
+	if (chip_type == HPT374 && (PCI_FUNC(dev->devfn) & 1)) {
+		/*
+		 * HPT374 PCI function 1
+		 * - set bit 15 of reg 0x52 to enable TCBLID as input
+		 * - set bit 15 of reg 0x56 to enable FCBLID as input
+		 */
+		u8  mcr_addr = hwif->select_data + 2;
+		u16 mcr;
+
+		pci_read_config_word(dev, mcr_addr, &mcr);
+		pci_write_config_word(dev, mcr_addr, (mcr | 0x8000));
+		/* now read cable id register */
+		pci_read_config_byte(dev, 0x5a, &scr1);
+		pci_write_config_word(dev, mcr_addr, mcr);
+	} else if (chip_type >= HPT370) {
+		/*
+		 * HPT370/372 and 374 pcifn 0
+		 * - clear bit 0 of reg 0x5b to enable P/SCBLID as inputs
+		 */
+		u8 scr2 = 0;
+
+		pci_read_config_byte(dev, 0x5b, &scr2);
+		pci_write_config_byte(dev, 0x5b, (scr2 & ~1));
+		/* now read cable id register */
+		pci_read_config_byte(dev, 0x5a, &scr1);
+		pci_write_config_byte(dev, 0x5b,  scr2);
+	} else
+		pci_read_config_byte(dev, 0x5a, &scr1);
+
+	return (scr1 & ata66) ? ATA_CBL_PATA40 : ATA_CBL_PATA80;
+}
+
 static void __devinit init_hwif_hpt366(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	struct hpt_info *info	= pci_get_drvdata(dev);
 	int serialize		= HPT_SERIALIZE_IO;
-	u8  scr1 = 0, ata66	= hwif->channel ? 0x01 : 0x02;
 	u8  chip_type		= info->chip_type;
 	u8  new_mcr, old_mcr	= 0;
 
@@ -1300,6 +1338,8 @@ static void __devinit init_hwif_hpt366(ide_hwif_t *hwif)
 
 	hwif->udma_filter	= &hpt3xx_udma_filter;
 	hwif->mdma_filter	= &hpt3xx_mdma_filter;
+
+	hwif->cable_detect	= hpt3xx_cable_detect;
 
 	/*
 	 * HPT3xxN chips have some complications:
@@ -1345,43 +1385,6 @@ static void __devinit init_hwif_hpt366(ide_hwif_t *hwif)
 
 	if (hwif->dma_base == 0)
 		return;
-
-	/*
-	 * The HPT37x uses the CBLID pins as outputs for MA15/MA16
-	 * address lines to access an external EEPROM.  To read valid
-	 * cable detect state the pins must be enabled as inputs.
-	 */
-	if (chip_type == HPT374 && (PCI_FUNC(dev->devfn) & 1)) {
-		/*
-		 * HPT374 PCI function 1
-		 * - set bit 15 of reg 0x52 to enable TCBLID as input
-		 * - set bit 15 of reg 0x56 to enable FCBLID as input
-		 */
-		u8  mcr_addr = hwif->select_data + 2;
-		u16 mcr;
-
-		pci_read_config_word (dev, mcr_addr, &mcr);
-		pci_write_config_word(dev, mcr_addr, (mcr | 0x8000));
-		/* now read cable id register */
-		pci_read_config_byte (dev, 0x5a, &scr1);
-		pci_write_config_word(dev, mcr_addr, mcr);
-	} else if (chip_type >= HPT370) {
-		/*
-		 * HPT370/372 and 374 pcifn 0
-		 * - clear bit 0 of reg 0x5b to enable P/SCBLID as inputs
-		 */
-		u8 scr2 = 0;
-
-		pci_read_config_byte (dev, 0x5b, &scr2);
-		pci_write_config_byte(dev, 0x5b, (scr2 & ~1));
-		/* now read cable id register */
-		pci_read_config_byte (dev, 0x5a, &scr1);
-		pci_write_config_byte(dev, 0x5b,  scr2);
-	} else
-		pci_read_config_byte (dev, 0x5a, &scr1);
-
-	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
-		hwif->cbl = (scr1 & ata66) ? ATA_CBL_PATA40 : ATA_CBL_PATA80;
 
 	if (chip_type >= HPT374) {
 		hwif->ide_dma_test_irq	= &hpt374_ide_dma_test_irq;

@@ -753,6 +753,15 @@ static void cris_set_dma_mode(ide_drive_t *drive, const u8 speed)
 		cris_ide_set_speed(TYPE_DMA, 0, strobe, hold);
 }
 
+static const struct ide_port_info cris_port_info __initdata = {
+	.chipset		= ide_etrax100,
+	.host_flags		= IDE_HFLAG_NO_ATAPI_DMA |
+				  IDE_HFLAG_NO_DMA, /* no SFF-style DMA */
+	.pio_mask		= ATA_PIO4,
+	.udma_mask		= cris_ultra_mask,
+	.mwdma_mask		= ATA_MWDMA2,
+};
+
 static int __init init_e100_ide(void)
 {
 	hw_regs_t hw;
@@ -780,7 +789,6 @@ static int __init init_e100_ide(void)
 		ide_init_port_data(hwif, hwif->index);
 		ide_init_port_hw(hwif, &hw);
 		hwif->mmio = 1;
-		hwif->chipset = ide_etrax100;
 		hwif->set_pio_mode = &cris_set_pio_mode;
 		hwif->set_dma_mode = &cris_set_dma_mode;
 		hwif->ata_input_data = &cris_ide_input_data;
@@ -799,12 +807,6 @@ static int __init init_e100_ide(void)
 		hwif->INB = &cris_ide_inb;
 		hwif->INW = &cris_ide_inw;
 		hwif->cbl = ATA_CBL_PATA40;
-		hwif->host_flags |= IDE_HFLAG_NO_ATAPI_DMA;
-		hwif->pio_mask = ATA_PIO4,
-		hwif->drives[0].autotune = 1;
-		hwif->drives[1].autotune = 1;
-		hwif->ultra_mask = cris_ultra_mask;
-		hwif->mwdma_mask = 0x07; /* Multiword DMA 0-2 */
 
 		idx[h] = hwif->index;
 	}
@@ -820,7 +822,7 @@ static int __init init_e100_ide(void)
 	cris_ide_set_speed(TYPE_DMA, 0, ATA_DMA2_STROBE, ATA_DMA2_HOLD);
 	cris_ide_set_speed(TYPE_UDMA, ATA_UDMA2_CYC, ATA_UDMA2_DVS, 0);
 
-	ide_device_add(idx);
+	ide_device_add(idx, &cris_port_info);
 
 	return 0;
 }
@@ -1032,11 +1034,7 @@ static int cris_dma_setup(ide_drive_t *drive)
 
 static void cris_dma_exec_cmd(ide_drive_t *drive, u8 command)
 {
-	/* set the irq handler which will finish the request when DMA is done */
-	ide_set_handler(drive, &cris_dma_intr, WAIT_CMD, NULL);
-
-	/* issue cmd to drive */
-	cris_ide_outb(command, IDE_COMMAND_REG);
+	ide_execute_command(drive, command, &cris_dma_intr, WAIT_CMD, NULL);
 }
 
 static void cris_dma_start(ide_drive_t *drive)
