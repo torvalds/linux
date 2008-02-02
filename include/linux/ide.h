@@ -112,18 +112,12 @@ typedef unsigned char	byte;	/* used everywhere */
 #define SATA_NR_PORTS		(3)	/* 16 possible ?? */
 
 #define SATA_STATUS_OFFSET	(0)
-#define SATA_STATUS_REG		(HWIF(drive)->sata_scr[SATA_STATUS_OFFSET])
 #define SATA_ERROR_OFFSET	(1)
-#define SATA_ERROR_REG		(HWIF(drive)->sata_scr[SATA_ERROR_OFFSET])
 #define SATA_CONTROL_OFFSET	(2)
-#define SATA_CONTROL_REG	(HWIF(drive)->sata_scr[SATA_CONTROL_OFFSET])
 
 #define SATA_MISC_OFFSET	(0)
-#define SATA_MISC_REG		(HWIF(drive)->sata_misc[SATA_MISC_OFFSET])
 #define SATA_PHY_OFFSET		(1)
-#define SATA_PHY_REG		(HWIF(drive)->sata_misc[SATA_PHY_OFFSET])
 #define SATA_IEN_OFFSET		(2)
-#define SATA_IEN_REG		(HWIF(drive)->sata_misc[SATA_IEN_OFFSET])
 
 /*
  * Our Physical Region Descriptor (PRD) table should be large enough
