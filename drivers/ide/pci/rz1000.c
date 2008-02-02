@@ -33,8 +33,7 @@ static void __devinit init_hwif_rz1000 (ide_hwif_t *hwif)
 	} else {
 		if (hwif->mate)
 			hwif->mate->serialized = hwif->serialized = 1;
-		hwif->drives[0].no_unmask = 1;
-		hwif->drives[1].no_unmask = 1;
+		hwif->host_flags |= IDE_HFLAG_NO_UNMASK_IRQS;
 		printk(KERN_INFO "%s: serialized, disabled unmasking "
 			"(buggy RZ1000/RZ1001)\n", hwif->name);
 	}

@@ -822,7 +822,7 @@ static void ide_port_tune_devices(ide_hwif_t *hwif)
 	for (unit = 0; unit < MAX_DRIVES; ++unit) {
 		ide_drive_t *drive = &hwif->drives[unit];
 
-		if (hwif->no_io_32bit)
+		if (hwif->host_flags & IDE_HFLAG_NO_IO_32BIT)
 			drive->no_io_32bit = 1;
 		else
 			drive->no_io_32bit = drive->id->dword_io ? 1 : 0;
@@ -1300,6 +1300,8 @@ static void ide_port_init_devices(ide_hwif_t *hwif)
 			drive->io_32bit = 1;
 		if (hwif->host_flags & IDE_HFLAG_UNMASK_IRQS)
 			drive->unmask = 1;
+		if (hwif->host_flags & IDE_HFLAG_NO_UNMASK_IRQS)
+			drive->no_unmask = 1;
 		if ((hwif->host_flags & IDE_HFLAG_NO_AUTOTUNE) == 0)
 			drive->autotune = 1;
 	}
