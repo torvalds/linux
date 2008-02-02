@@ -716,10 +716,8 @@ int ide_register_hw(hw_regs_t *hw, void (*quirkproc)(ide_drive_t *),
 found:
 	if (hwif->present)
 		ide_unregister(index);
-	else if (!hwif->hold) {
+	else if (!hwif->hold)
 		ide_init_port_data(hwif, index);
-		init_hwif_default(hwif, index);
-	}
 
 	ide_init_port_hw(hwif, hw);
 	hwif->quirkproc = quirkproc;
