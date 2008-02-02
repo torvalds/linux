@@ -649,7 +649,7 @@ void dump_bfin_process(struct pt_regs *fp)
 	if (context & 0x0020 && (fp->seqstat & SEQSTAT_EXCAUSE) == VEC_HWERR)
 		printk(KERN_NOTICE "HW Error context\n");
 	else if (context & 0x0020)
-		printk(KERN_NOTICE "Defered Exception context\n");
+		printk(KERN_NOTICE "Deferred Exception context\n");
 	else if (context & 0x3FC0)
 		printk(KERN_NOTICE "Interrupt context\n");
 	else if (context & 0x4000)
