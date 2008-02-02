@@ -644,6 +644,11 @@ static void __devinit init_iops_scc(ide_hwif_t *hwif)
 	init_mmio_iops_scc(hwif);
 }
 
+static u8 __devinit scc_cable_detect(ide_hwif_t *hwif)
+{
+	return ATA_CBL_PATA80;
+}
+
 /**
  *	init_hwif_scc	-	set up hwif
  *	@hwif: interface to set up
@@ -678,8 +683,8 @@ static void __devinit init_hwif_scc(ide_hwif_t *hwif)
 	else
 		hwif->ultra_mask = ATA_UDMA5; /* 100MHz */
 
-	/* we support 80c cable only. */
-	hwif->cbl = ATA_CBL_PATA80;
+	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
+		hwif->cbl = scc_cable_detect(hwif);
 }
 
 #define DECLARE_SCC_DEV(name_str)			\
