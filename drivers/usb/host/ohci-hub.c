@@ -564,14 +564,18 @@ static inline int root_port_reset (struct ohci_hcd *ohci, unsigned port)
 	u32	temp;
 	u16	now = ohci_readl(ohci, &ohci->regs->fmnumber);
 	u16	reset_done = now + PORT_RESET_MSEC;
+	int	limit_1 = DIV_ROUND_UP(PORT_RESET_MSEC, PORT_RESET_HW_MSEC);
 
 	/* build a "continuous enough" reset signal, with up to
 	 * 3msec gap between pulses.  scheduler HZ==100 must work;
 	 * this might need to be deadline-scheduled.
 	 */
 	do {
+		int limit_2;
+
 		/* spin until any current reset finishes */
-		for (;;) {
+		limit_2 = PORT_RESET_HW_MSEC * 2;
+		while (--limit_2 >= 0) {
 			temp = ohci_readl (ohci, portstat);
 			/* handle e.g. CardBus eject */
 			if (temp == ~(u32)0)
@@ -579,6 +583,17 @@ static inline int root_port_reset (struct ohci_hcd *ohci, unsigned port)
 			if (!(temp & RH_PS_PRS))
 				break;
 			udelay (500);
+		}
+
+		/* timeout (a hardware error) has been observed when
+		 * EHCI sets CF while this driver is resetting a port;
+		 * presumably other disconnect paths might do it too.
+		 */
+		if (limit_2 < 0) {
+			ohci_dbg(ohci,
+				"port[%d] reset timeout, stat %08x\n",
+				port, temp);
+			break;
 		}
 
 		if (!(temp & RH_PS_CCS))
@@ -590,8 +605,11 @@ static inline int root_port_reset (struct ohci_hcd *ohci, unsigned port)
 		ohci_writel (ohci, RH_PS_PRS, portstat);
 		msleep(PORT_RESET_HW_MSEC);
 		now = ohci_readl(ohci, &ohci->regs->fmnumber);
-	} while (tick_before(now, reset_done));
-	/* caller synchronizes using PRSC */
+	} while (tick_before(now, reset_done) && --limit_1 >= 0);
+
+	/* caller synchronizes using PRSC ... and handles PRS
+	 * still being set when this returns.
+	 */
 
 	return 0;
 }
