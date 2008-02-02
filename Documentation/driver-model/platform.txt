@@ -122,15 +122,15 @@ None the less, there are some APIs to support such legacy drivers.  Avoid
 using these calls except with such hotplug-deficient drivers.
 
 	struct platform_device *platform_device_alloc(
-			char *name, unsigned id);
+			const char *name, int id);
 
 You can use platform_device_alloc() to dynamically allocate a device, which
 you will then initialize with resources and platform_device_register().
 A better solution is usually:
 
 	struct platform_device *platform_device_register_simple(
-			char *name, unsigned id,
-			struct resource *res, unsigned nres);
+			const char *name, int id,
+			struct resource *res, unsigned int nres);
 
 You can use platform_device_register_simple() as a one-step call to allocate
 and register a device.
