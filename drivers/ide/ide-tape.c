@@ -846,10 +846,7 @@ static void idetape_analyze_error(ide_drive_t *drive, u8 *sense)
 	}
 }
 
-/*
- * idetape_active_next_stage will declare the next stage as "active".
- */
-static void idetape_active_next_stage (ide_drive_t *drive)
+static void idetape_activate_next_stage(ide_drive_t *drive)
 {
 	idetape_tape_t *tape = drive->driver_data;
 	idetape_stage_t *stage = tape->next_stage;
@@ -1040,7 +1037,7 @@ static int idetape_end_request(ide_drive_t *drive, int uptodate, int nr_sects)
 			}
 		}
 		if (tape->next_stage != NULL) {
-			idetape_active_next_stage(drive);
+			idetape_activate_next_stage(drive);
 
 			/*
 			 * Insert the next request into the request queue.
@@ -2414,7 +2411,7 @@ static void idetape_insert_pipeline_into_queue (ide_drive_t *drive)
 		return;
 	if (!idetape_pipeline_active(tape)) {
 		set_bit(IDETAPE_PIPELINE_ACTIVE, &tape->flags);
-		idetape_active_next_stage(drive);
+		idetape_activate_next_stage(drive);
 		(void) ide_do_drive_cmd(drive, tape->active_data_request, ide_end);
 	}
 }
