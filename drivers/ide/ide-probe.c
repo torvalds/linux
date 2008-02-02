@@ -1260,7 +1260,6 @@ static int hwif_init(ide_hwif_t *hwif)
 done:
 	blk_register_region(MKDEV(hwif->major, 0), MAX_DRIVES << PARTN_BITS,
 			    THIS_MODULE, ata_probe, ata_lock, hwif);
-	ide_acpi_init(hwif);
 	return 1;
 
 out:
@@ -1429,6 +1428,8 @@ int ide_device_add_all(u8 *idx, const struct ide_port_info *d)
 			rc = -1;
 			continue;
 		}
+
+		ide_acpi_init(hwif);
 	}
 
 	for (i = 0; i < MAX_HWIFS; i++) {
