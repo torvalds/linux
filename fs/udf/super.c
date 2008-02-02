@@ -55,6 +55,7 @@
 #include <linux/errno.h>
 #include <linux/mount.h>
 #include <linux/seq_file.h>
+#include <linux/bitmap.h>
 #include <asm/byteorder.h>
 
 #include "udf_sb.h"
@@ -1958,10 +1959,6 @@ static int udf_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
-static unsigned char udf_bitmap_lookup[16] = {
-	0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4
-};
-
 static unsigned int udf_count_free_bitmap(struct super_block *sb,
 					  struct udf_bitmap *bitmap)
 {
@@ -1971,7 +1968,6 @@ static unsigned int udf_count_free_bitmap(struct super_block *sb,
 	int block = 0, newblock;
 	kernel_lb_addr loc;
 	uint32_t bytes;
-	uint8_t value;
 	uint8_t *ptr;
 	uint16_t ident;
 	struct spaceBitmapDesc *bm;
@@ -1997,13 +1993,10 @@ static unsigned int udf_count_free_bitmap(struct super_block *sb,
 	ptr = (uint8_t *)bh->b_data;
 
 	while (bytes > 0) {
-		while ((bytes > 0) && (index < sb->s_blocksize)) {
-			value = ptr[index];
-			accum += udf_bitmap_lookup[value & 0x0f];
-			accum += udf_bitmap_lookup[value >> 4];
-			index++;
-			bytes--;
-		}
+		u32 cur_bytes = min_t(u32, bytes, sb->s_blocksize - index);
+		accum += bitmap_weight((const unsigned long *)(ptr + index),
+					cur_bytes * 8);
+		bytes -= cur_bytes;
 		if (bytes) {
 			brelse(bh);
 			newblock = udf_get_lb_pblock(sb, loc, ++block);
