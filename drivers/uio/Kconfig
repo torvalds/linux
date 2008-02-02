@@ -1,8 +1,6 @@
-menu "Userspace I/O"
-	depends on !S390
-
-config UIO
+menuconfig UIO
 	tristate "Userspace I/O drivers"
+	depends on !S390
 	default n
 	help
 	  Enable this to allow the userspace driver core code to be
@@ -12,6 +10,8 @@ config UIO
 	  is also required for interrupt handling to work properly.
 
 	  If you don't know what to do here, say N.
+
+if UIO
 
 config UIO_CIF
 	tristate "generic Hilscher CIF Card driver"
@@ -26,4 +26,4 @@ config UIO_CIF
 	  To compile this driver as a module, choose M here: the module
 	  will be called uio_cif.
 
-endmenu
+endif
