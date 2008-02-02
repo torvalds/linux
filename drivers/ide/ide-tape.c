@@ -596,15 +596,6 @@ typedef struct {
 #define	IDETAPE_CAPABILITIES_PAGE	0x2a
 
 /*
- *	Run time configurable parameters.
- */
-typedef struct {
-	int	dsc_rw_frequency;
-	int	dsc_media_access_frequency;
-	int	nr_stages;
-} idetape_config_t;
-
-/*
  *	The variables below are used for the character device interface.
  *	Additional state variables are defined in our ide_drive_t structure.
  */
@@ -2849,8 +2840,13 @@ static int idetape_rewind_tape (ide_drive_t *drive)
 static int idetape_blkdev_ioctl(ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 {
 	idetape_tape_t *tape = drive->driver_data;
-	idetape_config_t config;
 	void __user *argp = (void __user *)arg;
+
+	struct idetape_config {
+		int dsc_rw_frequency;
+		int dsc_media_access_frequency;
+		int nr_stages;
+	} config;
 
 #if IDETAPE_DEBUG_LOG	
 	if (tape->debug_level >= 4)
@@ -2858,7 +2854,7 @@ static int idetape_blkdev_ioctl(ide_drive_t *drive, unsigned int cmd, unsigned l
 #endif /* IDETAPE_DEBUG_LOG */
 	switch (cmd) {
 		case 0x0340:
-			if (copy_from_user(&config, argp, sizeof (idetape_config_t)))
+			if (copy_from_user(&config, argp, sizeof(config)))
 				return -EFAULT;
 			tape->best_dsc_rw_frequency = config.dsc_rw_frequency;
 			tape->max_stages = config.nr_stages;
@@ -2866,7 +2862,7 @@ static int idetape_blkdev_ioctl(ide_drive_t *drive, unsigned int cmd, unsigned l
 		case 0x0350:
 			config.dsc_rw_frequency = (int) tape->best_dsc_rw_frequency;
 			config.nr_stages = tape->max_stages; 
-			if (copy_to_user(argp, &config, sizeof (idetape_config_t)))
+			if (copy_to_user(argp, &config, sizeof(config)))
 				return -EFAULT;
 			break;
 		default:
