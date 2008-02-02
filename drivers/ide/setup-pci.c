@@ -339,7 +339,8 @@ static int ide_pci_check_iomem(struct pci_dev *dev, const struct ide_port_info *
  *	ide_hwif_configure	-	configure an IDE interface
  *	@dev: PCI device holding interface
  *	@d: IDE port info
- *	@mate: Paired interface if any
+ *	@port: port number
+ *	@irq: PCI IRQ
  *
  *	Perform the initial set up for the hardware interface structure. This
  *	is done per interface port rather than per PCI device. There may be
@@ -348,7 +349,9 @@ static int ide_pci_check_iomem(struct pci_dev *dev, const struct ide_port_info *
  *	Returns the new hardware interface structure, or NULL on a failure
  */
 
-static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev, const struct ide_port_info *d, ide_hwif_t *mate, int port, int irq)
+static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev,
+				      const struct ide_port_info *d,
+				      unsigned int port, int irq)
 {
 	unsigned long ctl = 0, base = 0;
 	ide_hwif_t *hwif;
@@ -394,12 +397,7 @@ static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev, const struct ide_port
 
 	hwif->dev = &dev->dev;
 	hwif->cds = d;
-	hwif->channel = port;
 
-	if (mate) {
-		hwif->mate = mate;
-		mate->mate = hwif;
-	}
 	return hwif;
 }
 
@@ -527,10 +525,25 @@ void ide_pci_setup_ports(struct pci_dev *dev, const struct ide_port_info *d, int
 			continue;	/* port not enabled */
 		}
 
-		if ((hwif = ide_hwif_configure(dev, d, mate, port, pciirq)) == NULL)
+		hwif = ide_hwif_configure(dev, d, port, pciirq);
+		if (hwif == NULL)
 			continue;
 
 		*(idx + port) = hwif->index;
+	}
+
+	for (port = 0; port < channels; ++port) {
+		if (*(idx + port) == 0xff)
+			continue;
+
+		hwif = &ide_hwifs[*(idx + port)];
+
+		if (mate) {
+			hwif->mate = mate;
+			mate->mate = hwif;
+		}
+
+		hwif->channel = port;
 
 		if (d->init_iops)
 			d->init_iops(hwif);
