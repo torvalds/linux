@@ -665,6 +665,8 @@ config SLOB
 
 endchoice
 
+source "arch/Kconfig"
+
 endmenu		# General setup
 
 config SLABINFO
