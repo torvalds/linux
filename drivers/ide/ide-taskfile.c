@@ -755,6 +755,7 @@ int ide_cmd_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 	u8 args[4], xfer_rate = 0;
 	ide_task_t tfargs;
 	struct ide_taskfile *tf = &tfargs.tf;
+	struct hd_driveid *id = drive->id;
 
 	if (NULL == (void *) arg) {
 		struct request rq;
@@ -792,7 +793,10 @@ int ide_cmd_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 			return -ENOMEM;
 	}
 
-	if (set_transfer(drive, &tfargs)) {
+	if (tf->command == WIN_SETFEATURES &&
+	    tf->feature == SETFEATURES_XFER &&
+	    tf->nsect >= XFER_SW_DMA_0 &&
+	    (id->dma_ultra || id->dma_mword || id->dma_1word)) {
 		xfer_rate = args[1];
 		if (ide_ata66_check(drive, &tfargs))
 			goto abort;

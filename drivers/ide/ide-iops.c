@@ -627,24 +627,6 @@ int ide_ata66_check (ide_drive_t *drive, ide_task_t *args)
 	return 0;
 }
 
-/*
- * Backside of HDIO_DRIVE_CMD call of SETFEATURES_XFER.
- * 1 : Safe to update drive->id DMA registers.
- * 0 : OOPs not allowed.
- */
-int set_transfer (ide_drive_t *drive, ide_task_t *args)
-{
-	if (args->tf.command == WIN_SETFEATURES &&
-	    args->tf.nsect >= XFER_SW_DMA_0 &&
-	    args->tf.feature == SETFEATURES_XFER &&
-	    (drive->id->dma_ultra ||
-	     drive->id->dma_mword ||
-	     drive->id->dma_1word))
-		return 1;
-
-	return 0;
-}
-
 #ifdef CONFIG_BLK_DEV_IDEDMA
 static u8 ide_auto_reduce_xfer (ide_drive_t *drive)
 {
