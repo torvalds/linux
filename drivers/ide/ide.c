@@ -791,10 +791,6 @@ int set_io_32bit(ide_drive_t *drive, int arg)
 		return -EBUSY;
 
 	drive->io_32bit = arg;
-#ifdef CONFIG_BLK_DEV_DTC2278
-	if (HWIF(drive)->chipset == ide_dtc2278)
-		HWIF(drive)->drives[!drive->select.b.unit].io_32bit = arg;
-#endif /* CONFIG_BLK_DEV_DTC2278 */
 
 	spin_unlock_irq(&ide_lock);
 
