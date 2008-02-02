@@ -321,39 +321,8 @@ static int idefloppy_do_end_request(ide_drive_t *drive, int uptodate, int nsecs)
 	return 0;
 }
 
-static void idefloppy_input_buffers (ide_drive_t *drive, idefloppy_pc_t *pc, unsigned int bcount)
-{
-	struct request *rq = pc->rq;
-	struct bio_vec *bvec;
-	struct req_iterator iter;
-	unsigned long flags;
-	char *data;
-	int count, done = 0;
-
-	rq_for_each_segment(bvec, rq, iter) {
-		if (!bcount)
-			break;
-
-		count = min(bvec->bv_len, bcount);
-
-		data = bvec_kmap_irq(bvec, &flags);
-		drive->hwif->atapi_input_bytes(drive, data, count);
-		bvec_kunmap_irq(data, &flags);
-
-		bcount -= count;
-		pc->b_count += count;
-		done += count;
-	}
-
-	idefloppy_do_end_request(drive, 1, done >> 9);
-
-	if (bcount) {
-		printk(KERN_ERR "%s: leftover data in idefloppy_input_buffers, bcount == %d\n", drive->name, bcount);
-		idefloppy_discard_data(drive, bcount);
-	}
-}
-
-static void idefloppy_output_buffers (ide_drive_t *drive, idefloppy_pc_t *pc, unsigned int bcount)
+static void ide_floppy_io_buffers(ide_drive_t *drive, idefloppy_pc_t *pc,
+				  unsigned int bcount, int direction)
 {
 	struct request *rq = pc->rq;
 	struct req_iterator iter;
@@ -369,7 +338,10 @@ static void idefloppy_output_buffers (ide_drive_t *drive, idefloppy_pc_t *pc, un
 		count = min(bvec->bv_len, bcount);
 
 		data = bvec_kmap_irq(bvec, &flags);
-		drive->hwif->atapi_output_bytes(drive, data, count);
+		if (direction)
+			drive->hwif->atapi_output_bytes(drive, data, count);
+		else
+			drive->hwif->atapi_input_bytes(drive, data, count);
 		bvec_kunmap_irq(data, &flags);
 
 		bcount -= count;
@@ -380,8 +352,13 @@ static void idefloppy_output_buffers (ide_drive_t *drive, idefloppy_pc_t *pc, un
 	idefloppy_do_end_request(drive, 1, done >> 9);
 
 	if (bcount) {
-		printk(KERN_ERR "%s: leftover data in idefloppy_output_buffers, bcount == %d\n", drive->name, bcount);
-		idefloppy_write_zeros(drive, bcount);
+		printk(KERN_ERR "%s: leftover data in %s, bcount == %d\n",
+				drive->name, __func__, bcount);
+		if (direction)
+			idefloppy_write_zeros(drive, bcount);
+		else
+			idefloppy_discard_data(drive, bcount);
+
 	}
 }
 
@@ -516,8 +493,6 @@ static void idefloppy_retry_pc (ide_drive_t *drive)
 	idefloppy_queue_pc_head(drive, pc, rq);
 }
 
-typedef void (io_buf_t)(ide_drive_t *, idefloppy_pc_t *, unsigned int);
-
 /* The usual interrupt handler called during a packet command. */
 static ide_startstop_t idefloppy_pc_intr (ide_drive_t *drive)
 {
@@ -526,7 +501,6 @@ static ide_startstop_t idefloppy_pc_intr (ide_drive_t *drive)
 	idefloppy_pc_t *pc = floppy->pc;
 	struct request *rq = pc->rq;
 	xfer_func_t *xferfunc;
-	io_buf_t *iobuf_func;
 	unsigned int temp;
 	int dma_error = 0;
 	u16 bcount;
@@ -624,24 +598,23 @@ static ide_startstop_t idefloppy_pc_intr (ide_drive_t *drive)
 					" expected - allowing transfer\n");
 		}
 	}
-	if (test_bit(PC_WRITING, &pc->flags)) {
+	if (test_bit(PC_WRITING, &pc->flags))
 		xferfunc = hwif->atapi_output_bytes;
-		iobuf_func = &idefloppy_output_buffers;
-	} else {
+	else
 		xferfunc = hwif->atapi_input_bytes;
-		iobuf_func = &idefloppy_input_buffers;
-	}
 
 	if (pc->buffer)
 		xferfunc(drive, pc->current_position, bcount);
 	else
-		iobuf_func(drive, pc, bcount);
+		ide_floppy_io_buffers(drive, pc, bcount,
+				      test_bit(PC_WRITING, &pc->flags));
 
 	/* Update the current position */
 	pc->actually_transferred += bcount;
 	pc->current_position += bcount;
 
-	ide_set_handler(drive, &idefloppy_pc_intr, IDEFLOPPY_WAIT_CMD, NULL);		/* And set the interrupt handler again */
+	/* And set the interrupt handler again */
+	ide_set_handler(drive, &idefloppy_pc_intr, IDEFLOPPY_WAIT_CMD, NULL);
 	return ide_started;
 }
 
