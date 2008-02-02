@@ -1,5 +1,5 @@
 /*
- * File:         arch/blackfin/mach-bf561/dma.c
+ * File:         arch/blackfin/mach-bf548/dma.c
  * Based on:
  * Author:
  *
@@ -7,7 +7,7 @@
  * Description:  This file contains the simple DMA Implementation for Blackfin
  *
  * Modified:
- *               Copyright 2004-2007 Analog Devices Inc.
+ *               Copyright 2004-2008 Analog Devices Inc.
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
  *
