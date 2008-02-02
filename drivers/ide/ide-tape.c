@@ -784,21 +784,6 @@ typedef struct {
 	__u8	medium_type;		/* Medium Type */
 	__u8	dsp;			/* Device Specific Parameter */
 	__u8	bdl;			/* Block Descriptor Length */
-#if 0
-	/* data transfer page */
-	__u8	page_code	:6;
-	__u8	reserved0_6	:1;
-	__u8	ps		:1;	/* parameters saveable */
-	__u8	page_length;		/* page Length == 0x02 */
-	__u8	reserved2;
-	__u8	read32k		:1;	/* 32k blk size (data only) */
-	__u8	read32k5	:1;	/* 32.5k blk size (data&AUX) */
-	__u8	reserved3_23	:2;
-	__u8	write32k	:1;	/* 32k blk size (data only) */
-	__u8	write32k5	:1;	/* 32.5k blk size (data&AUX) */
-	__u8	reserved3_6	:1;
-	__u8	streaming	:1;	/* streaming mode enable */
-#endif
 } idetape_mode_parameter_header_t;
 
 /*
@@ -2006,12 +1991,6 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 	u8 stat;
 
 #if IDETAPE_DEBUG_LOG
-#if 0
-	if (tape->debug_level >= 5)
-		printk(KERN_INFO "ide-tape:  %d, "
-			"dev: %s, cmd: %ld, errors: %d\n",
-			 rq->rq_disk->disk_name, rq->cmd[0], rq->errors);
-#endif
 	if (tape->debug_level >= 2)
 		printk(KERN_INFO "ide-tape: sector: %ld, "
 			"nr_sectors: %ld, current_nr_sectors: %d\n",
@@ -2722,19 +2701,6 @@ static void idetape_create_rewind_cmd (ide_drive_t *drive, idetape_pc_t *pc)
 	set_bit(PC_WAIT_FOR_DSC, &pc->flags);
 	pc->callback = &idetape_pc_callback;
 }
-
-#if 0
-static void idetape_create_mode_select_cmd (idetape_pc_t *pc, int length)
-{
-	idetape_init_pc(pc);
-	set_bit(PC_WRITING, &pc->flags);
-	pc->c[0] = IDETAPE_MODE_SELECT_CMD;
-	pc->c[1] = 0x10;
-	put_unaligned(htons(length), (unsigned short *) &pc->c[3]);
-	pc->request_transfer = 255;
-	pc->callback = &idetape_pc_callback;
-}
-#endif
 
 static void idetape_create_erase_cmd (idetape_pc_t *pc)
 {
