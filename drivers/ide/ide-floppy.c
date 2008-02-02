@@ -285,39 +285,6 @@ struct idefloppy_id_gcw {
 };
 
 /*
- *	REQUEST SENSE packet command result - Data Format.
- */
-typedef struct {
-#if defined(__LITTLE_ENDIAN_BITFIELD)
-	unsigned	error_code	:7;	/* Current error (0x70) */
-	unsigned	valid		:1;	/* The information field conforms to SFF-8070i */
-	u8		reserved1	:8;	/* Reserved */
-	unsigned	sense_key	:4;	/* Sense Key */
-	unsigned	reserved2_4	:1;	/* Reserved */
-	unsigned	ili		:1;	/* Incorrect Length Indicator */
-	unsigned	reserved2_67	:2;
-#elif defined(__BIG_ENDIAN_BITFIELD)
-	unsigned	valid		:1;	/* The information field conforms to SFF-8070i */
-	unsigned	error_code	:7;	/* Current error (0x70) */
-	u8		reserved1	:8;	/* Reserved */
-	unsigned	reserved2_67	:2;
-	unsigned	ili		:1;	/* Incorrect Length Indicator */
-	unsigned	reserved2_4	:1;	/* Reserved */
-	unsigned	sense_key	:4;	/* Sense Key */
-#else
-#error "Bitfield endianness not defined! Check your byteorder.h"
-#endif
-	u32		information __attribute__ ((packed));
-	u8		asl;			/* Additional sense length (n-7) */
-	u32		command_specific;	/* Additional command specific information */
-	u8		asc;			/* Additional Sense Code */
-	u8		ascq;			/* Additional Sense Code Qualifier */
-	u8		replaceable_unit_code;	/* Field Replaceable Unit Code */
-	u8		sksv[3];
-	u8		pad[2];			/* Padding to 20 bytes */
-} idefloppy_request_sense_result_t;
-
-/*
  * Pages of the SELECT SENSE / MODE SENSE packet commands.
  * See SFF-8070i spec.
  */
@@ -533,39 +500,38 @@ static struct request *idefloppy_next_rq_storage (ide_drive_t *drive)
 	return (&floppy->rq_stack[floppy->rq_stack_index++]);
 }
 
-/*
- *	idefloppy_analyze_error is called on each failed packet command retry
- *	to analyze the request sense.
- */
-static void idefloppy_analyze_error (ide_drive_t *drive,idefloppy_request_sense_result_t *result)
+static void idefloppy_request_sense_callback(ide_drive_t *drive)
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
-
-	floppy->sense_key = result->sense_key;
-	floppy->asc = result->asc;
-	floppy->ascq = result->ascq;
-	floppy->progress_indication = result->sksv[0] & 0x80 ?
-		(u16)get_unaligned((u16 *)(result->sksv+1)):0x10000;
-	if (floppy->failed_pc)
-		debug_log("pc = %x, sense key = %x, asc = %x, ascq = %x\n",
-				floppy->failed_pc->c[0], result->sense_key,
-				result->asc, result->ascq);
-	else
-		debug_log("sense key = %x, asc = %x, ascq = %x\n",
-				result->sense_key, result->asc, result->ascq);
-}
-
-static void idefloppy_request_sense_callback (ide_drive_t *drive)
-{
-	idefloppy_floppy_t *floppy = drive->driver_data;
+	u8 *buf = floppy->pc->buffer;
 
 	debug_log("Reached %s\n", __func__);
 
 	if (!floppy->pc->error) {
-		idefloppy_analyze_error(drive,(idefloppy_request_sense_result_t *) floppy->pc->buffer);
+		floppy->sense_key = buf[2] & 0x0F;
+		floppy->asc = buf[12];
+		floppy->ascq = buf[13];
+		floppy->progress_indication = buf[15] & 0x80 ?
+			(u16)get_unaligned((u16 *)&buf[16]) : 0x10000;
+
+		if (floppy->failed_pc)
+			debug_log("pc = %x, sense key = %x, asc = %x,"
+					" ascq = %x\n",
+					floppy->failed_pc->c[0],
+					floppy->sense_key,
+					floppy->asc,
+					floppy->ascq);
+		else
+			debug_log("sense key = %x, asc = %x, ascq = %x\n",
+					floppy->sense_key,
+					floppy->asc,
+					floppy->ascq);
+
+
 		idefloppy_do_end_request(drive, 1, 0);
 	} else {
-		printk(KERN_ERR "Error in REQUEST SENSE itself - Aborting request!\n");
+		printk(KERN_ERR "Error in REQUEST SENSE itself - Aborting"
+				" request!\n");
 		idefloppy_do_end_request(drive, 0, 0);
 	}
 }
