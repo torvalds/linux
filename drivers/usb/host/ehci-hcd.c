@@ -862,18 +862,18 @@ static int ehci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		/* reschedule QH iff another request is queued */
 		if (!list_empty (&qh->qtd_list)
 				&& HC_IS_RUNNING (hcd->state)) {
-			int schedule_status;
+			rc = qh_schedule(ehci, qh);
 
-			schedule_status = qh_schedule (ehci, qh);
-			spin_unlock_irqrestore (&ehci->lock, flags);
-
-			if (schedule_status != 0) {
-				// shouldn't happen often, but ...
-				// FIXME kill those tds' urbs
-				err ("can't reschedule qh %p, err %d",
-					qh, schedule_status);
-			}
-			return status;
+			/* An error here likely indicates handshake failure
+			 * or no space left in the schedule.  Neither fault
+			 * should happen often ...
+			 *
+			 * FIXME kill the now-dysfunctional queued urbs
+			 */
+			if (rc != 0)
+				ehci_err(ehci,
+					"can't reschedule qh %p, err %d",
+					qh, rc);
 		}
 		break;
 
