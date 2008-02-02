@@ -1894,7 +1894,7 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	uint16_t iotag;
 	int bars = pci_select_bars(pdev, IORESOURCE_MEM);
 
-	if (pci_enable_device_bars(pdev, bars))
+	if (pci_enable_device_mem(pdev))
 		goto out;
 	if (pci_request_selected_regions(pdev, bars, LPFC_DRIVER_NAME))
 		goto out_disable_device;
