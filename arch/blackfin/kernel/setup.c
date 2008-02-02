@@ -427,7 +427,7 @@ static __init void parse_cmdline_early(char *cmdline_p)
 static __init void  memory_setup(void)
 {
 	_rambase = (unsigned long)_stext;
-	_ramstart = (unsigned long)__bss_stop;
+	_ramstart = (unsigned long)_end;
 
 	if (DMA_UNCACHED_REGION > (_ramend - _ramstart)) {
 		console_init();
@@ -489,7 +489,7 @@ static __init void  memory_setup(void)
 	}
 
 	/* Relocate MTD image to the top of memory after the uncached memory area */
-	dma_memcpy((char *)memory_end, __bss_stop, mtd_size);
+	dma_memcpy((char *)memory_end, _end, mtd_size);
 
 	memory_mtd_start = memory_end;
 	_ebss = memory_mtd_start;	/* define _ebss for compatible */
@@ -528,13 +528,13 @@ static __init void  memory_setup(void)
 	printk(KERN_INFO "Board Memory: %ldMB\n", physical_mem_end >> 20);
 	printk(KERN_INFO "Kernel Managed Memory: %ldMB\n", _ramend >> 20);
 
-	printk( KERN_INFO "Memory map:\n"
+	printk(KERN_INFO "Memory map:\n"
 		KERN_INFO "  text      = 0x%p-0x%p\n"
 		KERN_INFO "  rodata    = 0x%p-0x%p\n"
+		KERN_INFO "  bss       = 0x%p-0x%p\n"
 		KERN_INFO "  data      = 0x%p-0x%p\n"
 		KERN_INFO "    stack   = 0x%p-0x%p\n"
 		KERN_INFO "  init      = 0x%p-0x%p\n"
-		KERN_INFO "  bss       = 0x%p-0x%p\n"
 		KERN_INFO "  available = 0x%p-0x%p\n"
 #ifdef CONFIG_MTD_UCLINUX
 		KERN_INFO "  rootfs    = 0x%p-0x%p\n"
@@ -544,12 +544,12 @@ static __init void  memory_setup(void)
 #endif
 		, _stext, _etext,
 		__start_rodata, __end_rodata,
+		__bss_start, __bss_stop,
 		_sdata, _edata,
 		(void *)&init_thread_union,
 		(void *)((int)(&init_thread_union) + 0x2000),
-	       __init_begin, __init_end,
-	       __bss_start, __bss_stop,
-	       (void *)_ramstart, (void *)memory_end
+		__init_begin, __init_end,
+		(void *)_ramstart, (void *)memory_end
 #ifdef CONFIG_MTD_UCLINUX
 		, (void *)memory_mtd_start, (void *)(memory_mtd_start + mtd_size)
 #endif

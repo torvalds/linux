@@ -41,6 +41,9 @@ _jiffies = _jiffies_64;
 SECTIONS
 {
 	. = CONFIG_BOOT_LOAD;
+	/* Neither the text, ro_data or bss section need to be aligned
+	 * So pack them back to back
+	 */
 	.text :
 	{
 		__text = .;
@@ -58,22 +61,25 @@ SECTIONS
 		*(__ex_table)
 		___stop___ex_table = .;
 
-		. = ALIGN(4);
 		__etext = .;
 	}
 
-	RO_DATA(PAGE_SIZE)
+	/* Just in case the first read only is a 32-bit access */
+	RO_DATA(4)
+
+	.bss :
+	{
+		. = ALIGN(4);
+		___bss_start = .;
+		*(.bss .bss.*)
+		*(COMMON)
+		___bss_stop = .;
+	}
 
 	.data :
 	{
-		/* make sure the init_task is aligned to the
-		 * kernel thread size so we can locate the kernel
-		 * stack properly and quickly.
-		 */
 		__sdata = .;
-		. = ALIGN(THREAD_SIZE);
-		*(.data.init_task)
-
+		/* This gets done first, so the glob doesn't suck it in */
 		. = ALIGN(32);
 		*(.data.cacheline_aligned)
 
@@ -81,10 +87,22 @@ SECTIONS
 		*(.data.*)
 		CONSTRUCTORS
 
+		/* make sure the init_task is aligned to the
+		 * kernel thread size so we can locate the kernel
+		 * stack properly and quickly.
+		 */
 		. = ALIGN(THREAD_SIZE);
+		*(.init_task.data)
+
 		__edata = .;
 	}
 
+	/* The init section should be last, so when we free it, it goes into
+	 * the general memory pool, and (hopefully) will decrease fragmentation
+	 * a tiny bit. The init section has a _requirement_ that it be
+	 * PAGE_SIZE aligned
+	 */
+	. = ALIGN(PAGE_SIZE);
 	___init_begin = .;
 
 	.init.text :
@@ -179,16 +197,7 @@ SECTIONS
 	. = ALIGN(PAGE_SIZE);
 	___init_end = .;
 
-	.bss :
-	{
-		. = ALIGN(4);
-		___bss_start = .;
-		*(.bss .bss.*)
-		*(COMMON)
-		. = ALIGN(4);
-		___bss_stop = .;
-		__end = .;
-	}
+	__end =.;
 
 	STABS_DEBUG
 
