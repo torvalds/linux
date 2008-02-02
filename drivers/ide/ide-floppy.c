@@ -273,26 +273,6 @@ typedef struct ide_floppy_obj {
 #define IDEFLOPPY_ZIP_DRIVE		5	/* Requires BH algorithm for packets */
 
 /*
- *	ATAPI floppy drive packet commands
- */
-#define IDEFLOPPY_FORMAT_UNIT_CMD	0x04
-#define IDEFLOPPY_INQUIRY_CMD		0x12
-#define IDEFLOPPY_MODE_SELECT_CMD	0x55
-#define IDEFLOPPY_MODE_SENSE_CMD	0x5a
-#define IDEFLOPPY_READ10_CMD		0x28
-#define IDEFLOPPY_READ12_CMD		0xa8
-#define IDEFLOPPY_READ_CAPACITY_CMD	0x23
-#define IDEFLOPPY_REQUEST_SENSE_CMD	0x03
-#define IDEFLOPPY_PREVENT_REMOVAL_CMD	0x1e
-#define IDEFLOPPY_SEEK_CMD		0x2b
-#define IDEFLOPPY_START_STOP_CMD	0x1b
-#define IDEFLOPPY_TEST_UNIT_READY_CMD	0x00
-#define IDEFLOPPY_VERIFY_CMD		0x2f
-#define IDEFLOPPY_WRITE10_CMD		0x2a
-#define IDEFLOPPY_WRITE12_CMD		0xaa
-#define IDEFLOPPY_WRITE_VERIFY_CMD	0x2e
-
-/*
  *	Defines for the mode sense command
  */
 #define MODE_SENSE_CURRENT		0x00
@@ -696,8 +676,8 @@ static void idefloppy_init_pc (idefloppy_pc_t *pc)
 
 static void idefloppy_create_request_sense_cmd (idefloppy_pc_t *pc)
 {
-	idefloppy_init_pc(pc);	
-	pc->c[0] = IDEFLOPPY_REQUEST_SENSE_CMD;
+	idefloppy_init_pc(pc);
+	pc->c[0] = GPCMD_REQUEST_SENSE;
 	pc->c[4] = 255;
 	pc->request_transfer = 18;
 	pc->callback = &idefloppy_request_sense_callback;
@@ -762,7 +742,7 @@ static ide_startstop_t idefloppy_pc_intr (ide_drive_t *drive)
 			debug_log(KERN_INFO "ide-floppy: %s: I/O error\n",
 				drive->name);
 			rq->errors++;
-			if (pc->c[0] == IDEFLOPPY_REQUEST_SENSE_CMD) {
+			if (pc->c[0] == GPCMD_REQUEST_SENSE) {
 				printk(KERN_ERR "ide-floppy: I/O error in "
 					"request sense command\n");
 				return ide_do_reset(drive);
@@ -962,7 +942,7 @@ static ide_startstop_t idefloppy_issue_pc (ide_drive_t *drive, idefloppy_pc_t *p
 	u8 dma;
 
 	if (floppy->failed_pc == NULL &&
-	    pc->c[0] != IDEFLOPPY_REQUEST_SENSE_CMD)
+	    pc->c[0] != GPCMD_REQUEST_SENSE)
 		floppy->failed_pc = pc;
 	/* Set the current packet command */
 	floppy->pc = pc;
@@ -1052,14 +1032,14 @@ static void idefloppy_create_prevent_cmd (idefloppy_pc_t *pc, int prevent)
 		"prevent = %d\n", prevent);
 
 	idefloppy_init_pc(pc);
-	pc->c[0] = IDEFLOPPY_PREVENT_REMOVAL_CMD;
+	pc->c[0] = GPCMD_PREVENT_ALLOW_MEDIUM_REMOVAL;
 	pc->c[4] = prevent;
 }
 
 static void idefloppy_create_read_capacity_cmd (idefloppy_pc_t *pc)
 {
 	idefloppy_init_pc(pc);
-	pc->c[0] = IDEFLOPPY_READ_CAPACITY_CMD;
+	pc->c[0] = GPCMD_READ_FORMAT_CAPACITIES;
 	pc->c[7] = 255;
 	pc->c[8] = 255;
 	pc->request_transfer = 255;
@@ -1069,7 +1049,7 @@ static void idefloppy_create_format_unit_cmd (idefloppy_pc_t *pc, int b, int l,
 					      int flags)
 {
 	idefloppy_init_pc(pc);
-	pc->c[0] = IDEFLOPPY_FORMAT_UNIT_CMD;
+	pc->c[0] = GPCMD_FORMAT_UNIT;
 	pc->c[1] = 0x17;
 
 	memset(pc->buffer, 0, 12);
@@ -1094,7 +1074,7 @@ static void idefloppy_create_mode_sense_cmd (idefloppy_pc_t *pc, u8 page_code, u
 	u16 length = sizeof(idefloppy_mode_parameter_header_t);
 	
 	idefloppy_init_pc(pc);
-	pc->c[0] = IDEFLOPPY_MODE_SENSE_CMD;
+	pc->c[0] = GPCMD_MODE_SENSE_10;
 	pc->c[1] = 0;
 	pc->c[2] = page_code + (type << 6);
 
@@ -1116,14 +1096,14 @@ static void idefloppy_create_mode_sense_cmd (idefloppy_pc_t *pc, u8 page_code, u
 static void idefloppy_create_start_stop_cmd (idefloppy_pc_t *pc, int start)
 {
 	idefloppy_init_pc(pc);
-	pc->c[0] = IDEFLOPPY_START_STOP_CMD;
+	pc->c[0] = GPCMD_START_STOP_UNIT;
 	pc->c[4] = start;
 }
 
 static void idefloppy_create_test_unit_ready_cmd(idefloppy_pc_t *pc)
 {
 	idefloppy_init_pc(pc);
-	pc->c[0] = IDEFLOPPY_TEST_UNIT_READY_CMD;
+	pc->c[0] = GPCMD_TEST_UNIT_READY;
 }
 
 static void idefloppy_create_rw_cmd (idefloppy_floppy_t *floppy, idefloppy_pc_t *pc, struct request *rq, unsigned long sector)
@@ -1138,10 +1118,10 @@ static void idefloppy_create_rw_cmd (idefloppy_floppy_t *floppy, idefloppy_pc_t 
 
 	idefloppy_init_pc(pc);
 	if (test_bit(IDEFLOPPY_USE_READ12, &floppy->flags)) {
-		pc->c[0] = cmd == READ ? IDEFLOPPY_READ12_CMD : IDEFLOPPY_WRITE12_CMD;
+		pc->c[0] = cmd == READ ? GPCMD_READ_12 : GPCMD_WRITE_12;
 		put_unaligned(htonl(blocks), (unsigned int *) &pc->c[6]);
 	} else {
-		pc->c[0] = cmd == READ ? IDEFLOPPY_READ10_CMD : IDEFLOPPY_WRITE10_CMD;
+		pc->c[0] = cmd == READ ? GPCMD_READ_10 : GPCMD_WRITE_10;
 		put_unaligned(htons(blocks), (unsigned short *) &pc->c[7]);
 	}
 	put_unaligned(htonl(block), (unsigned int *) &pc->c[2]);
