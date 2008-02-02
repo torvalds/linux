@@ -929,6 +929,7 @@ static int sd_done(struct scsi_cmnd *SCpnt)
 	unsigned int xfer_size = scsi_bufflen(SCpnt);
  	unsigned int good_bytes = result ? 0 : xfer_size;
  	u64 start_lba = SCpnt->request->sector;
+	u64 end_lba = SCpnt->request->sector + (xfer_size / 512);
  	u64 bad_lba;
 	struct scsi_sense_hdr sshdr;
 	int sense_valid = 0;
@@ -967,26 +968,23 @@ static int sd_done(struct scsi_cmnd *SCpnt)
 			goto out;
 		if (xfer_size <= SCpnt->device->sector_size)
 			goto out;
-		switch (SCpnt->device->sector_size) {
-		case 256:
+		if (SCpnt->device->sector_size < 512) {
+			/* only legitimate sector_size here is 256 */
 			start_lba <<= 1;
-			break;
-		case 512:
-			break;
-		case 1024:
-			start_lba >>= 1;
-			break;
-		case 2048:
-			start_lba >>= 2;
-			break;
-		case 4096:
-			start_lba >>= 3;
-			break;
-		default:
-			/* Print something here with limiting frequency. */
-			goto out;
-			break;
+			end_lba <<= 1;
+		} else {
+			/* be careful ... don't want any overflows */
+			u64 factor = SCpnt->device->sector_size / 512;
+			do_div(start_lba, factor);
+			do_div(end_lba, factor);
 		}
+
+		if (bad_lba < start_lba  || bad_lba >= end_lba)
+			/* the bad lba was reported incorrectly, we have
+			 * no idea where the error is
+			 */
+			goto out;
+
 		/* This computation should always be done in terms of
 		 * the resolution of the device's medium.
 		 */
