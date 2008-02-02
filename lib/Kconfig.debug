@@ -81,7 +81,7 @@ config HEADERS_CHECK
 
 config DEBUG_SECTION_MISMATCH
 	bool "Enable full Section mismatch analysis"
-	default n
+	depends on UNDEFINED
 	help
 	  The section mismatch analysis checks if there are illegal
 	  references from one section to another section.
