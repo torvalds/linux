@@ -14,6 +14,8 @@
 #include <linux/ctype.h>
 #include <linux/power_supply.h>
 
+#include "power_supply.h"
+
 /*
  * This is because the name "current" breaks the device attr macro.
  * The "current" word resolves to "(get_current())" so instead of
@@ -46,10 +48,8 @@ static ssize_t power_supply_show_property(struct device *dev,
 		"Unspecified failure"
 	};
 	static char *technology_text[] = {
-		"Unknown", "NiMH", "Li-ion", "Li-poly", "LiFe", "NiCd"
-	};
-	static char *capacity_level_text[] = {
-		"Unknown", "Critical", "Low", "Normal", "High", "Full"
+		"Unknown", "NiMH", "Li-ion", "Li-poly", "LiFe", "NiCd",
+		"LiMn"
 	};
 	ssize_t ret;
 	struct power_supply *psy = dev_get_drvdata(dev);
@@ -71,9 +71,6 @@ static ssize_t power_supply_show_property(struct device *dev,
 		return sprintf(buf, "%s\n", health_text[value.intval]);
 	else if (off == POWER_SUPPLY_PROP_TECHNOLOGY)
 		return sprintf(buf, "%s\n", technology_text[value.intval]);
-	else if (off == POWER_SUPPLY_PROP_CAPACITY_LEVEL)
-		return sprintf(buf, "%s\n",
-			       capacity_level_text[value.intval]);
 	else if (off >= POWER_SUPPLY_PROP_MODEL_NAME)
 		return sprintf(buf, "%s\n", value.strval);
 
@@ -88,6 +85,8 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(present),
 	POWER_SUPPLY_ATTR(online),
 	POWER_SUPPLY_ATTR(technology),
+	POWER_SUPPLY_ATTR(voltage_max),
+	POWER_SUPPLY_ATTR(voltage_min),
 	POWER_SUPPLY_ATTR(voltage_max_design),
 	POWER_SUPPLY_ATTR(voltage_min_design),
 	POWER_SUPPLY_ATTR(voltage_now),
@@ -159,8 +158,7 @@ dynamics_failed:
 			   &power_supply_attrs[psy->properties[j]]);
 statics_failed:
 	while (i--)
-		device_remove_file(psy->dev,
-			   &power_supply_static_attrs[psy->properties[i]]);
+		device_remove_file(psy->dev, &power_supply_static_attrs[i]);
 succeed:
 	return rc;
 }
@@ -170,8 +168,7 @@ void power_supply_remove_attrs(struct power_supply *psy)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(power_supply_static_attrs); i++)
-		device_remove_file(psy->dev,
-			    &power_supply_static_attrs[i]);
+		device_remove_file(psy->dev, &power_supply_static_attrs[i]);
 
 	for (i = 0; i < psy->num_properties; i++)
 		device_remove_file(psy->dev,

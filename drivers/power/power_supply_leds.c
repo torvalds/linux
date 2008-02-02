@@ -10,7 +10,10 @@
  *  You may use this code as per GPL version 2
  */
 
+#include <linux/kernel.h>
 #include <linux/power_supply.h>
+
+#include "power_supply.h"
 
 /* Battery specific LEDs triggers. */
 
@@ -46,27 +49,19 @@ static int power_supply_create_bat_triggers(struct power_supply *psy)
 {
 	int rc = 0;
 
-	psy->charging_full_trig_name = kmalloc(strlen(psy->name) +
-				  sizeof("-charging-or-full"), GFP_KERNEL);
+	psy->charging_full_trig_name = kasprintf(GFP_KERNEL,
+					"%s-charging-or-full", psy->name);
 	if (!psy->charging_full_trig_name)
 		goto charging_full_failed;
 
-	psy->charging_trig_name = kmalloc(strlen(psy->name) +
-					  sizeof("-charging"), GFP_KERNEL);
+	psy->charging_trig_name = kasprintf(GFP_KERNEL,
+					"%s-charging", psy->name);
 	if (!psy->charging_trig_name)
 		goto charging_failed;
 
-	psy->full_trig_name = kmalloc(strlen(psy->name) +
-				      sizeof("-full"), GFP_KERNEL);
+	psy->full_trig_name = kasprintf(GFP_KERNEL, "%s-full", psy->name);
 	if (!psy->full_trig_name)
 		goto full_failed;
-
-	strcpy(psy->charging_full_trig_name, psy->name);
-	strcat(psy->charging_full_trig_name, "-charging-or-full");
-	strcpy(psy->charging_trig_name, psy->name);
-	strcat(psy->charging_trig_name, "-charging");
-	strcpy(psy->full_trig_name, psy->name);
-	strcat(psy->full_trig_name, "-full");
 
 	led_trigger_register_simple(psy->charging_full_trig_name,
 				    &psy->charging_full_trig);
@@ -118,13 +113,9 @@ static int power_supply_create_gen_triggers(struct power_supply *psy)
 {
 	int rc = 0;
 
-	psy->online_trig_name = kmalloc(strlen(psy->name) + sizeof("-online"),
-					GFP_KERNEL);
+	psy->online_trig_name = kasprintf(GFP_KERNEL, "%s-online", psy->name);
 	if (!psy->online_trig_name)
 		goto online_failed;
-
-	strcpy(psy->online_trig_name, psy->name);
-	strcat(psy->online_trig_name, "-online");
 
 	led_trigger_register_simple(psy->online_trig_name, &psy->online_trig);
 
