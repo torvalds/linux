@@ -690,25 +690,6 @@ typedef struct {
 } idetape_parameter_block_descriptor_t;
 
 /*
- *	The Medium Partition Page, as returned by the MODE SENSE packet command.
- */
-typedef struct {
-	unsigned	page_code	:6;	/* Page Code - Should be 0x11 */
-	unsigned	reserved1_6	:1;	/* Reserved */
-	unsigned	ps		:1;
-	__u8		page_length;		/* Page Length - Should be 6 */
-	__u8		map;			/* Maximum Additional Partitions - Should be 0 */
-	__u8		apd;			/* Additional Partitions Defined - Should be 0 */
-	unsigned	reserved4_012	:3;	/* Reserved */
-	unsigned	psum		:2;	/* Should be 0 */
-	unsigned	idp		:1;	/* Should be 0 */
-	unsigned	sdp		:1;	/* Should be 0 */
-	unsigned	fdp		:1;	/* Fixed Data Partitions */
-	__u8		mfr;			/* Medium Format Recognition */
-	__u8		reserved[2];		/* Reserved */
-} idetape_medium_partition_page_t;
-
-/*
  *	Run time configurable parameters.
  */
 typedef struct {
