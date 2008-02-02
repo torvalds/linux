@@ -96,11 +96,13 @@ xdr_encode_string(__be32 *p, const char *string)
 EXPORT_SYMBOL(xdr_encode_string);
 
 __be32 *
-xdr_decode_string_inplace(__be32 *p, char **sp, int *lenp, int maxlen)
+xdr_decode_string_inplace(__be32 *p, char **sp,
+			  unsigned int *lenp, unsigned int maxlen)
 {
-	unsigned int	len;
+	u32 len;
 
-	if ((len = ntohl(*p++)) > maxlen)
+	len = ntohl(*p++);
+	if (len > maxlen)
 		return NULL;
 	*lenp = len;
 	*sp = (char *) p;

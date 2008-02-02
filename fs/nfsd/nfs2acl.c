@@ -221,12 +221,17 @@ static int nfsaclsvc_encode_getaclres(struct svc_rqst *rqstp, __be32 *p,
 		struct nfsd3_getaclres *resp)
 {
 	struct dentry *dentry = resp->fh.fh_dentry;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode;
 	struct kvec *head = rqstp->rq_res.head;
 	unsigned int base;
 	int n;
 	int w;
 
+	/*
+	 * Since this is version 2, the check for nfserr in
+	 * nfsd_dispatch actually ensures the following cannot happen.
+	 * However, it seems fragile to depend on that.
+	 */
 	if (dentry == NULL || dentry->d_inode == NULL)
 		return 0;
 	inode = dentry->d_inode;

@@ -22,6 +22,7 @@
 #include <linux/sunrpc/svc.h>
 #include <linux/sunrpc/svcauth_gss.h>
 #include <linux/nfsd/nfsd.h>
+#include "auth.h"
 
 #define NFSDDBG_FACILITY		NFSDDBG_FH
 

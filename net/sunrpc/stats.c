@@ -33,7 +33,7 @@ struct proc_dir_entry	*proc_net_rpc = NULL;
 static int rpc_proc_show(struct seq_file *seq, void *v) {
 	const struct rpc_stat	*statp = seq->private;
 	const struct rpc_program *prog = statp->program;
-	int		i, j;
+	unsigned int i, j;
 
 	seq_printf(seq,
 		"net %u %u %u %u\n",
@@ -81,7 +81,7 @@ void svc_seq_show(struct seq_file *seq, const struct svc_stat *statp) {
 	const struct svc_program *prog = statp->program;
 	const struct svc_procedure *proc;
 	const struct svc_version *vers;
-	int		i, j;
+	unsigned int i, j;
 
 	seq_printf(seq,
 		"net %u %u %u %u\n",
@@ -106,6 +106,7 @@ void svc_seq_show(struct seq_file *seq, const struct svc_stat *statp) {
 		seq_putc(seq, '\n');
 	}
 }
+EXPORT_SYMBOL(svc_seq_show);
 
 /**
  * rpc_alloc_iostats - allocate an rpc_iostats structure
@@ -255,12 +256,14 @@ svc_proc_register(struct svc_stat *statp, const struct file_operations *fops)
 {
 	return do_register(statp->program->pg_name, statp, fops);
 }
+EXPORT_SYMBOL(svc_proc_register);
 
 void
 svc_proc_unregister(const char *name)
 {
 	remove_proc_entry(name, proc_net_rpc);
 }
+EXPORT_SYMBOL(svc_proc_unregister);
 
 void
 rpc_proc_init(void)

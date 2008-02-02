@@ -87,7 +87,7 @@ nlm_lookup_file(struct svc_rqst *rqstp, struct nlm_file **result,
 	unsigned int	hash;
 	__be32		nfserr;
 
-	nlm_debug_print_fh("nlm_file_lookup", f);
+	nlm_debug_print_fh("nlm_lookup_file", f);
 
 	hash = file_hash(f);
 

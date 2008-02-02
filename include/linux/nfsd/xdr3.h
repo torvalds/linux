@@ -21,7 +21,7 @@ struct nfsd3_sattrargs {
 struct nfsd3_diropargs {
 	struct svc_fh		fh;
 	char *			name;
-	int			len;
+	unsigned int		len;
 };
 
 struct nfsd3_accessargs {
@@ -48,7 +48,7 @@ struct nfsd3_writeargs {
 struct nfsd3_createargs {
 	struct svc_fh		fh;
 	char *			name;
-	int			len;
+	unsigned int		len;
 	int			createmode;
 	struct iattr		attrs;
 	__be32 *		verf;
@@ -57,7 +57,7 @@ struct nfsd3_createargs {
 struct nfsd3_mknodargs {
 	struct svc_fh		fh;
 	char *			name;
-	int			len;
+	unsigned int		len;
 	__u32			ftype;
 	__u32			major, minor;
 	struct iattr		attrs;
@@ -66,10 +66,10 @@ struct nfsd3_mknodargs {
 struct nfsd3_renameargs {
 	struct svc_fh		ffh;
 	char *			fname;
-	int			flen;
+	unsigned int		flen;
 	struct svc_fh		tfh;
 	char *			tname;
-	int			tlen;
+	unsigned int		tlen;
 };
 
 struct nfsd3_readlinkargs {
@@ -81,15 +81,15 @@ struct nfsd3_linkargs {
 	struct svc_fh		ffh;
 	struct svc_fh		tfh;
 	char *			tname;
-	int			tlen;
+	unsigned int		tlen;
 };
 
 struct nfsd3_symlinkargs {
 	struct svc_fh		ffh;
 	char *			fname;
-	int			flen;
+	unsigned int		flen;
 	char *			tname;
-	int			tlen;
+	unsigned int		tlen;
 	struct iattr		attrs;
 };
 
