@@ -1430,6 +1430,7 @@ int ide_device_add_all(u8 *idx, const struct ide_port_info *d)
 		}
 
 		ide_acpi_init(hwif);
+		ide_acpi_port_init_devices(hwif);
 	}
 
 	for (i = 0; i < MAX_HWIFS; i++) {
