@@ -223,24 +223,6 @@ typedef struct idetape_packet_command_s {
 #define	PC_WRITING			5
 
 /*
- *	Block Size Page
- */
-typedef struct {
-	unsigned	page_code	:6;	/* Page code - Should be 0x30 */
-	unsigned	reserved1_6	:1;
-	unsigned	ps		:1;
-	__u8		page_length;		/* Page Length - Should be 2 */
-	__u8		reserved2;
-	unsigned	play32		:1;
-	unsigned	play32_5	:1;
-	unsigned	reserved2_23	:2;
-	unsigned	record32	:1;
-	unsigned	record32_5	:1;
-	unsigned	reserved2_6	:1;
-	unsigned	one		:1;
-} idetape_block_size_page_t;
-
-/*
  *	A pipeline stage.
  */
 typedef struct idetape_stage_s {
