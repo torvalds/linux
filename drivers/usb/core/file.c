@@ -204,7 +204,7 @@ int usb_register_dev(struct usb_interface *intf,
 exit:
 	return retval;
 }
-EXPORT_SYMBOL(usb_register_dev);
+EXPORT_SYMBOL_GPL(usb_register_dev);
 
 /**
  * usb_deregister_dev - deregister a USB device's dynamic minor.
@@ -245,4 +245,4 @@ void usb_deregister_dev(struct usb_interface *intf,
 	intf->minor = -1;
 	destroy_usb_class();
 }
-EXPORT_SYMBOL(usb_deregister_dev);
+EXPORT_SYMBOL_GPL(usb_deregister_dev);

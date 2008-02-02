@@ -53,6 +53,6 @@ int ezusb_set_reset (struct usb_serial *serial, unsigned char reset_bit)
 }
 
 
-EXPORT_SYMBOL(ezusb_writememory);
-EXPORT_SYMBOL(ezusb_set_reset);
+EXPORT_SYMBOL_GPL(ezusb_writememory);
+EXPORT_SYMBOL_GPL(ezusb_set_reset);
 

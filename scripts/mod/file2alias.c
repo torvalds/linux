@@ -155,7 +155,7 @@ static void do_usb_entry_multi(struct usb_device_id *id, struct module *mod)
 	 * Some modules (visor) have empty slots as placeholder for
 	 * run-time specification that results in catch-all alias
 	 */
-	if (!(id->idVendor | id->bDeviceClass | id->bInterfaceClass))
+	if (!(id->idVendor | id->idProduct | id->bDeviceClass | id->bInterfaceClass))
 		return;
 
 	/* Convert numeric bcdDevice range into fnmatch-able pattern(s) */

@@ -2,10 +2,7 @@
 # USB Serial device configuration
 #
 
-menu "USB Serial Converter support"
-	depends on USB!=n
-
-config USB_SERIAL
+menuconfig USB_SERIAL
 	tristate "USB Serial Converter support"
 	depends on USB
 	---help---
@@ -19,6 +16,8 @@ config USB_SERIAL
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called usbserial.
+
+if USB_SERIAL
 
 config USB_SERIAL_CONSOLE
 	bool "USB Serial Console device support (EXPERIMENTAL)"
@@ -42,6 +41,12 @@ config USB_SERIAL_CONSOLE
 	  port, /dev/ttyUSB0, as system console.
 
 	  If unsure, say N.
+
+config USB_EZUSB
+	bool "Functions for loading firmware on EZUSB chips"
+	depends on USB_SERIAL
+	help
+	    Say Y here if you need EZUSB device support.
 
 config USB_SERIAL_GENERIC
 	bool "USB Generic Serial Driver"
@@ -105,6 +110,7 @@ config USB_SERIAL_CH341
 config USB_SERIAL_WHITEHEAT
 	tristate "USB ConnectTech WhiteHEAT Serial Driver"
 	depends on USB_SERIAL
+	select USB_EZUSB
 	help
 	  Say Y here if you want to use a ConnectTech WhiteHEAT 4 port
 	  USB to serial converter device.
@@ -282,9 +288,21 @@ config USB_SERIAL_IPW
 	  To compile this driver as a module, choose M here: the
 	  module will be called ipw.
 
+config USB_SERIAL_IUU
+	tristate "USB Infinity USB Unlimited Phoenix Driver (Experimental)"
+	depends on USB_SERIAL && EXPERIMENTAL
+	help
+	  Say Y here if you want to use a IUU in phoenix mode and get
+	  an extra ttyUSBx device. More information available on
+	  http://eczema.ecze.com/iuu_phoenix.html
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called iuu_phoenix.o
+
 config USB_SERIAL_KEYSPAN_PDA
 	tristate "USB Keyspan PDA Single Port Serial Driver"
 	depends on USB_SERIAL
+	select USB_EZUSB
 	help
 	  Say Y here if you want to use a Keyspan PDA single port USB to
 	  serial converter device.  This driver makes use of firmware
@@ -296,6 +314,7 @@ config USB_SERIAL_KEYSPAN_PDA
 config USB_SERIAL_KEYSPAN
 	tristate "USB Keyspan USA-xxx Serial Driver"
 	depends on USB_SERIAL
+	select USB_EZUSB
 	---help---
 	  Say Y here if you want to use Keyspan USB to serial converter
 	  devices.  This driver makes use of Keyspan's official firmware
@@ -538,6 +557,7 @@ config USB_SERIAL_CYBERJACK
 config USB_SERIAL_XIRCOM
 	tristate "USB Xircom / Entregra Single Port Serial Driver"
 	depends on USB_SERIAL
+	select USB_EZUSB
 	help
 	  Say Y here if you want to use a Xircom or Entregra single port USB to
 	  serial converter device.  This driver makes use of firmware
@@ -585,11 +605,4 @@ config USB_SERIAL_DEBUG
 	  To compile this driver as a module, choose M here: the
 	  module will be called usb-debug.
 
-config USB_EZUSB
-	bool
-	depends on USB_SERIAL_KEYSPAN_PDA || USB_SERIAL_XIRCOM || USB_SERIAL_KEYSPAN || USB_SERIAL_WHITEHEAT
-	default y
-
-
-endmenu
-
+endif # USB_SERIAL

@@ -182,10 +182,11 @@ struct mct_u232_private {
 /*
  * Later day 2.6.0-test kernels have new baud rates like B230400 which
  * we do not know how to support. We ignore them for the moment.
- * XXX Rate-limit the error message, it's user triggerable.
  */
-static int mct_u232_calculate_baud_rate(struct usb_serial *serial, speed_t value)
+static int mct_u232_calculate_baud_rate(struct usb_serial *serial, speed_t value, speed_t *result)
 {
+	*result = value;
+
 	if (le16_to_cpu(serial->dev->descriptor.idProduct) == MCT_U232_SITECOM_PID
 	  || le16_to_cpu(serial->dev->descriptor.idProduct) == MCT_U232_BELKIN_F5U109_PID) {
 		switch (value) {
@@ -200,11 +201,13 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial, speed_t value
 		case  57600: return 0x0b;
 		case 115200: return 0x0c;
 		default:
-			err("MCT USB-RS232: unsupported baudrate request 0x%x,"
-			    " using default of B9600", value);
+			*result = 9600;
 			return 0x08;
 		}
 	} else {
+		/* FIXME: Can we use any divider - should we do
+		   divider = 115200/value;
+		   real baud = 115200/divider */
 		switch (value) {
 		case 300: break;
 		case 600: break;
@@ -217,9 +220,8 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial, speed_t value
 		case 57600: break;
 		case 115200: break;
 		default:
-			err("MCT USB-RS232: unsupported baudrate request 0x%x,"
-			    " using default of B9600", value);
 			value = 9600;
+			*result = 9600;
 		}
 		return 115200/value;
 	}
@@ -232,16 +234,19 @@ static int mct_u232_set_baud_rate(struct usb_serial *serial, struct usb_serial_p
         int rc;
         unsigned char zero_byte = 0;
         unsigned char cts_enable_byte = 0;
+        speed_t speed;
 
-	divisor = cpu_to_le32(mct_u232_calculate_baud_rate(serial, value));
+	divisor = cpu_to_le32(mct_u232_calculate_baud_rate(serial, value, &speed));
 
         rc = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
                              MCT_U232_SET_BAUD_RATE_REQUEST,
 			     MCT_U232_SET_REQUEST_TYPE,
                              0, 0, &divisor, MCT_U232_SET_BAUD_RATE_SIZE,
 			     WDR_TIMEOUT);
-	if (rc < 0)
+	if (rc < 0)	/*FIXME: What value speed results */
 		err("Set BAUD RATE %d failed (error = %d)", value, rc);
+	else
+		tty_encode_baud_rate(port->tty, speed, speed);
 	dbg("set_baud_rate: value: 0x%x, divisor: 0x%x", value, divisor);
 
 	/* Mimic the MCT-supplied Windows driver (version 1.21P.0104), which
@@ -482,21 +487,22 @@ error:
 static void mct_u232_close (struct usb_serial_port *port, struct file *filp)
 {
 	unsigned int c_cflag;
-	unsigned long flags;
 	unsigned int control_state;
 	struct mct_u232_private *priv = usb_get_serial_port_data(port);
 	dbg("%s port %d", __FUNCTION__, port->number);
 
    	if (port->tty) {
 		c_cflag = port->tty->termios->c_cflag;
-		if (c_cflag & HUPCL) {
-		   /* drop DTR and RTS */
-		   spin_lock_irqsave(&priv->lock, flags);
-		   priv->control_state &= ~(TIOCM_DTR | TIOCM_RTS);
-		   control_state = priv->control_state;
-		   spin_unlock_irqrestore(&priv->lock, flags);
-		   mct_u232_set_modem_ctrl(port->serial, control_state);
+		mutex_lock(&port->serial->disc_mutex);
+		if (c_cflag & HUPCL && !port->serial->disconnected) {
+			/* drop DTR and RTS */
+			spin_lock_irq(&priv->lock);
+			priv->control_state &= ~(TIOCM_DTR | TIOCM_RTS);
+			control_state = priv->control_state;
+			spin_unlock_irq(&priv->lock);
+			mct_u232_set_modem_ctrl(port->serial, control_state);
 		}
+		mutex_unlock(&port->serial->disc_mutex);
 	}
 
 
@@ -608,7 +614,8 @@ static void mct_u232_set_termios (struct usb_serial_port *port,
 {
 	struct usb_serial *serial = port->serial;
 	struct mct_u232_private *priv = usb_get_serial_port_data(port);
-	unsigned int cflag = port->tty->termios->c_cflag;
+	struct ktermios *termios = port->tty->termios;
+	unsigned int cflag = termios->c_cflag;
 	unsigned int old_cflag = old_termios->c_cflag;
 	unsigned long flags;
 	unsigned int control_state;
@@ -669,6 +676,8 @@ static void mct_u232_set_termios (struct usb_serial_port *port,
 		last_lcr |= MCT_U232_DATA_BITS_8;
 		break;
 	}
+
+	termios->c_cflag &= ~CMSPAR;
 
 	/* set the number of stop bits */
 	last_lcr |= (cflag & CSTOPB) ?

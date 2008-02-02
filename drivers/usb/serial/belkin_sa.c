@@ -350,14 +350,12 @@ static void belkin_sa_set_termios (struct usb_serial_port *port, struct ktermios
 	unsigned long control_state;
 	int bad_flow_control;
 	speed_t baud;
+	struct ktermios *termios = port->tty->termios;
 	
-	if ((!port->tty) || (!port->tty->termios)) {
-		dbg ("%s - no tty or termios structure", __FUNCTION__);
-		return;
-	}
+	iflag = termios->c_iflag;
+	cflag = termios->c_cflag;
 
-	iflag = port->tty->termios->c_iflag;
-	cflag = port->tty->termios->c_cflag;
+	termios->c_cflag &= ~CMSPAR;
 
 	/* get a local copy of the current port settings */
 	spin_lock_irqsave(&priv->lock, flags);
@@ -369,33 +367,30 @@ static void belkin_sa_set_termios (struct usb_serial_port *port, struct ktermios
 	old_cflag = old_termios->c_cflag;
 
 	/* Set the baud rate */
-	if( (cflag&CBAUD) != (old_cflag&CBAUD) ) {
+	if ((cflag & CBAUD) != (old_cflag & CBAUD)) {
 		/* reassert DTR and (maybe) RTS on transition from B0 */
 		if( (old_cflag&CBAUD) == B0 ) {
 			control_state |= (TIOCM_DTR|TIOCM_RTS);
 			if (BSA_USB_CMD(BELKIN_SA_SET_DTR_REQUEST, 1) < 0)
 				err("Set DTR error");
 			/* don't set RTS if using hardware flow control */
-			if (!(old_cflag&CRTSCTS) )
+			if (!(old_cflag & CRTSCTS))
 				if (BSA_USB_CMD(BELKIN_SA_SET_RTS_REQUEST, 1) < 0)
 					err("Set RTS error");
 		}
 	}
 
 	baud = tty_get_baud_rate(port->tty);
-	if (baud == 0) {
-		dbg("%s - tty_get_baud_rate says 0 baud", __FUNCTION__);
-		return;
-	}
-	urb_value = BELKIN_SA_BAUD(baud);
-	/* Clip to maximum speed */
-	if (urb_value == 0)
-		urb_value = 1;
-	/* Turn it back into a resulting real baud rate */
-	baud = BELKIN_SA_BAUD(urb_value);
-	/* FIXME: Once the tty updates are done then push this back to the tty */
+	if (baud) {
+		urb_value = BELKIN_SA_BAUD(baud);
+		/* Clip to maximum speed */
+		if (urb_value == 0)
+			urb_value = 1;
+		/* Turn it back into a resulting real baud rate */
+		baud = BELKIN_SA_BAUD(urb_value);
 
-	if ((cflag & CBAUD) != B0 ) {
+		/* Report the actual baud rate back to the caller */
+		tty_encode_baud_rate(port->tty, baud, baud);
 		if (BSA_USB_CMD(BELKIN_SA_SET_BAUDRATE_REQUEST, urb_value) < 0)
 			err("Set baudrate error");
 	} else {

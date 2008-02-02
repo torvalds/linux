@@ -216,7 +216,6 @@
 #define FIFO_IOMEM_ID	0
 #define CTRL_IOMEM_ID	1
 
-#ifdef DEBUG
 #define DBG_ERR		0x0001	/* report all error returns */
 #define DBG_HW		0x0002	/* debug hardware initialization */
 #define DBG_GADGET	0x0004	/* calls to/from gadget driver */
@@ -230,14 +229,12 @@
 #define DBG_NONE	0x0000
 
 #define DEBUG_LEVEL	(DBG_ERR)
+
 #define DBG(level, fmt, ...)					\
 	do {							\
 		if ((level) & DEBUG_LEVEL)			\
-			printk(KERN_DEBUG "udc: " fmt, ## __VA_ARGS__);	\
+			pr_debug("udc: " fmt, ## __VA_ARGS__);	\
 	} while (0)
-#else
-#define DBG(level, fmt...)
-#endif
 
 enum usba_ctrl_state {
 	WAIT_FOR_SETUP,

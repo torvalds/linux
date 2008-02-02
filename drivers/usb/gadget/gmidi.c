@@ -1158,7 +1158,7 @@ static int __devinit gmidi_bind(struct usb_gadget *gadget)
 	/* support optional vendor/distro customization */
 	if (idVendor) {
 		if (!idProduct) {
-			printk(KERN_ERR "idVendor needs idProduct!\n");
+			pr_err("idVendor needs idProduct!\n");
 			return -ENODEV;
 		}
 		device_desc.idVendor = cpu_to_le16(idVendor);
@@ -1190,7 +1190,7 @@ static int __devinit gmidi_bind(struct usb_gadget *gadget)
 	in_ep = usb_ep_autoconfig(gadget, &bulk_in_desc);
 	if (!in_ep) {
 autoconf_fail:
-		printk(KERN_ERR "%s: can't autoconfigure on %s\n",
+		pr_err("%s: can't autoconfigure on %s\n",
 			shortname, gadget->name);
 		return -ENODEV;
 	}
@@ -1212,7 +1212,7 @@ autoconf_fail:
 		 * it SHOULD NOT have problems with bulk-capable hardware.
 		 * so warn about unrecognized controllers, don't panic.
 		 */
-		printk(KERN_WARNING "%s: controller '%s' not recognized\n",
+		pr_warning("%s: controller '%s' not recognized\n",
 			shortname, gadget->name);
 		device_desc.bcdDevice = __constant_cpu_to_le16(0x9999);
 	}

@@ -36,6 +36,7 @@
 #include <linux/dmapool.h>
 #include <linux/reboot.h>
 #include <linux/workqueue.h>
+#include <linux/debugfs.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -809,13 +810,9 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 	}
 
 	if (ints & OHCI_INTR_WDH) {
-		if (HC_IS_RUNNING(hcd->state))
-			ohci_writel (ohci, OHCI_INTR_WDH, &regs->intrdisable);
 		spin_lock (&ohci->lock);
 		dl_done_list (ohci);
 		spin_unlock (&ohci->lock);
-		if (HC_IS_RUNNING(hcd->state))
-			ohci_writel (ohci, OHCI_INTR_WDH, &regs->intrenable);
 	}
 
 	if (quirk_zfmicro(ohci) && (ints & OHCI_INTR_SF)) {
@@ -1032,6 +1029,13 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		usb_hcd_pnx4008_driver
 #endif
 
+#if defined(CONFIG_CPU_SUBTYPE_SH7720) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7721) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7763)
+#include "ohci-sh.c"
+#define PLATFORM_DRIVER		ohci_hcd_sh_driver
+#endif
+
 
 #ifdef CONFIG_USB_OHCI_HCD_PPC_OF
 #include "ohci-ppc-of.c"
@@ -1046,6 +1050,11 @@ MODULE_LICENSE ("GPL");
 #ifdef CONFIG_USB_OHCI_HCD_SSB
 #include "ohci-ssb.c"
 #define SSB_OHCI_DRIVER		ssb_ohci_driver
+#endif
+
+#ifdef CONFIG_MFD_SM501
+#include "ohci-sm501.c"
+#define PLATFORM_DRIVER		ohci_hcd_sm501_driver
 #endif
 
 #if	!defined(PCI_DRIVER) &&		\
@@ -1067,6 +1076,14 @@ static int __init ohci_hcd_mod_init(void)
 	printk (KERN_DEBUG "%s: " DRIVER_INFO "\n", hcd_name);
 	pr_debug ("%s: block sizes: ed %Zd td %Zd\n", hcd_name,
 		sizeof (struct ed), sizeof (struct td));
+
+#ifdef DEBUG
+	ohci_debug_root = debugfs_create_dir("ohci", NULL);
+	if (!ohci_debug_root) {
+		retval = -ENOENT;
+		goto error_debug;
+	}
+#endif
 
 #ifdef PS3_SYSTEM_BUS_DRIVER
 	retval = ps3_ohci_driver_register(&PS3_SYSTEM_BUS_DRIVER);
@@ -1130,6 +1147,12 @@ static int __init ohci_hcd_mod_init(void)
 	ps3_ohci_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);
  error_ps3:
 #endif
+#ifdef DEBUG
+	debugfs_remove(ohci_debug_root);
+	ohci_debug_root = NULL;
+ error_debug:
+#endif
+
 	return retval;
 }
 module_init(ohci_hcd_mod_init);
@@ -1153,6 +1176,9 @@ static void __exit ohci_hcd_mod_exit(void)
 #endif
 #ifdef PS3_SYSTEM_BUS_DRIVER
 	ps3_ohci_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);
+#endif
+#ifdef DEBUG
+	debugfs_remove(ohci_debug_root);
 #endif
 }
 module_exit(ohci_hcd_mod_exit);

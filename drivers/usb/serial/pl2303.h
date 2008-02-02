@@ -35,6 +35,7 @@
 
 #define RATOC_VENDOR_ID		0x0584
 #define RATOC_PRODUCT_ID	0xb000
+#define RATOC_PRODUCT_ID_USB60F	0xb020
 
 #define TRIPP_VENDOR_ID		0x2478
 #define TRIPP_PRODUCT_ID	0x2008
@@ -96,10 +97,6 @@
 #define ALCOR_VENDOR_ID		0x058F
 #define ALCOR_PRODUCT_ID	0x9720
 
-/* Huawei E620 UMTS/HSDPA card (ID: 12d1:1001) */
-#define HUAWEI_VENDOR_ID	0x12d1
-#define HUAWEI_PRODUCT_ID	0x1001
-
 /* Willcom WS002IN Data Driver (by NetIndex Inc.) */
 #define WS002IN_VENDOR_ID	0x11f6
 #define WS002IN_PRODUCT_ID	0x2001
@@ -107,3 +104,11 @@
 /* Corega CG-USBRS232R Serial Adapter */
 #define COREGA_VENDOR_ID	0x07aa
 #define COREGA_PRODUCT_ID	0x002a
+
+/* HL HL-340 (ID: 4348:5523) */
+#define HL340_VENDOR_ID		0x4348
+#define HL340_PRODUCT_ID	0x5523
+
+/* Y.C. Cable U.S.A., Inc - USB to RS-232 */
+#define YCCABLE_VENDOR_ID	0x05ad
+#define YCCABLE_PRODUCT_ID	0x0fba

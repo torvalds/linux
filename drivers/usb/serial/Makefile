@@ -30,6 +30,7 @@ obj-$(CONFIG_USB_SERIAL_GARMIN)			+= garmin_gps.o
 obj-$(CONFIG_USB_SERIAL_HP4X)			+= hp4x.o
 obj-$(CONFIG_USB_SERIAL_IPAQ)			+= ipaq.o
 obj-$(CONFIG_USB_SERIAL_IPW)			+= ipw.o
+obj-$(CONFIG_USB_SERIAL_IUU)			+= iuu_phoenix.o
 obj-$(CONFIG_USB_SERIAL_IR)			+= ir-usb.o
 obj-$(CONFIG_USB_SERIAL_KEYSPAN)		+= keyspan.o
 obj-$(CONFIG_USB_SERIAL_KEYSPAN_PDA)		+= keyspan_pda.o

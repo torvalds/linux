@@ -999,7 +999,7 @@ static void __uea_load_page_e4(struct uea_softc *sc, u8 pageno, int boot)
 		bi.dwAddress = swab32(blockidx->PageAddress);
 
 		uea_dbg(INS_TO_USBDEV(sc),
-		       "sending block %u for DSP page %u size %u adress %x\n",
+		       "sending block %u for DSP page %u size %u address %x\n",
 		       blockno, pageno, blocksize, le32_to_cpu(blockidx->PageAddress));
 
 		/* send block info through the IDMA pipe */
@@ -1990,7 +1990,7 @@ static void uea_dispatch_cmv_e1(struct uea_softc *sc, struct intr_pkt *intr)
 	return;
 
 bad2:
-	uea_err(INS_TO_USBDEV(sc), "unexpected cmv received,"
+	uea_err(INS_TO_USBDEV(sc), "unexpected cmv received, "
 			"Function : %d, Subfunction : %d\n",
 			E1_FUNCTION_TYPE(cmv->bFunction),
 			E1_FUNCTION_SUBTYPE(cmv->bFunction));
@@ -2038,7 +2038,7 @@ static void uea_dispatch_cmv_e4(struct uea_softc *sc, struct intr_pkt *intr)
 	return;
 
 bad2:
-	uea_err(INS_TO_USBDEV(sc), "unexpected cmv received,"
+	uea_err(INS_TO_USBDEV(sc), "unexpected cmv received, "
 			"Function : %d, Subfunction : %d\n",
 			E4_FUNCTION_TYPE(cmv->wFunction),
 			E4_FUNCTION_SUBTYPE(cmv->wFunction));

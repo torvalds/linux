@@ -959,7 +959,7 @@ static int edge_open (struct usb_serial_port *port, struct file * filp)
  *
  *	This function will block the close until one of the following:
  *		1. Response to our Chase comes from Edgeport
- *		2. A timout of 10 seconds without activity has expired
+ *		2. A timeout of 10 seconds without activity has expired
  *		   (1K of Edgeport data @ 2400 baud ==> 4 sec to empty)
  *
  ************************************************************************/
@@ -999,7 +999,7 @@ static void block_until_chase_response(struct edgeport_port *edge_port)
 				return;
 			}
 		} else {
-			// Reset timout value back to 10 seconds
+			// Reset timeout value back to 10 seconds
 			dbg("%s - Last %d, Current %d", __FUNCTION__, lastCredits, edge_port->txCredits);
 			loop = 10;
 		}
@@ -1014,7 +1014,7 @@ static void block_until_chase_response(struct edgeport_port *edge_port)
  *	This function will block the close until one of the following:
  *		1. TX count are 0
  *		2. The edgeport has stopped
- *		3. A timout of 3 seconds without activity has expired
+ *		3. A timeout of 3 seconds without activity has expired
  *
  ************************************************************************/
 static void block_until_tx_empty (struct edgeport_port *edge_port)
@@ -1050,7 +1050,7 @@ static void block_until_tx_empty (struct edgeport_port *edge_port)
 				return;
 			}
 		} else {
-			// Reset timout value back to seconds
+			// Reset timeout value back to seconds
 			loop = 30;
 		}
 	}

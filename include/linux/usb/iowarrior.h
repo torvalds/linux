@@ -14,14 +14,23 @@
    this information.
 */
 struct iowarrior_info {
-	__u32 vendor;		/* vendor id : supposed to be USB_VENDOR_ID_CODEMERCS in all cases */
-	__u32 product;		/* product id : depends on type of chip (USB_DEVICE_ID_CODEMERCS_XXXXX) */
-	__u8 serial[9];		/* the serial number of our chip (if a serial-number is not available this is empty string) */
-	__u32 revision;		/* revision number of the chip */
-	__u32 speed;		/* USB-speed of the device (0=UNKNOWN, 1=LOW, 2=FULL 3=HIGH) */
-	__u32 power;		/* power consumption of the device in mA */
-	__u32 if_num;		/* the number of the endpoint */
-	__u32 report_size;	/* size of the data-packets on this interface */
+	/* vendor id : supposed to be USB_VENDOR_ID_CODEMERCS in all cases */
+	__u32 vendor;
+	/* product id : depends on type of chip (USB_DEVICE_ID_CODEMERCS_X) */
+	__u32 product;
+	/* the serial number of our chip (if a serial-number is not available
+	 * this is empty string) */
+	__u8 serial[9];
+	/* revision number of the chip */
+	__u32 revision;
+	/* USB-speed of the device (0=UNKNOWN, 1=LOW, 2=FULL 3=HIGH) */
+	__u32 speed;
+	/* power consumption of the device in mA */
+	__u32 power;
+	/* the number of the endpoint */
+	__u32 if_num;
+	/* size of the data-packets on this interface */
+	__u32 report_size;
 };
 
 /*

@@ -21,8 +21,7 @@
  * Boston, MA  02111-1307, USA.
  */
 
-#undef	DEBUG
-#undef	VERBOSE
+#undef	VERBOSE_DEBUG
 #undef	PACKET_TRACE
 
 #include <linux/kernel.h>
@@ -46,8 +45,8 @@
 #include <asm/irq.h>
 #include <asm/system.h>
 #include <asm/mach-types.h>
+#include <asm/gpio.h>
 
-#include <asm/arch/gpio.h>
 #include <asm/arch/board.h>
 #include <asm/arch/cpu.h>
 #include <asm/arch/at91sam9261_matrix.h>
@@ -580,7 +579,7 @@ static int at91_ep_disable (struct usb_ep * _ep)
  */
 
 static struct usb_request *
-at91_ep_alloc_request(struct usb_ep *_ep, unsigned int gfp_flags)
+at91_ep_alloc_request(struct usb_ep *_ep, gfp_t gfp_flags)
 {
 	struct at91_request *req;
 
@@ -881,6 +880,8 @@ static void clk_off(struct at91_udc *udc)
  */
 static void pullup(struct at91_udc *udc, int is_on)
 {
+	int	active = !udc->board.pullup_active_low;
+
 	if (!udc->enabled || !udc->vbus)
 		is_on = 0;
 	DBG("%sactive\n", is_on ? "" : "in");
@@ -890,7 +891,7 @@ static void pullup(struct at91_udc *udc, int is_on)
 		at91_udp_write(udc, AT91_UDP_ICR, AT91_UDP_RXRSM);
 		at91_udp_write(udc, AT91_UDP_TXVC, 0);
 		if (cpu_is_at91rm9200())
-			at91_set_gpio_value(udc->board.pullup_pin, 1);
+			gpio_set_value(udc->board.pullup_pin, active);
 		else if (cpu_is_at91sam9260() || cpu_is_at91sam9263()) {
 			u32	txvc = at91_udp_read(udc, AT91_UDP_TXVC);
 
@@ -908,7 +909,7 @@ static void pullup(struct at91_udc *udc, int is_on)
 		at91_udp_write(udc, AT91_UDP_IDR, AT91_UDP_RXRSM);
 		at91_udp_write(udc, AT91_UDP_TXVC, AT91_UDP_TXVC_TXVDIS);
 		if (cpu_is_at91rm9200())
-			at91_set_gpio_value(udc->board.pullup_pin, 0);
+			gpio_set_value(udc->board.pullup_pin, !active);
 		else if (cpu_is_at91sam9260() || cpu_is_at91sam9263()) {
 			u32	txvc = at91_udp_read(udc, AT91_UDP_TXVC);
 
@@ -1153,7 +1154,7 @@ static void handle_setup(struct at91_udc *udc, struct at91_ep *ep, u32 csr)
 			| USB_REQ_GET_STATUS:
 		tmp = w_index & USB_ENDPOINT_NUMBER_MASK;
 		ep = &udc->ep[tmp];
-		if (tmp > NUM_ENDPOINTS || (tmp && !ep->desc))
+		if (tmp >= NUM_ENDPOINTS || (tmp && !ep->desc))
 			goto stall;
 
 		if (tmp) {
@@ -1176,7 +1177,7 @@ static void handle_setup(struct at91_udc *udc, struct at91_ep *ep, u32 csr)
 			| USB_REQ_SET_FEATURE:
 		tmp = w_index & USB_ENDPOINT_NUMBER_MASK;
 		ep = &udc->ep[tmp];
-		if (w_value != USB_ENDPOINT_HALT || tmp > NUM_ENDPOINTS)
+		if (w_value != USB_ENDPOINT_HALT || tmp >= NUM_ENDPOINTS)
 			goto stall;
 		if (!ep->desc || ep->is_iso)
 			goto stall;
@@ -1195,7 +1196,7 @@ static void handle_setup(struct at91_udc *udc, struct at91_ep *ep, u32 csr)
 			| USB_REQ_CLEAR_FEATURE:
 		tmp = w_index & USB_ENDPOINT_NUMBER_MASK;
 		ep = &udc->ep[tmp];
-		if (w_value != USB_ENDPOINT_HALT || tmp > NUM_ENDPOINTS)
+		if (w_value != USB_ENDPOINT_HALT || tmp >= NUM_ENDPOINTS)
 			goto stall;
 		if (tmp == 0)
 			goto succeed;
@@ -1551,7 +1552,7 @@ static irqreturn_t at91_vbus_irq(int irq, void *_udc)
 
 	/* vbus needs at least brief debouncing */
 	udelay(10);
-	value = at91_get_gpio_value(udc->board.vbus_pin);
+	value = gpio_get_value(udc->board.vbus_pin);
 	if (value != udc->vbus)
 		at91_vbus_session(&udc->gadget, value);
 
@@ -1616,6 +1617,8 @@ int usb_gadget_unregister_driver (struct usb_gadget_driver *driver)
 	local_irq_enable();
 
 	driver->unbind(&udc->gadget);
+	udc->gadget.dev.driver = NULL;
+	udc->gadget.dev.driver_data = NULL;
 	udc->driver = NULL;
 
 	DBG("unbound from %s\n", driver->driver.name);
@@ -1645,12 +1648,12 @@ static int __init at91udc_probe(struct platform_device *pdev)
 	}
 
 	if (pdev->num_resources != 2) {
-		DBG("invalid num_resources");
+		DBG("invalid num_resources\n");
 		return -ENODEV;
 	}
 	if ((pdev->resource[0].flags != IORESOURCE_MEM)
 			|| (pdev->resource[1].flags != IORESOURCE_IRQ)) {
-		DBG("invalid resource type");
+		DBG("invalid resource type\n");
 		return -ENODEV;
 	}
 
@@ -1672,10 +1675,26 @@ static int __init at91udc_probe(struct platform_device *pdev)
 	udc->pdev = pdev;
 	udc->enabled = 0;
 
+	/* rm9200 needs manual D+ pullup; off by default */
+	if (cpu_is_at91rm9200()) {
+		if (udc->board.pullup_pin <= 0) {
+			DBG("no D+ pullup?\n");
+			retval = -ENODEV;
+			goto fail0;
+		}
+		retval = gpio_request(udc->board.pullup_pin, "udc_pullup");
+		if (retval) {
+			DBG("D+ pullup is busy\n");
+			goto fail0;
+		}
+		gpio_direction_output(udc->board.pullup_pin,
+				udc->board.pullup_active_low);
+	}
+
 	udc->udp_baseaddr = ioremap(res->start, res->end - res->start + 1);
 	if (!udc->udp_baseaddr) {
-		release_mem_region(res->start, res->end - res->start + 1);
-		return -ENOMEM;
+		retval = -ENOMEM;
+		goto fail0a;
 	}
 
 	udc_reinit(udc);
@@ -1686,12 +1705,13 @@ static int __init at91udc_probe(struct platform_device *pdev)
 	if (IS_ERR(udc->iclk) || IS_ERR(udc->fclk)) {
 		DBG("clocks missing\n");
 		retval = -ENODEV;
-		goto fail0;
+		/* NOTE: we "know" here that refcounts on these are NOPs */
+		goto fail0b;
 	}
 
 	retval = device_register(&udc->gadget.dev);
 	if (retval < 0)
-		goto fail0;
+		goto fail0b;
 
 	/* don't do anything until we have both gadget driver and VBUS */
 	clk_enable(udc->iclk);
@@ -1703,25 +1723,32 @@ static int __init at91udc_probe(struct platform_device *pdev)
 
 	/* request UDC and maybe VBUS irqs */
 	udc->udp_irq = platform_get_irq(pdev, 0);
-	if (request_irq(udc->udp_irq, at91_udc_irq,
-			IRQF_DISABLED, driver_name, udc)) {
+	retval = request_irq(udc->udp_irq, at91_udc_irq,
+			IRQF_DISABLED, driver_name, udc);
+	if (retval < 0) {
 		DBG("request irq %d failed\n", udc->udp_irq);
-		retval = -EBUSY;
 		goto fail1;
 	}
 	if (udc->board.vbus_pin > 0) {
+		retval = gpio_request(udc->board.vbus_pin, "udc_vbus");
+		if (retval < 0) {
+			DBG("request vbus pin failed\n");
+			goto fail2;
+		}
+		gpio_direction_input(udc->board.vbus_pin);
+
 		/*
 		 * Get the initial state of VBUS - we cannot expect
 		 * a pending interrupt.
 		 */
-		udc->vbus = at91_get_gpio_value(udc->board.vbus_pin);
+		udc->vbus = gpio_get_value(udc->board.vbus_pin);
 		if (request_irq(udc->board.vbus_pin, at91_vbus_irq,
 				IRQF_DISABLED, driver_name, udc)) {
 			DBG("request vbus irq %d failed\n",
 					udc->board.vbus_pin);
 			free_irq(udc->udp_irq, udc);
 			retval = -EBUSY;
-			goto fail1;
+			goto fail3;
 		}
 	} else {
 		DBG("no VBUS detection, assuming always-on\n");
@@ -1734,8 +1761,18 @@ static int __init at91udc_probe(struct platform_device *pdev)
 	INFO("%s version %s\n", driver_name, DRIVER_VERSION);
 	return 0;
 
+fail3:
+	if (udc->board.vbus_pin > 0)
+		gpio_free(udc->board.vbus_pin);
+fail2:
+	free_irq(udc->udp_irq, udc);
 fail1:
 	device_unregister(&udc->gadget.dev);
+fail0b:
+	iounmap(udc->udp_baseaddr);
+fail0a:
+	if (cpu_is_at91rm9200())
+		gpio_free(udc->board.pullup_pin);
 fail0:
 	release_mem_region(res->start, res->end - res->start + 1);
 	DBG("%s probe failed, %d\n", driver_name, retval);
@@ -1756,12 +1793,18 @@ static int __exit at91udc_remove(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, 0);
 	remove_debug_file(udc);
-	if (udc->board.vbus_pin > 0)
+	if (udc->board.vbus_pin > 0) {
 		free_irq(udc->board.vbus_pin, udc);
+		gpio_free(udc->board.vbus_pin);
+	}
 	free_irq(udc->udp_irq, udc);
 	device_unregister(&udc->gadget.dev);
 
 	iounmap(udc->udp_baseaddr);
+
+	if (cpu_is_at91rm9200())
+		gpio_free(udc->board.pullup_pin);
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(res->start, res->end - res->start + 1);
 

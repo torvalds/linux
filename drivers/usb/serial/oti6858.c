@@ -79,7 +79,7 @@ static int debug;
 #define PL2303_BUF_SIZE		1024
 #define PL2303_TMP_BUF_SIZE	1024
 
-struct pl2303_buf {
+struct oti6858_buf {
 	unsigned int	buf_size;
 	char		*buf_buf;
 	char		*buf_get;
@@ -161,14 +161,14 @@ static int oti6858_startup(struct usb_serial *serial);
 static void oti6858_shutdown(struct usb_serial *serial);
 
 /* functions operating on buffers */
-static struct pl2303_buf *pl2303_buf_alloc(unsigned int size);
-static void pl2303_buf_free(struct pl2303_buf *pb);
-static void pl2303_buf_clear(struct pl2303_buf *pb);
-static unsigned int pl2303_buf_data_avail(struct pl2303_buf *pb);
-static unsigned int pl2303_buf_space_avail(struct pl2303_buf *pb);
-static unsigned int pl2303_buf_put(struct pl2303_buf *pb, const char *buf,
+static struct oti6858_buf *oti6858_buf_alloc(unsigned int size);
+static void oti6858_buf_free(struct oti6858_buf *pb);
+static void oti6858_buf_clear(struct oti6858_buf *pb);
+static unsigned int oti6858_buf_data_avail(struct oti6858_buf *pb);
+static unsigned int oti6858_buf_space_avail(struct oti6858_buf *pb);
+static unsigned int oti6858_buf_put(struct oti6858_buf *pb, const char *buf,
 					unsigned int count);
-static unsigned int pl2303_buf_get(struct pl2303_buf *pb, char *buf,
+static unsigned int oti6858_buf_get(struct oti6858_buf *pb, char *buf,
 					unsigned int count);
 
 
@@ -203,7 +203,7 @@ static struct usb_serial_driver oti6858_device = {
 struct oti6858_private {
 	spinlock_t lock;
 
-	struct pl2303_buf *buf;
+	struct oti6858_buf *buf;
 	struct oti6858_control_pkt status;
 
 	struct {
@@ -316,7 +316,7 @@ void send_data(struct work_struct *work)
 	}
 	priv->flags.write_urb_in_use = 1;
 
-	count = pl2303_buf_data_avail(priv->buf);
+	count = oti6858_buf_data_avail(priv->buf);
 	spin_unlock_irqrestore(&priv->lock, flags);
 	if (count > port->bulk_out_size)
 		count = port->bulk_out_size;
@@ -345,7 +345,7 @@ void send_data(struct work_struct *work)
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
-	pl2303_buf_get(priv->buf, port->write_urb->transfer_buffer, count);
+	oti6858_buf_get(priv->buf, port->write_urb->transfer_buffer, count);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	port->write_urb->transfer_buffer_length = count;
@@ -370,7 +370,7 @@ static int oti6858_startup(struct usb_serial *serial)
 		priv = kzalloc(sizeof(struct oti6858_private), GFP_KERNEL);
 		if (!priv)
 			break;
-		priv->buf = pl2303_buf_alloc(PL2303_BUF_SIZE);
+		priv->buf = oti6858_buf_alloc(PL2303_BUF_SIZE);
 		if (priv->buf == NULL) {
 			kfree(priv);
 			break;
@@ -391,7 +391,7 @@ static int oti6858_startup(struct usb_serial *serial)
 
 	for (--i; i >= 0; --i) {
 		priv = usb_get_serial_port_data(serial->port[i]);
-		pl2303_buf_free(priv->buf);
+		oti6858_buf_free(priv->buf);
 		kfree(priv);
 		usb_set_serial_port_data(serial->port[i], NULL);
 	}
@@ -410,7 +410,7 @@ static int oti6858_write(struct usb_serial_port *port,
 		return count;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	count = pl2303_buf_put(priv->buf, buf, count);
+	count = oti6858_buf_put(priv->buf, buf, count);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return count;
@@ -425,7 +425,7 @@ static int oti6858_write_room(struct usb_serial_port *port)
 	dbg("%s(port = %d)", __FUNCTION__, port->number);
 
 	spin_lock_irqsave(&priv->lock, flags);
-	room = pl2303_buf_space_avail(priv->buf);
+	room = oti6858_buf_space_avail(priv->buf);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return room;
@@ -440,7 +440,7 @@ static int oti6858_chars_in_buffer(struct usb_serial_port *port)
 	dbg("%s(port = %d)", __FUNCTION__, port->number);
 
 	spin_lock_irqsave(&priv->lock, flags);
-	chars = pl2303_buf_data_avail(priv->buf);
+	chars = oti6858_buf_data_avail(priv->buf);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return chars;
@@ -458,7 +458,7 @@ static void oti6858_set_termios(struct usb_serial_port *port,
 
 	dbg("%s(port = %d)", __FUNCTION__, port->number);
 
-	if ((!port->tty) || (!port->tty->termios)) {
+	if (!port->tty || !port->tty->termios) {
 		dbg("%s(): no tty structures", __FUNCTION__);
 		return;
 	}
@@ -468,6 +468,8 @@ static void oti6858_set_termios(struct usb_serial_port *port,
 		*(port->tty->termios) = tty_std_termios;
 		port->tty->termios->c_cflag = B38400 | CS8 | CREAD | HUPCL | CLOCAL;
 		priv->flags.termios_initialized = 1;
+		port->tty->termios->c_ispeed = 38400;
+		port->tty->termios->c_ospeed = 38400;
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -504,19 +506,14 @@ static void oti6858_set_termios(struct usb_serial_port *port,
 	br = tty_get_baud_rate(port->tty);
 	if (br == 0) {
 		divisor = 0;
-	} else if (br <= OTI6858_MAX_BAUD_RATE) {
+	} else {
 		int real_br;
+		br = min(br, OTI6858_MAX_BAUD_RATE);
 
 		divisor = (96000000 + 8 * br) / (16 * br);
 		real_br = 96000000 / (16 * divisor);
-		if ((((real_br - br) * 100 + br - 1) / br) > 2) {
-			dbg("%s(): baud rate %d is invalid", __FUNCTION__, br);
-			return;
-		}
 		divisor = cpu_to_le16(divisor);
-	} else {
-		dbg("%s(): baud rate %d is too high", __FUNCTION__, br);
-		return;
+		tty_encode_baud_rate(port->tty, real_br, real_br);
 	}
 
 	frame_fmt &= ~FMT_STOP_BITS_MASK;
@@ -650,9 +647,9 @@ static void oti6858_close(struct usb_serial_port *port, struct file *filp)
 	dbg("%s(): entering wait loop", __FUNCTION__);
 	for (;;) {
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (pl2303_buf_data_avail(priv->buf) == 0
+		if (oti6858_buf_data_avail(priv->buf) == 0
 		|| timeout == 0 || signal_pending(current)
-		|| !usb_get_intfdata(port->serial->interface))	/* disconnect */
+		|| port->serial->disconnected)
 			break;
 		spin_unlock_irqrestore(&priv->lock, flags);
 		timeout = schedule_timeout(timeout);
@@ -663,7 +660,7 @@ static void oti6858_close(struct usb_serial_port *port, struct file *filp)
 	dbg("%s(): after wait loop", __FUNCTION__);
 
 	/* clear out any remaining data in the buffer */
-	pl2303_buf_clear(priv->buf);
+	oti6858_buf_clear(priv->buf);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	/* wait for characters to drain from the device */
@@ -831,21 +828,6 @@ static int oti6858_ioctl(struct usb_serial_port *port, struct file *file,
 				return -EFAULT;
 			return oti6858_tiocmset(port, NULL, 0, x);
 
-		case TIOCGSERIAL:
-			if (copy_to_user(user_arg, port->tty->termios,
-						sizeof(struct ktermios))) {
-				return -EFAULT;
-			}
-                        return 0;
-
-		case TIOCSSERIAL:
-			if (copy_from_user(port->tty->termios, user_arg,
-						sizeof(struct ktermios))) {
-				return -EFAULT;
-			}
-			oti6858_set_termios(port, NULL);
-			return 0;
-
 		case TIOCMIWAIT:
 			dbg("%s(): TIOCMIWAIT", __FUNCTION__);
 			return wait_modem_info(port, arg);
@@ -887,7 +869,7 @@ static void oti6858_shutdown(struct usb_serial *serial)
 	for (i = 0; i < serial->num_ports; ++i) {
 		priv = usb_get_serial_port_data(serial->port[i]);
 		if (priv) {
-			pl2303_buf_free(priv->buf);
+			oti6858_buf_free(priv->buf);
 			kfree(priv);
 			usb_set_serial_port_data(serial->port[i], NULL);
 		}
@@ -987,7 +969,7 @@ static void oti6858_read_int_callback(struct urb *urb)
 
 		spin_lock_irqsave(&priv->lock, flags);
 		if (priv->flags.write_urb_in_use == 0
-				&& pl2303_buf_data_avail(priv->buf) != 0) {
+				&& oti6858_buf_data_avail(priv->buf) != 0) {
 			schedule_delayed_work(&priv->delayed_write_work,0);
 			resubmit = 0;
 		}
@@ -1015,9 +997,8 @@ static void oti6858_read_bulk_callback(struct urb *urb)
 	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
 	unsigned long flags;
-	int i, result;
 	int status = urb->status;
-	char tty_flag;
+	int result;
 
 	dbg("%s(port = %d, status = %d)",
 				__FUNCTION__, port->number, status);
@@ -1045,27 +1026,9 @@ static void oti6858_read_bulk_callback(struct urb *urb)
 		return;
 	}
 
-	// get tty_flag from status
-	tty_flag = TTY_NORMAL;
-
-/* FIXME: probably, errors will be signalled using interrupt pipe! */
-/*
-	// break takes precedence over parity,
-	// which takes precedence over framing errors
-	if (status & UART_BREAK_ERROR )
-		tty_flag = TTY_BREAK;
-	else if (status & UART_PARITY_ERROR)
-		tty_flag = TTY_PARITY;
-	else if (status & UART_FRAME_ERROR)
-		tty_flag = TTY_FRAME;
-	dbg("%s - tty_flag = %d", __FUNCTION__, tty_flag);
-*/
-
 	tty = port->tty;
 	if (tty != NULL && urb->actual_length > 0) {
-		tty_buffer_request_room(tty, urb->actual_length);
-		for (i = 0; i < urb->actual_length; ++i)
-			tty_insert_flip_char(tty, data[i], tty_flag);
+		tty_insert_flip_string(tty, data, urb->actual_length);
 		tty_flip_buffer_push(tty);
 	}
 
@@ -1133,18 +1096,18 @@ static void oti6858_write_bulk_callback(struct urb *urb)
 
 
 /*
- * pl2303_buf_alloc
+ * oti6858_buf_alloc
  *
  * Allocate a circular buffer and all associated memory.
  */
-static struct pl2303_buf *pl2303_buf_alloc(unsigned int size)
+static struct oti6858_buf *oti6858_buf_alloc(unsigned int size)
 {
-	struct pl2303_buf *pb;
+	struct oti6858_buf *pb;
 
 	if (size == 0)
 		return NULL;
 
-	pb = kmalloc(sizeof(struct pl2303_buf), GFP_KERNEL);
+	pb = kmalloc(sizeof(struct oti6858_buf), GFP_KERNEL);
 	if (pb == NULL)
 		return NULL;
 
@@ -1161,11 +1124,11 @@ static struct pl2303_buf *pl2303_buf_alloc(unsigned int size)
 }
 
 /*
- * pl2303_buf_free
+ * oti6858_buf_free
  *
  * Free the buffer and all associated memory.
  */
-static void pl2303_buf_free(struct pl2303_buf *pb)
+static void oti6858_buf_free(struct oti6858_buf *pb)
 {
 	if (pb) {
 		kfree(pb->buf_buf);
@@ -1174,11 +1137,11 @@ static void pl2303_buf_free(struct pl2303_buf *pb)
 }
 
 /*
- * pl2303_buf_clear
+ * oti6858_buf_clear
  *
  * Clear out all data in the circular buffer.
  */
-static void pl2303_buf_clear(struct pl2303_buf *pb)
+static void oti6858_buf_clear(struct oti6858_buf *pb)
 {
 	if (pb != NULL) {
 		/* equivalent to a get of all data available */
@@ -1187,12 +1150,12 @@ static void pl2303_buf_clear(struct pl2303_buf *pb)
 }
 
 /*
- * pl2303_buf_data_avail
+ * oti6858_buf_data_avail
  *
  * Return the number of bytes of data available in the circular
  * buffer.
  */
-static unsigned int pl2303_buf_data_avail(struct pl2303_buf *pb)
+static unsigned int oti6858_buf_data_avail(struct oti6858_buf *pb)
 {
 	if (pb == NULL)
 		return 0;
@@ -1200,12 +1163,12 @@ static unsigned int pl2303_buf_data_avail(struct pl2303_buf *pb)
 }
 
 /*
- * pl2303_buf_space_avail
+ * oti6858_buf_space_avail
  *
  * Return the number of bytes of space available in the circular
  * buffer.
  */
-static unsigned int pl2303_buf_space_avail(struct pl2303_buf *pb)
+static unsigned int oti6858_buf_space_avail(struct oti6858_buf *pb)
 {
 	if (pb == NULL)
 		return 0;
@@ -1213,14 +1176,14 @@ static unsigned int pl2303_buf_space_avail(struct pl2303_buf *pb)
 }
 
 /*
- * pl2303_buf_put
+ * oti6858_buf_put
  *
  * Copy data data from a user buffer and put it into the circular buffer.
  * Restrict to the amount of space available.
  *
  * Return the number of bytes copied.
  */
-static unsigned int pl2303_buf_put(struct pl2303_buf *pb, const char *buf,
+static unsigned int oti6858_buf_put(struct oti6858_buf *pb, const char *buf,
 					unsigned int count)
 {
 	unsigned int len;
@@ -1228,7 +1191,7 @@ static unsigned int pl2303_buf_put(struct pl2303_buf *pb, const char *buf,
 	if (pb == NULL)
 		return 0;
 
-	len  = pl2303_buf_space_avail(pb);
+	len  = oti6858_buf_space_avail(pb);
 	if (count > len)
 		count = len;
 
@@ -1252,14 +1215,14 @@ static unsigned int pl2303_buf_put(struct pl2303_buf *pb, const char *buf,
 }
 
 /*
- * pl2303_buf_get
+ * oti6858_buf_get
  *
  * Get data from the circular buffer and copy to the given buffer.
  * Restrict to the amount of data available.
  *
  * Return the number of bytes copied.
  */
-static unsigned int pl2303_buf_get(struct pl2303_buf *pb, char *buf,
+static unsigned int oti6858_buf_get(struct oti6858_buf *pb, char *buf,
 					unsigned int count)
 {
 	unsigned int len;
@@ -1267,7 +1230,7 @@ static unsigned int pl2303_buf_get(struct pl2303_buf *pb, char *buf,
 	if (pb == NULL)
 		return 0;
 
-	len = pl2303_buf_data_avail(pb);
+	len = oti6858_buf_data_avail(pb);
 	if (count > len)
 		count = len;
 

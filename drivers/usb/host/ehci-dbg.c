@@ -323,7 +323,43 @@ static inline void remove_debug_files (struct ehci_hcd *bus) { }
 
 #else
 
-/* troubleshooting help: expose state in sysfs */
+/* troubleshooting help: expose state in debugfs */
+
+static int debug_async_open(struct inode *, struct file *);
+static int debug_periodic_open(struct inode *, struct file *);
+static int debug_registers_open(struct inode *, struct file *);
+static int debug_async_open(struct inode *, struct file *);
+static ssize_t debug_output(struct file*, char __user*, size_t, loff_t*);
+static int debug_close(struct inode *, struct file *);
+
+static const struct file_operations debug_async_fops = {
+	.owner		= THIS_MODULE,
+	.open		= debug_async_open,
+	.read		= debug_output,
+	.release	= debug_close,
+};
+static const struct file_operations debug_periodic_fops = {
+	.owner		= THIS_MODULE,
+	.open		= debug_periodic_open,
+	.read		= debug_output,
+	.release	= debug_close,
+};
+static const struct file_operations debug_registers_fops = {
+	.owner		= THIS_MODULE,
+	.open		= debug_registers_open,
+	.read		= debug_output,
+	.release	= debug_close,
+};
+
+static struct dentry *ehci_debug_root;
+
+struct debug_buffer {
+	ssize_t (*fill_func)(struct debug_buffer *);	/* fill method */
+	struct usb_bus *bus;
+	struct mutex mutex;	/* protect filling of buffer */
+	size_t count;		/* number of characters filled into buffer */
+	char *page;
+};
 
 #define speed_char(info1) ({ char tmp; \
 		switch (info1 & (3 << 12)) { \
@@ -441,10 +477,8 @@ done:
 	*nextp = next;
 }
 
-static ssize_t
-show_async (struct class_device *class_dev, char *buf)
+static ssize_t fill_async_buffer(struct debug_buffer *buf)
 {
-	struct usb_bus		*bus;
 	struct usb_hcd		*hcd;
 	struct ehci_hcd		*ehci;
 	unsigned long		flags;
@@ -452,13 +486,12 @@ show_async (struct class_device *class_dev, char *buf)
 	char			*next;
 	struct ehci_qh		*qh;
 
-	*buf = 0;
-
-	bus = class_get_devdata(class_dev);
-	hcd = bus_to_hcd(bus);
+	hcd = bus_to_hcd(buf->bus);
 	ehci = hcd_to_ehci (hcd);
-	next = buf;
+	next = buf->page;
 	size = PAGE_SIZE;
+
+	*next = 0;
 
 	/* dumps a snapshot of the async schedule.
 	 * usually empty except for long-term bulk reads, or head.
@@ -477,16 +510,12 @@ show_async (struct class_device *class_dev, char *buf)
 	}
 	spin_unlock_irqrestore (&ehci->lock, flags);
 
-	return strlen (buf);
+	return strlen(buf->page);
 }
-static CLASS_DEVICE_ATTR (async, S_IRUGO, show_async, NULL);
 
 #define DBG_SCHED_LIMIT 64
-
-static ssize_t
-show_periodic (struct class_device *class_dev, char *buf)
+static ssize_t fill_periodic_buffer(struct debug_buffer *buf)
 {
-	struct usb_bus		*bus;
 	struct usb_hcd		*hcd;
 	struct ehci_hcd		*ehci;
 	unsigned long		flags;
@@ -500,10 +529,9 @@ show_periodic (struct class_device *class_dev, char *buf)
 		return 0;
 	seen_count = 0;
 
-	bus = class_get_devdata(class_dev);
-	hcd = bus_to_hcd(bus);
+	hcd = bus_to_hcd(buf->bus);
 	ehci = hcd_to_ehci (hcd);
-	next = buf;
+	next = buf->page;
 	size = PAGE_SIZE;
 
 	temp = scnprintf (next, size, "size = %d\n", ehci->periodic_size);
@@ -623,14 +651,10 @@ show_periodic (struct class_device *class_dev, char *buf)
 
 	return PAGE_SIZE - size;
 }
-static CLASS_DEVICE_ATTR (periodic, S_IRUGO, show_periodic, NULL);
-
 #undef DBG_SCHED_LIMIT
 
-static ssize_t
-show_registers (struct class_device *class_dev, char *buf)
+static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 {
-	struct usb_bus		*bus;
 	struct usb_hcd		*hcd;
 	struct ehci_hcd		*ehci;
 	unsigned long		flags;
@@ -639,15 +663,14 @@ show_registers (struct class_device *class_dev, char *buf)
 	static char		fmt [] = "%*s\n";
 	static char		label [] = "";
 
-	bus = class_get_devdata(class_dev);
-	hcd = bus_to_hcd(bus);
+	hcd = bus_to_hcd(buf->bus);
 	ehci = hcd_to_ehci (hcd);
-	next = buf;
+	next = buf->page;
 	size = PAGE_SIZE;
 
 	spin_lock_irqsave (&ehci->lock, flags);
 
-	if (bus->controller->power.power_state.event) {
+	if (buf->bus->controller->power.power_state.event) {
 		size = scnprintf (next, size,
 			"bus %s, device %s (driver " DRIVER_VERSION ")\n"
 			"%s\n"
@@ -763,9 +786,7 @@ show_registers (struct class_device *class_dev, char *buf)
 	}
 
 	if (ehci->reclaim) {
-		temp = scnprintf (next, size, "reclaim qh %p%s\n",
-				ehci->reclaim,
-				ehci->reclaim_ready ? " ready" : "");
+		temp = scnprintf(next, size, "reclaim qh %p\n", ehci->reclaim);
 		size -= temp;
 		next += temp;
 	}
@@ -789,26 +810,150 @@ done:
 
 	return PAGE_SIZE - size;
 }
-static CLASS_DEVICE_ATTR (registers, S_IRUGO, show_registers, NULL);
+
+static struct debug_buffer *alloc_buffer(struct usb_bus *bus,
+				ssize_t (*fill_func)(struct debug_buffer *))
+{
+	struct debug_buffer *buf;
+
+	buf = kzalloc(sizeof(struct debug_buffer), GFP_KERNEL);
+
+	if (buf) {
+		buf->bus = bus;
+		buf->fill_func = fill_func;
+		mutex_init(&buf->mutex);
+	}
+
+	return buf;
+}
+
+static int fill_buffer(struct debug_buffer *buf)
+{
+	int ret = 0;
+
+	if (!buf->page)
+		buf->page = (char *)get_zeroed_page(GFP_KERNEL);
+
+	if (!buf->page) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	ret = buf->fill_func(buf);
+
+	if (ret >= 0) {
+		buf->count = ret;
+		ret = 0;
+	}
+
+out:
+	return ret;
+}
+
+static ssize_t debug_output(struct file *file, char __user *user_buf,
+			    size_t len, loff_t *offset)
+{
+	struct debug_buffer *buf = file->private_data;
+	int ret = 0;
+
+	mutex_lock(&buf->mutex);
+	if (buf->count == 0) {
+		ret = fill_buffer(buf);
+		if (ret != 0) {
+			mutex_unlock(&buf->mutex);
+			goto out;
+		}
+	}
+	mutex_unlock(&buf->mutex);
+
+	ret = simple_read_from_buffer(user_buf, len, offset,
+				      buf->page, buf->count);
+
+out:
+	return ret;
+
+}
+
+static int debug_close(struct inode *inode, struct file *file)
+{
+	struct debug_buffer *buf = file->private_data;
+
+	if (buf) {
+		if (buf->page)
+			free_page((unsigned long)buf->page);
+		kfree(buf);
+	}
+
+	return 0;
+}
+static int debug_async_open(struct inode *inode, struct file *file)
+{
+	file->private_data = alloc_buffer(inode->i_private, fill_async_buffer);
+
+	return file->private_data ? 0 : -ENOMEM;
+}
+
+static int debug_periodic_open(struct inode *inode, struct file *file)
+{
+	file->private_data = alloc_buffer(inode->i_private,
+					  fill_periodic_buffer);
+
+	return file->private_data ? 0 : -ENOMEM;
+}
+
+static int debug_registers_open(struct inode *inode, struct file *file)
+{
+	file->private_data = alloc_buffer(inode->i_private,
+					  fill_registers_buffer);
+
+	return file->private_data ? 0 : -ENOMEM;
+}
 
 static inline void create_debug_files (struct ehci_hcd *ehci)
 {
-	struct class_device *cldev = ehci_to_hcd(ehci)->self.class_dev;
-	int retval;
+	struct usb_bus *bus = &ehci_to_hcd(ehci)->self;
 
-	retval = class_device_create_file(cldev, &class_device_attr_async);
-	retval = class_device_create_file(cldev, &class_device_attr_periodic);
-	retval = class_device_create_file(cldev, &class_device_attr_registers);
+	ehci->debug_dir = debugfs_create_dir(bus->bus_name, ehci_debug_root);
+	if (!ehci->debug_dir)
+		goto dir_error;
+
+	ehci->debug_async = debugfs_create_file("async", S_IRUGO,
+						ehci->debug_dir, bus,
+						&debug_async_fops);
+	if (!ehci->debug_async)
+		goto async_error;
+
+	ehci->debug_periodic = debugfs_create_file("periodic", S_IRUGO,
+						   ehci->debug_dir, bus,
+						   &debug_periodic_fops);
+	if (!ehci->debug_periodic)
+		goto periodic_error;
+
+	ehci->debug_registers = debugfs_create_file("registers", S_IRUGO,
+						    ehci->debug_dir, bus,
+						    &debug_registers_fops);
+	if (!ehci->debug_registers)
+		goto registers_error;
+	return;
+
+registers_error:
+	debugfs_remove(ehci->debug_periodic);
+periodic_error:
+	debugfs_remove(ehci->debug_async);
+async_error:
+	debugfs_remove(ehci->debug_dir);
+dir_error:
+	ehci->debug_periodic = NULL;
+	ehci->debug_async = NULL;
+	ehci->debug_dir = NULL;
 }
 
 static inline void remove_debug_files (struct ehci_hcd *ehci)
 {
-	struct class_device *cldev = ehci_to_hcd(ehci)->self.class_dev;
-
-	class_device_remove_file(cldev, &class_device_attr_async);
-	class_device_remove_file(cldev, &class_device_attr_periodic);
-	class_device_remove_file(cldev, &class_device_attr_registers);
+	debugfs_remove(ehci->debug_registers);
+	debugfs_remove(ehci->debug_periodic);
+	debugfs_remove(ehci->debug_async);
+	debugfs_remove(ehci->debug_dir);
 }
 
 #endif /* STUB_DEBUG_FILES */
-

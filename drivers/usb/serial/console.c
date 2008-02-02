@@ -64,8 +64,8 @@ static int usb_console_setup(struct console *co, char *options)
 	struct usb_serial *serial;
 	struct usb_serial_port *port;
 	int retval = 0;
-	struct tty_struct *tty;
-	struct ktermios *termios;
+	struct tty_struct *tty = NULL;
+	struct ktermios *termios = NULL, dummy;
 
 	dbg ("%s", __FUNCTION__);
 
@@ -133,11 +133,14 @@ static int usb_console_setup(struct console *co, char *options)
 	}
 	co->cflag = cflag;
 
-	/* grab the first serial port that happens to be connected */
-	serial = usb_serial_get_by_index(0);
+	/*
+	 * no need to check the index here: if the index is wrong, console
+	 * code won't call us
+	 */
+	serial = usb_serial_get_by_index(co->index);
 	if (serial == NULL) {
 		/* no device is connected yet, sorry :( */
-		err ("No USB device connected to ttyUSB0");
+		err ("No USB device connected to ttyUSB%i", co->index);
 		return -ENODEV;
 	}
 
@@ -148,49 +151,64 @@ static int usb_console_setup(struct console *co, char *options)
 	 
 	++port->open_count;
 	if (port->open_count == 1) {
+		if (serial->type->set_termios) {
+			/*
+			 * allocate a fake tty so the driver can initialize
+			 * the termios structure, then later call set_termios to
+			 * configure according to command line arguments
+			 */
+			tty = kzalloc(sizeof(*tty), GFP_KERNEL);
+			if (!tty) {
+				retval = -ENOMEM;
+				err("no more memory");
+				goto reset_open_count;
+			}
+			termios = kzalloc(sizeof(*termios), GFP_KERNEL);
+			if (!termios) {
+				retval = -ENOMEM;
+				err("no more memory");
+				goto free_tty;
+			}
+			memset(&dummy, 0, sizeof(struct ktermios));
+			tty->termios = termios;
+			port->tty = tty;
+		}
+
 		/* only call the device specific open if this 
 		 * is the first time the port is opened */
 		if (serial->type->open)
 			retval = serial->type->open(port, NULL);
 		else
 			retval = usb_serial_generic_open(port, NULL);
-		if (retval)
-			port->open_count = 0;
-	}
 
-	if (retval) {
-		err ("could not open USB console port");
-		return retval;
-	}
-
-	if (serial->type->set_termios) {
-		struct ktermios dummy;
-		/* build up a fake tty structure so that the open call has something
-		 * to look at to get the cflag value */
-		tty = kzalloc(sizeof(*tty), GFP_KERNEL);
-		if (!tty) {
-			err ("no more memory");
-			return -ENOMEM;
+		if (retval) {
+			err("could not open USB console port");
+			goto free_termios;
 		}
-		termios = kzalloc(sizeof(*termios), GFP_KERNEL);
-		if (!termios) {
-			err ("no more memory");
-			kfree (tty);
-			return -ENOMEM;
-		}
-		memset(&dummy, 0, sizeof(struct ktermios));
-		termios->c_cflag = cflag;
-		tty->termios = termios;
-		port->tty = tty;
 
-		/* set up the initial termios settings */
-		serial->type->set_termios(port, &dummy);
-		port->tty = NULL;
-		kfree (termios);
-		kfree (tty);
+		if (serial->type->set_termios) {
+			termios->c_cflag = cflag;
+			serial->type->set_termios(port, &dummy);
+
+			port->tty = NULL;
+			kfree(termios);
+			kfree(tty);
+		}
 	}
 
+	port->console = 1;
+	retval = 0;
+
+out:
 	return retval;
+free_termios:
+	kfree(termios);
+	port->tty = NULL;
+free_tty:
+	kfree(tty);
+reset_open_count:
+	port->open_count = 0;
+goto out;
 }
 
 static void usb_console_write(struct console *co, const char *buf, unsigned count)

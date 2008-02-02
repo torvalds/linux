@@ -202,10 +202,10 @@ static int usb_probe_interface(struct device *dev)
 	intf = to_usb_interface(dev);
 	udev = interface_to_usbdev(intf);
 
- 	if (udev->authorized == 0) {
- 		dev_err(&intf->dev, "Device is not authorized for usage\n");
- 		return -ENODEV;
- 	}
+	if (udev->authorized == 0) {
+		dev_err(&intf->dev, "Device is not authorized for usage\n");
+		return -ENODEV;
+	}
 
 	id = usb_match_id(intf, driver->id_table);
 	if (!id)
@@ -299,7 +299,7 @@ static int usb_unbind_interface(struct device *dev)
  * lock.
  */
 int usb_driver_claim_interface(struct usb_driver *driver,
-				struct usb_interface *iface, void* priv)
+				struct usb_interface *iface, void *priv)
 {
 	struct device *dev = &iface->dev;
 	struct usb_device *udev = interface_to_usbdev(iface);
@@ -325,7 +325,7 @@ int usb_driver_claim_interface(struct usb_driver *driver,
 
 	return retval;
 }
-EXPORT_SYMBOL(usb_driver_claim_interface);
+EXPORT_SYMBOL_GPL(usb_driver_claim_interface);
 
 /**
  * usb_driver_release_interface - unbind a driver from an interface
@@ -370,7 +370,7 @@ void usb_driver_release_interface(struct usb_driver *driver,
 	iface->needs_remote_wakeup = 0;
 	usb_pm_unlock(udev);
 }
-EXPORT_SYMBOL(usb_driver_release_interface);
+EXPORT_SYMBOL_GPL(usb_driver_release_interface);
 
 /* returns 0 if no match, 1 if match */
 int usb_match_device(struct usb_device *dev, const struct usb_device_id *id)
@@ -398,7 +398,7 @@ int usb_match_device(struct usb_device *dev, const struct usb_device_id *id)
 		return 0;
 
 	if ((id->match_flags & USB_DEVICE_ID_MATCH_DEV_SUBCLASS) &&
-	    (id->bDeviceSubClass!= dev->descriptor.bDeviceSubClass))
+	    (id->bDeviceSubClass != dev->descriptor.bDeviceSubClass))
 		return 0;
 
 	if ((id->match_flags & USB_DEVICE_ID_MATCH_DEV_PROTOCOL) &&
@@ -534,15 +534,15 @@ const struct usb_device_id *usb_match_id(struct usb_interface *interface,
 	   id->driver_info is the way to create an entry that
 	   indicates that the driver want to examine every
 	   device and interface. */
-	for (; id->idVendor || id->bDeviceClass || id->bInterfaceClass ||
-	       id->driver_info; id++) {
+	for (; id->idVendor || id->idProduct || id->bDeviceClass ||
+	       id->bInterfaceClass || id->driver_info; id++) {
 		if (usb_match_one_id(interface, id))
 			return id;
 	}
 
 	return NULL;
 }
-EXPORT_SYMBOL_GPL_FUTURE(usb_match_id);
+EXPORT_SYMBOL_GPL(usb_match_id);
 
 static int usb_device_match(struct device *dev, struct device_driver *drv)
 {
@@ -586,7 +586,7 @@ static int usb_uevent(struct device *dev, struct kobj_uevent_env *env)
 	struct usb_device *usb_dev;
 
 	/* driver is often null here; dev_dbg() would oops */
-	pr_debug ("usb %s: uevent\n", dev->bus_id);
+	pr_debug("usb %s: uevent\n", dev->bus_id);
 
 	if (is_usb_device(dev))
 		usb_dev = to_usb_device(dev);
@@ -596,11 +596,11 @@ static int usb_uevent(struct device *dev, struct kobj_uevent_env *env)
 	}
 
 	if (usb_dev->devnum < 0) {
-		pr_debug ("usb %s: already deleted?\n", dev->bus_id);
+		pr_debug("usb %s: already deleted?\n", dev->bus_id);
 		return -ENODEV;
 	}
 	if (!usb_dev->bus) {
-		pr_debug ("usb %s: bus removed?\n", dev->bus_id);
+		pr_debug("usb %s: bus removed?\n", dev->bus_id);
 		return -ENODEV;
 	}
 
@@ -745,7 +745,7 @@ int usb_register_driver(struct usb_driver *new_driver, struct module *owner,
 
 	return retval;
 }
-EXPORT_SYMBOL_GPL_FUTURE(usb_register_driver);
+EXPORT_SYMBOL_GPL(usb_register_driver);
 
 /**
  * usb_deregister - unregister a USB interface driver
@@ -769,7 +769,7 @@ void usb_deregister(struct usb_driver *driver)
 
 	usbfs_update_special();
 }
-EXPORT_SYMBOL_GPL_FUTURE(usb_deregister);
+EXPORT_SYMBOL_GPL(usb_deregister);
 
 #ifdef CONFIG_PM
 
@@ -854,8 +854,10 @@ static int usb_suspend_interface(struct usb_interface *intf, pm_message_t msg)
 			dev_err(&intf->dev, "%s error %d\n",
 					"suspend", status);
 	} else {
-		// FIXME else if there's no suspend method, disconnect...
-		// Not possible if auto_pm is set...
+		/*
+		 * FIXME else if there's no suspend method, disconnect...
+		 * Not possible if auto_pm is set...
+		 */
 		dev_warn(&intf->dev, "no suspend for driver %s?\n",
 				driver->name);
 		mark_quiesced(intf);
@@ -894,7 +896,7 @@ static int usb_resume_interface(struct usb_interface *intf, int reset_resume)
 				dev_err(&intf->dev, "%s error %d\n",
 						"reset_resume", status);
 		} else {
-			// status = -EOPNOTSUPP;
+			/* status = -EOPNOTSUPP; */
 			dev_warn(&intf->dev, "no %s for driver %s?\n",
 					"reset_resume", driver->name);
 		}
@@ -905,7 +907,7 @@ static int usb_resume_interface(struct usb_interface *intf, int reset_resume)
 				dev_err(&intf->dev, "%s error %d\n",
 						"resume", status);
 		} else {
-			// status = -EOPNOTSUPP;
+			/* status = -EOPNOTSUPP; */
 			dev_warn(&intf->dev, "no %s for driver %s?\n",
 					"resume", driver->name);
 		}
@@ -1175,7 +1177,7 @@ static int usb_resume_both(struct usb_device *udev)
 			 * so if a root hub's controller is suspended
 			 * then we're stuck. */
 			status = usb_resume_device(udev);
- 		}
+		}
 	} else {
 
 		/* Needed for setting udev->dev.power.power_state.event,

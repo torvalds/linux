@@ -198,7 +198,8 @@ static int qtd_copy_status (
 
 		/* if async CSPLIT failed, try cleaning out the TT buffer */
 		if (status != -EPIPE
-				&& urb->dev->tt && !usb_pipeint (urb->pipe)
+				&& urb->dev->tt
+				&& !usb_pipeint(urb->pipe)
 				&& ((token & QTD_STS_MMF) != 0
 					|| QTD_CERR(token) == 0)
 				&& (!ehci_is_TDI(ehci)
@@ -211,6 +212,9 @@ static int qtd_copy_status (
 				urb->dev->ttport, urb->dev->devnum,
 				usb_pipeendpoint (urb->pipe), token);
 #endif /* DEBUG */
+			/* REVISIT ARC-derived cores don't clear the root
+			 * hub TT buffer in this way...
+			 */
 			usb_hub_tt_clear_buffer (urb->dev, urb->pipe);
 		}
 	}
@@ -638,6 +642,7 @@ qh_make (
 	u32			info1 = 0, info2 = 0;
 	int			is_input, type;
 	int			maxp = 0;
+	struct usb_tt		*tt = urb->dev->tt;
 
 	if (!qh)
 		return qh;
@@ -661,8 +666,9 @@ qh_make (
 	 * For control/bulk requests, the HC or TT handles these.
 	 */
 	if (type == PIPE_INTERRUPT) {
-		qh->usecs = NS_TO_US (usb_calc_bus_time (USB_SPEED_HIGH, is_input, 0,
-				hb_mult (maxp) * max_packet (maxp)));
+		qh->usecs = NS_TO_US(usb_calc_bus_time(USB_SPEED_HIGH,
+				is_input, 0,
+				hb_mult(maxp) * max_packet(maxp)));
 		qh->start = NO_FRAME;
 
 		if (urb->dev->speed == USB_SPEED_HIGH) {
@@ -680,7 +686,6 @@ qh_make (
 				goto done;
 			}
 		} else {
-			struct usb_tt	*tt = urb->dev->tt;
 			int		think_time;
 
 			/* gap is f(FS/LS transfer times) */
@@ -736,10 +741,8 @@ qh_make (
 		/* set the address of the TT; for TDI's integrated
 		 * root hub tt, leave it zeroed.
 		 */
-		if (!ehci_is_TDI(ehci)
-				|| urb->dev->tt->hub !=
-					ehci_to_hcd(ehci)->self.root_hub)
-			info2 |= urb->dev->tt->hub->devnum << 16;
+		if (tt && tt->hub != ehci_to_hcd(ehci)->self.root_hub)
+			info2 |= tt->hub->devnum << 16;
 
 		/* NOTE:  if (PIPE_INTERRUPT) { scheduler sets c-mask } */
 
@@ -973,7 +976,7 @@ static void end_unlink_async (struct ehci_hcd *ehci)
 	struct ehci_qh		*qh = ehci->reclaim;
 	struct ehci_qh		*next;
 
-	timer_action_done (ehci, TIMER_IAA_WATCHDOG);
+	iaa_watchdog_done(ehci);
 
 	// qh->hw_next = cpu_to_hc32(qh->qh_dma);
 	qh->qh_state = QH_STATE_IDLE;
@@ -983,7 +986,6 @@ static void end_unlink_async (struct ehci_hcd *ehci)
 	/* other unlink(s) may be pending (in QH_STATE_UNLINK_WAIT) */
 	next = qh->reclaim;
 	ehci->reclaim = next;
-	ehci->reclaim_ready = 0;
 	qh->reclaim = NULL;
 
 	qh_completions (ehci, qh);
@@ -1059,11 +1061,10 @@ static void start_unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 		return;
 	}
 
-	ehci->reclaim_ready = 0;
 	cmd |= CMD_IAAD;
 	ehci_writel(ehci, cmd, &ehci->regs->command);
 	(void)ehci_readl(ehci, &ehci->regs->command);
-	timer_action (ehci, TIMER_IAA_WATCHDOG);
+	iaa_watchdog_start(ehci);
 }
 
 /*-------------------------------------------------------------------------*/

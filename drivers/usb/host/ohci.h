@@ -408,6 +408,13 @@ struct ohci_hcd {
 	unsigned		eds_scheduled;
 	struct ed		*ed_to_check;
 	unsigned		zf_delay;
+
+#ifdef DEBUG
+	struct dentry		*debug_dir;
+	struct dentry		*debug_async;
+	struct dentry		*debug_periodic;
+	struct dentry		*debug_registers;
+#endif
 };
 
 #ifdef CONFIG_PCI

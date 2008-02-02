@@ -34,6 +34,7 @@
 #include <linux/tty_flip.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
+#include <linux/mutex.h>
 #include <linux/serial.h>
 #include <linux/ioctl.h>
 #include <asm/uaccess.h>
@@ -133,7 +134,7 @@ struct edgeport_serial {
 	struct product_info product_info;
 	u8 TI_I2C_Type;			// Type of I2C in UMP
 	u8 TiReadI2C;			// Set to TRUE if we have read the I2c in Boot Mode
-	struct semaphore es_sem;
+	struct mutex es_lock;
 	int num_ports_open;
 	struct usb_serial *serial;
 };
@@ -1978,7 +1979,7 @@ static int edge_open (struct usb_serial_port *port, struct file * filp)
 	}
 	
 	/* set up the port settings */
-	edge_set_termios (port, NULL);
+	edge_set_termios (port, port->tty->termios);
 
 	/* open up the port */
 
@@ -2044,7 +2045,7 @@ static int edge_open (struct usb_serial_port *port, struct file * filp)
 	dbg ("ShadowMCR 0x%X", edge_port->shadow_mcr);
 
 	edge_serial = edge_port->edge_serial;
-	if (down_interruptible(&edge_serial->es_sem))
+	if (mutex_lock_interruptible(&edge_serial->es_lock))
 		return -ERESTARTSYS;
 	if (edge_serial->num_ports_open == 0) {
 		/* we are the first port to be opened, let's post the interrupt urb */
@@ -2052,7 +2053,7 @@ static int edge_open (struct usb_serial_port *port, struct file * filp)
 		if (!urb) {
 			dev_err (&port->dev, "%s - no interrupt urb present, exiting\n", __FUNCTION__);
 			status = -EINVAL;
-			goto up_es_sem;
+			goto release_es_lock;
 		}
 		urb->complete = edge_interrupt_callback;
 		urb->context = edge_serial;
@@ -2060,7 +2061,7 @@ static int edge_open (struct usb_serial_port *port, struct file * filp)
 		status = usb_submit_urb (urb, GFP_KERNEL);
 		if (status) {
 			dev_err (&port->dev, "%s - usb_submit_urb failed with value %d\n", __FUNCTION__, status);
-			goto up_es_sem;
+			goto release_es_lock;
 		}
 	}
 
@@ -2092,13 +2093,13 @@ static int edge_open (struct usb_serial_port *port, struct file * filp)
 
 	dbg("%s - exited", __FUNCTION__);
 
-	goto up_es_sem;
+	goto release_es_lock;
 
 unlink_int_urb:
 	if (edge_port->edge_serial->num_ports_open == 0)
 		usb_kill_urb(port->serial->port[0]->interrupt_in_urb);
-up_es_sem:
-	up(&edge_serial->es_sem);
+release_es_lock:
+	mutex_unlock(&edge_serial->es_lock);
 	return status;
 }
 
@@ -2137,14 +2138,14 @@ static void edge_close (struct usb_serial_port *port, struct file *filp)
 				     0,
 				     NULL,
 				     0);
-	down(&edge_serial->es_sem);
+	mutex_lock(&edge_serial->es_lock);
 	--edge_port->edge_serial->num_ports_open;
 	if (edge_port->edge_serial->num_ports_open <= 0) {
 		/* last port is now closed, let's shut down our interrupt urb */
 		usb_kill_urb(port->serial->port[0]->interrupt_in_urb);
 		edge_port->edge_serial->num_ports_open = 0;
 	}
-	up(&edge_serial->es_sem);
+	mutex_unlock(&edge_serial->es_lock);
 	edge_port->close_pending = 0;
 
 	dbg("%s - exited", __FUNCTION__);
@@ -2393,11 +2394,6 @@ static void change_port_settings (struct edgeport_port *edge_port, struct ktermi
 	dbg("%s - port %d", __FUNCTION__, edge_port->port->number);
 
 	tty = edge_port->port->tty;
-	if ((!tty) ||
-	    (!tty->termios)) {
-		dbg("%s - no tty structures", __FUNCTION__);
-		return;
-	}
 
 	config = kmalloc (sizeof (*config), GFP_KERNEL);
 	if (!config) {
@@ -2492,14 +2488,20 @@ static void change_port_settings (struct edgeport_port *edge_port, struct ktermi
 		}
 	}
 
+	tty->termios->c_cflag &= ~CMSPAR;
+
 	/* Round the baud rate */
 	baud = tty_get_baud_rate(tty);
 	if (!baud) {
 		/* pick a default, any default... */
 		baud = 9600;
-	}
+	} else
+		tty_encode_baud_rate(tty, baud, baud);
+
 	edge_port->baud_rate = baud;
 	config->wBaudRate = (__u16)((461550L + baud/2) / baud);
+
+	/* FIXME: Recompute actual baud from divisor here */
 
 	dbg ("%s - baud rate = %d, wBaudRate = %d", __FUNCTION__, baud, config->wBaudRate);
 
@@ -2538,19 +2540,12 @@ static void edge_set_termios (struct usb_serial_port *port, struct ktermios *old
 	struct tty_struct *tty = port->tty;
 	unsigned int cflag;
 
-	if (!port->tty || !port->tty->termios) {
-		dbg ("%s - no tty or termios", __FUNCTION__);
-		return;
-	}
-
 	cflag = tty->termios->c_cflag;
 
 	dbg("%s - clfag %08x iflag %08x", __FUNCTION__, 
 	    tty->termios->c_cflag, tty->termios->c_iflag);
-	if (old_termios) {
-		dbg("%s - old clfag %08x old iflag %08x", __FUNCTION__,
-		    old_termios->c_cflag, old_termios->c_iflag);
-	}
+	dbg("%s - old clfag %08x old iflag %08x", __FUNCTION__,
+	    old_termios->c_cflag, old_termios->c_iflag);
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
@@ -2743,7 +2738,7 @@ static int edge_startup (struct usb_serial *serial)
 		dev_err(&serial->dev->dev, "%s - Out of memory\n", __FUNCTION__);
 		return -ENOMEM;
 	}
-	sema_init(&edge_serial->es_sem, 1);
+	mutex_init(&edge_serial->es_lock);
 	edge_serial->serial = serial;
 	usb_set_serial_data(serial, edge_serial);
 

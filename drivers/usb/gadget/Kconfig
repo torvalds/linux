@@ -12,10 +12,9 @@
 # With help from a special transceiver and a "Mini-AB" jack, systems with
 # both kinds of controller can also support "USB On-the-Go" (CONFIG_USB_OTG).
 #
-menu "USB Gadget Support"
 
-config USB_GADGET
-	tristate "Support for USB Gadgets"
+menuconfig USB_GADGET
+	tristate "USB Gadget Support"
 	help
 	   USB is a master/slave protocol, organized with one master
 	   host (such as a PC) controlling up to 127 peripheral devices.
@@ -41,6 +40,8 @@ config USB_GADGET
 
 	   For more information, see <http://www.linux-usb.org/gadget> and
 	   the kernel DocBook documentation for this API.
+
+if USB_GADGET
 
 config USB_GADGET_DEBUG
 	boolean "Debugging messages"
@@ -219,6 +220,16 @@ config USB_M66592
 	depends on USB_GADGET_M66592
 	default USB_GADGET
 	select USB_GADGET_SELECTED
+
+config SUPERH_BUILT_IN_M66592
+	boolean "Enable SuperH built-in USB like the M66592"
+	depends on USB_GADGET_M66592 && CPU_SUBTYPE_SH7722
+	help
+	   SH7722 has USB like the M66592.
+
+	   The transfer rate is very slow when use "Ethernet Gadget".
+	   However, this problem is improved if change a value of
+	   NET_IP_ALIGN to 4.
 
 config USB_GADGET_GOKU
 	boolean "Toshiba TC86C001 'Goku-S'"
@@ -538,6 +549,20 @@ config USB_MIDI_GADGET
 	  Say "y" to link the driver statically, or "m" to build a
 	  dynamically linked module called "g_midi".
 
+config USB_G_PRINTER
+	tristate "Printer Gadget"
+	help
+	  The Printer Gadget channels data between the USB host and a
+	  userspace program driving the print engine. The user space
+	  program reads and writes the device file /dev/g_printer to
+	  receive or send printer data. It can use ioctl calls to
+	  the device file to get or set printer status.
+
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module called "g_printer".
+
+	  For more information, see Documentation/usb/gadget_printer.txt
+	  which includes sample code for accessing the device file.
 
 # put drivers that need isochronous transfer support (for audio
 # or video class gadget drivers), or specific hardware, here.
@@ -546,4 +571,4 @@ config USB_MIDI_GADGET
 
 endchoice
 
-endmenu
+endif # USB_GADGET

@@ -37,6 +37,13 @@
 #define	USB_PERSIST	0
 #endif
 
+/* if we are in debug mode, always announce new devices */
+#ifdef DEBUG
+#ifndef CONFIG_USB_ANNOUNCE_NEW_DEVICES
+#define CONFIG_USB_ANNOUNCE_NEW_DEVICES
+#endif
+#endif
+
 struct usb_hub {
 	struct device		*intfdev;	/* the "interface" device */
 	struct usb_device	*hdev;
@@ -487,6 +494,7 @@ void usb_hub_tt_clear_buffer (struct usb_device *udev, int pipe)
 	schedule_work (&tt->kevent);
 	spin_unlock_irqrestore (&tt->lock, flags);
 }
+EXPORT_SYMBOL_GPL(usb_hub_tt_clear_buffer);
 
 static void hub_power_on(struct usb_hub *hub)
 {
@@ -1027,8 +1035,10 @@ static void recursively_mark_NOTATTACHED(struct usb_device *udev)
 		if (udev->children[i])
 			recursively_mark_NOTATTACHED(udev->children[i]);
 	}
-	if (udev->state == USB_STATE_SUSPENDED)
+	if (udev->state == USB_STATE_SUSPENDED) {
 		udev->discon_suspended = 1;
+		udev->active_duration -= jiffies;
+	}
 	udev->state = USB_STATE_NOTATTACHED;
 }
 
@@ -1077,6 +1087,12 @@ void usb_set_device_state(struct usb_device *udev,
 			else
 				device_init_wakeup(&udev->dev, 0);
 		}
+		if (udev->state == USB_STATE_SUSPENDED &&
+			new_state != USB_STATE_SUSPENDED)
+			udev->active_duration -= jiffies;
+		else if (new_state == USB_STATE_SUSPENDED &&
+				udev->state != USB_STATE_SUSPENDED)
+			udev->active_duration += jiffies;
 		udev->state = new_state;
 	} else
 		recursively_mark_NOTATTACHED(udev);
@@ -1207,7 +1223,7 @@ void usb_disconnect(struct usb_device **pdev)
 	put_device(&udev->dev);
 }
 
-#ifdef DEBUG
+#ifdef CONFIG_USB_ANNOUNCE_NEW_DEVICES
 static void show_string(struct usb_device *udev, char *id, char *string)
 {
 	if (!string)
@@ -1215,11 +1231,23 @@ static void show_string(struct usb_device *udev, char *id, char *string)
 	dev_printk(KERN_INFO, &udev->dev, "%s: %s\n", id, string);
 }
 
+static void announce_device(struct usb_device *udev)
+{
+	dev_info(&udev->dev, "New USB device found, idVendor=%04x, idProduct=%04x\n",
+		le16_to_cpu(udev->descriptor.idVendor),
+		le16_to_cpu(udev->descriptor.idProduct));
+	dev_info(&udev->dev, "New USB device strings: Mfr=%d, Product=%d, "
+		"SerialNumber=%d\n",
+		udev->descriptor.iManufacturer,
+		udev->descriptor.iProduct,
+		udev->descriptor.iSerialNumber);
+	show_string(udev, "Product", udev->product);
+	show_string(udev, "Manufacturer", udev->manufacturer);
+	show_string(udev, "SerialNumber", udev->serial);
+}
 #else
-static inline void show_string(struct usb_device *udev, char *id, char *string)
-{}
+static inline void announce_device(struct usb_device *udev) { }
 #endif
-
 
 #ifdef	CONFIG_USB_OTG
 #include "otg_whitelist.h"
@@ -1390,14 +1418,7 @@ int usb_new_device(struct usb_device *udev)
 	}
 
 	/* Tell the world! */
-	dev_dbg(&udev->dev, "new device strings: Mfr=%d, Product=%d, "
-		"SerialNumber=%d\n",
-		udev->descriptor.iManufacturer,
-		udev->descriptor.iProduct,
-		udev->descriptor.iSerialNumber);
-	show_string(udev, "Product", udev->product);
-	show_string(udev, "Manufacturer", udev->manufacturer);
-	show_string(udev, "SerialNumber", udev->serial);
+	announce_device(udev);
 	return err;
 
 fail:
@@ -2482,6 +2503,7 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 {
 	struct usb_device *hdev = hub->hdev;
 	struct device *hub_dev = hub->intfdev;
+	struct usb_hcd *hcd = bus_to_hcd(hdev->bus);
 	u16 wHubCharacteristics = le16_to_cpu(hub->descriptor->wHubCharacteristics);
 	int status, i;
  
@@ -2645,6 +2667,8 @@ loop:
  
 done:
 	hub_port_disable(hub, port1, 1);
+	if (hcd->driver->relinquish_port && !hub->hdev->parent)
+		hcd->driver->relinquish_port(hcd, port1);
 }
 
 static void hub_events(void)
@@ -2946,7 +2970,7 @@ static int config_descriptors_changed(struct usb_device *udev)
 		if (len < le16_to_cpu(udev->config[index].desc.wTotalLength))
 			len = le16_to_cpu(udev->config[index].desc.wTotalLength);
 	}
-	buf = kmalloc (len, GFP_KERNEL);
+	buf = kmalloc(len, GFP_NOIO);
 	if (buf == NULL) {
 		dev_err(&udev->dev, "no mem to re-read configs after reset\n");
 		/* assume the worst */
@@ -3093,7 +3117,7 @@ re_enumerate:
 	hub_port_logical_disconnect(parent_hub, port1);
 	return -ENODEV;
 }
-EXPORT_SYMBOL(usb_reset_device);
+EXPORT_SYMBOL_GPL(usb_reset_device);
 
 /**
  * usb_reset_composite_device - warn interface drivers and perform a USB port reset
@@ -3110,16 +3134,12 @@ EXPORT_SYMBOL(usb_reset_device);
  * this from a driver probe() routine after downloading new firmware.
  * For calls that might not occur during probe(), drivers should lock
  * the device using usb_lock_device_for_reset().
- *
- * The interface locks are acquired during the pre_reset stage and released
- * during the post_reset stage.  However if iface is not NULL and is
- * currently being probed, we assume that the caller already owns its
- * lock.
  */
 int usb_reset_composite_device(struct usb_device *udev,
 		struct usb_interface *iface)
 {
 	int ret;
+	int i;
 	struct usb_host_config *config = udev->actconfig;
 
 	if (udev->state == USB_STATE_NOTATTACHED ||
@@ -3136,16 +3156,11 @@ int usb_reset_composite_device(struct usb_device *udev,
 		iface = NULL;
 
 	if (config) {
-		int i;
-		struct usb_interface *cintf;
-		struct usb_driver *drv;
-
 		for (i = 0; i < config->desc.bNumInterfaces; ++i) {
-			cintf = config->interface[i];
-			if (cintf != iface)
-				down(&cintf->dev.sem);
-			if (device_is_registered(&cintf->dev) &&
-					cintf->dev.driver) {
+			struct usb_interface *cintf = config->interface[i];
+			struct usb_driver *drv;
+
+			if (cintf->dev.driver) {
 				drv = to_usb_driver(cintf->dev.driver);
 				if (drv->pre_reset)
 					(drv->pre_reset)(cintf);
@@ -3157,25 +3172,20 @@ int usb_reset_composite_device(struct usb_device *udev,
 	ret = usb_reset_device(udev);
 
 	if (config) {
-		int i;
-		struct usb_interface *cintf;
-		struct usb_driver *drv;
-
 		for (i = config->desc.bNumInterfaces - 1; i >= 0; --i) {
-			cintf = config->interface[i];
-			if (device_is_registered(&cintf->dev) &&
-					cintf->dev.driver) {
+			struct usb_interface *cintf = config->interface[i];
+			struct usb_driver *drv;
+
+			if (cintf->dev.driver) {
 				drv = to_usb_driver(cintf->dev.driver);
 				if (drv->post_reset)
 					(drv->post_reset)(cintf);
 	/* FIXME: Unbind if post_reset returns an error or isn't defined */
 			}
-			if (cintf != iface)
-				up(&cintf->dev.sem);
 		}
 	}
 
 	usb_autosuspend_device(udev);
 	return ret;
 }
-EXPORT_SYMBOL(usb_reset_composite_device);
+EXPORT_SYMBOL_GPL(usb_reset_composite_device);

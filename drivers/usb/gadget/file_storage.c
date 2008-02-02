@@ -275,19 +275,15 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 /*-------------------------------------------------------------------------*/
 
-#ifdef DEBUG
 #define LDBG(lun,fmt,args...) \
 	dev_dbg(&(lun)->dev , fmt , ## args)
 #define MDBG(fmt,args...) \
-	printk(KERN_DEBUG DRIVER_NAME ": " fmt , ## args)
-#else
-#define LDBG(lun,fmt,args...) \
-	do { } while (0)
-#define MDBG(fmt,args...) \
-	do { } while (0)
+	pr_debug(DRIVER_NAME ": " fmt , ## args)
+
+#ifndef DEBUG
 #undef VERBOSE_DEBUG
 #undef DUMP_MSGS
-#endif /* DEBUG */
+#endif /* !DEBUG */
 
 #ifdef VERBOSE_DEBUG
 #define VLDBG	LDBG
@@ -304,7 +300,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 	dev_info(&(lun)->dev , fmt , ## args)
 
 #define MINFO(fmt,args...) \
-	printk(KERN_INFO DRIVER_NAME ": " fmt , ## args)
+	pr_info(DRIVER_NAME ": " fmt , ## args)
 
 #define DBG(d, fmt, args...) \
 	dev_dbg(&(d)->gadget->dev , fmt , ## args)

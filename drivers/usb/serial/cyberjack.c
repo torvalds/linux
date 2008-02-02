@@ -319,7 +319,6 @@ static void cyberjack_read_int_callback( struct urb *urb )
 	/* React only to interrupts signaling a bulk_in transfer */
 	if( (urb->actual_length==4) && (data[0]==0x01) ) {
 		short old_rdtodo;
-		int result;
 
 		/* This is a announcement of coming bulk_ins. */
 		unsigned short size = ((unsigned short)data[3]<<8)+data[2]+3;
