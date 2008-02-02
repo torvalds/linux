@@ -24,6 +24,8 @@
 #define UART_GET_LCR(uart)      bfin_read16(((uart)->port.membase + OFFSET_LCR))
 #define UART_GET_LSR(uart)      bfin_read16(((uart)->port.membase + OFFSET_LSR))
 #define UART_GET_GCTL(uart)     bfin_read16(((uart)->port.membase + OFFSET_GCTL))
+#define UART_GET_MSR(uart)      bfin_read16(((uart)->port.membase + OFFSET_MSR))
+#define UART_GET_MCR(uart)      bfin_read16(((uart)->port.membase + OFFSET_MCR))
 
 #define UART_PUT_CHAR(uart,v)   bfin_write16(((uart)->port.membase + OFFSET_THR),v)
 #define UART_PUT_DLL(uart,v)    bfin_write16(((uart)->port.membase + OFFSET_DLL),v)
@@ -34,6 +36,7 @@
 #define UART_PUT_LCR(uart,v)    bfin_write16(((uart)->port.membase + OFFSET_LCR),v)
 #define UART_CLEAR_LSR(uart)    bfin_write16(((uart)->port.membase + OFFSET_LSR), -1)
 #define UART_PUT_GCTL(uart,v)   bfin_write16(((uart)->port.membase + OFFSET_GCTL),v)
+#define UART_PUT_MCR(uart,v)    bfin_write16(((uart)->port.membase + OFFSET_MCR),v)
 
 #if defined(CONFIG_BFIN_UART0_CTSRTS) || defined(CONFIG_BFIN_UART1_CTSRTS)
 # define CONFIG_SERIAL_BFIN_CTSRTS

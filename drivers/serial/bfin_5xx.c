@@ -579,7 +579,11 @@ static unsigned int bfin_serial_get_mctrl(struct uart_port *port)
 	if (uart->cts_pin < 0)
 		return TIOCM_CTS | TIOCM_DSR | TIOCM_CAR;
 
+# ifdef BF54x
+	if (UART_GET_MSR(uart) & CTS)
+# else
 	if (gpio_get_value(uart->cts_pin))
+# endif
 		return TIOCM_DSR | TIOCM_CAR;
 	else
 #endif
@@ -594,9 +598,17 @@ static void bfin_serial_set_mctrl(struct uart_port *port, unsigned int mctrl)
 		return;
 
 	if (mctrl & TIOCM_RTS)
+# ifdef BF54x
+		UART_PUT_MCR(uart, UART_GET_MCR(uart) & ~MRTS);
+# else
 		gpio_set_value(uart->rts_pin, 0);
+# endif
 	else
+# ifdef BF54x
+		UART_PUT_MCR(uart, UART_GET_MCR(uart) | MRTS);
+# else
 		gpio_set_value(uart->rts_pin, 1);
+# endif
 #endif
 }
 
