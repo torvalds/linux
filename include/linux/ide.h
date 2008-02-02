@@ -627,6 +627,9 @@ typedef struct hwif_s {
 typedef ide_startstop_t (ide_handler_t)(ide_drive_t *);
 typedef int (ide_expiry_t)(ide_drive_t *);
 
+/* used by ide-cd, ide-floppy, etc. */
+typedef void (xfer_func_t)(ide_drive_t *, void *, u32);
+
 typedef struct hwgroup_s {
 		/* irq handler, if active */
 	ide_startstop_t	(*handler)(ide_drive_t *);

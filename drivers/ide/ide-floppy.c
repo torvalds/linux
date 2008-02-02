@@ -516,16 +516,17 @@ static void idefloppy_retry_pc (ide_drive_t *drive)
 	idefloppy_queue_pc_head(drive, pc, rq);
 }
 
-/*
- *	idefloppy_pc_intr is the usual interrupt handler which will be called
- *	during a packet command.
- */
+typedef void (io_buf_t)(ide_drive_t *, idefloppy_pc_t *, unsigned int);
+
+/* The usual interrupt handler called during a packet command. */
 static ide_startstop_t idefloppy_pc_intr (ide_drive_t *drive)
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
 	ide_hwif_t *hwif = drive->hwif;
 	idefloppy_pc_t *pc = floppy->pc;
 	struct request *rq = pc->rq;
+	xfer_func_t *xferfunc;
+	io_buf_t *iobuf_func;
 	unsigned int temp;
 	int dma_error = 0;
 	u16 bcount;
@@ -592,7 +593,7 @@ static ide_startstop_t idefloppy_pc_intr (ide_drive_t *drive)
 	ireason = hwif->INB(IDE_IREASON_REG);
 
 	if (ireason & CD) {
-		printk(KERN_ERR "ide-floppy: CoD != 0 in idefloppy_pc_intr\n");
+		printk(KERN_ERR "ide-floppy: CoD != 0 in %s\n", __func__);
 		return ide_do_reset(drive);
 	}
 	if (((ireason & IO) == IO) == test_bit(PC_WRITING, &pc->flags)) {
@@ -624,20 +625,18 @@ static ide_startstop_t idefloppy_pc_intr (ide_drive_t *drive)
 		}
 	}
 	if (test_bit(PC_WRITING, &pc->flags)) {
-		if (pc->buffer != NULL)
-			/* Write the current buffer */
-			hwif->atapi_output_bytes(drive, pc->current_position,
-						 bcount);
-		else
-			idefloppy_output_buffers(drive, pc, bcount);
+		xferfunc = hwif->atapi_output_bytes;
+		iobuf_func = &idefloppy_output_buffers;
 	} else {
-		if (pc->buffer != NULL)
-			/* Read the current buffer */
-			hwif->atapi_input_bytes(drive, pc->current_position,
-						bcount);
-		else
-			idefloppy_input_buffers(drive, pc, bcount);
+		xferfunc = hwif->atapi_input_bytes;
+		iobuf_func = &idefloppy_input_buffers;
 	}
+
+	if (pc->buffer)
+		xferfunc(drive, pc->current_position, bcount);
+	else
+		iobuf_func(drive, pc, bcount);
+
 	/* Update the current position */
 	pc->actually_transferred += bcount;
 	pc->current_position += bcount;
