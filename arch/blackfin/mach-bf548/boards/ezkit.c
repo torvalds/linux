@@ -631,7 +631,7 @@ static struct platform_device *ezkit_devices[] __initdata = {
 	&ezkit_flash_device,
 };
 
-static int __init stamp_init(void)
+static int __init ezkit_init(void)
 {
 	printk(KERN_INFO "%s(): registering device resources\n", __FUNCTION__);
 	platform_add_devices(ezkit_devices, ARRAY_SIZE(ezkit_devices));
@@ -644,4 +644,4 @@ static int __init stamp_init(void)
 	return 0;
 }
 
-arch_initcall(stamp_init);
+arch_initcall(ezkit_init);
