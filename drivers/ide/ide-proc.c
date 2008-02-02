@@ -739,7 +739,7 @@ void ide_proc_unregister_driver(ide_drive_t *drive, ide_driver_t *driver)
 
 EXPORT_SYMBOL(ide_proc_unregister_driver);
 
-static void create_proc_ide_drives(ide_hwif_t *hwif)
+void ide_proc_port_register_devices(ide_hwif_t *hwif)
 {
 	int	d;
 	struct proc_dir_entry *ent;
@@ -801,8 +801,6 @@ void ide_proc_register_port(ide_hwif_t *hwif)
 
 		ide_add_proc_entries(hwif->proc, hwif_entries, hwif);
 	}
-
-	create_proc_ide_drives(hwif);
 }
 
 #ifdef CONFIG_BLK_DEV_IDEPCI
