@@ -938,28 +938,6 @@ static ide_startstop_t reset_pollfunc (ide_drive_t *drive)
 	return ide_stopped;
 }
 
-static void check_dma_crc(ide_drive_t *drive)
-{
-#ifdef CONFIG_BLK_DEV_IDEDMA
-	u8 mode;
-
-	ide_dma_off_quietly(drive);
-	drive->crc_count = 0;
-	mode = drive->current_speed;
-	/*
-	 * Don't try non Ultra-DMA modes without iCRC's.  Force the
-	 * device to PIO and make the user enable SWDMA/MWDMA modes.
-	 */
-	if (mode > XFER_UDMA_0 && mode <= XFER_UDMA_7)
-		mode--;
-	else
-		mode = XFER_PIO_4;
-	ide_set_xfer_rate(drive, mode);
-	if (drive->current_speed >= XFER_SW_DMA_0)
-		ide_dma_on(drive);
-#endif
-}
-
 static void ide_disk_pre_reset(ide_drive_t *drive)
 {
 	int legacy = (drive->id->cfs_enable_2 & 0x0400) ? 0 : 1;
@@ -983,7 +961,7 @@ static void pre_reset(ide_drive_t *drive)
 
 	if (drive->using_dma) {
 		if (drive->crc_count)
-			check_dma_crc(drive);
+			ide_check_dma_crc(drive);
 		else
 			ide_dma_off(drive);
 	}

@@ -819,6 +819,26 @@ int ide_set_dma(ide_drive_t *drive)
 	return 0;
 }
 
+void ide_check_dma_crc(ide_drive_t *drive)
+{
+	u8 mode;
+
+	ide_dma_off_quietly(drive);
+	drive->crc_count = 0;
+	mode = drive->current_speed;
+	/*
+	 * Don't try non Ultra-DMA modes without iCRC's.  Force the
+	 * device to PIO and make the user enable SWDMA/MWDMA modes.
+	 */
+	if (mode > XFER_UDMA_0 && mode <= XFER_UDMA_7)
+		mode--;
+	else
+		mode = XFER_PIO_4;
+	ide_set_xfer_rate(drive, mode);
+	if (drive->current_speed >= XFER_SW_DMA_0)
+		ide_dma_on(drive);
+}
+
 #ifdef CONFIG_BLK_DEV_IDEDMA_PCI
 void ide_dma_lost_irq (ide_drive_t *drive)
 {
