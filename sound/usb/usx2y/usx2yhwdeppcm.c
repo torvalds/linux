@@ -722,7 +722,7 @@ static int snd_usX2Y_hwdep_pcm_mmap(struct snd_hwdep * hw, struct file *filp, st
 		return -ENODEV;
 	}
 	area->vm_ops = &snd_usX2Y_hwdep_pcm_vm_ops;
-	area->vm_flags |= VM_RESERVED;
+	area->vm_flags |= VM_RESERVED | VM_DONTEXPAND;
 	area->vm_private_data = hw->private_data;
 	return 0;
 }

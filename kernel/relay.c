@@ -92,6 +92,7 @@ static int relay_mmap_buf(struct rchan_buf *buf, struct vm_area_struct *vma)
 		return -EINVAL;
 
 	vma->vm_ops = &relay_file_mmap_ops;
+	vma->vm_flags |= VM_DONTEXPAND;
 	vma->vm_private_data = buf;
 	buf->chan->cb->buf_mapped(buf, filp);
 
