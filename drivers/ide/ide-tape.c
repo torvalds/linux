@@ -812,7 +812,7 @@ static void idetape_analyze_error(ide_drive_t *drive, u8 *sense)
 	if (test_bit(PC_DMA_ERROR, &pc->flags)) {
 		pc->actually_transferred = pc->request_transfer -
 			tape->tape_block_size *
-			ntohl(get_unaligned((u32 *)&sense[3]));
+			be32_to_cpu(get_unaligned((u32 *)&sense[3]));
 		idetape_update_buffers(pc);
 	}
 
@@ -1679,7 +1679,7 @@ static void idetape_create_read_cmd(idetape_tape_t *tape, idetape_pc_t *pc, unsi
 {
 	idetape_init_pc(pc);
 	pc->c[0] = READ_6;
-	put_unaligned(htonl(length), (unsigned int *) &pc->c[1]);
+	put_unaligned(cpu_to_be32(length), (unsigned int *) &pc->c[1]);
 	pc->c[1] = 1;
 	pc->callback = &idetape_rw_callback;
 	pc->bh = bh;
@@ -1715,7 +1715,7 @@ static void idetape_create_write_cmd(idetape_tape_t *tape, idetape_pc_t *pc, uns
 {
 	idetape_init_pc(pc);
 	pc->c[0] = WRITE_6;
-	put_unaligned(htonl(length), (unsigned int *) &pc->c[1]);
+	put_unaligned(cpu_to_be32(length), (unsigned int *) &pc->c[1]);
 	pc->c[1] = 1;
 	pc->callback = &idetape_rw_callback;
 	set_bit(PC_WRITING, &pc->flags);
@@ -2263,7 +2263,7 @@ static void idetape_create_locate_cmd (ide_drive_t *drive, idetape_pc_t *pc, uns
 	idetape_init_pc(pc);
 	pc->c[0] = POSITION_TO_ELEMENT;
 	pc->c[1] = 2;
-	put_unaligned(htonl(block), (unsigned int *) &pc->c[3]);
+	put_unaligned(cpu_to_be32(block), (unsigned int *) &pc->c[3]);
 	pc->c[8] = partition;
 	set_bit(PC_WAIT_FOR_DSC, &pc->flags);
 	pc->callback = &idetape_pc_callback;
@@ -2455,7 +2455,7 @@ static void idetape_create_space_cmd (idetape_pc_t *pc,int count, u8 cmd)
 {
 	idetape_init_pc(pc);
 	pc->c[0] = SPACE;
-	put_unaligned(htonl(count), (unsigned int *) &pc->c[1]);
+	put_unaligned(cpu_to_be32(count), (unsigned int *) &pc->c[1]);
 	pc->c[1] = cmd;
 	set_bit(PC_WAIT_FOR_DSC, &pc->flags);
 	pc->callback = &idetape_pc_callback;
