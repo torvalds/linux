@@ -1182,26 +1182,6 @@ static void drive_release_dev (struct device *dev)
 	complete(&drive->gendev_rel_comp);
 }
 
-static void init_gendisk (ide_hwif_t *hwif)
-{
-	unsigned int unit;
-
-	for (unit = 0; unit < MAX_DRIVES; ++unit) {
-		ide_drive_t * drive = &hwif->drives[unit];
-
-		if (!drive->present)
-			continue;
-
-		ide_add_generic_settings(drive);
-		snprintf(drive->gendev.bus_id,BUS_ID_SIZE,"%u.%u",
-			 hwif->index,unit);
-		drive->gendev.parent = &hwif->gendev;
-		drive->gendev.bus = &ide_bus_type;
-		drive->gendev.driver_data = drive;
-		drive->gendev.release = drive_release_dev;
-	}
-}
-
 static int hwif_init(ide_hwif_t *hwif)
 {
 	int old_irq;
@@ -1261,7 +1241,6 @@ done:
 	blk_register_region(MKDEV(hwif->major, 0), MAX_DRIVES << PARTN_BITS,
 			    THIS_MODULE, ata_probe, ata_lock, hwif);
 	ide_acpi_init(hwif);
-	init_gendisk(hwif);
 	return 1;
 
 out:
@@ -1275,15 +1254,24 @@ static void hwif_register_devices(ide_hwif_t *hwif)
 
 	for (i = 0; i < MAX_DRIVES; i++) {
 		ide_drive_t *drive = &hwif->drives[i];
+		struct device *dev = &drive->gendev;
+		int ret;
 
-		if (drive->present) {
-			int ret = device_register(&drive->gendev);
+		if (!drive->present)
+			continue;
 
-			if (ret < 0)
-				printk(KERN_WARNING "IDE: %s: "
-					"device_register error: %d\n",
-					__FUNCTION__, ret);
-		}
+		ide_add_generic_settings(drive);
+
+		snprintf(dev->bus_id, BUS_ID_SIZE, "%u.%u", hwif->index, i);
+		dev->parent = &hwif->gendev;
+		dev->bus = &ide_bus_type;
+		dev->driver_data = drive;
+		dev->release = drive_release_dev;
+
+		ret = device_register(dev);
+		if (ret < 0)
+			printk(KERN_WARNING "IDE: %s: device_register error: "
+					    "%d\n", __func__, ret);
 	}
 }
 
