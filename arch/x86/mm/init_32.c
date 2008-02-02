@@ -423,23 +423,23 @@ static void __init pagetable_init(void)
 	paravirt_pagetable_setup_done(pgd_base);
 }
 
-#if defined(CONFIG_HIBERNATION) || defined(CONFIG_ACPI)
+#ifdef CONFIG_ACPI_SLEEP
 /*
- * Swap suspend & friends need this for resume because things like the intel-agp
+ * ACPI suspend needs this for resume, because things like the intel-agp
  * driver might have split up a kernel 4MB mapping.
  */
-char __nosavedata swsusp_pg_dir[PAGE_SIZE]
+char swsusp_pg_dir[PAGE_SIZE]
 	__attribute__ ((aligned(PAGE_SIZE)));
 
 static inline void save_pg_dir(void)
 {
 	memcpy(swsusp_pg_dir, swapper_pg_dir, PAGE_SIZE);
 }
-#else
+#else /* !CONFIG_ACPI_SLEEP */
 static inline void save_pg_dir(void)
 {
 }
-#endif
+#endif /* !CONFIG_ACPI_SLEEP */
 
 void zap_low_mappings(void)
 {

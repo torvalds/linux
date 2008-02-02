@@ -140,7 +140,12 @@ static void fix_processor_context(void)
 	int cpu = smp_processor_id();
 	struct tss_struct *t = &per_cpu(init_tss, cpu);
 
-	set_tss_desc(cpu,t);	/* This just modifies memory; should not be necessary. But... This is necessary, because 386 hardware has concept of busy TSS or some similar stupidity. */
+	/*
+	 * This just modifies memory; should not be necessary. But... This
+	 * is necessary, because 386 hardware has concept of busy TSS or some
+	 * similar stupidity.
+	 */
+	set_tss_desc(cpu, t);
 
 	get_cpu_gdt_table(cpu)[GDT_ENTRY_TSS].type = 9;
 
@@ -160,7 +165,6 @@ static void fix_processor_context(void)
                 loaddebug(&current->thread, 6);
                 loaddebug(&current->thread, 7);
 	}
-
 }
 
 #ifdef CONFIG_HIBERNATION

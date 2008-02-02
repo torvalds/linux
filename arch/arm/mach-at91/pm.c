@@ -52,7 +52,7 @@ static suspend_state_t target_state;
 /*
  * Called after processes are frozen, but before we shutdown devices.
  */
-static int at91_pm_set_target(suspend_state_t state)
+static int at91_pm_begin(suspend_state_t state)
 {
 	target_state = state;
 	return 0;
@@ -202,11 +202,20 @@ error:
 	return 0;
 }
 
+/*
+ * Called right prior to thawing processes.
+ */
+static void at91_pm_end(void)
+{
+	target_state = PM_SUSPEND_ON;
+}
+
 
 static struct platform_suspend_ops at91_pm_ops ={
-	.valid		= at91_pm_valid_state,
-	.set_target	= at91_pm_set_target,
-	.enter		= at91_pm_enter,
+	.valid	= at91_pm_valid_state,
+	.begin	= at91_pm_begin,
+	.enter	= at91_pm_enter,
+	.end	= at91_pm_end,
 };
 
 static int __init at91_pm_init(void)

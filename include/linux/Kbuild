@@ -143,6 +143,7 @@ header-y += snmp.h
 header-y += sockios.h
 header-y += som.h
 header-y += sound.h
+header-y += suspend_ioctls.h
 header-y += taskstats.h
 header-y += telephony.h
 header-y += termios.h

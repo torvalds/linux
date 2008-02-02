@@ -112,6 +112,14 @@ config ARCH_SUPPORTS_OPROFILE
 
 select HAVE_KVM
 
+config ARCH_HIBERNATION_POSSIBLE
+	def_bool y
+	depends on !SMP || !X86_VOYAGER
+
+config ARCH_SUSPEND_POSSIBLE
+	def_bool y
+	depends on !X86_VOYAGER
+
 config ZONE_DMA32
 	bool
 	default X86_64

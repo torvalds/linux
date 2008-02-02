@@ -31,7 +31,7 @@ static int lite5200_pm_valid(suspend_state_t state)
 	}
 }
 
-static int lite5200_pm_set_target(suspend_state_t state)
+static int lite5200_pm_begin(suspend_state_t state)
 {
 	if (lite5200_pm_valid(state)) {
 		lite5200_pm_target_state = state;
@@ -219,12 +219,18 @@ static void lite5200_pm_finish(void)
 		mpc52xx_pm_finish();
 }
 
+static void lite5200_pm_end(void)
+{
+	lite5200_pm_target_state = PM_SUSPEND_ON;
+}
+
 static struct platform_suspend_ops lite5200_pm_ops = {
 	.valid		= lite5200_pm_valid,
-	.set_target	= lite5200_pm_set_target,
+	.begin		= lite5200_pm_begin,
 	.prepare	= lite5200_pm_prepare,
 	.enter		= lite5200_pm_enter,
 	.finish		= lite5200_pm_finish,
+	.end		= lite5200_pm_end,
 };
 
 int __init lite5200_pm_init(void)
