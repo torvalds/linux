@@ -798,8 +798,11 @@ int ide_cmd_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 	    tf->nsect >= XFER_SW_DMA_0 &&
 	    (id->dma_ultra || id->dma_mword || id->dma_1word)) {
 		xfer_rate = args[1];
-		if (ide_ata66_check(drive, &tfargs))
+		if (tf->nsect > XFER_UDMA_2 && !eighty_ninty_three(drive)) {
+			printk(KERN_WARNING "%s: UDMA speeds >UDMA33 cannot "
+					    "be set\n", drive->name);
 			goto abort;
+		}
 	}
 
 	err = ide_raw_taskfile(drive, &tfargs, buf, args[3]);
