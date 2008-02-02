@@ -163,7 +163,7 @@ static int idecs_register(unsigned long io, unsigned long ctl, unsigned long irq
     i = hwif->index;
 
     if (hwif->present)
-	ide_unregister(i, 0, 1);
+	ide_unregister(i, 0, 0);
     else if (!hwif->hold)
 	ide_init_port_data(hwif, i);
 
@@ -360,7 +360,7 @@ void ide_release(struct pcmcia_device *link)
     if (info->ndev) {
 	/* FIXME: if this fails we need to queue the cleanup somehow
 	   -- need to investigate the required PCMCIA magic */
-	ide_unregister(info->hd, 1, 1);
+	ide_unregister(info->hd, 0, 0);
     }
     info->ndev = 0;
 

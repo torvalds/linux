@@ -76,7 +76,7 @@ static void __devexit rapide_remove(struct expansion_card *ec)
 
 	ecard_set_drvdata(ec, NULL);
 
-	ide_unregister(hwif->index, 1, 1);
+	ide_unregister(hwif->index, 0, 0);
 
 	ecard_release_resources(ec);
 }
