@@ -327,7 +327,7 @@ static void write_status(acpi_handle handle, int out, int mask)
 
 	switch (mask) {
 	case MLED_ON:
-		out = !out & 0x1;
+		out = !(out & 0x1);
 		break;
 	case GLED_ON:
 		out = (out & 0x1) + 1;
