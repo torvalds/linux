@@ -26,6 +26,10 @@
 #include <asm/cplb.h>
 #include <asm/cplbinit.h>
 
+#if ANOMALY_05000263
+# error the MPU will not function safely while Anomaly 05000263 applies
+#endif
+
 struct cplb_entry icplb_tbl[MAX_CPLBS];
 struct cplb_entry dcplb_tbl[MAX_CPLBS];
 
