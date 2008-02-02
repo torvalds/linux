@@ -107,7 +107,6 @@ typedef struct idefloppy_packet_command_s {
 /*
  *	Packet command flag bits.
  */
-#define	PC_ABORT			0	/* Set when an error is considered normal - We won't retry */
 #define PC_DMA_RECOMMENDED		2	/* 1 when we prefer to use DMA if possible */
 #define	PC_DMA_IN_PROGRESS		3	/* 1 while DMA in progress */
 #define	PC_DMA_ERROR			4	/* 1 when encountered problem during DMA */
@@ -733,18 +732,12 @@ static ide_startstop_t idefloppy_issue_pc (ide_drive_t *drive, idefloppy_pc_t *p
 	/* Set the current packet command */
 	floppy->pc = pc;
 
-	if (pc->retries > IDEFLOPPY_MAX_PC_RETRIES ||
-	    test_bit(PC_ABORT, &pc->flags)) {
-		/*
-		 *	We will "abort" retrying a packet command in case
-		 *	a legitimate error code was received.
-		 */
-		if (!test_bit(PC_ABORT, &pc->flags)) {
-			if (!test_bit(PC_SUPPRESS_ERROR, &pc->flags))
-				ide_floppy_report_error(floppy, pc);
-			/* Giving up */
-			pc->error = IDEFLOPPY_ERROR_GENERAL;
-		}
+	if (pc->retries > IDEFLOPPY_MAX_PC_RETRIES) {
+		if (!test_bit(PC_SUPPRESS_ERROR, &pc->flags))
+			ide_floppy_report_error(floppy, pc);
+		/* Giving up */
+		pc->error = IDEFLOPPY_ERROR_GENERAL;
+
 		floppy->failed_pc = NULL;
 		pc->callback(drive);
 		return ide_stopped;
