@@ -5,9 +5,6 @@
  * Copyright (C) 2000-2002  Paul Bristow <paul@paulbristow.net>
  * Copyright (C) 2005       Bartlomiej Zolnierkiewicz
  *
- * The driver currently doesn't have any fancy features, just the bare
- * minimum read/write support.
- *
  * This driver supports the following IDE floppy drives:
  *
  * LS-120/240 SuperDisk
@@ -18,7 +15,7 @@
  * Documentation/ide/ChangeLog.ide-floppy.1996-2002
  */
 
-#define IDEFLOPPY_VERSION "0.99.newide"
+#define IDEFLOPPY_VERSION "1.00"
 
 #include <linux/module.h>
 #include <linux/types.h>
