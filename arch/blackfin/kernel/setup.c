@@ -48,6 +48,8 @@
 #include <asm/fixed_code.h>
 #include <asm/early_printk.h>
 
+static DEFINE_PER_CPU(struct cpu, cpu_devices);
+
 u16 _bfin_swrst;
 
 unsigned long memory_start, memory_end, physical_mem_end;
@@ -763,15 +765,15 @@ void __init setup_arch(char **cmdline_p)
 
 static int __init topology_init(void)
 {
-#if defined (CONFIG_BF561)
-	static struct cpu cpu[2];
-	register_cpu(&cpu[0], 0);
-	register_cpu(&cpu[1], 1);
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		struct cpu *c = &per_cpu(cpu_devices, cpu);
+
+		register_cpu(c, cpu);
+	}
+
 	return 0;
-#else
-	static struct cpu cpu[1];
-	return register_cpu(cpu, 0);
-#endif
 }
 
 subsys_initcall(topology_init);
