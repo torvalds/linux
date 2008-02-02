@@ -140,7 +140,7 @@ static void pdc202xx_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	pdc202xx_set_mode(drive, XFER_PIO_0 + pio);
 }
 
-static u8 pdc202xx_old_cable_detect (ide_hwif_t *hwif)
+static u8 __devinit pdc2026x_old_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	u16 CIS = 0, mask = (hwif->channel) ? (1<<11) : (1<<10);
@@ -311,8 +311,11 @@ static void __devinit init_hwif_pdc202xx(ide_hwif_t *hwif)
 
 	hwif->quirkproc = &pdc202xx_quirkproc;
 
-	if (dev->device != PCI_DEVICE_ID_PROMISE_20246)
+	if (dev->device != PCI_DEVICE_ID_PROMISE_20246) {
 		hwif->resetproc = &pdc202xx_reset;
+
+		hwif->cable_detect = pdc2026x_old_cable_detect;
+	}
 
 	if (hwif->dma_base == 0)
 		return;
@@ -321,9 +324,6 @@ static void __devinit init_hwif_pdc202xx(ide_hwif_t *hwif)
 	hwif->dma_timeout = &pdc202xx_dma_timeout;
 
 	if (dev->device != PCI_DEVICE_ID_PROMISE_20246) {
-		if (hwif->cbl != ATA_CBL_PATA40_SHORT)
-			hwif->cbl = pdc202xx_old_cable_detect(hwif);
-
 		hwif->dma_start = &pdc202xx_old_ide_dma_start;
 		hwif->ide_dma_end = &pdc202xx_old_ide_dma_end;
 	} 

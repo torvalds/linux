@@ -827,14 +827,13 @@ static void __devinit init_hwif_siimage(ide_hwif_t *hwif)
 	} else
 		hwif->udma_filter = &sil_pata_udma_filter;
 
+	hwif->cable_detect = ata66_siimage;
+
 	if (hwif->dma_base == 0)
 		return;
 
 	if (sata)
 		hwif->host_flags |= IDE_HFLAG_NO_ATAPI_DMA;
-
-	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
-		hwif->cbl = ata66_siimage(hwif);
 
 	if (hwif->mmio) {
 		hwif->ide_dma_test_irq = &siimage_mmio_ide_dma_test_irq;

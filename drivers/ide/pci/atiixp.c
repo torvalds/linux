@@ -147,11 +147,7 @@ static void __devinit init_hwif_atiixp(ide_hwif_t *hwif)
 	hwif->set_pio_mode = &atiixp_set_pio_mode;
 	hwif->set_dma_mode = &atiixp_set_dma_mode;
 
-	if (!hwif->dma_base)
-		return;
-
-	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
-		hwif->cbl = atiixp_cable_detect(hwif);
+	hwif->cable_detect = atiixp_cable_detect;
 }
 
 static const struct ide_port_info atiixp_pci_info[] __devinitdata = {

@@ -111,11 +111,7 @@ static void __devinit init_hwif_jmicron(ide_hwif_t *hwif)
 	hwif->set_pio_mode = &jmicron_set_pio_mode;
 	hwif->set_dma_mode = &jmicron_set_dma_mode;
 
-	if (hwif->dma_base == 0)
-		return;
-
-	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
-		hwif->cbl = ata66_jmicron(hwif);
+	hwif->cable_detect = ata66_jmicron;
 }
 
 static const struct ide_port_info jmicron_chipset __devinitdata = {

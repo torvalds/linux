@@ -535,6 +535,8 @@ typedef struct hwif_s {
 	u8 (*mdma_filter)(ide_drive_t *);
 	u8 (*udma_filter)(ide_drive_t *);
 
+	u8 (*cable_detect)(struct hwif_s *);
+
 	void (*ata_input_data)(ide_drive_t *, void *, u32);
 	void (*ata_output_data)(ide_drive_t *, void *, u32);
 

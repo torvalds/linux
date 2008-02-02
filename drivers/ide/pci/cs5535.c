@@ -179,11 +179,7 @@ static void __devinit init_hwif_cs5535(ide_hwif_t *hwif)
 	hwif->set_pio_mode = &cs5535_set_pio_mode;
 	hwif->set_dma_mode = &cs5535_set_dma_mode;
 
-	if (hwif->dma_base == 0)
-		return;
-
-	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
-		hwif->cbl = cs5535_cable_detect(hwif);
+	hwif->cable_detect = cs5535_cable_detect;
 }
 
 static const struct ide_port_info cs5535_chipset __devinitdata = {

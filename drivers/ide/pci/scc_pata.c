@@ -683,8 +683,7 @@ static void __devinit init_hwif_scc(ide_hwif_t *hwif)
 	else
 		hwif->ultra_mask = ATA_UDMA5; /* 100MHz */
 
-	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
-		hwif->cbl = scc_cable_detect(hwif);
+	hwif->cable_detect = scc_cable_detect;
 }
 
 #define DECLARE_SCC_DEV(name_str)			\
