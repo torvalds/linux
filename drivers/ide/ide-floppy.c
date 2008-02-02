@@ -438,12 +438,12 @@ static struct ide_floppy_obj *ide_floppy_get(struct gendisk *disk)
 	return floppy;
 }
 
-static void ide_floppy_release(struct kref *);
+static void idefloppy_cleanup_obj(struct kref *);
 
 static void ide_floppy_put(struct ide_floppy_obj *floppy)
 {
 	mutex_lock(&idefloppy_ref_mutex);
-	kref_put(&floppy->kref, ide_floppy_release);
+	kref_put(&floppy->kref, idefloppy_cleanup_obj);
 	mutex_unlock(&idefloppy_ref_mutex);
 }
 
@@ -1713,7 +1713,7 @@ static void ide_floppy_remove(ide_drive_t *drive)
 	ide_floppy_put(floppy);
 }
 
-static void ide_floppy_release(struct kref *kref)
+static void idefloppy_cleanup_obj(struct kref *kref)
 {
 	struct ide_floppy_obj *floppy = to_ide_floppy(kref);
 	ide_drive_t *drive = floppy->drive;
