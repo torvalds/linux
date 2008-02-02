@@ -99,7 +99,8 @@ delkin_cb_remove (struct pci_dev *dev)
 	ide_hwif_t *hwif = pci_get_drvdata(dev);
 
 	if (hwif)
-		ide_unregister(hwif->index);
+		ide_unregister(hwif->index, 1, 1);
+
 	pci_disable_device(dev);
 }
 

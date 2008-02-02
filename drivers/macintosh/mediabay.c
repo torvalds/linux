@@ -595,7 +595,7 @@ static void media_bay_step(int i)
     	        if (bay->cd_index >= 0) {
 			printk(KERN_DEBUG "Unregistering mb %d ide, index:%d\n", i,
 			       bay->cd_index);
-			ide_unregister(bay->cd_index);
+			ide_unregister(bay->cd_index, 1, 1);
 			bay->cd_index = -1;
 		}
 	    	if (bay->cd_retry) {

@@ -736,7 +736,7 @@ static void __devexit scc_remove(struct pci_dev *dev)
 		hwif->dmatable_cpu = NULL;
 	}
 
-	ide_unregister(hwif->index);
+	ide_unregister(hwif->index, 1, 1);
 
 	hwif->chipset = ide_unknown;
 	iounmap((void*)ports->dma);
