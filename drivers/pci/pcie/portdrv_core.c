@@ -192,9 +192,8 @@ static int get_port_device_capability(struct pci_dev *dev)
 		if (reg32 & SLOT_HP_CAPABLE_MASK)
 			services |= PCIE_PORT_SERVICE_HP;
 	} 
-	/* PME Capable */
-	pos = pci_find_capability(dev, PCI_CAP_ID_PME);
-	if (pos) 
+	/* PME Capable - root port capability */
+	if (((reg16 >> 4) & PORT_TYPE_MASK) == PCIE_RC_PORT)
 		services |= PCIE_PORT_SERVICE_PME;
 	
 	pos = PCI_CFG_SPACE_SIZE;

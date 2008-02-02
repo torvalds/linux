@@ -25,6 +25,7 @@
 
 #include <linux/pci.h>
 #include <linux/dmar.h>
+#include "iova.h"
 
 #undef PREFIX
 #define PREFIX "DMAR:"
@@ -263,8 +264,8 @@ parse_dmar_table(void)
 	if (!dmar)
 		return -ENODEV;
 
-	if (!dmar->width) {
-		printk (KERN_WARNING PREFIX "Zero: Invalid DMAR haw\n");
+	if (dmar->width < PAGE_SHIFT_4K - 1) {
+		printk(KERN_WARNING PREFIX "Invalid DMAR haw\n");
 		return -EINVAL;
 	}
 
@@ -301,11 +302,24 @@ parse_dmar_table(void)
 int __init dmar_table_init(void)
 {
 
-	parse_dmar_table();
+	int ret;
+
+	ret = parse_dmar_table();
+	if (ret) {
+		printk(KERN_INFO PREFIX "parse DMAR table failure.\n");
+		return ret;
+	}
+
 	if (list_empty(&dmar_drhd_units)) {
 		printk(KERN_INFO PREFIX "No DMAR devices found\n");
 		return -ENODEV;
 	}
+
+	if (list_empty(&dmar_rmrr_units)) {
+		printk(KERN_INFO PREFIX "No RMRR found\n");
+		return -ENODEV;
+	}
+
 	return 0;
 }
 

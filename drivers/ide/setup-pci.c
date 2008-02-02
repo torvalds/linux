@@ -228,7 +228,9 @@ EXPORT_SYMBOL_GPL(ide_setup_pci_noise);
  *	@d: IDE port info
  *
  *	Enable the IDE PCI device. We attempt to enable the device in full
- *	but if that fails then we only need BAR4 so we will enable that.
+ *	but if that fails then we only need IO space. The PCI code should
+ *	have setup the proper resources for us already for controllers in
+ *	legacy mode.
  *	
  *	Returns zero on success or an error code
  */
@@ -238,7 +240,7 @@ static int ide_pci_enable(struct pci_dev *dev, const struct ide_port_info *d)
 	int ret;
 
 	if (pci_enable_device(dev)) {
-		ret = pci_enable_device_bars(dev, 1 << 4);
+		ret = pci_enable_device_io(dev);
 		if (ret < 0) {
 			printk(KERN_WARNING "%s: (ide_setup_pci_device:) "
 				"Could not enable device.\n", d->name);

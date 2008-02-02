@@ -229,7 +229,7 @@ static int __devinit cs5520_init_one(struct pci_dev *pdev, const struct pci_devi
 		return -ENOMEM;
 
 	/* Perform set up for DMA */
-	if (pci_enable_device_bars(pdev, 1<<2)) {
+	if (pci_enable_device_io(pdev)) {
 		printk(KERN_ERR DRV_NAME ": unable to configure BAR2.\n");
 		return -ENODEV;
 	}

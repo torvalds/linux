@@ -51,10 +51,12 @@ pci_update_resource(struct pci_dev *dev, struct resource *res, int resno)
 
 	pcibios_resource_to_bus(dev, &region, res);
 
-	pr_debug("  got res [%llx:%llx] bus [%lx:%lx] flags %lx for "
+	pr_debug("  got res [%llx:%llx] bus [%llx:%llx] flags %lx for "
 		 "BAR %d of %s\n", (unsigned long long)res->start,
 		 (unsigned long long)res->end,
-		 region.start, region.end, res->flags, resno, pci_name(dev));
+		 (unsigned long long)region.start,
+		 (unsigned long long)region.end,
+		 (unsigned long)res->flags, resno, pci_name(dev));
 
 	new = region.start | (res->flags & PCI_REGION_FLAG_MASK);
 	if (res->flags & IORESOURCE_IO)
@@ -125,7 +127,6 @@ int pci_claim_resource(struct pci_dev *dev, int resource)
 
 	return err;
 }
-EXPORT_SYMBOL_GPL(pci_claim_resource);
 
 int pci_assign_resource(struct pci_dev *dev, int resno)
 {

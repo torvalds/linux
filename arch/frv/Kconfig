@@ -322,11 +322,6 @@ config PCI
 	  onboard. If you have one of these boards and you wish to use the PCI
 	  facilities, say Y here.
 
-	  The PCI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>, contains valuable
-	  information about which PCI hardware does work under Linux and which
-	  doesn't.
-
 config RESERVE_DMA_COHERENT
 	bool "Reserve DMA coherent memory"
 	depends on PCI && !MMU

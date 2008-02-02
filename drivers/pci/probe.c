@@ -9,6 +9,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/cpumask.h>
+#include <linux/aspm.h>
 #include "pci.h"
 
 #define CARDBUS_LATENCY_TIMER	176	/* secondary latency timer */
@@ -53,7 +54,7 @@ static void pci_create_legacy_files(struct pci_bus *b)
 		b->legacy_io->attr.mode = S_IRUSR | S_IWUSR;
 		b->legacy_io->read = pci_read_legacy_io;
 		b->legacy_io->write = pci_write_legacy_io;
-		class_device_create_bin_file(&b->class_dev, b->legacy_io);
+		device_create_bin_file(&b->dev, b->legacy_io);
 
 		/* Allocated above after the legacy_io struct */
 		b->legacy_mem = b->legacy_io + 1;
@@ -61,15 +62,15 @@ static void pci_create_legacy_files(struct pci_bus *b)
 		b->legacy_mem->size = 1024*1024;
 		b->legacy_mem->attr.mode = S_IRUSR | S_IWUSR;
 		b->legacy_mem->mmap = pci_mmap_legacy_mem;
-		class_device_create_bin_file(&b->class_dev, b->legacy_mem);
+		device_create_bin_file(&b->dev, b->legacy_mem);
 	}
 }
 
 void pci_remove_legacy_files(struct pci_bus *b)
 {
 	if (b->legacy_io) {
-		class_device_remove_bin_file(&b->class_dev, b->legacy_io);
-		class_device_remove_bin_file(&b->class_dev, b->legacy_mem);
+		device_remove_bin_file(&b->dev, b->legacy_io);
+		device_remove_bin_file(&b->dev, b->legacy_mem);
 		kfree(b->legacy_io); /* both are allocated here */
 	}
 }
@@ -81,26 +82,27 @@ void pci_remove_legacy_files(struct pci_bus *bus) { return; }
 /*
  * PCI Bus Class Devices
  */
-static ssize_t pci_bus_show_cpuaffinity(struct class_device *class_dev,
+static ssize_t pci_bus_show_cpuaffinity(struct device *dev,
+					struct device_attribute *attr,
 					char *buf)
 {
 	int ret;
 	cpumask_t cpumask;
 
-	cpumask = pcibus_to_cpumask(to_pci_bus(class_dev));
+	cpumask = pcibus_to_cpumask(to_pci_bus(dev));
 	ret = cpumask_scnprintf(buf, PAGE_SIZE, cpumask);
 	if (ret < PAGE_SIZE)
 		buf[ret++] = '\n';
 	return ret;
 }
-CLASS_DEVICE_ATTR(cpuaffinity, S_IRUGO, pci_bus_show_cpuaffinity, NULL);
+DEVICE_ATTR(cpuaffinity, S_IRUGO, pci_bus_show_cpuaffinity, NULL);
 
 /*
  * PCI Bus Class
  */
-static void release_pcibus_dev(struct class_device *class_dev)
+static void release_pcibus_dev(struct device *dev)
 {
-	struct pci_bus *pci_bus = to_pci_bus(class_dev);
+	struct pci_bus *pci_bus = to_pci_bus(dev);
 
 	if (pci_bus->bridge)
 		put_device(pci_bus->bridge);
@@ -109,7 +111,7 @@ static void release_pcibus_dev(struct class_device *class_dev)
 
 static struct class pcibus_class = {
 	.name		= "pci_bus",
-	.release	= &release_pcibus_dev,
+	.dev_release	= &release_pcibus_dev,
 };
 
 static int __init pcibus_class_init(void)
@@ -392,7 +394,6 @@ pci_alloc_child_bus(struct pci_bus *parent, struct pci_dev *bridge, int busnr)
 {
 	struct pci_bus *child;
 	int i;
-	int retval;
 
 	/*
 	 * Allocate a new bus, and inherit stuff from the parent..
@@ -408,15 +409,12 @@ pci_alloc_child_bus(struct pci_bus *parent, struct pci_dev *bridge, int busnr)
 	child->bus_flags = parent->bus_flags;
 	child->bridge = get_device(&bridge->dev);
 
-	child->class_dev.class = &pcibus_class;
-	sprintf(child->class_dev.class_id, "%04x:%02x", pci_domain_nr(child), busnr);
-	retval = class_device_register(&child->class_dev);
-	if (retval)
-		goto error_register;
-	retval = class_device_create_file(&child->class_dev,
-					  &class_device_attr_cpuaffinity);
-	if (retval)
-		goto error_file_create;
+	/* initialize some portions of the bus device, but don't register it
+	 * now as the parent is not properly set up yet.  This device will get
+	 * registered later in pci_bus_add_devices()
+	 */
+	child->dev.class = &pcibus_class;
+	sprintf(child->dev.bus_id, "%04x:%02x", pci_domain_nr(child), busnr);
 
 	/*
 	 * Set up the primary, secondary and subordinate
@@ -434,12 +432,6 @@ pci_alloc_child_bus(struct pci_bus *parent, struct pci_dev *bridge, int busnr)
 	bridge->subordinate = child;
 
 	return child;
-
-error_file_create:
-	class_device_unregister(&child->class_dev);
-error_register:
-	kfree(child);
-	return NULL;
 }
 
 struct pci_bus *pci_add_new_bus(struct pci_bus *parent, struct pci_dev *dev, int busnr)
@@ -470,8 +462,6 @@ static void pci_fixup_parent_subordinate_busnr(struct pci_bus *child, int max)
 		parent = parent->parent;
 	}
 }
-
-unsigned int pci_scan_child_bus(struct pci_bus *bus);
 
 /*
  * If it's a bridge, configure it and scan the bus behind it.
@@ -641,13 +631,13 @@ int pci_scan_bridge(struct pci_bus *bus, struct pci_dev * dev, int max, int pass
 		    (child->number > bus->subordinate) ||
 		    (child->number < bus->number) ||
 		    (child->subordinate < bus->number)) {
-			pr_debug("PCI: Bus #%02x (-#%02x) is %s"
+			pr_debug("PCI: Bus #%02x (-#%02x) is %s "
 				"hidden behind%s bridge #%02x (-#%02x)\n",
 				child->number, child->subordinate,
 				(bus->number > child->subordinate &&
 				 bus->subordinate < child->number) ?
-					"wholly " : " partially",
-				bus->self->transparent ? " transparent" : " ",
+					"wholly" : "partially",
+				bus->self->transparent ? " transparent" : "",
 				bus->number, bus->subordinate);
 		}
 		bus = bus->parent;
@@ -971,6 +961,7 @@ struct pci_dev *pci_scan_single_device(struct pci_bus *bus, int devfn)
 
 	return dev;
 }
+EXPORT_SYMBOL(pci_scan_single_device);
 
 /**
  * pci_scan_slot - scan a PCI slot on a bus for devices.
@@ -1011,6 +1002,10 @@ int pci_scan_slot(struct pci_bus *bus, int devfn)
 				break;
 		}
 	}
+
+	if (bus->self)
+		pcie_aspm_init_link_state(bus->self);
+
 	return nr;
 }
 
@@ -1103,21 +1098,18 @@ struct pci_bus * pci_create_bus(struct device *parent,
 		goto dev_reg_err;
 	b->bridge = get_device(dev);
 
-	b->class_dev.class = &pcibus_class;
-	sprintf(b->class_dev.class_id, "%04x:%02x", pci_domain_nr(b), bus);
-	error = class_device_register(&b->class_dev);
+	b->dev.class = &pcibus_class;
+	b->dev.parent = b->bridge;
+	sprintf(b->dev.bus_id, "%04x:%02x", pci_domain_nr(b), bus);
+	error = device_register(&b->dev);
 	if (error)
 		goto class_dev_reg_err;
-	error = class_device_create_file(&b->class_dev, &class_device_attr_cpuaffinity);
+	error = device_create_file(&b->dev, &dev_attr_cpuaffinity);
 	if (error)
-		goto class_dev_create_file_err;
+		goto dev_create_file_err;
 
 	/* Create legacy_io and legacy_mem files for this bus */
 	pci_create_legacy_files(b);
-
-	error = sysfs_create_link(&b->class_dev.kobj, &b->bridge->kobj, "bridge");
-	if (error)
-		goto sys_create_link_err;
 
 	b->number = b->secondary = bus;
 	b->resource[0] = &ioport_resource;
@@ -1125,10 +1117,8 @@ struct pci_bus * pci_create_bus(struct device *parent,
 
 	return b;
 
-sys_create_link_err:
-	class_device_remove_file(&b->class_dev, &class_device_attr_cpuaffinity);
-class_dev_create_file_err:
-	class_device_unregister(&b->class_dev);
+dev_create_file_err:
+	device_unregister(&b->dev);
 class_dev_reg_err:
 	device_unregister(dev);
 dev_reg_err:
@@ -1140,7 +1130,6 @@ err_out:
 	kfree(b);
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(pci_create_bus);
 
 struct pci_bus *pci_scan_bus_parented(struct device *parent,
 		int bus, struct pci_ops *ops, void *sysdata)
@@ -1159,7 +1148,6 @@ EXPORT_SYMBOL(pci_add_new_bus);
 EXPORT_SYMBOL(pci_do_scan_bus);
 EXPORT_SYMBOL(pci_scan_slot);
 EXPORT_SYMBOL(pci_scan_bridge);
-EXPORT_SYMBOL(pci_scan_single_device);
 EXPORT_SYMBOL_GPL(pci_scan_child_bus);
 #endif
 
