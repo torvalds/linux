@@ -430,16 +430,8 @@ static int bfin_gpio_irq_type(unsigned int irq, unsigned int type)
 		return 0;
 	}
 
+	set_gpio_inen(gpionr, 0);
 	set_gpio_dir(gpionr, 0);
-	set_gpio_inen(gpionr, 1);
-
-	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)) {
-		gpio_edge_triggered[gpio_bank(gpionr)] |= gpio_bit(gpionr);
-		set_gpio_edge(gpionr, 1);
-	} else {
-		set_gpio_edge(gpionr, 0);
-		gpio_edge_triggered[gpio_bank(gpionr)] &= ~gpio_bit(gpionr);
-	}
 
 	if ((type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING))
 	    == (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING))
@@ -451,6 +443,18 @@ static int bfin_gpio_irq_type(unsigned int irq, unsigned int type)
 		set_gpio_polar(gpionr, 1);	/* low or falling edge denoted by one */
 	else
 		set_gpio_polar(gpionr, 0);	/* high or rising edge denoted by zero */
+
+	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)) {
+		set_gpio_edge(gpionr, 1);
+		set_gpio_inen(gpionr, 1);
+		gpio_edge_triggered[gpio_bank(gpionr)] |= gpio_bit(gpionr);
+		set_gpio_data(gpionr, 0);
+
+	} else {
+		set_gpio_edge(gpionr, 0);
+		gpio_edge_triggered[gpio_bank(gpionr)] &= ~gpio_bit(gpionr);
+		set_gpio_inen(gpionr, 1);
+	}
 
 	SSYNC();
 

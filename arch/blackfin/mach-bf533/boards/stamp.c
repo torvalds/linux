@@ -423,9 +423,9 @@ static struct platform_device bfin_pata_device = {
 #include <linux/gpio_keys.h>
 
 static struct gpio_keys_button bfin_gpio_keys_table[] = {
-	{BTN_0, GPIO_PF5, 1, "gpio-keys: BTN0"},
-	{BTN_1, GPIO_PF6, 1, "gpio-keys: BTN1"},
-	{BTN_2, GPIO_PF8, 1, "gpio-keys: BTN2"},
+	{BTN_0, GPIO_PF5, 0, "gpio-keys: BTN0"},
+	{BTN_1, GPIO_PF6, 0, "gpio-keys: BTN1"},
+	{BTN_2, GPIO_PF8, 0, "gpio-keys: BTN2"},
 };
 
 static struct gpio_keys_platform_data bfin_gpio_keys_data = {
