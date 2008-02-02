@@ -532,13 +532,17 @@ static ide_startstop_t idefloppy_pc_intr (ide_drive_t *drive)
 	idefloppy_pc_t *pc = floppy->pc;
 	struct request *rq = pc->rq;
 	unsigned int temp;
+	int dma_error = 0;
 	u16 bcount;
 	u8 stat, ireason;
 
 	debug_log("Reached %s interrupt handler\n", __func__);
 
 	if (test_bit(PC_DMA_IN_PROGRESS, &pc->flags)) {
-		if (HWIF(drive)->ide_dma_end(drive)) {
+		dma_error = hwif->ide_dma_end(drive);
+		if (dma_error) {
+			printk(KERN_ERR "%s: DMA %s error\n", drive->name,
+					rq_data_dir(rq) ? "write" : "read");
 			set_bit(PC_DMA_ERROR, &pc->flags);
 		} else {
 			pc->actually_transferred = pc->request_transfer;
