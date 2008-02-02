@@ -720,8 +720,6 @@ found:
 		ide_init_port_data(hwif, index);
 		init_hwif_default(hwif, index);
 	}
-	if (hwif->present)
-		return -1;
 
 	ide_init_port_hw(hwif, hw);
 	hwif->quirkproc = quirkproc;
