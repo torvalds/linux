@@ -793,9 +793,6 @@ static ide_proc_entry_t hwif_entries[] = {
 
 void ide_proc_register_port(ide_hwif_t *hwif)
 {
-	if (!hwif->present)
-		return;
-
 	if (!hwif->proc) {
 		hwif->proc = proc_mkdir(hwif->name, proc_ide_root);
 

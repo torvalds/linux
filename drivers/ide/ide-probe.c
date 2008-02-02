@@ -1448,8 +1448,13 @@ int ide_device_add_all(u8 *idx, const struct ide_port_info *d)
 	}
 
 	for (i = 0; i < MAX_HWIFS; i++) {
-		if (idx[i] != 0xff)
-			ide_proc_register_port(&ide_hwifs[idx[i]]);
+		if (idx[i] == 0xff)
+			continue;
+
+		hwif = &ide_hwifs[idx[i]];
+
+		if (hwif->present)
+			ide_proc_register_port(hwif);
 	}
 
 	return rc;
