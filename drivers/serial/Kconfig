@@ -686,7 +686,7 @@ config UART0_RTS_PIN
 
 config SERIAL_BFIN_UART1
 	bool "Enable UART1"
-	depends on SERIAL_BFIN && (BF534 || BF536 || BF537 || BF54x)
+	depends on SERIAL_BFIN && (!BF531 && !BF532 && !BF533 && !BF561)
 	help
 	  Enable UART1
 
