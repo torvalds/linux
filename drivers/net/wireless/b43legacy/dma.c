@@ -1164,7 +1164,7 @@ static int dma_tx_fragment(struct b43legacy_dmaring *ring,
 {
 	const struct b43legacy_dma_ops *ops = ring->ops;
 	u8 *header;
-	int slot;
+	int slot, old_top_slot, old_used_slots;
 	int err;
 	struct b43legacy_dmadesc_generic *desc;
 	struct b43legacy_dmadesc_meta *meta;
@@ -1173,6 +1173,9 @@ static int dma_tx_fragment(struct b43legacy_dmaring *ring,
 
 #define SLOTS_PER_PACKET  2
 	B43legacy_WARN_ON(skb_shinfo(skb)->nr_frags != 0);
+
+	old_top_slot = ring->current_slot;
+	old_used_slots = ring->used_slots;
 
 	/* Get a slot for the header. */
 	slot = request_slot(ring);
@@ -1184,8 +1187,11 @@ static int dma_tx_fragment(struct b43legacy_dmaring *ring,
 	err = b43legacy_generate_txhdr(ring->dev, header,
 				 skb->data, skb->len, ctl,
 				 generate_cookie(ring, slot));
-	if (unlikely(err))
+	if (unlikely(err)) {
+		ring->current_slot = old_top_slot;
+		ring->used_slots = old_used_slots;
 		return err;
+	}
 
 	meta_hdr->dmaaddr = map_descbuffer(ring, (unsigned char *)header,
 				       sizeof(struct b43legacy_txhdr_fw3), 1);
@@ -1208,6 +1214,8 @@ static int dma_tx_fragment(struct b43legacy_dmaring *ring,
 	if (dma_mapping_error(meta->dmaaddr)) {
 		bounce_skb = __dev_alloc_skb(skb->len, GFP_ATOMIC | GFP_DMA);
 		if (!bounce_skb) {
+			ring->current_slot = old_top_slot;
+			ring->used_slots = old_used_slots;
 			err = -ENOMEM;
 			goto out_unmap_hdr;
 		}
@@ -1218,6 +1226,8 @@ static int dma_tx_fragment(struct b43legacy_dmaring *ring,
 		meta->skb = skb;
 		meta->dmaaddr = map_descbuffer(ring, skb->data, skb->len, 1);
 		if (dma_mapping_error(meta->dmaaddr)) {
+			ring->current_slot = old_top_slot;
+			ring->used_slots = old_used_slots;
 			err = -EIO;
 			goto out_free_bounce;
 		}
