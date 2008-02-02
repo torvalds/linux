@@ -67,10 +67,9 @@ struct bfin_serial_port {
 	unsigned int		tx_dma_channel;
 	unsigned int		rx_dma_channel;
 	struct work_struct	tx_dma_workqueue;
-#else
-	struct work_struct 	cts_workqueue;
 #endif
 #ifdef CONFIG_SERIAL_BFIN_CTSRTS
+	struct work_struct 	cts_workqueue;
 	int		cts_pin;
 	int 		rts_pin;
 #endif

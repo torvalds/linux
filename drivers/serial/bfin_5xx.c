@@ -53,7 +53,6 @@
 #ifdef CONFIG_SERIAL_BFIN_DMA
 static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart);
 #else
-static void bfin_serial_do_work(struct work_struct *work);
 static void bfin_serial_tx_chars(struct bfin_serial_port *uart);
 #endif
 
@@ -372,8 +371,9 @@ static irqreturn_t bfin_serial_tx_int(int irq, void *dev_id)
 
 	return IRQ_HANDLED;
 }
+#endif
 
-
+#ifdef CONFIG_SERIAL_BFIN_CTSRTS
 static void bfin_serial_do_work(struct work_struct *work)
 {
 	struct bfin_serial_port *uart = container_of(work, struct bfin_serial_port, cts_workqueue);
@@ -607,22 +607,17 @@ static void bfin_serial_mctrl_check(struct bfin_serial_port *uart)
 {
 #ifdef CONFIG_SERIAL_BFIN_CTSRTS
 	unsigned int status;
-# ifdef CONFIG_SERIAL_BFIN_DMA
 	struct uart_info *info = uart->port.info;
 	struct tty_struct *tty = info->tty;
 
 	status = bfin_serial_get_mctrl(&uart->port);
+	uart_handle_cts_change(&uart->port, status & TIOCM_CTS);
 	if (!(status & TIOCM_CTS)) {
 		tty->hw_stopped = 1;
+		schedule_work(&uart->cts_workqueue);
 	} else {
 		tty->hw_stopped = 0;
 	}
-# else
-	status = bfin_serial_get_mctrl(&uart->port);
-	uart_handle_cts_change(&uart->port, status & TIOCM_CTS);
-	if (!(status & TIOCM_CTS))
-		schedule_work(&uart->cts_workqueue);
-# endif
 #endif
 }
 
@@ -939,10 +934,9 @@ static void __init bfin_serial_init_ports(void)
 		bfin_serial_ports[i].rx_dma_channel =
 			bfin_serial_resource[i].uart_rx_dma_channel;
 		init_timer(&(bfin_serial_ports[i].rx_dma_timer));
-#else
-		INIT_WORK(&bfin_serial_ports[i].cts_workqueue, bfin_serial_do_work);
 #endif
 #ifdef CONFIG_SERIAL_BFIN_CTSRTS
+		INIT_WORK(&bfin_serial_ports[i].cts_workqueue, bfin_serial_do_work);
 		bfin_serial_ports[i].cts_pin	    =
 			bfin_serial_resource[i].uart_cts_pin;
 		bfin_serial_ports[i].rts_pin	    =
