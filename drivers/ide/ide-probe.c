@@ -1188,6 +1188,10 @@ static void init_gendisk (ide_hwif_t *hwif)
 
 	for (unit = 0; unit < MAX_DRIVES; ++unit) {
 		ide_drive_t * drive = &hwif->drives[unit];
+
+		if (!drive->present)
+			continue;
+
 		ide_add_generic_settings(drive);
 		snprintf(drive->gendev.bus_id,BUS_ID_SIZE,"%u.%u",
 			 hwif->index,unit);
