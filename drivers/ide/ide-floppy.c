@@ -120,44 +120,6 @@ typedef struct idefloppy_packet_command_s {
 #define	PC_SUPPRESS_ERROR		6	/* Suppress error reporting */
 
 /*
- *	Removable Block Access Capabilities Page
- */
-typedef struct {
-#if defined(__LITTLE_ENDIAN_BITFIELD)
-	unsigned	page_code	:6;	/* Page code - Should be 0x1b */
-	unsigned	reserved1_6	:1;	/* Reserved */
-	unsigned	ps		:1;	/* Should be 0 */
-#elif defined(__BIG_ENDIAN_BITFIELD)
-	unsigned	ps		:1;	/* Should be 0 */
-	unsigned	reserved1_6	:1;	/* Reserved */
-	unsigned	page_code	:6;	/* Page code - Should be 0x1b */
-#else
-#error "Bitfield endianness not defined! Check your byteorder.h"
-#endif
-	u8		page_length;		/* Page Length - Should be 0xa */
-#if defined(__LITTLE_ENDIAN_BITFIELD)
-	unsigned	reserved2	:6;
-	unsigned	srfp		:1;	/* Supports reporting progress of format */
-	unsigned	sflp		:1;	/* System floppy type device */
-	unsigned	tlun		:3;	/* Total logical units supported by the device */
-	unsigned	reserved3	:3;
-	unsigned	sml		:1;	/* Single / Multiple lun supported */
-	unsigned	ncd		:1;	/* Non cd optical device */
-#elif defined(__BIG_ENDIAN_BITFIELD)
-	unsigned	sflp		:1;	/* System floppy type device */
-	unsigned	srfp		:1;	/* Supports reporting progress of format */
-	unsigned	reserved2	:6;
-	unsigned	ncd		:1;	/* Non cd optical device */
-	unsigned	sml		:1;	/* Single / Multiple lun supported */
-	unsigned	reserved3	:3;
-	unsigned	tlun		:3;	/* Total logical units supported by the device */
-#else
-#error "Bitfield endianness not defined! Check your byteorder.h"
-#endif
-	u8		reserved[8];
-} idefloppy_capabilities_page_t;
-
-/*
  *	Flexible disk page.
  */
 typedef struct {
@@ -397,7 +359,8 @@ typedef struct {
 } idefloppy_request_sense_result_t;
 
 /*
- *	Pages of the SELECT SENSE / MODE SENSE packet commands.
+ * Pages of the SELECT SENSE / MODE SENSE packet commands.
+ * See SFF-8070i spec.
  */
 #define	IDEFLOPPY_CAPABILITIES_PAGE	0x1b
 #define IDEFLOPPY_FLEXIBLE_DISK_PAGE	0x05
@@ -1273,25 +1236,20 @@ static int idefloppy_get_flexible_disk_page (ide_drive_t *drive)
 	return 0;
 }
 
-static int idefloppy_get_capability_page(ide_drive_t *drive)
+static int idefloppy_get_sfrp_bit(ide_drive_t *drive)
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
 	idefloppy_pc_t pc;
-	idefloppy_mode_parameter_header_t *header;
-	idefloppy_capabilities_page_t *page;
 
 	floppy->srfp = 0;
 	idefloppy_create_mode_sense_cmd(&pc, IDEFLOPPY_CAPABILITIES_PAGE,
 						 MODE_SENSE_CURRENT);
 
 	set_bit(PC_SUPPRESS_ERROR, &pc.flags);
-	if (idefloppy_queue_pc_tail(drive,&pc)) {
+	if (idefloppy_queue_pc_tail(drive, &pc))
 		return 1;
-	}
 
-	header = (idefloppy_mode_parameter_header_t *) pc.buffer;
-	page= (idefloppy_capabilities_page_t *)(header+1);
-	floppy->srfp = page->srfp;
+	floppy->srfp = pc.buffer[8 + 2] & 0x40;
 	return (0);
 }
 
@@ -1497,8 +1455,7 @@ static int idefloppy_begin_format(ide_drive_t *drive, int __user *arg)
 		return (-EFAULT);
 	}
 
-	/* Get the SFRP bit */
-	(void) idefloppy_get_capability_page(drive);
+	(void) idefloppy_get_sfrp_bit(drive);
 	idefloppy_create_format_unit_cmd(&pc, blocks, length, flags);
 	if (idefloppy_queue_pc_tail(drive, &pc)) {
                 return (-EIO);
