@@ -723,25 +723,17 @@ void mark_rodata_ro(void)
 	unsigned long start = PFN_ALIGN(_text);
 	unsigned long size = PFN_ALIGN(_etext) - start;
 
-#ifndef CONFIG_KPROBES
-#ifdef CONFIG_HOTPLUG_CPU
-	/* It must still be possible to apply SMP alternatives. */
-	if (num_possible_cpus() <= 1)
-#endif
-	{
-		set_pages_ro(virt_to_page(start), size >> PAGE_SHIFT);
-		printk(KERN_INFO "Write protecting the kernel text: %luk\n",
-			size >> 10);
+	set_pages_ro(virt_to_page(start), size >> PAGE_SHIFT);
+	printk(KERN_INFO "Write protecting the kernel text: %luk\n",
+		size >> 10);
 
 #ifdef CONFIG_CPA_DEBUG
-		printk(KERN_INFO "Testing CPA: Reverting %lx-%lx\n",
-			start, start+size);
-		set_pages_rw(virt_to_page(start), size>>PAGE_SHIFT);
+	printk(KERN_INFO "Testing CPA: Reverting %lx-%lx\n",
+		start, start+size);
+	set_pages_rw(virt_to_page(start), size>>PAGE_SHIFT);
 
-		printk(KERN_INFO "Testing CPA: write protecting again\n");
-		set_pages_ro(virt_to_page(start), size>>PAGE_SHIFT);
-#endif
-	}
+	printk(KERN_INFO "Testing CPA: write protecting again\n");
+	set_pages_ro(virt_to_page(start), size>>PAGE_SHIFT);
 #endif
 	start += size;
 	size = (unsigned long)__end_rodata - start;
