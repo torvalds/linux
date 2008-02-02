@@ -2181,8 +2181,8 @@ static ide_startstop_t idetape_issue_packet_command (ide_drive_t *drive, idetape
 	if (dma_ok)			/* Will begin DMA later */
 		set_bit(PC_DMA_IN_PROGRESS, &pc->flags);
 	if (test_bit(IDETAPE_DRQ_INTERRUPT, &tape->flags)) {
-		ide_set_handler(drive, &idetape_transfer_pc, IDETAPE_WAIT_CMD, NULL);
-		hwif->OUTB(WIN_PACKETCMD, IDE_COMMAND_REG);
+		ide_execute_command(drive, WIN_PACKETCMD, &idetape_transfer_pc,
+				    IDETAPE_WAIT_CMD, NULL);
 		return ide_started;
 	} else {
 		hwif->OUTB(WIN_PACKETCMD, IDE_COMMAND_REG);
