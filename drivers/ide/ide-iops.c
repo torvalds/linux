@@ -968,13 +968,10 @@ static ide_startstop_t reset_pollfunc (ide_drive_t *drive)
 static void check_dma_crc(ide_drive_t *drive)
 {
 #ifdef CONFIG_BLK_DEV_IDEDMA
-	if (drive->crc_count) {
-		ide_dma_off_quietly(drive);
-		ide_set_xfer_rate(drive, ide_auto_reduce_xfer(drive));
-		if (drive->current_speed >= XFER_SW_DMA_0)
-			ide_dma_on(drive);
-	} else
-		ide_dma_off(drive);
+	ide_dma_off_quietly(drive);
+	ide_set_xfer_rate(drive, ide_auto_reduce_xfer(drive));
+	if (drive->current_speed >= XFER_SW_DMA_0)
+		ide_dma_on(drive);
 #endif
 }
 
@@ -999,17 +996,20 @@ static void pre_reset(ide_drive_t *drive)
 	else
 		drive->post_reset = 1;
 
-	if (!drive->keep_settings) {
-		if (drive->using_dma) {
+	if (drive->using_dma) {
+		if (drive->crc_count)
 			check_dma_crc(drive);
-		} else {
+		else
+			ide_dma_off(drive);
+	}
+
+	if (!drive->keep_settings) {
+		if (!drive->using_dma) {
 			drive->unmask = 0;
 			drive->io_32bit = 0;
 		}
 		return;
 	}
-	if (drive->using_dma)
-		check_dma_crc(drive);
 
 	if (HWIF(drive)->pre_reset != NULL)
 		HWIF(drive)->pre_reset(drive);
