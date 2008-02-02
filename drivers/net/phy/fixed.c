@@ -236,12 +236,12 @@ module_init(fixed_mdio_bus_init);
 static void __exit fixed_mdio_bus_exit(void)
 {
 	struct fixed_mdio_bus *fmb = &platform_fmb;
-	struct fixed_phy *fp;
+	struct fixed_phy *fp, *tmp;
 
 	mdiobus_unregister(&fmb->mii_bus);
 	platform_device_unregister(pdev);
 
-	list_for_each_entry(fp, &fmb->phys, node) {
+	list_for_each_entry_safe(fp, tmp, &fmb->phys, node) {
 		list_del(&fp->node);
 		kfree(fp);
 	}
