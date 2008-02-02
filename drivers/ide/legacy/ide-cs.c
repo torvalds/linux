@@ -151,7 +151,7 @@ static int idecs_register(unsigned long io, unsigned long ctl, unsigned long irq
     u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
     memset(&hw, 0, sizeof(hw));
-    ide_init_hwif_ports(&hw, io, ctl, NULL);
+    ide_std_init_ports(&hw, io, ctl);
     hw.irq = irq;
     hw.chipset = ide_pci;
     hw.dev = &handle->dev;
