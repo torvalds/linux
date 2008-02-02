@@ -591,16 +591,9 @@ typedef struct {
 	u32		bytes_in_buffer;	/* Bytes In Buffer (Optional) */
 } idetape_read_position_result_t;
 
-/*
- *	Follows structures which are related to the SELECT SENSE / MODE SENSE
- *	packet commands. Those packet commands are still not supported
- *	by ide-tape.
- */
+/* Structures related to the SELECT SENSE / MODE SENSE packet commands. */
 #define IDETAPE_BLOCK_DESCRIPTOR	0
 #define	IDETAPE_CAPABILITIES_PAGE	0x2a
-#define IDETAPE_PARAMTR_PAGE		0x2b   /* Onstream DI-x0 only */
-#define IDETAPE_BLOCK_SIZE_PAGE		0x30
-#define IDETAPE_BUFFER_FILLING_PAGE	0x33
 
 /*
  *	Run time configurable parameters.
