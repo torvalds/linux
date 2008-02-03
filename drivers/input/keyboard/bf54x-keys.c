@@ -42,7 +42,6 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/input.h>
-#include <linux/irq.h>
 
 #include <asm/portmux.h>
 #include <asm/mach/bf54x_keys.h>
