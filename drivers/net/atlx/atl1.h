@@ -584,6 +584,7 @@ enum atl1_dma_req_block {
 #define ATL1_DEFAULT_RFD	512
 #define ATL1_MIN_RFD		128
 #define ATL1_MAX_RFD		2048
+#define ATL1_REG_COUNT		1538
 
 #define ATL1_GET_DESC(R, i, type)	(&(((type *)((R)->desc))[i]))
 #define ATL1_RFD_DESC(R, i)	ATL1_GET_DESC(R, i, struct rx_free_desc)

@@ -2513,6 +2513,57 @@ static int atl1_set_wol(struct net_device *netdev,
 	return 0;
 }
 
+static int atl1_get_regs_len(struct net_device *netdev)
+{
+	return ATL1_REG_COUNT * sizeof(u32);
+}
+
+static void atl1_get_regs(struct net_device *netdev, struct ethtool_regs *regs,
+	void *p)
+{
+	struct atl1_adapter *adapter = netdev_priv(netdev);
+	struct atl1_hw *hw = &adapter->hw;
+	unsigned int i;
+	u32 *regbuf = p;
+
+	for (i = 0; i < ATL1_REG_COUNT; i++) {
+		/*
+		 * This switch statement avoids reserved regions
+		 * of register space.
+		 */
+		switch (i) {
+		case 6 ... 9:
+		case 14:
+		case 29 ... 31:
+		case 34 ... 63:
+		case 75 ... 127:
+		case 136 ... 1023:
+		case 1027 ... 1087:
+		case 1091 ... 1151:
+		case 1194 ... 1195:
+		case 1200 ... 1201:
+		case 1206 ... 1213:
+		case 1216 ... 1279:
+		case 1290 ... 1311:
+		case 1323 ... 1343:
+		case 1358 ... 1359:
+		case 1368 ... 1375:
+		case 1378 ... 1383:
+		case 1388 ... 1391:
+		case 1393 ... 1395:
+		case 1402 ... 1403:
+		case 1410 ... 1471:
+		case 1522 ... 1535:
+			/* reserved region; don't read it */
+			regbuf[i] = 0;
+			break;
+		default:
+			/* unreserved region */
+			regbuf[i] = ioread32(hw->hw_addr + (i * sizeof(u32)));
+		}
+	}
+}
+
 static void atl1_get_ringparam(struct net_device *netdev,
 	struct ethtool_ringparam *ring)
 {
@@ -2703,6 +2754,8 @@ const struct ethtool_ops atl1_ethtool_ops = {
 	.get_drvinfo		= atl1_get_drvinfo,
 	.get_wol		= atl1_get_wol,
 	.set_wol		= atl1_set_wol,
+	.get_regs_len		= atl1_get_regs_len,
+	.get_regs		= atl1_get_regs,
 	.get_ringparam		= atl1_get_ringparam,
 	.set_ringparam		= atl1_set_ringparam,
 	.get_pauseparam		= atl1_get_pauseparam,
