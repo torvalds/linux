@@ -253,7 +253,7 @@ __entry_kernel_external_interrupt_reentry:
 	andi.p		gr5,#~PSR_ET,gr5
 
 	# set CCCR.CC3 to Undefined to abort atomic-modify completion inside the kernel
-	# - for an explanation of how it works, see: Documentation/fujitsu/frv/atomic-ops.txt
+	# - for an explanation of how it works, see: Documentation/frv/atomic-ops.txt
 	andi		gr25,#~0xc0,gr25
 
 	sti		gr20,@(gr28,#REG_TBR)
@@ -445,7 +445,7 @@ __entry_kernel_softprog_interrupt_reentry:
 	sti		gr22,@(sp,#REG_SP)
 
 	# set CCCR.CC3 to Undefined to abort atomic-modify completion inside the kernel
-	# - for an explanation of how it works, see: Documentation/fujitsu/frv/atomic-ops.txt
+	# - for an explanation of how it works, see: Documentation/frv/atomic-ops.txt
 	movsg		cccr,gr20
 	andi		gr20,#~0xc0,gr20
 	movgs		gr20,cccr

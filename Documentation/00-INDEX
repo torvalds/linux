@@ -154,7 +154,7 @@ firmware_class/
 	- request_firmware() hotplug interface info.
 floppy.txt
 	- notes and driver options for the floppy disk driver.
-fujitsu/
+frv/
 	- Fujitsu FR-V Linux documentation.
 gpio.txt
 	- overview of GPIO (General Purpose Input/Output) access conventions.
