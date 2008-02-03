@@ -1561,14 +1561,17 @@ and is between 256 and 4096 characters. It is defined in the file
 	ramdisk_size=	[RAM] Sizes of RAM disks in kilobytes
 			See Documentation/ramdisk.txt.
 
-	rcu.blimit=	[KNL,BOOT] Set maximum number of finished
-			RCU callbacks to process in one batch.
+	rcupdate.blimit=	[KNL,BOOT]
+			Set maximum number of finished RCU callbacks to process
+			in one batch.
 
-	rcu.qhimark=	[KNL,BOOT] Set threshold of queued
+	rcupdate.qhimark=	[KNL,BOOT]
+			Set threshold of queued
 			RCU callbacks over which batch limiting is disabled.
 
-	rcu.qlowmark=	[KNL,BOOT] Set threshold of queued
-			RCU callbacks below which batch limiting is re-enabled.
+	rcupdate.qlowmark=	[KNL,BOOT]
+			Set threshold of queued RCU callbacks below which
+			batch limiting is re-enabled.
 
 	rdinit=		[KNL]
 			Format: <full_path>
