@@ -452,106 +452,115 @@ struct rx_free_desc {
 	/* __attribute__ ((packed)) is required */
 } __attribute__ ((packed));
 
-/* tsopu defines */
-#define TSO_PARAM_BUFLEN_MASK		0x3FFF
-#define TSO_PARAM_BUFLEN_SHIFT		0
-#define TSO_PARAM_DMAINT_MASK		0x0001
-#define TSO_PARAM_DMAINT_SHIFT		14
-#define TSO_PARAM_PKTNT_MASK		0x0001
-#define TSO_PARAM_PKTINT_SHIFT		15
-#define TSO_PARAM_VLANTAG_MASK		0xFFFF
-#define TSO_PARAM_VLAN_SHIFT		16
+/*
+ * The L1 transmit packet descriptor is comprised of four 32-bit words.
+ *
+ *	31					0
+ *	+---------------------------------------+
+ *      |	Word 0: Buffer addr lo 		|
+ *      +---------------------------------------+
+ *      |	Word 1: Buffer addr hi		|
+ *      +---------------------------------------+
+ *      |		Word 2			|
+ *      +---------------------------------------+
+ *      |		Word 3			|
+ *      +---------------------------------------+
+ *
+ * Words 0 and 1 combine to form a 64-bit buffer address.
+ *
+ * Word 2 is self explanatory in the #define block below.
+ *
+ * Word 3 has two forms, depending upon the state of bits 3 and 4.
+ * If bits 3 and 4 are both zero, then bits 14:31 are unused by the
+ * hardware.  Otherwise, if either bit 3 or 4 is set, the definition
+ * of bits 14:31 vary according to the following depiction.
+ *
+ *	0	End of packet			0	End of packet
+ *	1	Coalesce			1	Coalesce
+ *	2	Insert VLAN tag			2	Insert VLAN tag
+ *	3	Custom csum enable = 0		3	Custom csum enable = 1
+ *	4	Segment enable = 1		4	Segment enable = 0
+ *	5	Generate IP checksum		5	Generate IP checksum
+ *	6	Generate TCP checksum		6	Generate TCP checksum
+ *	7	Generate UDP checksum		7	Generate UDP checksum
+ *	8	VLAN tagged			8	VLAN tagged
+ *	9	Ethernet frame type		9	Ethernet frame type
+ *	10-+ 					10-+
+ *	11 |	IP hdr length (10:13)		11 |	IP hdr length (10:13)
+ *	12 |	(num 32-bit words)		12 |	(num 32-bit words)
+ *	13-+					13-+
+ *	14-+					14	Unused
+ *	15 |	TCP hdr length (14:17)		15	Unused
+ *	16 |	(num 32-bit words)		16-+
+ *	17-+					17 |
+ *	18	Header TPD flag			18 |
+ *	19-+					19 |	Payload offset
+ *	20 |					20 |	    (16:23)
+ *	21 |					21 |
+ *	22 |					22 |
+ *	23 |					23-+
+ *	24 |					24-+
+ *	25 |	MSS (19:31)			25 |
+ *	26 |					26 |
+ *	27 |					27 |	Custom csum offset
+ *	28 |					28 |	     (24:31)
+ *	29 |					29 |
+ *	30 |					30 |
+ *	31-+					31-+
+ */
 
-/* tsopl defines */
-#define TSO_PARAM_EOP_MASK		0x0001
-#define TSO_PARAM_EOP_SHIFT		0
-#define TSO_PARAM_COALESCE_MASK		0x0001
-#define TSO_PARAM_COALESCE_SHIFT	1
-#define TSO_PARAM_INSVLAG_MASK		0x0001
-#define TSO_PARAM_INSVLAG_SHIFT		2
-#define TSO_PARAM_CUSTOMCKSUM_MASK	0x0001
-#define TSO_PARAM_CUSTOMCKSUM_SHIFT	3
-#define TSO_PARAM_SEGMENT_MASK		0x0001
-#define TSO_PARAM_SEGMENT_SHIFT		4
-#define TSO_PARAM_IPCKSUM_MASK		0x0001
-#define TSO_PARAM_IPCKSUM_SHIFT		5
-#define TSO_PARAM_TCPCKSUM_MASK		0x0001
-#define TSO_PARAM_TCPCKSUM_SHIFT	6
-#define TSO_PARAM_UDPCKSUM_MASK		0x0001
-#define TSO_PARAM_UDPCKSUM_SHIFT	7
-#define TSO_PARAM_VLANTAGGED_MASK	0x0001
-#define TSO_PARAM_VLANTAGGED_SHIFT	8
-#define TSO_PARAM_ETHTYPE_MASK		0x0001
-#define TSO_PARAM_ETHTYPE_SHIFT		9
-#define TSO_PARAM_IPHL_MASK		0x000F
-#define TSO_PARAM_IPHL_SHIFT		10
-#define TSO_PARAM_TCPHDRLEN_MASK	0x000F
-#define TSO_PARAM_TCPHDRLEN_SHIFT	14
-#define TSO_PARAM_HDRFLAG_MASK		0x0001
-#define TSO_PARAM_HDRFLAG_SHIFT		18
-#define TSO_PARAM_MSS_MASK		0x1FFF
-#define TSO_PARAM_MSS_SHIFT		19
+/* tpd word 2 */
+#define TPD_BUFLEN_MASK		0x3FFF
+#define TPD_BUFLEN_SHIFT	0
+#define TPD_DMAINT_MASK		0x0001
+#define TPD_DMAINT_SHIFT	14
+#define TPD_PKTNT_MASK		0x0001
+#define TPD_PKTINT_SHIFT	15
+#define TPD_VLANTAG_MASK	0xFFFF
+#define TPD_VLAN_SHIFT		16
 
-/* csumpu defines */
-#define CSUM_PARAM_BUFLEN_MASK		0x3FFF
-#define CSUM_PARAM_BUFLEN_SHIFT		0
-#define CSUM_PARAM_DMAINT_MASK		0x0001
-#define CSUM_PARAM_DMAINT_SHIFT		14
-#define CSUM_PARAM_PKTINT_MASK		0x0001
-#define CSUM_PARAM_PKTINT_SHIFT		15
-#define CSUM_PARAM_VALANTAG_MASK	0xFFFF
-#define CSUM_PARAM_VALAN_SHIFT		16
+/* tpd word 3 bits 0:13 */
+#define TPD_EOP_MASK		0x0001
+#define TPD_EOP_SHIFT		0
+#define TPD_COALESCE_MASK	0x0001
+#define TPD_COALESCE_SHIFT	1
+#define TPD_INS_VL_TAG_MASK	0x0001
+#define TPD_INS_VL_TAG_SHIFT	2
+#define TPD_CUST_CSUM_EN_MASK	0x0001
+#define TPD_CUST_CSUM_EN_SHIFT	3
+#define TPD_SEGMENT_EN_MASK	0x0001
+#define TPD_SEGMENT_EN_SHIFT	4
+#define TPD_IP_CSUM_MASK	0x0001
+#define TPD_IP_CSUM_SHIFT	5
+#define TPD_TCP_CSUM_MASK	0x0001
+#define TPD_TCP_CSUM_SHIFT	6
+#define TPD_UDP_CSUM_MASK	0x0001
+#define TPD_UDP_CSUM_SHIFT	7
+#define TPD_VL_TAGGED_MASK	0x0001
+#define TPD_VL_TAGGED_SHIFT	8
+#define TPD_ETHTYPE_MASK	0x0001
+#define TPD_ETHTYPE_SHIFT	9
+#define TPD_IPHL_MASK		0x000F
+#define TPD_IPHL_SHIFT		10
 
-/* csumpl defines*/
-#define CSUM_PARAM_EOP_MASK		0x0001
-#define CSUM_PARAM_EOP_SHIFT		0
-#define CSUM_PARAM_COALESCE_MASK	0x0001
-#define CSUM_PARAM_COALESCE_SHIFT	1
-#define CSUM_PARAM_INSVLAG_MASK		0x0001
-#define CSUM_PARAM_INSVLAG_SHIFT	2
-#define CSUM_PARAM_CUSTOMCKSUM_MASK	0x0001
-#define CSUM_PARAM_CUSTOMCKSUM_SHIFT	3
-#define CSUM_PARAM_SEGMENT_MASK		0x0001
-#define CSUM_PARAM_SEGMENT_SHIFT	4
-#define CSUM_PARAM_IPCKSUM_MASK		0x0001
-#define CSUM_PARAM_IPCKSUM_SHIFT	5
-#define CSUM_PARAM_TCPCKSUM_MASK	0x0001
-#define CSUM_PARAM_TCPCKSUM_SHIFT	6
-#define CSUM_PARAM_UDPCKSUM_MASK	0x0001
-#define CSUM_PARAM_UDPCKSUM_SHIFT	7
-#define CSUM_PARAM_VLANTAGGED_MASK	0x0001
-#define CSUM_PARAM_VLANTAGGED_SHIFT	8
-#define CSUM_PARAM_ETHTYPE_MASK		0x0001
-#define CSUM_PARAM_ETHTYPE_SHIFT	9
-#define CSUM_PARAM_IPHL_MASK		0x000F
-#define CSUM_PARAM_IPHL_SHIFT		10
-#define CSUM_PARAM_PLOADOFFSET_MASK	0x00FF
-#define CSUM_PARAM_PLOADOFFSET_SHIFT	16
-#define CSUM_PARAM_XSUMOFFSET_MASK	0x00FF
-#define CSUM_PARAM_XSUMOFFSET_SHIFT	24
+/* tpd word 3 bits 14:31 if segment enabled */
+#define TPD_TCPHDRLEN_MASK	0x000F
+#define TPD_TCPHDRLEN_SHIFT	14
+#define TPD_HDRFLAG_MASK	0x0001
+#define TPD_HDRFLAG_SHIFT	18
+#define TPD_MSS_MASK		0x1FFF
+#define TPD_MSS_SHIFT		19
 
-/* TPD descriptor */
-struct tso_param {
-	/* The order of these declarations is important -- don't change it */
-	u32 tsopu;	/* tso_param upper word */
-	u32 tsopl;	/* tso_param lower word */
-};
-
-struct csum_param {
-	/* The order of these declarations is important -- don't change it */
-	u32 csumpu;	/* csum_param upper word */
-	u32 csumpl;	/* csum_param lower word */
-};
-
-union tpd_descr {
-	u64 data;
-	struct csum_param csum;
-	struct tso_param tso;
-};
+/* tpd word 3 bits 16:31 if custom csum enabled */
+#define TPD_PLOADOFFSET_MASK	0x00FF
+#define TPD_PLOADOFFSET_SHIFT	16
+#define TPD_CCSUMOFFSET_MASK	0x00FF
+#define TPD_CCSUMOFFSET_SHIFT	24
 
 struct tx_packet_desc {
 	__le64 buffer_addr;
-	union tpd_descr desc;
+	__le32 word2;
+	__le32 word3;
 };
 
 /* DMA Order Settings */

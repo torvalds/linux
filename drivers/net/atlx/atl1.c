@@ -1259,8 +1259,6 @@ static void atl1_intr_tx(struct atl1_adapter *adapter)
 			dev_kfree_skb_irq(buffer_info->skb);
 			buffer_info->skb = NULL;
 		}
-		tpd->buffer_addr = 0;
-		tpd->desc.data = 0;
 
 		if (++sw_tpd_next_to_clean == tpd_ring->count)
 			sw_tpd_next_to_clean = 0;
@@ -1282,48 +1280,69 @@ static u16 atl1_tpd_avail(struct atl1_tpd_ring *tpd_ring)
 }
 
 static int atl1_tso(struct atl1_adapter *adapter, struct sk_buff *skb,
-			 struct tso_param *tso)
+	struct tx_packet_desc *ptpd)
 {
-	/* We enter this function holding a spinlock. */
-	u8 ipofst;
+	/* spinlock held */
+	u8 hdr_len, ip_off;
+	u32 real_len;
 	int err;
 
 	if (skb_shinfo(skb)->gso_size) {
 		if (skb_header_cloned(skb)) {
 			err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
 			if (unlikely(err))
-				return err;
+				return -1;
 		}
 
 		if (skb->protocol == ntohs(ETH_P_IP)) {
 			struct iphdr *iph = ip_hdr(skb);
 
-			iph->tot_len = 0;
+			real_len = (((unsigned char *)iph - skb->data) +
+				ntohs(iph->tot_len));
+			if (real_len < skb->len)
+				pskb_trim(skb, real_len);
+			hdr_len = (skb_transport_offset(skb) + tcp_hdrlen(skb));
+			if (skb->len == hdr_len) {
+				iph->check = 0;
+				tcp_hdr(skb)->check =
+					~csum_tcpudp_magic(iph->saddr,
+					iph->daddr, tcp_hdrlen(skb),
+					IPPROTO_TCP, 0);
+				ptpd->word3 |= (iph->ihl & TPD_IPHL_MASK) <<
+					TPD_IPHL_SHIFT;
+				ptpd->word3 |= ((tcp_hdrlen(skb) >> 2) &
+					TPD_TCPHDRLEN_MASK) <<
+					TPD_TCPHDRLEN_SHIFT;
+				ptpd->word3 |= 1 << TPD_IP_CSUM_SHIFT;
+				ptpd->word3 |= 1 << TPD_TCP_CSUM_SHIFT;
+				return 1;
+			}
+
 			iph->check = 0;
 			tcp_hdr(skb)->check = ~csum_tcpudp_magic(iph->saddr,
-				iph->daddr, 0, IPPROTO_TCP, 0);
-			ipofst = skb_network_offset(skb);
-			if (ipofst != ETH_HLEN) /* 802.3 frame */
-				tso->tsopl |= 1 << TSO_PARAM_ETHTYPE_SHIFT;
+					iph->daddr, 0, IPPROTO_TCP, 0);
+			ip_off = (unsigned char *)iph -
+				(unsigned char *) skb_network_header(skb);
+			if (ip_off == 8) /* 802.3-SNAP frame */
+				ptpd->word3 |= 1 << TPD_ETHTYPE_SHIFT;
+			else if (ip_off != 0)
+				return -2;
 
-			tso->tsopl |= (iph->ihl &
-				TSO_PARAM_IPHL_MASK) << TSO_PARAM_IPHL_SHIFT;
-			tso->tsopl |= ((tcp_hdrlen(skb) >> 2) &
-				TSO_PARAM_TCPHDRLEN_MASK) <<
-				TSO_PARAM_TCPHDRLEN_SHIFT;
-			tso->tsopl |= (skb_shinfo(skb)->gso_size &
-				TSO_PARAM_MSS_MASK) << TSO_PARAM_MSS_SHIFT;
-			tso->tsopl |= 1 << TSO_PARAM_IPCKSUM_SHIFT;
-			tso->tsopl |= 1 << TSO_PARAM_TCPCKSUM_SHIFT;
-			tso->tsopl |= 1 << TSO_PARAM_SEGMENT_SHIFT;
-			return true;
+			ptpd->word3 |= (iph->ihl & TPD_IPHL_MASK) <<
+				TPD_IPHL_SHIFT;
+			ptpd->word3 |= ((tcp_hdrlen(skb) >> 2) &
+				TPD_TCPHDRLEN_MASK) << TPD_TCPHDRLEN_SHIFT;
+			ptpd->word3 |= (skb_shinfo(skb)->gso_size &
+				TPD_MSS_MASK) << TPD_MSS_SHIFT;
+			ptpd->word3 |= 1 << TPD_SEGMENT_EN_SHIFT;
+			return 3;
 		}
 	}
 	return false;
 }
 
 static int atl1_tx_csum(struct atl1_adapter *adapter, struct sk_buff *skb,
-	struct csum_param *csum)
+	struct tx_packet_desc *ptpd)
 {
 	u8 css, cso;
 
@@ -1335,115 +1354,116 @@ static int atl1_tx_csum(struct atl1_adapter *adapter, struct sk_buff *skb,
 				"payload offset not an even number\n");
 			return -1;
 		}
-		csum->csumpl |= (cso & CSUM_PARAM_PLOADOFFSET_MASK) <<
-			CSUM_PARAM_PLOADOFFSET_SHIFT;
-		csum->csumpl |= (css & CSUM_PARAM_XSUMOFFSET_MASK) <<
-			CSUM_PARAM_XSUMOFFSET_SHIFT;
-		csum->csumpl |= 1 << CSUM_PARAM_CUSTOMCKSUM_SHIFT;
+		ptpd->word3 |= (cso & TPD_PLOADOFFSET_MASK) <<
+			TPD_PLOADOFFSET_SHIFT;
+		ptpd->word3 |= (css & TPD_CCSUMOFFSET_MASK) <<
+			TPD_CCSUMOFFSET_SHIFT;
+		ptpd->word3 |= 1 << TPD_CUST_CSUM_EN_SHIFT;
 		return true;
 	}
-
-	return true;
+	return 0;
 }
 
 static void atl1_tx_map(struct atl1_adapter *adapter, struct sk_buff *skb,
-	bool tcp_seg)
+	struct tx_packet_desc *ptpd)
 {
-	/* We enter this function holding a spinlock. */
+	/* spinlock held */
 	struct atl1_tpd_ring *tpd_ring = &adapter->tpd_ring;
 	struct atl1_buffer *buffer_info;
+	u16 buf_len = skb->len;
 	struct page *page;
-	int first_buf_len = skb->len;
 	unsigned long offset;
 	unsigned int nr_frags;
 	unsigned int f;
-	u16 tpd_next_to_use;
-	u16 proto_hdr_len;
-	u16 len12;
+	int retval;
+	u16 next_to_use;
+	u16 data_len;
+	u8 hdr_len;
 
-	first_buf_len -= skb->data_len;
+	buf_len -= skb->data_len;
 	nr_frags = skb_shinfo(skb)->nr_frags;
-	tpd_next_to_use = atomic_read(&tpd_ring->next_to_use);
-	buffer_info = &tpd_ring->buffer_info[tpd_next_to_use];
+	next_to_use = atomic_read(&tpd_ring->next_to_use);
+	buffer_info = &tpd_ring->buffer_info[next_to_use];
 	if (unlikely(buffer_info->skb))
 		BUG();
 	/* put skb in last TPD */
 	buffer_info->skb = NULL;
 
-	if (tcp_seg) {
-		/* TSO/GSO */
-		proto_hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
-		buffer_info->length = proto_hdr_len;
+	retval = (ptpd->word3 >> TPD_SEGMENT_EN_SHIFT) & TPD_SEGMENT_EN_MASK;
+	if (retval) {
+		/* TSO */
+		hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
+		buffer_info->length = hdr_len;
 		page = virt_to_page(skb->data);
 		offset = (unsigned long)skb->data & ~PAGE_MASK;
 		buffer_info->dma = pci_map_page(adapter->pdev, page,
-						offset, proto_hdr_len,
+						offset, hdr_len,
 						PCI_DMA_TODEVICE);
 
-		if (++tpd_next_to_use == tpd_ring->count)
-			tpd_next_to_use = 0;
+		if (++next_to_use == tpd_ring->count)
+			next_to_use = 0;
 
-		if (first_buf_len > proto_hdr_len) {
-			int i, m;
+		if (buf_len > hdr_len) {
+			int i, nseg;
 
-			len12 = first_buf_len - proto_hdr_len;
-			m = (len12 + ATL1_MAX_TX_BUF_LEN - 1) /
+			data_len = buf_len - hdr_len;
+			nseg = (data_len + ATL1_MAX_TX_BUF_LEN - 1) /
 				ATL1_MAX_TX_BUF_LEN;
-			for (i = 0; i < m; i++) {
+			for (i = 0; i < nseg; i++) {
 				buffer_info =
-				    &tpd_ring->buffer_info[tpd_next_to_use];
+				    &tpd_ring->buffer_info[next_to_use];
 				buffer_info->skb = NULL;
 				buffer_info->length =
 				    (ATL1_MAX_TX_BUF_LEN >=
-				     len12) ? ATL1_MAX_TX_BUF_LEN : len12;
-				len12 -= buffer_info->length;
+				     data_len) ? ATL1_MAX_TX_BUF_LEN : data_len;
+				data_len -= buffer_info->length;
 				page = virt_to_page(skb->data +
-					(proto_hdr_len +
-					i * ATL1_MAX_TX_BUF_LEN));
+					(hdr_len + i * ATL1_MAX_TX_BUF_LEN));
 				offset = (unsigned long)(skb->data +
-					(proto_hdr_len +
-					i * ATL1_MAX_TX_BUF_LEN)) & ~PAGE_MASK;
+					(hdr_len + i * ATL1_MAX_TX_BUF_LEN)) &
+					~PAGE_MASK;
 				buffer_info->dma = pci_map_page(adapter->pdev,
 					page, offset, buffer_info->length,
 					PCI_DMA_TODEVICE);
-				if (++tpd_next_to_use == tpd_ring->count)
-					tpd_next_to_use = 0;
+				if (++next_to_use == tpd_ring->count)
+					next_to_use = 0;
 			}
 		}
 	} else {
-		/* not TSO/GSO */
-		buffer_info->length = first_buf_len;
+		/* not TSO */
+		buffer_info->length = buf_len;
 		page = virt_to_page(skb->data);
 		offset = (unsigned long)skb->data & ~PAGE_MASK;
 		buffer_info->dma = pci_map_page(adapter->pdev, page,
-			offset, first_buf_len, PCI_DMA_TODEVICE);
-		if (++tpd_next_to_use == tpd_ring->count)
-			tpd_next_to_use = 0;
+			offset, buf_len, PCI_DMA_TODEVICE);
+		if (++next_to_use == tpd_ring->count)
+			next_to_use = 0;
 	}
 
 	for (f = 0; f < nr_frags; f++) {
 		struct skb_frag_struct *frag;
-		u16 lenf, i, m;
+		u16 i, nseg;
 
 		frag = &skb_shinfo(skb)->frags[f];
-		lenf = frag->size;
+		buf_len = frag->size;
 
-		m = (lenf + ATL1_MAX_TX_BUF_LEN - 1) / ATL1_MAX_TX_BUF_LEN;
-		for (i = 0; i < m; i++) {
-			buffer_info = &tpd_ring->buffer_info[tpd_next_to_use];
+		nseg = (buf_len + ATL1_MAX_TX_BUF_LEN - 1) /
+			ATL1_MAX_TX_BUF_LEN;
+		for (i = 0; i < nseg; i++) {
+			buffer_info = &tpd_ring->buffer_info[next_to_use];
 			if (unlikely(buffer_info->skb))
 				BUG();
 			buffer_info->skb = NULL;
-			buffer_info->length = (lenf > ATL1_MAX_TX_BUF_LEN) ?
-				ATL1_MAX_TX_BUF_LEN : lenf;
-			lenf -= buffer_info->length;
+			buffer_info->length = (buf_len > ATL1_MAX_TX_BUF_LEN) ?
+				ATL1_MAX_TX_BUF_LEN : buf_len;
+			buf_len -= buffer_info->length;
 			buffer_info->dma = pci_map_page(adapter->pdev,
 				frag->page,
 				frag->page_offset + (i * ATL1_MAX_TX_BUF_LEN),
 				buffer_info->length, PCI_DMA_TODEVICE);
 
-			if (++tpd_next_to_use == tpd_ring->count)
-				tpd_next_to_use = 0;
+			if (++next_to_use == tpd_ring->count)
+				next_to_use = 0;
 		}
 	}
 
@@ -1451,39 +1471,44 @@ static void atl1_tx_map(struct atl1_adapter *adapter, struct sk_buff *skb,
 	buffer_info->skb = skb;
 }
 
-static void atl1_tx_queue(struct atl1_adapter *adapter, int count,
-       union tpd_descr *descr)
+static void atl1_tx_queue(struct atl1_adapter *adapter, u16 count,
+       struct tx_packet_desc *ptpd)
 {
-	/* We enter this function holding a spinlock. */
+	/* spinlock held */
 	struct atl1_tpd_ring *tpd_ring = &adapter->tpd_ring;
-	int j;
-	u32 val;
 	struct atl1_buffer *buffer_info;
 	struct tx_packet_desc *tpd;
-	u16 tpd_next_to_use = atomic_read(&tpd_ring->next_to_use);
+	u16 j;
+	u32 val;
+	u16 next_to_use = (u16) atomic_read(&tpd_ring->next_to_use);
 
 	for (j = 0; j < count; j++) {
-		buffer_info = &tpd_ring->buffer_info[tpd_next_to_use];
-		tpd = ATL1_TPD_DESC(&adapter->tpd_ring, tpd_next_to_use);
-		tpd->desc.csum.csumpu = descr->csum.csumpu;
-		tpd->desc.csum.csumpl = descr->csum.csumpl;
-		tpd->desc.tso.tsopu = descr->tso.tsopu;
-		tpd->desc.tso.tsopl = descr->tso.tsopl;
+		buffer_info = &tpd_ring->buffer_info[next_to_use];
+		tpd = ATL1_TPD_DESC(&adapter->tpd_ring, next_to_use);
+		if (tpd != ptpd)
+			memcpy(tpd, ptpd, sizeof(struct tx_packet_desc));
 		tpd->buffer_addr = cpu_to_le64(buffer_info->dma);
-		tpd->desc.data = descr->data;
-		tpd->desc.tso.tsopu |= (cpu_to_le16(buffer_info->length) &
-			TSO_PARAM_BUFLEN_MASK) << TSO_PARAM_BUFLEN_SHIFT;
+		tpd->word2 = (cpu_to_le16(buffer_info->length) &
+			TPD_BUFLEN_MASK) << TPD_BUFLEN_SHIFT;
 
-		val = (descr->tso.tsopl >> TSO_PARAM_SEGMENT_SHIFT) &
-			TSO_PARAM_SEGMENT_MASK;
-		if (val && !j)
-			tpd->desc.tso.tsopl |= 1 << TSO_PARAM_HDRFLAG_SHIFT;
+		/*
+		 * if this is the first packet in a TSO chain, set
+		 * TPD_HDRFLAG, otherwise, clear it.
+		 */
+		val = (tpd->word3 >> TPD_SEGMENT_EN_SHIFT) &
+			TPD_SEGMENT_EN_MASK;
+		if (val) {
+			if (!j)
+				tpd->word3 |= 1 << TPD_HDRFLAG_SHIFT;
+			else
+				tpd->word3 &= ~(1 << TPD_HDRFLAG_SHIFT);
+		}
 
 		if (j == (count - 1))
-			tpd->desc.tso.tsopl |= 1 << TSO_PARAM_EOP_SHIFT;
+			tpd->word3 |= 1 << TPD_EOP_SHIFT;
 
-		if (++tpd_next_to_use == tpd_ring->count)
-			tpd_next_to_use = 0;
+		if (++next_to_use == tpd_ring->count)
+			next_to_use = 0;
 	}
 	/*
 	 * Force memory writes to complete before letting h/w
@@ -1493,18 +1518,18 @@ static void atl1_tx_queue(struct atl1_adapter *adapter, int count,
 	 */
 	wmb();
 
-	atomic_set(&tpd_ring->next_to_use, (int)tpd_next_to_use);
+	atomic_set(&tpd_ring->next_to_use, next_to_use);
 }
 
 static int atl1_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct atl1_adapter *adapter = netdev_priv(netdev);
+	struct atl1_tpd_ring *tpd_ring = &adapter->tpd_ring;
 	int len = skb->len;
 	int tso;
 	int count = 1;
 	int ret_val;
-	u32 val;
-	union tpd_descr param;
+	struct tx_packet_desc *ptpd;
 	u16 frag_size;
 	u16 vlan_tag;
 	unsigned long flags;
@@ -1515,18 +1540,11 @@ static int atl1_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	len -= skb->data_len;
 
-	if (unlikely(skb->len == 0)) {
+	if (unlikely(skb->len <= 0)) {
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 
-	param.data = 0;
-	param.tso.tsopu = 0;
-	param.tso.tsopl = 0;
-	param.csum.csumpu = 0;
-	param.csum.csumpl = 0;
-
-	/* nr_frags will be nonzero if we're doing scatter/gather (SG) */
 	nr_frags = skb_shinfo(skb)->nr_frags;
 	for (f = 0; f < nr_frags; f++) {
 		frag_size = skb_shinfo(skb)->frags[f].size;
@@ -1535,10 +1553,9 @@ static int atl1_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 				ATL1_MAX_TX_BUF_LEN;
 	}
 
-	/* mss will be nonzero if we're doing segment offload (TSO/GSO) */
 	mss = skb_shinfo(skb)->gso_size;
 	if (mss) {
-		if (skb->protocol == htons(ETH_P_IP)) {
+		if (skb->protocol == ntohs(ETH_P_IP)) {
 			proto_hdr_len = (skb_transport_offset(skb) +
 					 tcp_hdrlen(skb));
 			if (unlikely(proto_hdr_len > len)) {
@@ -1567,18 +1584,20 @@ static int atl1_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		return NETDEV_TX_BUSY;
 	}
 
-	param.data = 0;
+	ptpd = ATL1_TPD_DESC(tpd_ring,
+		(u16) atomic_read(&tpd_ring->next_to_use));
+	memset(ptpd, 0, sizeof(struct tx_packet_desc));
 
 	if (adapter->vlgrp && vlan_tx_tag_present(skb)) {
 		vlan_tag = vlan_tx_tag_get(skb);
 		vlan_tag = (vlan_tag << 4) | (vlan_tag >> 13) |
 			((vlan_tag >> 9) & 0x8);
-		param.tso.tsopl |= 1 << TSO_PARAM_INSVLAG_SHIFT;
-		param.tso.tsopu |= (vlan_tag & TSO_PARAM_VLANTAG_MASK) <<
-			TSO_PARAM_VLAN_SHIFT;
+		ptpd->word3 |= 1 << TPD_INS_VL_TAG_SHIFT;
+		ptpd->word3 |= (vlan_tag & TPD_VL_TAGGED_MASK) <<
+			TPD_VL_TAGGED_SHIFT;
 	}
 
-	tso = atl1_tso(adapter, skb, &param.tso);
+	tso = atl1_tso(adapter, skb, ptpd);
 	if (tso < 0) {
 		spin_unlock_irqrestore(&adapter->lock, flags);
 		dev_kfree_skb_any(skb);
@@ -1586,7 +1605,7 @@ static int atl1_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	}
 
 	if (!tso) {
-		ret_val = atl1_tx_csum(adapter, skb, &param.csum);
+		ret_val = atl1_tx_csum(adapter, skb, ptpd);
 		if (ret_val < 0) {
 			spin_unlock_irqrestore(&adapter->lock, flags);
 			dev_kfree_skb_any(skb);
@@ -1594,13 +1613,11 @@ static int atl1_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		}
 	}
 
-	val = (param.tso.tsopl >> TSO_PARAM_SEGMENT_SHIFT) &
-		TSO_PARAM_SEGMENT_MASK;
-	atl1_tx_map(adapter, skb, 1 == val);
-	atl1_tx_queue(adapter, count, &param);
-	netdev->trans_start = jiffies;
-	spin_unlock_irqrestore(&adapter->lock, flags);
+	atl1_tx_map(adapter, skb, ptpd);
+	atl1_tx_queue(adapter, count, ptpd);
 	atl1_update_mailbox(adapter);
+	spin_unlock_irqrestore(&adapter->lock, flags);
+	netdev->trans_start = jiffies;
 	return NETDEV_TX_OK;
 }
 
@@ -2759,7 +2776,7 @@ const struct ethtool_ops atl1_ethtool_ops = {
 	.get_ringparam		= atl1_get_ringparam,
 	.set_ringparam		= atl1_set_ringparam,
 	.get_pauseparam		= atl1_get_pauseparam,
-	.set_pauseparam 	= atl1_set_pauseparam,
+	.set_pauseparam		= atl1_set_pauseparam,
 	.get_rx_csum		= atl1_get_rx_csum,
 	.set_tx_csum		= ethtool_op_set_tx_hw_csum,
 	.get_link		= ethtool_op_get_link,
