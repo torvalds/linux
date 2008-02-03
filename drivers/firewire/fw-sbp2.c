@@ -741,6 +741,12 @@ static void sbp2_login(struct work_struct *work)
 	PREPARE_DELAYED_WORK(&lu->work, sbp2_reconnect);
 	sbp2_agent_reset(lu);
 
+	/* This was a re-login. */
+	if (lu->sdev) {
+		sbp2_cancel_orbs(lu);
+		goto out;
+	}
+
 	if (lu->tgt->workarounds & SBP2_WORKAROUND_DELAY_INQUIRY)
 		ssleep(SBP2_INQUIRY_DELAY);
 
