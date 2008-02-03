@@ -496,6 +496,7 @@ extern int sk_wait_data(struct sock *sk, long *timeo);
 
 struct request_sock_ops;
 struct timewait_sock_ops;
+struct inet_hashinfo;
 
 /* Networking protocol blocks we attach to sockets.
  * socket layer -> transport layer interface
@@ -577,6 +578,8 @@ struct proto {
 
 	struct request_sock_ops	*rsk_prot;
 	struct timewait_sock_ops *twsk_prot;
+
+	struct inet_hashinfo	*hashinfo;
 
 	struct module		*owner;
 

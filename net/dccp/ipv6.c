@@ -39,21 +39,15 @@ static struct socket *dccp_v6_ctl_socket;
 static struct inet_connection_sock_af_ops dccp_ipv6_mapped;
 static struct inet_connection_sock_af_ops dccp_ipv6_af_ops;
 
-static int dccp_v6_get_port(struct sock *sk, unsigned short snum)
-{
-	return inet_csk_get_port(&dccp_hashinfo, sk, snum,
-				 inet6_csk_bind_conflict);
-}
-
 static void dccp_v6_hash(struct sock *sk)
 {
 	if (sk->sk_state != DCCP_CLOSED) {
 		if (inet_csk(sk)->icsk_af_ops == &dccp_ipv6_mapped) {
-			dccp_hash(sk);
+			inet_hash(sk);
 			return;
 		}
 		local_bh_disable();
-		__inet6_hash(&dccp_hashinfo, sk);
+		__inet6_hash(sk);
 		local_bh_enable();
 	}
 }
@@ -630,8 +624,8 @@ static struct sock *dccp_v6_request_recv_sock(struct sock *sk,
 
 	newinet->daddr = newinet->saddr = newinet->rcv_saddr = LOOPBACK4_IPV6;
 
-	__inet6_hash(&dccp_hashinfo, newsk);
-	inet_inherit_port(&dccp_hashinfo, sk, newsk);
+	__inet6_hash(newsk);
+	inet_inherit_port(sk, newsk);
 
 	return newsk;
 
@@ -1054,6 +1048,7 @@ static struct inet_connection_sock_af_ops dccp_ipv6_af_ops = {
 	.getsockopt	   = ipv6_getsockopt,
 	.addr2sockaddr	   = inet6_csk_addr2sockaddr,
 	.sockaddr_len	   = sizeof(struct sockaddr_in6),
+	.bind_conflict	   = inet6_csk_bind_conflict,
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_ipv6_setsockopt,
 	.compat_getsockopt = compat_ipv6_getsockopt,
@@ -1123,9 +1118,9 @@ static struct proto dccp_v6_prot = {
 	.recvmsg	   = dccp_recvmsg,
 	.backlog_rcv	   = dccp_v6_do_rcv,
 	.hash		   = dccp_v6_hash,
-	.unhash		   = dccp_unhash,
+	.unhash		   = inet_unhash,
 	.accept		   = inet_csk_accept,
-	.get_port	   = dccp_v6_get_port,
+	.get_port	   = inet_csk_get_port,
 	.shutdown	   = dccp_shutdown,
 	.destroy	   = dccp_v6_destroy_sock,
 	.orphan_count	   = &dccp_orphan_count,
@@ -1133,6 +1128,7 @@ static struct proto dccp_v6_prot = {
 	.obj_size	   = sizeof(struct dccp6_sock),
 	.rsk_prot	   = &dccp6_request_sock_ops,
 	.twsk_prot	   = &dccp6_timewait_sock_ops,
+	.hashinfo	   = &dccp_hashinfo,
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_dccp_setsockopt,
 	.compat_getsockopt = compat_dccp_getsockopt,

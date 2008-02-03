@@ -78,11 +78,9 @@ EXPORT_SYMBOL_GPL(inet_csk_bind_conflict);
 /* Obtain a reference to a local port for the given sock,
  * if snum is zero it means select any available local port.
  */
-int inet_csk_get_port(struct inet_hashinfo *hashinfo,
-		      struct sock *sk, unsigned short snum,
-		      int (*bind_conflict)(const struct sock *sk,
-					   const struct inet_bind_bucket *tb))
+int inet_csk_get_port(struct sock *sk, unsigned short snum)
 {
+	struct inet_hashinfo *hashinfo = sk->sk_prot->hashinfo;
 	struct inet_bind_hashbucket *head;
 	struct hlist_node *node;
 	struct inet_bind_bucket *tb;
@@ -142,7 +140,7 @@ tb_found:
 			goto success;
 		} else {
 			ret = 1;
-			if (bind_conflict(sk, tb))
+			if (inet_csk(sk)->icsk_af_ops->bind_conflict(sk, tb))
 				goto fail_unlock;
 		}
 	}

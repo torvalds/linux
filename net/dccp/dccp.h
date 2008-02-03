@@ -271,8 +271,6 @@ extern struct sk_buff	*dccp_make_response(struct sock *sk,
 
 extern int	   dccp_connect(struct sock *sk);
 extern int	   dccp_disconnect(struct sock *sk, int flags);
-extern void	   dccp_hash(struct sock *sk);
-extern void	   dccp_unhash(struct sock *sk);
 extern int	   dccp_getsockopt(struct sock *sk, int level, int optname,
 				   char __user *optval, int __user *optlen);
 extern int	   dccp_setsockopt(struct sock *sk, int level, int optname,

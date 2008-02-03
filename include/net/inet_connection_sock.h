@@ -29,7 +29,6 @@
 #undef INET_CSK_CLEAR_TIMERS
 
 struct inet_bind_bucket;
-struct inet_hashinfo;
 struct tcp_congestion_ops;
 
 /*
@@ -59,6 +58,8 @@ struct inet_connection_sock_af_ops {
 				int level, int optname,
 				char __user *optval, int __user *optlen);
 	void	    (*addr2sockaddr)(struct sock *sk, struct sockaddr *);
+	int	    (*bind_conflict)(const struct sock *sk,
+				     const struct inet_bind_bucket *tb);
 };
 
 /** inet_connection_sock - INET connection oriented sock
@@ -244,10 +245,7 @@ extern struct request_sock *inet_csk_search_req(const struct sock *sk,
 						const __be32 laddr);
 extern int inet_csk_bind_conflict(const struct sock *sk,
 				  const struct inet_bind_bucket *tb);
-extern int inet_csk_get_port(struct inet_hashinfo *hashinfo,
-			     struct sock *sk, unsigned short snum,
-			     int (*bind_conflict)(const struct sock *sk,
-						  const struct inet_bind_bucket *tb));
+extern int inet_csk_get_port(struct sock *sk, unsigned short snum);
 
 extern struct dst_entry* inet_csk_route_req(struct sock *sk,
 					    const struct request_sock *req);
