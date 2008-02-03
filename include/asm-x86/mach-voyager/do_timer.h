@@ -6,7 +6,6 @@
 
 /**
  * do_timer_interrupt_hook - hook into timer tick
- * @regs:     standard registers from interrupt
  *
  * Call the pit clock event handler. see asm/i8253.h
  **/
