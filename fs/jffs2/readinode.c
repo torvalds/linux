@@ -741,7 +741,7 @@ static inline int read_dnode(struct jffs2_sb_info *c, struct jffs2_raw_node_ref 
 			 * are not obsolete.
 			 *
 			 * Of course, this optimization only makes sense in case
-			 * of NAND flashes (or other flashes whith
+			 * of NAND flashes (or other flashes with
 			 * !jffs2_can_mark_obsolete()), since on NOR flashes
 			 * nodes are marked obsolete physically.
 			 *
