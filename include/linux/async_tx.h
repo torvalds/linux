@@ -47,7 +47,6 @@ struct dma_chan_ref {
  * address is an implied source, whereas the asynchronous case it must be listed
  * as a source.  The destination address must be the first address in the source
  * array.
- * @ASYNC_TX_ASSUME_COHERENT: skip cache maintenance operations
  * @ASYNC_TX_ACK: immediately ack the descriptor, precludes setting up a
  * dependency chain
  * @ASYNC_TX_DEP_ACK: ack the dependency descriptor.  Useful for chaining.
@@ -55,7 +54,6 @@ struct dma_chan_ref {
 enum async_tx_flags {
 	ASYNC_TX_XOR_ZERO_DST	 = (1 << 0),
 	ASYNC_TX_XOR_DROP_DST	 = (1 << 1),
-	ASYNC_TX_ASSUME_COHERENT = (1 << 2),
 	ASYNC_TX_ACK		 = (1 << 3),
 	ASYNC_TX_DEP_ACK	 = (1 << 4),
 };

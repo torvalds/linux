@@ -35,7 +35,7 @@
  * @src: src page
  * @offset: offset in pages to start transaction
  * @len: length in bytes
- * @flags: ASYNC_TX_ASSUME_COHERENT, ASYNC_TX_ACK, ASYNC_TX_DEP_ACK,
+ * @flags: ASYNC_TX_ACK, ASYNC_TX_DEP_ACK,
  * @depend_tx: memcpy depends on the result of this transaction
  * @cb_fn: function to call when the memcpy completes
  * @cb_param: parameter to pass to the callback routine
@@ -55,20 +55,15 @@ async_memcpy(struct page *dest, struct page *src, unsigned int dest_offset,
 
 	if (tx) { /* run the memcpy asynchronously */
 		dma_addr_t addr;
-		enum dma_data_direction dir;
 
 		pr_debug("%s: (async) len: %zu\n", __FUNCTION__, len);
 
-		dir = (flags & ASYNC_TX_ASSUME_COHERENT) ?
-			DMA_NONE : DMA_FROM_DEVICE;
-
-		addr = dma_map_page(device->dev, dest, dest_offset, len, dir);
+		addr = dma_map_page(device->dev, dest, dest_offset, len,
+				    DMA_FROM_DEVICE);
 		tx->tx_set_dest(addr, tx, 0);
 
-		dir = (flags & ASYNC_TX_ASSUME_COHERENT) ?
-			DMA_NONE : DMA_TO_DEVICE;
-
-		addr = dma_map_page(device->dev, src, src_offset, len, dir);
+		addr = dma_map_page(device->dev, src, src_offset, len,
+				    DMA_TO_DEVICE);
 		tx->tx_set_src(addr, tx, 0);
 
 		async_tx_submit(chan, tx, flags, depend_tx, cb_fn, cb_param);

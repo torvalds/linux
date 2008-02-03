@@ -42,23 +42,17 @@ do_async_xor(struct dma_async_tx_descriptor *tx, struct dma_device *device,
 	dma_async_tx_callback cb_fn, void *cb_param)
 {
 	dma_addr_t dma_addr;
-	enum dma_data_direction dir;
 	int i;
 
 	pr_debug("%s: len: %zu\n", __FUNCTION__, len);
 
-	dir = (flags & ASYNC_TX_ASSUME_COHERENT) ?
-		DMA_NONE : DMA_FROM_DEVICE;
-
-	dma_addr = dma_map_page(device->dev, dest, offset, len, dir);
+	dma_addr = dma_map_page(device->dev, dest, offset, len,
+				DMA_FROM_DEVICE);
 	tx->tx_set_dest(dma_addr, tx, 0);
-
-	dir = (flags & ASYNC_TX_ASSUME_COHERENT) ?
-		DMA_NONE : DMA_TO_DEVICE;
 
 	for (i = 0; i < src_cnt; i++) {
 		dma_addr = dma_map_page(device->dev, src_list[i],
-			offset, len, dir);
+			offset, len, DMA_TO_DEVICE);
 		tx->tx_set_src(dma_addr, tx, i);
 	}
 
@@ -106,7 +100,7 @@ do_sync_xor(struct page *dest, struct page **src_list, unsigned int offset,
  * @src_cnt: number of source pages
  * @len: length in bytes
  * @flags: ASYNC_TX_XOR_ZERO_DST, ASYNC_TX_XOR_DROP_DEST,
- *	ASYNC_TX_ASSUME_COHERENT, ASYNC_TX_ACK, ASYNC_TX_DEP_ACK
+ *	ASYNC_TX_ACK, ASYNC_TX_DEP_ACK
  * @depend_tx: xor depends on the result of this transaction.
  * @cb_fn: function to call when the xor completes
  * @cb_param: parameter to pass to the callback routine
@@ -246,7 +240,7 @@ static int page_is_zero(struct page *p, unsigned int offset, size_t len)
  * @src_cnt: number of source pages
  * @len: length in bytes
  * @result: 0 if sum == 0 else non-zero
- * @flags: ASYNC_TX_ASSUME_COHERENT, ASYNC_TX_ACK, ASYNC_TX_DEP_ACK
+ * @flags: ASYNC_TX_ACK, ASYNC_TX_DEP_ACK
  * @depend_tx: xor depends on the result of this transaction.
  * @cb_fn: function to call when the xor completes
  * @cb_param: parameter to pass to the callback routine
@@ -270,16 +264,12 @@ async_xor_zero_sum(struct page *dest, struct page **src_list,
 
 	if (tx) {
 		dma_addr_t dma_addr;
-		enum dma_data_direction dir;
 
 		pr_debug("%s: (async) len: %zu\n", __FUNCTION__, len);
 
-		dir = (flags & ASYNC_TX_ASSUME_COHERENT) ?
-			DMA_NONE : DMA_TO_DEVICE;
-
 		for (i = 0; i < src_cnt; i++) {
 			dma_addr = dma_map_page(device->dev, src_list[i],
-				offset, len, dir);
+				offset, len, DMA_TO_DEVICE);
 			tx->tx_set_src(dma_addr, tx, i);
 		}
 
