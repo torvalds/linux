@@ -308,9 +308,6 @@ static int udf_get_block(struct inode *inode, sector_t block,
 
 	lock_kernel();
 
-	if (block < 0)
-		goto abort_negative;
-
 	iinfo = UDF_I(inode);
 	if (block == iinfo->i_next_alloc_block + 1) {
 		iinfo->i_next_alloc_block++;
@@ -332,10 +329,6 @@ static int udf_get_block(struct inode *inode, sector_t block,
 abort:
 	unlock_kernel();
 	return err;
-
-abort_negative:
-	udf_warning(inode->i_sb, "udf_get_block", "block < 0");
-	goto abort;
 }
 
 static struct buffer_head *udf_getblk(struct inode *inode, long block,
@@ -2050,11 +2043,6 @@ int8_t inode_bmap(struct inode *inode, sector_t block,
 	    (loff_t) block << blocksize_bits;
 	int8_t etype;
 	struct udf_inode_info *iinfo;
-
-	if (block < 0) {
-		printk(KERN_ERR "udf: inode_bmap: block < 0\n");
-		return -1;
-	}
 
 	iinfo = UDF_I(inode);
 	pos->offset = 0;
