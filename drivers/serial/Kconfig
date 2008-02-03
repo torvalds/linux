@@ -1295,8 +1295,8 @@ config SERIAL_NETX_CONSOLE
 	depends on SERIAL_NETX
 	select SERIAL_CORE_CONSOLE
 	help
-	  If you have enabled the serial port on the Motorola IMX
-	  CPU you can make it the console by answering Y to this option.
+	  If you have enabled the serial port on the Hilscher NetX SoC
+	  you can make it the console by answering Y to this option.
 
 config SERIAL_OF_PLATFORM
 	tristate "Serial port on Open Firmware platform bus"
