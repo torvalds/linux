@@ -1094,7 +1094,7 @@ qla2x00_sns_rnn_id(scsi_qla_host_t *ha)
 }
 
 /**
- * qla2x00_mgmt_svr_login() - Login to fabric Managment Service.
+ * qla2x00_mgmt_svr_login() - Login to fabric Management Service.
  * @ha: HA context
  *
  * Returns 0 on success.

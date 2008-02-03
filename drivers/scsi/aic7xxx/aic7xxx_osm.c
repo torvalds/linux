@@ -347,7 +347,7 @@ MODULE_PARM_DESC(aic7xxx,
 "	debug			Bitmask of debug values to enable\n"
 "	no_probe		Toggle EISA/VLB controller probing\n"
 "	probe_eisa_vl		Toggle EISA/VLB controller probing\n"
-"	no_reset		Supress initial bus resets\n"
+"	no_reset		Suppress initial bus resets\n"
 "	extended		Enable extended geometry on all controllers\n"
 "	periodic_otag		Send an ordered tagged transaction\n"
 "				periodically to prevent tag starvation.\n"

@@ -7053,7 +7053,7 @@ static pci_ers_result_t ipr_pci_error_detected(struct pci_dev *pdev,
  * where it can accept new commands.
 
  * Return value:
- * 	0 on sucess / -EIO on failure
+ * 	0 on success / -EIO on failure
  **/
 static int __devinit ipr_probe_ioa_part2(struct ipr_ioa_cfg *ioa_cfg)
 {

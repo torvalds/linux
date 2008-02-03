@@ -3464,12 +3464,12 @@ megaraid_mbox_setup_device_map(adapter_t *adapter)
 /*
  * START: Interface for the common management module
  *
- * This is the module, which interfaces with the common mangement module to
+ * This is the module, which interfaces with the common management module to
  * provide support for ioctl and sysfs
  */
 
 /**
- * megaraid_cmm_register - register with the mangement module
+ * megaraid_cmm_register - register with the management module
  * @adapter		: HBA soft state
  *
  * Register with the management module, which allows applications to issue
@@ -3557,7 +3557,7 @@ megaraid_cmm_register(adapter_t *adapter)
 
 
 /**
- * megaraid_cmm_unregister - un-register with the mangement module
+ * megaraid_cmm_unregister - un-register with the management module
  * @adapter		: HBA soft state
  *
  * Un-register with the management module.
@@ -3579,7 +3579,7 @@ megaraid_cmm_unregister(adapter_t *adapter)
  * @kioc		: CMM interface packet
  * @action		: command action
  *
- * This routine is invoked whenever the Common Mangement Module (CMM) has a
+ * This routine is invoked whenever the Common Management Module (CMM) has a
  * command for us. The 'action' parameter specifies if this is a new command
  * or otherwise.
  */
@@ -3944,7 +3944,7 @@ megaraid_sysfs_get_ldmap_timeout(unsigned long data)
  *
  * This routine will be called whenever user reads the logical drive
  * attributes, go get the current logical drive mapping table from the
- * firmware. We use the managment API's to issue commands to the controller.
+ * firmware. We use the management API's to issue commands to the controller.
  *
  * NOTE: The commands issuance functionality is not generalized and
  * implemented in context of "get ld map" command only. If required, the

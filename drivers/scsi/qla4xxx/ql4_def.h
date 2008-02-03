@@ -121,7 +121,7 @@
 #define MAX_REQS_SERVICED_PER_INTR	16
 
 #define ISCSI_IPADDR_SIZE		4	/* IP address size */
-#define ISCSI_ALIAS_SIZE		32	/* ISCSI Alais name size */
+#define ISCSI_ALIAS_SIZE		32	/* ISCSI Alias name size */
 #define ISCSI_NAME_SIZE			0xE0	/* ISCSI Name size */
 
 #define LSDW(x) ((u32)((u64)(x)))
