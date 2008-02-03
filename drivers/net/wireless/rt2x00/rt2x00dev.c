@@ -876,7 +876,7 @@ static int rt2x00lib_probe_hw_modes(struct rt2x00_dev *rt2x00dev,
 	 * Initialize Rate list.
 	 */
 	for (i = 0; i < spec->num_rates; i++)
-		rt2x00lib_rate(&rates[0], i, rt2x00_get_rate(i));
+		rt2x00lib_rate(&rates[i], i, rt2x00_get_rate(i));
 
 	/*
 	 * Initialize Channel list.
