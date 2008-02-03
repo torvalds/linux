@@ -211,7 +211,7 @@ static int atl1_mii_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
  *
  * Return 0 on success, negative on failure
  */
-s32 atl1_setup_ring_resources(struct atl1_adapter *adapter)
+static s32 atl1_setup_ring_resources(struct atl1_adapter *adapter)
 {
 	struct atl1_tpd_ring *tpd_ring = &adapter->tpd_ring;
 	struct atl1_rfd_ring *rfd_ring = &adapter->rfd_ring;
@@ -402,7 +402,7 @@ static void atl1_clean_tx_ring(struct atl1_adapter *adapter)
  *
  * Free all transmit software resources
  */
-void atl1_free_ring_resources(struct atl1_adapter *adapter)
+static void atl1_free_ring_resources(struct atl1_adapter *adapter)
 {
 	struct pci_dev *pdev = adapter->pdev;
 	struct atl1_tpd_ring *tpd_ring = &adapter->tpd_ring;
@@ -575,40 +575,6 @@ static u32 atl1_check_link(struct atl1_adapter *adapter)
 	if (!adapter->phy_timer_pending) {
 		adapter->phy_timer_pending = true;
 		mod_timer(&adapter->phy_config_timer, jiffies + 3 * HZ);
-	}
-
-	return 0;
-}
-
-/*
- * atl1_change_mtu - Change the Maximum Transfer Unit
- * @netdev: network interface device structure
- * @new_mtu: new value for maximum frame size
- *
- * Returns 0 on success, negative on failure
- */
-static int atl1_change_mtu(struct net_device *netdev, int new_mtu)
-{
-	struct atl1_adapter *adapter = netdev_priv(netdev);
-	int old_mtu = netdev->mtu;
-	int max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
-
-	if ((max_frame < ETH_ZLEN + ETH_FCS_LEN) ||
-	    (max_frame > MAX_JUMBO_FRAME_SIZE)) {
-		if (netif_msg_link(adapter))
-			dev_warn(&adapter->pdev->dev, "invalid MTU setting\n");
-		return -EINVAL;
-	}
-
-	adapter->hw.max_frame_size = max_frame;
-	adapter->hw.tx_jumbo_task_th = (max_frame + 7) >> 3;
-	adapter->rx_buffer_len = (max_frame + 7) & ~7;
-	adapter->hw.rx_jumbo_th = adapter->rx_buffer_len / 8;
-
-	netdev->mtu = new_mtu;
-	if ((old_mtu != new_mtu) && netif_running(netdev)) {
-		atl1_down(adapter);
-		atl1_up(adapter);
 	}
 
 	return 0;
@@ -1794,19 +1760,8 @@ static void atl1_phy_config(unsigned long data)
  * assert again and again.
  * </vendor comment>
  */
-static void atl1_tx_timeout_task(struct work_struct *work)
-{
-	struct atl1_adapter *adapter =
-		container_of(work, struct atl1_adapter, tx_timeout_task);
-	struct net_device *netdev = adapter->netdev;
 
-	netif_device_detach(netdev);
-	atl1_down(adapter);
-	atl1_up(adapter);
-	netif_device_attach(netdev);
-}
-
-int atl1_reset(struct atl1_adapter *adapter)
+static int atl1_reset(struct atl1_adapter *adapter)
 {
 	int ret;
 	ret = atl1_reset_hw(&adapter->hw);
@@ -1815,7 +1770,7 @@ int atl1_reset(struct atl1_adapter *adapter)
 	return atl1_init_hw(&adapter->hw);
 }
 
-s32 atl1_up(struct atl1_adapter *adapter)
+static s32 atl1_up(struct atl1_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	int err;
@@ -1860,7 +1815,7 @@ err_up:
 	return err;
 }
 
-void atl1_down(struct atl1_adapter *adapter)
+static void atl1_down(struct atl1_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 
@@ -1881,6 +1836,52 @@ void atl1_down(struct atl1_adapter *adapter)
 
 	atl1_clean_tx_ring(adapter);
 	atl1_clean_rx_ring(adapter);
+}
+
+static void atl1_tx_timeout_task(struct work_struct *work)
+{
+	struct atl1_adapter *adapter =
+		container_of(work, struct atl1_adapter, tx_timeout_task);
+	struct net_device *netdev = adapter->netdev;
+
+	netif_device_detach(netdev);
+	atl1_down(adapter);
+	atl1_up(adapter);
+	netif_device_attach(netdev);
+}
+
+/*
+ * atl1_change_mtu - Change the Maximum Transfer Unit
+ * @netdev: network interface device structure
+ * @new_mtu: new value for maximum frame size
+ *
+ * Returns 0 on success, negative on failure
+ */
+static int atl1_change_mtu(struct net_device *netdev, int new_mtu)
+{
+	struct atl1_adapter *adapter = netdev_priv(netdev);
+	int old_mtu = netdev->mtu;
+	int max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
+
+	if ((max_frame < ETH_ZLEN + ETH_FCS_LEN) ||
+	    (max_frame > MAX_JUMBO_FRAME_SIZE)) {
+		if (netif_msg_link(adapter))
+			dev_warn(&adapter->pdev->dev, "invalid MTU setting\n");
+		return -EINVAL;
+	}
+
+	adapter->hw.max_frame_size = max_frame;
+	adapter->hw.tx_jumbo_task_th = (max_frame + 7) >> 3;
+	adapter->rx_buffer_len = (max_frame + 7) & ~7;
+	adapter->hw.rx_jumbo_th = adapter->rx_buffer_len / 8;
+
+	netdev->mtu = new_mtu;
+	if ((old_mtu != new_mtu) && netif_running(netdev)) {
+		atl1_down(adapter);
+		atl1_up(adapter);
+	}
+
+	return 0;
 }
 
 /*

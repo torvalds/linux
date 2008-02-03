@@ -73,9 +73,6 @@ void atl1_check_options(struct atl1_adapter *adapter);
 static int atl1_mii_ioctl(struct net_device *netdev, struct ifreq *ifr,
 	int cmd);
 static u32 atl1_check_link(struct atl1_adapter *adapter);
-s32 atl1_up(struct atl1_adapter *adapter);
-void atl1_down(struct atl1_adapter *adapter);
-int atl1_reset(struct atl1_adapter *adapter);
 
 extern const struct ethtool_ops atl1_ethtool_ops;
 
