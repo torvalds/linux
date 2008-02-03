@@ -164,7 +164,7 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct rt2x00_intf *intf = vif_to_intf(conf->vif);
 	struct data_queue *queue =
-	    rt2x00queue_get_queue(rt2x00dev, IEEE80211_TX_QUEUE_BEACON);
+	    rt2x00queue_get_queue(rt2x00dev, RT2X00_BCN_QUEUE_BEACON);
 	struct queue_entry *entry = NULL;
 	unsigned int i;
 

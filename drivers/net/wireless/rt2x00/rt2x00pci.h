@@ -88,12 +88,6 @@ rt2x00pci_register_multiwrite(struct rt2x00_dev *rt2x00dev,
 }
 
 /*
- * Beacon handlers.
- */
-int rt2x00pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
-			    struct ieee80211_tx_control *control);
-
-/*
  * TX data handlers.
  */
 int rt2x00pci_write_tx_data(struct rt2x00_dev *rt2x00dev,

@@ -679,7 +679,7 @@ void rt2x00lib_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	 * Beacons and probe responses require the tsf timestamp
 	 * to be inserted into the frame.
 	 */
-	if (control->queue == IEEE80211_TX_QUEUE_BEACON ||
+	if (control->queue == RT2X00_BCN_QUEUE_BEACON ||
 	    is_probe_resp(frame_control))
 		__set_bit(ENTRY_TXD_REQ_TIMESTAMP, &txdesc.flags);
 

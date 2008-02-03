@@ -1100,11 +1100,11 @@ static int rt2500usb_get_tx_data_len(struct rt2x00_dev *rt2x00dev,
  * TX data initialization
  */
 static void rt2500usb_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
-				    unsigned int queue)
+				    const unsigned int queue)
 {
 	u16 reg;
 
-	if (queue != IEEE80211_TX_QUEUE_BEACON)
+	if (queue != RT2X00_BCN_QUEUE_BEACON)
 		return;
 
 	rt2500usb_register_read(rt2x00dev, TXRX_CSR19, &reg);
@@ -1758,11 +1758,11 @@ static int rt2500usb_beacon_update(struct ieee80211_hw *hw,
 	skbdesc->entry = intf->beacon;
 
 	/*
-	 * Just in case mac80211 doesn't set this correctly,
-	 * but we need this queue set for the descriptor
-	 * initialization.
+	 * mac80211 doesn't provide the control->queue variable
+	 * for beacons. Set our own queue identification so
+	 * it can be used during descriptor initialization.
 	 */
-	control->queue = IEEE80211_TX_QUEUE_BEACON;
+	control->queue = RT2X00_BCN_QUEUE_BEACON;
 	rt2x00lib_write_tx_desc(rt2x00dev, skb, control);
 
 	/*

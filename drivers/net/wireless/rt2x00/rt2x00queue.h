@@ -67,6 +67,21 @@ enum data_queue_qid {
 };
 
 /**
+ * enum rt2x00_bcn_queue: Beacon queue index
+ *
+ * Start counting with a high offset, this because this enumeration
+ * supplements &enum ieee80211_tx_queue and we should prevent value
+ * conflicts.
+ *
+ * @RT2X00_BCN_QUEUE_BEACON: Beacon queue
+ * @RT2X00_BCN_QUEUE_ATIM: Atim queue (sends frame after beacon)
+ */
+enum rt2x00_bcn_queue {
+	RT2X00_BCN_QUEUE_BEACON = 100,
+	RT2X00_BCN_QUEUE_ATIM = 101,
+};
+
+/**
  * struct skb_frame_desc: Descriptor information for the skb buffer
  *
  * This structure is placed over the skb->cb array, this means that

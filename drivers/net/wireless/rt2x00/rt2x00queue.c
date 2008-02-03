@@ -30,7 +30,7 @@
 #include "rt2x00lib.h"
 
 struct data_queue *rt2x00queue_get_queue(struct rt2x00_dev *rt2x00dev,
-					 const enum ieee80211_tx_queue queue)
+					 const unsigned int queue)
 {
 	int atim = test_bit(DRIVER_REQUIRE_ATIM_QUEUE, &rt2x00dev->flags);
 
@@ -40,9 +40,9 @@ struct data_queue *rt2x00queue_get_queue(struct rt2x00_dev *rt2x00dev,
 	if (!rt2x00dev->bcn)
 		return NULL;
 
-	if (queue == IEEE80211_TX_QUEUE_BEACON)
+	if (queue == RT2X00_BCN_QUEUE_BEACON)
 		return &rt2x00dev->bcn[0];
-	else if (queue == IEEE80211_TX_QUEUE_AFTER_BEACON && atim)
+	else if (queue == RT2X00_BCN_QUEUE_ATIM && atim)
 		return &rt2x00dev->bcn[1];
 
 	return NULL;
