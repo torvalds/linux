@@ -3,3 +3,5 @@
 #
 
 lib-y := init.o board_setup.o irqmap.o
+
+EXTRA_CFLAGS += -Werror

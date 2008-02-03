@@ -34,6 +34,8 @@ struct symbol *sym_defconfig_list;
 struct symbol *modules_sym;
 tristate modules_val;
 
+struct expr *sym_env_list;
+
 void sym_add_default(struct symbol *sym, const char *def)
 {
 	struct property *prop = prop_alloc(P_DEFAULT, sym);
@@ -45,7 +47,6 @@ void sym_init(void)
 {
 	struct symbol *sym;
 	struct utsname uts;
-	char *p;
 	static bool inited = false;
 
 	if (inited)
@@ -53,20 +54,6 @@ void sym_init(void)
 	inited = true;
 
 	uname(&uts);
-
-	sym = sym_lookup("ARCH", 0);
-	sym->type = S_STRING;
-	sym->flags |= SYMBOL_AUTO;
-	p = getenv("ARCH");
-	if (p)
-		sym_add_default(sym, p);
-
-	sym = sym_lookup("KERNELVERSION", 0);
-	sym->type = S_STRING;
-	sym->flags |= SYMBOL_AUTO;
-	p = getenv("KERNELVERSION");
-	if (p)
-		sym_add_default(sym, p);
 
 	sym = sym_lookup("UNAME_RELEASE", 0);
 	sym->type = S_STRING;
@@ -113,6 +100,15 @@ struct property *sym_get_choice_prop(struct symbol *sym)
 	struct property *prop;
 
 	for_all_choices(sym, prop)
+		return prop;
+	return NULL;
+}
+
+struct property *sym_get_env_prop(struct symbol *sym)
+{
+	struct property *prop;
+
+	for_all_properties(sym, prop, P_ENV)
 		return prop;
 	return NULL;
 }
@@ -199,7 +195,7 @@ static void sym_calc_visibility(struct symbol *sym)
 	tri = no;
 	for_all_prompts(sym, prop) {
 		prop->visible.tri = expr_calc_value(prop->visible.expr);
-		tri = E_OR(tri, prop->visible.tri);
+		tri = EXPR_OR(tri, prop->visible.tri);
 	}
 	if (tri == mod && (sym->type != S_TRISTATE || modules_val == no))
 		tri = yes;
@@ -247,8 +243,7 @@ static struct symbol *sym_calc_choice(struct symbol *sym)
 
 	/* just get the first visible value */
 	prop = sym_get_choice_prop(sym);
-	for (e = prop->expr; e; e = e->left.expr) {
-		def_sym = e->right.sym;
+	expr_list_for_each_sym(prop->expr, e, def_sym) {
 		sym_calc_visibility(def_sym);
 		if (def_sym->visible != no)
 			return def_sym;
@@ -303,7 +298,7 @@ void sym_calc_value(struct symbol *sym)
 		if (sym_is_choice_value(sym) && sym->visible == yes) {
 			prop = sym_get_choice_prop(sym);
 			newval.tri = (prop_get_symbol(prop)->curr.val == sym) ? yes : no;
-		} else if (E_OR(sym->visible, sym->rev_dep.tri) != no) {
+		} else if (EXPR_OR(sym->visible, sym->rev_dep.tri) != no) {
 			sym->flags |= SYMBOL_WRITE;
 			if (sym_has_value(sym))
 				newval.tri = sym->def[S_DEF_USER].tri;
@@ -312,7 +307,7 @@ void sym_calc_value(struct symbol *sym)
 				if (prop)
 					newval.tri = expr_calc_value(prop->expr);
 			}
-			newval.tri = E_OR(E_AND(newval.tri, sym->visible), sym->rev_dep.tri);
+			newval.tri = EXPR_OR(EXPR_AND(newval.tri, sym->visible), sym->rev_dep.tri);
 		} else if (!sym_is_choice(sym)) {
 			prop = sym_get_default_prop(sym);
 			if (prop) {
@@ -347,6 +342,9 @@ void sym_calc_value(struct symbol *sym)
 		;
 	}
 
+	if (sym->flags & SYMBOL_AUTO)
+		sym->flags &= ~SYMBOL_WRITE;
+
 	sym->curr = newval;
 	if (sym_is_choice(sym) && newval.tri == yes)
 		sym->curr.val = sym_calc_choice(sym);
@@ -361,12 +359,14 @@ void sym_calc_value(struct symbol *sym)
 	}
 
 	if (sym_is_choice(sym)) {
+		struct symbol *choice_sym;
 		int flags = sym->flags & (SYMBOL_CHANGED | SYMBOL_WRITE);
+
 		prop = sym_get_choice_prop(sym);
-		for (e = prop->expr; e; e = e->left.expr) {
-			e->right.sym->flags |= flags;
+		expr_list_for_each_sym(prop->expr, e, choice_sym) {
+			choice_sym->flags |= flags;
 			if (flags & SYMBOL_CHANGED)
-				sym_set_changed(e->right.sym);
+				sym_set_changed(choice_sym);
 		}
 	}
 }
@@ -849,7 +849,7 @@ struct property *prop_alloc(enum prop_type type, struct symbol *sym)
 struct symbol *prop_get_symbol(struct property *prop)
 {
 	if (prop->expr && (prop->expr->type == E_SYMBOL ||
-			   prop->expr->type == E_CHOICE))
+			   prop->expr->type == E_LIST))
 		return prop->expr->left.sym;
 	return NULL;
 }
@@ -859,6 +859,8 @@ const char *prop_get_type_name(enum prop_type type)
 	switch (type) {
 	case P_PROMPT:
 		return "prompt";
+	case P_ENV:
+		return "env";
 	case P_COMMENT:
 		return "comment";
 	case P_MENU:
@@ -875,4 +877,33 @@ const char *prop_get_type_name(enum prop_type type)
 		break;
 	}
 	return "unknown";
+}
+
+void prop_add_env(const char *env)
+{
+	struct symbol *sym, *sym2;
+	struct property *prop;
+	char *p;
+
+	sym = current_entry->sym;
+	sym->flags |= SYMBOL_AUTO;
+	for_all_properties(sym, prop, P_ENV) {
+		sym2 = prop_get_symbol(prop);
+		if (strcmp(sym2->name, env))
+			menu_warn(current_entry, "redefining environment symbol from %s",
+				  sym2->name);
+		return;
+	}
+
+	prop = prop_alloc(P_ENV, sym);
+	prop->expr = expr_alloc_symbol(sym_lookup(env, 1));
+
+	sym_env_list = expr_alloc_one(E_LIST, sym_env_list);
+	sym_env_list->right.sym = sym;
+
+	p = getenv(env);
+	if (p)
+		sym_add_default(sym, p);
+	else
+		menu_warn(current_entry, "environment variable %s undefined", env);
 }

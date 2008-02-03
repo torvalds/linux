@@ -95,17 +95,6 @@ NETDEVICE_SHOW(type, fmt_dec);
 NETDEVICE_SHOW(link_mode, fmt_dec);
 
 /* use same locking rules as GIFHWADDR ioctl's */
-static ssize_t format_addr(char *buf, const unsigned char *addr, int len)
-{
-	int i;
-	char *cp = buf;
-
-	for (i = 0; i < len; i++)
-		cp += sprintf(cp, "%02x%c", addr[i],
-			      i == (len - 1) ? '\n' : ':');
-	return cp - buf;
-}
-
 static ssize_t show_address(struct device *dev, struct device_attribute *attr,
 			    char *buf)
 {
@@ -114,7 +103,7 @@ static ssize_t show_address(struct device *dev, struct device_attribute *attr,
 
 	read_lock(&dev_base_lock);
 	if (dev_isalive(net))
-	    ret = format_addr(buf, net->dev_addr, net->addr_len);
+		ret = sysfs_format_mac(buf, net->dev_addr, net->addr_len);
 	read_unlock(&dev_base_lock);
 	return ret;
 }
@@ -124,7 +113,7 @@ static ssize_t show_broadcast(struct device *dev,
 {
 	struct net_device *net = to_net_dev(dev);
 	if (dev_isalive(net))
-		return format_addr(buf, net->broadcast, net->addr_len);
+		return sysfs_format_mac(buf, net->broadcast, net->addr_len);
 	return -EINVAL;
 }
 
@@ -247,9 +236,8 @@ static ssize_t netstat_show(const struct device *d,
 	struct net_device_stats *stats;
 	ssize_t ret = -EINVAL;
 
-	if (offset > sizeof(struct net_device_stats) ||
-	    offset % sizeof(unsigned long) != 0)
-		WARN_ON(1);
+	WARN_ON(offset > sizeof(struct net_device_stats) ||
+			offset % sizeof(unsigned long) != 0);
 
 	read_lock(&dev_base_lock);
 	if (dev_isalive(dev) && dev->get_stats &&

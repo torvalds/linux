@@ -78,7 +78,6 @@ struct acpi_processor_cx {
 struct acpi_processor_power {
 	struct cpuidle_device dev;
 	struct acpi_processor_cx *state;
-	struct acpi_processor_cx *bm_state;
 	unsigned long bm_check_timestamp;
 	u32 default_state;
 	u32 bm_activity;

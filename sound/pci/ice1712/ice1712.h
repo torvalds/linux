@@ -366,42 +366,7 @@ struct snd_ice1712 {
 	struct mutex gpio_mutex;
 
 	/* other board-specific data */
-	union {
-		/* additional i2c devices for EWS boards */
-		struct snd_i2c_device *i2cdevs[3];
-		/* AC97 register cache for Aureon */
-		struct aureon_spec {
-			unsigned short stac9744[64];
-			unsigned int cs8415_mux;
-			unsigned short master[2];
-			unsigned short vol[8];
-			unsigned char pca9554_out;
-		} aureon;
-		/* AC97 register cache for Phase28 */
-		struct phase28_spec {
-			unsigned short master[2];
-			unsigned short vol[8];
-		} phase28;
-		/* a non-standard I2C device for revo51 */
-		struct revo51_spec {
-			struct snd_i2c_device *dev;
-			struct snd_pt2258 *pt2258;
-		} revo51;
-		/* Hoontech-specific setting */
-		struct hoontech_spec {
-			unsigned char boxbits[4];
-			unsigned int config;
-			unsigned short boxconfig[4];
-		} hoontech;
-		struct {
-			struct ak4114 *ak4114;
-			unsigned int analog: 1;
-		} juli;
-		struct {
-			struct ak4114 *ak4114;
-		} prodigy192;
-	} spec;
-
+	void *spec;
 };
 
 

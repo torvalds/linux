@@ -12,6 +12,8 @@ struct xt_string_info
 	char 	  pattern[XT_STRING_MAX_PATTERN_SIZE];
 	u_int8_t  patlen;
 	u_int8_t  invert;
+
+	/* Used internally by the kernel */
 	struct ts_config __attribute__((aligned(8))) *config;
 };
 

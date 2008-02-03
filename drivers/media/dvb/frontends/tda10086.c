@@ -158,7 +158,7 @@ static int tda10086_init(struct dvb_frontend* fe)
 	tda10086_write_byte(state, 0x3d, 0x80);
 
 	// setup SEC
-	tda10086_write_byte(state, 0x36, 0x00); // all SEC off
+	tda10086_write_byte(state, 0x36, 0x80); // all SEC off, no 22k tone
 	tda10086_write_byte(state, 0x34, (((1<<19) * (22000/1000)) / (SACLK/1000)));      // } tone frequency
 	tda10086_write_byte(state, 0x35, (((1<<19) * (22000/1000)) / (SACLK/1000)) >> 8); // }
 
@@ -183,13 +183,13 @@ static int tda10086_set_tone (struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
 
 	dprintk ("%s\n", __FUNCTION__);
 
-	switch(tone) {
+	switch (tone) {
 	case SEC_TONE_OFF:
-		tda10086_write_byte(state, 0x36, 0x00);
+		tda10086_write_byte(state, 0x36, 0x80);
 		break;
 
 	case SEC_TONE_ON:
-		tda10086_write_byte(state, 0x36, 0x01);
+		tda10086_write_byte(state, 0x36, 0x81);
 		break;
 	}
 
@@ -212,7 +212,7 @@ static int tda10086_send_master_cmd (struct dvb_frontend* fe,
 	for(i=0; i< cmd->msg_len; i++) {
 		tda10086_write_byte(state, 0x48+i, cmd->msg[i]);
 	}
-	tda10086_write_byte(state, 0x36, 0x08 | ((cmd->msg_len - 1) << 4));
+	tda10086_write_byte(state, 0x36, 0x88 | ((cmd->msg_len - 1) << 4));
 
 	tda10086_diseqc_wait(state);
 
@@ -230,11 +230,11 @@ static int tda10086_send_burst (struct dvb_frontend* fe, fe_sec_mini_cmd_t minic
 
 	switch(minicmd) {
 	case SEC_MINI_A:
-		tda10086_write_byte(state, 0x36, 0x04);
+		tda10086_write_byte(state, 0x36, 0x84);
 		break;
 
 	case SEC_MINI_B:
-		tda10086_write_byte(state, 0x36, 0x06);
+		tda10086_write_byte(state, 0x36, 0x86);
 		break;
 	}
 

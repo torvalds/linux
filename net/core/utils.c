@@ -91,17 +91,6 @@ EXPORT_SYMBOL(in_aton);
 #define IN6PTON_NULL		0x20000000	/* first/tail */
 #define IN6PTON_UNKNOWN		0x40000000
 
-static inline int digit2bin(char c, int delim)
-{
-	if (c == delim || c == '\0')
-		return IN6PTON_DELIM;
-	if (c == '.')
-		return IN6PTON_DOT;
-	if (c >= '0' && c <= '9')
-		return (IN6PTON_DIGIT | (c - '0'));
-	return IN6PTON_UNKNOWN;
-}
-
 static inline int xdigit2bin(char c, int delim)
 {
 	if (c == delim || c == '\0')
@@ -293,3 +282,19 @@ out:
 }
 
 EXPORT_SYMBOL(in6_pton);
+
+void inet_proto_csum_replace4(__sum16 *sum, struct sk_buff *skb,
+			      __be32 from, __be32 to, int pseudohdr)
+{
+	__be32 diff[] = { ~from, to };
+	if (skb->ip_summed != CHECKSUM_PARTIAL) {
+		*sum = csum_fold(csum_partial(diff, sizeof(diff),
+				~csum_unfold(*sum)));
+		if (skb->ip_summed == CHECKSUM_COMPLETE && pseudohdr)
+			skb->csum = ~csum_partial(diff, sizeof(diff),
+						~skb->csum);
+	} else if (pseudohdr)
+		*sum = ~csum_fold(csum_partial(diff, sizeof(diff),
+				csum_unfold(*sum)));
+}
+EXPORT_SYMBOL(inet_proto_csum_replace4);

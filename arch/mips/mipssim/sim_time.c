@@ -75,11 +75,33 @@ static unsigned int __init estimate_cpu_frequency(void)
 	return count;
 }
 
+static int mips_cpu_timer_irq;
+
+static void mips_timer_dispatch(void)
+{
+	do_IRQ(mips_cpu_timer_irq);
+}
+
+
+unsigned __init get_c0_compare_int(void)
+{
+#ifdef MSC01E_INT_BASE
+	if (cpu_has_veic) {
+		set_vi_handler(MSC01E_INT_CPUCTR, mips_timer_dispatch);
+		mips_cpu_timer_irq = MSC01E_INT_BASE + MSC01E_INT_CPUCTR;
+	} else {
+#endif
+		if (cpu_has_vint)
+			set_vi_handler(cp0_compare_irq, mips_timer_dispatch);
+		mips_cpu_timer_irq = MIPS_CPU_IRQ_BASE + cp0_compare_irq;
+	}
+
+	return mips_cpu_timer_irq;
+}
+
 void __init plat_time_init(void)
 {
-	unsigned int est_freq, flags;
-
-	local_irq_save(flags);
+	unsigned int est_freq;
 
 	/* Set Data mode - binary. */
 	CMOS_WRITE(CMOS_READ(RTC_CONTROL) | RTC_DM_BINARY, RTC_CONTROL);
@@ -90,38 +112,4 @@ void __init plat_time_init(void)
 	       (est_freq % 1000000) * 100 / 1000000);
 
 	cpu_khz = est_freq / 1000;
-
-	local_irq_restore(flags);
-}
-
-static int mips_cpu_timer_irq;
-
-static void mips_timer_dispatch(void)
-{
-	do_IRQ(mips_cpu_timer_irq);
-}
-
-
-void __init plat_timer_setup(struct irqaction *irq)
-{
-	if (cpu_has_veic) {
-		set_vi_handler(MSC01E_INT_CPUCTR, mips_timer_dispatch);
-		mips_cpu_timer_irq = MSC01E_INT_BASE + MSC01E_INT_CPUCTR;
-	} else {
-		if (cpu_has_vint)
-			set_vi_handler(cp0_compare_irq, mips_timer_dispatch);
-		mips_cpu_timer_irq = MIPS_CPU_IRQ_BASE + cp0_compare_irq;
-	}
-
-	/* we are using the cpu counter for timer interrupts */
-	setup_irq(mips_cpu_timer_irq, irq);
-
-#ifdef CONFIG_SMP
-	/* irq_desc(riptor) is a global resource, when the interrupt overlaps
-	   on seperate cpu's the first one tries to handle the second interrupt.
-	   The effect is that the int remains disabled on the second cpu.
-	   Mark the interrupt with IRQ_PER_CPU to avoid any confusion */
-	irq_desc[mips_cpu_timer_irq].flags |= IRQ_PER_CPU;
-	set_irq_handler(mips_cpu_timer_irq, handle_percpu_irq);
-#endif
 }

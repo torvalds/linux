@@ -4,7 +4,7 @@
 /* For "bizarre" halfword swapping */
 #include <linux/byteorder/swabb.h>
 
-#if defined(CONFIG_AP7000_32_BIT_SMC)
+#if defined(CONFIG_AP700X_32_BIT_SMC)
 # define __swizzle_addr_b(addr)	(addr ^ 3UL)
 # define __swizzle_addr_w(addr)	(addr ^ 2UL)
 # define __swizzle_addr_l(addr)	(addr)
@@ -14,7 +14,7 @@
 # define __mem_ioswabb(a, x)	(x)
 # define __mem_ioswabw(a, x)	swab16(x)
 # define __mem_ioswabl(a, x)	swab32(x)
-#elif defined(CONFIG_AP7000_16_BIT_SMC)
+#elif defined(CONFIG_AP700X_16_BIT_SMC)
 # define __swizzle_addr_b(addr)	(addr ^ 1UL)
 # define __swizzle_addr_w(addr)	(addr)
 # define __swizzle_addr_l(addr)	(addr)

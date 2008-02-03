@@ -109,10 +109,6 @@ Running Lguest:
   See http://linux-net.osdl.org/index.php/Bridge for general information
   on how to get bridging working.
 
-- You can also create an inter-guest network using
-  "--sharenet=<filename>": any two guests using the same file are on
-  the same network.  This file is created if it does not exist.
-
 There is a helpful mailing list at http://ozlabs.org/mailman/listinfo/lguest
 
 Good luck!

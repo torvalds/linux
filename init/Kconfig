@@ -1,3 +1,11 @@
+config ARCH
+	string
+	option env="ARCH"
+
+config KERNELVERSION
+	string
+	option env="KERNELVERSION"
+
 config DEFCONFIG_LIST
 	string
 	depends on !UML
@@ -215,6 +223,18 @@ config USER_NS
 	  vservers, to use user namespaces to provide different
 	  user info for different servers.  If unsure, say N.
 
+config PID_NS
+	bool "PID Namespaces (EXPERIMENTAL)"
+	default n
+	depends on EXPERIMENTAL
+	help
+	  Suport process id namespaces.  This allows having multiple
+	  process with the same pid as long as they are in different
+	  pid namespaces.  This is a building block of containers.
+
+	  Unless you want to work with an experimental feature
+	  say N here.
+
 config AUDIT
 	bool "Auditing support"
 	depends on NET
@@ -226,7 +246,7 @@ config AUDIT
 
 config AUDITSYSCALL
 	bool "Enable system-call auditing support"
-	depends on AUDIT && (X86 || PPC || PPC64 || S390 || IA64 || UML || SPARC64)
+	depends on AUDIT && (X86 || PPC || PPC64 || S390 || IA64 || UML || SPARC64|| SUPERH)
 	default y if SECURITY_SELINUX
 	help
 	  Enable low-overhead system-call auditing infrastructure that
@@ -301,13 +321,6 @@ config CGROUP_NS
           for instance virtual servers and checkpoint/restart
           jobs.
 
-config CGROUP_CPUACCT
-	bool "Simple CPU accounting cgroup subsystem"
-	depends on CGROUPS
-	help
-	  Provides a simple Resource Controller for monitoring the
-	  total CPU consumed by the tasks in a cgroup
-
 config CPUSETS
 	bool "Cpuset support"
 	depends on SMP && CGROUPS
@@ -349,8 +362,16 @@ config FAIR_CGROUP_SCHED
 
 endchoice
 
+config CGROUP_CPUACCT
+	bool "Simple CPU accounting cgroup subsystem"
+	depends on CGROUPS
+	help
+	  Provides a simple Resource Controller for monitoring the
+	  total CPU consumed by the tasks in a cgroup
+
 config SYSFS_DEPRECATED
 	bool "Create deprecated sysfs files"
+	depends on SYSFS
 	default y
 	help
 	  This option creates deprecated symlinks such as the
@@ -433,7 +454,7 @@ menuconfig EMBEDDED
 
 config UID16
 	bool "Enable 16-bit UID system calls" if EMBEDDED
-	depends on ARM || BFIN || CRIS || FRV || H8300 || X86_32 || M68K || (S390 && !64BIT) || SUPERH || SPARC32 || (SPARC64 && SPARC32_COMPAT) || UML || (X86_64 && IA32_EMULATION)
+	depends on ARM || BLACKFIN || CRIS || FRV || H8300 || X86_32 || M68K || (S390 && !64BIT) || SUPERH || SPARC32 || (SPARC64 && SPARC32_COMPAT) || UML || (X86_64 && IA32_EMULATION)
 	default y
 	help
 	  This enables the legacy 16-bit UID syscall wrappers.
@@ -646,6 +667,12 @@ endchoice
 
 endmenu		# General setup
 
+config SLABINFO
+	bool
+	depends on PROC_FS
+	depends on SLAB || SLUB
+	default y
+
 config RT_MUTEXES
 	boolean
 	select PLIST
@@ -744,3 +771,39 @@ source "block/Kconfig"
 
 config PREEMPT_NOTIFIERS
 	bool
+
+choice
+	prompt "RCU implementation type:"
+	default CLASSIC_RCU
+	help
+	  This allows you to choose either the classic RCU implementation
+	  that is designed for best read-side performance on non-realtime
+	  systems, or the preemptible RCU implementation for best latency
+	  on realtime systems.  Note that some kernel preemption modes
+	  will restrict your choice.
+
+	  Select the default if you are unsure.
+
+config CLASSIC_RCU
+	bool "Classic RCU"
+	help
+	  This option selects the classic RCU implementation that is
+	  designed for best read-side performance on non-realtime
+	  systems.
+
+	  Say Y if you are unsure.
+
+config PREEMPT_RCU
+	bool "Preemptible RCU"
+	depends on PREEMPT
+	help
+	  This option reduces the latency of the kernel by making certain
+	  RCU sections preemptible. Normally RCU code is non-preemptible, if
+	  this option is selected then read-only RCU sections become
+	  preemptible. This helps latency, but may expose bugs due to
+	  now-naive assumptions about each RCU read-side critical section
+	  remaining on a given CPU through its execution.
+
+	  Say N if you are unsure.
+
+endchoice

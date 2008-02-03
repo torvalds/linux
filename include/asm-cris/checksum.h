@@ -62,7 +62,7 @@ static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
  * returns a 16-bit checksum, already complemented
  */
 
-static inline __sum16 int csum_tcpudp_magic(__be32 saddr, __be32 daddr,
+static inline __sum16 csum_tcpudp_magic(__be32 saddr, __be32 daddr,
 						   unsigned short len,
 						   unsigned short proto,
 						   __wsum sum)

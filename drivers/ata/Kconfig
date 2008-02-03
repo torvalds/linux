@@ -69,7 +69,7 @@ config ATA_PIIX
 
 config SATA_MV
 	tristate "Marvell SATA support (HIGHLY EXPERIMENTAL)"
-	depends on PCI && EXPERIMENTAL
+	depends on EXPERIMENTAL
 	help
 	  This option enables support for the Marvell Serial ATA family.
 	  Currently supports 88SX[56]0[48][01] chips.
@@ -184,7 +184,7 @@ config PATA_ACPI
 
 config SATA_FSL
 	tristate "Freescale 3.0Gbps SATA support"
-	depends on PPC_MPC837x
+	depends on FSL_SOC
 	help
 	  This option enables support for Freescale 3.0Gbps SATA controller.
 	  It can be found on MPC837x and MPC8315.
@@ -459,6 +459,15 @@ config PATA_NETCELL
 
 	  If unsure, say N.
 
+config PATA_NINJA32
+	tristate "Ninja32/Delkin Cardbus ATA support (Experimental)"
+	depends on PCI && EXPERIMENTAL
+	help
+	  This option enables support for the Ninja32, Delkin and
+	  possibly other brands of Cardbus ATA adapter
+
+	  If unsure, say N.
+
 config PATA_NS87410
 	tristate "Nat Semi NS87410 PATA support (Experimental)"
 	depends on PCI && EXPERIMENTAL
@@ -607,10 +616,20 @@ config PATA_WINBOND_VLB
 
 config PATA_PLATFORM
 	tristate "Generic platform device PATA support"
-	depends on EMBEDDED || ARCH_RPC
+	depends on EMBEDDED || ARCH_RPC || PPC
 	help
 	  This option enables support for generic directly connected ATA
 	  devices commonly found on embedded systems.
+
+	  If unsure, say N.
+
+config PATA_OF_PLATFORM
+	tristate "OpenFirmware platform device PATA support"
+	depends on PATA_PLATFORM && PPC_OF
+	help
+	  This option enables support for generic directly connected ATA
+	  devices commonly found on embedded systems with OpenFirmware
+	  bindings.
 
 	  If unsure, say N.
 

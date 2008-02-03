@@ -319,9 +319,15 @@ struct napi_struct {
 enum
 {
 	NAPI_STATE_SCHED,	/* Poll is scheduled */
+	NAPI_STATE_DISABLE,	/* Disable pending */
 };
 
 extern void FASTCALL(__napi_schedule(struct napi_struct *n));
+
+static inline int napi_disable_pending(struct napi_struct *n)
+{
+	return test_bit(NAPI_STATE_DISABLE, &n->state);
+}
 
 /**
  *	napi_schedule_prep - check if napi can be scheduled
@@ -329,11 +335,13 @@ extern void FASTCALL(__napi_schedule(struct napi_struct *n));
  *
  * Test if NAPI routine is already running, and if not mark
  * it as running.  This is used as a condition variable
- * insure only one NAPI poll instance runs
+ * insure only one NAPI poll instance runs.  We also make
+ * sure there is no pending NAPI disable.
  */
 static inline int napi_schedule_prep(struct napi_struct *n)
 {
-	return !test_and_set_bit(NAPI_STATE_SCHED, &n->state);
+	return !napi_disable_pending(n) &&
+		!test_and_set_bit(NAPI_STATE_SCHED, &n->state);
 }
 
 /**
@@ -389,8 +397,10 @@ static inline void napi_complete(struct napi_struct *n)
  */
 static inline void napi_disable(struct napi_struct *n)
 {
+	set_bit(NAPI_STATE_DISABLE, &n->state);
 	while (test_and_set_bit(NAPI_STATE_SCHED, &n->state))
 		msleep(1);
+	clear_bit(NAPI_STATE_DISABLE, &n->state);
 }
 
 /**
@@ -739,6 +749,16 @@ static inline void *netdev_priv(const struct net_device *dev)
  */
 #define SET_NETDEV_DEV(net, pdev)	((net)->dev.parent = (pdev))
 
+/**
+ *	netif_napi_add - initialize a napi context
+ *	@dev:  network device
+ *	@napi: napi context
+ *	@poll: polling function
+ *	@weight: default weight
+ *
+ * netif_napi_add() must be used to initialize a napi context prior to calling
+ * *any* of the other napi related functions.
+ */
 static inline void netif_napi_add(struct net_device *dev,
 				  struct napi_struct *napi,
 				  int (*poll)(struct napi_struct *, int),
@@ -1258,7 +1278,7 @@ static inline u32 netif_msg_init(int debug_value, int default_msg_enable_bits)
 static inline int netif_rx_schedule_prep(struct net_device *dev,
 					 struct napi_struct *napi)
 {
-	return netif_running(dev) && napi_schedule_prep(napi);
+	return napi_schedule_prep(napi);
 }
 
 /* Add interface to tail of rx poll list. This assumes that _prep has
@@ -1267,7 +1287,6 @@ static inline int netif_rx_schedule_prep(struct net_device *dev,
 static inline void __netif_rx_schedule(struct net_device *dev,
 				       struct napi_struct *napi)
 {
-	dev_hold(dev);
 	__napi_schedule(napi);
 }
 
@@ -1298,7 +1317,6 @@ static inline void __netif_rx_complete(struct net_device *dev,
 				       struct napi_struct *napi)
 {
 	__napi_complete(napi);
-	dev_put(dev);
 }
 
 /* Remove interface from poll list: it must be in the poll list
@@ -1396,12 +1414,16 @@ extern void		dev_set_rx_mode(struct net_device *dev);
 extern void		__dev_set_rx_mode(struct net_device *dev);
 extern int		dev_unicast_delete(struct net_device *dev, void *addr, int alen);
 extern int		dev_unicast_add(struct net_device *dev, void *addr, int alen);
+extern int		dev_unicast_sync(struct net_device *to, struct net_device *from);
+extern void		dev_unicast_unsync(struct net_device *to, struct net_device *from);
 extern int 		dev_mc_delete(struct net_device *dev, void *addr, int alen, int all);
 extern int		dev_mc_add(struct net_device *dev, void *addr, int alen, int newonly);
 extern int		dev_mc_sync(struct net_device *to, struct net_device *from);
 extern void		dev_mc_unsync(struct net_device *to, struct net_device *from);
 extern int 		__dev_addr_delete(struct dev_addr_list **list, int *count, void *addr, int alen, int all);
 extern int		__dev_addr_add(struct dev_addr_list **list, int *count, void *addr, int alen, int newonly);
+extern int		__dev_addr_sync(struct dev_addr_list **to, int *to_count, struct dev_addr_list **from, int *from_count);
+extern void		__dev_addr_unsync(struct dev_addr_list **to, int *to_count, struct dev_addr_list **from, int *from_count);
 extern void		dev_set_promiscuity(struct net_device *dev, int inc);
 extern void		dev_set_allmulti(struct net_device *dev, int inc);
 extern void		netdev_state_change(struct net_device *dev);

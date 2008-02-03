@@ -18,7 +18,6 @@
 #define __SOUND_AU88X0_H
 
 #ifdef __KERNEL__
-#include <sound/driver.h>
 #include <linux/pci.h>
 #include <asm/io.h>
 #include <sound/core.h>

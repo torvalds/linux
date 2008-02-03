@@ -30,13 +30,12 @@
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/dma-mapping.h>
-#include <linux/init.h>
 #include <linux/bitops.h>
 #include <linux/pci_ids.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/scatterlist.h>
-#include <asm/iommu.h>
+#include <asm/gart.h>
 #include <asm/calgary.h>
 #include <asm/tce.h>
 #include <asm/pci-direct.h>
@@ -183,7 +182,7 @@ static struct calgary_bus_info bus_info[MAX_PHB_BUS_NUM] = { { NULL, 0, 0 }, };
 
 /* enable this to stress test the chip's TCE cache */
 #ifdef CONFIG_IOMMU_DEBUG
-int debugging __read_mostly = 1;
+static int debugging = 1;
 
 static inline unsigned long verify_bit_range(unsigned long* bitmap,
 	int expected, unsigned long start, unsigned long end)
@@ -202,7 +201,7 @@ static inline unsigned long verify_bit_range(unsigned long* bitmap,
 	return ~0UL;
 }
 #else /* debugging is disabled */
-int debugging __read_mostly = 0;
+static int debugging;
 
 static inline unsigned long verify_bit_range(unsigned long* bitmap,
 	int expected, unsigned long start, unsigned long end)
@@ -1007,7 +1006,7 @@ static void __init calgary_set_split_completion_timeout(void __iomem *bbar,
 	readq(target); /* flush */
 }
 
-static void calioc2_handle_quirks(struct iommu_table *tbl, struct pci_dev *dev)
+static void __init calioc2_handle_quirks(struct iommu_table *tbl, struct pci_dev *dev)
 {
 	unsigned char busnum = dev->bus->number;
 	void __iomem *bbar = tbl->bbar;
@@ -1023,7 +1022,7 @@ static void calioc2_handle_quirks(struct iommu_table *tbl, struct pci_dev *dev)
 	writel(cpu_to_be32(val), target);
 }
 
-static void calgary_handle_quirks(struct iommu_table *tbl, struct pci_dev *dev)
+static void __init calgary_handle_quirks(struct iommu_table *tbl, struct pci_dev *dev)
 {
 	unsigned char busnum = dev->bus->number;
 

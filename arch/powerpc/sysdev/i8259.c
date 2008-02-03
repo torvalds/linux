@@ -137,6 +137,7 @@ static void i8259_unmask_irq(unsigned int irq_nr)
 static struct irq_chip i8259_pic = {
 	.typename	= " i8259    ",
 	.mask		= i8259_mask_irq,
+	.disable	= i8259_mask_irq,
 	.unmask		= i8259_unmask_irq,
 	.mask_ack	= i8259_mask_and_ack_irq,
 };

@@ -26,7 +26,6 @@
  *
  */      
 
-#include <sound/driver.h>
 #include <asm/io.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -711,11 +710,13 @@ static void snd_intel8x0_setup_periods(struct intel8x0 *chip, struct ichdev *ich
 static void fill_nocache(void *buf, int size, int nocache)
 {
 	size = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	change_page_attr(virt_to_page(buf), size, nocache ? PAGE_KERNEL_NOCACHE : PAGE_KERNEL);
-	global_flush_tlb();
+	if (nocache)
+		set_pages_uc(virt_to_page(buf), size);
+	else
+		set_pages_wb(virt_to_page(buf), size);
 }
 #else
-#define fill_nocache(buf,size,nocache)
+#define fill_nocache(buf, size, nocache) do { ; } while (0)
 #endif
 
 /*
@@ -2144,7 +2145,6 @@ static int __devinit snd_intel8x0_mixer(struct intel8x0 *chip, int ac97_clock,
 				snd_printk(KERN_ERR "Unable to initialize codec #%d\n", i);
 			if (i == 0)
 				goto __err;
-			continue;
 		}
 	}
 	/* tune up the primary codec */

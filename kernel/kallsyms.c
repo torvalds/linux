@@ -32,8 +32,13 @@
 
 /* These will be re-linked against their real values during the second link stage */
 extern const unsigned long kallsyms_addresses[] __attribute__((weak));
-extern const unsigned long kallsyms_num_syms __attribute__((weak));
 extern const u8 kallsyms_names[] __attribute__((weak));
+
+/* tell the compiler that the count isn't in the small data section if the arch
+ * has one (eg: FRV)
+ */
+extern const unsigned long kallsyms_num_syms
+__attribute__((weak, section(".rodata")));
 
 extern const u8 kallsyms_token_table[] __attribute__((weak));
 extern const u16 kallsyms_token_index[] __attribute__((weak));
@@ -228,10 +233,11 @@ static unsigned long get_symbol_pos(unsigned long addr,
 int kallsyms_lookup_size_offset(unsigned long addr, unsigned long *symbolsize,
 				unsigned long *offset)
 {
+	char namebuf[KSYM_NAME_LEN];
 	if (is_ksym_addr(addr))
 		return !!get_symbol_pos(addr, symbolsize, offset);
 
-	return !!module_address_lookup(addr, symbolsize, offset, NULL);
+	return !!module_address_lookup(addr, symbolsize, offset, NULL, namebuf);
 }
 
 /*
@@ -246,8 +252,6 @@ const char *kallsyms_lookup(unsigned long addr,
 			    unsigned long *offset,
 			    char **modname, char *namebuf)
 {
-	const char *msym;
-
 	namebuf[KSYM_NAME_LEN - 1] = 0;
 	namebuf[0] = 0;
 
@@ -263,10 +267,8 @@ const char *kallsyms_lookup(unsigned long addr,
 	}
 
 	/* see if it's in a module */
-	msym = module_address_lookup(addr, symbolsize, offset, modname);
-	if (msym)
-		return strncpy(namebuf, msym, KSYM_NAME_LEN - 1);
-
+	return module_address_lookup(addr, symbolsize, offset, modname,
+				     namebuf);
 	return NULL;
 }
 

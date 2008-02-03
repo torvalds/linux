@@ -180,7 +180,7 @@ void cx25840_vbi_setup(struct i2c_client *client)
 						fsc/1000000,fsc%1000000);
 
 		v4l_dbg(1, cx25840_debug, client, "hblank %i, hactive %i, "
-			"vblank %i , vactive %i, vblank656 %i, src_dec %i,"
+			"vblank %i, vactive %i, vblank656 %i, src_dec %i, "
 			"burst 0x%02x, luma_lpf %i, uv_lpf %i, comb 0x%02x,"
 			" sc 0x%06x\n",
 			hblank, hactive, vblank, vactive, vblank656,

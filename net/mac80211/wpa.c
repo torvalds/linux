@@ -245,15 +245,8 @@ static int tkip_encrypt_skb(struct ieee80211_txrx_data *tx,
 ieee80211_txrx_result
 ieee80211_crypto_tkip_encrypt(struct ieee80211_txrx_data *tx)
 {
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) tx->skb->data;
-	u16 fc;
 	struct sk_buff *skb = tx->skb;
 	int wpa_test = 0, test = 0;
-
-	fc = le16_to_cpu(hdr->frame_control);
-
-	if (!WLAN_FC_DATA_PRESENT(fc))
-		return TXRX_CONTINUE;
 
 	tx->u.tx.control->icv_len = TKIP_ICV_LEN;
 	tx->u.tx.control->iv_len = TKIP_IV_LEN;
@@ -323,9 +316,12 @@ ieee80211_crypto_tkip_decrypt(struct ieee80211_txrx_data *rx)
 					  &rx->u.rx.tkip_iv32,
 					  &rx->u.rx.tkip_iv16);
 	if (res != TKIP_DECRYPT_OK || wpa_test) {
-		printk(KERN_DEBUG "%s: TKIP decrypt failed for RX frame from "
-		       "%s (res=%d)\n",
-		       rx->dev->name, print_mac(mac, rx->sta->addr), res);
+#ifdef CONFIG_MAC80211_DEBUG
+		if (net_ratelimit())
+			printk(KERN_DEBUG "%s: TKIP decrypt failed for RX "
+			       "frame from %s (res=%d)\n", rx->dev->name,
+			       print_mac(mac, rx->sta->addr), res);
+#endif /* CONFIG_MAC80211_DEBUG */
 		return TXRX_DROP;
 	}
 
@@ -498,15 +494,8 @@ static int ccmp_encrypt_skb(struct ieee80211_txrx_data *tx,
 ieee80211_txrx_result
 ieee80211_crypto_ccmp_encrypt(struct ieee80211_txrx_data *tx)
 {
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) tx->skb->data;
-	u16 fc;
 	struct sk_buff *skb = tx->skb;
 	int test = 0;
-
-	fc = le16_to_cpu(hdr->frame_control);
-
-	if (!WLAN_FC_DATA_PRESENT(fc))
-		return TXRX_CONTINUE;
 
 	tx->u.tx.control->icv_len = CCMP_MIC_LEN;
 	tx->u.tx.control->iv_len = CCMP_HDR_LEN;
@@ -594,9 +583,12 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_txrx_data *rx)
 			    skb->data + hdrlen + CCMP_HDR_LEN, data_len,
 			    skb->data + skb->len - CCMP_MIC_LEN,
 			    skb->data + hdrlen + CCMP_HDR_LEN)) {
-			printk(KERN_DEBUG "%s: CCMP decrypt failed for RX "
-			       "frame from %s\n", rx->dev->name,
-			       print_mac(mac, rx->sta->addr));
+#ifdef CONFIG_MAC80211_DEBUG
+			if (net_ratelimit())
+				printk(KERN_DEBUG "%s: CCMP decrypt failed "
+				       "for RX frame from %s\n", rx->dev->name,
+				       print_mac(mac, rx->sta->addr));
+#endif /* CONFIG_MAC80211_DEBUG */
 			return TXRX_DROP;
 		}
 	}

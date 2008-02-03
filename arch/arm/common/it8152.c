@@ -70,8 +70,6 @@ static inline void it8152_irq(int irq)
 {
 	struct irq_desc *desc;
 
-	printk(KERN_DEBUG "===> %s: irq=%d\n", __FUNCTION__, irq);
-
 	desc = irq_desc + irq;
 	desc_handle_irq(irq, desc);
 }
@@ -105,8 +103,6 @@ void it8152_irq_demux(unsigned int irq, struct irq_desc *desc)
 {
        int bits_pd, bits_lp, bits_ld;
        int i;
-
-       printk(KERN_DEBUG "=> %s: irq = %d\n", __FUNCTION__, irq);
 
        while (1) {
 	       /* Read all */
@@ -293,8 +289,7 @@ int dma_needs_bounce(struct device *dev, dma_addr_t dma_addr, size_t size)
  */
 int pci_set_dma_mask(struct pci_dev *dev, u64 mask)
 {
-	printk(KERN_DEBUG "%s: %s %llx\n",
-	       __FUNCTION__, dev->dev.bus_id, mask);
+	dev_dbg(&dev->dev, "%s: %llx\n", __FUNCTION__, mask);
 	if (mask >= PHYS_OFFSET + SZ_64M - 1)
 		return 0;
 
@@ -304,8 +299,7 @@ int pci_set_dma_mask(struct pci_dev *dev, u64 mask)
 int
 pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask)
 {
-	printk(KERN_DEBUG "%s: %s %llx\n",
-	       __FUNCTION__, dev->dev.bus_id, mask);
+	dev_dbg(&dev->dev, "%s: %llx\n", __FUNCTION__, mask);
 	if (mask >= PHYS_OFFSET + SZ_64M - 1)
 		return 0;
 

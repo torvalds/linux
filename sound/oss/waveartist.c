@@ -835,7 +835,7 @@ static struct audio_driver waveartist_audio_driver = {
 static irqreturn_t
 waveartist_intr(int irq, void *dev_id)
 {
-	wavnc_info *devc = (wavnc_info *)dev_id;
+	wavnc_info *devc = dev_id;
 	int	   irqstatus, status;
 
 	spin_lock(&waveartist_lock);

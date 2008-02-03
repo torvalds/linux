@@ -9,7 +9,7 @@ code should be added to the platform and machine drivers respectively.
 Each codec driver *must* provide the following features:-
 
  1) Codec DAI and PCM configuration
- 2) Codec control IO - using I2C, 3 Wire(SPI) or both API's
+ 2) Codec control IO - using I2C, 3 Wire(SPI) or both APIs
  3) Mixers and audio controls
  4) Codec audio operations
 
@@ -19,7 +19,7 @@ Optionally, codec drivers can also provide:-
  6) DAPM event handler.
  7) DAC Digital mute control.
 
-It's probably best to use this guide in conjunction with the existing codec
+Its probably best to use this guide in conjunction with the existing codec
 driver code in sound/soc/codecs/
 
 ASoC Codec driver breakdown
@@ -27,8 +27,8 @@ ASoC Codec driver breakdown
 
 1 - Codec DAI and PCM configuration
 -----------------------------------
-Each codec driver must have a struct snd_soc_codec_dai to define it's DAI and
-PCM's capabilities and operations. This struct is exported so that it can be
+Each codec driver must have a struct snd_soc_codec_dai to define its DAI and
+PCM capabilities and operations. This struct is exported so that it can be
 registered with the core by your machine driver.
 
 e.g.
@@ -67,18 +67,18 @@ EXPORT_SYMBOL_GPL(wm8731_dai);
 
 2 - Codec control IO
 --------------------
-The codec can usually be controlled via an I2C or SPI style interface (AC97
-combines control with data in the DAI). The codec drivers will have to provide
-functions to read and write the codec registers along with supplying a register
-cache:-
+The codec can usually be controlled via an I2C or SPI style interface
+(AC97 combines control with data in the DAI). The codec drivers provide
+functions to read and write the codec registers along with supplying a
+register cache:-
 
 	/* IO control data and register cache */
-    void *control_data; /* codec control (i2c/3wire) data */
-    void *reg_cache;
+	void *control_data; /* codec control (i2c/3wire) data */
+	void *reg_cache;
 
-Codec read/write should do any data formatting and call the hardware read write
-below to perform the IO. These functions are called by the core and alsa when
-performing DAPM or changing the mixer:-
+Codec read/write should do any data formatting and call the hardware
+read write below to perform the IO. These functions are called by the
+core and ALSA when performing DAPM or changing the mixer:-
 
     unsigned int (*read)(struct snd_soc_codec *, unsigned int);
     int (*write)(struct snd_soc_codec *, unsigned int, unsigned int);
@@ -131,7 +131,7 @@ Defines a stereo enumerated control
 
 4 - Codec Audio Operations
 --------------------------
-The codec driver also supports the following alsa operations:-
+The codec driver also supports the following ALSA operations:-
 
 /* SoC audio ops */
 struct snd_soc_ops {
@@ -142,15 +142,15 @@ struct snd_soc_ops {
 	int (*prepare)(struct snd_pcm_substream *);
 };
 
-Please refer to the alsa driver PCM documentation for details.
+Please refer to the ALSA driver PCM documentation for details.
 http://www.alsa-project.org/~iwai/writing-an-alsa-driver/c436.htm
 
 
 5 - DAPM description.
 ---------------------
-The Dynamic Audio Power Management description describes the codec's power
-components, their relationships and registers to the ASoC core. Please read
-dapm.txt for details of building the description.
+The Dynamic Audio Power Management description describes the codec power
+components and their relationships and registers to the ASoC core.
+Please read dapm.txt for details of building the description.
 
 Please also see the examples in other codec drivers.
 
@@ -158,8 +158,8 @@ Please also see the examples in other codec drivers.
 6 - DAPM event handler
 ----------------------
 This function is a callback that handles codec domain PM calls and system
-domain PM calls (e.g. suspend and resume). It's used to put the codec to sleep
-when not in use.
+domain PM calls (e.g. suspend and resume). It is used to put the codec
+to sleep when not in use.
 
 Power states:-
 
@@ -175,13 +175,14 @@ Power states:-
 	SNDRV_CTL_POWER_D3cold: /* Everything Off, without power */
 
 
-7 - Codec DAC digital mute control.
-------------------------------------
-Most codecs have a digital mute before the DAC's that can be used to minimise
-any system noise.  The mute stops any digital data from entering the DAC.
+7 - Codec DAC digital mute control
+----------------------------------
+Most codecs have a digital mute before the DACs that can be used to
+minimise any system noise.  The mute stops any digital data from
+entering the DAC.
 
-A callback can be created that is called by the core for each codec DAI when the
-mute is applied or freed.
+A callback can be created that is called by the core for each codec DAI
+when the mute is applied or freed.
 
 i.e.
 

@@ -3,7 +3,6 @@
 #
 
 obj-$(CONFIG_HOTPLUG_PCI)		+= pci_hotplug.o
-obj-$(CONFIG_HOTPLUG_PCI_FAKE)		+= fakephp.o 
 obj-$(CONFIG_HOTPLUG_PCI_COMPAQ)	+= cpqphp.o
 obj-$(CONFIG_HOTPLUG_PCI_IBM)		+= ibmphp.o
 obj-$(CONFIG_HOTPLUG_PCI_ACPI)		+= acpiphp.o
@@ -15,6 +14,9 @@ obj-$(CONFIG_HOTPLUG_PCI_SHPC)		+= shpchp.o
 obj-$(CONFIG_HOTPLUG_PCI_RPA)		+= rpaphp.o
 obj-$(CONFIG_HOTPLUG_PCI_RPA_DLPAR)	+= rpadlpar_io.o
 obj-$(CONFIG_HOTPLUG_PCI_SGI)		+= sgi_hotplug.o
+
+# Link this last so it doesn't claim devices that have a real hotplug driver
+obj-$(CONFIG_HOTPLUG_PCI_FAKE)		+= fakephp.o
 
 pci_hotplug-objs	:=	pci_hotplug_core.o
 

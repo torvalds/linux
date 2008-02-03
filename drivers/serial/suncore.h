@@ -22,7 +22,8 @@
 extern unsigned int suncore_mouse_baud_cflag_next(unsigned int, int *);
 extern int suncore_mouse_baud_detection(unsigned char, int);
 
-extern int sunserial_current_minor;
+extern int sunserial_register_minors(struct uart_driver *, int);
+extern void sunserial_unregister_minors(struct uart_driver *, int);
 
 extern int sunserial_console_match(struct console *, struct device_node *,
 				   struct uart_driver *, int);

@@ -64,8 +64,6 @@ struct pcpu_lstats {
 	unsigned long bytes;
 };
 
-#define LOOPBACK_OVERHEAD (128 + MAX_HEADER + 16 + 16)
-
 /* KISS: just allocate small chunks and copy bits.
  *
  * So, in fact, this is documentation, explaining what we expect
@@ -242,7 +240,7 @@ static void loopback_setup(struct net_device *dev)
 		| NETIF_F_NO_CSUM
 		| NETIF_F_HIGHDMA
 		| NETIF_F_LLTX
-		| NETIF_F_NETNS_LOCAL,
+		| NETIF_F_NETNS_LOCAL;
 	dev->ethtool_ops	= &loopback_ethtool_ops;
 	dev->header_ops		= &eth_header_ops;
 	dev->init = loopback_dev_init;
@@ -284,7 +282,7 @@ static __net_exit void loopback_net_exit(struct net *net)
 	unregister_netdev(dev);
 }
 
-static struct pernet_operations loopback_net_ops = {
+static struct pernet_operations __net_initdata loopback_net_ops = {
        .init = loopback_net_init,
        .exit = loopback_net_exit,
 };

@@ -417,7 +417,7 @@ static irqreturn_t ep93xx_irq(int irq, void *dev_id)
 
 	if (status & REG_INTSTS_RX) {
 		spin_lock(&ep->rx_lock);
-		if (likely(__netif_rx_schedule_prep(dev, &ep->napi))) {
+		if (likely(netif_rx_schedule_prep(dev, &ep->napi))) {
 			wrl(ep, REG_INTEN, REG_INTEN_TX);
 			__netif_rx_schedule(dev, &ep->napi);
 		}

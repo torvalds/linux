@@ -203,35 +203,6 @@ static int pcf_init_8584 (struct i2c_algo_pcf_data *adap)
 /* ----- Utility functions
  */
 
-static inline int try_address(struct i2c_algo_pcf_data *adap,
-		       unsigned char addr, int retries)
-{
-	int i, status, ret = -1;
-	int wfp;
-	for (i=0;i<retries;i++) {
-		i2c_outb(adap, addr);
-		i2c_start(adap);
-		status = get_pcf(adap, 1);
-		if ((wfp = wait_for_pin(adap, &status)) >= 0) {
-			if ((status & I2C_PCF_LRB) == 0) { 
-				i2c_stop(adap);
-				break;	/* success! */
-			}
-		}
-		if (wfp == -EINTR) {
-			/* arbitration lost */
-			udelay(adap->udelay);
-			return -EINTR;
-		}
-		i2c_stop(adap);
-		udelay(adap->udelay);
-	}
-	DEB2(if (i) printk(KERN_DEBUG "i2c-algo-pcf.o: needed %d retries for %d\n",i,
-	                   addr));
-	return ret;
-}
-
-
 static int pcf_sendbytes(struct i2c_adapter *i2c_adap, const char *buf,
                          int count, int last)
 {
@@ -321,47 +292,19 @@ static int pcf_readbytes(struct i2c_adapter *i2c_adap, char *buf,
 }
 
 
-static inline int pcf_doAddress(struct i2c_algo_pcf_data *adap,
-                                struct i2c_msg *msg, int retries) 
+static int pcf_doAddress(struct i2c_algo_pcf_data *adap,
+			 struct i2c_msg *msg)
 {
 	unsigned short flags = msg->flags;
 	unsigned char addr;
-	int ret;
-	if ( (flags & I2C_M_TEN)  ) { 
-		/* a ten bit address */
-		addr = 0xf0 | (( msg->addr >> 7) & 0x03);
-		DEB2(printk(KERN_DEBUG "addr0: %d\n",addr));
-		/* try extended address code...*/
-		ret = try_address(adap, addr, retries);
-		if (ret!=1) {
-			printk(KERN_ERR "died at extended address code.\n");
-			return -EREMOTEIO;
-		}
-		/* the remaining 8 bit address */
-		i2c_outb(adap,msg->addr & 0x7f);
-/* Status check comes here */
-		if (ret != 1) {
-			printk(KERN_ERR "died at 2nd address code.\n");
-			return -EREMOTEIO;
-		}
-		if ( flags & I2C_M_RD ) {
-			i2c_repstart(adap);
-			/* okay, now switch into reading mode */
-			addr |= 0x01;
-			ret = try_address(adap, addr, retries);
-			if (ret!=1) {
-				printk(KERN_ERR "died at extended address code.\n");
-				return -EREMOTEIO;
-			}
-		}
-	} else {		/* normal 7bit address	*/
-		addr = ( msg->addr << 1 );
-		if (flags & I2C_M_RD )
-			addr |= 1;
-		if (flags & I2C_M_REV_DIR_ADDR )
-			addr ^= 1;
-		i2c_outb(adap, addr);
-	}
+
+	addr = msg->addr << 1;
+	if (flags & I2C_M_RD)
+		addr |= 1;
+	if (flags & I2C_M_REV_DIR_ADDR)
+		addr ^= 1;
+	i2c_outb(adap, addr);
+
 	return 0;
 }
 
@@ -390,7 +333,7 @@ static int pcf_xfer(struct i2c_adapter *i2c_adap,
 		     pmsg->flags & I2C_M_RD ? "read" : "write",
                      pmsg->len, pmsg->addr, i + 1, num);)
     
-		ret = pcf_doAddress(adap, pmsg, i2c_adap->retries);
+		ret = pcf_doAddress(adap, pmsg);
 
 		/* Send START */
 		if (i == 0) {
@@ -453,7 +396,7 @@ static int pcf_xfer(struct i2c_adapter *i2c_adap,
 static u32 pcf_func(struct i2c_adapter *adap)
 {
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL | 
-	       I2C_FUNC_10BIT_ADDR | I2C_FUNC_PROTOCOL_MANGLING; 
+	       I2C_FUNC_PROTOCOL_MANGLING;
 }
 
 /* -----exported algorithm data: -------------------------------------	*/
@@ -475,9 +418,7 @@ int i2c_pcf_add_bus(struct i2c_adapter *adap)
 
 	/* register new adapter to i2c module... */
 	adap->algo = &pcf_algo;
-
-	adap->timeout = 100;		/* default values, should	*/
-	adap->retries = 3;		/* be replaced by defines	*/
+	adap->timeout = 100;
 
 	if ((rval = pcf_init_8584(pcf_adap)))
 		return rval;

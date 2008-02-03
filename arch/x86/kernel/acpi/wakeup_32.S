@@ -1,4 +1,4 @@
-.text
+	.section .text.page_aligned
 #include <linux/linkage.h>
 #include <asm/segment.h>
 #include <asm/page.h>
@@ -34,10 +34,6 @@ ENTRY(wakeup_start)
 wakeup_code:
 	wakeup_code_start = .
 	.code16
-
- 	movw	$0xb800, %ax
-	movw	%ax,%fs
-	movw	$0x0e00 + 'L', %fs:(0x10)
 
 	cli
 	cld

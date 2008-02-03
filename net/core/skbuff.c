@@ -52,6 +52,7 @@
 #endif
 #include <linux/string.h>
 #include <linux/skbuff.h>
+#include <linux/splice.h>
 #include <linux/cache.h>
 #include <linux/rtnetlink.h>
 #include <linux/init.h>
@@ -70,6 +71,40 @@
 
 static struct kmem_cache *skbuff_head_cache __read_mostly;
 static struct kmem_cache *skbuff_fclone_cache __read_mostly;
+
+static void sock_pipe_buf_release(struct pipe_inode_info *pipe,
+				  struct pipe_buffer *buf)
+{
+	struct sk_buff *skb = (struct sk_buff *) buf->private;
+
+	kfree_skb(skb);
+}
+
+static void sock_pipe_buf_get(struct pipe_inode_info *pipe,
+				struct pipe_buffer *buf)
+{
+	struct sk_buff *skb = (struct sk_buff *) buf->private;
+
+	skb_get(skb);
+}
+
+static int sock_pipe_buf_steal(struct pipe_inode_info *pipe,
+			       struct pipe_buffer *buf)
+{
+	return 1;
+}
+
+
+/* Pipe buffer operations for a socket. */
+static struct pipe_buf_operations sock_pipe_buf_ops = {
+	.can_merge = 0,
+	.map = generic_pipe_buf_map,
+	.unmap = generic_pipe_buf_unmap,
+	.confirm = generic_pipe_buf_confirm,
+	.release = sock_pipe_buf_release,
+	.steal = sock_pipe_buf_steal,
+	.get = sock_pipe_buf_get,
+};
 
 /*
  *	Keep out-of-line to prevent kernel bloat.
@@ -275,12 +310,11 @@ static void skb_release_data(struct sk_buff *skb)
 /*
  *	Free an skbuff by memory without cleaning the state.
  */
-void kfree_skbmem(struct sk_buff *skb)
+static void kfree_skbmem(struct sk_buff *skb)
 {
 	struct sk_buff *other;
 	atomic_t *fclone_ref;
 
-	skb_release_data(skb);
 	switch (skb->fclone) {
 	case SKB_FCLONE_UNAVAILABLE:
 		kmem_cache_free(skbuff_head_cache, skb);
@@ -307,16 +341,8 @@ void kfree_skbmem(struct sk_buff *skb)
 	}
 }
 
-/**
- *	__kfree_skb - private function
- *	@skb: buffer
- *
- *	Free an sk_buff. Release anything attached to the buffer.
- *	Clean the state. This is an internal helper function. Users should
- *	always call kfree_skb
- */
-
-void __kfree_skb(struct sk_buff *skb)
+/* Free everything but the sk_buff shell. */
+static void skb_release_all(struct sk_buff *skb)
 {
 	dst_release(skb->dst);
 #ifdef CONFIG_XFRM
@@ -340,7 +366,21 @@ void __kfree_skb(struct sk_buff *skb)
 	skb->tc_verd = 0;
 #endif
 #endif
+	skb_release_data(skb);
+}
 
+/**
+ *	__kfree_skb - private function
+ *	@skb: buffer
+ *
+ *	Free an sk_buff. Release anything attached to the buffer.
+ *	Clean the state. This is an internal helper function. Users should
+ *	always call kfree_skb
+ */
+
+void __kfree_skb(struct sk_buff *skb)
+{
+	skb_release_all(skb);
 	kfree_skbmem(skb);
 }
 
@@ -411,16 +451,17 @@ static struct sk_buff *__skb_clone(struct sk_buff *n, struct sk_buff *skb)
 	C(len);
 	C(data_len);
 	C(mac_len);
-	n->cloned = 1;
 	n->hdr_len = skb->nohdr ? skb_headroom(skb) : skb->hdr_len;
+	n->cloned = 1;
 	n->nohdr = 0;
 	n->destructor = NULL;
-	C(truesize);
-	atomic_set(&n->users, 1);
-	C(head);
-	C(data);
+	C(iif);
 	C(tail);
 	C(end);
+	C(head);
+	C(data);
+	C(truesize);
+	atomic_set(&n->users, 1);
 
 	atomic_inc(&(skb_shinfo(skb)->dataref));
 	skb->cloned = 1;
@@ -441,7 +482,7 @@ static struct sk_buff *__skb_clone(struct sk_buff *n, struct sk_buff *skb)
  */
 struct sk_buff *skb_morph(struct sk_buff *dst, struct sk_buff *src)
 {
-	skb_release_data(dst);
+	skb_release_all(dst);
 	return __skb_clone(dst, src);
 }
 EXPORT_SYMBOL_GPL(skb_morph);
@@ -1114,6 +1155,217 @@ int skb_copy_bits(const struct sk_buff *skb, int offset, void *to, int len)
 
 fault:
 	return -EFAULT;
+}
+
+/*
+ * Callback from splice_to_pipe(), if we need to release some pages
+ * at the end of the spd in case we error'ed out in filling the pipe.
+ */
+static void sock_spd_release(struct splice_pipe_desc *spd, unsigned int i)
+{
+	struct sk_buff *skb = (struct sk_buff *) spd->partial[i].private;
+
+	kfree_skb(skb);
+}
+
+/*
+ * Fill page/offset/length into spd, if it can hold more pages.
+ */
+static inline int spd_fill_page(struct splice_pipe_desc *spd, struct page *page,
+				unsigned int len, unsigned int offset,
+				struct sk_buff *skb)
+{
+	if (unlikely(spd->nr_pages == PIPE_BUFFERS))
+		return 1;
+
+	spd->pages[spd->nr_pages] = page;
+	spd->partial[spd->nr_pages].len = len;
+	spd->partial[spd->nr_pages].offset = offset;
+	spd->partial[spd->nr_pages].private = (unsigned long) skb_get(skb);
+	spd->nr_pages++;
+	return 0;
+}
+
+/*
+ * Map linear and fragment data from the skb to spd. Returns number of
+ * pages mapped.
+ */
+static int __skb_splice_bits(struct sk_buff *skb, unsigned int *offset,
+			     unsigned int *total_len,
+			     struct splice_pipe_desc *spd)
+{
+	unsigned int nr_pages = spd->nr_pages;
+	unsigned int poff, plen, len, toff, tlen;
+	int headlen, seg;
+
+	toff = *offset;
+	tlen = *total_len;
+	if (!tlen)
+		goto err;
+
+	/*
+	 * if the offset is greater than the linear part, go directly to
+	 * the fragments.
+	 */
+	headlen = skb_headlen(skb);
+	if (toff >= headlen) {
+		toff -= headlen;
+		goto map_frag;
+	}
+
+	/*
+	 * first map the linear region into the pages/partial map, skipping
+	 * any potential initial offset.
+	 */
+	len = 0;
+	while (len < headlen) {
+		void *p = skb->data + len;
+
+		poff = (unsigned long) p & (PAGE_SIZE - 1);
+		plen = min_t(unsigned int, headlen - len, PAGE_SIZE - poff);
+		len += plen;
+
+		if (toff) {
+			if (plen <= toff) {
+				toff -= plen;
+				continue;
+			}
+			plen -= toff;
+			poff += toff;
+			toff = 0;
+		}
+
+		plen = min(plen, tlen);
+		if (!plen)
+			break;
+
+		/*
+		 * just jump directly to update and return, no point
+		 * in going over fragments when the output is full.
+		 */
+		if (spd_fill_page(spd, virt_to_page(p), plen, poff, skb))
+			goto done;
+
+		tlen -= plen;
+	}
+
+	/*
+	 * then map the fragments
+	 */
+map_frag:
+	for (seg = 0; seg < skb_shinfo(skb)->nr_frags; seg++) {
+		const skb_frag_t *f = &skb_shinfo(skb)->frags[seg];
+
+		plen = f->size;
+		poff = f->page_offset;
+
+		if (toff) {
+			if (plen <= toff) {
+				toff -= plen;
+				continue;
+			}
+			plen -= toff;
+			poff += toff;
+			toff = 0;
+		}
+
+		plen = min(plen, tlen);
+		if (!plen)
+			break;
+
+		if (spd_fill_page(spd, f->page, plen, poff, skb))
+			break;
+
+		tlen -= plen;
+	}
+
+done:
+	if (spd->nr_pages - nr_pages) {
+		*offset = 0;
+		*total_len = tlen;
+		return 0;
+	}
+err:
+	return 1;
+}
+
+/*
+ * Map data from the skb to a pipe. Should handle both the linear part,
+ * the fragments, and the frag list. It does NOT handle frag lists within
+ * the frag list, if such a thing exists. We'd probably need to recurse to
+ * handle that cleanly.
+ */
+int skb_splice_bits(struct sk_buff *__skb, unsigned int offset,
+		    struct pipe_inode_info *pipe, unsigned int tlen,
+		    unsigned int flags)
+{
+	struct partial_page partial[PIPE_BUFFERS];
+	struct page *pages[PIPE_BUFFERS];
+	struct splice_pipe_desc spd = {
+		.pages = pages,
+		.partial = partial,
+		.flags = flags,
+		.ops = &sock_pipe_buf_ops,
+		.spd_release = sock_spd_release,
+	};
+	struct sk_buff *skb;
+
+	/*
+	 * I'd love to avoid the clone here, but tcp_read_sock()
+	 * ignores reference counts and unconditonally kills the sk_buff
+	 * on return from the actor.
+	 */
+	skb = skb_clone(__skb, GFP_KERNEL);
+	if (unlikely(!skb))
+		return -ENOMEM;
+
+	/*
+	 * __skb_splice_bits() only fails if the output has no room left,
+	 * so no point in going over the frag_list for the error case.
+	 */
+	if (__skb_splice_bits(skb, &offset, &tlen, &spd))
+		goto done;
+	else if (!tlen)
+		goto done;
+
+	/*
+	 * now see if we have a frag_list to map
+	 */
+	if (skb_shinfo(skb)->frag_list) {
+		struct sk_buff *list = skb_shinfo(skb)->frag_list;
+
+		for (; list && tlen; list = list->next) {
+			if (__skb_splice_bits(list, &offset, &tlen, &spd))
+				break;
+		}
+	}
+
+done:
+	/*
+	 * drop our reference to the clone, the pipe consumption will
+	 * drop the rest.
+	 */
+	kfree_skb(skb);
+
+	if (spd.nr_pages) {
+		int ret;
+
+		/*
+		 * Drop the socket lock, otherwise we have reverse
+		 * locking dependencies between sk_lock and i_mutex
+		 * here as compared to sendfile(). We enter here
+		 * with the socket lock held, and splice_to_pipe() will
+		 * grab the pipe inode lock. For sendfile() emulation,
+		 * we call into ->sendpage() with the i_mutex lock held
+		 * and networking will grab the socket lock.
+		 */
+		release_sock(__skb->sk);
+		ret = splice_to_pipe(pipe, &spd);
+		lock_sock(__skb->sk);
+		return ret;
+	}
+
+	return 0;
 }
 
 /**
@@ -2028,8 +2280,8 @@ void __init skb_init(void)
  *	Fill the specified scatter-gather list with mappings/pointers into a
  *	region of the buffer space attached to a socket buffer.
  */
-int
-skb_to_sgvec(struct sk_buff *skb, struct scatterlist *sg, int offset, int len)
+static int
+__skb_to_sgvec(struct sk_buff *skb, struct scatterlist *sg, int offset, int len)
 {
 	int start = skb_headlen(skb);
 	int i, copy = start - offset;
@@ -2078,7 +2330,8 @@ skb_to_sgvec(struct sk_buff *skb, struct scatterlist *sg, int offset, int len)
 			if ((copy = end - offset) > 0) {
 				if (copy > len)
 					copy = len;
-				elt += skb_to_sgvec(list, sg+elt, offset - start, copy);
+				elt += __skb_to_sgvec(list, sg+elt, offset - start,
+						      copy);
 				if ((len -= copy) == 0)
 					return elt;
 				offset += copy;
@@ -2088,6 +2341,15 @@ skb_to_sgvec(struct sk_buff *skb, struct scatterlist *sg, int offset, int len)
 	}
 	BUG_ON(len);
 	return elt;
+}
+
+int skb_to_sgvec(struct sk_buff *skb, struct scatterlist *sg, int offset, int len)
+{
+	int nsg = __skb_to_sgvec(skb, sg, offset, len);
+
+	sg_mark_end(&sg[nsg - 1]);
+
+	return nsg;
 }
 
 /**

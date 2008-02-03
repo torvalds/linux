@@ -4963,10 +4963,11 @@ void ncr_complete (struct ncb *np, struct ccb *cp)
 		**	Copy back sense data to caller's buffer.
 		*/
 		memcpy(cmd->sense_buffer, cp->sense_buf,
-		       min(sizeof(cmd->sense_buffer), sizeof(cp->sense_buf)));
+		       min_t(size_t, SCSI_SENSE_BUFFERSIZE,
+			     sizeof(cp->sense_buf)));
 
 		if (DEBUG_FLAGS & (DEBUG_RESULT|DEBUG_TINY)) {
-			u_char * p = (u_char*) & cmd->sense_buffer;
+			u_char *p = cmd->sense_buffer;
 			int i;
 			PRINT_ADDR(cmd, "sense data:");
 			for (i=0; i<14; i++) printk (" %x", *p++);

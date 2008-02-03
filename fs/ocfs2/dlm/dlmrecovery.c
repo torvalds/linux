@@ -2270,6 +2270,12 @@ static void __dlm_hb_node_down(struct dlm_ctxt *dlm, int idx)
 		}
 	}
 
+	/* Clean up join state on node death. */
+	if (dlm->joining_node == idx) {
+		mlog(0, "Clearing join state for node %u\n", idx);
+		__dlm_set_joining_node(dlm, DLM_LOCK_RES_OWNER_UNKNOWN);
+	}
+
 	/* check to see if the node is already considered dead */
 	if (!test_bit(idx, dlm->live_nodes_map)) {
 		mlog(0, "for domain %s, node %d is already dead. "
@@ -2287,12 +2293,6 @@ static void __dlm_hb_node_down(struct dlm_ctxt *dlm, int idx)
 	}
 
 	clear_bit(idx, dlm->live_nodes_map);
-
-	/* Clean up join state on node death. */
-	if (dlm->joining_node == idx) {
-		mlog(0, "Clearing join state for node %u\n", idx);
-		__dlm_set_joining_node(dlm, DLM_LOCK_RES_OWNER_UNKNOWN);
-	}
 
 	/* make sure local cleanup occurs before the heartbeat events */
 	if (!test_bit(idx, dlm->recovery_map))
@@ -2320,6 +2320,13 @@ void dlm_hb_node_down_cb(struct o2nm_node *node, int idx, void *data)
 
 	if (!dlm_grab(dlm))
 		return;
+
+	/*
+	 * This will notify any dlm users that a node in our domain
+	 * went away without notifying us first.
+	 */
+	if (test_bit(idx, dlm->domain_map))
+		dlm_fire_domain_eviction_callbacks(dlm, idx);
 
 	spin_lock(&dlm->spinlock);
 	__dlm_hb_node_down(dlm, idx);

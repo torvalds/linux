@@ -758,6 +758,7 @@ static int gem_rx(struct gem *gp, int work_to_do)
 {
 	int entry, drops, work_done = 0;
 	u32 done;
+	__sum16 csum;
 
 	if (netif_msg_rx_status(gp))
 		printk(KERN_DEBUG "%s: rx interrupt, done: %d, rx_new: %d\n",
@@ -769,7 +770,7 @@ static int gem_rx(struct gem *gp, int work_to_do)
 	for (;;) {
 		struct gem_rxd *rxd = &gp->init_block->rxd[entry];
 		struct sk_buff *skb;
-		u64 status = cpu_to_le64(rxd->status_word);
+		u64 status = le64_to_cpu(rxd->status_word);
 		dma_addr_t dma_addr;
 		int len;
 
@@ -811,7 +812,7 @@ static int gem_rx(struct gem *gp, int work_to_do)
 			goto next;
 		}
 
-		dma_addr = cpu_to_le64(rxd->buffer);
+		dma_addr = le64_to_cpu(rxd->buffer);
 		if (len > RX_COPY_THRESHOLD) {
 			struct sk_buff *new_skb;
 
@@ -853,7 +854,8 @@ static int gem_rx(struct gem *gp, int work_to_do)
 			skb = copy_skb;
 		}
 
-		skb->csum = ntohs((status & RXDCTRL_TCPCSUM) ^ 0xffff);
+		csum = (__force __sum16)htons((status & RXDCTRL_TCPCSUM) ^ 0xffff);
+		skb->csum = csum_unfold(csum);
 		skb->ip_summed = CHECKSUM_COMPLETE;
 		skb->protocol = eth_type_trans(skb, gp->dev);
 
@@ -2281,13 +2283,11 @@ static void gem_reset_task(struct work_struct *work)
 
 	mutex_lock(&gp->pm_mutex);
 
-	napi_disable(&gp->napi);
+	if (gp->opened)
+		napi_disable(&gp->napi);
 
 	spin_lock_irq(&gp->lock);
 	spin_lock(&gp->tx_lock);
-
-	if (gp->running == 0)
-		goto not_running;
 
 	if (gp->running) {
 		netif_stop_queue(gp->dev);
@@ -2298,13 +2298,14 @@ static void gem_reset_task(struct work_struct *work)
 			gem_set_link_modes(gp);
 		netif_wake_queue(gp->dev);
 	}
- not_running:
+
 	gp->reset_task_pending = 0;
 
 	spin_unlock(&gp->tx_lock);
 	spin_unlock_irq(&gp->lock);
 
-	napi_enable(&gp->napi);
+	if (gp->opened)
+		napi_enable(&gp->napi);
 
 	mutex_unlock(&gp->pm_mutex);
 }
@@ -2333,9 +2334,9 @@ static int gem_close(struct net_device *dev)
 {
 	struct gem *gp = dev->priv;
 
-	napi_disable(&gp->napi);
-
 	mutex_lock(&gp->pm_mutex);
+
+	napi_disable(&gp->napi);
 
 	gp->opened = 0;
 	if (!gp->asleep)
@@ -2355,8 +2356,6 @@ static int gem_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	mutex_lock(&gp->pm_mutex);
 
-	napi_disable(&gp->napi);
-
 	printk(KERN_INFO "%s: suspending, WakeOnLan %s\n",
 	       dev->name,
 	       (gp->wake_on_lan && gp->opened) ? "enabled" : "disabled");
@@ -2370,6 +2369,8 @@ static int gem_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	/* If the driver is opened, we stop the MAC */
 	if (gp->opened) {
+		napi_disable(&gp->napi);
+
 		/* Stop traffic, mark us closed */
 		netif_device_detach(dev);
 
@@ -2460,6 +2461,7 @@ static int gem_resume(struct pci_dev *pdev)
 		/* Re-attach net device */
 		netif_device_attach(dev);
 
+		napi_enable(&gp->napi);
 	}
 
 	spin_lock_irqsave(&gp->lock, flags);
@@ -2478,8 +2480,6 @@ static int gem_resume(struct pci_dev *pdev)
 
 	spin_unlock(&gp->tx_lock);
 	spin_unlock_irqrestore(&gp->lock, flags);
-
-	napi_enable(&gp->napi);
 
 	mutex_unlock(&gp->pm_mutex);
 
@@ -3056,7 +3056,7 @@ static int __devinit gem_init_one(struct pci_dev *pdev,
 	netif_carrier_off(dev);
 
 	gp->regs = ioremap(gemreg_base, gemreg_len);
-	if (gp->regs == 0UL) {
+	if (!gp->regs) {
 		printk(KERN_ERR PFX "Cannot map device registers, "
 		       "aborting.\n");
 		err = -EIO;

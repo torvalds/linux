@@ -23,7 +23,8 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/timer.h>
-#include <asm/of_platform.h>
+#include <linux/of_platform.h>
+
 #include <asm/processor.h>
 #include <asm/prom.h>
 #include <asm/pmi.h>

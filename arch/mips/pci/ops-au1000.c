@@ -1,8 +1,8 @@
 /*
  * BRIEF MODULE DESCRIPTION
- *	Alchemy/AMD Au1x00 pci support.
+ *	Alchemy/AMD Au1x00 PCI support.
  *
- * Copyright 2001,2002,2003 MontaVista Software Inc.
+ * Copyright 2001-2003, 2007 MontaVista Software Inc.
  * Author: MontaVista Software, Inc.
  *         	ppopov@mvista.com or source@mvista.com
  *
@@ -69,10 +69,27 @@ void mod_wired_entry(int entry, unsigned long entrylo0,
 	write_c0_pagemask(old_pagemask);
 }
 
-struct vm_struct *pci_cfg_vm;
+static struct vm_struct *pci_cfg_vm;
 static int pci_cfg_wired_entry;
-static int first_cfg = 1;
-unsigned long last_entryLo0, last_entryLo1;
+static unsigned long last_entryLo0, last_entryLo1;
+
+/*
+ * We can't ioremap the entire pci config space because it's too large.
+ * Nor can we call ioremap dynamically because some device drivers use
+ * the PCI config routines from within interrupt handlers and that
+ * becomes a problem in get_vm_area().  We use one wired TLB to handle
+ * all config accesses for all busses.
+ */
+void __init au1x_pci_cfg_init(void)
+{
+	/* Reserve a wired entry for PCI config accesses */
+	pci_cfg_vm = get_vm_area(0x2000, VM_IOREMAP);
+	if (!pci_cfg_vm)
+		panic(KERN_ERR "PCI unable to get vm area\n");
+	pci_cfg_wired_entry = read_c0_wired();
+	add_wired_entry(0, 0, (unsigned long)pci_cfg_vm->addr, PM_4K);
+	last_entryLo0 = last_entryLo1 = 0xffffffff;
+}
 
 static int config_access(unsigned char access_type, struct pci_bus *bus,
 			 unsigned int dev_fn, unsigned char where,
@@ -96,27 +113,6 @@ static int config_access(unsigned char access_type, struct pci_bus *bus,
 	au_writel(((0x2000 << 16) | (au_readl(Au1500_PCI_STATCMD) & 0xffff)),
 			Au1500_PCI_STATCMD);
 	au_sync_udelay(1);
-
-	/*
-	 * We can't ioremap the entire pci config space because it's
-	 * too large. Nor can we call ioremap dynamically because some
-	 * device drivers use the pci config routines from within
-	 * interrupt handlers and that becomes a problem in get_vm_area().
-	 * We use one wired tlb to handle all config accesses for all
-	 * busses. To improve performance, if the current device
-	 * is the same as the last device accessed, we don't touch the
-	 * tlb.
-	 */
-	if (first_cfg) {
-		/* reserve a wired entry for pci config accesses */
-		first_cfg = 0;
-		pci_cfg_vm = get_vm_area(0x2000, VM_IOREMAP);
-		if (!pci_cfg_vm)
-			panic(KERN_ERR "PCI unable to get vm area\n");
-		pci_cfg_wired_entry = read_c0_wired();
-		add_wired_entry(0, 0, (unsigned long)pci_cfg_vm->addr, PM_4K);
-		last_entryLo0  = last_entryLo1 = 0xffffffff;
-	}
 
 	/* Allow board vendors to implement their own off-chip idsel.
 	 * If it doesn't succeed, may as well bail out at this point.
@@ -144,9 +140,12 @@ static int config_access(unsigned char access_type, struct pci_bus *bus,
 	/* page boundary */
 	cfg_base = cfg_base & PAGE_MASK;
 
+	/*
+	 * To improve performance, if the current device is the same as
+	 * the last device accessed, we don't touch the TLB.
+	 */
 	entryLo0 = (6 << 26)  | (cfg_base >> 6) | (2 << 3) | 7;
 	entryLo1 = (6 << 26)  | (cfg_base >> 6) | (0x1000 >> 6) | (2 << 3) | 7;
-
 	if ((entryLo0 != last_entryLo0) || (entryLo1 != last_entryLo1)) {
 		mod_wired_entry(pci_cfg_wired_entry, entryLo0, entryLo1,
 				(unsigned long)pci_cfg_vm->addr, PM_4K);

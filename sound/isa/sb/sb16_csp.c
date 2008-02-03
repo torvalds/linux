@@ -23,7 +23,6 @@
  *
  */
 
-#include <sound/driver.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -118,7 +117,8 @@ static void info_read(struct snd_info_entry *entry, struct snd_info_buffer *buff
 int snd_sb_csp_new(struct snd_sb *chip, int device, struct snd_hwdep ** rhwdep)
 {
 	struct snd_sb_csp *p;
-	int version, err;
+	int uninitialized_var(version);
+	int err;
 	struct snd_hwdep *hw;
 
 	if (rhwdep)

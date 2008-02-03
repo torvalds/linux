@@ -182,7 +182,7 @@ static int rose_state3_machine(struct sock *sk, struct sk_buff *skb, int framety
 				break;
 			}
 			if (atomic_read(&sk->sk_rmem_alloc) >
-			    (sk->sk_rcvbuf / 2))
+			    (sk->sk_rcvbuf >> 1))
 				rose->condition |= ROSE_COND_OWN_RX_BUSY;
 		}
 		/*

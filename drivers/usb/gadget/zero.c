@@ -1115,7 +1115,7 @@ zero_bind (struct usb_gadget *gadget)
 	ep = usb_ep_autoconfig (gadget, &fs_source_desc);
 	if (!ep) {
 autoconf_fail:
-		printk (KERN_ERR "%s: can't autoconfigure on %s\n",
+		pr_err("%s: can't autoconfigure on %s\n",
 			shortname, gadget->name);
 		return -ENODEV;
 	}
@@ -1139,7 +1139,7 @@ autoconf_fail:
 		 * things like configuration and altsetting numbering
 		 * can need hardware-specific attention though.
 		 */
-		printk (KERN_WARNING "%s: controller '%s' not recognized\n",
+		pr_warning("%s: controller '%s' not recognized\n",
 			shortname, gadget->name);
 		device_desc.bcdDevice = __constant_cpu_to_le16 (0x9999);
 	}

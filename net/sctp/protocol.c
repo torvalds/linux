@@ -229,8 +229,8 @@ int sctp_copy_local_addr_list(struct sctp_bind_addr *bp, sctp_scope_t scope,
 			    (((AF_INET6 == addr->a.sa.sa_family) &&
 			      (copy_flags & SCTP_ADDR6_ALLOWED) &&
 			      (copy_flags & SCTP_ADDR6_PEERSUPP)))) {
-				error = sctp_add_bind_addr(bp, &addr->a, 1,
-						    GFP_ATOMIC);
+				error = sctp_add_bind_addr(bp, &addr->a,
+						    SCTP_ADDR_SRC, GFP_ATOMIC);
 				if (error)
 					goto end_copy;
 			}
@@ -359,7 +359,7 @@ static int sctp_v4_addr_valid(union sctp_addr *addr,
 			      const struct sk_buff *skb)
 {
 	/* Is this a non-unicast address or a unusable SCTP address? */
-	if (IS_IPV4_UNUSABLE_ADDRESS(&addr->v4.sin_addr.s_addr))
+	if (IS_IPV4_UNUSABLE_ADDRESS(addr->v4.sin_addr.s_addr))
 		return 0;
 
 	/* Is this a broadcast address? */
@@ -372,7 +372,7 @@ static int sctp_v4_addr_valid(union sctp_addr *addr,
 /* Should this be available for binding?   */
 static int sctp_v4_available(union sctp_addr *addr, struct sctp_sock *sp)
 {
-	int ret = inet_addr_type(addr->v4.sin_addr.s_addr);
+	int ret = inet_addr_type(&init_net, addr->v4.sin_addr.s_addr);
 
 
 	if (addr->v4.sin_addr.s_addr != INADDR_ANY &&
@@ -408,13 +408,15 @@ static sctp_scope_t sctp_v4_scope(union sctp_addr *addr)
 	 */
 
 	/* Check for unusable SCTP addresses. */
-	if (IS_IPV4_UNUSABLE_ADDRESS(&addr->v4.sin_addr.s_addr)) {
+	if (IS_IPV4_UNUSABLE_ADDRESS(addr->v4.sin_addr.s_addr)) {
 		retval =  SCTP_SCOPE_UNUSABLE;
-	} else if (LOOPBACK(addr->v4.sin_addr.s_addr)) {
+	} else if (ipv4_is_loopback(addr->v4.sin_addr.s_addr)) {
 		retval = SCTP_SCOPE_LOOPBACK;
-	} else if (IS_IPV4_LINK_ADDRESS(&addr->v4.sin_addr.s_addr)) {
+	} else if (ipv4_is_linklocal_169(addr->v4.sin_addr.s_addr)) {
 		retval = SCTP_SCOPE_LINK;
-	} else if (IS_IPV4_PRIVATE_ADDRESS(&addr->v4.sin_addr.s_addr)) {
+	} else if (ipv4_is_private_10(addr->v4.sin_addr.s_addr) ||
+		   ipv4_is_private_172(addr->v4.sin_addr.s_addr) ||
+		   ipv4_is_private_192(addr->v4.sin_addr.s_addr)) {
 		retval = SCTP_SCOPE_PRIVATE;
 	} else {
 		retval = SCTP_SCOPE_GLOBAL;
@@ -452,7 +454,7 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 			  __FUNCTION__, NIPQUAD(fl.fl4_dst),
 			  NIPQUAD(fl.fl4_src));
 
-	if (!ip_route_output_key(&rt, &fl)) {
+	if (!ip_route_output_key(&init_net, &rt, &fl)) {
 		dst = &rt->u.dst;
 	}
 
@@ -470,7 +472,7 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 		 */
 		rcu_read_lock();
 		list_for_each_entry_rcu(laddr, &bp->address_list, list) {
-			if (!laddr->valid || !laddr->use_as_src)
+			if (!laddr->valid || (laddr->state != SCTP_ADDR_SRC))
 				continue;
 			sctp_v4_dst_saddr(&dst_saddr, dst, htons(bp->port));
 			if (sctp_v4_cmp_addr(&dst_saddr, &laddr->a))
@@ -492,10 +494,10 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 	list_for_each_entry_rcu(laddr, &bp->address_list, list) {
 		if (!laddr->valid)
 			continue;
-		if ((laddr->use_as_src) &&
+		if ((laddr->state == SCTP_ADDR_SRC) &&
 		    (AF_INET == laddr->a.sa.sa_family)) {
 			fl.fl4_src = laddr->a.v4.sin_addr.s_addr;
-			if (!ip_route_output_key(&rt, &fl)) {
+			if (!ip_route_output_key(&init_net, &rt, &fl)) {
 				dst = &rt->u.dst;
 				goto out_unlock;
 			}
@@ -552,7 +554,8 @@ static struct sock *sctp_v4_create_accept_sk(struct sock *sk,
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct inet_sock *newinet;
-	struct sock *newsk = sk_alloc(sk->sk_net, PF_INET, GFP_KERNEL, sk->sk_prot, 1);
+	struct sock *newsk = sk_alloc(sk->sk_net, PF_INET, GFP_KERNEL,
+			sk->sk_prot);
 
 	if (!newsk)
 		goto out;
@@ -1106,7 +1109,7 @@ SCTP_STATIC __init int sctp_init(void)
 	sysctl_sctp_rmem[1] = (1500 *(sizeof(struct sk_buff) + 1));
 	sysctl_sctp_rmem[2] = max(sysctl_sctp_rmem[1], max_share);
 
-	sysctl_sctp_wmem[0] = SK_STREAM_MEM_QUANTUM;
+	sysctl_sctp_wmem[0] = SK_MEM_QUANTUM;
 	sysctl_sctp_wmem[1] = 16*1024;
 	sysctl_sctp_wmem[2] = max(64*1024, max_share);
 
@@ -1136,7 +1139,7 @@ SCTP_STATIC __init int sctp_init(void)
 	}
 	for (i = 0; i < sctp_assoc_hashsize; i++) {
 		rwlock_init(&sctp_assoc_hashtable[i].lock);
-		sctp_assoc_hashtable[i].chain = NULL;
+		INIT_HLIST_HEAD(&sctp_assoc_hashtable[i].chain);
 	}
 
 	/* Allocate and initialize the endpoint hash table.  */
@@ -1150,7 +1153,7 @@ SCTP_STATIC __init int sctp_init(void)
 	}
 	for (i = 0; i < sctp_ep_hashsize; i++) {
 		rwlock_init(&sctp_ep_hashtable[i].lock);
-		sctp_ep_hashtable[i].chain = NULL;
+		INIT_HLIST_HEAD(&sctp_ep_hashtable[i].chain);
 	}
 
 	/* Allocate and initialize the SCTP port hash table.  */
@@ -1169,7 +1172,7 @@ SCTP_STATIC __init int sctp_init(void)
 	}
 	for (i = 0; i < sctp_port_hashsize; i++) {
 		spin_lock_init(&sctp_port_hashtable[i].lock);
-		sctp_port_hashtable[i].chain = NULL;
+		INIT_HLIST_HEAD(&sctp_port_hashtable[i].chain);
 	}
 
 	printk(KERN_INFO "SCTP: Hash tables configured "
@@ -1178,6 +1181,7 @@ SCTP_STATIC __init int sctp_init(void)
 
 	/* Disable ADDIP by default. */
 	sctp_addip_enable = 0;
+	sctp_addip_noauth = 0;
 
 	/* Enable PR-SCTP by default. */
 	sctp_prsctp_enable = 1;

@@ -1,7 +1,4 @@
 /*
- *
- * Version 3.50
- *
  * VIA IDE driver for Linux. Supported southbridges:
  *
  *   vt82c576, vt82c586, vt82c586a, vt82c586b, vt82c596a, vt82c596b,
@@ -29,14 +26,10 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/ioport.h>
-#include <linux/blkdev.h>
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/ide.h>
 #include <linux/dmi.h>
-
-#include <asm/io.h>
 
 #ifdef CONFIG_PPC_CHRP
 #include <asm/processor.h>
@@ -121,8 +114,8 @@ struct via82cxxx_dev
 
 static void via_set_speed(ide_hwif_t *hwif, u8 dn, struct ide_timing *timing)
 {
-	struct pci_dev *dev = hwif->pci_dev;
-	struct via82cxxx_dev *vdev = pci_get_drvdata(hwif->pci_dev);
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
+	struct via82cxxx_dev *vdev = pci_get_drvdata(dev);
 	u8 t;
 
 	if (~vdev->via_config->flags & VIA_BAD_AST) {
@@ -159,8 +152,10 @@ static void via_set_speed(ide_hwif_t *hwif, u8 dn, struct ide_timing *timing)
 
 static void via_set_drive(ide_drive_t *drive, const u8 speed)
 {
-	ide_drive_t *peer = HWIF(drive)->drives + (~drive->dn & 1);
-	struct via82cxxx_dev *vdev = pci_get_drvdata(drive->hwif->pci_dev);
+	ide_hwif_t *hwif = drive->hwif;
+	ide_drive_t *peer = hwif->drives + (~drive->dn & 1);
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
+	struct via82cxxx_dev *vdev = pci_get_drvdata(dev);
 	struct ide_timing t, p;
 	unsigned int T, UT;
 
@@ -408,7 +403,7 @@ static int via_cable_override(struct pci_dev *pdev)
 
 static u8 __devinit via82cxxx_cable_detect(ide_hwif_t *hwif)
 {
-	struct pci_dev *pdev = hwif->pci_dev;
+	struct pci_dev *pdev = to_pci_dev(hwif->dev);
 	struct via82cxxx_dev *vdev = pci_get_drvdata(pdev);
 
 	if (via_cable_override(pdev))
@@ -425,11 +420,7 @@ static void __devinit init_hwif_via82cxxx(ide_hwif_t *hwif)
 	hwif->set_pio_mode = &via_set_pio_mode;
 	hwif->set_dma_mode = &via_set_drive;
 
-	if (!hwif->dma_base)
-		return;
-
-	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
-		hwif->cbl = via82cxxx_cable_detect(hwif);
+	hwif->cable_detect = via82cxxx_cable_detect;
 }
 
 static const struct ide_port_info via82cxxx_chipset __devinitdata = {
@@ -439,6 +430,7 @@ static const struct ide_port_info via82cxxx_chipset __devinitdata = {
 	.enablebits	= { { 0x40, 0x02, 0x02 }, { 0x40, 0x01, 0x01 } },
 	.host_flags	= IDE_HFLAG_PIO_NO_BLACKLIST |
 			  IDE_HFLAG_PIO_NO_DOWNGRADE |
+			  IDE_HFLAG_ABUSE_SET_DMA_MODE |
 			  IDE_HFLAG_POST_SET_MODE |
 			  IDE_HFLAG_IO_32BIT |
 			  IDE_HFLAG_BOOTABLE,

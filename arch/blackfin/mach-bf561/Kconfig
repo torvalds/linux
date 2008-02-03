@@ -1,4 +1,6 @@
-if BF561
+if (BF561)
+
+source "arch/blackfin/mach-bf561/boards/Kconfig"
 
 menu "BF561 Specific Configuration"
 

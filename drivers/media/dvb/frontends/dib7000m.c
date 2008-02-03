@@ -1171,7 +1171,9 @@ static int dib7000m_set_frontend(struct dvb_frontend* fe,
 				struct dvb_frontend_parameters *fep)
 {
 	struct dib7000m_state *state = fe->demodulator_priv;
-	int time;
+	int time, ret;
+
+    dib7000m_set_output_mode(state, OUTMODE_HIGH_Z);
 
 	state->current_bandwidth = fep->u.ofdm.bandwidth;
 	dib7000m_set_bandwidth(state, BANDWIDTH_TO_KHZ(fep->u.ofdm.bandwidth));
@@ -1206,10 +1208,11 @@ static int dib7000m_set_frontend(struct dvb_frontend* fe,
 		dib7000m_get_frontend(fe, fep);
 	}
 
+	ret = dib7000m_tune(fe, fep);
+
 	/* make this a config parameter */
 	dib7000m_set_output_mode(state, OUTMODE_MPEG2_FIFO);
-
-	return dib7000m_tune(fe, fep);
+	return ret;
 }
 
 static int dib7000m_read_status(struct dvb_frontend *fe, fe_status_t *stat)

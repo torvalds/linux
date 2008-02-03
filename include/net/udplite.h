@@ -13,9 +13,6 @@
 extern struct proto 		udplite_prot;
 extern struct hlist_head 	udplite_hash[UDP_HTABLE_SIZE];
 
-/* UDP-Lite does not have a standardized MIB yet, so we inherit from UDP */
-DECLARE_SNMP_STAT(struct udp_mib, udplite_statistics);
-
 /*
  *	Checksum computation is all in software, hence simpler getfrag.
  */

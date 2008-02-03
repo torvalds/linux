@@ -31,7 +31,7 @@
 #include <asm/time.h>
 #include <asm/ppcboot.h>
 #include <asm/8xx_immap.h>
-#include <asm/commproc.h>
+#include <asm/cpm1.h>
 #include <asm/ppc_sys.h>
 
 extern unsigned char __res[];

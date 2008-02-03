@@ -23,13 +23,12 @@
 #define IPIC_IRQ_EXT7 23
 
 /* Default Priority Registers */
-#define IPIC_SIPRR_A_DEFAULT 0x05309770
-#define IPIC_SIPRR_D_DEFAULT 0x05309770
-#define IPIC_SMPRR_A_DEFAULT 0x05309770
-#define IPIC_SMPRR_B_DEFAULT 0x05309770
+#define IPIC_PRIORITY_DEFAULT 0x05309770
 
 /* System Global Interrupt Configuration Register */
 #define	SICFR_IPSA	0x00010000
+#define	SICFR_IPSB	0x00020000
+#define	SICFR_IPSC	0x00040000
 #define	SICFR_IPSD	0x00080000
 #define	SICFR_MPSA	0x00200000
 #define	SICFR_MPSB	0x00400000
@@ -45,13 +44,11 @@ struct ipic {
 
 	/* The remapper for this IPIC */
 	struct irq_host		*irqhost;
-
-	/* The "linux" controller struct */
-	struct irq_chip		hc_irq;
 };
 
 struct ipic_info {
-	u8	pend;		/* pending register offset from base */
+	u8	ack;		/* pending register offset from base if the irq
+				   supports ack operation */
 	u8	mask;		/* mask register offset from base */
 	u8	prio;		/* priority register offset from base */
 	u8	force;		/* force register offset from base */

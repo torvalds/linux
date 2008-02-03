@@ -214,7 +214,7 @@ static int irq_resume(struct sys_device *dev)
 #endif
 
 static struct sysdev_class irq_class = {
-	set_kset_name("irq"),
+	.name		= "irq",
 	.suspend	= irq_suspend,
 	.resume		= irq_resume,
 };

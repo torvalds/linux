@@ -10,7 +10,7 @@
  * This version of the driver is somewhat selectable for the different
  * processor/board combinations.  It works for the boards I know about
  * now, and should be easily modified to include others.  Some of the
- * configuration information is contained in <asm/commproc.h> and the
+ * configuration information is contained in <asm/cpm1.h> and the
  * remainder is here.
  *
  * Buffer descriptors are kept in the CPM dual port RAM, and the frame
@@ -272,7 +272,7 @@ scc_enet_timeout(struct net_device *dev)
  * This is called from the CPM handler, not the MPC core interrupt.
  */
 static irqreturn_t
-scc_enet_interrupt(int irq, void * dev_id)
+scc_enet_interrupt(int irq, void *dev_id)
 {
 	struct	net_device *dev = dev_id;
 	volatile struct	scc_enet_private *cep;
@@ -280,7 +280,7 @@ scc_enet_interrupt(int irq, void * dev_id)
 	ushort	int_events;
 	int	must_restart;
 
-	cep = (struct scc_enet_private *)dev->priv;
+	cep = dev->priv;
 
 	/* Get the interrupt events that caused us to be here.
 	*/

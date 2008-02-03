@@ -382,7 +382,7 @@ static void sctp_insert_list(struct list_head *head, struct list_head *new)
 /* Mark all the eligible packets on a transport for retransmission.  */
 void sctp_retransmit_mark(struct sctp_outq *q,
 			  struct sctp_transport *transport,
-			  __u8 fast_retransmit)
+			  __u8 reason)
 {
 	struct list_head *lchunk, *ltemp;
 	struct sctp_chunk *chunk;
@@ -412,20 +412,20 @@ void sctp_retransmit_mark(struct sctp_outq *q,
 			continue;
 		}
 
-		/* If we are doing retransmission due to a fast retransmit,
-		 * only the chunk's that are marked for fast retransmit
-		 * should be added to the retransmit queue.  If we are doing
-		 * retransmission due to a timeout or pmtu discovery, only the
-		 * chunks that are not yet acked should be added to the
-		 * retransmit queue.
+		/* If we are doing  retransmission due to a timeout or pmtu
+		 * discovery, only the  chunks that are not yet acked should
+		 * be added to the retransmit queue.
 		 */
-		if ((fast_retransmit && (chunk->fast_retransmit > 0)) ||
-		   (!fast_retransmit && !chunk->tsn_gap_acked)) {
+		if ((reason == SCTP_RTXR_FAST_RTX  &&
+			    (chunk->fast_retransmit > 0)) ||
+		    (reason != SCTP_RTXR_FAST_RTX  && !chunk->tsn_gap_acked)) {
 			/* If this chunk was sent less then 1 rto ago, do not
 			 * retransmit this chunk, but give the peer time
-			 * to acknowlege it.
+			 * to acknowlege it.  Do this only when
+			 * retransmitting due to T3 timeout.
 			 */
-			if ((jiffies - chunk->sent_at) < transport->rto)
+			if (reason == SCTP_RTXR_T3_RTX &&
+			    (jiffies - chunk->sent_at) < transport->last_rto)
 				continue;
 
 			/* RFC 2960 6.2.1 Processing a Received SACK
@@ -467,10 +467,10 @@ void sctp_retransmit_mark(struct sctp_outq *q,
 		}
 	}
 
-	SCTP_DEBUG_PRINTK("%s: transport: %p, fast_retransmit: %d, "
+	SCTP_DEBUG_PRINTK("%s: transport: %p, reason: %d, "
 			  "cwnd: %d, ssthresh: %d, flight_size: %d, "
 			  "pba: %d\n", __FUNCTION__,
-			  transport, fast_retransmit,
+			  transport, reason,
 			  transport->cwnd, transport->ssthresh,
 			  transport->flight_size,
 			  transport->partial_bytes_acked);
@@ -484,7 +484,6 @@ void sctp_retransmit(struct sctp_outq *q, struct sctp_transport *transport,
 		     sctp_retransmit_reason_t reason)
 {
 	int error = 0;
-	__u8 fast_retransmit = 0;
 
 	switch(reason) {
 	case SCTP_RTXR_T3_RTX:
@@ -499,16 +498,18 @@ void sctp_retransmit(struct sctp_outq *q, struct sctp_transport *transport,
 	case SCTP_RTXR_FAST_RTX:
 		SCTP_INC_STATS(SCTP_MIB_FAST_RETRANSMITS);
 		sctp_transport_lower_cwnd(transport, SCTP_LOWER_CWND_FAST_RTX);
-		fast_retransmit = 1;
 		break;
 	case SCTP_RTXR_PMTUD:
 		SCTP_INC_STATS(SCTP_MIB_PMTUD_RETRANSMITS);
+		break;
+	case SCTP_RTXR_T1_RTX:
+		SCTP_INC_STATS(SCTP_MIB_T1_RETRANSMITS);
 		break;
 	default:
 		BUG();
 	}
 
-	sctp_retransmit_mark(q, transport, fast_retransmit);
+	sctp_retransmit_mark(q, transport, reason);
 
 	/* PR-SCTP A5) Any time the T3-rtx timer expires, on any destination,
 	 * the sender SHOULD try to advance the "Advanced.Peer.Ack.Point" by
@@ -641,7 +642,8 @@ static int sctp_outq_flush_rtx(struct sctp_outq *q, struct sctp_packet *pkt,
 
 		/* If we are here due to a retransmit timeout or a fast
 		 * retransmit and if there are any chunks left in the retransmit
-		 * queue that could not fit in the PMTU sized packet, they need			 * to be marked as ineligible for a subsequent fast retransmit.
+		 * queue that could not fit in the PMTU sized packet, they need
+		 * to be marked as ineligible for a subsequent fast retransmit.
 		 */
 		if (rtx_timeout && !lchunk) {
 			list_for_each(lchunk1, lqueue) {
@@ -660,10 +662,9 @@ static int sctp_outq_flush_rtx(struct sctp_outq *q, struct sctp_packet *pkt,
 int sctp_outq_uncork(struct sctp_outq *q)
 {
 	int error = 0;
-	if (q->cork) {
+	if (q->cork)
 		q->cork = 0;
-		error = sctp_outq_flush(q, 0);
-	}
+	error = sctp_outq_flush(q, 0);
 	return error;
 }
 
@@ -715,7 +716,29 @@ int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 		new_transport = chunk->transport;
 
 		if (!new_transport) {
-			new_transport = asoc->peer.active_path;
+			/*
+			 * If we have a prior transport pointer, see if
+			 * the destination address of the chunk
+			 * matches the destination address of the
+			 * current transport.  If not a match, then
+			 * try to look up the transport with a given
+			 * destination address.  We do this because
+			 * after processing ASCONFs, we may have new
+			 * transports created.
+			 */
+			if (transport &&
+			    sctp_cmp_addr_exact(&chunk->dest,
+						&transport->ipaddr))
+					new_transport = transport;
+			else
+				new_transport = sctp_assoc_lookup_paddr(asoc,
+								&chunk->dest);
+
+			/* if we still don't have a new transport, then
+			 * use the current active path.
+			 */
+			if (!new_transport)
+				new_transport = asoc->peer.active_path;
 		} else if ((new_transport->state == SCTP_INACTIVE) ||
 			   (new_transport->state == SCTP_UNCONFIRMED)) {
 			/* If the chunk is Heartbeat or Heartbeat Ack,
@@ -728,9 +751,12 @@ int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 			 * address of the IP datagram containing the
 			 * HEARTBEAT chunk to which this ack is responding.
 			 * ...
+			 *
+			 * ASCONF_ACKs also must be sent to the source.
 			 */
 			if (chunk->chunk_hdr->type != SCTP_CID_HEARTBEAT &&
-			    chunk->chunk_hdr->type != SCTP_CID_HEARTBEAT_ACK)
+			    chunk->chunk_hdr->type != SCTP_CID_HEARTBEAT_ACK &&
+			    chunk->chunk_hdr->type != SCTP_CID_ASCONF_ACK)
 				new_transport = asoc->peer.active_path;
 		}
 

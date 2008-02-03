@@ -5,9 +5,6 @@
 
 #ifdef CONFIG_X86_32
 
-/* Use early IO mappings for DMI because it's initialized early */
-#define dmi_ioremap bt_ioremap
-#define dmi_iounmap bt_iounmap
 #define dmi_alloc alloc_bootmem
 
 #else /* CONFIG_X86_32 */
@@ -22,14 +19,15 @@ extern char dmi_alloc_data[DMI_MAX_DATA];
 static inline void *dmi_alloc(unsigned len)
 {
 	int idx = dmi_alloc_index;
-	if ((dmi_alloc_index += len) > DMI_MAX_DATA)
+	if ((dmi_alloc_index + len) > DMI_MAX_DATA)
 		return NULL;
+	dmi_alloc_index += len;
 	return dmi_alloc_data + idx;
 }
 
+#endif
+
 #define dmi_ioremap early_ioremap
 #define dmi_iounmap early_iounmap
-
-#endif
 
 #endif

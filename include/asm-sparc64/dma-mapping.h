@@ -25,15 +25,9 @@ struct dma_ops {
 	void (*sync_single_for_cpu)(struct device *dev,
 				    dma_addr_t dma_handle, size_t size,
 				    enum dma_data_direction direction);
-	void (*sync_single_for_device)(struct device *dev,
-				       dma_addr_t dma_handle, size_t size,
-				       enum dma_data_direction direction);
 	void (*sync_sg_for_cpu)(struct device *dev, struct scatterlist *sg,
 				int nelems,
 				enum dma_data_direction direction);
-	void (*sync_sg_for_device)(struct device *dev, struct scatterlist *sg,
-				   int nelems,
-				   enum dma_data_direction direction);
 };
 extern const struct dma_ops *dma_ops;
 
@@ -105,7 +99,7 @@ static inline void dma_sync_single_for_device(struct device *dev,
 					      size_t size,
 					      enum dma_data_direction direction)
 {
-	dma_ops->sync_single_for_device(dev, dma_handle, size, direction);
+	/* No flushing needed to sync cpu writes to the device.  */
 }
 
 static inline void dma_sync_single_range_for_cpu(struct device *dev,
@@ -123,7 +117,7 @@ static inline void dma_sync_single_range_for_device(struct device *dev,
 						    size_t size,
 						    enum dma_data_direction direction)
 {
-	dma_sync_single_for_device(dev, dma_handle+offset, size, direction);
+	/* No flushing needed to sync cpu writes to the device.  */
 }
 
 
@@ -138,7 +132,7 @@ static inline void dma_sync_sg_for_device(struct device *dev,
 					  struct scatterlist *sg, int nelems,
 					  enum dma_data_direction direction)
 {
-	dma_ops->sync_sg_for_device(dev, sg, nelems, direction);
+	/* No flushing needed to sync cpu writes to the device.  */
 }
 
 static inline int dma_mapping_error(dma_addr_t dma_addr)

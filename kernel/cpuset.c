@@ -537,10 +537,10 @@ static int cpusets_overlap(struct cpuset *a, struct cpuset *b)
  *
  * Call with cgroup_mutex held.  May take callback_mutex during
  * call due to the kfifo_alloc() and kmalloc() calls.  May nest
- * a call to the lock_cpu_hotplug()/unlock_cpu_hotplug() pair.
+ * a call to the get_online_cpus()/put_online_cpus() pair.
  * Must not be called holding callback_mutex, because we must not
- * call lock_cpu_hotplug() while holding callback_mutex.  Elsewhere
- * the kernel nests callback_mutex inside lock_cpu_hotplug() calls.
+ * call get_online_cpus() while holding callback_mutex.  Elsewhere
+ * the kernel nests callback_mutex inside get_online_cpus() calls.
  * So the reverse nesting would risk an ABBA deadlock.
  *
  * The three key local variables below are:
@@ -691,9 +691,9 @@ restart:
 
 rebuild:
 	/* Have scheduler rebuild sched domains */
-	lock_cpu_hotplug();
+	get_online_cpus();
 	partition_sched_domains(ndoms, doms);
-	unlock_cpu_hotplug();
+	put_online_cpus();
 
 done:
 	if (q && !IS_ERR(q))
@@ -1617,10 +1617,10 @@ static struct cgroup_subsys_state *cpuset_create(
  *
  * If the cpuset being removed has its flag 'sched_load_balance'
  * enabled, then simulate turning sched_load_balance off, which
- * will call rebuild_sched_domains().  The lock_cpu_hotplug()
+ * will call rebuild_sched_domains().  The get_online_cpus()
  * call in rebuild_sched_domains() must not be made while holding
  * callback_mutex.  Elsewhere the kernel nests callback_mutex inside
- * lock_cpu_hotplug() calls.  So the reverse nesting would risk an
+ * get_online_cpus() calls.  So the reverse nesting would risk an
  * ABBA deadlock.
  */
 

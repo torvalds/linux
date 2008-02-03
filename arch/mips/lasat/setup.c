@@ -117,14 +117,11 @@ static struct notifier_block lasat_panic_block[] =
 	}
 };
 
-void plat_time_init(void)
+void __init plat_time_init(void)
 {
 	mips_hpt_frequency = lasat_board_info.li_cpu_hz / 2;
-}
 
-void __init plat_timer_setup(struct irqaction *irq)
-{
-	change_c0_status(ST0_IM, IE_IRQ0 | IE_IRQ5);
+	change_c0_status(ST0_IM, IE_IRQ0);
 }
 
 void __init plat_mem_setup(void)

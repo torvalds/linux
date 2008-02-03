@@ -177,10 +177,9 @@ static inline void atalk_destroy_socket(struct sock *sk)
 
 	if (atomic_read(&sk->sk_wmem_alloc) ||
 	    atomic_read(&sk->sk_rmem_alloc)) {
-		init_timer(&sk->sk_timer);
+		setup_timer(&sk->sk_timer, atalk_destroy_timer,
+				(unsigned long)sk);
 		sk->sk_timer.expires	= jiffies + SOCK_DESTROY_TIME;
-		sk->sk_timer.function	= atalk_destroy_timer;
-		sk->sk_timer.data	= (unsigned long)sk;
 		add_timer(&sk->sk_timer);
 	} else
 		sock_put(sk);
@@ -1044,7 +1043,7 @@ static int atalk_create(struct net *net, struct socket *sock, int protocol)
 	if (sock->type != SOCK_RAW && sock->type != SOCK_DGRAM)
 		goto out;
 	rc = -ENOMEM;
-	sk = sk_alloc(net, PF_APPLETALK, GFP_KERNEL, &ddp_proto, 1);
+	sk = sk_alloc(net, PF_APPLETALK, GFP_KERNEL, &ddp_proto);
 	if (!sk)
 		goto out;
 	rc = 0;

@@ -124,7 +124,7 @@ int ax25_rx_iframe(ax25_cb *ax25, struct sk_buff *skb)
 		}
 
 		skb_pull(skb, 1);	/* Remove PID */
-		skb_reset_mac_header(skb);
+		skb->mac_header = skb->network_header;
 		skb_reset_network_header(skb);
 		skb->dev      = ax25->ax25_dev->dev;
 		skb->pkt_type = PACKET_HOST;

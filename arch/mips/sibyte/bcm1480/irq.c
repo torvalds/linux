@@ -265,42 +265,6 @@ void __init init_bcm1480_irqs(void)
 	}
 }
 
-
-static irqreturn_t bcm1480_dummy_handler(int irq, void *dev_id)
-{
-	return IRQ_NONE;
-}
-
-static struct irqaction bcm1480_dummy_action = {
-	.handler = bcm1480_dummy_handler,
-	.flags   = 0,
-	.mask    = CPU_MASK_NONE,
-	.name    = "bcm1480-private",
-	.next    = NULL,
-	.dev_id  = 0
-};
-
-int bcm1480_steal_irq(int irq)
-{
-	struct irq_desc *desc = irq_desc + irq;
-	unsigned long flags;
-	int retval = 0;
-
-	if (irq >= BCM1480_NR_IRQS)
-		return -EINVAL;
-
-	spin_lock_irqsave(&desc->lock, flags);
-	/* Don't allow sharing at all for these */
-	if (desc->action != NULL)
-		retval = -EBUSY;
-	else {
-		desc->action = &bcm1480_dummy_action;
-		desc->depth = 0;
-	}
-	spin_unlock_irqrestore(&desc->lock, flags);
-	return 0;
-}
-
 /*
  *  init_IRQ is called early in the boot sequence from init/main.c.  It
  *  is responsible for setting up the interrupt mapper and installing the
@@ -329,7 +293,6 @@ int bcm1480_steal_irq(int irq)
 
 void __init arch_init_irq(void)
 {
-
 	unsigned int i, cpu;
 	u64 tmp;
 	unsigned int imask = STATUSF_IP4 | STATUSF_IP3 | STATUSF_IP2 |
@@ -386,8 +349,6 @@ void __init arch_init_irq(void)
 		__raw_writeq(tmp, IOADDR(A_BCM1480_IMR_REGISTER(cpu, R_BCM1480_IMR_INTERRUPT_MASK_L)));
 	}
 
-	bcm1480_steal_irq(K_BCM1480_INT_MBOX_0_0);
-
 	/*
 	 * Note that the timer interrupts are also mapped, but this is
 	 * done in bcm1480_time_init().  Also, the profiling driver
@@ -409,12 +370,11 @@ void __init arch_init_irq(void)
 #endif
 		/* Setup uart 1 settings, mapper */
 		/* QQQ FIXME */
-		__raw_writeq(M_DUART_IMR_BRK, IO_SPACE_BASE + A_DUART_IMRREG(kgdb_port));
+		__raw_writeq(M_DUART_IMR_BRK, IOADDR(A_DUART_IMRREG(kgdb_port)));
 
-		bcm1480_steal_irq(kgdb_irq);
 		__raw_writeq(IMR_IP6_VAL,
-			     IO_SPACE_BASE + A_BCM1480_IMR_REGISTER(0, R_BCM1480_IMR_INTERRUPT_MAP_BASE_H) +
-			     (kgdb_irq<<3));
+			     IOADDR(A_BCM1480_IMR_REGISTER(0, R_BCM1480_IMR_INTERRUPT_MAP_BASE_H) +
+			     (kgdb_irq << 3)));
 		bcm1480_unmask_irq(0, kgdb_irq);
 
 #ifdef CONFIG_GDB_CONSOLE
@@ -452,18 +412,6 @@ static void bcm1480_kgdb_interrupt(void)
 
 extern void bcm1480_mailbox_interrupt(void);
 
-static inline void dispatch_ip4(void)
-{
-	int cpu = smp_processor_id();
-	int irq = K_BCM1480_INT_TIMER_0 + cpu;
-
-	/* Reset the timer */
-	__raw_writeq(M_SCD_TIMER_ENABLE|M_SCD_TIMER_MODE_CONTINUOUS,
-	            IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG)));
-
-	do_IRQ(irq);
-}
-
 static inline void dispatch_ip2(void)
 {
 	unsigned long long mask_h, mask_l;
@@ -491,6 +439,7 @@ static inline void dispatch_ip2(void)
 
 asmlinkage void plat_irq_dispatch(void)
 {
+	unsigned int cpu = smp_processor_id();
 	unsigned int pending;
 
 #ifdef CONFIG_SIBYTE_BCM1480_PROF
@@ -507,7 +456,7 @@ asmlinkage void plat_irq_dispatch(void)
 #endif
 
 	if (pending & CAUSEF_IP4)
-		dispatch_ip4();
+		do_IRQ(K_BCM1480_INT_TIMER_0 + cpu);
 #ifdef CONFIG_SMP
 	else if (pending & CAUSEF_IP3)
 		bcm1480_mailbox_interrupt();

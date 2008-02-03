@@ -18,6 +18,9 @@
 
 #include <linux/types.h>
 
+typedef unsigned short	apm_event_t;
+typedef unsigned short	apm_eventinfo_t;
+
 struct apm_bios_info {
 	__u16	version;
 	__u16	cseg;
@@ -31,9 +34,6 @@ struct apm_bios_info {
 };
 
 #ifdef __KERNEL__
-
-typedef unsigned short	apm_event_t;
-typedef unsigned short	apm_eventinfo_t;
 
 #define APM_CS		(GDT_ENTRY_APMBIOS_BASE * 8)
 #define APM_CS_16	(APM_CS + 8)

@@ -38,6 +38,7 @@
 #include <linux/netdevice.h>
 #include <linux/netfilter_bridge/ebtables.h>
 #include <linux/netfilter_bridge/ebt_ulog.h>
+#include <net/netfilter/nf_log.h>
 #include <net/sock.h>
 #include "../br_private.h"
 
@@ -248,7 +249,7 @@ static void ebt_ulog(const struct sk_buff *skb, unsigned int hooknr,
    const struct net_device *in, const struct net_device *out,
    const void *data, unsigned int datalen)
 {
-	struct ebt_ulog_info *uloginfo = (struct ebt_ulog_info *)data;
+	const struct ebt_ulog_info *uloginfo = data;
 
 	ebt_ulog_packet(hooknr, skb, in, out, uloginfo, NULL);
 }
@@ -257,7 +258,7 @@ static void ebt_ulog(const struct sk_buff *skb, unsigned int hooknr,
 static int ebt_ulog_check(const char *tablename, unsigned int hookmask,
    const struct ebt_entry *e, void *data, unsigned int datalen)
 {
-	struct ebt_ulog_info *uloginfo = (struct ebt_ulog_info *)data;
+	struct ebt_ulog_info *uloginfo = data;
 
 	if (datalen != EBT_ALIGN(sizeof(struct ebt_ulog_info)) ||
 	    uloginfo->nlgroup > 31)
@@ -271,14 +272,14 @@ static int ebt_ulog_check(const char *tablename, unsigned int hookmask,
 	return 0;
 }
 
-static struct ebt_watcher ulog = {
+static struct ebt_watcher ulog __read_mostly = {
 	.name		= EBT_ULOG_WATCHER,
 	.watcher	= ebt_ulog,
 	.check		= ebt_ulog_check,
 	.me		= THIS_MODULE,
 };
 
-static struct nf_logger ebt_ulog_logger = {
+static const struct nf_logger ebt_ulog_logger = {
 	.name		= EBT_ULOG_WATCHER,
 	.logfn		= &ebt_log_packet,
 	.me		= THIS_MODULE,
@@ -306,7 +307,7 @@ static int __init ebt_ulog_init(void)
 	if (!ebtulognl)
 		ret = -ENOMEM;
 	else if ((ret = ebt_register_watcher(&ulog)))
-		sock_release(ebtulognl->sk_socket);
+		netlink_kernel_release(ebtulognl);
 
 	if (ret == 0)
 		nf_log_register(PF_BRIDGE, &ebt_ulog_logger);
@@ -332,12 +333,11 @@ static void __exit ebt_ulog_fini(void)
 		}
 		spin_unlock_bh(&ub->lock);
 	}
-	sock_release(ebtulognl->sk_socket);
+	netlink_kernel_release(ebtulognl);
 }
 
 module_init(ebt_ulog_init);
 module_exit(ebt_ulog_fini);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Bart De Schuymer <bdschuym@pandora.be>");
-MODULE_DESCRIPTION("ebtables userspace logging module for bridged Ethernet"
-		   " frames");
+MODULE_DESCRIPTION("Ebtables: Packet logging to netlink using ULOG");

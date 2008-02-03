@@ -67,7 +67,11 @@
  * NetLabel NETLINK protocol
  */
 
-#define NETLBL_PROTO_VERSION            1
+/* NetLabel NETLINK protocol version
+ *  1: initial version
+ *  2: added static labels for unlabeled connections
+ */
+#define NETLBL_PROTO_VERSION            2
 
 /* NetLabel NETLINK types/families */
 #define NETLBL_NLTYPE_NONE              0
@@ -105,17 +109,49 @@ struct netlbl_dom_map;
 /* Domain mapping operations */
 int netlbl_domhsh_remove(const char *domain, struct netlbl_audit *audit_info);
 
-/* LSM security attributes */
+/*
+ * LSM security attributes
+ */
+
+/**
+ * struct netlbl_lsm_cache - NetLabel LSM security attribute cache
+ * @refcount: atomic reference counter
+ * @free: LSM supplied function to free the cache data
+ * @data: LSM supplied cache data
+ *
+ * Description:
+ * This structure is provided for LSMs which wish to make use of the NetLabel
+ * caching mechanism to store LSM specific data/attributes in the NetLabel
+ * cache.  If the LSM has to perform a lot of translation from the NetLabel
+ * security attributes into it's own internal representation then the cache
+ * mechanism can provide a way to eliminate some or all of that translation
+ * overhead on a cache hit.
+ *
+ */
 struct netlbl_lsm_cache {
 	atomic_t refcount;
 	void (*free) (const void *data);
 	void *data;
 };
-/* The catmap bitmap field MUST be a power of two in length and large
+
+/**
+ * struct netlbl_lsm_secattr_catmap - NetLabel LSM secattr category bitmap
+ * @startbit: the value of the lowest order bit in the bitmap
+ * @bitmap: the category bitmap
+ * @next: pointer to the next bitmap "node" or NULL
+ *
+ * Description:
+ * This structure is used to represent category bitmaps.  Due to the large
+ * number of categories supported by most labeling protocols it is not
+ * practical to transfer a full bitmap internally so NetLabel adopts a sparse
+ * bitmap structure modeled after SELinux's ebitmap structure.
+ * The catmap bitmap field MUST be a power of two in length and large
  * enough to hold at least 240 bits.  Special care (i.e. check the code!)
  * should be used when changing these values as the LSM implementation
  * probably has functions which rely on the sizes of these types to speed
- * processing. */
+ * processing.
+ *
+ */
 #define NETLBL_CATMAP_MAPTYPE           u64
 #define NETLBL_CATMAP_MAPCNT            4
 #define NETLBL_CATMAP_MAPSIZE           (sizeof(NETLBL_CATMAP_MAPTYPE) * 8)
@@ -127,22 +163,48 @@ struct netlbl_lsm_secattr_catmap {
 	NETLBL_CATMAP_MAPTYPE bitmap[NETLBL_CATMAP_MAPCNT];
 	struct netlbl_lsm_secattr_catmap *next;
 };
+
+/**
+ * struct netlbl_lsm_secattr - NetLabel LSM security attributes
+ * @flags: indicate which attributes are contained in this structure
+ * @type: indicate the NLTYPE of the attributes
+ * @domain: the NetLabel LSM domain
+ * @cache: NetLabel LSM specific cache
+ * @attr.mls: MLS sensitivity label
+ * @attr.mls.cat: MLS category bitmap
+ * @attr.mls.lvl: MLS sensitivity level
+ * @attr.secid: LSM specific secid token
+ *
+ * Description:
+ * This structure is used to pass security attributes between NetLabel and the
+ * LSM modules.  The flags field is used to specify which fields within the
+ * struct are valid and valid values can be created by bitwise OR'ing the
+ * NETLBL_SECATTR_* defines.  The domain field is typically set by the LSM to
+ * specify domain specific configuration settings and is not usually used by
+ * NetLabel itself when returning security attributes to the LSM.
+ *
+ */
 #define NETLBL_SECATTR_NONE             0x00000000
 #define NETLBL_SECATTR_DOMAIN           0x00000001
 #define NETLBL_SECATTR_CACHE            0x00000002
 #define NETLBL_SECATTR_MLS_LVL          0x00000004
 #define NETLBL_SECATTR_MLS_CAT          0x00000008
+#define NETLBL_SECATTR_SECID            0x00000010
 #define NETLBL_SECATTR_CACHEABLE        (NETLBL_SECATTR_MLS_LVL | \
-					 NETLBL_SECATTR_MLS_CAT)
+					 NETLBL_SECATTR_MLS_CAT | \
+					 NETLBL_SECATTR_SECID)
 struct netlbl_lsm_secattr {
 	u32 flags;
-
+	u32 type;
 	char *domain;
-
-	u32 mls_lvl;
-	struct netlbl_lsm_secattr_catmap *mls_cat;
-
 	struct netlbl_lsm_cache *cache;
+	union {
+		struct {
+			struct netlbl_lsm_secattr_catmap *cat;
+			u32 lvl;
+		} mls;
+		u32 secid;
+	} attr;
 };
 
 /*
@@ -231,10 +293,7 @@ static inline void netlbl_secattr_catmap_free(
  */
 static inline void netlbl_secattr_init(struct netlbl_lsm_secattr *secattr)
 {
-	secattr->flags = 0;
-	secattr->domain = NULL;
-	secattr->mls_cat = NULL;
-	secattr->cache = NULL;
+	memset(secattr, 0, sizeof(*secattr));
 }
 
 /**
@@ -248,11 +307,11 @@ static inline void netlbl_secattr_init(struct netlbl_lsm_secattr *secattr)
  */
 static inline void netlbl_secattr_destroy(struct netlbl_lsm_secattr *secattr)
 {
-	if (secattr->cache)
-		netlbl_secattr_cache_free(secattr->cache);
 	kfree(secattr->domain);
-	if (secattr->mls_cat)
-		netlbl_secattr_catmap_free(secattr->mls_cat);
+	if (secattr->flags & NETLBL_SECATTR_CACHE)
+		netlbl_secattr_cache_free(secattr->cache);
+	if (secattr->flags & NETLBL_SECATTR_MLS_CAT)
+		netlbl_secattr_catmap_free(secattr->attr.mls.cat);
 }
 
 /**
@@ -300,7 +359,7 @@ int netlbl_secattr_catmap_setrng(struct netlbl_lsm_secattr_catmap *catmap,
 				 gfp_t flags);
 
 /*
- * LSM protocol operations
+ * LSM protocol operations (NetLabel LSM/kernel API)
  */
 int netlbl_enabled(void);
 int netlbl_sock_setattr(struct sock *sk,
@@ -308,6 +367,7 @@ int netlbl_sock_setattr(struct sock *sk,
 int netlbl_sock_getattr(struct sock *sk,
 			struct netlbl_lsm_secattr *secattr);
 int netlbl_skbuff_getattr(const struct sk_buff *skb,
+			  u16 family,
 			  struct netlbl_lsm_secattr *secattr);
 void netlbl_skbuff_err(struct sk_buff *skb, int error);
 
@@ -360,6 +420,7 @@ static inline int netlbl_sock_getattr(struct sock *sk,
 	return -ENOSYS;
 }
 static inline int netlbl_skbuff_getattr(const struct sk_buff *skb,
+					u16 family,
 					struct netlbl_lsm_secattr *secattr)
 {
 	return -ENOSYS;

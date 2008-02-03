@@ -453,6 +453,7 @@ static void sctp_do_8_2_transport_strike(struct sctp_association *asoc,
 	 * maximum value discussed in rule C7 above (RTO.max) may be
 	 * used to provide an upper bound to this doubling operation.
 	 */
+	transport->last_rto = transport->rto;
 	transport->rto = min((transport->rto * 2), transport->asoc->rto_max);
 }
 
@@ -1267,6 +1268,12 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 			sctp_ootb_pkt_free(packet);
 			break;
 
+		case SCTP_CMD_T1_RETRAN:
+			/* Mark a transport for retransmission.  */
+			sctp_retransmit(&asoc->outqueue, cmd->obj.transport,
+					SCTP_RTXR_T1_RTX);
+			break;
+
 		case SCTP_CMD_RETRAN:
 			/* Mark a transport for retransmission.  */
 			sctp_retransmit(&asoc->outqueue, cmd->obj.transport,
@@ -1393,7 +1400,8 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 			list_for_each(pos, &asoc->peer.transport_addr_list) {
 				t = list_entry(pos, struct sctp_transport,
 					       transports);
-				sctp_retransmit_mark(&asoc->outqueue, t, 0);
+				sctp_retransmit_mark(&asoc->outqueue, t,
+					    SCTP_RTXR_T1_RTX);
 			}
 
 			sctp_add_cmd_sf(commands,

@@ -201,7 +201,7 @@ static int change_tramp(char **argv, char *output, int output_len)
 	close(fds[1]);
 
 	if (pid > 0)
-		CATCH_EINTR(err = waitpid(pid, NULL, 0));
+		helper_wait(pid, 0, "change_tramp");
 	return pid;
 }
 

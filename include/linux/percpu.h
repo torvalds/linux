@@ -9,6 +9,26 @@
 
 #include <asm/percpu.h>
 
+#ifdef CONFIG_SMP
+#define DEFINE_PER_CPU(type, name)					\
+	__attribute__((__section__(".data.percpu")))			\
+	PER_CPU_ATTRIBUTES __typeof__(type) per_cpu__##name
+
+#define DEFINE_PER_CPU_SHARED_ALIGNED(type, name)			\
+	__attribute__((__section__(".data.percpu.shared_aligned")))	\
+	PER_CPU_ATTRIBUTES __typeof__(type) per_cpu__##name		\
+	____cacheline_aligned_in_smp
+#else
+#define DEFINE_PER_CPU(type, name)					\
+	PER_CPU_ATTRIBUTES __typeof__(type) per_cpu__##name
+
+#define DEFINE_PER_CPU_SHARED_ALIGNED(type, name)		      \
+	DEFINE_PER_CPU(type, name)
+#endif
+
+#define EXPORT_PER_CPU_SYMBOL(var) EXPORT_SYMBOL(per_cpu__##var)
+#define EXPORT_PER_CPU_SYMBOL_GPL(var) EXPORT_SYMBOL_GPL(per_cpu__##var)
+
 /* Enough to cover all DEFINE_PER_CPUs in kernel, including modules. */
 #ifndef PERCPU_ENOUGH_ROOM
 #ifdef CONFIG_MODULES

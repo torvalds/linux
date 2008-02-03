@@ -397,7 +397,7 @@ static void claim_cpu_irqs(void)
 	}
 
 	irq_desc[TIMER_IRQ].action = &timer_action;
-	irq_desc[TIMER_IRQ].status |= IRQ_PER_CPU;
+	irq_desc[TIMER_IRQ].status = IRQ_PER_CPU;
 #ifdef CONFIG_SMP
 	irq_desc[IPI_IRQ].action = &ipi_action;
 	irq_desc[IPI_IRQ].status = IRQ_PER_CPU;

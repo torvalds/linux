@@ -1075,7 +1075,7 @@ static int prism2_setup_rids(struct net_device *dev)
 {
 	struct hostap_interface *iface;
 	local_info_t *local;
-	u16 tmp;
+	__le16 tmp;
 	int ret = 0;
 
 	iface = netdev_priv(dev);
@@ -1084,11 +1084,11 @@ static int prism2_setup_rids(struct net_device *dev)
 	hostap_set_word(dev, HFA384X_RID_TICKTIME, 2000);
 
 	if (!local->fw_ap) {
-		tmp = hostap_get_porttype(local);
-		ret = hostap_set_word(dev, HFA384X_RID_CNFPORTTYPE, tmp);
+		u16 tmp1 = hostap_get_porttype(local);
+		ret = hostap_set_word(dev, HFA384X_RID_CNFPORTTYPE, tmp1);
 		if (ret) {
 			printk("%s: Port type setting to %d failed\n",
-			       dev->name, tmp);
+			       dev->name, tmp1);
 			goto fail;
 		}
 	}
@@ -1117,7 +1117,7 @@ static int prism2_setup_rids(struct net_device *dev)
 		ret = -EINVAL;
 		goto fail;
 	}
-	local->channel_mask = __le16_to_cpu(tmp);
+	local->channel_mask = le16_to_cpu(tmp);
 
 	if (local->channel < 1 || local->channel > 14 ||
 	    !(local->channel_mask & (1 << (local->channel - 1)))) {
@@ -1852,7 +1852,7 @@ static int prism2_tx_80211(struct sk_buff *skb, struct net_device *dev)
 	tx_control = local->tx_control;
 	if (meta->tx_cb_idx) {
 		tx_control |= HFA384X_TX_CTRL_TX_OK;
-		txdesc.sw_support = cpu_to_le16(meta->tx_cb_idx);
+		txdesc.sw_support = cpu_to_le32(meta->tx_cb_idx);
 	}
 	txdesc.tx_control = cpu_to_le16(tx_control);
 	txdesc.tx_rate = meta->rate;
@@ -2190,7 +2190,7 @@ static void hostap_tx_callback(local_info_t *local,
 		return;
 	}
 
-	sw_support = le16_to_cpu(txdesc->sw_support);
+	sw_support = le32_to_cpu(txdesc->sw_support);
 
 	spin_lock(&local->lock);
 	cb = local->tx_callback;
@@ -2448,18 +2448,16 @@ static void prism2_info(local_info_t *local)
 		goto out;
 	}
 
-	le16_to_cpus(&info.len);
-	le16_to_cpus(&info.type);
-	left = (info.len - 1) * 2;
+	left = (le16_to_cpu(info.len) - 1) * 2;
 
-	if (info.len & 0x8000 || info.len == 0 || left > 2060) {
+	if (info.len & cpu_to_le16(0x8000) || info.len == 0 || left > 2060) {
 		/* data register seems to give 0x8000 in some error cases even
 		 * though busy bit is not set in offset register;
 		 * in addition, length must be at least 1 due to type field */
 		spin_unlock(&local->baplock);
 		printk(KERN_DEBUG "%s: Received info frame with invalid "
-		       "length 0x%04x (type 0x%04x)\n", dev->name, info.len,
-		       info.type);
+		       "length 0x%04x (type 0x%04x)\n", dev->name,
+		       le16_to_cpu(info.len), le16_to_cpu(info.type));
 		goto out;
 	}
 
@@ -2476,8 +2474,8 @@ static void prism2_info(local_info_t *local)
 	{
 		spin_unlock(&local->baplock);
 		printk(KERN_WARNING "%s: Info frame read failed (fid=0x%04x, "
-		       "len=0x%04x, type=0x%04x\n",
-		       dev->name, fid, info.len, info.type);
+		       "len=0x%04x, type=0x%04x\n", dev->name, fid,
+		       le16_to_cpu(info.len), le16_to_cpu(info.type));
 		dev_kfree_skb(skb);
 		goto out;
 	}
@@ -2624,7 +2622,7 @@ static void prism2_check_magic(local_info_t *local)
 /* Called only from hardware IRQ */
 static irqreturn_t prism2_interrupt(int irq, void *dev_id)
 {
-	struct net_device *dev = (struct net_device *) dev_id;
+	struct net_device *dev = dev_id;
 	struct hostap_interface *iface;
 	local_info_t *local;
 	int events = 0;

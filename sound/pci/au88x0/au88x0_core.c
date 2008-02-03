@@ -2395,7 +2395,7 @@ static irqreturn_t vortex_interrupt(int irq, void *dev_id)
 	if (!(hwread(vortex->mmio, VORTEX_STAT) & 0x1))
 		return IRQ_NONE;
 
-	// This is the Interrrupt Enable flag we set before (consistency check).
+	// This is the Interrupt Enable flag we set before (consistency check).
 	if (!(hwread(vortex->mmio, VORTEX_CTRL) & CTRL_IRQ_ENABLE))
 		return IRQ_NONE;
 

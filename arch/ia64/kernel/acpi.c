@@ -678,9 +678,11 @@ int __init acpi_boot_init(void)
 	/* I/O APIC */
 
 	if (acpi_table_parse_madt
-	    (ACPI_MADT_TYPE_IO_SAPIC, acpi_parse_iosapic, NR_IOSAPICS) < 1)
-		printk(KERN_ERR PREFIX
-		       "Error parsing MADT - no IOSAPIC entries\n");
+	    (ACPI_MADT_TYPE_IO_SAPIC, acpi_parse_iosapic, NR_IOSAPICS) < 1) {
+		if (!ia64_platform_is("sn2"))
+			printk(KERN_ERR PREFIX
+			       "Error parsing MADT - no IOSAPIC entries\n");
+	}
 
 	/* System-Level Interrupt Routing */
 
@@ -858,7 +860,7 @@ int acpi_map_lsapic(acpi_handle handle, int *pcpu)
 	lsapic = (struct acpi_madt_local_sapic *)obj->buffer.pointer;
 
 	if ((lsapic->header.type != ACPI_MADT_TYPE_LOCAL_SAPIC) ||
-	    (!lsapic->lapic_flags & ACPI_MADT_ENABLED)) {
+	    (!(lsapic->lapic_flags & ACPI_MADT_ENABLED))) {
 		kfree(buffer.pointer);
 		return -EINVAL;
 	}

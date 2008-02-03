@@ -303,7 +303,7 @@ static void prism2_info_hostscanresults(local_info_t *local,
 	int i, result_size, copy_len, new_count;
 	struct hfa384x_hostscan_result *results, *prev;
 	unsigned long flags;
-	u16 *pos;
+	__le16 *pos;
 	u8 *ptr;
 
 	wake_up_interruptible(&local->hostscan_wq);
@@ -314,7 +314,7 @@ static void prism2_info_hostscanresults(local_info_t *local,
 		return;
 	}
 
-	pos = (u16 *) buf;
+	pos = (__le16 *) buf;
 	copy_len = result_size = le16_to_cpu(*pos);
 	if (result_size == 0) {
 		printk(KERN_DEBUG "%s: invalid result_size (0) in "
@@ -373,7 +373,7 @@ void hostap_info_process(local_info_t *local, struct sk_buff *skb)
 	buf = skb->data + sizeof(*info);
 	left = skb->len - sizeof(*info);
 
-	switch (info->type) {
+	switch (le16_to_cpu(info->type)) {
 	case HFA384X_INFO_COMMTALLIES:
 		prism2_info_commtallies(local, buf, left);
 		break;
@@ -395,7 +395,8 @@ void hostap_info_process(local_info_t *local, struct sk_buff *skb)
 #ifndef PRISM2_NO_DEBUG
 	default:
 		PDEBUG(DEBUG_EXTRA, "%s: INFO - len=%d type=0x%04x\n",
-		       local->dev->name, info->len, info->type);
+		       local->dev->name, le16_to_cpu(info->len),
+		       le16_to_cpu(info->type));
 		PDEBUG(DEBUG_EXTRA, "Unknown info frame:");
 		for (i = 0; i < (left < 100 ? left : 100); i++)
 			PDEBUG2(DEBUG_EXTRA, " %02x", buf[i]);

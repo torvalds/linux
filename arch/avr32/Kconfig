@@ -6,8 +6,7 @@
 mainmenu "Linux Kernel Configuration"
 
 config AVR32
-	bool
-	default y
+	def_bool y
 	# With EMBEDDED=n, we get lots of stuff automatically selected
 	# that we usually don't need on AVR32.
 	select EMBEDDED
@@ -19,55 +18,53 @@ config AVR32
 	  There is an AVR32 Linux project with a web page at
 	  http://avr32linux.org/.
 
-config UID16
-	bool
-
 config GENERIC_GPIO
-	bool
-	default y
+	def_bool y
 
 config GENERIC_HARDIRQS
-	bool
-	default y
+	def_bool y
+
+config STACKTRACE_SUPPORT
+	def_bool y
+
+config LOCKDEP_SUPPORT
+	def_bool y
+
+config TRACE_IRQFLAGS_SUPPORT
+	def_bool y
 
 config HARDIRQS_SW_RESEND
-	bool
-	default y
+	def_bool y
 
 config GENERIC_IRQ_PROBE
-	bool
-	default y
+	def_bool y
 
 config RWSEM_GENERIC_SPINLOCK
-	bool
-	default y
+	def_bool y
 
 config GENERIC_TIME
-	bool
-	default y
+	def_bool y
 
 config RWSEM_XCHGADD_ALGORITHM
-	bool
+	def_bool n
 
 config ARCH_HAS_ILOG2_U32
-	bool
-	default n
+	def_bool n
 
 config ARCH_HAS_ILOG2_U64
-	bool
-	default n
+	def_bool n
+
+config ARCH_SUPPORTS_OPROFILE
+	def_bool y
 
 config GENERIC_HWEIGHT
-	bool
-	default y
+	def_bool y
 
 config GENERIC_CALIBRATE_DELAY
-	bool
-	default y
+	def_bool y
 
 config GENERIC_BUG
-	bool
-	default y
+	def_bool y
 	depends on BUG
 
 source "init/Kconfig"
@@ -87,19 +84,23 @@ config PLATFORM_AT32AP
 	select MMU
 	select PERFORMANCE_COUNTERS
 
-choice
-	prompt "AVR32 CPU type"
-	default CPU_AT32AP7000
-
-config CPU_AT32AP7000
-	bool "AT32AP7000"
-	select PLATFORM_AT32AP
-endchoice
-
 #
-# CPU Daughterboards for ATSTK1000
-config BOARD_ATSTK1002
+# CPU types
+#
+
+# AP7000 derivatives
+config CPU_AT32AP700X
 	bool
+	select PLATFORM_AT32AP
+config CPU_AT32AP7000
+	bool
+	select CPU_AT32AP700X
+config CPU_AT32AP7001
+	bool
+	select CPU_AT32AP700X
+config CPU_AT32AP7002
+	bool
+	select CPU_AT32AP700X
 
 choice
 	prompt "AVR32 board type"
@@ -107,10 +108,10 @@ choice
 
 config BOARD_ATSTK1000
 	bool "ATSTK1000 evaluation board"
-	select BOARD_ATSTK1002 if CPU_AT32AP7000
 
 config BOARD_ATNGW100
 	bool "ATNGW100 Network Gateway"
+	select CPU_AT32AP7000
 endchoice
 
 if BOARD_ATSTK1000
@@ -129,41 +130,35 @@ source "arch/avr32/mach-at32ap/Kconfig"
 
 config LOAD_ADDRESS
 	hex
-	default 0x10000000 if LOADER_U_BOOT=y && CPU_AT32AP7000=y
+	default 0x10000000 if LOADER_U_BOOT=y && CPU_AT32AP700X=y
 
 config ENTRY_ADDRESS
 	hex
-	default 0x90000000 if LOADER_U_BOOT=y && CPU_AT32AP7000=y
+	default 0x90000000 if LOADER_U_BOOT=y && CPU_AT32AP700X=y
 
 config PHYS_OFFSET
 	hex
-	default 0x10000000 if CPU_AT32AP7000=y
+	default 0x10000000 if CPU_AT32AP700X=y
 
 source "kernel/Kconfig.preempt"
 
 config HAVE_ARCH_BOOTMEM_NODE
-	bool
-	default n
+	def_bool n
 
 config ARCH_HAVE_MEMORY_PRESENT
-	bool
-	default n
+	def_bool n
 
 config NEED_NODE_MEMMAP_SIZE
-	bool
-	default n
+	def_bool n
 
 config ARCH_FLATMEM_ENABLE
-	bool
-	default y
+	def_bool y
 
 config ARCH_DISCONTIGMEM_ENABLE
-	bool
-	default n
+	def_bool n
 
 config ARCH_SPARSEMEM_ENABLE
-	bool
-	default n
+	def_bool n
 
 source "mm/Kconfig"
 
@@ -174,6 +169,16 @@ config OWNERSHIP_TRACE
 	  Say Y to generate an Ownership Trace message on every context switch,
 	  enabling Nexus-compliant debuggers to keep track of the PID of the
 	  currently executing task.
+
+config NMI_DEBUGGING
+	bool "NMI Debugging"
+	default n
+	help
+	  Say Y here and pass the nmi_debug command-line parameter to
+	  the kernel to turn on NMI debugging. Depending on the value
+	  of the nmi_debug option, various pieces of information will
+	  be dumped to the console when a Non-Maskable Interrupt
+	  happens.
 
 # FPU emulation goes here
 
@@ -230,6 +235,8 @@ source "net/Kconfig"
 source "drivers/Kconfig"
 
 source "fs/Kconfig"
+
+source "kernel/Kconfig.instrumentation"
 
 source "arch/avr32/Kconfig.debug"
 

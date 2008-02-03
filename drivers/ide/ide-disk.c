@@ -1,10 +1,9 @@
 /*
- *  linux/drivers/ide/ide-disk.c	Version 1.18	Mar 05, 2003
- *
- *  Copyright (C) 1994-1998  Linus Torvalds & authors (see below)
- *  Copyright (C) 1998-2002  Linux ATA Development
- *				Andre Hedrick <andre@linux-ide.org>
- *  Copyright (C) 2003	     Red Hat <alan@redhat.com>
+ *  Copyright (C) 1994-1998	   Linus Torvalds & authors (see below)
+ *  Copyright (C) 1998-2002	   Linux ATA Development
+ *				      Andre Hedrick <andre@linux-ide.org>
+ *  Copyright (C) 2003		   Red Hat <alan@redhat.com>
+ *  Copyright (C) 2003-2005, 2007  Bartlomiej Zolnierkiewicz
  */
 
 /*
@@ -13,32 +12,6 @@
  *                and Andre Hedrick <andre@linux-ide.org>
  *
  * This is the IDE/ATA disk driver, as evolved from hd.c and ide.c.
- *
- * Version 1.00		move disk only code from ide.c to ide-disk.c
- *			support optional byte-swapping of all data
- * Version 1.01		fix previous byte-swapping code
- * Version 1.02		remove ", LBA" from drive identification msgs
- * Version 1.03		fix display of id->buf_size for big-endian
- * Version 1.04		add /proc configurable settings and S.M.A.R.T support
- * Version 1.05		add capacity support for ATA3 >= 8GB
- * Version 1.06		get boot-up messages to show full cyl count
- * Version 1.07		disable door-locking if it fails
- * Version 1.08		fixed CHS/LBA translations for ATA4 > 8GB,
- *			process of adding new ATA4 compliance.
- *			fixed problems in allowing fdisk to see
- *			the entire disk.
- * Version 1.09		added increment of rq->sector in ide_multwrite
- *			added UDMA 3/4 reporting
- * Version 1.10		request queue changes, Ultra DMA 100
- * Version 1.11		added 48-bit lba
- * Version 1.12		adding taskfile io access method
- * Version 1.13		added standby and flush-cache for notifier
- * Version 1.14		added acoustic-wcache
- * Version 1.15		convert all calls to ide_raw_taskfile
- *				since args will return register content.
- * Version 1.16		added suspend-resume-checkpower
- * Version 1.17		do flush on standby, do flush on ATA < ATA6
- *			fix wcache setup.
  */
 
 #define IDEDISK_VERSION	"1.18"
@@ -155,6 +128,50 @@ static int lba_capacity_is_ok (struct hd_driveid *id)
 	return 0;	/* lba_capacity value may be bad */
 }
 
+static const u8 ide_rw_cmds[] = {
+	WIN_MULTREAD,
+	WIN_MULTWRITE,
+	WIN_MULTREAD_EXT,
+	WIN_MULTWRITE_EXT,
+	WIN_READ,
+	WIN_WRITE,
+	WIN_READ_EXT,
+	WIN_WRITE_EXT,
+	WIN_READDMA,
+	WIN_WRITEDMA,
+	WIN_READDMA_EXT,
+	WIN_WRITEDMA_EXT,
+};
+
+static const u8 ide_data_phases[] = {
+	TASKFILE_MULTI_IN,
+	TASKFILE_MULTI_OUT,
+	TASKFILE_IN,
+	TASKFILE_OUT,
+	TASKFILE_IN_DMA,
+	TASKFILE_OUT_DMA,
+};
+
+static void ide_tf_set_cmd(ide_drive_t *drive, ide_task_t *task, u8 dma)
+{
+	u8 index, lba48, write;
+
+	lba48 = (task->tf_flags & IDE_TFLAG_LBA48) ? 2 : 0;
+	write = (task->tf_flags & IDE_TFLAG_WRITE) ? 1 : 0;
+
+	if (dma)
+		index = drive->vdma ? 4 : 8;
+	else
+		index = drive->mult_count ? 0 : 4;
+
+	task->tf.command = ide_rw_cmds[index + lba48 + write];
+
+	if (dma)
+		index = 8; /* fixup index */
+
+	task->data_phase = ide_data_phases[index / 2 + write];
+}
+
 /*
  * __ide_do_rw_disk() issues READ and WRITE commands to a disk,
  * using LBA if supported, or CHS otherwise, to address sectors.
@@ -163,11 +180,11 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq, 
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	unsigned int dma	= drive->using_dma;
+	u16 nsectors		= (u16)rq->nr_sectors;
 	u8 lba48		= (drive->addressing == 1) ? 1 : 0;
-	task_ioreg_t command	= WIN_NOP;
-	ata_nsector_t		nsectors;
-
-	nsectors.all		= (u16) rq->nr_sectors;
+	ide_task_t		task;
+	struct ide_taskfile	*tf = &task.tf;
+	ide_startstop_t		rc;
 
 	if ((hwif->host_flags & IDE_HFLAG_NO_LBA48_DMA) && lba48 && dma) {
 		if (block + rq->nr_sectors > 1ULL << 28)
@@ -181,121 +198,71 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq, 
 		ide_map_sg(drive, rq);
 	}
 
-	if (IDE_CONTROL_REG)
-		hwif->OUTB(drive->ctl, IDE_CONTROL_REG);
-
-	/* FIXME: SELECT_MASK(drive, 0) ? */
+	memset(&task, 0, sizeof(task));
+	task.tf_flags = IDE_TFLAG_NO_SELECT_MASK;  /* FIXME? */
+	task.tf_flags |= (IDE_TFLAG_TF | IDE_TFLAG_DEVICE);
 
 	if (drive->select.b.lba) {
 		if (lba48) {
-			task_ioreg_t tasklets[10];
-
 			pr_debug("%s: LBA=0x%012llx\n", drive->name,
 					(unsigned long long)block);
 
-			tasklets[0] = 0;
-			tasklets[1] = 0;
-			tasklets[2] = nsectors.b.low;
-			tasklets[3] = nsectors.b.high;
-			tasklets[4] = (task_ioreg_t) block;
-			tasklets[5] = (task_ioreg_t) (block>>8);
-			tasklets[6] = (task_ioreg_t) (block>>16);
-			tasklets[7] = (task_ioreg_t) (block>>24);
-			if (sizeof(block) == 4) {
-				tasklets[8] = (task_ioreg_t) 0;
-				tasklets[9] = (task_ioreg_t) 0;
-			} else {
-				tasklets[8] = (task_ioreg_t)((u64)block >> 32);
-				tasklets[9] = (task_ioreg_t)((u64)block >> 40);
+			tf->hob_nsect = (nsectors >> 8) & 0xff;
+			tf->hob_lbal  = (u8)(block >> 24);
+			if (sizeof(block) != 4) {
+				tf->hob_lbam = (u8)((u64)block >> 32);
+				tf->hob_lbah = (u8)((u64)block >> 40);
 			}
-#ifdef DEBUG
-			printk("%s: 0x%02x%02x 0x%02x%02x%02x%02x%02x%02x\n",
-				drive->name, tasklets[3], tasklets[2],
-				tasklets[9], tasklets[8], tasklets[7],
-				tasklets[6], tasklets[5], tasklets[4]);
-#endif
-			hwif->OUTB(tasklets[1], IDE_FEATURE_REG);
-			hwif->OUTB(tasklets[3], IDE_NSECTOR_REG);
-			hwif->OUTB(tasklets[7], IDE_SECTOR_REG);
-			hwif->OUTB(tasklets[8], IDE_LCYL_REG);
-			hwif->OUTB(tasklets[9], IDE_HCYL_REG);
 
-			hwif->OUTB(tasklets[0], IDE_FEATURE_REG);
-			hwif->OUTB(tasklets[2], IDE_NSECTOR_REG);
-			hwif->OUTB(tasklets[4], IDE_SECTOR_REG);
-			hwif->OUTB(tasklets[5], IDE_LCYL_REG);
-			hwif->OUTB(tasklets[6], IDE_HCYL_REG);
-			hwif->OUTB(0x00|drive->select.all,IDE_SELECT_REG);
+			tf->nsect  = nsectors & 0xff;
+			tf->lbal   = (u8) block;
+			tf->lbam   = (u8)(block >>  8);
+			tf->lbah   = (u8)(block >> 16);
+
+			task.tf_flags |= (IDE_TFLAG_LBA48 | IDE_TFLAG_HOB);
 		} else {
-			hwif->OUTB(0x00, IDE_FEATURE_REG);
-			hwif->OUTB(nsectors.b.low, IDE_NSECTOR_REG);
-			hwif->OUTB(block, IDE_SECTOR_REG);
-			hwif->OUTB(block>>=8, IDE_LCYL_REG);
-			hwif->OUTB(block>>=8, IDE_HCYL_REG);
-			hwif->OUTB(((block>>8)&0x0f)|drive->select.all,IDE_SELECT_REG);
+			tf->nsect  = nsectors & 0xff;
+			tf->lbal   = block;
+			tf->lbam   = block >>= 8;
+			tf->lbah   = block >>= 8;
+			tf->device = (block >> 8) & 0xf;
 		}
 	} else {
 		unsigned int sect,head,cyl,track;
 		track = (int)block / drive->sect;
 		sect  = (int)block % drive->sect + 1;
-		hwif->OUTB(sect, IDE_SECTOR_REG);
 		head  = track % drive->head;
 		cyl   = track / drive->head;
 
 		pr_debug("%s: CHS=%u/%u/%u\n", drive->name, cyl, head, sect);
 
-		hwif->OUTB(0x00, IDE_FEATURE_REG);
-		hwif->OUTB(nsectors.b.low, IDE_NSECTOR_REG);
-		hwif->OUTB(cyl, IDE_LCYL_REG);
-		hwif->OUTB(cyl>>8, IDE_HCYL_REG);
-		hwif->OUTB(head|drive->select.all,IDE_SELECT_REG);
+		tf->nsect  = nsectors & 0xff;
+		tf->lbal   = sect;
+		tf->lbam   = cyl;
+		tf->lbah   = cyl >> 8;
+		tf->device = head;
 	}
 
-	if (dma) {
-		if (!hwif->dma_setup(drive)) {
-			if (rq_data_dir(rq)) {
-				command = lba48 ? WIN_WRITEDMA_EXT : WIN_WRITEDMA;
-				if (drive->vdma)
-					command = lba48 ? WIN_WRITE_EXT: WIN_WRITE;
-			} else {
-				command = lba48 ? WIN_READDMA_EXT : WIN_READDMA;
-				if (drive->vdma)
-					command = lba48 ? WIN_READ_EXT: WIN_READ;
-			}
-			hwif->dma_exec_cmd(drive, command);
-			hwif->dma_start(drive);
-			return ide_started;
-		}
+	if (rq_data_dir(rq))
+		task.tf_flags |= IDE_TFLAG_WRITE;
+
+	ide_tf_set_cmd(drive, &task, dma);
+	if (!dma)
+		hwif->data_phase = task.data_phase;
+	task.rq = rq;
+
+	rc = do_rw_taskfile(drive, &task);
+
+	if (rc == ide_stopped && dma) {
 		/* fallback to PIO */
+		task.tf_flags |= IDE_TFLAG_DMA_PIO_FALLBACK;
+		ide_tf_set_cmd(drive, &task, 0);
+		hwif->data_phase = task.data_phase;
 		ide_init_sg_cmd(drive, rq);
+		rc = do_rw_taskfile(drive, &task);
 	}
 
-	if (rq_data_dir(rq) == READ) {
-
-		if (drive->mult_count) {
-			hwif->data_phase = TASKFILE_MULTI_IN;
-			command = lba48 ? WIN_MULTREAD_EXT : WIN_MULTREAD;
-		} else {
-			hwif->data_phase = TASKFILE_IN;
-			command = lba48 ? WIN_READ_EXT : WIN_READ;
-		}
-
-		ide_execute_command(drive, command, &task_in_intr, WAIT_CMD, NULL);
-		return ide_started;
-	} else {
-		if (drive->mult_count) {
-			hwif->data_phase = TASKFILE_MULTI_OUT;
-			command = lba48 ? WIN_MULTWRITE_EXT : WIN_MULTWRITE;
-		} else {
-			hwif->data_phase = TASKFILE_OUT;
-			command = lba48 ? WIN_WRITE_EXT : WIN_WRITE;
-		}
-
-		/* FIXME: ->OUTBSYNC ? */
-		hwif->OUTB(command, IDE_COMMAND_REG);
-
-		return pre_task_out_intr(drive, rq);
-	}
+	return rc;
 }
 
 /*
@@ -333,57 +300,29 @@ static ide_startstop_t ide_do_rw_disk (ide_drive_t *drive, struct request *rq, s
  * Queries for true maximum capacity of the drive.
  * Returns maximum LBA address (> 0) of the drive, 0 if failed.
  */
-static unsigned long idedisk_read_native_max_address(ide_drive_t *drive)
+static u64 idedisk_read_native_max_address(ide_drive_t *drive, int lba48)
 {
 	ide_task_t args;
-	unsigned long addr = 0;
+	struct ide_taskfile *tf = &args.tf;
+	u64 addr = 0;
 
 	/* Create IDE/ATA command request structure */
 	memset(&args, 0, sizeof(ide_task_t));
-	args.tfRegister[IDE_SELECT_OFFSET]	= 0x40;
-	args.tfRegister[IDE_COMMAND_OFFSET]	= WIN_READ_NATIVE_MAX;
-	args.command_type			= IDE_DRIVE_TASK_NO_DATA;
-	args.handler				= &task_no_data_intr;
+	if (lba48)
+		tf->command = WIN_READ_NATIVE_MAX_EXT;
+	else
+		tf->command = WIN_READ_NATIVE_MAX;
+	tf->device  = ATA_LBA;
+	args.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+	if (lba48)
+		args.tf_flags |= (IDE_TFLAG_LBA48 | IDE_TFLAG_HOB);
 	/* submit command request */
-	ide_raw_taskfile(drive, &args, NULL);
+	ide_no_data_taskfile(drive, &args);
 
 	/* if OK, compute maximum address value */
-	if ((args.tfRegister[IDE_STATUS_OFFSET] & 0x01) == 0) {
-		addr = ((args.tfRegister[IDE_SELECT_OFFSET] & 0x0f) << 24)
-		     | ((args.tfRegister[  IDE_HCYL_OFFSET]       ) << 16)
-		     | ((args.tfRegister[  IDE_LCYL_OFFSET]       ) <<  8)
-		     | ((args.tfRegister[IDE_SECTOR_OFFSET]       ));
-		addr++;	/* since the return value is (maxlba - 1), we add 1 */
-	}
-	return addr;
-}
+	if ((tf->status & 0x01) == 0)
+		addr = ide_get_lba_addr(tf, lba48) + 1;
 
-static unsigned long long idedisk_read_native_max_address_ext(ide_drive_t *drive)
-{
-	ide_task_t args;
-	unsigned long long addr = 0;
-
-	/* Create IDE/ATA command request structure */
-	memset(&args, 0, sizeof(ide_task_t));
-
-	args.tfRegister[IDE_SELECT_OFFSET]	= 0x40;
-	args.tfRegister[IDE_COMMAND_OFFSET]	= WIN_READ_NATIVE_MAX_EXT;
-	args.command_type			= IDE_DRIVE_TASK_NO_DATA;
-	args.handler				= &task_no_data_intr;
-        /* submit command request */
-        ide_raw_taskfile(drive, &args, NULL);
-
-	/* if OK, compute maximum address value */
-	if ((args.tfRegister[IDE_STATUS_OFFSET] & 0x01) == 0) {
-		u32 high = (args.hobRegister[IDE_HCYL_OFFSET] << 16) |
-			   (args.hobRegister[IDE_LCYL_OFFSET] <<  8) |
-			    args.hobRegister[IDE_SECTOR_OFFSET];
-		u32 low  = ((args.tfRegister[IDE_HCYL_OFFSET])<<16) |
-			   ((args.tfRegister[IDE_LCYL_OFFSET])<<8) |
-			    (args.tfRegister[IDE_SECTOR_OFFSET]);
-		addr = ((__u64)high << 24) | low;
-		addr++;	/* since the return value is (maxlba - 1), we add 1 */
-	}
 	return addr;
 }
 
@@ -391,67 +330,37 @@ static unsigned long long idedisk_read_native_max_address_ext(ide_drive_t *drive
  * Sets maximum virtual LBA address of the drive.
  * Returns new maximum virtual LBA address (> 0) or 0 on failure.
  */
-static unsigned long idedisk_set_max_address(ide_drive_t *drive, unsigned long addr_req)
+static u64 idedisk_set_max_address(ide_drive_t *drive, u64 addr_req, int lba48)
 {
 	ide_task_t args;
-	unsigned long addr_set = 0;
-	
+	struct ide_taskfile *tf = &args.tf;
+	u64 addr_set = 0;
+
 	addr_req--;
 	/* Create IDE/ATA command request structure */
 	memset(&args, 0, sizeof(ide_task_t));
-	args.tfRegister[IDE_SECTOR_OFFSET]	= ((addr_req >>  0) & 0xff);
-	args.tfRegister[IDE_LCYL_OFFSET]	= ((addr_req >>  8) & 0xff);
-	args.tfRegister[IDE_HCYL_OFFSET]	= ((addr_req >> 16) & 0xff);
-	args.tfRegister[IDE_SELECT_OFFSET]	= ((addr_req >> 24) & 0x0f) | 0x40;
-	args.tfRegister[IDE_COMMAND_OFFSET]	= WIN_SET_MAX;
-	args.command_type			= IDE_DRIVE_TASK_NO_DATA;
-	args.handler				= &task_no_data_intr;
-	/* submit command request */
-	ide_raw_taskfile(drive, &args, NULL);
-	/* if OK, read new maximum address value */
-	if ((args.tfRegister[IDE_STATUS_OFFSET] & 0x01) == 0) {
-		addr_set = ((args.tfRegister[IDE_SELECT_OFFSET] & 0x0f) << 24)
-			 | ((args.tfRegister[  IDE_HCYL_OFFSET]       ) << 16)
-			 | ((args.tfRegister[  IDE_LCYL_OFFSET]       ) <<  8)
-			 | ((args.tfRegister[IDE_SECTOR_OFFSET]       ));
-		addr_set++;
+	tf->lbal     = (addr_req >>  0) & 0xff;
+	tf->lbam     = (addr_req >>= 8) & 0xff;
+	tf->lbah     = (addr_req >>= 8) & 0xff;
+	if (lba48) {
+		tf->hob_lbal = (addr_req >>= 8) & 0xff;
+		tf->hob_lbam = (addr_req >>= 8) & 0xff;
+		tf->hob_lbah = (addr_req >>= 8) & 0xff;
+		tf->command  = WIN_SET_MAX_EXT;
+	} else {
+		tf->device   = (addr_req >>= 8) & 0x0f;
+		tf->command  = WIN_SET_MAX;
 	}
-	return addr_set;
-}
-
-static unsigned long long idedisk_set_max_address_ext(ide_drive_t *drive, unsigned long long addr_req)
-{
-	ide_task_t args;
-	unsigned long long addr_set = 0;
-
-	addr_req--;
-	/* Create IDE/ATA command request structure */
-	memset(&args, 0, sizeof(ide_task_t));
-	args.tfRegister[IDE_SECTOR_OFFSET]	= ((addr_req >>  0) & 0xff);
-	args.tfRegister[IDE_LCYL_OFFSET]	= ((addr_req >>= 8) & 0xff);
-	args.tfRegister[IDE_HCYL_OFFSET]	= ((addr_req >>= 8) & 0xff);
-	args.tfRegister[IDE_SELECT_OFFSET]      = 0x40;
-	args.tfRegister[IDE_COMMAND_OFFSET]	= WIN_SET_MAX_EXT;
-	args.hobRegister[IDE_SECTOR_OFFSET]	= (addr_req >>= 8) & 0xff;
-	args.hobRegister[IDE_LCYL_OFFSET]	= (addr_req >>= 8) & 0xff;
-	args.hobRegister[IDE_HCYL_OFFSET]	= (addr_req >>= 8) & 0xff;
-	args.hobRegister[IDE_SELECT_OFFSET]	= 0x40;
-	args.hobRegister[IDE_CONTROL_OFFSET_HOB]= (drive->ctl|0x80);
-	args.command_type			= IDE_DRIVE_TASK_NO_DATA;
-	args.handler				= &task_no_data_intr;
+	tf->device |= ATA_LBA;
+	args.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+	if (lba48)
+		args.tf_flags |= (IDE_TFLAG_LBA48 | IDE_TFLAG_HOB);
 	/* submit command request */
-	ide_raw_taskfile(drive, &args, NULL);
+	ide_no_data_taskfile(drive, &args);
 	/* if OK, compute maximum address value */
-	if ((args.tfRegister[IDE_STATUS_OFFSET] & 0x01) == 0) {
-		u32 high = (args.hobRegister[IDE_HCYL_OFFSET] << 16) |
-			   (args.hobRegister[IDE_LCYL_OFFSET] <<  8) |
-			    args.hobRegister[IDE_SECTOR_OFFSET];
-		u32 low  = ((args.tfRegister[IDE_HCYL_OFFSET])<<16) |
-			   ((args.tfRegister[IDE_LCYL_OFFSET])<<8) |
-			    (args.tfRegister[IDE_SECTOR_OFFSET]);
-		addr_set = ((__u64)high << 24) | low;
-		addr_set++;
-	}
+	if ((tf->status & 0x01) == 0)
+		addr_set = ide_get_lba_addr(tf, lba48) + 1;
+
 	return addr_set;
 }
 
@@ -497,10 +406,8 @@ static void idedisk_check_hpa(ide_drive_t *drive)
 	int lba48 = idedisk_supports_lba48(drive->id);
 
 	capacity = drive->capacity64;
-	if (lba48)
-		set_max = idedisk_read_native_max_address_ext(drive);
-	else
-		set_max = idedisk_read_native_max_address(drive);
+
+	set_max = idedisk_read_native_max_address(drive, lba48);
 
 	if (ide_in_drive_list(drive->id, hpa_list)) {
 		/*
@@ -521,10 +428,8 @@ static void idedisk_check_hpa(ide_drive_t *drive)
 			 capacity, sectors_to_MB(capacity),
 			 set_max, sectors_to_MB(set_max));
 
-	if (lba48)
-		set_max = idedisk_set_max_address_ext(drive, set_max);
-	else
-		set_max = idedisk_set_max_address(drive, set_max);
+	set_max = idedisk_set_max_address(drive, set_max, lba48);
+
 	if (set_max) {
 		drive->capacity64 = set_max;
 		printk(KERN_INFO "%s: Host Protected Area disabled.\n",
@@ -582,32 +487,32 @@ static sector_t idedisk_capacity (ide_drive_t *drive)
 static int smart_enable(ide_drive_t *drive)
 {
 	ide_task_t args;
+	struct ide_taskfile *tf = &args.tf;
 
 	memset(&args, 0, sizeof(ide_task_t));
-	args.tfRegister[IDE_FEATURE_OFFSET]	= SMART_ENABLE;
-	args.tfRegister[IDE_LCYL_OFFSET]	= SMART_LCYL_PASS;
-	args.tfRegister[IDE_HCYL_OFFSET]	= SMART_HCYL_PASS;
-	args.tfRegister[IDE_COMMAND_OFFSET]	= WIN_SMART;
-	args.command_type			= IDE_DRIVE_TASK_NO_DATA;
-	args.handler				= &task_no_data_intr;
-	return ide_raw_taskfile(drive, &args, NULL);
+	tf->feature = SMART_ENABLE;
+	tf->lbam    = SMART_LCYL_PASS;
+	tf->lbah    = SMART_HCYL_PASS;
+	tf->command = WIN_SMART;
+	args.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+	return ide_no_data_taskfile(drive, &args);
 }
 
 static int get_smart_data(ide_drive_t *drive, u8 *buf, u8 sub_cmd)
 {
 	ide_task_t args;
+	struct ide_taskfile *tf = &args.tf;
 
 	memset(&args, 0, sizeof(ide_task_t));
-	args.tfRegister[IDE_FEATURE_OFFSET]	= sub_cmd;
-	args.tfRegister[IDE_NSECTOR_OFFSET]	= 0x01;
-	args.tfRegister[IDE_LCYL_OFFSET]	= SMART_LCYL_PASS;
-	args.tfRegister[IDE_HCYL_OFFSET]	= SMART_HCYL_PASS;
-	args.tfRegister[IDE_COMMAND_OFFSET]	= WIN_SMART;
-	args.command_type			= IDE_DRIVE_TASK_IN;
-	args.data_phase				= TASKFILE_IN;
-	args.handler				= &task_in_intr;
+	tf->feature = sub_cmd;
+	tf->nsect   = 0x01;
+	tf->lbam    = SMART_LCYL_PASS;
+	tf->lbah    = SMART_HCYL_PASS;
+	tf->command = WIN_SMART;
+	args.tf_flags	= IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+	args.data_phase	= TASKFILE_IN;
 	(void) smart_enable(drive);
-	return ide_raw_taskfile(drive, &args, buf);
+	return ide_raw_taskfile(drive, &args, buf, 1);
 }
 
 static int proc_idedisk_read_cache
@@ -685,19 +590,20 @@ static ide_proc_entry_t idedisk_proc[] = {
 static void idedisk_prepare_flush(struct request_queue *q, struct request *rq)
 {
 	ide_drive_t *drive = q->queuedata;
+	ide_task_t task;
 
-	memset(rq->cmd, 0, sizeof(rq->cmd));
-
+	memset(&task, 0, sizeof(task));
 	if (ide_id_has_flush_cache_ext(drive->id) &&
 	    (drive->capacity64 >= (1UL << 28)))
-		rq->cmd[0] = WIN_FLUSH_CACHE_EXT;
+		task.tf.command = WIN_FLUSH_CACHE_EXT;
 	else
-		rq->cmd[0] = WIN_FLUSH_CACHE;
+		task.tf.command = WIN_FLUSH_CACHE;
+	task.tf_flags	= IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
+	task.data_phase	= TASKFILE_NO_DATA;
 
-
-	rq->cmd_type = REQ_TYPE_ATA_TASK;
+	rq->cmd_type = REQ_TYPE_ATA_TASKFILE;
 	rq->cmd_flags |= REQ_SOFTBARRIER;
-	rq->buffer = rq->cmd;
+	rq->special = &task;
 }
 
 /*
@@ -713,8 +619,10 @@ static int set_multcount(ide_drive_t *drive, int arg)
 
 	if (drive->special.b.set_multmode)
 		return -EBUSY;
+
 	ide_init_drive_cmd (&rq);
-	rq.cmd_type = REQ_TYPE_ATA_CMD;
+	rq.cmd_type = REQ_TYPE_ATA_TASKFILE;
+
 	drive->mult_req = arg;
 	drive->special.b.set_multmode = 1;
 	(void) ide_do_drive_cmd (drive, &rq, ide_wait);
@@ -779,12 +687,11 @@ static int write_cache(ide_drive_t *drive, int arg)
 
 	if (ide_id_has_flush_cache(drive->id)) {
 		memset(&args, 0, sizeof(ide_task_t));
-		args.tfRegister[IDE_FEATURE_OFFSET]	= (arg) ?
+		args.tf.feature = arg ?
 			SETFEATURES_EN_WCACHE : SETFEATURES_DIS_WCACHE;
-		args.tfRegister[IDE_COMMAND_OFFSET]	= WIN_SETFEATURES;
-		args.command_type		= IDE_DRIVE_TASK_NO_DATA;
-		args.handler			= &task_no_data_intr;
-		err = ide_raw_taskfile(drive, &args, NULL);
+		args.tf.command = WIN_SETFEATURES;
+		args.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+		err = ide_no_data_taskfile(drive, &args);
 		if (err == 0)
 			drive->wcache = arg;
 	}
@@ -800,12 +707,11 @@ static int do_idedisk_flushcache (ide_drive_t *drive)
 
 	memset(&args, 0, sizeof(ide_task_t));
 	if (ide_id_has_flush_cache_ext(drive->id))
-		args.tfRegister[IDE_COMMAND_OFFSET]	= WIN_FLUSH_CACHE_EXT;
+		args.tf.command = WIN_FLUSH_CACHE_EXT;
 	else
-		args.tfRegister[IDE_COMMAND_OFFSET]	= WIN_FLUSH_CACHE;
-	args.command_type			= IDE_DRIVE_TASK_NO_DATA;
-	args.handler				= &task_no_data_intr;
-	return ide_raw_taskfile(drive, &args, NULL);
+		args.tf.command = WIN_FLUSH_CACHE;
+	args.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+	return ide_no_data_taskfile(drive, &args);
 }
 
 static int set_acoustic (ide_drive_t *drive, int arg)
@@ -816,13 +722,11 @@ static int set_acoustic (ide_drive_t *drive, int arg)
 		return -EINVAL;
 
 	memset(&args, 0, sizeof(ide_task_t));
-	args.tfRegister[IDE_FEATURE_OFFSET]	= (arg) ? SETFEATURES_EN_AAM :
-							  SETFEATURES_DIS_AAM;
-	args.tfRegister[IDE_NSECTOR_OFFSET]	= arg;
-	args.tfRegister[IDE_COMMAND_OFFSET]	= WIN_SETFEATURES;
-	args.command_type = IDE_DRIVE_TASK_NO_DATA;
-	args.handler	  = &task_no_data_intr;
-	ide_raw_taskfile(drive, &args, NULL);
+	args.tf.feature = arg ? SETFEATURES_EN_AAM : SETFEATURES_DIS_AAM;
+	args.tf.nsect   = arg;
+	args.tf.command = WIN_SETFEATURES;
+	args.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+	ide_no_data_taskfile(drive, &args);
 	drive->acoustic = arg;
 	return 0;
 }
@@ -858,7 +762,6 @@ static void idedisk_add_settings(ide_drive_t *drive)
 	ide_add_setting(drive,	"bios_head",	SETTING_RW,	TYPE_BYTE,	0,	255,			1,	1,	&drive->bios_head,	NULL);
 	ide_add_setting(drive,	"bios_sect",	SETTING_RW,	TYPE_BYTE,	0,	63,			1,	1,	&drive->bios_sect,	NULL);
 	ide_add_setting(drive,	"address",	SETTING_RW,	TYPE_BYTE,	0,	2,			1,	1,	&drive->addressing,	set_lba_addressing);
-	ide_add_setting(drive,	"bswap",	SETTING_READ,	TYPE_BYTE,	0,	1,			1,	1,	&drive->bswap,		NULL);
 	ide_add_setting(drive,	"multcount",	SETTING_RW,	TYPE_BYTE,	0,	id->max_multsect,	1,	1,	&drive->mult_count,	set_multcount);
 	ide_add_setting(drive,	"nowerr",	SETTING_RW,	TYPE_BYTE,	0,	1,			1,	1,	&drive->nowerr,		set_nowerr);
 	ide_add_setting(drive,	"lun",		SETTING_RW,	TYPE_INT,	0,	7,			1,	1,	&drive->lun,		NULL);
@@ -961,11 +864,8 @@ static void idedisk_setup (ide_drive_t *drive)
 	if (id->buf_size)
 		printk (" w/%dKiB Cache", id->buf_size/2);
 
-	printk(", CHS=%d/%d/%d", 
-	       drive->bios_cyl, drive->bios_head, drive->bios_sect);
-	if (drive->using_dma)
-		ide_dma_verbose(drive);
-	printk("\n");
+	printk(KERN_CONT ", CHS=%d/%d/%d\n",
+			 drive->bios_cyl, drive->bios_head, drive->bios_sect);
 
 	/* write cache enabled? */
 	if ((id->csfo & 1) || (id->cfs_enable_1 & (1 << 5)))
@@ -1070,6 +970,17 @@ static ide_driver_t idedisk_driver = {
 #endif
 };
 
+static int idedisk_set_doorlock(ide_drive_t *drive, int on)
+{
+	ide_task_t task;
+
+	memset(&task, 0, sizeof(task));
+	task.tf.command = on ? WIN_DOORLOCK : WIN_DOORUNLOCK;
+	task.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+
+	return ide_no_data_taskfile(drive, &task);
+}
+
 static int idedisk_open(struct inode *inode, struct file *filp)
 {
 	struct gendisk *disk = inode->i_bdev->bd_disk;
@@ -1084,18 +995,13 @@ static int idedisk_open(struct inode *inode, struct file *filp)
 	idkp->openers++;
 
 	if (drive->removable && idkp->openers == 1) {
-		ide_task_t args;
-		memset(&args, 0, sizeof(ide_task_t));
-		args.tfRegister[IDE_COMMAND_OFFSET] = WIN_DOORLOCK;
-		args.command_type = IDE_DRIVE_TASK_NO_DATA;
-		args.handler	  = &task_no_data_intr;
 		check_disk_change(inode->i_bdev);
 		/*
 		 * Ignore the return code from door_lock,
 		 * since the open() has already succeeded,
 		 * and the door_lock is irrelevant at this point.
 		 */
-		if (drive->doorlocking && ide_raw_taskfile(drive, &args, NULL))
+		if (drive->doorlocking && idedisk_set_doorlock(drive, 1))
 			drive->doorlocking = 0;
 	}
 	return 0;
@@ -1111,12 +1017,7 @@ static int idedisk_release(struct inode *inode, struct file *filp)
 		ide_cacheflush_p(drive);
 
 	if (drive->removable && idkp->openers == 1) {
-		ide_task_t args;
-		memset(&args, 0, sizeof(ide_task_t));
-		args.tfRegister[IDE_COMMAND_OFFSET] = WIN_DOORUNLOCK;
-		args.command_type = IDE_DRIVE_TASK_NO_DATA;
-		args.handler	  = &task_no_data_intr;
-		if (drive->doorlocking && ide_raw_taskfile(drive, &args, NULL))
+		if (drive->doorlocking && idedisk_set_doorlock(drive, 0))
 			drive->doorlocking = 0;
 	}
 

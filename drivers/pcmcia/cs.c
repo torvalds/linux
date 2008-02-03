@@ -89,7 +89,7 @@ DECLARE_RWSEM(pcmcia_socket_list_rwsem);
 EXPORT_SYMBOL(pcmcia_socket_list_rwsem);
 
 
-/**
+/*
  * Low-level PCMCIA socket drivers need to register with the PCCard
  * core using pcmcia_register_socket.
  *
@@ -174,6 +174,7 @@ static int pccardd(void *__skt);
 
 /**
  * pcmcia_register_socket - add a new pcmcia socket device
+ * @socket: the &socket to register
  */
 int pcmcia_register_socket(struct pcmcia_socket *socket)
 {
@@ -268,6 +269,7 @@ EXPORT_SYMBOL(pcmcia_register_socket);
 
 /**
  * pcmcia_unregister_socket - remove a pcmcia socket device
+ * @socket: the &socket to unregister
  */
 void pcmcia_unregister_socket(struct pcmcia_socket *socket)
 {
@@ -311,7 +313,7 @@ struct pcmcia_socket * pcmcia_get_socket_by_nr(unsigned int nr)
 }
 EXPORT_SYMBOL(pcmcia_get_socket_by_nr);
 
-/**
+/*
  * The central event handler.  Send_event() sends an event to the
  * 16-bit subsystem, which then calls the relevant device drivers.
  * Parse_events() interprets the event bits from
@@ -380,7 +382,7 @@ static int socket_reset(struct pcmcia_socket *skt)
 	return CS_GENERAL_FAILURE;
 }
 
-/**
+/*
  * socket_setup() and socket_shutdown() are called by the main event handler
  * when card insertion and removal events are received.
  * socket_setup() turns on socket power and resets the socket, in two stages.

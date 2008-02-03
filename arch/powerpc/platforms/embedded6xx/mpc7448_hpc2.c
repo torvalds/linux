@@ -53,8 +53,6 @@
 
 #define MPC7448HPC2_PCI_CFG_PHYS 0xfb000000
 
-extern void _nmask_and_or_msr(unsigned long nmask, unsigned long or_val);
-
 int mpc7448_hpc2_exclude_device(struct pci_controller *hose,
 				u_char bus, u_char devfn)
 {

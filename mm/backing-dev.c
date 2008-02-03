@@ -7,7 +7,7 @@
 
 int bdi_init(struct backing_dev_info *bdi)
 {
-	int i, j;
+	int i;
 	int err;
 
 	for (i = 0; i < NR_BDI_STAT_ITEMS; i++) {
@@ -21,7 +21,7 @@ int bdi_init(struct backing_dev_info *bdi)
 
 	if (err) {
 err:
-		for (j = 0; j < i; j++)
+		while (i--)
 			percpu_counter_destroy(&bdi->bdi_stat[i]);
 	}
 

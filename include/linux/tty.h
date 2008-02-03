@@ -23,7 +23,7 @@
  */
 #define NR_UNIX98_PTY_DEFAULT	4096      /* Default maximum for Unix98 ptys */
 #define NR_UNIX98_PTY_MAX	(1 << MINORBITS) /* Absolute limit */
-#define NR_LDISCS		17
+#define NR_LDISCS		18
 
 /* line disciplines */
 #define N_TTY		0
@@ -44,6 +44,7 @@
 #define N_SYNC_PPP	14	/* synchronous PPP */
 #define N_HCI		15	/* Bluetooth HCI UART */
 #define N_GIGASET_M101	16	/* Siemens Gigaset M101 serial DECT adapter */
+#define N_SLCAN		17	/* Serial / USB serial CAN Adaptors */
 
 /*
  * This character is the same as _POSIX_VDISABLE: it cannot be used as
@@ -319,6 +320,7 @@ extern speed_t tty_termios_input_baud_rate(struct ktermios *termios);
 extern void tty_termios_encode_baud_rate(struct ktermios *termios, speed_t ibaud, speed_t obaud);
 extern void tty_encode_baud_rate(struct tty_struct *tty, speed_t ibaud, speed_t obaud);
 extern void tty_termios_copy_hw(struct ktermios *new, struct ktermios *old);
+extern int tty_termios_hw_change(struct ktermios *a, struct ktermios *b);
 
 extern struct tty_ldisc *tty_ldisc_ref(struct tty_struct *);
 extern void tty_ldisc_deref(struct tty_ldisc *);
@@ -332,7 +334,9 @@ extern void tty_ldisc_flush(struct tty_struct *tty);
 
 extern int tty_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 		     unsigned long arg);
-
+extern int tty_mode_ioctl(struct tty_struct *tty, struct file *file,
+			unsigned int cmd, unsigned long arg);
+extern int tty_perform_flush(struct tty_struct *tty, unsigned long arg);
 extern dev_t tty_devnum(struct tty_struct *tty);
 extern void proc_clear_tty(struct task_struct *p);
 extern struct tty_struct *get_current_tty(void);

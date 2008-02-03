@@ -20,7 +20,6 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#include <sound/driver.h>
 #include <linux/interrupt.h>
 #include <linux/usb.h>
 #include <sound/core.h>
@@ -34,34 +33,31 @@
 int usX2Y_hwdep_pcm_new(struct snd_card *card);
 
 
-static struct page * snd_us428ctls_vm_nopage(struct vm_area_struct *area, unsigned long address, int *type)
+static int snd_us428ctls_vm_fault(struct vm_area_struct *area,
+				  struct vm_fault *vmf)
 {
 	unsigned long offset;
 	struct page * page;
 	void *vaddr;
 
-	snd_printdd("ENTER, start %lXh, ofs %lXh, pgoff %ld, addr %lXh\n",
+	snd_printdd("ENTER, start %lXh, pgoff %ld\n",
 		   area->vm_start,
-		   address - area->vm_start,
-		   (address - area->vm_start) >> PAGE_SHIFT,
-		   address);
+		   vmf->pgoff);
 	
-	offset = area->vm_pgoff << PAGE_SHIFT;
-	offset += address - area->vm_start;
-	snd_assert((offset % PAGE_SIZE) == 0, return NOPAGE_SIGBUS);
+	offset = vmf->pgoff << PAGE_SHIFT;
 	vaddr = (char*)((struct usX2Ydev *)area->vm_private_data)->us428ctls_sharedmem + offset;
 	page = virt_to_page(vaddr);
 	get_page(page);
-	snd_printdd( "vaddr=%p made us428ctls_vm_nopage() return %p; offset=%lX\n", vaddr, page, offset);
+	vmf->page = page;
 
-	if (type)
-		*type = VM_FAULT_MINOR;
+	snd_printdd("vaddr=%p made us428ctls_vm_fault() page %p\n",
+		    vaddr, page);
 
-	return page;
+	return 0;
 }
 
 static struct vm_operations_struct us428ctls_vm_ops = {
-	.nopage = snd_us428ctls_vm_nopage,
+	.fault = snd_us428ctls_vm_fault,
 };
 
 static int snd_us428ctls_mmap(struct snd_hwdep * hw, struct file *filp, struct vm_area_struct *area)

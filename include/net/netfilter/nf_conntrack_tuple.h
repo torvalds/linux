@@ -10,6 +10,7 @@
 #ifndef _NF_CONNTRACK_TUPLE_H
 #define _NF_CONNTRACK_TUPLE_H
 
+#include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/nf_conntrack_tuple_common.h>
 
 /* A `tuple' is a structure containing the information to uniquely
@@ -20,15 +21,7 @@
   "non-manipulatable" lines, for the benefit of the NAT code.
 */
 
-#define NF_CT_TUPLE_L3SIZE	4
-
-/* The l3 protocol-specific manipulable parts of the tuple: always in
-   network order! */
-union nf_conntrack_address {
-	u_int32_t all[NF_CT_TUPLE_L3SIZE];
-	__be32 ip;
-	__be32 ip6[4];
-};
+#define NF_CT_TUPLE_L3SIZE	ARRAY_SIZE(((union nf_inet_addr *)NULL)->all)
 
 /* The protocol-specific manipulable parts of the tuple: always in
    network order! */
@@ -57,7 +50,7 @@ union nf_conntrack_man_proto
 /* The manipulable part of the tuple. */
 struct nf_conntrack_man
 {
-	union nf_conntrack_address u3;
+	union nf_inet_addr u3;
 	union nf_conntrack_man_proto u;
 	/* Layer 3 protocol */
 	u_int16_t l3num;
@@ -70,7 +63,7 @@ struct nf_conntrack_tuple
 
 	/* These are the parts of the tuple which are fixed. */
 	struct {
-		union nf_conntrack_address u3;
+		union nf_inet_addr u3;
 		union {
 			/* Add other protocols here. */
 			__be16 all;
@@ -103,7 +96,7 @@ struct nf_conntrack_tuple
 struct nf_conntrack_tuple_mask
 {
 	struct {
-		union nf_conntrack_address u3;
+		union nf_inet_addr u3;
 		union nf_conntrack_man_proto u;
 	} src;
 };
@@ -139,34 +132,33 @@ struct nf_conntrack_tuple_hash
 
 #endif /* __KERNEL__ */
 
-static inline int nf_ct_tuple_src_equal(const struct nf_conntrack_tuple *t1,
-				        const struct nf_conntrack_tuple *t2)
+static inline int __nf_ct_tuple_src_equal(const struct nf_conntrack_tuple *t1,
+					  const struct nf_conntrack_tuple *t2)
 { 
 	return (t1->src.u3.all[0] == t2->src.u3.all[0] &&
 		t1->src.u3.all[1] == t2->src.u3.all[1] &&
 		t1->src.u3.all[2] == t2->src.u3.all[2] &&
 		t1->src.u3.all[3] == t2->src.u3.all[3] &&
 		t1->src.u.all == t2->src.u.all &&
-		t1->src.l3num == t2->src.l3num &&
-		t1->dst.protonum == t2->dst.protonum);
+		t1->src.l3num == t2->src.l3num);
 }
 
-static inline int nf_ct_tuple_dst_equal(const struct nf_conntrack_tuple *t1,
-				        const struct nf_conntrack_tuple *t2)
+static inline int __nf_ct_tuple_dst_equal(const struct nf_conntrack_tuple *t1,
+					  const struct nf_conntrack_tuple *t2)
 {
 	return (t1->dst.u3.all[0] == t2->dst.u3.all[0] &&
 		t1->dst.u3.all[1] == t2->dst.u3.all[1] &&
 		t1->dst.u3.all[2] == t2->dst.u3.all[2] &&
 		t1->dst.u3.all[3] == t2->dst.u3.all[3] &&
 		t1->dst.u.all == t2->dst.u.all &&
-		t1->src.l3num == t2->src.l3num &&
 		t1->dst.protonum == t2->dst.protonum);
 }
 
 static inline int nf_ct_tuple_equal(const struct nf_conntrack_tuple *t1,
 				    const struct nf_conntrack_tuple *t2)
 {
-	return nf_ct_tuple_src_equal(t1, t2) && nf_ct_tuple_dst_equal(t1, t2);
+	return __nf_ct_tuple_src_equal(t1, t2) &&
+	       __nf_ct_tuple_dst_equal(t1, t2);
 }
 
 static inline int nf_ct_tuple_mask_equal(const struct nf_conntrack_tuple_mask *m1,
@@ -206,7 +198,7 @@ static inline int nf_ct_tuple_mask_cmp(const struct nf_conntrack_tuple *t,
 				       const struct nf_conntrack_tuple_mask *mask)
 {
 	return nf_ct_tuple_src_mask_cmp(t, tuple, mask) &&
-	       nf_ct_tuple_dst_equal(t, tuple);
+	       __nf_ct_tuple_dst_equal(t, tuple);
 }
 
 #endif /* _NF_CONNTRACK_TUPLE_H */

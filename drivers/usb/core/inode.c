@@ -38,9 +38,14 @@
 #include <linux/usbdevice_fs.h>
 #include <linux/parser.h>
 #include <linux/notifier.h>
+#include <linux/seq_file.h>
 #include <asm/byteorder.h>
 #include "usb.h"
 #include "hcd.h"
+
+#define USBFS_DEFAULT_DEVMODE (S_IWUSR | S_IRUGO)
+#define USBFS_DEFAULT_BUSMODE (S_IXUGO | S_IRUGO)
+#define USBFS_DEFAULT_LISTMODE S_IRUGO
 
 static struct super_operations usbfs_ops;
 static const struct file_operations default_file_operations;
@@ -57,9 +62,33 @@ static uid_t listuid;	/* = 0 */
 static gid_t devgid;	/* = 0 */
 static gid_t busgid;	/* = 0 */
 static gid_t listgid;	/* = 0 */
-static umode_t devmode = S_IWUSR | S_IRUGO;
-static umode_t busmode = S_IXUGO | S_IRUGO;
-static umode_t listmode = S_IRUGO;
+static umode_t devmode = USBFS_DEFAULT_DEVMODE;
+static umode_t busmode = USBFS_DEFAULT_BUSMODE;
+static umode_t listmode = USBFS_DEFAULT_LISTMODE;
+
+static int usbfs_show_options(struct seq_file *seq, struct vfsmount *mnt)
+{
+	if (devuid != 0)
+		seq_printf(seq, ",devuid=%u", devuid);
+	if (devgid != 0)
+		seq_printf(seq, ",devgid=%u", devgid);
+	if (devmode != USBFS_DEFAULT_DEVMODE)
+		seq_printf(seq, ",devmode=%o", devmode);
+	if (busuid != 0)
+		seq_printf(seq, ",busuid=%u", busuid);
+	if (busgid != 0)
+		seq_printf(seq, ",busgid=%u", busgid);
+	if (busmode != USBFS_DEFAULT_BUSMODE)
+		seq_printf(seq, ",busmode=%o", busmode);
+	if (listuid != 0)
+		seq_printf(seq, ",listuid=%u", listuid);
+	if (listgid != 0)
+		seq_printf(seq, ",listgid=%u", listgid);
+	if (listmode != USBFS_DEFAULT_LISTMODE)
+		seq_printf(seq, ",listmode=%o", listmode);
+
+	return 0;
+}
 
 enum {
 	Opt_devuid, Opt_devgid, Opt_devmode,
@@ -93,9 +122,9 @@ static int parse_options(struct super_block *s, char *data)
 	devgid = 0;
 	busgid = 0;
 	listgid = 0;
-	devmode = S_IWUSR | S_IRUGO;
-	busmode = S_IXUGO | S_IRUGO;
-	listmode = S_IRUGO;
+	devmode = USBFS_DEFAULT_DEVMODE;
+	busmode = USBFS_DEFAULT_BUSMODE;
+	listmode = USBFS_DEFAULT_LISTMODE;
 
 	while ((p = strsep(&data, ",")) != NULL) {
 		substring_t args[MAX_OPT_ARGS];
@@ -418,6 +447,7 @@ static struct super_operations usbfs_ops = {
 	.statfs =	simple_statfs,
 	.drop_inode =	generic_delete_inode,
 	.remount_fs =	remount,
+	.show_options = usbfs_show_options,
 };
 
 static int usbfs_fill_super(struct super_block *sb, void *data, int silent)

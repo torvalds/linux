@@ -24,6 +24,7 @@
 #include "cx25840-core.h"
 
 #define FWFILE "v4l-cx25840.fw"
+#define FWFILE_CX23885 "v4l-cx23885-avcore-01.fw"
 
 /*
  * Mike Isely <isely@pobox.com> - The FWSEND parameter controls the
@@ -92,9 +93,13 @@ static int fw_write(struct i2c_client *client, u8 * data, int size)
 
 int cx25840_loadfw(struct i2c_client *client)
 {
+	struct cx25840_state *state = i2c_get_clientdata(client);
 	const struct firmware *fw = NULL;
 	u8 buffer[4], *ptr;
 	int size, send, retval;
+
+	if (state->is_cx23885)
+		firmware = FWFILE_CX23885;
 
 	if (request_firmware(&fw, firmware, FWDEV(client)) != 0) {
 		v4l_err(client, "unable to open firmware %s\n", firmware);

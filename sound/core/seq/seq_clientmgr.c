@@ -21,7 +21,6 @@
  *
  */
 
-#include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <sound/core.h>
@@ -129,8 +128,6 @@ static struct snd_seq_client *clientptr(int clientid)
 	}
 	return clienttab[clientid];
 }
-
-extern int seq_client_load[];
 
 struct snd_seq_client *snd_seq_client_use_ptr(int clientid)
 {
@@ -966,8 +963,7 @@ static int check_event_type_and_length(struct snd_seq_event *ev)
 			return -EINVAL;
 		break;
 	case SNDRV_SEQ_EVENT_LENGTH_VARUSR:
-		if (! snd_seq_ev_is_instr_type(ev) ||
-		    ! snd_seq_ev_is_direct(ev))
+		if (! snd_seq_ev_is_direct(ev))
 			return -EINVAL;
 		break;
 	}

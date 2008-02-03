@@ -14,6 +14,9 @@
 #define BR2684_MEDIA_FDDI	(3)
 #define BR2684_MEDIA_802_6	(4)	/* 802.6 */
 
+					/* used only at device creation:  */
+#define BR2684_FLAG_ROUTED	(1<<16)	/* payload is routed, not bridged */
+
 /*
  * Is there FCS inbound on this VC?  This currently isn't supported.
  */
@@ -36,15 +39,22 @@
 #define BR2684_ENCAPS_AUTODETECT (2)	/* Unsuported */
 
 /*
+ * Is this VC bridged or routed?
+ */
+
+#define BR2684_PAYLOAD_ROUTED   (0)
+#define BR2684_PAYLOAD_BRIDGED  (1)
+
+/*
  * This is for the ATM_NEWBACKENDIF call - these are like socket families:
  * the first element of the structure is the backend number and the rest
  * is per-backend specific
  */
 struct atm_newif_br2684 {
-	atm_backend_t	backend_num;	/* ATM_BACKEND_BR2684 */
-	int		media;		/* BR2684_MEDIA_* */
-	char		ifname[IFNAMSIZ];
-	int		mtu;
+	atm_backend_t backend_num;	/* ATM_BACKEND_BR2684 */
+	int media;		/* BR2684_MEDIA_*, flags in upper bits */
+	char ifname[IFNAMSIZ];
+	int mtu;
 };
 
 /*
@@ -55,10 +65,10 @@ struct atm_newif_br2684 {
 #define BR2684_FIND_BYNUM	(1)
 #define BR2684_FIND_BYIFNAME	(2)
 struct br2684_if_spec {
-	int method;			/* BR2684_FIND_* */
+	int method;		/* BR2684_FIND_* */
 	union {
-		char		ifname[IFNAMSIZ];
-		int		devnum;
+		char ifname[IFNAMSIZ];
+		int devnum;
 	} spec;
 };
 
@@ -68,16 +78,16 @@ struct br2684_if_spec {
  * is per-backend specific
  */
 struct atm_backend_br2684 {
-	atm_backend_t	backend_num;	/* ATM_BACKEND_BR2684 */
+	atm_backend_t backend_num;	/* ATM_BACKEND_BR2684 */
 	struct br2684_if_spec ifspec;
-	int	fcs_in;		/* BR2684_FCSIN_* */
-	int	fcs_out;	/* BR2684_FCSOUT_* */
-	int	fcs_auto;	/* 1: fcs_{in,out} disabled if no FCS rx'ed */
-	int	encaps;		/* BR2684_ENCAPS_* */
-	int	has_vpiid;	/* 1: use vpn_id - Unsupported */
-	__u8	vpn_id[7];
-	int	send_padding;	/* unsupported */
-	int	min_size;	/* we will pad smaller packets than this */
+	int fcs_in;		/* BR2684_FCSIN_* */
+	int fcs_out;		/* BR2684_FCSOUT_* */
+	int fcs_auto;		/* 1: fcs_{in,out} disabled if no FCS rx'ed */
+	int encaps;		/* BR2684_ENCAPS_* */
+	int has_vpiid;		/* 1: use vpn_id - Unsupported */
+	__u8 vpn_id[7];
+	int send_padding;	/* unsupported */
+	int min_size;		/* we will pad smaller packets than this */
 };
 
 /*
@@ -86,13 +96,18 @@ struct atm_backend_br2684 {
  * efficient per-if in/out filters, this support will be removed
  */
 struct br2684_filter {
-	__be32	prefix;		/* network byte order */
-	__be32	netmask;	/* 0 = disable filter */
+	__be32 prefix;		/* network byte order */
+	__be32 netmask;		/* 0 = disable filter */
 };
 
 struct br2684_filter_set {
 	struct br2684_if_spec ifspec;
 	struct br2684_filter filter;
+};
+
+enum br2684_payload {
+	p_routed = BR2684_PAYLOAD_ROUTED,
+	p_bridged = BR2684_PAYLOAD_BRIDGED,
 };
 
 #define BR2684_SETFILT	_IOW( 'a', ATMIOC_BACKEND + 0, \

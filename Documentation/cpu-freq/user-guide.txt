@@ -45,6 +45,7 @@ The following ARM processors are supported by cpufreq:
 ARM Integrator
 ARM-SA1100
 ARM-SA1110
+Intel PXA
 
 
 1.2 x86

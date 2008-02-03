@@ -25,5 +25,5 @@ struct isp116x_platform_data {
 	   300ns delay between access to ADDR_REG and DATA_REG
 	   OE, WE MUST NOT be changed during these intervals
 	 */
-	void (*delay) (struct device * dev, int delay);
+	void (*delay) (struct device *dev, int delay);
 };

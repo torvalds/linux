@@ -23,6 +23,7 @@ struct xt_statistic_info {
 		struct {
 			u_int32_t	every;
 			u_int32_t	packet;
+			/* Used internally by the kernel */
 			u_int32_t	count;
 		} nth;
 	} u;

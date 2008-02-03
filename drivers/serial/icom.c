@@ -48,7 +48,7 @@
 #include <linux/vmalloc.h>
 #include <linux/smp.h>
 #include <linux/spinlock.h>
-#include <linux/kobject.h>
+#include <linux/kref.h>
 #include <linux/firmware.h>
 #include <linux/bitops.h>
 
@@ -65,7 +65,7 @@
 #define ICOM_VERSION_STR "1.3.1"
 #define NR_PORTS	       128
 #define ICOM_PORT ((struct icom_port *)port)
-#define to_icom_adapter(d) container_of(d, struct icom_adapter, kobj)
+#define to_icom_adapter(d) container_of(d, struct icom_adapter, kref)
 
 static const struct pci_device_id icom_pci_table[] = {
 	{
@@ -141,6 +141,7 @@ static inline void trace(struct icom_port *, char *, unsigned long) {};
 #else
 static inline void trace(struct icom_port *icom_port, char *trace_pt, unsigned long trace_data) {};
 #endif
+static void icom_kref_release(struct kref *kref);
 
 static void free_port_memory(struct icom_port *icom_port)
 {
@@ -1063,11 +1064,11 @@ static int icom_open(struct uart_port *port)
 {
 	int retval;
 
-	kobject_get(&ICOM_PORT->adapter->kobj);
+	kref_get(&ICOM_PORT->adapter->kref);
 	retval = startup(ICOM_PORT);
 
 	if (retval) {
-		kobject_put(&ICOM_PORT->adapter->kobj);
+		kref_put(&ICOM_PORT->adapter->kref, icom_kref_release);
 		trace(ICOM_PORT, "STARTUP_ERROR", 0);
 		return retval;
 	}
@@ -1088,7 +1089,7 @@ static void icom_close(struct uart_port *port)
 
 	shutdown(ICOM_PORT);
 
-	kobject_put(&ICOM_PORT->adapter->kobj);
+	kref_put(&ICOM_PORT->adapter->kref, icom_kref_release);
 }
 
 static void icom_set_termios(struct uart_port *port,
@@ -1485,17 +1486,13 @@ static void icom_remove_adapter(struct icom_adapter *icom_adapter)
 	pci_release_regions(icom_adapter->pci_dev);
 }
 
-static void icom_kobj_release(struct kobject *kobj)
+static void icom_kref_release(struct kref *kref)
 {
 	struct icom_adapter *icom_adapter;
 
-	icom_adapter = to_icom_adapter(kobj);
+	icom_adapter = to_icom_adapter(kref);
 	icom_remove_adapter(icom_adapter);
 }
-
-static struct kobj_type icom_kobj_type = {
-	.release = icom_kobj_release,
-};
 
 static int __devinit icom_probe(struct pci_dev *dev,
 				const struct pci_device_id *ent)
@@ -1592,8 +1589,7 @@ static int __devinit icom_probe(struct pci_dev *dev,
 		}
 	}
 
-	kobject_init(&icom_adapter->kobj);
-	icom_adapter->kobj.ktype = &icom_kobj_type;
+	kref_init(&icom_adapter->kref);
 	return 0;
 
 probe_exit2:
@@ -1619,7 +1615,7 @@ static void __devexit icom_remove(struct pci_dev *dev)
 		icom_adapter = list_entry(tmp, struct icom_adapter,
 					  icom_adapter_entry);
 		if (icom_adapter->pci_dev == dev) {
-			kobject_put(&icom_adapter->kobj);
+			kref_put(&icom_adapter->kref, icom_kref_release);
 			return;
 		}
 	}

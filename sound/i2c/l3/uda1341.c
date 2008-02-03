@@ -19,7 +19,6 @@
 
 /* $Id: uda1341.c,v 1.18 2005/11/17 14:17:21 tiwai Exp $ */
 
-#include <sound/driver.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>

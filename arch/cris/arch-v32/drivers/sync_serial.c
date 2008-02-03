@@ -185,7 +185,7 @@ static struct sync_port ports[]=
 	}
 };
 
-#define NUMBER_OF_PORTS (sizeof(ports)/sizeof(sync_port))
+#define NUMBER_OF_PORTS ARRAY_SIZE(ports)
 
 static const struct file_operations sync_serial_fops = {
 	.owner   = THIS_MODULE,

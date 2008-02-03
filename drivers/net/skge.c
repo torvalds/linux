@@ -44,7 +44,7 @@
 #include "skge.h"
 
 #define DRV_NAME		"skge"
-#define DRV_VERSION		"1.12"
+#define DRV_VERSION		"1.13"
 #define PFX			DRV_NAME " "
 
 #define DEFAULT_TX_RING_SIZE	128
@@ -1095,15 +1095,8 @@ static void xm_link_down(struct skge_hw *hw, int port)
 {
 	struct net_device *dev = hw->dev[port];
 	struct skge_port *skge = netdev_priv(dev);
-	u16 cmd = xm_read16(hw, port, XM_MMU_CMD);
 
 	xm_write16(hw, port, XM_IMSK, XM_IMSK_DISABLE);
-
-	cmd &= ~(XM_MMU_ENA_RX | XM_MMU_ENA_TX);
-	xm_write16(hw, port, XM_MMU_CMD, cmd);
-
-	/* dummy read to ensure writing */
-	xm_read16(hw, port, XM_MMU_CMD);
 
 	if (netif_carrier_ok(dev))
 		skge_link_down(skge);
@@ -1194,6 +1187,7 @@ static void genesis_init(struct skge_hw *hw)
 static void genesis_reset(struct skge_hw *hw, int port)
 {
 	const u8 zero[8]  = { 0 };
+	u32 reg;
 
 	skge_write8(hw, SK_REG(port, GMAC_IRQ_MSK), 0);
 
@@ -1209,6 +1203,11 @@ static void genesis_reset(struct skge_hw *hw, int port)
 		xm_write16(hw, port, PHY_BCOM_INT_MASK, 0xffff);
 
 	xm_outhash(hw, port, XM_HSM, zero);
+
+	/* Flush TX and RX fifo */
+	reg = xm_read32(hw, port, XM_MODE);
+	xm_write32(hw, port, XM_MODE, reg | XM_MD_FTF);
+	xm_write32(hw, port, XM_MODE, reg | XM_MD_FRF);
 }
 
 
@@ -1634,15 +1633,14 @@ static void genesis_mac_init(struct skge_hw *hw, int port)
 	}
 	xm_write16(hw, port, XM_RX_CMD, r);
 
-
 	/* We want short frames padded to 60 bytes. */
 	xm_write16(hw, port, XM_TX_CMD, XM_TX_AUTO_PAD);
 
-	/*
-	 * Bump up the transmit threshold. This helps hold off transmit
-	 * underruns when we're blasting traffic from both ports at once.
-	 */
-	xm_write16(hw, port, XM_TX_THR, 512);
+	/* Increase threshold for jumbo frames on dual port */
+	if (hw->ports > 1 && jumbo)
+		xm_write16(hw, port, XM_TX_THR, 1020);
+	else
+		xm_write16(hw, port, XM_TX_THR, 512);
 
 	/*
 	 * Enable the reception of all error frames. This is is
@@ -1713,7 +1711,13 @@ static void genesis_stop(struct skge_port *skge)
 {
 	struct skge_hw *hw = skge->hw;
 	int port = skge->port;
-	u32 reg;
+	unsigned retries = 1000;
+	u16 cmd;
+
+ 	/* Disable Tx and Rx */
+	cmd = xm_read16(hw, port, XM_MMU_CMD);
+	cmd &= ~(XM_MMU_ENA_RX | XM_MMU_ENA_TX);
+	xm_write16(hw, port, XM_MMU_CMD, cmd);
 
 	genesis_reset(hw, port);
 
@@ -1721,20 +1725,17 @@ static void genesis_stop(struct skge_port *skge)
 	skge_write16(hw, B3_PA_CTRL,
 		     port == 0 ? PA_CLR_TO_TX1 : PA_CLR_TO_TX2);
 
-	/*
-	 * If the transfer sticks at the MAC the STOP command will not
-	 * terminate if we don't flush the XMAC's transmit FIFO !
-	 */
-	xm_write32(hw, port, XM_MODE,
-			xm_read32(hw, port, XM_MODE)|XM_MD_FTF);
-
-
 	/* Reset the MAC */
-	skge_write16(hw, SK_REG(port, TX_MFF_CTRL1), MFF_SET_MAC_RST);
+	skge_write16(hw, SK_REG(port, TX_MFF_CTRL1), MFF_CLR_MAC_RST);
+	do {
+		skge_write16(hw, SK_REG(port, TX_MFF_CTRL1), MFF_SET_MAC_RST);
+		if (!(skge_read16(hw, SK_REG(port, TX_MFF_CTRL1)) & MFF_SET_MAC_RST))
+			break;
+	} while (--retries > 0);
 
 	/* For external PHYs there must be special handling */
 	if (hw->phy_type != SK_PHY_XMAC) {
-		reg = skge_read32(hw, B2_GP_IO);
+		u32 reg = skge_read32(hw, B2_GP_IO);
 		if (port == 0) {
 			reg |= GP_DIR_0;
 			reg &= ~GP_IO_0;
@@ -1801,11 +1802,6 @@ static void genesis_mac_intr(struct skge_hw *hw, int port)
 		xm_write32(hw, port, XM_MODE, XM_MD_FTF);
 		++dev->stats.tx_fifo_errors;
 	}
-
-	if (status & XM_IS_RXF_OV) {
-		xm_write32(hw, port, XM_MODE, XM_MD_FRF);
-		++dev->stats.rx_fifo_errors;
-	}
 }
 
 static void genesis_link_up(struct skge_port *skge)
@@ -1862,9 +1858,9 @@ static void genesis_link_up(struct skge_port *skge)
 
 	xm_write32(hw, port, XM_MODE, mode);
 
-	/* Turn on detection of Tx underrun, Rx overrun */
+	/* Turn on detection of Tx underrun */
 	msk = xm_read16(hw, port, XM_IMSK);
-	msk &= ~(XM_IS_RXF_OV | XM_IS_TXF_UR);
+	msk &= ~XM_IS_TXF_UR;
 	xm_write16(hw, port, XM_IMSK, msk);
 
 	xm_read16(hw, port, XM_ISRC);
@@ -2194,9 +2190,12 @@ static void yukon_mac_init(struct skge_hw *hw, int port)
 			 TX_JAM_IPG_VAL(TX_JAM_IPG_DEF) |
 			 TX_IPG_JAM_DATA(TX_IPG_JAM_DEF));
 
-	/* serial mode register */
-	reg = GM_SMOD_VLAN_ENA | IPG_DATA_VAL(IPG_DATA_DEF);
-	if (hw->dev[port]->mtu > 1500)
+	/* configure the Serial Mode Register */
+	reg = DATA_BLIND_VAL(DATA_BLIND_DEF)
+		| GM_SMOD_VLAN_ENA
+		| IPG_DATA_VAL(IPG_DATA_DEF);
+
+	if (hw->dev[port]->mtu > ETH_DATA_LEN)
 		reg |= GM_SMOD_JUMBO_ENA;
 
 	gma_write16(hw, port, GM_SERIAL_MODE, reg);
@@ -2512,31 +2511,32 @@ static int skge_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return err;
 }
 
-/* Assign Ram Buffer allocation to queue */
-static void skge_ramset(struct skge_hw *hw, u16 q, u32 start, u32 space)
+static void skge_ramset(struct skge_hw *hw, u16 q, u32 start, size_t len)
 {
 	u32 end;
 
-	/* convert from K bytes to qwords used for hw register */
-	start *= 1024/8;
-	space *= 1024/8;
-	end = start + space - 1;
+	start /= 8;
+	len /= 8;
+	end = start + len - 1;
 
 	skge_write8(hw, RB_ADDR(q, RB_CTRL), RB_RST_CLR);
 	skge_write32(hw, RB_ADDR(q, RB_START), start);
-	skge_write32(hw, RB_ADDR(q, RB_END), end);
 	skge_write32(hw, RB_ADDR(q, RB_WP), start);
 	skge_write32(hw, RB_ADDR(q, RB_RP), start);
+	skge_write32(hw, RB_ADDR(q, RB_END), end);
 
 	if (q == Q_R1 || q == Q_R2) {
-		u32 tp = space - space/4;
-
 		/* Set thresholds on receive queue's */
-		skge_write32(hw, RB_ADDR(q, RB_RX_UTPP), tp);
-		skge_write32(hw, RB_ADDR(q, RB_RX_LTPP), space/4);
-	} else if (hw->chip_id != CHIP_ID_GENESIS)
-		/* Genesis Tx Fifo is too small for normal store/forward */
+		skge_write32(hw, RB_ADDR(q, RB_RX_UTPP),
+			     start + (2*len)/3);
+		skge_write32(hw, RB_ADDR(q, RB_RX_LTPP),
+			     start + (len/3));
+	} else {
+		/* Enable store & forward on Tx queue's because
+		 * Tx FIFO is only 4K on Genesis and 1K on Yukon
+		 */
 		skge_write8(hw, RB_ADDR(q, RB_CTRL), RB_ENA_STFWD);
+	}
 
 	skge_write8(hw, RB_ADDR(q, RB_CTRL), RB_ENA_OP_MD);
 }
@@ -2564,7 +2564,7 @@ static int skge_up(struct net_device *dev)
 	struct skge_port *skge = netdev_priv(dev);
 	struct skge_hw *hw = skge->hw;
 	int port = skge->port;
-	u32 ramaddr, ramsize, rxspace;
+	u32 chunk, ram_addr;
 	size_t rx_size, tx_size;
 	int err;
 
@@ -2618,16 +2618,15 @@ static int skge_up(struct net_device *dev)
 		yukon_mac_init(hw, port);
 	spin_unlock_bh(&hw->phy_lock);
 
-	/* Configure RAMbuffers */
-	ramsize = (hw->ram_size - hw->ram_offset) / hw->ports;
-	ramaddr = hw->ram_offset + port * ramsize;
-	rxspace = 8 + (2*(ramsize - 16))/3;
+	/* Configure RAMbuffers - equally between ports and tx/rx */
+	chunk = (hw->ram_size  - hw->ram_offset) / (hw->ports * 2);
+	ram_addr = hw->ram_offset + 2 * chunk * port;
 
-	skge_ramset(hw, rxqaddr[port], ramaddr, rxspace);
-	skge_ramset(hw, txqaddr[port], ramaddr + rxspace, ramsize - rxspace);
-
+	skge_ramset(hw, rxqaddr[port], ram_addr, chunk);
 	skge_qset(skge, rxqaddr[port], skge->rx_ring.to_clean);
+
 	BUG_ON(skge->tx_ring.to_use != skge->tx_ring.to_clean);
+	skge_ramset(hw, txqaddr[port], ram_addr+chunk, chunk);
 	skge_qset(skge, txqaddr[port], skge->tx_ring.to_use);
 
 	/* Start receiver BMU */
@@ -2897,11 +2896,7 @@ static void skge_tx_timeout(struct net_device *dev)
 
 static int skge_change_mtu(struct net_device *dev, int new_mtu)
 {
-	struct skge_port *skge = netdev_priv(dev);
-	struct skge_hw *hw = skge->hw;
-	int port = skge->port;
 	int err;
-	u16 ctl, reg;
 
 	if (new_mtu < ETH_ZLEN || new_mtu > ETH_JUMBO_MTU)
 		return -EINVAL;
@@ -2911,40 +2906,13 @@ static int skge_change_mtu(struct net_device *dev, int new_mtu)
 		return 0;
 	}
 
-	skge_write32(hw, B0_IMSK, 0);
-	dev->trans_start = jiffies;	/* prevent tx timeout */
-	netif_stop_queue(dev);
-	napi_disable(&skge->napi);
-
-	ctl = gma_read16(hw, port, GM_GP_CTRL);
-	gma_write16(hw, port, GM_GP_CTRL, ctl & ~GM_GPCR_RX_ENA);
-
-	skge_rx_clean(skge);
-	skge_rx_stop(hw, port);
+	skge_down(dev);
 
 	dev->mtu = new_mtu;
 
-	reg = GM_SMOD_VLAN_ENA | IPG_DATA_VAL(IPG_DATA_DEF);
-	if (new_mtu > 1500)
-		reg |= GM_SMOD_JUMBO_ENA;
-	gma_write16(hw, port, GM_SERIAL_MODE, reg);
-
-	skge_write8(hw, RB_ADDR(rxqaddr[port], RB_CTRL), RB_ENA_OP_MD);
-
-	err = skge_rx_fill(dev);
-	wmb();
-	if (!err)
-		skge_write8(hw, Q_ADDR(rxqaddr[port], Q_CSR), CSR_START | CSR_IRQ_CL_F);
-	skge_write32(hw, B0_IMSK, hw->intr_mask);
-
+	err = skge_up(dev);
 	if (err)
 		dev_close(dev);
-	else {
-		gma_write16(hw, port, GM_GP_CTRL, ctl);
-
-		napi_enable(&skge->napi);
-		netif_wake_queue(dev);
-	}
 
 	return err;
 }
@@ -3591,12 +3559,15 @@ static int skge_reset(struct skge_hw *hw)
 	if (hw->chip_id == CHIP_ID_GENESIS) {
 		if (t8 == 3) {
 			/* special case: 4 x 64k x 36, offset = 0x80000 */
-			hw->ram_size = 1024;
-			hw->ram_offset = 512;
+			hw->ram_size = 0x100000;
+			hw->ram_offset = 0x80000;
 		} else
 			hw->ram_size = t8 * 512;
-	} else /* Yukon */
-		hw->ram_size = t8 ? t8 * 4 : 128;
+	}
+	else if (t8 == 0)
+		hw->ram_size = 0x20000;
+	else
+		hw->ram_size = t8 * 4096;
 
 	hw->intr_mask = IS_HW_ERR;
 

@@ -1,11 +1,6 @@
 #ifndef _I386_MATH_EMU_H
 #define _I386_MATH_EMU_H
 
-#include <asm/sigcontext.h>
-
-int restore_i387_soft(void *s387, struct _fpstate __user *buf);
-int save_i387_soft(void *s387, struct _fpstate __user *buf);
-
 /* This structure matches the layout of the data saved to the stack
    following a device-not-present interrupt, part of it saved
    automatically by the 80386/80486.

@@ -183,7 +183,9 @@ static void page_unlock_anon_vma(struct anon_vma *anon_vma)
 }
 
 /*
- * At what user virtual address is page expected in vma?
+ * At what user virtual address is page expected in @vma?
+ * Returns virtual address or -EFAULT if page's index/offset is not
+ * within the range mapped the @vma.
  */
 static inline unsigned long
 vma_address(struct page *page, struct vm_area_struct *vma)
@@ -193,8 +195,7 @@ vma_address(struct page *page, struct vm_area_struct *vma)
 
 	address = vma->vm_start + ((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
 	if (unlikely(address < vma->vm_start || address >= vma->vm_end)) {
-		/* page should be within any vma from prio_tree_next */
-		BUG_ON(!PageAnon(page));
+		/* page should be within @vma mapping range */
 		return -EFAULT;
 	}
 	return address;
@@ -470,11 +471,12 @@ int page_mkclean(struct page *page)
 
 	if (page_mapped(page)) {
 		struct address_space *mapping = page_mapping(page);
-		if (mapping)
+		if (mapping) {
 			ret = page_mkclean_file(mapping, page);
-		if (page_test_dirty(page)) {
-			page_clear_dirty(page);
-			ret = 1;
+			if (page_test_dirty(page)) {
+				page_clear_dirty(page);
+				ret = 1;
+			}
 		}
 	}
 

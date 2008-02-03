@@ -58,7 +58,7 @@
 		hi = readl(dmar + reg + 4); \
 		(((u64) hi) << 32) + lo; })
 */
-static inline u64 dmar_readq(void *addr)
+static inline u64 dmar_readq(void __iomem *addr)
 {
 	u32 lo, hi;
 	lo = readl(addr);

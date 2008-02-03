@@ -238,7 +238,7 @@ async_bump(struct net_device *dev,
 	skb_reserve(newskb, 1);
 
 	if(docopy) {
-		/* Copy data without CRC (lenght already checked) */
+		/* Copy data without CRC (length already checked) */
 		skb_copy_to_linear_data(newskb, rx_buff->data,
 					rx_buff->len - 2);
 		/* Deliver this skb */

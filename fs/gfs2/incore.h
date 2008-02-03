@@ -1,6 +1,6 @@
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
- * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
+ * Copyright (C) 2004-2007 Red Hat, Inc.  All rights reserved.
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
@@ -131,7 +131,6 @@ struct gfs2_bufdata {
 struct gfs2_glock_operations {
 	void (*go_xmote_th) (struct gfs2_glock *gl);
 	void (*go_xmote_bh) (struct gfs2_glock *gl);
-	void (*go_drop_th) (struct gfs2_glock *gl);
 	void (*go_inval) (struct gfs2_glock *gl, int flags);
 	int (*go_demote_ok) (struct gfs2_glock *gl);
 	int (*go_lock) (struct gfs2_holder *gh);
@@ -141,10 +140,6 @@ struct gfs2_glock_operations {
 };
 
 enum {
-	/* Actions */
-	HIF_MUTEX		= 0,
-	HIF_PROMOTE		= 1,
-
 	/* States */
 	HIF_HOLDER		= 6,
 	HIF_FIRST		= 7,
@@ -171,6 +166,8 @@ enum {
 	GLF_DEMOTE		= 3,
 	GLF_PENDING_DEMOTE	= 4,
 	GLF_DIRTY		= 5,
+	GLF_DEMOTE_IN_PROGRESS	= 6,
+	GLF_LFLUSH		= 7,
 };
 
 struct gfs2_glock {
@@ -190,6 +187,7 @@ struct gfs2_glock {
 	struct list_head gl_holders;
 	struct list_head gl_waiters1;	/* HIF_MUTEX */
 	struct list_head gl_waiters3;	/* HIF_PROMOTE */
+	int gl_waiters2;		/* GIF_DEMOTE */
 
 	const struct gfs2_glock_operations *gl_ops;
 
@@ -210,7 +208,6 @@ struct gfs2_glock {
 	struct gfs2_sbd *gl_sbd;
 
 	struct inode *gl_aspace;
-	struct gfs2_log_element gl_le;
 	struct list_head gl_ail_list;
 	atomic_t gl_ail_count;
 	struct delayed_work gl_work;
@@ -239,7 +236,6 @@ struct gfs2_alloc {
 enum {
 	GIF_INVALID		= 0,
 	GIF_QD_LOCKED		= 1,
-	GIF_PAGED		= 2,
 	GIF_SW_PAGED		= 3,
 };
 
@@ -268,14 +264,10 @@ struct gfs2_inode {
 	struct gfs2_glock *i_gl; /* Move into i_gh? */
 	struct gfs2_holder i_iopen_gh;
 	struct gfs2_holder i_gh; /* for prepare/commit_write only */
-	struct gfs2_alloc i_alloc;
+	struct gfs2_alloc *i_alloc;
 	u64 i_last_rg_alloc;
 
-	spinlock_t i_spin;
 	struct rw_semaphore i_rw_mutex;
-	unsigned long i_last_pfault;
-
-	struct buffer_head *i_cache[GFS2_MAX_META_HEIGHT];
 };
 
 /*
@@ -287,19 +279,12 @@ static inline struct gfs2_inode *GFS2_I(struct inode *inode)
 	return container_of(inode, struct gfs2_inode, i_inode);
 }
 
-/* To be removed? */
-static inline struct gfs2_sbd *GFS2_SB(struct inode *inode)
+static inline struct gfs2_sbd *GFS2_SB(const struct inode *inode)
 {
 	return inode->i_sb->s_fs_info;
 }
 
-enum {
-	GFF_DID_DIRECT_ALLOC	= 0,
-	GFF_EXLOCK = 1,
-};
-
 struct gfs2_file {
-	unsigned long f_flags;		/* GFF_... */
 	struct mutex f_fl_mutex;
 	struct gfs2_holder f_fl_gh;
 };
@@ -373,8 +358,17 @@ struct gfs2_ail {
 	u64 ai_sync_gen;
 };
 
+struct gfs2_journal_extent {
+	struct list_head extent_list;
+
+	unsigned int lblock; /* First logical block */
+	u64 dblock; /* First disk block */
+	u64 blocks;
+};
+
 struct gfs2_jdesc {
 	struct list_head jd_list;
+	struct list_head extent_list;
 
 	struct inode *jd_inode;
 	unsigned int jd_jid;
@@ -421,13 +415,9 @@ struct gfs2_args {
 struct gfs2_tune {
 	spinlock_t gt_spin;
 
-	unsigned int gt_ilimit;
-	unsigned int gt_ilimit_tries;
-	unsigned int gt_ilimit_min;
 	unsigned int gt_demote_secs; /* Cache retention for unheld glock */
 	unsigned int gt_incore_log_blocks;
 	unsigned int gt_log_flush_secs;
-	unsigned int gt_jindex_refresh_secs; /* Check for new journal index */
 
 	unsigned int gt_recoverd_secs;
 	unsigned int gt_logd_secs;
@@ -443,10 +433,8 @@ struct gfs2_tune {
 	unsigned int gt_new_files_jdata;
 	unsigned int gt_new_files_directio;
 	unsigned int gt_max_readahead; /* Max bytes to read-ahead from disk */
-	unsigned int gt_lockdump_size;
 	unsigned int gt_stall_secs; /* Detects trouble! */
 	unsigned int gt_complain_secs;
-	unsigned int gt_reclaim_limit; /* Max num of glocks in reclaim list */
 	unsigned int gt_statfs_quantum;
 	unsigned int gt_statfs_slow;
 };
@@ -539,7 +527,6 @@ struct gfs2_sbd {
 	/* StatFS stuff */
 
 	spinlock_t sd_statfs_spin;
-	struct mutex sd_statfs_mutex;
 	struct gfs2_statfs_change_host sd_statfs_master;
 	struct gfs2_statfs_change_host sd_statfs_local;
 	unsigned long sd_statfs_sync_time;
@@ -602,20 +589,18 @@ struct gfs2_sbd {
 	unsigned int sd_log_commited_databuf;
 	unsigned int sd_log_commited_revoke;
 
-	unsigned int sd_log_num_gl;
 	unsigned int sd_log_num_buf;
 	unsigned int sd_log_num_revoke;
 	unsigned int sd_log_num_rg;
 	unsigned int sd_log_num_databuf;
 
-	struct list_head sd_log_le_gl;
 	struct list_head sd_log_le_buf;
 	struct list_head sd_log_le_revoke;
 	struct list_head sd_log_le_rg;
 	struct list_head sd_log_le_databuf;
 	struct list_head sd_log_le_ordered;
 
-	unsigned int sd_log_blks_free;
+	atomic_t sd_log_blks_free;
 	struct mutex sd_log_reserve_mutex;
 
 	u64 sd_log_sequence;

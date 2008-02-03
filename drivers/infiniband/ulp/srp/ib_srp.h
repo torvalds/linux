@@ -79,6 +79,11 @@ enum srp_target_state {
 	SRP_TARGET_REMOVED
 };
 
+enum srp_request_type {
+	SRP_REQ_NORMAL,
+	SRP_REQ_TASK_MGMT,
+};
+
 struct srp_device {
 	struct list_head	dev_list;
 	struct ib_device       *dev;

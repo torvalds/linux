@@ -1671,7 +1671,7 @@
 /* Bit masks for MXVR_DMAx_CONFIG */
 
 #define                    MDMAEN  0x1        /* DMA Channel Enable */
-#define                        DD  0x2        /* DMA Channel Direction */
+#define                     DMADD  0x2        /* DMA Channel Direction */
 #define                 BY4SWAPEN  0x20       /* DMA Channel Four Byte Swap Enable */
 #define                     LCHAN  0x3c0      /* DMA Channel Logical Channel */
 #define                 BITSWAPEN  0x400      /* DMA Channel Bit Swap Enable */

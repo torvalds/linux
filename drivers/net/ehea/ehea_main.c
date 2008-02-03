@@ -33,6 +33,9 @@
 #include <linux/if.h>
 #include <linux/list.h>
 #include <linux/if_ether.h>
+#include <linux/notifier.h>
+#include <linux/reboot.h>
+
 #include <net/ip.h>
 
 #include "ehea.h"
@@ -133,7 +136,7 @@ static struct net_device_stats *ehea_get_stats(struct net_device *dev)
 	struct ehea_port *port = netdev_priv(dev);
 	struct net_device_stats *stats = &port->stats;
 	struct hcp_ehea_port_cb2 *cb2;
-	u64 hret, rx_packets;
+	u64 hret, rx_packets, tx_packets;
 	int i;
 
 	memset(stats, 0, sizeof(*stats));
@@ -159,7 +162,11 @@ static struct net_device_stats *ehea_get_stats(struct net_device *dev)
 	for (i = 0; i < port->num_def_qps; i++)
 		rx_packets += port->port_res[i].rx_packets;
 
-	stats->tx_packets = cb2->txucp + cb2->txmcp + cb2->txbcp;
+	tx_packets = 0;
+	for (i = 0; i < port->num_def_qps + port->num_add_tx_qps; i++)
+		tx_packets += port->port_res[i].tx_packets;
+
+	stats->tx_packets = tx_packets;
 	stats->multicast = cb2->rxmcp;
 	stats->rx_errors = cb2->rxuerr;
 	stats->rx_bytes = cb2->rxo;
@@ -403,11 +410,6 @@ static int ehea_treat_poll_error(struct ehea_port_res *pr, int rq,
 	if (cqe->status & EHEA_CQE_STAT_ERR_CRC)
 		pr->p_stats.err_frame_crc++;
 
-	if (netif_msg_rx_err(pr->port)) {
-		ehea_error("CQE Error for QP %d", pr->qp->init_attr.qp_nr);
-		ehea_dump(cqe, sizeof(*cqe), "CQE");
-	}
-
 	if (rq == 2) {
 		*processed_rq2 += 1;
 		skb = get_skb_by_index(pr->rq2_skba.arr, pr->rq2_skba.len, cqe);
@@ -419,7 +421,11 @@ static int ehea_treat_poll_error(struct ehea_port_res *pr, int rq,
 	}
 
 	if (cqe->status & EHEA_CQE_STAT_FAT_ERR_MASK) {
-		ehea_error("Critical receive error. Resetting port.");
+		if (netif_msg_rx_err(pr->port)) {
+			ehea_error("Critical receive error for QP %d. "
+				   "Resetting port.", pr->qp->init_attr.qp_nr);
+			ehea_dump(cqe, sizeof(*cqe), "CQE");
+		}
 		schedule_work(&pr->port->reset_task);
 		return 1;
 	}
@@ -1997,6 +2003,7 @@ static int ehea_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	ehea_post_swqe(pr->qp, swqe);
+	pr->tx_packets++;
 
 	if (unlikely(atomic_read(&pr->swqe_avail) <= 1)) {
 		spin_lock_irqsave(&pr->netif_queue, flags);
@@ -3295,6 +3302,20 @@ static int __devexit ehea_remove(struct of_device *dev)
 	return 0;
 }
 
+static int ehea_reboot_notifier(struct notifier_block *nb,
+				unsigned long action, void *unused)
+{
+	if (action == SYS_RESTART) {
+		ehea_info("Reboot: freeing all eHEA resources");
+		ibmebus_unregister_driver(&ehea_driver);
+	}
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block ehea_reboot_nb = {
+        .notifier_call = ehea_reboot_notifier,
+};
+
 static int check_module_parm(void)
 {
 	int ret = 0;
@@ -3351,6 +3372,8 @@ int __init ehea_module_init(void)
 	if (ret)
 		goto out;
 
+	register_reboot_notifier(&ehea_reboot_nb);
+
 	ret = ibmebus_register_driver(&ehea_driver);
 	if (ret) {
 		ehea_error("failed registering eHEA device driver on ebus");
@@ -3362,6 +3385,7 @@ int __init ehea_module_init(void)
 	if (ret) {
 		ehea_error("failed to register capabilities attribute, ret=%d",
 			   ret);
+		unregister_reboot_notifier(&ehea_reboot_nb);
 		ibmebus_unregister_driver(&ehea_driver);
 		goto out;
 	}
@@ -3375,6 +3399,7 @@ static void __exit ehea_module_exit(void)
 	flush_scheduled_work();
 	driver_remove_file(&ehea_driver.driver, &driver_attr_capabilities);
 	ibmebus_unregister_driver(&ehea_driver);
+	unregister_reboot_notifier(&ehea_reboot_nb);
 	ehea_destroy_busmap();
 }
 

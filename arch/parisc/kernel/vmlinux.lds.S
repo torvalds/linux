@@ -172,11 +172,11 @@ SECTIONS
 	__init_begin = .;
 	.init.text : { 
 		_sinittext = .;
-		*(.init.text)
+		INIT_TEXT
 		_einittext = .;
 	}
 	.init.data : {
-		*(.init.data)
+		INIT_DATA
 	}
 	. = ALIGN(16);
 	.init.setup : {
@@ -215,10 +215,10 @@ SECTIONS
 	 *  from .altinstructions and .eh_frame
 	 */
 	.exit.text : {
-		*(.exit.text)
+		EXIT_TEXT
 	}
 	.exit.data : {
-		*(.exit.data)
+		EXIT_DATA
 	}
 #ifdef CONFIG_BLK_DEV_INITRD
 	. = ALIGN(PAGE_SIZE);

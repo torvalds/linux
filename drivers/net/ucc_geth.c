@@ -1460,6 +1460,8 @@ static int adjust_enet_interface(struct ucc_geth_private *ugeth)
 	if ((ugeth->phy_interface == PHY_INTERFACE_MODE_RMII) ||
 	    (ugeth->phy_interface == PHY_INTERFACE_MODE_RGMII) ||
 	    (ugeth->phy_interface == PHY_INTERFACE_MODE_RGMII_ID) ||
+	    (ugeth->phy_interface == PHY_INTERFACE_MODE_RGMII_RXID) ||
+	    (ugeth->phy_interface == PHY_INTERFACE_MODE_RGMII_TXID) ||
 	    (ugeth->phy_interface == PHY_INTERFACE_MODE_RTBI)) {
 		upsmr |= UPSMR_RPM;
 		switch (ugeth->max_speed) {
@@ -1557,6 +1559,8 @@ static void adjust_link(struct net_device *dev)
 				if ((ugeth->phy_interface == PHY_INTERFACE_MODE_RMII) ||
 				    (ugeth->phy_interface == PHY_INTERFACE_MODE_RGMII) ||
 				    (ugeth->phy_interface == PHY_INTERFACE_MODE_RGMII_ID) ||
+				    (ugeth->phy_interface == PHY_INTERFACE_MODE_RGMII_RXID) ||
+				    (ugeth->phy_interface == PHY_INTERFACE_MODE_RGMII_TXID) ||
 				    (ugeth->phy_interface == PHY_INTERFACE_MODE_RTBI)) {
 					if (phydev->speed == SPEED_10)
 						upsmr |= UPSMR_R10M;
@@ -2214,9 +2218,7 @@ static void ucc_geth_set_multi(struct net_device *dev)
 	struct dev_mc_list *dmi;
 	struct ucc_fast *uf_regs;
 	struct ucc_geth_82xx_address_filtering_pram *p_82xx_addr_filt;
-	u8 tempaddr[6];
-	u8 *mcptr, *tdptr;
-	int i, j;
+	int i;
 
 	ugeth = netdev_priv(dev);
 
@@ -2255,19 +2257,10 @@ static void ucc_geth_set_multi(struct net_device *dev)
 				if (!(dmi->dmi_addr[0] & 1))
 					continue;
 
-				/* The address in dmi_addr is LSB first,
-				 * and taddr is MSB first.  We have to
-				 * copy bytes MSB first from dmi_addr.
-				 */
-				mcptr = (u8 *) dmi->dmi_addr + 5;
-				tdptr = (u8 *) tempaddr;
-				for (j = 0; j < 6; j++)
-					*tdptr++ = *mcptr--;
-
 				/* Ask CPM to run CRC and set bit in
 				 * filter mask.
 				 */
-				hw_add_addr_in_hash(ugeth, tempaddr);
+				hw_add_addr_in_hash(ugeth, dmi->dmi_addr);
 			}
 		}
 	}
@@ -3454,7 +3447,7 @@ static int ucc_geth_rx(struct ucc_geth_private *ugeth, u8 rxQ, int rx_work_limit
 	u16 length, howmany = 0;
 	u32 bd_status;
 	u8 *bdBuffer;
-	struct net_device * dev;
+	struct net_device *dev;
 
 	ugeth_vdbg("%s: IN", __FUNCTION__);
 
@@ -3620,9 +3613,6 @@ static irqreturn_t ucc_geth_irq_handler(int irq, void *info)
 	u8 i;
 
 	ugeth_vdbg("%s: IN", __FUNCTION__);
-
-	if (!ugeth)
-		return IRQ_NONE;
 
 	uccf = ugeth->uccf;
 	ug_info = ugeth->ug_info;
@@ -3806,6 +3796,10 @@ static phy_interface_t to_phy_interface(const char *phy_connection_type)
 		return PHY_INTERFACE_MODE_RGMII;
 	if (strcasecmp(phy_connection_type, "rgmii-id") == 0)
 		return PHY_INTERFACE_MODE_RGMII_ID;
+	if (strcasecmp(phy_connection_type, "rgmii-txid") == 0)
+		return PHY_INTERFACE_MODE_RGMII_TXID;
+	if (strcasecmp(phy_connection_type, "rgmii-rxid") == 0)
+		return PHY_INTERFACE_MODE_RGMII_RXID;
 	if (strcasecmp(phy_connection_type, "rtbi") == 0)
 		return PHY_INTERFACE_MODE_RTBI;
 
@@ -3825,6 +3819,7 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 	int err, ucc_num, max_speed = 0;
 	const phandle *ph;
 	const unsigned int *prop;
+	const char *sprop;
 	const void *mac_addr;
 	phy_interface_t phy_interface;
 	static const int enet_to_speed[] = {
@@ -3857,10 +3852,56 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 
 	ug_info->uf_info.ucc_num = ucc_num;
 
-	prop = of_get_property(np, "rx-clock", NULL);
-	ug_info->uf_info.rx_clock = *prop;
-	prop = of_get_property(np, "tx-clock", NULL);
-	ug_info->uf_info.tx_clock = *prop;
+	sprop = of_get_property(np, "rx-clock-name", NULL);
+	if (sprop) {
+		ug_info->uf_info.rx_clock = qe_clock_source(sprop);
+		if ((ug_info->uf_info.rx_clock < QE_CLK_NONE) ||
+		    (ug_info->uf_info.rx_clock > QE_CLK24)) {
+			printk(KERN_ERR
+				"ucc_geth: invalid rx-clock-name property\n");
+			return -EINVAL;
+		}
+	} else {
+		prop = of_get_property(np, "rx-clock", NULL);
+		if (!prop) {
+			/* If both rx-clock-name and rx-clock are missing,
+			   we want to tell people to use rx-clock-name. */
+			printk(KERN_ERR
+				"ucc_geth: missing rx-clock-name property\n");
+			return -EINVAL;
+		}
+		if ((*prop < QE_CLK_NONE) || (*prop > QE_CLK24)) {
+			printk(KERN_ERR
+				"ucc_geth: invalid rx-clock propperty\n");
+			return -EINVAL;
+		}
+		ug_info->uf_info.rx_clock = *prop;
+	}
+
+	sprop = of_get_property(np, "tx-clock-name", NULL);
+	if (sprop) {
+		ug_info->uf_info.tx_clock = qe_clock_source(sprop);
+		if ((ug_info->uf_info.tx_clock < QE_CLK_NONE) ||
+		    (ug_info->uf_info.tx_clock > QE_CLK24)) {
+			printk(KERN_ERR
+				"ucc_geth: invalid tx-clock-name property\n");
+			return -EINVAL;
+		}
+	} else {
+		prop = of_get_property(np, "rx-clock", NULL);
+		if (!prop) {
+			printk(KERN_ERR
+				"ucc_geth: mising tx-clock-name property\n");
+			return -EINVAL;
+		}
+		if ((*prop < QE_CLK_NONE) || (*prop > QE_CLK24)) {
+			printk(KERN_ERR
+				"ucc_geth: invalid tx-clock property\n");
+			return -EINVAL;
+		}
+		ug_info->uf_info.tx_clock = *prop;
+	}
+
 	err = of_address_to_resource(np, 0, &res);
 	if (err)
 		return -EINVAL;
@@ -3900,6 +3941,8 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 		case PHY_INTERFACE_MODE_GMII:
 		case PHY_INTERFACE_MODE_RGMII:
 		case PHY_INTERFACE_MODE_RGMII_ID:
+		case PHY_INTERFACE_MODE_RGMII_RXID:
+		case PHY_INTERFACE_MODE_RGMII_TXID:
 		case PHY_INTERFACE_MODE_TBI:
 		case PHY_INTERFACE_MODE_RTBI:
 			max_speed = SPEED_1000;

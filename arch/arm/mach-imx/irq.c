@@ -43,12 +43,46 @@
  *
  */
 
-#define INTENNUM_OFF              0x8
-#define INTDISNUM_OFF             0xC
+#define INTCNTL_OFF               0x00
+#define NIMASK_OFF                0x04
+#define INTENNUM_OFF              0x08
+#define INTDISNUM_OFF             0x0C
+#define INTENABLEH_OFF            0x10
+#define INTENABLEL_OFF            0x14
+#define INTTYPEH_OFF              0x18
+#define INTTYPEL_OFF              0x1C
+#define NIPRIORITY_OFF(x)         (0x20+4*(7-(x)))
+#define NIVECSR_OFF               0x40
+#define FIVECSR_OFF               0x44
+#define INTSRCH_OFF               0x48
+#define INTSRCL_OFF               0x4C
+#define INTFRCH_OFF               0x50
+#define INTFRCL_OFF               0x54
+#define NIPNDH_OFF                0x58
+#define NIPNDL_OFF                0x5C
+#define FIPNDH_OFF                0x60
+#define FIPNDL_OFF                0x64
 
 #define VA_AITC_BASE              IO_ADDRESS(IMX_AITC_BASE)
-#define IMX_AITC_INTDISNUM       (VA_AITC_BASE + INTDISNUM_OFF)
+#define IMX_AITC_INTCNTL         (VA_AITC_BASE + INTCNTL_OFF)
+#define IMX_AITC_NIMASK          (VA_AITC_BASE + NIMASK_OFF)
 #define IMX_AITC_INTENNUM        (VA_AITC_BASE + INTENNUM_OFF)
+#define IMX_AITC_INTDISNUM       (VA_AITC_BASE + INTDISNUM_OFF)
+#define IMX_AITC_INTENABLEH      (VA_AITC_BASE + INTENABLEH_OFF)
+#define IMX_AITC_INTENABLEL      (VA_AITC_BASE + INTENABLEL_OFF)
+#define IMX_AITC_INTTYPEH        (VA_AITC_BASE + INTTYPEH_OFF)
+#define IMX_AITC_INTTYPEL        (VA_AITC_BASE + INTTYPEL_OFF)
+#define IMX_AITC_NIPRIORITY(x)   (VA_AITC_BASE + NIPRIORITY_OFF(x))
+#define IMX_AITC_NIVECSR         (VA_AITC_BASE + NIVECSR_OFF)
+#define IMX_AITC_FIVECSR         (VA_AITC_BASE + FIVECSR_OFF)
+#define IMX_AITC_INTSRCH         (VA_AITC_BASE + INTSRCH_OFF)
+#define IMX_AITC_INTSRCL         (VA_AITC_BASE + INTSRCL_OFF)
+#define IMX_AITC_INTFRCH         (VA_AITC_BASE + INTFRCH_OFF)
+#define IMX_AITC_INTFRCL         (VA_AITC_BASE + INTFRCL_OFF)
+#define IMX_AITC_NIPNDH          (VA_AITC_BASE + NIPNDH_OFF)
+#define IMX_AITC_NIPNDL          (VA_AITC_BASE + NIPNDL_OFF)
+#define IMX_AITC_FIPNDH          (VA_AITC_BASE + FIPNDH_OFF)
+#define IMX_AITC_FIPNDL          (VA_AITC_BASE + FIPNDL_OFF)
 
 #if 0
 #define DEBUG_IRQ(fmt...)	printk(fmt)
@@ -222,7 +256,12 @@ imx_init_irq(void)
 
 	DEBUG_IRQ("Initializing imx interrupts\n");
 
-	/* Mask all interrupts initially */
+	/* Disable all interrupts initially. */
+	/* Do not rely on the bootloader. */
+	__raw_writel(0, IMX_AITC_INTENABLEH);
+	__raw_writel(0, IMX_AITC_INTENABLEL);
+
+	/* Mask all GPIO interrupts as well */
 	IMR(0) = 0;
 	IMR(1) = 0;
 	IMR(2) = 0;
@@ -245,6 +284,6 @@ imx_init_irq(void)
 	set_irq_chained_handler(GPIO_INT_PORTC, imx_gpioc_demux_handler);
 	set_irq_chained_handler(GPIO_INT_PORTD, imx_gpiod_demux_handler);
 
-	/* Disable all interrupts initially. */
-	/* In IMX this is done in the bootloader. */
+	/* Release masking of interrupts according to priority */
+	__raw_writel(-1, IMX_AITC_NIMASK);
 }

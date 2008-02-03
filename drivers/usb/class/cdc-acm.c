@@ -496,9 +496,18 @@ static int acm_tty_open(struct tty_struct *tty, struct file *filp)
 	   otherwise it is scheduled, and with high data rates data can get lost. */
 	tty->low_latency = 1;
 
+	if (usb_autopm_get_interface(acm->control)) {
+		mutex_unlock(&open_mutex);
+		return -EIO;
+	}
+
+	mutex_lock(&acm->mutex);
+	mutex_unlock(&open_mutex);
 	if (acm->used++) {
+		usb_autopm_put_interface(acm->control);
 		goto done;
         }
+
 
 	acm->ctrlurb->dev = acm->dev;
 	if (usb_submit_urb(acm->ctrlurb, GFP_KERNEL)) {
@@ -526,14 +535,15 @@ static int acm_tty_open(struct tty_struct *tty, struct file *filp)
 
 done:
 err_out:
-	mutex_unlock(&open_mutex);
+	mutex_unlock(&acm->mutex);
 	return rv;
 
 full_bailout:
 	usb_kill_urb(acm->ctrlurb);
 bail_out:
+	usb_autopm_put_interface(acm->control);
 	acm->used--;
-	mutex_unlock(&open_mutex);
+	mutex_unlock(&acm->mutex);
 	return -EIO;
 }
 
@@ -570,6 +580,7 @@ static void acm_tty_close(struct tty_struct *tty, struct file *filp)
 			usb_kill_urb(acm->writeurb);
 			for (i = 0; i < nr; i++)
 				usb_kill_urb(acm->ru[i].urb);
+			usb_autopm_put_interface(acm->control);
 		} else
 			acm_tty_unregister(acm);
 	}
@@ -904,7 +915,7 @@ next_desc:
 	}
 	
 	if (data_interface_num != call_interface_num)
-		dev_dbg(&intf->dev,"Seperate call control interface. That is not fully supported.\n");
+		dev_dbg(&intf->dev,"Separate call control interface. That is not fully supported.\n");
 
 skip_normal_probe:
 
@@ -980,6 +991,7 @@ skip_normal_probe:
 	spin_lock_init(&acm->throttle_lock);
 	spin_lock_init(&acm->write_lock);
 	spin_lock_init(&acm->read_lock);
+	mutex_init(&acm->mutex);
 	acm->write_ready = 1;
 	acm->rx_endpoint = usb_rcvbulkpipe(usb_dev, epread->bEndpointAddress);
 
@@ -1096,6 +1108,25 @@ alloc_fail:
 	return -ENOMEM;
 }
 
+static void stop_data_traffic(struct acm *acm)
+{
+	int i;
+
+	tasklet_disable(&acm->urb_task);
+
+	usb_kill_urb(acm->ctrlurb);
+	usb_kill_urb(acm->writeurb);
+	for (i = 0; i < acm->rx_buflimit; i++)
+		usb_kill_urb(acm->ru[i].urb);
+
+	INIT_LIST_HEAD(&acm->filled_read_bufs);
+	INIT_LIST_HEAD(&acm->spare_read_bufs);
+
+	tasklet_enable(&acm->urb_task);
+
+	cancel_work_sync(&acm->work);
+}
+
 static void acm_disconnect(struct usb_interface *intf)
 {
 	struct acm *acm = usb_get_intfdata(intf);
@@ -1123,19 +1154,7 @@ static void acm_disconnect(struct usb_interface *intf)
 	usb_set_intfdata(acm->control, NULL);
 	usb_set_intfdata(acm->data, NULL);
 
-	tasklet_disable(&acm->urb_task);
-
-	usb_kill_urb(acm->ctrlurb);
-	usb_kill_urb(acm->writeurb);
-	for (i = 0; i < acm->rx_buflimit; i++)
-		usb_kill_urb(acm->ru[i].urb);
-
-	INIT_LIST_HEAD(&acm->filled_read_bufs);
-	INIT_LIST_HEAD(&acm->spare_read_bufs);
-
-	tasklet_enable(&acm->urb_task);
-
-	flush_scheduled_work(); /* wait for acm_softint */
+	stop_data_traffic(acm);
 
 	acm_write_buffers_free(acm);
 	usb_buffer_free(usb_dev, acm->ctrlsize, acm->ctrl_buffer, acm->ctrl_dma);
@@ -1156,6 +1175,46 @@ static void acm_disconnect(struct usb_interface *intf)
 		tty_hangup(acm->tty);
 }
 
+static int acm_suspend(struct usb_interface *intf, pm_message_t message)
+{
+	struct acm *acm = usb_get_intfdata(intf);
+
+	if (acm->susp_count++)
+		return 0;
+	/*
+	we treat opened interfaces differently,
+	we must guard against open
+	*/
+	mutex_lock(&acm->mutex);
+
+	if (acm->used)
+		stop_data_traffic(acm);
+
+	mutex_unlock(&acm->mutex);
+	return 0;
+}
+
+static int acm_resume(struct usb_interface *intf)
+{
+	struct acm *acm = usb_get_intfdata(intf);
+	int rv = 0;
+
+	if (--acm->susp_count)
+		return 0;
+
+	mutex_lock(&acm->mutex);
+	if (acm->used) {
+		rv = usb_submit_urb(acm->ctrlurb, GFP_NOIO);
+		if (rv < 0)
+		goto err_out;
+
+		tasklet_schedule(&acm->urb_task);
+	}
+
+err_out:
+	mutex_unlock(&acm->mutex);
+	return rv;
+}
 /*
  * USB driver structure.
  */
@@ -1208,7 +1267,10 @@ static struct usb_driver acm_driver = {
 	.name =		"cdc_acm",
 	.probe =	acm_probe,
 	.disconnect =	acm_disconnect,
+	.suspend =	acm_suspend,
+	.resume =	acm_resume,
 	.id_table =	acm_ids,
+	.supports_autosuspend = 1,
 };
 
 /*

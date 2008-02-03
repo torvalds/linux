@@ -129,6 +129,14 @@ enum ip_conntrack_events
 	/* Mark is set */
 	IPCT_MARK_BIT = 12,
 	IPCT_MARK = (1 << IPCT_MARK_BIT),
+
+	/* NAT sequence adjustment */
+	IPCT_NATSEQADJ_BIT = 13,
+	IPCT_NATSEQADJ = (1 << IPCT_NATSEQADJ_BIT),
+
+	/* Secmark is set */
+	IPCT_SECMARK_BIT = 14,
+	IPCT_SECMARK = (1 << IPCT_SECMARK_BIT),
 };
 
 enum ip_conntrack_expect_events {

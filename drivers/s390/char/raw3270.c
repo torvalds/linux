@@ -66,7 +66,7 @@ struct raw3270 {
 static DEFINE_MUTEX(raw3270_mutex);
 
 /* List of 3270 devices. */
-static struct list_head raw3270_devices = LIST_HEAD_INIT(raw3270_devices);
+static LIST_HEAD(raw3270_devices);
 
 /*
  * Flag to indicate if the driver has been registered. Some operations
@@ -1210,7 +1210,7 @@ struct raw3270_notifier {
 	void (*notifier)(int, int);
 };
 
-static struct list_head raw3270_notifier = LIST_HEAD_INIT(raw3270_notifier);
+static LIST_HEAD(raw3270_notifier);
 
 int raw3270_register_notifier(void (*notifier)(int, int))
 {

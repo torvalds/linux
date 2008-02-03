@@ -25,7 +25,7 @@ MODULE_ALIAS("ip_conntrack_tftp");
 
 #define MAX_PORTS 8
 static unsigned short ports[MAX_PORTS];
-static int ports_c;
+static unsigned int ports_c;
 module_param_array(ports, ushort, &ports_c, 0400);
 MODULE_PARM_DESC(ports, "Port numbers of TFTP servers");
 
@@ -39,7 +39,8 @@ static int tftp_help(struct sk_buff *skb,
 		     struct nf_conn *ct,
 		     enum ip_conntrack_info ctinfo)
 {
-	struct tftphdr _tftph, *tfh;
+	const struct tftphdr *tfh;
+	struct tftphdr _tftph;
 	struct nf_conntrack_expect *exp;
 	struct nf_conntrack_tuple *tuple;
 	unsigned int ret = NF_ACCEPT;

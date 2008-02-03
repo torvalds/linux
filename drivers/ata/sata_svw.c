@@ -182,7 +182,7 @@ static void k2_sata_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 		tf->hob_lbal = lbal >> 8;
 		tf->hob_lbam = lbam >> 8;
 		tf->hob_lbah = lbah >> 8;
-        }
+	}
 }
 
 /**
@@ -193,7 +193,7 @@ static void k2_sata_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
  *	spin_lock_irqsave(host lock)
  */
 
-static void k2_bmdma_setup_mmio (struct ata_queued_cmd *qc)
+static void k2_bmdma_setup_mmio(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	unsigned int rw = (qc->tf.flags & ATA_TFLAG_WRITE);
@@ -224,7 +224,7 @@ static void k2_bmdma_setup_mmio (struct ata_queued_cmd *qc)
  *	spin_lock_irqsave(host lock)
  */
 
-static void k2_bmdma_start_mmio (struct ata_queued_cmd *qc)
+static void k2_bmdma_start_mmio(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	void __iomem *mmio = ap->ioaddr.bmdma_addr;
@@ -255,7 +255,7 @@ static void k2_bmdma_start_mmio (struct ata_queued_cmd *qc)
 
 static u8 k2_stat_check_status(struct ata_port *ap)
 {
-       	return readl(ap->ioaddr.status_addr);
+	return readl(ap->ioaddr.status_addr);
 }
 
 #ifdef CONFIG_PPC_OF
@@ -395,7 +395,7 @@ static void k2_sata_setup_port(struct ata_ioports *port, void __iomem *base)
 }
 
 
-static int k2_sata_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
+static int k2_sata_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version;
 	const struct ata_port_info *ppi[] =

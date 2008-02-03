@@ -677,6 +677,8 @@ static int mcs_net_close(struct net_device *netdev)
 	/* Stop transmit processing */
 	netif_stop_queue(netdev);
 
+	kfree_skb(mcs->rx_buff.skb);
+
 	/* kill and free the receive and transmit URBs */
 	usb_kill_urb(mcs->rx_urb);
 	usb_free_urb(mcs->rx_urb);

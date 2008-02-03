@@ -1163,7 +1163,7 @@ static struct acpi_driver sonypi_acpi_driver = {
 };
 #endif
 
-static int __devinit sonypi_create_input_devices(void)
+static int __devinit sonypi_create_input_devices(struct platform_device *pdev)
 {
 	struct input_dev *jog_dev;
 	struct input_dev *key_dev;
@@ -1177,6 +1177,7 @@ static int __devinit sonypi_create_input_devices(void)
 	jog_dev->name = "Sony Vaio Jogdial";
 	jog_dev->id.bustype = BUS_ISA;
 	jog_dev->id.vendor = PCI_VENDOR_ID_SONY;
+	jog_dev->dev.parent = &pdev->dev;
 
 	jog_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REL);
 	jog_dev->keybit[BIT_WORD(BTN_MOUSE)] = BIT_MASK(BTN_MIDDLE);
@@ -1191,6 +1192,7 @@ static int __devinit sonypi_create_input_devices(void)
 	key_dev->name = "Sony Vaio Keys";
 	key_dev->id.bustype = BUS_ISA;
 	key_dev->id.vendor = PCI_VENDOR_ID_SONY;
+	key_dev->dev.parent = &pdev->dev;
 
 	/* Initialize the Input Drivers: special keys */
 	key_dev->evbit[0] = BIT_MASK(EV_KEY);
@@ -1385,7 +1387,7 @@ static int __devinit sonypi_probe(struct platform_device *dev)
 
 	if (useinput) {
 
-		error = sonypi_create_input_devices();
+		error = sonypi_create_input_devices(dev);
 		if (error) {
 			printk(KERN_ERR
 				"sonypi: failed to create input devices\n");
@@ -1432,7 +1434,7 @@ static int __devexit sonypi_remove(struct platform_device *dev)
 {
 	sonypi_disable();
 
-	synchronize_sched();  /* Allow sonypi interrupt to complete. */
+	synchronize_irq(sonypi_device.irq);
 	flush_scheduled_work();
 
 	if (useinput) {

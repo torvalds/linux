@@ -58,7 +58,7 @@ static int ignored_gdt(unsigned int num)
  * Protection Fault in the Switcher when it restores a Guest segment register
  * which tries to use that entry.  Then we kill the Guest for causing such a
  * mess: the message will be "unhandled trap 256". */
-static void fixup_gdt_table(struct lguest *lg, unsigned start, unsigned end)
+static void fixup_gdt_table(struct lg_cpu *cpu, unsigned start, unsigned end)
 {
 	unsigned int i;
 
@@ -71,14 +71,14 @@ static void fixup_gdt_table(struct lguest *lg, unsigned start, unsigned end)
 		/* Segment descriptors contain a privilege level: the Guest is
 		 * sometimes careless and leaves this as 0, even though it's
 		 * running at privilege level 1.  If so, we fix it here. */
-		if ((lg->arch.gdt[i].b & 0x00006000) == 0)
-			lg->arch.gdt[i].b |= (GUEST_PL << 13);
+		if ((cpu->arch.gdt[i].b & 0x00006000) == 0)
+			cpu->arch.gdt[i].b |= (GUEST_PL << 13);
 
 		/* Each descriptor has an "accessed" bit.  If we don't set it
 		 * now, the CPU will try to set it when the Guest first loads
 		 * that entry into a segment register.  But the GDT isn't
 		 * writable by the Guest, so bad things can happen. */
-		lg->arch.gdt[i].b |= 0x00000100;
+		cpu->arch.gdt[i].b |= 0x00000100;
 	}
 }
 
@@ -109,31 +109,31 @@ void setup_default_gdt_entries(struct lguest_ro_state *state)
 
 /* This routine sets up the initial Guest GDT for booting.  All entries start
  * as 0 (unusable). */
-void setup_guest_gdt(struct lguest *lg)
+void setup_guest_gdt(struct lg_cpu *cpu)
 {
 	/* Start with full 0-4G segments... */
-	lg->arch.gdt[GDT_ENTRY_KERNEL_CS] = FULL_EXEC_SEGMENT;
-	lg->arch.gdt[GDT_ENTRY_KERNEL_DS] = FULL_SEGMENT;
+	cpu->arch.gdt[GDT_ENTRY_KERNEL_CS] = FULL_EXEC_SEGMENT;
+	cpu->arch.gdt[GDT_ENTRY_KERNEL_DS] = FULL_SEGMENT;
 	/* ...except the Guest is allowed to use them, so set the privilege
 	 * level appropriately in the flags. */
-	lg->arch.gdt[GDT_ENTRY_KERNEL_CS].b |= (GUEST_PL << 13);
-	lg->arch.gdt[GDT_ENTRY_KERNEL_DS].b |= (GUEST_PL << 13);
+	cpu->arch.gdt[GDT_ENTRY_KERNEL_CS].b |= (GUEST_PL << 13);
+	cpu->arch.gdt[GDT_ENTRY_KERNEL_DS].b |= (GUEST_PL << 13);
 }
 
 /*H:650 An optimization of copy_gdt(), for just the three "thead-local storage"
  * entries. */
-void copy_gdt_tls(const struct lguest *lg, struct desc_struct *gdt)
+void copy_gdt_tls(const struct lg_cpu *cpu, struct desc_struct *gdt)
 {
 	unsigned int i;
 
 	for (i = GDT_ENTRY_TLS_MIN; i <= GDT_ENTRY_TLS_MAX; i++)
-		gdt[i] = lg->arch.gdt[i];
+		gdt[i] = cpu->arch.gdt[i];
 }
 
 /*H:640 When the Guest is run on a different CPU, or the GDT entries have
  * changed, copy_gdt() is called to copy the Guest's GDT entries across to this
  * CPU's GDT. */
-void copy_gdt(const struct lguest *lg, struct desc_struct *gdt)
+void copy_gdt(const struct lg_cpu *cpu, struct desc_struct *gdt)
 {
 	unsigned int i;
 
@@ -141,38 +141,38 @@ void copy_gdt(const struct lguest *lg, struct desc_struct *gdt)
 	 * replaced.  See ignored_gdt() above. */
 	for (i = 0; i < GDT_ENTRIES; i++)
 		if (!ignored_gdt(i))
-			gdt[i] = lg->arch.gdt[i];
+			gdt[i] = cpu->arch.gdt[i];
 }
 
 /*H:620 This is where the Guest asks us to load a new GDT (LHCALL_LOAD_GDT).
  * We copy it from the Guest and tweak the entries. */
-void load_guest_gdt(struct lguest *lg, unsigned long table, u32 num)
+void load_guest_gdt(struct lg_cpu *cpu, unsigned long table, u32 num)
 {
 	/* We assume the Guest has the same number of GDT entries as the
 	 * Host, otherwise we'd have to dynamically allocate the Guest GDT. */
-	if (num > ARRAY_SIZE(lg->arch.gdt))
-		kill_guest(lg, "too many gdt entries %i", num);
+	if (num > ARRAY_SIZE(cpu->arch.gdt))
+		kill_guest(cpu, "too many gdt entries %i", num);
 
 	/* We read the whole thing in, then fix it up. */
-	__lgread(lg, lg->arch.gdt, table, num * sizeof(lg->arch.gdt[0]));
-	fixup_gdt_table(lg, 0, ARRAY_SIZE(lg->arch.gdt));
+	__lgread(cpu, cpu->arch.gdt, table, num * sizeof(cpu->arch.gdt[0]));
+	fixup_gdt_table(cpu, 0, ARRAY_SIZE(cpu->arch.gdt));
 	/* Mark that the GDT changed so the core knows it has to copy it again,
 	 * even if the Guest is run on the same CPU. */
-	lg->changed |= CHANGED_GDT;
+	cpu->changed |= CHANGED_GDT;
 }
 
 /* This is the fast-track version for just changing the three TLS entries.
  * Remember that this happens on every context switch, so it's worth
  * optimizing.  But wouldn't it be neater to have a single hypercall to cover
  * both cases? */
-void guest_load_tls(struct lguest *lg, unsigned long gtls)
+void guest_load_tls(struct lg_cpu *cpu, unsigned long gtls)
 {
-	struct desc_struct *tls = &lg->arch.gdt[GDT_ENTRY_TLS_MIN];
+	struct desc_struct *tls = &cpu->arch.gdt[GDT_ENTRY_TLS_MIN];
 
-	__lgread(lg, tls, gtls, sizeof(*tls)*GDT_ENTRY_TLS_ENTRIES);
-	fixup_gdt_table(lg, GDT_ENTRY_TLS_MIN, GDT_ENTRY_TLS_MAX+1);
+	__lgread(cpu, tls, gtls, sizeof(*tls)*GDT_ENTRY_TLS_ENTRIES);
+	fixup_gdt_table(cpu, GDT_ENTRY_TLS_MIN, GDT_ENTRY_TLS_MAX+1);
 	/* Note that just the TLS entries have changed. */
-	lg->changed |= CHANGED_GDT_TLS;
+	cpu->changed |= CHANGED_GDT_TLS;
 }
 /*:*/
 

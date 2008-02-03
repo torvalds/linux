@@ -174,7 +174,8 @@ static inline void sctp_set_owner_w(struct sctp_chunk *chunk)
 				sizeof(struct sctp_chunk);
 
 	atomic_add(sizeof(struct sctp_chunk), &sk->sk_wmem_alloc);
-	sk_charge_skb(sk, chunk->skb);
+	sk->sk_wmem_queued += chunk->skb->truesize;
+	sk_mem_charge(sk, chunk->skb->truesize);
 }
 
 /* Verify that this is a valid address. */
@@ -390,7 +391,7 @@ SCTP_STATIC int sctp_do_bind(struct sock *sk, union sctp_addr *addr, int len)
 	/* Add the address to the bind address list.
 	 * Use GFP_ATOMIC since BHs will be disabled.
 	 */
-	ret = sctp_add_bind_addr(bp, addr, 1, GFP_ATOMIC);
+	ret = sctp_add_bind_addr(bp, addr, SCTP_ADDR_SRC, GFP_ATOMIC);
 
 	/* Copy back into socket for getsockname() use. */
 	if (!ret) {
@@ -585,8 +586,8 @@ static int sctp_send_asconf_add_ip(struct sock		*sk,
 			addr = (union sctp_addr *)addr_buf;
 			af = sctp_get_af_specific(addr->v4.sin_family);
 			memcpy(&saveaddr, addr, af->sockaddr_len);
-			retval = sctp_add_bind_addr(bp, &saveaddr, 0,
-						    GFP_ATOMIC);
+			retval = sctp_add_bind_addr(bp, &saveaddr,
+						    SCTP_ADDR_NEW, GFP_ATOMIC);
 			addr_buf += af->sockaddr_len;
 		}
 	}
@@ -660,7 +661,7 @@ static int sctp_bindx_rem(struct sock *sk, struct sockaddr *addrs, int addrcnt)
 		 * socket routing and failover schemes. Refer to comments in
 		 * sctp_do_bind(). -daisy
 		 */
-		retval = sctp_del_bind_addr(bp, sa_addr, call_rcu);
+		retval = sctp_del_bind_addr(bp, sa_addr);
 
 		addr_buf += af->sockaddr_len;
 err_bindx_rem:
@@ -777,7 +778,7 @@ static int sctp_send_asconf_del_ip(struct sock		*sk,
 			af = sctp_get_af_specific(laddr->v4.sin_family);
 			list_for_each_entry(saddr, &bp->address_list, list) {
 				if (sctp_cmp_addr_exact(&saddr->a, laddr))
-					saddr->use_as_src = 0;
+					saddr->state = SCTP_ADDR_DEL;
 			}
 			addr_buf += af->sockaddr_len;
 		}
@@ -5307,6 +5308,7 @@ static long sctp_get_port_local(struct sock *sk, union sctp_addr *addr)
 {
 	struct sctp_bind_hashbucket *head; /* hash list */
 	struct sctp_bind_bucket *pp; /* hash list port iterator */
+	struct hlist_node *node;
 	unsigned short snum;
 	int ret;
 
@@ -5331,7 +5333,7 @@ static long sctp_get_port_local(struct sock *sk, union sctp_addr *addr)
 			index = sctp_phashfn(rover);
 			head = &sctp_port_hashtable[index];
 			sctp_spin_lock(&head->lock);
-			for (pp = head->chain; pp; pp = pp->next)
+			sctp_for_each_hentry(pp, node, &head->chain)
 				if (pp->port == rover)
 					goto next;
 			break;
@@ -5358,7 +5360,7 @@ static long sctp_get_port_local(struct sock *sk, union sctp_addr *addr)
 		 */
 		head = &sctp_port_hashtable[sctp_phashfn(snum)];
 		sctp_spin_lock(&head->lock);
-		for (pp = head->chain; pp; pp = pp->next) {
+		sctp_for_each_hentry(pp, node, &head->chain) {
 			if (pp->port == snum)
 				goto pp_found;
 		}
@@ -5702,10 +5704,7 @@ static struct sctp_bind_bucket *sctp_bucket_create(
 		pp->port = snum;
 		pp->fastreuse = 0;
 		INIT_HLIST_HEAD(&pp->owner);
-		if ((pp->next = head->chain) != NULL)
-			pp->next->pprev = &pp->next;
-		head->chain = pp;
-		pp->pprev = &head->chain;
+		hlist_add_head(&pp->node, &head->chain);
 	}
 	return pp;
 }
@@ -5714,9 +5713,7 @@ static struct sctp_bind_bucket *sctp_bucket_create(
 static void sctp_bucket_destroy(struct sctp_bind_bucket *pp)
 {
 	if (pp && hlist_empty(&pp->owner)) {
-		if (pp->next)
-			pp->next->pprev = pp->pprev;
-		*(pp->pprev) = pp->next;
+		__hlist_del(&pp->node);
 		kmem_cache_free(sctp_bucket_cachep, pp);
 		SCTP_DBG_OBJCNT_DEC(bind_bucket);
 	}
@@ -6012,7 +6009,8 @@ static void __sctp_write_space(struct sctp_association *asoc)
 			 */
 			if (sock->fasync_list &&
 			    !(sk->sk_shutdown & SEND_SHUTDOWN))
-				sock_wake_async(sock, 2, POLL_OUT);
+				sock_wake_async(sock,
+						SOCK_WAKE_SPACE, POLL_OUT);
 		}
 	}
 }
@@ -6038,10 +6036,10 @@ static void sctp_wfree(struct sk_buff *skb)
 	atomic_sub(sizeof(struct sctp_chunk), &sk->sk_wmem_alloc);
 
 	/*
-	 * This undoes what is done via sk_charge_skb
+	 * This undoes what is done via sctp_set_owner_w and sk_mem_charge
 	 */
 	sk->sk_wmem_queued   -= skb->truesize;
-	sk->sk_forward_alloc += skb->truesize;
+	sk_mem_uncharge(sk, skb->truesize);
 
 	sock_wfree(skb);
 	__sctp_write_space(asoc);
@@ -6062,9 +6060,9 @@ void sctp_sock_rfree(struct sk_buff *skb)
 	atomic_sub(event->rmem_len, &sk->sk_rmem_alloc);
 
 	/*
-	 * Mimic the behavior of sk_stream_rfree
+	 * Mimic the behavior of sock_rfree
 	 */
-	sk->sk_forward_alloc += event->rmem_len;
+	sk_mem_uncharge(sk, event->rmem_len);
 }
 
 
@@ -6329,7 +6327,7 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 	struct sctp_endpoint *newep = newsp->ep;
 	struct sk_buff *skb, *tmp;
 	struct sctp_ulpevent *event;
-	int flags = 0;
+	struct sctp_bind_hashbucket *head;
 
 	/* Migrate socket buffer sizes and all the socket level options to the
 	 * new socket.
@@ -6346,23 +6344,21 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 	newsp->hmac = NULL;
 
 	/* Hook this new socket in to the bind_hash list. */
+	head = &sctp_port_hashtable[sctp_phashfn(inet_sk(oldsk)->num)];
+	sctp_local_bh_disable();
+	sctp_spin_lock(&head->lock);
 	pp = sctp_sk(oldsk)->bind_hash;
 	sk_add_bind_node(newsk, &pp->owner);
 	sctp_sk(newsk)->bind_hash = pp;
 	inet_sk(newsk)->num = inet_sk(oldsk)->num;
+	sctp_spin_unlock(&head->lock);
+	sctp_local_bh_enable();
 
 	/* Copy the bind_addr list from the original endpoint to the new
 	 * endpoint so that we can handle restarts properly
 	 */
-	if (PF_INET6 == assoc->base.sk->sk_family)
-		flags = SCTP_ADDR6_ALLOWED;
-	if (assoc->peer.ipv4_address)
-		flags |= SCTP_ADDR4_PEERSUPP;
-	if (assoc->peer.ipv6_address)
-		flags |= SCTP_ADDR6_PEERSUPP;
-	sctp_bind_addr_copy(&newsp->ep->base.bind_addr,
-			     &oldsp->ep->base.bind_addr,
-			     SCTP_SCOPE_GLOBAL, GFP_KERNEL, flags);
+	sctp_bind_addr_dup(&newsp->ep->base.bind_addr,
+				&oldsp->ep->base.bind_addr, GFP_KERNEL);
 
 	/* Move any messages in the old socket's receive queue that are for the
 	 * peeled off association to the new socket's receive queue.
@@ -6455,6 +6451,8 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 }
 
 
+DEFINE_PROTO_INUSE(sctp)
+
 /* This proto struct describes the ULP interface for SCTP.  */
 struct proto sctp_prot = {
 	.name        =	"SCTP",
@@ -6483,9 +6481,12 @@ struct proto sctp_prot = {
 	.memory_pressure = &sctp_memory_pressure,
 	.enter_memory_pressure = sctp_enter_memory_pressure,
 	.memory_allocated = &sctp_memory_allocated,
+	REF_PROTO_INUSE(sctp)
 };
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+DEFINE_PROTO_INUSE(sctpv6)
+
 struct proto sctpv6_prot = {
 	.name		= "SCTPv6",
 	.owner		= THIS_MODULE,
@@ -6513,5 +6514,6 @@ struct proto sctpv6_prot = {
 	.memory_pressure = &sctp_memory_pressure,
 	.enter_memory_pressure = sctp_enter_memory_pressure,
 	.memory_allocated = &sctp_memory_allocated,
+	REF_PROTO_INUSE(sctpv6)
 };
 #endif /* defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE) */

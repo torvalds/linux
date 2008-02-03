@@ -22,7 +22,6 @@
  *
  */      
 
-#include <sound/driver.h>
 #include <asm/io.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -44,6 +43,11 @@ enum {
 	EWS_I2C_6FIRE = 0
 };
 	
+
+/* additional i2c devices for EWS boards */
+struct ews_spec {
+	struct snd_i2c_device *i2cdevs[3];
+};
 
 /*
  * access via i2c mode (for EWX 24/96, EWS 88MT&D)
@@ -142,15 +146,17 @@ static struct snd_i2c_bit_ops snd_ice1712_ewx_cs8427_bit_ops = {
 /* AK4524 chip select; address 0x48 bit 0-3 */
 static int snd_ice1712_ews88mt_chip_select(struct snd_ice1712 *ice, int chip_mask)
 {
+	struct ews_spec *spec = ice->spec;
 	unsigned char data, ndata;
 
 	snd_assert(chip_mask >= 0 && chip_mask <= 0x0f, return -EINVAL);
 	snd_i2c_lock(ice->i2c);
-	if (snd_i2c_readbytes(ice->spec.i2cdevs[EWS_I2C_PCF2], &data, 1) != 1)
+	if (snd_i2c_readbytes(spec->i2cdevs[EWS_I2C_PCF2], &data, 1) != 1)
 		goto __error;
 	ndata = (data & 0xf0) | chip_mask;
 	if (ndata != data)
-		if (snd_i2c_sendbytes(ice->spec.i2cdevs[EWS_I2C_PCF2], &ndata, 1) != 1)
+		if (snd_i2c_sendbytes(spec->i2cdevs[EWS_I2C_PCF2], &ndata, 1)
+		    != 1)
 			goto __error;
 	snd_i2c_unlock(ice->i2c);
 	return 0;
@@ -224,6 +230,7 @@ static void dmx6fire_ak4524_lock(struct snd_akm4xxx *ak, int chip)
 
 static void snd_ice1712_ews_cs8404_spdif_write(struct snd_ice1712 *ice, unsigned char bits)
 {
+	struct ews_spec *spec = ice->spec;
 	unsigned char bytes[2];
 
 	snd_i2c_lock(ice->i2c);
@@ -231,15 +238,18 @@ static void snd_ice1712_ews_cs8404_spdif_write(struct snd_ice1712 *ice, unsigned
 	case ICE1712_SUBDEVICE_EWS88MT:
 	case ICE1712_SUBDEVICE_EWS88MT_NEW:
 	case ICE1712_SUBDEVICE_PHASE88:
-		if (snd_i2c_sendbytes(ice->spec.i2cdevs[EWS_I2C_CS8404], &bits, 1) != 1)
+		if (snd_i2c_sendbytes(spec->i2cdevs[EWS_I2C_CS8404], &bits, 1)
+		    != 1)
 			goto _error;
 		break;
 	case ICE1712_SUBDEVICE_EWS88D:
-		if (snd_i2c_readbytes(ice->spec.i2cdevs[EWS_I2C_88D], bytes, 2) != 2)
+		if (snd_i2c_readbytes(spec->i2cdevs[EWS_I2C_88D], bytes, 2)
+		    != 2)
 			goto _error;
 		if (bits != bytes[1]) {
 			bytes[1] = bits;
-			if (snd_i2c_sendbytes(ice->spec.i2cdevs[EWS_I2C_88D], bytes, 2) != 2)
+			if (snd_i2c_sendbytes(spec->i2cdevs[EWS_I2C_88D],
+					      bytes, 2) != 2)
 				goto _error;
 		}
 		break;
@@ -412,6 +422,7 @@ static int __devinit snd_ice1712_ews_init(struct snd_ice1712 *ice)
 {
 	int err;
 	struct snd_akm4xxx *ak;
+	struct ews_spec *spec;
 
 	/* set the analog DACs */
 	switch (ice->eeprom.subvendor) {
@@ -436,6 +447,11 @@ static int __devinit snd_ice1712_ews_init(struct snd_ice1712 *ice)
 		break;
 	}
 
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	if (!spec)
+		return -ENOMEM;
+	ice->spec = spec;
+
 	/* create i2c */
 	if ((err = snd_i2c_bus_create(ice->card, "ICE1712 GPIO 1", NULL, &ice->i2c)) < 0) {
 		snd_printk(KERN_ERR "unable to create I2C bus\n");
@@ -447,7 +463,10 @@ static int __devinit snd_ice1712_ews_init(struct snd_ice1712 *ice)
 	/* create i2c devices */
 	switch (ice->eeprom.subvendor) {
 	case ICE1712_SUBDEVICE_DMX6FIRE:
-		if ((err = snd_i2c_device_create(ice->i2c, "PCF9554", ICE1712_6FIRE_PCF9554_ADDR, &ice->spec.i2cdevs[EWS_I2C_6FIRE])) < 0) {
+		err = snd_i2c_device_create(ice->i2c, "PCF9554",
+					    ICE1712_6FIRE_PCF9554_ADDR,
+					    &spec->i2cdevs[EWS_I2C_6FIRE]);
+		if (err < 0) {
 			snd_printk(KERN_ERR "PCF9554 initialization failed\n");
 			return err;
 		}
@@ -456,18 +475,30 @@ static int __devinit snd_ice1712_ews_init(struct snd_ice1712 *ice)
 	case ICE1712_SUBDEVICE_EWS88MT:
 	case ICE1712_SUBDEVICE_EWS88MT_NEW:
 	case ICE1712_SUBDEVICE_PHASE88:
-		if ((err = snd_i2c_device_create(ice->i2c, "CS8404", ICE1712_EWS88MT_CS8404_ADDR, &ice->spec.i2cdevs[EWS_I2C_CS8404])) < 0)
+		err = snd_i2c_device_create(ice->i2c, "CS8404",
+					    ICE1712_EWS88MT_CS8404_ADDR,
+					    &spec->i2cdevs[EWS_I2C_CS8404]);
+		if (err < 0)
 			return err;
-		if ((err = snd_i2c_device_create(ice->i2c, "PCF8574 (1st)", ICE1712_EWS88MT_INPUT_ADDR, &ice->spec.i2cdevs[EWS_I2C_PCF1])) < 0)
+		err = snd_i2c_device_create(ice->i2c, "PCF8574 (1st)",
+					    ICE1712_EWS88MT_INPUT_ADDR,
+					    &spec->i2cdevs[EWS_I2C_PCF1]);
+		if (err < 0)
 			return err;
-		if ((err = snd_i2c_device_create(ice->i2c, "PCF8574 (2nd)", ICE1712_EWS88MT_OUTPUT_ADDR, &ice->spec.i2cdevs[EWS_I2C_PCF2])) < 0)
+		err = snd_i2c_device_create(ice->i2c, "PCF8574 (2nd)",
+					    ICE1712_EWS88MT_OUTPUT_ADDR,
+					    &spec->i2cdevs[EWS_I2C_PCF2]);
+		if (err < 0)
 			return err;
 		/* Check if the front module is connected */
 		if ((err = snd_ice1712_ews88mt_chip_select(ice, 0x0f)) < 0)
 			return err;
 		break;
 	case ICE1712_SUBDEVICE_EWS88D:
-		if ((err = snd_i2c_device_create(ice->i2c, "PCF8575", ICE1712_EWS88D_PCF_ADDR, &ice->spec.i2cdevs[EWS_I2C_88D])) < 0)
+		err = snd_i2c_device_create(ice->i2c, "PCF8575",
+					    ICE1712_EWS88D_PCF_ADDR,
+					    &spec->i2cdevs[EWS_I2C_88D]);
+		if (err < 0)
 			return err;
 		break;
 	}
@@ -507,7 +538,7 @@ static int __devinit snd_ice1712_ews_init(struct snd_ice1712 *ice)
 	}
 
 	/* analog section */
-	ak = ice->akm = kmalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
+	ak = ice->akm = kzalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
 	if (! ak)
 		return -ENOMEM;
 	ice->akm_codecs = 1;
@@ -605,10 +636,11 @@ static struct snd_kcontrol_new snd_ice1712_ewx2496_controls[] __devinitdata = {
 static int snd_ice1712_ews88mt_output_sense_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
+	struct ews_spec *spec = ice->spec;
 	unsigned char data;
 
 	snd_i2c_lock(ice->i2c);
-	if (snd_i2c_readbytes(ice->spec.i2cdevs[EWS_I2C_PCF2], &data, 1) != 1) {
+	if (snd_i2c_readbytes(spec->i2cdevs[EWS_I2C_PCF2], &data, 1) != 1) {
 		snd_i2c_unlock(ice->i2c);
 		return -EIO;
 	}
@@ -621,15 +653,17 @@ static int snd_ice1712_ews88mt_output_sense_get(struct snd_kcontrol *kcontrol, s
 static int snd_ice1712_ews88mt_output_sense_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
+	struct ews_spec *spec = ice->spec;
 	unsigned char data, ndata;
 
 	snd_i2c_lock(ice->i2c);
-	if (snd_i2c_readbytes(ice->spec.i2cdevs[EWS_I2C_PCF2], &data, 1) != 1) {
+	if (snd_i2c_readbytes(spec->i2cdevs[EWS_I2C_PCF2], &data, 1) != 1) {
 		snd_i2c_unlock(ice->i2c);
 		return -EIO;
 	}
 	ndata = (data & ~ICE1712_EWS88MT_OUTPUT_SENSE) | (ucontrol->value.enumerated.item[0] ? ICE1712_EWS88MT_OUTPUT_SENSE : 0);
-	if (ndata != data && snd_i2c_sendbytes(ice->spec.i2cdevs[EWS_I2C_PCF2], &ndata, 1) != 1) {
+	if (ndata != data && snd_i2c_sendbytes(spec->i2cdevs[EWS_I2C_PCF2],
+					       &ndata, 1) != 1) {
 		snd_i2c_unlock(ice->i2c);
 		return -EIO;
 	}
@@ -641,12 +675,13 @@ static int snd_ice1712_ews88mt_output_sense_put(struct snd_kcontrol *kcontrol, s
 static int snd_ice1712_ews88mt_input_sense_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
+	struct ews_spec *spec = ice->spec;
 	int channel = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
 	unsigned char data;
 
 	snd_assert(channel >= 0 && channel <= 7, return 0);
 	snd_i2c_lock(ice->i2c);
-	if (snd_i2c_readbytes(ice->spec.i2cdevs[EWS_I2C_PCF1], &data, 1) != 1) {
+	if (snd_i2c_readbytes(spec->i2cdevs[EWS_I2C_PCF1], &data, 1) != 1) {
 		snd_i2c_unlock(ice->i2c);
 		return -EIO;
 	}
@@ -660,17 +695,19 @@ static int snd_ice1712_ews88mt_input_sense_get(struct snd_kcontrol *kcontrol, st
 static int snd_ice1712_ews88mt_input_sense_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
+	struct ews_spec *spec = ice->spec;
 	int channel = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
 	unsigned char data, ndata;
 
 	snd_assert(channel >= 0 && channel <= 7, return 0);
 	snd_i2c_lock(ice->i2c);
-	if (snd_i2c_readbytes(ice->spec.i2cdevs[EWS_I2C_PCF1], &data, 1) != 1) {
+	if (snd_i2c_readbytes(spec->i2cdevs[EWS_I2C_PCF1], &data, 1) != 1) {
 		snd_i2c_unlock(ice->i2c);
 		return -EIO;
 	}
 	ndata = (data & ~(1 << channel)) | (ucontrol->value.enumerated.item[0] ? 0 : (1 << channel));
-	if (ndata != data && snd_i2c_sendbytes(ice->spec.i2cdevs[EWS_I2C_PCF1], &ndata, 1) != 1) {
+	if (ndata != data && snd_i2c_sendbytes(spec->i2cdevs[EWS_I2C_PCF1],
+					       &ndata, 1) != 1) {
 		snd_i2c_unlock(ice->i2c);
 		return -EIO;
 	}
@@ -705,12 +742,13 @@ static struct snd_kcontrol_new snd_ice1712_ews88mt_output_sense __devinitdata = 
 static int snd_ice1712_ews88d_control_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
+	struct ews_spec *spec = ice->spec;
 	int shift = kcontrol->private_value & 0xff;
 	int invert = (kcontrol->private_value >> 8) & 1;
 	unsigned char data[2];
 	
 	snd_i2c_lock(ice->i2c);
-	if (snd_i2c_readbytes(ice->spec.i2cdevs[EWS_I2C_88D], data, 2) != 2) {
+	if (snd_i2c_readbytes(spec->i2cdevs[EWS_I2C_88D], data, 2) != 2) {
 		snd_i2c_unlock(ice->i2c);
 		return -EIO;
 	}
@@ -725,13 +763,14 @@ static int snd_ice1712_ews88d_control_get(struct snd_kcontrol *kcontrol, struct 
 static int snd_ice1712_ews88d_control_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
+	struct ews_spec *spec = ice->spec;
 	int shift = kcontrol->private_value & 0xff;
 	int invert = (kcontrol->private_value >> 8) & 1;
 	unsigned char data[2], ndata[2];
 	int change;
 
 	snd_i2c_lock(ice->i2c);
-	if (snd_i2c_readbytes(ice->spec.i2cdevs[EWS_I2C_88D], data, 2) != 2) {
+	if (snd_i2c_readbytes(spec->i2cdevs[EWS_I2C_88D], data, 2) != 2) {
 		snd_i2c_unlock(ice->i2c);
 		return -EIO;
 	}
@@ -744,7 +783,8 @@ static int snd_ice1712_ews88d_control_put(struct snd_kcontrol *kcontrol, struct 
 			ndata[shift >> 3] |= (1 << (shift & 7));
 	}
 	change = (data[shift >> 3] != ndata[shift >> 3]);
-	if (change && snd_i2c_sendbytes(ice->spec.i2cdevs[EWS_I2C_88D], data, 2) != 2) {
+	if (change &&
+	    snd_i2c_sendbytes(spec->i2cdevs[EWS_I2C_88D], data, 2) != 2) {
 		snd_i2c_unlock(ice->i2c);
 		return -EIO;
 	}
@@ -778,11 +818,13 @@ static struct snd_kcontrol_new snd_ice1712_ews88d_controls[] __devinitdata = {
 static int snd_ice1712_6fire_read_pca(struct snd_ice1712 *ice, unsigned char reg)
 {
 	unsigned char byte;
+	struct ews_spec *spec = ice->spec;
+
 	snd_i2c_lock(ice->i2c);
 	byte = reg;
-	snd_i2c_sendbytes(ice->spec.i2cdevs[EWS_I2C_6FIRE], &byte, 1);
+	snd_i2c_sendbytes(spec->i2cdevs[EWS_I2C_6FIRE], &byte, 1);
 	byte = 0;
-	if (snd_i2c_readbytes(ice->spec.i2cdevs[EWS_I2C_6FIRE], &byte, 1) != 1) {
+	if (snd_i2c_readbytes(spec->i2cdevs[EWS_I2C_6FIRE], &byte, 1) != 1) {
 		snd_i2c_unlock(ice->i2c);
 		printk(KERN_ERR "cannot read pca\n");
 		return -EIO;
@@ -794,10 +836,12 @@ static int snd_ice1712_6fire_read_pca(struct snd_ice1712 *ice, unsigned char reg
 static int snd_ice1712_6fire_write_pca(struct snd_ice1712 *ice, unsigned char reg, unsigned char data)
 {
 	unsigned char bytes[2];
+	struct ews_spec *spec = ice->spec;
+
 	snd_i2c_lock(ice->i2c);
 	bytes[0] = reg;
 	bytes[1] = data;
-	if (snd_i2c_sendbytes(ice->spec.i2cdevs[EWS_I2C_6FIRE], bytes, 2) != 2) {
+	if (snd_i2c_sendbytes(spec->i2cdevs[EWS_I2C_6FIRE], bytes, 2) != 2) {
 		snd_i2c_unlock(ice->i2c);
 		return -EIO;
 	}

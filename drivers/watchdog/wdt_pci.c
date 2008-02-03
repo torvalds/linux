@@ -74,7 +74,7 @@
 static int dev_count;
 
 static struct semaphore open_sem;
-static spinlock_t wdtpci_lock;
+static DEFINE_SPINLOCK(wdtpci_lock);
 static char expect_close;
 
 static int io;
@@ -298,7 +298,7 @@ static irqreturn_t wdtpci_interrupt(int irq, void *dev_id)
 			printk(KERN_CRIT PFX "Possible fan fault.\n");
 	}
 #endif /* CONFIG_WDT_501_PCI */
-	if (!(status&WDC_SR_WCCR))
+	if (!(status&WDC_SR_WCCR)) {
 #ifdef SOFTWARE_REBOOT
 #ifdef ONLY_TESTING
 		printk(KERN_CRIT PFX "Would Reboot.\n");
@@ -309,6 +309,7 @@ static irqreturn_t wdtpci_interrupt(int irq, void *dev_id)
 #else
 		printk(KERN_CRIT PFX "Reset in 5ms.\n");
 #endif
+	}
 	return IRQ_HANDLED;
 }
 
@@ -606,7 +607,6 @@ static int __devinit wdtpci_init_one (struct pci_dev *dev,
 	}
 
 	sema_init(&open_sem, 1);
-	spin_lock_init(&wdtpci_lock);
 
 	irq = dev->irq;
 	io = pci_resource_start (dev, 2);

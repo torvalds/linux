@@ -35,8 +35,8 @@ ccwgroup_bus_match (struct device * dev, struct device_driver * drv)
 	struct ccwgroup_device *gdev;
 	struct ccwgroup_driver *gdrv;
 
-	gdev = container_of(dev, struct ccwgroup_device, dev);
-	gdrv = container_of(drv, struct ccwgroup_driver, driver);
+	gdev = to_ccwgroupdev(dev);
+	gdrv = to_ccwgroupdrv(drv);
 
 	if (gdev->creator_id == gdrv->driver_id)
 		return 1;
@@ -75,8 +75,10 @@ static void ccwgroup_ungroup_callback(struct device *dev)
 	struct ccwgroup_device *gdev = to_ccwgroupdev(dev);
 
 	mutex_lock(&gdev->reg_mutex);
-	__ccwgroup_remove_symlinks(gdev);
-	device_unregister(dev);
+	if (device_is_registered(&gdev->dev)) {
+		__ccwgroup_remove_symlinks(gdev);
+		device_unregister(dev);
+	}
 	mutex_unlock(&gdev->reg_mutex);
 }
 
@@ -111,7 +113,7 @@ ccwgroup_release (struct device *dev)
 	gdev = to_ccwgroupdev(dev);
 
 	for (i = 0; i < gdev->count; i++) {
-		gdev->cdev[i]->dev.driver_data = NULL;
+		dev_set_drvdata(&gdev->cdev[i]->dev, NULL);
 		put_device(&gdev->cdev[i]->dev);
 	}
 	kfree(gdev);
@@ -196,11 +198,11 @@ int ccwgroup_create(struct device *root, unsigned int creator_id,
 			goto error;
 		}
 		/* Don't allow a device to belong to more than one group. */
-		if (gdev->cdev[i]->dev.driver_data) {
+		if (dev_get_drvdata(&gdev->cdev[i]->dev)) {
 			rc = -EINVAL;
 			goto error;
 		}
-		gdev->cdev[i]->dev.driver_data = gdev;
+		dev_set_drvdata(&gdev->cdev[i]->dev, gdev);
 	}
 
 	gdev->creator_id = creator_id;
@@ -234,8 +236,8 @@ int ccwgroup_create(struct device *root, unsigned int creator_id,
 error:
 	for (i = 0; i < argc; i++)
 		if (gdev->cdev[i]) {
-			if (gdev->cdev[i]->dev.driver_data == gdev)
-				gdev->cdev[i]->dev.driver_data = NULL;
+			if (dev_get_drvdata(&gdev->cdev[i]->dev) == gdev)
+				dev_set_drvdata(&gdev->cdev[i]->dev, NULL);
 			put_device(&gdev->cdev[i]->dev);
 		}
 	mutex_unlock(&gdev->reg_mutex);
@@ -408,6 +410,7 @@ int ccwgroup_driver_register(struct ccwgroup_driver *cdriver)
 	/* register our new driver with the core */
 	cdriver->driver.bus = &ccwgroup_bus_type;
 	cdriver->driver.name = cdriver->name;
+	cdriver->driver.owner = cdriver->owner;
 
 	return driver_register(&cdriver->driver);
 }
@@ -463,8 +466,8 @@ __ccwgroup_get_gdev_by_cdev(struct ccw_device *cdev)
 {
 	struct ccwgroup_device *gdev;
 
-	if (cdev->dev.driver_data) {
-		gdev = (struct ccwgroup_device *)cdev->dev.driver_data;
+	gdev = dev_get_drvdata(&cdev->dev);
+	if (gdev) {
 		if (get_device(&gdev->dev)) {
 			mutex_lock(&gdev->reg_mutex);
 			if (device_is_registered(&gdev->dev))

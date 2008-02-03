@@ -33,7 +33,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_sil680"
-#define DRV_VERSION "0.4.7"
+#define DRV_VERSION "0.4.8"
 
 #define SIL680_MMIO_BAR		5
 
@@ -91,34 +91,6 @@ static int sil680_cable_detect(struct ata_port *ap) {
 		return ATA_CBL_PATA80;
 	else
 		return ATA_CBL_PATA40;
-}
-
-/**
- *	sil680_bus_reset	-	reset the SIL680 bus
- *	@link: ATA link to reset
- *	@deadline: deadline jiffies for the operation
- *
- *	Perform the SIL680 housekeeping when doing an ATA bus reset
- */
-
-static int sil680_bus_reset(struct ata_link *link, unsigned int *classes,
-			    unsigned long deadline)
-{
-	struct ata_port *ap = link->ap;
-	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	unsigned long addr = sil680_selreg(ap, 0);
-	u8 reset;
-
-	pci_read_config_byte(pdev, addr, &reset);
-	pci_write_config_byte(pdev, addr, reset | 0x03);
-	udelay(25);
-	pci_write_config_byte(pdev, addr, reset);
-	return ata_std_softreset(link, classes, deadline);
-}
-
-static void sil680_error_handler(struct ata_port *ap)
-{
-	ata_bmdma_drive_eh(ap, ata_std_prereset, sil680_bus_reset, NULL, ata_std_postreset);
 }
 
 /**
@@ -249,7 +221,7 @@ static struct ata_port_operations sil680_port_ops = {
 
 	.freeze		= ata_bmdma_freeze,
 	.thaw		= ata_bmdma_thaw,
-	.error_handler	= sil680_error_handler,
+	.error_handler	= ata_bmdma_error_handler,
 	.post_internal_cmd = ata_bmdma_post_internal_cmd,
 	.cable_detect	= sil680_cable_detect,
 

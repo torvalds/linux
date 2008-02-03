@@ -42,6 +42,9 @@ config GENERIC_HARDIRQS
 	bool
 	default y
 
+config HAVE_SETUP_PER_CPU_AREA
+	def_bool PPC64
+
 config IRQ_PER_CPU
 	bool
 	default y
@@ -52,6 +55,11 @@ config RWSEM_GENERIC_SPINLOCK
 config RWSEM_XCHGADD_ALGORITHM
 	bool
 	default y
+
+config GENERIC_LOCKBREAK
+	bool
+	default y
+	depends on SMP && PREEMPT
 
 config ARCH_HAS_ILOG2_U32
 	bool
@@ -140,10 +148,27 @@ config DEFAULT_UIMAGE
 	  Used to allow a board to specify it wants a uImage built by default
 	default n
 
-config PPC64_SWSUSP
+config REDBOOT
 	bool
-	depends on PPC64 && (BROKEN || (PPC_PMAC64 && EXPERIMENTAL))
+
+config HIBERNATE_32
+	bool
+	depends on (PPC_PMAC && !SMP) || BROKEN
 	default y
+
+config HIBERNATE_64
+	bool
+	depends on BROKEN || (PPC_PMAC64 && EXPERIMENTAL)
+	default y
+
+config ARCH_HIBERNATION_POSSIBLE
+	bool
+	depends on (PPC64 && HIBERNATE_64) || (PPC32 && HIBERNATE_32)
+	default y
+
+config ARCH_SUSPEND_POSSIBLE
+	def_bool y
+	depends on ADB_PMU || PPC_EFIKA || PPC_LITE5200
 
 config PPC_DCR_NATIVE
 	bool
@@ -160,11 +185,13 @@ config PPC_DCR
 
 config PPC_OF_PLATFORM_PCI
 	bool
+	depends on PCI
 	depends on PPC64 # not supported on 32 bits yet
 	default n
 
 source "init/Kconfig"
 
+source "arch/powerpc/sysdev/Kconfig"
 source "arch/powerpc/platforms/Kconfig"
 
 menu "Kernel options"
@@ -186,6 +213,11 @@ config FORCE_MAX_ZONEORDER
 	depends on PPC64
 	default "9" if PPC_64K_PAGES
 	default "13"
+
+config HUGETLB_PAGE_SIZE_VARIABLE
+	bool
+	depends on HUGETLB_PAGE
+	default y
 
 config MATH_EMULATION
 	bool "Math emulation"
@@ -335,6 +367,14 @@ config PPC_64K_PAGES
 	  while on hardware with such support, it will be used to map
 	  normal application pages.
 
+config PPC_SUBPAGE_PROT
+	bool "Support setting protections for 4k subpages"
+	depends on PPC_64K_PAGES
+	help
+	  This option adds support for a system call to allow user programs
+	  to set access permissions (read/write, readonly, or no access)
+	  on the 4k subpages of each 64k page.
+
 config SCHED_SMT
 	bool "SMT (Hyperthreading) scheduler support"
 	depends on PPC64 && SMP
@@ -365,6 +405,10 @@ config CMDLINE
 	  most cases you will need to specify the root device here.
 
 if !44x || BROKEN
+config ARCH_WANTS_FREEZER_CONTROL
+	def_bool y
+	depends on ADB_PMU
+
 source kernel/power/Kconfig
 endif
 
@@ -412,7 +456,7 @@ endmenu
 
 config ISA_DMA_API
 	bool
-	default y
+	default !PPC_ISERIES || PCI
 
 menu "Bus options"
 
@@ -462,7 +506,7 @@ config MCA
 config PCI
 	bool "PCI support" if 40x || CPM2 || PPC_83xx || PPC_85xx || PPC_86xx \
 		|| PPC_MPC52xx || (EMBEDDED && (PPC_PSERIES || PPC_ISERIES)) \
-		|| PPC_PS3
+		|| PPC_PS3 || 44x
 	default y if !40x && !CPM2 && !8xx && !PPC_83xx \
 		&& !PPC_85xx && !PPC_86xx
 	default PCI_PERMEDIA if !4xx && !CPM2 && !8xx

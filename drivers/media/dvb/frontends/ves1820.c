@@ -47,7 +47,7 @@ struct ves1820_state {
 static int verbose;
 
 static u8 ves1820_inittab[] = {
-	0x69, 0x6A, 0x93, 0x12, 0x12, 0x46, 0x26, 0x1A,
+	0x69, 0x6A, 0x93, 0x1A, 0x12, 0x46, 0x26, 0x1A,
 	0x43, 0x6A, 0xAA, 0xAA, 0x1E, 0x85, 0x43, 0x20,
 	0xE0, 0x00, 0xA1, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
@@ -65,7 +65,7 @@ static int ves1820_writereg(struct ves1820_state *state, u8 reg, u8 data)
 	ret = i2c_transfer(state->i2c, &msg, 1);
 
 	if (ret != 1)
-		printk("ves1820: %s(): writereg error (reg == 0x%02x,"
+		printk("ves1820: %s(): writereg error (reg == 0x%02x, "
 			"val == 0x%02x, ret == %i)\n", __FUNCTION__, reg, data, ret);
 
 	return (ret != 1) ? -EREMOTEIO : 0;
@@ -84,7 +84,7 @@ static u8 ves1820_readreg(struct ves1820_state *state, u8 reg)
 	ret = i2c_transfer(state->i2c, msg, 2);
 
 	if (ret != 2)
-		printk("ves1820: %s(): readreg error (reg == 0x%02x,"
+		printk("ves1820: %s(): readreg error (reg == 0x%02x, "
 		"ret == %i)\n", __FUNCTION__, reg, ret);
 
 	return b1[0];

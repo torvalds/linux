@@ -26,17 +26,7 @@
 #include <asm/rtc.h>
 
 #define DRV_NAME	"sh-rtc"
-#define DRV_VERSION	"0.1.3"
-
-#ifdef CONFIG_CPU_SH3
-#define rtc_reg_size		sizeof(u16)
-#define RTC_BIT_INVERTED	0	/* No bug on SH7708, SH7709A */
-#define RTC_DEF_CAPABILITIES	0UL
-#elif defined(CONFIG_CPU_SH4)
-#define rtc_reg_size		sizeof(u32)
-#define RTC_BIT_INVERTED	0x40	/* bug on SH7750, SH7750S */
-#define RTC_DEF_CAPABILITIES	RTC_CAP_4_DIGIT_YEAR
-#endif
+#define DRV_VERSION	"0.1.6"
 
 #define RTC_REG(r)	((r) * rtc_reg_size)
 
@@ -57,6 +47,18 @@
 #define RMONAR		RTC_REG(13)	/* ALARM month */
 #define RCR1		RTC_REG(14)	/* Control */
 #define RCR2		RTC_REG(15)	/* Control */
+
+/*
+ * Note on RYRAR and RCR3: Up until this point most of the register
+ * definitions are consistent across all of the available parts. However,
+ * the placement of the optional RYRAR and RCR3 (the RYRAR control
+ * register used to control RYRCNT/RYRAR compare) varies considerably
+ * across various parts, occasionally being mapped in to a completely
+ * unrelated address space. For proper RYRAR support a separate resource
+ * would have to be handed off, but as this is purely optional in
+ * practice, we simply opt not to support it, thereby keeping the code
+ * quite a bit more simplified.
+ */
 
 /* ALARM Bits - or with BCD encoded value */
 #define AR_ENB		0x80	/* Enable for alarm cmp   */
@@ -351,8 +353,10 @@ static int sh_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		tm->tm_sec, tm->tm_min, tm->tm_hour,
 		tm->tm_mday, tm->tm_mon + 1, tm->tm_year, tm->tm_wday);
 
-	if (rtc_valid_tm(tm) < 0)
+	if (rtc_valid_tm(tm) < 0) {
 		dev_err(dev, "invalid date\n");
+		rtc_time_to_tm(0, tm);
+	}
 
 	return 0;
 }
@@ -588,7 +592,7 @@ static int __devinit sh_rtc_probe(struct platform_device *pdev)
 
 	rtc->rtc_dev = rtc_device_register("sh", &pdev->dev,
 					   &sh_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc)) {
+	if (IS_ERR(rtc->rtc_dev)) {
 		ret = PTR_ERR(rtc->rtc_dev);
 		goto err_badmap;
 	}

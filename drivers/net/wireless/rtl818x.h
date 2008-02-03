@@ -58,13 +58,17 @@ struct rtl818x_csr {
 #define RTL818X_INT_TX_FO		(1 << 15)
 	__le32	TX_CONF;
 #define RTL818X_TX_CONF_LOOPBACK_MAC	(1 << 17)
+#define RTL818X_TX_CONF_LOOPBACK_CONT	(3 << 17)
 #define RTL818X_TX_CONF_NO_ICV		(1 << 19)
 #define RTL818X_TX_CONF_DISCW		(1 << 20)
+#define RTL818X_TX_CONF_SAT_HWPLCP	(1 << 24)
 #define RTL818X_TX_CONF_R8180_ABCD	(2 << 25)
 #define RTL818X_TX_CONF_R8180_F		(3 << 25)
 #define RTL818X_TX_CONF_R8185_ABC	(4 << 25)
 #define RTL818X_TX_CONF_R8185_D		(5 << 25)
 #define RTL818X_TX_CONF_HWVER_MASK	(7 << 25)
+#define RTL818X_TX_CONF_PROBE_DTS	(1 << 29)
+#define RTL818X_TX_CONF_HW_SEQNUM	(1 << 30)
 #define RTL818X_TX_CONF_CW_MIN		(1 << 31)
 	__le32	RX_CONF;
 #define RTL818X_RX_CONF_MONITOR		(1 <<  0)
@@ -75,8 +79,12 @@ struct rtl818x_csr {
 #define RTL818X_RX_CONF_DATA		(1 << 18)
 #define RTL818X_RX_CONF_CTRL		(1 << 19)
 #define RTL818X_RX_CONF_MGMT		(1 << 20)
+#define RTL818X_RX_CONF_ADDR3		(1 << 21)
+#define RTL818X_RX_CONF_PM		(1 << 22)
 #define RTL818X_RX_CONF_BSSID		(1 << 23)
 #define RTL818X_RX_CONF_RX_AUTORESETPHY	(1 << 28)
+#define RTL818X_RX_CONF_CSDM1		(1 << 29)
+#define RTL818X_RX_CONF_CSDM2		(1 << 30)
 #define RTL818X_RX_CONF_ONLYERLPKT	(1 << 31)
 	__le32	INT_TIMEOUT;
 	__le32	TBDA;
@@ -92,6 +100,7 @@ struct rtl818x_csr {
 	u8	CONFIG0;
 	u8	CONFIG1;
 	u8	CONFIG2;
+#define RTL818X_CONFIG2_ANTENNA_DIV	(1 << 6)
 	__le32	ANAPARAM;
 	u8	MSR;
 #define RTL818X_MSR_NO_LINK		(0 << 2)
@@ -104,14 +113,17 @@ struct rtl818x_csr {
 #define RTL818X_CONFIG4_VCOOFF		(1 << 7)
 	u8	TESTR;
 	u8	reserved_9[2];
-	__le16	PGSELECT;
+	u8	PGSELECT;
+	u8	SECURITY;
 	__le32	ANAPARAM2;
 	u8	reserved_10[12];
 	__le16	BEACON_INTERVAL;
 	__le16	ATIM_WND;
 	__le16	BEACON_INTERVAL_TIME;
 	__le16	ATIMTR_INTERVAL;
-	u8	reserved_11[4];
+	u8	PHY_DELAY;
+	u8	CARRIER_SENSE_COUNTER;
+	u8	reserved_11[2];
 	u8	PHY[4];
 	__le16	RFPinsOutput;
 	__le16	RFPinsEnable;
@@ -149,10 +161,19 @@ struct rtl818x_csr {
 	u8	RETRY_CTR;
 	u8	reserved_18[5];
 	__le32	RDSAR;
-	u8	reserved_19[18];
-	u16	TALLY_CNT;
+	u8	reserved_19[12];
+	__le16	FEMR;
+	u8	reserved_20[4];
+	__le16	TALLY_CNT;
 	u8	TALLY_SEL;
 } __attribute__((packed));
+
+struct rtl818x_rf_ops {
+	char *name;
+	void (*init)(struct ieee80211_hw *);
+	void (*stop)(struct ieee80211_hw *);
+	void (*set_chan)(struct ieee80211_hw *, struct ieee80211_conf *);
+};
 
 static const struct ieee80211_rate rtl818x_rates[] = {
 	{ .rate = 10,

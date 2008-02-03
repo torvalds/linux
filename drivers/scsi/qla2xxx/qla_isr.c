@@ -104,7 +104,7 @@ qla2100_intr_handler(int irq, void *dev_id)
 	if (test_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags) &&
 	    (status & MBX_INTERRUPT) && ha->flags.mbox_int) {
 		set_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
-		up(&ha->mbx_intr_sem);
+		complete(&ha->mbx_intr_comp);
 	}
 
 	return (IRQ_HANDLED);
@@ -216,7 +216,7 @@ qla2300_intr_handler(int irq, void *dev_id)
 	if (test_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags) &&
 	    (status & MBX_INTERRUPT) && ha->flags.mbox_int) {
 		set_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
-		up(&ha->mbx_intr_sem);
+		complete(&ha->mbx_intr_comp);
 	}
 
 	return (IRQ_HANDLED);
@@ -347,10 +347,6 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		break;
 
 	case MBA_SYSTEM_ERR:		/* System Error */
-		mb[1] = RD_MAILBOX_REG(ha, reg, 1);
-		mb[2] = RD_MAILBOX_REG(ha, reg, 2);
-		mb[3] = RD_MAILBOX_REG(ha, reg, 3);
-
 		qla_printk(KERN_INFO, ha,
 		    "ISP System Error - mbx1=%xh mbx2=%xh mbx3=%xh.\n",
 		    mb[1], mb[2], mb[3]);
@@ -579,12 +575,15 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		/* Check if the Vport has issued a SCR */
 		if (ha->parent && test_bit(VP_SCR_NEEDED, &ha->vp_flags))
 			break;
+		/* Only handle SCNs for our Vport index. */
+		if (ha->flags.npiv_supported && ha->vp_idx != mb[3])
+			break;
 
 		DEBUG2(printk("scsi(%ld): Asynchronous RSCR UPDATE.\n",
 		    ha->host_no));
 		DEBUG(printk(KERN_INFO
-		    "scsi(%ld): RSCN database changed -- %04x %04x.\n",
-		    ha->host_no, mb[1], mb[2]));
+		    "scsi(%ld): RSCN database changed -- %04x %04x %04x.\n",
+		    ha->host_no, mb[1], mb[2], mb[3]));
 
 		rscn_entry = (mb[1] << 16) | mb[2];
 		host_pid = (ha->d_id.b.domain << 16) | (ha->d_id.b.area << 8) |
@@ -823,6 +822,35 @@ qla2x00_process_response_queue(struct scsi_qla_host *ha)
 	WRT_REG_WORD(ISP_RSP_Q_OUT(ha, reg), ha->rsp_ring_index);
 }
 
+static inline void
+qla2x00_handle_sense(srb_t *sp, uint8_t *sense_data, uint32_t sense_len)
+{
+	struct scsi_cmnd *cp = sp->cmd;
+
+	if (sense_len >= SCSI_SENSE_BUFFERSIZE)
+		sense_len = SCSI_SENSE_BUFFERSIZE;
+
+	CMD_ACTUAL_SNSLEN(cp) = sense_len;
+	sp->request_sense_length = sense_len;
+	sp->request_sense_ptr = cp->sense_buffer;
+	if (sp->request_sense_length > 32)
+		sense_len = 32;
+
+	memcpy(cp->sense_buffer, sense_data, sense_len);
+
+	sp->request_sense_ptr += sense_len;
+	sp->request_sense_length -= sense_len;
+	if (sp->request_sense_length != 0)
+		sp->ha->status_srb = sp;
+
+	DEBUG5(printk("%s(): Check condition Sense data, scsi(%ld:%d:%d:%d) "
+	    "cmd=%p pid=%ld\n", __func__, sp->ha->host_no, cp->device->channel,
+	    cp->device->id, cp->device->lun, cp, cp->serial_number));
+	if (sense_len)
+		DEBUG5(qla2x00_dump_buffer(cp->sense_buffer,
+		    CMD_ACTUAL_SNSLEN(cp)));
+}
+
 /**
  * qla2x00_status_entry() - Process a Status IOCB entry.
  * @ha: SCSI driver HA context
@@ -977,36 +1005,11 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 		if (lscsi_status != SS_CHECK_CONDITION)
 			break;
 
-		/* Copy Sense Data into sense buffer. */
-		memset(cp->sense_buffer, 0, sizeof(cp->sense_buffer));
-
+		memset(cp->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
 		if (!(scsi_status & SS_SENSE_LEN_VALID))
 			break;
 
-		if (sense_len >= sizeof(cp->sense_buffer))
-			sense_len = sizeof(cp->sense_buffer);
-
-		CMD_ACTUAL_SNSLEN(cp) = sense_len;
-		sp->request_sense_length = sense_len;
-		sp->request_sense_ptr = cp->sense_buffer;
-
-		if (sp->request_sense_length > 32)
-			sense_len = 32;
-
-		memcpy(cp->sense_buffer, sense_data, sense_len);
-
-		sp->request_sense_ptr += sense_len;
-		sp->request_sense_length -= sense_len;
-		if (sp->request_sense_length != 0)
-			ha->status_srb = sp;
-
-		DEBUG5(printk("%s(): Check condition Sense data, "
-		    "scsi(%ld:%d:%d:%d) cmd=%p pid=%ld\n", __func__,
-		    ha->host_no, cp->device->channel, cp->device->id,
-		    cp->device->lun, cp, cp->serial_number));
-		if (sense_len)
-			DEBUG5(qla2x00_dump_buffer(cp->sense_buffer,
-			    CMD_ACTUAL_SNSLEN(cp)));
+		qla2x00_handle_sense(sp, sense_data, sense_len);
 		break;
 
 	case CS_DATA_UNDERRUN:
@@ -1061,34 +1064,11 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 			if (lscsi_status != SS_CHECK_CONDITION)
 				break;
 
-			/* Copy Sense Data into sense buffer */
-			memset(cp->sense_buffer, 0, sizeof(cp->sense_buffer));
-
+			memset(cp->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
 			if (!(scsi_status & SS_SENSE_LEN_VALID))
 				break;
 
-			if (sense_len >= sizeof(cp->sense_buffer))
-				sense_len = sizeof(cp->sense_buffer);
-
-			CMD_ACTUAL_SNSLEN(cp) = sense_len;
-			sp->request_sense_length = sense_len;
-			sp->request_sense_ptr = cp->sense_buffer;
-
-			if (sp->request_sense_length > 32)
-				sense_len = 32;
-
-			memcpy(cp->sense_buffer, sense_data, sense_len);
-
-			sp->request_sense_ptr += sense_len;
-			sp->request_sense_length -= sense_len;
-			if (sp->request_sense_length != 0)
-				ha->status_srb = sp;
-
-			DEBUG5(printk("%s(): Check condition Sense data, "
-			    "scsi(%ld:%d:%d:%d) cmd=%p pid=%ld\n",
-			    __func__, ha->host_no, cp->device->channel,
-			    cp->device->id, cp->device->lun, cp,
-			    cp->serial_number));
+			qla2x00_handle_sense(sp, sense_data, sense_len);
 
 			/*
 			 * In case of a Underrun condition, set both the lscsi
@@ -1108,10 +1088,6 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 
 				cp->result = DID_ERROR << 16 | lscsi_status;
 			}
-
-			if (sense_len)
-				DEBUG5(qla2x00_dump_buffer(cp->sense_buffer,
-				    CMD_ACTUAL_SNSLEN(cp)));
 		} else {
 			/*
 			 * If RISC reports underrun and target does not report
@@ -1621,7 +1597,7 @@ qla24xx_intr_handler(int irq, void *dev_id)
 	if (test_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags) &&
 	    (status & MBX_INTERRUPT) && ha->flags.mbox_int) {
 		set_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
-		up(&ha->mbx_intr_sem);
+		complete(&ha->mbx_intr_comp);
 	}
 
 	return IRQ_HANDLED;
@@ -1758,7 +1734,7 @@ qla24xx_msix_default(int irq, void *dev_id)
 	if (test_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags) &&
 	    (status & MBX_INTERRUPT) && ha->flags.mbox_int) {
 		set_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
-		up(&ha->mbx_intr_sem);
+		complete(&ha->mbx_intr_comp);
 	}
 
 	return IRQ_HANDLED;
@@ -1851,6 +1827,18 @@ qla2x00_request_irqs(scsi_qla_host_t *ha)
 		    ha->chip_revision, ha->fw_attributes));
 
 		goto skip_msix;
+	}
+
+	if (ha->pdev->subsystem_vendor == PCI_VENDOR_ID_HP &&
+	    (ha->pdev->subsystem_device == 0x7040 ||
+		ha->pdev->subsystem_device == 0x7041 ||
+		ha->pdev->subsystem_device == 0x1705)) {
+		DEBUG2(qla_printk(KERN_WARNING, ha,
+		    "MSI-X: Unsupported ISP2432 SSVID/SSDID (0x%X, 0x%X).\n",
+		    ha->pdev->subsystem_vendor,
+		    ha->pdev->subsystem_device));
+
+		goto skip_msi;
 	}
 
 	ret = qla24xx_enable_msix(ha);

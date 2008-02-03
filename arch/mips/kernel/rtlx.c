@@ -40,7 +40,6 @@
 #include <asm/atomic.h>
 #include <asm/cpu.h>
 #include <asm/processor.h>
-#include <asm/mips_mt.h>
 #include <asm/system.h>
 #include <asm/vpe.h>
 #include <asm/rtlx.h>

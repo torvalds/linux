@@ -14,8 +14,7 @@
 /*
  * Status Register bits
  */
-#define SR_H		0x40000000
-#define SR_R		0x20000000
+#define SR_H		0x20000000
 #define SR_J		0x10000000
 #define SR_DM		0x08000000
 #define SR_D		0x04000000
@@ -35,8 +34,7 @@
 #define SR_I0M		0x00020000
 #define SR_GM		0x00010000
 
-#define SR_H_BIT	30
-#define SR_R_BIT	29
+#define SR_H_BIT	29
 #define SR_J_BIT	28
 #define SR_DM_BIT	27
 #define SR_D_BIT	26
@@ -123,7 +121,15 @@ struct pt_regs {
 };
 
 #ifdef __KERNEL__
-# define user_mode(regs) (((regs)->sr & MODE_MASK) == MODE_USER)
+
+#include <asm/ocd.h>
+
+#define arch_ptrace_attach(child)       ocd_enable(child)
+
+#define user_mode(regs)                 (((regs)->sr & MODE_MASK) == MODE_USER)
+#define instruction_pointer(regs)       ((regs)->pc)
+#define profile_pc(regs)                instruction_pointer(regs)
+
 extern void show_regs (struct pt_regs *);
 
 static __inline__ int valid_user_regs(struct pt_regs *regs)
@@ -143,9 +149,6 @@ static __inline__ int valid_user_regs(struct pt_regs *regs)
 	return 0;
 }
 
-#define instruction_pointer(regs) ((regs)->pc)
-
-#define profile_pc(regs) instruction_pointer(regs)
 
 #endif /* __KERNEL__ */
 

@@ -88,7 +88,6 @@
             Adopted for Windows NT driver          01/20/98      CNL
 */
 
-#include <sound/driver.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>

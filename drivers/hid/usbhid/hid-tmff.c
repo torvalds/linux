@@ -137,7 +137,8 @@ static int hid_tmff_play(struct input_dev *dev, void *data, struct ff_effect *ef
 int hid_tmff_init(struct hid_device *hid)
 {
 	struct tmff_device *tmff;
-	struct list_head *pos;
+	struct hid_report *report;
+	struct list_head *report_list;
 	struct hid_input *hidinput = list_entry(hid->inputs.next, struct hid_input, list);
 	struct input_dev *input_dev = hidinput->input;
 	const signed short *ff_bits = ff_joystick;
@@ -149,8 +150,8 @@ int hid_tmff_init(struct hid_device *hid)
 		return -ENOMEM;
 
 	/* Find the report to use */
-	list_for_each(pos, &hid->report_enum[HID_OUTPUT_REPORT].report_list) {
-		struct hid_report *report = (struct hid_report *)pos;
+	report_list = &hid->report_enum[HID_OUTPUT_REPORT].report_list;
+	list_for_each_entry(report, report_list, list) {
 		int fieldnum;
 
 		for (fieldnum = 0; fieldnum < report->maxfield; ++fieldnum) {

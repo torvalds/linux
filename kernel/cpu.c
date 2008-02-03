@@ -15,9 +15,8 @@
 #include <linux/stop_machine.h>
 #include <linux/mutex.h>
 
-/* This protects CPUs going up and down... */
+/* Serializes the updates to cpu_online_map, cpu_present_map */
 static DEFINE_MUTEX(cpu_add_remove_lock);
-static DEFINE_MUTEX(cpu_bitmask_lock);
 
 static __cpuinitdata RAW_NOTIFIER_HEAD(cpu_chain);
 
@@ -26,52 +25,123 @@ static __cpuinitdata RAW_NOTIFIER_HEAD(cpu_chain);
  */
 static int cpu_hotplug_disabled;
 
+static struct {
+	struct task_struct *active_writer;
+	struct mutex lock; /* Synchronizes accesses to refcount, */
+	/*
+	 * Also blocks the new readers during
+	 * an ongoing cpu hotplug operation.
+	 */
+	int refcount;
+	wait_queue_head_t writer_queue;
+} cpu_hotplug;
+
+#define writer_exists() (cpu_hotplug.active_writer != NULL)
+
+void __init cpu_hotplug_init(void)
+{
+	cpu_hotplug.active_writer = NULL;
+	mutex_init(&cpu_hotplug.lock);
+	cpu_hotplug.refcount = 0;
+	init_waitqueue_head(&cpu_hotplug.writer_queue);
+}
+
 #ifdef CONFIG_HOTPLUG_CPU
 
-/* Crappy recursive lock-takers in cpufreq! Complain loudly about idiots */
-static struct task_struct *recursive;
-static int recursive_depth;
-
-void lock_cpu_hotplug(void)
+void get_online_cpus(void)
 {
-	struct task_struct *tsk = current;
-
-	if (tsk == recursive) {
-		static int warnings = 10;
-		if (warnings) {
-			printk(KERN_ERR "Lukewarm IQ detected in hotplug locking\n");
-			WARN_ON(1);
-			warnings--;
-		}
-		recursive_depth++;
+	might_sleep();
+	if (cpu_hotplug.active_writer == current)
 		return;
-	}
-	mutex_lock(&cpu_bitmask_lock);
-	recursive = tsk;
-}
-EXPORT_SYMBOL_GPL(lock_cpu_hotplug);
+	mutex_lock(&cpu_hotplug.lock);
+	cpu_hotplug.refcount++;
+	mutex_unlock(&cpu_hotplug.lock);
 
-void unlock_cpu_hotplug(void)
+}
+EXPORT_SYMBOL_GPL(get_online_cpus);
+
+void put_online_cpus(void)
 {
-	WARN_ON(recursive != current);
-	if (recursive_depth) {
-		recursive_depth--;
+	if (cpu_hotplug.active_writer == current)
 		return;
-	}
-	recursive = NULL;
-	mutex_unlock(&cpu_bitmask_lock);
+	mutex_lock(&cpu_hotplug.lock);
+	cpu_hotplug.refcount--;
+
+	if (unlikely(writer_exists()) && !cpu_hotplug.refcount)
+		wake_up(&cpu_hotplug.writer_queue);
+
+	mutex_unlock(&cpu_hotplug.lock);
+
 }
-EXPORT_SYMBOL_GPL(unlock_cpu_hotplug);
+EXPORT_SYMBOL_GPL(put_online_cpus);
 
 #endif	/* CONFIG_HOTPLUG_CPU */
 
+/*
+ * The following two API's must be used when attempting
+ * to serialize the updates to cpu_online_map, cpu_present_map.
+ */
+void cpu_maps_update_begin(void)
+{
+	mutex_lock(&cpu_add_remove_lock);
+}
+
+void cpu_maps_update_done(void)
+{
+	mutex_unlock(&cpu_add_remove_lock);
+}
+
+/*
+ * This ensures that the hotplug operation can begin only when the
+ * refcount goes to zero.
+ *
+ * Note that during a cpu-hotplug operation, the new readers, if any,
+ * will be blocked by the cpu_hotplug.lock
+ *
+ * Since cpu_maps_update_begin is always called after invoking
+ * cpu_maps_update_begin, we can be sure that only one writer is active.
+ *
+ * Note that theoretically, there is a possibility of a livelock:
+ * - Refcount goes to zero, last reader wakes up the sleeping
+ *   writer.
+ * - Last reader unlocks the cpu_hotplug.lock.
+ * - A new reader arrives at this moment, bumps up the refcount.
+ * - The writer acquires the cpu_hotplug.lock finds the refcount
+ *   non zero and goes to sleep again.
+ *
+ * However, this is very difficult to achieve in practice since
+ * get_online_cpus() not an api which is called all that often.
+ *
+ */
+static void cpu_hotplug_begin(void)
+{
+	DECLARE_WAITQUEUE(wait, current);
+
+	mutex_lock(&cpu_hotplug.lock);
+
+	cpu_hotplug.active_writer = current;
+	add_wait_queue_exclusive(&cpu_hotplug.writer_queue, &wait);
+	while (cpu_hotplug.refcount) {
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		mutex_unlock(&cpu_hotplug.lock);
+		schedule();
+		mutex_lock(&cpu_hotplug.lock);
+	}
+	remove_wait_queue_locked(&cpu_hotplug.writer_queue, &wait);
+}
+
+static void cpu_hotplug_done(void)
+{
+	cpu_hotplug.active_writer = NULL;
+	mutex_unlock(&cpu_hotplug.lock);
+}
 /* Need to know about CPUs going up/down? */
 int __cpuinit register_cpu_notifier(struct notifier_block *nb)
 {
 	int ret;
-	mutex_lock(&cpu_add_remove_lock);
+	cpu_maps_update_begin();
 	ret = raw_notifier_chain_register(&cpu_chain, nb);
-	mutex_unlock(&cpu_add_remove_lock);
+	cpu_maps_update_done();
 	return ret;
 }
 
@@ -81,9 +151,9 @@ EXPORT_SYMBOL(register_cpu_notifier);
 
 void unregister_cpu_notifier(struct notifier_block *nb)
 {
-	mutex_lock(&cpu_add_remove_lock);
+	cpu_maps_update_begin();
 	raw_notifier_chain_unregister(&cpu_chain, nb);
-	mutex_unlock(&cpu_add_remove_lock);
+	cpu_maps_update_done();
 }
 EXPORT_SYMBOL(unregister_cpu_notifier);
 
@@ -147,7 +217,7 @@ static int _cpu_down(unsigned int cpu, int tasks_frozen)
 	if (!cpu_online(cpu))
 		return -EINVAL;
 
-	raw_notifier_call_chain(&cpu_chain, CPU_LOCK_ACQUIRE, hcpu);
+	cpu_hotplug_begin();
 	err = __raw_notifier_call_chain(&cpu_chain, CPU_DOWN_PREPARE | mod,
 					hcpu, -1, &nr_calls);
 	if (err == NOTIFY_BAD) {
@@ -166,9 +236,7 @@ static int _cpu_down(unsigned int cpu, int tasks_frozen)
 	cpu_clear(cpu, tmp);
 	set_cpus_allowed(current, tmp);
 
-	mutex_lock(&cpu_bitmask_lock);
 	p = __stop_machine_run(take_cpu_down, &tcd_param, cpu);
-	mutex_unlock(&cpu_bitmask_lock);
 
 	if (IS_ERR(p) || cpu_online(cpu)) {
 		/* CPU didn't die: tell everyone.  Can't complain. */
@@ -202,7 +270,7 @@ out_thread:
 out_allowed:
 	set_cpus_allowed(current, old_allowed);
 out_release:
-	raw_notifier_call_chain(&cpu_chain, CPU_LOCK_RELEASE, hcpu);
+	cpu_hotplug_done();
 	return err;
 }
 
@@ -210,13 +278,13 @@ int cpu_down(unsigned int cpu)
 {
 	int err = 0;
 
-	mutex_lock(&cpu_add_remove_lock);
+	cpu_maps_update_begin();
 	if (cpu_hotplug_disabled)
 		err = -EBUSY;
 	else
 		err = _cpu_down(cpu, 0);
 
-	mutex_unlock(&cpu_add_remove_lock);
+	cpu_maps_update_done();
 	return err;
 }
 #endif /*CONFIG_HOTPLUG_CPU*/
@@ -231,7 +299,7 @@ static int __cpuinit _cpu_up(unsigned int cpu, int tasks_frozen)
 	if (cpu_online(cpu) || !cpu_present(cpu))
 		return -EINVAL;
 
-	raw_notifier_call_chain(&cpu_chain, CPU_LOCK_ACQUIRE, hcpu);
+	cpu_hotplug_begin();
 	ret = __raw_notifier_call_chain(&cpu_chain, CPU_UP_PREPARE | mod, hcpu,
 							-1, &nr_calls);
 	if (ret == NOTIFY_BAD) {
@@ -243,9 +311,7 @@ static int __cpuinit _cpu_up(unsigned int cpu, int tasks_frozen)
 	}
 
 	/* Arch-specific enabling code. */
-	mutex_lock(&cpu_bitmask_lock);
 	ret = __cpu_up(cpu);
-	mutex_unlock(&cpu_bitmask_lock);
 	if (ret != 0)
 		goto out_notify;
 	BUG_ON(!cpu_online(cpu));
@@ -257,7 +323,7 @@ out_notify:
 	if (ret != 0)
 		__raw_notifier_call_chain(&cpu_chain,
 				CPU_UP_CANCELED | mod, hcpu, nr_calls, NULL);
-	raw_notifier_call_chain(&cpu_chain, CPU_LOCK_RELEASE, hcpu);
+	cpu_hotplug_done();
 
 	return ret;
 }
@@ -275,13 +341,13 @@ int __cpuinit cpu_up(unsigned int cpu)
 		return -EINVAL;
 	}
 
-	mutex_lock(&cpu_add_remove_lock);
+	cpu_maps_update_begin();
 	if (cpu_hotplug_disabled)
 		err = -EBUSY;
 	else
 		err = _cpu_up(cpu, 0);
 
-	mutex_unlock(&cpu_add_remove_lock);
+	cpu_maps_update_done();
 	return err;
 }
 
@@ -292,7 +358,7 @@ int disable_nonboot_cpus(void)
 {
 	int cpu, first_cpu, error = 0;
 
-	mutex_lock(&cpu_add_remove_lock);
+	cpu_maps_update_begin();
 	first_cpu = first_cpu(cpu_online_map);
 	/* We take down all of the non-boot CPUs in one shot to avoid races
 	 * with the userspace trying to use the CPU hotplug at the same time
@@ -319,7 +385,7 @@ int disable_nonboot_cpus(void)
 	} else {
 		printk(KERN_ERR "Non-boot CPUs are not disabled\n");
 	}
-	mutex_unlock(&cpu_add_remove_lock);
+	cpu_maps_update_done();
 	return error;
 }
 
@@ -328,7 +394,7 @@ void enable_nonboot_cpus(void)
 	int cpu, error;
 
 	/* Allow everyone to use the CPU hotplug again */
-	mutex_lock(&cpu_add_remove_lock);
+	cpu_maps_update_begin();
 	cpu_hotplug_disabled = 0;
 	if (cpus_empty(frozen_cpus))
 		goto out;
@@ -344,6 +410,6 @@ void enable_nonboot_cpus(void)
 	}
 	cpus_clear(frozen_cpus);
 out:
-	mutex_unlock(&cpu_add_remove_lock);
+	cpu_maps_update_done();
 }
 #endif /* CONFIG_PM_SLEEP_SMP */

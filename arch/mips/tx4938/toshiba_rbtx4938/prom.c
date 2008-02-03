@@ -47,7 +47,6 @@ void __init prom_init(void)
 #ifndef CONFIG_TX4938_NAND_BOOT
 	prom_init_cmdline();
 #endif
-	mips_machtype = MACH_TOSHIBA_RBTX4938;
 
 	msize = tx4938_get_mem_size();
 	add_memory_region(0, msize << 20, BOOT_MEM_RAM);

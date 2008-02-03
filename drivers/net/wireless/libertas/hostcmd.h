@@ -2,8 +2,8 @@
  * This file contains the function prototypes, data structure
  * and defines for all the host/station commands
  */
-#ifndef __HOSTCMD__H
-#define __HOSTCMD__H
+#ifndef _LBS_HOSTCMD_H
+#define _LBS_HOSTCMD_H
 
 #include <linux/wireless.h>
 #include "11d.h"
@@ -65,19 +65,21 @@ struct rxpd {
 	u8 reserved[3];
 };
 
+struct cmd_header {
+	__le16 command;
+	__le16 size;
+	__le16 seqnum;
+	__le16 result;
+} __attribute__ ((packed));
+
 struct cmd_ctrl_node {
-	/* CMD link list */
 	struct list_head list;
-	u32 status;
-	/* CMD ID */
-	u32 cmd_oid;
-	/*CMD wait option: wait for finish or no wait */
-	u16 wait_option;
-	/* command parameter */
-	void *pdata_buf;
-	/*command data */
-	u8 *bufvirtualaddr;
-	u16 cmdflags;
+	int result;
+	/* command response */
+	int (*callback)(struct lbs_private *, unsigned long, struct cmd_header *);
+	unsigned long callback_arg;
+	/* command data */
+	struct cmd_header *cmdbuf;
 	/* wait queue */
 	u16 cmdwaitqwoken;
 	wait_queue_head_t cmdwait_q;
@@ -86,13 +88,13 @@ struct cmd_ctrl_node {
 /* Generic structure to hold all key types. */
 struct enc_key {
 	u16 len;
-	u16 flags;  /* KEY_INFO_* from wlan_defs.h */
-	u16 type; /* KEY_TYPE_* from wlan_defs.h */
+	u16 flags;  /* KEY_INFO_* from defs.h */
+	u16 type; /* KEY_TYPE_* from defs.h */
 	u8 key[32];
 };
 
-/* wlan_offset_value */
-struct wlan_offset_value {
+/* lbs_offset_value */
+struct lbs_offset_value {
 	u32 offset;
 	u32 value;
 };
@@ -104,14 +106,19 @@ struct cmd_ds_gen {
 	__le16 size;
 	__le16 seqnum;
 	__le16 result;
+	void *cmdresp[0];
 };
 
 #define S_DS_GEN sizeof(struct cmd_ds_gen)
+
+
 /*
  * Define data structure for CMD_GET_HW_SPEC
  * This structure defines the response for the GET_HW_SPEC command
  */
 struct cmd_ds_get_hw_spec {
+	struct cmd_header hdr;
+
 	/* HW Interface version number */
 	__le16 hwifversion;
 	/* HW version number */
@@ -129,8 +136,8 @@ struct cmd_ds_get_hw_spec {
 	/* Number of antenna used */
 	__le16 nr_antenna;
 
-	/* FW release number, example 1,2,3,4 = 3.2.1p4 */
-	u8 fwreleasenumber[4];
+	/* FW release number, example 0x01030304 = 2.3.4p1 */
+	__le32 fwrelease;
 
 	/* Base Address of TxPD queue */
 	__le32 wcb_base;
@@ -149,8 +156,17 @@ struct cmd_ds_802_11_reset {
 };
 
 struct cmd_ds_802_11_subscribe_event {
+	struct cmd_header hdr;
+
 	__le16 action;
 	__le16 events;
+
+	/* A TLV to the CMD_802_11_SUBSCRIBE_EVENT command can contain a
+	 * number of TLVs. From the v5.1 manual, those TLVs would add up to
+	 * 40 bytes. However, future firmware might add additional TLVs, so I
+	 * bump this up a bit.
+	 */
+	uint8_t tlv[128];
 };
 
 /*
@@ -242,6 +258,8 @@ struct cmd_ds_802_11_ad_hoc_result {
 };
 
 struct cmd_ds_802_11_set_wep {
+	struct cmd_header hdr;
+
 	/* ACT_ADD, ACT_REMOVE or ACT_ENABLE */
 	__le16 action;
 
@@ -249,8 +267,8 @@ struct cmd_ds_802_11_set_wep {
 	__le16 keyindex;
 
 	/* 40, 128bit or TXWEP */
-	u8 keytype[4];
-	u8 keymaterial[4][16];
+	uint8_t keytype[4];
+	uint8_t keymaterial[4][16];
 };
 
 struct cmd_ds_802_3_get_stat {
@@ -328,11 +346,21 @@ struct cmd_ds_rf_reg_access {
 };
 
 struct cmd_ds_802_11_radio_control {
+	struct cmd_header hdr;
+
 	__le16 action;
 	__le16 control;
 };
 
+struct cmd_ds_802_11_beacon_control {
+	__le16 action;
+	__le16 beacon_enable;
+	__le16 beacon_period;
+};
+
 struct cmd_ds_802_11_sleep_params {
+	struct cmd_header hdr;
+
 	/* ACT_GET/ACT_SET */
 	__le16 action;
 
@@ -346,16 +374,18 @@ struct cmd_ds_802_11_sleep_params {
 	__le16 stabletime;
 
 	/* control periodic calibration */
-	u8 calcontrol;
+	uint8_t calcontrol;
 
 	/* control the use of external sleep clock */
-	u8 externalsleepclk;
+	uint8_t externalsleepclk;
 
 	/* reserved field, should be set to zero */
 	__le16 reserved;
 };
 
 struct cmd_ds_802_11_inactivity_timeout {
+	struct cmd_header hdr;
+
 	/* ACT_GET/ACT_SET */
 	__le16 action;
 
@@ -364,11 +394,13 @@ struct cmd_ds_802_11_inactivity_timeout {
 };
 
 struct cmd_ds_802_11_rf_channel {
+	struct cmd_header hdr;
+
 	__le16 action;
-	__le16 currentchannel;
-	__le16 rftype;
-	__le16 reserved;
-	u8 channellist[32];
+	__le16 channel;
+	__le16 rftype;      /* unused */
+	__le16 reserved;    /* unused */
+	u8 channellist[32]; /* unused */
 };
 
 struct cmd_ds_802_11_rssi {
@@ -406,13 +438,29 @@ struct cmd_ds_802_11_rf_antenna {
 };
 
 struct cmd_ds_802_11_monitor_mode {
-	u16 action;
-	u16 mode;
+	__le16 action;
+	__le16 mode;
 };
 
 struct cmd_ds_set_boot2_ver {
-	u16 action;
-	u16 version;
+	struct cmd_header hdr;
+
+	__le16 action;
+	__le16 version;
+};
+
+struct cmd_ds_802_11_fw_wake_method {
+	struct cmd_header hdr;
+
+	__le16 action;
+	__le16 method;
+};
+
+struct cmd_ds_802_11_sleep_period {
+	struct cmd_header hdr;
+
+	__le16 action;
+	__le16 period;
 };
 
 struct cmd_ds_802_11_ps_mode {
@@ -437,6 +485,8 @@ struct PS_CMD_ConfirmSleep {
 };
 
 struct cmd_ds_802_11_data_rate {
+	struct cmd_header hdr;
+
 	__le16 action;
 	__le16 reserved;
 	u8 rates[MAX_RATES];
@@ -488,6 +538,8 @@ struct cmd_ds_802_11_ad_hoc_join {
 } __attribute__ ((packed));
 
 struct cmd_ds_802_11_enable_rsn {
+	struct cmd_header hdr;
+
 	__le16 action;
 	__le16 enable;
 } __attribute__ ((packed));
@@ -511,6 +563,13 @@ struct MrvlIEtype_keyParamSet {
 	/* key material of size keylen */
 	u8 key[32];
 };
+
+struct cmd_ds_host_sleep {
+	struct cmd_header hdr;
+	__le32 criteria;
+	uint8_t gpio;
+	uint8_t gap;
+} __attribute__ ((packed));
 
 struct cmd_ds_802_11_key_material {
 	__le16 action;
@@ -598,7 +657,21 @@ struct cmd_ds_fwt_access {
 	u8 prec[ETH_ALEN];
 } __attribute__ ((packed));
 
+
+struct cmd_ds_mesh_config {
+	struct cmd_header hdr;
+
+        __le16 action;
+        __le16 channel;
+        __le16 type;
+        __le16 length;
+        u8 data[128];   /* last position reserved */
+} __attribute__ ((packed));
+
+
 struct cmd_ds_mesh_access {
+	struct cmd_header hdr;
+
 	__le16 action;
 	__le32 data[32];	/* last position reserved */
 } __attribute__ ((packed));
@@ -615,14 +688,12 @@ struct cmd_ds_command {
 
 	/* command Body */
 	union {
-		struct cmd_ds_get_hw_spec hwspec;
 		struct cmd_ds_802_11_ps_mode psmode;
 		struct cmd_ds_802_11_scan scan;
 		struct cmd_ds_802_11_scan_rsp scanresp;
 		struct cmd_ds_mac_control macctrl;
 		struct cmd_ds_802_11_associate associate;
 		struct cmd_ds_802_11_deauthenticate deauth;
-		struct cmd_ds_802_11_set_wep wep;
 		struct cmd_ds_802_11_ad_hoc_start ads;
 		struct cmd_ds_802_11_reset reset;
 		struct cmd_ds_802_11_ad_hoc_result result;
@@ -634,17 +705,13 @@ struct cmd_ds_command {
 		struct cmd_ds_802_11_rf_tx_power txp;
 		struct cmd_ds_802_11_rf_antenna rant;
 		struct cmd_ds_802_11_monitor_mode monitor;
-		struct cmd_ds_802_11_data_rate drate;
 		struct cmd_ds_802_11_rate_adapt_rateset rateset;
 		struct cmd_ds_mac_multicast_adr madr;
 		struct cmd_ds_802_11_ad_hoc_join adj;
-		struct cmd_ds_802_11_radio_control radio;
-		struct cmd_ds_802_11_rf_channel rfchannel;
 		struct cmd_ds_802_11_rssi rssi;
 		struct cmd_ds_802_11_rssi_rsp rssirsp;
 		struct cmd_ds_802_11_disassociate dassociate;
 		struct cmd_ds_802_11_mac_address macadd;
-		struct cmd_ds_802_11_enable_rsn enbrsn;
 		struct cmd_ds_802_11_key_material keymaterial;
 		struct cmd_ds_mac_reg_access macreg;
 		struct cmd_ds_bbp_reg_access bbpreg;
@@ -654,8 +721,6 @@ struct cmd_ds_command {
 		struct cmd_ds_802_11d_domain_info domaininfo;
 		struct cmd_ds_802_11d_domain_info domaininforesp;
 
-		struct cmd_ds_802_11_sleep_params sleep_params;
-		struct cmd_ds_802_11_inactivity_timeout inactivity_timeout;
 		struct cmd_ds_802_11_tpc_cfg tpccfg;
 		struct cmd_ds_802_11_pwr_cfg pwrcfg;
 		struct cmd_ds_802_11_afc afc;
@@ -664,10 +729,8 @@ struct cmd_ds_command {
 		struct cmd_tx_rate_query txrate;
 		struct cmd_ds_bt_access bt;
 		struct cmd_ds_fwt_access fwt;
-		struct cmd_ds_mesh_access mesh;
-		struct cmd_ds_set_boot2_ver boot2_ver;
 		struct cmd_ds_get_tsf gettsf;
-		struct cmd_ds_802_11_subscribe_event subscribe_event;
+		struct cmd_ds_802_11_beacon_control bcn_ctrl;
 	} params;
 } __attribute__ ((packed));
 

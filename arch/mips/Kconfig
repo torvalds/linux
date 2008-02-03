@@ -22,6 +22,7 @@ config MACH_ALCHEMY
 config BASLER_EXCITE
 	bool "Basler eXcite smart camera"
 	select CEVT_R4K
+	select CSRC_R4K
 	select DMA_COHERENT
 	select HW_HAS_PCI
 	select IRQ_CPU
@@ -36,19 +37,10 @@ config BASLER_EXCITE
 	  The eXcite is a smart camera platform manufactured by
 	  Basler Vision Technologies AG.
 
-config BASLER_EXCITE_PROTOTYPE
-	bool "Support for pre-release units"
-	depends on BASLER_EXCITE
-	default n
-	help
-	  Pre-series (prototype) units are different from later ones in
-	  some ways. Select this option if you have one of these. Please
-	  note that a kernel built with this option selected will not be
-	  able to run on normal units.
-
 config BCM47XX
 	bool "BCM47XX based boards"
 	select CEVT_R4K
+	select CSRC_R4K
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
 	select IRQ_CPU
@@ -57,6 +49,8 @@ config BCM47XX
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SSB
 	select SSB_DRIVER_MIPS
+	select SSB_DRIVER_EXTIF
+	select SSB_PCICORE_HOSTMODE if PCI
 	select GENERIC_GPIO
 	select SYS_HAS_EARLY_PRINTK
 	select CFE
@@ -66,6 +60,7 @@ config BCM47XX
 config MIPS_COBALT
 	bool "Cobalt Server"
 	select CEVT_R4K
+	select CSRC_R4K
 	select CEVT_GT641XX
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
@@ -77,7 +72,7 @@ config MIPS_COBALT
 	select SYS_HAS_CPU_NEVADA
 	select SYS_HAS_EARLY_PRINTK
 	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL if EXPERIMENTAL
+	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select GENERIC_HARDIRQS_NO__DO_IRQ
 
@@ -85,6 +80,10 @@ config MACH_DECSTATION
 	bool "DECstations"
 	select BOOT_ELF32
 	select CEVT_R4K
+	select CSRC_R4K
+	select CPU_DADDI_WORKAROUNDS if 64BIT
+	select CPU_R4000_WORKAROUNDS if 64BIT
+	select CPU_R4400_WORKAROUNDS if 64BIT
 	select DMA_NONCOHERENT
 	select NO_IOPORT
 	select IRQ_CPU
@@ -117,12 +116,13 @@ config MACH_JAZZ
 	select ARC32
 	select ARCH_MAY_HAVE_PC_FDC
 	select CEVT_R4K
+	select CSRC_R4K
+	select DEFAULT_SGI_PARTITION if CPU_BIG_ENDIAN
 	select GENERIC_ISA_DMA
 	select IRQ_CPU
 	select I8253
 	select I8259
 	select ISA
-	select PCSPEAKER
 	select SYS_HAS_CPU_R4X00
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL if EXPERIMENTAL
@@ -137,6 +137,7 @@ config MACH_JAZZ
 config LASAT
 	bool "LASAT Networks platforms"
 	select CEVT_R4K
+	select CSRC_R4K
 	select DMA_NONCOHERENT
 	select SYS_HAS_EARLY_PRINTK
 	select HW_HAS_PCI
@@ -154,6 +155,7 @@ config LEMOTE_FULONG
 	bool "Lemote Fulong mini-PC"
 	select ARCH_SPARSEMEM_ENABLE
 	select CEVT_R4K
+	select CSRC_R4K
 	select SYS_HAS_CPU_LOONGSON2
 	select DMA_NONCOHERENT
 	select BOOT_ELF32
@@ -178,7 +180,9 @@ config LEMOTE_FULONG
 config MIPS_ATLAS
 	bool "MIPS Atlas board"
 	select BOOT_ELF32
+	select BOOT_RAW
 	select CEVT_R4K
+	select CSRC_R4K
 	select DMA_NONCOHERENT
 	select SYS_HAS_EARLY_PRINTK
 	select IRQ_CPU
@@ -209,7 +213,9 @@ config MIPS_MALTA
 	bool "MIPS Malta board"
 	select ARCH_MAY_HAVE_PC_FDC
 	select BOOT_ELF32
+	select BOOT_RAW
 	select CEVT_R4K
+	select CSRC_R4K
 	select DMA_NONCOHERENT
 	select GENERIC_ISA_DMA
 	select IRQ_CPU
@@ -241,6 +247,7 @@ config MIPS_MALTA
 config MIPS_SEAD
 	bool "MIPS SEAD board"
 	select CEVT_R4K
+	select CSRC_R4K
 	select IRQ_CPU
 	select DMA_NONCOHERENT
 	select SYS_HAS_EARLY_PRINTK
@@ -260,6 +267,7 @@ config MIPS_SEAD
 config MIPS_SIM
 	bool 'MIPS simulator (MIPSsim)'
 	select CEVT_R4K
+	select CSRC_R4K
 	select DMA_NONCOHERENT
 	select SYS_HAS_EARLY_PRINTK
 	select IRQ_CPU
@@ -278,6 +286,7 @@ config MIPS_SIM
 config MARKEINS
 	bool "NEC EMMA2RH Mark-eins"
 	select CEVT_R4K
+	select CSRC_R4K
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
 	select IRQ_CPU
@@ -293,6 +302,7 @@ config MARKEINS
 config MACH_VR41XX
 	bool "NEC VR4100 series based machines"
 	select CEVT_R4K
+	select CSRC_R4K
 	select SYS_HAS_CPU_VR41XX
 	select GENERIC_HARDIRQS_NO__DO_IRQ
 
@@ -330,6 +340,7 @@ config PMC_MSP
 config PMC_YOSEMITE
 	bool "PMC-Sierra Yosemite eval board"
 	select CEVT_R4K
+	select CSRC_R4K
 	select DMA_COHERENT
 	select HW_HAS_PCI
 	select IRQ_CPU
@@ -348,46 +359,27 @@ config PMC_YOSEMITE
 	  Yosemite is an evaluation board for the RM9000x2 processor
 	  manufactured by PMC-Sierra.
 
-config QEMU
-	bool "Qemu"
-	select CEVT_R4K
-	select DMA_COHERENT
-	select GENERIC_ISA_DMA
-	select HAVE_STD_PC_SERIAL_PORT
-	select I8253
-	select I8259
-	select IRQ_CPU
-	select ISA
-	select PCSPEAKER
-	select SWAP_IO_SPACE
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-	select ARCH_SPARSEMEM_ENABLE
-	select GENERIC_HARDIRQS_NO__DO_IRQ
-	select NR_CPUS_DEFAULT_1
-	select SYS_SUPPORTS_SMP
-	help
-	  Qemu is a software emulator which among other architectures also
-	  can simulate a MIPS32 4Kc system.  This patch adds support for the
-	  system architecture that currently is being simulated by Qemu.  It
-	  will eventually be removed again when Qemu has the capability to
-	  simulate actual MIPS hardware platforms.  More information on Qemu
-	  can be found at http://www.linux-mips.org/wiki/Qemu.
-
 config SGI_IP22
 	bool "SGI IP22 (Indy/Indigo2)"
 	select ARC
 	select ARC32
 	select BOOT_ELF32
 	select CEVT_R4K
+	select CSRC_R4K
+	select DEFAULT_SGI_PARTITION
 	select DMA_NONCOHERENT
 	select HW_HAS_EISA
 	select I8253
+	select I8259
 	select IP22_CPU_SCACHE
 	select IRQ_CPU
 	select GENERIC_ISA_DMA_SUPPORT_BROKEN
+	select SGI_HAS_DS1286
+	select SGI_HAS_I8042
+	select SGI_HAS_INDYDOG
+	select SGI_HAS_SEEQ
+	select SGI_HAS_WD93
+	select SGI_HAS_ZILOG
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_R4X00
 	select SYS_HAS_CPU_R5000
@@ -405,6 +397,7 @@ config SGI_IP27
 	select ARC
 	select ARC64
 	select BOOT_ELF64
+	select DEFAULT_SGI_PARTITION
 	select DMA_IP27
 	select SYS_HAS_EARLY_PRINTK
 	select HW_HAS_PCI
@@ -421,12 +414,43 @@ config SGI_IP27
 	  workstations.  To compile a Linux kernel that runs on these, say Y
 	  here.
 
+config SGI_IP28
+	bool "SGI IP28 (Indigo2 R10k) (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	select ARC
+	select ARC64
+	select BOOT_ELF64
+	select CEVT_R4K
+	select CSRC_R4K
+	select DEFAULT_SGI_PARTITION
+	select DMA_NONCOHERENT
+	select GENERIC_ISA_DMA_SUPPORT_BROKEN
+	select IRQ_CPU
+	select HW_HAS_EISA
+	select I8253
+	select I8259
+	select SGI_HAS_DS1286
+	select SGI_HAS_I8042
+	select SGI_HAS_INDYDOG
+	select SGI_HAS_SEEQ
+	select SGI_HAS_WD93
+	select SGI_HAS_ZILOG
+	select SWAP_IO_SPACE
+	select SYS_HAS_CPU_R10000
+	select SYS_HAS_EARLY_PRINTK
+	select SYS_SUPPORTS_64BIT_KERNEL
+	select SYS_SUPPORTS_BIG_ENDIAN
+      help
+        This is the SGI Indigo2 with R10000 processor.  To compile a Linux
+        kernel that runs on these, say Y here.
+
 config SGI_IP32
 	bool "SGI IP32 (O2)"
 	select ARC
 	select ARC32
 	select BOOT_ELF32
 	select CEVT_R4K
+	select CSRC_R4K
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
 	select IRQ_CPU
@@ -498,6 +522,7 @@ config SIBYTE_SWARM
 	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_KGDB
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select ZONE_DMA32 if 64BIT
 
 config SIBYTE_LITTLESUR
 	bool "Sibyte BCM91250C2-LittleSur"
@@ -524,19 +549,6 @@ config SIBYTE_SENTOSA
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 
-config SIBYTE_PTSWARM
-	bool "Sibyte BCM91250PT-PTSWARM"
-	depends on EXPERIMENTAL
-	select BOOT_ELF32
-	select DMA_COHERENT
-	select NR_CPUS_DEFAULT_2
-	select SIBYTE_SB1250
-	select SWAP_IO_SPACE
-	select SYS_HAS_CPU_SB1
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_HIGHMEM
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-
 config SIBYTE_BIGSUR
 	bool "Sibyte BCM91480B-BigSur"
 	select BOOT_ELF32
@@ -546,15 +558,20 @@ config SIBYTE_BIGSUR
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_SB1
 	select SYS_SUPPORTS_BIG_ENDIAN
+	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select ZONE_DMA32 if 64BIT
 
 config SNI_RM
 	bool "SNI RM200/300/400"
 	select ARC if CPU_LITTLE_ENDIAN
 	select ARC32 if CPU_LITTLE_ENDIAN
+	select SNIPROM if CPU_BIG_ENDIAN
 	select ARCH_MAY_HAVE_PC_FDC
 	select BOOT_ELF32
 	select CEVT_R4K
+	select CSRC_R4K
+	select DEFAULT_SGI_PARTITION if CPU_BIG_ENDIAN
 	select DMA_NONCOHERENT
 	select GENERIC_ISA_DMA
 	select HW_HAS_EISA
@@ -563,7 +580,6 @@ config SNI_RM
 	select I8253
 	select I8259
 	select ISA
-	select PCSPEAKER
 	select SWAP_IO_SPACE if CPU_BIG_ENDIAN
 	select SYS_HAS_CPU_R4X00
 	select SYS_HAS_CPU_R5000
@@ -583,6 +599,7 @@ config SNI_RM
 
 config TOSHIBA_JMR3927
 	bool "Toshiba JMR-TX3927 board"
+	select CEVT_TXX9
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
 	select MIPS_TX3927
@@ -597,6 +614,8 @@ config TOSHIBA_JMR3927
 config TOSHIBA_RBTX4927
 	bool "Toshiba RBTX49[23]7 board"
 	select CEVT_R4K
+	select CSRC_R4K
+	select CEVT_TXX9
 	select DMA_NONCOHERENT
 	select HAS_TXX9_SERIAL
 	select HW_HAS_PCI
@@ -618,6 +637,8 @@ config TOSHIBA_RBTX4927
 config TOSHIBA_RBTX4938
 	bool "Toshiba RBTX4938 board"
 	select CEVT_R4K
+	select CSRC_R4K
+	select CEVT_TXX9
 	select DMA_NONCOHERENT
 	select HAS_TXX9_SERIAL
 	select HW_HAS_PCI
@@ -638,6 +659,7 @@ config TOSHIBA_RBTX4938
 config WR_PPMC
 	bool "Wind River PPMC board"
 	select CEVT_R4K
+	select CSRC_R4K
 	select IRQ_CPU
 	select BOOT_ELF32
 	select DMA_NONCOHERENT
@@ -660,6 +682,7 @@ config WR_PPMC
 endchoice
 
 source "arch/mips/au1000/Kconfig"
+source "arch/mips/basler/excite/Kconfig"
 source "arch/mips/jazz/Kconfig"
 source "arch/mips/lasat/Kconfig"
 source "arch/mips/pmc-sierra/Kconfig"
@@ -670,6 +693,11 @@ source "arch/mips/tx4938/Kconfig"
 source "arch/mips/vr41xx/Kconfig"
 
 endmenu
+
+config GENERIC_LOCKBREAK
+	bool
+	default y
+	depends on SMP && PREEMPT
 
 config RWSEM_GENERIC_SPINLOCK
 	bool
@@ -685,6 +713,10 @@ config ARCH_HAS_ILOG2_U32
 config ARCH_HAS_ILOG2_U64
 	bool
 	default n
+
+config ARCH_SUPPORTS_OPROFILE
+	bool
+	default y if !MIPS_MT_SMTC
 
 config GENERIC_FIND_NEXT_BIT
 	bool
@@ -730,10 +762,28 @@ config ARCH_MAY_HAVE_PC_FDC
 config BOOT_RAW
 	bool
 
+config CEVT_BCM1480
+	bool
+
 config CEVT_GT641XX
 	bool
 
 config CEVT_R4K
+	bool
+
+config CEVT_SB1250
+	bool
+
+config CEVT_TXX9
+	bool
+
+config CSRC_BCM1480
+	bool
+
+config CSRC_R4K
+	bool
+
+config CSRC_SB1250
 	bool
 
 config CFE
@@ -744,10 +794,6 @@ config DMA_COHERENT
 
 config DMA_IP27
 	bool
-
-config DMA_IP32
-	bool
-	select DMA_NEED_PCI_MAP_STATE
 
 config DMA_NONCOHERENT
 	bool
@@ -904,7 +950,31 @@ config EMMA2RH
 config SERIAL_RM9000
 	bool
 
+config SGI_HAS_DS1286
+	bool
+
+config SGI_HAS_INDYDOG
+	bool
+
+config SGI_HAS_SEEQ
+	bool
+
+config SGI_HAS_WD93
+	bool
+
+config SGI_HAS_ZILOG
+	bool
+
+config SGI_HAS_I8042
+	bool
+
+config DEFAULT_SGI_PARTITION
+	bool
+
 config ARC32
+	bool
+
+config SNIPROM
 	bool
 
 config BOOT_ELF32
@@ -913,7 +983,7 @@ config BOOT_ELF32
 config MIPS_L1_CACHE_SHIFT
 	int
 	default "4" if MACH_DECSTATION
-	default "7" if SGI_IP27 || SNI_RM
+	default "7" if SGI_IP27 || SGI_IP28 || SNI_RM
 	default "4" if PMC_MSP4200_EVAL
 	default "5"
 
@@ -922,7 +992,7 @@ config HAVE_STD_PC_SERIAL_PORT
 
 config ARC_CONSOLE
 	bool "ARC console support"
-	depends on SGI_IP22 || (SNI_RM && CPU_LITTLE_ENDIAN)
+	depends on SGI_IP22 || SGI_IP28 || (SNI_RM && CPU_LITTLE_ENDIAN)
 
 config ARC_MEMORY
 	bool
@@ -931,7 +1001,7 @@ config ARC_MEMORY
 
 config ARC_PROMLIB
 	bool
-	depends on MACH_JAZZ || SNI_RM || SGI_IP22 || SGI_IP32
+	depends on MACH_JAZZ || SNI_RM || SGI_IP22 || SGI_IP28 || SGI_IP32
 	default y
 
 config ARC64
@@ -941,8 +1011,6 @@ config BOOT_ELF64
 	bool
 
 menu "CPU selection"
-
-source "kernel/time/Kconfig"
 
 choice
 	prompt "CPU type"
@@ -1390,11 +1458,12 @@ config MIPS_MT_SMP
 	depends on SYS_SUPPORTS_MULTITHREADING
 	select CPU_MIPSR2_IRQ_VI
 	select CPU_MIPSR2_IRQ_EI
-	select CPU_MIPSR2_SRS
 	select MIPS_MT
 	select NR_CPUS_DEFAULT_2
 	select SMP
+	select SYS_SUPPORTS_SCHED_SMT if SMP
 	select SYS_SUPPORTS_SMP
+	select SMP_UP
 	help
 	  This is a kernel model which is also known a VSMP or lately
 	  has been marketesed into SMVP.
@@ -1407,11 +1476,11 @@ config MIPS_MT_SMTC
 	select GENERIC_CLOCKEVENTS_BROADCAST
 	select CPU_MIPSR2_IRQ_VI
 	select CPU_MIPSR2_IRQ_EI
-	select CPU_MIPSR2_SRS
 	select MIPS_MT
 	select NR_CPUS_DEFAULT_8
 	select SMP
 	select SYS_SUPPORTS_SMP
+	select SMP_UP
 	help
 	  This is a kernel model which is known a SMTC or lately has been
 	  marketesed into SMVP.
@@ -1420,6 +1489,19 @@ endchoice
 
 config MIPS_MT
 	bool
+
+config SCHED_SMT
+	bool "SMT (multithreading) scheduler support"
+	depends on SYS_SUPPORTS_SCHED_SMT
+	default n
+	help
+	  SMT scheduler support improves the CPU scheduler's decision making
+	  when dealing with MIPS MT enabled cores at a cost of slightly
+	  increased overhead in some places. If unsure say N here.
+
+config SYS_SUPPORTS_SCHED_SMT
+	bool
+
 
 config SYS_SUPPORTS_MULTITHREADING
 	bool
@@ -1434,7 +1516,6 @@ config MIPS_VPE_LOADER
 	depends on SYS_SUPPORTS_MULTITHREADING
 	select CPU_MIPSR2_IRQ_VI
 	select CPU_MIPSR2_IRQ_EI
-	select CPU_MIPSR2_SRS
 	select MIPS_MT
 	help
 	  Includes a loader for loading an elf relocatable object
@@ -1542,15 +1623,6 @@ config CPU_HAS_SMARTMIPS
 config CPU_HAS_WB
 	bool
 
-config 64BIT_CONTEXT
-	bool "Save 64bit integer registers"
-	depends on 32BIT && CPU_LOONGSON2
-	help
-	  Loongson2 CPU is 64bit , when used in 32BIT mode, its integer
-	  registers can still be accessed as 64bit, mainly for multimedia
-	  instructions. We must have all 64bit save/restored to make sure
-	  those instructions to get correct result.
-
 #
 # Vectored interrupt mode is an R2 feature
 #
@@ -1563,18 +1635,25 @@ config CPU_MIPSR2_IRQ_VI
 config CPU_MIPSR2_IRQ_EI
 	bool
 
-#
-# Shadow registers are an R2 feature
-#
-config CPU_MIPSR2_SRS
-	bool
-
 config CPU_HAS_SYNC
 	bool
 	depends on !CPU_R3000
 	default y
 
 config GENERIC_CLOCKEVENTS_BROADCAST
+	bool
+
+#
+# CPU non-features
+#
+config CPU_DADDI_WORKAROUNDS
+	bool
+
+config CPU_R4000_WORKAROUNDS
+	bool
+	select CPU_R4400_WORKAROUNDS
+
+config CPU_R4400_WORKAROUNDS
 	bool
 
 #
@@ -1630,6 +1709,9 @@ config ARCH_DISCONTIGMEM_ENABLE
 	  or have huge holes in the physical address space for other reasons.
 	  See <file:Documentation/vm/numa> for more.
 
+config ARCH_POPULATES_NODE_MAP
+	def_bool y
+
 config ARCH_SPARSEMEM_ENABLE
 	bool
 	select SPARSEMEM_STATIC
@@ -1677,6 +1759,9 @@ config SMP
 
 	  If you don't know what to do here, say N.
 
+config SMP_UP
+	bool
+
 config SYS_SUPPORTS_SMP
 	bool
 
@@ -1723,6 +1808,8 @@ config NR_CPUS
 	  approximately eight kilobytes to the kernel image.  For best
 	  performance should round up your number of processors to the next
 	  power of two.
+
+source "kernel/time/Kconfig"
 
 #
 # Timer Interrupt Frequency Configuration
@@ -1874,11 +1961,6 @@ config PCI
 	  your box. Other bus systems are ISA, EISA, or VESA. If you have PCI,
 	  say Y, otherwise N.
 
-	  The PCI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>, contains valuable
-	  information about which PCI hardware does work under Linux and which
-	  doesn't.
-
 config PCI_DOMAINS
 	bool
 
@@ -1932,7 +2014,7 @@ config MMU
 config I8253
 	bool
 
-config PCSPEAKER
+config ZONE_DMA32
 	bool
 
 source "drivers/pcmcia/Kconfig"
@@ -1998,6 +2080,10 @@ config BINFMT_ELF32
 endmenu
 
 menu "Power management options"
+
+config ARCH_SUSPEND_POSSIBLE
+	def_bool y
+	depends on !SMP
 
 source "kernel/power/Kconfig"
 

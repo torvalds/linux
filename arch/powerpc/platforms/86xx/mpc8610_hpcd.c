@@ -34,8 +34,23 @@
 
 #include <asm/mpic.h>
 
+#include <linux/of_platform.h>
 #include <sysdev/fsl_pci.h>
 #include <sysdev/fsl_soc.h>
+
+static struct of_device_id __initdata mpc8610_ids[] = {
+	{ .compatible = "fsl,mpc8610-immr", },
+	{}
+};
+
+static int __init mpc8610_declare_of_platform_devices(void)
+{
+	/* Without this call, the SSI device driver won't get probed. */
+	of_platform_bus_probe(NULL, mpc8610_ids, NULL);
+
+	return 0;
+}
+machine_device_initcall(mpc86xx_hpcd, mpc8610_declare_of_platform_devices);
 
 void __init
 mpc86xx_hpcd_init_irq(void)
@@ -124,7 +139,7 @@ static void __devinit quirk_uli5229(struct pci_dev *dev)
 static void __devinit final_uli5288(struct pci_dev *dev)
 {
 	struct pci_controller *hose = pci_bus_to_host(dev->bus);
-	struct device_node *hosenode = hose ? hose->arch_data : NULL;
+	struct device_node *hosenode = hose ? hose->dn : NULL;
 	struct of_irq oirq;
 	int virq, pin = 2;
 	u32 laddr[3];

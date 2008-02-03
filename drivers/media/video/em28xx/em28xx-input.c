@@ -30,11 +30,7 @@
 
 #include "em28xx.h"
 
-static unsigned int disable_ir = 0;
-module_param(disable_ir, int, 0444);
-MODULE_PARM_DESC(disable_ir,"disable infrared remote support");
-
-static unsigned int ir_debug = 0;
+static unsigned int ir_debug;
 module_param(ir_debug, int, 0644);
 MODULE_PARM_DESC(ir_debug,"enable debug messages [IR]");
 
@@ -43,7 +39,7 @@ MODULE_PARM_DESC(ir_debug,"enable debug messages [IR]");
 
 /* ----------------------------------------------------------------------- */
 
-static int get_key_terratec(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+int em28xx_get_key_terratec(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 {
 	unsigned char b;
 
@@ -72,7 +68,7 @@ static int get_key_terratec(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 }
 
 
-static int get_key_em_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+int em28xx_get_key_em_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 {
 	unsigned char buf[2];
 	unsigned char code;
@@ -103,7 +99,8 @@ static int get_key_em_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	return 1;
 }
 
-static int get_key_pinnacle_usb_grey(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+int em28xx_get_key_pinnacle_usb_grey(struct IR_i2c *ir, u32 *ir_key,
+				     u32 *ir_raw)
 {
 	unsigned char buf[3];
 
@@ -123,45 +120,6 @@ static int get_key_pinnacle_usb_grey(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw
 	*ir_raw = buf[2]&0x3f;
 
 	return 1;
-}
-
-/* ----------------------------------------------------------------------- */
-void em28xx_set_ir(struct em28xx * dev,struct IR_i2c *ir)
-{
-	if (disable_ir) {
-		ir->get_key=NULL;
-		return ;
-	}
-
-	/* detect & configure */
-	switch (dev->model) {
-	case (EM2800_BOARD_UNKNOWN):
-		break;
-	case (EM2820_BOARD_UNKNOWN):
-		break;
-	case (EM2800_BOARD_TERRATEC_CINERGY_200):
-	case (EM2820_BOARD_TERRATEC_CINERGY_250):
-		ir->ir_codes = ir_codes_em_terratec;
-		ir->get_key = get_key_terratec;
-		snprintf(ir->c.name, sizeof(ir->c.name), "i2c IR (EM28XX Terratec)");
-		break;
-	case (EM2820_BOARD_PINNACLE_USB_2):
-		ir->ir_codes = ir_codes_pinnacle_grey;
-		ir->get_key = get_key_pinnacle_usb_grey;
-		snprintf(ir->c.name, sizeof(ir->c.name), "i2c IR (EM28XX Pinnacle PCTV)");
-		break;
-	case (EM2820_BOARD_HAUPPAUGE_WINTV_USB_2):
-		ir->ir_codes = ir_codes_hauppauge_new;
-		ir->get_key = get_key_em_haup;
-		snprintf(ir->c.name, sizeof(ir->c.name), "i2c IR (EM2840 Hauppauge)");
-		break;
-	case (EM2820_BOARD_MSI_VOX_USB_2):
-		break;
-	case (EM2800_BOARD_LEADTEK_WINFAST_USBII):
-		break;
-	case (EM2800_BOARD_KWORLD_USB2800):
-		break;
-	}
 }
 
 /* ----------------------------------------------------------------------

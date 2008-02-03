@@ -41,7 +41,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_serverworks"
-#define DRV_VERSION "0.4.2"
+#define DRV_VERSION "0.4.3"
 
 #define SVWKS_CSB5_REVISION_NEW	0x92 /* min PCI_REVISION_ID for UDMA5 (A2.0) */
 #define SVWKS_CSB6_REVISION	0xa0 /* min PCI_REVISION_ID for UDMA4 (A1.0) */
@@ -102,7 +102,7 @@ static int osb4_cable(struct ata_port *ap) {
 }
 
 /**
- *	csb4_cable	-	CSB5/6 cable detect
+ *	csb_cable	-	CSB5/6 cable detect
  *	@ap: ATA port to check
  *
  *	Serverworks default arrangement is to use the drive side detection
@@ -110,7 +110,7 @@ static int osb4_cable(struct ata_port *ap) {
  */
 
 static int csb_cable(struct ata_port *ap) {
-	return ATA_CBL_PATA80;
+	return ATA_CBL_PATA_UNK;
 }
 
 struct sv_cable_table {
@@ -231,7 +231,6 @@ static unsigned long serverworks_csb_filter(struct ata_device *adev, unsigned lo
 	return ata_pci_default_filter(adev, mask);
 }
 
-
 /**
  *	serverworks_set_piomode	-	set initial PIO mode data
  *	@ap: ATA interface
@@ -243,7 +242,7 @@ static unsigned long serverworks_csb_filter(struct ata_device *adev, unsigned lo
 static void serverworks_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
 	static const u8 pio_mode[] = { 0x5d, 0x47, 0x34, 0x22, 0x20 };
-	int offset = 1 + (2 * ap->port_no) - adev->devno;
+	int offset = 1 + 2 * ap->port_no - adev->devno;
 	int devbits = (2 * ap->port_no + adev->devno) * 4;
 	u16 csb5_pio;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
@@ -274,28 +273,27 @@ static void serverworks_set_dmamode(struct ata_port *ap, struct ata_device *adev
 {
 	static const u8 dma_mode[] = { 0x77, 0x21, 0x20 };
 	int offset = 1 + 2 * ap->port_no - adev->devno;
-	int devbits = (2 * ap->port_no + adev->devno);
+	int devbits = 2 * ap->port_no + adev->devno;
 	u8 ultra;
 	u8 ultra_cfg;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
 	pci_read_config_byte(pdev, 0x54, &ultra_cfg);
+	pci_read_config_byte(pdev, 0x56 + ap->port_no, &ultra);
+	ultra &= ~(0x0F << (adev->devno * 4));
 
 	if (adev->dma_mode >= XFER_UDMA_0) {
 		pci_write_config_byte(pdev, 0x44 + offset,  0x20);
 
-		pci_read_config_byte(pdev, 0x56 + ap->port_no, &ultra);
-		ultra &= ~(0x0F << (ap->port_no * 4));
 		ultra |= (adev->dma_mode - XFER_UDMA_0)
-					<< (ap->port_no * 4);
-		pci_write_config_byte(pdev, 0x56 + ap->port_no, ultra);
-
+					<< (adev->devno * 4);
 		ultra_cfg |=  (1 << devbits);
 	} else {
 		pci_write_config_byte(pdev, 0x44 + offset,
 			dma_mode[adev->dma_mode - XFER_MW_DMA_0]);
 		ultra_cfg &= ~(1 << devbits);
 	}
+	pci_write_config_byte(pdev, 0x56 + ap->port_no, ultra);
 	pci_write_config_byte(pdev, 0x54, ultra_cfg);
 }
 

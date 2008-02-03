@@ -23,7 +23,6 @@
  *
  */      
 
-#include <sound/driver.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -2195,22 +2194,25 @@ snd_rme96_dac_volume_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_valu
 {
 	struct rme96 *rme96 = snd_kcontrol_chip(kcontrol);
         int change = 0;
+	unsigned int vol, maxvol;
 
-	if (!RME96_HAS_ANALOG_OUT(rme96)) {
+
+	if (!RME96_HAS_ANALOG_OUT(rme96))
 		return -EINVAL;
-	}
+	maxvol = RME96_185X_MAX_OUT(rme96);
 	spin_lock_irq(&rme96->lock);
-        if (u->value.integer.value[0] != rme96->vol[0]) {
-		rme96->vol[0] = u->value.integer.value[0];
-                change = 1;
-        }
-        if (u->value.integer.value[1] != rme96->vol[1]) {
-		rme96->vol[1] = u->value.integer.value[1];
-                change = 1;
-        }
-	if (change) {
-		snd_rme96_apply_dac_volume(rme96);
+	vol = u->value.integer.value[0];
+	if (vol != rme96->vol[0] && vol <= maxvol) {
+		rme96->vol[0] = vol;
+		change = 1;
 	}
+	vol = u->value.integer.value[1];
+	if (vol != rme96->vol[1] && vol <= maxvol) {
+		rme96->vol[1] = vol;
+		change = 1;
+	}
+	if (change)
+		snd_rme96_apply_dac_volume(rme96);
 	spin_unlock_irq(&rme96->lock);
 
         return change;

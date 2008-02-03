@@ -268,6 +268,7 @@ static void scsi_device_dev_release_usercontext(struct work_struct *work)
 	struct scsi_device *sdev;
 	struct device *parent;
 	struct scsi_target *starget;
+	struct list_head *this, *tmp;
 	unsigned long flags;
 
 	sdev = container_of(work, struct scsi_device, ew.work);
@@ -281,6 +282,16 @@ static void scsi_device_dev_release_usercontext(struct work_struct *work)
 	list_del(&sdev->same_target_siblings);
 	list_del(&sdev->starved_entry);
 	spin_unlock_irqrestore(sdev->host->host_lock, flags);
+
+	cancel_work_sync(&sdev->event_work);
+
+	list_for_each_safe(this, tmp, &sdev->event_list) {
+		struct scsi_event *evt;
+
+		evt = list_entry(this, struct scsi_event, node);
+		list_del(&evt->node);
+		kfree(evt);
+	}
 
 	if (sdev->request_queue) {
 		sdev->request_queue->queuedata = NULL;
@@ -362,12 +373,29 @@ static int scsi_bus_resume(struct device * dev)
 	return err;
 }
 
+static int scsi_bus_remove(struct device *dev)
+{
+	struct device_driver *drv = dev->driver;
+	struct scsi_device *sdev = to_scsi_device(dev);
+	int err = 0;
+
+	/* reset the prep_fn back to the default since the
+	 * driver may have altered it and it's being removed */
+	blk_queue_prep_rq(sdev->request_queue, scsi_prep_fn);
+
+	if (drv && drv->remove)
+		err = drv->remove(dev);
+
+	return 0;
+}
+
 struct bus_type scsi_bus_type = {
         .name		= "scsi",
         .match		= scsi_bus_match,
 	.uevent		= scsi_bus_uevent,
 	.suspend	= scsi_bus_suspend,
 	.resume		= scsi_bus_resume,
+	.remove		= scsi_bus_remove,
 };
 
 int scsi_sysfs_register(void)
@@ -614,6 +642,41 @@ sdev_show_modalias(struct device *dev, struct device_attribute *attr, char *buf)
 }
 static DEVICE_ATTR(modalias, S_IRUGO, sdev_show_modalias, NULL);
 
+#define DECLARE_EVT_SHOW(name, Cap_name)				\
+static ssize_t								\
+sdev_show_evt_##name(struct device *dev, struct device_attribute *attr,	\
+				char *buf)				\
+{									\
+	struct scsi_device *sdev = to_scsi_device(dev);			\
+	int val = test_bit(SDEV_EVT_##Cap_name, sdev->supported_events);\
+	return snprintf(buf, 20, "%d\n", val);				\
+}
+
+#define DECLARE_EVT_STORE(name, Cap_name)				\
+static ssize_t								\
+sdev_store_evt_##name(struct device *dev, struct device_attribute *attr, \
+		      const char *buf, size_t count)			\
+{									\
+	struct scsi_device *sdev = to_scsi_device(dev);			\
+	int val = simple_strtoul(buf, NULL, 0);				\
+	if (val == 0)							\
+		clear_bit(SDEV_EVT_##Cap_name, sdev->supported_events);	\
+	else if (val == 1)						\
+		set_bit(SDEV_EVT_##Cap_name, sdev->supported_events);	\
+	else								\
+		return -EINVAL;						\
+	return count;							\
+}
+
+#define DECLARE_EVT(name, Cap_name)					\
+	DECLARE_EVT_SHOW(name, Cap_name)				\
+	DECLARE_EVT_STORE(name, Cap_name)				\
+	static DEVICE_ATTR(evt_##name, S_IRUGO, sdev_show_evt_##name,	\
+			   sdev_store_evt_##name);
+#define REF_EVT(name) &dev_attr_evt_##name.attr
+
+DECLARE_EVT(media_change, MEDIA_CHANGE)
+
 /* Default template for device attributes.  May NOT be modified */
 static struct attribute *scsi_sdev_attrs[] = {
 	&dev_attr_device_blocked.attr,
@@ -631,6 +694,7 @@ static struct attribute *scsi_sdev_attrs[] = {
 	&dev_attr_iodone_cnt.attr,
 	&dev_attr_ioerr_cnt.attr,
 	&dev_attr_modalias.attr,
+	REF_EVT(media_change),
 	NULL
 };
 
@@ -954,6 +1018,7 @@ int scsi_sysfs_add_host(struct Scsi_Host *shost)
 	}
 
 	transport_register_device(&shost->shost_gendev);
+	transport_configure_device(&shost->shost_gendev);
 	return 0;
 }
 

@@ -54,7 +54,7 @@
 #include <asm/system.h>
 
 static unsigned long sbc8360_is_open;
-static spinlock_t sbc8360_lock;
+static DEFINE_SPINLOCK(sbc8360_lock);
 static char expect_close;
 
 #define PFX "sbc8360: "
@@ -359,7 +359,6 @@ static int __init sbc8360_init(void)
 		goto out_noreboot;
 	}
 
-	spin_lock_init(&sbc8360_lock);
 	res = misc_register(&sbc8360_miscdev);
 	if (res) {
 		printk(KERN_ERR PFX "failed to register misc device\n");

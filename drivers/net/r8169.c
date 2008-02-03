@@ -171,6 +171,8 @@ static struct pci_device_id rtl8169_pci_tbl[] = {
 	{ PCI_DEVICE(0x16ec,			0x0116), 0, 0, RTL_CFG_0 },
 	{ PCI_VENDOR_ID_LINKSYS,		0x1032,
 		PCI_ANY_ID, 0x0024, 0, 0, RTL_CFG_0 },
+	{ 0x0001,				0x8168,
+		PCI_ANY_ID, 0x2410, 0, 0, RTL_CFG_2 },
 	{0,},
 };
 
@@ -392,7 +394,9 @@ struct rtl8169_private {
 	void __iomem *mmio_addr;	/* memory map physical address */
 	struct pci_dev *pci_dev;	/* Index of PCI device */
 	struct net_device *dev;
+#ifdef CONFIG_R8169_NAPI
 	struct napi_struct napi;
+#endif
 	spinlock_t lock;		/* spin lock flag */
 	u32 msg_enable;
 	int chipset;
@@ -466,7 +470,7 @@ static void mdio_write(void __iomem *ioaddr, int reg_addr, int value)
 {
 	int i;
 
-	RTL_W32(PHYAR, 0x80000000 | (reg_addr & 0xFF) << 16 | value);
+	RTL_W32(PHYAR, 0x80000000 | (reg_addr & 0x1f) << 16 | (value & 0xffff));
 
 	for (i = 20; i > 0; i--) {
 		/*
@@ -483,7 +487,7 @@ static int mdio_read(void __iomem *ioaddr, int reg_addr)
 {
 	int i, value = -1;
 
-	RTL_W32(PHYAR, 0x0 | (reg_addr & 0xFF) << 16);
+	RTL_W32(PHYAR, 0x0 | (reg_addr & 0x1f) << 16);
 
 	for (i = 20; i > 0; i--) {
 		/*
@@ -491,7 +495,7 @@ static int mdio_read(void __iomem *ioaddr, int reg_addr)
 		 * the specified MII register.
 		 */
 		if (RTL_R32(PHYAR) & 0x80000000) {
-			value = (int) (RTL_R32(PHYAR) & 0xFFFF);
+			value = RTL_R32(PHYAR) & 0xffff;
 			break;
 		}
 		udelay(25);
@@ -1243,16 +1247,6 @@ static void rtl8169sb_hw_phy_config(void __iomem *ioaddr)
 
 	rtl_phy_write(ioaddr, phy_reg_init, ARRAY_SIZE(phy_reg_init));
 }
-static void rtl8168b_hw_phy_config(void __iomem *ioaddr)
-{
-	struct phy_reg phy_reg_init[] = {
-		{ 0x1f, 0x0000 },
-		{ 0x10, 0xf41b },
-		{ 0x1f, 0x0000 }
-	};
-
-	rtl_phy_write(ioaddr, phy_reg_init, ARRAY_SIZE(phy_reg_init));
-}
 
 static void rtl8168cp_hw_phy_config(void __iomem *ioaddr)
 {
@@ -1321,11 +1315,6 @@ static void rtl_hw_phy_config(struct net_device *dev)
 		break;
 	case RTL_GIGA_MAC_VER_04:
 		rtl8169sb_hw_phy_config(ioaddr);
-		break;
-	case RTL_GIGA_MAC_VER_11:
-	case RTL_GIGA_MAC_VER_12:
-	case RTL_GIGA_MAC_VER_17:
-		rtl8168b_hw_phy_config(ioaddr);
 		break;
 	case RTL_GIGA_MAC_VER_18:
 		rtl8168cp_hw_phy_config(ioaddr);
@@ -1737,7 +1726,8 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->features |= rtl_try_msi(pdev, ioaddr, cfg);
 	RTL_W8(Cfg9346, Cfg9346_Lock);
 
-	if (RTL_R8(PHYstatus) & TBI_Enable) {
+	if ((tp->mac_version <= RTL_GIGA_MAC_VER_06) &&
+	    (RTL_R8(PHYstatus) & TBI_Enable)) {
 		tp->set_speed = rtl8169_set_speed_tbi;
 		tp->get_settings = rtl8169_gset_tbi;
 		tp->phy_reset_enable = rtl8169_tbi_reset_enable;
@@ -2012,7 +2002,7 @@ static void rtl8169_set_magic_reg(void __iomem *ioaddr, unsigned mac_version)
 	u32 clk;
 
 	clk = RTL_R8(Config2) & PCI_Clock_66MHz;
-	for (i = 0; i < ARRAY_SIZE(cfg2_info); i++) {
+	for (i = 0; i < ARRAY_SIZE(cfg2_info); i++, p++) {
 		if ((p->mac_version == mac_version) && (p->clk == clk)) {
 			RTL_W32(0x7c, p->val);
 			break;
@@ -2221,7 +2211,7 @@ out:
 
 static inline void rtl8169_make_unusable_by_asic(struct RxDesc *desc)
 {
-	desc->addr = 0x0badbadbadbadbadull;
+	desc->addr = cpu_to_le64(0x0badbadbadbadbadull);
 	desc->opts1 &= ~cpu_to_le32(DescOwn | RsvdMask);
 }
 
@@ -2408,6 +2398,8 @@ static void rtl8169_wait_for_quiescence(struct net_device *dev)
 	rtl8169_irq_mask_and_ack(ioaddr);
 
 #ifdef CONFIG_R8169_NAPI
+	tp->intr_mask = 0xffff;
+	RTL_W16(IntrMask, tp->intr_event);
 	napi_enable(&tp->napi);
 #endif
 }
@@ -2845,7 +2837,7 @@ static int rtl8169_rx_interrupt(struct net_device *dev,
 		}
 
 		/* Work around for AMD plateform. */
-		if ((desc->opts2 & 0xfffe000) &&
+		if ((desc->opts2 & cpu_to_le32(0xfffe000)) &&
 		    (tp->mac_version == RTL_GIGA_MAC_VER_05)) {
 			desc->opts2 = 0;
 			cur_rx++;
@@ -2989,12 +2981,15 @@ static void rtl8169_down(struct net_device *dev)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 	void __iomem *ioaddr = tp->mmio_addr;
-	unsigned int poll_locked = 0;
 	unsigned int intrmask;
 
 	rtl8169_delete_timer(dev);
 
 	netif_stop_queue(dev);
+
+#ifdef CONFIG_R8169_NAPI
+	napi_disable(&tp->napi);
+#endif
 
 core_down:
 	spin_lock_irq(&tp->lock);
@@ -3008,11 +3003,6 @@ core_down:
 	spin_unlock_irq(&tp->lock);
 
 	synchronize_irq(dev->irq);
-
-	if (!poll_locked) {
-		napi_disable(&tp->napi);
-		poll_locked++;
-	}
 
 	/* Give a racing hard_start_xmit a few cycles to complete. */
 	synchronize_sched();  /* FIXME: should this be synchronize_irq()? */

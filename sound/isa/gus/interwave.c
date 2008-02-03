@@ -22,7 +22,6 @@
  *
  */
 
-#include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/isa.h>
@@ -560,50 +559,27 @@ static int __devinit snd_interwave_pnp(int dev, struct snd_interwave *iwcard,
 				       const struct pnp_card_device_id *id)
 {
 	struct pnp_dev *pdev;
-	struct pnp_resource_table * cfg = kmalloc(sizeof(struct pnp_resource_table), GFP_KERNEL);
 	int err;
 
-	if (!cfg)
-		return -ENOMEM;
 	iwcard->dev = pnp_request_card_device(card, id->devs[0].id, NULL);
-	if (iwcard->dev == NULL) {
-		kfree(cfg);
+	if (iwcard->dev == NULL)
 		return -EBUSY;
-	}
+
 #ifdef SNDRV_STB
 	iwcard->devtc = pnp_request_card_device(card, id->devs[1].id, NULL);
-	if (iwcard->devtc == NULL) {
-		kfree(cfg);
+	if (iwcard->devtc == NULL)
 		return -EBUSY;
-	}
 #endif
 	/* Synth & Codec initialization */
 	pdev = iwcard->dev;
-	pnp_init_resource_table(cfg);
-	if (port[dev] != SNDRV_AUTO_PORT) {
-		pnp_resource_change(&cfg->port_resource[0], port[dev], 16);
-		pnp_resource_change(&cfg->port_resource[1], port[dev] + 0x100, 12);
-		pnp_resource_change(&cfg->port_resource[2], port[dev] + 0x10c, 4);
-	}
-	if (dma1[dev] != SNDRV_AUTO_DMA)
-		pnp_resource_change(&cfg->dma_resource[0], dma1[dev], 1);
-	if (dma2[dev] != SNDRV_AUTO_DMA)
-		pnp_resource_change(&cfg->dma_resource[1], dma2[dev], 1);
-	if (dma2[dev] < 0)
-		pnp_resource_change(&cfg->dma_resource[1], 4, 1);
-	if (irq[dev] != SNDRV_AUTO_IRQ)
-		pnp_resource_change(&cfg->irq_resource[0], irq[dev], 1);
-        if (pnp_manual_config_dev(pdev, cfg, 0) < 0)
-		snd_printk(KERN_ERR "InterWave - Synth - the requested resources are invalid, using auto config\n");
+
 	err = pnp_activate_dev(pdev);
 	if (err < 0) {
-		kfree(cfg);
 		snd_printk(KERN_ERR "InterWave PnP configure failure (out of resources?)\n");
 		return err;
 	}
 	if (pnp_port_start(pdev, 0) + 0x100 != pnp_port_start(pdev, 1) ||
 	    pnp_port_start(pdev, 0) + 0x10c != pnp_port_start(pdev, 2)) {
-		kfree(cfg);
 		snd_printk(KERN_ERR "PnP configure failure (wrong ports)\n");
 		return -ENOENT;
 	}
@@ -620,21 +596,15 @@ static int __devinit snd_interwave_pnp(int dev, struct snd_interwave *iwcard,
 #ifdef SNDRV_STB
 	/* Tone Control initialization */
 	pdev = iwcard->devtc;
-	pnp_init_resource_table(cfg);
-	if (port_tc[dev] != SNDRV_AUTO_PORT)
-		pnp_resource_change(&cfg->port_resource[0], port_tc[dev], 1);
-        if (pnp_manual_config_dev(pdev, cfg, 0) < 0)
-		snd_printk(KERN_ERR "InterWave - ToneControl - the requested resources are invalid, using auto config\n");
+
 	err = pnp_activate_dev(pdev);
 	if (err < 0) {
-		kfree(cfg);
 		snd_printk(KERN_ERR "InterWave ToneControl PnP configure failure (out of resources?)\n");
 		return err;
 	}
 	port_tc[dev] = pnp_port_start(pdev, 0);
 	snd_printdd("isapnp IW: tone control port=0x%lx\n", port_tc[dev]);
 #endif
-	kfree(cfg);
 	return 0;
 }
 #endif /* CONFIG_PNP */

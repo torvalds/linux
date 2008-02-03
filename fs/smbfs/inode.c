@@ -536,7 +536,7 @@ static int smb_fill_super(struct super_block *sb, void *raw_data, int silent)
 
 	/* Allocate the global temp buffer and some superblock helper structs */
 	/* FIXME: move these to the smb_sb_info struct */
-	VERBOSE("alloc chunk = %d\n", sizeof(struct smb_ops) +
+	VERBOSE("alloc chunk = %lu\n", sizeof(struct smb_ops) +
 		sizeof(struct smb_mount_data_kernel));
 	mem = kmalloc(sizeof(struct smb_ops) +
 		      sizeof(struct smb_mount_data_kernel), GFP_KERNEL);

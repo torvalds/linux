@@ -3,6 +3,11 @@
  *
  * Driver for PowerPC 4xx on-chip ethernet controller, RGMII bridge support.
  *
+ * Copyright 2007 Benjamin Herrenschmidt, IBM Corp.
+ *                <benh@kernel.crashing.org>
+ *
+ * Based on the arch/ppc version of the driver:
+ *
  * Based on ocp_zmii.h/ibm_emac_zmii.h
  * Armin Kuster akuster@mvista.com
  *
@@ -35,8 +40,9 @@ struct rgmii_regs {
 struct rgmii_instance {
 	struct rgmii_regs __iomem	*base;
 
-	/* Type of RGMII bridge */
-	int				type;
+	/* RGMII bridge flags */
+	int				flags;
+#define EMAC_RGMII_FLAG_HAS_MDIO	0x00000001
 
 	/* Only one EMAC whacks us at a time */
 	struct mutex			lock;

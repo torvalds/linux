@@ -33,7 +33,7 @@
  * after a timer-interrupt and after each system call.
  */
 
-
+#include <linux/init.h>
 #include <linux/linkage.h>
 #include <linux/unistd.h>
 #include <asm/blackfin.h>
@@ -71,34 +71,72 @@ ENDPROC(_safe_speculative_execution)
  * This one does not lower the level to IRQ5, and thus can be used to
  * patch up CPLB misses on the kernel stack.
  */
-ENTRY(_ex_dcplb)
 #if ANOMALY_05000261
+#define _ex_dviol _ex_workaround_261
+#define _ex_dmiss _ex_workaround_261
+#define _ex_dmult _ex_workaround_261
+
+ENTRY(_ex_workaround_261)
 	/*
 	 * Work around an anomaly: if we see a new DCPLB fault, return
 	 * without doing anything.  Then, if we get the same fault again,
 	 * handle it.
 	 */
+	P4 = R7;	/* Store EXCAUSE */
 	p5.l = _last_cplb_fault_retx;
 	p5.h = _last_cplb_fault_retx;
 	r7 = [p5];
 	r6 = retx;
 	[p5] = r6;
 	cc = r6 == r7;
-	if !cc jump _return_from_exception;
+	if !cc jump _bfin_return_from_exception;
 	/* fall through */
-#endif
-ENDPROC(_ex_dcplb)
+	R7 = P4;
+	R6 = 0x26;	/* Data CPLB Miss */
+	cc = R6 == R7;
+	if cc jump _ex_dcplb_miss (BP);
+	R6 = 0x23;	/* Data CPLB Miss */
+	cc = R6 == R7;
+	if cc jump _ex_dcplb_viol (BP);
+	/* Handle 0x23 Data CPLB Protection Violation
+	 * and Data CPLB Multiple Hits - Linux Trap Zero
+	 */
+	jump _ex_trap_c;
+ENDPROC(_ex_workaround_261)
 
-ENTRY(_ex_icplb)
+#else
+#ifdef CONFIG_MPU
+#define _ex_dviol _ex_dcplb_viol
+#else
+#define _ex_dviol _ex_trap_c
+#endif
+#define _ex_dmiss _ex_dcplb_miss
+#define _ex_dmult _ex_trap_c
+#endif
+
+
+ENTRY(_ex_dcplb_viol)
+ENTRY(_ex_dcplb_miss)
+ENTRY(_ex_icplb_miss)
 	(R7:6,P5:4) = [sp++];
 	ASTAT = [sp++];
 	SAVE_ALL_SYS
+#ifdef CONFIG_MPU
+	R0 = SEQSTAT;
+	R1 = SP;
+	sp += -12;
+	call _cplb_hdr;
+	sp += 12;
+	CC = R0 == 0;
+	IF !CC JUMP _handle_bad_cplb;
+#else
 	call __cplb_hdr;
+#endif
 	DEBUG_START_HWTRACE(p5, r7)
 	RESTORE_ALL_SYS
 	SP = EX_SCRATCH_REG;
 	rtx;
-ENDPROC(_ex_icplb)
+ENDPROC(_ex_icplb_miss)
 
 ENTRY(_ex_syscall)
 	DEBUG_START_HWTRACE(p5, r7)
@@ -120,7 +158,7 @@ ENTRY(_ex_single_step)
 	r7 = retx;
 	r6 = reti;
 	cc = r7 == r6;
-	if cc jump _return_from_exception
+	if cc jump _bfin_return_from_exception
 	r7 = syscfg;
 	bitclr (r7, 0);
 	syscfg = R7;
@@ -137,8 +175,9 @@ ENTRY(_ex_single_step)
 	r7 = [p4];
 	cc = r6 == r7;
 	if !cc jump _ex_trap_c;
+ENDPROC(_ex_single_step)
 
-ENTRY(_return_from_exception)
+ENTRY(_bfin_return_from_exception)
 	DEBUG_START_HWTRACE(p5, r7)
 #if ANOMALY_05000257
 	R7=LC0;
@@ -150,7 +189,7 @@ ENTRY(_return_from_exception)
 	ASTAT = [sp++];
 	sp = EX_SCRATCH_REG;
 	rtx;
-ENDPROC(_ex_soft_bp)
+ENDPROC(_bfin_return_from_exception)
 
 ENTRY(_handle_bad_cplb)
 	/* To get here, we just tried and failed to change a CPLB
@@ -309,7 +348,7 @@ ENTRY(_exception_to_level5)
 	R7 = R7 + R6;
 	P5 = R7;
 	R1 = [P5];
-	[SP + 8] = r1;
+	[SP + PT_SEQSTAT] = r1;
 
 	r0 = sp; 	/* stack frame pt_regs pointer argument ==> r0 */
 	SP += -12;
@@ -613,9 +652,7 @@ ENTRY(_ret_from_exception)
 	[sp + PT_IPEND] = r0;
 
 1:
-	r1 = 0x37(Z);
-	r2 = ~r1;
-	r2.h = 0;
+	r2 = LO(~0x37) (Z);
 	r0 = r2 & r0;
 	cc = r0 == 0;
 	if !cc jump 4f;	/* if not return to user mode, get out */
@@ -843,7 +880,7 @@ ENTRY(_ex_trace_buff_full)
 	LC0 = [sp++];
 	P2 = [sp++];
 	P3 = [sp++];
-	jump _return_from_exception;
+	jump _bfin_return_from_exception;
 ENDPROC(_ex_trace_buff_full)
 
 #if CONFIG_DEBUG_BFIN_HWTRACE_EXPAND_LEN == 4
@@ -861,7 +898,7 @@ ENTRY(_software_trace_buff)
 #endif /* CONFIG_DEBUG_BFIN_HWTRACE_EXPAND */
 
 #if CONFIG_EARLY_PRINTK
-.section .init.text
+__INIT
 ENTRY(_early_trap)
 	SAVE_ALL_SYS
 	trace_buffer_stop(p0,r0);
@@ -896,6 +933,7 @@ ENTRY(_early_trap)
 	call _early_trap_c;
 	SP += 12;
 ENDPROC(_early_trap)
+__FINIT
 #endif /* CONFIG_EARLY_PRINTK */
 
 /*
@@ -908,6 +946,7 @@ ENDPROC(_early_trap)
 #else
 .data
 #endif
+
 ENTRY(_ex_table)
 	/* entry for each EXCAUSE[5:0]
 	 * This table must be in sync with the table in ./kernel/traps.c
@@ -917,7 +956,7 @@ ENTRY(_ex_table)
 	.long _ex_soft_bp       /* 0x01 - User Defined - Software breakpoint */
 	.long _ex_replaceable   /* 0x02 - User Defined */
 	.long _ex_trap_c        /* 0x03 - User Defined - userspace stack overflow */
-	.long _ex_replaceable   /* 0x04 - User Defined */
+	.long _ex_trap_c        /* 0x04 - User Defined - dump trace buffer */
 	.long _ex_replaceable   /* 0x05 - User Defined */
 	.long _ex_replaceable   /* 0x06 - User Defined */
 	.long _ex_replaceable   /* 0x07 - User Defined */
@@ -952,16 +991,16 @@ ENTRY(_ex_table)
 	.long _ex_trap_c        /* 0x20 - Reserved */
 	.long _ex_trap_c        /* 0x21 - Undefined Instruction */
 	.long _ex_trap_c        /* 0x22 - Illegal Instruction Combination */
-	.long _ex_dcplb         /* 0x23 - Data CPLB Protection Violation */
+	.long _ex_dviol         /* 0x23 - Data CPLB Protection Violation */
 	.long _ex_trap_c        /* 0x24 - Data access misaligned */
 	.long _ex_trap_c        /* 0x25 - Unrecoverable Event */
-	.long _ex_dcplb         /* 0x26 - Data CPLB Miss */
-	.long _ex_trap_c        /* 0x27 - Data CPLB Multiple Hits - Linux Trap Zero */
+	.long _ex_dmiss         /* 0x26 - Data CPLB Miss */
+	.long _ex_dmult         /* 0x27 - Data CPLB Multiple Hits - Linux Trap Zero */
 	.long _ex_trap_c        /* 0x28 - Emulation Watchpoint */
 	.long _ex_trap_c        /* 0x29 - Instruction fetch access error (535 only) */
 	.long _ex_trap_c        /* 0x2A - Instruction fetch misaligned */
-	.long _ex_icplb         /* 0x2B - Instruction CPLB protection Violation */
-	.long _ex_icplb         /* 0x2C - Instruction CPLB miss */
+	.long _ex_trap_c        /* 0x2B - Instruction CPLB protection Violation */
+	.long _ex_icplb_miss    /* 0x2C - Instruction CPLB miss */
 	.long _ex_trap_c        /* 0x2D - Instruction CPLB Multiple Hits */
 	.long _ex_trap_c        /* 0x2E - Illegal use of Supervisor Resource */
 	.long _ex_trap_c        /* 0x2E - Illegal use of Supervisor Resource */
@@ -1342,6 +1381,7 @@ ENTRY(_sys_call_table)
 	.long _sys_set_robust_list
 	.long _sys_get_robust_list	/* 355 */
 	.long _sys_fallocate
+	.long _sys_semtimedop
 	.rept NR_syscalls-(.-_sys_call_table)/4
 	.long _sys_ni_syscall
 	.endr

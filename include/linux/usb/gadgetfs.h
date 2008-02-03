@@ -36,7 +36,7 @@ enum usb_gadgetfs_event_type {
 	GADGETFS_DISCONNECT,
 	GADGETFS_SETUP,
 	GADGETFS_SUSPEND,
-	// and likely more !
+	/* and likely more ! */
 };
 
 /* NOTE:  this structure must stay the same size and layout on
@@ -44,20 +44,27 @@ enum usb_gadgetfs_event_type {
  */
 struct usb_gadgetfs_event {
 	union {
-		// NOP, DISCONNECT, SUSPEND: nothing
-		// ... some hardware can't report disconnection
+		/* NOP, DISCONNECT, SUSPEND: nothing
+		 * ... some hardware can't report disconnection
+		 */
 
-		// CONNECT: just the speed
+		/* CONNECT: just the speed */
 		enum usb_device_speed	speed;
 
-		// SETUP: packet; DATA phase i/o precedes next event
-		// (setup.bmRequestType & USB_DIR_IN) flags direction
-		// ... includes SET_CONFIGURATION, SET_INTERFACE
+		/* SETUP: packet; DATA phase i/o precedes next event
+		 *(setup.bmRequestType & USB_DIR_IN) flags direction
+		 * ... includes SET_CONFIGURATION, SET_INTERFACE
+		 */
 		struct usb_ctrlrequest	setup;
 	} u;
 	enum usb_gadgetfs_event_type	type;
 };
 
+
+/* The 'g' code is also used by printer gadget ioctl requests.
+ * Don't add any colliding codes to either driver, and keep
+ * them in unique ranges (size 0x20 for now).
+ */
 
 /* endpoint ioctls */
 
@@ -68,14 +75,14 @@ struct usb_gadgetfs_event {
  * THIS returns how many bytes are "unclaimed" in the endpoint fifo
  * (needed for precise fault handling, when the hardware allows it)
  */
-#define	GADGETFS_FIFO_STATUS	_IO('g',1)
+#define	GADGETFS_FIFO_STATUS	_IO('g', 1)
 
 /* discards any unclaimed data in the fifo. */
-#define	GADGETFS_FIFO_FLUSH	_IO('g',2)
+#define	GADGETFS_FIFO_FLUSH	_IO('g', 2)
 
 /* resets endpoint halt+toggle; used to implement set_interface.
  * some hardware (like pxa2xx) can't support this.
  */
-#define	GADGETFS_CLEAR_HALT	_IO('g',3)
+#define	GADGETFS_CLEAR_HALT	_IO('g', 3)
 
 #endif /* __LINUX_USB_GADGETFS_H */

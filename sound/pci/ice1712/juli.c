@@ -21,7 +21,6 @@
  *
  */      
 
-#include <sound/driver.h>
 #include <asm/io.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -32,6 +31,11 @@
 #include "ice1712.h"
 #include "envy24ht.h"
 #include "juli.h"
+
+struct juli_spec {
+	struct ak4114 *ak4114;
+	unsigned int analog: 1;
+};
 
 /*
  * chip addresses on I2C bus
@@ -138,12 +142,13 @@ static struct snd_akm4xxx akm_juli_dac __devinitdata = {
 
 static int __devinit juli_add_controls(struct snd_ice1712 *ice)
 {
+	struct juli_spec *spec = ice->spec;
 	int err;
 	err = snd_ice1712_akm4xxx_build_controls(ice);
 	if (err < 0)
 		return err;
 	/* only capture SPDIF over AK4114 */
-	err = snd_ak4114_build(ice->spec.juli.ak4114, NULL,
+	err = snd_ak4114_build(spec->ak4114, NULL,
 			       ice->pcm_pro->streams[SNDRV_PCM_STREAM_CAPTURE].substream);
 	if (err < 0)
 		return err;
@@ -167,13 +172,19 @@ static int __devinit juli_init(struct snd_ice1712 *ice)
 		0x41, 0x02, 0x2c, 0x00, 0x00
 	};
 	int err;
+	struct juli_spec *spec;
 	struct snd_akm4xxx *ak;
+
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	if (!spec)
+		return -ENOMEM;
+	ice->spec = spec;
 
 	err = snd_ak4114_create(ice->card,
 				juli_ak4114_read,
 				juli_ak4114_write,
 				ak4114_init_vals, ak4114_init_txcsb,
-				ice, &ice->spec.juli.ak4114);
+				ice, &spec->ak4114);
 	if (err < 0)
 		return err;
 
@@ -181,12 +192,12 @@ static int __devinit juli_init(struct snd_ice1712 *ice)
         /* it seems that the analog doughter board detection does not work
            reliably, so force the analog flag; it should be very rare
            to use Juli@ without the analog doughter board */
-	ice->spec.juli.analog = (ice->gpio.get_data(ice) & GPIO_ANALOG_PRESENT) ? 0 : 1;
+	spec->analog = (ice->gpio.get_data(ice) & GPIO_ANALOG_PRESENT) ? 0 : 1;
 #else
-        ice->spec.juli.analog = 1;
+        spec->analog = 1;
 #endif
 
-	if (ice->spec.juli.analog) {
+	if (spec->analog) {
 		printk(KERN_INFO "juli@: analog I/O detected\n");
 		ice->num_total_dacs = 2;
 		ice->num_total_adcs = 2;

@@ -28,7 +28,7 @@ extern struct marker __start___markers[];
 extern struct marker __stop___markers[];
 
 /*
- * module_mutex nests inside markers_mutex. Markers mutex protects the builtin
+ * markers_mutex nests inside module_mutex. Markers mutex protects the builtin
  * and module markers, the hash table and deferred_sync.
  */
 static DEFINE_MUTEX(markers_mutex);
@@ -257,7 +257,6 @@ static void disable_marker(struct marker *elem)
  * @refcount: number of references left to the given probe_module (out)
  *
  * Updates the probe callback corresponding to a range of markers.
- * Must be called with markers_mutex held.
  */
 void marker_update_probe_range(struct marker *begin,
 	struct marker *end, struct module *probe_module,
@@ -266,6 +265,7 @@ void marker_update_probe_range(struct marker *begin,
 	struct marker *iter;
 	struct marker_entry *mark_entry;
 
+	mutex_lock(&markers_mutex);
 	for (iter = begin; iter < end; iter++) {
 		mark_entry = get_marker(iter->name);
 		if (mark_entry && mark_entry->refcount) {
@@ -281,6 +281,7 @@ void marker_update_probe_range(struct marker *begin,
 			disable_marker(iter);
 		}
 	}
+	mutex_unlock(&markers_mutex);
 }
 
 /*
@@ -293,7 +294,6 @@ static void marker_update_probes(struct module *probe_module)
 {
 	int refcount = 0;
 
-	mutex_lock(&markers_mutex);
 	/* Core kernel markers */
 	marker_update_probe_range(__start___markers,
 			__stop___markers, probe_module, &refcount);
@@ -303,7 +303,6 @@ static void marker_update_probes(struct module *probe_module)
 		synchronize_sched();
 		deferred_sync = 0;
 	}
-	mutex_unlock(&markers_mutex);
 }
 
 /**
@@ -320,7 +319,7 @@ int marker_probe_register(const char *name, const char *format,
 			marker_probe_func *probe, void *private)
 {
 	struct marker_entry *entry;
-	int ret = 0, need_update = 0;
+	int ret = 0;
 
 	mutex_lock(&markers_mutex);
 	entry = get_marker(name);
@@ -335,11 +334,11 @@ int marker_probe_register(const char *name, const char *format,
 	ret = add_marker(name, format, probe, private);
 	if (ret)
 		goto end;
-	need_update = 1;
+	mutex_unlock(&markers_mutex);
+	marker_update_probes(NULL);
+	return ret;
 end:
 	mutex_unlock(&markers_mutex);
-	if (need_update)
-		marker_update_probes(NULL);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(marker_probe_register);
@@ -355,7 +354,6 @@ void *marker_probe_unregister(const char *name)
 	struct module *probe_module;
 	struct marker_entry *entry;
 	void *private;
-	int need_update = 0;
 
 	mutex_lock(&markers_mutex);
 	entry = get_marker(name);
@@ -368,11 +366,11 @@ void *marker_probe_unregister(const char *name)
 	probe_module = __module_text_address((unsigned long)entry->probe);
 	private = remove_marker(name);
 	deferred_sync = 1;
-	need_update = 1;
+	mutex_unlock(&markers_mutex);
+	marker_update_probes(probe_module);
+	return private;
 end:
 	mutex_unlock(&markers_mutex);
-	if (need_update)
-		marker_update_probes(probe_module);
 	return private;
 }
 EXPORT_SYMBOL_GPL(marker_probe_unregister);
@@ -392,7 +390,6 @@ void *marker_probe_unregister_private_data(void *private)
 	struct marker_entry *entry;
 	int found = 0;
 	unsigned int i;
-	int need_update = 0;
 
 	mutex_lock(&markers_mutex);
 	for (i = 0; i < MARKER_TABLE_SIZE; i++) {
@@ -414,11 +411,11 @@ iter_end:
 	probe_module = __module_text_address((unsigned long)entry->probe);
 	private = remove_marker(entry->name);
 	deferred_sync = 1;
-	need_update = 1;
+	mutex_unlock(&markers_mutex);
+	marker_update_probes(probe_module);
+	return private;
 end:
 	mutex_unlock(&markers_mutex);
-	if (need_update)
-		marker_update_probes(probe_module);
 	return private;
 }
 EXPORT_SYMBOL_GPL(marker_probe_unregister_private_data);
@@ -434,7 +431,7 @@ EXPORT_SYMBOL_GPL(marker_probe_unregister_private_data);
 int marker_arm(const char *name)
 {
 	struct marker_entry *entry;
-	int ret = 0, need_update = 0;
+	int ret = 0;
 
 	mutex_lock(&markers_mutex);
 	entry = get_marker(name);
@@ -447,11 +444,9 @@ int marker_arm(const char *name)
 	 */
 	if (entry->refcount++)
 		goto end;
-	need_update = 1;
 end:
 	mutex_unlock(&markers_mutex);
-	if (need_update)
-		marker_update_probes(NULL);
+	marker_update_probes(NULL);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(marker_arm);
@@ -467,7 +462,7 @@ EXPORT_SYMBOL_GPL(marker_arm);
 int marker_disarm(const char *name)
 {
 	struct marker_entry *entry;
-	int ret = 0, need_update = 0;
+	int ret = 0;
 
 	mutex_lock(&markers_mutex);
 	entry = get_marker(name);
@@ -486,11 +481,9 @@ int marker_disarm(const char *name)
 		ret = -EPERM;
 		goto end;
 	}
-	need_update = 1;
 end:
 	mutex_unlock(&markers_mutex);
-	if (need_update)
-		marker_update_probes(NULL);
+	marker_update_probes(NULL);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(marker_disarm);

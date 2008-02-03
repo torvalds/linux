@@ -156,13 +156,13 @@ run_osc_out:
 }
 
 /**
- * pci_osc_support_set - register OS support to Firmware
+ * __pci_osc_support_set - register OS support to Firmware
  * @flags: OS support bits
  *
  * Update OS support fields and doing a _OSC Query to obtain an update
  * from Firmware on supported control bits.
  **/
-acpi_status pci_osc_support_set(u32 flags)
+acpi_status __pci_osc_support_set(u32 flags, const char *hid)
 {
 	u32 temp;
 	acpi_status retval;
@@ -176,7 +176,7 @@ acpi_status pci_osc_support_set(u32 flags)
 	temp = ctrlset_buf[OSC_CONTROL_TYPE];
 	ctrlset_buf[OSC_QUERY_TYPE] = OSC_QUERY_ENABLE;
 	ctrlset_buf[OSC_CONTROL_TYPE] = OSC_CONTROL_MASKS;
-	acpi_get_devices ( PCI_ROOT_HID_STRING,
+	acpi_get_devices(hid,
 			acpi_query_osc,
 			ctrlset_buf,
 			(void **) &retval );
@@ -188,7 +188,6 @@ acpi_status pci_osc_support_set(u32 flags)
 	}
 	return AE_OK;
 }
-EXPORT_SYMBOL(pci_osc_support_set);
 
 /**
  * pci_osc_control_set - commit requested control to Firmware

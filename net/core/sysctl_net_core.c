@@ -10,12 +10,11 @@
 #include <linux/module.h>
 #include <linux/socket.h>
 #include <linux/netdevice.h>
+#include <linux/init.h>
 #include <net/sock.h>
 #include <net/xfrm.h>
 
-#ifdef CONFIG_SYSCTL
-
-ctl_table core_table[] = {
+static struct ctl_table net_core_table[] = {
 #ifdef CONFIG_NET
 	{
 		.ctl_name	= NET_CORE_WMEM_MAX,
@@ -128,7 +127,7 @@ ctl_table core_table[] = {
 	{
 		.ctl_name	= NET_CORE_SOMAXCONN,
 		.procname	= "somaxconn",
-		.data		= &sysctl_somaxconn,
+		.data		= &init_net.sysctl_somaxconn,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
@@ -152,4 +151,65 @@ ctl_table core_table[] = {
 	{ .ctl_name = 0 }
 };
 
-#endif
+static __net_initdata struct ctl_path net_core_path[] = {
+	{ .procname = "net", .ctl_name = CTL_NET, },
+	{ .procname = "core", .ctl_name = NET_CORE, },
+	{ },
+};
+
+static __net_init int sysctl_core_net_init(struct net *net)
+{
+	struct ctl_table *tbl, *tmp;
+
+	net->sysctl_somaxconn = SOMAXCONN;
+
+	tbl = net_core_table;
+	if (net != &init_net) {
+		tbl = kmemdup(tbl, sizeof(net_core_table), GFP_KERNEL);
+		if (tbl == NULL)
+			goto err_dup;
+
+		for (tmp = tbl; tmp->procname; tmp++) {
+			if (tmp->data >= (void *)&init_net &&
+					tmp->data < (void *)(&init_net + 1))
+				tmp->data += (char *)net - (char *)&init_net;
+			else
+				tmp->mode &= ~0222;
+		}
+	}
+
+	net->sysctl_core_hdr = register_net_sysctl_table(net,
+			net_core_path, tbl);
+	if (net->sysctl_core_hdr == NULL)
+		goto err_reg;
+
+	return 0;
+
+err_reg:
+	if (tbl != net_core_table)
+		kfree(tbl);
+err_dup:
+	return -ENOMEM;
+}
+
+static __net_exit void sysctl_core_net_exit(struct net *net)
+{
+	struct ctl_table *tbl;
+
+	tbl = net->sysctl_core_hdr->ctl_table_arg;
+	unregister_net_sysctl_table(net->sysctl_core_hdr);
+	BUG_ON(tbl == net_core_table);
+	kfree(tbl);
+}
+
+static __net_initdata struct pernet_operations sysctl_core_ops = {
+	.init = sysctl_core_net_init,
+	.exit = sysctl_core_net_exit,
+};
+
+static __init int sysctl_core_init(void)
+{
+	return register_pernet_subsys(&sysctl_core_ops);
+}
+
+__initcall(sysctl_core_init);

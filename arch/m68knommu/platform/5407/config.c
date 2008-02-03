@@ -13,11 +13,11 @@
 #include <linux/param.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <asm/dma.h>
+#include <linux/io.h>
 #include <asm/machdep.h>
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
-#include <asm/mcfdma.h>
+#include <asm/mcfuart.h>
 
 /***************************************************************************/
 
@@ -29,17 +29,51 @@ extern unsigned int mcf_timerlevel;
 
 /***************************************************************************/
 
-/*
- *	DMA channel base address table.
- */
-unsigned int   dma_base_addr[MAX_M68K_DMA_CHANNELS] = {
-        MCF_MBAR + MCFDMA_BASE0,
-        MCF_MBAR + MCFDMA_BASE1,
-        MCF_MBAR + MCFDMA_BASE2,
-        MCF_MBAR + MCFDMA_BASE3,
+static struct mcf_platform_uart m5407_uart_platform[] = {
+	{
+		.mapbase	= MCF_MBAR + MCFUART_BASE1,
+		.irq		= 73,
+	},
+	{
+		.mapbase 	= MCF_MBAR + MCFUART_BASE2,
+		.irq		= 74,
+	},
+	{ },
 };
 
-unsigned int dma_device_address[MAX_M68K_DMA_CHANNELS];
+static struct platform_device m5407_uart = {
+	.name			= "mcfuart",
+	.id			= 0,
+	.dev.platform_data	= m5407_uart_platform,
+};
+
+static struct platform_device *m5407_devices[] __initdata = {
+	&m5407_uart,
+};
+
+/***************************************************************************/
+
+static void __init m5407_uart_init_line(int line, int irq)
+{
+	if (line == 0) {
+		writel(MCFSIM_ICR_LEVEL6 | MCFSIM_ICR_PRI1, MCF_MBAR + MCFSIM_UART1ICR);
+		writeb(irq, MCFUART_BASE1 + MCFUART_UIVR);
+		mcf_setimr(mcf_getimr() & ~MCFSIM_IMR_UART1);
+	} else if (line == 1) {
+		writel(MCFSIM_ICR_LEVEL6 | MCFSIM_ICR_PRI2, MCF_MBAR + MCFSIM_UART2ICR);
+		writeb(irq, MCFUART_BASE2 + MCFUART_UIVR);
+		mcf_setimr(mcf_getimr() & ~MCFSIM_IMR_UART2);
+	}
+}
+
+static void __init m5407_uarts_init(void)
+{
+	const int nrlines = ARRAY_SIZE(m5407_uart_platform);
+	int line;
+
+	for (line = 0; (line < nrlines); line++)
+		m5407_uart_init_line(line, m5407_uart_platform[line].irq);
+}
 
 /***************************************************************************/
 
@@ -76,21 +110,7 @@ void mcf_settimericr(unsigned int timer, unsigned int level)
 
 /***************************************************************************/
 
-int mcf_timerirqpending(int timer)
-{
-	unsigned int imr = 0;
-
-	switch (timer) {
-	case 1:  imr = MCFSIM_IMR_TIMER1; break;
-	case 2:  imr = MCFSIM_IMR_TIMER2; break;
-	default: break;
-	}
-	return (mcf_getipr() & imr);
-}
-
-/***************************************************************************/
-
-void config_BSP(char *commandp, int size)
+void __init config_BSP(char *commandp, int size)
 {
 	mcf_setimr(MCFSIM_IMR_MASKALL);
 
@@ -103,5 +123,16 @@ void config_BSP(char *commandp, int size)
 
 	mach_reset = coldfire_reset;
 }
+
+/***************************************************************************/
+
+static int __init init_BSP(void)
+{
+	m5407_uarts_init();
+	platform_add_devices(m5407_devices, ARRAY_SIZE(m5407_devices));
+	return 0;
+}
+
+arch_initcall(init_BSP);
 
 /***************************************************************************/

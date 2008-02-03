@@ -19,7 +19,6 @@
  *
  */      
 
-#include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/tlv.h>
@@ -113,6 +112,8 @@ static int pt2258_stereo_volume_put(struct snd_kcontrol *kcontrol,
 
 	val0 = 79 - ucontrol->value.integer.value[0];
 	val1 = 79 - ucontrol->value.integer.value[1];
+	if (val0 < 0 || val0 > 79 || val1 < 0 || val1 > 79)
+		return -EINVAL;
 	if (val0 == pt->volume[base] && val1 == pt->volume[base + 1])
 		return 0;
 

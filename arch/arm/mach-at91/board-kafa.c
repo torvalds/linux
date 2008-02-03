@@ -92,7 +92,7 @@ static void __init kafa_board_init(void)
 	/* USB Device */
 	at91_add_device_udc(&kafa_udc_data);
 	/* I2C */
-	at91_add_device_i2c();
+	at91_add_device_i2c(NULL, 0);
 	/* SPI */
 	at91_add_device_spi(NULL, 0);
 }

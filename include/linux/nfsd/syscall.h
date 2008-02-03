@@ -18,7 +18,6 @@
 #include <linux/nfsd/const.h>
 #include <linux/nfsd/export.h>
 #include <linux/nfsd/nfsfh.h>
-#include <linux/nfsd/auth.h>
 
 /*
  * Version of the syscall interface

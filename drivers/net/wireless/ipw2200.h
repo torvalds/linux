@@ -267,25 +267,25 @@ enum connection_manager_assoc_states {
 #define CW_MIN_CCK           31
 #define CW_MAX_CCK           1023
 
-#define QOS_TX0_CW_MIN_OFDM      CW_MIN_OFDM
-#define QOS_TX1_CW_MIN_OFDM      CW_MIN_OFDM
-#define QOS_TX2_CW_MIN_OFDM      ( (CW_MIN_OFDM + 1) / 2 - 1 )
-#define QOS_TX3_CW_MIN_OFDM      ( (CW_MIN_OFDM + 1) / 4 - 1 )
+#define QOS_TX0_CW_MIN_OFDM      cpu_to_le16(CW_MIN_OFDM)
+#define QOS_TX1_CW_MIN_OFDM      cpu_to_le16(CW_MIN_OFDM)
+#define QOS_TX2_CW_MIN_OFDM      cpu_to_le16((CW_MIN_OFDM + 1)/2 - 1)
+#define QOS_TX3_CW_MIN_OFDM      cpu_to_le16((CW_MIN_OFDM + 1)/4 - 1)
 
-#define QOS_TX0_CW_MIN_CCK       CW_MIN_CCK
-#define QOS_TX1_CW_MIN_CCK       CW_MIN_CCK
-#define QOS_TX2_CW_MIN_CCK       ( (CW_MIN_CCK + 1) / 2 - 1 )
-#define QOS_TX3_CW_MIN_CCK       ( (CW_MIN_CCK + 1) / 4 - 1 )
+#define QOS_TX0_CW_MIN_CCK       cpu_to_le16(CW_MIN_CCK)
+#define QOS_TX1_CW_MIN_CCK       cpu_to_le16(CW_MIN_CCK)
+#define QOS_TX2_CW_MIN_CCK       cpu_to_le16((CW_MIN_CCK + 1)/2 - 1)
+#define QOS_TX3_CW_MIN_CCK       cpu_to_le16((CW_MIN_CCK + 1)/4 - 1)
 
-#define QOS_TX0_CW_MAX_OFDM      CW_MAX_OFDM
-#define QOS_TX1_CW_MAX_OFDM      CW_MAX_OFDM
-#define QOS_TX2_CW_MAX_OFDM      CW_MIN_OFDM
-#define QOS_TX3_CW_MAX_OFDM      ( (CW_MIN_OFDM + 1) / 2 - 1 )
+#define QOS_TX0_CW_MAX_OFDM      cpu_to_le16(CW_MAX_OFDM)
+#define QOS_TX1_CW_MAX_OFDM      cpu_to_le16(CW_MAX_OFDM)
+#define QOS_TX2_CW_MAX_OFDM      cpu_to_le16(CW_MIN_OFDM)
+#define QOS_TX3_CW_MAX_OFDM      cpu_to_le16((CW_MIN_OFDM + 1)/2 - 1)
 
-#define QOS_TX0_CW_MAX_CCK       CW_MAX_CCK
-#define QOS_TX1_CW_MAX_CCK       CW_MAX_CCK
-#define QOS_TX2_CW_MAX_CCK       CW_MIN_CCK
-#define QOS_TX3_CW_MAX_CCK       ( (CW_MIN_CCK + 1) / 2 - 1 )
+#define QOS_TX0_CW_MAX_CCK       cpu_to_le16(CW_MAX_CCK)
+#define QOS_TX1_CW_MAX_CCK       cpu_to_le16(CW_MAX_CCK)
+#define QOS_TX2_CW_MAX_CCK       cpu_to_le16(CW_MIN_CCK)
+#define QOS_TX3_CW_MAX_CCK       cpu_to_le16((CW_MIN_CCK + 1)/2 - 1)
 
 #define QOS_TX0_AIFS            (3 - QOS_AIFSN_MIN_VALUE)
 #define QOS_TX1_AIFS            (7 - QOS_AIFSN_MIN_VALUE)
@@ -299,33 +299,33 @@ enum connection_manager_assoc_states {
 
 #define QOS_TX0_TXOP_LIMIT_CCK          0
 #define QOS_TX1_TXOP_LIMIT_CCK          0
-#define QOS_TX2_TXOP_LIMIT_CCK          6016
-#define QOS_TX3_TXOP_LIMIT_CCK          3264
+#define QOS_TX2_TXOP_LIMIT_CCK          cpu_to_le16(6016)
+#define QOS_TX3_TXOP_LIMIT_CCK          cpu_to_le16(3264)
 
 #define QOS_TX0_TXOP_LIMIT_OFDM      0
 #define QOS_TX1_TXOP_LIMIT_OFDM      0
-#define QOS_TX2_TXOP_LIMIT_OFDM      3008
-#define QOS_TX3_TXOP_LIMIT_OFDM      1504
+#define QOS_TX2_TXOP_LIMIT_OFDM      cpu_to_le16(3008)
+#define QOS_TX3_TXOP_LIMIT_OFDM      cpu_to_le16(1504)
 
-#define DEF_TX0_CW_MIN_OFDM      CW_MIN_OFDM
-#define DEF_TX1_CW_MIN_OFDM      CW_MIN_OFDM
-#define DEF_TX2_CW_MIN_OFDM      CW_MIN_OFDM
-#define DEF_TX3_CW_MIN_OFDM      CW_MIN_OFDM
+#define DEF_TX0_CW_MIN_OFDM      cpu_to_le16(CW_MIN_OFDM)
+#define DEF_TX1_CW_MIN_OFDM      cpu_to_le16(CW_MIN_OFDM)
+#define DEF_TX2_CW_MIN_OFDM      cpu_to_le16(CW_MIN_OFDM)
+#define DEF_TX3_CW_MIN_OFDM      cpu_to_le16(CW_MIN_OFDM)
 
-#define DEF_TX0_CW_MIN_CCK       CW_MIN_CCK
-#define DEF_TX1_CW_MIN_CCK       CW_MIN_CCK
-#define DEF_TX2_CW_MIN_CCK       CW_MIN_CCK
-#define DEF_TX3_CW_MIN_CCK       CW_MIN_CCK
+#define DEF_TX0_CW_MIN_CCK       cpu_to_le16(CW_MIN_CCK)
+#define DEF_TX1_CW_MIN_CCK       cpu_to_le16(CW_MIN_CCK)
+#define DEF_TX2_CW_MIN_CCK       cpu_to_le16(CW_MIN_CCK)
+#define DEF_TX3_CW_MIN_CCK       cpu_to_le16(CW_MIN_CCK)
 
-#define DEF_TX0_CW_MAX_OFDM      CW_MAX_OFDM
-#define DEF_TX1_CW_MAX_OFDM      CW_MAX_OFDM
-#define DEF_TX2_CW_MAX_OFDM      CW_MAX_OFDM
-#define DEF_TX3_CW_MAX_OFDM      CW_MAX_OFDM
+#define DEF_TX0_CW_MAX_OFDM      cpu_to_le16(CW_MAX_OFDM)
+#define DEF_TX1_CW_MAX_OFDM      cpu_to_le16(CW_MAX_OFDM)
+#define DEF_TX2_CW_MAX_OFDM      cpu_to_le16(CW_MAX_OFDM)
+#define DEF_TX3_CW_MAX_OFDM      cpu_to_le16(CW_MAX_OFDM)
 
-#define DEF_TX0_CW_MAX_CCK       CW_MAX_CCK
-#define DEF_TX1_CW_MAX_CCK       CW_MAX_CCK
-#define DEF_TX2_CW_MAX_CCK       CW_MAX_CCK
-#define DEF_TX3_CW_MAX_CCK       CW_MAX_CCK
+#define DEF_TX0_CW_MAX_CCK       cpu_to_le16(CW_MAX_CCK)
+#define DEF_TX1_CW_MAX_CCK       cpu_to_le16(CW_MAX_CCK)
+#define DEF_TX2_CW_MAX_CCK       cpu_to_le16(CW_MAX_CCK)
+#define DEF_TX3_CW_MAX_CCK       cpu_to_le16(CW_MAX_CCK)
 
 #define DEF_TX0_AIFS            0
 #define DEF_TX1_AIFS            0
@@ -388,18 +388,18 @@ struct clx2_queue {
 } __attribute__ ((packed));
 
 struct machdr32 {
-	u16 frame_ctl;
+	__le16 frame_ctl;
 	u16 duration;		// watch out for endians!
 	u8 addr1[MACADRR_BYTE_LEN];
 	u8 addr2[MACADRR_BYTE_LEN];
 	u8 addr3[MACADRR_BYTE_LEN];
 	u16 seq_ctrl;		// more endians!
 	u8 addr4[MACADRR_BYTE_LEN];
-	u16 qos_ctrl;
+	__le16 qos_ctrl;
 } __attribute__ ((packed));
 
 struct machdr30 {
-	u16 frame_ctl;
+	__le16 frame_ctl;
 	u16 duration;		// watch out for endians!
 	u8 addr1[MACADRR_BYTE_LEN];
 	u8 addr2[MACADRR_BYTE_LEN];
@@ -409,17 +409,17 @@ struct machdr30 {
 } __attribute__ ((packed));
 
 struct machdr26 {
-	u16 frame_ctl;
+	__le16 frame_ctl;
 	u16 duration;		// watch out for endians!
 	u8 addr1[MACADRR_BYTE_LEN];
 	u8 addr2[MACADRR_BYTE_LEN];
 	u8 addr3[MACADRR_BYTE_LEN];
 	u16 seq_ctrl;		// more endians!
-	u16 qos_ctrl;
+	__le16 qos_ctrl;
 } __attribute__ ((packed));
 
 struct machdr24 {
-	u16 frame_ctl;
+	__le16 frame_ctl;
 	u16 duration;		// watch out for endians!
 	u8 addr1[MACADRR_BYTE_LEN];
 	u8 addr2[MACADRR_BYTE_LEN];
@@ -466,15 +466,15 @@ struct tfd_command {
 
 struct tfd_data {
 	/* Header */
-	u32 work_area_ptr;
+	__le32 work_area_ptr;
 	u8 station_number;	/* 0 for BSS */
 	u8 reserved1;
-	u16 reserved2;
+	__le16 reserved2;
 
 	/* Tx Parameters */
 	u8 cmd_id;
 	u8 seq_num;
-	u16 len;
+	__le16 len;
 	u8 priority;
 	u8 tx_flags;
 	u8 tx_flags_ext;
@@ -482,11 +482,11 @@ struct tfd_data {
 	u8 wepkey[DCT_WEP_KEY_FIELD_LENGTH];
 	u8 rate;
 	u8 antenna;
-	u16 next_packet_duration;
-	u16 next_frag_len;
-	u16 back_off_counter;	//////txop;
+	__le16 next_packet_duration;
+	__le16 next_frag_len;
+	__le16 back_off_counter;	//////txop;
 	u8 retrylimit;
-	u16 cwcurrent;
+	__le16 cwcurrent;
 	u8 reserved3;
 
 	/* 802.11 MAC Header */
@@ -498,9 +498,9 @@ struct tfd_data {
 	} tfd;
 
 	/* Payload DMA info */
-	u32 num_chunks;
-	u32 chunk_ptr[NUM_TFD_CHUNKS];
-	u16 chunk_len[NUM_TFD_CHUNKS];
+	__le32 num_chunks;
+	__le32 chunk_ptr[NUM_TFD_CHUNKS];
+	__le16 chunk_len[NUM_TFD_CHUNKS];
 } __attribute__ ((packed));
 
 struct txrx_control_flags {
@@ -547,14 +547,14 @@ struct clx2_tx_queue {
 // Used for passing to driver number of successes and failures per rate
 struct rate_histogram {
 	union {
-		u32 a[SUP_RATE_11A_MAX_NUM_CHANNELS];
-		u32 b[SUP_RATE_11B_MAX_NUM_CHANNELS];
-		u32 g[SUP_RATE_11G_MAX_NUM_CHANNELS];
+		__le32 a[SUP_RATE_11A_MAX_NUM_CHANNELS];
+		__le32 b[SUP_RATE_11B_MAX_NUM_CHANNELS];
+		__le32 g[SUP_RATE_11G_MAX_NUM_CHANNELS];
 	} success;
 	union {
-		u32 a[SUP_RATE_11A_MAX_NUM_CHANNELS];
-		u32 b[SUP_RATE_11B_MAX_NUM_CHANNELS];
-		u32 g[SUP_RATE_11G_MAX_NUM_CHANNELS];
+		__le32 a[SUP_RATE_11A_MAX_NUM_CHANNELS];
+		__le32 b[SUP_RATE_11B_MAX_NUM_CHANNELS];
+		__le32 g[SUP_RATE_11G_MAX_NUM_CHANNELS];
 	} failed;
 } __attribute__ ((packed));
 
@@ -602,13 +602,13 @@ struct notif_scan_complete {
 } __attribute__ ((packed));
 
 struct notif_frag_length {
-	u16 frag_length;
-	u16 reserved;
+	__le16 frag_length;
+	__le16 reserved;
 } __attribute__ ((packed));
 
 struct notif_beacon_state {
-	u32 state;
-	u32 number;
+	__le32 state;
+	__le32 number;
 } __attribute__ ((packed));
 
 struct notif_tgi_tx_key {
@@ -627,7 +627,7 @@ struct notif_link_deterioration {
 	u8 modulation;
 	struct rate_histogram histogram;
 	u8 silence_notification_type;	/* SILENCE_OVER/UNDER_THRESH */
-	u16 silence_count;
+	__le16 silence_count;
 } __attribute__ ((packed));
 
 struct notif_association {
@@ -645,14 +645,14 @@ struct notif_calibration {
 } __attribute__ ((packed));
 
 struct notif_noise {
-	u32 value;
+	__le32 value;
 } __attribute__ ((packed));
 
 struct ipw_rx_notification {
 	u8 reserved[8];
 	u8 subtype;
 	u8 flags;
-	u16 size;
+	__le16 size;
 	union {
 		struct notif_association assoc;
 		struct notif_authenticate auth;
@@ -669,7 +669,7 @@ struct ipw_rx_notification {
 } __attribute__ ((packed));
 
 struct ipw_rx_frame {
-	u32 reserved1;
+	__le32 reserved1;
 	u8 parent_tsf[4];	// fw_use[0] is boolean for OUR_TSF_IS_GREATER
 	u8 received_channel;	// The channel that this frame was received on.
 	// Note that for .11b this does not have to be
@@ -680,14 +680,14 @@ struct ipw_rx_frame {
 	u8 rssi;
 	u8 agc;
 	u8 rssi_dbm;
-	u16 signal;
-	u16 noise;
+	__le16 signal;
+	__le16 noise;
 	u8 antennaAndPhy;
 	u8 control;		// control bit should be on in bg
 	u8 rtscts_rate;		// rate of rts or cts (in rts cts sequence rate
 	// is identical)
 	u8 rtscts_seen;		// 0x1 RTS seen ; 0x2 CTS seen
-	u16 length;
+	__le16 length;
 	u8 data[0];
 } __attribute__ ((packed));
 
@@ -827,14 +827,14 @@ struct ipw_tgi_tx_key {
 	u8 station_index;
 	u8 flags;
 	u8 key[16];
-	u32 tx_counter[2];
+	__le32 tx_counter[2];
 } __attribute__ ((packed));
 
 #define IPW_SCAN_CHANNELS 54
 
 struct ipw_scan_request {
 	u8 scan_type;
-	u16 dwell_time;
+	__le16 dwell_time;
 	u8 channels_list[IPW_SCAN_CHANNELS];
 	u8 channels_reserved[3];
 } __attribute__ ((packed));
@@ -849,11 +849,11 @@ enum {
 };
 
 struct ipw_scan_request_ext {
-	u32 full_scan_index;
+	__le32 full_scan_index;
 	u8 channels_list[IPW_SCAN_CHANNELS];
 	u8 scan_type[IPW_SCAN_CHANNELS / 2];
 	u8 reserved;
-	u16 dwell_time[IPW_SCAN_TYPES];
+	__le16 dwell_time[IPW_SCAN_TYPES];
 } __attribute__ ((packed));
 
 static inline u8 ipw_get_scan_type(struct ipw_scan_request_ext *scan, u8 index)
@@ -881,20 +881,20 @@ struct ipw_associate {
 	u8 auth_type:4, auth_key:4;
 	u8 assoc_type;
 	u8 reserved;
-	u16 policy_support;
+	__le16 policy_support;
 	u8 preamble_length;
 	u8 ieee_mode;
 	u8 bssid[ETH_ALEN];
-	u32 assoc_tsf_msw;
-	u32 assoc_tsf_lsw;
-	u16 capability;
-	u16 listen_interval;
-	u16 beacon_interval;
+	__le32 assoc_tsf_msw;
+	__le32 assoc_tsf_lsw;
+	__le16 capability;
+	__le16 listen_interval;
+	__le16 beacon_interval;
 	u8 dest[ETH_ALEN];
-	u16 atim_window;
+	__le16 atim_window;
 	u8 smr;
 	u8 reserved1;
-	u16 reserved2;
+	__le16 reserved2;
 } __attribute__ ((packed));
 
 struct ipw_supported_rates {
@@ -906,13 +906,13 @@ struct ipw_supported_rates {
 } __attribute__ ((packed));
 
 struct ipw_rts_threshold {
-	u16 rts_threshold;
-	u16 reserved;
+	__le16 rts_threshold;
+	__le16 reserved;
 } __attribute__ ((packed));
 
 struct ipw_frag_threshold {
-	u16 frag_threshold;
-	u16 reserved;
+	__le16 frag_threshold;
+	__le16 reserved;
 } __attribute__ ((packed));
 
 struct ipw_retry_limit {
@@ -931,7 +931,7 @@ struct ipw_dino_config {
 struct ipw_aironet_info {
 	u8 id;
 	u8 length;
-	u16 reserved;
+	__le16 reserved;
 } __attribute__ ((packed));
 
 struct ipw_rx_key {
@@ -977,12 +977,12 @@ struct ipw_tx_power {
 struct ipw_rsn_capabilities {
 	u8 id;
 	u8 length;
-	u16 version;
+	__le16 version;
 } __attribute__ ((packed));
 
 struct ipw_sensitivity_calib {
-	u16 beacon_rssi_raw;
-	u16 reserved;
+	__le16 beacon_rssi_raw;
+	__le16 reserved;
 } __attribute__ ((packed));
 
 /**
@@ -1156,8 +1156,8 @@ struct ipw_rt_hdr {
 	u64 rt_tsf;      /* TSF */
 	u8 rt_flags;	/* radiotap packet flags */
 	u8 rt_rate;	/* rate in 500kb/s */
-	u16 rt_channel;	/* channel in mhz */
-	u16 rt_chbitmask;	/* channel bitfield */
+	__le16 rt_channel;	/* channel in mhz */
+	__le16 rt_chbitmask;	/* channel bitfield */
 	s8 rt_dbmsignal;	/* signal in dbM, kluged to signed */
 	s8 rt_dbmnoise;
 	u8 rt_antenna;	/* antenna number */
@@ -1759,7 +1759,7 @@ enum {
 #define HC_IBSS_RECONF    4
 #define HC_DISASSOC_QUIET 5
 
-#define HC_QOS_SUPPORT_ASSOC  0x01
+#define HC_QOS_SUPPORT_ASSOC  cpu_to_le16(0x01)
 
 #define IPW_RATE_CAPABILITIES 1
 #define IPW_RATE_CONNECT      0

@@ -76,8 +76,10 @@ static inline void WRITECFG32(u32 addr, u32 data)
 
 int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
-	This is b0rked.
-	return dev->irq;
+	if (pin == 0)
+		return -1;
+
+	return K_BCM1480_INT_PCI_INTA - 1 + pin;
 }
 
 /* Do platform specific device initialization at pci_enable_device() time */
@@ -176,8 +178,8 @@ struct pci_ops bcm1480_pci_ops = {
 
 static struct resource bcm1480_mem_resource = {
 	.name	= "BCM1480 PCI MEM",
-	.start	= 0x30000000UL,
-	.end	= 0x3fffffffUL,
+	.start	= A_BCM1480_PHYS_PCI_MEM_MATCH_BYTES,
+	.end	= A_BCM1480_PHYS_PCI_MEM_MATCH_BYTES + 0xfffffffUL,
 	.flags	= IORESOURCE_MEM,
 };
 

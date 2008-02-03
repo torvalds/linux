@@ -50,8 +50,8 @@ extern unsigned long get_sclk(void);
 extern unsigned long sclk_to_usecs(unsigned long sclk);
 extern unsigned long usecs_to_sclk(unsigned long usecs);
 
-extern void dump_thread(struct pt_regs *regs, struct user *dump);
-extern void dump_bfin_regs(struct pt_regs *fp, void *retaddr);
+extern void dump_bfin_process(struct pt_regs *regs);
+extern void dump_bfin_mem(struct pt_regs *regs);
 extern void dump_bfin_trace_buffer(void);
 
 extern int init_arch_irq(void);
@@ -63,6 +63,7 @@ extern void bfin_dcache_init(void);
 extern int read_iloc(void);
 extern int bfin_console_init(void);
 extern asmlinkage void lower_to_irq14(void);
+extern asmlinkage void bfin_return_from_exception(void);
 extern void init_exception_vectors(void);
 extern void init_dma(void);
 extern void program_IAR(void);
@@ -80,6 +81,7 @@ extern int atomic_sub32(void);
 extern int atomic_ior32(void);
 extern int atomic_and32(void);
 extern int atomic_xor32(void);
+extern void safe_user_instruction(void);
 extern void sigreturn_stub(void);
 
 extern void *l1_data_A_sram_alloc(size_t);

@@ -106,7 +106,7 @@ lpfc_sli_get_iocbq(struct lpfc_hba *phba)
 	return iocbq;
 }
 
-void
+static void
 __lpfc_sli_release_iocbq(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
 {
 	size_t start_clean = offsetof(struct lpfc_iocbq, iocb);
@@ -199,6 +199,7 @@ lpfc_sli_iocb_cmd_type(uint8_t iocb_cmnd)
 	case CMD_RCV_ELS_REQ_CX:
 	case CMD_RCV_SEQUENCE64_CX:
 	case CMD_RCV_ELS_REQ64_CX:
+	case CMD_ASYNC_STATUS:
 	case CMD_IOCB_RCV_SEQ64_CX:
 	case CMD_IOCB_RCV_ELS64_CX:
 	case CMD_IOCB_RCV_CONT64_CX:
@@ -473,8 +474,7 @@ lpfc_sli_resume_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 	if (pring->txq_cnt &&
 	    lpfc_is_link_up(phba) &&
 	    (pring->ringno != phba->sli.fcp_ring ||
-	     phba->sli.sli_flag & LPFC_PROCESS_LA) &&
-	    !(pring->flag & LPFC_STOP_IOCB_MBX)) {
+	     phba->sli.sli_flag & LPFC_PROCESS_LA)) {
 
 		while ((iocb = lpfc_sli_next_iocb_slot(phba, pring)) &&
 		       (nextiocb = lpfc_sli_ringtx_get(phba, pring)))
@@ -489,32 +489,7 @@ lpfc_sli_resume_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 	return;
 }
 
-/* lpfc_sli_turn_on_ring is only called by lpfc_sli_handle_mb_event below */
-static void
-lpfc_sli_turn_on_ring(struct lpfc_hba *phba, int ringno)
-{
-	struct lpfc_pgp *pgp = (phba->sli_rev == 3) ?
-		&phba->slim2p->mbx.us.s3_pgp.port[ringno] :
-		&phba->slim2p->mbx.us.s2.port[ringno];
-	unsigned long iflags;
-
-	/* If the ring is active, flag it */
-	spin_lock_irqsave(&phba->hbalock, iflags);
-	if (phba->sli.ring[ringno].cmdringaddr) {
-		if (phba->sli.ring[ringno].flag & LPFC_STOP_IOCB_MBX) {
-			phba->sli.ring[ringno].flag &= ~LPFC_STOP_IOCB_MBX;
-			/*
-			 * Force update of the local copy of cmdGetInx
-			 */
-			phba->sli.ring[ringno].local_getidx
-				= le32_to_cpu(pgp->cmdGetInx);
-			lpfc_sli_resume_iocb(phba, &phba->sli.ring[ringno]);
-		}
-	}
-	spin_unlock_irqrestore(&phba->hbalock, iflags);
-}
-
-struct lpfc_hbq_entry *
+static struct lpfc_hbq_entry *
 lpfc_sli_next_hbq_slot(struct lpfc_hba *phba, uint32_t hbqno)
 {
 	struct hbq_s *hbqp = &phba->hbqs[hbqno];
@@ -565,6 +540,7 @@ lpfc_sli_hbqbuf_free_all(struct lpfc_hba *phba)
 			list_del(&hbq_buf->dbuf.list);
 			(phba->hbqs[i].hbq_free_buffer)(phba, hbq_buf);
 		}
+		phba->hbqs[i].buffer_count = 0;
 	}
 }
 
@@ -633,8 +609,8 @@ lpfc_sli_hbqbuf_fill_hbqs(struct lpfc_hba *phba, uint32_t hbqno, uint32_t count)
 		return 0;
 	}
 
-	start = lpfc_hbq_defs[hbqno]->buffer_count;
-	end = count + lpfc_hbq_defs[hbqno]->buffer_count;
+	start = phba->hbqs[hbqno].buffer_count;
+	end = count + start;
 	if (end > lpfc_hbq_defs[hbqno]->entry_count) {
 		end = lpfc_hbq_defs[hbqno]->entry_count;
 	}
@@ -646,7 +622,7 @@ lpfc_sli_hbqbuf_fill_hbqs(struct lpfc_hba *phba, uint32_t hbqno, uint32_t count)
 			return 1;
 		hbq_buffer->tag = (i | (hbqno << 16));
 		if (lpfc_sli_hbq_to_firmware(phba, hbqno, hbq_buffer))
-			lpfc_hbq_defs[hbqno]->buffer_count++;
+			phba->hbqs[hbqno].buffer_count++;
 		else
 			(phba->hbqs[hbqno].hbq_free_buffer)(phba, hbq_buffer);
 	}
@@ -660,14 +636,14 @@ lpfc_sli_hbqbuf_add_hbqs(struct lpfc_hba *phba, uint32_t qno)
 					 lpfc_hbq_defs[qno]->add_count));
 }
 
-int
+static int
 lpfc_sli_hbqbuf_init_hbqs(struct lpfc_hba *phba, uint32_t qno)
 {
 	return(lpfc_sli_hbqbuf_fill_hbqs(phba, qno,
 					 lpfc_hbq_defs[qno]->init_count));
 }
 
-struct hbq_dmabuf *
+static struct hbq_dmabuf *
 lpfc_sli_hbqbuf_find(struct lpfc_hba *phba, uint32_t tag)
 {
 	struct lpfc_dmabuf *d_buf;
@@ -686,7 +662,7 @@ lpfc_sli_hbqbuf_find(struct lpfc_hba *phba, uint32_t tag)
 	}
 	lpfc_printf_log(phba, KERN_ERR, LOG_SLI | LOG_VPORT,
 			"1803 Bad hbq tag. Data: x%x x%x\n",
-			tag, lpfc_hbq_defs[tag >> 16]->buffer_count);
+			tag, phba->hbqs[tag >> 16].buffer_count);
 	return NULL;
 }
 
@@ -712,6 +688,7 @@ lpfc_sli_chk_mbx_command(uint8_t mbxCommand)
 	case MBX_LOAD_SM:
 	case MBX_READ_NV:
 	case MBX_WRITE_NV:
+	case MBX_WRITE_VPARMS:
 	case MBX_RUN_BIU_DIAG:
 	case MBX_INIT_LINK:
 	case MBX_DOWN_LINK:
@@ -739,7 +716,7 @@ lpfc_sli_chk_mbx_command(uint8_t mbxCommand)
 	case MBX_DEL_LD_ENTRY:
 	case MBX_RUN_PROGRAM:
 	case MBX_SET_MASK:
-	case MBX_SET_SLIM:
+	case MBX_SET_VARIABLE:
 	case MBX_UNREG_D_ID:
 	case MBX_KILL_BOARD:
 	case MBX_CONFIG_FARP:
@@ -751,9 +728,10 @@ lpfc_sli_chk_mbx_command(uint8_t mbxCommand)
 	case MBX_READ_RPI64:
 	case MBX_REG_LOGIN64:
 	case MBX_READ_LA64:
-	case MBX_FLASH_WR_ULA:
+	case MBX_WRITE_WWN:
 	case MBX_SET_DEBUG:
 	case MBX_LOAD_EXP_ROM:
+	case MBX_ASYNCEVT_ENABLE:
 	case MBX_REG_VPI:
 	case MBX_UNREG_VPI:
 	case MBX_HEARTBEAT:
@@ -953,6 +931,17 @@ lpfc_sli_replace_hbqbuff(struct lpfc_hba *phba, uint32_t tag)
 	return &new_hbq_entry->dbuf;
 }
 
+static struct lpfc_dmabuf *
+lpfc_sli_get_buff(struct lpfc_hba *phba,
+			struct lpfc_sli_ring *pring,
+			uint32_t tag)
+{
+	if (tag & QUE_BUFTAG_BIT)
+		return lpfc_sli_ring_taggedbuf_get(phba, pring, tag);
+	else
+		return lpfc_sli_replace_hbqbuff(phba, tag);
+}
+
 static int
 lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			    struct lpfc_iocbq *saveq)
@@ -961,19 +950,112 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	WORD5            * w5p;
 	uint32_t           Rctl, Type;
 	uint32_t           match, i;
+	struct lpfc_iocbq *iocbq;
 
 	match = 0;
 	irsp = &(saveq->iocb);
-	if ((irsp->ulpCommand == CMD_RCV_ELS_REQ64_CX)
-	    || (irsp->ulpCommand == CMD_RCV_ELS_REQ_CX)
-	    || (irsp->ulpCommand == CMD_IOCB_RCV_ELS64_CX)
-	    || (irsp->ulpCommand == CMD_IOCB_RCV_CONT64_CX)) {
+
+	if (irsp->ulpStatus == IOSTAT_NEED_BUFFER)
+		return 1;
+	if (irsp->ulpCommand == CMD_ASYNC_STATUS) {
+		if (pring->lpfc_sli_rcv_async_status)
+			pring->lpfc_sli_rcv_async_status(phba, pring, saveq);
+		else
+			lpfc_printf_log(phba,
+					KERN_WARNING,
+					LOG_SLI,
+					"0316 Ring %d handler: unexpected "
+					"ASYNC_STATUS iocb received evt_code "
+					"0x%x\n",
+					pring->ringno,
+					irsp->un.asyncstat.evt_code);
+		return 1;
+	}
+
+	if (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED) {
+		if (irsp->ulpBdeCount != 0) {
+			saveq->context2 = lpfc_sli_get_buff(phba, pring,
+						irsp->un.ulpWord[3]);
+			if (!saveq->context2)
+				lpfc_printf_log(phba,
+					KERN_ERR,
+					LOG_SLI,
+					"0341 Ring %d Cannot find buffer for "
+					"an unsolicited iocb. tag 0x%x\n",
+					pring->ringno,
+					irsp->un.ulpWord[3]);
+		}
+		if (irsp->ulpBdeCount == 2) {
+			saveq->context3 = lpfc_sli_get_buff(phba, pring,
+						irsp->unsli3.sli3Words[7]);
+			if (!saveq->context3)
+				lpfc_printf_log(phba,
+					KERN_ERR,
+					LOG_SLI,
+					"0342 Ring %d Cannot find buffer for an"
+					" unsolicited iocb. tag 0x%x\n",
+					pring->ringno,
+					irsp->unsli3.sli3Words[7]);
+		}
+		list_for_each_entry(iocbq, &saveq->list, list) {
+			irsp = &(iocbq->iocb);
+			if (irsp->ulpBdeCount != 0) {
+				iocbq->context2 = lpfc_sli_get_buff(phba, pring,
+							irsp->un.ulpWord[3]);
+				if (!iocbq->context2)
+					lpfc_printf_log(phba,
+						KERN_ERR,
+						LOG_SLI,
+						"0343 Ring %d Cannot find "
+						"buffer for an unsolicited iocb"
+						". tag 0x%x\n", pring->ringno,
+						irsp->un.ulpWord[3]);
+			}
+			if (irsp->ulpBdeCount == 2) {
+				iocbq->context3 = lpfc_sli_get_buff(phba, pring,
+						irsp->unsli3.sli3Words[7]);
+				if (!iocbq->context3)
+					lpfc_printf_log(phba,
+						KERN_ERR,
+						LOG_SLI,
+						"0344 Ring %d Cannot find "
+						"buffer for an unsolicited "
+						"iocb. tag 0x%x\n",
+						pring->ringno,
+						irsp->unsli3.sli3Words[7]);
+			}
+		}
+	}
+	if (irsp->ulpBdeCount != 0 &&
+	    (irsp->ulpCommand == CMD_IOCB_RCV_CONT64_CX ||
+	     irsp->ulpStatus == IOSTAT_INTERMED_RSP)) {
+		int found = 0;
+
+		/* search continue save q for same XRI */
+		list_for_each_entry(iocbq, &pring->iocb_continue_saveq, clist) {
+			if (iocbq->iocb.ulpContext == saveq->iocb.ulpContext) {
+				list_add_tail(&saveq->list, &iocbq->list);
+				found = 1;
+				break;
+			}
+		}
+		if (!found)
+			list_add_tail(&saveq->clist,
+				      &pring->iocb_continue_saveq);
+		if (saveq->iocb.ulpStatus != IOSTAT_INTERMED_RSP) {
+			list_del_init(&iocbq->clist);
+			saveq = iocbq;
+			irsp = &(saveq->iocb);
+		} else
+			return 0;
+	}
+	if ((irsp->ulpCommand == CMD_RCV_ELS_REQ64_CX) ||
+	    (irsp->ulpCommand == CMD_RCV_ELS_REQ_CX) ||
+	    (irsp->ulpCommand == CMD_IOCB_RCV_ELS64_CX)) {
 		Rctl = FC_ELS_REQ;
 		Type = FC_ELS_DATA;
 	} else {
-		w5p =
-		    (WORD5 *) & (saveq->iocb.un.
-				 ulpWord[5]);
+		w5p = (WORD5 *)&(saveq->iocb.un.ulpWord[5]);
 		Rctl = w5p->hcsw.Rctl;
 		Type = w5p->hcsw.Type;
 
@@ -988,15 +1070,6 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		}
 	}
 
-	if (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED) {
-		if (irsp->ulpBdeCount != 0)
-			saveq->context2 = lpfc_sli_replace_hbqbuff(phba,
-						irsp->un.ulpWord[3]);
-		if (irsp->ulpBdeCount == 2)
-			saveq->context3 = lpfc_sli_replace_hbqbuff(phba,
-						irsp->unsli3.sli3Words[7]);
-	}
-
 	/* unSolicited Responses */
 	if (pring->prt[0].profile) {
 		if (pring->prt[0].lpfc_sli_rcv_unsol_event)
@@ -1006,12 +1079,9 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	} else {
 		/* We must search, based on rctl / type
 		   for the right routine */
-		for (i = 0; i < pring->num_mask;
-		     i++) {
-			if ((pring->prt[i].rctl ==
-			     Rctl)
-			    && (pring->prt[i].
-				type == Type)) {
+		for (i = 0; i < pring->num_mask; i++) {
+			if ((pring->prt[i].rctl == Rctl)
+			    && (pring->prt[i].type == Type)) {
 				if (pring->prt[i].lpfc_sli_rcv_unsol_event)
 					(pring->prt[i].lpfc_sli_rcv_unsol_event)
 							(phba, pring, saveq);
@@ -1084,6 +1154,12 @@ lpfc_sli_process_sol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 						IOSTAT_LOCAL_REJECT;
 					saveq->iocb.un.ulpWord[4] =
 						IOERR_SLI_ABORTED;
+
+					/* Firmware could still be in progress
+					 * of DMAing payload, so don't free data
+					 * buffer till after a hbeat.
+					 */
+					saveq->iocb_flag |= LPFC_DELAY_MEM_FREE;
 				}
 			}
 			(cmdiocbp->iocb_cmpl) (phba, cmdiocbp, saveq);
@@ -1572,12 +1648,7 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba *phba,
 
 		writel(pring->rspidx, &phba->host_gp[pring->ringno].rspGetInx);
 
-		if (list_empty(&(pring->iocb_continueq))) {
-			list_add(&rspiocbp->list, &(pring->iocb_continueq));
-		} else {
-			list_add_tail(&rspiocbp->list,
-				      &(pring->iocb_continueq));
-		}
+		list_add_tail(&rspiocbp->list, &(pring->iocb_continueq));
 
 		pring->iocb_continueq_cnt++;
 		if (irsp->ulpLe) {
@@ -1642,17 +1713,17 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba *phba,
 			iocb_cmd_type = irsp->ulpCommand & CMD_IOCB_MASK;
 			type = lpfc_sli_iocb_cmd_type(iocb_cmd_type);
 			if (type == LPFC_SOL_IOCB) {
-				spin_unlock_irqrestore(&phba->hbalock,
-						       iflag);
+				spin_unlock_irqrestore(&phba->hbalock, iflag);
 				rc = lpfc_sli_process_sol_iocb(phba, pring,
 							       saveq);
 				spin_lock_irqsave(&phba->hbalock, iflag);
 			} else if (type == LPFC_UNSOL_IOCB) {
-				spin_unlock_irqrestore(&phba->hbalock,
-						       iflag);
+				spin_unlock_irqrestore(&phba->hbalock, iflag);
 				rc = lpfc_sli_process_unsol_iocb(phba, pring,
 								 saveq);
 				spin_lock_irqsave(&phba->hbalock, iflag);
+				if (!rc)
+					free_saveq = 0;
 			} else if (type == LPFC_ABORT_IOCB) {
 				if ((irsp->ulpCommand != CMD_XRI_ABORTED_CX) &&
 				    ((cmdiocbp =
@@ -1921,8 +1992,8 @@ lpfc_sli_brdkill(struct lpfc_hba *phba)
 			"0329 Kill HBA Data: x%x x%x\n",
 			phba->pport->port_state, psli->sli_flag);
 
-	if ((pmb = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool,
-						  GFP_KERNEL)) == 0)
+	pmb = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!pmb)
 		return 1;
 
 	/* Disable the error attention */
@@ -2113,7 +2184,10 @@ lpfc_sli_chipset_init(struct lpfc_hba *phba)
 			   <status> */
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"0436 Adapter failed to init, "
-					"timeout, status reg x%x\n", status);
+					"timeout, status reg x%x, "
+					"FW Data: A8 x%x AC x%x\n", status,
+					readl(phba->MBslimaddr + 0xa8),
+					readl(phba->MBslimaddr + 0xac));
 			phba->link_state = LPFC_HBA_ERROR;
 			return -ETIMEDOUT;
 		}
@@ -2125,7 +2199,10 @@ lpfc_sli_chipset_init(struct lpfc_hba *phba)
 			   <status> */
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"0437 Adapter failed to init, "
-					"chipset, status reg x%x\n", status);
+					"chipset, status reg x%x, "
+					"FW Data: A8 x%x AC x%x\n", status,
+					readl(phba->MBslimaddr + 0xa8),
+					readl(phba->MBslimaddr + 0xac));
 			phba->link_state = LPFC_HBA_ERROR;
 			return -EIO;
 		}
@@ -2153,7 +2230,10 @@ lpfc_sli_chipset_init(struct lpfc_hba *phba)
 		/* Adapter failed to init, chipset, status reg <status> */
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0438 Adapter failed to init, chipset, "
-				"status reg x%x\n", status);
+				"status reg x%x, "
+				"FW Data: A8 x%x AC x%x\n", status,
+				readl(phba->MBslimaddr + 0xa8),
+				readl(phba->MBslimaddr + 0xac));
 		phba->link_state = LPFC_HBA_ERROR;
 		return -EIO;
 	}
@@ -2485,11 +2565,16 @@ lpfc_mbox_timeout_handler(struct lpfc_hba *phba)
 	lpfc_sli_abort_iocb_ring(phba, pring);
 
 	lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
-			"0316 Resetting board due to mailbox timeout\n");
+			"0345 Resetting board due to mailbox timeout\n");
 	/*
 	 * lpfc_offline calls lpfc_sli_hba_down which will clean up
 	 * on oustanding mailbox commands.
 	 */
+	/* If resets are disabled then set error state and return. */
+	if (!phba->cfg_enable_hba_reset) {
+		phba->link_state = LPFC_HBA_ERROR;
+		return;
+	}
 	lpfc_offline_prep(phba);
 	lpfc_offline(phba);
 	lpfc_sli_brdrestart(phba);
@@ -2507,6 +2592,7 @@ lpfc_sli_issue_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox, uint32_t flag)
 	uint32_t status, evtctr;
 	uint32_t ha_copy;
 	int i;
+	unsigned long timeout;
 	unsigned long drvr_flag = 0;
 	volatile uint32_t word0, ldata;
 	void __iomem *to_slim;
@@ -2519,7 +2605,7 @@ lpfc_sli_issue_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox, uint32_t flag)
 					"1806 Mbox x%x failed. No vport\n",
 					pmbox->mb.mbxCommand);
 			dump_stack();
-			return MBXERR_ERROR;
+			return MBX_NOT_FINISHED;
 		}
 	}
 
@@ -2571,21 +2657,6 @@ lpfc_sli_issue_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox, uint32_t flag)
 			return MBX_NOT_FINISHED;
 		}
 
-		/* Handle STOP IOCB processing flag. This is only meaningful
-		 * if we are not polling for mbox completion.
-		 */
-		if (flag & MBX_STOP_IOCB) {
-			flag &= ~MBX_STOP_IOCB;
-			/* Now flag each ring */
-			for (i = 0; i < psli->num_rings; i++) {
-				/* If the ring is active, flag it */
-				if (psli->ring[i].cmdringaddr) {
-					psli->ring[i].flag |=
-					    LPFC_STOP_IOCB_MBX;
-				}
-			}
-		}
-
 		/* Another mailbox command is still being processed, queue this
 		 * command to be processed later.
 		 */
@@ -2618,23 +2689,6 @@ lpfc_sli_issue_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox, uint32_t flag)
 		}
 
 		return MBX_BUSY;
-	}
-
-	/* Handle STOP IOCB processing flag. This is only meaningful
-	 * if we are not polling for mbox completion.
-	 */
-	if (flag & MBX_STOP_IOCB) {
-		flag &= ~MBX_STOP_IOCB;
-		if (flag == MBX_NOWAIT) {
-			/* Now flag each ring */
-			for (i = 0; i < psli->num_rings; i++) {
-				/* If the ring is active, flag it */
-				if (psli->ring[i].cmdringaddr) {
-					psli->ring[i].flag |=
-					    LPFC_STOP_IOCB_MBX;
-				}
-			}
-		}
 	}
 
 	psli->sli_flag |= LPFC_SLI_MBOX_ACTIVE;
@@ -2714,18 +2768,24 @@ lpfc_sli_issue_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox, uint32_t flag)
 	}
 
 	wmb();
-	/* interrupt board to doit right away */
-	writel(CA_MBATT, phba->CAregaddr);
-	readl(phba->CAregaddr); /* flush */
 
 	switch (flag) {
 	case MBX_NOWAIT:
-		/* Don't wait for it to finish, just return */
+		/* Set up reference to mailbox command */
 		psli->mbox_active = pmbox;
+		/* Interrupt board to do it */
+		writel(CA_MBATT, phba->CAregaddr);
+		readl(phba->CAregaddr); /* flush */
+		/* Don't wait for it to finish, just return */
 		break;
 
 	case MBX_POLL:
+		/* Set up null reference to mailbox command */
 		psli->mbox_active = NULL;
+		/* Interrupt board to do it */
+		writel(CA_MBATT, phba->CAregaddr);
+		readl(phba->CAregaddr); /* flush */
+
 		if (psli->sli_flag & LPFC_SLI2_ACTIVE) {
 			/* First read mbox status word */
 			word0 = *((volatile uint32_t *)&phba->slim2p->mbx);
@@ -2737,15 +2797,15 @@ lpfc_sli_issue_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox, uint32_t flag)
 
 		/* Read the HBA Host Attention Register */
 		ha_copy = readl(phba->HAregaddr);
-
-		i = lpfc_mbox_tmo_val(phba, mb->mbxCommand);
-		i *= 1000; /* Convert to ms */
-
+		timeout = msecs_to_jiffies(lpfc_mbox_tmo_val(phba,
+							     mb->mbxCommand) *
+					   1000) + jiffies;
+		i = 0;
 		/* Wait for command to complete */
 		while (((word0 & OWN_CHIP) == OWN_CHIP) ||
 		       (!(ha_copy & HA_MBATT) &&
 			(phba->link_state > LPFC_WARM_START))) {
-			if (i-- <= 0) {
+			if (time_after(jiffies, timeout)) {
 				psli->sli_flag &= ~LPFC_SLI_MBOX_ACTIVE;
 				spin_unlock_irqrestore(&phba->hbalock,
 						       drvr_flag);
@@ -2758,12 +2818,12 @@ lpfc_sli_issue_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox, uint32_t flag)
 			    && (evtctr != psli->slistat.mbox_event))
 				break;
 
-			spin_unlock_irqrestore(&phba->hbalock,
-					       drvr_flag);
-
-			msleep(1);
-
-			spin_lock_irqsave(&phba->hbalock, drvr_flag);
+			if (i++ > 10) {
+				spin_unlock_irqrestore(&phba->hbalock,
+						       drvr_flag);
+				msleep(1);
+				spin_lock_irqsave(&phba->hbalock, drvr_flag);
+			}
 
 			if (psli->sli_flag & LPFC_SLI2_ACTIVE) {
 				/* First copy command data */
@@ -2848,7 +2908,7 @@ lpfc_sli_next_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 /*
  * Lockless version of lpfc_sli_issue_iocb.
  */
-int
+static int
 __lpfc_sli_issue_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		    struct lpfc_iocbq *piocb, uint32_t flag)
 {
@@ -2879,9 +2939,9 @@ __lpfc_sli_issue_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 	/*
 	 * Check to see if we are blocking IOCB processing because of a
-	 * outstanding mbox command.
+	 * outstanding event.
 	 */
-	if (unlikely(pring->flag & LPFC_STOP_IOCB_MBX))
+	if (unlikely(pring->flag & LPFC_STOP_IOCB_EVENT))
 		goto iocb_busy;
 
 	if (unlikely(phba->link_state == LPFC_LINK_DOWN)) {
@@ -2993,6 +3053,61 @@ lpfc_extra_ring_setup( struct lpfc_hba *phba)
 	return 0;
 }
 
+static void
+lpfc_sli_async_event_handler(struct lpfc_hba * phba,
+	struct lpfc_sli_ring * pring, struct lpfc_iocbq * iocbq)
+{
+	IOCB_t *icmd;
+	uint16_t evt_code;
+	uint16_t temp;
+	struct temp_event temp_event_data;
+	struct Scsi_Host *shost;
+
+	icmd = &iocbq->iocb;
+	evt_code = icmd->un.asyncstat.evt_code;
+	temp = icmd->ulpContext;
+
+	if ((evt_code != ASYNC_TEMP_WARN) &&
+		(evt_code != ASYNC_TEMP_SAFE)) {
+		lpfc_printf_log(phba,
+			KERN_ERR,
+			LOG_SLI,
+			"0346 Ring %d handler: unexpected ASYNC_STATUS"
+			" evt_code 0x%x\n",
+			pring->ringno,
+			icmd->un.asyncstat.evt_code);
+		return;
+	}
+	temp_event_data.data = (uint32_t)temp;
+	temp_event_data.event_type = FC_REG_TEMPERATURE_EVENT;
+	if (evt_code == ASYNC_TEMP_WARN) {
+		temp_event_data.event_code = LPFC_THRESHOLD_TEMP;
+		lpfc_printf_log(phba,
+				KERN_ERR,
+				LOG_TEMP,
+				"0347 Adapter is very hot, please take "
+				"corrective action. temperature : %d Celsius\n",
+				temp);
+	}
+	if (evt_code == ASYNC_TEMP_SAFE) {
+		temp_event_data.event_code = LPFC_NORMAL_TEMP;
+		lpfc_printf_log(phba,
+				KERN_ERR,
+				LOG_TEMP,
+				"0340 Adapter temperature is OK now. "
+				"temperature : %d Celsius\n",
+				temp);
+	}
+
+	/* Send temperature change event to applications */
+	shost = lpfc_shost_from_vport(phba->pport);
+	fc_host_post_vendor_event(shost, fc_get_event_number(),
+		sizeof(temp_event_data), (char *) &temp_event_data,
+		SCSI_NL_VID_TYPE_PCI | PCI_VENDOR_ID_EMULEX);
+
+}
+
+
 int
 lpfc_sli_setup(struct lpfc_hba *phba)
 {
@@ -3059,6 +3174,8 @@ lpfc_sli_setup(struct lpfc_hba *phba)
 			pring->fast_iotag = 0;
 			pring->iotag_ctr = 0;
 			pring->iotag_max = 4096;
+			pring->lpfc_sli_rcv_async_status =
+				lpfc_sli_async_event_handler;
 			pring->num_mask = 4;
 			pring->prt[0].profile = 0;	/* Mask 0 */
 			pring->prt[0].rctl = FC_ELS_REQ;
@@ -3123,6 +3240,7 @@ lpfc_sli_queue_setup(struct lpfc_hba *phba)
 		INIT_LIST_HEAD(&pring->txq);
 		INIT_LIST_HEAD(&pring->txcmplq);
 		INIT_LIST_HEAD(&pring->iocb_continueq);
+		INIT_LIST_HEAD(&pring->iocb_continue_saveq);
 		INIT_LIST_HEAD(&pring->postbufq);
 	}
 	spin_unlock_irq(&phba->hbalock);
@@ -3193,6 +3311,7 @@ lpfc_sli_hba_down(struct lpfc_hba *phba)
 	LIST_HEAD(completions);
 	struct lpfc_sli *psli = &phba->sli;
 	struct lpfc_sli_ring *pring;
+	struct lpfc_dmabuf *buf_ptr;
 	LPFC_MBOXQ_t *pmb;
 	struct lpfc_iocbq *iocb;
 	IOCB_t *cmd = NULL;
@@ -3230,6 +3349,19 @@ lpfc_sli_hba_down(struct lpfc_hba *phba)
 			cmd->un.ulpWord[4] = IOERR_SLI_DOWN;
 			(iocb->iocb_cmpl) (phba, iocb, iocb);
 		}
+	}
+
+	spin_lock_irqsave(&phba->hbalock, flags);
+	list_splice_init(&phba->elsbuf, &completions);
+	phba->elsbuf_cnt = 0;
+	phba->elsbuf_prev_cnt = 0;
+	spin_unlock_irqrestore(&phba->hbalock, flags);
+
+	while (!list_empty(&completions)) {
+		list_remove_head(&completions, buf_ptr,
+			struct lpfc_dmabuf, list);
+		lpfc_mbuf_free(phba, buf_ptr->virt, buf_ptr->phys);
+		kfree(buf_ptr);
 	}
 
 	/* Return any active mbox cmds */
@@ -3294,6 +3426,47 @@ lpfc_sli_ringpostbuf_put(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	return 0;
 }
 
+uint32_t
+lpfc_sli_get_buffer_tag(struct lpfc_hba *phba)
+{
+	spin_lock_irq(&phba->hbalock);
+	phba->buffer_tag_count++;
+	/*
+	 * Always set the QUE_BUFTAG_BIT to distiguish between
+	 * a tag assigned by HBQ.
+	 */
+	phba->buffer_tag_count |= QUE_BUFTAG_BIT;
+	spin_unlock_irq(&phba->hbalock);
+	return phba->buffer_tag_count;
+}
+
+struct lpfc_dmabuf *
+lpfc_sli_ring_taggedbuf_get(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
+			uint32_t tag)
+{
+	struct lpfc_dmabuf *mp, *next_mp;
+	struct list_head *slp = &pring->postbufq;
+
+	/* Search postbufq, from the begining, looking for a match on tag */
+	spin_lock_irq(&phba->hbalock);
+	list_for_each_entry_safe(mp, next_mp, &pring->postbufq, list) {
+		if (mp->buffer_tag == tag) {
+			list_del_init(&mp->list);
+			pring->postbufq_cnt--;
+			spin_unlock_irq(&phba->hbalock);
+			return mp;
+		}
+	}
+
+	spin_unlock_irq(&phba->hbalock);
+	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			"0410 Cannot find virtual addr for buffer tag on "
+			"ring %d Data x%lx x%p x%p x%x\n",
+			pring->ringno, (unsigned long) tag,
+			slp->next, slp->prev, pring->postbufq_cnt);
+
+	return NULL;
+}
 
 struct lpfc_dmabuf *
 lpfc_sli_ringpostbuf_get(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
@@ -3360,6 +3533,12 @@ lpfc_sli_abort_els_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			list_del_init(&abort_iocb->list);
 			pring->txcmplq_cnt--;
 			spin_unlock_irq(&phba->hbalock);
+
+			/* Firmware could still be in progress of DMAing
+			 * payload, so don't free data buffer till after
+			 * a hbeat.
+			 */
+			abort_iocb->iocb_flag |= LPFC_DELAY_MEM_FREE;
 
 			abort_iocb->iocb_flag &= ~LPFC_DRIVER_ABORTED;
 			abort_iocb->iocb.ulpStatus = IOSTAT_LOCAL_REJECT;
@@ -3699,7 +3878,7 @@ lpfc_sli_issue_mbox_wait(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq,
 	unsigned long flag;
 
 	/* The caller must leave context1 empty. */
-	if (pmboxq->context1 != 0)
+	if (pmboxq->context1)
 		return MBX_NOT_FINISHED;
 
 	/* setup wake call as IOCB callback */
@@ -3771,7 +3950,6 @@ lpfc_intr_handler(int irq, void *dev_id)
 	uint32_t ha_copy;
 	uint32_t work_ha_copy;
 	unsigned long status;
-	int i;
 	uint32_t control;
 
 	MAILBOX_t *mbox, *pmbox;
@@ -3888,7 +4066,6 @@ lpfc_intr_handler(int irq, void *dev_id)
 		}
 
 		if (work_ha_copy & HA_ERATT) {
-			phba->link_state = LPFC_HBA_ERROR;
 			/*
 			 * There was a link/board error.  Read the
 			 * status register to retrieve the error event
@@ -3920,7 +4097,7 @@ lpfc_intr_handler(int irq, void *dev_id)
 				 * Stray Mailbox Interrupt, mbxCommand <cmd>
 				 * mbxStatus <status>
 				 */
-				lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX |
+				lpfc_printf_log(phba, KERN_ERR, LOG_MBOX |
 						LOG_SLI,
 						"(%d):0304 Stray Mailbox "
 						"Interrupt mbxCommand x%x "
@@ -3928,51 +4105,60 @@ lpfc_intr_handler(int irq, void *dev_id)
 						(vport ? vport->vpi : 0),
 						pmbox->mbxCommand,
 						pmbox->mbxStatus);
-			}
-			phba->last_completion_time = jiffies;
-			del_timer_sync(&phba->sli.mbox_tmo);
+				/* clear mailbox attention bit */
+				work_ha_copy &= ~HA_MBATT;
+			} else {
+				phba->last_completion_time = jiffies;
+				del_timer(&phba->sli.mbox_tmo);
 
-			phba->sli.mbox_active = NULL;
-			if (pmb->mbox_cmpl) {
-				lpfc_sli_pcimem_bcopy(mbox, pmbox,
-						      MAILBOX_CMD_SIZE);
-			}
-			if (pmb->mbox_flag & LPFC_MBX_IMED_UNREG) {
-				pmb->mbox_flag &= ~LPFC_MBX_IMED_UNREG;
-
-				lpfc_debugfs_disc_trc(vport,
-					LPFC_DISC_TRC_MBOX_VPORT,
-					"MBOX dflt rpi: : status:x%x rpi:x%x",
-					(uint32_t)pmbox->mbxStatus,
-					pmbox->un.varWords[0], 0);
-
-				if ( !pmbox->mbxStatus) {
-					mp = (struct lpfc_dmabuf *)
-						(pmb->context1);
-					ndlp = (struct lpfc_nodelist *)
-						pmb->context2;
-
-					/* Reg_LOGIN of dflt RPI was successful.
-					 * new lets get rid of the RPI using the
-					 * same mbox buffer.
-					 */
-					lpfc_unreg_login(phba, vport->vpi,
-						pmbox->un.varWords[0], pmb);
-					pmb->mbox_cmpl = lpfc_mbx_cmpl_dflt_rpi;
-					pmb->context1 = mp;
-					pmb->context2 = ndlp;
-					pmb->vport = vport;
-					spin_lock(&phba->hbalock);
-					phba->sli.sli_flag &=
-						~LPFC_SLI_MBOX_ACTIVE;
-					spin_unlock(&phba->hbalock);
-					goto send_current_mbox;
+				phba->sli.mbox_active = NULL;
+				if (pmb->mbox_cmpl) {
+					lpfc_sli_pcimem_bcopy(mbox, pmbox,
+							MAILBOX_CMD_SIZE);
 				}
+				if (pmb->mbox_flag & LPFC_MBX_IMED_UNREG) {
+					pmb->mbox_flag &= ~LPFC_MBX_IMED_UNREG;
+
+					lpfc_debugfs_disc_trc(vport,
+						LPFC_DISC_TRC_MBOX_VPORT,
+						"MBOX dflt rpi: : "
+						"status:x%x rpi:x%x",
+						(uint32_t)pmbox->mbxStatus,
+						pmbox->un.varWords[0], 0);
+
+					if (!pmbox->mbxStatus) {
+						mp = (struct lpfc_dmabuf *)
+							(pmb->context1);
+						ndlp = (struct lpfc_nodelist *)
+							pmb->context2;
+
+						/* Reg_LOGIN of dflt RPI was
+						 * successful. new lets get
+						 * rid of the RPI using the
+						 * same mbox buffer.
+						 */
+						lpfc_unreg_login(phba,
+							vport->vpi,
+							pmbox->un.varWords[0],
+							pmb);
+						pmb->mbox_cmpl =
+							lpfc_mbx_cmpl_dflt_rpi;
+						pmb->context1 = mp;
+						pmb->context2 = ndlp;
+						pmb->vport = vport;
+						spin_lock(&phba->hbalock);
+						phba->sli.sli_flag &=
+							~LPFC_SLI_MBOX_ACTIVE;
+						spin_unlock(&phba->hbalock);
+						goto send_current_mbox;
+					}
+				}
+				spin_lock(&phba->pport->work_port_lock);
+				phba->pport->work_port_events &=
+					~WORKER_MBOX_TMO;
+				spin_unlock(&phba->pport->work_port_lock);
+				lpfc_mbox_cmpl_put(phba, pmb);
 			}
-			spin_lock(&phba->pport->work_port_lock);
-			phba->pport->work_port_events &= ~WORKER_MBOX_TMO;
-			spin_unlock(&phba->pport->work_port_lock);
-			lpfc_mbox_cmpl_put(phba, pmb);
 		}
 		if ((work_ha_copy & HA_MBATT) &&
 		    (phba->sli.mbox_active == NULL)) {
@@ -3990,10 +4176,6 @@ send_current_mbox:
 					lpfc_mbox_cmpl_put(phba, pmb);
 					goto send_next_mbox;
 				}
-			} else {
-				/* Turn on IOCB processing */
-				for (i = 0; i < phba->sli.num_rings; i++)
-					lpfc_sli_turn_on_ring(phba, i);
 			}
 
 		}

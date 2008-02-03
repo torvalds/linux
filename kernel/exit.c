@@ -249,7 +249,7 @@ static int has_stopped_jobs(struct pid *pgrp)
 	struct task_struct *p;
 
 	do_each_pid_task(pgrp, PIDTYPE_PGID, p) {
-		if (p->state != TASK_STOPPED)
+		if (!task_is_stopped(p))
 			continue;
 		retval = 1;
 		break;
@@ -614,7 +614,7 @@ reparent_thread(struct task_struct *p, struct task_struct *father, int traced)
 		p->parent = p->real_parent;
 		add_parent(p);
 
-		if (p->state == TASK_TRACED) {
+		if (task_is_traced(p)) {
 			/*
 			 * If it was at a trace stop, turn it into
 			 * a normal stop since it's no longer being
@@ -1357,7 +1357,7 @@ static int wait_task_stopped(struct task_struct *p, int delayed_group_leader,
 			     int __user *stat_addr, struct rusage __user *ru)
 {
 	int retval, exit_code;
-	struct pid_namespace *ns;
+	pid_t pid;
 
 	if (!p->exit_code)
 		return 0;
@@ -1376,21 +1376,19 @@ static int wait_task_stopped(struct task_struct *p, int delayed_group_leader,
 	 * keep holding onto the tasklist_lock while we call getrusage and
 	 * possibly take page faults for user memory.
 	 */
-	ns = current->nsproxy->pid_ns;
+	pid = task_pid_nr_ns(p, current->nsproxy->pid_ns);
 	get_task_struct(p);
 	read_unlock(&tasklist_lock);
 
 	if (unlikely(noreap)) {
-		pid_t pid = task_pid_nr_ns(p, ns);
 		uid_t uid = p->uid;
 		int why = (p->ptrace & PT_PTRACED) ? CLD_TRAPPED : CLD_STOPPED;
 
 		exit_code = p->exit_code;
-		if (unlikely(!exit_code) ||
-		    unlikely(p->state & TASK_TRACED))
+		if (unlikely(!exit_code) || unlikely(p->exit_state))
 			goto bail_ref;
 		return wait_noreap_copyout(p, pid, uid,
-					   why, (exit_code << 8) | 0x7f,
+					   why, exit_code,
 					   infop, ru);
 	}
 
@@ -1452,11 +1450,11 @@ bail_ref:
 	if (!retval && infop)
 		retval = put_user(exit_code, &infop->si_status);
 	if (!retval && infop)
-		retval = put_user(task_pid_nr_ns(p, ns), &infop->si_pid);
+		retval = put_user(pid, &infop->si_pid);
 	if (!retval && infop)
 		retval = put_user(p->uid, &infop->si_uid);
 	if (!retval)
-		retval = task_pid_nr_ns(p, ns);
+		retval = pid;
 	put_task_struct(p);
 
 	BUG_ON(!retval);
@@ -1565,60 +1563,51 @@ repeat:
 			}
 			allowed = 1;
 
-			switch (p->state) {
-			case TASK_TRACED:
-				/*
-				 * When we hit the race with PTRACE_ATTACH,
-				 * we will not report this child.  But the
-				 * race means it has not yet been moved to
-				 * our ptrace_children list, so we need to
-				 * set the flag here to avoid a spurious ECHILD
-				 * when the race happens with the only child.
-				 */
-				flag = 1;
-				if (!my_ptrace_child(p))
-					continue;
-				/*FALLTHROUGH*/
-			case TASK_STOPPED:
+			if (task_is_stopped_or_traced(p)) {
 				/*
 				 * It's stopped now, so it might later
 				 * continue, exit, or stop again.
+				 *
+				 * When we hit the race with PTRACE_ATTACH, we
+				 * will not report this child.  But the race
+				 * means it has not yet been moved to our
+				 * ptrace_children list, so we need to set the
+				 * flag here to avoid a spurious ECHILD when
+				 * the race happens with the only child.
 				 */
 				flag = 1;
-				if (!(options & WUNTRACED) &&
-				    !my_ptrace_child(p))
-					continue;
+
+				if (!my_ptrace_child(p)) {
+					if (task_is_traced(p))
+						continue;
+					if (!(options & WUNTRACED))
+						continue;
+				}
+
 				retval = wait_task_stopped(p, ret == 2,
-							   (options & WNOWAIT),
-							   infop,
-							   stat_addr, ru);
+						(options & WNOWAIT), infop,
+						stat_addr, ru);
 				if (retval == -EAGAIN)
 					goto repeat;
 				if (retval != 0) /* He released the lock.  */
 					goto end;
-				break;
-			default:
-			// case EXIT_DEAD:
-				if (p->exit_state == EXIT_DEAD)
+			} else if (p->exit_state == EXIT_DEAD) {
+				continue;
+			} else if (p->exit_state == EXIT_ZOMBIE) {
+				/*
+				 * Eligible but we cannot release it yet:
+				 */
+				if (ret == 2)
+					goto check_continued;
+				if (!likely(options & WEXITED))
 					continue;
-			// case EXIT_ZOMBIE:
-				if (p->exit_state == EXIT_ZOMBIE) {
-					/*
-					 * Eligible but we cannot release
-					 * it yet:
-					 */
-					if (ret == 2)
-						goto check_continued;
-					if (!likely(options & WEXITED))
-						continue;
-					retval = wait_task_zombie(
-						p, (options & WNOWAIT),
-						infop, stat_addr, ru);
-					/* He released the lock.  */
-					if (retval != 0)
-						goto end;
-					break;
-				}
+				retval = wait_task_zombie(p,
+						(options & WNOWAIT), infop,
+						stat_addr, ru);
+				/* He released the lock.  */
+				if (retval != 0)
+					goto end;
+			} else {
 check_continued:
 				/*
 				 * It's running now, so it might later
@@ -1627,12 +1616,11 @@ check_continued:
 				flag = 1;
 				if (!unlikely(options & WCONTINUED))
 					continue;
-				retval = wait_task_continued(
-					p, (options & WNOWAIT),
-					infop, stat_addr, ru);
+				retval = wait_task_continued(p,
+						(options & WNOWAIT), infop,
+						stat_addr, ru);
 				if (retval != 0) /* He released the lock.  */
 					goto end;
-				break;
 			}
 		}
 		if (!flag) {

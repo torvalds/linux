@@ -50,14 +50,15 @@ extern int check_legacy_ioport(unsigned long base_port);
 #define PCI_DRAM_OFFSET	pci_dram_offset
 #else
 #define _IO_BASE	pci_io_base
-#define _ISA_MEM_BASE	0
+#define _ISA_MEM_BASE	isa_mem_base
 #define PCI_DRAM_OFFSET	0
 #endif
 
 extern unsigned long isa_io_base;
-extern unsigned long isa_mem_base;
 extern unsigned long pci_io_base;
 extern unsigned long pci_dram_offset;
+
+extern resource_size_t isa_mem_base;
 
 #if defined(CONFIG_PPC32) && defined(CONFIG_PPC_INDIRECT_IO)
 #error CONFIG_PPC_INDIRECT_IO is not yet supported on 32 bits

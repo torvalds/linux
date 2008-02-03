@@ -696,17 +696,28 @@ EXPORT_SYMBOL(posix_test_lock);
  * Note: the above assumption may not be true when handling lock requests
  * from a broken NFS client. But broken NFS clients have a lot more to
  * worry about than proper deadlock detection anyway... --okir
+ *
+ * However, the failure of this assumption (also possible in the case of
+ * multiple tasks sharing the same open file table) also means there's no
+ * guarantee that the loop below will terminate.  As a hack, we give up
+ * after a few iterations.
  */
+
+#define MAX_DEADLK_ITERATIONS 10
+
 static int posix_locks_deadlock(struct file_lock *caller_fl,
 				struct file_lock *block_fl)
 {
 	struct file_lock *fl;
+	int i = 0;
 
 next_task:
 	if (posix_same_owner(caller_fl, block_fl))
 		return 1;
 	list_for_each_entry(fl, &blocked_list, fl_link) {
 		if (posix_same_owner(fl, block_fl)) {
+			if (i++ > MAX_DEADLK_ITERATIONS)
+				return 0;
 			fl = fl->fl_next;
 			block_fl = fl;
 			goto next_task;

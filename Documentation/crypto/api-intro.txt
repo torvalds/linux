@@ -33,9 +33,16 @@ The idea is to make the user interface and algorithm registration API
 very simple, while hiding the core logic from both.  Many good ideas
 from existing APIs such as Cryptoapi and Nettle have been adapted for this.
 
-The API currently supports three types of transforms: Ciphers, Digests and
-Compressors.  The compression algorithms especially seem to be performing
-very well so far.
+The API currently supports five main types of transforms: AEAD (Authenticated
+Encryption with Associated Data), Block Ciphers, Ciphers, Compressors and
+Hashes.
+
+Please note that Block Ciphers is somewhat of a misnomer.  It is in fact
+meant to support all ciphers including stream ciphers.  The difference
+between Block Ciphers and Ciphers is that the latter operates on exactly
+one block while the former can operate on an arbitrary amount of data,
+subject to block size requirements (i.e., non-stream ciphers can only
+process multiples of blocks).
 
 Support for hardware crypto devices via an asynchronous interface is
 under development.
@@ -69,29 +76,12 @@ Here's an example of how to use the API:
 Many real examples are available in the regression test module (tcrypt.c).
 
 
-CONFIGURATION NOTES
-
-As Triple DES is part of the DES module, for those using modular builds,
-add the following line to /etc/modprobe.conf:
-
-  alias des3_ede des
-
-The Null algorithms reside in the crypto_null module, so these lines
-should also be added:
-
-  alias cipher_null crypto_null
-  alias digest_null crypto_null
-  alias compress_null crypto_null
-
-The SHA384 algorithm shares code within the SHA512 module, so you'll
-also need:
-  alias sha384 sha512
-
-
 DEVELOPER NOTES
 
 Transforms may only be allocated in user context, and cryptographic
-methods may only be called from softirq and user contexts.
+methods may only be called from softirq and user contexts.  For
+transforms with a setkey method it too should only be called from
+user context.
 
 When using the API for ciphers, performance will be optimal if each
 scatterlist contains data which is a multiple of the cipher's block
@@ -130,8 +120,9 @@ might already be working on.
 BUGS
 
 Send bug reports to:
-Herbert Xu <herbert@gondor.apana.org.au>
-Cc: David S. Miller <davem@redhat.com>
+linux-crypto@vger.kernel.org
+Cc: Herbert Xu <herbert@gondor.apana.org.au>,
+    David S. Miller <davem@redhat.com>
 
 
 FURTHER INFORMATION

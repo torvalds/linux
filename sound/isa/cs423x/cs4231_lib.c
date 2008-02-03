@@ -24,7 +24,6 @@
  *
  */
 
-#include <sound/driver.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/init.h>
@@ -333,7 +332,6 @@ void snd_cs4231_mce_down(struct snd_cs4231 *chip)
 	    !(chip->hardware & (CS4231_HW_CS4231_MASK | CS4231_HW_CS4232_MASK))) {
 		return;
 	}
-	snd_cs4231_busy_wait(chip);
 
 	/*
 	 * Wait for (possible -- during init auto-calibration may not be set)

@@ -1082,76 +1082,56 @@ void pdc_io_reset_devices(void)
 
 
 /**
- * pdc_iodc_putc - Console character print using IODC.
- * @c: the character to output.
+ * pdc_iodc_print - Console print using IODC.
+ * @str: the string to output.
+ * @count: length of str
  *
  * Note that only these special chars are architected for console IODC io:
  * BEL, BS, CR, and LF. Others are passed through.
  * Since the HP console requires CR+LF to perform a 'newline', we translate
  * "\n" to "\r\n".
  */
-void pdc_iodc_putc(unsigned char c)
+int pdc_iodc_print(unsigned char *str, unsigned count)
 {
-        /* XXX Should we spinlock posx usage */
-        static int posx;        /* for simple TAB-Simulation... */
-        static int __attribute__((aligned(8)))   iodc_retbuf[32];
-        static char __attribute__((aligned(64))) iodc_dbuf[4096];
-        unsigned int n;
+	/* XXX Should we spinlock posx usage */
+	static int posx;        /* for simple TAB-Simulation... */
+	int __attribute__((aligned(8)))   iodc_retbuf[32];
+	char __attribute__((aligned(64))) iodc_dbuf[4096];
+	unsigned int i;
 	unsigned long flags;
 
-        switch (c) {
-        case '\n':
-                iodc_dbuf[0] = '\r';
-                iodc_dbuf[1] = '\n';
-                n = 2;
-                posx = 0;
-                break;
-        case '\t':
-                pdc_iodc_putc(' ');
-                while (posx & 7)        /* expand TAB */
-                        pdc_iodc_putc(' ');
-                return;         /* return since IODC can't handle this */
-        case '\b':
-                posx-=2;                /* BS */
-        default:
-                iodc_dbuf[0] = c;
-                n = 1;
-                posx++;
-                break;
-        }
+	memset(iodc_dbuf, 0, 4096);
+	for (i = 0; i < count && i < 2048;) {
+		switch(str[i]) {
+		case '\n':
+			iodc_dbuf[i+0] = '\r';
+			iodc_dbuf[i+1] = '\n';
+			i += 2;
+			posx = 0;
+			break;
+		case '\t':
+			while (posx & 7) {
+				iodc_dbuf[i] = ' ';
+				i++, posx++;
+			}
+			break;
+		case '\b':	/* BS */
+			posx -= 2;
+		default:
+			iodc_dbuf[i] = str[i];
+			i++, posx++;
+			break;
+		}
+	}
 
         spin_lock_irqsave(&pdc_lock, flags);
         real32_call(PAGE0->mem_cons.iodc_io,
                     (unsigned long)PAGE0->mem_cons.hpa, ENTRY_IO_COUT,
                     PAGE0->mem_cons.spa, __pa(PAGE0->mem_cons.dp.layers),
-                    __pa(iodc_retbuf), 0, __pa(iodc_dbuf), n, 0);
+                    __pa(iodc_retbuf), 0, __pa(iodc_dbuf), i, 0);
         spin_unlock_irqrestore(&pdc_lock, flags);
-}
 
-/**
- * pdc_iodc_outc - Console character print using IODC (without conversions).
- * @c: the character to output.
- *
- * Write the character directly to the IODC console.
- */
-void pdc_iodc_outc(unsigned char c)
-{
-	unsigned int n;
-	unsigned long flags;
-
-	/* fill buffer with one caracter and print it */
-        static int __attribute__((aligned(8)))   iodc_retbuf[32];
-        static char __attribute__((aligned(64))) iodc_dbuf[4096];
-
-	n = 1;
-	iodc_dbuf[0] = c;
-
-	spin_lock_irqsave(&pdc_lock, flags);
-	real32_call(PAGE0->mem_cons.iodc_io,
-		    (unsigned long)PAGE0->mem_cons.hpa, ENTRY_IO_COUT,
-		    PAGE0->mem_cons.spa, __pa(PAGE0->mem_cons.dp.layers),
-		    __pa(iodc_retbuf), 0, __pa(iodc_dbuf), n, 0);
-	spin_unlock_irqrestore(&pdc_lock, flags);
+	return i;
 }
 
 /**

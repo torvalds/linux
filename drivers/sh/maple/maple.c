@@ -601,8 +601,7 @@ static int match_maple_bus_driver(struct device *devptr,
        return 0;
 }
 
-static int maple_bus_uevent(struct device *dev, char **envp,
-                           int num_envp, char *buffer, int buffer_size)
+static int maple_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
        return 0;
 }

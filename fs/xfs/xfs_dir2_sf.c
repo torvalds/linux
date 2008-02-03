@@ -752,7 +752,7 @@ xfs_dir2_sf_getdents(
 #if XFS_BIG_INUMS
 		ino += mp->m_inoadd;
 #endif
-		if (filldir(dirent, ".", 1, dotdot_offset, ino, DT_DIR)) {
+		if (filldir(dirent, ".", 1, dot_offset, ino, DT_DIR)) {
 			*offset = dot_offset;
 			return 0;
 		}
@@ -762,13 +762,11 @@ xfs_dir2_sf_getdents(
 	 * Put .. entry unless we're starting past it.
 	 */
 	if (*offset <= dotdot_offset) {
-		off = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk,
-						  XFS_DIR2_DATA_FIRST_OFFSET);
 		ino = xfs_dir2_sf_get_inumber(sfp, &sfp->hdr.parent);
 #if XFS_BIG_INUMS
 		ino += mp->m_inoadd;
 #endif
-		if (filldir(dirent, "..", 2, off, ino, DT_DIR)) {
+		if (filldir(dirent, "..", 2, dotdot_offset, ino, DT_DIR)) {
 			*offset = dotdot_offset;
 			return 0;
 		}
@@ -793,8 +791,7 @@ xfs_dir2_sf_getdents(
 #endif
 
 		if (filldir(dirent, sfep->name, sfep->namelen,
-			    off + xfs_dir2_data_entsize(sfep->namelen),
-			    ino, DT_UNKNOWN)) {
+					    off, ino, DT_UNKNOWN)) {
 			*offset = off;
 			return 0;
 		}

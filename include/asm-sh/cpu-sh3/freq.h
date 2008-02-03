@@ -10,7 +10,12 @@
 #ifndef __ASM_CPU_SH3_FREQ_H
 #define __ASM_CPU_SH3_FREQ_H
 
+#ifdef CONFIG_CPU_SUBTYPE_SH7712
+#define FRQCR			0xA415FF80
+#else
 #define FRQCR			0xffffff80
+#endif
+
 #define MIN_DIVISOR_NR		0
 #define MAX_DIVISOR_NR		4
 

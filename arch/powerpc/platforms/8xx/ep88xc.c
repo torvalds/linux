@@ -16,8 +16,9 @@
 #include <asm/io.h>
 #include <asm/udbg.h>
 #include <asm/commproc.h>
+#include <asm/cpm1.h>
 
-#include <sysdev/commproc.h>
+#include "mpc8xx.h"
 
 struct cpm_pin {
 	int port, pin, flags;
@@ -155,18 +156,17 @@ static struct of_device_id __initdata of_bus_ids[] = {
 static int __init declare_of_platform_devices(void)
 {
 	/* Publish the QE devices */
-	if (machine_is(ep88xc))
-		of_platform_bus_probe(NULL, of_bus_ids, NULL);
+	of_platform_bus_probe(NULL, of_bus_ids, NULL);
 
 	return 0;
 }
-device_initcall(declare_of_platform_devices);
+machine_device_initcall(ep88xc, declare_of_platform_devices);
 
 define_machine(ep88xc) {
 	.name = "Embedded Planet EP88xC",
 	.probe = ep88xc_probe,
 	.setup_arch = ep88xc_setup_arch,
-	.init_IRQ = m8xx_pic_init,
+	.init_IRQ = mpc8xx_pics_init,
 	.get_irq	= mpc8xx_get_irq,
 	.restart = mpc8xx_restart,
 	.calibrate_decr = mpc8xx_calibrate_decr,

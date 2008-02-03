@@ -15,6 +15,7 @@
 #include <asm/mman.h>
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
+#include <asm/pgalloc.h>
 
 static unsigned long page_table_shareable(struct vm_area_struct *svma,
 				struct vm_area_struct *vma,
@@ -88,7 +89,7 @@ static void huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
 
 	spin_lock(&mm->page_table_lock);
 	if (pud_none(*pud))
-		pud_populate(mm, pud, (unsigned long) spte & PAGE_MASK);
+		pud_populate(mm, pud, (pmd_t *)((unsigned long)spte & PAGE_MASK));
 	else
 		put_page(virt_to_page(spte));
 	spin_unlock(&mm->page_table_lock);

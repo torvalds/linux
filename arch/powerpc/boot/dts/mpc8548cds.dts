@@ -16,6 +16,20 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
+	aliases {
+		ethernet0 = &enet0;
+		ethernet1 = &enet1;
+/*
+		ethernet2 = &enet2;
+		ethernet3 = &enet3;
+*/
+		serial0 = &serial0;
+		serial1 = &serial1;
+		pci0 = &pci0;
+		pci1 = &pci1;
+		pci2 = &pci2;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -63,9 +77,22 @@
 		};
 
 		i2c@3000 {
-			device_type = "i2c";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cell-index = <0>;
 			compatible = "fsl-i2c";
 			reg = <3000 100>;
+			interrupts = <2b 2>;
+			interrupt-parent = <&mpic>;
+			dfsrr;
+		};
+
+		i2c@3100 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cell-index = <1>;
+			compatible = "fsl-i2c";
+			reg = <3100 100>;
 			interrupts = <2b 2>;
 			interrupt-parent = <&mpic>;
 			dfsrr;
@@ -74,9 +101,9 @@
 		mdio@24520 {
 			#address-cells = <1>;
 			#size-cells = <0>;
-			device_type = "mdio";
-			compatible = "gianfar";
+			compatible = "fsl,gianfar-mdio";
 			reg = <24520 20>;
+
 			phy0: ethernet-phy@0 {
 				interrupt-parent = <&mpic>;
 				interrupts = <5 1>;
@@ -103,9 +130,8 @@
 			};
 		};
 
-		ethernet@24000 {
-			#address-cells = <1>;
-			#size-cells = <0>;
+		enet0: ethernet@24000 {
+			cell-index = <0>;
 			device_type = "network";
 			model = "eTSEC";
 			compatible = "gianfar";
@@ -116,9 +142,8 @@
 			phy-handle = <&phy0>;
 		};
 
-		ethernet@25000 {
-			#address-cells = <1>;
-			#size-cells = <0>;
+		enet1: ethernet@25000 {
+			cell-index = <1>;
 			device_type = "network";
 			model = "eTSEC";
 			compatible = "gianfar";
@@ -130,9 +155,8 @@
 		};
 
 /* eTSEC 3/4 are currently broken
-		ethernet@26000 {
-			#address-cells = <1>;
-			#size-cells = <0>;
+		enet2: ethernet@26000 {
+			cell-index = <2>;
 			device_type = "network";
 			model = "eTSEC";
 			compatible = "gianfar";
@@ -143,9 +167,8 @@
 			phy-handle = <&phy2>;
 		};
 
-		ethernet@27000 {
-			#address-cells = <1>;
-			#size-cells = <0>;
+		enet3: ethernet@27000 {
+			cell-index = <3>;
 			device_type = "network";
 			model = "eTSEC";
 			compatible = "gianfar";
@@ -157,7 +180,8 @@
 		};
  */
 
-		serial@4500 {
+		serial0: serial@4500 {
+			cell-index = <0>;
 			device_type = "serial";
 			compatible = "ns16550";
 			reg = <4500 100>;	// reg base, size
@@ -166,7 +190,8 @@
 			interrupt-parent = <&mpic>;
 		};
 
-		serial@4600 {
+		serial1: serial@4600 {
+			cell-index = <1>;
 			device_type = "serial";
 			compatible = "ns16550";
 			reg = <4600 100>;	// reg base, size
@@ -193,7 +218,8 @@
 		};
 	};
 
-	pci@e0008000 {
+	pci0: pci@e0008000 {
+		cell-index = <0>;
 		interrupt-map-mask = <f800 0 0 7>;
 		interrupt-map = <
 			/* IDSEL 0x4 (PCIX Slot 2) */
@@ -342,7 +368,8 @@
 		};
 	};
 
-	pci@e0009000 {
+	pci1: pci@e0009000 {
+		cell-index = <1>;
 		interrupt-map-mask = <f800 0 0 7>;
 		interrupt-map = <
 
@@ -366,7 +393,8 @@
 		device_type = "pci";
 	};
 
-	pcie@e000a000 {
+	pci2: pcie@e000a000 {
+		cell-index = <2>;
 		interrupt-map-mask = <f800 0 0 7>;
 		interrupt-map = <
 

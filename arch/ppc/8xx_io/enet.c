@@ -8,7 +8,7 @@
  * This version of the driver is somewhat selectable for the different
  * processor/board combinations.  It works for the boards I know about
  * now, and should be easily modified to include others.  Some of the
- * configuration information is contained in <asm/commproc.h> and the
+ * configuration information is contained in <asm/cpm1.h> and the
  * remainder is here.
  *
  * Buffer descriptors are kept in the CPM dual port RAM, and the frame
@@ -43,7 +43,7 @@
 #include <asm/pgtable.h>
 #include <asm/mpc8xx.h>
 #include <asm/uaccess.h>
-#include <asm/commproc.h>
+#include <asm/cpm1.h>
 #include <asm/cacheflush.h>
 
 /*
@@ -80,7 +80,7 @@
  * programming documents for details unique to your board.
  *
  * For the TQM8xx(L) modules, there is no control register interface.
- * All functions are directly controlled using I/O pins.  See <asm/commproc.h>.
+ * All functions are directly controlled using I/O pins.  See <asm/cpm1.h>.
  */
 
 /* The transmitter timeout

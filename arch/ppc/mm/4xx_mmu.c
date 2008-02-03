@@ -99,13 +99,12 @@ unsigned long __init mmu_mapin_ram(void)
 
 	v = KERNELBASE;
 	p = PPC_MEMSTART;
-	s = 0;
+	s = total_lowmem;
 
-	if (__map_without_ltlbs) {
-		return s;
-	}
+	if (__map_without_ltlbs)
+		return 0;
 
-	while (s <= (total_lowmem - LARGE_PAGE_SIZE_16M)) {
+	while (s >= LARGE_PAGE_SIZE_16M) {
 		pmd_t *pmdp;
 		unsigned long val = p | _PMD_SIZE_16M | _PAGE_HWEXEC | _PAGE_HWWRITE;
 
@@ -117,10 +116,10 @@ unsigned long __init mmu_mapin_ram(void)
 
 		v += LARGE_PAGE_SIZE_16M;
 		p += LARGE_PAGE_SIZE_16M;
-		s += LARGE_PAGE_SIZE_16M;
+		s -= LARGE_PAGE_SIZE_16M;
 	}
 
-	while (s <= (total_lowmem - LARGE_PAGE_SIZE_4M)) {
+	while (s >= LARGE_PAGE_SIZE_4M) {
 		pmd_t *pmdp;
 		unsigned long val = p | _PMD_SIZE_4M | _PAGE_HWEXEC | _PAGE_HWWRITE;
 
@@ -129,8 +128,8 @@ unsigned long __init mmu_mapin_ram(void)
 
 		v += LARGE_PAGE_SIZE_4M;
 		p += LARGE_PAGE_SIZE_4M;
-		s += LARGE_PAGE_SIZE_4M;
+		s -= LARGE_PAGE_SIZE_4M;
 	}
 
-	return s;
+	return total_lowmem - s;
 }

@@ -134,7 +134,7 @@ static int myri_do_handshake(struct myri_eth *mp)
 
 	myri_disable_irq(mp->lregs, cregs);
 
-	while (tick++ <= 25) {
+	while (tick++ < 25) {
 		u32 softstate;
 
 		/* Wake it up. */

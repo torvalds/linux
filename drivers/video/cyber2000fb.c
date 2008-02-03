@@ -874,6 +874,8 @@ static int cyber2000fb_set_par(struct fb_info *info)
 		default:
 			BUG();
 		}
+		break;
+
 	case 24:/* TRUECOLOUR, 16m */
 		hw.co_pixfmt		= CO_PIXFMT_24BPP;
 		hw.width		*= 3;

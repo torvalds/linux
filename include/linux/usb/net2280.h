@@ -37,7 +37,7 @@
 
 /* main registers, BAR0 + 0x0000 */
 struct net2280_regs {
-	// offset 0x0000
+	/* offset 0x0000 */
 	u32		devinit;
 #define     LOCAL_CLOCK_FREQUENCY                               8
 #define     FORCE_PCI_RESET                                     7
@@ -61,7 +61,7 @@ struct net2280_regs {
 #define     EEPROM_WRITE_DATA                                   0
 	u32		eeclkfreq;
 	u32		_unused0;
-	// offset 0x0010
+	/* offset 0x0010 */
 
 	u32		pciirqenb0;		/* interrupt PCI master ... */
 #define     SETUP_PACKET_INTERRUPT_ENABLE                       7
@@ -131,7 +131,7 @@ struct net2280_regs {
 #define     RESUME_INTERRUPT_ENABLE                             1
 #define     SOF_INTERRUPT_ENABLE                                0
 
-	// offset 0x0020
+	/* offset 0x0020 */
 	u32		_unused1;
 	u32		usbirqenb1;
 #define     USB_INTERRUPT_ENABLE                                31
@@ -195,7 +195,7 @@ struct net2280_regs {
 #define     SUSPEND_REQUEST_CHANGE_INTERRUPT                    2
 #define     RESUME_INTERRUPT                                    1
 #define     SOF_INTERRUPT                                       0
-	// offset 0x0030
+	/* offset 0x0030 */
 	u32		idxaddr;
 	u32		idxdata;
 	u32		fifoctl;
@@ -204,7 +204,7 @@ struct net2280_regs {
 #define     PCI_BASE2_SELECT                                    2
 #define     FIFO_CONFIGURATION_SELECT                           0
 	u32		_unused2;
-	// offset 0x0040
+	/* offset 0x0040 */
 	u32		memaddr;
 #define     START                                               28
 #define     DIRECTION                                           27
@@ -213,7 +213,7 @@ struct net2280_regs {
 	u32		memdata0;
 	u32		memdata1;
 	u32		_unused3;
-	// offset 0x0050
+	/* offset 0x0050 */
 	u32		gpioctl;
 #define     GPIO3_LED_SELECT                                    12
 #define     GPIO3_INTERRUPT_ENABLE                              11
@@ -237,7 +237,7 @@ struct net2280_regs {
 
 /* usb control, BAR0 + 0x0080 */
 struct net2280_usb_regs {
-	// offset 0x0080
+	/* offset 0x0080 */
 	u32		stdrsp;
 #define     STALL_UNSUPPORTED_REQUESTS                          31
 #define     SET_TEST_MODE                                       16
@@ -275,7 +275,7 @@ struct net2280_usb_regs {
 #define     PME_WAKEUP_ENABLE                                   2
 #define     DEVICE_REMOTE_WAKEUP_ENABLE                         1
 #define     SELF_POWERED_STATUS                                 0
-	// offset 0x0090
+	/* offset 0x0090 */
 	u32		usbstat;
 #define     HIGH_SPEED                                          7
 #define     FULL_SPEED                                          6
@@ -291,7 +291,7 @@ struct net2280_usb_regs {
 #define     TERMINATION_SELECT                                  0
 	u32		setup0123;
 	u32		setup4567;
-	// offset 0x0090
+	/* offset 0x0090 */
 	u32		_unused0;
 	u32		ouraddr;
 #define     FORCE_IMMEDIATE                                     7
@@ -301,7 +301,7 @@ struct net2280_usb_regs {
 
 /* pci control, BAR0 + 0x0100 */
 struct net2280_pci_regs {
-	// offset 0x0100
+	/* offset 0x0100 */
 	u32		 pcimstctl;
 #define     PCI_ARBITER_PARK_SELECT                             13
 #define     PCI_MULTI LEVEL_ARBITER                             12
@@ -331,7 +331,7 @@ struct net2280_pci_regs {
  * that can be loaded into some of these registers.
  */
 struct net2280_dma_regs {	/* [11.7] */
-	// offset 0x0180, 0x01a0, 0x01c0, 0x01e0,
+	/* offset 0x0180, 0x01a0, 0x01c0, 0x01e0, */
 	u32		dmactl;
 #define     DMA_SCATTER_GATHER_DONE_INTERRUPT_ENABLE            25
 #define     DMA_CLEAR_COUNT_ENABLE                              21
@@ -355,7 +355,7 @@ struct net2280_dma_regs {	/* [11.7] */
 #define     DMA_ABORT                                           1
 #define     DMA_START                                           0
 	u32		_unused0 [2];
-	// offset 0x0190, 0x01b0, 0x01d0, 0x01f0,
+	/* offset 0x0190, 0x01b0, 0x01d0, 0x01f0, */
 	u32		dmacount;
 #define     VALID_BIT                                           31
 #define     DMA_DIRECTION                                       30
@@ -371,9 +371,9 @@ struct net2280_dma_regs {	/* [11.7] */
 /* dedicated endpoint registers, BAR0 + 0x0200 */
 
 struct net2280_dep_regs {	/* [11.8] */
-	// offset 0x0200, 0x0210, 0x220, 0x230, 0x240
+	/* offset 0x0200, 0x0210, 0x220, 0x230, 0x240 */
 	u32		dep_cfg;
-	// offset 0x0204, 0x0214, 0x224, 0x234, 0x244
+	/* offset 0x0204, 0x0214, 0x224, 0x234, 0x244 */
 	u32		dep_rsp;
 	u32		_unused [2];
 } __attribute__ ((packed));
@@ -383,7 +383,7 @@ struct net2280_dep_regs {	/* [11.8] */
  * ep0 reserved for control; E and F have only 64 bytes of fifo
  */
 struct net2280_ep_regs {	/* [11.9] */
-	// offset 0x0300, 0x0320, 0x0340, 0x0360, 0x0380, 0x03a0, 0x03c0
+	/* offset 0x0300, 0x0320, 0x0340, 0x0360, 0x0380, 0x03a0, 0x03c0 */
 	u32		ep_cfg;
 #define     ENDPOINT_BYTE_COUNT                                 16
 #define     ENDPOINT_ENABLE                                     10
@@ -435,7 +435,7 @@ struct net2280_ep_regs {	/* [11.9] */
 #define     DATA_PACKET_TRANSMITTED_INTERRUPT                   2
 #define     DATA_OUT_PING_TOKEN_INTERRUPT                       1
 #define     DATA_IN_TOKEN_INTERRUPT                             0
-	// offset 0x0310, 0x0330, 0x0350, 0x0370, 0x0390, 0x03b0, 0x03d0
+	/* offset 0x0310, 0x0330, 0x0350, 0x0370, 0x0390, 0x03b0, 0x03d0 */
 	u32		ep_avail;
 	u32		ep_data;
 	u32		_unused0 [2];

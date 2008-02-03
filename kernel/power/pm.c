@@ -27,8 +27,6 @@
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
 
-int pm_active;
-
 /*
  *	Locking notes:
  *		pm_devs_lock can be a semaphore providing pm ops are not called
@@ -204,6 +202,4 @@ int pm_send_all(pm_request_t rqst, void *data)
 
 EXPORT_SYMBOL(pm_register);
 EXPORT_SYMBOL(pm_send_all);
-EXPORT_SYMBOL(pm_active);
-
 

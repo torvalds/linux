@@ -32,6 +32,13 @@ static inline struct inode_security_struct *get_sock_isec(struct sock *sk)
 }
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
+extern atomic_t selinux_xfrm_refcount;
+
+static inline int selinux_xfrm_enabled(void)
+{
+	return (atomic_read(&selinux_xfrm_refcount) > 0);
+}
+
 int selinux_xfrm_sock_rcv_skb(u32 sid, struct sk_buff *skb,
 			struct avc_audit_data *ad);
 int selinux_xfrm_postroute_last(u32 isec_sid, struct sk_buff *skb,
@@ -43,6 +50,11 @@ static inline void selinux_xfrm_notify_policyload(void)
 	atomic_inc(&flow_cache_genid);
 }
 #else
+static inline int selinux_xfrm_enabled(void)
+{
+	return 0;
+}
+
 static inline int selinux_xfrm_sock_rcv_skb(u32 isec_sid, struct sk_buff *skb,
 			struct avc_audit_data *ad)
 {

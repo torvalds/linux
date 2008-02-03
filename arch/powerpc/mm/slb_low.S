@@ -227,8 +227,9 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
 
 7:	ld	r10,PACASTABRR(r13)
 	addi	r10,r10,1
-	/* use a cpu feature mask if we ever change our slb size */
-	cmpldi	r10,SLB_NUM_ENTRIES
+	/* This gets soft patched on boot. */
+_GLOBAL(slb_compare_rr_to_size)
+	cmpldi	r10,0
 
 	blt+	4f
 	li	r10,SLB_NUM_BOLTED

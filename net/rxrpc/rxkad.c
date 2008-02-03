@@ -237,7 +237,8 @@ static int rxkad_secure_packet_encrypt(const struct rxrpc_call *call,
 	len = data_size + call->conn->size_align - 1;
 	len &= ~(call->conn->size_align - 1);
 
-	sg_init_table(sg, skb_to_sgvec(skb, sg, 0, len));
+	sg_init_table(sg, nsg);
+	skb_to_sgvec(skb, sg, 0, len);
 	crypto_blkcipher_encrypt_iv(&desc, sg, sg, len);
 
 	_leave(" = 0");
@@ -283,7 +284,7 @@ static int rxkad_secure_packet(const struct rxrpc_call *call,
 
 	/* calculate the security checksum */
 	x = htonl(call->channel << (32 - RXRPC_CIDSHIFT));
-	x |= sp->hdr.seq & __constant_cpu_to_be32(0x3fffffff);
+	x |= sp->hdr.seq & cpu_to_be32(0x3fffffff);
 	tmpbuf.x[0] = sp->hdr.callNumber;
 	tmpbuf.x[1] = x;
 
@@ -344,7 +345,7 @@ static int rxkad_verify_packet_auth(const struct rxrpc_call *call,
 		goto nomem;
 
 	sg_init_table(sg, nsg);
-	sg_mark_end(sg, skb_to_sgvec(skb, sg, 0, 8));
+	skb_to_sgvec(skb, sg, 0, 8);
 
 	/* start the decryption afresh */
 	memset(&iv, 0, sizeof(iv));
@@ -426,7 +427,7 @@ static int rxkad_verify_packet_encrypt(const struct rxrpc_call *call,
 	}
 
 	sg_init_table(sg, nsg);
-	sg_mark_end(sg, skb_to_sgvec(skb, sg, 0, skb->len));
+	skb_to_sgvec(skb, sg, 0, skb->len);
 
 	/* decrypt from the session key */
 	payload = call->conn->key->payload.data;
@@ -517,7 +518,7 @@ static int rxkad_verify_packet(const struct rxrpc_call *call,
 
 	/* validate the security checksum */
 	x = htonl(call->channel << (32 - RXRPC_CIDSHIFT));
-	x |= sp->hdr.seq & __constant_cpu_to_be32(0x3fffffff);
+	x |= sp->hdr.seq & cpu_to_be32(0x3fffffff);
 	tmpbuf.x[0] = call->call_id;
 	tmpbuf.x[1] = x;
 
@@ -701,7 +702,7 @@ static void rxkad_sg_set_buf2(struct scatterlist sg[2],
 		nsg++;
 	}
 
-	sg_mark_end(sg, nsg);
+	sg_mark_end(&sg[nsg - 1]);
 
 	ASSERTCMP(sg[0].length + sg[1].length, ==, buflen);
 }
@@ -1020,6 +1021,7 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 
 	abort_code = RXKADINCONSISTENCY;
 	if (version != RXKAD_VERSION)
+		goto protocol_error;
 
 	abort_code = RXKADTICKETLEN;
 	if (ticket_len < 4 || ticket_len > MAXKRB5TICKETLEN)

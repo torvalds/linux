@@ -195,8 +195,8 @@ static void atmel_spi_next_xfer(struct spi_master *master,
 		xfer, xfer->len, xfer->tx_buf, xfer->tx_dma,
 		xfer->rx_buf, xfer->rx_dma, spi_readl(as, IMR));
 
-	spi_writel(as, TCR, len);
 	spi_writel(as, RCR, len);
+	spi_writel(as, TCR, len);
 	spi_writel(as, PTCR, SPI_BIT(TXTEN) | SPI_BIT(RXTEN));
 }
 
@@ -497,7 +497,7 @@ static int atmel_spi_setup(struct spi_device *spi)
 	/* chipselect must have been muxed as GPIO (e.g. in board setup) */
 	npcs_pin = (unsigned int)spi->controller_data;
 	if (!spi->controller_state) {
-		ret = gpio_request(npcs_pin, "spi_npcs");
+		ret = gpio_request(npcs_pin, spi->dev.bus_id);
 		if (ret)
 			return ret;
 		spi->controller_state = (void *)npcs_pin;

@@ -404,7 +404,7 @@ static irqreturn_t i2c_davinci_isr(int this_irq, void *dev_id)
 						      DAVINCI_I2C_STR_REG,
 						      w);
 			} else
-				dev_err(dev->dev, "RDR IRQ while no"
+				dev_err(dev->dev, "RDR IRQ while no "
 					"data requested\n");
 			break;
 
@@ -423,7 +423,7 @@ static irqreturn_t i2c_davinci_isr(int this_irq, void *dev_id)
 						      DAVINCI_I2C_IMR_REG,
 						      w);
 			} else
-				dev_err(dev->dev, "TDR IRQ while no data to"
+				dev_err(dev->dev, "TDR IRQ while no data to "
 					"send\n");
 			break;
 
@@ -510,7 +510,6 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 
 	/* FIXME */
 	adap->timeout = 1;
-	adap->retries = 1;
 
 	adap->nr = pdev->id;
 	r = i2c_add_numbered_adapter(adap);

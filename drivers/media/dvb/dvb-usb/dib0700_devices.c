@@ -94,12 +94,28 @@ static int bristol_frontend_attach(struct dvb_usb_adapter *adap)
 		(10 + adap->id) << 1, &bristol_dib3000mc_config[adap->id])) == NULL ? -ENODEV : 0;
 }
 
+static int eeprom_read(struct i2c_adapter *adap,u8 adrs,u8 *pval)
+{
+	struct i2c_msg msg[2] = {
+		{ .addr = 0x50, .flags = 0,        .buf = &adrs, .len = 1 },
+		{ .addr = 0x50, .flags = I2C_M_RD, .buf = pval,  .len = 1 },
+	};
+	if (i2c_transfer(adap, msg, 2) != 2) return -EREMOTEIO;
+	return 0;
+}
+
 static int bristol_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	struct dib0700_state *st = adap->dev->priv;
+	struct i2c_adapter *prim_i2c = &adap->dev->i2c_adap;
 	struct i2c_adapter *tun_i2c = dib3000mc_get_tuner_i2c_master(adap->fe, 1);
-	return dvb_attach(mt2060_attach,adap->fe, tun_i2c, &bristol_mt2060_config[adap->id],
-		st->mt2060_if1[adap->id]) == NULL ? -ENODEV : 0;
+	s8 a;
+	int if1=1220;
+	if (adap->dev->udev->descriptor.idVendor  == USB_VID_HAUPPAUGE &&
+		adap->dev->udev->descriptor.idProduct == USB_PID_HAUPPAUGE_NOVA_T_500_2) {
+		if (!eeprom_read(prim_i2c,0x59 + adap->id,&a)) if1=1220+a;
+	}
+	return dvb_attach(mt2060_attach,adap->fe, tun_i2c,&bristol_mt2060_config[adap->id],
+		if1) == NULL ? -ENODEV : 0;
 }
 
 /* STK7700D: Pinnacle/Terratec/Hauppauge Dual DVB-T Diversity */
@@ -229,6 +245,27 @@ static struct mt2266_config stk7700d_mt2266_config[2] = {
 	{	.i2c_address = 0x60
 	}
 };
+
+static int stk7700P2_frontend_attach(struct dvb_usb_adapter *adap)
+{
+	if (adap->id == 0) {
+		dib0700_set_gpio(adap->dev, GPIO6, GPIO_OUT, 1);
+		msleep(10);
+		dib0700_set_gpio(adap->dev, GPIO9, GPIO_OUT, 1);
+		dib0700_set_gpio(adap->dev, GPIO4, GPIO_OUT, 1);
+		dib0700_set_gpio(adap->dev, GPIO7, GPIO_OUT, 1);
+		dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 0);
+		msleep(10);
+		dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 1);
+		msleep(10);
+		dib7000p_i2c_enumeration(&adap->dev->i2c_adap,1,18,stk7700d_dib7000p_mt2266_config);
+	}
+
+	adap->fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap,0x80+(adap->id << 1),
+				&stk7700d_dib7000p_mt2266_config[adap->id]);
+
+	return adap->fe == NULL ? -ENODEV : 0;
+}
 
 static int stk7700d_frontend_attach(struct dvb_usb_adapter *adap)
 {
@@ -415,6 +452,35 @@ static struct dvb_usb_rc_key dib0700_rc_keys[] = {
 	{ 0x1e, 0x38, KEY_YELLOW },
 	{ 0x1e, 0x3b, KEY_GOTO },
 	{ 0x1e, 0x3d, KEY_POWER },
+
+	/* Key codes for the Leadtek Winfast DTV Dongle */
+	{ 0x00, 0x42, KEY_POWER },
+	{ 0x07, 0x7c, KEY_TUNER },
+	{ 0x0f, 0x4e, KEY_PRINT }, /* PREVIEW */
+	{ 0x08, 0x40, KEY_SCREEN }, /* full screen toggle*/
+	{ 0x0f, 0x71, KEY_DOT }, /* frequency */
+	{ 0x07, 0x43, KEY_0 },
+	{ 0x0c, 0x41, KEY_1 },
+	{ 0x04, 0x43, KEY_2 },
+	{ 0x0b, 0x7f, KEY_3 },
+	{ 0x0e, 0x41, KEY_4 },
+	{ 0x06, 0x43, KEY_5 },
+	{ 0x09, 0x7f, KEY_6 },
+	{ 0x0d, 0x7e, KEY_7 },
+	{ 0x05, 0x7c, KEY_8 },
+	{ 0x0a, 0x40, KEY_9 },
+	{ 0x0e, 0x4e, KEY_CLEAR },
+	{ 0x04, 0x7c, KEY_CHANNEL }, /* show channel number */
+	{ 0x0f, 0x41, KEY_LAST }, /* recall */
+	{ 0x03, 0x42, KEY_MUTE },
+	{ 0x06, 0x4c, KEY_RESERVED }, /* PIP button*/
+	{ 0x01, 0x72, KEY_SHUFFLE }, /* SNAPSHOT */
+	{ 0x0c, 0x4e, KEY_PLAYPAUSE }, /* TIMESHIFT */
+	{ 0x0b, 0x70, KEY_RECORD },
+	{ 0x03, 0x7d, KEY_VOLUMEUP },
+	{ 0x01, 0x7d, KEY_VOLUMEDOWN },
+	{ 0x02, 0x42, KEY_CHANNELUP },
+	{ 0x00, 0x7d, KEY_CHANNELDOWN },
 };
 
 /* STK7700P: Hauppauge Nova-T Stick, AVerMedia Volar */
@@ -578,16 +644,22 @@ static struct mt2060_config stk7700p_mt2060_config = {
 
 static int stk7700p_tuner_attach(struct dvb_usb_adapter *adap)
 {
+	struct i2c_adapter *prim_i2c = &adap->dev->i2c_adap;
 	struct dib0700_state *st = adap->dev->priv;
 	struct i2c_adapter *tun_i2c;
-
+	s8 a;
+	int if1=1220;
+	if (adap->dev->udev->descriptor.idVendor  == USB_VID_HAUPPAUGE &&
+		adap->dev->udev->descriptor.idProduct == USB_PID_HAUPPAUGE_NOVA_T_STICK) {
+		if (!eeprom_read(prim_i2c,0x58,&a)) if1=1220+a;
+	}
 	if (st->is_dib7000pc)
 		tun_i2c = dib7000p_get_i2c_master(adap->fe, DIBX000_I2C_INTERFACE_TUNER, 1);
 	else
 		tun_i2c = dib7000m_get_i2c_master(adap->fe, DIBX000_I2C_INTERFACE_TUNER, 1);
 
 	return dvb_attach(mt2060_attach, adap->fe, tun_i2c, &stk7700p_mt2060_config,
-		st->mt2060_if1[0]) == NULL ? -ENODEV : 0;
+		if1) == NULL ? -ENODEV : 0;
 }
 
 /* DIB7070 generic */
@@ -709,6 +781,8 @@ static struct dib7000p_config dib7070p_dib7000p_config = {
 	.agc_config_count = 1,
 	.agc = &dib7070_agc_config,
 	.bw  = &dib7070_bw_config_12_mhz,
+	.tuner_is_baseband = 1,
+	.spur_protect = 1,
 
 	.gpio_dir = DIB7000P_GPIO_DEFAULT_DIRECTIONS,
 	.gpio_val = DIB7000P_GPIO_DEFAULT_VALUES,
@@ -748,6 +822,8 @@ static struct dib7000p_config stk7070pd_dib7000p_config[2] = {
 		.agc_config_count = 1,
 		.agc = &dib7070_agc_config,
 		.bw  = &dib7070_bw_config_12_mhz,
+		.tuner_is_baseband = 1,
+		.spur_protect = 1,
 
 		.gpio_dir = DIB7000P_GPIO_DEFAULT_DIRECTIONS,
 		.gpio_val = DIB7000P_GPIO_DEFAULT_VALUES,
@@ -760,6 +836,8 @@ static struct dib7000p_config stk7070pd_dib7000p_config[2] = {
 		.agc_config_count = 1,
 		.agc = &dib7070_agc_config,
 		.bw  = &dib7070_bw_config_12_mhz,
+		.tuner_is_baseband = 1,
+		.spur_protect = 1,
 
 		.gpio_dir = DIB7000P_GPIO_DEFAULT_DIRECTIONS,
 		.gpio_val = DIB7000P_GPIO_DEFAULT_VALUES,
@@ -821,6 +899,12 @@ struct usb_device_id dib0700_usb_id_table[] = {
 		{ USB_DEVICE(USB_VID_PINNACLE,  USB_PID_PINNACLE_PCTV_DUAL_DIVERSITY_DVB_T) },
 		{ USB_DEVICE(USB_VID_COMPRO,    USB_PID_COMPRO_VIDEOMATE_U500_PC) },
 /* 20 */{ USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_EXPRESS) },
+		{ USB_DEVICE(USB_VID_GIGABYTE,  USB_PID_GIGABYTE_U7000) },
+		{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC, USB_PID_ARTEC_T14BR) },
+		{ USB_DEVICE(USB_VID_ASUS,      USB_PID_ASUS_U3000) },
+		{ USB_DEVICE(USB_VID_ASUS,      USB_PID_ASUS_U3100) },
+/* 25 */	{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_NOVA_T_STICK_3) },
+		{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_MYTV_T) },
 		{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -862,7 +946,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.num_device_descs = 7,
+		.num_device_descs = 8,
 		.devices = {
 			{   "DiBcom STK7700P reference design",
 				{ &dib0700_usb_id_table[0], &dib0700_usb_id_table[1] },
@@ -890,6 +974,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 			{   "AVerMedia AVerTV DVB-T Express",
 				{ &dib0700_usb_id_table[20] },
+				{ NULL },
+			},
+			{   "Gigabyte U7000",
+				{ &dib0700_usb_id_table[21], NULL },
 				{ NULL },
 			}
 		},
@@ -961,7 +1049,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			{   "DiBcom STK7700D reference design",
 				{ &dib0700_usb_id_table[14], NULL },
 				{ NULL },
-			},
+			}
 		},
 
 		.rc_interval      = DEFAULT_RC_INTERVAL,
@@ -969,6 +1057,25 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
 		.rc_query         = dib0700_rc_query
 
+	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
+
+		.num_adapters = 1,
+		.adapter = {
+			{
+				.frontend_attach  = stk7700P2_frontend_attach,
+				.tuner_attach     = stk7700d_tuner_attach,
+
+				DIB0700_DEFAULT_STREAMING_CONFIG(0x02),
+			},
+		},
+
+		.num_device_descs = 1,
+		.devices = {
+			{   "ASUS My Cinema U3000 Mini DVBT Tuner",
+				{ &dib0700_usb_id_table[23], NULL },
+				{ NULL },
+			},
+		}
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 
 		.num_adapters = 1,
@@ -983,7 +1090,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.num_device_descs = 2,
+		.num_device_descs = 6,
 		.devices = {
 			{   "DiBcom STK7070P reference design",
 				{ &dib0700_usb_id_table[15], NULL },
@@ -993,7 +1100,29 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				{ &dib0700_usb_id_table[16], NULL },
 				{ NULL },
 			},
-		}
+			{   "Artec T14BR DVB-T",
+				{ &dib0700_usb_id_table[22], NULL },
+				{ NULL },
+			},
+			{   "ASUS My Cinema U3100 Mini DVBT Tuner",
+				{ &dib0700_usb_id_table[24], NULL },
+				{ NULL },
+			},
+			{   "Hauppauge Nova-T Stick",
+				{ &dib0700_usb_id_table[25], NULL },
+				{ NULL },
+			},
+			{   "Hauppauge Nova-T MyTV.t",
+				{ &dib0700_usb_id_table[26], NULL },
+				{ NULL },
+			},
+		},
+
+		.rc_interval      = DEFAULT_RC_INTERVAL,
+		.rc_key_map       = dib0700_rc_keys,
+		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
+		.rc_query         = dib0700_rc_query
+
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 
 		.num_adapters = 2,
@@ -1024,7 +1153,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			{   "Pinnacle PCTV Dual DVB-T Diversity Stick",
 				{ &dib0700_usb_id_table[18], NULL },
 				{ NULL },
-			},
+			}
 		}
 	},
 };

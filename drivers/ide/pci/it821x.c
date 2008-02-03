@@ -1,7 +1,4 @@
-
 /*
- * linux/drivers/ide/pci/it821x.c		Version 0.16	Jul 3 2007
- *
  * Copyright (C) 2004		Red Hat <alan@redhat.com>
  * Copyright (C) 2007		Bartlomiej Zolnierkiewicz
  *
@@ -66,12 +63,9 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/delay.h>
 #include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/init.h>
-
-#include <asm/io.h>
 
 struct it821x_dev
 {
@@ -113,7 +107,8 @@ static int it8212_noraid;
 
 static void it821x_program(ide_drive_t *drive, u16 timing)
 {
-	ide_hwif_t *hwif	= drive->hwif;
+	ide_hwif_t *hwif = drive->hwif;
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	struct it821x_dev *itdev = ide_get_hwifdata(hwif);
 	int channel = hwif->channel;
 	u8 conf;
@@ -123,7 +118,8 @@ static void it821x_program(ide_drive_t *drive, u16 timing)
 		conf = timing >> 8;
 	else
 		conf = timing & 0xFF;
-	pci_write_config_byte(hwif->pci_dev, 0x54 + 4 * channel, conf);
+
+	pci_write_config_byte(dev, 0x54 + 4 * channel, conf);
 }
 
 /**
@@ -137,7 +133,8 @@ static void it821x_program(ide_drive_t *drive, u16 timing)
 
 static void it821x_program_udma(ide_drive_t *drive, u16 timing)
 {
-	ide_hwif_t *hwif	= drive->hwif;
+	ide_hwif_t *hwif = drive->hwif;
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	struct it821x_dev *itdev = ide_get_hwifdata(hwif);
 	int channel = hwif->channel;
 	int unit = drive->select.b.unit;
@@ -148,11 +145,12 @@ static void it821x_program_udma(ide_drive_t *drive, u16 timing)
 		conf = timing >> 8;
 	else
 		conf = timing & 0xFF;
-	if(itdev->timing10 == 0)
-		pci_write_config_byte(hwif->pci_dev, 0x56 + 4 * channel + unit, conf);
+
+	if (itdev->timing10 == 0)
+		pci_write_config_byte(dev, 0x56 + 4 * channel + unit, conf);
 	else {
-		pci_write_config_byte(hwif->pci_dev, 0x56 + 4 * channel, conf);
-		pci_write_config_byte(hwif->pci_dev, 0x56 + 4 * channel + 1, conf);
+		pci_write_config_byte(dev, 0x56 + 4 * channel, conf);
+		pci_write_config_byte(dev, 0x56 + 4 * channel + 1, conf);
 	}
 }
 
@@ -167,6 +165,7 @@ static void it821x_program_udma(ide_drive_t *drive, u16 timing)
 static void it821x_clock_strategy(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	struct it821x_dev *itdev = ide_get_hwifdata(hwif);
 
 	u8 unit = drive->select.b.unit;
@@ -205,10 +204,11 @@ static void it821x_clock_strategy(ide_drive_t *drive)
 		itdev->clock_mode = ATA_50;
 		sel = 1;
 	}
-	pci_read_config_byte(hwif->pci_dev, 0x50, &v);
+
+	pci_read_config_byte(dev, 0x50, &v);
 	v &= ~(1 << (1 + hwif->channel));
 	v |= sel << (1 + hwif->channel);
-	pci_write_config_byte(hwif->pci_dev, 0x50, v);
+	pci_write_config_byte(dev, 0x50, v);
 
 	/*
 	 *	Reprogram the UDMA/PIO of the pair drive for the switch
@@ -282,7 +282,8 @@ static void it821x_set_pio_mode(ide_drive_t *drive, const u8 pio)
 
 static void it821x_tune_mwdma (ide_drive_t *drive, byte mode_wanted)
 {
-	ide_hwif_t *hwif	= drive->hwif;
+	ide_hwif_t *hwif = drive->hwif;
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	struct it821x_dev *itdev = (void *)ide_get_hwifdata(hwif);
 	int unit = drive->select.b.unit;
 	int channel = hwif->channel;
@@ -297,12 +298,12 @@ static void it821x_tune_mwdma (ide_drive_t *drive, byte mode_wanted)
 	itdev->udma[unit] = UDMA_OFF;
 
 	/* UDMA bits off - Revision 0x10 do them in pairs */
-	pci_read_config_byte(hwif->pci_dev, 0x50, &conf);
-	if(itdev->timing10)
+	pci_read_config_byte(dev, 0x50, &conf);
+	if (itdev->timing10)
 		conf |= channel ? 0x60: 0x18;
 	else
 		conf |= 1 << (3 + 2 * channel + unit);
-	pci_write_config_byte(hwif->pci_dev, 0x50, conf);
+	pci_write_config_byte(dev, 0x50, conf);
 
 	it821x_clock_strategy(drive);
 	/* FIXME: do we need to program this ? */
@@ -320,7 +321,8 @@ static void it821x_tune_mwdma (ide_drive_t *drive, byte mode_wanted)
 
 static void it821x_tune_udma (ide_drive_t *drive, byte mode_wanted)
 {
-	ide_hwif_t *hwif	= drive->hwif;
+	ide_hwif_t *hwif = drive->hwif;
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	struct it821x_dev *itdev = ide_get_hwifdata(hwif);
 	int unit = drive->select.b.unit;
 	int channel = hwif->channel;
@@ -337,12 +339,12 @@ static void it821x_tune_udma (ide_drive_t *drive, byte mode_wanted)
 		itdev->udma[unit] |= 0x8080;	/* UDMA 5/6 select on */
 
 	/* UDMA on. Again revision 0x10 must do the pair */
-	pci_read_config_byte(hwif->pci_dev, 0x50, &conf);
-	if(itdev->timing10)
+	pci_read_config_byte(dev, 0x50, &conf);
+	if (itdev->timing10)
 		conf &= channel ? 0x9F: 0xE7;
 	else
 		conf &= ~ (1 << (3 + 2 * channel + unit));
-	pci_write_config_byte(hwif->pci_dev, 0x50, conf);
+	pci_write_config_byte(dev, 0x50, conf);
 
 	it821x_clock_strategy(drive);
 	it821x_program_udma(drive, itdev->udma[unit]);
@@ -431,49 +433,35 @@ static u8 __devinit ata66_it821x(ide_hwif_t *hwif)
 }
 
 /**
- *	it821x_fixup	-	post init callback
- *	@hwif: interface
+ *	it821x_quirkproc	-	post init callback
+ *	@drive: drive
  *
- *	This callback is run after the drives have been probed but
+ *	This callback is run after the drive has been probed but
  *	before anything gets attached. It allows drivers to do any
  *	final tuning that is needed, or fixups to work around bugs.
  */
 
-static void __devinit it821x_fixups(ide_hwif_t *hwif)
+static void __devinit it821x_quirkproc(ide_drive_t *drive)
 {
-	struct it821x_dev *itdev = ide_get_hwifdata(hwif);
-	int i;
+	struct it821x_dev *itdev = ide_get_hwifdata(drive->hwif);
+	struct hd_driveid *id = drive->id;
+	u16 *idbits = (u16 *)drive->id;
 
-	if(!itdev->smart) {
+	if (!itdev->smart) {
 		/*
 		 *	If we are in pass through mode then not much
 		 *	needs to be done, but we do bother to clear the
 		 *	IRQ mask as we may well be in PIO (eg rev 0x10)
 		 *	for now and we know unmasking is safe on this chipset.
 		 */
-		for (i = 0; i < 2; i++) {
-			ide_drive_t *drive = &hwif->drives[i];
-			if(drive->present)
-				drive->unmask = 1;
-		}
-		return;
-	}
+		drive->unmask = 1;
+	} else {
 	/*
 	 *	Perform fixups on smart mode. We need to "lose" some
 	 *	capabilities the firmware lacks but does not filter, and
 	 *	also patch up some capability bits that it forgets to set
 	 *	in RAID mode.
 	 */
-
-	for(i = 0; i < 2; i++) {
-		ide_drive_t *drive = &hwif->drives[i];
-		struct hd_driveid *id;
-		u16 *idbits;
-
-		if(!drive->present)
-			continue;
-		id = drive->id;
-		idbits = (u16 *)drive->id;
 
 		/* Check for RAID v native */
 		if(strstr(id->model, "Integrated Technology Express")) {
@@ -534,8 +522,11 @@ static void __devinit it821x_fixups(ide_hwif_t *hwif)
 
 static void __devinit init_hwif_it821x(ide_hwif_t *hwif)
 {
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	struct it821x_dev *idev = kzalloc(sizeof(struct it821x_dev), GFP_KERNEL);
 	u8 conf;
+
+	hwif->quirkproc = &it821x_quirkproc;
 
 	if (idev == NULL) {
 		printk(KERN_ERR "it821x: out of memory, falling back to legacy behaviour.\n");
@@ -544,7 +535,7 @@ static void __devinit init_hwif_it821x(ide_hwif_t *hwif)
 
 	ide_set_hwifdata(hwif, idev);
 
-	pci_read_config_byte(hwif->pci_dev, 0x50, &conf);
+	pci_read_config_byte(dev, 0x50, &conf);
 	if (conf & 1) {
 		idev->smart = 1;
 		hwif->host_flags |= IDE_HFLAG_NO_ATAPI_DMA;
@@ -567,7 +558,7 @@ static void __devinit init_hwif_it821x(ide_hwif_t *hwif)
 	 *	this is necessary.
 	 */
 
-	pci_read_config_byte(hwif->pci_dev, 0x08, &conf);
+	pci_read_config_byte(dev, 0x08, &conf);
 	if (conf == 0x10) {
 		idev->timing10 = 1;
 		hwif->host_flags |= IDE_HFLAG_NO_ATAPI_DMA;
@@ -585,14 +576,13 @@ static void __devinit init_hwif_it821x(ide_hwif_t *hwif)
 	} else
 		hwif->host_flags |= IDE_HFLAG_NO_SET_MODE;
 
+	hwif->cable_detect = ata66_it821x;
+
 	if (hwif->dma_base == 0)
 		return;
 
 	hwif->ultra_mask = ATA_UDMA6;
 	hwif->mwdma_mask = ATA_MWDMA2;
-
-	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
-		hwif->cbl = ata66_it821x(hwif);
 }
 
 static void __devinit it8212_disable_raid(struct pci_dev *dev)
@@ -633,7 +623,6 @@ static unsigned int __devinit init_chipset_it821x(struct pci_dev *dev, const cha
 		.name		= name_str,		\
 		.init_chipset	= init_chipset_it821x,	\
 		.init_hwif	= init_hwif_it821x,	\
-		.fixup	 	= it821x_fixups,	\
 		.host_flags	= IDE_HFLAG_BOOTABLE,	\
 		.pio_mask	= ATA_PIO4,		\
 	}
@@ -653,8 +642,7 @@ static const struct ide_port_info it821x_chipsets[] __devinitdata = {
 
 static int __devinit it821x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	ide_setup_pci_device(dev, &it821x_chipsets[id->driver_data]);
-	return 0;
+	return ide_setup_pci_device(dev, &it821x_chipsets[id->driver_data]);
 }
 
 static const struct pci_device_id it821x_pci_tbl[] = {

@@ -74,7 +74,7 @@ struct rw_semaphore bonding_rwsem;
  * "show" function for the bond_masters attribute.
  * The class parameter is ignored.
  */
-static ssize_t bonding_show_bonds(struct class *cls, char *buffer)
+static ssize_t bonding_show_bonds(struct class *cls, char *buf)
 {
 	int res = 0;
 	struct bonding *bond;
@@ -86,14 +86,13 @@ static ssize_t bonding_show_bonds(struct class *cls, char *buffer)
 			/* not enough space for another interface name */
 			if ((PAGE_SIZE - res) > 10)
 				res = PAGE_SIZE - 10;
-			res += sprintf(buffer + res, "++more++");
+			res += sprintf(buf + res, "++more++ ");
 			break;
 		}
-		res += sprintf(buffer + res, "%s ",
-			       bond->dev->name);
+		res += sprintf(buf + res, "%s ", bond->dev->name);
 	}
-	res += sprintf(buffer + res, "\n");
-	res++;
+	if (res)
+		buf[res-1] = '\n'; /* eat the leftover space */
 	up_read(&(bonding_rwsem));
 	return res;
 }
@@ -110,11 +109,10 @@ static ssize_t bonding_store_bonds(struct class *cls, const char *buffer, size_t
 {
 	char command[IFNAMSIZ + 1] = {0, };
 	char *ifname;
-	int res = count;
+	int rv, res = count;
 	struct bonding *bond;
 	struct bonding *nxt;
 
-	down_write(&(bonding_rwsem));
 	sscanf(buffer, "%16s", command); /* IFNAMSIZ*/
 	ifname = command + 1;
 	if ((strlen(command) <= 1) ||
@@ -122,39 +120,28 @@ static ssize_t bonding_store_bonds(struct class *cls, const char *buffer, size_t
 		goto err_no_cmd;
 
 	if (command[0] == '+') {
-
-		/* Check to see if the bond already exists. */
-		list_for_each_entry_safe(bond, nxt, &bond_dev_list, bond_list)
-			if (strnicmp(bond->dev->name, ifname, IFNAMSIZ) == 0) {
-				printk(KERN_ERR DRV_NAME
-					": cannot add bond %s; it already exists\n",
-					ifname);
-				res = -EPERM;
-				goto out;
-			}
-
 		printk(KERN_INFO DRV_NAME
 			": %s is being created...\n", ifname);
-		if (bond_create(ifname, &bonding_defaults, &bond)) {
-			printk(KERN_INFO DRV_NAME
-			": %s interface already exists. Bond creation failed.\n",
-			ifname);
-			res = -EPERM;
+		rv = bond_create(ifname, &bonding_defaults, &bond);
+		if (rv) {
+			printk(KERN_INFO DRV_NAME ": Bond creation failed.\n");
+			res = rv;
 		}
 		goto out;
 	}
 
 	if (command[0] == '-') {
+		rtnl_lock();
+		down_write(&bonding_rwsem);
+
 		list_for_each_entry_safe(bond, nxt, &bond_dev_list, bond_list)
 			if (strnicmp(bond->dev->name, ifname, IFNAMSIZ) == 0) {
-				rtnl_lock();
 				/* check the ref count on the bond's kobject.
 				 * If it's > expected, then there's a file open,
 				 * and we have to fail.
 				 */
 				if (atomic_read(&bond->dev->dev.kobj.kref.refcount)
 							> expected_refcount){
-					rtnl_unlock();
 					printk(KERN_INFO DRV_NAME
 						": Unable remove bond %s due to open references.\n",
 						ifname);
@@ -165,6 +152,7 @@ static ssize_t bonding_store_bonds(struct class *cls, const char *buffer, size_t
 					": %s is being deleted...\n",
 					bond->dev->name);
 				bond_destroy(bond);
+				up_write(&bonding_rwsem);
 				rtnl_unlock();
 				goto out;
 			}
@@ -172,6 +160,8 @@ static ssize_t bonding_store_bonds(struct class *cls, const char *buffer, size_t
 		printk(KERN_ERR DRV_NAME
 			": unable to delete non-existent bond %s\n", ifname);
 		res = -ENODEV;
+		up_write(&bonding_rwsem);
+		rtnl_unlock();
 		goto out;
 	}
 
@@ -184,7 +174,6 @@ err_no_cmd:
 	 * get called forever, which is bad.
 	 */
 out:
-	up_write(&(bonding_rwsem));
 	return res;
 }
 /* class attribute for bond_masters file.  This ends up in /sys/class/net */
@@ -235,14 +224,14 @@ static ssize_t bonding_show_slaves(struct device *d,
 			/* not enough space for another interface name */
 			if ((PAGE_SIZE - res) > 10)
 				res = PAGE_SIZE - 10;
-			res += sprintf(buf + res, "++more++");
+			res += sprintf(buf + res, "++more++ ");
 			break;
 		}
 		res += sprintf(buf + res, "%s ", slave->dev->name);
 	}
 	read_unlock(&bond->lock);
-	res += sprintf(buf + res, "\n");
-	res++;
+	if (res)
+		buf[res-1] = '\n'; /* eat the leftover space */
 	return res;
 }
 
@@ -271,6 +260,9 @@ static ssize_t bonding_store_slaves(struct device *d,
 	}
 
 	/* Note:  We can't hold bond->lock here, as bond_create grabs it. */
+
+	rtnl_lock();
+	down_write(&(bonding_rwsem));
 
 	sscanf(buffer, "%16s", command); /* IFNAMSIZ*/
 	ifname = command + 1;
@@ -337,12 +329,10 @@ static ssize_t bonding_store_slaves(struct device *d,
 				dev->mtu = bond->dev->mtu;
 			}
 		}
-		rtnl_lock();
 		res = bond_enslave(bond->dev, dev);
 		bond_for_each_slave(bond, slave, i)
 			if (strnicmp(slave->dev->name, ifname, IFNAMSIZ) == 0)
 				slave->original_mtu = original_mtu;
-		rtnl_unlock();
 		if (res) {
 			ret = res;
 		}
@@ -360,12 +350,10 @@ static ssize_t bonding_store_slaves(struct device *d,
 		if (dev) {
 			printk(KERN_INFO DRV_NAME ": %s: Removing slave %s\n",
 				bond->dev->name, dev->name);
-			rtnl_lock();
 			if (bond->setup_by_slave)
 				res = bond_release_and_destroy(bond->dev, dev);
 			else
 				res = bond_release(bond->dev, dev);
-			rtnl_unlock();
 			if (res) {
 				ret = res;
 				goto out;
@@ -390,6 +378,8 @@ err_no_cmd:
 	ret = -EPERM;
 
 out:
+	up_write(&(bonding_rwsem));
+	rtnl_unlock();
 	return ret;
 }
 
@@ -406,7 +396,7 @@ static ssize_t bonding_show_mode(struct device *d,
 
 	return sprintf(buf, "%s %d\n",
 			bond_mode_tbl[bond->params.mode].modename,
-			bond->params.mode) + 1;
+			bond->params.mode);
 }
 
 static ssize_t bonding_store_mode(struct device *d,
@@ -424,7 +414,7 @@ static ssize_t bonding_store_mode(struct device *d,
 		goto out;
 	}
 
-	new_value = bond_parse_parm((char *)buf, bond_mode_tbl);
+	new_value = bond_parse_parm(buf, bond_mode_tbl);
 	if (new_value < 0)  {
 		printk(KERN_ERR DRV_NAME
 		       ": %s: Ignoring invalid mode value %.*s.\n",
@@ -457,20 +447,11 @@ static ssize_t bonding_show_xmit_hash(struct device *d,
 				      struct device_attribute *attr,
 				      char *buf)
 {
-	int count;
 	struct bonding *bond = to_bond(d);
 
-	if ((bond->params.mode != BOND_MODE_XOR) &&
-	    (bond->params.mode != BOND_MODE_8023AD)) {
-		// Not Applicable
-		count = sprintf(buf, "NA\n") + 1;
-	} else {
-		count = sprintf(buf, "%s %d\n",
-			xmit_hashtype_tbl[bond->params.xmit_policy].modename,
-			bond->params.xmit_policy) + 1;
-	}
-
-	return count;
+	return sprintf(buf, "%s %d\n",
+		       xmit_hashtype_tbl[bond->params.xmit_policy].modename,
+		       bond->params.xmit_policy);
 }
 
 static ssize_t bonding_store_xmit_hash(struct device *d,
@@ -488,16 +469,7 @@ static ssize_t bonding_store_xmit_hash(struct device *d,
 		goto out;
 	}
 
-	if ((bond->params.mode != BOND_MODE_XOR) &&
-	    (bond->params.mode != BOND_MODE_8023AD)) {
-		printk(KERN_ERR DRV_NAME
-		       "%s: Transmit hash policy is irrelevant in this mode.\n",
-		       bond->dev->name);
-		ret = -EPERM;
-		goto out;
-	}
-
-	new_value = bond_parse_parm((char *)buf, xmit_hashtype_tbl);
+	new_value = bond_parse_parm(buf, xmit_hashtype_tbl);
 	if (new_value < 0)  {
 		printk(KERN_ERR DRV_NAME
 		       ": %s: Ignoring invalid xmit hash policy value %.*s.\n",
@@ -527,7 +499,7 @@ static ssize_t bonding_show_arp_validate(struct device *d,
 
 	return sprintf(buf, "%s %d\n",
 		       arp_validate_tbl[bond->params.arp_validate].modename,
-		       bond->params.arp_validate) + 1;
+		       bond->params.arp_validate);
 }
 
 static ssize_t bonding_store_arp_validate(struct device *d,
@@ -537,7 +509,7 @@ static ssize_t bonding_store_arp_validate(struct device *d,
 	int new_value;
 	struct bonding *bond = to_bond(d);
 
-	new_value = bond_parse_parm((char *)buf, arp_validate_tbl);
+	new_value = bond_parse_parm(buf, arp_validate_tbl);
 	if (new_value < 0) {
 		printk(KERN_ERR DRV_NAME
 		       ": %s: Ignoring invalid arp_validate value %s\n",
@@ -627,7 +599,7 @@ static ssize_t bonding_show_arp_interval(struct device *d,
 {
 	struct bonding *bond = to_bond(d);
 
-	return sprintf(buf, "%d\n", bond->params.arp_interval) + 1;
+	return sprintf(buf, "%d\n", bond->params.arp_interval);
 }
 
 static ssize_t bonding_store_arp_interval(struct device *d,
@@ -712,9 +684,7 @@ static ssize_t bonding_show_arp_targets(struct device *d,
 			       NIPQUAD(bond->params.arp_targets[i]));
 	}
 	if (res)
-		res--;  /* eat the leftover space */
-	res += sprintf(buf + res, "\n");
-	res++;
+		buf[res-1] = '\n'; /* eat the leftover space */
 	return res;
 }
 
@@ -815,7 +785,7 @@ static ssize_t bonding_show_downdelay(struct device *d,
 {
 	struct bonding *bond = to_bond(d);
 
-	return sprintf(buf, "%d\n", bond->params.downdelay * bond->params.miimon) + 1;
+	return sprintf(buf, "%d\n", bond->params.downdelay * bond->params.miimon);
 }
 
 static ssize_t bonding_store_downdelay(struct device *d,
@@ -872,7 +842,7 @@ static ssize_t bonding_show_updelay(struct device *d,
 {
 	struct bonding *bond = to_bond(d);
 
-	return sprintf(buf, "%d\n", bond->params.updelay * bond->params.miimon) + 1;
+	return sprintf(buf, "%d\n", bond->params.updelay * bond->params.miimon);
 
 }
 
@@ -936,7 +906,7 @@ static ssize_t bonding_show_lacp(struct device *d,
 
 	return sprintf(buf, "%s %d\n",
 		bond_lacp_tbl[bond->params.lacp_fast].modename,
-		bond->params.lacp_fast) + 1;
+		bond->params.lacp_fast);
 }
 
 static ssize_t bonding_store_lacp(struct device *d,
@@ -962,7 +932,7 @@ static ssize_t bonding_store_lacp(struct device *d,
 		goto out;
 	}
 
-	new_value = bond_parse_parm((char *)buf, bond_lacp_tbl);
+	new_value = bond_parse_parm(buf, bond_lacp_tbl);
 
 	if ((new_value == 1) || (new_value == 0)) {
 		bond->params.lacp_fast = new_value;
@@ -992,7 +962,7 @@ static ssize_t bonding_show_miimon(struct device *d,
 {
 	struct bonding *bond = to_bond(d);
 
-	return sprintf(buf, "%d\n", bond->params.miimon) + 1;
+	return sprintf(buf, "%d\n", bond->params.miimon);
 }
 
 static ssize_t bonding_store_miimon(struct device *d,
@@ -1083,9 +1053,7 @@ static ssize_t bonding_show_primary(struct device *d,
 	struct bonding *bond = to_bond(d);
 
 	if (bond->primary_slave)
-		count = sprintf(buf, "%s\n", bond->primary_slave->dev->name) + 1;
-	else
-		count = sprintf(buf, "\n") + 1;
+		count = sprintf(buf, "%s\n", bond->primary_slave->dev->name);
 
 	return count;
 }
@@ -1098,7 +1066,10 @@ static ssize_t bonding_store_primary(struct device *d,
 	struct slave *slave;
 	struct bonding *bond = to_bond(d);
 
-	write_lock_bh(&bond->lock);
+	rtnl_lock();
+	read_lock(&bond->lock);
+	write_lock_bh(&bond->curr_slave_lock);
+
 	if (!USES_PRIMARY(bond->params.mode)) {
 		printk(KERN_INFO DRV_NAME
 		       ": %s: Unable to set primary slave; %s is in mode %d\n",
@@ -1132,8 +1103,8 @@ static ssize_t bonding_store_primary(struct device *d,
 		}
 	}
 out:
-	write_unlock_bh(&bond->lock);
-
+	write_unlock_bh(&bond->curr_slave_lock);
+	read_unlock(&bond->lock);
 	rtnl_unlock();
 
 	return count;
@@ -1149,7 +1120,7 @@ static ssize_t bonding_show_carrier(struct device *d,
 {
 	struct bonding *bond = to_bond(d);
 
-	return sprintf(buf, "%d\n", bond->params.use_carrier) + 1;
+	return sprintf(buf, "%d\n", bond->params.use_carrier);
 }
 
 static ssize_t bonding_store_carrier(struct device *d,
@@ -1191,18 +1162,14 @@ static ssize_t bonding_show_active_slave(struct device *d,
 {
 	struct slave *curr;
 	struct bonding *bond = to_bond(d);
-	int count;
-
-	rtnl_lock();
+	int count = 0;
 
 	read_lock(&bond->curr_slave_lock);
 	curr = bond->curr_active_slave;
 	read_unlock(&bond->curr_slave_lock);
 
 	if (USES_PRIMARY(bond->params.mode) && curr)
-		count = sprintf(buf, "%s\n", curr->dev->name) + 1;
-	else
-		count = sprintf(buf, "\n") + 1;
+		count = sprintf(buf, "%s\n", curr->dev->name);
 	return count;
 }
 
@@ -1216,7 +1183,10 @@ static ssize_t bonding_store_active_slave(struct device *d,
         struct slave *new_active = NULL;
 	struct bonding *bond = to_bond(d);
 
-	write_lock_bh(&bond->lock);
+	rtnl_lock();
+	read_lock(&bond->lock);
+	write_lock_bh(&bond->curr_slave_lock);
+
 	if (!USES_PRIMARY(bond->params.mode)) {
 		printk(KERN_INFO DRV_NAME
 		       ": %s: Unable to change active slave; %s is in mode %d\n",
@@ -1272,7 +1242,8 @@ static ssize_t bonding_store_active_slave(struct device *d,
 		}
 	}
 out:
-	write_unlock_bh(&bond->lock);
+	write_unlock_bh(&bond->curr_slave_lock);
+	read_unlock(&bond->lock);
 	rtnl_unlock();
 
 	return count;
@@ -1295,7 +1266,7 @@ static ssize_t bonding_show_mii_status(struct device *d,
 	curr = bond->curr_active_slave;
 	read_unlock(&bond->curr_slave_lock);
 
-	return sprintf(buf, "%s\n", (curr) ? "up" : "down") + 1;
+	return sprintf(buf, "%s\n", (curr) ? "up" : "down");
 }
 static DEVICE_ATTR(mii_status, S_IRUGO, bonding_show_mii_status, NULL);
 
@@ -1312,10 +1283,8 @@ static ssize_t bonding_show_ad_aggregator(struct device *d,
 
 	if (bond->params.mode == BOND_MODE_8023AD) {
 		struct ad_info ad_info;
-		count = sprintf(buf, "%d\n", (bond_3ad_get_active_agg_info(bond, &ad_info)) ?  0 : ad_info.aggregator_id) + 1;
+		count = sprintf(buf, "%d\n", (bond_3ad_get_active_agg_info(bond, &ad_info)) ?  0 : ad_info.aggregator_id);
 	}
-	else
-		count = sprintf(buf, "\n") + 1;
 
 	return count;
 }
@@ -1334,10 +1303,8 @@ static ssize_t bonding_show_ad_num_ports(struct device *d,
 
 	if (bond->params.mode == BOND_MODE_8023AD) {
 		struct ad_info ad_info;
-		count = sprintf(buf, "%d\n", (bond_3ad_get_active_agg_info(bond, &ad_info)) ?  0: ad_info.ports) + 1;
+		count = sprintf(buf, "%d\n", (bond_3ad_get_active_agg_info(bond, &ad_info)) ?  0: ad_info.ports);
 	}
-	else
-		count = sprintf(buf, "\n") + 1;
 
 	return count;
 }
@@ -1356,10 +1323,8 @@ static ssize_t bonding_show_ad_actor_key(struct device *d,
 
 	if (bond->params.mode == BOND_MODE_8023AD) {
 		struct ad_info ad_info;
-		count = sprintf(buf, "%d\n", (bond_3ad_get_active_agg_info(bond, &ad_info)) ?  0 : ad_info.actor_key) + 1;
+		count = sprintf(buf, "%d\n", (bond_3ad_get_active_agg_info(bond, &ad_info)) ?  0 : ad_info.actor_key);
 	}
-	else
-		count = sprintf(buf, "\n") + 1;
 
 	return count;
 }
@@ -1378,10 +1343,8 @@ static ssize_t bonding_show_ad_partner_key(struct device *d,
 
 	if (bond->params.mode == BOND_MODE_8023AD) {
 		struct ad_info ad_info;
-		count = sprintf(buf, "%d\n", (bond_3ad_get_active_agg_info(bond, &ad_info)) ?  0 : ad_info.partner_key) + 1;
+		count = sprintf(buf, "%d\n", (bond_3ad_get_active_agg_info(bond, &ad_info)) ?  0 : ad_info.partner_key);
 	}
-	else
-		count = sprintf(buf, "\n") + 1;
 
 	return count;
 }
@@ -1403,12 +1366,9 @@ static ssize_t bonding_show_ad_partner_mac(struct device *d,
 		struct ad_info ad_info;
 		if (!bond_3ad_get_active_agg_info(bond, &ad_info)) {
 			count = sprintf(buf,"%s\n",
-					print_mac(mac, ad_info.partner_system))
-				+ 1;
+					print_mac(mac, ad_info.partner_system));
 		}
 	}
-	else
-		count = sprintf(buf, "\n") + 1;
 
 	return count;
 }
@@ -1453,8 +1413,6 @@ int bond_create_sysfs(void)
 {
 	int ret = 0;
 	struct bonding *firstbond;
-
-	init_rwsem(&bonding_rwsem);
 
 	/* get the netdev class pointer */
 	firstbond = container_of(bond_dev_list.next, struct bonding, bond_list);

@@ -312,14 +312,14 @@ pcmcia_create_newid_file(struct pcmcia_driver *drv)
 {
 	int error = 0;
 	if (drv->probe != NULL)
-		error = sysfs_create_file(&drv->drv.kobj,
-					  &driver_attr_new_id.attr);
+		error = driver_create_file(&drv->drv, &driver_attr_new_id);
 	return error;
 }
 
 
 /**
  * pcmcia_register_driver - register a PCMCIA driver with the bus core
+ * @driver: the &driver being registered
  *
  * Registers a PCMCIA driver with the PCMCIA bus core.
  */
@@ -354,6 +354,7 @@ EXPORT_SYMBOL(pcmcia_register_driver);
 
 /**
  * pcmcia_unregister_driver - unregister a PCMCIA driver with the bus core
+ * @driver: the &driver being unregistered
  */
 void pcmcia_unregister_driver(struct pcmcia_driver *driver)
 {
@@ -840,8 +841,8 @@ static void pcmcia_bus_rescan(struct pcmcia_socket *skt, int new_cis)
 
 /**
  * pcmcia_load_firmware - load CIS from userspace if device-provided is broken
- * @dev - the pcmcia device which needs a CIS override
- * @filename - requested filename in /lib/firmware/
+ * @dev: the pcmcia device which needs a CIS override
+ * @filename: requested filename in /lib/firmware/
  *
  * This uses the in-kernel firmware loading mechanism to use a "fake CIS" if
  * the one provided by the card is broken. The firmware files reside in

@@ -29,7 +29,6 @@
 #include <linux/list.h>
 #include <linux/sched.h>
 #include <linux/pm.h>
-#include <linux/pm_legacy.h>
 #include <linux/device.h>
 #include <linux/proc_fs.h>
 #ifdef CONFIG_X86
@@ -198,11 +197,9 @@ int acpi_bus_set_power(acpi_handle handle, int state)
 		return -ENODEV;
 	}
 	/*
-	 * Get device's current power state if it's unknown
-	 * This means device power state isn't initialized or previous setting failed
+	 * Get device's current power state
 	 */
-	if ((device->power.state == ACPI_STATE_UNKNOWN) || device->flags.force_power_state)
-		acpi_bus_get_power(device->handle, &device->power.state);
+	acpi_bus_get_power(device->handle, &device->power.state);
 	if ((state == device->power.state) && !device->flags.force_power_state) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device is already at D%d\n",
 				  state));
@@ -746,7 +743,7 @@ static int __init acpi_bus_init(void)
 	return -ENODEV;
 }
 
-decl_subsys(acpi, NULL, NULL);
+struct kobject *acpi_kobj;
 
 static int __init acpi_init(void)
 {
@@ -758,24 +755,23 @@ static int __init acpi_init(void)
 		return -ENODEV;
 	}
 
-	result = firmware_register(&acpi_subsys);
-	if (result < 0)
-		printk(KERN_WARNING "%s: firmware_register error: %d\n",
-			__FUNCTION__, result);
+	acpi_kobj = kobject_create_and_add("acpi", firmware_kobj);
+	if (!acpi_kobj) {
+		printk(KERN_WARNING "%s: kset create error\n", __FUNCTION__);
+		acpi_kobj = NULL;
+	}
 
 	result = acpi_bus_init();
 
 	if (!result) {
-#ifdef CONFIG_PM_LEGACY
-		if (!PM_IS_ACTIVE())
-			pm_active = 1;
+		if (!(pm_flags & PM_APM))
+			pm_flags |= PM_ACPI;
 		else {
 			printk(KERN_INFO PREFIX
 			       "APM is already active, exiting\n");
 			disable_acpi();
 			result = -ENODEV;
 		}
-#endif
 	} else
 		disable_acpi();
 

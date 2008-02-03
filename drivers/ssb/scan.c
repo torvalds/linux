@@ -388,6 +388,17 @@ int ssb_bus_scan(struct ssb_bus *bus,
 		case SSB_DEV_PCI:
 		case SSB_DEV_PCIE:
 #ifdef CONFIG_SSB_DRIVER_PCICORE
+			if (bus->bustype == SSB_BUSTYPE_PCI) {
+				/* Ignore PCI cores on PCI-E cards.
+				 * Ignore PCI-E cores on PCI cards. */
+				if (dev->id.coreid == SSB_DEV_PCI) {
+					if (bus->host_pci->is_pcie)
+						continue;
+				} else {
+					if (!bus->host_pci->is_pcie)
+						continue;
+				}
+			}
 			if (bus->pcicore.dev) {
 				ssb_printk(KERN_WARNING PFX
 					   "WARNING: Multiple PCI(E) cores found\n");

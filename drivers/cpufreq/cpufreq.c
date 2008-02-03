@@ -828,11 +828,8 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 	memcpy(&new_policy, policy, sizeof(struct cpufreq_policy));
 
 	/* prepare interface data */
-	policy->kobj.parent = &sys_dev->kobj;
-	policy->kobj.ktype = &ktype_cpufreq;
-	kobject_set_name(&policy->kobj, "cpufreq");
-
-	ret = kobject_register(&policy->kobj);
+	ret = kobject_init_and_add(&policy->kobj, &ktype_cpufreq, &sys_dev->kobj,
+				   "cpufreq");
 	if (ret) {
 		unlock_policy_rwsem_write(cpu);
 		goto err_out_driver_exit;
@@ -841,19 +838,25 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 	drv_attr = cpufreq_driver->attr;
 	while ((drv_attr) && (*drv_attr)) {
 		ret = sysfs_create_file(&policy->kobj, &((*drv_attr)->attr));
-		if (ret)
+		if (ret) {
+			unlock_policy_rwsem_write(cpu);
 			goto err_out_driver_exit;
+		}
 		drv_attr++;
 	}
 	if (cpufreq_driver->get){
 		ret = sysfs_create_file(&policy->kobj, &cpuinfo_cur_freq.attr);
-		if (ret)
+		if (ret) {
+			unlock_policy_rwsem_write(cpu);
 			goto err_out_driver_exit;
+		}
 	}
 	if (cpufreq_driver->target){
 		ret = sysfs_create_file(&policy->kobj, &scaling_cur_freq.attr);
-		if (ret)
+		if (ret) {
+			unlock_policy_rwsem_write(cpu);
 			goto err_out_driver_exit;
+		}
 	}
 
 	spin_lock_irqsave(&cpufreq_driver_lock, flags);
@@ -896,6 +899,7 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 		goto err_out_unregister;
 	}
 
+	kobject_uevent(&policy->kobj, KOBJ_ADD);
 	module_put(cpufreq_driver->owner);
 	dprintk("initialization complete\n");
 	cpufreq_debug_enable_ratelimit();
@@ -909,7 +913,7 @@ err_out_unregister:
 		cpufreq_cpu_data[j] = NULL;
 	spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
 
-	kobject_unregister(&policy->kobj);
+	kobject_put(&policy->kobj);
 	wait_for_completion(&policy->kobj_unregister);
 
 err_out_driver_exit:
@@ -1025,8 +1029,6 @@ static int __cpufreq_remove_dev (struct sys_device * sys_dev)
 		__cpufreq_governor(data, CPUFREQ_GOV_STOP);
 
 	unlock_policy_rwsem_write(cpu);
-
-	kobject_unregister(&data->kobj);
 
 	kobject_put(&data->kobj);
 
@@ -1602,7 +1604,7 @@ static int __cpufreq_set_policy(struct cpufreq_policy *data,
 	memcpy(&policy->cpuinfo, &data->cpuinfo,
 				sizeof(struct cpufreq_cpuinfo));
 
-	if (policy->min > data->min && policy->min > policy->max) {
+	if (policy->min > data->max || policy->max < data->min) {
 		ret = -EINVAL;
 		goto error_out;
 	}

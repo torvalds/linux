@@ -142,7 +142,6 @@ static void appldata_get_net_sum_data(void *data)
 
 
 static struct appldata_ops ops = {
-	.ctl_nr    = CTL_APPLDATA_NET_SUM,
 	.name	   = "net_sum",
 	.record_nr = APPLDATA_RECORD_NET_SUM_ID,
 	.size	   = sizeof(struct appldata_net_sum_data),

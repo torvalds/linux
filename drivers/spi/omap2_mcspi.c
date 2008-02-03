@@ -350,6 +350,7 @@ omap2_mcspi_txrx_pio(struct spi_device *spi, struct spi_transfer *xfer)
 		tx = xfer->tx_buf;
 
 		do {
+			c -= 1;
 			if (tx != NULL) {
 				if (mcspi_wait_for_reg_bit(chstat_reg,
 						OMAP2_MCSPI_CHSTAT_TXS) < 0) {
@@ -380,7 +381,6 @@ omap2_mcspi_txrx_pio(struct spi_device *spi, struct spi_transfer *xfer)
 						word_len, *(rx - 1));
 #endif
 			}
-			c -= 1;
 		} while (c);
 	} else if (word_len <= 16) {
 		u16		*rx;
@@ -389,6 +389,7 @@ omap2_mcspi_txrx_pio(struct spi_device *spi, struct spi_transfer *xfer)
 		rx = xfer->rx_buf;
 		tx = xfer->tx_buf;
 		do {
+			c -= 2;
 			if (tx != NULL) {
 				if (mcspi_wait_for_reg_bit(chstat_reg,
 						OMAP2_MCSPI_CHSTAT_TXS) < 0) {
@@ -419,7 +420,6 @@ omap2_mcspi_txrx_pio(struct spi_device *spi, struct spi_transfer *xfer)
 						word_len, *(rx - 1));
 #endif
 			}
-			c -= 2;
 		} while (c);
 	} else if (word_len <= 32) {
 		u32		*rx;
@@ -428,6 +428,7 @@ omap2_mcspi_txrx_pio(struct spi_device *spi, struct spi_transfer *xfer)
 		rx = xfer->rx_buf;
 		tx = xfer->tx_buf;
 		do {
+			c -= 4;
 			if (tx != NULL) {
 				if (mcspi_wait_for_reg_bit(chstat_reg,
 						OMAP2_MCSPI_CHSTAT_TXS) < 0) {
@@ -458,7 +459,6 @@ omap2_mcspi_txrx_pio(struct spi_device *spi, struct spi_transfer *xfer)
 						word_len, *(rx - 1));
 #endif
 			}
-			c -= 4;
 		} while (c);
 	}
 

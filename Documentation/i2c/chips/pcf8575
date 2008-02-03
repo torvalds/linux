@@ -1,0 +1,72 @@
+About the PCF8575 chip and the pcf8575 kernel driver
+====================================================
+
+The PCF8575 chip is produced by the following manufacturers:
+
+  * Philips NXP
+    http://www.nxp.com/#/pip/cb=[type=product,path=50807/41735/41850,final=PCF8575_3]|pip=[pip=PCF8575_3][0]
+
+  * Texas Instruments
+    http://focus.ti.com/docs/prod/folders/print/pcf8575.html
+
+
+Some vendors sell small PCB's with the PCF8575 mounted on it. You can connect
+such a board to a Linux host via e.g. an USB to I2C interface. Examples of
+PCB boards with a PCF8575:
+
+  * SFE Breakout Board for PCF8575 I2C Expander by RobotShop
+    http://www.robotshop.ca/home/products/robot-parts/electronics/adapters-converters/sfe-pcf8575-i2c-expander-board.html
+
+  * Breakout Board for PCF8575 I2C Expander by Spark Fun Electronics
+    http://www.sparkfun.com/commerce/product_info.php?products_id=8130
+
+
+Description
+-----------
+The PCF8575 chip is a 16-bit I/O expander for the I2C bus. Up to eight of
+these chips can be connected to the same I2C bus. You can find this
+chip on some custom designed hardware, but you won't find it on PC
+motherboards.
+
+The PCF8575 chip consists of a 16-bit quasi-bidirectional port and an I2C-bus
+interface. Each of the sixteen I/O's can be independently used as an input or
+an output. To set up an I/O pin as an input, you have to write a 1 to the
+corresponding output.
+
+For more information please see the datasheet.
+
+
+Detection
+---------
+
+There is no method known to detect whether a chip on a given I2C address is
+a PCF8575 or whether it is any other I2C device. So there are two alternatives
+to let the driver find the installed PCF8575 devices:
+- Load this driver after any other I2C driver for I2C devices with addresses
+  in the range 0x20 .. 0x27.
+- Pass the I2C bus and address of the installed PCF8575 devices explicitly to
+  the driver at load time via the probe=... or force=... parameters.
+
+/sys interface
+--------------
+
+For each address on which a PCF8575 chip was found or forced the following
+files will be created under /sys:
+* /sys/bus/i2c/devices/<bus>-<address>/read
+* /sys/bus/i2c/devices/<bus>-<address>/write
+where bus is the I2C bus number (0, 1, ...) and address is the four-digit
+hexadecimal representation of the 7-bit I2C address of the PCF8575
+(0020 .. 0027).
+
+The read file is read-only. Reading it will trigger an I2C read and will hence
+report the current input state for the pins configured as inputs, and the
+current output value for the pins configured as outputs.
+
+The write file is read-write. Writing a value to it will configure all pins
+as output for which the corresponding bit is zero. Reading the write file will
+return the value last written, or -EAGAIN if no value has yet been written to
+the write file.
+
+On module initialization the configuration of the chip is not changed -- the
+chip is left in the state it was already configured in through either power-up
+or through previous I2C write actions.

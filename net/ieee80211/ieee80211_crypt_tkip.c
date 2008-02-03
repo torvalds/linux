@@ -25,7 +25,6 @@
 #include <net/ieee80211.h>
 
 #include <linux/crypto.h>
-#include <linux/scatterlist.h>
 #include <linux/crc32.h>
 
 MODULE_AUTHOR("Jouni Malinen");
@@ -190,7 +189,7 @@ static inline u16 Mk16(u8 hi, u8 lo)
 	return lo | (((u16) hi) << 8);
 }
 
-static inline u16 Mk16_le(u16 * v)
+static inline u16 Mk16_le(__le16 * v)
 {
 	return le16_to_cpu(*v);
 }
@@ -276,15 +275,15 @@ static void tkip_mixing_phase2(u8 * WEPSeed, const u8 * TK, const u16 * TTAK,
 	PPK[5] = TTAK[4] + IV16;
 
 	/* Step 2 - 96-bit bijective mixing using S-box */
-	PPK[0] += _S_(PPK[5] ^ Mk16_le((u16 *) & TK[0]));
-	PPK[1] += _S_(PPK[0] ^ Mk16_le((u16 *) & TK[2]));
-	PPK[2] += _S_(PPK[1] ^ Mk16_le((u16 *) & TK[4]));
-	PPK[3] += _S_(PPK[2] ^ Mk16_le((u16 *) & TK[6]));
-	PPK[4] += _S_(PPK[3] ^ Mk16_le((u16 *) & TK[8]));
-	PPK[5] += _S_(PPK[4] ^ Mk16_le((u16 *) & TK[10]));
+	PPK[0] += _S_(PPK[5] ^ Mk16_le((__le16 *) & TK[0]));
+	PPK[1] += _S_(PPK[0] ^ Mk16_le((__le16 *) & TK[2]));
+	PPK[2] += _S_(PPK[1] ^ Mk16_le((__le16 *) & TK[4]));
+	PPK[3] += _S_(PPK[2] ^ Mk16_le((__le16 *) & TK[6]));
+	PPK[4] += _S_(PPK[3] ^ Mk16_le((__le16 *) & TK[8]));
+	PPK[5] += _S_(PPK[4] ^ Mk16_le((__le16 *) & TK[10]));
 
-	PPK[0] += RotR1(PPK[5] ^ Mk16_le((u16 *) & TK[12]));
-	PPK[1] += RotR1(PPK[0] ^ Mk16_le((u16 *) & TK[14]));
+	PPK[0] += RotR1(PPK[5] ^ Mk16_le((__le16 *) & TK[12]));
+	PPK[1] += RotR1(PPK[0] ^ Mk16_le((__le16 *) & TK[14]));
 	PPK[2] += RotR1(PPK[1]);
 	PPK[3] += RotR1(PPK[2]);
 	PPK[4] += RotR1(PPK[3]);
@@ -295,7 +294,7 @@ static void tkip_mixing_phase2(u8 * WEPSeed, const u8 * TK, const u16 * TTAK,
 	WEPSeed[0] = Hi8(IV16);
 	WEPSeed[1] = (Hi8(IV16) | 0x20) & 0x7F;
 	WEPSeed[2] = Lo8(IV16);
-	WEPSeed[3] = Lo8((PPK[5] ^ Mk16_le((u16 *) & TK[0])) >> 1);
+	WEPSeed[3] = Lo8((PPK[5] ^ Mk16_le((__le16 *) & TK[0])) >> 1);
 
 #ifdef __BIG_ENDIAN
 	{
@@ -465,7 +464,7 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	pos += 8;
 
 	if (tkip_replay_check(iv32, iv16, tkey->rx_iv32, tkey->rx_iv16)) {
-		if (net_ratelimit()) {
+		if (ieee80211_ratelimit_debug(IEEE80211_DL_DROP)) {
 			IEEE80211_DEBUG_DROP("TKIP: replay detected: STA=%s"
 			       " previous TSC %08x%04x received TSC "
 			       "%08x%04x\n", print_mac(mac, hdr->addr2),
@@ -505,7 +504,7 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 			 * it needs to be recalculated for the next packet. */
 			tkey->rx_phase1_done = 0;
 		}
-		if (net_ratelimit()) {
+		if (ieee80211_ratelimit_debug(IEEE80211_DL_DROP)) {
 			IEEE80211_DEBUG_DROP("TKIP: ICV error detected: STA="
 			       "%s\n", print_mac(mac, hdr->addr2));
 		}

@@ -98,28 +98,9 @@ static struct attribute_group zfcp_driver_attr_group = {
 	.attrs = zfcp_driver_attrs,
 };
 
-/**
- * zfcp_sysfs_create_driver_files - create sysfs driver files
- * @dev: pointer to belonging device
- *
- * Create all sysfs attributes of the zfcp device driver
- */
-int
-zfcp_sysfs_driver_create_files(struct device_driver *drv)
-{
-	return sysfs_create_group(&drv->kobj, &zfcp_driver_attr_group);
-}
-
-/**
- * zfcp_sysfs_remove_driver_files - remove sysfs driver files
- * @dev: pointer to belonging device
- *
- * Remove all sysfs attributes of the zfcp device driver
- */
-void
-zfcp_sysfs_driver_remove_files(struct device_driver *drv)
-{
-	sysfs_remove_group(&drv->kobj, &zfcp_driver_attr_group);
-}
+struct attribute_group *zfcp_driver_attr_groups[] = {
+	&zfcp_driver_attr_group,
+	NULL,
+};
 
 #undef ZFCP_LOG_AREA

@@ -68,7 +68,7 @@
 #define PRG_DONE		(1 << 1)
 #define DATA_TRAN_DONE		(1 << 0)
 
-#ifdef CONFIG_PXA27x
+#if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
 #define MMC_I_MASK_ALL          0x00001fff
 #else
 #define MMC_I_MASK_ALL          0x0000007f

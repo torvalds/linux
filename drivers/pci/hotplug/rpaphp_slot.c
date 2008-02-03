@@ -33,23 +33,31 @@
 #include <asm/rtas.h>
 #include "rpaphp.h"
 
-static ssize_t location_read_file (struct hotplug_slot *php_slot, char *buf)
+static ssize_t address_read_file (struct hotplug_slot *php_slot, char *buf)
 {
-	char *value;
-	int retval = -ENOENT;
+	int retval;
 	struct slot *slot = (struct slot *)php_slot->private;
+	struct pci_bus *bus;
 
 	if (!slot)
-		return retval;
+		return -ENOENT;
 
-	value = slot->location;
-	retval = sprintf (buf, "%s\n", value);
+	bus = slot->bus;
+	if (!bus)
+		return -ENOENT;
+
+	if (bus->self)
+		retval = sprintf(buf, pci_name(bus->self));
+	else
+		retval = sprintf(buf, "%04x:%02x:00.0",
+		        pci_domain_nr(bus), bus->number);
+
 	return retval;
 }
 
-static struct hotplug_slot_attribute php_attr_location = {
-	.attr = {.name = "phy_location", .mode = S_IFREG | S_IRUGO},
-	.show = location_read_file,
+static struct hotplug_slot_attribute php_attr_address = {
+	.attr = {.name = "address", .mode = S_IFREG | S_IRUGO},
+	.show = address_read_file,
 };
 
 /* free up the memory used by a slot */
@@ -64,7 +72,6 @@ void dealloc_slot_struct(struct slot *slot)
 	kfree(slot->hotplug_slot->info);
 	kfree(slot->hotplug_slot->name);
 	kfree(slot->hotplug_slot);
-	kfree(slot->location);
 	kfree(slot);
 }
 
@@ -83,16 +90,13 @@ struct slot *alloc_slot_struct(struct device_node *dn,
 					   GFP_KERNEL);
 	if (!slot->hotplug_slot->info)
 		goto error_hpslot;
-	slot->hotplug_slot->name = kmalloc(BUS_ID_SIZE + 1, GFP_KERNEL);
+	slot->hotplug_slot->name = kmalloc(strlen(drc_name) + 1, GFP_KERNEL);
 	if (!slot->hotplug_slot->name)
 		goto error_info;	
-	slot->location = kmalloc(strlen(drc_name) + 1, GFP_KERNEL);
-	if (!slot->location)
-		goto error_name;
 	slot->name = slot->hotplug_slot->name;
+	strcpy(slot->name, drc_name);
 	slot->dn = dn;
 	slot->index = drc_index;
-	strcpy(slot->location, drc_name);
 	slot->power_domain = power_domain;
 	slot->hotplug_slot->private = slot;
 	slot->hotplug_slot->ops = &rpaphp_hotplug_slot_ops;
@@ -100,8 +104,6 @@ struct slot *alloc_slot_struct(struct device_node *dn,
 	
 	return (slot);
 
-error_name:
-	kfree(slot->hotplug_slot->name);
 error_info:
 	kfree(slot->hotplug_slot->info);
 error_hpslot:
@@ -133,8 +135,8 @@ int rpaphp_deregister_slot(struct slot *slot)
 
 	list_del(&slot->rpaphp_slot_list);
 	
-	/* remove "phy_location" file */
-	sysfs_remove_file(&php_slot->kobj, &php_attr_location.attr);
+	/* remove "address" file */
+	sysfs_remove_file(&php_slot->kobj, &php_attr_address.attr);
 
 	retval = pci_hp_deregister(php_slot);
 	if (retval)
@@ -166,8 +168,8 @@ int rpaphp_register_slot(struct slot *slot)
 		return retval;
 	}
 
-	/* create "phy_location" file */
-	retval = sysfs_create_file(&php_slot->kobj, &php_attr_location.attr);
+	/* create "address" file */
+	retval = sysfs_create_file(&php_slot->kobj, &php_attr_address.attr);
 	if (retval) {
 		err("sysfs_create_file failed with error %d\n", retval);
 		goto sysfs_fail;
@@ -175,8 +177,7 @@ int rpaphp_register_slot(struct slot *slot)
 
 	/* add slot to our internal list */
 	list_add(&slot->rpaphp_slot_list, &rpaphp_slot_head);
-	info("Slot [%s](PCI location=%s) registered\n", slot->name,
-			slot->location);
+	info("Slot [%s] registered\n", slot->name);
 	return 0;
 
 sysfs_fail:

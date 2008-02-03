@@ -115,7 +115,6 @@
  *    code (but I'm not too optimistic that doing this is possible at all)
  */
 
-#include <sound/driver.h>
 #include <asm/io.h>
 #include <linux/init.h>
 #include <linux/pci.h>

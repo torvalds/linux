@@ -73,11 +73,20 @@ struct mcast_device {
 };
 
 enum mcast_state {
-	MCAST_IDLE,
 	MCAST_JOINING,
 	MCAST_MEMBER,
+	MCAST_ERROR,
+};
+
+enum mcast_group_state {
+	MCAST_IDLE,
 	MCAST_BUSY,
-	MCAST_ERROR
+	MCAST_GROUP_ERROR,
+	MCAST_PKEY_EVENT
+};
+
+enum {
+	MCAST_INVALID_PKEY_INDEX = 0xFFFF
 };
 
 struct mcast_member;
@@ -93,9 +102,10 @@ struct mcast_group {
 	struct mcast_member	*last_join;
 	int			members[3];
 	atomic_t		refcount;
-	enum mcast_state	state;
+	enum mcast_group_state	state;
 	struct ib_sa_query	*query;
 	int			query_id;
+	u16			pkey_index;
 };
 
 struct mcast_member {
@@ -378,9 +388,19 @@ static int fail_join(struct mcast_group *group, struct mcast_member *member,
 static void process_group_error(struct mcast_group *group)
 {
 	struct mcast_member *member;
-	int ret;
+	int ret = 0;
+	u16 pkey_index;
+
+	if (group->state == MCAST_PKEY_EVENT)
+		ret = ib_find_pkey(group->port->dev->device,
+				   group->port->port_num,
+				   be16_to_cpu(group->rec.pkey), &pkey_index);
 
 	spin_lock_irq(&group->lock);
+	if (group->state == MCAST_PKEY_EVENT && !ret &&
+	    group->pkey_index == pkey_index)
+		goto out;
+
 	while (!list_empty(&group->active_list)) {
 		member = list_entry(group->active_list.next,
 				    struct mcast_member, list);
@@ -399,6 +419,7 @@ static void process_group_error(struct mcast_group *group)
 	}
 
 	group->rec.join_state = 0;
+out:
 	group->state = MCAST_BUSY;
 	spin_unlock_irq(&group->lock);
 }
@@ -415,9 +436,9 @@ static void mcast_work_handler(struct work_struct *work)
 retest:
 	spin_lock_irq(&group->lock);
 	while (!list_empty(&group->pending_list) ||
-	       (group->state == MCAST_ERROR)) {
+	       (group->state != MCAST_BUSY)) {
 
-		if (group->state == MCAST_ERROR) {
+		if (group->state != MCAST_BUSY) {
 			spin_unlock_irq(&group->lock);
 			process_group_error(group);
 			goto retest;
@@ -494,12 +515,19 @@ static void join_handler(int status, struct ib_sa_mcmember_rec *rec,
 			 void *context)
 {
 	struct mcast_group *group = context;
+	u16 pkey_index = MCAST_INVALID_PKEY_INDEX;
 
 	if (status)
 		process_join_error(group, status);
 	else {
+		ib_find_pkey(group->port->dev->device, group->port->port_num,
+			     be16_to_cpu(rec->pkey), &pkey_index);
+
 		spin_lock_irq(&group->port->lock);
 		group->rec = *rec;
+		if (group->state == MCAST_BUSY &&
+		    group->pkey_index == MCAST_INVALID_PKEY_INDEX)
+			group->pkey_index = pkey_index;
 		if (!memcmp(&mgid0, &group->rec.mgid, sizeof mgid0)) {
 			rb_erase(&group->node, &group->port->table);
 			mcast_insert(group->port, group, 1);
@@ -539,6 +567,7 @@ static struct mcast_group *acquire_group(struct mcast_port *port,
 
 	group->port = port;
 	group->rec.mgid = *mgid;
+	group->pkey_index = MCAST_INVALID_PKEY_INDEX;
 	INIT_LIST_HEAD(&group->pending_list);
 	INIT_LIST_HEAD(&group->active_list);
 	INIT_WORK(&group->work, mcast_work_handler);
@@ -707,7 +736,8 @@ int ib_init_ah_from_mcmember(struct ib_device *device, u8 port_num,
 }
 EXPORT_SYMBOL(ib_init_ah_from_mcmember);
 
-static void mcast_groups_lost(struct mcast_port *port)
+static void mcast_groups_event(struct mcast_port *port,
+			       enum mcast_group_state state)
 {
 	struct mcast_group *group;
 	struct rb_node *node;
@@ -721,7 +751,8 @@ static void mcast_groups_lost(struct mcast_port *port)
 			atomic_inc(&group->refcount);
 			queue_work(mcast_wq, &group->work);
 		}
-		group->state = MCAST_ERROR;
+		if (group->state != MCAST_GROUP_ERROR)
+			group->state = state;
 		spin_unlock(&group->lock);
 	}
 	spin_unlock_irqrestore(&port->lock, flags);
@@ -731,16 +762,20 @@ static void mcast_event_handler(struct ib_event_handler *handler,
 				struct ib_event *event)
 {
 	struct mcast_device *dev;
+	int index;
 
 	dev = container_of(handler, struct mcast_device, event_handler);
+	index = event->element.port_num - dev->start_port;
 
 	switch (event->event) {
 	case IB_EVENT_PORT_ERR:
 	case IB_EVENT_LID_CHANGE:
 	case IB_EVENT_SM_CHANGE:
 	case IB_EVENT_CLIENT_REREGISTER:
-		mcast_groups_lost(&dev->port[event->element.port_num -
-					     dev->start_port]);
+		mcast_groups_event(&dev->port[index], MCAST_GROUP_ERROR);
+		break;
+	case IB_EVENT_PKEY_CHANGE:
+		mcast_groups_event(&dev->port[index], MCAST_PKEY_EVENT);
 		break;
 	default:
 		break;

@@ -56,7 +56,7 @@ int vp702x_usb_in_op(struct dvb_usb_device *d, u8 req, u16 value, u16 index, u8 
 	return ret;
 }
 
-int vp702x_usb_out_op(struct dvb_usb_device *d, u8 req, u16 value,
+static int vp702x_usb_out_op(struct dvb_usb_device *d, u8 req, u16 value,
 			     u16 index, u8 *b, int blen)
 {
 	int ret;
@@ -204,19 +204,6 @@ static int vp702x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	return 0;
 }
 
-int vp702x_power_ctrl(struct dvb_usb_device *d, int onoff)
-{
-	struct vp702x_device_state *st = d->priv;
-
-	if (st->power_state == 0 && onoff)
-		vp702x_usb_out_op(d, SET_TUNER_POWER_REQ, 1, 7, NULL, 0);
-	else if (st->power_state == 1 && onoff == 0)
-		vp702x_usb_out_op(d, SET_TUNER_POWER_REQ, 0, 7, NULL, 0);
-
-	st->power_state = onoff;
-
-	return 0;
-}
 
 static int vp702x_read_mac_addr(struct dvb_usb_device *d,u8 mac[6])
 {

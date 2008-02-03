@@ -44,6 +44,9 @@
  * max 8 partitions per card
  */
 #define MMC_SHIFT	3
+#define MMC_NUM_MINORS	(256 >> MMC_SHIFT)
+
+static unsigned long dev_use[MMC_NUM_MINORS/(8*sizeof(unsigned long))];
 
 /*
  * There is one mmc_blk_data per slot.
@@ -80,6 +83,9 @@ static void mmc_blk_put(struct mmc_blk_data *md)
 	mutex_lock(&open_lock);
 	md->usage--;
 	if (md->usage == 0) {
+		int devidx = md->disk->first_minor >> MMC_SHIFT;
+		__clear_bit(devidx, dev_use);
+
 		put_disk(md->disk);
 		kfree(md);
 	}
@@ -321,7 +327,13 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 					       req->rq_disk->disk_name, err);
 					goto cmd_err;
 				}
-			} while (!(cmd.resp[0] & R1_READY_FOR_DATA));
+				/*
+				 * Some cards mishandle the status bits,
+				 * so make sure to check both the busy
+				 * indication and the card state.
+				 */
+			} while (!(cmd.resp[0] & R1_READY_FOR_DATA) ||
+				(R1_CURRENT_STATE(cmd.resp[0]) == 7));
 
 #if 0
 			if (cmd.resp[0] & ~0x00000900)
@@ -336,15 +348,7 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		 * A block was successfully transferred.
 		 */
 		spin_lock_irq(&md->lock);
-		ret = end_that_request_chunk(req, 1, brq.data.bytes_xfered);
-		if (!ret) {
-			/*
-			 * The whole request completed successfully.
-			 */
-			add_disk_randomness(req->rq_disk);
-			blkdev_dequeue_request(req);
-			end_that_request_last(req, 1);
-		}
+		ret = __blk_end_request(req, 0, brq.data.bytes_xfered);
 		spin_unlock_irq(&md->lock);
 	} while (ret);
 
@@ -374,35 +378,26 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 			else
 				bytes = blocks << 9;
 			spin_lock_irq(&md->lock);
-			ret = end_that_request_chunk(req, 1, bytes);
+			ret = __blk_end_request(req, 0, bytes);
 			spin_unlock_irq(&md->lock);
 		}
 	} else if (rq_data_dir(req) != READ &&
 		   (card->host->caps & MMC_CAP_MULTIWRITE)) {
 		spin_lock_irq(&md->lock);
-		ret = end_that_request_chunk(req, 1, brq.data.bytes_xfered);
+		ret = __blk_end_request(req, 0, brq.data.bytes_xfered);
 		spin_unlock_irq(&md->lock);
 	}
 
 	mmc_release_host(card->host);
 
 	spin_lock_irq(&md->lock);
-	while (ret) {
-		ret = end_that_request_chunk(req, 0,
-				req->current_nr_sectors << 9);
-	}
-
-	add_disk_randomness(req->rq_disk);
-	blkdev_dequeue_request(req);
-	end_that_request_last(req, 0);
+	while (ret)
+		ret = __blk_end_request(req, -EIO, blk_rq_cur_bytes(req));
 	spin_unlock_irq(&md->lock);
 
 	return 0;
 }
 
-#define MMC_NUM_MINORS	(256 >> MMC_SHIFT)
-
-static unsigned long dev_use[MMC_NUM_MINORS/(8*sizeof(unsigned long))];
 
 static inline int mmc_blk_readonly(struct mmc_card *card)
 {
@@ -568,16 +563,11 @@ static void mmc_blk_remove(struct mmc_card *card)
 	struct mmc_blk_data *md = mmc_get_drvdata(card);
 
 	if (md) {
-		int devidx;
-
 		/* Stop new requests from getting into the queue */
 		del_gendisk(md->disk);
 
 		/* Then flush out any already in there */
 		mmc_cleanup_queue(&md->queue);
-
-		devidx = md->disk->first_minor >> MMC_SHIFT;
-		__clear_bit(devidx, dev_use);
 
 		mmc_blk_put(md);
 	}

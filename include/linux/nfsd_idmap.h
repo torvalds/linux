@@ -44,11 +44,16 @@
 #define IDMAP_NAMESZ 128
 
 #ifdef CONFIG_NFSD_V4
-void nfsd_idmap_init(void);
+int nfsd_idmap_init(void);
 void nfsd_idmap_shutdown(void);
 #else
-static inline void nfsd_idmap_init(void) {};
-static inline void nfsd_idmap_shutdown(void) {};
+static inline int nfsd_idmap_init(void)
+{
+	return 0;
+}
+static inline void nfsd_idmap_shutdown(void)
+{
+}
 #endif
 
 int nfsd_map_name_to_uid(struct svc_rqst *, const char *, size_t, __u32 *);

@@ -13,7 +13,6 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <asm/voyagergx.h>
 #include <asm/rts7751r2d.h>
 
 #define R2D_NR_IRL 13
@@ -71,7 +70,7 @@ static unsigned char irl2irq_r2d_1[R2D_NR_IRL] __initdata = {
 };
 
 static DECLARE_INTC_DESC(intc_desc_r2d_1, "r2d-1", vectors_r2d_1,
-			 NULL, NULL, mask_registers_r2d_1, NULL, NULL);
+			 NULL, mask_registers_r2d_1, NULL, NULL);
 
 #endif /* CONFIG_RTS7751R2D_1 */
 
@@ -109,7 +108,7 @@ static unsigned char irl2irq_r2d_plus[R2D_NR_IRL] __initdata = {
 };
 
 static DECLARE_INTC_DESC(intc_desc_r2d_plus, "r2d-plus", vectors_r2d_plus,
-			 NULL, NULL, mask_registers_r2d_plus, NULL, NULL);
+			 NULL, mask_registers_r2d_plus, NULL, NULL);
 
 #endif /* CONFIG_RTS7751R2D_PLUS */
 
@@ -153,7 +152,4 @@ void __init init_rts7751r2d_IRQ(void)
 	}
 
 	register_intc_controller(d);
-#ifdef CONFIG_MFD_SM501
-	setup_voyagergx_irq();
-#endif
 }

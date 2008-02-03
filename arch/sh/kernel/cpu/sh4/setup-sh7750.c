@@ -126,12 +126,6 @@ static struct intc_group groups[] __initdata = {
 	INTC_GROUP(REF, REF_RCMI, REF_ROVI),
 };
 
-static struct intc_prio priorities[] __initdata = {
-	INTC_PRIO(SCIF, 3),
-	INTC_PRIO(SCI1, 3),
-	INTC_PRIO(DMAC, 7),
-};
-
 static struct intc_prio_reg prio_registers[] __initdata = {
 	{ 0xffd00004, 0, 16, 4, /* IPRA */ { TMU0, TMU1, TMU2, RTC } },
 	{ 0xffd00008, 0, 16, 4, /* IPRB */ { WDT, REF, SCI1, 0 } },
@@ -143,7 +137,7 @@ static struct intc_prio_reg prio_registers[] __initdata = {
 };
 
 static DECLARE_INTC_DESC(intc_desc, "sh7750", vectors, groups,
-			 priorities, NULL, prio_registers, NULL);
+			 NULL, prio_registers, NULL);
 
 /* SH7750, SH7750S, SH7751 and SH7091 all have 4-channel DMA controllers */
 #if defined(CONFIG_CPU_SUBTYPE_SH7750) || \
@@ -163,7 +157,7 @@ static struct intc_group groups_dma4[] __initdata = {
 
 static DECLARE_INTC_DESC(intc_desc_dma4, "sh7750_dma4",
 			 vectors_dma4, groups_dma4,
-			 priorities, NULL, prio_registers, NULL);
+			 NULL, prio_registers, NULL);
 #endif
 
 /* SH7750R and SH7751R both have 8-channel DMA controllers */
@@ -184,7 +178,7 @@ static struct intc_group groups_dma8[] __initdata = {
 
 static DECLARE_INTC_DESC(intc_desc_dma8, "sh7750_dma8",
 			 vectors_dma8, groups_dma8,
-			 priorities, NULL, prio_registers, NULL);
+			 NULL, prio_registers, NULL);
 #endif
 
 /* SH7750R, SH7751 and SH7751R all have two extra timer channels */
@@ -205,7 +199,7 @@ static struct intc_mask_reg mask_registers[] __initdata = {
 };
 
 static DECLARE_INTC_DESC(intc_desc_tmu34, "sh7750_tmu34",
-			 vectors_tmu34, NULL, priorities,
+			 vectors_tmu34, NULL,
 			 mask_registers, prio_registers, NULL);
 #endif
 
@@ -216,7 +210,7 @@ static struct intc_vect vectors_irlm[] __initdata = {
 };
 
 static DECLARE_INTC_DESC(intc_desc_irlm, "sh7750_irlm", vectors_irlm, NULL,
-			 priorities, NULL, prio_registers, NULL);
+			 NULL, prio_registers, NULL);
 
 /* SH7751 and SH7751R both have PCI */
 #if defined(CONFIG_CPU_SUBTYPE_SH7751) || defined(CONFIG_CPU_SUBTYPE_SH7751R)
@@ -233,7 +227,7 @@ static struct intc_group groups_pci[] __initdata = {
 };
 
 static DECLARE_INTC_DESC(intc_desc_pci, "sh7750_pci", vectors_pci, groups_pci,
-			 priorities, mask_registers, prio_registers, NULL);
+			 mask_registers, prio_registers, NULL);
 #endif
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7750) || \

@@ -96,5 +96,5 @@ enum enet_tbi_mii_reg {
 int uec_mdio_read(struct mii_bus *bus, int mii_id, int regnum);
 int uec_mdio_write(struct mii_bus *bus, int mii_id, int regnum, u16 value);
 int __init uec_mdio_init(void);
-void __exit uec_mdio_exit(void);
+void uec_mdio_exit(void);
 #endif				/* __UEC_MII_H */

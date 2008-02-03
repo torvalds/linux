@@ -25,7 +25,7 @@
 
 #include "ehci-fsl.h"
 
-/* FIXME: Power Managment is un-ported so temporarily disable it */
+/* FIXME: Power Management is un-ported so temporarily disable it */
 #undef CONFIG_PM
 
 /* PCI-based HCs are common, but plenty of non-PCI HCs are used too */
@@ -122,7 +122,7 @@ int usb_hcd_fsl_probe(const struct hc_driver *driver,
 	temp = in_le32(hcd->regs + 0x1a8);
 	out_le32(hcd->regs + 0x1a8, temp | 0x3);
 
-	retval = usb_add_hcd(hcd, irq, IRQF_SHARED);
+	retval = usb_add_hcd(hcd, irq, IRQF_DISABLED | IRQF_SHARED);
 	if (retval != 0)
 		goto err4;
 	return retval;
@@ -323,6 +323,7 @@ static const struct hc_driver ehci_fsl_hc_driver = {
 	.hub_control = ehci_hub_control,
 	.bus_suspend = ehci_bus_suspend,
 	.bus_resume = ehci_bus_resume,
+	.relinquish_port = ehci_relinquish_port,
 };
 
 static int ehci_fsl_drv_probe(struct platform_device *pdev)

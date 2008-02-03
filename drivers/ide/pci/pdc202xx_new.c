@@ -19,18 +19,12 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/timer.h>
-#include <linux/mm.h>
-#include <linux/ioport.h>
-#include <linux/blkdev.h>
 #include <linux/hdreg.h>
-#include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/ide.h>
 
 #include <asm/io.h>
-#include <asm/irq.h>
 
 #ifdef CONFIG_PPC_PMAC
 #include <asm/prom.h>
@@ -146,9 +140,10 @@ static struct udma_timing {
 	{ 0x1a, 0x01, 0xcb },	/* UDMA mode 6 */
 };
 
-static void pdcnew_set_mode(ide_drive_t *drive, const u8 speed)
+static void pdcnew_set_dma_mode(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	u8 adj			= (drive->dn & 1) ? 0x08 : 0x00;
 
 	/*
@@ -159,48 +154,21 @@ static void pdcnew_set_mode(ide_drive_t *drive, const u8 speed)
 	 * As we set up the PLL to output 133 MHz for UltraDMA/133 capable
 	 * chips, we must override the default register settings...
 	 */
-	if (max_dma_rate(hwif->pci_dev) == 4) {
+	if (max_dma_rate(dev) == 4) {
 		u8 mode = speed & 0x07;
 
-		switch (speed) {
-			case XFER_UDMA_6:
-			case XFER_UDMA_5:
-			case XFER_UDMA_4:
-			case XFER_UDMA_3:
-			case XFER_UDMA_2:
-			case XFER_UDMA_1:
-			case XFER_UDMA_0:
-				set_indexed_reg(hwif, 0x10 + adj,
-						udma_timings[mode].reg10);
-				set_indexed_reg(hwif, 0x11 + adj,
-						udma_timings[mode].reg11);
-				set_indexed_reg(hwif, 0x12 + adj,
-						udma_timings[mode].reg12);
-				break;
-
-			case XFER_MW_DMA_2:
-			case XFER_MW_DMA_1:
-			case XFER_MW_DMA_0:
-				set_indexed_reg(hwif, 0x0e + adj,
-						mwdma_timings[mode].reg0e);
-				set_indexed_reg(hwif, 0x0f + adj,
-						mwdma_timings[mode].reg0f);
-				break;
-			case XFER_PIO_4:
-			case XFER_PIO_3:
-			case XFER_PIO_2:
-			case XFER_PIO_1:
-			case XFER_PIO_0:
-				set_indexed_reg(hwif, 0x0c + adj,
-						pio_timings[mode].reg0c);
-				set_indexed_reg(hwif, 0x0d + adj,
-						pio_timings[mode].reg0d);
-				set_indexed_reg(hwif, 0x13 + adj,
-						pio_timings[mode].reg13);
-				break;
-			default:
-				printk(KERN_ERR "pdc202xx_new: "
-				       "Unknown speed %d ignored\n", speed);
+		if (speed >= XFER_UDMA_0) {
+			set_indexed_reg(hwif, 0x10 + adj,
+					udma_timings[mode].reg10);
+			set_indexed_reg(hwif, 0x11 + adj,
+					udma_timings[mode].reg11);
+			set_indexed_reg(hwif, 0x12 + adj,
+					udma_timings[mode].reg12);
+		} else {
+			set_indexed_reg(hwif, 0x0e + adj,
+					mwdma_timings[mode].reg0e);
+			set_indexed_reg(hwif, 0x0f + adj,
+					mwdma_timings[mode].reg0f);
 		}
 	} else if (speed == XFER_UDMA_2) {
 		/* Set tHOLD bit to 0 if using UDMA mode 2 */
@@ -212,10 +180,18 @@ static void pdcnew_set_mode(ide_drive_t *drive, const u8 speed)
 
 static void pdcnew_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	pdcnew_set_mode(drive, XFER_PIO_0 + pio);
+	ide_hwif_t *hwif = drive->hwif;
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
+	u8 adj = (drive->dn & 1) ? 0x08 : 0x00;
+
+	if (max_dma_rate(dev) == 4) {
+		set_indexed_reg(hwif, 0x0c + adj, pio_timings[pio].reg0c);
+		set_indexed_reg(hwif, 0x0d + adj, pio_timings[pio].reg0d);
+		set_indexed_reg(hwif, 0x13 + adj, pio_timings[pio].reg13);
+	}
 }
 
-static u8 pdcnew_cable_detect(ide_hwif_t *hwif)
+static u8 __devinit pdcnew_cable_detect(ide_hwif_t *hwif)
 {
 	if (get_indexed_reg(hwif, 0x0b) & 0x04)
 		return ATA_CBL_PATA40;
@@ -223,14 +199,17 @@ static u8 pdcnew_cable_detect(ide_hwif_t *hwif)
 		return ATA_CBL_PATA80;
 }
 
-static int pdcnew_quirkproc(ide_drive_t *drive)
+static void pdcnew_quirkproc(ide_drive_t *drive)
 {
 	const char **list, *model = drive->id->model;
 
 	for (list = pdc_quirk_drives; *list != NULL; list++)
-		if (strstr(model, *list) != NULL)
-			return 2;
-	return 0;
+		if (strstr(model, *list) != NULL) {
+			drive->quirk_list = 2;
+			return;
+		}
+
+	drive->quirk_list = 0;
 }
 
 static void pdcnew_reset(ide_drive_t *drive)
@@ -466,24 +445,21 @@ static unsigned int __devinit init_chipset_pdcnew(struct pci_dev *dev, const cha
 static void __devinit init_hwif_pdc202new(ide_hwif_t *hwif)
 {
 	hwif->set_pio_mode = &pdcnew_set_pio_mode;
-	hwif->set_dma_mode = &pdcnew_set_mode;
+	hwif->set_dma_mode = &pdcnew_set_dma_mode;
 
 	hwif->quirkproc = &pdcnew_quirkproc;
 	hwif->resetproc = &pdcnew_reset;
 
-	if (hwif->dma_base == 0)
-		return;
-
-	if (hwif->cbl != ATA_CBL_PATA40_SHORT)
-		hwif->cbl = pdcnew_cable_detect(hwif);
+	hwif->cable_detect = pdcnew_cable_detect;
 }
 
 static struct pci_dev * __devinit pdc20270_get_dev2(struct pci_dev *dev)
 {
 	struct pci_dev *dev2;
 
-	dev2 = pci_get_slot(dev->bus, PCI_DEVFN(PCI_SLOT(dev->devfn) + 2,
+	dev2 = pci_get_slot(dev->bus, PCI_DEVFN(PCI_SLOT(dev->devfn) + 1,
 						PCI_FUNC(dev->devfn)));
+
 	if (dev2 &&
 	    dev2->vendor == dev->vendor &&
 	    dev2->device == dev->device) {

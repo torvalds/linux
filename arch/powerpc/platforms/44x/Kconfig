@@ -3,6 +3,7 @@ config BAMBOO
 	depends on 44x
 	default n
 	select 440EP
+	select PCI
 	help
 	  This option enables support for the IBM PPC440EP evaluation board.
 
@@ -11,6 +12,8 @@ config EBONY
 	depends on 44x
 	default y
 	select 440GP
+	select PCI
+	select OF_RTC
 	help
 	  This option enables support for the IBM PPC440GP evaluation board.
 
@@ -21,6 +24,48 @@ config SEQUOIA
 	select 440EPX
 	help
 	  This option enables support for the AMCC PPC440EPX evaluation board.
+
+config TAISHAN
+	bool "Taishan"
+	depends on 44x
+	default n
+	select 440GX
+	select PCI
+	help
+	  This option enables support for the AMCC PPC440GX "Taishan"
+	  evaluation board.
+
+config KATMAI
+	bool "Katmai"
+	depends on 44x
+	default n
+	select 440SPe
+	select PCI
+	select PPC4xx_PCI_EXPRESS
+	help
+	  This option enables support for the AMCC PPC440SPe evaluation board.
+
+config RAINIER
+	bool "Rainier"
+	depends on 44x
+	default n
+	select 440GRX
+	select PCI
+	help
+	  This option enables support for the AMCC PPC440GRX evaluation board.
+
+config WARP
+	bool "PIKA Warp"
+	depends on 44x
+	default n
+	select 440EP
+	help
+	  This option enables support for the PIKA Warp(tm) Appliance. The Warp
+          is a small computer replacement with up to 9 ports of FXO/FXS plus VOIP
+	  stations and trunks.
+
+	  See http://www.pikatechnologies.com/ and follow the "PIKA for Computer
+	  Telephony Developers" link for more information.
 
 #config LUAN
 #	bool "Luan"
@@ -44,10 +89,17 @@ config 440EP
 	select PPC_FPU
 	select IBM440EP_ERR42
 	select IBM_NEW_EMAC_ZMII
+	select USB_ARCH_HAS_OHCI
 
 config 440EPX
 	bool
 	select PPC_FPU
+	select IBM_NEW_EMAC_EMAC4
+	select IBM_NEW_EMAC_RGMII
+	select IBM_NEW_EMAC_ZMII
+
+config 440GRX
+	bool
 	select IBM_NEW_EMAC_EMAC4
 	select IBM_NEW_EMAC_RGMII
 	select IBM_NEW_EMAC_ZMII
@@ -58,14 +110,17 @@ config 440GP
 
 config 440GX
 	bool
+        select IBM_NEW_EMAC_EMAC4
+	select IBM_NEW_EMAC_RGMII
+        select IBM_NEW_EMAC_ZMII #test only
+        select IBM_NEW_EMAC_TAH  #test only
 
 config 440SP
 	bool
 
-config 440A
+config 440SPe
+        select IBM_NEW_EMAC_EMAC4
 	bool
-	depends on 440GX || 440EPX
-	default y
 
 # 44x errata/workaround config symbols, selected by the CPU models above
 config IBM440EP_ERR42

@@ -38,6 +38,7 @@
 #include <net/genetlink.h>
 #include <net/netlabel.h>
 #include <net/cipso_ipv4.h>
+#include <asm/atomic.h>
 
 #include "netlabel_user.h"
 #include "netlabel_cipso_v4.h"
@@ -421,7 +422,7 @@ static int netlbl_cipsov4_add(struct sk_buff *skb, struct genl_info *info)
 		break;
 	}
 	if (ret_val == 0)
-		netlbl_mgmt_protocount_inc();
+		atomic_inc(&netlabel_mgmt_protocount);
 
 	audit_buf = netlbl_audit_start_common(AUDIT_MAC_CIPSOV4_ADD,
 					      &audit_info);
@@ -698,7 +699,7 @@ static int netlbl_cipsov4_remove(struct sk_buff *skb, struct genl_info *info)
 				      &audit_info,
 				      netlbl_cipsov4_doi_free);
 	if (ret_val == 0)
-		netlbl_mgmt_protocount_dec();
+		atomic_dec(&netlabel_mgmt_protocount);
 
 	audit_buf = netlbl_audit_start_common(AUDIT_MAC_CIPSOV4_DEL,
 					      &audit_info);

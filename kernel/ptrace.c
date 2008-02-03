@@ -51,7 +51,7 @@ void __ptrace_link(struct task_struct *child, struct task_struct *new_parent)
 void ptrace_untrace(struct task_struct *child)
 {
 	spin_lock(&child->sighand->siglock);
-	if (child->state == TASK_TRACED) {
+	if (task_is_traced(child)) {
 		if (child->signal->flags & SIGNAL_STOP_STOPPED) {
 			child->state = TASK_STOPPED;
 		} else {
@@ -79,7 +79,7 @@ void __ptrace_unlink(struct task_struct *child)
 		add_parent(child);
 	}
 
-	if (child->state == TASK_TRACED)
+	if (task_is_traced(child))
 		ptrace_untrace(child);
 }
 
@@ -103,9 +103,9 @@ int ptrace_check_attach(struct task_struct *child, int kill)
 	    && child->signal != NULL) {
 		ret = 0;
 		spin_lock_irq(&child->sighand->siglock);
-		if (child->state == TASK_STOPPED) {
+		if (task_is_stopped(child)) {
 			child->state = TASK_TRACED;
-		} else if (child->state != TASK_TRACED && !kill) {
+		} else if (!task_is_traced(child) && !kill) {
 			ret = -ESRCH;
 		}
 		spin_unlock_irq(&child->sighand->siglock);
@@ -120,7 +120,7 @@ int ptrace_check_attach(struct task_struct *child, int kill)
 	return ret;
 }
 
-static int may_attach(struct task_struct *task)
+int __ptrace_may_attach(struct task_struct *task)
 {
 	/* May we inspect the given task?
 	 * This check is used both for attaching with ptrace
@@ -154,7 +154,7 @@ int ptrace_may_attach(struct task_struct *task)
 {
 	int err;
 	task_lock(task);
-	err = may_attach(task);
+	err = __ptrace_may_attach(task);
 	task_unlock(task);
 	return !err;
 }
@@ -196,7 +196,7 @@ repeat:
 	/* the same process cannot be attached many times */
 	if (task->ptrace & PT_PTRACED)
 		goto bad;
-	retval = may_attach(task);
+	retval = __ptrace_may_attach(task);
 	if (retval)
 		goto bad;
 
@@ -366,12 +366,73 @@ static int ptrace_setsiginfo(struct task_struct *child, siginfo_t __user * data)
 	return error;
 }
 
+
+#ifdef PTRACE_SINGLESTEP
+#define is_singlestep(request)		((request) == PTRACE_SINGLESTEP)
+#else
+#define is_singlestep(request)		0
+#endif
+
+#ifdef PTRACE_SINGLEBLOCK
+#define is_singleblock(request)		((request) == PTRACE_SINGLEBLOCK)
+#else
+#define is_singleblock(request)		0
+#endif
+
+#ifdef PTRACE_SYSEMU
+#define is_sysemu_singlestep(request)	((request) == PTRACE_SYSEMU_SINGLESTEP)
+#else
+#define is_sysemu_singlestep(request)	0
+#endif
+
+static int ptrace_resume(struct task_struct *child, long request, long data)
+{
+	if (!valid_signal(data))
+		return -EIO;
+
+	if (request == PTRACE_SYSCALL)
+		set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
+	else
+		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
+
+#ifdef TIF_SYSCALL_EMU
+	if (request == PTRACE_SYSEMU || request == PTRACE_SYSEMU_SINGLESTEP)
+		set_tsk_thread_flag(child, TIF_SYSCALL_EMU);
+	else
+		clear_tsk_thread_flag(child, TIF_SYSCALL_EMU);
+#endif
+
+	if (is_singleblock(request)) {
+		if (unlikely(!arch_has_block_step()))
+			return -EIO;
+		user_enable_block_step(child);
+	} else if (is_singlestep(request) || is_sysemu_singlestep(request)) {
+		if (unlikely(!arch_has_single_step()))
+			return -EIO;
+		user_enable_single_step(child);
+	}
+	else
+		user_disable_single_step(child);
+
+	child->exit_code = data;
+	wake_up_process(child);
+
+	return 0;
+}
+
 int ptrace_request(struct task_struct *child, long request,
 		   long addr, long data)
 {
 	int ret = -EIO;
 
 	switch (request) {
+	case PTRACE_PEEKTEXT:
+	case PTRACE_PEEKDATA:
+		return generic_ptrace_peekdata(child, addr, data);
+	case PTRACE_POKETEXT:
+	case PTRACE_POKEDATA:
+		return generic_ptrace_pokedata(child, addr, data);
+
 #ifdef PTRACE_OLDSETOPTIONS
 	case PTRACE_OLDSETOPTIONS:
 #endif
@@ -390,6 +451,26 @@ int ptrace_request(struct task_struct *child, long request,
 	case PTRACE_DETACH:	 /* detach a process that was attached. */
 		ret = ptrace_detach(child, data);
 		break;
+
+#ifdef PTRACE_SINGLESTEP
+	case PTRACE_SINGLESTEP:
+#endif
+#ifdef PTRACE_SINGLEBLOCK
+	case PTRACE_SINGLEBLOCK:
+#endif
+#ifdef PTRACE_SYSEMU
+	case PTRACE_SYSEMU:
+	case PTRACE_SYSEMU_SINGLESTEP:
+#endif
+	case PTRACE_SYSCALL:
+	case PTRACE_CONT:
+		return ptrace_resume(child, request, data);
+
+	case PTRACE_KILL:
+		if (child->exit_state)	/* already dead */
+			return 0;
+		return ptrace_resume(child, request, SIGKILL);
+
 	default:
 		break;
 	}
@@ -470,6 +551,8 @@ asmlinkage long sys_ptrace(long request, long pid, long addr, long data)
 	lock_kernel();
 	if (request == PTRACE_TRACEME) {
 		ret = ptrace_traceme();
+		if (!ret)
+			arch_ptrace_attach(current);
 		goto out;
 	}
 
@@ -524,3 +607,87 @@ int generic_ptrace_pokedata(struct task_struct *tsk, long addr, long data)
 	copied = access_process_vm(tsk, addr, &data, sizeof(data), 1);
 	return (copied == sizeof(data)) ? 0 : -EIO;
 }
+
+#ifdef CONFIG_COMPAT
+#include <linux/compat.h>
+
+int compat_ptrace_request(struct task_struct *child, compat_long_t request,
+			  compat_ulong_t addr, compat_ulong_t data)
+{
+	compat_ulong_t __user *datap = compat_ptr(data);
+	compat_ulong_t word;
+	int ret;
+
+	switch (request) {
+	case PTRACE_PEEKTEXT:
+	case PTRACE_PEEKDATA:
+		ret = access_process_vm(child, addr, &word, sizeof(word), 0);
+		if (ret != sizeof(word))
+			ret = -EIO;
+		else
+			ret = put_user(word, datap);
+		break;
+
+	case PTRACE_POKETEXT:
+	case PTRACE_POKEDATA:
+		ret = access_process_vm(child, addr, &data, sizeof(data), 1);
+		ret = (ret != sizeof(data) ? -EIO : 0);
+		break;
+
+	case PTRACE_GETEVENTMSG:
+		ret = put_user((compat_ulong_t) child->ptrace_message, datap);
+		break;
+
+	default:
+		ret = ptrace_request(child, request, addr, data);
+	}
+
+	return ret;
+}
+
+#ifdef __ARCH_WANT_COMPAT_SYS_PTRACE
+asmlinkage long compat_sys_ptrace(compat_long_t request, compat_long_t pid,
+				  compat_long_t addr, compat_long_t data)
+{
+	struct task_struct *child;
+	long ret;
+
+	/*
+	 * This lock_kernel fixes a subtle race with suid exec
+	 */
+	lock_kernel();
+	if (request == PTRACE_TRACEME) {
+		ret = ptrace_traceme();
+		goto out;
+	}
+
+	child = ptrace_get_task_struct(pid);
+	if (IS_ERR(child)) {
+		ret = PTR_ERR(child);
+		goto out;
+	}
+
+	if (request == PTRACE_ATTACH) {
+		ret = ptrace_attach(child);
+		/*
+		 * Some architectures need to do book-keeping after
+		 * a ptrace attach.
+		 */
+		if (!ret)
+			arch_ptrace_attach(child);
+		goto out_put_task_struct;
+	}
+
+	ret = ptrace_check_attach(child, request == PTRACE_KILL);
+	if (!ret)
+		ret = compat_arch_ptrace(child, request, addr, data);
+
+ out_put_task_struct:
+	put_task_struct(child);
+ out:
+	unlock_kernel();
+	return ret;
+}
+#endif /* __ARCH_WANT_COMPAT_SYS_PTRACE */
+
+#endif	/* CONFIG_COMPAT */

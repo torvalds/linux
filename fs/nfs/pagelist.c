@@ -58,7 +58,6 @@ nfs_create_request(struct nfs_open_context *ctx, struct inode *inode,
 		   struct page *page,
 		   unsigned int offset, unsigned int count)
 {
-	struct nfs_server *server = NFS_SERVER(inode);
 	struct nfs_page		*req;
 
 	for (;;) {
@@ -67,7 +66,7 @@ nfs_create_request(struct nfs_open_context *ctx, struct inode *inode,
 		if (req != NULL)
 			break;
 
-		if (signalled() && (server->flags & NFS_MOUNT_INTR))
+		if (fatal_signal_pending(current))
 			return ERR_PTR(-ERESTARTSYS);
 		yield();
 	}
@@ -111,13 +110,14 @@ void nfs_unlock_request(struct nfs_page *req)
  * nfs_set_page_tag_locked - Tag a request as locked
  * @req:
  */
-static int nfs_set_page_tag_locked(struct nfs_page *req)
+int nfs_set_page_tag_locked(struct nfs_page *req)
 {
 	struct nfs_inode *nfsi = NFS_I(req->wb_context->path.dentry->d_inode);
 
-	if (!nfs_lock_request(req))
+	if (!nfs_lock_request_dontget(req))
 		return 0;
-	radix_tree_tag_set(&nfsi->nfs_page_tree, req->wb_index, NFS_PAGE_TAG_LOCKED);
+	if (req->wb_page != NULL)
+		radix_tree_tag_set(&nfsi->nfs_page_tree, req->wb_index, NFS_PAGE_TAG_LOCKED);
 	return 1;
 }
 
@@ -132,9 +132,10 @@ void nfs_clear_page_tag_locked(struct nfs_page *req)
 	if (req->wb_page != NULL) {
 		spin_lock(&inode->i_lock);
 		radix_tree_tag_clear(&nfsi->nfs_page_tree, req->wb_index, NFS_PAGE_TAG_LOCKED);
+		nfs_unlock_request(req);
 		spin_unlock(&inode->i_lock);
-	}
-	nfs_unlock_request(req);
+	} else
+		nfs_unlock_request(req);
 }
 
 /**
@@ -175,11 +176,11 @@ void nfs_release_request(struct nfs_page *req)
 	kref_put(&req->wb_kref, nfs_free_request);
 }
 
-static int nfs_wait_bit_interruptible(void *word)
+static int nfs_wait_bit_killable(void *word)
 {
 	int ret = 0;
 
-	if (signal_pending(current))
+	if (fatal_signal_pending(current))
 		ret = -ERESTARTSYS;
 	else
 		schedule();
@@ -190,26 +191,18 @@ static int nfs_wait_bit_interruptible(void *word)
  * nfs_wait_on_request - Wait for a request to complete.
  * @req: request to wait upon.
  *
- * Interruptible by signals only if mounted with intr flag.
+ * Interruptible by fatal signals only.
  * The user is responsible for holding a count on the request.
  */
 int
 nfs_wait_on_request(struct nfs_page *req)
 {
-	struct rpc_clnt *clnt = NFS_CLIENT(req->wb_context->path.dentry->d_inode);
-	sigset_t oldmask;
 	int ret = 0;
 
 	if (!test_bit(PG_BUSY, &req->wb_flags))
 		goto out;
-	/*
-	 * Note: the call to rpc_clnt_sigmask() suffices to ensure that we
-	 *	 are not interrupted if intr flag is not set
-	 */
-	rpc_clnt_sigmask(clnt, &oldmask);
 	ret = out_of_line_wait_on_bit(&req->wb_flags, PG_BUSY,
-			nfs_wait_bit_interruptible, TASK_INTERRUPTIBLE);
-	rpc_clnt_sigunmask(clnt, &oldmask);
+			nfs_wait_bit_killable, TASK_KILLABLE);
 out:
 	return ret;
 }
@@ -421,6 +414,7 @@ int nfs_scan_list(struct nfs_inode *nfsi,
 				goto out;
 			idx_start = req->wb_index + 1;
 			if (nfs_set_page_tag_locked(req)) {
+				kref_get(&req->wb_kref);
 				nfs_list_remove_request(req);
 				radix_tree_tag_clear(&nfsi->nfs_page_tree,
 						req->wb_index, tag);

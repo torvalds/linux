@@ -558,7 +558,7 @@ static ctl_table pfm_sysctl_dir[] = {
 	{
 		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "perfmon",
-		.mode		= 0755,
+		.mode		= 0555,
 		.child		= pfm_ctl_table,
 	},
  	{}
@@ -567,7 +567,7 @@ static ctl_table pfm_sysctl_root[] = {
 	{
 		.ctl_name	= CTL_KERN,
 		.procname	= "kernel",
-		.mode		= 0755,
+		.mode		= 0555,
 		.child		= pfm_sysctl_dir,
 	},
  	{}
@@ -2631,7 +2631,7 @@ pfm_task_incompatible(pfm_context_t *ctx, struct task_struct *task)
 	 */
 	if (task == current) return 0;
 
-	if ((task->state != TASK_STOPPED) && (task->state != TASK_TRACED)) {
+	if (!task_is_stopped_or_traced(task)) {
 		DPRINT(("cannot attach to non-stopped task [%d] state=%ld\n", task_pid_nr(task), task->state));
 		return -EBUSY;
 	}
@@ -4792,7 +4792,7 @@ recheck:
 	 * the task must be stopped.
 	 */
 	if (PFM_CMD_STOPPED(cmd)) {
-		if ((task->state != TASK_STOPPED) && (task->state != TASK_TRACED)) {
+		if (!task_is_stopped_or_traced(task)) {
 			DPRINT(("[%d] task not in stopped state\n", task_pid_nr(task)));
 			return -EBUSY;
 		}

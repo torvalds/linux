@@ -10,6 +10,8 @@
 #include <linux/agp_backend.h>
 #include "agp.h"
 
+#define PCI_DEVICE_ID_INTEL_E7221_HB	0x2588
+#define PCI_DEVICE_ID_INTEL_E7221_IG	0x258a
 #define PCI_DEVICE_ID_INTEL_82946GZ_HB      0x2970
 #define PCI_DEVICE_ID_INTEL_82946GZ_IG      0x2972
 #define PCI_DEVICE_ID_INTEL_82965G_1_HB     0x2980
@@ -208,13 +210,11 @@ static void *i8xx_alloc_pages(void)
 	if (page == NULL)
 		return NULL;
 
-	if (change_page_attr(page, 4, PAGE_KERNEL_NOCACHE) < 0) {
-		change_page_attr(page, 4, PAGE_KERNEL);
-		global_flush_tlb();
+	if (set_pages_uc(page, 4) < 0) {
+		set_pages_wb(page, 4);
 		__free_pages(page, 2);
 		return NULL;
 	}
-	global_flush_tlb();
 	get_page(page);
 	atomic_inc(&agp_bridge->current_memory_agp);
 	return page_address(page);
@@ -228,8 +228,7 @@ static void i8xx_destroy_pages(void *addr)
 		return;
 
 	page = virt_to_page(addr);
-	change_page_attr(page, 4, PAGE_KERNEL);
-	global_flush_tlb();
+	set_pages_wb(page, 4);
 	put_page(page);
 	__free_pages(page, 2);
 	atomic_dec(&agp_bridge->current_memory_agp);
@@ -339,7 +338,6 @@ static struct agp_memory *alloc_agpphysmem_i8xx(size_t pg_count, int type)
 
 	switch (pg_count) {
 	case 1: addr = agp_bridge->driver->agp_alloc_page(agp_bridge);
-		global_flush_tlb();
 		break;
 	case 4:
 		/* kludge to get 4 physical pages for ARGB cursor */
@@ -402,7 +400,6 @@ static void intel_i810_free_by_type(struct agp_memory *curr)
 		else {
 			agp_bridge->driver->agp_destroy_page(gart_to_virt(curr->memory[0]),
 							     AGP_PAGE_DESTROY_UNMAP);
-			global_flush_tlb();
 			agp_bridge->driver->agp_destroy_page(gart_to_virt(curr->memory[0]),
 							     AGP_PAGE_DESTROY_FREE);
 		}
@@ -526,7 +523,8 @@ static void intel_i830_init_gtt_entries(void)
 			break;
 		case I915_GMCH_GMS_STOLEN_48M:
 			/* Check it's really I915G */
-			if (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82915G_HB ||
+			if (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_E7221_HB ||
+			    agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82915G_HB ||
 			    agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82915GM_HB ||
 			    agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82945G_HB ||
 			    agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82945GM_HB ||
@@ -538,7 +536,8 @@ static void intel_i830_init_gtt_entries(void)
 			break;
 		case I915_GMCH_GMS_STOLEN_64M:
 			/* Check it's really I915G */
-			if (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82915G_HB ||
+			if (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_E7221_HB ||
+			    agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82915G_HB ||
 			    agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82915GM_HB ||
 			    agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82945G_HB ||
 			    agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82945GM_HB ||
@@ -1854,6 +1853,8 @@ static const struct intel_driver_description {
 	{ PCI_DEVICE_ID_INTEL_82865_HB, PCI_DEVICE_ID_INTEL_82865_IG, 0, "865",
 		&intel_845_driver, &intel_830_driver },
 	{ PCI_DEVICE_ID_INTEL_82875_HB, 0, 0, "i875", &intel_845_driver, NULL },
+	{ PCI_DEVICE_ID_INTEL_E7221_HB, PCI_DEVICE_ID_INTEL_E7221_IG, 0, "E7221 (i915)",
+		NULL, &intel_915_driver },
 	{ PCI_DEVICE_ID_INTEL_82915G_HB, PCI_DEVICE_ID_INTEL_82915G_IG, 0, "915G",
 		NULL, &intel_915_driver },
 	{ PCI_DEVICE_ID_INTEL_82915GM_HB, PCI_DEVICE_ID_INTEL_82915GM_IG, 0, "915GM",
@@ -2059,6 +2060,7 @@ static struct pci_device_id agp_intel_pci_table[] = {
 	ID(PCI_DEVICE_ID_INTEL_82875_HB),
 	ID(PCI_DEVICE_ID_INTEL_7505_0),
 	ID(PCI_DEVICE_ID_INTEL_7205_0),
+	ID(PCI_DEVICE_ID_INTEL_E7221_HB),
 	ID(PCI_DEVICE_ID_INTEL_82915G_HB),
 	ID(PCI_DEVICE_ID_INTEL_82915GM_HB),
 	ID(PCI_DEVICE_ID_INTEL_82945G_HB),

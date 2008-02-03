@@ -2593,3 +2593,15 @@ sun4v_mmustat_info:
 	retl
 	 nop
 	.size	sun4v_mmustat_info, .-sun4v_mmustat_info
+
+	.globl	sun4v_mmu_demap_all
+	.type	sun4v_mmu_demap_all,#function
+sun4v_mmu_demap_all:
+	clr	%o0
+	clr	%o1
+	mov	HV_MMU_ALL, %o2
+	mov	HV_FAST_MMU_DEMAP_ALL, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 nop
+	.size	sun4v_mmu_demap_all, .-sun4v_mmu_demap_all

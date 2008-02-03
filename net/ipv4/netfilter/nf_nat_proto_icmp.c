@@ -57,7 +57,7 @@ icmp_manip_pkt(struct sk_buff *skb,
 	       const struct nf_conntrack_tuple *tuple,
 	       enum nf_nat_manip_type maniptype)
 {
-	struct iphdr *iph = (struct iphdr *)(skb->data + iphdroff);
+	const struct iphdr *iph = (struct iphdr *)(skb->data + iphdroff);
 	struct icmphdr *hdr;
 	unsigned int hdroff = iphdroff + iph->ihl*4;
 
@@ -65,13 +65,13 @@ icmp_manip_pkt(struct sk_buff *skb,
 		return 0;
 
 	hdr = (struct icmphdr *)(skb->data + hdroff);
-	nf_proto_csum_replace2(&hdr->checksum, skb,
-			       hdr->un.echo.id, tuple->src.u.icmp.id, 0);
+	inet_proto_csum_replace2(&hdr->checksum, skb,
+				 hdr->un.echo.id, tuple->src.u.icmp.id, 0);
 	hdr->un.echo.id = tuple->src.u.icmp.id;
 	return 1;
 }
 
-struct nf_nat_protocol nf_nat_protocol_icmp = {
+const struct nf_nat_protocol nf_nat_protocol_icmp = {
 	.name			= "ICMP",
 	.protonum		= IPPROTO_ICMP,
 	.me			= THIS_MODULE,

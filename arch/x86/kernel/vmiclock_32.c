@@ -35,7 +35,6 @@
 #include <asm/i8253.h>
 
 #include <irq_vectors.h>
-#include "io_ports.h"
 
 #define VMI_ONESHOT  (VMI_ALARM_IS_ONESHOT  | VMI_CYCLES_REAL | vmi_get_alarm_wiring())
 #define VMI_PERIODIC (VMI_ALARM_IS_PERIODIC | VMI_CYCLES_REAL | vmi_get_alarm_wiring())
@@ -238,7 +237,7 @@ static void __devinit vmi_time_init_clockevent(void)
 void __init vmi_time_init(void)
 {
 	/* Disable PIT: BIOSes start PIT CH0 with 18.2hz peridic. */
-	outb_p(0x3a, PIT_MODE); /* binary, mode 5, LSB/MSB, ch 0 */
+	outb_pit(0x3a, PIT_MODE); /* binary, mode 5, LSB/MSB, ch 0 */
 
 	vmi_time_init_clockevent();
 	setup_irq(0, &vmi_clock_action);

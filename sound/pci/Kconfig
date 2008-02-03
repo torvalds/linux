@@ -183,6 +183,30 @@ config SND_CMIPCI
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-cmipci.
 
+config SND_OXYGEN_LIB
+        tristate
+	depends on SND
+	select SND_PCM
+	select SND_MPU401_UART
+
+config SND_OXYGEN
+	tristate "C-Media 8788 (Oxygen)"
+	depends on SND
+	select SND_OXYGEN_LIB
+	help
+	  Say Y here to include support for sound cards based on the
+	  C-Media CMI8788 (Oxygen HD Audio) chip:
+	   * Asound A-8788
+	   * AuzenTech X-Meridian
+	   * Bgears b-Enspirer
+	   * Club3D Theatron DTS
+	   * HT-Omega Claro
+	   * Razer Barracuda AC-1
+	   * Sondigo Inferno
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-oxygen.
+
 config SND_CS4281
 	tristate "Cirrus Logic (Sound Fusion) CS4281"
 	depends on SND
@@ -623,6 +647,17 @@ config SND_HDSPM
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-hdspm.
 
+config SND_HIFIER
+	tristate "TempoTec HiFier Fantasia"
+	depends on SND
+	select SND_OXYGEN_LIB
+	help
+	  Say Y here to include support for the MediaTek/TempoTec HiFier
+	  Fantasia sound card.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-hifier.
+
 config SND_ICE1712
 	tristate "ICEnsemble ICE1712 (Envy24)"
 	depends on SND
@@ -802,6 +837,16 @@ config SND_RME9652
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-rme9652.
 
+config SND_SIS7019
+	tristate "SiS 7019 Audio Accelerator"
+	depends on SND && X86 && !X86_64
+	select SND_AC97_CODEC
+	help
+	  Say Y here to include support for the SiS 7019 Audio Accelerator.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-sis7019.
+
 config SND_SONICVIBES
 	tristate "S3 SonicVibes"
 	depends on SND
@@ -849,6 +894,17 @@ config SND_VIA82XX_MODEM
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-via82xx-modem.
+
+config SND_VIRTUOSO
+	tristate "Asus Virtuoso 200 (Xonar)"
+	depends on SND
+	select SND_OXYGEN_LIB
+	help
+	  Say Y here to include support for sound cards based on the
+	  Asus AV200 chip, i.e., Xonar D2 and Xonar D2X.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-virtuoso.
 
 config SND_VX222
 	tristate "Digigram VX222"

@@ -83,6 +83,8 @@ struct tc_ratespec
 	__u32		rate;
 };
 
+#define TC_RTAB_SIZE	1024
+
 /* FIFO section */
 
 struct tc_fifo_qopt
@@ -146,6 +148,11 @@ struct tc_sfq_qopt
 	__u32		limit;		/* Maximal packets in queue */
 	unsigned	divisor;	/* Hash divisor  */
 	unsigned	flows;		/* Maximal number of flows  */
+};
+
+struct tc_sfq_xstats
+{
+	__s32		allot;
 };
 
 /*

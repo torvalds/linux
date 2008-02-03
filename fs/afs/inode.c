@@ -301,7 +301,8 @@ int afs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 
 	inode = dentry->d_inode;
 
-	_enter("{ ino=%lu v=%lu }", inode->i_ino, inode->i_version);
+	_enter("{ ino=%lu v=%llu }", inode->i_ino,
+		(unsigned long long)inode->i_version);
 
 	generic_fillattr(inode, stat);
 	return 0;

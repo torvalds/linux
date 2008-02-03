@@ -24,7 +24,7 @@
 
 #include "open_pic_defs.h"
 
-#if defined(CONFIG_PRPMC800) || defined(CONFIG_85xx)
+#if defined(CONFIG_PRPMC800)
 #define OPENPIC_BIG_ENDIAN
 #endif
 
@@ -1043,7 +1043,7 @@ int openpic_resume(struct sys_device *sysdev)
 #endif /* CONFIG_PM */
 
 static struct sysdev_class openpic_sysclass = {
-	set_kset_name("openpic"),
+	.name = "openpic",
 };
 
 static struct sys_device device_openpic = {

@@ -1248,7 +1248,6 @@ sisfb_do_set_var(struct fb_var_screeninfo *var, int isactive, struct fb_info *in
 	if(found_mode) {
 		ivideo->sisfb_mode_idx = sisfb_validate_mode(ivideo,
 				ivideo->sisfb_mode_idx, ivideo->currentvbflags);
-		ivideo->mode_no = sisbios_mode[ivideo->sisfb_mode_idx].mode_no[ivideo->mni];
 	} else {
 		ivideo->sisfb_mode_idx = -1;
 	}
@@ -1259,6 +1258,8 @@ sisfb_do_set_var(struct fb_var_screeninfo *var, int isactive, struct fb_info *in
 		ivideo->sisfb_mode_idx = old_mode;
 		return -EINVAL;
 	}
+
+	ivideo->mode_no = sisbios_mode[ivideo->sisfb_mode_idx].mode_no[ivideo->mni];
 
 	if(sisfb_search_refresh_rate(ivideo, ivideo->refresh_rate, ivideo->sisfb_mode_idx) == 0) {
 		ivideo->rate_idx = sisbios_mode[ivideo->sisfb_mode_idx].rate_idx;
@@ -5804,9 +5805,6 @@ sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ivideo->pcifunc = PCI_FUNC(pdev->devfn);
 	ivideo->subsysvendor = pdev->subsystem_vendor;
 	ivideo->subsysdevice = pdev->subsystem_device;
-#ifdef SIS_OLD_CONFIG_COMPAT
-	ivideo->ioctl32registered = 0;
-#endif
 
 #ifndef MODULE
 	if(sisfb_mode_idx == -1) {
@@ -6419,30 +6417,6 @@ error_3:	vfree(ivideo->bios_abase);
 		ivideo->next = card_list;
 		card_list = ivideo;
 
-#ifdef SIS_OLD_CONFIG_COMPAT
-		{
-		int ret;
-		/* Our ioctls are all "32/64bit compatible" */
-		ret =  register_ioctl32_conversion(FBIO_ALLOC,             NULL);
-		ret |= register_ioctl32_conversion(FBIO_FREE,              NULL);
-		ret |= register_ioctl32_conversion(FBIOGET_VBLANK,         NULL);
-		ret |= register_ioctl32_conversion(SISFB_GET_INFO_SIZE,    NULL);
-		ret |= register_ioctl32_conversion(SISFB_GET_INFO,         NULL);
-		ret |= register_ioctl32_conversion(SISFB_GET_TVPOSOFFSET,  NULL);
-		ret |= register_ioctl32_conversion(SISFB_SET_TVPOSOFFSET,  NULL);
-		ret |= register_ioctl32_conversion(SISFB_SET_LOCK,         NULL);
-		ret |= register_ioctl32_conversion(SISFB_GET_VBRSTATUS,    NULL);
-		ret |= register_ioctl32_conversion(SISFB_GET_AUTOMAXIMIZE, NULL);
-		ret |= register_ioctl32_conversion(SISFB_SET_AUTOMAXIMIZE, NULL);
-		ret |= register_ioctl32_conversion(SISFB_COMMAND,          NULL);
-		if(ret)
-			printk(KERN_ERR
-				"sisfb: Error registering ioctl32 translations\n");
-		else
-			ivideo->ioctl32registered = 1;
-		}
-#endif
-
 		printk(KERN_INFO "sisfb: 2D acceleration is %s, y-panning %s\n",
 			ivideo->sisfb_accel ? "enabled" : "disabled",
 			ivideo->sisfb_ypan  ?
@@ -6471,27 +6445,6 @@ static void __devexit sisfb_remove(struct pci_dev *pdev)
 	struct fb_info		*sis_fb_info = ivideo->memyselfandi;
 	int			registered = ivideo->registered;
 	int			modechanged = ivideo->modechanged;
-
-#ifdef SIS_OLD_CONFIG_COMPAT
-	if(ivideo->ioctl32registered) {
-		int ret;
-		ret =  unregister_ioctl32_conversion(FBIO_ALLOC);
-		ret |= unregister_ioctl32_conversion(FBIO_FREE);
-		ret |= unregister_ioctl32_conversion(FBIOGET_VBLANK);
-		ret |= unregister_ioctl32_conversion(SISFB_GET_INFO_SIZE);
-		ret |= unregister_ioctl32_conversion(SISFB_GET_INFO);
-		ret |= unregister_ioctl32_conversion(SISFB_GET_TVPOSOFFSET);
-		ret |= unregister_ioctl32_conversion(SISFB_SET_TVPOSOFFSET);
-		ret |= unregister_ioctl32_conversion(SISFB_SET_LOCK);
-		ret |= unregister_ioctl32_conversion(SISFB_GET_VBRSTATUS);
-		ret |= unregister_ioctl32_conversion(SISFB_GET_AUTOMAXIMIZE);
-		ret |= unregister_ioctl32_conversion(SISFB_SET_AUTOMAXIMIZE);
-		ret |= unregister_ioctl32_conversion(SISFB_COMMAND);
-		if(ret)
-			printk(KERN_ERR
-			     "sisfb: Error unregistering ioctl32 translations\n");
-	}
-#endif
 
 	/* Unmap */
 	iounmap(ivideo->mmio_vbase);

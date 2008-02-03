@@ -224,38 +224,34 @@ static int rsi_parse(struct cache_detail *cd,
 
 	/* major/minor */
 	len = qword_get(&mesg, buf, mlen);
+	if (len <= 0)
+		goto out;
+	rsii.major_status = simple_strtoul(buf, &ep, 10);
+	if (*ep)
+		goto out;
+	len = qword_get(&mesg, buf, mlen);
+	if (len <= 0)
+		goto out;
+	rsii.minor_status = simple_strtoul(buf, &ep, 10);
+	if (*ep)
+		goto out;
+
+	/* out_handle */
+	len = qword_get(&mesg, buf, mlen);
 	if (len < 0)
 		goto out;
-	if (len == 0) {
+	status = -ENOMEM;
+	if (dup_to_netobj(&rsii.out_handle, buf, len))
 		goto out;
-	} else {
-		rsii.major_status = simple_strtoul(buf, &ep, 10);
-		if (*ep)
-			goto out;
-		len = qword_get(&mesg, buf, mlen);
-		if (len <= 0)
-			goto out;
-		rsii.minor_status = simple_strtoul(buf, &ep, 10);
-		if (*ep)
-			goto out;
 
-		/* out_handle */
-		len = qword_get(&mesg, buf, mlen);
-		if (len < 0)
-			goto out;
-		status = -ENOMEM;
-		if (dup_to_netobj(&rsii.out_handle, buf, len))
-			goto out;
-
-		/* out_token */
-		len = qword_get(&mesg, buf, mlen);
-		status = -EINVAL;
-		if (len < 0)
-			goto out;
-		status = -ENOMEM;
-		if (dup_to_netobj(&rsii.out_token, buf, len))
-			goto out;
-	}
+	/* out_token */
+	len = qword_get(&mesg, buf, mlen);
+	status = -EINVAL;
+	if (len < 0)
+		goto out;
+	status = -ENOMEM;
+	if (dup_to_netobj(&rsii.out_token, buf, len))
+		goto out;
 	rsii.h.expiry_time = expiry;
 	rsip = rsi_update(&rsii, rsip);
 	status = 0;
@@ -975,6 +971,7 @@ static int svcauth_gss_handle_init(struct svc_rqst *rqstp,
 	struct kvec *resv = &rqstp->rq_res.head[0];
 	struct xdr_netobj tmpobj;
 	struct rsi *rsip, rsikey;
+	int ret;
 
 	/* Read the verifier; should be NULL: */
 	*authp = rpc_autherr_badverf;
@@ -1014,23 +1011,27 @@ static int svcauth_gss_handle_init(struct svc_rqst *rqstp,
 		/* No upcall result: */
 		return SVC_DROP;
 	case 0:
+		ret = SVC_DROP;
 		/* Got an answer to the upcall; use it: */
 		if (gss_write_init_verf(rqstp, rsip))
-			return SVC_DROP;
+			goto out;
 		if (resv->iov_len + 4 > PAGE_SIZE)
-			return SVC_DROP;
+			goto out;
 		svc_putnl(resv, RPC_SUCCESS);
 		if (svc_safe_putnetobj(resv, &rsip->out_handle))
-			return SVC_DROP;
+			goto out;
 		if (resv->iov_len + 3 * 4 > PAGE_SIZE)
-			return SVC_DROP;
+			goto out;
 		svc_putnl(resv, rsip->major_status);
 		svc_putnl(resv, rsip->minor_status);
 		svc_putnl(resv, GSS_SEQ_WIN);
 		if (svc_safe_putnetobj(resv, &rsip->out_token))
-			return SVC_DROP;
+			goto out;
 	}
-	return SVC_COMPLETE;
+	ret = SVC_COMPLETE;
+out:
+	cache_put(&rsip->h, &rsi_cache);
+	return ret;
 }
 
 /*
@@ -1125,6 +1126,7 @@ svcauth_gss_accept(struct svc_rqst *rqstp, __be32 *authp)
 	case RPC_GSS_PROC_DESTROY:
 		if (gss_write_verf(rqstp, rsci->mechctx, gc->gc_seq))
 			goto auth_err;
+		rsci->h.expiry_time = get_seconds();
 		set_bit(CACHE_NEGATIVE, &rsci->h.flags);
 		if (resv->iov_len + 4 > PAGE_SIZE)
 			goto drop;
@@ -1386,19 +1388,26 @@ int
 gss_svc_init(void)
 {
 	int rv = svc_auth_register(RPC_AUTH_GSS, &svcauthops_gss);
-	if (rv == 0) {
-		cache_register(&rsc_cache);
-		cache_register(&rsi_cache);
-	}
+	if (rv)
+		return rv;
+	rv = cache_register(&rsc_cache);
+	if (rv)
+		goto out1;
+	rv = cache_register(&rsi_cache);
+	if (rv)
+		goto out2;
+	return 0;
+out2:
+	cache_unregister(&rsc_cache);
+out1:
+	svc_auth_unregister(RPC_AUTH_GSS);
 	return rv;
 }
 
 void
 gss_svc_shutdown(void)
 {
-	if (cache_unregister(&rsc_cache))
-		printk(KERN_ERR "auth_rpcgss: failed to unregister rsc cache\n");
-	if (cache_unregister(&rsi_cache))
-		printk(KERN_ERR "auth_rpcgss: failed to unregister rsi cache\n");
+	cache_unregister(&rsc_cache);
+	cache_unregister(&rsi_cache);
 	svc_auth_unregister(RPC_AUTH_GSS);
 }

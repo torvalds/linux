@@ -110,18 +110,7 @@
 #define SNDRV_SEQ_EVENT_PORT_SUBSCRIBED	66	/* ports connected */
 #define SNDRV_SEQ_EVENT_PORT_UNSUBSCRIBED 67	/* ports disconnected */
 
-/** synthesizer events
- * event data type = snd_seq_eve_sample_control
- */
-#define SNDRV_SEQ_EVENT_SAMPLE		70	/* sample select */
-#define SNDRV_SEQ_EVENT_SAMPLE_CLUSTER	71	/* sample cluster select */
-#define SNDRV_SEQ_EVENT_SAMPLE_START	72	/* voice start */
-#define SNDRV_SEQ_EVENT_SAMPLE_STOP	73	/* voice stop */
-#define SNDRV_SEQ_EVENT_SAMPLE_FREQ	74	/* playback frequency */
-#define SNDRV_SEQ_EVENT_SAMPLE_VOLUME	75	/* volume and balance */
-#define SNDRV_SEQ_EVENT_SAMPLE_LOOP	76	/* sample loop */
-#define SNDRV_SEQ_EVENT_SAMPLE_POSITION	77	/* sample position */
-#define SNDRV_SEQ_EVENT_SAMPLE_PRIVATE1	78	/* private (hardware dependent) event */
+/* 70-89:  synthesizer events - obsoleted */
 
 /** user-defined events with fixed length
  * event data type = any
@@ -137,28 +126,7 @@
 #define SNDRV_SEQ_EVENT_USR8		98
 #define SNDRV_SEQ_EVENT_USR9		99
 
-/** instrument layer
- * variable length data can be passed directly to the driver
- */
-#define SNDRV_SEQ_EVENT_INSTR_BEGIN	100	/* begin of instrument management */
-#define SNDRV_SEQ_EVENT_INSTR_END	101	/* end of instrument management */
-#define SNDRV_SEQ_EVENT_INSTR_INFO	102	/* instrument interface info */
-#define SNDRV_SEQ_EVENT_INSTR_INFO_RESULT 103	/* result */
-#define SNDRV_SEQ_EVENT_INSTR_FINFO	104	/* get format info */
-#define SNDRV_SEQ_EVENT_INSTR_FINFO_RESULT 105	/* get format info */
-#define SNDRV_SEQ_EVENT_INSTR_RESET	106	/* reset instrument memory */
-#define SNDRV_SEQ_EVENT_INSTR_STATUS	107	/* instrument interface status */
-#define SNDRV_SEQ_EVENT_INSTR_STATUS_RESULT 108	/* result */
-#define SNDRV_SEQ_EVENT_INSTR_PUT	109	/* put instrument to port */
-#define SNDRV_SEQ_EVENT_INSTR_GET	110	/* get instrument from port */
-#define SNDRV_SEQ_EVENT_INSTR_GET_RESULT 111	/* result */
-#define SNDRV_SEQ_EVENT_INSTR_FREE	112	/* free instrument(s) */
-#define SNDRV_SEQ_EVENT_INSTR_LIST	113	/* instrument list */
-#define SNDRV_SEQ_EVENT_INSTR_LIST_RESULT 114	/* result */
-#define SNDRV_SEQ_EVENT_INSTR_CLUSTER	115	/* cluster parameters */
-#define SNDRV_SEQ_EVENT_INSTR_CLUSTER_GET 116	/* get cluster parameters */
-#define SNDRV_SEQ_EVENT_INSTR_CLUSTER_RESULT 117 /* result */
-#define SNDRV_SEQ_EVENT_INSTR_CHANGE	118	/* instrument change */
+/* 100-118: instrument layer - obsoleted */
 /* 119-129: reserved */
 
 /* 130-139: variable length events
@@ -258,78 +226,6 @@ struct snd_seq_ev_ext {
 	void *ptr;		/* pointer to data (note: maybe 64-bit) */
 } __attribute__((packed));
 
-/* Instrument cluster type */
-typedef unsigned int snd_seq_instr_cluster_t;
-
-/* Instrument type */
-struct snd_seq_instr {
-	snd_seq_instr_cluster_t cluster;
-	unsigned int std;		/* the upper byte means a private instrument (owner - client #) */
-	unsigned short bank;
-	unsigned short prg;
-};
-
-	/* sample number */
-struct snd_seq_ev_sample {
-	unsigned int std;
-	unsigned short bank;
-	unsigned short prg;
-};
-
-	/* sample cluster */
-struct snd_seq_ev_cluster {
-	snd_seq_instr_cluster_t cluster;
-};
-
-	/* sample position */
-typedef unsigned int snd_seq_position_t; /* playback position (in samples) * 16 */
-
-	/* sample stop mode */
-enum {
-	SAMPLE_STOP_IMMEDIATELY = 0,	/* terminate playing immediately */
-	SAMPLE_STOP_VENVELOPE = 1,	/* finish volume envelope */
-	SAMPLE_STOP_LOOP = 2		/* terminate loop and finish wave */
-};
-
-	/* sample frequency */
-typedef int snd_seq_frequency_t; /* playback frequency in HZ * 16 */
-
-	/* sample volume control; if any value is set to -1 == do not change */
-struct snd_seq_ev_volume {
-	signed short volume;	/* range: 0-16383 */
-	signed short lr;	/* left-right balance; range: 0-16383 */
-	signed short fr;	/* front-rear balance; range: 0-16383 */
-	signed short du;	/* down-up balance; range: 0-16383 */
-};
-
-	/* simple loop redefinition */
-struct snd_seq_ev_loop {
-	unsigned int start;	/* loop start (in samples) * 16 */
-	unsigned int end;	/* loop end (in samples) * 16 */
-};
-
-struct snd_seq_ev_sample_control {
-	unsigned char channel;
-	unsigned char unused1, unused2, unused3;	/* pad */
-	union {
-		struct snd_seq_ev_sample sample;
-		struct snd_seq_ev_cluster cluster;
-		snd_seq_position_t position;
-		int stop_mode;
-		snd_seq_frequency_t frequency;
-		struct snd_seq_ev_volume volume;
-		struct snd_seq_ev_loop loop;
-		unsigned char raw8[8];
-	} param;
-};
-
-
-
-/* INSTR_BEGIN event */
-struct snd_seq_ev_instr_begin {
-	int timeout;		/* zero = forever, otherwise timeout in ms */
-};
-
 struct snd_seq_result {
 	int event;		/* processed event type */
 	int result;
@@ -399,8 +295,6 @@ struct snd_seq_event {
 		struct snd_seq_addr addr;
 		struct snd_seq_connect connect;
 		struct snd_seq_result result;
-		struct snd_seq_ev_instr_begin instr_begin;
-		struct snd_seq_ev_sample_control sample;
 		struct snd_seq_ev_quote quote;
 	} data;
 };
@@ -441,8 +335,6 @@ struct snd_seq_event_bounce {
 #define snd_seq_ev_is_user_type(ev)	((ev)->type >= 90 && (ev)->type < 99)
 /* fixed length events: 0-99 */
 #define snd_seq_ev_is_fixed_type(ev)	((ev)->type < 100)
-/* instrument layer events: 100-129 */
-#define snd_seq_ev_is_instr_type(ev)	((ev)->type >= 100 && (ev)->type < 130)
 /* variable length events: 130-139 */
 #define snd_seq_ev_is_variable_type(ev)	((ev)->type >= 130 && (ev)->type < 140)
 /* reserved for kernel */
@@ -736,136 +628,6 @@ struct snd_seq_query_subs {
 	char reserved[64];	/* for future use */
 };
 
-
-/*
- *  Instrument abstraction layer
- *     - based on events
- */
-
-/* instrument types */
-#define SNDRV_SEQ_INSTR_ATYPE_DATA	0	/* instrument data */
-#define SNDRV_SEQ_INSTR_ATYPE_ALIAS	1	/* instrument alias */
-
-/* instrument ASCII identifiers */
-#define SNDRV_SEQ_INSTR_ID_DLS1		"DLS1"
-#define SNDRV_SEQ_INSTR_ID_DLS2		"DLS2"
-#define SNDRV_SEQ_INSTR_ID_SIMPLE	"Simple Wave"
-#define SNDRV_SEQ_INSTR_ID_SOUNDFONT	"SoundFont"
-#define SNDRV_SEQ_INSTR_ID_GUS_PATCH	"GUS Patch"
-#define SNDRV_SEQ_INSTR_ID_INTERWAVE	"InterWave FFFF"
-#define SNDRV_SEQ_INSTR_ID_OPL2_3	"OPL2/3 FM"
-#define SNDRV_SEQ_INSTR_ID_OPL4		"OPL4"
-
-/* instrument types */
-#define SNDRV_SEQ_INSTR_TYPE0_DLS1	(1<<0)	/* MIDI DLS v1 */
-#define SNDRV_SEQ_INSTR_TYPE0_DLS2	(1<<1)	/* MIDI DLS v2 */
-#define SNDRV_SEQ_INSTR_TYPE1_SIMPLE	(1<<0)	/* Simple Wave */
-#define SNDRV_SEQ_INSTR_TYPE1_SOUNDFONT	(1<<1)	/* EMU SoundFont */
-#define SNDRV_SEQ_INSTR_TYPE1_GUS_PATCH	(1<<2)	/* Gravis UltraSound Patch */
-#define SNDRV_SEQ_INSTR_TYPE1_INTERWAVE	(1<<3)	/* InterWave FFFF */
-#define SNDRV_SEQ_INSTR_TYPE2_OPL2_3	(1<<0)	/* Yamaha OPL2/3 FM */
-#define SNDRV_SEQ_INSTR_TYPE2_OPL4	(1<<1)	/* Yamaha OPL4 */
-
-/* put commands */
-#define SNDRV_SEQ_INSTR_PUT_CMD_CREATE	0
-#define SNDRV_SEQ_INSTR_PUT_CMD_REPLACE	1
-#define SNDRV_SEQ_INSTR_PUT_CMD_MODIFY	2
-#define SNDRV_SEQ_INSTR_PUT_CMD_ADD	3
-#define SNDRV_SEQ_INSTR_PUT_CMD_REMOVE	4
-
-/* get commands */
-#define SNDRV_SEQ_INSTR_GET_CMD_FULL	0
-#define SNDRV_SEQ_INSTR_GET_CMD_PARTIAL	1
-
-/* query flags */
-#define SNDRV_SEQ_INSTR_QUERY_FOLLOW_ALIAS (1<<0)
-
-/* free commands */
-#define SNDRV_SEQ_INSTR_FREE_CMD_ALL		0
-#define SNDRV_SEQ_INSTR_FREE_CMD_PRIVATE	1
-#define SNDRV_SEQ_INSTR_FREE_CMD_CLUSTER	2
-#define SNDRV_SEQ_INSTR_FREE_CMD_SINGLE		3
-
-/* size of ROM/RAM */
-typedef unsigned int snd_seq_instr_size_t;
-
-/* INSTR_INFO */
-
-struct snd_seq_instr_info {
-	int result;			/* operation result */
-	unsigned int formats[8];	/* bitmap of supported formats */
-	int ram_count;			/* count of RAM banks */
-	snd_seq_instr_size_t ram_sizes[16]; /* size of RAM banks */
-	int rom_count;			/* count of ROM banks */
-	snd_seq_instr_size_t rom_sizes[8]; /* size of ROM banks */
-	char reserved[128];
-};
-
-/* INSTR_STATUS */
-
-struct snd_seq_instr_status {
-	int result;			/* operation result */
-	snd_seq_instr_size_t free_ram[16]; /* free RAM in banks */
-	int instrument_count;		/* count of downloaded instruments */
-	char reserved[128];
-};
-
-/* INSTR_FORMAT_INFO */
-
-struct snd_seq_instr_format_info {
-	char format[16];		/* format identifier - SNDRV_SEQ_INSTR_ID_* */	
-	unsigned int len;		/* max data length (without this structure) */
-};
-
-struct snd_seq_instr_format_info_result {
-	int result;			/* operation result */
-	char format[16];		/* format identifier */
-	unsigned int len;		/* filled data length (without this structure) */
-};
-
-/* instrument data */
-struct snd_seq_instr_data {
-	char name[32];			/* instrument name */
-	char reserved[16];		/* for the future use */
-	int type;			/* instrument type */
-	union {
-		char format[16];	/* format identifier */
-		struct snd_seq_instr alias;
-	} data;
-};
-
-/* INSTR_PUT/GET, data are stored in one block (extended), header + data */
-
-struct snd_seq_instr_header {
-	union {
-		struct snd_seq_instr instr;
-		snd_seq_instr_cluster_t cluster;
-	} id;				/* instrument identifier */
-	unsigned int cmd;		/* get/put/free command */
-	unsigned int flags;		/* query flags (only for get) */
-	unsigned int len;		/* real instrument data length (without header) */
-	int result;			/* operation result */
-	char reserved[16];		/* for the future */
-	struct snd_seq_instr_data data; /* instrument data (for put/get result) */
-};
-
-/* INSTR_CLUSTER_SET */
-
-struct snd_seq_instr_cluster_set {
-	snd_seq_instr_cluster_t cluster; /* cluster identifier */
-	char name[32];			/* cluster name */
-	int priority;			/* cluster priority */
-	char reserved[64];		/* for the future use */
-};
-
-/* INSTR_CLUSTER_GET */
-
-struct snd_seq_instr_cluster_get {
-	snd_seq_instr_cluster_t cluster; /* cluster identifier */
-	char name[32];			/* cluster name */
-	int priority;			/* cluster priority */
-	char reserved[64];		/* for the future use */
-};
 
 /*
  *  IOCTL commands

@@ -19,7 +19,7 @@
 
 typedef struct {
 	raw_spinlock_t raw_lock;
-#if defined(CONFIG_PREEMPT) && defined(CONFIG_SMP)
+#ifdef CONFIG_GENERIC_LOCKBREAK
 	unsigned int break_lock;
 #endif
 #ifdef CONFIG_DEBUG_SPINLOCK
@@ -35,7 +35,7 @@ typedef struct {
 
 typedef struct {
 	raw_rwlock_t raw_lock;
-#if defined(CONFIG_PREEMPT) && defined(CONFIG_SMP)
+#ifdef CONFIG_GENERIC_LOCKBREAK
 	unsigned int break_lock;
 #endif
 #ifdef CONFIG_DEBUG_SPINLOCK

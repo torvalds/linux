@@ -75,7 +75,20 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/linkage.h>
+#include <linux/stringify.h>
 #include <linux/irqflags.h>
+
+/*
+ * The CPU ID never changes at run time, so we might as well tell the
+ * compiler that it's constant.  Use this function to read the CPU ID
+ * rather than directly reading processor_id or read_cpuid() directly.
+ */
+static inline unsigned int read_cpuid_id(void) __attribute_const__;
+
+static inline unsigned int read_cpuid_id(void)
+{
+	return read_cpuid(CPUID_ID);
+}
 
 #define __exception	__attribute__((section(".exception.text")))
 

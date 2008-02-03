@@ -187,7 +187,7 @@ struct irq_chip s3c_irq_level_chip = {
 	.set_wake	= s3c_irq_wake
 };
 
-static struct irq_chip s3c_irq_chip = {
+struct irq_chip s3c_irq_chip = {
 	.name		= "s3c",
 	.ack		= s3c_irq_ack,
 	.mask		= s3c_irq_mask,

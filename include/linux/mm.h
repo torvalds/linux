@@ -33,6 +33,8 @@ extern int sysctl_legacy_va_layout;
 #define sysctl_legacy_va_layout 0
 #endif
 
+extern unsigned long mmap_min_addr;
+
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
@@ -510,6 +512,21 @@ static inline void set_page_links(struct page *page, enum zone_type zone,
 	set_page_zone(page, zone);
 	set_page_node(page, node);
 	set_page_section(page, pfn_to_section_nr(pfn));
+}
+
+/*
+ * If a hint addr is less than mmap_min_addr change hint to be as
+ * low as possible but still greater than mmap_min_addr
+ */
+static inline unsigned long round_hint_to_min(unsigned long hint)
+{
+#ifdef CONFIG_SECURITY
+	hint &= PAGE_MASK;
+	if (((void *)hint != NULL) &&
+	    (hint < mmap_min_addr))
+		return PAGE_ALIGN(mmap_min_addr);
+#endif
+	return hint;
 }
 
 /*
@@ -1101,9 +1118,21 @@ static inline void vm_stat_account(struct mm_struct *mm,
 }
 #endif /* CONFIG_PROC_FS */
 
-#ifndef CONFIG_DEBUG_PAGEALLOC
+#ifdef CONFIG_DEBUG_PAGEALLOC
+extern int debug_pagealloc_enabled;
+
+extern void kernel_map_pages(struct page *page, int numpages, int enable);
+
+static inline void enable_debug_pagealloc(void)
+{
+	debug_pagealloc_enabled = 1;
+}
+#else
 static inline void
 kernel_map_pages(struct page *page, int numpages, int enable) {}
+static inline void enable_debug_pagealloc(void)
+{
+}
 #endif
 
 extern struct vm_area_struct *get_gate_vma(struct task_struct *tsk);
@@ -1129,6 +1158,7 @@ extern int randomize_va_space;
 #endif
 
 const char * arch_vma_name(struct vm_area_struct *vma);
+void print_vma_addr(char *prefix, unsigned long rip);
 
 struct page *sparse_mem_map_populate(unsigned long pnum, int nid);
 pgd_t *vmemmap_pgd_populate(unsigned long addr, int node);

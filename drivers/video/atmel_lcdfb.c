@@ -30,7 +30,7 @@
 #define ATMEL_LCDC_CVAL_DEFAULT		0xc8
 #define ATMEL_LCDC_DMA_BURST_LEN	8
 
-#if defined(CONFIG_ARCH_AT91SAM9263)
+#if defined(CONFIG_ARCH_AT91SAM9263) || defined(CONFIG_ARCH_AT91CAP9)
 #define ATMEL_LCDC_FIFO_SIZE		2048
 #else
 #define ATMEL_LCDC_FIFO_SIZE		512
@@ -267,6 +267,10 @@ static int atmel_lcdfb_set_par(struct fb_info *info)
 
 	/* Turn off the LCD controller and the DMA controller */
 	lcdc_writel(sinfo, ATMEL_LCDC_PWRCON, sinfo->guard_time << ATMEL_LCDC_GUARDT_OFFSET);
+
+	/* Wait for the LCDC core to become idle */
+	while (lcdc_readl(sinfo, ATMEL_LCDC_PWRCON) & ATMEL_LCDC_BUSY)
+		msleep(10);
 
 	lcdc_writel(sinfo, ATMEL_LCDC_DMACON, 0);
 
@@ -797,5 +801,5 @@ module_init(atmel_lcdfb_init);
 module_exit(atmel_lcdfb_exit);
 
 MODULE_DESCRIPTION("AT91/AT32 LCD Controller framebuffer driver");
-MODULE_AUTHOR("Nicolas Ferre <nicolas.ferre@rfo.atmel.com>");
+MODULE_AUTHOR("Nicolas Ferre <nicolas.ferre@atmel.com>");
 MODULE_LICENSE("GPL");

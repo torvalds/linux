@@ -392,6 +392,7 @@ struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr, pte_
 			return NULL;
 	}
 
+#ifdef CONFIG_DEBUG_VM
 	/*
 	 * Add some anal sanity checks for now. Eventually,
 	 * we should just do "return pfn_to_page(pfn)", but
@@ -402,6 +403,7 @@ struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr, pte_
 		print_bad_pte(vma, pte, addr);
 		return NULL;
 	}
+#endif
 
 	/*
 	 * NOTE! We still have PageReserved() pages in the page 
@@ -511,8 +513,7 @@ again:
 		if (progress >= 32) {
 			progress = 0;
 			if (need_resched() ||
-			    need_lockbreak(src_ptl) ||
-			    need_lockbreak(dst_ptl))
+			    spin_needbreak(src_ptl) || spin_needbreak(dst_ptl))
 				break;
 		}
 		if (pte_none(*src_pte)) {
@@ -851,7 +852,7 @@ unsigned long unmap_vmas(struct mmu_gather **tlbp,
 			tlb_finish_mmu(*tlbp, tlb_start, start);
 
 			if (need_resched() ||
-				(i_mmap_lock && need_lockbreak(i_mmap_lock))) {
+				(i_mmap_lock && spin_needbreak(i_mmap_lock))) {
 				if (i_mmap_lock) {
 					*tlbp = NULL;
 					goto out;
@@ -1036,7 +1037,7 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 
 		if (is_vm_hugetlb_page(vma)) {
 			i = follow_hugetlb_page(mm, vma, pages, vmas,
-						&start, &len, i);
+						&start, &len, i, write);
 			continue;
 		}
 
@@ -1668,6 +1669,9 @@ gotten:
 unlock:
 	pte_unmap_unlock(page_table, ptl);
 	if (dirty_page) {
+		if (vma->vm_file)
+			file_update_time(vma->vm_file);
+
 		/*
 		 * Yes, Virginia, this is actually required to prevent a race
 		 * with clear_page_dirty_for_io() from clearing the page dirty
@@ -1763,8 +1767,7 @@ again:
 
 	restart_addr = zap_page_range(vma, start_addr,
 					end_addr - start_addr, details);
-	need_break = need_resched() ||
-			need_lockbreak(details->i_mmap_lock);
+	need_break = need_resched() || spin_needbreak(details->i_mmap_lock);
 
 	if (restart_addr >= end_addr) {
 		/* We have now completed this vma: mark it so */
@@ -2084,9 +2087,9 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		count_vm_event(PGMAJFAULT);
 	}
 
-	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
 	mark_page_accessed(page);
 	lock_page(page);
+	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
 
 	/*
 	 * Back out if somebody else already faulted in this pte.
@@ -2341,6 +2344,9 @@ out_unlocked:
 	if (anon)
 		page_cache_release(vmf.page);
 	else if (dirty_page) {
+		if (vma->vm_file)
+			file_update_time(vma->vm_file);
+
 		set_page_dirty_balance(dirty_page, page_mkwrite);
 		put_page(dirty_page);
 	}
@@ -2748,4 +2754,34 @@ int access_process_vm(struct task_struct *tsk, unsigned long addr, void *buf, in
 
 	return buf - old_buf;
 }
-EXPORT_SYMBOL_GPL(access_process_vm);
+
+/*
+ * Print the name of a VMA.
+ */
+void print_vma_addr(char *prefix, unsigned long ip)
+{
+	struct mm_struct *mm = current->mm;
+	struct vm_area_struct *vma;
+
+	down_read(&mm->mmap_sem);
+	vma = find_vma(mm, ip);
+	if (vma && vma->vm_file) {
+		struct file *f = vma->vm_file;
+		char *buf = (char *)__get_free_page(GFP_KERNEL);
+		if (buf) {
+			char *p, *s;
+
+			p = d_path(f->f_dentry, f->f_vfsmnt, buf, PAGE_SIZE);
+			if (IS_ERR(p))
+				p = "?";
+			s = strrchr(p, '/');
+			if (s)
+				p = s+1;
+			printk("%s%s[%lx+%lx]", prefix, p,
+					vma->vm_start,
+					vma->vm_end - vma->vm_start);
+			free_page((unsigned long)buf);
+		}
+	}
+	up_read(&current->mm->mmap_sem);
+}

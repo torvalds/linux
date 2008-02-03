@@ -218,7 +218,7 @@ static void dccp_v4_err(struct sk_buff *skb, u32 info)
 		return;
 	}
 
-	sk = inet_lookup(&dccp_hashinfo, iph->daddr, dh->dccph_dport,
+	sk = inet_lookup(&init_net, &dccp_hashinfo, iph->daddr, dh->dccph_dport,
 			 iph->saddr, dh->dccph_sport, inet_iif(skb));
 	if (sk == NULL) {
 		ICMP_INC_STATS_BH(ICMP_MIB_INERRORS);
@@ -408,7 +408,7 @@ struct sock *dccp_v4_request_recv_sock(struct sock *sk, struct sk_buff *skb,
 
 	dccp_sync_mss(newsk, dst_mtu(dst));
 
-	__inet_hash(&dccp_hashinfo, newsk, 0);
+	__inet_hash_nolisten(&dccp_hashinfo, newsk);
 	__inet_inherit_port(&dccp_hashinfo, sk, newsk);
 
 	return newsk;
@@ -436,7 +436,7 @@ static struct sock *dccp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 	if (req != NULL)
 		return dccp_check_req(sk, skb, req, prev);
 
-	nsk = inet_lookup_established(&dccp_hashinfo,
+	nsk = inet_lookup_established(&init_net, &dccp_hashinfo,
 				      iph->saddr, dh->dccph_sport,
 				      iph->daddr, dh->dccph_dport,
 				      inet_iif(skb));
@@ -469,7 +469,7 @@ static struct dst_entry* dccp_v4_route_skb(struct sock *sk,
 			  };
 
 	security_skb_classify_flow(skb, &fl);
-	if (ip_route_output_flow(&rt, &fl, sk, 0)) {
+	if (ip_route_output_flow(&init_net, &rt, &fl, sk, 0)) {
 		IP_INC_STATS_BH(IPSTATS_MIB_OUTNOROUTES);
 		return NULL;
 	}
@@ -600,10 +600,11 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	if (req == NULL)
 		goto drop;
 
-	if (dccp_parse_options(sk, skb))
-		goto drop_and_free;
-
 	dccp_reqsk_init(req, skb);
+
+	dreq = dccp_rsk(req);
+	if (dccp_parse_options(sk, dreq, skb))
+		goto drop_and_free;
 
 	if (security_inet_conn_request(sk, skb, req))
 		goto drop_and_free;
@@ -621,7 +622,6 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	 * In fact we defer setting S.GSR, S.SWL, S.SWH to
 	 * dccp_create_openreq_child.
 	 */
-	dreq = dccp_rsk(req);
 	dreq->dreq_isr	   = dcb->dccpd_seq;
 	dreq->dreq_iss	   = dccp_v4_init_sequence(skb);
 	dreq->dreq_service = service;
@@ -817,7 +817,7 @@ static int dccp_v4_rcv(struct sk_buff *skb)
 
 	/* Step 2:
 	 *	Look up flow ID in table and get corresponding socket */
-	sk = __inet_lookup(&dccp_hashinfo,
+	sk = __inet_lookup(&init_net, &dccp_hashinfo,
 			   iph->saddr, dh->dccph_sport,
 			   iph->daddr, dh->dccph_dport, inet_iif(skb));
 	/*
@@ -922,6 +922,8 @@ static struct timewait_sock_ops dccp_timewait_sock_ops = {
 	.twsk_obj_size	= sizeof(struct inet_timewait_sock),
 };
 
+DEFINE_PROTO_INUSE(dccp_v4)
+
 static struct proto dccp_v4_prot = {
 	.name			= "DCCP",
 	.owner			= THIS_MODULE,
@@ -950,6 +952,7 @@ static struct proto dccp_v4_prot = {
 	.compat_setsockopt	= compat_dccp_setsockopt,
 	.compat_getsockopt	= compat_dccp_getsockopt,
 #endif
+	REF_PROTO_INUSE(dccp_v4)
 };
 
 static struct net_protocol dccp_v4_protocol = {

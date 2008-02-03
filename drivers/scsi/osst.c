@@ -593,10 +593,11 @@ static int osst_verify_frame(struct osst_tape * STp, int frame_seq_number, int q
 	if (aux->frame_type != OS_FRAME_TYPE_DATA &&
 	    aux->frame_type != OS_FRAME_TYPE_EOD &&
 	    aux->frame_type != OS_FRAME_TYPE_MARKER) {
-		if (!quiet)
+		if (!quiet) {
 #if DEBUG
 			printk(OSST_DEB_MSG "%s:D: Skipping frame, frame type %x\n", name, aux->frame_type);
 #endif
+		}
 		goto err_out;
 	}
 	if (aux->frame_type == OS_FRAME_TYPE_EOD &&
@@ -606,11 +607,12 @@ static int osst_verify_frame(struct osst_tape * STp, int frame_seq_number, int q
 		goto err_out;
 	}
         if (frame_seq_number != -1 && ntohl(aux->frame_seq_num) != frame_seq_number) {
-		if (!quiet)
+		if (!quiet) {
 #if DEBUG
 			printk(OSST_DEB_MSG "%s:D: Skipping frame, sequence number %u (expected %d)\n", 
 					    name, ntohl(aux->frame_seq_num), frame_seq_number);
 #endif
+		}
 		goto err_out;
 	}
 	if (aux->frame_type == OS_FRAME_TYPE_MARKER) {

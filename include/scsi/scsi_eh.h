@@ -68,16 +68,15 @@ extern int scsi_get_sense_info_fld(const u8 * sense_buffer, int sb_len,
 extern int scsi_reset_provider(struct scsi_device *, int);
 
 struct scsi_eh_save {
+	/* saved state */
 	int result;
 	enum dma_data_direction data_direction;
 	unsigned char cmd_len;
 	unsigned char cmnd[MAX_COMMAND_SIZE];
+	struct scsi_data_buffer sdb;
+	struct request *next_rq;
 
-	void *buffer;
-	unsigned bufflen;
-	unsigned short use_sg;
-	int resid;
-
+	/* new command support */
 	struct scatterlist sense_sgl;
 };
 

@@ -768,9 +768,13 @@ lba_fixup_bus(struct pci_bus *bus)
 				DBG("lba_fixup_bus() WTF? 0x%lx [%lx/%lx] XXX",
 					res->flags, res->start, res->end);
 			}
-			if ((i != PCI_ROM_RESOURCE) ||
-			    (res->flags & IORESOURCE_ROM_ENABLE))
-				pci_claim_resource(dev, i);
+
+			/*
+			** FIXME: this will result in whinging for devices
+			** that share expansion ROMs (think quad tulip), but
+			** isn't harmful.
+			*/
+			pci_claim_resource(dev, i);
 		}
 
 #ifdef FBB_SUPPORT

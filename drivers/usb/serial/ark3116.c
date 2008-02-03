@@ -151,8 +151,10 @@ static int ark3116_attach(struct usb_serial *serial)
 	return 0;
 
 cleanup:
-	for (--i; i >= 0; --i)
+	for (--i; i >= 0; --i) {
+		kfree(usb_get_serial_port_data(serial->port[i]));
 		usb_set_serial_port_data(serial->port[i], NULL);
+	}
 	return -ENOMEM;
 }
 

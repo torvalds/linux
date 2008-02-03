@@ -92,4 +92,4 @@ struct bf537mac_local {
 	struct mii_bus mii_bus;
 };
 
-extern void get_bf537_ether_addr(char *addr);
+extern void bfin_get_ether_addr(char *addr);

@@ -9,7 +9,7 @@
 #include <linux/kthread.h>
 #include <linux/vmalloc.h>
 
-int qla24xx_vport_disable(struct fc_vport *, bool);
+static int qla24xx_vport_disable(struct fc_vport *, bool);
 
 /* SYSFS attributes --------------------------------------------------------- */
 
@@ -958,7 +958,7 @@ qla2x00_issue_lip(struct Scsi_Host *shost)
 {
 	scsi_qla_host_t *ha = shost_priv(shost);
 
-	set_bit(LOOP_RESET_NEEDED, &ha->dpc_flags);
+	qla2x00_loop_reset(ha);
 	return 0;
 }
 
@@ -967,35 +967,51 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 {
 	scsi_qla_host_t *ha = shost_priv(shost);
 	int rval;
-	uint16_t mb_stat[1];
-	link_stat_t stat_buf;
+	struct link_statistics *stats;
+	dma_addr_t stats_dma;
 	struct fc_host_statistics *pfc_host_stat;
 
-	rval = QLA_FUNCTION_FAILED;
 	pfc_host_stat = &ha->fc_host_stat;
 	memset(pfc_host_stat, -1, sizeof(struct fc_host_statistics));
 
+	stats = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &stats_dma);
+	if (stats == NULL) {
+		DEBUG2_3_11(printk("%s(%ld): Failed to allocate memory.\n",
+		    __func__, ha->host_no));
+		goto done;
+	}
+	memset(stats, 0, DMA_POOL_SIZE);
+
+	rval = QLA_FUNCTION_FAILED;
 	if (IS_FWI2_CAPABLE(ha)) {
-		rval = qla24xx_get_isp_stats(ha, (uint32_t *)&stat_buf,
-		    sizeof(stat_buf) / 4, mb_stat);
+		rval = qla24xx_get_isp_stats(ha, stats, stats_dma);
 	} else if (atomic_read(&ha->loop_state) == LOOP_READY &&
 		    !test_bit(ABORT_ISP_ACTIVE, &ha->dpc_flags) &&
 		    !test_bit(ISP_ABORT_NEEDED, &ha->dpc_flags) &&
 		    !ha->dpc_active) {
 		/* Must be in a 'READY' state for statistics retrieval. */
-		rval = qla2x00_get_link_status(ha, ha->loop_id, &stat_buf,
-		    mb_stat);
+		rval = qla2x00_get_link_status(ha, ha->loop_id, stats,
+		    stats_dma);
 	}
 
 	if (rval != QLA_SUCCESS)
-		goto done;
+		goto done_free;
 
-	pfc_host_stat->link_failure_count = stat_buf.link_fail_cnt;
-	pfc_host_stat->loss_of_sync_count = stat_buf.loss_sync_cnt;
-	pfc_host_stat->loss_of_signal_count = stat_buf.loss_sig_cnt;
-	pfc_host_stat->prim_seq_protocol_err_count = stat_buf.prim_seq_err_cnt;
-	pfc_host_stat->invalid_tx_word_count = stat_buf.inval_xmit_word_cnt;
-	pfc_host_stat->invalid_crc_count = stat_buf.inval_crc_cnt;
+	pfc_host_stat->link_failure_count = stats->link_fail_cnt;
+	pfc_host_stat->loss_of_sync_count = stats->loss_sync_cnt;
+	pfc_host_stat->loss_of_signal_count = stats->loss_sig_cnt;
+	pfc_host_stat->prim_seq_protocol_err_count = stats->prim_seq_err_cnt;
+	pfc_host_stat->invalid_tx_word_count = stats->inval_xmit_word_cnt;
+	pfc_host_stat->invalid_crc_count = stats->inval_crc_cnt;
+	if (IS_FWI2_CAPABLE(ha)) {
+		pfc_host_stat->tx_frames = stats->tx_frames;
+		pfc_host_stat->rx_frames = stats->rx_frames;
+		pfc_host_stat->dumped_frames = stats->dumped_frames;
+		pfc_host_stat->nos_count = stats->nos_rcvd;
+	}
+
+done_free:
+        dma_pool_free(ha->s_dma_pool, stats, stats_dma);
 done:
 	return pfc_host_stat;
 }
@@ -1113,7 +1129,7 @@ vport_create_failed_2:
 	return FC_VPORT_FAILED;
 }
 
-int
+static int
 qla24xx_vport_delete(struct fc_vport *fc_vport)
 {
 	scsi_qla_host_t *ha = shost_priv(fc_vport->shost);
@@ -1124,7 +1140,7 @@ qla24xx_vport_delete(struct fc_vport *fc_vport)
 
 	down(&ha->vport_sem);
 	ha->cur_vport_count--;
-	clear_bit(vha->vp_idx, (unsigned long *)ha->vp_idx_map);
+	clear_bit(vha->vp_idx, ha->vp_idx_map);
 	up(&ha->vport_sem);
 
 	kfree(vha->node_name);
@@ -1146,7 +1162,7 @@ qla24xx_vport_delete(struct fc_vport *fc_vport)
 	return 0;
 }
 
-int
+static int
 qla24xx_vport_disable(struct fc_vport *fc_vport, bool disable)
 {
 	scsi_qla_host_t *vha = fc_vport->dd_data;

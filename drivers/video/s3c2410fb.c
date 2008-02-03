@@ -488,7 +488,7 @@ static int s3c2410fb_set_par(struct fb_info *info)
 		break;
 	}
 
-	info->fix.line_length = (var->width * var->bits_per_pixel) / 8;
+	info->fix.line_length = (var->xres_virtual * var->bits_per_pixel) / 8;
 
 	/* activate this new configuration */
 
@@ -1026,7 +1026,7 @@ static int s3c2410fb_resume(struct platform_device *dev)
 	clk_enable(info->clk);
 	msleep(1);
 
-	s3c2410fb_init_registers(info);
+	s3c2410fb_init_registers(fbinfo);
 
 	return 0;
 }

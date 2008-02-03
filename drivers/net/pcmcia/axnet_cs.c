@@ -158,7 +158,7 @@ static int axnet_probe(struct pcmcia_device *link)
     info = PRIV(dev);
     info->p_dev = link;
     link->priv = dev;
-    link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
+    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
     link->irq.IRQInfo1 = IRQ_LEVEL_ID;
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
@@ -1040,15 +1040,13 @@ void ei_tx_timeout(struct net_device *dev)
 
 	/* Ugly but a reset can be slow, yet must be protected */
 		
-	disable_irq_nosync(dev->irq);
-	spin_lock(&ei_local->page_lock);
+	spin_lock_irqsave(&ei_local->page_lock, flags);
 		
 	/* Try to restart the card.  Perhaps the user has fixed something. */
 	ei_reset_8390(dev);
 	AX88190_init(dev, 1);
 		
-	spin_unlock(&ei_local->page_lock);
-	enable_irq(dev->irq);
+	spin_unlock_irqrestore(&ei_local->page_lock, flags);
 	netif_wake_queue(dev);
 }
     
@@ -1085,9 +1083,7 @@ static int ei_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 *	Slow phase with lock held.
 	 */
 	 
-	disable_irq_nosync(dev->irq);
-	
-	spin_lock(&ei_local->page_lock);
+	spin_lock_irqsave(&ei_local->page_lock, flags);
 	
 	ei_local->irqlock = 1;
 
@@ -1125,8 +1121,7 @@ static int ei_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		ei_local->irqlock = 0;
 		netif_stop_queue(dev);
 		outb_p(ENISR_ALL, e8390_base + EN0_IMR);
-		spin_unlock(&ei_local->page_lock);
-		enable_irq(dev->irq);
+		spin_unlock_irqrestore(&ei_local->page_lock, flags);
 		ei_local->stat.tx_errors++;
 		return 1;
 	}
@@ -1172,8 +1167,7 @@ static int ei_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	ei_local->irqlock = 0;
 	outb_p(ENISR_ALL, e8390_base + EN0_IMR);
 	
-	spin_unlock(&ei_local->page_lock);
-	enable_irq(dev->irq);
+	spin_unlock_irqrestore(&ei_local->page_lock, flags);
 
 	dev_kfree_skb (skb);
 	ei_local->stat.tx_bytes += send_length;

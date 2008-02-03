@@ -60,7 +60,7 @@ static void gpio_led_set(struct led_classdev *led_cdev,
 		gpio_set_value(led_dat->gpio, level);
 }
 
-static int __init gpio_led_probe(struct platform_device *pdev)
+static int gpio_led_probe(struct platform_device *pdev)
 {
 	struct gpio_led_platform_data *pdata = pdev->dev.platform_data;
 	struct gpio_led *cur_led;
@@ -93,13 +93,13 @@ static int __init gpio_led_probe(struct platform_device *pdev)
 
 		gpio_direction_output(led_dat->gpio, led_dat->active_low);
 
+		INIT_WORK(&led_dat->work, gpio_led_work);
+
 		ret = led_classdev_register(&pdev->dev, &led_dat->cdev);
 		if (ret < 0) {
 			gpio_free(led_dat->gpio);
 			goto err;
 		}
-
-		INIT_WORK(&led_dat->work, gpio_led_work);
 	}
 
 	platform_set_drvdata(pdev, leds_data);
@@ -110,17 +110,17 @@ err:
 	if (i > 0) {
 		for (i = i - 1; i >= 0; i--) {
 			led_classdev_unregister(&leds_data[i].cdev);
+			cancel_work_sync(&leds_data[i].work);
 			gpio_free(leds_data[i].gpio);
 		}
 	}
 
-	flush_scheduled_work();
 	kfree(leds_data);
 
 	return ret;
 }
 
-static int __exit gpio_led_remove(struct platform_device *pdev)
+static int __devexit gpio_led_remove(struct platform_device *pdev)
 {
 	int i;
 	struct gpio_led_platform_data *pdata = pdev->dev.platform_data;
@@ -130,9 +130,10 @@ static int __exit gpio_led_remove(struct platform_device *pdev)
 
 	for (i = 0; i < pdata->num_leds; i++) {
 		led_classdev_unregister(&leds_data[i].cdev);
+		cancel_work_sync(&leds_data[i].work);
 		gpio_free(leds_data[i].gpio);
 	}
-	
+
 	kfree(leds_data);
 
 	return 0;
@@ -144,7 +145,7 @@ static int gpio_led_suspend(struct platform_device *pdev, pm_message_t state)
 	struct gpio_led_platform_data *pdata = pdev->dev.platform_data;
 	struct gpio_led_data *leds_data;
 	int i;
-	
+
 	leds_data = platform_get_drvdata(pdev);
 
 	for (i = 0; i < pdata->num_leds; i++)
@@ -172,7 +173,8 @@ static int gpio_led_resume(struct platform_device *pdev)
 #endif
 
 static struct platform_driver gpio_led_driver = {
-	.remove		= __exit_p(gpio_led_remove),
+	.probe		= gpio_led_probe,
+	.remove		= __devexit_p(gpio_led_remove),
 	.suspend	= gpio_led_suspend,
 	.resume		= gpio_led_resume,
 	.driver		= {
@@ -183,7 +185,7 @@ static struct platform_driver gpio_led_driver = {
 
 static int __init gpio_led_init(void)
 {
-	return platform_driver_probe(&gpio_led_driver, gpio_led_probe);
+	return platform_driver_register(&gpio_led_driver);
 }
 
 static void __exit gpio_led_exit(void)

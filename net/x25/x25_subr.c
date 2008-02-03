@@ -359,7 +359,7 @@ void x25_check_rbuf(struct sock *sk)
 {
 	struct x25_sock *x25 = x25_sk(sk);
 
-	if (atomic_read(&sk->sk_rmem_alloc) < (sk->sk_rcvbuf / 2) &&
+	if (atomic_read(&sk->sk_rmem_alloc) < (sk->sk_rcvbuf >> 1) &&
 	    (x25->condition & X25_COND_OWN_RX_BUSY)) {
 		x25->condition &= ~X25_COND_OWN_RX_BUSY;
 		x25->condition &= ~X25_COND_ACK_PENDING;

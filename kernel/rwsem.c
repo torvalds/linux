@@ -6,6 +6,7 @@
 
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/sched.h>
 #include <linux/module.h>
 #include <linux/rwsem.h>
 
@@ -15,7 +16,7 @@
 /*
  * lock for reading
  */
-void down_read(struct rw_semaphore *sem)
+void __sched down_read(struct rw_semaphore *sem)
 {
 	might_sleep();
 	rwsem_acquire_read(&sem->dep_map, 0, 0, _RET_IP_);
@@ -42,7 +43,7 @@ EXPORT_SYMBOL(down_read_trylock);
 /*
  * lock for writing
  */
-void down_write(struct rw_semaphore *sem)
+void __sched down_write(struct rw_semaphore *sem)
 {
 	might_sleep();
 	rwsem_acquire(&sem->dep_map, 0, 0, _RET_IP_);

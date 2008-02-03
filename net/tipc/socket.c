@@ -201,7 +201,7 @@ static int tipc_create(struct net *net, struct socket *sock, int protocol)
 		return -EPROTOTYPE;
 	}
 
-	sk = sk_alloc(net, AF_TIPC, GFP_KERNEL, &tipc_proto, 1);
+	sk = sk_alloc(net, AF_TIPC, GFP_KERNEL, &tipc_proto);
 	if (!sk) {
 		tipc_deleteport(ref);
 		return -ENOMEM;
@@ -253,7 +253,7 @@ static int release(struct socket *sock)
 	dbg("sock_delete: %x\n",tsock);
 	if (!tsock)
 		return 0;
-	down_interruptible(&tsock->sem);
+	down(&tsock->sem);
 	if (!sock->sk) {
 		up(&tsock->sem);
 		return 0;

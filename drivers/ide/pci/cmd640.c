@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/ide/pci/cmd640.c		Version 1.02  Sep 01, 1996
- *
  *  Copyright (C) 1995-1996  Linus Torvalds & authors (see below)
  */
 
@@ -105,10 +103,6 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/timer.h>
-#include <linux/mm.h>
-#include <linux/ioport.h>
-#include <linux/blkdev.h>
 #include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/init.h>
@@ -705,10 +699,22 @@ static int pci_conf2(void)
 	return 0;
 }
 
+static const struct ide_port_info cmd640_port_info __initdata = {
+	.chipset		= ide_cmd640,
+	.host_flags		= IDE_HFLAG_SERIALIZE |
+				  IDE_HFLAG_NO_DMA |
+				  IDE_HFLAG_NO_AUTOTUNE |
+				  IDE_HFLAG_ABUSE_PREFETCH |
+				  IDE_HFLAG_ABUSE_FAST_DEVSEL,
+#ifdef CONFIG_BLK_DEV_CMD640_ENHANCED
+	.pio_mask		= ATA_PIO5,
+#endif
+};
+
 /*
- * Probe for a cmd640 chipset, and initialize it if found.  Called from ide.c
+ * Probe for a cmd640 chipset, and initialize it if found.
  */
-int __init ide_probe_for_cmd640x (void)
+static int __init cmd640x_init(void)
 {
 #ifdef CONFIG_BLK_DEV_CMD640_ENHANCED
 	int second_port_toggled = 0;
@@ -717,6 +723,7 @@ int __init ide_probe_for_cmd640x (void)
 	const char *bus_type, *port2;
 	unsigned int index;
 	u8 b, cfr;
+	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
 	if (cmd640_vlb && probe_for_cmd640_vlb()) {
 		bus_type = "VLB";
@@ -761,13 +768,11 @@ int __init ide_probe_for_cmd640x (void)
 	setup_device_ptrs ();
 	printk("%s: buggy cmd640%c interface on %s, config=0x%02x\n",
 	       cmd_hwif0->name, 'a' + cmd640_chip_version - 1, bus_type, cfr);
-	cmd_hwif0->chipset = ide_cmd640;
 #ifdef CONFIG_BLK_DEV_CMD640_ENHANCED
-	cmd_hwif0->host_flags = IDE_HFLAG_ABUSE_PREFETCH |
-				IDE_HFLAG_ABUSE_FAST_DEVSEL;
-	cmd_hwif0->pio_mask = ATA_PIO5;
 	cmd_hwif0->set_pio_mode = &cmd640_set_pio_mode;
 #endif /* CONFIG_BLK_DEV_CMD640_ENHANCED */
+
+	idx[0] = cmd_hwif0->index;
 
 	/*
 	 * Ensure compatibility by always using the slowest timings
@@ -814,21 +819,14 @@ int __init ide_probe_for_cmd640x (void)
 	 * Initialize data for secondary cmd640 port, if enabled
 	 */
 	if (second_port_cmd640) {
-		cmd_hwif0->serialized = 1;
-		cmd_hwif1->serialized = 1;
-		cmd_hwif1->chipset = ide_cmd640;
-		cmd_hwif0->mate = cmd_hwif1;
-		cmd_hwif1->mate = cmd_hwif0;
-		cmd_hwif1->channel = 1;
 #ifdef CONFIG_BLK_DEV_CMD640_ENHANCED
-		cmd_hwif1->host_flags = IDE_HFLAG_ABUSE_PREFETCH |
-					IDE_HFLAG_ABUSE_FAST_DEVSEL;
-		cmd_hwif1->pio_mask = ATA_PIO5;
 		cmd_hwif1->set_pio_mode = &cmd640_set_pio_mode;
 #endif /* CONFIG_BLK_DEV_CMD640_ENHANCED */
+
+		idx[1] = cmd_hwif1->index;
 	}
 	printk(KERN_INFO "%s: %sserialized, secondary interface %s\n", cmd_hwif1->name,
-		cmd_hwif0->serialized ? "" : "not ", port2);
+			 second_port_cmd640 ? "" : "not ", port2);
 
 	/*
 	 * Establish initial timings/prefetch for all drives.
@@ -872,6 +870,13 @@ int __init ide_probe_for_cmd640x (void)
 #ifdef CMD640_DUMP_REGS
 	cmd640_dump_regs();
 #endif
+
+	ide_device_add(idx, &cmd640_port_info);
+
 	return 1;
 }
 
+module_param_named(probe_vlb, cmd640_vlb, bool, 0);
+MODULE_PARM_DESC(probe_vlb, "probe for VLB version of CMD640 chipset");
+
+module_init(cmd640x_init);

@@ -410,7 +410,7 @@ static const struct file_operations proc_modules_operations = {
 };
 #endif
 
-#ifdef CONFIG_SLAB
+#ifdef CONFIG_SLABINFO
 static int slabinfo_open(struct inode *inode, struct file *file)
 {
 	return seq_open(file, &slabinfo_op);
@@ -728,7 +728,7 @@ void __init proc_misc_init(void)
 #endif
 	create_seq_entry("stat", 0, &proc_stat_operations);
 	create_seq_entry("interrupts", 0, &proc_interrupts_operations);
-#ifdef CONFIG_SLAB
+#ifdef CONFIG_SLABINFO
 	create_seq_entry("slabinfo",S_IWUSR|S_IRUGO,&proc_slabinfo_operations);
 #ifdef CONFIG_DEBUG_SLAB_LEAK
 	create_seq_entry("slab_allocators", 0 ,&proc_slabstats_operations);

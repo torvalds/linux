@@ -31,7 +31,7 @@ static unsigned long ali_is_open;
 static char ali_expect_release;
 static struct pci_dev *ali_pci;
 static u32 ali_timeout_bits;	/* stores the computed timeout */
-static spinlock_t ali_lock;	/* Guards the hardware */
+static DEFINE_SPINLOCK(ali_lock);	/* Guards the hardware */
 
 /* module parameters */
 static int timeout = WATCHDOG_TIMEOUT;
@@ -398,8 +398,6 @@ static int __init watchdog_init(void)
 {
 	int ret;
 
-	spin_lock_init(&ali_lock);
-
 	/* Check whether or not the hardware watchdog is there */
 	if (ali_find_watchdog() != 0) {
 		return -ENODEV;
@@ -415,18 +413,18 @@ static int __init watchdog_init(void)
 	/* Calculate the watchdog's timeout */
 	ali_settimer(timeout);
 
-	ret = misc_register(&ali_miscdev);
-	if (ret != 0) {
-		printk(KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
-			WATCHDOG_MINOR, ret);
-		goto out;
-	}
-
 	ret = register_reboot_notifier(&ali_notifier);
 	if (ret != 0) {
 		printk(KERN_ERR PFX "cannot register reboot notifier (err=%d)\n",
 			ret);
-		goto unreg_miscdev;
+		goto out;
+	}
+
+	ret = misc_register(&ali_miscdev);
+	if (ret != 0) {
+		printk(KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
+			WATCHDOG_MINOR, ret);
+		goto unreg_reboot;
 	}
 
 	printk(KERN_INFO PFX "initialized. timeout=%d sec (nowayout=%d)\n",
@@ -434,8 +432,8 @@ static int __init watchdog_init(void)
 
 out:
 	return ret;
-unreg_miscdev:
-	misc_deregister(&ali_miscdev);
+unreg_reboot:
+	unregister_reboot_notifier(&ali_notifier);
 	goto out;
 }
 
@@ -451,8 +449,8 @@ static void __exit watchdog_exit(void)
 	ali_stop();
 
 	/* Deregister */
-	unregister_reboot_notifier(&ali_notifier);
 	misc_deregister(&ali_miscdev);
+	unregister_reboot_notifier(&ali_notifier);
 	pci_dev_put(ali_pci);
 }
 

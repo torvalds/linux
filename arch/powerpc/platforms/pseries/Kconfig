@@ -21,7 +21,7 @@ config PPC_SPLPAR
 
 config EEH
 	bool "PCI Extended Error Handling (EEH)" if EMBEDDED
-	depends on PPC_PSERIES
+	depends on PPC_PSERIES && PCI
 	default y if !EMBEDDED
 
 config SCANLOG

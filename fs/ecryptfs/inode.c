@@ -120,22 +120,9 @@ ecryptfs_do_create(struct inode *directory_inode,
 	rc = ecryptfs_create_underlying_file(lower_dir_dentry->d_inode,
 					     ecryptfs_dentry, mode, nd);
 	if (rc) {
-		struct inode *ecryptfs_inode = ecryptfs_dentry->d_inode;
-		struct ecryptfs_inode_info *inode_info =
-			ecryptfs_inode_to_private(ecryptfs_inode);
-
-		printk(KERN_WARNING "%s: Error creating underlying file; "
-		       "rc = [%d]; checking for existing\n", __FUNCTION__, rc);
-		if (inode_info) {
-			mutex_lock(&inode_info->lower_file_mutex);
-			if (!inode_info->lower_file) {
-				mutex_unlock(&inode_info->lower_file_mutex);
-				printk(KERN_ERR "%s: Failure to set underlying "
-				       "file; rc = [%d]\n", __FUNCTION__, rc);
-				goto out_lock;
-			}
-			mutex_unlock(&inode_info->lower_file_mutex);
-		}
+		printk(KERN_ERR "%s: Failure to create dentry in lower fs; "
+		       "rc = [%d]\n", __FUNCTION__, rc);
+		goto out_lock;
 	}
 	rc = ecryptfs_interpose(lower_dentry, ecryptfs_dentry,
 				directory_inode->i_sb, 0);
@@ -451,6 +438,7 @@ static int ecryptfs_unlink(struct inode *dir, struct dentry *dentry)
 	dentry->d_inode->i_nlink =
 		ecryptfs_inode_to_lower(dentry->d_inode)->i_nlink;
 	dentry->d_inode->i_ctime = dir->i_ctime;
+	d_drop(dentry);
 out_unlock:
 	unlock_parent(lower_dentry);
 	return rc;

@@ -331,7 +331,8 @@ htab_pte_insert_failure:
  *****************************************************************************/
 
 /* _hash_page_4K(unsigned long ea, unsigned long access, unsigned long vsid,
- *		 pte_t *ptep, unsigned long trap, int local)
+ *		 pte_t *ptep, unsigned long trap, int local, int ssize,
+ *		 int subpg_prot)
  */
 
 /*
@@ -429,12 +430,19 @@ END_FTR_SECTION_IFSET(CPU_FTR_1T_SEGMENT)
 	xor	r28,r28,r0		/* hash */
 
 	/* Convert linux PTE bits into HW equivalents */
-4:	andi.	r3,r30,0x1fe		/* Get basic set of flags */
-	xori	r3,r3,HPTE_R_N		/* _PAGE_EXEC -> NOEXEC */
+4:
+#ifdef CONFIG_PPC_SUBPAGE_PROT
+	andc	r10,r30,r10
+	andi.	r3,r10,0x1fe		/* Get basic set of flags */
+	rlwinm	r0,r10,32-9+1,30,30	/* _PAGE_RW -> _PAGE_USER (r0) */
+#else
+	andi.	r3,r30,0x1fe		/* Get basic set of flags */
 	rlwinm	r0,r30,32-9+1,30,30	/* _PAGE_RW -> _PAGE_USER (r0) */
+#endif
+	xori	r3,r3,HPTE_R_N		/* _PAGE_EXEC -> NOEXEC */
 	rlwinm	r4,r30,32-7+1,30,30	/* _PAGE_DIRTY -> _PAGE_USER (r4) */
 	and	r0,r0,r4		/* _PAGE_RW & _PAGE_DIRTY ->r0 bit 30*/
-	andc	r0,r30,r0		/* r0 = pte & ~r0 */
+	andc	r0,r3,r0		/* r0 = pte & ~r0 */
 	rlwimi	r3,r0,32-1,31,31	/* Insert result into PP lsb */
 	ori	r3,r3,HPTE_R_C		/* Always add "C" bit for perf. */
 
@@ -557,7 +565,8 @@ htab_inval_old_hpte:
 	mr	r4,r31			/* PTE.pte */
 	li	r5,0			/* PTE.hidx */
 	li	r6,MMU_PAGE_64K		/* psize */
-	ld	r7,STK_PARM(r8)(r1)	/* local */
+	ld	r7,STK_PARM(r9)(r1)	/* ssize */
+	ld	r8,STK_PARM(r8)(r1)	/* local */
 	bl	.flush_hash_page
 	b	htab_insert_pte
 	

@@ -22,7 +22,6 @@
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
-#include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/initval.h>

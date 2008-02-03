@@ -21,7 +21,6 @@
 #ifndef __SEQ_OSS_DEVICE_H
 #define __SEQ_OSS_DEVICE_H
 
-#include <sound/driver.h>
 #include <linux/time.h>
 #include <linux/wait.h>
 #include <linux/slab.h>

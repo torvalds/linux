@@ -97,7 +97,7 @@ static void tape_proc_stop(struct seq_file *m, void *v)
 {
 }
 
-static struct seq_operations tape_proc_seq = {
+static const struct seq_operations tape_proc_seq = {
 	.start		= tape_proc_start,
 	.next		= tape_proc_next,
 	.stop		= tape_proc_stop,

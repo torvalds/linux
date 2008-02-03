@@ -1004,11 +1004,35 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
+	/* has ID 0x0049 when not in "Advanced Driver" mode */
+	USB_DEVICE(0x0582, 0x0047),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		/* .vendor_name = "EDIROL", */
+		/* .product_name = "UR-80", */
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_COMPOSITE,
+		.data = (const struct snd_usb_audio_quirk[]) {
+			/* in the 96 kHz modes, only interface 1 is there */
+			{
+				.ifnum = 1,
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+			},
+			{
+				.ifnum = 2,
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+			},
+			{
+				.ifnum = -1
+			}
+		}
+	}
+},
+{
 	/* has ID 0x004a when not in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0048),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
-		.vendor_name = "EDIROL",
-		.product_name = "UR-80",
+		/* .vendor_name = "EDIROL", */
+		/* .product_name = "UR-80", */
 		.ifnum = 0,
 		.type = QUIRK_MIDI_FIXED_ENDPOINT,
 		.data = & (const struct snd_usb_midi_endpoint_info) {

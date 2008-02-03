@@ -147,7 +147,7 @@ static void __exit nf_nat_ftp_fini(void)
 
 static int __init nf_nat_ftp_init(void)
 {
-	BUG_ON(rcu_dereference(nf_nat_ftp_hook));
+	BUG_ON(nf_nat_ftp_hook != NULL);
 	rcu_assign_pointer(nf_nat_ftp_hook, nf_nat_ftp);
 	return 0;
 }

@@ -70,6 +70,7 @@
 #include "audit.h"
 
 extern struct list_head audit_filter_list[];
+extern int audit_ever_enabled;
 
 /* AUDIT_NAMES is the number of slots we reserve in the audit_context
  * for saving names from getname(). */
@@ -77,6 +78,9 @@ extern struct list_head audit_filter_list[];
 
 /* Indicates that audit should log the full pathname. */
 #define AUDIT_NAME_FULL -1
+
+/* no execve audit message should be longer than this (userspace limits) */
+#define MAX_EXECVE_AUDIT_LEN 7500
 
 /* number of audit rules */
 int audit_n_rules;
@@ -176,7 +180,11 @@ struct audit_aux_data_fd_pair {
 struct audit_aux_data_pids {
 	struct audit_aux_data	d;
 	pid_t			target_pid[AUDIT_AUX_PIDS];
+	uid_t			target_auid[AUDIT_AUX_PIDS];
+	uid_t			target_uid[AUDIT_AUX_PIDS];
+	unsigned int		target_sessionid[AUDIT_AUX_PIDS];
 	u32			target_sid[AUDIT_AUX_PIDS];
+	char 			target_comm[AUDIT_AUX_PIDS][TASK_COMM_LEN];
 	int			pid_count;
 };
 
@@ -192,7 +200,6 @@ struct audit_context {
 	enum audit_state    state;
 	unsigned int	    serial;     /* serial number for record */
 	struct timespec	    ctime;      /* time of syscall entry */
-	uid_t		    loginuid;   /* login uid (identity) */
 	int		    major;      /* syscall number */
 	unsigned long	    argv[4];    /* syscall arguments */
 	int		    return_valid; /* return code is valid */
@@ -215,7 +222,11 @@ struct audit_context {
 	int		    arch;
 
 	pid_t		    target_pid;
+	uid_t		    target_auid;
+	uid_t		    target_uid;
+	unsigned int	    target_sessionid;
 	u32		    target_sid;
+	char		    target_comm[TASK_COMM_LEN];
 
 	struct audit_tree_refs *trees, *first_trees;
 	int tree_count;
@@ -506,7 +517,7 @@ static int audit_filter_rules(struct task_struct *tsk,
 		case AUDIT_LOGINUID:
 			result = 0;
 			if (ctx)
-				result = audit_comparator(ctx->loginuid, f->op, f->val);
+				result = audit_comparator(tsk->loginuid, f->op, f->val);
 			break;
 		case AUDIT_SUBJ_USER:
 		case AUDIT_SUBJ_ROLE:
@@ -702,7 +713,24 @@ static inline struct audit_context *audit_get_context(struct task_struct *tsk,
 	if (likely(!context))
 		return NULL;
 	context->return_valid = return_valid;
-	context->return_code  = return_code;
+
+	/*
+	 * we need to fix up the return code in the audit logs if the actual
+	 * return codes are later going to be fixed up by the arch specific
+	 * signal handlers
+	 *
+	 * This is actually a test for:
+	 * (rc == ERESTARTSYS ) || (rc == ERESTARTNOINTR) ||
+	 * (rc == ERESTARTNOHAND) || (rc == ERESTART_RESTARTBLOCK)
+	 *
+	 * but is faster than a bunch of ||
+	 */
+	if (unlikely(return_code <= -ERESTARTSYS) &&
+	    (return_code >= -ERESTART_RESTARTBLOCK) &&
+	    (return_code != -ENOIOCTLCMD))
+		context->return_code = -EINTR;
+	else
+		context->return_code  = return_code;
 
 	if (context->in_syscall && !context->dummy && !context->auditable) {
 		enum audit_state state;
@@ -783,11 +811,8 @@ static inline void audit_free_aux(struct audit_context *context)
 static inline void audit_zero_context(struct audit_context *context,
 				      enum audit_state state)
 {
-	uid_t loginuid = context->loginuid;
-
 	memset(context, 0, sizeof(*context));
 	context->state      = state;
-	context->loginuid   = loginuid;
 }
 
 static inline struct audit_context *audit_alloc_context(enum audit_state state)
@@ -814,7 +839,7 @@ int audit_alloc(struct task_struct *tsk)
 	struct audit_context *context;
 	enum audit_state     state;
 
-	if (likely(!audit_enabled))
+	if (likely(!audit_ever_enabled))
 		return 0; /* Return if not auditing. */
 
 	state = audit_filter_task(tsk);
@@ -825,11 +850,6 @@ int audit_alloc(struct task_struct *tsk)
 		audit_log_lost("out of memory in audit_alloc");
 		return -ENOMEM;
 	}
-
-				/* Preserve login uid */
-	context->loginuid = -1;
-	if (current->audit_context)
-		context->loginuid = current->audit_context->loginuid;
 
 	tsk->audit_context  = context;
 	set_tsk_thread_flag(tsk, TIF_SYSCALL_AUDIT);
@@ -922,7 +942,8 @@ static void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk
 }
 
 static int audit_log_pid_context(struct audit_context *context, pid_t pid,
-				 u32 sid)
+				 uid_t auid, uid_t uid, unsigned int sessionid,
+				 u32 sid, char *comm)
 {
 	struct audit_buffer *ab;
 	char *s = NULL;
@@ -931,52 +952,71 @@ static int audit_log_pid_context(struct audit_context *context, pid_t pid,
 
 	ab = audit_log_start(context, GFP_KERNEL, AUDIT_OBJ_PID);
 	if (!ab)
-		return 1;
+		return rc;
 
+	audit_log_format(ab, "opid=%d oauid=%d ouid=%d oses=%d", pid, auid,
+			 uid, sessionid);
 	if (selinux_sid_to_string(sid, &s, &len)) {
-		audit_log_format(ab, "opid=%d obj=(none)", pid);
+		audit_log_format(ab, " obj=(none)");
 		rc = 1;
 	} else
-		audit_log_format(ab, "opid=%d  obj=%s", pid, s);
+		audit_log_format(ab, " obj=%s", s);
+	audit_log_format(ab, " ocomm=");
+	audit_log_untrustedstring(ab, comm);
 	audit_log_end(ab);
 	kfree(s);
 
 	return rc;
 }
 
-static void audit_log_execve_info(struct audit_buffer *ab,
-		struct audit_aux_data_execve *axi)
+/*
+ * to_send and len_sent accounting are very loose estimates.  We aren't
+ * really worried about a hard cap to MAX_EXECVE_AUDIT_LEN so much as being
+ * within about 500 bytes (next page boundry)
+ *
+ * why snprintf?  an int is up to 12 digits long.  if we just assumed when
+ * logging that a[%d]= was going to be 16 characters long we would be wasting
+ * space in every audit message.  In one 7500 byte message we can log up to
+ * about 1000 min size arguments.  That comes down to about 50% waste of space
+ * if we didn't do the snprintf to find out how long arg_num_len was.
+ */
+static int audit_log_single_execve_arg(struct audit_context *context,
+					struct audit_buffer **ab,
+					int arg_num,
+					size_t *len_sent,
+					const char __user *p,
+					char *buf)
 {
-	int i;
-	long len, ret;
-	const char __user *p;
-	char *buf;
+	char arg_num_len_buf[12];
+	const char __user *tmp_p = p;
+	/* how many digits are in arg_num? 3 is the length of a=\n */
+	size_t arg_num_len = snprintf(arg_num_len_buf, 12, "%d", arg_num) + 3;
+	size_t len, len_left, to_send;
+	size_t max_execve_audit_len = MAX_EXECVE_AUDIT_LEN;
+	unsigned int i, has_cntl = 0, too_long = 0;
+	int ret;
 
-	if (axi->mm != current->mm)
-		return; /* execve failed, no additional info */
+	/* strnlen_user includes the null we don't want to send */
+	len_left = len = strnlen_user(p, MAX_ARG_STRLEN) - 1;
 
-	p = (const char __user *)axi->mm->arg_start;
+	/*
+	 * We just created this mm, if we can't find the strings
+	 * we just copied into it something is _very_ wrong. Similar
+	 * for strings that are too long, we should not have created
+	 * any.
+	 */
+	if (unlikely((len  = -1) || len > MAX_ARG_STRLEN - 1)) {
+		WARN_ON(1);
+		send_sig(SIGKILL, current, 0);
+	}
 
-	for (i = 0; i < axi->argc; i++, p += len) {
-		len = strnlen_user(p, MAX_ARG_STRLEN);
-		/*
-		 * We just created this mm, if we can't find the strings
-		 * we just copied into it something is _very_ wrong. Similar
-		 * for strings that are too long, we should not have created
-		 * any.
-		 */
-		if (!len || len > MAX_ARG_STRLEN) {
-			WARN_ON(1);
-			send_sig(SIGKILL, current, 0);
-		}
-
-		buf = kmalloc(len, GFP_KERNEL);
-		if (!buf) {
-			audit_panic("out of memory for argv string\n");
-			break;
-		}
-
-		ret = copy_from_user(buf, p, len);
+	/* walk the whole argument looking for non-ascii chars */
+	do {
+		if (len_left > MAX_EXECVE_AUDIT_LEN)
+			to_send = MAX_EXECVE_AUDIT_LEN;
+		else
+			to_send = len_left;
+		ret = copy_from_user(buf, tmp_p, to_send);
 		/*
 		 * There is no reason for this copy to be short. We just
 		 * copied them here, and the mm hasn't been exposed to user-
@@ -986,13 +1026,130 @@ static void audit_log_execve_info(struct audit_buffer *ab,
 			WARN_ON(1);
 			send_sig(SIGKILL, current, 0);
 		}
+		buf[to_send] = '\0';
+		has_cntl = audit_string_contains_control(buf, to_send);
+		if (has_cntl) {
+			/*
+			 * hex messages get logged as 2 bytes, so we can only
+			 * send half as much in each message
+			 */
+			max_execve_audit_len = MAX_EXECVE_AUDIT_LEN / 2;
+			break;
+		}
+		len_left -= to_send;
+		tmp_p += to_send;
+	} while (len_left > 0);
 
-		audit_log_format(ab, "a%d=", i);
-		audit_log_untrustedstring(ab, buf);
-		audit_log_format(ab, "\n");
+	len_left = len;
 
-		kfree(buf);
+	if (len > max_execve_audit_len)
+		too_long = 1;
+
+	/* rewalk the argument actually logging the message */
+	for (i = 0; len_left > 0; i++) {
+		int room_left;
+
+		if (len_left > max_execve_audit_len)
+			to_send = max_execve_audit_len;
+		else
+			to_send = len_left;
+
+		/* do we have space left to send this argument in this ab? */
+		room_left = MAX_EXECVE_AUDIT_LEN - arg_num_len - *len_sent;
+		if (has_cntl)
+			room_left -= (to_send * 2);
+		else
+			room_left -= to_send;
+		if (room_left < 0) {
+			*len_sent = 0;
+			audit_log_end(*ab);
+			*ab = audit_log_start(context, GFP_KERNEL, AUDIT_EXECVE);
+			if (!*ab)
+				return 0;
+		}
+
+		/*
+		 * first record needs to say how long the original string was
+		 * so we can be sure nothing was lost.
+		 */
+		if ((i == 0) && (too_long))
+			audit_log_format(*ab, "a%d_len=%ld ", arg_num,
+					 has_cntl ? 2*len : len);
+
+		/*
+		 * normally arguments are small enough to fit and we already
+		 * filled buf above when we checked for control characters
+		 * so don't bother with another copy_from_user
+		 */
+		if (len >= max_execve_audit_len)
+			ret = copy_from_user(buf, p, to_send);
+		else
+			ret = 0;
+		if (ret) {
+			WARN_ON(1);
+			send_sig(SIGKILL, current, 0);
+		}
+		buf[to_send] = '\0';
+
+		/* actually log it */
+		audit_log_format(*ab, "a%d", arg_num);
+		if (too_long)
+			audit_log_format(*ab, "[%d]", i);
+		audit_log_format(*ab, "=");
+		if (has_cntl)
+			audit_log_hex(*ab, buf, to_send);
+		else
+			audit_log_format(*ab, "\"%s\"", buf);
+		audit_log_format(*ab, "\n");
+
+		p += to_send;
+		len_left -= to_send;
+		*len_sent += arg_num_len;
+		if (has_cntl)
+			*len_sent += to_send * 2;
+		else
+			*len_sent += to_send;
 	}
+	/* include the null we didn't log */
+	return len + 1;
+}
+
+static void audit_log_execve_info(struct audit_context *context,
+				  struct audit_buffer **ab,
+				  struct audit_aux_data_execve *axi)
+{
+	int i;
+	size_t len, len_sent = 0;
+	const char __user *p;
+	char *buf;
+
+	if (axi->mm != current->mm)
+		return; /* execve failed, no additional info */
+
+	p = (const char __user *)axi->mm->arg_start;
+
+	audit_log_format(*ab, "argc=%d ", axi->argc);
+
+	/*
+	 * we need some kernel buffer to hold the userspace args.  Just
+	 * allocate one big one rather than allocating one of the right size
+	 * for every single argument inside audit_log_single_execve_arg()
+	 * should be <8k allocation so should be pretty safe.
+	 */
+	buf = kmalloc(MAX_EXECVE_AUDIT_LEN + 1, GFP_KERNEL);
+	if (!buf) {
+		audit_panic("out of memory for argv string\n");
+		return;
+	}
+
+	for (i = 0; i < axi->argc; i++) {
+		len = audit_log_single_execve_arg(context, ab, i,
+						  &len_sent, p, buf);
+		if (len <= 0)
+			break;
+		p += len;
+	}
+	kfree(buf);
 }
 
 static void audit_log_exit(struct audit_context *context, struct task_struct *tsk)
@@ -1039,7 +1196,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 		  " a0=%lx a1=%lx a2=%lx a3=%lx items=%d"
 		  " ppid=%d pid=%d auid=%u uid=%u gid=%u"
 		  " euid=%u suid=%u fsuid=%u"
-		  " egid=%u sgid=%u fsgid=%u tty=%s",
+		  " egid=%u sgid=%u fsgid=%u tty=%s ses=%u",
 		  context->argv[0],
 		  context->argv[1],
 		  context->argv[2],
@@ -1047,11 +1204,12 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 		  context->name_count,
 		  context->ppid,
 		  context->pid,
-		  context->loginuid,
+		  tsk->loginuid,
 		  context->uid,
 		  context->gid,
 		  context->euid, context->suid, context->fsuid,
-		  context->egid, context->sgid, context->fsgid, tty);
+		  context->egid, context->sgid, context->fsgid, tty,
+		  tsk->sessionid);
 
 	mutex_unlock(&tty_mutex);
 
@@ -1135,7 +1293,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 
 		case AUDIT_EXECVE: {
 			struct audit_aux_data_execve *axi = (void *)aux;
-			audit_log_execve_info(ab, axi);
+			audit_log_execve_info(context, &ab, axi);
 			break; }
 
 		case AUDIT_SOCKETCALL: {
@@ -1168,13 +1326,19 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 
 		for (i = 0; i < axs->pid_count; i++)
 			if (audit_log_pid_context(context, axs->target_pid[i],
-						  axs->target_sid[i]))
+						  axs->target_auid[i],
+						  axs->target_uid[i],
+						  axs->target_sessionid[i],
+						  axs->target_sid[i],
+						  axs->target_comm[i]))
 				call_panic = 1;
 	}
 
 	if (context->target_pid &&
 	    audit_log_pid_context(context, context->target_pid,
-				  context->target_sid))
+				  context->target_auid, context->target_uid,
+				  context->target_sessionid,
+				  context->target_sid, context->target_comm))
 			call_panic = 1;
 
 	if (context->pwd && context->pwdmnt) {
@@ -1242,6 +1406,11 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 
 		audit_log_end(ab);
 	}
+
+	/* Send end of event record to help user space know we are finished */
+	ab = audit_log_start(context, GFP_KERNEL, AUDIT_EOE);
+	if (ab)
+		audit_log_end(ab);
 	if (call_panic)
 		audit_panic("error converting sid to string");
 }
@@ -1766,6 +1935,9 @@ void auditsc_get_stamp(struct audit_context *ctx,
 	ctx->auditable = 1;
 }
 
+/* global counter which is incremented every time something logs in */
+static atomic_t session_id = ATOMIC_INIT(0);
+
 /**
  * audit_set_loginuid - set a task's audit_context loginuid
  * @task: task whose audit context is being modified
@@ -1777,39 +1949,27 @@ void auditsc_get_stamp(struct audit_context *ctx,
  */
 int audit_set_loginuid(struct task_struct *task, uid_t loginuid)
 {
+	unsigned int sessionid = atomic_inc_return(&session_id);
 	struct audit_context *context = task->audit_context;
 
-	if (context) {
-		/* Only log if audit is enabled */
-		if (context->in_syscall) {
-			struct audit_buffer *ab;
+	if (context && context->in_syscall) {
+		struct audit_buffer *ab;
 
-			ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_LOGIN);
-			if (ab) {
-				audit_log_format(ab, "login pid=%d uid=%u "
-					"old auid=%u new auid=%u",
-					task->pid, task->uid,
-					context->loginuid, loginuid);
-				audit_log_end(ab);
-			}
+		ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_LOGIN);
+		if (ab) {
+			audit_log_format(ab, "login pid=%d uid=%u "
+				"old auid=%u new auid=%u"
+				" old ses=%u new ses=%u",
+				task->pid, task->uid,
+				task->loginuid, loginuid,
+				task->sessionid, sessionid);
+			audit_log_end(ab);
 		}
-		context->loginuid = loginuid;
 	}
+	task->sessionid = sessionid;
+	task->loginuid = loginuid;
 	return 0;
 }
-
-/**
- * audit_get_loginuid - get the loginuid for an audit_context
- * @ctx: the audit_context
- *
- * Returns the context's loginuid or -1 if @ctx is NULL.
- */
-uid_t audit_get_loginuid(struct audit_context *ctx)
-{
-	return ctx ? ctx->loginuid : -1;
-}
-
-EXPORT_SYMBOL(audit_get_loginuid);
 
 /**
  * __audit_mq_open - record audit data for a POSIX MQ open
@@ -2070,8 +2230,6 @@ int __audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode
 	return 0;
 }
 
-int audit_argv_kb = 32;
-
 int audit_bprm(struct linux_binprm *bprm)
 {
 	struct audit_aux_data_execve *ax;
@@ -2079,14 +2237,6 @@ int audit_bprm(struct linux_binprm *bprm)
 
 	if (likely(!audit_enabled || !context || context->dummy))
 		return 0;
-
-	/*
-	 * Even though the stack code doesn't limit the arg+env size any more,
-	 * the audit code requires that _all_ arguments be logged in a single
-	 * netlink skb. Hence cap it :-(
-	 */
-	if (bprm->argv_len > (audit_argv_kb << 10))
-		return -E2BIG;
 
 	ax = kmalloc(sizeof(*ax), GFP_KERNEL);
 	if (!ax)
@@ -2193,7 +2343,11 @@ void __audit_ptrace(struct task_struct *t)
 	struct audit_context *context = current->audit_context;
 
 	context->target_pid = t->pid;
+	context->target_auid = audit_get_loginuid(t);
+	context->target_uid = t->uid;
+	context->target_sessionid = audit_get_sessionid(t);
 	selinux_get_task_sid(t, &context->target_sid);
+	memcpy(context->target_comm, t->comm, TASK_COMM_LEN);
 }
 
 /**
@@ -2216,8 +2370,8 @@ int __audit_signal_info(int sig, struct task_struct *t)
 	if (audit_pid && t->tgid == audit_pid) {
 		if (sig == SIGTERM || sig == SIGHUP || sig == SIGUSR1) {
 			audit_sig_pid = tsk->pid;
-			if (ctx)
-				audit_sig_uid = ctx->loginuid;
+			if (tsk->loginuid != -1)
+				audit_sig_uid = tsk->loginuid;
 			else
 				audit_sig_uid = tsk->uid;
 			selinux_get_task_sid(tsk, &audit_sig_sid);
@@ -2230,7 +2384,11 @@ int __audit_signal_info(int sig, struct task_struct *t)
 	 * in audit_context */
 	if (!ctx->target_pid) {
 		ctx->target_pid = t->tgid;
+		ctx->target_auid = audit_get_loginuid(t);
+		ctx->target_uid = t->uid;
+		ctx->target_sessionid = audit_get_sessionid(t);
 		selinux_get_task_sid(t, &ctx->target_sid);
+		memcpy(ctx->target_comm, t->comm, TASK_COMM_LEN);
 		return 0;
 	}
 
@@ -2247,7 +2405,11 @@ int __audit_signal_info(int sig, struct task_struct *t)
 	BUG_ON(axp->pid_count >= AUDIT_AUX_PIDS);
 
 	axp->target_pid[axp->pid_count] = t->tgid;
+	axp->target_auid[axp->pid_count] = audit_get_loginuid(t);
+	axp->target_uid[axp->pid_count] = t->uid;
+	axp->target_sessionid[axp->pid_count] = audit_get_sessionid(t);
 	selinux_get_task_sid(t, &axp->target_sid[axp->pid_count]);
+	memcpy(axp->target_comm[axp->pid_count], t->comm, TASK_COMM_LEN);
 	axp->pid_count++;
 
 	return 0;
@@ -2264,6 +2426,8 @@ void audit_core_dumps(long signr)
 {
 	struct audit_buffer *ab;
 	u32 sid;
+	uid_t auid = audit_get_loginuid(current);
+	unsigned int sessionid = audit_get_sessionid(current);
 
 	if (!audit_enabled)
 		return;
@@ -2272,9 +2436,8 @@ void audit_core_dumps(long signr)
 		return;
 
 	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_ANOM_ABEND);
-	audit_log_format(ab, "auid=%u uid=%u gid=%u",
-			audit_get_loginuid(current->audit_context),
-			current->uid, current->gid);
+	audit_log_format(ab, "auid=%u uid=%u gid=%u ses=%u",
+			auid, current->uid, current->gid, sessionid);
 	selinux_get_task_sid(current, &sid);
 	if (sid) {
 		char *ctx = NULL;

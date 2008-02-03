@@ -21,7 +21,6 @@
 #if defined(CONFIG_INET_ESP) || defined(CONFIG_INET_ESP_MODULE) || defined(CONFIG_INET6_ESP) || defined(CONFIG_INET6_ESP_MODULE)
 #include <net/esp.h>
 #endif
-#include <asm/scatterlist.h>
 
 /*
  * Algorithms supported by IPsec.  These entries contain properties which
@@ -29,6 +28,105 @@
  * that instantiated crypto transforms have correct parameters for IPsec
  * purposes.
  */
+static struct xfrm_algo_desc aead_list[] = {
+{
+	.name = "rfc4106(gcm(aes))",
+
+	.uinfo = {
+		.aead = {
+			.icv_truncbits = 64,
+		}
+	},
+
+	.desc = {
+		.sadb_alg_id = SADB_X_EALG_AES_GCM_ICV8,
+		.sadb_alg_ivlen = 8,
+		.sadb_alg_minbits = 128,
+		.sadb_alg_maxbits = 256
+	}
+},
+{
+	.name = "rfc4106(gcm(aes))",
+
+	.uinfo = {
+		.aead = {
+			.icv_truncbits = 96,
+		}
+	},
+
+	.desc = {
+		.sadb_alg_id = SADB_X_EALG_AES_GCM_ICV12,
+		.sadb_alg_ivlen = 8,
+		.sadb_alg_minbits = 128,
+		.sadb_alg_maxbits = 256
+	}
+},
+{
+	.name = "rfc4106(gcm(aes))",
+
+	.uinfo = {
+		.aead = {
+			.icv_truncbits = 128,
+		}
+	},
+
+	.desc = {
+		.sadb_alg_id = SADB_X_EALG_AES_GCM_ICV16,
+		.sadb_alg_ivlen = 8,
+		.sadb_alg_minbits = 128,
+		.sadb_alg_maxbits = 256
+	}
+},
+{
+	.name = "rfc4309(ccm(aes))",
+
+	.uinfo = {
+		.aead = {
+			.icv_truncbits = 64,
+		}
+	},
+
+	.desc = {
+		.sadb_alg_id = SADB_X_EALG_AES_CCM_ICV8,
+		.sadb_alg_ivlen = 8,
+		.sadb_alg_minbits = 128,
+		.sadb_alg_maxbits = 256
+	}
+},
+{
+	.name = "rfc4309(ccm(aes))",
+
+	.uinfo = {
+		.aead = {
+			.icv_truncbits = 96,
+		}
+	},
+
+	.desc = {
+		.sadb_alg_id = SADB_X_EALG_AES_CCM_ICV12,
+		.sadb_alg_ivlen = 8,
+		.sadb_alg_minbits = 128,
+		.sadb_alg_maxbits = 256
+	}
+},
+{
+	.name = "rfc4309(ccm(aes))",
+
+	.uinfo = {
+		.aead = {
+			.icv_truncbits = 128,
+		}
+	},
+
+	.desc = {
+		.sadb_alg_id = SADB_X_EALG_AES_CCM_ICV16,
+		.sadb_alg_ivlen = 8,
+		.sadb_alg_minbits = 128,
+		.sadb_alg_maxbits = 256
+	}
+},
+};
+
 static struct xfrm_algo_desc aalg_list[] = {
 {
 	.name = "hmac(digest_null)",
@@ -333,6 +431,11 @@ static struct xfrm_algo_desc calg_list[] = {
 },
 };
 
+static inline int aead_entries(void)
+{
+	return ARRAY_SIZE(aead_list);
+}
+
 static inline int aalg_entries(void)
 {
 	return ARRAY_SIZE(aalg_list);
@@ -355,25 +458,32 @@ struct xfrm_algo_list {
 	u32 mask;
 };
 
+static const struct xfrm_algo_list xfrm_aead_list = {
+	.algs = aead_list,
+	.entries = ARRAY_SIZE(aead_list),
+	.type = CRYPTO_ALG_TYPE_AEAD,
+	.mask = CRYPTO_ALG_TYPE_MASK,
+};
+
 static const struct xfrm_algo_list xfrm_aalg_list = {
 	.algs = aalg_list,
 	.entries = ARRAY_SIZE(aalg_list),
 	.type = CRYPTO_ALG_TYPE_HASH,
-	.mask = CRYPTO_ALG_TYPE_HASH_MASK | CRYPTO_ALG_ASYNC,
+	.mask = CRYPTO_ALG_TYPE_HASH_MASK,
 };
 
 static const struct xfrm_algo_list xfrm_ealg_list = {
 	.algs = ealg_list,
 	.entries = ARRAY_SIZE(ealg_list),
 	.type = CRYPTO_ALG_TYPE_BLKCIPHER,
-	.mask = CRYPTO_ALG_TYPE_MASK | CRYPTO_ALG_ASYNC,
+	.mask = CRYPTO_ALG_TYPE_BLKCIPHER_MASK,
 };
 
 static const struct xfrm_algo_list xfrm_calg_list = {
 	.algs = calg_list,
 	.entries = ARRAY_SIZE(calg_list),
 	.type = CRYPTO_ALG_TYPE_COMPRESS,
-	.mask = CRYPTO_ALG_TYPE_MASK | CRYPTO_ALG_ASYNC,
+	.mask = CRYPTO_ALG_TYPE_MASK,
 };
 
 static struct xfrm_algo_desc *xfrm_find_algo(
@@ -462,6 +572,33 @@ struct xfrm_algo_desc *xfrm_calg_get_byname(char *name, int probe)
 }
 EXPORT_SYMBOL_GPL(xfrm_calg_get_byname);
 
+struct xfrm_aead_name {
+	const char *name;
+	int icvbits;
+};
+
+static int xfrm_aead_name_match(const struct xfrm_algo_desc *entry,
+				const void *data)
+{
+	const struct xfrm_aead_name *aead = data;
+	const char *name = aead->name;
+
+	return aead->icvbits == entry->uinfo.aead.icv_truncbits && name &&
+	       !strcmp(name, entry->name);
+}
+
+struct xfrm_algo_desc *xfrm_aead_get_byname(char *name, int icv_len, int probe)
+{
+	struct xfrm_aead_name data = {
+		.name = name,
+		.icvbits = icv_len,
+	};
+
+	return xfrm_find_algo(&xfrm_aead_list, xfrm_aead_name_match, &data,
+			      probe);
+}
+EXPORT_SYMBOL_GPL(xfrm_aead_get_byname);
+
 struct xfrm_algo_desc *xfrm_aalg_get_byidx(unsigned int idx)
 {
 	if (idx >= aalg_entries())
@@ -487,7 +624,6 @@ EXPORT_SYMBOL_GPL(xfrm_ealg_get_byidx);
  */
 void xfrm_probe_algs(void)
 {
-#ifdef CONFIG_CRYPTO
 	int i, status;
 
 	BUG_ON(in_softirq());
@@ -512,7 +648,6 @@ void xfrm_probe_algs(void)
 		if (calg_list[i].available != status)
 			calg_list[i].available = status;
 	}
-#endif
 }
 EXPORT_SYMBOL_GPL(xfrm_probe_algs);
 

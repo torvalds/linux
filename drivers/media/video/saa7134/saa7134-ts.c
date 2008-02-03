@@ -47,7 +47,7 @@ static int buffer_activate(struct saa7134_dev *dev,
 {
 
 	dprintk("buffer_activate [%p]",buf);
-	buf->vb.state = STATE_ACTIVE;
+	buf->vb.state = VIDEOBUF_ACTIVE;
 	buf->top_seen = 0;
 
 	if (NULL == next)
@@ -91,7 +91,7 @@ static int buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 		saa7134_dma_free(q,buf);
 	}
 
-	if (STATE_NEEDS_INIT == buf->vb.state) {
+	if (VIDEOBUF_NEEDS_INIT == buf->vb.state) {
 		struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
 
 		buf->vb.width  = llength;
@@ -121,7 +121,7 @@ static int buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 	saa_writel(SAA7134_RS_PITCH(5),TS_PACKET_SIZE);
 	saa_writel(SAA7134_RS_CONTROL(5),control);
 
-	buf->vb.state = STATE_PREPARED;
+	buf->vb.state = VIDEOBUF_PREPARED;
 	buf->activate = buffer_activate;
 	buf->vb.field = field;
 	return 0;
@@ -242,7 +242,7 @@ void saa7134_irq_ts_done(struct saa7134_dev *dev, unsigned long status)
 			if ((status & 0x100000) != 0x100000)
 				goto done;
 		}
-		saa7134_buffer_finish(dev,&dev->ts_q,STATE_DONE);
+		saa7134_buffer_finish(dev,&dev->ts_q,VIDEOBUF_DONE);
 	}
 	saa7134_buffer_next(dev,&dev->ts_q);
 

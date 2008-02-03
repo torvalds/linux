@@ -21,7 +21,6 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 */
 
-#include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/wait.h>
 #include <linux/pnp.h>
@@ -56,18 +55,6 @@ module_param_array(id, charp, NULL, 0444);
 MODULE_PARM_DESC(id, "ID string for DT-019X based soundcard.");
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable DT-019X based soundcard.");
-module_param_array(port, long, NULL, 0444);
-MODULE_PARM_DESC(port, "Port # for dt019x driver.");
-module_param_array(mpu_port, long, NULL, 0444);
-MODULE_PARM_DESC(mpu_port, "MPU-401 port # for dt019x driver.");
-module_param_array(fm_port, long, NULL, 0444);
-MODULE_PARM_DESC(fm_port, "FM port # for dt019x driver.");
-module_param_array(irq, int, NULL, 0444);
-MODULE_PARM_DESC(irq, "IRQ # for dt019x driver.");
-module_param_array(mpu_irq, int, NULL, 0444);
-MODULE_PARM_DESC(mpu_irq, "MPU-401 IRQ # for dt019x driver.");
-module_param_array(dma8, int, NULL, 0444);
-MODULE_PARM_DESC(dma8, "8-bit DMA # for dt019x driver.");
 
 struct snd_card_dt019x {
 	struct pnp_dev *dev;
@@ -95,36 +82,20 @@ static int __devinit snd_card_dt019x_pnp(int dev, struct snd_card_dt019x *acard,
 					 const struct pnp_card_device_id *pid)
 {
 	struct pnp_dev *pdev;
-	struct pnp_resource_table * cfg = kmalloc(sizeof(struct pnp_resource_table), GFP_KERNEL);
 	int err;
 
-	if (!cfg)
-		return -ENOMEM;
-
 	acard->dev = pnp_request_card_device(card, pid->devs[0].id, NULL);
-	if (acard->dev == NULL) {
-		kfree (cfg);
+	if (acard->dev == NULL)
 		return -ENODEV;
-	}
+
 	acard->devmpu = pnp_request_card_device(card, pid->devs[1].id, NULL);
 	acard->devopl = pnp_request_card_device(card, pid->devs[2].id, NULL);
 
 	pdev = acard->dev;
-	pnp_init_resource_table(cfg);
 
-	if (port[dev] != SNDRV_AUTO_PORT)
-		pnp_resource_change(&cfg->port_resource[0], port[dev], 16);
-	if (dma8[dev] != SNDRV_AUTO_DMA)
-		pnp_resource_change(&cfg->dma_resource[0], dma8[dev], 1);
-	if (irq[dev] != SNDRV_AUTO_IRQ)
-		pnp_resource_change(&cfg->irq_resource[0], irq[dev], 1);
-
-	if ((pnp_manual_config_dev(pdev, cfg, 0)) < 0)
-		snd_printk(KERN_ERR PFX "DT-019X AUDIO the requested resources are invalid, using auto config\n");
 	err = pnp_activate_dev(pdev);
 	if (err < 0) {
 		snd_printk(KERN_ERR PFX "DT-019X AUDIO pnp configure failure\n");
-		kfree(cfg);
 		return err;
 	}
 
@@ -135,15 +106,7 @@ static int __devinit snd_card_dt019x_pnp(int dev, struct snd_card_dt019x *acard,
 			port[dev],irq[dev],dma8[dev]);
 
 	pdev = acard->devmpu;
-
 	if (pdev != NULL) {
-		pnp_init_resource_table(cfg);
-		if (mpu_port[dev] != SNDRV_AUTO_PORT)
-			pnp_resource_change(&cfg->port_resource[0], mpu_port[dev], 2);
-		if (mpu_irq[dev] != SNDRV_AUTO_IRQ)
-			pnp_resource_change(&cfg->irq_resource[0], mpu_irq[dev], 1);
-		if ((pnp_manual_config_dev(pdev, cfg, 0)) < 0)
-			snd_printk(KERN_ERR PFX "DT-019X MPU401 the requested resources are invalid, using auto config\n");
 		err = pnp_activate_dev(pdev);
 		if (err < 0) {
 			pnp_release_card_device(pdev);
@@ -162,11 +125,6 @@ static int __devinit snd_card_dt019x_pnp(int dev, struct snd_card_dt019x *acard,
 
 	pdev = acard->devopl;
 	if (pdev != NULL) {
-		pnp_init_resource_table(cfg);
-		if (fm_port[dev] != SNDRV_AUTO_PORT)
-			pnp_resource_change(&cfg->port_resource[0], fm_port[dev], 4);
-		if ((pnp_manual_config_dev(pdev, cfg, 0)) < 0)
-			snd_printk(KERN_ERR PFX "DT-019X OPL3 the requested resources are invalid, using auto config\n");
 		err = pnp_activate_dev(pdev);
 		if (err < 0) {
 			pnp_release_card_device(pdev);
@@ -181,7 +139,6 @@ static int __devinit snd_card_dt019x_pnp(int dev, struct snd_card_dt019x *acard,
 		fm_port[dev] = -1;
 	}
 
-	kfree(cfg);
 	return 0;
 }
 

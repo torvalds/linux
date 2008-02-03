@@ -12,6 +12,7 @@
 
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/preempt.h>
 #include <linux/delay.h>
 
 #include <asm/processor.h>
@@ -42,11 +43,13 @@ static void delay_tsc(unsigned long loops)
 {
 	unsigned long bclock, now;
 
+	preempt_disable();		/* TSC's are per-cpu */
 	rdtscl(bclock);
 	do {
 		rep_nop();
 		rdtscl(now);
 	} while ((now-bclock) < loops);
+	preempt_enable();
 }
 
 /*

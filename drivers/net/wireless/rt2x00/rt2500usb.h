@@ -430,10 +430,21 @@
 
 /*
  * MAC configuration registers.
+ */
+
+/*
  * PHY_CSR2: TX MAC configuration.
- * PHY_CSR3: RX MAC configuration.
+ * NOTE: Both register fields are complete dummy,
+ * documentation and legacy drivers are unclear un
+ * what this register means or what fields exists.
  */
 #define PHY_CSR2			0x04c4
+#define PHY_CSR2_LNA			FIELD16(0x0002)
+#define PHY_CSR2_LNA_MODE		FIELD16(0x3000)
+
+/*
+ * PHY_CSR3: RX MAC configuration.
+ */
 #define PHY_CSR3			0x04c6
 
 /*
@@ -692,8 +703,8 @@
 /*
  * DMA descriptor defines.
  */
-#define TXD_DESC_SIZE			( 5 * sizeof(struct data_desc) )
-#define RXD_DESC_SIZE			( 4 * sizeof(struct data_desc) )
+#define TXD_DESC_SIZE			( 5 * sizeof(__le32) )
+#define RXD_DESC_SIZE			( 4 * sizeof(__le32) )
 
 /*
  * TX descriptor format for TX, PRIO, ATIM and Beacon Ring.

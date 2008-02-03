@@ -72,11 +72,7 @@
 #define in_softirq()		(softirq_count())
 #define in_interrupt()		(irq_count())
 
-#if defined(CONFIG_PREEMPT) && !defined(CONFIG_PREEMPT_BKL)
-# define in_atomic()	((preempt_count() & ~PREEMPT_ACTIVE) != kernel_locked())
-#else
-# define in_atomic()	((preempt_count() & ~PREEMPT_ACTIVE) != 0)
-#endif
+#define in_atomic()		((preempt_count() & ~PREEMPT_ACTIVE) != 0)
 
 #ifdef CONFIG_PREEMPT
 # define PREEMPT_CHECK_OFFSET 1

@@ -852,11 +852,6 @@ static int xennet_poll(struct napi_struct *napi, int budget)
 
 	spin_lock(&np->rx_lock);
 
-	if (unlikely(!netif_carrier_ok(dev))) {
-		spin_unlock(&np->rx_lock);
-		return 0;
-	}
-
 	skb_queue_head_init(&rxq);
 	skb_queue_head_init(&errq);
 	skb_queue_head_init(&tmpq);
@@ -1078,7 +1073,7 @@ static void xennet_release_rx_bufs(struct netfront_info *np)
 		if (!xen_feature(XENFEAT_auto_translated_physmap)) {
 			/* Do all the remapping work and M2P updates. */
 			MULTI_mmu_update(mcl, np->rx_mmu, mmu - np->rx_mmu,
-					 0, DOMID_SELF);
+					 NULL, DOMID_SELF);
 			mcl++;
 			HYPERVISOR_multicall(np->rx_mcl, mcl - np->rx_mcl);
 		}

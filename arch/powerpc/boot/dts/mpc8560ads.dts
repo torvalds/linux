@@ -16,6 +16,16 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
+	aliases {
+		ethernet0 = &enet0;
+		ethernet1 = &enet1;
+		ethernet2 = &enet2;
+		ethernet3 = &enet3;
+		serial0 = &serial0;
+		serial1 = &serial1;
+		pci0 = &pci0;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -63,11 +73,11 @@
 		};
 
 		mdio@24520 {
-			device_type = "mdio";
-			compatible = "gianfar";
-			reg = <24520 20>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			compatible = "fsl,gianfar-mdio";
+			reg = <24520 20>;
+
 			phy0: ethernet-phy@0 {
 				interrupt-parent = <&mpic>;
 				interrupts = <5 1>;
@@ -94,36 +104,24 @@
 			};
 		};
 
-		ethernet@24000 {
+		enet0: ethernet@24000 {
+			cell-index = <0>;
 			device_type = "network";
 			model = "TSEC";
 			compatible = "gianfar";
 			reg = <24000 1000>;
-			/*
-			 * address is deprecated and will be removed
-			 * in 2.6.25.  Only recent versions of
-			 * U-Boot support local-mac-address, however.
-			 */
-			address = [ 00 00 00 00 00 00 ];
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <1d 2 1e 2 22 2>;
 			interrupt-parent = <&mpic>;
 			phy-handle = <&phy0>;
 		};
 
-		ethernet@25000 {
-			#address-cells = <1>;
-			#size-cells = <0>;
+		enet1: ethernet@25000 {
+			cell-index = <1>;
 			device_type = "network";
 			model = "TSEC";
 			compatible = "gianfar";
 			reg = <25000 1000>;
-			/*
-			 * address is deprecated and will be removed
-			 * in 2.6.25.  Only recent versions of
-			 * U-Boot support local-mac-address, however.
-			 */
-			address = [ 00 00 00 00 00 00 ];
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <23 2 24 2 28 2>;
 			interrupt-parent = <&mpic>;
@@ -174,7 +172,7 @@
 				compatible = "fsl,mpc8560-cpm-pic", "fsl,cpm2-pic";
 			};
 
-			serial@91a00 {
+			serial0: serial@91a00 {
 				device_type = "serial";
 				compatible = "fsl,mpc8560-scc-uart",
 				             "fsl,cpm2-scc-uart";
@@ -186,7 +184,7 @@
 				interrupt-parent = <&cpmpic>;
 			};
 
-			serial@91a20 {
+			serial1: serial@91a20 {
 				device_type = "serial";
 				compatible = "fsl,mpc8560-scc-uart",
 				             "fsl,cpm2-scc-uart";
@@ -198,17 +196,11 @@
 				interrupt-parent = <&cpmpic>;
 			};
 
-			ethernet@91320 {
+			enet2: ethernet@91320 {
 				device_type = "network";
 				compatible = "fsl,mpc8560-fcc-enet",
 				             "fsl,cpm2-fcc-enet";
 				reg = <91320 20 88500 100 913b0 1>;
-				/*
-				 * mac-address is deprecated and will be removed
-				 * in 2.6.25.  Only recent versions of
-				 * U-Boot support local-mac-address, however.
-				 */
-				mac-address = [ 00 00 00 00 00 00 ];
 				local-mac-address = [ 00 00 00 00 00 00 ];
 				fsl,cpm-command = <16200300>;
 				interrupts = <21 8>;
@@ -216,17 +208,11 @@
 				phy-handle = <&phy2>;
 			};
 
-			ethernet@91340 {
+			enet3: ethernet@91340 {
 				device_type = "network";
 				compatible = "fsl,mpc8560-fcc-enet",
 				             "fsl,cpm2-fcc-enet";
 				reg = <91340 20 88600 100 913d0 1>;
-				/*
-				 * mac-address is deprecated and will be removed
-				 * in 2.6.25.  Only recent versions of
-				 * U-Boot support local-mac-address, however.
-				 */
-				mac-address = [ 00 00 00 00 00 00 ];
 				local-mac-address = [ 00 00 00 00 00 00 ];
 				fsl,cpm-command = <1a400300>;
 				interrupts = <22 8>;
@@ -236,7 +222,8 @@
 		};
 	};
 
-	pci@e0008000 {
+	pci0: pci@e0008000 {
+		cell-index = <0>;
 		#interrupt-cells = <1>;
 		#size-cells = <2>;
 		#address-cells = <3>;

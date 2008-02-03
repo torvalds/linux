@@ -215,7 +215,7 @@ void fastcall __wake_up_bit(wait_queue_head_t *wq, void *word, int bit)
 {
 	struct wait_bit_key key = __WAIT_BIT_KEY_INITIALIZER(word, bit);
 	if (waitqueue_active(wq))
-		__wake_up(wq, TASK_INTERRUPTIBLE|TASK_UNINTERRUPTIBLE, 1, &key);
+		__wake_up(wq, TASK_NORMAL, 1, &key);
 }
 EXPORT_SYMBOL(__wake_up_bit);
 

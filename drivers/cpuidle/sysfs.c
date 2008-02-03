@@ -277,7 +277,7 @@ static struct kobj_type ktype_state_cpuidle = {
 
 static void inline cpuidle_free_state_kobj(struct cpuidle_device *device, int i)
 {
-	kobject_unregister(&device->kobjs[i]->kobj);
+	kobject_put(&device->kobjs[i]->kobj);
 	wait_for_completion(&device->kobjs[i]->kobj_unregister);
 	kfree(device->kobjs[i]);
 	device->kobjs[i] = NULL;
@@ -300,14 +300,13 @@ int cpuidle_add_state_sysfs(struct cpuidle_device *device)
 		kobj->state = &device->states[i];
 		init_completion(&kobj->kobj_unregister);
 
-		kobj->kobj.parent = &device->kobj;
-		kobj->kobj.ktype = &ktype_state_cpuidle;
-		kobject_set_name(&kobj->kobj, "state%d", i);
-		ret = kobject_register(&kobj->kobj);
+		ret = kobject_init_and_add(&kobj->kobj, &ktype_state_cpuidle, &device->kobj,
+					   "state%d", i);
 		if (ret) {
 			kfree(kobj);
 			goto error_state;
 		}
+		kobject_uevent(&kobj->kobj, KOBJ_ADD);
 		device->kobjs[i] = kobj;
 	}
 
@@ -339,12 +338,14 @@ int cpuidle_add_sysfs(struct sys_device *sysdev)
 {
 	int cpu = sysdev->id;
 	struct cpuidle_device *dev;
+	int error;
 
 	dev = per_cpu(cpuidle_devices, cpu);
-	dev->kobj.parent = &sysdev->kobj;
-	dev->kobj.ktype = &ktype_cpuidle;
-	kobject_set_name(&dev->kobj, "%s", "cpuidle");
-	return kobject_register(&dev->kobj);
+	error = kobject_init_and_add(&dev->kobj, &ktype_cpuidle, &sysdev->kobj,
+				     "cpuidle");
+	if (!error)
+		kobject_uevent(&dev->kobj, KOBJ_ADD);
+	return error;
 }
 
 /**
@@ -357,5 +358,5 @@ void cpuidle_remove_sysfs(struct sys_device *sysdev)
 	struct cpuidle_device *dev;
 
 	dev = per_cpu(cpuidle_devices, cpu);
-	kobject_unregister(&dev->kobj);
+	kobject_put(&dev->kobj);
 }

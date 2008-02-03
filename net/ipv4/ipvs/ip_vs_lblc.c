@@ -114,42 +114,11 @@ struct ip_vs_lblc_table {
 
 static ctl_table vs_vars_table[] = {
 	{
-		.ctl_name	= NET_IPV4_VS_LBLC_EXPIRE,
 		.procname	= "lblc_expiration",
 		.data		= &sysctl_ip_vs_lblc_expiration,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,
-	},
-	{ .ctl_name = 0 }
-};
-
-static ctl_table vs_table[] = {
-	{
-		.ctl_name	= NET_IPV4_VS,
-		.procname	= "vs",
-		.mode		= 0555,
-		.child		= vs_vars_table
-	},
-	{ .ctl_name = 0 }
-};
-
-static ctl_table ipvs_ipv4_table[] = {
-	{
-		.ctl_name	= NET_IPV4,
-		.procname	= "ipv4",
-		.mode		= 0555,
-		.child		= vs_table
-	},
-	{ .ctl_name = 0 }
-};
-
-static ctl_table lblc_root_table[] = {
-	{
-		.ctl_name	= CTL_NET,
-		.procname	= "net",
-		.mode		= 0555,
-		.child		= ipvs_ipv4_table
 	},
 	{ .ctl_name = 0 }
 };
@@ -393,9 +362,8 @@ static int ip_vs_lblc_init_svc(struct ip_vs_service *svc)
 	/*
 	 *    Hook periodic timer for garbage collection
 	 */
-	init_timer(&tbl->periodic_timer);
-	tbl->periodic_timer.data = (unsigned long)tbl;
-	tbl->periodic_timer.function = ip_vs_lblc_check_expire;
+	setup_timer(&tbl->periodic_timer, ip_vs_lblc_check_expire,
+			(unsigned long)tbl);
 	tbl->periodic_timer.expires = jiffies+CHECK_EXPIRE_INTERVAL;
 	add_timer(&tbl->periodic_timer);
 
@@ -582,9 +550,14 @@ static struct ip_vs_scheduler ip_vs_lblc_scheduler =
 
 static int __init ip_vs_lblc_init(void)
 {
+	int ret;
+
 	INIT_LIST_HEAD(&ip_vs_lblc_scheduler.n_list);
-	sysctl_header = register_sysctl_table(lblc_root_table);
-	return register_ip_vs_scheduler(&ip_vs_lblc_scheduler);
+	sysctl_header = register_sysctl_paths(net_vs_ctl_path, vs_vars_table);
+	ret = register_ip_vs_scheduler(&ip_vs_lblc_scheduler);
+	if (ret)
+		unregister_sysctl_table(sysctl_header);
+	return ret;
 }
 
 

@@ -269,8 +269,6 @@ static int lance_rx (struct net_device *dev)
 	volatile struct lance_regs *ll = lp->ll;
 	volatile struct lance_rx_desc *rd;
 	unsigned char bits;
-	int len = 0;			/* XXX shut up gcc warnings */
-	struct sk_buff *skb = 0;	/* XXX shut up gcc warnings */
 
 #ifdef TEST_HITS
 	int i;
@@ -306,10 +304,10 @@ static int lance_rx (struct net_device *dev)
 			if (bits & LE_R1_FRA) dev->stats.rx_frame_errors++;
 			if (bits & LE_R1_EOP) dev->stats.rx_errors++;
 		} else {
-			len = (rd->mblength & 0xfff) - 4;
-			skb = dev_alloc_skb (len+2);
+			int len = (rd->mblength & 0xfff) - 4;
+			struct sk_buff *skb = dev_alloc_skb (len+2);
 
-			if (skb == 0) {
+			if (!skb) {
 				printk(KERN_WARNING "%s: Memory squeeze, "
 				       "deferring packet.\n", dev->name);
 				dev->stats.rx_dropped++;
@@ -477,7 +475,7 @@ static irqreturn_t lance_interrupt (int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-struct net_device *last_dev = 0;
+struct net_device *last_dev;
 
 static int lance_open (struct net_device *dev)
 {

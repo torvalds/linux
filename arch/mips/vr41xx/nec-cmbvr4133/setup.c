@@ -50,7 +50,7 @@ static struct mtd_partition cmbvr4133_mtd_parts[] = {
 	}
 };
 
-#define number_partitions (sizeof(cmbvr4133_mtd_parts)/sizeof(struct mtd_partition))
+#define number_partitions ARRAY_SIZE(cmbvr4133_mtd_parts)
 #endif
 
 extern void i8259_init(void);
@@ -63,8 +63,6 @@ static void __init nec_cmbvr4133_setup(void)
 	disable_pcnet();
 #endif
 	set_io_port_base(KSEG1ADDR(0x16000000));
-
-	mips_machtype = MACH_NEC_CMBVR4133;
 
 #ifdef CONFIG_PCI
 #ifdef CONFIG_ROCKHOPPER

@@ -6,12 +6,9 @@ START := 0x60000000
 
 _extra_flags_ = -fno-builtin -m64
 
-#We #undef __x86_64__ for kernelspace, not for userspace where
-#it's needed for headers to work!
-ARCH_KERNEL_DEFINES = -U__$(SUBARCH)__
 KBUILD_CFLAGS += $(_extra_flags_)
 
-CHECKFLAGS  += -m64
+CHECKFLAGS  += -m64 -D__x86_64__
 KBUILD_AFLAGS += -m64
 LDFLAGS += -m elf_x86_64
 KBUILD_CPPFLAGS += -m64

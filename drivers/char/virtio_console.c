@@ -141,7 +141,7 @@ int __init virtio_cons_early_init(int (*put_chars)(u32, const char *, int))
  * never remove the console device we never need this pointer again.
  *
  * Finally we put our input buffer in the input queue, ready to receive. */
-static int virtcons_probe(struct virtio_device *dev)
+static int __devinit virtcons_probe(struct virtio_device *dev)
 {
 	int err;
 	struct hvc_struct *hvc;

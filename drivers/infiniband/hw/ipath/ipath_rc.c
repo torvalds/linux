@@ -647,6 +647,7 @@ static void send_rc_ack(struct ipath_qp *qp)
 
 queue_ack:
 	spin_lock_irqsave(&qp->s_lock, flags);
+	dev->n_rc_qacks++;
 	qp->s_flags |= IPATH_S_ACK_PENDING;
 	qp->s_nak_state = qp->r_nak_state;
 	qp->s_ack_psn = qp->r_ack_psn;
@@ -798,11 +799,13 @@ bail:
 
 static inline void update_last_psn(struct ipath_qp *qp, u32 psn)
 {
-	if (qp->s_wait_credit) {
-		qp->s_wait_credit = 0;
-		tasklet_hi_schedule(&qp->s_task);
+	if (qp->s_last_psn != psn) {
+		qp->s_last_psn = psn;
+		if (qp->s_wait_credit) {
+			qp->s_wait_credit = 0;
+			tasklet_hi_schedule(&qp->s_task);
+		}
 	}
-	qp->s_last_psn = psn;
 }
 
 /**
@@ -959,8 +962,9 @@ static int do_rc_ack(struct ipath_qp *qp, u32 aeth, u32 psn, int opcode,
 		/* If this is a partial ACK, reset the retransmit timer. */
 		if (qp->s_last != qp->s_tail) {
 			spin_lock(&dev->pending_lock);
-			list_add_tail(&qp->timerwait,
-				      &dev->pending[dev->pending_index]);
+			if (list_empty(&qp->timerwait))
+				list_add_tail(&qp->timerwait,
+					&dev->pending[dev->pending_index]);
 			spin_unlock(&dev->pending_lock);
 			/*
 			 * If we get a partial ACK for a resent operation,
@@ -1652,13 +1656,6 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 	case OP(SEND_FIRST):
 		if (!ipath_get_rwqe(qp, 0)) {
 		rnr_nak:
-			/*
-			 * A RNR NAK will ACK earlier sends and RDMA writes.
-			 * Don't queue the NAK if a RDMA read or atomic
-			 * is pending though.
-			 */
-			if (qp->r_nak_state)
-				goto done;
 			qp->r_nak_state = IB_RNR_NAK | qp->r_min_rnr_timer;
 			qp->r_ack_psn = qp->r_psn;
 			goto send_ack;

@@ -47,7 +47,7 @@
 
 static unsigned long wdt_is_open;
 static char expect_close;
-static spinlock_t io_lock;
+static DEFINE_SPINLOCK(io_lock);
 
 /* You must set this - there is no sane way to probe for this board. */
 static int wdt_io = 0x2e;
@@ -375,8 +375,6 @@ static int __init
 wdt_init(void)
 {
 	int ret, i, found = 0;
-
-	spin_lock_init(&io_lock);
 
 	printk (KERN_INFO PFX "WDT driver for W83697HF/HG initializing\n");
 

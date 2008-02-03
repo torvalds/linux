@@ -51,14 +51,15 @@ void snd_opl3_synth_use_dec(struct snd_opl3 * opl3)
 int snd_opl3_synth_setup(struct snd_opl3 * opl3)
 {
 	int idx;
+	struct snd_hwdep *hwdep = opl3->hwdep;
 
-	mutex_lock(&opl3->access_mutex);
-	if (opl3->used) {
-		mutex_unlock(&opl3->access_mutex);
+	mutex_lock(&hwdep->open_mutex);
+	if (hwdep->used) {
+		mutex_unlock(&hwdep->open_mutex);
 		return -EBUSY;
 	}
-	opl3->used++;
-	mutex_unlock(&opl3->access_mutex);
+	hwdep->used++;
+	mutex_unlock(&hwdep->open_mutex);
 
 	snd_opl3_reset(opl3);
 
@@ -81,6 +82,7 @@ int snd_opl3_synth_setup(struct snd_opl3 * opl3)
 void snd_opl3_synth_cleanup(struct snd_opl3 * opl3)
 {
 	unsigned long flags;
+	struct snd_hwdep *hwdep;
 
 	/* Stop system timer */
 	spin_lock_irqsave(&opl3->sys_timer_lock, flags);
@@ -91,9 +93,11 @@ void snd_opl3_synth_cleanup(struct snd_opl3 * opl3)
 	spin_unlock_irqrestore(&opl3->sys_timer_lock, flags);
 
 	snd_opl3_reset(opl3);
-	mutex_lock(&opl3->access_mutex);
-	opl3->used--;
-	mutex_unlock(&opl3->access_mutex);
+	hwdep = opl3->hwdep;
+	mutex_lock(&hwdep->open_mutex);
+	hwdep->used--;
+	mutex_unlock(&hwdep->open_mutex);
+	wake_up(&hwdep->open_wait);
 }
 
 static int snd_opl3_synth_use(void *private_data, struct snd_seq_port_subscribe * info)
@@ -152,15 +156,7 @@ static int snd_opl3_synth_event_input(struct snd_seq_event * ev, int direct,
 {
 	struct snd_opl3 *opl3 = private_data;
 
-	if (ev->type >= SNDRV_SEQ_EVENT_INSTR_BEGIN &&
-	    ev->type <= SNDRV_SEQ_EVENT_INSTR_CHANGE) {
-		if (direct) {
-			snd_seq_instr_event(&opl3->fm_ops, opl3->ilist, ev,
-					    opl3->seq_client, atomic, hop);
-		}
-	} else {
-		snd_midi_process_event(&opl3_ops, ev, opl3->chset);
-	}
+	snd_midi_process_event(&opl3_ops, ev, opl3->chset);
 	return 0;
 }
 
@@ -249,16 +245,6 @@ static int snd_opl3_seq_new_device(struct snd_seq_device *dev)
 		return err;
 	}
 
-	/* initialize instrument list */
-	opl3->ilist = snd_seq_instr_list_new();
-	if (opl3->ilist == NULL) {
-		snd_seq_delete_kernel_client(client);
-		opl3->seq_client = -1;
-		return -ENOMEM;
-	}
-	opl3->ilist->flags = SNDRV_SEQ_INSTR_FLG_DIRECT;
-	snd_seq_fm_init(&opl3->fm_ops, NULL);
-
 	/* setup system timer */
 	init_timer(&opl3->tlist);
 	opl3->tlist.function = snd_opl3_timer_func;
@@ -287,8 +273,6 @@ static int snd_opl3_seq_delete_device(struct snd_seq_device *dev)
 		snd_seq_delete_kernel_client(opl3->seq_client);
 		opl3->seq_client = -1;
 	}
-	if (opl3->ilist)
-		snd_seq_instr_list_free(&opl3->ilist);
 	return 0;
 }
 

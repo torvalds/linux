@@ -195,10 +195,13 @@ cmd_line_ptr:	.long	0		# (Header version 0x0202 or later)
 					# can be located anywhere in
 					# low memory 0x10000 or higher.
 
-ramdisk_max:	.long (-__PAGE_OFFSET-(512 << 20)-1) & 0x7fffffff
+ramdisk_max:	.long 0x7fffffff
 					# (Header version 0x0203 or later)
 					# The highest safe address for
 					# the contents of an initrd
+					# The current kernel allows up to 4 GB,
+					# but leave it at 2 GB to avoid
+					# possible bootloader bugs.
 
 kernel_alignment:  .long CONFIG_PHYSICAL_ALIGN	#physical addr alignment
 						#required for protected mode
@@ -236,39 +239,30 @@ start_of_setup:
 	movw	%ax, %es
 	cld
 
-# Apparently some ancient versions of LILO invoked the kernel
-# with %ss != %ds, which happened to work by accident for the
-# old code.  If the CAN_USE_HEAP flag is set in loadflags, or
-# %ss != %ds, then adjust the stack pointer.
+# Apparently some ancient versions of LILO invoked the kernel with %ss != %ds,
+# which happened to work by accident for the old code.  Recalculate the stack
+# pointer if %ss is invalid.  Otherwise leave it alone, LOADLIN sets up the
+# stack behind its own code, so we can't blindly put it directly past the heap.
 
-	# Smallest possible stack we can tolerate
-	movw	$(_end+STACK_SIZE), %cx
-
-	movw	heap_end_ptr, %dx
-	addw	$512, %dx
-	jnc	1f
-	xorw	%dx, %dx	# Wraparound - whole segment available
-1:	testb	$CAN_USE_HEAP, loadflags
-	jnz	2f
-
-	# No CAN_USE_HEAP
 	movw	%ss, %dx
 	cmpw	%ax, %dx	# %ds == %ss?
 	movw	%sp, %dx
-	# If so, assume %sp is reasonably set, otherwise use
-	# the smallest possible stack.
-	jne	4f		# -> Smallest possible stack...
+	je	2f		# -> assume %sp is reasonably set
 
-	# Make sure the stack is at least minimum size.  Take a value
-	# of zero to mean "full segment."
-2:
+	# Invalid %ss, make up a new stack
+	movw	$_end, %dx
+	testb	$CAN_USE_HEAP, loadflags
+	jz	1f
+	movw	heap_end_ptr, %dx
+1:	addw	$STACK_SIZE, %dx
+	jnc	2f
+	xorw	%dx, %dx	# Prevent wraparound
+
+2:	# Now %dx should point to the end of our stack space
 	andw	$~3, %dx	# dword align (might as well...)
 	jnz	3f
 	movw	$0xfffc, %dx	# Make sure we're not zero
-3:	cmpw	%cx, %dx
-	jnb	5f
-4:	movw	%cx, %dx	# Minimum value we can possibly use
-5:	movw	%ax, %ss
+3:	movw	%ax, %ss
 	movzwl	%dx, %esp	# Clear upper half of %esp
 	sti			# Now we should have a working stack
 

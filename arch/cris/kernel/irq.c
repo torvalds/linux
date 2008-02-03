@@ -2,7 +2,7 @@
  *
  *	linux/arch/cris/kernel/irq.c
  *
- *      Copyright (c) 2000,2001 Axis Communications AB
+ *      Copyright (c) 2000,2007 Axis Communications AB
  *
  *      Authors: Bjorn Wesen (bjornw@axis.com)
  *
@@ -92,14 +92,16 @@ skip:
 asmlinkage void do_IRQ(int irq, struct pt_regs * regs)
 {
 	unsigned long sp;
+	struct pt_regs *old_regs = set_irq_regs(regs);
 	irq_enter();
 	sp = rdsp();
 	if (unlikely((sp & (PAGE_SIZE - 1)) < (PAGE_SIZE/8))) {
 		printk("do_IRQ: stack overflow: %lX\n", sp);
 		show_stack(NULL, (unsigned long *)sp);
 	}
-	__do_IRQ(irq, regs);
+	__do_IRQ(irq);
         irq_exit();
+	set_irq_regs(old_regs);
 }
 
 void weird_irq(void)

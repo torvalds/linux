@@ -32,9 +32,6 @@
 
 #include <asm/uaccess.h>
 
-extern char ixgb_driver_name[];
-extern char ixgb_driver_version[];
-
 extern int ixgb_up(struct ixgb_adapter *adapter);
 extern void ixgb_down(struct ixgb_adapter *adapter, boolean_t kill_watchdog);
 extern void ixgb_reset(struct ixgb_adapter *adapter);
@@ -639,8 +636,8 @@ ixgb_phys_id(struct net_device *netdev, uint32_t data)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 
-	if(!data || data > (uint32_t)(MAX_SCHEDULE_TIMEOUT / HZ))
-		data = (uint32_t)(MAX_SCHEDULE_TIMEOUT / HZ);
+	if (!data)
+		data = INT_MAX;
 
 	if(!adapter->blink_timer.function) {
 		init_timer(&adapter->blink_timer);

@@ -28,6 +28,7 @@
 #include <linux/videodev2.h>
 
 #include "pvrusb2-hdw.h"
+#include "pvrusb2-devattr.h"
 #include "pvrusb2-context.h"
 #include "pvrusb2-debug.h"
 #include "pvrusb2-v4l2.h"
@@ -136,24 +137,18 @@ static int __init pvr_init(void)
 
 static void __exit pvr_exit(void)
 {
-
 	pvr2_trace(PVR2_TRACE_INIT,"pvr_exit");
+
+	usb_deregister(&pvr_driver);
 
 #ifdef CONFIG_VIDEO_PVRUSB2_SYSFS
 	pvr2_sysfs_class_destroy(class_ptr);
 #endif /* CONFIG_VIDEO_PVRUSB2_SYSFS */
-
-	usb_deregister(&pvr_driver);
 }
 
 module_init(pvr_init);
 module_exit(pvr_exit);
 
-/* Mike Isely <mcisely@pobox.com> 11-Mar-2006: See pvrusb2-hdw.c for
-   MODULE_DEVICE_TABLE().  We have to declare that attribute there
-   because that's where the device table actually is now and it seems
-   that certain gcc configurations get angry if MODULE_DEVICE_TABLE()
-   is used on what ends up being an external symbol. */
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");

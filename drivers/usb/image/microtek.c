@@ -819,7 +819,7 @@ static int mts_usb_probe(struct usb_interface *intf,
 		goto out_kfree2;
 
 	new_desc->host->hostdata[0] = (unsigned long)new_desc;
-	if (scsi_add_host(new_desc->host, NULL)) {
+	if (scsi_add_host(new_desc->host, &dev->dev)) {
 		err_retval = -EIO;
 		goto out_host_put;
 	}

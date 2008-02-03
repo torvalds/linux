@@ -28,6 +28,7 @@
 #include <asm/bootinfo.h>
 #include <asm/reboot.h>
 #include <asm/sibyte/board.h>
+#include <asm/smp-ops.h>
 
 #include <asm/fw/cfe/cfe_api.h>
 #include <asm/fw/cfe/cfe_error.h>
@@ -232,6 +233,9 @@ static int __init initrd_setup(char *str)
 
 #endif
 
+extern struct plat_smp_ops sb_smp_ops;
+extern struct plat_smp_ops bcm1480_smp_ops;
+
 /*
  * prom_init is called just after the cpu type is determined, from setup_arch()
  */
@@ -297,9 +301,6 @@ void __init prom_init(void)
 			 *  command line
 			 */
 			strcpy(arcs_cmdline, "root=/dev/ram0 ");
-#ifdef CONFIG_SIBYTE_PTSWARM
-			strcat(arcs_cmdline, "console=ttyS0,115200 ");
-#endif
 		} else {
 			/* The loader should have set the command line */
 			/* too early for panic to do any good */
@@ -340,6 +341,13 @@ void __init prom_init(void)
 	arcs_cmdline[CL_SIZE-1] = 0;
 
 	prom_meminit();
+
+#if defined(CONFIG_SIBYTE_BCM112X) || defined(CONFIG_SIBYTE_SB1250)
+	register_smp_ops(&sb_smp_ops);
+#endif
+#if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
+	register_smp_ops(&bcm1480_smp_ops);
+#endif
 }
 
 void __init prom_free_prom_memory(void)

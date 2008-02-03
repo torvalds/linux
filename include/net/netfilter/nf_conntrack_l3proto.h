@@ -42,11 +42,8 @@ struct nf_conntrack_l3proto
 	int (*print_tuple)(struct seq_file *s,
 			   const struct nf_conntrack_tuple *);
 
-	/* Print out the private part of the conntrack. */
-	int (*print_conntrack)(struct seq_file *s, const struct nf_conn *);
-
 	/* Returns verdict for packet, or -1 for invalid. */
-	int (*packet)(struct nf_conn *conntrack,
+	int (*packet)(struct nf_conn *ct,
 		      const struct sk_buff *skb,
 		      enum ip_conntrack_info ctinfo);
 
@@ -54,7 +51,7 @@ struct nf_conntrack_l3proto
 	 * Called when a new connection for this protocol found;
 	 * returns TRUE if it's OK.  If so, packet() called next.
 	 */
-	int (*new)(struct nf_conn *conntrack, const struct sk_buff *skb);
+	int (*new)(struct nf_conn *ct, const struct sk_buff *skb);
 
 	/*
 	 * Called before tracking. 
@@ -73,7 +70,7 @@ struct nf_conntrack_l3proto
 
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header	*ctl_table_header;
-	struct ctl_table	*ctl_table_path;
+	struct ctl_path		*ctl_table_path;
 	struct ctl_table	*ctl_table;
 #endif /* CONFIG_SYSCTL */
 

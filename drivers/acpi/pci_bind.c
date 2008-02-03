@@ -294,9 +294,6 @@ int acpi_pci_unbind(struct acpi_device *device)
 	    acpi_get_data(device->handle, acpi_pci_data_handler,
 			  (void **)&data);
 	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status,
-				"Unable to get data from device %s",
-				acpi_device_bid(device)));
 		result = -ENODEV;
 		goto end;
 	}

@@ -204,7 +204,7 @@ static int stream_enc_dma_append(struct ivtv_stream *s, u32 data[CX2341X_MBOX_MA
 		s->sg_pending[idx].dst = buf->dma_handle;
 		s->sg_pending[idx].src = offset;
 		s->sg_pending[idx].size = s->buf_size;
-		buf->bytesused = (size < s->buf_size) ? size : s->buf_size;
+		buf->bytesused = min(size, s->buf_size);
 		buf->dma_xfer_cnt = s->dma_xfer_cnt;
 
 		s->q_predma.bytesused += buf->bytesused;
@@ -302,8 +302,11 @@ static void dma_post(struct ivtv_stream *s)
 void ivtv_dma_stream_dec_prepare(struct ivtv_stream *s, u32 offset, int lock)
 {
 	struct ivtv *itv = s->itv;
+	struct yuv_playback_info *yi = &itv->yuv_info;
+	u8 frame = yi->draw_frame;
+	struct yuv_frame_info *f = &yi->new_frame_info[frame];
 	struct ivtv_buffer *buf;
-	u32 y_size = itv->params.height * itv->params.width;
+	u32 y_size = 720 * ((f->src_h + 31) & ~31);
 	u32 uv_offset = offset + IVTV_YUV_BUFFER_UV_OFFSET;
 	int y_done = 0;
 	int bytes_written = 0;
@@ -311,17 +314,42 @@ void ivtv_dma_stream_dec_prepare(struct ivtv_stream *s, u32 offset, int lock)
 	int idx = 0;
 
 	IVTV_DEBUG_HI_DMA("DEC PREPARE DMA %s: %08x %08x\n", s->name, s->q_predma.bytesused, offset);
+
+	/* Insert buffer block for YUV if needed */
+	if (s->type == IVTV_DEC_STREAM_TYPE_YUV && f->offset_y) {
+		if (yi->blanking_dmaptr) {
+			s->sg_pending[idx].src = yi->blanking_dmaptr;
+			s->sg_pending[idx].dst = offset;
+			s->sg_pending[idx].size = 720 * 16;
+		}
+		offset += 720 * 16;
+		idx++;
+	}
+
 	list_for_each_entry(buf, &s->q_predma.list, list) {
 		/* YUV UV Offset from Y Buffer */
-		if (s->type == IVTV_DEC_STREAM_TYPE_YUV && !y_done && bytes_written >= y_size) {
+		if (s->type == IVTV_DEC_STREAM_TYPE_YUV && !y_done &&
+				(bytes_written + buf->bytesused) >= y_size) {
+			s->sg_pending[idx].src = buf->dma_handle;
+			s->sg_pending[idx].dst = offset;
+			s->sg_pending[idx].size = y_size - bytes_written;
 			offset = uv_offset;
+			if (s->sg_pending[idx].size != buf->bytesused) {
+				idx++;
+				s->sg_pending[idx].src =
+				  buf->dma_handle + s->sg_pending[idx - 1].size;
+				s->sg_pending[idx].dst = offset;
+				s->sg_pending[idx].size =
+				   buf->bytesused - s->sg_pending[idx - 1].size;
+				offset += s->sg_pending[idx].size;
+			}
 			y_done = 1;
+		} else {
+			s->sg_pending[idx].src = buf->dma_handle;
+			s->sg_pending[idx].dst = offset;
+			s->sg_pending[idx].size = buf->bytesused;
+			offset += buf->bytesused;
 		}
-		s->sg_pending[idx].src = buf->dma_handle;
-		s->sg_pending[idx].dst = offset;
-		s->sg_pending[idx].size = buf->bytesused;
-
-		offset += buf->bytesused;
 		bytes_written += buf->bytesused;
 
 		/* Sync SG buffers */
@@ -408,7 +436,7 @@ static void ivtv_dma_enc_start(struct ivtv_stream *s)
 		s_vbi->sg_pending_size = 0;
 		s_vbi->dma_xfer_cnt++;
 		set_bit(IVTV_F_S_DMA_HAS_VBI, &s->s_flags);
-		IVTV_DEBUG_HI_DMA("include DMA for %s\n", s->name);
+		IVTV_DEBUG_HI_DMA("include DMA for %s\n", s_vbi->name);
 	}
 
 	s->dma_xfer_cnt++;
@@ -700,12 +728,15 @@ static void ivtv_irq_dec_data_req(struct ivtv *itv)
 	ivtv_api_get_data(&itv->dec_mbox, IVTV_MBOX_DMA, data);
 
 	if (test_bit(IVTV_F_I_DEC_YUV, &itv->i_flags)) {
-		itv->dma_data_req_size = itv->params.width * itv->params.height * 3 / 2;
-		itv->dma_data_req_offset = data[1] ? data[1] : yuv_offset[0];
+		itv->dma_data_req_size =
+				 1080 * ((itv->yuv_info.v4l2_src_h + 31) & ~31);
+		itv->dma_data_req_offset = data[1];
+		if (atomic_read(&itv->yuv_info.next_dma_frame) >= 0)
+			ivtv_yuv_frame_complete(itv);
 		s = &itv->streams[IVTV_DEC_STREAM_TYPE_YUV];
 	}
 	else {
-		itv->dma_data_req_size = data[2] >= 0x10000 ? 0x10000 : data[2];
+		itv->dma_data_req_size = min_t(u32, data[2], 0x10000);
 		itv->dma_data_req_offset = data[1];
 		s = &itv->streams[IVTV_DEC_STREAM_TYPE_MPG];
 	}
@@ -715,6 +746,8 @@ static void ivtv_irq_dec_data_req(struct ivtv *itv)
 		set_bit(IVTV_F_S_NEEDS_DATA, &s->s_flags);
 	}
 	else {
+		if (test_bit(IVTV_F_I_DEC_YUV, &itv->i_flags))
+			ivtv_yuv_setup_stream_frame(itv);
 		clear_bit(IVTV_F_S_NEEDS_DATA, &s->s_flags);
 		ivtv_queue_move(s, &s->q_full, NULL, &s->q_predma, itv->dma_data_req_size);
 		ivtv_dma_stream_dec_prepare(s, itv->dma_data_req_offset + IVTV_DECODER_OFFSET, 0);
@@ -731,24 +764,26 @@ static void ivtv_irq_vsync(struct ivtv *itv)
 	 * one vsync per frame.
 	 */
 	unsigned int frame = read_reg(0x28c0) & 1;
+	struct yuv_playback_info *yi = &itv->yuv_info;
 	int last_dma_frame = atomic_read(&itv->yuv_info.next_dma_frame);
+	struct yuv_frame_info *f = &yi->new_frame_info[last_dma_frame];
 
 	if (0) IVTV_DEBUG_IRQ("DEC VSYNC\n");
 
-	if (((frame ^ itv->yuv_info.sync_field[last_dma_frame]) == 0 &&
-		((itv->last_vsync_field & 1) ^ itv->yuv_info.sync_field[last_dma_frame])) ||
-			(frame != (itv->last_vsync_field & 1) && !itv->yuv_info.frame_interlaced)) {
+	if (((frame ^ f->sync_field) == 0 &&
+		((itv->last_vsync_field & 1) ^ f->sync_field)) ||
+			(frame != (itv->last_vsync_field & 1) && !f->interlaced)) {
 		int next_dma_frame = last_dma_frame;
 
-		if (!(itv->yuv_info.frame_interlaced && itv->yuv_info.field_delay[next_dma_frame] && itv->yuv_info.fields_lapsed < 1)) {
-			if (next_dma_frame >= 0 && next_dma_frame != atomic_read(&itv->yuv_info.next_fill_frame)) {
+		if (!(f->interlaced && f->delay && yi->fields_lapsed < 1)) {
+			if (next_dma_frame >= 0 && next_dma_frame != atomic_read(&yi->next_fill_frame)) {
 				write_reg(yuv_offset[next_dma_frame] >> 4, 0x82c);
 				write_reg((yuv_offset[next_dma_frame] + IVTV_YUV_BUFFER_UV_OFFSET) >> 4, 0x830);
 				write_reg(yuv_offset[next_dma_frame] >> 4, 0x834);
 				write_reg((yuv_offset[next_dma_frame] + IVTV_YUV_BUFFER_UV_OFFSET) >> 4, 0x838);
-				next_dma_frame = (next_dma_frame + 1) & 0x3;
-				atomic_set(&itv->yuv_info.next_dma_frame, next_dma_frame);
-				itv->yuv_info.fields_lapsed = -1;
+				next_dma_frame = (next_dma_frame + 1) % IVTV_YUV_BUFFERS;
+				atomic_set(&yi->next_dma_frame, next_dma_frame);
+				yi->fields_lapsed = -1;
 			}
 		}
 	}
@@ -781,20 +816,22 @@ static void ivtv_irq_vsync(struct ivtv *itv)
 		}
 
 		/* Check if we need to update the yuv registers */
-		if ((itv->yuv_info.yuv_forced_update || itv->yuv_info.new_frame_info[last_dma_frame].update) && last_dma_frame != -1) {
-			if (!itv->yuv_info.new_frame_info[last_dma_frame].update)
-				last_dma_frame = (last_dma_frame - 1) & 3;
+		if ((yi->yuv_forced_update || f->update) && last_dma_frame != -1) {
+			if (!f->update) {
+				last_dma_frame = (u8)(last_dma_frame - 1) % IVTV_YUV_BUFFERS;
+				f = &yi->new_frame_info[last_dma_frame];
+			}
 
-			if (itv->yuv_info.new_frame_info[last_dma_frame].src_w) {
-				itv->yuv_info.update_frame = last_dma_frame;
-				itv->yuv_info.new_frame_info[last_dma_frame].update = 0;
-				itv->yuv_info.yuv_forced_update = 0;
+			if (f->src_w) {
+				yi->update_frame = last_dma_frame;
+				f->update = 0;
+				yi->yuv_forced_update = 0;
 				set_bit(IVTV_F_I_WORK_HANDLER_YUV, &itv->i_flags);
 				set_bit(IVTV_F_I_HAVE_WORK, &itv->i_flags);
 			}
 		}
 
-		itv->yuv_info.fields_lapsed ++;
+		yi->fields_lapsed++;
 	}
 }
 

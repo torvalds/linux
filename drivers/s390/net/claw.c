@@ -2416,7 +2416,7 @@ init_ccw_bk(struct net_device *dev)
 		    privptr->p_buff_pages_perwrite);
 #endif
                    if (p_buff==NULL) {
-                        printk(KERN_INFO "%s:%s __get_free_pages"
+			printk(KERN_INFO "%s:%s __get_free_pages "
 			 	"for writes buf failed : get is for %d pages\n",
 				dev->name,
 				__FUNCTION__,

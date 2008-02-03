@@ -112,7 +112,6 @@ struct cn_queue_dev {
 	struct list_head queue_list;
 	spinlock_t queue_lock;
 
-	int netlink_groups;
 	struct sock *nls;
 };
 
@@ -133,15 +132,13 @@ struct cn_callback_data {
 
 struct cn_callback_entry {
 	struct list_head callback_entry;
-	struct cn_callback *cb;
 	struct work_struct work;
 	struct cn_queue_dev *pdev;
 
 	struct cn_callback_id id;
 	struct cn_callback_data data;
 
-	int seq, group;
-	struct sock *nls;
+	u32 seq, group;
 };
 
 struct cn_ctl_entry {

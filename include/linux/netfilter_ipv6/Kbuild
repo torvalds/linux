@@ -14,8 +14,8 @@ header-y += ip6t_mark.h
 header-y += ip6t_multiport.h
 header-y += ip6t_opts.h
 header-y += ip6t_owner.h
-header-y += ip6t_policy.h
 header-y += ip6t_physdev.h
+header-y += ip6t_policy.h
 header-y += ip6t_rt.h
 
 unifdef-y += ip6_tables.h

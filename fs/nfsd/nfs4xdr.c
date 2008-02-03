@@ -148,12 +148,12 @@ xdr_error:					\
 	}					\
 } while (0)
 
-static __be32 *read_buf(struct nfsd4_compoundargs *argp, int nbytes)
+static __be32 *read_buf(struct nfsd4_compoundargs *argp, u32 nbytes)
 {
 	/* We want more bytes than seem to be available.
 	 * Maybe we need a new page, maybe we have just run out
 	 */
-	int avail = (char*)argp->end - (char*)argp->p;
+	unsigned int avail = (char *)argp->end - (char *)argp->p;
 	__be32 *p;
 	if (avail + argp->pagelen < nbytes)
 		return NULL;
@@ -169,6 +169,11 @@ static __be32 *read_buf(struct nfsd4_compoundargs *argp, int nbytes)
 			return NULL;
 		
 	}
+	/*
+	 * The following memcpy is safe because read_buf is always
+	 * called with nbytes > avail, and the two cases above both
+	 * guarantee p points to at least nbytes bytes.
+	 */
 	memcpy(p, argp->p, avail);
 	/* step to next page */
 	argp->p = page_address(argp->pagelist[0]);
@@ -1448,7 +1453,7 @@ static __be32 fattr_handle_absent_fs(u32 *bmval0, u32 *bmval1, u32 *rdattr_err)
 __be32
 nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 		struct dentry *dentry, __be32 *buffer, int *countp, u32 *bmval,
-		struct svc_rqst *rqstp)
+		struct svc_rqst *rqstp, int ignore_crossmnt)
 {
 	u32 bmval0 = bmval[0];
 	u32 bmval1 = bmval[1];
@@ -1828,7 +1833,12 @@ out_acl:
 	if (bmval1 & FATTR4_WORD1_MOUNTED_ON_FILEID) {
 		if ((buflen -= 8) < 0)
                 	goto out_resource;
-		if (exp->ex_mnt->mnt_root->d_inode == dentry->d_inode) {
+		/*
+		 * Get parent's attributes if not ignoring crossmount
+		 * and this is the root of a cross-mounted filesystem.
+		 */
+		if (ignore_crossmnt == 0 &&
+		    exp->ex_mnt->mnt_root->d_inode == dentry->d_inode) {
 			err = vfs_getattr(exp->ex_mnt->mnt_parent,
 				exp->ex_mnt->mnt_mountpoint, &stat);
 			if (err)
@@ -1864,13 +1874,25 @@ nfsd4_encode_dirent_fattr(struct nfsd4_readdir *cd,
 	struct svc_export *exp = cd->rd_fhp->fh_export;
 	struct dentry *dentry;
 	__be32 nfserr;
+	int ignore_crossmnt = 0;
 
 	dentry = lookup_one_len(name, cd->rd_fhp->fh_dentry, namlen);
 	if (IS_ERR(dentry))
 		return nfserrno(PTR_ERR(dentry));
 
 	exp_get(exp);
-	if (d_mountpoint(dentry)) {
+	/*
+	 * In the case of a mountpoint, the client may be asking for
+	 * attributes that are only properties of the underlying filesystem
+	 * as opposed to the cross-mounted file system. In such a case,
+	 * we will not follow the cross mount and will fill the attribtutes
+	 * directly from the mountpoint dentry.
+	 */
+	if (d_mountpoint(dentry) &&
+	    (cd->rd_bmval[0] & ~FATTR4_WORD0_RDATTR_ERROR) == 0 &&
+	    (cd->rd_bmval[1] & ~FATTR4_WORD1_MOUNTED_ON_FILEID) == 0)
+		ignore_crossmnt = 1;
+	else if (d_mountpoint(dentry)) {
 		int err;
 
 		/*
@@ -1889,7 +1911,7 @@ nfsd4_encode_dirent_fattr(struct nfsd4_readdir *cd,
 
 	}
 	nfserr = nfsd4_encode_fattr(NULL, exp, dentry, p, buflen, cd->rd_bmval,
-					cd->rd_rqstp);
+					cd->rd_rqstp, ignore_crossmnt);
 out_put:
 	dput(dentry);
 	exp_put(exp);
@@ -2043,7 +2065,7 @@ nfsd4_encode_getattr(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4
 	buflen = resp->end - resp->p - (COMPOUND_ERR_SLACK_SPACE >> 2);
 	nfserr = nfsd4_encode_fattr(fhp, fhp->fh_export, fhp->fh_dentry,
 				    resp->p, &buflen, getattr->ga_bmval,
-				    resp->rqstp);
+				    resp->rqstp, 0);
 	if (!nfserr)
 		resp->p += buflen;
 	return nfserr;

@@ -117,7 +117,7 @@ struct CPRBX {
 	unsigned char	padx004[16 - sizeof (char *)];
 	unsigned char *	req_extb;	/* request extension block 'addr'*/
 	unsigned char	padx005[16 - sizeof (char *)];
-	unsigned char *	rpl_extb;	/* reply extension block 'addres'*/
+	unsigned char *	rpl_extb;	/* reply extension block 'address'*/
 	unsigned short	ccp_rtcode;	/* server return code		 */
 	unsigned short	ccp_rscode;	/* server reason code		 */
 	unsigned int	mac_data_len;	/* Mac Data Length		 */

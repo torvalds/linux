@@ -157,7 +157,7 @@ typedef struct sigaltstack {
 #undef __HAVE_ARCH_SIG_BITOPS
 
 struct pt_regs;
-extern int FASTCALL(do_signal(struct pt_regs *regs, sigset_t *oldset));
+extern int do_signal(struct pt_regs *regs, sigset_t *oldset);
 
 #define ptrace_signal_deliver(regs, cookie)	do { } while (0)
 

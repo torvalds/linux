@@ -109,6 +109,15 @@ static struct spi_board_info ek_spi_devices[] = {
 #endif
 };
 
+static struct i2c_board_info __initdata ek_i2c_devices[] = {
+	{
+		I2C_BOARD_INFO("ics1523", 0x26),
+	},
+	{
+		I2C_BOARD_INFO("dac3550", 0x4d),
+	}
+};
+
 #define EK_FLASH_BASE	AT91_CHIPSELECT_0
 #define EK_FLASH_SIZE	0x200000
 
@@ -132,6 +141,25 @@ static struct platform_device ek_flash = {
 	.num_resources	= 1,
 };
 
+static struct gpio_led ek_leds[] = {
+	{	/* "user led 1", DS2 */
+		.name			= "green",
+		.gpio			= AT91_PIN_PB0,
+		.active_low		= 1,
+		.default_trigger	= "mmc0",
+	},
+	{	/* "user led 2", DS4 */
+		.name			= "yellow",
+		.gpio			= AT91_PIN_PB1,
+		.active_low		= 1,
+		.default_trigger	= "heartbeat",
+	},
+	{	/* "user led 3", DS6 */
+		.name			= "red",
+		.gpio			= AT91_PIN_PB2,
+		.active_low		= 1,
+	}
+};
 
 static void __init ek_board_init(void)
 {
@@ -145,7 +173,7 @@ static void __init ek_board_init(void)
 	at91_add_device_udc(&ek_udc_data);
 	at91_set_multi_drive(ek_udc_data.pullup_pin, 1);	/* pullup_pin is connected to reset */
 	/* I2C */
-	at91_add_device_i2c();
+	at91_add_device_i2c(ek_i2c_devices, ARRAY_SIZE(ek_i2c_devices));
 	/* SPI */
 	at91_add_device_spi(ek_spi_devices, ARRAY_SIZE(ek_spi_devices));
 #ifdef CONFIG_MTD_AT91_DATAFLASH_CARD
@@ -158,6 +186,8 @@ static void __init ek_board_init(void)
 #endif
 	/* NOR Flash */
 	platform_device_register(&ek_flash);
+	/* LEDs */
+	at91_gpio_leds(ek_leds, ARRAY_SIZE(ek_leds));
 	/* VGA */
 //	ek_add_device_video();
 }

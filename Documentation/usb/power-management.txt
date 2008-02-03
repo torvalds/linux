@@ -278,6 +278,14 @@ optional.  The methods' jobs are quite simple:
 	(although the interfaces will be in the same altsettings as
 	before the suspend).
 
+If the device is disconnected or powered down while it is suspended,
+the disconnect method will be called instead of the resume or
+reset_resume method.  This is also quite likely to happen when
+waking up from hibernation, as many systems do not maintain suspend
+current to the USB host controllers during hibernation.  (It's
+possible to work around the hibernation-forces-disconnect problem by
+using the USB Persist facility.)
+
 The reset_resume method is used by the USB Persist facility (see
 Documentation/usb/persist.txt) and it can also be used under certain
 circumstances when CONFIG_USB_PERSIST is not enabled.  Currently, if a

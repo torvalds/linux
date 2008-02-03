@@ -89,13 +89,9 @@ static int max6902_get_reg(struct device *dev, unsigned char address,
 
 	/* do the i/o */
 	status = spi_sync(spi, &message);
+
 	if (status == 0)
-		status = message.status;
-	else
-		return status;
-
-	*data = chip->rx_buf[1];
-
+		*data = chip->rx_buf[1];
 	return status;
 }
 
@@ -125,9 +121,7 @@ static int max6902_get_datetime(struct device *dev, struct rtc_time *dt)
 
 	/* do the i/o */
 	status = spi_sync(spi, &message);
-	if (status == 0)
-		status = message.status;
-	else
+	if (status)
 		return status;
 
 	/* The chip sends data in this order:

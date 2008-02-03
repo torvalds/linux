@@ -249,7 +249,7 @@ static int fmvj18x_probe(struct pcmcia_device *link)
     link->io.IOAddrLines = 5;
 
     /* Interrupt setup */
-    link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
+    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING|IRQ_HANDLE_PRESENT;
     link->irq.IRQInfo1 = IRQ_LEVEL_ID;
     link->irq.Handler = &fjn_interrupt;
     link->irq.Instance = dev;
@@ -731,18 +731,13 @@ module_exit(exit_fmvj18x_cs);
 
 /*====================================================================*/
 
-static irqreturn_t fjn_interrupt(int irq, void *dev_id)
+static irqreturn_t fjn_interrupt(int dummy, void *dev_id)
 {
     struct net_device *dev = dev_id;
     local_info_t *lp = netdev_priv(dev);
     kio_addr_t ioaddr;
     unsigned short tx_stat, rx_stat;
 
-    if (lp == NULL) {
-        printk(KERN_NOTICE "fjn_interrupt(): irq %d for "
-	       "unknown device.\n", irq);
-        return IRQ_NONE;
-    }
     ioaddr = dev->base_addr;
 
     /* avoid multiple interrupts */

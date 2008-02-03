@@ -5,7 +5,7 @@
  * This file contains the system call numbers of the ia32 port,
  * this is for the kernel only.
  * Only add syscalls here where some part of the kernel needs to know
- * the number. This should be otherwise in sync with asm-i386/unistd.h. -AK
+ * the number. This should be otherwise in sync with asm-x86/unistd_32.h. -AK
  */
 
 #define __NR_ia32_restart_syscall 0

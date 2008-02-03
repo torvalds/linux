@@ -105,6 +105,32 @@ out:
 	return error;
 }
 
+/* Exactly duplicate the address lists.  This is necessary when doing
+ * peer-offs and accepts.  We don't want to put all the current system
+ * addresses into the endpoint.  That's useless.  But we do want duplicat
+ * the list of bound addresses that the older endpoint used.
+ */
+int sctp_bind_addr_dup(struct sctp_bind_addr *dest,
+			const struct sctp_bind_addr *src,
+			gfp_t gfp)
+{
+	struct sctp_sockaddr_entry *addr;
+	struct list_head *pos;
+	int error = 0;
+
+	/* All addresses share the same port.  */
+	dest->port = src->port;
+
+	list_for_each(pos, &src->address_list) {
+		addr = list_entry(pos, struct sctp_sockaddr_entry, list);
+		error = sctp_add_bind_addr(dest, &addr->a, 1, gfp);
+		if (error < 0)
+			break;
+	}
+
+	return error;
+}
+
 /* Initialize the SCTP_bind_addr structure for either an endpoint or
  * an association.
  */
@@ -145,7 +171,7 @@ void sctp_bind_addr_free(struct sctp_bind_addr *bp)
 
 /* Add an address to the bind address list in the SCTP_bind_addr structure. */
 int sctp_add_bind_addr(struct sctp_bind_addr *bp, union sctp_addr *new,
-		       __u8 use_as_src, gfp_t gfp)
+		       __u8 addr_state, gfp_t gfp)
 {
 	struct sctp_sockaddr_entry *addr;
 
@@ -162,7 +188,7 @@ int sctp_add_bind_addr(struct sctp_bind_addr *bp, union sctp_addr *new,
 	if (!addr->a.v4.sin_port)
 		addr->a.v4.sin_port = htons(bp->port);
 
-	addr->use_as_src = use_as_src;
+	addr->state = addr_state;
 	addr->valid = 1;
 
 	INIT_LIST_HEAD(&addr->list);
@@ -180,9 +206,7 @@ int sctp_add_bind_addr(struct sctp_bind_addr *bp, union sctp_addr *new,
 /* Delete an address from the bind address list in the SCTP_bind_addr
  * structure.
  */
-int sctp_del_bind_addr(struct sctp_bind_addr *bp, union sctp_addr *del_addr,
-			void fastcall (*rcu_call)(struct rcu_head *head,
-					 void (*func)(struct rcu_head *head)))
+int sctp_del_bind_addr(struct sctp_bind_addr *bp, union sctp_addr *del_addr)
 {
 	struct sctp_sockaddr_entry *addr, *temp;
 
@@ -198,15 +222,10 @@ int sctp_del_bind_addr(struct sctp_bind_addr *bp, union sctp_addr *del_addr,
 		}
 	}
 
-	/* Call the rcu callback provided in the args.  This function is
-	 * called by both BH packet processing and user side socket option
-	 * processing, but it works on different lists in those 2 contexts.
-	 * Each context provides it's own callback, whether call_rcu_bh()
-	 * or call_rcu(), to make sure that we wait for an appropriate time.
-	 */
 	if (addr && !addr->valid) {
-		rcu_call(&addr->rcu, sctp_local_addr_free);
+		call_rcu(&addr->rcu, sctp_local_addr_free);
 		SCTP_DBG_OBJCNT_DEC(addr);
+		return 0;
 	}
 
 	return -EINVAL;
@@ -293,7 +312,7 @@ int sctp_raw_to_bind_addrs(struct sctp_bind_addr *bp, __u8 *raw_addr_list,
 		}
 
 		af->from_addr_param(&addr, rawaddr, htons(port), 0);
-		retval = sctp_add_bind_addr(bp, &addr, 1, gfp);
+		retval = sctp_add_bind_addr(bp, &addr, SCTP_ADDR_SRC, gfp);
 		if (retval) {
 			/* Can't finish building the list, clean up. */
 			sctp_bind_addr_clean(bp);
@@ -332,6 +351,32 @@ int sctp_bind_addr_match(struct sctp_bind_addr *bp,
 	rcu_read_unlock();
 
 	return match;
+}
+
+/* Get the state of the entry in the bind_addr_list */
+int sctp_bind_addr_state(const struct sctp_bind_addr *bp,
+			 const union sctp_addr *addr)
+{
+	struct sctp_sockaddr_entry *laddr;
+	struct sctp_af *af;
+	int state = -1;
+
+	af = sctp_get_af_specific(addr->sa.sa_family);
+	if (unlikely(!af))
+		return state;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(laddr, &bp->address_list, list) {
+		if (!laddr->valid)
+			continue;
+		if (af->cmp_addr(&laddr->a, addr)) {
+			state = laddr->state;
+			break;
+		}
+	}
+	rcu_read_unlock();
+
+	return state;
 }
 
 /* Find the first address in the bind address list that is not present in
@@ -392,7 +437,8 @@ static int sctp_copy_one_addr(struct sctp_bind_addr *dest,
 		    (((AF_INET6 == addr->sa.sa_family) &&
 		      (flags & SCTP_ADDR6_ALLOWED) &&
 		      (flags & SCTP_ADDR6_PEERSUPP))))
-			error = sctp_add_bind_addr(dest, addr, 1, gfp);
+			error = sctp_add_bind_addr(dest, addr, SCTP_ADDR_SRC,
+						    gfp);
 	}
 
 	return error;

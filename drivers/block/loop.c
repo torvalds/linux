@@ -610,7 +610,7 @@ static int loop_thread(void *data)
 static int loop_switch(struct loop_device *lo, struct file *file)
 {
 	struct switch_request w;
-	struct bio *bio = bio_alloc(GFP_KERNEL, 1);
+	struct bio *bio = bio_alloc(GFP_KERNEL, 0);
 	if (!bio)
 		return -ENOMEM;
 	init_completion(&w.wait);

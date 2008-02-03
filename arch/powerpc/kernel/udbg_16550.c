@@ -46,7 +46,7 @@ struct NS16550 {
 
 #define LCR_DLAB 0x80
 
-static volatile struct NS16550 __iomem *udbg_comport;
+static struct NS16550 __iomem *udbg_comport;
 
 static void udbg_550_putc(char c)
 {
@@ -117,7 +117,7 @@ unsigned int udbg_probe_uart_speed(void __iomem *comport, unsigned int clock)
 {
 	unsigned int dll, dlm, divisor, prescaler, speed;
 	u8 old_lcr;
-	volatile struct NS16550 __iomem *port = comport;
+	struct NS16550 __iomem *port = comport;
 
 	old_lcr = in_8(&port->lcr);
 
@@ -162,7 +162,7 @@ void udbg_maple_real_putc(char c)
 
 void __init udbg_init_maple_realmode(void)
 {
-	udbg_comport = (volatile struct NS16550 __iomem *)0xf40003f8;
+	udbg_comport = (struct NS16550 __iomem *)0xf40003f8;
 
 	udbg_putc = udbg_maple_real_putc;
 	udbg_getc = NULL;
@@ -184,7 +184,7 @@ void udbg_pas_real_putc(char c)
 
 void udbg_init_pas_realmode(void)
 {
-	udbg_comport = (volatile struct NS16550 __iomem *)0xfcff03f8UL;
+	udbg_comport = (struct NS16550 __iomem *)0xfcff03f8UL;
 
 	udbg_putc = udbg_pas_real_putc;
 	udbg_getc = NULL;
@@ -219,9 +219,42 @@ static int udbg_44x_as1_getc(void)
 void __init udbg_init_44x_as1(void)
 {
 	udbg_comport =
-		(volatile struct NS16550 __iomem *)PPC44x_EARLY_DEBUG_VIRTADDR;
+		(struct NS16550 __iomem *)PPC44x_EARLY_DEBUG_VIRTADDR;
 
 	udbg_putc = udbg_44x_as1_putc;
 	udbg_getc = udbg_44x_as1_getc;
 }
 #endif /* CONFIG_PPC_EARLY_DEBUG_44x */
+
+#ifdef CONFIG_PPC_EARLY_DEBUG_40x
+static void udbg_40x_real_putc(char c)
+{
+	if (udbg_comport) {
+		while ((real_readb(&udbg_comport->lsr) & LSR_THRE) == 0)
+			/* wait for idle */;
+		real_writeb(c, &udbg_comport->thr); eieio();
+		if (c == '\n')
+			udbg_40x_real_putc('\r');
+	}
+}
+
+static int udbg_40x_real_getc(void)
+{
+	if (udbg_comport) {
+		while ((real_readb(&udbg_comport->lsr) & LSR_DR) == 0)
+			; /* wait for char */
+		return real_readb(&udbg_comport->rbr);
+	}
+	return -1;
+}
+
+void __init udbg_init_40x_realmode(void)
+{
+	udbg_comport = (struct NS16550 __iomem *)
+		CONFIG_PPC_EARLY_DEBUG_40x_PHYSADDR;
+
+	udbg_putc = udbg_40x_real_putc;
+	udbg_getc = udbg_40x_real_getc;
+	udbg_getc_poll = NULL;
+}
+#endif /* CONFIG_PPC_EARLY_DEBUG_40x */

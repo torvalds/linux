@@ -35,7 +35,7 @@ strncpy:
 
 	or	$3, $24, $3	# clear the bits between the last
 	or	$4, $27, $4	# written byte and the last byte in COUNT
-	andnot	$4, $3, $4
+	andnot	$3, $4, $4
 	zap	$1, $4, $1
 
 	stq_u	$1, 0($16)

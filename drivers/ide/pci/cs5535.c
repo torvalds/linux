@@ -1,6 +1,4 @@
 /*
- * linux/drivers/ide/pci/cs5535.c
- *
  * Copyright (C) 2004-2005 Advanced Micro Devices, Inc.
  * Copyright (C)      2007 Bartlomiej Zolnierkiewicz
  *
@@ -49,7 +47,7 @@
 #define ATAC_BM0_PRD		0x04
 #define CS5535_CABLE_DETECT	0x48
 
-/* Format I PIO settings. We seperate out cmd and data for safer timings */
+/* Format I PIO settings. We separate out cmd and data for safer timings */
 
 static unsigned int cs5535_pio_cmd_timings[5] =
 { 0xF7F4, 0x53F3, 0x13F1, 0x5131, 0x1131 };
@@ -157,8 +155,9 @@ static void cs5535_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	cs5535_set_speed(drive, XFER_PIO_0 + pio);
 }
 
-static u8 __devinit cs5535_cable_detect(struct pci_dev *dev)
+static u8 __devinit cs5535_cable_detect(ide_hwif_t *hwif)
 {
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	u8 bit;
 
 	/* if a 80 wire cable was detected */
@@ -180,17 +179,14 @@ static void __devinit init_hwif_cs5535(ide_hwif_t *hwif)
 	hwif->set_pio_mode = &cs5535_set_pio_mode;
 	hwif->set_dma_mode = &cs5535_set_dma_mode;
 
-	if (hwif->dma_base == 0)
-		return;
-
-	hwif->cbl = cs5535_cable_detect(hwif->pci_dev);
+	hwif->cable_detect = cs5535_cable_detect;
 }
 
 static const struct ide_port_info cs5535_chipset __devinitdata = {
 	.name		= "CS5535",
 	.init_hwif	= init_hwif_cs5535,
 	.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_POST_SET_MODE |
-			  IDE_HFLAG_BOOTABLE,
+			  IDE_HFLAG_ABUSE_SET_DMA_MODE | IDE_HFLAG_BOOTABLE,
 	.pio_mask	= ATA_PIO4,
 	.mwdma_mask	= ATA_MWDMA2,
 	.udma_mask	= ATA_UDMA4,

@@ -131,7 +131,7 @@ static void zfcp_close_qdio(struct zfcp_adapter *adapter)
 	debug_text_event(adapter->erp_dbf, 3, "qdio_down2a");
 	while (qdio_shutdown(adapter->ccw_device,
 			     QDIO_FLAG_CLEANUP_USING_CLEAR) == -EINPROGRESS)
-		msleep(1000);
+		ssleep(1);
 	debug_text_event(adapter->erp_dbf, 3, "qdio_down2b");
 
 	/* cleanup used outbound sbals */
@@ -456,7 +456,7 @@ zfcp_test_link(struct zfcp_port *port)
 
 	zfcp_port_get(port);
 	retval = zfcp_erp_adisc(port);
-	if (retval != 0) {
+	if (retval != 0 && retval != -EBUSY) {
 		zfcp_port_put(port);
 		ZFCP_LOG_NORMAL("reopen needed for port 0x%016Lx "
 				"on adapter %s\n ", port->wwpn,
@@ -846,7 +846,8 @@ zfcp_erp_strategy_check_fsfreq(struct zfcp_erp_action *erp_action)
 	if (erp_action->fsf_req) {
 		/* take lock to ensure that request is not deleted meanwhile */
 		spin_lock(&adapter->req_list_lock);
-		if (zfcp_reqlist_find(adapter, erp_action->fsf_req->req_id)) {
+		if (zfcp_reqlist_find_safe(adapter, erp_action->fsf_req) &&
+		    erp_action->fsf_req->erp_action == erp_action) {
 			/* fsf_req still exists */
 			debug_text_event(adapter->erp_dbf, 3, "a_ca_req");
 			debug_event(adapter->erp_dbf, 3, &erp_action->fsf_req,
@@ -977,7 +978,9 @@ static void zfcp_erp_action_dismiss(struct zfcp_erp_action *erp_action)
 	debug_text_event(adapter->erp_dbf, 2, "a_adis");
 	debug_event(adapter->erp_dbf, 2, &erp_action->action, sizeof (int));
 
-	zfcp_erp_async_handler_nolock(erp_action, ZFCP_STATUS_ERP_DISMISSED);
+	erp_action->status |= ZFCP_STATUS_ERP_DISMISSED;
+	if (zfcp_erp_action_exists(erp_action) == ZFCP_ERP_ACTION_RUNNING)
+		zfcp_erp_action_ready(erp_action);
 }
 
 int
@@ -1063,7 +1066,7 @@ zfcp_erp_thread(void *data)
 				 &adapter->status)) {
 
 		write_lock_irqsave(&adapter->erp_lock, flags);
-		next = adapter->erp_ready_head.prev;
+		next = adapter->erp_ready_head.next;
 		write_unlock_irqrestore(&adapter->erp_lock, flags);
 
 		if (next != &adapter->erp_ready_head) {
@@ -1153,15 +1156,13 @@ zfcp_erp_strategy(struct zfcp_erp_action *erp_action)
 
 	/*
 	 * check for dismissed status again to avoid follow-up actions,
-	 * failing of targets and so on for dismissed actions
+	 * failing of targets and so on for dismissed actions,
+	 * we go through down() here because there has been an up()
 	 */
-	retval = zfcp_erp_strategy_check_action(erp_action, retval);
+	if (erp_action->status & ZFCP_STATUS_ERP_DISMISSED)
+		retval = ZFCP_ERP_CONTINUES;
 
 	switch (retval) {
-	case ZFCP_ERP_DISMISSED:
-		/* leave since this action has ridden to its ancestors */
-		debug_text_event(adapter->erp_dbf, 6, "a_st_dis2");
-		goto unlock;
 	case ZFCP_ERP_NOMEM:
 		/* no memory to continue immediately, let it sleep */
 		if (!(erp_action->status & ZFCP_STATUS_ERP_LOWMEM)) {
@@ -1285,7 +1286,7 @@ zfcp_erp_strategy_do_action(struct zfcp_erp_action *erp_action)
 	 * note: no lock in subsequent strategy routines
 	 * (this allows these routine to call schedule, e.g.
 	 * kmalloc with such flags or qdio_initialize & friends)
-	 * Note: in case of timeout, the seperate strategies will fail
+	 * Note: in case of timeout, the separate strategies will fail
 	 * anyhow. No need for a special action. Even worse, a nameserver
 	 * failure would not wake up waiting ports without the call.
 	 */
@@ -1609,7 +1610,6 @@ static void zfcp_erp_scsi_scan(struct work_struct *work)
 	scsi_scan_target(&rport->dev, 0, rport->scsi_target_id,
 			 unit->scsi_lun, 0);
 	atomic_clear_mask(ZFCP_STATUS_UNIT_SCSI_WORK_PENDING, &unit->status);
-	wake_up(&unit->scsi_scan_wq);
 	zfcp_unit_put(unit);
 	kfree(p);
 }
@@ -1900,7 +1900,7 @@ zfcp_erp_adapter_strategy(struct zfcp_erp_action *erp_action)
 		ZFCP_LOG_INFO("Waiting to allow the adapter %s "
 			      "to recover itself\n",
 			      zfcp_get_busid_by_adapter(adapter));
-		msleep(jiffies_to_msecs(ZFCP_TYPE2_RECOVERY_TIME));
+		ssleep(ZFCP_TYPE2_RECOVERY_TIME);
 	}
 
 	return retval;
@@ -2080,7 +2080,7 @@ zfcp_erp_adapter_strategy_open_qdio(struct zfcp_erp_action *erp_action)
 	debug_text_event(adapter->erp_dbf, 3, "qdio_down1a");
 	while (qdio_shutdown(adapter->ccw_device,
 			     QDIO_FLAG_CLEANUP_USING_CLEAR) == -EINPROGRESS)
-		msleep(1000);
+		ssleep(1);
 	debug_text_event(adapter->erp_dbf, 3, "qdio_down1b");
 
  failed_qdio_establish:
@@ -2165,7 +2165,7 @@ zfcp_erp_adapter_strategy_open_fsf_xconfig(struct zfcp_erp_action *erp_action)
 		ZFCP_LOG_DEBUG("host connection still initialising... "
 			       "waiting and retrying...\n");
 		/* sleep a little bit before retry */
-		msleep(jiffies_to_msecs(sleep));
+		ssleep(sleep);
 		sleep *= 2;
 	}
 
@@ -3089,7 +3089,7 @@ zfcp_erp_action_enqueue(int action,
 	++adapter->erp_total_count;
 
 	/* finally put it into 'ready' queue and kick erp thread */
-	list_add(&erp_action->list, &adapter->erp_ready_head);
+	list_add_tail(&erp_action->list, &adapter->erp_ready_head);
 	up(&adapter->erp_ready_sem);
 	retval = 0;
  out:

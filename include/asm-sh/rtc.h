@@ -11,4 +11,6 @@ struct sh_rtc_platform_info {
 	unsigned long capabilities;
 };
 
+#include <asm/cpu/rtc.h>
+
 #endif /* _ASM_RTC_H */

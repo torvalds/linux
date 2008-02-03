@@ -30,9 +30,9 @@ struct rt2x00_dev;
 
 #define RT2X00DEBUGFS_REGISTER_ENTRY(__name, __type)		\
 struct reg##__name {						\
-	void (*read)(const struct rt2x00_dev *rt2x00dev,	\
+	void (*read)(struct rt2x00_dev *rt2x00dev,		\
 		     const unsigned int word, __type *data);	\
-	void (*write)(const struct rt2x00_dev *rt2x00dev,	\
+	void (*write)(struct rt2x00_dev *rt2x00dev,		\
 		      const unsigned int word, __type data);	\
 								\
 	unsigned int word_size;					\

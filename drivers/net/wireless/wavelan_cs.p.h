@@ -459,7 +459,6 @@
 #undef WAVELAN_ROAMING_EXT	/* Enable roaming wireless extensions */
 #undef SET_PSA_CRC		/* Set the CRC in PSA (slower) */
 #define USE_PSA_CONFIG		/* Use info from the PSA */
-#undef STRUCT_CHECK		/* Verify padding of structures */
 #undef EEPROM_IS_PROTECTED	/* Doesn't seem to be necessary */
 #define MULTICAST_AVOID		/* Avoid extra multicast (I'm sceptical) */
 #undef SET_MAC_ADDRESS		/* Experimental */
@@ -548,7 +547,7 @@ typedef struct wavepoint_beacon
 			spec_id2,	/* Unused */
 			pdu_type,	/* Unused */
 			seq;		/* WavePoint beacon sequence number */
-  unsigned short	domain_id,	/* WavePoint Domain ID */
+  __be16		domain_id,	/* WavePoint Domain ID */
 			nwid;		/* WavePoint NWID */
 } wavepoint_beacon;
 

@@ -41,8 +41,7 @@
 #include <linux/workqueue.h>
 #include <linux/mii.h>
 #include <linux/usb.h>
-
-#include "usbnet.h"
+#include <linux/usb/usbnet.h>
 
 #define DRIVER_VERSION		"22-Aug-2005"
 
@@ -683,9 +682,6 @@ done_nopm:
  * they'll probably want to use this base set.
  */
 
-#if defined(CONFIG_MII) || defined(CONFIG_MII_MODULE)
-#define HAVE_MII
-
 int usbnet_get_settings (struct net_device *net, struct ethtool_cmd *cmd)
 {
 	struct usbnet *dev = netdev_priv(net);
@@ -744,8 +740,6 @@ int usbnet_nway_reset(struct net_device *net)
 }
 EXPORT_SYMBOL_GPL(usbnet_nway_reset);
 
-#endif	/* HAVE_MII */
-
 void usbnet_get_drvinfo (struct net_device *net, struct ethtool_drvinfo *info)
 {
 	struct usbnet *dev = netdev_priv(net);
@@ -776,12 +770,10 @@ EXPORT_SYMBOL_GPL(usbnet_set_msglevel);
 
 /* drivers may override default ethtool_ops in their bind() routine */
 static struct ethtool_ops usbnet_ethtool_ops = {
-#ifdef	HAVE_MII
 	.get_settings		= usbnet_get_settings,
 	.set_settings		= usbnet_set_settings,
 	.get_link		= usbnet_get_link,
 	.nway_reset		= usbnet_nway_reset,
-#endif
 	.get_drvinfo		= usbnet_get_drvinfo,
 	.get_msglevel		= usbnet_get_msglevel,
 	.set_msglevel		= usbnet_set_msglevel,
@@ -1211,6 +1203,9 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 		if ((dev->driver_info->flags & FLAG_ETHER) != 0
 				&& (net->dev_addr [0] & 0x02) == 0)
 			strcpy (net->name, "eth%d");
+		/* WLAN devices should always be named "wlan%d" */
+		if ((dev->driver_info->flags & FLAG_WLAN) != 0)
+			strcpy(net->name, "wlan%d");
 
 		/* maybe the remote can't receive an Ethernet MTU */
 		if (net->mtu > (dev->hard_mtu - net->hard_header_len))

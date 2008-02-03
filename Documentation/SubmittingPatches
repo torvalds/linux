@@ -464,8 +464,8 @@ section Linus Computer Science 101.
 Nuff said.  If your code deviates too much from this, it is likely
 to be rejected without further review, and without comment.
 
-Once significant exception is when moving code from one file to
-another in this case you should not modify the moved code at all in
+One significant exception is when moving code from one file to
+another -- in this case you should not modify the moved code at all in
 the same patch which moves it.  This clearly delineates the act of
 moving the code and your changes.  This greatly aids review of the
 actual differences and allows tools to better track the history of

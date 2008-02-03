@@ -57,10 +57,24 @@ struct avr32_cpuinfo {
 	unsigned short cpu_revision;
 	enum tlb_config tlb_config;
 	unsigned long features;
+	u32 device_id;
 
 	struct cache_info icache;
 	struct cache_info dcache;
 };
+
+static inline unsigned int avr32_get_manufacturer_id(struct avr32_cpuinfo *cpu)
+{
+	return (cpu->device_id >> 1) & 0x7f;
+}
+static inline unsigned int avr32_get_product_number(struct avr32_cpuinfo *cpu)
+{
+	return (cpu->device_id >> 12) & 0xffff;
+}
+static inline unsigned int avr32_get_chip_revision(struct avr32_cpuinfo *cpu)
+{
+	return (cpu->device_id >> 28) & 0x0f;
+}
 
 extern struct avr32_cpuinfo boot_cpu_data;
 
@@ -138,6 +152,9 @@ extern unsigned long get_wchan(struct task_struct *p);
 extern void show_regs_log_lvl(struct pt_regs *regs, const char *log_lvl);
 extern void show_stack_log_lvl(struct task_struct *tsk, unsigned long sp,
 			       struct pt_regs *regs, const char *log_lvl);
+
+#define task_pt_regs(p) \
+	((struct pt_regs *)(THREAD_SIZE + task_stack_page(p)) - 1)
 
 #define KSTK_EIP(tsk)	((tsk)->thread.cpu_context.pc)
 #define KSTK_ESP(tsk)	((tsk)->thread.cpu_context.ksp)

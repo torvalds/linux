@@ -65,8 +65,8 @@
 
 #define _NETXEN_NIC_LINUX_MAJOR 3
 #define _NETXEN_NIC_LINUX_MINOR 4
-#define _NETXEN_NIC_LINUX_SUBVERSION 2
-#define NETXEN_NIC_LINUX_VERSIONID  "3.4.2"
+#define _NETXEN_NIC_LINUX_SUBVERSION 18
+#define NETXEN_NIC_LINUX_VERSIONID  "3.4.18"
 
 #define NETXEN_NUM_FLASH_SECTORS (64)
 #define NETXEN_FLASH_SECTOR_SIZE (64 * 1024)
@@ -113,8 +113,8 @@
 #define FLUSH_SCHEDULED_WORK()	flush_workqueue(netxen_workq)
 extern struct workqueue_struct *netxen_workq;
 
-/* 
- * normalize a 64MB crb address to 32MB PCI window 
+/*
+ * normalize a 64MB crb address to 32MB PCI window
  * To use NETXEN_CRB_NORMALIZE, window _must_ be set to 1
  */
 #define NETXEN_CRB_NORMAL(reg)	\
@@ -309,23 +309,26 @@ struct netxen_ring_ctx {
 	((cmd_desc)->port_ctxid |= ((var) & 0xF0))
 
 #define netxen_set_cmd_desc_flags(cmd_desc, val)	\
-	((cmd_desc)->flags_opcode &= ~cpu_to_le16(0x7f), \
-	(cmd_desc)->flags_opcode |= cpu_to_le16((val) & 0x7f))
+	(cmd_desc)->flags_opcode = ((cmd_desc)->flags_opcode & \
+		~cpu_to_le16(0x7f)) | cpu_to_le16((val) & 0x7f)
 #define netxen_set_cmd_desc_opcode(cmd_desc, val)	\
-	((cmd_desc)->flags_opcode &= ~cpu_to_le16(0x3f<<7), \
-	(cmd_desc)->flags_opcode |= cpu_to_le16(((val & 0x3f)<<7)))
+	(cmd_desc)->flags_opcode = ((cmd_desc)->flags_opcode & \
+		~cpu_to_le16((u16)0x3f << 7)) | cpu_to_le16(((val) & 0x3f) << 7)
 
 #define netxen_set_cmd_desc_num_of_buff(cmd_desc, val)	\
-	((cmd_desc)->num_of_buffers_total_length &= ~cpu_to_le32(0xff), \
-	(cmd_desc)->num_of_buffers_total_length |= cpu_to_le32((val) & 0xff))
+	(cmd_desc)->num_of_buffers_total_length = \
+		((cmd_desc)->num_of_buffers_total_length & \
+		~cpu_to_le32(0xff)) | cpu_to_le32((val) & 0xff)
 #define netxen_set_cmd_desc_totallength(cmd_desc, val)	\
-	((cmd_desc)->num_of_buffers_total_length &= ~cpu_to_le32(0xffffff00), \
-	(cmd_desc)->num_of_buffers_total_length |= cpu_to_le32(val << 8))
+	(cmd_desc)->num_of_buffers_total_length = \
+		((cmd_desc)->num_of_buffers_total_length & \
+		~cpu_to_le32((u32)0xffffff << 8)) | \
+		cpu_to_le32(((val) & 0xffffff) << 8)
 
 #define netxen_get_cmd_desc_opcode(cmd_desc)	\
-	((le16_to_cpu((cmd_desc)->flags_opcode) >> 7) & 0x003F)
+	((le16_to_cpu((cmd_desc)->flags_opcode) >> 7) & 0x003f)
 #define netxen_get_cmd_desc_totallength(cmd_desc)	\
-	(le32_to_cpu((cmd_desc)->num_of_buffers_total_length) >> 8)
+	((le32_to_cpu((cmd_desc)->num_of_buffers_total_length) >> 8) & 0xffffff)
 
 struct cmd_desc_type0 {
 	u8 tcp_hdr_offset;	/* For LSO only */
@@ -412,29 +415,29 @@ struct rcv_desc {
 #define netxen_get_sts_desc_lro_last_frag(status_desc)	\
 	(((status_desc)->lro & 0x80) >> 7)
 
-#define netxen_get_sts_port(status_desc)	\
-	(le64_to_cpu((status_desc)->status_desc_data) & 0x0F)
-#define netxen_get_sts_status(status_desc)	\
-	((le64_to_cpu((status_desc)->status_desc_data) >> 4) & 0x0F)
-#define netxen_get_sts_type(status_desc)	\
-	((le64_to_cpu((status_desc)->status_desc_data) >> 8) & 0x0F)
-#define netxen_get_sts_totallength(status_desc)	\
-	((le64_to_cpu((status_desc)->status_desc_data) >> 12) & 0xFFFF)
-#define netxen_get_sts_refhandle(status_desc)	\
-	((le64_to_cpu((status_desc)->status_desc_data) >> 28) & 0xFFFF)
-#define netxen_get_sts_prot(status_desc)	\
-	((le64_to_cpu((status_desc)->status_desc_data) >> 44) & 0x0F)
+#define netxen_get_sts_port(sts_data)	\
+	((sts_data) & 0x0F)
+#define netxen_get_sts_status(sts_data)	\
+	(((sts_data) >> 4) & 0x0F)
+#define netxen_get_sts_type(sts_data)	\
+	(((sts_data) >> 8) & 0x0F)
+#define netxen_get_sts_totallength(sts_data)	\
+	(((sts_data) >> 12) & 0xFFFF)
+#define netxen_get_sts_refhandle(sts_data)	\
+	(((sts_data) >> 28) & 0xFFFF)
+#define netxen_get_sts_prot(sts_data)	\
+	(((sts_data) >> 44) & 0x0F)
+#define netxen_get_sts_opcode(sts_data)	\
+	(((sts_data) >> 58) & 0x03F)
+
 #define netxen_get_sts_owner(status_desc)	\
 	((le64_to_cpu((status_desc)->status_desc_data) >> 56) & 0x03)
-#define netxen_get_sts_opcode(status_desc)	\
-	((le64_to_cpu((status_desc)->status_desc_data) >> 58) & 0x03F)
-
-#define netxen_clear_sts_owner(status_desc)	\
-	((status_desc)->status_desc_data &=	\
-	~cpu_to_le64(((unsigned long long)3) << 56 ))
-#define netxen_set_sts_owner(status_desc, val)	\
-	((status_desc)->status_desc_data |=	\
-	cpu_to_le64(((unsigned long long)((val) & 0x3)) << 56 ))
+#define netxen_set_sts_owner(status_desc, val)	{ \
+	(status_desc)->status_desc_data = \
+		((status_desc)->status_desc_data & \
+		~cpu_to_le64(0x3ULL << 56)) | \
+		cpu_to_le64((u64)((val) & 0x3) << 56); \
+}
 
 struct status_desc {
 	/* Bit pattern: 0-3 port, 4-7 status, 8-11 type, 12-27 total_length
@@ -733,11 +736,11 @@ struct netxen_skb_frag {
 	(config_word) &= ~__tmask;      \
 	(config_word) |= (((__tvalue) << (start)) & __tmask); \
 }
-	
+
 #define _netxen_clear_bits(config_word, start, bits) {\
 	unsigned long long __tmask = (((1ULL << (bits)) - 1) << (start));  \
 	(config_word) &= ~__tmask; \
-}		
+}
 
 /*    Following defines are for the state of the buffers    */
 #define	NETXEN_BUFFER_FREE	0
@@ -876,7 +879,7 @@ struct netxen_dummy_dma {
 
 struct netxen_adapter {
 	struct netxen_hardware_context ahw;
-	
+
 	struct netxen_adapter *master;
 	struct net_device *netdev;
 	struct pci_dev *pdev;
@@ -895,7 +898,7 @@ struct netxen_adapter {
 	u32 curr_window;
 
 	u32 cmd_producer;
-	u32 *cmd_consumer;
+	__le32 *cmd_consumer;
 
 	u32 last_cmd_consumer;
 	u32 max_tx_desc_count;
@@ -913,7 +916,7 @@ struct netxen_adapter {
 	u32 temp;
 
 	struct netxen_adapter_stats stats;
-	
+
 	u16 portno;
 	u16 link_speed;
 	u16 link_duplex;
@@ -1015,14 +1018,8 @@ int netxen_niu_xgbe_enable_phy_interrupts(struct netxen_adapter *adapter);
 int netxen_niu_gbe_enable_phy_interrupts(struct netxen_adapter *adapter);
 int netxen_niu_xgbe_disable_phy_interrupts(struct netxen_adapter *adapter);
 int netxen_niu_gbe_disable_phy_interrupts(struct netxen_adapter *adapter);
-int netxen_niu_xgbe_clear_phy_interrupts(struct netxen_adapter *adapter);
-int netxen_niu_gbe_clear_phy_interrupts(struct netxen_adapter *adapter);
 void netxen_nic_xgbe_handle_phy_intr(struct netxen_adapter *adapter);
 void netxen_nic_gbe_handle_phy_intr(struct netxen_adapter *adapter);
-void netxen_niu_gbe_set_mii_mode(struct netxen_adapter *adapter, int port,
-				 long enable);
-void netxen_niu_gbe_set_gmii_mode(struct netxen_adapter *adapter, int port,
-				  long enable);
 int netxen_niu_gbe_phy_read(struct netxen_adapter *adapter, long reg,
 			    __u32 * readval);
 int netxen_niu_gbe_phy_write(struct netxen_adapter *adapter,
@@ -1045,7 +1042,6 @@ int netxen_nic_hw_write_wx(struct netxen_adapter *adapter, u64 off, void *data,
 			   int len);
 void netxen_crb_writelit_adapter(struct netxen_adapter *adapter,
 				 unsigned long off, int data);
-int netxen_nic_erase_pxe(struct netxen_adapter *adapter);
 
 /* Functions from netxen_nic_init.c */
 void netxen_free_adapter_offload(struct netxen_adapter *adapter);
@@ -1054,9 +1050,9 @@ int netxen_phantom_init(struct netxen_adapter *adapter, int pegtune_val);
 int netxen_load_firmware(struct netxen_adapter *adapter);
 int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose);
 int netxen_rom_fast_read(struct netxen_adapter *adapter, int addr, int *valp);
-int netxen_rom_fast_read_words(struct netxen_adapter *adapter, int addr, 
+int netxen_rom_fast_read_words(struct netxen_adapter *adapter, int addr,
 				u8 *bytes, size_t size);
-int netxen_rom_fast_write_words(struct netxen_adapter *adapter, int addr, 
+int netxen_rom_fast_write_words(struct netxen_adapter *adapter, int addr,
 				u8 *bytes, size_t size);
 int netxen_flash_unlock(struct netxen_adapter *adapter);
 int netxen_backup_crbinit(struct netxen_adapter *adapter);
@@ -1064,15 +1060,10 @@ int netxen_flash_erase_secondary(struct netxen_adapter *adapter);
 int netxen_flash_erase_primary(struct netxen_adapter *adapter);
 void netxen_halt_pegs(struct netxen_adapter *adapter);
 
-int netxen_rom_fast_write(struct netxen_adapter *adapter, int addr, int data);
 int netxen_rom_se(struct netxen_adapter *adapter, int addr);
-int netxen_do_rom_se(struct netxen_adapter *adapter, int addr);
 
 /* Functions from netxen_nic_isr.c */
 int netxen_nic_link_ok(struct netxen_adapter *adapter);
-void netxen_nic_isr_other(struct netxen_adapter *adapter);
-void netxen_indicate_link_status(struct netxen_adapter *adapter, u32 link);
-void netxen_handle_port_int(struct netxen_adapter *adapter, u32 enable);
 void netxen_initialize_adapter_sw(struct netxen_adapter *adapter);
 void netxen_initialize_adapter_hw(struct netxen_adapter *adapter);
 void *netxen_alloc(struct pci_dev *pdev, size_t sz, dma_addr_t * ptr,
@@ -1089,8 +1080,6 @@ int netxen_nic_tx_has_work(struct netxen_adapter *adapter);
 void netxen_watchdog_task(struct work_struct *work);
 void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx,
 			    u32 ringid);
-void netxen_post_rx_buffers_nodb(struct netxen_adapter *adapter, u32 ctx,
-				 u32 ringid);
 int netxen_process_cmd_ring(unsigned long data);
 u32 netxen_process_rcv_ring(struct netxen_adapter *adapter, int ctx, int max);
 void netxen_nic_set_multi(struct net_device *netdev);
@@ -1206,7 +1195,7 @@ dma_watchdog_wakeup(struct netxen_adapter *adapter)
 
 
 int netxen_is_flash_supported(struct netxen_adapter *adapter);
-int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, u64 mac[]);
+int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, __le64 mac[]);
 extern void netxen_change_ringparam(struct netxen_adapter *adapter);
 extern int netxen_rom_fast_read(struct netxen_adapter *adapter, int addr,
 				int *valp);

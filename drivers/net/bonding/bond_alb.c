@@ -979,13 +979,15 @@ static void alb_swap_mac_addr(struct bonding *bond, struct slave *slave1, struct
 /*
  * Send learning packets after MAC address swap.
  *
- * Called with RTNL and bond->lock held for read.
+ * Called with RTNL and no other locks
  */
 static void alb_fasten_mac_swap(struct bonding *bond, struct slave *slave1,
 				struct slave *slave2)
 {
 	int slaves_state_differ = (SLAVE_IS_OK(slave1) != SLAVE_IS_OK(slave2));
 	struct slave *disabled_slave = NULL;
+
+	ASSERT_RTNL();
 
 	/* fasten the change in the switch */
 	if (SLAVE_IS_OK(slave1)) {
@@ -1031,7 +1033,7 @@ static void alb_fasten_mac_swap(struct bonding *bond, struct slave *slave1,
  * a slave that has @slave's permanet address as its current address.
  * We'll make sure that that slave no longer uses @slave's permanent address.
  *
- * Caller must hold bond lock
+ * Caller must hold RTNL and no other locks
  */
 static void alb_change_hw_addr_on_detach(struct bonding *bond, struct slave *slave)
 {
@@ -1542,7 +1544,12 @@ int bond_alb_init_slave(struct bonding *bond, struct slave *slave)
 	return 0;
 }
 
-/* Caller must hold bond lock for write */
+/*
+ * Remove slave from tlb and rlb hash tables, and fix up MAC addresses
+ * if necessary.
+ *
+ * Caller must hold RTNL and no other locks
+ */
 void bond_alb_deinit_slave(struct bonding *bond, struct slave *slave)
 {
 	if (bond->slave_cnt > 1) {
@@ -1601,9 +1608,6 @@ void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave
 	struct slave *swap_slave;
 	int i;
 
-	if (new_slave)
-		ASSERT_RTNL();
-
 	if (bond->curr_active_slave == new_slave) {
 		return;
 	}
@@ -1649,6 +1653,8 @@ void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave
 	write_unlock_bh(&bond->curr_slave_lock);
 	read_unlock(&bond->lock);
 
+	ASSERT_RTNL();
+
 	/* curr_active_slave must be set before calling alb_swap_mac_addr */
 	if (swap_slave) {
 		/* swap mac address */
@@ -1659,12 +1665,11 @@ void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave
 				       bond->alb_info.rlb_enabled);
 	}
 
-	read_lock(&bond->lock);
-
 	if (swap_slave) {
 		alb_fasten_mac_swap(bond, swap_slave, new_slave);
+		read_lock(&bond->lock);
 	} else {
-		/* fasten bond mac on new current slave */
+		read_lock(&bond->lock);
 		alb_send_learning_packets(new_slave, bond->dev->dev_addr);
 	}
 

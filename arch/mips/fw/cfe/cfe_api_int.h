@@ -15,28 +15,12 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-
-/*  *********************************************************************
-    *
-    *  Broadcom Common Firmware Environment (CFE)
-    *
-    *  Device function prototypes		File: cfe_api_int.h
-    *
-    *  This header defines all internal types and macros for the
-    *  library.  This is stuff that's not exported to an app
-    *  using the library.
-    *
-    *  Authors:  Mitch Lichtenberg, Chris Demetriou
-    *
-    ********************************************************************* */
-
 #ifndef CFE_API_INT_H
 #define CFE_API_INT_H
 
-/*  *********************************************************************
-    *  Constants
-    ********************************************************************* */
-
+/*
+ * Constants.
+ */
 #define CFE_CMD_FW_GETINFO	0
 #define CFE_CMD_FW_RESTART	1
 #define CFE_CMD_FW_BOOT		2
@@ -64,89 +48,101 @@
 
 #define CFE_CMD_VENDOR_USE	0x8000	/* codes above this are for customer use */
 
-/*  *********************************************************************
-    *  Structures
-    ********************************************************************* */
+/*
+ * Structures.
+ */
 
-typedef uint64_t cfe_xuint_t;
-typedef int64_t cfe_xint_t;
-typedef int64_t cfe_xptr_t;
+/* eeek, signed "pointers" */
+typedef s64 cfe_xptr_t;
 
-typedef struct xiocb_buffer_s {
-	cfe_xuint_t buf_offset;		/* offset on device (bytes) */
+struct xiocb_buffer {
+	u64 buf_offset;		/* offset on device (bytes) */
 	cfe_xptr_t  buf_ptr;		/* pointer to a buffer */
-	cfe_xuint_t buf_length;		/* length of this buffer */
-	cfe_xuint_t buf_retlen;		/* returned length (for read ops) */
-	cfe_xuint_t buf_ioctlcmd;	/* IOCTL command (used only for IOCTLs) */
-} xiocb_buffer_t;
+	u64 buf_length;		/* length of this buffer */
+	u64 buf_retlen;		/* returned length (for read ops) */
+	u64 buf_ioctlcmd;	/* IOCTL command (used only for IOCTLs) */
+};
 
-#define buf_devflags buf_ioctlcmd	/* returned device info flags */
+struct xiocb_inpstat {
+	u64 inp_status;		/* 1 means input available */
+};
 
-typedef struct xiocb_inpstat_s {
-	cfe_xuint_t inp_status;		/* 1 means input available */
-} xiocb_inpstat_t;
-
-typedef struct xiocb_envbuf_s {
-	cfe_xint_t enum_idx;		/* 0-based enumeration index */
+struct xiocb_envbuf {
+	s64 enum_idx;		/* 0-based enumeration index */
 	cfe_xptr_t name_ptr;		/* name string buffer */
-	cfe_xint_t name_length;		/* size of name buffer */
+	s64 name_length;		/* size of name buffer */
 	cfe_xptr_t val_ptr;		/* value string buffer */
-	cfe_xint_t val_length;		/* size of value string buffer */
-} xiocb_envbuf_t;
+	s64 val_length;		/* size of value string buffer */
+};
 
-typedef struct xiocb_cpuctl_s {
-	cfe_xuint_t cpu_number;		/* cpu number to control */
-	cfe_xuint_t cpu_command;	/* command to issue to CPU */
-	cfe_xuint_t start_addr;		/* CPU start address */
-	cfe_xuint_t gp_val;		/* starting GP value */
-	cfe_xuint_t sp_val;		/* starting SP value */
-	cfe_xuint_t a1_val;		/* starting A1 value */
-} xiocb_cpuctl_t;
+struct xiocb_cpuctl {
+	u64 cpu_number;		/* cpu number to control */
+	u64 cpu_command;	/* command to issue to CPU */
+	u64 start_addr;		/* CPU start address */
+	u64 gp_val;		/* starting GP value */
+	u64 sp_val;		/* starting SP value */
+	u64 a1_val;		/* starting A1 value */
+};
 
-typedef struct xiocb_time_s {
-	cfe_xint_t ticks;		/* current time in ticks */
-} xiocb_time_t;
+struct xiocb_time {
+	s64 ticks;		/* current time in ticks */
+};
 
-typedef struct xiocb_exitstat_s {
-	cfe_xint_t status;
-} xiocb_exitstat_t;
+struct xiocb_exitstat{
+	s64 status;
+};
 
-typedef struct xiocb_meminfo_s {
-	cfe_xint_t mi_idx;		/* 0-based enumeration index */
-	cfe_xint_t mi_type;		/* type of memory block */
-	cfe_xuint_t mi_addr;		/* physical start address */
-	cfe_xuint_t mi_size;		/* block size */
-} xiocb_meminfo_t;
+struct xiocb_meminfo {
+	s64 mi_idx;		/* 0-based enumeration index */
+	s64 mi_type;		/* type of memory block */
+	u64 mi_addr;		/* physical start address */
+	u64 mi_size;		/* block size */
+};
 
-typedef struct xiocb_fwinfo_s {
-	cfe_xint_t fwi_version;		/* major, minor, eco version */
-	cfe_xint_t fwi_totalmem;	/* total installed mem */
-	cfe_xint_t fwi_flags;		/* various flags */
-	cfe_xint_t fwi_boardid;		/* board ID */
-	cfe_xint_t fwi_bootarea_va;	/* VA of boot area */
-	cfe_xint_t fwi_bootarea_pa;	/* PA of boot area */
-	cfe_xint_t fwi_bootarea_size;	/* size of boot area */
-	cfe_xint_t fwi_reserved1;
-	cfe_xint_t fwi_reserved2;
-	cfe_xint_t fwi_reserved3;
-} xiocb_fwinfo_t;
+struct xiocb_fwinfo {
+	s64 fwi_version;		/* major, minor, eco version */
+	s64 fwi_totalmem;	/* total installed mem */
+	s64 fwi_flags;		/* various flags */
+	s64 fwi_boardid;		/* board ID */
+	s64 fwi_bootarea_va;	/* VA of boot area */
+	s64 fwi_bootarea_pa;	/* PA of boot area */
+	s64 fwi_bootarea_size;	/* size of boot area */
+	s64 fwi_reserved1;
+	s64 fwi_reserved2;
+	s64 fwi_reserved3;
+};
 
-typedef struct cfe_xiocb_s {
-	cfe_xuint_t xiocb_fcode;	/* IOCB function code */
-	cfe_xint_t xiocb_status;	/* return status */
-	cfe_xint_t xiocb_handle;	/* file/device handle */
-	cfe_xuint_t xiocb_flags;	/* flags for this IOCB */
-	cfe_xuint_t xiocb_psize;	/* size of parameter list */
+struct cfe_xiocb {
+	u64 xiocb_fcode;	/* IOCB function code */
+	s64 xiocb_status;	/* return status */
+	s64 xiocb_handle;	/* file/device handle */
+	u64 xiocb_flags;	/* flags for this IOCB */
+	u64 xiocb_psize;	/* size of parameter list */
 	union {
-		xiocb_buffer_t xiocb_buffer;	/* buffer parameters */
-		xiocb_inpstat_t xiocb_inpstat;	/* input status parameters */
-		xiocb_envbuf_t xiocb_envbuf;	/* environment function parameters */
-		xiocb_cpuctl_t xiocb_cpuctl;	/* CPU control parameters */
-		xiocb_time_t xiocb_time;	/* timer parameters */
-		xiocb_meminfo_t xiocb_meminfo;	/* memory arena info parameters */
-		xiocb_fwinfo_t xiocb_fwinfo;	/* firmware information */
-		xiocb_exitstat_t xiocb_exitstat;	/* Exit Status */
-	} plist;
-} cfe_xiocb_t;
+		/* buffer parameters */
+		struct xiocb_buffer xiocb_buffer;
 
-#endif				/* CFE_API_INT_H */
+		/* input status parameters */
+		struct xiocb_inpstat xiocb_inpstat;
+
+		/* environment function parameters */
+		struct xiocb_envbuf xiocb_envbuf;
+
+		/* CPU control parameters */
+		struct xiocb_cpuctl xiocb_cpuctl;
+
+		/* timer parameters */
+		struct xiocb_time xiocb_time;
+
+		/* memory arena info parameters */
+		struct xiocb_meminfo xiocb_meminfo;
+
+		/* firmware information */
+		struct xiocb_fwinfo xiocb_fwinfo;
+
+		/* Exit Status */
+		struct xiocb_exitstat xiocb_exitstat;
+	} plist;
+};
+
+#endif /* CFE_API_INT_H */

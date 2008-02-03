@@ -3,6 +3,11 @@
  *
  * Driver for PowerPC 4xx on-chip ethernet controller, debug print routines.
  *
+ * Copyright 2007 Benjamin Herrenschmidt, IBM Corp.
+ *                <benh@kernel.crashing.org>
+ *
+ * Based on the arch/ppc version of the driver:
+ *
  * Copyright (c) 2004, 2005 Zultys Technologies
  * Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>
  *
@@ -21,7 +26,7 @@
 
 #include "core.h"
 
-static spinlock_t emac_dbg_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(emac_dbg_lock);
 
 static void emac_desc_dump(struct emac_instance *p)
 {

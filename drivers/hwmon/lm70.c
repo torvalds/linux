@@ -31,14 +31,15 @@
 #include <linux/err.h>
 #include <linux/sysfs.h>
 #include <linux/hwmon.h>
+#include <linux/mutex.h>
 #include <linux/spi/spi.h>
-#include <asm/semaphore.h>
+
 
 #define DRVNAME		"lm70"
 
 struct lm70 {
 	struct device *hwmon_dev;
-	struct semaphore sem;
+	struct mutex lock;
 };
 
 /* sysfs hook function */
@@ -51,7 +52,7 @@ static ssize_t lm70_sense_temp(struct device *dev,
 	s16 raw=0;
 	struct lm70 *p_lm70 = dev_get_drvdata(&spi->dev);
 
-	if (down_interruptible(&p_lm70->sem))
+	if (mutex_lock_interruptible(&p_lm70->lock))
 		return -ERESTARTSYS;
 
 	/*
@@ -83,7 +84,7 @@ static ssize_t lm70_sense_temp(struct device *dev,
 	val = ((int)raw/32) * 250;
 	status = sprintf(buf, "%d\n", val); /* millidegrees Celsius */
 out:
-	up(&p_lm70->sem);
+	mutex_unlock(&p_lm70->lock);
 	return status;
 }
 
@@ -112,7 +113,7 @@ static int __devinit lm70_probe(struct spi_device *spi)
 	if (!p_lm70)
 		return -ENOMEM;
 
-	init_MUTEX(&p_lm70->sem);
+	mutex_init(&p_lm70->lock);
 
 	/* sysfs hook */
 	p_lm70->hwmon_dev = hwmon_device_register(&spi->dev);

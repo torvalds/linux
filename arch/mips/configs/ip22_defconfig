@@ -25,7 +25,6 @@ CONFIG_ZONE_DMA=y
 # CONFIG_PNX8550_STB810 is not set
 # CONFIG_PMC_MSP is not set
 # CONFIG_PMC_YOSEMITE is not set
-# CONFIG_QEMU is not set
 CONFIG_SGI_IP22=y
 # CONFIG_SGI_IP27 is not set
 # CONFIG_SGI_IP32 is not set
@@ -36,7 +35,6 @@ CONFIG_SGI_IP22=y
 # CONFIG_SIBYTE_SWARM is not set
 # CONFIG_SIBYTE_LITTLESUR is not set
 # CONFIG_SIBYTE_SENTOSA is not set
-# CONFIG_SIBYTE_PTSWARM is not set
 # CONFIG_SIBYTE_BIGSUR is not set
 # CONFIG_SNI_RM is not set
 # CONFIG_TOSHIBA_JMR3927 is not set

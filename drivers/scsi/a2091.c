@@ -73,18 +73,9 @@ static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 	}
 
 	if (!dir_in) {
-	    /* copy to bounce buffer for a write */
-	    if (cmd->use_sg)
-#if 0
-		panic ("scsi%ddma: incomplete s/g support",
-		       instance->host_no);
-#else
+		/* copy to bounce buffer for a write */
 		memcpy (HDATA(instance)->dma_bounce_buffer,
 			cmd->SCp.ptr, cmd->SCp.this_residual);
-#endif
-	    else
-		memcpy (HDATA(instance)->dma_bounce_buffer,
-			cmd->request_buffer, cmd->request_bufflen);
 	}
     }
 
@@ -144,30 +135,13 @@ static void dma_stop(struct Scsi_Host *instance, struct scsi_cmnd *SCpnt,
 
     /* copy from a bounce buffer, if necessary */
     if (status && HDATA(instance)->dma_bounce_buffer) {
-	if (SCpnt && SCpnt->use_sg) {
-#if 0
-	    panic ("scsi%d: incomplete s/g support",
-		   instance->host_no);
-#else
-	    if( HDATA(instance)->dma_dir )
+	if( HDATA(instance)->dma_dir )
 		memcpy (SCpnt->SCp.ptr, 
 			HDATA(instance)->dma_bounce_buffer,
 			SCpnt->SCp.this_residual);
-	    kfree (HDATA(instance)->dma_bounce_buffer);
-	    HDATA(instance)->dma_bounce_buffer = NULL;
-	    HDATA(instance)->dma_bounce_len = 0;
-	    
-#endif
-	} else {
-	    if (HDATA(instance)->dma_dir && SCpnt)
-		memcpy (SCpnt->request_buffer,
-			HDATA(instance)->dma_bounce_buffer,
-			SCpnt->request_bufflen);
-
-	    kfree (HDATA(instance)->dma_bounce_buffer);
-	    HDATA(instance)->dma_bounce_buffer = NULL;
-	    HDATA(instance)->dma_bounce_len = 0;
-	}
+	kfree (HDATA(instance)->dma_bounce_buffer);
+	HDATA(instance)->dma_bounce_buffer = NULL;
+	HDATA(instance)->dma_bounce_len = 0;
     }
 }
 

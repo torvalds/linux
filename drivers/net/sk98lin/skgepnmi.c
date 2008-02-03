@@ -383,23 +383,11 @@ int Level)		/* Initialization level */
 			SK_ERR_LOG(pAC, SK_ERRCL_SW, SK_PNMI_ERR049, SK_PNMI_ERR049MSG);
 
 			SK_DBG_MSG(pAC, SK_DBGMOD_PNMI, SK_DBGCAT_INIT | SK_DBGCAT_FATAL,
-					   ("CounterOffset struct size (%d) differs from"
+					   ("CounterOffset struct size (%d) differs from "
 						"SK_PNMI_MAX_IDX (%d)\n",
 						SK_PNMI_CNT_NO, SK_PNMI_MAX_IDX));
 		}
 
-		if (SK_PNMI_MAX_IDX !=
-			(sizeof(StatAddr) / (sizeof(SK_PNMI_STATADDR) * SK_PNMI_MAC_TYPES))) {
-			
-			SK_ERR_LOG(pAC, SK_ERRCL_SW, SK_PNMI_ERR050, SK_PNMI_ERR050MSG);
-
-			SK_DBG_MSG(pAC, SK_DBGMOD_PNMI, SK_DBGCAT_INIT | SK_DBGCAT_FATAL,
-					   ("StatAddr table size (%d) differs from "
-						"SK_PNMI_MAX_IDX (%d)\n",
-						(sizeof(StatAddr) /
-						 (sizeof(SK_PNMI_STATADDR) * SK_PNMI_MAC_TYPES)),
-						 SK_PNMI_MAX_IDX));
-		}
 #endif /* SK_PNMI_CHECK */
 		break;
 

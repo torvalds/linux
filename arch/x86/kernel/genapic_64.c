@@ -24,18 +24,11 @@
 #include <acpi/acpi_bus.h>
 #endif
 
-/*
- * which logical CPU number maps to which CPU (physical APIC ID)
- *
- * The following static array is used during kernel startup
- * and the x86_cpu_to_apicid_ptr contains the address of the
- * array during this time.  Is it zeroed when the per_cpu
- * data area is removed.
- */
-u8 x86_cpu_to_apicid_init[NR_CPUS] __initdata
+/* which logical CPU number maps to which CPU (physical APIC ID) */
+u16 x86_cpu_to_apicid_init[NR_CPUS] __initdata
 					= { [0 ... NR_CPUS-1] = BAD_APICID };
-void *x86_cpu_to_apicid_ptr;
-DEFINE_PER_CPU(u8, x86_cpu_to_apicid) = BAD_APICID;
+void *x86_cpu_to_apicid_early_ptr;
+DEFINE_PER_CPU(u16, x86_cpu_to_apicid) = BAD_APICID;
 EXPORT_PER_CPU_SYMBOL(x86_cpu_to_apicid);
 
 struct genapic __read_mostly *genapic = &apic_flat;

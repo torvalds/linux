@@ -1148,7 +1148,7 @@ static int __devinit setup_diva_isapnp(struct IsdnCard *card)
 
 #endif	/* ISAPNP */
 
-#ifdef CONFIG_PCI
+#ifdef CONFIG_PCI_LEGACY
 static struct pci_dev *dev_diva __devinitdata = NULL;
 static struct pci_dev *dev_diva_u __devinitdata = NULL;
 static struct pci_dev *dev_diva201 __devinitdata = NULL;
@@ -1229,14 +1229,14 @@ static int __devinit setup_diva_pci(struct IsdnCard *card)
 	return (1);		/* card found */
 }
 
-#else	/* if !CONFIG_PCI */
+#else	/* if !CONFIG_PCI_LEGACY */
 
 static int __devinit setup_diva_pci(struct IsdnCard *card)
 {
 	return (-1);	/* card not found; continue search */
 }
 
-#endif	/* CONFIG_PCI */
+#endif	/* CONFIG_PCI_LEGACY */
 
 int __devinit
 setup_diva(struct IsdnCard *card)

@@ -10,6 +10,8 @@
  * ioctls.
  */
 
+#include <linux/joystick.h>
+
 #include <linux/types.h>
 #include <linux/compat.h>
 #include <linux/kernel.h>
@@ -322,7 +324,7 @@ static int dev_ifname32(unsigned int fd, unsigned int cmd, unsigned long arg)
 	int err;
 
 	uifr = compat_alloc_user_space(sizeof(struct ifreq));
-	if (copy_in_user(uifr, compat_ptr(arg), sizeof(struct ifreq32)));
+	if (copy_in_user(uifr, compat_ptr(arg), sizeof(struct ifreq32)))
 		return -EFAULT;
 
 	err = sys_ioctl(fd, SIOCGIFNAME, (unsigned long)uifr);
@@ -1374,7 +1376,7 @@ static int do_atm_ioctl(unsigned int fd, unsigned int cmd32, unsigned long arg)
         return -EINVAL;
 }
 
-static __attribute_used__ int 
+static __used int
 ret_einval(unsigned int fd, unsigned int cmd, unsigned long arg)
 {
 	return -EINVAL;
@@ -1954,6 +1956,12 @@ ULONG_IOCTL(TIOCSCTTY)
 COMPATIBLE_IOCTL(TIOCGPTN)
 COMPATIBLE_IOCTL(TIOCSPTLCK)
 COMPATIBLE_IOCTL(TIOCSERGETLSR)
+#ifdef TCGETS2
+COMPATIBLE_IOCTL(TCGETS2)
+COMPATIBLE_IOCTL(TCSETS2)
+COMPATIBLE_IOCTL(TCSETSW2)
+COMPATIBLE_IOCTL(TCSETSF2)
+#endif
 /* Little f */
 COMPATIBLE_IOCTL(FIOCLEX)
 COMPATIBLE_IOCTL(FIONCLEX)
@@ -2635,6 +2643,12 @@ COMPATIBLE_IOCTL(VIDEO_GET_NAVI)
 COMPATIBLE_IOCTL(VIDEO_SET_ATTRIBUTES)
 COMPATIBLE_IOCTL(VIDEO_GET_SIZE)
 COMPATIBLE_IOCTL(VIDEO_GET_FRAME_RATE)
+
+/* joystick */
+COMPATIBLE_IOCTL(JSIOCGVERSION)
+COMPATIBLE_IOCTL(JSIOCGAXES)
+COMPATIBLE_IOCTL(JSIOCGBUTTONS)
+COMPATIBLE_IOCTL(JSIOCGNAME(0))
 
 /* now things that need handlers */
 HANDLE_IOCTL(MEMREADOOB32, mtd_rw_oob)

@@ -13,6 +13,11 @@
  *
  * 	Added conditional policy language extensions
  *
+ * Updated: Hewlett-Packard <paul.moore@hp.com>
+ *
+ *      Added support for the policy capability bitmap
+ *
+ * Copyright (C) 2007 Hewlett-Packard Development Company, L.P.
  * Copyright (C) 2004-2005 Trusted Computer Solutions, Inc.
  * Copyright (C) 2003 - 2004 Tresys Technology, LLC
  *	This program is free software; you can redistribute it and/or modify
@@ -102,6 +107,11 @@ static struct policydb_compat_info policydb_compat[] = {
 		.sym_num        = SYM_NUM,
 		.ocon_num       = OCON_NUM,
 	},
+	{
+		.version	= POLICYDB_VERSION_POLCAP,
+		.sym_num	= SYM_NUM,
+		.ocon_num	= OCON_NUM,
+	}
 };
 
 static struct policydb_compat_info *policydb_lookup_compat(int version)
@@ -182,6 +192,8 @@ static int policydb_init(struct policydb *p)
 	rc = cond_policydb_init(p);
 	if (rc)
 		goto out_free_symtab;
+
+	ebitmap_init(&p->policycaps);
 
 out:
 	return rc;
@@ -673,8 +685,8 @@ void policydb_destroy(struct policydb *p)
 			ebitmap_destroy(&p->type_attr_map[i]);
 	}
 	kfree(p->type_attr_map);
-
 	kfree(p->undefined_perms);
+	ebitmap_destroy(&p->policycaps);
 
 	return;
 }
@@ -711,6 +723,27 @@ int policydb_load_isids(struct policydb *p, struct sidtab *s)
 	}
 out:
 	return rc;
+}
+
+int policydb_class_isvalid(struct policydb *p, unsigned int class)
+{
+	if (!class || class > p->p_classes.nprim)
+		return 0;
+	return 1;
+}
+
+int policydb_role_isvalid(struct policydb *p, unsigned int role)
+{
+	if (!role || role > p->p_roles.nprim)
+		return 0;
+	return 1;
+}
+
+int policydb_type_isvalid(struct policydb *p, unsigned int type)
+{
+	if (!type || type > p->p_types.nprim)
+		return 0;
+	return 1;
 }
 
 /*
@@ -1260,6 +1293,7 @@ static int mls_read_level(struct mls_level *lp, void *fp)
 		       "categories\n");
 		goto bad;
 	}
+
 	return 0;
 
 bad:
@@ -1532,6 +1566,10 @@ int policydb_read(struct policydb *p, void *fp)
 	p->reject_unknown = !!(le32_to_cpu(buf[1]) & REJECT_UNKNOWN);
 	p->allow_unknown = !!(le32_to_cpu(buf[1]) & ALLOW_UNKNOWN);
 
+	if (p->policyvers >= POLICYDB_VERSION_POLCAP &&
+	    ebitmap_read(&p->policycaps, fp) != 0)
+		goto bad;
+
 	info = policydb_lookup_compat(p->policyvers);
 	if (!info) {
 		printk(KERN_ERR "security:  unable to find policy compat info "
@@ -1563,7 +1601,7 @@ int policydb_read(struct policydb *p, void *fp)
 		p->symtab[i].nprim = nprim;
 	}
 
-	rc = avtab_read(&p->te_avtab, fp, p->policyvers);
+	rc = avtab_read(&p->te_avtab, fp, p);
 	if (rc)
 		goto bad;
 
@@ -1595,6 +1633,12 @@ int policydb_read(struct policydb *p, void *fp)
 		tr->role = le32_to_cpu(buf[0]);
 		tr->type = le32_to_cpu(buf[1]);
 		tr->new_role = le32_to_cpu(buf[2]);
+		if (!policydb_role_isvalid(p, tr->role) ||
+		    !policydb_type_isvalid(p, tr->type) ||
+		    !policydb_role_isvalid(p, tr->new_role)) {
+			rc = -EINVAL;
+			goto bad;
+		}
 		ltr = tr;
 	}
 
@@ -1619,6 +1663,11 @@ int policydb_read(struct policydb *p, void *fp)
 			goto bad;
 		ra->role = le32_to_cpu(buf[0]);
 		ra->new_role = le32_to_cpu(buf[1]);
+		if (!policydb_role_isvalid(p, ra->role) ||
+		    !policydb_role_isvalid(p, ra->new_role)) {
+			rc = -EINVAL;
+			goto bad;
+		}
 		lra = ra;
 	}
 
@@ -1872,9 +1921,19 @@ int policydb_read(struct policydb *p, void *fp)
 				rt->target_class = le32_to_cpu(buf[0]);
 			} else
 				rt->target_class = SECCLASS_PROCESS;
+			if (!policydb_type_isvalid(p, rt->source_type) ||
+			    !policydb_type_isvalid(p, rt->target_type) ||
+			    !policydb_class_isvalid(p, rt->target_class)) {
+				rc = -EINVAL;
+				goto bad;
+			}
 			rc = mls_read_range_helper(&rt->target_range, fp);
 			if (rc)
 				goto bad;
+			if (!mls_range_isvalid(p, &rt->target_range)) {
+				printk(KERN_WARNING "security:  rangetrans:  invalid range\n");
+				goto bad;
+			}
 			lrt = rt;
 		}
 	}

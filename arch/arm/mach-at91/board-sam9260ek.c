@@ -189,7 +189,7 @@ static void __init ek_board_init(void)
 	/* MMC */
 	at91_add_device_mmc(0, &ek_mmc_data);
 	/* I2C */
-	at91_add_device_i2c();
+	at91_add_device_i2c(NULL, 0);
 }
 
 MACHINE_START(AT91SAM9260EK, "Atmel AT91SAM9260-EK")

@@ -450,7 +450,7 @@ enum sctp_sn_type {
 	SCTP_SHUTDOWN_EVENT,
 	SCTP_PARTIAL_DELIVERY_EVENT,
 	SCTP_ADAPTATION_INDICATION,
-	SCTP_AUTHENTICATION_EVENT,
+	SCTP_AUTHENTICATION_INDICATION,
 };
 
 /* Notification error codes used to fill up the error fields in some

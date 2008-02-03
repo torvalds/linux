@@ -91,7 +91,7 @@ static int create_port0_egr(struct ipath_devdata *dd)
 	struct ipath_skbinfo *skbinfo;
 	int ret;
 
-	egrcnt = dd->ipath_rcvegrcnt;
+	egrcnt = dd->ipath_p0_rcvegrcnt;
 
 	skbinfo = vmalloc(sizeof(*dd->ipath_port0_skbinfo) * egrcnt);
 	if (skbinfo == NULL) {
@@ -244,8 +244,7 @@ static int init_chip_first(struct ipath_devdata *dd,
 	 * cfgports.  We do still check and report a difference, if
 	 * not same (should be impossible).
 	 */
-	dd->ipath_portcnt =
-		ipath_read_kreg32(dd, dd->ipath_kregs->kr_portcnt);
+	dd->ipath_f_config_ports(dd, ipath_cfgports);
 	if (!ipath_cfgports)
 		dd->ipath_cfgports = dd->ipath_portcnt;
 	else if (ipath_cfgports <= dd->ipath_portcnt) {
@@ -272,22 +271,7 @@ static int init_chip_first(struct ipath_devdata *dd,
 		goto done;
 	}
 
-	dd->ipath_lastegrheads = kzalloc(sizeof(*dd->ipath_lastegrheads)
-					 * dd->ipath_cfgports,
-					 GFP_KERNEL);
-	dd->ipath_lastrcvhdrqtails =
-		kzalloc(sizeof(*dd->ipath_lastrcvhdrqtails)
-			* dd->ipath_cfgports, GFP_KERNEL);
-
-	if (!dd->ipath_lastegrheads || !dd->ipath_lastrcvhdrqtails) {
-		ipath_dev_err(dd, "Unable to allocate head arrays, "
-			      "failing\n");
-		ret = -ENOMEM;
-		goto done;
-	}
-
 	pd = create_portdata0(dd);
-
 	if (!pd) {
 		ipath_dev_err(dd, "Unable to allocate portdata for port "
 			      "0, failing\n");
@@ -345,10 +329,10 @@ static int init_chip_first(struct ipath_devdata *dd,
 		       dd->ipath_piobcnt2k, dd->ipath_pio2kbase);
 
 	spin_lock_init(&dd->ipath_tid_lock);
-
+	spin_lock_init(&dd->ipath_sendctrl_lock);
 	spin_lock_init(&dd->ipath_gpio_lock);
 	spin_lock_init(&dd->ipath_eep_st_lock);
-	sema_init(&dd->ipath_eep_sem, 1);
+	mutex_init(&dd->ipath_eep_lock);
 
 done:
 	*pdp = pd;
@@ -372,9 +356,9 @@ static int init_chip_reset(struct ipath_devdata *dd,
 	*pdp = dd->ipath_pd[0];
 	/* ensure chip does no sends or receives while we re-initialize */
 	dd->ipath_control = dd->ipath_sendctrl = dd->ipath_rcvctrl = 0U;
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_rcvctrl, 0);
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl, 0);
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_control, 0);
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_rcvctrl, dd->ipath_rcvctrl);
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl, dd->ipath_sendctrl);
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_control, dd->ipath_control);
 
 	rtmp = ipath_read_kreg32(dd, dd->ipath_kregs->kr_portcnt);
 	if (dd->ipath_portcnt != rtmp)
@@ -487,6 +471,7 @@ static void enable_chip(struct ipath_devdata *dd,
 			struct ipath_portdata *pd, int reinit)
 {
 	u32 val;
+	unsigned long flags;
 	int i;
 
 	if (!reinit)
@@ -495,19 +480,21 @@ static void enable_chip(struct ipath_devdata *dd,
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_rcvctrl,
 			 dd->ipath_rcvctrl);
 
+	spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
 	/* Enable PIO send, and update of PIOavail regs to memory. */
 	dd->ipath_sendctrl = INFINIPATH_S_PIOENABLE |
 		INFINIPATH_S_PIOBUFAVAILUPD;
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
-			 dd->ipath_sendctrl);
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl, dd->ipath_sendctrl);
+	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+	spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
 
 	/*
 	 * enable port 0 receive, and receive interrupt.  other ports
 	 * done as user opens and inits them.
 	 */
-	dd->ipath_rcvctrl = INFINIPATH_R_TAILUPD |
-		(1ULL << INFINIPATH_R_PORTENABLE_SHIFT) |
-		(1ULL << INFINIPATH_R_INTRAVAIL_SHIFT);
+	dd->ipath_rcvctrl = (1ULL << dd->ipath_r_tailupd_shift) |
+		(1ULL << dd->ipath_r_portenable_shift) |
+		(1ULL << dd->ipath_r_intravail_shift);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_rcvctrl,
 			 dd->ipath_rcvctrl);
 
@@ -523,12 +510,11 @@ static void enable_chip(struct ipath_devdata *dd,
 	 */
 	val = ipath_read_ureg32(dd, ur_rcvegrindextail, 0);
 	(void)ipath_write_ureg(dd, ur_rcvegrindexhead, val, 0);
-	dd->ipath_port0head = ipath_read_ureg32(dd, ur_rcvhdrtail, 0);
 
 	/* Initialize so we interrupt on next packet received */
 	(void)ipath_write_ureg(dd, ur_rcvhdrhead,
 			       dd->ipath_rhdrhead_intr_off |
-			       dd->ipath_port0head, 0);
+			       dd->ipath_pd[0]->port_head, 0);
 
 	/*
 	 * by now pioavail updates to memory should have occurred, so
@@ -542,12 +528,8 @@ static void enable_chip(struct ipath_devdata *dd,
 		/*
 		 * Chip Errata bug 6641; even and odd qwords>3 are swapped.
 		 */
-		if (i > 3) {
-			if (i & 1)
-				val = dd->ipath_pioavailregs_dma[i - 1];
-			else
-				val = dd->ipath_pioavailregs_dma[i + 1];
-		}
+		if (i > 3 && (dd->ipath_flags & IPATH_SWAP_PIOBUFS))
+			val = dd->ipath_pioavailregs_dma[i ^ 1];
 		else
 			val = dd->ipath_pioavailregs_dma[i];
 		dd->ipath_pioavailshadow[i] = le64_to_cpu(val);
@@ -690,12 +672,13 @@ done:
  */
 int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 {
-	int ret = 0, i;
+	int ret = 0;
 	u32 val32, kpiobufs;
 	u32 piobufs, uports;
 	u64 val;
 	struct ipath_portdata *pd = NULL; /* keep gcc4 happy */
 	gfp_t gfp_flags = GFP_USER | __GFP_COMP;
+	unsigned long flags;
 
 	ret = init_housekeeping(dd, &pd, reinit);
 	if (ret)
@@ -746,7 +729,7 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 		kpiobufs = ipath_kpiobufs;
 
 	if (kpiobufs + (uports * IPATH_MIN_USER_PORT_BUFCNT) > piobufs) {
-		i = (int) piobufs -
+		int i = (int) piobufs -
 			(int) (uports * IPATH_MIN_USER_PORT_BUFCNT);
 		if (i < 0)
 			i = 0;
@@ -827,8 +810,12 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_hwerrclear,
 			 ~0ULL&~INFINIPATH_HWE_MEMBISTFAILED);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_control, 0ULL);
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
-			 INFINIPATH_S_PIOENABLE);
+
+	spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
+	dd->ipath_sendctrl = INFINIPATH_S_PIOENABLE;
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl, dd->ipath_sendctrl);
+	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+	spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
 
 	/*
 	 * before error clears, since we expect serdes pll errors during

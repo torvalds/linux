@@ -1,6 +1,4 @@
 /*
- * linux/drivers/ide/pci/serverworks.c		Version 0.22	Jun 27 2007
- *
  * Copyright (C) 1998-2000 Michel Aubry
  * Copyright (C) 1998-2000 Andrzej Krzysztofowicz
  * Copyright (C) 1998-2000 Andre Hedrick <andre@linux-ide.org>
@@ -33,12 +31,10 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/ioport.h>
 #include <linux/pci.h>
 #include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/init.h>
-#include <linux/delay.h>
 
 #include <asm/io.h>
 
@@ -67,7 +63,7 @@ static int check_in_drive_lists (ide_drive_t *drive, const char **list)
 
 static u8 svwks_udma_filter(ide_drive_t *drive)
 {
-	struct pci_dev *dev     = HWIF(drive)->pci_dev;
+	struct pci_dev *dev = to_pci_dev(drive->hwif->dev);
 	u8 mask = 0;
 
 	if (dev->device == PCI_DEVICE_ID_SERVERWORKS_HT1000IDE)
@@ -130,7 +126,7 @@ static void svwks_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	static const u8 pio_modes[] = { 0x5d, 0x47, 0x34, 0x22, 0x20 };
 	static const u8 drive_pci[] = { 0x41, 0x40, 0x43, 0x42 };
 
-	struct pci_dev *dev = drive->hwif->pci_dev;
+	struct pci_dev *dev = to_pci_dev(drive->hwif->dev);
 
 	pci_write_config_byte(dev, drive_pci[drive->dn], pio_modes[pio]);
 
@@ -153,7 +149,7 @@ static void svwks_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	static const u8 drive_pci2[]		= { 0x45, 0x44, 0x47, 0x46 };
 
 	ide_hwif_t *hwif	= HWIF(drive);
-	struct pci_dev *dev	= hwif->pci_dev;
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	u8 unit			= (drive->select.b.unit & 0x01);
 
 	u8 ultra_enable	 = 0, ultra_timing = 0, dma_timing = 0;
@@ -164,25 +160,12 @@ static void svwks_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	ultra_timing	&= ~(0x0F << (4*unit));
 	ultra_enable	&= ~(0x01 << drive->dn);
 
-	switch(speed) {
-		case XFER_MW_DMA_2:
-		case XFER_MW_DMA_1:
-		case XFER_MW_DMA_0:
-			dma_timing |= dma_modes[speed - XFER_MW_DMA_0];
-			break;
-
-		case XFER_UDMA_5:
-		case XFER_UDMA_4:
-		case XFER_UDMA_3:
-		case XFER_UDMA_2:
-		case XFER_UDMA_1:
-		case XFER_UDMA_0:
-			dma_timing   |= dma_modes[2];
-			ultra_timing |= ((udma_modes[speed - XFER_UDMA_0]) << (4*unit));
-			ultra_enable |= (0x01 << drive->dn);
-		default:
-			break;
-	}
+	if (speed >= XFER_UDMA_0) {
+		dma_timing   |= dma_modes[2];
+		ultra_timing |= (udma_modes[speed - XFER_UDMA_0] << (4 * unit));
+		ultra_enable |= (0x01 << drive->dn);
+	} else if (speed >= XFER_MW_DMA_0)
+		dma_timing   |= dma_modes[speed - XFER_MW_DMA_0];
 
 	pci_write_config_byte(dev, drive_pci2[drive->dn], dma_timing);
 	pci_write_config_byte(dev, (0x56|hwif->channel), ultra_timing);
@@ -300,7 +283,8 @@ static u8 __devinit ata66_svwks_svwks(ide_hwif_t *hwif)
  */
 static u8 __devinit ata66_svwks_dell(ide_hwif_t *hwif)
 {
-	struct pci_dev *dev = hwif->pci_dev;
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
+
 	if (dev->subsystem_vendor == PCI_VENDOR_ID_DELL &&
 	    dev->vendor	== PCI_VENDOR_ID_SERVERWORKS &&
 	    (dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB5IDE ||
@@ -318,7 +302,8 @@ static u8 __devinit ata66_svwks_dell(ide_hwif_t *hwif)
  */
 static u8 __devinit ata66_svwks_cobalt(ide_hwif_t *hwif)
 {
-	struct pci_dev *dev = hwif->pci_dev;
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
+
 	if (dev->subsystem_vendor == PCI_VENDOR_ID_SUN &&
 	    dev->vendor	== PCI_VENDOR_ID_SERVERWORKS &&
 	    dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB5IDE)
@@ -329,7 +314,7 @@ static u8 __devinit ata66_svwks_cobalt(ide_hwif_t *hwif)
 
 static u8 __devinit ata66_svwks(ide_hwif_t *hwif)
 {
-	struct pci_dev *dev = hwif->pci_dev;
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 
 	/* Server Works */
 	if (dev->subsystem_vendor == PCI_VENDOR_ID_SERVERWORKS)
@@ -353,25 +338,27 @@ static u8 __devinit ata66_svwks(ide_hwif_t *hwif)
 
 static void __devinit init_hwif_svwks (ide_hwif_t *hwif)
 {
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
+
 	hwif->set_pio_mode = &svwks_set_pio_mode;
 	hwif->set_dma_mode = &svwks_set_dma_mode;
 	hwif->udma_filter = &svwks_udma_filter;
 
-	if (!hwif->dma_base)
-		return;
-
-	if (hwif->pci_dev->device != PCI_DEVICE_ID_SERVERWORKS_OSB4IDE) {
-		if (hwif->cbl != ATA_CBL_PATA40_SHORT)
-			hwif->cbl = ata66_svwks(hwif);
-	}
+	if (dev->device != PCI_DEVICE_ID_SERVERWORKS_OSB4IDE)
+		hwif->cable_detect = ata66_svwks;
 }
+
+#define IDE_HFLAGS_SVWKS \
+	(IDE_HFLAG_LEGACY_IRQS | \
+	 IDE_HFLAG_ABUSE_SET_DMA_MODE | \
+	 IDE_HFLAG_BOOTABLE)
 
 static const struct ide_port_info serverworks_chipsets[] __devinitdata = {
 	{	/* 0 */
 		.name		= "SvrWks OSB4",
 		.init_chipset	= init_chipset_svwks,
 		.init_hwif	= init_hwif_svwks,
-		.host_flags	= IDE_HFLAG_LEGACY_IRQS | IDE_HFLAG_BOOTABLE,
+		.host_flags	= IDE_HFLAGS_SVWKS,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= 0x00, /* UDMA is problematic on OSB4 */
@@ -379,7 +366,7 @@ static const struct ide_port_info serverworks_chipsets[] __devinitdata = {
 		.name		= "SvrWks CSB5",
 		.init_chipset	= init_chipset_svwks,
 		.init_hwif	= init_hwif_svwks,
-		.host_flags	= IDE_HFLAG_LEGACY_IRQS | IDE_HFLAG_BOOTABLE,
+		.host_flags	= IDE_HFLAGS_SVWKS,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA5,
@@ -387,7 +374,7 @@ static const struct ide_port_info serverworks_chipsets[] __devinitdata = {
 		.name		= "SvrWks CSB6",
 		.init_chipset	= init_chipset_svwks,
 		.init_hwif	= init_hwif_svwks,
-		.host_flags	= IDE_HFLAG_LEGACY_IRQS | IDE_HFLAG_BOOTABLE,
+		.host_flags	= IDE_HFLAGS_SVWKS,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA5,
@@ -395,8 +382,7 @@ static const struct ide_port_info serverworks_chipsets[] __devinitdata = {
 		.name		= "SvrWks CSB6",
 		.init_chipset	= init_chipset_svwks,
 		.init_hwif	= init_hwif_svwks,
-		.host_flags	= IDE_HFLAG_LEGACY_IRQS | IDE_HFLAG_SINGLE |
-				  IDE_HFLAG_BOOTABLE,
+		.host_flags	= IDE_HFLAGS_SVWKS | IDE_HFLAG_SINGLE,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA5,
@@ -404,8 +390,7 @@ static const struct ide_port_info serverworks_chipsets[] __devinitdata = {
 		.name		= "SvrWks HT1000",
 		.init_chipset	= init_chipset_svwks,
 		.init_hwif	= init_hwif_svwks,
-		.host_flags	= IDE_HFLAG_LEGACY_IRQS | IDE_HFLAG_SINGLE |
-				  IDE_HFLAG_BOOTABLE,
+		.host_flags	= IDE_HFLAGS_SVWKS | IDE_HFLAG_SINGLE,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA5,
@@ -428,7 +413,9 @@ static int __devinit svwks_init_one(struct pci_dev *dev, const struct pci_device
 
 	d = serverworks_chipsets[idx];
 
-	if (idx == 2 || idx == 3) {
+	if (idx == 1)
+		d.host_flags |= IDE_HFLAG_CLEAR_SIMPLEX;
+	else if (idx == 2 || idx == 3) {
 		if ((PCI_FUNC(dev->devfn) & 1) == 0) {
 			if (pci_resource_start(dev, 0) != 0x01f1)
 				d.host_flags &= ~IDE_HFLAG_BOOTABLE;

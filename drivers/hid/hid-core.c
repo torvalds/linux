@@ -26,6 +26,7 @@
 #include <linux/input.h>
 #include <linux/wait.h>
 #include <linux/vmalloc.h>
+#include <linux/sched.h>
 
 #include <linux/hid.h>
 #include <linux/hiddev.h>
@@ -758,7 +759,9 @@ static __inline__ __u32 extract(__u8 *report, unsigned offset, unsigned n)
 {
 	u64 x;
 
-	WARN_ON(n > 32);
+	if (n > 32)
+		printk(KERN_WARNING "HID: extract() called with n (%d) > 32! (%s)\n",
+				n, current->comm);
 
 	report += offset >> 3;  /* adjust byte index */
 	offset &= 7;            /* now only need bit offset into one byte */
@@ -780,8 +783,13 @@ static __inline__ void implement(__u8 *report, unsigned offset, unsigned n, __u3
 	__le64 x;
 	u64 m = (1ULL << n) - 1;
 
-	WARN_ON(n > 32);
+	if (n > 32)
+		printk(KERN_WARNING "HID: implement() called with n (%d) > 32! (%s)\n",
+				n, current->comm);
 
+	if (value > m)
+		printk(KERN_WARNING "HID: implement() called with too large value %d! (%s)\n",
+				value, current->comm);
 	WARN_ON(value > m);
 	value &= m;
 

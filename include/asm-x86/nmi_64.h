@@ -1,6 +1,3 @@
-/*
- *  linux/include/asm-i386/nmi.h
- */
 #ifndef ASM_NMI_H
 #define ASM_NMI_H
 
@@ -41,7 +38,6 @@ extern void die_nmi(char *str, struct pt_regs *regs, int do_panic);
 
 #define get_nmi_reason() inb(0x61)
 
-extern int panic_on_timeout;
 extern int unknown_nmi_panic;
 extern int nmi_watchdog_enabled;
 
@@ -60,7 +56,6 @@ extern void enable_timer_nmi_watchdog(void);
 extern int nmi_watchdog_tick (struct pt_regs * regs, unsigned reason);
 
 extern void nmi_watchdog_default(void);
-extern int setup_nmi_watchdog(char *);
 
 extern atomic_t nmi_active;
 extern unsigned int nmi_watchdog;

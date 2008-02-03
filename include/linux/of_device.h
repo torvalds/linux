@@ -10,8 +10,6 @@
 
 #define	to_of_device(d) container_of(d, struct of_device, dev)
 
-extern const struct of_device_id *of_match_node(
-	const struct of_device_id *matches, const struct device_node *node);
 extern const struct of_device_id *of_match_device(
 	const struct of_device_id *matches, const struct of_device *dev);
 

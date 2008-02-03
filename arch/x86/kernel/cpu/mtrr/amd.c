@@ -53,8 +53,6 @@ static void amd_set_mtrr(unsigned int reg, unsigned long base,
     <base> The base address of the region.
     <size> The size of the region. If this is 0 the region is disabled.
     <type> The type of the region.
-    <do_safe> If TRUE, do the change safely. If FALSE, safety measures should
-    be done externally.
     [RETURNS] Nothing.
 */
 {

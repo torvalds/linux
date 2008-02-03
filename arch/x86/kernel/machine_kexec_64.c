@@ -234,10 +234,5 @@ NORET_TYPE void machine_kexec(struct kimage *image)
 void arch_crash_save_vmcoreinfo(void)
 {
 	VMCOREINFO_SYMBOL(init_level4_pgt);
-
-#ifdef CONFIG_ARCH_DISCONTIGMEM_ENABLE
-	VMCOREINFO_SYMBOL(node_data);
-	VMCOREINFO_LENGTH(node_data, MAX_NUMNODES);
-#endif
 }
 

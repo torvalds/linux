@@ -624,7 +624,7 @@ static int econet_create(struct net *net, struct socket *sock, int protocol)
 	sock->state = SS_UNCONNECTED;
 
 	err = -ENOBUFS;
-	sk = sk_alloc(net, PF_ECONET, GFP_KERNEL, &econet_proto, 1);
+	sk = sk_alloc(net, PF_ECONET, GFP_KERNEL, &econet_proto);
 	if (sk == NULL)
 		goto out;
 
@@ -1014,9 +1014,8 @@ static int __init aun_udp_initialise(void)
 
 	skb_queue_head_init(&aun_queue);
 	spin_lock_init(&aun_queue_lock);
-	init_timer(&ab_cleanup_timer);
+	setup_timer(&ab_cleanup_timer, ab_cleanup, 0);
 	ab_cleanup_timer.expires = jiffies + (HZ*2);
-	ab_cleanup_timer.function = ab_cleanup;
 	add_timer(&ab_cleanup_timer);
 
 	memset(&sin, 0, sizeof(sin));

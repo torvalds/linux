@@ -84,7 +84,7 @@
 
 /* ThinkPad CMOS NVRAM constants */
 #define TP_NVRAM_ADDR_BRIGHTNESS       0x5e
-#define TP_NVRAM_MASK_LEVEL_BRIGHTNESS 0x07
+#define TP_NVRAM_MASK_LEVEL_BRIGHTNESS 0x0f
 #define TP_NVRAM_POS_LEVEL_BRIGHTNESS 0
 
 #define onoff(status,bit) ((status) & (1 << (bit)) ? "on" : "off")
@@ -246,6 +246,7 @@ static struct {
 	u32 hotkey_wlsw:1;
 	u32 light:1;
 	u32 light_status:1;
+	u32 bright_16levels:1;
 	u32 wan:1;
 	u32 fan_ctrl_status_undef:1;
 	u32 input_device_registered:1;
@@ -338,6 +339,7 @@ static int bluetooth_write(char *buf);
 static struct backlight_device *ibm_backlight_device;
 static int brightness_offset = 0x31;
 static int brightness_mode;
+static unsigned int brightness_enable;	/* 0 = no, 1 = yes, 2 = auto */
 
 static int brightness_init(struct ibm_init_struct *iibm);
 static void brightness_exit(void);

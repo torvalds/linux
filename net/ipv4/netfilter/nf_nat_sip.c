@@ -35,9 +35,9 @@ struct addr_map {
 	} addr[IP_CT_DIR_MAX];
 };
 
-static void addr_map_init(struct nf_conn *ct, struct addr_map *map)
+static void addr_map_init(const struct nf_conn *ct, struct addr_map *map)
 {
-	struct nf_conntrack_tuple *t;
+	const struct nf_conntrack_tuple *t;
 	enum ip_conntrack_dir dir;
 	unsigned int n;
 
@@ -165,7 +165,7 @@ static int mangle_content_len(struct sk_buff *skb,
 
 	dataoff = ip_hdrlen(skb) + sizeof(struct udphdr);
 
-	/* Get actual SDP lenght */
+	/* Get actual SDP length */
 	if (ct_sip_get_info(ct, dptr, skb->len - dataoff, &matchoff,
 			    &matchlen, POS_SDP_HEADER) > 0) {
 
@@ -228,15 +228,13 @@ static void ip_nat_sdp_expect(struct nf_conn *ct,
 	range.flags = IP_NAT_RANGE_MAP_IPS;
 	range.min_ip = range.max_ip
 		= ct->master->tuplehash[!exp->dir].tuple.dst.u3.ip;
-	/* hook doesn't matter, but it has to do source manip */
-	nf_nat_setup_info(ct, &range, NF_IP_POST_ROUTING);
+	nf_nat_setup_info(ct, &range, IP_NAT_MANIP_SRC);
 
 	/* For DST manip, map port here to where it's expected. */
 	range.flags = (IP_NAT_RANGE_MAP_IPS | IP_NAT_RANGE_PROTO_SPECIFIED);
 	range.min = range.max = exp->saved_proto;
 	range.min_ip = range.max_ip = exp->saved_ip;
-	/* hook doesn't matter, but it has to do destination manip */
-	nf_nat_setup_info(ct, &range, NF_IP_PRE_ROUTING);
+	nf_nat_setup_info(ct, &range, IP_NAT_MANIP_DST);
 }
 
 /* So, this packet has hit the connection tracking matching code.
@@ -293,8 +291,8 @@ static void __exit nf_nat_sip_fini(void)
 
 static int __init nf_nat_sip_init(void)
 {
-	BUG_ON(rcu_dereference(nf_nat_sip_hook));
-	BUG_ON(rcu_dereference(nf_nat_sdp_hook));
+	BUG_ON(nf_nat_sip_hook != NULL);
+	BUG_ON(nf_nat_sdp_hook != NULL);
 	rcu_assign_pointer(nf_nat_sip_hook, ip_nat_sip);
 	rcu_assign_pointer(nf_nat_sdp_hook, ip_nat_sdp);
 	return 0;

@@ -36,6 +36,7 @@
 #include <linux/dmapool.h>
 #include <linux/reboot.h>
 #include <linux/workqueue.h>
+#include <linux/debugfs.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -732,24 +733,27 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 	struct ohci_regs __iomem *regs = ohci->regs;
 	int			ints;
 
-	/* we can eliminate a (slow) ohci_readl()
-	 * if _only_ WDH caused this irq
+	/* Read interrupt status (and flush pending writes).  We ignore the
+	 * optimization of checking the LSB of hcca->done_head; it doesn't
+	 * work on all systems (edge triggering for OHCI can be a factor).
 	 */
-	if ((ohci->hcca->done_head != 0)
-			&& ! (hc32_to_cpup (ohci, &ohci->hcca->done_head)
-				& 0x01)) {
-		ints =  OHCI_INTR_WDH;
+	ints = ohci_readl(ohci, &regs->intrstatus);
 
-	/* cardbus/... hardware gone before remove() */
-	} else if ((ints = ohci_readl (ohci, &regs->intrstatus)) == ~(u32)0) {
+	/* Check for an all 1's result which is a typical consequence
+	 * of dead, unclocked, or unplugged (CardBus...) devices
+	 */
+	if (ints == ~(u32)0) {
 		disable (ohci);
 		ohci_dbg (ohci, "device removed!\n");
 		return IRQ_HANDLED;
+	}
+
+	/* We only care about interrupts that are enabled */
+	ints &= ohci_readl(ohci, &regs->intrenable);
 
 	/* interrupt for some other device? */
-	} else if ((ints &= ohci_readl (ohci, &regs->intrenable)) == 0) {
+	if (ints == 0)
 		return IRQ_NOTMINE;
-	}
 
 	if (ints & OHCI_INTR_UE) {
 		// e.g. due to PCI Master/Target Abort
@@ -806,13 +810,9 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 	}
 
 	if (ints & OHCI_INTR_WDH) {
-		if (HC_IS_RUNNING(hcd->state))
-			ohci_writel (ohci, OHCI_INTR_WDH, &regs->intrdisable);
 		spin_lock (&ohci->lock);
 		dl_done_list (ohci);
 		spin_unlock (&ohci->lock);
-		if (HC_IS_RUNNING(hcd->state))
-			ohci_writel (ohci, OHCI_INTR_WDH, &regs->intrenable);
 	}
 
 	if (quirk_zfmicro(ohci) && (ints & OHCI_INTR_SF)) {
@@ -994,7 +994,7 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		ohci_hcd_lh7a404_driver
 #endif
 
-#ifdef CONFIG_PXA27x
+#if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
 #include "ohci-pxa27x.c"
 #define PLATFORM_DRIVER		ohci_hcd_pxa27x_driver
 #endif
@@ -1029,6 +1029,13 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		usb_hcd_pnx4008_driver
 #endif
 
+#if defined(CONFIG_CPU_SUBTYPE_SH7720) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7721) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7763)
+#include "ohci-sh.c"
+#define PLATFORM_DRIVER		ohci_hcd_sh_driver
+#endif
+
 
 #ifdef CONFIG_USB_OHCI_HCD_PPC_OF
 #include "ohci-ppc-of.c"
@@ -1043,6 +1050,11 @@ MODULE_LICENSE ("GPL");
 #ifdef CONFIG_USB_OHCI_HCD_SSB
 #include "ohci-ssb.c"
 #define SSB_OHCI_DRIVER		ssb_ohci_driver
+#endif
+
+#ifdef CONFIG_MFD_SM501
+#include "ohci-sm501.c"
+#define PLATFORM_DRIVER		ohci_hcd_sm501_driver
 #endif
 
 #if	!defined(PCI_DRIVER) &&		\
@@ -1064,6 +1076,14 @@ static int __init ohci_hcd_mod_init(void)
 	printk (KERN_DEBUG "%s: " DRIVER_INFO "\n", hcd_name);
 	pr_debug ("%s: block sizes: ed %Zd td %Zd\n", hcd_name,
 		sizeof (struct ed), sizeof (struct td));
+
+#ifdef DEBUG
+	ohci_debug_root = debugfs_create_dir("ohci", NULL);
+	if (!ohci_debug_root) {
+		retval = -ENOENT;
+		goto error_debug;
+	}
+#endif
 
 #ifdef PS3_SYSTEM_BUS_DRIVER
 	retval = ps3_ohci_driver_register(&PS3_SYSTEM_BUS_DRIVER);
@@ -1127,6 +1147,12 @@ static int __init ohci_hcd_mod_init(void)
 	ps3_ohci_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);
  error_ps3:
 #endif
+#ifdef DEBUG
+	debugfs_remove(ohci_debug_root);
+	ohci_debug_root = NULL;
+ error_debug:
+#endif
+
 	return retval;
 }
 module_init(ohci_hcd_mod_init);
@@ -1150,6 +1176,9 @@ static void __exit ohci_hcd_mod_exit(void)
 #endif
 #ifdef PS3_SYSTEM_BUS_DRIVER
 	ps3_ohci_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);
+#endif
+#ifdef DEBUG
+	debugfs_remove(ohci_debug_root);
 #endif
 }
 module_exit(ohci_hcd_mod_exit);

@@ -532,6 +532,7 @@ setup_gazelisa(struct IsdnCard *card, struct IsdnCardState *cs)
 	return (0);
 }
 
+#ifdef CONFIG_PCI_LEGACY
 static struct pci_dev *dev_tel __devinitdata = NULL;
 
 static int __devinit
@@ -620,6 +621,7 @@ setup_gazelpci(struct IsdnCardState *cs)
 
 	return (0);
 }
+#endif /* CONFIG_PCI_LEGACY */
 
 int __devinit
 setup_gazel(struct IsdnCard *card)
@@ -639,7 +641,7 @@ setup_gazel(struct IsdnCard *card)
 			return (0);
 	} else {
 
-#ifdef CONFIG_PCI
+#ifdef CONFIG_PCI_LEGACY
 		if (setup_gazelpci(cs))
 			return (0);
 #else

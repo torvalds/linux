@@ -74,7 +74,7 @@ static int io = -1;
 static int io_len = 2;		/* for non plug and play */
 static struct semaphore open_sem;
 static char expect_close;
-static spinlock_t sc1200wdt_lock;	/* io port access serialisation */
+static DEFINE_SPINLOCK(sc1200wdt_lock);	/* io port access serialisation */
 
 #if defined CONFIG_PNP
 static int isapnp = 1;
@@ -375,7 +375,6 @@ static int __init sc1200wdt_init(void)
 
 	printk("%s\n", banner);
 
-	spin_lock_init(&sc1200wdt_lock);
 	sema_init(&open_sem, 1);
 
 #if defined CONFIG_PNP

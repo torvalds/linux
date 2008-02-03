@@ -11,14 +11,14 @@ for non English (read: Japanese) speakers and is not intended as a
 fork. So if you have any comments or updates for this file, please try
 to update the original English file first.
 
-Last Updated: 2007/09/23
+Last Updated: 2007/11/16
 ==================================
 これは、
-linux-2.6.23/Documentation/HOWTO
+linux-2.6.24/Documentation/HOWTO
 の和訳です。
 
 翻訳団体： JF プロジェクト < http://www.linux.or.jp/JF/ >
-翻訳日： 2007/09/19
+翻訳日： 2007/11/10
 翻訳者： Tsugikazu Shibata <tshibata at ab dot jp dot nec dot com>
 校正者： 松倉さん <nbh--mats at nifty dot com>
          小林 雅典さん (Masanori Kobayasi) <zap03216 at nifty dot ne dot jp>
@@ -110,7 +110,7 @@ Linux カーネルソースツリーは幅広い範囲のドキュメントを�
 新しいドキュメントファイルも追加することを勧めます。
 カーネルの変更が、カーネルがユーザ空間に公開しているインターフェイスの
 変更を引き起こす場合、その変更を説明するマニュアルページのパッチや情報
-をマニュアルページのメンテナ mtk-manpages@gmx.net に送ることを勧めま
+をマニュアルページのメンテナ mtk.manpages@gmail.com に送ることを勧めま
 す。
 
 以下はカーネルソースツリーに含まれている読んでおくべきファイルの一覧で

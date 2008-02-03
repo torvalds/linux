@@ -55,13 +55,7 @@
 
 static void pdc_console_write(struct console *co, const char *s, unsigned count)
 {
-	while(count--)
-		pdc_iodc_putc(*s++);
-}
-
-void pdc_outc(unsigned char c)
-{
-	pdc_iodc_outc(c);
+	pdc_iodc_print(s, count);
 }
 
 void pdc_printf(const char *fmt, ...)
@@ -74,8 +68,7 @@ void pdc_printf(const char *fmt, ...)
 	len = vscnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
 
-	for (i = 0; i < len; i++)
-		pdc_iodc_outc(buf[i]);
+	pdc_iodc_print(buf, len);
 }
 
 int pdc_console_poll_key(struct console *co)

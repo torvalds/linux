@@ -31,9 +31,9 @@
 /*
  * Ease the printing of nsec fields:
  */
-static long long nsec_high(long long nsec)
+static long long nsec_high(unsigned long long nsec)
 {
-	if (nsec < 0) {
+	if ((long long)nsec < 0) {
 		nsec = -nsec;
 		do_div(nsec, 1000000);
 		return -nsec;
@@ -43,9 +43,9 @@ static long long nsec_high(long long nsec)
 	return nsec;
 }
 
-static unsigned long nsec_low(long long nsec)
+static unsigned long nsec_low(unsigned long long nsec)
 {
-	if (nsec < 0)
+	if ((long long)nsec < 0)
 		nsec = -nsec;
 
 	return do_div(nsec, 1000000);
@@ -80,6 +80,7 @@ print_task(struct seq_file *m, struct rq *rq, struct task_struct *p)
 static void print_rq(struct seq_file *m, struct rq *rq, int rq_cpu)
 {
 	struct task_struct *g, *p;
+	unsigned long flags;
 
 	SEQ_printf(m,
 	"\nrunnable tasks:\n"
@@ -88,7 +89,7 @@ static void print_rq(struct seq_file *m, struct rq *rq, int rq_cpu)
 	"------------------------------------------------------"
 	"----------------------------------------------------\n");
 
-	read_lock_irq(&tasklist_lock);
+	read_lock_irqsave(&tasklist_lock, flags);
 
 	do_each_thread(g, p) {
 		if (!p->se.on_rq || task_cpu(p) != rq_cpu)
@@ -97,7 +98,7 @@ static void print_rq(struct seq_file *m, struct rq *rq, int rq_cpu)
 		print_task(m, rq, p);
 	} while_each_thread(g, p);
 
-	read_unlock_irq(&tasklist_lock);
+	read_unlock_irqrestore(&tasklist_lock, flags);
 }
 
 void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
@@ -178,6 +179,7 @@ static void print_cpu(struct seq_file *m, int cpu)
 	PN(prev_clock_raw);
 	P(clock_warps);
 	P(clock_overflows);
+	P(clock_underflows);
 	P(clock_deep_idle_events);
 	PN(clock_max_delta);
 	P(cpu_load[0]);
@@ -198,7 +200,7 @@ static int sched_debug_show(struct seq_file *m, void *v)
 	u64 now = ktime_to_ns(ktime_get());
 	int cpu;
 
-	SEQ_printf(m, "Sched Debug Version: v0.06-v22, %s %.*s\n",
+	SEQ_printf(m, "Sched Debug Version: v0.07, %s %.*s\n",
 		init_utsname()->release,
 		(int)strcspn(init_utsname()->version, " "),
 		init_utsname()->version);
@@ -210,7 +212,7 @@ static int sched_debug_show(struct seq_file *m, void *v)
 #define PN(x) \
 	SEQ_printf(m, "  .%-40s: %Ld.%06ld\n", #x, SPLIT_NS(x))
 	PN(sysctl_sched_latency);
-	PN(sysctl_sched_nr_latency);
+	PN(sysctl_sched_min_granularity);
 	PN(sysctl_sched_wakeup_granularity);
 	PN(sysctl_sched_batch_wakeup_granularity);
 	PN(sysctl_sched_child_runs_first);
@@ -298,6 +300,8 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 	PN(se.exec_max);
 	PN(se.slice_max);
 	PN(se.wait_max);
+	PN(se.wait_sum);
+	P(se.wait_count);
 	P(sched_info.bkl_count);
 	P(se.nr_migrations);
 	P(se.nr_migrations_cold);
@@ -326,10 +330,12 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 			avg_atom = -1LL;
 
 		avg_per_cpu = p->se.sum_exec_runtime;
-		if (p->se.nr_migrations)
-			avg_per_cpu = div64_64(avg_per_cpu, p->se.nr_migrations);
-		else
+		if (p->se.nr_migrations) {
+			avg_per_cpu = div64_64(avg_per_cpu,
+					       p->se.nr_migrations);
+		} else {
 			avg_per_cpu = -1LL;
+		}
 
 		__PN(avg_atom);
 		__PN(avg_per_cpu);
@@ -363,6 +369,8 @@ void proc_sched_set_task(struct task_struct *p)
 {
 #ifdef CONFIG_SCHEDSTATS
 	p->se.wait_max				= 0;
+	p->se.wait_sum				= 0;
+	p->se.wait_count			= 0;
 	p->se.sleep_max				= 0;
 	p->se.sum_sleep_runtime			= 0;
 	p->se.block_max				= 0;

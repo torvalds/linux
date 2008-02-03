@@ -755,13 +755,13 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 		break;
 	
 	case UFS_MOUNT_UFSTYPE_NEXTSTEP:
-		/*TODO: check may be we need set special dir block size?*/
 		UFSD("ufstype=nextstep\n");
 		uspi->s_fsize = block_size = 1024;
 		uspi->s_fmask = ~(1024 - 1);
 		uspi->s_fshift = 10;
 		uspi->s_sbsize = super_block_size = 2048;
 		uspi->s_sbbase = 0;
+		uspi->s_dirblksize = 1024;
 		flags |= UFS_DE_OLD | UFS_UID_OLD | UFS_ST_OLD | UFS_CG_OLD;
 		if (!(sb->s_flags & MS_RDONLY)) {
 			if (!silent)
@@ -771,13 +771,13 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 		break;
 	
 	case UFS_MOUNT_UFSTYPE_NEXTSTEP_CD:
-		/*TODO: check may be we need set special dir block size?*/
 		UFSD("ufstype=nextstep-cd\n");
 		uspi->s_fsize = block_size = 2048;
 		uspi->s_fmask = ~(2048 - 1);
 		uspi->s_fshift = 11;
 		uspi->s_sbsize = super_block_size = 2048;
 		uspi->s_sbbase = 0;
+		uspi->s_dirblksize = 1024;
 		flags |= UFS_DE_OLD | UFS_UID_OLD | UFS_ST_OLD | UFS_CG_OLD;
 		if (!(sb->s_flags & MS_RDONLY)) {
 			if (!silent)
@@ -933,20 +933,19 @@ magic_found:
 		goto again;
 	}
 
-	/* Set sbi->s_flags here, used by ufs_get_fs_state() below */
-	sbi->s_flags = flags;
+	sbi->s_flags = flags;/*after that line some functions use s_flags*/
 	ufs_print_super_stuff(sb, usb1, usb2, usb3);
 
 	/*
 	 * Check, if file system was correctly unmounted.
 	 * If not, make it read only.
 	 */
-	if ((((flags & UFS_ST_MASK) == UFS_ST_44BSD)	||
-	     ((flags & UFS_ST_MASK) == UFS_ST_OLD)	||
-	     ((flags & UFS_ST_MASK) == UFS_ST_SUN)	||
-	     ((flags & UFS_ST_MASK) == UFS_ST_SUNOS)	||
-	     ((flags & UFS_ST_MASK) == UFS_ST_SUNx86))	&&
-	    (ufs_get_fs_state(sb, usb1, usb3) == (UFS_FSOK - fs32_to_cpu(sb, usb1->fs_time)))) {
+	if (((flags & UFS_ST_MASK) == UFS_ST_44BSD) ||
+	  ((flags & UFS_ST_MASK) == UFS_ST_OLD) ||
+	  (((flags & UFS_ST_MASK) == UFS_ST_SUN ||
+	    (flags & UFS_ST_MASK) == UFS_ST_SUNOS ||
+	  (flags & UFS_ST_MASK) == UFS_ST_SUNx86) &&
+	  (ufs_get_fs_state(sb, usb1, usb3) == (UFS_FSOK - fs32_to_cpu(sb, usb1->fs_time))))) {
 		switch(usb1->fs_clean) {
 		case UFS_FSCLEAN:
 			UFSD("fs is clean\n");

@@ -301,8 +301,6 @@ int ipath_make_ud_req(struct ipath_qp *qp)
 
 	/* header size in 32-bit words LRH+BTH+DETH = (8+12+8)/4. */
 	qp->s_hdrwords = 7;
-	if (wqe->wr.opcode == IB_WR_SEND_WITH_IMM)
-		qp->s_hdrwords++;
 	qp->s_cur_size = wqe->length;
 	qp->s_cur_sge = &qp->s_sge;
 	qp->s_wqe = wqe;
@@ -327,6 +325,7 @@ int ipath_make_ud_req(struct ipath_qp *qp)
 		ohdr = &qp->s_hdr.u.oth;
 	}
 	if (wqe->wr.opcode == IB_WR_SEND_WITH_IMM) {
+		qp->s_hdrwords++;
 		ohdr->u.ud.imm_data = wqe->wr.imm_data;
 		bth0 = IB_OPCODE_UD_SEND_ONLY_WITH_IMMEDIATE << 24;
 	} else
@@ -455,6 +454,28 @@ void ipath_ud_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 		}
 	}
 
+	/*
+	 * The opcode is in the low byte when its in network order
+	 * (top byte when in host order).
+	 */
+	opcode = be32_to_cpu(ohdr->bth[0]) >> 24;
+	if (qp->ibqp.qp_num > 1 &&
+	    opcode == IB_OPCODE_UD_SEND_ONLY_WITH_IMMEDIATE) {
+		if (header_in_data) {
+			wc.imm_data = *(__be32 *) data;
+			data += sizeof(__be32);
+		} else
+			wc.imm_data = ohdr->u.ud.imm_data;
+		wc.wc_flags = IB_WC_WITH_IMM;
+		hdrsize += sizeof(u32);
+	} else if (opcode == IB_OPCODE_UD_SEND_ONLY) {
+		wc.imm_data = 0;
+		wc.wc_flags = 0;
+	} else {
+		dev->n_pkt_drops++;
+		goto bail;
+	}
+
 	/* Get the number of bytes the message was padded by. */
 	pad = (be32_to_cpu(ohdr->bth[0]) >> 20) & 3;
 	if (unlikely(tlen < (hdrsize + pad + 4))) {
@@ -480,28 +501,6 @@ void ipath_ud_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 	 * present on the wire.
 	 */
 	wc.byte_len = tlen + sizeof(struct ib_grh);
-
-	/*
-	 * The opcode is in the low byte when its in network order
-	 * (top byte when in host order).
-	 */
-	opcode = be32_to_cpu(ohdr->bth[0]) >> 24;
-	if (qp->ibqp.qp_num > 1 &&
-	    opcode == IB_OPCODE_UD_SEND_ONLY_WITH_IMMEDIATE) {
-		if (header_in_data) {
-			wc.imm_data = *(__be32 *) data;
-			data += sizeof(__be32);
-		} else
-			wc.imm_data = ohdr->u.ud.imm_data;
-		wc.wc_flags = IB_WC_WITH_IMM;
-		hdrsize += sizeof(u32);
-	} else if (opcode == IB_OPCODE_UD_SEND_ONLY) {
-		wc.imm_data = 0;
-		wc.wc_flags = 0;
-	} else {
-		dev->n_pkt_drops++;
-		goto bail;
-	}
 
 	/*
 	 * Get the next work request entry to find where to put the data.

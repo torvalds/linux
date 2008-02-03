@@ -94,8 +94,8 @@ static void mmc_request(struct request_queue *q)
 		printk(KERN_ERR "MMC: killing requests for dead queue\n");
 		while ((req = elv_next_request(q)) != NULL) {
 			do {
-				ret = end_that_request_chunk(req, 0,
-					req->current_nr_sectors << 9);
+				ret = __blk_end_request(req, -EIO,
+							blk_rq_cur_bytes(req));
 			} while (ret);
 		}
 		return;
@@ -180,12 +180,13 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card, spinlock_t *lock
 		blk_queue_max_hw_segments(mq->queue, host->max_hw_segs);
 		blk_queue_max_segment_size(mq->queue, host->max_seg_size);
 
-		mq->sg = kzalloc(sizeof(struct scatterlist) *
+		mq->sg = kmalloc(sizeof(struct scatterlist) *
 			host->max_phys_segs, GFP_KERNEL);
 		if (!mq->sg) {
 			ret = -ENOMEM;
 			goto cleanup_queue;
 		}
+		sg_init_table(mq->sg, host->max_phys_segs);
 	}
 
 	init_MUTEX(&mq->thread_sem);
@@ -310,7 +311,7 @@ static void copy_sg(struct scatterlist *dst, unsigned int dst_len,
 		}
 
 		if (src_size == 0) {
-			src_buf = sg_virt(dst);
+			src_buf = sg_virt(src);
 			src_size = src->length;
 		}
 

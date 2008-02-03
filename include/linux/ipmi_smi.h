@@ -173,7 +173,7 @@ static inline int ipmi_demangle_device_id(const unsigned char *data,
 	id->firmware_revision_2 = data[3];
 	id->ipmi_version = data[4];
 	id->additional_device_support = data[5];
-	if (data_len >= 6) {
+	if (data_len >= 11) {
 		id->manufacturer_id = (data[6] | (data[7] << 8) |
 				       (data[8] << 16));
 		id->product_id = data[9] | (data[10] << 8);

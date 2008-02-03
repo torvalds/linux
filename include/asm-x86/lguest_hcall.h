@@ -4,7 +4,7 @@
 
 #define LHCALL_FLUSH_ASYNC	0
 #define LHCALL_LGUEST_INIT	1
-#define LHCALL_CRASH		2
+#define LHCALL_SHUTDOWN		2
 #define LHCALL_LOAD_GDT		3
 #define LHCALL_NEW_PGTABLE	4
 #define LHCALL_FLUSH_TLB	5
@@ -19,6 +19,10 @@
 #define LHCALL_NOTIFY		17
 
 #define LGUEST_TRAP_ENTRY 0x1F
+
+/* Argument number 3 to LHCALL_LGUEST_SHUTDOWN */
+#define LGUEST_SHUTDOWN_POWEROFF	1
+#define LGUEST_SHUTDOWN_RESTART		2
 
 #ifndef __ASSEMBLY__
 #include <asm/hw_irq.h>
@@ -53,9 +57,6 @@ hcall(unsigned long call,
 	return call;
 }
 /*:*/
-
-void async_hcall(unsigned long call,
-		 unsigned long arg1, unsigned long arg2, unsigned long arg3);
 
 /* Can't use our min() macro here: needs to be a constant */
 #define LGUEST_IRQS (NR_IRQS < 32 ? NR_IRQS: 32)

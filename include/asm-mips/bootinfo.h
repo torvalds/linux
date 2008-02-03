@@ -48,20 +48,9 @@
 #define  MACH_DS5900		10	/* DECsystem 5900		*/
 
 /*
- * Valid machtype for group ARC
- */
-#define MACH_DESKSTATION_RPC44  0	/* Deskstation rPC44 */
-#define MACH_DESKSTATION_TYNE	1	/* Deskstation Tyne */
-
-/*
  * Valid machtype for group SNI_RM
  */
 #define  MACH_SNI_RM200_PCI	0	/* RM200/RM300/RM400 PCI series */
-
-/*
- * Valid machtype for group ACN
- */
-#define  MACH_ACN_MIPS_BOARD	0       /* ACN MIPS single board        */
 
 /*
  * Valid machtype for group SGI
@@ -71,44 +60,6 @@
 #define  MACH_SGI_IP28		2	/* Indigo2 Impact		*/
 #define  MACH_SGI_IP32		3	/* O2				*/
 #define  MACH_SGI_IP30		4	/* Octane, Octane2              */
-
-/*
- * Valid machtype for group COBALT
- */
-#define  MACH_COBALT_27		0	/* Proto "27" hardware		*/
-
-/*
- * Valid machtype for group BAGET
- */
-#define  MACH_BAGET201		0	/* BT23-201 */
-#define  MACH_BAGET202		1	/* BT23-202 */
-
-/*
- * Cosine boards.
- */
-#define  MACH_COSINE_ORION	0
-
-/*
- * Valid machtype for group MOMENCO
- */
-#define  MACH_MOMENCO_OCELOT	0
-#define  MACH_MOMENCO_OCELOT_G	1	/* no more supported (may 2007) */
-#define  MACH_MOMENCO_OCELOT_C	2	/* no more supported (jun 2007) */
-#define  MACH_MOMENCO_JAGUAR_ATX 3	/* no more supported (may 2007) */
-#define  MACH_MOMENCO_OCELOT_3	4
-
-/*
- * Valid machtype for group PHILIPS
- */
-#define  MACH_PHILIPS_NINO	0	/* Nino */
-#define  MACH_PHILIPS_VELO	1	/* Velo */
-#define  MACH_PHILIPS_JBS	2	/* JBS */
-#define  MACH_PHILIPS_STB810	3	/* STB810 */
-
-/*
- * Valid machtype for group SIBYTE
- */
-#define  MACH_SWARM              0
 
 /*
  * Valid machtypes for group Toshiba
@@ -122,62 +73,15 @@
 #define  MACH_TOSHIBA_RBTX4938	6
 
 /*
- * Valid machtype for group Alchemy
- */
-#define  MACH_PB1000		0	/* Au1000-based eval board */
-#define  MACH_PB1100		1	/* Au1100-based eval board */
-#define  MACH_PB1500		2	/* Au1500-based eval board */
-#define  MACH_DB1000		3       /* Au1000-based eval board */
-#define  MACH_DB1100		4       /* Au1100-based eval board */
-#define  MACH_DB1500		5       /* Au1500-based eval board */
-#define  MACH_XXS1500		6       /* Au1500-based eval board */
-#define  MACH_MTX1		7       /* 4G MTX-1 Au1500-based board */
-#define  MACH_PB1550		8       /* Au1550-based eval board */
-#define  MACH_DB1550		9       /* Au1550-based eval board */
-#define  MACH_PB1200		10       /* Au1200-based eval board */
-#define  MACH_DB1200		11       /* Au1200-based eval board */
-
-/*
- * Valid machtype for group NEC_VR41XX
- *
- * Various NEC-based devices.
- *
- * FIXME: MACH_GROUPs should be by _MANUFACTURER_ of * the device, not by
- *        technical properties, so no new additions to this group.
- */
-#define  MACH_NEC_OSPREY	0	/* Osprey eval board */
-#define  MACH_NEC_EAGLE		1	/* NEC Eagle/Hawk board */
-#define  MACH_ZAO_CAPCELLA	2	/* ZAO Networks Capcella */
-#define  MACH_VICTOR_MPC30X	3	/* Victor MP-C303/304 */
-#define  MACH_IBM_WORKPAD	4	/* IBM WorkPad z50 */
-#define  MACH_CASIO_E55		5	/* CASIO CASSIOPEIA E-10/15/55/65 */
-#define  MACH_TANBAC_TB0226	6	/* TANBAC TB0226 (Mbase) */
-#define  MACH_TANBAC_TB0229	7	/* TANBAC TB0229 (VR4131DIMM) */
-#define  MACH_NEC_CMBVR4133	8	/* CMB VR4133 Board */
-
-#define  MACH_HP_LASERJET	1
-
-/*
  * Valid machtype for group LASAT
  */
 #define  MACH_LASAT_100		0	/* Masquerade II/SP100/SP50/SP25 */
 #define  MACH_LASAT_200		1	/* Masquerade PRO/SP200 */
 
 /*
- * Valid machtype for group TITAN
- */
-#define  MACH_TITAN_YOSEMITE	1	/* PMC-Sierra Yosemite		*/
-#define  MACH_TITAN_EXCITE	2	/* Basler eXcite		*/
-
-/*
  * Valid machtype for group NEC EMMA2RH
  */
 #define  MACH_NEC_MARKEINS	0	/* NEC EMMA2RH Mark-eins	*/
-
-/*
- * Valid machtype for group LEMOTE
- */
-#define  MACH_LEMOTE_FULONG        0
 
 /*
  * Valid machtype for group PMC-MSP
@@ -190,16 +94,9 @@
 #define MACH_MSP7120_FPGA       5	/* PMC-Sierra MSP7120 Emulation */
 #define MACH_MSP_OTHER        255	/* PMC-Sierra unknown board type */
 
-#define MACH_WRPPMC             1
-
-/*
- * Valid machtype for group Broadcom
- */
-#define MACH_GROUP_BRCM		23	/* Broadcom			*/
-#define  MACH_BCM47XX		1	/* Broadcom BCM47XX		*/
-
 #define CL_SIZE			COMMAND_LINE_SIZE
 
+extern char *system_type;
 const char *get_system_type(void);
 
 extern unsigned long mips_machtype;

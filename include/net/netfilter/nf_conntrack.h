@@ -129,6 +129,8 @@ struct nf_conn
 
 	/* Extensions */
 	struct nf_ct_ext *ext;
+
+	struct rcu_head rcu;
 };
 
 static inline struct nf_conn *
@@ -143,7 +145,7 @@ nf_ct_tuplehash_to_ctrack(const struct nf_conntrack_tuple_hash *hash)
 
 /* Alter reply tuple (maybe alter helper). */
 extern void
-nf_conntrack_alter_reply(struct nf_conn *conntrack,
+nf_conntrack_alter_reply(struct nf_conn *ct,
 			 const struct nf_conntrack_tuple *newreply);
 
 /* Is this tuple taken? (ignoring any belonging to the given
@@ -171,13 +173,12 @@ static inline void nf_ct_put(struct nf_conn *ct)
 extern int nf_ct_l3proto_try_module_get(unsigned short l3proto);
 extern void nf_ct_l3proto_module_put(unsigned short l3proto);
 
-extern struct hlist_head *nf_ct_alloc_hashtable(int *sizep, int *vmalloced);
+extern struct hlist_head *nf_ct_alloc_hashtable(unsigned int *sizep, int *vmalloced);
 extern void nf_ct_free_hashtable(struct hlist_head *hash, int vmalloced,
-				 int size);
+				 unsigned int size);
 
 extern struct nf_conntrack_tuple_hash *
-__nf_conntrack_find(const struct nf_conntrack_tuple *tuple,
-		    const struct nf_conn *ignored_conntrack);
+__nf_conntrack_find(const struct nf_conntrack_tuple *tuple);
 
 extern void nf_conntrack_hash_insert(struct nf_conn *ct);
 
@@ -215,15 +216,13 @@ static inline void nf_ct_refresh(struct nf_conn *ct,
 
 /* These are for NAT.  Icky. */
 /* Update TCP window tracking data when NAT mangles the packet */
-extern void nf_conntrack_tcp_update(struct sk_buff *skb,
+extern void nf_conntrack_tcp_update(const struct sk_buff *skb,
 				    unsigned int dataoff,
-				    struct nf_conn *conntrack,
+				    struct nf_conn *ct,
 				    int dir);
 
 /* Fake conntrack entry for untracked connections */
 extern struct nf_conn nf_conntrack_untracked;
-
-extern int nf_ct_no_defrag;
 
 /* Iterate over all conntracks: if iter returns true, it's deleted. */
 extern void
@@ -249,6 +248,7 @@ static inline int nf_ct_is_untracked(const struct sk_buff *skb)
 	return (skb->nfct == &nf_conntrack_untracked.ct_general);
 }
 
+extern int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp);
 extern unsigned int nf_conntrack_htable_size;
 extern int nf_conntrack_checksum;
 extern atomic_t nf_conntrack_count;
@@ -262,11 +262,6 @@ do {							\
 	__get_cpu_var(nf_conntrack_stat).count++;	\
 	local_bh_enable();				\
 } while (0)
-
-extern int
-nf_conntrack_register_cache(u_int32_t features, const char *name, size_t size);
-extern void
-nf_conntrack_unregister_cache(u_int32_t features);
 
 #endif /* __KERNEL__ */
 #endif /* _NF_CONNTRACK_H */

@@ -128,6 +128,18 @@ struct igmpmsg
 #ifdef __KERNEL__
 #include <net/sock.h>
 
+#ifdef CONFIG_IP_MROUTE
+static inline int ip_mroute_opt(int opt)
+{
+	return (opt >= MRT_BASE) && (opt <= MRT_BASE + 10);
+}
+#else
+static inline int ip_mroute_opt(int opt)
+{
+	return 0;
+}
+#endif
+
 extern int ip_mroute_setsockopt(struct sock *, int, char __user *, int);
 extern int ip_mroute_getsockopt(struct sock *, int, char __user *, int __user *);
 extern int ipmr_ioctl(struct sock *sk, int cmd, void __user *arg);

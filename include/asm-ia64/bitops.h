@@ -124,10 +124,21 @@ clear_bit_unlock (int nr, volatile void *addr)
 /**
  * __clear_bit_unlock - Non-atomically clear a bit with release
  *
- * This is like clear_bit_unlock, but the implementation may use a non-atomic
- * store (this one uses an atomic, however).
+ * This is like clear_bit_unlock, but the implementation uses a store
+ * with release semantics. See also __raw_spin_unlock().
  */
-#define __clear_bit_unlock clear_bit_unlock
+static __inline__ void
+__clear_bit_unlock(int nr, volatile void *addr)
+{
+	__u32 mask, new;
+	volatile __u32 *m;
+
+	m = (volatile __u32 *)addr + (nr >> 5);
+	mask = ~(1 << (nr & 31));
+	new = *m & mask;
+	barrier();
+	ia64_st4_rel_nta(m, new);
+}
 
 /**
  * __clear_bit - Clears a bit in memory (non-atomic version)

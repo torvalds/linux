@@ -10,7 +10,7 @@
 #ifndef CPM_UART_CPM1_H
 #define CPM_UART_CPM1_H
 
-#include <asm/commproc.h>
+#include <asm/cpm1.h>
 
 /* defines for IRQs */
 #ifndef CONFIG_PPC_CPM_NEW_BINDING

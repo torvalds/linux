@@ -196,6 +196,8 @@ int put_cmsg(struct msghdr * msg, int level, int type, int len, void *data)
 	if (copy_to_user(CMSG_DATA(cm), data, cmlen - sizeof(struct cmsghdr)))
 		goto out;
 	cmlen = CMSG_SPACE(len);
+	if (msg->msg_controllen < cmlen)
+		cmlen = msg->msg_controllen;
 	msg->msg_control += cmlen;
 	msg->msg_controllen -= cmlen;
 	err = 0;

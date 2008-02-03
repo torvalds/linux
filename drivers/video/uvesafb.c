@@ -43,7 +43,7 @@ static struct fb_fix_screeninfo uvesafb_fix __devinitdata = {
 };
 
 static int mtrr		__devinitdata = 3; /* enable mtrr by default */
-static int blank	__devinitdata = 1; /* enable blanking by default */
+static int blank	= 1;		   /* enable blanking by default */
 static int ypan		__devinitdata = 1; /* 0: scroll, 1: ypan, 2: ywrap */
 static int pmi_setpal	__devinitdata = 1; /* use PMI for palette changes */
 static int nocrtc	__devinitdata; /* ignore CRTC settings */
@@ -926,8 +926,10 @@ static int uvesafb_setpalette(struct uvesafb_pal_entry *entries, int count,
 		int start, struct fb_info *info)
 {
 	struct uvesafb_ktask *task;
+#ifdef CONFIG_X86
 	struct uvesafb_par *par = info->par;
 	int i = par->mode_idx;
+#endif
 	int err = 0;
 
 	/*
@@ -1103,11 +1105,11 @@ static int uvesafb_pan_display(struct fb_var_screeninfo *var,
 
 static int uvesafb_blank(int blank, struct fb_info *info)
 {
-	struct uvesafb_par *par = info->par;
 	struct uvesafb_ktask *task;
 	int err = 1;
-
 #ifdef CONFIG_X86
+	struct uvesafb_par *par = info->par;
+
 	if (par->vbe_ib.capabilities & VBE_CAP_VGACOMPAT) {
 		int loop = 10000;
 		u8 seq = 0, crtc17 = 0;
@@ -1547,7 +1549,7 @@ static void __devinit uvesafb_init_info(struct fb_info *info,
 		info->fbops->fb_pan_display = NULL;
 }
 
-static void uvesafb_init_mtrr(struct fb_info *info)
+static void __devinit uvesafb_init_mtrr(struct fb_info *info)
 {
 #ifdef CONFIG_MTRR
 	if (mtrr && !(info->fix.smem_start & (PAGE_SIZE - 1))) {

@@ -30,9 +30,10 @@ alignment and size of the arguments to the above system calls.
 The output of "cat /proc/meminfo" will have lines like:
 
 .....
-HugePages_Total: xxx
-HugePages_Free:  yyy
-HugePages_Rsvd:  www
+HugePages_Total: vvv
+HugePages_Free:  www
+HugePages_Rsvd:  xxx
+HugePages_Surp:  yyy
 Hugepagesize:    zzz kB
 
 where:
@@ -42,6 +43,10 @@ allocated.
 HugePages_Rsvd is short for "reserved," and is the number of hugepages
 for which a commitment to allocate from the pool has been made, but no
 allocation has yet been made. It's vaguely analogous to overcommit.
+HugePages_Surp is short for "surplus," and is the number of hugepages in
+the pool above the value in /proc/sys/vm/nr_hugepages. The maximum
+number of surplus hugepages is controlled by
+/proc/sys/vm/nr_overcommit_hugepages.
 
 /proc/filesystems should also show a filesystem of type "hugetlbfs" configured
 in the kernel.
@@ -71,7 +76,25 @@ or failure of allocation depends on the amount of physically contiguous
 memory that is preset in system at this time.  System administrators may want
 to put this command in one of the local rc init files.  This will enable the
 kernel to request huge pages early in the boot process (when the possibility
-of getting physical contiguous pages is still very high).
+of getting physical contiguous pages is still very high). In either
+case, adminstrators will want to verify the number of hugepages actually
+allocated by checking the sysctl or meminfo.
+
+/proc/sys/vm/nr_overcommit_hugepages indicates how large the pool of
+hugepages can grow, if more hugepages than /proc/sys/vm/nr_hugepages are
+requested by applications. echo'ing any non-zero value into this file
+indicates that the hugetlb subsystem is allowed to try to obtain
+hugepages from the buddy allocator, if the normal pool is exhausted. As
+these surplus hugepages go out of use, they are freed back to the buddy
+allocator.
+
+Caveat: Shrinking the pool via nr_hugepages while a surplus is in effect
+will allow the number of surplus huge pages to exceed the overcommit
+value, as the pool hugepages (which must have been in use for a surplus
+hugepages to be allocated) will become surplus hugepages.  As long as
+this condition holds, however, no more surplus huge pages will be
+allowed on the system until one of the two sysctls are increased
+sufficiently, or the surplus huge pages go out of use and are freed.
 
 If the user applications are going to request hugepages using mmap system
 call, then it is required that system administrator mount a file system of
@@ -94,8 +117,8 @@ provided on command line then no limits are set.  For size and nr_inodes
 options, you can use [G|g]/[M|m]/[K|k] to represent giga/mega/kilo. For
 example, size=2K has the same meaning as size=2048.
 
-read and write system calls are not supported on files that reside on hugetlb
-file systems.
+While read system calls are supported on files that reside on hugetlb
+file systems, write system calls are not.
 
 Regular chown, chgrp, and chmod commands (with right permissions) could be
 used to change the file attributes on hugetlbfs.

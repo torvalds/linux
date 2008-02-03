@@ -229,7 +229,7 @@ int br_sysfs_addif(struct net_bridge_port *p)
 			goto out2;
 	}
 
-	err= sysfs_create_link(&br->ifobj, &p->kobj, p->dev->name);
+	err = sysfs_create_link(br->ifobj, &p->kobj, p->dev->name);
 out2:
 	return err;
 }

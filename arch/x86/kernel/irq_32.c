@@ -66,11 +66,11 @@ static union irq_ctx *softirq_ctx[NR_CPUS] __read_mostly;
  * SMP cross-CPU interrupts have their own specific
  * handlers).
  */
-fastcall unsigned int do_IRQ(struct pt_regs *regs)
+unsigned int do_IRQ(struct pt_regs *regs)
 {	
 	struct pt_regs *old_regs;
 	/* high bit used in ret_from_ code */
-	int irq = ~regs->orig_eax;
+	int irq = ~regs->orig_ax;
 	struct irq_desc *desc = irq_desc + irq;
 #ifdef CONFIG_4KSTACKS
 	union irq_ctx *curctx, *irqctx;
@@ -88,13 +88,13 @@ fastcall unsigned int do_IRQ(struct pt_regs *regs)
 #ifdef CONFIG_DEBUG_STACKOVERFLOW
 	/* Debugging check for stack overflow: is there less than 1KB free? */
 	{
-		long esp;
+		long sp;
 
 		__asm__ __volatile__("andl %%esp,%0" :
-					"=r" (esp) : "0" (THREAD_SIZE - 1));
-		if (unlikely(esp < (sizeof(struct thread_info) + STACK_WARN))) {
+					"=r" (sp) : "0" (THREAD_SIZE - 1));
+		if (unlikely(sp < (sizeof(struct thread_info) + STACK_WARN))) {
 			printk("do_IRQ: stack overflow: %ld\n",
-				esp - sizeof(struct thread_info));
+				sp - sizeof(struct thread_info));
 			dump_stack();
 		}
 	}
@@ -112,7 +112,7 @@ fastcall unsigned int do_IRQ(struct pt_regs *regs)
 	 * current stack (which is the irq stack already after all)
 	 */
 	if (curctx != irqctx) {
-		int arg1, arg2, ebx;
+		int arg1, arg2, bx;
 
 		/* build the stack frame on the IRQ stack */
 		isp = (u32*) ((char*)irqctx + sizeof(*irqctx));
@@ -128,10 +128,10 @@ fastcall unsigned int do_IRQ(struct pt_regs *regs)
 			(curctx->tinfo.preempt_count & SOFTIRQ_MASK);
 
 		asm volatile(
-			"       xchgl  %%ebx,%%esp      \n"
-			"       call   *%%edi           \n"
-			"       movl   %%ebx,%%esp      \n"
-			: "=a" (arg1), "=d" (arg2), "=b" (ebx)
+			"       xchgl  %%ebx,%%esp    \n"
+			"       call   *%%edi         \n"
+			"       movl   %%ebx,%%esp    \n"
+			: "=a" (arg1), "=d" (arg2), "=b" (bx)
 			:  "0" (irq),   "1" (desc),  "2" (isp),
 			   "D" (desc->handle_irq)
 			: "memory", "cc"

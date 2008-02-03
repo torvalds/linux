@@ -8,20 +8,19 @@ extern debug_info_t *cio_debug_msg_id;
 extern debug_info_t *cio_debug_trace_id;
 extern debug_info_t *cio_debug_crw_id;
 
-#define CIO_TRACE_EVENT(imp, txt) do { \
+#define CIO_TRACE_EVENT(imp, txt) do {				\
 		debug_text_event(cio_debug_trace_id, imp, txt); \
 	} while (0)
 
-#define CIO_MSG_EVENT(imp, args...) do { \
-		debug_sprintf_event(cio_debug_msg_id, imp , ##args); \
+#define CIO_MSG_EVENT(imp, args...) do {				\
+		debug_sprintf_event(cio_debug_msg_id, imp , ##args);	\
 	} while (0)
 
-#define CIO_CRW_EVENT(imp, args...) do { \
-		debug_sprintf_event(cio_debug_crw_id, imp , ##args); \
+#define CIO_CRW_EVENT(imp, args...) do {				\
+		debug_sprintf_event(cio_debug_crw_id, imp , ##args);	\
 	} while (0)
 
-static inline void
-CIO_HEX_EVENT(int level, void *data, int length)
+static inline void CIO_HEX_EVENT(int level, void *data, int length)
 {
 	if (unlikely(!cio_debug_trace_id))
 		return;
@@ -32,9 +31,10 @@ CIO_HEX_EVENT(int level, void *data, int length)
 	}
 }
 
-#define CIO_DEBUG(printk_level,event_level,msg...) ({ \
-	if (cio_show_msg) printk(printk_level msg); \
-	CIO_MSG_EVENT (event_level, msg); \
-})
+#define CIO_DEBUG(printk_level, event_level, msg...) do {	\
+		if (cio_show_msg)				\
+			printk(printk_level "cio: " msg);	\
+		CIO_MSG_EVENT(event_level, msg);		\
+	} while (0)
 
 #endif

@@ -16,18 +16,13 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
-/*  *********************************************************************
-    *
-    *  Broadcom Common Firmware Environment (CFE)
-    *
-    *  Error codes				File: cfe_error.h
-    *
-    *  CFE's global error code list is here.
-    *
-    *  Author:  Mitch Lichtenberg
-    *
-    ********************************************************************* */
-
+/*
+ * Broadcom Common Firmware Environment (CFE)
+ *
+ * CFE's global error code list is here.
+ *
+ * Author:  Mitch Lichtenberg
+ */
 
 #define CFE_OK			 0
 #define CFE_ERR                 -1	/* generic error */

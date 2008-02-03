@@ -227,7 +227,7 @@ int smbiod_retry(struct smb_sb_info *server)
 		printk(KERN_ERR "smb_retry: signal failed [%d]\n", result);
 		goto out;
 	}
-	VERBOSE("signalled pid %d\n", pid);
+	VERBOSE("signalled pid %d\n", pid_nr(pid));
 
 	/* FIXME: The retried requests should perhaps get a "time boost". */
 

@@ -181,7 +181,7 @@ static void __init ek_board_init(void)
 	/* Serial */
 	at91_add_device_serial();
 	/* I2C */
-	at91_add_device_i2c();
+	at91_add_device_i2c(NULL, 0);
 	/* NAND */
 	at91_add_device_nand(&ek_nand_data);
 	/* SPI */

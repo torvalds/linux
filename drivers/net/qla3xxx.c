@@ -540,20 +540,12 @@ static void eeprom_readword(struct ql3_adapter *qdev,
 	fm93c56a_deselect(qdev);
 }
 
-static void ql_swap_mac_addr(u8 * macAddress)
+static void ql_set_mac_addr(struct net_device *ndev, u16 *addr)
 {
-#ifdef __BIG_ENDIAN
-	u8 temp;
-	temp = macAddress[0];
-	macAddress[0] = macAddress[1];
-	macAddress[1] = temp;
-	temp = macAddress[2];
-	macAddress[2] = macAddress[3];
-	macAddress[3] = temp;
-	temp = macAddress[4];
-	macAddress[4] = macAddress[5];
-	macAddress[5] = temp;
-#endif
+	__le16 *p = (__le16 *)ndev->dev_addr;
+	p[0] = cpu_to_le16(addr[0]);
+	p[1] = cpu_to_le16(addr[1]);
+	p[2] = cpu_to_le16(addr[2]);
 }
 
 static int ql_get_nvram_params(struct ql3_adapter *qdev)
@@ -589,18 +581,6 @@ static int ql_get_nvram_params(struct ql3_adapter *qdev)
 		spin_unlock_irqrestore(&qdev->hw_lock, hw_flags);
 		return -1;
 	}
-
-	/*
-	 * We have a problem with endianness for the MAC addresses
-	 * and the two 8-bit values version, and numPorts.  We
-	 * have to swap them on big endian systems.
-	 */
-	ql_swap_mac_addr(qdev->nvram_data.funcCfg_fn0.macAddress);
-	ql_swap_mac_addr(qdev->nvram_data.funcCfg_fn1.macAddress);
-	ql_swap_mac_addr(qdev->nvram_data.funcCfg_fn2.macAddress);
-	ql_swap_mac_addr(qdev->nvram_data.funcCfg_fn3.macAddress);
-	pEEPROMData = (u16 *) & qdev->nvram_data.version;
-	*pEEPROMData = le16_to_cpu(*pEEPROMData);
 
 	spin_unlock_irqrestore(&qdev->hw_lock, hw_flags);
 	return checksum;
@@ -711,7 +691,7 @@ static int ql_mii_write_reg_ex(struct ql3_adapter *qdev,
 	if (ql_wait_for_mii_ready(qdev)) {
 		if (netif_msg_link(qdev))
 			printk(KERN_WARNING PFX
-			       "%s: Timed out waiting for management port to"
+			       "%s: Timed out waiting for management port to "
 			       "get free before issuing command.\n",
 			       qdev->ndev->name);
 		return -1;
@@ -1456,16 +1436,11 @@ static void ql_phy_start_neg_ex(struct ql3_adapter *qdev)
 			   PHYAddr[qdev->mac_index]);
 	reg &= ~PHY_GIG_ALL_PARAMS;
 
-	if(portConfiguration &
-	   PORT_CONFIG_FULL_DUPLEX_ENABLED &
-	   PORT_CONFIG_1000MB_SPEED) {
-		reg |= PHY_GIG_ADV_1000F;
-	}
-
-	if(portConfiguration &
-	   PORT_CONFIG_HALF_DUPLEX_ENABLED &
-	   PORT_CONFIG_1000MB_SPEED) {
-		reg |= PHY_GIG_ADV_1000H;
+	if(portConfiguration & PORT_CONFIG_1000MB_SPEED) {
+		if(portConfiguration & PORT_CONFIG_FULL_DUPLEX_ENABLED) 
+			reg |= PHY_GIG_ADV_1000F;
+		else 
+			reg |= PHY_GIG_ADV_1000H;
 	}
 
 	ql_mii_write_reg_ex(qdev, PHY_GIG_CONTROL, reg,
@@ -1645,8 +1620,11 @@ static int ql_finish_auto_neg(struct ql3_adapter *qdev)
 	return 0;
 }
 
-static void ql_link_state_machine(struct ql3_adapter *qdev)
+static void ql_link_state_machine_work(struct work_struct *work)
 {
+	struct ql3_adapter *qdev =
+		container_of(work, struct ql3_adapter, link_state_work.work);
+
 	u32 curr_link_state;
 	unsigned long hw_flags;
 
@@ -1661,6 +1639,10 @@ static void ql_link_state_machine(struct ql3_adapter *qdev)
 			       "state.\n", qdev->ndev->name);
 
 		spin_unlock_irqrestore(&qdev->hw_lock, hw_flags);
+
+		/* Restart timer on 2 second interval. */
+		mod_timer(&qdev->adapter_timer, jiffies + HZ * 1);\
+
 		return;
 	}
 
@@ -1705,6 +1687,9 @@ static void ql_link_state_machine(struct ql3_adapter *qdev)
 		break;
 	}
 	spin_unlock_irqrestore(&qdev->hw_lock, hw_flags);
+
+	/* Restart timer on 2 second interval. */
+	mod_timer(&qdev->adapter_timer, jiffies + HZ * 1);
 }
 
 /*
@@ -2315,14 +2300,9 @@ static int ql_poll(struct napi_struct *napi, int budget)
 	unsigned long hw_flags;
 	struct ql3xxx_port_registers __iomem *port_regs = qdev->mem_map_registers;
 
-	if (!netif_carrier_ok(ndev))
-		goto quit_polling;
-
 	ql_tx_rx_clean(qdev, &tx_cleaned, &rx_cleaned, budget);
 
-	if (tx_cleaned + rx_cleaned != budget ||
-	    !netif_running(ndev)) {
-quit_polling:
+	if (tx_cleaned + rx_cleaned != budget) {
 		spin_lock_irqsave(&qdev->hw_lock, hw_flags);
 		__netif_rx_complete(ndev, napi);
 		ql_update_small_bufq_prod_index(qdev);
@@ -3035,7 +3015,7 @@ static int ql_alloc_mem_resources(struct ql3_adapter *qdev)
 		    LS_64BITS(qdev->shadow_reg_phy_addr);
 
 		qdev->prsp_producer_index =
-		    (u32 *) (((u8 *) qdev->preq_consumer_index) + 8);
+		    (__le32 *) (((u8 *) qdev->preq_consumer_index) + 8);
 		qdev->rsp_producer_index_phy_addr_high =
 		    qdev->req_consumer_index_phy_addr_high;
 		qdev->rsp_producer_index_phy_addr_low =
@@ -3215,7 +3195,7 @@ static int ql_adapter_initialize(struct ql3_adapter *qdev)
 	ql_write_page1_reg(qdev, &hmem_regs->reqLength, NUM_REQ_Q_ENTRIES);
 
 	/* Response Queue Registers */
-	*((u16 *) (qdev->prsp_producer_index)) = 0;
+	*((__le16 *) (qdev->prsp_producer_index)) = 0;
 	qdev->rsp_consumer_index = 0;
 	qdev->rsp_current = qdev->rsp_q_virt_addr;
 
@@ -3548,7 +3528,7 @@ static void ql_set_mac_info(struct ql3_adapter *qdev)
 		       qdev->ndev->name,value);
 		break;
 	}
-	qdev->numPorts = qdev->nvram_data.numPorts;
+	qdev->numPorts = qdev->nvram_data.version_and_numPorts >> 8;
 }
 
 static void ql_display_dev_info(struct net_device *ndev)
@@ -3941,19 +3921,7 @@ static void ql_get_board_info(struct ql3_adapter *qdev)
 static void ql3xxx_timer(unsigned long ptr)
 {
 	struct ql3_adapter *qdev = (struct ql3_adapter *)ptr;
-
-	if (test_bit(QL_RESET_ACTIVE,&qdev->flags)) {
-		printk(KERN_DEBUG PFX
-		       "%s: Reset in progress.\n",
-		       qdev->ndev->name);
-		goto end;
-	}
-
-	ql_link_state_machine(qdev);
-
-	/* Restart timer on 2 second interval. */
-end:
-	mod_timer(&qdev->adapter_timer, jiffies + HZ * 1);
+	queue_delayed_work(qdev->workqueue, &qdev->link_state_work, 0);
 }
 
 static int __devinit ql3xxx_probe(struct pci_dev *pdev,
@@ -4063,12 +4031,10 @@ static int __devinit ql3xxx_probe(struct pci_dev *pdev,
 	/* Validate and set parameters */
 	if (qdev->mac_index) {
 		ndev->mtu = qdev->nvram_data.macCfg_port1.etherMtu_mac ;
-		memcpy(ndev->dev_addr, &qdev->nvram_data.funcCfg_fn2.macAddress,
-		       ETH_ALEN);
+		ql_set_mac_addr(ndev, qdev->nvram_data.funcCfg_fn2.macAddress);
 	} else {
 		ndev->mtu = qdev->nvram_data.macCfg_port0.etherMtu_mac ;
-		memcpy(ndev->dev_addr, &qdev->nvram_data.funcCfg_fn0.macAddress,
-		       ETH_ALEN);
+		ql_set_mac_addr(ndev, qdev->nvram_data.funcCfg_fn0.macAddress);
 	}
 	memcpy(ndev->perm_addr, ndev->dev_addr, ndev->addr_len);
 
@@ -4103,6 +4069,7 @@ static int __devinit ql3xxx_probe(struct pci_dev *pdev,
 	qdev->workqueue = create_singlethread_workqueue(ndev->name);
 	INIT_DELAYED_WORK(&qdev->reset_work, ql_reset_work);
 	INIT_DELAYED_WORK(&qdev->tx_timeout_work, ql_tx_timeout_work);
+	INIT_DELAYED_WORK(&qdev->link_state_work, ql_link_state_machine_work);
 
 	init_timer(&qdev->adapter_timer);
 	qdev->adapter_timer.function = ql3xxx_timer;

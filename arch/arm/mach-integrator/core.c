@@ -250,16 +250,12 @@ unsigned long integrator_gettimeoffset(void)
 static irqreturn_t
 integrator_timer_interrupt(int irq, void *dev_id)
 {
-	write_seqlock(&xtime_lock);
-
 	/*
 	 * clear the interrupt
 	 */
 	writel(1, TIMER1_VA_BASE + TIMER_INTCLR);
 
 	timer_tick();
-
-	write_sequnlock(&xtime_lock);
 
 	return IRQ_HANDLED;
 }

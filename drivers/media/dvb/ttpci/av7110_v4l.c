@@ -876,11 +876,11 @@ static int std_callback(struct saa7146_dev* dev, struct saa7146_standard *std)
 	struct av7110 *av7110 = (struct av7110*) dev->ext_priv;
 
 	if (std->id & V4L2_STD_PAL) {
-		av7110->vidmode = VIDEO_MODE_PAL;
+		av7110->vidmode = AV7110_VIDEO_MODE_PAL;
 		av7110_set_vidmode(av7110, av7110->vidmode);
 	}
 	else if (std->id & V4L2_STD_NTSC) {
-		av7110->vidmode = VIDEO_MODE_NTSC;
+		av7110->vidmode = AV7110_VIDEO_MODE_NTSC;
 		av7110_set_vidmode(av7110, av7110->vidmode);
 	}
 	else

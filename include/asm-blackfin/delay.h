@@ -1,29 +1,47 @@
-#ifndef _BLACKFIN_DELAY_H
-#define _BLACKFIN_DELAY_H
+/*
+ * delay.h - delay functions
+ *
+ * Copyright (c) 2004-2007 Analog Devices Inc.
+ *
+ * Licensed under the GPL-2 or later.
+ */
+
+#ifndef __ASM_DELAY_H__
+#define __ASM_DELAY_H__
+
+#include <asm/mach/anomaly.h>
 
 static inline void __delay(unsigned long loops)
 {
-
-/* FIXME: Currently the assembler doesn't recognize Loop Register Clobbers,
-   uncomment this as soon those are implemented */
-/*
-      __asm__ __volatile__ (  "\t LSETUP (1f,1f) LC0= %0\n\t"
-                              "1:\t NOP;\n\t"
-                              : :"a" (loops)
-                              : "LT0","LB0","LC0");
-
-*/
-
-	__asm__ __volatile__("[--SP] = LC0;\n\t"
-			     "[--SP] = LT0;\n\t"
-			     "[--SP] = LB0;\n\t"
-			     "LSETUP (1f,1f) LC0 = %0;\n\t"
-			     "1:\t NOP;\n\t"
-			     "LB0 = [SP++];\n\t"
-				"LT0 = [SP++];\n\t"
-				"LC0 = [SP++];\n"
-				:
-				:"a" (loops));
+	if (ANOMALY_05000312) {
+		/* Interrupted loads to loop registers -> bad */
+		unsigned long tmp;
+		__asm__ __volatile__(
+			"[--SP] = LC0;"
+			"[--SP] = LT0;"
+			"[--SP] = LB0;"
+			"LSETUP (1f,1f) LC0 = %1;"
+			"1: NOP;"
+			/* We take advantage of the fact that LC0 is 0 at
+			 * the end of the loop.  Otherwise we'd need some
+			 * NOPs after the CLI here.
+			 */
+			"CLI %0;"
+			"LB0 = [SP++];"
+			"LT0 = [SP++];"
+			"LC0 = [SP++];"
+			"STI %0;"
+			: "=d" (tmp)
+			: "a" (loops)
+		);
+	} else
+		__asm__ __volatile__ (
+			"LSETUP(1f, 1f) LC0 = %0;"
+			"1: NOP;"
+			:
+			: "a" (loops)
+			: "LT0", "LB0", "LC0"
+		);
 }
 
 #include <linux/param.h>	/* needed for HZ */
@@ -41,4 +59,4 @@ static inline void udelay(unsigned long usecs)
 	__delay(usecs * loops_per_jiffy / (1000000 / HZ));
 }
 
-#endif				/* defined(_BLACKFIN_DELAY_H) */
+#endif

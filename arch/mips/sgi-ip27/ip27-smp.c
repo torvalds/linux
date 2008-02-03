@@ -140,62 +140,7 @@ static __init void intr_clear_all(nasid_t nasid)
 		REMOTE_HUB_CLR_INTR(nasid, i);
 }
 
-void __init plat_smp_setup(void)
-{
-	cnodeid_t	cnode;
-
-	for_each_online_node(cnode) {
-		if (cnode == 0)
-			continue;
-		intr_clear_all(COMPACT_TO_NASID_NODEID(cnode));
-	}
-
-	replicate_kernel_text();
-
-	/*
-	 * Assumption to be fixed: we're always booted on logical / physical
-	 * processor 0.  While we're always running on logical processor 0
-	 * this still means this is physical processor zero; it might for
-	 * example be disabled in the firwware.
-	 */
-	alloc_cpupda(0, 0);
-}
-
-void __init plat_prepare_cpus(unsigned int max_cpus)
-{
-	/* We already did everything necessary earlier */
-}
-
-/*
- * Launch a slave into smp_bootstrap().  It doesn't take an argument, and we
- * set sp to the kernel stack of the newly created idle process, gp to the proc
- * struct so that current_thread_info() will work.
- */
-void __cpuinit prom_boot_secondary(int cpu, struct task_struct *idle)
-{
-	unsigned long gp = (unsigned long)task_thread_info(idle);
-	unsigned long sp = __KSTK_TOS(idle);
-
-	LAUNCH_SLAVE(cputonasid(cpu), cputoslice(cpu),
-		(launch_proc_t)MAPPED_KERN_RW_TO_K0(smp_bootstrap),
-		0, (void *) sp, (void *) gp);
-}
-
-void __cpuinit prom_init_secondary(void)
-{
-	per_cpu_init();
-	local_irq_enable();
-}
-
-void __init prom_cpus_done(void)
-{
-}
-
-void __cpuinit prom_smp_finish(void)
-{
-}
-
-void core_send_ipi(int destid, unsigned int action)
+static void ip27_send_ipi_single(int destid, unsigned int action)
 {
 	int irq;
 
@@ -219,3 +164,77 @@ void core_send_ipi(int destid, unsigned int action)
 	 */
 	REMOTE_HUB_SEND_INTR(COMPACT_TO_NASID_NODEID(cpu_to_node(destid)), irq);
 }
+
+static void ip27_send_ipi_mask(cpumask_t mask, unsigned int action)
+{
+	unsigned int i;
+
+	for_each_cpu_mask(i, mask)
+		ip27_send_ipi_single(i, action);
+}
+
+static void __cpuinit ip27_init_secondary(void)
+{
+	per_cpu_init();
+	local_irq_enable();
+}
+
+static void __cpuinit ip27_smp_finish(void)
+{
+}
+
+static void __init ip27_cpus_done(void)
+{
+}
+
+/*
+ * Launch a slave into smp_bootstrap().  It doesn't take an argument, and we
+ * set sp to the kernel stack of the newly created idle process, gp to the proc
+ * struct so that current_thread_info() will work.
+ */
+static void __cpuinit ip27_boot_secondary(int cpu, struct task_struct *idle)
+{
+	unsigned long gp = (unsigned long)task_thread_info(idle);
+	unsigned long sp = __KSTK_TOS(idle);
+
+	LAUNCH_SLAVE(cputonasid(cpu), cputoslice(cpu),
+		(launch_proc_t)MAPPED_KERN_RW_TO_K0(smp_bootstrap),
+		0, (void *) sp, (void *) gp);
+}
+
+static void __init ip27_smp_setup(void)
+{
+	cnodeid_t	cnode;
+
+	for_each_online_node(cnode) {
+		if (cnode == 0)
+			continue;
+		intr_clear_all(COMPACT_TO_NASID_NODEID(cnode));
+	}
+
+	replicate_kernel_text();
+
+	/*
+	 * Assumption to be fixed: we're always booted on logical / physical
+	 * processor 0.  While we're always running on logical processor 0
+	 * this still means this is physical processor zero; it might for
+	 * example be disabled in the firwware.
+	 */
+	alloc_cpupda(0, 0);
+}
+
+static void __init ip27_prepare_cpus(unsigned int max_cpus)
+{
+	/* We already did everything necessary earlier */
+}
+
+struct plat_smp_ops ip27_smp_ops = {
+	.send_ipi_single	= ip27_send_ipi_single,
+	.send_ipi_mask		= ip27_send_ipi_mask,
+	.init_secondary		= ip27_init_secondary,
+	.smp_finish		= ip27_smp_finish,
+	.cpus_done		= ip27_cpus_done,
+	.boot_secondary		= ip27_boot_secondary,
+	.smp_setup		= ip27_smp_setup,
+	.prepare_cpus		= ip27_prepare_cpus,
+};

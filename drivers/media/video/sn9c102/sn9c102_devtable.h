@@ -126,6 +126,7 @@ extern int sn9c102_probe_hv7131d(struct sn9c102_device* cam);
 extern int sn9c102_probe_hv7131r(struct sn9c102_device* cam);
 extern int sn9c102_probe_mi0343(struct sn9c102_device* cam);
 extern int sn9c102_probe_mi0360(struct sn9c102_device* cam);
+extern int sn9c102_probe_mt9v111(struct sn9c102_device *cam);
 extern int sn9c102_probe_ov7630(struct sn9c102_device* cam);
 extern int sn9c102_probe_ov7660(struct sn9c102_device* cam);
 extern int sn9c102_probe_pas106b(struct sn9c102_device* cam);
@@ -144,6 +145,7 @@ static int (*sn9c102_sensor_table[])(struct sn9c102_device*) = {
 	&sn9c102_probe_hv7131r, /* strong detection based on SENSOR ids */
 	&sn9c102_probe_mi0343, /* strong detection based on SENSOR ids */
 	&sn9c102_probe_mi0360, /* strong detection based on SENSOR ids */
+	&sn9c102_probe_mt9v111, /* strong detection based on SENSOR ids */
 	&sn9c102_probe_pas106b, /* strong detection based on SENSOR ids */
 	&sn9c102_probe_pas202bcb, /* strong detection based on SENSOR ids */
 	&sn9c102_probe_ov7630, /* strong detection based on SENSOR ids */

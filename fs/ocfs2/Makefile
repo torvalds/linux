@@ -19,16 +19,17 @@ ocfs2-objs := \
 	ioctl.o 		\
 	journal.o 		\
 	localalloc.o 		\
+	locks.o			\
 	mmap.o 			\
 	namei.o 		\
+	resize.o		\
 	slot_map.o 		\
 	suballoc.o 		\
 	super.o 		\
 	symlink.o 		\
 	sysfile.o 		\
 	uptodate.o		\
-	ver.o 			\
-	vote.o
+	ver.o
 
 obj-$(CONFIG_OCFS2_FS) += cluster/
 obj-$(CONFIG_OCFS2_FS) += dlm/

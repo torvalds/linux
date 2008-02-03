@@ -568,6 +568,7 @@ static ssize_t snd_mem_proc_write(struct file *file, const char __user * buffer,
 				if (pci_set_dma_mask(pci, mask) < 0 ||
 				    pci_set_consistent_dma_mask(pci, mask) < 0) {
 					printk(KERN_ERR "snd-page-alloc: cannot set DMA mask %lx for pci %04x:%04x\n", mask, vendor, device);
+					pci_dev_put(pci);
 					return count;
 				}
 			}

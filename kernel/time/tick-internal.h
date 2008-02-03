@@ -70,8 +70,6 @@ static inline int tick_resume_broadcast_oneshot(struct clock_event_device *bc)
  * Broadcasting support
  */
 #ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
-extern int tick_do_broadcast(cpumask_t mask);
-
 extern int tick_device_uses_broadcast(struct clock_event_device *dev, int cpu);
 extern int tick_check_broadcast_device(struct clock_event_device *dev);
 extern int tick_is_broadcast_device(struct clock_event_device *dev);

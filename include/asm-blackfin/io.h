@@ -122,6 +122,7 @@ extern void outsl(unsigned long port, const void *addr, unsigned long count);
 extern void insb(unsigned long port, void *addr, unsigned long count);
 extern void insw(unsigned long port, void *addr, unsigned long count);
 extern void insl(unsigned long port, void *addr, unsigned long count);
+extern void insl_16(unsigned long port, void *addr, unsigned long count);
 
 extern void dma_outsb(unsigned long port, const void *addr, unsigned short count);
 extern void dma_outsw(unsigned long port, const void *addr, unsigned short count);

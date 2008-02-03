@@ -20,7 +20,6 @@
  */
 
 #define SNDRV_MAIN_OBJECT_FILE
-#include <sound/driver.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -213,7 +212,7 @@ static void snd_ad1848_mce_down(struct snd_ad1848 *chip)
 	for (timeout = 12000; timeout > 0 && (inb(AD1848P(chip, REGSEL)) & AD1848_INIT); timeout--)
 		udelay(100);
 
-	snd_printdd("(1) timeout = %d\n", timeout);
+	snd_printdd("(1) timeout = %ld\n", timeout);
 
 #ifdef CONFIG_SND_DEBUG
 	if (inb(AD1848P(chip, REGSEL)) & AD1848_INIT)

@@ -17,9 +17,26 @@
 /* References to section boundaries */
 extern const void __nosave_begin, __nosave_end;
 
+static void fix_processor_context(void);
+
 struct saved_context saved_context;
 
-void __save_processor_state(struct saved_context *ctxt)
+/**
+ *	__save_processor_state - save CPU registers before creating a
+ *		hibernation image and before restoring the memory state from it
+ *	@ctxt - structure to store the registers contents in
+ *
+ *	NOTE: If there is a CPU register the modification of which by the
+ *	boot kernel (ie. the kernel used for loading the hibernation image)
+ *	might affect the operations of the restored target kernel (ie. the one
+ *	saved in the hibernation image), then its contents must be saved by this
+ *	function.  In other words, if kernel A is hibernated and different
+ *	kernel B is used for loading the hibernation image into memory, the
+ *	kernel A's __save_processor_state() function must save all registers
+ *	needed by kernel A, so that it can operate correctly after the resume
+ *	regardless of what kernel B does in the meantime.
+ */
+static void __save_processor_state(struct saved_context *ctxt)
 {
 	kernel_fpu_begin();
 
@@ -69,7 +86,12 @@ static void do_fpu_end(void)
 	kernel_fpu_end();
 }
 
-void __restore_processor_state(struct saved_context *ctxt)
+/**
+ *	__restore_processor_state - restore the contents of CPU registers saved
+ *		by __save_processor_state()
+ *	@ctxt - structure to load the registers contents from
+ */
+static void __restore_processor_state(struct saved_context *ctxt)
 {
 	/*
 	 * control registers
@@ -113,14 +135,19 @@ void restore_processor_state(void)
 	__restore_processor_state(&saved_context);
 }
 
-void fix_processor_context(void)
+static void fix_processor_context(void)
 {
 	int cpu = smp_processor_id();
 	struct tss_struct *t = &per_cpu(init_tss, cpu);
 
-	set_tss_desc(cpu,t);	/* This just modifies memory; should not be necessary. But... This is necessary, because 386 hardware has concept of busy TSS or some similar stupidity. */
+	/*
+	 * This just modifies memory; should not be necessary. But... This
+	 * is necessary, because 386 hardware has concept of busy TSS or some
+	 * similar stupidity.
+	 */
+	set_tss_desc(cpu, t);
 
-	cpu_gdt(cpu)[GDT_ENTRY_TSS].type = 9;
+	get_cpu_gdt_table(cpu)[GDT_ENTRY_TSS].type = 9;
 
 	syscall_init();                         /* This sets MSR_*STAR and related */
 	load_TR_desc();				/* This does ltr */
@@ -138,7 +165,6 @@ void fix_processor_context(void)
                 loaddebug(&current->thread, 6);
                 loaddebug(&current->thread, 7);
 	}
-
 }
 
 #ifdef CONFIG_HIBERNATION
@@ -192,42 +218,25 @@ static int res_phys_pud_init(pud_t *pud, unsigned long address, unsigned long en
 	return 0;
 }
 
-static int res_kernel_text_pud_init(pud_t *pud, unsigned long start)
-{
-	pmd_t *pmd;
-	unsigned long paddr;
-
-	pmd = (pmd_t *)get_safe_page(GFP_ATOMIC);
-	if (!pmd)
-		return -ENOMEM;
-	set_pud(pud + pud_index(start), __pud(__pa(pmd) | _KERNPG_TABLE));
-	for (paddr = 0; paddr < KERNEL_TEXT_SIZE; pmd++, paddr += PMD_SIZE) {
-		unsigned long pe;
-
-		pe = __PAGE_KERNEL_LARGE_EXEC | _PAGE_GLOBAL | paddr;
-		pe &= __supported_pte_mask;
-		set_pmd(pmd, __pmd(pe));
-	}
-
-	return 0;
-}
-
 static int set_up_temporary_mappings(void)
 {
 	unsigned long start, end, next;
-	pud_t *pud;
 	int error;
 
 	temp_level4_pgt = (pgd_t *)get_safe_page(GFP_ATOMIC);
 	if (!temp_level4_pgt)
 		return -ENOMEM;
 
+	/* It is safe to reuse the original kernel mapping */
+	set_pgd(temp_level4_pgt + pgd_index(__START_KERNEL_map),
+		init_level4_pgt[pgd_index(__START_KERNEL_map)]);
+
 	/* Set up the direct mapping from scratch */
 	start = (unsigned long)pfn_to_kaddr(0);
 	end = (unsigned long)pfn_to_kaddr(end_pfn);
 
 	for (; start < end; start = next) {
-		pud = (pud_t *)get_safe_page(GFP_ATOMIC);
+		pud_t *pud = (pud_t *)get_safe_page(GFP_ATOMIC);
 		if (!pud)
 			return -ENOMEM;
 		next = start + PGDIR_SIZE;
@@ -238,17 +247,7 @@ static int set_up_temporary_mappings(void)
 		set_pgd(temp_level4_pgt + pgd_index(start),
 			mk_kernel_pgd(__pa(pud)));
 	}
-
-	/* Set up the kernel text mapping from scratch */
-	pud = (pud_t *)get_safe_page(GFP_ATOMIC);
-	if (!pud)
-		return -ENOMEM;
-	error = res_kernel_text_pud_init(pud, __START_KERNEL_map);
-	if (!error)
-		set_pgd(temp_level4_pgt + pgd_index(__START_KERNEL_map),
-			__pgd(__pa(pud) | _PAGE_TABLE));
-
-	return error;
+	return 0;
 }
 
 int swsusp_arch_resume(void)

@@ -7,11 +7,12 @@
 #include <linux/nodemask.h>
 #include <linux/percpu.h>
 
-struct i386_cpu {
+struct x86_cpu {
 	struct cpu cpu;
 };
-extern int arch_register_cpu(int num);
+
 #ifdef CONFIG_HOTPLUG_CPU
+extern int arch_register_cpu(int num);
 extern void arch_unregister_cpu(int);
 #endif
 

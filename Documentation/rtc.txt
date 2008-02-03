@@ -180,9 +180,10 @@ driver returns ENOIOCTLCMD.  Some common examples:
     *	RTC_IRQP_SET, RTC_IRQP_READ: the irq_set_freq function will be called
 	to set the frequency while the framework will handle the read for you
 	since the frequency is stored in the irq_freq member of the rtc_device
-	structure.  Also make sure you set the max_user_freq member in your
-	initialization routines so the framework can sanity check the user
-	input for you.
+	structure.  Your driver needs to initialize the irq_freq member during
+	init.  Make sure you check the requested frequency is in range of your
+	hardware in the irq_set_freq function.  If you cannot actually change
+	the frequency, just return -ENOTTY.
 
 If all else fails, check out the rtc-test.c driver!
 

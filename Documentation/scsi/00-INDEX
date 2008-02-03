@@ -64,8 +64,6 @@ lpfc.txt
 	- LPFC driver release notes
 megaraid.txt
 	- Common Management Module, shared code handling ioctls for LSI drivers
-ncr53c7xx.txt
-	- info on driver for NCR53c7xx based adapters
 ncr53c8xx.txt
 	- info on driver for NCR53c8xx based adapters
 osst.txt

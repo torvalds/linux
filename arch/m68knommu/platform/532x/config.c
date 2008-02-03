@@ -21,10 +21,11 @@
 #include <linux/param.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <asm/dma.h>
+#include <linux/io.h>
 #include <asm/machdep.h>
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
+#include <asm/mcfuart.h>
 #include <asm/mcfdma.h>
 #include <asm/mcfwdebug.h>
 
@@ -38,11 +39,60 @@ extern unsigned int mcf_timerlevel;
 
 /***************************************************************************/
 
-/*
- *	DMA channel base address table.
- */
-unsigned int dma_base_addr[MAX_M68K_DMA_CHANNELS] = { };
-unsigned int dma_device_address[MAX_M68K_DMA_CHANNELS];
+static struct mcf_platform_uart m532x_uart_platform[] = {
+	{
+		.mapbase	= MCF_MBAR + MCFUART_BASE1,
+		.irq		= MCFINT_VECBASE + MCFINT_UART0,
+	},
+	{
+		.mapbase 	= MCF_MBAR + MCFUART_BASE2,
+		.irq		= MCFINT_VECBASE + MCFINT_UART1,
+	},
+	{
+		.mapbase 	= MCF_MBAR + MCFUART_BASE3,
+		.irq		= MCFINT_VECBASE + MCFINT_UART2,
+	},
+	{ },
+};
+
+static struct platform_device m532x_uart = {
+	.name			= "mcfuart",
+	.id			= 0,
+	.dev.platform_data	= m532x_uart_platform,
+};
+
+static struct platform_device *m532x_devices[] __initdata = {
+	&m532x_uart,
+};
+
+/***************************************************************************/
+
+static void __init m532x_uart_init_line(int line, int irq)
+{
+	if (line == 0) {
+		MCF_INTC0_ICR26 = 0x3;
+		MCF_INTC0_CIMR = 26;
+		/* GPIO initialization */
+		MCF_GPIO_PAR_UART |= 0x000F;
+	} else if (line == 1) {
+		MCF_INTC0_ICR27 = 0x3;
+		MCF_INTC0_CIMR = 27;
+		/* GPIO initialization */
+		MCF_GPIO_PAR_UART |= 0x0FF0;
+	} else if (line == 2) {
+		MCF_INTC0_ICR28 = 0x3;
+		MCF_INTC0_CIMR = 28;
+	}
+}
+
+static void __init m532x_uarts_init(void)
+{
+	const int nrlines = ARRAY_SIZE(m532x_uart_platform);
+	int line;
+
+	for (line = 0; (line < nrlines); line++)
+		m532x_uart_init_line(line, m532x_uart_platform[line].irq);
+}
 
 /***************************************************************************/
 
@@ -66,21 +116,7 @@ void mcf_settimericr(unsigned int timer, unsigned int level)
 
 /***************************************************************************/
 
-int mcf_timerirqpending(int timer)
-{
-	unsigned int imr = 0;
-
-	switch (timer) {
-	case 1:  imr = 0x1; break;
-	case 2:  imr = 0x2; break;
-	default: break;
-	}
-	return (mcf_getiprh() & imr);
-}
-
-/***************************************************************************/
-
-void config_BSP(char *commandp, int size)
+void __init config_BSP(char *commandp, int size)
 {
 	mcf_setimr(MCFSIM_IMR_MASKALL);
 
@@ -99,7 +135,7 @@ void config_BSP(char *commandp, int size)
 	mcf_profilevector = 64+33;
 	mach_reset = coldfire_reset;
 
-#ifdef MCF_BDM_DISABLE
+#ifdef CONFIG_BDM_DISABLE
 	/*
 	 * Disable the BDM clocking.  This also turns off most of the rest of
 	 * the BDM device.  This is good for EMC reasons. This option is not
@@ -110,9 +146,19 @@ void config_BSP(char *commandp, int size)
 }
 
 /***************************************************************************/
-/* Board initialization */
 
-/********************************************************************/
+static int __init init_BSP(void)
+{
+	m532x_uarts_init();
+	platform_add_devices(m532x_devices, ARRAY_SIZE(m532x_devices));
+	return 0;
+}
+
+arch_initcall(init_BSP);
+
+/***************************************************************************/
+/* Board initialization */
+/***************************************************************************/
 /* 
  * PLL min/max specifications
  */

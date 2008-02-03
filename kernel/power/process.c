@@ -86,9 +86,9 @@ static void fake_signal_wake_up(struct task_struct *p, int resume)
 
 static void send_fake_signal(struct task_struct *p)
 {
-	if (p->state == TASK_STOPPED)
+	if (task_is_stopped(p))
 		force_sig_specific(SIGSTOP, p);
-	fake_signal_wake_up(p, p->state == TASK_STOPPED);
+	fake_signal_wake_up(p, task_is_stopped(p));
 }
 
 static int has_mm(struct task_struct *p)
@@ -182,7 +182,7 @@ static int try_to_freeze_tasks(int freeze_user_space)
 			if (frozen(p) || !freezeable(p))
 				continue;
 
-			if (p->state == TASK_TRACED && frozen(p->parent)) {
+			if (task_is_traced(p) && frozen(p->parent)) {
 				cancel_freezing(p);
 				continue;
 			}

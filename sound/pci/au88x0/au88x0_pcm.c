@@ -21,7 +21,6 @@
  * It remains stuck,and DMA transfers do not happen. 
  */
 #include <sound/asoundef.h>
-#include <sound/driver.h>
 #include <linux/time.h>
 #include <sound/core.h>
 #include <sound/pcm.h>

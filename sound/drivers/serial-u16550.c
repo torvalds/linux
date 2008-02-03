@@ -30,7 +30,6 @@
  *      More documentation can be found in serial-u16550.txt.
  */
 
-#include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/err.h>
@@ -43,6 +42,7 @@
 #include <sound/initval.h>
 
 #include <linux/serial_reg.h>
+#include <linux/jiffies.h>
 
 #include <asm/io.h>
 
@@ -455,7 +455,7 @@ static void snd_uart16550_do_open(struct snd_uart16550 * uart)
 		    | UART_IER_THRI	/* Enable Transmitter holding register empty interrupt */
 		    ;
 	}
-	outb(byte, uart->base + UART_IER);	/* Interupt enable Register */
+	outb(byte, uart->base + UART_IER);	/* Interrupt enable Register */
 
 	inb(uart->base + UART_LSR);	/* Clear any pre-existing overrun indication */
 	inb(uart->base + UART_IIR);	/* Clear any pre-existing transmit interrupt */
@@ -473,7 +473,7 @@ static void snd_uart16550_do_close(struct snd_uart16550 * uart)
 
 	outb((0 & UART_IER_RDI)		/* Disable Receiver data interrupt */
 	     |(0 & UART_IER_THRI)	/* Disable Transmitter holding register empty interrupt */
-	     ,uart->base + UART_IER);	/* Interupt enable Register */
+	     ,uart->base + UART_IER);	/* Interrupt enable Register */
 
 	switch (uart->adaptor) {
 	default:
@@ -653,7 +653,7 @@ static void snd_uart16550_output_write(struct snd_rawmidi_substream *substream)
 	char first;
 	static unsigned long lasttime = 0;
 	
-	/* Interupts are disabled during the updating of the tx_buff,
+	/* Interrupts are disabled during the updating of the tx_buff,
 	 * since it is 'bad' to have two processes updating the same
 	 * variables (ie buff_in & buff_out)
 	 */
@@ -694,7 +694,7 @@ static void snd_uart16550_output_write(struct snd_rawmidi_substream *substream)
 			    (uart->adaptor == SNDRV_SERIAL_SOUNDCANVAS ||
 			     uart->adaptor == SNDRV_SERIAL_GENERIC) &&
 			    (uart->prev_out != substream->number ||
-			     jiffies-lasttime > 3*HZ)) {
+			     time_after(jiffies, lasttime + 3*HZ))) {
 
 				if (snd_uart16550_buffer_can_write(uart, 3)) {
 					/* Roland Soundcanvas part selection */

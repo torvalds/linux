@@ -1528,14 +1528,12 @@ static struct of_platform_driver su_driver = {
 	.remove		= __devexit_p(su_remove),
 };
 
-static int num_uart;
-
 static int __init sunsu_init(void)
 {
 	struct device_node *dp;
 	int err;
+	int num_uart = 0;
 
-	num_uart = 0;
 	for_each_node_by_name(dp, "su") {
 		if (su_get_type(dp) == SU_PORT_PORT)
 			num_uart++;
@@ -1552,26 +1550,22 @@ static int __init sunsu_init(void)
 	}
 
 	if (num_uart) {
-		sunsu_reg.minor = sunserial_current_minor;
-		sunsu_reg.nr = num_uart;
-		err = uart_register_driver(&sunsu_reg);
+		err = sunserial_register_minors(&sunsu_reg, num_uart);
 		if (err)
 			return err;
-		sunsu_reg.tty_driver->name_base = sunsu_reg.minor - 64;
-		sunserial_current_minor += num_uart;
 	}
 
 	err = of_register_driver(&su_driver, &of_bus_type);
 	if (err && num_uart)
-		uart_unregister_driver(&sunsu_reg);
+		sunserial_unregister_minors(&sunsu_reg, num_uart);
 
 	return err;
 }
 
 static void __exit sunsu_exit(void)
 {
-	if (num_uart)
-		uart_unregister_driver(&sunsu_reg);
+	if (sunsu_reg.nr)
+		sunserial_unregister_minors(&sunsu_reg, sunsu_reg.nr);
 }
 
 module_init(sunsu_init);

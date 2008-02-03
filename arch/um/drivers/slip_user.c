@@ -77,7 +77,7 @@ static int slip_tramp(char **argv, int fd)
 {
 	struct slip_pre_exec_data pe_data;
 	char *output;
-	int status, pid, fds[2], err, output_len;
+	int pid, fds[2], err, output_len;
 
 	err = os_pipe(fds, 1, 0);
 	if (err < 0) {
@@ -109,15 +109,7 @@ static int slip_tramp(char **argv, int fd)
 	read_output(fds[0], output, output_len);
 	printk("%s", output);
 
-	CATCH_EINTR(err = waitpid(pid, &status, 0));
-	if (err < 0)
-		err = errno;
-	else if (!WIFEXITED(status) || (WEXITSTATUS(status) != 0)) {
-		printk(UM_KERN_ERR "'%s' didn't exit with status 0\n", argv[0]);
-		err = -EINVAL;
-	}
-	else err = 0;
-
+	err = helper_wait(pid, 0, argv[0]);
 	close(fds[0]);
 
 out_free:

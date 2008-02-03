@@ -185,7 +185,7 @@ struct myri10ge_priv {
 	dma_addr_t fw_stats_bus;
 	struct pci_dev *pdev;
 	int msi_enabled;
-	__be32 link_state;
+	u32 link_state;
 	unsigned int rdma_tags_available;
 	int intr_coal_delay;
 	__be32 __iomem *intr_coal_delay_ptr;
@@ -576,7 +576,7 @@ static int myri10ge_adopt_running_firmware(struct myri10ge_priv *mgp)
 	int status;
 
 	/* find running firmware header */
-	hdr_offset = ntohl(__raw_readl(mgp->sram + MCP_HEADER_PTR_OFFSET));
+	hdr_offset = swab32(readl(mgp->sram + MCP_HEADER_PTR_OFFSET));
 
 	if ((hdr_offset & 3) || hdr_offset + sizeof(*hdr) > mgp->sram_size) {
 		dev_err(dev, "Running firmware has bad header offset (%d)\n",
@@ -1053,7 +1053,10 @@ myri10ge_rx_done(struct myri10ge_priv *mgp, struct myri10ge_rx_buf *rx,
 		rx_frags[0].size -= MXGEFW_PAD;
 		len -= MXGEFW_PAD;
 		lro_receive_frags(&mgp->rx_done.lro_mgr, rx_frags,
-				  len, len, (void *)(unsigned long)csum, csum);
+				  len, len,
+				 /* opaque, will come back in get_frag_header */
+				  (void *)(__force unsigned long)csum,
+				  csum);
 		return 1;
 	}
 
@@ -1151,7 +1154,7 @@ static inline int myri10ge_clean_rx_done(struct myri10ge_priv *mgp, int budget)
 	u16 length;
 	__wsum checksum;
 
-	while (rx_done->entry[idx].length != 0 && work_done++ < budget) {
+	while (rx_done->entry[idx].length != 0 && work_done < budget) {
 		length = ntohs(rx_done->entry[idx].length);
 		rx_done->entry[idx].length = 0;
 		checksum = csum_unfold(rx_done->entry[idx].checksum);
@@ -1167,6 +1170,7 @@ static inline int myri10ge_clean_rx_done(struct myri10ge_priv *mgp, int budget)
 		rx_bytes += rx_ok * (unsigned long)length;
 		cnt++;
 		idx = cnt & (myri10ge_max_intr_slots - 1);
+		work_done++;
 	}
 	rx_done->idx = idx;
 	rx_done->cnt = cnt;
@@ -1233,13 +1237,12 @@ static int myri10ge_poll(struct napi_struct *napi, int budget)
 	struct myri10ge_priv *mgp =
 	    container_of(napi, struct myri10ge_priv, napi);
 	struct net_device *netdev = mgp->dev;
-	struct myri10ge_rx_done *rx_done = &mgp->rx_done;
 	int work_done;
 
 	/* process as many rx events as NAPI will allow */
 	work_done = myri10ge_clean_rx_done(mgp, budget);
 
-	if (rx_done->entry[rx_done->idx].length == 0 || !netif_running(netdev)) {
+	if (work_done < budget) {
 		netif_rx_complete(netdev, napi);
 		put_be32(htonl(3), mgp->irq_claim);
 	}
@@ -1431,7 +1434,7 @@ static const char myri10ge_gstrings_stats[][ETH_GSTRING_LEN] = {
 };
 
 #define MYRI10GE_NET_STATS_LEN      21
-#define MYRI10GE_STATS_LEN  sizeof(myri10ge_gstrings_stats) / ETH_GSTRING_LEN
+#define MYRI10GE_STATS_LEN	ARRAY_SIZE(myri10ge_gstrings_stats)
 
 static void
 myri10ge_get_strings(struct net_device *netdev, u32 stringset, u8 * data)
@@ -1786,7 +1789,8 @@ myri10ge_get_frag_header(struct skb_frag_struct *frag, void **mac_hdr,
 	struct iphdr *iph;
 	u8 *va = page_address(frag->page) + frag->page_offset;
 	unsigned long ll_hlen;
-	__wsum csum = (__wsum) (unsigned long)priv;
+	/* passed opaque through lro_receive_frags() */
+	__wsum csum = (__force __wsum) (unsigned long)priv;
 
 	/* find the mac header, aborting if not IPv4 */
 
@@ -1967,7 +1971,7 @@ static int myri10ge_open(struct net_device *dev)
 		goto abort_with_rings;
 	}
 
-	mgp->link_state = htonl(~0U);
+	mgp->link_state = ~0U;
 	mgp->rdma_tags_available = 15;
 
 	lro_mgr = &mgp->rx_done.lro_mgr;
@@ -1979,6 +1983,7 @@ static int myri10ge_open(struct net_device *dev)
 	lro_mgr->lro_arr = mgp->rx_done.lro_desc;
 	lro_mgr->get_frag_header = myri10ge_get_frag_header;
 	lro_mgr->max_aggr = myri10ge_lro_max_pkts;
+	lro_mgr->frag_align_pad = 2;
 	if (lro_mgr->max_aggr > MAX_SKB_FRAGS)
 		lro_mgr->max_aggr = MAX_SKB_FRAGS;
 

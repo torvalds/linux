@@ -803,7 +803,7 @@ static void vmstat_update(struct work_struct *w)
 		sysctl_stat_interval);
 }
 
-static void __devinit start_cpu_timer(int cpu)
+static void __cpuinit start_cpu_timer(int cpu)
 {
 	struct delayed_work *vmstat_work = &per_cpu(vmstat_work, cpu);
 

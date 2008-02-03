@@ -363,8 +363,7 @@ int __init pmac_pfunc_base_install(void)
 
 	return 0;
 }
-
-arch_initcall(pmac_pfunc_base_install);
+machine_arch_initcall(powermac, pmac_pfunc_base_install);
 
 #ifdef CONFIG_PM
 

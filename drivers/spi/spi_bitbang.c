@@ -184,6 +184,7 @@ int spi_bitbang_setup(struct spi_device *spi)
 	struct spi_bitbang_cs	*cs = spi->controller_state;
 	struct spi_bitbang	*bitbang;
 	int			retval;
+	unsigned long		flags;
 
 	bitbang = spi_master_get_devdata(spi->master);
 
@@ -222,12 +223,12 @@ int spi_bitbang_setup(struct spi_device *spi)
 	 */
 
 	/* deselect chip (low or high) */
-	spin_lock(&bitbang->lock);
+	spin_lock_irqsave(&bitbang->lock, flags);
 	if (!bitbang->busy) {
 		bitbang->chipselect(spi, BITBANG_CS_INACTIVE);
 		ndelay(cs->nsecs);
 	}
-	spin_unlock(&bitbang->lock);
+	spin_unlock_irqrestore(&bitbang->lock, flags);
 
 	return 0;
 }

@@ -57,7 +57,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 		- Default: 1
 		- For auto-loading more than one card, specify this
 		  option together with snd-card-X aliases.
-
+    slots	- Reserve the slot index for the given driver.
+		  This option takes multiple strings.		
+		  See "Module Autoloading Support" section for details.
   
   Module snd-pcm-oss
   ------------------
@@ -148,13 +150,6 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module for sound cards based on Analog Devices AD1816A/AD1815 ISA chips.
 
-    port	- port # for AD1816A chip (PnP setup)
-    mpu_port	- port # for MPU-401 UART (PnP setup)
-    fm_port	- port # for OPL3 (PnP setup)
-    irq		- IRQ # for AD1816A chip (PnP setup)
-    mpu_irq	- IRQ # for MPU-401 UART (PnP setup)
-    dma1	- first DMA # for AD1816A chip (PnP setup)
-    dma2	- second DMA # for AD1816A chip (PnP setup)
     clockfreq   - Clock frequency for AD1816A chip (default = 0, 33000Hz)
     
     This module supports multiple cards, autoprobe and PnP.
@@ -201,14 +196,6 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module for sound cards based on Avance Logic ALS100/ALS120 ISA chips.
 
-    port	- port # for ALS100 (SB16) chip (PnP setup)
-    irq		- IRQ # for ALS100 (SB16) chip (PnP setup)
-    dma8	- 8-bit DMA # for ALS100 (SB16) chip (PnP setup)
-    dma16	- 16-bit DMA # for ALS100 (SB16) chip (PnP setup)
-    mpu_port	- port # for MPU-401 UART (PnP setup)
-    mpu_irq	- IRQ # for MPU-401 (PnP setup)
-    fm_port	- port # for OPL3 FM (PnP setup)
-    
     This module supports multiple cards, autoprobe and PnP.
 
     The power-management is supported.
@@ -302,15 +289,6 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module for sound cards based on Aztech System AZT2320 ISA chip (PnP only).
 
-    port	- port # for AZT2320 chip (PnP setup)
-    wss_port	- port # for WSS (PnP setup)
-    mpu_port	- port # for MPU-401 UART (PnP setup)
-    fm_port	- FM port # for AZT2320 chip (PnP setup)
-    irq		- IRQ # for AZT2320 (WSS) chip (PnP setup)
-    mpu_irq	- IRQ # for MPU-401 UART (PnP setup)
-    dma1	- 1st DMA # for AZT2320 (WSS) chip (PnP setup)
-    dma2	- 2nd DMA # for AZT2320 (WSS) chip (PnP setup)
-    
     This module supports multiple cards, PnP and autoprobe.
     
     The power-management is supported.
@@ -349,6 +327,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
   ------------------
 
     Module for sound cards based on C-Media CMI8330 ISA chips.
+
+    isapnp	- ISA PnP detection - 0 = disable, 1 = enable (default)
+
+    with isapnp=0, the following options are available:
 
     wssport	- port # for CMI8330 chip (WSS)
     wssirq	- IRQ # for CMI8330 chip (WSS)
@@ -404,6 +386,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module for sound cards based on CS4232/CS4232A ISA chips.
 
+    isapnp	- ISA PnP detection - 0 = disable, 1 = enable (default)
+
+    with isapnp=0, the following options are available:
+
     port	- port # for CS4232 chip (PnP setup - 0x534)
     cport	- control port # for CS4232 chip (PnP setup - 0x120,0x210,0xf00)
     mpu_port	- port # for MPU-401 UART (PnP setup - 0x300), -1 = disable
@@ -412,10 +398,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     mpu_irq	- IRQ # for MPU-401 UART (9,11,12,15)
     dma1	- first DMA # for CS4232 chip (0,1,3)
     dma2	- second DMA # for Yamaha CS4232 chip (0,1,3), -1 = disable
-    isapnp	- ISA PnP detection - 0 = disable, 1 = enable (default)
     
     This module supports multiple cards. This module does not support autoprobe
-    thus main port must be specified!!! Other ports are optional.
+    (if ISA PnP is not used) thus main port must be specified!!! Other ports are
+    optional.
 
     The power-management is supported.
     
@@ -425,6 +411,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Module for sound cards based on CS4235/CS4236/CS4236B/CS4237B/
                                    CS4238B/CS4239 ISA chips.
 
+    isapnp	- ISA PnP detection - 0 = disable, 1 = enable (default)
+
+    with isapnp=0, the following options are available:
+
     port	- port # for CS4236 chip (PnP setup - 0x534)
     cport	- control port # for CS4236 chip (PnP setup - 0x120,0x210,0xf00)
     mpu_port	- port # for MPU-401 UART (PnP setup - 0x300), -1 = disable
@@ -433,7 +423,6 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     mpu_irq	- IRQ # for MPU-401 UART (9,11,12,15)
     dma1	- first DMA # for CS4236 chip (0,1,3)
     dma2	- second DMA # for CS4236 chip (0,1,3), -1 = disable
-    isapnp	- ISA PnP detection - 0 = disable, 1 = enable (default)
     
     This module supports multiple cards. This module does not support autoprobe
     (if ISA PnP is not used) thus main port and control port must be
@@ -502,13 +491,6 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module for Diamond Technologies DT-019X / Avance Logic ALS-007 (PnP
     only)
-
-    port	- Port # (PnP setup)
-    mpu_port	- Port # for MPU-401 (PnP setup)
-    fm_port	- Port # for FM OPL-3 (PnP setup)
-    irq		- IRQ # (PnP setup)
-    mpu_irq	- IRQ # for MPU-401 (PnP setup)
-    dma8	- DMA # (PnP setup)
 
     This module supports multiple cards.  This module is enabled only with
     ISA PnP support.
@@ -607,10 +589,6 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module for sound cards based on ESS ES968 chip (PnP only).
 
-    port	- port # for ES968 (SB8) chip (PnP setup)
-    irq		- IRQ # for ES968 (SB8) chip (PnP setup)
-    dma1	- DMA # for ES968 (SB8) chip (PnP setup)
-    
     This module supports multiple cards, PnP and autoprobe.
     
     The power-management is supported.
@@ -633,13 +611,16 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module for ESS AudioDrive ES-18xx sound cards.
 
+    isapnp	- ISA PnP detection - 0 = disable, 1 = enable (default)
+
+    with isapnp=0, the following options are available:
+
     port	- port # for ES-18xx chip (0x220,0x240,0x260)
     mpu_port	- port # for MPU-401 port (0x300,0x310,0x320,0x330), -1 = disable (default)
     fm_port	- port # for FM (optional, not used)
     irq		- IRQ # for ES-18xx chip (5,7,9,10)
     dma1	- first DMA # for ES-18xx chip (0,1,3)
     dma2	- first DMA # for ES-18xx chip (0,1,3)
-    isapnp	- ISA PnP detection - 0 = disable, 1 = enable (default)
 
     This module supports multiple cards, ISA PnP and autoprobe (without MPU-401
     port if native ISA PnP routines are not used).
@@ -763,9 +744,12 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 		VIA VT8251/VT8237A,
 		SIS966, ULI M5461
 
+    [Multiple options for each card instance]
     model	- force the model name
     position_fix - Fix DMA pointer (0 = auto, 1 = none, 2 = POSBUF, 3 = FIFO size)
     probe_mask  - Bitmask to probe codecs (default = -1, meaning all slots)
+    
+    [Single (global) options]
     single_cmd  - Use single immediate commands to communicate with
 		codecs (for debugging only)
     enable_msi	- Enable Message Signaled Interrupt (MSI) (default = off)
@@ -774,8 +758,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     power_save_controller - Reset HD-audio controller in power-saving mode
 		(default = on)
 
-    This module supports one card and autoprobe.
-
+    This module supports multiple cards and autoprobe.
+    
     Each codec may have a model table for different configurations.
     If your machine isn't listed there, the default (usually minimal)
     configuration is set up.  You can pass "model=<name>" option to
@@ -817,17 +801,23 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  will		Will laptops (PB V7900)
 	  replacer	Replacer 672V
 	  basic		fixed pin assignment (old default model)
+	  test		for testing/debugging purpose, almost all controls can
+			adjusted.  Appearing only when compiled with
+			$CONFIG_SND_DEBUG=y
 	  auto		auto-config reading BIOS (default)
 
 	ALC262
 	  fujitsu	Fujitsu Laptop
 	  hp-bpc	HP xw4400/6400/8400/9400 laptops
 	  hp-bpc-d7000	HP BPC D7000
+	  hp-tc-t5735	HP Thin Client T5735
+	  hp-rp5700	HP RP5700
 	  benq		Benq ED8
 	  benq-t31	Benq T31
 	  hippo		Hippo (ATI) with jack detection, Sony UX-90s
 	  hippo_1	Hippo (Benq) with jack detection
 	  sony-assamd	Sony ASSAMD
+	  ultra		Samsung Q1 Ultra Vista model
 	  basic		fixed pin assignment w/o SPDIF
 	  auto		auto-config reading BIOS (default)
 
@@ -835,6 +825,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  3stack	3-stack model
 	  toshiba	Toshiba A205
 	  acer		Acer laptops
+	  dell		Dell OEM laptops (Vostro 1200)
+	  test		for testing/debugging purpose, almost all controls can
+			adjusted.  Appearing only when compiled with
+			$CONFIG_SND_DEBUG=y
 	  auto		auto-config reading BIOS (default)
 
 	ALC662
@@ -843,6 +837,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  3stack-6ch-dig 3-stack (6-channel) with SPDIF
 	  6stack-dig	 6-stack with SPDIF
 	  lenovo-101e	 Lenovo laptop
+	  eeepc-p701	ASUS Eeepc P701
+	  eeepc-ep20	ASUS Eeepc EP20
 	  auto		auto-config reading BIOS (default)
 
 	ALC882/885
@@ -877,6 +873,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  haier-w66	Haier W66
 	  6stack-hp	HP machines with 6stack (Nettle boards)
 	  3stack-hp	HP machines with 3stack (Lucknow, Samba boards)
+	  6stack-dell	Dell machines with 6stack (Inspiron 530)
+	  mitac		Mitac 8252D
 	  auto		auto-config reading BIOS (default)
 
 	ALC861/660
@@ -928,6 +926,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	AD1984
 	  basic		default configuration
 	  thinkpad	Lenovo Thinkpad T61/X61
+	  dell		Dell T3400
 
 	AD1986A
 	  6stack	6-jack, separate surrounds (default)
@@ -947,7 +946,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  auto		auto-config reading BIOS (default)
 	
 	Conexant 5045
-	  laptop	Laptop config 
+	  laptop-hpsense    Laptop with HP sense (old model laptop)
+	  laptop-micsense   Laptop with Mic sense (old model fujitsu)
+	  laptop-hpmicsense Laptop with HP and Mic senses
+	  benq		Benq R55E
 	  test		for testing/debugging purpose, almost all controls
 			can be adjusted.  Appearing only when compiled with
 			$CONFIG_SND_DEBUG=y
@@ -959,6 +961,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  test		for testing/debugging purpose, almost all controls
 			can be adjusted.  Appearing only when compiled with
 			$CONFIG_SND_DEBUG=y
+
+	Conexant 5051
+	  laptop	Basic Laptop config (default)
+	  hp		HP Spartan laptop
 
 	STAC9200
 	  ref		Reference board
@@ -1091,6 +1097,15 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     See hdspm.txt for details.
 
+  Module snd-hifier
+  -----------------
+
+    Module for the MediaTek/TempoTec HiFier Fantasia sound card.
+
+    This module supports autoprobe and multiple cards.
+
+    Power management is _not_ supported.
+
   Module snd-ice1712
   ------------------
 
@@ -1156,11 +1171,14 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 			* Chaintech 9CJS
 			* Chaintech AV-710
 			* Shuttle SN25P
+			* Onkyo SE-90PCI
+			* Onkyo SE-200PCI
 
     model       - Use the given board model, one of the following:
 		  revo51, revo71, amp2000, prodigy71, prodigy71lt,
 		  prodigy192, aureon51, aureon71, universe, ap192,
-		  k8x800, phase22, phase28, ms300, av710
+		  k8x800, phase22, phase28, ms300, av710, se200pci,
+		  se90pci
 
     This module supports multiple cards and autoprobe.
 
@@ -1257,15 +1275,19 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Module for Gravis UltraSound PnP, Dynasonic 3-D/Pro, STB Sound Rage 32
     and other sound cards based on AMD InterWave (tm) chip.
   
-    port	- port # for InterWave chip (0x210,0x220,0x230,0x240,0x250,0x260)
-    irq		- IRQ # for InterWave chip (3,5,9,11,12,15)
-    dma1	- DMA # for InterWave chip (0,1,3,5,6,7)
-    dma2	- DMA # for InterWave chip (0,1,3,5,6,7,-1=disable)
     joystick_dac - 0 to 31, (0.59V-4.52V or 0.389V-2.98V)
     midi	- 1 = MIDI UART enable, 0 = MIDI UART disable (default)
     pcm_voices	- reserved PCM voices for the synthesizer (default 2)
     effect	- 1 = InterWave effects enable (default 0);
                   requires 8 voices
+    isapnp	- ISA PnP detection - 0 = disable, 1 = enable (default)
+
+    with isapnp=0, the following options are available:
+
+    port	- port # for InterWave chip (0x210,0x220,0x230,0x240,0x250,0x260)
+    irq		- IRQ # for InterWave chip (3,5,9,11,12,15)
+    dma1	- DMA # for InterWave chip (0,1,3,5,6,7)
+    dma2	- DMA # for InterWave chip (0,1,3,5,6,7,-1=disable)
 
     This module supports multiple cards, autoprobe and ISA PnP.
 
@@ -1276,16 +1298,20 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     and other sound cards based on AMD InterWave (tm) chip with TEA6330T
     circuit for extended control of bass, treble and master volume.
   
-    port	- port # for InterWave chip (0x210,0x220,0x230,0x240,0x250,0x260)
-    port_tc	- tone control (i2c bus) port # for TEA6330T chip (0x350,0x360,0x370,0x380)
-    irq		- IRQ # for InterWave chip (3,5,9,11,12,15)
-    dma1	- DMA # for InterWave chip (0,1,3,5,6,7)
-    dma2	- DMA # for InterWave chip (0,1,3,5,6,7,-1=disable)
     joystick_dac - 0 to 31, (0.59V-4.52V or 0.389V-2.98V)
     midi	- 1 = MIDI UART enable, 0 = MIDI UART disable (default)
     pcm_voices	- reserved PCM voices for the synthesizer (default 2)
     effect	- 1 = InterWave effects enable (default 0);
                   requires 8 voices
+    isapnp	- ISA PnP detection - 0 = disable, 1 = enable (default)
+
+    with isapnp=0, the following options are available:
+
+    port	- port # for InterWave chip (0x210,0x220,0x230,0x240,0x250,0x260)
+    port_tc	- tone control (i2c bus) port # for TEA6330T chip (0x350,0x360,0x370,0x380)
+    irq		- IRQ # for InterWave chip (3,5,9,11,12,15)
+    dma1	- DMA # for InterWave chip (0,1,3,5,6,7)
+    dma2	- DMA # for InterWave chip (0,1,3,5,6,7,-1=disable)
 
     This module supports multiple cards, autoprobe and ISA PnP.
 
@@ -1473,6 +1499,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module for Yamaha OPL3-SA2/SA3 sound cards.
 
+    isapnp	- ISA PnP detection - 0 = disable, 1 = enable (default)
+
+    with isapnp=0, the following options are available:
+
     port	- control port # for OPL3-SA chip (0x370)
     sb_port	- SB port # for OPL3-SA chip (0x220,0x240)
     wss_port	- WSS port # for OPL3-SA chip (0x530,0xe80,0xf40,0x604)
@@ -1481,7 +1511,6 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     irq		- IRQ # for OPL3-SA chip (5,7,9,10)
     dma1	- first DMA # for Yamaha OPL3-SA chip (0,1,3)
     dma2	- second DMA # for Yamaha OPL3-SA chip (0,1,3), -1 = disable
-    isapnp	- ISA PnP detection - 0 = disable, 1 = enable (default)
     
     This module supports multiple cards and ISA PnP.  It does not support
     autoprobe (if ISA PnP is not used) thus all ports must be specified!!!
@@ -1494,6 +1523,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Module for sound cards based on OPTi 82c92x and Analog Devices AD1848 chips.
     Module works with OAK Mozart cards as well.
     
+    isapnp    - ISA PnP detection - 0 = disable, 1 = enable (default)
+
+    with isapnp=0, the following options are available:
+
     port      - port # for WSS chip (0x530,0xe80,0xf40,0x604)
     mpu_port  - port # for MPU-401 UART (0x300,0x310,0x320,0x330)
     fm_port   - port # for OPL3 device (0x388)
@@ -1508,6 +1541,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module for sound cards based on OPTi 82c92x and Crystal CS4231 chips.
     
+    isapnp    - ISA PnP detection - 0 = disable, 1 = enable (default)
+
+    with isapnp=0, the following options are available:
+
     port      - port # for WSS chip (0x530,0xe80,0xf40,0x604)
     mpu_port  - port # for MPU-401 UART (0x300,0x310,0x320,0x330)
     fm_port   - port # for OPL3 device (0x388)
@@ -1523,6 +1560,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module for sound cards based on OPTi 82c93x chips.
     
+    isapnp    - ISA PnP detection - 0 = disable, 1 = enable (default)
+
+    with isapnp=0, the following options are available:
+
     port      - port # for WSS chip (0x530,0xe80,0xf40,0x604)
     mpu_port  - port # for MPU-401 UART (0x300,0x310,0x320,0x330)
     fm_port   - port # for OPL3 device (0x388)
@@ -1532,6 +1573,22 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     dma2      - second DMA # for WSS chip (0,1,3)
 
     This module supports only one card, autoprobe and PnP.
+
+  Module snd-oxygen
+  -----------------
+
+    Module for sound cards based on the C-Media CMI8788 chip:
+    * Asound A-8788
+    * AuzenTech X-Meridian
+    * Bgears b-Enspirer
+    * Club3D Theatron DTS
+    * HT-Omega Claro
+    * Razer Barracuda AC-1
+    * Sondigo Inferno
+
+    This module supports autoprobe and multiple cards.
+
+    Power management is _not_ supported.
 
   Module snd-pcxhr
   ----------------
@@ -1647,6 +1704,12 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 					  SoundBlaster AWE 32 (PnP),
 					  SoundBlaster AWE 64 PnP
 
+    mic_agc	- Mic Auto-Gain-Control - 0 = disable, 1 = enable (default)
+    csp		- ASP/CSP chip support - 0 = disable (default), 1 = enable
+    isapnp	- ISA PnP detection - 0 = disable, 1 = enable (default)
+
+    with isapnp=0, the following options are available:
+
     port	- port # for SB DSP 4.x chip (0x220,0x240,0x260)
     mpu_port	- port # for MPU-401 UART (0x300,0x330), -1 = disable
     awe_port	- base port # for EMU8000 synthesizer (0x620,0x640,0x660)
@@ -1654,9 +1717,6 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     irq		- IRQ # for SB DSP 4.x chip (5,7,9,10)
     dma8	- 8-bit DMA # for SB DSP 4.x chip (0,1,3)
     dma16	- 16-bit DMA # for SB DSP 4.x chip (5,6,7)
-    mic_agc	- Mic Auto-Gain-Control - 0 = disable, 1 = enable (default)
-    csp		- ASP/CSP chip support - 0 = disable (default), 1 = enable
-    isapnp	- ISA PnP detection - 0 = disable, 1 = enable (default)
     
     This module supports multiple cards, autoprobe and ISA PnP.
 
@@ -1739,18 +1799,21 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module for Turtle Beach Maui, Tropez and Tropez+ sound cards.
 
+    use_cs4232_midi - Use CS4232 MPU-401 interface
+                      (inaccessibly located inside your computer)
+    isapnp          - ISA PnP detection - 0 = disable, 1 = enable (default)
+
+    with isapnp=0, the following options are available:
+
     cs4232_pcm_port - Port # for CS4232 PCM interface.
     cs4232_pcm_irq  - IRQ # for CS4232 PCM interface (5,7,9,11,12,15).
     cs4232_mpu_port - Port # for CS4232 MPU-401 interface.
     cs4232_mpu_irq  - IRQ # for CS4232 MPU-401 interface (9,11,12,15).
-    use_cs4232_midi - Use CS4232 MPU-401 interface
-                      (inaccessibly located inside your computer)
     ics2115_port    - Port # for ICS2115
     ics2115_irq     - IRQ # for ICS2115
     fm_port         - FM OPL-3 Port #
     dma1            - DMA1 # for CS4232 PCM interface.
     dma2            - DMA2 # for CS4232 PCM interface.
-    isapnp          - ISA PnP detection - 0 = disable, 1 = enable (default)
 
     The below are options for wavefront_synth features:
     wf_raw	    - Assume that we need to boot the OS (default:no)
@@ -1965,6 +2028,16 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     
     This module supports multiple cards.
 
+  Module snd-virtuoso
+  -------------------
+
+    Module for sound cards based on the Asus AV200 chip, i.e.,
+    Xonar D2 and Xonar D2X.
+
+    This module supports autoprobe and multiple cards.
+
+    Power management is _not_ supported.
+
   Module snd-vx222
   ----------------
 
@@ -2134,6 +2207,23 @@ alias sound-slot-1 snd-ens1371
 
 In this example, the interwave card is always loaded as the first card
 (index 0) and ens1371 as the second (index 1).
+
+Alternative (and new) way to fixate the slot assignment is to use
+"slots" option of snd module.  In the case above, specify like the
+following: 
+
+options snd slots=snd-interwave,snd-ens1371
+
+Then, the first slot (#0) is reserved for snd-interwave driver, and
+the second (#1) for snd-ens1371.  You can omit index option in each
+driver if slots option is used (although you can still have them at
+the same time as long as they don't conflict).
+
+The slots option is especially useful for avoiding the possible
+hot-plugging and the resultant slot conflict.  For example, in the
+case above again, the first two slots are already reserved.  If any
+other driver (e.g. snd-usb-audio) is loaded before snd-interwave or
+snd-ens1371, it will be assigned to the third or later slot.
 
 
 ALSA PCM devices to OSS devices mapping

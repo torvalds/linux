@@ -41,8 +41,11 @@
 
 #define NUM_AU1100_MMC_CONTROLLERS	2
 
-
-#define AU1100_SD_IRQ	2
+#if defined(CONFIG_SOC_AU1100)
+#define AU1100_SD_IRQ	AU1100_SD_INT
+#elif defined(CONFIG_SOC_AU1200)
+#define AU1100_SD_IRQ	AU1200_SD_INT
+#endif
 
 
 #define SD0_BASE	0xB0600000

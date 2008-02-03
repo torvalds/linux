@@ -461,17 +461,21 @@ static void klsi_105_close (struct usb_serial_port *port, struct file *filp)
 
 	dbg("%s port %d", __FUNCTION__, port->number);
 
-	/* send READ_OFF */
-	rc = usb_control_msg (port->serial->dev,
-			      usb_sndctrlpipe(port->serial->dev, 0),
-			      KL5KUSB105A_SIO_CONFIGURE,
-			      USB_TYPE_VENDOR | USB_DIR_OUT,
-			      KL5KUSB105A_SIO_CONFIGURE_READ_OFF,
-			      0, /* index */
-			      NULL, 0,
-			      KLSI_TIMEOUT);
-	if (rc < 0)
-		    err("Disabling read failed (error = %d)", rc);
+	mutex_lock(&port->serial->disc_mutex);
+	if (!port->serial->disconnected) {
+		/* send READ_OFF */
+		rc = usb_control_msg (port->serial->dev,
+				      usb_sndctrlpipe(port->serial->dev, 0),
+				      KL5KUSB105A_SIO_CONFIGURE,
+				      USB_TYPE_VENDOR | USB_DIR_OUT,
+				      KL5KUSB105A_SIO_CONFIGURE_READ_OFF,
+				      0, /* index */
+				      NULL, 0,
+				      KLSI_TIMEOUT);
+		if (rc < 0)
+			err("Disabling read failed (error = %d)", rc);
+	}
+	mutex_unlock(&port->serial->disc_mutex);
 
 	/* shutdown our bulk reads and writes */
 	usb_kill_urb(port->write_urb);

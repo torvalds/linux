@@ -2197,7 +2197,7 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&r8a66597->child_device);
 
 	hcd->rsrc_start = res->start;
-	ret = usb_add_hcd(hcd, irq, 0);
+	ret = usb_add_hcd(hcd, irq, IRQF_DISABLED);
 	if (ret != 0) {
 		err("Failed to add hcd");
 		goto clean_up;

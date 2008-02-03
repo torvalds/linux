@@ -225,7 +225,7 @@ alpha_fp_emul (unsigned long pc)
 				FP_UNPACK_SP(SB, &vb);
 				DR_c = DB_c;
 				DR_s = DB_s;
-				DR_e = DB_e;
+				DR_e = DB_e + (1024 - 128);
 				DR_f = SB_f << (52 - 23);
 				goto pack_d;
 			}

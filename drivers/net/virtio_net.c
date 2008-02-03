@@ -146,6 +146,7 @@ static void try_fill_recv(struct virtnet_info *vi)
 	struct scatterlist sg[1+MAX_SKB_FRAGS];
 	int num, err;
 
+	sg_init_table(sg, 1+MAX_SKB_FRAGS);
 	for (;;) {
 		skb = netdev_alloc_skb(vi->dev, MAX_PACKET_LEN);
 		if (unlikely(!skb))
@@ -197,8 +198,8 @@ again:
 	if (vi->num < vi->max / 2)
 		try_fill_recv(vi);
 
-	/* All done? */
-	if (!skb) {
+	/* Out of packets? */
+	if (received < budget) {
 		netif_rx_complete(vi->dev, napi);
 		if (unlikely(!vi->rvq->vq_ops->restart(vi->rvq))
 		    && netif_rx_reschedule(vi->dev, napi))
@@ -230,6 +231,8 @@ static int start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct virtio_net_hdr *hdr;
 	const unsigned char *dest = ((struct ethhdr *)skb->data)->h_dest;
 	DECLARE_MAC_BUF(mac);
+
+	sg_init_table(sg, 1+MAX_SKB_FRAGS);
 
 	pr_debug("%s: xmit %p %s\n", dev->name, skb, print_mac(mac, dest));
 
@@ -401,8 +404,12 @@ free:
 
 static void virtnet_remove(struct virtio_device *vdev)
 {
-	unregister_netdev(vdev->priv);
-	free_netdev(vdev->priv);
+	struct virtnet_info *vi = vdev->priv;
+
+	vdev->config->del_vq(vi->svq);
+	vdev->config->del_vq(vi->rvq);
+	unregister_netdev(vi->dev);
+	free_netdev(vi->dev);
 }
 
 static struct virtio_device_id id_table[] = {

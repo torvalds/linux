@@ -517,12 +517,10 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 		d_add(direntry, NULL);
 	/*	if it was once a directory (but how can we tell?) we could do
 		shrink_dcache_parent(direntry); */
-	} else {
-		cERROR(1, ("Error 0x%x on cifs_get_inode_info in lookup of %s",
-			   rc, full_path));
-		/* BB special case check for Access Denied - watch security
-		exposure of returning dir info implicitly via different rc
-		if file exists or not but no access BB */
+	} else if (rc != -EACCES) {
+		cERROR(1, ("Unexpected lookup error %d", rc));
+		/* We special case check for Access Denied - since that
+		is a common return code */
 	}
 
 	kfree(full_path);
@@ -593,7 +591,7 @@ static int cifs_ci_compare(struct dentry *dentry, struct qstr *a,
 		 * case take precedence.  If a is not a negative dentry, this
 		 * should have no side effects
 		 */
-		memcpy((unsigned char *)a->name, b->name, a->len);
+		memcpy(a->name, b->name, a->len);
 		return 0;
 	}
 	return 1;

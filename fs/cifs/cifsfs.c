@@ -43,6 +43,9 @@
 #include "cifs_debug.h"
 #include "cifs_fs_sb.h"
 #include <linux/mm.h>
+#include <linux/key-type.h>
+#include "dns_resolve.h"
+#include "cifs_spnego.h"
 #define CIFS_MAGIC_NUMBER 0xFF534D42	/* the first four bytes of SMB PDUs */
 
 #ifdef CONFIG_CIFS_QUOTA
@@ -94,6 +97,9 @@ cifs_read_super(struct super_block *sb, void *data,
 {
 	struct inode *inode;
 	struct cifs_sb_info *cifs_sb;
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	int len;
+#endif
 	int rc = 0;
 
 	/* BB should we make this contingent on mount parm? */
@@ -102,6 +108,25 @@ cifs_read_super(struct super_block *sb, void *data,
 	cifs_sb = CIFS_SB(sb);
 	if (cifs_sb == NULL)
 		return -ENOMEM;
+
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	/* copy mount params to sb for use in submounts */
+	/* BB: should we move this after the mount so we
+	 * do not have to do the copy on failed mounts?
+	 * BB: May be it is better to do simple copy before
+	 * complex operation (mount), and in case of fail
+	 * just exit instead of doing mount and attempting
+	 * undo it if this copy fails?*/
+	len = strlen(data);
+	cifs_sb->mountdata = kzalloc(len + 1, GFP_KERNEL);
+	if (cifs_sb->mountdata == NULL) {
+		kfree(sb->s_fs_info);
+		sb->s_fs_info = NULL;
+		return -ENOMEM;
+	}
+	strncpy(cifs_sb->mountdata, data, len + 1);
+	cifs_sb->mountdata[len] = '\0';
+#endif
 
 	rc = cifs_mount(sb, cifs_sb, data, devname);
 
@@ -152,6 +177,12 @@ out_no_root:
 
 out_mount_failed:
 	if (cifs_sb) {
+#ifdef CONFIG_CIFS_DFS_UPCALL
+		if (cifs_sb->mountdata) {
+			kfree(cifs_sb->mountdata);
+			cifs_sb->mountdata = NULL;
+		}
+#endif
 		if (cifs_sb->local_nls)
 			unload_nls(cifs_sb->local_nls);
 		kfree(cifs_sb);
@@ -175,6 +206,13 @@ cifs_put_super(struct super_block *sb)
 	if (rc) {
 		cERROR(1, ("cifs_umount failed with return code %d", rc));
 	}
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	if (cifs_sb->mountdata) {
+		kfree(cifs_sb->mountdata);
+		cifs_sb->mountdata = NULL;
+	}
+#endif
+
 	unload_nls(cifs_sb->local_nls);
 	kfree(cifs_sb);
 	return;
@@ -264,6 +302,7 @@ cifs_alloc_inode(struct super_block *sb)
 	cifs_inode->cifsAttrs = 0x20;	/* default */
 	atomic_set(&cifs_inode->inUse, 0);
 	cifs_inode->time = 0;
+	cifs_inode->write_behind_rc = 0;
 	/* Until the file is open and we have gotten oplock
 	info back from the server, can not assume caching of
 	file data or metadata */
@@ -432,6 +471,10 @@ static void cifs_umount_begin(struct vfsmount *vfsmnt, int flags)
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *tcon;
 
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	dfs_shrink_umount_helper(vfsmnt);
+#endif /* CONFIG CIFS_DFS_UPCALL */
+
 	if (!(flags & MNT_FORCE))
 		return;
 	cifs_sb = CIFS_SB(vfsmnt->mnt_sb);
@@ -549,7 +592,7 @@ static loff_t cifs_llseek(struct file *file, loff_t offset, int origin)
 	return remote_llseek(file, offset, origin);
 }
 
-static struct file_system_type cifs_fs_type = {
+struct file_system_type cifs_fs_type = {
 	.owner = THIS_MODULE,
 	.name = "cifs",
 	.get_sb = cifs_get_sb,
@@ -850,7 +893,7 @@ static int cifs_oplock_thread(void *dummyarg)
 	struct cifsTconInfo *pTcon;
 	struct inode *inode;
 	__u16  netfid;
-	int rc;
+	int rc, waitrc = 0;
 
 	set_freezable();
 	do {
@@ -882,9 +925,11 @@ static int cifs_oplock_thread(void *dummyarg)
 					   filemap_fdatawrite(inode->i_mapping);
 					if (CIFS_I(inode)->clientCanCacheRead
 									 == 0) {
-						filemap_fdatawait(inode->i_mapping);
+						waitrc = filemap_fdatawait(inode->i_mapping);
 						invalidate_remote_inode(inode);
 					}
+					if (rc == 0)
+						rc = waitrc;
 				} else
 					rc = 0;
 				/* mutex_unlock(&inode->i_mutex);*/
@@ -1005,12 +1050,21 @@ init_cifs(void)
 	rc = register_filesystem(&cifs_fs_type);
 	if (rc)
 		goto out_destroy_request_bufs;
-
+#ifdef CONFIG_CIFS_UPCALL
+	rc = register_key_type(&cifs_spnego_key_type);
+	if (rc)
+		goto out_unregister_filesystem;
+#endif
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	rc = register_key_type(&key_type_dns_resolver);
+	if (rc)
+		goto out_unregister_key_type;
+#endif
 	oplockThread = kthread_run(cifs_oplock_thread, NULL, "cifsoplockd");
 	if (IS_ERR(oplockThread)) {
 		rc = PTR_ERR(oplockThread);
 		cERROR(1, ("error %d create oplock thread", rc));
-		goto out_unregister_filesystem;
+		goto out_unregister_dfs_key_type;
 	}
 
 	dnotifyThread = kthread_run(cifs_dnotify_thread, NULL, "cifsdnotifyd");
@@ -1024,7 +1078,15 @@ init_cifs(void)
 
  out_stop_oplock_thread:
 	kthread_stop(oplockThread);
+ out_unregister_dfs_key_type:
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	unregister_key_type(&key_type_dns_resolver);
+ out_unregister_key_type:
+#endif
+#ifdef CONFIG_CIFS_UPCALL
+	unregister_key_type(&cifs_spnego_key_type);
  out_unregister_filesystem:
+#endif
 	unregister_filesystem(&cifs_fs_type);
  out_destroy_request_bufs:
 	cifs_destroy_request_bufs();
@@ -1045,6 +1107,12 @@ exit_cifs(void)
 	cFYI(0, ("exit_cifs"));
 #ifdef CONFIG_PROC_FS
 	cifs_proc_clean();
+#endif
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	unregister_key_type(&key_type_dns_resolver);
+#endif
+#ifdef CONFIG_CIFS_UPCALL
+	unregister_key_type(&cifs_spnego_key_type);
 #endif
 	unregister_filesystem(&cifs_fs_type);
 	cifs_destroy_inodecache();

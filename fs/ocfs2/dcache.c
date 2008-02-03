@@ -128,9 +128,9 @@ static int ocfs2_match_dentry(struct dentry *dentry,
 /*
  * Walk the inode alias list, and find a dentry which has a given
  * parent. ocfs2_dentry_attach_lock() wants to find _any_ alias as it
- * is looking for a dentry_lock reference. The vote thread is looking
- * to unhash aliases, so we allow it to skip any that already have
- * that property.
+ * is looking for a dentry_lock reference. The downconvert thread is
+ * looking to unhash aliases, so we allow it to skip any that already
+ * have that property.
  */
 struct dentry *ocfs2_find_local_alias(struct inode *inode,
 				      u64 parent_blkno,
@@ -266,7 +266,7 @@ int ocfs2_dentry_attach_lock(struct dentry *dentry,
 	dl->dl_count = 0;
 	/*
 	 * Does this have to happen below, for all attaches, in case
-	 * the struct inode gets blown away by votes?
+	 * the struct inode gets blown away by the downconvert thread?
 	 */
 	dl->dl_inode = igrab(inode);
 	dl->dl_parent_blkno = parent_blkno;
@@ -318,9 +318,9 @@ out_attach:
 static void ocfs2_drop_dentry_lock(struct ocfs2_super *osb,
 				   struct ocfs2_dentry_lock *dl)
 {
+	iput(dl->dl_inode);
 	ocfs2_simple_drop_lockres(osb, &dl->dl_lockres);
 	ocfs2_lock_res_free(&dl->dl_lockres);
-	iput(dl->dl_inode);
 	kfree(dl);
 }
 
@@ -344,12 +344,24 @@ static void ocfs2_dentry_iput(struct dentry *dentry, struct inode *inode)
 {
 	struct ocfs2_dentry_lock *dl = dentry->d_fsdata;
 
-	mlog_bug_on_msg(!dl && !(dentry->d_flags & DCACHE_DISCONNECTED),
-			"dentry: %.*s\n", dentry->d_name.len,
-			dentry->d_name.name);
+	if (!dl) {
+		/*
+		 * No dentry lock is ok if we're disconnected or
+		 * unhashed.
+		 */
+		if (!(dentry->d_flags & DCACHE_DISCONNECTED) &&
+		    !d_unhashed(dentry)) {
+			unsigned long long ino = 0ULL;
+			if (inode)
+				ino = (unsigned long long)OCFS2_I(inode)->ip_blkno;
+			mlog(ML_ERROR, "Dentry is missing cluster lock. "
+			     "inode: %llu, d_flags: 0x%x, d_name: %.*s\n",
+			     ino, dentry->d_flags, dentry->d_name.len,
+			     dentry->d_name.name);
+		}
 
-	if (!dl)
 		goto out;
+	}
 
 	mlog_bug_on_msg(dl->dl_count == 0, "dentry: %.*s, count: %u\n",
 			dentry->d_name.len, dentry->d_name.name,

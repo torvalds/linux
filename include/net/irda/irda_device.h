@@ -228,20 +228,7 @@ static inline int irda_device_txqueue_empty(const struct net_device *dev)
 int  irda_device_set_raw_mode(struct net_device* self, int status);
 struct net_device *alloc_irdadev(int sizeof_priv);
 
-/* Dongle interface */
-void irda_device_unregister_dongle(struct dongle_reg *dongle);
-int  irda_device_register_dongle(struct dongle_reg *dongle);
-dongle_t *irda_device_dongle_init(struct net_device *dev, int type);
-int irda_device_dongle_cleanup(dongle_t *dongle);
-
 void irda_setup_dma(int channel, dma_addr_t buffer, int count, int mode);
-
-void irda_task_delete(struct irda_task *task);
-struct irda_task *irda_task_execute(void *instance, 
-				    IRDA_TASK_CALLBACK function, 
-				    IRDA_TASK_CALLBACK finished, 
-				    struct irda_task *parent, void *param);
-void irda_task_next_state(struct irda_task *task, IRDA_TASK_STATE state);
 
 /*
  * Function irda_get_mtt (skb)

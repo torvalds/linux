@@ -199,19 +199,6 @@ static inline int __gsi_to_irq(unsigned int gsi)
 	return -1;
 }
 
-/*
- * Translate GSI number to the corresponding IA-64 interrupt vector.  If no
- * entry exists, return -1.
- */
-inline int
-gsi_to_vector (unsigned int gsi)
-{
-	int irq = __gsi_to_irq(gsi);
-	if (check_irq_used(irq) < 0)
-		return -1;
-	return irq_to_vector(irq);
-}
-
 int
 gsi_to_irq (unsigned int gsi)
 {
@@ -429,7 +416,7 @@ iosapic_end_level_irq (unsigned int irq)
 #define iosapic_disable_level_irq	mask_irq
 #define iosapic_ack_level_irq		nop
 
-struct irq_chip irq_type_iosapic_level = {
+static struct irq_chip irq_type_iosapic_level = {
 	.name =		"IO-SAPIC-level",
 	.startup =	iosapic_startup_level_irq,
 	.shutdown =	iosapic_shutdown_level_irq,
@@ -478,7 +465,7 @@ iosapic_ack_edge_irq (unsigned int irq)
 #define iosapic_disable_edge_irq	nop
 #define iosapic_end_edge_irq		nop
 
-struct irq_chip irq_type_iosapic_edge = {
+static struct irq_chip irq_type_iosapic_edge = {
 	.name =		"IO-SAPIC-edge",
 	.startup =	iosapic_startup_edge_irq,
 	.shutdown =	iosapic_disable_edge_irq,
@@ -491,7 +478,7 @@ struct irq_chip irq_type_iosapic_edge = {
 	.set_affinity =	iosapic_set_affinity
 };
 
-unsigned int
+static unsigned int
 iosapic_version (char __iomem *addr)
 {
 	/*
@@ -748,6 +735,15 @@ skip_numa_setup:
 #endif
 }
 
+static inline unsigned char choose_dmode(void)
+{
+#ifdef CONFIG_SMP
+	if (smp_int_redirect & SMP_IRQ_REDIRECTION)
+		return IOSAPIC_LOWEST_PRIORITY;
+#endif
+	return IOSAPIC_FIXED;
+}
+
 /*
  * ACPI can describe IOSAPIC interrupts via static tables and namespace
  * methods.  This provides an interface to register those interrupts and
@@ -762,6 +758,7 @@ iosapic_register_intr (unsigned int gsi,
 	unsigned long flags;
 	struct iosapic_rte_info *rte;
 	u32 low32;
+	unsigned char dmode;
 
 	/*
 	 * If this GSI has already been registered (i.e., it's a
@@ -791,8 +788,8 @@ iosapic_register_intr (unsigned int gsi,
 
 	spin_lock(&irq_desc[irq].lock);
 	dest = get_target_cpu(gsi, irq);
-	err = register_intr(gsi, irq, IOSAPIC_LOWEST_PRIORITY,
-			    polarity, trigger);
+	dmode = choose_dmode();
+	err = register_intr(gsi, irq, dmode, polarity, trigger);
 	if (err < 0) {
 		spin_unlock(&irq_desc[irq].lock);
 		irq = err;
@@ -928,7 +925,7 @@ iosapic_register_platform_intr (u32 int_type, unsigned int gsi,
 	      case ACPI_INTERRUPT_CPEI:
 		irq = vector = IA64_CPE_VECTOR;
 		BUG_ON(bind_irq_vector(irq, vector, CPU_MASK_ALL));
-		delivery = IOSAPIC_LOWEST_PRIORITY;
+		delivery = IOSAPIC_FIXED;
 		mask = 1;
 		break;
 	      default:
@@ -961,10 +958,12 @@ iosapic_override_isa_irq (unsigned int isa_irq, unsigned int gsi,
 {
 	int vector, irq;
 	unsigned int dest = cpu_physical_id(smp_processor_id());
+	unsigned char dmode;
 
 	irq = vector = isa_irq_to_vector(isa_irq);
 	BUG_ON(bind_irq_vector(irq, vector, CPU_MASK_ALL));
-	register_intr(gsi, irq, IOSAPIC_LOWEST_PRIORITY, polarity, trigger);
+	dmode = choose_dmode();
+	register_intr(gsi, irq, dmode, polarity, trigger);
 
 	DBG("ISA: IRQ %u -> GSI %u (%s,%s) -> CPU %d (0x%04x) vector %d\n",
 	    isa_irq, gsi, trigger == IOSAPIC_EDGE ? "edge" : "level",

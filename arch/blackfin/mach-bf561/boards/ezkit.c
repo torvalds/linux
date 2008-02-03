@@ -29,12 +29,16 @@
 
 #include <linux/device.h>
 #include <linux/platform_device.h>
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/partitions.h>
+#include <linux/mtd/physmap.h>
 #include <linux/spi/spi.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/pata_platform.h>
 #include <asm/dma.h>
 #include <asm/bfin5xx_spi.h>
+#include <asm/portmux.h>
 
 /*
  * Name the Board for the /proc/cpuinfo
@@ -115,6 +119,28 @@ static struct platform_device smc91x_device = {
 };
 #endif
 
+#if defined(CONFIG_AX88180) || defined(CONFIG_AX88180_MODULE)
+static struct resource ax88180_resources[] = {
+	[0] = {
+		.start	= 0x2c000000,
+		.end	= 0x2c000000 + 0x8000,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_PF10,
+		.end	= IRQ_PF10,
+		.flags	= (IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL),
+	},
+};
+
+static struct platform_device ax88180_device = {
+	.name		= "ax88180",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(ax88180_resources),
+	.resource	= ax88180_resources,
+};
+#endif
+
 #if defined(CONFIG_SERIAL_BFIN) || defined(CONFIG_SERIAL_BFIN_MODULE)
 static struct resource bfin_uart_resources[] = {
 	{
@@ -131,6 +157,44 @@ static struct platform_device bfin_uart_device = {
 	.resource = bfin_uart_resources,
 };
 #endif
+
+static struct mtd_partition ezkit_partitions[] = {
+	{
+		.name       = "Bootloader",
+		.size       = 0x20000,
+		.offset     = 0,
+	}, {
+		.name       = "Kernel",
+		.size       = 0xE0000,
+		.offset     = MTDPART_OFS_APPEND,
+	}, {
+		.name       = "RootFS",
+		.size       = MTDPART_SIZ_FULL,
+		.offset     = MTDPART_OFS_APPEND,
+	}
+};
+
+static struct physmap_flash_data ezkit_flash_data = {
+	.width      = 2,
+	.parts      = ezkit_partitions,
+	.nr_parts   = ARRAY_SIZE(ezkit_partitions),
+};
+
+static struct resource ezkit_flash_resource = {
+	.start = 0x20000000,
+	.end   = 0x207fffff,
+	.flags = IORESOURCE_MEM,
+};
+
+static struct platform_device ezkit_flash_device = {
+	.name          = "physmap-flash",
+	.id            = 0,
+	.dev = {
+		.platform_data = &ezkit_flash_data,
+	},
+	.num_resources = 1,
+	.resource      = &ezkit_flash_resource,
+};
 
 #ifdef CONFIG_SPI_BFIN
 #if defined(CONFIG_SND_BLACKFIN_AD1836) \
@@ -160,6 +224,7 @@ static struct resource bfin_spi0_resource[] = {
 static struct bfin5xx_spi_master bfin_spi0_info = {
 	.num_chipselect = 8,
 	.enable_dma = 1,  /* master has the ability to do dma transfer */
+	.pin_req = {P_SPI0_SCK, P_SPI0_MISO, P_SPI0_MOSI, 0},
 };
 
 static struct platform_device bfin_spi0_device = {
@@ -222,19 +287,79 @@ static struct platform_device bfin_pata_device = {
 };
 #endif
 
+#if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
+#include <linux/input.h>
+#include <linux/gpio_keys.h>
+
+static struct gpio_keys_button bfin_gpio_keys_table[] = {
+	{BTN_0, GPIO_PF5, 1, "gpio-keys: BTN0"},
+	{BTN_1, GPIO_PF6, 1, "gpio-keys: BTN1"},
+	{BTN_2, GPIO_PF7, 1, "gpio-keys: BTN2"},
+	{BTN_3, GPIO_PF8, 1, "gpio-keys: BTN3"},
+};
+
+static struct gpio_keys_platform_data bfin_gpio_keys_data = {
+	.buttons        = bfin_gpio_keys_table,
+	.nbuttons       = ARRAY_SIZE(bfin_gpio_keys_table),
+};
+
+static struct platform_device bfin_device_gpiokeys = {
+	.name      = "gpio-keys",
+	.dev = {
+		.platform_data = &bfin_gpio_keys_data,
+	},
+};
+#endif
+
+#if defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE)
+#include <linux/i2c-gpio.h>
+
+static struct i2c_gpio_platform_data i2c_gpio_data = {
+	.sda_pin		= 1,
+	.scl_pin		= 0,
+	.sda_is_open_drain	= 0,
+	.scl_is_open_drain	= 0,
+	.udelay			= 40,
+};
+
+static struct platform_device i2c_gpio_device = {
+	.name		= "i2c-gpio",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &i2c_gpio_data,
+	},
+};
+#endif
+
 static struct platform_device *ezkit_devices[] __initdata = {
 #if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
 	&smc91x_device,
 #endif
+
+#if defined(CONFIG_AX88180) || defined(CONFIG_AX88180_MODULE)
+	&ax88180_device,
+#endif
+
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 	&bfin_spi0_device,
 #endif
+
 #if defined(CONFIG_SERIAL_BFIN) || defined(CONFIG_SERIAL_BFIN_MODULE)
 	&bfin_uart_device,
 #endif
+
 #if defined(CONFIG_PATA_PLATFORM) || defined(CONFIG_PATA_PLATFORM_MODULE)
 	&bfin_pata_device,
 #endif
+
+#if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
+	&bfin_device_gpiokeys,
+#endif
+
+#if defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE)
+	&i2c_gpio_device,
+#endif
+	&ezkit_flash_device,
 };
 
 static int __init ezkit_init(void)

@@ -48,15 +48,6 @@ struct dn_fib_rule
 	u8			flags;
 };
 
-static struct dn_fib_rule default_rule = {
-	.common = {
-		.refcnt =		ATOMIC_INIT(2),
-		.pref =			0x7fff,
-		.table =		RT_TABLE_MAIN,
-		.action =		FR_ACT_TO_TBL,
-	},
-};
-
 
 int dn_fib_lookup(struct flowi *flp, struct dn_fib_res *res)
 {
@@ -221,7 +212,7 @@ nla_put_failure:
 	return -ENOBUFS;
 }
 
-static u32 dn_fib_rule_default_pref(void)
+static u32 dn_fib_rule_default_pref(struct fib_rules_ops *ops)
 {
 	struct list_head *pos;
 	struct fib_rule *rule;
@@ -258,12 +249,13 @@ static struct fib_rules_ops dn_fib_rules_ops = {
 	.policy		= dn_fib_rule_policy,
 	.rules_list	= LIST_HEAD_INIT(dn_fib_rules_ops.rules_list),
 	.owner		= THIS_MODULE,
+	.fro_net	= &init_net,
 };
 
 void __init dn_fib_rules_init(void)
 {
-	list_add_tail(&default_rule.common.list,
-			&dn_fib_rules_ops.rules_list);
+	BUG_ON(fib_default_rule_add(&dn_fib_rules_ops, 0x7fff,
+			            RT_TABLE_MAIN, 0));
 	fib_rules_register(&dn_fib_rules_ops);
 }
 

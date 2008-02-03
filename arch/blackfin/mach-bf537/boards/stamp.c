@@ -32,10 +32,11 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mtd/physmap.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 #if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
-#include <linux/usb_isp1362.h>
+#include <linux/usb/isp1362.h>
 #endif
 #include <linux/pata_platform.h>
 #include <linux/irq.h>
@@ -44,6 +45,7 @@
 #include <asm/dma.h>
 #include <asm/bfin5xx_spi.h>
 #include <asm/reboot.h>
+#include <asm/portmux.h>
 #include <linux/spi/ad7877.h>
 
 /*
@@ -100,6 +102,30 @@ void __exit bfin_isp1761_exit(void)
 }
 
 arch_initcall(bfin_isp1761_init);
+#endif
+
+#if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
+#include <linux/input.h>
+#include <linux/gpio_keys.h>
+
+static struct gpio_keys_button bfin_gpio_keys_table[] = {
+	{BTN_0, GPIO_PF2, 1, "gpio-keys: BTN0"},
+	{BTN_1, GPIO_PF3, 1, "gpio-keys: BTN1"},
+	{BTN_2, GPIO_PF4, 1, "gpio-keys: BTN2"},
+	{BTN_3, GPIO_PF5, 1, "gpio-keys: BTN3"},
+};
+
+static struct gpio_keys_platform_data bfin_gpio_keys_data = {
+	.buttons        = bfin_gpio_keys_table,
+	.nbuttons       = ARRAY_SIZE(bfin_gpio_keys_table),
+};
+
+static struct platform_device bfin_device_gpiokeys = {
+	.name      = "gpio-keys",
+	.dev = {
+		.platform_data = &bfin_gpio_keys_data,
+	},
+};
 #endif
 
 #if defined(CONFIG_BFIN_CFPCMCIA) || defined(CONFIG_BFIN_CFPCMCIA_MODULE)
@@ -182,6 +208,28 @@ static struct platform_device dm9000_device = {
 };
 #endif
 
+#if defined(CONFIG_AX88180) || defined(CONFIG_AX88180_MODULE)
+static struct resource ax88180_resources[] = {
+	[0] = {
+		.start	= 0x20300000,
+		.end	= 0x20300000 + 0x8000,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_PF7,
+		.end	= IRQ_PF7,
+		.flags	= (IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL),
+	},
+};
+
+static struct platform_device ax88180_device = {
+	.name		= "ax88180",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(ax88180_resources),
+	.resource	= ax88180_resources,
+};
+#endif
+
 #if defined(CONFIG_USB_SL811_HCD) || defined(CONFIG_USB_SL811_HCD_MODULE)
 static struct resource sl811_hcd_resources[] = {
 	{
@@ -203,12 +251,7 @@ static struct resource sl811_hcd_resources[] = {
 void sl811_port_power(struct device *dev, int is_on)
 {
 	gpio_request(CONFIG_USB_SL811_BFIN_GPIO_VBUS, "usb:SL811_VBUS");
-	gpio_direction_output(CONFIG_USB_SL811_BFIN_GPIO_VBUS);
-
-	if (is_on)
-		gpio_set_value(CONFIG_USB_SL811_BFIN_GPIO_VBUS, 1);
-	else
-		gpio_set_value(CONFIG_USB_SL811_BFIN_GPIO_VBUS, 0);
+	gpio_direction_output(CONFIG_USB_SL811_BFIN_GPIO_VBUS, is_on);
 }
 #endif
 
@@ -296,6 +339,49 @@ static struct platform_device net2272_bfin_device = {
 	.resource = net2272_bfin_resources,
 };
 #endif
+
+static struct mtd_partition stamp_partitions[] = {
+	{
+		.name       = "Bootloader",
+		.size       = 0x20000,
+		.offset     = 0,
+	}, {
+		.name       = "Kernel",
+		.size       = 0xE0000,
+		.offset     = MTDPART_OFS_APPEND,
+	}, {
+		.name       = "RootFS",
+		.size       = 0x400000 - 0x20000 - 0xE0000 - 0x10000,
+		.offset     = MTDPART_OFS_APPEND,
+	}, {
+		.name       = "MAC Address",
+		.size       = MTDPART_SIZ_FULL,
+		.offset     = 0x3F0000,
+		.mask_flags = MTD_WRITEABLE,
+	}
+};
+
+static struct physmap_flash_data stamp_flash_data = {
+	.width      = 2,
+	.parts      = stamp_partitions,
+	.nr_parts   = ARRAY_SIZE(stamp_partitions),
+};
+
+static struct resource stamp_flash_resource = {
+	.start = 0x20000000,
+	.end   = 0x203fffff,
+	.flags = IORESOURCE_MEM,
+};
+
+static struct platform_device stamp_flash_device = {
+	.name          = "physmap-flash",
+	.id            = 0,
+	.dev = {
+		.platform_data = &stamp_flash_data,
+	},
+	.num_resources = 1,
+	.resource      = &stamp_flash_resource,
+};
 
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 /* all SPI peripherals info goes here */
@@ -450,7 +536,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 #if defined(CONFIG_SPI_MMC) || defined(CONFIG_SPI_MMC_MODULE)
 	{
 		.modalias = "spi_mmc_dummy",
-		.max_speed_hz = 25000000,     /* max spi clock (SCK) speed in HZ */
+		.max_speed_hz = 20000000,     /* max spi clock (SCK) speed in HZ */
 		.bus_num = 0,
 		.chip_select = 0,
 		.platform_data = NULL,
@@ -459,7 +545,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 	},
 	{
 		.modalias = "spi_mmc",
-		.max_speed_hz = 25000000,     /* max spi clock (SCK) speed in HZ */
+		.max_speed_hz = 20000000,     /* max spi clock (SCK) speed in HZ */
 		.bus_num = 0,
 		.chip_select = CONFIG_SPI_MMC_CS_CHAN,
 		.platform_data = NULL,
@@ -502,7 +588,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.platform_data		= &bfin_ad7877_ts_info,
 		.irq			= IRQ_PF6,
 		.max_speed_hz	= 12500000,     /* max spi clock (SCK) speed in HZ */
-		.bus_num	= 1,
+		.bus_num	= 0,
 		.chip_select  = 1,
 		.controller_data = &spi_ad7877_chip_info,
 	},
@@ -513,6 +599,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 static struct bfin5xx_spi_master bfin_spi0_info = {
 	.num_chipselect = 8,
 	.enable_dma = 1,  /* master has the ability to do dma transfer */
+	.pin_req = {P_SPI0_SCK, P_SPI0_MISO, P_SPI0_MOSI, 0},
 };
 
 /* SPI (0) */
@@ -554,15 +641,20 @@ static struct platform_device bfin_fb_adv7393_device = {
 
 #if defined(CONFIG_SERIAL_BFIN) || defined(CONFIG_SERIAL_BFIN_MODULE)
 static struct resource bfin_uart_resources[] = {
+#ifdef CONFIG_SERIAL_BFIN_UART0
 	{
 		.start = 0xFFC00400,
 		.end = 0xFFC004FF,
 		.flags = IORESOURCE_MEM,
-	}, {
+	},
+#endif
+#ifdef CONFIG_SERIAL_BFIN_UART1
+	{
 		.start = 0xFFC02000,
 		.end = 0xFFC020FF,
 		.flags = IORESOURCE_MEM,
 	},
+#endif
 };
 
 static struct platform_device bfin_uart_device = {
@@ -612,7 +704,7 @@ static struct platform_device bfin_sport1_uart_device = {
 
 static struct pata_platform_info bfin_pata_platform_data = {
 	.ioport_shift = 1,
-	.irq_type = IRQF_TRIGGER_HIGH | IRQF_DISABLED,
+	.irq_flags = IRQF_TRIGGER_HIGH | IRQF_DISABLED,
 };
 
 static struct resource bfin_pata_resources[] = {
@@ -669,6 +761,10 @@ static struct platform_device *stamp_devices[] __initdata = {
 	&dm9000_device,
 #endif
 
+#if defined(CONFIG_AX88180) || defined(CONFIG_AX88180_MODULE)
+	&ax88180_device,
+#endif
+
 #if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
 	&bfin_mac_device,
 #endif
@@ -705,6 +801,11 @@ static struct platform_device *stamp_devices[] __initdata = {
 #if defined(CONFIG_PATA_PLATFORM) || defined(CONFIG_PATA_PLATFORM_MODULE)
 	&bfin_pata_device,
 #endif
+
+#if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
+	&bfin_device_gpiokeys,
+#endif
+	&stamp_flash_device,
 };
 
 static int __init stamp_init(void)
@@ -730,3 +831,14 @@ void native_machine_restart(char *cmd)
 	if ((bfin_read_SYSCR() & 0x7) == 0x3)
 		bfin_gpio_reset_spi0_ssel1();
 }
+
+/*
+ * Currently the MAC address is saved in Flash by U-Boot
+ */
+#define FLASH_MAC	0x203f0000
+void bfin_get_ether_addr(char *addr)
+{
+	*(u32 *)(&(addr[0])) = bfin_read32(FLASH_MAC);
+	*(u16 *)(&(addr[4])) = bfin_read16(FLASH_MAC + 4);
+}
+EXPORT_SYMBOL(bfin_get_ether_addr);

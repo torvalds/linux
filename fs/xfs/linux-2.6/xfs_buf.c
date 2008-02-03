@@ -725,15 +725,15 @@ xfs_buf_associate_memory(
 {
 	int			rval;
 	int			i = 0;
-	size_t			ptr;
-	size_t			end, end_cur;
-	off_t			offset;
+	unsigned long		pageaddr;
+	unsigned long		offset;
+	size_t			buflen;
 	int			page_count;
 
-	page_count = PAGE_CACHE_ALIGN(len) >> PAGE_CACHE_SHIFT;
-	offset = (off_t) mem - ((off_t)mem & PAGE_CACHE_MASK);
-	if (offset && (len > PAGE_CACHE_SIZE))
-		page_count++;
+	pageaddr = (unsigned long)mem & PAGE_CACHE_MASK;
+	offset = (unsigned long)mem - pageaddr;
+	buflen = PAGE_CACHE_ALIGN(len + offset);
+	page_count = buflen >> PAGE_CACHE_SHIFT;
 
 	/* Free any previous set of page pointers */
 	if (bp->b_pages)
@@ -747,22 +747,15 @@ xfs_buf_associate_memory(
 		return rval;
 
 	bp->b_offset = offset;
-	ptr = (size_t) mem & PAGE_CACHE_MASK;
-	end = PAGE_CACHE_ALIGN((size_t) mem + len);
-	end_cur = end;
-	/* set up first page */
-	bp->b_pages[0] = mem_to_page(mem);
 
-	ptr += PAGE_CACHE_SIZE;
-	bp->b_page_count = ++i;
-	while (ptr < end) {
-		bp->b_pages[i] = mem_to_page((void *)ptr);
-		bp->b_page_count = ++i;
-		ptr += PAGE_CACHE_SIZE;
+	for (i = 0; i < bp->b_page_count; i++) {
+		bp->b_pages[i] = mem_to_page((void *)pageaddr);
+		pageaddr += PAGE_CACHE_SIZE;
 	}
 	bp->b_locked = 0;
 
-	bp->b_count_desired = bp->b_buffer_length = len;
+	bp->b_count_desired = len;
+	bp->b_buffer_length = buflen;
 	bp->b_flags |= XBF_MAPPED;
 
 	return 0;
@@ -1032,7 +1025,7 @@ xfs_buf_ioend(
 	xfs_buf_t		*bp,
 	int			schedule)
 {
-	bp->b_flags &= ~(XBF_READ | XBF_WRITE);
+	bp->b_flags &= ~(XBF_READ | XBF_WRITE | XBF_READ_AHEAD);
 	if (bp->b_error == 0)
 		bp->b_flags |= XBF_DONE;
 
@@ -1749,6 +1742,8 @@ xfsbufd(
 	xfs_buf_t	*bp;
 
 	current->flags |= PF_MEMALLOC;
+
+	set_freezable();
 
 	do {
 		if (unlikely(freezing(current))) {

@@ -53,28 +53,34 @@ typedef int (*g_rand)(struct tcf_gact *gact);
 static g_rand gact_rand[MAX_RAND]= { NULL, gact_net_rand, gact_determ };
 #endif /* CONFIG_GACT_PROB */
 
-static int tcf_gact_init(struct rtattr *rta, struct rtattr *est,
+static const struct nla_policy gact_policy[TCA_GACT_MAX + 1] = {
+	[TCA_GACT_PARMS]	= { .len = sizeof(struct tc_gact) },
+	[TCA_GACT_PROB]		= { .len = sizeof(struct tc_gact_p) },
+};
+
+static int tcf_gact_init(struct nlattr *nla, struct nlattr *est,
 			 struct tc_action *a, int ovr, int bind)
 {
-	struct rtattr *tb[TCA_GACT_MAX];
+	struct nlattr *tb[TCA_GACT_MAX + 1];
 	struct tc_gact *parm;
 	struct tcf_gact *gact;
 	struct tcf_common *pc;
 	int ret = 0;
+	int err;
 
-	if (rta == NULL || rtattr_parse_nested(tb, TCA_GACT_MAX, rta) < 0)
+	if (nla == NULL)
 		return -EINVAL;
 
-	if (tb[TCA_GACT_PARMS - 1] == NULL ||
-	    RTA_PAYLOAD(tb[TCA_GACT_PARMS - 1]) < sizeof(*parm))
-		return -EINVAL;
-	parm = RTA_DATA(tb[TCA_GACT_PARMS - 1]);
+	err = nla_parse_nested(tb, TCA_GACT_MAX, nla, gact_policy);
+	if (err < 0)
+		return err;
 
-	if (tb[TCA_GACT_PROB-1] != NULL)
-#ifdef CONFIG_GACT_PROB
-		if (RTA_PAYLOAD(tb[TCA_GACT_PROB-1]) < sizeof(struct tc_gact_p))
-			return -EINVAL;
-#else
+	if (tb[TCA_GACT_PARMS] == NULL)
+		return -EINVAL;
+	parm = nla_data(tb[TCA_GACT_PARMS]);
+
+#ifndef CONFIG_GACT_PROB
+	if (tb[TCA_GACT_PROB] != NULL)
 		return -EOPNOTSUPP;
 #endif
 
@@ -97,8 +103,8 @@ static int tcf_gact_init(struct rtattr *rta, struct rtattr *est,
 	spin_lock_bh(&gact->tcf_lock);
 	gact->tcf_action = parm->action;
 #ifdef CONFIG_GACT_PROB
-	if (tb[TCA_GACT_PROB-1] != NULL) {
-		struct tc_gact_p *p_parm = RTA_DATA(tb[TCA_GACT_PROB-1]);
+	if (tb[TCA_GACT_PROB] != NULL) {
+		struct tc_gact_p *p_parm = nla_data(tb[TCA_GACT_PROB]);
 		gact->tcfg_paction = p_parm->paction;
 		gact->tcfg_pval    = p_parm->pval;
 		gact->tcfg_ptype   = p_parm->ptype;
@@ -154,23 +160,23 @@ static int tcf_gact_dump(struct sk_buff *skb, struct tc_action *a, int bind, int
 	opt.refcnt = gact->tcf_refcnt - ref;
 	opt.bindcnt = gact->tcf_bindcnt - bind;
 	opt.action = gact->tcf_action;
-	RTA_PUT(skb, TCA_GACT_PARMS, sizeof(opt), &opt);
+	NLA_PUT(skb, TCA_GACT_PARMS, sizeof(opt), &opt);
 #ifdef CONFIG_GACT_PROB
 	if (gact->tcfg_ptype) {
 		struct tc_gact_p p_opt;
 		p_opt.paction = gact->tcfg_paction;
 		p_opt.pval = gact->tcfg_pval;
 		p_opt.ptype = gact->tcfg_ptype;
-		RTA_PUT(skb, TCA_GACT_PROB, sizeof(p_opt), &p_opt);
+		NLA_PUT(skb, TCA_GACT_PROB, sizeof(p_opt), &p_opt);
 	}
 #endif
 	t.install = jiffies_to_clock_t(jiffies - gact->tcf_tm.install);
 	t.lastuse = jiffies_to_clock_t(jiffies - gact->tcf_tm.lastuse);
 	t.expires = jiffies_to_clock_t(gact->tcf_tm.expires);
-	RTA_PUT(skb, TCA_GACT_TM, sizeof(t), &t);
+	NLA_PUT(skb, TCA_GACT_TM, sizeof(t), &t);
 	return skb->len;
 
-rtattr_failure:
+nla_put_failure:
 	nlmsg_trim(skb, b);
 	return -1;
 }

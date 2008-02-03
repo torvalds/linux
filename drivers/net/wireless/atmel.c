@@ -1759,9 +1759,8 @@ static int atmel_set_encode(struct net_device *dev,
 			priv->default_key = index;
 		} else
 			/* Don't complain if only change the mode */
-			if (!dwrq->flags & IW_ENCODE_MODE) {
+			if (!(dwrq->flags & IW_ENCODE_MODE))
 				return -EINVAL;
-			}
 	}
 	/* Read the flags */
 	if (dwrq->flags & IW_ENCODE_DISABLED) {
@@ -2676,9 +2675,9 @@ static int atmel_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 }
 
 struct auth_body {
-	u16 alg;
-	u16 trans_seq;
-	u16 status;
+	__le16 alg;
+	__le16 trans_seq;
+	__le16 status;
 	u8 el_id;
 	u8 chall_text_len;
 	u8 chall_text[253];
@@ -2713,9 +2712,9 @@ static void atmel_scan(struct atmel_private *priv, int specific_ssid)
 		u8 SSID[MAX_SSID_LENGTH];
 		u8 scan_type;
 		u8 channel;
-		u16 BSS_type;
-		u16 min_channel_time;
-		u16 max_channel_time;
+		__le16 BSS_type;
+		__le16 min_channel_time;
+		__le16 max_channel_time;
 		u8 options;
 		u8 SSID_size;
 	} cmd;
@@ -2758,7 +2757,7 @@ static void join(struct atmel_private *priv, int type)
 		u8 SSID[MAX_SSID_LENGTH];
 		u8 BSS_type; /* this is a short in a scan command - weird */
 		u8 channel;
-		u16 timeout;
+		__le16 timeout;
 		u8 SSID_size;
 		u8 reserved;
 	} cmd;
@@ -2863,8 +2862,8 @@ static void send_association_request(struct atmel_private *priv, int is_reassoc)
 	int bodysize;
 	struct ieee80211_hdr_4addr header;
 	struct ass_req_format {
-		u16 capability;
-		u16 listen_interval;
+		__le16 capability;
+		__le16 listen_interval;
 		u8 ap[6]; /* nothing after here directly accessible */
 		u8 ssid_el_id;
 		u8 ssid_len;
@@ -3085,9 +3084,9 @@ static void authenticate(struct atmel_private *priv, u16 frame_len)
 static void associate(struct atmel_private *priv, u16 frame_len, u16 subtype)
 {
 	struct ass_resp_format {
-		u16 capability;
-		u16 status;
-		u16 ass_id;
+		__le16 capability;
+		__le16 status;
+		__le16 ass_id;
 		u8 el_id;
 		u8 length;
 		u8 rates[4];
@@ -3294,9 +3293,9 @@ static void atmel_management_frame(struct atmel_private *priv,
 		   never let an engineer loose with a data structure design. */
 		{
 			struct beacon_format {
-				u64 timestamp;
-				u16 interval;
-				u16 capability;
+				__le64 timestamp;
+				__le16 interval;
+				__le16 capability;
 				u8 ssid_el_id;
 				u8 ssid_length;
 				/* ssid here */

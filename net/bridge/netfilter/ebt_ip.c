@@ -28,9 +28,11 @@ static int ebt_filter_ip(const struct sk_buff *skb, const struct net_device *in,
    const struct net_device *out, const void *data,
    unsigned int datalen)
 {
-	struct ebt_ip_info *info = (struct ebt_ip_info *)data;
-	struct iphdr _iph, *ih;
-	struct tcpudphdr _ports, *pptr;
+	const struct ebt_ip_info *info = data;
+	const struct iphdr *ih;
+	struct iphdr _iph;
+	const struct tcpudphdr *pptr;
+	struct tcpudphdr _ports;
 
 	ih = skb_header_pointer(skb, 0, sizeof(_iph), &_iph);
 	if (ih == NULL)
@@ -79,7 +81,7 @@ static int ebt_filter_ip(const struct sk_buff *skb, const struct net_device *in,
 static int ebt_ip_check(const char *tablename, unsigned int hookmask,
    const struct ebt_entry *e, void *data, unsigned int datalen)
 {
-	struct ebt_ip_info *info = (struct ebt_ip_info *)data;
+	const struct ebt_ip_info *info = data;
 
 	if (datalen != EBT_ALIGN(sizeof(struct ebt_ip_info)))
 		return -EINVAL;
@@ -105,8 +107,7 @@ static int ebt_ip_check(const char *tablename, unsigned int hookmask,
 	return 0;
 }
 
-static struct ebt_match filter_ip =
-{
+static struct ebt_match filter_ip __read_mostly = {
 	.name		= EBT_IP_MATCH,
 	.match		= ebt_filter_ip,
 	.check		= ebt_ip_check,
@@ -125,4 +126,5 @@ static void __exit ebt_ip_fini(void)
 
 module_init(ebt_ip_init);
 module_exit(ebt_ip_fini);
+MODULE_DESCRIPTION("Ebtables: IPv4 protocol packet match");
 MODULE_LICENSE("GPL");

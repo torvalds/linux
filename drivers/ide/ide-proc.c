@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/ide/ide-proc.c	Version 1.05	Mar 05, 2003
- *
  *  Copyright (C) 1997-1998	Mark Lord
  *  Copyright (C) 2003		Red Hat <alan@redhat.com>
  *
@@ -346,14 +344,20 @@ static int ide_write_setting(ide_drive_t *drive, ide_settings_t *setting, int va
 
 static int set_xfer_rate (ide_drive_t *drive, int arg)
 {
+	ide_task_t task;
 	int err;
 
 	if (arg < 0 || arg > 70)
 		return -EINVAL;
 
-	err = ide_wait_cmd(drive,
-			WIN_SETFEATURES, (u8) arg,
-			SETFEATURES_XFER, 0, NULL);
+	memset(&task, 0, sizeof(task));
+	task.tf.command = WIN_SETFEATURES;
+	task.tf.feature = SETFEATURES_XFER;
+	task.tf.nsect   = (u8)arg;
+	task.tf_flags = IDE_TFLAG_OUT_FEATURE | IDE_TFLAG_OUT_NSECT |
+			IDE_TFLAG_IN_NSECT;
+
+	err = ide_no_data_taskfile(drive, &task);
 
 	if (!err && arg) {
 		ide_set_xfer_rate(drive, (u8) arg);
@@ -735,7 +739,7 @@ void ide_proc_unregister_driver(ide_drive_t *drive, ide_driver_t *driver)
 
 EXPORT_SYMBOL(ide_proc_unregister_driver);
 
-static void create_proc_ide_drives(ide_hwif_t *hwif)
+void ide_proc_port_register_devices(ide_hwif_t *hwif)
 {
 	int	d;
 	struct proc_dir_entry *ent;
@@ -789,9 +793,6 @@ static ide_proc_entry_t hwif_entries[] = {
 
 void ide_proc_register_port(ide_hwif_t *hwif)
 {
-	if (!hwif->present)
-		return;
-
 	if (!hwif->proc) {
 		hwif->proc = proc_mkdir(hwif->name, proc_ide_root);
 
@@ -800,8 +801,6 @@ void ide_proc_register_port(ide_hwif_t *hwif)
 
 		ide_add_proc_entries(hwif->proc, hwif_entries, hwif);
 	}
-
-	create_proc_ide_drives(hwif);
 }
 
 #ifdef CONFIG_BLK_DEV_IDEPCI

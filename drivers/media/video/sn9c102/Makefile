@@ -3,6 +3,7 @@ sn9c102-objs := sn9c102_core.o \
 		sn9c102_hv7131r.o \
 		sn9c102_mi0343.o \
 		sn9c102_mi0360.o \
+		sn9c102_mt9v111.o \
 		sn9c102_ov7630.o \
 		sn9c102_ov7660.o \
 		sn9c102_pas106b.o \

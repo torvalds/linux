@@ -1,6 +1,6 @@
 /*
- * Derived from include/asm-i386/mach-summit/mach_mpparse.h
- *          and include/asm-i386/mach-default/bios_ebda.h
+ * Derived from include/asm-x86/mach-summit/mach_mpparse.h
+ *          and include/asm-x86/mach-default/bios_ebda.h
  *
  * Author: Laurent Vivier <Laurent.Vivier@bull.net>
  */

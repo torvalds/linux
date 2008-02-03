@@ -36,9 +36,14 @@ MODULE_DESCRIPTION("M66592 USB gadget driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Yoshihiro Shimoda");
 
-#define DRIVER_VERSION	"29 May 2007"
+#define DRIVER_VERSION	"18 Oct 2007"
 
 /* module parameters */
+#if defined(CONFIG_SUPERH_BUILT_IN_M66592)
+static unsigned short endian = M66592_LITTLE;
+module_param(endian, ushort, 0644);
+MODULE_PARM_DESC(endian, "data endian: big=0, little=0 (default=0)");
+#else
 static unsigned short clock = M66592_XTAL24;
 module_param(clock, ushort, 0644);
 MODULE_PARM_DESC(clock, "input clock: 48MHz=32768, 24MHz=16384, 12MHz=0 "
@@ -56,6 +61,7 @@ static unsigned short irq_sense = M66592_INTL;
 module_param(irq_sense, ushort, 0644);
 MODULE_PARM_DESC(irq_sense, "IRQ sense: low level=2, falling edge=0 "
 		"(default=2)");
+#endif
 
 static const char udc_name[] = "m66592_udc";
 static const char *m66592_ep_name[] = {
@@ -141,7 +147,7 @@ static inline u16 control_reg_get_pid(struct m66592 *m66592, u16 pipenum)
 		offset = get_pipectr_addr(pipenum);
 		pid = m66592_read(m66592, offset) & M66592_PID;
 	} else
-		printk(KERN_ERR "unexpect pipe num (%d)\n", pipenum);
+		pr_err("unexpect pipe num (%d)\n", pipenum);
 
 	return pid;
 }
@@ -157,7 +163,7 @@ static inline void control_reg_set_pid(struct m66592 *m66592, u16 pipenum,
 		offset = get_pipectr_addr(pipenum);
 		m66592_mdfy(m66592, pid, M66592_PID, offset);
 	} else
-		printk(KERN_ERR "unexpect pipe num (%d)\n", pipenum);
+		pr_err("unexpect pipe num (%d)\n", pipenum);
 }
 
 static inline void pipe_start(struct m66592 *m66592, u16 pipenum)
@@ -186,7 +192,7 @@ static inline u16 control_reg_get(struct m66592 *m66592, u16 pipenum)
 		offset = get_pipectr_addr(pipenum);
 		ret = m66592_read(m66592, offset);
 	} else
-		printk(KERN_ERR "unexpect pipe num (%d)\n", pipenum);
+		pr_err("unexpect pipe num (%d)\n", pipenum);
 
 	return ret;
 }
@@ -203,7 +209,7 @@ static inline void control_reg_sqclr(struct m66592 *m66592, u16 pipenum)
 		offset = get_pipectr_addr(pipenum);
 		m66592_bset(m66592, M66592_SQCLR, offset);
 	} else
-		printk(KERN_ERR "unexpect pipe num(%d)\n", pipenum);
+		pr_err("unexpect pipe num(%d)\n", pipenum);
 }
 
 static inline int get_buffer_size(struct m66592 *m66592, u16 pipenum)
@@ -285,7 +291,7 @@ static int pipe_buffer_setting(struct m66592 *m66592,
 		break;
 	}
 	if (m66592->bi_bufnum > M66592_MAX_BUFNUM) {
-		printk(KERN_ERR "m66592 pipe memory is insufficient(%d)\n",
+		pr_err("m66592 pipe memory is insufficient(%d)\n",
 				m66592->bi_bufnum);
 		return -ENOMEM;
 	}
@@ -326,7 +332,7 @@ static void pipe_buffer_release(struct m66592 *m66592,
 		if (info->type == M66592_BULK)
 			m66592->bulk--;
 	} else
-		printk(KERN_ERR "ep_release: unexpect pipenum (%d)\n",
+		pr_err("ep_release: unexpect pipenum (%d)\n",
 				info->pipe);
 }
 
@@ -360,6 +366,7 @@ static void m66592_ep_setting(struct m66592 *m66592, struct m66592_ep *ep,
 			ep->fifosel = M66592_D0FIFOSEL;
 			ep->fifoctr = M66592_D0FIFOCTR;
 			ep->fifotrn = M66592_D0FIFOTRN;
+#if !defined(CONFIG_SUPERH_BUILT_IN_M66592)
 		} else if (m66592->num_dma == 1) {
 			m66592->num_dma++;
 			ep->use_dma = 1;
@@ -367,6 +374,7 @@ static void m66592_ep_setting(struct m66592 *m66592, struct m66592_ep *ep,
 			ep->fifosel = M66592_D1FIFOSEL;
 			ep->fifoctr = M66592_D1FIFOCTR;
 			ep->fifotrn = M66592_D1FIFOTRN;
+#endif
 		} else {
 			ep->use_dma = 0;
 			ep->fifoaddr = M66592_CFIFO;
@@ -422,7 +430,7 @@ static int alloc_pipe_config(struct m66592_ep *ep,
 	case USB_ENDPOINT_XFER_BULK:
 		if (m66592->bulk >= M66592_MAX_NUM_BULK) {
 			if (m66592->isochronous >= M66592_MAX_NUM_ISOC) {
-				printk(KERN_ERR "bulk pipe is insufficient\n");
+				pr_err("bulk pipe is insufficient\n");
 				return -ENODEV;
 			} else {
 				info.pipe = M66592_BASE_PIPENUM_ISOC
@@ -438,7 +446,7 @@ static int alloc_pipe_config(struct m66592_ep *ep,
 		break;
 	case USB_ENDPOINT_XFER_INT:
 		if (m66592->interrupt >= M66592_MAX_NUM_INT) {
-			printk(KERN_ERR "interrupt pipe is insufficient\n");
+			pr_err("interrupt pipe is insufficient\n");
 			return -ENODEV;
 		}
 		info.pipe = M66592_BASE_PIPENUM_INT + m66592->interrupt;
@@ -447,7 +455,7 @@ static int alloc_pipe_config(struct m66592_ep *ep,
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
 		if (m66592->isochronous >= M66592_MAX_NUM_ISOC) {
-			printk(KERN_ERR "isochronous pipe is insufficient\n");
+			pr_err("isochronous pipe is insufficient\n");
 			return -ENODEV;
 		}
 		info.pipe = M66592_BASE_PIPENUM_ISOC + m66592->isochronous;
@@ -455,7 +463,7 @@ static int alloc_pipe_config(struct m66592_ep *ep,
 		counter = &m66592->isochronous;
 		break;
 	default:
-		printk(KERN_ERR "unexpect xfer type\n");
+		pr_err("unexpect xfer type\n");
 		return -EINVAL;
 	}
 	ep->type = info.type;
@@ -470,7 +478,7 @@ static int alloc_pipe_config(struct m66592_ep *ep,
 
 	ret = pipe_buffer_setting(m66592, &info);
 	if (ret < 0) {
-		printk(KERN_ERR "pipe_buffer_setting fail\n");
+		pr_err("pipe_buffer_setting fail\n");
 		return ret;
 	}
 
@@ -606,11 +614,33 @@ static void start_ep0(struct m66592_ep *ep, struct m66592_request *req)
 		control_end(ep->m66592, 0);
 		break;
 	default:
-		printk(KERN_ERR "start_ep0: unexpect ctsq(%x)\n", ctsq);
+		pr_err("start_ep0: unexpect ctsq(%x)\n", ctsq);
 		break;
 	}
 }
 
+#if defined(CONFIG_SUPERH_BUILT_IN_M66592)
+static void init_controller(struct m66592 *m66592)
+{
+	usbf_start_clock();
+	m66592_bset(m66592, M66592_HSE, M66592_SYSCFG);		/* High spd */
+	m66592_bclr(m66592, M66592_USBE, M66592_SYSCFG);
+	m66592_bclr(m66592, M66592_DPRPU, M66592_SYSCFG);
+	m66592_bset(m66592, M66592_USBE, M66592_SYSCFG);
+
+	/* This is a workaound for SH7722 2nd cut */
+	m66592_bset(m66592, 0x8000, M66592_DVSTCTR);
+	m66592_bset(m66592, 0x1000, M66592_TESTMODE);
+	m66592_bclr(m66592, 0x8000, M66592_DVSTCTR);
+
+	m66592_bset(m66592, M66592_INTL, M66592_INTENB1);
+
+	m66592_write(m66592, 0, M66592_CFBCFG);
+	m66592_write(m66592, 0, M66592_D0FBCFG);
+	m66592_bset(m66592, endian, M66592_CFBCFG);
+	m66592_bset(m66592, endian, M66592_D0FBCFG);
+}
+#else	/* #if defined(CONFIG_SUPERH_BUILT_IN_M66592) */
 static void init_controller(struct m66592 *m66592)
 {
 	m66592_bset(m66592, (vif & M66592_LDRV) | (endian & M66592_BIGEND),
@@ -636,9 +666,13 @@ static void init_controller(struct m66592 *m66592)
 	m66592_write(m66592, M66592_BURST | M66592_CPU_ADR_RD_WR,
 			M66592_DMA0CFG);
 }
+#endif	/* #if defined(CONFIG_SUPERH_BUILT_IN_M66592) */
 
 static void disable_controller(struct m66592 *m66592)
 {
+#if defined(CONFIG_SUPERH_BUILT_IN_M66592)
+	usbf_stop_clock();
+#else
 	m66592_bclr(m66592, M66592_SCKE, M66592_SYSCFG);
 	udelay(1);
 	m66592_bclr(m66592, M66592_PLLC, M66592_SYSCFG);
@@ -646,15 +680,20 @@ static void disable_controller(struct m66592 *m66592)
 	m66592_bclr(m66592, M66592_RCKE, M66592_SYSCFG);
 	udelay(1);
 	m66592_bclr(m66592, M66592_XCKE, M66592_SYSCFG);
+#endif
 }
 
 static void m66592_start_xclock(struct m66592 *m66592)
 {
+#if defined(CONFIG_SUPERH_BUILT_IN_M66592)
+	usbf_start_clock();
+#else
 	u16 tmp;
 
 	tmp = m66592_read(m66592, M66592_SYSCFG);
 	if (!(tmp & M66592_XCKE))
 		m66592_bset(m66592, M66592_XCKE, M66592_SYSCFG);
+#endif
 }
 
 /*-------------------------------------------------------------------------*/
@@ -709,7 +748,7 @@ static void irq_ep0_write(struct m66592_ep *ep, struct m66592_request *req)
 	do {
 		tmp = m66592_read(m66592, ep->fifoctr);
 		if (i++ > 100000) {
-			printk(KERN_ERR "pipe0 is busy. maybe cpu i/o bus"
+			pr_err("pipe0 is busy. maybe cpu i/o bus "
 				"conflict. please power off this controller.");
 			return;
 		}
@@ -759,7 +798,7 @@ static void irq_packet_write(struct m66592_ep *ep, struct m66592_request *req)
 	if (unlikely((tmp & M66592_FRDY) == 0)) {
 		pipe_stop(m66592, pipenum);
 		pipe_irq_disable(m66592, pipenum);
-		printk(KERN_ERR "write fifo not ready. pipnum=%d\n", pipenum);
+		pr_err("write fifo not ready. pipnum=%d\n", pipenum);
 		return;
 	}
 
@@ -808,7 +847,7 @@ static void irq_packet_read(struct m66592_ep *ep, struct m66592_request *req)
 		req->req.status = -EPIPE;
 		pipe_stop(m66592, pipenum);
 		pipe_irq_disable(m66592, pipenum);
-		printk(KERN_ERR "read fifo not ready");
+		pr_err("read fifo not ready");
 		return;
 	}
 
@@ -1063,7 +1102,7 @@ static void m66592_update_usb_speed(struct m66592 *m66592)
 		break;
 	default:
 		m66592->gadget.speed = USB_SPEED_UNKNOWN;
-		printk(KERN_ERR "USB speed unknown\n");
+		pr_err("USB speed unknown\n");
 	}
 }
 
@@ -1122,7 +1161,7 @@ __acquires(m66592->lock)
 		control_end(m66592, 0);
 		break;
 	default:
-		printk(KERN_ERR "ctrl_stage: unexpect ctsq(%x)\n", ctsq);
+		pr_err("ctrl_stage: unexpect ctsq(%x)\n", ctsq);
 		break;
 	}
 }
@@ -1141,6 +1180,19 @@ static irqreturn_t m66592_irq(int irq, void *_m66592)
 
 	intsts0 = m66592_read(m66592, M66592_INTSTS0);
 	intenb0 = m66592_read(m66592, M66592_INTENB0);
+
+#if defined(CONFIG_SUPERH_BUILT_IN_M66592)
+	if (!intsts0 && !intenb0) {
+		/*
+		 * When USB clock stops, it cannot read register. Even if a
+		 * clock stops, the interrupt occurs. So this driver turn on
+		 * a clock by this timing and do re-reading of register.
+		 */
+		m66592_start_xclock(m66592);
+		intsts0 = m66592_read(m66592, M66592_INTSTS0);
+		intenb0 = m66592_read(m66592, M66592_INTENB0);
+	}
+#endif
 
 	savepipe = m66592_read(m66592, M66592_CFIFOSEL);
 
@@ -1409,13 +1461,13 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 
 	retval = device_add(&m66592->gadget.dev);
 	if (retval) {
-		printk(KERN_ERR "device_add error (%d)\n", retval);
+		pr_err("device_add error (%d)\n", retval);
 		goto error;
 	}
 
 	retval = driver->bind (&m66592->gadget);
 	if (retval) {
-		printk(KERN_ERR "bind to driver error (%d)\n", retval);
+		pr_err("bind to driver error (%d)\n", retval);
 		device_del(&m66592->gadget.dev);
 		goto error;
 	}
@@ -1456,6 +1508,7 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	m66592_bclr(m66592, M66592_VBSE | M66592_URST, M66592_INTENB0);
 
 	driver->unbind(&m66592->gadget);
+	m66592->gadget.dev.driver = NULL;
 
 	init_controller(m66592);
 	disable_controller(m66592);
@@ -1485,6 +1538,7 @@ static int __exit m66592_remove(struct platform_device *pdev)
 	iounmap(m66592->reg);
 	free_irq(platform_get_irq(pdev, 0), m66592);
 	m66592_free_request(&m66592->ep[0].ep, m66592->ep0_req);
+	usbf_stop_clock();
 	kfree(m66592);
 	return 0;
 }
@@ -1508,28 +1562,28 @@ static int __init m66592_probe(struct platform_device *pdev)
 			(char *)udc_name);
 	if (!res) {
 		ret = -ENODEV;
-		printk(KERN_ERR "platform_get_resource_byname error.\n");
+		pr_err("platform_get_resource_byname error.\n");
 		goto clean_up;
 	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		ret = -ENODEV;
-		printk(KERN_ERR "platform_get_irq error.\n");
+		pr_err("platform_get_irq error.\n");
 		goto clean_up;
 	}
 
 	reg = ioremap(res->start, resource_len(res));
 	if (reg == NULL) {
 		ret = -ENOMEM;
-		printk(KERN_ERR "ioremap error.\n");
+		pr_err("ioremap error.\n");
 		goto clean_up;
 	}
 
 	/* initialize ucd */
 	m66592 = kzalloc(sizeof(struct m66592), GFP_KERNEL);
 	if (m66592 == NULL) {
-		printk(KERN_ERR "kzalloc error\n");
+		pr_err("kzalloc error\n");
 		goto clean_up;
 	}
 
@@ -1555,7 +1609,7 @@ static int __init m66592_probe(struct platform_device *pdev)
 	ret = request_irq(irq, m66592_irq, IRQF_DISABLED | IRQF_SHARED,
 			udc_name, m66592);
 	if (ret < 0) {
-		printk(KERN_ERR "request_irq error (%d)\n", ret);
+		pr_err("request_irq error (%d)\n", ret);
 		goto clean_up;
 	}
 

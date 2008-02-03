@@ -72,25 +72,29 @@ IO_CONCAT(__IO_PREFIX,writew)(u16 b, volatile void __iomem *a)
 __EXTERN_INLINE u8
 IO_CONCAT(__IO_PREFIX,readb)(const volatile void __iomem *a)
 {
-	return IO_CONCAT(__IO_PREFIX,ioread8)((void __iomem *)a);
+	void __iomem *addr = (void __iomem *)a;
+	return IO_CONCAT(__IO_PREFIX,ioread8)(addr);
 }
 
 __EXTERN_INLINE u16
 IO_CONCAT(__IO_PREFIX,readw)(const volatile void __iomem *a)
 {
-	return IO_CONCAT(__IO_PREFIX,ioread16)((void __iomem *)a);
+	void __iomem *addr = (void __iomem *)a;
+	return IO_CONCAT(__IO_PREFIX,ioread16)(addr);
 }
 
 __EXTERN_INLINE void
 IO_CONCAT(__IO_PREFIX,writeb)(u8 b, volatile void __iomem *a)
 {
-	IO_CONCAT(__IO_PREFIX,iowrite8)(b, (void __iomem *)a);
+	void __iomem *addr = (void __iomem *)a;
+	IO_CONCAT(__IO_PREFIX,iowrite8)(b, addr);
 }
 
 __EXTERN_INLINE void
 IO_CONCAT(__IO_PREFIX,writew)(u16 b, volatile void __iomem *a)
 {
-	IO_CONCAT(__IO_PREFIX,iowrite16)(b, (void __iomem *)a);
+	void __iomem *addr = (void __iomem *)a;
+	IO_CONCAT(__IO_PREFIX,iowrite16)(b, addr);
 }
 #endif
 

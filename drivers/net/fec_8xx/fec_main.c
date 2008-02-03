@@ -35,7 +35,7 @@
 #include <asm/mpc8xx.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
-#include <asm/commproc.h>
+#include <asm/cpm1.h>
 
 #include "fec_8xx.h"
 
@@ -475,11 +475,6 @@ static int fec_enet_rx_common(struct fec_enet_private *ep,
 	int received = 0;
 	__u16 pkt_len, sc;
 	int curidx;
-
-	if (fpi->use_napi) {
-		if (!netif_running(dev))
-			return 0;
-	}
 
 	/*
 	 * First, grab all of the stats for the incoming packet.

@@ -585,10 +585,10 @@ serial_pxa_type(struct uart_port *port)
 	return up->name;
 }
 
-#ifdef CONFIG_SERIAL_PXA_CONSOLE
-
 static struct uart_pxa_port *serial_pxa_ports[4];
 static struct uart_driver serial_pxa_reg;
+
+#ifdef CONFIG_SERIAL_PXA_CONSOLE
 
 #define BOTH_EMPTY (UART_LSR_TEMT | UART_LSR_THRE)
 

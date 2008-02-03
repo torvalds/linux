@@ -19,7 +19,6 @@
  *
  */
 
-#include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/time.h>
@@ -228,7 +227,7 @@ static char *snd_pcm_subformat_names[] = {
 
 static char *snd_pcm_tstamp_mode_names[] = {
 	TSTAMP(NONE),
-	TSTAMP(MMAP),
+	TSTAMP(ENABLE),
 };
 
 static const char *snd_pcm_stream_name(int stream)
@@ -359,7 +358,6 @@ static void snd_pcm_substream_proc_hw_params_read(struct snd_info_entry *entry,
 	snd_iprintf(buffer, "rate: %u (%u/%u)\n", runtime->rate, runtime->rate_num, runtime->rate_den);	
 	snd_iprintf(buffer, "period_size: %lu\n", runtime->period_size);	
 	snd_iprintf(buffer, "buffer_size: %lu\n", runtime->buffer_size);	
-	snd_iprintf(buffer, "tick_time: %u\n", runtime->tick_time);
 #if defined(CONFIG_SND_PCM_OSS) || defined(CONFIG_SND_PCM_OSS_MODULE)
 	if (substream->oss.oss) {
 		snd_iprintf(buffer, "OSS format: %s\n", snd_pcm_oss_format_name(runtime->oss.format));
@@ -387,9 +385,7 @@ static void snd_pcm_substream_proc_sw_params_read(struct snd_info_entry *entry,
 	}
 	snd_iprintf(buffer, "tstamp_mode: %s\n", snd_pcm_tstamp_mode_name(runtime->tstamp_mode));
 	snd_iprintf(buffer, "period_step: %u\n", runtime->period_step);
-	snd_iprintf(buffer, "sleep_min: %u\n", runtime->sleep_min);
 	snd_iprintf(buffer, "avail_min: %lu\n", runtime->control->avail_min);
-	snd_iprintf(buffer, "xfer_align: %lu\n", runtime->xfer_align);
 	snd_iprintf(buffer, "start_threshold: %lu\n", runtime->start_threshold);
 	snd_iprintf(buffer, "stop_threshold: %lu\n", runtime->stop_threshold);
 	snd_iprintf(buffer, "silence_threshold: %lu\n", runtime->silence_threshold);
@@ -765,12 +761,6 @@ static int snd_pcm_dev_free(struct snd_device *device)
 	return snd_pcm_free(pcm);
 }
 
-static void snd_pcm_tick_timer_func(unsigned long data)
-{
-	struct snd_pcm_substream *substream = (struct snd_pcm_substream *) data;
-	snd_pcm_tick_elapsed(substream);
-}
-
 int snd_pcm_attach_substream(struct snd_pcm *pcm, int stream,
 			     struct file *file,
 			     struct snd_pcm_substream **rsubstream)
@@ -877,9 +867,6 @@ int snd_pcm_attach_substream(struct snd_pcm *pcm, int stream,
 	memset((void*)runtime->control, 0, size);
 
 	init_waitqueue_head(&runtime->sleep);
-	init_timer(&runtime->tick_timer);
-	runtime->tick_timer.function = snd_pcm_tick_timer_func;
-	runtime->tick_timer.data = (unsigned long) substream;
 
 	runtime->status->state = SNDRV_PCM_STATE_OPEN;
 

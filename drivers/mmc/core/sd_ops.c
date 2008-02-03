@@ -10,7 +10,6 @@
  */
 
 #include <linux/types.h>
-#include <asm/scatterlist.h>
 #include <linux/scatterlist.h>
 
 #include <linux/mmc/host.h>

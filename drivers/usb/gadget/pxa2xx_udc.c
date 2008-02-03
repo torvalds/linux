@@ -24,7 +24,7 @@
  *
  */
 
-// #define	VERBOSE	DBG_VERBOSE
+/* #define VERBOSE_DEBUG */
 
 #include <linux/device.h>
 #include <linux/module.h>
@@ -38,13 +38,14 @@
 #include <linux/timer.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
-#include <linux/proc_fs.h>
 #include <linux/mm.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/irq.h>
 #include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/seq_file.h>
+#include <linux/debugfs.h>
 
 #include <asm/byteorder.h>
 #include <asm/dma.h>
@@ -127,8 +128,10 @@ static int is_vbus_present(void)
 {
 	struct pxa2xx_udc_mach_info		*mach = the_controller->mach;
 
-	if (mach->gpio_vbus)
-		return gpio_get_value(mach->gpio_vbus);
+	if (mach->gpio_vbus) {
+		int value = gpio_get_value(mach->gpio_vbus);
+		return mach->gpio_vbus_inverted ? !value : value;
+	}
 	if (mach->udc_is_connected)
 		return mach->udc_is_connected();
 	return 1;
@@ -677,7 +680,7 @@ pxa2xx_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 
 	/* kickstart this i/o queue? */
 	if (list_empty(&ep->queue) && !ep->stopped) {
-		if (ep->desc == 0 /* ep0 */) {
+		if (ep->desc == NULL/* ep0 */) {
 			unsigned	length = _req->length;
 
 			switch (dev->ep0state) {
@@ -731,7 +734,7 @@ pxa2xx_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	}
 
 	/* pio or dma irq handler advances the queue. */
-	if (likely (req != 0))
+	if (likely(req != NULL))
 		list_add_tail(&req->queue, &ep->queue);
 	local_irq_restore(flags);
 
@@ -991,45 +994,32 @@ static const struct usb_gadget_ops pxa2xx_udc_ops = {
 
 /*-------------------------------------------------------------------------*/
 
-#ifdef CONFIG_USB_GADGET_DEBUG_FILES
-
-static const char proc_node_name [] = "driver/udc";
+#ifdef CONFIG_USB_GADGET_DEBUG_FS
 
 static int
-udc_proc_read(char *page, char **start, off_t off, int count,
-		int *eof, void *_dev)
+udc_seq_show(struct seq_file *m, void *d)
 {
-	char			*buf = page;
-	struct pxa2xx_udc	*dev = _dev;
-	char			*next = buf;
-	unsigned		size = count;
+	struct pxa2xx_udc	*dev = m->private;
 	unsigned long		flags;
-	int			i, t;
+	int			i;
 	u32			tmp;
-
-	if (off != 0)
-		return 0;
 
 	local_irq_save(flags);
 
 	/* basic device status */
-	t = scnprintf(next, size, DRIVER_DESC "\n"
+	seq_printf(m, DRIVER_DESC "\n"
 		"%s version: %s\nGadget driver: %s\nHost %s\n\n",
 		driver_name, DRIVER_VERSION SIZE_STR "(pio)",
 		dev->driver ? dev->driver->driver.name : "(none)",
 		is_vbus_present() ? "full speed" : "disconnected");
-	size -= t;
-	next += t;
 
 	/* registers for device and ep0 */
-	t = scnprintf(next, size,
+	seq_printf(m,
 		"uicr %02X.%02X, usir %02X.%02x, ufnr %02X.%02X\n",
 		UICR1, UICR0, USIR1, USIR0, UFNRH, UFNRL);
-	size -= t;
-	next += t;
 
 	tmp = UDCCR;
-	t = scnprintf(next, size,
+	seq_printf(m,
 		"udccr %02X =%s%s%s%s%s%s%s%s\n", tmp,
 		(tmp & UDCCR_REM) ? " rem" : "",
 		(tmp & UDCCR_RSTIR) ? " rstir" : "",
@@ -1039,11 +1029,9 @@ udc_proc_read(char *page, char **start, off_t off, int count,
 		(tmp & UDCCR_RSM) ? " rsm" : "",
 		(tmp & UDCCR_UDA) ? " uda" : "",
 		(tmp & UDCCR_UDE) ? " ude" : "");
-	size -= t;
-	next += t;
 
 	tmp = UDCCS0;
-	t = scnprintf(next, size,
+	seq_printf(m,
 		"udccs0 %02X =%s%s%s%s%s%s%s%s\n", tmp,
 		(tmp & UDCCS0_SA) ? " sa" : "",
 		(tmp & UDCCS0_RNE) ? " rne" : "",
@@ -1053,28 +1041,22 @@ udc_proc_read(char *page, char **start, off_t off, int count,
 		(tmp & UDCCS0_FTF) ? " ftf" : "",
 		(tmp & UDCCS0_IPR) ? " ipr" : "",
 		(tmp & UDCCS0_OPR) ? " opr" : "");
-	size -= t;
-	next += t;
 
 	if (dev->has_cfr) {
 		tmp = UDCCFR;
-		t = scnprintf(next, size,
+		seq_printf(m,
 			"udccfr %02X =%s%s\n", tmp,
 			(tmp & UDCCFR_AREN) ? " aren" : "",
 			(tmp & UDCCFR_ACM) ? " acm" : "");
-		size -= t;
-		next += t;
 	}
 
 	if (!is_vbus_present() || !dev->driver)
 		goto done;
 
-	t = scnprintf(next, size, "ep0 IN %lu/%lu, OUT %lu/%lu\nirqs %lu\n\n",
+	seq_printf(m, "ep0 IN %lu/%lu, OUT %lu/%lu\nirqs %lu\n\n",
 		dev->stats.write.bytes, dev->stats.write.ops,
 		dev->stats.read.bytes, dev->stats.read.ops,
 		dev->stats.irqs);
-	size -= t;
-	next += t;
 
 	/* dump endpoint queues */
 	for (i = 0; i < PXA_UDC_NUM_ENDPOINTS; i++) {
@@ -1082,61 +1064,68 @@ udc_proc_read(char *page, char **start, off_t off, int count,
 		struct pxa2xx_request	*req;
 
 		if (i != 0) {
-			const struct usb_endpoint_descriptor	*d;
+			const struct usb_endpoint_descriptor	*desc;
 
-			d = ep->desc;
-			if (!d)
+			desc = ep->desc;
+			if (!desc)
 				continue;
 			tmp = *dev->ep [i].reg_udccs;
-			t = scnprintf(next, size,
+			seq_printf(m,
 				"%s max %d %s udccs %02x irqs %lu\n",
-				ep->ep.name, le16_to_cpu (d->wMaxPacketSize),
+				ep->ep.name, le16_to_cpu(desc->wMaxPacketSize),
 				"pio", tmp, ep->pio_irqs);
 			/* TODO translate all five groups of udccs bits! */
 
 		} else /* ep0 should only have one transfer queued */
-			t = scnprintf(next, size, "ep0 max 16 pio irqs %lu\n",
+			seq_printf(m, "ep0 max 16 pio irqs %lu\n",
 				ep->pio_irqs);
-		if (t <= 0 || t > size)
-			goto done;
-		size -= t;
-		next += t;
 
 		if (list_empty(&ep->queue)) {
-			t = scnprintf(next, size, "\t(nothing queued)\n");
-			if (t <= 0 || t > size)
-				goto done;
-			size -= t;
-			next += t;
+			seq_printf(m, "\t(nothing queued)\n");
 			continue;
 		}
 		list_for_each_entry(req, &ep->queue, queue) {
-			t = scnprintf(next, size,
+			seq_printf(m,
 					"\treq %p len %d/%d buf %p\n",
 					&req->req, req->req.actual,
 					req->req.length, req->req.buf);
-			if (t <= 0 || t > size)
-				goto done;
-			size -= t;
-			next += t;
 		}
 	}
 
 done:
 	local_irq_restore(flags);
-	*eof = 1;
-	return count - size;
+	return 0;
 }
 
-#define create_proc_files() \
-	create_proc_read_entry(proc_node_name, 0, NULL, udc_proc_read, dev)
-#define remove_proc_files() \
-	remove_proc_entry(proc_node_name, NULL)
+static int
+udc_debugfs_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, udc_seq_show, inode->i_private);
+}
+
+static const struct file_operations debug_fops = {
+	.open		= udc_debugfs_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.owner		= THIS_MODULE,
+};
+
+#define create_debug_files(dev) \
+	do { \
+		dev->debugfs_udc = debugfs_create_file(dev->gadget.name, \
+			S_IRUGO, NULL, dev, &debug_fops); \
+	} while (0)
+#define remove_debug_files(dev) \
+	do { \
+		if (dev->debugfs_udc) \
+			debugfs_remove(dev->debugfs_udc); \
+	} while (0)
 
 #else	/* !CONFIG_USB_GADGET_DEBUG_FILES */
 
-#define create_proc_files() do {} while (0)
-#define remove_proc_files() do {} while (0)
+#define create_debug_files(dev) do {} while (0)
+#define remove_debug_files(dev) do {} while (0)
 
 #endif	/* CONFIG_USB_GADGET_DEBUG_FILES */
 
@@ -1345,6 +1334,7 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	local_irq_enable();
 
 	driver->unbind(&dev->gadget);
+	dev->gadget.dev.driver = NULL;
 	dev->driver = NULL;
 
 	device_del (&dev->gadget.dev);
@@ -1396,6 +1386,9 @@ static irqreturn_t udc_vbus_irq(int irq, void *_dev)
 {
 	struct pxa2xx_udc	*dev = _dev;
 	int			vbus = gpio_get_value(dev->mach->gpio_vbus);
+
+	if (dev->mach->gpio_vbus_inverted)
+		vbus = !vbus;
 
 	pxa2xx_udc_vbus_session(&dev->gadget, vbus);
 	return IRQ_HANDLED;
@@ -2099,7 +2092,7 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 	/* insist on Intel/ARM/XScale */
 	asm("mrc%? p15, 0, %0, c0, c0" : "=r" (chiprev));
 	if ((chiprev & CP15R0_VENDOR_MASK) != CP15R0_XSCALE_VALUE) {
-		printk(KERN_ERR "%s: not XScale!\n", driver_name);
+		pr_err("%s: not XScale!\n", driver_name);
 		return -ENODEV;
 	}
 
@@ -2128,7 +2121,7 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 		break;
 #endif
 	default:
-		printk(KERN_ERR "%s: unrecognized processor: %08x\n",
+		pr_err("%s: unrecognized processor: %08x\n",
 			driver_name, chiprev);
 		/* iop3xx, ixp4xx, ... */
 		return -ENODEV;
@@ -2199,7 +2192,7 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 	retval = request_irq(irq, pxa2xx_udc_irq,
 			IRQF_DISABLED, driver_name, dev);
 	if (retval != 0) {
-		printk(KERN_ERR "%s: can't get irq %d, err %d\n",
+		pr_err("%s: can't get irq %d, err %d\n",
 			driver_name, irq, retval);
 		goto err_irq1;
 	}
@@ -2212,7 +2205,7 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 				IRQF_DISABLED | IRQF_SAMPLE_RANDOM,
 				driver_name, dev);
 		if (retval != 0) {
-			printk(KERN_ERR "%s: can't get irq %i, err %d\n",
+			pr_err("%s: can't get irq %i, err %d\n",
 				driver_name, LUBBOCK_USB_DISC_IRQ, retval);
 lubbock_fail0:
 			goto err_irq_lub;
@@ -2222,7 +2215,7 @@ lubbock_fail0:
 				IRQF_DISABLED | IRQF_SAMPLE_RANDOM,
 				driver_name, dev);
 		if (retval != 0) {
-			printk(KERN_ERR "%s: can't get irq %i, err %d\n",
+			pr_err("%s: can't get irq %i, err %d\n",
 				driver_name, LUBBOCK_USB_IRQ, retval);
 			free_irq(LUBBOCK_USB_DISC_IRQ, dev);
 			goto lubbock_fail0;
@@ -2235,12 +2228,12 @@ lubbock_fail0:
 				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 				driver_name, dev);
 		if (retval != 0) {
-			printk(KERN_ERR "%s: can't get irq %i, err %d\n",
+			pr_err("%s: can't get irq %i, err %d\n",
 				driver_name, vbus_irq, retval);
 			goto err_vbus_irq;
 		}
 	}
-	create_proc_files();
+	create_debug_files(dev);
 
 	return 0;
 
@@ -2277,7 +2270,7 @@ static int __exit pxa2xx_udc_remove(struct platform_device *pdev)
 		return -EBUSY;
 
 	udc_disable(dev);
-	remove_proc_files();
+	remove_debug_files(dev);
 
 	if (dev->got_irq) {
 		free_irq(platform_get_irq(pdev, 0), dev);
@@ -2361,7 +2354,7 @@ static struct platform_driver udc_driver = {
 
 static int __init udc_init(void)
 {
-	printk(KERN_INFO "%s: version %s\n", driver_name, DRIVER_VERSION);
+	pr_info("%s: version %s\n", driver_name, DRIVER_VERSION);
 	return platform_driver_probe(&udc_driver, pxa2xx_udc_probe);
 }
 module_init(udc_init);

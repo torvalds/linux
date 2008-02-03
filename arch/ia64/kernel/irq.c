@@ -61,9 +61,11 @@ int show_interrupts(struct seq_file *p, void *v)
 	unsigned long flags;
 
 	if (i == 0) {
-		seq_printf(p, "           ");
+		char cpuname[16];
+		seq_printf(p, "     ");
 		for_each_online_cpu(j) {
-			seq_printf(p, "CPU%d       ",j);
+			snprintf(cpuname, 10, "CPU%d", j);
+			seq_printf(p, "%10s ", cpuname);
 		}
 		seq_putc(p, '\n');
 	}

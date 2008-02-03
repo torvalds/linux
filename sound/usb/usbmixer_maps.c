@@ -187,6 +187,13 @@ static struct usbmix_selector_map audigy2nx_selectors[] = {
 	{ 0 } /* terminator */
 };
 
+/* Creative SoundBlaster Live! 24-bit External */
+static struct usbmix_name_map live24ext_map[] = {
+	/* 2: PCM Playback Volume */
+	{ 5, "Mic Capture" }, /* FU, default PCM Capture Volume */
+	{ 0 } /* terminator */
+};
+
 /* LineX FM Transmitter entry - needed to bypass controls bug */
 static struct usbmix_name_map linex_map[] = {
 	/* 1: IT pcm */
@@ -272,6 +279,10 @@ static struct usbmix_ctl_map usbmix_ctl_maps[] = {
 		.id = USB_ID(0x041e, 0x3020),
 		.map = audigy2nx_map,
 		.selector_map = audigy2nx_selectors,
+	},
+ 	{
+		.id = USB_ID(0x041e, 0x3040),
+		.map = live24ext_map,
 	},
 	{
 		/* Hercules DJ Console (Windows Edition) */

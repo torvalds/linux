@@ -3,6 +3,7 @@ config PPC_PASEMI
 	bool "PA Semi SoC-based platforms"
 	default n
 	select MPIC
+	select PCI
 	select PPC_UDBG_16550
 	select PPC_NATIVE
 	select MPIC_BROKEN_REGREAD
@@ -17,7 +18,7 @@ config PPC_PASEMI_IOMMU
 	bool "PA Semi IOMMU support"
 	depends on PPC_PASEMI
 	help
-	  IOMMU support for PA6T-1682M
+	  IOMMU support for PA Semi PWRficient
 
 config PPC_PASEMI_IOMMU_DMA_FORCE
 	bool "Force DMA engine to use IOMMU"
@@ -35,14 +36,5 @@ config PPC_PASEMI_MDIO
 	default y
 	help
 	  Driver for MDIO via GPIO on PWRficient platforms
-
-config ELECTRA_IDE
-      tristate "Electra IDE driver"
-      default y
-      depends on PPC_PASEMI && ATA
-      select PATA_PLATFORM
-      help
-	This includes driver support for the Electra on-board IDE
-	interface.
 
 endmenu

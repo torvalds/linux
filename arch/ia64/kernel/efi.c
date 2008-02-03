@@ -218,9 +218,10 @@ efi_gettimeofday (struct timespec *ts)
 {
 	efi_time_t tm;
 
-	memset(ts, 0, sizeof(ts));
-	if ((*efi.get_time)(&tm, NULL) != EFI_SUCCESS)
+	if ((*efi.get_time)(&tm, NULL) != EFI_SUCCESS) {
+		memset(ts, 0, sizeof(*ts));
 		return;
+	}
 
 	ts->tv_sec = mktime(tm.year, tm.month, tm.day, tm.hour, tm.minute, tm.second);
 	ts->tv_nsec = tm.nanosecond;
@@ -369,7 +370,7 @@ efi_get_pal_addr (void)
 			continue;
 		}
 
-		if (md->num_pages << EFI_PAGE_SHIFT > IA64_GRANULE_SIZE)
+		if (efi_md_size(md) > IA64_GRANULE_SIZE)
 			panic("Woah!  PAL code size bigger than a granule!");
 
 #if EFI_DEBUG
@@ -377,7 +378,7 @@ efi_get_pal_addr (void)
 
 		printk(KERN_INFO "CPU %d: mapping PAL code [0x%lx-0x%lx) into [0x%lx-0x%lx)\n",
 			smp_processor_id(), md->phys_addr,
-			md->phys_addr + (md->num_pages << EFI_PAGE_SHIFT),
+			md->phys_addr + efi_md_size(md),
 			vaddr & mask, (vaddr & mask) + IA64_GRANULE_SIZE);
 #endif
 		return __va(md->phys_addr);
@@ -522,7 +523,7 @@ efi_init (void)
 			md = p;
 			printk("mem%02u: type=%u, attr=0x%lx, range=[0x%016lx-0x%016lx) (%luMB)\n",
 			       i, md->type, md->attribute, md->phys_addr,
-			       md->phys_addr + (md->num_pages << EFI_PAGE_SHIFT),
+			       md->phys_addr + efi_md_size(md),
 			       md->num_pages >> (20 - EFI_PAGE_SHIFT));
 		}
 	}
@@ -655,7 +656,7 @@ efi_memory_descriptor (unsigned long phys_addr)
 	for (p = efi_map_start; p < efi_map_end; p += efi_desc_size) {
 		md = p;
 
-		if (phys_addr - md->phys_addr < (md->num_pages << EFI_PAGE_SHIFT))
+		if (phys_addr - md->phys_addr < efi_md_size(md))
 			 return md;
 	}
 	return NULL;
@@ -1112,7 +1113,7 @@ efi_initialize_iomem_resources(struct resource *code_resource,
 		if (md->num_pages == 0) /* should not happen */
 			continue;
 
-		flags = IORESOURCE_MEM;
+		flags = IORESOURCE_MEM | IORESOURCE_BUSY;
 		switch (md->type) {
 
 			case EFI_MEMORY_MAPPED_IO:
@@ -1134,12 +1135,11 @@ efi_initialize_iomem_resources(struct resource *code_resource,
 
 			case EFI_ACPI_MEMORY_NVS:
 				name = "ACPI Non-volatile Storage";
-				flags |= IORESOURCE_BUSY;
 				break;
 
 			case EFI_UNUSABLE_MEMORY:
 				name = "reserved";
-				flags |= IORESOURCE_BUSY | IORESOURCE_DISABLED;
+				flags |= IORESOURCE_DISABLED;
 				break;
 
 			case EFI_RESERVED_TYPE:
@@ -1148,7 +1148,6 @@ efi_initialize_iomem_resources(struct resource *code_resource,
 			case EFI_ACPI_RECLAIM_MEMORY:
 			default:
 				name = "reserved";
-				flags |= IORESOURCE_BUSY;
 				break;
 		}
 
@@ -1159,7 +1158,7 @@ efi_initialize_iomem_resources(struct resource *code_resource,
 
 		res->name = name;
 		res->start = md->phys_addr;
-		res->end = md->phys_addr + (md->num_pages << EFI_PAGE_SHIFT) - 1;
+		res->end = md->phys_addr + efi_md_size(md) - 1;
 		res->flags = flags;
 
 		if (insert_resource(&iomem_resource, res) < 0)
@@ -1231,7 +1230,7 @@ kdump_find_rsvd_region (unsigned long size,
 
 #ifdef CONFIG_PROC_VMCORE
 /* locate the size find a the descriptor at a certain address */
-unsigned long
+unsigned long __init
 vmcore_find_descriptor_size (unsigned long address)
 {
 	void *efi_map_start, *efi_map_end, *p;

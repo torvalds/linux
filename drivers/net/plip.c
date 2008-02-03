@@ -106,6 +106,7 @@ static const char version[] = "NET3 PLIP version 2.4-parport gniibe@mri.co.jp\n"
 #include <linux/if_plip.h>
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
+#include <linux/completion.h>
 #include <linux/parport.h>
 #include <linux/bitops.h>
 
@@ -114,7 +115,6 @@ static const char version[] = "NET3 PLIP version 2.4-parport gniibe@mri.co.jp\n"
 #include <asm/system.h>
 #include <asm/irq.h>
 #include <asm/byteorder.h>
-#include <asm/semaphore.h>
 
 /* Maximum number of devices to support. */
 #define PLIP_MAX  8
@@ -221,7 +221,7 @@ struct net_local {
 	int should_relinquish;
 	spinlock_t lock;
 	atomic_t kill_timer;
-	struct semaphore killed_timer_sem;
+	struct completion killed_timer_cmp;
 };
 
 static inline void enable_parport_interrupts (struct net_device *dev)
@@ -385,7 +385,7 @@ plip_timer_bh(struct work_struct *work)
 		schedule_delayed_work(&nl->timer, 1);
 	}
 	else {
-		up (&nl->killed_timer_sem);
+		complete(&nl->killed_timer_cmp);
 	}
 }
 
@@ -663,7 +663,7 @@ plip_receive_packet(struct net_device *dev, struct net_local *nl,
 	case PLIP_PK_DONE:
 		/* Inform the upper layer for the arrival of a packet. */
 		rcv->skb->protocol=plip_type_trans(rcv->skb, dev);
-		netif_rx(rcv->skb);
+		netif_rx_ni(rcv->skb);
 		dev->last_rx = jiffies;
 		dev->stats.rx_bytes += rcv->length.h;
 		dev->stats.rx_packets++;
@@ -1112,9 +1112,9 @@ plip_close(struct net_device *dev)
 
 	if (dev->irq == -1)
 	{
-		init_MUTEX_LOCKED (&nl->killed_timer_sem);
+		init_completion(&nl->killed_timer_cmp);
 		atomic_set (&nl->kill_timer, 1);
-		down (&nl->killed_timer_sem);
+		wait_for_completion(&nl->killed_timer_cmp);
 	}
 
 #ifdef NOTDEF
@@ -1269,7 +1269,7 @@ static void plip_attach (struct parport *port)
 
 		nl = netdev_priv(dev);
 		nl->dev = dev;
-		nl->pardev = parport_register_device(port, name, plip_preempt,
+		nl->pardev = parport_register_device(port, dev->name, plip_preempt,
 						 plip_wakeup, plip_interrupt,
 						 0, dev);
 

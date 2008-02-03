@@ -66,6 +66,9 @@ config AUDIT_ARCH
 	bool
 	default y
 
+config HAVE_SETUP_PER_CPU_AREA
+	def_bool y
+
 config ARCH_NO_VIRT_TO_BUS
 	def_bool y
 
@@ -200,6 +203,11 @@ config US2E_FREQ
 	  If in doubt, say N.
 
 # Global things across all Sun machines.
+config GENERIC_LOCKBREAK
+	bool
+	default y
+	depends on SMP && PREEMPT
+
 config RWSEM_GENERIC_SPINLOCK
 	bool
 
@@ -343,11 +351,6 @@ config PCI
 	  your box. Other bus systems are ISA, EISA, MicroChannel (MCA) or
 	  VESA. If you have PCI, say Y, otherwise N.
 
-	  The PCI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>, contains valuable
-	  information about which PCI hardware does work under Linux and which
-	  doesn't.
-
 config PCI_DOMAINS
 	def_bool PCI
 
@@ -408,7 +411,7 @@ config SUNOS_EMUL
 
 config SOLARIS_EMUL
 	tristate "Solaris binary emulation (EXPERIMENTAL)"
-	depends on SPARC32_COMPAT && EXPERIMENTAL
+	depends on SPARC32_COMPAT && NET && EXPERIMENTAL
 	help
 	  This is experimental code which will enable you to run (many)
 	  Solaris binaries on your SPARC Linux machine.

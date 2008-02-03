@@ -546,7 +546,7 @@ static int populate_groups(struct config_group *group)
 		 * That said, taking our i_mutex is closer to mkdir
 		 * emulation, and shouldn't hurt.
 		 */
-		mutex_lock(&dentry->d_inode->i_mutex);
+		mutex_lock_nested(&dentry->d_inode->i_mutex, I_MUTEX_CHILD);
 
 		for (i = 0; group->default_groups[i]; i++) {
 			new_group = group->default_groups[i];
@@ -1405,7 +1405,8 @@ int configfs_register_subsystem(struct configfs_subsystem *subsys)
 	sd = configfs_sb->s_root->d_fsdata;
 	link_group(to_config_group(sd->s_element), group);
 
-	mutex_lock(&configfs_sb->s_root->d_inode->i_mutex);
+	mutex_lock_nested(&configfs_sb->s_root->d_inode->i_mutex,
+			I_MUTEX_PARENT);
 
 	name.name = group->cg_item.ci_name;
 	name.len = strlen(name.name);

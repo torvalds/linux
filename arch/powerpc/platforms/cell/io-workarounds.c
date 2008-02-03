@@ -238,7 +238,7 @@ static void __init spider_pci_setup_chip(struct spider_pci_bus *bus)
 static void __init spider_pci_add_one(struct pci_controller *phb)
 {
 	struct spider_pci_bus *bus = &spider_pci_busses[spider_pci_count];
-	struct device_node *np = phb->arch_data;
+	struct device_node *np = phb->dn;
 	struct resource rsrc;
 	void __iomem *regs;
 
@@ -309,15 +309,12 @@ static int __init spider_pci_workaround_init(void)
 {
 	struct pci_controller *phb;
 
-	if (!machine_is(cell))
-		return 0;
-
 	/* Find spider bridges. We assume they have been all probed
 	 * in setup_arch(). If that was to change, we would need to
 	 * update this code to cope with dynamically added busses
 	 */
 	list_for_each_entry(phb, &hose_list, list_node) {
-		struct device_node *np = phb->arch_data;
+		struct device_node *np = phb->dn;
 		const char *model = of_get_property(np, "model", NULL);
 
 		/* If no model property or name isn't exactly "pci", skip */
@@ -343,4 +340,4 @@ static int __init spider_pci_workaround_init(void)
 
 	return 0;
 }
-arch_initcall(spider_pci_workaround_init);
+machine_arch_initcall(cell, spider_pci_workaround_init);

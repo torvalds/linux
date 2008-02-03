@@ -17,9 +17,9 @@ static void __devinit pci_fixup_i450nx(struct pci_dev *d)
 	int pxb, reg;
 	u8 busno, suba, subb;
 
-	printk(KERN_WARNING "PCI: Searching for i450NX host bridges on %s\n", pci_name(d));
+	dev_warn(&d->dev, "Searching for i450NX host bridges\n");
 	reg = 0xd0;
-	for(pxb=0; pxb<2; pxb++) {
+	for(pxb = 0; pxb < 2; pxb++) {
 		pci_read_config_byte(d, reg++, &busno);
 		pci_read_config_byte(d, reg++, &suba);
 		pci_read_config_byte(d, reg++, &subb);
@@ -41,7 +41,7 @@ static void __devinit pci_fixup_i450gx(struct pci_dev *d)
 	 */
 	u8 busno;
 	pci_read_config_byte(d, 0x4a, &busno);
-	printk(KERN_INFO "PCI: i440KX/GX host bridge %s: secondary bus %02x\n", pci_name(d), busno);
+	dev_info(&d->dev, "i440KX/GX host bridge; secondary bus %02x\n", busno);
 	pci_scan_bus_with_sysdata(busno);
 	pcibios_last_bus = -1;
 }
@@ -55,8 +55,8 @@ static void __devinit  pci_fixup_umc_ide(struct pci_dev *d)
 	 */
 	int i;
 
-	printk(KERN_WARNING "PCI: Fixing base address flags for device %s\n", pci_name(d));
-	for(i=0; i<4; i++)
+	dev_warn(&d->dev, "Fixing base address flags\n");
+	for(i = 0; i < 4; i++)
 		d->resource[i].flags |= PCI_BASE_ADDRESS_SPACE_IO;
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_UMC, PCI_DEVICE_ID_UMC_UM8886BF, pci_fixup_umc_ide);
@@ -68,7 +68,7 @@ static void __devinit  pci_fixup_ncr53c810(struct pci_dev *d)
 	 * Fix class to be PCI_CLASS_STORAGE_SCSI
 	 */
 	if (!d->class) {
-		printk(KERN_WARNING "PCI: fixing NCR 53C810 class code for %s\n", pci_name(d));
+		dev_warn(&d->dev, "Fixing NCR 53C810 class code\n");
 		d->class = PCI_CLASS_STORAGE_SCSI << 8;
 	}
 }
@@ -80,7 +80,7 @@ static void __devinit  pci_fixup_latency(struct pci_dev *d)
 	 *  SiS 5597 and 5598 chipsets require latency timer set to
 	 *  at most 32 to avoid lockups.
 	 */
-	DBG("PCI: Setting max latency to 32\n");
+	dev_dbg(&d->dev, "Setting max latency to 32\n");
 	pcibios_max_latency = 32;
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_5597, pci_fixup_latency);
@@ -127,7 +127,7 @@ static void pci_fixup_via_northbridge_bug(struct pci_dev *d)
 		   NB latency to zero */
 		pci_write_config_byte(d, PCI_LATENCY_TIMER, 0);
 
-		where = 0x95; /* the memory write queue timer register is 
+		where = 0x95; /* the memory write queue timer register is
 				different for the KT266x's: 0x95 not 0x55 */
 	} else if (d->device == PCI_DEVICE_ID_VIA_8363_0 &&
 			(d->revision == VIA_8363_KL133_REVISION_ID ||
@@ -138,7 +138,7 @@ static void pci_fixup_via_northbridge_bug(struct pci_dev *d)
 
 	pci_read_config_byte(d, where, &v);
 	if (v & ~mask) {
-		printk(KERN_WARNING "Disabling VIA memory write queue (PCI ID %04x, rev %02x): [%02x] %02x & %02x -> %02x\n", \
+		dev_warn(&d->dev, "Disabling VIA memory write queue (PCI ID %04x, rev %02x): [%02x] %02x & %02x -> %02x\n", \
 			d->device, d->revision, where, v, mask, v & mask);
 		v &= mask;
 		pci_write_config_byte(d, where, v);
@@ -200,7 +200,7 @@ static void pci_fixup_nforce2(struct pci_dev *dev)
 	 * Apply fixup if needed, but don't touch disconnect state
 	 */
 	if ((val & 0x00FF0000) != 0x00010000) {
-		printk(KERN_WARNING "PCI: nForce2 C1 Halt Disconnect fixup\n");
+		dev_warn(&dev->dev, "nForce2 C1 Halt Disconnect fixup\n");
 		pci_write_config_dword(dev, 0x6c, (val & 0xFF00FFFF) | 0x00010000);
 	}
 }
@@ -230,7 +230,7 @@ static int quirk_pcie_aspm_write(struct pci_bus *bus, unsigned int devfn, int wh
 
 	if ((offset) && (where == offset))
 		value = value & 0xfffffffc;
-	
+
 	return raw_pci_ops->write(0, bus->number, devfn, where, size, value);
 }
 
@@ -271,8 +271,8 @@ static void pcie_rootport_aspm_quirk(struct pci_dev *pdev)
 		 * after hot-remove, the pbus->devices is empty and this code
 		 * will set the offsets to zero and the bus ops to parent's bus
 		 * ops, which is unmodified.
-	 	 */
-		for (i= GET_INDEX(pdev->device, 0); i <= GET_INDEX(pdev->device, 7); ++i)
+		 */
+		for (i = GET_INDEX(pdev->device, 0); i <= GET_INDEX(pdev->device, 7); ++i)
 			quirk_aspm_offset[i] = 0;
 
 		pbus->ops = pbus->parent->ops;
@@ -286,17 +286,17 @@ static void pcie_rootport_aspm_quirk(struct pci_dev *pdev)
 		list_for_each_entry(dev, &pbus->devices, bus_list) {
 			/* There are 0 to 8 devices attached to this bus */
 			cap_base = pci_find_capability(dev, PCI_CAP_ID_EXP);
-			quirk_aspm_offset[GET_INDEX(pdev->device, dev->devfn)]= cap_base + 0x10;
+			quirk_aspm_offset[GET_INDEX(pdev->device, dev->devfn)] = cap_base + 0x10;
 		}
 		pbus->ops = &quirk_pcie_aspm_ops;
 	}
 }
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_MCH_PA,	pcie_rootport_aspm_quirk );
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_MCH_PA1,	pcie_rootport_aspm_quirk );
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_MCH_PB,	pcie_rootport_aspm_quirk );
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_MCH_PB1,	pcie_rootport_aspm_quirk );
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_MCH_PC,	pcie_rootport_aspm_quirk );
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_MCH_PC1,	pcie_rootport_aspm_quirk );
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_MCH_PA,	pcie_rootport_aspm_quirk);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_MCH_PA1,	pcie_rootport_aspm_quirk);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_MCH_PB,	pcie_rootport_aspm_quirk);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_MCH_PB1,	pcie_rootport_aspm_quirk);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_MCH_PC,	pcie_rootport_aspm_quirk);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_MCH_PC1,	pcie_rootport_aspm_quirk);
 
 /*
  * Fixup to mark boot BIOS video selected by BIOS before it changes
@@ -336,8 +336,8 @@ static void __devinit pci_fixup_video(struct pci_dev *pdev)
 		 * PCI header type NORMAL.
 		 */
 		if (bridge
-		    &&((bridge->hdr_type == PCI_HEADER_TYPE_BRIDGE)
-		       ||(bridge->hdr_type == PCI_HEADER_TYPE_CARDBUS))) {
+		    && ((bridge->hdr_type == PCI_HEADER_TYPE_BRIDGE)
+		       || (bridge->hdr_type == PCI_HEADER_TYPE_CARDBUS))) {
 			pci_read_config_word(bridge, PCI_BRIDGE_CONTROL,
 						&config);
 			if (!(config & PCI_BRIDGE_CTL_VGA))
@@ -348,7 +348,7 @@ static void __devinit pci_fixup_video(struct pci_dev *pdev)
 	pci_read_config_word(pdev, PCI_COMMAND, &config);
 	if (config & (PCI_COMMAND_IO | PCI_COMMAND_MEMORY)) {
 		pdev->resource[PCI_ROM_RESOURCE].flags |= IORESOURCE_ROM_SHADOW;
-		printk(KERN_DEBUG "Boot video device is %s\n", pci_name(pdev));
+		dev_printk(KERN_DEBUG, &pdev->dev, "Boot video device\n");
 	}
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_ANY_ID, PCI_ANY_ID, pci_fixup_video);
@@ -388,11 +388,11 @@ static void __devinit pci_fixup_msi_k8t_onboard_sound(struct pci_dev *dev)
 		/* verify the change for status output */
 		pci_read_config_byte(dev, 0x50, &val);
 		if (val & 0x40)
-			printk(KERN_INFO "PCI: Detected MSI K8T Neo2-FIR, "
+			dev_info(&dev->dev, "Detected MSI K8T Neo2-FIR; "
 					"can't enable onboard soundcard!\n");
 		else
-			printk(KERN_INFO "PCI: Detected MSI K8T Neo2-FIR, "
-					"enabled onboard soundcard.\n");
+			dev_info(&dev->dev, "Detected MSI K8T Neo2-FIR; "
+					"enabled onboard soundcard\n");
 	}
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8237,

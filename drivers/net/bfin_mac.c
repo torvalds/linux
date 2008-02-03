@@ -371,7 +371,6 @@ static void bf537_adjust_link(struct net_device *dev)
 		if (phydev->speed != lp->old_speed) {
 #if defined(CONFIG_BFIN_MAC_RMII)
 			u32 opmode = bfin_read_EMAC_OPMODE();
-			bf537mac_disable();
 			switch (phydev->speed) {
 			case 10:
 				opmode |= RMII_10;
@@ -386,7 +385,6 @@ static void bf537_adjust_link(struct net_device *dev)
 				break;
 			}
 			bfin_write_EMAC_OPMODE(opmode);
-			bf537mac_enable();
 #endif
 
 			new_state = 1;
@@ -678,7 +676,7 @@ static void bf537mac_rx(struct net_device *dev)
 	skb->protocol = eth_type_trans(skb, dev);
 #if defined(BFIN_MAC_CSUM_OFFLOAD)
 	skb->csum = current_rx_ptr->status.ip_payload_csum;
-	skb->ip_summed = CHECKSUM_PARTIAL;
+	skb->ip_summed = CHECKSUM_COMPLETE;
 #endif
 
 	netif_rx(skb);
@@ -926,7 +924,7 @@ static int __init bf537mac_probe(struct net_device *dev)
 	if (!is_valid_ether_addr(dev->dev_addr)) {
 		/* Grab the MAC from the board somehow - this is done in the
 		   arch/blackfin/mach-bf537/boards/eth_mac.c */
-		get_bf537_ether_addr(dev->dev_addr);
+		bfin_get_ether_addr(dev->dev_addr);
 	}
 
 	/* If still not valid, get a random one */

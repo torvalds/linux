@@ -13,7 +13,7 @@
 #define MCG_CTL_P	 (1UL<<8)   /* MCG_CAP register available */
 
 #define MCG_STATUS_RIPV  (1UL<<0)   /* restart ip valid */
-#define MCG_STATUS_EIPV  (1UL<<1)   /* eip points to correct instruction */
+#define MCG_STATUS_EIPV  (1UL<<1)   /* ip points to correct instruction */
 #define MCG_STATUS_MCIP  (1UL<<2)   /* machine check in progress */
 
 #define MCI_STATUS_VAL   (1UL<<63)  /* valid error */
@@ -30,7 +30,7 @@ struct mce {
 	__u64 misc;
 	__u64 addr;
 	__u64 mcgstatus;
-	__u64 rip;
+	__u64 ip;
 	__u64 tsc;	/* cpu time stamp counter */
 	__u64 res1;	/* for future extension */
 	__u64 res2;	/* dito. */
@@ -85,14 +85,7 @@ struct mce_log {
 #ifdef __KERNEL__
 
 #ifdef CONFIG_X86_32
-#ifdef CONFIG_X86_MCE
-extern void mcheck_init(struct cpuinfo_x86 *c);
-#else
-#define mcheck_init(c) do {} while(0)
-#endif
-
 extern int mce_disabled;
-
 #else /* CONFIG_X86_32 */
 
 #include <asm/atomic.h>
@@ -121,6 +114,13 @@ extern int mce_notify_user(void);
 
 #endif /* !CONFIG_X86_32 */
 
+
+
+#ifdef CONFIG_X86_MCE
+extern void mcheck_init(struct cpuinfo_x86 *c);
+#else
+#define mcheck_init(c) do { } while (0)
+#endif
 extern void stop_mce(void);
 extern void restart_mce(void);
 

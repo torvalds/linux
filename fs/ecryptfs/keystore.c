@@ -1860,7 +1860,7 @@ ecryptfs_add_global_auth_tok(struct ecryptfs_mount_crypt_stat *mount_crypt_stat,
 	struct ecryptfs_global_auth_tok *new_auth_tok;
 	int rc = 0;
 
-	new_auth_tok = kmem_cache_alloc(ecryptfs_global_auth_tok_cache,
+	new_auth_tok = kmem_cache_zalloc(ecryptfs_global_auth_tok_cache,
 					GFP_KERNEL);
 	if (!new_auth_tok) {
 		rc = -ENOMEM;

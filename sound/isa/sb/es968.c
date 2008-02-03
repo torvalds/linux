@@ -20,7 +20,6 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 */
 
-#include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/time.h>
 #include <linux/pnp.h>
@@ -49,12 +48,6 @@ module_param_array(id, charp, NULL, 0444);
 MODULE_PARM_DESC(id, "ID string for es968 based soundcard.");
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable es968 based soundcard.");
-module_param_array(port, long, NULL, 0444);
-MODULE_PARM_DESC(port, "Port # for es968 driver.");
-module_param_array(irq, int, NULL, 0444);
-MODULE_PARM_DESC(irq, "IRQ # for es968 driver.");
-module_param_array(dma8, int, NULL, 0444);
-MODULE_PARM_DESC(dma8, "8-bit DMA # for es968 driver.");
 
 struct snd_card_es968 {
 	struct pnp_dev *dev;
@@ -86,40 +79,23 @@ static int __devinit snd_card_es968_pnp(int dev, struct snd_card_es968 *acard,
 					const struct pnp_card_device_id *id)
 {
 	struct pnp_dev *pdev;
-	struct pnp_resource_table *cfg = kmalloc(sizeof(*cfg), GFP_KERNEL);
 	int err;
-	if (!cfg)
-		return -ENOMEM;
+
 	acard->dev = pnp_request_card_device(card, id->devs[0].id, NULL);
-	if (acard->dev == NULL) {
-		kfree(cfg);
+	if (acard->dev == NULL)
 		return -ENODEV;
-	}
 
 	pdev = acard->dev;
 
-	pnp_init_resource_table(cfg);
-
-	/* override resources */
-	if (port[dev] != SNDRV_AUTO_PORT)
-		pnp_resource_change(&cfg->port_resource[0], port[dev], 16);
-	if (dma8[dev] != SNDRV_AUTO_DMA)
-		pnp_resource_change(&cfg->dma_resource[0], dma8[dev], 1);
-	if (irq[dev] != SNDRV_AUTO_IRQ)
-		pnp_resource_change(&cfg->irq_resource[0], irq[dev], 1);
-	if ((pnp_manual_config_dev(pdev, cfg, 0)) < 0)
-		snd_printk(KERN_ERR PFX "AUDIO the requested resources are invalid, using auto config\n");
 	err = pnp_activate_dev(pdev);
 	if (err < 0) {
 		snd_printk(KERN_ERR PFX "AUDIO pnp configure failure\n");
-		kfree(cfg);
 		return err;
 	}
 	port[dev] = pnp_port_start(pdev, 0);
 	dma8[dev] = pnp_dma(pdev, 1);
 	irq[dev] = pnp_irq(pdev, 0);
 
-	kfree(cfg);
 	return 0;
 }
 

@@ -254,9 +254,14 @@ ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
 	}
 
 	while (page_nr < spd_pages)
-		page_cache_release(spd->pages[page_nr++]);
+		spd->spd_release(spd, page_nr++);
 
 	return ret;
+}
+
+static void spd_release_page(struct splice_pipe_desc *spd, unsigned int i)
+{
+	page_cache_release(spd->pages[i]);
 }
 
 static int
@@ -277,6 +282,7 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 		.partial = partial,
 		.flags = flags,
 		.ops = &page_cache_pipe_buf_ops,
+		.spd_release = spd_release_page,
 	};
 
 	index = *ppos >> PAGE_CACHE_SHIFT;
@@ -908,10 +914,6 @@ static long do_splice_from(struct pipe_inode_info *pipe, struct file *out,
 	if (unlikely(ret < 0))
 		return ret;
 
-	ret = security_file_permission(out, MAY_WRITE);
-	if (unlikely(ret < 0))
-		return ret;
-
 	return out->f_op->splice_write(pipe, out, ppos, len, flags);
 }
 
@@ -931,10 +933,6 @@ static long do_splice_to(struct file *in, loff_t *ppos,
 		return -EBADF;
 
 	ret = rw_verify_area(READ, in, ppos, len);
-	if (unlikely(ret < 0))
-		return ret;
-
-	ret = security_file_permission(in, MAY_READ);
 	if (unlikely(ret < 0))
 		return ret;
 
@@ -1033,7 +1031,9 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 			goto out_release;
 	}
 
+done:
 	pipe->nrbufs = pipe->curbuf = 0;
+	file_accessed(in);
 	return bytes;
 
 out_release:
@@ -1049,16 +1049,11 @@ out_release:
 			buf->ops = NULL;
 		}
 	}
-	pipe->nrbufs = pipe->curbuf = 0;
 
-	/*
-	 * If we transferred some data, return the number of bytes:
-	 */
-	if (bytes > 0)
-		return bytes;
+	if (!bytes)
+		bytes = ret;
 
-	return ret;
-
+	goto done;
 }
 EXPORT_SYMBOL(splice_direct_to_actor);
 
@@ -1440,6 +1435,7 @@ static long vmsplice_to_pipe(struct file *file, const struct iovec __user *iov,
 		.partial = partial,
 		.flags = flags,
 		.ops = &user_page_pipe_buf_ops,
+		.spd_release = spd_release_page,
 	};
 
 	pipe = pipe_info(file->f_path.dentry->d_inode);

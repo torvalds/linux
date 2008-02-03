@@ -47,7 +47,7 @@
 /* #define ATR_CSUM */
 
 #ifdef PCMCIA_DEBUG
-#define reader_to_dev(x)	(&handle_to_dev(x->p_dev->handle))
+#define reader_to_dev(x)	(&handle_to_dev(x->p_dev))
 static int pc_debug = PCMCIA_DEBUG;
 module_param(pc_debug, int, 0600);
 #define DEBUGP(n, rdr, x, args...) do { 				\

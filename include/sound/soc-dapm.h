@@ -22,7 +22,7 @@
 #define SND_SOC_NOPM	-1
 
 /*
- * SoC dynamic audio power managment
+ * SoC dynamic audio power management
  *
  * We can have upto 4 power domains
  * 	1. Codec domain - VREF, VMID
@@ -131,18 +131,34 @@
 	.shift = wshift, .invert = winvert}
 
 /* dapm kcontrol types */
-#define SOC_DAPM_SINGLE(xname, reg, shift, mask, invert) \
+#define SOC_DAPM_SINGLE(xname, reg, shift, max, invert) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
 	.info = snd_soc_info_volsw, \
 	.get = snd_soc_dapm_get_volsw, .put = snd_soc_dapm_put_volsw, \
-	.private_value =  SOC_SINGLE_VALUE(reg, shift, mask, invert) }
-#define SOC_DAPM_DOUBLE(xname, reg, shift_left, shift_right, mask, invert, \
+	.private_value =  SOC_SINGLE_VALUE(reg, shift, max, invert) }
+#define SOC_DAPM_DOUBLE(xname, reg, shift_left, shift_right, max, invert, \
 	power) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname), \
 	.info = snd_soc_info_volsw, \
  	.get = snd_soc_dapm_get_volsw, .put = snd_soc_dapm_put_volsw, \
  	.private_value = (reg) | ((shift_left) << 8) | ((shift_right) << 12) |\
- 		 ((mask) << 16) | ((invert) << 24) }
+		((max) << 16) | ((invert) << 24) }
+#define SOC_DAPM_SINGLE_TLV(xname, reg, shift, max, invert, tlv_array) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
+	.info = snd_soc_info_volsw, \
+	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ | SNDRV_CTL_ELEM_ACCESS_READWRITE,\
+	.tlv.p = (tlv_array), \
+	.get = snd_soc_dapm_get_volsw, .put = snd_soc_dapm_put_volsw, \
+	.private_value =  SOC_SINGLE_VALUE(reg, shift, max, invert) }
+#define SOC_DAPM_DOUBLE_TLV(xname, reg, shift_left, shift_right, max, invert, \
+	power, tlv_array) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname), \
+	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ | SNDRV_CTL_ELEM_ACCESS_READWRITE,\
+	.tlv.p = (tlv_array), \
+	.info = snd_soc_info_volsw, \
+	.get = snd_soc_dapm_get_volsw, .put = snd_soc_dapm_put_volsw, \
+	.private_value = (reg) | ((shift_left) << 8) | ((shift_right) << 12) |\
+		((max) << 16) | ((invert) << 24) }
 #define SOC_DAPM_ENUM(xname, xenum) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
 	.info = snd_soc_info_enum_double, \
@@ -199,6 +215,7 @@ void snd_soc_dapm_free(struct snd_soc_device *socdev);
 /* dapm events */
 int snd_soc_dapm_stream_event(struct snd_soc_codec *codec, char *stream,
 	int event);
+int snd_soc_dapm_device_event(struct snd_soc_device *socdev, int event);
 
 /* dapm sys fs - used by the core */
 int snd_soc_dapm_sys_add(struct device *dev);
@@ -272,7 +289,7 @@ struct snd_soc_dapm_widget {
 
 	/* external events */
 	unsigned short event_flags;		/* flags to specify event types */
-	int (*event)(struct snd_soc_dapm_widget*, int);
+	int (*event)(struct snd_soc_dapm_widget*, struct snd_kcontrol *, int);
 
 	/* kcontrols that relate to this widget */
 	int num_kcontrols;

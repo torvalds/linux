@@ -76,16 +76,18 @@ static unsigned int spu_hw_mbox_stat_poll(struct spu_context *ctx,
 		if (stat & 0xff0000)
 			ret |= POLLIN | POLLRDNORM;
 		else {
-			spu_int_stat_clear(spu, 2, 0x1);
-			spu_int_mask_or(spu, 2, 0x1);
+			spu_int_stat_clear(spu, 2, CLASS2_MAILBOX_INTR);
+			spu_int_mask_or(spu, 2, CLASS2_ENABLE_MAILBOX_INTR);
 		}
 	}
 	if (events & (POLLOUT | POLLWRNORM)) {
 		if (stat & 0x00ff00)
 			ret = POLLOUT | POLLWRNORM;
 		else {
-			spu_int_stat_clear(spu, 2, 0x10);
-			spu_int_mask_or(spu, 2, 0x10);
+			spu_int_stat_clear(spu, 2,
+					CLASS2_MAILBOX_THRESHOLD_INTR);
+			spu_int_mask_or(spu, 2,
+					CLASS2_ENABLE_MAILBOX_THRESHOLD_INTR);
 		}
 	}
 	spin_unlock_irq(&spu->register_lock);
@@ -106,7 +108,7 @@ static int spu_hw_ibox_read(struct spu_context *ctx, u32 * data)
 		ret = 4;
 	} else {
 		/* make sure we get woken up by the interrupt */
-		spu_int_mask_or(spu, 2, 0x1);
+		spu_int_mask_or(spu, 2, CLASS2_ENABLE_MAILBOX_INTR);
 		ret = 0;
 	}
 	spin_unlock_irq(&spu->register_lock);
@@ -127,7 +129,7 @@ static int spu_hw_wbox_write(struct spu_context *ctx, u32 data)
 	} else {
 		/* make sure we get woken up by the interrupt when space
 		   becomes available */
-		spu_int_mask_or(spu, 2, 0x10);
+		spu_int_mask_or(spu, 2, CLASS2_ENABLE_MAILBOX_THRESHOLD_INTR);
 		ret = 0;
 	}
 	spin_unlock_irq(&spu->register_lock);
@@ -206,6 +208,11 @@ static char *spu_hw_get_ls(struct spu_context *ctx)
 	return ctx->spu->local_store;
 }
 
+static void spu_hw_privcntl_write(struct spu_context *ctx, u64 val)
+{
+	out_be64(&ctx->spu->priv2->spu_privcntl_RW, val);
+}
+
 static u32 spu_hw_runcntl_read(struct spu_context *ctx)
 {
 	return in_be32(&ctx->spu->problem->spu_runcntl_RW);
@@ -215,8 +222,18 @@ static void spu_hw_runcntl_write(struct spu_context *ctx, u32 val)
 {
 	spin_lock_irq(&ctx->spu->register_lock);
 	if (val & SPU_RUNCNTL_ISOLATE)
-		out_be64(&ctx->spu->priv2->spu_privcntl_RW, 4LL);
+		spu_hw_privcntl_write(ctx,
+			SPU_PRIVCNT_LOAD_REQUEST_ENABLE_MASK);
 	out_be32(&ctx->spu->problem->spu_runcntl_RW, val);
+	spin_unlock_irq(&ctx->spu->register_lock);
+}
+
+static void spu_hw_runcntl_stop(struct spu_context *ctx)
+{
+	spin_lock_irq(&ctx->spu->register_lock);
+	out_be32(&ctx->spu->problem->spu_runcntl_RW, SPU_RUNCNTL_STOP);
+	while (in_be32(&ctx->spu->problem->spu_status_R) & SPU_STATUS_RUNNING)
+		cpu_relax();
 	spin_unlock_irq(&ctx->spu->register_lock);
 }
 
@@ -319,8 +336,10 @@ struct spu_context_ops spu_hw_ops = {
 	.npc_write = spu_hw_npc_write,
 	.status_read = spu_hw_status_read,
 	.get_ls = spu_hw_get_ls,
+	.privcntl_write = spu_hw_privcntl_write,
 	.runcntl_read = spu_hw_runcntl_read,
 	.runcntl_write = spu_hw_runcntl_write,
+	.runcntl_stop = spu_hw_runcntl_stop,
 	.master_start = spu_hw_master_start,
 	.master_stop = spu_hw_master_stop,
 	.set_mfc_query = spu_hw_set_mfc_query,

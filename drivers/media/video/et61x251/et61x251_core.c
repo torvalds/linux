@@ -227,7 +227,7 @@ int et61x251_write_reg(struct et61x251_device* cam, u8 value, u16 index)
 }
 
 
-int et61x251_read_reg(struct et61x251_device* cam, u16 index)
+static int et61x251_read_reg(struct et61x251_device* cam, u16 index)
 {
 	struct usb_device* udev = cam->usbdev;
 	u8* buff = cam->control_buffer;
@@ -265,73 +265,6 @@ et61x251_i2c_wait(struct et61x251_device* cam,
 	}
 
 	return -EBUSY;
-}
-
-
-int
-et61x251_i2c_try_read(struct et61x251_device* cam,
-		      const struct et61x251_sensor* sensor, u8 address)
-{
-	struct usb_device* udev = cam->usbdev;
-	u8* data = cam->control_buffer;
-	int err = 0, res;
-
-	data[0] = address;
-	data[1] = cam->sensor.i2c_slave_id;
-	data[2] = cam->sensor.rsta | 0x10;
-	data[3] = !(et61x251_read_reg(cam, 0x8b) & 0x02);
-	res = usb_control_msg(udev, usb_sndctrlpipe(udev, 0), 0x00, 0x41,
-			      0, 0x88, data, 4, ET61X251_CTRL_TIMEOUT);
-	if (res < 0)
-		err += res;
-
-	err += et61x251_i2c_wait(cam, sensor);
-
-	res = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0), 0x00, 0xc1,
-			      0, 0x80, data, 8, ET61X251_CTRL_TIMEOUT);
-	if (res < 0)
-		err += res;
-
-	if (err)
-		DBG(3, "I2C read failed for %s image sensor", sensor->name);
-
-	PDBGG("I2C read: address 0x%02X, value: 0x%02X", address, data[0]);
-
-	return err ? -1 : (int)data[0];
-}
-
-
-int
-et61x251_i2c_try_write(struct et61x251_device* cam,
-		       const struct et61x251_sensor* sensor, u8 address,
-		       u8 value)
-{
-	struct usb_device* udev = cam->usbdev;
-	u8* data = cam->control_buffer;
-	int err = 0, res;
-
-	data[0] = address;
-	data[1] = cam->sensor.i2c_slave_id;
-	data[2] = cam->sensor.rsta | 0x12;
-	res = usb_control_msg(udev, usb_sndctrlpipe(udev, 0), 0x00, 0x41,
-			      0, 0x88, data, 3, ET61X251_CTRL_TIMEOUT);
-	if (res < 0)
-		err += res;
-
-	data[0] = value;
-	res = usb_control_msg(udev, usb_sndctrlpipe(udev, 0), 0x00, 0x41,
-			      0, 0x80, data, 1, ET61X251_CTRL_TIMEOUT);
-	if (res < 0)
-		err += res;
-
-	err += et61x251_i2c_wait(cam, sensor);
-
-	if (err)
-		DBG(3, "I2C write failed for %s image sensor", sensor->name);
-
-	PDBGG("I2C write: address 0x%02X, value: 0x%02X", address, value);
-
-	return err ? -1 : 0;
 }
 
 
@@ -386,17 +319,6 @@ et61x251_i2c_raw_write(struct et61x251_device* cam, u8 n, u8 data1, u8 data2,
 
 }
 
-
-int et61x251_i2c_read(struct et61x251_device* cam, u8 address)
-{
-	return et61x251_i2c_try_read(cam, &cam->sensor, address);
-}
-
-
-int et61x251_i2c_write(struct et61x251_device* cam, u8 address, u8 value)
-{
-	return et61x251_i2c_try_write(cam, &cam->sensor, address, value);
-}
 
 /*****************************************************************************/
 
@@ -675,6 +597,83 @@ static int et61x251_stream_interrupt(struct et61x251_device* cam)
 /*****************************************************************************/
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
+
+static int et61x251_i2c_try_read(struct et61x251_device* cam,
+				 const struct et61x251_sensor* sensor,
+				 u8 address)
+{
+	struct usb_device* udev = cam->usbdev;
+	u8* data = cam->control_buffer;
+	int err = 0, res;
+
+	data[0] = address;
+	data[1] = cam->sensor.i2c_slave_id;
+	data[2] = cam->sensor.rsta | 0x10;
+	data[3] = !(et61x251_read_reg(cam, 0x8b) & 0x02);
+	res = usb_control_msg(udev, usb_sndctrlpipe(udev, 0), 0x00, 0x41,
+			      0, 0x88, data, 4, ET61X251_CTRL_TIMEOUT);
+	if (res < 0)
+		err += res;
+
+	err += et61x251_i2c_wait(cam, sensor);
+
+	res = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0), 0x00, 0xc1,
+			      0, 0x80, data, 8, ET61X251_CTRL_TIMEOUT);
+	if (res < 0)
+		err += res;
+
+	if (err)
+		DBG(3, "I2C read failed for %s image sensor", sensor->name);
+
+	PDBGG("I2C read: address 0x%02X, value: 0x%02X", address, data[0]);
+
+	return err ? -1 : (int)data[0];
+}
+
+
+static int et61x251_i2c_try_write(struct et61x251_device* cam,
+				  const struct et61x251_sensor* sensor,
+				  u8 address, u8 value)
+{
+	struct usb_device* udev = cam->usbdev;
+	u8* data = cam->control_buffer;
+	int err = 0, res;
+
+	data[0] = address;
+	data[1] = cam->sensor.i2c_slave_id;
+	data[2] = cam->sensor.rsta | 0x12;
+	res = usb_control_msg(udev, usb_sndctrlpipe(udev, 0), 0x00, 0x41,
+			      0, 0x88, data, 3, ET61X251_CTRL_TIMEOUT);
+	if (res < 0)
+		err += res;
+
+	data[0] = value;
+	res = usb_control_msg(udev, usb_sndctrlpipe(udev, 0), 0x00, 0x41,
+			      0, 0x80, data, 1, ET61X251_CTRL_TIMEOUT);
+	if (res < 0)
+		err += res;
+
+	err += et61x251_i2c_wait(cam, sensor);
+
+	if (err)
+		DBG(3, "I2C write failed for %s image sensor", sensor->name);
+
+	PDBGG("I2C write: address 0x%02X, value: 0x%02X", address, value);
+
+	return err ? -1 : 0;
+}
+
+static int et61x251_i2c_read(struct et61x251_device* cam, u8 address)
+{
+	return et61x251_i2c_try_read(cam, &cam->sensor, address);
+}
+
+static int et61x251_i2c_write(struct et61x251_device* cam,
+			      u8 address, u8 value)
+{
+	return et61x251_i2c_try_write(cam, &cam->sensor, address, value);
+}
+
 static u8 et61x251_strtou8(const char* buff, size_t len, ssize_t* count)
 {
 	char str[5];

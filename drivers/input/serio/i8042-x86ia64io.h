@@ -110,6 +110,14 @@ static struct dmi_system_id __initdata i8042_dmi_noloop_table[] = {
 			DMI_MATCH(DMI_PRODUCT_VERSION, "5a"),
 		},
 	},
+	{
+		.ident = "Microsoft Virtual Machine",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Virtual Machine"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "VS2005R2"),
+		},
+	},
 	{ }
 };
 

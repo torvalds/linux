@@ -129,4 +129,18 @@ ENTRY(_atomic_xor32)
 	rts;
 ENDPROC (_atomic_ior32)
 
+.align 16
+	/*
+	 * safe_user_instruction
+	 * Four NOPS are enough to allow the pipeline to speculativily load
+	 * execute anything it wants. After that, things have gone bad, and
+	 * we are stuck - so panic. Since we might be in user space, we can't
+	 * call panic, so just cause a unhandled exception, this should cause
+	 * a dump of the trace buffer so we can tell were we are, and a reboot
+	 */
+ENTRY(_safe_user_instruction)
+	NOP; NOP; NOP; NOP;
+	EXCPT 0x4;
+ENDPROC(_safe_user_instruction)
+
 ENTRY(_fixed_code_end)

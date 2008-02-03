@@ -119,8 +119,6 @@ const char *dbg_print_flags(int val)
 		strcat(buf, "choice/");
 	if (val & SYMBOL_CHOICEVAL)
 		strcat(buf, "choiceval/");
-	if (val & SYMBOL_PRINTED)
-		strcat(buf, "printed/");
 	if (val & SYMBOL_VALID)
 		strcat(buf, "valid/");
 	if (val & SYMBOL_OPTIONAL)
@@ -457,14 +455,18 @@ static void text_insert_help(struct menu *menu)
 {
 	GtkTextBuffer *buffer;
 	GtkTextIter start, end;
-	const char *prompt = menu_get_prompt(menu);
+	const char *prompt = _(menu_get_prompt(menu));
 	gchar *name;
 	const char *help;
 
-	help = _(menu_get_help(menu));
+	help = menu_get_help(menu);
+
+	/* Gettextize if the help text not empty */
+	if ((help != 0) && (help[0] != 0))
+		help = _(help);
 
 	if (menu->sym && menu->sym->name)
-		name = g_strdup_printf(_(menu->sym->name));
+		name = g_strdup_printf(menu->sym->name);
 	else
 		name = g_strdup("");
 
@@ -1171,7 +1173,7 @@ static gchar **fill_row(struct menu *menu)
 	bzero(row, sizeof(row));
 
 	row[COL_OPTION] =
-	    g_strdup_printf("%s %s", menu_get_prompt(menu),
+	    g_strdup_printf("%s %s", _(menu_get_prompt(menu)),
 			    sym && sym_has_value(sym) ? "(NEW)" : "");
 
 	if (show_all && !menu_is_visible(menu))
@@ -1221,7 +1223,7 @@ static gchar **fill_row(struct menu *menu)
 
 		if (def_menu)
 			row[COL_VALUE] =
-			    g_strdup(menu_get_prompt(def_menu));
+			    g_strdup(_(menu_get_prompt(def_menu)));
 	}
 	if (sym->flags & SYMBOL_CHOICEVAL)
 		row[COL_BTNRAD] = GINT_TO_POINTER(TRUE);

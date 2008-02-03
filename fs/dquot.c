@@ -827,6 +827,18 @@ static inline void dquot_decr_space(struct dquot *dquot, qsize_t number)
 	clear_bit(DQ_BLKS_B, &dquot->dq_flags);
 }
 
+static int warning_issued(struct dquot *dquot, const int warntype)
+{
+	int flag = (warntype == QUOTA_NL_BHARDWARN ||
+		warntype == QUOTA_NL_BSOFTLONGWARN) ? DQ_BLKS_B :
+		((warntype == QUOTA_NL_IHARDWARN ||
+		warntype == QUOTA_NL_ISOFTLONGWARN) ? DQ_INODES_B : 0);
+
+	if (!flag)
+		return 0;
+	return test_and_set_bit(flag, &dquot->dq_flags);
+}
+
 #ifdef CONFIG_PRINT_QUOTA_WARNING
 static int flag_print_warnings = 1;
 
@@ -845,16 +857,12 @@ static inline int need_print_warning(struct dquot *dquot)
 }
 
 /* Print warning to user which exceeded quota */
-static void print_warning(struct dquot *dquot, const char warntype)
+static void print_warning(struct dquot *dquot, const int warntype)
 {
 	char *msg = NULL;
 	struct tty_struct *tty;
-	int flag = (warntype == QUOTA_NL_BHARDWARN ||
-		warntype == QUOTA_NL_BSOFTLONGWARN) ? DQ_BLKS_B :
-		((warntype == QUOTA_NL_IHARDWARN ||
-		warntype == QUOTA_NL_ISOFTLONGWARN) ? DQ_INODES_B : 0);
 
-	if (!need_print_warning(dquot) || (flag && test_and_set_bit(flag, &dquot->dq_flags)))
+	if (!need_print_warning(dquot))
 		return;
 
 	mutex_lock(&tty_mutex);
@@ -895,9 +903,6 @@ out_lock:
 
 #ifdef CONFIG_QUOTA_NETLINK_INTERFACE
 
-/* Size of quota netlink message - actually an upperbound for buffer size */
-#define QUOTA_NL_MSG_SIZE 32
-
 /* Netlink family structure for quota */
 static struct genl_family quota_genl_family = {
 	.id = GENL_ID_GENERATE,
@@ -914,11 +919,13 @@ static void send_warning(const struct dquot *dquot, const char warntype)
 	struct sk_buff *skb;
 	void *msg_head;
 	int ret;
+	int msg_size = 4 * nla_total_size(sizeof(u32)) +
+		       2 * nla_total_size(sizeof(u64));
 
 	/* We have to allocate using GFP_NOFS as we are called from a
 	 * filesystem performing write and thus further recursion into
 	 * the fs to free some data could cause deadlocks. */
-	skb = genlmsg_new(QUOTA_NL_MSG_SIZE, GFP_NOFS);
+	skb = genlmsg_new(msg_size, GFP_NOFS);
 	if (!skb) {
 		printk(KERN_ERR
 		  "VFS: Not enough memory to send quota warning.\n");
@@ -959,18 +966,19 @@ static void send_warning(const struct dquot *dquot, const char warntype)
 			"VFS: Failed to send notification message: %d\n", ret);
 	return;
 attr_err_out:
-	printk(KERN_ERR "VFS: Failed to compose quota message: %d\n", ret);
+	printk(KERN_ERR "VFS: Not enough space to compose quota message!\n");
 err_out:
 	kfree_skb(skb);
 }
 #endif
 
-static inline void flush_warnings(struct dquot **dquots, char *warntype)
+static inline void flush_warnings(struct dquot * const *dquots, char *warntype)
 {
 	int i;
 
 	for (i = 0; i < MAXQUOTAS; i++)
-		if (dquots[i] != NODQUOT && warntype[i] != QUOTA_NL_NOWARN) {
+		if (dquots[i] != NODQUOT && warntype[i] != QUOTA_NL_NOWARN &&
+		    !warning_issued(dquots[i], warntype[i])) {
 #ifdef CONFIG_PRINT_QUOTA_WARNING
 			print_warning(dquots[i], warntype[i]);
 #endif
@@ -1216,7 +1224,7 @@ warn_put_all:
 		for (cnt = 0; cnt < MAXQUOTAS; cnt++)
 			if (inode->i_dquot[cnt])
 				mark_dquot_dirty(inode->i_dquot[cnt]);
-	flush_warnings((struct dquot **)inode->i_dquot, warntype);
+	flush_warnings(inode->i_dquot, warntype);
 	up_read(&sb_dqopt(inode->i_sb)->dqptr_sem);
 	return ret;
 }

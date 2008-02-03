@@ -172,12 +172,12 @@ config CHR_DEV_SCH
 	  don't need this for those tiny 6-slot cdrom changers.  Media
 	  changers are listed as "Type: Medium Changer" in /proc/scsi/scsi.
 	  If you have such hardware and want to use it with linux, say Y
-	  here.  Check <file:Documentation/scsi-changer.txt> for details.
+	  here.  Check <file:Documentation/scsi/scsi-changer.txt> for details.
 	
 	  If you want to compile this as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want),
 	  say M here and read <file:Documentation/kbuild/modules.txt> and
-	  <file:Documentation/scsi.txt>. The module will be called ch.o.
+	  <file:Documentation/scsi/scsi.txt>. The module will be called ch.o.
 	  If unsure, say N.
 	
 
@@ -341,11 +341,11 @@ config ISCSI_TCP
 	 The userspace component needed to initialize the driver, documentation,
 	 and sample configuration files can be found here:
 
-	 http://linux-iscsi.sf.net
+	 http://open-iscsi.org
 
 config SGIWD93_SCSI
 	tristate "SGI WD93C93 SCSI Driver"
-	depends on SGI_IP22 && SCSI
+	depends on SGI_HAS_WD93 && SCSI
   	help
 	  If you have a Western Digital WD93 SCSI controller on
 	  an SGI MIPS system, say Y.  Otherwise, say N.
@@ -573,10 +573,10 @@ config SCSI_ARCMSR_AER
 source "drivers/scsi/megaraid/Kconfig.megaraid"
 
 config SCSI_HPTIOP
-	tristate "HighPoint RocketRAID 3xxx Controller support"
+	tristate "HighPoint RocketRAID 3xxx/4xxx Controller support"
 	depends on SCSI && PCI
 	help
-	  This option enables support for HighPoint RocketRAID 3xxx
+	  This option enables support for HighPoint RocketRAID 3xxx/4xxx
 	  controllers.
 
 	  To compile this driver as a module, choose M here; the module
@@ -725,14 +725,14 @@ config SCSI_FD_MCS
 
 config SCSI_GDTH
 	tristate "Intel/ICP (former GDT SCSI Disk Array) RAID Controller support"
-	depends on (ISA || EISA || PCI) && SCSI && ISA_DMA_API
+	depends on (ISA || EISA || PCI) && SCSI && ISA_DMA_API && PCI_LEGACY
 	---help---
 	  Formerly called GDT SCSI Disk Array Controller Support.
 
 	  This is a driver for RAID/SCSI Disk Array Controllers (EISA/ISA/PCI) 
 	  manufactured by Intel Corporation/ICP vortex GmbH. It is documented
 	  in the kernel source in <file:drivers/scsi/gdth.c> and
-	  <file:drivers/scsi/gdth.h.>
+	  <file:drivers/scsi/gdth.h>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called gdth.
@@ -1288,17 +1288,6 @@ config SCSI_PAS16
 	  To compile this driver as a module, choose M here: the
 	  module will be called pas16.
 
-config SCSI_PSI240I
-	tristate "PSI240i support"
-	depends on ISA && SCSI
-	help
-	  This is support for the PSI240i EIDE interface card which acts as a
-	  SCSI host adapter.  Please read the SCSI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called psi240i.
-
 config SCSI_QLOGIC_FAS
 	tristate "Qlogic FAS SCSI support"
 	depends on ISA && SCSI
@@ -1359,21 +1348,6 @@ config SCSI_LPFC
           This lpfc driver supports the Emulex LightPulse
           Family of Fibre Channel PCI host adapters.
 
-config SCSI_SEAGATE
-	tristate "Seagate ST-02 and Future Domain TMC-8xx SCSI support"
-	depends on X86 && ISA && SCSI
-	select CHECK_SIGNATURE
-	---help---
-	  These are 8-bit SCSI controllers; the ST-01 is also supported by
-	  this driver.  It is explained in section 3.9 of the SCSI-HOWTO,
-	  available from <http://www.tldp.org/docs.html#howto>.  If it
-	  doesn't work out of the box, you may have to change some macros at
-	  compiletime, which are described in <file:drivers/scsi/seagate.c>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called seagate.
-
-# definitely looks not 64bit safe:
 config SCSI_SIM710
 	tristate "Simple 53c710 SCSI support (Compaq, NCR machines)"
 	depends on (EISA || MCA) && SCSI

@@ -15,6 +15,8 @@
 #include <linux/mutex.h>
 #include <asm/semaphore.h>
 
+#define KTHREAD_NICE_LEVEL (-5)
+
 static DEFINE_SPINLOCK(kthread_create_lock);
 static LIST_HEAD(kthread_create_list);
 struct task_struct *kthreadd_task;
@@ -94,10 +96,18 @@ static void create_kthread(struct kthread_create_info *create)
 	if (pid < 0) {
 		create->result = ERR_PTR(pid);
 	} else {
+		struct sched_param param = { .sched_priority = 0 };
 		wait_for_completion(&create->started);
 		read_lock(&tasklist_lock);
 		create->result = find_task_by_pid(pid);
 		read_unlock(&tasklist_lock);
+		/*
+		 * root may have changed our (kthreadd's) priority or CPU mask.
+		 * The kernel thread should not inherit these properties.
+		 */
+		sched_setscheduler(create->result, SCHED_NORMAL, &param);
+		set_user_nice(create->result, KTHREAD_NICE_LEVEL);
+		set_cpus_allowed(create->result, CPU_MASK_ALL);
 	}
 	complete(&create->done);
 }
@@ -221,7 +231,7 @@ int kthreadd(void *unused)
 	/* Setup a clean context for our children to inherit. */
 	set_task_comm(tsk, "kthreadd");
 	ignore_signals(tsk);
-	set_user_nice(tsk, -5);
+	set_user_nice(tsk, KTHREAD_NICE_LEVEL);
 	set_cpus_allowed(tsk, CPU_MASK_ALL);
 
 	current->flags |= PF_NOFREEZE;

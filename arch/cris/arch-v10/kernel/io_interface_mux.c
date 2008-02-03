@@ -304,7 +304,7 @@ static unsigned char clear_group_from_set(const unsigned char groups, struct if_
 static struct if_group *get_group(const unsigned char groups)
 {
 	int i;
-	for (i = 0; i < sizeof(if_groups)/sizeof(struct if_group); i++) {
+	for (i = 0; i < ARRAY_SIZE(if_groups); i++) {
 		if (groups & if_groups[i].group) {
 			return &if_groups[i];
 		}
@@ -392,6 +392,7 @@ int cris_request_io_interface(enum cris_io_interface ioif, const char *device_id
 	if (((interfaces[ioif].gpio_g_in & gpio_in_pins) != interfaces[ioif].gpio_g_in) ||
 	    ((interfaces[ioif].gpio_g_out & gpio_out_pins) != interfaces[ioif].gpio_g_out) ||
 	    ((interfaces[ioif].gpio_b & gpio_pb_pins) != interfaces[ioif].gpio_b)) {
+		local_irq_restore(flags);
 		printk(KERN_CRIT "cris_request_io_interface: Could not get required pins for interface %u\n",
 		       ioif);
 		return -EBUSY;

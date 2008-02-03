@@ -9,10 +9,46 @@
 /* Align . to a 8 byte boundary equals to maximum function alignment. */
 #define ALIGN_FUNCTION()  . = ALIGN(8)
 
+/* The actual configuration determine if the init/exit sections
+ * are handled as text/data or they can be discarded (which
+ * often happens at runtime)
+ */
+#ifdef CONFIG_HOTPLUG
+#define DEV_KEEP(sec)    *(.dev##sec)
+#define DEV_DISCARD(sec)
+#else
+#define DEV_KEEP(sec)
+#define DEV_DISCARD(sec) *(.dev##sec)
+#endif
+
+#ifdef CONFIG_HOTPLUG_CPU
+#define CPU_KEEP(sec)    *(.cpu##sec)
+#define CPU_DISCARD(sec)
+#else
+#define CPU_KEEP(sec)
+#define CPU_DISCARD(sec) *(.cpu##sec)
+#endif
+
+#if defined(CONFIG_MEMORY_HOTPLUG)
+#define MEM_KEEP(sec)    *(.mem##sec)
+#define MEM_DISCARD(sec)
+#else
+#define MEM_KEEP(sec)
+#define MEM_DISCARD(sec) *(.mem##sec)
+#endif
+
+
 /* .data section */
 #define DATA_DATA							\
 	*(.data)							\
 	*(.data.init.refok)						\
+	*(.ref.data)							\
+	DEV_KEEP(init.data)						\
+	DEV_KEEP(exit.data)						\
+	CPU_KEEP(init.data)						\
+	CPU_KEEP(exit.data)						\
+	MEM_KEEP(init.data)						\
+	MEM_KEEP(exit.data)						\
 	. = ALIGN(8);							\
 	VMLINUX_SYMBOL(__start___markers) = .;				\
 	*(__markers)							\
@@ -132,14 +168,25 @@
 		*(__ksymtab_strings)					\
 	}								\
 									\
+	/* __*init sections */						\
+	__init_rodata : AT(ADDR(__init_rodata) - LOAD_OFFSET) {		\
+		*(.ref.rodata)						\
+		DEV_KEEP(init.rodata)					\
+		DEV_KEEP(exit.rodata)					\
+		CPU_KEEP(init.rodata)					\
+		CPU_KEEP(exit.rodata)					\
+		MEM_KEEP(init.rodata)					\
+		MEM_KEEP(exit.rodata)					\
+	}								\
+									\
 	/* Built-in module parameters. */				\
 	__param : AT(ADDR(__param) - LOAD_OFFSET) {			\
 		VMLINUX_SYMBOL(__start___param) = .;			\
 		*(__param)						\
 		VMLINUX_SYMBOL(__stop___param) = .;			\
+		. = ALIGN((align));					\
 		VMLINUX_SYMBOL(__end_rodata) = .;			\
 	}								\
-									\
 	. = ALIGN((align));
 
 /* RODATA provided for backward compatibility.
@@ -158,8 +205,16 @@
 #define TEXT_TEXT							\
 		ALIGN_FUNCTION();					\
 		*(.text)						\
+		*(.ref.text)						\
 		*(.text.init.refok)					\
-		*(.exit.text.refok)
+		*(.exit.text.refok)					\
+	DEV_KEEP(init.text)						\
+	DEV_KEEP(exit.text)						\
+	CPU_KEEP(init.text)						\
+	CPU_KEEP(exit.text)						\
+	MEM_KEEP(init.text)						\
+	MEM_KEEP(exit.text)
+
 
 /* sched.text is aling to function alignment to secure we have same
  * address even at second ld pass when generating System.map */
@@ -182,6 +237,37 @@
 		VMLINUX_SYMBOL(__kprobes_text_start) = .;		\
 		*(.kprobes.text)					\
 		VMLINUX_SYMBOL(__kprobes_text_end) = .;
+
+/* init and exit section handling */
+#define INIT_DATA							\
+	*(.init.data)							\
+	DEV_DISCARD(init.data)						\
+	DEV_DISCARD(init.rodata)					\
+	CPU_DISCARD(init.data)						\
+	CPU_DISCARD(init.rodata)					\
+	MEM_DISCARD(init.data)						\
+	MEM_DISCARD(init.rodata)
+
+#define INIT_TEXT							\
+	*(.init.text)							\
+	DEV_DISCARD(init.text)						\
+	CPU_DISCARD(init.text)						\
+	MEM_DISCARD(init.text)
+
+#define EXIT_DATA							\
+	*(.exit.data)							\
+	DEV_DISCARD(exit.data)						\
+	DEV_DISCARD(exit.rodata)					\
+	CPU_DISCARD(exit.data)						\
+	CPU_DISCARD(exit.rodata)					\
+	MEM_DISCARD(exit.data)						\
+	MEM_DISCARD(exit.rodata)
+
+#define EXIT_TEXT							\
+	*(.exit.text)							\
+	DEV_DISCARD(exit.text)						\
+	CPU_DISCARD(exit.text)						\
+	MEM_DISCARD(exit.text)
 
 		/* DWARF debug sections.
 		Symbols in the DWARF debugging sections are relative to

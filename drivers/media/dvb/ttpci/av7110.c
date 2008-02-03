@@ -2595,7 +2595,8 @@ static int __devinit av7110_attach(struct saa7146_dev* dev,
 	mutex_init(&av7110->osd_mutex);
 
 	/* TV standard */
-	av7110->vidmode = tv_standard == 1 ? VIDEO_MODE_NTSC : VIDEO_MODE_PAL;
+	av7110->vidmode = tv_standard == 1 ? AV7110_VIDEO_MODE_NTSC
+					   : AV7110_VIDEO_MODE_PAL;
 
 	/* ARM "watchdog" */
 	init_waitqueue_head(&av7110->arm_wait);
@@ -2800,12 +2801,12 @@ static void av7110_irq(struct saa7146_dev* dev, u32 *isr)
 }
 
 
-static struct saa7146_extension av7110_extension;
+static struct saa7146_extension av7110_extension_driver;
 
 #define MAKE_AV7110_INFO(x_var,x_name) \
 static struct saa7146_pci_extension_data x_var = { \
 	.ext_priv = x_name, \
-	.ext = &av7110_extension }
+	.ext = &av7110_extension_driver }
 
 MAKE_AV7110_INFO(tts_1_X_fsc,"Technotrend/Hauppauge WinTV DVB-S rev1.X or Fujitsu Siemens DVB-C");
 MAKE_AV7110_INFO(ttt_1_X,    "Technotrend/Hauppauge WinTV DVB-T rev1.X");
@@ -2843,7 +2844,7 @@ static struct pci_device_id pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, pci_tbl);
 
 
-static struct saa7146_extension av7110_extension = {
+static struct saa7146_extension av7110_extension_driver = {
 	.name		= "dvb",
 	.flags		= SAA7146_USE_I2C_IRQ,
 
@@ -2860,14 +2861,14 @@ static struct saa7146_extension av7110_extension = {
 static int __init av7110_init(void)
 {
 	int retval;
-	retval = saa7146_register_extension(&av7110_extension);
+	retval = saa7146_register_extension(&av7110_extension_driver);
 	return retval;
 }
 
 
 static void __exit av7110_exit(void)
 {
-	saa7146_unregister_extension(&av7110_extension);
+	saa7146_unregister_extension(&av7110_extension_driver);
 }
 
 module_init(av7110_init);

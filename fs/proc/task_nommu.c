@@ -165,14 +165,12 @@ static void *m_start(struct seq_file *m, loff_t *pos)
 	if (!priv->task)
 		return NULL;
 
-	mm = get_task_mm(priv->task);
+	mm = mm_for_maps(priv->task);
 	if (!mm) {
 		put_task_struct(priv->task);
 		priv->task = NULL;
 		return NULL;
 	}
-
-	down_read(&mm->mmap_sem);
 
 	/* start from the Nth VMA */
 	for (vml = mm->context.vmlist; vml; vml = vml->next)

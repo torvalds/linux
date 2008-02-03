@@ -53,6 +53,7 @@
 #ifdef CONFIG_X86
 #include <asm/nmi.h>
 #include <asm/stacktrace.h>
+#include <asm/io.h>
 #endif
 
 static int deprecated_sysctl_warning(struct __sysctl_args *args);
@@ -80,7 +81,7 @@ extern int percpu_pagelist_fraction;
 extern int compat_log;
 extern int maps_protect;
 extern int sysctl_stat_interval;
-extern int audit_argv_kb;
+extern int latencytop_enabled;
 
 /* Constants used for minimum and  maximum */
 #ifdef CONFIG_DETECT_SOFTLOCKUP
@@ -156,8 +157,16 @@ static int proc_dointvec_taint(struct ctl_table *table, int write, struct file *
 #endif
 
 static struct ctl_table root_table[];
-static struct ctl_table_header root_table_header =
-	{ root_table, LIST_HEAD_INIT(root_table_header.ctl_entry) };
+static struct ctl_table_root sysctl_table_root;
+static struct ctl_table_header root_table_header = {
+	.ctl_table = root_table,
+	.ctl_entry = LIST_HEAD_INIT(sysctl_table_root.header_list),
+	.root = &sysctl_table_root,
+};
+static struct ctl_table_root sysctl_table_root = {
+	.root_list = LIST_HEAD_INIT(sysctl_table_root.root_list),
+	.header_list = LIST_HEAD_INIT(root_table_header.ctl_entry),
+};
 
 static struct ctl_table kern_table[];
 static struct ctl_table vm_table[];
@@ -191,14 +200,6 @@ static struct ctl_table root_table[] = {
 		.mode		= 0555,
 		.child		= vm_table,
 	},
-#ifdef CONFIG_NET
-	{
-		.ctl_name	= CTL_NET,
-		.procname	= "net",
-		.mode		= 0555,
-		.child		= net_table,
-	},
-#endif
 	{
 		.ctl_name	= CTL_FS,
 		.procname	= "fs",
@@ -225,21 +226,24 @@ static struct ctl_table root_table[] = {
 };
 
 #ifdef CONFIG_SCHED_DEBUG
-static unsigned long min_sched_granularity_ns = 100000;		/* 100 usecs */
-static unsigned long max_sched_granularity_ns = 1000000000;	/* 1 second */
-static unsigned long min_wakeup_granularity_ns;			/* 0 usecs */
-static unsigned long max_wakeup_granularity_ns = 1000000000;	/* 1 second */
+static int min_sched_granularity_ns = 100000;		/* 100 usecs */
+static int max_sched_granularity_ns = NSEC_PER_SEC;	/* 1 second */
+static int min_wakeup_granularity_ns;			/* 0 usecs */
+static int max_wakeup_granularity_ns = NSEC_PER_SEC;	/* 1 second */
 #endif
 
 static struct ctl_table kern_table[] = {
 #ifdef CONFIG_SCHED_DEBUG
 	{
 		.ctl_name	= CTL_UNNUMBERED,
-		.procname	= "sched_nr_latency",
-		.data		= &sysctl_sched_nr_latency,
+		.procname	= "sched_min_granularity_ns",
+		.data		= &sysctl_sched_min_granularity,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= &sched_nr_latency_handler,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &min_sched_granularity_ns,
+		.extra2		= &max_sched_granularity_ns,
 	},
 	{
 		.ctl_name	= CTL_UNNUMBERED,
@@ -247,7 +251,7 @@ static struct ctl_table kern_table[] = {
 		.data		= &sysctl_sched_latency,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
+		.proc_handler	= &sched_nr_latency_handler,
 		.strategy	= &sysctl_intvec,
 		.extra1		= &min_sched_granularity_ns,
 		.extra2		= &max_sched_granularity_ns,
@@ -298,6 +302,48 @@ static struct ctl_table kern_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "sched_nr_migrate",
+		.data		= &sysctl_sched_nr_migrate,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "sched_rt_period_ms",
+		.data		= &sysctl_sched_rt_period,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "sched_rt_ratio",
+		.data		= &sysctl_sched_rt_ratio,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+#if defined(CONFIG_FAIR_GROUP_SCHED) && defined(CONFIG_SMP)
+	{
+		.ctl_name       = CTL_UNNUMBERED,
+		.procname       = "sched_min_bal_int_shares",
+		.data           = &sysctl_sched_min_bal_int_shares,
+		.maxlen         = sizeof(unsigned int),
+		.mode           = 0644,
+		.proc_handler   = &proc_dointvec,
+	},
+	{
+		.ctl_name       = CTL_UNNUMBERED,
+		.procname       = "sched_max_bal_int_shares",
+		.data           = &sysctl_sched_max_bal_int_shares,
+		.maxlen         = sizeof(unsigned int),
+		.mode           = 0644,
+		.proc_handler   = &proc_dointvec,
+	},
+#endif
 #endif
 	{
 		.ctl_name	= CTL_UNNUMBERED,
@@ -343,16 +389,6 @@ static struct ctl_table kern_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
-#ifdef CONFIG_AUDITSYSCALL
-	{
-		.ctl_name	= CTL_UNNUMBERED,
-		.procname	= "audit_argv_kb",
-		.data		= &audit_argv_kb,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
-	},
-#endif
 	{
 		.ctl_name	= KERN_CORE_PATTERN,
 		.procname	= "core_pattern",
@@ -369,6 +405,15 @@ static struct ctl_table kern_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_taint,
+	},
+#endif
+#ifdef CONFIG_LATENCYTOP
+	{
+		.procname	= "latencytop",
+		.data		= &latencytop_enabled,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
 	},
 #endif
 #ifdef CONFIG_SECURITY_CAPABILITIES
@@ -672,6 +717,14 @@ static struct ctl_table kern_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "io_delay_type",
+		.data		= &io_delay_type,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
 #endif
 #if defined(CONFIG_MMU)
 	{
@@ -717,12 +770,39 @@ static struct ctl_table kern_table[] = {
 		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "softlockup_thresh",
 		.data		= &softlockup_thresh,
-		.maxlen		= sizeof(int),
+		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
+		.proc_handler	= &proc_doulongvec_minmax,
 		.strategy	= &sysctl_intvec,
 		.extra1		= &one,
 		.extra2		= &sixty,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "hung_task_check_count",
+		.data		= &sysctl_hung_task_check_count,
+		.maxlen		= sizeof(unsigned long),
+		.mode		= 0644,
+		.proc_handler	= &proc_doulongvec_minmax,
+		.strategy	= &sysctl_intvec,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "hung_task_timeout_secs",
+		.data		= &sysctl_hung_task_timeout_secs,
+		.maxlen		= sizeof(unsigned long),
+		.mode		= 0644,
+		.proc_handler	= &proc_doulongvec_minmax,
+		.strategy	= &sysctl_intvec,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "hung_task_warnings",
+		.data		= &sysctl_hung_task_warnings,
+		.maxlen		= sizeof(unsigned long),
+		.mode		= 0644,
+		.proc_handler	= &proc_doulongvec_minmax,
+		.strategy	= &sysctl_intvec,
 	},
 #endif
 #ifdef CONFIG_COMPAT
@@ -895,11 +975,11 @@ static struct ctl_table vm_table[] = {
 	},
 	{
 		.ctl_name	= CTL_UNNUMBERED,
-		.procname	= "hugetlb_dynamic_pool",
-		.data		= &hugetlb_dynamic_pool,
-		.maxlen		= sizeof(hugetlb_dynamic_pool),
+		.procname	= "nr_overcommit_hugepages",
+		.data		= &nr_overcommit_huge_pages,
+		.maxlen		= sizeof(nr_overcommit_huge_pages),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= &proc_doulongvec_minmax,
 	},
 #endif
 	{
@@ -1289,12 +1369,27 @@ void sysctl_head_finish(struct ctl_table_header *head)
 	spin_unlock(&sysctl_lock);
 }
 
-struct ctl_table_header *sysctl_head_next(struct ctl_table_header *prev)
+static struct list_head *
+lookup_header_list(struct ctl_table_root *root, struct nsproxy *namespaces)
 {
+	struct list_head *header_list;
+	header_list = &root->header_list;
+	if (root->lookup)
+		header_list = root->lookup(root, namespaces);
+	return header_list;
+}
+
+struct ctl_table_header *__sysctl_head_next(struct nsproxy *namespaces,
+					    struct ctl_table_header *prev)
+{
+	struct ctl_table_root *root;
+	struct list_head *header_list;
 	struct ctl_table_header *head;
 	struct list_head *tmp;
+
 	spin_lock(&sysctl_lock);
 	if (prev) {
+		head = prev;
 		tmp = &prev->ctl_entry;
 		unuse_table(prev);
 		goto next;
@@ -1308,12 +1403,36 @@ struct ctl_table_header *sysctl_head_next(struct ctl_table_header *prev)
 		spin_unlock(&sysctl_lock);
 		return head;
 	next:
+		root = head->root;
 		tmp = tmp->next;
-		if (tmp == &root_table_header.ctl_entry)
-			break;
+		header_list = lookup_header_list(root, namespaces);
+		if (tmp != header_list)
+			continue;
+
+		do {
+			root = list_entry(root->root_list.next,
+					struct ctl_table_root, root_list);
+			if (root == &sysctl_table_root)
+				goto out;
+			header_list = lookup_header_list(root, namespaces);
+		} while (list_empty(header_list));
+		tmp = header_list->next;
 	}
+out:
 	spin_unlock(&sysctl_lock);
 	return NULL;
+}
+
+struct ctl_table_header *sysctl_head_next(struct ctl_table_header *prev)
+{
+	return __sysctl_head_next(current->nsproxy, prev);
+}
+
+void register_sysctl_root(struct ctl_table_root *root)
+{
+	spin_lock(&sysctl_lock);
+	list_add_tail(&root->root_list, &sysctl_table_root.root_list);
+	spin_unlock(&sysctl_lock);
 }
 
 #ifdef CONFIG_SYSCTL_SYSCALL
@@ -1472,18 +1591,21 @@ static __init int sysctl_init(void)
 {
 	int err;
 	sysctl_set_parent(NULL, root_table);
-	err = sysctl_check_table(root_table);
+	err = sysctl_check_table(current->nsproxy, root_table);
 	return 0;
 }
 
 core_initcall(sysctl_init);
 
 /**
- * register_sysctl_table - register a sysctl hierarchy
+ * __register_sysctl_paths - register a sysctl hierarchy
+ * @root: List of sysctl headers to register on
+ * @namespaces: Data to compute which lists of sysctl entries are visible
+ * @path: The path to the directory the sysctl table is in.
  * @table: the top-level table structure
  *
  * Register a sysctl table hierarchy. @table should be a filled in ctl_table
- * array. An entry with a ctl_name of 0 terminates the table. 
+ * array. A completely 0 filled entry terminates the table.
  *
  * The members of the &struct ctl_table structure are used as follows:
  *
@@ -1546,25 +1668,99 @@ core_initcall(sysctl_init);
  * This routine returns %NULL on a failure to register, and a pointer
  * to the table header on success.
  */
-struct ctl_table_header *register_sysctl_table(struct ctl_table * table)
+struct ctl_table_header *__register_sysctl_paths(
+	struct ctl_table_root *root,
+	struct nsproxy *namespaces,
+	const struct ctl_path *path, struct ctl_table *table)
 {
-	struct ctl_table_header *tmp;
-	tmp = kmalloc(sizeof(struct ctl_table_header), GFP_KERNEL);
-	if (!tmp)
+	struct list_head *header_list;
+	struct ctl_table_header *header;
+	struct ctl_table *new, **prevp;
+	unsigned int n, npath;
+
+	/* Count the path components */
+	for (npath = 0; path[npath].ctl_name || path[npath].procname; ++npath)
+		;
+
+	/*
+	 * For each path component, allocate a 2-element ctl_table array.
+	 * The first array element will be filled with the sysctl entry
+	 * for this, the second will be the sentinel (ctl_name == 0).
+	 *
+	 * We allocate everything in one go so that we don't have to
+	 * worry about freeing additional memory in unregister_sysctl_table.
+	 */
+	header = kzalloc(sizeof(struct ctl_table_header) +
+			 (2 * npath * sizeof(struct ctl_table)), GFP_KERNEL);
+	if (!header)
 		return NULL;
-	tmp->ctl_table = table;
-	INIT_LIST_HEAD(&tmp->ctl_entry);
-	tmp->used = 0;
-	tmp->unregistering = NULL;
-	sysctl_set_parent(NULL, table);
-	if (sysctl_check_table(tmp->ctl_table)) {
-		kfree(tmp);
+
+	new = (struct ctl_table *) (header + 1);
+
+	/* Now connect the dots */
+	prevp = &header->ctl_table;
+	for (n = 0; n < npath; ++n, ++path) {
+		/* Copy the procname */
+		new->procname = path->procname;
+		new->ctl_name = path->ctl_name;
+		new->mode     = 0555;
+
+		*prevp = new;
+		prevp = &new->child;
+
+		new += 2;
+	}
+	*prevp = table;
+	header->ctl_table_arg = table;
+
+	INIT_LIST_HEAD(&header->ctl_entry);
+	header->used = 0;
+	header->unregistering = NULL;
+	header->root = root;
+	sysctl_set_parent(NULL, header->ctl_table);
+	if (sysctl_check_table(namespaces, header->ctl_table)) {
+		kfree(header);
 		return NULL;
 	}
 	spin_lock(&sysctl_lock);
-	list_add_tail(&tmp->ctl_entry, &root_table_header.ctl_entry);
+	header_list = lookup_header_list(root, namespaces);
+	list_add_tail(&header->ctl_entry, header_list);
 	spin_unlock(&sysctl_lock);
-	return tmp;
+
+	return header;
+}
+
+/**
+ * register_sysctl_table_path - register a sysctl table hierarchy
+ * @path: The path to the directory the sysctl table is in.
+ * @table: the top-level table structure
+ *
+ * Register a sysctl table hierarchy. @table should be a filled in ctl_table
+ * array. A completely 0 filled entry terminates the table.
+ *
+ * See __register_sysctl_paths for more details.
+ */
+struct ctl_table_header *register_sysctl_paths(const struct ctl_path *path,
+						struct ctl_table *table)
+{
+	return __register_sysctl_paths(&sysctl_table_root, current->nsproxy,
+					path, table);
+}
+
+/**
+ * register_sysctl_table - register a sysctl table hierarchy
+ * @table: the top-level table structure
+ *
+ * Register a sysctl table hierarchy. @table should be a filled in ctl_table
+ * array. A completely 0 filled entry terminates the table.
+ *
+ * See register_sysctl_paths for more details.
+ */
+struct ctl_table_header *register_sysctl_table(struct ctl_table *table)
+{
+	static const struct ctl_path null_path[] = { {} };
+
+	return register_sysctl_paths(null_path, table);
 }
 
 /**
@@ -1577,6 +1773,10 @@ struct ctl_table_header *register_sysctl_table(struct ctl_table * table)
 void unregister_sysctl_table(struct ctl_table_header * header)
 {
 	might_sleep();
+
+	if (header == NULL)
+		return;
+
 	spin_lock(&sysctl_lock);
 	start_unregistering(header);
 	spin_unlock(&sysctl_lock);
@@ -1585,6 +1785,12 @@ void unregister_sysctl_table(struct ctl_table_header * header)
 
 #else /* !CONFIG_SYSCTL */
 struct ctl_table_header *register_sysctl_table(struct ctl_table * table)
+{
+	return NULL;
+}
+
+struct ctl_table_header *register_sysctl_paths(const struct ctl_path *path,
+						    struct ctl_table *table)
 {
 	return NULL;
 }
@@ -2609,6 +2815,10 @@ static int deprecated_sysctl_warning(struct __sysctl_args *args)
 	int name[CTL_MAXNAME];
 	int i;
 
+	/* Check args->nlen. */
+	if (args->nlen < 0 || args->nlen > CTL_MAXNAME)
+		return -ENOTDIR;
+
 	/* Read in the sysctl name for better debug message logging */
 	for (i = 0; i < args->nlen; i++)
 		if (get_user(name[i], args->name + i))
@@ -2643,6 +2853,7 @@ EXPORT_SYMBOL(proc_dostring);
 EXPORT_SYMBOL(proc_doulongvec_minmax);
 EXPORT_SYMBOL(proc_doulongvec_ms_jiffies_minmax);
 EXPORT_SYMBOL(register_sysctl_table);
+EXPORT_SYMBOL(register_sysctl_paths);
 EXPORT_SYMBOL(sysctl_intvec);
 EXPORT_SYMBOL(sysctl_jiffies);
 EXPORT_SYMBOL(sysctl_ms_jiffies);

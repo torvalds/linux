@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/ide/legacy/umc8672.c		Version 0.05	Jul 31, 1996
- *
  *  Copyright (C) 1995-1996  Linus Torvalds & author (see below)
  */
 
@@ -122,9 +120,14 @@ static void umc_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	spin_unlock_irqrestore(&ide_lock, flags);
 }
 
+static const struct ide_port_info umc8672_port_info __initdata = {
+	.chipset		= ide_umc8672,
+	.host_flags		= IDE_HFLAG_NO_DMA | IDE_HFLAG_NO_AUTOTUNE,
+	.pio_mask		= ATA_PIO4,
+};
+
 static int __init umc8672_probe(void)
 {
-	ide_hwif_t *hwif, *mate;
 	unsigned long flags;
 	static u8 idx[4] = { 0, 1, 0xff, 0xff };
 
@@ -145,21 +148,10 @@ static int __init umc8672_probe(void)
 	umc_set_speeds (current_speeds);
 	local_irq_restore(flags);
 
-	hwif = &ide_hwifs[0];
-	mate = &ide_hwifs[1];
+	ide_hwifs[0].set_pio_mode = &umc_set_pio_mode;
+	ide_hwifs[1].set_pio_mode = &umc_set_pio_mode;
 
-	hwif->chipset = ide_umc8672;
-	hwif->pio_mask = ATA_PIO4;
-	hwif->set_pio_mode = &umc_set_pio_mode;
-	hwif->mate = mate;
-
-	mate->chipset = ide_umc8672;
-	mate->pio_mask = ATA_PIO4;
-	mate->set_pio_mode = &umc_set_pio_mode;
-	mate->mate = hwif;
-	mate->channel = 1;
-
-	ide_device_add(idx);
+	ide_device_add(idx, &umc8672_port_info);
 
 	return 0;
 }
@@ -169,8 +161,7 @@ int probe_umc8672 = 0;
 module_param_named(probe, probe_umc8672, bool, 0);
 MODULE_PARM_DESC(probe, "probe for UMC8672 chipset");
 
-/* Can be called directly from ide.c. */
-int __init umc8672_init(void)
+static int __init umc8672_init(void)
 {
 	if (probe_umc8672 == 0)
 		goto out;
@@ -181,9 +172,7 @@ out:
 	return -ENODEV;;
 }
 
-#ifdef MODULE
 module_init(umc8672_init);
-#endif
 
 MODULE_AUTHOR("Wolfram Podien");
 MODULE_DESCRIPTION("Support for UMC 8672 IDE chipset");

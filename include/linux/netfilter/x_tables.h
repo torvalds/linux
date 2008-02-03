@@ -126,6 +126,49 @@ struct xt_counters_info
 
 #define XT_INV_PROTO		0x40	/* Invert the sense of PROTO. */
 
+/* fn returns 0 to continue iteration */
+#define XT_MATCH_ITERATE(type, e, fn, args...)			\
+({								\
+	unsigned int __i;					\
+	int __ret = 0;						\
+	struct xt_entry_match *__m;				\
+								\
+	for (__i = sizeof(type);				\
+	     __i < (e)->target_offset;				\
+	     __i += __m->u.match_size) {			\
+		__m = (void *)e + __i;				\
+								\
+		__ret = fn(__m , ## args);			\
+		if (__ret != 0)					\
+			break;					\
+	}							\
+	__ret;							\
+})
+
+/* fn returns 0 to continue iteration */
+#define XT_ENTRY_ITERATE_CONTINUE(type, entries, size, n, fn, args...) \
+({								\
+	unsigned int __i, __n;					\
+	int __ret = 0;						\
+	type *__entry;						\
+								\
+	for (__i = 0, __n = 0; __i < (size);			\
+	     __i += __entry->next_offset, __n++) { 		\
+		__entry = (void *)(entries) + __i;		\
+		if (__n < n)					\
+			continue;				\
+								\
+		__ret = fn(__entry , ## args);			\
+		if (__ret != 0)					\
+			break;					\
+	}							\
+	__ret;							\
+})
+
+/* fn returns 0 to continue iteration */
+#define XT_ENTRY_ITERATE(type, entries, size, fn, args...) \
+	XT_ENTRY_ITERATE_CONTINUE(type, entries, size, 0, fn, args)
+
 #ifdef __KERNEL__
 
 #include <linux/netdevice.h>
@@ -171,7 +214,7 @@ struct xt_match
 	/* Free to use by each match */
 	unsigned long data;
 
-	char *table;
+	const char *table;
 	unsigned int matchsize;
 	unsigned int compatsize;
 	unsigned int hooks;
@@ -218,7 +261,7 @@ struct xt_target
 	/* Set this to THIS_MODULE if you are a module, otherwise NULL */
 	struct module *me;
 
-	char *table;
+	const char *table;
 	unsigned int targetsize;
 	unsigned int compatsize;
 	unsigned int hooks;
@@ -234,7 +277,7 @@ struct xt_table
 	struct list_head list;
 
 	/* A unique name... */
-	char name[XT_TABLE_MAXNAMELEN];
+	const char name[XT_TABLE_MAXNAMELEN];
 
 	/* What hooks you will enter on */
 	unsigned int valid_hooks;
@@ -265,13 +308,16 @@ struct xt_table_info
 	unsigned int initial_entries;
 
 	/* Entry points and underflows */
-	unsigned int hook_entry[NF_IP_NUMHOOKS];
-	unsigned int underflow[NF_IP_NUMHOOKS];
+	unsigned int hook_entry[NF_INET_NUMHOOKS];
+	unsigned int underflow[NF_INET_NUMHOOKS];
 
 	/* ipt_entry tables: one per CPU */
-	char *entries[NR_CPUS];
+	/* Note : this field MUST be the last one, see XT_TABLE_INFO_SZ */
+	char *entries[1];
 };
 
+#define XT_TABLE_INFO_SZ (offsetof(struct xt_table_info, entries) \
+			  + nr_cpu_ids * sizeof(char *))
 extern int xt_register_target(struct xt_target *target);
 extern void xt_unregister_target(struct xt_target *target);
 extern int xt_register_targets(struct xt_target *target, unsigned int n);
@@ -289,9 +335,10 @@ extern int xt_check_target(const struct xt_target *target, unsigned short family
 			   unsigned int size, const char *table, unsigned int hook,
 			   unsigned short proto, int inv_proto);
 
-extern int xt_register_table(struct xt_table *table,
-			     struct xt_table_info *bootstrap,
-			     struct xt_table_info *newinfo);
+extern struct xt_table *xt_register_table(struct net *net,
+					  struct xt_table *table,
+					  struct xt_table_info *bootstrap,
+					  struct xt_table_info *newinfo);
 extern void *xt_unregister_table(struct xt_table *table);
 
 extern struct xt_table_info *xt_replace_table(struct xt_table *table,
@@ -306,11 +353,12 @@ extern struct xt_target *xt_request_find_target(int af, const char *name,
 extern int xt_find_revision(int af, const char *name, u8 revision, int target,
 			    int *err);
 
-extern struct xt_table *xt_find_table_lock(int af, const char *name);
+extern struct xt_table *xt_find_table_lock(struct net *net, int af,
+					   const char *name);
 extern void xt_table_unlock(struct xt_table *t);
 
-extern int xt_proto_init(int af);
-extern void xt_proto_fini(int af);
+extern int xt_proto_init(struct net *net, int af);
+extern void xt_proto_fini(struct net *net, int af);
 
 extern struct xt_table_info *xt_alloc_table_info(unsigned int size);
 extern void xt_free_table_info(struct xt_table_info *info);
@@ -378,17 +426,21 @@ struct compat_xt_counters_info
 extern void xt_compat_lock(int af);
 extern void xt_compat_unlock(int af);
 
+extern int xt_compat_add_offset(int af, unsigned int offset, short delta);
+extern void xt_compat_flush_offsets(int af);
+extern short xt_compat_calc_jump(int af, unsigned int offset);
+
 extern int xt_compat_match_offset(struct xt_match *match);
-extern void xt_compat_match_from_user(struct xt_entry_match *m,
-				      void **dstptr, int *size);
+extern int xt_compat_match_from_user(struct xt_entry_match *m,
+				     void **dstptr, unsigned int *size);
 extern int xt_compat_match_to_user(struct xt_entry_match *m,
-				   void __user **dstptr, int *size);
+				   void __user **dstptr, unsigned int *size);
 
 extern int xt_compat_target_offset(struct xt_target *target);
 extern void xt_compat_target_from_user(struct xt_entry_target *t,
-				       void **dstptr, int *size);
+				       void **dstptr, unsigned int *size);
 extern int xt_compat_target_to_user(struct xt_entry_target *t,
-				    void __user **dstptr, int *size);
+				    void __user **dstptr, unsigned int *size);
 
 #endif /* CONFIG_COMPAT */
 #endif /* __KERNEL__ */

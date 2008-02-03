@@ -96,9 +96,6 @@ static int fs_enet_rx_napi(struct napi_struct *napi, int budget)
 	u16 pkt_len, sc;
 	int curidx;
 
-	if (!netif_running(dev))
-		return 0;
-
 	/*
 	 * First, grab all of the stats for the incoming packet.
 	 * These get messed up if we get called due to a busy condition.
@@ -897,14 +894,21 @@ static void fs_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 static int fs_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
+
+	if (!fep->phydev)
+		return -ENODEV;
+
 	return phy_ethtool_gset(fep->phydev, cmd);
 }
 
 static int fs_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	phy_ethtool_sset(fep->phydev, cmd);
-	return 0;
+
+	if (!fep->phydev)
+		return -ENODEV;
+
+	return phy_ethtool_sset(fep->phydev, cmd);
 }
 
 static int fs_nway_reset(struct net_device *dev)
@@ -1174,8 +1178,15 @@ static int __devinit find_phy(struct device_node *np,
 	struct device_node *phynode, *mdionode;
 	struct resource res;
 	int ret = 0, len;
+	const u32 *data;
 
-	const u32 *data = of_get_property(np, "phy-handle", &len);
+	data  = of_get_property(np, "fixed-link", NULL);
+	if (data) {
+		snprintf(fpi->bus_id, 16, PHY_ID_FMT, 0, *data);
+		return 0;
+	}
+
+	data = of_get_property(np, "phy-handle", &len);
 	if (!data || len != 4)
 		return -EINVAL;
 

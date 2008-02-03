@@ -123,6 +123,9 @@ struct pt_regs;
 extern void default_machine_kexec(struct kimage *image);
 extern int default_machine_kexec_prepare(struct kimage *image);
 extern void default_machine_crash_shutdown(struct pt_regs *regs);
+typedef void (*crash_shutdown_t)(void);
+extern int crash_shutdown_register(crash_shutdown_t handler);
+extern int crash_shutdown_unregister(crash_shutdown_t handler);
 
 extern void machine_kexec_simple(struct kimage *image);
 extern void crash_kexec_secondary(struct pt_regs *regs);

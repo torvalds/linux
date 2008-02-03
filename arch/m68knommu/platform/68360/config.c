@@ -103,11 +103,6 @@ void hw_timer_init(void)
   pquicc->timer_tgcr  = tgcr_save;
 }
 
-unsigned long hw_timer_offset(void)
-{
-  return 0;
-}
-
 void BSP_gettod (int *yearp, int *monp, int *dayp,
 		   int *hourp, int *minp, int *secp)
 {

@@ -31,7 +31,7 @@ static unsigned int free_huge_pages_node[MAX_NUMNODES];
 static unsigned int surplus_huge_pages_node[MAX_NUMNODES];
 static gfp_t htlb_alloc_mask = GFP_HIGHUSER;
 unsigned long hugepages_treat_as_movable;
-int hugetlb_dynamic_pool;
+unsigned long nr_overcommit_huge_pages;
 static int hugetlb_next_nid;
 
 /*
@@ -116,7 +116,9 @@ static void update_and_free_page(struct page *page)
 static void free_huge_page(struct page *page)
 {
 	int nid = page_to_nid(page);
+	struct address_space *mapping;
 
+	mapping = (struct address_space *) page_private(page);
 	BUG_ON(page_count(page));
 	INIT_LIST_HEAD(&page->lru);
 
@@ -129,6 +131,9 @@ static void free_huge_page(struct page *page)
 		enqueue_huge_page(page);
 	}
 	spin_unlock(&hugetlb_lock);
+	if (mapping)
+		hugetlb_put_quota(mapping, 1);
+	set_page_private(page, 0);
 }
 
 /*
@@ -222,22 +227,58 @@ static struct page *alloc_buddy_huge_page(struct vm_area_struct *vma,
 						unsigned long address)
 {
 	struct page *page;
+	unsigned int nid;
 
-	/* Check if the dynamic pool is enabled */
-	if (!hugetlb_dynamic_pool)
+	/*
+	 * Assume we will successfully allocate the surplus page to
+	 * prevent racing processes from causing the surplus to exceed
+	 * overcommit
+	 *
+	 * This however introduces a different race, where a process B
+	 * tries to grow the static hugepage pool while alloc_pages() is
+	 * called by process A. B will only examine the per-node
+	 * counters in determining if surplus huge pages can be
+	 * converted to normal huge pages in adjust_pool_surplus(). A
+	 * won't be able to increment the per-node counter, until the
+	 * lock is dropped by B, but B doesn't drop hugetlb_lock until
+	 * no more huge pages can be converted from surplus to normal
+	 * state (and doesn't try to convert again). Thus, we have a
+	 * case where a surplus huge page exists, the pool is grown, and
+	 * the surplus huge page still exists after, even though it
+	 * should just have been converted to a normal huge page. This
+	 * does not leak memory, though, as the hugepage will be freed
+	 * once it is out of use. It also does not allow the counters to
+	 * go out of whack in adjust_pool_surplus() as we don't modify
+	 * the node values until we've gotten the hugepage and only the
+	 * per-node value is checked there.
+	 */
+	spin_lock(&hugetlb_lock);
+	if (surplus_huge_pages >= nr_overcommit_huge_pages) {
+		spin_unlock(&hugetlb_lock);
 		return NULL;
+	} else {
+		nr_huge_pages++;
+		surplus_huge_pages++;
+	}
+	spin_unlock(&hugetlb_lock);
 
 	page = alloc_pages(htlb_alloc_mask|__GFP_COMP|__GFP_NOWARN,
 					HUGETLB_PAGE_ORDER);
+
+	spin_lock(&hugetlb_lock);
 	if (page) {
+		nid = page_to_nid(page);
 		set_compound_page_dtor(page, free_huge_page);
-		spin_lock(&hugetlb_lock);
-		nr_huge_pages++;
-		nr_huge_pages_node[page_to_nid(page)]++;
-		surplus_huge_pages++;
-		surplus_huge_pages_node[page_to_nid(page)]++;
-		spin_unlock(&hugetlb_lock);
+		/*
+		 * We incremented the global counters already
+		 */
+		nr_huge_pages_node[nid]++;
+		surplus_huge_pages_node[nid]++;
+	} else {
+		nr_huge_pages--;
+		surplus_huge_pages--;
 	}
+	spin_unlock(&hugetlb_lock);
 
 	return page;
 }
@@ -323,7 +364,7 @@ free:
  * allocated to satisfy the reservation must be explicitly freed if they were
  * never used.
  */
-void return_unused_surplus_pages(unsigned long unused_resv_pages)
+static void return_unused_surplus_pages(unsigned long unused_resv_pages)
 {
 	static int nid = -1;
 	struct page *page;
@@ -353,35 +394,55 @@ void return_unused_surplus_pages(unsigned long unused_resv_pages)
 	}
 }
 
+
+static struct page *alloc_huge_page_shared(struct vm_area_struct *vma,
+						unsigned long addr)
+{
+	struct page *page;
+
+	spin_lock(&hugetlb_lock);
+	page = dequeue_huge_page(vma, addr);
+	spin_unlock(&hugetlb_lock);
+	return page ? page : ERR_PTR(-VM_FAULT_OOM);
+}
+
+static struct page *alloc_huge_page_private(struct vm_area_struct *vma,
+						unsigned long addr)
+{
+	struct page *page = NULL;
+
+	if (hugetlb_get_quota(vma->vm_file->f_mapping, 1))
+		return ERR_PTR(-VM_FAULT_SIGBUS);
+
+	spin_lock(&hugetlb_lock);
+	if (free_huge_pages > resv_huge_pages)
+		page = dequeue_huge_page(vma, addr);
+	spin_unlock(&hugetlb_lock);
+	if (!page) {
+		page = alloc_buddy_huge_page(vma, addr);
+		if (!page) {
+			hugetlb_put_quota(vma->vm_file->f_mapping, 1);
+			return ERR_PTR(-VM_FAULT_OOM);
+		}
+	}
+	return page;
+}
+
 static struct page *alloc_huge_page(struct vm_area_struct *vma,
 				    unsigned long addr)
 {
-	struct page *page = NULL;
-	int use_reserved_page = vma->vm_flags & VM_MAYSHARE;
+	struct page *page;
+	struct address_space *mapping = vma->vm_file->f_mapping;
 
-	spin_lock(&hugetlb_lock);
-	if (!use_reserved_page && (free_huge_pages <= resv_huge_pages))
-		goto fail;
+	if (vma->vm_flags & VM_MAYSHARE)
+		page = alloc_huge_page_shared(vma, addr);
+	else
+		page = alloc_huge_page_private(vma, addr);
 
-	page = dequeue_huge_page(vma, addr);
-	if (!page)
-		goto fail;
-
-	spin_unlock(&hugetlb_lock);
-	set_page_refcounted(page);
-	return page;
-
-fail:
-	spin_unlock(&hugetlb_lock);
-
-	/*
-	 * Private mappings do not use reserved huge pages so the allocation
-	 * may have failed due to an undersized hugetlb pool.  Try to grab a
-	 * surplus huge page from the buddy allocator.
-	 */
-	if (!use_reserved_page)
-		page = alloc_buddy_huge_page(vma, addr);
-
+	if (!IS_ERR(page)) {
+		set_page_refcounted(page);
+		set_page_private(page, (unsigned long) mapping);
+	}
 	return page;
 }
 
@@ -461,6 +522,12 @@ static unsigned long set_max_huge_pages(unsigned long count)
 	 * Increase the pool size
 	 * First take pages out of surplus state.  Then make up the
 	 * remaining difference by allocating fresh huge pages.
+	 *
+	 * We might race with alloc_buddy_huge_page() here and be unable
+	 * to convert a surplus huge page to a normal huge page. That is
+	 * not critical, though, it just means the overall size of the
+	 * pool might be one hugepage larger than it needs to be, but
+	 * within all the constraints specified by the sysctls.
 	 */
 	spin_lock(&hugetlb_lock);
 	while (surplus_huge_pages && count > persistent_huge_pages) {
@@ -489,6 +556,14 @@ static unsigned long set_max_huge_pages(unsigned long count)
 	 * to keep enough around to satisfy reservations).  Then place
 	 * pages into surplus state as needed so the pool will shrink
 	 * to the desired size as pages become free.
+	 *
+	 * By placing pages into the surplus state independent of the
+	 * overcommit value, we are allowing the surplus pool size to
+	 * exceed overcommit. There are few sane options here. Since
+	 * alloc_buddy_huge_page() is checking the global counter,
+	 * though, we'll note that we're not allowed to exceed surplus
+	 * and won't grow the pool anywhere else. Not until one of the
+	 * sysctls are changed, or the surplus pages go out of use.
 	 */
 	min_count = resv_huge_pages + nr_huge_pages - free_huge_pages;
 	min_count = max(count, min_count);
@@ -624,6 +699,11 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
 		dst_pte = huge_pte_alloc(dst, addr);
 		if (!dst_pte)
 			goto nomem;
+
+		/* If the pagetables are shared don't copy or take references */
+		if (dst_pte == src_pte)
+			continue;
+
 		spin_lock(&dst->page_table_lock);
 		spin_lock(&src->page_table_lock);
 		if (!pte_none(*src_pte)) {
@@ -726,9 +806,9 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
 	page_cache_get(old_page);
 	new_page = alloc_huge_page(vma, address);
 
-	if (!new_page) {
+	if (IS_ERR(new_page)) {
 		page_cache_release(old_page);
-		return VM_FAULT_OOM;
+		return -PTR_ERR(new_page);
 	}
 
 	spin_unlock(&mm->page_table_lock);
@@ -772,27 +852,28 @@ retry:
 		size = i_size_read(mapping->host) >> HPAGE_SHIFT;
 		if (idx >= size)
 			goto out;
-		if (hugetlb_get_quota(mapping))
-			goto out;
 		page = alloc_huge_page(vma, address);
-		if (!page) {
-			hugetlb_put_quota(mapping);
-			ret = VM_FAULT_OOM;
+		if (IS_ERR(page)) {
+			ret = -PTR_ERR(page);
 			goto out;
 		}
 		clear_huge_page(page, address);
 
 		if (vma->vm_flags & VM_SHARED) {
 			int err;
+			struct inode *inode = mapping->host;
 
 			err = add_to_page_cache(page, mapping, idx, GFP_KERNEL);
 			if (err) {
 				put_page(page);
-				hugetlb_put_quota(mapping);
 				if (err == -EEXIST)
 					goto retry;
 				goto out;
 			}
+
+			spin_lock(&inode->i_lock);
+			inode->i_blocks += BLOCKS_PER_HUGEPAGE;
+			spin_unlock(&inode->i_lock);
 		} else
 			lock_page(page);
 	}
@@ -822,7 +903,6 @@ out:
 
 backout:
 	spin_unlock(&mm->page_table_lock);
-	hugetlb_put_quota(mapping);
 	unlock_page(page);
 	put_page(page);
 	goto out;
@@ -868,7 +948,8 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 
 int follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			struct page **pages, struct vm_area_struct **vmas,
-			unsigned long *position, int *length, int i)
+			unsigned long *position, int *length, int i,
+			int write)
 {
 	unsigned long pfn_offset;
 	unsigned long vaddr = *position;
@@ -886,11 +967,11 @@ int follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		 */
 		pte = huge_pte_offset(mm, vaddr & HPAGE_MASK);
 
-		if (!pte || pte_none(*pte)) {
+		if (!pte || pte_none(*pte) || (write && !pte_write(*pte))) {
 			int ret;
 
 			spin_unlock(&mm->page_table_lock);
-			ret = hugetlb_fault(mm, vma, vaddr, 0);
+			ret = hugetlb_fault(mm, vma, vaddr, write);
 			spin_lock(&mm->page_table_lock);
 			if (!(ret & VM_FAULT_ERROR))
 				continue;
@@ -1132,9 +1213,13 @@ int hugetlb_reserve_pages(struct inode *inode, long from, long to)
 	if (chg < 0)
 		return chg;
 
+	if (hugetlb_get_quota(inode->i_mapping, chg))
+		return -ENOSPC;
 	ret = hugetlb_acct_memory(chg);
-	if (ret < 0)
+	if (ret < 0) {
+		hugetlb_put_quota(inode->i_mapping, chg);
 		return ret;
+	}
 	region_add(&inode->i_mapping->private_list, from, to);
 	return 0;
 }
@@ -1142,5 +1227,11 @@ int hugetlb_reserve_pages(struct inode *inode, long from, long to)
 void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed)
 {
 	long chg = region_truncate(&inode->i_mapping->private_list, offset);
-	hugetlb_acct_memory(freed - chg);
+
+	spin_lock(&inode->i_lock);
+	inode->i_blocks -= BLOCKS_PER_HUGEPAGE * freed;
+	spin_unlock(&inode->i_lock);
+
+	hugetlb_put_quota(inode->i_mapping, (chg - freed));
+	hugetlb_acct_memory(-(chg - freed));
 }

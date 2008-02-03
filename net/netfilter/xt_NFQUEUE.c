@@ -17,59 +17,55 @@
 #include <linux/netfilter/xt_NFQUEUE.h>
 
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
-MODULE_DESCRIPTION("[ip,ip6,arp]_tables NFQUEUE target");
+MODULE_DESCRIPTION("Xtables: packet forwarding to netlink");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_NFQUEUE");
 MODULE_ALIAS("ip6t_NFQUEUE");
 MODULE_ALIAS("arpt_NFQUEUE");
 
 static unsigned int
-target(struct sk_buff *skb,
-       const struct net_device *in,
-       const struct net_device *out,
-       unsigned int hooknum,
-       const struct xt_target *target,
-       const void *targinfo)
+nfqueue_tg(struct sk_buff *skb, const struct net_device *in,
+           const struct net_device *out, unsigned int hooknum,
+           const struct xt_target *target, const void *targinfo)
 {
 	const struct xt_NFQ_info *tinfo = targinfo;
 
 	return NF_QUEUE_NR(tinfo->queuenum);
 }
 
-static struct xt_target xt_nfqueue_target[] __read_mostly = {
+static struct xt_target nfqueue_tg_reg[] __read_mostly = {
 	{
 		.name		= "NFQUEUE",
 		.family		= AF_INET,
-		.target		= target,
+		.target		= nfqueue_tg,
 		.targetsize	= sizeof(struct xt_NFQ_info),
 		.me		= THIS_MODULE,
 	},
 	{
 		.name		= "NFQUEUE",
 		.family		= AF_INET6,
-		.target		= target,
+		.target		= nfqueue_tg,
 		.targetsize	= sizeof(struct xt_NFQ_info),
 		.me		= THIS_MODULE,
 	},
 	{
 		.name		= "NFQUEUE",
 		.family		= NF_ARP,
-		.target		= target,
+		.target		= nfqueue_tg,
 		.targetsize	= sizeof(struct xt_NFQ_info),
 		.me		= THIS_MODULE,
 	},
 };
 
-static int __init xt_nfqueue_init(void)
+static int __init nfqueue_tg_init(void)
 {
-	return xt_register_targets(xt_nfqueue_target,
-				   ARRAY_SIZE(xt_nfqueue_target));
+	return xt_register_targets(nfqueue_tg_reg, ARRAY_SIZE(nfqueue_tg_reg));
 }
 
-static void __exit xt_nfqueue_fini(void)
+static void __exit nfqueue_tg_exit(void)
 {
-	xt_unregister_targets(xt_nfqueue_target, ARRAY_SIZE(xt_nfqueue_target));
+	xt_unregister_targets(nfqueue_tg_reg, ARRAY_SIZE(nfqueue_tg_reg));
 }
 
-module_init(xt_nfqueue_init);
-module_exit(xt_nfqueue_fini);
+module_init(nfqueue_tg_init);
+module_exit(nfqueue_tg_exit);

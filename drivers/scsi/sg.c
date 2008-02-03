@@ -48,6 +48,7 @@ static int sg_version_num = 30534;	/* 2 digits for each component */
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/scatterlist.h>
+#include <linux/blktrace_api.h>
 
 #include "scsi.h"
 #include <scsi/scsi_dbg.h>
@@ -602,8 +603,9 @@ sg_write(struct file *filp, const char __user *buf, size_t count, loff_t * ppos)
 	 * but is is possible that the app intended SG_DXFER_TO_DEV, because there
 	 * is a non-zero input_size, so emit a warning.
 	 */
-	if (hp->dxfer_direction == SG_DXFER_TO_FROM_DEV)
-		if (printk_ratelimit())
+	if (hp->dxfer_direction == SG_DXFER_TO_FROM_DEV) {
+		static char cmd[TASK_COMM_LEN];
+		if (strcmp(current->comm, cmd) && printk_ratelimit()) {
 			printk(KERN_WARNING
 			       "sg_write: data in/out %d/%d bytes for SCSI command 0x%x--"
 			       "guessing data in;\n" KERN_WARNING "   "
@@ -611,6 +613,9 @@ sg_write(struct file *filp, const char __user *buf, size_t count, loff_t * ppos)
 			       old_hdr.reply_len - (int)SZ_SG_HEADER,
 			       input_size, (unsigned int) cmnd[0],
 			       current->comm);
+			strcpy(cmd, current->comm);
+		}
+	}
 	k = sg_common_write(sfp, srp, cmnd, sfp->timeout, blocking);
 	return (k < 0) ? k : count;
 }
@@ -1063,6 +1068,17 @@ sg_ioctl(struct inode *inode, struct file *filp,
 	case BLKSECTGET:
 		return put_user(sdp->device->request_queue->max_sectors * 512,
 				ip);
+	case BLKTRACESETUP:
+		return blk_trace_setup(sdp->device->request_queue,
+				       sdp->disk->disk_name,
+				       sdp->device->sdev_gendev.devt,
+				       (char *)arg);
+	case BLKTRACESTART:
+		return blk_trace_startstop(sdp->device->request_queue, 1);
+	case BLKTRACESTOP:
+		return blk_trace_startstop(sdp->device->request_queue, 0);
+	case BLKTRACETEARDOWN:
+		return blk_trace_remove(sdp->device->request_queue);
 	default:
 		if (read_only)
 			return -EPERM;	/* don't know so take safe approach */
@@ -1418,7 +1434,6 @@ sg_add(struct class_device *cl_dev, struct class_interface *cl_intf)
 		goto out;
 	}
 
-	class_set_devdata(cl_dev, sdp);
 	error = cdev_add(cdev, MKDEV(SCSI_GENERIC_MAJOR, sdp->index), 1);
 	if (error)
 		goto cdev_add_err;
@@ -1431,11 +1446,14 @@ sg_add(struct class_device *cl_dev, struct class_interface *cl_intf)
 				MKDEV(SCSI_GENERIC_MAJOR, sdp->index),
 				cl_dev->dev, "%s",
 				disk->disk_name);
-		if (IS_ERR(sg_class_member))
-			printk(KERN_WARNING "sg_add: "
-				"class_device_create failed\n");
+		if (IS_ERR(sg_class_member)) {
+			printk(KERN_ERR "sg_add: "
+			       "class_device_create failed\n");
+			error = PTR_ERR(sg_class_member);
+			goto cdev_add_err;
+		}
 		class_set_devdata(sg_class_member, sdp);
-		error = sysfs_create_link(&scsidp->sdev_gendev.kobj, 
+		error = sysfs_create_link(&scsidp->sdev_gendev.kobj,
 					  &sg_class_member->kobj, "generic");
 		if (error)
 			printk(KERN_ERR "sg_add: unable to make symlink "
@@ -1446,6 +1464,8 @@ sg_add(struct class_device *cl_dev, struct class_interface *cl_intf)
 	sdev_printk(KERN_NOTICE, scsidp,
 		    "Attached scsi generic sg%d type %d\n", sdp->index,
 		    scsidp->type);
+
+	class_set_devdata(cl_dev, sdp);
 
 	return 0;
 
@@ -1652,6 +1672,7 @@ sg_build_sgat(Sg_scatter_hold * schp, const Sg_fd * sfp, int tablesize)
 	schp->buffer = kzalloc(sg_bufflen, gfp_flags);
 	if (!schp->buffer)
 		return -ENOMEM;
+	sg_init_table(schp->buffer, tablesize);
 	schp->sglist_len = sg_bufflen;
 	return tablesize;	/* number of scat_gath elements allocated */
 }
@@ -2520,7 +2541,7 @@ sg_idr_max_id(int id, void *p, void *data)
 static int
 sg_last_dev(void)
 {
-	int k = 0;
+	int k = -1;
 	unsigned long iflags;
 
 	read_lock_irqsave(&sg_index_lock, iflags);

@@ -629,7 +629,7 @@ static void recover_lvb(struct dlm_rsb *r)
 		goto out;
 
 	if (!r->res_lvbptr) {
-		r->res_lvbptr = allocate_lvb(r->res_ls);
+		r->res_lvbptr = dlm_allocate_lvb(r->res_ls);
 		if (!r->res_lvbptr)
 			goto out;
 	}
@@ -731,6 +731,20 @@ int dlm_create_root_list(struct dlm_ls *ls)
 			list_add(&r->res_root_list, &ls->ls_root_list);
 			dlm_hold_rsb(r);
 		}
+
+		/* If we're using a directory, add tossed rsbs to the root
+		   list; they'll have entries created in the new directory,
+		   but no other recovery steps should do anything with them. */
+
+		if (dlm_no_directory(ls)) {
+			read_unlock(&ls->ls_rsbtbl[i].lock);
+			continue;
+		}
+
+		list_for_each_entry(r, &ls->ls_rsbtbl[i].toss, res_hashchain) {
+			list_add(&r->res_root_list, &ls->ls_root_list);
+			dlm_hold_rsb(r);
+		}
 		read_unlock(&ls->ls_rsbtbl[i].lock);
 	}
  out:
@@ -750,6 +764,11 @@ void dlm_release_root_list(struct dlm_ls *ls)
 	up_write(&ls->ls_root_sem);
 }
 
+/* If not using a directory, clear the entire toss list, there's no benefit to
+   caching the master value since it's fixed.  If we are using a dir, keep the
+   rsb's we're the master of.  Recovery will add them to the root list and from
+   there they'll be entered in the rebuilt directory. */
+
 void dlm_clear_toss_list(struct dlm_ls *ls)
 {
 	struct dlm_rsb *r, *safe;
@@ -759,8 +778,10 @@ void dlm_clear_toss_list(struct dlm_ls *ls)
 		write_lock(&ls->ls_rsbtbl[i].lock);
 		list_for_each_entry_safe(r, safe, &ls->ls_rsbtbl[i].toss,
 					 res_hashchain) {
-			list_del(&r->res_hashchain);
-			free_rsb(r);
+			if (dlm_no_directory(ls) || !is_master(r)) {
+				list_del(&r->res_hashchain);
+				dlm_free_rsb(r);
+			}
 		}
 		write_unlock(&ls->ls_rsbtbl[i].lock);
 	}

@@ -49,7 +49,7 @@ struct smtc_ipi_q {
 
 static inline void smtc_ipi_nq(struct smtc_ipi_q *q, struct smtc_ipi *p)
 {
-	long flags;
+	unsigned long flags;
 
 	spin_lock_irqsave(&q->lock, flags);
 	if (q->head == NULL)
@@ -98,7 +98,7 @@ static inline struct smtc_ipi *smtc_ipi_dq(struct smtc_ipi_q *q)
 
 static inline void smtc_ipi_req(struct smtc_ipi_q *q, struct smtc_ipi *p)
 {
-	long flags;
+	unsigned long flags;
 
 	spin_lock_irqsave(&q->lock, flags);
 	if (q->head == NULL) {
@@ -114,7 +114,7 @@ static inline void smtc_ipi_req(struct smtc_ipi_q *q, struct smtc_ipi *p)
 
 static inline int smtc_ipi_qdepth(struct smtc_ipi_q *q)
 {
-	long flags;
+	unsigned long flags;
 	int retval;
 
 	spin_lock_irqsave(&q->lock, flags);

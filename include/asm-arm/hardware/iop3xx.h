@@ -231,7 +231,7 @@ extern int init_atu;
 					IOP3XX_PCI_IO_WINDOW_SIZE - 1)
 #define IOP3XX_PCI_UPPER_IO_VA		(IOP3XX_PCI_LOWER_IO_VA +\
 					IOP3XX_PCI_IO_WINDOW_SIZE - 1)
-#define IOP3XX_PCI_IO_PHYS_TO_VIRT(addr) (((u32) addr -\
+#define IOP3XX_PCI_IO_PHYS_TO_VIRT(addr) (((u32) (addr) -\
 					IOP3XX_PCI_LOWER_IO_PA) +\
 					IOP3XX_PCI_LOWER_IO_VA)
 

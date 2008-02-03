@@ -1338,7 +1338,7 @@ static irqreturn_t rhine_interrupt(int irq, void *dev_instance)
 				if (debug > 2 &&
 				    ioread8(ioaddr+ChipCmd) & CmdTxOn)
 					printk(KERN_WARNING "%s: "
-					       "rhine_interrupt() Tx engine"
+					       "rhine_interrupt() Tx engine "
 					       "still on.\n", dev->name);
 			}
 			rhine_tx(dev);

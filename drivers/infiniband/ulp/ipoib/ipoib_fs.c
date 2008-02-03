@@ -124,7 +124,7 @@ static int ipoib_mcg_seq_show(struct seq_file *file, void *iter_ptr)
 	return 0;
 }
 
-static struct seq_operations ipoib_mcg_seq_ops = {
+static const struct seq_operations ipoib_mcg_seq_ops = {
 	.start = ipoib_mcg_seq_start,
 	.next  = ipoib_mcg_seq_next,
 	.stop  = ipoib_mcg_seq_stop,
@@ -230,7 +230,7 @@ static int ipoib_path_seq_show(struct seq_file *file, void *iter_ptr)
 	return 0;
 }
 
-static struct seq_operations ipoib_path_seq_ops = {
+static const struct seq_operations ipoib_path_seq_ops = {
 	.start = ipoib_path_seq_start,
 	.next  = ipoib_path_seq_next,
 	.stop  = ipoib_path_seq_stop,

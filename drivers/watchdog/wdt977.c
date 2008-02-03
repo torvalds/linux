@@ -59,7 +59,7 @@ static	int timeoutM;				/* timeout in minutes */
 static	unsigned long timer_alive;
 static	int testmode;
 static	char expect_close;
-static	spinlock_t spinlock;
+static	DEFINE_SPINLOCK(spinlock);
 
 module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout,"Watchdog timeout in seconds (60..15300), default=" __MODULE_STRING(DEFAULT_TIMEOUT) ")");
@@ -448,8 +448,6 @@ static int __init wd977_init(void)
 
 	printk(KERN_INFO PFX DRIVER_VERSION);
 
-	spin_lock_init(&spinlock);
-
 	/* Check that the timeout value is within it's range ; if not reset to the default */
 	if (wdt977_set_timeout(timeout))
 	{
@@ -472,20 +470,20 @@ static int __init wd977_init(void)
 		}
 	}
 
-	rc = misc_register(&wdt977_miscdev);
-	if (rc)
-	{
-		printk(KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
-			wdt977_miscdev.minor, rc);
-		goto err_out_region;
-	}
-
 	rc = register_reboot_notifier(&wdt977_notifier);
 	if (rc)
 	{
 		printk(KERN_ERR PFX "cannot register reboot notifier (err=%d)\n",
 			rc);
-		goto err_out_miscdev;
+		goto err_out_region;
+	}
+
+	rc = misc_register(&wdt977_miscdev);
+	if (rc)
+	{
+		printk(KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
+			wdt977_miscdev.minor, rc);
+		goto err_out_reboot;
 	}
 
 	printk(KERN_INFO PFX "initialized. timeout=%d sec (nowayout=%d, testmode=%i)\n",
@@ -493,8 +491,8 @@ static int __init wd977_init(void)
 
 	return 0;
 
-err_out_miscdev:
-        misc_deregister(&wdt977_miscdev);
+err_out_reboot:
+	unregister_reboot_notifier(&wdt977_notifier);
 err_out_region:
 	if (!machine_is_netwinder())
 	        release_region(IO_INDEX_PORT,2);

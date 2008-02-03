@@ -1,6 +1,4 @@
 /*
- * linux/drivers/ide/legacy/qd65xx.h
- *
  * Copyright (c) 2000	Linus Torvalds & authors
  */
 

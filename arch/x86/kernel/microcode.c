@@ -244,8 +244,8 @@ static int microcode_sanity_check(void *mc)
 		return 0;
 	/* check extended signature checksum */
 	for (i = 0; i < ext_sigcount; i++) {
-		ext_sig = (struct extended_signature *)((void *)ext_header
-			+ EXT_HEADER_SIZE + EXT_SIGNATURE_SIZE * i);
+		ext_sig = (void *)ext_header + EXT_HEADER_SIZE +
+			  EXT_SIGNATURE_SIZE * i;
 		sum = orig_sum
 			- (mc_header->sig + mc_header->pf + mc_header->cksum)
 			+ (ext_sig->sig + ext_sig->pf + ext_sig->cksum);
@@ -279,11 +279,9 @@ static int get_maching_microcode(void *mc, int cpu)
 	if (total_size <= get_datasize(mc_header) + MC_HEADER_SIZE)
 		return 0;
 
-	ext_header = (struct extended_sigtable *)(mc +
-			get_datasize(mc_header) + MC_HEADER_SIZE);
+	ext_header = mc + get_datasize(mc_header) + MC_HEADER_SIZE;
 	ext_sigcount = ext_header->count;
-	ext_sig = (struct extended_signature *)((void *)ext_header
-			+ EXT_HEADER_SIZE);
+	ext_sig = (void *)ext_header + EXT_HEADER_SIZE;
 	for (i = 0; i < ext_sigcount; i++) {
 		if (microcode_update_match(cpu, mc_header,
 				ext_sig->sig, ext_sig->pf))
@@ -436,7 +434,7 @@ static ssize_t microcode_write (struct file *file, const char __user *buf, size_
 		return -EINVAL;
 	}
 
-	lock_cpu_hotplug();
+	get_online_cpus();
 	mutex_lock(&microcode_mutex);
 
 	user_buffer = (void __user *) buf;
@@ -447,7 +445,7 @@ static ssize_t microcode_write (struct file *file, const char __user *buf, size_
 		ret = (ssize_t)len;
 
 	mutex_unlock(&microcode_mutex);
-	unlock_cpu_hotplug();
+	put_online_cpus();
 
 	return ret;
 }
@@ -539,7 +537,7 @@ static int cpu_request_microcode(int cpu)
 		pr_debug("ucode data file %s load failed\n", name);
 		return error;
 	}
-	buf = (void *)firmware->data;
+	buf = firmware->data;
 	size = firmware->size;
 	while ((offset = get_next_ucode_from_buffer(&mc, buf, size, offset))
 			> 0) {
@@ -658,14 +656,14 @@ static ssize_t reload_store(struct sys_device *dev, const char *buf, size_t sz)
 
 		old = current->cpus_allowed;
 
-		lock_cpu_hotplug();
+		get_online_cpus();
 		set_cpus_allowed(current, cpumask_of_cpu(cpu));
 
 		mutex_lock(&microcode_mutex);
 		if (uci->valid)
 			err = cpu_request_microcode(cpu);
 		mutex_unlock(&microcode_mutex);
-		unlock_cpu_hotplug();
+		put_online_cpus();
 		set_cpus_allowed(current, old);
 	}
 	if (err)
@@ -799,7 +797,7 @@ mc_cpu_callback(struct notifier_block *nb, unsigned long action, void *hcpu)
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __cpuinitdata mc_cpu_notifier = {
+static struct notifier_block __refdata mc_cpu_notifier = {
 	.notifier_call = mc_cpu_callback,
 };
 
@@ -817,9 +815,9 @@ static int __init microcode_init (void)
 		return PTR_ERR(microcode_pdev);
 	}
 
-	lock_cpu_hotplug();
+	get_online_cpus();
 	error = sysdev_driver_register(&cpu_sysdev_class, &mc_sysdev_driver);
-	unlock_cpu_hotplug();
+	put_online_cpus();
 	if (error) {
 		microcode_dev_exit();
 		platform_device_unregister(microcode_pdev);
@@ -839,9 +837,9 @@ static void __exit microcode_exit (void)
 
 	unregister_hotcpu_notifier(&mc_cpu_notifier);
 
-	lock_cpu_hotplug();
+	get_online_cpus();
 	sysdev_driver_unregister(&cpu_sysdev_class, &mc_sysdev_driver);
-	unlock_cpu_hotplug();
+	put_online_cpus();
 
 	platform_device_unregister(microcode_pdev);
 }

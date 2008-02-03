@@ -39,8 +39,8 @@ struct s5h1409_config
 #define S5H1409_GPIO_ON  1
 	u8 gpio;
 
-	/* IF Freq in KHz */
-	u16 if_freq;
+	/* IF Freq for QAM in KHz, VSB is hardcoded to 5380 */
+	u16 qam_if;
 
 	/* Spectral Inversion */
 #define S5H1409_INVERSION_OFF 0
@@ -51,6 +51,13 @@ struct s5h1409_config
 #define S5H1409_TUNERLOCKING 0
 #define S5H1409_DEMODLOCKING 1
 	u8 status_mode;
+
+	/* MPEG signal timing */
+#define S5H1409_MPEGTIMING_CONTINOUS_INVERTING_CLOCK       0
+#define S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK    1
+#define S5H1409_MPEGTIMING_NONCONTINOUS_INVERTING_CLOCK    2
+#define S5H1409_MPEGTIMING_NONCONTINOUS_NONINVERTING_CLOCK 3
+	u16 mpeg_timing;
 };
 
 #if defined(CONFIG_DVB_S5H1409) || (defined(CONFIG_DVB_S5H1409_MODULE) && defined(MODULE))

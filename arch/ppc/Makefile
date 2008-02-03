@@ -36,14 +36,8 @@ LINUXINCLUDE    += -Iarch/$(ARCH)/include
 
 CHECKFLAGS	+= -D__powerpc__
 
-ifndef CONFIG_FSL_BOOKE
-KBUILD_CFLAGS	+= -mstring
-endif
-
 cpu-as-$(CONFIG_4xx)		+= -Wa,-m405
 cpu-as-$(CONFIG_6xx)		+= -Wa,-maltivec
-cpu-as-$(CONFIG_E500)		+= -Wa,-me500
-cpu-as-$(CONFIG_E200)		+= -Wa,-me200
 
 KBUILD_AFLAGS += $(cpu-as-y)
 KBUILD_CFLAGS += $(cpu-as-y)
@@ -55,7 +49,6 @@ head-y				:= arch/ppc/kernel/head.o
 head-$(CONFIG_8xx)		:= arch/ppc/kernel/head_8xx.o
 head-$(CONFIG_4xx)		:= arch/ppc/kernel/head_4xx.o
 head-$(CONFIG_44x)		:= arch/ppc/kernel/head_44x.o
-head-$(CONFIG_FSL_BOOKE)	:= arch/ppc/kernel/head_fsl_booke.o
 
 head-$(CONFIG_PPC_FPU)		+= arch/powerpc/kernel/fpu.o
 
@@ -65,8 +58,6 @@ core-y				+= arch/ppc/kernel/ arch/powerpc/kernel/ \
 				   arch/ppc/syslib/ arch/powerpc/sysdev/ \
 				   arch/powerpc/lib/
 core-$(CONFIG_4xx)		+= arch/ppc/platforms/4xx/
-core-$(CONFIG_83xx)		+= arch/ppc/platforms/83xx/
-core-$(CONFIG_85xx)		+= arch/ppc/platforms/85xx/
 core-$(CONFIG_MATH_EMULATION)	+= arch/powerpc/math-emu/
 core-$(CONFIG_XMON)		+= arch/ppc/xmon/
 drivers-$(CONFIG_8xx)		+= arch/ppc/8xx_io/

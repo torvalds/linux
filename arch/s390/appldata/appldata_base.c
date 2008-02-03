@@ -53,29 +53,26 @@ static int appldata_interval_handler(ctl_table *ctl, int write,
 static struct ctl_table_header *appldata_sysctl_header;
 static struct ctl_table appldata_table[] = {
 	{
-		.ctl_name	= CTL_APPLDATA_TIMER,
 		.procname	= "timer",
 		.mode		= S_IRUGO | S_IWUSR,
 		.proc_handler	= &appldata_timer_handler,
 	},
 	{
-		.ctl_name	= CTL_APPLDATA_INTERVAL,
 		.procname	= "interval",
 		.mode		= S_IRUGO | S_IWUSR,
 		.proc_handler	= &appldata_interval_handler,
 	},
-	{ .ctl_name = 0 }
+	{ },
 };
 
 static struct ctl_table appldata_dir_table[] = {
 	{
-		.ctl_name	= CTL_APPLDATA,
 		.procname	= appldata_proc_name,
 		.maxlen		= 0,
 		.mode		= S_IRUGO | S_IXUGO,
 		.child		= appldata_table,
 	},
-	{ .ctl_name = 0 }
+	{ },
 };
 
 /*
@@ -441,75 +438,38 @@ out:
  */
 int appldata_register_ops(struct appldata_ops *ops)
 {
-	struct list_head *lh;
-	struct appldata_ops *tmp_ops;
-	int i;
+	if ((ops->size > APPLDATA_MAX_REC_SIZE) || (ops->size < 0))
+		return -EINVAL;
 
-	i = 0;
-
-	if ((ops->size > APPLDATA_MAX_REC_SIZE) ||
-		(ops->size < 0)){
-		P_ERROR("Invalid size of %s record = %i, maximum = %i!\n",
-			ops->name, ops->size, APPLDATA_MAX_REC_SIZE);
+	ops->ctl_table = kzalloc(4 * sizeof(struct ctl_table), GFP_KERNEL);
+	if (!ops->ctl_table)
 		return -ENOMEM;
-	}
-	if ((ops->ctl_nr == CTL_APPLDATA) ||
-	    (ops->ctl_nr == CTL_APPLDATA_TIMER) ||
-	    (ops->ctl_nr == CTL_APPLDATA_INTERVAL)) {
-		P_ERROR("ctl_nr %i already in use!\n", ops->ctl_nr);
-		return -EBUSY;
-	}
-	ops->ctl_table = kzalloc(4*sizeof(struct ctl_table), GFP_KERNEL);
-	if (ops->ctl_table == NULL) {
-		P_ERROR("Not enough memory for %s ctl_table!\n", ops->name);
-		return -ENOMEM;
-	}
 
 	spin_lock(&appldata_ops_lock);
-	list_for_each(lh, &appldata_ops_list) {
-		tmp_ops = list_entry(lh, struct appldata_ops, list);
-		P_DEBUG("register_ops loop: %i) name = %s, ctl = %i\n",
-			++i, tmp_ops->name, tmp_ops->ctl_nr);
-		P_DEBUG("Comparing %s (ctl %i) with %s (ctl %i)\n",
-			tmp_ops->name, tmp_ops->ctl_nr, ops->name,
-			ops->ctl_nr);
-		if (strncmp(tmp_ops->name, ops->name,
-				APPLDATA_PROC_NAME_LENGTH) == 0) {
-			P_ERROR("Name \"%s\" already registered!\n", ops->name);
-			kfree(ops->ctl_table);
-			spin_unlock(&appldata_ops_lock);
-			return -EBUSY;
-		}
-		if (tmp_ops->ctl_nr == ops->ctl_nr) {
-			P_ERROR("ctl_nr %i already registered!\n", ops->ctl_nr);
-			kfree(ops->ctl_table);
-			spin_unlock(&appldata_ops_lock);
-			return -EBUSY;
-		}
-	}
 	list_add(&ops->list, &appldata_ops_list);
 	spin_unlock(&appldata_ops_lock);
 
-	ops->ctl_table[0].ctl_name = CTL_APPLDATA;
 	ops->ctl_table[0].procname = appldata_proc_name;
 	ops->ctl_table[0].maxlen   = 0;
 	ops->ctl_table[0].mode     = S_IRUGO | S_IXUGO;
 	ops->ctl_table[0].child    = &ops->ctl_table[2];
 
-	ops->ctl_table[1].ctl_name = 0;
-
-	ops->ctl_table[2].ctl_name = ops->ctl_nr;
 	ops->ctl_table[2].procname = ops->name;
 	ops->ctl_table[2].mode     = S_IRUGO | S_IWUSR;
 	ops->ctl_table[2].proc_handler = appldata_generic_handler;
 	ops->ctl_table[2].data = ops;
 
-	ops->ctl_table[3].ctl_name = 0;
-
 	ops->sysctl_header = register_sysctl_table(ops->ctl_table);
-
+	if (!ops->sysctl_header)
+		goto out;
 	P_INFO("%s-ops registered!\n", ops->name);
 	return 0;
+out:
+	spin_lock(&appldata_ops_lock);
+	list_del(&ops->list);
+	spin_unlock(&appldata_ops_lock);
+	kfree(ops->ctl_table);
+	return -ENOMEM;
 }
 
 /*
@@ -519,15 +479,11 @@ int appldata_register_ops(struct appldata_ops *ops)
  */
 void appldata_unregister_ops(struct appldata_ops *ops)
 {
-	void *table;
 	spin_lock(&appldata_ops_lock);
 	list_del(&ops->list);
-	/* at that point any incoming access will fail */
-	table = ops->ctl_table;
-	ops->ctl_table = NULL;
 	spin_unlock(&appldata_ops_lock);
 	unregister_sysctl_table(ops->sysctl_header);
-	kfree(table);
+	kfree(ops->ctl_table);
 	P_INFO("%s-ops unregistered!\n", ops->name);
 }
 /********************** module-ops management <END> **************************/

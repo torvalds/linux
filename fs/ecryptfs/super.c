@@ -86,7 +86,6 @@ static void ecryptfs_destroy_inode(struct inode *inode)
 			fput(inode_info->lower_file);
 			inode_info->lower_file = NULL;
 			d_drop(lower_dentry);
-			d_delete(lower_dentry);
 		}
 	}
 	mutex_unlock(&inode_info->lower_file_mutex);

@@ -134,7 +134,8 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 
 	rcu_read_unlock();
 
-	return NF_HOOK(PF_INET6,NF_IP6_PRE_ROUTING, skb, dev, NULL, ip6_rcv_finish);
+	return NF_HOOK(PF_INET6, NF_INET_PRE_ROUTING, skb, dev, NULL,
+		       ip6_rcv_finish);
 err:
 	IP6_INC_STATS_BH(idev, IPSTATS_MIB_INHDRERRORS);
 drop:
@@ -152,9 +153,8 @@ out:
 static int ip6_input_finish(struct sk_buff *skb)
 {
 	struct inet6_protocol *ipprot;
-	struct sock *raw_sk;
 	unsigned int nhoff;
-	int nexthdr;
+	int nexthdr, raw;
 	u8 hash;
 	struct inet6_dev *idev;
 
@@ -170,9 +170,7 @@ resubmit:
 	nhoff = IP6CB(skb)->nhoff;
 	nexthdr = skb_network_header(skb)[nhoff];
 
-	raw_sk = sk_head(&raw_v6_htable[nexthdr & (MAX_INET_PROTOS - 1)]);
-	if (raw_sk && !ipv6_raw_deliver(skb, nexthdr))
-		raw_sk = NULL;
+	raw = raw6_local_deliver(skb, nexthdr);
 
 	hash = nexthdr & (MAX_INET_PROTOS - 1);
 	if ((ipprot = rcu_dereference(inet6_protos[hash])) != NULL) {
@@ -205,7 +203,7 @@ resubmit:
 		else if (ret == 0)
 			IP6_INC_STATS_BH(idev, IPSTATS_MIB_INDELIVERS);
 	} else {
-		if (!raw_sk) {
+		if (!raw) {
 			if (xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb)) {
 				IP6_INC_STATS_BH(idev, IPSTATS_MIB_INUNKNOWNPROTOS);
 				icmpv6_send(skb, ICMPV6_PARAMPROB,
@@ -229,7 +227,8 @@ discard:
 
 int ip6_input(struct sk_buff *skb)
 {
-	return NF_HOOK(PF_INET6,NF_IP6_LOCAL_IN, skb, skb->dev, NULL, ip6_input_finish);
+	return NF_HOOK(PF_INET6, NF_INET_LOCAL_IN, skb, skb->dev, NULL,
+		       ip6_input_finish);
 }
 
 int ip6_mc_input(struct sk_buff *skb)

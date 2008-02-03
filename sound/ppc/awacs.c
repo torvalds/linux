@@ -20,7 +20,6 @@
  */
 
 
-#include <sound/driver.h>
 #include <asm/io.h>
 #include <asm/nvram.h>
 #include <linux/init.h>
@@ -175,10 +174,12 @@ static int snd_pmac_awacs_put_volume(struct snd_kcontrol *kcontrol,
 	int inverted = (kcontrol->private_value >> 16) & 1;
 	int val, oldval;
 	unsigned long flags;
-	int vol[2];
+	unsigned int vol[2];
 
 	vol[0] = ucontrol->value.integer.value[0];
 	vol[1] = ucontrol->value.integer.value[1];
+	if (vol[0] > 0x0f || vol[1] > 0x0f)
+		return -EINVAL;
 	if (inverted) {
 		vol[0] = 0x0f - vol[0];
 		vol[1] = 0x0f - vol[1];
@@ -421,10 +422,14 @@ static int snd_pmac_awacs_put_tone_amp(struct snd_kcontrol *kcontrol,
 	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
 	int index = kcontrol->private_value;
 	struct awacs_amp *amp = chip->mixer_data;
+	unsigned int val;
 	snd_assert(amp, return -EINVAL);
 	snd_assert(index >= 0 && index <= 1, return -EINVAL);
-	if (ucontrol->value.integer.value[0] != amp->amp_tone[index]) {
-		amp->amp_tone[index] = ucontrol->value.integer.value[0];
+	val = ucontrol->value.integer.value[0];
+	if (val > 14)
+		return -EINVAL;
+	if (val != amp->amp_tone[index]) {
+		amp->amp_tone[index] = val;
 		awacs_amp_set_tone(amp, amp->amp_tone[0], amp->amp_tone[1]);
 		return 1;
 	}
@@ -456,9 +461,13 @@ static int snd_pmac_awacs_put_master_amp(struct snd_kcontrol *kcontrol,
 {
 	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
 	struct awacs_amp *amp = chip->mixer_data;
+	unsigned int val;
 	snd_assert(amp, return -EINVAL);
-	if (ucontrol->value.integer.value[0] != amp->amp_master) {
-		amp->amp_master = ucontrol->value.integer.value[0];
+	val = ucontrol->value.integer.value[0];
+	if (val > 99)
+		return -EINVAL;
+	if (val != amp->amp_master) {
+		amp->amp_master = val;
 		awacs_amp_set_master(amp, amp->amp_master);
 		return 1;
 	}

@@ -42,9 +42,6 @@ struct ide_machdep_calls {
 
 extern struct ide_machdep_calls ppc_ide_md;
 
-#undef	SUPPORT_SLOW_DATA_PORTS
-#define	SUPPORT_SLOW_DATA_PORTS	0
-
 #define IDE_ARCH_OBSOLETE_DEFAULTS
 
 static __inline__ int ide_default_irq(unsigned long base)

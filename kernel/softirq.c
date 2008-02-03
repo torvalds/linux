@@ -3,7 +3,9 @@
  *
  *	Copyright (C) 1992 Linus Torvalds
  *
- * Rewritten. Old one was good in 2.2, but in 2.3 it was immoral. --ANK (990903)
+ *	Distribute under GPLv2.
+ *
+ *	Rewritten. Old one was good in 2.2, but in 2.3 it was immoral. --ANK (990903)
  */
 
 #include <linux/module.h>
@@ -278,9 +280,14 @@ asmlinkage void do_softirq(void)
  */
 void irq_enter(void)
 {
+#ifdef CONFIG_NO_HZ
+	int cpu = smp_processor_id();
+	if (idle_cpu(cpu) && !in_interrupt())
+		tick_nohz_stop_idle(cpu);
+#endif
 	__irq_enter();
 #ifdef CONFIG_NO_HZ
-	if (idle_cpu(smp_processor_id()))
+	if (idle_cpu(cpu))
 		tick_nohz_update_jiffies();
 #endif
 }

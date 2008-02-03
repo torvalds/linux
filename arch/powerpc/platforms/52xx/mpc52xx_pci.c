@@ -99,6 +99,12 @@ struct mpc52xx_pci {
 	u8	reserved6[4];	/* PCI + 0xFC */
 };
 
+/* MPC5200 device tree match tables */
+const struct of_device_id mpc52xx_pci_ids[] __initdata = {
+	{ .type = "pci", .compatible = "fsl,mpc5200-pci", },
+	{ .type = "pci", .compatible = "mpc5200-pci", },
+	{}
+};
 
 /* ======================================================================== */
 /* PCI configuration acess                                                  */
@@ -363,7 +369,7 @@ mpc52xx_add_bridge(struct device_node *node)
 
 	pr_debug("Adding MPC52xx PCI host bridge %s\n", node->full_name);
 
-	pci_assign_all_buses = 1;
+	ppc_pci_flags |= PPC_PCI_REASSIGN_ALL_BUS;
 
 	if (of_address_to_resource(node, 0, &rsrc) != 0) {
 		printk(KERN_ERR "Can't get %s resources\n", node->full_name);
@@ -405,4 +411,16 @@ mpc52xx_add_bridge(struct device_node *node)
 	mpc52xx_pci_setup(hose, pci_regs);
 
 	return 0;
+}
+
+void __init mpc52xx_setup_pci(void)
+{
+	struct device_node *pci;
+
+	pci = of_find_matching_node(NULL, mpc52xx_pci_ids);
+	if (!pci)
+		return;
+
+	mpc52xx_add_bridge(pci);
+	of_node_put(pci);
 }

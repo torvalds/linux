@@ -4,16 +4,18 @@
 #ifdef CONFIG_XEN
 
 #include <linux/elfnote.h>
+#include <linux/init.h>
 #include <asm/boot.h>
 #include <xen/interface/elfnote.h>
 
-.pushsection .init.text
+	__INIT
 ENTRY(startup_xen)
 	movl %esi,xen_start_info
 	cld
 	movl $(init_thread_union+THREAD_SIZE),%esp
 	jmp xen_start_kernel
-.popsection
+
+	__FINIT
 
 .pushsection .bss.page_aligned
 	.align PAGE_SIZE_asm

@@ -222,9 +222,6 @@ static int mpc85xx_cds_8259_attach(void)
 	struct device_node *cascade_node = NULL;
 	int cascade_irq;
 
-	if (!machine_is(mpc85xx_cds))
-		return 0;
-
 	/* Initialize the i8259 controller */
 	for_each_node_by_type(np, "interrupt-controller")
 		if (of_device_is_compatible(np, "chrp,iic")) {
@@ -262,8 +259,7 @@ static int mpc85xx_cds_8259_attach(void)
 
 	return 0;
 }
-
-device_initcall(mpc85xx_cds_8259_attach);
+machine_device_initcall(mpc85xx_cds, mpc85xx_cds_8259_attach);
 
 #endif /* CONFIG_PPC_I8259 */
 

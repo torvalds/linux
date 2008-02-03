@@ -25,7 +25,6 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <asm/byteorder.h>
-#include <asm/scatterlist.h>
 #include <linux/crypto.h>
 #include <linux/types.h>
 

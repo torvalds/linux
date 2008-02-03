@@ -312,7 +312,7 @@ static int osiris_pm_resume(struct sys_device *sd)
 #endif
 
 static struct sysdev_class osiris_pm_sysclass = {
-	set_kset_name("mach-osiris"),
+	.name		= "mach-osiris",
 	.suspend	= osiris_pm_suspend,
 	.resume		= osiris_pm_resume,
 };

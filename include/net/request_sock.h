@@ -124,23 +124,7 @@ struct request_sock_queue {
 extern int reqsk_queue_alloc(struct request_sock_queue *queue,
 			     unsigned int nr_table_entries);
 
-static inline struct listen_sock *reqsk_queue_yank_listen_sk(struct request_sock_queue *queue)
-{
-	struct listen_sock *lopt;
-
-	write_lock_bh(&queue->syn_wait_lock);
-	lopt = queue->listen_opt;
-	queue->listen_opt = NULL;
-	write_unlock_bh(&queue->syn_wait_lock);
-
-	return lopt;
-}
-
-static inline void __reqsk_queue_destroy(struct request_sock_queue *queue)
-{
-	kfree(reqsk_queue_yank_listen_sk(queue));
-}
-
+extern void __reqsk_queue_destroy(struct request_sock_queue *queue);
 extern void reqsk_queue_destroy(struct request_sock_queue *queue);
 
 static inline struct request_sock *

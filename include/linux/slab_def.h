@@ -95,7 +95,4 @@ found:
 
 #endif	/* CONFIG_NUMA */
 
-extern const struct seq_operations slabinfo_op;
-ssize_t slabinfo_write(struct file *, const char __user *, size_t, loff_t *);
-
 #endif	/* _LINUX_SLAB_DEF_H */

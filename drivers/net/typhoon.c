@@ -813,8 +813,7 @@ typhoon_start_tx(struct sk_buff *skb, struct net_device *dev)
 	first_txd->flags = TYPHOON_TX_DESC | TYPHOON_DESC_VALID;
 	first_txd->numDesc = 0;
 	first_txd->len = 0;
-	first_txd->addr = (u64)((unsigned long) skb) & 0xffffffff;
-	first_txd->addrHi = (u64)((unsigned long) skb) >> 32;
+	first_txd->tx_addr = (u64)((unsigned long) skb);
 	first_txd->processFlags = 0;
 
 	if(skb->ip_summed == CHECKSUM_PARTIAL) {
@@ -850,8 +849,8 @@ typhoon_start_tx(struct sk_buff *skb, struct net_device *dev)
 				       PCI_DMA_TODEVICE);
 		txd->flags = TYPHOON_FRAG_DESC | TYPHOON_DESC_VALID;
 		txd->len = cpu_to_le16(skb->len);
-		txd->addr = cpu_to_le32(skb_dma);
-		txd->addrHi = 0;
+		txd->frag.addr = cpu_to_le32(skb_dma);
+		txd->frag.addrHi = 0;
 		first_txd->numDesc++;
 	} else {
 		int i, len;
@@ -861,8 +860,8 @@ typhoon_start_tx(struct sk_buff *skb, struct net_device *dev)
 				         PCI_DMA_TODEVICE);
 		txd->flags = TYPHOON_FRAG_DESC | TYPHOON_DESC_VALID;
 		txd->len = cpu_to_le16(len);
-		txd->addr = cpu_to_le32(skb_dma);
-		txd->addrHi = 0;
+		txd->frag.addr = cpu_to_le32(skb_dma);
+		txd->frag.addrHi = 0;
 		first_txd->numDesc++;
 
 		for(i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
@@ -880,8 +879,8 @@ typhoon_start_tx(struct sk_buff *skb, struct net_device *dev)
 					 PCI_DMA_TODEVICE);
 			txd->flags = TYPHOON_FRAG_DESC | TYPHOON_DESC_VALID;
 			txd->len = cpu_to_le16(len);
-			txd->addr = cpu_to_le32(skb_dma);
-			txd->addrHi = 0;
+			txd->frag.addr = cpu_to_le32(skb_dma);
+			txd->frag.addrHi = 0;
 			first_txd->numDesc++;
 		}
 	}
@@ -977,12 +976,12 @@ typhoon_do_get_stats(struct typhoon *tp)
 	 * ethtool_ops->get_{strings,stats}()
 	 */
 	stats->tx_packets = le32_to_cpu(s->txPackets);
-	stats->tx_bytes = le32_to_cpu(s->txBytes);
+	stats->tx_bytes = le64_to_cpu(s->txBytes);
 	stats->tx_errors = le32_to_cpu(s->txCarrierLost);
 	stats->tx_carrier_errors = le32_to_cpu(s->txCarrierLost);
 	stats->collisions = le32_to_cpu(s->txMultipleCollisions);
 	stats->rx_packets = le32_to_cpu(s->rxPacketsGood);
-	stats->rx_bytes = le32_to_cpu(s->rxBytesGood);
+	stats->rx_bytes = le64_to_cpu(s->rxBytesGood);
 	stats->rx_fifo_errors = le32_to_cpu(s->rxFifoOverruns);
 	stats->rx_errors = le32_to_cpu(s->rxFifoOverruns) +
 			le32_to_cpu(s->BadSSD) + le32_to_cpu(s->rxCrcErrors);
@@ -1056,7 +1055,7 @@ typhoon_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 		if(typhoon_issue_command(tp, 1, &xp_cmd, 3, xp_resp) < 0) {
 			strcpy(info->fw_version, "Unknown runtime");
 		} else {
-			u32 sleep_ver = xp_resp[0].parm2;
+			u32 sleep_ver = le32_to_cpu(xp_resp[0].parm2);
 			snprintf(info->fw_version, 32, "%02x.%03x.%03x",
 				 sleep_ver >> 24, (sleep_ver >> 12) & 0xfff,
 				 sleep_ver & 0xfff);
@@ -1157,7 +1156,7 @@ typhoon_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	}
 
 	INIT_COMMAND_NO_RESPONSE(&xp_cmd, TYPHOON_CMD_XCVR_SELECT);
-	xp_cmd.parm1 = cpu_to_le16(xcvr);
+	xp_cmd.parm1 = xcvr;
 	err = typhoon_issue_command(tp, 1, &xp_cmd, 0, NULL);
 	if(err < 0)
 		goto out;
@@ -1320,7 +1319,7 @@ typhoon_init_interface(struct typhoon *tp)
 	tp->txLoRing.writeRegister = TYPHOON_REG_TX_LO_READY;
 	tp->txHiRing.writeRegister = TYPHOON_REG_TX_HI_READY;
 
-	tp->txlo_dma_addr = iface->txLoAddr;
+	tp->txlo_dma_addr = le32_to_cpu(iface->txLoAddr);
 	tp->card_state = Sleeping;
 	smp_wmb();
 
@@ -1358,7 +1357,7 @@ typhoon_download_firmware(struct typhoon *tp)
 	u8 *image_data;
 	void *dpage;
 	dma_addr_t dpage_dma;
-	unsigned int csum;
+	__sum16 csum;
 	u32 irqEnabled;
 	u32 irqMasked;
 	u32 numSections;
@@ -1450,13 +1449,13 @@ typhoon_download_firmware(struct typhoon *tp)
 			 * summing. Fortunately, due to the properties of
 			 * the checksum, we can do this once, at the end.
 			 */
-			csum = csum_partial_copy_nocheck(image_data, dpage,
-							 len, 0);
-			csum = csum_fold(csum);
-			csum = le16_to_cpu(csum);
+			csum = csum_fold(csum_partial_copy_nocheck(image_data,
+								  dpage, len,
+								  0));
 
 			iowrite32(len, ioaddr + TYPHOON_REG_BOOT_LENGTH);
-			iowrite32(csum, ioaddr + TYPHOON_REG_BOOT_CHECKSUM);
+			iowrite32(le16_to_cpu((__force __le16)csum),
+					ioaddr + TYPHOON_REG_BOOT_CHECKSUM);
 			iowrite32(load_addr,
 					ioaddr + TYPHOON_REG_BOOT_DEST_ADDR);
 			iowrite32(0, ioaddr + TYPHOON_REG_BOOT_DATA_HI);
@@ -1551,13 +1550,13 @@ typhoon_clean_tx(struct typhoon *tp, struct transmit_ring *txRing,
 		if(type == TYPHOON_TX_DESC) {
 			/* This tx_desc describes a packet.
 			 */
-			unsigned long ptr = tx->addr | ((u64)tx->addrHi << 32);
+			unsigned long ptr = tx->tx_addr;
 			struct sk_buff *skb = (struct sk_buff *) ptr;
 			dev_kfree_skb_irq(skb);
 		} else if(type == TYPHOON_FRAG_DESC) {
 			/* This tx_desc describes a memory mapping. Free it.
 			 */
-			skb_dma = (dma_addr_t) le32_to_cpu(tx->addr);
+			skb_dma = (dma_addr_t) le32_to_cpu(tx->frag.addr);
 			dma_len = le16_to_cpu(tx->len);
 			pci_unmap_single(tp->pdev, skb_dma, dma_len,
 				       PCI_DMA_TODEVICE);
@@ -1596,7 +1595,7 @@ typhoon_recycle_rx_skb(struct typhoon *tp, u32 idx)
 	struct rx_free *r;
 
 	if((ring->lastWrite + sizeof(*r)) % (RXFREE_ENTRIES * sizeof(*r)) ==
-				indexes->rxBuffCleared) {
+				le32_to_cpu(indexes->rxBuffCleared)) {
 		/* no room in ring, just drop the skb
 		 */
 		dev_kfree_skb_any(rxb->skb);
@@ -1627,7 +1626,7 @@ typhoon_alloc_rx_skb(struct typhoon *tp, u32 idx)
 	rxb->skb = NULL;
 
 	if((ring->lastWrite + sizeof(*r)) % (RXFREE_ENTRIES * sizeof(*r)) ==
-				indexes->rxBuffCleared)
+				le32_to_cpu(indexes->rxBuffCleared))
 		return -ENOMEM;
 
 	skb = dev_alloc_skb(PKT_BUF_SZ);

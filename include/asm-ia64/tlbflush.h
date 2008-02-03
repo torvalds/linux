@@ -92,6 +92,10 @@ void smp_local_flush_tlb(void);
 #define smp_local_flush_tlb()
 #endif
 
-#define flush_tlb_kernel_range(start, end)	flush_tlb_all()	/* XXX fix me */
+static inline void flush_tlb_kernel_range(unsigned long start,
+					  unsigned long end)
+{
+	flush_tlb_all();	/* XXX fix me */
+}
 
 #endif /* _ASM_IA64_TLBFLUSH_H */

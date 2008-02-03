@@ -34,85 +34,11 @@ struct sg_io_hdr;
 #define BLKDEV_MIN_RQ	4
 #define BLKDEV_MAX_RQ	128	/* Default maximum */
 
-/*
- * This is the per-process anticipatory I/O scheduler state.
- */
-struct as_io_context {
-	spinlock_t lock;
-
-	void (*dtor)(struct as_io_context *aic); /* destructor */
-	void (*exit)(struct as_io_context *aic); /* called on task exit */
-
-	unsigned long state;
-	atomic_t nr_queued; /* queued reads & sync writes */
-	atomic_t nr_dispatched; /* number of requests gone to the drivers */
-
-	/* IO History tracking */
-	/* Thinktime */
-	unsigned long last_end_request;
-	unsigned long ttime_total;
-	unsigned long ttime_samples;
-	unsigned long ttime_mean;
-	/* Layout pattern */
-	unsigned int seek_samples;
-	sector_t last_request_pos;
-	u64 seek_total;
-	sector_t seek_mean;
-};
-
-struct cfq_queue;
-struct cfq_io_context {
-	struct rb_node rb_node;
-	void *key;
-
-	struct cfq_queue *cfqq[2];
-
-	struct io_context *ioc;
-
-	unsigned long last_end_request;
-	sector_t last_request_pos;
-
-	unsigned long ttime_total;
-	unsigned long ttime_samples;
-	unsigned long ttime_mean;
-
-	unsigned int seek_samples;
-	u64 seek_total;
-	sector_t seek_mean;
-
-	struct list_head queue_list;
-
-	void (*dtor)(struct io_context *); /* destructor */
-	void (*exit)(struct io_context *); /* called on task exit */
-};
-
-/*
- * This is the per-process I/O subsystem state.  It is refcounted and
- * kmalloc'ed. Currently all fields are modified in process io context
- * (apart from the atomic refcount), so require no locking.
- */
-struct io_context {
-	atomic_t refcount;
-	struct task_struct *task;
-
-	unsigned int ioprio_changed;
-
-	/*
-	 * For request batching
-	 */
-	unsigned long last_waited; /* Time last woken after wait for request */
-	int nr_batch_requests;     /* Number of requests left in the batch */
-
-	struct as_io_context *aic;
-	struct rb_root cic_root;
-	void *ioc_data;
-};
-
-void put_io_context(struct io_context *ioc);
+int put_io_context(struct io_context *ioc);
 void exit_io_context(void);
 struct io_context *get_io_context(gfp_t gfp_flags, int node);
+struct io_context *alloc_io_context(gfp_t gfp_flags, int node);
 void copy_io_context(struct io_context **pdst, struct io_context **psrc);
-void swap_io_context(struct io_context **ioc1, struct io_context **ioc2);
 
 struct request;
 typedef void (rq_end_io_fn)(struct request *, int);
@@ -143,8 +69,6 @@ enum rq_cmd_type_bits {
 	 * use REQ_TYPE_SPECIAL and use rq->cmd[0] with the range of driver
 	 * private REQ_LB opcodes to differentiate what type of request this is
 	 */
-	REQ_TYPE_ATA_CMD,
-	REQ_TYPE_ATA_TASK,
 	REQ_TYPE_ATA_TASKFILE,
 	REQ_TYPE_ATA_PC,
 };
@@ -341,7 +265,6 @@ enum blk_queue_state {
 struct blk_queue_tag {
 	struct request **tag_index;	/* map of busy tags */
 	unsigned long *tag_map;		/* bit map of free/busy tags */
-	struct list_head busy_list;	/* fifo list of busy tags */
 	int busy;			/* current depth */
 	int max_depth;			/* what we will send to device */
 	int real_max_depth;		/* what the array can hold */
@@ -432,9 +355,12 @@ struct request_queue
 	unsigned int		max_segment_size;
 
 	unsigned long		seg_boundary_mask;
+	void			*dma_drain_buffer;
+	unsigned int		dma_drain_size;
 	unsigned int		dma_alignment;
 
 	struct blk_queue_tag	*queue_tags;
+	struct list_head	tag_busy_list;
 
 	unsigned int		nr_sorted;
 	unsigned int		in_flight;
@@ -539,6 +465,8 @@ enum {
 #define blk_fua_rq(rq)		((rq)->cmd_flags & REQ_FUA)
 #define blk_bidi_rq(rq)		((rq)->next_rq != NULL)
 #define blk_empty_barrier(rq)	(blk_barrier_rq(rq) && blk_fs_request(rq) && !(rq)->hard_nr_sectors)
+/* rq->queuelist of dequeued request must be list_empty() */
+#define blk_queued_rq(rq)	(!list_empty(&(rq)->queuelist))
 
 #define list_entry_rq(ptr)	list_entry((ptr), struct request, queuelist)
 
@@ -697,6 +625,7 @@ extern int blk_execute_rq(struct request_queue *, struct gendisk *,
 extern void blk_execute_rq_nowait(struct request_queue *, struct gendisk *,
 				  struct request *, int, rq_end_io_fn *);
 extern int blk_verify_command(unsigned char *, int);
+extern void blk_unplug(struct request_queue *q);
 
 static inline struct request_queue *bdev_get_queue(struct block_device *bdev)
 {
@@ -717,29 +646,35 @@ static inline void blk_run_address_space(struct address_space *mapping)
 }
 
 /*
- * end_request() and friends. Must be called with the request queue spinlock
- * acquired. All functions called within end_request() _must_be_ atomic.
+ * blk_end_request() and friends.
+ * __blk_end_request() and end_request() must be called with
+ * the request queue spinlock acquired.
  *
  * Several drivers define their own end_request and call
- * end_that_request_first() and end_that_request_last()
- * for parts of the original function. This prevents
- * code duplication in drivers.
+ * blk_end_request() for parts of the original function.
+ * This prevents code duplication in drivers.
  */
-extern int end_that_request_first(struct request *, int, int);
-extern int end_that_request_chunk(struct request *, int, int);
-extern void end_that_request_last(struct request *, int);
+extern int blk_end_request(struct request *rq, int error,
+				unsigned int nr_bytes);
+extern int __blk_end_request(struct request *rq, int error,
+				unsigned int nr_bytes);
+extern int blk_end_bidi_request(struct request *rq, int error,
+				unsigned int nr_bytes, unsigned int bidi_bytes);
 extern void end_request(struct request *, int);
 extern void end_queued_request(struct request *, int);
 extern void end_dequeued_request(struct request *, int);
+extern int blk_end_request_callback(struct request *rq, int error,
+				unsigned int nr_bytes,
+				int (drv_callback)(struct request *));
 extern void blk_complete_request(struct request *);
 
 /*
- * end_that_request_first/chunk() takes an uptodate argument. we account
- * any value <= as an io error. 0 means -EIO for compatability reasons,
- * any other < 0 value is the direct error type. An uptodate value of
- * 1 indicates successful io completion
+ * blk_end_request() takes bytes instead of sectors as a complete size.
+ * blk_rq_bytes() returns bytes left to complete in the entire request.
+ * blk_rq_cur_bytes() returns bytes left to complete in the current segment.
  */
-#define end_io_error(uptodate)	(unlikely((uptodate) <= 0))
+extern unsigned int blk_rq_bytes(struct request *rq);
+extern unsigned int blk_rq_cur_bytes(struct request *rq);
 
 static inline void blkdev_dequeue_request(struct request *req)
 {
@@ -761,10 +696,13 @@ extern void blk_queue_max_hw_segments(struct request_queue *, unsigned short);
 extern void blk_queue_max_segment_size(struct request_queue *, unsigned int);
 extern void blk_queue_hardsect_size(struct request_queue *, unsigned short);
 extern void blk_queue_stack_limits(struct request_queue *t, struct request_queue *b);
+extern int blk_queue_dma_drain(struct request_queue *q, void *buf,
+			       unsigned int size);
 extern void blk_queue_segment_boundary(struct request_queue *, unsigned long);
 extern void blk_queue_prep_rq(struct request_queue *, prep_rq_fn *pfn);
 extern void blk_queue_merge_bvec(struct request_queue *, merge_bvec_fn *);
 extern void blk_queue_dma_alignment(struct request_queue *, int);
+extern void blk_queue_update_dma_alignment(struct request_queue *, int);
 extern void blk_queue_softirq_done(struct request_queue *, softirq_done_fn *);
 extern struct backing_dev_info *blk_get_backing_dev_info(struct block_device *bdev);
 extern int blk_queue_ordered(struct request_queue *, unsigned, prepare_flush_fn *);
@@ -836,12 +774,7 @@ static inline int bdev_hardsect_size(struct block_device *bdev)
 
 static inline int queue_dma_alignment(struct request_queue *q)
 {
-	int retval = 511;
-
-	if (q && q->dma_alignment)
-		retval = q->dma_alignment;
-
-	return retval;
+	return q ? q->dma_alignment : 511;
 }
 
 /* assumes size > 256 */
@@ -893,6 +826,13 @@ static inline long nr_blockdev_pages(void)
 static inline void exit_io_context(void)
 {
 }
+
+struct io_context;
+static inline int put_io_context(struct io_context *ioc)
+{
+	return 1;
+}
+
 
 #endif /* CONFIG_BLOCK */
 

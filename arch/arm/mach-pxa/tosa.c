@@ -157,15 +157,10 @@ static void tosa_udc_command(int cmd)
 	}
 }
 
-static int tosa_udc_is_connected(void)
-{
-	return ((GPLR(TOSA_GPIO_USB_IN) & GPIO_bit(TOSA_GPIO_USB_IN)) == 0);
-}
-
-
 static struct pxa2xx_udc_mach_info udc_info __initdata = {
 	.udc_command		= tosa_udc_command,
-	.udc_is_connected	= tosa_udc_is_connected,
+	.gpio_vbus		= TOSA_GPIO_USB_IN,
+	.gpio_vbus_inverted	= 1,
 };
 
 /*
@@ -184,16 +179,13 @@ static int tosa_mci_init(struct device *dev, irq_handler_t tosa_detect_int, void
 
 	tosa_mci_platform_data.detect_delay = msecs_to_jiffies(250);
 
-	err = request_irq(TOSA_IRQ_GPIO_nSD_DETECT, tosa_detect_int, IRQF_DISABLED,
+	err = request_irq(TOSA_IRQ_GPIO_nSD_DETECT, tosa_detect_int,
+			  IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 				"MMC/SD card detect", data);
-	if (err) {
+	if (err)
 		printk(KERN_ERR "tosa_mci_init: MMC/SD: can't request MMC card detect IRQ\n");
-		return -1;
-	}
 
-	set_irq_type(TOSA_IRQ_GPIO_nSD_DETECT, IRQT_BOTHEDGE);
-
-	return 0;
+	return err;
 }
 
 static void tosa_mci_setpower(struct device *dev, unsigned int vdd)

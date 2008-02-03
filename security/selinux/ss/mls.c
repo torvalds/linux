@@ -157,48 +157,54 @@ void mls_sid_to_context(struct context *context,
 	return;
 }
 
+int mls_level_isvalid(struct policydb *p, struct mls_level *l)
+{
+	struct level_datum *levdatum;
+	struct ebitmap_node *node;
+	int i;
+
+	if (!l->sens || l->sens > p->p_levels.nprim)
+		return 0;
+	levdatum = hashtab_search(p->p_levels.table,
+				  p->p_sens_val_to_name[l->sens - 1]);
+	if (!levdatum)
+		return 0;
+
+	ebitmap_for_each_positive_bit(&l->cat, node, i) {
+		if (i > p->p_cats.nprim)
+			return 0;
+		if (!ebitmap_get_bit(&levdatum->level->cat, i)) {
+			/*
+			 * Category may not be associated with
+			 * sensitivity.
+			 */
+			return 0;
+		}
+	}
+
+	return 1;
+}
+
+int mls_range_isvalid(struct policydb *p, struct mls_range *r)
+{
+	return (mls_level_isvalid(p, &r->level[0]) &&
+		mls_level_isvalid(p, &r->level[1]) &&
+		mls_level_dom(&r->level[1], &r->level[0]));
+}
+
 /*
  * Return 1 if the MLS fields in the security context
  * structure `c' are valid.  Return 0 otherwise.
  */
 int mls_context_isvalid(struct policydb *p, struct context *c)
 {
-	struct level_datum *levdatum;
 	struct user_datum *usrdatum;
-	struct ebitmap_node *node;
-	int i, l;
 
 	if (!selinux_mls_enabled)
 		return 1;
 
-	/*
-	 * MLS range validity checks: high must dominate low, low level must
-	 * be valid (category set <-> sensitivity check), and high level must
-	 * be valid (category set <-> sensitivity check)
-	 */
-	if (!mls_level_dom(&c->range.level[1], &c->range.level[0]))
-		/* High does not dominate low. */
+	if (!mls_range_isvalid(p, &c->range))
 		return 0;
-
-	for (l = 0; l < 2; l++) {
-		if (!c->range.level[l].sens || c->range.level[l].sens > p->p_levels.nprim)
-			return 0;
-		levdatum = hashtab_search(p->p_levels.table,
-			p->p_sens_val_to_name[c->range.level[l].sens - 1]);
-		if (!levdatum)
-			return 0;
-
-		ebitmap_for_each_positive_bit(&c->range.level[l].cat, node, i) {
-			if (i > p->p_cats.nprim)
-				return 0;
-			if (!ebitmap_get_bit(&levdatum->level->cat, i))
-				/*
-				 * Category may not be associated with
-				 * sensitivity in low level.
-				 */
-				return 0;
-		}
-	}
 
 	if (c->role == OBJECT_R_VAL)
 		return 1;
@@ -531,15 +537,8 @@ int mls_compute_sid(struct context *scontext,
 			/* Use the process effective MLS attributes. */
 			return mls_context_cpy_low(newcontext, scontext);
 	case AVTAB_MEMBER:
-		/* Only polyinstantiate the MLS attributes if
-		   the type is being polyinstantiated */
-		if (newcontext->type != tcontext->type) {
-			/* Use the process effective MLS attributes. */
-			return mls_context_cpy_low(newcontext, scontext);
-		} else {
-			/* Use the related object MLS attributes. */
-			return mls_context_cpy(newcontext, tcontext);
-		}
+		/* Use the process effective MLS attributes. */
+		return mls_context_cpy_low(newcontext, scontext);
 	default:
 		return -EINVAL;
 	}
@@ -563,7 +562,7 @@ void mls_export_netlbl_lvl(struct context *context,
 	if (!selinux_mls_enabled)
 		return;
 
-	secattr->mls_lvl = context->range.level[0].sens - 1;
+	secattr->attr.mls.lvl = context->range.level[0].sens - 1;
 	secattr->flags |= NETLBL_SECATTR_MLS_LVL;
 }
 
@@ -583,7 +582,7 @@ void mls_import_netlbl_lvl(struct context *context,
 	if (!selinux_mls_enabled)
 		return;
 
-	context->range.level[0].sens = secattr->mls_lvl + 1;
+	context->range.level[0].sens = secattr->attr.mls.lvl + 1;
 	context->range.level[1].sens = context->range.level[0].sens;
 }
 
@@ -606,8 +605,8 @@ int mls_export_netlbl_cat(struct context *context,
 		return 0;
 
 	rc = ebitmap_netlbl_export(&context->range.level[0].cat,
-				   &secattr->mls_cat);
-	if (rc == 0 && secattr->mls_cat != NULL)
+				   &secattr->attr.mls.cat);
+	if (rc == 0 && secattr->attr.mls.cat != NULL)
 		secattr->flags |= NETLBL_SECATTR_MLS_CAT;
 
 	return rc;
@@ -634,7 +633,7 @@ int mls_import_netlbl_cat(struct context *context,
 		return 0;
 
 	rc = ebitmap_netlbl_import(&context->range.level[0].cat,
-				   secattr->mls_cat);
+				   secattr->attr.mls.cat);
 	if (rc != 0)
 		goto import_netlbl_cat_failure;
 

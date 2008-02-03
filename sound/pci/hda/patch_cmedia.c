@@ -21,7 +21,6 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -186,7 +185,6 @@ static struct snd_kcontrol_new cmi9880_basic_mixer[] = {
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		/* The multiple "Capture Source" controls confuse alsamixer
 		 * So call somewhat different..
-		 * FIXME: the controls appear in the "playback" view!
 		 */
 		/* .name = "Capture Source", */
 		.name = "Input Source",

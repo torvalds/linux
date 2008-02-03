@@ -112,9 +112,9 @@ static int isp1301_detach(struct i2c_client *client);
 static int isp1301_command(struct i2c_client *client, unsigned int cmd,
 			   void *arg);
 
-static unsigned short normal_i2c[] =
+static const unsigned short normal_i2c[] =
     { ISP1301_I2C_ADDR, ISP1301_I2C_ADDR + 1, I2C_CLIENT_END };
-static unsigned short dummy_i2c_addrlist[] = { I2C_CLIENT_END };
+static const unsigned short dummy_i2c_addrlist[] = { I2C_CLIENT_END };
 
 static struct i2c_client_address_data addr_data = {
 	.normal_i2c = normal_i2c,
@@ -123,7 +123,6 @@ static struct i2c_client_address_data addr_data = {
 };
 
 struct i2c_driver isp1301_driver = {
-	.id = I2C_DRIVERID_I2CDEV,	/* Fake Id */
 	.class = I2C_CLASS_HWMON,
 	.attach_adapter = isp1301_probe,
 	.detach_client = isp1301_detach,

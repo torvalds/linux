@@ -86,6 +86,14 @@ UNUSUAL_DEV(  0x03f0, 0x0307, 0x0001, 0x0001,
 		US_SC_8070, US_PR_USBAT, init_usbat_cd, 0),
 #endif
 
+/* Reported by Grant Grundler <grundler@parisc-linux.org>
+ * HP r707 camera in "Disk" mode with 2.00.23 or 2.00.24 firmware.
+ */
+UNUSUAL_DEV(  0x03f0, 0x4002, 0x0001, 0x0001,
+		"HP",
+		"PhotoSmart R707",
+		US_SC_DEVICE, US_PR_DEVICE, NULL, US_FL_FIX_CAPACITY),
+
 /* Reported by Sebastian Kapfer <sebastian_kapfer@gmx.net>
  * and Olaf Hering <olh@suse.de> (different bcd's, same vendor/product)
  * for USB floppies that need the SINGLE_LUN enforcement.
@@ -342,11 +350,11 @@ UNUSUAL_DEV(  0x04b0, 0x040d, 0x0100, 0x0100,
 		US_FL_FIX_CAPACITY),
 
 /* Reported by Graber and Mike Pagano <mpagano-kernel@mpagano.com> */
-UNUSUAL_DEV(  0x04b0, 0x040f, 0x0200, 0x0200,
-       "NIKON",
-       "NIKON DSC D200",
-       US_SC_DEVICE, US_PR_DEVICE, NULL,
-       US_FL_FIX_CAPACITY),
+UNUSUAL_DEV(  0x04b0, 0x040f, 0x0100, 0x0200,
+		"NIKON",
+		"NIKON DSC D200",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY),
 
 /* Reported by Emil Larsson <emil@swip.net> */
 UNUSUAL_DEV(  0x04b0, 0x0411, 0x0100, 0x0101,
@@ -375,6 +383,13 @@ UNUSUAL_DEV(  0x04b0, 0x0417, 0x0100, 0x0100,
 		"NIKON DSC D40X",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY),
+
+/* Reported by Doug Maxey (dwm@austin.ibm.com) */
+UNUSUAL_DEV(  0x04b3, 0x4001, 0x0110, 0x0110,
+		"IBM",
+		"IBM RSA2",
+		US_SC_DEVICE, US_PR_CB, NULL,
+		US_FL_MAX_SECTORS_MIN),
 
 /* BENQ DC5330
  * Reported by Manuel Fombuena <mfombuena@ya.com> and
@@ -730,6 +745,13 @@ UNUSUAL_DEV(  0x0584, 0x0008, 0x0102, 0x0102,
 		"DPC-R1 (Alauda)",
  		US_SC_SCSI, US_PR_ALAUDA, init_alauda, 0 ),
 #endif
+
+/* Reported by RTE <raszilki@yandex.ru> */
+UNUSUAL_DEV(  0x058f, 0x6387, 0x0141, 0x0141,
+		"JetFlash",
+		"TS1GJF2A/120",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_MAX_SECTORS_64 ),
 
 /* Fabrizio Fellini <fello@libero.it> */
 UNUSUAL_DEV(  0x0595, 0x4343, 0x0000, 0x2210,
@@ -1250,14 +1272,6 @@ UNUSUAL_DEV( 0x0ace, 0x20ff, 0x0101, 0x0101,
 		"WL-117 USB-WLAN Install",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_DEVICE ),
-
-/* SanDisk that has a second LUN for a driver ISO, reported by
- * Ben Collins <bcollins@ubuntu.com> */
-UNUSUAL_DEV( 0x0781, 0x5406, 0x0000, 0xffff,
-		"SanDisk",
-		"U3 Cruzer Micro driver ISO",
-		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_SINGLE_LUN ),
 
 #ifdef CONFIG_USB_STORAGE_ISD200
 UNUSUAL_DEV(  0x0bf6, 0xa001, 0x0100, 0x0110,

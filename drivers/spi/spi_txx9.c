@@ -24,6 +24,7 @@
 #include <linux/spi/spi.h>
 #include <linux/err.h>
 #include <linux/clk.h>
+#include <linux/io.h>
 #include <asm/gpio.h>
 
 
@@ -74,7 +75,6 @@ struct txx9spi {
 	struct list_head queue;
 	wait_queue_head_t waitq;
 	void __iomem *membase;
-	int irq;
 	int baseclk;
 	struct clk *clk;
 	u32 max_speed_hz, min_speed_hz;
@@ -350,12 +350,12 @@ static int __init txx9spi_probe(struct platform_device *dev)
 	struct resource *res;
 	int ret = -ENODEV;
 	u32 mcr;
+	int irq;
 
 	master = spi_alloc_master(&dev->dev, sizeof(*c));
 	if (!master)
 		return ret;
 	c = spi_master_get_devdata(master);
-	c->irq = -1;
 	platform_set_drvdata(dev, master);
 
 	INIT_WORK(&c->work, txx9spi_work);
@@ -381,32 +381,36 @@ static int __init txx9spi_probe(struct platform_device *dev)
 
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (!res)
-		goto exit;
-	c->membase = ioremap(res->start, res->end - res->start + 1);
+		goto exit_busy;
+	if (!devm_request_mem_region(&dev->dev,
+				     res->start, res->end - res->start + 1,
+				     "spi_txx9"))
+		goto exit_busy;
+	c->membase = devm_ioremap(&dev->dev,
+				  res->start, res->end - res->start + 1);
 	if (!c->membase)
-		goto exit;
+		goto exit_busy;
 
 	/* enter config mode */
 	mcr = txx9spi_rd(c, TXx9_SPMCR);
 	mcr &= ~(TXx9_SPMCR_OPMODE | TXx9_SPMCR_SPSTP | TXx9_SPMCR_BCLR);
 	txx9spi_wr(c, mcr | TXx9_SPMCR_CONFIG | TXx9_SPMCR_BCLR, TXx9_SPMCR);
 
-	c->irq = platform_get_irq(dev, 0);
-	if (c->irq < 0)
+	irq = platform_get_irq(dev, 0);
+	if (irq < 0)
+		goto exit_busy;
+	ret = devm_request_irq(&dev->dev, irq, txx9spi_interrupt, 0,
+			       "spi_txx9", c);
+	if (ret)
 		goto exit;
-	ret = request_irq(c->irq, txx9spi_interrupt, 0, dev->name, c);
-	if (ret) {
-		c->irq = -1;
-		goto exit;
-	}
 
 	c->workqueue = create_singlethread_workqueue(master->dev.parent->bus_id);
 	if (!c->workqueue)
-		goto exit;
+		goto exit_busy;
 	c->last_chipselect = -1;
 
 	dev_info(&dev->dev, "at %#llx, irq %d, %dMHz\n",
-		 (unsigned long long)res->start, c->irq,
+		 (unsigned long long)res->start, irq,
 		 (c->baseclk + 500000) / 1000000);
 
 	master->bus_num = dev->id;
@@ -418,13 +422,11 @@ static int __init txx9spi_probe(struct platform_device *dev)
 	if (ret)
 		goto exit;
 	return 0;
+exit_busy:
+	ret = -EBUSY;
 exit:
 	if (c->workqueue)
 		destroy_workqueue(c->workqueue);
-	if (c->irq >= 0)
-		free_irq(c->irq, c);
-	if (c->membase)
-		iounmap(c->membase);
 	if (c->clk) {
 		clk_disable(c->clk);
 		clk_put(c->clk);
@@ -442,8 +444,6 @@ static int __exit txx9spi_remove(struct platform_device *dev)
 	spi_unregister_master(master);
 	platform_set_drvdata(dev, NULL);
 	destroy_workqueue(c->workqueue);
-	free_irq(c->irq, c);
-	iounmap(c->membase);
 	clk_disable(c->clk);
 	clk_put(c->clk);
 	spi_master_put(master);

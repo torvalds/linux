@@ -378,7 +378,6 @@ static irqreturn_t uhci_irq(struct usb_hcd *hcd)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 	unsigned short status;
-	unsigned long flags;
 
 	/*
 	 * Read the interrupt status, and write it back to clear the
@@ -398,7 +397,7 @@ static irqreturn_t uhci_irq(struct usb_hcd *hcd)
 			dev_err(uhci_dev(uhci), "host controller process "
 					"error, something bad happened!\n");
 		if (status & USBSTS_HCH) {
-			spin_lock_irqsave(&uhci->lock, flags);
+			spin_lock(&uhci->lock);
 			if (uhci->rh_state >= UHCI_RH_RUNNING) {
 				dev_err(uhci_dev(uhci),
 					"host controller halted, "
@@ -415,16 +414,16 @@ static irqreturn_t uhci_irq(struct usb_hcd *hcd)
 				 * pending unlinks */
 				mod_timer(&hcd->rh_timer, jiffies);
 			}
-			spin_unlock_irqrestore(&uhci->lock, flags);
+			spin_unlock(&uhci->lock);
 		}
 	}
 
 	if (status & USBSTS_RD)
 		usb_hcd_poll_rh_status(hcd);
 	else {
-		spin_lock_irqsave(&uhci->lock, flags);
+		spin_lock(&uhci->lock);
 		uhci_scan_schedule(uhci);
-		spin_unlock_irqrestore(&uhci->lock, flags);
+		spin_unlock(&uhci->lock);
 	}
 
 	return IRQ_HANDLED;

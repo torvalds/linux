@@ -114,6 +114,7 @@ static struct usb_serial_driver kobil_device = {
 	.usb_driver = 		&kobil_driver,
 	.id_table =		id_table,
 	.num_interrupt_in =	NUM_DONT_CARE,
+	.num_interrupt_out = 	NUM_DONT_CARE,
 	.num_bulk_in =		0,
 	.num_bulk_out =		0,
 	.num_ports =		1,

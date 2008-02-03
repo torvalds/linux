@@ -39,6 +39,7 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/ethtool.h>
+#include <linux/rtnetlink.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -645,7 +646,7 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	if (err)
 		goto err;
 
-	if (udata && t3b_device(rhp)) {
+	if (udata && !t3a_device(rhp)) {
 		uresp.pbl_addr = (mhp->attr.pbl_addr -
 	                         rhp->rdev.rnic_info.pbl_base) >> 3;
 		PDBG("%s user resp pbl_addr 0x%x\n", __FUNCTION__,
@@ -1000,6 +1001,7 @@ static int iwch_query_device(struct ib_device *ibdev,
 	props->max_sge = dev->attr.max_sge_per_wr;
 	props->max_sge_rd = 1;
 	props->max_qp_rd_atom = dev->attr.max_rdma_reads_per_qp;
+	props->max_qp_init_rd_atom = dev->attr.max_rdma_reads_per_qp;
 	props->max_cq = dev->attr.max_cqs;
 	props->max_cqe = dev->attr.max_cqes_per_cq;
 	props->max_mr = dev->attr.max_mem_regs;
@@ -1052,7 +1054,9 @@ static ssize_t show_fw_ver(struct class_device *cdev, char *buf)
 	struct net_device *lldev = dev->rdev.t3cdev_p->lldev;
 
 	PDBG("%s class dev 0x%p\n", __FUNCTION__, cdev);
+	rtnl_lock();
 	lldev->ethtool_ops->get_drvinfo(lldev, &info);
+	rtnl_unlock();
 	return sprintf(buf, "%s\n", info.fw_version);
 }
 
@@ -1064,7 +1068,9 @@ static ssize_t show_hca(struct class_device *cdev, char *buf)
 	struct net_device *lldev = dev->rdev.t3cdev_p->lldev;
 
 	PDBG("%s class dev 0x%p\n", __FUNCTION__, cdev);
+	rtnl_lock();
 	lldev->ethtool_ops->get_drvinfo(lldev, &info);
+	rtnl_unlock();
 	return sprintf(buf, "%s\n", info.driver);
 }
 

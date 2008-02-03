@@ -110,7 +110,7 @@ static int aac_alloc_comm(struct aac_dev *dev, void **commaddr, unsigned long co
 	/*
 	 *	Align the beginning of Headers to commalign
 	 */
-	align = (commalign - ((ptrdiff_t)(base) & (commalign - 1)));
+	align = (commalign - ((uintptr_t)(base) & (commalign - 1)));
 	base = base + align;
 	phys = phys + align;
 	/*
@@ -301,10 +301,10 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 	if ((!aac_adapter_sync_cmd(dev, GET_ADAPTER_PROPERTIES,
 		0, 0, 0, 0, 0, 0, status+0, status+1, status+2, NULL, NULL)) &&
 	 		(status[0] == 0x00000001)) {
-		if (status[1] & AAC_OPT_NEW_COMM_64)
+		if (status[1] & le32_to_cpu(AAC_OPT_NEW_COMM_64))
 			dev->raw_io_64 = 1;
 		if (dev->a_ops.adapter_comm &&
-		    (status[1] & AAC_OPT_NEW_COMM))
+		    (status[1] & le32_to_cpu(AAC_OPT_NEW_COMM)))
 			dev->comm_interface = AAC_COMM_MESSAGE;
 		if ((dev->comm_interface == AAC_COMM_MESSAGE) &&
 		    (status[2] > dev->base_size)) {

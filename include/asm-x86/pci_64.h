@@ -26,7 +26,6 @@ extern int (*pci_config_write)(int seg, int bus, int dev, int fn, int reg, int l
 
 
 extern void pci_iommu_alloc(void);
-extern int iommu_setup(char *opt);
 
 /* The PCI address space does equal the physical memory
  * address space.  The networking and block device layers use
@@ -37,7 +36,7 @@ extern int iommu_setup(char *opt);
  */
 #define PCI_DMA_BUS_IS_PHYS (dma_ops->is_phys)
 
-#if defined(CONFIG_IOMMU) || defined(CONFIG_CALGARY_IOMMU)
+#if defined(CONFIG_GART_IOMMU) || defined(CONFIG_CALGARY_IOMMU)
 
 #define DECLARE_PCI_UNMAP_ADDR(ADDR_NAME)	\
 	dma_addr_t ADDR_NAME;

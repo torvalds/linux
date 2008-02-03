@@ -63,6 +63,21 @@ static int __init mfgpt_disable(char *s)
 }
 __setup("nomfgpt", mfgpt_disable);
 
+/* Reset the MFGPT timers. This is required by some broken BIOSes which already
+ * do the same and leave the system in an unstable state. TinyBIOS 0.98 is
+ * affected at least (0.99 is OK with MFGPT workaround left to off).
+ */
+static int __init mfgpt_fix(char *s)
+{
+	u32 val, dummy;
+
+	/* The following udocumented bit resets the MFGPT timers */
+	val = 0xFF; dummy = 0;
+	wrmsr(0x5140002B, val, dummy);
+	return 1;
+}
+__setup("mfgptfix", mfgpt_fix);
+
 /*
  * Check whether any MFGPTs are available for the kernel to use.  In most
  * cases, firmware that uses AMD's VSA code will claim all timers during
@@ -278,11 +293,11 @@ static int mfgpt_next_event(unsigned long delta, struct clock_event_device *evt)
 
 static irqreturn_t mfgpt_tick(int irq, void *dev_id)
 {
+	/* Turn off the clock (and clear the event) */
+	mfgpt_disable_timer(mfgpt_event_clock);
+
 	if (mfgpt_tick_mode == CLOCK_EVT_MODE_SHUTDOWN)
 		return IRQ_HANDLED;
-
-	/* Turn off the clock */
-	mfgpt_disable_timer(mfgpt_event_clock);
 
 	/* Clear the counter */
 	geode_mfgpt_write(mfgpt_event_clock, MFGPT_REG_COUNTER, 0);
@@ -319,10 +334,6 @@ static int __init mfgpt_timer_setup(void)
 	}
 
 	mfgpt_event_clock = timer;
-	/* Set the clock scale and enable the event mode for CMP2 */
-	val = MFGPT_SCALE | (3 << 8);
-
-	geode_mfgpt_write(mfgpt_event_clock, MFGPT_REG_SETUP, val);
 
 	/* Set up the IRQ on the MFGPT side */
 	if (geode_mfgpt_setup_irq(mfgpt_event_clock, MFGPT_CMP2, irq)) {
@@ -338,6 +349,11 @@ static int __init mfgpt_timer_setup(void)
 		       "mfgpt-timer:  Unable to set up the interrupt.\n");
 		goto err;
 	}
+
+	/* Set the clock scale and enable the event mode for CMP2 */
+	val = MFGPT_SCALE | (3 << 8);
+
+	geode_mfgpt_write(mfgpt_event_clock, MFGPT_REG_SETUP, val);
 
 	/* Set up the clock event */
 	mfgpt_clockevent.mult = div_sc(MFGPT_HZ, NSEC_PER_SEC, 32);

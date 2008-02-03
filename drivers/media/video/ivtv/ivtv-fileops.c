@@ -542,6 +542,7 @@ ssize_t ivtv_v4l2_write(struct file *filp, const char __user *user_buf, size_t c
 	struct ivtv_open_id *id = filp->private_data;
 	struct ivtv *itv = id->itv;
 	struct ivtv_stream *s = &itv->streams[id->type];
+	struct yuv_playback_info *yi = &itv->yuv_info;
 	struct ivtv_buffer *buf;
 	struct ivtv_queue q;
 	int bytes_written = 0;
@@ -580,6 +581,24 @@ ssize_t ivtv_v4l2_write(struct file *filp, const char __user *user_buf, size_t c
 	set_bit(IVTV_F_S_APPL_IO, &s->s_flags);
 
 retry:
+	/* If possible, just DMA the entire frame - Check the data transfer size
+	since we may get here before the stream has been fully set-up */
+	if (mode == OUT_YUV && s->q_full.length == 0 && itv->dma_data_req_size) {
+		while (count >= itv->dma_data_req_size) {
+			if (!ivtv_yuv_udma_stream_frame (itv, (void *)user_buf)) {
+				bytes_written += itv->dma_data_req_size;
+				user_buf += itv->dma_data_req_size;
+				count -= itv->dma_data_req_size;
+			} else {
+				break;
+			}
+		}
+		if (count == 0) {
+			IVTV_DEBUG_HI_FILE("Wrote %d bytes to %s (%d)\n", bytes_written, s->name, s->q_full.bytesused);
+			return bytes_written;
+		}
+	}
+
 	for (;;) {
 		/* Gather buffers */
 		while (q.length - q.bytesused < count && (buf = ivtv_dequeue(s, &s->q_io)))
@@ -604,9 +623,16 @@ retry:
 
 	/* copy user data into buffers */
 	while ((buf = ivtv_dequeue(s, &q))) {
-		/* Make sure we really got all the user data */
-		rc = ivtv_buf_copy_from_user(s, buf, user_buf, count);
+		/* yuv is a pain. Don't copy more data than needed for a single
+		   frame, otherwise we lose sync with the incoming stream */
+		if (s->type == IVTV_DEC_STREAM_TYPE_YUV &&
+		    yi->stream_size + count > itv->dma_data_req_size)
+			rc  = ivtv_buf_copy_from_user(s, buf, user_buf,
+				itv->dma_data_req_size - yi->stream_size);
+		else
+			rc = ivtv_buf_copy_from_user(s, buf, user_buf, count);
 
+		/* Make sure we really got all the user data */
 		if (rc < 0) {
 			ivtv_queue_move(s, &q, NULL, &s->q_free, 0);
 			return rc;
@@ -614,6 +640,16 @@ retry:
 		user_buf += rc;
 		count -= rc;
 		bytes_written += rc;
+
+		if (s->type == IVTV_DEC_STREAM_TYPE_YUV) {
+			yi->stream_size += rc;
+			/* If we have a complete yuv frame, break loop now */
+			if (yi->stream_size == itv->dma_data_req_size) {
+				ivtv_enqueue(s, buf, &s->q_full);
+				yi->stream_size = 0;
+				break;
+			}
+		}
 
 		if (buf->bytesused != s->buf_size) {
 			/* incomplete, leave in q_io for next time */
@@ -641,6 +677,9 @@ retry:
 	if (test_bit(IVTV_F_S_NEEDS_DATA, &s->s_flags)) {
 		if (s->q_full.length >= itv->dma_data_req_size) {
 			int got_sig;
+
+			if (mode == OUT_YUV)
+				ivtv_yuv_setup_stream_frame(itv);
 
 			prepare_to_wait(&itv->dma_waitq, &wait, TASK_INTERRUPTIBLE);
 			while (!(got_sig = signal_pending(current)) &&
@@ -922,10 +961,15 @@ static int ivtv_serialized_open(struct ivtv_stream *s, struct file *filp)
 	}
 
 	/* YUV or MPG Decoding Mode? */
-	if (s->type == IVTV_DEC_STREAM_TYPE_MPG)
+	if (s->type == IVTV_DEC_STREAM_TYPE_MPG) {
 		clear_bit(IVTV_F_I_DEC_YUV, &itv->i_flags);
-	else if (s->type == IVTV_DEC_STREAM_TYPE_YUV)
+	} else if (s->type == IVTV_DEC_STREAM_TYPE_YUV) {
 		set_bit(IVTV_F_I_DEC_YUV, &itv->i_flags);
+		/* For yuv, we need to know the dma size before we start */
+		itv->dma_data_req_size =
+				1080 * ((itv->yuv_info.v4l2_src_h + 31) & ~31);
+		itv->yuv_info.stream_size = 0;
+	}
 	return 0;
 }
 

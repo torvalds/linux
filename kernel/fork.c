@@ -51,6 +51,7 @@
 #include <linux/random.h>
 #include <linux/tty.h>
 #include <linux/proc_fs.h>
+#include <linux/blkdev.h>
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -392,6 +393,7 @@ void fastcall __mmdrop(struct mm_struct *mm)
 	destroy_context(mm);
 	free_mm(mm);
 }
+EXPORT_SYMBOL_GPL(__mmdrop);
 
 /*
  * Decrement the use count and release all resources for an mm.
@@ -791,6 +793,31 @@ out:
 	return error;
 }
 
+static int copy_io(unsigned long clone_flags, struct task_struct *tsk)
+{
+#ifdef CONFIG_BLOCK
+	struct io_context *ioc = current->io_context;
+
+	if (!ioc)
+		return 0;
+	/*
+	 * Share io context with parent, if CLONE_IO is set
+	 */
+	if (clone_flags & CLONE_IO) {
+		tsk->io_context = ioc_task_link(ioc);
+		if (unlikely(!tsk->io_context))
+			return -ENOMEM;
+	} else if (ioprio_valid(ioc->ioprio)) {
+		tsk->io_context = alloc_io_context(GFP_KERNEL, -1);
+		if (unlikely(!tsk->io_context))
+			return -ENOMEM;
+
+		tsk->io_context->ioprio = ioc->ioprio;
+	}
+#endif
+	return 0;
+}
+
 /*
  *	Helper to unshare the files of the current task.
  *	We don't want to expose copy_files internals to
@@ -1045,6 +1072,10 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	copy_flags(clone_flags, p);
 	INIT_LIST_HEAD(&p->children);
 	INIT_LIST_HEAD(&p->sibling);
+#ifdef CONFIG_PREEMPT_RCU
+	p->rcu_read_lock_nesting = 0;
+	p->rcu_flipctr_idx = 0;
+#endif /* #ifdef CONFIG_PREEMPT_RCU */
 	p->vfork_done = NULL;
 	spin_lock_init(&p->alloc_lock);
 
@@ -1056,6 +1087,13 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	p->gtime = cputime_zero;
 	p->utimescaled = cputime_zero;
 	p->stimescaled = cputime_zero;
+	p->prev_utime = cputime_zero;
+	p->prev_stime = cputime_zero;
+
+#ifdef CONFIG_DETECT_SOFTLOCKUP
+	p->last_switch_count = 0;
+	p->last_switch_timestamp = 0;
+#endif
 
 #ifdef CONFIG_TASK_XACCT
 	p->rchar = 0;		/* I/O counter: bytes read */
@@ -1121,6 +1159,9 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	p->blocked_on = NULL; /* not blocked yet */
 #endif
 
+	/* Perform scheduler related setup. Assign this task to a CPU. */
+	sched_fork(p, clone_flags);
+
 	if ((retval = security_task_alloc(p)))
 		goto bad_fork_cleanup_policy;
 	if ((retval = audit_alloc(p)))
@@ -1142,15 +1183,17 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 		goto bad_fork_cleanup_mm;
 	if ((retval = copy_namespaces(clone_flags, p)))
 		goto bad_fork_cleanup_keys;
+	if ((retval = copy_io(clone_flags, p)))
+		goto bad_fork_cleanup_namespaces;
 	retval = copy_thread(0, clone_flags, stack_start, stack_size, p, regs);
 	if (retval)
-		goto bad_fork_cleanup_namespaces;
+		goto bad_fork_cleanup_io;
 
 	if (pid != &init_struct_pid) {
 		retval = -ENOMEM;
 		pid = alloc_pid(task_active_pid_ns(p));
 		if (!pid)
-			goto bad_fork_cleanup_namespaces;
+			goto bad_fork_cleanup_io;
 
 		if (clone_flags & CLONE_NEWPID) {
 			retval = pid_ns_prepare_proc(task_active_pid_ns(p));
@@ -1191,6 +1234,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 #ifdef TIF_SYSCALL_EMU
 	clear_tsk_thread_flag(p, TIF_SYSCALL_EMU);
 #endif
+	clear_all_latency_tracing(p);
 
 	/* Our parent execution domain becomes current domain
 	   These must match for thread signalling to apply */
@@ -1210,9 +1254,6 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	INIT_LIST_HEAD(&p->ptrace_children);
 	INIT_LIST_HEAD(&p->ptrace_list);
 
-	/* Perform scheduler related setup. Assign this task to a CPU. */
-	sched_fork(p, clone_flags);
-
 	/* Now that the task is set up, run cgroup callbacks if
 	 * necessary. We need to run them before the task is visible
 	 * on the tasklist. */
@@ -1221,9 +1262,6 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 
 	/* Need tasklist lock for parent etc handling! */
 	write_lock_irq(&tasklist_lock);
-
-	/* for sys_ioprio_set(IOPRIO_WHO_PGRP) */
-	p->ioprio = current->ioprio;
 
 	/*
 	 * The task hasn't been attached yet, so its cpus_allowed mask will
@@ -1235,6 +1273,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	 * parent's CPU). This avoids alot of nasty races.
 	 */
 	p->cpus_allowed = current->cpus_allowed;
+	p->rt.nr_cpus_allowed = current->rt.nr_cpus_allowed;
 	if (unlikely(!cpu_isset(task_cpu(p), p->cpus_allowed) ||
 			!cpu_online(task_cpu(p))))
 		set_task_cpu(p, smp_processor_id());
@@ -1290,23 +1329,14 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 			__ptrace_link(p, current->parent);
 
 		if (thread_group_leader(p)) {
-			if (clone_flags & CLONE_NEWPID) {
+			if (clone_flags & CLONE_NEWPID)
 				p->nsproxy->pid_ns->child_reaper = p;
-				p->signal->tty = NULL;
-				set_task_pgrp(p, p->pid);
-				set_task_session(p, p->pid);
-				attach_pid(p, PIDTYPE_PGID, pid);
-				attach_pid(p, PIDTYPE_SID, pid);
-			} else {
-				p->signal->tty = current->signal->tty;
-				set_task_pgrp(p, task_pgrp_nr(current));
-				set_task_session(p, task_session_nr(current));
-				attach_pid(p, PIDTYPE_PGID,
-						task_pgrp(current));
-				attach_pid(p, PIDTYPE_SID,
-						task_session(current));
-			}
 
+			p->signal->tty = current->signal->tty;
+			set_task_pgrp(p, task_pgrp_nr(current));
+			set_task_session(p, task_session_nr(current));
+			attach_pid(p, PIDTYPE_PGID, task_pgrp(current));
+			attach_pid(p, PIDTYPE_SID, task_session(current));
 			list_add_tail_rcu(&p->tasks, &init_task.tasks);
 			__get_cpu_var(process_counts)++;
 		}
@@ -1324,6 +1354,8 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 bad_fork_free_pid:
 	if (pid != &init_struct_pid)
 		free_pid(pid);
+bad_fork_cleanup_io:
+	put_io_context(p->io_context);
 bad_fork_cleanup_namespaces:
 	exit_task_namespaces(p);
 bad_fork_cleanup_keys:

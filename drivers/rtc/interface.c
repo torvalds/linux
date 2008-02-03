@@ -251,20 +251,23 @@ void rtc_update_irq(struct rtc_device *rtc,
 }
 EXPORT_SYMBOL_GPL(rtc_update_irq);
 
+static int __rtc_match(struct device *dev, void *data)
+{
+	char *name = (char *)data;
+
+	if (strncmp(dev->bus_id, name, BUS_ID_SIZE) == 0)
+		return 1;
+	return 0;
+}
+
 struct rtc_device *rtc_class_open(char *name)
 {
 	struct device *dev;
 	struct rtc_device *rtc = NULL;
 
-	down(&rtc_class->sem);
-	list_for_each_entry(dev, &rtc_class->devices, node) {
-		if (strncmp(dev->bus_id, name, BUS_ID_SIZE) == 0) {
-			dev = get_device(dev);
-			if (dev)
-				rtc = to_rtc_device(dev);
-			break;
-		}
-	}
+	dev = class_find_device(rtc_class, name, __rtc_match);
+	if (dev)
+		rtc = to_rtc_device(dev);
 
 	if (rtc) {
 		if (!try_module_get(rtc->owner)) {
@@ -272,7 +275,6 @@ struct rtc_device *rtc_class_open(char *name)
 			rtc = NULL;
 		}
 	}
-	up(&rtc_class->sem);
 
 	return rtc;
 }
@@ -293,7 +295,7 @@ int rtc_irq_register(struct rtc_device *rtc, struct rtc_task *task)
 		return -EINVAL;
 
 	/* Cannot register while the char dev is in use */
-	if (!(mutex_trylock(&rtc->char_lock)))
+	if (test_and_set_bit_lock(RTC_DEV_BUSY, &rtc->flags))
 		return -EBUSY;
 
 	spin_lock_irq(&rtc->irq_task_lock);
@@ -303,7 +305,7 @@ int rtc_irq_register(struct rtc_device *rtc, struct rtc_task *task)
 	}
 	spin_unlock_irq(&rtc->irq_task_lock);
 
-	mutex_unlock(&rtc->char_lock);
+	clear_bit_unlock(RTC_DEV_BUSY, &rtc->flags);
 
 	return retval;
 }

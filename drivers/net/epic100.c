@@ -1273,7 +1273,7 @@ rx_action:
 
 	epic_rx_err(dev, ep);
 
-	if (netif_running(dev) && (work_done < budget)) {
+	if (work_done < budget) {
 		unsigned long flags;
 		int more;
 

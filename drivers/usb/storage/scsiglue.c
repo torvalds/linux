@@ -81,6 +81,16 @@ static int slave_alloc (struct scsi_device *sdev)
 	 */
 	sdev->inquiry_len = 36;
 
+	/* Scatter-gather buffers (all but the last) must have a length
+	 * divisible by the bulk maxpacket size.  Otherwise a data packet
+	 * would end up being short, causing a premature end to the data
+	 * transfer.  Since high-speed bulk pipes have a maxpacket size
+	 * of 512, we'll use that as the scsi device queue's DMA alignment
+	 * mask.  Guaranteeing proper alignment of the first buffer will
+	 * have the desired effect because, except at the beginning and
+	 * the end, scatter-gather buffers follow page boundaries. */
+	blk_queue_update_dma_alignment(sdev->request_queue, (512 - 1));
+
 	/*
 	 * The UFI spec treates the Peripheral Qualifier bits in an
 	 * INQUIRY result as reserved and requires devices to set them
@@ -100,23 +110,19 @@ static int slave_configure(struct scsi_device *sdev)
 {
 	struct us_data *us = host_to_us(sdev->host);
 
-	/* Scatter-gather buffers (all but the last) must have a length
-	 * divisible by the bulk maxpacket size.  Otherwise a data packet
-	 * would end up being short, causing a premature end to the data
-	 * transfer.  Since high-speed bulk pipes have a maxpacket size
-	 * of 512, we'll use that as the scsi device queue's DMA alignment
-	 * mask.  Guaranteeing proper alignment of the first buffer will
-	 * have the desired effect because, except at the beginning and
-	 * the end, scatter-gather buffers follow page boundaries. */
-	blk_queue_dma_alignment(sdev->request_queue, (512 - 1));
-
 	/* Many devices have trouble transfering more than 32KB at a time,
 	 * while others have trouble with more than 64K. At this time we
 	 * are limiting both to 32K (64 sectores).
 	 */
-	if ((us->flags & US_FL_MAX_SECTORS_64) &&
-			sdev->request_queue->max_sectors > 64)
-		blk_queue_max_sectors(sdev->request_queue, 64);
+	if (us->flags & (US_FL_MAX_SECTORS_64 | US_FL_MAX_SECTORS_MIN)) {
+		unsigned int max_sectors = 64;
+
+		if (us->flags & US_FL_MAX_SECTORS_MIN)
+			max_sectors = PAGE_CACHE_SIZE >> 9;
+		if (sdev->request_queue->max_sectors > max_sectors)
+			blk_queue_max_sectors(sdev->request_queue,
+					      max_sectors);
+	}
 
 	/* We can't put these settings in slave_alloc() because that gets
 	 * called before the device type is known.  Consequently these
@@ -177,6 +183,14 @@ static int slave_configure(struct scsi_device *sdev)
 		 * is an occasional series of retries that will all fail. */
 		sdev->retry_hwerror = 1;
 
+		/* USB disks should allow restart.  Some drives spin down
+		 * automatically, requiring a START-STOP UNIT command. */
+		sdev->allow_restart = 1;
+
+		/* Some USB cardreaders have trouble reading an sdcard's last
+		 * sector in a larger then 1 sector read, since the performance
+		 * impact is negible we set this flag for all USB disks */
+		sdev->last_sector_bug = 1;
 	} else {
 
 		/* Non-disk-type devices don't need to blacklist any pages

@@ -161,7 +161,6 @@ static cycle_t dec_ioasic_hpt_read(void)
 
 void __init plat_time_init(void)
 {
-	mips_timer_state = dec_timer_state;
 	mips_timer_ack = dec_timer_ack;
 
 	if (!cpu_has_counter && IOASIC)

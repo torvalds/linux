@@ -119,6 +119,7 @@ static struct pci_controller mace_pci_controller = {
 	.iommu		= 0,
 	.mem_offset	= MACE_PCI_MEM_OFFSET,
 	.io_offset	= 0,
+	.io_map_base	= CKSEG1ADDR(MACEPCI_LOW_IO),
 };
 
 static int __init mace_init(void)
@@ -135,7 +136,8 @@ static int __init mace_init(void)
 	BUG_ON(request_irq(MACE_PCI_BRIDGE_IRQ, macepci_error, 0,
 			   "MACE PCI error", NULL));
 
-	iomem_resource = mace_pci_mem_resource;
+	/* extend memory resources */
+	iomem_resource.end = mace_pci_mem_resource.end;
 	ioport_resource = mace_pci_io_resource;
 
 	register_pci_controller(&mace_pci_controller);

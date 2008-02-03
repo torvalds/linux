@@ -35,9 +35,9 @@ struct best_voice {
 /*
  * prototypes
  */
-static void lookup_voices(struct snd_emux *emu, struct snd_emu10k1 *hw,
+static void lookup_voices(struct snd_emux *emux, struct snd_emu10k1 *hw,
 			  struct best_voice *best, int active_only);
-static struct snd_emux_voice *get_voice(struct snd_emux *emu,
+static struct snd_emux_voice *get_voice(struct snd_emux *emux,
 					struct snd_emux_port *port);
 static int start_voice(struct snd_emux_voice *vp);
 static void trigger_voice(struct snd_emux_voice *vp);
@@ -45,7 +45,6 @@ static void release_voice(struct snd_emux_voice *vp);
 static void update_voice(struct snd_emux_voice *vp, int update);
 static void terminate_voice(struct snd_emux_voice *vp);
 static void free_voice(struct snd_emux_voice *vp);
-
 static void set_fmmod(struct snd_emu10k1 *hw, struct snd_emux_voice *vp);
 static void set_fm2frq2(struct snd_emu10k1 *hw, struct snd_emux_voice *vp);
 static void set_filterQ(struct snd_emu10k1 *hw, struct snd_emux_voice *vp);
@@ -75,9 +74,9 @@ static struct snd_emux_operators emu10k1_ops = {
 };
 
 void
-snd_emu10k1_ops_setup(struct snd_emux *emu)
+snd_emu10k1_ops_setup(struct snd_emux *emux)
 {
-	emu->ops = emu10k1_ops;
+	emux->ops = emu10k1_ops;
 }
 
 
@@ -166,7 +165,11 @@ free_voice(struct snd_emux_voice *vp)
 	struct snd_emu10k1 *hw;
 	
 	hw = vp->hw;
-	if (vp->ch >= 0) {
+	/* FIXME: emu10k1_synth is broken. */
+	/* This can get called with hw == 0 */
+	/* Problem apparent on plug, unplug then plug */
+	/* on the Audigy 2 ZS Notebook. */
+	if (hw && (vp->ch >= 0)) {
 		snd_emu10k1_ptr_write(hw, IFATN, vp->ch, 0xff00);
 		snd_emu10k1_ptr_write(hw, DCYSUSV, vp->ch, 0x807f | DCYSUSV_CHANNELENABLE_MASK);
 		// snd_emu10k1_ptr_write(hw, DCYSUSV, vp->ch, 0);

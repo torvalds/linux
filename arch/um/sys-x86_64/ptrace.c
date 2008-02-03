@@ -154,7 +154,7 @@ int get_fpregs(struct user_i387_struct __user *buf, struct task_struct *child)
 	if (err)
 		return err;
 
-	n = copy_to_user((void *) buf, fpregs, sizeof(fpregs));
+	n = copy_to_user(buf, fpregs, sizeof(fpregs));
 	if(n > 0)
 		return -EFAULT;
 
@@ -167,7 +167,7 @@ int set_fpregs(struct user_i387_struct __user *buf, struct task_struct *child)
 	long fpregs[HOST_FP_SIZE];
 
 	BUG_ON(sizeof(*buf) != sizeof(fpregs));
-	n = copy_from_user(fpregs, (void *) buf, sizeof(fpregs));
+	n = copy_from_user(fpregs, buf, sizeof(fpregs));
 	if (n > 0)
 		return -EFAULT;
 

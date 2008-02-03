@@ -1758,5 +1758,5 @@ static void __exit spi_imx_exit(void)
 module_exit(spi_imx_exit);
 
 MODULE_AUTHOR("Andrea Paterniani, <a.paterniani@swapp-eng.it>");
-MODULE_DESCRIPTION("iMX SPI Contoller Driver");
+MODULE_DESCRIPTION("iMX SPI Controller Driver");
 MODULE_LICENSE("GPL");

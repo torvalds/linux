@@ -23,16 +23,12 @@
 	Abstract: rt2x00 generic device routines.
  */
 
-/*
- * Set enviroment defines for rt2x00.h
- */
-#define DRV_NAME "rt2x00lib"
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 
 #include "rt2x00.h"
 #include "rt2x00lib.h"
+#include "rt2x00dump.h"
 
 /*
  * Ring handler.
@@ -67,7 +63,21 @@ EXPORT_SYMBOL_GPL(rt2x00lib_get_ring);
  */
 static void rt2x00lib_start_link_tuner(struct rt2x00_dev *rt2x00dev)
 {
-	rt2x00_clear_link(&rt2x00dev->link);
+	rt2x00dev->link.count = 0;
+	rt2x00dev->link.vgc_level = 0;
+
+	memset(&rt2x00dev->link.qual, 0, sizeof(rt2x00dev->link.qual));
+
+	/*
+	 * The RX and TX percentage should start at 50%
+	 * this will assure we will get at least get some
+	 * decent value when the link tuner starts.
+	 * The value will be dropped and overwritten with
+	 * the correct (measured )value anyway during the
+	 * first run of the link tuner.
+	 */
+	rt2x00dev->link.qual.rx_percentage = 50;
+	rt2x00dev->link.qual.tx_percentage = 50;
 
 	/*
 	 * Reset the link tuner.
@@ -93,6 +103,46 @@ void rt2x00lib_reset_link_tuner(struct rt2x00_dev *rt2x00dev)
 }
 
 /*
+ * Ring initialization
+ */
+static void rt2x00lib_init_rxrings(struct rt2x00_dev *rt2x00dev)
+{
+	struct data_ring *ring = rt2x00dev->rx;
+	unsigned int i;
+
+	if (!rt2x00dev->ops->lib->init_rxentry)
+		return;
+
+	if (ring->data_addr)
+		memset(ring->data_addr, 0, rt2x00_get_ring_size(ring));
+
+	for (i = 0; i < ring->stats.limit; i++)
+		rt2x00dev->ops->lib->init_rxentry(rt2x00dev, &ring->entry[i]);
+
+	rt2x00_ring_index_clear(ring);
+}
+
+static void rt2x00lib_init_txrings(struct rt2x00_dev *rt2x00dev)
+{
+	struct data_ring *ring;
+	unsigned int i;
+
+	if (!rt2x00dev->ops->lib->init_txentry)
+		return;
+
+	txringall_for_each(rt2x00dev, ring) {
+		if (ring->data_addr)
+			memset(ring->data_addr, 0, rt2x00_get_ring_size(ring));
+
+		for (i = 0; i < ring->stats.limit; i++)
+			rt2x00dev->ops->lib->init_txentry(rt2x00dev,
+							  &ring->entry[i]);
+
+		rt2x00_ring_index_clear(ring);
+	}
+}
+
+/*
  * Radio control handlers.
  */
 int rt2x00lib_enable_radio(struct rt2x00_dev *rt2x00dev)
@@ -106,6 +156,12 @@ int rt2x00lib_enable_radio(struct rt2x00_dev *rt2x00dev)
 	if (test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags) ||
 	    test_bit(DEVICE_DISABLED_RADIO_HW, &rt2x00dev->flags))
 		return 0;
+
+	/*
+	 * Initialize all data rings.
+	 */
+	rt2x00lib_init_rxrings(rt2x00dev);
+	rt2x00lib_init_txrings(rt2x00dev);
 
 	/*
 	 * Enable radio.
@@ -179,26 +235,153 @@ void rt2x00lib_toggle_rx(struct rt2x00_dev *rt2x00dev, enum dev_state state)
 		rt2x00lib_start_link_tuner(rt2x00dev);
 }
 
-static void rt2x00lib_precalculate_link_signal(struct link *link)
+static void rt2x00lib_evaluate_antenna_sample(struct rt2x00_dev *rt2x00dev)
 {
-	if (link->rx_failed || link->rx_success)
-		link->rx_percentage =
-		    (link->rx_success * 100) /
-		    (link->rx_failed + link->rx_success);
-	else
-		link->rx_percentage = 50;
+	enum antenna rx = rt2x00dev->link.ant.active.rx;
+	enum antenna tx = rt2x00dev->link.ant.active.tx;
+	int sample_a =
+	    rt2x00_get_link_ant_rssi_history(&rt2x00dev->link, ANTENNA_A);
+	int sample_b =
+	    rt2x00_get_link_ant_rssi_history(&rt2x00dev->link, ANTENNA_B);
 
-	if (link->tx_failed || link->tx_success)
-		link->tx_percentage =
-		    (link->tx_success * 100) /
-		    (link->tx_failed + link->tx_success);
-	else
-		link->tx_percentage = 50;
+	/*
+	 * We are done sampling. Now we should evaluate the results.
+	 */
+	rt2x00dev->link.ant.flags &= ~ANTENNA_MODE_SAMPLE;
 
-	link->rx_success = 0;
-	link->rx_failed = 0;
-	link->tx_success = 0;
-	link->tx_failed = 0;
+	/*
+	 * During the last period we have sampled the RSSI
+	 * from both antenna's. It now is time to determine
+	 * which antenna demonstrated the best performance.
+	 * When we are already on the antenna with the best
+	 * performance, then there really is nothing for us
+	 * left to do.
+	 */
+	if (sample_a == sample_b)
+		return;
+
+	if (rt2x00dev->link.ant.flags & ANTENNA_RX_DIVERSITY) {
+		if (sample_a > sample_b && rx == ANTENNA_B)
+			rx = ANTENNA_A;
+		else if (rx == ANTENNA_A)
+			rx = ANTENNA_B;
+	}
+
+	if (rt2x00dev->link.ant.flags & ANTENNA_TX_DIVERSITY) {
+		if (sample_a > sample_b && tx == ANTENNA_B)
+			tx = ANTENNA_A;
+		else if (tx == ANTENNA_A)
+			tx = ANTENNA_B;
+	}
+
+	rt2x00lib_config_antenna(rt2x00dev, rx, tx);
+}
+
+static void rt2x00lib_evaluate_antenna_eval(struct rt2x00_dev *rt2x00dev)
+{
+	enum antenna rx = rt2x00dev->link.ant.active.rx;
+	enum antenna tx = rt2x00dev->link.ant.active.tx;
+	int rssi_curr = rt2x00_get_link_ant_rssi(&rt2x00dev->link);
+	int rssi_old = rt2x00_update_ant_rssi(&rt2x00dev->link, rssi_curr);
+
+	/*
+	 * Legacy driver indicates that we should swap antenna's
+	 * when the difference in RSSI is greater that 5. This
+	 * also should be done when the RSSI was actually better
+	 * then the previous sample.
+	 * When the difference exceeds the threshold we should
+	 * sample the rssi from the other antenna to make a valid
+	 * comparison between the 2 antennas.
+	 */
+	if ((rssi_curr - rssi_old) > -5 || (rssi_curr - rssi_old) < 5)
+		return;
+
+	rt2x00dev->link.ant.flags |= ANTENNA_MODE_SAMPLE;
+
+	if (rt2x00dev->link.ant.flags & ANTENNA_RX_DIVERSITY)
+		rx = (rx == ANTENNA_A) ? ANTENNA_B : ANTENNA_A;
+
+	if (rt2x00dev->link.ant.flags & ANTENNA_TX_DIVERSITY)
+		tx = (tx == ANTENNA_A) ? ANTENNA_B : ANTENNA_A;
+
+	rt2x00lib_config_antenna(rt2x00dev, rx, tx);
+}
+
+static void rt2x00lib_evaluate_antenna(struct rt2x00_dev *rt2x00dev)
+{
+	/*
+	 * Determine if software diversity is enabled for
+	 * either the TX or RX antenna (or both).
+	 * Always perform this check since within the link
+	 * tuner interval the configuration might have changed.
+	 */
+	rt2x00dev->link.ant.flags &= ~ANTENNA_RX_DIVERSITY;
+	rt2x00dev->link.ant.flags &= ~ANTENNA_TX_DIVERSITY;
+
+	if (rt2x00dev->hw->conf.antenna_sel_rx == 0 &&
+	    rt2x00dev->default_ant.rx != ANTENNA_SW_DIVERSITY)
+		rt2x00dev->link.ant.flags |= ANTENNA_RX_DIVERSITY;
+	if (rt2x00dev->hw->conf.antenna_sel_tx == 0 &&
+	    rt2x00dev->default_ant.tx != ANTENNA_SW_DIVERSITY)
+		rt2x00dev->link.ant.flags |= ANTENNA_TX_DIVERSITY;
+
+	if (!(rt2x00dev->link.ant.flags & ANTENNA_RX_DIVERSITY) &&
+	    !(rt2x00dev->link.ant.flags & ANTENNA_TX_DIVERSITY)) {
+		rt2x00dev->link.ant.flags &= ~ANTENNA_MODE_SAMPLE;
+		return;
+	}
+
+	/*
+	 * If we have only sampled the data over the last period
+	 * we should now harvest the data. Otherwise just evaluate
+	 * the data. The latter should only be performed once
+	 * every 2 seconds.
+	 */
+	if (rt2x00dev->link.ant.flags & ANTENNA_MODE_SAMPLE)
+		rt2x00lib_evaluate_antenna_sample(rt2x00dev);
+	else if (rt2x00dev->link.count & 1)
+		rt2x00lib_evaluate_antenna_eval(rt2x00dev);
+}
+
+static void rt2x00lib_update_link_stats(struct link *link, int rssi)
+{
+	int avg_rssi = rssi;
+
+	/*
+	 * Update global RSSI
+	 */
+	if (link->qual.avg_rssi)
+		avg_rssi = MOVING_AVERAGE(link->qual.avg_rssi, rssi, 8);
+	link->qual.avg_rssi = avg_rssi;
+
+	/*
+	 * Update antenna RSSI
+	 */
+	if (link->ant.rssi_ant)
+		rssi = MOVING_AVERAGE(link->ant.rssi_ant, rssi, 8);
+	link->ant.rssi_ant = rssi;
+}
+
+static void rt2x00lib_precalculate_link_signal(struct link_qual *qual)
+{
+	if (qual->rx_failed || qual->rx_success)
+		qual->rx_percentage =
+		    (qual->rx_success * 100) /
+		    (qual->rx_failed + qual->rx_success);
+	else
+		qual->rx_percentage = 50;
+
+	if (qual->tx_failed || qual->tx_success)
+		qual->tx_percentage =
+		    (qual->tx_success * 100) /
+		    (qual->tx_failed + qual->tx_success);
+	else
+		qual->tx_percentage = 50;
+
+	qual->rx_success = 0;
+	qual->rx_failed = 0;
+	qual->tx_success = 0;
+	qual->tx_failed = 0;
 }
 
 static int rt2x00lib_calculate_link_signal(struct rt2x00_dev *rt2x00dev,
@@ -225,8 +408,8 @@ static int rt2x00lib_calculate_link_signal(struct rt2x00_dev *rt2x00dev,
 	 * defines to calculate the current link signal.
 	 */
 	signal = ((WEIGHT_RSSI * rssi_percentage) +
-		  (WEIGHT_TX * rt2x00dev->link.tx_percentage) +
-		  (WEIGHT_RX * rt2x00dev->link.rx_percentage)) / 100;
+		  (WEIGHT_TX * rt2x00dev->link.qual.tx_percentage) +
+		  (WEIGHT_RX * rt2x00dev->link.qual.rx_percentage)) / 100;
 
 	return (signal > 100) ? 100 : signal;
 }
@@ -246,10 +429,9 @@ static void rt2x00lib_link_tuner(struct work_struct *work)
 	/*
 	 * Update statistics.
 	 */
-	rt2x00dev->ops->lib->link_stats(rt2x00dev);
-
+	rt2x00dev->ops->lib->link_stats(rt2x00dev, &rt2x00dev->link.qual);
 	rt2x00dev->low_level_stats.dot11FCSErrorCount +=
-	    rt2x00dev->link.rx_failed;
+	    rt2x00dev->link.qual.rx_failed;
 
 	/*
 	 * Only perform the link tuning when Link tuning
@@ -259,10 +441,15 @@ static void rt2x00lib_link_tuner(struct work_struct *work)
 		rt2x00dev->ops->lib->link_tuner(rt2x00dev);
 
 	/*
+	 * Evaluate antenna setup.
+	 */
+	rt2x00lib_evaluate_antenna(rt2x00dev);
+
+	/*
 	 * Precalculate a portion of the link signal which is
 	 * in based on the tx/rx success/failure counters.
 	 */
-	rt2x00lib_precalculate_link_signal(&rt2x00dev->link);
+	rt2x00lib_precalculate_link_signal(&rt2x00dev->link.qual);
 
 	/*
 	 * Increase tuner counter, and reschedule the next link tuner run.
@@ -276,7 +463,7 @@ static void rt2x00lib_packetfilter_scheduled(struct work_struct *work)
 {
 	struct rt2x00_dev *rt2x00dev =
 	    container_of(work, struct rt2x00_dev, filter_work);
-	unsigned int filter = rt2x00dev->interface.filter;
+	unsigned int filter = rt2x00dev->packet_filter;
 
 	/*
 	 * Since we had stored the filter inside interface.filter,
@@ -284,7 +471,7 @@ static void rt2x00lib_packetfilter_scheduled(struct work_struct *work)
 	 * assume nothing has changed (*total_flags will be compared
 	 * to interface.filter to determine if any action is required).
 	 */
-	rt2x00dev->interface.filter = 0;
+	rt2x00dev->packet_filter = 0;
 
 	rt2x00dev->ops->hw->configure_filter(rt2x00dev->hw,
 					     filter, &filter, 0, NULL);
@@ -294,10 +481,17 @@ static void rt2x00lib_configuration_scheduled(struct work_struct *work)
 {
 	struct rt2x00_dev *rt2x00dev =
 	    container_of(work, struct rt2x00_dev, config_work);
-	int preamble = !test_bit(CONFIG_SHORT_PREAMBLE, &rt2x00dev->flags);
+	struct ieee80211_bss_conf bss_conf;
 
-	rt2x00mac_erp_ie_changed(rt2x00dev->hw,
-				 IEEE80211_ERP_CHANGE_PREAMBLE, 0, preamble);
+	bss_conf.use_short_preamble =
+		test_bit(CONFIG_SHORT_PREAMBLE, &rt2x00dev->flags);
+
+	/*
+	 * FIXME: shouldn't invoke it this way because all other contents
+	 *	  of bss_conf is invalid.
+	 */
+	rt2x00mac_bss_info_changed(rt2x00dev->hw, rt2x00dev->interface.id,
+				   &bss_conf, BSS_CHANGED_ERP_PREAMBLE);
 }
 
 /*
@@ -350,8 +544,8 @@ void rt2x00lib_txdone(struct data_entry *entry,
 	tx_status->ack_signal = 0;
 	tx_status->excessive_retries = (status == TX_FAIL_RETRY);
 	tx_status->retry_count = retry;
-	rt2x00dev->link.tx_success += success;
-	rt2x00dev->link.tx_failed += retry + fail;
+	rt2x00dev->link.qual.tx_success += success;
+	rt2x00dev->link.qual.tx_failed += retry + fail;
 
 	if (!(tx_status->control.flags & IEEE80211_TXCTL_NO_ACK)) {
 		if (success)
@@ -371,9 +565,11 @@ void rt2x00lib_txdone(struct data_entry *entry,
 	}
 
 	/*
-	 * Send the tx_status to mac80211,
-	 * that method also cleans up the skb structure.
+	 * Send the tx_status to mac80211 & debugfs.
+	 * mac80211 will clean up the skb structure.
 	 */
+	get_skb_desc(entry->skb)->frame_type = DUMP_FRAME_TXDONE;
+	rt2x00debug_dump_frame(rt2x00dev, entry->skb);
 	ieee80211_tx_status_irqsafe(rt2x00dev->hw, entry->skb, tx_status);
 	entry->skb = NULL;
 }
@@ -386,8 +582,10 @@ void rt2x00lib_rxdone(struct data_entry *entry, struct sk_buff *skb,
 	struct ieee80211_rx_status *rx_status = &rt2x00dev->rx_status;
 	struct ieee80211_hw_mode *mode;
 	struct ieee80211_rate *rate;
+	struct ieee80211_hdr *hdr;
 	unsigned int i;
 	int val = 0;
+	u16 fc;
 
 	/*
 	 * Update RX statistics.
@@ -412,17 +610,28 @@ void rt2x00lib_rxdone(struct data_entry *entry, struct sk_buff *skb,
 		}
 	}
 
-	rt2x00_update_link_rssi(&rt2x00dev->link, desc->rssi);
-	rt2x00dev->link.rx_success++;
+	/*
+	 * Only update link status if this is a beacon frame carrying our bssid.
+	 */
+	hdr = (struct ieee80211_hdr*)skb->data;
+	fc = le16_to_cpu(hdr->frame_control);
+	if (is_beacon(fc) && desc->my_bss)
+		rt2x00lib_update_link_stats(&rt2x00dev->link, desc->rssi);
+
+	rt2x00dev->link.qual.rx_success++;
+
 	rx_status->rate = val;
 	rx_status->signal =
 	    rt2x00lib_calculate_link_signal(rt2x00dev, desc->rssi);
 	rx_status->ssi = desc->rssi;
 	rx_status->flag = desc->flags;
+	rx_status->antenna = rt2x00dev->link.ant.active.rx;
 
 	/*
-	 * Send frame to mac80211
+	 * Send frame to mac80211 & debugfs
 	 */
+	get_skb_desc(skb)->frame_type = DUMP_FRAME_RXDONE;
+	rt2x00debug_dump_frame(rt2x00dev, skb);
 	ieee80211_rx_irqsafe(rt2x00dev->hw, skb, rx_status);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_rxdone);
@@ -431,36 +640,25 @@ EXPORT_SYMBOL_GPL(rt2x00lib_rxdone);
  * TX descriptor initializer
  */
 void rt2x00lib_write_tx_desc(struct rt2x00_dev *rt2x00dev,
-			     struct data_desc *txd,
-			     struct ieee80211_hdr *ieee80211hdr,
-			     unsigned int length,
+			     struct sk_buff *skb,
 			     struct ieee80211_tx_control *control)
 {
 	struct txdata_entry_desc desc;
-	struct data_ring *ring;
+	struct skb_desc *skbdesc = get_skb_desc(skb);
+	struct ieee80211_hdr *ieee80211hdr = skbdesc->data;
 	int tx_rate;
 	int bitrate;
+	int length;
 	int duration;
 	int residual;
 	u16 frame_control;
 	u16 seq_ctrl;
 
-	/*
-	 * Make sure the descriptor is properly cleared.
-	 */
-	memset(&desc, 0x00, sizeof(desc));
+	memset(&desc, 0, sizeof(desc));
 
-	/*
-	 * Get ring pointer, if we fail to obtain the
-	 * correct ring, then use the first TX ring.
-	 */
-	ring = rt2x00lib_get_ring(rt2x00dev, control->queue);
-	if (!ring)
-		ring = rt2x00lib_get_ring(rt2x00dev, IEEE80211_TX_QUEUE_DATA0);
-
-	desc.cw_min = ring->tx_params.cw_min;
-	desc.cw_max = ring->tx_params.cw_max;
-	desc.aifs = ring->tx_params.aifs;
+	desc.cw_min = skbdesc->ring->tx_params.cw_min;
+	desc.cw_max = skbdesc->ring->tx_params.cw_max;
+	desc.aifs = skbdesc->ring->tx_params.aifs;
 
 	/*
 	 * Identify queue
@@ -482,12 +680,21 @@ void rt2x00lib_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	tx_rate = control->tx_rate;
 
 	/*
+	 * Check whether this frame is to be acked
+	 */
+	if (!(control->flags & IEEE80211_TXCTL_NO_ACK))
+		__set_bit(ENTRY_TXD_ACK, &desc.flags);
+
+	/*
 	 * Check if this is a RTS/CTS frame
 	 */
 	if (is_rts_frame(frame_control) || is_cts_frame(frame_control)) {
 		__set_bit(ENTRY_TXD_BURST, &desc.flags);
-		if (is_rts_frame(frame_control))
+		if (is_rts_frame(frame_control)) {
 			__set_bit(ENTRY_TXD_RTS_FRAME, &desc.flags);
+			__set_bit(ENTRY_TXD_ACK, &desc.flags);
+		} else
+			__clear_bit(ENTRY_TXD_ACK, &desc.flags);
 		if (control->rts_cts_rate)
 			tx_rate = control->rts_cts_rate;
 	}
@@ -532,17 +739,18 @@ void rt2x00lib_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	desc.signal = DEVICE_GET_RATE_FIELD(tx_rate, PLCP);
 	desc.service = 0x04;
 
+	length = skbdesc->data_len + FCS_LEN;
 	if (test_bit(ENTRY_TXD_OFDM_RATE, &desc.flags)) {
-		desc.length_high = ((length + FCS_LEN) >> 6) & 0x3f;
-		desc.length_low = ((length + FCS_LEN) & 0x3f);
+		desc.length_high = (length >> 6) & 0x3f;
+		desc.length_low = length & 0x3f;
 	} else {
 		bitrate = DEVICE_GET_RATE_FIELD(tx_rate, RATE);
 
 		/*
 		 * Convert length to microseconds.
 		 */
-		residual = get_duration_res(length + FCS_LEN, bitrate);
-		duration = get_duration(length + FCS_LEN, bitrate);
+		residual = get_duration_res(length, bitrate);
+		duration = get_duration(length, bitrate);
 
 		if (residual != 0) {
 			duration++;
@@ -565,8 +773,22 @@ void rt2x00lib_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 			desc.signal |= 0x08;
 	}
 
-	rt2x00dev->ops->lib->write_tx_desc(rt2x00dev, txd, &desc,
-					   ieee80211hdr, length, control);
+	rt2x00dev->ops->lib->write_tx_desc(rt2x00dev, skb, &desc, control);
+
+	/*
+	 * Update ring entry.
+	 */
+	skbdesc->entry->skb = skb;
+	memcpy(&skbdesc->entry->tx_status.control, control, sizeof(*control));
+
+	/*
+	 * The frame has been completely initialized and ready
+	 * for sending to the device. The caller will push the
+	 * frame to the device, but we are going to push the
+	 * frame to debugfs here.
+	 */
+	skbdesc->frame_type = DUMP_FRAME_TX;
+	rt2x00debug_dump_frame(rt2x00dev, skb);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_write_tx_desc);
 
@@ -809,6 +1031,7 @@ static int rt2x00lib_alloc_entries(struct data_ring *ring,
 		entry[i].flags = 0;
 		entry[i].ring = ring;
 		entry[i].skb = NULL;
+		entry[i].entry_idx = i;
 	}
 
 	ring->entry = entry;
@@ -866,7 +1089,7 @@ static void rt2x00lib_free_ring_entries(struct rt2x00_dev *rt2x00dev)
 	}
 }
 
-void rt2x00lib_uninitialize(struct rt2x00_dev *rt2x00dev)
+static void rt2x00lib_uninitialize(struct rt2x00_dev *rt2x00dev)
 {
 	if (!__test_and_clear_bit(DEVICE_INITIALIZED, &rt2x00dev->flags))
 		return;
@@ -887,7 +1110,7 @@ void rt2x00lib_uninitialize(struct rt2x00_dev *rt2x00dev)
 	rt2x00lib_free_ring_entries(rt2x00dev);
 }
 
-int rt2x00lib_initialize(struct rt2x00_dev *rt2x00dev)
+static int rt2x00lib_initialize(struct rt2x00_dev *rt2x00dev)
 {
 	int status;
 
@@ -930,12 +1153,65 @@ exit:
 	return status;
 }
 
+int rt2x00lib_start(struct rt2x00_dev *rt2x00dev)
+{
+	int retval;
+
+	if (test_bit(DEVICE_STARTED, &rt2x00dev->flags))
+		return 0;
+
+	/*
+	 * If this is the first interface which is added,
+	 * we should load the firmware now.
+	 */
+	if (test_bit(DRIVER_REQUIRE_FIRMWARE, &rt2x00dev->flags)) {
+		retval = rt2x00lib_load_firmware(rt2x00dev);
+		if (retval)
+			return retval;
+	}
+
+	/*
+	 * Initialize the device.
+	 */
+	retval = rt2x00lib_initialize(rt2x00dev);
+	if (retval)
+		return retval;
+
+	/*
+	 * Enable radio.
+	 */
+	retval = rt2x00lib_enable_radio(rt2x00dev);
+	if (retval) {
+		rt2x00lib_uninitialize(rt2x00dev);
+		return retval;
+	}
+
+	__set_bit(DEVICE_STARTED, &rt2x00dev->flags);
+
+	return 0;
+}
+
+void rt2x00lib_stop(struct rt2x00_dev *rt2x00dev)
+{
+	if (!test_bit(DEVICE_STARTED, &rt2x00dev->flags))
+		return;
+
+	/*
+	 * Perhaps we can add something smarter here,
+	 * but for now just disabling the radio should do.
+	 */
+	rt2x00lib_disable_radio(rt2x00dev);
+
+	__clear_bit(DEVICE_STARTED, &rt2x00dev->flags);
+}
+
 /*
  * driver allocation handlers.
  */
 static int rt2x00lib_alloc_rings(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_ring *ring;
+	unsigned int index;
 
 	/*
 	 * We need the following rings:
@@ -963,11 +1239,18 @@ static int rt2x00lib_alloc_rings(struct rt2x00_dev *rt2x00dev)
 
 	/*
 	 * Initialize ring parameters.
-	 * cw_min: 2^5 = 32.
-	 * cw_max: 2^10 = 1024.
+	 * RX: queue_idx = 0
+	 * TX: queue_idx = IEEE80211_TX_QUEUE_DATA0 + index
+	 * TX: cw_min: 2^5 = 32.
+	 * TX: cw_max: 2^10 = 1024.
 	 */
-	ring_for_each(rt2x00dev, ring) {
+	rt2x00dev->rx->rt2x00dev = rt2x00dev;
+	rt2x00dev->rx->queue_idx = 0;
+
+	index = IEEE80211_TX_QUEUE_DATA0;
+	txring_for_each(rt2x00dev, ring) {
 		ring->rt2x00dev = rt2x00dev;
+		ring->queue_idx = index++;
 		ring->tx_params.aifs = 2;
 		ring->tx_params.cw_min = 5;
 		ring->tx_params.cw_max = 10;
@@ -1008,7 +1291,7 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Reset current working type.
 	 */
-	rt2x00dev->interface.type = INVALID_INTERFACE;
+	rt2x00dev->interface.type = IEEE80211_IF_TYPE_INVALID;
 
 	/*
 	 * Allocate ring array.
@@ -1112,7 +1395,7 @@ int rt2x00lib_suspend(struct rt2x00_dev *rt2x00dev, pm_message_t state)
 	 * Disable radio and unitialize all items
 	 * that must be recreated on resume.
 	 */
-	rt2x00mac_stop(rt2x00dev->hw);
+	rt2x00lib_stop(rt2x00dev);
 	rt2x00lib_uninitialize(rt2x00dev);
 	rt2x00debug_deregister(rt2x00dev);
 
@@ -1134,7 +1417,6 @@ int rt2x00lib_resume(struct rt2x00_dev *rt2x00dev)
 	int retval;
 
 	NOTICE(rt2x00dev, "Waking up.\n");
-	__set_bit(DEVICE_PRESENT, &rt2x00dev->flags);
 
 	/*
 	 * Open the debugfs entry.
@@ -1150,7 +1432,7 @@ int rt2x00lib_resume(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Reinitialize device and all active interfaces.
 	 */
-	retval = rt2x00mac_start(rt2x00dev->hw);
+	retval = rt2x00lib_start(rt2x00dev);
 	if (retval)
 		goto exit;
 
@@ -1164,6 +1446,11 @@ int rt2x00lib_resume(struct rt2x00_dev *rt2x00dev)
 	rt2x00lib_config_mac_addr(rt2x00dev, intf->mac);
 	rt2x00lib_config_bssid(rt2x00dev, intf->bssid);
 	rt2x00lib_config_type(rt2x00dev, intf->type);
+
+	/*
+	 * We are ready again to receive requests from mac80211.
+	 */
+	__set_bit(DEVICE_PRESENT, &rt2x00dev->flags);
 
 	/*
 	 * It is possible that during that mac80211 has attempted

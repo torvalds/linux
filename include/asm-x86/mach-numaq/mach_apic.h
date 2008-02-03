@@ -101,11 +101,11 @@ static inline int mpc_apic_id(struct mpc_config_processor *m,
 	int quad = translation_record->trans_quad;
 	int logical_apicid = generate_logical_apicid(quad, m->mpc_apicid);
 
-	printk("Processor #%d %ld:%ld APIC version %d (quad %d, apic %d)\n",
-			m->mpc_apicid,
-			(m->mpc_cpufeature & CPU_FAMILY_MASK) >> 8,
-			(m->mpc_cpufeature & CPU_MODEL_MASK) >> 4,
-			m->mpc_apicver, quad, logical_apicid);
+	printk("Processor #%d %u:%u APIC version %d (quad %d, apic %d)\n",
+	       m->mpc_apicid,
+	       (m->mpc_cpufeature & CPU_FAMILY_MASK) >> 8,
+	       (m->mpc_cpufeature & CPU_MODEL_MASK) >> 4,
+	       m->mpc_apicver, quad, logical_apicid);
 	return logical_apicid;
 }
 

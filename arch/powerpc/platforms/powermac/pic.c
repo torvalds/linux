@@ -663,7 +663,7 @@ static int pmacpic_resume(struct sys_device *sysdev)
 #endif /* CONFIG_PM && CONFIG_PPC32 */
 
 static struct sysdev_class pmacpic_sysclass = {
-	set_kset_name("pmac_pic"),
+	.name = "pmac_pic",
 };
 
 static struct sys_device device_pmacpic = {
@@ -690,6 +690,5 @@ static int __init init_pmacpic_sysfs(void)
 	sysdev_driver_register(&pmacpic_sysclass, &driver_pmacpic);
 	return 0;
 }
-
-subsys_initcall(init_pmacpic_sysfs);
+machine_subsys_initcall(powermac, init_pmacpic_sysfs);
 

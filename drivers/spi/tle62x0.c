@@ -107,8 +107,11 @@ static ssize_t tle62x0_status_show(struct device *dev,
 
 	mutex_lock(&st->lock);
 	ret = tle62x0_read(st);
-
 	dev_dbg(dev, "tle62x0_read() returned %d\n", ret);
+	if (ret < 0) {
+		mutex_unlock(&st->lock);
+		return ret;
+	}
 
 	for (ptr = 0; ptr < (st->nr_gpio * 2)/8; ptr += 1) {
 		fault <<= 8;

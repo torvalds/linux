@@ -56,7 +56,7 @@ int nfs_mount(struct sockaddr *addr, size_t len, char *hostname, char *path,
 		.program	= &mnt_program,
 		.version	= version,
 		.authflavor	= RPC_AUTH_UNIX,
-		.flags		= RPC_CLNT_CREATE_INTR,
+		.flags		= 0,
 	};
 	struct rpc_clnt		*mnt_clnt;
 	int			status;

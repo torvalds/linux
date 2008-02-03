@@ -71,7 +71,7 @@ struct teql_sched_data
 
 #define NEXT_SLAVE(q) (((struct teql_sched_data*)qdisc_priv(q))->next)
 
-#define FMASK (IFF_BROADCAST|IFF_POINTOPOINT|IFF_BROADCAST)
+#define FMASK (IFF_BROADCAST|IFF_POINTOPOINT)
 
 /* "teql*" qdisc routines */
 
@@ -168,7 +168,7 @@ teql_destroy(struct Qdisc* sch)
 	}
 }
 
-static int teql_qdisc_init(struct Qdisc *sch, struct rtattr *opt)
+static int teql_qdisc_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct net_device *dev = sch->dev;
 	struct teql_master *m = (struct teql_master*)sch->ops;
@@ -252,6 +252,9 @@ __teql_resolve(struct sk_buff *skb, struct sk_buff *skb_res, struct net_device *
 static inline int teql_resolve(struct sk_buff *skb,
 			       struct sk_buff *skb_res, struct net_device *dev)
 {
+	if (dev->qdisc == &noop_qdisc)
+		return -ENODEV;
+
 	if (dev->header_ops == NULL ||
 	    skb->dst == NULL ||
 	    skb->dst->neighbour == NULL)

@@ -2034,7 +2034,8 @@ sba_init(void)
 	if (!ia64_platform_is("hpzx1") && !ia64_platform_is("hpzx1_swiotlb"))
 		return 0;
 
-#if defined(CONFIG_IA64_GENERIC) && defined(CONFIG_CRASH_DUMP)
+#if defined(CONFIG_IA64_GENERIC) && defined(CONFIG_CRASH_DUMP) && \
+        defined(CONFIG_PROC_FS)
 	/* If we are booting a kdump kernel, the sba_iommu will
 	 * cause devices that were not shutdown properly to MCA
 	 * as soon as they are turned back on.  Our only option for

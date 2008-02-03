@@ -290,6 +290,7 @@ static inline void tvp5150_selmux(struct i2c_client *c)
 	int opmode=0;
 	struct tvp5150 *decoder = i2c_get_clientdata(c);
 	int input = 0;
+	unsigned char val;
 
 	if ((decoder->route.output & TVP5150_BLACK_SCREEN) || !decoder->enable)
 		input = 8;
@@ -315,6 +316,16 @@ static inline void tvp5150_selmux(struct i2c_client *c)
 
 	tvp5150_write(c, TVP5150_OP_MODE_CTL, opmode);
 	tvp5150_write(c, TVP5150_VD_IN_SRC_SEL_1, input);
+
+	/* Svideo should enable YCrCb output and disable GPCL output
+	 * For Composite and TV, it should be the reverse
+	 */
+	val = tvp5150_read(c, TVP5150_MISC_CTL);
+	if (decoder->route.input == TVP5150_SVIDEO)
+		val = (val & ~0x40) | 0x10;
+	else
+		val = (val & ~0x10) | 0x40;
+	tvp5150_write(c, TVP5150_MISC_CTL, val);
 };
 
 struct i2c_reg_value {
@@ -799,10 +810,10 @@ static inline void tvp5150_reset(struct i2c_client *c)
 	tvp5150_write_inittab(c, tvp5150_init_enable);
 
 	/* Initialize image preferences */
-	tvp5150_write(c, TVP5150_BRIGHT_CTL, decoder->bright >> 8);
-	tvp5150_write(c, TVP5150_CONTRAST_CTL, decoder->contrast >> 8);
-	tvp5150_write(c, TVP5150_SATURATION_CTL, decoder->contrast >> 8);
-	tvp5150_write(c, TVP5150_HUE_CTL, (decoder->hue - 32768) >> 8);
+	tvp5150_write(c, TVP5150_BRIGHT_CTL, decoder->bright);
+	tvp5150_write(c, TVP5150_CONTRAST_CTL, decoder->contrast);
+	tvp5150_write(c, TVP5150_SATURATION_CTL, decoder->contrast);
+	tvp5150_write(c, TVP5150_HUE_CTL, decoder->hue);
 
 	tvp5150_set_std(c, decoder->norm);
 };
@@ -1077,10 +1088,10 @@ static int tvp5150_detect_client(struct i2c_adapter *adapter,
 	core->norm = V4L2_STD_ALL;	/* Default is autodetect */
 	core->route.input = TVP5150_COMPOSITE1;
 	core->enable = 1;
-	core->bright = 32768;
-	core->contrast = 32768;
-	core->hue = 32768;
-	core->sat = 32768;
+	core->bright = 128;
+	core->contrast = 128;
+	core->hue = 0;
+	core->sat = 128;
 
 	if (rv) {
 		kfree(c);

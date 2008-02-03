@@ -95,9 +95,10 @@ static void rfcomm_dev_destruct(struct rfcomm_dev *dev)
 
 	BT_DBG("dev %p dlc %p", dev, dlc);
 
-	write_lock_bh(&rfcomm_dev_lock);
-	list_del_init(&dev->list);
-	write_unlock_bh(&rfcomm_dev_lock);
+	/* Refcount should only hit zero when called from rfcomm_dev_del()
+	   which will have taken us off the list. Everything else are
+	   refcounting bugs. */
+	BUG_ON(!list_empty(&dev->list));
 
 	rfcomm_dlc_lock(dlc);
 	/* Detach DLC if it's owned by this dev */
@@ -108,11 +109,6 @@ static void rfcomm_dev_destruct(struct rfcomm_dev *dev)
 	rfcomm_dlc_put(dlc);
 
 	tty_unregister_device(rfcomm_tty_driver, dev->id);
-
-	/* Refcount should only hit zero when called from rfcomm_dev_del()
-	   which will have taken us off the list. Everything else are
-	   refcounting bugs. */
-	BUG_ON(!list_empty(&dev->list));
 
 	kfree(dev);
 
@@ -313,7 +309,15 @@ static void rfcomm_dev_del(struct rfcomm_dev *dev)
 {
 	BT_DBG("dev %p", dev);
 
-	set_bit(RFCOMM_TTY_RELEASED, &dev->flags);
+	if (test_bit(RFCOMM_TTY_RELEASED, &dev->flags))
+		BUG_ON(1);
+	else
+		set_bit(RFCOMM_TTY_RELEASED, &dev->flags);
+
+	write_lock_bh(&rfcomm_dev_lock);
+	list_del_init(&dev->list);
+	write_unlock_bh(&rfcomm_dev_lock);
+
 	rfcomm_dev_put(dev);
 }
 
@@ -692,7 +696,8 @@ static void rfcomm_tty_close(struct tty_struct *tty, struct file *filp)
 	BT_DBG("tty %p dev %p dlc %p opened %d", tty, dev, dev->dlc, dev->opened);
 
 	if (--dev->opened == 0) {
-		device_move(dev->tty_dev, NULL);
+		if (dev->tty_dev->parent)
+			device_move(dev->tty_dev, NULL);
 
 		/* Close DLC and dettach TTY */
 		rfcomm_dlc_close(dev->dlc, 0);

@@ -244,7 +244,7 @@ static void pcimt_hwint1(void)
 	if (pend & IT_EISA) {
 		int irq;
 		/*
-		 * Note: ASIC PCI's builtin interrupt achknowledge feature is
+		 * Note: ASIC PCI's builtin interrupt acknowledge feature is
 		 * broken.  Using it may result in loss of some or all i8259
 		 * interrupts, so don't use PCIMT_INT_ACKNOWLEDGE ...
 		 */

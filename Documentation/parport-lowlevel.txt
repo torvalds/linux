@@ -339,6 +339,10 @@ Use this function to register your device driver on a parallel port
 ('port').  Once you have done that, you will be able to use
 parport_claim and parport_release in order to use the port.
 
+The ('name') argument is the name of the device that appears in /proc
+filesystem. The string must be valid for the whole lifetime of the
+device (until parport_unregister_device is called).
+
 This function will register three callbacks into your driver:
 'preempt', 'wakeup' and 'irq'.  Each of these may be NULL in order to
 indicate that you do not want a callback.

@@ -1,7 +1,7 @@
 /******************************************************************************
 *******************************************************************************
 **
-**  Copyright (C) 2005-2007 Red Hat, Inc.  All rights reserved.
+**  Copyright (C) 2005-2008 Red Hat, Inc.  All rights reserved.
 **
 **  This copyrighted material is made available to anyone wishing to use,
 **  modify, copy, or redistribute it subject to the terms and conditions
@@ -70,7 +70,7 @@ static void dlm_remove_member(struct dlm_ls *ls, struct dlm_member *memb)
 	ls->ls_num_nodes--;
 }
 
-static int dlm_is_member(struct dlm_ls *ls, int nodeid)
+int dlm_is_member(struct dlm_ls *ls, int nodeid)
 {
 	struct dlm_member *memb;
 

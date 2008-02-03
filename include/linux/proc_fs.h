@@ -48,6 +48,8 @@ typedef	int (read_proc_t)(char *page, char **start, off_t off,
 typedef	int (write_proc_t)(struct file *file, const char __user *buffer,
 			   unsigned long count, void *data);
 typedef int (get_info_t)(char *, char **, off_t, int);
+typedef struct proc_dir_entry *(shadow_proc_t)(struct task_struct *task,
+						struct proc_dir_entry *pde);
 
 struct proc_dir_entry {
 	unsigned int low_ino;
@@ -75,10 +77,10 @@ struct proc_dir_entry {
 	read_proc_t *read_proc;
 	write_proc_t *write_proc;
 	atomic_t count;		/* use count */
-	int deleted;		/* delete flag */
 	int pde_users;	/* number of callers into module in progress */
 	spinlock_t pde_unload_lock; /* proc_fops checks and pde_users bumps */
 	struct completion *pde_unload_completion;
+	shadow_proc_t *shadow_proc;
 };
 
 struct kcore_list {
@@ -196,11 +198,11 @@ static inline struct proc_dir_entry *create_proc_info_entry(const char *name,
 	return res;
 }
 
-extern struct proc_dir_entry *proc_net_create(struct net *net,
-	const char *name, mode_t mode, get_info_t *get_info);
 extern struct proc_dir_entry *proc_net_fops_create(struct net *net,
 	const char *name, mode_t mode, const struct file_operations *fops);
 extern void proc_net_remove(struct net *net, const char *name);
+extern struct proc_dir_entry *proc_net_mkdir(struct net *net, const char *name,
+	struct proc_dir_entry *parent);
 
 #else
 
@@ -208,7 +210,6 @@ extern void proc_net_remove(struct net *net, const char *name);
 #define proc_bus NULL
 
 #define proc_net_fops_create(net, name, mode, fops)  ({ (void)(mode), NULL; })
-#define proc_net_create(net, name, mode, info)	({ (void)(mode), NULL; })
 static inline void proc_net_remove(struct net *net, const char *name) {}
 
 static inline void proc_flush_task(struct task_struct *task)

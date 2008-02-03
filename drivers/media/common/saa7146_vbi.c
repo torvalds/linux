@@ -205,7 +205,7 @@ static int buffer_activate(struct saa7146_dev *dev,
 			   struct saa7146_buf *next)
 {
 	struct saa7146_vv *vv = dev->vv_data;
-	buf->vb.state = STATE_ACTIVE;
+	buf->vb.state = VIDEOBUF_ACTIVE;
 
 	DEB_VBI(("dev:%p, buf:%p, next:%p\n",dev,buf,next));
 	saa7146_set_vbi_capture(dev,buf,next);
@@ -238,7 +238,7 @@ static int buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,e
 	if (buf->vb.size != size)
 		saa7146_dma_free(dev,q,buf);
 
-	if (STATE_NEEDS_INIT == buf->vb.state) {
+	if (VIDEOBUF_NEEDS_INIT == buf->vb.state) {
 		struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
 
 		buf->vb.width  = llength;
@@ -257,7 +257,7 @@ static int buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,e
 		if (0 != err)
 			return err;
 	}
-	buf->vb.state = STATE_PREPARED;
+	buf->vb.state = VIDEOBUF_PREPARED;
 	buf->activate = buffer_activate;
 
 	return 0;
@@ -335,7 +335,7 @@ static void vbi_stop(struct saa7146_fh *fh, struct file *file)
 	saa7146_write(dev, MC1, MASK_20);
 
 	if (vv->vbi_q.curr) {
-		saa7146_buffer_finish(dev,&vv->vbi_q,STATE_DONE);
+		saa7146_buffer_finish(dev,&vv->vbi_q,VIDEOBUF_DONE);
 	}
 
 	videobuf_queue_cancel(&fh->vbi_q);
@@ -458,7 +458,7 @@ static void vbi_irq_done(struct saa7146_dev *dev, unsigned long status)
 		/* this must be += 2, one count for each field */
 		vv->vbi_fieldcount+=2;
 		vv->vbi_q.curr->vb.field_count = vv->vbi_fieldcount;
-		saa7146_buffer_finish(dev,&vv->vbi_q,STATE_DONE);
+		saa7146_buffer_finish(dev,&vv->vbi_q,VIDEOBUF_DONE);
 	} else {
 		DEB_VBI(("dev:%p\n",dev));
 	}

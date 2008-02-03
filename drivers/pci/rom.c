@@ -162,6 +162,7 @@ void __iomem *pci_map_rom(struct pci_dev *pdev, size_t *size)
 	return rom;
 }
 
+#if 0
 /**
  * pci_map_rom_copy - map a PCI ROM to kernel space, create a copy
  * @pdev: pointer to pci device struct
@@ -196,6 +197,7 @@ void __iomem *pci_map_rom_copy(struct pci_dev *pdev, size_t *size)
 
 	return (void __iomem *)(unsigned long)res->start;
 }
+#endif  /*  0  */
 
 /**
  * pci_unmap_rom - unmap the ROM from kernel space
@@ -218,6 +220,7 @@ void pci_unmap_rom(struct pci_dev *pdev, void __iomem *rom)
 		pci_disable_rom(pdev);
 }
 
+#if 0
 /**
  * pci_remove_rom - disable the ROM and remove its sysfs attribute
  * @pdev: pointer to pci device struct
@@ -236,6 +239,7 @@ void pci_remove_rom(struct pci_dev *pdev)
 			    IORESOURCE_ROM_COPY)))
 		pci_disable_rom(pdev);
 }
+#endif  /*  0  */
 
 /**
  * pci_cleanup_rom - internal routine for freeing the ROM copy created
@@ -256,6 +260,4 @@ void pci_cleanup_rom(struct pci_dev *pdev)
 }
 
 EXPORT_SYMBOL(pci_map_rom);
-EXPORT_SYMBOL(pci_map_rom_copy);
 EXPORT_SYMBOL(pci_unmap_rom);
-EXPORT_SYMBOL(pci_remove_rom);

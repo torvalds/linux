@@ -141,12 +141,7 @@ static const char *task_state_array[] = {
 
 static inline const char *get_task_state(struct task_struct *tsk)
 {
-	unsigned int state = (tsk->state & (TASK_RUNNING |
-					    TASK_INTERRUPTIBLE |
-					    TASK_UNINTERRUPTIBLE |
-					    TASK_STOPPED |
-					    TASK_TRACED)) |
-					   tsk->exit_state;
+	unsigned int state = (tsk->state & TASK_REPORT) | tsk->exit_state;
 	const char **p = &task_state_array[0];
 
 	while (state) {
@@ -169,7 +164,7 @@ static inline char *task_state(struct task_struct *p, char *buffer)
 	ppid = pid_alive(p) ?
 		task_tgid_nr_ns(rcu_dereference(p->real_parent), ns) : 0;
 	tpid = pid_alive(p) && p->ptrace ?
-		task_ppid_nr_ns(rcu_dereference(p->parent), ns) : 0;
+		task_pid_nr_ns(rcu_dereference(p->parent), ns) : 0;
 	buffer += sprintf(buffer,
 		"State:\t%s\n"
 		"Tgid:\t%d\n"
@@ -358,7 +353,8 @@ static cputime_t task_utime(struct task_struct *p)
 	}
 	utime = (clock_t)temp;
 
-	return clock_t_to_cputime(utime);
+	p->prev_utime = max(p->prev_utime, clock_t_to_cputime(utime));
+	return p->prev_utime;
 }
 
 static cputime_t task_stime(struct task_struct *p)
@@ -373,7 +369,10 @@ static cputime_t task_stime(struct task_struct *p)
 	stime = nsec_to_clock_t(p->se.sum_exec_runtime) -
 			cputime_to_clock_t(task_utime(p));
 
-	return clock_t_to_cputime(stime);
+	if (stime >= 0)
+		p->prev_stime = max(p->prev_stime, clock_t_to_cputime(stime));
+
+	return p->prev_stime;
 }
 #endif
 
@@ -460,8 +459,8 @@ static int do_task_stat(struct task_struct *task, char *buffer, int whole)
 		}
 
 		sid = task_session_nr_ns(task, ns);
+		ppid = task_tgid_nr_ns(task->real_parent, ns);
 		pgid = task_pgrp_nr_ns(task, ns);
-		ppid = task_ppid_nr_ns(task, ns);
 
 		unlock_task_sighand(task, &flags);
 	}

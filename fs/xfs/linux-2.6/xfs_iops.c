@@ -117,7 +117,7 @@ xfs_ichgtime(
 	 */
 	SYNCHRONIZE();
 	ip->i_update_core = 1;
-	if (!(inode->i_state & I_SYNC))
+	if (!(inode->i_state & I_NEW))
 		mark_inode_dirty_sync(inode);
 }
 
@@ -169,7 +169,7 @@ xfs_ichgtime_fast(
 	 */
 	SYNCHRONIZE();
 	ip->i_update_core = 1;
-	if (!(inode->i_state & I_SYNC))
+	if (!(inode->i_state & I_NEW))
 		mark_inode_dirty_sync(inode);
 }
 
@@ -332,9 +332,7 @@ xfs_vn_mknod(
 		ASSERT(vp);
 		ip = vn_to_inode(vp);
 
-		if (S_ISCHR(mode) || S_ISBLK(mode))
-			ip->i_rdev = rdev;
-		else if (S_ISDIR(mode))
+		if (S_ISDIR(mode))
 			xfs_validate_fields(ip);
 		d_instantiate(dentry, ip);
 		xfs_validate_fields(dir);

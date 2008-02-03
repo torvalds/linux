@@ -98,9 +98,10 @@ static void omap_mcbsp_dump_reg(u8 id)
 
 static irqreturn_t omap_mcbsp_tx_irq_handler(int irq, void *dev_id)
 {
-	struct omap_mcbsp * mcbsp_tx = (struct omap_mcbsp *)(dev_id);
+	struct omap_mcbsp *mcbsp_tx = dev_id;
 
-	DBG("TX IRQ callback : 0x%x\n", OMAP_MCBSP_READ(mcbsp_tx->io_base, SPCR2));
+	DBG("TX IRQ callback : 0x%x\n",
+	    OMAP_MCBSP_READ(mcbsp_tx->io_base, SPCR2));
 
 	complete(&mcbsp_tx->tx_irq_completion);
 	return IRQ_HANDLED;
@@ -108,9 +109,10 @@ static irqreturn_t omap_mcbsp_tx_irq_handler(int irq, void *dev_id)
 
 static irqreturn_t omap_mcbsp_rx_irq_handler(int irq, void *dev_id)
 {
-	struct omap_mcbsp * mcbsp_rx = (struct omap_mcbsp *)(dev_id);
+	struct omap_mcbsp *mcbsp_rx = dev_id;
 
-	DBG("RX IRQ callback : 0x%x\n", OMAP_MCBSP_READ(mcbsp_rx->io_base, SPCR2));
+	DBG("RX IRQ callback : 0x%x\n",
+	    OMAP_MCBSP_READ(mcbsp_rx->io_base, SPCR2));
 
 	complete(&mcbsp_rx->rx_irq_completion);
 	return IRQ_HANDLED;
@@ -118,9 +120,10 @@ static irqreturn_t omap_mcbsp_rx_irq_handler(int irq, void *dev_id)
 
 static void omap_mcbsp_tx_dma_callback(int lch, u16 ch_status, void *data)
 {
-	struct omap_mcbsp * mcbsp_dma_tx = (struct omap_mcbsp *)(data);
+	struct omap_mcbsp *mcbsp_dma_tx = data;
 
-	DBG("TX DMA callback : 0x%x\n", OMAP_MCBSP_READ(mcbsp_dma_tx->io_base, SPCR2));
+	DBG("TX DMA callback : 0x%x\n",
+	    OMAP_MCBSP_READ(mcbsp_dma_tx->io_base, SPCR2));
 
 	/* We can free the channels */
 	omap_free_dma(mcbsp_dma_tx->dma_tx_lch);
@@ -131,9 +134,10 @@ static void omap_mcbsp_tx_dma_callback(int lch, u16 ch_status, void *data)
 
 static void omap_mcbsp_rx_dma_callback(int lch, u16 ch_status, void *data)
 {
-	struct omap_mcbsp * mcbsp_dma_rx = (struct omap_mcbsp *)(data);
+	struct omap_mcbsp *mcbsp_dma_rx = data;
 
-	DBG("RX DMA callback : 0x%x\n", OMAP_MCBSP_READ(mcbsp_dma_rx->io_base, SPCR2));
+	DBG("RX DMA callback : 0x%x\n",
+	    OMAP_MCBSP_READ(mcbsp_dma_rx->io_base, SPCR2));
 
 	/* We can free the channels */
 	omap_free_dma(mcbsp_dma_rx->dma_rx_lch);

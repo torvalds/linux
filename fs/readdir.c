@@ -30,7 +30,10 @@ int vfs_readdir(struct file *file, filldir_t filler, void *buf)
 	if (res)
 		goto out;
 
-	mutex_lock(&inode->i_mutex);
+	res = mutex_lock_killable(&inode->i_mutex);
+	if (res)
+		goto out;
+
 	res = -ENOENT;
 	if (!IS_DEADDIR(inode)) {
 		res = file->f_op->readdir(file, buf, filler);

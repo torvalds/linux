@@ -234,7 +234,7 @@ smb_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
 
 	VERBOSE("before read, size=%ld, flags=%x, atime=%ld\n",
 		(long)dentry->d_inode->i_size,
-		dentry->d_inode->i_flags, dentry->d_inode->i_atime);
+		dentry->d_inode->i_flags, dentry->d_inode->i_atime.tv_sec);
 
 	status = generic_file_aio_read(iocb, iov, nr_segs, pos);
 out:
@@ -269,7 +269,7 @@ smb_file_splice_read(struct file *file, loff_t *ppos,
 	struct dentry *dentry = file->f_path.dentry;
 	ssize_t status;
 
-	VERBOSE("file %s/%s, pos=%Ld, count=%d\n",
+	VERBOSE("file %s/%s, pos=%Ld, count=%lu\n",
 		DENTRY_PATH(dentry), *ppos, count);
 
 	status = smb_revalidate_inode(dentry);
@@ -363,7 +363,8 @@ smb_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 		result = generic_file_aio_write(iocb, iov, nr_segs, pos);
 		VERBOSE("pos=%ld, size=%ld, mtime=%ld, atime=%ld\n",
 			(long) file->f_pos, (long) dentry->d_inode->i_size,
-			dentry->d_inode->i_mtime, dentry->d_inode->i_atime);
+			dentry->d_inode->i_mtime.tv_sec,
+			dentry->d_inode->i_atime.tv_sec);
 	}
 out:
 	return result;

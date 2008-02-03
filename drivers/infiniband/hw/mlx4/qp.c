@@ -1282,7 +1282,7 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	int size;
 	int i;
 
-	spin_lock_irqsave(&qp->rq.lock, flags);
+	spin_lock_irqsave(&qp->sq.lock, flags);
 
 	ind = qp->sq.head;
 
@@ -1448,7 +1448,7 @@ out:
 			       (qp->sq.wqe_cnt - 1));
 	}
 
-	spin_unlock_irqrestore(&qp->rq.lock, flags);
+	spin_unlock_irqrestore(&qp->sq.lock, flags);
 
 	return err;
 }

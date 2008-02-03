@@ -98,6 +98,8 @@ int __init detect_cpu_and_cache_system(void)
 	case 0x200A:
 		if (prr == 0x61)
 			boot_cpu_data.type = CPU_SH7781;
+		else if (prr == 0xa1)
+			boot_cpu_data.type = CPU_SH7763;
 		else
 			boot_cpu_data.type = CPU_SH7780;
 
@@ -138,14 +140,6 @@ int __init detect_cpu_and_cache_system(void)
 		boot_cpu_data.dcache.ways = 4;
 		boot_cpu_data.flags |= CPU_HAS_FPU | CPU_HAS_PERF_COUNTER |
 					  CPU_HAS_LLSC;
-		break;
-	case 0x8000:
-		boot_cpu_data.type = CPU_ST40RA;
-		boot_cpu_data.flags |= CPU_HAS_FPU;
-		break;
-	case 0x8100:
-		boot_cpu_data.type = CPU_ST40GX1;
-		boot_cpu_data.flags |= CPU_HAS_FPU;
 		break;
 	case 0x700:
 		boot_cpu_data.type = CPU_SH4_501;

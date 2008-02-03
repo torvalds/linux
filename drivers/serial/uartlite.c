@@ -329,12 +329,14 @@ static struct uart_ops ulite_ops = {
 static void ulite_console_wait_tx(struct uart_port *port)
 {
 	int i;
+	u8 val;
 
-	/* wait up to 10ms for the character(s) to be sent */
-	for (i = 0; i < 10000; i++) {
-		if (readb(port->membase + ULITE_STATUS) & ULITE_STATUS_TXEMPTY)
+	/* Spin waiting for TX fifo to have space available */
+	for (i = 0; i < 100000; i++) {
+		val = readb(port->membase + ULITE_STATUS);
+		if ((val & ULITE_STATUS_TXFULL) == 0)
 			break;
-		udelay(1);
+		cpu_relax();
 	}
 }
 
@@ -391,6 +393,7 @@ static inline void __init ulite_console_of_find_device(int id)
 			continue;
 
 		ulite_ports[id].mapbase = res.start;
+		of_node_put(np);
 		return;
 	}
 }
@@ -536,7 +539,7 @@ static int __devinit ulite_assign(struct device *dev, int id, u32 base, int irq)
  *
  * @dev: pointer to device structure
  */
-static int __devinit ulite_release(struct device *dev)
+static int __devexit ulite_release(struct device *dev)
 {
 	struct uart_port *port = dev_get_drvdata(dev);
 	int rc = 0;
@@ -569,14 +572,14 @@ static int __devinit ulite_probe(struct platform_device *pdev)
 	return ulite_assign(&pdev->dev, pdev->id, res->start, res2->start);
 }
 
-static int ulite_remove(struct platform_device *pdev)
+static int __devexit ulite_remove(struct platform_device *pdev)
 {
 	return ulite_release(&pdev->dev);
 }
 
 static struct platform_driver ulite_platform_driver = {
 	.probe	= ulite_probe,
-	.remove	= ulite_remove,
+	.remove	= __devexit_p(ulite_remove),
 	.driver	= {
 		   .owner = THIS_MODULE,
 		   .name  = "uartlite",

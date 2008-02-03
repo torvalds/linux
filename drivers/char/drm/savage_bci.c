@@ -968,9 +968,6 @@ static int savage_bci_event_wait(struct drm_device *dev, void *data, struct drm_
 
 	DRM_DEBUG("\n");
 
-	DRM_COPY_FROM_USER_IOCTL(event, (drm_savage_event_wait_t __user *) data,
-				 sizeof(event));
-
 	UPDATE_EVENT_COUNTER();
 	if (dev_priv->status_ptr)
 		hw_e = dev_priv->status_ptr[1] & 0xffff;

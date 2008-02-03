@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/ide/ppc/ide-m8xx.c
- *
  *  Copyright (C) 2000, 2001 Wolfgang Denk, wd@denx.de
  *  Modified for direct IDE interface
  *	by Thomas Lange, thomas@corelatus.com
@@ -838,3 +836,21 @@ void m8xx_ide_init(void)
 	ppc_ide_md.default_io_base      = m8xx_ide_default_io_base;
 	ppc_ide_md.ide_init_hwif        = m8xx_ide_init_hwif_ports;
 }
+
+static int __init mpc8xx_ide_probe(void)
+{
+	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
+
+#ifdef IDE0_BASE_OFFSET
+	idx[0] = 0;
+#ifdef IDE1_BASE_OFFSET
+	idx[1] = 1;
+#endif
+#endif
+
+	ide_device_add(idx, NULL);
+
+	return 0;
+}
+
+module_init(mpc8xx_ide_probe);

@@ -89,6 +89,7 @@ enum ds_type {
 
 struct ds1307 {
 	u8			reg_addr;
+	bool			has_nvram;
 	u8			regs[8];
 	enum ds_type		type;
 	struct i2c_msg		msg[2];
@@ -241,6 +242,87 @@ static const struct rtc_class_ops ds13xx_rtc_ops = {
 	.read_time	= ds1307_get_time,
 	.set_time	= ds1307_set_time,
 };
+
+/*----------------------------------------------------------------------*/
+
+#define NVRAM_SIZE	56
+
+static ssize_t
+ds1307_nvram_read(struct kobject *kobj, struct bin_attribute *attr,
+		char *buf, loff_t off, size_t count)
+{
+	struct i2c_client	*client;
+	struct ds1307		*ds1307;
+	struct i2c_msg		msg[2];
+	int			result;
+
+	client = to_i2c_client(container_of(kobj, struct device, kobj));
+	ds1307 = i2c_get_clientdata(client);
+
+	if (unlikely(off >= NVRAM_SIZE))
+		return 0;
+	if ((off + count) > NVRAM_SIZE)
+		count = NVRAM_SIZE - off;
+	if (unlikely(!count))
+		return count;
+
+	msg[0].addr = client->addr;
+	msg[0].flags = 0;
+	msg[0].len = 1;
+	msg[0].buf = buf;
+
+	buf[0] = 8 + off;
+
+	msg[1].addr = client->addr;
+	msg[1].flags = I2C_M_RD;
+	msg[1].len = count;
+	msg[1].buf = buf;
+
+	result = i2c_transfer(to_i2c_adapter(client->dev.parent), msg, 2);
+	if (result != 2) {
+		dev_err(&client->dev, "%s error %d\n", "nvram read", result);
+		return -EIO;
+	}
+	return count;
+}
+
+static ssize_t
+ds1307_nvram_write(struct kobject *kobj, struct bin_attribute *attr,
+		char *buf, loff_t off, size_t count)
+{
+	struct i2c_client	*client;
+	u8			buffer[NVRAM_SIZE + 1];
+	int			ret;
+
+	client = to_i2c_client(container_of(kobj, struct device, kobj));
+
+	if (unlikely(off >= NVRAM_SIZE))
+		return -EFBIG;
+	if ((off + count) > NVRAM_SIZE)
+		count = NVRAM_SIZE - off;
+	if (unlikely(!count))
+		return count;
+
+	buffer[0] = 8 + off;
+	memcpy(buffer + 1, buf, count);
+
+	ret = i2c_master_send(client, buffer, count + 1);
+	return (ret < 0) ? ret : (ret - 1);
+}
+
+static struct bin_attribute nvram = {
+	.attr = {
+		.name	= "nvram",
+		.mode	= S_IRUGO | S_IWUSR,
+		.owner	= THIS_MODULE,
+	},
+
+	.read	= ds1307_nvram_read,
+	.write	= ds1307_nvram_write,
+	.size	= NVRAM_SIZE,
+};
+
+/*----------------------------------------------------------------------*/
 
 static struct i2c_driver ds1307_driver;
 
@@ -413,6 +495,14 @@ read_rtc:
 		goto exit_free;
 	}
 
+	if (chip->nvram56) {
+		err = sysfs_create_bin_file(&client->dev.kobj, &nvram);
+		if (err == 0) {
+			ds1307->has_nvram = true;
+			dev_info(&client->dev, "56 bytes nvram\n");
+		}
+	}
+
 	return 0;
 
 exit_bad:
@@ -431,6 +521,9 @@ exit_free:
 static int __devexit ds1307_remove(struct i2c_client *client)
 {
 	struct ds1307	*ds1307 = i2c_get_clientdata(client);
+
+	if (ds1307->has_nvram)
+		sysfs_remove_bin_file(&client->dev.kobj, &nvram);
 
 	rtc_device_unregister(ds1307->rtc);
 	kfree(ds1307);

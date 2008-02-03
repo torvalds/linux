@@ -99,15 +99,16 @@ static int cifs_calc_signature2(const struct kvec *iov, int n_vec,
 	MD5Init(&context);
 	MD5Update(&context, (char *)&key->data, key->len);
 	for (i = 0; i < n_vec; i++) {
+		if (iov[i].iov_len == 0)
+			continue;
 		if (iov[i].iov_base == NULL) {
 			cERROR(1, ("null iovec entry"));
 			return -EIO;
-		} else if (iov[i].iov_len == 0)
-			break; /* bail out if we are sent nothing to sign */
+		}
 		/* The first entry includes a length field (which does not get
 		   signed that occupies the first 4 bytes before the header */
 		if (i == 0) {
-			if (iov[0].iov_len <= 8 ) /* cmd field at offset 9 */
+			if (iov[0].iov_len <= 8) /* cmd field at offset 9 */
 				break; /* nothing to sign or corrupt header */
 			MD5Update(&context, iov[0].iov_base+4,
 				  iov[0].iov_len-4);
@@ -122,7 +123,7 @@ static int cifs_calc_signature2(const struct kvec *iov, int n_vec,
 
 
 int cifs_sign_smb2(struct kvec *iov, int n_vec, struct TCP_Server_Info *server,
-		   __u32 * pexpected_response_sequence_number)
+		   __u32 *pexpected_response_sequence_number)
 {
 	int rc = 0;
 	char smb_signature[20];

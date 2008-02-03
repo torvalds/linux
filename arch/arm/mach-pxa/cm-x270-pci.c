@@ -40,7 +40,7 @@ void __init cmx270_pci_adjust_zones(int node, unsigned long *zone_size,
 {
 	unsigned int sz = SZ_64M >> PAGE_SHIFT;
 
-	printk(KERN_INFO "Adjusting zones for CM-x270\n");
+	pr_info("Adjusting zones for CM-x270\n");
 
 	/*
 	 * Only adjust if > 64M on current system
@@ -104,8 +104,7 @@ static int __init cmx270_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int irq;
 
-	printk(KERN_DEBUG "===> %s: %s slot=%x, pin=%x\n", __FUNCTION__,
-	       pci_name(dev), slot, pin);
+	dev_dbg(&dev->dev, "%s: slot=%x, pin=%x\n", __FUNCTION__, slot, pin);
 
 	irq = it8152_pci_map_irq(dev, slot, pin);
 	if (irq)
@@ -141,14 +140,13 @@ static int __init cmx270_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 	return(0);
 }
 
-static struct pci_bus * __init
-cmx270_pci_scan_bus(int nr, struct pci_sys_data *sys)
+static void cmx270_pci_preinit(void)
 {
-	printk(KERN_INFO "Initializing CM-X270 PCI subsystem\n");
+	pr_info("Initializing CM-X270 PCI subsystem\n");
 
 	__raw_writel(0x800, IT8152_PCI_CFG_ADDR);
 	if (__raw_readl(IT8152_PCI_CFG_DATA) == 0x81521283) {
-		printk(KERN_INFO "PCI Bridge found.\n");
+		pr_info("PCI Bridge found.\n");
 
 		/* set PCI I/O base at 0 */
 		writel(0x848, IT8152_PCI_CFG_ADDR);
@@ -163,7 +161,7 @@ cmx270_pci_scan_bus(int nr, struct pci_sys_data *sys)
 		/* CardBus Controller on ATXbase baseboard */
 		writel(0x4000, IT8152_PCI_CFG_ADDR);
 		if (readl(IT8152_PCI_CFG_DATA) == 0xAC51104C) {
-			printk(KERN_INFO "CardBus Bridge found.\n");
+			pr_info("CardBus Bridge found.\n");
 
 			/* Configure socket 0 */
 			writel(0x408C, IT8152_PCI_CFG_ADDR);
@@ -196,7 +194,6 @@ cmx270_pci_scan_bus(int nr, struct pci_sys_data *sys)
 			writel(0xb0000000, IT8152_PCI_CFG_DATA);
 		}
 	}
-	return it8152_pci_scan_bus(nr, sys);
 }
 
 static struct hw_pci cmx270_pci __initdata = {
@@ -204,7 +201,8 @@ static struct hw_pci cmx270_pci __initdata = {
 	.map_irq	= cmx270_pci_map_irq,
 	.nr_controllers	= 1,
 	.setup		= it8152_pci_setup,
-	.scan		= cmx270_pci_scan_bus,
+	.scan		= it8152_pci_scan_bus,
+	.preinit	= cmx270_pci_preinit,
 };
 
 static int __init cmx270_init_pci(void)

@@ -16,14 +16,22 @@
 	#size-cells = <1>;
 	model = "ibm,ebony";
 	compatible = "ibm,ebony";
-	dcr-parent = <&/cpus/PowerPC,440GP@0>;
+	dcr-parent = <&/cpus/cpu@0>;
+
+	aliases {
+		ethernet0 = &EMAC0;
+		ethernet1 = &EMAC1;
+		serial0 = &UART0;
+		serial1 = &UART1;
+	};
 
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		PowerPC,440GP@0 {
+		cpu@0 {
 			device_type = "cpu";
+			model = "PowerPC,440GP";
 			reg = <0>;
 			clock-frequency = <0>; // Filled in by zImage
 			timebase-frequency = <0>; // Filled in by zImage
@@ -150,9 +158,10 @@
 					};
 				};
 
-				ds1743@1,0 {
+				nvram@1,0 {
 					/* NVRAM & RTC */
-					compatible = "ds1743";
+					compatible = "ds1743-nvram";
+					#bytes = <2000>;
 					reg = <1 0 2000>;
 				};
 
@@ -284,12 +293,43 @@
 
 		};
 
-		PCIX0: pci@1234 {
+		PCIX0: pci@20ec00000 {
 			device_type = "pci";
-			/* FIXME */
-			reg = <2 0ec00000 8
-			       2 0ec80000 f0
-			       2 0ec80100 fc>;
+			#interrupt-cells = <1>;
+			#size-cells = <2>;
+			#address-cells = <3>;
+			compatible = "ibm,plb440gp-pcix", "ibm,plb-pcix";
+			primary;
+			reg = <2 0ec00000 8	/* Config space access */
+			       0 0 0		/* no IACK cycles */
+			       2 0ed00000 4     /* Special cycles */
+			       2 0ec80000 f0	/* Internal registers */
+			       2 0ec80100 fc>;	/* Internal messaging registers */
+
+			/* Outbound ranges, one memory and one IO,
+			 * later cannot be changed
+			 */
+			ranges = <02000000 0 80000000 00000003 80000000 0 80000000
+				  01000000 0 00000000 00000002 08000000 0 00010000>;
+
+			/* Inbound 2GB range starting at 0 */
+			dma-ranges = <42000000 0 0 0 0 0 80000000>;
+
+			/* Ebony has all 4 IRQ pins tied together per slot */
+			interrupt-map-mask = <f800 0 0 0>;
+			interrupt-map = <
+				/* IDSEL 1 */
+				0800 0 0 0 &UIC0 17 8
+
+				/* IDSEL 2 */
+				1000 0 0 0 &UIC0 18 8
+
+				/* IDSEL 3 */
+				1800 0 0 0 &UIC0 19 8
+
+				/* IDSEL 4 */
+				2000 0 0 0 &UIC0 1a 8
+			>;
 		};
 	};
 

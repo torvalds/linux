@@ -709,6 +709,10 @@ extern unsigned long sun4v_mmu_tsb_ctx0(unsigned long num_descriptions,
  */
 #define HV_FAST_MMU_DEMAP_ALL		0x24
 
+#ifndef __ASSEMBLY__
+extern void sun4v_mmu_demap_all(void);
+#endif
+
 /* mmu_map_perm_addr()
  * TRAP:	HV_FAST_TRAP
  * FUNCTION:	HV_FAST_MMU_MAP_PERM_ADDR

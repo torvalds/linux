@@ -45,7 +45,7 @@ static struct ip_vs_protocol *ip_vs_proto_table[IP_VS_PROTO_TAB_SIZE];
 /*
  *	register an ipvs protocol
  */
-static int register_ip_vs_protocol(struct ip_vs_protocol *pp)
+static int __used register_ip_vs_protocol(struct ip_vs_protocol *pp)
 {
 	unsigned hash = IP_VS_PROTO_HASH(pp->protocol);
 
@@ -165,7 +165,7 @@ ip_vs_tcpudp_debug_packet(struct ip_vs_protocol *pp,
 	ih = skb_header_pointer(skb, offset, sizeof(_iph), &_iph);
 	if (ih == NULL)
 		sprintf(buf, "%s TRUNCATED", pp->name);
-	else if (ih->frag_off & __constant_htons(IP_OFFSET))
+	else if (ih->frag_off & htons(IP_OFFSET))
 		sprintf(buf, "%s %u.%u.%u.%u->%u.%u.%u.%u frag",
 			pp->name, NIPQUAD(ih->saddr),
 			NIPQUAD(ih->daddr));

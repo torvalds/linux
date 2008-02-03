@@ -26,10 +26,10 @@
 
 static DEFINE_MUTEX(afinfo_mutex);
 
-struct nf_afinfo *nf_afinfo[NPROTO] __read_mostly;
+const struct nf_afinfo *nf_afinfo[NPROTO] __read_mostly;
 EXPORT_SYMBOL(nf_afinfo);
 
-int nf_register_afinfo(struct nf_afinfo *afinfo)
+int nf_register_afinfo(const struct nf_afinfo *afinfo)
 {
 	int err;
 
@@ -42,7 +42,7 @@ int nf_register_afinfo(struct nf_afinfo *afinfo)
 }
 EXPORT_SYMBOL_GPL(nf_register_afinfo);
 
-void nf_unregister_afinfo(struct nf_afinfo *afinfo)
+void nf_unregister_afinfo(const struct nf_afinfo *afinfo)
 {
 	mutex_lock(&afinfo_mutex);
 	rcu_assign_pointer(nf_afinfo[afinfo->family], NULL);
@@ -51,28 +51,23 @@ void nf_unregister_afinfo(struct nf_afinfo *afinfo)
 }
 EXPORT_SYMBOL_GPL(nf_unregister_afinfo);
 
-/* In this code, we can be waiting indefinitely for userspace to
- * service a packet if a hook returns NF_QUEUE.  We could keep a count
- * of skbuffs queued for userspace, and not deregister a hook unless
- * this is zero, but that sucks.  Now, we simply check when the
- * packets come back: if the hook is gone, the packet is discarded. */
 struct list_head nf_hooks[NPROTO][NF_MAX_HOOKS] __read_mostly;
 EXPORT_SYMBOL(nf_hooks);
 static DEFINE_MUTEX(nf_hook_mutex);
 
 int nf_register_hook(struct nf_hook_ops *reg)
 {
-	struct list_head *i;
+	struct nf_hook_ops *elem;
 	int err;
 
 	err = mutex_lock_interruptible(&nf_hook_mutex);
 	if (err < 0)
 		return err;
-	list_for_each(i, &nf_hooks[reg->pf][reg->hooknum]) {
-		if (reg->priority < ((struct nf_hook_ops *)i)->priority)
+	list_for_each_entry(elem, &nf_hooks[reg->pf][reg->hooknum], list) {
+		if (reg->priority < elem->priority)
 			break;
 	}
-	list_add_rcu(&reg->list, i->prev);
+	list_add_rcu(&reg->list, elem->list.prev);
 	mutex_unlock(&nf_hook_mutex);
 	return 0;
 }
@@ -183,8 +178,7 @@ next_hook:
 	} else if (verdict == NF_DROP) {
 		kfree_skb(skb);
 		ret = -EPERM;
-	} else if ((verdict & NF_VERDICT_MASK)  == NF_QUEUE) {
-		NFDEBUG("nf_hook: Verdict = QUEUE.\n");
+	} else if ((verdict & NF_VERDICT_MASK) == NF_QUEUE) {
 		if (!nf_queue(skb, elem, pf, hook, indev, outdev, okfn,
 			      verdict >> NF_VERDICT_BITS))
 			goto next_hook;
@@ -216,22 +210,6 @@ int skb_make_writable(struct sk_buff *skb, unsigned int writable_len)
 	return !!__pskb_pull_tail(skb, writable_len);
 }
 EXPORT_SYMBOL(skb_make_writable);
-
-void nf_proto_csum_replace4(__sum16 *sum, struct sk_buff *skb,
-			    __be32 from, __be32 to, int pseudohdr)
-{
-	__be32 diff[] = { ~from, to };
-	if (skb->ip_summed != CHECKSUM_PARTIAL) {
-		*sum = csum_fold(csum_partial(diff, sizeof(diff),
-				~csum_unfold(*sum)));
-		if (skb->ip_summed == CHECKSUM_COMPLETE && pseudohdr)
-			skb->csum = ~csum_partial(diff, sizeof(diff),
-						~skb->csum);
-	} else if (pseudohdr)
-		*sum = ~csum_fold(csum_partial(diff, sizeof(diff),
-				csum_unfold(*sum)));
-}
-EXPORT_SYMBOL(nf_proto_csum_replace4);
 
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 /* This does not belong here, but locally generated errors need it if connection
@@ -294,3 +272,12 @@ void __init netfilter_init(void)
 	if (netfilter_log_init() < 0)
 		panic("cannot initialize nf_log");
 }
+
+#ifdef CONFIG_SYSCTL
+struct ctl_path nf_net_netfilter_sysctl_path[] = {
+	{ .procname = "net", .ctl_name = CTL_NET, },
+	{ .procname = "netfilter", .ctl_name = NET_NETFILTER, },
+	{ }
+};
+EXPORT_SYMBOL_GPL(nf_net_netfilter_sysctl_path);
+#endif /* CONFIG_SYSCTL */

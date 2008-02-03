@@ -1,0 +1,8 @@
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/kconfig-language.txt.
+#
+
+config PPC4xx_PCI_EXPRESS
+	bool
+	depends on PCI && 4xx
+	default n

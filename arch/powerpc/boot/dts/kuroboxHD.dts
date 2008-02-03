@@ -23,6 +23,12 @@ XXXX add flash parts, rtc, ??
 	#address-cells = <1>;
 	#size-cells = <1>;
 
+	aliases {
+		serial0 = &serial0;
+		serial1 = &serial1;
+		pci0 = &pci0;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -60,7 +66,7 @@ XXXX add flash parts, rtc, ??
 		i2c@80003000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
-			device_type = "i2c";
+			cell-index = <0>;
 			compatible = "fsl-i2c";
 			reg = <80003000 1000>;
 			interrupts = <5 2>;
@@ -73,7 +79,8 @@ XXXX add flash parts, rtc, ??
 			};
 		};
 
-		serial@80004500 {
+		serial0: serial@80004500 {
+			cell-index = <0>;
 			device_type = "serial";
 			compatible = "ns16550";
 			reg = <80004500 8>;
@@ -83,7 +90,8 @@ XXXX add flash parts, rtc, ??
 			interrupt-parent = <&mpic>;
 		};
 
-		serial@80004600 {
+		serial1: serial@80004600 {
+			cell-index = <1>;
 			device_type = "serial";
 			compatible = "ns16550";
 			reg = <80004600 8>;
@@ -102,7 +110,7 @@ XXXX add flash parts, rtc, ??
 			reg = <80040000 40000>;
 		};
 
-		pci@fec00000 {
+		pci0: pci@fec00000 {
 			#address-cells = <3>;
 			#size-cells = <2>;
 			#interrupt-cells = <1>;

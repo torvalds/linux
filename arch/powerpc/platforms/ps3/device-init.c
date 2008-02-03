@@ -23,12 +23,96 @@
 #include <linux/kernel.h>
 #include <linux/kthread.h>
 #include <linux/init.h>
+#include <linux/reboot.h>
 
 #include <asm/firmware.h>
 #include <asm/lv1call.h>
 #include <asm/ps3stor.h>
 
 #include "platform.h"
+
+static int __init ps3_register_lpm_devices(void)
+{
+	int result;
+	u64 tmp1;
+	u64 tmp2;
+	struct ps3_system_bus_device *dev;
+
+	pr_debug(" -> %s:%d\n", __func__, __LINE__);
+
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev)
+		return -ENOMEM;
+
+	dev->match_id = PS3_MATCH_ID_LPM;
+	dev->dev_type = PS3_DEVICE_TYPE_LPM;
+
+	/* The current lpm driver only supports a single BE processor. */
+
+	result = ps3_repository_read_be_node_id(0, &dev->lpm.node_id);
+
+	if (result) {
+		pr_debug("%s:%d: ps3_repository_read_be_node_id failed \n",
+			__func__, __LINE__);
+		goto fail_read_repo;
+	}
+
+	result = ps3_repository_read_lpm_privileges(dev->lpm.node_id, &tmp1,
+		&dev->lpm.rights);
+
+	if (result) {
+		pr_debug("%s:%d: ps3_repository_read_lpm_privleges failed \n",
+			__func__, __LINE__);
+		goto fail_read_repo;
+	}
+
+	lv1_get_logical_partition_id(&tmp2);
+
+	if (tmp1 != tmp2) {
+		pr_debug("%s:%d: wrong lpar\n",
+			__func__, __LINE__);
+		result = -ENODEV;
+		goto fail_rights;
+	}
+
+	if (!(dev->lpm.rights & PS3_LPM_RIGHTS_USE_LPM)) {
+		pr_debug("%s:%d: don't have rights to use lpm\n",
+			__func__, __LINE__);
+		result = -EPERM;
+		goto fail_rights;
+	}
+
+	pr_debug("%s:%d: pu_id %lu, rights %lu(%lxh)\n",
+		__func__, __LINE__, dev->lpm.pu_id, dev->lpm.rights,
+		dev->lpm.rights);
+
+	result = ps3_repository_read_pu_id(0, &dev->lpm.pu_id);
+
+	if (result) {
+		pr_debug("%s:%d: ps3_repository_read_pu_id failed \n",
+			__func__, __LINE__);
+		goto fail_read_repo;
+	}
+
+	result = ps3_system_bus_device_register(dev);
+
+	if (result) {
+		pr_debug("%s:%d ps3_system_bus_device_register failed\n",
+			__func__, __LINE__);
+		goto fail_register;
+	}
+
+	pr_debug(" <- %s:%d\n", __func__, __LINE__);
+	return 0;
+
+
+fail_register:
+fail_rights:
+fail_read_repo:
+	kfree(dev);
+	pr_debug(" <- %s:%d: failed\n", __func__, __LINE__);
+	return result;
+}
 
 /**
  * ps3_setup_gelic_device - Setup and register a gelic device instance.
@@ -238,166 +322,6 @@ static int __init ps3_setup_vuart_device(enum ps3_match_id match_id,
 	return result;
 }
 
-static int ps3stor_wait_for_completion(u64 dev_id, u64 tag,
-				       unsigned int timeout)
-{
-	int result = -1;
-	unsigned int retries = 0;
-	u64 status;
-
-	for (retries = 0; retries < timeout; retries++) {
-		result = lv1_storage_check_async_status(dev_id, tag, &status);
-		if (!result)
-			break;
-
-		msleep(1);
-	}
-
-	if (result)
-		pr_debug("%s:%u: check_async_status: %s, status %lx\n",
-			 __func__, __LINE__, ps3_result(result), status);
-
-	return result;
-}
-
-/**
- * ps3_storage_wait_for_device - Wait for a storage device to become ready.
- * @repo: The repository device to wait for.
- *
- * Uses the hypervisor's storage device notification mechanism to wait until
- * a storage device is ready.  The device notification mechanism uses a
- * psuedo device (id = -1) to asynchronously notify the guest when storage
- * devices become ready.  The notification device has a block size of 512
- * bytes.
- */
-
-static int ps3_storage_wait_for_device(const struct ps3_repository_device *repo)
-{
-	int error = -ENODEV;
-	int result;
-	const u64 notification_dev_id = (u64)-1LL;
-	const unsigned int timeout = HZ;
-	u64 lpar;
-	u64 tag;
-	void *buf;
-	enum ps3_notify_type {
-		notify_device_ready = 0,
-		notify_region_probe = 1,
-		notify_region_update = 2,
-	};
-	struct {
-		u64 operation_code;	/* must be zero */
-		u64 event_mask;		/* OR of 1UL << enum ps3_notify_type */
-	} *notify_cmd;
-	struct {
-		u64 event_type;		/* enum ps3_notify_type */
-		u64 bus_id;
-		u64 dev_id;
-		u64 dev_type;
-		u64 dev_port;
-	} *notify_event;
-
-	pr_debug(" -> %s:%u: (%u:%u:%u)\n", __func__, __LINE__, repo->bus_id,
-		 repo->dev_id, repo->dev_type);
-
-	buf = kzalloc(512, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	lpar = ps3_mm_phys_to_lpar(__pa(buf));
-	notify_cmd = buf;
-	notify_event = buf;
-
-	result = lv1_open_device(repo->bus_id, notification_dev_id, 0);
-	if (result) {
-		printk(KERN_ERR "%s:%u: lv1_open_device %s\n", __func__,
-		       __LINE__, ps3_result(result));
-		goto fail_free;
-	}
-
-	/* Setup and write the request for device notification. */
-
-	notify_cmd->operation_code = 0; /* must be zero */
-	notify_cmd->event_mask = 1UL << notify_region_probe;
-
-	result = lv1_storage_write(notification_dev_id, 0, 0, 1, 0, lpar,
-				   &tag);
-	if (result) {
-		printk(KERN_ERR "%s:%u: write failed %s\n", __func__, __LINE__,
-		       ps3_result(result));
-		goto fail_close;
-	}
-
-	/* Wait for the write completion */
-
-	result = ps3stor_wait_for_completion(notification_dev_id, tag,
-					     timeout);
-	if (result) {
-		printk(KERN_ERR "%s:%u: write not completed %s\n", __func__,
-		       __LINE__, ps3_result(result));
-		goto fail_close;
-	}
-
-	/* Loop here processing the requested notification events. */
-
-	while (1) {
-		memset(notify_event, 0, sizeof(*notify_event));
-
-		result = lv1_storage_read(notification_dev_id, 0, 0, 1, 0,
-					  lpar, &tag);
-		if (result) {
-			printk(KERN_ERR "%s:%u: write failed %s\n", __func__,
-			       __LINE__, ps3_result(result));
-			break;
-		}
-
-		result = ps3stor_wait_for_completion(notification_dev_id, tag,
-						     timeout);
-		if (result) {
-			printk(KERN_ERR "%s:%u: read not completed %s\n",
-			       __func__, __LINE__, ps3_result(result));
-			break;
-		}
-
-		pr_debug("%s:%d: notify event (%u:%u:%u): event_type 0x%lx, "
-			 "port %lu\n", __func__, __LINE__, repo->bus_index,
-			 repo->dev_index, repo->dev_type,
-			 notify_event->event_type, notify_event->dev_port);
-
-		if (notify_event->event_type != notify_region_probe ||
-		    notify_event->bus_id != repo->bus_id) {
-			pr_debug("%s:%u: bad notify_event: event %lu, "
-				 "dev_id %lu, dev_type %lu\n",
-				 __func__, __LINE__, notify_event->event_type,
-				 notify_event->dev_id, notify_event->dev_type);
-			break;
-		}
-
-		if (notify_event->dev_id == repo->dev_id &&
-		    notify_event->dev_type == repo->dev_type) {
-			pr_debug("%s:%u: device ready (%u:%u:%u)\n", __func__,
-				 __LINE__, repo->bus_index, repo->dev_index,
-				 repo->dev_type);
-			error = 0;
-			break;
-		}
-
-		if (notify_event->dev_id == repo->dev_id &&
-		    notify_event->dev_type == PS3_DEV_TYPE_NOACCESS) {
-			pr_debug("%s:%u: no access: dev_id %u\n", __func__,
-				 __LINE__, repo->dev_id);
-			break;
-		}
-	}
-
-fail_close:
-	lv1_close_device(repo->bus_id, notification_dev_id);
-fail_free:
-	kfree(buf);
-	pr_debug(" <- %s:%u\n", __func__, __LINE__);
-	return error;
-}
-
 static int ps3_setup_storage_dev(const struct ps3_repository_device *repo,
 				 enum ps3_match_id match_id)
 {
@@ -449,16 +373,6 @@ static int ps3_setup_storage_dev(const struct ps3_repository_device *repo,
 		goto fail_find_interrupt;
 	}
 
-	/* FIXME: Arrange to only do this on a 'cold' boot */
-
-	result = ps3_storage_wait_for_device(repo);
-	if (result) {
-		printk(KERN_ERR "%s:%u: storage_notification failed %d\n",
-		       __func__, __LINE__, result);
-		result = -ENODEV;
-		goto fail_probe_notification;
-	}
-
 	for (i = 0; i < num_regions; i++) {
 		unsigned int id;
 		u64 start, size;
@@ -494,7 +408,6 @@ static int ps3_setup_storage_dev(const struct ps3_repository_device *repo,
 
 fail_device_register:
 fail_read_region:
-fail_probe_notification:
 fail_find_interrupt:
 	kfree(p);
 fail_malloc:
@@ -659,60 +572,266 @@ static int ps3_register_repository_device(
 	return result;
 }
 
+static void ps3_find_and_add_device(u64 bus_id, u64 dev_id)
+{
+	struct ps3_repository_device repo;
+	int res;
+	unsigned int retries;
+	unsigned long rem;
+
+	/*
+	 * On some firmware versions (e.g. 1.90), the device may not show up
+	 * in the repository immediately
+	 */
+	for (retries = 0; retries < 10; retries++) {
+		res = ps3_repository_find_device_by_id(&repo, bus_id, dev_id);
+		if (!res)
+			goto found;
+
+		rem = msleep_interruptible(100);
+		if (rem)
+			break;
+	}
+	pr_warning("%s:%u: device %lu:%lu not found\n", __func__, __LINE__,
+		   bus_id, dev_id);
+	return;
+
+found:
+	if (retries)
+		pr_debug("%s:%u: device %lu:%lu found after %u retries\n",
+			 __func__, __LINE__, bus_id, dev_id, retries);
+
+	ps3_register_repository_device(&repo);
+	return;
+}
+
+#define PS3_NOTIFICATION_DEV_ID		ULONG_MAX
+#define PS3_NOTIFICATION_INTERRUPT_ID	0
+
+struct ps3_notification_device {
+	struct ps3_system_bus_device sbd;
+	spinlock_t lock;
+	u64 tag;
+	u64 lv1_status;
+	struct completion done;
+};
+
+enum ps3_notify_type {
+	notify_device_ready = 0,
+	notify_region_probe = 1,
+	notify_region_update = 2,
+};
+
+struct ps3_notify_cmd {
+	u64 operation_code;		/* must be zero */
+	u64 event_mask;			/* OR of 1UL << enum ps3_notify_type */
+};
+
+struct ps3_notify_event {
+	u64 event_type;			/* enum ps3_notify_type */
+	u64 bus_id;
+	u64 dev_id;
+	u64 dev_type;
+	u64 dev_port;
+};
+
+static irqreturn_t ps3_notification_interrupt(int irq, void *data)
+{
+	struct ps3_notification_device *dev = data;
+	int res;
+	u64 tag, status;
+
+	spin_lock(&dev->lock);
+	res = lv1_storage_get_async_status(PS3_NOTIFICATION_DEV_ID, &tag,
+					   &status);
+	if (tag != dev->tag)
+		pr_err("%s:%u: tag mismatch, got %lx, expected %lx\n",
+		       __func__, __LINE__, tag, dev->tag);
+
+	if (res) {
+		pr_err("%s:%u: res %d status 0x%lx\n", __func__, __LINE__, res,
+		       status);
+	} else {
+		pr_debug("%s:%u: completed, status 0x%lx\n", __func__,
+			 __LINE__, status);
+		dev->lv1_status = status;
+		complete(&dev->done);
+	}
+	spin_unlock(&dev->lock);
+	return IRQ_HANDLED;
+}
+
+static int ps3_notification_read_write(struct ps3_notification_device *dev,
+				       u64 lpar, int write)
+{
+	const char *op = write ? "write" : "read";
+	unsigned long flags;
+	int res;
+
+	init_completion(&dev->done);
+	spin_lock_irqsave(&dev->lock, flags);
+	res = write ? lv1_storage_write(dev->sbd.dev_id, 0, 0, 1, 0, lpar,
+					&dev->tag)
+		    : lv1_storage_read(dev->sbd.dev_id, 0, 0, 1, 0, lpar,
+				       &dev->tag);
+	spin_unlock_irqrestore(&dev->lock, flags);
+	if (res) {
+		pr_err("%s:%u: %s failed %d\n", __func__, __LINE__, op, res);
+		return -EPERM;
+	}
+	pr_debug("%s:%u: notification %s issued\n", __func__, __LINE__, op);
+
+	res = wait_event_interruptible(dev->done.wait,
+				       dev->done.done || kthread_should_stop());
+	if (kthread_should_stop())
+		res = -EINTR;
+	if (res) {
+		pr_debug("%s:%u: interrupted %s\n", __func__, __LINE__, op);
+		return res;
+	}
+
+	if (dev->lv1_status) {
+		pr_err("%s:%u: %s not completed, status 0x%lx\n", __func__,
+		       __LINE__, op, dev->lv1_status);
+		return -EIO;
+	}
+	pr_debug("%s:%u: notification %s completed\n", __func__, __LINE__, op);
+
+	return 0;
+}
+
+static struct task_struct *probe_task;
+
 /**
  * ps3_probe_thread - Background repository probing at system startup.
  *
  * This implementation only supports background probing on a single bus.
+ * It uses the hypervisor's storage device notification mechanism to wait until
+ * a storage device is ready.  The device notification mechanism uses a
+ * pseudo device to asynchronously notify the guest when storage devices become
+ * ready.  The notification device has a block size of 512 bytes.
  */
 
 static int ps3_probe_thread(void *data)
 {
-	struct ps3_repository_device *repo = data;
-	int result;
-	unsigned int ms = 250;
+	struct ps3_notification_device dev;
+	int res;
+	unsigned int irq;
+	u64 lpar;
+	void *buf;
+	struct ps3_notify_cmd *notify_cmd;
+	struct ps3_notify_event *notify_event;
 
 	pr_debug(" -> %s:%u: kthread started\n", __func__, __LINE__);
 
+	buf = kzalloc(512, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	lpar = ps3_mm_phys_to_lpar(__pa(buf));
+	notify_cmd = buf;
+	notify_event = buf;
+
+	/* dummy system bus device */
+	dev.sbd.bus_id = (u64)data;
+	dev.sbd.dev_id = PS3_NOTIFICATION_DEV_ID;
+	dev.sbd.interrupt_id = PS3_NOTIFICATION_INTERRUPT_ID;
+
+	res = lv1_open_device(dev.sbd.bus_id, dev.sbd.dev_id, 0);
+	if (res) {
+		pr_err("%s:%u: lv1_open_device failed %s\n", __func__,
+		       __LINE__, ps3_result(res));
+		goto fail_free;
+	}
+
+	res = ps3_sb_event_receive_port_setup(&dev.sbd, PS3_BINDING_CPU_ANY,
+					      &irq);
+	if (res) {
+		pr_err("%s:%u: ps3_sb_event_receive_port_setup failed %d\n",
+		       __func__, __LINE__, res);
+	       goto fail_close_device;
+	}
+
+	spin_lock_init(&dev.lock);
+
+	res = request_irq(irq, ps3_notification_interrupt, IRQF_DISABLED,
+			  "ps3_notification", &dev);
+	if (res) {
+		pr_err("%s:%u: request_irq failed %d\n", __func__, __LINE__,
+		       res);
+		goto fail_sb_event_receive_port_destroy;
+	}
+
+	/* Setup and write the request for device notification. */
+	notify_cmd->operation_code = 0; /* must be zero */
+	notify_cmd->event_mask = 1UL << notify_region_probe;
+
+	res = ps3_notification_read_write(&dev, lpar, 1);
+	if (res)
+		goto fail_free_irq;
+
+	/* Loop here processing the requested notification events. */
 	do {
 		try_to_freeze();
 
-		pr_debug("%s:%u: probing...\n", __func__, __LINE__);
+		memset(notify_event, 0, sizeof(*notify_event));
 
-		do {
-			result = ps3_repository_find_device(repo);
-
-			if (result == -ENODEV)
-				pr_debug("%s:%u: nothing new\n", __func__,
-					__LINE__);
-			else if (result)
-				pr_debug("%s:%u: find device error.\n",
-					__func__, __LINE__);
-			else {
-				pr_debug("%s:%u: found device (%u:%u:%u)\n",
-					 __func__, __LINE__, repo->bus_index,
-					 repo->dev_index, repo->dev_type);
-				ps3_register_repository_device(repo);
-				ps3_repository_bump_device(repo);
-				ms = 250;
-			}
-		} while (!result);
-
-		pr_debug("%s:%u: ms %u\n", __func__, __LINE__, ms);
-
-		if ( ms > 60000)
+		res = ps3_notification_read_write(&dev, lpar, 0);
+		if (res)
 			break;
 
-		msleep_interruptible(ms);
+		pr_debug("%s:%u: notify event type 0x%lx bus id %lu dev id %lu"
+			 " type %lu port %lu\n", __func__, __LINE__,
+			 notify_event->event_type, notify_event->bus_id,
+			 notify_event->dev_id, notify_event->dev_type,
+			 notify_event->dev_port);
 
-		/* An exponential backoff. */
-		ms <<= 1;
+		if (notify_event->event_type != notify_region_probe ||
+		    notify_event->bus_id != dev.sbd.bus_id) {
+			pr_warning("%s:%u: bad notify_event: event %lu, "
+				   "dev_id %lu, dev_type %lu\n",
+				   __func__, __LINE__, notify_event->event_type,
+				   notify_event->dev_id,
+				   notify_event->dev_type);
+			continue;
+		}
+
+		ps3_find_and_add_device(dev.sbd.bus_id, notify_event->dev_id);
 
 	} while (!kthread_should_stop());
+
+fail_free_irq:
+	free_irq(irq, &dev);
+fail_sb_event_receive_port_destroy:
+	ps3_sb_event_receive_port_destroy(&dev.sbd, irq);
+fail_close_device:
+	lv1_close_device(dev.sbd.bus_id, dev.sbd.dev_id);
+fail_free:
+	kfree(buf);
+
+	probe_task = NULL;
 
 	pr_debug(" <- %s:%u: kthread finished\n", __func__, __LINE__);
 
 	return 0;
 }
+
+/**
+ * ps3_stop_probe_thread - Stops the background probe thread.
+ *
+ */
+
+static int ps3_stop_probe_thread(struct notifier_block *nb, unsigned long code,
+				 void *data)
+{
+	if (probe_task)
+		kthread_stop(probe_task);
+	return 0;
+}
+
+static struct notifier_block nb = {
+	.notifier_call = ps3_stop_probe_thread
+};
 
 /**
  * ps3_start_probe_thread - Starts the background probe thread.
@@ -723,7 +842,7 @@ static int __init ps3_start_probe_thread(enum ps3_bus_type bus_type)
 {
 	int result;
 	struct task_struct *task;
-	static struct ps3_repository_device repo; /* must be static */
+	struct ps3_repository_device repo;
 
 	pr_debug(" -> %s:%d\n", __func__, __LINE__);
 
@@ -746,7 +865,8 @@ static int __init ps3_start_probe_thread(enum ps3_bus_type bus_type)
 		return -ENODEV;
 	}
 
-	task = kthread_run(ps3_probe_thread, &repo, "ps3-probe-%u", bus_type);
+	task = kthread_run(ps3_probe_thread, (void *)repo.bus_id,
+			   "ps3-probe-%u", bus_type);
 
 	if (IS_ERR(task)) {
 		result = PTR_ERR(task);
@@ -754,6 +874,9 @@ static int __init ps3_start_probe_thread(enum ps3_bus_type bus_type)
 		       result);
 		return result;
 	}
+
+	probe_task = task;
+	register_reboot_notifier(&nb);
 
 	pr_debug(" <- %s:%d\n", __func__, __LINE__);
 	return 0;
@@ -786,6 +909,8 @@ static int __init ps3_register_devices(void)
 		ps3_register_repository_device);
 
 	ps3_register_sound_devices();
+
+	ps3_register_lpm_devices();
 
 	pr_debug(" <- %s:%d\n", __func__, __LINE__);
 	return 0;

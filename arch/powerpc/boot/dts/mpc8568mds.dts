@@ -20,6 +20,17 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
+	aliases {
+		ethernet0 = &enet0;
+		ethernet1 = &enet1;
+		ethernet2 = &enet2;
+		ethernet3 = &enet3;
+		serial0 = &serial0;
+		serial1 = &serial1;
+		pci0 = &pci0;
+		pci1 = &pci1;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -74,7 +85,7 @@
 		i2c@3000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
-			device_type = "i2c";
+			cell-index = <0>;
 			compatible = "fsl-i2c";
 			reg = <3000 100>;
 			interrupts = <2b 2>;
@@ -90,7 +101,7 @@
 		i2c@3100 {
 			#address-cells = <1>;
 			#size-cells = <0>;
-			device_type = "i2c";
+			cell-index = <1>;
 			compatible = "fsl-i2c";
 			reg = <3100 100>;
 			interrupts = <2b 2>;
@@ -101,9 +112,9 @@
 		mdio@24520 {
 			#address-cells = <1>;
 			#size-cells = <0>;
-			device_type = "mdio";
-			compatible = "gianfar";
+			compatible = "fsl,gianfar-mdio";
 			reg = <24520 20>;
+
 			phy0: ethernet-phy@7 {
 				interrupt-parent = <&mpic>;
 				interrupts = <1 1>;
@@ -130,45 +141,32 @@
 			};
 		};
 
-		ethernet@24000 {
-			#address-cells = <1>;
-			#size-cells = <0>;
+		enet0: ethernet@24000 {
+			cell-index = <0>;
 			device_type = "network";
 			model = "eTSEC";
 			compatible = "gianfar";
 			reg = <24000 1000>;
-			/*
-			 * mac-address is deprecated and will be removed
-			 * in 2.6.25.  Only recent versions of
-			 * U-Boot support local-mac-address, however.
-			 */
-			mac-address = [ 00 00 00 00 00 00 ];
 			local-mac-address = [ 00 00 00 00 00 00 ];
  			interrupts = <1d 2 1e 2 22 2>;
 			interrupt-parent = <&mpic>;
 			phy-handle = <&phy2>;
 		};
 
-		ethernet@25000 {
-			#address-cells = <1>;
-			#size-cells = <0>;
+		enet1: ethernet@25000 {
+			cell-index = <1>;
 			device_type = "network";
 			model = "eTSEC";
 			compatible = "gianfar";
 			reg = <25000 1000>;
-			/*
-			 * mac-address is deprecated and will be removed
-			 * in 2.6.25.  Only recent versions of
-			 * U-Boot support local-mac-address, however.
-			 */
-			mac-address = [ 00 00 00 00 00 00 ];
 			local-mac-address = [ 00 00 00 00 00 00 ];
  			interrupts = <23 2 24 2 28 2>;
 			interrupt-parent = <&mpic>;
 			phy-handle = <&phy3>;
 		};
 
-		serial@4500 {
+		serial0: serial@4500 {
+			cell-index = <0>;
 			device_type = "serial";
 			compatible = "ns16550";
 			reg = <4500 100>;
@@ -183,7 +181,8 @@
 			fsl,has-rstcr;
 		};
 
-		serial@4600 {
+		serial1: serial@4600 {
+			cell-index = <1>;
 			device_type = "serial";
 			compatible = "ns16550";
 			reg = <4600 100>;
@@ -285,24 +284,28 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		device_type = "qe";
-		model = "QE";
+		compatible = "fsl,qe";
 		ranges = <0 e0080000 00040000>;
 		reg = <e0080000 480>;
 		brg-frequency = <0>;
 		bus-frequency = <179A7B00>;
 
 		muram@10000 {
-			device_type = "muram";
+ 			#address-cells = <1>;
+ 			#size-cells = <1>;
+			compatible = "fsl,qe-muram", "fsl,cpm-muram";
 			ranges = <0 00010000 0000c000>;
 
-			data-only@0{
+			data-only@0 {
+				compatible = "fsl,qe-muram-data",
+					     "fsl,cpm-muram-data";
 				reg = <0 c000>;
 			};
 		};
 
 		spi@4c0 {
-			device_type = "spi";
-			compatible = "fsl_spi";
+			cell-index = <0>;
+			compatible = "fsl,spi";
 			reg = <4c0 40>;
 			interrupts = <2>;
 			interrupt-parent = <&qeic>;
@@ -310,53 +313,43 @@
 		};
 
 		spi@500 {
-			device_type = "spi";
-			compatible = "fsl_spi";
+			cell-index = <1>;
+			compatible = "fsl,spi";
 			reg = <500 40>;
 			interrupts = <1>;
 			interrupt-parent = <&qeic>;
 			mode = "cpu";
 		};
 
-		ucc@2000 {
+		enet2: ucc@2000 {
 			device_type = "network";
 			compatible = "ucc_geth";
 			model = "UCC";
+			cell-index = <1>;
 			device-id = <1>;
 			reg = <2000 200>;
 			interrupts = <20>;
 			interrupt-parent = <&qeic>;
-			/*
-			 * mac-address is deprecated and will be removed
-			 * in 2.6.25.  Only recent versions of
-			 * U-Boot support local-mac-address, however.
-			 */
-			mac-address = [ 00 00 00 00 00 00 ];
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			rx-clock = <0>;
-			tx-clock = <20>;
+			rx-clock-name = "none";
+			tx-clock-name = "clk16";
 			pio-handle = <&pio1>;
 			phy-handle = <&phy0>;
 			phy-connection-type = "rgmii-id";
 		};
 
-		ucc@3000 {
+		enet3: ucc@3000 {
 			device_type = "network";
 			compatible = "ucc_geth";
 			model = "UCC";
+			cell-index = <2>;
 			device-id = <2>;
 			reg = <3000 200>;
 			interrupts = <21>;
 			interrupt-parent = <&qeic>;
-			/*
-			 * mac-address is deprecated and will be removed
-			 * in 2.6.25.  Only recent versions of
-			 * U-Boot support local-mac-address, however.
-			 */
-			mac-address = [ 00 00 00 00 00 00 ];
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			rx-clock = <0>;
-			tx-clock = <20>;
+			rx-clock-name = "none";
+			tx-clock-name = "clk16";
 			pio-handle = <&pio2>;
 			phy-handle = <&phy1>;
 			phy-connection-type = "rgmii-id";
@@ -366,8 +359,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <2120 18>;
-			device_type = "mdio";
-			compatible = "ucc_geth_phy";
+			compatible = "fsl,ucc-mdio";
 
 			/* These are the same PHYs as on
 			 * gianfar's MDIO bus */
@@ -397,9 +389,9 @@
 			};
 		};
 
-		qeic: qeic@80 {
+		qeic: interrupt-controller@80 {
 			interrupt-controller;
-			device_type = "qeic";
+			compatible = "fsl,qe-ic";
 			#address-cells = <0>;
 			#interrupt-cells = <1>;
 			reg = <80 80>;
@@ -410,7 +402,8 @@
 
 	};
 
-	pci@e0008000 {
+	pci0: pci@e0008000 {
+		cell-index = <0>;
 		interrupt-map-mask = <f800 0 0 7>;
 		interrupt-map = <
 			/* IDSEL 0x12 AD18 */
@@ -440,7 +433,8 @@
 	};
 
 	/* PCI Express */
-	pcie@e000a000 {
+	pci1: pcie@e000a000 {
+		cell-index = <2>;
 		interrupt-map-mask = <f800 0 0 7>;
 		interrupt-map = <
 

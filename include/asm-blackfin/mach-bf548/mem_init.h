@@ -28,8 +28,68 @@
  * If not, write to the Free Software Foundation,
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
+#define MIN_DDR_SCLK(x)	(x*(CONFIG_SCLK_HZ/1000/1000)/1000 + 1)
 
-#if (CONFIG_MEM_MT46V32M16)
+#if (CONFIG_MEM_MT46V32M16_6T)
+#define DDR_SIZE	DEVSZ_512
+#define DDR_WIDTH	DEVWD_16
+
+#define DDR_tRC		DDR_TRC(MIN_DDR_SCLK(60))
+#define DDR_tRAS	DDR_TRAS(MIN_DDR_SCLK(42))
+#define DDR_tRP		DDR_TRP(MIN_DDR_SCLK(15))
+#define DDR_tRFC	DDR_TRFC(MIN_DDR_SCLK(72))
+#define DDR_tREFI	DDR_TREFI(MIN_DDR_SCLK(7800))
+
+#define DDR_tRCD	DDR_TRCD(MIN_DDR_SCLK(15))
+#define DDR_tWTR	DDR_TWTR(1)
+#define DDR_tMRD	DDR_TMRD(MIN_DDR_SCLK(12))
+#define DDR_tWR		DDR_TWR(MIN_DDR_SCLK(15))
+#endif
+
+#if (CONFIG_MEM_MT46V32M16_5B)
+#define DDR_SIZE	DEVSZ_512
+#define DDR_WIDTH	DEVWD_16
+
+#define DDR_tRC		DDR_TRC(MIN_DDR_SCLK(55))
+#define DDR_tRAS	DDR_TRAS(MIN_DDR_SCLK(40))
+#define DDR_tRP		DDR_TRP(MIN_DDR_SCLK(15))
+#define DDR_tRFC	DDR_TRFC(MIN_DDR_SCLK(70))
+#define DDR_tREFI	DDR_TREFI(MIN_DDR_SCLK(7800))
+
+#define DDR_tRCD	DDR_TRCD(MIN_DDR_SCLK(15))
+#define DDR_tWTR	DDR_TWTR(2)
+#define DDR_tMRD	DDR_TMRD(MIN_DDR_SCLK(10))
+#define DDR_tWR		DDR_TWR(MIN_DDR_SCLK(15))
+#endif
+
+#if (CONFIG_MEM_GENERIC_BOARD)
+#define DDR_SIZE	DEVSZ_512
+#define DDR_WIDTH	DEVWD_16
+
+#define DDR_tRCD	DDR_TRCD(3)
+#define DDR_tWTR	DDR_TWTR(2)
+#define DDR_tWR		DDR_TWR(2)
+#define DDR_tMRD	DDR_TMRD(2)
+#define DDR_tRP		DDR_TRP(3)
+#define DDR_tRAS	DDR_TRAS(7)
+#define DDR_tRC		DDR_TRC(10)
+#define DDR_tRFC	DDR_TRFC(12)
+#define DDR_tREFI	DDR_TREFI(1288)
+#endif
+
+#if (CONFIG_SCLK_HZ <= 133333333)
+#define	DDR_CL		CL_2
+#elif (CONFIG_SCLK_HZ <= 166666666)
+#define	DDR_CL		CL_2_5
+#else
+#define	DDR_CL		CL_3
+#endif
+
+#define mem_DDRCTL0	(DDR_tRP | DDR_tRAS | DDR_tRC | DDR_tRFC | DDR_tREFI)
+#define mem_DDRCTL1	(DDR_DATWIDTH | EXTBANK_1 | DDR_SIZE | DDR_WIDTH | DDR_tWTR \
+			| DDR_tMRD | DDR_tWR | DDR_tRCD)
+#define mem_DDRCTL2	DDR_CL
+
 
 #if defined CONFIG_CLKIN_HALF
 #define CLKIN_HALF       1

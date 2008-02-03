@@ -1008,6 +1008,9 @@ xfs_qm_sync(
 	boolean_t	nowait;
 	int		error;
 
+	if (! XFS_IS_QUOTA_ON(mp))
+		return 0;
+
 	restarts = 0;
 	/*
 	 * We won't block unless we are asked to.

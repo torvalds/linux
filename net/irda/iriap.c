@@ -579,7 +579,7 @@ static void iriap_getvaluebyclass_response(struct iriap_cb *self,
 	fp[n++] = ret_code;
 
 	/* Insert list length (MSB first) */
-	tmp_be16 = __constant_htons(0x0001);
+	tmp_be16 = htons(0x0001);
 	memcpy(fp+n, &tmp_be16, 2);  n += 2;
 
 	/* Insert object identifier ( MSB first) */
@@ -928,7 +928,7 @@ void iriap_call_indication(struct iriap_cb *self, struct sk_buff *skb)
 
 	opcode = fp[0];
 	if (~opcode & 0x80) {
-		IRDA_WARNING("%s: IrIAS multiframe commands or results"
+		IRDA_WARNING("%s: IrIAS multiframe commands or results "
 			     "is not implemented yet!\n", __FUNCTION__);
 		return;
 	}

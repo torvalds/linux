@@ -206,8 +206,6 @@ unsigned long ixp2000_gettimeoffset (void)
 
 static int ixp2000_timer_interrupt(int irq, void *dev_id)
 {
-	write_seqlock(&xtime_lock);
-
 	/* clear timer 1 */
 	ixp2000_reg_wrb(IXP2000_T1_CLR, 1);
 
@@ -216,8 +214,6 @@ static int ixp2000_timer_interrupt(int irq, void *dev_id)
 		timer_tick();
 		next_jiffy_time -= ticks_per_jiffy;
 	}
-
-	write_sequnlock(&xtime_lock);
 
 	return IRQ_HANDLED;
 }

@@ -109,6 +109,19 @@ static void __devinit pcibios_fixup_ghosts(struct pci_bus *b)
 	}
 }
 
+static void __devinit pcibios_fixup_device_resources(struct pci_dev *dev)
+{
+	struct resource *rom_r = &dev->resource[PCI_ROM_RESOURCE];
+
+	if (rom_r->parent)
+		return;
+	if (rom_r->start)
+		/* we deal with BIOS assigned ROM later */
+		return;
+	if (!(pci_probe & PCI_ASSIGN_ROMS))
+		rom_r->start = rom_r->end = rom_r->flags = 0;
+}
+
 /*
  *  Called after each bus is probed, but before its children
  *  are examined.
@@ -116,8 +129,12 @@ static void __devinit pcibios_fixup_ghosts(struct pci_bus *b)
 
 void __devinit  pcibios_fixup_bus(struct pci_bus *b)
 {
+	struct pci_dev *dev;
+
 	pcibios_fixup_ghosts(b);
 	pci_read_bridge_bases(b);
+	list_for_each_entry(dev, &b->devices, bus_list)
+		pcibios_fixup_device_resources(dev);
 }
 
 /*
@@ -315,6 +332,22 @@ static struct dmi_system_id __devinitdata pciprobe_dmi_table[] = {
 		},
 	},
 #endif
+	{
+		.callback = set_bf_sort,
+		.ident = "HP ProLiant DL385 G2",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "ProLiant DL385 G2"),
+		},
+	},
+	{
+		.callback = set_bf_sort,
+		.ident = "HP ProLiant DL585 G2",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "ProLiant DL585 G2"),
+		},
+	},
 	{}
 };
 

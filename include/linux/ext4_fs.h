@@ -20,6 +20,8 @@
 #include <linux/blkdev.h>
 #include <linux/magic.h>
 
+#include <linux/ext4_fs_i.h>
+
 /*
  * The second extended filesystem constants/structures
  */
@@ -51,6 +53,50 @@
 #define ext4_debug(f, a...)	do {} while (0)
 #endif
 
+#define EXT4_MULTIBLOCK_ALLOCATOR	1
+
+/* prefer goal again. length */
+#define EXT4_MB_HINT_MERGE		1
+/* blocks already reserved */
+#define EXT4_MB_HINT_RESERVED		2
+/* metadata is being allocated */
+#define EXT4_MB_HINT_METADATA		4
+/* first blocks in the file */
+#define EXT4_MB_HINT_FIRST		8
+/* search for the best chunk */
+#define EXT4_MB_HINT_BEST		16
+/* data is being allocated */
+#define EXT4_MB_HINT_DATA		32
+/* don't preallocate (for tails) */
+#define EXT4_MB_HINT_NOPREALLOC		64
+/* allocate for locality group */
+#define EXT4_MB_HINT_GROUP_ALLOC	128
+/* allocate goal blocks or none */
+#define EXT4_MB_HINT_GOAL_ONLY		256
+/* goal is meaningful */
+#define EXT4_MB_HINT_TRY_GOAL		512
+
+struct ext4_allocation_request {
+	/* target inode for block we're allocating */
+	struct inode *inode;
+	/* logical block in target inode */
+	ext4_lblk_t logical;
+	/* phys. target (a hint) */
+	ext4_fsblk_t goal;
+	/* the closest logical allocated block to the left */
+	ext4_lblk_t lleft;
+	/* phys. block for ^^^ */
+	ext4_fsblk_t pleft;
+	/* the closest logical allocated block to the right */
+	ext4_lblk_t lright;
+	/* phys. block for ^^^ */
+	ext4_fsblk_t pright;
+	/* how many blocks we want to allocate */
+	unsigned long len;
+	/* flags. see above EXT4_MB_HINT_* */
+	unsigned long flags;
+};
+
 /*
  * Special inodes numbers
  */
@@ -73,8 +119,8 @@
  * Macro-instructions used to manage several block sizes
  */
 #define EXT4_MIN_BLOCK_SIZE		1024
-#define	EXT4_MAX_BLOCK_SIZE		4096
-#define EXT4_MIN_BLOCK_LOG_SIZE		  10
+#define	EXT4_MAX_BLOCK_SIZE		65536
+#define EXT4_MIN_BLOCK_LOG_SIZE		10
 #ifdef __KERNEL__
 # define EXT4_BLOCK_SIZE(s)		((s)->s_blocksize)
 #else
@@ -118,6 +164,11 @@ struct ext4_group_desc
 	__le32	bg_block_bitmap_hi;	/* Blocks bitmap block MSB */
 	__le32	bg_inode_bitmap_hi;	/* Inodes bitmap block MSB */
 	__le32	bg_inode_table_hi;	/* Inodes table block MSB */
+	__le16	bg_free_blocks_count_hi;/* Free blocks count MSB */
+	__le16	bg_free_inodes_count_hi;/* Free inodes count MSB */
+	__le16	bg_used_dirs_count_hi;	/* Directories count MSB */
+	__le16	bg_itable_unused_hi;	/* Unused inodes count MSB */
+	__u32	bg_reserved2[3];
 };
 
 #define EXT4_BG_INODE_UNINIT	0x0001 /* Inode table/bitmap not in use */
@@ -178,8 +229,9 @@ struct ext4_group_desc
 #define EXT4_NOTAIL_FL			0x00008000 /* file tail should not be merged */
 #define EXT4_DIRSYNC_FL			0x00010000 /* dirsync behaviour (directories only) */
 #define EXT4_TOPDIR_FL			0x00020000 /* Top of directory hierarchies*/
-#define EXT4_RESERVED_FL		0x80000000 /* reserved for ext4 lib */
+#define EXT4_HUGE_FILE_FL               0x00040000 /* Set to each huge file */
 #define EXT4_EXTENTS_FL			0x00080000 /* Inode uses extents */
+#define EXT4_RESERVED_FL		0x80000000 /* reserved for ext4 lib */
 
 #define EXT4_FL_USER_VISIBLE		0x000BDFFF /* User visible flags */
 #define EXT4_FL_USER_MODIFIABLE		0x000380FF /* User modifiable flags */
@@ -237,6 +289,7 @@ struct ext4_new_group_data {
 #endif
 #define EXT4_IOC_GETRSVSZ		_IOR('f', 5, long)
 #define EXT4_IOC_SETRSVSZ		_IOW('f', 6, long)
+#define EXT4_IOC_MIGRATE		_IO('f', 7)
 
 /*
  * ioctl commands in 32 bit emulation
@@ -275,18 +328,18 @@ struct ext4_mount_options {
 struct ext4_inode {
 	__le16	i_mode;		/* File mode */
 	__le16	i_uid;		/* Low 16 bits of Owner Uid */
-	__le32	i_size;		/* Size in bytes */
+	__le32	i_size_lo;	/* Size in bytes */
 	__le32	i_atime;	/* Access time */
 	__le32	i_ctime;	/* Inode Change time */
 	__le32	i_mtime;	/* Modification time */
 	__le32	i_dtime;	/* Deletion Time */
 	__le16	i_gid;		/* Low 16 bits of Group Id */
 	__le16	i_links_count;	/* Links count */
-	__le32	i_blocks;	/* Blocks count */
+	__le32	i_blocks_lo;	/* Blocks count */
 	__le32	i_flags;	/* File flags */
 	union {
 		struct {
-			__u32  l_i_reserved1;
+			__le32  l_i_version;
 		} linux1;
 		struct {
 			__u32  h_i_translator;
@@ -297,12 +350,12 @@ struct ext4_inode {
 	} osd1;				/* OS dependent 1 */
 	__le32	i_block[EXT4_N_BLOCKS];/* Pointers to blocks */
 	__le32	i_generation;	/* File version (for NFS) */
-	__le32	i_file_acl;	/* File ACL */
-	__le32	i_dir_acl;	/* Directory ACL */
+	__le32	i_file_acl_lo;	/* File ACL */
+	__le32	i_size_high;
 	__le32	i_obso_faddr;	/* Obsoleted fragment address */
 	union {
 		struct {
-			__le16	l_i_reserved1;	/* Obsoleted fragment number/size which are removed in ext4 */
+			__le16	l_i_blocks_high; /* were l_i_reserved1 */
 			__le16	l_i_file_acl_high;
 			__le16	l_i_uid_high;	/* these 2 fields */
 			__le16	l_i_gid_high;	/* were reserved2[0] */
@@ -328,9 +381,9 @@ struct ext4_inode {
 	__le32  i_atime_extra;  /* extra Access time      (nsec << 2 | epoch) */
 	__le32  i_crtime;       /* File Creation time */
 	__le32  i_crtime_extra; /* extra FileCreationtime (nsec << 2 | epoch) */
+	__le32  i_version_hi;	/* high 32 bits for 64-bit version */
 };
 
-#define i_size_high	i_dir_acl
 
 #define EXT4_EPOCH_BITS 2
 #define EXT4_EPOCH_MASK ((1 << EXT4_EPOCH_BITS) - 1)
@@ -402,9 +455,12 @@ do {									       \
 				       raw_inode->xtime ## _extra);	       \
 } while (0)
 
+#define i_disk_version osd1.linux1.l_i_version
+
 #if defined(__KERNEL__) || defined(__linux__)
 #define i_reserved1	osd1.linux1.l_i_reserved1
 #define i_file_acl_high	osd2.linux2.l_i_file_acl_high
+#define i_blocks_high	osd2.linux2.l_i_blocks_high
 #define i_uid_low	i_uid
 #define i_gid_low	i_gid
 #define i_uid_high	osd2.linux2.l_i_uid_high
@@ -461,7 +517,10 @@ do {									       \
 #define EXT4_MOUNT_USRQUOTA		0x100000 /* "old" user quota */
 #define EXT4_MOUNT_GRPQUOTA		0x200000 /* "old" group quota */
 #define EXT4_MOUNT_EXTENTS		0x400000 /* Extents support */
-
+#define EXT4_MOUNT_JOURNAL_CHECKSUM	0x800000 /* Journal checksums */
+#define EXT4_MOUNT_JOURNAL_ASYNC_COMMIT	0x1000000 /* Journal Async Commit */
+#define EXT4_MOUNT_I_VERSION            0x2000000 /* i_version support */
+#define EXT4_MOUNT_MBALLOC		0x4000000 /* Buddy allocation support */
 /* Compatibility, for having both ext2_fs.h and ext4_fs.h included at once */
 #ifndef _LINUX_EXT2_FS_H
 #define clear_opt(o, opt)		o &= ~EXT4_MOUNT_##opt
@@ -481,6 +540,7 @@ do {									       \
 #define ext4_test_bit			ext2_test_bit
 #define ext4_find_first_zero_bit	ext2_find_first_zero_bit
 #define ext4_find_next_zero_bit		ext2_find_next_zero_bit
+#define ext4_find_next_bit		ext2_find_next_bit
 
 /*
  * Maximal mount counts between two filesystem checks
@@ -671,6 +731,7 @@ static inline int ext4_valid_inum(struct super_block *sb, unsigned long ino)
 #define EXT4_FEATURE_RO_COMPAT_SPARSE_SUPER	0x0001
 #define EXT4_FEATURE_RO_COMPAT_LARGE_FILE	0x0002
 #define EXT4_FEATURE_RO_COMPAT_BTREE_DIR	0x0004
+#define EXT4_FEATURE_RO_COMPAT_HUGE_FILE        0x0008
 #define EXT4_FEATURE_RO_COMPAT_GDT_CSUM		0x0010
 #define EXT4_FEATURE_RO_COMPAT_DIR_NLINK	0x0020
 #define EXT4_FEATURE_RO_COMPAT_EXTRA_ISIZE	0x0040
@@ -682,6 +743,7 @@ static inline int ext4_valid_inum(struct super_block *sb, unsigned long ino)
 #define EXT4_FEATURE_INCOMPAT_META_BG		0x0010
 #define EXT4_FEATURE_INCOMPAT_EXTENTS		0x0040 /* extents support */
 #define EXT4_FEATURE_INCOMPAT_64BIT		0x0080
+#define EXT4_FEATURE_INCOMPAT_MMP               0x0100
 #define EXT4_FEATURE_INCOMPAT_FLEX_BG		0x0200
 
 #define EXT4_FEATURE_COMPAT_SUPP	EXT2_FEATURE_COMPAT_EXT_ATTR
@@ -696,7 +758,8 @@ static inline int ext4_valid_inum(struct super_block *sb, unsigned long ino)
 					 EXT4_FEATURE_RO_COMPAT_GDT_CSUM| \
 					 EXT4_FEATURE_RO_COMPAT_DIR_NLINK | \
 					 EXT4_FEATURE_RO_COMPAT_EXTRA_ISIZE | \
-					 EXT4_FEATURE_RO_COMPAT_BTREE_DIR)
+					 EXT4_FEATURE_RO_COMPAT_BTREE_DIR |\
+					 EXT4_FEATURE_RO_COMPAT_HUGE_FILE)
 
 /*
  * Default values for user and/or group using reserved blocks
@@ -767,6 +830,26 @@ struct ext4_dir_entry_2 {
 #define EXT4_DIR_ROUND			(EXT4_DIR_PAD - 1)
 #define EXT4_DIR_REC_LEN(name_len)	(((name_len) + 8 + EXT4_DIR_ROUND) & \
 					 ~EXT4_DIR_ROUND)
+#define EXT4_MAX_REC_LEN		((1<<16)-1)
+
+static inline unsigned ext4_rec_len_from_disk(__le16 dlen)
+{
+	unsigned len = le16_to_cpu(dlen);
+
+	if (len == EXT4_MAX_REC_LEN)
+		return 1 << 16;
+	return len;
+}
+
+static inline __le16 ext4_rec_len_to_disk(unsigned len)
+{
+	if (len == (1 << 16))
+		return cpu_to_le16(EXT4_MAX_REC_LEN);
+	else if (len > (1 << 16))
+		BUG();
+	return cpu_to_le16(len);
+}
+
 /*
  * Hash Tree Directory indexing
  * (c) Daniel Phillips, 2001
@@ -810,7 +893,7 @@ struct ext4_iloc
 {
 	struct buffer_head *bh;
 	unsigned long offset;
-	unsigned long block_group;
+	ext4_group_t block_group;
 };
 
 static inline struct ext4_inode *ext4_raw_inode(struct ext4_iloc *iloc)
@@ -835,7 +918,7 @@ struct dir_private_info {
 
 /* calculate the first block number of the group */
 static inline ext4_fsblk_t
-ext4_group_first_block_no(struct super_block *sb, unsigned long group_no)
+ext4_group_first_block_no(struct super_block *sb, ext4_group_t group_no)
 {
 	return group_no * (ext4_fsblk_t)EXT4_BLOCKS_PER_GROUP(sb) +
 		le32_to_cpu(EXT4_SB(sb)->s_es->s_first_data_block);
@@ -866,21 +949,24 @@ extern unsigned int ext4_block_group(struct super_block *sb,
 			ext4_fsblk_t blocknr);
 extern ext4_grpblk_t ext4_block_group_offset(struct super_block *sb,
 			ext4_fsblk_t blocknr);
-extern int ext4_bg_has_super(struct super_block *sb, int group);
-extern unsigned long ext4_bg_num_gdb(struct super_block *sb, int group);
+extern int ext4_bg_has_super(struct super_block *sb, ext4_group_t group);
+extern unsigned long ext4_bg_num_gdb(struct super_block *sb,
+			ext4_group_t group);
 extern ext4_fsblk_t ext4_new_block (handle_t *handle, struct inode *inode,
 			ext4_fsblk_t goal, int *errp);
 extern ext4_fsblk_t ext4_new_blocks (handle_t *handle, struct inode *inode,
 			ext4_fsblk_t goal, unsigned long *count, int *errp);
+extern ext4_fsblk_t ext4_new_blocks_old(handle_t *handle, struct inode *inode,
+			ext4_fsblk_t goal, unsigned long *count, int *errp);
 extern void ext4_free_blocks (handle_t *handle, struct inode *inode,
-			ext4_fsblk_t block, unsigned long count);
+			ext4_fsblk_t block, unsigned long count, int metadata);
 extern void ext4_free_blocks_sb (handle_t *handle, struct super_block *sb,
 				 ext4_fsblk_t block, unsigned long count,
 				unsigned long *pdquot_freed_blocks);
 extern ext4_fsblk_t ext4_count_free_blocks (struct super_block *);
 extern void ext4_check_blocks_bitmap (struct super_block *);
 extern struct ext4_group_desc * ext4_get_group_desc(struct super_block * sb,
-						    unsigned int block_group,
+						    ext4_group_t block_group,
 						    struct buffer_head ** bh);
 extern int ext4_should_retry_alloc(struct super_block *sb, int *retries);
 extern void ext4_init_block_alloc_info(struct inode *);
@@ -911,15 +997,32 @@ extern unsigned long ext4_count_dirs (struct super_block *);
 extern void ext4_check_inodes_bitmap (struct super_block *);
 extern unsigned long ext4_count_free (struct buffer_head *, unsigned);
 
+/* mballoc.c */
+extern long ext4_mb_stats;
+extern long ext4_mb_max_to_scan;
+extern int ext4_mb_init(struct super_block *, int);
+extern int ext4_mb_release(struct super_block *);
+extern ext4_fsblk_t ext4_mb_new_blocks(handle_t *,
+				struct ext4_allocation_request *, int *);
+extern int ext4_mb_reserve_blocks(struct super_block *, int);
+extern void ext4_mb_discard_inode_preallocations(struct inode *);
+extern int __init init_ext4_mballoc(void);
+extern void exit_ext4_mballoc(void);
+extern void ext4_mb_free_blocks(handle_t *, struct inode *,
+		unsigned long, unsigned long, int, unsigned long *);
+
 
 /* inode.c */
 int ext4_forget(handle_t *handle, int is_metadata, struct inode *inode,
 		struct buffer_head *bh, ext4_fsblk_t blocknr);
-struct buffer_head * ext4_getblk (handle_t *, struct inode *, long, int, int *);
-struct buffer_head * ext4_bread (handle_t *, struct inode *, int, int, int *);
+struct buffer_head *ext4_getblk(handle_t *, struct inode *,
+						ext4_lblk_t, int, int *);
+struct buffer_head *ext4_bread(handle_t *, struct inode *,
+						ext4_lblk_t, int, int *);
 int ext4_get_blocks_handle(handle_t *handle, struct inode *inode,
-	sector_t iblock, unsigned long maxblocks, struct buffer_head *bh_result,
-	int create, int extend_disksize);
+				ext4_lblk_t iblock, unsigned long maxblocks,
+				struct buffer_head *bh_result,
+				int create, int extend_disksize);
 
 extern void ext4_read_inode (struct inode *);
 extern int  ext4_write_inode (struct inode *, int);
@@ -943,6 +1046,9 @@ extern int ext4_ioctl (struct inode *, struct file *, unsigned int,
 		       unsigned long);
 extern long ext4_compat_ioctl (struct file *, unsigned int, unsigned long);
 
+/* migrate.c */
+extern int ext4_ext_migrate(struct inode *, struct file *, unsigned int,
+		       unsigned long);
 /* namei.c */
 extern int ext4_orphan_add(handle_t *, struct inode *);
 extern int ext4_orphan_del(handle_t *, struct inode *);
@@ -965,6 +1071,12 @@ extern void ext4_abort (struct super_block *, const char *, const char *, ...)
 extern void ext4_warning (struct super_block *, const char *, const char *, ...)
 	__attribute__ ((format (printf, 3, 4)));
 extern void ext4_update_dynamic_rev (struct super_block *sb);
+extern int ext4_update_compat_feature(handle_t *handle, struct super_block *sb,
+					__u32 compat);
+extern int ext4_update_rocompat_feature(handle_t *handle,
+					struct super_block *sb,	__u32 rocompat);
+extern int ext4_update_incompat_feature(handle_t *handle,
+					struct super_block *sb,	__u32 incompat);
 extern ext4_fsblk_t ext4_block_bitmap(struct super_block *sb,
 				      struct ext4_group_desc *bg);
 extern ext4_fsblk_t ext4_inode_bitmap(struct super_block *sb,
@@ -1017,6 +1129,29 @@ static inline void ext4_r_blocks_count_set(struct ext4_super_block *es,
 	es->s_r_blocks_count_hi = cpu_to_le32(blk >> 32);
 }
 
+static inline loff_t ext4_isize(struct ext4_inode *raw_inode)
+{
+	return ((loff_t)le32_to_cpu(raw_inode->i_size_high) << 32) |
+		le32_to_cpu(raw_inode->i_size_lo);
+}
+
+static inline void ext4_isize_set(struct ext4_inode *raw_inode, loff_t i_size)
+{
+	raw_inode->i_size_lo = cpu_to_le32(i_size);
+	raw_inode->i_size_high = cpu_to_le32(i_size >> 32);
+}
+
+static inline
+struct ext4_group_info *ext4_get_group_info(struct super_block *sb,
+							ext4_group_t group)
+{
+	 struct ext4_group_info ***grp_info;
+	 long indexv, indexh;
+	 grp_info = EXT4_SB(sb)->s_group_info;
+	 indexv = group >> (EXT4_DESC_PER_BLOCK_BITS(sb));
+	 indexh = group & ((EXT4_DESC_PER_BLOCK(sb)) - 1);
+	 return grp_info[indexv][indexh];
+}
 
 
 #define ext4_std_error(sb, errno)				\
@@ -1048,7 +1183,7 @@ extern const struct inode_operations ext4_fast_symlink_inode_operations;
 extern int ext4_ext_tree_init(handle_t *handle, struct inode *);
 extern int ext4_ext_writepage_trans_blocks(struct inode *, int);
 extern int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
-			ext4_fsblk_t iblock,
+			ext4_lblk_t iblock,
 			unsigned long max_blocks, struct buffer_head *bh_result,
 			int create, int extend_disksize);
 extern void ext4_ext_truncate(struct inode *, struct page *);
@@ -1056,19 +1191,10 @@ extern void ext4_ext_init(struct super_block *);
 extern void ext4_ext_release(struct super_block *);
 extern long ext4_fallocate(struct inode *inode, int mode, loff_t offset,
 			  loff_t len);
-static inline int
-ext4_get_blocks_wrap(handle_t *handle, struct inode *inode, sector_t block,
-			unsigned long max_blocks, struct buffer_head *bh,
-			int create, int extend_disksize)
-{
-	if (EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL)
-		return ext4_ext_get_blocks(handle, inode, block, max_blocks,
-					bh, create, extend_disksize);
-	return ext4_get_blocks_handle(handle, inode, block, max_blocks, bh,
-					create, extend_disksize);
-}
-
-
+extern int ext4_get_blocks_wrap(handle_t *handle, struct inode *inode,
+			sector_t block, unsigned long max_blocks,
+			struct buffer_head *bh, int create,
+			int extend_disksize);
 #endif	/* __KERNEL__ */
 
 #endif	/* _LINUX_EXT4_FS_H */

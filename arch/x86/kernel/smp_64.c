@@ -29,7 +29,7 @@
 #include <asm/idle.h>
 
 /*
- *	Smarter SMP flushing macros. 
+ *	Smarter SMP flushing macros.
  *		c/o Linus Torvalds.
  *
  *	These mean you can really definitely utterly forget about
@@ -37,15 +37,15 @@
  *
  *	Optimizations Manfred Spraul <manfred@colorfullife.com>
  *
- * 	More scalable flush, from Andi Kleen
+ *	More scalable flush, from Andi Kleen
  *
- * 	To avoid global state use 8 different call vectors.
- * 	Each CPU uses a specific vector to trigger flushes on other
- * 	CPUs. Depending on the received vector the target CPUs look into
+ *	To avoid global state use 8 different call vectors.
+ *	Each CPU uses a specific vector to trigger flushes on other
+ *	CPUs. Depending on the received vector the target CPUs look into
  *	the right per cpu variable for the flush data.
  *
- * 	With more than 8 CPUs they are hashed to the 8 available
- * 	vectors. The limited global vector space forces us to this right now.
+ *	With more than 8 CPUs they are hashed to the 8 available
+ *	vectors. The limited global vector space forces us to this right now.
  *	In future when interrupts are split into per CPU domains this could be
  *	fixed, at the cost of triggering multiple IPIs in some cases.
  */
@@ -55,7 +55,6 @@ union smp_flush_state {
 		cpumask_t flush_cpumask;
 		struct mm_struct *flush_mm;
 		unsigned long flush_va;
-#define FLUSH_ALL	-1ULL
 		spinlock_t tlbstate_lock;
 	};
 	char pad[SMP_CACHE_BYTES];
@@ -67,16 +66,17 @@ union smp_flush_state {
 static DEFINE_PER_CPU(union smp_flush_state, flush_state);
 
 /*
- * We cannot call mmdrop() because we are in interrupt context, 
+ * We cannot call mmdrop() because we are in interrupt context,
  * instead update mm->cpu_vm_mask.
  */
-static inline void leave_mm(int cpu)
+void leave_mm(int cpu)
 {
 	if (read_pda(mmu_state) == TLBSTATE_OK)
 		BUG();
 	cpu_clear(cpu, read_pda(active_mm)->cpu_vm_mask);
 	load_cr3(swapper_pg_dir);
 }
+EXPORT_SYMBOL_GPL(leave_mm);
 
 /*
  *
@@ -85,25 +85,25 @@ static inline void leave_mm(int cpu)
  * 1) switch_mm() either 1a) or 1b)
  * 1a) thread switch to a different mm
  * 1a1) cpu_clear(cpu, old_mm->cpu_vm_mask);
- * 	Stop ipi delivery for the old mm. This is not synchronized with
- * 	the other cpus, but smp_invalidate_interrupt ignore flush ipis
- * 	for the wrong mm, and in the worst case we perform a superfluous
- * 	tlb flush.
+ *	Stop ipi delivery for the old mm. This is not synchronized with
+ *	the other cpus, but smp_invalidate_interrupt ignore flush ipis
+ *	for the wrong mm, and in the worst case we perform a superfluous
+ *	tlb flush.
  * 1a2) set cpu mmu_state to TLBSTATE_OK
- * 	Now the smp_invalidate_interrupt won't call leave_mm if cpu0
+ *	Now the smp_invalidate_interrupt won't call leave_mm if cpu0
  *	was in lazy tlb mode.
  * 1a3) update cpu active_mm
- * 	Now cpu0 accepts tlb flushes for the new mm.
+ *	Now cpu0 accepts tlb flushes for the new mm.
  * 1a4) cpu_set(cpu, new_mm->cpu_vm_mask);
- * 	Now the other cpus will send tlb flush ipis.
+ *	Now the other cpus will send tlb flush ipis.
  * 1a4) change cr3.
  * 1b) thread switch without mm change
  *	cpu active_mm is correct, cpu0 already handles
  *	flush ipis.
  * 1b1) set cpu mmu_state to TLBSTATE_OK
  * 1b2) test_and_set the cpu bit in cpu_vm_mask.
- * 	Atomically set the bit [other cpus will start sending flush ipis],
- * 	and test the bit.
+ *	Atomically set the bit [other cpus will start sending flush ipis],
+ *	and test the bit.
  * 1b3) if the bit was 0: leave_mm was called, flush the tlb.
  * 2) switch %%esp, ie current
  *
@@ -137,12 +137,12 @@ asmlinkage void smp_invalidate_interrupt(struct pt_regs *regs)
 	 * orig_rax contains the negated interrupt vector.
 	 * Use that to determine where the sender put the data.
 	 */
-	sender = ~regs->orig_rax - INVALIDATE_TLB_VECTOR_START;
+	sender = ~regs->orig_ax - INVALIDATE_TLB_VECTOR_START;
 	f = &per_cpu(flush_state, sender);
 
 	if (!cpu_isset(cpu, f->flush_cpumask))
 		goto out;
-		/* 
+		/*
 		 * This was a BUG() but until someone can quote me the
 		 * line from the intel manual that guarantees an IPI to
 		 * multiple CPUs is retried _only_ on the erroring CPUs
@@ -150,10 +150,10 @@ asmlinkage void smp_invalidate_interrupt(struct pt_regs *regs)
 		 *
 		 * BUG();
 		 */
-		 
+
 	if (f->flush_mm == read_pda(active_mm)) {
 		if (read_pda(mmu_state) == TLBSTATE_OK) {
-			if (f->flush_va == FLUSH_ALL)
+			if (f->flush_va == TLB_FLUSH_ALL)
 				local_flush_tlb();
 			else
 				__flush_tlb_one(f->flush_va);
@@ -166,19 +166,22 @@ out:
 	add_pda(irq_tlb_count, 1);
 }
 
-static void flush_tlb_others(cpumask_t cpumask, struct mm_struct *mm,
-						unsigned long va)
+void native_flush_tlb_others(const cpumask_t *cpumaskp, struct mm_struct *mm,
+			     unsigned long va)
 {
 	int sender;
 	union smp_flush_state *f;
+	cpumask_t cpumask = *cpumaskp;
 
 	/* Caller has disabled preemption */
 	sender = smp_processor_id() % NUM_INVALIDATE_TLB_VECTORS;
 	f = &per_cpu(flush_state, sender);
 
-	/* Could avoid this lock when
-	   num_online_cpus() <= NUM_INVALIDATE_TLB_VECTORS, but it is
-	   probably not worth checking this for a cache-hot lock. */
+	/*
+	 * Could avoid this lock when
+	 * num_online_cpus() <= NUM_INVALIDATE_TLB_VECTORS, but it is
+	 * probably not worth checking this for a cache-hot lock.
+	 */
 	spin_lock(&f->tlbstate_lock);
 
 	f->flush_mm = mm;
@@ -202,14 +205,14 @@ static void flush_tlb_others(cpumask_t cpumask, struct mm_struct *mm,
 int __cpuinit init_smp_flush(void)
 {
 	int i;
+
 	for_each_cpu_mask(i, cpu_possible_map) {
 		spin_lock_init(&per_cpu(flush_state, i).tlbstate_lock);
 	}
 	return 0;
 }
-
 core_initcall(init_smp_flush);
-	
+
 void flush_tlb_current_task(void)
 {
 	struct mm_struct *mm = current->mm;
@@ -221,10 +224,9 @@ void flush_tlb_current_task(void)
 
 	local_flush_tlb();
 	if (!cpus_empty(cpu_mask))
-		flush_tlb_others(cpu_mask, mm, FLUSH_ALL);
+		flush_tlb_others(cpu_mask, mm, TLB_FLUSH_ALL);
 	preempt_enable();
 }
-EXPORT_SYMBOL(flush_tlb_current_task);
 
 void flush_tlb_mm (struct mm_struct * mm)
 {
@@ -241,11 +243,10 @@ void flush_tlb_mm (struct mm_struct * mm)
 			leave_mm(smp_processor_id());
 	}
 	if (!cpus_empty(cpu_mask))
-		flush_tlb_others(cpu_mask, mm, FLUSH_ALL);
+		flush_tlb_others(cpu_mask, mm, TLB_FLUSH_ALL);
 
 	preempt_enable();
 }
-EXPORT_SYMBOL(flush_tlb_mm);
 
 void flush_tlb_page(struct vm_area_struct * vma, unsigned long va)
 {
@@ -259,8 +260,8 @@ void flush_tlb_page(struct vm_area_struct * vma, unsigned long va)
 	if (current->active_mm == mm) {
 		if(current->mm)
 			__flush_tlb_one(va);
-		 else
-		 	leave_mm(smp_processor_id());
+		else
+			leave_mm(smp_processor_id());
 	}
 
 	if (!cpus_empty(cpu_mask))
@@ -268,7 +269,6 @@ void flush_tlb_page(struct vm_area_struct * vma, unsigned long va)
 
 	preempt_enable();
 }
-EXPORT_SYMBOL(flush_tlb_page);
 
 static void do_flush_tlb_all(void* info)
 {
@@ -325,11 +325,9 @@ void unlock_ipi_call_lock(void)
  * this function sends a 'generic call function' IPI to all other CPU
  * of the system defined in the mask.
  */
-
-static int
-__smp_call_function_mask(cpumask_t mask,
-			 void (*func)(void *), void *info,
-			 int wait)
+static int __smp_call_function_mask(cpumask_t mask,
+				    void (*func)(void *), void *info,
+				    int wait)
 {
 	struct call_data_struct data;
 	cpumask_t allbutself;
@@ -417,11 +415,10 @@ EXPORT_SYMBOL(smp_call_function_mask);
  */
 
 int smp_call_function_single (int cpu, void (*func) (void *info), void *info,
-	int nonatomic, int wait)
+			      int nonatomic, int wait)
 {
 	/* prevent preemption and reschedule on another processor */
-	int ret;
-	int me = get_cpu();
+	int ret, me = get_cpu();
 
 	/* Can deadlock when called with interrupts disabled */
 	WARN_ON(irqs_disabled());
@@ -471,9 +468,9 @@ static void stop_this_cpu(void *dummy)
 	 */
 	cpu_clear(smp_processor_id(), cpu_online_map);
 	disable_local_APIC();
-	for (;;) 
+	for (;;)
 		halt();
-} 
+}
 
 void smp_send_stop(void)
 {

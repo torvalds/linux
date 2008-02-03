@@ -43,7 +43,6 @@
  *  full control over both mixers.
  */
 
-#include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/isa.h>
@@ -286,39 +285,21 @@ static int __devinit snd_cmi8330_pnp(int dev, struct snd_cmi8330 *acard,
 				     const struct pnp_card_device_id *id)
 {
 	struct pnp_dev *pdev;
-	struct pnp_resource_table * cfg = kmalloc(sizeof(struct pnp_resource_table), GFP_KERNEL);
 	int err;
 
-	if (!cfg)
-		return -ENOMEM;
 	acard->cap = pnp_request_card_device(card, id->devs[0].id, NULL);
-	if (acard->cap == NULL) {
-		kfree(cfg);
+	if (acard->cap == NULL)
 		return -EBUSY;
-	}
+
 	acard->play = pnp_request_card_device(card, id->devs[1].id, NULL);
-	if (acard->play == NULL) {
-		kfree(cfg);
+	if (acard->play == NULL)
 		return -EBUSY;
-	}
 
 	pdev = acard->cap;
-	pnp_init_resource_table(cfg);
-	/* allocate AD1848 resources */
-	if (wssport[dev] != SNDRV_AUTO_PORT)
-		pnp_resource_change(&cfg->port_resource[0], wssport[dev], 8);
-	if (wssdma[dev] != SNDRV_AUTO_DMA)
-		pnp_resource_change(&cfg->dma_resource[0], wssdma[dev], 1);
-	if (wssirq[dev] != SNDRV_AUTO_IRQ)
-		pnp_resource_change(&cfg->irq_resource[0], wssirq[dev], 1);
 
-	err = pnp_manual_config_dev(pdev, cfg, 0);
-	if (err < 0)
-		snd_printk(KERN_ERR "CMI8330/C3D (AD1848) PnP manual resources are invalid, using auto config\n");
 	err = pnp_activate_dev(pdev);
 	if (err < 0) {
 		snd_printk(KERN_ERR "CMI8330/C3D (AD1848) PnP configure failure\n");
-		kfree(cfg);
 		return -EBUSY;
 	}
 	wssport[dev] = pnp_port_start(pdev, 0);
@@ -327,23 +308,10 @@ static int __devinit snd_cmi8330_pnp(int dev, struct snd_cmi8330 *acard,
 
 	/* allocate SB16 resources */
 	pdev = acard->play;
-	pnp_init_resource_table(cfg);
-	if (sbport[dev] != SNDRV_AUTO_PORT)
-		pnp_resource_change(&cfg->port_resource[0], sbport[dev], 16);
-	if (sbdma8[dev] != SNDRV_AUTO_DMA)
-		pnp_resource_change(&cfg->dma_resource[0], sbdma8[dev], 1);
-	if (sbdma16[dev] != SNDRV_AUTO_DMA)
-		pnp_resource_change(&cfg->dma_resource[1], sbdma16[dev], 1);
-	if (sbirq[dev] != SNDRV_AUTO_IRQ)
-		pnp_resource_change(&cfg->irq_resource[0], sbirq[dev], 1);
 
-	err = pnp_manual_config_dev(pdev, cfg, 0);
-	if (err < 0)
-		snd_printk(KERN_ERR "CMI8330/C3D (SB16) PnP manual resources are invalid, using auto config\n");
 	err = pnp_activate_dev(pdev);
 	if (err < 0) {
 		snd_printk(KERN_ERR "CMI8330/C3D (SB16) PnP configure failure\n");
-		kfree(cfg);
 		return -EBUSY;
 	}
 	sbport[dev] = pnp_port_start(pdev, 0);
@@ -351,7 +319,6 @@ static int __devinit snd_cmi8330_pnp(int dev, struct snd_cmi8330 *acard,
 	sbdma16[dev] = pnp_dma(pdev, 1);
 	sbirq[dev] = pnp_irq(pdev, 0);
 
-	kfree(cfg);
 	return 0;
 }
 #endif

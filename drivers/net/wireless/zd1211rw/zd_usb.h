@@ -1,4 +1,7 @@
-/* zd_usb.h: Header for USB interface implemented by ZD1211 chip
+/* ZD1211 USB-WLAN driver for Linux
+ *
+ * Copyright (C) 2005-2007 Ulrich Kunitz <kune@deine-taler.de>
+ * Copyright (C) 2006-2007 Daniel Drake <dsd@gentoo.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,6 +28,9 @@
 #include <linux/usb.h>
 
 #include "zd_def.h"
+
+#define ZD_USB_TX_HIGH  5
+#define ZD_USB_TX_LOW   2
 
 enum devicetype {
 	DEVICE_ZD1211  = 0,
@@ -165,7 +171,7 @@ static inline struct usb_int_regs *get_read_regs(struct zd_usb_interrupt *intr)
 	return (struct usb_int_regs *)intr->read_regs.buffer;
 }
 
-#define URBS_COUNT 5
+#define RX_URBS_COUNT 5
 
 struct zd_usb_rx {
 	spinlock_t lock;
@@ -176,8 +182,21 @@ struct zd_usb_rx {
 	int urbs_count;
 };
 
+/**
+ * struct zd_usb_tx - structure used for transmitting frames
+ * @lock: lock for transmission
+ * @free_urb_list: list of free URBs, contains all the URBs, which can be used
+ * @submitted_urbs: atomic integer that counts the URBs having sent to the
+ *	device, which haven't been completed
+ * @enabled: enabled flag, indicates whether tx is enabled
+ * @stopped: indicates whether higher level tx queues are stopped
+ */
 struct zd_usb_tx {
 	spinlock_t lock;
+	struct list_head free_urb_list;
+	int submitted_urbs;
+	int enabled;
+	int stopped;
 };
 
 /* Contains the usb parts. The structure doesn't require a lock because intf
@@ -198,17 +217,17 @@ static inline struct usb_device *zd_usb_to_usbdev(struct zd_usb *usb)
 	return interface_to_usbdev(usb->intf);
 }
 
-static inline struct net_device *zd_intf_to_netdev(struct usb_interface *intf)
+static inline struct ieee80211_hw *zd_intf_to_hw(struct usb_interface *intf)
 {
 	return usb_get_intfdata(intf);
 }
 
-static inline struct net_device *zd_usb_to_netdev(struct zd_usb *usb)
+static inline struct ieee80211_hw *zd_usb_to_hw(struct zd_usb *usb)
 {
-	return zd_intf_to_netdev(usb->intf);
+	return zd_intf_to_hw(usb->intf);
 }
 
-void zd_usb_init(struct zd_usb *usb, struct net_device *netdev,
+void zd_usb_init(struct zd_usb *usb, struct ieee80211_hw *hw,
 	         struct usb_interface *intf);
 int zd_usb_init_hw(struct zd_usb *usb);
 void zd_usb_clear(struct zd_usb *usb);
@@ -221,7 +240,10 @@ void zd_usb_disable_int(struct zd_usb *usb);
 int zd_usb_enable_rx(struct zd_usb *usb);
 void zd_usb_disable_rx(struct zd_usb *usb);
 
-int zd_usb_tx(struct zd_usb *usb, const u8 *frame, unsigned int length);
+void zd_usb_enable_tx(struct zd_usb *usb);
+void zd_usb_disable_tx(struct zd_usb *usb);
+
+int zd_usb_tx(struct zd_usb *usb, struct sk_buff *skb);
 
 int zd_usb_ioread16v(struct zd_usb *usb, u16 *values,
 	         const zd_addr_t *addresses, unsigned int count);

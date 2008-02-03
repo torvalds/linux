@@ -154,6 +154,7 @@ static int __init vr41xx_pciu_init(void)
 		pciu_write(PCICLKSELREG, QUARTER_VTCLOCK);
 	else {
 		printk(KERN_ERR "PCI Clock is over 33MHz.\n");
+		iounmap(pciu_base);
 		return -EINVAL;
 	}
 

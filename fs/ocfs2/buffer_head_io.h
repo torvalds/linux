@@ -47,6 +47,8 @@ int ocfs2_read_blocks(struct ocfs2_super          *osb,
 		      int                  flags,
 		      struct inode        *inode);
 
+int ocfs2_write_super_or_backup(struct ocfs2_super *osb,
+				struct buffer_head *bh);
 
 #define OCFS2_BH_CACHED            1
 #define OCFS2_BH_READAHEAD         8

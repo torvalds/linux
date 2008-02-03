@@ -726,11 +726,11 @@ static void rcu_torture_shuffle_tasks(void)
 	cpumask_t tmp_mask = CPU_MASK_ALL;
 	int i;
 
-	lock_cpu_hotplug();
+	get_online_cpus();
 
 	/* No point in shuffling if there is only one online CPU (ex: UP) */
 	if (num_online_cpus() == 1) {
-		unlock_cpu_hotplug();
+		put_online_cpus();
 		return;
 	}
 
@@ -762,7 +762,7 @@ static void rcu_torture_shuffle_tasks(void)
 	else
 		rcu_idle_cpu--;
 
-	unlock_cpu_hotplug();
+	put_online_cpus();
 }
 
 /* Shuffle tasks across CPUs, with the intent of allowing each CPU in the

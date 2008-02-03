@@ -1410,7 +1410,7 @@ rs68328_init(void)
 
 	    if (request_irq(uart_irqs[i],
 			    rs_interrupt,
-			    IRQ_FLG_STD,
+			    IRQF_DISABLED,
 			    "M68328_UART", NULL))
                 panic("Unable to attach 68328 serial interrupt\n");
 	}

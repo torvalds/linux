@@ -28,6 +28,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
+#include <linux/spinlock.h>
 #include <linux/stringify.h>
 #include <linux/time.h>
 #include <net/ipv6.h>

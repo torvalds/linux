@@ -475,17 +475,9 @@ static void do_ubd_request(struct request_queue * q);
 /* Only changed by ubd_init, which is an initcall. */
 int thread_fd = -1;
 
-static void ubd_end_request(struct request *req, int bytes, int uptodate)
+static void ubd_end_request(struct request *req, int bytes, int error)
 {
-	if (!end_that_request_first(req, uptodate, bytes >> 9)) {
-		struct ubd *dev = req->rq_disk->private_data;
-		unsigned long flags;
-
-		add_disk_randomness(req->rq_disk);
-		spin_lock_irqsave(&dev->lock, flags);
-		end_that_request_last(req, uptodate);
-		spin_unlock_irqrestore(&dev->lock, flags);
-	}
+	blk_end_request(req, error, bytes);
 }
 
 /* Callable only from interrupt context - otherwise you need to do
@@ -493,10 +485,10 @@ static void ubd_end_request(struct request *req, int bytes, int uptodate)
 static inline void ubd_finish(struct request *req, int bytes)
 {
 	if(bytes < 0){
-		ubd_end_request(req, 0, 0);
+		ubd_end_request(req, 0, -EIO);
 		return;
 	}
-	ubd_end_request(req, bytes, 1);
+	ubd_end_request(req, bytes, 0);
 }
 
 static LIST_HEAD(restart);
@@ -705,7 +697,7 @@ static int ubd_add(int n, char **error_out)
 	ubd_dev->size = ROUND_BLOCK(ubd_dev->size);
 
 	INIT_LIST_HEAD(&ubd_dev->restart);
-	sg_init_table(&ubd_dev->sg, MAX_SG);
+	sg_init_table(ubd_dev->sg, MAX_SG);
 
 	err = -ENOMEM;
 	ubd_dev->queue = blk_init_queue(do_ubd_request, &ubd_dev->lock);
@@ -1128,6 +1120,7 @@ static void do_ubd_request(struct request_queue *q)
 					       "errno = %d\n", -n);
 				else if(list_empty(&dev->restart))
 					list_add(&dev->restart, &restart);
+				kfree(io_req);
 				return;
 			}
 

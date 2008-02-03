@@ -148,7 +148,9 @@ int spufs_coredump_extra_notes_size(void)
 
 	fd = 0;
 	while ((ctx = coredump_next_context(&fd)) != NULL) {
-		spu_acquire_saved(ctx);
+		rc = spu_acquire_saved(ctx);
+		if (rc)
+			break;
 		rc = spufs_ctx_note_size(ctx, fd);
 		spu_release_saved(ctx);
 		if (rc < 0)
@@ -224,7 +226,9 @@ int spufs_coredump_extra_notes_write(struct file *file, loff_t *foffset)
 
 	fd = 0;
 	while ((ctx = coredump_next_context(&fd)) != NULL) {
-		spu_acquire_saved(ctx);
+		rc = spu_acquire_saved(ctx);
+		if (rc)
+			return rc;
 
 		for (j = 0; spufs_coredump_read[j].name != NULL; j++) {
 			rc = spufs_arch_write_note(ctx, j, file, fd, foffset);

@@ -248,19 +248,25 @@ struct mpc52xx_cdm {
 
 #ifndef __ASSEMBLY__
 
-extern void __iomem * mpc52xx_find_and_map(const char *);
-extern void __iomem * mpc52xx_find_and_map_path(const char *path);
+/* mpc52xx_common.c */
 extern unsigned int mpc52xx_find_ipb_freq(struct device_node *node);
 extern void mpc5200_setup_xlb_arbiter(void);
 extern void mpc52xx_declare_of_platform_devices(void);
+extern void mpc52xx_map_common_devices(void);
+extern int mpc52xx_set_psc_clkdiv(int psc_id, int clkdiv);
+extern void mpc52xx_restart(char *cmd);
 
+/* mpc52xx_pic.c */
 extern void mpc52xx_init_irq(void);
 extern unsigned int mpc52xx_get_irq(void);
 
+/* mpc52xx_pci.c */
+#ifdef CONFIG_PCI
 extern int __init mpc52xx_add_bridge(struct device_node *node);
-
-extern void __init mpc52xx_map_wdt(void);
-extern void mpc52xx_restart(char *cmd);
+extern void __init mpc52xx_setup_pci(void);
+#else
+static inline void mpc52xx_setup_pci(void) { }
+#endif
 
 #endif /* __ASSEMBLY__ */
 

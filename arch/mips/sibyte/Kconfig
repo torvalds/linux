@@ -1,5 +1,7 @@
 config SIBYTE_SB1250
 	bool
+	select CEVT_SB1250
+	select CSRC_SB1250
 	select HW_HAS_PCI
 	select IRQ_CPU
 	select SIBYTE_ENABLE_LDT_IF_PCI
@@ -9,6 +11,8 @@ config SIBYTE_SB1250
 
 config SIBYTE_BCM1120
 	bool
+	select CEVT_SB1250
+	select CSRC_SB1250
 	select IRQ_CPU
 	select SIBYTE_BCM112X
 	select SIBYTE_HAS_ZBUS_PROFILING
@@ -16,6 +20,8 @@ config SIBYTE_BCM1120
 
 config SIBYTE_BCM1125
 	bool
+	select CEVT_SB1250
+	select CSRC_SB1250
 	select HW_HAS_PCI
 	select IRQ_CPU
 	select SIBYTE_BCM112X
@@ -24,6 +30,8 @@ config SIBYTE_BCM1125
 
 config SIBYTE_BCM1125H
 	bool
+	select CEVT_SB1250
+	select CSRC_SB1250
 	select HW_HAS_PCI
 	select IRQ_CPU
 	select SIBYTE_BCM112X
@@ -33,12 +41,16 @@ config SIBYTE_BCM1125H
 
 config SIBYTE_BCM112X
 	bool
+	select CEVT_SB1250
+	select CSRC_SB1250
 	select IRQ_CPU
 	select SIBYTE_SB1xxx_SOC
 	select SIBYTE_HAS_ZBUS_PROFILING
 
 config SIBYTE_BCM1x80
 	bool
+	select CEVT_BCM1480
+	select CSRC_BCM1480
 	select HW_HAS_PCI
 	select IRQ_CPU
 	select SIBYTE_HAS_ZBUS_PROFILING
@@ -47,6 +59,8 @@ config SIBYTE_BCM1x80
 
 config SIBYTE_BCM1x55
 	bool
+	select CEVT_BCM1480
+	select CSRC_BCM1480
 	select HW_HAS_PCI
 	select IRQ_CPU
 	select SIBYTE_SB1xxx_SOC

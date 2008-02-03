@@ -7,7 +7,7 @@
  * Tx39XX R4k style caches added. HK
  * Copyright (C) 1998, 1999, 2000 Harald Koerfgen
  * Copyright (C) 1998 Gleb Raiko & Vladimir Roganov
- * Copyright (C) 2001, 2004  Maciej W. Rozycki
+ * Copyright (C) 2001, 2004, 2007  Maciej W. Rozycki
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -25,8 +25,6 @@
 
 static unsigned long icache_size, dcache_size;		/* Size in bytes */
 static unsigned long icache_lsize, dcache_lsize;	/* Size in bytes */
-
-#undef DEBUG_CACHE
 
 unsigned long __init r3k_cache_size(unsigned long ca_flags)
 {
@@ -217,26 +215,6 @@ static void r3k_flush_dcache_range(unsigned long start, unsigned long end)
 	write_c0_status(flags);
 }
 
-static inline unsigned long get_phys_page(unsigned long addr,
-					  struct mm_struct *mm)
-{
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *pte;
-	unsigned long physpage;
-
-	pgd = pgd_offset(mm, addr);
-	pud = pud_offset(pgd, addr);
-	pmd = pmd_offset(pud, addr);
-	pte = pte_offset(pmd, addr);
-
-	if ((physpage = pte_val(*pte)) & _PAGE_VALID)
-		return KSEG0ADDR(physpage & PAGE_MASK);
-
-	return 0;
-}
-
 static inline void r3k_flush_cache_all(void)
 {
 }
@@ -252,12 +230,40 @@ static void r3k_flush_cache_mm(struct mm_struct *mm)
 }
 
 static void r3k_flush_cache_range(struct vm_area_struct *vma,
-	unsigned long start, unsigned long end)
+				  unsigned long start, unsigned long end)
 {
 }
 
-static void r3k_flush_cache_page(struct vm_area_struct *vma, unsigned long page, unsigned long pfn)
+static void r3k_flush_cache_page(struct vm_area_struct *vma,
+				 unsigned long addr, unsigned long pfn)
 {
+	unsigned long kaddr = KSEG0ADDR(pfn << PAGE_SHIFT);
+	int exec = vma->vm_flags & VM_EXEC;
+	struct mm_struct *mm = vma->vm_mm;
+	pgd_t *pgdp;
+	pud_t *pudp;
+	pmd_t *pmdp;
+	pte_t *ptep;
+
+	pr_debug("cpage[%08lx,%08lx]\n",
+		 cpu_context(smp_processor_id(), mm), addr);
+
+	/* No ASID => no such page in the cache.  */
+	if (cpu_context(smp_processor_id(), mm) == 0)
+		return;
+
+	pgdp = pgd_offset(mm, addr);
+	pudp = pud_offset(pgdp, addr);
+	pmdp = pmd_offset(pudp, addr);
+	ptep = pte_offset(pmdp, addr);
+
+	/* Invalid => no such page in the cache.  */
+	if (!(pte_val(*ptep) & _PAGE_PRESENT))
+		return;
+
+	r3k_flush_dcache_range(kaddr, kaddr + PAGE_SIZE);
+	if (exec)
+		r3k_flush_icache_range(kaddr, kaddr + PAGE_SIZE);
 }
 
 static void local_r3k_flush_data_cache_page(void *addr)
@@ -272,9 +278,7 @@ static void r3k_flush_cache_sigtramp(unsigned long addr)
 {
 	unsigned long flags;
 
-#ifdef DEBUG_CACHE
-	printk("csigtramp[%08lx]", addr);
-#endif
+	pr_debug("csigtramp[%08lx]\n", addr);
 
 	flags = read_c0_status();
 

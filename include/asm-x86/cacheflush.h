@@ -24,18 +24,35 @@
 #define copy_from_user_page(vma, page, vaddr, dst, src, len) \
 	memcpy(dst, src, len)
 
-void global_flush_tlb(void);
-int change_page_attr(struct page *page, int numpages, pgprot_t prot);
-int change_page_attr_addr(unsigned long addr, int numpages, pgprot_t prot);
-void clflush_cache_range(void *addr, int size);
+int __deprecated_for_modules change_page_attr(struct page *page, int numpages,
+								pgprot_t prot);
 
-#ifdef CONFIG_DEBUG_PAGEALLOC
-/* internal debugging function */
-void kernel_map_pages(struct page *page, int numpages, int enable);
-#endif
+int set_pages_uc(struct page *page, int numpages);
+int set_pages_wb(struct page *page, int numpages);
+int set_pages_x(struct page *page, int numpages);
+int set_pages_nx(struct page *page, int numpages);
+int set_pages_ro(struct page *page, int numpages);
+int set_pages_rw(struct page *page, int numpages);
+
+int set_memory_uc(unsigned long addr, int numpages);
+int set_memory_wb(unsigned long addr, int numpages);
+int set_memory_x(unsigned long addr, int numpages);
+int set_memory_nx(unsigned long addr, int numpages);
+int set_memory_ro(unsigned long addr, int numpages);
+int set_memory_rw(unsigned long addr, int numpages);
+int set_memory_np(unsigned long addr, int numpages);
+
+void clflush_cache_range(void *addr, unsigned int size);
 
 #ifdef CONFIG_DEBUG_RODATA
 void mark_rodata_ro(void);
+#endif
+#ifdef CONFIG_DEBUG_RODATA_TEST
+void rodata_test(void);
+#else
+static inline void rodata_test(void)
+{
+}
 #endif
 
 #endif

@@ -140,6 +140,9 @@ __be32 ic_servaddr = NONE;	/* Boot server IP address */
 __be32 root_server_addr = NONE;	/* Address of NFS server */
 u8 root_server_path[256] = { 0, };	/* Path to mount as root */
 
+/* vendor class identifier */
+static char vendor_class_identifier[253] __initdata;
+
 /* Persistent data: */
 
 static int ic_proto_used;			/* Protocol used, if any */
@@ -299,7 +302,7 @@ static int __init ic_route_ioctl(unsigned int cmd, struct rtentry *arg)
 
 	mm_segment_t oldfs = get_fs();
 	set_fs(get_ds());
-	res = ip_rt_ioctl(cmd, (void __user *) arg);
+	res = ip_rt_ioctl(&init_net, cmd, (void __user *) arg);
 	set_fs(oldfs);
 	return res;
 }
@@ -588,6 +591,7 @@ ic_dhcp_init_options(u8 *options)
 	u8 mt = ((ic_servaddr == NONE)
 		 ? DHCPDISCOVER : DHCPREQUEST);
 	u8 *e = options;
+	int len;
 
 #ifdef IPCONFIG_DEBUG
 	printk("DHCP: Sending message type %d\n", mt);
@@ -628,6 +632,16 @@ ic_dhcp_init_options(u8 *options)
 		*e++ = sizeof(ic_req_params);
 		memcpy(e, ic_req_params, sizeof(ic_req_params));
 		e += sizeof(ic_req_params);
+
+		if (*vendor_class_identifier) {
+			printk(KERN_INFO "DHCP: sending class identifier \"%s\"\n",
+			       vendor_class_identifier);
+			*e++ = 60;	/* Class-identifier */
+			len = strlen(vendor_class_identifier);
+			*e++ = len;
+			memcpy(e, vendor_class_identifier, len);
+			e += len;
+		}
 	}
 
 	*e++ = 255;	/* End of the list */
@@ -1396,30 +1410,15 @@ late_initcall(ip_auto_config);
 
 /*
  *  Decode any IP configuration options in the "ip=" or "nfsaddrs=" kernel
- *  command line parameter. It consists of option fields separated by colons in
- *  the following order:
- *
- *  <client-ip>:<server-ip>:<gw-ip>:<netmask>:<host name>:<device>:<PROTO>
- *
- *  Any of the fields can be empty which means to use a default value:
- *	<client-ip>	- address given by BOOTP or RARP
- *	<server-ip>	- address of host returning BOOTP or RARP packet
- *	<gw-ip>		- none, or the address returned by BOOTP
- *	<netmask>	- automatically determined from <client-ip>, or the
- *			  one returned by BOOTP
- *	<host name>	- <client-ip> in ASCII notation, or the name returned
- *			  by BOOTP
- *	<device>	- use all available devices
- *	<PROTO>:
- *	   off|none	    - don't do autoconfig at all (DEFAULT)
- *	   on|any           - use any configured protocol
- *	   dhcp|bootp|rarp  - use only the specified protocol
- *	   both             - use both BOOTP and RARP (not DHCP)
+ *  command line parameter.  See Documentation/nfsroot.txt.
  */
 static int __init ic_proto_name(char *name)
 {
 	if (!strcmp(name, "on") || !strcmp(name, "any")) {
 		return 1;
+	}
+	if (!strcmp(name, "off") || !strcmp(name, "none")) {
+		return 0;
 	}
 #ifdef CONFIG_IP_PNP_DHCP
 	else if (!strcmp(name, "dhcp")) {
@@ -1454,17 +1453,24 @@ static int __init ip_auto_config_setup(char *addrs)
 	int num = 0;
 
 	ic_set_manually = 1;
+	ic_enable = 1;
 
-	ic_enable = (*addrs &&
-		(strcmp(addrs, "off") != 0) &&
-		(strcmp(addrs, "none") != 0));
-	if (!ic_enable)
-		return 1;
-
+	/*
+	 * If any dhcp, bootp etc options are set, leave autoconfig on
+	 * and skip the below static IP processing.
+	 */
 	if (ic_proto_name(addrs))
 		return 1;
 
-	/* Parse the whole string */
+	/* If no static IP is given, turn off autoconfig and bail.  */
+	if (*addrs == 0 ||
+	    strcmp(addrs, "off") == 0 ||
+	    strcmp(addrs, "none") == 0) {
+		ic_enable = 0;
+		return 1;
+	}
+
+	/* Parse string for static IP assignment.  */
 	ip = addrs;
 	while (ip && *ip) {
 		if ((cp = strchr(ip, ':')))
@@ -1502,7 +1508,10 @@ static int __init ip_auto_config_setup(char *addrs)
 				strlcpy(user_dev_name, ip, sizeof(user_dev_name));
 				break;
 			case 6:
-				ic_proto_name(ip);
+				if (ic_proto_name(ip) == 0 &&
+				    ic_myaddr == NONE) {
+					ic_enable = 0;
+				}
 				break;
 			}
 		}
@@ -1518,5 +1527,16 @@ static int __init nfsaddrs_config_setup(char *addrs)
 	return ip_auto_config_setup(addrs);
 }
 
+static int __init vendor_class_identifier_setup(char *addrs)
+{
+	if (strlcpy(vendor_class_identifier, addrs,
+		    sizeof(vendor_class_identifier))
+	    >= sizeof(vendor_class_identifier))
+		printk(KERN_WARNING "DHCP: vendorclass too long, truncated to \"%s\"",
+		       vendor_class_identifier);
+	return 1;
+}
+
 __setup("ip=", ip_auto_config_setup);
 __setup("nfsaddrs=", nfsaddrs_config_setup);
+__setup("dhcpclass=", vendor_class_identifier_setup);

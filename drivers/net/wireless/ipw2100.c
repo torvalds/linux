@@ -1267,7 +1267,7 @@ static int ipw2100_start_adapter(struct ipw2100_priv *priv)
 				       IPW2100_INTA_FATAL_ERROR |
 				       IPW2100_INTA_PARITY_ERROR);
 		}
-	} while (i--);
+	} while (--i);
 
 	/* Clear out any pending INTAs since we aren't supposed to have
 	 * interrupts enabled at this point... */
@@ -1339,7 +1339,7 @@ static int ipw2100_power_cycle_adapter(struct ipw2100_priv *priv)
 
 		if (reg & IPW_AUX_HOST_RESET_REG_MASTER_DISABLED)
 			break;
-	} while (i--);
+	} while (--i);
 
 	priv->status &= ~STATUS_RESET_PENDING;
 
@@ -1769,7 +1769,7 @@ static int ipw2100_up(struct ipw2100_priv *priv, int deferred)
 		if (priv->stop_rf_kill) {
 			priv->stop_rf_kill = 0;
 			queue_delayed_work(priv->workqueue, &priv->rf_kill,
-					   round_jiffies(HZ));
+					   round_jiffies_relative(HZ));
 		}
 
 		deferred = 1;
@@ -2086,7 +2086,8 @@ static void isr_indicate_rf_kill(struct ipw2100_priv *priv, u32 status)
 	/* Make sure the RF Kill check timer is running */
 	priv->stop_rf_kill = 0;
 	cancel_delayed_work(&priv->rf_kill);
-	queue_delayed_work(priv->workqueue, &priv->rf_kill, round_jiffies(HZ));
+	queue_delayed_work(priv->workqueue, &priv->rf_kill,
+			   round_jiffies_relative(HZ));
 }
 
 static void send_scan_event(void *data)
@@ -2123,7 +2124,7 @@ static void isr_scan_complete(struct ipw2100_priv *priv, u32 status)
 		if (!delayed_work_pending(&priv->scan_event_later))
 			queue_delayed_work(priv->workqueue,
 					&priv->scan_event_later,
-					round_jiffies(msecs_to_jiffies(4000)));
+					round_jiffies_relative(msecs_to_jiffies(4000)));
 	} else {
 		priv->user_requested_scan = 0;
 		cancel_delayed_work(&priv->scan_event_later);
@@ -2508,9 +2509,9 @@ static void isr_rx_monitor(struct ipw2100_priv *priv, int i,
 
 	ipw_rt->rt_hdr.it_version = PKTHDR_RADIOTAP_VERSION;
 	ipw_rt->rt_hdr.it_pad = 0; /* always good to zero */
-	ipw_rt->rt_hdr.it_len = sizeof(struct ipw_rt_hdr); /* total hdr+data */
+	ipw_rt->rt_hdr.it_len = cpu_to_le16(sizeof(struct ipw_rt_hdr)); /* total hdr+data */
 
-	ipw_rt->rt_hdr.it_present = 1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL;
+	ipw_rt->rt_hdr.it_present = cpu_to_le32(1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL);
 
 	ipw_rt->rt_dbmsignal = status->rssi + IPW2100_RSSI_TO_DBM;
 
@@ -2557,7 +2558,7 @@ static int ipw2100_corruption_check(struct ipw2100_priv *priv, int i)
 #ifdef CONFIG_IPW2100_MONITOR
 		return 0;
 #else
-		switch (WLAN_FC_GET_TYPE(u->rx_data.header.frame_ctl)) {
+		switch (WLAN_FC_GET_TYPE(le16_to_cpu(u->rx_data.header.frame_ctl))) {
 		case IEEE80211_FTYPE_MGMT:
 		case IEEE80211_FTYPE_CTL:
 			return 0;
@@ -2676,7 +2677,7 @@ static void __ipw2100_rx_process(struct ipw2100_priv *priv)
 #endif
 			if (stats.len < sizeof(struct ieee80211_hdr_3addr))
 				break;
-			switch (WLAN_FC_GET_TYPE(u->rx_data.header.frame_ctl)) {
+			switch (WLAN_FC_GET_TYPE(le16_to_cpu(u->rx_data.header.frame_ctl))) {
 			case IEEE80211_FTYPE_MGMT:
 				ieee80211_rx_mgt(priv->ieee,
 						 &u->rx_data.header, &stats);
@@ -4242,7 +4243,7 @@ static int ipw_radio_kill_sw(struct ipw2100_priv *priv, int disable_radio)
 			priv->stop_rf_kill = 0;
 			cancel_delayed_work(&priv->rf_kill);
 			queue_delayed_work(priv->workqueue, &priv->rf_kill,
-					   round_jiffies(HZ));
+					   round_jiffies_relative(HZ));
 		} else
 			schedule_reset(priv);
 	}
@@ -5981,7 +5982,7 @@ static void ipw2100_rf_kill(struct work_struct *work)
 		IPW_DEBUG_RF_KILL("RF Kill active, rescheduling GPIO check\n");
 		if (!priv->stop_rf_kill)
 			queue_delayed_work(priv->workqueue, &priv->rf_kill,
-					   round_jiffies(HZ));
+					   round_jiffies_relative(HZ));
 		goto exit_unlock;
 	}
 
@@ -6590,8 +6591,7 @@ static const long ipw2100_frequencies[] = {
 	2472, 2484
 };
 
-#define FREQ_COUNT (sizeof(ipw2100_frequencies) / \
-                    sizeof(ipw2100_frequencies[0]))
+#define FREQ_COUNT	ARRAY_SIZE(ipw2100_frequencies)
 
 static const long ipw2100_rates_11b[] = {
 	1000000,
@@ -7795,7 +7795,7 @@ static int ipw2100_wx_set_mlme(struct net_device *dev,
 {
 	struct ipw2100_priv *priv = ieee80211_priv(dev);
 	struct iw_mlme *mlme = (struct iw_mlme *)extra;
-	u16 reason;
+	__le16 reason;
 
 	reason = cpu_to_le16(mlme->reason_code);
 

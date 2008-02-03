@@ -7,6 +7,12 @@
 #include <linux/string.h>
 #include <asm/io.h>
 
+struct sg_table {
+	struct scatterlist *sgl;	/* the list */
+	unsigned int nents;		/* number of mapped entries */
+	unsigned int orig_nents;	/* original size of list */
+};
+
 /*
  * Notes on SG table design.
  *
@@ -25,6 +31,16 @@
  */
 
 #define SG_MAGIC	0x87654321
+
+/*
+ * We overload the LSB of the page pointer to indicate whether it's
+ * a valid sg entry, or whether it points to the start of a new scatterlist.
+ * Those low bits are there for everyone! (thanks mason :-)
+ */
+#define sg_is_chain(sg)		((sg)->page_link & 0x01)
+#define sg_is_last(sg)		((sg)->page_link & 0x02)
+#define sg_chain_ptr(sg)	\
+	((struct scatterlist *) ((sg)->page_link & ~0x03))
 
 /**
  * sg_assign_page - Assign a given page to an SG entry
@@ -47,6 +63,7 @@ static inline void sg_assign_page(struct scatterlist *sg, struct page *page)
 	BUG_ON((unsigned long) page & 0x03);
 #ifdef CONFIG_DEBUG_SG
 	BUG_ON(sg->sg_magic != SG_MAGIC);
+	BUG_ON(sg_is_chain(sg));
 #endif
 	sg->page_link = page_link | (unsigned long) page;
 }
@@ -73,7 +90,14 @@ static inline void sg_set_page(struct scatterlist *sg, struct page *page,
 	sg->length = len;
 }
 
-#define sg_page(sg)	((struct page *) ((sg)->page_link & ~0x3))
+static inline struct page *sg_page(struct scatterlist *sg)
+{
+#ifdef CONFIG_DEBUG_SG
+	BUG_ON(sg->sg_magic != SG_MAGIC);
+	BUG_ON(sg_is_chain(sg));
+#endif
+	return (struct page *)((sg)->page_link & ~0x3);
+}
 
 /**
  * sg_set_buf - Set sg entry to point at given data
@@ -89,79 +113,10 @@ static inline void sg_set_buf(struct scatterlist *sg, const void *buf,
 }
 
 /*
- * We overload the LSB of the page pointer to indicate whether it's
- * a valid sg entry, or whether it points to the start of a new scatterlist.
- * Those low bits are there for everyone! (thanks mason :-)
- */
-#define sg_is_chain(sg)		((sg)->page_link & 0x01)
-#define sg_is_last(sg)		((sg)->page_link & 0x02)
-#define sg_chain_ptr(sg)	\
-	((struct scatterlist *) ((sg)->page_link & ~0x03))
-
-/**
- * sg_next - return the next scatterlist entry in a list
- * @sg:		The current sg entry
- *
- * Description:
- *   Usually the next entry will be @sg@ + 1, but if this sg element is part
- *   of a chained scatterlist, it could jump to the start of a new
- *   scatterlist array.
- *
- **/
-static inline struct scatterlist *sg_next(struct scatterlist *sg)
-{
-#ifdef CONFIG_DEBUG_SG
-	BUG_ON(sg->sg_magic != SG_MAGIC);
-#endif
-	if (sg_is_last(sg))
-		return NULL;
-
-	sg++;
-	if (unlikely(sg_is_chain(sg)))
-		sg = sg_chain_ptr(sg);
-
-	return sg;
-}
-
-/*
  * Loop over each sg element, following the pointer to a new list if necessary
  */
 #define for_each_sg(sglist, sg, nr, __i)	\
 	for (__i = 0, sg = (sglist); __i < (nr); __i++, sg = sg_next(sg))
-
-/**
- * sg_last - return the last scatterlist entry in a list
- * @sgl:	First entry in the scatterlist
- * @nents:	Number of entries in the scatterlist
- *
- * Description:
- *   Should only be used casually, it (currently) scan the entire list
- *   to get the last entry.
- *
- *   Note that the @sgl@ pointer passed in need not be the first one,
- *   the important bit is that @nents@ denotes the number of entries that
- *   exist from @sgl@.
- *
- **/
-static inline struct scatterlist *sg_last(struct scatterlist *sgl,
-					  unsigned int nents)
-{
-#ifndef ARCH_HAS_SG_CHAIN
-	struct scatterlist *ret = &sgl[nents - 1];
-#else
-	struct scatterlist *sg, *ret = NULL;
-	int i;
-
-	for_each_sg(sgl, sg, nents, i)
-		ret = sg;
-
-#endif
-#ifdef CONFIG_DEBUG_SG
-	BUG_ON(sgl[0].sg_magic != SG_MAGIC);
-	BUG_ON(!sg_is_last(ret));
-#endif
-	return ret;
-}
 
 /**
  * sg_chain - Chain two sglists together
@@ -179,71 +134,39 @@ static inline void sg_chain(struct scatterlist *prv, unsigned int prv_nents,
 #ifndef ARCH_HAS_SG_CHAIN
 	BUG();
 #endif
-	prv[prv_nents - 1].page_link = (unsigned long) sgl | 0x01;
+
+	/*
+	 * offset and length are unused for chain entry.  Clear them.
+	 */
+	prv[prv_nents - 1].offset = 0;
+	prv[prv_nents - 1].length = 0;
+
+	/*
+	 * Set lowest bit to indicate a link pointer, and make sure to clear
+	 * the termination bit if it happens to be set.
+	 */
+	prv[prv_nents - 1].page_link = ((unsigned long) sgl | 0x01) & ~0x02;
 }
 
 /**
  * sg_mark_end - Mark the end of the scatterlist
- * @sgl:	Scatterlist
- * @nents:	Number of entries in sgl
+ * @sg:		 SG entryScatterlist
  *
  * Description:
- *   Marks the last entry as the termination point for sg_next()
+ *   Marks the passed in sg entry as the termination point for the sg
+ *   table. A call to sg_next() on this entry will return NULL.
  *
  **/
-static inline void sg_mark_end(struct scatterlist *sgl, unsigned int nents)
+static inline void sg_mark_end(struct scatterlist *sg)
 {
-	sgl[nents - 1].page_link = 0x02;
-}
-
-static inline void __sg_mark_end(struct scatterlist *sg)
-{
+#ifdef CONFIG_DEBUG_SG
+	BUG_ON(sg->sg_magic != SG_MAGIC);
+#endif
+	/*
+	 * Set termination bit, clear potential chain bit
+	 */
 	sg->page_link |= 0x02;
-}
-
-/**
- * sg_init_one - Initialize a single entry sg list
- * @sg:		 SG entry
- * @buf:	 Virtual address for IO
- * @buflen:	 IO length
- *
- * Notes:
- *   This should not be used on a single entry that is part of a larger
- *   table. Use sg_init_table() for that.
- *
- **/
-static inline void sg_init_one(struct scatterlist *sg, const void *buf,
-			       unsigned int buflen)
-{
-	memset(sg, 0, sizeof(*sg));
-#ifdef CONFIG_DEBUG_SG
-	sg->sg_magic = SG_MAGIC;
-#endif
-	sg_mark_end(sg, 1);
-	sg_set_buf(sg, buf, buflen);
-}
-
-/**
- * sg_init_table - Initialize SG table
- * @sgl:	   The SG table
- * @nents:	   Number of entries in table
- *
- * Notes:
- *   If this is part of a chained sg table, sg_mark_end() should be
- *   used only on the last table part.
- *
- **/
-static inline void sg_init_table(struct scatterlist *sgl, unsigned int nents)
-{
-	memset(sgl, 0, sizeof(*sgl) * nents);
-	sg_mark_end(sgl, nents);
-#ifdef CONFIG_DEBUG_SG
-	{
-		int i;
-		for (i = 0; i < nents; i++)
-			sgl[i].sg_magic = SG_MAGIC;
-	}
-#endif
+	sg->page_link &= ~0x01;
 }
 
 /**
@@ -275,5 +198,25 @@ static inline void *sg_virt(struct scatterlist *sg)
 {
 	return page_address(sg_page(sg)) + sg->offset;
 }
+
+struct scatterlist *sg_next(struct scatterlist *);
+struct scatterlist *sg_last(struct scatterlist *s, unsigned int);
+void sg_init_table(struct scatterlist *, unsigned int);
+void sg_init_one(struct scatterlist *, const void *, unsigned int);
+
+typedef struct scatterlist *(sg_alloc_fn)(unsigned int, gfp_t);
+typedef void (sg_free_fn)(struct scatterlist *, unsigned int);
+
+void __sg_free_table(struct sg_table *, unsigned int, sg_free_fn *);
+void sg_free_table(struct sg_table *);
+int __sg_alloc_table(struct sg_table *, unsigned int, unsigned int, gfp_t,
+		     sg_alloc_fn *);
+int sg_alloc_table(struct sg_table *, unsigned int, gfp_t);
+
+/*
+ * Maximum number of entries that will be allocated in one piece, if
+ * a list larger than this is required then chaining will be utilized.
+ */
+#define SG_MAX_SINGLE_ALLOC		(PAGE_SIZE / sizeof(struct scatterlist))
 
 #endif /* _LINUX_SCATTERLIST_H */

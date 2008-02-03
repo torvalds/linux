@@ -87,11 +87,13 @@ static int __init check_nmi_watchdog(void)
 
 	printk(KERN_INFO "Testing NMI watchdog ... ");
 
+#ifdef CONFIG_SMP
 	if (nmi_watchdog == NMI_LOCAL_APIC)
 		smp_call_function(nmi_cpu_busy, (void *)&endflag, 0, 0);
+#endif
 
 	for_each_possible_cpu(cpu)
-		prev_nmi_count[cpu] = per_cpu(irq_stat, cpu).__nmi_count;
+		prev_nmi_count[cpu] = nmi_count(cpu);
 	local_irq_enable();
 	mdelay((20*1000)/nmi_hz); // wait 20 ticks
 
@@ -105,7 +107,8 @@ static int __init check_nmi_watchdog(void)
 		if (!per_cpu(wd_enabled, cpu))
 			continue;
 		if (nmi_count(cpu) - prev_nmi_count[cpu] <= 5) {
-			printk("CPU#%d: NMI appears to be stuck (%d->%d)!\n",
+			printk(KERN_WARNING "WARNING: CPU#%d: NMI "
+				"appears to be stuck (%d->%d)!\n",
 				cpu,
 				prev_nmi_count[cpu],
 				nmi_count(cpu));
@@ -175,7 +178,7 @@ static int lapic_nmi_resume(struct sys_device *dev)
 
 
 static struct sysdev_class nmi_sysclass = {
-	set_kset_name("lapic_nmi"),
+	.name		= "lapic_nmi",
 	.resume		= lapic_nmi_resume,
 	.suspend	= lapic_nmi_suspend,
 };
@@ -236,10 +239,10 @@ void acpi_nmi_disable(void)
 		on_each_cpu(__acpi_nmi_disable, NULL, 0, 1);
 }
 
-void setup_apic_nmi_watchdog (void *unused)
+void setup_apic_nmi_watchdog(void *unused)
 {
 	if (__get_cpu_var(wd_enabled))
- 		return;
+		return;
 
 	/* cheap hack to support suspend/resume */
 	/* if cpu0 is not active neither should the other cpus */
@@ -328,7 +331,7 @@ __kprobes int nmi_watchdog_tick(struct pt_regs * regs, unsigned reason)
 	unsigned int sum;
 	int touched = 0;
 	int cpu = smp_processor_id();
-	int rc=0;
+	int rc = 0;
 
 	/* check for other users first */
 	if (notify_die(DIE_NMI, "nmi", regs, reason, 2, SIGINT)

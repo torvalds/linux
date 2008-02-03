@@ -120,7 +120,7 @@ struct tifm_adapter {
 	struct completion   *finish_me;
 
 	struct work_struct  media_switcher;
-	struct class_device cdev;
+	struct device	    dev;
 
 	void                (*eject)(struct tifm_adapter *fm,
 				     struct tifm_dev *sock);

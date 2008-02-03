@@ -45,7 +45,7 @@
 #define CS4231_IFACE_CTRL	0x09	/* interface control - bits 7-2 MCE */
 #define CS4231_PIN_CTRL		0x0a	/* pin control */
 #define CS4231_TEST_INIT	0x0b	/* test and initialization */
-#define CS4231_MISC_INFO	0x0c	/* miscellaneaous information */
+#define CS4231_MISC_INFO	0x0c	/* miscellaneous information */
 #define CS4231_LOOPBACK		0x0d	/* loopback control */
 #define CS4231_PLY_UPR_CNT	0x0e	/* playback upper base count */
 #define CS4231_PLY_LWR_CNT	0x0f	/* playback lower base count */

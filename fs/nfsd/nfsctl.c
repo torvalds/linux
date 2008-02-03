@@ -304,6 +304,9 @@ static ssize_t write_filehandle(struct file *file, char *buf, size_t size)
 	struct auth_domain *dom;
 	struct knfsd_fh fh;
 
+	if (size == 0)
+		return -EINVAL;
+
 	if (buf[size-1] != '\n')
 		return -EINVAL;
 	buf[size-1] = 0;
@@ -503,7 +506,7 @@ static ssize_t write_ports(struct file *file, char *buf, size_t size)
 		int len = 0;
 		lock_kernel();
 		if (nfsd_serv)
-			len = svc_sock_names(buf, nfsd_serv, NULL);
+			len = svc_xprt_names(nfsd_serv, buf, 0);
 		unlock_kernel();
 		return len;
 	}
@@ -540,7 +543,7 @@ static ssize_t write_ports(struct file *file, char *buf, size_t size)
 		}
 		return err < 0 ? err : 0;
 	}
-	if (buf[0] == '-') {
+	if (buf[0] == '-' && isdigit(buf[1])) {
 		char *toclose = kstrdup(buf+1, GFP_KERNEL);
 		int len = 0;
 		if (!toclose)
@@ -553,6 +556,53 @@ static ssize_t write_ports(struct file *file, char *buf, size_t size)
 			lockd_down();
 		kfree(toclose);
 		return len;
+	}
+	/*
+	 * Add a transport listener by writing it's transport name
+	 */
+	if (isalpha(buf[0])) {
+		int err;
+		char transport[16];
+		int port;
+		if (sscanf(buf, "%15s %4d", transport, &port) == 2) {
+			err = nfsd_create_serv();
+			if (!err) {
+				err = svc_create_xprt(nfsd_serv,
+						      transport, port,
+						      SVC_SOCK_ANONYMOUS);
+				if (err == -ENOENT)
+					/* Give a reasonable perror msg for
+					 * bad transport string */
+					err = -EPROTONOSUPPORT;
+			}
+			return err < 0 ? err : 0;
+		}
+	}
+	/*
+	 * Remove a transport by writing it's transport name and port number
+	 */
+	if (buf[0] == '-' && isalpha(buf[1])) {
+		struct svc_xprt *xprt;
+		int err = -EINVAL;
+		char transport[16];
+		int port;
+		if (sscanf(&buf[1], "%15s %4d", transport, &port) == 2) {
+			if (port == 0)
+				return -EINVAL;
+			lock_kernel();
+			if (nfsd_serv) {
+				xprt = svc_find_xprt(nfsd_serv, transport,
+						     AF_UNSPEC, port);
+				if (xprt) {
+					svc_close_xprt(xprt);
+					svc_xprt_put(xprt);
+					err = 0;
+				} else
+					err = -ENOTCONN;
+			}
+			unlock_kernel();
+			return err < 0 ? err : 0;
+		}
 	}
 	return -EINVAL;
 }
@@ -616,7 +666,7 @@ static ssize_t write_recoverydir(struct file *file, char *buf, size_t size)
 	char *recdir;
 	int len, status;
 
-	if (size > PATH_MAX || buf[size-1] != '\n')
+	if (size == 0 || size > PATH_MAX || buf[size-1] != '\n')
 		return -EINVAL;
 	buf[size-1] = 0;
 
@@ -674,6 +724,27 @@ static struct file_system_type nfsd_fs_type = {
 	.kill_sb	= kill_litter_super,
 };
 
+#ifdef CONFIG_PROC_FS
+static int create_proc_exports_entry(void)
+{
+	struct proc_dir_entry *entry;
+
+	entry = proc_mkdir("fs/nfs", NULL);
+	if (!entry)
+		return -ENOMEM;
+	entry = create_proc_entry("fs/nfs/exports", 0, NULL);
+	if (!entry)
+		return -ENOMEM;
+	entry->proc_fops =  &exports_operations;
+	return 0;
+}
+#else /* CONFIG_PROC_FS */
+static int create_proc_exports_entry(void)
+{
+	return 0;
+}
+#endif
+
 static int __init init_nfsd(void)
 {
 	int retval;
@@ -683,32 +754,43 @@ static int __init init_nfsd(void)
 	if (retval)
 		return retval;
 	nfsd_stat_init();	/* Statistics */
-	nfsd_cache_init();	/* RPC reply cache */
-	nfsd_export_init();	/* Exports table */
+	retval = nfsd_reply_cache_init();
+	if (retval)
+		goto out_free_stat;
+	retval = nfsd_export_init();
+	if (retval)
+		goto out_free_cache;
 	nfsd_lockd_init();	/* lockd->nfsd callbacks */
-	nfsd_idmap_init();      /* Name to ID mapping */
-	if (proc_mkdir("fs/nfs", NULL)) {
-		struct proc_dir_entry *entry;
-		entry = create_proc_entry("fs/nfs/exports", 0, NULL);
-		if (entry)
-			entry->proc_fops =  &exports_operations;
-	}
+	retval = nfsd_idmap_init();
+	if (retval)
+		goto out_free_lockd;
+	retval = create_proc_exports_entry();
+	if (retval)
+		goto out_free_idmap;
 	retval = register_filesystem(&nfsd_fs_type);
-	if (retval) {
-		nfsd_export_shutdown();
-		nfsd_cache_shutdown();
-		remove_proc_entry("fs/nfs/exports", NULL);
-		remove_proc_entry("fs/nfs", NULL);
-		nfsd_stat_shutdown();
-		nfsd_lockd_shutdown();
-	}
+	if (retval)
+		goto out_free_all;
+	return 0;
+out_free_all:
+	remove_proc_entry("fs/nfs/exports", NULL);
+	remove_proc_entry("fs/nfs", NULL);
+out_free_idmap:
+	nfsd_idmap_shutdown();
+out_free_lockd:
+	nfsd_lockd_shutdown();
+	nfsd_export_shutdown();
+out_free_cache:
+	nfsd_reply_cache_shutdown();
+out_free_stat:
+	nfsd_stat_shutdown();
+	nfsd4_free_slabs();
 	return retval;
 }
 
 static void __exit exit_nfsd(void)
 {
 	nfsd_export_shutdown();
-	nfsd_cache_shutdown();
+	nfsd_reply_cache_shutdown();
 	remove_proc_entry("fs/nfs/exports", NULL);
 	remove_proc_entry("fs/nfs", NULL);
 	nfsd_stat_shutdown();

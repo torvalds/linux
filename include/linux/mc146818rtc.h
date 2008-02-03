@@ -109,8 +109,11 @@ struct cmos_rtc_board_info {
 #ifndef ARCH_RTC_LOCATION	/* Override by <asm/mc146818rtc.h>? */
 
 #define RTC_IO_EXTENT	0x8
+#define RTC_IO_EXTENT_USED	0x2
 #define RTC_IOMAPPED	1	/* Default to I/O mapping. */
 
+#else
+#define RTC_IO_EXTENT_USED      RTC_IO_EXTENT
 #endif /* ARCH_RTC_LOCATION */
 
 #endif /* _MC146818RTC_H */

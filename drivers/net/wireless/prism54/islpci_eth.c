@@ -471,7 +471,7 @@ islpci_eth_receive(islpci_private *priv)
 		wmb();
 
 		/* increment the driver read pointer */
-		add_le32p((u32 *) &control_block->
+		add_le32p(&control_block->
 			  driver_curr_frag[ISL38XX_CB_RX_DATA_LQ], 1);
 	}
 

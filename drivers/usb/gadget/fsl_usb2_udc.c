@@ -776,7 +776,7 @@ fsl_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 		VDBG("%s, bad params\n", __FUNCTION__);
 		return -EINVAL;
 	}
-	if (!_ep || (!ep->desc && ep_index(ep))) {
+	if (unlikely(!_ep || !ep->desc)) {
 		VDBG("%s, bad ep\n", __FUNCTION__);
 		return -EINVAL;
 	}
@@ -1318,7 +1318,7 @@ static void setup_received_irq(struct fsl_udc *udc,
 				| USB_TYPE_STANDARD)) {
 			/* Note: The driver has not include OTG support yet.
 			 * This will be set when OTG support is added */
-			if (!gadget_is_otg(udc->gadget))
+			if (!gadget_is_otg(&udc->gadget))
 				break;
 			else if (setup->bRequest == USB_DEVICE_B_HNP_ENABLE)
 				udc->gadget.b_hnp_enable = 1;
@@ -1896,7 +1896,7 @@ static int fsl_proc_read(char *page, char **start, off_t off, int count,
 
 	spin_lock_irqsave(&udc->lock, flags);
 
-	/* ------basic driver infomation ---- */
+	/* ------basic driver information ---- */
 	t = scnprintf(next, size,
 			DRIVER_DESC "\n"
 			"%s version: %s\n"

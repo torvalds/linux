@@ -597,7 +597,7 @@ static void hpc_release_ctlr(struct controller *ctrl)
 	cleanup_slots(ctrl);
 
 	/*
-	 * Mask SERR and System Interrut generation
+	 * Mask SERR and System Interrupt generation
 	 */
 	serr_int = shpc_readl(ctrl, SERR_INTR_ENABLE);
 	serr_int |= (GLOBAL_INTR_MASK  | GLOBAL_SERR_MASK |

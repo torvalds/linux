@@ -59,41 +59,87 @@ void saa7146_setgpio(struct saa7146_dev *dev, int port, u32 data)
 }
 
 /* This DEBI code is based on the saa7146 Stradis driver by Nathan Laredo */
-int saa7146_wait_for_debi_done(struct saa7146_dev *dev, int nobusyloop)
+static inline int saa7146_wait_for_debi_done_sleep(struct saa7146_dev *dev,
+				unsigned long us1, unsigned long us2)
 {
-	unsigned long start;
+	unsigned long timeout;
 	int err;
 
 	/* wait for registers to be programmed */
-	start = jiffies;
+	timeout = jiffies + usecs_to_jiffies(us1);
 	while (1) {
-		err = time_after(jiffies, start + HZ/20);
+		err = time_after(jiffies, timeout);
 		if (saa7146_read(dev, MC2) & 2)
 			break;
 		if (err) {
-			DEB_S(("timed out while waiting for registers getting programmed\n"));
+			printk(KERN_ERR "%s: %s timed out while waiting for "
+					"registers getting programmed\n",
+					dev->name, __FUNCTION__);
 			return -ETIMEDOUT;
 		}
-		if (nobusyloop)
-			msleep(1);
+		msleep(1);
 	}
 
 	/* wait for transfer to complete */
-	start = jiffies;
+	timeout = jiffies + usecs_to_jiffies(us2);
 	while (1) {
-		err = time_after(jiffies, start + HZ/4);
+		err = time_after(jiffies, timeout);
 		if (!(saa7146_read(dev, PSR) & SPCI_DEBI_S))
 			break;
 		saa7146_read(dev, MC2);
 		if (err) {
-			DEB_S(("timed out while waiting for transfer completion\n"));
+			DEB_S(("%s: %s timed out while waiting for transfer "
+				"completion\n",	dev->name, __FUNCTION__));
 			return -ETIMEDOUT;
 		}
-		if (nobusyloop)
-			msleep(1);
+		msleep(1);
 	}
 
 	return 0;
+}
+
+static inline int saa7146_wait_for_debi_done_busyloop(struct saa7146_dev *dev,
+				unsigned long us1, unsigned long us2)
+{
+	unsigned long loops;
+
+	/* wait for registers to be programmed */
+	loops = us1;
+	while (1) {
+		if (saa7146_read(dev, MC2) & 2)
+			break;
+		if (!loops--) {
+			printk(KERN_ERR "%s: %s timed out while waiting for "
+					"registers getting programmed\n",
+					dev->name, __FUNCTION__);
+			return -ETIMEDOUT;
+		}
+		udelay(1);
+	}
+
+	/* wait for transfer to complete */
+	loops = us2 / 5;
+	while (1) {
+		if (!(saa7146_read(dev, PSR) & SPCI_DEBI_S))
+			break;
+		saa7146_read(dev, MC2);
+		if (!loops--) {
+			DEB_S(("%s: %s timed out while waiting for transfer "
+				"completion\n", dev->name, __FUNCTION__));
+			return -ETIMEDOUT;
+		}
+		udelay(5);
+	}
+
+	return 0;
+}
+
+int saa7146_wait_for_debi_done(struct saa7146_dev *dev, int nobusyloop)
+{
+	if (nobusyloop)
+		return saa7146_wait_for_debi_done_sleep(dev, 50000, 250000);
+	else
+		return saa7146_wait_for_debi_done_busyloop(dev, 50000, 250000);
 }
 
 /****************************************************************************

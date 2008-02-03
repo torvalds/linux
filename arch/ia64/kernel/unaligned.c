@@ -1488,14 +1488,17 @@ ia64_handle_unaligned (unsigned long ifa, struct pt_regs *regs)
 	      case LDFA_OP:
 	      case LDFCCLR_OP:
 	      case LDFCNC_OP:
-	      case LDF_IMM_OP:
-	      case LDFA_IMM_OP:
-	      case LDFCCLR_IMM_OP:
-	      case LDFCNC_IMM_OP:
 		if (u.insn.x)
 			ret = emulate_load_floatpair(ifa, u.insn, regs);
 		else
 			ret = emulate_load_float(ifa, u.insn, regs);
+		break;
+
+	      case LDF_IMM_OP:
+	      case LDFA_IMM_OP:
+	      case LDFCCLR_IMM_OP:
+	      case LDFCNC_IMM_OP:
+		ret = emulate_load_float(ifa, u.insn, regs);
 		break;
 
 	      case STF_OP:

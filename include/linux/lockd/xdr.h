@@ -29,7 +29,7 @@ struct svc_rqst;
 /* Lock info passed via NLM */
 struct nlm_lock {
 	char *			caller;
-	int			len; 	/* length of "caller" */
+	unsigned int		len; 	/* length of "caller" */
 	struct nfs_fh		fh;
 	struct xdr_netobj	oh;
 	u32			svid;
@@ -78,7 +78,7 @@ struct nlm_res {
  */
 struct nlm_reboot {
 	char *		mon;
-	int		len;
+	unsigned int	len;
 	u32		state;
 	__be32		addr;
 	__be32		vers;

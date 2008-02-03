@@ -4,7 +4,7 @@
     Copyright (c) 1998 - 2002  Frodo Looijaard <frodol@dds.nl>,
     Philip Edelbrock <phil@netroedge.com>, Kyösti Mälkki <kmalkki@cc.hut.fi>,
     Mark D. Studebaker <mdsxyz123@yahoo.com>
-    Copyright (C) 2005 - 2007  Jean Delvare <khali@linux-fr.org>
+    Copyright (C) 2005 - 2008  Jean Delvare <khali@linux-fr.org>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@
    VT8235             0x3177             yes
    VT8237R            0x3227             yes
    VT8237A            0x3337             yes
+   VT8237S            0x3372             yes
    VT8251             0x3287             yes
    CX700              0x8324             yes
 
@@ -318,6 +319,10 @@ static int __devinit vt596_probe(struct pci_dev *pdev,
 	unsigned char temp;
 	int error = -ENODEV;
 
+	/* driver_data might come from user-space, so check it */
+	if (id->driver_data & 1 || id->driver_data > 0xff)
+		return -EINVAL;
+
 	/* Determine the address of the SMBus areas */
 	if (force_addr) {
 		vt596_smba = force_addr & 0xfff0;
@@ -389,6 +394,7 @@ found:
 	case PCI_DEVICE_ID_VIA_8251:
 	case PCI_DEVICE_ID_VIA_8237:
 	case PCI_DEVICE_ID_VIA_8237A:
+	case PCI_DEVICE_ID_VIA_8237S:
 	case PCI_DEVICE_ID_VIA_8235:
 	case PCI_DEVICE_ID_VIA_8233A:
 	case PCI_DEVICE_ID_VIA_8233_0:
@@ -440,6 +446,8 @@ static struct pci_device_id vt596_ids[] = {
 	  .driver_data = SMBBA3 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8237A),
 	  .driver_data = SMBBA3 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8237S),
+	  .driver_data = SMBBA3 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8231_4),
 	  .driver_data = SMBBA1 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8251),
@@ -455,6 +463,7 @@ static struct pci_driver vt596_driver = {
 	.name		= "vt596_smbus",
 	.id_table	= vt596_ids,
 	.probe		= vt596_probe,
+	.dynids.use_driver_data = 1,
 };
 
 static int __init i2c_vt596_init(void)

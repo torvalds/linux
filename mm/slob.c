@@ -321,7 +321,8 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
 		/* Improve fragment distribution and reduce our average
 		 * search time by starting our next search here. (see
 		 * Knuth vol 1, sec 2.5, pg 449) */
-		if (free_slob_pages.next != prev->next)
+		if (prev != free_slob_pages.prev &&
+				free_slob_pages.next != prev->next)
 			list_move_tail(&free_slob_pages, prev->next);
 		break;
 	}
@@ -329,7 +330,7 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
 
 	/* Not enough space: must allocate a new page */
 	if (!b) {
-		b = slob_new_page(gfp, 0, node);
+		b = slob_new_page(gfp & ~__GFP_ZERO, 0, node);
 		if (!b)
 			return 0;
 		sp = (struct slob_page *)virt_to_page(b);
@@ -494,6 +495,7 @@ size_t ksize(const void *block)
 	else
 		return sp->page.private;
 }
+EXPORT_SYMBOL(ksize);
 
 struct kmem_cache {
 	unsigned int size, align;

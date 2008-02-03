@@ -12,6 +12,7 @@
  *  Copyright (c) 2002      Greg Ungerer <gerg@snapgear.com>
  */
 
+#include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
 #include <linux/swap.h>
@@ -827,6 +828,9 @@ unsigned long do_mmap_pgoff(struct file *file,
 	unsigned long capabilities, vm_flags;
 	void *result;
 	int ret;
+
+	if (!(flags & MAP_FIXED))
+		addr = round_hint_to_min(addr);
 
 	/* decide whether we should attempt the mapping, and if so what sort of
 	 * mapping */

@@ -67,7 +67,7 @@ EXPORT_SYMBOL_GPL(nf_nat_pptp_hook_expectfn);
 
 #ifdef DEBUG
 /* PptpControlMessageType names */
-const char *pptp_msg_name[] = {
+const char *const pptp_msg_name[] = {
 	"UNKNOWN_MESSAGE",
 	"START_SESSION_REQUEST",
 	"START_SESSION_REPLY",
@@ -136,7 +136,7 @@ static void pptp_expectfn(struct nf_conn *ct,
 
 static int destroy_sibling_or_exp(const struct nf_conntrack_tuple *t)
 {
-	struct nf_conntrack_tuple_hash *h;
+	const struct nf_conntrack_tuple_hash *h;
 	struct nf_conntrack_expect *exp;
 	struct nf_conn *sibling;
 
@@ -168,7 +168,7 @@ static int destroy_sibling_or_exp(const struct nf_conntrack_tuple *t)
 /* timeout GRE data connections */
 static void pptp_destroy_siblings(struct nf_conn *ct)
 {
-	struct nf_conn_help *help = nfct_help(ct);
+	const struct nf_conn_help *help = nfct_help(ct);
 	struct nf_conntrack_tuple t;
 
 	nf_ct_gre_keymap_destroy(ct);
@@ -497,9 +497,11 @@ conntrack_pptp_help(struct sk_buff *skb, unsigned int protoff,
 
 {
 	int dir = CTINFO2DIR(ctinfo);
-	struct nf_ct_pptp_master *info = &nfct_help(ct)->help.ct_pptp_info;
-	struct tcphdr _tcph, *tcph;
-	struct pptp_pkt_hdr _pptph, *pptph;
+	const struct nf_ct_pptp_master *info = &nfct_help(ct)->help.ct_pptp_info;
+	const struct tcphdr *tcph;
+	struct tcphdr _tcph;
+	const struct pptp_pkt_hdr *pptph;
+	struct pptp_pkt_hdr _pptph;
 	struct PptpControlHeader _ctlh, *ctlh;
 	union pptp_ctrl_union _pptpReq, *pptpReq;
 	unsigned int tcplen = skb->len - protoff;

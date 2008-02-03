@@ -109,7 +109,7 @@ static inline int is_link_local(const unsigned char *dest)
 {
 	__be16 *a = (__be16 *)dest;
 	static const __be16 *b = (const __be16 *)br_group_address;
-	static const __be16 m = __constant_cpu_to_be16(0xfff0);
+	static const __be16 m = cpu_to_be16(0xfff0);
 
 	return ((a[0] ^ b[0]) | (a[1] ^ b[1]) | ((a[2] ^ b[2]) & m)) == 0;
 }
@@ -122,6 +122,7 @@ static inline int is_link_local(const unsigned char *dest)
 struct sk_buff *br_handle_frame(struct net_bridge_port *p, struct sk_buff *skb)
 {
 	const unsigned char *dest = eth_hdr(skb)->h_dest;
+	int (*rhook)(struct sk_buff *skb);
 
 	if (!is_valid_ether_addr(eth_hdr(skb)->h_source))
 		goto drop;
@@ -147,9 +148,9 @@ struct sk_buff *br_handle_frame(struct net_bridge_port *p, struct sk_buff *skb)
 
 	switch (p->state) {
 	case BR_STATE_FORWARDING:
-
-		if (br_should_route_hook) {
-			if (br_should_route_hook(skb))
+		rhook = rcu_dereference(br_should_route_hook);
+		if (rhook != NULL) {
+			if (rhook(skb))
 				return skb;
 			dest = eth_hdr(skb)->h_dest;
 		}

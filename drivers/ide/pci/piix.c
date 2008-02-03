@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/ide/pci/piix.c	Version 0.54	Sep 5, 2007
- *
  *  Copyright (C) 1998-1999 Andrzej Krzysztofowicz, Author and Maintainer
  *  Copyright (C) 1998-2000 Andre Hedrick <andre@linux-ide.org>
  *  Copyright (C) 2003 Red Hat Inc <alan@redhat.com>
@@ -8,53 +6,8 @@
  *
  *  May be copied or modified under the terms of the GNU General Public License
  *
- *  PIO mode setting function for Intel chipsets.
- *  For use instead of BIOS settings.
+ * Documentation:
  *
- * 40-41
- * 42-43
- * 
- *                 41
- *                 43
- *
- * | PIO 0       | c0 | 80 | 0 |
- * | PIO 2 | SW2 | d0 | 90 | 4 |
- * | PIO 3 | MW1 | e1 | a1 | 9 |
- * | PIO 4 | MW2 | e3 | a3 | b |
- *
- * sitre = word40 & 0x4000; primary
- * sitre = word42 & 0x4000; secondary
- *
- * 44 8421|8421    hdd|hdb
- *
- * 48 8421         hdd|hdc|hdb|hda udma enabled
- *
- *    0001         hda
- *    0010         hdb
- *    0100         hdc
- *    1000         hdd
- *
- * 4a 84|21        hdb|hda
- * 4b 84|21        hdd|hdc
- *
- *    ata-33/82371AB
- *    ata-33/82371EB
- *    ata-33/82801AB            ata-66/82801AA
- *    00|00 udma 0              00|00 reserved
- *    01|01 udma 1              01|01 udma 3
- *    10|10 udma 2              10|10 udma 4
- *    11|11 reserved            11|11 reserved
- *
- * 54 8421|8421    ata66 drive|ata66 enable
- *
- * pci_read_config_word(HWIF(drive)->pci_dev, 0x40, &reg40);
- * pci_read_config_word(HWIF(drive)->pci_dev, 0x42, &reg42);
- * pci_read_config_word(HWIF(drive)->pci_dev, 0x44, &reg44);
- * pci_read_config_byte(HWIF(drive)->pci_dev, 0x48, &reg48);
- * pci_read_config_word(HWIF(drive)->pci_dev, 0x4a, &reg4a);
- * pci_read_config_byte(HWIF(drive)->pci_dev, 0x54, &reg54);
- *
- * Documentation
  *	Publically available from Intel web site. Errata documentation
  * is also publically available. As an aide to anyone hacking on this
  * driver the list of errata that are relevant is below.going back to
@@ -94,11 +47,9 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/ioport.h>
 #include <linux/pci.h>
 #include <linux/hdreg.h>
 #include <linux/ide.h>
-#include <linux/delay.h>
 #include <linux/init.h>
 
 #include <asm/io.h>
@@ -116,7 +67,7 @@ static int no_piix_dma;
 static void piix_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-	struct pci_dev *dev	= hwif->pci_dev;
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	int is_slave		= drive->dn & 1;
 	int master_port		= hwif->channel ? 0x42 : 0x40;
 	int slave_port		= 0x44;
@@ -185,7 +136,7 @@ static void piix_set_pio_mode(ide_drive_t *drive, const u8 pio)
 static void piix_set_dma_mode(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-	struct pci_dev *dev	= hwif->pci_dev;
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	u8 maslave		= hwif->channel ? 0x42 : 0x40;
 	int a_speed		= 3 << (drive->dn * 4);
 	int u_flag		= 1 << drive->dn;
@@ -203,20 +154,11 @@ static void piix_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	pci_read_config_byte(dev, 0x54, &reg54);
 	pci_read_config_byte(dev, 0x55, &reg55);
 
-	switch(speed) {
-		case XFER_UDMA_4:
-		case XFER_UDMA_2:	u_speed = 2 << (drive->dn * 4); break;
-		case XFER_UDMA_5:
-		case XFER_UDMA_3:
-		case XFER_UDMA_1:	u_speed = 1 << (drive->dn * 4); break;
-		case XFER_UDMA_0:	u_speed = 0 << (drive->dn * 4); break;
-		case XFER_MW_DMA_2:
-		case XFER_MW_DMA_1:
-		case XFER_SW_DMA_2:	break;
-		default:		return;
-	}
-
 	if (speed >= XFER_UDMA_0) {
+		u8 udma = speed - XFER_UDMA_0;
+
+		u_speed = min_t(u8, 2 - (udma & 1), udma) << (drive->dn * 4);
+
 		if (!(reg48 & u_flag))
 			pci_write_config_byte(dev, 0x48, reg48 | u_flag);
 		if (speed == XFER_UDMA_5) {
@@ -302,9 +244,11 @@ struct ich_laptop {
 
 static const struct ich_laptop ich_laptop[] = {
 	/* devid, subvendor, subdev */
+	{ 0x27DF, 0x1025, 0x0102 },	/* ICH7 on Acer 5602aWLMi */
 	{ 0x27DF, 0x0005, 0x0280 },	/* ICH7 on Acer 5602WLMi */
 	{ 0x27DF, 0x1025, 0x0110 },	/* ICH7 on Acer 3682WLMi */
 	{ 0x27DF, 0x1043, 0x1267 },	/* ICH7 on Asus W5F */
+	{ 0x27DF, 0x103C, 0x30A1 },	/* ICH7 on HP Compaq nc2400 */
 	{ 0x24CA, 0x1025, 0x0061 },	/* ICH4 on Acer Aspire 2023WLMi */
 	/* end marker */
 	{ 0, }
@@ -312,7 +256,7 @@ static const struct ich_laptop ich_laptop[] = {
 
 static u8 __devinit piix_cable_detect(ide_hwif_t *hwif)
 {
-	struct pci_dev *pdev = hwif->pci_dev;
+	struct pci_dev *pdev = to_pci_dev(hwif->dev);
 	const struct ich_laptop *lap = &ich_laptop[0];
 	u8 reg54h = 0, mask = hwif->channel ? 0xc0 : 0x30;
 
@@ -344,13 +288,10 @@ static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 	hwif->set_pio_mode = &piix_set_pio_mode;
 	hwif->set_dma_mode = &piix_set_dma_mode;
 
+	hwif->cable_detect = piix_cable_detect;
+
 	if (!hwif->dma_base)
 		return;
-
-	if (hwif->ultra_mask & 0x78) {
-		if (hwif->cbl != ATA_CBL_PATA40_SHORT)
-			hwif->cbl = piix_cable_detect(hwif);
-	}
 
 	if (no_piix_dma)
 		hwif->ultra_mask = hwif->mwdma_mask = hwif->swdma_mask = 0;

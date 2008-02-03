@@ -49,7 +49,6 @@ static void enable_ipr_irq(unsigned int irq)
  * bits/4. This is to make it easier to read the value directly from the
  * datasheets. The IPR address is calculated using the ipr_offset table.
  */
-
 void register_ipr_controller(struct ipr_desc *desc)
 {
 	int i;
@@ -71,12 +70,4 @@ void register_ipr_controller(struct ipr_desc *desc)
 		disable_ipr_irq(p->irq);
 	}
 }
-
 EXPORT_SYMBOL(register_ipr_controller);
-
-#if !defined(CONFIG_CPU_HAS_PINT_IRQ)
-int ipr_irq_demux(int irq)
-{
-	return irq;
-}
-#endif

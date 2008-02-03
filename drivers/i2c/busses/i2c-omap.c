@@ -203,7 +203,7 @@ static int omap_i2c_init(struct omap_i2c_dev *dev)
 		while (!(omap_i2c_read_reg(dev, OMAP_I2C_SYSS_REG) &
 			 OMAP_I2C_SYSS_RDONE)) {
 			if (time_after(jiffies, timeout)) {
-				dev_warn(dev->dev, "timeout waiting"
+				dev_warn(dev->dev, "timeout waiting "
 						"for controller reset\n");
 				return -ETIMEDOUT;
 			}
@@ -362,8 +362,6 @@ omap_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 
 	omap_i2c_enable_clocks(dev);
 
-	/* REVISIT: initialize and use adap->retries. This is an optional
-	 * feature */
 	if ((r = omap_i2c_wait_for_bb(dev)) < 0)
 		goto out;
 
@@ -483,7 +481,7 @@ omap_i2c_isr(int this_irq, void *dev_id)
 					dev->buf_len--;
 				}
 			} else
-				dev_err(dev->dev, "RRDY IRQ while no data"
+				dev_err(dev->dev, "RRDY IRQ while no data "
 						"requested\n");
 			omap_i2c_ack_stat(dev, OMAP_I2C_STAT_RRDY);
 			continue;
@@ -498,7 +496,7 @@ omap_i2c_isr(int this_irq, void *dev_id)
 					dev->buf_len--;
 				}
 			} else
-				dev_err(dev->dev, "XRDY IRQ while no"
+				dev_err(dev->dev, "XRDY IRQ while no "
 					"data to send\n");
 			omap_i2c_write_reg(dev, OMAP_I2C_DATA_REG, w);
 			omap_i2c_ack_stat(dev, OMAP_I2C_STAT_XRDY);
@@ -619,13 +617,13 @@ omap_i2c_probe(struct platform_device *pdev)
 err_free_irq:
 	free_irq(dev->irq, dev);
 err_unuse_clocks:
+	omap_i2c_write_reg(dev, OMAP_I2C_CON_REG, 0);
 	omap_i2c_disable_clocks(dev);
 	omap_i2c_put_clocks(dev);
 err_free_mem:
 	platform_set_drvdata(pdev, NULL);
 	kfree(dev);
 err_release_region:
-	omap_i2c_write_reg(dev, OMAP_I2C_CON_REG, 0);
 	release_mem_region(mem->start, (mem->end - mem->start) + 1);
 
 	return r;

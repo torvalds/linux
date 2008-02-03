@@ -85,7 +85,7 @@ static int buffer_activate(struct saa7134_dev *dev,
 	unsigned long control,base;
 
 	dprintk("buffer_activate [%p]\n",buf);
-	buf->vb.state = STATE_ACTIVE;
+	buf->vb.state = VIDEOBUF_ACTIVE;
 	buf->top_seen = 0;
 
 	task_init(dev,buf,TASK_A);
@@ -136,7 +136,7 @@ static int buffer_prepare(struct videobuf_queue *q,
 	if (buf->vb.size != size)
 		saa7134_dma_free(q,buf);
 
-	if (STATE_NEEDS_INIT == buf->vb.state) {
+	if (VIDEOBUF_NEEDS_INIT == buf->vb.state) {
 		struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
 
 		buf->vb.width  = llength;
@@ -154,7 +154,7 @@ static int buffer_prepare(struct videobuf_queue *q,
 		if (err)
 			goto oops;
 	}
-	buf->vb.state = STATE_PREPARED;
+	buf->vb.state = VIDEOBUF_PREPARED;
 	buf->activate = buffer_activate;
 	buf->vb.field = field;
 	return 0;
@@ -240,7 +240,7 @@ void saa7134_irq_vbi_done(struct saa7134_dev *dev, unsigned long status)
 			goto done;
 
 		dev->vbi_q.curr->vb.field_count = dev->vbi_fieldcount;
-		saa7134_buffer_finish(dev,&dev->vbi_q,STATE_DONE);
+		saa7134_buffer_finish(dev,&dev->vbi_q,VIDEOBUF_DONE);
 	}
 	saa7134_buffer_next(dev,&dev->vbi_q);
 

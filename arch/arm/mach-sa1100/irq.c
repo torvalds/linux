@@ -283,7 +283,7 @@ static int sa1100irq_resume(struct sys_device *dev)
 }
 
 static struct sysdev_class sa1100irq_sysclass = {
-	set_kset_name("sa11x0-irq"),
+	.name		= "sa11x0-irq",
 	.suspend	= sa1100irq_suspend,
 	.resume		= sa1100irq_resume,
 };

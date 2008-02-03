@@ -202,6 +202,10 @@ static inline unsigned long of_read_ulong(const u32 *cell, int size)
  */
 extern u64 of_translate_address(struct device_node *np, const u32 *addr);
 
+/* Translate a DMA address from device space to CPU space */
+extern u64 of_translate_dma_address(struct device_node *dev,
+				    const u32 *in_addr);
+
 /* Extract an address from a device, returns the region size and
  * the address space flags too. The PCI version uses a BAR number
  * instead of an absolute index

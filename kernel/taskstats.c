@@ -398,31 +398,31 @@ static int cgroupstats_user_cmd(struct sk_buff *skb, struct genl_info *info)
 
 	fd = nla_get_u32(info->attrs[CGROUPSTATS_CMD_ATTR_FD]);
 	file = fget_light(fd, &fput_needed);
-	if (file) {
-		size = nla_total_size(sizeof(struct cgroupstats));
+	if (!file)
+		return 0;
 
-		rc = prepare_reply(info, CGROUPSTATS_CMD_NEW, &rep_skb,
-					size);
-		if (rc < 0)
-			goto err;
+	size = nla_total_size(sizeof(struct cgroupstats));
 
-		na = nla_reserve(rep_skb, CGROUPSTATS_TYPE_CGROUP_STATS,
-					sizeof(struct cgroupstats));
-		stats = nla_data(na);
-		memset(stats, 0, sizeof(*stats));
+	rc = prepare_reply(info, CGROUPSTATS_CMD_NEW, &rep_skb,
+				size);
+	if (rc < 0)
+		goto err;
 
-		rc = cgroupstats_build(stats, file->f_dentry);
-		if (rc < 0)
-			goto err;
+	na = nla_reserve(rep_skb, CGROUPSTATS_TYPE_CGROUP_STATS,
+				sizeof(struct cgroupstats));
+	stats = nla_data(na);
+	memset(stats, 0, sizeof(*stats));
 
-		fput_light(file, fput_needed);
-		return send_reply(rep_skb, info->snd_pid);
+	rc = cgroupstats_build(stats, file->f_dentry);
+	if (rc < 0) {
+		nlmsg_free(rep_skb);
+		goto err;
 	}
 
+	rc = send_reply(rep_skb, info->snd_pid);
+
 err:
-	if (file)
-		fput_light(file, fput_needed);
-	nlmsg_free(rep_skb);
+	fput_light(file, fput_needed);
 	return rc;
 }
 

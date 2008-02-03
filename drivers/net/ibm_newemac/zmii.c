@@ -3,6 +3,11 @@
  *
  * Driver for PowerPC 4xx on-chip ethernet controller, ZMII bridge support.
  *
+ * Copyright 2007 Benjamin Herrenschmidt, IBM Corp.
+ *                <benh@kernel.crashing.org>
+ *
+ * Based on the arch/ppc version of the driver:
+ *
  * Copyright (c) 2004, 2005 Zultys Technologies.
  * Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>
  *
@@ -83,12 +88,14 @@ int __devinit zmii_attach(struct of_device *ofdev, int input, int *mode)
 
 	ZMII_DBG(dev, "init(%d, %d)" NL, input, *mode);
 
-	if (!zmii_valid_mode(*mode))
+	if (!zmii_valid_mode(*mode)) {
 		/* Probably an EMAC connected to RGMII,
 		 * but it still may need ZMII for MDIO so
 		 * we don't fail here.
 		 */
+		dev->users++;
 		return 0;
+	}
 
 	mutex_lock(&dev->lock);
 

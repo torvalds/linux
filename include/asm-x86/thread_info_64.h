@@ -21,7 +21,7 @@
 #ifndef __ASSEMBLY__
 struct task_struct;
 struct exec_domain;
-#include <asm/mmsegment.h>
+#include <asm/processor.h>
 
 struct thread_info {
 	struct task_struct	*task;		/* main task structure */
@@ -33,6 +33,9 @@ struct thread_info {
 
 	mm_segment_t		addr_limit;	
 	struct restart_block    restart_block;
+#ifdef CONFIG_IA32_EMULATION
+	void __user		*sysenter_return;
+#endif
 };
 #endif
 
@@ -74,19 +77,13 @@ static inline struct thread_info *stack_thread_info(void)
 
 /* thread information allocation */
 #ifdef CONFIG_DEBUG_STACK_USAGE
-#define alloc_thread_info(tsk)					\
-    ({								\
-	struct thread_info *ret;				\
-								\
-	ret = ((struct thread_info *) __get_free_pages(GFP_KERNEL,THREAD_ORDER)); \
-	if (ret)						\
-		memset(ret, 0, THREAD_SIZE);			\
-	ret;							\
-    })
+#define THREAD_FLAGS (GFP_KERNEL | __GFP_ZERO)
 #else
-#define alloc_thread_info(tsk) \
-	((struct thread_info *) __get_free_pages(GFP_KERNEL,THREAD_ORDER))
+#define THREAD_FLAGS GFP_KERNEL
 #endif
+
+#define alloc_thread_info(tsk) \
+	((struct thread_info *) __get_free_pages(THREAD_FLAGS, THREAD_ORDER))
 
 #define free_thread_info(ti) free_pages((unsigned long) (ti), THREAD_ORDER)
 
@@ -115,6 +112,7 @@ static inline struct thread_info *stack_thread_info(void)
 #define TIF_SECCOMP		8	/* secure computing */
 #define TIF_RESTORE_SIGMASK	9	/* restore signal mask in do_signal */
 #define TIF_MCE_NOTIFY		10	/* notify userspace of an MCE */
+#define TIF_HRTICK_RESCHED	11	/* reprogram hrtick timer */
 /* 16 free */
 #define TIF_IA32		17	/* 32bit process */ 
 #define TIF_FORK		18	/* ret_from_fork */
@@ -123,6 +121,10 @@ static inline struct thread_info *stack_thread_info(void)
 #define TIF_DEBUG		21	/* uses debug registers */
 #define TIF_IO_BITMAP		22	/* uses I/O bitmap */
 #define TIF_FREEZE		23	/* is freezing for suspend */
+#define TIF_FORCED_TF		24	/* true if TF in eflags artificially */
+#define TIF_DEBUGCTLMSR		25	/* uses thread_struct.debugctlmsr */
+#define TIF_DS_AREA_MSR		26      /* uses thread_struct.ds_area_msr */
+#define TIF_BTS_TRACE_TS	27      /* record scheduling event timestamps */
 
 #define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)
 #define _TIF_SIGPENDING		(1<<TIF_SIGPENDING)
@@ -133,12 +135,17 @@ static inline struct thread_info *stack_thread_info(void)
 #define _TIF_SECCOMP		(1<<TIF_SECCOMP)
 #define _TIF_RESTORE_SIGMASK	(1<<TIF_RESTORE_SIGMASK)
 #define _TIF_MCE_NOTIFY		(1<<TIF_MCE_NOTIFY)
+#define _TIF_HRTICK_RESCHED	(1<<TIF_HRTICK_RESCHED)
 #define _TIF_IA32		(1<<TIF_IA32)
 #define _TIF_FORK		(1<<TIF_FORK)
 #define _TIF_ABI_PENDING	(1<<TIF_ABI_PENDING)
 #define _TIF_DEBUG		(1<<TIF_DEBUG)
 #define _TIF_IO_BITMAP		(1<<TIF_IO_BITMAP)
 #define _TIF_FREEZE		(1<<TIF_FREEZE)
+#define _TIF_FORCED_TF		(1<<TIF_FORCED_TF)
+#define _TIF_DEBUGCTLMSR	(1<<TIF_DEBUGCTLMSR)
+#define _TIF_DS_AREA_MSR	(1<<TIF_DS_AREA_MSR)
+#define _TIF_BTS_TRACE_TS	(1<<TIF_BTS_TRACE_TS)
 
 /* work to do on interrupt/exception return */
 #define _TIF_WORK_MASK \
@@ -146,8 +153,14 @@ static inline struct thread_info *stack_thread_info(void)
 /* work to do on any return to user space */
 #define _TIF_ALLWORK_MASK (0x0000FFFF & ~_TIF_SECCOMP)
 
+#define _TIF_DO_NOTIFY_MASK \
+	(_TIF_SIGPENDING|_TIF_SINGLESTEP|_TIF_MCE_NOTIFY|_TIF_HRTICK_RESCHED)
+
 /* flags to check in __switch_to() */
-#define _TIF_WORK_CTXSW (_TIF_DEBUG|_TIF_IO_BITMAP)
+#define _TIF_WORK_CTXSW \
+    (_TIF_IO_BITMAP|_TIF_DEBUGCTLMSR|_TIF_DS_AREA_MSR|_TIF_BTS_TRACE_TS)
+#define _TIF_WORK_CTXSW_PREV _TIF_WORK_CTXSW
+#define _TIF_WORK_CTXSW_NEXT (_TIF_WORK_CTXSW|_TIF_DEBUG)
 
 #define PREEMPT_ACTIVE     0x10000000
 

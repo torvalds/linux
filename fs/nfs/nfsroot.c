@@ -228,10 +228,7 @@ static int __init root_nfs_parse(char *name, char *buf)
 				nfs_data.flags &= ~NFS_MOUNT_SOFT;
 				break;
 			case Opt_intr:
-				nfs_data.flags |= NFS_MOUNT_INTR;
-				break;
 			case Opt_nointr:
-				nfs_data.flags &= ~NFS_MOUNT_INTR;
 				break;
 			case Opt_posix:
 				nfs_data.flags |= NFS_MOUNT_POSIX;

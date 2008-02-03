@@ -29,10 +29,6 @@
 #include <platforms/spruce.h>
 #elif defined(CONFIG_4xx)
 #include <asm/ibm4xx.h>
-#elif defined(CONFIG_83xx)
-#include <asm/mpc83xx.h>
-#elif defined(CONFIG_85xx)
-#include <asm/mpc85xx.h>
 #elif defined(CONFIG_RADSTONE_PPC7D)
 #include <platforms/radstone_ppc7d.h>
 #else

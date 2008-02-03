@@ -87,6 +87,7 @@ int inet_csk_get_port(struct inet_hashinfo *hashinfo,
 	struct hlist_node *node;
 	struct inet_bind_bucket *tb;
 	int ret;
+	struct net *net = sk->sk_net;
 
 	local_bh_disable();
 	if (!snum) {
@@ -100,7 +101,7 @@ int inet_csk_get_port(struct inet_hashinfo *hashinfo,
 			head = &hashinfo->bhash[inet_bhashfn(rover, hashinfo->bhash_size)];
 			spin_lock(&head->lock);
 			inet_bind_bucket_for_each(tb, node, &head->chain)
-				if (tb->port == rover)
+				if (tb->ib_net == net && tb->port == rover)
 					goto next;
 			break;
 		next:
@@ -127,7 +128,7 @@ int inet_csk_get_port(struct inet_hashinfo *hashinfo,
 		head = &hashinfo->bhash[inet_bhashfn(snum, hashinfo->bhash_size)];
 		spin_lock(&head->lock);
 		inet_bind_bucket_for_each(tb, node, &head->chain)
-			if (tb->port == snum)
+			if (tb->ib_net == net && tb->port == snum)
 				goto tb_found;
 	}
 	tb = NULL;
@@ -147,7 +148,8 @@ tb_found:
 	}
 tb_not_found:
 	ret = 1;
-	if (!tb && (tb = inet_bind_bucket_create(hashinfo->bind_bucket_cachep, head, snum)) == NULL)
+	if (!tb && (tb = inet_bind_bucket_create(hashinfo->bind_bucket_cachep,
+					net, head, snum)) == NULL)
 		goto fail_unlock;
 	if (hlist_empty(&tb->owners)) {
 		if (sk->sk_reuse && sk->sk_state != TCP_LISTEN)
@@ -277,18 +279,11 @@ void inet_csk_init_xmit_timers(struct sock *sk,
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 
-	init_timer(&icsk->icsk_retransmit_timer);
-	init_timer(&icsk->icsk_delack_timer);
-	init_timer(&sk->sk_timer);
-
-	icsk->icsk_retransmit_timer.function = retransmit_handler;
-	icsk->icsk_delack_timer.function     = delack_handler;
-	sk->sk_timer.function		     = keepalive_handler;
-
-	icsk->icsk_retransmit_timer.data =
-		icsk->icsk_delack_timer.data =
-			sk->sk_timer.data  = (unsigned long)sk;
-
+	setup_timer(&icsk->icsk_retransmit_timer, retransmit_handler,
+			(unsigned long)sk);
+	setup_timer(&icsk->icsk_delack_timer, delack_handler,
+			(unsigned long)sk);
+	setup_timer(&sk->sk_timer, keepalive_handler, (unsigned long)sk);
 	icsk->icsk_pending = icsk->icsk_ack.pending = 0;
 }
 
@@ -340,7 +335,7 @@ struct dst_entry* inet_csk_route_req(struct sock *sk,
 					 .dport = ireq->rmt_port } } };
 
 	security_req_classify_flow(req, &fl);
-	if (ip_route_output_flow(&rt, &fl, sk, 0)) {
+	if (ip_route_output_flow(&init_net, &rt, &fl, sk, 0)) {
 		IP_INC_STATS_BH(IPSTATS_MIB_OUTNOROUTES);
 		return NULL;
 	}

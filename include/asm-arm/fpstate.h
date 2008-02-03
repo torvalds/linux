@@ -17,14 +17,18 @@
 /*
  * VFP storage area has:
  *  - FPEXC, FPSCR, FPINST and FPINST2.
- *  - 16 double precision data registers
- *  - an implementation-dependant word of state for FLDMX/FSTMX
+ *  - 16 or 32 double precision data registers
+ *  - an implementation-dependant word of state for FLDMX/FSTMX (pre-ARMv6)
  * 
  *  FPEXC will always be non-zero once the VFP has been used in this process.
  */
 
 struct vfp_hard_struct {
+#ifdef CONFIG_VFPv3
+	__u64 fpregs[32];
+#else
 	__u64 fpregs[16];
+#endif
 #if __LINUX_ARM_ARCH__ < 6
 	__u32 fpmx_state;
 #endif
@@ -35,6 +39,7 @@ struct vfp_hard_struct {
 	 */
 	__u32 fpinst;
 	__u32 fpinst2;
+
 #ifdef CONFIG_SMP
 	__u32 cpu;
 #endif

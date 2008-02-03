@@ -542,6 +542,13 @@ static int mpc_send_packet(struct sk_buff *skb, struct net_device *dev)
 	if (eth->h_proto != htons(ETH_P_IP))
 		goto non_ip; /* Multi-Protocol Over ATM :-) */
 
+	/* Weed out funny packets (e.g., AF_PACKET or raw). */
+	if (skb->len < ETH_HLEN + sizeof(struct iphdr))
+		goto non_ip;
+	skb_set_network_header(skb, ETH_HLEN);
+	if (skb->len < ETH_HLEN + ip_hdr(skb)->ihl * 4 || ip_hdr(skb)->ihl < 5)
+		goto non_ip;
+
 	while (i < mpc->number_of_mps_macs) {
 		if (!compare_ether_addr(eth->h_dest, (mpc->mps_macs + i*ETH_ALEN)))
 			if ( send_via_shortcut(skb, mpc) == 0 )           /* try shortcut */

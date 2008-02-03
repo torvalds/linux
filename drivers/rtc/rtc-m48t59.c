@@ -353,11 +353,12 @@ static ssize_t m48t59_nvram_write(struct kobject *kobj,
 static struct bin_attribute m48t59_nvram_attr = {
 	.attr = {
 		.name = "nvram",
-		.mode = S_IRUGO | S_IWUGO,
+		.mode = S_IRUGO | S_IWUSR,
 		.owner = THIS_MODULE,
 	},
 	.read = m48t59_nvram_read,
 	.write = m48t59_nvram_write,
+	.size = M48T59_NVRAM_SIZE,
 };
 
 static int __devinit m48t59_rtc_probe(struct platform_device *pdev)
@@ -464,7 +465,7 @@ static int __devexit m48t59_rtc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver m48t59_rtc_platdrv = {
+static struct platform_driver m48t59_rtc_driver = {
 	.driver		= {
 		.name	= "rtc-m48t59",
 		.owner	= THIS_MODULE,
@@ -475,12 +476,12 @@ static struct platform_driver m48t59_rtc_platdrv = {
 
 static int __init m48t59_rtc_init(void)
 {
-	return platform_driver_register(&m48t59_rtc_platdrv);
+	return platform_driver_register(&m48t59_rtc_driver);
 }
 
 static void __exit m48t59_rtc_exit(void)
 {
-	platform_driver_unregister(&m48t59_rtc_platdrv);
+	platform_driver_unregister(&m48t59_rtc_driver);
 }
 
 module_init(m48t59_rtc_init);

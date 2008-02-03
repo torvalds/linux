@@ -376,8 +376,6 @@ int param_get_string(char *buffer, struct kernel_param *kp)
 
 extern struct kernel_param __start___param[], __stop___param[];
 
-#define MAX_KBUILD_MODNAME KOBJ_NAME_LEN
-
 struct param_attribute
 {
 	struct module_attribute mattr;
@@ -472,7 +470,7 @@ param_sysfs_setup(struct module_kobject *mk,
 			sizeof(mp->grp.attrs[0]));
 	size[1] = (valid_attrs + 1) * sizeof(mp->grp.attrs[0]);
 
-	mp = kmalloc(size[0] + size[1], GFP_KERNEL);
+	mp = kzalloc(size[0] + size[1], GFP_KERNEL);
 	if (!mp)
 		return ERR_PTR(-ENOMEM);
 
@@ -560,11 +558,10 @@ static void __init kernel_param_sysfs_setup(const char *name,
 	BUG_ON(!mk);
 
 	mk->mod = THIS_MODULE;
-	kobj_set_kset_s(mk, module_subsys);
-	kobject_set_name(&mk->kobj, name);
-	kobject_init(&mk->kobj);
-	ret = kobject_add(&mk->kobj);
+	mk->kobj.kset = module_kset;
+	ret = kobject_init_and_add(&mk->kobj, &module_ktype, NULL, "%s", name);
 	if (ret) {
+		kobject_put(&mk->kobj);
 		printk(KERN_ERR "Module '%s' failed to be added to sysfs, "
 		      "error number %d\n", name, ret);
 		printk(KERN_ERR	"The system will be unstable now.\n");
@@ -588,23 +585,20 @@ static void __init param_sysfs_builtin(void)
 {
 	struct kernel_param *kp, *kp_begin = NULL;
 	unsigned int i, name_len, count = 0;
-	char modname[MAX_KBUILD_MODNAME + 1] = "";
+	char modname[MODULE_NAME_LEN + 1] = "";
 
 	for (i=0; i < __stop___param - __start___param; i++) {
 		char *dot;
-		size_t kplen;
+		size_t max_name_len;
 
 		kp = &__start___param[i];
-		kplen = strlen(kp->name);
+		max_name_len =
+			min_t(size_t, MODULE_NAME_LEN, strlen(kp->name));
 
-		/* We do not handle args without periods. */
-		if (kplen > MAX_KBUILD_MODNAME) {
-			DEBUGP("kernel parameter name is too long: %s\n", kp->name);
-			continue;
-		}
-		dot = memchr(kp->name, '.', kplen);
+		dot = memchr(kp->name, '.', max_name_len);
 		if (!dot) {
-			DEBUGP("couldn't find period in %s\n", kp->name);
+			DEBUGP("couldn't find period in first %d characters "
+			       "of %s\n", MODULE_NAME_LEN, kp->name);
 			continue;
 		}
 		name_len = dot - kp->name;
@@ -682,8 +676,6 @@ static struct sysfs_ops module_sysfs_ops = {
 	.store = module_attr_store,
 };
 
-static struct kobj_type module_ktype;
-
 static int uevent_filter(struct kset *kset, struct kobject *kobj)
 {
 	struct kobj_type *ktype = get_ktype(kobj);
@@ -697,10 +689,10 @@ static struct kset_uevent_ops module_uevent_ops = {
 	.filter = uevent_filter,
 };
 
-decl_subsys(module, &module_ktype, &module_uevent_ops);
+struct kset *module_kset;
 int module_sysfs_initialized;
 
-static struct kobj_type module_ktype = {
+struct kobj_type module_ktype = {
 	.sysfs_ops =	&module_sysfs_ops,
 };
 
@@ -709,13 +701,11 @@ static struct kobj_type module_ktype = {
  */
 static int __init param_sysfs_init(void)
 {
-	int ret;
-
-	ret = subsystem_register(&module_subsys);
-	if (ret < 0) {
-		printk(KERN_WARNING "%s (%d): subsystem_register error: %d\n",
-			__FILE__, __LINE__, ret);
-		return ret;
+	module_kset = kset_create_and_add("module", &module_uevent_ops, NULL);
+	if (!module_kset) {
+		printk(KERN_WARNING "%s (%d): error creating kset\n",
+			__FILE__, __LINE__);
+		return -ENOMEM;
 	}
 	module_sysfs_initialized = 1;
 
@@ -725,14 +715,7 @@ static int __init param_sysfs_init(void)
 }
 subsys_initcall(param_sysfs_init);
 
-#else
-#if 0
-static struct sysfs_ops module_sysfs_ops = {
-	.show = NULL,
-	.store = NULL,
-};
-#endif
-#endif
+#endif /* CONFIG_SYSFS */
 
 EXPORT_SYMBOL(param_set_byte);
 EXPORT_SYMBOL(param_get_byte);

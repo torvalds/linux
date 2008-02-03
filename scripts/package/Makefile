@@ -89,9 +89,8 @@ clean-dirs += $(objtree)/tar-install/
 # Help text displayed when executing 'make help'
 # ---------------------------------------------------------------------------
 help: FORCE
-	@echo '  rpm-pkg         - Build the kernel as an RPM package'
-	@echo '  binrpm-pkg      - Build an rpm package containing the compiled kernel'
-	@echo '                    and modules'
+	@echo '  rpm-pkg         - Build both source and binary RPM kernel packages'
+	@echo '  binrpm-pkg      - Build only the binary kernel package'
 	@echo '  deb-pkg         - Build the kernel as an deb package'
 	@echo '  tar-pkg         - Build the kernel as an uncompressed tarball'
 	@echo '  targz-pkg       - Build the kernel as a gzip compressed tarball'

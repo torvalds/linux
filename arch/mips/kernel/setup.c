@@ -8,7 +8,7 @@
  * Copyright (C) 1994, 95, 96, 97, 98, 99, 2000, 01, 02, 03  Ralf Baechle
  * Copyright (C) 1996 Stoned Elipot
  * Copyright (C) 1999 Silicon Graphics, Inc.
- * Copyright (C) 2000 2001, 2002  Maciej W. Rozycki
+ * Copyright (C) 2000, 2001, 2002, 2007  Maciej W. Rozycki
  */
 #include <linux/init.h>
 #include <linux/ioport.h>
@@ -24,10 +24,12 @@
 
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
+#include <asm/bugs.h>
 #include <asm/cache.h>
 #include <asm/cpu.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
+#include <asm/smp-ops.h>
 #include <asm/system.h>
 
 struct cpuinfo_mips cpu_data[NR_CPUS] __read_mostly;
@@ -342,6 +344,34 @@ static void __init bootmem_init(void)
 	 */
 	bootmap_size = init_bootmem_node(NODE_DATA(0), mapstart,
 					 min_low_pfn, max_low_pfn);
+
+
+	for (i = 0; i < boot_mem_map.nr_map; i++) {
+		unsigned long start, end;
+
+		start = PFN_UP(boot_mem_map.map[i].addr);
+		end = PFN_DOWN(boot_mem_map.map[i].addr
+				+ boot_mem_map.map[i].size);
+
+		if (start <= min_low_pfn)
+			start = min_low_pfn;
+		if (start >= end)
+			continue;
+
+#ifndef CONFIG_HIGHMEM
+		if (end > max_low_pfn)
+			end = max_low_pfn;
+
+		/*
+		 * ... finally, is the area going away?
+		 */
+		if (end <= start)
+			continue;
+#endif
+
+		add_active_range(0, start, end);
+	}
+
 	/*
 	 * Register fully available low RAM pages with the bootmem allocator.
 	 */
@@ -533,6 +563,7 @@ void __init setup_arch(char **cmdline_p)
 	}
 #endif
 	cpu_report();
+	check_bugs_early();
 
 #if defined(CONFIG_VT)
 #if defined(CONFIG_VGA_CONSOLE)
@@ -545,9 +576,7 @@ void __init setup_arch(char **cmdline_p)
 	arch_mem_init(cmdline_p);
 
 	resource_init();
-#ifdef CONFIG_SMP
 	plat_smp_setup();
-#endif
 }
 
 static int __init fpu_disable(char *s)

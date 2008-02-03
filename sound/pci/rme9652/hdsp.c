@@ -21,7 +21,6 @@
  *
  */
 
-#include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -104,8 +103,6 @@ MODULE_FIRMWARE("digiface_firmware_rev11.bin");
 #define HDSP_statusRegister    0
 #define HDSP_timecode        128
 #define HDSP_status2Register 192
-#define HDSP_midiDataOut0    352
-#define HDSP_midiDataOut1    356
 #define HDSP_midiDataIn0     360
 #define HDSP_midiDataIn1     364
 #define HDSP_midiStatusOut0  384
@@ -610,7 +607,10 @@ static int hdsp_playback_to_output_key (struct hdsp *hdsp, int in, int out)
 	case Multiface:
 	case Digiface:
 	default:
-		return (64 * out) + (32 + (in));
+		if (hdsp->firmware_rev == 0xa)
+			return (64 * out) + (32 + (in));
+		else
+			return (52 * out) + (26 + (in));
 	case H9632:
 		return (32 * out) + (16 + (in));
 	case H9652:
@@ -624,7 +624,10 @@ static int hdsp_input_to_output_key (struct hdsp *hdsp, int in, int out)
 	case Multiface:
 	case Digiface:
 	default:
-		return (64 * out) + in;
+		if (hdsp->firmware_rev == 0xa)
+			return (64 * out) + in;
+		else
+			return (52 * out) + in;
 	case H9632:
 		return (32 * out) + in;
 	case H9652:
@@ -2121,7 +2124,7 @@ static int snd_hdsp_put_clock_source_lock(struct snd_kcontrol *kcontrol, struct 
 
 	change = (int)ucontrol->value.integer.value[0] != hdsp->clock_source_locked;
 	if (change)
-		hdsp->clock_source_locked = ucontrol->value.integer.value[0];
+		hdsp->clock_source_locked = !!ucontrol->value.integer.value[0];
 	return change;
 }
 
@@ -3558,7 +3561,7 @@ snd_hdsp_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 
 }
 
-static void __devinit snd_hdsp_proc_init(struct hdsp *hdsp)
+static void snd_hdsp_proc_init(struct hdsp *hdsp)
 {
 	struct snd_info_entry *entry;
 
@@ -3606,7 +3609,7 @@ static int snd_hdsp_set_defaults(struct hdsp *hdsp)
 
 	/* ASSUMPTION: hdsp->lock is either held, or
 	   there is no need to hold it (e.g. during module
-	   initalization).
+	   initialization).
 	 */
 
 	/* set defaults:

@@ -3,6 +3,11 @@
  *
  * Driver for PowerPC 4xx on-chip ethernet controller, RGMII bridge support.
  *
+ * Copyright 2007 Benjamin Herrenschmidt, IBM Corp.
+ *                <benh@kernel.crashing.org>
+ *
+ * Based on the arch/ppc version of the driver:
+ *
  * Copyright (c) 2004, 2005 Zultys Technologies.
  * Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>
  *
@@ -140,7 +145,7 @@ void rgmii_get_mdio(struct of_device *ofdev, int input)
 
 	RGMII_DBG2(dev, "get_mdio(%d)" NL, input);
 
-	if (dev->type != RGMII_AXON)
+	if (!(dev->flags & EMAC_RGMII_FLAG_HAS_MDIO))
 		return;
 
 	mutex_lock(&dev->lock);
@@ -161,7 +166,7 @@ void rgmii_put_mdio(struct of_device *ofdev, int input)
 
 	RGMII_DBG2(dev, "put_mdio(%d)" NL, input);
 
-	if (dev->type != RGMII_AXON)
+	if (!(dev->flags & EMAC_RGMII_FLAG_HAS_MDIO))
 		return;
 
 	fer = in_be32(&p->fer);
@@ -250,11 +255,13 @@ static int __devinit rgmii_probe(struct of_device *ofdev,
 		goto err_free;
 	}
 
-	/* Check for RGMII type */
+	/* Check for RGMII flags */
+	if (of_get_property(ofdev->node, "has-mdio", NULL))
+		dev->flags |= EMAC_RGMII_FLAG_HAS_MDIO;
+
+	/* CAB lacks the right properties, fix this up */
 	if (of_device_is_compatible(ofdev->node, "ibm,rgmii-axon"))
-		dev->type = RGMII_AXON;
-	else
-		dev->type = RGMII_STANDARD;
+		dev->flags |= EMAC_RGMII_FLAG_HAS_MDIO;
 
 	DBG2(dev, " Boot FER = 0x%08x, SSR = 0x%08x\n",
 	     in_be32(&dev->base->fer), in_be32(&dev->base->ssr));
@@ -263,9 +270,9 @@ static int __devinit rgmii_probe(struct of_device *ofdev,
 	out_be32(&dev->base->fer, 0);
 
 	printk(KERN_INFO
-	       "RGMII %s %s initialized\n",
-	       dev->type == RGMII_STANDARD ? "standard" : "axon",
-	       ofdev->node->full_name);
+	       "RGMII %s initialized with%s MDIO support\n",
+	       ofdev->node->full_name,
+	       (dev->flags & EMAC_RGMII_FLAG_HAS_MDIO) ? "" : "out");
 
 	wmb();
 	dev_set_drvdata(&ofdev->dev, dev);

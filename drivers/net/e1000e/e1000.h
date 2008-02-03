@@ -122,7 +122,8 @@ struct e1000_buffer {
 			u16 next_to_watch;
 		};
 		/* RX */
-		struct page *page;
+		/* arrays of page information for packet split */
+		struct e1000_ps_page *ps_pages;
 	};
 
 };
@@ -142,8 +143,6 @@ struct e1000_ring {
 	/* array of buffer information structs */
 	struct e1000_buffer *buffer_info;
 
-	/* arrays of page information for packet split */
-	struct e1000_ps_page *ps_pages;
 	struct sk_buff *rx_skb_top;
 
 	struct e1000_queue_stats stats;
@@ -289,7 +288,6 @@ struct e1000_info {
 #define FLAG_HAS_CTRLEXT_ON_LOAD          (1 << 5)
 #define FLAG_HAS_SWSM_ON_LOAD             (1 << 6)
 #define FLAG_HAS_JUMBO_FRAMES             (1 << 7)
-#define FLAG_HAS_ASPM                     (1 << 8)
 #define FLAG_HAS_STATS_ICR_ICT            (1 << 9)
 #define FLAG_HAS_STATS_PTC_PRC            (1 << 10)
 #define FLAG_HAS_SMART_POWER_DOWN         (1 << 11)

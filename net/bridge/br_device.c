@@ -157,8 +157,7 @@ static struct ethtool_ops br_ethtool_ops = {
 
 void br_dev_setup(struct net_device *dev)
 {
-	memset(dev->dev_addr, 0, ETH_ALEN);
-
+	random_ether_addr(dev->dev_addr);
 	ether_setup(dev);
 
 	dev->do_ioctl = br_dev_ioctl;

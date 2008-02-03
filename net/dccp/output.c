@@ -133,15 +133,31 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 	return -ENOBUFS;
 }
 
+/**
+ * dccp_determine_ccmps  -  Find out about CCID-specfic packet-size limits
+ * We only consider the HC-sender CCID for setting the CCMPS (RFC 4340, 14.),
+ * since the RX CCID is restricted to feedback packets (Acks), which are small
+ * in comparison with the data traffic. A value of 0 means "no current CCMPS".
+ */
+static u32 dccp_determine_ccmps(const struct dccp_sock *dp)
+{
+	const struct ccid *tx_ccid = dp->dccps_hc_tx_ccid;
+
+	if (tx_ccid == NULL || tx_ccid->ccid_ops == NULL)
+		return 0;
+	return tx_ccid->ccid_ops->ccid_ccmps;
+}
+
 unsigned int dccp_sync_mss(struct sock *sk, u32 pmtu)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct dccp_sock *dp = dccp_sk(sk);
-	int mss_now = (pmtu - icsk->icsk_af_ops->net_header_len -
-		       sizeof(struct dccp_hdr) - sizeof(struct dccp_hdr_ext));
+	u32 ccmps = dccp_determine_ccmps(dp);
+	int cur_mps = ccmps ? min(pmtu, ccmps) : pmtu;
 
-	/* Now subtract optional transport overhead */
-	mss_now -= icsk->icsk_ext_hdr_len;
+	/* Account for header lengths and IPv4/v6 option overhead */
+	cur_mps -= (icsk->icsk_af_ops->net_header_len + icsk->icsk_ext_hdr_len +
+		    sizeof(struct dccp_hdr) + sizeof(struct dccp_hdr_ext));
 
 	/*
 	 * FIXME: this should come from the CCID infrastructure, where, say,
@@ -151,13 +167,13 @@ unsigned int dccp_sync_mss(struct sock *sk, u32 pmtu)
 	 * make it a multiple of 4
 	 */
 
-	mss_now -= ((5 + 6 + 10 + 6 + 6 + 6 + 3) / 4) * 4;
+	cur_mps -= ((5 + 6 + 10 + 6 + 6 + 6 + 3) / 4) * 4;
 
 	/* And store cached results */
 	icsk->icsk_pmtu_cookie = pmtu;
-	dp->dccps_mss_cache = mss_now;
+	dp->dccps_mss_cache = cur_mps;
 
-	return mss_now;
+	return cur_mps;
 }
 
 EXPORT_SYMBOL_GPL(dccp_sync_mss);
@@ -170,7 +186,7 @@ void dccp_write_space(struct sock *sk)
 		wake_up_interruptible(sk->sk_sleep);
 	/* Should agree with poll, otherwise some programs break */
 	if (sock_writeable(sk))
-		sk_wake_async(sk, 2, POLL_OUT);
+		sk_wake_async(sk, SOCK_WAKE_SPACE, POLL_OUT);
 
 	read_unlock(&sk->sk_callback_lock);
 }
@@ -303,7 +319,7 @@ struct sk_buff *dccp_make_response(struct sock *sk, struct dst_entry *dst,
 	DCCP_SKB_CB(skb)->dccpd_type = DCCP_PKT_RESPONSE;
 	DCCP_SKB_CB(skb)->dccpd_seq  = dreq->dreq_iss;
 
-	if (dccp_insert_options(sk, skb)) {
+	if (dccp_insert_options_rsk(dreq, skb)) {
 		kfree_skb(skb);
 		return NULL;
 	}
@@ -391,7 +407,7 @@ int dccp_send_reset(struct sock *sk, enum dccp_reset_codes code)
 	 * FIXME: what if rebuild_header fails?
 	 * Should we be doing a rebuild_header here?
 	 */
-	int err = inet_sk_rebuild_header(sk);
+	int err = inet_csk(sk)->icsk_af_ops->rebuild_header(sk);
 
 	if (err != 0)
 		return err;
@@ -567,14 +583,27 @@ void dccp_send_close(struct sock *sk, const int active)
 
 	/* Reserve space for headers and prepare control bits. */
 	skb_reserve(skb, sk->sk_prot->max_header);
-	DCCP_SKB_CB(skb)->dccpd_type = dp->dccps_role == DCCP_ROLE_CLIENT ?
-					DCCP_PKT_CLOSE : DCCP_PKT_CLOSEREQ;
+	if (dp->dccps_role == DCCP_ROLE_SERVER && !dp->dccps_server_timewait)
+		DCCP_SKB_CB(skb)->dccpd_type = DCCP_PKT_CLOSEREQ;
+	else
+		DCCP_SKB_CB(skb)->dccpd_type = DCCP_PKT_CLOSE;
 
 	if (active) {
 		dccp_write_xmit(sk, 1);
 		dccp_skb_entail(sk, skb);
 		dccp_transmit_skb(sk, skb_clone(skb, prio));
-		/* FIXME do we need a retransmit timer here? */
+		/*
+		 * Retransmission timer for active-close: RFC 4340, 8.3 requires
+		 * to retransmit the Close/CloseReq until the CLOSING/CLOSEREQ
+		 * state can be left. The initial timeout is 2 RTTs.
+		 * Since RTT measurement is done by the CCIDs, there is no easy
+		 * way to get an RTT sample. The fallback RTT from RFC 4340, 3.4
+		 * is too low (200ms); we use a high value to avoid unnecessary
+		 * retransmissions when the link RTT is > 0.2 seconds.
+		 * FIXME: Let main module sample RTTs and use that instead.
+		 */
+		inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
+					  DCCP_TIMEOUT_INIT, DCCP_RTO_MAX);
 	} else
 		dccp_transmit_skb(sk, skb);
 }

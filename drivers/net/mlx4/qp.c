@@ -113,7 +113,7 @@ int mlx4_qp_modify(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 	struct mlx4_cmd_mailbox *mailbox;
 	int ret = 0;
 
-	if (cur_state >= MLX4_QP_NUM_STATE || cur_state >= MLX4_QP_NUM_STATE ||
+	if (cur_state >= MLX4_QP_NUM_STATE || new_state >= MLX4_QP_NUM_STATE ||
 	    !op[cur_state][new_state])
 		return -EINVAL;
 
@@ -240,7 +240,7 @@ void mlx4_qp_free(struct mlx4_dev *dev, struct mlx4_qp *qp)
 	mlx4_table_put(dev, &qp_table->auxc_table, qp->qpn);
 	mlx4_table_put(dev, &qp_table->qp_table, qp->qpn);
 
-	if (qp->qpn < dev->caps.sqp_start + 8)
+	if (qp->qpn >= dev->caps.sqp_start + 8)
 		mlx4_bitmap_free(&qp_table->bitmap, qp->qpn);
 }
 EXPORT_SYMBOL_GPL(mlx4_qp_free);

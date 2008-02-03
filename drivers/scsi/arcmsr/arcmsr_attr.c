@@ -85,13 +85,13 @@ static ssize_t arcmsr_sysfs_iop_message_read(struct kobject *kobj,
 		allxfer_len++;
 	}
 	if (acb->acb_flags & ACB_F_IOPDATA_OVERFLOW) {
-		struct QBUFFER *prbuffer;
-		uint8_t *iop_data;
+		struct QBUFFER __iomem *prbuffer;
+		uint8_t __iomem *iop_data;
 		int32_t iop_len;
 
 		acb->acb_flags &= ~ACB_F_IOPDATA_OVERFLOW;
 		prbuffer = arcmsr_get_iop_rqbuffer(acb);
-		iop_data = (uint8_t *)prbuffer->data;
+		iop_data = prbuffer->data;
 		iop_len = readl(&prbuffer->data_len);
 		while (iop_len > 0) {
 			acb->rqbuffer[acb->rqbuf_lastindex] = readb(iop_data);

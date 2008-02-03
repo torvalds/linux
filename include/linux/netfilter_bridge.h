@@ -50,7 +50,8 @@ enum nf_br_hook_priorities {
 extern int nf_bridge_copy_header(struct sk_buff *skb);
 static inline int nf_bridge_maybe_copy_header(struct sk_buff *skb)
 {
-	if (skb->nf_bridge)
+	if (skb->nf_bridge &&
+	    skb->nf_bridge->mask & (BRNF_BRIDGED | BRNF_BRIDGED_DNAT))
 		return nf_bridge_copy_header(skb);
   	return 0;
 }

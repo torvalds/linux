@@ -19,7 +19,6 @@
  *
  */
 
-#include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/file.h>
@@ -42,6 +41,40 @@ struct snd_card *snd_cards[SNDRV_CARDS];
 EXPORT_SYMBOL(snd_cards);
 
 static DEFINE_MUTEX(snd_card_mutex);
+
+static char *slots[SNDRV_CARDS];
+module_param_array(slots, charp, NULL, 0444);
+MODULE_PARM_DESC(slots, "Module names assigned to the slots.");
+
+/* return non-zero if the given index is already reserved for another
+ * module via slots option
+ */
+static int module_slot_mismatch(struct module *module, int idx)
+{
+#ifdef MODULE
+	char *s1, *s2;
+	if (!module || !module->name || !slots[idx])
+		return 0;
+	s1 = slots[idx];
+	s2 = module->name;
+	/* compare module name strings
+	 * hyphens are handled as equivalent with underscore
+	 */
+	for (;;) {
+		char c1 = *s1++;
+		char c2 = *s2++;
+		if (c1 == '-')
+			c1 = '_';
+		if (c2 == '-')
+			c2 = '_';
+		if (c1 != c2)
+			return 1;
+		if (!c1)
+			break;
+	}
+#endif
+	return 0;
+}
 
 #if defined(CONFIG_SND_MIXER_OSS) || defined(CONFIG_SND_MIXER_OSS_MODULE)
 int (*snd_mixer_oss_notify_callback)(struct snd_card *card, int free_flag);
@@ -115,6 +148,8 @@ struct snd_card *snd_card_new(int idx, const char *xid,
 		for (idx2 = 0; idx2 < SNDRV_CARDS; idx2++)
 			/* idx == -1 == 0xffff means: take any free slot */
 			if (~snd_cards_lock & idx & 1<<idx2) {
+				if (module_slot_mismatch(module, idx2))
+					continue;
 				idx = idx2;
 				if (idx >= snd_ecards_limit)
 					snd_ecards_limit = idx + 1;
@@ -304,8 +339,8 @@ int snd_card_disconnect(struct snd_card *card)
 		list_add(&mfile->shutdown_list, &shutdown_files);
 		spin_unlock(&shutdown_lock);
 
-		fops_get(&snd_shutdown_f_ops);
 		mfile->file->f_op = &snd_shutdown_f_ops;
+		fops_get(mfile->file->f_op);
 		
 		mfile = mfile->next;
 	}

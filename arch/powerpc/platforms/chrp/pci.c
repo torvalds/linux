@@ -198,7 +198,7 @@ static void __init setup_peg2(struct pci_controller *hose, struct device_node *d
 		printk ("RTAS supporting Pegasos OF not found, please upgrade"
 			" your firmware\n");
 	}
-	pci_assign_all_buses = 1;
+	ppc_pci_flags |= PPC_PCI_REASSIGN_ALL_BUS;
 	/* keep the reference to the root node */
 }
 
@@ -317,8 +317,12 @@ chrp_find_bridges(void)
 /* SL82C105 IDE Control/Status Register */
 #define SL82C105_IDECSR                0x40
 
-/* Fixup for Winbond ATA quirk, required for briq */
-void chrp_pci_fixup_winbond_ata(struct pci_dev *sl82c105)
+/* Fixup for Winbond ATA quirk, required for briq mostly because the
+ * 8259 is configured for level sensitive IRQ 14 and so wants the
+ * ATA controller to be set to fully native mode or bad things
+ * will happen.
+ */
+static void __devinit chrp_pci_fixup_winbond_ata(struct pci_dev *sl82c105)
 {
 	u8 progif;
 
@@ -334,10 +338,15 @@ void chrp_pci_fixup_winbond_ata(struct pci_dev *sl82c105)
 		sl82c105->class |= 0x05;
 		/* Disable SL82C105 second port */
 		pci_write_config_word(sl82c105, SL82C105_IDECSR, 0x0003);
+		/* Clear IO BARs, they will be reassigned */
+		pci_write_config_dword(sl82c105, PCI_BASE_ADDRESS_0, 0);
+		pci_write_config_dword(sl82c105, PCI_BASE_ADDRESS_1, 0);
+		pci_write_config_dword(sl82c105, PCI_BASE_ADDRESS_2, 0);
+		pci_write_config_dword(sl82c105, PCI_BASE_ADDRESS_3, 0);
 	}
 }
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_WINBOND, PCI_DEVICE_ID_WINBOND_82C105,
-		chrp_pci_fixup_winbond_ata);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_WINBOND, PCI_DEVICE_ID_WINBOND_82C105,
+			chrp_pci_fixup_winbond_ata);
 
 /* Pegasos2 firmware version 20040810 configures the built-in IDE controller
  * in legacy mode, but sets the PCI registers to PCI native mode.

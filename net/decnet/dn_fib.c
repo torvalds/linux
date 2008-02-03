@@ -203,8 +203,6 @@ static int dn_fib_check_nh(const struct rtmsg *r, struct dn_fib_info *fi, struct
 		struct flowi fl;
 		struct dn_fib_res res;
 
-		memset(&fl, 0, sizeof(fl));
-
 		if (nh->nh_flags&RTNH_F_ONLINK) {
 			struct net_device *dev;
 
@@ -506,9 +504,13 @@ static int dn_fib_check_attr(struct rtmsg *r, struct rtattr **rta)
 
 static int dn_fib_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
+	struct net *net = skb->sk->sk_net;
 	struct dn_fib_table *tb;
 	struct rtattr **rta = arg;
 	struct rtmsg *r = NLMSG_DATA(nlh);
+
+	if (net != &init_net)
+		return -EINVAL;
 
 	if (dn_fib_check_attr(r, rta))
 		return -EINVAL;
@@ -522,9 +524,13 @@ static int dn_fib_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh, void *
 
 static int dn_fib_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
+	struct net *net = skb->sk->sk_net;
 	struct dn_fib_table *tb;
 	struct rtattr **rta = arg;
 	struct rtmsg *r = NLMSG_DATA(nlh);
+
+	if (net != &init_net)
+		return -EINVAL;
 
 	if (dn_fib_check_attr(r, rta))
 		return -EINVAL;

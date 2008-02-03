@@ -16,19 +16,16 @@
 #include <linux/textsearch.h>
 
 MODULE_AUTHOR("Pablo Neira Ayuso <pablo@eurodev.net>");
-MODULE_DESCRIPTION("IP tables string match module");
+MODULE_DESCRIPTION("Xtables: string-based matching");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_string");
 MODULE_ALIAS("ip6t_string");
 
-static bool match(const struct sk_buff *skb,
-		  const struct net_device *in,
-		  const struct net_device *out,
-		  const struct xt_match *match,
-		  const void *matchinfo,
-		  int offset,
-		  unsigned int protoff,
-		  bool *hotdrop)
+static bool
+string_mt(const struct sk_buff *skb, const struct net_device *in,
+          const struct net_device *out, const struct xt_match *match,
+          const void *matchinfo, int offset, unsigned int protoff,
+          bool *hotdrop)
 {
 	const struct xt_string_info *conf = matchinfo;
 	struct ts_state state;
@@ -40,13 +37,12 @@ static bool match(const struct sk_buff *skb,
 			     != UINT_MAX) ^ conf->invert;
 }
 
-#define STRING_TEXT_PRIV(m) ((struct xt_string_info *) m)
+#define STRING_TEXT_PRIV(m) ((struct xt_string_info *)(m))
 
-static bool checkentry(const char *tablename,
-		       const void *ip,
-		       const struct xt_match *match,
-		       void *matchinfo,
-		       unsigned int hook_mask)
+static bool
+string_mt_check(const char *tablename, const void *ip,
+                const struct xt_match *match, void *matchinfo,
+                unsigned int hook_mask)
 {
 	struct xt_string_info *conf = matchinfo;
 	struct ts_config *ts_conf;
@@ -68,41 +64,41 @@ static bool checkentry(const char *tablename,
 	return true;
 }
 
-static void destroy(const struct xt_match *match, void *matchinfo)
+static void string_mt_destroy(const struct xt_match *match, void *matchinfo)
 {
 	textsearch_destroy(STRING_TEXT_PRIV(matchinfo)->config);
 }
 
-static struct xt_match xt_string_match[] __read_mostly = {
+static struct xt_match string_mt_reg[] __read_mostly = {
 	{
 		.name 		= "string",
 		.family		= AF_INET,
-		.checkentry	= checkentry,
-		.match 		= match,
-		.destroy 	= destroy,
+		.checkentry	= string_mt_check,
+		.match 		= string_mt,
+		.destroy 	= string_mt_destroy,
 		.matchsize	= sizeof(struct xt_string_info),
 		.me 		= THIS_MODULE
 	},
 	{
 		.name 		= "string",
 		.family		= AF_INET6,
-		.checkentry	= checkentry,
-		.match 		= match,
-		.destroy 	= destroy,
+		.checkentry	= string_mt_check,
+		.match 		= string_mt,
+		.destroy 	= string_mt_destroy,
 		.matchsize	= sizeof(struct xt_string_info),
 		.me 		= THIS_MODULE
 	},
 };
 
-static int __init xt_string_init(void)
+static int __init string_mt_init(void)
 {
-	return xt_register_matches(xt_string_match, ARRAY_SIZE(xt_string_match));
+	return xt_register_matches(string_mt_reg, ARRAY_SIZE(string_mt_reg));
 }
 
-static void __exit xt_string_fini(void)
+static void __exit string_mt_exit(void)
 {
-	xt_unregister_matches(xt_string_match, ARRAY_SIZE(xt_string_match));
+	xt_unregister_matches(string_mt_reg, ARRAY_SIZE(string_mt_reg));
 }
 
-module_init(xt_string_init);
-module_exit(xt_string_fini);
+module_init(string_mt_init);
+module_exit(string_mt_exit);

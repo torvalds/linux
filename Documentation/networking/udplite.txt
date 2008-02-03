@@ -236,7 +236,7 @@
 
   This displays UDP-Lite statistics variables, whose meaning is as follows.
 
-   InDatagrams:     Total number of received datagrams.
+   InDatagrams:     The total number of datagrams delivered to users.
 
    NoPorts:         Number of packets received to an unknown port.
                     These cases are counted separately (not as InErrors).

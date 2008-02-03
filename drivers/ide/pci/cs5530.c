@@ -1,6 +1,4 @@
 /*
- * linux/drivers/ide/pci/cs5530.c		Version 0.77	Sep 24 2007
- *
  * Copyright (C) 2000			Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2000			Mark Lord <mlord@pobox.com>
  * Copyright (C) 2007			Bartlomiej Zolnierkiewicz
@@ -17,18 +15,12 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/delay.h>
-#include <linux/timer.h>
-#include <linux/mm.h>
-#include <linux/ioport.h>
-#include <linux/blkdev.h>
 #include <linux/hdreg.h>
-#include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/ide.h>
+
 #include <asm/io.h>
-#include <asm/irq.h>
 
 /*
  * Here are the standard PIO mode 0-4 timings for each "format".
@@ -116,9 +108,6 @@ static void cs5530_set_dma_mode(ide_drive_t *drive, const u8 mode)
 		case XFER_MW_DMA_0:	timings = 0x00077771; break;
 		case XFER_MW_DMA_1:	timings = 0x00012121; break;
 		case XFER_MW_DMA_2:	timings = 0x00002020; break;
-		default:
-			BUG();
-			break;
 	}
 	basereg = CS5530_BASEREG(drive->hwif);
 	reg = inl(basereg + 4);			/* get drive0 config register */

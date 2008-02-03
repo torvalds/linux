@@ -67,6 +67,11 @@ static int make_args(struct gdlm_ls *ls, char *data_arg, int *nodir)
 	memset(data, 0, 256);
 	strncpy(data, data_arg, 255);
 
+	if (!strlen(data)) {
+		log_error("no mount options, (u)mount helpers not installed");
+		return -EINVAL;
+	}
+
 	for (options = data; (x = strsep(&options, ":")); ) {
 		if (!*x)
 			continue;

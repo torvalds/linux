@@ -369,7 +369,7 @@ static const u8 Tr[4][8] = {
 };
 
 /* forward octave */
-static inline void W(u32 *key, unsigned int i) {
+static void W(u32 *key, unsigned int i) {
 	u32 I;
 	key[6] ^= F1(key[7], Tr[i % 4][0], Tm[i][0]);
 	key[5] ^= F2(key[6], Tr[i % 4][1], Tm[i][1]);
@@ -428,7 +428,7 @@ static int cast6_setkey(struct crypto_tfm *tfm, const u8 *in_key,
 }
 
 /*forward quad round*/
-static inline void Q (u32 * block, u8 * Kr, u32 * Km) {
+static void Q (u32 * block, u8 * Kr, u32 * Km) {
 	u32 I;
 	block[2] ^= F1(block[3], Kr[0], Km[0]);
 	block[1] ^= F2(block[2], Kr[1], Km[1]);
@@ -437,7 +437,7 @@ static inline void Q (u32 * block, u8 * Kr, u32 * Km) {
 }
 
 /*reverse quad round*/
-static inline void QBAR (u32 * block, u8 * Kr, u32 * Km) {
+static void QBAR (u32 * block, u8 * Kr, u32 * Km) {
 	u32 I;
         block[3] ^= F1(block[0], Kr[3], Km[3]);
         block[0] ^= F3(block[1], Kr[2], Km[2]);

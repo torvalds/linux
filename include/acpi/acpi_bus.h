@@ -319,7 +319,7 @@ struct acpi_bus_event {
 	u32 data;
 };
 
-extern struct kset acpi_subsys;
+extern struct kobject *acpi_kobj;
 extern int acpi_bus_generate_netlink_event(const char*, const char*, u8, int);
 /*
  * External Functions

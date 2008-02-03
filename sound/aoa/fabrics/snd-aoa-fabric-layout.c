@@ -600,7 +600,7 @@ static int n##_control_put(struct snd_kcontrol *kcontrol,		\
 	struct gpio_runtime *gpio = snd_kcontrol_chip(kcontrol);	\
 	if (gpio->methods && gpio->methods->get_##n)			\
 		gpio->methods->set_##n(gpio,				\
-			ucontrol->value.integer.value[0]);		\
+			!!ucontrol->value.integer.value[0]);		\
 	return 1;							\
 }									\
 static struct snd_kcontrol_new n##_ctl = {				\

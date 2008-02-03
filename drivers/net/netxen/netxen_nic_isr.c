@@ -48,7 +48,7 @@ struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev)
 	/* total packets received   */
 	stats->rx_packets = adapter->stats.no_rcv;
 	/* total packets transmitted    */
-	stats->tx_packets = adapter->stats.xmitedframes + 
+	stats->tx_packets = adapter->stats.xmitedframes +
 		adapter->stats.xmitfinished;
 	/* total bytes received     */
 	stats->rx_bytes = adapter->stats.rxbytes;
@@ -66,7 +66,8 @@ struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev)
 	return stats;
 }
 
-void netxen_indicate_link_status(struct netxen_adapter *adapter, u32 link)
+static void netxen_indicate_link_status(struct netxen_adapter *adapter,
+					u32 link)
 {
 	struct net_device *netdev = adapter->netdev;
 
@@ -76,13 +77,14 @@ void netxen_indicate_link_status(struct netxen_adapter *adapter, u32 link)
 		netif_carrier_off(netdev);
 }
 
+#if 0
 void netxen_handle_port_int(struct netxen_adapter *adapter, u32 enable)
 {
 	__u32 int_src;
 
 	/*  This should clear the interrupt source */
 	if (adapter->phy_read)
-		adapter->phy_read(adapter, 
+		adapter->phy_read(adapter,
 				  NETXEN_NIU_GB_MII_MGMT_ADDR_INT_STATUS,
 				  &int_src);
 	if (int_src == 0) {
@@ -111,7 +113,7 @@ void netxen_handle_port_int(struct netxen_adapter *adapter, u32 enable)
 		DPRINTK(INFO, "SPEED CHANGED OR LINK STATUS CHANGED \n");
 
 		if (adapter->phy_read
-		    && adapter->phy_read(adapter, 
+		    && adapter->phy_read(adapter,
 					 NETXEN_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
 					 &status) == 0) {
 			if (netxen_get_phy_int_link_status_changed(int_src)) {
@@ -125,7 +127,7 @@ void netxen_handle_port_int(struct netxen_adapter *adapter, u32 enable)
 					       netxen_nic_driver_name,
 					       adapter->netdev->name);
 				}
-				netxen_indicate_link_status(adapter, 
+				netxen_indicate_link_status(adapter,
 							    netxen_get_phy_link
 							    (status));
 			}
@@ -134,8 +136,9 @@ void netxen_handle_port_int(struct netxen_adapter *adapter, u32 enable)
 	if (adapter->enable_phy_interrupts)
 		adapter->enable_phy_interrupts(adapter);
 }
+#endif  /*  0  */
 
-void netxen_nic_isr_other(struct netxen_adapter *adapter)
+static void netxen_nic_isr_other(struct netxen_adapter *adapter)
 {
 	int portno = adapter->portnum;
 	u32 val, linkup, qg_linksup;

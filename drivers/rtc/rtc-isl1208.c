@@ -61,7 +61,7 @@
 /* i2c configuration */
 #define ISL1208_I2C_ADDR 0xde
 
-static unsigned short normal_i2c[] = {
+static const unsigned short normal_i2c[] = {
 	ISL1208_I2C_ADDR>>1, I2C_CLIENT_END
 };
 I2C_CLIENT_INSMOD; /* defines addr_data */

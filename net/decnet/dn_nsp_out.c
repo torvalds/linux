@@ -124,7 +124,7 @@ struct sk_buff *dn_alloc_skb(struct sock *sk, int size, gfp_t pri)
 	if ((skb = alloc_skb(size + hdr, pri)) == NULL)
 		return NULL;
 
-	skb->protocol = __constant_htons(ETH_P_DNA_RT);
+	skb->protocol = htons(ETH_P_DNA_RT);
 	skb->pkt_type = PACKET_OUTGOING;
 
 	if (sk)

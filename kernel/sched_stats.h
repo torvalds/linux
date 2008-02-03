@@ -52,7 +52,8 @@ static int show_schedstat(struct seq_file *seq, void *v)
 				    sd->lb_nobusyq[itype],
 				    sd->lb_nobusyg[itype]);
 			}
-			seq_printf(seq, " %u %u %u %u %u %u %u %u %u %u %u %u\n",
+			seq_printf(seq,
+				   " %u %u %u %u %u %u %u %u %u %u %u %u\n",
 			    sd->alb_count, sd->alb_failed, sd->alb_pushed,
 			    sd->sbe_count, sd->sbe_balanced, sd->sbe_pushed,
 			    sd->sbf_count, sd->sbf_balanced, sd->sbf_pushed,
@@ -127,7 +128,7 @@ rq_sched_info_depart(struct rq *rq, unsigned long long delta)
 # define schedstat_set(var, val)	do { } while (0)
 #endif
 
-#ifdef CONFIG_SCHEDSTATS
+#if defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT)
 /*
  * Called when a process is dequeued from the active array and given
  * the cpu.  We should note that with the exception of interactive
@@ -155,7 +156,7 @@ static inline void sched_info_dequeued(struct task_struct *t)
  */
 static void sched_info_arrive(struct task_struct *t)
 {
-	unsigned long long now = sched_clock(), delta = 0;
+	unsigned long long now = task_rq(t)->clock, delta = 0;
 
 	if (t->sched_info.last_queued)
 		delta = now - t->sched_info.last_queued;
@@ -186,7 +187,7 @@ static inline void sched_info_queued(struct task_struct *t)
 {
 	if (unlikely(sched_info_on()))
 		if (!t->sched_info.last_queued)
-			t->sched_info.last_queued = sched_clock();
+			t->sched_info.last_queued = task_rq(t)->clock;
 }
 
 /*
@@ -195,7 +196,8 @@ static inline void sched_info_queued(struct task_struct *t)
  */
 static inline void sched_info_depart(struct task_struct *t)
 {
-	unsigned long long delta = sched_clock() - t->sched_info.last_arrival;
+	unsigned long long delta = task_rq(t)->clock -
+					t->sched_info.last_arrival;
 
 	t->sched_info.cpu_time += delta;
 	rq_sched_info_depart(task_rq(t), delta);
@@ -231,5 +233,5 @@ sched_info_switch(struct task_struct *prev, struct task_struct *next)
 #else
 #define sched_info_queued(t)		do { } while (0)
 #define sched_info_switch(t, next)	do { } while (0)
-#endif /* CONFIG_SCHEDSTATS */
+#endif /* CONFIG_SCHEDSTATS || CONFIG_TASK_DELAY_ACCT */
 

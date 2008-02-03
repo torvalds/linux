@@ -23,6 +23,7 @@
 #include <linux/delay.h>
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
+#include <linux/of_platform.h>
 
 #include <asm/system.h>
 #include <asm/atomic.h>
@@ -106,38 +107,27 @@ static void __init mpc834x_mds_init_IRQ(void)
 	ipic_set_default_priority();
 }
 
-#if defined(CONFIG_I2C_MPC) && defined(CONFIG_SENSORS_DS1374)
-extern ulong ds1374_get_rtc_time(void);
-extern int ds1374_set_rtc_time(ulong);
+static struct of_device_id mpc834x_ids[] = {
+	{ .type = "soc", },
+	{ .compatible = "soc", },
+	{},
+};
 
-static int __init mpc834x_rtc_hookup(void)
+static int __init mpc834x_declare_of_platform_devices(void)
 {
-	struct timespec tv;
-
-	if (!machine_is(mpc834x_mds))
-		return 0;
-
-	ppc_md.get_rtc_time = ds1374_get_rtc_time;
-	ppc_md.set_rtc_time = ds1374_set_rtc_time;
-
-	tv.tv_nsec = 0;
-	tv.tv_sec = (ppc_md.get_rtc_time) ();
-	do_settimeofday(&tv);
-
+	of_platform_bus_probe(NULL, mpc834x_ids, NULL);
 	return 0;
 }
-
-late_initcall(mpc834x_rtc_hookup);
-#endif
+machine_device_initcall(mpc834x_mds, mpc834x_declare_of_platform_devices);
 
 /*
  * Called very early, MMU is off, device-tree isn't unflattened
  */
 static int __init mpc834x_mds_probe(void)
 {
-        unsigned long root = of_get_flat_dt_root();
+	unsigned long root = of_get_flat_dt_root();
 
-        return of_flat_dt_is_compatible(root, "MPC834xMDS");
+	return of_flat_dt_is_compatible(root, "MPC834xMDS");
 }
 
 define_machine(mpc834x_mds) {

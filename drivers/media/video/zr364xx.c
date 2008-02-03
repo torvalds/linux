@@ -749,7 +749,7 @@ static int zr364xx_mmap(struct file *file, struct vm_area_struct *vma)
 }
 
 
-static struct file_operations zr364xx_fops = {
+static const struct file_operations zr364xx_fops = {
 	.owner = THIS_MODULE,
 	.open = zr364xx_open,
 	.release = zr364xx_release,

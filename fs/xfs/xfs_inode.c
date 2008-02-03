@@ -1459,8 +1459,10 @@ xfs_itruncate_start(
 	mp = ip->i_mount;
 	vp = XFS_ITOV(ip);
 
-	vn_iowait(ip);  /* wait for the completion of any pending DIOs */
-	
+	/* wait for the completion of any pending DIOs */
+	if (new_size < ip->i_size)
+		vn_iowait(ip);
+
 	/*
 	 * Call toss_pages or flushinval_pages to get rid of pages
 	 * overlapping the region being removed.  We have to use

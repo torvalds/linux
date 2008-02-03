@@ -17,7 +17,9 @@ typedef struct { volatile int counter; } atomic_t;
 #include <linux/compiler.h>
 #include <asm/system.h>
 
-#ifdef CONFIG_CPU_SH4A
+#if defined(CONFIG_GUSA_RB)
+#include <asm/atomic-grb.h>
+#elif defined(CONFIG_CPU_SH4A)
 #include <asm/atomic-llsc.h>
 #else
 #include <asm/atomic-irq.h>
@@ -44,6 +46,7 @@ typedef struct { volatile int counter; } atomic_t;
 #define atomic_inc(v) atomic_add(1,(v))
 #define atomic_dec(v) atomic_sub(1,(v))
 
+#ifndef CONFIG_GUSA_RB
 static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
 {
 	int ret;
@@ -58,8 +61,6 @@ static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
 	return ret;
 }
 
-#define atomic_xchg(v, new) (xchg(&((v)->counter), new))
-
 static inline int atomic_add_unless(atomic_t *v, int a, int u)
 {
 	int ret;
@@ -73,6 +74,9 @@ static inline int atomic_add_unless(atomic_t *v, int a, int u)
 
 	return ret != u;
 }
+#endif
+
+#define atomic_xchg(v, new) (xchg(&((v)->counter), new))
 #define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
 
 /* Atomic operations are already serializing on SH */

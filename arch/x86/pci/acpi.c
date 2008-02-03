@@ -13,7 +13,7 @@ static int __devinit can_skip_ioresource_align(const struct dmi_system_id *d)
 	return 0;
 }
 
-static struct dmi_system_id acpi_pciprobe_dmi_table[] = {
+static struct dmi_system_id acpi_pciprobe_dmi_table[] __devinitdata = {
 /*
  * Systems where PCI IO resource ISA alignment can be skipped
  * when the ISA enable bit in the bridge control is not set
@@ -77,6 +77,9 @@ count_resource(struct acpi_resource *acpi_res, void *data)
 	struct acpi_resource_address64 addr;
 	acpi_status status;
 
+	if (info->res_num >= PCI_BUS_NUM_RESOURCES)
+		return AE_OK;
+
 	status = resource_to_addr(acpi_res, &addr);
 	if (ACPI_SUCCESS(status))
 		info->res_num++;
@@ -92,6 +95,9 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 	acpi_status status;
 	unsigned long flags;
 	struct resource *root;
+
+	if (info->res_num >= PCI_BUS_NUM_RESOURCES)
+		return AE_OK;
 
 	status = resource_to_addr(acpi_res, &addr);
 	if (!ACPI_SUCCESS(status))

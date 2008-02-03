@@ -1,3 +1,3 @@
 # Makefile for Linux samples code
 
-obj-$(CONFIG_SAMPLES)	+= markers/
+obj-$(CONFIG_SAMPLES)	+= markers/ kobject/

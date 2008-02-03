@@ -43,7 +43,7 @@ static int pfifo_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 	return qdisc_reshape_fail(skb, sch);
 }
 
-static int fifo_init(struct Qdisc *sch, struct rtattr *opt)
+static int fifo_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct fifo_sched_data *q = qdisc_priv(sch);
 
@@ -55,9 +55,9 @@ static int fifo_init(struct Qdisc *sch, struct rtattr *opt)
 
 		q->limit = limit;
 	} else {
-		struct tc_fifo_qopt *ctl = RTA_DATA(opt);
+		struct tc_fifo_qopt *ctl = nla_data(opt);
 
-		if (RTA_PAYLOAD(opt) < sizeof(*ctl))
+		if (nla_len(opt) < sizeof(*ctl))
 			return -EINVAL;
 
 		q->limit = ctl->limit;
@@ -71,14 +71,14 @@ static int fifo_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct fifo_sched_data *q = qdisc_priv(sch);
 	struct tc_fifo_qopt opt = { .limit = q->limit };
 
-	RTA_PUT(skb, TCA_OPTIONS, sizeof(opt), &opt);
+	NLA_PUT(skb, TCA_OPTIONS, sizeof(opt), &opt);
 	return skb->len;
 
-rtattr_failure:
+nla_put_failure:
 	return -1;
 }
 
-struct Qdisc_ops pfifo_qdisc_ops = {
+struct Qdisc_ops pfifo_qdisc_ops __read_mostly = {
 	.id		=	"pfifo",
 	.priv_size	=	sizeof(struct fifo_sched_data),
 	.enqueue	=	pfifo_enqueue,
@@ -91,8 +91,9 @@ struct Qdisc_ops pfifo_qdisc_ops = {
 	.dump		=	fifo_dump,
 	.owner		=	THIS_MODULE,
 };
+EXPORT_SYMBOL(pfifo_qdisc_ops);
 
-struct Qdisc_ops bfifo_qdisc_ops = {
+struct Qdisc_ops bfifo_qdisc_ops __read_mostly = {
 	.id		=	"bfifo",
 	.priv_size	=	sizeof(struct fifo_sched_data),
 	.enqueue	=	bfifo_enqueue,
@@ -105,6 +106,4 @@ struct Qdisc_ops bfifo_qdisc_ops = {
 	.dump		=	fifo_dump,
 	.owner		=	THIS_MODULE,
 };
-
 EXPORT_SYMBOL(bfifo_qdisc_ops);
-EXPORT_SYMBOL(pfifo_qdisc_ops);

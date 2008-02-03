@@ -235,6 +235,11 @@ config IRAM_SIZE
 # Define implied options from the CPU selection here
 #
 
+config GENERIC_LOCKBREAK
+	bool
+	default y
+	depends on SMP && PREEMPT
+
 config RWSEM_GENERIC_SPINLOCK
 	bool
 	depends on M32R
@@ -353,11 +358,6 @@ config PCI
 	  bus system, i.e. the way the CPU talks to the other stuff inside
 	  your box. Other bus systems are ISA, EISA, MicroChannel (MCA) or
 	  VESA. If you have PCI, say Y, otherwise N.
-
-	  The PCI-HOWTO, available from
-	  <http://www.linuxdoc.org/docs.html#howto>, contains valuable
-	  information about which PCI hardware does work under Linux and which
-	  doesn't.
 
 choice
 	prompt "PCI access mode"

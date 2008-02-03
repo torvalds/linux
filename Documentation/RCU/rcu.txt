@@ -36,6 +36,14 @@ o	How can the updater tell when a grace period has completed
 	executed in user mode, or executed in the idle loop, we can
 	safely free up that item.
 
+	Preemptible variants of RCU (CONFIG_PREEMPT_RCU) get the
+	same effect, but require that the readers manipulate CPU-local
+	counters.  These counters allow limited types of blocking
+	within RCU read-side critical sections.  SRCU also uses
+	CPU-local counters, and permits general blocking within
+	RCU read-side critical sections.  These two variants of
+	RCU detect grace periods by sampling these counters.
+
 o	If I am running on a uniprocessor kernel, which can only do one
 	thing at a time, why should I wait for a grace period?
 
@@ -46,7 +54,10 @@ o	How can I see where RCU is currently used in the Linux kernel?
 	Search for "rcu_read_lock", "rcu_read_unlock", "call_rcu",
 	"rcu_read_lock_bh", "rcu_read_unlock_bh", "call_rcu_bh",
 	"srcu_read_lock", "srcu_read_unlock", "synchronize_rcu",
-	"synchronize_net", and "synchronize_srcu".
+	"synchronize_net", "synchronize_srcu", and the other RCU
+	primitives.  Or grab one of the cscope databases from:
+
+	http://www.rdrop.com/users/paulmck/RCU/linuxusage/rculocktab.html
 
 o	What guidelines should I follow when writing code that uses RCU?
 
@@ -67,7 +78,11 @@ o	I hear that RCU is patented?  What is with that?
 
 o	I hear that RCU needs work in order to support realtime kernels?
 
-	Yes, work in progress.
+	This work is largely completed.  Realtime-friendly RCU can be
+	enabled via the CONFIG_PREEMPT_RCU kernel configuration parameter.
+	However, work is in progress for enabling priority boosting of
+	preempted RCU read-side critical sections.This is needed if you
+	have CPU-bound realtime threads.
 
 o	Where can I find more information on RCU?
 

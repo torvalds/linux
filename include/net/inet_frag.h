@@ -1,8 +1,20 @@
 #ifndef __NET_FRAG_H__
 #define __NET_FRAG_H__
 
+struct netns_frags {
+	int			nqueues;
+	atomic_t		mem;
+	struct list_head	lru_list;
+
+	/* sysctls */
+	int			timeout;
+	int			high_thresh;
+	int			low_thresh;
+};
+
 struct inet_frag_queue {
 	struct hlist_node	list;
+	struct netns_frags	*net;
 	struct list_head	lru_list;   /* lru list member */
 	spinlock_t		lock;
 	atomic_t		refcnt;
@@ -20,23 +32,13 @@ struct inet_frag_queue {
 
 #define INETFRAGS_HASHSZ		64
 
-struct inet_frags_ctl {
-	int high_thresh;
-	int low_thresh;
-	int timeout;
-	int secret_interval;
-};
-
 struct inet_frags {
-	struct list_head	lru_list;
 	struct hlist_head	hash[INETFRAGS_HASHSZ];
 	rwlock_t		lock;
 	u32			rnd;
-	int			nqueues;
 	int			qsize;
-	atomic_t		mem;
+	int			secret_interval;
 	struct timer_list	secret_timer;
-	struct inet_frags_ctl	*ctl;
 
 	unsigned int		(*hashfn)(struct inet_frag_queue *);
 	void			(*constructor)(struct inet_frag_queue *q,
@@ -51,12 +53,15 @@ struct inet_frags {
 void inet_frags_init(struct inet_frags *);
 void inet_frags_fini(struct inet_frags *);
 
+void inet_frags_init_net(struct netns_frags *nf);
+void inet_frags_exit_net(struct netns_frags *nf, struct inet_frags *f);
+
 void inet_frag_kill(struct inet_frag_queue *q, struct inet_frags *f);
 void inet_frag_destroy(struct inet_frag_queue *q,
 				struct inet_frags *f, int *work);
-int inet_frag_evictor(struct inet_frags *f);
-struct inet_frag_queue *inet_frag_find(struct inet_frags *f, void *key,
-		unsigned int hash);
+int inet_frag_evictor(struct netns_frags *nf, struct inet_frags *f);
+struct inet_frag_queue *inet_frag_find(struct netns_frags *nf,
+		struct inet_frags *f, void *key, unsigned int hash);
 
 static inline void inet_frag_put(struct inet_frag_queue *q, struct inet_frags *f)
 {

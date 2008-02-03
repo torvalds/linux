@@ -222,9 +222,7 @@ struct tx3927_ccfg_reg {
 #define TX3927_IR_DMA	8
 #define TX3927_IR_PIO	9
 #define TX3927_IR_PCI	10
-#define TX3927_IR_TMR0	13
-#define TX3927_IR_TMR1	14
-#define TX3927_IR_TMR2	15
+#define TX3927_IR_TMR(ch)	(13 + (ch))
 #define TX3927_NUM_IR	16
 
 /*

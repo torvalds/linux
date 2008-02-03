@@ -1,7 +1,14 @@
-choice
-	prompt "Machine Type"
+menuconfig MPC85xx
+	bool "Machine Type"
 	depends on PPC_85xx
-	default MPC8540_ADS
+	select PPC_UDBG_16550
+	select PPC_INDIRECT_PCI if PCI
+	select MPIC
+	select FSL_PCI if PCI
+	select SERIAL_8250_SHARE_IRQ if SERIAL_8250
+	default y
+
+if MPC85xx
 
 config MPC8540_ADS
 	bool "Freescale MPC8540 ADS"
@@ -13,6 +20,7 @@ config MPC8560_ADS
 	bool "Freescale MPC8560 ADS"
 	select DEFAULT_UIMAGE
 	select PPC_CPM_NEW_BINDING
+	select CPM2
 	help
 	  This option enables support for the MPC 8560 ADS board
 
@@ -38,25 +46,64 @@ config MPC85xx_DS
 	help
 	  This option enables support for the MPC85xx DS (MPC8544 DS) board
 
-endchoice
-
-config MPC8540
-	bool
-	select PPC_UDBG_16550
-	select PPC_INDIRECT_PCI
-	default y if MPC8540_ADS || MPC85xx_CDS
-
-config MPC8560
-	bool
+config STX_GP3
+	bool "Silicon Turnkey Express GP3"
+	help
+	  This option enables support for the Silicon Turnkey Express GP3
+	  board.
 	select CPM2
-	default y if MPC8560_ADS
+	select DEFAULT_UIMAGE
+	select PPC_CPM_NEW_BINDING
 
-config MPC85xx
+config TQM8540
+	bool "TQ Components TQM8540"
+	help
+	  This option enables support for the TQ Components TQM8540 board.
+	select DEFAULT_UIMAGE
+	select PPC_CPM_NEW_BINDING
+	select TQM85xx
+
+config TQM8541
+	bool "TQ Components TQM8541"
+	help
+	  This option enables support for the TQ Components TQM8541 board.
+	select DEFAULT_UIMAGE
+	select PPC_CPM_NEW_BINDING
+	select TQM85xx
+	select CPM2
+
+config TQM8555
+	bool "TQ Components TQM8555"
+	help
+	  This option enables support for the TQ Components TQM8555 board.
+	select DEFAULT_UIMAGE
+	select PPC_CPM_NEW_BINDING
+	select TQM85xx
+	select CPM2
+
+config TQM8560
+	bool "TQ Components TQM8560"
+	help
+	  This option enables support for the TQ Components TQM8560 board.
+	select DEFAULT_UIMAGE
+	select PPC_CPM_NEW_BINDING
+	select TQM85xx
+	select CPM2
+
+config SBC8548
+	bool "Wind River SBC8548"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the Wind River SBC8548 board
+
+config SBC8560
+	bool "Wind River SBC8560"
+	select DEFAULT_UIMAGE
+	select PPC_CPM_NEW_BINDING if CPM2
+	help
+	  This option enables support for the Wind River SBC8560 board
+
+endif # MPC85xx
+
+config TQM85xx
 	bool
-	select PPC_UDBG_16550
-	select PPC_INDIRECT_PCI if PCI
-	select MPIC
-	select FSL_PCI if PCI
-	select SERIAL_8250_SHARE_IRQ if SERIAL_8250
-	default y if MPC8540_ADS || MPC85xx_CDS || MPC8560_ADS \
-		|| MPC85xx_MDS || MPC85xx_DS

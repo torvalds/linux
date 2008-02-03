@@ -72,7 +72,6 @@ struct ip_vs_sync_thread_data {
 	int state;
 };
 
-#define IP_VS_SYNC_CONN_TIMEOUT (3*60*HZ)
 #define SIMPLE_CONN_SIZE  (sizeof(struct ip_vs_sync_conn))
 #define FULL_CONN_SIZE  \
 (sizeof(struct ip_vs_sync_conn) + sizeof(struct ip_vs_sync_conn_options))
@@ -284,6 +283,8 @@ static void ip_vs_process_message(const char *buffer, const size_t buflen)
 	struct ip_vs_sync_conn *s;
 	struct ip_vs_sync_conn_options *opt;
 	struct ip_vs_conn *cp;
+	struct ip_vs_protocol *pp;
+	struct ip_vs_dest *dest;
 	char *p;
 	int i;
 
@@ -304,10 +305,11 @@ static void ip_vs_process_message(const char *buffer, const size_t buflen)
 
 	p = (char *)buffer + sizeof(struct ip_vs_sync_mesg);
 	for (i=0; i<m->nr_conns; i++) {
-		unsigned flags;
+		unsigned flags, state;
 
 		s = (struct ip_vs_sync_conn *)p;
-		flags = ntohs(s->flags);
+		flags = ntohs(s->flags) | IP_VS_CONN_F_SYNC;
+		state = ntohs(s->state);
 		if (!(flags & IP_VS_CONN_F_TEMPLATE))
 			cp = ip_vs_conn_in_get(s->protocol,
 					       s->caddr, s->cport,
@@ -317,22 +319,57 @@ static void ip_vs_process_message(const char *buffer, const size_t buflen)
 					       s->caddr, s->cport,
 					       s->vaddr, s->vport);
 		if (!cp) {
+			/*
+			 * Find the appropriate destination for the connection.
+			 * If it is not found the connection will remain unbound
+			 * but still handled.
+			 */
+			dest = ip_vs_find_dest(s->daddr, s->dport,
+					       s->vaddr, s->vport,
+					       s->protocol);
+			/*  Set the approprite ativity flag */
+			if (s->protocol == IPPROTO_TCP) {
+				if (state != IP_VS_TCP_S_ESTABLISHED)
+					flags |= IP_VS_CONN_F_INACTIVE;
+				else
+					flags &= ~IP_VS_CONN_F_INACTIVE;
+			}
 			cp = ip_vs_conn_new(s->protocol,
 					    s->caddr, s->cport,
 					    s->vaddr, s->vport,
 					    s->daddr, s->dport,
-					    flags, NULL);
+					    flags, dest);
+			if (dest)
+				atomic_dec(&dest->refcnt);
 			if (!cp) {
 				IP_VS_ERR("ip_vs_conn_new failed\n");
 				return;
 			}
-			cp->state = ntohs(s->state);
+			cp->state = state;
 		} else if (!cp->dest) {
-			/* it is an entry created by the synchronization */
-			cp->state = ntohs(s->state);
-			cp->flags = flags | IP_VS_CONN_F_HASHED;
-		}	/* Note that we don't touch its state and flags
-			   if it is a normal entry. */
+			dest = ip_vs_try_bind_dest(cp);
+			if (!dest) {
+				/* it is an unbound entry created by
+				 * synchronization */
+				cp->flags = flags | IP_VS_CONN_F_HASHED;
+			} else
+				atomic_dec(&dest->refcnt);
+		} else if ((cp->dest) && (cp->protocol == IPPROTO_TCP) &&
+			   (cp->state != state)) {
+			/* update active/inactive flag for the connection */
+			dest = cp->dest;
+			if (!(cp->flags & IP_VS_CONN_F_INACTIVE) &&
+				(state != IP_VS_TCP_S_ESTABLISHED)) {
+				atomic_dec(&dest->activeconns);
+				atomic_inc(&dest->inactconns);
+				cp->flags |= IP_VS_CONN_F_INACTIVE;
+			} else if ((cp->flags & IP_VS_CONN_F_INACTIVE) &&
+				(state == IP_VS_TCP_S_ESTABLISHED)) {
+				atomic_inc(&dest->activeconns);
+				atomic_dec(&dest->inactconns);
+				cp->flags &= ~IP_VS_CONN_F_INACTIVE;
+			}
+		}
 
 		if (flags & IP_VS_CONN_F_SEQ_MASK) {
 			opt = (struct ip_vs_sync_conn_options *)&s[1];
@@ -342,7 +379,9 @@ static void ip_vs_process_message(const char *buffer, const size_t buflen)
 			p += SIMPLE_CONN_SIZE;
 
 		atomic_set(&cp->in_pkts, sysctl_ip_vs_sync_threshold[0]);
-		cp->timeout = IP_VS_SYNC_CONN_TIMEOUT;
+		cp->state = state;
+		pp = ip_vs_proto_get(s->protocol);
+		cp->timeout = pp->timeout_table[cp->state];
 		ip_vs_conn_put(cp);
 
 		if (p > buffer+buflen) {

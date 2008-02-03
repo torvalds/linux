@@ -137,7 +137,7 @@ config CYCLADES
 	  your Linux box, for instance in order to become a dial-in server.
 
 	  For information about the Cyclades-Z card, read
-	  <file:drivers/char/README.cycladesZ>.
+	  <file:Documentation/README.cycladesZ>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called cyclades.
@@ -373,6 +373,16 @@ config ISTALLION
 	  To compile this driver as a module, choose M here: the
 	  module will be called istallion.
 
+config NOZOMI
+	tristate "HSDPA Broadband Wireless Data Card - Globe Trotter"
+	depends on PCI && EXPERIMENTAL
+	help
+	  If you have a HSDPA driver Broadband Wireless Data Card -
+	  Globe Trotter PCMCIA card, say Y here.
+
+	  To compile this driver as a module, choose M here, the module
+	  will be called nozomi.
+
 config A2232
 	tristate "Commodore A2232 serial support (EXPERIMENTAL)"
 	depends on EXPERIMENTAL && ZORRO && BROKEN_ON_SMP
@@ -457,7 +467,7 @@ config LEGACY_PTYS
 config LEGACY_PTY_COUNT
 	int "Maximum number of legacy PTY in use"
 	depends on LEGACY_PTYS
-	range 1 256
+	range 0 256
 	default "256"
 	---help---
 	  The maximum number of legacy PTYs that can be used at any one time.
@@ -540,28 +550,6 @@ config PPDEV
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ppdev.
-
-	  If unsure, say N.
-
-config TIPAR
-	tristate "Texas Instruments parallel link cable support"
-	depends on PARPORT
-	---help---
-	  If you own a Texas Instruments graphing calculator and use a
-	  parallel link cable, then you might be interested in this driver.
-
-	  If you enable this driver, you will be able to communicate with
-	  your calculator through a set of device nodes under /dev. The
-	  main advantage of this driver is that you don't have to be root
-	  to use this precise link cable (depending on the permissions on
-	  the device nodes, though).
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called tipar.
-
-	  If you don't know what a parallel link cable is or what a Texas
-	  Instruments graphing calculator is, then you probably don't need this
-	  driver.
 
 	  If unsure, say N.
 

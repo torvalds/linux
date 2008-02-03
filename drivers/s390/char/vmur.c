@@ -759,7 +759,7 @@ static loff_t ur_llseek(struct file *file, loff_t offset, int whence)
 	return newpos;
 }
 
-static struct file_operations ur_fops = {
+static const struct file_operations ur_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = ur_open,
 	.release = ur_release,

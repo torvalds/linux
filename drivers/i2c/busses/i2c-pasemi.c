@@ -51,6 +51,7 @@ struct pasemi_smbus {
 #define MRXFIFO_DATA_M	0x000000ff
 
 #define SMSTA_XEN	0x08000000
+#define SMSTA_MTN	0x00200000
 
 #define CTL_MRR		0x00000400
 #define CTL_MTR		0x00000200
@@ -97,6 +98,10 @@ static unsigned int pasemi_smb_waitready(struct pasemi_smbus *smbus)
 		msleep(1);
 		status = reg_read(smbus, REG_SMSTA);
 	}
+
+	/* Got NACK? */
+	if (status & SMSTA_MTN)
+		return -ENXIO;
 
 	if (timeout < 0) {
 		dev_warn(&smbus->dev->dev, "Timeout, status 0x%08x\n", status);
@@ -363,14 +368,15 @@ static int __devinit pasemi_smb_probe(struct pci_dev *dev,
 	smbus->adapter.class = I2C_CLASS_HWMON;
 	smbus->adapter.algo = &smbus_algorithm;
 	smbus->adapter.algo_data = smbus;
+	smbus->adapter.nr = PCI_FUNC(dev->devfn);
 
-	/* set up the driverfs linkage to our parent device */
+	/* set up the sysfs linkage to our parent device */
 	smbus->adapter.dev.parent = &dev->dev;
 
 	reg_write(smbus, REG_CTL, (CTL_MTR | CTL_MRR |
 		  (CLK_100K_DIV & CTL_CLK_M)));
 
-	error = i2c_add_adapter(&smbus->adapter);
+	error = i2c_add_numbered_adapter(&smbus->adapter);
 	if (error)
 		goto out_release_region;
 

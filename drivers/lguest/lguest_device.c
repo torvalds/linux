@@ -200,7 +200,8 @@ static struct virtqueue *lg_find_vq(struct virtio_device *vdev,
 
 	/* Figure out how many pages the ring will take, and map that memory */
 	lvq->pages = lguest_map((unsigned long)lvq->config.pfn << PAGE_SHIFT,
-				DIV_ROUND_UP(vring_size(lvq->config.num),
+				DIV_ROUND_UP(vring_size(lvq->config.num,
+							PAGE_SIZE),
 					     PAGE_SIZE));
 	if (!lvq->pages) {
 		err = -ENOMEM;
@@ -246,6 +247,8 @@ static void lg_del_vq(struct virtqueue *vq)
 {
 	struct lguest_vq_info *lvq = vq->priv;
 
+	/* Release the interrupt */
+	free_irq(lvq->config.irq, vq);
 	/* Tell virtio_ring.c to free the virtqueue. */
 	vring_del_virtqueue(vq);
 	/* Unmap the pages containing the ring. */

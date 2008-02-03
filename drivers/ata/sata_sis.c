@@ -63,17 +63,17 @@ enum {
 	GENCTL_IOMAPPED_SCR	= (1 << 26), /* if set, SCRs are in IO space */
 };
 
-static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
-static int sis_scr_read (struct ata_port *ap, unsigned int sc_reg, u32 *val);
-static int sis_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
+static int sis_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
+static int sis_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val);
+static int sis_scr_write(struct ata_port *ap, unsigned int sc_reg, u32 val);
 
 static const struct pci_device_id sis_pci_tbl[] = {
-	{ PCI_VDEVICE(SI, 0x0180), sis_180 },		/* SiS 964/180 */
-	{ PCI_VDEVICE(SI, 0x0181), sis_180 },		/* SiS 964/180 */
-	{ PCI_VDEVICE(SI, 0x0182), sis_180 },		/* SiS 965/965L */
-	{ PCI_VDEVICE(SI, 0x0183), sis_180 },		/* SiS 965/965L */
-	{ PCI_VDEVICE(SI, 0x1182), sis_180 },		/* SiS 966/680 */
-	{ PCI_VDEVICE(SI, 0x1183), sis_180 },		/* SiS 966/966L/968/680 */
+	{ PCI_VDEVICE(SI, 0x0180), sis_180 },	/* SiS 964/180 */
+	{ PCI_VDEVICE(SI, 0x0181), sis_180 },	/* SiS 964/180 */
+	{ PCI_VDEVICE(SI, 0x0182), sis_180 },	/* SiS 965/965L */
+	{ PCI_VDEVICE(SI, 0x0183), sis_180 },	/* SiS 965/965L */
+	{ PCI_VDEVICE(SI, 0x1182), sis_180 },	/* SiS 966/680 */
+	{ PCI_VDEVICE(SI, 0x1183), sis_180 },	/* SiS 966/966L/968/680 */
 
 	{ }	/* terminate list */
 };
@@ -149,24 +149,24 @@ static unsigned int get_scr_cfg_addr(struct ata_port *ap, unsigned int sc_reg)
 
 	if (ap->port_no)  {
 		switch (pdev->device) {
-			case 0x0180:
-			case 0x0181:
-				pci_read_config_byte(pdev, SIS_PMR, &pmr);
-				if ((pmr & SIS_PMR_COMBINED) == 0)
-					addr += SIS180_SATA1_OFS;
-				break;
+		case 0x0180:
+		case 0x0181:
+			pci_read_config_byte(pdev, SIS_PMR, &pmr);
+			if ((pmr & SIS_PMR_COMBINED) == 0)
+				addr += SIS180_SATA1_OFS;
+			break;
 
-			case 0x0182:
-			case 0x0183:
-			case 0x1182:
-				addr += SIS182_SATA1_OFS;
-				break;
+		case 0x0182:
+		case 0x0183:
+		case 0x1182:
+			addr += SIS182_SATA1_OFS;
+			break;
 		}
 	}
 	return addr;
 }
 
-static u32 sis_scr_cfg_read (struct ata_port *ap, unsigned int sc_reg, u32 *val)
+static u32 sis_scr_cfg_read(struct ata_port *ap, unsigned int sc_reg, u32 *val)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	unsigned int cfg_addr = get_scr_cfg_addr(ap, sc_reg);
@@ -190,7 +190,7 @@ static u32 sis_scr_cfg_read (struct ata_port *ap, unsigned int sc_reg, u32 *val)
 	return 0;
 }
 
-static void sis_scr_cfg_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
+static void sis_scr_cfg_write(struct ata_port *ap, unsigned int sc_reg, u32 val)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	unsigned int cfg_addr = get_scr_cfg_addr(ap, sc_reg);
@@ -253,7 +253,7 @@ static int sis_scr_write(struct ata_port *ap, unsigned int sc_reg, u32 val)
 	return 0;
 }
 
-static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
+static int sis_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version;
 	struct ata_port_info pi = sis_port_info;
@@ -309,29 +309,33 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		} else {
 			dev_printk(KERN_INFO, &pdev->dev,
 				   "Detected SiS 180/181 chipset in combined mode\n");
-			port2_start=0;
+			port2_start = 0;
 			pi.flags |= ATA_FLAG_SLAVE_POSS;
 		}
 		break;
 
 	case 0x0182:
 	case 0x0183:
-		pci_read_config_dword ( pdev, 0x6C, &val);
+		pci_read_config_dword(pdev, 0x6C, &val);
 		if (val & (1L << 31)) {
-			dev_printk(KERN_INFO, &pdev->dev, "Detected SiS 182/965 chipset\n");
+			dev_printk(KERN_INFO, &pdev->dev,
+				   "Detected SiS 182/965 chipset\n");
 			pi.flags |= ATA_FLAG_SLAVE_POSS;
 		} else {
-			dev_printk(KERN_INFO, &pdev->dev, "Detected SiS 182/965L chipset\n");
+			dev_printk(KERN_INFO, &pdev->dev,
+				   "Detected SiS 182/965L chipset\n");
 		}
 		break;
 
 	case 0x1182:
-		dev_printk(KERN_INFO, &pdev->dev, "Detected SiS 1182/966/680 SATA controller\n");
+		dev_printk(KERN_INFO, &pdev->dev,
+			   "Detected SiS 1182/966/680 SATA controller\n");
 		pi.flags |= ATA_FLAG_SLAVE_POSS;
 		break;
 
 	case 0x1183:
-		dev_printk(KERN_INFO, &pdev->dev, "Detected SiS 1183/966/966L/968/680 controller in PATA mode\n");
+		dev_printk(KERN_INFO, &pdev->dev,
+			   "Detected SiS 1183/966/966L/968/680 controller in PATA mode\n");
 		ppi[0] = &sis_info133_for_sata;
 		ppi[1] = &sis_info133_for_sata;
 		break;

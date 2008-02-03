@@ -109,7 +109,7 @@ int ia64_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 	write_msi_msg(irq, &msg);
 	set_irq_chip_and_handler(irq, &ia64_msi_chip, handle_edge_irq);
 
-	return irq;
+	return 0;
 }
 
 void ia64_teardown_msi_irq(unsigned int irq)

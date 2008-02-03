@@ -320,7 +320,7 @@ int configfs_add_file(struct dentry * dir, const struct configfs_attribute * att
 	umode_t mode = (attr->ca_mode & S_IALLUGO) | S_IFREG;
 	int error = 0;
 
-	mutex_lock(&dir->d_inode->i_mutex);
+	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_NORMAL);
 	error = configfs_make_dirent(parent_sd, NULL, (void *) attr, mode, type);
 	mutex_unlock(&dir->d_inode->i_mutex);
 

@@ -89,7 +89,7 @@ int lpfc_vport_delete(struct fc_vport *);
 int lpfc_vport_getinfo(struct Scsi_Host *, struct vport_info *);
 int lpfc_vport_tgt_remove(struct Scsi_Host *, uint, uint);
 struct lpfc_vport **lpfc_create_vport_work_array(struct lpfc_hba *);
-void lpfc_destroy_vport_work_array(struct lpfc_vport **);
+void lpfc_destroy_vport_work_array(struct lpfc_hba *, struct lpfc_vport **);
 
 /*
  *  queuecommand  VPORT-specific return codes. Specified in  the host byte code.

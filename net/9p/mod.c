@@ -76,9 +76,9 @@ struct p9_trans_module *v9fs_match_trans(const substring_t *name)
 	list_for_each(p, &v9fs_trans_list) {
 		t = list_entry(p, struct p9_trans_module, list);
 		if (strncmp(t->name, name->from, name->to-name->from) == 0)
-			break;
+			return t;
 	}
-	return t;
+	return NULL;
 }
 EXPORT_SYMBOL(v9fs_match_trans);
 

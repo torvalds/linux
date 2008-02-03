@@ -345,12 +345,12 @@ static inline int post_send(struct ipoib_dev_priv *priv,
 {
 	struct ib_send_wr *bad_wr;
 
-	priv->tx_sge.addr             = addr;
-	priv->tx_sge.length           = len;
+	priv->tx_sge.addr	      = addr;
+	priv->tx_sge.length	      = len;
 
-	priv->tx_wr.wr_id 	      = wr_id;
+	priv->tx_wr.wr_id	      = wr_id;
 	priv->tx_wr.wr.ud.remote_qpn  = qpn;
-	priv->tx_wr.wr.ud.ah 	      = address;
+	priv->tx_wr.wr.ud.ah	      = address;
 
 	return ib_post_send(priv->qp, &priv->tx_wr, &bad_wr);
 }

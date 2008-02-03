@@ -304,13 +304,7 @@ enum commands {
 #if defined(__alpha__)
 # define clear_suspend(cmd)  clear_bit(30, &(cmd)->cmd_status);
 #else
-# if defined(__LITTLE_ENDIAN)
-#  define clear_suspend(cmd)  ((__u16 *)&(cmd)->cmd_status)[1] &= ~0x4000
-# elif defined(__BIG_ENDIAN)
-#  define clear_suspend(cmd)  ((__u16 *)&(cmd)->cmd_status)[1] &= ~0x0040
-# else
-#  error Unsupported byteorder
-# endif
+# define clear_suspend(cmd)  ((__le16 *)&(cmd)->cmd_status)[1] &= ~cpu_to_le16(1<<14)
 #endif
 
 enum SCBCmdBits {
@@ -331,17 +325,17 @@ enum SCBPort_cmds {
 
 /* The Speedo3 Rx and Tx frame/buffer descriptors. */
 struct descriptor {			    /* A generic descriptor. */
-	volatile s32 cmd_status;	/* All command and status fields. */
-	u32 link;				    /* struct descriptor *  */
+	volatile __le32 cmd_status;	/* All command and status fields. */
+	__le32 link;				    /* struct descriptor *  */
 	unsigned char params[0];
 };
 
 /* The Speedo3 Rx and Tx buffer descriptors. */
 struct RxFD {					/* Receive frame descriptor. */
-	volatile s32 status;
-	u32 link;					/* struct RxFD * */
-	u32 rx_buf_addr;			/* void * */
-	u32 count;
+	volatile __le32 status;
+	__le32 link;					/* struct RxFD * */
+	__le32 rx_buf_addr;			/* void * */
+	__le32 count;
 } RxFD_ALIGNMENT;
 
 /* Selected elements of the Tx/RxFD.status word. */
@@ -354,16 +348,16 @@ enum RxFD_bits {
 
 #define CONFIG_DATA_SIZE 22
 struct TxFD {					/* Transmit frame descriptor set. */
-	s32 status;
-	u32 link;					/* void * */
-	u32 tx_desc_addr;			/* Always points to the tx_buf_addr element. */
-	s32 count;					/* # of TBD (=1), Tx start thresh., etc. */
+	__le32 status;
+	__le32 link;					/* void * */
+	__le32 tx_desc_addr;			/* Always points to the tx_buf_addr element. */
+	__le32 count;					/* # of TBD (=1), Tx start thresh., etc. */
 	/* This constitutes two "TBD" entries -- we only use one. */
 #define TX_DESCR_BUF_OFFSET 16
-	u32 tx_buf_addr0;			/* void *, frame to be transmitted.  */
-	s32 tx_buf_size0;			/* Length of Tx frame. */
-	u32 tx_buf_addr1;			/* void *, frame to be transmitted.  */
-	s32 tx_buf_size1;			/* Length of Tx frame. */
+	__le32 tx_buf_addr0;			/* void *, frame to be transmitted.  */
+	__le32 tx_buf_size0;			/* Length of Tx frame. */
+	__le32 tx_buf_addr1;			/* void *, frame to be transmitted.  */
+	__le32 tx_buf_size1;			/* Length of Tx frame. */
 	/* the structure must have space for at least CONFIG_DATA_SIZE starting
 	 * from tx_desc_addr field */
 };
@@ -379,23 +373,23 @@ struct speedo_mc_block {
 
 /* Elements of the dump_statistics block. This block must be lword aligned. */
 struct speedo_stats {
-	u32 tx_good_frames;
-	u32 tx_coll16_errs;
-	u32 tx_late_colls;
-	u32 tx_underruns;
-	u32 tx_lost_carrier;
-	u32 tx_deferred;
-	u32 tx_one_colls;
-	u32 tx_multi_colls;
-	u32 tx_total_colls;
-	u32 rx_good_frames;
-	u32 rx_crc_errs;
-	u32 rx_align_errs;
-	u32 rx_resource_errs;
-	u32 rx_overrun_errs;
-	u32 rx_colls_errs;
-	u32 rx_runt_errs;
-	u32 done_marker;
+	__le32 tx_good_frames;
+	__le32 tx_coll16_errs;
+	__le32 tx_late_colls;
+	__le32 tx_underruns;
+	__le32 tx_lost_carrier;
+	__le32 tx_deferred;
+	__le32 tx_one_colls;
+	__le32 tx_multi_colls;
+	__le32 tx_total_colls;
+	__le32 rx_good_frames;
+	__le32 rx_crc_errs;
+	__le32 rx_align_errs;
+	__le32 rx_resource_errs;
+	__le32 rx_overrun_errs;
+	__le32 rx_colls_errs;
+	__le32 rx_runt_errs;
+	__le32 done_marker;
 };
 
 enum Rx_ring_state_bits {
@@ -1139,7 +1133,7 @@ speedo_rx_soft_reset(struct net_device *dev)
 
 	rfd = sp->rx_ringp[sp->cur_rx % RX_RING_SIZE];
 
-	rfd->rx_buf_addr = 0xffffffff;
+	rfd->rx_buf_addr = cpu_to_le32(0xffffffff);
 
 	if (wait_for_cmd_done(dev, sp) != 0) {
 		printk("%s: RxAbort command stalled\n", dev->name);
@@ -1275,7 +1269,7 @@ speedo_init_rx_ring(struct net_device *dev)
 		rxf->status = cpu_to_le32(0x00000001);	/* '1' is flag value only. */
 		rxf->link = 0;						/* None yet. */
 		/* This field unused by i82557. */
-		rxf->rx_buf_addr = 0xffffffff;
+		rxf->rx_buf_addr = cpu_to_le32(0xffffffff);
 		rxf->count = cpu_to_le32(PKT_BUF_SZ << 16);
 		pci_dma_sync_single_for_device(sp->pdev, sp->rx_ring_dma[i],
 									   sizeof(struct RxFD), PCI_DMA_TODEVICE);
@@ -1657,7 +1651,7 @@ static inline struct RxFD *speedo_rx_alloc(struct net_device *dev, int entry)
 					   PKT_BUF_SZ + sizeof(struct RxFD), PCI_DMA_FROMDEVICE);
 	skb->dev = dev;
 	skb_reserve(skb, sizeof(struct RxFD));
-	rxf->rx_buf_addr = 0xffffffff;
+	rxf->rx_buf_addr = cpu_to_le32(0xffffffff);
 	pci_dma_sync_single_for_device(sp->pdev, sp->rx_ring_dma[entry],
 								   sizeof(struct RxFD), PCI_DMA_TODEVICE);
 	return rxf;
@@ -1788,7 +1782,7 @@ speedo_rx(struct net_device *dev)
 			/* Check if the packet is long enough to just accept without
 			   copying to a properly sized skbuff. */
 			if (pkt_len < rx_copybreak
-				&& (skb = dev_alloc_skb(pkt_len + 2)) != 0) {
+				&& (skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
 				skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
 				/* 'skb_put()' points to the start of sk_buff data area. */
 				pci_dma_sync_single_for_cpu(sp->pdev, sp->rx_ring_dma[entry],
@@ -1933,7 +1927,7 @@ speedo_get_stats(struct net_device *dev)
 	void __iomem *ioaddr = sp->regs;
 
 	/* Update only if the previous dump finished. */
-	if (sp->lstats->done_marker == le32_to_cpu(0xA007)) {
+	if (sp->lstats->done_marker == cpu_to_le32(0xA007)) {
 		sp->stats.tx_aborted_errors += le32_to_cpu(sp->lstats->tx_coll16_errs);
 		sp->stats.tx_window_errors += le32_to_cpu(sp->lstats->tx_late_colls);
 		sp->stats.tx_fifo_errors += le32_to_cpu(sp->lstats->tx_underruns);
@@ -2142,7 +2136,7 @@ static void set_rx_mode(struct net_device *dev)
 		/* The simple case of 0-3 multicast list entries occurs often, and
 		   fits within one tx_ring[] entry. */
 		struct dev_mc_list *mclist;
-		u16 *setup_params, *eaddrs;
+		__le16 *setup_params, *eaddrs;
 
 		spin_lock_irqsave(&sp->lock, flags);
 		entry = sp->cur_tx++ % TX_RING_SIZE;
@@ -2154,12 +2148,12 @@ static void set_rx_mode(struct net_device *dev)
 		sp->tx_ring[entry].link =
 			cpu_to_le32(TX_RING_ELEM_DMA(sp, (entry + 1) % TX_RING_SIZE));
 		sp->tx_ring[entry].tx_desc_addr = 0; /* Really MC list count. */
-		setup_params = (u16 *)&sp->tx_ring[entry].tx_desc_addr;
+		setup_params = (__le16 *)&sp->tx_ring[entry].tx_desc_addr;
 		*setup_params++ = cpu_to_le16(dev->mc_count*6);
 		/* Fill in the multicast addresses. */
 		for (i = 0, mclist = dev->mc_list; i < dev->mc_count;
 			 i++, mclist = mclist->next) {
-			eaddrs = (u16 *)mclist->dmi_addr;
+			eaddrs = (__le16 *)mclist->dmi_addr;
 			*setup_params++ = *eaddrs++;
 			*setup_params++ = *eaddrs++;
 			*setup_params++ = *eaddrs++;
@@ -2177,7 +2171,7 @@ static void set_rx_mode(struct net_device *dev)
 		spin_unlock_irqrestore(&sp->lock, flags);
 	} else if (new_rx_mode == 0) {
 		struct dev_mc_list *mclist;
-		u16 *setup_params, *eaddrs;
+		__le16 *setup_params, *eaddrs;
 		struct speedo_mc_block *mc_blk;
 		struct descriptor *mc_setup_frm;
 		int i;
@@ -2204,12 +2198,12 @@ static void set_rx_mode(struct net_device *dev)
 		mc_setup_frm->cmd_status =
 			cpu_to_le32(CmdSuspend | CmdIntr | CmdMulticastList);
 		/* Link set below. */
-		setup_params = (u16 *)&mc_setup_frm->params;
+		setup_params = (__le16 *)&mc_setup_frm->params;
 		*setup_params++ = cpu_to_le16(dev->mc_count*6);
 		/* Fill in the multicast addresses. */
 		for (i = 0, mclist = dev->mc_list; i < dev->mc_count;
 			 i++, mclist = mclist->next) {
-			eaddrs = (u16 *)mclist->dmi_addr;
+			eaddrs = (__le16 *)mclist->dmi_addr;
 			*setup_params++ = *eaddrs++;
 			*setup_params++ = *eaddrs++;
 			*setup_params++ = *eaddrs++;

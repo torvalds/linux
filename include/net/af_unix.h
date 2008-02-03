@@ -12,7 +12,7 @@ extern void unix_gc(void);
 
 #define UNIX_HASH_SIZE	256
 
-extern atomic_t unix_tot_inflight;
+extern unsigned int unix_tot_inflight;
 
 struct unix_address {
 	atomic_t	refcnt;
@@ -59,12 +59,11 @@ struct unix_sock {
 #define unix_sk(__sk) ((struct unix_sock *)__sk)
 
 #ifdef CONFIG_SYSCTL
-extern int sysctl_unix_max_dgram_qlen;
-extern void unix_sysctl_register(void);
-extern void unix_sysctl_unregister(void);
+extern int unix_sysctl_register(struct net *net);
+extern void unix_sysctl_unregister(struct net *net);
 #else
-static inline void unix_sysctl_register(void) {}
-static inline void unix_sysctl_unregister(void) {}
+static inline int unix_sysctl_register(struct net *net) { return 0; }
+static inline void unix_sysctl_unregister(struct net *net) {}
 #endif
 #endif
 #endif

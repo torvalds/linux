@@ -138,4 +138,11 @@ int snd_seq_timer_set_skew(struct snd_seq_timer *tmr, unsigned int skew, unsigne
 snd_seq_real_time_t snd_seq_timer_get_cur_time(struct snd_seq_timer *tmr);
 snd_seq_tick_time_t snd_seq_timer_get_cur_tick(struct snd_seq_timer *tmr);
 
+extern int seq_default_timer_class;
+extern int seq_default_timer_sclass;
+extern int seq_default_timer_card;
+extern int seq_default_timer_device;
+extern int seq_default_timer_subdevice;
+extern int seq_default_timer_resolution;
+
 #endif

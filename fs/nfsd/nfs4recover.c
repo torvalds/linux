@@ -43,7 +43,7 @@
 #include <linux/file.h>
 #include <linux/namei.h>
 #include <asm/uaccess.h>
-#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 #include <linux/crypto.h>
 #include <linux/sched.h>
 

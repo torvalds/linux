@@ -21,9 +21,9 @@
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/i2c/tps65010.h>
 
 #include <asm/arch/gpio.h>
-#include <asm/arch/tps65010.h>
 #include <asm/arch/omapfb.h>
 
 #define MODULE_NAME	"omapfb-lcd_h3"

@@ -4,7 +4,7 @@
  * PXA320 specific MFP configuration definitions
  *
  * Copyright (C) 2007 Marvell International Ltd.
- * 2007-08-21: eric miao <eric.y.miao@gmail.com>
+ * 2007-08-21: eric miao <eric.miao@marvell.com>
  *             initial version
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,9 +16,10 @@
 #define __ASM_ARCH_MFP_PXA320_H
 
 #include <asm/arch/mfp.h>
+#include <asm/arch/mfp-pxa3xx.h>
 
 /* GPIO */
-#define GPIO46_GPIO		MFP_CFG(GPIO6, AF0)
+#define GPIO46_GPIO		MFP_CFG(GPIO46, AF0)
 #define GPIO49_GPIO		MFP_CFG(GPIO49, AF0)
 #define GPIO50_GPIO		MFP_CFG(GPIO50, AF0)
 #define GPIO51_GPIO		MFP_CFG(GPIO51, AF0)

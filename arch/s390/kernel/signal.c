@@ -471,6 +471,7 @@ void do_signal(struct pt_regs *regs)
 
 	if (signr > 0) {
 		/* Whee!  Actually deliver the signal.  */
+		int ret;
 #ifdef CONFIG_COMPAT
 		if (test_thread_flag(TIF_31BIT)) {
 			extern int handle_signal32(unsigned long sig,
@@ -478,15 +479,12 @@ void do_signal(struct pt_regs *regs)
 						   siginfo_t *info,
 						   sigset_t *oldset,
 						   struct pt_regs *regs);
-			if (handle_signal32(
-				    signr, &ka, &info, oldset, regs) == 0) {
-				if (test_thread_flag(TIF_RESTORE_SIGMASK))
-					clear_thread_flag(TIF_RESTORE_SIGMASK);
-			}
-			return;
+			ret = handle_signal32(signr, &ka, &info, oldset, regs);
 	        }
+		else
 #endif
-		if (handle_signal(signr, &ka, &info, oldset, regs) == 0) {
+			ret = handle_signal(signr, &ka, &info, oldset, regs);
+		if (!ret) {
 			/*
 			 * A signal was successfully delivered; the saved
 			 * sigmask will have been stored in the signal frame,
@@ -495,6 +493,14 @@ void do_signal(struct pt_regs *regs)
 			 */
 			if (test_thread_flag(TIF_RESTORE_SIGMASK))
 				clear_thread_flag(TIF_RESTORE_SIGMASK);
+
+			/*
+			 * If we would have taken a single-step trap
+			 * for a normal instruction, act like we took
+			 * one for the handler setup.
+			 */
+			if (current->thread.per_info.single_step)
+				set_thread_flag(TIF_SINGLE_STEP);
 		}
 		return;
 	}

@@ -1340,7 +1340,9 @@ static int amd8111e_close(struct net_device * dev)
 	struct amd8111e_priv *lp = netdev_priv(dev);
 	netif_stop_queue(dev);
 
+#ifdef CONFIG_AMD8111E_NAPI
 	napi_disable(&lp->napi);
+#endif
 
 	spin_lock_irq(&lp->lock);
 
@@ -1372,7 +1374,9 @@ static int amd8111e_open(struct net_device * dev )
 					 dev->name, dev))
 		return -EAGAIN;
 
+#ifdef CONFIG_AMD8111E_NAPI
 	napi_enable(&lp->napi);
+#endif
 
 	spin_lock_irq(&lp->lock);
 
@@ -1380,7 +1384,9 @@ static int amd8111e_open(struct net_device * dev )
 
 	if(amd8111e_restart(dev)){
 		spin_unlock_irq(&lp->lock);
+#ifdef CONFIG_AMD8111E_NAPI
 		napi_disable(&lp->napi);
+#endif
 		if (dev->irq)
 			free_irq(dev->irq, dev);
 		return -ENOMEM;
@@ -1939,13 +1945,13 @@ static int __devinit amd8111e_probe_one(struct pci_dev *pdev,
 
 	err = pci_enable_device(pdev);
 	if(err){
-		printk(KERN_ERR "amd8111e: Cannot enable new PCI device,"
+		printk(KERN_ERR "amd8111e: Cannot enable new PCI device, "
 			"exiting.\n");
 		return err;
 	}
 
 	if(!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)){
-		printk(KERN_ERR "amd8111e: Cannot find PCI base address"
+		printk(KERN_ERR "amd8111e: Cannot find PCI base address, "
 		       "exiting.\n");
 		err = -ENODEV;
 		goto err_disable_pdev;

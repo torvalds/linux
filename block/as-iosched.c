@@ -170,9 +170,11 @@ static void free_as_io_context(struct as_io_context *aic)
 
 static void as_trim(struct io_context *ioc)
 {
+	spin_lock_irq(&ioc->lock);
 	if (ioc->aic)
 		free_as_io_context(ioc->aic);
 	ioc->aic = NULL;
+	spin_unlock_irq(&ioc->lock);
 }
 
 /* Called when the task exits */
@@ -233,10 +235,12 @@ static void as_put_io_context(struct request *rq)
 	aic = RQ_IOC(rq)->aic;
 
 	if (rq_is_sync(rq) && aic) {
-		spin_lock(&aic->lock);
+		unsigned long flags;
+
+		spin_lock_irqsave(&aic->lock, flags);
 		set_bit(AS_TASK_IORUNNING, &aic->state);
 		aic->last_end_request = jiffies;
-		spin_unlock(&aic->lock);
+		spin_unlock_irqrestore(&aic->lock, flags);
 	}
 
 	put_io_context(RQ_IOC(rq));
@@ -462,7 +466,9 @@ static void as_antic_timeout(unsigned long data)
 	spin_lock_irqsave(q->queue_lock, flags);
 	if (ad->antic_status == ANTIC_WAIT_REQ
 			|| ad->antic_status == ANTIC_WAIT_NEXT) {
-		struct as_io_context *aic = ad->io_context->aic;
+		struct as_io_context *aic;
+		spin_lock(&ad->io_context->lock);
+		aic = ad->io_context->aic;
 
 		ad->antic_status = ANTIC_FINISHED;
 		kblockd_schedule_work(&ad->antic_work);
@@ -475,6 +481,7 @@ static void as_antic_timeout(unsigned long data)
 			/* process not "saved" by a cooperating request */
 			ad->exit_no_coop = (7*ad->exit_no_coop + 256)/8;
 		}
+		spin_unlock(&ad->io_context->lock);
 	}
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
@@ -635,9 +642,11 @@ static int as_can_break_anticipation(struct as_data *ad, struct request *rq)
 
 	ioc = ad->io_context;
 	BUG_ON(!ioc);
+	spin_lock(&ioc->lock);
 
 	if (rq && ioc == RQ_IOC(rq)) {
 		/* request from same process */
+		spin_unlock(&ioc->lock);
 		return 1;
 	}
 
@@ -646,20 +655,25 @@ static int as_can_break_anticipation(struct as_data *ad, struct request *rq)
 		 * In this situation status should really be FINISHED,
 		 * however the timer hasn't had the chance to run yet.
 		 */
+		spin_unlock(&ioc->lock);
 		return 1;
 	}
 
 	aic = ioc->aic;
-	if (!aic)
+	if (!aic) {
+		spin_unlock(&ioc->lock);
 		return 0;
+	}
 
 	if (atomic_read(&aic->nr_queued) > 0) {
 		/* process has more requests queued */
+		spin_unlock(&ioc->lock);
 		return 1;
 	}
 
 	if (atomic_read(&aic->nr_dispatched) > 0) {
 		/* process has more requests dispatched */
+		spin_unlock(&ioc->lock);
 		return 1;
 	}
 
@@ -680,6 +694,7 @@ static int as_can_break_anticipation(struct as_data *ad, struct request *rq)
 		}
 
 		as_update_iohist(ad, aic, rq);
+		spin_unlock(&ioc->lock);
 		return 1;
 	}
 
@@ -688,20 +703,27 @@ static int as_can_break_anticipation(struct as_data *ad, struct request *rq)
 		if (aic->ttime_samples == 0)
 			ad->exit_prob = (7*ad->exit_prob + 256)/8;
 
-		if (ad->exit_no_coop > 128)
+		if (ad->exit_no_coop > 128) {
+			spin_unlock(&ioc->lock);
 			return 1;
+		}
 	}
 
 	if (aic->ttime_samples == 0) {
-		if (ad->new_ttime_mean > ad->antic_expire)
+		if (ad->new_ttime_mean > ad->antic_expire) {
+			spin_unlock(&ioc->lock);
 			return 1;
-		if (ad->exit_prob * ad->exit_no_coop > 128*256)
+		}
+		if (ad->exit_prob * ad->exit_no_coop > 128*256) {
+			spin_unlock(&ioc->lock);
 			return 1;
+		}
 	} else if (aic->ttime_mean > ad->antic_expire) {
 		/* the process thinks too much between requests */
+		spin_unlock(&ioc->lock);
 		return 1;
 	}
-
+	spin_unlock(&ioc->lock);
 	return 0;
 }
 
@@ -880,7 +902,7 @@ static void as_remove_queued_request(struct request_queue *q,
 }
 
 /*
- * as_fifo_expired returns 0 if there are no expired reads on the fifo,
+ * as_fifo_expired returns 0 if there are no expired requests on the fifo,
  * 1 otherwise.  It is ratelimited so that we only perform the check once per
  * `fifo_expire' interval.  Otherwise a large number of expired requests
  * would create a hopeless seekstorm.
@@ -1097,7 +1119,8 @@ dispatch_writes:
 		ad->batch_data_dir = REQ_ASYNC;
 		ad->current_write_count = ad->write_batch_count;
 		ad->write_batch_idled = 0;
-		rq = ad->next_rq[ad->batch_data_dir];
+		rq = rq_entry_fifo(ad->fifo_list[REQ_ASYNC].next);
+		ad->last_check_fifo[REQ_ASYNC] = jiffies;
 		goto dispatch_request;
 	}
 
@@ -1159,7 +1182,7 @@ static void as_add_request(struct request_queue *q, struct request *rq)
 	as_add_rq_rb(ad, rq);
 
 	/*
-	 * set expire time (only used for reads) and add to fifo list
+	 * set expire time and add to fifo list
 	 */
 	rq_set_fifo_time(rq, jiffies + ad->fifo_expire[data_dir]);
 	list_add_tail(&rq->queuelist, &ad->fifo_list[data_dir]);
@@ -1245,16 +1268,8 @@ static void as_merged_requests(struct request_queue *q, struct request *req,
 	 */
 	if (!list_empty(&req->queuelist) && !list_empty(&next->queuelist)) {
 		if (time_before(rq_fifo_time(next), rq_fifo_time(req))) {
-			struct io_context *rioc = RQ_IOC(req);
-			struct io_context *nioc = RQ_IOC(next);
-
 			list_move(&req->queuelist, &next->queuelist);
 			rq_set_fifo_time(req, rq_fifo_time(next));
-			/*
-			 * Don't copy here but swap, because when anext is
-			 * removed below, it must contain the unused context
-			 */
-			swap_io_context(&rioc, &nioc);
 		}
 	}
 
@@ -1463,7 +1478,9 @@ static struct elevator_type iosched_as = {
 
 static int __init as_init(void)
 {
-	return elv_register(&iosched_as);
+	elv_register(&iosched_as);
+
+	return 0;
 }
 
 static void __exit as_exit(void)

@@ -76,20 +76,20 @@ enum {
 
 #define EEPROM_MAGIC 0x38E2F10C
 
-#define CH_DEVICE(devid, ssid, idx) \
-	{ PCI_VENDOR_ID_CHELSIO, devid, PCI_ANY_ID, ssid, 0, 0, idx }
+#define CH_DEVICE(devid, idx) \
+	{ PCI_VENDOR_ID_CHELSIO, devid, PCI_ANY_ID, PCI_ANY_ID, 0, 0, idx }
 
 static const struct pci_device_id cxgb3_pci_tbl[] = {
-	CH_DEVICE(0x20, 1, 0),	/* PE9000 */
-	CH_DEVICE(0x21, 1, 1),	/* T302E */
-	CH_DEVICE(0x22, 1, 2),	/* T310E */
-	CH_DEVICE(0x23, 1, 3),	/* T320X */
-	CH_DEVICE(0x24, 1, 1),	/* T302X */
-	CH_DEVICE(0x25, 1, 3),	/* T320E */
-	CH_DEVICE(0x26, 1, 2),	/* T310X */
-	CH_DEVICE(0x30, 1, 2),	/* T3B10 */
-	CH_DEVICE(0x31, 1, 3),	/* T3B20 */
-	CH_DEVICE(0x32, 1, 1),	/* T3B02 */
+	CH_DEVICE(0x20, 0),	/* PE9000 */
+	CH_DEVICE(0x21, 1),	/* T302E */
+	CH_DEVICE(0x22, 2),	/* T310E */
+	CH_DEVICE(0x23, 3),	/* T320X */
+	CH_DEVICE(0x24, 1),	/* T302X */
+	CH_DEVICE(0x25, 3),	/* T320E */
+	CH_DEVICE(0x26, 2),	/* T310X */
+	CH_DEVICE(0x30, 2),	/* T3B10 */
+	CH_DEVICE(0x31, 3),	/* T3B20 */
+	CH_DEVICE(0x32, 1),	/* T3B02 */
 	{0,}
 };
 
@@ -306,6 +306,77 @@ static int request_msix_data_irqs(struct adapter *adap)
 	return 0;
 }
 
+static int await_mgmt_replies(struct adapter *adap, unsigned long init_cnt,
+			      unsigned long n)
+{
+	int attempts = 5;
+
+	while (adap->sge.qs[0].rspq.offload_pkts < init_cnt + n) {
+		if (!--attempts)
+			return -ETIMEDOUT;
+		msleep(10);
+	}
+	return 0;
+}
+
+static int init_tp_parity(struct adapter *adap)
+{
+	int i;
+	struct sk_buff *skb;
+	struct cpl_set_tcb_field *greq;
+	unsigned long cnt = adap->sge.qs[0].rspq.offload_pkts;
+
+	t3_tp_set_offload_mode(adap, 1);
+
+	for (i = 0; i < 16; i++) {
+		struct cpl_smt_write_req *req;
+
+		skb = alloc_skb(sizeof(*req), GFP_KERNEL | __GFP_NOFAIL);
+		req = (struct cpl_smt_write_req *)__skb_put(skb, sizeof(*req));
+		memset(req, 0, sizeof(*req));
+		req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
+		OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SMT_WRITE_REQ, i));
+		req->iff = i;
+		t3_mgmt_tx(adap, skb);
+	}
+
+	for (i = 0; i < 2048; i++) {
+		struct cpl_l2t_write_req *req;
+
+		skb = alloc_skb(sizeof(*req), GFP_KERNEL | __GFP_NOFAIL);
+		req = (struct cpl_l2t_write_req *)__skb_put(skb, sizeof(*req));
+		memset(req, 0, sizeof(*req));
+		req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
+		OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_L2T_WRITE_REQ, i));
+		req->params = htonl(V_L2T_W_IDX(i));
+		t3_mgmt_tx(adap, skb);
+	}
+
+	for (i = 0; i < 2048; i++) {
+		struct cpl_rte_write_req *req;
+
+		skb = alloc_skb(sizeof(*req), GFP_KERNEL | __GFP_NOFAIL);
+		req = (struct cpl_rte_write_req *)__skb_put(skb, sizeof(*req));
+		memset(req, 0, sizeof(*req));
+		req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
+		OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_RTE_WRITE_REQ, i));
+		req->l2t_idx = htonl(V_L2T_W_IDX(i));
+		t3_mgmt_tx(adap, skb);
+	}
+
+	skb = alloc_skb(sizeof(*greq), GFP_KERNEL | __GFP_NOFAIL);
+	greq = (struct cpl_set_tcb_field *)__skb_put(skb, sizeof(*greq));
+	memset(greq, 0, sizeof(*greq));
+	greq->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
+	OPCODE_TID(greq) = htonl(MK_OPCODE_TID(CPL_SET_TCB_FIELD, 0));
+	greq->mask = cpu_to_be64(1);
+	t3_mgmt_tx(adap, skb);
+
+	i = await_mgmt_replies(adap, cnt, 16 + 2048 + 2048 + 1);
+	t3_tp_set_offload_mode(adap, 0);
+	return i;
+}
+
 /**
  *	setup_rss - configure RSS
  *	@adap: the adapter
@@ -336,7 +407,7 @@ static void setup_rss(struct adapter *adap)
 
 	t3_config_rss(adap, F_RQFEEDBACKENABLE | F_TNLLKPEN | F_TNLMAPEN |
 		      F_TNLPRTEN | F_TNL2TUPEN | F_TNL4TUPEN |
-		      V_RRCPLCPUSIZE(6), cpus, rspq_map);
+		      V_RRCPLCPUSIZE(6) | F_HASHTOEPLITZ, cpus, rspq_map);
 }
 
 static void init_napi(struct adapter *adap)
@@ -410,8 +481,7 @@ static int setup_sge_qsets(struct adapter *adap)
 	return 0;
 }
 
-static ssize_t attr_show(struct device *d, struct device_attribute *attr,
-			 char *buf,
+static ssize_t attr_show(struct device *d, char *buf,
 			 ssize_t(*format) (struct net_device *, char *))
 {
 	ssize_t len;
@@ -423,7 +493,7 @@ static ssize_t attr_show(struct device *d, struct device_attribute *attr,
 	return len;
 }
 
-static ssize_t attr_store(struct device *d, struct device_attribute *attr,
+static ssize_t attr_store(struct device *d,
 			  const char *buf, size_t len,
 			  ssize_t(*set) (struct net_device *, unsigned int),
 			  unsigned int min_val, unsigned int max_val)
@@ -457,7 +527,7 @@ static ssize_t format_##name(struct net_device *dev, char *buf) \
 static ssize_t show_##name(struct device *d, struct device_attribute *attr, \
 			   char *buf) \
 { \
-	return attr_show(d, attr, buf, format_##name); \
+	return attr_show(d, buf, format_##name); \
 }
 
 static ssize_t set_nfilters(struct net_device *dev, unsigned int val)
@@ -480,7 +550,7 @@ static ssize_t set_nfilters(struct net_device *dev, unsigned int val)
 static ssize_t store_nfilters(struct device *d, struct device_attribute *attr,
 			      const char *buf, size_t len)
 {
-	return attr_store(d, attr, buf, len, set_nfilters, 0, ~0);
+	return attr_store(d, buf, len, set_nfilters, 0, ~0);
 }
 
 static ssize_t set_nservers(struct net_device *dev, unsigned int val)
@@ -500,7 +570,7 @@ static ssize_t set_nservers(struct net_device *dev, unsigned int val)
 static ssize_t store_nservers(struct device *d, struct device_attribute *attr,
 			      const char *buf, size_t len)
 {
-	return attr_store(d, attr, buf, len, set_nservers, 0, ~0);
+	return attr_store(d, buf, len, set_nservers, 0, ~0);
 }
 
 #define CXGB3_ATTR_R(name, val_expr) \
@@ -524,7 +594,7 @@ static struct attribute *cxgb3_attrs[] = {
 
 static struct attribute_group cxgb3_attr_group = {.attrs = cxgb3_attrs };
 
-static ssize_t tm_attr_show(struct device *d, struct device_attribute *attr,
+static ssize_t tm_attr_show(struct device *d,
 			    char *buf, int sched)
 {
 	struct port_info *pi = netdev_priv(to_net_dev(d));
@@ -550,7 +620,7 @@ static ssize_t tm_attr_show(struct device *d, struct device_attribute *attr,
 	return len;
 }
 
-static ssize_t tm_attr_store(struct device *d, struct device_attribute *attr,
+static ssize_t tm_attr_store(struct device *d,
 			     const char *buf, size_t len, int sched)
 {
 	struct port_info *pi = netdev_priv(to_net_dev(d));
@@ -578,12 +648,12 @@ static ssize_t tm_attr_store(struct device *d, struct device_attribute *attr,
 static ssize_t show_##name(struct device *d, struct device_attribute *attr, \
 			   char *buf) \
 { \
-	return tm_attr_show(d, attr, buf, sched); \
+	return tm_attr_show(d, buf, sched); \
 } \
 static ssize_t store_##name(struct device *d, struct device_attribute *attr, \
 			    const char *buf, size_t len) \
 { \
-	return tm_attr_store(d, attr, buf, len, sched); \
+	return tm_attr_store(d, buf, len, sched); \
 } \
 static DEVICE_ATTR(name, S_IRUGO | S_IWUSR, show_##name, store_##name)
 
@@ -720,7 +790,7 @@ static int upgrade_fw(struct adapter *adap)
 	else
 		dev_err(dev, "failed to upgrade to firmware %d.%d.%d\n",
 			FW_VERSION_MAJOR, FW_VERSION_MINOR, FW_VERSION_MICRO);
-	
+
 	return ret;
 }
 
@@ -747,7 +817,7 @@ static int update_tpsram(struct adapter *adap)
 	struct device *dev = &adap->pdev->dev;
 	int ret;
 	char rev;
-	
+
 	rev = t3rev2char(adap);
 	if (!rev)
 		return 0;
@@ -761,10 +831,10 @@ static int update_tpsram(struct adapter *adap)
 			buf);
 		return ret;
 	}
-	
+
 	ret = t3_check_tpsram(adap, tpsram->data, tpsram->size);
 	if (ret)
-		goto release_tpsram;	
+		goto release_tpsram;
 
 	ret = t3_set_proto_sram(adap, tpsram->data);
 	if (ret == 0)
@@ -780,7 +850,7 @@ static int update_tpsram(struct adapter *adap)
 
 release_tpsram:
 	release_firmware(tpsram);
-	
+
 	return ret;
 }
 
@@ -818,6 +888,7 @@ static int cxgb_up(struct adapter *adap)
 		if (err)
 			goto out;
 
+		t3_set_reg_field(adap, A_TP_PARA_REG5, 0, F_RXDDPOFFINIT);
 		t3_write_reg(adap, A_ULPRX_TDDP_PSZ, V_HPZ0(PAGE_SHIFT - 12));
 
 		err = setup_sge_qsets(adap);
@@ -839,7 +910,8 @@ static int cxgb_up(struct adapter *adap)
 		if (err)
 			goto irq_err;
 
-		if (request_msix_data_irqs(adap)) {
+		err = request_msix_data_irqs(adap);
+		if (err) {
 			free_irq(adap->msix_info[0].vec, adap);
 			goto irq_err;
 		}
@@ -855,6 +927,16 @@ static int cxgb_up(struct adapter *adap)
 	enable_all_napi(adap);
 	t3_sge_start(adap);
 	t3_intr_enable(adap);
+
+	if (adap->params.rev >= T3_REV_C && !(adap->flags & TP_PARITY_INIT) &&
+	    is_offload(adap) && init_tp_parity(adap) == 0)
+		adap->flags |= TP_PARITY_INIT;
+
+	if (adap->flags & TP_PARITY_INIT) {
+		t3_write_reg(adap, A_TP_INT_CAUSE,
+			     F_CMCACHEPERR | F_ARPLUTPERR);
+		t3_write_reg(adap, A_TP_INT_ENABLE, 0x7fbfffff);
+	}
 
 	if ((adap->flags & (USING_MSIX | QUEUES_BOUND)) == USING_MSIX)
 		bind_qsets(adap);
@@ -1560,7 +1642,7 @@ static int get_eeprom(struct net_device *dev, struct ethtool_eeprom *e,
 
 	e->magic = EEPROM_MAGIC;
 	for (i = e->offset & ~3; !err && i < e->offset + e->len; i += 4)
-		err = t3_seeprom_read(adapter, i, (u32 *) & buf[i]);
+		err = t3_seeprom_read(adapter, i, (__le32 *) & buf[i]);
 
 	if (!err)
 		memcpy(data, buf + e->offset, e->len);
@@ -1573,7 +1655,8 @@ static int set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 {
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
-	u32 aligned_offset, aligned_len, *p;
+	u32 aligned_offset, aligned_len;
+	__le32 *p;
 	u8 *buf;
 	int err;
 
@@ -1587,11 +1670,11 @@ static int set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 		buf = kmalloc(aligned_len, GFP_KERNEL);
 		if (!buf)
 			return -ENOMEM;
-		err = t3_seeprom_read(adapter, aligned_offset, (u32 *) buf);
+		err = t3_seeprom_read(adapter, aligned_offset, (__le32 *) buf);
 		if (!err && aligned_len > 4)
 			err = t3_seeprom_read(adapter,
 					      aligned_offset + aligned_len - 4,
-					      (u32 *) & buf[aligned_len - 4]);
+					      (__le32 *) & buf[aligned_len - 4]);
 		if (err)
 			goto out;
 		memcpy(buf + (eeprom->offset & 3), data, eeprom->len);
@@ -1602,7 +1685,7 @@ static int set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 	if (err)
 		goto out;
 
-	for (p = (u32 *) buf; !err && aligned_len; aligned_len -= 4, p++) {
+	for (p = (__le32 *) buf; !err && aligned_len; aligned_len -= 4, p++) {
 		err = t3_seeprom_write(adapter, aligned_offset, *p);
 		aligned_offset += 4;
 	}
@@ -2144,7 +2227,7 @@ static void cxgb_netpoll(struct net_device *dev)
 	for (qidx = pi->first_qset; qidx < pi->first_qset + pi->nqsets; qidx++) {
 		struct sge_qset *qs = &adapter->sge.qs[qidx];
 		void *source;
-		
+
 		if (adapter->flags & USING_MSIX)
 			source = qs;
 		else
@@ -2314,6 +2397,106 @@ void t3_fatal_err(struct adapter *adapter)
 			 fw_status[2], fw_status[3]);
 
 }
+
+/**
+ * t3_io_error_detected - called when PCI error is detected
+ * @pdev: Pointer to PCI device
+ * @state: The current pci connection state
+ *
+ * This function is called after a PCI bus error affecting
+ * this device has been detected.
+ */
+static pci_ers_result_t t3_io_error_detected(struct pci_dev *pdev,
+					     pci_channel_state_t state)
+{
+	struct adapter *adapter = pci_get_drvdata(pdev);
+	int i;
+
+	/* Stop all ports */
+	for_each_port(adapter, i) {
+		struct net_device *netdev = adapter->port[i];
+
+		if (netif_running(netdev))
+			cxgb_close(netdev);
+	}
+
+	if (is_offload(adapter) &&
+	    test_bit(OFFLOAD_DEVMAP_BIT, &adapter->open_device_map))
+		offload_close(&adapter->tdev);
+
+	/* Free sge resources */
+	t3_free_sge_resources(adapter);
+
+	adapter->flags &= ~FULL_INIT_DONE;
+
+	pci_disable_device(pdev);
+
+	/* Request a slot slot reset. */
+	return PCI_ERS_RESULT_NEED_RESET;
+}
+
+/**
+ * t3_io_slot_reset - called after the pci bus has been reset.
+ * @pdev: Pointer to PCI device
+ *
+ * Restart the card from scratch, as if from a cold-boot.
+ */
+static pci_ers_result_t t3_io_slot_reset(struct pci_dev *pdev)
+{
+	struct adapter *adapter = pci_get_drvdata(pdev);
+
+	if (pci_enable_device(pdev)) {
+		dev_err(&pdev->dev,
+			"Cannot re-enable PCI device after reset.\n");
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+	pci_set_master(pdev);
+
+	t3_prep_adapter(adapter, adapter->params.info, 1);
+
+	return PCI_ERS_RESULT_RECOVERED;
+}
+
+/**
+ * t3_io_resume - called when traffic can start flowing again.
+ * @pdev: Pointer to PCI device
+ *
+ * This callback is called when the error recovery driver tells us that
+ * its OK to resume normal operation.
+ */
+static void t3_io_resume(struct pci_dev *pdev)
+{
+	struct adapter *adapter = pci_get_drvdata(pdev);
+	int i;
+
+	/* Restart the ports */
+	for_each_port(adapter, i) {
+		struct net_device *netdev = adapter->port[i];
+
+		if (netif_running(netdev)) {
+			if (cxgb_open(netdev)) {
+				dev_err(&pdev->dev,
+					"can't bring device back up"
+					" after reset\n");
+				continue;
+			}
+			netif_device_attach(netdev);
+		}
+	}
+
+	if (is_offload(adapter)) {
+		__set_bit(OFFLOAD_DEVMAP_BIT, &adapter->registered_device_map);
+		if (offload_open(adapter->port[0]))
+			printk(KERN_WARNING
+			       "Could not bring back offload capabilities\n");
+	}
+}
+
+static struct pci_error_handlers t3_err_handler = {
+	.error_detected = t3_io_error_detected,
+	.slot_reset = t3_io_slot_reset,
+	.resume = t3_io_resume,
+};
 
 static int __devinit cxgb_enable_msix(struct adapter *adap)
 {
@@ -2507,7 +2690,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 		err = -ENODEV;
 		goto out_free_dev;
 	}
-		
+
 	/*
 	 * The card is now ready to go.  If any errors occur during device
 	 * registration we do not fail the whole card but rather proceed only
@@ -2584,16 +2767,16 @@ static void __devexit remove_one(struct pci_dev *pdev)
 		sysfs_remove_group(&adapter->port[0]->dev.kobj,
 				   &cxgb3_attr_group);
 
-		for_each_port(adapter, i)
-		    if (test_bit(i, &adapter->registered_device_map))
-			unregister_netdev(adapter->port[i]);
-
 		if (is_offload(adapter)) {
 			cxgb3_adapter_unofld(adapter);
 			if (test_bit(OFFLOAD_DEVMAP_BIT,
 				     &adapter->open_device_map))
 				offload_close(&adapter->tdev);
 		}
+
+		for_each_port(adapter, i)
+		    if (test_bit(i, &adapter->registered_device_map))
+			unregister_netdev(adapter->port[i]);
 
 		t3_free_sge_resources(adapter);
 		cxgb_disable_msi(adapter);
@@ -2615,6 +2798,7 @@ static struct pci_driver driver = {
 	.id_table = cxgb3_pci_tbl,
 	.probe = init_one,
 	.remove = __devexit_p(remove_one),
+	.err_handler = &t3_err_handler,
 };
 
 static int __init cxgb3_init_module(void)

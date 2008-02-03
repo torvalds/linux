@@ -171,6 +171,7 @@ static int rtas_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	struct pci_dn *pdn;
 	int hwirq, virq, i, rc;
 	struct msi_desc *entry;
+	struct msi_msg msg;
 
 	pdn = get_pdn(pdev);
 	if (!pdn)
@@ -213,6 +214,11 @@ static int rtas_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 
 		dev_dbg(&pdev->dev, "rtas_msi: allocated virq %d\n", virq);
 		set_irq_msi(virq, entry);
+
+		/* Read config space back so we can restore after reset */
+		read_msi_msg(virq, &msg);
+		entry->msg = msg;
+
 		unmask_msi_irq(virq);
 	}
 

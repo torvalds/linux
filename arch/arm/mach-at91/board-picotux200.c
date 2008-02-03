@@ -139,7 +139,7 @@ static void __init picotux200_board_init(void)
 	// at91_add_device_udc(&picotux200_udc_data);
 	// at91_set_multi_drive(picotux200_udc_data.pullup_pin, 1);	/* pullup_pin is connected to reset */
 	/* I2C */
-	at91_add_device_i2c();
+	at91_add_device_i2c(NULL, 0);
 	/* SPI */
 	// at91_add_device_spi(picotux200_spi_devices, ARRAY_SIZE(picotux200_spi_devices));
 #ifdef CONFIG_MTD_AT91_DATAFLASH_CARD

@@ -111,7 +111,7 @@ enum {
 	SIL_QUIRK_UDMA5MAX	= (1 << 1),
 };
 
-static int sil_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
+static int sil_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 #ifdef CONFIG_PM
 static int sil_pci_device_resume(struct pci_dev *pdev);
 #endif
@@ -138,7 +138,7 @@ static const struct pci_device_id sil_pci_tbl[] = {
 
 /* TODO firmware versions should be added - eric */
 static const struct sil_drivelist {
-	const char * product;
+	const char *product;
 	unsigned int quirk;
 } sil_blacklist [] = {
 	{ "ST320012AS",		SIL_QUIRK_MOD15WRITE },
@@ -279,7 +279,7 @@ MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, sil_pci_tbl);
 MODULE_VERSION(DRV_VERSION);
 
-static int slow_down = 0;
+static int slow_down;
 module_param(slow_down, int, 0444);
 MODULE_PARM_DESC(slow_down, "Sledgehammer used to work around random problems, by limiting commands to 15 sectors (0=off, 1=on)");
 
@@ -332,7 +332,8 @@ static int sil_set_mode(struct ata_link *link, struct ata_device **r_failed)
 	return 0;
 }
 
-static inline void __iomem *sil_scr_addr(struct ata_port *ap, unsigned int sc_reg)
+static inline void __iomem *sil_scr_addr(struct ata_port *ap,
+					 unsigned int sc_reg)
 {
 	void __iomem *offset = ap->ioaddr.scr_addr;
 
@@ -389,23 +390,19 @@ static void sil_host_intr(struct ata_port *ap, u32 bmdma2)
 		sil_scr_read(ap, SCR_ERROR, &serror);
 		sil_scr_write(ap, SCR_ERROR, serror);
 
-		/* Trigger hotplug and accumulate SError only if the
-		 * port isn't already frozen.  Otherwise, PHY events
-		 * during hardreset makes controllers with broken SIEN
-		 * repeat probing needlessly.
+		/* Sometimes spurious interrupts occur, double check
+		 * it's PHYRDY CHG.
 		 */
-		if (!(ap->pflags & ATA_PFLAG_FROZEN)) {
-			ata_ehi_hotplugged(&ap->link.eh_info);
+		if (serror & SERR_PHYRDY_CHG) {
 			ap->link.eh_info.serror |= serror;
+			goto freeze;
 		}
 
-		goto freeze;
+		if (!(bmdma2 & SIL_DMA_COMPLETE))
+			return;
 	}
 
-	if (unlikely(!qc))
-		goto freeze;
-
-	if (unlikely(qc->tf.flags & ATA_TFLAG_POLLING)) {
+	if (unlikely(!qc || (qc->tf.flags & ATA_TFLAG_POLLING))) {
 		/* this sometimes happens, just clear IRQ */
 		ata_chk_status(ap);
 		return;
@@ -419,15 +416,14 @@ static void sil_host_intr(struct ata_port *ap, u32 bmdma2)
 		 */
 
 		/* Check the ATA_DFLAG_CDB_INTR flag is enough here.
-		 * The flag was turned on only for atapi devices.
-		 * No need to check is_atapi_taskfile(&qc->tf) again.
+		 * The flag was turned on only for atapi devices.  No
+		 * need to check ata_is_atapi(qc->tf.protocol) again.
 		 */
 		if (!(qc->dev->flags & ATA_DFLAG_CDB_INTR))
 			goto err_hsm;
 		break;
 	case HSM_ST_LAST:
-		if (qc->tf.protocol == ATA_PROT_DMA ||
-		    qc->tf.protocol == ATA_PROT_ATAPI_DMA) {
+		if (ata_is_dma(qc->tf.protocol)) {
 			/* clear DMA-Start bit */
 			ap->ops->bmdma_stop(qc);
 
@@ -454,8 +450,7 @@ static void sil_host_intr(struct ata_port *ap, u32 bmdma2)
 	/* kick HSM in the ass */
 	ata_hsm_move(ap, qc, status, 0);
 
-	if (unlikely(qc->err_mask) && (qc->tf.protocol == ATA_PROT_DMA ||
-				       qc->tf.protocol == ATA_PROT_ATAPI_DMA))
+	if (unlikely(qc->err_mask) && ata_is_dma(qc->tf.protocol))
 		ata_ehi_push_desc(ehi, "BMDMA2 stat 0x%x", bmdma2);
 
 	return;
@@ -643,7 +638,7 @@ static void sil_init_controller(struct ata_host *host)
 	}
 }
 
-static int sil_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
+static int sil_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version;
 	int board_id = ent->driver_data;

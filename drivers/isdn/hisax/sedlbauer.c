@@ -600,7 +600,7 @@ setup_sedlbauer_isapnp(struct IsdnCard *card, int *bytecnt)
 }
 #endif /* __ISAPNP__ */
 
-#ifdef CONFIG_PCI
+#ifdef CONFIG_PCI_LEGACY
 static struct pci_dev *dev_sedl __devinitdata = NULL;
 
 static int __devinit
@@ -675,7 +675,7 @@ setup_sedlbauer_pci(struct IsdnCard *card)
 	return (1);
 }
 
-#endif /* CONFIG_PCI */
+#endif /* CONFIG_PCI_LEGACY */
 
 int __devinit
 setup_sedlbauer(struct IsdnCard *card)

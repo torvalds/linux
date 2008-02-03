@@ -19,6 +19,7 @@
 #include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/reboot.h>
+#include <asm/smp-ops.h>
 #include <asm/system.h>
 #include <asm/bootinfo.h>
 #include <asm/pmon.h>
@@ -78,6 +79,8 @@ static void prom_halt(void)
 		__asm__(".set\tmips3\n\t" "wait\n\t" ".set\tmips0");
 }
 
+extern struct plat_smp_ops yos_smp_ops;
+
 /*
  * Init routine which accepts the variables from PMON
  */
@@ -126,9 +129,9 @@ void __init prom_init(void)
 		env++;
 	}
 
-	mips_machtype = MACH_TITAN_YOSEMITE;
-
 	prom_grab_secondary();
+
+	register_smp_ops(&yos_smp_ops);
 }
 
 void __init prom_free_prom_memory(void)

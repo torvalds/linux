@@ -107,24 +107,24 @@
 struct ppp_header {
 	u8 address;
 	u8 control;
-	u16 protocol;
+	__be16 protocol;
 };
 #define PPP_HEADER_LEN          sizeof (struct ppp_header)
 
 struct lcp_header {
 	u8 type;
 	u8 ident;
-	u16 len;
+	__be16 len;
 };
 #define LCP_HEADER_LEN          sizeof (struct lcp_header)
 
 struct cisco_packet {
-	u32 type;
-	u32 par1;
-	u32 par2;
-	u16 rel;
-	u16 time0;
-	u16 time1;
+	__be32 type;
+	__be32 par1;
+	__be32 par2;
+	__be16 rel;
+	__be16 time0;
+	__be16 time1;
 };
 #define CISCO_PACKET_LEN 18
 #define CISCO_BIG_PACKET_LEN 20
@@ -139,7 +139,7 @@ static struct sk_buff_head tx_queue;
 static void sppp_keepalive (unsigned long dummy);
 static void sppp_cp_send (struct sppp *sp, u16 proto, u8 type,
 	u8 ident, u16 len, void *data);
-static void sppp_cisco_send (struct sppp *sp, int type, long par1, long par2);
+static void sppp_cisco_send (struct sppp *sp, int type, u32 par1, u32 par2);
 static void sppp_lcp_input (struct sppp *sp, struct sk_buff *m);
 static void sppp_cisco_input (struct sppp *sp, struct sk_buff *m);
 static void sppp_ipcp_input (struct sppp *sp, struct sk_buff *m);
@@ -447,7 +447,7 @@ static void sppp_keepalive (unsigned long dummy)
 			sppp_cisco_send (sp, CISCO_KEEPALIVE_REQ, ++sp->pp_seq,
 				sp->pp_rseq);
 		else if (sp->lcp.state == LCP_STATE_OPENED) {
-			long nmagic = htonl (sp->lcp.magic);
+			__be32 nmagic = htonl (sp->lcp.magic);
 			sp->lcp.echoid = ++sp->pp_seq;
 			sppp_cp_send (sp, PPP_LCP, LCP_ECHO_REQ,
 				sp->lcp.echoid, 4, &nmagic);
@@ -667,7 +667,7 @@ badreq:
 					dev->name, len);
 			break;
 		}
-		if (ntohl (*(long*)(h+1)) == sp->lcp.magic) {
+		if (ntohl (*(__be32*)(h+1)) == sp->lcp.magic) {
 			/* Line loopback mode detected. */
 			printk (KERN_WARNING "%s: loopback\n", dev->name);
 			if_down (dev);
@@ -680,7 +680,7 @@ badreq:
 			sppp_lcp_open (sp);
 			break;
 		}
-		*(long*)(h+1) = htonl (sp->lcp.magic);
+		*(__be32 *)(h+1) = htonl (sp->lcp.magic);
 		sppp_cp_send (sp, PPP_LCP, LCP_ECHO_REPLY, h->ident, len-4, h+1);
 		break;
 	case LCP_ECHO_REPLY:
@@ -692,7 +692,7 @@ badreq:
 					dev->name, len);
 			break;
 		}
-		if (ntohl (*(long*)(h+1)) != sp->lcp.magic)
+		if (ntohl(*(__be32 *)(h+1)) != sp->lcp.magic)
 		sp->pp_alivecnt = 0;
 		break;
 	}
@@ -765,7 +765,7 @@ static void sppp_cisco_input (struct sppp *sp, struct sk_buff *skb)
 		{
 		struct in_device *in_dev;
 		struct in_ifaddr *ifa;
-		__be32 addr = 0, mask = ~0; /* FIXME: is the mask correct? */
+		__be32 addr = 0, mask = htonl(~0U); /* FIXME: is the mask correct? */
 #ifdef CONFIG_INET
 		rcu_read_lock();
 		if ((in_dev = __in_dev_get_rcu(dev)) != NULL)
@@ -782,8 +782,7 @@ static void sppp_cisco_input (struct sppp *sp, struct sk_buff *skb)
 		}
 		rcu_read_unlock();
 #endif		
-		/* I hope both addr and mask are in the net order */
-		sppp_cisco_send (sp, CISCO_ADDR_REPLY, addr, mask);
+		sppp_cisco_send (sp, CISCO_ADDR_REPLY, ntohl(addr), ntohl(mask));
 		break;
 		}
 	}
@@ -844,7 +843,7 @@ static void sppp_cp_send (struct sppp *sp, u16 proto, u8 type,
  * Send Cisco keepalive packet.
  */
 
-static void sppp_cisco_send (struct sppp *sp, int type, long par1, long par2)
+static void sppp_cisco_send (struct sppp *sp, int type, u32 par1, u32 par2)
 {
 	struct ppp_header *h;
 	struct cisco_packet *ch;
@@ -868,7 +867,7 @@ static void sppp_cisco_send (struct sppp *sp, int type, long par1, long par2)
 	ch->type = htonl (type);
 	ch->par1 = htonl (par1);
 	ch->par2 = htonl (par2);
-	ch->rel = -1;
+	ch->rel = htons(0xffff);
 	ch->time0 = htons ((u16) (t >> 16));
 	ch->time1 = htons ((u16) t);
 

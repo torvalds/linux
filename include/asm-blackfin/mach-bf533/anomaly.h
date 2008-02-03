@@ -7,9 +7,7 @@
  */
 
 /* This file shoule be up to date with:
- *  - Revision X,  March 23, 2007; ADSP-BF533 Blackfin Processor Anomaly List
- *  - Revision AB, March 23, 2007; ADSP-BF532 Blackfin Processor Anomaly List
- *  - Revision W,  March 23, 2007; ADSP-BF531 Blackfin Processor Anomaly List
+ *  - Revision B, 12/10/2007; ADSP-BF531/BF532/BF533 Blackfin Processor Anomaly List
  */
 
 #ifndef _MACH_ANOMALY_H_
@@ -17,7 +15,7 @@
 
 /* We do not support 0.1 or 0.2 silicon - sorry */
 #if __SILICON_REVISION__ < 3
-# error Kernel will not work on BF533 silicon version 0.0, 0.1, or 0.2
+# error will not work on BF533 silicon version 0.0, 0.1, or 0.2
 #endif
 
 #if defined(__ADSPBF531__)
@@ -251,6 +249,12 @@
 #define ANOMALY_05000192 (__SILICON_REVISION__ < 3)
 /* Internal Voltage Regulator may not start up */
 #define ANOMALY_05000206 (__SILICON_REVISION__ < 3)
+/* Serial Port (SPORT) Multichannel Transmit Failure when Channel 0 Is Disabled */
+#define ANOMALY_05000357 (1)
+/* PPI Underflow Error Goes Undetected in ITU-R 656 Mode */
+#define ANOMALY_05000366 (1)
+/* Possible RETS Register Corruption when Subroutine Is under 5 Cycles in Duration */
+#define ANOMALY_05000371 (1)
 
 /* Anomalies that don't exist on this proc */
 #define ANOMALY_05000266 (0)

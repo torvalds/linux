@@ -34,7 +34,6 @@
 #include "main.h"
 #include "debugfs.h"
 #include "dma.h"
-#include "pio.h"
 #include "xmit.h"
 
 
@@ -128,7 +127,7 @@ static ssize_t shm_read_file(struct b43_wldev *dev,
 	__le16 *le16buf = (__le16 *)buf;
 
 	for (i = 0; i < 0x1000; i++) {
-		if (bufsize <= 0)
+		if (bufsize < sizeof(tmp))
 			break;
 		tmp = b43_shm_read16(dev, B43_SHM_SHARED, 2 * i);
 		le16buf[i] = cpu_to_le16(tmp);
@@ -223,8 +222,6 @@ out:
 static int txpower_g_write_file(struct b43_wldev *dev,
 				const char *buf, size_t count)
 {
-	unsigned long phy_flags;
-
 	if (dev->phy.type != B43_PHYTYPE_G)
 		return -ENODEV;
 	if ((count >= 4) && (memcmp(buf, "auto", 4) == 0)) {
@@ -248,12 +245,12 @@ static int txpower_g_write_file(struct b43_wldev *dev,
 			dev->phy.tx_control |= B43_TXCTL_PA2DB;
 		if (pa3db)
 			dev->phy.tx_control |= B43_TXCTL_PA3DB;
-		b43_phy_lock(dev, phy_flags);
+		b43_phy_lock(dev);
 		b43_radio_lock(dev);
 		b43_set_txpower_g(dev, &dev->phy.bbatt,
 				  &dev->phy.rfatt, dev->phy.tx_control);
 		b43_radio_unlock(dev);
-		b43_phy_unlock(dev, phy_flags);
+		b43_phy_unlock(dev);
 	}
 
 	return 0;
@@ -352,7 +349,7 @@ static ssize_t b43_debugfs_read(struct file *file, char __user *userbuf,
 	struct b43_wldev *dev;
 	struct b43_debugfs_fops *dfops;
 	struct b43_dfs_file *dfile;
-	ssize_t ret;
+	ssize_t uninitialized_var(ret);
 	char *buf;
 	const size_t bufsize = 1024 * 128;
 	const size_t buforder = get_order(bufsize);

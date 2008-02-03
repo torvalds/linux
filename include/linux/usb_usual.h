@@ -48,7 +48,10 @@
 	US_FLAG(IGNORE_DEVICE,	0x00000800)			\
 		/* Don't claim device */			\
 	US_FLAG(CAPACITY_HEURISTICS,	0x00001000)		\
-		/* sometimes sizes is too big */
+		/* sometimes sizes is too big */		\
+	US_FLAG(MAX_SECTORS_MIN,0x00002000)			\
+		/* Sets max_sectors to arch min */
+
 
 #define US_FLAG(name, value)	US_FL_##name = value ,
 enum { US_DO_ALL_FLAGS };
@@ -77,10 +80,9 @@ enum { US_DO_ALL_FLAGS };
 #define US_SC_UFI	0x04		/* Floppy */
 #define US_SC_8070	0x05		/* Removable media */
 #define US_SC_SCSI	0x06		/* Transparent */
-#define US_SC_ISD200    0x07		/* ISD200 ATA */
-#define US_SC_MIN	US_SC_RBC
-#define US_SC_MAX	US_SC_ISD200
+#define US_SC_LOCKABLE	0x07		/* Password-protected */
 
+#define US_SC_ISD200    0xf0		/* ISD200 ATA */
 #define US_SC_DEVICE	0xff		/* Use device's value */
 
 /* Protocols */

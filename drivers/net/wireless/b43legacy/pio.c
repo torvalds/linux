@@ -334,9 +334,9 @@ struct b43legacy_pioqueue *b43legacy_setup_pioqueue(struct b43legacy_wldev *dev,
 	tasklet_init(&queue->txtask, tx_tasklet,
 		     (unsigned long)queue);
 
-	value = b43legacy_read32(dev, B43legacy_MMIO_STATUS_BITFIELD);
-	value &= ~B43legacy_SBF_XFER_REG_BYTESWAP;
-	b43legacy_write32(dev, B43legacy_MMIO_STATUS_BITFIELD, value);
+	value = b43legacy_read32(dev, B43legacy_MMIO_MACCTL);
+	value &= ~B43legacy_MACCTL_BE;
+	b43legacy_write32(dev, B43legacy_MMIO_MACCTL, value);
 
 	qsize = b43legacy_read16(dev, queue->mmio_base
 				 + B43legacy_PIO_TXQBUFSIZE);

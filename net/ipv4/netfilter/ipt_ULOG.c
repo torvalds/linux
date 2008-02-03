@@ -43,13 +43,14 @@
 #include <linux/netfilter.h>
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_ipv4/ipt_ULOG.h>
+#include <net/netfilter/nf_log.h>
 #include <net/sock.h>
 #include <linux/bitops.h>
 #include <asm/unaligned.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Harald Welte <laforge@gnumonks.org>");
-MODULE_DESCRIPTION("iptables userspace logging module");
+MODULE_DESCRIPTION("Xtables: packet logging to netlink using ULOG");
 MODULE_ALIAS_NET_PF_PROTO(PF_NETLINK, NETLINK_NFLOG);
 
 #define ULOG_NL_EVENT		111		/* Harald's favorite number */
@@ -279,12 +280,10 @@ alloc_failure:
 	spin_unlock_bh(&ulog_lock);
 }
 
-static unsigned int ipt_ulog_target(struct sk_buff *skb,
-				    const struct net_device *in,
-				    const struct net_device *out,
-				    unsigned int hooknum,
-				    const struct xt_target *target,
-				    const void *targinfo)
+static unsigned int
+ulog_tg(struct sk_buff *skb, const struct net_device *in,
+        const struct net_device *out, unsigned int hooknum,
+        const struct xt_target *target, const void *targinfo)
 {
 	struct ipt_ulog_info *loginfo = (struct ipt_ulog_info *) targinfo;
 
@@ -318,11 +317,10 @@ static void ipt_logfn(unsigned int pf,
 	ipt_ulog_packet(hooknum, skb, in, out, &loginfo, prefix);
 }
 
-static bool ipt_ulog_checkentry(const char *tablename,
-				const void *e,
-				const struct xt_target *target,
-				void *targinfo,
-				unsigned int hookmask)
+static bool
+ulog_tg_check(const char *tablename, const void *e,
+              const struct xt_target *target, void *targinfo,
+              unsigned int hookmask)
 {
 	const struct ipt_ulog_info *loginfo = targinfo;
 
@@ -347,7 +345,7 @@ struct compat_ipt_ulog_info {
 	char		prefix[ULOG_PREFIX_LEN];
 };
 
-static void compat_from_user(void *dst, void *src)
+static void ulog_tg_compat_from_user(void *dst, void *src)
 {
 	const struct compat_ipt_ulog_info *cl = src;
 	struct ipt_ulog_info l = {
@@ -360,7 +358,7 @@ static void compat_from_user(void *dst, void *src)
 	memcpy(dst, &l, sizeof(l));
 }
 
-static int compat_to_user(void __user *dst, void *src)
+static int ulog_tg_compat_to_user(void __user *dst, void *src)
 {
 	const struct ipt_ulog_info *l = src;
 	struct compat_ipt_ulog_info cl = {
@@ -374,16 +372,16 @@ static int compat_to_user(void __user *dst, void *src)
 }
 #endif /* CONFIG_COMPAT */
 
-static struct xt_target ipt_ulog_reg __read_mostly = {
+static struct xt_target ulog_tg_reg __read_mostly = {
 	.name		= "ULOG",
 	.family		= AF_INET,
-	.target		= ipt_ulog_target,
+	.target		= ulog_tg,
 	.targetsize	= sizeof(struct ipt_ulog_info),
-	.checkentry	= ipt_ulog_checkentry,
+	.checkentry	= ulog_tg_check,
 #ifdef CONFIG_COMPAT
 	.compatsize	= sizeof(struct compat_ipt_ulog_info),
-	.compat_from_user = compat_from_user,
-	.compat_to_user	= compat_to_user,
+	.compat_from_user = ulog_tg_compat_from_user,
+	.compat_to_user	= ulog_tg_compat_to_user,
 #endif
 	.me		= THIS_MODULE,
 };
@@ -394,7 +392,7 @@ static struct nf_logger ipt_ulog_logger = {
 	.me		= THIS_MODULE,
 };
 
-static int __init ipt_ulog_init(void)
+static int __init ulog_tg_init(void)
 {
 	int ret, i;
 
@@ -415,9 +413,9 @@ static int __init ipt_ulog_init(void)
 	if (!nflognl)
 		return -ENOMEM;
 
-	ret = xt_register_target(&ipt_ulog_reg);
+	ret = xt_register_target(&ulog_tg_reg);
 	if (ret < 0) {
-		sock_release(nflognl->sk_socket);
+		netlink_kernel_release(nflognl);
 		return ret;
 	}
 	if (nflog)
@@ -426,7 +424,7 @@ static int __init ipt_ulog_init(void)
 	return 0;
 }
 
-static void __exit ipt_ulog_fini(void)
+static void __exit ulog_tg_exit(void)
 {
 	ulog_buff_t *ub;
 	int i;
@@ -435,8 +433,8 @@ static void __exit ipt_ulog_fini(void)
 
 	if (nflog)
 		nf_log_unregister(&ipt_ulog_logger);
-	xt_unregister_target(&ipt_ulog_reg);
-	sock_release(nflognl->sk_socket);
+	xt_unregister_target(&ulog_tg_reg);
+	netlink_kernel_release(nflognl);
 
 	/* remove pending timers and free allocated skb's */
 	for (i = 0; i < ULOG_MAXNLGROUPS; i++) {
@@ -453,5 +451,5 @@ static void __exit ipt_ulog_fini(void)
 	}
 }
 
-module_init(ipt_ulog_init);
-module_exit(ipt_ulog_fini);
+module_init(ulog_tg_init);
+module_exit(ulog_tg_exit);

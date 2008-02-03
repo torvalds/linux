@@ -564,22 +564,25 @@ static void mos7720_close(struct usb_serial_port *port, struct file *filp)
 	}
 
 	/* While closing port, shutdown all bulk read, write  *
-	 * and interrupt read if they exists                  */
-	if (serial->dev) {
-		dbg("Shutdown bulk write");
-		usb_kill_urb(port->write_urb);
-		dbg("Shutdown bulk read");
-		usb_kill_urb(port->read_urb);
+	 * and interrupt read if they exists, otherwise nop   */
+	dbg("Shutdown bulk write");
+	usb_kill_urb(port->write_urb);
+	dbg("Shutdown bulk read");
+	usb_kill_urb(port->read_urb);
+
+	mutex_lock(&serial->disc_mutex);
+	/* these commands must not be issued if the device has
+	 * been disconnected */
+	if (!serial->disconnected) {
+		data = 0x00;
+		send_mos_cmd(serial, MOS_WRITE, port->number - port->serial->minor,
+			     0x04, &data);
+
+		data = 0x00;
+		send_mos_cmd(serial, MOS_WRITE, port->number - port->serial->minor,
+			     0x01, &data);
 	}
-
-	data = 0x00;
-	send_mos_cmd(serial, MOS_WRITE, port->number - port->serial->minor,
-		     0x04, &data);
-
-	data = 0x00;
-	send_mos_cmd(serial, MOS_WRITE, port->number - port->serial->minor,
-		     0x01, &data);
-
+	mutex_unlock(&serial->disc_mutex);
 	mos7720_port->open = 0;
 
 	dbg("Leaving %s", __FUNCTION__);
@@ -1040,11 +1043,6 @@ static void change_port_settings(struct moschip_port *mos7720_port,
 
 	tty = mos7720_port->port->tty;
 
-	if ((!tty) || (!tty->termios)) {
-		dbg("%s - no tty structures", __FUNCTION__);
-		return;
-	}
-
 	dbg("%s: Entering ..........", __FUNCTION__);
 
 	lData = UART_LCR_WLEN8;
@@ -1175,7 +1173,10 @@ static void change_port_settings(struct moschip_port *mos7720_port,
 
 	dbg("%s - baud rate = %d", __FUNCTION__, baud);
 	status = send_cmd_write_baud_rate(mos7720_port, baud);
-
+	/* FIXME: needs to write actual resulting baud back not just
+	   blindly do so */
+	if (cflag & CBAUD)
+		tty_encode_baud_rate(tty, baud, baud);
 	/* Enable Interrupts */
 	data = 0x0c;
 	send_mos_cmd(serial, MOS_WRITE, port_number, UART_IER, &data);
@@ -1214,10 +1215,6 @@ static void mos7720_set_termios(struct usb_serial_port *port,
 
 	tty = port->tty;
 
-	if (!port->tty || !port->tty->termios) {
-		dbg("%s - no tty or termios", __FUNCTION__);
-		return;
-	}
 
 	if (!mos7720_port->open) {
 		dbg("%s - port not opened", __FUNCTION__);
@@ -1228,19 +1225,13 @@ static void mos7720_set_termios(struct usb_serial_port *port,
 
 	cflag = tty->termios->c_cflag;
 
-	if (!cflag) {
-		printk("%s %s\n",__FUNCTION__,"cflag is NULL");
-		return;
-	}
-
-	dbg("%s - clfag %08x iflag %08x", __FUNCTION__,
+	dbg("%s - cflag %08x iflag %08x", __FUNCTION__,
 	    tty->termios->c_cflag,
 	    RELEVANT_IFLAG(tty->termios->c_iflag));
 
-	if (old_termios)
-		dbg("%s - old clfag %08x old iflag %08x", __FUNCTION__,
-		    old_termios->c_cflag,
-		    RELEVANT_IFLAG(old_termios->c_iflag));
+	dbg("%s - old cflag %08x old iflag %08x", __FUNCTION__,
+	    old_termios->c_cflag,
+	    RELEVANT_IFLAG(old_termios->c_iflag));
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 

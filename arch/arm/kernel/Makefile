@@ -19,6 +19,7 @@ obj-$(CONFIG_ISA_DMA)		+= dma-isa.o
 obj-$(CONFIG_PCI)		+= bios32.o isa.o
 obj-$(CONFIG_SMP)		+= smp.o
 obj-$(CONFIG_KEXEC)		+= machine_kexec.o relocate_kernel.o
+obj-$(CONFIG_KPROBES)		+= kprobes.o kprobes-decode.o
 obj-$(CONFIG_OABI_COMPAT)	+= sys_oabi-compat.o
 
 obj-$(CONFIG_CRUNCH)		+= crunch.o crunch-bits.o

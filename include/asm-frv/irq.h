@@ -12,9 +12,6 @@
 #ifndef _ASM_IRQ_H_
 #define _ASM_IRQ_H_
 
-/* this number is used when no interrupt has been assigned */
-#define NO_IRQ				(-1)
-
 #define NR_IRQS				48
 #define IRQ_BASE_CPU			(0 * 16)
 #define IRQ_BASE_FPGA			(1 * 16)

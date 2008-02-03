@@ -39,10 +39,14 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Intel Corporation");
 
 static struct pci_device_id ioat_pci_tbl[] = {
+	/* I/OAT v1 platforms */
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_IOAT) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_IOAT_CNB)  },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_IOAT_SCNB) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_UNISYS, PCI_DEVICE_ID_UNISYS_DMA_DIRECTOR) },
+
+	/* I/OAT v2 platforms */
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_IOAT_SNB) },
 	{ 0, }
 };
 
@@ -74,10 +78,17 @@ static int ioat_setup_functionality(struct pci_dev *pdev, void __iomem *iobase)
 		if (device->dma && ioat_dca_enabled)
 			device->dca = ioat_dca_init(pdev, iobase);
 		break;
+	case IOAT_VER_2_0:
+		device->dma = ioat_dma_probe(pdev, iobase);
+		if (device->dma && ioat_dca_enabled)
+			device->dca = ioat2_dca_init(pdev, iobase);
+		break;
 	default:
 		err = -ENODEV;
 		break;
 	}
+	if (!device->dma)
+		err = -ENODEV;
 	return err;
 }
 

@@ -391,6 +391,7 @@ static int __init spitzkbd_probe(struct platform_device *dev)
 	for (i = 0; i < ARRAY_SIZE(spitzkbd_keycode); i++)
 		set_bit(spitzkbd->keycode[i], input_dev->keybit);
 	clear_bit(0, input_dev->keybit);
+	set_bit(KEY_SUSPEND, input_dev->keybit);
 	set_bit(SW_LID, input_dev->swbit);
 	set_bit(SW_TABLET_MODE, input_dev->swbit);
 	set_bit(SW_HEADPHONE_INSERT, input_dev->swbit);

@@ -32,6 +32,7 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mtd/physmap.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 #include <linux/irq.h>
@@ -42,6 +43,7 @@
 #include <asm/dma.h>
 #include <asm/gpio.h>
 #include <asm/nand.h>
+#include <asm/portmux.h>
 #include <asm/mach/bf54x_keys.h>
 #include <linux/input.h>
 #include <linux/spi/ad7877.h>
@@ -205,23 +207,6 @@ static struct platform_device smsc911x_device = {
 };
 #endif
 
-#if defined(CONFIG_USB_BF54x_HCD) || defined(CONFIG_USB_BF54x_HCD_MODULE)
-static struct resource bf54x_hcd_resources[] = {
-	{
-		.start = 0xFFC03C00,
-		.end = 0xFFC040FF,
-		.flags = IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device bf54x_hcd = {
-	.name = "bf54x-hcd",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(bf54x_hcd_resources),
-	.resource = bf54x_hcd_resources,
-};
-#endif
-
 #if defined(CONFIG_USB_MUSB_HDRC) || defined(CONFIG_USB_MUSB_HDRC_MODULE)
 static struct resource musb_resources[] = {
 	[0] = {
@@ -242,14 +227,14 @@ static struct resource musb_resources[] = {
 };
 
 static struct musb_hdrc_platform_data musb_plat = {
-#ifdef CONFIG_USB_MUSB_OTG
+#if defined(CONFIG_USB_MUSB_OTG)
 	.mode		= MUSB_OTG,
-#elif CONFIG_USB_MUSB_HDRC_HCD
+#elif defined(CONFIG_USB_MUSB_HDRC_HCD)
 	.mode		= MUSB_HOST,
-#elif CONFIG_USB_GADGET_MUSB_HDRC
+#elif defined(CONFIG_USB_GADGET_MUSB_HDRC)
 	.mode		= MUSB_PERIPHERAL,
 #endif
-	.multipoint	= 1,
+	.multipoint	= 0,
 };
 
 static u64 musb_dmamask = ~(u32)0;
@@ -343,6 +328,44 @@ static struct platform_device bf54x_sdh_device = {
 };
 #endif
 
+static struct mtd_partition ezkit_partitions[] = {
+	{
+		.name       = "Bootloader",
+		.size       = 0x20000,
+		.offset     = 0,
+	}, {
+		.name       = "Kernel",
+		.size       = 0xE0000,
+		.offset     = MTDPART_OFS_APPEND,
+	}, {
+		.name       = "RootFS",
+		.size       = MTDPART_SIZ_FULL,
+		.offset     = MTDPART_OFS_APPEND,
+	}
+};
+
+static struct physmap_flash_data ezkit_flash_data = {
+	.width      = 2,
+	.parts      = ezkit_partitions,
+	.nr_parts   = ARRAY_SIZE(ezkit_partitions),
+};
+
+static struct resource ezkit_flash_resource = {
+	.start = 0x20000000,
+	.end   = 0x20ffffff,
+	.flags = IORESOURCE_MEM,
+};
+
+static struct platform_device ezkit_flash_device = {
+	.name          = "physmap-flash",
+	.id            = 0,
+	.dev = {
+		.platform_data = &ezkit_flash_data,
+	},
+	.num_resources = 1,
+	.resource      = &ezkit_flash_resource,
+};
+
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 /* all SPI peripherals info goes here */
 #if defined(CONFIG_MTD_M25P80) \
@@ -377,7 +400,7 @@ static struct bfin5xx_spi_chip spi_flash_chip_info = {
 
 #if defined(CONFIG_TOUCHSCREEN_AD7877) || defined(CONFIG_TOUCHSCREEN_AD7877_MODULE)
 static struct bfin5xx_spi_chip spi_ad7877_chip_info = {
-	.cs_change_per_word = 1,
+	.cs_change_per_word = 0,
 	.enable_dma = 0,
 	.bits_per_word = 16,
 };
@@ -453,9 +476,10 @@ static struct resource bfin_spi1_resource[] = {
 };
 
 /* SPI controller data */
-static struct bfin5xx_spi_master bf54x_spi_master_info = {
+static struct bfin5xx_spi_master bf54x_spi_master_info0 = {
 	.num_chipselect = 8,
 	.enable_dma = 1,  /* master has the ability to do dma transfer */
+	.pin_req = {P_SPI0_SCK, P_SPI0_MISO, P_SPI0_MOSI, 0},
 };
 
 static struct platform_device bf54x_spi_master0 = {
@@ -464,8 +488,14 @@ static struct platform_device bf54x_spi_master0 = {
 	.num_resources = ARRAY_SIZE(bfin_spi0_resource),
 	.resource = bfin_spi0_resource,
 	.dev = {
-		.platform_data = &bf54x_spi_master_info, /* Passed to driver */
+		.platform_data = &bf54x_spi_master_info0, /* Passed to driver */
 		},
+};
+
+static struct bfin5xx_spi_master bf54x_spi_master_info1 = {
+	.num_chipselect = 8,
+	.enable_dma = 1,  /* master has the ability to do dma transfer */
+	.pin_req = {P_SPI1_SCK, P_SPI1_MISO, P_SPI1_MOSI, 0},
 };
 
 static struct platform_device bf54x_spi_master1 = {
@@ -474,7 +504,7 @@ static struct platform_device bf54x_spi_master1 = {
 	.num_resources = ARRAY_SIZE(bfin_spi1_resource),
 	.resource = bfin_spi1_resource,
 	.dev = {
-		.platform_data = &bf54x_spi_master_info, /* Passed to driver */
+		.platform_data = &bf54x_spi_master_info1, /* Passed to driver */
 		},
 };
 #endif  /* spi master and devices */
@@ -500,6 +530,7 @@ static struct platform_device i2c_bfin_twi0_device = {
 	.resource = bfin_twi0_resource,
 };
 
+#if !defined(CONFIG_BF542)	/* The BF542 only has 1 TWI */
 static struct resource bfin_twi1_resource[] = {
 	[0] = {
 		.start = TWI1_REGBASE,
@@ -520,6 +551,30 @@ static struct platform_device i2c_bfin_twi1_device = {
 	.resource = bfin_twi1_resource,
 };
 #endif
+#endif
+
+#if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
+#include <linux/gpio_keys.h>
+
+static struct gpio_keys_button bfin_gpio_keys_table[] = {
+	{BTN_0, GPIO_PB8, 1, "gpio-keys: BTN0"},
+	{BTN_1, GPIO_PB9, 1, "gpio-keys: BTN1"},
+	{BTN_2, GPIO_PB10, 1, "gpio-keys: BTN2"},
+	{BTN_3, GPIO_PB11, 1, "gpio-keys: BTN3"},
+};
+
+static struct gpio_keys_platform_data bfin_gpio_keys_data = {
+	.buttons        = bfin_gpio_keys_table,
+	.nbuttons       = ARRAY_SIZE(bfin_gpio_keys_table),
+};
+
+static struct platform_device bfin_device_gpiokeys = {
+	.name      = "gpio-keys",
+	.dev = {
+		.platform_data = &bfin_gpio_keys_data,
+	},
+};
+#endif
 
 static struct platform_device *ezkit_devices[] __initdata = {
 #if defined(CONFIG_RTC_DRV_BFIN) || defined(CONFIG_RTC_DRV_BFIN_MODULE)
@@ -536,10 +591,6 @@ static struct platform_device *ezkit_devices[] __initdata = {
 
 #if defined(CONFIG_SMSC911X) || defined(CONFIG_SMSC911X_MODULE)
 	&smsc911x_device,
-#endif
-
-#if defined(CONFIG_USB_BF54x_HCD) || defined(CONFIG_USB_BF54x_HCD_MODULE)
-	&bf54x_hcd,
 #endif
 
 #if defined(CONFIG_USB_MUSB_HDRC) || defined(CONFIG_USB_MUSB_HDRC_MODULE)
@@ -569,8 +620,15 @@ static struct platform_device *ezkit_devices[] __initdata = {
 
 #if defined(CONFIG_I2C_BLACKFIN_TWI) || defined(CONFIG_I2C_BLACKFIN_TWI_MODULE)
 	&i2c_bfin_twi0_device,
+#if !defined(CONFIG_BF542)
 	&i2c_bfin_twi1_device,
 #endif
+#endif
+
+#if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
+	&bfin_device_gpiokeys,
+#endif
+	&ezkit_flash_device,
 };
 
 static int __init stamp_init(void)

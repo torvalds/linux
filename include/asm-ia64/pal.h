@@ -1379,10 +1379,11 @@ struct pal_features_s;
 static inline s64
 ia64_pal_proc_get_features (u64 *features_avail,
 			    u64 *features_status,
-			    u64 *features_control)
+			    u64 *features_control,
+			    u64 features_set)
 {
 	struct ia64_pal_retval iprv;
-	PAL_CALL_PHYS(iprv, PAL_PROC_GET_FEATURES, 0, 0, 0);
+	PAL_CALL_PHYS(iprv, PAL_PROC_GET_FEATURES, 0, features_set, 0);
 	if (iprv.status == 0) {
 		*features_avail   = iprv.v0;
 		*features_status  = iprv.v1;

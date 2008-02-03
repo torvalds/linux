@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/ide/pci/generic.c	Version 0.11	December 30, 2002
- *
  *  Copyright (C) 2001-2002	Andre Hedrick <andre@linux-ide.org>
  *  Portions (C) Copyright 2002  Red Hat Inc <alan@redhat.com>
  *
@@ -24,17 +22,10 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/delay.h>
-#include <linux/timer.h>
-#include <linux/mm.h>
-#include <linux/ioport.h>
-#include <linux/blkdev.h>
 #include <linux/hdreg.h>
 #include <linux/pci.h>
 #include <linux/ide.h>
 #include <linux/init.h>
-
-#include <asm/io.h>
 
 static int ide_generic_all;		/* Set to claim all devices */
 
@@ -104,7 +95,8 @@ static const struct ide_port_info generic_chipsets[] __devinitdata = {
 
 	{	/* 14 */
 		.name		= "Revolution",
-		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA |
+		.host_flags	= IDE_HFLAG_CLEAR_SIMPLEX |
+				  IDE_HFLAG_TRUST_BIOS_FOR_DMA |
 				  IDE_HFLAG_OFF_BOARD,
 		.swdma_mask	= ATA_SWDMA2,
 		.mwdma_mask	= ATA_MWDMA2,

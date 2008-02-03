@@ -28,6 +28,7 @@
 #include <linux/backing-dev.h>
 #include <linux/pagevec.h>
 #include <linux/blkdev.h>
+#include <linux/backing-dev.h>
 #include <linux/security.h>
 #include <linux/syscalls.h>
 #include <linux/cpuset.h>
@@ -123,6 +124,18 @@ void __remove_from_page_cache(struct page *page)
 	mapping->nrpages--;
 	__dec_zone_page_state(page, NR_FILE_PAGES);
 	BUG_ON(page_mapped(page));
+
+	/*
+	 * Some filesystems seem to re-dirty the page even after
+	 * the VM has canceled the dirty bit (eg ext3 journaling).
+	 *
+	 * Fix it up by doing a final dirty accounting check after
+	 * having removed the page entirely.
+	 */
+	if (PageDirty(page) && mapping_cap_account_dirty(mapping)) {
+		dec_zone_page_state(page, NR_FILE_DIRTY);
+		dec_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
+	}
 }
 
 void remove_from_page_cache(struct page *page)
@@ -170,6 +183,12 @@ static int sync_page(void *word)
 		mapping->a_ops->sync_page(page);
 	io_schedule();
 	return 0;
+}
+
+static int sync_page_killable(void *word)
+{
+	sync_page(word);
+	return fatal_signal_pending(current) ? -EINTR : 0;
 }
 
 /**
@@ -576,6 +595,14 @@ void fastcall __lock_page(struct page *page)
 }
 EXPORT_SYMBOL(__lock_page);
 
+int fastcall __lock_page_killable(struct page *page)
+{
+	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
+
+	return __wait_on_bit_lock(page_waitqueue(page), &wait,
+					sync_page_killable, TASK_KILLABLE);
+}
+
 /*
  * Variant of lock_page that does not require the caller to hold a reference
  * on the page's mapping.
@@ -967,7 +994,8 @@ page_ok:
 
 page_not_up_to_date:
 		/* Get exclusive access to the page ... */
-		lock_page(page);
+		if (lock_page_killable(page))
+			goto readpage_eio;
 
 		/* Did it get truncated before we got the lock? */
 		if (!page->mapping) {
@@ -995,7 +1023,8 @@ readpage:
 		}
 
 		if (!PageUptodate(page)) {
-			lock_page(page);
+			if (lock_page_killable(page))
+				goto readpage_eio;
 			if (!PageUptodate(page)) {
 				if (page->mapping == NULL) {
 					/*
@@ -1006,15 +1035,16 @@ readpage:
 					goto find_page;
 				}
 				unlock_page(page);
-				error = -EIO;
 				shrink_readahead_size_eio(filp, ra);
-				goto readpage_error;
+				goto readpage_eio;
 			}
 			unlock_page(page);
 		}
 
 		goto page_ok;
 
+readpage_eio:
+		error = -EIO;
 readpage_error:
 		/* UHHUH! A synchronous read error occurred. Report it */
 		desc->error = error;
@@ -1299,7 +1329,7 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 	if (vmf->pgoff >= size)
-		goto outside_data_content;
+		return VM_FAULT_SIGBUS;
 
 	/* If we don't want any read-ahead, don't bother */
 	if (VM_RandomReadHint(vma))
@@ -1376,7 +1406,7 @@ retry_find:
 	if (unlikely(vmf->pgoff >= size)) {
 		unlock_page(page);
 		page_cache_release(page);
-		goto outside_data_content;
+		return VM_FAULT_SIGBUS;
 	}
 
 	/*
@@ -1387,15 +1417,6 @@ retry_find:
 	vmf->page = page;
 	return ret | VM_FAULT_LOCKED;
 
-outside_data_content:
-	/*
-	 * An external ptracer can access pages that normally aren't
-	 * accessible..
-	 */
-	if (vma->vm_mm == current->mm)
-		return VM_FAULT_SIGBUS;
-
-	/* Fall through to the non-read-ahead case */
 no_cached_page:
 	/*
 	 * We're only likely to ever get here if MADV_RANDOM is in
@@ -1729,7 +1750,11 @@ static void __iov_iter_advance_iov(struct iov_iter *i, size_t bytes)
 		const struct iovec *iov = i->iov;
 		size_t base = i->iov_offset;
 
-		while (bytes) {
+		/*
+		 * The !iov->iov_len check ensures we skip over unlikely
+		 * zero-length segments.
+		 */
+		while (bytes || !iov->iov_len) {
 			int copy = min(bytes, iov->iov_len - base);
 
 			bytes -= copy;
@@ -2247,6 +2272,7 @@ again:
 
 		cond_resched();
 
+		iov_iter_advance(i, copied);
 		if (unlikely(copied == 0)) {
 			/*
 			 * If we were unable to copy any data at all, we must
@@ -2260,7 +2286,6 @@ again:
 						iov_iter_single_seg_count(i));
 			goto again;
 		}
-		iov_iter_advance(i, copied);
 		pos += copied;
 		written += copied;
 
@@ -2510,21 +2535,17 @@ generic_file_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	}
 
 	retval = mapping->a_ops->direct_IO(rw, iocb, iov, offset, nr_segs);
-	if (retval)
-		goto out;
 
 	/*
 	 * Finally, try again to invalidate clean pages which might have been
-	 * faulted in by get_user_pages() if the source of the write was an
-	 * mmap()ed region of the file we're writing.  That's a pretty crazy
-	 * thing to do, so we don't support it 100%.  If this invalidation
-	 * fails and we have -EIOCBQUEUED we ignore the failure.
+	 * cached by non-direct readahead, or faulted in by get_user_pages()
+	 * if the source of the write was an mmap'ed region of the file
+	 * we're writing.  Either one is a pretty crazy thing to do,
+	 * so we don't support it 100%.  If this invalidation
+	 * fails, tough, the write still worked...
 	 */
 	if (rw == WRITE && mapping->nrpages) {
-		int err = invalidate_inode_pages2_range(mapping,
-					      offset >> PAGE_CACHE_SHIFT, end);
-		if (err && retval >= 0)
-			retval = err;
+		invalidate_inode_pages2_range(mapping, offset >> PAGE_CACHE_SHIFT, end);
 	}
 out:
 	return retval;

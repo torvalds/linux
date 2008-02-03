@@ -304,34 +304,34 @@ void __init at91sam9263_initialize(unsigned long main_clock)
 static unsigned int at91sam9263_default_irq_priority[NR_AIC_IRQS] __initdata = {
 	7,	/* Advanced Interrupt Controller (FIQ) */
 	7,	/* System Peripherals */
-	0,	/* Parallel IO Controller A */
-	0,	/* Parallel IO Controller B */
-	0,	/* Parallel IO Controller C, D and E */
+	1,	/* Parallel IO Controller A */
+	1,	/* Parallel IO Controller B */
+	1,	/* Parallel IO Controller C, D and E */
 	0,
 	0,
-	6,	/* USART 0 */
-	6,	/* USART 1 */
-	6,	/* USART 2 */
+	5,	/* USART 0 */
+	5,	/* USART 1 */
+	5,	/* USART 2 */
 	0,	/* Multimedia Card Interface 0 */
 	0,	/* Multimedia Card Interface 1 */
-	4,	/* CAN */
-	0,	/* Two-Wire Interface */
-	6,	/* Serial Peripheral Interface 0 */
-	6,	/* Serial Peripheral Interface 1 */
-	5,	/* Serial Synchronous Controller 0 */
-	5,	/* Serial Synchronous Controller 1 */
-	6,	/* AC97 Controller */
+	3,	/* CAN */
+	6,	/* Two-Wire Interface */
+	5,	/* Serial Peripheral Interface 0 */
+	5,	/* Serial Peripheral Interface 1 */
+	4,	/* Serial Synchronous Controller 0 */
+	4,	/* Serial Synchronous Controller 1 */
+	5,	/* AC97 Controller */
 	0,	/* Timer Counter 0, 1 and 2 */
 	0,	/* Pulse Width Modulation Controller */
 	3,	/* Ethernet */
 	0,
 	0,	/* 2D Graphic Engine */
-	3,	/* USB Device Port */
+	2,	/* USB Device Port */
 	0,	/* Image Sensor Interface */
 	3,	/* LDC Controller */
 	0,	/* DMA Controller */
 	0,
-	3,	/* USB Host port */
+	2,	/* USB Host port */
 	0,	/* Advanced Interrupt Controller (IRQ0) */
 	0,	/* Advanced Interrupt Controller (IRQ1) */
 };

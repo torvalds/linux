@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/cifsglob.h
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2007
+ *   Copyright (C) International Business Machines  Corp., 2002,2008
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *              Jeremy Allison (jra@samba.org)
  *
@@ -70,14 +70,6 @@
 #endif
 
 /*
- * This information is kept on every Server we know about.
- *
- * Some things to note:
- *
- */
-#define SERVER_NAME_LEN_WITH_NULL	(SERVER_NAME_LENGTH + 1)
-
-/*
  * CIFS vfs client Status information (based on what we know.)
  */
 
@@ -110,6 +102,7 @@ struct mac_key {
 	unsigned int len;
 	union {
 		char ntlm[CIFS_SESS_KEY_SIZE + 16];
+		char krb5[CIFS_SESS_KEY_SIZE + 16]; /* BB: length correct? */
 		struct {
 			char key[16];
 			struct ntlmv2_resp resp;
@@ -139,6 +132,7 @@ struct TCP_Server_Info {
 	/* 15 character server name + 0x20 16th byte indicating type = srv */
 	char server_RFC1001_name[SERVER_NAME_LEN_WITH_NULL];
 	char unicode_server_Name[SERVER_NAME_LEN_WITH_NULL * 2];
+	char *hostname; /* hostname portion of UNC string */
 	struct socket *ssocket;
 	union {
 		struct sockaddr_in sockAddr;
@@ -458,6 +452,37 @@ struct dir_notify_req {
        struct file *pfile;
 };
 
+struct dfs_info3_param {
+	int flags; /* DFSREF_REFERRAL_SERVER, DFSREF_STORAGE_SERVER*/
+	int PathConsumed;
+	int server_type;
+	int ref_flag;
+	char *path_name;
+	char *node_name;
+};
+
+static inline void free_dfs_info_param(struct dfs_info3_param *param)
+{
+	if (param) {
+		kfree(param->path_name);
+		kfree(param->node_name);
+		kfree(param);
+	}
+}
+
+static inline void free_dfs_info_array(struct dfs_info3_param *param,
+				       int number_of_items)
+{
+	int i;
+	if ((number_of_items == 0) || (param == NULL))
+		return;
+	for (i = 0; i < number_of_items; i++) {
+		kfree(param[i].path_name);
+		kfree(param[i].node_name);
+	}
+	kfree(param);
+}
+
 #define   MID_FREE 0
 #define   MID_REQUEST_ALLOCATED 1
 #define   MID_REQUEST_SUBMITTED 2
@@ -470,6 +495,17 @@ struct dir_notify_req {
 #define   CIFS_SMALL_BUFFER     1
 #define   CIFS_LARGE_BUFFER     2
 #define   CIFS_IOVEC            4    /* array of response buffers */
+
+/* Type of Request to SendReceive2 */
+#define   CIFS_STD_OP	        0    /* normal request timeout */
+#define   CIFS_LONG_OP          1    /* long op (up to 45 sec, oplock time) */
+#define   CIFS_VLONG_OP         2    /* sloow op - can take up to 180 seconds */
+#define   CIFS_BLOCKING_OP      4    /* operation can block */
+#define   CIFS_ASYNC_OP         8    /* do not wait for response */
+#define   CIFS_TIMEOUT_MASK 0x00F    /* only one of 5 above set in req */
+#define   CIFS_LOG_ERROR    0x010    /* log NT STATUS if non-zero */
+#define   CIFS_LARGE_BUF_OP 0x020    /* large request buffer */
+#define   CIFS_NO_RESP      0x040    /* no response buffer required */
 
 /* Security Flags: indicate type of session setup needed */
 #define   CIFSSEC_MAY_SIGN	0x00001

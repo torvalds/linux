@@ -3,7 +3,7 @@
 #
 
 menuconfig ACPI
-	bool "ACPI Support (Advanced Configuration and Power Interface) Support"
+	bool "ACPI (Advanced Configuration and Power Interface) Support"
 	depends on !X86_NUMAQ
 	depends on !X86_VISWS
 	depends on !IA64_HP_SIM
@@ -67,7 +67,27 @@ config ACPI_PROCFS
 	  and functions which do not yet exist in /sys.
 
 	  Say N to delete /proc/acpi/ files that have moved to /sys/
+config ACPI_PROCFS_POWER
+	bool "Deprecated power /proc/acpi folders"
+	depends on PROC_FS
+	default y
+	---help---
+	  For backwards compatibility, this option allows
+          deprecated power /proc/acpi/ folders to exist, even when
+          they have been replaced by functions in /sys.
+          The deprecated folders (and their replacements) include:
+	  /proc/acpi/battery/* (/sys/class/power_supply/*)
+	  /proc/acpi/ac_adapter/* (sys/class/power_supply/*)
+	  This option has no effect on /proc/acpi/ folders
+	  and functions, which do not yet exist in /sys
 
+	  Say N to delete power /proc/acpi/ folders that have moved to /sys/
+config ACPI_SYSFS_POWER
+	bool "Future power /sys interface"
+	select POWER_SUPPLY
+	default y
+	---help---
+	  Say N to disable power /sys interface
 config ACPI_PROC_EVENT
 	bool "Deprecated /proc/acpi/event support"
 	depends on PROC_FS
@@ -88,7 +108,7 @@ config ACPI_PROC_EVENT
 
 config ACPI_AC
 	tristate "AC Adapter"
-	depends on X86 && POWER_SUPPLY
+	depends on X86
 	default y
 	help
 	  This driver adds support for the AC Adapter object, which indicates
@@ -97,7 +117,7 @@ config ACPI_AC
 
 config ACPI_BATTERY
 	tristate "Battery"
-	depends on X86 && POWER_SUPPLY
+	depends on X86
 	default y
 	help
 	  This driver adds support for battery information through
@@ -352,7 +372,6 @@ config ACPI_HOTPLUG_MEMORY
 config ACPI_SBS
 	tristate "Smart Battery System"
 	depends on X86
-	depends on POWER_SUPPLY
 	help
 	  This driver adds support for the Smart Battery System, another
 	  type of access to battery information, found on some laptops.

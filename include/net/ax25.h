@@ -35,7 +35,7 @@
 #define AX25_P_ATALK			0xca	/* Appletalk                  */
 #define AX25_P_ATALK_ARP		0xcb	/* Appletalk ARP              */
 #define AX25_P_IP			0xcc	/* ARPA Internet Protocol     */
-#define AX25_P_ARP			0xcd	/* ARPA Adress Resolution     */
+#define AX25_P_ARP			0xcd	/* ARPA Address Resolution    */
 #define AX25_P_FLEXNET			0xce	/* FlexNet                    */
 #define AX25_P_NETROM 			0xcf	/* NET/ROM                    */
 #define AX25_P_TEXT 			0xF0	/* No layer 3 protocol impl.  */

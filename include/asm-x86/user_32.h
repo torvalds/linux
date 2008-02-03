@@ -75,13 +75,23 @@ struct user_fxsr_struct {
  * doesn't use the extra segment registers)
  */
 struct user_regs_struct {
-	long ebx, ecx, edx, esi, edi, ebp, eax;
-	unsigned short ds, __ds, es, __es;
-	unsigned short fs, __fs, gs, __gs;
-	long orig_eax, eip;
-	unsigned short cs, __cs;
-	long eflags, esp;
-	unsigned short ss, __ss;
+	unsigned long	bx;
+	unsigned long	cx;
+	unsigned long	dx;
+	unsigned long	si;
+	unsigned long	di;
+	unsigned long	bp;
+	unsigned long	ax;
+	unsigned long	ds;
+	unsigned long	es;
+	unsigned long	fs;
+	unsigned long	gs;
+	unsigned long	orig_ax;
+	unsigned long	ip;
+	unsigned long	cs;
+	unsigned long	flags;
+	unsigned long	sp;
+	unsigned long	ss;
 };
 
 /* When the kernel dumps core, it starts by dumping the user struct -

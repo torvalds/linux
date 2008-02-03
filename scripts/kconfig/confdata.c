@@ -83,6 +83,68 @@ char *conf_get_default_confname(void)
 	return name;
 }
 
+static int conf_set_sym_val(struct symbol *sym, int def, int def_flags, char *p)
+{
+	char *p2;
+
+	switch (sym->type) {
+	case S_TRISTATE:
+		if (p[0] == 'm') {
+			sym->def[def].tri = mod;
+			sym->flags |= def_flags;
+			break;
+		}
+	case S_BOOLEAN:
+		if (p[0] == 'y') {
+			sym->def[def].tri = yes;
+			sym->flags |= def_flags;
+			break;
+		}
+		if (p[0] == 'n') {
+			sym->def[def].tri = no;
+			sym->flags |= def_flags;
+			break;
+		}
+		conf_warning("symbol value '%s' invalid for %s", p, sym->name);
+		break;
+	case S_OTHER:
+		if (*p != '"') {
+			for (p2 = p; *p2 && !isspace(*p2); p2++)
+				;
+			sym->type = S_STRING;
+			goto done;
+		}
+	case S_STRING:
+		if (*p++ != '"')
+			break;
+		for (p2 = p; (p2 = strpbrk(p2, "\"\\")); p2++) {
+			if (*p2 == '"') {
+				*p2 = 0;
+				break;
+			}
+			memmove(p2, p2 + 1, strlen(p2));
+		}
+		if (!p2) {
+			conf_warning("invalid string found");
+			return 1;
+		}
+	case S_INT:
+	case S_HEX:
+	done:
+		if (sym_string_valid(sym, p)) {
+			sym->def[def].val = strdup(p);
+			sym->flags |= def_flags;
+		} else {
+			conf_warning("symbol value '%s' invalid for %s", p, sym->name);
+			return 1;
+		}
+		break;
+	default:
+		;
+	}
+	return 0;
+}
+
 int conf_read_simple(const char *name, int def)
 {
 	FILE *in = NULL;
@@ -170,8 +232,7 @@ load:
 					sym->type = S_BOOLEAN;
 			}
 			if (sym->flags & def_flags) {
-				conf_warning("trying to reassign symbol %s", sym->name);
-				break;
+				conf_warning("override: reassigning to symbol %s", sym->name);
 			}
 			switch (sym->type) {
 			case S_BOOLEAN:
@@ -210,64 +271,10 @@ load:
 					sym->type = S_OTHER;
 			}
 			if (sym->flags & def_flags) {
-				conf_warning("trying to reassign symbol %s", sym->name);
-				break;
+				conf_warning("override: reassigning to symbol %s", sym->name);
 			}
-			switch (sym->type) {
-			case S_TRISTATE:
-				if (p[0] == 'm') {
-					sym->def[def].tri = mod;
-					sym->flags |= def_flags;
-					break;
-				}
-			case S_BOOLEAN:
-				if (p[0] == 'y') {
-					sym->def[def].tri = yes;
-					sym->flags |= def_flags;
-					break;
-				}
-				if (p[0] == 'n') {
-					sym->def[def].tri = no;
-					sym->flags |= def_flags;
-					break;
-				}
-				conf_warning("symbol value '%s' invalid for %s", p, sym->name);
-				break;
-			case S_OTHER:
-				if (*p != '"') {
-					for (p2 = p; *p2 && !isspace(*p2); p2++)
-						;
-					sym->type = S_STRING;
-					goto done;
-				}
-			case S_STRING:
-				if (*p++ != '"')
-					break;
-				for (p2 = p; (p2 = strpbrk(p2, "\"\\")); p2++) {
-					if (*p2 == '"') {
-						*p2 = 0;
-						break;
-					}
-					memmove(p2, p2 + 1, strlen(p2));
-				}
-				if (!p2) {
-					conf_warning("invalid string found");
-					continue;
-				}
-			case S_INT:
-			case S_HEX:
-			done:
-				if (sym_string_valid(sym, p)) {
-					sym->def[def].val = strdup(p);
-					sym->flags |= def_flags;
-				} else {
-					conf_warning("symbol value '%s' invalid for %s", p, sym->name);
-					continue;
-				}
-				break;
-			default:
-				;
-			}
+			if (conf_set_sym_val(sym, def, def_flags, p))
+				continue;
 			break;
 		case '\r':
 		case '\n':
@@ -288,14 +295,12 @@ load:
 				}
 				break;
 			case yes:
-				if (cs->def[def].tri != no) {
-					conf_warning("%s creates inconsistent choice state", sym->name);
-					cs->flags &= ~def_flags;
-				} else
-					cs->def[def].val = sym;
+				if (cs->def[def].tri != no)
+					conf_warning("override: %s changes choice state", sym->name);
+				cs->def[def].val = sym;
 				break;
 			}
-			cs->def[def].tri = E_OR(cs->def[def].tri, sym->def[def].tri);
+			cs->def[def].tri = EXPR_OR(cs->def[def].tri, sym->def[def].tri);
 		}
 	}
 	fclose(in);
@@ -307,7 +312,7 @@ load:
 
 int conf_read(const char *name)
 {
-	struct symbol *sym;
+	struct symbol *sym, *choice_sym;
 	struct property *prop;
 	struct expr *e;
 	int i, flags;
@@ -348,9 +353,9 @@ int conf_read(const char *name)
 		 */
 		prop = sym_get_choice_prop(sym);
 		flags = sym->flags;
-		for (e = prop->expr; e; e = e->left.expr)
-			if (e->right.sym->visible != no)
-				flags &= e->right.sym->flags;
+		expr_list_for_each_sym(prop->expr, e, choice_sym)
+			if (choice_sym->visible != no)
+				flags &= choice_sym->flags;
 		sym->flags &= flags | ~SYMBOL_DEF_USER;
 	}
 

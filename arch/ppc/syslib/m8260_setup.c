@@ -25,6 +25,7 @@
 #include <asm/machdep.h>
 #include <asm/bootinfo.h>
 #include <asm/time.h>
+#include <asm/ppc_sys.h>
 
 #include "cpm2_pic.h"
 
@@ -61,7 +62,7 @@ m8260_setup_arch(void)
 #endif
 
 	identify_ppc_sys_by_name_and_id(BOARD_CHIP_NAME,
-				in_be32(CPM_MAP_ADDR + CPM_IMMR_OFFSET));
+			in_be32((void *)CPM_MAP_ADDR + CPM_IMMR_OFFSET));
 
 	m82xx_board_setup();
 }
@@ -147,12 +148,12 @@ m8260_show_cpuinfo(struct seq_file *m)
 	seq_printf(m, "vendor\t\t: %s\n"
 		   "machine\t\t: %s\n"
 		   "\n"
-		   "mem size\t\t: 0x%08x\n"
-		   "console baud\t\t: %d\n"
+		   "mem size\t\t: 0x%08lx\n"
+		   "console baud\t\t: %ld\n"
 		   "\n"
-		   "core clock\t: %u MHz\n"
-		   "CPM  clock\t: %u MHz\n"
-		   "bus  clock\t: %u MHz\n",
+		   "core clock\t: %lu MHz\n"
+		   "CPM  clock\t: %lu MHz\n"
+		   "bus  clock\t: %lu MHz\n",
 		   CPUINFO_VENDOR, CPUINFO_MACHINE, bp->bi_memsize,
 		   bp->bi_baudrate, bp->bi_intfreq / 1000000,
 		   bp->bi_cpmfreq / 1000000, bp->bi_busfreq / 1000000);

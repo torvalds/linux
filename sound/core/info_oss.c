@@ -19,7 +19,6 @@
  *
  */
 
-#include <sound/driver.h>
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/string.h>
@@ -65,8 +64,6 @@ int snd_oss_info_register(int dev, int num, char *string)
 }
 
 EXPORT_SYMBOL(snd_oss_info_register);
-
-extern void snd_card_info_read_oss(struct snd_info_buffer *buffer);
 
 static int snd_sndstat_show_strings(struct snd_info_buffer *buf, char *id, int dev)
 {

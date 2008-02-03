@@ -194,7 +194,7 @@ struct spu_priv1_collapsed {
 };
 
 /*
- * struct spu_priv2_collapsed - condensed priviliged 2 area, w/o pads.
+ * struct spu_priv2_collapsed - condensed privileged 2 area, w/o pads.
  */
 struct spu_priv2_collapsed {
 	u64 slb_index_W;
@@ -254,19 +254,10 @@ struct spu_state {
 	u64 spu_chnldata_RW[32];
 	u32 spu_mailbox_data[4];
 	u32 pu_mailbox_data[1];
-	u64 dar, dsisr;
+	u64 dar, dsisr, class_0_pending;
 	unsigned long suspend_time;
 	spinlock_t register_lock;
 };
-
-extern int spu_init_csa(struct spu_state *csa);
-extern void spu_fini_csa(struct spu_state *csa);
-extern int spu_save(struct spu_state *prev, struct spu *spu);
-extern int spu_restore(struct spu_state *new, struct spu *spu);
-extern int spu_switch(struct spu_state *prev, struct spu_state *new,
-		      struct spu *spu);
-extern int spu_alloc_lscsa(struct spu_state *csa);
-extern void spu_free_lscsa(struct spu_state *csa);
 
 #endif /* !__SPU__ */
 #endif /* __KERNEL__ */

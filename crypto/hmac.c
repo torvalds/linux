@@ -17,6 +17,7 @@
  */
 
 #include <crypto/algapi.h>
+#include <crypto/scatterwalk.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -160,7 +161,7 @@ static int hmac_digest(struct hash_desc *pdesc, struct scatterlist *sg,
 
 	sg_init_table(sg1, 2);
 	sg_set_buf(sg1, ipad, bs);
-	sg_set_page(&sg1[1], (void *) sg, 0, 0);
+	scatterwalk_sg_chain(sg1, 2, sg);
 
 	sg_init_table(sg2, 1);
 	sg_set_buf(sg2, opad, bs + ds);

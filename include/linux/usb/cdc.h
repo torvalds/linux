@@ -29,16 +29,16 @@
  * Class-Specific descriptors ... there are a couple dozen of them
  */
 
-#define USB_CDC_HEADER_TYPE		0x00		/* header_desc */
-#define USB_CDC_CALL_MANAGEMENT_TYPE	0x01		/* call_mgmt_descriptor */
-#define USB_CDC_ACM_TYPE		0x02		/* acm_descriptor */
-#define USB_CDC_UNION_TYPE		0x06		/* union_desc */
+#define USB_CDC_HEADER_TYPE		0x00	/* header_desc */
+#define USB_CDC_CALL_MANAGEMENT_TYPE	0x01	/* call_mgmt_descriptor */
+#define USB_CDC_ACM_TYPE		0x02	/* acm_descriptor */
+#define USB_CDC_UNION_TYPE		0x06	/* union_desc */
 #define USB_CDC_COUNTRY_TYPE		0x07
-#define USB_CDC_NETWORK_TERMINAL_TYPE	0x0a		/* network_terminal_desc */
-#define USB_CDC_ETHERNET_TYPE		0x0f		/* ether_desc */
+#define USB_CDC_NETWORK_TERMINAL_TYPE	0x0a	/* network_terminal_desc */
+#define USB_CDC_ETHERNET_TYPE		0x0f	/* ether_desc */
 #define USB_CDC_WHCM_TYPE		0x11
-#define USB_CDC_MDLM_TYPE		0x12		/* mdlm_desc */
-#define USB_CDC_MDLM_DETAIL_TYPE	0x13		/* mdlm_detail_desc */
+#define USB_CDC_MDLM_TYPE		0x12	/* mdlm_desc */
+#define USB_CDC_MDLM_DETAIL_TYPE	0x13	/* mdlm_detail_desc */
 #define USB_CDC_DMM_TYPE		0x14
 #define USB_CDC_OBEX_TYPE		0x15
 

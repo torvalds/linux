@@ -25,6 +25,17 @@ void ack_bad_irq(unsigned int irq)
 	printk("unexpected IRQ %u\n", irq);
 }
 
+/* May be overridden by platform code */
+int __weak nmi_enable(void)
+{
+	return -ENOSYS;
+}
+
+void __weak nmi_disable(void)
+{
+
+}
+
 #ifdef CONFIG_PROC_FS
 int show_interrupts(struct seq_file *p, void *v)
 {

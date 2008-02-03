@@ -107,6 +107,7 @@ struct acm {
 	int write_used;					/* number of non-empty write buffers */
 	int write_ready;				/* write urb is not running */
 	spinlock_t write_lock;
+	struct mutex mutex;
 	struct usb_cdc_line_coding line;		/* bits, stop, parity */
 	struct work_struct work;			/* work queue entry for line discipline waking up */
 	struct tasklet_struct urb_task;                 /* rx processing */
@@ -120,6 +121,7 @@ struct acm {
 	unsigned char throttle;				/* throttled by tty layer */
 	unsigned char clocal;				/* termios CLOCAL */
 	unsigned int ctrl_caps;				/* control capabilities from the class specific header */
+	unsigned int susp_count;			/* number of suspended interfaces */
 };
 
 #define CDC_DATA_INTERFACE_TYPE	0x0a

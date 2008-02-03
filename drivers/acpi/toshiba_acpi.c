@@ -591,9 +591,12 @@ static int __init toshiba_acpi_init(void)
 						NULL,
 						&toshiba_backlight_data);
         if (IS_ERR(toshiba_backlight_device)) {
+		int ret = PTR_ERR(toshiba_backlight_device);
+
 		printk(KERN_ERR "Could not register toshiba backlight device\n");
 		toshiba_backlight_device = NULL;
 		toshiba_acpi_exit();
+		return ret;
 	}
         toshiba_backlight_device->props.max_brightness = HCI_LCD_BRIGHTNESS_LEVELS - 1;
 

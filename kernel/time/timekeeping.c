@@ -47,7 +47,7 @@ struct timespec wall_to_monotonic __attribute__ ((aligned (16)));
 static unsigned long total_sleep_time;		/* seconds */
 
 static struct timespec xtime_cache __attribute__ ((aligned (16)));
-static inline void update_xtime_cache(u64 nsec)
+void update_xtime_cache(u64 nsec)
 {
 	xtime_cache = xtime;
 	timespec_add_ns(&xtime_cache, nsec);
@@ -82,13 +82,12 @@ static inline s64 __get_nsec_offset(void)
 }
 
 /**
- * __get_realtime_clock_ts - Returns the time of day in a timespec
+ * getnstimeofday - Returns the time of day in a timespec
  * @ts:		pointer to the timespec to be set
  *
- * Returns the time of day in a timespec. Used by
- * do_gettimeofday() and get_realtime_clock_ts().
+ * Returns the time of day in a timespec.
  */
-static inline void __get_realtime_clock_ts(struct timespec *ts)
+void getnstimeofday(struct timespec *ts)
 {
 	unsigned long seq;
 	s64 nsecs;
@@ -104,30 +103,19 @@ static inline void __get_realtime_clock_ts(struct timespec *ts)
 	timespec_add_ns(ts, nsecs);
 }
 
-/**
- * getnstimeofday - Returns the time of day in a timespec
- * @ts:		pointer to the timespec to be set
- *
- * Returns the time of day in a timespec.
- */
-void getnstimeofday(struct timespec *ts)
-{
-	__get_realtime_clock_ts(ts);
-}
-
 EXPORT_SYMBOL(getnstimeofday);
 
 /**
  * do_gettimeofday - Returns the time of day in a timeval
  * @tv:		pointer to the timeval to be set
  *
- * NOTE: Users should be converted to using get_realtime_clock_ts()
+ * NOTE: Users should be converted to using getnstimeofday()
  */
 void do_gettimeofday(struct timeval *tv)
 {
 	struct timespec now;
 
-	__get_realtime_clock_ts(&now);
+	getnstimeofday(&now);
 	tv->tv_sec = now.tv_sec;
 	tv->tv_usec = now.tv_nsec/1000;
 }
@@ -157,6 +145,7 @@ int do_settimeofday(struct timespec *tv)
 
 	set_normalized_timespec(&xtime, sec, nsec);
 	set_normalized_timespec(&wall_to_monotonic, wtm_sec, wtm_nsec);
+	update_xtime_cache(0);
 
 	clock->error = 0;
 	ntp_clear();
@@ -198,7 +187,8 @@ static void change_clocksource(void)
 
 	clock->error = 0;
 	clock->xtime_nsec = 0;
-	clocksource_calculate_interval(clock, NTP_INTERVAL_LENGTH);
+	clocksource_calculate_interval(clock,
+		(unsigned long)(current_tick_length()>>TICK_LENGTH_SHIFT));
 
 	tick_clock_notify();
 
@@ -255,15 +245,16 @@ void __init timekeeping_init(void)
 	ntp_clear();
 
 	clock = clocksource_get_next();
-	clocksource_calculate_interval(clock, NTP_INTERVAL_LENGTH);
+	clocksource_calculate_interval(clock,
+		(unsigned long)(current_tick_length()>>TICK_LENGTH_SHIFT));
 	clock->cycle_last = clocksource_read(clock);
 
 	xtime.tv_sec = sec;
 	xtime.tv_nsec = 0;
 	set_normalized_timespec(&wall_to_monotonic,
 		-xtime.tv_sec, -xtime.tv_nsec);
+	update_xtime_cache(0);
 	total_sleep_time = 0;
-
 	write_sequnlock_irqrestore(&xtime_lock, flags);
 }
 
@@ -300,6 +291,7 @@ static int timekeeping_resume(struct sys_device *dev)
 	}
 	/* Make sure that we have the correct xtime reference */
 	timespec_add_ns(&xtime, timekeeping_suspend_nsecs);
+	update_xtime_cache(0);
 	/* re-base the last cycle value */
 	clock->cycle_last = clocksource_read(clock);
 	clock->error = 0;
@@ -335,9 +327,9 @@ static int timekeeping_suspend(struct sys_device *dev, pm_message_t state)
 
 /* sysfs resume/suspend bits for timekeeping */
 static struct sysdev_class timekeeping_sysclass = {
+	.name		= "timekeeping",
 	.resume		= timekeeping_resume,
 	.suspend	= timekeeping_suspend,
-	set_kset_name("timekeeping"),
 };
 
 static struct sys_device device_timer = {

@@ -472,16 +472,15 @@ gss_pipe_upcall(struct file *filp, struct rpc_pipe_msg *msg,
 		char __user *dst, size_t buflen)
 {
 	char *data = (char *)msg->data + msg->copied;
-	ssize_t mlen = msg->len;
-	ssize_t left;
+	size_t mlen = min(msg->len, buflen);
+	unsigned long left;
 
-	if (mlen > buflen)
-		mlen = buflen;
 	left = copy_to_user(dst, data, mlen);
-	if (left < 0) {
-		msg->errno = left;
-		return left;
+	if (left == mlen) {
+		msg->errno = -EFAULT;
+		return -EFAULT;
 	}
+
 	mlen -= left;
 	msg->copied += mlen;
 	msg->errno = 0;
@@ -540,7 +539,7 @@ gss_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 	p = gss_fill_context(p, end, ctx, gss_msg->auth->mech);
 	if (IS_ERR(p)) {
 		err = PTR_ERR(p);
-		gss_msg->msg.errno = (err == -EACCES) ? -EACCES : -EAGAIN;
+		gss_msg->msg.errno = (err == -EAGAIN) ? -EAGAIN : -EACCES;
 		goto err_release_msg;
 	}
 	gss_msg->ctx = gss_get_ctx(ctx);
@@ -625,7 +624,7 @@ gss_create(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
 	err = -EINVAL;
 	gss_auth->mech = gss_mech_get_by_pseudoflavor(flavor);
 	if (!gss_auth->mech) {
-		printk(KERN_WARNING "%s: Pseudoflavor %d not found!",
+		printk(KERN_WARNING "%s: Pseudoflavor %d not found!\n",
 				__FUNCTION__, flavor);
 		goto err_free;
 	}
@@ -967,7 +966,7 @@ gss_validate(struct rpc_task *task, __be32 *p)
 	if (maj_stat == GSS_S_CONTEXT_EXPIRED)
 		clear_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags);
 	if (maj_stat) {
-		dprintk("RPC: %5u gss_validate: gss_verify_mic returned"
+		dprintk("RPC: %5u gss_validate: gss_verify_mic returned "
 				"error 0x%08x\n", task->tk_pid, maj_stat);
 		goto out_bad;
 	}

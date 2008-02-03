@@ -1,6 +1,4 @@
 /*
- * linux/drivers/ide/pci/aec62xx.c		Version 0.27	Sep 16, 2007
- *
  * Copyright (C) 1999-2002	Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2007		MontaVista Software, Inc. <source@mvista.com>
  *
@@ -9,7 +7,6 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/pci.h>
-#include <linux/delay.h>
 #include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/init.h>
@@ -90,7 +87,7 @@ static u8 pci_bus_clock_list_ultra (u8 speed, struct chipset_bus_clock_list_entr
 static void aec6210_set_mode(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-	struct pci_dev *dev	= hwif->pci_dev;
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	u16 d_conf		= 0;
 	u8 ultra = 0, ultra_conf = 0;
 	u8 tmp0 = 0, tmp1 = 0, tmp2 = 0;
@@ -116,7 +113,7 @@ static void aec6210_set_mode(ide_drive_t *drive, const u8 speed)
 static void aec6260_set_mode(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-	struct pci_dev *dev	= hwif->pci_dev;
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	u8 unit		= (drive->select.b.unit & 0x01);
 	u8 tmp1 = 0, tmp2 = 0;
 	u8 ultra = 0, drive_conf = 0, ultra_conf = 0;
@@ -168,29 +165,28 @@ static unsigned int __devinit init_chipset_aec62xx(struct pci_dev *dev, const ch
 	return dev->irq;
 }
 
+static u8 __devinit atp86x_cable_detect(ide_hwif_t *hwif)
+{
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
+	u8 ata66 = 0, mask = hwif->channel ? 0x02 : 0x01;
+
+	pci_read_config_byte(dev, 0x49, &ata66);
+
+	return (ata66 & mask) ? ATA_CBL_PATA40 : ATA_CBL_PATA80;
+}
+
 static void __devinit init_hwif_aec62xx(ide_hwif_t *hwif)
 {
-	struct pci_dev *dev	= hwif->pci_dev;
+	struct pci_dev *dev = to_pci_dev(hwif->dev);
 
 	hwif->set_pio_mode = &aec_set_pio_mode;
 
 	if (dev->device == PCI_DEVICE_ID_ARTOP_ATP850UF)
 		hwif->set_dma_mode = &aec6210_set_mode;
-	else
+	else {
 		hwif->set_dma_mode = &aec6260_set_mode;
 
-	if (hwif->dma_base == 0)
-		return;
-
-	if (dev->device == PCI_DEVICE_ID_ARTOP_ATP850UF)
-		return;
-
-	if (hwif->cbl != ATA_CBL_PATA40_SHORT) {
-		u8 ata66 = 0, mask = hwif->channel ? 0x02 : 0x01;
-
-		pci_read_config_byte(hwif->pci_dev, 0x49, &ata66);
-
-		hwif->cbl = (ata66 & mask) ? ATA_CBL_PATA40 : ATA_CBL_PATA80;
+		hwif->cable_detect = atp86x_cable_detect;
 	}
 }
 
@@ -202,6 +198,8 @@ static const struct ide_port_info aec62xx_chipsets[] __devinitdata = {
 		.enablebits	= {{0x4a,0x02,0x02}, {0x4a,0x04,0x04}},
 		.host_flags	= IDE_HFLAG_SERIALIZE |
 				  IDE_HFLAG_NO_ATAPI_DMA |
+				  IDE_HFLAG_NO_DSC |
+				  IDE_HFLAG_ABUSE_SET_DMA_MODE |
 				  IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
@@ -211,6 +209,7 @@ static const struct ide_port_info aec62xx_chipsets[] __devinitdata = {
 		.init_chipset	= init_chipset_aec62xx,
 		.init_hwif	= init_hwif_aec62xx,
 		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA | IDE_HFLAG_NO_AUTODMA |
+				  IDE_HFLAG_ABUSE_SET_DMA_MODE |
 				  IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
@@ -220,7 +219,8 @@ static const struct ide_port_info aec62xx_chipsets[] __devinitdata = {
 		.init_chipset	= init_chipset_aec62xx,
 		.init_hwif	= init_hwif_aec62xx,
 		.enablebits	= {{0x4a,0x02,0x02}, {0x4a,0x04,0x04}},
-		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA,
+		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA |
+				  IDE_HFLAG_ABUSE_SET_DMA_MODE,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA4,
@@ -228,7 +228,9 @@ static const struct ide_port_info aec62xx_chipsets[] __devinitdata = {
 		.name		= "AEC6280",
 		.init_chipset	= init_chipset_aec62xx,
 		.init_hwif	= init_hwif_aec62xx,
-		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA | IDE_HFLAG_OFF_BOARD,
+		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA |
+				  IDE_HFLAG_ABUSE_SET_DMA_MODE |
+				  IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA5,
@@ -237,7 +239,9 @@ static const struct ide_port_info aec62xx_chipsets[] __devinitdata = {
 		.init_chipset	= init_chipset_aec62xx,
 		.init_hwif	= init_hwif_aec62xx,
 		.enablebits	= {{0x4a,0x02,0x02}, {0x4a,0x04,0x04}},
-		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA | IDE_HFLAG_OFF_BOARD,
+		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA |
+				  IDE_HFLAG_ABUSE_SET_DMA_MODE |
+				  IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA5,
@@ -260,6 +264,11 @@ static int __devinit aec62xx_init_one(struct pci_dev *dev, const struct pci_devi
 {
 	struct ide_port_info d;
 	u8 idx = id->driver_data;
+	int err;
+
+	err = pci_enable_device(dev);
+	if (err)
+		return err;
 
 	d = aec62xx_chipsets[idx];
 
@@ -272,7 +281,11 @@ static int __devinit aec62xx_init_one(struct pci_dev *dev, const struct pci_devi
 		}
 	}
 
-	return ide_setup_pci_device(dev, &d);
+	err = ide_setup_pci_device(dev, &d);
+	if (err)
+		pci_disable_device(dev);
+
+	return err;
 }
 
 static const struct pci_device_id aec62xx_pci_tbl[] = {

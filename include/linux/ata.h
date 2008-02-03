@@ -43,6 +43,7 @@ enum {
 	ATA_MAX_SECTORS_128	= 128,
 	ATA_MAX_SECTORS		= 256,
 	ATA_MAX_SECTORS_LBA48	= 65535,/* TODO: 65536? */
+	ATA_MAX_SECTORS_TAPE	= 65535,
 
 	ATA_ID_WORDS		= 256,
 	ATA_ID_SERNO		= 10,
@@ -180,6 +181,7 @@ enum {
 	ATA_CMD_VERIFY_EXT	= 0x42,
 	ATA_CMD_STANDBYNOW1	= 0xE0,
 	ATA_CMD_IDLEIMMEDIATE	= 0xE1,
+	ATA_CMD_SLEEP		= 0xE6,
 	ATA_CMD_INIT_DEV_PARAMS	= 0x91,
 	ATA_CMD_READ_NATIVE_MAX	= 0xF8,
 	ATA_CMD_READ_NATIVE_MAX_EXT = 0x27,
@@ -188,6 +190,8 @@ enum {
 	ATA_CMD_READ_LOG_EXT	= 0x2f,
 	ATA_CMD_PMP_READ	= 0xE4,
 	ATA_CMD_PMP_WRITE	= 0xE8,
+	ATA_CMD_CONF_OVERLAY	= 0xB1,
+	ATA_CMD_SEC_FREEZE_LOCK	= 0xF5,
 
 	/* READ_LOG_EXT pages */
 	ATA_LOG_SATA_NCQ	= 0x10,
@@ -235,6 +239,20 @@ enum {
 
 	/* SETFEATURE Sector counts for SATA features */
 	SATA_AN			= 0x05,  /* Asynchronous Notification */
+	SATA_DIPM		= 0x03,  /* Device Initiated Power Management */
+
+	/* feature values for SET_MAX */
+	ATA_SET_MAX_ADDR	= 0x00,
+	ATA_SET_MAX_PASSWD	= 0x01,
+	ATA_SET_MAX_LOCK	= 0x02,
+	ATA_SET_MAX_UNLOCK	= 0x03,
+	ATA_SET_MAX_FREEZE_LOCK	= 0x04,
+
+	/* feature values for DEVICE CONFIGURATION OVERLAY */
+	ATA_DCO_RESTORE		= 0xC0,
+	ATA_DCO_FREEZE_LOCK	= 0xC1,
+	ATA_DCO_IDENTIFY	= 0xC2,
+	ATA_DCO_SET		= 0xC3,
 
 	/* ATAPI stuff */
 	ATAPI_PKT_DMA		= (1 << 0),
@@ -268,9 +286,10 @@ enum {
 	ATA_CBL_NONE		= 0,
 	ATA_CBL_PATA40		= 1,
 	ATA_CBL_PATA80		= 2,
-	ATA_CBL_PATA40_SHORT	= 3,		/* 40 wire cable to high UDMA spec */
-	ATA_CBL_PATA_UNK	= 4,
-	ATA_CBL_SATA		= 5,
+	ATA_CBL_PATA40_SHORT	= 3,	/* 40 wire cable to high UDMA spec */
+	ATA_CBL_PATA_UNK	= 4,	/* don't know, maybe 80c? */
+	ATA_CBL_PATA_IGN	= 5,	/* don't know, ignore cable handling */
+	ATA_CBL_SATA		= 6,
 
 	/* SATA Status and Control Registers */
 	SCR_STATUS		= 0,
@@ -306,6 +325,13 @@ enum {
 	ATA_TFLAG_LBA		= (1 << 4), /* enable LBA */
 	ATA_TFLAG_FUA		= (1 << 5), /* enable FUA */
 	ATA_TFLAG_POLLING	= (1 << 6), /* set nIEN to 1 and use polling */
+
+	/* protocol flags */
+	ATA_PROT_FLAG_PIO	= (1 << 0), /* is PIO */
+	ATA_PROT_FLAG_DMA	= (1 << 1), /* is DMA */
+	ATA_PROT_FLAG_DATA	= ATA_PROT_FLAG_PIO | ATA_PROT_FLAG_DMA,
+	ATA_PROT_FLAG_NCQ	= (1 << 2), /* is NCQ */
+	ATA_PROT_FLAG_ATAPI	= (1 << 3), /* is ATAPI */
 };
 
 enum ata_tf_protocols {
@@ -315,9 +341,9 @@ enum ata_tf_protocols {
 	ATA_PROT_PIO,		/* PIO data xfer */
 	ATA_PROT_DMA,		/* DMA */
 	ATA_PROT_NCQ,		/* NCQ */
-	ATA_PROT_ATAPI,		/* packet command, PIO data xfer*/
-	ATA_PROT_ATAPI_NODATA,	/* packet command, no data */
-	ATA_PROT_ATAPI_DMA,	/* packet command with special DMA sauce */
+	ATAPI_PROT_NODATA,	/* packet command, no data */
+	ATAPI_PROT_PIO,		/* packet command, PIO data xfer*/
+	ATAPI_PROT_DMA,		/* packet command with special DMA sauce */
 };
 
 enum ata_ioctls {
@@ -328,8 +354,8 @@ enum ata_ioctls {
 /* core structures */
 
 struct ata_prd {
-	u32			addr;
-	u32			flags_len;
+	__le32			addr;
+	__le32			flags_len;
 };
 
 struct ata_taskfile {
@@ -355,13 +381,69 @@ struct ata_taskfile {
 	u8			command;	/* IO operation */
 };
 
+/*
+ * protocol tests
+ */
+static inline unsigned int ata_prot_flags(u8 prot)
+{
+	switch (prot) {
+	case ATA_PROT_NODATA:
+		return 0;
+	case ATA_PROT_PIO:
+		return ATA_PROT_FLAG_PIO;
+	case ATA_PROT_DMA:
+		return ATA_PROT_FLAG_DMA;
+	case ATA_PROT_NCQ:
+		return ATA_PROT_FLAG_DMA | ATA_PROT_FLAG_NCQ;
+	case ATAPI_PROT_NODATA:
+		return ATA_PROT_FLAG_ATAPI;
+	case ATAPI_PROT_PIO:
+		return ATA_PROT_FLAG_ATAPI | ATA_PROT_FLAG_PIO;
+	case ATAPI_PROT_DMA:
+		return ATA_PROT_FLAG_ATAPI | ATA_PROT_FLAG_DMA;
+	}
+	return 0;
+}
+
+static inline int ata_is_atapi(u8 prot)
+{
+	return ata_prot_flags(prot) & ATA_PROT_FLAG_ATAPI;
+}
+
+static inline int ata_is_nodata(u8 prot)
+{
+	return !(ata_prot_flags(prot) & ATA_PROT_FLAG_DATA);
+}
+
+static inline int ata_is_pio(u8 prot)
+{
+	return ata_prot_flags(prot) & ATA_PROT_FLAG_PIO;
+}
+
+static inline int ata_is_dma(u8 prot)
+{
+	return ata_prot_flags(prot) & ATA_PROT_FLAG_DMA;
+}
+
+static inline int ata_is_ncq(u8 prot)
+{
+	return ata_prot_flags(prot) & ATA_PROT_FLAG_NCQ;
+}
+
+static inline int ata_is_data(u8 prot)
+{
+	return ata_prot_flags(prot) & ATA_PROT_FLAG_DATA;
+}
+
+/*
+ * id tests
+ */
 #define ata_id_is_ata(id)	(((id)[0] & (1 << 15)) == 0)
 #define ata_id_has_lba(id)	((id)[49] & (1 << 9))
 #define ata_id_has_dma(id)	((id)[49] & (1 << 8))
 #define ata_id_has_ncq(id)	((id)[76] & (1 << 8))
 #define ata_id_queue_depth(id)	(((id)[75] & 0x1f) + 1)
 #define ata_id_removeable(id)	((id)[0] & (1 << 7))
-#define ata_id_has_dword_io(id)	((id)[48] & (1 << 0))
 #define ata_id_has_atapi_AN(id)	\
 	( (((id)[76] != 0x0000) && ((id)[76] != 0xffff)) && \
 	  ((id)[78] & (1 << 5)) )
@@ -376,6 +458,27 @@ struct ata_taskfile {
 	  ((u64) (id)[(n) + 0]) )
 
 #define ata_id_cdb_intr(id)	(((id)[0] & 0x60) == 0x20)
+
+static inline bool ata_id_has_hipm(const u16 *id)
+{
+	u16 val = id[76];
+
+	if (val == 0 || val == 0xffff)
+		return false;
+
+	return val & (1 << 9);
+}
+
+static inline bool ata_id_has_dipm(const u16 *id)
+{
+	u16 val = id[78];
+
+	if (val == 0 || val == 0xffff)
+		return false;
+
+	return val & (1 << 3);
+}
+
 
 static inline int ata_id_has_fua(const u16 *id)
 {
@@ -401,6 +504,8 @@ static inline int ata_id_has_flush_ext(const u16 *id)
 static inline int ata_id_has_lba48(const u16 *id)
 {
 	if ((id[83] & 0xC000) != 0x4000)
+		return 0;
+	if (!ata_id_u64(id, 100))
 		return 0;
 	return id[83] & (1 << 10);
 }
@@ -479,6 +584,26 @@ static inline int ata_id_is_sata(const u16 *id)
 	return ata_id_major_version(id) >= 5 && id[93] == 0;
 }
 
+static inline int ata_id_has_tpm(const u16 *id)
+{
+	/* The TPM bits are only valid on ATA8 */
+	if (ata_id_major_version(id) < 8)
+		return 0;
+	if ((id[48] & 0xC000) != 0x4000)
+		return 0;
+	return id[48] & (1 << 0);
+}
+
+static inline int ata_id_has_dword_io(const u16 *id)
+{
+	/* ATA 8 reuses this flag for "trusted" computing */
+	if (ata_id_major_version(id) > 7)
+		return 0;
+	if (id[48] & (1 << 0))
+		return 1;
+	return 0;
+}
+
 static inline int ata_id_current_chs_valid(const u16 *id)
 {
 	/* For ATA-1 devices, if the INITIALIZE DEVICE PARAMETERS command
@@ -512,6 +637,13 @@ static inline int ata_drive_40wire(const u16 *dev_id)
 	return 1;
 }
 
+static inline int ata_drive_40wire_relaxed(const u16 *dev_id)
+{
+	if ((dev_id[93] & 0x2000) == 0x2000)
+		return 0;	/* 80 wire */
+	return 1;
+}
+
 static inline int atapi_cdb_len(const u16 *dev_id)
 {
 	u16 tmp = dev_id[0] & 0x3;
@@ -522,11 +654,9 @@ static inline int atapi_cdb_len(const u16 *dev_id)
 	}
 }
 
-static inline int is_atapi_taskfile(const struct ata_taskfile *tf)
+static inline int atapi_command_packet_set(const u16 *dev_id)
 {
-	return (tf->protocol == ATA_PROT_ATAPI) ||
-	       (tf->protocol == ATA_PROT_ATAPI_NODATA) ||
-	       (tf->protocol == ATA_PROT_ATAPI_DMA);
+	return (dev_id[0] >> 8) & 0x1f;
 }
 
 static inline int is_multi_taskfile(struct ata_taskfile *tf)

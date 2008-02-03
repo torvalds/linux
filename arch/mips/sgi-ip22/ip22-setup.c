@@ -31,25 +31,6 @@
 unsigned long sgi_gfxaddr;
 EXPORT_SYMBOL_GPL(sgi_gfxaddr);
 
-/*
- * Stop-A is originally a Sun thing that isn't standard on IP22 so to avoid
- * accidents it's disabled by default on IP22.
- *
- * FIXME: provide a mechanism to change the value of stop_a_enabled.
- */
-int stop_a_enabled;
-
-void ip22_do_break(void)
-{
-	if (!stop_a_enabled)
-		return;
-
-	printk("\n");
-	ArcEnterInteractiveMode();
-}
-
-EXPORT_SYMBOL(ip22_do_break);
-
 extern void ip22_be_init(void) __init;
 
 void __init plat_mem_setup(void)

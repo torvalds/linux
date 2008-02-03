@@ -79,20 +79,28 @@ static int vesa_probe(void)
 			/* Text Mode, TTY BIOS supported,
 			   supported by hardware */
 			mi = GET_HEAP(struct mode_info, 1);
-			mi->mode = mode + VIDEO_FIRST_VESA;
-			mi->x    = vminfo.h_res;
-			mi->y    = vminfo.v_res;
+			mi->mode  = mode + VIDEO_FIRST_VESA;
+			mi->depth = 0; /* text */
+			mi->x     = vminfo.h_res;
+			mi->y     = vminfo.v_res;
 			nmodes++;
-		} else if ((vminfo.mode_attr & 0x99) == 0x99) {
+		} else if ((vminfo.mode_attr & 0x99) == 0x99 &&
+			   (vminfo.memory_layout == 4 ||
+			    vminfo.memory_layout == 6) &&
+			   vminfo.memory_planes == 1) {
 #ifdef CONFIG_FB
 			/* Graphics mode, color, linear frame buffer
-			   supported -- register the mode but hide from
-			   the menu.  Only do this if framebuffer is
-			   configured, however, otherwise the user will
-			   be left without a screen. */
+			   supported.  Only register the mode if
+			   if framebuffer is configured, however,
+			   otherwise the user will be left without a screen.
+			   We don't require CONFIG_FB_VESA, however, since
+			   some of the other framebuffer drivers can use
+			   this mode-setting, too. */
 			mi = GET_HEAP(struct mode_info, 1);
 			mi->mode = mode + VIDEO_FIRST_VESA;
-			mi->x = mi->y = 0;
+			mi->depth = vminfo.bpp;
+			mi->x = vminfo.h_res;
+			mi->y = vminfo.v_res;
 			nmodes++;
 #endif
 		}

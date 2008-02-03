@@ -45,7 +45,10 @@
 #define IVTV_CARD_PG600V2	     18 /* Yuan PG600V2/GotView PCI DVD Lite */
 #define IVTV_CARD_CLUB3D	     19 /* Club3D ZAP-TV1x01 */
 #define IVTV_CARD_AVERTV_MCE116	     20 /* AVerTV MCE 116 Plus */
-#define IVTV_CARD_LAST 		     20
+#define IVTV_CARD_ASUS_FALCON2	     21 /* ASUS Falcon2 */
+#define IVTV_CARD_AVER_PVR150PLUS    22 /* AVerMedia PVR-150 Plus */
+#define IVTV_CARD_AVER_EZMAKER       23 /* AVerMedia EZMaker PCI Deluxe */
+#define IVTV_CARD_LAST 		     23
 
 /* Variants of existing cards but with the same PCI IDs. The driver
    detects these based on other device information.
@@ -69,6 +72,7 @@
 #define IVTV_PCI_ID_HAUPPAUGE_ALT1 	0x0270
 #define IVTV_PCI_ID_HAUPPAUGE_ALT2 	0x4070
 #define IVTV_PCI_ID_ADAPTEC 		0x9005
+#define IVTV_PCI_ID_ASUSTEK 		0x1043
 #define IVTV_PCI_ID_AVERMEDIA 		0x1461
 #define IVTV_PCI_ID_YUAN1		0x12ab
 #define IVTV_PCI_ID_YUAN2 		0xff01
@@ -80,7 +84,7 @@
 #define IVTV_PCI_ID_GOTVIEW1		0xffac
 #define IVTV_PCI_ID_GOTVIEW2 		0xffad
 
-/* hardware flags */
+/* hardware flags, no gaps allowed, IVTV_HW_GPIO must always be last */
 #define IVTV_HW_CX25840   (1 << 0)
 #define IVTV_HW_SAA7115   (1 << 1)
 #define IVTV_HW_SAA7127   (1 << 2)
@@ -90,12 +94,12 @@
 #define IVTV_HW_CS53L32A  (1 << 6)
 #define IVTV_HW_TVEEPROM  (1 << 7)
 #define IVTV_HW_SAA7114   (1 << 8)
-#define IVTV_HW_TVAUDIO   (1 << 9)
-#define IVTV_HW_UPD64031A (1 << 10)
-#define IVTV_HW_UPD6408X  (1 << 11)
-#define IVTV_HW_SAA717X   (1 << 12)
-#define IVTV_HW_WM8739    (1 << 13)
-#define IVTV_HW_VP27SMPX  (1 << 14)
+#define IVTV_HW_UPD64031A (1 << 9)
+#define IVTV_HW_UPD6408X  (1 << 10)
+#define IVTV_HW_SAA717X   (1 << 11)
+#define IVTV_HW_WM8739    (1 << 12)
+#define IVTV_HW_VP27SMPX  (1 << 13)
+#define IVTV_HW_M52790    (1 << 14)
 #define IVTV_HW_GPIO      (1 << 15)
 
 #define IVTV_HW_SAA711X   (IVTV_HW_SAA7115 | IVTV_HW_SAA7114)
@@ -230,6 +234,12 @@ struct ivtv_card_tuner {
 	int 	    tuner; 	/* tuner ID (from tuner.h) */
 };
 
+struct ivtv_card_tuner_i2c {
+	unsigned short radio[2];/* radio tuner i2c address to probe */
+	unsigned short demod[2];/* demodulator i2c address to probe */
+	unsigned short tv[4];	/* tv tuner i2c addresses to probe */
+};
+
 /* for card information/parameters */
 struct ivtv_card {
 	int type;
@@ -257,6 +267,7 @@ struct ivtv_card {
 	struct ivtv_gpio_audio_detect 	gpio_audio_detect;
 
 	struct ivtv_card_tuner tuners[IVTV_CARD_MAX_TUNERS];
+	struct ivtv_card_tuner_i2c *i2c;
 
 	/* list of device and subsystem vendor/devices that
 	   correspond to this card type. */

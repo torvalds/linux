@@ -1644,8 +1644,25 @@
 #define                   RESTART  0x20       /* Work Unit Transitions */
 #define                    DI_SEL  0x40       /* Data Interrupt Timing Select */
 #define                     DI_EN  0x80       /* Data Interrupt Enable */
+
 #define                    NDSIZE  0xf00      /* Flex Descriptor Size */
+#define                  NDSIZE_0 0x0000      /* Next Descriptor Size = 0 (Stop/Autobuffer) */
+#define                  NDSIZE_1 0x0100      /* Next Descriptor Size = 1 */
+#define                  NDSIZE_2 0x0200      /* Next Descriptor Size = 2 */
+#define                  NDSIZE_3 0x0300      /* Next Descriptor Size = 3 */
+#define                  NDSIZE_4 0x0400      /* Next Descriptor Size = 4 */
+#define                  NDSIZE_5 0x0500      /* Next Descriptor Size = 5 */
+#define                  NDSIZE_6 0x0600      /* Next Descriptor Size = 6 */
+#define                  NDSIZE_7 0x0700      /* Next Descriptor Size = 7 */
+#define                  NDSIZE_8 0x0800      /* Next Descriptor Size = 8 */
+#define                  NDSIZE_9 0x0900      /* Next Descriptor Size = 9 */
+
 #define                   DMAFLOW  0xf000     /* Next Operation */
+#define              DMAFLOW_STOP  0x0000     /* Stop Mode */
+#define              DMAFLOW_AUTO  0x1000     /* Autobuffer Mode */
+#define             DMAFLOW_ARRAY  0x4000     /* Descriptor Array Mode */
+#define             DMAFLOW_SMALL  0x6000     /* Small Model Descriptor List Mode */
+#define             DMAFLOW_LARGE  0x7000     /* Large Model Descriptor List Mode */
 
 /* Bit masks for DMAx_IRQ_STATUS, MDMA_Sx_IRQ_STATUS, MDMA_Dx_IRQ_STATUS */
 
@@ -1755,17 +1772,36 @@
 #define                       TRP  0x3c0000   /* Pre charge-to-active command period */
 #define                      TRAS  0x3c00000  /* Min Active-to-pre charge time */
 #define                       TRC  0x3c000000 /* Active-to-active time */
+#define DDR_TRAS(x)		((x<<22)&TRAS)	/* DDR tRAS = (1~15) cycles */
+#define DDR_TRP(x)		((x<<18)&TRP)	/* DDR tRP = (1~15) cycles */
+#define DDR_TRC(x)		((x<<26)&TRC)	/* DDR tRC = (1~15) cycles */
+#define DDR_TRFC(x)		((x<<14)&TRFC)	/* DDR tRFC = (1~15) cycles */
+#define DDR_TREFI(x)		(x&TREFI)	/* DDR tRFC = (1~15) cycles */
 
 /* Bit masks for EBIU_DDRCTL1 */
 
 #define                      TRCD  0xf        /* Active-to-Read/write delay */
-#define                       MRD  0xf0       /* Mode register set to active */
+#define                      TMRD  0xf0       /* Mode register set to active */
 #define                       TWR  0x300      /* Write Recovery time */
 #define               DDRDATWIDTH  0x3000     /* DDR data width */
 #define                  EXTBANKS  0xc000     /* External banks */
 #define               DDRDEVWIDTH  0x30000    /* DDR device width */
 #define                DDRDEVSIZE  0xc0000    /* DDR device size */
-#define                     TWWTR  0xf0000000 /* Write-to-read delay */
+#define                      TWTR  0xf0000000 /* Write-to-read delay */
+#define DDR_TWTR(x)		((x<<28)&TWTR)	/* DDR tWTR = (1~15) cycles */
+#define DDR_TMRD(x)		((x<<4)&TMRD)	/* DDR tMRD = (1~15) cycles */
+#define DDR_TWR(x)		((x<<8)&TWR)	/* DDR tWR = (1~15) cycles */
+#define DDR_TRCD(x)		(x&TRCD)	/* DDR tRCD = (1~15) cycles */
+#define DDR_DATWIDTH		0x2000		/* DDR data width */
+#define EXTBANK_1		0		/* 1 external bank */
+#define EXTBANK_2		0x4000		/* 2 external banks */
+#define DEVSZ_64		0x40000		/* DDR External Bank Size = 64MB */
+#define DEVSZ_128		0x80000		/* DDR External Bank Size = 128MB */
+#define DEVSZ_256		0xc0000		/* DDR External Bank Size = 256MB */
+#define DEVSZ_512		0		/* DDR External Bank Size = 512MB */
+#define DEVWD_4			0		/* DDR Device Width = 4 Bits    */
+#define DEVWD_8			0x10000		/* DDR Device Width = 8 Bits    */
+#define DEVWD_16		0x20000		/* DDR Device Width = 16 Bits    */
 
 /* Bit masks for EBIU_DDRCTL2 */
 
@@ -1773,6 +1809,10 @@
 #define                CASLATENCY  0x70       /* CAS latency */
 #define                  DLLRESET  0x100      /* DLL Reset */
 #define                      REGE  0x1000     /* Register mode enable */
+#define CL_1_5			0x50		/* DDR CAS Latency = 1.5 cycles */
+#define CL_2			0x20		/* DDR CAS Latency = 2 cycles */
+#define CL_2_5			0x60		/* DDR CAS Latency = 2.5 cycles */
+#define CL_3			0x30		/* DDR CAS Latency = 3 cycles */
 
 /* Bit masks for EBIU_DDRCTL3 */
 
@@ -2240,6 +2280,10 @@
 
 #define                      CSEL  0x30       /* Core Select */
 #define                      SSEL  0xf        /* System Select */
+#define			CSEL_DIV1	0x0000	/* CCLK = VCO / 1 */
+#define			CSEL_DIV2	0x0010	/* CCLK = VCO / 2 */
+#define			CSEL_DIV4	0x0020	/* CCLK = VCO / 4 */
+#define			CSEL_DIV8	0x0030	/* CCLK = VCO / 8 */
 
 /* Bit masks for PLL_CTL */
 
@@ -2251,6 +2295,13 @@
 #define                    STOPCK  0x8        /* Stop Clock */
 #define                   PLL_OFF  0x2        /* Disable PLL */
 #define                        DF  0x1        /* Divide Frequency */
+
+/* SWRST Masks */
+#define              SYSTEM_RESET 0x0007       /* Initiates A System Software Reset */
+#define              DOUBLE_FAULT 0x0008       /* Core Double Fault Causes Reset */
+#define              RESET_DOUBLE 0x2000       /* SW Reset Generated By Core Double-Fault */
+#define                RESET_WDOG 0x4000       /* SW Reset Generated By Watchdog Timer */
+#define            RESET_SOFTWARE 0x8000       /* SW Reset Occurred Since Last Read Of SWRST */
 
 /* Bit masks for PLL_STAT */
 

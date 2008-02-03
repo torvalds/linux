@@ -6,7 +6,6 @@
 
 /* <linux/linkage.h> will pick sane defaults */
 #ifdef CONFIG_GPROF
-#undef FASTCALL
 #undef fastcall
 #endif
 

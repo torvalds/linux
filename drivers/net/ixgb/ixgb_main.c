@@ -36,9 +36,9 @@ static char ixgb_driver_string[] = "Intel(R) PRO/10GbE Network Driver";
 #else
 #define DRIVERNAPI "-NAPI"
 #endif
-#define DRV_VERSION		"1.0.126-k2"DRIVERNAPI
-char ixgb_driver_version[] = DRV_VERSION;
-static char ixgb_copyright[] = "Copyright (c) 1999-2006 Intel Corporation.";
+#define DRV_VERSION		"1.0.126-k4"DRIVERNAPI
+const char ixgb_driver_version[] = DRV_VERSION;
+static const char ixgb_copyright[] = "Copyright (c) 1999-2006 Intel Corporation.";
 
 /* ixgb_pci_tbl - PCI Device ID Table
  *
@@ -104,7 +104,6 @@ static boolean_t ixgb_clean_rx_irq(struct ixgb_adapter *adapter,
 static boolean_t ixgb_clean_rx_irq(struct ixgb_adapter *adapter);
 #endif
 static void ixgb_alloc_rx_buffers(struct ixgb_adapter *adapter);
-void ixgb_set_ethtool_ops(struct net_device *netdev);
 static void ixgb_tx_timeout(struct net_device *dev);
 static void ixgb_tx_timeout_task(struct work_struct *work);
 static void ixgb_vlan_rx_register(struct net_device *netdev,
@@ -122,9 +121,6 @@ static pci_ers_result_t ixgb_io_error_detected (struct pci_dev *pdev,
 	                     enum pci_channel_state state);
 static pci_ers_result_t ixgb_io_slot_reset (struct pci_dev *pdev);
 static void ixgb_io_resume (struct pci_dev *pdev);
-
-/* Exported from other modules */
-extern void ixgb_check_options(struct ixgb_adapter *adapter);
 
 static struct pci_error_handlers ixgb_err_handler = {
 	.error_detected = ixgb_io_error_detected,
@@ -216,9 +212,11 @@ static void
 ixgb_irq_enable(struct ixgb_adapter *adapter)
 {
 	if(atomic_dec_and_test(&adapter->irq_sem)) {
-		IXGB_WRITE_REG(&adapter->hw, IMS,
-			       IXGB_INT_RXT0 | IXGB_INT_RXDMT0 | IXGB_INT_TXDW |
-			       IXGB_INT_LSC);
+		u32 val = IXGB_INT_RXT0 | IXGB_INT_RXDMT0 |
+			  IXGB_INT_TXDW | IXGB_INT_LSC;
+		if (adapter->hw.subsystem_vendor_id == SUN_SUBVENDOR_ID)
+			val |= IXGB_INT_GPI0;
+		IXGB_WRITE_REG(&adapter->hw, IMS, val);
 		IXGB_WRITE_FLUSH(&adapter->hw);
 	}
 }
@@ -300,6 +298,11 @@ ixgb_down(struct ixgb_adapter *adapter, boolean_t kill_watchdog)
 {
 	struct net_device *netdev = adapter->netdev;
 
+#ifdef CONFIG_IXGB_NAPI
+	napi_disable(&adapter->napi);
+	atomic_set(&adapter->irq_sem, 0);
+#endif
+
 	ixgb_irq_disable(adapter);
 	free_irq(adapter->pdev->irq, netdev);
 
@@ -308,9 +311,7 @@ ixgb_down(struct ixgb_adapter *adapter, boolean_t kill_watchdog)
 
 	if(kill_watchdog)
 		del_timer_sync(&adapter->watchdog_timer);
-#ifdef CONFIG_IXGB_NAPI
-	napi_disable(&adapter->napi);
-#endif
+
 	adapter->link_speed = 0;
 	adapter->link_duplex = 0;
 	netif_carrier_off(netdev);
@@ -324,10 +325,22 @@ ixgb_down(struct ixgb_adapter *adapter, boolean_t kill_watchdog)
 void
 ixgb_reset(struct ixgb_adapter *adapter)
 {
+	struct ixgb_hw *hw = &adapter->hw;
 
-	ixgb_adapter_stop(&adapter->hw);
-	if(!ixgb_init_hw(&adapter->hw))
+	ixgb_adapter_stop(hw);
+	if (!ixgb_init_hw(hw))
 		DPRINTK(PROBE, ERR, "ixgb_init_hw failed.\n");
+
+	/* restore frame size information */
+	IXGB_WRITE_REG(hw, MFS, hw->max_frame_size << IXGB_MFS_SHIFT);
+	if (hw->max_frame_size >
+	    IXGB_MAX_ENET_FRAME_SIZE_WITHOUT_FCS + ENET_FCS_LENGTH) {
+		u32 ctrl0 = IXGB_READ_REG(hw, CTRL0);
+		if (!(ctrl0 & IXGB_CTRL0_JFE)) {
+			ctrl0 |= IXGB_CTRL0_JFE;
+			IXGB_WRITE_REG(hw, CTRL0, ctrl0);
+		}
+	}
 }
 
 /**
@@ -1085,7 +1098,8 @@ ixgb_set_multi(struct net_device *netdev)
 		rctl |= IXGB_RCTL_MPE;
 		IXGB_WRITE_REG(hw, RCTL, rctl);
 	} else {
-		uint8_t mta[netdev->mc_count * IXGB_ETH_LENGTH_OF_ADDRESS];
+		uint8_t mta[IXGB_MAX_NUM_MULTICAST_ADDRESSES *
+			    IXGB_ETH_LENGTH_OF_ADDRESS];
 
 		IXGB_WRITE_REG(hw, RCTL, rctl);
 
@@ -1324,8 +1338,8 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 
 			/* Workaround for premature desc write-backs
 			 * in TSO mode.  Append 4-byte sentinel desc */
-			if (unlikely(mss && !nr_frags && size == len
-			             && size > 8))
+			if (unlikely(mss && (f == (nr_frags - 1))
+				     && size == len && size > 8))
 				size -= 4;
 
 			buffer_info->length = size;
@@ -1778,14 +1792,13 @@ ixgb_clean(struct napi_struct *napi, int budget)
 {
 	struct ixgb_adapter *adapter = container_of(napi, struct ixgb_adapter, napi);
 	struct net_device *netdev = adapter->netdev;
-	int tx_cleaned;
 	int work_done = 0;
 
-	tx_cleaned = ixgb_clean_tx_irq(adapter);
+	ixgb_clean_tx_irq(adapter);
 	ixgb_clean_rx_irq(adapter, &work_done, budget);
 
-	/* if no Tx and not enough Rx work done, exit the polling mode */
-	if((!tx_cleaned && (work_done == 0)) || !netif_running(netdev)) {
+	/* If budget not fully consumed, exit the polling mode */
+	if (work_done < budget) {
 		netif_rx_complete(netdev, napi);
 		ixgb_irq_enable(adapter);
 	}

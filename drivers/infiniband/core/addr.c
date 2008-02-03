@@ -110,7 +110,7 @@ int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr)
 	__be32 ip = ((struct sockaddr_in *) addr)->sin_addr.s_addr;
 	int ret;
 
-	dev = ip_dev_find(ip);
+	dev = ip_dev_find(&init_net, ip);
 	if (!dev)
 		return -EADDRNOTAVAIL;
 
@@ -158,7 +158,7 @@ static void addr_send_arp(struct sockaddr_in *dst_in)
 
 	memset(&fl, 0, sizeof fl);
 	fl.nl_u.ip4_u.daddr = dst_ip;
-	if (ip_route_output_key(&rt, &fl))
+	if (ip_route_output_key(&init_net, &rt, &fl))
 		return;
 
 	neigh_event_send(rt->u.dst.neighbour, NULL);
@@ -179,7 +179,7 @@ static int addr_resolve_remote(struct sockaddr_in *src_in,
 	memset(&fl, 0, sizeof fl);
 	fl.nl_u.ip4_u.daddr = dst_ip;
 	fl.nl_u.ip4_u.saddr = src_ip;
-	ret = ip_route_output_key(&rt, &fl);
+	ret = ip_route_output_key(&init_net, &rt, &fl);
 	if (ret)
 		goto out;
 
@@ -261,15 +261,15 @@ static int addr_resolve_local(struct sockaddr_in *src_in,
 	__be32 dst_ip = dst_in->sin_addr.s_addr;
 	int ret;
 
-	dev = ip_dev_find(dst_ip);
+	dev = ip_dev_find(&init_net, dst_ip);
 	if (!dev)
 		return -EADDRNOTAVAIL;
 
-	if (ZERONET(src_ip)) {
+	if (ipv4_is_zeronet(src_ip)) {
 		src_in->sin_family = dst_in->sin_family;
 		src_in->sin_addr.s_addr = dst_ip;
 		ret = rdma_copy_addr(addr, dev, dev->dev_addr);
-	} else if (LOOPBACK(src_ip)) {
+	} else if (ipv4_is_loopback(src_ip)) {
 		ret = rdma_translate_ip((struct sockaddr *)dst_in, addr);
 		if (!ret)
 			memcpy(addr->dst_dev_addr, dev->dev_addr, MAX_ADDR_LEN);

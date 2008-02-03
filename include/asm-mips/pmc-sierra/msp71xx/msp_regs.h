@@ -585,11 +585,7 @@
  * UART defines                                                            *
  ***************************************************************************
  */
-#ifndef CONFIG_MSP_FPGA
 #define MSP_BASE_BAUD		25000000
-#else
-#define MSP_BASE_BAUD		6000000
-#endif
 #define MSP_UART_REG_LEN	0x20
 
 /*

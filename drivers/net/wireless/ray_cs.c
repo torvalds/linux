@@ -44,6 +44,7 @@
 #include <linux/ioport.h>
 #include <linux/skbuff.h>
 #include <linux/ethtool.h>
+#include <linux/ieee80211.h>
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
@@ -997,13 +998,13 @@ static int ray_hw_xmit(unsigned char* data, int len, struct net_device* dev,
 static int translate_frame(ray_dev_t *local, struct tx_msg __iomem *ptx, unsigned char *data,
                     int len)
 {
-    unsigned short int proto = ((struct ethhdr *)data)->h_proto;
+    __be16 proto = ((struct ethhdr *)data)->h_proto;
     if (ntohs(proto) >= 1536) { /* DIX II ethernet frame */
         DEBUG(3,"ray_cs translate_frame DIX II\n");
         /* Copy LLC header to card buffer */
         memcpy_toio(&ptx->var, eth2_llc, sizeof(eth2_llc));
         memcpy_toio( ((void __iomem *)&ptx->var) + sizeof(eth2_llc), (UCHAR *)&proto, 2);
-        if ((proto == 0xf380) || (proto == 0x3781)) {
+        if (proto == htons(ETH_P_AARP) || proto == htons(ETH_P_IPX)) {
             /* This is the selective translation table, only 2 entries */
             writeb(0xf8, &((struct snaphdr_t __iomem *)ptx->var)->org[3]);
         }
@@ -1014,7 +1015,7 @@ static int translate_frame(ray_dev_t *local, struct tx_msg __iomem *ptx, unsigne
     }
     else { /* already  802 type, and proto is length */
         DEBUG(3,"ray_cs translate_frame 802\n");
-        if (proto == 0xffff) { /* evil netware IPX 802.3 without LLC */
+        if (proto == htons(0xffff)) { /* evil netware IPX 802.3 without LLC */
         DEBUG(3,"ray_cs translate_frame evil IPX\n");
             memcpy_toio(&ptx->var, data + ETH_HLEN,  len - ETH_HLEN);
             return 0 - ETH_HLEN;
@@ -1780,19 +1781,19 @@ static struct net_device_stats *ray_get_stats(struct net_device *dev)
     }
     if (readb(&p->mrx_overflow_for_host))
     {
-        local->stats.rx_over_errors += ntohs(readb(&p->mrx_overflow));
+        local->stats.rx_over_errors += swab16(readw(&p->mrx_overflow));
         writeb(0,&p->mrx_overflow);
         writeb(0,&p->mrx_overflow_for_host);
     }
     if (readb(&p->mrx_checksum_error_for_host))
     {
-        local->stats.rx_crc_errors += ntohs(readb(&p->mrx_checksum_error));
+        local->stats.rx_crc_errors += swab16(readw(&p->mrx_checksum_error));
         writeb(0,&p->mrx_checksum_error);
         writeb(0,&p->mrx_checksum_error_for_host);
     }
     if (readb(&p->rx_hec_error_for_host))
     {
-        local->stats.rx_frame_errors += ntohs(readb(&p->rx_hec_error));
+        local->stats.rx_frame_errors += swab16(readw(&p->rx_hec_error));
         writeb(0,&p->rx_hec_error);
         writeb(0,&p->rx_hec_error_for_host);
     }
@@ -2316,32 +2317,17 @@ static void rx_data(struct net_device *dev, struct rcs __iomem *prcs, unsigned i
 static void untranslate(ray_dev_t *local, struct sk_buff *skb, int len)
 {
     snaphdr_t *psnap = (snaphdr_t *)(skb->data + RX_MAC_HEADER_LENGTH);
-    struct mac_header *pmac = (struct mac_header *)skb->data;
-    unsigned short type = *(unsigned short *)psnap->ethertype;
-    unsigned int xsap = *(unsigned int *)psnap & 0x00ffffff;
-    unsigned int org = (*(unsigned int *)psnap->org) & 0x00ffffff;
+    struct ieee80211_hdr *pmac = (struct ieee80211_hdr *)skb->data;
+    __be16 type = *(__be16 *)psnap->ethertype;
     int delta;
     struct ethhdr *peth;
     UCHAR srcaddr[ADDRLEN];
     UCHAR destaddr[ADDRLEN];
+    static UCHAR org_bridge[3] = {0, 0, 0xf8};
+    static UCHAR org_1042[3] = {0, 0, 0};
 
-    if (pmac->frame_ctl_2 & FC2_FROM_DS) {
-	if (pmac->frame_ctl_2 & FC2_TO_DS) { /* AP to AP */
-	    memcpy(destaddr, pmac->addr_3, ADDRLEN);
-	    memcpy(srcaddr, ((unsigned char *)pmac->addr_3) + ADDRLEN, ADDRLEN);
-	} else { /* AP to terminal */
-	    memcpy(destaddr, pmac->addr_1, ADDRLEN);
-	    memcpy(srcaddr, pmac->addr_3, ADDRLEN); 
-	}
-    } else { /* Terminal to AP */
-	if (pmac->frame_ctl_2 & FC2_TO_DS) {
-	    memcpy(destaddr, pmac->addr_3, ADDRLEN);
-	    memcpy(srcaddr, pmac->addr_2, ADDRLEN); 
-	} else { /* Adhoc */
-	    memcpy(destaddr, pmac->addr_1, ADDRLEN);
-	    memcpy(srcaddr, pmac->addr_2, ADDRLEN); 
-	}
-    }
+    memcpy(destaddr, ieee80211_get_DA(pmac), ADDRLEN);
+    memcpy(srcaddr, ieee80211_get_SA(pmac), ADDRLEN);
 
 #ifdef PCMCIA_DEBUG
     if (pc_debug > 3) {
@@ -2349,33 +2335,34 @@ static void untranslate(ray_dev_t *local, struct sk_buff *skb, int len)
     printk(KERN_DEBUG "skb->data before untranslate");
     for (i=0;i<64;i++) 
         printk("%02x ",skb->data[i]);
-    printk("\n" KERN_DEBUG "type = %08x, xsap = %08x, org = %08x\n",
-           type,xsap,org);
+    printk("\n" KERN_DEBUG "type = %08x, xsap = %02x%02x%02x, org = %02x02x02x\n",
+           ntohs(type),
+	   psnap->dsap, psnap->ssap, psnap->ctrl,
+	   psnap->org[0], psnap->org[1], psnap->org[2]);
     printk(KERN_DEBUG "untranslate skb->data = %p\n",skb->data);
     }
 #endif
 
-    if ( xsap != SNAP_ID) {
+    if (psnap->dsap != 0xaa || psnap->ssap != 0xaa || psnap->ctrl != 3) {
         /* not a snap type so leave it alone */
-        DEBUG(3,"ray_cs untranslate NOT SNAP %x\n", *(unsigned int *)psnap & 0x00ffffff);
+        DEBUG(3,"ray_cs untranslate NOT SNAP %02x %02x %02x\n",
+		psnap->dsap, psnap->ssap, psnap->ctrl);
 
         delta = RX_MAC_HEADER_LENGTH - ETH_HLEN;
         peth = (struct ethhdr *)(skb->data + delta);
         peth->h_proto = htons(len - RX_MAC_HEADER_LENGTH);
     }
     else { /* Its a SNAP */
-        if (org == BRIDGE_ENCAP) { /* EtherII and nuke the LLC  */
+        if (memcmp(psnap->org, org_bridge, 3) == 0) { /* EtherII and nuke the LLC  */
         DEBUG(3,"ray_cs untranslate Bridge encap\n");
             delta = RX_MAC_HEADER_LENGTH 
                 + sizeof(struct snaphdr_t) - ETH_HLEN;
             peth = (struct ethhdr *)(skb->data + delta);
             peth->h_proto = type;
-        }
-        else {
-            if (org == RFC1042_ENCAP) {
-                switch (type) {
-                case RAY_IPX_TYPE:
-                case APPLEARP_TYPE:
+	} else if (memcmp(psnap->org, org_1042, 3) == 0) {
+                switch (ntohs(type)) {
+                case ETH_P_IPX:
+                case ETH_P_AARP:
                     DEBUG(3,"ray_cs untranslate RFC IPX/AARP\n");
                     delta = RX_MAC_HEADER_LENGTH - ETH_HLEN;
                     peth = (struct ethhdr *)(skb->data + delta);
@@ -2389,14 +2376,12 @@ static void untranslate(ray_dev_t *local, struct sk_buff *skb, int len)
                     peth->h_proto = type;
                     break;
                 }
-            }
-            else {
+	} else {
                 printk("ray_cs untranslate very confused by packet\n");
                 delta = RX_MAC_HEADER_LENGTH - ETH_HLEN;
                 peth = (struct ethhdr *)(skb->data + delta);
                 peth->h_proto = type;
-            }
-        }
+	}
     }
 /* TBD reserve  skb_reserve(skb, delta); */
     skb_pull(skb, delta);

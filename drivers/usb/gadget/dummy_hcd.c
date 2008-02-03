@@ -61,6 +61,8 @@
 #define DRIVER_DESC	"USB Host+Gadget Emulator"
 #define DRIVER_VERSION	"02 May 2005"
 
+#define POWER_BUDGET	500	/* in mA; use 8 for low-power port testing */
+
 static const char	driver_name [] = "dummy_hcd";
 static const char	driver_desc [] = "USB Host+Gadget Emulator";
 
@@ -772,18 +774,17 @@ usb_gadget_register_driver (struct usb_gadget_driver *driver)
 	list_del_init (&dum->ep [0].ep.ep_list);
 	INIT_LIST_HEAD(&dum->fifo_req.queue);
 
+	driver->driver.bus = NULL;
 	dum->driver = driver;
 	dum->gadget.dev.driver = &driver->driver;
 	dev_dbg (udc_dev(dum), "binding gadget driver '%s'\n",
 			driver->driver.name);
-	if ((retval = driver->bind (&dum->gadget)) != 0)
-		goto err_bind_gadget;
-
-	driver->driver.bus = dum->gadget.dev.parent->bus;
-	if ((retval = driver_register (&driver->driver)) != 0)
-		goto err_register;
-	if ((retval = device_bind_driver (&dum->gadget.dev)) != 0)
-		goto err_bind_driver;
+	retval = driver->bind(&dum->gadget);
+	if (retval) {
+		dum->driver = NULL;
+		dum->gadget.dev.driver = NULL;
+		return retval;
+	}
 
 	/* khubd will enumerate this in a while */
 	spin_lock_irq (&dum->lock);
@@ -793,20 +794,6 @@ usb_gadget_register_driver (struct usb_gadget_driver *driver)
 
 	usb_hcd_poll_rh_status (dummy_to_hcd (dum));
 	return 0;
-
-err_bind_driver:
-	driver_unregister (&driver->driver);
-err_register:
-	if (driver->unbind)
-		driver->unbind (&dum->gadget);
-	spin_lock_irq (&dum->lock);
-	dum->pullup = 0;
-	set_link_state (dum);
-	spin_unlock_irq (&dum->lock);
-err_bind_gadget:
-	dum->driver = NULL;
-	dum->gadget.dev.driver = NULL;
-	return retval;
 }
 EXPORT_SYMBOL (usb_gadget_register_driver);
 
@@ -830,10 +817,8 @@ usb_gadget_unregister_driver (struct usb_gadget_driver *driver)
 	spin_unlock_irqrestore (&dum->lock, flags);
 
 	driver->unbind (&dum->gadget);
+	dum->gadget.dev.driver = NULL;
 	dum->driver = NULL;
-
-	device_release_driver (&dum->gadget.dev);
-	driver_unregister (&driver->driver);
 
 	spin_lock_irqsave (&dum->lock, flags);
 	dum->pullup = 0;
@@ -1827,8 +1812,7 @@ static int dummy_start (struct usb_hcd *hcd)
 
 	INIT_LIST_HEAD (&dum->urbp_list);
 
-	/* only show a low-power port: just 8mA */
-	hcd->power_budget = 8;
+	hcd->power_budget = POWER_BUDGET;
 	hcd->state = HC_STATE_RUNNING;
 	hcd->uses_new_polling = 1;
 

@@ -40,12 +40,8 @@ static inline void omap2_gp_timer_start(unsigned long load_val)
 
 static irqreturn_t omap2_gp_timer_interrupt(int irq, void *dev_id)
 {
-	write_seqlock(&xtime_lock);
-
 	omap_dm_timer_write_status(gptimer, OMAP_TIMER_INT_OVERFLOW);
 	timer_tick();
-
-	write_sequnlock(&xtime_lock);
 
 	return IRQ_HANDLED;
 }

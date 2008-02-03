@@ -55,7 +55,7 @@ static int sig_ignored(struct task_struct *t, int sig)
 	 * signal handler may change by the time it is
 	 * unblocked.
 	 */
-	if (sigismember(&t->blocked, sig))
+	if (sigismember(&t->blocked, sig) || sigismember(&t->real_blocked, sig))
 		return 0;
 
 	/* Is it explicitly or implicitly ignored? */
@@ -124,7 +124,7 @@ void recalc_sigpending_and_wake(struct task_struct *t)
 
 void recalc_sigpending(void)
 {
-	if (!recalc_sigpending_tsk(current))
+	if (!recalc_sigpending_tsk(current) && !freezing(current))
 		clear_thread_flag(TIF_SIGPENDING);
 
 }
@@ -456,15 +456,15 @@ void signal_wake_up(struct task_struct *t, int resume)
 	set_tsk_thread_flag(t, TIF_SIGPENDING);
 
 	/*
-	 * For SIGKILL, we want to wake it up in the stopped/traced case.
-	 * We don't check t->state here because there is a race with it
+	 * For SIGKILL, we want to wake it up in the stopped/traced/killable
+	 * case. We don't check t->state here because there is a race with it
 	 * executing another processor and just now entering stopped state.
 	 * By using wake_up_state, we ensure the process will wake up and
 	 * handle its death signal.
 	 */
 	mask = TASK_INTERRUPTIBLE;
 	if (resume)
-		mask |= TASK_STOPPED | TASK_TRACED;
+		mask |= TASK_WAKEKILL;
 	if (!wake_up_state(t, mask))
 		kick_process(t);
 }
@@ -620,7 +620,7 @@ static void handle_stop_signal(int sig, struct task_struct *p)
 			 * Wake up the stopped thread _after_ setting
 			 * TIF_SIGPENDING
 			 */
-			state = TASK_STOPPED;
+			state = __TASK_STOPPED;
 			if (sig_user_defined(t, SIGCONT) && !sigismember(&t->blocked, SIGCONT)) {
 				set_tsk_thread_flag(t, TIF_SIGPENDING);
 				state |= TASK_INTERRUPTIBLE;
@@ -732,14 +732,14 @@ static void print_fatal_signal(struct pt_regs *regs, int signr)
 	printk("%s/%d: potentially unexpected fatal signal %d.\n",
 		current->comm, task_pid_nr(current), signr);
 
-#ifdef __i386__
-	printk("code at %08lx: ", regs->eip);
+#if defined(__i386__) && !defined(__arch_um__)
+	printk("code at %08lx: ", regs->ip);
 	{
 		int i;
 		for (i = 0; i < 16; i++) {
 			unsigned char insn;
 
-			__get_user(insn, (unsigned char *)(regs->eip + i));
+			__get_user(insn, (unsigned char *)(regs->ip + i));
 			printk("%02x ", insn);
 		}
 	}
@@ -838,7 +838,7 @@ static inline int wants_signal(int sig, struct task_struct *p)
 		return 0;
 	if (sig == SIGKILL)
 		return 1;
-	if (p->state & (TASK_STOPPED | TASK_TRACED))
+	if (task_is_stopped_or_traced(p))
 		return 0;
 	return task_curr(p) || !signal_pending(p);
 }
@@ -993,6 +993,12 @@ void zap_other_threads(struct task_struct *p)
 		signal_wake_up(t, 1);
 	}
 }
+
+int fastcall __fatal_signal_pending(struct task_struct *tsk)
+{
+	return sigismember(&tsk->pending.signal, SIGKILL);
+}
+EXPORT_SYMBOL(__fatal_signal_pending);
 
 /*
  * Must be called under rcu_read_lock() or with tasklist_lock read-held.
@@ -1441,7 +1447,7 @@ void do_notify_parent(struct task_struct *tsk, int sig)
 	BUG_ON(sig == -1);
 
  	/* do_notify_parent_cldstop should have been called instead.  */
- 	BUG_ON(tsk->state & (TASK_STOPPED|TASK_TRACED));
+ 	BUG_ON(task_is_stopped_or_traced(tsk));
 
 	BUG_ON(!tsk->ptrace &&
 	       (tsk->group_leader != tsk || !thread_group_empty(tsk)));
@@ -1729,7 +1735,7 @@ static int do_signal_stop(int signr)
 			 * so this check has no races.
 			 */
 			if (!t->exit_state &&
-			    !(t->state & (TASK_STOPPED|TASK_TRACED))) {
+			    !task_is_stopped_or_traced(t)) {
 				stop_count++;
 				signal_wake_up(t, 0);
 			}

@@ -43,10 +43,10 @@
  *	Callsign/UID mapper. This is in kernel space for security on multi-amateur machines.
  */
 
-HLIST_HEAD(ax25_uid_list);
+static HLIST_HEAD(ax25_uid_list);
 static DEFINE_RWLOCK(ax25_uid_lock);
 
-int ax25_uid_policy = 0;
+int ax25_uid_policy;
 
 EXPORT_SYMBOL(ax25_uid_policy);
 
@@ -144,6 +144,7 @@ int ax25_uid_ioctl(int cmd, struct sockaddr_ax25 *sax)
 #ifdef CONFIG_PROC_FS
 
 static void *ax25_uid_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(ax25_uid_lock)
 {
 	struct ax25_uid_assoc *pt;
 	struct hlist_node *node;
@@ -167,6 +168,7 @@ static void *ax25_uid_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void ax25_uid_seq_stop(struct seq_file *seq, void *v)
+	__releases(ax25_uid_lock)
 {
 	read_unlock(&ax25_uid_lock);
 }

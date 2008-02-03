@@ -117,6 +117,7 @@ static int __devinit swarm_ide_probe(struct device *dev)
 	default_hwif_mmiops(hwif);
 	/* Prevent resource map manipulation.  */
 	hwif->mmio = 1;
+	hwif->chipset = ide_generic;
 	hwif->noprobe = 0;
 
 	for (i = IDE_DATA_OFFSET; i <= IDE_STATUS_OFFSET; i++)
@@ -128,7 +129,7 @@ static int __devinit swarm_ide_probe(struct device *dev)
 
 	idx[0] = hwif->index;
 
-	ide_device_add(idx);
+	ide_device_add(idx, NULL);
 
 	dev_set_drvdata(dev, hwif);
 

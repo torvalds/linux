@@ -563,10 +563,11 @@ struct chelsio_vpd_t {
  * written to the Control register. The hardware device will set the flag to a
  * one when 4B have been transferred to the Data register.
  */
-int t1_seeprom_read(adapter_t *adapter, u32 addr, u32 *data)
+int t1_seeprom_read(adapter_t *adapter, u32 addr, __le32 *data)
 {
 	int i = EEPROM_MAX_POLL;
 	u16 val;
+	u32 v;
 
 	if (addr >= EEPROMSIZE || (addr & 3))
 		return -EINVAL;
@@ -582,8 +583,8 @@ int t1_seeprom_read(adapter_t *adapter, u32 addr, u32 *data)
 		       adapter->name, addr);
 		return -EIO;
 	}
-	pci_read_config_dword(adapter->pdev, A_PCICFG_VPD_DATA, data);
-	*data = le32_to_cpu(*data);
+	pci_read_config_dword(adapter->pdev, A_PCICFG_VPD_DATA, &v);
+	*data = cpu_to_le32(v);
 	return 0;
 }
 
@@ -593,7 +594,7 @@ static int t1_eeprom_vpd_get(adapter_t *adapter, struct chelsio_vpd_t *vpd)
 
 	for (addr = 0; !ret && addr < sizeof(*vpd); addr += sizeof(u32))
 		ret = t1_seeprom_read(adapter, addr,
-				      (u32 *)((u8 *)vpd + addr));
+				      (__le32 *)((u8 *)vpd + addr));
 
 	return ret;
 }

@@ -16,7 +16,7 @@
 #include <asm/highmem.h>
 #include <asm/spr-regs.h>
 
-	.section	.text
+	.section	.text.tlbmiss
 	.balign		4
 
 	.globl		__entry_insn_mmu_miss

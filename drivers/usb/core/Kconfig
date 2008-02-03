@@ -9,6 +9,21 @@ config USB_DEBUG
 	  of debug messages to the system log. Select this if you are having a
 	  problem with USB support and want to see more of what is going on.
 
+config USB_ANNOUNCE_NEW_DEVICES
+	bool "USB announce new devices"
+	depends on USB
+	default N
+	help
+	  Say Y here if you want the USB core to always announce the
+	  idVendor, idProduct, Manufacturer, Product, and SerialNumber
+	  strings for every new USB device to the syslog.  This option is
+	  usually used by distro vendors to help with debugging and to
+	  let users know what specific device was added to the machine
+	  in what location.
+
+	  If you do not want this kind of information sent to the system
+	  log, or have any doubts about this, say N here.
+
 comment "Miscellaneous USB options"
 	depends on USB
 

@@ -34,11 +34,12 @@
 #include <linux/mtd/partitions.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
-#include <linux/usb_isp1362.h>
+#include <linux/usb/isp1362.h>
 #include <linux/pata_platform.h>
 #include <linux/irq.h>
 #include <asm/dma.h>
 #include <asm/bfin5xx_spi.h>
+#include <asm/portmux.h>
 
 /*
  * Name the Board for the /proc/cpuinfo
@@ -187,6 +188,7 @@ static struct resource bfin_spi0_resource[] = {
 static struct bfin5xx_spi_master bfin_spi0_info = {
 	.num_chipselect = 8,
 	.enable_dma = 1,  /* master has the ability to do dma transfer */
+	.pin_req = {P_SPI0_SCK, P_SPI0_MISO, P_SPI0_MOSI, 0},
 };
 
 static struct platform_device bfin_spi0_device = {
@@ -254,6 +256,50 @@ static struct platform_device bfin_pata_device = {
 };
 #endif
 
+#if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
+#include <linux/input.h>
+#include <linux/gpio_keys.h>
+
+static struct gpio_keys_button bfin_gpio_keys_table[] = {
+	{BTN_0, GPIO_PF7, 1, "gpio-keys: BTN0"},
+	{BTN_1, GPIO_PF8, 1, "gpio-keys: BTN1"},
+	{BTN_2, GPIO_PF9, 1, "gpio-keys: BTN2"},
+	{BTN_3, GPIO_PF10, 1, "gpio-keys: BTN3"},
+};
+
+static struct gpio_keys_platform_data bfin_gpio_keys_data = {
+	.buttons        = bfin_gpio_keys_table,
+	.nbuttons       = ARRAY_SIZE(bfin_gpio_keys_table),
+};
+
+static struct platform_device bfin_device_gpiokeys = {
+	.name      = "gpio-keys",
+	.dev = {
+		.platform_data = &bfin_gpio_keys_data,
+	},
+};
+#endif
+
+#if defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE)
+#include <linux/i2c-gpio.h>
+
+static struct i2c_gpio_platform_data i2c_gpio_data = {
+	.sda_pin		= 1,
+	.scl_pin		= 0,
+	.sda_is_open_drain	= 0,
+	.scl_is_open_drain	= 0,
+	.udelay			= 40,
+};
+
+static struct platform_device i2c_gpio_device = {
+	.name		= "i2c-gpio",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &i2c_gpio_data,
+	},
+};
+#endif
+
 static struct platform_device *ezkit_devices[] __initdata = {
 #if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
 	&smc91x_device,
@@ -277,6 +323,14 @@ static struct platform_device *ezkit_devices[] __initdata = {
 
 #if defined(CONFIG_PATA_PLATFORM) || defined(CONFIG_PATA_PLATFORM_MODULE)
 	&bfin_pata_device,
+#endif
+
+#if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
+	&bfin_device_gpiokeys,
+#endif
+
+#if defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE)
+	&i2c_gpio_device,
 #endif
 };
 

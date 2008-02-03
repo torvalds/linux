@@ -398,7 +398,8 @@ static struct bio *crypt_alloc_buffer(struct dm_crypt_io *io, unsigned size)
 	struct bio *clone;
 	unsigned int nr_iovecs = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	gfp_t gfp_mask = GFP_NOIO | __GFP_HIGHMEM;
-	unsigned int i;
+	unsigned i, len;
+	struct page *page;
 
 	clone = bio_alloc_bioset(GFP_NOIO, nr_iovecs, cc->bs);
 	if (!clone)
@@ -407,10 +408,8 @@ static struct bio *crypt_alloc_buffer(struct dm_crypt_io *io, unsigned size)
 	clone_init(io, clone);
 
 	for (i = 0; i < nr_iovecs; i++) {
-		struct bio_vec *bv = bio_iovec_idx(clone, i);
-
-		bv->bv_page = mempool_alloc(cc->page_pool, gfp_mask);
-		if (!bv->bv_page)
+		page = mempool_alloc(cc->page_pool, gfp_mask);
+		if (!page)
 			break;
 
 		/*
@@ -421,15 +420,14 @@ static struct bio *crypt_alloc_buffer(struct dm_crypt_io *io, unsigned size)
 		if (i == (MIN_BIO_PAGES - 1))
 			gfp_mask = (gfp_mask | __GFP_NOWARN) & ~__GFP_WAIT;
 
-		bv->bv_offset = 0;
-		if (size > PAGE_SIZE)
-			bv->bv_len = PAGE_SIZE;
-		else
-			bv->bv_len = size;
+		len = (size > PAGE_SIZE) ? PAGE_SIZE : size;
 
-		clone->bi_size += bv->bv_len;
-		clone->bi_vcnt++;
-		size -= bv->bv_len;
+		if (!bio_add_page(clone, page, len, 0)) {
+			mempool_free(page, cc->page_pool);
+			break;
+		}
+
+		size -= len;
 	}
 
 	if (!clone->bi_size) {
@@ -511,6 +509,9 @@ static void crypt_endio(struct bio *clone, int error)
 	struct crypt_config *cc = io->target->private;
 	unsigned read_io = bio_data_dir(clone) == READ;
 
+	if (unlikely(!bio_flagged(clone, BIO_UPTODATE) && !error))
+		error = -EIO;
+
 	/*
 	 * free the processed pages
 	 */
@@ -519,10 +520,8 @@ static void crypt_endio(struct bio *clone, int error)
 		goto out;
 	}
 
-	if (unlikely(!bio_flagged(clone, BIO_UPTODATE))) {
-		error = -EIO;
+	if (unlikely(error))
 		goto out;
-	}
 
 	bio_put(clone);
 	kcryptd_queue_crypt(io);

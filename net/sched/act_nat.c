@@ -40,22 +40,29 @@ static struct tcf_hashinfo nat_hash_info = {
 	.lock	=	&nat_lock,
 };
 
-static int tcf_nat_init(struct rtattr *rta, struct rtattr *est,
+static const struct nla_policy nat_policy[TCA_NAT_MAX + 1] = {
+	[TCA_NAT_PARMS]	= { .len = sizeof(struct tc_nat) },
+};
+
+static int tcf_nat_init(struct nlattr *nla, struct nlattr *est,
 			struct tc_action *a, int ovr, int bind)
 {
-	struct rtattr *tb[TCA_NAT_MAX];
+	struct nlattr *tb[TCA_NAT_MAX + 1];
 	struct tc_nat *parm;
-	int ret = 0;
+	int ret = 0, err;
 	struct tcf_nat *p;
 	struct tcf_common *pc;
 
-	if (rta == NULL || rtattr_parse_nested(tb, TCA_NAT_MAX, rta) < 0)
+	if (nla == NULL)
 		return -EINVAL;
 
-	if (tb[TCA_NAT_PARMS - 1] == NULL ||
-	    RTA_PAYLOAD(tb[TCA_NAT_PARMS - 1]) < sizeof(*parm))
+	err = nla_parse_nested(tb, TCA_NAT_MAX, nla, nat_policy);
+	if (err < 0)
+		return err;
+
+	if (tb[TCA_NAT_PARMS] == NULL)
 		return -EINVAL;
-	parm = RTA_DATA(tb[TCA_NAT_PARMS - 1]);
+	parm = nla_data(tb[TCA_NAT_PARMS]);
 
 	pc = tcf_hash_check(parm->index, a, bind, &nat_hash_info);
 	if (!pc) {
@@ -151,7 +158,7 @@ static int tcf_nat(struct sk_buff *skb, struct tc_action *a,
 		else
 			iph->daddr = new_addr;
 
-		nf_csum_replace4(&iph->check, addr, new_addr);
+		csum_replace4(&iph->check, addr, new_addr);
 	}
 
 	ihl = iph->ihl * 4;
@@ -169,7 +176,7 @@ static int tcf_nat(struct sk_buff *skb, struct tc_action *a,
 			goto drop;
 
 		tcph = (void *)(skb_network_header(skb) + ihl);
-		nf_proto_csum_replace4(&tcph->check, skb, addr, new_addr, 1);
+		inet_proto_csum_replace4(&tcph->check, skb, addr, new_addr, 1);
 		break;
 	}
 	case IPPROTO_UDP:
@@ -184,8 +191,8 @@ static int tcf_nat(struct sk_buff *skb, struct tc_action *a,
 
 		udph = (void *)(skb_network_header(skb) + ihl);
 		if (udph->check || skb->ip_summed == CHECKSUM_PARTIAL) {
-			nf_proto_csum_replace4(&udph->check, skb, addr,
-					       new_addr, 1);
+			inet_proto_csum_replace4(&udph->check, skb, addr,
+						 new_addr, 1);
 			if (!udph->check)
 				udph->check = CSUM_MANGLED_0;
 		}
@@ -232,8 +239,8 @@ static int tcf_nat(struct sk_buff *skb, struct tc_action *a,
 		else
 			iph->saddr = new_addr;
 
-		nf_proto_csum_replace4(&icmph->checksum, skb, addr, new_addr,
-				       1);
+		inet_proto_csum_replace4(&icmph->checksum, skb, addr, new_addr,
+					 1);
 		break;
 	}
 	default:
@@ -275,17 +282,17 @@ static int tcf_nat_dump(struct sk_buff *skb, struct tc_action *a,
 	opt->refcnt = p->tcf_refcnt - ref;
 	opt->bindcnt = p->tcf_bindcnt - bind;
 
-	RTA_PUT(skb, TCA_NAT_PARMS, s, opt);
+	NLA_PUT(skb, TCA_NAT_PARMS, s, opt);
 	t.install = jiffies_to_clock_t(jiffies - p->tcf_tm.install);
 	t.lastuse = jiffies_to_clock_t(jiffies - p->tcf_tm.lastuse);
 	t.expires = jiffies_to_clock_t(p->tcf_tm.expires);
-	RTA_PUT(skb, TCA_NAT_TM, sizeof(t), &t);
+	NLA_PUT(skb, TCA_NAT_TM, sizeof(t), &t);
 
 	kfree(opt);
 
 	return skb->len;
 
-rtattr_failure:
+nla_put_failure:
 	nlmsg_trim(skb, b);
 	kfree(opt);
 	return -1;

@@ -182,8 +182,10 @@ static void pci_dma_dev_setup_pasemi(struct pci_dev *dev)
 	 * CONFIG_PPC_PASEMI_IOMMU_DMA_FORCE at build time.
 	 */
 	if (dev->vendor == 0x1959 && dev->device == 0xa007 &&
-	    !firmware_has_feature(FW_FEATURE_LPAR))
+	    !firmware_has_feature(FW_FEATURE_LPAR)) {
 		dev->dev.archdata.dma_ops = &dma_direct_ops;
+		return;
+	}
 #endif
 
 	dev->dev.archdata.dma_data = &iommu_table_iobmap;

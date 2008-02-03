@@ -1,15 +1,13 @@
 /*
- *  linux/drivers/ide/ide-dma.c		Version 4.10	June 9, 2000
+ *  Copyright (C) 1995-1998   Mark Lord
+ *  Copyright (C) 1999-2000   Andre Hedrick <andre@linux-ide.org>
+ *  Copyright (C) 2004, 2007  Bartlomiej Zolnierkiewicz
  *
- *  Copyright (c) 1999-2000	Andre Hedrick <andre@linux-ide.org>
  *  May be copied or modified under the terms of the GNU General Public License
  */
 
 /*
  *  Special Thanks to Mark for his Six years of work.
- *
- *  Copyright (c) 1995-1998  Mark Lord
- *  May be copied or modified under the terms of the GNU General Public License
  */
 
 /*
@@ -85,6 +83,7 @@
 #include <linux/ide.h>
 #include <linux/delay.h>
 #include <linux/scatterlist.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -130,6 +129,7 @@ static const struct drive_list_entry drive_blacklist [] = {
 	{ "_NEC DV5800A",               NULL            },
 	{ "SAMSUNG CD-ROM SN-124",	"N001" },
 	{ "Seagate STT20000A",		NULL  },
+	{ "CD-ROM CDR_U200",		"1.09" },
 	{ NULL			,	NULL		}
 
 };
@@ -152,13 +152,7 @@ ide_startstop_t ide_dma_intr (ide_drive_t *drive)
 		if (!dma_stat) {
 			struct request *rq = HWGROUP(drive)->rq;
 
-			if (rq->rq_disk) {
-				ide_driver_t *drv;
-
-				drv = *(ide_driver_t **)rq->rq_disk->private_data;
-				drv->end_request(drive, 1, rq->nr_sectors);
-			} else
-				ide_end_request(drive, 1, rq->nr_sectors);
+			task_end_request(drive, rq, stat);
 			return ide_stopped;
 		}
 		printk(KERN_ERR "%s: dma_intr: bad DMA status (dma_stat=%x)\n", 
@@ -174,16 +168,15 @@ static int ide_dma_good_drive(ide_drive_t *drive)
 	return ide_in_drive_list(drive->id, drive_whitelist);
 }
 
-#ifdef CONFIG_BLK_DEV_IDEDMA_PCI
 /**
  *	ide_build_sglist	-	map IDE scatter gather for DMA I/O
  *	@drive: the drive to build the DMA table for
  *	@rq: the request holding the sg list
  *
- *	Perform the PCI mapping magic necessary to access the source or
- *	target buffers of a request via PCI DMA. The lower layers of the
+ *	Perform the DMA mapping magic necessary to access the source or
+ *	target buffers of a request via DMA.  The lower layers of the
  *	kernel provide the necessary cache management so that we can
- *	operate in a portable fashion
+ *	operate in a portable fashion.
  */
 
 int ide_build_sglist(ide_drive_t *drive, struct request *rq)
@@ -191,20 +184,20 @@ int ide_build_sglist(ide_drive_t *drive, struct request *rq)
 	ide_hwif_t *hwif = HWIF(drive);
 	struct scatterlist *sg = hwif->sg_table;
 
-	BUG_ON((rq->cmd_type == REQ_TYPE_ATA_TASKFILE) && rq->nr_sectors > 256);
-
 	ide_map_sg(drive, rq);
 
 	if (rq_data_dir(rq) == READ)
-		hwif->sg_dma_direction = PCI_DMA_FROMDEVICE;
+		hwif->sg_dma_direction = DMA_FROM_DEVICE;
 	else
-		hwif->sg_dma_direction = PCI_DMA_TODEVICE;
+		hwif->sg_dma_direction = DMA_TO_DEVICE;
 
-	return pci_map_sg(hwif->pci_dev, sg, hwif->sg_nents, hwif->sg_dma_direction);
+	return dma_map_sg(hwif->dev, sg, hwif->sg_nents,
+			  hwif->sg_dma_direction);
 }
 
 EXPORT_SYMBOL_GPL(ide_build_sglist);
 
+#ifdef CONFIG_BLK_DEV_IDEDMA_PCI
 /**
  *	ide_build_dmatable	-	build IDE DMA table
  *
@@ -289,16 +282,17 @@ int ide_build_dmatable (ide_drive_t *drive, struct request *rq)
 			*--table |= cpu_to_le32(0x80000000);
 		return count;
 	}
+
 	printk(KERN_ERR "%s: empty DMA table?\n", drive->name);
+
 use_pio_instead:
-	pci_unmap_sg(hwif->pci_dev,
-		     hwif->sg_table,
-		     hwif->sg_nents,
-		     hwif->sg_dma_direction);
+	ide_destroy_dmatable(drive);
+
 	return 0; /* revert to PIO for this request */
 }
 
 EXPORT_SYMBOL_GPL(ide_build_dmatable);
+#endif
 
 /**
  *	ide_destroy_dmatable	-	clean up DMA mapping
@@ -313,15 +307,15 @@ EXPORT_SYMBOL_GPL(ide_build_dmatable);
  
 void ide_destroy_dmatable (ide_drive_t *drive)
 {
-	struct pci_dev *dev = HWIF(drive)->pci_dev;
-	struct scatterlist *sg = HWIF(drive)->sg_table;
-	int nents = HWIF(drive)->sg_nents;
+	ide_hwif_t *hwif = drive->hwif;
 
-	pci_unmap_sg(dev, sg, nents, HWIF(drive)->sg_dma_direction);
+	dma_unmap_sg(hwif->dev, hwif->sg_table, hwif->sg_nents,
+		     hwif->sg_dma_direction);
 }
 
 EXPORT_SYMBOL_GPL(ide_destroy_dmatable);
 
+#ifdef CONFIG_BLK_DEV_IDEDMA_PCI
 /**
  *	config_drive_for_dma	-	attempt to activate IDE DMA
  *	@drive: the drive to place in DMA mode
@@ -340,7 +334,7 @@ static int config_drive_for_dma (ide_drive_t *drive)
 
 	if (drive->media != ide_disk) {
 		if (hwif->host_flags & IDE_HFLAG_NO_ATAPI_DMA)
-			return -1;
+			return 0;
 	}
 
 	/*
@@ -407,23 +401,29 @@ static int dma_timer_expiry (ide_drive_t *drive)
 }
 
 /**
- *	ide_dma_host_off	-	Generic DMA kill
+ *	ide_dma_host_set	-	Enable/disable DMA on a host
  *	@drive: drive to control
  *
- *	Perform the generic IDE controller DMA off operation. This
- *	works for most IDE bus mastering controllers
+ *	Enable/disable DMA on an IDE controller following generic
+ *	bus-mastering IDE controller behaviour.
  */
 
-void ide_dma_host_off(ide_drive_t *drive)
+void ide_dma_host_set(ide_drive_t *drive, int on)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	u8 unit			= (drive->select.b.unit & 0x01);
 	u8 dma_stat		= hwif->INB(hwif->dma_status);
 
-	hwif->OUTB((dma_stat & ~(1<<(5+unit))), hwif->dma_status);
+	if (on)
+		dma_stat |= (1 << (5 + unit));
+	else
+		dma_stat &= ~(1 << (5 + unit));
+
+	hwif->OUTB(dma_stat, hwif->dma_status);
 }
 
-EXPORT_SYMBOL(ide_dma_host_off);
+EXPORT_SYMBOL_GPL(ide_dma_host_set);
+#endif /* CONFIG_BLK_DEV_IDEDMA_PCI */
 
 /**
  *	ide_dma_off_quietly	-	Generic DMA kill
@@ -437,11 +437,10 @@ void ide_dma_off_quietly(ide_drive_t *drive)
 	drive->using_dma = 0;
 	ide_toggle_bounce(drive, 0);
 
-	drive->hwif->dma_host_off(drive);
+	drive->hwif->dma_host_set(drive, 0);
 }
 
 EXPORT_SYMBOL(ide_dma_off_quietly);
-#endif /* CONFIG_BLK_DEV_IDEDMA_PCI */
 
 /**
  *	ide_dma_off	-	disable DMA on a device
@@ -454,56 +453,27 @@ EXPORT_SYMBOL(ide_dma_off_quietly);
 void ide_dma_off(ide_drive_t *drive)
 {
 	printk(KERN_INFO "%s: DMA disabled\n", drive->name);
-	drive->hwif->dma_off_quietly(drive);
+	ide_dma_off_quietly(drive);
 }
 
 EXPORT_SYMBOL(ide_dma_off);
 
-#ifdef CONFIG_BLK_DEV_IDEDMA_PCI
 /**
- *	ide_dma_host_on	-	Enable DMA on a host
- *	@drive: drive to enable for DMA
- *
- *	Enable DMA on an IDE controller following generic bus mastering
- *	IDE controller behaviour
- */
-
-void ide_dma_host_on(ide_drive_t *drive)
-{
-	if (drive->using_dma) {
-		ide_hwif_t *hwif	= HWIF(drive);
-		u8 unit			= (drive->select.b.unit & 0x01);
-		u8 dma_stat		= hwif->INB(hwif->dma_status);
-
-		hwif->OUTB((dma_stat|(1<<(5+unit))), hwif->dma_status);
-	}
-}
-
-EXPORT_SYMBOL(ide_dma_host_on);
-
-/**
- *	__ide_dma_on		-	Enable DMA on a device
+ *	ide_dma_on		-	Enable DMA on a device
  *	@drive: drive to enable DMA on
  *
  *	Enable IDE DMA for a device on this IDE controller.
  */
- 
-int __ide_dma_on (ide_drive_t *drive)
-{
-	/* consult the list of known "bad" drives */
-	if (__ide_dma_bad_drive(drive))
-		return 1;
 
+void ide_dma_on(ide_drive_t *drive)
+{
 	drive->using_dma = 1;
 	ide_toggle_bounce(drive, 1);
 
-	drive->hwif->dma_host_on(drive);
-
-	return 0;
+	drive->hwif->dma_host_set(drive, 1);
 }
 
-EXPORT_SYMBOL(__ide_dma_on);
-
+#ifdef CONFIG_BLK_DEV_IDEDMA_PCI
 /**
  *	ide_dma_setup	-	begin a DMA phase
  *	@drive: target device
@@ -610,12 +580,6 @@ static int __ide_dma_test_irq(ide_drive_t *drive)
 	ide_hwif_t *hwif	= HWIF(drive);
 	u8 dma_stat		= hwif->INB(hwif->dma_status);
 
-#if 0  /* do not set unless you know what you are doing */
-	if (dma_stat & 4) {
-		u8 stat = hwif->INB(IDE_STATUS_REG);
-		hwif->OUTB(hwif->dma_status, dma_stat & 0xE4);
-	}
-#endif
 	/* return 1 if INTR asserted */
 	if ((dma_stat & 4) == 4)
 		return 1;
@@ -752,15 +716,19 @@ u8 ide_find_dma_mode(ide_drive_t *drive, u8 req_mode)
 			mode = XFER_MW_DMA_1;
 	}
 
-	printk(KERN_DEBUG "%s: selected mode 0x%x\n", drive->name, mode);
+	mode = min(mode, req_mode);
 
-	return min(mode, req_mode);
+	printk(KERN_INFO "%s: %s mode selected\n", drive->name,
+			  mode ? ide_xfer_verbose(mode) : "no DMA");
+
+	return mode;
 }
 
 EXPORT_SYMBOL_GPL(ide_find_dma_mode);
 
 static int ide_tune_dma(ide_drive_t *drive)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	u8 speed;
 
 	if (noautodma || drive->nodma || (drive->id->capability & 1) == 0)
@@ -770,15 +738,24 @@ static int ide_tune_dma(ide_drive_t *drive)
 	if (__ide_dma_bad_drive(drive))
 		return 0;
 
-	if (drive->hwif->host_flags & IDE_HFLAG_TRUST_BIOS_FOR_DMA)
+	if (ide_id_dma_bug(drive))
+		return 0;
+
+	if (hwif->host_flags & IDE_HFLAG_TRUST_BIOS_FOR_DMA)
 		return config_drive_for_dma(drive);
 
 	speed = ide_max_dma_mode(drive);
 
-	if (!speed)
-		return 0;
+	if (!speed) {
+		 /* is this really correct/needed? */
+		if ((hwif->host_flags & IDE_HFLAG_CY82C693) &&
+		    ide_dma_good_drive(drive))
+			return 1;
+		else
+			return 0;
+	}
 
-	if (drive->hwif->host_flags & IDE_HFLAG_NO_SET_MODE)
+	if (hwif->host_flags & IDE_HFLAG_NO_SET_MODE)
 		return 0;
 
 	if (ide_set_dma_mode(drive, speed))
@@ -804,79 +781,62 @@ static int ide_dma_check(ide_drive_t *drive)
 	return vdma ? 0 : -1;
 }
 
-void ide_dma_verbose(ide_drive_t *drive)
+int ide_id_dma_bug(ide_drive_t *drive)
 {
-	struct hd_driveid *id	= drive->id;
-	ide_hwif_t *hwif	= HWIF(drive);
+	struct hd_driveid *id = drive->id;
 
 	if (id->field_valid & 4) {
 		if ((id->dma_ultra >> 8) && (id->dma_mword >> 8))
-			goto bug_dma_off;
-		if (id->dma_ultra & ((id->dma_ultra >> 8) & hwif->ultra_mask)) {
-			if (((id->dma_ultra >> 11) & 0x1F) &&
-			    eighty_ninty_three(drive)) {
-				if ((id->dma_ultra >> 15) & 1) {
-					printk(", UDMA(mode 7)");
-				} else if ((id->dma_ultra >> 14) & 1) {
-					printk(", UDMA(133)");
-				} else if ((id->dma_ultra >> 13) & 1) {
-					printk(", UDMA(100)");
-				} else if ((id->dma_ultra >> 12) & 1) {
-					printk(", UDMA(66)");
-				} else if ((id->dma_ultra >> 11) & 1) {
-					printk(", UDMA(44)");
-				} else
-					goto mode_two;
-			} else {
-		mode_two:
-				if ((id->dma_ultra >> 10) & 1) {
-					printk(", UDMA(33)");
-				} else if ((id->dma_ultra >> 9) & 1) {
-					printk(", UDMA(25)");
-				} else if ((id->dma_ultra >> 8) & 1) {
-					printk(", UDMA(16)");
-				}
-			}
-		} else {
-			printk(", (U)DMA");	/* Can be BIOS-enabled! */
-		}
+			goto err_out;
 	} else if (id->field_valid & 2) {
 		if ((id->dma_mword >> 8) && (id->dma_1word >> 8))
-			goto bug_dma_off;
-		printk(", DMA");
-	} else if (id->field_valid & 1) {
-		goto bug_dma_off;
+			goto err_out;
 	}
-	return;
-bug_dma_off:
-	printk(", BUG DMA OFF");
-	hwif->dma_off_quietly(drive);
-	return;
+	return 0;
+err_out:
+	printk(KERN_ERR "%s: bad DMA info in identify block\n", drive->name);
+	return 1;
 }
-
-EXPORT_SYMBOL(ide_dma_verbose);
 
 int ide_set_dma(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = drive->hwif;
 	int rc;
 
+	/*
+	 * Force DMAing for the beginning of the check.
+	 * Some chipsets appear to do interesting
+	 * things, if not checked and cleared.
+	 *   PARANOIA!!!
+	 */
+	ide_dma_off_quietly(drive);
+
 	rc = ide_dma_check(drive);
+	if (rc)
+		return rc;
 
-	switch(rc) {
-	case -1: /* DMA needs to be disabled */
-		hwif->dma_off_quietly(drive);
-		return -1;
-	case  0: /* DMA needs to be enabled */
-		return hwif->ide_dma_on(drive);
-	case  1: /* DMA setting cannot be changed */
-		break;
-	default:
-		BUG();
-		break;
-	}
+	ide_dma_on(drive);
 
-	return rc;
+	return 0;
+}
+
+void ide_check_dma_crc(ide_drive_t *drive)
+{
+	u8 mode;
+
+	ide_dma_off_quietly(drive);
+	drive->crc_count = 0;
+	mode = drive->current_speed;
+	/*
+	 * Don't try non Ultra-DMA modes without iCRC's.  Force the
+	 * device to PIO and make the user enable SWDMA/MWDMA modes.
+	 */
+	if (mode > XFER_UDMA_0 && mode <= XFER_UDMA_7)
+		mode--;
+	else
+		mode = XFER_PIO_4;
+	ide_set_xfer_rate(drive, mode);
+	if (drive->current_speed >= XFER_SW_DMA_0)
+		ide_dma_on(drive);
 }
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_PCI
@@ -904,10 +864,10 @@ EXPORT_SYMBOL(ide_dma_timeout);
 static void ide_release_dma_engine(ide_hwif_t *hwif)
 {
 	if (hwif->dmatable_cpu) {
-		pci_free_consistent(hwif->pci_dev,
-				    PRD_ENTRIES * PRD_BYTES,
-				    hwif->dmatable_cpu,
-				    hwif->dmatable_dma);
+		struct pci_dev *pdev = to_pci_dev(hwif->dev);
+
+		pci_free_consistent(pdev, PRD_ENTRIES * PRD_BYTES,
+				    hwif->dmatable_cpu, hwif->dmatable_dma);
 		hwif->dmatable_cpu = NULL;
 	}
 }
@@ -935,7 +895,9 @@ int ide_release_dma(ide_hwif_t *hwif)
 
 static int ide_allocate_dma_engine(ide_hwif_t *hwif)
 {
-	hwif->dmatable_cpu = pci_alloc_consistent(hwif->pci_dev,
+	struct pci_dev *pdev = to_pci_dev(hwif->dev);
+
+	hwif->dmatable_cpu = pci_alloc_consistent(pdev,
 						  PRD_ENTRIES * PRD_BYTES,
 						  &hwif->dmatable_dma);
 
@@ -948,19 +910,19 @@ static int ide_allocate_dma_engine(ide_hwif_t *hwif)
 	return 1;
 }
 
-static int ide_mapped_mmio_dma(ide_hwif_t *hwif, unsigned long base, unsigned int ports)
+static int ide_mapped_mmio_dma(ide_hwif_t *hwif, unsigned long base)
 {
 	printk(KERN_INFO "    %s: MMIO-DMA ", hwif->name);
 
 	return 0;
 }
 
-static int ide_iomio_dma(ide_hwif_t *hwif, unsigned long base, unsigned int ports)
+static int ide_iomio_dma(ide_hwif_t *hwif, unsigned long base)
 {
 	printk(KERN_INFO "    %s: BM-DMA at 0x%04lx-0x%04lx",
-	       hwif->name, base, base + ports - 1);
+	       hwif->name, base, base + 7);
 
-	if (!request_region(base, ports, hwif->name)) {
+	if (!request_region(base, 8, hwif->name)) {
 		printk(" -- Error, ports in use.\n");
 		return 1;
 	}
@@ -972,7 +934,7 @@ static int ide_iomio_dma(ide_hwif_t *hwif, unsigned long base, unsigned int port
 			if (!request_region(hwif->extra_base,
 					    hwif->cds->extra, hwif->cds->name)) {
 				printk(" -- Error, extra ports in use.\n");
-				release_region(base, ports);
+				release_region(base, 8);
 				return 1;
 			}
 			hwif->extra_ports = hwif->cds->extra;
@@ -982,17 +944,19 @@ static int ide_iomio_dma(ide_hwif_t *hwif, unsigned long base, unsigned int port
 	return 0;
 }
 
-static int ide_dma_iobase(ide_hwif_t *hwif, unsigned long base, unsigned int ports)
+static int ide_dma_iobase(ide_hwif_t *hwif, unsigned long base)
 {
 	if (hwif->mmio)
-		return ide_mapped_mmio_dma(hwif, base,ports);
+		return ide_mapped_mmio_dma(hwif, base);
 
-	return ide_iomio_dma(hwif, base, ports);
+	return ide_iomio_dma(hwif, base);
 }
 
-void ide_setup_dma(ide_hwif_t *hwif, unsigned long base, unsigned num_ports)
+void ide_setup_dma(ide_hwif_t *hwif, unsigned long base)
 {
-	if (ide_dma_iobase(hwif, base, num_ports))
+	u8 dma_stat;
+
+	if (ide_dma_iobase(hwif, base))
 		return;
 
 	if (ide_allocate_dma_engine(hwif)) {
@@ -1002,30 +966,19 @@ void ide_setup_dma(ide_hwif_t *hwif, unsigned long base, unsigned num_ports)
 
 	hwif->dma_base = base;
 
-	if (hwif->mate)
-		hwif->dma_master = hwif->channel ? hwif->mate->dma_base : base;
-	else
-		hwif->dma_master = base;
+	if (!hwif->dma_command)
+		hwif->dma_command	= hwif->dma_base + 0;
+	if (!hwif->dma_vendor1)
+		hwif->dma_vendor1	= hwif->dma_base + 1;
+	if (!hwif->dma_status)
+		hwif->dma_status	= hwif->dma_base + 2;
+	if (!hwif->dma_vendor3)
+		hwif->dma_vendor3	= hwif->dma_base + 3;
+	if (!hwif->dma_prdtable)
+		hwif->dma_prdtable	= hwif->dma_base + 4;
 
-	if (!(hwif->dma_command))
-		hwif->dma_command	= hwif->dma_base;
-	if (!(hwif->dma_vendor1))
-		hwif->dma_vendor1	= (hwif->dma_base + 1);
-	if (!(hwif->dma_status))
-		hwif->dma_status	= (hwif->dma_base + 2);
-	if (!(hwif->dma_vendor3))
-		hwif->dma_vendor3	= (hwif->dma_base + 3);
-	if (!(hwif->dma_prdtable))
-		hwif->dma_prdtable	= (hwif->dma_base + 4);
-
-	if (!hwif->dma_off_quietly)
-		hwif->dma_off_quietly = &ide_dma_off_quietly;
-	if (!hwif->dma_host_off)
-		hwif->dma_host_off = &ide_dma_host_off;
-	if (!hwif->ide_dma_on)
-		hwif->ide_dma_on = &__ide_dma_on;
-	if (!hwif->dma_host_on)
-		hwif->dma_host_on = &ide_dma_host_on;
+	if (!hwif->dma_host_set)
+		hwif->dma_host_set = &ide_dma_host_set;
 	if (!hwif->dma_setup)
 		hwif->dma_setup = &ide_dma_setup;
 	if (!hwif->dma_exec_cmd)
@@ -1041,15 +994,10 @@ void ide_setup_dma(ide_hwif_t *hwif, unsigned long base, unsigned num_ports)
 	if (!hwif->dma_lost_irq)
 		hwif->dma_lost_irq = &ide_dma_lost_irq;
 
-	if (hwif->chipset != ide_trm290) {
-		u8 dma_stat = hwif->INB(hwif->dma_status);
-		printk(", BIOS settings: %s:%s, %s:%s",
-		       hwif->drives[0].name, (dma_stat & 0x20) ? "DMA" : "pio",
-		       hwif->drives[1].name, (dma_stat & 0x40) ? "DMA" : "pio");
-	}
-	printk("\n");
-
-	BUG_ON(!hwif->dma_master);
+	dma_stat = hwif->INB(hwif->dma_status);
+	printk(KERN_CONT ", BIOS settings: %s:%s, %s:%s\n",
+	       hwif->drives[0].name, (dma_stat & 0x20) ? "DMA" : "PIO",
+	       hwif->drives[1].name, (dma_stat & 0x40) ? "DMA" : "PIO");
 }
 
 EXPORT_SYMBOL_GPL(ide_setup_dma);

@@ -34,6 +34,7 @@ parameter is applicable:
 	ALSA	ALSA sound support is enabled.
 	APIC	APIC support is enabled.
 	APM	Advanced Power Management support is enabled.
+	AVR32	AVR32 architecture is enabled.
 	AX25	Appropriate AX.25 support is enabled.
 	BLACKFIN Blackfin architecture is enabled.
 	DRM	Direct Rendering Management support is enabled.
@@ -166,6 +167,11 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	acpi_irq_isa=	[HW,ACPI] If irq_balance, mark listed IRQs used by ISA
 			Format: <irq>,<irq>...
+
+	acpi_new_pts_ordering [HW,ACPI]
+			Enforce the ACPI 2.0 ordering of the _PTS control
+			method wrt putting devices into low power states
+			default: pre ACPI 2.0 ordering of _PTS
 
 	acpi_no_auto_ssdt	[HW,ACPI] Disable automatic loading of SSDT
 
@@ -369,7 +375,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			configured.  Potentially dangerous and should only be
 			used if you are entirely sure of the consequences.
 
-	chandev=	[HW,NET] Generic channel device initialisation
+	ccw_timeout_log [S390]
+			See Documentation/s390/CommonIO for details.
 
 	checkreqprot	[SELINUX] Set initial checkreqprot flag value.
 			Format: { "0" | "1" }
@@ -380,6 +387,12 @@ and is between 256 and 4096 characters. It is defined in the file
 			Default value is set via a kernel config option.
 			Value can be changed at runtime via
 				/selinux/checkreqprot.
+
+	cio_ignore=	[S390]
+			See Documentation/s390/CommonIO for details.
+
+	cio_msg=	[S390]
+			See Documentation/s390/CommonIO for details.
 
 	clock=		[BUGS=X86-32, HW] gettimeofday clocksource override.
 			[Deprecated]
@@ -408,8 +421,21 @@ and is between 256 and 4096 characters. It is defined in the file
 			[SPARC64] tick
 			[X86-64] hpet,tsc
 
-	code_bytes	[IA32] How many bytes of object code to print in an
-			oops report.
+	clearcpuid=BITNUM [X86]
+			Disable CPUID feature X for the kernel. See
+			include/asm-x86/cpufeature.h for the valid bit numbers.
+			Note the Linux specific bits are not necessarily
+			stable over kernel options, but the vendor specific
+			ones should be.
+			Also note that user programs calling CPUID directly
+			or using the feature without checking anything
+			will still see it. This just prevents it from
+			being used by the kernel or shown in /proc/cpuinfo.
+			Also note the kernel might malfunction if you disable
+			some critical bits.
+
+	code_bytes	[IA32/X86_64] How many bytes of object code to print
+			in an oops report.
 			Range: 0 - 8192
 			Default: 64
 
@@ -527,29 +553,30 @@ and is between 256 and 4096 characters. It is defined in the file
 			Format: <area>[,<node>]
 			See also Documentation/networking/decnet.txt.
 
-	default_blu=	[VT]
+	vt.default_blu=	[VT]
 			Format: <blue0>,<blue1>,<blue2>,...,<blue15>
 			Change the default blue palette of the console.
 			This is a 16-member array composed of values
 			ranging from 0-255.
 
-	default_grn=	[VT]
+	vt.default_grn=	[VT]
 			Format: <green0>,<green1>,<green2>,...,<green15>
 			Change the default green palette of the console.
 			This is a 16-member array composed of values
 			ranging from 0-255.
 
-	default_red=	[VT]
+	vt.default_red=	[VT]
 			Format: <red0>,<red1>,<red2>,...,<red15>
 			Change the default red palette of the console.
 			This is a 16-member array composed of values
 			ranging from 0-255.
 
-	default_utf8=   [VT]
+	vt.default_utf8=
+			[VT]
 			Format=<0|1>
 			Set system-wide default UTF-8 mode for all tty's.
-			Default is 0 and by setting to 1, it enables UTF-8
-			mode for all newly opened or allocated terminals.
+			Default is 1, i.e. UTF-8 mode is enabled for all
+			newly opened terminals.
 
 	dhash_entries=	[KNL]
 			Set number of hash buckets for dentry cache.
@@ -560,6 +587,12 @@ and is between 256 and 4096 characters. It is defined in the file
 	digiepca=	[HW,SERIAL]
 			See drivers/char/README.epca and
 			Documentation/digiepca.txt.
+
+	disable_mtrr_trim [X86, Intel and AMD only]
+			By default the kernel will trim any uncacheable
+			memory out of your available memory pool based on
+			MTRR settings.  This parameter disables that behavior,
+			possibly causing your machine to run very slowly.
 
 	dmasound=	[HW,OSS] Sound subsystem buffers
 
@@ -585,11 +618,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			console.
 
 	eata=		[HW,SCSI]
-
-	ec_intr=	[HW,ACPI] ACPI Embedded Controller interrupt mode
-			Format: <int>
-			0: polling mode
-			non-0: interrupt mode (default)
 
 	edd=		[EDD]
 			Format: {"of[f]" | "sk[ipmbr]"}
@@ -656,6 +684,10 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	gamma=		[HW,DRM]
 
+	gart_fix_e820=  [X86_64] disable the fix e820 for K8 GART
+			Format: off | on
+			default: on
+
 	gdth=		[HW,SCSI]
 			See header of drivers/scsi/gdth.c.
 
@@ -690,6 +722,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			See Documentation/isdn/README.HiSax.
 
 	hugepages=	[HW,X86-32,IA-64] Maximal number of HugeTLB pages.
+	hugepagesz=	[HW,IA-64,PPC] The size of the HugeTLB pages.
 
 	i8042.direct	[HW] Put keyboard port into non-translated mode
 	i8042.dumbkbd	[HW] Pretend that controller can only read data from
@@ -790,6 +823,16 @@ and is between 256 and 4096 characters. It is defined in the file
 			for translation below 32 bit and if not available
 			then look in the higher range.
 
+	io_delay=	[X86-32,X86-64] I/O delay method
+		0x80
+			Standard port 0x80 based delay
+		0xed
+			Alternate port 0xed based delay (needed on some systems)
+		udelay
+			Simple two microseconds delay
+		none
+			No delay
+
 	io7=		[HW] IO7 for Marvel based alpha systems
 			See comment before marvel_specify_io7 in
 			arch/alpha/kernel/core_marvel.c.
@@ -886,6 +929,14 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	lapic_timer_c2_ok	[X86-32,x86-64,APIC] trust the local apic timer in
 			C2 power state.
+
+	libata.dma=	[LIBATA] DMA control
+			libata.dma=0	  Disable all PATA and SATA DMA
+			libata.dma=1	  PATA and SATA Disk DMA only
+			libata.dma=2	  ATAPI (CDROM) DMA only
+			libata.dma=4	  Compact Flash DMA only 
+			Combinations also work, so libata.dma=3 enables DMA
+			for disks and CDROMs, but not CFs.
 
 	libata.noacpi	[LIBATA] Disables use of ACPI in libata suspend/resume
 			when set.
@@ -1047,6 +1098,11 @@ and is between 256 and 4096 characters. It is defined in the file
 			Multi-Function General Purpose Timers on AMD Geode
 			platforms.
 
+	mfgptfix	[X86-32] Fix MFGPT timers on AMD Geode platforms when
+			the BIOS has incorrectly applied a workaround. TinyBIOS
+			version 0.98 is known to be affected, 0.99 fixes the
+			problem by letting the user disable the workaround.
+
 	mga=		[HW,DRM]
 
 	mousedev.tap_time=
@@ -1119,6 +1175,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			of returning the full 64-bit number.
 			The default is to return 64-bit inode numbers.
 
+	nmi_debug=	[KNL,AVR32] Specify one or more actions to take
+			when a NMI is triggered.
+			Format: [state][,regs][,debounce][,die]
+
 	nmi_watchdog=	[KNL,BUGS=X86-32] Debugging features for SMP kernels
 
 	no387		[BUGS=X86-32] Tells the kernel to use the 387 maths
@@ -1143,6 +1203,8 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	nodisconnect	[HW,SCSI,M68K] Disables SCSI disconnects.
 
+	noefi		[X86-32,X86-64] Disable EFI runtime services support.
+
 	noexec		[IA-64]
 
 	noexec		[X86-32,X86-64]
@@ -1152,6 +1214,8 @@ and is between 256 and 4096 characters. It is defined in the file
 	nofxsr		[BUGS=X86-32] Disables x86 floating point extended
 			register save and restore. The kernel will only save
 			legacy floating-point registers on task switch.
+
+	noclflush	[BUGS=X86] Don't use the CLFLUSH instruction
 
 	nohlt		[BUGS=ARM]
 
@@ -1589,7 +1653,13 @@ and is between 256 and 4096 characters. It is defined in the file
 			Format: <vendor>:<model>:<flags>
 			(flags are integer value)
 
-	scsi_logging=	[SCSI]
+	scsi_logging_level=	[SCSI] a bit mask of logging levels
+			See drivers/scsi/scsi_logging.h for bits.  Also
+			settable via sysctl at dev.scsi.logging_level
+			(/proc/sys/dev/scsi/logging_level).
+			There is also a nice 'scsi_logging_level' script in the
+			S390-tools package, available for download at
+			http://www-128.ibm.com/developerworks/linux/linux390/s390-tools-1.5.4.html
 
 	scsi_mod.scan=	[SCSI] sync (default) scans SCSI busses as they are
 			discovered.  async scans them in kernel threads,
@@ -1955,6 +2025,11 @@ and is between 256 and 4096 characters. It is defined in the file
 			vdso=2: enable compat VDSO (default with COMPAT_VDSO)
 			vdso=1: enable VDSO (default)
 			vdso=0: disable VDSO mapping
+
+	vdso32=		[X86-32,X86-64]
+			vdso32=2: enable compat VDSO (default with COMPAT_VDSO)
+			vdso32=1: enable 32-bit VDSO (default)
+			vdso32=0: disable 32-bit VDSO mapping
 
 	vector=		[IA-64,SMP]
 			vector=percpu: enable percpu vector domain

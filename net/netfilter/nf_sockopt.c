@@ -23,14 +23,13 @@ static inline int overlap(int min1, int max1, int min2, int max2)
 /* Functions to register sockopt ranges (exclusive). */
 int nf_register_sockopt(struct nf_sockopt_ops *reg)
 {
-	struct list_head *i;
+	struct nf_sockopt_ops *ops;
 	int ret = 0;
 
 	if (mutex_lock_interruptible(&nf_sockopt_mutex) != 0)
 		return -EINTR;
 
-	list_for_each(i, &nf_sockopts) {
-		struct nf_sockopt_ops *ops = (struct nf_sockopt_ops *)i;
+	list_for_each_entry(ops, &nf_sockopts, list) {
 		if (ops->pf == reg->pf
 		    && (overlap(ops->set_optmin, ops->set_optmax,
 				reg->set_optmin, reg->set_optmax)
@@ -61,48 +60,57 @@ void nf_unregister_sockopt(struct nf_sockopt_ops *reg)
 }
 EXPORT_SYMBOL(nf_unregister_sockopt);
 
-/* Call get/setsockopt() */
-static int nf_sockopt(struct sock *sk, int pf, int val,
-		      char __user *opt, int *len, int get)
+static struct nf_sockopt_ops *nf_sockopt_find(struct sock *sk, int pf,
+		int val, int get)
 {
-	struct list_head *i;
 	struct nf_sockopt_ops *ops;
-	int ret;
 
 	if (sk->sk_net != &init_net)
-		return -ENOPROTOOPT;
+		return ERR_PTR(-ENOPROTOOPT);
 
 	if (mutex_lock_interruptible(&nf_sockopt_mutex) != 0)
-		return -EINTR;
+		return ERR_PTR(-EINTR);
 
-	list_for_each(i, &nf_sockopts) {
-		ops = (struct nf_sockopt_ops *)i;
+	list_for_each_entry(ops, &nf_sockopts, list) {
 		if (ops->pf == pf) {
 			if (!try_module_get(ops->owner))
 				goto out_nosup;
+
 			if (get) {
-				if (val >= ops->get_optmin
-				    && val < ops->get_optmax) {
-					mutex_unlock(&nf_sockopt_mutex);
-					ret = ops->get(sk, val, opt, len);
+				if (val >= ops->get_optmin &&
+						val < ops->get_optmax)
 					goto out;
-				}
 			} else {
-				if (val >= ops->set_optmin
-				    && val < ops->set_optmax) {
-					mutex_unlock(&nf_sockopt_mutex);
-					ret = ops->set(sk, val, opt, *len);
+				if (val >= ops->set_optmin &&
+						val < ops->set_optmax)
 					goto out;
-				}
 			}
 			module_put(ops->owner);
 		}
 	}
- out_nosup:
+out_nosup:
+	ops = ERR_PTR(-ENOPROTOOPT);
+out:
 	mutex_unlock(&nf_sockopt_mutex);
-	return -ENOPROTOOPT;
+	return ops;
+}
 
- out:
+/* Call get/setsockopt() */
+static int nf_sockopt(struct sock *sk, int pf, int val,
+		      char __user *opt, int *len, int get)
+{
+	struct nf_sockopt_ops *ops;
+	int ret;
+
+	ops = nf_sockopt_find(sk, pf, val, get);
+	if (IS_ERR(ops))
+		return PTR_ERR(ops);
+
+	if (get)
+		ret = ops->get(sk, val, opt, len);
+	else
+		ret = ops->set(sk, val, opt, *len);
+
 	module_put(ops->owner);
 	return ret;
 }
@@ -124,56 +132,25 @@ EXPORT_SYMBOL(nf_getsockopt);
 static int compat_nf_sockopt(struct sock *sk, int pf, int val,
 			     char __user *opt, int *len, int get)
 {
-	struct list_head *i;
 	struct nf_sockopt_ops *ops;
 	int ret;
 
-	if (sk->sk_net != &init_net)
-		return -ENOPROTOOPT;
+	ops = nf_sockopt_find(sk, pf, val, get);
+	if (IS_ERR(ops))
+		return PTR_ERR(ops);
 
-
-	if (mutex_lock_interruptible(&nf_sockopt_mutex) != 0)
-		return -EINTR;
-
-	list_for_each(i, &nf_sockopts) {
-		ops = (struct nf_sockopt_ops *)i;
-		if (ops->pf == pf) {
-			if (!try_module_get(ops->owner))
-				goto out_nosup;
-
-			if (get) {
-				if (val >= ops->get_optmin
-				    && val < ops->get_optmax) {
-					mutex_unlock(&nf_sockopt_mutex);
-					if (ops->compat_get)
-						ret = ops->compat_get(sk,
-							val, opt, len);
-					else
-						ret = ops->get(sk,
-							val, opt, len);
-					goto out;
-				}
-			} else {
-				if (val >= ops->set_optmin
-				    && val < ops->set_optmax) {
-					mutex_unlock(&nf_sockopt_mutex);
-					if (ops->compat_set)
-						ret = ops->compat_set(sk,
-							val, opt, *len);
-					else
-						ret = ops->set(sk,
-							val, opt, *len);
-					goto out;
-				}
-			}
-			module_put(ops->owner);
-		}
+	if (get) {
+		if (ops->compat_get)
+			ret = ops->compat_get(sk, val, opt, len);
+		else
+			ret = ops->get(sk, val, opt, len);
+	} else {
+		if (ops->compat_set)
+			ret = ops->compat_set(sk, val, opt, *len);
+		else
+			ret = ops->set(sk, val, opt, *len);
 	}
- out_nosup:
-	mutex_unlock(&nf_sockopt_mutex);
-	return -ENOPROTOOPT;
 
- out:
 	module_put(ops->owner);
 	return ret;
 }

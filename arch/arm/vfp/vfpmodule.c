@@ -125,13 +125,13 @@ void vfp_raise_sigfpe(unsigned int sicode, struct pt_regs *regs)
 	send_sig_info(SIGFPE, &info, current);
 }
 
-static void vfp_panic(char *reason)
+static void vfp_panic(char *reason, u32 inst)
 {
 	int i;
 
 	printk(KERN_ERR "VFP: Error: %s\n", reason);
 	printk(KERN_ERR "VFP: EXC 0x%08x SCR 0x%08x INST 0x%08x\n",
-		fmrx(FPEXC), fmrx(FPSCR), fmrx(FPINST));
+		fmrx(FPEXC), fmrx(FPSCR), inst);
 	for (i = 0; i < 32; i += 2)
 		printk(KERN_ERR "VFP: s%2u: 0x%08x s%2u: 0x%08x\n",
 		       i, vfp_get_float(i), i+1, vfp_get_float(i+1));
@@ -147,19 +147,16 @@ static void vfp_raise_exceptions(u32 exceptions, u32 inst, u32 fpscr, struct pt_
 	pr_debug("VFP: raising exceptions %08x\n", exceptions);
 
 	if (exceptions == VFP_EXCEPTION_ERROR) {
-		vfp_panic("unhandled bounce");
+		vfp_panic("unhandled bounce", inst);
 		vfp_raise_sigfpe(0, regs);
 		return;
 	}
 
 	/*
-	 * If any of the status flags are set, update the FPSCR.
+	 * Update the FPSCR with the additional exception flags.
 	 * Comparison instructions always return at least one of
 	 * these flags set.
 	 */
-	if (exceptions & (FPSCR_N|FPSCR_Z|FPSCR_C|FPSCR_V))
-		fpscr &= ~(FPSCR_N|FPSCR_Z|FPSCR_C|FPSCR_V);
-
 	fpscr |= exceptions;
 
 	fmxr(FPSCR, fpscr);
@@ -220,35 +217,64 @@ static u32 vfp_emulate_instruction(u32 inst, u32 fpscr, struct pt_regs *regs)
 /*
  * Package up a bounce condition.
  */
-void VFP9_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
+void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 {
-	u32 fpscr, orig_fpscr, exceptions, inst;
+	u32 fpscr, orig_fpscr, fpsid, exceptions;
 
 	pr_debug("VFP: bounce: trigger %08x fpexc %08x\n", trigger, fpexc);
 
 	/*
-	 * Enable access to the VFP so we can handle the bounce.
+	 * At this point, FPEXC can have the following configuration:
+	 *
+	 *  EX DEX IXE
+	 *  0   1   x   - synchronous exception
+	 *  1   x   0   - asynchronous exception
+	 *  1   x   1   - sychronous on VFP subarch 1 and asynchronous on later
+	 *  0   0   1   - synchronous on VFP9 (non-standard subarch 1
+	 *                implementation), undefined otherwise
+	 *
+	 * Clear various bits and enable access to the VFP so we can
+	 * handle the bounce.
 	 */
-	fmxr(FPEXC, fpexc & ~(FPEXC_EX|FPEXC_FPV2|FPEXC_INV|FPEXC_UFC|FPEXC_OFC|FPEXC_IOC));
+	fmxr(FPEXC, fpexc & ~(FPEXC_EX|FPEXC_DEX|FPEXC_FP2V|FPEXC_VV|FPEXC_TRAP_MASK));
 
+	fpsid = fmrx(FPSID);
 	orig_fpscr = fpscr = fmrx(FPSCR);
 
 	/*
-	 * If we are running with inexact exceptions enabled, we need to
-	 * emulate the trigger instruction.  Note that as we're emulating
-	 * the trigger instruction, we need to increment PC.
+	 * Check for the special VFP subarch 1 and FPSCR.IXE bit case
 	 */
-	if (fpscr & FPSCR_IXE) {
-		regs->ARM_pc += 4;
+	if ((fpsid & FPSID_ARCH_MASK) == (1 << FPSID_ARCH_BIT)
+	    && (fpscr & FPSCR_IXE)) {
+		/*
+		 * Synchronous exception, emulate the trigger instruction
+		 */
 		goto emulate;
 	}
 
-	barrier();
+	if (fpexc & FPEXC_EX) {
+		/*
+		 * Asynchronous exception. The instruction is read from FPINST
+		 * and the interrupted instruction has to be restarted.
+		 */
+		trigger = fmrx(FPINST);
+		regs->ARM_pc -= 4;
+	} else if (!(fpexc & FPEXC_DEX)) {
+		/*
+		 * Illegal combination of bits. It can be caused by an
+		 * unallocated VFP instruction but with FPSCR.IXE set and not
+		 * on VFP subarch 1.
+		 */
+		 vfp_raise_exceptions(VFP_EXCEPTION_ERROR, trigger, fpscr, regs);
+		 return;
+	}
 
 	/*
-	 * Modify fpscr to indicate the number of iterations remaining
+	 * Modify fpscr to indicate the number of iterations remaining.
+	 * If FPEXC.EX is 0, FPEXC.DEX is 1 and the FPEXC.VV bit indicates
+	 * whether FPEXC.VECITR or FPSCR.LEN is used.
 	 */
-	if (fpexc & FPEXC_EX) {
+	if (fpexc & (FPEXC_EX | FPEXC_VV)) {
 		u32 len;
 
 		len = fpexc + (1 << FPEXC_LENGTH_BIT);
@@ -262,15 +288,15 @@ void VFP9_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 	 * FPEXC bounce reason, but this appears to be unreliable.
 	 * Emulate the bounced instruction instead.
 	 */
-	inst = fmrx(FPINST);
-	exceptions = vfp_emulate_instruction(inst, fpscr, regs);
+	exceptions = vfp_emulate_instruction(trigger, fpscr, regs);
 	if (exceptions)
-		vfp_raise_exceptions(exceptions, inst, orig_fpscr, regs);
+		vfp_raise_exceptions(exceptions, trigger, orig_fpscr, regs);
 
 	/*
-	 * If there isn't a second FP instruction, exit now.
+	 * If there isn't a second FP instruction, exit now. Note that
+	 * the FPEXC.FP2V bit is valid only if FPEXC.EX is 1.
 	 */
-	if (!(fpexc & FPEXC_FPV2))
+	if (fpexc ^ (FPEXC_EX | FPEXC_FP2V))
 		return;
 
 	/*
@@ -279,10 +305,9 @@ void VFP9_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 	 */
 	barrier();
 	trigger = fmrx(FPINST2);
-	orig_fpscr = fpscr = fmrx(FPSCR);
 
  emulate:
-	exceptions = vfp_emulate_instruction(trigger, fpscr, regs);
+	exceptions = vfp_emulate_instruction(trigger, orig_fpscr, regs);
 	if (exceptions)
 		vfp_raise_exceptions(exceptions, trigger, orig_fpscr, regs);
 }
@@ -306,16 +331,9 @@ static int __init vfp_init(void)
 {
 	unsigned int vfpsid;
 	unsigned int cpu_arch = cpu_architecture();
-	u32 access = 0;
 
-	if (cpu_arch >= CPU_ARCH_ARMv6) {
-		access = get_copro_access();
-
-		/*
-		 * Enable full access to VFP (cp10 and cp11)
-		 */
-		set_copro_access(access | CPACC_FULL(10) | CPACC_FULL(11));
-	}
+	if (cpu_arch >= CPU_ARCH_ARMv6)
+		vfp_enable(NULL);
 
 	/*
 	 * First check that there is a VFP that we can use.
@@ -329,15 +347,9 @@ static int __init vfp_init(void)
 	vfp_vector = vfp_null_entry;
 
 	printk(KERN_INFO "VFP support v0.3: ");
-	if (VFP_arch) {
+	if (VFP_arch)
 		printk("not present\n");
-
-		/*
-		 * Restore the copro access register.
-		 */
-		if (cpu_arch >= CPU_ARCH_ARMv6)
-			set_copro_access(access);
-	} else if (vfpsid & FPSID_NODOUBLE) {
+	else if (vfpsid & FPSID_NODOUBLE) {
 		printk("no double precision support\n");
 	} else {
 		smp_call_function(vfp_enable, NULL, 1, 1);

@@ -187,14 +187,16 @@ enum Window1 {
 enum Window3 {			/* Window 3: MAC/config bits. */
 	Wn3_Config=0, Wn3_MAC_Ctrl=6, Wn3_Options=8,
 };
-union wn3_config {
-	int i;
-	struct w3_config_fields {
-		unsigned int ram_size:3, ram_width:1, ram_speed:2, rom_size:2;
-		int pad8:8;
-		unsigned int ram_split:2, pad18:2, xcvr:3, pad21:1, autoselect:1;
-		int pad24:7;
-	} u;
+enum wn3_config {
+	Ram_size = 7,
+	Ram_width = 8,
+	Ram_speed = 0x30,
+	Rom_size = 0xc0,
+	Ram_split_shift = 16,
+	Ram_split = 3 << Ram_split_shift,
+	Xcvr_shift = 20,
+	Xcvr = 7 << Xcvr_shift,
+	Autoselect = 0x1000000,
 };
 
 enum Window4 {		/* Window 4: Xcvr/media bits. */
@@ -274,7 +276,7 @@ static int tc574_probe(struct pcmcia_device *link)
 	spin_lock_init(&lp->window_lock);
 	link->io.NumPorts1 = 32;
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
-	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
+	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING|IRQ_HANDLE_PRESENT;
 	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
 	link->irq.Handler = &el3_interrupt;
 	link->irq.Instance = dev;
@@ -337,15 +339,15 @@ static int tc574_config(struct pcmcia_device *link)
 	struct net_device *dev = link->priv;
 	struct el3_private *lp = netdev_priv(dev);
 	tuple_t tuple;
-	unsigned short buf[32];
+	__le16 buf[32];
 	int last_fn, last_ret, i, j;
 	kio_addr_t ioaddr;
-	u16 *phys_addr;
+	__be16 *phys_addr;
 	char *cardname;
-	union wn3_config config;
+	__u32 config;
 	DECLARE_MAC_BUF(mac);
 
-	phys_addr = (u16 *)dev->dev_addr;
+	phys_addr = (__be16 *)dev->dev_addr;
 
 	DEBUG(0, "3c574_config(0x%p)\n", link);
 
@@ -378,12 +380,12 @@ static int tc574_config(struct pcmcia_device *link)
 	if (pcmcia_get_first_tuple(link, &tuple) == CS_SUCCESS) {
 		pcmcia_get_tuple_data(link, &tuple);
 		for (i = 0; i < 3; i++)
-			phys_addr[i] = htons(buf[i]);
+			phys_addr[i] = htons(le16_to_cpu(buf[i]));
 	} else {
 		EL3WINDOW(0);
 		for (i = 0; i < 3; i++)
 			phys_addr[i] = htons(read_eeprom(ioaddr, i + 10));
-		if (phys_addr[0] == 0x6060) {
+		if (phys_addr[0] == htons(0x6060)) {
 			printk(KERN_NOTICE "3c574_cs: IO port conflict at 0x%03lx"
 				   "-0x%03lx\n", dev->base_addr, dev->base_addr+15);
 			goto failed;
@@ -401,9 +403,9 @@ static int tc574_config(struct pcmcia_device *link)
 		outw(0<<11, ioaddr + RunnerRdCtrl);
 		printk(KERN_INFO "  ASIC rev %d,", mcr>>3);
 		EL3WINDOW(3);
-		config.i = inl(ioaddr + Wn3_Config);
-		lp->default_media = config.u.xcvr;
-		lp->autoselect = config.u.autoselect;
+		config = inl(ioaddr + Wn3_Config);
+		lp->default_media = (config & Xcvr) >> Xcvr_shift;
+		lp->autoselect = config & Autoselect ? 1 : 0;
 	}
 
 	init_timer(&lp->media);
@@ -464,8 +466,9 @@ static int tc574_config(struct pcmcia_device *link)
 	       dev->name, cardname, dev->base_addr, dev->irq,
 	       print_mac(mac, dev->dev_addr));
 	printk(" %dK FIFO split %s Rx:Tx, %sMII interface.\n",
-		   8 << config.u.ram_size, ram_split[config.u.ram_split],
-		   config.u.autoselect ? "autoselect " : "");
+		   8 << config & Ram_size,
+		   ram_split[(config & Ram_split) >> Ram_split_shift],
+		   config & Autoselect ? "autoselect " : "");
 
 	return 0;
 

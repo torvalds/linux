@@ -47,7 +47,6 @@
  */
 
 
-#include <sound/driver.h>
 #include <asm/io.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -2491,6 +2490,7 @@ static int snd_ice1712_free(struct snd_ice1712 *ice)
 		pci_release_regions(ice->pci);
 	snd_ice1712_akm4xxx_free(ice);
 	pci_disable_device(ice->pci);
+	kfree(ice->spec);
 	kfree(ice);
 	return 0;
 }

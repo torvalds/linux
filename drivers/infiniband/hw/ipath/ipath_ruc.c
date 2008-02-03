@@ -98,11 +98,15 @@ void ipath_insert_rnr_queue(struct ipath_qp *qp)
 		while (qp->s_rnr_timeout >= nqp->s_rnr_timeout) {
 			qp->s_rnr_timeout -= nqp->s_rnr_timeout;
 			l = l->next;
-			if (l->next == &dev->rnrwait)
+			if (l->next == &dev->rnrwait) {
+				nqp = NULL;
 				break;
+			}
 			nqp = list_entry(l->next, struct ipath_qp,
 					 timerwait);
 		}
+		if (nqp)
+			nqp->s_rnr_timeout -= qp->s_rnr_timeout;
 		list_add(&qp->timerwait, l);
 	}
 	spin_unlock_irqrestore(&dev->pending_lock, flags);
@@ -479,9 +483,14 @@ done:
 
 static void want_buffer(struct ipath_devdata *dd)
 {
-	set_bit(IPATH_S_PIOINTBUFAVAIL, &dd->ipath_sendctrl);
+	unsigned long flags;
+
+	spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
+	dd->ipath_sendctrl |= INFINIPATH_S_PIOINTBUFAVAIL;
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
 			 dd->ipath_sendctrl);
+	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+	spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
 }
 
 /**
@@ -630,11 +639,8 @@ bail:;
 void ipath_send_complete(struct ipath_qp *qp, struct ipath_swqe *wqe,
 			 enum ib_wc_status status)
 {
-	u32 last = qp->s_last;
-
-	if (++last == qp->s_size)
-		last = 0;
-	qp->s_last = last;
+	unsigned long flags;
+	u32 last;
 
 	/* See ch. 11.2.4.1 and 10.7.3.1 */
 	if (!(qp->s_flags & IPATH_S_SIGNAL_REQ_WR) ||
@@ -658,4 +664,11 @@ void ipath_send_complete(struct ipath_qp *qp, struct ipath_swqe *wqe,
 		wc.port_num = 0;
 		ipath_cq_enter(to_icq(qp->ibqp.send_cq), &wc, 0);
 	}
+
+	spin_lock_irqsave(&qp->s_lock, flags);
+	last = qp->s_last;
+	if (++last >= qp->s_size)
+		last = 0;
+	qp->s_last = last;
+	spin_unlock_irqrestore(&qp->s_lock, flags);
 }

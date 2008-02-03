@@ -16,8 +16,13 @@
 #include <asm/machvec.h>
 #include <asm/se7722.h>
 #include <asm/io.h>
+#include <asm/heartbeat.h>
 
 /* Heartbeat */
+static struct heartbeat_data heartbeat_data = {
+	.regsize = 16,
+};
+
 static struct resource heartbeat_resources[] = {
 	[0] = {
 		.start  = PA_LED,
@@ -29,6 +34,9 @@ static struct resource heartbeat_resources[] = {
 static struct platform_device heartbeat_device = {
 	.name           = "heartbeat",
 	.id             = -1,
+	.dev = {
+		.platform_data = &heartbeat_data,
+	},
 	.num_resources  = ARRAY_SIZE(heartbeat_resources),
 	.resource       = heartbeat_resources,
 };
@@ -103,8 +111,8 @@ static void __init se7722_setup(char **cmdline_p)
 
 	ctrl_outl(0x00051001, MSTPCR0);
 	ctrl_outl(0x00000000, MSTPCR1);
-	/* KEYSC, VOU, BEU, CEU, VEU, VPU, LCDC */
-	ctrl_outl(0xffffbfC0, MSTPCR2);
+	/* KEYSC, VOU, BEU, CEU, VEU, VPU, LCDC, USB */
+	ctrl_outl(0xffffb7c0, MSTPCR2);
 
 	ctrl_outw(0x0000, PORT_PECR);   /* PORT E 1 = IRQ5 ,E 0 = BS */
 	ctrl_outw(0x1000, PORT_PJCR);   /* PORT J 1 = IRQ1,J 0 =IRQ0 */

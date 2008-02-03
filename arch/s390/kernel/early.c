@@ -200,11 +200,13 @@ static noinline __init void find_memory_chunks(unsigned long memsize)
 		cc = __tprot(addr);
 		while (cc == old_cc) {
 			addr += CHUNK_INCR;
-			cc = __tprot(addr);
+			if (memsize && addr >= memsize)
+				break;
 #ifndef CONFIG_64BIT
 			if (addr == ADDR2G)
 				break;
 #endif
+			cc = __tprot(addr);
 		}
 
 		if (old_addr != addr &&
@@ -274,7 +276,7 @@ void __init startup_init(void)
 	create_kernel_nss();
 	sort_main_extable();
 	setup_lowcore_early();
-	sclp_readinfo_early();
+	sclp_read_info_early();
 	sclp_facilities_detect();
 	memsize = sclp_memory_detect();
 #ifndef CONFIG_64BIT

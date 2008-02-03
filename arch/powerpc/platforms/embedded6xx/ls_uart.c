@@ -117,9 +117,6 @@ static int __init ls_uarts_init(void)
 	phys_addr_t phys_addr;
 	int len;
 
-	if (!machine_is(linkstation))
-		return 0;
-
 	avr = of_find_node_by_path("/soc10x/serial@80004500");
 	if (!avr)
 		return -EINVAL;
@@ -142,4 +139,4 @@ static int __init ls_uarts_init(void)
 	return 0;
 }
 
-late_initcall(ls_uarts_init);
+machine_late_initcall(linkstation, ls_uarts_init);

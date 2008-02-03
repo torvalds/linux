@@ -30,7 +30,6 @@
  *  to keep track of what period we are in.
  */
 
-#include <sound/driver.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/moduleparam.h>

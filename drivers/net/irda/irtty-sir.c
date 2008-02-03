@@ -434,11 +434,6 @@ static int irtty_ioctl(struct tty_struct *tty, struct file *file, unsigned int c
 	IRDA_ASSERT(dev != NULL, return -1;);
 
 	switch (cmd) {
-	case TCGETS:
-	case TCGETA:
-		err = n_tty_ioctl(tty, file, cmd, arg);
-		break;
-
 	case IRTTY_IOCTDONGLE:
 		/* this call blocks for completion */
 		err = sirdev_set_dongle(dev, (IRDA_DONGLE) arg);
@@ -454,7 +449,7 @@ static int irtty_ioctl(struct tty_struct *tty, struct file *file, unsigned int c
 			err = -EFAULT;
 		break;
 	default:
-		err = -ENOIOCTLCMD;
+		err = tty_mode_ioctl(tty, file, cmd, arg);
 		break;
 	}
 	return err;

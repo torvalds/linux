@@ -20,7 +20,6 @@
 #include <linux/capability.h>
 #include <linux/device.h>
 #include <linux/mutex.h>
-#include <linux/rtc.h>
 
 #include <asm/rtc.h>
 #include <asm/semaphore.h>

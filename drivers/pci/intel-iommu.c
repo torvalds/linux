@@ -34,7 +34,7 @@
 #include "intel-iommu.h"
 #include <asm/proto.h> /* force_iommu in this header in x86-64*/
 #include <asm/cacheflush.h>
-#include <asm/iommu.h>
+#include <asm/gart.h>
 #include "pci.h"
 
 #define IS_GFX_DEVICE(pdev) ((pdev->class >> 16) == PCI_BASE_CLASS_DISPLAY)
@@ -745,12 +745,12 @@ static char *fault_reason_strings[] =
 	"non-zero reserved fields in PTE",
 	"Unknown"
 };
-#define MAX_FAULT_REASON_IDX 	ARRAY_SIZE(fault_reason_strings)
+#define MAX_FAULT_REASON_IDX 	ARRAY_SIZE(fault_reason_strings) - 1
 
 char *dmar_get_fault_reason(u8 fault_reason)
 {
-	if (fault_reason > MAX_FAULT_REASON_IDX)
-		return fault_reason_strings[MAX_FAULT_REASON_IDX];
+	if (fault_reason >= MAX_FAULT_REASON_IDX)
+		return fault_reason_strings[MAX_FAULT_REASON_IDX - 1];
 	else
 		return fault_reason_strings[fault_reason];
 }
@@ -995,7 +995,6 @@ static struct intel_iommu *alloc_iommu(struct dmar_drhd_unit *drhd)
 	return iommu;
 error_unmap:
 	iounmap(iommu->reg);
-	iommu->reg = 0;
 error:
 	kfree(iommu);
 	return NULL;
@@ -1782,7 +1781,7 @@ __intel_alloc_iova(struct device *dev, struct dmar_domain *domain,
 		/*
 		 * First try to allocate an io virtual address in
 		 * DMA_32BIT_MASK and if that fails then try allocating
-		 * from higer range
+		 * from higher range
 		 */
 		iova = iommu_alloc_iova(domain, size, DMA_32BIT_MASK);
 		if (!iova)
@@ -1808,7 +1807,7 @@ get_valid_domain_for_dev(struct pci_dev *pdev)
 	if (!domain) {
 		printk(KERN_ERR
 			"Allocating domain for %s failed", pci_name(pdev));
-		return 0;
+		return NULL;
 	}
 
 	/* make sure context mapping is ok */
@@ -1818,7 +1817,7 @@ get_valid_domain_for_dev(struct pci_dev *pdev)
 			printk(KERN_ERR
 				"Domain context map for %s failed",
 				pci_name(pdev));
-			return 0;
+			return NULL;
 		}
 	}
 

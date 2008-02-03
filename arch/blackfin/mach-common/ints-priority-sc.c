@@ -308,10 +308,11 @@ static void bfin_demux_error_irq(unsigned int int_err_irq,
 }
 #endif				/* BF537_GENERIC_ERROR_INT_DEMUX */
 
-#if defined(CONFIG_IRQCHIP_DEMUX_GPIO) && !defined(CONFIG_BF54x)
+#if !defined(CONFIG_BF54x)
 
 static unsigned short gpio_enabled[gpio_bank(MAX_BLACKFIN_GPIOS)];
 static unsigned short gpio_edge_triggered[gpio_bank(MAX_BLACKFIN_GPIOS)];
+
 
 static void bfin_gpio_ack_irq(unsigned int irq)
 {
@@ -352,9 +353,11 @@ static unsigned int bfin_gpio_irq_startup(unsigned int irq)
 {
 	unsigned int ret;
 	u16 gpionr = irq - IRQ_PF0;
+	char buf[8];
 
 	if (!(gpio_enabled[gpio_bank(gpionr)] & gpio_bit(gpionr))) {
-		ret = gpio_request(gpionr, "IRQ");
+		snprintf(buf, sizeof buf, "IRQ %d", irq);
+		ret = gpio_request(gpionr, buf);
 		if (ret)
 			return ret;
 	}
@@ -376,6 +379,7 @@ static int bfin_gpio_irq_type(unsigned int irq, unsigned int type)
 {
 
 	unsigned int ret;
+	char buf[8];
 	u16 gpionr = irq - IRQ_PF0;
 
 	if (type == IRQ_TYPE_PROBE) {
@@ -388,7 +392,8 @@ static int bfin_gpio_irq_type(unsigned int irq, unsigned int type)
 	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING |
 		    IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW)) {
 		if (!(gpio_enabled[gpio_bank(gpionr)] & gpio_bit(gpionr))) {
-			ret = gpio_request(gpionr, "IRQ");
+			snprintf(buf, sizeof buf, "IRQ %d", irq);
+			ret = gpio_request(gpionr, buf);
 			if (ret)
 				return ret;
 		}
@@ -464,7 +469,7 @@ static void bfin_demux_gpio_irq(unsigned int intb_irq,
 	}
 }
 
-#else				/* CONFIG_IRQCHIP_DEMUX_GPIO */
+#else				/* CONFIG_BF54x */
 
 #define NR_PINT_SYS_IRQS	4
 #define NR_PINT_BITS		32
@@ -477,6 +482,10 @@ static void bfin_demux_gpio_irq(unsigned int intb_irq,
 
 static unsigned char irq2pint_lut[NR_PINTS];
 static unsigned char pint2irq_lut[NR_PINT_SYS_IRQS * NR_PINT_BITS];
+
+static unsigned int gpio_both_edge_triggered[NR_PINT_SYS_IRQS];
+static unsigned short gpio_enabled[gpio_bank(MAX_BLACKFIN_GPIOS)];
+
 
 struct pin_int_t {
 	unsigned int mask_set;
@@ -544,13 +553,20 @@ void init_pint_lut(void)
 
 }
 
-static unsigned short gpio_enabled[gpio_bank(MAX_BLACKFIN_GPIOS)];
-
 static void bfin_gpio_ack_irq(unsigned int irq)
 {
 	u8 pint_val = irq2pint_lut[irq - SYS_IRQS];
+	u32 pintbit = PINT_BIT(pint_val);
+	u8 bank = PINT_2_BANK(pint_val);
 
-	pint[PINT_2_BANK(pint_val)]->request = PINT_BIT(pint_val);
+	if (unlikely(gpio_both_edge_triggered[bank] & pintbit)) {
+		if (pint[bank]->invert_set & pintbit)
+			pint[bank]->invert_clear = pintbit;
+		else
+			pint[bank]->invert_set = pintbit;
+	}
+	pint[bank]->request = pintbit;
+
 	SSYNC();
 }
 
@@ -559,6 +575,13 @@ static void bfin_gpio_mask_ack_irq(unsigned int irq)
 	u8 pint_val = irq2pint_lut[irq - SYS_IRQS];
 	u32 pintbit = PINT_BIT(pint_val);
 	u8 bank = PINT_2_BANK(pint_val);
+
+	if (unlikely(gpio_both_edge_triggered[bank] & pintbit)) {
+		if (pint[bank]->invert_set & pintbit)
+			pint[bank]->invert_clear = pintbit;
+		else
+			pint[bank]->invert_set = pintbit;
+	}
 
 	pint[bank]->request = pintbit;
 	pint[bank]->mask_clear = pintbit;
@@ -587,7 +610,8 @@ static void bfin_gpio_unmask_irq(unsigned int irq)
 static unsigned int bfin_gpio_irq_startup(unsigned int irq)
 {
 	unsigned int ret;
-	u16 gpionr = irq - IRQ_PA0;
+	char buf[8];
+	u16 gpionr = irq_to_gpio(irq);
 	u8 pint_val = irq2pint_lut[irq - SYS_IRQS];
 
 	if (pint_val == IRQ_NOT_AVAIL) {
@@ -598,7 +622,8 @@ static unsigned int bfin_gpio_irq_startup(unsigned int irq)
 	}
 
 	if (!(gpio_enabled[gpio_bank(gpionr)] & gpio_bit(gpionr))) {
-		ret = gpio_request(gpionr, "IRQ");
+		snprintf(buf, sizeof buf, "IRQ %d", irq);
+		ret = gpio_request(gpionr, buf);
 		if (ret)
 			return ret;
 	}
@@ -611,16 +636,19 @@ static unsigned int bfin_gpio_irq_startup(unsigned int irq)
 
 static void bfin_gpio_irq_shutdown(unsigned int irq)
 {
+	u16 gpionr = irq_to_gpio(irq);
+
 	bfin_gpio_mask_irq(irq);
-	gpio_free(irq - IRQ_PA0);
-	gpio_enabled[gpio_bank(irq - IRQ_PA0)] &= ~gpio_bit(irq - IRQ_PA0);
+	gpio_free(gpionr);
+	gpio_enabled[gpio_bank(gpionr)] &= ~gpio_bit(gpionr);
 }
 
 static int bfin_gpio_irq_type(unsigned int irq, unsigned int type)
 {
 
 	unsigned int ret;
-	u16 gpionr = irq - IRQ_PA0;
+	char buf[8];
+	u16 gpionr = irq_to_gpio(irq);
 	u8 pint_val = irq2pint_lut[irq - SYS_IRQS];
 	u32 pintbit = PINT_BIT(pint_val);
 	u8 bank = PINT_2_BANK(pint_val);
@@ -638,7 +666,8 @@ static int bfin_gpio_irq_type(unsigned int irq, unsigned int type)
 	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING |
 		    IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW)) {
 		if (!(gpio_enabled[gpio_bank(gpionr)] & gpio_bit(gpionr))) {
-			ret = gpio_request(gpionr, "IRQ");
+			snprintf(buf, sizeof buf, "IRQ %d", irq);
+			ret = gpio_request(gpionr, buf);
 			if (ret)
 				return ret;
 		}
@@ -651,28 +680,33 @@ static int bfin_gpio_irq_type(unsigned int irq, unsigned int type)
 
 	gpio_direction_input(gpionr);
 
-	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)) {
-		pint[bank]->edge_set = pintbit;
-	} else {
-		pint[bank]->edge_clear = pintbit;
-	}
-
 	if ((type & (IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_LEVEL_LOW)))
 		pint[bank]->invert_set = pintbit;	/* low or falling edge denoted by one */
 	else
-		pint[bank]->invert_set = pintbit;	/* high or rising edge denoted by zero */
+		pint[bank]->invert_clear = pintbit;	/* high or rising edge denoted by zero */
 
-	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING))
-		pint[bank]->invert_set = pintbit;
-	else
-		pint[bank]->invert_set = pintbit;
+	if ((type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING))
+	    == (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)) {
+
+		gpio_both_edge_triggered[bank] |= pintbit;
+
+		if (gpio_get_value(gpionr))
+			pint[bank]->invert_set = pintbit;
+		else
+			pint[bank]->invert_clear = pintbit;
+	} else {
+		gpio_both_edge_triggered[bank] &= ~pintbit;
+	}
+
+	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)) {
+		pint[bank]->edge_set = pintbit;
+		set_irq_handler(irq, handle_edge_irq);
+	} else {
+		pint[bank]->edge_clear = pintbit;
+		set_irq_handler(irq, handle_level_irq);
+	}
 
 	SSYNC();
-
-	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING))
-		set_irq_handler(irq, handle_edge_irq);
-	else
-		set_irq_handler(irq, handle_level_irq);
 
 	return 0;
 }
@@ -726,7 +760,7 @@ static void bfin_demux_gpio_irq(unsigned int intb_irq,
 	}
 
 }
-#endif				/* CONFIG_IRQCHIP_DEMUX_GPIO */
+#endif
 
 void __init init_exception_vectors(void)
 {
@@ -766,10 +800,10 @@ int __init init_arch_irq(void)
 	bfin_write_SIC_IMASK1(SIC_UNMASK_ALL);
 	bfin_write_SIC_IWR0(IWR_ENABLE_ALL);
 	bfin_write_SIC_IWR1(IWR_ENABLE_ALL);
-#ifdef CONFIG_BF54x
+# ifdef CONFIG_BF54x
 	bfin_write_SIC_IMASK2(SIC_UNMASK_ALL);
 	bfin_write_SIC_IWR2(IWR_ENABLE_ALL);
-#endif
+# endif
 #else
 	bfin_write_SIC_IMASK(SIC_UNMASK_ALL);
 	bfin_write_SIC_IWR(IWR_ENABLE_ALL);
@@ -778,13 +812,13 @@ int __init init_arch_irq(void)
 
 	local_irq_disable();
 
-#if defined(CONFIG_IRQCHIP_DEMUX_GPIO) && defined(CONFIG_BF54x)
-#ifdef CONFIG_PINTx_REASSIGN
+#ifdef CONFIG_BF54x
+# ifdef CONFIG_PINTx_REASSIGN
 	pint[0]->assign = CONFIG_PINT0_ASSIGN;
 	pint[1]->assign = CONFIG_PINT1_ASSIGN;
 	pint[2]->assign = CONFIG_PINT2_ASSIGN;
 	pint[3]->assign = CONFIG_PINT3_ASSIGN;
-#endif
+# endif
 	/* Whenever PINTx_ASSIGN is altered init_pint_lut() must be executed! */
 	init_pint_lut();
 #endif
@@ -799,18 +833,17 @@ int __init init_arch_irq(void)
 #endif
 
 			switch (irq) {
-#ifdef CONFIG_IRQCHIP_DEMUX_GPIO
 #if defined(CONFIG_BF53x)
 			case IRQ_PROG_INTA:
 				set_irq_chained_handler(irq,
 							bfin_demux_gpio_irq);
 				break;
-#if defined(BF537_FAMILY) && !(defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE))
+# if defined(BF537_FAMILY) && !(defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE))
 			case IRQ_MAC_RX:
 				set_irq_chained_handler(irq,
 							bfin_demux_gpio_irq);
 				break;
-#endif
+# endif
 #elif defined(CONFIG_BF54x)
 			case IRQ_PINT0:
 				set_irq_chained_handler(irq,
@@ -842,7 +875,6 @@ int __init init_arch_irq(void)
 							bfin_demux_gpio_irq);
 				break;
 #endif
-#endif
 			default:
 				set_irq_handler(irq, handle_simple_irq);
 				break;
@@ -861,7 +893,6 @@ int __init init_arch_irq(void)
 	}
 #endif
 
-#ifdef CONFIG_IRQCHIP_DEMUX_GPIO
 #ifndef CONFIG_BF54x
 	for (irq = IRQ_PF0; irq < NR_IRQS; irq++) {
 #else
@@ -871,7 +902,7 @@ int __init init_arch_irq(void)
 		/* if configured as edge, then will be changed to do_edge_IRQ */
 		set_irq_handler(irq, handle_level_irq);
 	}
-#endif
+
 	bfin_write_IMASK(0);
 	CSYNC();
 	ilat = bfin_read_ILAT();
@@ -896,9 +927,8 @@ int __init init_arch_irq(void)
 }
 
 #ifdef CONFIG_DO_IRQ_L1
-void do_irq(int vec, struct pt_regs *fp) __attribute__((l1_text));
+__attribute__((l1_text))
 #endif
-
 void do_irq(int vec, struct pt_regs *fp)
 {
 	if (vec == EVT_IVTMR_P) {

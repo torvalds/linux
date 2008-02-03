@@ -47,8 +47,8 @@ static int __init rtc_hctosys(void)
 			do_settimeofday(&tv);
 
 			dev_info(rtc->dev.parent,
-				"setting the system clock to "
-				"%d-%02d-%02d %02d:%02d:%02d (%u)\n",
+				"setting system clock to "
+				"%d-%02d-%02d %02d:%02d:%02d UTC (%u)\n",
 				tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
 				tm.tm_hour, tm.tm_min, tm.tm_sec,
 				(unsigned int) tv.tv_sec);

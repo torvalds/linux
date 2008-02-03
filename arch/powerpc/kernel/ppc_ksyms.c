@@ -45,10 +45,6 @@
 #include <asm/signal.h>
 #include <asm/dcr.h>
 
-#ifdef  CONFIG_8xx
-#include <asm/commproc.h>
-#endif
-
 #ifdef CONFIG_PPC64
 EXPORT_SYMBOL(local_irq_restore);
 #endif
@@ -63,6 +59,7 @@ extern void single_step_exception(struct pt_regs *regs);
 extern int sys_sigreturn(struct pt_regs *regs);
 
 EXPORT_SYMBOL(clear_pages);
+EXPORT_SYMBOL(copy_page);
 EXPORT_SYMBOL(ISA_DMA_THRESHOLD);
 EXPORT_SYMBOL(DMA_MODE_READ);
 EXPORT_SYMBOL(DMA_MODE_WRITE);
@@ -170,14 +167,6 @@ EXPORT_SYMBOL(irq_desc);
 EXPORT_SYMBOL(tb_ticks_per_jiffy);
 EXPORT_SYMBOL(console_drivers);
 EXPORT_SYMBOL(cacheable_memcpy);
-#endif
-
-#ifdef  CONFIG_8xx
-EXPORT_SYMBOL(cpm_install_handler);
-EXPORT_SYMBOL(cpm_free_handler);
-#endif /* CONFIG_8xx */
-#if defined(CONFIG_8xx)
-EXPORT_SYMBOL(__res);
 #endif
 
 #ifdef CONFIG_PPC32

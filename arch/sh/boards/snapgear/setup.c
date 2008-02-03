@@ -22,20 +22,15 @@
 #include <asm/snapgear.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/rtc.h>
 #include <asm/cpu/timer.h>
 
-extern void secureedge5410_rtc_init(void);
-extern void pcibios_init(void);
-
-/****************************************************************************/
 /*
  * EraseConfig handling functions
  */
 
 static irqreturn_t eraseconfig_interrupt(int irq, void *dev_id)
 {
-	volatile char dummy __attribute__((unused)) = * (volatile char *) 0xb8000000;
+	(void)ctrl_inb(0xb8000000);	/* dummy read */
 
 	printk("SnapGear: erase switch interrupt!\n");
 
@@ -76,19 +71,10 @@ static void __init init_snapgear_IRQ(void)
 }
 
 /*
- * Initialize the board
- */
-static void __init snapgear_setup(char **cmdline_p)
-{
-	board_time_init = secureedge5410_rtc_init;
-}
-
-/*
  * The Machine Vector
  */
 static struct sh_machine_vector mv_snapgear __initmv = {
 	.mv_name		= "SnapGear SecureEdge5410",
-	.mv_setup		= snapgear_setup,
 	.mv_nr_irqs		= 72,
 
 	.mv_inb			= snapgear_inb,

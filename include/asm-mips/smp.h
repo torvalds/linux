@@ -11,14 +11,16 @@
 #ifndef __ASM_SMP_H
 #define __ASM_SMP_H
 
-
-#ifdef CONFIG_SMP
-
 #include <linux/bitops.h>
 #include <linux/linkage.h>
 #include <linux/threads.h>
 #include <linux/cpumask.h>
+
 #include <asm/atomic.h>
+#include <asm/smp-ops.h>
+
+extern int smp_num_siblings;
+extern cpumask_t cpu_sibling_map[];
 
 #define raw_smp_processor_id() (current_thread_info()->cpu)
 
@@ -49,56 +51,6 @@ extern struct call_data_struct *call_data;
 extern cpumask_t phys_cpu_present_map;
 #define cpu_possible_map	phys_cpu_present_map
 
-/*
- * These are defined by the board-specific code.
- */
-
-/*
- * Cause the function described by call_data to be executed on the passed
- * cpu.  When the function has finished, increment the finished field of
- * call_data.
- */
-extern void core_send_ipi(int cpu, unsigned int action);
-
-static inline void core_send_ipi_mask(cpumask_t mask, unsigned int action)
-{
-	unsigned int i;
-
-	for_each_cpu_mask(i, mask)
-		core_send_ipi(i, action);
-}
-
-
-/*
- * Firmware CPU startup hook
- */
-extern void prom_boot_secondary(int cpu, struct task_struct *idle);
-
-/*
- *  After we've done initial boot, this function is called to allow the
- *  board code to clean up state, if needed
- */
-extern void prom_init_secondary(void);
-
-/*
- * Populate cpu_possible_map before smp_init, called from setup_arch.
- */
-extern void plat_smp_setup(void);
-
-/*
- * Called in smp_prepare_cpus.
- */
-extern void plat_prepare_cpus(unsigned int max_cpus);
-
-/*
- * Last chance for the board code to finish SMP initialization before
- * the CPU is "online".
- */
-extern void prom_smp_finish(void);
-
-/* Hook for after all CPUs are online */
-extern void prom_cpus_done(void);
-
 extern void asmlinkage smp_bootstrap(void);
 
 /*
@@ -108,11 +60,11 @@ extern void asmlinkage smp_bootstrap(void);
  */
 static inline void smp_send_reschedule(int cpu)
 {
-	core_send_ipi(cpu, SMP_RESCHEDULE_YOURSELF);
+	extern struct plat_smp_ops *mp_ops;	/* private */
+
+	mp_ops->send_ipi_single(cpu, SMP_RESCHEDULE_YOURSELF);
 }
 
 extern asmlinkage void smp_call_function_interrupt(void);
-
-#endif /* CONFIG_SMP */
 
 #endif /* __ASM_SMP_H */

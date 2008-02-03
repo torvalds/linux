@@ -15,13 +15,13 @@
 #include <linux/netfilter/x_tables.h>
 
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
-MODULE_DESCRIPTION("IP tables TTL matching module");
+MODULE_DESCRIPTION("Xtables: IPv4 TTL field match");
 MODULE_LICENSE("GPL");
 
-static bool match(const struct sk_buff *skb,
-		  const struct net_device *in, const struct net_device *out,
-		  const struct xt_match *match, const void *matchinfo,
-		  int offset, unsigned int protoff, bool *hotdrop)
+static bool
+ttl_mt(const struct sk_buff *skb, const struct net_device *in,
+       const struct net_device *out, const struct xt_match *match,
+       const void *matchinfo, int offset, unsigned int protoff, bool *hotdrop)
 {
 	const struct ipt_ttl_info *info = matchinfo;
 	const u8 ttl = ip_hdr(skb)->ttl;
@@ -44,23 +44,23 @@ static bool match(const struct sk_buff *skb,
 	return false;
 }
 
-static struct xt_match ttl_match __read_mostly = {
+static struct xt_match ttl_mt_reg __read_mostly = {
 	.name		= "ttl",
 	.family		= AF_INET,
-	.match		= match,
+	.match		= ttl_mt,
 	.matchsize	= sizeof(struct ipt_ttl_info),
 	.me		= THIS_MODULE,
 };
 
-static int __init ipt_ttl_init(void)
+static int __init ttl_mt_init(void)
 {
-	return xt_register_match(&ttl_match);
+	return xt_register_match(&ttl_mt_reg);
 }
 
-static void __exit ipt_ttl_fini(void)
+static void __exit ttl_mt_exit(void)
 {
-	xt_unregister_match(&ttl_match);
+	xt_unregister_match(&ttl_mt_reg);
 }
 
-module_init(ipt_ttl_init);
-module_exit(ipt_ttl_fini);
+module_init(ttl_mt_init);
+module_exit(ttl_mt_exit);

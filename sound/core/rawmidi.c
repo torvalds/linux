@@ -19,7 +19,6 @@
  *
  */
 
-#include <sound/driver.h>
 #include <sound/core.h>
 #include <linux/major.h>
 #include <linux/init.h>
@@ -912,7 +911,8 @@ int snd_rawmidi_receive(struct snd_rawmidi_substream *substream,
 }
 
 static long snd_rawmidi_kernel_read1(struct snd_rawmidi_substream *substream,
-				     unsigned char *buf, long count, int kernel)
+				     unsigned char __user *userbuf,
+				     unsigned char *kernelbuf, long count)
 {
 	unsigned long flags;
 	long result = 0, count1;
@@ -925,11 +925,11 @@ static long snd_rawmidi_kernel_read1(struct snd_rawmidi_substream *substream,
 		spin_lock_irqsave(&runtime->lock, flags);
 		if (count1 > (int)runtime->avail)
 			count1 = runtime->avail;
-		if (kernel) {
-			memcpy(buf + result, runtime->buffer + runtime->appl_ptr, count1);
-		} else {
+		if (kernelbuf)
+			memcpy(kernelbuf + result, runtime->buffer + runtime->appl_ptr, count1);
+		if (userbuf) {
 			spin_unlock_irqrestore(&runtime->lock, flags);
-			if (copy_to_user((char __user *)buf + result,
+			if (copy_to_user(userbuf + result,
 					 runtime->buffer + runtime->appl_ptr, count1)) {
 				return result > 0 ? result : -EFAULT;
 			}
@@ -949,7 +949,7 @@ long snd_rawmidi_kernel_read(struct snd_rawmidi_substream *substream,
 			     unsigned char *buf, long count)
 {
 	snd_rawmidi_input_trigger(substream, 1);
-	return snd_rawmidi_kernel_read1(substream, buf, count, 1);
+	return snd_rawmidi_kernel_read1(substream, NULL/*userbuf*/, buf, count);
 }
 
 static ssize_t snd_rawmidi_read(struct file *file, char __user *buf, size_t count,
@@ -990,8 +990,9 @@ static ssize_t snd_rawmidi_read(struct file *file, char __user *buf, size_t coun
 		}
 		spin_unlock_irq(&runtime->lock);
 		count1 = snd_rawmidi_kernel_read1(substream,
-						  (unsigned char __force *)buf,
-						  count, 0);
+						  (unsigned char __user *)buf,
+						  NULL/*kernelbuf*/,
+						  count);
 		if (count1 < 0)
 			return result > 0 ? result : count1;
 		result += count1;
@@ -1132,13 +1133,15 @@ int snd_rawmidi_transmit(struct snd_rawmidi_substream *substream,
 }
 
 static long snd_rawmidi_kernel_write1(struct snd_rawmidi_substream *substream,
-				      const unsigned char *buf, long count, int kernel)
+				      const unsigned char __user *userbuf,
+				      const unsigned char *kernelbuf,
+				      long count)
 {
 	unsigned long flags;
 	long count1, result;
 	struct snd_rawmidi_runtime *runtime = substream->runtime;
 
-	snd_assert(buf != NULL, return -EINVAL);
+	snd_assert(kernelbuf != NULL || userbuf != NULL, return -EINVAL);
 	snd_assert(runtime->buffer != NULL, return -EINVAL);
 
 	result = 0;
@@ -1155,12 +1158,13 @@ static long snd_rawmidi_kernel_write1(struct snd_rawmidi_substream *substream,
 			count1 = count;
 		if (count1 > (long)runtime->avail)
 			count1 = runtime->avail;
-		if (kernel) {
-			memcpy(runtime->buffer + runtime->appl_ptr, buf, count1);
-		} else {
+		if (kernelbuf)
+			memcpy(runtime->buffer + runtime->appl_ptr,
+			       kernelbuf + result, count1);
+		else if (userbuf) {
 			spin_unlock_irqrestore(&runtime->lock, flags);
 			if (copy_from_user(runtime->buffer + runtime->appl_ptr,
-					   (char __user *)buf, count1)) {
+					   userbuf + result, count1)) {
 				spin_lock_irqsave(&runtime->lock, flags);
 				result = result > 0 ? result : -EFAULT;
 				goto __end;
@@ -1171,7 +1175,6 @@ static long snd_rawmidi_kernel_write1(struct snd_rawmidi_substream *substream,
 		runtime->appl_ptr %= runtime->buffer_size;
 		runtime->avail -= count1;
 		result += count1;
-		buf += count1;
 		count -= count1;
 	}
       __end:
@@ -1185,7 +1188,7 @@ static long snd_rawmidi_kernel_write1(struct snd_rawmidi_substream *substream,
 long snd_rawmidi_kernel_write(struct snd_rawmidi_substream *substream,
 			      const unsigned char *buf, long count)
 {
-	return snd_rawmidi_kernel_write1(substream, buf, count, 1);
+	return snd_rawmidi_kernel_write1(substream, NULL, buf, count);
 }
 
 static ssize_t snd_rawmidi_write(struct file *file, const char __user *buf,
@@ -1225,9 +1228,7 @@ static ssize_t snd_rawmidi_write(struct file *file, const char __user *buf,
 			spin_lock_irq(&runtime->lock);
 		}
 		spin_unlock_irq(&runtime->lock);
-		count1 = snd_rawmidi_kernel_write1(substream,
-						   (unsigned char __force *)buf,
-						   count, 0);
+		count1 = snd_rawmidi_kernel_write1(substream, buf, NULL, count);
 		if (count1 < 0)
 			return result > 0 ? result : count1;
 		result += count1;

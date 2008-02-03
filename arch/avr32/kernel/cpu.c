@@ -13,6 +13,7 @@
 #include <linux/percpu.h>
 #include <linux/param.h>
 #include <linux/errno.h>
+#include <linux/clk.h>
 
 #include <asm/setup.h>
 #include <asm/sysreg.h>
@@ -187,9 +188,20 @@ static int __init topology_init(void)
 
 subsys_initcall(topology_init);
 
+struct chip_id_map {
+	u16	mid;
+	u16	pn;
+	const char *name;
+};
+
+static const struct chip_id_map chip_names[] = {
+	{ .mid = 0x1f, .pn = 0x1e82, .name = "AT32AP700x" },
+};
+#define NR_CHIP_NAMES ARRAY_SIZE(chip_names)
+
 static const char *cpu_names[] = {
 	"Morgan",
-	"AP7000",
+	"AP7",
 };
 #define NR_CPU_NAMES ARRAY_SIZE(cpu_names)
 
@@ -206,12 +218,32 @@ static const char *mmu_types[] = {
 	"MPU"
 };
 
+static const char *cpu_feature_flags[] = {
+	"rmw", "dsp", "simd", "ocd", "perfctr", "java", "fpu",
+};
+
+static const char *get_chip_name(struct avr32_cpuinfo *cpu)
+{
+	unsigned int i;
+	unsigned int mid = avr32_get_manufacturer_id(cpu);
+	unsigned int pn = avr32_get_product_number(cpu);
+
+	for (i = 0; i < NR_CHIP_NAMES; i++) {
+		if (chip_names[i].mid == mid && chip_names[i].pn == pn)
+			return chip_names[i].name;
+	}
+
+	return "(unknown)";
+}
+
 void __init setup_processor(void)
 {
 	unsigned long config0, config1;
 	unsigned long features;
 	unsigned cpu_id, cpu_rev, arch_id, arch_rev, mmu_type;
+	unsigned device_id;
 	unsigned tmp;
+	unsigned i;
 
 	config0 = sysreg_read(CONFIG0);
 	config1 = sysreg_read(CONFIG1);
@@ -221,11 +253,14 @@ void __init setup_processor(void)
 	arch_rev = SYSREG_BFEXT(AR, config0);
 	mmu_type = SYSREG_BFEXT(MMUT, config0);
 
+	device_id = ocd_read(DID);
+
 	boot_cpu_data.arch_type = arch_id;
 	boot_cpu_data.cpu_type = cpu_id;
 	boot_cpu_data.arch_revision = arch_rev;
 	boot_cpu_data.cpu_revision = cpu_rev;
 	boot_cpu_data.tlb_config = mmu_type;
+	boot_cpu_data.device_id = device_id;
 
 	tmp = SYSREG_BFEXT(ILSZ, config1);
 	if (tmp) {
@@ -247,41 +282,34 @@ void __init setup_processor(void)
 		return;
 	}
 
-	printk ("CPU: %s [%02x] revision %d (%s revision %d)\n",
+	printk ("CPU: %s chip revision %c\n", get_chip_name(&boot_cpu_data),
+			avr32_get_chip_revision(&boot_cpu_data) + 'A');
+	printk ("CPU: %s [%02x] core revision %d (%s arch revision %d)\n",
 		cpu_names[cpu_id], cpu_id, cpu_rev,
 		arch_names[arch_id], arch_rev);
 	printk ("CPU: MMU configuration: %s\n", mmu_types[mmu_type]);
 
 	printk ("CPU: features:");
 	features = 0;
-	if (config0 & SYSREG_BIT(CONFIG0_R)) {
+	if (config0 & SYSREG_BIT(CONFIG0_R))
 		features |= AVR32_FEATURE_RMW;
-		printk(" rmw");
-	}
-	if (config0 & SYSREG_BIT(CONFIG0_D)) {
+	if (config0 & SYSREG_BIT(CONFIG0_D))
 		features |= AVR32_FEATURE_DSP;
-		printk(" dsp");
-	}
-	if (config0 & SYSREG_BIT(CONFIG0_S)) {
+	if (config0 & SYSREG_BIT(CONFIG0_S))
 		features |= AVR32_FEATURE_SIMD;
-		printk(" simd");
-	}
-	if (config0 & SYSREG_BIT(CONFIG0_O)) {
+	if (config0 & SYSREG_BIT(CONFIG0_O))
 		features |= AVR32_FEATURE_OCD;
-		printk(" ocd");
-	}
-	if (config0 & SYSREG_BIT(CONFIG0_P)) {
+	if (config0 & SYSREG_BIT(CONFIG0_P))
 		features |= AVR32_FEATURE_PCTR;
-		printk(" perfctr");
-	}
-	if (config0 & SYSREG_BIT(CONFIG0_J)) {
+	if (config0 & SYSREG_BIT(CONFIG0_J))
 		features |= AVR32_FEATURE_JAVA;
-		printk(" java");
-	}
-	if (config0 & SYSREG_BIT(CONFIG0_F)) {
+	if (config0 & SYSREG_BIT(CONFIG0_F))
 		features |= AVR32_FEATURE_FPU;
-		printk(" fpu");
-	}
+
+	for (i = 0; i < ARRAY_SIZE(cpu_feature_flags); i++)
+		if (features & (1 << i))
+			printk(" %s", cpu_feature_flags[i]);
+
 	printk("\n");
 	boot_cpu_data.features = features;
 }
@@ -291,6 +319,8 @@ static int c_show(struct seq_file *m, void *v)
 {
 	unsigned int icache_size, dcache_size;
 	unsigned int cpu = smp_processor_id();
+	unsigned int freq;
+	unsigned int i;
 
 	icache_size = boot_cpu_data.icache.ways *
 		boot_cpu_data.icache.sets *
@@ -301,14 +331,20 @@ static int c_show(struct seq_file *m, void *v)
 
 	seq_printf(m, "processor\t: %d\n", cpu);
 
+	seq_printf(m, "chip type\t: %s revision %c\n",
+			get_chip_name(&boot_cpu_data),
+			avr32_get_chip_revision(&boot_cpu_data) + 'A');
 	if (boot_cpu_data.arch_type < NR_ARCH_NAMES)
-		seq_printf(m, "cpu family\t: %s revision %d\n",
+		seq_printf(m, "cpu arch\t: %s revision %d\n",
 			   arch_names[boot_cpu_data.arch_type],
 			   boot_cpu_data.arch_revision);
 	if (boot_cpu_data.cpu_type < NR_CPU_NAMES)
-		seq_printf(m, "cpu type\t: %s revision %d\n",
+		seq_printf(m, "cpu core\t: %s revision %d\n",
 			   cpu_names[boot_cpu_data.cpu_type],
 			   boot_cpu_data.cpu_revision);
+
+	freq = (clk_get_rate(boot_cpu_data.clk) + 500) / 1000;
+	seq_printf(m, "cpu MHz\t\t: %u.%03u\n", freq / 1000, freq % 1000);
 
 	seq_printf(m, "i-cache\t\t: %dK (%u ways x %u sets x %u)\n",
 		   icache_size >> 10,
@@ -320,7 +356,13 @@ static int c_show(struct seq_file *m, void *v)
 		   boot_cpu_data.dcache.ways,
 		   boot_cpu_data.dcache.sets,
 		   boot_cpu_data.dcache.linesz);
-	seq_printf(m, "bogomips\t: %lu.%02lu\n",
+
+	seq_printf(m, "features\t:");
+	for (i = 0; i < ARRAY_SIZE(cpu_feature_flags); i++)
+		if (boot_cpu_data.features & (1 << i))
+			seq_printf(m, " %s", cpu_feature_flags[i]);
+
+	seq_printf(m, "\nbogomips\t: %lu.%02lu\n",
 		   boot_cpu_data.loops_per_jiffy / (500000/HZ),
 		   (boot_cpu_data.loops_per_jiffy / (5000/HZ)) % 100);
 
@@ -343,7 +385,7 @@ static void c_stop(struct seq_file *m, void *v)
 
 }
 
-struct seq_operations cpuinfo_op = {
+const struct seq_operations cpuinfo_op = {
 	.start	= c_start,
 	.next	= c_next,
 	.stop	= c_stop,

@@ -318,38 +318,6 @@ static struct irq_chip level_irq_type = {
 	.end		= end_irq,
 };
 
-#ifdef CONFIG_PM
-void startup_match20_interrupt(irq_handler_t handler)
-{
-	struct irq_desc *desc = &irq_desc[AU1000_TOY_MATCH2_INT];
-
-	static struct irqaction action;
-	memset(&action, 0, sizeof(struct irqaction));
-
-	/*
-	 * This is a big problem.... since we didn't use request_irq
-	 * when kernel/irq.c calls probe_irq_xxx this interrupt will
-	 * be probed for usage. This will end up disabling the device :(
-	 * Give it a bogus "action" pointer -- this will keep it from
-	 * getting auto-probed!
-	 *
-	 * By setting the status to match that of request_irq() we
-	 * can avoid it.  --cgray
-	*/
-	action.dev_id = handler;
-	action.flags = IRQF_DISABLED;
-	cpus_clear(action.mask);
-	action.name = "Au1xxx TOY";
-	action.handler = handler;
-	action.next = NULL;
-
-	desc->action = &action;
-	desc->status &= ~(IRQ_DISABLED | IRQ_AUTODETECT | IRQ_WAITING | IRQ_INPROGRESS);
-
-	local_enable_irq(AU1000_TOY_MATCH2_INT);
-}
-#endif
-
 static void __init setup_local_irq(unsigned int irq_nr, int type, int int_req)
 {
 	unsigned int bit = irq_nr - AU1000_INTC0_INT_BASE;
@@ -494,9 +462,9 @@ static void intc0_req0_irqdispatch(void)
 		return;
 	}
 #endif
-	bit = ffs(intc0_req0);
+	bit = __ffs(intc0_req0);
 	intc0_req0 &= ~(1 << bit);
-	do_IRQ(MIPS_CPU_IRQ_BASE + bit);
+	do_IRQ(AU1000_INTC0_INT_BASE + bit);
 }
 
 
@@ -510,9 +478,9 @@ static void intc0_req1_irqdispatch(void)
 	if (!intc0_req1)
 		return;
 
-	bit = ffs(intc0_req1);
+	bit = __ffs(intc0_req1);
 	intc0_req1 &= ~(1 << bit);
-	do_IRQ(bit);
+	do_IRQ(AU1000_INTC0_INT_BASE + bit);
 }
 
 
@@ -530,9 +498,9 @@ static void intc1_req0_irqdispatch(void)
 	if (!intc1_req0)
 		return;
 
-	bit = ffs(intc1_req0);
+	bit = __ffs(intc1_req0);
 	intc1_req0 &= ~(1 << bit);
-	do_IRQ(MIPS_CPU_IRQ_BASE + 32 + bit);
+	do_IRQ(AU1000_INTC1_INT_BASE + bit);
 }
 
 
@@ -546,9 +514,9 @@ static void intc1_req1_irqdispatch(void)
 	if (!intc1_req1)
 		return;
 
-	bit = ffs(intc1_req1);
+	bit = __ffs(intc1_req1);
 	intc1_req1 &= ~(1 << bit);
-	do_IRQ(MIPS_CPU_IRQ_BASE + 32 + bit);
+	do_IRQ(AU1000_INTC1_INT_BASE + bit);
 }
 
 asmlinkage void plat_irq_dispatch(void)

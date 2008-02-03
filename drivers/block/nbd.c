@@ -28,6 +28,7 @@
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <net/sock.h>
+#include <linux/net.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -99,17 +100,15 @@ static const char *nbdcmd_to_ascii(int cmd)
 
 static void nbd_end_request(struct request *req)
 {
-	int uptodate = (req->errors == 0) ? 1 : 0;
+	int error = req->errors ? -EIO : 0;
 	struct request_queue *q = req->q;
 	unsigned long flags;
 
 	dprintk(DBG_BLKDEV, "%s: request %p: %s\n", req->rq_disk->disk_name,
-			req, uptodate? "done": "failed");
+			req, error ? "failed" : "done");
 
 	spin_lock_irqsave(q->queue_lock, flags);
-	if (!end_that_request_first(req, uptodate, req->nr_sectors)) {
-		end_that_request_last(req, uptodate);
-	}
+	__blk_end_request(req, error, req->nr_sectors << 9);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 
@@ -126,7 +125,7 @@ static void sock_shutdown(struct nbd_device *lo, int lock)
 	if (lo->sock) {
 		printk(KERN_WARNING "%s: shutting down socket\n",
 			lo->disk->disk_name);
-		lo->sock->ops->shutdown(lo->sock, SEND_SHUTDOWN|RCV_SHUTDOWN);
+		kernel_sock_shutdown(lo->sock, SHUT_RDWR);
 		lo->sock = NULL;
 	}
 	if (lock)
@@ -374,14 +373,17 @@ harderror:
 	return NULL;
 }
 
-static ssize_t pid_show(struct gendisk *disk, char *page)
+static ssize_t pid_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
 {
-	return sprintf(page, "%ld\n",
+	struct gendisk *disk = dev_to_disk(dev);
+
+	return sprintf(buf, "%ld\n",
 		(long) ((struct nbd_device *)disk->private_data)->pid);
 }
 
-static struct disk_attribute pid_attr = {
-	.attr = { .name = "pid", .mode = S_IRUGO },
+static struct device_attribute pid_attr = {
+	.attr = { .name = "pid", .mode = S_IRUGO, .owner = THIS_MODULE },
 	.show = pid_show,
 };
 
@@ -393,7 +395,7 @@ static int nbd_do_it(struct nbd_device *lo)
 	BUG_ON(lo->magic != LO_MAGIC);
 
 	lo->pid = current->pid;
-	ret = sysfs_create_file(&lo->disk->kobj, &pid_attr.attr);
+	ret = sysfs_create_file(&lo->disk->dev.kobj, &pid_attr.attr);
 	if (ret) {
 		printk(KERN_ERR "nbd: sysfs_create_file failed!");
 		return ret;
@@ -402,7 +404,7 @@ static int nbd_do_it(struct nbd_device *lo)
 	while ((req = nbd_read_stat(lo)) != NULL)
 		nbd_end_request(req);
 
-	sysfs_remove_file(&lo->disk->kobj, &pid_attr.attr);
+	sysfs_remove_file(&lo->disk->dev.kobj, &pid_attr.attr);
 	return 0;
 }
 

@@ -34,9 +34,9 @@
 	 IPG_AC_DMA | IPG_AC_FIFO | IPG_AC_NETWORK | IPG_AC_HOST | \
 	 IPG_AC_AUTO_INIT)
 
-#define ipg_w32(val32,reg)	iowrite32((val32), ioaddr + (reg))
-#define ipg_w16(val16,reg)	iowrite16((val16), ioaddr + (reg))
-#define ipg_w8(val8,reg)	iowrite8((val8), ioaddr + (reg))
+#define ipg_w32(val32, reg)	iowrite32((val32), ioaddr + (reg))
+#define ipg_w16(val16, reg)	iowrite16((val16), ioaddr + (reg))
+#define ipg_w8(val8, reg)	iowrite8((val8), ioaddr + (reg))
 
 #define ipg_r32(reg)		ioread32(ioaddr + (reg))
 #define ipg_r16(reg)		ioread16(ioaddr + (reg))
@@ -51,24 +51,25 @@ enum {
 #define DRV_NAME	"ipg"
 
 MODULE_AUTHOR("IC Plus Corp. 2003");
-MODULE_DESCRIPTION("IC Plus IP1000 Gigabit Ethernet Adapter Linux Driver "
-		   DrvVer);
+MODULE_DESCRIPTION("IC Plus IP1000 Gigabit Ethernet Adapter Linux Driver");
 MODULE_LICENSE("GPL");
 
-//variable record -- index by leading revision/length
-//Revision/Length(=N*4), Address1, Data1, Address2, Data2,...,AddressN,DataN
+/*
+ * Variable record -- index by leading revision/length
+ * Revision/Length(=N*4), Address1, Data1, Address2, Data2,...,AddressN,DataN
+ */
 static unsigned short DefaultPhyParam[] = {
-	// 11/12/03 IP1000A v1-3 rev=0x40
+	/* 11/12/03 IP1000A v1-3 rev=0x40 */
 	/*--------------------------------------------------------------------------
 	(0x4000|(15*4)), 31, 0x0001, 27, 0x01e0, 31, 0x0002, 22, 0x85bd, 24, 0xfff2,
 				 27, 0x0c10, 28, 0x0c10, 29, 0x2c10, 31, 0x0003, 23, 0x92f6,
 				 31, 0x0000, 23, 0x003d, 30, 0x00de, 20, 0x20e7,  9, 0x0700,
 	  --------------------------------------------------------------------------*/
-	// 12/17/03 IP1000A v1-4 rev=0x40
+	/* 12/17/03 IP1000A v1-4 rev=0x40 */
 	(0x4000 | (07 * 4)), 31, 0x0001, 27, 0x01e0, 31, 0x0002, 27, 0xeb8e, 31,
 	    0x0000,
 	30, 0x005e, 9, 0x0700,
-	// 01/09/04 IP1000A v1-5 rev=0x41
+	/* 01/09/04 IP1000A v1-5 rev=0x41 */
 	(0x4100 | (07 * 4)), 31, 0x0001, 27, 0x01e0, 31, 0x0002, 27, 0xeb8e, 31,
 	    0x0000,
 	30, 0x005e, 9, 0x0700,
@@ -188,7 +189,7 @@ static void send_end(void __iomem *ioaddr, u8 phyctrlpolarity)
 		phyctrlpolarity) & IPG_PC_RSVD_MASK, PHY_CTRL);
 }
 
-static u16 read_phy_bit(void __iomem * ioaddr, u8 phyctrlpolarity)
+static u16 read_phy_bit(void __iomem *ioaddr, u8 phyctrlpolarity)
 {
 	u16 bit_data;
 
@@ -205,7 +206,7 @@ static u16 read_phy_bit(void __iomem * ioaddr, u8 phyctrlpolarity)
  * Read a register from the Physical Layer device located
  * on the IPG NIC, using the IPG PHYCTRL register.
  */
-static int mdio_read(struct net_device * dev, int phy_id, int phy_reg)
+static int mdio_read(struct net_device *dev, int phy_id, int phy_reg)
 {
 	void __iomem *ioaddr = ipg_ioaddr(dev);
 	/*
@@ -374,7 +375,6 @@ static void mdio_write(struct net_device *dev, int phy_id, int phy_reg, int val)
 	}
 }
 
-/* Set LED_Mode JES20040127EEPROM */
 static void ipg_set_led_mode(struct net_device *dev)
 {
 	struct ipg_nic_private *sp = netdev_priv(dev);
@@ -384,19 +384,18 @@ static void ipg_set_led_mode(struct net_device *dev)
 	mode = ipg_r32(ASIC_CTRL);
 	mode &= ~(IPG_AC_LED_MODE_BIT_1 | IPG_AC_LED_MODE | IPG_AC_LED_SPEED);
 
-	if ((sp->LED_Mode & 0x03) > 1)
+	if ((sp->led_mode & 0x03) > 1)
 		mode |= IPG_AC_LED_MODE_BIT_1;	/* Write Asic Control Bit 29 */
 
-	if ((sp->LED_Mode & 0x01) == 1)
+	if ((sp->led_mode & 0x01) == 1)
 		mode |= IPG_AC_LED_MODE;	/* Write Asic Control Bit 14 */
 
-	if ((sp->LED_Mode & 0x08) == 8)
+	if ((sp->led_mode & 0x08) == 8)
 		mode |= IPG_AC_LED_SPEED;	/* Write Asic Control Bit 27 */
 
 	ipg_w32(mode, ASIC_CTRL);
 }
 
-/* Set PHYSet JES20040127EEPROM */
 static void ipg_set_phy_set(struct net_device *dev)
 {
 	struct ipg_nic_private *sp = netdev_priv(dev);
@@ -405,7 +404,7 @@ static void ipg_set_phy_set(struct net_device *dev)
 
 	physet = ipg_r8(PHY_SET);
 	physet &= ~(IPG_PS_MEM_LENB9B | IPG_PS_MEM_LEN9 | IPG_PS_NON_COMPDET);
-	physet |= ((sp->LED_Mode & 0x70) >> 4);
+	physet |= ((sp->led_mode & 0x70) >> 4);
 	ipg_w8(physet, PHY_SET);
 }
 
@@ -415,7 +414,7 @@ static int ipg_reset(struct net_device *dev, u32 resetflags)
 	 * register as specified by the 'resetflags' input
 	 * parameter.
 	 */
-	void __iomem *ioaddr = ipg_ioaddr(dev);	//JES20040127EEPROM:
+	void __iomem *ioaddr = ipg_ioaddr(dev);
 	unsigned int timeout_count = 0;
 
 	IPG_DEBUG_MSG("_reset\n");
@@ -430,10 +429,10 @@ static int ipg_reset(struct net_device *dev, u32 resetflags)
 		if (++timeout_count > IPG_AC_RESET_TIMEOUT)
 			return -ETIME;
 	}
-	/* Set LED Mode in Asic Control JES20040127EEPROM */
+	/* Set LED Mode in Asic Control */
 	ipg_set_led_mode(dev);
 
-	/* Set PHYSet Register Value JES20040127EEPROM */
+	/* Set PHYSet Register Value */
 	ipg_set_phy_set(dev);
 	return 0;
 }
@@ -551,7 +550,7 @@ static int ipg_config_autoneg(struct net_device *dev)
 		printk("\n");
 	} else {
 		/* Configure IPG for half duplex operation. */
-	        printk(KERN_INFO "%s: setting half duplex, "
+		printk(KERN_INFO "%s: setting half duplex, "
 		       "no TX flow control, no RX flow control.\n", dev->name);
 
 		mac_ctrl_val &= ~IPG_MC_DUPLEX_SELECT_FD &
@@ -736,7 +735,7 @@ static int ipg_get_rxbuff(struct net_device *dev, int entry)
 
 	skb = netdev_alloc_skb(dev, IPG_RXSUPPORT_SIZE + NET_IP_ALIGN);
 	if (!skb) {
-		sp->RxBuff[entry] = NULL;
+		sp->rx_buff[entry] = NULL;
 		return -ENOMEM;
 	}
 
@@ -749,7 +748,7 @@ static int ipg_get_rxbuff(struct net_device *dev, int entry)
 	skb->dev = dev;
 
 	/* Save the address of the sk_buff structure. */
-	sp->RxBuff[entry] = skb;
+	sp->rx_buff[entry] = skb;
 
 	rxfd->frag_info = cpu_to_le64(pci_map_single(sp->pdev, skb->data,
 		sp->rx_buf_sz, PCI_DMA_FROMDEVICE));
@@ -772,12 +771,12 @@ static int init_rfdlist(struct net_device *dev)
 	for (i = 0; i < IPG_RFDLIST_LENGTH; i++) {
 		struct ipg_rx *rxfd = sp->rxd + i;
 
-		if (sp->RxBuff[i]) {
+		if (sp->rx_buff[i]) {
 			pci_unmap_single(sp->pdev,
 				le64_to_cpu(rxfd->frag_info) & ~IPG_RFI_FRAGLEN,
 				sp->rx_buf_sz, PCI_DMA_FROMDEVICE);
-			IPG_DEV_KFREE_SKB(sp->RxBuff[i]);
-			sp->RxBuff[i] = NULL;
+			dev_kfree_skb_irq(sp->rx_buff[i]);
+			sp->rx_buff[i] = NULL;
 		}
 
 		/* Clear out the RFS field. */
@@ -828,9 +827,9 @@ static void init_tfdlist(struct net_device *dev)
 
 		txfd->tfc = cpu_to_le64(IPG_TFC_TFDDONE);
 
-		if (sp->TxBuff[i]) {
-			IPG_DEV_KFREE_SKB(sp->TxBuff[i]);
-			sp->TxBuff[i] = NULL;
+		if (sp->tx_buff[i]) {
+			dev_kfree_skb_irq(sp->tx_buff[i]);
+			sp->tx_buff[i] = NULL;
 		}
 
 		txfd->next_desc = cpu_to_le64(sp->txd_map +
@@ -847,7 +846,7 @@ static void init_tfdlist(struct net_device *dev)
 	ipg_w32((u32) sp->txd_map, TFD_LIST_PTR_0);
 	ipg_w32(0x00000000, TFD_LIST_PTR_1);
 
-	sp->ResetCurrentTFD = 1;
+	sp->reset_current_tfd = 1;
 }
 
 /*
@@ -857,22 +856,15 @@ static void init_tfdlist(struct net_device *dev)
 static void ipg_nic_txfree(struct net_device *dev)
 {
 	struct ipg_nic_private *sp = netdev_priv(dev);
-	void __iomem *ioaddr = sp->ioaddr;
-	unsigned int curr;
-	u64 txd_map;
-	unsigned int released, pending;
-
-	txd_map = (u64)sp->txd_map;
-	curr = ipg_r32(TFD_LIST_PTR_0) -
-		do_div(txd_map, sizeof(struct ipg_tx)) - 1;
+	unsigned int released, pending, dirty;
 
 	IPG_DEBUG_MSG("_nic_txfree\n");
 
 	pending = sp->tx_current - sp->tx_dirty;
+	dirty = sp->tx_dirty % IPG_TFDLIST_LENGTH;
 
 	for (released = 0; released < pending; released++) {
-		unsigned int dirty = sp->tx_dirty % IPG_TFDLIST_LENGTH;
-		struct sk_buff *skb = sp->TxBuff[dirty];
+		struct sk_buff *skb = sp->tx_buff[dirty];
 		struct ipg_tx *txfd = sp->txd + dirty;
 
 		IPG_DEBUG_MSG("TFC = %16.16lx\n", (unsigned long) txfd->tfc);
@@ -882,11 +874,8 @@ static void ipg_nic_txfree(struct net_device *dev)
 		 * If the TFDDone bit is set, free the associated
 		 * buffer.
 		 */
-		if (dirty == curr)
-			break;
-
-		/* Setup TFDDONE for compatible issue. */
-		txfd->tfc |= cpu_to_le64(IPG_TFC_TFDDONE);
+		if (!(txfd->tfc & cpu_to_le64(IPG_TFC_TFDDONE)))
+                        break;
 
 		/* Free the transmit buffer. */
 		if (skb) {
@@ -894,10 +883,11 @@ static void ipg_nic_txfree(struct net_device *dev)
 				le64_to_cpu(txfd->frag_info) & ~IPG_TFI_FRAGLEN,
 				skb->len, PCI_DMA_TODEVICE);
 
-			IPG_DEV_KFREE_SKB(skb);
+			dev_kfree_skb_irq(skb);
 
-			sp->TxBuff[dirty] = NULL;
+			sp->tx_buff[dirty] = NULL;
 		}
+		dirty = (dirty + 1) % IPG_TFDLIST_LENGTH;
 	}
 
 	sp->tx_dirty += released;
@@ -1068,7 +1058,7 @@ static int ipg_nic_rxrestore(struct net_device *dev)
 		unsigned int entry = dirty % IPG_RFDLIST_LENGTH;
 
 		/* rx_copybreak may poke hole here and there. */
-		if (sp->RxBuff[entry])
+		if (sp->rx_buff[entry])
 			continue;
 
 		/* Generate a new receive buffer to replace the
@@ -1092,22 +1082,22 @@ static int ipg_nic_rxrestore(struct net_device *dev)
 #ifdef JUMBO_FRAME
 
 /* use jumboindex and jumbosize to control jumbo frame status
-   initial status is jumboindex=-1 and jumbosize=0
-   1. jumboindex = -1 and jumbosize=0 : previous jumbo frame has been done.
-   2. jumboindex != -1 and jumbosize != 0 : jumbo frame is not over size and receiving
-   3. jumboindex = -1 and jumbosize != 0 : jumbo frame is over size, already dump
-                previous receiving and need to continue dumping the current one
-*/
+ * initial status is jumboindex=-1 and jumbosize=0
+ * 1. jumboindex = -1 and jumbosize=0 : previous jumbo frame has been done.
+ * 2. jumboindex != -1 and jumbosize != 0 : jumbo frame is not over size and receiving
+ * 3. jumboindex = -1 and jumbosize != 0 : jumbo frame is over size, already dump
+ *               previous receiving and need to continue dumping the current one
+ */
 enum {
-	NormalPacket,
-	ErrorPacket
+	NORMAL_PACKET,
+	ERROR_PACKET
 };
 
 enum {
-	Frame_NoStart_NoEnd	= 0,
-	Frame_WithStart		= 1,
-	Frame_WithEnd		= 10,
-	Frame_WithStart_WithEnd = 11
+	FRAME_NO_START_NO_END	= 0,
+	FRAME_WITH_START		= 1,
+	FRAME_WITH_END		= 10,
+	FRAME_WITH_START_WITH_END = 11
 };
 
 inline void ipg_nic_rx_free_skb(struct net_device *dev)
@@ -1115,14 +1105,14 @@ inline void ipg_nic_rx_free_skb(struct net_device *dev)
 	struct ipg_nic_private *sp = netdev_priv(dev);
 	unsigned int entry = sp->rx_current % IPG_RFDLIST_LENGTH;
 
-	if (sp->RxBuff[entry]) {
+	if (sp->rx_buff[entry]) {
 		struct ipg_rx *rxfd = sp->rxd + entry;
 
 		pci_unmap_single(sp->pdev,
 			le64_to_cpu(rxfd->frag_info & ~IPG_RFI_FRAGLEN),
 			sp->rx_buf_sz, PCI_DMA_FROMDEVICE);
-		IPG_DEV_KFREE_SKB(sp->RxBuff[entry]);
-		sp->RxBuff[entry] = NULL;
+		dev_kfree_skb_irq(sp->rx_buff[entry]);
+		sp->rx_buff[entry] = NULL;
 	}
 }
 
@@ -1130,12 +1120,12 @@ inline int ipg_nic_rx_check_frame_type(struct net_device *dev)
 {
 	struct ipg_nic_private *sp = netdev_priv(dev);
 	struct ipg_rx *rxfd = sp->rxd + (sp->rx_current % IPG_RFDLIST_LENGTH);
-	int type = Frame_NoStart_NoEnd;
+	int type = FRAME_NO_START_NO_END;
 
 	if (le64_to_cpu(rxfd->rfs) & IPG_RFS_FRAMESTART)
-		type += Frame_WithStart;
+		type += FRAME_WITH_START;
 	if (le64_to_cpu(rxfd->rfs) & IPG_RFS_FRAMEEND)
-		type += Frame_WithEnd;
+		type += FRAME_WITH_END;
 	return type;
 }
 
@@ -1184,43 +1174,43 @@ inline int ipg_nic_rx_check_error(struct net_device *dev)
 		 * buffer since it is erroneous and we will
 		 * not pass it to higher layer processes.
 		 */
-		if (sp->RxBuff[entry]) {
+		if (sp->rx_buff[entry]) {
 			pci_unmap_single(sp->pdev,
 				le64_to_cpu(rxfd->frag_info & ~IPG_RFI_FRAGLEN),
 				sp->rx_buf_sz, PCI_DMA_FROMDEVICE);
 
-			IPG_DEV_KFREE_SKB(sp->RxBuff[entry]);
-			sp->RxBuff[entry] = NULL;
+			dev_kfree_skb_irq(sp->rx_buff[entry]);
+			sp->rx_buff[entry] = NULL;
 		}
-		return ErrorPacket;
+		return ERROR_PACKET;
 	}
-	return NormalPacket;
+	return NORMAL_PACKET;
 }
 
 static void ipg_nic_rx_with_start_and_end(struct net_device *dev,
 					  struct ipg_nic_private *sp,
 					  struct ipg_rx *rxfd, unsigned entry)
 {
-	struct SJumbo *jumbo = &sp->Jumbo;
+	struct ipg_jumbo *jumbo = &sp->jumbo;
 	struct sk_buff *skb;
 	int framelen;
 
-	if (jumbo->FoundStart) {
-		IPG_DEV_KFREE_SKB(jumbo->skb);
-		jumbo->FoundStart = 0;
-		jumbo->CurrentSize = 0;
+	if (jumbo->found_start) {
+		dev_kfree_skb_irq(jumbo->skb);
+		jumbo->found_start = 0;
+		jumbo->current_size = 0;
 		jumbo->skb = NULL;
 	}
 
-	// 1: found error, 0 no error
-	if (ipg_nic_rx_check_error(dev) != NormalPacket)
+	/* 1: found error, 0 no error */
+	if (ipg_nic_rx_check_error(dev) != NORMAL_PACKET)
 		return;
 
-	skb = sp->RxBuff[entry];
+	skb = sp->rx_buff[entry];
 	if (!skb)
 		return;
 
-	// accept this frame and send to upper layer
+	/* accept this frame and send to upper layer */
 	framelen = le64_to_cpu(rxfd->rfs) & IPG_RFS_RXFRAMELEN;
 	if (framelen > IPG_RXFRAG_SIZE)
 		framelen = IPG_RXFRAG_SIZE;
@@ -1230,39 +1220,39 @@ static void ipg_nic_rx_with_start_and_end(struct net_device *dev,
 	skb->ip_summed = CHECKSUM_NONE;
 	netif_rx(skb);
 	dev->last_rx = jiffies;
-	sp->RxBuff[entry] = NULL;
+	sp->rx_buff[entry] = NULL;
 }
 
 static void ipg_nic_rx_with_start(struct net_device *dev,
 				  struct ipg_nic_private *sp,
 				  struct ipg_rx *rxfd, unsigned entry)
 {
-	struct SJumbo *jumbo = &sp->Jumbo;
+	struct ipg_jumbo *jumbo = &sp->jumbo;
 	struct pci_dev *pdev = sp->pdev;
 	struct sk_buff *skb;
 
-	// 1: found error, 0 no error
-	if (ipg_nic_rx_check_error(dev) != NormalPacket)
+	/* 1: found error, 0 no error */
+	if (ipg_nic_rx_check_error(dev) != NORMAL_PACKET)
 		return;
 
-	// accept this frame and send to upper layer
-	skb = sp->RxBuff[entry];
+	/* accept this frame and send to upper layer */
+	skb = sp->rx_buff[entry];
 	if (!skb)
 		return;
 
-	if (jumbo->FoundStart)
-		IPG_DEV_KFREE_SKB(jumbo->skb);
+	if (jumbo->found_start)
+		dev_kfree_skb_irq(jumbo->skb);
 
 	pci_unmap_single(pdev, le64_to_cpu(rxfd->frag_info & ~IPG_RFI_FRAGLEN),
 			 sp->rx_buf_sz, PCI_DMA_FROMDEVICE);
 
 	skb_put(skb, IPG_RXFRAG_SIZE);
 
-	jumbo->FoundStart = 1;
-	jumbo->CurrentSize = IPG_RXFRAG_SIZE;
+	jumbo->found_start = 1;
+	jumbo->current_size = IPG_RXFRAG_SIZE;
 	jumbo->skb = skb;
 
-	sp->RxBuff[entry] = NULL;
+	sp->rx_buff[entry] = NULL;
 	dev->last_rx = jiffies;
 }
 
@@ -1270,27 +1260,27 @@ static void ipg_nic_rx_with_end(struct net_device *dev,
 				struct ipg_nic_private *sp,
 				struct ipg_rx *rxfd, unsigned entry)
 {
-	struct SJumbo *jumbo = &sp->Jumbo;
+	struct ipg_jumbo *jumbo = &sp->jumbo;
 
-	//1: found error, 0 no error
-	if (ipg_nic_rx_check_error(dev) == NormalPacket) {
-		struct sk_buff *skb = sp->RxBuff[entry];
+	/* 1: found error, 0 no error */
+	if (ipg_nic_rx_check_error(dev) == NORMAL_PACKET) {
+		struct sk_buff *skb = sp->rx_buff[entry];
 
 		if (!skb)
 			return;
 
-		if (jumbo->FoundStart) {
+		if (jumbo->found_start) {
 			int framelen, endframelen;
 
 			framelen = le64_to_cpu(rxfd->rfs) & IPG_RFS_RXFRAMELEN;
 
-			endframeLen = framelen - jumbo->CurrentSize;
+			endframeLen = framelen - jumbo->current_size;
 			/*
 			if (framelen > IPG_RXFRAG_SIZE)
 				framelen=IPG_RXFRAG_SIZE;
 			 */
 			if (framelen > IPG_RXSUPPORT_SIZE)
-				IPG_DEV_KFREE_SKB(jumbo->skb);
+				dev_kfree_skb_irq(jumbo->skb);
 			else {
 				memcpy(skb_put(jumbo->skb, endframeLen),
 				       skb->data, endframeLen);
@@ -1304,15 +1294,15 @@ static void ipg_nic_rx_with_end(struct net_device *dev,
 		}
 
 		dev->last_rx = jiffies;
-		jumbo->FoundStart = 0;
-		jumbo->CurrentSize = 0;
+		jumbo->found_start = 0;
+		jumbo->current_size = 0;
 		jumbo->skb = NULL;
 
 		ipg_nic_rx_free_skb(dev);
 	} else {
-		IPG_DEV_KFREE_SKB(jumbo->skb);
-		jumbo->FoundStart = 0;
-		jumbo->CurrentSize = 0;
+		dev_kfree_skb_irq(jumbo->skb);
+		jumbo->found_start = 0;
+		jumbo->current_size = 0;
 		jumbo->skb = NULL;
 	}
 }
@@ -1321,16 +1311,16 @@ static void ipg_nic_rx_no_start_no_end(struct net_device *dev,
 				       struct ipg_nic_private *sp,
 				       struct ipg_rx *rxfd, unsigned entry)
 {
-	struct SJumbo *jumbo = &sp->Jumbo;
+	struct ipg_jumbo *jumbo = &sp->jumbo;
 
-	//1: found error, 0 no error
-	if (ipg_nic_rx_check_error(dev) == NormalPacket) {
-		struct sk_buff *skb = sp->RxBuff[entry];
+	/* 1: found error, 0 no error */
+	if (ipg_nic_rx_check_error(dev) == NORMAL_PACKET) {
+		struct sk_buff *skb = sp->rx_buff[entry];
 
 		if (skb) {
-			if (jumbo->FoundStart) {
-				jumbo->CurrentSize += IPG_RXFRAG_SIZE;
-				if (jumbo->CurrentSize <= IPG_RXSUPPORT_SIZE) {
+			if (jumbo->found_start) {
+				jumbo->current_size += IPG_RXFRAG_SIZE;
+				if (jumbo->current_size <= IPG_RXSUPPORT_SIZE) {
 					memcpy(skb_put(jumbo->skb,
 						       IPG_RXFRAG_SIZE),
 					       skb->data, IPG_RXFRAG_SIZE);
@@ -1340,9 +1330,9 @@ static void ipg_nic_rx_no_start_no_end(struct net_device *dev,
 			ipg_nic_rx_free_skb(dev);
 		}
 	} else {
-		IPG_DEV_KFREE_SKB(jumbo->skb);
-		jumbo->FoundStart = 0;
-		jumbo->CurrentSize = 0;
+		dev_kfree_skb_irq(jumbo->skb);
+		jumbo->found_start = 0;
+		jumbo->current_size = 0;
 		jumbo->skb = NULL;
 	}
 }
@@ -1364,16 +1354,16 @@ static int ipg_nic_rx(struct net_device *dev)
 			break;
 
 		switch (ipg_nic_rx_check_frame_type(dev)) {
-		case Frame_WithStart_WithEnd:
+		case FRAME_WITH_START_WITH_END:
 			ipg_nic_rx_with_start_and_end(dev, tp, rxfd, entry);
 			break;
-		case Frame_WithStart:
+		case FRAME_WITH_START:
 			ipg_nic_rx_with_start(dev, tp, rxfd, entry);
 			break;
-		case Frame_WithEnd:
+		case FRAME_WITH_END:
 			ipg_nic_rx_with_end(dev, tp, rxfd, entry);
 			break;
-		case Frame_NoStart_NoEnd:
+		case FRAME_NO_START_NO_END:
 			ipg_nic_rx_no_start_no_end(dev, tp, rxfd, entry);
 			break;
 		}
@@ -1412,7 +1402,7 @@ static int ipg_nic_rx(struct net_device *dev)
 
 	for (i = 0; i < IPG_MAXRFDPROCESS_COUNT; i++, curr++) {
 		unsigned int entry = curr % IPG_RFDLIST_LENGTH;
-		struct sk_buff *skb = sp->RxBuff[entry];
+		struct sk_buff *skb = sp->rx_buff[entry];
 		unsigned int framelen;
 
 		rxfd = sp->rxd + entry;
@@ -1481,7 +1471,7 @@ static int ipg_nic_rx(struct net_device *dev)
 					le64_to_cpu(info) & ~IPG_RFI_FRAGLEN,
 					sp->rx_buf_sz, PCI_DMA_FROMDEVICE);
 
-				IPG_DEV_KFREE_SKB(skb);
+				dev_kfree_skb_irq(skb);
 			}
 		} else {
 
@@ -1493,35 +1483,13 @@ static int ipg_nic_rx(struct net_device *dev)
 			/* Set the buffer's protocol field to Ethernet. */
 			skb->protocol = eth_type_trans(skb, dev);
 
-			/* If the frame contains an IP/TCP/UDP frame,
-			 * determine if upper layer must check IP/TCP/UDP
-			 * checksums.
-			 *
-			 * NOTE: DO NOT RELY ON THE TCP/UDP CHECKSUM
-			 *       VERIFICATION FOR SILICON REVISIONS B3
-			 *       AND EARLIER!
-			 *
-			 if ((le64_to_cpu(rxfd->rfs &
-			     (IPG_RFS_TCPDETECTED | IPG_RFS_UDPDETECTED |
-			      IPG_RFS_IPDETECTED))) &&
-			    !(le64_to_cpu(rxfd->rfs &
-			      (IPG_RFS_TCPERROR | IPG_RFS_UDPERROR |
-			       IPG_RFS_IPERROR)))) {
-				 * Indicate IP checksums were performed
-				 * by the IPG.
-				 *
-				skb->ip_summed = CHECKSUM_UNNECESSARY;
-			 } else
+			/* The IPG encountered an error with (or
+			 * there were no) IP/TCP/UDP checksums.
+			 * This may or may not indicate an invalid
+			 * IP/TCP/UDP frame was received. Let the
+			 * upper layer decide.
 			 */
-			 {
-				/* The IPG encountered an error with (or
-				 * there were no) IP/TCP/UDP checksums.
-				 * This may or may not indicate an invalid
-				 * IP/TCP/UDP frame was received. Let the
-				 * upper layer decide.
-				 */
-				skb->ip_summed = CHECKSUM_NONE;
-			}
+			skb->ip_summed = CHECKSUM_NONE;
 
 			/* Hand off frame for higher layer processing.
 			 * The function netif_rx() releases the sk_buff
@@ -1536,7 +1504,7 @@ static int ipg_nic_rx(struct net_device *dev)
 		}
 
 		/* Assure RX buffer is not reused by IPG. */
-		sp->RxBuff[entry] = NULL;
+		sp->rx_buff[entry] = NULL;
 	}
 
 	/*
@@ -1570,15 +1538,15 @@ static int ipg_nic_rx(struct net_device *dev)
 		 * buffer since it is erroneous and we will
 		 * not pass it to higher layer processes.
 		 */
-		if (sp->RxBuff[entry]) {
+		if (sp->rx_buff[entry]) {
 			pci_unmap_single(sp->pdev,
 				le64_to_cpu(rxfd->frag_info) & ~IPG_RFI_FRAGLEN,
 				sp->rx_buf_sz, PCI_DMA_FROMDEVICE);
-			IPG_DEV_KFREE_SKB(sp->RxBuff[entry]);
+			dev_kfree_skb_irq(sp->rx_buff[entry]);
 		}
 
 		/* Assure RX buffer is not reused by IPG. */
-		sp->RxBuff[entry] = NULL;
+		sp->rx_buff[entry] = NULL;
 	}
 
 	sp->rx_current = curr;
@@ -1630,6 +1598,8 @@ static irqreturn_t ipg_interrupt_handler(int irq, void *dev_inst)
 #ifdef JUMBO_FRAME
 	ipg_nic_rxrestore(dev);
 #endif
+	spin_lock(&sp->lock);
+
 	/* Get interrupt source information, and acknowledge
 	 * some (i.e. TxDMAComplete, RxDMAComplete, RxEarly,
 	 * IntRequested, MacControlFrame, LinkEvent) interrupts
@@ -1647,9 +1617,7 @@ static irqreturn_t ipg_interrupt_handler(int irq, void *dev_inst)
 	handled = 1;
 
 	if (unlikely(!netif_running(dev)))
-		goto out;
-
-	spin_lock(&sp->lock);
+		goto out_unlock;
 
 	/* If RFDListEnd interrupt, restore all used RFDs. */
 	if (status & IPG_IS_RFD_LIST_END) {
@@ -1733,9 +1701,9 @@ out_enable:
 	ipg_w16(IPG_IE_TX_DMA_COMPLETE | IPG_IE_RX_DMA_COMPLETE |
 		IPG_IE_HOST_ERROR | IPG_IE_INT_REQUESTED | IPG_IE_TX_COMPLETE |
 		IPG_IE_LINK_EVENT | IPG_IE_UPDATE_STATS, INT_ENABLE);
-
+out_unlock:
 	spin_unlock(&sp->lock);
-out:
+
 	return IRQ_RETVAL(handled);
 }
 
@@ -1744,11 +1712,11 @@ static void ipg_rx_clear(struct ipg_nic_private *sp)
 	unsigned int i;
 
 	for (i = 0; i < IPG_RFDLIST_LENGTH; i++) {
-		if (sp->RxBuff[i]) {
+		if (sp->rx_buff[i]) {
 			struct ipg_rx *rxfd = sp->rxd + i;
 
-			IPG_DEV_KFREE_SKB(sp->RxBuff[i]);
-			sp->RxBuff[i] = NULL;
+			dev_kfree_skb_irq(sp->rx_buff[i]);
+			sp->rx_buff[i] = NULL;
 			pci_unmap_single(sp->pdev,
 				le64_to_cpu(rxfd->frag_info) & ~IPG_RFI_FRAGLEN,
 				sp->rx_buf_sz, PCI_DMA_FROMDEVICE);
@@ -1761,16 +1729,16 @@ static void ipg_tx_clear(struct ipg_nic_private *sp)
 	unsigned int i;
 
 	for (i = 0; i < IPG_TFDLIST_LENGTH; i++) {
-		if (sp->TxBuff[i]) {
+		if (sp->tx_buff[i]) {
 			struct ipg_tx *txfd = sp->txd + i;
 
 			pci_unmap_single(sp->pdev,
 				le64_to_cpu(txfd->frag_info) & ~IPG_TFI_FRAGLEN,
-				sp->TxBuff[i]->len, PCI_DMA_TODEVICE);
+				sp->tx_buff[i]->len, PCI_DMA_TODEVICE);
 
-			IPG_DEV_KFREE_SKB(sp->TxBuff[i]);
+			dev_kfree_skb_irq(sp->tx_buff[i]);
 
-			sp->TxBuff[i] = NULL;
+			sp->tx_buff[i] = NULL;
 		}
 	}
 }
@@ -1841,9 +1809,9 @@ static int ipg_nic_open(struct net_device *dev)
 
 #ifdef JUMBO_FRAME
 	/* initialize JUMBO Frame control variable */
-	sp->Jumbo.FoundStart = 0;
-	sp->Jumbo.CurrentSize = 0;
-	sp->Jumbo.skb = 0;
+	sp->jumbo.found_start = 0;
+	sp->jumbo.current_size = 0;
+	sp->jumbo.skb = 0;
 	dev->mtu = IPG_TXFRAG_SIZE;
 #endif
 
@@ -1918,14 +1886,14 @@ static int ipg_nic_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (sp->tenmbpsmode)
 		netif_stop_queue(dev);
 
-	if (sp->ResetCurrentTFD) {
-		sp->ResetCurrentTFD = 0;
+	if (sp->reset_current_tfd) {
+		sp->reset_current_tfd = 0;
 		entry = 0;
 	}
 
 	txfd = sp->txd + entry;
 
-	sp->TxBuff[entry] = skb;
+	sp->tx_buff[entry] = skb;
 
 	/* Clear all TFC fields, except TFDDONE. */
 	txfd->tfc = cpu_to_le64(IPG_TFC_TFDDONE);
@@ -1943,10 +1911,7 @@ static int ipg_nic_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	if (sp->tenmbpsmode)
 		txfd->tfc |= cpu_to_le64(IPG_TFC_TXINDICATE);
-	else if (!((sp->tx_current - sp->tx_dirty + 1) >
-	    IPG_FRAMESBETWEENTXDMACOMPLETES)) {
-		txfd->tfc |= cpu_to_le64(IPG_TFC_TXDMAINDICATE);
-	}
+	txfd->tfc |= cpu_to_le64(IPG_TFC_TXDMAINDICATE);
 	/* Based on compilation option, determine if FCS is to be
 	 * appended to transmit frame by IPG.
 	 */
@@ -2003,7 +1968,7 @@ static int ipg_nic_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	ipg_w32(IPG_DC_TX_DMA_POLL_NOW, DMA_CTRL);
 
 	if (sp->tx_current == (sp->tx_dirty + IPG_TFDLIST_LENGTH))
-		netif_wake_queue(dev);
+		netif_stop_queue(dev);
 
 	spin_unlock_irqrestore(&sp->lock, flags);
 
@@ -2041,7 +2006,6 @@ static void ipg_set_phy_default_param(unsigned char rev,
 	}
 }
 
-/* JES20040127EEPROM */
 static int read_eeprom(struct net_device *dev, int eep_addr)
 {
 	void __iomem *ioaddr = ipg_ioaddr(dev);
@@ -2108,9 +2072,9 @@ static int ipg_hw_init(struct net_device *dev)
 	unsigned int i;
 	int rc;
 
-	/* Read/Write and Reset EEPROM Value Jesse20040128EEPROM_VALUE */
+	/* Read/Write and Reset EEPROM Value */
 	/* Read LED Mode Configuration from EEPROM */
-	sp->LED_Mode = read_eeprom(dev, 6);
+	sp->led_mode = read_eeprom(dev, 6);
 
 	/* Reset all functions within the IPG. Do not assert
 	 * RST_OUT as not compatible with some PHYs.
@@ -2214,7 +2178,7 @@ static struct ethtool_ops ipg_ethtool_ops = {
 	.nway_reset   = ipg_nway_reset,
 };
 
-static void ipg_remove(struct pci_dev *pdev)
+static void __devexit ipg_remove(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct ipg_nic_private *sp = netdev_priv(dev);

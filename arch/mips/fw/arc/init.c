@@ -12,6 +12,7 @@
 
 #include <asm/bootinfo.h>
 #include <asm/sgialib.h>
+#include <asm/smp-ops.h>
 
 #undef DEBUG_PROM_INIT
 
@@ -47,5 +48,12 @@ void __init prom_init(void)
 	pr_info("Press a key to reboot\n");
 	ArcRead(0, &c, 1, &cnt);
 	ArcEnterInteractiveMode();
+#endif
+#ifdef CONFIG_SGI_IP27
+	{
+		extern struct plat_smp_ops ip27_smp_ops;
+
+		register_smp_ops(&ip27_smp_ops);
+	}
 #endif
 }

@@ -1746,7 +1746,7 @@ static void queue_llc_rx(struct s_smc *smc, SMbuf *mb)
 	DB_GEN("queue_llc_rx: mb = %x",(void *)mb,0,4) ;
 	smc->os.hwm.queued_rx_frames++ ;
 	mb->sm_next = (SMbuf *)NULL ;
-	if (smc->os.hwm.llc_rx_pipe == 0) {
+	if (smc->os.hwm.llc_rx_pipe == NULL) {
 		smc->os.hwm.llc_rx_pipe = mb ;
 	}
 	else {
@@ -1786,7 +1786,7 @@ static void queue_txd_mb(struct s_smc *smc, SMbuf *mb)
 	DB_GEN("_rx: queue_txd_mb = %x",(void *)mb,0,4) ;
 	smc->os.hwm.queued_txd_mb++ ;
 	mb->sm_next = (SMbuf *)NULL ;
-	if (smc->os.hwm.txd_tx_pipe == 0) {
+	if (smc->os.hwm.txd_tx_pipe == NULL) {
 		smc->os.hwm.txd_tx_pipe = mb ;
 	}
 	else {

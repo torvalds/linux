@@ -25,7 +25,7 @@
  * located at 0x51 will pass the validation routine due to
  * the way the registers are implemented.
  */
-static unsigned short normal_i2c[] = { I2C_CLIENT_END };
+static const unsigned short normal_i2c[] = { I2C_CLIENT_END };
 
 /* Module parameters */
 I2C_CLIENT_INSMOD;

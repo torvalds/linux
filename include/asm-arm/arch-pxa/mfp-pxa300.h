@@ -4,7 +4,7 @@
  * PXA300/PXA310 specific MFP configuration definitions
  *
  * Copyright (C) 2007 Marvell International Ltd.
- * 2007-08-21: eric miao <eric.y.miao@gmail.com>
+ * 2007-08-21: eric miao <eric.miao@marvell.com>
  *             initial version
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,6 +16,7 @@
 #define __ASM_ARCH_MFP_PXA300_H
 
 #include <asm/arch/mfp.h>
+#include <asm/arch/mfp-pxa3xx.h>
 
 /* GPIO */
 #define GPIO46_GPIO		MFP_CFG(GPIO46, AF1)
@@ -179,7 +180,7 @@
 #define GPIO62_LCD_CS_N		MFP_CFG_DRV(GPIO62, AF2, DS01X)
 #define GPIO72_LCD_FCLK		MFP_CFG_DRV(GPIO72, AF1, DS01X)
 #define GPIO73_LCD_LCLK		MFP_CFG_DRV(GPIO73, AF1, DS01X)
-#define GPIO74_LCD_PCLK		MFP_CFG_DRV(GPIO74, AF1, DS01X)
+#define GPIO74_LCD_PCLK		MFP_CFG_DRV(GPIO74, AF1, DS02X)
 #define GPIO75_LCD_BIAS		MFP_CFG_DRV(GPIO75, AF1, DS01X)
 #define GPIO76_LCD_VSYNC	MFP_CFG_DRV(GPIO76, AF2, DS01X)
 

@@ -300,7 +300,6 @@ static struct i2c_client bt866_client_tmpl =
 	.addr = 0,
 	.adapter = NULL,
 	.driver = &i2c_driver_bt866,
-	.usage_count = 0
 };
 
 static int bt866_found_proc(struct i2c_adapter *adapter,

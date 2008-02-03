@@ -28,7 +28,7 @@
 
 #include "ver.h"
 
-#define CLUSTER_BUILD_VERSION "1.3.3"
+#define CLUSTER_BUILD_VERSION "1.5.0"
 
 #define VERSION_STR "OCFS2 Node Manager " CLUSTER_BUILD_VERSION
 

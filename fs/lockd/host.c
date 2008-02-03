@@ -34,10 +34,10 @@ static DEFINE_MUTEX(nlm_host_mutex);
 
 static void			nlm_gc_hosts(void);
 static struct nsm_handle *	__nsm_find(const struct sockaddr_in *,
-					const char *, int, int);
+					const char *, unsigned int, int);
 static struct nsm_handle *	nsm_find(const struct sockaddr_in *sin,
 					 const char *hostname,
-					 int hostname_len);
+					 unsigned int hostname_len);
 
 /*
  * Common host lookup routine for server & client
@@ -45,7 +45,8 @@ static struct nsm_handle *	nsm_find(const struct sockaddr_in *sin,
 static struct nlm_host *
 nlm_lookup_host(int server, const struct sockaddr_in *sin,
 		int proto, int version, const char *hostname,
-		int hostname_len, const struct sockaddr_in *ssin)
+		unsigned int hostname_len,
+		const struct sockaddr_in *ssin)
 {
 	struct hlist_head *chain;
 	struct hlist_node *pos;
@@ -176,7 +177,7 @@ nlm_destroy_host(struct nlm_host *host)
  */
 struct nlm_host *
 nlmclnt_lookup_host(const struct sockaddr_in *sin, int proto, int version,
-			const char *hostname, int hostname_len)
+			const char *hostname, unsigned int hostname_len)
 {
 	struct sockaddr_in ssin = {0};
 
@@ -189,7 +190,7 @@ nlmclnt_lookup_host(const struct sockaddr_in *sin, int proto, int version,
  */
 struct nlm_host *
 nlmsvc_lookup_host(struct svc_rqst *rqstp,
-			const char *hostname, int hostname_len)
+			const char *hostname, unsigned int hostname_len)
 {
 	struct sockaddr_in ssin = {0};
 
@@ -307,7 +308,8 @@ void nlm_release_host(struct nlm_host *host)
  * Release all resources held by that peer.
  */
 void nlm_host_rebooted(const struct sockaddr_in *sin,
-				const char *hostname, int hostname_len,
+				const char *hostname,
+				unsigned int hostname_len,
 				u32 new_state)
 {
 	struct hlist_head *chain;
@@ -377,8 +379,13 @@ nlm_shutdown_hosts(void)
 	/* First, make all hosts eligible for gc */
 	dprintk("lockd: nuking all hosts...\n");
 	for (chain = nlm_hosts; chain < nlm_hosts + NLM_HOST_NRHASH; ++chain) {
-		hlist_for_each_entry(host, pos, chain, h_hash)
+		hlist_for_each_entry(host, pos, chain, h_hash) {
 			host->h_expires = jiffies - 1;
+			if (host->h_rpcclnt) {
+				rpc_shutdown_client(host->h_rpcclnt);
+				host->h_rpcclnt = NULL;
+			}
+		}
 	}
 
 	/* Then, perform a garbage collection pass */
@@ -449,7 +456,7 @@ static DEFINE_MUTEX(nsm_mutex);
 
 static struct nsm_handle *
 __nsm_find(const struct sockaddr_in *sin,
-		const char *hostname, int hostname_len,
+		const char *hostname, unsigned int hostname_len,
 		int create)
 {
 	struct nsm_handle *nsm = NULL;
@@ -503,7 +510,8 @@ out:
 }
 
 static struct nsm_handle *
-nsm_find(const struct sockaddr_in *sin, const char *hostname, int hostname_len)
+nsm_find(const struct sockaddr_in *sin, const char *hostname,
+	 unsigned int hostname_len)
 {
 	return __nsm_find(sin, hostname, hostname_len, 1);
 }

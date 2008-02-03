@@ -61,6 +61,7 @@ extern unsigned long force_hpet_address;
 extern int hpet_force_user;
 extern int is_hpet_enabled(void);
 extern int hpet_enable(void);
+extern void hpet_disable(void);
 extern unsigned long hpet_readl(unsigned long a);
 extern void force_hpet_resume(void);
 
@@ -68,6 +69,7 @@ extern void force_hpet_resume(void);
 
 #include <linux/interrupt.h>
 
+typedef irqreturn_t (*rtc_irq_handler)(int interrupt, void *cookie);
 extern int hpet_mask_rtc_irq_bit(unsigned long bit_mask);
 extern int hpet_set_rtc_irq_bit(unsigned long bit_mask);
 extern int hpet_set_alarm_time(unsigned char hrs, unsigned char min,
@@ -76,13 +78,16 @@ extern int hpet_set_periodic_freq(unsigned long freq);
 extern int hpet_rtc_dropped_irq(void);
 extern int hpet_rtc_timer_init(void);
 extern irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id);
+extern int hpet_register_irq_handler(rtc_irq_handler handler);
+extern void hpet_unregister_irq_handler(rtc_irq_handler handler);
 
 #endif /* CONFIG_HPET_EMULATE_RTC */
 
-#else
+#else /* CONFIG_HPET_TIMER */
 
 static inline int hpet_enable(void) { return 0; }
 static inline unsigned long hpet_readl(unsigned long a) { return 0; }
+static inline int is_hpet_enabled(void) { return 0; }
 
-#endif /* CONFIG_HPET_TIMER */
+#endif
 #endif /* ASM_X86_HPET_H */

@@ -91,6 +91,14 @@ static struct at91_mmc_data __initdata eb9200_mmc_data = {
 	.wire4		= 1,
 };
 
+static struct i2c_board_info __initdata eb9200_i2c_devices[] = {
+	{
+		I2C_BOARD_INFO("at24c", 0x50),
+		.type	= "24c512",
+	},
+};
+
+
 static void __init eb9200_board_init(void)
 {
 	/* Serial */
@@ -102,7 +110,7 @@ static void __init eb9200_board_init(void)
 	/* USB Device */
 	at91_add_device_udc(&eb9200_udc_data);
 	/* I2C */
-	at91_add_device_i2c();
+	at91_add_device_i2c(eb9200_i2c_devices, ARRAY_SIZE(eb9200_i2c_devices));
 	/* Compact Flash */
 	at91_add_device_cf(&eb9200_cf_data);
 	/* SPI */

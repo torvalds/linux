@@ -436,7 +436,14 @@ void __init time_init(void)
 
 static inline unsigned long do_gettimeoffset(void)
 {
-	return (*master_l10_counter >> 10) & 0x1fffff;
+	unsigned long val = *master_l10_counter;
+	unsigned long usec = (val >> 10) & 0x1fffff;
+
+	/* Limit hit?  */
+	if (val & 0x80000000)
+		usec += 1000000 / HZ;
+
+	return usec;
 }
 
 /* Ok, my cute asm atomicity trick doesn't work anymore.

@@ -113,32 +113,15 @@ int dev_mc_add(struct net_device *dev, void *addr, int alen, int glbl)
  * 	locked by netif_tx_lock_bh.
  *
  *	This function is intended to be called from the dev->set_multicast_list
- *	function of layered software devices.
+ *	or dev->set_rx_mode function of layered software devices.
  */
 int dev_mc_sync(struct net_device *to, struct net_device *from)
 {
-	struct dev_addr_list *da, *next;
 	int err = 0;
 
 	netif_tx_lock_bh(to);
-	da = from->mc_list;
-	while (da != NULL) {
-		next = da->next;
-		if (!da->da_synced) {
-			err = __dev_addr_add(&to->mc_list, &to->mc_count,
-					     da->da_addr, da->da_addrlen, 0);
-			if (err < 0)
-				break;
-			da->da_synced = 1;
-			da->da_users++;
-		} else if (da->da_users == 1) {
-			__dev_addr_delete(&to->mc_list, &to->mc_count,
-					  da->da_addr, da->da_addrlen, 0);
-			__dev_addr_delete(&from->mc_list, &from->mc_count,
-					  da->da_addr, da->da_addrlen, 0);
-		}
-		da = next;
-	}
+	err = __dev_addr_sync(&to->mc_list, &to->mc_count,
+			      &from->mc_list, &from->mc_count);
 	if (!err)
 		__dev_set_rx_mode(to);
 	netif_tx_unlock_bh(to);
@@ -160,23 +143,11 @@ EXPORT_SYMBOL(dev_mc_sync);
  */
 void dev_mc_unsync(struct net_device *to, struct net_device *from)
 {
-	struct dev_addr_list *da, *next;
-
 	netif_tx_lock_bh(from);
 	netif_tx_lock_bh(to);
 
-	da = from->mc_list;
-	while (da != NULL) {
-		next = da->next;
-		if (!da->da_synced)
-			continue;
-		__dev_addr_delete(&to->mc_list, &to->mc_count,
-				  da->da_addr, da->da_addrlen, 0);
-		da->da_synced = 0;
-		__dev_addr_delete(&from->mc_list, &from->mc_count,
-				  da->da_addr, da->da_addrlen, 0);
-		da = next;
-	}
+	__dev_addr_unsync(&to->mc_list, &to->mc_count,
+			  &from->mc_list, &from->mc_count);
 	__dev_set_rx_mode(to);
 
 	netif_tx_unlock_bh(to);
@@ -186,8 +157,9 @@ EXPORT_SYMBOL(dev_mc_unsync);
 
 #ifdef CONFIG_PROC_FS
 static void *dev_mc_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(dev_base_lock)
 {
-	struct net *net = seq->private;
+	struct net *net = seq_file_net(seq);
 	struct net_device *dev;
 	loff_t off = 0;
 
@@ -206,6 +178,7 @@ static void *dev_mc_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void dev_mc_seq_stop(struct seq_file *seq, void *v)
+	__releases(dev_base_lock)
 {
 	read_unlock(&dev_base_lock);
 }
@@ -241,26 +214,8 @@ static const struct seq_operations dev_mc_seq_ops = {
 
 static int dev_mc_seq_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq;
-	int res;
-	res = seq_open(file, &dev_mc_seq_ops);
-	if (!res) {
-		seq = file->private_data;
-		seq->private = get_proc_net(inode);
-		if (!seq->private) {
-			seq_release(inode, file);
-			res = -ENXIO;
-		}
-	}
-	return res;
-}
-
-static int dev_mc_seq_release(struct inode *inode, struct file *file)
-{
-	struct seq_file *seq = file->private_data;
-	struct net *net = seq->private;
-	put_net(net);
-	return seq_release(inode, file);
+	return seq_open_net(inode, file, &dev_mc_seq_ops,
+			    sizeof(struct seq_net_private));
 }
 
 static const struct file_operations dev_mc_seq_fops = {
@@ -268,7 +223,7 @@ static const struct file_operations dev_mc_seq_fops = {
 	.open    = dev_mc_seq_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
-	.release = dev_mc_seq_release,
+	.release = seq_release_net,
 };
 
 #endif
@@ -285,7 +240,7 @@ static void __net_exit dev_mc_net_exit(struct net *net)
 	proc_net_remove(net, "dev_mcast");
 }
 
-static struct pernet_operations dev_mc_net_ops = {
+static struct pernet_operations __net_initdata dev_mc_net_ops = {
 	.init = dev_mc_net_init,
 	.exit = dev_mc_net_exit,
 };

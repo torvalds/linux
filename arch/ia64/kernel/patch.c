@@ -129,9 +129,6 @@ ia64_patch_mckinley_e9 (unsigned long start, unsigned long end)
 		first_time = 0;
 		if (need_workaround)
 			printk(KERN_INFO "Leaving McKinley Errata 9 workaround enabled\n");
-		else
-			printk(KERN_INFO "McKinley Errata 9 workaround not needed; "
-			       "disabling it\n");
 	}
 	if (need_workaround)
 		return;

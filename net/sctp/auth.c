@@ -54,11 +54,13 @@ static struct sctp_hmac sctp_hmac_list[SCTP_AUTH_NUM_HMACS] = {
 		/* id 2 is reserved as well */
 		.hmac_id = SCTP_AUTH_HMAC_ID_RESERVED_2,
 	},
+#if defined (CONFIG_CRYPTO_SHA256) || defined (CONFIG_CRYPTO_SHA256_MODULE)
 	{
 		.hmac_id = SCTP_AUTH_HMAC_ID_SHA256,
 		.hmac_name="hmac(sha256)",
 		.hmac_len = SCTP_SHA256_SIG_SIZE,
 	}
+#endif
 };
 
 
@@ -556,7 +558,7 @@ struct sctp_hmac *sctp_auth_asoc_get_hmac(const struct sctp_association *asoc)
 	return &sctp_hmac_list[id];
 }
 
-static int __sctp_auth_find_hmacid(__u16 *hmacs, int n_elts, __u16 hmac_id)
+static int __sctp_auth_find_hmacid(__be16 *hmacs, int n_elts, __be16 hmac_id)
 {
 	int  found = 0;
 	int  i;
@@ -573,7 +575,7 @@ static int __sctp_auth_find_hmacid(__u16 *hmacs, int n_elts, __u16 hmac_id)
 
 /* See if the HMAC_ID is one that we claim as supported */
 int sctp_auth_asoc_verify_hmac_id(const struct sctp_association *asoc,
-				    __u16 hmac_id)
+				    __be16 hmac_id)
 {
 	struct sctp_hmac_algo_param *hmacs;
 	__u16 n_elt;
@@ -631,7 +633,7 @@ static int __sctp_auth_cid(sctp_cid_t chunk, struct sctp_chunks_param *param)
 	int found = 0;
 	int i;
 
-	if (!param)
+	if (!param || param->param_hdr.length == 0)
 		return 0;
 
 	len = ntohs(param->param_hdr.length) - sizeof(sctp_paramhdr_t);

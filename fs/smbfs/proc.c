@@ -2593,7 +2593,7 @@ smb_proc_getattr_ff(struct smb_sb_info *server, struct dentry *dentry,
 	fattr->f_mtime.tv_sec = date_dos2unix(server, date, time);
 	fattr->f_mtime.tv_nsec = 0;
 	VERBOSE("name=%s, date=%x, time=%x, mtime=%ld\n",
-		mask, date, time, fattr->f_mtime);
+		mask, date, time, fattr->f_mtime.tv_sec);
 	fattr->f_size = DVAL(req->rq_data, 12);
 	/* ULONG allocation size */
 	fattr->attr = WVAL(req->rq_data, 20);

@@ -13,6 +13,7 @@
 #include <linux/irq.h>
 #include <linux/platform_device.h>
 
+#include <asm/intc.h>
 #include <asm/io.h>
 
 #include "intc.h"
@@ -136,7 +137,8 @@ fail:
 	panic("Interrupt controller initialization failed!\n");
 }
 
-unsigned long intc_get_pending(int group)
+unsigned long intc_get_pending(unsigned int group)
 {
 	return intc_readl(&intc0, INTREQ0 + 4 * group);
 }
+EXPORT_SYMBOL_GPL(intc_get_pending);

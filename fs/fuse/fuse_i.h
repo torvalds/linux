@@ -447,7 +447,7 @@ void fuse_send_forget(struct fuse_conn *fc, struct fuse_req *req,
 /**
  * Initialize READ or READDIR request
  */
-void fuse_read_fill(struct fuse_req *req, struct fuse_file *ff,
+void fuse_read_fill(struct fuse_req *req, struct file *file,
 		    struct inode *inode, loff_t pos, size_t count, int opcode);
 
 /**
@@ -593,3 +593,6 @@ int fuse_valid_type(int m);
 int fuse_allow_task(struct fuse_conn *fc, struct task_struct *task);
 
 u64 fuse_lock_owner_id(struct fuse_conn *fc, fl_owner_t id);
+
+int fuse_update_attributes(struct inode *inode, struct kstat *stat,
+			   struct file *file, bool *refreshed);

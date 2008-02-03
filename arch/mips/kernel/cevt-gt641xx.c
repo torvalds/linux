@@ -49,10 +49,9 @@ int gt641xx_timer0_state(void)
 static int gt641xx_timer0_set_next_event(unsigned long delta,
 					 struct clock_event_device *evt)
 {
-	unsigned long flags;
 	u32 ctrl;
 
-	spin_lock_irqsave(&gt641xx_timer_lock, flags);
+	spin_lock(&gt641xx_timer_lock);
 
 	ctrl = GT_READ(GT_TC_CONTROL_OFS);
 	ctrl &= ~(GT_TC_CONTROL_ENTC0_MSK | GT_TC_CONTROL_SELTC0_MSK);
@@ -61,7 +60,7 @@ static int gt641xx_timer0_set_next_event(unsigned long delta,
 	GT_WRITE(GT_TC0_OFS, delta);
 	GT_WRITE(GT_TC_CONTROL_OFS, ctrl);
 
-	spin_unlock_irqrestore(&gt641xx_timer_lock, flags);
+	spin_unlock(&gt641xx_timer_lock);
 
 	return 0;
 }
@@ -69,10 +68,9 @@ static int gt641xx_timer0_set_next_event(unsigned long delta,
 static void gt641xx_timer0_set_mode(enum clock_event_mode mode,
 				    struct clock_event_device *evt)
 {
-	unsigned long flags;
 	u32 ctrl;
 
-	spin_lock_irqsave(&gt641xx_timer_lock, flags);
+	spin_lock(&gt641xx_timer_lock);
 
 	ctrl = GT_READ(GT_TC_CONTROL_OFS);
 	ctrl &= ~(GT_TC_CONTROL_ENTC0_MSK | GT_TC_CONTROL_SELTC0_MSK);
@@ -90,7 +88,7 @@ static void gt641xx_timer0_set_mode(enum clock_event_mode mode,
 
 	GT_WRITE(GT_TC_CONTROL_OFS, ctrl);
 
-	spin_unlock_irqrestore(&gt641xx_timer_lock, flags);
+	spin_unlock(&gt641xx_timer_lock);
 }
 
 static void gt641xx_timer0_event_handler(struct clock_event_device *dev)
@@ -133,9 +131,9 @@ static int __init gt641xx_timer0_clockevent_init(void)
 
 	cd = &gt641xx_timer0_clockevent;
 	cd->rating = 200 + gt641xx_base_clock / 10000000;
+	clockevent_set_clock(cd, gt641xx_base_clock);
 	cd->max_delta_ns = clockevent_delta2ns(0x7fffffff, cd);
 	cd->min_delta_ns = clockevent_delta2ns(0x300, cd);
-	clockevent_set_clock(cd, gt641xx_base_clock);
 
 	clockevents_register_device(&gt641xx_timer0_clockevent);
 

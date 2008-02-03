@@ -564,7 +564,7 @@ struct dvb_frontend* or51132_attach(const struct or51132_config* config,
 	/* Allocate memory for the internal state */
 	state = kmalloc(sizeof(struct or51132_state), GFP_KERNEL);
 	if (state == NULL)
-		goto error;
+		return NULL;
 
 	/* Setup the state */
 	state->config = config;
@@ -576,10 +576,6 @@ struct dvb_frontend* or51132_attach(const struct or51132_config* config,
 	memcpy(&state->frontend.ops, &or51132_ops, sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
 	return &state->frontend;
-
-error:
-	kfree(state);
-	return NULL;
 }
 
 static struct dvb_frontend_ops or51132_ops = {

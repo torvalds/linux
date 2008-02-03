@@ -35,34 +35,58 @@ struct pvr2_msp3400_handler {
 };
 
 
+
+struct routing_scheme {
+	const int *def;
+	unsigned int cnt;
+};
+
+static const int routing_scheme0[] = {
+	[PVR2_CVAL_INPUT_TV]        = MSP_INPUT_DEFAULT,
+	[PVR2_CVAL_INPUT_RADIO]     = MSP_INPUT(MSP_IN_SCART2,
+						MSP_IN_TUNER1,
+						MSP_DSP_IN_SCART,
+						MSP_DSP_IN_SCART),
+	[PVR2_CVAL_INPUT_COMPOSITE] = MSP_INPUT(MSP_IN_SCART1,
+						MSP_IN_TUNER1,
+						MSP_DSP_IN_SCART,
+						MSP_DSP_IN_SCART),
+	[PVR2_CVAL_INPUT_SVIDEO]    = MSP_INPUT(MSP_IN_SCART1,
+						MSP_IN_TUNER1,
+						MSP_DSP_IN_SCART,
+						MSP_DSP_IN_SCART),
+};
+
+static const struct routing_scheme routing_schemes[] = {
+	[PVR2_ROUTING_SCHEME_HAUPPAUGE] = {
+		.def = routing_scheme0,
+		.cnt = ARRAY_SIZE(routing_scheme0),
+	},
+};
+
 /* This function selects the correct audio input source */
 static void set_stereo(struct pvr2_msp3400_handler *ctxt)
 {
 	struct pvr2_hdw *hdw = ctxt->hdw;
 	struct v4l2_routing route;
+	const struct routing_scheme *sp;
+	unsigned int sid = hdw->hdw_desc->signal_routing_scheme;
 
 	pvr2_trace(PVR2_TRACE_CHIPS,"i2c msp3400 v4l2 set_stereo");
 
-	route.input = MSP_INPUT_DEFAULT;
-	route.output = MSP_OUTPUT(MSP_SC_IN_DSP_SCART1);
-	switch (hdw->input_val) {
-	case PVR2_CVAL_INPUT_TV:
-		break;
-	case PVR2_CVAL_INPUT_RADIO:
-		/* Assume that msp34xx also handle FM decoding, in which case
-		   we're still using the tuner. */
-		/* HV: actually it is more likely to be the SCART2 input if
-		   the ivtv experience is any indication. */
-		route.input = MSP_INPUT(MSP_IN_SCART2, MSP_IN_TUNER1,
-				    MSP_DSP_IN_SCART, MSP_DSP_IN_SCART);
-		break;
-	case PVR2_CVAL_INPUT_SVIDEO:
-	case PVR2_CVAL_INPUT_COMPOSITE:
-		/* SCART 1 input */
-		route.input = MSP_INPUT(MSP_IN_SCART1, MSP_IN_TUNER1,
-				    MSP_DSP_IN_SCART, MSP_DSP_IN_SCART);
-		break;
+	if ((sid < ARRAY_SIZE(routing_schemes)) &&
+	    ((sp = routing_schemes + sid) != 0) &&
+	    (hdw->input_val >= 0) &&
+	    (hdw->input_val < sp->cnt)) {
+		route.input = sp->def[hdw->input_val];
+	} else {
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "*** WARNING *** i2c msp3400 v4l2 set_stereo:"
+			   " Invalid routing scheme (%u) and/or input (%d)",
+			   sid,hdw->input_val);
+		return;
 	}
+	route.output = MSP_OUTPUT(MSP_SC_IN_DSP_SCART1);
 	pvr2_i2c_client_cmd(ctxt->client,VIDIOC_INT_S_AUDIO_ROUTING,&route);
 }
 

@@ -332,6 +332,8 @@ static int dm_hash_rename(const char *old, const char *new)
 		dm_table_put(table);
 	}
 
+	dm_kobject_uevent(hc->md);
+
 	dm_put(hc->md);
 	up_write(&_hash_lock);
 	kfree(old_name);
@@ -1250,21 +1252,17 @@ static int target_message(struct dm_ioctl *param, size_t param_size)
 	if (!table)
 		goto out_argv;
 
-	if (tmsg->sector >= dm_table_get_size(table)) {
+	ti = dm_table_find_target(table, tmsg->sector);
+	if (!dm_target_is_valid(ti)) {
 		DMWARN("Target message sector outside device.");
 		r = -EINVAL;
-		goto out_table;
-	}
-
-	ti = dm_table_find_target(table, tmsg->sector);
-	if (ti->type->message)
+	} else if (ti->type->message)
 		r = ti->type->message(ti, argc, argv);
 	else {
 		DMWARN("Target type does not support messages");
 		r = -EINVAL;
 	}
 
- out_table:
 	dm_table_put(table);
  out_argv:
 	kfree(argv);

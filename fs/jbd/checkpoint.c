@@ -347,7 +347,8 @@ restart:
 				break;
 			}
 			retry = __process_buffer(journal, jh, bhs,&batch_count);
-			if (!retry && lock_need_resched(&journal->j_list_lock)){
+			if (!retry && (need_resched() ||
+				spin_needbreak(&journal->j_list_lock))) {
 				spin_unlock(&journal->j_list_lock);
 				retry = 1;
 				break;
@@ -602,15 +603,15 @@ int __journal_remove_checkpoint(struct journal_head *jh)
 
 	/*
 	 * There is one special case to worry about: if we have just pulled the
-	 * buffer off a committing transaction's forget list, then even if the
-	 * checkpoint list is empty, the transaction obviously cannot be
-	 * dropped!
+	 * buffer off a running or committing transaction's checkpoing list,
+	 * then even if the checkpoint list is empty, the transaction obviously
+	 * cannot be dropped!
 	 *
-	 * The locking here around j_committing_transaction is a bit sleazy.
+	 * The locking here around t_state is a bit sleazy.
 	 * See the comment at the end of journal_commit_transaction().
 	 */
-	if (transaction == journal->j_committing_transaction) {
-		JBUFFER_TRACE(jh, "belongs to committing transaction");
+	if (transaction->t_state != T_FINISHED) {
+		JBUFFER_TRACE(jh, "belongs to running/committing transaction");
 		goto out;
 	}
 

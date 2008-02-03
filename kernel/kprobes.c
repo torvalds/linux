@@ -824,6 +824,8 @@ static int __init init_kprobes(void)
 	if (!err)
 		err = register_die_notifier(&kprobe_exceptions_nb);
 
+	if (!err)
+		init_test_probes();
 	return err;
 }
 

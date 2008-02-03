@@ -162,14 +162,13 @@ void tcp_vegas_cwnd_event(struct sock *sk, enum tcp_ca_event event)
 }
 EXPORT_SYMBOL_GPL(tcp_vegas_cwnd_event);
 
-static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack,
-				 u32 in_flight, int flag)
+static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack, u32 in_flight)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct vegas *vegas = inet_csk_ca(sk);
 
 	if (!vegas->doing_vegas_now)
-		return tcp_reno_cong_avoid(sk, ack, in_flight, flag);
+		return tcp_reno_cong_avoid(sk, ack, in_flight);
 
 	/* The key players are v_beg_snd_una and v_beg_snd_nxt.
 	 *
@@ -228,7 +227,7 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack,
 			/* We don't have enough RTT samples to do the Vegas
 			 * calculation, so we'll behave like Reno.
 			 */
-			tcp_reno_cong_avoid(sk, ack, in_flight, flag);
+			tcp_reno_cong_avoid(sk, ack, in_flight);
 		} else {
 			u32 rtt, target_cwnd, diff;
 
@@ -266,26 +265,25 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack,
 			 */
 			diff = (old_wnd << V_PARAM_SHIFT) - target_cwnd;
 
-			if (tp->snd_cwnd <= tp->snd_ssthresh) {
+			if (diff > gamma && tp->snd_ssthresh > 2 ) {
+				/* Going too fast. Time to slow down
+				 * and switch to congestion avoidance.
+				 */
+				tp->snd_ssthresh = 2;
+
+				/* Set cwnd to match the actual rate
+				 * exactly:
+				 *   cwnd = (actual rate) * baseRTT
+				 * Then we add 1 because the integer
+				 * truncation robs us of full link
+				 * utilization.
+				 */
+				tp->snd_cwnd = min(tp->snd_cwnd,
+						   (target_cwnd >>
+						    V_PARAM_SHIFT)+1);
+
+			} else if (tp->snd_cwnd <= tp->snd_ssthresh) {
 				/* Slow start.  */
-				if (diff > gamma) {
-					/* Going too fast. Time to slow down
-					 * and switch to congestion avoidance.
-					 */
-					tp->snd_ssthresh = 2;
-
-					/* Set cwnd to match the actual rate
-					 * exactly:
-					 *   cwnd = (actual rate) * baseRTT
-					 * Then we add 1 because the integer
-					 * truncation robs us of full link
-					 * utilization.
-					 */
-					tp->snd_cwnd = min(tp->snd_cwnd,
-							   (target_cwnd >>
-							    V_PARAM_SHIFT)+1);
-
-				}
 				tcp_slow_start(tp);
 			} else {
 				/* Congestion avoidance. */

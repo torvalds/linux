@@ -26,7 +26,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/usb/ch9.h>
-#include <linux/usb_gadget.h>
+#include <linux/usb/gadget.h>
 #include <linux/usb.h>
 #include <linux/usb/otg.h>
 #include <linux/i2c.h>
@@ -100,7 +100,7 @@ struct isp1301 {
 
 #if	defined(CONFIG_TPS65010) || defined(CONFIG_TPS65010_MODULE)
 
-#include <asm/arch/tps65010.h>
+#include <linux/i2c/tps65010.h>
 
 #else
 
@@ -258,12 +258,6 @@ static inline const char *state_name(struct isp1301 *isp)
 {
 	return state_string(isp->otg.state);
 }
-
-#ifdef	VERBOSE
-#define	dev_vdbg			dev_dbg
-#else
-#define	dev_vdbg(dev, fmt, arg...)	do{}while(0)
-#endif
 
 /*-------------------------------------------------------------------------*/
 

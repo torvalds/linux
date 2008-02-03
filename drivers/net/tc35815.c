@@ -611,7 +611,7 @@ static int __devinit tc35815_mac_match(struct device *dev, void *data)
 {
 	struct platform_device *plat_dev = to_platform_device(dev);
 	struct pci_dev *pci_dev = data;
-	unsigned int id = (pci_dev->bus->number << 8) | pci_dev->devfn;
+	unsigned int id = pci_dev->irq;
 	return !strcmp(plat_dev->name, "tc35815-mac") && plat_dev->id == id;
 }
 

@@ -32,7 +32,7 @@
  * unknown chips, the user must explicitly set the probe parameter.
  */
 
-static unsigned short normal_i2c[] = { I2C_CLIENT_END };
+static const unsigned short normal_i2c[] = { I2C_CLIENT_END };
 
 /* Insmod parameters */
 I2C_CLIENT_INSMOD;

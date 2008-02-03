@@ -28,14 +28,14 @@ SECTIONS
   .init.text : {
 	*(.text.head)
 #ifndef CONFIG_DEBUG_INFO
-	*(.init.text)
-	*(.exit.text)
-	*(.exit.data)
+	INIT_TEXT
+	EXIT_TEXT
+	EXIT_DATA
 	*(.exitcall.exit)
 #endif
   }
   _einittext = .;
-  .init.data : { *(.init.data) }
+  .init.data : { INIT_DATA }
 
   . = ALIGN(8);
   __setup_start = .;
@@ -76,6 +76,12 @@ SECTIONS
 	  *(.data.init_task)
   }
 
+  . = ALIGN(4096);
+  .data.page_aligned : { *(.data.idt) }
+
+  . = ALIGN(L1_CACHE_BYTES);
+  .data.cacheline_aligned : { *(.data.cacheline_aligned) }
+
   .trap : {
 	/* trap table management - read entry-table.S before modifying */
 	. = ALIGN(8192);
@@ -86,28 +92,25 @@ SECTIONS
 	*(.trap.break)
   }
 
-  . = ALIGN(4096);
-  .data.page_aligned : { *(.data.idt) }
-
-  . = ALIGN(L1_CACHE_BYTES);
-  .data.cacheline_aligned : { *(.data.cacheline_aligned) }
-
   /* Text and read-only data */
   . = ALIGN(4);
   _text = .;
   _stext = .;
   .text : {
-	*(
-		.text.start .text.*
-#ifdef CONFIG_DEBUG_INFO
-	.init.text
-	.exit.text
-	.exitcall.exit
-#endif
-	)
+	*(.text.start)
+	*(.text.entry)
+	*(.text.break)
+	*(.text.tlbmiss)
 	TEXT_TEXT
 	SCHED_TEXT
 	LOCK_TEXT
+#ifdef CONFIG_DEBUG_INFO
+	*(
+	INIT_TEXT
+	EXIT_TEXT
+	.exitcall.exit
+	)
+#endif
 	*(.fixup)
 	*(.gnu.warning)
 	*(.exitcall.exit)
@@ -135,7 +138,7 @@ SECTIONS
   .data : {			/* Data */
 	DATA_DATA
 	*(.data.*)
-	*(.exit.data)
+	EXIT_DATA
 	CONSTRUCTORS
 	}
 

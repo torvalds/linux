@@ -247,7 +247,8 @@ enum csr_regs {
 	B3_PA_CTRL	= 0x01f0,
 	B3_PA_TEST	= 0x01f2,
 
-	Y2_CFG_SPC	= 0x1c00,
+	Y2_CFG_SPC	= 0x1c00,	/* PCI config space region */
+	Y2_CFG_AER      = 0x1d00,	/* PCI Advanced Error Report region */
 };
 
 /*	B0_CTST			16 bit	Control/Status register */
@@ -424,12 +425,13 @@ enum {
 
 /*	B2_CHIP_ID		 8 bit 	Chip Identification Number */
 enum {
-	CHIP_ID_YUKON_XL   = 0xb3, /* Chip ID for YUKON-2 XL */
-	CHIP_ID_YUKON_EC_U = 0xb4, /* Chip ID for YUKON-2 EC Ultra */
-	CHIP_ID_YUKON_EX   = 0xb5, /* Chip ID for YUKON-2 Extreme */
-	CHIP_ID_YUKON_EC   = 0xb6, /* Chip ID for YUKON-2 EC */
- 	CHIP_ID_YUKON_FE   = 0xb7, /* Chip ID for YUKON-2 FE */
- 	CHIP_ID_YUKON_FE_P = 0xb8, /* Chip ID for YUKON-2 FE+ */
+	CHIP_ID_YUKON_XL   = 0xb3, /* YUKON-2 XL */
+	CHIP_ID_YUKON_EC_U = 0xb4, /* YUKON-2 EC Ultra */
+	CHIP_ID_YUKON_EX   = 0xb5, /* YUKON-2 Extreme */
+	CHIP_ID_YUKON_EC   = 0xb6, /* YUKON-2 EC */
+ 	CHIP_ID_YUKON_FE   = 0xb7, /* YUKON-2 FE */
+ 	CHIP_ID_YUKON_FE_P = 0xb8, /* YUKON-2 FE+ */
+	CHIP_ID_YUKON_SUPR = 0xb9, /* YUKON-2 Supreme */
 };
 enum yukon_ec_rev {
 	CHIP_REV_YU_EC_A1    = 0,  /* Chip Rev. for Yukon-EC A1/A0 */
@@ -1990,14 +1992,14 @@ struct sky2_port {
 	u16		     tx_cons;		/* next le to check */
 	u16		     tx_prod;		/* next le to use */
 	u16		     tx_next;		/* debug only */
-	u32		     tx_addr64;
+
 	u16		     tx_pending;
 	u16		     tx_last_mss;
 	u32		     tx_tcpsum;
 
 	struct rx_ring_info  *rx_ring ____cacheline_aligned_in_smp;
 	struct sky2_rx_le    *rx_le;
-	u32		     rx_addr64;
+
 	u16		     rx_next;		/* next re to check */
 	u16		     rx_put;		/* next le index to use */
 	u16		     rx_pending;
@@ -2126,5 +2128,26 @@ static inline void gma_set_addr(struct sky2_hw *hw, unsigned port, unsigned reg,
 	gma_write16(hw, port, reg,  (u16) addr[0] | ((u16) addr[1] << 8));
 	gma_write16(hw, port, reg+4,(u16) addr[2] | ((u16) addr[3] << 8));
 	gma_write16(hw, port, reg+8,(u16) addr[4] | ((u16) addr[5] << 8));
+}
+
+/* PCI config space access */
+static inline u32 sky2_pci_read32(const struct sky2_hw *hw, unsigned reg)
+{
+	return sky2_read32(hw, Y2_CFG_SPC + reg);
+}
+
+static inline u16 sky2_pci_read16(const struct sky2_hw *hw, unsigned reg)
+{
+	return sky2_read16(hw, Y2_CFG_SPC + reg);
+}
+
+static inline void sky2_pci_write32(struct sky2_hw *hw, unsigned reg, u32 val)
+{
+	sky2_write32(hw, Y2_CFG_SPC + reg, val);
+}
+
+static inline void sky2_pci_write16(struct sky2_hw *hw, unsigned reg, u16 val)
+{
+	sky2_write16(hw, Y2_CFG_SPC + reg, val);
 }
 #endif

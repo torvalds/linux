@@ -87,6 +87,10 @@ batteries use voltage for very approximated calculation of capacity.
 Battery driver also can use this attribute just to inform userspace
 about maximal and minimal voltage thresholds of a given battery.
 
+VOLTAGE_MAX, VOLTAGE_MIN - same as _DESIGN voltage values except that
+these ones should be used if hardware could only guess (measure and
+retain) the thresholds of a given power supply.
+
 CHARGE_FULL_DESIGN, CHARGE_EMPTY_DESIGN - design charge values, when
 battery considered full/empty.
 
@@ -100,8 +104,6 @@ age)". I.e. these attributes represents real thresholds, not design values.
 ENERGY_FULL, ENERGY_EMPTY - same as above but for energy.
 
 CAPACITY - capacity in percents.
-CAPACITY_LEVEL - capacity level. This corresponds to
-POWER_SUPPLY_CAPACITY_LEVEL_*.
 
 TEMP - temperature of the power supply.
 TEMP_AMBIENT - ambient temperature.

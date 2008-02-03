@@ -22,8 +22,9 @@
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
 #include <linux/pci.h>
+#include <linux/of_platform.h>
 
-#include <asm/of_platform.h>
+#include <asm/machdep.h>
 
 #include "beat_wrapper.h"
 
@@ -51,6 +52,8 @@ static int __init find_dma_window(u64 *io_space_id, u64 *ioid,
 	return 0;
 }
 
+static unsigned long celleb_dma_direct_offset;
+
 static void __init celleb_init_direct_mapping(void)
 {
 	u64 lpar_addr, io_addr;
@@ -68,7 +71,18 @@ static void __init celleb_init_direct_mapping(void)
 				     ioid, DMA_FLAGS);
 	}
 
-	dma_direct_offset = dma_base;
+	celleb_dma_direct_offset = dma_base;
+}
+
+static void celleb_dma_dev_setup(struct device *dev)
+{
+	dev->archdata.dma_ops = get_pci_dma_ops();
+	dev->archdata.dma_data = (void *)celleb_dma_direct_offset;
+}
+
+static void celleb_pci_dma_dev_setup(struct pci_dev *pdev)
+{
+	celleb_dma_dev_setup(&pdev->dev);
 }
 
 static int celleb_of_bus_notify(struct notifier_block *nb,
@@ -80,7 +94,7 @@ static int celleb_of_bus_notify(struct notifier_block *nb,
 	if (action != BUS_NOTIFY_ADD_DEVICE)
 		return 0;
 
-	dev->archdata.dma_ops = get_pci_dma_ops();
+	celleb_dma_dev_setup(dev);
 
 	return 0;
 }
@@ -91,14 +105,12 @@ static struct notifier_block celleb_of_bus_notifier = {
 
 static int __init celleb_init_iommu(void)
 {
-	if (!machine_is(celleb))
-		return -ENODEV;
-
 	celleb_init_direct_mapping();
 	set_pci_dma_ops(&dma_direct_ops);
+	ppc_md.pci_dma_dev_setup = celleb_pci_dma_dev_setup;
 	bus_register_notifier(&of_platform_bus_type, &celleb_of_bus_notifier);
 
 	return 0;
 }
 
-arch_initcall(celleb_init_iommu);
+machine_arch_initcall(celleb_beat, celleb_init_iommu);

@@ -100,8 +100,6 @@ static inline void * phys_to_virt(unsigned long address)
  */
 #define page_to_phys(page)    ((dma_addr_t)page_to_pfn(page) << PAGE_SHIFT)
 
-extern void __iomem * __ioremap(unsigned long offset, unsigned long size, unsigned long flags);
-
 /**
  * ioremap     -   map bus memory into CPU space
  * @offset:    bus address of the memory
@@ -111,32 +109,39 @@ extern void __iomem * __ioremap(unsigned long offset, unsigned long size, unsign
  * make bus memory CPU accessible via the readb/readw/readl/writeb/
  * writew/writel functions and the other mmio helpers. The returned
  * address is not guaranteed to be usable directly as a virtual
- * address. 
+ * address.
  *
  * If the area you are trying to map is a PCI BAR you should have a
  * look at pci_iomap().
  */
+extern void __iomem *ioremap_nocache(unsigned long offset, unsigned long size);
+extern void __iomem *ioremap_cache(unsigned long offset, unsigned long size);
 
-static inline void __iomem * ioremap(unsigned long offset, unsigned long size)
+/*
+ * The default ioremap() behavior is non-cached:
+ */
+static inline void __iomem *ioremap(unsigned long offset, unsigned long size)
 {
-	return __ioremap(offset, size, 0);
+	return ioremap_nocache(offset, size);
 }
 
-extern void __iomem * ioremap_nocache(unsigned long offset, unsigned long size);
 extern void iounmap(volatile void __iomem *addr);
 
 /*
- * bt_ioremap() and bt_iounmap() are for temporary early boot-time
+ * early_ioremap() and early_iounmap() are for temporary early boot-time
  * mappings, before the real ioremap() is functional.
  * A boot-time mapping is currently limited to at most 16 pages.
  */
-extern void *bt_ioremap(unsigned long offset, unsigned long size);
-extern void bt_iounmap(void *addr, unsigned long size);
+extern void early_ioremap_init(void);
+extern void early_ioremap_clear(void);
+extern void early_ioremap_reset(void);
+extern void *early_ioremap(unsigned long offset, unsigned long size);
+extern void early_iounmap(void *addr, unsigned long size);
 extern void __iomem *fix_ioremap(unsigned idx, unsigned long phys);
 
 /* Use early IO mappings for DMI because it's initialized early */
-#define dmi_ioremap bt_ioremap
-#define dmi_iounmap bt_iounmap
+#define dmi_ioremap early_ioremap
+#define dmi_iounmap early_iounmap
 #define dmi_alloc alloc_bootmem
 
 /*
@@ -250,10 +255,10 @@ static inline void flush_write_buffers(void)
 
 #endif /* __KERNEL__ */
 
-static inline void native_io_delay(void)
-{
-	asm volatile("outb %%al,$0x80" : : : "memory");
-}
+extern void native_io_delay(void);
+
+extern int io_delay_type;
+extern void io_delay_init(void);
 
 #if defined(CONFIG_PARAVIRT)
 #include <asm/paravirt.h>

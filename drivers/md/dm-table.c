@@ -99,8 +99,13 @@ static void combine_restrictions_low(struct io_restrictions *lhs,
 	lhs->max_segment_size =
 		min_not_zero(lhs->max_segment_size, rhs->max_segment_size);
 
+	lhs->max_hw_sectors =
+		min_not_zero(lhs->max_hw_sectors, rhs->max_hw_sectors);
+
 	lhs->seg_boundary_mask =
 		min_not_zero(lhs->seg_boundary_mask, rhs->seg_boundary_mask);
+
+	lhs->bounce_pfn = min_not_zero(lhs->bounce_pfn, rhs->bounce_pfn);
 
 	lhs->no_cluster |= rhs->no_cluster;
 }
@@ -187,8 +192,10 @@ static int alloc_targets(struct dm_table *t, unsigned int num)
 
 	/*
 	 * Allocate both the target array and offset array at once.
+	 * Append an empty entry to catch sectors beyond the end of
+	 * the device.
 	 */
-	n_highs = (sector_t *) dm_vcalloc(num, sizeof(struct dm_target) +
+	n_highs = (sector_t *) dm_vcalloc(num + 1, sizeof(struct dm_target) +
 					  sizeof(sector_t));
 	if (!n_highs)
 		return -ENOMEM;
@@ -562,9 +569,14 @@ void dm_set_device_limits(struct dm_target *ti, struct block_device *bdev)
 	rs->max_segment_size =
 		min_not_zero(rs->max_segment_size, q->max_segment_size);
 
+	rs->max_hw_sectors =
+		min_not_zero(rs->max_hw_sectors, q->max_hw_sectors);
+
 	rs->seg_boundary_mask =
 		min_not_zero(rs->seg_boundary_mask,
 			     q->seg_boundary_mask);
+
+	rs->bounce_pfn = min_not_zero(rs->bounce_pfn, q->bounce_pfn);
 
 	rs->no_cluster |= !test_bit(QUEUE_FLAG_CLUSTER, &q->queue_flags);
 }
@@ -697,6 +709,8 @@ static void check_for_valid_limits(struct io_restrictions *rs)
 {
 	if (!rs->max_sectors)
 		rs->max_sectors = SAFE_MAX_SECTORS;
+	if (!rs->max_hw_sectors)
+		rs->max_hw_sectors = SAFE_MAX_SECTORS;
 	if (!rs->max_phys_segments)
 		rs->max_phys_segments = MAX_PHYS_SEGMENTS;
 	if (!rs->max_hw_segments)
@@ -707,6 +721,8 @@ static void check_for_valid_limits(struct io_restrictions *rs)
 		rs->max_segment_size = MAX_SEGMENT_SIZE;
 	if (!rs->seg_boundary_mask)
 		rs->seg_boundary_mask = -1;
+	if (!rs->bounce_pfn)
+		rs->bounce_pfn = -1;
 }
 
 int dm_table_add_target(struct dm_table *t, const char *type,
@@ -861,6 +877,9 @@ struct dm_target *dm_table_get_target(struct dm_table *t, unsigned int index)
 
 /*
  * Search the btree for the correct target.
+ *
+ * Caller should check returned pointer with dm_target_is_valid()
+ * to trap I/O beyond end of device.
  */
 struct dm_target *dm_table_find_target(struct dm_table *t, sector_t sector)
 {
@@ -890,7 +909,9 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q)
 	q->max_hw_segments = t->limits.max_hw_segments;
 	q->hardsect_size = t->limits.hardsect_size;
 	q->max_segment_size = t->limits.max_segment_size;
+	q->max_hw_sectors = t->limits.max_hw_sectors;
 	q->seg_boundary_mask = t->limits.seg_boundary_mask;
+	q->bounce_pfn = t->limits.bounce_pfn;
 	if (t->limits.no_cluster)
 		q->queue_flags &= ~(1 << QUEUE_FLAG_CLUSTER);
 	else
@@ -993,8 +1014,7 @@ void dm_table_unplug_all(struct dm_table *t)
 		struct dm_dev *dd = list_entry(d, struct dm_dev, list);
 		struct request_queue *q = bdev_get_queue(dd->bdev);
 
-		if (q->unplug_fn)
-			q->unplug_fn(q);
+		blk_unplug(q);
 	}
 }
 

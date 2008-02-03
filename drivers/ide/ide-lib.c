@@ -29,41 +29,44 @@
  *	Add common non I/O op stuff here. Make sure it has proper
  *	kernel-doc function headers or your patch will be rejected
  */
- 
+
+static const char *udma_str[] =
+	 { "UDMA/16", "UDMA/25",  "UDMA/33",  "UDMA/44",
+	   "UDMA/66", "UDMA/100", "UDMA/133", "UDMA7" };
+static const char *mwdma_str[] =
+	{ "MWDMA0", "MWDMA1", "MWDMA2" };
+static const char *swdma_str[] =
+	{ "SWDMA0", "SWDMA1", "SWDMA2" };
+static const char *pio_str[] =
+	{ "PIO0", "PIO1", "PIO2", "PIO3", "PIO4", "PIO5" };
 
 /**
  *	ide_xfer_verbose	-	return IDE mode names
- *	@xfer_rate: rate to name
+ *	@mode: transfer mode
  *
  *	Returns a constant string giving the name of the mode
  *	requested.
  */
 
-char *ide_xfer_verbose (u8 xfer_rate)
+const char *ide_xfer_verbose(u8 mode)
 {
-        switch(xfer_rate) {
-                case XFER_UDMA_7:	return("UDMA 7");
-                case XFER_UDMA_6:	return("UDMA 6");
-                case XFER_UDMA_5:	return("UDMA 5");
-                case XFER_UDMA_4:	return("UDMA 4");
-                case XFER_UDMA_3:	return("UDMA 3");
-                case XFER_UDMA_2:	return("UDMA 2");
-                case XFER_UDMA_1:	return("UDMA 1");
-                case XFER_UDMA_0:	return("UDMA 0");
-                case XFER_MW_DMA_2:	return("MW DMA 2");
-                case XFER_MW_DMA_1:	return("MW DMA 1");
-                case XFER_MW_DMA_0:	return("MW DMA 0");
-                case XFER_SW_DMA_2:	return("SW DMA 2");
-                case XFER_SW_DMA_1:	return("SW DMA 1");
-                case XFER_SW_DMA_0:	return("SW DMA 0");
-                case XFER_PIO_4:	return("PIO 4");
-                case XFER_PIO_3:	return("PIO 3");
-                case XFER_PIO_2:	return("PIO 2");
-                case XFER_PIO_1:	return("PIO 1");
-                case XFER_PIO_0:	return("PIO 0");
-                case XFER_PIO_SLOW:	return("PIO SLOW");
-                default:		return("XFER ERROR");
-        }
+	const char *s;
+	u8 i = mode & 0xf;
+
+	if (mode >= XFER_UDMA_0 && mode <= XFER_UDMA_7)
+		s = udma_str[i];
+	else if (mode >= XFER_MW_DMA_0 && mode <= XFER_MW_DMA_2)
+		s = mwdma_str[i];
+	else if (mode >= XFER_SW_DMA_0 && mode <= XFER_SW_DMA_2)
+		s = swdma_str[i];
+	else if (mode >= XFER_PIO_0 && mode <= XFER_PIO_5)
+		s = pio_str[i & 0x7];
+	else if (mode == XFER_PIO_SLOW)
+		s = "PIO SLOW";
+	else
+		s = "XFER ERROR";
+
+	return s;
 }
 
 EXPORT_SYMBOL(ide_xfer_verbose);
@@ -355,8 +358,10 @@ void ide_toggle_bounce(ide_drive_t *drive, int on)
 	if (!PCI_DMA_BUS_IS_PHYS) {
 		addr = BLK_BOUNCE_ANY;
 	} else if (on && drive->media == ide_disk) {
-		if (HWIF(drive)->pci_dev)
-			addr = HWIF(drive)->pci_dev->dma_mask;
+		struct device *dev = drive->hwif->dev;
+
+		if (dev && dev->dma_mask)
+			addr = *dev->dma_mask;
 	}
 
 	if (drive->queue)
@@ -438,6 +443,12 @@ int ide_set_xfer_rate(ide_drive_t *drive, u8 rate)
 	 * case could happen iff the transfer mode has already been set on
 	 * the device by ide-proc.c::set_xfer_rate()).
 	 */
+	if (rate < XFER_PIO_0) {
+		if (hwif->host_flags & IDE_HFLAG_ABUSE_SET_DMA_MODE)
+			return ide_set_dma_mode(drive, rate);
+		else
+			return ide_config_drive_speed(drive, rate);
+	}
 
 	return ide_set_dma_mode(drive, rate);
 }
@@ -445,8 +456,7 @@ int ide_set_xfer_rate(ide_drive_t *drive, u8 rate)
 static void ide_dump_opcode(ide_drive_t *drive)
 {
 	struct request *rq;
-	u8 opcode = 0;
-	int found = 0;
+	ide_task_t *task = NULL;
 
 	spin_lock(&ide_lock);
 	rq = NULL;
@@ -455,32 +465,101 @@ static void ide_dump_opcode(ide_drive_t *drive)
 	spin_unlock(&ide_lock);
 	if (!rq)
 		return;
-	if (rq->cmd_type == REQ_TYPE_ATA_CMD ||
-	    rq->cmd_type == REQ_TYPE_ATA_TASK) {
-		char *args = rq->buffer;
-		if (args) {
-			opcode = args[0];
-			found = 1;
-		}
-	} else if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
-		ide_task_t *args = rq->special;
-		if (args) {
-			task_struct_t *tf = (task_struct_t *) args->tfRegister;
-			opcode = tf->command;
-			found = 1;
-		}
-	}
+
+	if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE)
+		task = rq->special;
 
 	printk("ide: failed opcode was: ");
-	if (!found)
-		printk("unknown\n");
+	if (task == NULL)
+		printk(KERN_CONT "unknown\n");
 	else
-		printk("0x%02x\n", opcode);
+		printk(KERN_CONT "0x%02x\n", task->tf.command);
 }
 
-static u8 ide_dump_ata_status(ide_drive_t *drive, const char *msg, u8 stat)
+u64 ide_get_lba_addr(struct ide_taskfile *tf, int lba48)
 {
-	ide_hwif_t *hwif = HWIF(drive);
+	u32 high, low;
+
+	if (lba48)
+		high = (tf->hob_lbah << 16) | (tf->hob_lbam << 8) |
+			tf->hob_lbal;
+	else
+		high = tf->device & 0xf;
+	low  = (tf->lbah << 16) | (tf->lbam << 8) | tf->lbal;
+
+	return ((u64)high << 24) | low;
+}
+EXPORT_SYMBOL_GPL(ide_get_lba_addr);
+
+static void ide_dump_sector(ide_drive_t *drive)
+{
+	ide_task_t task;
+	struct ide_taskfile *tf = &task.tf;
+	int lba48 = (drive->addressing == 1) ? 1 : 0;
+
+	memset(&task, 0, sizeof(task));
+	if (lba48)
+		task.tf_flags = IDE_TFLAG_IN_LBA | IDE_TFLAG_IN_HOB_LBA |
+				IDE_TFLAG_LBA48;
+	else
+		task.tf_flags = IDE_TFLAG_IN_LBA | IDE_TFLAG_IN_DEVICE;
+
+	ide_tf_read(drive, &task);
+
+	if (lba48 || (tf->device & ATA_LBA))
+		printk(", LBAsect=%llu",
+			(unsigned long long)ide_get_lba_addr(tf, lba48));
+	else
+		printk(", CHS=%d/%d/%d", (tf->lbah << 8) + tf->lbam,
+					 tf->device & 0xf, tf->lbal);
+}
+
+static void ide_dump_ata_error(ide_drive_t *drive, u8 err)
+{
+	printk("{ ");
+	if (err & ABRT_ERR)	printk("DriveStatusError ");
+	if (err & ICRC_ERR)
+		printk((err & ABRT_ERR) ? "BadCRC " : "BadSector ");
+	if (err & ECC_ERR)	printk("UncorrectableError ");
+	if (err & ID_ERR)	printk("SectorIdNotFound ");
+	if (err & TRK0_ERR)	printk("TrackZeroNotFound ");
+	if (err & MARK_ERR)	printk("AddrMarkNotFound ");
+	printk("}");
+	if ((err & (BBD_ERR | ABRT_ERR)) == BBD_ERR ||
+	    (err & (ECC_ERR|ID_ERR|MARK_ERR))) {
+		ide_dump_sector(drive);
+		if (HWGROUP(drive) && HWGROUP(drive)->rq)
+			printk(", sector=%llu",
+			       (unsigned long long)HWGROUP(drive)->rq->sector);
+	}
+	printk("\n");
+}
+
+static void ide_dump_atapi_error(ide_drive_t *drive, u8 err)
+{
+	printk("{ ");
+	if (err & ILI_ERR)	printk("IllegalLengthIndication ");
+	if (err & EOM_ERR)	printk("EndOfMedia ");
+	if (err & ABRT_ERR)	printk("AbortedCommand ");
+	if (err & MCR_ERR)	printk("MediaChangeRequested ");
+	if (err & LFS_ERR)	printk("LastFailedSense=0x%02x ",
+				       (err & LFS_ERR) >> 4);
+	printk("}\n");
+}
+
+/**
+ *	ide_dump_status		-	translate ATA/ATAPI error
+ *	@drive: drive that status applies to
+ *	@msg: text message to print
+ *	@stat: status byte to decode
+ *
+ *	Error reporting, in human readable form (luxurious, but a memory hog).
+ *	Combines the drive name, message and status byte to provide a
+ *	user understandable explanation of the device error.
+ */
+
+u8 ide_dump_status(ide_drive_t *drive, const char *msg, u8 stat)
+{
 	unsigned long flags;
 	u8 err = 0;
 
@@ -499,119 +578,16 @@ static u8 ide_dump_ata_status(ide_drive_t *drive, const char *msg, u8 stat)
 	}
 	printk("}\n");
 	if ((stat & (BUSY_STAT|ERR_STAT)) == ERR_STAT) {
-		err = hwif->INB(IDE_ERROR_REG);
-		printk("%s: %s: error=0x%02x { ", drive->name, msg, err);
-		if (err & ABRT_ERR)	printk("DriveStatusError ");
-		if (err & ICRC_ERR)
-			printk((err & ABRT_ERR) ? "BadCRC " : "BadSector ");
-		if (err & ECC_ERR)	printk("UncorrectableError ");
-		if (err & ID_ERR)	printk("SectorIdNotFound ");
-		if (err & TRK0_ERR)	printk("TrackZeroNotFound ");
-		if (err & MARK_ERR)	printk("AddrMarkNotFound ");
-		printk("}");
-		if ((err & (BBD_ERR | ABRT_ERR)) == BBD_ERR ||
-		    (err & (ECC_ERR|ID_ERR|MARK_ERR))) {
-			if (drive->addressing == 1) {
-				__u64 sectors = 0;
-				u32 low = 0, high = 0;
-				low = ide_read_24(drive);
-				hwif->OUTB(drive->ctl|0x80, IDE_CONTROL_REG);
-				high = ide_read_24(drive);
-				sectors = ((__u64)high << 24) | low;
-				printk(", LBAsect=%llu, high=%d, low=%d",
-				       (unsigned long long) sectors,
-				       high, low);
-			} else {
-				u8 cur = hwif->INB(IDE_SELECT_REG);
-				if (cur & 0x40) {	/* using LBA? */
-					printk(", LBAsect=%ld", (unsigned long)
-					 ((cur&0xf)<<24)
-					 |(hwif->INB(IDE_HCYL_REG)<<16)
-					 |(hwif->INB(IDE_LCYL_REG)<<8)
-					 | hwif->INB(IDE_SECTOR_REG));
-				} else {
-					printk(", CHS=%d/%d/%d",
-					 (hwif->INB(IDE_HCYL_REG)<<8) +
-					  hwif->INB(IDE_LCYL_REG),
-					  cur & 0xf,
-					  hwif->INB(IDE_SECTOR_REG));
-				}
-			}
-			if (HWGROUP(drive) && HWGROUP(drive)->rq)
-				printk(", sector=%llu",
-					(unsigned long long)HWGROUP(drive)->rq->sector);
-		}
-		printk("\n");
+		err = drive->hwif->INB(IDE_ERROR_REG);
+		printk("%s: %s: error=0x%02x ", drive->name, msg, err);
+		if (drive->media == ide_disk)
+			ide_dump_ata_error(drive, err);
+		else
+			ide_dump_atapi_error(drive, err);
 	}
 	ide_dump_opcode(drive);
 	local_irq_restore(flags);
 	return err;
-}
-
-/**
- *	ide_dump_atapi_status       -       print human readable atapi status
- *	@drive: drive that status applies to
- *	@msg: text message to print
- *	@stat: status byte to decode
- *
- *	Error reporting, in human readable form (luxurious, but a memory hog).
- */
-
-static u8 ide_dump_atapi_status(ide_drive_t *drive, const char *msg, u8 stat)
-{
-	unsigned long flags;
-
-	atapi_status_t status;
-	atapi_error_t error;
-
-	status.all = stat;
-	error.all = 0;
-	local_irq_save(flags);
-	printk("%s: %s: status=0x%02x { ", drive->name, msg, stat);
-	if (status.b.bsy)
-		printk("Busy ");
-	else {
-		if (status.b.drdy)	printk("DriveReady ");
-		if (status.b.df)	printk("DeviceFault ");
-		if (status.b.dsc)	printk("SeekComplete ");
-		if (status.b.drq)	printk("DataRequest ");
-		if (status.b.corr)	printk("CorrectedError ");
-		if (status.b.idx)	printk("Index ");
-		if (status.b.check)	printk("Error ");
-	}
-	printk("}\n");
-	if (status.b.check && !status.b.bsy) {
-		error.all = HWIF(drive)->INB(IDE_ERROR_REG);
-		printk("%s: %s: error=0x%02x { ", drive->name, msg, error.all);
-		if (error.b.ili)	printk("IllegalLengthIndication ");
-		if (error.b.eom)	printk("EndOfMedia ");
-		if (error.b.abrt)	printk("AbortedCommand ");
-		if (error.b.mcr)	printk("MediaChangeRequested ");
-		if (error.b.sense_key)	printk("LastFailedSense=0x%02x ",
-						error.b.sense_key);
-		printk("}\n");
-	}
-	ide_dump_opcode(drive);
-	local_irq_restore(flags);
-	return error.all;
-}
-
-/**
- *	ide_dump_status		-	translate ATA/ATAPI error
- *	@drive: drive the error occured on
- *	@msg: information string
- *	@stat: status byte
- *
- *	Error reporting, in human readable form (luxurious, but a memory hog).
- *	Combines the drive name, message and status byte to provide a
- *	user understandable explanation of the device error.
- */
-
-u8 ide_dump_status(ide_drive_t *drive, const char *msg, u8 stat)
-{
-	if (drive->media == ide_disk)
-		return ide_dump_ata_status(drive, msg, stat);
-	return ide_dump_atapi_status(drive, msg, stat);
 }
 
 EXPORT_SYMBOL(ide_dump_status);

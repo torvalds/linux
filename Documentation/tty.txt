@@ -132,6 +132,14 @@ set_termios()		Notify the tty driver that the device's termios
 			tty->termios. Previous settings should be passed in
 			the "old" argument.
 
+			The API is defined such that the driver should return
+			the actual modes selected. This means that the
+			driver function is responsible for modifying any
+			bits in the request it cannot fulfill to indicate
+			the actual modes being used. A device with no
+			hardware capability for change (eg a USB dongle or
+			virtual port) can provide NULL for this method.
+
 throttle()		Notify the tty driver that input buffers for the
 			line discipline are close to full, and it should
 			somehow signal that no more characters should be

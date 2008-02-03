@@ -63,7 +63,6 @@
  * - power management? (card can do voice wakeup according to datasheet!!)
  */
 
-#include <sound/driver.h>
 #include <asm/io.h>
 #include <linux/init.h>
 #include <linux/pci.h>

@@ -248,6 +248,13 @@ static int tas_snd_vol_put(struct snd_kcontrol *kcontrol,
 {
 	struct tas *tas = snd_kcontrol_chip(kcontrol);
 
+	if (ucontrol->value.integer.value[0] < 0 ||
+	    ucontrol->value.integer.value[0] > 177)
+		return -EINVAL;
+	if (ucontrol->value.integer.value[1] < 0 ||
+	    ucontrol->value.integer.value[1] > 177)
+		return -EINVAL;
+
 	mutex_lock(&tas->mtx);
 	if (tas->cached_volume_l == ucontrol->value.integer.value[0]
 	 && tas->cached_volume_r == ucontrol->value.integer.value[1]) {
@@ -401,6 +408,10 @@ static int tas_snd_drc_range_put(struct snd_kcontrol *kcontrol,
 {
 	struct tas *tas = snd_kcontrol_chip(kcontrol);
 
+	if (ucontrol->value.integer.value[0] < 0 ||
+	    ucontrol->value.integer.value[0] > TAS3004_DRC_MAX)
+		return -EINVAL;
+
 	mutex_lock(&tas->mtx);
 	if (tas->drc_range == ucontrol->value.integer.value[0]) {
 		mutex_unlock(&tas->mtx);
@@ -447,7 +458,7 @@ static int tas_snd_drc_switch_put(struct snd_kcontrol *kcontrol,
 		return 0;
 	}
 
-	tas->drc_enabled = ucontrol->value.integer.value[0];
+	tas->drc_enabled = !!ucontrol->value.integer.value[0];
 	if (tas->hw_enabled)
 		tas3004_set_drc(tas);
 	mutex_unlock(&tas->mtx);
@@ -494,6 +505,8 @@ static int tas_snd_capture_source_put(struct snd_kcontrol *kcontrol,
 	struct tas *tas = snd_kcontrol_chip(kcontrol);
 	int oldacr;
 
+	if (ucontrol->value.enumerated.item[0] > 1)
+		return -EINVAL;
 	mutex_lock(&tas->mtx);
 	oldacr = tas->acr;
 
@@ -562,6 +575,9 @@ static int tas_snd_treble_put(struct snd_kcontrol *kcontrol,
 {
 	struct tas *tas = snd_kcontrol_chip(kcontrol);
 
+	if (ucontrol->value.integer.value[0] < TAS3004_TREBLE_MIN ||
+	    ucontrol->value.integer.value[0] > TAS3004_TREBLE_MAX)
+		return -EINVAL;
 	mutex_lock(&tas->mtx);
 	if (tas->treble == ucontrol->value.integer.value[0]) {
 		mutex_unlock(&tas->mtx);
@@ -610,6 +626,9 @@ static int tas_snd_bass_put(struct snd_kcontrol *kcontrol,
 {
 	struct tas *tas = snd_kcontrol_chip(kcontrol);
 
+	if (ucontrol->value.integer.value[0] < TAS3004_BASS_MIN ||
+	    ucontrol->value.integer.value[0] > TAS3004_BASS_MAX)
+		return -EINVAL;
 	mutex_lock(&tas->mtx);
 	if (tas->bass == ucontrol->value.integer.value[0]) {
 		mutex_unlock(&tas->mtx);

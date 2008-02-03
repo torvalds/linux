@@ -1026,6 +1026,8 @@ mon_bin_poll(struct file *file, struct poll_table_struct *wait)
 	return mask;
 }
 
+#if 0
+
 /*
  * open and close: just keep track of how many times the device is
  * mapped, to use the proper memory allocation function.
@@ -1045,33 +1047,31 @@ static void mon_bin_vma_close(struct vm_area_struct *vma)
 /*
  * Map ring pages to user space.
  */
-struct page *mon_bin_vma_nopage(struct vm_area_struct *vma,
-                                unsigned long address, int *type)
+static int mon_bin_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct mon_reader_bin *rp = vma->vm_private_data;
 	unsigned long offset, chunk_idx;
 	struct page *pageptr;
 
-	offset = (address - vma->vm_start) + (vma->vm_pgoff << PAGE_SHIFT);
+	offset = vmf->pgoff << PAGE_SHIFT;
 	if (offset >= rp->b_size)
-		return NOPAGE_SIGBUS;
+		return VM_FAULT_SIGBUS;
 	chunk_idx = offset / CHUNK_SIZE;
 	pageptr = rp->b_vec[chunk_idx].pg;
 	get_page(pageptr);
-	if (type)
-		*type = VM_FAULT_MINOR;
-	return pageptr;
+	vmf->page = pageptr;
+	return 0;
 }
 
 struct vm_operations_struct mon_bin_vm_ops = {
 	.open =     mon_bin_vma_open,
 	.close =    mon_bin_vma_close,
-	.nopage =   mon_bin_vma_nopage,
+	.fault =    mon_bin_vma_fault,
 };
 
 int mon_bin_mmap(struct file *filp, struct vm_area_struct *vma)
 {
-	/* don't do anything here: "nopage" will set up page table entries */
+	/* don't do anything here: "fault" will set up page table entries */
 	vma->vm_ops = &mon_bin_vm_ops;
 	vma->vm_flags |= VM_RESERVED;
 	vma->vm_private_data = filp->private_data;
@@ -1079,7 +1079,9 @@ int mon_bin_mmap(struct file *filp, struct vm_area_struct *vma)
 	return 0;
 }
 
-struct file_operations mon_fops_binary = {
+#endif  /*  0  */
+
+static const struct file_operations mon_fops_binary = {
 	.owner =	THIS_MODULE,
 	.open =		mon_bin_open,
 	.llseek =	no_llseek,

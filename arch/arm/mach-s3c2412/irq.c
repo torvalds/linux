@@ -33,6 +33,7 @@
 
 #include <asm/arch/regs-irq.h>
 #include <asm/arch/regs-gpio.h>
+#include <asm/arch/regs-power.h>
 
 #include <asm/plat-s3c24xx/cpu.h>
 #include <asm/plat-s3c24xx/irq.h>
@@ -153,6 +154,22 @@ static struct irq_chip s3c2412_irq_cfsdi = {
 	.unmask		= s3c2412_irq_cfsdi_unmask,
 };
 
+static int s3c2412_irq_rtc_wake(unsigned int irqno, unsigned int state)
+{
+	unsigned long pwrcfg;
+
+	pwrcfg = __raw_readl(S3C2412_PWRCFG);
+	if (state)
+		pwrcfg &= ~S3C2412_PWRCFG_RTC_MASKIRQ;
+	else
+		pwrcfg |= S3C2412_PWRCFG_RTC_MASKIRQ;
+	__raw_writel(pwrcfg, S3C2412_PWRCFG);
+
+	return s3c_irq_chip.set_wake(irqno, state);
+}
+
+static struct irq_chip s3c2412_irq_rtc_chip;
+
 static int s3c2412_irq_add(struct sys_device *sysdev)
 {
 	unsigned int irqno;
@@ -172,6 +189,13 @@ static int s3c2412_irq_add(struct sys_device *sysdev)
 		set_irq_handler(irqno, handle_level_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
+
+	/* change RTC IRQ's set wake method */
+
+	s3c2412_irq_rtc_chip = s3c_irq_chip;
+	s3c2412_irq_rtc_chip.set_wake = s3c2412_irq_rtc_wake;
+
+	set_irq_chip(IRQ_RTC, &s3c2412_irq_rtc_chip);
 
 	return 0;
 }

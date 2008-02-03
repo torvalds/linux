@@ -298,6 +298,12 @@ struct sadb_x_sec_ctx {
 #define SADB_X_EALG_BLOWFISHCBC		7
 #define SADB_EALG_NULL			11
 #define SADB_X_EALG_AESCBC		12
+#define SADB_X_EALG_AES_CCM_ICV8	14
+#define SADB_X_EALG_AES_CCM_ICV12	15
+#define SADB_X_EALG_AES_CCM_ICV16	16
+#define SADB_X_EALG_AES_GCM_ICV8	18
+#define SADB_X_EALG_AES_GCM_ICV12	19
+#define SADB_X_EALG_AES_GCM_ICV16	20
 #define SADB_X_EALG_CAMELLIACBC		22
 #define SADB_EALG_MAX                   253 /* last EALG */
 /* private allocations should use 249-255 (RFC2407) */

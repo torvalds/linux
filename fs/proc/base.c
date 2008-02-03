@@ -199,8 +199,28 @@ static int proc_root_link(struct inode *inode, struct dentry **dentry, struct vf
 	(task == current || \
 	(task->parent == current && \
 	(task->ptrace & PT_PTRACED) && \
-	 (task->state == TASK_STOPPED || task->state == TASK_TRACED) && \
+	 (task_is_stopped_or_traced(task)) && \
 	 security_ptrace(current,task) == 0))
+
+struct mm_struct *mm_for_maps(struct task_struct *task)
+{
+	struct mm_struct *mm = get_task_mm(task);
+	if (!mm)
+		return NULL;
+	down_read(&mm->mmap_sem);
+	task_lock(task);
+	if (task->mm != mm)
+		goto out;
+	if (task->mm != current->mm && __ptrace_may_attach(task) < 0)
+		goto out;
+	task_unlock(task);
+	return mm;
+out:
+	task_unlock(task);
+	up_read(&mm->mmap_sem);
+	mmput(mm);
+	return NULL;
+}
 
 static int proc_pid_cmdline(struct task_struct *task, char * buffer)
 {
@@ -288,6 +308,77 @@ static int proc_pid_schedstat(struct task_struct *task, char *buffer)
 			task->sched_info.run_delay,
 			task->sched_info.pcount);
 }
+#endif
+
+#ifdef CONFIG_LATENCYTOP
+static int lstats_show_proc(struct seq_file *m, void *v)
+{
+	int i;
+	struct task_struct *task = m->private;
+	seq_puts(m, "Latency Top version : v0.1\n");
+
+	for (i = 0; i < 32; i++) {
+		if (task->latency_record[i].backtrace[0]) {
+			int q;
+			seq_printf(m, "%i %li %li ",
+				task->latency_record[i].count,
+				task->latency_record[i].time,
+				task->latency_record[i].max);
+			for (q = 0; q < LT_BACKTRACEDEPTH; q++) {
+				char sym[KSYM_NAME_LEN];
+				char *c;
+				if (!task->latency_record[i].backtrace[q])
+					break;
+				if (task->latency_record[i].backtrace[q] == ULONG_MAX)
+					break;
+				sprint_symbol(sym, task->latency_record[i].backtrace[q]);
+				c = strchr(sym, '+');
+				if (c)
+					*c = 0;
+				seq_printf(m, "%s ", sym);
+			}
+			seq_printf(m, "\n");
+		}
+
+	}
+	return 0;
+}
+
+static int lstats_open(struct inode *inode, struct file *file)
+{
+	int ret;
+	struct seq_file *m;
+	struct task_struct *task = get_proc_task(inode);
+
+	ret = single_open(file, lstats_show_proc, NULL);
+	if (!ret) {
+		m = file->private_data;
+		m->private = task;
+	}
+	return ret;
+}
+
+static ssize_t lstats_write(struct file *file, const char __user *buf,
+			    size_t count, loff_t *offs)
+{
+	struct seq_file *m;
+	struct task_struct *task;
+
+	m = file->private_data;
+	task = m->private;
+	clear_all_latency_tracing(task);
+
+	return count;
+}
+
+static const struct file_operations proc_lstats_operations = {
+	.open		= lstats_open,
+	.read		= seq_read,
+	.write		= lstats_write,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 #endif
 
 /* The badness from the OOM killer */
@@ -893,7 +984,7 @@ static ssize_t proc_loginuid_read(struct file * file, char __user * buf,
 	if (!task)
 		return -ESRCH;
 	length = scnprintf(tmpbuf, TMPBUFLEN, "%u",
-				audit_get_loginuid(task->audit_context));
+				audit_get_loginuid(task));
 	put_task_struct(task);
 	return simple_read_from_buffer(buf, count, ppos, tmpbuf, length);
 }
@@ -999,6 +1090,7 @@ static const struct file_operations proc_fault_inject_operations = {
 	.write		= proc_fault_inject_write,
 };
 #endif
+
 
 #ifdef CONFIG_SCHED_DEBUG
 /*
@@ -2210,6 +2302,9 @@ static const struct pid_entry tgid_base_stuff[] = {
 #ifdef CONFIG_SCHEDSTATS
 	INF("schedstat",  S_IRUGO, pid_schedstat),
 #endif
+#ifdef CONFIG_LATENCYTOP
+	REG("latency",  S_IRUGO, lstats),
+#endif
 #ifdef CONFIG_PROC_PID_CPUSET
 	REG("cpuset",     S_IRUGO, cpuset),
 #endif
@@ -2328,21 +2423,18 @@ out:
 
 void proc_flush_task(struct task_struct *task)
 {
-	int i, leader;
-	struct pid *pid, *tgid;
+	int i;
+	struct pid *pid, *tgid = NULL;
 	struct upid *upid;
 
-	leader = thread_group_leader(task);
-	proc_flush_task_mnt(proc_mnt, task->pid, leader ? task->tgid : 0);
 	pid = task_pid(task);
-	if (pid->level == 0)
-		return;
+	if (thread_group_leader(task))
+		tgid = task_tgid(task);
 
-	tgid = task_tgid(task);
-	for (i = 1; i <= pid->level; i++) {
+	for (i = 0; i <= pid->level; i++) {
 		upid = &pid->numbers[i];
 		proc_flush_task_mnt(upid->ns->proc_mnt, upid->nr,
-				leader ? 0 : tgid->numbers[i].nr);
+			tgid ? tgid->numbers[i].nr : 0);
 	}
 
 	upid = &pid->numbers[pid->level];
@@ -2414,19 +2506,23 @@ out:
  * Find the first task with tgid >= tgid
  *
  */
-static struct task_struct *next_tgid(unsigned int tgid,
-		struct pid_namespace *ns)
-{
+struct tgid_iter {
+	unsigned int tgid;
 	struct task_struct *task;
+};
+static struct tgid_iter next_tgid(struct pid_namespace *ns, struct tgid_iter iter)
+{
 	struct pid *pid;
 
+	if (iter.task)
+		put_task_struct(iter.task);
 	rcu_read_lock();
 retry:
-	task = NULL;
-	pid = find_ge_pid(tgid, ns);
+	iter.task = NULL;
+	pid = find_ge_pid(iter.tgid, ns);
 	if (pid) {
-		tgid = pid_nr_ns(pid, ns) + 1;
-		task = pid_task(pid, PIDTYPE_PID);
+		iter.tgid = pid_nr_ns(pid, ns);
+		iter.task = pid_task(pid, PIDTYPE_PID);
 		/* What we to know is if the pid we have find is the
 		 * pid of a thread_group_leader.  Testing for task
 		 * being a thread_group_leader is the obvious thing
@@ -2439,23 +2535,25 @@ retry:
 		 * found doesn't happen to be a thread group leader.
 		 * As we don't care in the case of readdir.
 		 */
-		if (!task || !has_group_leader_pid(task))
+		if (!iter.task || !has_group_leader_pid(iter.task)) {
+			iter.tgid += 1;
 			goto retry;
-		get_task_struct(task);
+		}
+		get_task_struct(iter.task);
 	}
 	rcu_read_unlock();
-	return task;
+	return iter;
 }
 
 #define TGID_OFFSET (FIRST_PROCESS_ENTRY + ARRAY_SIZE(proc_base_stuff))
 
 static int proc_pid_fill_cache(struct file *filp, void *dirent, filldir_t filldir,
-	struct task_struct *task, int tgid)
+	struct tgid_iter iter)
 {
 	char name[PROC_NUMBUF];
-	int len = snprintf(name, sizeof(name), "%d", tgid);
+	int len = snprintf(name, sizeof(name), "%d", iter.tgid);
 	return proc_fill_cache(filp, dirent, filldir, name, len,
-				proc_pid_instantiate, task, NULL);
+				proc_pid_instantiate, iter.task, NULL);
 }
 
 /* for the /proc/ directory itself, after non-process stuff has been done */
@@ -2463,8 +2561,7 @@ int proc_pid_readdir(struct file * filp, void * dirent, filldir_t filldir)
 {
 	unsigned int nr = filp->f_pos - FIRST_PROCESS_ENTRY;
 	struct task_struct *reaper = get_proc_task(filp->f_path.dentry->d_inode);
-	struct task_struct *task;
-	int tgid;
+	struct tgid_iter iter;
 	struct pid_namespace *ns;
 
 	if (!reaper)
@@ -2477,14 +2574,14 @@ int proc_pid_readdir(struct file * filp, void * dirent, filldir_t filldir)
 	}
 
 	ns = filp->f_dentry->d_sb->s_fs_info;
-	tgid = filp->f_pos - TGID_OFFSET;
-	for (task = next_tgid(tgid, ns);
-	     task;
-	     put_task_struct(task), task = next_tgid(tgid + 1, ns)) {
-		tgid = task_pid_nr_ns(task, ns);
-		filp->f_pos = tgid + TGID_OFFSET;
-		if (proc_pid_fill_cache(filp, dirent, filldir, task, tgid) < 0) {
-			put_task_struct(task);
+	iter.task = NULL;
+	iter.tgid = filp->f_pos - TGID_OFFSET;
+	for (iter = next_tgid(ns, iter);
+	     iter.task;
+	     iter.tgid += 1, iter = next_tgid(ns, iter)) {
+		filp->f_pos = iter.tgid + TGID_OFFSET;
+		if (proc_pid_fill_cache(filp, dirent, filldir, iter) < 0) {
+			put_task_struct(iter.task);
 			goto out;
 		}
 	}
@@ -2532,6 +2629,9 @@ static const struct pid_entry tid_base_stuff[] = {
 #endif
 #ifdef CONFIG_SCHEDSTATS
 	INF("schedstat", S_IRUGO, pid_schedstat),
+#endif
+#ifdef CONFIG_LATENCYTOP
+	REG("latency",  S_IRUGO, lstats),
 #endif
 #ifdef CONFIG_PROC_PID_CPUSET
 	REG("cpuset",    S_IRUGO, cpuset),

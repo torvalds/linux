@@ -1192,6 +1192,8 @@ struct net_device * __init i82596_probe(int unit)
 			goto out;
 		}
 
+		dev->base_addr = ioaddr;
+
 		for (i = 0; i < 8; i++) {
 			eth_addr[i] = inb(ioaddr + 8 + i);
 			checksum += eth_addr[i];
@@ -1209,7 +1211,6 @@ struct net_device * __init i82596_probe(int unit)
 			goto out1;
 		}
 
-		dev->base_addr = ioaddr;
 		dev->irq = 10;
 	}
 #endif

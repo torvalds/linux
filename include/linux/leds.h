@@ -14,6 +14,7 @@
 
 #include <linux/list.h>
 #include <linux/spinlock.h>
+#include <linux/rwsem.h>
 
 struct device;
 /*
@@ -43,7 +44,7 @@ struct led_classdev {
 
 #ifdef CONFIG_LEDS_TRIGGERS
 	/* Protects the trigger data below */
-	rwlock_t		 trigger_lock;
+	struct rw_semaphore	 trigger_lock;
 
 	struct led_trigger	*trigger;
 	struct list_head	 trig_list;

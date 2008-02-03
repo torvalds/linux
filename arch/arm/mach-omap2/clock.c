@@ -651,7 +651,7 @@ static u32 omap2_get_clksel(u32 *div_sel, u32 *field_mask,
 		break;
 	case CM_SYSCLKOUT_SEL1:
 		div_addr = (u32)&PRCM_CLKOUT_CTRL;
-		if ((div_off == 3) || (div_off = 11))
+		if ((div_off == 3) || (div_off == 11))
 			mask= 0x3;
 		break;
 	case CM_CORE_SEL1:

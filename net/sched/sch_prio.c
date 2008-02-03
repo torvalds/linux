@@ -224,16 +224,19 @@ prio_destroy(struct Qdisc* sch)
 		qdisc_destroy(q->queues[prio]);
 }
 
-static int prio_tune(struct Qdisc *sch, struct rtattr *opt)
+static int prio_tune(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct prio_sched_data *q = qdisc_priv(sch);
 	struct tc_prio_qopt *qopt;
-	struct rtattr *tb[TCA_PRIO_MAX];
+	struct nlattr *tb[TCA_PRIO_MAX + 1];
+	int err;
 	int i;
 
-	if (rtattr_parse_nested_compat(tb, TCA_PRIO_MAX, opt, qopt,
-				       sizeof(*qopt)))
-		return -EINVAL;
+	err = nla_parse_nested_compat(tb, TCA_PRIO_MAX, opt, NULL, qopt,
+				      sizeof(*qopt));
+	if (err < 0)
+		return err;
+
 	q->bands = qopt->bands;
 	/* If we're multiqueue, make sure the number of incoming bands
 	 * matches the number of queues on the device we're associating with.
@@ -242,7 +245,7 @@ static int prio_tune(struct Qdisc *sch, struct rtattr *opt)
 	 * only one that is enabled for multiqueue, since it's the only one
 	 * that interacts with the underlying device.
 	 */
-	q->mq = RTA_GET_FLAG(tb[TCA_PRIO_MQ - 1]);
+	q->mq = nla_get_flag(tb[TCA_PRIO_MQ]);
 	if (q->mq) {
 		if (sch->parent != TC_H_ROOT)
 			return -EINVAL;
@@ -296,7 +299,7 @@ static int prio_tune(struct Qdisc *sch, struct rtattr *opt)
 	return 0;
 }
 
-static int prio_init(struct Qdisc *sch, struct rtattr *opt)
+static int prio_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct prio_sched_data *q = qdisc_priv(sch);
 	int i;
@@ -319,20 +322,24 @@ static int prio_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct prio_sched_data *q = qdisc_priv(sch);
 	unsigned char *b = skb_tail_pointer(skb);
-	struct rtattr *nest;
+	struct nlattr *nest;
 	struct tc_prio_qopt opt;
 
 	opt.bands = q->bands;
 	memcpy(&opt.priomap, q->prio2band, TC_PRIO_MAX+1);
 
-	nest = RTA_NEST_COMPAT(skb, TCA_OPTIONS, sizeof(opt), &opt);
-	if (q->mq)
-		RTA_PUT_FLAG(skb, TCA_PRIO_MQ);
-	RTA_NEST_COMPAT_END(skb, nest);
+	nest = nla_nest_compat_start(skb, TCA_OPTIONS, sizeof(opt), &opt);
+	if (nest == NULL)
+		goto nla_put_failure;
+	if (q->mq) {
+		if (nla_put_flag(skb, TCA_PRIO_MQ) < 0)
+			goto nla_put_failure;
+	}
+	nla_nest_compat_end(skb, nest);
 
 	return skb->len;
 
-rtattr_failure:
+nla_put_failure:
 	nlmsg_trim(skb, b);
 	return -1;
 }
@@ -392,7 +399,7 @@ static void prio_put(struct Qdisc *q, unsigned long cl)
 	return;
 }
 
-static int prio_change(struct Qdisc *sch, u32 handle, u32 parent, struct rtattr **tca, unsigned long *arg)
+static int prio_change(struct Qdisc *sch, u32 handle, u32 parent, struct nlattr **tca, unsigned long *arg)
 {
 	unsigned long cl = *arg;
 	struct prio_sched_data *q = qdisc_priv(sch);
@@ -468,7 +475,7 @@ static struct tcf_proto ** prio_find_tcf(struct Qdisc *sch, unsigned long cl)
 	return &q->filter_list;
 }
 
-static struct Qdisc_class_ops prio_class_ops = {
+static const struct Qdisc_class_ops prio_class_ops = {
 	.graft		=	prio_graft,
 	.leaf		=	prio_leaf,
 	.get		=	prio_get,
@@ -483,7 +490,7 @@ static struct Qdisc_class_ops prio_class_ops = {
 	.dump_stats	=	prio_dump_class_stats,
 };
 
-static struct Qdisc_ops prio_qdisc_ops = {
+static struct Qdisc_ops prio_qdisc_ops __read_mostly = {
 	.next		=	NULL,
 	.cl_ops		=	&prio_class_ops,
 	.id		=	"prio",
@@ -500,7 +507,7 @@ static struct Qdisc_ops prio_qdisc_ops = {
 	.owner		=	THIS_MODULE,
 };
 
-static struct Qdisc_ops rr_qdisc_ops = {
+static struct Qdisc_ops rr_qdisc_ops __read_mostly = {
 	.next		=	NULL,
 	.cl_ops		=	&prio_class_ops,
 	.id		=	"rr",

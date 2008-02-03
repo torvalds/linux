@@ -14,13 +14,13 @@ LDFLAGS_vmlinux	:= -static -N #-relax
 CHECKFLAGS	+= -D__alpha__ -m64
 cflags-y	:= -pipe -mno-fp-regs -ffixed-8 -msmall-data
 
-cpuflags-$(CONFIG_ALPHA_EV67)		:= -mcpu=ev67
-cpuflags-$(CONFIG_ALPHA_EV6)		:= -mcpu=ev6
+cpuflags-$(CONFIG_ALPHA_EV4)		:= -mcpu=ev4
+cpuflags-$(CONFIG_ALPHA_EV5)		:= -mcpu=ev5
+cpuflags-$(CONFIG_ALPHA_EV56)		:= -mcpu=ev56
 cpuflags-$(CONFIG_ALPHA_POLARIS)	:= -mcpu=pca56
 cpuflags-$(CONFIG_ALPHA_SX164)		:= -mcpu=pca56
-cpuflags-$(CONFIG_ALPHA_EV56)		:= -mcpu=ev56
-cpuflags-$(CONFIG_ALPHA_EV5)		:= -mcpu=ev5
-cpuflags-$(CONFIG_ALPHA_EV4)		:= -mcpu=ev4
+cpuflags-$(CONFIG_ALPHA_EV6)		:= -mcpu=ev6
+cpuflags-$(CONFIG_ALPHA_EV67)		:= -mcpu=ev67
 # If GENERIC, make sure to turn off any instruction set extensions that
 # the host compiler might have on by default.  Given that EV4 and EV5
 # have the same instruction set, prefer EV5 because an EV5 schedule is

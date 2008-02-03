@@ -65,12 +65,12 @@ static int __devinit b43_pcmcia_probe(struct pcmcia_device *dev)
 	tuple_t tuple;
 	cisparse_t parse;
 	int err = -ENOMEM;
-	int res;
+	int res = 0;
 	unsigned char buf[64];
 
 	ssb = kzalloc(sizeof(*ssb), GFP_KERNEL);
 	if (!ssb)
-		goto out;
+		goto out_error;
 
 	err = -ENODEV;
 	tuple.DesiredTuple = CISTPL_CONFIG;
@@ -96,10 +96,12 @@ static int __devinit b43_pcmcia_probe(struct pcmcia_device *dev)
 	dev->io.NumPorts2 = 0;
 	dev->io.Attributes2 = 0;
 
-	win.Attributes = WIN_MEMORY_TYPE_CM | WIN_ENABLE | WIN_USE_WAIT;
+	win.Attributes = WIN_ADDR_SPACE_MEM | WIN_MEMORY_TYPE_CM |
+			 WIN_ENABLE | WIN_DATA_WIDTH_16 |
+			 WIN_USE_WAIT;
 	win.Base = 0;
 	win.Size = SSB_CORE_SIZE;
-	win.AccessSpeed = 1000;
+	win.AccessSpeed = 250;
 	res = pcmcia_request_window(&dev, &win, &dev->win);
 	if (res != CS_SUCCESS)
 		goto err_kfree_ssb;
@@ -108,21 +110,34 @@ static int __devinit b43_pcmcia_probe(struct pcmcia_device *dev)
 	mem.Page = 0;
 	res = pcmcia_map_mem_page(dev->win, &mem);
 	if (res != CS_SUCCESS)
-		goto err_kfree_ssb;
+		goto err_disable;
+
+	dev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING | IRQ_FIRST_SHARED;
+	dev->irq.IRQInfo1 = IRQ_LEVEL_ID | IRQ_SHARE_ID;
+	dev->irq.Handler = NULL; /* The handler is registered later. */
+	dev->irq.Instance = NULL;
+	res = pcmcia_request_irq(dev, &dev->irq);
+	if (res != CS_SUCCESS)
+		goto err_disable;
 
 	res = pcmcia_request_configuration(dev, &dev->conf);
 	if (res != CS_SUCCESS)
 		goto err_disable;
 
 	err = ssb_bus_pcmciabus_register(ssb, dev, win.Base);
+	if (err)
+		goto err_disable;
 	dev->priv = ssb;
 
-      out:
-	return err;
-      err_disable:
+	return 0;
+
+err_disable:
 	pcmcia_disable_device(dev);
-      err_kfree_ssb:
+err_kfree_ssb:
 	kfree(ssb);
+out_error:
+	printk(KERN_ERR "b43-pcmcia: Initialization failed (%d, %d)\n",
+	       res, err);
 	return err;
 }
 
@@ -131,22 +146,21 @@ static void __devexit b43_pcmcia_remove(struct pcmcia_device *dev)
 	struct ssb_bus *ssb = dev->priv;
 
 	ssb_bus_unregister(ssb);
-	pcmcia_release_window(dev->win);
 	pcmcia_disable_device(dev);
 	kfree(ssb);
 	dev->priv = NULL;
 }
 
 static struct pcmcia_driver b43_pcmcia_driver = {
-	.owner = THIS_MODULE,
-	.drv = {
-		.name = "b43-pcmcia",
-		},
-	.id_table = b43_pcmcia_tbl,
-	.probe = b43_pcmcia_probe,
-	.remove = b43_pcmcia_remove,
-	.suspend = b43_pcmcia_suspend,
-	.resume = b43_pcmcia_resume,
+	.owner		= THIS_MODULE,
+	.drv		= {
+				.name = "b43-pcmcia",
+			},
+	.id_table	= b43_pcmcia_tbl,
+	.probe		= b43_pcmcia_probe,
+	.remove		= __devexit_p(b43_pcmcia_remove),
+	.suspend	= b43_pcmcia_suspend,
+	.resume		= b43_pcmcia_resume,
 };
 
 int b43_pcmcia_init(void)

@@ -72,8 +72,8 @@ enum {
  */
 #define RC_DELAY		(HZ/5)
 
-void	nfsd_cache_init(void);
-void	nfsd_cache_shutdown(void);
+int	nfsd_reply_cache_init(void);
+void	nfsd_reply_cache_shutdown(void);
 int	nfsd_cache_lookup(struct svc_rqst *, int);
 void	nfsd_cache_update(struct svc_rqst *, int, __be32 *);
 

@@ -83,7 +83,7 @@ struct cx2341x_mpeg_params {
 #define CX2341X_MBOX_MAX_DATA 16
 
 extern const u32 cx2341x_mpeg_ctrls[];
-typedef int (*cx2341x_mbox_func)(void *priv, int cmd, int in, int out,
+typedef int (*cx2341x_mbox_func)(void *priv, u32 cmd, int in, int out,
 		u32 data[CX2341X_MBOX_MAX_DATA]);
 int cx2341x_update(void *priv, cx2341x_mbox_func func,
 		const struct cx2341x_mpeg_params *old,

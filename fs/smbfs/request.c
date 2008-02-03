@@ -105,7 +105,7 @@ struct smb_request *smb_alloc_request(struct smb_sb_info *server, int bufsize)
                 if (nfs_try_to_free_pages(server))
 			continue;
 
-		if (signalled() && (server->flags & NFS_MOUNT_INTR))
+		if (fatal_signal_pending(current))
 			return ERR_PTR(-ERESTARTSYS);
 		current->policy = SCHED_YIELD;
 		schedule();

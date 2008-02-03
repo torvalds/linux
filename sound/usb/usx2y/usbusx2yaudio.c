@@ -31,7 +31,6 @@
  */
 
 
-#include <sound/driver.h>
 #include <linux/interrupt.h>
 #include <linux/usb.h>
 #include <sound/core.h>

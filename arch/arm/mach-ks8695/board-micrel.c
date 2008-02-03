@@ -40,7 +40,7 @@ static void __init micrel_init(void)
 	printk(KERN_INFO "Micrel KS8695 Development Board initializing\n");
 
 #ifdef CONFIG_PCI
-//	ks8695_init_pci(&micrel_pci);
+	ks8695_init_pci(&micrel_pci);
 #endif
 
 	/* Add devices */

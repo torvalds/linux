@@ -72,11 +72,21 @@ extern void dccp_time_wait(struct sock *sk, int state, int timeo);
 /* RFC 1122, 4.2.3.1 initial RTO value */
 #define DCCP_TIMEOUT_INIT ((unsigned)(3 * HZ))
 
-#define DCCP_RTO_MAX ((unsigned)(120 * HZ)) /* FIXME: using TCP value */
+/*
+ * The maximum back-off value for retransmissions. This is needed for
+ *  - retransmitting client-Requests (sec. 8.1.1),
+ *  - retransmitting Close/CloseReq when closing (sec. 8.3),
+ *  - feature-negotiation retransmission (sec. 6.6.3),
+ *  - Acks in client-PARTOPEN state (sec. 8.1.5).
+ */
+#define DCCP_RTO_MAX ((unsigned)(64 * HZ))
 
-/* bounds for sampled RTT values from packet exchanges (in usec) */
+/*
+ * RTT sampling: sanity bounds and fallback RTT value from RFC 4340, section 3.4
+ */
 #define DCCP_SANE_RTT_MIN	100
-#define DCCP_SANE_RTT_MAX	(4 * USEC_PER_SEC)
+#define DCCP_FALLBACK_RTT	(USEC_PER_SEC / 5)
+#define DCCP_SANE_RTT_MAX	(3 * USEC_PER_SEC)
 
 /* Maximal interval between probes for local resources.  */
 #define DCCP_RESOURCE_PROBE_INTERVAL ((unsigned)(HZ / 2U))
@@ -141,12 +151,6 @@ static inline int between48(const u64 seq1, const u64 seq2, const u64 seq3)
 static inline u64 max48(const u64 seq1, const u64 seq2)
 {
 	return after48(seq1, seq2) ? seq1 : seq2;
-}
-
-/* is seq1 next seqno after seq2 */
-static inline int follows48(const u64 seq1, const u64 seq2)
-{
-	return dccp_delta_seqno(seq2, seq1) == 1;
 }
 
 enum {
@@ -334,6 +338,7 @@ struct dccp_skb_cb {
 
 #define DCCP_SKB_CB(__skb) ((struct dccp_skb_cb *)&((__skb)->cb[0]))
 
+/* RFC 4340, sec. 7.7 */
 static inline int dccp_non_data_packet(const struct sk_buff *skb)
 {
 	const __u8 type = DCCP_SKB_CB(skb)->dccpd_type;
@@ -344,6 +349,17 @@ static inline int dccp_non_data_packet(const struct sk_buff *skb)
 	       type == DCCP_PKT_RESET	 ||
 	       type == DCCP_PKT_SYNC	 ||
 	       type == DCCP_PKT_SYNCACK;
+}
+
+/* RFC 4340, sec. 7.7 */
+static inline int dccp_data_packet(const struct sk_buff *skb)
+{
+	const __u8 type = DCCP_SKB_CB(skb)->dccpd_type;
+
+	return type == DCCP_PKT_DATA	 ||
+	       type == DCCP_PKT_DATAACK  ||
+	       type == DCCP_PKT_REQUEST  ||
+	       type == DCCP_PKT_RESPONSE;
 }
 
 static inline int dccp_packet_without_ack(const struct sk_buff *skb)
@@ -406,6 +422,7 @@ static inline int dccp_ack_pending(const struct sock *sk)
 }
 
 extern int dccp_insert_options(struct sock *sk, struct sk_buff *skb);
+extern int dccp_insert_options_rsk(struct dccp_request_sock*, struct sk_buff*);
 extern int dccp_insert_option_elapsed_time(struct sock *sk,
 					    struct sk_buff *skb,
 					    u32 elapsed_time);

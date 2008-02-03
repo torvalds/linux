@@ -62,8 +62,10 @@ static int __cpu_find_by(int (*compare)(int, int, void *), void *compare_arg,
 		int err = check_cpu_node(dp->node, &cur_inst,
 					 compare, compare_arg,
 					 prom_node, mid);
-		if (!err)
+		if (!err) {
+			of_node_put(dp);
 			return 0;
+		}
 	}
 
 	return -ENODEV;

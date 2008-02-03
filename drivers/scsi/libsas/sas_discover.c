@@ -98,7 +98,7 @@ static int sas_get_port_device(struct asd_sas_port *port)
 			dev->dev_type = SATA_PM;
 		else
 			dev->dev_type = SATA_DEV;
-		dev->tproto = SATA_PROTO;
+		dev->tproto = SAS_PROTOCOL_SATA;
 	} else {
 		struct sas_identify_frame *id =
 			(struct sas_identify_frame *) dev->frame_rcvd;

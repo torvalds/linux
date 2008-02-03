@@ -165,7 +165,7 @@ static int asd_init_target_ddb(struct domain_device *dev)
 	if (dev->port->oob_mode != SATA_OOB_MODE) {
 		flags |= OPEN_REQUIRED;
 		if ((dev->dev_type == SATA_DEV) ||
-		    (dev->tproto & SAS_PROTO_STP)) {
+		    (dev->tproto & SAS_PROTOCOL_STP)) {
 			struct smp_resp *rps_resp = &dev->sata_dev.rps_resp;
 			if (rps_resp->frame_type == SMP_RESPONSE &&
 			    rps_resp->function == SMP_REPORT_PHY_SATA &&
@@ -193,7 +193,7 @@ static int asd_init_target_ddb(struct domain_device *dev)
 	asd_ddbsite_write_byte(asd_ha, ddb, DDB_TARG_FLAGS, flags);
 
 	flags = 0;
-	if (dev->tproto & SAS_PROTO_STP)
+	if (dev->tproto & SAS_PROTOCOL_STP)
 		flags |= STP_CL_POL_NO_TX;
 	asd_ddbsite_write_byte(asd_ha, ddb, DDB_TARG_FLAGS2, flags);
 
@@ -201,7 +201,7 @@ static int asd_init_target_ddb(struct domain_device *dev)
 	asd_ddbsite_write_word(asd_ha, ddb, SEND_QUEUE_TAIL, 0xFFFF);
 	asd_ddbsite_write_word(asd_ha, ddb, SISTER_DDB, 0xFFFF);
 
-	if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTO_STP)) {
+	if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP)) {
 		i = asd_init_sata(dev);
 		if (i < 0) {
 			asd_free_ddb(asd_ha, ddb);

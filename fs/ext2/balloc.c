@@ -69,14 +69,6 @@ struct ext2_group_desc * ext2_get_group_desc(struct super_block * sb,
 	return desc + offset;
 }
 
-static inline int
-block_in_use(unsigned long block, struct super_block *sb, unsigned char *map)
-{
-	return ext2_test_bit ((block -
-		le32_to_cpu(EXT2_SB(sb)->s_es->s_first_data_block)) %
-			 EXT2_BLOCKS_PER_GROUP(sb), map);
-}
-
 /*
  * Read the bitmap for a given block_group, reading into the specified 
  * slot in the superblock's bitmap cache.
@@ -86,51 +78,20 @@ block_in_use(unsigned long block, struct super_block *sb, unsigned char *map)
 static struct buffer_head *
 read_block_bitmap(struct super_block *sb, unsigned int block_group)
 {
-	int i;
 	struct ext2_group_desc * desc;
 	struct buffer_head * bh = NULL;
-	unsigned int bitmap_blk;
-
+	
 	desc = ext2_get_group_desc (sb, block_group, NULL);
 	if (!desc)
-		return NULL;
-	bitmap_blk = le32_to_cpu(desc->bg_block_bitmap);
-	bh = sb_bread(sb, bitmap_blk);
+		goto error_out;
+	bh = sb_bread(sb, le32_to_cpu(desc->bg_block_bitmap));
 	if (!bh)
-		ext2_error (sb, __FUNCTION__,
+		ext2_error (sb, "read_block_bitmap",
 			    "Cannot read block bitmap - "
 			    "block_group = %d, block_bitmap = %u",
 			    block_group, le32_to_cpu(desc->bg_block_bitmap));
-
-	/* check whether block bitmap block number is set */
-	if (!block_in_use(bitmap_blk, sb, bh->b_data)) {
-		/* bad block bitmap */
-		goto error_out;
-	}
-	/* check whether the inode bitmap block number is set */
-	bitmap_blk = le32_to_cpu(desc->bg_inode_bitmap);
-	if (!block_in_use(bitmap_blk, sb, bh->b_data)) {
-		/* bad block bitmap */
-		goto error_out;
-	}
-	/* check whether the inode table block number is set */
-	bitmap_blk = le32_to_cpu(desc->bg_inode_table);
-	for (i = 0; i < EXT2_SB(sb)->s_itb_per_group; i++, bitmap_blk++) {
-		if (!block_in_use(bitmap_blk, sb, bh->b_data)) {
-			/* bad block bitmap */
-			goto error_out;
-		}
-	}
-
-	return bh;
-
 error_out:
-	brelse(bh);
-	ext2_error(sb, __FUNCTION__,
-			"Invalid block bitmap - "
-			"block_group = %d, block = %u",
-			block_group, bitmap_blk);
-	return NULL;
+	return bh;
 }
 
 static void release_blocks(struct super_block *sb, int count)
@@ -1460,7 +1421,6 @@ unsigned long ext2_count_free_blocks (struct super_block * sb)
 	return desc_count;
 #endif
 }
-
 
 static inline int test_root(int a, int b)
 {

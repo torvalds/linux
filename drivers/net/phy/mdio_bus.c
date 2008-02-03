@@ -91,9 +91,12 @@ int mdiobus_register(struct mii_bus *bus)
 
 			err = device_register(&phydev->dev);
 
-			if (err)
+			if (err) {
 				printk(KERN_ERR "phy %d failed to register\n",
 						i);
+				phy_device_free(phydev);
+				phydev = NULL;
+			}
 		}
 
 		bus->phy_map[i] = phydev;
@@ -110,10 +113,8 @@ void mdiobus_unregister(struct mii_bus *bus)
 	int i;
 
 	for (i = 0; i < PHY_MAX_ADDR; i++) {
-		if (bus->phy_map[i]) {
+		if (bus->phy_map[i])
 			device_unregister(&bus->phy_map[i]->dev);
-			kfree(bus->phy_map[i]);
-		}
 	}
 }
 EXPORT_SYMBOL(mdiobus_unregister);

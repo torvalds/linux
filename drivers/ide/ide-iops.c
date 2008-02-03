@@ -1,6 +1,4 @@
 /*
- * linux/drivers/ide/ide-iops.c	Version 0.37	Mar 05, 2003
- *
  *  Copyright (C) 2000-2002	Andre Hedrick <andre@linux-ide.org>
  *  Copyright (C) 2003		Red Hat <alan@redhat.com>
  *
@@ -158,14 +156,6 @@ void default_hwif_mmiops (ide_hwif_t *hwif)
 
 EXPORT_SYMBOL(default_hwif_mmiops);
 
-u32 ide_read_24 (ide_drive_t *drive)
-{
-	u8 hcyl = HWIF(drive)->INB(IDE_HCYL_REG);
-	u8 lcyl = HWIF(drive)->INB(IDE_LCYL_REG);
-	u8 sect = HWIF(drive)->INB(IDE_SECTOR_REG);
-	return (hcyl<<16)|(lcyl<<8)|sect;
-}
-
 void SELECT_DRIVE (ide_drive_t *drive)
 {
 	if (HWIF(drive)->selectproc)
@@ -173,26 +163,10 @@ void SELECT_DRIVE (ide_drive_t *drive)
 	HWIF(drive)->OUTB(drive->select.all, IDE_SELECT_REG);
 }
 
-EXPORT_SYMBOL(SELECT_DRIVE);
-
-void SELECT_INTERRUPT (ide_drive_t *drive)
-{
-	if (HWIF(drive)->intrproc)
-		HWIF(drive)->intrproc(drive);
-	else
-		HWIF(drive)->OUTB(drive->ctl|2, IDE_CONTROL_REG);
-}
-
 void SELECT_MASK (ide_drive_t *drive, int mask)
 {
 	if (HWIF(drive)->maskproc)
 		HWIF(drive)->maskproc(drive, mask);
-}
-
-void QUIRK_LIST (ide_drive_t *drive)
-{
-	if (HWIF(drive)->quirkproc)
-		drive->quirk_list = HWIF(drive)->quirkproc(drive);
 }
 
 /*
@@ -303,9 +277,6 @@ void default_hwif_transport(ide_hwif_t *hwif)
 	hwif->atapi_output_bytes	= atapi_output_bytes;
 }
 
-/*
- * Beginning of Taskfile OPCODE Library and feature sets.
- */
 void ide_fix_driveid (struct hd_driveid *id)
 {
 #ifndef __LITTLE_ENDIAN
@@ -403,8 +374,12 @@ void ide_fix_driveid (struct hd_driveid *id)
 #endif
 }
 
-/* FIXME: exported for use by the USB storage (isd200.c) code only */
-EXPORT_SYMBOL(ide_fix_driveid);
+/*
+ * ide_fixstring() cleans up and (optionally) byte-swaps a text string,
+ * removing leading/trailing blanks and compressing internal blanks.
+ * It is primarily used to tidy up the model name/number fields as
+ * returned by the WIN_[P]IDENTIFY commands.
+ */
 
 void ide_fixstring (u8 *s, const int bytecount, const int byteswap)
 {
@@ -448,7 +423,6 @@ int drive_is_ready (ide_drive_t *drive)
 	udelay(1);
 #endif
 
-#ifdef CONFIG_IDEPCI_SHARE_IRQ
 	/*
 	 * We do a passive status test under shared PCI interrupts on
 	 * cards that truly share the ATA side interrupt, but may also share
@@ -458,7 +432,6 @@ int drive_is_ready (ide_drive_t *drive)
 	if (IDE_CONTROL_REG)
 		stat = hwif->INB(IDE_ALTSTATUS_REG);
 	else
-#endif /* CONFIG_IDEPCI_SHARE_IRQ */
 		/* Note: this may clear a pending IRQ!! */
 		stat = hwif->INB(IDE_STATUS_REG);
 
@@ -588,6 +561,9 @@ EXPORT_SYMBOL_GPL(ide_in_drive_list);
 static const struct drive_list_entry ivb_list[] = {
 	{ "QUANTUM FIREBALLlct10 05"	, "A03.0900"	},
 	{ "TSSTcorp CDDVDW SH-S202J"	, "SB00"	},
+	{ "TSSTcorp CDDVDW SH-S202J"	, "SB01"	},
+	{ "TSSTcorp CDDVDW SH-S202N"	, "SB00"	},
+	{ "TSSTcorp CDDVDW SH-S202N"	, "SB01"	},
 	{ NULL				, NULL		}
 };
 
@@ -608,11 +584,11 @@ u8 eighty_ninty_three (ide_drive_t *drive)
 		printk(KERN_DEBUG "%s: skipping word 93 validity check\n",
 				  drive->name);
 
+	if (ide_dev_is_sata(id) && !ivb)
+		return 1;
+
 	if (hwif->cbl != ATA_CBL_PATA80 && !ivb)
 		goto no_80w;
-
-	if (ide_dev_is_sata(id))
-		return 1;
 
 	/*
 	 * FIXME:
@@ -636,66 +612,6 @@ no_80w:
 	return 0;
 }
 
-int ide_ata66_check (ide_drive_t *drive, ide_task_t *args)
-{
-	if ((args->tfRegister[IDE_COMMAND_OFFSET] == WIN_SETFEATURES) &&
-	    (args->tfRegister[IDE_SECTOR_OFFSET] > XFER_UDMA_2) &&
-	    (args->tfRegister[IDE_FEATURE_OFFSET] == SETFEATURES_XFER)) {
-		if (eighty_ninty_three(drive) == 0) {
-			printk(KERN_WARNING "%s: UDMA speeds >UDMA33 cannot "
-					    "be set\n", drive->name);
-			return 1;
-		}
-	}
-
-	return 0;
-}
-
-/*
- * Backside of HDIO_DRIVE_CMD call of SETFEATURES_XFER.
- * 1 : Safe to update drive->id DMA registers.
- * 0 : OOPs not allowed.
- */
-int set_transfer (ide_drive_t *drive, ide_task_t *args)
-{
-	if ((args->tfRegister[IDE_COMMAND_OFFSET] == WIN_SETFEATURES) &&
-	    (args->tfRegister[IDE_SECTOR_OFFSET] >= XFER_SW_DMA_0) &&
-	    (args->tfRegister[IDE_FEATURE_OFFSET] == SETFEATURES_XFER) &&
-	    (drive->id->dma_ultra ||
-	     drive->id->dma_mword ||
-	     drive->id->dma_1word))
-		return 1;
-
-	return 0;
-}
-
-#ifdef CONFIG_BLK_DEV_IDEDMA
-static u8 ide_auto_reduce_xfer (ide_drive_t *drive)
-{
-	if (!drive->crc_count)
-		return drive->current_speed;
-	drive->crc_count = 0;
-
-	switch(drive->current_speed) {
-		case XFER_UDMA_7:	return XFER_UDMA_6;
-		case XFER_UDMA_6:	return XFER_UDMA_5;
-		case XFER_UDMA_5:	return XFER_UDMA_4;
-		case XFER_UDMA_4:	return XFER_UDMA_3;
-		case XFER_UDMA_3:	return XFER_UDMA_2;
-		case XFER_UDMA_2:	return XFER_UDMA_1;
-		case XFER_UDMA_1:	return XFER_UDMA_0;
-			/*
-			 * OOPS we do not goto non Ultra DMA modes
-			 * without iCRC's available we force
-			 * the system to PIO and make the user
-			 * invoke the ATA-1 ATA-2 DMA modes.
-			 */
-		case XFER_UDMA_0:
-		default:		return XFER_PIO_4;
-	}
-}
-#endif /* CONFIG_BLK_DEV_IDEDMA */
-
 int ide_driveid_update(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
@@ -708,8 +624,7 @@ int ide_driveid_update(ide_drive_t *drive)
 	 */
 
 	SELECT_MASK(drive, 1);
-	if (IDE_CONTROL_REG)
-		hwif->OUTB(drive->ctl,IDE_CONTROL_REG);
+	ide_set_irq(drive, 1);
 	msleep(50);
 	hwif->OUTB(WIN_IDENTIFY, IDE_COMMAND_REG);
 	timeout = jiffies + WAIT_WORSTCASE;
@@ -744,6 +659,9 @@ int ide_driveid_update(ide_drive_t *drive)
 		drive->id->dma_1word = id->dma_1word;
 		/* anything more ? */
 		kfree(id);
+
+		if (drive->using_dma && ide_id_dma_bug(drive))
+			ide_dma_off(drive);
 	}
 
 	return 1;
@@ -752,16 +670,20 @@ int ide_driveid_update(ide_drive_t *drive)
 int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	int error;
+	int error = 0;
 	u8 stat;
 
 //	while (HWGROUP(drive)->busy)
 //		msleep(50);
 
 #ifdef CONFIG_BLK_DEV_IDEDMA
-	if (hwif->ide_dma_on)	/* check if host supports DMA */
-		hwif->dma_host_off(drive);
+	if (hwif->dma_host_set)	/* check if host supports DMA */
+		hwif->dma_host_set(drive, 0);
 #endif
+
+	/* Skip setting PIO flow-control modes on pre-EIDE drives */
+	if ((speed & 0xf8) == XFER_PIO_0 && !(drive->id->capability & 0x08))
+		goto skip;
 
 	/*
 	 * Don't use ide_wait_cmd here - it will
@@ -785,13 +707,12 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 	SELECT_DRIVE(drive);
 	SELECT_MASK(drive, 0);
 	udelay(1);
-	if (IDE_CONTROL_REG)
-		hwif->OUTB(drive->ctl | 2, IDE_CONTROL_REG);
+	ide_set_irq(drive, 0);
 	hwif->OUTB(speed, IDE_NSECTOR_REG);
 	hwif->OUTB(SETFEATURES_XFER, IDE_FEATURE_REG);
 	hwif->OUTBSYNC(drive, WIN_SETFEATURES, IDE_COMMAND_REG);
-	if ((IDE_CONTROL_REG) && (drive->quirk_list == 2))
-		hwif->OUTB(drive->ctl, IDE_CONTROL_REG);
+	if (drive->quirk_list == 2)
+		ide_set_irq(drive, 1);
 
 	error = __ide_wait_stat(drive, drive->ready_stat,
 				BUSY_STAT|DRQ_STAT|ERR_STAT,
@@ -810,11 +731,13 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 	drive->id->dma_mword &= ~0x0F00;
 	drive->id->dma_1word &= ~0x0F00;
 
+ skip:
 #ifdef CONFIG_BLK_DEV_IDEDMA
-	if (speed >= XFER_SW_DMA_0)
-		hwif->dma_host_on(drive);
-	else if (hwif->ide_dma_on)	/* check if host supports DMA */
-		hwif->dma_off_quietly(drive);
+	if ((speed >= XFER_SW_DMA_0 || (hwif->host_flags & IDE_HFLAG_VDMA)) &&
+	    drive->using_dma)
+		hwif->dma_host_set(drive, 1);
+	else if (hwif->dma_host_set)	/* check if host supports DMA */
+		ide_dma_off_quietly(drive);
 #endif
 
 	switch(speed) {
@@ -890,28 +813,24 @@ EXPORT_SYMBOL(ide_set_handler);
  *	handler and IRQ setup do not race. All IDE command kick off
  *	should go via this function or do equivalent locking.
  */
- 
-void ide_execute_command(ide_drive_t *drive, task_ioreg_t cmd, ide_handler_t *handler, unsigned timeout, ide_expiry_t *expiry)
+
+void ide_execute_command(ide_drive_t *drive, u8 cmd, ide_handler_t *handler,
+			 unsigned timeout, ide_expiry_t *expiry)
 {
 	unsigned long flags;
 	ide_hwgroup_t *hwgroup = HWGROUP(drive);
 	ide_hwif_t *hwif = HWIF(drive);
-	
+
 	spin_lock_irqsave(&ide_lock, flags);
-	
 	BUG_ON(hwgroup->handler);
-	hwgroup->handler	= handler;
-	hwgroup->expiry		= expiry;
-	hwgroup->timer.expires	= jiffies + timeout;
-	hwgroup->req_gen_timer = hwgroup->req_gen;
-	add_timer(&hwgroup->timer);
+	__ide_set_handler(drive, handler, timeout, expiry);
 	hwif->OUTBSYNC(drive, cmd, IDE_COMMAND_REG);
-	/* Drive takes 400nS to respond, we must avoid the IRQ being
-	   serviced before that. 
-	   
-	   FIXME: we could skip this delay with care on non shared
-	   devices 
-	*/
+	/*
+	 * Drive takes 400nS to respond, we must avoid the IRQ being
+	 * serviced before that.
+	 *
+	 * FIXME: we could skip this delay with care on non shared devices
+	 */
 	ndelay(400);
 	spin_unlock_irqrestore(&ide_lock, flags);
 }
@@ -1019,19 +938,6 @@ static ide_startstop_t reset_pollfunc (ide_drive_t *drive)
 	return ide_stopped;
 }
 
-static void check_dma_crc(ide_drive_t *drive)
-{
-#ifdef CONFIG_BLK_DEV_IDEDMA
-	if (drive->crc_count) {
-		drive->hwif->dma_off_quietly(drive);
-		ide_set_xfer_rate(drive, ide_auto_reduce_xfer(drive));
-		if (drive->current_speed >= XFER_SW_DMA_0)
-			(void) HWIF(drive)->ide_dma_on(drive);
-	} else
-		ide_dma_off(drive);
-#endif
-}
-
 static void ide_disk_pre_reset(ide_drive_t *drive)
 {
 	int legacy = (drive->id->cfs_enable_2 & 0x0400) ? 0 : 1;
@@ -1039,8 +945,7 @@ static void ide_disk_pre_reset(ide_drive_t *drive)
 	drive->special.all = 0;
 	drive->special.b.set_geometry = legacy;
 	drive->special.b.recalibrate  = legacy;
-	if (OK_TO_RESET_CONTROLLER)
-		drive->mult_count = 0;
+	drive->mult_count = 0;
 	if (!drive->keep_settings && !drive->using_dma)
 		drive->mult_req = 0;
 	if (drive->mult_req != drive->mult_count)
@@ -1054,17 +959,20 @@ static void pre_reset(ide_drive_t *drive)
 	else
 		drive->post_reset = 1;
 
+	if (drive->using_dma) {
+		if (drive->crc_count)
+			ide_check_dma_crc(drive);
+		else
+			ide_dma_off(drive);
+	}
+
 	if (!drive->keep_settings) {
-		if (drive->using_dma) {
-			check_dma_crc(drive);
-		} else {
+		if (!drive->using_dma) {
 			drive->unmask = 0;
 			drive->io_32bit = 0;
 		}
 		return;
 	}
-	if (drive->using_dma)
-		check_dma_crc(drive);
 
 	if (HWIF(drive)->pre_reset != NULL)
 		HWIF(drive)->pre_reset(drive);
@@ -1125,7 +1033,6 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 	for (unit = 0; unit < MAX_DRIVES; ++unit)
 		pre_reset(&hwif->drives[unit]);
 
-#if OK_TO_RESET_CONTROLLER
 	if (!IDE_CONTROL_REG) {
 		spin_unlock_irqrestore(&ide_lock, flags);
 		return ide_stopped;
@@ -1162,11 +1069,8 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 	 * state when the disks are reset this way. At least, the Winbond
 	 * 553 documentation says that
 	 */
-	if (hwif->resetproc != NULL) {
+	if (hwif->resetproc)
 		hwif->resetproc(drive);
-	}
-	
-#endif	/* OK_TO_RESET_CONTROLLER */
 
 	spin_unlock_irqrestore(&ide_lock, flags);
 	return ide_started;
@@ -1185,7 +1089,7 @@ EXPORT_SYMBOL(ide_do_reset);
 
 /*
  * ide_wait_not_busy() waits for the currently selected device on the hwif
- * to report a non-busy status, see comments in probe_hwif().
+ * to report a non-busy status, see comments in ide_probe_port().
  */
 int ide_wait_not_busy(ide_hwif_t *hwif, unsigned long timeout)
 {

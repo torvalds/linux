@@ -369,7 +369,6 @@ static int eata_pio_queue(struct scsi_cmnd *cmd,
 	cp = &hd->ccb[y];
 
 	memset(cp, 0, sizeof(struct eata_ccb));
-	memset(cmd->sense_buffer, 0, sizeof(cmd->sense_buffer));
 
 	cp->status = USED;	/* claim free slot */
 
@@ -385,7 +384,7 @@ static int eata_pio_queue(struct scsi_cmnd *cmd,
 		cp->DataIn = 0;	/* Input mode  */
 
 	cp->Interpret = (cmd->device->id == hd->hostid);
-	cp->cp_datalen = cpu_to_be32(cmd->request_bufflen);
+	cp->cp_datalen = cpu_to_be32(scsi_bufflen(cmd));
 	cp->Auto_Req_Sen = 0;
 	cp->cp_reqDMA = 0;
 	cp->reqlen = 0;
@@ -402,14 +401,14 @@ static int eata_pio_queue(struct scsi_cmnd *cmd,
 	cp->cmd = cmd;
 	cmd->host_scribble = (char *) &hd->ccb[y];
 
-	if (cmd->use_sg == 0) {
+	if (!scsi_bufflen(cmd)) {
 		cmd->SCp.buffers_residual = 1;
-		cmd->SCp.ptr = cmd->request_buffer;
-		cmd->SCp.this_residual = cmd->request_bufflen;
+		cmd->SCp.ptr = NULL;
+		cmd->SCp.this_residual = 0;
 		cmd->SCp.buffer = NULL;
 	} else {
-		cmd->SCp.buffer = cmd->request_buffer;
-		cmd->SCp.buffers_residual = cmd->use_sg;
+		cmd->SCp.buffer = scsi_sglist(cmd);
+		cmd->SCp.buffers_residual = scsi_sg_count(cmd);
 		cmd->SCp.ptr = sg_virt(cmd->SCp.buffer);
 		cmd->SCp.this_residual = cmd->SCp.buffer->length;
 	}

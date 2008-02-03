@@ -26,19 +26,19 @@
  * Interrupt entry/exit code at both C and assembly level
  */
 
-extern void (*interrupt[NR_IRQS])(void);
+extern void (*const interrupt[NR_IRQS])(void);
 
 #ifdef CONFIG_SMP
-fastcall void reschedule_interrupt(void);
-fastcall void invalidate_interrupt(void);
-fastcall void call_function_interrupt(void);
+void reschedule_interrupt(void);
+void invalidate_interrupt(void);
+void call_function_interrupt(void);
 #endif
 
 #ifdef CONFIG_X86_LOCAL_APIC
-fastcall void apic_timer_interrupt(void);
-fastcall void error_interrupt(void);
-fastcall void spurious_interrupt(void);
-fastcall void thermal_interrupt(void);
+void apic_timer_interrupt(void);
+void error_interrupt(void);
+void spurious_interrupt(void);
+void thermal_interrupt(void);
 #define platform_legacy_irq(irq)	((irq) < 16)
 #endif
 

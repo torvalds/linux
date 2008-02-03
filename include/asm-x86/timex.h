@@ -7,6 +7,8 @@
 
 #ifdef CONFIG_X86_ELAN
 #  define PIT_TICK_RATE 1189200 /* AMD Elan has different frequency! */
+#elif defined(CONFIG_X86_RDC321X)
+#  define PIT_TICK_RATE 1041667 /* Underlying HZ for R8610 */
 #else
 #  define PIT_TICK_RATE 1193182 /* Underlying HZ */
 #endif

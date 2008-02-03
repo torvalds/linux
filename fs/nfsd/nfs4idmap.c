@@ -255,13 +255,10 @@ idtoname_parse(struct cache_detail *cd, char *buf, int buflen)
 		goto out;
 	if (len == 0)
 		set_bit(CACHE_NEGATIVE, &ent.h.flags);
-	else {
-		if (error >= IDMAP_NAMESZ) {
-			error = -EINVAL;
-			goto out;
-		}
+	else if (len >= IDMAP_NAMESZ)
+		goto out;
+	else
 		memcpy(ent.name, buf1, sizeof(ent.name));
-	}
 	error = -ENOMEM;
 	res = idtoname_update(&ent, res);
 	if (res == NULL)
@@ -467,20 +464,25 @@ nametoid_update(struct ent *new, struct ent *old)
  * Exported API
  */
 
-void
+int
 nfsd_idmap_init(void)
 {
-	cache_register(&idtoname_cache);
-	cache_register(&nametoid_cache);
+	int rv;
+
+	rv = cache_register(&idtoname_cache);
+	if (rv)
+		return rv;
+	rv = cache_register(&nametoid_cache);
+	if (rv)
+		cache_unregister(&idtoname_cache);
+	return rv;
 }
 
 void
 nfsd_idmap_shutdown(void)
 {
-	if (cache_unregister(&idtoname_cache))
-		printk(KERN_ERR "nfsd: failed to unregister idtoname cache\n");
-	if (cache_unregister(&nametoid_cache))
-		printk(KERN_ERR "nfsd: failed to unregister nametoid cache\n");
+	cache_unregister(&idtoname_cache);
+	cache_unregister(&nametoid_cache);
 }
 
 /*

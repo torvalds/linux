@@ -1,6 +1,4 @@
 /*
- *  include/asm-i386/mach-default/apm.h
- *
  *  Machine specific APM BIOS functions for generic.
  *  Split out from apm.c by Osamu Tomita <tomita@cinet.co.jp>
  */

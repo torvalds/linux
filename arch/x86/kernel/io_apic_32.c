@@ -35,6 +35,7 @@
 #include <linux/htirq.h>
 #include <linux/freezer.h>
 #include <linux/kthread.h>
+#include <linux/jiffies.h>	/* time_after() */
 
 #include <asm/io.h>
 #include <asm/smp.h>
@@ -47,8 +48,6 @@
 
 #include <mach_apic.h>
 #include <mach_apicdef.h>
-
-#include "io_ports.h"
 
 int (*ioapic_renumber_irq)(int ioapic, int irq);
 atomic_t irq_mis_count;
@@ -351,7 +350,7 @@ static void set_ioapic_affinity_irq(unsigned int irq, cpumask_t cpumask)
 # include <asm/processor.h>	/* kernel_thread() */
 # include <linux/kernel_stat.h>	/* kstat */
 # include <linux/slab.h>		/* kmalloc() */
-# include <linux/timer.h>	/* time_after() */
+# include <linux/timer.h>
  
 #define IRQBALANCE_CHECK_ARCH -999
 #define MAX_BALANCED_IRQ_INTERVAL	(5*HZ)
@@ -727,7 +726,7 @@ late_initcall(balanced_irq_init);
 #endif /* CONFIG_SMP */
 
 #ifndef CONFIG_SMP
-void fastcall send_IPI_self(int vector)
+void send_IPI_self(int vector)
 {
 	unsigned int cfg;
 
@@ -962,7 +961,7 @@ static int EISA_ELCR(unsigned int irq)
 #define default_MCA_trigger(idx)	(1)
 #define default_MCA_polarity(idx)	(0)
 
-static int __init MPBIOS_polarity(int idx)
+static int MPBIOS_polarity(int idx)
 {
 	int bus = mp_irqs[idx].mpc_srcbus;
 	int polarity;
@@ -1882,13 +1881,16 @@ __setup("no_timer_check", notimercheck);
 static int __init timer_irq_works(void)
 {
 	unsigned long t1 = jiffies;
+	unsigned long flags;
 
 	if (no_timer_check)
 		return 1;
 
+	local_save_flags(flags);
 	local_irq_enable();
 	/* Let ten ticks pass... */
 	mdelay((10 * 1000) / HZ);
+	local_irq_restore(flags);
 
 	/*
 	 * Expect a few ticks at least, to be sure some possible
@@ -1897,7 +1899,7 @@ static int __init timer_irq_works(void)
 	 * might have cached one ExtINT interrupt.  Finally, at
 	 * least one tick may be lost due to delays.
 	 */
-	if (jiffies - t1 > 4)
+	if (time_after(jiffies, t1 + 4))
 		return 1;
 
 	return 0;
@@ -2077,7 +2079,7 @@ static struct irq_chip lapic_chip __read_mostly = {
 	.eoi		= ack_apic,
 };
 
-static void setup_nmi (void)
+static void __init setup_nmi(void)
 {
 	/*
  	 * Dirty trick to enable the NMI watchdog ...
@@ -2090,7 +2092,7 @@ static void setup_nmi (void)
 	 */ 
 	apic_printk(APIC_VERBOSE, KERN_INFO "activating NMI Watchdog ...");
 
-	on_each_cpu(enable_NMI_through_LVT0, NULL, 1, 1);
+	enable_NMI_through_LVT0();
 
 	apic_printk(APIC_VERBOSE, " done.\n");
 }
@@ -2166,6 +2168,9 @@ static inline void __init check_timer(void)
 {
 	int apic1, pin1, apic2, pin2;
 	int vector;
+	unsigned long flags;
+
+	local_irq_save(flags);
 
 	/*
 	 * get/set the timer IRQ vector:
@@ -2211,7 +2216,7 @@ static inline void __init check_timer(void)
 			}
 			if (disable_timer_pin_1 > 0)
 				clear_IO_APIC_pin(0, pin1);
-			return;
+			goto out;
 		}
 		clear_IO_APIC_pin(apic1, pin1);
 		printk(KERN_ERR "..MP-BIOS bug: 8254 timer not connected to "
@@ -2234,7 +2239,7 @@ static inline void __init check_timer(void)
 			if (nmi_watchdog == NMI_IO_APIC) {
 				setup_nmi();
 			}
-			return;
+			goto out;
 		}
 		/*
 		 * Cleanup, just in case ...
@@ -2258,7 +2263,7 @@ static inline void __init check_timer(void)
 
 	if (timer_irq_works()) {
 		printk(" works.\n");
-		return;
+		goto out;
 	}
 	apic_write_around(APIC_LVT0, APIC_LVT_MASKED | APIC_DM_FIXED | vector);
 	printk(" failed.\n");
@@ -2274,11 +2279,13 @@ static inline void __init check_timer(void)
 
 	if (timer_irq_works()) {
 		printk(" works.\n");
-		return;
+		goto out;
 	}
 	printk(" failed :(.\n");
 	panic("IO-APIC + timer doesn't work!  Boot with apic=debug and send a "
 		"report.  Then try booting with the 'noapic' option");
+out:
+	local_irq_restore(flags);
 }
 
 /*
@@ -2393,7 +2400,7 @@ static int ioapic_resume(struct sys_device *dev)
 }
 
 static struct sysdev_class ioapic_sysdev_class = {
-	set_kset_name("ioapic"),
+	.name = "ioapic",
 	.suspend = ioapic_suspend,
 	.resume = ioapic_resume,
 };
@@ -2827,6 +2834,25 @@ int io_apic_set_pci_routing (int ioapic, int pin, int irq, int edge_level, int a
 	__ioapic_write_entry(ioapic, pin, entry);
 	spin_unlock_irqrestore(&ioapic_lock, flags);
 
+	return 0;
+}
+
+int acpi_get_override_irq(int bus_irq, int *trigger, int *polarity)
+{
+	int i;
+
+	if (skip_ioapic_setup)
+		return -1;
+
+	for (i = 0; i < mp_irq_entries; i++)
+		if (mp_irqs[i].mpc_irqtype == mp_INT &&
+		    mp_irqs[i].mpc_srcbusirq == bus_irq)
+			break;
+	if (i >= mp_irq_entries)
+		return -1;
+
+	*trigger = irq_trigger(i);
+	*polarity = irq_polarity(i);
 	return 0;
 }
 

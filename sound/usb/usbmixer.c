@@ -26,7 +26,6 @@
  *
  */
 
-#include <sound/driver.h>
 #include <linux/bitops.h>
 #include <linux/init.h>
 #include <linux/list.h>
@@ -1703,6 +1702,11 @@ static void snd_usb_mixer_memory_change(struct usb_mixer_interface *mixer,
 	case 19: /* speaker out jacks */
 	case 20: /* headphones out jack */
 		break;
+	/* live24ext: 4 = line-in jack */
+	case 3:	/* hp-out jack (may actuate Mute) */
+		if (mixer->chip->usb_id == USB_ID(0x041e, 0x3040))
+			snd_usb_mixer_notify_id(mixer, mixer->rc_cfg->mute_mixer_id);
+		break;
 	default:
 		snd_printd(KERN_DEBUG "memory change in unknown unit %d\n", unitid);
 		break;
@@ -1951,6 +1955,9 @@ static int snd_audigy2nx_controls_create(struct usb_mixer_interface *mixer)
 	int i, err;
 
 	for (i = 0; i < ARRAY_SIZE(snd_audigy2nx_controls); ++i) {
+		if (i > 1 &&  /* Live24ext has 2 LEDs only */
+			mixer->chip->usb_id == USB_ID(0x041e, 0x3040))
+			break; 
 		err = snd_ctl_add(mixer->chip->card,
 				  snd_ctl_new1(&snd_audigy2nx_controls[i], mixer));
 		if (err < 0)
@@ -1963,28 +1970,42 @@ static int snd_audigy2nx_controls_create(struct usb_mixer_interface *mixer)
 static void snd_audigy2nx_proc_read(struct snd_info_entry *entry,
 				    struct snd_info_buffer *buffer)
 {
-	static const struct {
+	static const struct sb_jack {
 		int unitid;
 		const char *name;
-	} jacks[] = {
+	}  jacks_audigy2nx[] = {
 		{4,  "dig in "},
 		{7,  "line in"},
 		{19, "spk out"},
 		{20, "hph out"},
+		{-1, NULL}
+	}, jacks_live24ext[] = {
+		{4,  "line in"}, /* &1=Line, &2=Mic*/
+		{3,  "hph out"}, /* headphones */
+		{0,  "RC     "}, /* last command, 6 bytes see rc_config above */
+		{-1, NULL}
 	};
+	const struct sb_jack *jacks;
 	struct usb_mixer_interface *mixer = entry->private_data;
 	int i, err;
 	u8 buf[3];
 
 	snd_iprintf(buffer, "%s jacks\n\n", mixer->chip->card->shortname);
-	for (i = 0; i < ARRAY_SIZE(jacks); ++i) {
+	if (mixer->chip->usb_id == USB_ID(0x041e, 0x3020))
+		jacks = jacks_audigy2nx;
+	else if (mixer->chip->usb_id == USB_ID(0x041e, 0x3040))
+		jacks = jacks_live24ext;
+	else
+		return;
+
+	for (i = 0; jacks[i].name; ++i) {
 		snd_iprintf(buffer, "%s: ", jacks[i].name);
 		err = snd_usb_ctl_msg(mixer->chip->dev,
 				      usb_rcvctrlpipe(mixer->chip->dev, 0),
 				      GET_MEM, USB_DIR_IN | USB_TYPE_CLASS |
 				      USB_RECIP_INTERFACE, 0,
 				      jacks[i].unitid << 8, buf, 3, 100);
-		if (err == 3 && buf[0] == 3)
+		if (err == 3 && (buf[0] == 3 || buf[0] == 6))
 			snd_iprintf(buffer, "%02x %02x\n", buf[1], buf[2]);
 		else
 			snd_iprintf(buffer, "?\n");
@@ -2022,7 +2043,8 @@ int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif)
 	if ((err = snd_usb_soundblaster_remote_init(mixer)) < 0)
 		goto _error;
 
-	if (mixer->chip->usb_id == USB_ID(0x041e, 0x3020)) {
+	if (mixer->chip->usb_id == USB_ID(0x041e, 0x3020) ||
+	    mixer->chip->usb_id == USB_ID(0x041e, 0x3040)) {
 		struct snd_info_entry *entry;
 
 		if ((err = snd_audigy2nx_controls_create(mixer)) < 0)

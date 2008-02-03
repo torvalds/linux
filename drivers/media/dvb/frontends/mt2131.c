@@ -116,7 +116,7 @@ static int mt2131_set_params(struct dvb_frontend *fe,
 	f_lo1 = (f_lo1 / 250) * 250;
 	f_lo2 = f_lo1 - freq - MT2131_IF2;
 
-	priv->frequency =  (f_lo1 - f_lo2 - MT2131_IF2) * 1000,
+	priv->frequency =  (f_lo1 - f_lo2 - MT2131_IF2) * 1000;
 
 	/* Frequency LO1 = 16MHz * (DIV1 + NUM1/8192 ) */
 	num1 = f_lo1 * 64 / (MT2131_FREF / 128);

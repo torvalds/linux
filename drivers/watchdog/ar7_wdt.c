@@ -279,7 +279,7 @@ static int ar7_wdt_ioctl(struct inode *inode, struct file *file,
 	}
 }
 
-static struct file_operations ar7_wdt_fops = {
+static const struct file_operations ar7_wdt_fops = {
 	.owner		= THIS_MODULE,
 	.write		= ar7_wdt_write,
 	.ioctl		= ar7_wdt_ioctl,

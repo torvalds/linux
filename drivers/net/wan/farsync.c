@@ -1498,9 +1498,9 @@ do_bottom_half_rx(struct fst_card_info *card)
  *      Dev_id is our fst_card_info pointer
  */
 static irqreturn_t
-fst_intr(int irq, void *dev_id)
+fst_intr(int dummy, void *dev_id)
 {
-	struct fst_card_info *card;
+	struct fst_card_info *card = dev_id;
 	struct fst_port_info *port;
 	int rdidx;		/* Event buffer indices */
 	int wridx;
@@ -1509,17 +1509,12 @@ fst_intr(int irq, void *dev_id)
 	unsigned int do_card_interrupt;
 	unsigned int int_retry_count;
 
-	if ((card = dev_id) == NULL) {
-		dbg(DBG_INTR, "intr: spurious %d\n", irq);
-		return IRQ_NONE;
-	}
-
 	/*
 	 * Check to see if the interrupt was for this card
 	 * return if not
 	 * Note that the call to clear the interrupt is important
 	 */
-	dbg(DBG_INTR, "intr: %d %p\n", irq, card);
+	dbg(DBG_INTR, "intr: %d %p\n", card->irq, card);
 	if (card->state != FST_RUNNING) {
 		printk_err
 		    ("Interrupt received for card %d in a non running state (%d)\n",

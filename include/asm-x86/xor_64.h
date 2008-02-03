@@ -1,6 +1,4 @@
 /*
- * include/asm-x86_64/xor.h
- *
  * Optimized RAID-5 checksumming functions for MMX and SSE.
  *
  * This program is free software; you can redistribute it and/or modify

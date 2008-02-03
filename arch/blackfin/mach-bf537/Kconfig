@@ -1,5 +1,7 @@
 if (BF537 || BF534 || BF536)
 
+source "arch/blackfin/mach-bf537/boards/Kconfig"
+
 menu "BF537 Specific Configuration"
 
 comment "Interrupt Priority Assignment"

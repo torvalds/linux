@@ -119,7 +119,7 @@ extern void elv_put_request(struct request_queue *, struct request *);
 /*
  * io scheduler registration
  */
-extern int elv_register(struct elevator_type *);
+extern void elv_register(struct elevator_type *);
 extern void elv_unregister(struct elevator_type *);
 
 /*

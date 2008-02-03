@@ -16,9 +16,8 @@
 
 CFLAGS_aha152x.o =   -DAHA152X_STAT -DAUTOCONF
 CFLAGS_gdth.o    = # -DDEBUG_GDTH=2 -D__SERIAL__ -D__COM2__ -DGDTH_STATISTICS
-CFLAGS_seagate.o =   -DARBITRATE -DPARITY -DSEAGATE_USE_ASM
 
-subdir-$(CONFIG_PCMCIA)		+= pcmcia
+obj-$(CONFIG_PCMCIA)		+= pcmcia/
 
 obj-$(CONFIG_SCSI)		+= scsi_mod.o
 obj-$(CONFIG_SCSI_TGT)		+= scsi_tgt.o
@@ -59,7 +58,6 @@ obj-$(CONFIG_MVME16x_SCSI)	+= 53c700.o	mvme16x_scsi.o
 obj-$(CONFIG_BVME6000_SCSI)	+= 53c700.o	bvme6000_scsi.o
 obj-$(CONFIG_SCSI_SIM710)	+= 53c700.o	sim710.o
 obj-$(CONFIG_SCSI_ADVANSYS)	+= advansys.o
-obj-$(CONFIG_SCSI_PSI240I)	+= psi240i.o
 obj-$(CONFIG_SCSI_BUSLOGIC)	+= BusLogic.o
 obj-$(CONFIG_SCSI_DPT_I2O)	+= dpt_i2o.o
 obj-$(CONFIG_SCSI_U14_34F)	+= u14-34f.o
@@ -90,7 +88,6 @@ obj-$(CONFIG_SCSI_QLA_FC)	+= qla2xxx/
 obj-$(CONFIG_SCSI_QLA_ISCSI)	+= qla4xxx/
 obj-$(CONFIG_SCSI_LPFC)		+= lpfc/
 obj-$(CONFIG_SCSI_PAS16)	+= pas16.o
-obj-$(CONFIG_SCSI_SEAGATE)	+= seagate.o
 obj-$(CONFIG_SCSI_T128)		+= t128.o
 obj-$(CONFIG_SCSI_DMX3191D)	+= dmx3191d.o
 obj-$(CONFIG_SCSI_DTC3280)	+= dtc.o

@@ -89,11 +89,6 @@ static inline void ide_init_default_hwifs(void)
 	}
 }
 
-/* some configuration options we don't need */
-
-#undef SUPPORT_VLB_SYNC
-#define SUPPORT_VLB_SYNC 0
-
 #endif /* __KERNEL__ */
 
 #endif /* __ASMCRIS_IDE_H */

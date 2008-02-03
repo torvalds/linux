@@ -1,7 +1,7 @@
 		     ThinkPad ACPI Extras Driver
 
-                            Version 0.16
-                          August 2nd, 2007
+                            Version 0.17
+                         October 04th, 2007
 
                Borislav Deianov <borislav@users.sf.net>
              Henrique de Moraes Holschuh <hmh@hmh.eng.br>
@@ -923,19 +923,34 @@ sysfs backlight device "thinkpad_screen"
 This feature allows software control of the LCD brightness on ThinkPad
 models which don't have a hardware brightness slider.
 
-It has some limitations: the LCD backlight cannot be actually turned on or off
-by this interface, and in many ThinkPad models, the "dim while on battery"
-functionality will be enabled by the BIOS when this interface is used, and
-cannot be controlled.
+It has some limitations: the LCD backlight cannot be actually turned on or
+off by this interface, and in many ThinkPad models, the "dim while on
+battery" functionality will be enabled by the BIOS when this interface is
+used, and cannot be controlled.
 
-The backlight control has eight levels, ranging from 0 to 7.  Some of the
-levels may not be distinct.
+On IBM (and some of the earlier Lenovo) ThinkPads, the backlight control
+has eight brightness levels, ranging from 0 to 7.  Some of the levels
+may not be distinct.  Later Lenovo models that implement the ACPI
+display backlight brightness control methods have 16 levels, ranging
+from 0 to 15.
 
-There are two interfaces to the firmware for brightness control, EC and CMOS.
-To select which one should be used, use the brightness_mode module parameter:
-brightness_mode=1 selects EC mode, brightness_mode=2 selects CMOS mode,
-brightness_mode=3 selects both EC and CMOS.  The driver tries to autodetect
-which interface to use.
+There are two interfaces to the firmware for direct brightness control,
+EC and CMOS.  To select which one should be used, use the
+brightness_mode module parameter: brightness_mode=1 selects EC mode,
+brightness_mode=2 selects CMOS mode, brightness_mode=3 selects both EC
+and CMOS.  The driver tries to autodetect which interface to use.
+
+When display backlight brightness controls are available through the
+standard ACPI interface, it is best to use it instead of this direct
+ThinkPad-specific interface.  The driver will disable its native
+backlight brightness control interface if it detects that the standard
+ACPI interface is available in the ThinkPad.
+
+The brightness_enable module parameter can be used to control whether
+the LCD brightness control feature will be enabled when available.
+brightness_enable=0 forces it to be disabled.  brightness_enable=1
+forces it to be enabled when available, even if the standard ACPI
+interface is also available.
 
 Procfs notes:
 
@@ -947,11 +962,11 @@ Procfs notes:
 
 Sysfs notes:
 
-The interface is implemented through the backlight sysfs class, which is poorly
-documented at this time.
+The interface is implemented through the backlight sysfs class, which is
+poorly documented at this time.
 
-Locate the thinkpad_screen device under /sys/class/backlight, and inside it
-there will be the following attributes:
+Locate the thinkpad_screen device under /sys/class/backlight, and inside
+it there will be the following attributes:
 
 	max_brightness:
 		Reads the maximum brightness the hardware can be set to.
@@ -961,17 +976,19 @@ there will be the following attributes:
 		Reads what brightness the screen is set to at this instant.
 
 	brightness:
-		Writes request the driver to change brightness to the given
-		value.  Reads will tell you what brightness the driver is trying
-		to set the display to when "power" is set to zero and the display
-		has not been dimmed by a kernel power management event.
+		Writes request the driver to change brightness to the
+		given value.  Reads will tell you what brightness the
+		driver is trying to set the display to when "power" is set
+		to zero and the display has not been dimmed by a kernel
+		power management event.
 
 	power:
-		power management mode, where 0 is "display on", and 1 to 3 will
-		dim the display backlight to brightness level 0 because
-		thinkpad-acpi cannot really turn the backlight off.  Kernel
-		power management events can temporarily increase the current
-		power management level, i.e. they can dim the display.
+		power management mode, where 0 is "display on", and 1 to 3
+		will dim the display backlight to brightness level 0
+		because thinkpad-acpi cannot really turn the backlight
+		off.  Kernel power management events can temporarily
+		increase the current power management level, i.e. they can
+		dim the display.
 
 
 Volume control -- /proc/acpi/ibm/volume

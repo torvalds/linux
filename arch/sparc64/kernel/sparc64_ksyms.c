@@ -221,7 +221,7 @@ EXPORT_SYMBOL(pci_dma_supported);
 /* I/O device mmaping on Sparc64. */
 EXPORT_SYMBOL(io_remap_pfn_range);
 
-#ifdef CONFIG_COMPAT
+#if defined(CONFIG_COMPAT) && defined(CONFIG_NET)
 /* Solaris/SunOS binary compatibility */
 EXPORT_SYMBOL(verify_compat_iovec);
 #endif

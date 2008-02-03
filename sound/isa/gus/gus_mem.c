@@ -19,7 +19,6 @@
  *
  */
 
-#include <sound/driver.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <sound/core.h>

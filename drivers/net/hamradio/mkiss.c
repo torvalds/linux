@@ -821,7 +821,7 @@ static void mkiss_close(struct tty_struct *tty)
 	tty->disc_data = NULL;
 	write_unlock(&disc_data_lock);
 
-	if (ax == 0)
+	if (!ax)
 		return;
 
 	/*

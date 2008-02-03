@@ -21,7 +21,6 @@
 #include <linux/time.h>
 #include <linux/wait.h>
 #include <linux/module.h>
-#include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/pcm.h>
@@ -222,7 +221,8 @@ static irqreturn_t saa7134_alsa_irq(int irq, void *dev_id)
 
 		if (report & SAA7134_IRQ_REPORT_DONE_RA3) {
 			handled = 1;
-			saa_writel(SAA7134_IRQ_REPORT,report);
+			saa_writel(SAA7134_IRQ_REPORT,
+				   SAA7134_IRQ_REPORT_DONE_RA3);
 			saa7134_irq_alsa_done(dev, status);
 		} else {
 			goto out;
@@ -457,7 +457,7 @@ static struct snd_pcm_hardware snd_card_saa7134_capture =
 	.buffer_bytes_max =	(256*1024),
 	.period_bytes_min =	64,
 	.period_bytes_max =	(256*1024),
-	.periods_min =		2,
+	.periods_min =		4,
 	.periods_max =		1024,
 };
 
@@ -491,7 +491,7 @@ static int snd_card_saa7134_hw_params(struct snd_pcm_substream * substream,
 
 	snd_assert(period_size >= 0x100 && period_size <= 0x10000,
 		   return -EINVAL);
-	snd_assert(periods >= 2, return -EINVAL);
+	snd_assert(periods >= 4, return -EINVAL);
 	snd_assert(period_size * periods <= 1024 * 1024, return -EINVAL);
 
 	dev = saa7134->dev;
@@ -543,8 +543,10 @@ static int snd_card_saa7134_hw_params(struct snd_pcm_substream * substream,
 	   V4L functions, and force ALSA to use that as the DMA area */
 
 	substream->runtime->dma_area = dev->dmasound.dma.vmalloc;
+	substream->runtime->dma_bytes = dev->dmasound.bufsize;
+	substream->runtime->dma_addr = 0;
 
-	return 1;
+	return 0;
 
 }
 
@@ -645,10 +647,28 @@ static int snd_card_saa7134_capture_open(struct snd_pcm_substream * substream)
 		saa7134_tvaudio_setmute(dev);
 	}
 
-	if ((err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS)) < 0)
+	err = snd_pcm_hw_constraint_integer(runtime,
+						SNDRV_PCM_HW_PARAM_PERIODS);
+	if (err < 0)
+		return err;
+
+	err = snd_pcm_hw_constraint_step(runtime, 0,
+						SNDRV_PCM_HW_PARAM_PERIODS, 2);
+	if (err < 0)
 		return err;
 
 	return 0;
+}
+
+/*
+ * page callback (needed for mmap)
+ */
+
+static struct page *snd_card_saa7134_page(struct snd_pcm_substream *substream,
+					unsigned long offset)
+{
+	void *pageptr = substream->runtime->dma_area + offset;
+	return vmalloc_to_page(pageptr);
 }
 
 /*
@@ -664,6 +684,7 @@ static struct snd_pcm_ops snd_card_saa7134_capture_ops = {
 	.prepare =		snd_card_saa7134_capture_prepare,
 	.trigger =		snd_card_saa7134_capture_trigger,
 	.pointer =		snd_card_saa7134_capture_pointer,
+	.page =			snd_card_saa7134_page,
 };
 
 /*
@@ -1055,24 +1076,14 @@ static int saa7134_alsa_init(void)
 	struct saa7134_dev *dev = NULL;
 	struct list_head *list;
 
-	if (!saa7134_dmasound_init && !saa7134_dmasound_exit) {
-		saa7134_dmasound_init = alsa_device_init;
-		saa7134_dmasound_exit = alsa_device_exit;
-	} else {
-		printk(KERN_WARNING "saa7134 ALSA: can't load, DMA sound handler already assigned (probably to OSS)\n");
-		return -EBUSY;
-	}
+	saa7134_dmasound_init = alsa_device_init;
+	saa7134_dmasound_exit = alsa_device_exit;
 
 	printk(KERN_INFO "saa7134 ALSA driver for DMA sound loaded\n");
 
 	list_for_each(list,&saa7134_devlist) {
 		dev = list_entry(list, struct saa7134_dev, devlist);
-		if (dev->dmasound.priv_data == NULL) {
-			alsa_device_init(dev);
-		} else {
-			printk(KERN_ERR "saa7134 ALSA: DMA sound is being handled by OSS. ignoring %s\n",dev->name);
-			return -EBUSY;
-		}
+		alsa_device_init(dev);
 	}
 
 	if (dev == NULL)

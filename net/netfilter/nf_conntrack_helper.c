@@ -28,6 +28,7 @@
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_conntrack_extend.h>
 
+static DEFINE_MUTEX(nf_ct_helper_mutex);
 static struct hlist_head *nf_ct_helper_hash __read_mostly;
 static unsigned int nf_ct_helper_hsize __read_mostly;
 static unsigned int nf_ct_helper_count __read_mostly;
@@ -54,42 +55,13 @@ __nf_ct_helper_find(const struct nf_conntrack_tuple *tuple)
 		return NULL;
 
 	h = helper_hash(tuple);
-	hlist_for_each_entry(helper, n, &nf_ct_helper_hash[h], hnode) {
+	hlist_for_each_entry_rcu(helper, n, &nf_ct_helper_hash[h], hnode) {
 		if (nf_ct_tuple_src_mask_cmp(tuple, &helper->tuple, &mask))
 			return helper;
 	}
 	return NULL;
 }
-
-struct nf_conntrack_helper *
-nf_ct_helper_find_get(const struct nf_conntrack_tuple *tuple)
-{
-	struct nf_conntrack_helper *helper;
-
-	/* need nf_conntrack_lock to assure that helper exists until
-	 * try_module_get() is called */
-	read_lock_bh(&nf_conntrack_lock);
-
-	helper = __nf_ct_helper_find(tuple);
-	if (helper) {
-		/* need to increase module usage count to assure helper will
-		 * not go away while the caller is e.g. busy putting a
-		 * conntrack in the hash that uses the helper */
-		if (!try_module_get(helper->me))
-			helper = NULL;
-	}
-
-	read_unlock_bh(&nf_conntrack_lock);
-
-	return helper;
-}
-EXPORT_SYMBOL_GPL(nf_ct_helper_find_get);
-
-void nf_ct_helper_put(struct nf_conntrack_helper *helper)
-{
-	module_put(helper->me);
-}
-EXPORT_SYMBOL_GPL(nf_ct_helper_put);
+EXPORT_SYMBOL_GPL(__nf_ct_helper_find);
 
 struct nf_conntrack_helper *
 __nf_conntrack_helper_find_byname(const char *name)
@@ -99,7 +71,7 @@ __nf_conntrack_helper_find_byname(const char *name)
 	unsigned int i;
 
 	for (i = 0; i < nf_ct_helper_hsize; i++) {
-		hlist_for_each_entry(h, n, &nf_ct_helper_hash[i], hnode) {
+		hlist_for_each_entry_rcu(h, n, &nf_ct_helper_hash[i], hnode) {
 			if (!strcmp(h->name, name))
 				return h;
 		}
@@ -140,10 +112,10 @@ int nf_conntrack_helper_register(struct nf_conntrack_helper *me)
 
 	BUG_ON(me->timeout == 0);
 
-	write_lock_bh(&nf_conntrack_lock);
-	hlist_add_head(&me->hnode, &nf_ct_helper_hash[h]);
+	mutex_lock(&nf_ct_helper_mutex);
+	hlist_add_head_rcu(&me->hnode, &nf_ct_helper_hash[h]);
 	nf_ct_helper_count++;
-	write_unlock_bh(&nf_conntrack_lock);
+	mutex_unlock(&nf_ct_helper_mutex);
 
 	return 0;
 }
@@ -156,10 +128,17 @@ void nf_conntrack_helper_unregister(struct nf_conntrack_helper *me)
 	struct hlist_node *n, *next;
 	unsigned int i;
 
-	/* Need write lock here, to delete helper. */
-	write_lock_bh(&nf_conntrack_lock);
-	hlist_del(&me->hnode);
+	mutex_lock(&nf_ct_helper_mutex);
+	hlist_del_rcu(&me->hnode);
 	nf_ct_helper_count--;
+	mutex_unlock(&nf_ct_helper_mutex);
+
+	/* Make sure every nothing is still using the helper unless its a
+	 * connection in the hash.
+	 */
+	synchronize_rcu();
+
+	spin_lock_bh(&nf_conntrack_lock);
 
 	/* Get rid of expectations */
 	for (i = 0; i < nf_ct_expect_hsize; i++) {
@@ -181,10 +160,7 @@ void nf_conntrack_helper_unregister(struct nf_conntrack_helper *me)
 		hlist_for_each_entry(h, n, &nf_conntrack_hash[i], hnode)
 			unhelp(h, me);
 	}
-	write_unlock_bh(&nf_conntrack_lock);
-
-	/* Someone could be still looking at the helper in a bh. */
-	synchronize_net();
+	spin_unlock_bh(&nf_conntrack_lock);
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_helper_unregister);
 

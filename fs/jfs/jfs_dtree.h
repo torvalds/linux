@@ -74,7 +74,7 @@ struct idtentry {
 #define DTIHDRDATALEN	11
 
 /* compute number of slots for entry */
-#define	NDTINTERNAL(klen) ( ((4 + (klen)) + (15 - 1)) / 15 )
+#define	NDTINTERNAL(klen) (DIV_ROUND_UP((4 + (klen)), 15))
 
 
 /*
@@ -133,7 +133,7 @@ struct dir_table_slot {
 	( ((s64)((dts)->addr1)) << 32 | __le32_to_cpu((dts)->addr2) )
 
 /* compute number of slots for entry */
-#define	NDTLEAF_LEGACY(klen)	( ((2 + (klen)) + (15 - 1)) / 15 )
+#define	NDTLEAF_LEGACY(klen)	(DIV_ROUND_UP((2 + (klen)), 15))
 #define	NDTLEAF	NDTINTERNAL
 
 

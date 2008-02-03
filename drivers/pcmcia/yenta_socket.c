@@ -48,7 +48,7 @@ MODULE_PARM_DESC(pwr_irqs_off, "Force IRQs off during power-on of slot. Use only
 #define to_cycles(ns)	((ns)/120)
 #define to_ns(cycles)	((cycles)*120)
 
-/**
+/*
  * yenta PCI irq probing.
  * currently only used in the TI/EnE initialization code
  */
@@ -888,7 +888,7 @@ static unsigned int yenta_probe_irq(struct yenta_socket *socket, u32 isa_irq_mas
 }
 
 
-/**
+/*
  * yenta PCI irq probing.
  * currently only used in the TI/EnE initialization code
  */
@@ -1012,7 +1012,7 @@ static void yenta_config_init(struct yenta_socket *socket)
  * invisible during PCI scans because of a misconfigured subordinate number
  * of the parent brige - some BIOSes seem to be too lazy to set it right.
  * Does the fixup carefully by checking how far it can go without conflicts.
- * See http://bugzilla.kernel.org/show_bug.cgi?id=2944 for more information.
+ * See http\://bugzilla.kernel.org/show_bug.cgi?id=2944 for more information.
  */
 static void yenta_fixup_parent_bridge(struct pci_bus *cardbus_bridge)
 {

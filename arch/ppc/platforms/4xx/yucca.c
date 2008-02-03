@@ -211,6 +211,7 @@ static void __init yucca_setup_pcie_fpga_rootpoint(int port)
 		break;
 
 	default:
+		iounmap(pcie_reg_fpga_base);
 		return;
 	}
 

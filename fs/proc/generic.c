@@ -397,8 +397,11 @@ struct dentry *proc_lookup(struct inode * dir, struct dentry *dentry, struct nam
 			if (de->namelen != dentry->d_name.len)
 				continue;
 			if (!memcmp(dentry->d_name.name, de->name, de->namelen)) {
-				unsigned int ino = de->low_ino;
+				unsigned int ino;
 
+				if (de->shadow_proc)
+					de = de->shadow_proc(current, de);
+				ino = de->low_ino;
 				de_get(de);
 				spin_unlock(&proc_subdir_lock);
 				error = -EINVAL;
@@ -555,36 +558,6 @@ static int proc_register(struct proc_dir_entry * dir, struct proc_dir_entry * dp
 	return 0;
 }
 
-/*
- * Kill an inode that got unregistered..
- */
-static void proc_kill_inodes(struct proc_dir_entry *de)
-{
-	struct list_head *p;
-	struct super_block *sb = proc_mnt->mnt_sb;
-
-	/*
-	 * Actually it's a partial revoke().
-	 */
-	file_list_lock();
-	list_for_each(p, &sb->s_files) {
-		struct file * filp = list_entry(p, struct file, f_u.fu_list);
-		struct dentry * dentry = filp->f_path.dentry;
-		struct inode * inode;
-		const struct file_operations *fops;
-
-		if (dentry->d_op != &proc_dentry_operations)
-			continue;
-		inode = dentry->d_inode;
-		if (PDE(inode) != de)
-			continue;
-		fops = filp->f_op;
-		filp->f_op = NULL;
-		fops_put(fops);
-	}
-	file_list_unlock();
-}
-
 static struct proc_dir_entry *proc_create(struct proc_dir_entry **parent,
 					  const char *name,
 					  mode_t mode,
@@ -615,6 +588,7 @@ static struct proc_dir_entry *proc_create(struct proc_dir_entry **parent,
 	ent->namelen = len;
 	ent->mode = mode;
 	ent->nlink = nlink;
+	atomic_set(&ent->count, 1);
 	ent->pde_users = 0;
 	spin_lock_init(&ent->pde_unload_lock);
 	ent->pde_unload_completion = NULL;
@@ -712,7 +686,6 @@ void free_proc_entry(struct proc_dir_entry *de)
 
 /*
  * Remove a /proc entry and free it if it's not currently in use.
- * If it is in use, we set the 'deleted' flag.
  */
 void remove_proc_entry(const char *name, struct proc_dir_entry *parent)
 {
@@ -759,17 +732,10 @@ void remove_proc_entry(const char *name, struct proc_dir_entry *parent)
 continue_removing:
 		if (S_ISDIR(de->mode))
 			parent->nlink--;
-		if (!S_ISREG(de->mode))
-			proc_kill_inodes(de);
 		de->nlink = 0;
 		WARN_ON(de->subdir);
-		if (!atomic_read(&de->count))
+		if (atomic_dec_and_test(&de->count))
 			free_proc_entry(de);
-		else {
-			de->deleted = 1;
-			printk("remove_proc_entry: %s/%s busy, count=%d\n",
-				parent->name, de->name, atomic_read(&de->count));
-		}
 		break;
 	}
 	spin_unlock(&proc_subdir_lock);

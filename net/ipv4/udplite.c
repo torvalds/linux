@@ -35,7 +35,7 @@ static int udplite_rcv(struct sk_buff *skb)
 
 static void udplite_err(struct sk_buff *skb, u32 info)
 {
-	return __udp4_lib_err(skb, info, udplite_hash);
+	__udp4_lib_err(skb, info, udplite_hash);
 }
 
 static	struct net_protocol udplite_protocol = {
@@ -43,6 +43,8 @@ static	struct net_protocol udplite_protocol = {
 	.err_handler	= udplite_err,
 	.no_policy	= 1,
 };
+
+DEFINE_PROTO_INUSE(udplite)
 
 struct proto 	udplite_prot = {
 	.name		   = "UDP-Lite",
@@ -67,6 +69,7 @@ struct proto 	udplite_prot = {
 	.compat_setsockopt = compat_udp_setsockopt,
 	.compat_getsockopt = compat_udp_getsockopt,
 #endif
+	REF_PROTO_INUSE(udplite)
 };
 
 static struct inet_protosw udplite4_protosw = {

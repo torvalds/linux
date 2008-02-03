@@ -9,11 +9,9 @@
 
 #include <asm/types.h>
 #include <linux/ioctl.h>
+#include <asm/kvm.h>
 
 #define KVM_API_VERSION 12
-
-/* Architectural interrupt line count. */
-#define KVM_NR_INTERRUPTS 256
 
 /* for KVM_CREATE_MEMORY_REGION */
 struct kvm_memory_region {
@@ -23,16 +21,18 @@ struct kvm_memory_region {
 	__u64 memory_size; /* bytes */
 };
 
+/* for KVM_SET_USER_MEMORY_REGION */
+struct kvm_userspace_memory_region {
+	__u32 slot;
+	__u32 flags;
+	__u64 guest_phys_addr;
+	__u64 memory_size; /* bytes */
+	__u64 userspace_addr; /* start of the userspace allocated memory */
+};
+
 /* for kvm_memory_region::flags */
 #define KVM_MEM_LOG_DIRTY_PAGES  1UL
 
-struct kvm_memory_alias {
-	__u32 slot;  /* this has a different namespace than memory slots */
-	__u32 flags;
-	__u64 guest_phys_addr;
-	__u64 memory_size;
-	__u64 target_phys_addr;
-};
 
 /* for KVM_IRQ_LINE */
 struct kvm_irq_level {
@@ -45,62 +45,18 @@ struct kvm_irq_level {
 	__u32 level;
 };
 
-/* for KVM_GET_IRQCHIP and KVM_SET_IRQCHIP */
-struct kvm_pic_state {
-	__u8 last_irr;	/* edge detection */
-	__u8 irr;		/* interrupt request register */
-	__u8 imr;		/* interrupt mask register */
-	__u8 isr;		/* interrupt service register */
-	__u8 priority_add;	/* highest irq priority */
-	__u8 irq_base;
-	__u8 read_reg_select;
-	__u8 poll;
-	__u8 special_mask;
-	__u8 init_state;
-	__u8 auto_eoi;
-	__u8 rotate_on_auto_eoi;
-	__u8 special_fully_nested_mode;
-	__u8 init4;		/* true if 4 byte init */
-	__u8 elcr;		/* PIIX edge/trigger selection */
-	__u8 elcr_mask;
-};
-
-#define KVM_IOAPIC_NUM_PINS  24
-struct kvm_ioapic_state {
-	__u64 base_address;
-	__u32 ioregsel;
-	__u32 id;
-	__u32 irr;
-	__u32 pad;
-	union {
-		__u64 bits;
-		struct {
-			__u8 vector;
-			__u8 delivery_mode:3;
-			__u8 dest_mode:1;
-			__u8 delivery_status:1;
-			__u8 polarity:1;
-			__u8 remote_irr:1;
-			__u8 trig_mode:1;
-			__u8 mask:1;
-			__u8 reserve:7;
-			__u8 reserved[4];
-			__u8 dest_id;
-		} fields;
-	} redirtbl[KVM_IOAPIC_NUM_PINS];
-};
-
-#define KVM_IRQCHIP_PIC_MASTER   0
-#define KVM_IRQCHIP_PIC_SLAVE    1
-#define KVM_IRQCHIP_IOAPIC       2
 
 struct kvm_irqchip {
 	__u32 chip_id;
 	__u32 pad;
         union {
 		char dummy[512];  /* reserving space */
+#ifdef CONFIG_X86
 		struct kvm_pic_state pic;
+#endif
+#if defined(CONFIG_X86) || defined(CONFIG_IA64)
 		struct kvm_ioapic_state ioapic;
+#endif
 	} chip;
 };
 
@@ -116,6 +72,7 @@ struct kvm_irqchip {
 #define KVM_EXIT_FAIL_ENTRY       9
 #define KVM_EXIT_INTR             10
 #define KVM_EXIT_SET_TPR          11
+#define KVM_EXIT_TPR_ACCESS       12
 
 /* for KVM_RUN, returned by mmap(vcpu_fd, offset=0) */
 struct kvm_run {
@@ -174,88 +131,15 @@ struct kvm_run {
 			__u32 longmode;
 			__u32 pad;
 		} hypercall;
+		/* KVM_EXIT_TPR_ACCESS */
+		struct {
+			__u64 rip;
+			__u32 is_write;
+			__u32 pad;
+		} tpr_access;
 		/* Fix the size of the union. */
 		char padding[256];
 	};
-};
-
-/* for KVM_GET_REGS and KVM_SET_REGS */
-struct kvm_regs {
-	/* out (KVM_GET_REGS) / in (KVM_SET_REGS) */
-	__u64 rax, rbx, rcx, rdx;
-	__u64 rsi, rdi, rsp, rbp;
-	__u64 r8,  r9,  r10, r11;
-	__u64 r12, r13, r14, r15;
-	__u64 rip, rflags;
-};
-
-/* for KVM_GET_FPU and KVM_SET_FPU */
-struct kvm_fpu {
-	__u8  fpr[8][16];
-	__u16 fcw;
-	__u16 fsw;
-	__u8  ftwx;  /* in fxsave format */
-	__u8  pad1;
-	__u16 last_opcode;
-	__u64 last_ip;
-	__u64 last_dp;
-	__u8  xmm[16][16];
-	__u32 mxcsr;
-	__u32 pad2;
-};
-
-/* for KVM_GET_LAPIC and KVM_SET_LAPIC */
-#define KVM_APIC_REG_SIZE 0x400
-struct kvm_lapic_state {
-	char regs[KVM_APIC_REG_SIZE];
-};
-
-struct kvm_segment {
-	__u64 base;
-	__u32 limit;
-	__u16 selector;
-	__u8  type;
-	__u8  present, dpl, db, s, l, g, avl;
-	__u8  unusable;
-	__u8  padding;
-};
-
-struct kvm_dtable {
-	__u64 base;
-	__u16 limit;
-	__u16 padding[3];
-};
-
-/* for KVM_GET_SREGS and KVM_SET_SREGS */
-struct kvm_sregs {
-	/* out (KVM_GET_SREGS) / in (KVM_SET_SREGS) */
-	struct kvm_segment cs, ds, es, fs, gs, ss;
-	struct kvm_segment tr, ldt;
-	struct kvm_dtable gdt, idt;
-	__u64 cr0, cr2, cr3, cr4, cr8;
-	__u64 efer;
-	__u64 apic_base;
-	__u64 interrupt_bitmap[(KVM_NR_INTERRUPTS + 63) / 64];
-};
-
-struct kvm_msr_entry {
-	__u32 index;
-	__u32 reserved;
-	__u64 data;
-};
-
-/* for KVM_GET_MSRS and KVM_SET_MSRS */
-struct kvm_msrs {
-	__u32 nmsrs; /* number of msrs in entries */
-	__u32 pad;
-
-	struct kvm_msr_entry entries[0];
-};
-
-/* for KVM_GET_MSR_INDEX_LIST */
-struct kvm_msr_list {
-	__u32 nmsrs; /* number of msrs in entries */
-	__u32 indices[0];
 };
 
 /* for KVM_TRANSLATE */
@@ -302,26 +186,22 @@ struct kvm_dirty_log {
 	};
 };
 
-struct kvm_cpuid_entry {
-	__u32 function;
-	__u32 eax;
-	__u32 ebx;
-	__u32 ecx;
-	__u32 edx;
-	__u32 padding;
-};
-
-/* for KVM_SET_CPUID */
-struct kvm_cpuid {
-	__u32 nent;
-	__u32 padding;
-	struct kvm_cpuid_entry entries[0];
-};
-
 /* for KVM_SET_SIGNAL_MASK */
 struct kvm_signal_mask {
 	__u32 len;
 	__u8  sigset[0];
+};
+
+/* for KVM_TPR_ACCESS_REPORTING */
+struct kvm_tpr_access_ctl {
+	__u32 enabled;
+	__u32 flags;
+	__u32 reserved[8];
+};
+
+/* for KVM_SET_VAPIC_ADDR */
+struct kvm_vapic_addr {
+	__u64 vapic_addr;
 };
 
 #define KVMIO 0xAE
@@ -347,11 +227,21 @@ struct kvm_signal_mask {
  */
 #define KVM_CAP_IRQCHIP	  0
 #define KVM_CAP_HLT	  1
+#define KVM_CAP_MMU_SHADOW_CACHE_CONTROL 2
+#define KVM_CAP_USER_MEMORY 3
+#define KVM_CAP_SET_TSS_ADDR 4
+#define KVM_CAP_EXT_CPUID 5
+#define KVM_CAP_VAPIC 6
 
 /*
  * ioctls for VM fds
  */
 #define KVM_SET_MEMORY_REGION     _IOW(KVMIO, 0x40, struct kvm_memory_region)
+#define KVM_SET_NR_MMU_PAGES      _IO(KVMIO, 0x44)
+#define KVM_GET_NR_MMU_PAGES      _IO(KVMIO, 0x45)
+#define KVM_SET_USER_MEMORY_REGION _IOW(KVMIO, 0x46,\
+					struct kvm_userspace_memory_region)
+#define KVM_SET_TSS_ADDR          _IO(KVMIO, 0x47)
 /*
  * KVM_CREATE_VCPU receives as a parameter the vcpu slot, and returns
  * a vcpu fd.
@@ -359,6 +249,7 @@ struct kvm_signal_mask {
 #define KVM_CREATE_VCPU           _IO(KVMIO,  0x41)
 #define KVM_GET_DIRTY_LOG         _IOW(KVMIO, 0x42, struct kvm_dirty_log)
 #define KVM_SET_MEMORY_ALIAS      _IOW(KVMIO, 0x43, struct kvm_memory_alias)
+#define KVM_GET_SUPPORTED_CPUID   _IOWR(KVMIO, 0x48, struct kvm_cpuid2)
 /* Device model IOC */
 #define KVM_CREATE_IRQCHIP	  _IO(KVMIO,  0x60)
 #define KVM_IRQ_LINE		  _IOW(KVMIO, 0x61, struct kvm_irq_level)
@@ -384,5 +275,11 @@ struct kvm_signal_mask {
 #define KVM_SET_FPU               _IOW(KVMIO,  0x8d, struct kvm_fpu)
 #define KVM_GET_LAPIC             _IOR(KVMIO,  0x8e, struct kvm_lapic_state)
 #define KVM_SET_LAPIC             _IOW(KVMIO,  0x8f, struct kvm_lapic_state)
+#define KVM_SET_CPUID2            _IOW(KVMIO,  0x90, struct kvm_cpuid2)
+#define KVM_GET_CPUID2            _IOWR(KVMIO, 0x91, struct kvm_cpuid2)
+/* Available with KVM_CAP_VAPIC */
+#define KVM_TPR_ACCESS_REPORTING  _IOWR(KVMIO,  0x92, struct kvm_tpr_access_ctl)
+/* Available with KVM_CAP_VAPIC */
+#define KVM_SET_VAPIC_ADDR        _IOW(KVMIO,  0x93, struct kvm_vapic_addr)
 
 #endif

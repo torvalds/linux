@@ -35,6 +35,9 @@
 #define UBITSHIFT	6
 #define GBITSHIFT	3
 
+#define ACCESS_ALLOWED	0
+#define ACCESS_DENIED	1
+
 struct cifs_ntsd {
 	__le16 revision; /* revision level */
 	__le16 type;
@@ -48,7 +51,7 @@ struct cifs_sid {
 	__u8 revision; /* revision level */
 	__u8 num_subauth;
 	__u8 authority[6];
-	__le32 sub_auth[5]; /* sub_auth[num_subauth] */ /* BB FIXME endianness BB */
+	__le32 sub_auth[5]; /* sub_auth[num_subauth] */
 } __attribute__((packed));
 
 struct cifs_acl {
@@ -57,18 +60,12 @@ struct cifs_acl {
 	__le32 num_aces;
 } __attribute__((packed));
 
-struct cifs_ntace { /* first part of ACE which contains perms */
+struct cifs_ace {
 	__u8 type;
 	__u8 flags;
 	__le16 size;
 	__le32 access_req;
-} __attribute__((packed));
-
-struct cifs_ace { /* last part of ACE which includes user info */
-	__u8 revision; /* revision level */
-	__u8 num_subauth;
-	__u8 authority[6];
-	__le32 sub_auth[5];
+	struct cifs_sid sid; /* ie UUID of user or group who gets these perms */
 } __attribute__((packed));
 
 struct cifs_wksid {
@@ -79,7 +76,7 @@ struct cifs_wksid {
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 
 extern int match_sid(struct cifs_sid *);
-extern int compare_sids(struct cifs_sid *, struct cifs_sid *);
+extern int compare_sids(const struct cifs_sid *, const struct cifs_sid *);
 
 #endif /*  CONFIG_CIFS_EXPERIMENTAL */
 

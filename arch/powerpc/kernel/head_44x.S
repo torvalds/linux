@@ -289,11 +289,8 @@ interrupt_base:
 	CRITICAL_EXCEPTION(0x0100, CriticalInput, unknown_exception)
 
 	/* Machine Check Interrupt */
-#ifdef CONFIG_440A
-	MCHECK_EXCEPTION(0x0200, MachineCheck, machine_check_exception)
-#else
 	CRITICAL_EXCEPTION(0x0200, MachineCheck, machine_check_exception)
-#endif
+	MCHECK_EXCEPTION(0x0210, MachineCheckA, machine_check_exception)
 
 	/* Data Storage Interrupt */
 	START_EXCEPTION(DataStorage)
@@ -674,6 +671,15 @@ finish_tlb_load:
  */
 
 /*
+ * Adjust the machine check IVOR on 440A cores
+ */
+_GLOBAL(__fixup_440A_mcheck)
+	li	r3,MachineCheckA@l
+	mtspr	SPRN_IVOR1,r3
+	sync
+	blr
+
+/*
  * extern void giveup_altivec(struct task_struct *prev)
  *
  * The 44x core does not have an AltiVec unit.
@@ -722,7 +728,7 @@ empty_zero_page:
  */
 	.globl	swapper_pg_dir
 swapper_pg_dir:
-	.space	8192
+	.space	PGD_TABLE_SIZE
 
 /* Reserved 4k for the critical exception stack & 4k for the machine
  * check stack per CPU for kernel mode exceptions */

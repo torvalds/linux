@@ -265,7 +265,7 @@ write_out_data:
 			put_bh(bh);
 		}
 
-		if (lock_need_resched(&journal->j_list_lock)) {
+		if (need_resched() || spin_needbreak(&journal->j_list_lock)) {
 			spin_unlock(&journal->j_list_lock);
 			goto write_out_data;
 		}
@@ -858,10 +858,10 @@ restart_loop:
 	}
 	spin_unlock(&journal->j_list_lock);
 	/*
-	 * This is a bit sleazy.  We borrow j_list_lock to protect
-	 * journal->j_committing_transaction in __journal_remove_checkpoint.
-	 * Really, __journal_remove_checkpoint should be using j_state_lock but
-	 * it's a bit hassle to hold that across __journal_remove_checkpoint
+	 * This is a bit sleazy.  We use j_list_lock to protect transition
+	 * of a transaction into T_FINISHED state and calling
+	 * __journal_drop_transaction(). Otherwise we could race with
+	 * other checkpointing code processing the transaction...
 	 */
 	spin_lock(&journal->j_state_lock);
 	spin_lock(&journal->j_list_lock);

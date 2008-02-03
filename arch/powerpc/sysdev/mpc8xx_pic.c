@@ -10,7 +10,6 @@
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/8xx_immap.h>
-#include <asm/mpc8xx.h>
 
 #include "mpc8xx_pic.h"
 

@@ -67,6 +67,7 @@
 #include <asm/mce.h>
 #include <asm/io.h>
 #include <asm/i387.h>
+#include <asm/reboot.h>		/* for struct machine_ops */
 
 /*G:010 Welcome to the Guest!
  *
@@ -93,38 +94,7 @@ struct lguest_data lguest_data = {
 };
 static cycle_t clock_base;
 
-/*G:035 Notice the lazy_hcall() above, rather than hcall().  This is our first
- * real optimization trick!
- *
- * When lazy_mode is set, it means we're allowed to defer all hypercalls and do
- * them as a batch when lazy_mode is eventually turned off.  Because hypercalls
- * are reasonably expensive, batching them up makes sense.  For example, a
- * large munmap might update dozens of page table entries: that code calls
- * paravirt_enter_lazy_mmu(), does the dozen updates, then calls
- * lguest_leave_lazy_mode().
- *
- * So, when we're in lazy mode, we call async_hypercall() to store the call for
- * future processing.  When lazy mode is turned off we issue a hypercall to
- * flush the stored calls.
- */
-static void lguest_leave_lazy_mode(void)
-{
-	paravirt_leave_lazy(paravirt_get_lazy_mode());
-	hcall(LHCALL_FLUSH_ASYNC, 0, 0, 0);
-}
-
-static void lazy_hcall(unsigned long call,
-		       unsigned long arg1,
-		       unsigned long arg2,
-		       unsigned long arg3)
-{
-	if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE)
-		hcall(call, arg1, arg2, arg3);
-	else
-		async_hcall(call, arg1, arg2, arg3);
-}
-
-/* async_hcall() is pretty simple: I'm quite proud of it really.  We have a
+/*G:037 async_hcall() is pretty simple: I'm quite proud of it really.  We have a
  * ring buffer of stored hypercalls which the Host will run though next time we
  * do a normal hypercall.  Each entry in the ring has 4 slots for the hypercall
  * arguments, and a "hcall_status" word which is 0 if the call is ready to go,
@@ -134,8 +104,8 @@ static void lazy_hcall(unsigned long call,
  * full and we just make the hypercall directly.  This has the nice side
  * effect of causing the Host to run all the stored calls in the ring buffer
  * which empties it for next time! */
-void async_hcall(unsigned long call,
-		 unsigned long arg1, unsigned long arg2, unsigned long arg3)
+static void async_hcall(unsigned long call, unsigned long arg1,
+			unsigned long arg2, unsigned long arg3)
 {
 	/* Note: This code assumes we're uniprocessor. */
 	static unsigned int next_call;
@@ -161,7 +131,37 @@ void async_hcall(unsigned long call,
 	}
 	local_irq_restore(flags);
 }
-/*:*/
+
+/*G:035 Notice the lazy_hcall() above, rather than hcall().  This is our first
+ * real optimization trick!
+ *
+ * When lazy_mode is set, it means we're allowed to defer all hypercalls and do
+ * them as a batch when lazy_mode is eventually turned off.  Because hypercalls
+ * are reasonably expensive, batching them up makes sense.  For example, a
+ * large munmap might update dozens of page table entries: that code calls
+ * paravirt_enter_lazy_mmu(), does the dozen updates, then calls
+ * lguest_leave_lazy_mode().
+ *
+ * So, when we're in lazy mode, we call async_hcall() to store the call for
+ * future processing. */
+static void lazy_hcall(unsigned long call,
+		       unsigned long arg1,
+		       unsigned long arg2,
+		       unsigned long arg3)
+{
+	if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE)
+		hcall(call, arg1, arg2, arg3);
+	else
+		async_hcall(call, arg1, arg2, arg3);
+}
+
+/* When lazy mode is turned off reset the per-cpu lazy mode variable and then
+ * issue a hypercall to flush any stored calls. */
+static void lguest_leave_lazy_mode(void)
+{
+	paravirt_leave_lazy(paravirt_get_lazy_mode());
+	hcall(LHCALL_FLUSH_ASYNC, 0, 0, 0);
+}
 
 /*G:033
  * After that diversion we return to our first native-instruction
@@ -176,8 +176,8 @@ void async_hcall(unsigned long call,
  * check there when it wants to deliver an interrupt.
  */
 
-/* save_flags() is expected to return the processor state (ie. "eflags").  The
- * eflags word contains all kind of stuff, but in practice Linux only cares
+/* save_flags() is expected to return the processor state (ie. "flags").  The
+ * flags word contains all kind of stuff, but in practice Linux only cares
  * about the interrupt flag.  Our "save_flags()" just returns that. */
 static unsigned long save_fl(void)
 {
@@ -218,19 +218,20 @@ static void irq_enable(void)
  * address of the handler, and... well, who cares?  The Guest just asks the
  * Host to make the change anyway, because the Host controls the real IDT.
  */
-static void lguest_write_idt_entry(struct desc_struct *dt,
-				   int entrynum, u32 low, u32 high)
+static void lguest_write_idt_entry(gate_desc *dt,
+				   int entrynum, const gate_desc *g)
 {
+	u32 *desc = (u32 *)g;
 	/* Keep the local copy up to date. */
-	write_dt_entry(dt, entrynum, low, high);
+	native_write_idt_entry(dt, entrynum, g);
 	/* Tell Host about this new entry. */
-	hcall(LHCALL_LOAD_IDT_ENTRY, entrynum, low, high);
+	hcall(LHCALL_LOAD_IDT_ENTRY, entrynum, desc[0], desc[1]);
 }
 
 /* Changing to a different IDT is very rare: we keep the IDT up-to-date every
  * time it is written, so we can simply loop through all entries and tell the
  * Host about them. */
-static void lguest_load_idt(const struct Xgt_desc_struct *desc)
+static void lguest_load_idt(const struct desc_ptr *desc)
 {
 	unsigned int i;
 	struct desc_struct *idt = (void *)desc->address;
@@ -253,7 +254,7 @@ static void lguest_load_idt(const struct Xgt_desc_struct *desc)
  * hypercall and use that repeatedly to load a new IDT.  I don't think it
  * really matters, but wouldn't it be nice if they were the same?
  */
-static void lguest_load_gdt(const struct Xgt_desc_struct *desc)
+static void lguest_load_gdt(const struct desc_ptr *desc)
 {
 	BUG_ON((desc->size+1)/8 != GDT_ENTRIES);
 	hcall(LHCALL_LOAD_GDT, __pa(desc->address), GDT_ENTRIES, 0);
@@ -262,10 +263,10 @@ static void lguest_load_gdt(const struct Xgt_desc_struct *desc)
 /* For a single GDT entry which changes, we do the lazy thing: alter our GDT,
  * then tell the Host to reload the entire thing.  This operation is so rare
  * that this naive implementation is reasonable. */
-static void lguest_write_gdt_entry(struct desc_struct *dt,
-				   int entrynum, u32 low, u32 high)
+static void lguest_write_gdt_entry(struct desc_struct *dt, int entrynum,
+				   const void *desc, int type)
 {
-	write_dt_entry(dt, entrynum, low, high);
+	native_write_gdt_entry(dt, entrynum, desc, type);
 	hcall(LHCALL_LOAD_GDT, __pa(dt), GDT_ENTRIES, 0);
 }
 
@@ -324,30 +325,30 @@ static void lguest_load_tr_desc(void)
  * anyone (including userspace) can just use the raw "cpuid" instruction and
  * the Host won't even notice since it isn't privileged.  So we try not to get
  * too worked up about it. */
-static void lguest_cpuid(unsigned int *eax, unsigned int *ebx,
-			 unsigned int *ecx, unsigned int *edx)
+static void lguest_cpuid(unsigned int *ax, unsigned int *bx,
+			 unsigned int *cx, unsigned int *dx)
 {
-	int function = *eax;
+	int function = *ax;
 
-	native_cpuid(eax, ebx, ecx, edx);
+	native_cpuid(ax, bx, cx, dx);
 	switch (function) {
 	case 1:	/* Basic feature request. */
 		/* We only allow kernel to see SSE3, CMPXCHG16B and SSSE3 */
-		*ecx &= 0x00002201;
+		*cx &= 0x00002201;
 		/* SSE, SSE2, FXSR, MMX, CMOV, CMPXCHG8B, FPU. */
-		*edx &= 0x07808101;
+		*dx &= 0x07808101;
 		/* The Host can do a nice optimization if it knows that the
 		 * kernel mappings (addresses above 0xC0000000 or whatever
 		 * PAGE_OFFSET is set to) haven't changed.  But Linux calls
 		 * flush_tlb_user() for both user and kernel mappings unless
 		 * the Page Global Enable (PGE) feature bit is set. */
-		*edx |= 0x00002000;
+		*dx |= 0x00002000;
 		break;
 	case 0x80000000:
 		/* Futureproof this a little: if they ask how much extended
 		 * processor information there is, limit it to known fields. */
-		if (*eax > 0x80000008)
-			*eax = 0x80000008;
+		if (*ax > 0x80000008)
+			*ax = 0x80000008;
 		break;
 	}
 }
@@ -756,10 +757,10 @@ static void lguest_time_init(void)
  * segment), the privilege level (we're privilege level 1, the Host is 0 and
  * will not tolerate us trying to use that), the stack pointer, and the number
  * of pages in the stack. */
-static void lguest_load_esp0(struct tss_struct *tss,
+static void lguest_load_sp0(struct tss_struct *tss,
 				     struct thread_struct *thread)
 {
-	lazy_hcall(LHCALL_SET_STACK, __KERNEL_DS|0x1, thread->esp0,
+	lazy_hcall(LHCALL_SET_STACK, __KERNEL_DS|0x1, thread->sp0,
 		   THREAD_SIZE/PAGE_SIZE);
 }
 
@@ -789,11 +790,11 @@ static void lguest_wbinvd(void)
  * code qualifies for Advanced.  It will also never interrupt anything.  It
  * does, however, allow us to get through the Linux boot code. */
 #ifdef CONFIG_X86_LOCAL_APIC
-static void lguest_apic_write(unsigned long reg, unsigned long v)
+static void lguest_apic_write(unsigned long reg, u32 v)
 {
 }
 
-static unsigned long lguest_apic_read(unsigned long reg)
+static u32 lguest_apic_read(unsigned long reg)
 {
 	return 0;
 }
@@ -813,7 +814,7 @@ static void lguest_safe_halt(void)
  * rather than virtual addresses, so we use __pa() here. */
 static void lguest_power_off(void)
 {
-	hcall(LHCALL_CRASH, __pa("Power down"), 0, 0);
+	hcall(LHCALL_SHUTDOWN, __pa("Power down"), LGUEST_SHUTDOWN_POWEROFF, 0);
 }
 
 /*
@@ -823,7 +824,7 @@ static void lguest_power_off(void)
  */
 static int lguest_panic(struct notifier_block *nb, unsigned long l, void *p)
 {
-	hcall(LHCALL_CRASH, __pa(p), 0, 0);
+	hcall(LHCALL_SHUTDOWN, __pa(p), LGUEST_SHUTDOWN_POWEROFF, 0);
 	/* The hcall won't return, but to keep gcc happy, we're "done". */
 	return NOTIFY_DONE;
 }
@@ -927,6 +928,11 @@ static unsigned lguest_patch(u8 type, u16 clobber, void *ibuf,
 	return insn_len;
 }
 
+static void lguest_restart(char *reason)
+{
+	hcall(LHCALL_SHUTDOWN, __pa(reason), LGUEST_SHUTDOWN_RESTART, 0);
+}
+
 /*G:030 Once we get to lguest_init(), we know we're a Guest.  The pv_ops
  * structures in the kernel provide points for (almost) every routine we have
  * to override to avoid privileged instructions. */
@@ -958,7 +964,7 @@ __init void lguest_init(void)
 	pv_cpu_ops.cpuid = lguest_cpuid;
 	pv_cpu_ops.load_idt = lguest_load_idt;
 	pv_cpu_ops.iret = lguest_iret;
-	pv_cpu_ops.load_esp0 = lguest_load_esp0;
+	pv_cpu_ops.load_sp0 = lguest_load_sp0;
 	pv_cpu_ops.load_tr_desc = lguest_load_tr_desc;
 	pv_cpu_ops.set_ldt = lguest_set_ldt;
 	pv_cpu_ops.load_tls = lguest_load_tls;
@@ -1060,6 +1066,7 @@ __init void lguest_init(void)
 	 * the Guest routine to power off. */
 	pm_power_off = lguest_power_off;
 
+	machine_ops.restart = lguest_restart;
 	/* Now we're set up, call start_kernel() in init/main.c and we proceed
 	 * to boot as normal.  It never returns. */
 	start_kernel();

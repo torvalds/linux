@@ -1,0 +1,12 @@
+choice
+	prompt "System type"
+	default BFIN548_EZKIT
+	help
+	  Select your board!
+
+config BFIN548_EZKIT
+	bool "BF548-EZKIT"
+	help
+	  BFIN548-EZKIT board support.
+
+endchoice

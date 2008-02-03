@@ -152,9 +152,22 @@ config BLK_DEV_IDEDISK
 	  If unsure, say Y.
 
 config IDEDISK_MULTI_MODE
-	bool "Use multi-mode by default"
+	bool "Use multiple sector mode for Programmed Input/Output by default"
 	help
-	  If you get this error, try to say Y here:
+	  This setting is irrelevant for most IDE disks, with direct memory
+	  access, to which multiple sector mode does not apply. Multiple sector
+	  mode is a feature of most modern IDE hard drives, permitting the
+	  transfer of multiple sectors per Programmed Input/Output interrupt,
+	  rather than the usual one sector per interrupt. When this feature is
+	  enabled, it can reduce operating system overhead for disk Programmed
+	  Input/Output. On some systems, it also can increase the data
+	  throughput of Programmed Input/Output. Some drives, however, seemed
+	  to run slower with multiple sector mode enabled. Some drives claimed
+	  to support multiple sector mode, but lost data at some settings.
+	  Under rare circumstances, such failures could result in massive
+	  filesystem corruption.
+
+	  If you get the following error, try to say Y here:
 
 	  hda: set_multmode: status=0x51 { DriveReady SeekComplete Error }
 	  hda: set_multmode: error=0x04 { DriveStatusError }
@@ -190,16 +203,20 @@ config BLK_DEV_IDECD
 	  CD-ROM drive, you can say N to all other CD-ROM options, but be sure
 	  to say Y or M to "ISO 9660 CD-ROM file system support".
 
-	  Note that older versions of LILO (LInux LOader) cannot properly deal
-	  with IDE/ATAPI CD-ROMs, so install LILO 16 or higher, available from
-	  <http://lilo.go.dyndns.org/>.
-
 	  To compile this driver as a module, choose M here: the
 	  module will be called ide-cd.
 
+config BLK_DEV_IDECD_VERBOSE_ERRORS
+	bool "Verbose error logging for IDE/ATAPI CDROM driver" if EMBEDDED
+	depends on BLK_DEV_IDECD
+	default y
+	help
+	  Turn this on to have the driver print out the meanings of the
+	  ATAPI error codes.  This will use up additional 8kB of kernel-space
+	  memory, though.
+
 config BLK_DEV_IDETAPE
-	tristate "Include IDE/ATAPI TAPE support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "Include IDE/ATAPI TAPE support"
 	help
 	  If you have an IDE tape drive using the ATAPI protocol, say Y.
 	  ATAPI is a newer protocol used by IDE tape and CD-ROM drives,
@@ -304,7 +321,6 @@ comment "IDE chipset support/bugfixes"
 
 config IDE_GENERIC
 	tristate "generic/default IDE chipset support"
-	default H8300
 	help
 	  If unsure, say N.
 
@@ -317,7 +333,7 @@ config BLK_DEV_PLATFORM
 	  If unsure, say N.
 
 config BLK_DEV_CMD640
-	bool "CMD640 chipset bugfix/support"
+	tristate "CMD640 chipset bugfix/support"
 	depends on X86
 	---help---
 	  The CMD-Technologies CMD640 IDE chip is used on many common 486 and
@@ -351,9 +367,8 @@ config BLK_DEV_CMD640_ENHANCED
 	  Otherwise say N.
 
 config BLK_DEV_IDEPNP
-	bool "PNP EIDE support"
+	tristate "PNP EIDE support"
 	depends on PNP
-	select IDE_GENERIC
 	help
 	  If you have a PnP (Plug and Play) compatible EIDE card and
 	  would like the kernel to automatically detect and activate
@@ -366,23 +381,25 @@ comment "PCI IDE chipsets support"
 config BLK_DEV_IDEPCI
 	bool
 
-config IDEPCI_SHARE_IRQ
-	bool "Sharing PCI IDE interrupts support"
-	depends on BLK_DEV_IDEPCI
-	help
-	  Some ATA/IDE chipsets have hardware support which allows for
-	  sharing a single IRQ with other cards. To enable support for
-	  this in the ATA/IDE driver, say Y here.
-
-	  It is safe to say Y to this question, in most cases.
-	  If unsure, say N.
-
 config IDEPCI_PCIBUS_ORDER
-	def_bool BLK_DEV_IDE=y && BLK_DEV_IDEPCI
+	bool "Probe IDE PCI devices in the PCI bus order (DEPRECATED)"
+	depends on BLK_DEV_IDE=y && BLK_DEV_IDEPCI
+	default y
+	help
+	  Probe IDE PCI devices in the order in which they appear on the
+	  PCI bus (i.e. 00:1f.1 PCI device before 02:01.0 PCI device)
+	  instead of the order in which IDE PCI host drivers are loaded.
 
+	  Please note that this method of assuring stable naming of
+	  IDE devices is unreliable and use other means for achieving
+	  it (i.e. udev).
+
+	  If in doubt, say N.
+
+# TODO: split it on per host driver config options (or module parameters)
 config BLK_DEV_OFFBOARD
-	bool "Boot off-board chipsets first support"
-	depends on BLK_DEV_IDEPCI
+	bool "Boot off-board chipsets first support (DEPRECATED)"
+	depends on BLK_DEV_IDEPCI && (BLK_DEV_AEC62XX || BLK_DEV_GENERIC || BLK_DEV_HPT34X || BLK_DEV_HPT366 || BLK_DEV_PDC202XX_NEW || BLK_DEV_PDC202XX_OLD || BLK_DEV_TC86C001)
 	help
 	  Normally, IDE controllers built into the motherboard (on-board
 	  controllers) are assigned to ide0 and ide1 while those on add-in PCI
@@ -400,6 +417,10 @@ config BLK_DEV_OFFBOARD
 
 	  Note that, if you do this, the order of the hd* devices will be
 	  rearranged which may require modification of fstab and other files.
+
+	  Please also note that this method of assuring stable naming of
+	  IDE devices is unreliable and use other means for achieving it
+	  (i.e. udev).
 
 	  If in doubt, say N.
 
@@ -474,6 +495,7 @@ config WDC_ALI15X3
 
 config BLK_DEV_AMD74XX
 	tristate "AMD and nVidia IDE support"
+	depends on !ARM
 	select BLK_DEV_IDEDMA_PCI
 	help
 	  This driver adds explicit support for AMD-7xx and AMD-8111 chips
@@ -603,8 +625,8 @@ config BLK_DEV_SC1200
 	tristate "National SCx200 chipset support"
 	select BLK_DEV_IDEDMA_PCI
 	help
-	  This driver adds support for the built in IDE on the National
-	  SCx200 series of embedded x86 "Geode" systems
+	  This driver adds support for the on-board IDE controller on the
+	  National SCx200 series of embedded x86 "Geode" systems.
 
 config BLK_DEV_PIIX
 	tristate "Intel PIIXn chipsets support"
@@ -693,7 +715,6 @@ config BLK_DEV_SVWKS
 config BLK_DEV_SGIIOC4
 	tristate "Silicon Graphics IOC4 chipset ATA/ATAPI support"
 	depends on (IA64_SGI_SN2 || IA64_GENERIC) && SGI_IOC4
-	select IDEPCI_SHARE_IRQ
 	select BLK_DEV_IDEDMA_PCI
 	help
 	  This driver adds PIO & MultiMode DMA-2 support for the SGI IOC4
@@ -780,22 +801,22 @@ config BLK_DEV_CELLEB
 	depends on PPC_CELLEB
 	select BLK_DEV_IDEDMA_PCI
 	help
-	  This driver provides support for the built-in IDE controller on
+	  This driver provides support for the on-board IDE controller on
 	  Toshiba Cell Reference Board.
 	  If unsure, say Y.
 
 endif
 
 config BLK_DEV_IDE_PMAC
-	bool "Builtin PowerMac IDE support"
+	tristate "PowerMac on-board IDE support"
 	depends on PPC_PMAC && IDE=y && BLK_DEV_IDE=y
 	help
-	  This driver provides support for the built-in IDE controller on
+	  This driver provides support for the on-board IDE controller on
 	  most of the recent Apple Power Macintoshes and PowerBooks.
 	  If unsure, say Y.
 
 config BLK_DEV_IDE_PMAC_ATA100FIRST
-	bool "Probe internal ATA/100 (Kauai) first"
+	bool "Probe on-board ATA/100 (Kauai) first"
 	depends on BLK_DEV_IDE_PMAC
 	help
 	  This option will cause the ATA/100 controller found in UniNorth2
@@ -810,7 +831,7 @@ config BLK_DEV_IDEDMA_PMAC
 	depends on BLK_DEV_IDE_PMAC
 	select BLK_DEV_IDEDMA_PCI
 	help
-	  This option allows the driver for the built-in IDE controller on
+	  This option allows the driver for the on-board IDE controller on
 	  Power Macintoshes and PowerBooks to use DMA (direct memory access)
 	  to transfer data to and from memory.  Saying Y is safe and improves
 	  performance.
@@ -841,8 +862,9 @@ config BLK_DEV_IDE_AU1XXX_SEQTS_PER_RQ
        depends on BLK_DEV_IDE_AU1XXX
 
 config IDE_ARM
-	def_bool ARM && (ARCH_CLPS7500 || ARCH_RPC || ARCH_SHARK)
-	select IDE_GENERIC
+	tristate "ARM IDE support"
+	depends on ARM && (ARCH_CLPS7500 || ARCH_RPC || ARCH_SHARK)
+	default y
 
 config BLK_DEV_IDE_ICSIDE
 	tristate "ICS IDE interface support"
@@ -873,14 +895,54 @@ config BLK_DEV_IDE_BAST
 	  Say Y here if you want to support the onboard IDE channels on the
 	  Simtec BAST or the Thorcom VR1000
 
+config ETRAX_IDE
+	tristate "ETRAX IDE support"
+	depends on CRIS && BROKEN
+	select BLK_DEV_IDEDMA
+	help
+	  Enables the ETRAX IDE driver.
+
+	  You can't use parallel ports or SCSI ports at the same time.
+
+config ETRAX_IDE_DELAY
+	int "Delay for drives to regain consciousness"
+	depends on ETRAX_IDE && ETRAX_ARCH_V10
+	default 15
+	help
+	  Number of seconds to wait for IDE drives to spin up after an IDE
+	  reset.
+
+choice
+	prompt "IDE reset pin"
+	depends on ETRAX_IDE && ETRAX_ARCH_V10
+	default ETRAX_IDE_PB7_RESET
+
+config ETRAX_IDE_PB7_RESET
+	bool "Port_PB_Bit_7"
+	help
+	  IDE reset on pin 7 on port B
+
+config ETRAX_IDE_G27_RESET
+	bool "Port_G_Bit_27"
+	help
+	  IDE reset on pin 27 on port G
+
+endchoice
+
+config IDE_H8300
+	tristate "H8300 IDE support"
+	depends on H8300
+	default y
+	help
+	  Enables the H8300 IDE driver.
+
 config BLK_DEV_GAYLE
-	bool "Amiga Gayle IDE interface support"
+	tristate "Amiga Gayle IDE interface support"
 	depends on AMIGA
-	select IDE_GENERIC
 	help
 	  This is the IDE driver for the Amiga Gayle IDE interface. It supports
 	  both the `A1200 style' and `A4000 style' of the Gayle IDE interface,
-	  This includes builtin IDE interfaces on some Amiga models (A600,
+	  This includes on-board IDE interfaces on some Amiga models (A600,
 	  A1200, A4000, and A4000T), and IDE interfaces on the Zorro expansion
 	  bus (M-Tech E-Matrix 530 expansion card).
 	  Say Y if you have an Amiga with a Gayle IDE interface and want to use
@@ -894,10 +956,10 @@ config BLK_DEV_IDEDOUBLER
 	depends on BLK_DEV_GAYLE && EXPERIMENTAL
 	---help---
 	  This driver provides support for the so-called `IDE doublers' (made
-	  by various manufacturers, e.g. Eyetech) that can be connected to the
-	  builtin IDE interface of some Amiga models. Using such an IDE
-	  doubler, you can connect up to four instead of two IDE devices on
-	  the Amiga's builtin IDE interface.
+	  by various manufacturers, e.g. Eyetech) that can be connected to
+	  the on-board IDE interface of some Amiga models. Using such an IDE
+	  doubler, you can connect up to four instead of two IDE devices to
+	  the Amiga's on-board IDE interface.
 
 	  Note that the normal Amiga Gayle IDE driver may not work correctly
 	  if you have an IDE doubler and don't enable this driver!
@@ -906,55 +968,50 @@ config BLK_DEV_IDEDOUBLER
 	  runtime using the "ide=doubler" kernel boot parameter.
 
 config BLK_DEV_BUDDHA
-	bool "Buddha/Catweasel/X-Surf IDE interface support (EXPERIMENTAL)"
+	tristate "Buddha/Catweasel/X-Surf IDE interface support (EXPERIMENTAL)"
 	depends on ZORRO && EXPERIMENTAL
-	select IDE_GENERIC
 	help
-	  This is the IDE driver for the IDE interfaces on the Buddha, 
-	  Catweasel and X-Surf expansion boards.  It supports up to two interfaces 
-	  on the Buddha, three on the Catweasel and two on the X-Surf.
+	  This is the IDE driver for the IDE interfaces on the Buddha, Catweasel
+	  and X-Surf expansion boards.  It supports up to two interfaces on the
+	  Buddha, three on the Catweasel and two on the X-Surf.
 
 	  Say Y if you have a Buddha or Catweasel expansion board and want to
 	  use IDE devices (hard disks, CD-ROM drives, etc.) that are connected
 	  to one of its IDE interfaces.
 
 config BLK_DEV_FALCON_IDE
-	bool "Falcon IDE interface support"
+	tristate "Falcon IDE interface support"
 	depends on ATARI
-	select IDE_GENERIC
 	help
-	  This is the IDE driver for the builtin IDE interface on the Atari
+	  This is the IDE driver for the on-board IDE interface on the Atari
 	  Falcon. Say Y if you have a Falcon and want to use IDE devices (hard
-	  disks, CD-ROM drives, etc.) that are connected to the builtin IDE
+	  disks, CD-ROM drives, etc.) that are connected to the on-board IDE
 	  interface.
 
 config BLK_DEV_MAC_IDE
-	bool "Macintosh Quadra/Powerbook IDE interface support"
+	tristate "Macintosh Quadra/Powerbook IDE interface support"
 	depends on MAC
-	select IDE_GENERIC
 	help
-	  This is the IDE driver for the builtin IDE interface on some m68k
+	  This is the IDE driver for the on-board IDE interface on some m68k
 	  Macintosh models. It supports both the `Quadra style' (used in
 	  Quadra/ Centris 630 and Performa 588 models) and `Powerbook style'
 	  (used in the Powerbook 150 and 190 models) IDE interface.
 
 	  Say Y if you have such an Macintosh model and want to use IDE
 	  devices (hard disks, CD-ROM drives, etc.) that are connected to the
-	  builtin IDE interface.
+	  on-board IDE interface.
 
 config BLK_DEV_Q40IDE
-	bool "Q40/Q60 IDE interface support"
+	tristate "Q40/Q60 IDE interface support"
 	depends on Q40
-	select IDE_GENERIC
 	help
 	  Enable the on-board IDE controller in the Q40/Q60.  This should
 	  normally be on; disable it only if you are running a custom hard
 	  drive subsystem through an expansion card.
 
 config BLK_DEV_MPC8xx_IDE
-	bool "MPC8xx IDE support"
-	depends on 8xx && IDE=y && BLK_DEV_IDE=y && !PPC_MERGE
-	select IDE_GENERIC
+	tristate "MPC8xx IDE support"
+	depends on 8xx && (LWMON || IVMS8 || IVML24 || TQM8xxL) && IDE=y && BLK_DEV_IDE=y && !PPC_MERGE
 	help
 	  This option provides support for IDE on Motorola MPC8xx Systems.
 	  Please see 'Type of MPC8xx IDE interface' for details.
@@ -1013,8 +1070,8 @@ config BLK_DEV_ALI14XX
 	  boot parameter.  It enables support for the secondary IDE interface
 	  of the ALI M1439/1443/1445/1487/1489 chipsets, and permits faster
 	  I/O speeds to be set as well.  See the files
-	  <file:Documentation/ide.txt> and <file:drivers/ide/legacy/ali14xx.c> for
-	  more info.
+	  <file:Documentation/ide.txt> and <file:drivers/ide/legacy/ali14xx.c>
+	  for more info.
 
 config BLK_DEV_DTC2278
 	tristate "DTC-2278 support"
@@ -1039,8 +1096,8 @@ config BLK_DEV_QD65XX
 	help
 	  This driver is enabled at runtime using the "qd65xx.probe" kernel
 	  boot parameter.  It permits faster I/O speeds to be set.  See the
-	  <file:Documentation/ide.txt> and <file:drivers/ide/legacy/qd65xx.c> for
-	  more info.
+	  <file:Documentation/ide.txt> and <file:drivers/ide/legacy/qd65xx.c>
+	  for more info.
 
 config BLK_DEV_UMC8672
 	tristate "UMC-8672 support"

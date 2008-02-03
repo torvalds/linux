@@ -48,7 +48,7 @@
 
 static struct platform_device *ibwdt_platform_device;
 static unsigned long ibwdt_is_open;
-static spinlock_t ibwdt_lock;
+static DEFINE_SPINLOCK(ibwdt_lock);
 static char expect_close;
 
 /* Module information */
@@ -307,8 +307,6 @@ static struct miscdevice ibwdt_miscdev = {
 static int __devinit ibwdt_probe(struct platform_device *dev)
 {
 	int res;
-
-	spin_lock_init(&ibwdt_lock);
 
 #if WDT_START != WDT_STOP
 	if (!request_region(WDT_STOP, 1, "IB700 WDT")) {

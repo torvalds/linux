@@ -2424,7 +2424,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 		return 0;
 
 	/*
-	 * Calculate the chain hash: it's the combined has of all the
+	 * Calculate the chain hash: it's the combined hash of all the
 	 * lock keys along the dependency chain. We save the hash value
 	 * at every step so that we can get the current hash easily
 	 * after unlock. The chain hash is then used to cache dependency
@@ -2654,10 +2654,15 @@ static void check_flags(unsigned long flags)
 	if (!debug_locks)
 		return;
 
-	if (irqs_disabled_flags(flags))
-		DEBUG_LOCKS_WARN_ON(current->hardirqs_enabled);
-	else
-		DEBUG_LOCKS_WARN_ON(!current->hardirqs_enabled);
+	if (irqs_disabled_flags(flags)) {
+		if (DEBUG_LOCKS_WARN_ON(current->hardirqs_enabled)) {
+			printk("possible reason: unannotated irqs-off.\n");
+		}
+	} else {
+		if (DEBUG_LOCKS_WARN_ON(!current->hardirqs_enabled)) {
+			printk("possible reason: unannotated irqs-on.\n");
+		}
+	}
 
 	/*
 	 * We dont accurately track softirq state in e.g.
@@ -2927,7 +2932,7 @@ static void zap_class(struct lock_class *class)
 
 }
 
-static inline int within(void *addr, void *start, unsigned long size)
+static inline int within(const void *addr, void *start, unsigned long size)
 {
 	return addr >= start && addr < start + size;
 }
@@ -2938,9 +2943,10 @@ void lockdep_free_key_range(void *start, unsigned long size)
 	struct list_head *head;
 	unsigned long flags;
 	int i;
+	int locked;
 
 	raw_local_irq_save(flags);
-	graph_lock();
+	locked = graph_lock();
 
 	/*
 	 * Unhash all classes that were created by this module:
@@ -2949,12 +2955,16 @@ void lockdep_free_key_range(void *start, unsigned long size)
 		head = classhash_table + i;
 		if (list_empty(head))
 			continue;
-		list_for_each_entry_safe(class, next, head, hash_entry)
+		list_for_each_entry_safe(class, next, head, hash_entry) {
 			if (within(class->key, start, size))
 				zap_class(class);
+			else if (within(class->name, start, size))
+				zap_class(class);
+		}
 	}
 
-	graph_unlock();
+	if (locked)
+		graph_unlock();
 	raw_local_irq_restore(flags);
 }
 
@@ -2964,6 +2974,7 @@ void lockdep_reset_lock(struct lockdep_map *lock)
 	struct list_head *head;
 	unsigned long flags;
 	int i, j;
+	int locked;
 
 	raw_local_irq_save(flags);
 
@@ -2982,7 +2993,7 @@ void lockdep_reset_lock(struct lockdep_map *lock)
 	 * Debug check: in the end all mapped classes should
 	 * be gone.
 	 */
-	graph_lock();
+	locked = graph_lock();
 	for (i = 0; i < CLASSHASH_SIZE; i++) {
 		head = classhash_table + i;
 		if (list_empty(head))
@@ -2995,7 +3006,8 @@ void lockdep_reset_lock(struct lockdep_map *lock)
 			}
 		}
 	}
-	graph_unlock();
+	if (locked)
+		graph_unlock();
 
 out_restore:
 	raw_local_irq_restore(flags);
@@ -3054,11 +3066,6 @@ void __init lockdep_info(void)
 #endif
 }
 
-static inline int in_range(const void *start, const void *addr, const void *end)
-{
-	return addr >= start && addr <= end;
-}
-
 static void
 print_freed_lock_bug(struct task_struct *curr, const void *mem_from,
 		     const void *mem_to, struct held_lock *hlock)
@@ -3080,6 +3087,13 @@ print_freed_lock_bug(struct task_struct *curr, const void *mem_from,
 	dump_stack();
 }
 
+static inline int not_in_range(const void* mem_from, unsigned long mem_len,
+				const void* lock_from, unsigned long lock_len)
+{
+	return lock_from + lock_len <= mem_from ||
+		mem_from + mem_len <= lock_from;
+}
+
 /*
  * Called when kernel memory is freed (or unmapped), or if a lock
  * is destroyed or reinitialized - this code checks whether there is
@@ -3087,7 +3101,6 @@ print_freed_lock_bug(struct task_struct *curr, const void *mem_from,
  */
 void debug_check_no_locks_freed(const void *mem_from, unsigned long mem_len)
 {
-	const void *mem_to = mem_from + mem_len, *lock_from, *lock_to;
 	struct task_struct *curr = current;
 	struct held_lock *hlock;
 	unsigned long flags;
@@ -3100,14 +3113,11 @@ void debug_check_no_locks_freed(const void *mem_from, unsigned long mem_len)
 	for (i = 0; i < curr->lockdep_depth; i++) {
 		hlock = curr->held_locks + i;
 
-		lock_from = (void *)hlock->instance;
-		lock_to = (void *)(hlock->instance + 1);
-
-		if (!in_range(mem_from, lock_from, mem_to) &&
-					!in_range(mem_from, lock_to, mem_to))
+		if (not_in_range(mem_from, mem_len, hlock->instance,
+					sizeof(*hlock->instance)))
 			continue;
 
-		print_freed_lock_bug(curr, mem_from, mem_to, hlock);
+		print_freed_lock_bug(curr, mem_from, mem_from + mem_len, hlock);
 		break;
 	}
 	local_irq_restore(flags);
@@ -3173,6 +3183,13 @@ retry:
 		printk(" locked it.\n");
 
 	do_each_thread(g, p) {
+		/*
+		 * It's not reliable to print a task's held locks
+		 * if it's not sleeping (or if it's not the current
+		 * task):
+		 */
+		if (p->state == TASK_RUNNING && p != current)
+			continue;
 		if (p->lockdep_depth)
 			lockdep_print_held_locks(p);
 		if (!unlock)
@@ -3189,13 +3206,23 @@ retry:
 
 EXPORT_SYMBOL_GPL(debug_show_all_locks);
 
-void debug_show_held_locks(struct task_struct *task)
+/*
+ * Careful: only use this function if you are sure that
+ * the task cannot run in parallel!
+ */
+void __debug_show_held_locks(struct task_struct *task)
 {
 	if (unlikely(!debug_locks)) {
 		printk("INFO: lockdep is turned off.\n");
 		return;
 	}
 	lockdep_print_held_locks(task);
+}
+EXPORT_SYMBOL_GPL(__debug_show_held_locks);
+
+void debug_show_held_locks(struct task_struct *task)
+{
+		__debug_show_held_locks(task);
 }
 
 EXPORT_SYMBOL_GPL(debug_show_held_locks);

@@ -15,8 +15,8 @@ menuconfig WATCHDOG
 	  implementation entirely in software (which can sometimes fail to
 	  reboot the machine) and a driver for hardware watchdog boards, which
 	  are more robust and can also keep track of the temperature inside
-	  your computer. For details, read <file:Documentation/watchdog/watchdog.txt>
-	  in the kernel source.
+	  your computer. For details, read
+	  <file:Documentation/watchdog/watchdog-api.txt> in the kernel source.
 
 	  The watchdog is usually used together with the watchdog daemon
 	  which is available from
@@ -223,7 +223,7 @@ config DAVINCI_WATCHDOG
 
 config AT32AP700X_WDT
 	tristate "AT32AP700x watchdog"
-	depends on CPU_AT32AP7000
+	depends on CPU_AT32AP700X
 	help
 	  Watchdog timer embedded into AT32AP700x devices. This will reboot
 	  your system when the timeout is reached.
@@ -392,6 +392,16 @@ config ITCO_VENDOR_SUPPORT
 	  devices. At this moment we only have additional support for some
 	  SuperMicro Inc. motherboards.
 
+config IT8712F_WDT
+	tristate "IT8712F (Smart Guardian) Watchdog Timer"
+	depends on X86
+	---help---
+	  This is the driver for the built-in watchdog timer on the IT8712F
+	  Super I/0 chipset used on many motherboards.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called it8712f_wdt.
+
 config SC1200_WDT
 	tristate "National Semiconductor PC87307/PC97307 (ala SC1200) Watchdog"
 	depends on X86
@@ -455,6 +465,19 @@ config SBC8360_WDT
 	  module will be called sbc8360.ko.
 
 	  Most people will say N.
+
+config SBC7240_WDT
+	tristate "SBC Nano 7240 Watchdog Timer"
+	depends on X86_32
+	---help---
+	  This is the driver for the hardware watchdog found on the IEI
+	  single board computers EPIC Nano 7240 (and likely others). This
+	  watchdog simply watches your kernel to make sure it doesn't freeze,
+	  and if it does, it reboots your computer after a certain amount of
+	  time.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sbc7240_wdt.
 
 config CPU5_WDT
 	tristate "SMA CPU5 Watchdog"
@@ -586,7 +609,7 @@ config SBC_EPX_C3_WATCHDOG
 
 config INDYDOG
 	tristate "Indy/I2 Hardware Watchdog"
-	depends on SGI_IP22
+	depends on SGI_HAS_INDYDOG
 	help
 	  Hardware driver for the Indy's/I2's watchdog. This is a
 	  watchdog timer that will reboot the machine after a 60 second
@@ -615,6 +638,12 @@ config AR7_WDT
 	depends on AR7
 	help
 	  Hardware driver for the TI AR7 Watchdog Timer.
+
+config TXX9_WDT
+	tristate "Toshiba TXx9 Watchdog Timer"
+	depends on CPU_TX39XX || CPU_TX49XX
+	help
+	  Hardware driver for the built-in watchdog timer on TXx9 MIPS SoCs.
 
 # PARISC Architecture
 

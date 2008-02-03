@@ -231,6 +231,20 @@ struct ocfs2_space_resv {
 #define OCFS2_IOC_RESVSP64	_IOW ('X', 42, struct ocfs2_space_resv)
 #define OCFS2_IOC_UNRESVSP64	_IOW ('X', 43, struct ocfs2_space_resv)
 
+/* Used to pass group descriptor data when online resize is done */
+struct ocfs2_new_group_input {
+	__u64 group;		/* Group descriptor's blkno. */
+	__u32 clusters;		/* Total number of clusters in this group */
+	__u32 frees;		/* Total free clusters in this group */
+	__u16 chain;		/* Chain for this group */
+	__u16 reserved1;
+	__u32 reserved2;
+};
+
+#define OCFS2_IOC_GROUP_EXTEND	_IOW('o', 1, int)
+#define OCFS2_IOC_GROUP_ADD	_IOW('o', 2,struct ocfs2_new_group_input)
+#define OCFS2_IOC_GROUP_ADD64	_IOW('o', 3,struct ocfs2_new_group_input)
+
 /*
  * Journal Flags (ocfs2_dinode.id1.journal1.i_flags)
  */
@@ -255,6 +269,14 @@ struct ocfs2_space_resv {
 
 /* Journal limits (in bytes) */
 #define OCFS2_MIN_JOURNAL_SIZE		(4 * 1024 * 1024)
+
+/*
+ * Default local alloc size (in megabytes)
+ *
+ * The value chosen should be such that most allocations, including new
+ * block groups, use local alloc.
+ */
+#define OCFS2_DEFAULT_LOCAL_ALLOC_SIZE	8
 
 struct ocfs2_system_inode_info {
 	char	*si_name;

@@ -106,7 +106,8 @@ extern int ptrace_put_reg(struct task_struct *task, int regno,
  */
 #define FULL_REGS(regs)		(((regs)->trap & 1) == 0)
 #ifndef __powerpc64__
-#define IS_CRITICAL_EXC(regs)	(((regs)->trap & 2) == 0)
+#define IS_CRITICAL_EXC(regs)	(((regs)->trap & 2) != 0)
+#define IS_MCHECK_EXC(regs)	(((regs)->trap & 4) != 0)
 #endif /* ! __powerpc64__ */
 #define TRAP(regs)		((regs)->trap & ~0xF)
 #ifdef __powerpc64__
@@ -118,6 +119,13 @@ do {									      \
 		printk(KERN_CRIT "%s: partial register set\n", __FUNCTION__); \
 } while (0)
 #endif /* __powerpc64__ */
+
+/*
+ * These are defined as per linux/ptrace.h, which see.
+ */
+#define arch_has_single_step()	(1)
+extern void user_enable_single_step(struct task_struct *);
+extern void user_disable_single_step(struct task_struct *);
 
 #endif /* __ASSEMBLY__ */
 

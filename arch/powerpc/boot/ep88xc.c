@@ -45,7 +45,7 @@ void platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	mem_size *= 1024 * 1024;
 	simple_alloc_init(_end, mem_size - (unsigned long)_end, 32, 64);
 
-	ft_init(_dtb_start, _dtb_end - _dtb_start, 32);
+	fdt_init(_dtb_start);
 
 	planetcore_set_stdout_path(table);
 

@@ -20,7 +20,6 @@
  *
  */
 
-#include <sound/driver.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -979,6 +978,27 @@ static unsigned int snd_fm801_tea575x_64pcr_read(struct snd_tea575x *tea)
 	return val;
 }
 
+static void snd_fm801_tea575x_64pcr_mute(struct snd_tea575x *tea,
+					  unsigned int mute)
+{
+	struct fm801 *chip = tea->private_data;
+	unsigned short reg;
+
+	spin_lock_irq(&chip->reg_lock);
+
+	reg = inw(FM801_REG(chip, GPIO_CTRL));
+	if (mute)
+		/* 0xf800 (mute) */
+		reg &= ~FM801_GPIO_GP(TEA_64PCR_WRITE_ENABLE);
+	else
+		/* 0xf802 (unmute) */
+		reg |= FM801_GPIO_GP(TEA_64PCR_WRITE_ENABLE);
+	outw(reg, FM801_REG(chip, GPIO_CTRL));
+	udelay(1);
+
+	spin_unlock_irq(&chip->reg_lock);
+}
+
 static struct snd_tea575x_ops snd_fm801_tea_ops[3] = {
 	{
 		/* 1 = MediaForte 256-PCS */
@@ -994,6 +1014,7 @@ static struct snd_tea575x_ops snd_fm801_tea_ops[3] = {
 		/* 3 = MediaForte 64-PCR */
 		.write = snd_fm801_tea575x_64pcr_write,
 		.read = snd_fm801_tea575x_64pcr_read,
+		.mute = snd_fm801_tea575x_64pcr_mute,
 	}
 };
 #endif

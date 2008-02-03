@@ -142,6 +142,23 @@ static inline struct nf_bridge_info *nf_bridge_alloc(struct sk_buff *skb)
 	return skb->nf_bridge;
 }
 
+static inline struct nf_bridge_info *nf_bridge_unshare(struct sk_buff *skb)
+{
+	struct nf_bridge_info *nf_bridge = skb->nf_bridge;
+
+	if (atomic_read(&nf_bridge->use) > 1) {
+		struct nf_bridge_info *tmp = nf_bridge_alloc(skb);
+
+		if (tmp) {
+			memcpy(tmp, nf_bridge, sizeof(struct nf_bridge_info));
+			atomic_set(&tmp->use, 1);
+			nf_bridge_put(nf_bridge);
+		}
+		nf_bridge = tmp;
+	}
+	return nf_bridge;
+}
+
 static inline void nf_bridge_push_encap_header(struct sk_buff *skb)
 {
 	unsigned int len = nf_bridge_encap_header_len(skb);
@@ -247,8 +264,9 @@ static void __br_dnat_complain(void)
  * Let us first consider the case that ip_route_input() succeeds:
  *
  * If skb->dst->dev equals the logical bridge device the packet
- * came in on, we can consider this bridging. We then call
- * skb->dst->output() which will make the packet enter br_nf_local_out()
+ * came in on, we can consider this bridging. The packet is passed
+ * through the neighbour output function to build a new destination
+ * MAC address, which will make the packet enter br_nf_local_out()
  * not much later. In that function it is assured that the iptables
  * FORWARD chain is traversed for the packet.
  *
@@ -285,12 +303,17 @@ static int br_nf_pre_routing_finish_bridge(struct sk_buff *skb)
 	skb->nf_bridge->mask ^= BRNF_NF_BRIDGE_PREROUTING;
 
 	skb->dev = bridge_parent(skb->dev);
-	if (!skb->dev)
-		kfree_skb(skb);
-	else {
+	if (skb->dev) {
+		struct dst_entry *dst = skb->dst;
+
 		nf_bridge_pull_encap_header(skb);
-		skb->dst->output(skb);
+
+		if (dst->hh)
+			return neigh_hh_output(dst->hh, skb);
+		else if (dst->neighbour)
+			return dst->neighbour->output(skb);
 	}
+	kfree_skb(skb);
 	return 0;
 }
 
@@ -330,7 +353,7 @@ static int br_nf_pre_routing_finish(struct sk_buff *skb)
 			if (err != -EHOSTUNREACH || !in_dev || IN_DEV_FORWARD(in_dev))
 				goto free_skb;
 
-			if (!ip_route_output_key(&rt, &fl)) {
+			if (!ip_route_output_key(&init_net, &rt, &fl)) {
 				/* - Bridged-and-DNAT'ed traffic doesn't
 				 *   require ip_forwarding. */
 				if (((struct dst_entry *)rt)->dev == dev) {
@@ -488,7 +511,7 @@ static unsigned int br_nf_pre_routing_ipv6(unsigned int hook,
 	if (!setup_pre_routing(skb))
 		return NF_DROP;
 
-	NF_HOOK(PF_INET6, NF_IP6_PRE_ROUTING, skb, skb->dev, NULL,
+	NF_HOOK(PF_INET6, NF_INET_PRE_ROUTING, skb, skb->dev, NULL,
 		br_nf_pre_routing_finish_ipv6);
 
 	return NF_STOLEN;
@@ -561,7 +584,7 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff *skb,
 		return NF_DROP;
 	store_orig_dstaddr(skb);
 
-	NF_HOOK(PF_INET, NF_IP_PRE_ROUTING, skb, skb->dev, NULL,
+	NF_HOOK(PF_INET, NF_INET_PRE_ROUTING, skb, skb->dev, NULL,
 		br_nf_pre_routing_finish);
 
 	return NF_STOLEN;
@@ -631,6 +654,11 @@ static unsigned int br_nf_forward_ip(unsigned int hook, struct sk_buff *skb,
 	if (!skb->nf_bridge)
 		return NF_ACCEPT;
 
+	/* Need exclusive nf_bridge_info since we might have multiple
+	 * different physoutdevs. */
+	if (!nf_bridge_unshare(skb))
+		return NF_DROP;
+
 	parent = bridge_parent(out);
 	if (!parent)
 		return NF_DROP;
@@ -653,7 +681,7 @@ static unsigned int br_nf_forward_ip(unsigned int hook, struct sk_buff *skb,
 	nf_bridge->mask |= BRNF_BRIDGED;
 	nf_bridge->physoutdev = skb->dev;
 
-	NF_HOOK(pf, NF_IP_FORWARD, skb, bridge_parent(in), parent,
+	NF_HOOK(pf, NF_INET_FORWARD, skb, bridge_parent(in), parent,
 		br_nf_forward_finish);
 
 	return NF_STOLEN;
@@ -712,6 +740,11 @@ static unsigned int br_nf_local_out(unsigned int hook, struct sk_buff *skb,
 	if (!skb->nf_bridge)
 		return NF_ACCEPT;
 
+	/* Need exclusive nf_bridge_info since we might have multiple
+	 * different physoutdevs. */
+	if (!nf_bridge_unshare(skb))
+		return NF_DROP;
+
 	nf_bridge = skb->nf_bridge;
 	if (!(nf_bridge->mask & BRNF_BRIDGED_DNAT))
 		return NF_ACCEPT;
@@ -766,6 +799,9 @@ static unsigned int br_nf_post_routing(unsigned int hook, struct sk_buff *skb,
 	if (!nf_bridge)
 		return NF_ACCEPT;
 
+	if (!(nf_bridge->mask & (BRNF_BRIDGED | BRNF_BRIDGED_DNAT)))
+		return NF_ACCEPT;
+
 	if (!realoutdev)
 		return NF_DROP;
 
@@ -792,11 +828,7 @@ static unsigned int br_nf_post_routing(unsigned int hook, struct sk_buff *skb,
 	nf_bridge_pull_encap_header(skb);
 	nf_bridge_save_header(skb);
 
-#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
-	if (nf_bridge->netoutdev)
-		realoutdev = nf_bridge->netoutdev;
-#endif
-	NF_HOOK(pf, NF_IP_POST_ROUTING, skb, NULL, realoutdev,
+	NF_HOOK(pf, NF_INET_POST_ROUTING, skb, NULL, realoutdev,
 		br_nf_dev_queue_xmit);
 
 	return NF_STOLEN;
@@ -835,7 +867,7 @@ static unsigned int ip_sabotage_in(unsigned int hook, struct sk_buff *skb,
  * PF_BRIDGE/NF_BR_LOCAL_OUT functions don't get bridged traffic as input.
  * For br_nf_post_routing, we need (prio = NF_BR_PRI_LAST), because
  * ip_refrag() can return NF_STOLEN. */
-static struct nf_hook_ops br_nf_ops[] = {
+static struct nf_hook_ops br_nf_ops[] __read_mostly = {
 	{ .hook = br_nf_pre_routing,
 	  .owner = THIS_MODULE,
 	  .pf = PF_BRIDGE,
@@ -869,12 +901,12 @@ static struct nf_hook_ops br_nf_ops[] = {
 	{ .hook = ip_sabotage_in,
 	  .owner = THIS_MODULE,
 	  .pf = PF_INET,
-	  .hooknum = NF_IP_PRE_ROUTING,
+	  .hooknum = NF_INET_PRE_ROUTING,
 	  .priority = NF_IP_PRI_FIRST, },
 	{ .hook = ip_sabotage_in,
 	  .owner = THIS_MODULE,
 	  .pf = PF_INET6,
-	  .hooknum = NF_IP6_PRE_ROUTING,
+	  .hooknum = NF_INET_PRE_ROUTING,
 	  .priority = NF_IP6_PRI_FIRST, },
 };
 
@@ -931,24 +963,10 @@ static ctl_table brnf_table[] = {
 	{ .ctl_name = 0 }
 };
 
-static ctl_table brnf_bridge_table[] = {
-	{
-		.ctl_name	= NET_BRIDGE,
-		.procname	= "bridge",
-		.mode		= 0555,
-		.child		= brnf_table,
-	},
-	{ .ctl_name = 0 }
-};
-
-static ctl_table brnf_net_table[] = {
-	{
-		.ctl_name	= CTL_NET,
-		.procname	= "net",
-		.mode		= 0555,
-		.child		= brnf_bridge_table,
-	},
-	{ .ctl_name = 0 }
+static struct ctl_path brnf_path[] = {
+	{ .procname = "net", .ctl_name = CTL_NET, },
+	{ .procname = "bridge", .ctl_name = NET_BRIDGE, },
+	{ }
 };
 #endif
 
@@ -960,7 +978,7 @@ int __init br_netfilter_init(void)
 	if (ret < 0)
 		return ret;
 #ifdef CONFIG_SYSCTL
-	brnf_sysctl_header = register_sysctl_table(brnf_net_table);
+	brnf_sysctl_header = register_sysctl_paths(brnf_path, brnf_table);
 	if (brnf_sysctl_header == NULL) {
 		printk(KERN_WARNING
 		       "br_netfilter: can't register to sysctl.\n");

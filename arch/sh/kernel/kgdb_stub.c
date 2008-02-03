@@ -102,6 +102,7 @@
 #include <linux/init.h>
 #include <linux/console.h>
 #include <linux/sysrq.h>
+#include <linux/module.h>
 #include <asm/system.h>
 #include <asm/cacheflush.h>
 #include <asm/current.h>
@@ -116,7 +117,9 @@ kgdb_debug_hook_t *kgdb_debug_hook;
 kgdb_bus_error_hook_t *kgdb_bus_err_hook;
 
 int (*kgdb_getchar)(void);
+EXPORT_SYMBOL_GPL(kgdb_getchar);
 void (*kgdb_putchar)(int);
+EXPORT_SYMBOL_GPL(kgdb_putchar);
 
 static void put_debug_char(int c)
 {
@@ -136,7 +139,7 @@ static int get_debug_char(void)
 #define NUMREGBYTES (MAXREG*4)
 #define OUTBUFMAX (NUMREGBYTES*2+512)
 
-enum regs {
+enum {
 	R0 = 0, R1,  R2,  R3,   R4,   R5,  R6, R7,
 	R8, R9, R10, R11, R12,  R13,  R14, R15,
 	PC, PR, GBR, VBR, MACH, MACL, SR,
@@ -176,9 +179,13 @@ int kgdb_nofault;		/* Boolean to ignore bus errs (i.e. in GDB) */
 
 /* SCI/UART settings, used in kgdb_console_setup() */
 int  kgdb_portnum = CONFIG_KGDB_DEFPORT;
+EXPORT_SYMBOL_GPL(kgdb_portnum);
 int  kgdb_baud = CONFIG_KGDB_DEFBAUD;
+EXPORT_SYMBOL_GPL(kgdb_baud);
 char kgdb_parity = CONFIG_KGDB_DEFPARITY;
+EXPORT_SYMBOL_GPL(kgdb_parity);
 char kgdb_bits = CONFIG_KGDB_DEFBITS;
+EXPORT_SYMBOL_GPL(kgdb_bits);
 
 /* Jump buffer for setjmp/longjmp */
 static jmp_buf rem_com_env;

@@ -267,13 +267,12 @@ static int ads7846_read12_ser(struct device *dev, unsigned command)
 	ts->irq_disabled = 0;
 	enable_irq(spi->irq);
 
-	if (req->msg.status)
-		status = req->msg.status;
-
-	/* on-wire is a must-ignore bit, a BE12 value, then padding */
-	sample = be16_to_cpu(req->sample);
-	sample = sample >> 3;
-	sample &= 0x0fff;
+	if (status == 0) {
+		/* on-wire is a must-ignore bit, a BE12 value, then padding */
+		sample = be16_to_cpu(req->sample);
+		sample = sample >> 3;
+		sample &= 0x0fff;
+	}
 
 	kfree(req);
 	return status ? status : sample;

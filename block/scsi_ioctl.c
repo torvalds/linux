@@ -230,7 +230,7 @@ static int blk_fill_sghdr_rq(struct request_queue *q, struct request *rq,
 	rq->cmd_len = hdr->cmd_len;
 	rq->cmd_type = REQ_TYPE_BLOCK_PC;
 
-	rq->timeout = (hdr->timeout * HZ) / 1000;
+	rq->timeout = msecs_to_jiffies(hdr->timeout);
 	if (!rq->timeout)
 		rq->timeout = q->sg_timeout;
 	if (!rq->timeout)
@@ -366,7 +366,7 @@ static int sg_io(struct file *file, struct request_queue *q,
 	 */
 	blk_execute_rq(q, bd_disk, rq, 0);
 
-	hdr->duration = ((jiffies - start_time) * 1000) / HZ;
+	hdr->duration = jiffies_to_msecs(jiffies - start_time);
 
 	return blk_complete_sghdr_rq(rq, hdr, bio);
 out:

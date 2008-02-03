@@ -2,6 +2,7 @@
   * This file contains the handling of TX in wlan driver.
   */
 #include <linux/netdevice.h>
+#include <linux/etherdevice.h>
 
 #include "hostcmd.h"
 #include "radiotap.h"
@@ -49,188 +50,122 @@ static u32 convert_radiotap_rate_to_mv(u8 rate)
 }
 
 /**
- *  @brief This function processes a single packet and sends
- *  to IF layer
+ *  @brief This function checks the conditions and sends packet to IF
+ *  layer if everything is ok.
  *
- *  @param priv    A pointer to wlan_private structure
+ *  @param priv    A pointer to struct lbs_private structure
  *  @param skb     A pointer to skb which includes TX packet
  *  @return 	   0 or -1
  */
-static int SendSinglePacket(wlan_private * priv, struct sk_buff *skb)
+int lbs_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	int ret = 0;
-	struct txpd localtxpd;
-	struct txpd *plocaltxpd = &localtxpd;
-	u8 *p802x_hdr;
-	struct tx_radiotap_hdr *pradiotap_hdr;
-	u32 new_rate;
-	u8 *ptr = priv->adapter->tmptxbuf;
+	unsigned long flags;
+	struct lbs_private *priv = dev->priv;
+	struct txpd *txpd;
+	char *p802x_hdr;
+	uint16_t pkt_len;
+	int ret;
 
 	lbs_deb_enter(LBS_DEB_TX);
 
-	if (priv->adapter->surpriseremoved)
-		return -1;
+	ret = NETDEV_TX_OK;
+
+	/* We need to protect against the queues being restarted before
+	   we get round to stopping them */
+	spin_lock_irqsave(&priv->driver_lock, flags);
+
+	if (priv->surpriseremoved)
+		goto free;
 
 	if (!skb->len || (skb->len > MRVDRV_ETH_TX_PACKET_BUFFER_SIZE)) {
 		lbs_deb_tx("tx err: skb length %d 0 or > %zd\n",
 		       skb->len, MRVDRV_ETH_TX_PACKET_BUFFER_SIZE);
-		ret = -1;
-		goto done;
-	}
+		/* We'll never manage to send this one; drop it and return 'OK' */
 
-	memset(plocaltxpd, 0, sizeof(struct txpd));
-
-	plocaltxpd->tx_packet_length = cpu_to_le16(skb->len);
-
-	/* offset of actual data */
-	plocaltxpd->tx_packet_location = cpu_to_le32(sizeof(struct txpd));
-
-	p802x_hdr = skb->data;
-	if (priv->adapter->monitormode != WLAN_MONITOR_OFF) {
-
-		/* locate radiotap header */
-		pradiotap_hdr = (struct tx_radiotap_hdr *)skb->data;
-
-		/* set txpd fields from the radiotap header */
-		new_rate = convert_radiotap_rate_to_mv(pradiotap_hdr->rate);
-		if (new_rate != 0) {
-			/* use new tx_control[4:0] */
-			plocaltxpd->tx_control = cpu_to_le32(new_rate);
-		}
-
-		/* skip the radiotap header */
-		p802x_hdr += sizeof(struct tx_radiotap_hdr);
-		plocaltxpd->tx_packet_length =
-			cpu_to_le16(le16_to_cpu(plocaltxpd->tx_packet_length)
-				    - sizeof(struct tx_radiotap_hdr));
-
-	}
-	/* copy destination address from 802.3 or 802.11 header */
-	if (priv->adapter->monitormode != WLAN_MONITOR_OFF)
-		memcpy(plocaltxpd->tx_dest_addr_high, p802x_hdr + 4, ETH_ALEN);
-	else
-		memcpy(plocaltxpd->tx_dest_addr_high, p802x_hdr, ETH_ALEN);
-
-	lbs_deb_hex(LBS_DEB_TX, "txpd", (u8 *) plocaltxpd, sizeof(struct txpd));
-
-	if (IS_MESH_FRAME(skb)) {
-		plocaltxpd->tx_control |= cpu_to_le32(TxPD_MESH_FRAME);
-	}
-
-	memcpy(ptr, plocaltxpd, sizeof(struct txpd));
-
-	ptr += sizeof(struct txpd);
-
-	lbs_deb_hex(LBS_DEB_TX, "Tx Data", (u8 *) p802x_hdr, le16_to_cpu(plocaltxpd->tx_packet_length));
-	memcpy(ptr, p802x_hdr, le16_to_cpu(plocaltxpd->tx_packet_length));
-	ret = priv->hw_host_to_card(priv, MVMS_DAT,
-				    priv->adapter->tmptxbuf,
-				    le16_to_cpu(plocaltxpd->tx_packet_length) +
-				    sizeof(struct txpd));
-
-	if (ret) {
-		lbs_deb_tx("tx err: hw_host_to_card returned 0x%X\n", ret);
-		goto done;
-	}
-
-	lbs_deb_tx("SendSinglePacket succeeds\n");
-
-done:
-	if (!ret) {
-		priv->stats.tx_packets++;
-		priv->stats.tx_bytes += skb->len;
-	} else {
 		priv->stats.tx_dropped++;
 		priv->stats.tx_errors++;
+		goto free;
 	}
 
-	if (!ret && priv->adapter->monitormode != WLAN_MONITOR_OFF) {
+
+	netif_stop_queue(priv->dev);
+	if (priv->mesh_dev)
+		netif_stop_queue(priv->mesh_dev);
+
+	if (priv->tx_pending_len) {
+		/* This can happen if packets come in on the mesh and eth
+		   device simultaneously -- there's no mutual exclusion on
+		   hard_start_xmit() calls between devices. */
+		lbs_deb_tx("Packet on %s while busy\n", dev->name);
+		ret = NETDEV_TX_BUSY;
+		goto unlock;
+	}
+
+	priv->tx_pending_len = -1;
+	spin_unlock_irqrestore(&priv->driver_lock, flags);
+
+	lbs_deb_hex(LBS_DEB_TX, "TX Data", skb->data, min_t(unsigned int, skb->len, 100));
+
+	txpd = (void *)priv->tx_pending_buf;
+	memset(txpd, 0, sizeof(struct txpd));
+
+	p802x_hdr = skb->data;
+	pkt_len = skb->len;
+
+	if (dev == priv->rtap_net_dev) {
+		struct tx_radiotap_hdr *rtap_hdr = (void *)skb->data;
+
+		/* set txpd fields from the radiotap header */
+		txpd->tx_control = cpu_to_le32(convert_radiotap_rate_to_mv(rtap_hdr->rate));
+
+		/* skip the radiotap header */
+		p802x_hdr += sizeof(*rtap_hdr);
+		pkt_len -= sizeof(*rtap_hdr);
+
+		/* copy destination address from 802.11 header */
+		memcpy(txpd->tx_dest_addr_high, p802x_hdr + 4, ETH_ALEN);
+	} else {
+		/* copy destination address from 802.3 header */
+		memcpy(txpd->tx_dest_addr_high, p802x_hdr, ETH_ALEN);
+	}
+
+	txpd->tx_packet_length = cpu_to_le16(pkt_len);
+	txpd->tx_packet_location = cpu_to_le32(sizeof(struct txpd));
+
+	if (dev == priv->mesh_dev)
+		txpd->tx_control |= cpu_to_le32(TxPD_MESH_FRAME);
+
+	lbs_deb_hex(LBS_DEB_TX, "txpd", (u8 *) &txpd, sizeof(struct txpd));
+
+	lbs_deb_hex(LBS_DEB_TX, "Tx Data", (u8 *) p802x_hdr, le16_to_cpu(txpd->tx_packet_length));
+
+	memcpy(&txpd[1], p802x_hdr, le16_to_cpu(txpd->tx_packet_length));
+
+	spin_lock_irqsave(&priv->driver_lock, flags);
+	priv->tx_pending_len = pkt_len + sizeof(struct txpd);
+
+	lbs_deb_tx("%s lined up packet\n", __func__);
+
+	priv->stats.tx_packets++;
+	priv->stats.tx_bytes += skb->len;
+
+	dev->trans_start = jiffies;
+
+	if (priv->monitormode != LBS_MONITOR_OFF) {
 		/* Keep the skb to echo it back once Tx feedback is
 		   received from FW */
 		skb_orphan(skb);
-		/* stop processing outgoing pkts */
-		netif_stop_queue(priv->dev);
-		if (priv->mesh_dev)
-			netif_stop_queue(priv->mesh_dev);
-		/* freeze any packets already in our queues */
-		priv->adapter->TxLockFlag = 1;
+
+		/* Keep the skb around for when we get feedback */
+		priv->currenttxskb = skb;
 	} else {
+ free:
 		dev_kfree_skb_any(skb);
-		priv->adapter->currenttxskb = NULL;
 	}
+ unlock:
+	spin_unlock_irqrestore(&priv->driver_lock, flags);
+	wake_up(&priv->waitq);
 
-	lbs_deb_leave_args(LBS_DEB_TX, "ret %d", ret);
-	return ret;
-}
-
-
-void libertas_tx_runqueue(wlan_private *priv)
-{
-	wlan_adapter *adapter = priv->adapter;
-	int i;
-
-	spin_lock(&adapter->txqueue_lock);
-	for (i = 0; i < adapter->tx_queue_idx; i++) {
-		struct sk_buff *skb = adapter->tx_queue_ps[i];
-		spin_unlock(&adapter->txqueue_lock);
-		SendSinglePacket(priv, skb);
-		spin_lock(&adapter->txqueue_lock);
-	}
-	adapter->tx_queue_idx = 0;
-	spin_unlock(&adapter->txqueue_lock);
-}
-
-static void wlan_tx_queue(wlan_private *priv, struct sk_buff *skb)
-{
-	wlan_adapter *adapter = priv->adapter;
-
-	spin_lock(&adapter->txqueue_lock);
-
-	WARN_ON(priv->adapter->tx_queue_idx >= NR_TX_QUEUE);
-	adapter->tx_queue_ps[adapter->tx_queue_idx++] = skb;
-	if (adapter->tx_queue_idx == NR_TX_QUEUE) {
-		netif_stop_queue(priv->dev);
-		if (priv->mesh_dev)
-			netif_stop_queue(priv->mesh_dev);
-	} else {
-		netif_start_queue(priv->dev);
-		if (priv->mesh_dev)
-			netif_start_queue(priv->mesh_dev);
-	}
-
-	spin_unlock(&adapter->txqueue_lock);
-}
-
-/**
- *  @brief This function checks the conditions and sends packet to IF
- *  layer if everything is ok.
- *
- *  @param priv    A pointer to wlan_private structure
- *  @return 	   n/a
- */
-int libertas_process_tx(wlan_private * priv, struct sk_buff *skb)
-{
-	int ret = -1;
-
-	lbs_deb_enter(LBS_DEB_TX);
-	lbs_deb_hex(LBS_DEB_TX, "TX Data", skb->data, min_t(unsigned int, skb->len, 100));
-
-	if (priv->dnld_sent) {
-		lbs_pr_alert( "TX error: dnld_sent = %d, not sending\n",
-		       priv->dnld_sent);
-		goto done;
-	}
-
-	if ((priv->adapter->psstate == PS_STATE_SLEEP) ||
-	    (priv->adapter->psstate == PS_STATE_PRE_SLEEP)) {
-		wlan_tx_queue(priv, skb);
-		return ret;
-	}
-
-	priv->adapter->currenttxskb = skb;
-
-	ret = SendSinglePacket(priv, skb);
-done:
 	lbs_deb_leave_args(LBS_DEB_TX, "ret %d", ret);
 	return ret;
 }
@@ -239,24 +174,23 @@ done:
  *  @brief This function sends to the host the last transmitted packet,
  *  filling the radiotap headers with transmission information.
  *
- *  @param priv     A pointer to wlan_private structure
+ *  @param priv     A pointer to struct lbs_private structure
  *  @param status   A 32 bit value containing transmission status.
  *
  *  @returns void
  */
-void libertas_send_tx_feedback(wlan_private * priv)
+void lbs_send_tx_feedback(struct lbs_private *priv)
 {
-	wlan_adapter *adapter = priv->adapter;
 	struct tx_radiotap_hdr *radiotap_hdr;
-	u32 status = adapter->eventcause;
+	u32 status = priv->eventcause;
 	int txfail;
 	int try_count;
 
-	if (adapter->monitormode == WLAN_MONITOR_OFF ||
-	    adapter->currenttxskb == NULL)
+	if (priv->monitormode == LBS_MONITOR_OFF ||
+	    priv->currenttxskb == NULL)
 		return;
 
-	radiotap_hdr = (struct tx_radiotap_hdr *)adapter->currenttxskb->data;
+	radiotap_hdr = (struct tx_radiotap_hdr *)priv->currenttxskb->data;
 
 	txfail = (status >> 24);
 
@@ -269,14 +203,19 @@ void libertas_send_tx_feedback(wlan_private * priv)
 #endif
 	try_count = (status >> 16) & 0xff;
 	radiotap_hdr->data_retries = (try_count) ?
-	    (1 + adapter->txretrycount - try_count) : 0;
-	libertas_upload_rx_packet(priv, adapter->currenttxskb);
-	adapter->currenttxskb = NULL;
-	priv->adapter->TxLockFlag = 0;
-	if (priv->adapter->connect_status == LIBERTAS_CONNECTED) {
+	    (1 + priv->txretrycount - try_count) : 0;
+
+
+	priv->currenttxskb->protocol = eth_type_trans(priv->currenttxskb,
+						      priv->rtap_net_dev);
+	netif_rx(priv->currenttxskb);
+
+	priv->currenttxskb = NULL;
+
+	if (priv->connect_status == LBS_CONNECTED)
 		netif_wake_queue(priv->dev);
-		if (priv->mesh_dev)
-			netif_wake_queue(priv->mesh_dev);
-	}
+
+	if (priv->mesh_dev && (priv->mesh_connect_status == LBS_CONNECTED))
+		netif_wake_queue(priv->mesh_dev);
 }
-EXPORT_SYMBOL_GPL(libertas_send_tx_feedback);
+EXPORT_SYMBOL_GPL(lbs_send_tx_feedback);

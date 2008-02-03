@@ -145,6 +145,20 @@ int elf_coredump_extra_notes_write(struct file *file, loff_t *foffset)
 	return ret;
 }
 
+void notify_spus_active(void)
+{
+	struct spufs_calls *calls;
+
+	calls = spufs_calls_get();
+	if (!calls)
+		return;
+
+	calls->notify_spus_active();
+	spufs_calls_put(calls);
+
+	return;
+}
+
 int register_spu_syscalls(struct spufs_calls *calls)
 {
 	if (spufs_calls)

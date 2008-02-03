@@ -699,11 +699,22 @@ static int __init vdso_init(void)
 	vdso_data->icache_size = ppc64_caches.isize;
 	vdso_data->icache_line_size = ppc64_caches.iline_size;
 
+	/* XXXOJN: Blocks should be added to ppc64_caches and used instead */
+	vdso_data->dcache_block_size = ppc64_caches.dline_size;
+	vdso_data->icache_block_size = ppc64_caches.iline_size;
+	vdso_data->dcache_log_block_size = ppc64_caches.log_dline_size;
+	vdso_data->icache_log_block_size = ppc64_caches.log_iline_size;
+
 	/*
 	 * Calculate the size of the 64 bits vDSO
 	 */
 	vdso64_pages = (&vdso64_end - &vdso64_start) >> PAGE_SHIFT;
 	DBG("vdso64_kbase: %p, 0x%x pages\n", vdso64_kbase, vdso64_pages);
+#else
+	vdso_data->dcache_block_size = L1_CACHE_BYTES;
+	vdso_data->dcache_log_block_size = L1_CACHE_SHIFT;
+	vdso_data->icache_block_size = L1_CACHE_BYTES;
+	vdso_data->icache_log_block_size = L1_CACHE_SHIFT;
 #endif /* CONFIG_PPC64 */
 
 

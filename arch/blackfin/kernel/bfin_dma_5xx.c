@@ -339,13 +339,13 @@ EXPORT_SYMBOL(set_dma_config);
 
 unsigned short
 set_bfin_dma_config(char direction, char flow_mode,
-		    char intr_mode, char dma_mode, char width)
+		    char intr_mode, char dma_mode, char width, char syncmode)
 {
 	unsigned short config;
 
 	config =
 	    ((direction << 1) | (width << 2) | (dma_mode << 4) |
-	     (intr_mode << 6) | (flow_mode << 12) | RESTART);
+	     (intr_mode << 6) | (flow_mode << 12) | (syncmode << 5));
 	return config;
 }
 EXPORT_SYMBOL(set_bfin_dma_config);
@@ -436,6 +436,7 @@ unsigned long get_dma_curr_desc_ptr(unsigned int channel)
 
 	return dma_ch[channel].regs->curr_desc_ptr;
 }
+EXPORT_SYMBOL(get_dma_curr_desc_ptr);
 
 unsigned long get_dma_curr_addr(unsigned int channel)
 {

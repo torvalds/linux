@@ -21,8 +21,9 @@
  */
 
 #include <linux/cpufreq.h>
+#include <linux/of_platform.h>
+
 #include <asm/machdep.h>
-#include <asm/of_platform.h>
 #include <asm/prom.h>
 #include <asm/cell-regs.h>
 #include "cbe_cpufreq.h"

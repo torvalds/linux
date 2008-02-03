@@ -135,8 +135,6 @@ static int ixpdev_poll(struct napi_struct *napi, int budget)
 	struct net_device *dev = ip->dev;
 	int rx;
 
-	/* @@@ Have to stop polling when nds[0] is administratively
-	 * downed while we are polling.  */
 	rx = 0;
 	do {
 		ixp2000_reg_write(IXP2000_IRQ_THD_RAW_STATUS_A_0, 0x00ff);

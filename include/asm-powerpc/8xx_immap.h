@@ -123,7 +123,7 @@ typedef struct	mem_ctlr {
 #define OR_G5LA		0x00000400	/* Output #GPL5 on #GPL_A5		*/
 #define OR_G5LS		0x00000200	/* Drive #GPL high on falling edge of...*/
 #define OR_BI		0x00000100	/* Burst inhibit			*/
-#define OR_SCY_MSK	0x000000f0	/* Cycle Lenght in Clocks		*/
+#define OR_SCY_MSK	0x000000f0	/* Cycle Length in Clocks		*/
 #define OR_SCY_0_CLK	0x00000000	/* 0 clock cycles wait states		*/
 #define OR_SCY_1_CLK	0x00000010	/* 1 clock cycles wait states		*/
 #define OR_SCY_2_CLK	0x00000020	/* 2 clock cycles wait states		*/

@@ -397,7 +397,7 @@ void fastcall __put_ioctx(struct kioctx *ctx)
  * This prevents races between the aio code path referencing the
  * req (after submitting it) and aio_complete() freeing the req.
  */
-static struct kiocb *FASTCALL(__aio_get_req(struct kioctx *ctx));
+static struct kiocb *__aio_get_req(struct kioctx *ctx);
 static struct kiocb fastcall *__aio_get_req(struct kioctx *ctx)
 {
 	struct kiocb *req = NULL;
@@ -1161,7 +1161,12 @@ retry:
 			ret = 0;
 			if (to.timed_out)	/* Only check after read evt */
 				break;
-			io_schedule();
+			/* Try to only show up in io wait if there are ops
+			 *  in flight */
+			if (ctx->reqs_active)
+				io_schedule();
+			else
+				schedule();
 			if (signal_pending(tsk)) {
 				ret = -EINTR;
 				break;

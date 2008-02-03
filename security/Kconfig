@@ -76,6 +76,7 @@ config SECURITY_NETWORK_XFRM
 config SECURITY_CAPABILITIES
 	bool "Default Linux Capabilities"
 	depends on SECURITY
+	default y
 	help
 	  This enables the "default" Linux capabilities functionality.
 	  If you are unsure how to answer this question, answer Y.

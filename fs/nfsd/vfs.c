@@ -132,7 +132,7 @@ out:
 
 __be32
 nfsd_lookup_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp,
-		   const char *name, int len,
+		   const char *name, unsigned int len,
 		   struct svc_export **exp_ret, struct dentry **dentry_ret)
 {
 	struct svc_export	*exp;
@@ -226,7 +226,7 @@ out_nfserr:
  */
 __be32
 nfsd_lookup(struct svc_rqst *rqstp, struct svc_fh *fhp, const char *name,
-					int len, struct svc_fh *resfh)
+				unsigned int len, struct svc_fh *resfh)
 {
 	struct svc_export	*exp;
 	struct dentry		*dentry;
@@ -1151,6 +1151,26 @@ nfsd_commit(struct svc_rqst *rqstp, struct svc_fh *fhp,
 }
 #endif /* CONFIG_NFSD_V3 */
 
+__be32
+nfsd_create_setattr(struct svc_rqst *rqstp, struct svc_fh *resfhp,
+			struct iattr *iap)
+{
+	/*
+	 * Mode has already been set earlier in create:
+	 */
+	iap->ia_valid &= ~ATTR_MODE;
+	/*
+	 * Setting uid/gid works only for root.  Irix appears to
+	 * send along the gid on create when it tries to implement
+	 * setgid directories via NFS:
+	 */
+	if (current->fsuid != 0)
+		iap->ia_valid &= ~(ATTR_UID|ATTR_GID);
+	if (iap->ia_valid)
+		return nfsd_setattr(rqstp, resfhp, iap, 0, (time_t)0);
+	return 0;
+}
+
 /*
  * Create a file (regular, directory, device, fifo); UNIX sockets 
  * not yet implemented.
@@ -1167,6 +1187,7 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	struct dentry	*dentry, *dchild = NULL;
 	struct inode	*dirp;
 	__be32		err;
+	__be32		err2;
 	int		host_err;
 
 	err = nfserr_perm;
@@ -1257,16 +1278,9 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	}
 
 
-	/* Set file attributes. Mode has already been set and
-	 * setting uid/gid works only for root. Irix appears to
-	 * send along the gid when it tries to implement setgid
-	 * directories via NFS.
-	 */
-	if ((iap->ia_valid &= ~(ATTR_UID|ATTR_GID|ATTR_MODE)) != 0) {
-		__be32 err2 = nfsd_setattr(rqstp, resfhp, iap, 0, (time_t)0);
-		if (err2)
-			err = err2;
-	}
+	err2 = nfsd_create_setattr(rqstp, resfhp, iap);
+	if (err2)
+		err = err2;
 	/*
 	 * Update the file handle to get the new inode info.
 	 */
@@ -1295,6 +1309,7 @@ nfsd_create_v3(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	struct dentry	*dentry, *dchild = NULL;
 	struct inode	*dirp;
 	__be32		err;
+	__be32		err2;
 	int		host_err;
 	__u32		v_mtime=0, v_atime=0;
 
@@ -1399,16 +1414,10 @@ nfsd_create_v3(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		iap->ia_atime.tv_nsec = 0;
 	}
 
-	/* Set file attributes.
-	 * Irix appears to send along the gid when it tries to
-	 * implement setgid directories via NFS. Clear out all that cruft.
-	 */
  set_attr:
-	if ((iap->ia_valid &= ~(ATTR_UID|ATTR_GID|ATTR_MODE)) != 0) {
- 		__be32 err2 = nfsd_setattr(rqstp, resfhp, iap, 0, (time_t)0);
-		if (err2)
-			err = err2;
-	}
+	err2 = nfsd_create_setattr(rqstp, resfhp, iap);
+	if (err2)
+		err = err2;
 
 	/*
 	 * Update the filehandle to get the new inode info.

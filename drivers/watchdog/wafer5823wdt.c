@@ -45,7 +45,7 @@
 
 static unsigned long wafwdt_is_open;
 static char expect_close;
-static spinlock_t wafwdt_lock;
+static DEFINE_SPINLOCK(wafwdt_lock);
 
 /*
  *	You must set these - there is no sane way to probe for this board.
@@ -251,8 +251,6 @@ static int __init wafwdt_init(void)
 	int ret;
 
 	printk(KERN_INFO "WDT driver for Wafer 5823 single board computer initialising.\n");
-
-	spin_lock_init(&wafwdt_lock);
 
 	if (timeout < 1 || timeout > 255) {
 		timeout = WD_TIMO;

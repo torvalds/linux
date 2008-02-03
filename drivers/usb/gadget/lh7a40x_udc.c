@@ -474,6 +474,7 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	spin_unlock_irqrestore(&dev->lock, flags);
 
 	driver->unbind(&dev->gadget);
+	dev->gadget.dev.driver = NULL;
 	device_del(&dev->gadget.dev);
 
 	udc_disable(dev);

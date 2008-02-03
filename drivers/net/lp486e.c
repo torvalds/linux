@@ -1144,13 +1144,12 @@ i596_handle_CU_completion(struct net_device *dev,
 }
 
 static irqreturn_t
-i596_interrupt (int irq, void *dev_instance) {
-	struct net_device *dev = (struct net_device *) dev_instance;
-	struct i596_private *lp;
+i596_interrupt(int irq, void *dev_instance)
+{
+	struct net_device *dev = dev_instance;
+	struct i596_private *lp = dev->priv;
 	unsigned short status, ack_cmd = 0;
 	int frames_in = 0;
-
-	lp = (struct i596_private *) dev->priv;
 
 	/*
 	 * The 82596 examines the command, performs the required action,

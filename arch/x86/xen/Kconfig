@@ -5,6 +5,7 @@
 config XEN
 	bool "Xen guest support"
 	select PARAVIRT
+	depends on X86_32
 	depends on X86_CMPXCHG && X86_TSC && !NEED_MULTIPLE_NODES && !(X86_VISWS || X86_VOYAGER)
 	help
 	  This is the Linux Xen port.  Enabling this will allow the

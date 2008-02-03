@@ -16,19 +16,15 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Bart De Schuymer <bdschuym@pandora.be>");
-MODULE_DESCRIPTION("iptables bridge physical device match module");
+MODULE_DESCRIPTION("Xtables: Bridge physical device match");
 MODULE_ALIAS("ipt_physdev");
 MODULE_ALIAS("ip6t_physdev");
 
 static bool
-match(const struct sk_buff *skb,
-      const struct net_device *in,
-      const struct net_device *out,
-      const struct xt_match *match,
-      const void *matchinfo,
-      int offset,
-      unsigned int protoff,
-      bool *hotdrop)
+physdev_mt(const struct sk_buff *skb, const struct net_device *in,
+           const struct net_device *out, const struct xt_match *match,
+           const void *matchinfo, int offset, unsigned int protoff,
+           bool *hotdrop)
 {
 	int i;
 	static const char nulldevname[IFNAMSIZ];
@@ -99,11 +95,9 @@ match_outdev:
 }
 
 static bool
-checkentry(const char *tablename,
-		       const void *ip,
-		       const struct xt_match *match,
-		       void *matchinfo,
-		       unsigned int hook_mask)
+physdev_mt_check(const char *tablename, const void *ip,
+                 const struct xt_match *match, void *matchinfo,
+                 unsigned int hook_mask)
 {
 	const struct xt_physdev_info *info = matchinfo;
 
@@ -113,46 +107,45 @@ checkentry(const char *tablename,
 	if (info->bitmask & XT_PHYSDEV_OP_OUT &&
 	    (!(info->bitmask & XT_PHYSDEV_OP_BRIDGED) ||
 	     info->invert & XT_PHYSDEV_OP_BRIDGED) &&
-	    hook_mask & ((1 << NF_IP_LOCAL_OUT) | (1 << NF_IP_FORWARD) |
-			 (1 << NF_IP_POST_ROUTING))) {
+	    hook_mask & ((1 << NF_INET_LOCAL_OUT) | (1 << NF_INET_FORWARD) |
+			 (1 << NF_INET_POST_ROUTING))) {
 		printk(KERN_WARNING "physdev match: using --physdev-out in the "
 		       "OUTPUT, FORWARD and POSTROUTING chains for non-bridged "
 		       "traffic is not supported anymore.\n");
-		if (hook_mask & (1 << NF_IP_LOCAL_OUT))
+		if (hook_mask & (1 << NF_INET_LOCAL_OUT))
 			return false;
 	}
 	return true;
 }
 
-static struct xt_match xt_physdev_match[] __read_mostly = {
+static struct xt_match physdev_mt_reg[] __read_mostly = {
 	{
 		.name		= "physdev",
 		.family		= AF_INET,
-		.checkentry	= checkentry,
-		.match		= match,
+		.checkentry	= physdev_mt_check,
+		.match		= physdev_mt,
 		.matchsize	= sizeof(struct xt_physdev_info),
 		.me		= THIS_MODULE,
 	},
 	{
 		.name		= "physdev",
 		.family		= AF_INET6,
-		.checkentry	= checkentry,
-		.match		= match,
+		.checkentry	= physdev_mt_check,
+		.match		= physdev_mt,
 		.matchsize	= sizeof(struct xt_physdev_info),
 		.me		= THIS_MODULE,
 	},
 };
 
-static int __init xt_physdev_init(void)
+static int __init physdev_mt_init(void)
 {
-	return xt_register_matches(xt_physdev_match,
-				   ARRAY_SIZE(xt_physdev_match));
+	return xt_register_matches(physdev_mt_reg, ARRAY_SIZE(physdev_mt_reg));
 }
 
-static void __exit xt_physdev_fini(void)
+static void __exit physdev_mt_exit(void)
 {
-	xt_unregister_matches(xt_physdev_match, ARRAY_SIZE(xt_physdev_match));
+	xt_unregister_matches(physdev_mt_reg, ARRAY_SIZE(physdev_mt_reg));
 }
 
-module_init(xt_physdev_init);
-module_exit(xt_physdev_fini);
+module_init(physdev_mt_init);
+module_exit(physdev_mt_exit);

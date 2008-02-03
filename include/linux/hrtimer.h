@@ -115,10 +115,8 @@ struct hrtimer {
 	enum hrtimer_restart		(*function)(struct hrtimer *);
 	struct hrtimer_clock_base	*base;
 	unsigned long			state;
-#ifdef CONFIG_HIGH_RES_TIMERS
 	enum hrtimer_cb_mode		cb_mode;
 	struct list_head		cb_entry;
-#endif
 #ifdef CONFIG_TIMER_STATS
 	void				*start_site;
 	char				start_comm[16];
@@ -194,10 +192,10 @@ struct hrtimer_cpu_base {
 	spinlock_t			lock;
 	struct lock_class_key		lock_key;
 	struct hrtimer_clock_base	clock_base[HRTIMER_MAX_CLOCK_BASES];
+	struct list_head		cb_pending;
 #ifdef CONFIG_HIGH_RES_TIMERS
 	ktime_t				expires_next;
 	int				hres_active;
-	struct list_head		cb_pending;
 	unsigned long			nr_events;
 #endif
 };
@@ -215,6 +213,11 @@ extern void hrtimer_interrupt(struct clock_event_device *dev);
 static inline ktime_t hrtimer_cb_get_time(struct hrtimer *timer)
 {
 	return timer->base->get_time();
+}
+
+static inline int hrtimer_is_hres_active(struct hrtimer *timer)
+{
+	return timer->base->cpu_base->hres_active;
 }
 
 /*
@@ -248,6 +251,10 @@ static inline ktime_t hrtimer_cb_get_time(struct hrtimer *timer)
 	return timer->base->softirq_time;
 }
 
+static inline int hrtimer_is_hres_active(struct hrtimer *timer)
+{
+	return 0;
+}
 #endif
 
 extern ktime_t ktime_get(void);
@@ -310,6 +317,7 @@ extern void hrtimer_init_sleeper(struct hrtimer_sleeper *sl,
 
 /* Soft interrupt function to run the hrtimer queues: */
 extern void hrtimer_run_queues(void);
+extern void hrtimer_run_pending(void);
 
 /* Bootup initialization: */
 extern void __init hrtimers_init(void);

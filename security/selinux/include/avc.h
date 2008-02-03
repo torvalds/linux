@@ -51,7 +51,7 @@ struct avc_audit_data {
 			struct inode *inode;
 		} fs;
 		struct {
-			char *netif;
+			int netif;
 			struct sock *sk;
 			u16 family;
 			__be16 dport;

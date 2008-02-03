@@ -71,7 +71,7 @@ void flush_icache_range(unsigned long start, unsigned long end)
 /*
  * Writeback&Invalidate the D-cache of the page
  */
-static void __flush_dcache_page(unsigned long phys)
+static void __uses_jump_to_uncached __flush_dcache_page(unsigned long phys)
 {
 	unsigned long ways, waysize, addrstart;
 	unsigned long flags;
@@ -92,7 +92,7 @@ static void __flush_dcache_page(unsigned long phys)
 	 * possible.
 	 */
 	local_irq_save(flags);
-	jump_to_P2();
+	jump_to_uncached();
 
 	ways = current_cpu_data.dcache.ways;
 	waysize = current_cpu_data.dcache.sets;
@@ -118,7 +118,7 @@ static void __flush_dcache_page(unsigned long phys)
 		addrstart += current_cpu_data.dcache.way_incr;
 	} while (--ways);
 
-	back_to_P1();
+	back_to_cached();
 	local_irq_restore(flags);
 }
 
@@ -132,15 +132,15 @@ void flush_dcache_page(struct page *page)
 		__flush_dcache_page(PHYSADDR(page_address(page)));
 }
 
-void flush_cache_all(void)
+void __uses_jump_to_uncached flush_cache_all(void)
 {
 	unsigned long flags;
 
 	local_irq_save(flags);
-	jump_to_P2();
+	jump_to_uncached();
 
 	cache_wback_all();
-	back_to_P1();
+	back_to_cached();
 	local_irq_restore(flags);
 }
 

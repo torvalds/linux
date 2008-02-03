@@ -732,9 +732,9 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *ha)
 {
 	int rval;
 	uint32_t dump_size, fixed_size, mem_size, req_q_size, rsp_q_size,
-	    eft_size;
-	dma_addr_t eft_dma;
-	void *eft;
+	    eft_size, fce_size;
+	dma_addr_t tc_dma;
+	void *tc;
 
 	if (ha->fw_dump) {
 		qla_printk(KERN_WARNING, ha,
@@ -743,7 +743,7 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *ha)
 	}
 
 	ha->fw_dumped = 0;
-	fixed_size = mem_size = eft_size = 0;
+	fixed_size = mem_size = eft_size = fce_size = 0;
 	if (IS_QLA2100(ha) || IS_QLA2200(ha)) {
 		fixed_size = sizeof(struct qla2100_fw_dump);
 	} else if (IS_QLA23XX(ha)) {
@@ -758,21 +758,21 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *ha)
 		    sizeof(uint32_t);
 
 		/* Allocate memory for Extended Trace Buffer. */
-		eft = dma_alloc_coherent(&ha->pdev->dev, EFT_SIZE, &eft_dma,
+		tc = dma_alloc_coherent(&ha->pdev->dev, EFT_SIZE, &tc_dma,
 		    GFP_KERNEL);
-		if (!eft) {
+		if (!tc) {
 			qla_printk(KERN_WARNING, ha, "Unable to allocate "
 			    "(%d KB) for EFT.\n", EFT_SIZE / 1024);
 			goto cont_alloc;
 		}
 
-		rval = qla2x00_trace_control(ha, TC_ENABLE, eft_dma,
-		    EFT_NUM_BUFFERS);
+		memset(tc, 0, EFT_SIZE);
+		rval = qla2x00_enable_eft_trace(ha, tc_dma, EFT_NUM_BUFFERS);
 		if (rval) {
 			qla_printk(KERN_WARNING, ha, "Unable to initialize "
 			    "EFT (%d).\n", rval);
-			dma_free_coherent(&ha->pdev->dev, EFT_SIZE, eft,
-			    eft_dma);
+			dma_free_coherent(&ha->pdev->dev, EFT_SIZE, tc,
+			    tc_dma);
 			goto cont_alloc;
 		}
 
@@ -780,9 +780,40 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *ha)
 		    EFT_SIZE / 1024);
 
 		eft_size = EFT_SIZE;
-		memset(eft, 0, eft_size);
-		ha->eft_dma = eft_dma;
-		ha->eft = eft;
+		ha->eft_dma = tc_dma;
+		ha->eft = tc;
+
+		/* Allocate memory for Fibre Channel Event Buffer. */
+		if (!IS_QLA25XX(ha))
+			goto cont_alloc;
+
+		tc = dma_alloc_coherent(&ha->pdev->dev, FCE_SIZE, &tc_dma,
+		    GFP_KERNEL);
+		if (!tc) {
+			qla_printk(KERN_WARNING, ha, "Unable to allocate "
+			    "(%d KB) for FCE.\n", FCE_SIZE / 1024);
+			goto cont_alloc;
+		}
+
+		memset(tc, 0, FCE_SIZE);
+		rval = qla2x00_enable_fce_trace(ha, tc_dma, FCE_NUM_BUFFERS,
+		    ha->fce_mb, &ha->fce_bufs);
+		if (rval) {
+			qla_printk(KERN_WARNING, ha, "Unable to initialize "
+			    "FCE (%d).\n", rval);
+			dma_free_coherent(&ha->pdev->dev, FCE_SIZE, tc,
+			    tc_dma);
+			ha->flags.fce_enabled = 0;
+			goto cont_alloc;
+		}
+
+		qla_printk(KERN_INFO, ha, "Allocated (%d KB) for FCE...\n",
+		    FCE_SIZE / 1024);
+
+		fce_size = sizeof(struct qla2xxx_fce_chain) + EFT_SIZE;
+		ha->flags.fce_enabled = 1;
+		ha->fce_dma = tc_dma;
+		ha->fce = tc;
 	}
 cont_alloc:
 	req_q_size = ha->request_q_length * sizeof(request_t);
@@ -790,7 +821,7 @@ cont_alloc:
 
 	dump_size = offsetof(struct qla2xxx_fw_dump, isp);
 	dump_size += fixed_size + mem_size + req_q_size + rsp_q_size +
-	    eft_size;
+	    eft_size + fce_size;
 
 	ha->fw_dump = vmalloc(dump_size);
 	if (!ha->fw_dump) {
@@ -922,9 +953,9 @@ qla2x00_setup_chip(scsi_qla_host_t *ha)
 					ha->flags.npiv_supported = 1;
 					if ((!ha->max_npiv_vports) ||
 					    ((ha->max_npiv_vports + 1) %
-					    MAX_MULTI_ID_FABRIC))
+					    MIN_MULTI_ID_FABRIC))
 						ha->max_npiv_vports =
-						    MAX_NUM_VPORT_FABRIC;
+						    MIN_MULTI_ID_FABRIC - 1;
 				}
 
 				if (ql2xallocfwdump)
@@ -1162,7 +1193,10 @@ qla2x00_init_rings(scsi_qla_host_t *ha)
 
 	DEBUG(printk("scsi(%ld): Issue init firmware.\n", ha->host_no));
 
-	mid_init_cb->count = ha->max_npiv_vports;
+	if (ha->flags.npiv_supported)
+		mid_init_cb->count = cpu_to_le16(ha->max_npiv_vports);
+
+	mid_init_cb->options = __constant_cpu_to_le16(BIT_1);
 
 	rval = qla2x00_init_firmware(ha, ha->init_cb_size);
 	if (rval) {
@@ -2566,14 +2600,7 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *ha, struct list_head *new_fcports)
 
 		/* Bypass virtual ports of the same host. */
 		if (pha->num_vhosts) {
-			vp_index = find_next_bit(
-			    (unsigned long *)pha->vp_idx_map,
-			    MAX_MULTI_ID_FABRIC + 1, 1);
-
-			for (;vp_index <= MAX_MULTI_ID_FABRIC;
-			    vp_index = find_next_bit(
-			    (unsigned long *)pha->vp_idx_map,
-			    MAX_MULTI_ID_FABRIC + 1, vp_index + 1)) {
+			for_each_mapped_vp_idx(pha, vp_index) {
 				empty_vp_index = 1;
 				found_vp = 0;
 				list_for_each_entry(vha, &pha->vp_list,
@@ -2592,7 +2619,8 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *ha, struct list_head *new_fcports)
 				    new_fcport->d_id.b24 == vha->d_id.b24)
 					break;
 			}
-			if (vp_index <= MAX_MULTI_ID_FABRIC)
+
+			if (vp_index <= pha->max_npiv_vports)
 				continue;
 		}
 
@@ -3245,12 +3273,27 @@ qla2x00_abort_isp(scsi_qla_host_t *ha)
 			clear_bit(ISP_ABORT_RETRY, &ha->dpc_flags);
 
 			if (ha->eft) {
-				rval = qla2x00_trace_control(ha, TC_ENABLE,
+				rval = qla2x00_enable_eft_trace(ha,
 				    ha->eft_dma, EFT_NUM_BUFFERS);
 				if (rval) {
 					qla_printk(KERN_WARNING, ha,
 					    "Unable to reinitialize EFT "
 					    "(%d).\n", rval);
+				}
+			}
+
+			if (ha->fce) {
+				ha->flags.fce_enabled = 1;
+				memset(ha->fce, 0,
+				    fce_calc_size(ha->fce_bufs));
+				rval = qla2x00_enable_fce_trace(ha,
+				    ha->fce_dma, ha->fce_bufs, ha->fce_mb,
+				    &ha->fce_bufs);
+				if (rval) {
+					qla_printk(KERN_WARNING, ha,
+					    "Unable to reinitialize FCE "
+					    "(%d).\n", rval);
+					ha->flags.fce_enabled = 0;
 				}
 			}
 		} else {	/* failed the ISP abort */

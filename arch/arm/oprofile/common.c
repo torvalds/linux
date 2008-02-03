@@ -96,7 +96,7 @@ static int op_arm_resume(struct sys_device *dev)
 }
 
 static struct sysdev_class oprofile_sysclass = {
-	set_kset_name("oprofile"),
+	.name		= "oprofile",
 	.resume		= op_arm_resume,
 	.suspend	= op_arm_suspend,
 };

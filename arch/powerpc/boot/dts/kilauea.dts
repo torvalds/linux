@@ -13,14 +13,22 @@
 	#size-cells = <1>;
 	model = "amcc,kilauea";
 	compatible = "amcc,kilauea";
-	dcr-parent = <&/cpus/PowerPC,405EX@0>;
+	dcr-parent = <&/cpus/cpu@0>;
+
+	aliases {
+		ethernet0 = &EMAC0;
+		ethernet1 = &EMAC1;
+		serial0 = &UART0;
+		serial1 = &UART1;
+	};
 
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		PowerPC,405EX@0 {
+		cpu@0 {
 			device_type = "cpu";
+			model = "PowerPC,405EX";
 			reg = <0>;
 			clock-frequency = <0>; /* Filled in by U-Boot */
 			timebase-frequency = <0>; /* Filled in by U-Boot */
@@ -194,6 +202,7 @@
 				device_type = "rgmii-interface";
 				compatible = "ibm,rgmii-405ex", "ibm,rgmii";
 				reg = <ef600b00 104>;
+				has-mdio;
 			};
 
 			EMAC0: ethernet@ef600900 {
@@ -220,6 +229,8 @@
 				phy-map = <00000000>;
 				rgmii-device = <&RGMII0>;
 				rgmii-channel = <0>;
+				has-inverted-stacr-oc;
+				has-new-stacr-staopc;
 			};
 
 			EMAC1: ethernet@ef600a00 {
@@ -246,7 +257,91 @@
 				phy-map = <00000000>;
 				rgmii-device = <&RGMII0>;
 				rgmii-channel = <1>;
+				has-inverted-stacr-oc;
+				has-new-stacr-staopc;
 			};
+		};
+
+		PCIE0: pciex@0a0000000 {
+			device_type = "pci";
+			#interrupt-cells = <1>;
+			#size-cells = <2>;
+			#address-cells = <3>;
+			compatible = "ibm,plb-pciex-405ex", "ibm,plb-pciex";
+			primary;
+			port = <0>; /* port number */
+			reg = <a0000000 20000000	/* Config space access */
+			       ef000000 00001000>;	/* Registers */
+			dcr-reg = <040 020>;
+			sdr-base = <400>;
+
+			/* Outbound ranges, one memory and one IO,
+			 * later cannot be changed
+			 */
+			ranges = <02000000 0 80000000 90000000 0 08000000
+				  01000000 0 00000000 e0000000 0 00010000>;
+
+			/* Inbound 2GB range starting at 0 */
+			dma-ranges = <42000000 0 0 0 0 80000000>;
+
+			/* This drives busses 0x00 to 0x3f */
+			bus-range = <00 3f>;
+
+			/* Legacy interrupts (note the weird polarity, the bridge seems
+			 * to invert PCIe legacy interrupts).
+			 * We are de-swizzling here because the numbers are actually for
+			 * port of the root complex virtual P2P bridge. But I want
+			 * to avoid putting a node for it in the tree, so the numbers
+			 * below are basically de-swizzled numbers.
+			 * The real slot is on idsel 0, so the swizzling is 1:1
+			 */
+			interrupt-map-mask = <0000 0 0 7>;
+			interrupt-map = <
+				0000 0 0 1 &UIC2 0 4 /* swizzled int A */
+				0000 0 0 2 &UIC2 1 4 /* swizzled int B */
+				0000 0 0 3 &UIC2 2 4 /* swizzled int C */
+				0000 0 0 4 &UIC2 3 4 /* swizzled int D */>;
+		};
+
+		PCIE1: pciex@0c0000000 {
+			device_type = "pci";
+			#interrupt-cells = <1>;
+			#size-cells = <2>;
+			#address-cells = <3>;
+			compatible = "ibm,plb-pciex-405ex", "ibm,plb-pciex";
+			primary;
+			port = <1>; /* port number */
+			reg = <c0000000 20000000	/* Config space access */
+			       ef001000 00001000>;	/* Registers */
+			dcr-reg = <060 020>;
+			sdr-base = <440>;
+
+			/* Outbound ranges, one memory and one IO,
+			 * later cannot be changed
+			 */
+			ranges = <02000000 0 80000000 98000000 0 08000000
+				  01000000 0 00000000 e0010000 0 00010000>;
+
+			/* Inbound 2GB range starting at 0 */
+			dma-ranges = <42000000 0 0 0 0 80000000>;
+
+			/* This drives busses 0x40 to 0x7f */
+			bus-range = <40 7f>;
+
+			/* Legacy interrupts (note the weird polarity, the bridge seems
+			 * to invert PCIe legacy interrupts).
+			 * We are de-swizzling here because the numbers are actually for
+			 * port of the root complex virtual P2P bridge. But I want
+			 * to avoid putting a node for it in the tree, so the numbers
+			 * below are basically de-swizzled numbers.
+			 * The real slot is on idsel 0, so the swizzling is 1:1
+			 */
+			interrupt-map-mask = <0000 0 0 7>;
+			interrupt-map = <
+				0000 0 0 1 &UIC2 b 4 /* swizzled int A */
+				0000 0 0 2 &UIC2 c 4 /* swizzled int B */
+				0000 0 0 3 &UIC2 d 4 /* swizzled int C */
+				0000 0 0 4 &UIC2 e 4 /* swizzled int D */>;
 		};
 	};
 };

@@ -31,17 +31,18 @@ config SND_USB_USX2Y
 
 config SND_USB_CAIAQ
 	tristate "Native Instruments USB audio devices"
-	 depends on SND && USB
-	 select SND_HWDEP
-	 select SND_RAWMIDI
-	 select SND_PCM
-	 help
+	depends on SND && USB
+	select SND_HWDEP
+	select SND_RAWMIDI
+	select SND_PCM
+	help
 	   Say Y here to include support for caiaq USB audio interfaces,
 	   namely:
 
 	    * Native Instruments RigKontrol2
 	    * Native Instruments RigKontrol3
 	    * Native Instruments Kore Controller
+	    * Native Instruments Kore Controller 2
 	    * Native Instruments Audio Kontrol 1
 	    * Native Instruments Audio 8 DJ
 
@@ -51,12 +52,15 @@ config SND_USB_CAIAQ
 config SND_USB_CAIAQ_INPUT
 	bool "enable input device for controllers"
 	depends on SND_USB_CAIAQ
+	depends on INPUT=y || INPUT=SND_USB_CAIAQ
 	help
 	  Say Y here to support input controllers like buttons, knobs,
 	  alpha dials and analog pedals on the following products:
 
 	   * Native Instruments RigKontrol2
 	   * Native Instruments RigKontrol3
+	   * Native Instruments Kore Controller
+	   * Native Instruments Kore Controller 2
 	   * Native Instruments Audio Kontrol 1
 
 endmenu

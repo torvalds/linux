@@ -103,9 +103,12 @@ int __init irlmp_init(void)
 	irlmp->last_lsap_sel = 0x0f; /* Reserved 0x00-0x0f */
 	strcpy(sysctl_devname, "Linux");
 
-	/* Do discovery every 3 seconds */
 	init_timer(&irlmp->discovery_timer);
-	irlmp_start_discovery_timer(irlmp, sysctl_discovery_timeout*HZ);
+
+	/* Do discovery every 3 seconds, conditionaly */
+	if (sysctl_discovery)
+		irlmp_start_discovery_timer(irlmp,
+					    sysctl_discovery_timeout*HZ);
 
 	return 0;
 }
@@ -353,6 +356,7 @@ void irlmp_unregister_link(__u32 saddr)
 		/* Final cleanup */
 		del_timer(&link->idle_timer);
 		link->magic = 0;
+		hashbin_delete(link->lsaps, (FREE_FUNC) __irlmp_close_lsap);
 		kfree(link);
 	}
 }

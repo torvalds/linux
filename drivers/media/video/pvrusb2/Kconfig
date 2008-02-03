@@ -5,6 +5,10 @@ config VIDEO_PVRUSB2
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
 	select VIDEO_CX2341X
+	select VIDEO_SAA711X
+	select VIDEO_CX25840
+	select VIDEO_MSP3400
+	select VIDEO_WM8775
 	---help---
 	  This is a video4linux driver for Conexant 23416 based
 	  usb2 personal video recorder devices.
@@ -12,32 +16,29 @@ config VIDEO_PVRUSB2
 	  To compile this driver as a module, choose M here: the
 	  module will be called pvrusb2
 
-config VIDEO_PVRUSB2_29XXX
-	bool "Hauppauge WinTV-PVR USB2 support for 29xxx model series"
+config VIDEO_PVRUSB2_ONAIR_CREATOR
+	bool "pvrusb2 driver support for OnAir Creator model"
 	depends on VIDEO_PVRUSB2 && EXPERIMENTAL
 	select VIDEO_SAA711X
-	select VIDEO_MSP3400
+	select VIDEO_CS53L32A
 	---help---
-	  This option enables support for WinTV-PVR USB2 devices whose
-	  model number is of the form "29xxx" (leading prefix of "29"
-	  followed by 3 digits).
-	  To see if you may need this option, examine the white
-	  sticker on the underside of your device.
+
+	  This option enables support for the OnAir Creator USB tuner
+	  device.  This is a hybrid device, however currently only
+	  analog mode is supported.
 
 	  If you are in doubt, say Y.
 
-config VIDEO_PVRUSB2_24XXX
-	bool "Hauppauge WinTV-PVR USB2 support for 24xxx model series"
+config VIDEO_PVRUSB2_ONAIR_USB2
+	bool "pvrusb2 driver support for OnAir USB2 model"
 	depends on VIDEO_PVRUSB2 && EXPERIMENTAL
-	select VIDEO_CX25840
-	select VIDEO_WM8775
+	select VIDEO_SAA711X
+	select VIDEO_CS53L32A
 	---help---
-	  This option enables inclusion of additional logic to operate
-	  newer WinTV-PVR USB2 devices whose model number is of the
-	  form "24xxx" (leading prefix of "24" followed by 3 digits).
-	  To see if you may need this option, examine the white
-	  sticker on the underside of your device.  Enabling this
-	  option will not harm support for older devices.
+
+	  This option enables support for the OnAir USB2 tuner device
+	  (also known as the Sasem tuner).  This is a hybrid device,
+	  however currently only analog mode is supported.
 
 	  If you are in doubt, say Y.
 

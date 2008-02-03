@@ -641,7 +641,6 @@ struct tx4938_ccfg_reg {
 #define tx4938_pcicptr		((struct tx4938_pcic_reg *)TX4938_PCIC_REG)
 #define tx4938_pcic1ptr		((struct tx4938_pcic_reg *)TX4938_PCIC1_REG)
 #define tx4938_ccfgptr		((struct tx4938_ccfg_reg *)TX4938_CCFG_REG)
-#define tx4938_tmrptr(ch)	((struct tx4938_tmr_reg *)TX4938_TMR_REG(ch))
 #define tx4938_sioptr(ch)	((struct tx4938_sio_reg *)TX4938_SIO_REG(ch))
 #define tx4938_pioptr		((struct tx4938_pio_reg *)TX4938_PIO_REG)
 #define tx4938_aclcptr		((struct tx4938_aclc_reg *)TX4938_ACLC_REG)

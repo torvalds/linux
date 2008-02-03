@@ -24,7 +24,7 @@ MODULE_DESCRIPTION("PC Speaker beeper driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:pcspkr");
 
-#ifdef CONFIG_X86
+#if defined(CONFIG_MIPS) || defined(CONFIG_X86)
 /* Use the global PIT lock ! */
 #include <asm/i8253.h>
 #else

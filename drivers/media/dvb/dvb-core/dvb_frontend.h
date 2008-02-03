@@ -84,6 +84,9 @@ struct dvb_tuner_ops {
 	/** This is support for demods like the mt352 - fills out the supplied buffer with what to write. */
 	int (*calc_regs)(struct dvb_frontend *fe, struct dvb_frontend_parameters *p, u8 *buf, int buf_len);
 
+	/** This is to allow setting tuner-specific configs */
+	int (*set_config)(struct dvb_frontend *fe, void *priv_cfg);
+
 	int (*get_frequency)(struct dvb_frontend *fe, u32 *frequency);
 	int (*get_bandwidth)(struct dvb_frontend *fe, u32 *bandwidth);
 
@@ -96,6 +99,28 @@ struct dvb_tuner_ops {
 	 * tuners which require sophisticated tuning loops, controlling each parameter seperately. */
 	int (*set_frequency)(struct dvb_frontend *fe, u32 frequency);
 	int (*set_bandwidth)(struct dvb_frontend *fe, u32 bandwidth);
+};
+
+struct analog_demod_info {
+	char *name;
+};
+
+struct analog_demod_ops {
+
+	struct analog_demod_info info;
+
+	void (*set_params)(struct dvb_frontend *fe,
+			   struct analog_parameters *params);
+	int  (*has_signal)(struct dvb_frontend *fe);
+	int  (*is_stereo)(struct dvb_frontend *fe);
+	int  (*get_afc)(struct dvb_frontend *fe);
+	void (*tuner_status)(struct dvb_frontend *fe);
+	void (*standby)(struct dvb_frontend *fe);
+	void (*release)(struct dvb_frontend *fe);
+	int  (*i2c_gate_ctrl)(struct dvb_frontend *fe, int enable);
+
+	/** This is to allow setting tuner-specific configuration */
+	int (*set_config)(struct dvb_frontend *fe, void *priv_cfg);
 };
 
 struct dvb_frontend_ops {
@@ -143,6 +168,7 @@ struct dvb_frontend_ops {
 	int (*ts_bus_ctrl)(struct dvb_frontend* fe, int acquire);
 
 	struct dvb_tuner_ops tuner_ops;
+	struct analog_demod_ops analog_ops;
 };
 
 #define MAX_EVENT 8
@@ -159,18 +185,19 @@ struct dvb_fe_events {
 struct dvb_frontend {
 	struct dvb_frontend_ops ops;
 	struct dvb_adapter *dvb;
-	void* demodulator_priv;
-	void* tuner_priv;
-	void* frontend_priv;
-	void* sec_priv;
+	void *demodulator_priv;
+	void *tuner_priv;
+	void *frontend_priv;
+	void *sec_priv;
+	void *analog_demod_priv;
 };
 
-extern int dvb_register_frontend(struct dvb_adapter* dvb,
-				 struct dvb_frontend* fe);
+extern int dvb_register_frontend(struct dvb_adapter *dvb,
+				 struct dvb_frontend *fe);
 
-extern int dvb_unregister_frontend(struct dvb_frontend* fe);
+extern int dvb_unregister_frontend(struct dvb_frontend *fe);
 
-extern void dvb_frontend_detach(struct dvb_frontend* fe);
+extern void dvb_frontend_detach(struct dvb_frontend *fe);
 
 extern void dvb_frontend_reinitialise(struct dvb_frontend *fe);
 

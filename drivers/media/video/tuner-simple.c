@@ -17,7 +17,7 @@ static int debug = 0;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable verbose debug messages");
 
-#define PREFIX "tuner-simple "
+#define PREFIX "tuner-simple"
 
 static int offset = 0;
 module_param(offset, int, 0664);
@@ -355,9 +355,13 @@ static int simple_set_tv_freq(struct dvb_frontend *fe,
 	}
 	priv->last_div = div;
 	if (t_params->has_tda9887) {
+		struct v4l2_priv_tun_config tda9887_cfg;
 		int config = 0;
 		int is_secam_l = (params->std & (V4L2_STD_SECAM_L | V4L2_STD_SECAM_LC)) &&
 			!(params->std & ~(V4L2_STD_SECAM_L | V4L2_STD_SECAM_LC));
+
+		tda9887_cfg.tuner = TUNER_TDA9887;
+		tda9887_cfg.priv  = &config;
 
 		if (params->std == V4L2_STD_SECAM_LC) {
 			if (t_params->port1_active ^ t_params->port1_invert_for_secam_lc)
@@ -391,7 +395,8 @@ static int simple_set_tv_freq(struct dvb_frontend *fe,
 		}
 		if (t_params->default_pll_gating_18)
 			config |= TDA9887_GATING_18;
-		i2c_clients_command(priv->i2c_props.adap, TDA9887_SET_CONFIG, &config);
+		i2c_clients_command(priv->i2c_props.adap, TUNER_SET_CONFIG,
+				    &tda9887_cfg);
 	}
 	tuner_dbg("tv 0x%02x 0x%02x 0x%02x 0x%02x\n",
 		  buffer[0],buffer[1],buffer[2],buffer[3]);
@@ -534,6 +539,11 @@ static int simple_set_radio_freq(struct dvb_frontend *fe,
 
 	if (t_params->has_tda9887) {
 		int config = 0;
+		struct v4l2_priv_tun_config tda9887_cfg;
+
+		tda9887_cfg.tuner = TUNER_TDA9887;
+		tda9887_cfg.priv = &config;
+
 		if (t_params->port1_active && !t_params->port1_fm_high_sensitivity)
 			config |= TDA9887_PORT1_ACTIVE;
 		if (t_params->port2_active && !t_params->port2_fm_high_sensitivity)
@@ -546,7 +556,8 @@ static int simple_set_radio_freq(struct dvb_frontend *fe,
 			config |= TDA9887_GAIN_NORMAL;
 		if (t_params->radio_if == 2)
 			config |= TDA9887_RIF_41_3;
-		i2c_clients_command(priv->i2c_props.adap, TDA9887_SET_CONFIG, &config);
+		i2c_clients_command(priv->i2c_props.adap, TUNER_SET_CONFIG,
+					&tda9887_cfg);
 	}
 	if (4 != (rc = tuner_i2c_xfer_send(&priv->i2c_props,buffer,4)))
 		tuner_warn("i2c i/o error: rc == %d (should be 4)\n",rc);

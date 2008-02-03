@@ -24,6 +24,7 @@
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/ipv6/nf_conntrack_icmpv6.h>
+#include <net/netfilter/nf_log.h>
 
 static unsigned long nf_ct_icmpv6_timeout __read_mostly = 30*HZ;
 
@@ -31,7 +32,8 @@ static int icmpv6_pkt_to_tuple(const struct sk_buff *skb,
 			       unsigned int dataoff,
 			       struct nf_conntrack_tuple *tuple)
 {
-	struct icmp6hdr _hdr, *hp;
+	const struct icmp6hdr *hp;
+	struct icmp6hdr _hdr;
 
 	hp = skb_header_pointer(skb, dataoff, sizeof(_hdr), &_hdr);
 	if (hp == NULL)
@@ -44,7 +46,7 @@ static int icmpv6_pkt_to_tuple(const struct sk_buff *skb,
 }
 
 /* Add 1; spaces filled with 0. */
-static u_int8_t invmap[] = {
+static const u_int8_t invmap[] = {
 	[ICMPV6_ECHO_REQUEST - 128]	= ICMPV6_ECHO_REPLY + 1,
 	[ICMPV6_ECHO_REPLY - 128]	= ICMPV6_ECHO_REQUEST + 1,
 	[ICMPV6_NI_QUERY - 128]		= ICMPV6_NI_QUERY + 1,
@@ -74,13 +76,6 @@ static int icmpv6_print_tuple(struct seq_file *s,
 			  ntohs(tuple->src.u.icmp.id));
 }
 
-/* Print out the private part of the conntrack. */
-static int icmpv6_print_conntrack(struct seq_file *s,
-				  const struct nf_conn *conntrack)
-{
-	return 0;
-}
-
 /* Returns verdict for packet, or -1 for invalid. */
 static int icmpv6_packet(struct nf_conn *ct,
 		       const struct sk_buff *skb,
@@ -107,24 +102,24 @@ static int icmpv6_packet(struct nf_conn *ct,
 }
 
 /* Called when a new connection for this protocol found. */
-static int icmpv6_new(struct nf_conn *conntrack,
+static int icmpv6_new(struct nf_conn *ct,
 		      const struct sk_buff *skb,
 		      unsigned int dataoff)
 {
-	static u_int8_t valid_new[] = {
+	static const u_int8_t valid_new[] = {
 		[ICMPV6_ECHO_REQUEST - 128] = 1,
 		[ICMPV6_NI_QUERY - 128] = 1
 	};
-	int type = conntrack->tuplehash[0].tuple.dst.u.icmp.type - 128;
+	int type = ct->tuplehash[0].tuple.dst.u.icmp.type - 128;
 
 	if (type < 0 || type >= sizeof(valid_new) || !valid_new[type]) {
 		/* Can't create a new ICMPv6 `conn' with this. */
 		pr_debug("icmpv6: can't create new conn with type %u\n",
 			 type + 128);
-		NF_CT_DUMP_TUPLE(&conntrack->tuplehash[0].tuple);
+		NF_CT_DUMP_TUPLE(&ct->tuplehash[0].tuple);
 		return 0;
 	}
-	atomic_set(&conntrack->proto.icmp.count, 0);
+	atomic_set(&ct->proto.icmp.count, 0);
 	return 1;
 }
 
@@ -135,8 +130,8 @@ icmpv6_error_message(struct sk_buff *skb,
 		     unsigned int hooknum)
 {
 	struct nf_conntrack_tuple intuple, origtuple;
-	struct nf_conntrack_tuple_hash *h;
-	struct nf_conntrack_l4proto *inproto;
+	const struct nf_conntrack_tuple_hash *h;
+	const struct nf_conntrack_l4proto *inproto;
 
 	NF_CT_ASSERT(skb->nfct == NULL);
 
@@ -182,7 +177,8 @@ static int
 icmpv6_error(struct sk_buff *skb, unsigned int dataoff,
 	     enum ip_conntrack_info *ctinfo, int pf, unsigned int hooknum)
 {
-	struct icmp6hdr _ih, *icmp6h;
+	const struct icmp6hdr *icmp6h;
+	struct icmp6hdr _ih;
 
 	icmp6h = skb_header_pointer(skb, dataoff, sizeof(_ih), &_ih);
 	if (icmp6h == NULL) {
@@ -192,7 +188,7 @@ icmpv6_error(struct sk_buff *skb, unsigned int dataoff,
 		return -NF_ACCEPT;
 	}
 
-	if (nf_conntrack_checksum && hooknum == NF_IP6_PRE_ROUTING &&
+	if (nf_conntrack_checksum && hooknum == NF_INET_PRE_ROUTING &&
 	    nf_ip6_checksum(skb, hooknum, dataoff, IPPROTO_ICMPV6)) {
 		nf_log_packet(PF_INET6, 0, skb, NULL, NULL, NULL,
 			      "nf_ct_icmpv6: ICMPv6 checksum failed\n");
@@ -213,12 +209,9 @@ icmpv6_error(struct sk_buff *skb, unsigned int dataoff,
 static int icmpv6_tuple_to_nlattr(struct sk_buff *skb,
 				  const struct nf_conntrack_tuple *t)
 {
-	NLA_PUT(skb, CTA_PROTO_ICMPV6_ID, sizeof(u_int16_t),
-		&t->src.u.icmp.id);
-	NLA_PUT(skb, CTA_PROTO_ICMPV6_TYPE, sizeof(u_int8_t),
-		&t->dst.u.icmp.type);
-	NLA_PUT(skb, CTA_PROTO_ICMPV6_CODE, sizeof(u_int8_t),
-		&t->dst.u.icmp.code);
+	NLA_PUT_BE16(skb, CTA_PROTO_ICMPV6_ID, t->src.u.icmp.id);
+	NLA_PUT_U8(skb, CTA_PROTO_ICMPV6_TYPE, t->dst.u.icmp.type);
+	NLA_PUT_U8(skb, CTA_PROTO_ICMPV6_CODE, t->dst.u.icmp.code);
 
 	return 0;
 
@@ -240,12 +233,9 @@ static int icmpv6_nlattr_to_tuple(struct nlattr *tb[],
 	    || !tb[CTA_PROTO_ICMPV6_ID])
 		return -EINVAL;
 
-	tuple->dst.u.icmp.type =
-			*(u_int8_t *)nla_data(tb[CTA_PROTO_ICMPV6_TYPE]);
-	tuple->dst.u.icmp.code =
-			*(u_int8_t *)nla_data(tb[CTA_PROTO_ICMPV6_CODE]);
-	tuple->src.u.icmp.id =
-			*(__be16 *)nla_data(tb[CTA_PROTO_ICMPV6_ID]);
+	tuple->dst.u.icmp.type = nla_get_u8(tb[CTA_PROTO_ICMPV6_TYPE]);
+	tuple->dst.u.icmp.code = nla_get_u8(tb[CTA_PROTO_ICMPV6_CODE]);
+	tuple->src.u.icmp.id = nla_get_be16(tb[CTA_PROTO_ICMPV6_ID]);
 
 	if (tuple->dst.u.icmp.type < 128
 	    || tuple->dst.u.icmp.type - 128 >= sizeof(invmap)
@@ -280,7 +270,6 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_icmpv6 __read_mostly =
 	.pkt_to_tuple		= icmpv6_pkt_to_tuple,
 	.invert_tuple		= icmpv6_invert_tuple,
 	.print_tuple		= icmpv6_print_tuple,
-	.print_conntrack	= icmpv6_print_conntrack,
 	.packet			= icmpv6_packet,
 	.new			= icmpv6_new,
 	.error			= icmpv6_error,

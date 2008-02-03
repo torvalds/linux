@@ -46,7 +46,7 @@
 #define E1000_PARAM_INIT { [0 ... E1000_MAX_NIC] = OPTION_UNSET }
 #define E1000_PARAM(X, desc) \
 	static int __devinitdata X[E1000_MAX_NIC+1] = E1000_PARAM_INIT; \
-	static int num_##X = 0; \
+	static unsigned int num_##X; \
 	module_param_array_named(X, X, int, &num_##X, 0); \
 	MODULE_PARM_DESC(X, desc);
 
@@ -198,9 +198,9 @@ E1000_PARAM(KumeranLockLoss, "Enable Kumeran lock loss workaround");
 
 struct e1000_option {
 	enum { enable_option, range_option, list_option } type;
-	char *name;
-	char *err;
-	int  def;
+	const char *name;
+	const char *err;
+	int def;
 	union {
 		struct { /* range_option info */
 			int min;
@@ -214,8 +214,9 @@ struct e1000_option {
 };
 
 static int __devinit
-e1000_validate_option(int *value, struct e1000_option *opt,
-		struct e1000_adapter *adapter)
+e1000_validate_option(unsigned int *value,
+		      const struct e1000_option *opt,
+		      struct e1000_adapter *adapter)
 {
 	if (*value == OPTION_UNSET) {
 		*value = opt->def;
@@ -348,7 +349,7 @@ e1000_check_options(struct e1000_adapter *adapter)
 		};
 
 		if (num_XsumRX > bd) {
-			int rx_csum = XsumRX[bd];
+			unsigned int rx_csum = XsumRX[bd];
 			e1000_validate_option(&rx_csum, &opt, adapter);
 			adapter->rx_csum = rx_csum;
 		} else {
@@ -374,7 +375,7 @@ e1000_check_options(struct e1000_adapter *adapter)
 		};
 
 		if (num_FlowControl > bd) {
-			int fc = FlowControl[bd];
+			unsigned int fc = FlowControl[bd];
 			e1000_validate_option(&fc, &opt, adapter);
 			adapter->hw.fc = adapter->hw.original_fc = fc;
 		} else {
@@ -506,7 +507,7 @@ e1000_check_options(struct e1000_adapter *adapter)
 		};
 
 		if (num_SmartPowerDownEnable > bd) {
-			int spd = SmartPowerDownEnable[bd];
+			unsigned int spd = SmartPowerDownEnable[bd];
 			e1000_validate_option(&spd, &opt, adapter);
 			adapter->smart_power_down = spd;
 		} else {
@@ -522,7 +523,7 @@ e1000_check_options(struct e1000_adapter *adapter)
 		};
 
 		if (num_KumeranLockLoss > bd) {
-			int kmrn_lock_loss = KumeranLockLoss[bd];
+			unsigned int kmrn_lock_loss = KumeranLockLoss[bd];
 			e1000_validate_option(&kmrn_lock_loss, &opt, adapter);
 			adapter->hw.kmrn_lock_loss_workaround_disabled = !kmrn_lock_loss;
 		} else {
@@ -581,7 +582,7 @@ e1000_check_fiber_options(struct e1000_adapter *adapter)
 static void __devinit
 e1000_check_copper_options(struct e1000_adapter *adapter)
 {
-	int speed, dplx, an;
+	unsigned int speed, dplx, an;
 	int bd = adapter->bd_number;
 
 	{ /* Speed */

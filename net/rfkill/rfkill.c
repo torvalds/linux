@@ -27,6 +27,10 @@
 #include <linux/mutex.h>
 #include <linux/rfkill.h>
 
+/* Get declaration of rfkill_switch_all() to shut up sparse. */
+#include "rfkill-input.h"
+
+
 MODULE_AUTHOR("Ivo van Doorn <IvDoorn@gmail.com>");
 MODULE_VERSION("1.0");
 MODULE_DESCRIPTION("RF switch support");
@@ -56,11 +60,7 @@ static void rfkill_led_trigger(struct rfkill *rfkill,
 static int rfkill_toggle_radio(struct rfkill *rfkill,
 				enum rfkill_state state)
 {
-	int retval;
-
-	retval = mutex_lock_interruptible(&rfkill->mutex);
-	if (retval)
-		return retval;
+	int retval = 0;
 
 	if (state != rfkill->state) {
 		retval = rfkill->toggle_radio(rfkill->data, state);
@@ -70,7 +70,6 @@ static int rfkill_toggle_radio(struct rfkill *rfkill,
 		}
 	}
 
-	mutex_unlock(&rfkill->mutex);
 	return retval;
 }
 
@@ -127,6 +126,9 @@ static ssize_t rfkill_type_show(struct device *dev,
 	case RFKILL_TYPE_UWB:
 		type = "ultrawideband";
 		break;
+	case RFKILL_TYPE_WIMAX:
+		type = "wimax";
+		break;
 	default:
 		BUG();
 	}
@@ -154,12 +156,13 @@ static ssize_t rfkill_state_store(struct device *dev,
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
+	if (mutex_lock_interruptible(&rfkill->mutex))
+		return -ERESTARTSYS;
 	error = rfkill_toggle_radio(rfkill,
 			state ? RFKILL_STATE_ON : RFKILL_STATE_OFF);
-	if (error)
-		return error;
+	mutex_unlock(&rfkill->mutex);
 
-	return count;
+	return error ? error : count;
 }
 
 static ssize_t rfkill_claim_show(struct device *dev,
@@ -276,21 +279,17 @@ static struct class rfkill_class = {
 
 static int rfkill_add_switch(struct rfkill *rfkill)
 {
-	int retval;
+	int error;
 
-	retval = mutex_lock_interruptible(&rfkill_mutex);
-	if (retval)
-		return retval;
+	mutex_lock(&rfkill_mutex);
 
-	retval = rfkill_toggle_radio(rfkill, rfkill_states[rfkill->type]);
-	if (retval)
-		goto out;
+	error = rfkill_toggle_radio(rfkill, rfkill_states[rfkill->type]);
+	if (!error)
+		list_add_tail(&rfkill->node, &rfkill_list);
 
-	list_add_tail(&rfkill->node, &rfkill_list);
-
- out:
 	mutex_unlock(&rfkill_mutex);
-	return retval;
+
+	return error;
 }
 
 static void rfkill_remove_switch(struct rfkill *rfkill)
@@ -387,20 +386,26 @@ int rfkill_register(struct rfkill *rfkill)
 
 	if (!rfkill->toggle_radio)
 		return -EINVAL;
-
-	error = rfkill_add_switch(rfkill);
-	if (error)
-		return error;
+	if (rfkill->type >= RFKILL_TYPE_MAX)
+		return -EINVAL;
 
 	snprintf(dev->bus_id, sizeof(dev->bus_id),
 		 "rfkill%ld", (long)atomic_inc_return(&rfkill_no) - 1);
 
+	rfkill_led_trigger_register(rfkill);
+
+	error = rfkill_add_switch(rfkill);
+	if (error) {
+		rfkill_led_trigger_unregister(rfkill);
+		return error;
+	}
+
 	error = device_add(dev);
 	if (error) {
+		rfkill_led_trigger_unregister(rfkill);
 		rfkill_remove_switch(rfkill);
 		return error;
 	}
-	rfkill_led_trigger_register(rfkill);
 
 	return 0;
 }
@@ -416,9 +421,9 @@ EXPORT_SYMBOL(rfkill_register);
  */
 void rfkill_unregister(struct rfkill *rfkill)
 {
-	rfkill_led_trigger_unregister(rfkill);
 	device_del(&rfkill->dev);
 	rfkill_remove_switch(rfkill);
+	rfkill_led_trigger_unregister(rfkill);
 	put_device(&rfkill->dev);
 }
 EXPORT_SYMBOL(rfkill_unregister);
@@ -448,5 +453,5 @@ static void __exit rfkill_exit(void)
 	class_unregister(&rfkill_class);
 }
 
-module_init(rfkill_init);
+subsys_initcall(rfkill_init);
 module_exit(rfkill_exit);

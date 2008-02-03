@@ -1152,7 +1152,7 @@ marvel_machine_check(u64 vector, u64 la_ptr)
 	mb();
 }
 
-void
+void __init
 marvel_register_error_handlers(void)
 {
 	ev7_register_error_handlers();

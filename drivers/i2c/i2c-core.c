@@ -33,14 +33,15 @@
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
 #include <linux/completion.h>
+#include <linux/hardirq.h>
+#include <linux/irqflags.h>
 #include <asm/uaccess.h>
+#include <asm/semaphore.h>
 
 #include "i2c-core.h"
 
 
-static LIST_HEAD(adapters);
-static LIST_HEAD(drivers);
-static DEFINE_MUTEX(core_lists);
+static DEFINE_MUTEX(core_lock);
 static DEFINE_IDR(i2c_adapter_idr);
 
 #define is_newstyle_driver(d) ((d)->probe || (d)->remove)
@@ -198,6 +199,25 @@ static struct bus_type i2c_bus_type = {
 	.resume		= i2c_device_resume,
 };
 
+
+/**
+ * i2c_verify_client - return parameter as i2c_client, or NULL
+ * @dev: device, probably from some driver model iterator
+ *
+ * When traversing the driver model tree, perhaps using driver model
+ * iterators like @device_for_each_child(), you can't assume very much
+ * about the nodes you find.  Use this function to avoid oopses caused
+ * by wrongly treating some non-I2C device as an i2c_client.
+ */
+struct i2c_client *i2c_verify_client(struct device *dev)
+{
+	return (dev->bus == &i2c_bus_type)
+			? to_i2c_client(dev)
+			: NULL;
+}
+EXPORT_SYMBOL(i2c_verify_client);
+
+
 /**
  * i2c_new_device - instantiate an i2c device for use with a new style driver
  * @adap: the adapter managing the device
@@ -276,6 +296,50 @@ void i2c_unregister_device(struct i2c_client *client)
 EXPORT_SYMBOL_GPL(i2c_unregister_device);
 
 
+static int dummy_nop(struct i2c_client *client)
+{
+	return 0;
+}
+
+static struct i2c_driver dummy_driver = {
+	.driver.name	= "dummy",
+	.probe		= dummy_nop,
+	.remove		= dummy_nop,
+};
+
+/**
+ * i2c_new_dummy - return a new i2c device bound to a dummy driver
+ * @adapter: the adapter managing the device
+ * @address: seven bit address to be used
+ * @type: optional label used for i2c_client.name
+ * Context: can sleep
+ *
+ * This returns an I2C client bound to the "dummy" driver, intended for use
+ * with devices that consume multiple addresses.  Examples of such chips
+ * include various EEPROMS (like 24c04 and 24c08 models).
+ *
+ * These dummy devices have two main uses.  First, most I2C and SMBus calls
+ * except i2c_transfer() need a client handle; the dummy will be that handle.
+ * And second, this prevents the specified address from being bound to a
+ * different driver.
+ *
+ * This returns the new i2c client, which should be saved for later use with
+ * i2c_unregister_device(); or NULL to indicate an error.
+ */
+struct i2c_client *
+i2c_new_dummy(struct i2c_adapter *adapter, u16 address, const char *type)
+{
+	struct i2c_board_info info = {
+		.driver_name	= "dummy",
+		.addr		= address,
+	};
+
+	if (type)
+		strlcpy(info.type, type, sizeof info.type);
+	return i2c_new_device(adapter, &info);
+}
+EXPORT_SYMBOL_GPL(i2c_new_dummy);
+
 /* ------------------------------------------------------------------------- */
 
 /* I2C bus adapters -- one roots each I2C or SMBUS segment */
@@ -320,18 +384,27 @@ static void i2c_scan_static_board_info(struct i2c_adapter *adapter)
 	mutex_unlock(&__i2c_board_lock);
 }
 
+static int i2c_do_add_adapter(struct device_driver *d, void *data)
+{
+	struct i2c_driver *driver = to_i2c_driver(d);
+	struct i2c_adapter *adap = data;
+
+	if (driver->attach_adapter) {
+		/* We ignore the return code; if it fails, too bad */
+		driver->attach_adapter(adap);
+	}
+	return 0;
+}
+
 static int i2c_register_adapter(struct i2c_adapter *adap)
 {
-	int res = 0;
-	struct list_head   *item;
-	struct i2c_driver  *driver;
+	int res = 0, dummy;
 
 	mutex_init(&adap->bus_lock);
 	mutex_init(&adap->clist_lock);
 	INIT_LIST_HEAD(&adap->clients);
 
-	mutex_lock(&core_lists);
-	list_add_tail(&adap->list, &adapters);
+	mutex_lock(&core_lock);
 
 	/* Add the adapter to the driver core.
 	 * If the parent pointer is not set up,
@@ -356,19 +429,14 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 		i2c_scan_static_board_info(adap);
 
 	/* let legacy drivers scan this bus for matching devices */
-	list_for_each(item,&drivers) {
-		driver = list_entry(item, struct i2c_driver, list);
-		if (driver->attach_adapter)
-			/* We ignore the return code; if it fails, too bad */
-			driver->attach_adapter(adap);
-	}
+	dummy = bus_for_each_drv(&i2c_bus_type, NULL, adap,
+				 i2c_do_add_adapter);
 
 out_unlock:
-	mutex_unlock(&core_lists);
+	mutex_unlock(&core_lock);
 	return res;
 
 out_list:
-	list_del(&adap->list);
 	idr_remove(&i2c_adapter_idr, adap->nr);
 	goto out_unlock;
 }
@@ -394,11 +462,11 @@ retry:
 	if (idr_pre_get(&i2c_adapter_idr, GFP_KERNEL) == 0)
 		return -ENOMEM;
 
-	mutex_lock(&core_lists);
+	mutex_lock(&core_lock);
 	/* "above" here means "above or equal to", sigh */
 	res = idr_get_new_above(&i2c_adapter_idr, adapter,
 				__i2c_first_dynamic_bus_num, &id);
-	mutex_unlock(&core_lists);
+	mutex_unlock(&core_lock);
 
 	if (res < 0) {
 		if (res == -EAGAIN)
@@ -443,7 +511,7 @@ retry:
 	if (idr_pre_get(&i2c_adapter_idr, GFP_KERNEL) == 0)
 		return -ENOMEM;
 
-	mutex_lock(&core_lists);
+	mutex_lock(&core_lock);
 	/* "above" here means "above or equal to", sigh;
 	 * we need the "equal to" result to force the result
 	 */
@@ -452,7 +520,7 @@ retry:
 		status = -EBUSY;
 		idr_remove(&i2c_adapter_idr, id);
 	}
-	mutex_unlock(&core_lists);
+	mutex_unlock(&core_lock);
 	if (status == -EAGAIN)
 		goto retry;
 
@@ -461,6 +529,21 @@ retry:
 	return status;
 }
 EXPORT_SYMBOL_GPL(i2c_add_numbered_adapter);
+
+static int i2c_do_del_adapter(struct device_driver *d, void *data)
+{
+	struct i2c_driver *driver = to_i2c_driver(d);
+	struct i2c_adapter *adapter = data;
+	int res;
+
+	if (!driver->detach_adapter)
+		return 0;
+	res = driver->detach_adapter(adapter);
+	if (res)
+		dev_err(&adapter->dev, "detach_adapter failed (%d) "
+			"for driver [%s]\n", res, driver->driver.name);
+	return res;
+}
 
 /**
  * i2c_del_adapter - unregister I2C adapter
@@ -473,35 +556,24 @@ EXPORT_SYMBOL_GPL(i2c_add_numbered_adapter);
 int i2c_del_adapter(struct i2c_adapter *adap)
 {
 	struct list_head  *item, *_n;
-	struct i2c_adapter *adap_from_list;
-	struct i2c_driver *driver;
 	struct i2c_client *client;
 	int res = 0;
 
-	mutex_lock(&core_lists);
+	mutex_lock(&core_lock);
 
 	/* First make sure that this adapter was ever added */
-	list_for_each_entry(adap_from_list, &adapters, list) {
-		if (adap_from_list == adap)
-			break;
-	}
-	if (adap_from_list != adap) {
+	if (idr_find(&i2c_adapter_idr, adap->nr) != adap) {
 		pr_debug("i2c-core: attempting to delete unregistered "
 			 "adapter [%s]\n", adap->name);
 		res = -EINVAL;
 		goto out_unlock;
 	}
 
-	list_for_each(item,&drivers) {
-		driver = list_entry(item, struct i2c_driver, list);
-		if (driver->detach_adapter)
-			if ((res = driver->detach_adapter(adap))) {
-				dev_err(&adap->dev, "detach_adapter failed "
-					"for driver [%s]\n",
-					driver->driver.name);
-				goto out_unlock;
-			}
-	}
+	/* Tell drivers about this removal */
+	res = bus_for_each_drv(&i2c_bus_type, NULL, adap,
+			       i2c_do_del_adapter);
+	if (res)
+		goto out_unlock;
 
 	/* detach any active clients. This must be done first, because
 	 * it can fail; in which case we give up. */
@@ -529,7 +601,6 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 	/* clean up the sysfs representation */
 	init_completion(&adap->dev_released);
 	device_unregister(&adap->dev);
-	list_del(&adap->list);
 
 	/* wait for sysfs to drop all references */
 	wait_for_completion(&adap->dev_released);
@@ -540,7 +611,7 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 	dev_dbg(&adap->dev, "adapter [%s] unregistered\n", adap->name);
 
  out_unlock:
-	mutex_unlock(&core_lists);
+	mutex_unlock(&core_lock);
 	return res;
 }
 EXPORT_SYMBOL(i2c_del_adapter);
@@ -583,21 +654,23 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 	if (res)
 		return res;
 
-	mutex_lock(&core_lists);
+	mutex_lock(&core_lock);
 
-	list_add_tail(&driver->list,&drivers);
 	pr_debug("i2c-core: driver [%s] registered\n", driver->driver.name);
 
 	/* legacy drivers scan i2c busses directly */
 	if (driver->attach_adapter) {
 		struct i2c_adapter *adapter;
 
-		list_for_each_entry(adapter, &adapters, list) {
+		down(&i2c_adapter_class.sem);
+		list_for_each_entry(adapter, &i2c_adapter_class.devices,
+				    dev.node) {
 			driver->attach_adapter(adapter);
 		}
+		up(&i2c_adapter_class.sem);
 	}
 
-	mutex_unlock(&core_lists);
+	mutex_unlock(&core_lock);
 	return 0;
 }
 EXPORT_SYMBOL(i2c_register_driver);
@@ -609,11 +682,11 @@ EXPORT_SYMBOL(i2c_register_driver);
  */
 void i2c_del_driver(struct i2c_driver *driver)
 {
-	struct list_head   *item1, *item2, *_n;
+	struct list_head   *item2, *_n;
 	struct i2c_client  *client;
 	struct i2c_adapter *adap;
 
-	mutex_lock(&core_lists);
+	mutex_lock(&core_lock);
 
 	/* new-style driver? */
 	if (is_newstyle_driver(driver))
@@ -623,8 +696,8 @@ void i2c_del_driver(struct i2c_driver *driver)
 	 * attached. If so, detach them to be able to kill the driver
 	 * afterwards.
 	 */
-	list_for_each(item1,&adapters) {
-		adap = list_entry(item1, struct i2c_adapter, list);
+	down(&i2c_adapter_class.sem);
+	list_for_each_entry(adap, &i2c_adapter_class.devices, dev.node) {
 		if (driver->detach_adapter) {
 			if (driver->detach_adapter(adap)) {
 				dev_err(&adap->dev, "detach_adapter failed "
@@ -648,56 +721,37 @@ void i2c_del_driver(struct i2c_driver *driver)
 			}
 		}
 	}
+	up(&i2c_adapter_class.sem);
 
  unregister:
 	driver_unregister(&driver->driver);
-	list_del(&driver->list);
 	pr_debug("i2c-core: driver [%s] unregistered\n", driver->driver.name);
 
-	mutex_unlock(&core_lists);
+	mutex_unlock(&core_lock);
 }
 EXPORT_SYMBOL(i2c_del_driver);
 
 /* ------------------------------------------------------------------------- */
 
-static int __i2c_check_addr(struct i2c_adapter *adapter, unsigned int addr)
+static int __i2c_check_addr(struct device *dev, void *addrp)
 {
-	struct list_head   *item;
-	struct i2c_client  *client;
+	struct i2c_client	*client = i2c_verify_client(dev);
+	int			addr = *(int *)addrp;
 
-	list_for_each(item,&adapter->clients) {
-		client = list_entry(item, struct i2c_client, list);
-		if (client->addr == addr)
-			return -EBUSY;
-	}
+	if (client && client->addr == addr)
+		return -EBUSY;
 	return 0;
 }
 
-int i2c_check_addr(struct i2c_adapter *adapter, int addr)
+static int i2c_check_addr(struct i2c_adapter *adapter, int addr)
 {
-	int rval;
-
-	mutex_lock(&adapter->clist_lock);
-	rval = __i2c_check_addr(adapter, addr);
-	mutex_unlock(&adapter->clist_lock);
-
-	return rval;
+	return device_for_each_child(&adapter->dev, &addr, __i2c_check_addr);
 }
-EXPORT_SYMBOL(i2c_check_addr);
 
 int i2c_attach_client(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	int res = 0;
-
-	mutex_lock(&adapter->clist_lock);
-	if (__i2c_check_addr(client->adapter, client->addr)) {
-		res = -EBUSY;
-		goto out_unlock;
-	}
-	list_add_tail(&client->list,&adapter->clients);
-
-	client->usage_count = 0;
 
 	client->dev.parent = &client->adapter->dev;
 	client->dev.bus = &i2c_bus_type;
@@ -713,12 +767,16 @@ int i2c_attach_client(struct i2c_client *client)
 
 	snprintf(&client->dev.bus_id[0], sizeof(client->dev.bus_id),
 		"%d-%04x", i2c_adapter_id(adapter), client->addr);
-	dev_dbg(&adapter->dev, "client [%s] registered with bus id %s\n",
-		client->name, client->dev.bus_id);
 	res = device_register(&client->dev);
 	if (res)
-		goto out_list;
+		goto out_err;
+
+	mutex_lock(&adapter->clist_lock);
+	list_add_tail(&client->list, &adapter->clients);
 	mutex_unlock(&adapter->clist_lock);
+
+	dev_dbg(&adapter->dev, "client [%s] registered with bus id %s\n",
+		client->name, client->dev.bus_id);
 
 	if (adapter->client_register)  {
 		if (adapter->client_register(client)) {
@@ -730,12 +788,9 @@ int i2c_attach_client(struct i2c_client *client)
 
 	return 0;
 
-out_list:
-	list_del(&client->list);
+out_err:
 	dev_err(&adapter->dev, "Failed to attach i2c client %s at 0x%02x "
 		"(%d)\n", client->name, client->addr, res);
-out_unlock:
-	mutex_unlock(&adapter->clist_lock);
 	return res;
 }
 EXPORT_SYMBOL(i2c_attach_client);
@@ -744,12 +799,6 @@ int i2c_detach_client(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	int res = 0;
-
-	if (client->usage_count > 0) {
-		dev_warn(&client->dev, "Client [%s] still busy, "
-			 "can't detach\n", client->name);
-		return -EBUSY;
-	}
 
 	if (adapter->client_unregister)  {
 		res = adapter->client_unregister(client);
@@ -763,9 +812,10 @@ int i2c_detach_client(struct i2c_client *client)
 
 	mutex_lock(&adapter->clist_lock);
 	list_del(&client->list);
+	mutex_unlock(&adapter->clist_lock);
+
 	init_completion(&client->released);
 	device_unregister(&client->dev);
-	mutex_unlock(&adapter->clist_lock);
 	wait_for_completion(&client->released);
 
  out:
@@ -773,72 +823,58 @@ int i2c_detach_client(struct i2c_client *client)
 }
 EXPORT_SYMBOL(i2c_detach_client);
 
-static int i2c_inc_use_client(struct i2c_client *client)
+/**
+ * i2c_use_client - increments the reference count of the i2c client structure
+ * @client: the client being referenced
+ *
+ * Each live reference to a client should be refcounted. The driver model does
+ * that automatically as part of driver binding, so that most drivers don't
+ * need to do this explicitly: they hold a reference until they're unbound
+ * from the device.
+ *
+ * A pointer to the client with the incremented reference counter is returned.
+ */
+struct i2c_client *i2c_use_client(struct i2c_client *client)
 {
-
-	if (!try_module_get(client->driver->driver.owner))
-		return -ENODEV;
-	if (!try_module_get(client->adapter->owner)) {
-		module_put(client->driver->driver.owner);
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
-static void i2c_dec_use_client(struct i2c_client *client)
-{
-	module_put(client->driver->driver.owner);
-	module_put(client->adapter->owner);
-}
-
-int i2c_use_client(struct i2c_client *client)
-{
-	int ret;
-
-	ret = i2c_inc_use_client(client);
-	if (ret)
-		return ret;
-
-	client->usage_count++;
-
-	return 0;
+	get_device(&client->dev);
+	return client;
 }
 EXPORT_SYMBOL(i2c_use_client);
 
-int i2c_release_client(struct i2c_client *client)
+/**
+ * i2c_release_client - release a use of the i2c client structure
+ * @client: the client being no longer referenced
+ *
+ * Must be called when a user of a client is finished with it.
+ */
+void i2c_release_client(struct i2c_client *client)
 {
-	if (!client->usage_count) {
-		pr_debug("i2c-core: %s used one too many times\n",
-			 __FUNCTION__);
-		return -EPERM;
-	}
-
-	client->usage_count--;
-	i2c_dec_use_client(client);
-
-	return 0;
+	put_device(&client->dev);
 }
 EXPORT_SYMBOL(i2c_release_client);
 
+struct i2c_cmd_arg {
+	unsigned	cmd;
+	void		*arg;
+};
+
+static int i2c_cmd(struct device *dev, void *_arg)
+{
+	struct i2c_client	*client = i2c_verify_client(dev);
+	struct i2c_cmd_arg	*arg = _arg;
+
+	if (client && client->driver && client->driver->command)
+		client->driver->command(client, arg->cmd, arg->arg);
+	return 0;
+}
+
 void i2c_clients_command(struct i2c_adapter *adap, unsigned int cmd, void *arg)
 {
-	struct list_head  *item;
-	struct i2c_client *client;
+	struct i2c_cmd_arg	cmd_arg;
 
-	mutex_lock(&adap->clist_lock);
-	list_for_each(item,&adap->clients) {
-		client = list_entry(item, struct i2c_client, list);
-		if (!try_module_get(client->driver->driver.owner))
-			continue;
-		if (NULL != client->driver->command) {
-			mutex_unlock(&adap->clist_lock);
-			client->driver->command(client,cmd,arg);
-			mutex_lock(&adap->clist_lock);
-		}
-		module_put(client->driver->driver.owner);
-       }
-       mutex_unlock(&adap->clist_lock);
+	cmd_arg.cmd = cmd;
+	cmd_arg.arg = arg;
+	device_for_each_child(&adap->dev, &cmd_arg, i2c_cmd);
 }
 EXPORT_SYMBOL(i2c_clients_command);
 
@@ -849,11 +885,24 @@ static int __init i2c_init(void)
 	retval = bus_register(&i2c_bus_type);
 	if (retval)
 		return retval;
-	return class_register(&i2c_adapter_class);
+	retval = class_register(&i2c_adapter_class);
+	if (retval)
+		goto bus_err;
+	retval = i2c_add_driver(&dummy_driver);
+	if (retval)
+		goto class_err;
+	return 0;
+
+class_err:
+	class_unregister(&i2c_adapter_class);
+bus_err:
+	bus_unregister(&i2c_bus_type);
+	return retval;
 }
 
 static void __exit i2c_exit(void)
 {
+	i2c_del_driver(&dummy_driver);
 	class_unregister(&i2c_adapter_class);
 	bus_unregister(&i2c_bus_type);
 }
@@ -880,7 +929,15 @@ int i2c_transfer(struct i2c_adapter * adap, struct i2c_msg *msgs, int num)
 		}
 #endif
 
-		mutex_lock_nested(&adap->bus_lock, adap->level);
+		if (in_atomic() || irqs_disabled()) {
+			ret = mutex_trylock(&adap->bus_lock);
+			if (!ret)
+				/* I2C activity is ongoing. */
+				return -EAGAIN;
+		} else {
+			mutex_lock_nested(&adap->bus_lock, adap->level);
+		}
+
 		ret = adap->algo->master_xfer(adap,msgs,num);
 		mutex_unlock(&adap->bus_lock);
 
@@ -979,7 +1036,7 @@ static int i2c_probe_address(struct i2c_adapter *adapter, int addr, int kind,
 }
 
 int i2c_probe(struct i2c_adapter *adapter,
-	      struct i2c_client_address_data *address_data,
+	      const struct i2c_client_address_data *address_data,
 	      int (*found_proc) (struct i2c_adapter *, int, int))
 {
 	int i, err;
@@ -988,7 +1045,7 @@ int i2c_probe(struct i2c_adapter *adapter,
 	/* Force entries are done first, and are not affected by ignore
 	   entries */
 	if (address_data->forces) {
-		unsigned short **forces = address_data->forces;
+		const unsigned short * const *forces = address_data->forces;
 		int kind;
 
 		for (kind = 0; forces[kind]; kind++) {
@@ -1086,7 +1143,6 @@ i2c_new_probed_device(struct i2c_adapter *adap,
 		return NULL;
 	}
 
-	mutex_lock(&adap->clist_lock);
 	for (i = 0; addr_list[i] != I2C_CLIENT_END; i++) {
 		/* Check address validity */
 		if (addr_list[i] < 0x03 || addr_list[i] > 0x77) {
@@ -1096,7 +1152,7 @@ i2c_new_probed_device(struct i2c_adapter *adap,
 		}
 
 		/* Check address availability */
-		if (__i2c_check_addr(adap, addr_list[i])) {
+		if (i2c_check_addr(adap, addr_list[i])) {
 			dev_dbg(&adap->dev, "Address 0x%02x already in "
 				"use, not probing\n", addr_list[i]);
 			continue;
@@ -1124,7 +1180,6 @@ i2c_new_probed_device(struct i2c_adapter *adap,
 				break;
 		}
 	}
-	mutex_unlock(&adap->clist_lock);
 
 	if (addr_list[i] == I2C_CLIENT_END) {
 		dev_dbg(&adap->dev, "Probing failed, no device found\n");
@@ -1140,12 +1195,12 @@ struct i2c_adapter* i2c_get_adapter(int id)
 {
 	struct i2c_adapter *adapter;
 
-	mutex_lock(&core_lists);
+	mutex_lock(&core_lock);
 	adapter = (struct i2c_adapter *)idr_find(&i2c_adapter_idr, id);
 	if (adapter && !try_module_get(adapter->owner))
 		adapter = NULL;
 
-	mutex_unlock(&core_lists);
+	mutex_unlock(&core_lock);
 	return adapter;
 }
 EXPORT_SYMBOL(i2c_get_adapter);

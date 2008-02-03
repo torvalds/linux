@@ -2,7 +2,6 @@
 #include <linux/device.h>
 #include <linux/mm.h>
 #include <asm/io.h>		/* Needed for i386 to build */
-#include <asm/scatterlist.h>	/* Needed for i386 to build */
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
 #include <linux/slab.h>

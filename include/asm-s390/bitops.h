@@ -772,6 +772,8 @@ static inline int sched_find_first_bit(unsigned long *b)
 	test_and_clear_bit((nr)^(__BITOPS_WORDSIZE - 8), (unsigned long *)addr)
 #define ext2_test_bit(nr, addr)      \
 	test_bit((nr)^(__BITOPS_WORDSIZE - 8), (unsigned long *)addr)
+#define ext2_find_next_bit(addr, size, off) \
+	generic_find_next_le_bit((unsigned long *)(addr), (size), (off))
 
 #ifndef __s390x__
 

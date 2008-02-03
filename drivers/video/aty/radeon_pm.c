@@ -27,8 +27,6 @@
 
 #include "ati_ids.h"
 
-static void radeon_reinitialize_M10(struct radeonfb_info *rinfo);
-
 /*
  * Workarounds for bugs in PC laptops:
  * - enable D2 sleep in some IBM Thinkpads
@@ -39,6 +37,8 @@ static void radeon_reinitialize_M10(struct radeonfb_info *rinfo);
  */
 
 #if defined(CONFIG_PM) && defined(CONFIG_X86)
+static void radeon_reinitialize_M10(struct radeonfb_info *rinfo);
+
 struct radeon_device_id {
         const char *ident;                     /* (arbitrary) Name */
         const unsigned short subsystem_vendor; /* Subsystem Vendor ID */

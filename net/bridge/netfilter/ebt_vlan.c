@@ -31,15 +31,12 @@ static int debug;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "debug=1 is turn on debug messages");
 MODULE_AUTHOR("Nick Fedchik <nick@fedchik.org.ua>");
-MODULE_DESCRIPTION("802.1Q match module (ebtables extension), v"
-		   MODULE_VERS);
+MODULE_DESCRIPTION("Ebtables: 802.1Q VLAN tag match");
 MODULE_LICENSE("GPL");
 
 
 #define DEBUG_MSG(args...) if (debug) printk (KERN_DEBUG "ebt_vlan: " args)
-#define INV_FLAG(_inv_flag_) (info->invflags & _inv_flag_) ? "!" : ""
 #define GET_BITMASK(_BIT_MASK_) info->bitmask & _BIT_MASK_
-#define SET_BITMASK(_BIT_MASK_) info->bitmask |= _BIT_MASK_
 #define EXIT_ON_MISMATCH(_MATCH_,_MASK_) {if (!((info->_MATCH_ == _MATCH_)^!!(info->invflags & _MASK_))) return EBT_NOMATCH;}
 
 static int
@@ -48,8 +45,9 @@ ebt_filter_vlan(const struct sk_buff *skb,
 		const struct net_device *out,
 		const void *data, unsigned int datalen)
 {
-	struct ebt_vlan_info *info = (struct ebt_vlan_info *) data;
-	struct vlan_hdr _frame, *fp;
+	const struct ebt_vlan_info *info = data;
+	const struct vlan_hdr *fp;
+	struct vlan_hdr _frame;
 
 	unsigned short TCI;	/* Whole TCI, given from parsed frame */
 	unsigned short id;	/* VLAN ID, given from frame TCI */
@@ -93,7 +91,7 @@ ebt_check_vlan(const char *tablename,
 	       unsigned int hooknr,
 	       const struct ebt_entry *e, void *data, unsigned int datalen)
 {
-	struct ebt_vlan_info *info = (struct ebt_vlan_info *) data;
+	struct ebt_vlan_info *info = data;
 
 	/* Parameters buffer overflow check */
 	if (datalen != EBT_ALIGN(sizeof(struct ebt_vlan_info))) {
@@ -171,7 +169,7 @@ ebt_check_vlan(const char *tablename,
 	return 0;
 }
 
-static struct ebt_match filter_vlan = {
+static struct ebt_match filter_vlan __read_mostly = {
 	.name		= EBT_VLAN_MATCH,
 	.match		= ebt_filter_vlan,
 	.check		= ebt_check_vlan,

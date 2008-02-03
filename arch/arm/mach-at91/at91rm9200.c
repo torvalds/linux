@@ -301,28 +301,28 @@ void __init at91rm9200_initialize(unsigned long main_clock, unsigned short banks
 static unsigned int at91rm9200_default_irq_priority[NR_AIC_IRQS] __initdata = {
 	7,	/* Advanced Interrupt Controller (FIQ) */
 	7,	/* System Peripherals */
-	0,	/* Parallel IO Controller A */
-	0,	/* Parallel IO Controller B */
-	0,	/* Parallel IO Controller C */
-	0,	/* Parallel IO Controller D */
-	6,	/* USART 0 */
-	6,	/* USART 1 */
-	6,	/* USART 2 */
-	6,	/* USART 3 */
+	1,	/* Parallel IO Controller A */
+	1,	/* Parallel IO Controller B */
+	1,	/* Parallel IO Controller C */
+	1,	/* Parallel IO Controller D */
+	5,	/* USART 0 */
+	5,	/* USART 1 */
+	5,	/* USART 2 */
+	5,	/* USART 3 */
 	0,	/* Multimedia Card Interface */
-	4,	/* USB Device Port */
-	0,	/* Two-Wire Interface */
-	6,	/* Serial Peripheral Interface */
-	5,	/* Serial Synchronous Controller 0 */
-	5,	/* Serial Synchronous Controller 1 */
-	5,	/* Serial Synchronous Controller 2 */
+	2,	/* USB Device Port */
+	6,	/* Two-Wire Interface */
+	5,	/* Serial Peripheral Interface */
+	4,	/* Serial Synchronous Controller 0 */
+	4,	/* Serial Synchronous Controller 1 */
+	4,	/* Serial Synchronous Controller 2 */
 	0,	/* Timer Counter 0 */
 	0,	/* Timer Counter 1 */
 	0,	/* Timer Counter 2 */
 	0,	/* Timer Counter 3 */
 	0,	/* Timer Counter 4 */
 	0,	/* Timer Counter 5 */
-	3,	/* USB Host port */
+	2,	/* USB Host port */
 	3,	/* Ethernet MAC */
 	0,	/* Advanced Interrupt Controller (IRQ0) */
 	0,	/* Advanced Interrupt Controller (IRQ1) */

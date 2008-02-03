@@ -472,7 +472,7 @@ struct memmap_init_callback_data {
 	unsigned long zone;
 };
 
-static int
+static int __meminit
 virtual_memmap_init (u64 start, u64 end, void *arg)
 {
 	struct memmap_init_callback_data *args;
@@ -503,7 +503,7 @@ virtual_memmap_init (u64 start, u64 end, void *arg)
 	return 0;
 }
 
-void
+void __meminit
 memmap_init (unsigned long size, int nid, unsigned long zone,
 	     unsigned long start_pfn)
 {

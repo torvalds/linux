@@ -24,6 +24,7 @@
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/vmalloc.h>
+#include <linux/sched.h>
 #include <asm/dma.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
@@ -33,6 +34,16 @@
  * or to back the page tables that are used to create the mapping.
  * Uses the main allocators if they are available, else bootmem.
  */
+
+static void * __init_refok __earlyonly_bootmem_alloc(int node,
+				unsigned long size,
+				unsigned long align,
+				unsigned long goal)
+{
+	return __alloc_bootmem_node(NODE_DATA(node), size, align, goal);
+}
+
+
 void * __meminit vmemmap_alloc_block(unsigned long size, int node)
 {
 	/* If the main allocator is up use that, fallback to bootmem. */
@@ -43,7 +54,7 @@ void * __meminit vmemmap_alloc_block(unsigned long size, int node)
 			return page_address(page);
 		return NULL;
 	} else
-		return __alloc_bootmem_node(NODE_DATA(node), size, size,
+		return __earlyonly_bootmem_alloc(node, size, size,
 				__pa(MAX_DMA_ADDRESS));
 }
 

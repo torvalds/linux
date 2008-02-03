@@ -44,10 +44,21 @@ u16 hfs_brec_keylen(struct hfs_bnode *node, u16 rec)
 		recoff = hfs_bnode_read_u16(node, node->tree->node_size - (rec + 1) * 2);
 		if (!recoff)
 			return 0;
-		if (node->tree->attributes & HFS_TREE_BIGKEYS)
+		if (node->tree->attributes & HFS_TREE_BIGKEYS) {
 			retval = hfs_bnode_read_u16(node, recoff) + 2;
-		else
+			if (retval > node->tree->max_key_len + 2) {
+				printk(KERN_ERR "hfs: keylen %d too large\n",
+					retval);
+				retval = HFS_BAD_KEYLEN;
+			}
+		} else {
 			retval = (hfs_bnode_read_u8(node, recoff) | 1) + 1;
+			if (retval > node->tree->max_key_len + 1) {
+				printk(KERN_ERR "hfs: keylen %d too large\n",
+					retval);
+				retval = HFS_BAD_KEYLEN;
+			}
+		}
 	}
 	return retval;
 }

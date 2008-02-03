@@ -186,7 +186,9 @@ int btext_initialize(struct device_node *np)
 		pitch = *prop;
 	if (pitch == 1)
 		pitch = 0x1000;
-	prop = of_get_property(np, "address", NULL);
+	prop = of_get_property(np, "linux,bootx-addr", NULL);
+	if (prop == NULL)
+		prop = of_get_property(np, "address", NULL);
 	if (prop)
 		address = *prop;
 
@@ -234,7 +236,7 @@ int __init btext_find_display(int allow_nonstdout)
 	if (rc == 0 || !allow_nonstdout)
 		return rc;
 
-	for (np = NULL; (np = of_find_node_by_type(np, "display"));) {
+	for_each_node_by_type(np, "display") {
 		if (of_get_property(np, "linux,opened", NULL)) {
 			printk("trying %s ...\n", np->full_name);
 			rc = btext_initialize(np);

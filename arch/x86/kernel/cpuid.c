@@ -50,7 +50,7 @@ struct cpuid_command {
 
 static void cpuid_smp_cpuid(void *cmd_block)
 {
-	struct cpuid_command *cmd = (struct cpuid_command *)cmd_block;
+	struct cpuid_command *cmd = cmd_block;
 
 	cpuid(cmd->reg, &cmd->data[0], &cmd->data[1], &cmd->data[2],
 		      &cmd->data[3]);
@@ -157,20 +157,20 @@ static int __cpuinit cpuid_class_cpu_callback(struct notifier_block *nfb,
 
 	switch (action) {
 	case CPU_UP_PREPARE:
-	case CPU_UP_PREPARE_FROZEN:
 		err = cpuid_device_create(cpu);
 		break;
 	case CPU_UP_CANCELED:
-	case CPU_UP_CANCELED_FROZEN:
 	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
 		cpuid_device_destroy(cpu);
+		break;
+	case CPU_UP_CANCELED_FROZEN:
+		destroy_suspended_device(cpuid_class, MKDEV(CPUID_MAJOR, cpu));
 		break;
 	}
 	return err ? NOTIFY_BAD : NOTIFY_OK;
 }
 
-static struct notifier_block __cpuinitdata cpuid_class_cpu_notifier =
+static struct notifier_block __refdata cpuid_class_cpu_notifier =
 {
 	.notifier_call = cpuid_class_cpu_callback,
 };

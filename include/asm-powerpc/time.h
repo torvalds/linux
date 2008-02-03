@@ -176,25 +176,31 @@ static inline unsigned int get_dec(void)
 #endif
 }
 
+/*
+ * Note: Book E and 4xx processors differ from other PowerPC processors
+ * in when the decrementer generates its interrupt: on the 1 to 0
+ * transition for Book E/4xx, but on the 0 to -1 transition for others.
+ */
 static inline void set_dec(int val)
 {
 #if defined(CONFIG_40x)
 	mtspr(SPRN_PIT, val);
 #elif defined(CONFIG_8xx_CPU6)
-	set_dec_cpu6(val);
+	set_dec_cpu6(val - 1);
 #else
+#ifndef CONFIG_BOOKE
+	--val;
+#endif
 #ifdef CONFIG_PPC_ISERIES
-	int cur_dec;
-
 	if (firmware_has_feature(FW_FEATURE_ISERIES) &&
 			get_lppaca()->shared_proc) {
 		get_lppaca()->virtual_decr = val;
-		cur_dec = get_dec();
-		if (cur_dec > val)
+		if (get_dec() > val)
 			HvCall_setVirtualDecr();
-	} else
+		return;
+	}
 #endif
-		mtspr(SPRN_DEC, val);
+	mtspr(SPRN_DEC, val);
 #endif /* not 40x or 8xx_CPU6 */
 }
 
@@ -231,18 +237,14 @@ struct cpu_usage {
 
 DECLARE_PER_CPU(struct cpu_usage, cpu_usage_array);
 
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
-extern void account_process_vtime(struct task_struct *tsk);
-#else
-#define account_process_vtime(tsk)		do { } while (0)
-#endif
-
 #if defined(CONFIG_VIRT_CPU_ACCOUNTING)
 extern void calculate_steal_time(void);
 extern void snapshot_timebases(void);
+#define account_process_vtime(tsk)		account_process_tick(tsk, 0)
 #else
 #define calculate_steal_time()			do { } while (0)
 #define snapshot_timebases()			do { } while (0)
+#define account_process_vtime(tsk)		do { } while (0)
 #endif
 
 extern void secondary_cpu_time_init(void);

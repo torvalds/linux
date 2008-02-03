@@ -60,7 +60,7 @@ MODULE_ALIAS("ip_nat_snmp_basic");
 
 #define SNMP_PORT 161
 #define SNMP_TRAP_PORT 162
-#define NOCT1(n) (*(u8 *)n)
+#define NOCT1(n) (*(u8 *)(n))
 
 static int debug;
 static DEFINE_SPINLOCK(snmp_lock);
@@ -260,7 +260,7 @@ static unsigned char asn1_eoc_decode(struct asn1_ctx *ctx, unsigned char *eoc)
 {
 	unsigned char ch;
 
-	if (eoc == 0) {
+	if (eoc == NULL) {
 		if (!asn1_octet_decode(ctx, &ch))
 			return 0;
 

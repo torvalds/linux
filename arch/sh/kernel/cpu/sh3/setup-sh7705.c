@@ -66,12 +66,6 @@ static struct intc_group groups[] __initdata = {
 	INTC_GROUP(SCIF2, SCIF2_ERI, SCIF2_RXI, SCIF2_TXI),
 };
 
-static struct intc_prio priorities[] __initdata = {
-	INTC_PRIO(DMAC, 7),
-	INTC_PRIO(SCIF2, 3),
-	INTC_PRIO(SCIF0, 3),
-};
-
 static struct intc_prio_reg prio_registers[] __initdata = {
 	{ 0xfffffee2, 0, 16, 4, /* IPRA */ { TMU0, TMU1, TMU2, RTC } },
 	{ 0xfffffee4, 0, 16, 4, /* IPRB */ { WDT, REF_RCMI, 0, 0 } },
@@ -85,7 +79,7 @@ static struct intc_prio_reg prio_registers[] __initdata = {
 };
 
 static DECLARE_INTC_DESC(intc_desc, "sh7705", vectors, groups,
-			 priorities, NULL, prio_registers, NULL);
+			 NULL, prio_registers, NULL);
 
 static struct intc_vect vectors_irq[] __initdata = {
 	INTC_VECT(IRQ0, 0x600), INTC_VECT(IRQ1, 0x620),
@@ -93,7 +87,7 @@ static struct intc_vect vectors_irq[] __initdata = {
 };
 
 static DECLARE_INTC_DESC(intc_desc_irq, "sh7705-irq", vectors_irq, NULL,
-			 priorities, NULL, prio_registers, NULL);
+			 NULL, prio_registers, NULL);
 
 static struct plat_sci_port sci_platform_data[] = {
 	{

@@ -274,8 +274,6 @@ the PCI device by calling pci_enable_device(). This will:
 	o allocate an IRQ (if BIOS did not).
 
 NOTE: pci_enable_device() can fail! Check the return value.
-NOTE2: Also see pci_enable_device_bars() below. Drivers can
-    attempt to enable only a subset of BARs they need.
 
 [ OS BUG: we don't check resource allocations before enabling those
   resources. The sequence would make more sense if we called
@@ -605,40 +603,7 @@ device lists. This is still possible but discouraged.
 
 
 
-10. pci_enable_device_bars() and Legacy I/O Port space
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Large servers may not be able to provide I/O port resources to all PCI
-devices. I/O Port space is only 64KB on Intel Architecture[1] and is
-likely also fragmented since the I/O base register of PCI-to-PCI
-bridge will usually be aligned to a 4KB boundary[2]. On such systems,
-pci_enable_device() and pci_request_region() will fail when
-attempting to enable I/O Port regions that don't have I/O Port
-resources assigned.
-
-Fortunately, many PCI devices which request I/O Port resources also
-provide access to the same registers via MMIO BARs. These devices can
-be handled without using I/O port space and the drivers typically
-offer a CONFIG_ option to only use MMIO regions
-(e.g. CONFIG_TULIP_MMIO). PCI devices typically provide I/O port
-interface for legacy OSes and will work when I/O port resources are not
-assigned. The "PCI Local Bus Specification Revision 3.0" discusses
-this on p.44, "IMPLEMENTATION NOTE".
-
-If your PCI device driver doesn't need I/O port resources assigned to
-I/O Port BARs, you should use pci_enable_device_bars() instead of
-pci_enable_device() in order not to enable I/O port regions for the
-corresponding devices. In addition, you should use
-pci_request_selected_regions() and pci_release_selected_regions()
-instead of pci_request_regions()/pci_release_regions() in order not to
-request/release I/O port regions for the corresponding devices.
-
-[1] Some systems support 64KB I/O port space per PCI segment.
-[2] Some PCI-to-PCI bridges support optional 1KB aligned I/O base.
-
-
-
-11. MMIO Space and "Write Posting"
+10. MMIO Space and "Write Posting"
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Converting a driver from using I/O Port space to using MMIO space

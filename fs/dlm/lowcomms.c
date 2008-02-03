@@ -864,7 +864,7 @@ static void sctp_init_assoc(struct connection *con)
 static void tcp_connect_to_sock(struct connection *con)
 {
 	int result = -EHOSTUNREACH;
-	struct sockaddr_storage saddr;
+	struct sockaddr_storage saddr, src_addr;
 	int addr_len;
 	struct socket *sock;
 
@@ -897,6 +897,17 @@ static void tcp_connect_to_sock(struct connection *con)
 	con->rx_action = receive_from_sock;
 	con->connect_action = tcp_connect_to_sock;
 	add_sock(sock, con);
+
+	/* Bind to our cluster-known address connecting to avoid
+	   routing problems */
+	memcpy(&src_addr, dlm_local_addr[0], sizeof(src_addr));
+	make_sockaddr(&src_addr, 0, &addr_len);
+	result = sock->ops->bind(sock, (struct sockaddr *) &src_addr,
+				 addr_len);
+	if (result < 0) {
+		log_print("could not bind for connect: %d", result);
+		/* This *may* not indicate a critical error */
+	}
 
 	make_sockaddr(&saddr, dlm_config.ci_tcp_port, &addr_len);
 
@@ -1062,7 +1073,7 @@ static int sctp_listen_for_all(void)
 	subscribe.sctp_shutdown_event = 1;
 	subscribe.sctp_partial_delivery_event = 1;
 
-	result = kernel_setsockopt(sock, SOL_SOCKET, SO_RCVBUF,
+	result = kernel_setsockopt(sock, SOL_SOCKET, SO_RCVBUFFORCE,
 				 (char *)&bufsize, sizeof(bufsize));
 	if (result)
 		log_print("Error increasing buffer space on socket %d", result);
@@ -1426,6 +1437,8 @@ void dlm_lowcomms_stop(void)
 		con = __nodeid2con(i, 0);
 		if (con) {
 			close_connection(con, true);
+			if (con->othercon)
+				kmem_cache_free(con_cache, con->othercon);
 			kmem_cache_free(con_cache, con);
 		}
 	}
@@ -1453,10 +1466,6 @@ int dlm_lowcomms_start(void)
 				      NULL);
 	if (!con_cache)
 		goto out;
-
-	/* Set some sysctl minima */
-	if (sysctl_rmem_max < NEEDED_RMEM)
-		sysctl_rmem_max = NEEDED_RMEM;
 
 	/* Start listening */
 	if (dlm_config.ci_protocol == 0)

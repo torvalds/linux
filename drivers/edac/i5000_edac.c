@@ -1462,7 +1462,7 @@ MODULE_DEVICE_TABLE(pci, i5000_pci_tbl);
  *
  */
 static struct pci_driver i5000_driver = {
-	.name = __stringify(KBUILD_BASENAME),
+	.name = KBUILD_BASENAME,
 	.probe = i5000_init_one,
 	.remove = __devexit_p(i5000_remove_one),
 	.id_table = i5000_pci_tbl,

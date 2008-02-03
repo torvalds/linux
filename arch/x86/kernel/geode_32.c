@@ -1,6 +1,7 @@
 /*
  * AMD Geode southbridge support code
  * Copyright (C) 2006, Advanced Micro Devices, Inc.
+ * Copyright (C) 2007, Andres Salomon <dilinger@debian.org>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public License
@@ -51,45 +52,62 @@ EXPORT_SYMBOL_GPL(geode_get_dev_base);
 
 /* === GPIO API === */
 
-void geode_gpio_set(unsigned int gpio, unsigned int reg)
+void geode_gpio_set(u32 gpio, unsigned int reg)
 {
 	u32 base = geode_get_dev_base(GEODE_DEV_GPIO);
 
 	if (!base)
 		return;
 
-	if (gpio < 16)
-		outl(1 << gpio, base + reg);
-	else
-		outl(1 << (gpio - 16), base + 0x80 + reg);
+	/* low bank register */
+	if (gpio & 0xFFFF)
+		outl(gpio & 0xFFFF, base + reg);
+	/* high bank register */
+	gpio >>= 16;
+	if (gpio)
+		outl(gpio, base + 0x80 + reg);
 }
 EXPORT_SYMBOL_GPL(geode_gpio_set);
 
-void geode_gpio_clear(unsigned int gpio, unsigned int reg)
+void geode_gpio_clear(u32 gpio, unsigned int reg)
 {
 	u32 base = geode_get_dev_base(GEODE_DEV_GPIO);
 
 	if (!base)
 		return;
 
-	if (gpio < 16)
-		outl(1 << (gpio + 16), base + reg);
-	else
-		outl(1 << gpio, base + 0x80 + reg);
+	/* low bank register */
+	if (gpio & 0xFFFF)
+		outl((gpio & 0xFFFF) << 16, base + reg);
+	/* high bank register */
+	gpio &= (0xFFFF << 16);
+	if (gpio)
+		outl(gpio, base + 0x80 + reg);
 }
 EXPORT_SYMBOL_GPL(geode_gpio_clear);
 
-int geode_gpio_isset(unsigned int gpio, unsigned int reg)
+int geode_gpio_isset(u32 gpio, unsigned int reg)
 {
 	u32 base = geode_get_dev_base(GEODE_DEV_GPIO);
+	u32 val;
 
 	if (!base)
 		return 0;
 
-	if (gpio < 16)
-		return (inl(base + reg) & (1 << gpio)) ? 1 : 0;
-	else
-		return (inl(base + 0x80 + reg) & (1 << (gpio - 16))) ? 1 : 0;
+	/* low bank register */
+	if (gpio & 0xFFFF) {
+		val = inl(base + reg) & (gpio & 0xFFFF);
+		if ((gpio & 0xFFFF) == val)
+			return 1;
+	}
+	/* high bank register */
+	gpio >>= 16;
+	if (gpio) {
+		val = inl(base + 0x80 + reg) & gpio;
+		if (gpio == val)
+			return 1;
+	}
+	return 0;
 }
 EXPORT_SYMBOL_GPL(geode_gpio_isset);
 

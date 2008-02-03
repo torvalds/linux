@@ -42,13 +42,7 @@ static struct cpu_features cpu;
 static u32 cpu_vendor[3];
 static u32 err_flags[NCAPINTS];
 
-#ifdef CONFIG_X86_64
-static const int req_level = 64;
-#elif defined(CONFIG_X86_MINIMUM_CPU_FAMILY)
 static const int req_level = CONFIG_X86_MINIMUM_CPU_FAMILY;
-#else
-static const int req_level = 3;
-#endif
 
 static const u32 req_flags[NCAPINTS] =
 {

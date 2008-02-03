@@ -22,8 +22,8 @@
 #include "bond_3ad.h"
 #include "bond_alb.h"
 
-#define DRV_VERSION	"3.2.1"
-#define DRV_RELDATE	"October 15, 2007"
+#define DRV_VERSION	"3.2.3"
+#define DRV_RELDATE	"December 6, 2007"
 #define DRV_NAME	"bonding"
 #define DRV_DESCRIPTION	"Ethernet Channel Bonding Driver"
 
@@ -140,6 +140,8 @@ struct bond_parm_tbl {
 	char *modename;
 	int mode;
 };
+
+#define BOND_MAX_MODENAME_LEN 20
 
 struct vlan_entry {
 	struct list_head vlan_list;
@@ -314,7 +316,7 @@ void bond_mii_monitor(struct work_struct *);
 void bond_loadbalance_arp_mon(struct work_struct *);
 void bond_activebackup_arp_mon(struct work_struct *);
 void bond_set_mode_ops(struct bonding *bond, int mode);
-int bond_parse_parm(char *mode_arg, struct bond_parm_tbl *tbl);
+int bond_parse_parm(const char *mode_arg, struct bond_parm_tbl *tbl);
 void bond_select_active_slave(struct bonding *bond);
 void bond_change_active_slave(struct bonding *bond, struct slave *new_active);
 void bond_register_arp(struct bonding *);

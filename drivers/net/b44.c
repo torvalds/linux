@@ -128,6 +128,8 @@ static void b44_init_rings(struct b44 *);
 #define B44_FULL_RESET		1
 #define B44_FULL_RESET_SKIP_PHY	2
 #define B44_PARTIAL_RESET	3
+#define B44_CHIP_RESET_FULL	4
+#define B44_CHIP_RESET_PARTIAL	5
 
 static void b44_init_hw(struct b44 *, int);
 
@@ -1259,7 +1261,7 @@ static void b44_clear_stats(struct b44 *bp)
 }
 
 /* bp->lock is held. */
-static void b44_chip_reset(struct b44 *bp)
+static void b44_chip_reset(struct b44 *bp, int reset_kind)
 {
 	struct ssb_device *sdev = bp->sdev;
 
@@ -1280,6 +1282,13 @@ static void b44_chip_reset(struct b44 *bp)
 
 	ssb_device_enable(bp->sdev, 0);
 	b44_clear_stats(bp);
+
+	/*
+	 * Don't enable PHY if we are doing a partial reset
+	 * we are probably going to power down
+	 */
+	if (reset_kind == B44_CHIP_RESET_PARTIAL)
+		return;
 
 	switch (sdev->bus->bustype) {
 	case SSB_BUSTYPE_SSB:
@@ -1316,7 +1325,14 @@ static void b44_chip_reset(struct b44 *bp)
 static void b44_halt(struct b44 *bp)
 {
 	b44_disable_ints(bp);
-	b44_chip_reset(bp);
+	/* reset PHY */
+	b44_phy_reset(bp);
+	/* power down PHY */
+	printk(KERN_INFO PFX "%s: powering down PHY\n", bp->dev->name);
+	bw32(bp, B44_MAC_CTRL, MAC_CTRL_PHY_PDOWN);
+	/* now reset the chip, but without enabling the MAC&PHY
+	 * part of it. This has to be done _after_ we shut down the PHY */
+	b44_chip_reset(bp, B44_CHIP_RESET_PARTIAL);
 }
 
 /* bp->lock is held. */
@@ -1365,7 +1381,7 @@ static void b44_init_hw(struct b44 *bp, int reset_kind)
 {
 	u32 val;
 
-	b44_chip_reset(bp);
+	b44_chip_reset(bp, B44_CHIP_RESET_FULL);
 	if (reset_kind == B44_FULL_RESET) {
 		b44_phy_reset(bp);
 		b44_setup_phy(bp);
@@ -1422,7 +1438,7 @@ static int b44_open(struct net_device *dev)
 	err = request_irq(dev->irq, b44_interrupt, IRQF_SHARED, dev->name, dev);
 	if (unlikely(err < 0)) {
 		napi_disable(&bp->napi);
-		b44_chip_reset(bp);
+		b44_chip_reset(bp, B44_CHIP_RESET_PARTIAL);
 		b44_free_rings(bp);
 		b44_free_consistent(bp);
 		goto out;
@@ -2060,11 +2076,11 @@ static int __devinit b44_get_invariants(struct b44 *bp)
 
 	if (sdev->bus->bustype == SSB_BUSTYPE_SSB &&
 	    instance > 1) {
-		addr = sdev->bus->sprom.r1.et1mac;
-		bp->phy_addr = sdev->bus->sprom.r1.et1phyaddr;
+		addr = sdev->bus->sprom.et1mac;
+		bp->phy_addr = sdev->bus->sprom.et1phyaddr;
 	} else {
-		addr = sdev->bus->sprom.r1.et0mac;
-		bp->phy_addr = sdev->bus->sprom.r1.et0phyaddr;
+		addr = sdev->bus->sprom.et0mac;
+		bp->phy_addr = sdev->bus->sprom.et0phyaddr;
 	}
 	memcpy(bp->dev->dev_addr, addr, 6);
 
@@ -2188,7 +2204,7 @@ static int __devinit b44_init_one(struct ssb_device *sdev,
 	/* Chip reset provides power to the b44 MAC & PCI cores, which
 	 * is necessary for MAC register access.
 	 */
-	b44_chip_reset(bp);
+	b44_chip_reset(bp, B44_CHIP_RESET_FULL);
 
 	printk(KERN_INFO "%s: Broadcom 44xx/47xx 10/100BaseT Ethernet %s\n",
 	       dev->name, print_mac(mac, dev->dev_addr));
@@ -2212,6 +2228,7 @@ static void __devexit b44_remove_one(struct ssb_device *sdev)
 	unregister_netdev(dev);
 	ssb_bus_may_powerdown(sdev->bus);
 	free_netdev(dev);
+	ssb_pcihost_set_power_state(sdev, PCI_D3hot);
 	ssb_set_drvdata(sdev, NULL);
 }
 
@@ -2240,6 +2257,7 @@ static int b44_suspend(struct ssb_device *sdev, pm_message_t state)
 		b44_setup_wol(bp);
 	}
 
+	ssb_pcihost_set_power_state(sdev, PCI_D3hot);
 	return 0;
 }
 

@@ -25,6 +25,51 @@
 
 static int pci_msi_enable = 1;
 
+/* Arch hooks */
+
+int __attribute__ ((weak))
+arch_msi_check_device(struct pci_dev *dev, int nvec, int type)
+{
+	return 0;
+}
+
+int __attribute__ ((weak))
+arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *entry)
+{
+	return 0;
+}
+
+int __attribute__ ((weak))
+arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
+{
+	struct msi_desc *entry;
+	int ret;
+
+	list_for_each_entry(entry, &dev->msi_list, list) {
+		ret = arch_setup_msi_irq(dev, entry);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+void __attribute__ ((weak)) arch_teardown_msi_irq(unsigned int irq)
+{
+	return;
+}
+
+void __attribute__ ((weak))
+arch_teardown_msi_irqs(struct pci_dev *dev)
+{
+	struct msi_desc *entry;
+
+	list_for_each_entry(entry, &dev->msi_list, list) {
+		if (entry->irq != 0)
+			arch_teardown_msi_irq(entry->irq);
+	}
+}
+
 static void msi_set_enable(struct pci_dev *dev, int enable)
 {
 	int pos;
@@ -224,7 +269,12 @@ static struct msi_desc* alloc_msi_entry(void)
 	return entry;
 }
 
-#ifdef CONFIG_PM
+static void pci_intx_for_msi(struct pci_dev *dev, int enable)
+{
+	if (!(dev->dev_flags & PCI_DEV_FLAGS_MSI_INTX_DISABLE_BUG))
+		pci_intx(dev, enable);
+}
+
 static void __pci_restore_msi_state(struct pci_dev *dev)
 {
 	int pos;
@@ -237,7 +287,7 @@ static void __pci_restore_msi_state(struct pci_dev *dev)
 	entry = get_irq_msi(dev->irq);
 	pos = entry->msi_attrib.pos;
 
-	pci_intx(dev, 0);		/* disable intx */
+	pci_intx_for_msi(dev, 0);
 	msi_set_enable(dev, 0);
 	write_msi_msg(dev->irq, &entry->msg);
 	if (entry->msi_attrib.maskbit)
@@ -260,7 +310,7 @@ static void __pci_restore_msix_state(struct pci_dev *dev)
 		return;
 
 	/* route the table */
-	pci_intx(dev, 0);		/* disable intx */
+	pci_intx_for_msi(dev, 0);
 	msix_set_enable(dev, 0);
 
 	list_for_each_entry(entry, &dev->msi_list, list) {
@@ -282,7 +332,7 @@ void pci_restore_msi_state(struct pci_dev *dev)
 	__pci_restore_msi_state(dev);
 	__pci_restore_msix_state(dev);
 }
-#endif	/* CONFIG_PM */
+EXPORT_SYMBOL_GPL(pci_restore_msi_state);
 
 /**
  * msi_capability_init - configure device's MSI capability structure
@@ -343,7 +393,7 @@ static int msi_capability_init(struct pci_dev *dev)
 	}
 
 	/* Set MSI enabled bits	 */
-	pci_intx(dev, 0);		/* disable intx */
+	pci_intx_for_msi(dev, 0);
 	msi_set_enable(dev, 1);
 	dev->msi_enabled = 1;
 
@@ -433,7 +483,7 @@ static int msix_capability_init(struct pci_dev *dev,
 		i++;
 	}
 	/* Set MSI-X enabled bits */
-	pci_intx(dev, 0);		/* disable intx */
+	pci_intx_for_msi(dev, 0);
 	msix_set_enable(dev, 1);
 	dev->msix_enabled = 1;
 
@@ -528,7 +578,7 @@ void pci_disable_msi(struct pci_dev* dev)
 		return;
 
 	msi_set_enable(dev, 0);
-	pci_intx(dev, 1);		/* enable intx */
+	pci_intx_for_msi(dev, 1);
 	dev->msi_enabled = 0;
 
 	BUG_ON(list_empty(&dev->msi_list));
@@ -640,7 +690,7 @@ void pci_disable_msix(struct pci_dev* dev)
 		return;
 
 	msix_set_enable(dev, 0);
-	pci_intx(dev, 1);		/* enable intx */
+	pci_intx_for_msi(dev, 1);
 	dev->msix_enabled = 0;
 
 	msix_free_all_irqs(dev);
@@ -676,50 +726,4 @@ void pci_no_msi(void)
 void pci_msi_init_pci_dev(struct pci_dev *dev)
 {
 	INIT_LIST_HEAD(&dev->msi_list);
-}
-
-
-/* Arch hooks */
-
-int __attribute__ ((weak))
-arch_msi_check_device(struct pci_dev* dev, int nvec, int type)
-{
-	return 0;
-}
-
-int __attribute__ ((weak))
-arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *entry)
-{
-	return 0;
-}
-
-int __attribute__ ((weak))
-arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
-{
-	struct msi_desc *entry;
-	int ret;
-
-	list_for_each_entry(entry, &dev->msi_list, list) {
-		ret = arch_setup_msi_irq(dev, entry);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
-void __attribute__ ((weak)) arch_teardown_msi_irq(unsigned int irq)
-{
-	return;
-}
-
-void __attribute__ ((weak))
-arch_teardown_msi_irqs(struct pci_dev *dev)
-{
-	struct msi_desc *entry;
-
-	list_for_each_entry(entry, &dev->msi_list, list) {
-		if (entry->irq != 0)
-			arch_teardown_msi_irq(entry->irq);
-	}
 }

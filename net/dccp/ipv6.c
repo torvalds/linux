@@ -101,8 +101,8 @@ static void dccp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	int err;
 	__u64 seq;
 
-	sk = inet6_lookup(&dccp_hashinfo, &hdr->daddr, dh->dccph_dport,
-			  &hdr->saddr, dh->dccph_sport, inet6_iif(skb));
+	sk = inet6_lookup(&init_net, &dccp_hashinfo, &hdr->daddr, dh->dccph_dport,
+			&hdr->saddr, dh->dccph_sport, inet6_iif(skb));
 
 	if (sk == NULL) {
 		ICMP6_INC_STATS_BH(__in6_dev_get(skb->dev), ICMP6_MIB_INERRORS);
@@ -366,7 +366,7 @@ static struct sock *dccp_v6_hnd_req(struct sock *sk,struct sk_buff *skb)
 	if (req != NULL)
 		return dccp_check_req(sk, skb, req, prev);
 
-	nsk = __inet6_lookup_established(&dccp_hashinfo,
+	nsk = __inet6_lookup_established(&init_net, &dccp_hashinfo,
 					 &iph->saddr, dh->dccph_sport,
 					 &iph->daddr, ntohs(dh->dccph_dport),
 					 inet6_iif(skb));
@@ -415,10 +415,11 @@ static int dccp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	if (req == NULL)
 		goto drop;
 
-	if (dccp_parse_options(sk, skb))
-		goto drop_and_free;
-
 	dccp_reqsk_init(req, skb);
+
+	dreq = dccp_rsk(req);
+	if (dccp_parse_options(sk, dreq, skb))
+		goto drop_and_free;
 
 	if (security_inet_conn_request(sk, skb, req))
 		goto drop_and_free;
@@ -449,7 +450,6 @@ static int dccp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	 *   In fact we defer setting S.GSR, S.SWL, S.SWH to
 	 *   dccp_create_openreq_child.
 	 */
-	dreq = dccp_rsk(req);
 	dreq->dreq_isr	   = dcb->dccpd_seq;
 	dreq->dreq_iss	   = dccp_v6_init_sequence(skb);
 	dreq->dreq_service = service;
@@ -797,7 +797,7 @@ static int dccp_v6_rcv(struct sk_buff *skb)
 
 	/* Step 2:
 	 *	Look up flow ID in table and get corresponding socket */
-	sk = __inet6_lookup(&dccp_hashinfo, &ipv6_hdr(skb)->saddr,
+	sk = __inet6_lookup(&init_net, &dccp_hashinfo, &ipv6_hdr(skb)->saddr,
 			    dh->dccph_sport,
 			    &ipv6_hdr(skb)->daddr, ntohs(dh->dccph_dport),
 			    inet6_iif(skb));
@@ -994,7 +994,7 @@ static int dccp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	if (final_p)
 		ipv6_addr_copy(&fl.fl6_dst, final_p);
 
-	err = __xfrm_lookup(&dst, &fl, sk, 1);
+	err = __xfrm_lookup(&dst, &fl, sk, XFRM_LOOKUP_WAIT);
 	if (err < 0) {
 		if (err == -EREMOTE)
 			err = ip6_dst_blackhole(sk, &dst, &fl);
@@ -1107,6 +1107,8 @@ static struct timewait_sock_ops dccp6_timewait_sock_ops = {
 	.twsk_obj_size	= sizeof(struct dccp6_timewait_sock),
 };
 
+DEFINE_PROTO_INUSE(dccp_v6)
+
 static struct proto dccp_v6_prot = {
 	.name		   = "DCCPv6",
 	.owner		   = THIS_MODULE,
@@ -1135,6 +1137,7 @@ static struct proto dccp_v6_prot = {
 	.compat_setsockopt = compat_dccp_setsockopt,
 	.compat_getsockopt = compat_dccp_getsockopt,
 #endif
+	REF_PROTO_INUSE(dccp_v6)
 };
 
 static struct inet6_protocol dccp_v6_protocol = {

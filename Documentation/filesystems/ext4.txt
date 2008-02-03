@@ -86,8 +86,20 @@ Alex is working on a new set of patches right now.
 When mounting an ext4 filesystem, the following option are accepted:
 (*) == default
 
-extents			ext4 will use extents to address file data.  The
+extents		(*)	ext4 will use extents to address file data.  The
 			file system will no longer be mountable by ext3.
+
+noextents		ext4 will not use extents for newly created files
+
+journal_checksum	Enable checksumming of the journal transactions.
+			This will allow the recovery code in e2fsck and the
+			kernel to detect corruption in the kernel.  It is a
+			compatible change and will be ignored by older kernels.
+
+journal_async_commit	Commit block can be written to disk without waiting
+			for descriptor blocks. If enabled older kernels cannot
+			mount the device. This will enable 'journal_checksum'
+			internally.
 
 journal=update		Update the ext4 file system's journal to the current
 			format.
@@ -196,6 +208,12 @@ nobh			(a) cache disk block mapping information
 			"nobh" option tries to avoid associating buffer
 			heads (supported only for "writeback" mode).
 
+mballoc		(*)	Use the multiple block allocator for block allocation
+nomballoc		disabled multiple block allocator for block allocation.
+stripe=n		Number of filesystem blocks that mballoc will try
+			to use for allocation size and alignment. For RAID5/6
+			systems this should be the number of data
+			disks *  RAID chunk size in file system blocks.
 
 Data Mode
 ---------

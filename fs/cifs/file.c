@@ -130,7 +130,9 @@ static inline int cifs_open_inode_helper(struct inode *inode, struct file *file,
 		if (file->f_path.dentry->d_inode->i_mapping) {
 		/* BB no need to lock inode until after invalidate
 		   since namei code should already have it locked? */
-			filemap_write_and_wait(file->f_path.dentry->d_inode->i_mapping);
+			rc = filemap_write_and_wait(file->f_path.dentry->d_inode->i_mapping);
+			if (rc != 0)
+				CIFS_I(file->f_path.dentry->d_inode)->write_behind_rc = rc;
 		}
 		cFYI(1, ("invalidating remote inode since open detected it "
 			 "changed"));
@@ -425,7 +427,9 @@ reopen_error_exit:
 		pCifsInode = CIFS_I(inode);
 		if (pCifsInode) {
 			if (can_flush) {
-				filemap_write_and_wait(inode->i_mapping);
+				rc = filemap_write_and_wait(inode->i_mapping);
+				if (rc != 0)
+					CIFS_I(inode)->write_behind_rc = rc;
 			/* temporarily disable caching while we
 			   go to server to get inode info */
 				pCifsInode->clientCanCacheAll = FALSE;
@@ -835,9 +839,9 @@ ssize_t cifs_user_write(struct file *file, const char __user *write_data,
 	xid = GetXid();
 
 	if (*poffset > file->f_path.dentry->d_inode->i_size)
-		long_op = 2; /* writes past end of file can take a long time */
+		long_op = CIFS_VLONG_OP; /* writes past EOF take long time */
 	else
-		long_op = 1;
+		long_op = CIFS_LONG_OP;
 
 	for (total_written = 0; write_size > total_written;
 	     total_written += bytes_written) {
@@ -884,7 +888,7 @@ ssize_t cifs_user_write(struct file *file, const char __user *write_data,
 			}
 		} else
 			*poffset += bytes_written;
-		long_op = FALSE; /* subsequent writes fast -
+		long_op = CIFS_STD_OP; /* subsequent writes fast -
 				    15 seconds is plenty */
 	}
 
@@ -934,9 +938,9 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 	xid = GetXid();
 
 	if (*poffset > file->f_path.dentry->d_inode->i_size)
-		long_op = 2; /* writes past end of file can take a long time */
+		long_op = CIFS_VLONG_OP; /* writes past EOF can be slow */
 	else
-		long_op = 1;
+		long_op = CIFS_LONG_OP;
 
 	for (total_written = 0; write_size > total_written;
 	     total_written += bytes_written) {
@@ -1002,7 +1006,7 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 			}
 		} else
 			*poffset += bytes_written;
-		long_op = FALSE; /* subsequent writes fast -
+		long_op = CIFS_STD_OP; /* subsequent writes fast -
 				    15 seconds is plenty */
 	}
 
@@ -1025,6 +1029,37 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 	FreeXid(xid);
 	return total_written;
 }
+
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+struct cifsFileInfo *find_readable_file(struct cifsInodeInfo *cifs_inode)
+{
+	struct cifsFileInfo *open_file = NULL;
+
+	read_lock(&GlobalSMBSeslock);
+	/* we could simply get the first_list_entry since write-only entries
+	   are always at the end of the list but since the first entry might
+	   have a close pending, we go through the whole list */
+	list_for_each_entry(open_file, &cifs_inode->openFileList, flist) {
+		if (open_file->closePend)
+			continue;
+		if (open_file->pfile && ((open_file->pfile->f_flags & O_RDWR) ||
+		    (open_file->pfile->f_flags & O_RDONLY))) {
+			if (!open_file->invalidHandle) {
+				/* found a good file */
+				/* lock it so it will not be closed on us */
+				atomic_inc(&open_file->wrtPending);
+				read_unlock(&GlobalSMBSeslock);
+				return open_file;
+			} /* else might as well continue, and look for
+			     another, or simply have the caller reopen it
+			     again rather than trying to fix this handle */
+		} else /* write only file */
+			break; /* write only files are last so must be done */
+	}
+	read_unlock(&GlobalSMBSeslock);
+	return NULL;
+}
+#endif
 
 struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *cifs_inode)
 {
@@ -1056,11 +1091,11 @@ refind_writable:
 				read_unlock(&GlobalSMBSeslock);
 				return open_file;
 			}
-	
+
 			read_unlock(&GlobalSMBSeslock);
 			/* Had to unlock since following call can block */
 			rc = cifs_reopen_file(open_file->pfile, FALSE);
-			if (!rc) { 
+			if (!rc) {
 				if (!open_file->closePend)
 					return open_file;
 				else { /* start over in case this was deleted */
@@ -1083,7 +1118,7 @@ refind_writable:
 			/* can not use this handle, no write
 			   pending on this one after all */
 			atomic_dec(&open_file->wrtPending);
-			
+
 			if (open_file->closePend) /* list could have changed */
 				goto refind_writable;
 			/* else we simply continue to the next entry. Thus
@@ -1144,12 +1179,10 @@ static int cifs_partialpagewrite(struct page *page, unsigned from, unsigned to)
 		atomic_dec(&open_file->wrtPending);
 		/* Does mm or vfs already set times? */
 		inode->i_atime = inode->i_mtime = current_fs_time(inode->i_sb);
-		if ((bytes_written > 0) && (offset)) {
+		if ((bytes_written > 0) && (offset))
 			rc = 0;
-		} else if (bytes_written < 0) {
-			if (rc != -EBADF)
-				rc = bytes_written;
-		}
+		else if (bytes_written < 0)
+			rc = bytes_written;
 	} else {
 		cFYI(1, ("No writeable filehandles for inode"));
 		rc = -EIO;
@@ -1329,14 +1362,17 @@ retry:
 						   open_file->netfid,
 						   bytes_to_write, offset,
 						   &bytes_written, iov, n_iov,
-						   1);
+						   CIFS_LONG_OP);
 				atomic_dec(&open_file->wrtPending);
 				if (rc || bytes_written < bytes_to_write) {
 					cERROR(1, ("Write2 ret %d, wrote %d",
 						  rc, bytes_written));
 					/* BB what if continued retry is
 					   requested via mount flags? */
-					set_bit(AS_EIO, &mapping->flags);
+					if (rc == -ENOSPC)
+						set_bit(AS_ENOSPC, &mapping->flags);
+					else
+						set_bit(AS_EIO, &mapping->flags);
 				} else {
 					cifs_stats_bytes_written(cifs_sb->tcon,
 								 bytes_written);
@@ -1468,9 +1504,11 @@ int cifs_fsync(struct file *file, struct dentry *dentry, int datasync)
 	cFYI(1, ("Sync file - name: %s datasync: 0x%x",
 		dentry->d_name.name, datasync));
 
-	rc = filemap_fdatawrite(inode->i_mapping);
-	if (rc == 0)
+	rc = filemap_write_and_wait(inode->i_mapping);
+	if (rc == 0) {
+		rc = CIFS_I(inode)->write_behind_rc;
 		CIFS_I(inode)->write_behind_rc = 0;
+	}
 	FreeXid(xid);
 	return rc;
 }
@@ -1522,8 +1560,11 @@ int cifs_flush(struct file *file, fl_owner_t id)
 	   filemapfdatawrite appears easier for the time being */
 
 	rc = filemap_fdatawrite(inode->i_mapping);
-	if (!rc) /* reset wb rc if we were able to write out dirty pages */
+	/* reset wb rc if we were able to write out dirty pages */
+	if (!rc) {
+		rc = CIFS_I(inode)->write_behind_rc;
 		CIFS_I(inode)->write_behind_rc = 0;
+	}
 
 	cFYI(1, ("Flush inode %p file %p rc %d", inode, file, rc));
 

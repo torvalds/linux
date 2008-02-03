@@ -15,12 +15,12 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/fsl_devices.h>
+#include <linux/of_platform.h>
 
 #include <asm/io.h>
 #include <asm/cpm2.h>
 #include <asm/udbg.h>
 #include <asm/machdep.h>
-#include <asm/of_platform.h>
 #include <asm/time.h>
 
 #include <sysdev/fsl_soc.h>
@@ -176,14 +176,11 @@ static struct of_device_id __initdata of_bus_ids[] = {
 
 static int __init declare_of_platform_devices(void)
 {
-	if (!machine_is(pq2fads))
-		return 0;
-
 	/* Publish the QE devices */
 	of_platform_bus_probe(NULL, of_bus_ids, NULL);
 	return 0;
 }
-device_initcall(declare_of_platform_devices);
+machine_device_initcall(pq2fads, declare_of_platform_devices);
 
 define_machine(pq2fads)
 {

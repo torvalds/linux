@@ -20,12 +20,12 @@
 #include <linux/console.h>
 #include <linux/delay.h>
 #include <linux/irq.h>
-#include <linux/ide.h>
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
 #include <linux/serial.h>
 #include <linux/tty.h>
 #include <linux/serial_core.h>
+#include <linux/of_platform.h>
 
 #include <asm/system.h>
 #include <asm/time.h>
@@ -39,7 +39,6 @@
 #include <asm/tsi108_irq.h>
 #include <asm/tsi108_pci.h>
 #include <asm/mpic.h>
-#include <asm/of_platform.h>
 
 #undef DEBUG
 

@@ -172,7 +172,7 @@ static inline void ClearSlabDebug(struct page *page)
  * Mininum number of partial slabs. These will be left on the partial
  * lists even if they are empty. kmem_cache_shrink may reclaim them.
  */
-#define MIN_PARTIAL 2
+#define MIN_PARTIAL 5
 
 /*
  * Maximum number of desirable partial slabs.
@@ -1080,7 +1080,6 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
 	struct page *page;
 	struct kmem_cache_node *n;
 	void *start;
-	void *end;
 	void *last;
 	void *p;
 
@@ -1101,7 +1100,6 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
 		SetSlabDebug(page);
 
 	start = page_address(page);
-	end = start + s->objects * s->size;
 
 	if (unlikely(s->flags & SLAB_POISON))
 		memset(start, POISON_INUSE, PAGE_SIZE << s->order);
@@ -1511,26 +1509,8 @@ new_slab:
 
 	if (new) {
 		c = get_cpu_slab(s, smp_processor_id());
-		if (c->page) {
-			/*
-			 * Someone else populated the cpu_slab while we
-			 * enabled interrupts, or we have gotten scheduled
-			 * on another cpu. The page may not be on the
-			 * requested node even if __GFP_THISNODE was
-			 * specified. So we need to recheck.
-			 */
-			if (node_match(c, node)) {
-				/*
-				 * Current cpuslab is acceptable and we
-				 * want the current one since its cache hot
-				 */
-				discard_slab(s, new);
-				slab_lock(c->page);
-				goto load_freelist;
-			}
-			/* New slab does not fit our expectations */
+		if (c->page)
 			flush_slab(s, c);
-		}
 		slab_lock(new);
 		SetSlabFrozen(new);
 		c->page = new;
@@ -1633,7 +1613,7 @@ checks_ok:
 	 * then add it.
 	 */
 	if (unlikely(!prior))
-		add_partial(get_node(s, page_to_nid(page)), page);
+		add_partial_tail(get_node(s, page_to_nid(page)), page);
 
 out_unlock:
 	slab_unlock(page);
@@ -2578,8 +2558,12 @@ size_t ksize(const void *object)
 	if (unlikely(object == ZERO_SIZE_PTR))
 		return 0;
 
-	page = get_object_page(object);
+	page = virt_to_head_page(object);
 	BUG_ON(!page);
+
+	if (unlikely(!PageSlab(page)))
+		return PAGE_SIZE << compound_order(page);
+
 	s = page->slab;
 	BUG_ON(!s);
 
@@ -2734,7 +2718,7 @@ static void slab_mem_offline_callback(void *arg)
 			 * and offline_pages() function shoudn't call this
 			 * callback. So, we must fail.
 			 */
-			BUG_ON(atomic_read(&n->nr_slabs));
+			BUG_ON(atomic_long_read(&n->nr_slabs));
 
 			s->node[offline_node] = NULL;
 			kmem_cache_free(kmalloc_caches, n);
@@ -3090,6 +3074,19 @@ void *__kmalloc_node_track_caller(size_t size, gfp_t gfpflags,
 		return s;
 
 	return slab_alloc(s, gfpflags, node, caller);
+}
+
+static unsigned long count_partial(struct kmem_cache_node *n)
+{
+	unsigned long flags;
+	unsigned long x = 0;
+	struct page *page;
+
+	spin_lock_irqsave(&n->list_lock, flags);
+	list_for_each_entry(page, &n->partial, lru)
+		x += page->inuse;
+	spin_unlock_irqrestore(&n->list_lock, flags);
+	return x;
 }
 
 #if defined(CONFIG_SYSFS) && defined(CONFIG_SLUB_DEBUG)
@@ -3472,19 +3469,6 @@ static int list_locations(struct kmem_cache *s, char *buf,
 	if (!t.count)
 		n += sprintf(buf, "No data\n");
 	return n;
-}
-
-static unsigned long count_partial(struct kmem_cache_node *n)
-{
-	unsigned long flags;
-	unsigned long x = 0;
-	struct page *page;
-
-	spin_lock_irqsave(&n->list_lock, flags);
-	list_for_each_entry(page, &n->partial, lru)
-		x += page->inuse;
-	spin_unlock_irqrestore(&n->list_lock, flags);
-	return x;
 }
 
 enum slab_stat_type {
@@ -3978,7 +3962,7 @@ static struct kset_uevent_ops slab_uevent_ops = {
 	.filter = uevent_filter,
 };
 
-static decl_subsys(slab, &slab_ktype, &slab_uevent_ops);
+static struct kset *slab_kset;
 
 #define ID_STR_LENGTH 64
 
@@ -4031,7 +4015,7 @@ static int sysfs_slab_add(struct kmem_cache *s)
 		 * This is typically the case for debug situations. In that
 		 * case we can catch duplicate names easily.
 		 */
-		sysfs_remove_link(&slab_subsys.kobj, s->name);
+		sysfs_remove_link(&slab_kset->kobj, s->name);
 		name = s->name;
 	} else {
 		/*
@@ -4041,12 +4025,12 @@ static int sysfs_slab_add(struct kmem_cache *s)
 		name = create_unique_id(s);
 	}
 
-	kobj_set_kset_s(s, slab_subsys);
-	kobject_set_name(&s->kobj, name);
-	kobject_init(&s->kobj);
-	err = kobject_add(&s->kobj);
-	if (err)
+	s->kobj.kset = slab_kset;
+	err = kobject_init_and_add(&s->kobj, &slab_ktype, NULL, name);
+	if (err) {
+		kobject_put(&s->kobj);
 		return err;
+	}
 
 	err = sysfs_create_group(&s->kobj, &slab_attr_group);
 	if (err)
@@ -4086,9 +4070,8 @@ static int sysfs_slab_alias(struct kmem_cache *s, const char *name)
 		/*
 		 * If we have a leftover link then remove it.
 		 */
-		sysfs_remove_link(&slab_subsys.kobj, name);
-		return sysfs_create_link(&slab_subsys.kobj,
-						&s->kobj, name);
+		sysfs_remove_link(&slab_kset->kobj, name);
+		return sysfs_create_link(&slab_kset->kobj, &s->kobj, name);
 	}
 
 	al = kmalloc(sizeof(struct saved_alias), GFP_KERNEL);
@@ -4107,8 +4090,8 @@ static int __init slab_sysfs_init(void)
 	struct kmem_cache *s;
 	int err;
 
-	err = subsystem_register(&slab_subsys);
-	if (err) {
+	slab_kset = kset_create_and_add("slab", &slab_uevent_ops, kernel_kobj);
+	if (!slab_kset) {
 		printk(KERN_ERR "Cannot register slab subsystem.\n");
 		return -ENOSYS;
 	}
@@ -4139,3 +4122,89 @@ static int __init slab_sysfs_init(void)
 
 __initcall(slab_sysfs_init);
 #endif
+
+/*
+ * The /proc/slabinfo ABI
+ */
+#ifdef CONFIG_SLABINFO
+
+ssize_t slabinfo_write(struct file *file, const char __user * buffer,
+                       size_t count, loff_t *ppos)
+{
+	return -EINVAL;
+}
+
+
+static void print_slabinfo_header(struct seq_file *m)
+{
+	seq_puts(m, "slabinfo - version: 2.1\n");
+	seq_puts(m, "# name            <active_objs> <num_objs> <objsize> "
+		 "<objperslab> <pagesperslab>");
+	seq_puts(m, " : tunables <limit> <batchcount> <sharedfactor>");
+	seq_puts(m, " : slabdata <active_slabs> <num_slabs> <sharedavail>");
+	seq_putc(m, '\n');
+}
+
+static void *s_start(struct seq_file *m, loff_t *pos)
+{
+	loff_t n = *pos;
+
+	down_read(&slub_lock);
+	if (!n)
+		print_slabinfo_header(m);
+
+	return seq_list_start(&slab_caches, *pos);
+}
+
+static void *s_next(struct seq_file *m, void *p, loff_t *pos)
+{
+	return seq_list_next(p, &slab_caches, pos);
+}
+
+static void s_stop(struct seq_file *m, void *p)
+{
+	up_read(&slub_lock);
+}
+
+static int s_show(struct seq_file *m, void *p)
+{
+	unsigned long nr_partials = 0;
+	unsigned long nr_slabs = 0;
+	unsigned long nr_inuse = 0;
+	unsigned long nr_objs;
+	struct kmem_cache *s;
+	int node;
+
+	s = list_entry(p, struct kmem_cache, list);
+
+	for_each_online_node(node) {
+		struct kmem_cache_node *n = get_node(s, node);
+
+		if (!n)
+			continue;
+
+		nr_partials += n->nr_partial;
+		nr_slabs += atomic_long_read(&n->nr_slabs);
+		nr_inuse += count_partial(n);
+	}
+
+	nr_objs = nr_slabs * s->objects;
+	nr_inuse += (nr_slabs - nr_partials) * s->objects;
+
+	seq_printf(m, "%-17s %6lu %6lu %6u %4u %4d", s->name, nr_inuse,
+		   nr_objs, s->size, s->objects, (1 << s->order));
+	seq_printf(m, " : tunables %4u %4u %4u", 0, 0, 0);
+	seq_printf(m, " : slabdata %6lu %6lu %6lu", nr_slabs, nr_slabs,
+		   0UL);
+	seq_putc(m, '\n');
+	return 0;
+}
+
+const struct seq_operations slabinfo_op = {
+	.start = s_start,
+	.next = s_next,
+	.stop = s_stop,
+	.show = s_show,
+};
+
+#endif /* CONFIG_SLABINFO */

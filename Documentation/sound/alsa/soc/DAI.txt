@@ -1,5 +1,5 @@
 ASoC currently supports the three main Digital Audio Interfaces (DAI) found on
-SoC controllers and portable audio CODECS today, namely AC97, I2S and PCM.
+SoC controllers and portable audio CODECs today, namely AC97, I2S and PCM.
 
 
 AC97
@@ -25,7 +25,7 @@ left/right clock (LRC) synchronise the link. I2S is flexible in that either the
 controller or CODEC can drive (master) the BCLK and LRC clock lines. Bit clock
 usually varies depending on the sample rate and the master system clock
 (SYSCLK). LRCLK is the same as the sample rate. A few devices support separate
-ADC and DAC LRCLK's, this allows for simultaneous capture and playback at
+ADC and DAC LRCLKs, this allows for simultaneous capture and playback at
 different sample rates.
 
 I2S has several different operating modes:-
@@ -35,7 +35,7 @@ I2S has several different operating modes:-
 
  o Left Justified - MSB is transmitted on transition of LRC.
 
- o Right Justified - MSB is transmitted sample size BCLK's before LRC
+ o Right Justified - MSB is transmitted sample size BCLKs before LRC
                      transition.
 
 PCM

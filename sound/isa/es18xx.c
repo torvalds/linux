@@ -77,7 +77,6 @@
  *   needed for ZV, so maybe the datasheet is entirely wrong here.
  */
  
-#include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/isa.h>
@@ -163,7 +162,7 @@ struct snd_audiodrive {
 #define ES18XX_DUPLEX_SAME 0x0010	/* Playback and record must share the same rate */
 #define ES18XX_NEW_RATE	0x0020	/* More precise rate setting */
 #define ES18XX_AUXB	0x0040	/* AuxB mixer control */
-#define ES18XX_HWV	0x0080	/* Has seperate hardware volume mixer controls*/
+#define ES18XX_HWV	0x0080	/* Has separate hardware volume mixer controls*/
 #define ES18XX_MONO	0x0100	/* Mono_in mixer control */
 #define ES18XX_I2S	0x0200	/* I2S mixer control */
 #define ES18XX_MUTEREC	0x0400	/* Record source can be muted */
@@ -1442,6 +1441,8 @@ static int __devinit snd_es18xx_initialize(struct snd_es18xx *chip)
 		snd_es18xx_write(chip, 0xB2, 0x50);
 		/* Enable MPU and hardware volume interrupt */
 		snd_es18xx_mixer_write(chip, 0x64, 0x42);
+		/* Enable ESS wavetable input */
+		snd_es18xx_mixer_bits(chip, 0x48, 0x10, 0x10);
 	}
 	else {
 		int irqmask, dma1mask, dma2mask;
@@ -2035,31 +2036,9 @@ static struct pnp_device_id snd_audiodrive_pnpbiosids[] = {
 MODULE_DEVICE_TABLE(pnp, snd_audiodrive_pnpbiosids);
 
 /* PnP main device initialization */
-static int __devinit snd_audiodrive_pnp_init_main(int dev, struct pnp_dev *pdev,
-						  struct pnp_resource_table *cfg)
+static int __devinit snd_audiodrive_pnp_init_main(int dev, struct pnp_dev *pdev)
 {
-	int err;
-
-	pnp_init_resource_table(cfg);
-	if (port[dev] != SNDRV_AUTO_PORT)
-		pnp_resource_change(&cfg->port_resource[0], port[dev], 16);
-	if (fm_port[dev] != SNDRV_AUTO_PORT)
-		pnp_resource_change(&cfg->port_resource[1], fm_port[dev], 4);
-	if (mpu_port[dev] != SNDRV_AUTO_PORT)
-		pnp_resource_change(&cfg->port_resource[2], mpu_port[dev], 2);
-	if (dma1[dev] != SNDRV_AUTO_DMA)
-		pnp_resource_change(&cfg->dma_resource[0], dma1[dev], 1);
-	if (dma2[dev] != SNDRV_AUTO_DMA)
-		pnp_resource_change(&cfg->dma_resource[1], dma2[dev], 1);
-	if (irq[dev] != SNDRV_AUTO_IRQ)
-		pnp_resource_change(&cfg->irq_resource[0], irq[dev], 1);
-	if (pnp_device_is_isapnp(pdev)) {
-		err = pnp_manual_config_dev(pdev, cfg, 0);
-		if (err < 0)
-			snd_printk(KERN_ERR PFX "PnP manual resources are invalid, using auto config\n");
-	}
-	err = pnp_activate_dev(pdev);
-	if (err < 0) {
+	if (pnp_activate_dev(pdev) < 0) {
 		snd_printk(KERN_ERR PFX "PnP configure failure (out of resources?)\n");
 		return -EBUSY;
 	}
@@ -2087,16 +2066,9 @@ static int __devinit snd_audiodrive_pnp_init_main(int dev, struct pnp_dev *pdev,
 static int __devinit snd_audiodrive_pnp(int dev, struct snd_audiodrive *acard,
 					struct pnp_dev *pdev)
 {
-	struct pnp_resource_table * cfg = kmalloc(sizeof(struct pnp_resource_table), GFP_KERNEL);
-
-	if (!cfg)
-		return -ENOMEM;
 	acard->dev = pdev;
-	if (snd_audiodrive_pnp_init_main(dev, acard->dev, cfg) < 0) {
-		kfree(cfg);
+	if (snd_audiodrive_pnp_init_main(dev, acard->dev) < 0)
 		return -EBUSY;
-	}
-	kfree(cfg);
 	return 0;
 }
 
@@ -2125,33 +2097,24 @@ static int __devinit snd_audiodrive_pnpc(int dev, struct snd_audiodrive *acard,
 					struct pnp_card_link *card,
 					const struct pnp_card_device_id *id)
 {
-	struct pnp_resource_table * cfg = kmalloc(sizeof(struct pnp_resource_table), GFP_KERNEL);
-
-	if (!cfg)
-		return -ENOMEM;
 	acard->dev = pnp_request_card_device(card, id->devs[0].id, NULL);
-	if (acard->dev == NULL) {
-		kfree(cfg);
+	if (acard->dev == NULL)
 		return -EBUSY;
-	}
+
 	acard->devc = pnp_request_card_device(card, id->devs[1].id, NULL);
-	if (acard->devc == NULL) {
-		kfree(cfg);
+	if (acard->devc == NULL)
 		return -EBUSY;
-	}
+
 	/* Control port initialization */
 	if (pnp_activate_dev(acard->devc) < 0) {
-		kfree(cfg);
 		snd_printk(KERN_ERR PFX "PnP control configure failure (out of resources?)\n");
 		return -EAGAIN;
 	}
 	snd_printdd("pnp: port=0x%llx\n",
 			(unsigned long long)pnp_port_start(acard->devc, 0));
-	if (snd_audiodrive_pnp_init_main(dev, acard->dev, cfg) < 0) {
-		kfree(cfg);
+	if (snd_audiodrive_pnp_init_main(dev, acard->dev) < 0)
 		return -EBUSY;
-	}
-	kfree(cfg);
+
 	return 0;
 }
 #endif /* CONFIG_PNP */

@@ -20,6 +20,8 @@ SECTIONS
 	.gnu.version_d		: { *(.gnu.version_d) }
 	.gnu.version_r		: { *(.gnu.version_r) }
 
+	.note			: { *(.note*) }		:readable	:note
+
 	.dynamic		: { *(.dynamic) }	:readable	:dynamic
 
 	/*
@@ -28,7 +30,7 @@ SECTIONS
 	 * the dynamic symbol table et al.  If this amount is insufficient,
 	 * ld -shared will barf.  Just increase it here.
 	 */
-	. = GATE_ADDR + 0x500;
+	. = GATE_ADDR + 0x600;
 
 	.data.patch		: {
 		__start_gate_mckinley_e9_patchlist = .;
@@ -83,6 +85,7 @@ PHDRS
 	epc		PT_LOAD	FILEHDR PHDRS	FLAGS(1);	/* PF_X */
 #endif
 	dynamic		PT_DYNAMIC		FLAGS(4);	/* PF_R */
+	note		PT_NOTE			FLAGS(4);	/* PF_R */
 	unwind		PT_IA_64_UNWIND;
 }
 

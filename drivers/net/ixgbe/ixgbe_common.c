@@ -74,7 +74,7 @@ s32 ixgbe_start_hw(struct ixgbe_hw *hw)
 	ixgbe_clear_vfta(hw);
 
 	/* Set up link */
-	hw->phy.ops.setup(hw);
+	hw->mac.ops.setup_link(hw);
 
 	/* Clear statistics registers */
 	ixgbe_clear_hw_cntrs(hw);
@@ -83,6 +83,7 @@ s32 ixgbe_start_hw(struct ixgbe_hw *hw)
 	ctrl_ext = IXGBE_READ_REG(hw, IXGBE_CTRL_EXT);
 	ctrl_ext |= IXGBE_CTRL_EXT_NS_DIS;
 	IXGBE_WRITE_REG(hw, IXGBE_CTRL_EXT, ctrl_ext);
+	IXGBE_WRITE_FLUSH(hw);
 
 	/* Clear adapter stopped flag */
 	hw->adapter_stopped = false;
@@ -297,6 +298,7 @@ s32 ixgbe_led_on(struct ixgbe_hw *hw, u32 index)
 	led_reg &= ~IXGBE_LED_MODE_MASK(index);
 	led_reg |= IXGBE_LED_ON << IXGBE_LED_MODE_SHIFT(index);
 	IXGBE_WRITE_REG(hw, IXGBE_LEDCTL, led_reg);
+	IXGBE_WRITE_FLUSH(hw);
 
 	return 0;
 }
@@ -314,6 +316,7 @@ s32 ixgbe_led_off(struct ixgbe_hw *hw, u32 index)
 	led_reg &= ~IXGBE_LED_MODE_MASK(index);
 	led_reg |= IXGBE_LED_OFF << IXGBE_LED_MODE_SHIFT(index);
 	IXGBE_WRITE_REG(hw, IXGBE_LEDCTL, led_reg);
+	IXGBE_WRITE_FLUSH(hw);
 
 	return 0;
 }
@@ -496,6 +499,7 @@ static void ixgbe_release_eeprom_semaphore(struct ixgbe_hw *hw)
 	/* Release both semaphores by writing 0 to the bits SWESMBI and SMBI */
 	swsm &= ~(IXGBE_SWSM_SWESMBI | IXGBE_SWSM_SMBI);
 	IXGBE_WRITE_REG(hw, IXGBE_SWSM, swsm);
+	IXGBE_WRITE_FLUSH(hw);
 }
 
 /**
@@ -950,7 +954,7 @@ s32 ixgbe_setup_fc(struct ixgbe_hw *hw, s32 packetbuf_num)
 	u32 rmcs_reg;
 
 	if (packetbuf_num < 0 || packetbuf_num > 7)
-		hw_dbg(hw, "Invalid packet buffer number [%d], expected range"
+		hw_dbg(hw, "Invalid packet buffer number [%d], expected range "
 		       "is 0-7\n", packetbuf_num);
 
 	frctl_reg = IXGBE_READ_REG(hw, IXGBE_FCTRL);
@@ -1132,7 +1136,7 @@ void ixgbe_release_swfw_sync(struct ixgbe_hw *hw, u16 mask)
 }
 
 /**
- *  ixgbe_read_analog_reg8- Reads 8 bit 82598 Atlas analog register
+ *  ixgbe_read_analog_reg8 - Reads 8 bit Atlas analog register
  *  @hw: pointer to hardware structure
  *  @reg: analog register to read
  *  @val: read value
@@ -1154,7 +1158,7 @@ s32 ixgbe_read_analog_reg8(struct ixgbe_hw *hw, u32 reg, u8 *val)
 }
 
 /**
- *  ixgbe_write_analog_reg8- Writes 8 bit Atlas analog register
+ *  ixgbe_write_analog_reg8 - Writes 8 bit Atlas analog register
  *  @hw: pointer to hardware structure
  *  @reg: atlas register to write
  *  @val: value to write

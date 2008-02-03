@@ -29,8 +29,8 @@ config PPC_85xx
 	bool "Freescale 85xx"
 	select E500
 	select FSL_SOC
-	select 85xx
 	select WANT_DEVICE_TREE
+	select MPC85xx
 
 config PPC_8xx
 	bool "Freescale 8xx"
@@ -43,6 +43,7 @@ config 40x
 	bool "AMCC 40x"
 	select PPC_DCR_NATIVE
 	select WANT_DEVICE_TREE
+	select PPC_UDBG_16550
 
 config 44x
 	bool "AMCC 44x"
@@ -90,14 +91,6 @@ config 6xx
 
 # this is temp to handle compat with arch=ppc
 config 8xx
-	bool
-
-# this is temp to handle compat with arch=ppc
-config 83xx
-	bool
-
-# this is temp to handle compat with arch=ppc
-config 85xx
 	bool
 
 config E500

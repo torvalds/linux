@@ -144,6 +144,7 @@ static int __init prpmc2800_probe(void)
 		strncpy(prpmc2800_platform_name, m,
 			min((int)len, PLATFORM_NAME_MAX - 1));
 
+	_set_L2CR(_get_L2CR() | L2CR_L2E);
 	return 1;
 }
 

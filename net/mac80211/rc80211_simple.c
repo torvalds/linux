@@ -7,13 +7,13 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/skbuff.h>
 #include <linux/compiler.h>
+#include <linux/module.h>
 
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
@@ -24,12 +24,12 @@
 /* This is a minimal implementation of TX rate controlling that can be used
  * as the default when no improved mechanisms are available. */
 
+#define RATE_CONTROL_NUM_DOWN 20
+#define RATE_CONTROL_NUM_UP   15
 
 #define RATE_CONTROL_EMERG_DEC 2
 #define RATE_CONTROL_INTERVAL (HZ / 20)
 #define RATE_CONTROL_MIN_TX 10
-
-MODULE_ALIAS("rc80211_default");
 
 static void rate_control_rate_inc(struct ieee80211_local *local,
 				  struct sta_info *sta)
@@ -89,26 +89,6 @@ static void rate_control_rate_dec(struct ieee80211_local *local,
 		}
 	}
 }
-
-
-static struct ieee80211_rate *
-rate_control_lowest_rate(struct ieee80211_local *local,
-			 struct ieee80211_hw_mode *mode)
-{
-	int i;
-
-	for (i = 0; i < mode->num_rates; i++) {
-		struct ieee80211_rate *rate = &mode->rates[i];
-
-		if (rate->flags & IEEE80211_RATE_SUPPORTED)
-			return rate;
-	}
-
-	printk(KERN_DEBUG "rate_control_lowest_rate - no supported rates "
-	       "found\n");
-	return &mode->rates[0];
-}
-
 
 struct global_rate_control {
 	int dummy;
@@ -219,35 +199,33 @@ static void rate_control_simple_tx_status(void *priv, struct net_device *dev,
 }
 
 
-static struct ieee80211_rate *
+static void
 rate_control_simple_get_rate(void *priv, struct net_device *dev,
+			     struct ieee80211_hw_mode *mode,
 			     struct sk_buff *skb,
-			     struct rate_control_extra *extra)
+			     struct rate_selection *sel)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
-	struct ieee80211_hw_mode *mode = extra->mode;
+	struct ieee80211_sub_if_data *sdata;
 	struct sta_info *sta;
-	int rateidx, nonerp_idx;
+	int rateidx;
 	u16 fc;
-
-	memset(extra, 0, sizeof(*extra));
-
-	fc = le16_to_cpu(hdr->frame_control);
-	if ((fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA ||
-	    (hdr->addr1[0] & 0x01)) {
-		/* Send management frames and broadcast/multicast data using
-		 * lowest rate. */
-		/* TODO: this could probably be improved.. */
-		return rate_control_lowest_rate(local, mode);
-	}
 
 	sta = sta_info_get(local, hdr->addr1);
 
-	if (!sta)
-		return rate_control_lowest_rate(local, mode);
+	/* Send management frames and broadcast/multicast data using lowest
+	 * rate. */
+	fc = le16_to_cpu(hdr->frame_control);
+	if ((fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA ||
+	    is_multicast_ether_addr(hdr->addr1) || !sta) {
+		sel->rate = rate_lowest(local, mode, sta);
+		if (sta)
+			sta_info_put(sta);
+		return;
+	}
 
+	/* If a forced rate is in effect, select it. */
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	if (sdata->bss && sdata->bss->force_unicast_rateidx > -1)
 		sta->txrate = sdata->bss->force_unicast_rateidx;
@@ -258,17 +236,10 @@ rate_control_simple_get_rate(void *priv, struct net_device *dev,
 		rateidx = mode->num_rates - 1;
 
 	sta->last_txrate = rateidx;
-	nonerp_idx = rateidx;
-	while (nonerp_idx > 0 &&
-	       ((mode->rates[nonerp_idx].flags & IEEE80211_RATE_ERP) ||
-		!(mode->rates[nonerp_idx].flags & IEEE80211_RATE_SUPPORTED) ||
-		!(sta->supp_rates & BIT(nonerp_idx))))
-		nonerp_idx--;
-	extra->nonerp = &mode->rates[nonerp_idx];
 
 	sta_info_put(sta);
 
-	return &mode->rates[rateidx];
+	sel->rate = &mode->rates[rateidx];
 }
 
 
@@ -394,8 +365,7 @@ static void rate_control_simple_remove_sta_debugfs(void *priv, void *priv_sta)
 }
 #endif
 
-static struct rate_control_ops rate_control_simple = {
-	.module = THIS_MODULE,
+static struct rate_control_ops mac80211_rcsimple = {
 	.name = "simple",
 	.tx_status = rate_control_simple_tx_status,
 	.get_rate = rate_control_simple_get_rate,
@@ -411,21 +381,20 @@ static struct rate_control_ops rate_control_simple = {
 #endif
 };
 
-
-static int __init rate_control_simple_init(void)
-{
-	return ieee80211_rate_control_register(&rate_control_simple);
-}
-
-
-static void __exit rate_control_simple_exit(void)
-{
-	ieee80211_rate_control_unregister(&rate_control_simple);
-}
-
-
-subsys_initcall(rate_control_simple_init);
-module_exit(rate_control_simple_exit);
-
-MODULE_DESCRIPTION("Simple rate control algorithm for ieee80211");
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Simple rate control algorithm");
+
+int __init rc80211_simple_init(void)
+{
+	return ieee80211_rate_control_register(&mac80211_rcsimple);
+}
+
+void __exit rc80211_simple_exit(void)
+{
+	ieee80211_rate_control_unregister(&mac80211_rcsimple);
+}
+
+#ifdef CONFIG_MAC80211_RC_SIMPLE_MODULE
+module_init(rc80211_simple_init);
+module_exit(rc80211_simple_exit);
+#endif

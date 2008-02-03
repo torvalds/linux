@@ -77,6 +77,10 @@ struct vdso_data {
 	/* those additional ones don't have to be located anywhere
 	 * special as they were not part of the original systemcfg
 	 */
+	__u32 dcache_block_size;		/* L1 d-cache block size     */
+	__u32 icache_block_size;		/* L1 i-cache block size     */
+	__u32 dcache_log_block_size;		/* L1 d-cache log block size */
+	__u32 icache_log_block_size;		/* L1 i-cache log block size */
 	__s32 wtom_clock_sec;			/* Wall to monotonic clock */
 	__s32 wtom_clock_nsec;
    	__u32 syscall_map_64[SYSCALL_MAP_SIZE]; /* map of syscalls  */
@@ -99,6 +103,10 @@ struct vdso_data {
 	__s32 wtom_clock_sec;			/* Wall to monotonic clock */
 	__s32 wtom_clock_nsec;
    	__u32 syscall_map_32[SYSCALL_MAP_SIZE]; /* map of syscalls */
+	__u32 dcache_block_size;	/* L1 d-cache block size     */
+	__u32 icache_block_size;	/* L1 i-cache block size     */
+	__u32 dcache_log_block_size;	/* L1 d-cache log block size */
+	__u32 icache_log_block_size;	/* L1 i-cache log block size */
 };
 
 #endif /* CONFIG_PPC64 */

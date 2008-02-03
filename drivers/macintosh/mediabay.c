@@ -20,6 +20,7 @@
 #include <linux/stddef.h>
 #include <linux/init.h>
 #include <linux/ide.h>
+#include <linux/kthread.h>
 #include <asm/prom.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
@@ -35,7 +36,6 @@
 
 
 #define MB_DEBUG
-#define MB_IGNORE_SIGNALS
 
 #ifdef MB_DEBUG
 #define MBDBG(fmt, arg...)	printk(KERN_INFO fmt , ## arg)
@@ -563,7 +563,8 @@ static void media_bay_step(int i)
 				ide_init_hwif_ports(&hw, (unsigned long) bay->cd_base, (unsigned long) 0, NULL);
 				hw.irq = bay->cd_irq;
 				hw.chipset = ide_pmac;
-				bay->cd_index = ide_register_hw(&hw, NULL, 0, NULL);
+				bay->cd_index =
+					ide_register_hw(&hw, NULL, NULL);
 				pmu_resume();
 			}
 			if (bay->cd_index == -1) {
@@ -594,7 +595,7 @@ static void media_bay_step(int i)
     	        if (bay->cd_index >= 0) {
 			printk(KERN_DEBUG "Unregistering mb %d ide, index:%d\n", i,
 			       bay->cd_index);
-			ide_unregister(bay->cd_index);
+			ide_unregister(bay->cd_index, 1, 1);
 			bay->cd_index = -1;
 		}
 	    	if (bay->cd_retry) {
@@ -622,12 +623,7 @@ static int media_bay_task(void *x)
 {
 	int	i;
 
-	strcpy(current->comm, "media-bay");
-#ifdef MB_IGNORE_SIGNALS
-	sigfillset(&current->blocked);
-#endif
-
-	for (;;) {
+	while (!kthread_should_stop()) {
 		for (i = 0; i < media_bay_count; ++i) {
 			down(&media_bays[i].lock);
 			if (!media_bays[i].sleeping)
@@ -636,9 +632,8 @@ static int media_bay_task(void *x)
 		}
 
 		msleep_interruptible(MB_POLL_DELAY);
-		if (signal_pending(current))
-			return 0;
 	}
+	return 0;
 }
 
 static int __devinit media_bay_attach(struct macio_dev *mdev, const struct of_device_id *match)
@@ -699,7 +694,7 @@ static int __devinit media_bay_attach(struct macio_dev *mdev, const struct of_de
 
 	/* Startup kernel thread */
 	if (i == 0)
-		kernel_thread(media_bay_task, NULL, CLONE_KERNEL);
+		kthread_run(media_bay_task, NULL, "media-bay");
 
 	return 0;
 

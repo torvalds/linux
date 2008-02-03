@@ -22,16 +22,47 @@
 #include <linux/mount.h>
 #include <linux/nsproxy.h>
 #include <net/net_namespace.h>
+#include <linux/seq_file.h>
 
 #include "internal.h"
 
 
-struct proc_dir_entry *proc_net_create(struct net *net,
-	const char *name, mode_t mode, get_info_t *get_info)
+int seq_open_net(struct inode *ino, struct file *f,
+		 const struct seq_operations *ops, int size)
 {
-	return create_proc_info_entry(name,mode, net->proc_net, get_info);
+	struct net *net;
+	struct seq_net_private *p;
+
+	BUG_ON(size < sizeof(*p));
+
+	net = get_proc_net(ino);
+	if (net == NULL)
+		return -ENXIO;
+
+	p = __seq_open_private(f, ops, size);
+	if (p == NULL) {
+		put_net(net);
+		return -ENOMEM;
+	}
+	p->net = net;
+	return 0;
 }
-EXPORT_SYMBOL_GPL(proc_net_create);
+EXPORT_SYMBOL_GPL(seq_open_net);
+
+int seq_release_net(struct inode *ino, struct file *f)
+{
+	struct seq_file *seq;
+	struct seq_net_private *p;
+
+	seq = f->private_data;
+	p = seq->private;
+
+	put_net(p->net);
+	seq_release_private(ino, f);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(seq_release_net);
+
 
 struct proc_dir_entry *proc_net_fops_create(struct net *net,
 	const char *name, mode_t mode, const struct file_operations *fops)
@@ -57,88 +88,24 @@ struct net *get_proc_net(const struct inode *inode)
 }
 EXPORT_SYMBOL_GPL(get_proc_net);
 
-static struct proc_dir_entry *proc_net_shadow;
+static struct proc_dir_entry *shadow_pde;
 
-static struct dentry *proc_net_shadow_dentry(struct dentry *parent,
+static struct proc_dir_entry *proc_net_shadow(struct task_struct *task,
 						struct proc_dir_entry *de)
 {
-	struct dentry *shadow = NULL;
-	struct inode *inode;
-	if (!de)
-		goto out;
-	de_get(de);
-	inode = proc_get_inode(parent->d_inode->i_sb, de->low_ino, de);
-	if (!inode)
-		goto out_de_put;
-	shadow = d_alloc_name(parent, de->name);
-	if (!shadow)
-		goto out_iput;
-	shadow->d_op = parent->d_op; /* proc_dentry_operations */
-	d_instantiate(shadow, inode);
-out:
-	return shadow;
-out_iput:
-	iput(inode);
-out_de_put:
-	de_put(de);
-	goto out;
+	return task->nsproxy->net_ns->proc_net;
 }
 
-static void *proc_net_follow_link(struct dentry *parent, struct nameidata *nd)
+struct proc_dir_entry *proc_net_mkdir(struct net *net, const char *name,
+		struct proc_dir_entry *parent)
 {
-	struct net *net = current->nsproxy->net_ns;
-	struct dentry *shadow;
-	shadow = proc_net_shadow_dentry(parent, net->proc_net);
-	if (!shadow)
-		return ERR_PTR(-ENOENT);
-
-	dput(nd->dentry);
-	/* My dentry count is 1 and that should be enough as the
-	 * shadow dentry is thrown away immediately.
-	 */
-	nd->dentry = shadow;
-	return NULL;
+	struct proc_dir_entry *pde;
+	pde = proc_mkdir_mode(name, S_IRUGO | S_IXUGO, parent);
+	if (pde != NULL)
+		pde->data = net;
+	return pde;
 }
-
-static struct dentry *proc_net_lookup(struct inode *dir, struct dentry *dentry,
-				      struct nameidata *nd)
-{
-	struct net *net = current->nsproxy->net_ns;
-	struct dentry *shadow;
-
-	shadow = proc_net_shadow_dentry(nd->dentry, net->proc_net);
-	if (!shadow)
-		return ERR_PTR(-ENOENT);
-
-	dput(nd->dentry);
-	nd->dentry = shadow;
-
-	return shadow->d_inode->i_op->lookup(shadow->d_inode, dentry, nd);
-}
-
-static int proc_net_setattr(struct dentry *dentry, struct iattr *iattr)
-{
-	struct net *net = current->nsproxy->net_ns;
-	struct dentry *shadow;
-	int ret;
-
-	shadow = proc_net_shadow_dentry(dentry->d_parent, net->proc_net);
-	if (!shadow)
-		return -ENOENT;
-	ret = shadow->d_inode->i_op->setattr(shadow, iattr);
-	dput(shadow);
-	return ret;
-}
-
-static const struct file_operations proc_net_dir_operations = {
-	.read			= generic_read_dir,
-};
-
-static struct inode_operations proc_net_dir_inode_operations = {
-	.follow_link	= proc_net_follow_link,
-	.lookup		= proc_net_lookup,
-	.setattr	= proc_net_setattr,
-};
+EXPORT_SYMBOL_GPL(proc_net_mkdir);
 
 static __net_init int proc_net_ns_init(struct net *net)
 {
@@ -151,18 +118,16 @@ static __net_init int proc_net_ns_init(struct net *net)
 		goto out;
 
 	err = -EEXIST;
-	netd = proc_mkdir("net", root);
+	netd = proc_net_mkdir(net, "net", root);
 	if (!netd)
 		goto free_root;
 
 	err = -EEXIST;
-	net_statd = proc_mkdir("stat", netd);
+	net_statd = proc_net_mkdir(net, "stat", netd);
 	if (!net_statd)
 		goto free_net;
 
 	root->data = net;
-	netd->data = net;
-	net_statd->data = net;
 
 	net->proc_net_root = root;
 	net->proc_net = netd;
@@ -185,16 +150,15 @@ static __net_exit void proc_net_ns_exit(struct net *net)
 	kfree(net->proc_net_root);
 }
 
-static struct pernet_operations proc_net_ns_ops = {
+static struct pernet_operations __net_initdata proc_net_ns_ops = {
 	.init = proc_net_ns_init,
 	.exit = proc_net_ns_exit,
 };
 
 int __init proc_net_init(void)
 {
-	proc_net_shadow = proc_mkdir("net", NULL);
-	proc_net_shadow->proc_iops = &proc_net_dir_inode_operations;
-	proc_net_shadow->proc_fops = &proc_net_dir_operations;
+	shadow_pde = proc_mkdir("net", NULL);
+	shadow_pde->shadow_proc = proc_net_shadow;
 
 	return register_pernet_subsys(&proc_net_ns_ops);
 }

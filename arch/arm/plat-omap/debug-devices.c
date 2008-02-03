@@ -29,7 +29,7 @@ static struct resource smc91x_resources[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.flags  = IORESOURCE_IRQ,
+		.flags  = IORESOURCE_IRQ | IORESOURCE_IRQ_LOWEDGE,
 	},
 };
 

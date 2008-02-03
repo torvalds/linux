@@ -37,6 +37,9 @@ enum ctattr_type {
 	CTA_ID,
 	CTA_NAT_DST,
 	CTA_TUPLE_MASTER,
+	CTA_NAT_SEQ_ADJ_ORIG,
+	CTA_NAT_SEQ_ADJ_REPLY,
+	CTA_SECMARK,
 	__CTA_MAX
 };
 #define CTA_MAX (__CTA_MAX - 1)
@@ -118,6 +121,14 @@ enum ctattr_protonat {
 	__CTA_PROTONAT_MAX
 };
 #define CTA_PROTONAT_MAX (__CTA_PROTONAT_MAX - 1)
+
+enum ctattr_natseq {
+	CTA_NAT_SEQ_CORRECTION_POS,
+	CTA_NAT_SEQ_OFFSET_BEFORE,
+	CTA_NAT_SEQ_OFFSET_AFTER,
+	__CTA_NAT_SEQ_MAX
+};
+#define CTA_NAT_SEQ_MAX (__CTA_NAT_SEQ_MAX - 1)
 
 enum ctattr_expect {
 	CTA_EXPECT_UNSPEC,

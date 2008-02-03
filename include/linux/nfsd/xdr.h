@@ -23,7 +23,7 @@ struct nfsd_sattrargs {
 struct nfsd_diropargs {
 	struct svc_fh		fh;
 	char *			name;
-	int			len;
+	unsigned int		len;
 };
 
 struct nfsd_readargs {
@@ -43,17 +43,17 @@ struct nfsd_writeargs {
 struct nfsd_createargs {
 	struct svc_fh		fh;
 	char *			name;
-	int			len;
+	unsigned int		len;
 	struct iattr		attrs;
 };
 
 struct nfsd_renameargs {
 	struct svc_fh		ffh;
 	char *			fname;
-	int			flen;
+	unsigned int		flen;
 	struct svc_fh		tfh;
 	char *			tname;
-	int			tlen;
+	unsigned int		tlen;
 };
 
 struct nfsd_readlinkargs {
@@ -65,15 +65,15 @@ struct nfsd_linkargs {
 	struct svc_fh		ffh;
 	struct svc_fh		tfh;
 	char *			tname;
-	int			tlen;
+	unsigned int		tlen;
 };
 
 struct nfsd_symlinkargs {
 	struct svc_fh		ffh;
 	char *			fname;
-	int			flen;
+	unsigned int		flen;
 	char *			tname;
-	int			tlen;
+	unsigned int		tlen;
 	struct iattr		attrs;
 };
 

@@ -1568,9 +1568,12 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 	int ret, wbufsize, word_gap, words;
 	const struct kvec *vec;
 	unsigned long vec_seek;
+	unsigned long initial_adr;
+	int initial_len = len;
 
 	wbufsize = cfi_interleave(cfi) << cfi->cfiq->MaxBufWriteSize;
 	adr += chip->start;
+	initial_adr = adr;
 	cmd_adr = adr & ~(wbufsize-1);
 
 	/* Let's determine this according to the interleave only once */
@@ -1583,7 +1586,7 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 		return ret;
 	}
 
-	XIP_INVAL_CACHED_RANGE(map, adr, len);
+	XIP_INVAL_CACHED_RANGE(map, initial_adr, initial_len);
 	ENABLE_VPP(map);
 	xip_disable(map, chip, cmd_adr);
 
@@ -1674,7 +1677,7 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 	chip->state = FL_WRITING;
 
 	ret = INVAL_CACHE_AND_WAIT(map, chip, cmd_adr,
-				   adr, len,
+				   initial_adr, initial_len,
 				   chip->buffer_write_time);
 	if (ret) {
 		map_write(map, CMD(0x70), cmd_adr);

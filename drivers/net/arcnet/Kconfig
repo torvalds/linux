@@ -19,8 +19,7 @@ menuconfig ARCNET
 	  from <http://www.tldp.org/docs.html#howto>(even though ARCnet
 	  is not really Ethernet).
 
-	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/networking/net-modules.txt>.  The module will
+	  To compile this driver as a module, choose M here. The module will
 	  be called arcnet.
 
 if ARCNET
@@ -81,8 +80,7 @@ config ARCNET_COM90xx
 	  have always used the old ARCnet driver without knowing what type of
 	  card you had, this is probably the one for you.
 
-	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/networking/net-modules.txt>.  The module will
+	  To compile this driver as a module, choose M here. The module will
 	  be called com90xx.
 
 config ARCNET_COM90xxIO
@@ -93,8 +91,7 @@ config ARCNET_COM90xxIO
 	  the normal driver. Only use it if your card doesn't support shared
 	  memory.
 
-	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/networking/net-modules.txt>.  The module will
+	  To compile this driver as a module, choose M here. The module will
 	  be called com90io.
 
 config ARCNET_RIM_I
@@ -105,8 +102,7 @@ config ARCNET_RIM_I
 	  driver is completely untested, so if you have one of these cards,
 	  please mail <dwmw2@infradead.org>, especially if it works!
 
-	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/networking/net-modules.txt>.  The module will
+	  To compile this driver as a module, choose M here. The module will
 	  be called arc-rimi.
 
 config ARCNET_COM20020
@@ -116,8 +112,7 @@ config ARCNET_COM20020
 	  things as promiscuous mode, so packet sniffing is possible, and
 	  extra diagnostic information.
 
-	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/networking/net-modules.txt>.  The module will
+	  To compile this driver as a module, choose M here. The module will
 	  be called com20020.
 
 config ARCNET_COM20020_ISA

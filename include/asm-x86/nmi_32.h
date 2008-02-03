@@ -1,6 +1,3 @@
-/*
- *  linux/include/asm-i386/nmi.h
- */
 #ifndef ASM_NMI_H
 #define ASM_NMI_H
 

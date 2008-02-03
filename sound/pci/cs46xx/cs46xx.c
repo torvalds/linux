@@ -25,7 +25,6 @@
     reloading the module may solve this.
 */
 
-#include <sound/driver.h>
 #include <linux/pci.h>
 #include <linux/time.h>
 #include <linux/init.h>

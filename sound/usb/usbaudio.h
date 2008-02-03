@@ -126,6 +126,7 @@ struct snd_usb_audio {
 	u32 usb_id;
 	int shutdown;
 	int num_interfaces;
+	int num_suspended_intf;
 
 	struct list_head pcm_list;	/* list of pcm streams */
 	int pcm_devs;

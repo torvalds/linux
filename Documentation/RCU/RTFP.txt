@@ -9,8 +9,8 @@ The first thing resembling RCU was published in 1980, when Kung and Lehman
 [Kung80] recommended use of a garbage collector to defer destruction
 of nodes in a parallel binary search tree in order to simplify its
 implementation.  This works well in environments that have garbage
-collectors, but current production garbage collectors incur significant
-read-side overhead.
+collectors, but most production garbage collectors incur significant
+overhead.
 
 In 1982, Manber and Ladner [Manber82,Manber84] recommended deferring
 destruction until all threads running at that time have terminated, again
@@ -99,16 +99,25 @@ locking, reduces contention, reduces memory latency for readers, and
 parallelizes pipeline stalls and memory latency for writers.  However,
 these techniques still impose significant read-side overhead in the
 form of memory barriers.  Researchers at Sun worked along similar lines
-in the same timeframe [HerlihyLM02,HerlihyLMS03].  These techniques
-can be thought of as inside-out reference counts, where the count is
-represented by the number of hazard pointers referencing a given data
-structure (rather than the more conventional counter field within the
-data structure itself).
+in the same timeframe [HerlihyLM02].  These techniques can be thought
+of as inside-out reference counts, where the count is represented by the
+number of hazard pointers referencing a given data structure (rather than
+the more conventional counter field within the data structure itself).
+
+By the same token, RCU can be thought of as a "bulk reference count",
+where some form of reference counter covers all reference by a given CPU
+or thread during a set timeframe.  This timeframe is related to, but
+not necessarily exactly the same as, an RCU grace period.  In classic
+RCU, the reference counter is the per-CPU bit in the "bitmask" field,
+and each such bit covers all references that might have been made by
+the corresponding CPU during the prior grace period.  Of course, RCU
+can be thought of in other terms as well.
 
 In 2003, the K42 group described how RCU could be used to create
-hot-pluggable implementations of operating-system functions.  Later that
-year saw a paper describing an RCU implementation of System V IPC
-[Arcangeli03], and an introduction to RCU in Linux Journal [McKenney03a].
+hot-pluggable implementations of operating-system functions [Appavoo03a].
+Later that year saw a paper describing an RCU implementation of System
+V IPC [Arcangeli03], and an introduction to RCU in Linux Journal
+[McKenney03a].
 
 2004 has seen a Linux-Journal article on use of RCU in dcache
 [McKenney04a], a performance comparison of locking to RCU on several
@@ -117,9 +126,18 @@ number of operating-system kernels [PaulEdwardMcKenneyPhD], a paper
 describing how to make RCU safe for soft-realtime applications [Sarma04c],
 and a paper describing SELinux performance with RCU [JamesMorris04b].
 
-2005 has seen further adaptation of RCU to realtime use, permitting
+2005 brought further adaptation of RCU to realtime use, permitting
 preemption of RCU realtime critical sections [PaulMcKenney05a,
 PaulMcKenney05b].
+
+2006 saw the first best-paper award for an RCU paper [ThomasEHart2006a],
+as well as further work on efficient implementations of preemptible
+RCU [PaulEMcKenney2006b], but priority-boosting of RCU read-side critical
+sections proved elusive.  An RCU implementation permitting general
+blocking in read-side critical sections appeared [PaulEMcKenney2006c],
+Robert Olsson described an RCU-protected trie-hash combination
+[RobertOlsson2006a].
+
 
 Bibtex Entries
 
@@ -201,6 +219,41 @@ Bibtex Entries
 ,Year="1995"
 ,pages="11-23"
 ,Address="New Orleans, LA"
+}
+
+@conference{Pu95a,
+Author = "Calton Pu and Tito Autrey and Andrew Black and Charles Consel and
+Crispin Cowan and Jon Inouye and Lakshmi Kethana and Jonathan Walpole and
+Ke Zhang",
+Title = "Optimistic Incremental Specialization: Streamlining a Commercial
+Operating System",
+Booktitle = "15\textsuperscript{th} ACM Symposium on
+Operating Systems Principles (SOSP'95)",
+address = "Copper Mountain, CO",
+month="December",
+year="1995",
+pages="314-321",
+annotation="
+	Uses a replugger, but with a flag to signal when people are
+	using the resource at hand.  Only one reader at a time.
+"
+}
+
+@conference{Cowan96a,
+Author = "Crispin Cowan and Tito Autrey and Charles Krasic and
+Calton Pu and Jonathan Walpole",
+Title = "Fast Concurrent Dynamic Linking for an Adaptive Operating System",
+Booktitle = "International Conference on Configurable Distributed Systems
+(ICCDS'96)",
+address = "Annapolis, MD",
+month="May",
+year="1996",
+pages="108",
+isbn="0-8186-7395-8",
+annotation="
+	Uses a replugger, but with a counter to signal when people are
+	using the resource at hand.  Allows multiple readers.
+"
 }
 
 @techreport{Slingwine95
@@ -310,6 +363,49 @@ Andrea Arcangeli and Andi Kleen and Orran Krieger and Rusty Russell"
 ,note="Available:
 \url{http://www.linux.org.uk/~ajh/ols2002_proceedings.pdf.gz}
 [Viewed June 23, 2004]"
+}
+
+@conference{Michael02a
+,author="Maged M. Michael"
+,title="Safe Memory Reclamation for Dynamic Lock-Free Objects Using Atomic
+Reads and Writes"
+,Year="2002"
+,Month="August"
+,booktitle="{Proceedings of the 21\textsuperscript{st} Annual ACM
+Symposium on Principles of Distributed Computing}"
+,pages="21-30"
+,annotation="
+	Each thread keeps an array of pointers to items that it is
+	currently referencing.	Sort of an inside-out garbage collection
+	mechanism, but one that requires the accessing code to explicitly
+	state its needs.  Also requires read-side memory barriers on
+	most architectures.
+"
+}
+
+@conference{Michael02b
+,author="Maged M. Michael"
+,title="High Performance Dynamic Lock-Free Hash Tables and List-Based Sets"
+,Year="2002"
+,Month="August"
+,booktitle="{Proceedings of the 14\textsuperscript{th} Annual ACM
+Symposium on Parallel
+Algorithms and Architecture}"
+,pages="73-82"
+,annotation="
+	Like the title says...
+"
+}
+
+@InProceedings{HerlihyLM02
+,author={Maurice Herlihy and Victor Luchangco and Mark Moir}
+,title="The Repeat Offender Problem: A Mechanism for Supporting Dynamic-Sized,
+Lock-Free Data Structures"
+,booktitle={Proceedings of 16\textsuperscript{th} International
+Symposium on Distributed Computing}
+,year=2002
+,month="October"
+,pages="339-353"
 }
 
 @article{Appavoo03a
@@ -447,3 +543,95 @@ Oregon Health and Sciences University"
 	Realtime turns into making RCU yet more realtime friendly.
 "
 }
+
+@conference{ThomasEHart2006a
+,Author="Thomas E. Hart and Paul E. McKenney and Angela Demke Brown"
+,Title="Making Lockless Synchronization Fast: Performance Implications
+of Memory Reclamation"
+,Booktitle="20\textsuperscript{th} {IEEE} International Parallel and
+Distributed Processing Symposium"
+,month="April"
+,year="2006"
+,day="25-29"
+,address="Rhodes, Greece"
+,annotation="
+	Compares QSBR (AKA "classic RCU"), HPBR, EBR, and lock-free
+	reference counting.
+"
+}
+
+@Conference{PaulEMcKenney2006b
+,Author="Paul E. McKenney and Dipankar Sarma and Ingo Molnar and
+Suparna Bhattacharya"
+,Title="Extending RCU for Realtime and Embedded Workloads"
+,Booktitle="{Ottawa Linux Symposium}"
+,Month="July"
+,Year="2006"
+,pages="v2 123-138"
+,note="Available:
+\url{http://www.linuxsymposium.org/2006/view_abstract.php?content_key=184}
+\url{http://www.rdrop.com/users/paulmck/RCU/OLSrtRCU.2006.08.11a.pdf}
+[Viewed January 1, 2007]"
+,annotation="
+	Described how to improve the -rt implementation of realtime RCU.
+"
+}
+
+@unpublished{PaulEMcKenney2006c
+,Author="Paul E. McKenney"
+,Title="Sleepable {RCU}"
+,month="October"
+,day="9"
+,year="2006"
+,note="Available:
+\url{http://lwn.net/Articles/202847/}
+Revised:
+\url{http://www.rdrop.com/users/paulmck/RCU/srcu.2007.01.14a.pdf}
+[Viewed August 21, 2006]"
+,annotation="
+	LWN article introducing SRCU.
+"
+}
+
+@unpublished{RobertOlsson2006a
+,Author="Robert Olsson and Stefan Nilsson"
+,Title="{TRASH}: A dynamic {LC}-trie and hash data structure"
+,month="August"
+,day="18"
+,year="2006"
+,note="Available:
+\url{http://www.nada.kth.se/~snilsson/public/papers/trash/trash.pdf}
+[Viewed February 24, 2007]"
+,annotation="
+	RCU-protected dynamic trie-hash combination.
+"
+}
+
+@unpublished{ThomasEHart2007a
+,Author="Thomas E. Hart and Paul E. McKenney and Angela Demke Brown and Jonathan Walpole"
+,Title="Performance of memory reclamation for lockless synchronization"
+,journal="J. Parallel Distrib. Comput."
+,year="2007"
+,note="To appear in J. Parallel Distrib. Comput.
+       \url{doi=10.1016/j.jpdc.2007.04.010}"
+,annotation={
+	Compares QSBR (AKA "classic RCU"), HPBR, EBR, and lock-free
+	reference counting.  Journal version of ThomasEHart2006a.
+}
+}
+
+@unpublished{PaulEMcKenney2007QRCUspin
+,Author="Paul E. McKenney"
+,Title="Using Promela and Spin to verify parallel algorithms"
+,month="August"
+,day="1"
+,year="2007"
+,note="Available:
+\url{http://lwn.net/Articles/243851/}
+[Viewed September 8, 2007]"
+,annotation="
+	LWN article describing Promela and spin, and also using Oleg
+	Nesterov's QRCU as an example (with Paul McKenney's fastpath).
+"
+}
+

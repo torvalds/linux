@@ -35,7 +35,7 @@
  *	4 - ethernet
  *	5 - 16550 UART
  *	6 - cascade i8259
- *	7 - CP0 counter (unused)
+ *	7 - CP0 counter
  */
 #define MIPS_CPU_IRQ_BASE		16
 
@@ -47,7 +47,6 @@
 #define SERIAL_IRQ			(MIPS_CPU_IRQ_BASE + 5)
 #define SCSI_IRQ			(MIPS_CPU_IRQ_BASE + 5)
 #define I8259_CASCADE_IRQ		(MIPS_CPU_IRQ_BASE + 6)
-
 
 #define GT641XX_IRQ_BASE		24
 

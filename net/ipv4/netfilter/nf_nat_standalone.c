@@ -137,7 +137,7 @@ nf_nat_fn(unsigned int hooknum,
 			if (unlikely(nf_ct_is_confirmed(ct)))
 				/* NAT module was loaded late */
 				ret = alloc_null_binding_confirmed(ct, hooknum);
-			else if (hooknum == NF_IP_LOCAL_IN)
+			else if (hooknum == NF_INET_LOCAL_IN)
 				/* LOCAL_IN hook doesn't have a chain!  */
 				ret = alloc_null_binding(ct, hooknum);
 			else
@@ -273,13 +273,13 @@ nf_nat_adjust(unsigned int hooknum,
 
 /* We must be after connection tracking and before packet filtering. */
 
-static struct nf_hook_ops nf_nat_ops[] = {
+static struct nf_hook_ops nf_nat_ops[] __read_mostly = {
 	/* Before packet filtering, change destination */
 	{
 		.hook		= nf_nat_in,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET,
-		.hooknum	= NF_IP_PRE_ROUTING,
+		.hooknum	= NF_INET_PRE_ROUTING,
 		.priority	= NF_IP_PRI_NAT_DST,
 	},
 	/* After packet filtering, change source */
@@ -287,7 +287,7 @@ static struct nf_hook_ops nf_nat_ops[] = {
 		.hook		= nf_nat_out,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET,
-		.hooknum	= NF_IP_POST_ROUTING,
+		.hooknum	= NF_INET_POST_ROUTING,
 		.priority	= NF_IP_PRI_NAT_SRC,
 	},
 	/* After conntrack, adjust sequence number */
@@ -295,7 +295,7 @@ static struct nf_hook_ops nf_nat_ops[] = {
 		.hook		= nf_nat_adjust,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET,
-		.hooknum	= NF_IP_POST_ROUTING,
+		.hooknum	= NF_INET_POST_ROUTING,
 		.priority	= NF_IP_PRI_NAT_SEQ_ADJUST,
 	},
 	/* Before packet filtering, change destination */
@@ -303,7 +303,7 @@ static struct nf_hook_ops nf_nat_ops[] = {
 		.hook		= nf_nat_local_fn,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET,
-		.hooknum	= NF_IP_LOCAL_OUT,
+		.hooknum	= NF_INET_LOCAL_OUT,
 		.priority	= NF_IP_PRI_NAT_DST,
 	},
 	/* After packet filtering, change source */
@@ -311,7 +311,7 @@ static struct nf_hook_ops nf_nat_ops[] = {
 		.hook		= nf_nat_fn,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET,
-		.hooknum	= NF_IP_LOCAL_IN,
+		.hooknum	= NF_INET_LOCAL_IN,
 		.priority	= NF_IP_PRI_NAT_SRC,
 	},
 	/* After conntrack, adjust sequence number */
@@ -319,7 +319,7 @@ static struct nf_hook_ops nf_nat_ops[] = {
 		.hook		= nf_nat_adjust,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET,
-		.hooknum	= NF_IP_LOCAL_IN,
+		.hooknum	= NF_INET_LOCAL_IN,
 		.priority	= NF_IP_PRI_NAT_SEQ_ADJUST,
 	},
 };
@@ -332,7 +332,7 @@ static int __init nf_nat_standalone_init(void)
 
 #ifdef CONFIG_XFRM
 	BUG_ON(ip_nat_decode_session != NULL);
-	ip_nat_decode_session = nat_decode_session;
+	rcu_assign_pointer(ip_nat_decode_session, nat_decode_session);
 #endif
 	ret = nf_nat_rule_init();
 	if (ret < 0) {
@@ -350,7 +350,7 @@ static int __init nf_nat_standalone_init(void)
 	nf_nat_rule_cleanup();
  cleanup_decode_session:
 #ifdef CONFIG_XFRM
-	ip_nat_decode_session = NULL;
+	rcu_assign_pointer(ip_nat_decode_session, NULL);
 	synchronize_net();
 #endif
 	return ret;
@@ -361,7 +361,7 @@ static void __exit nf_nat_standalone_fini(void)
 	nf_unregister_hooks(nf_nat_ops, ARRAY_SIZE(nf_nat_ops));
 	nf_nat_rule_cleanup();
 #ifdef CONFIG_XFRM
-	ip_nat_decode_session = NULL;
+	rcu_assign_pointer(ip_nat_decode_session, NULL);
 	synchronize_net();
 #endif
 	/* Conntrack caches are unregistered in nf_conntrack_cleanup */

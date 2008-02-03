@@ -79,7 +79,7 @@
  * and "Intel solution". They are the regular MCT and "Sitecom" for us.
  * This is pointless to document in the header, see the code for the bits.
  */
-static int mct_u232_calculate_baud_rate(struct usb_serial *serial, speed_t value);
+static int mct_u232_calculate_baud_rate(struct usb_serial *serial, speed_t value, speed_t *result);
 
 /*
  * Line Control Register (LCR)

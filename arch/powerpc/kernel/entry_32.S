@@ -244,6 +244,16 @@ syscall_exit_cont:
 	andis.	r10,r0,DBCR0_IC@h
 	bnel-	load_dbcr0
 #endif
+#ifdef CONFIG_44x
+	lis	r4,icache_44x_need_flush@ha
+	lwz	r5,icache_44x_need_flush@l(r4)
+	cmplwi	cr0,r5,0
+	bne-	2f
+1:
+#endif /* CONFIG_44x */
+BEGIN_FTR_SECTION
+	lwarx	r7,0,r1
+END_FTR_SECTION_IFSET(CPU_FTR_NEED_PAIRED_STWCX)
 	stwcx.	r0,0,r1			/* to clear the reservation */
 	lwz	r4,_LINK(r1)
 	lwz	r5,_CCR(r1)
@@ -258,6 +268,12 @@ syscall_exit_cont:
 	mtspr	SPRN_SRR1,r8
 	SYNC
 	RFI
+#ifdef CONFIG_44x
+2:	li	r7,0
+	iccci	r0,r0
+	stw	r7,icache_44x_need_flush@l(r4)
+	b	1b
+#endif  /* CONFIG_44x */
 
 66:	li	r3,-ENOSYS
 	b	ret_from_syscall
@@ -683,6 +699,16 @@ resume_kernel:
 
 	/* interrupts are hard-disabled at this point */
 restore:
+#ifdef CONFIG_44x
+	lis	r4,icache_44x_need_flush@ha
+	lwz	r5,icache_44x_need_flush@l(r4)
+	cmplwi	cr0,r5,0
+	beq+	1f
+	li	r6,0
+	iccci	r0,r0
+	stw	r6,icache_44x_need_flush@l(r4)
+1:
+#endif  /* CONFIG_44x */
 	lwz	r0,GPR0(r1)
 	lwz	r2,GPR2(r1)
 	REST_4GPRS(3, r1)
@@ -694,6 +720,9 @@ restore:
 	mtctr	r11
 
 	PPC405_ERR77(0,r1)
+BEGIN_FTR_SECTION
+	lwarx	r11,0,r1
+END_FTR_SECTION_IFSET(CPU_FTR_NEED_PAIRED_STWCX)
 	stwcx.	r0,0,r1			/* to clear the reservation */
 
 #if !(defined(CONFIG_4xx) || defined(CONFIG_BOOKE))

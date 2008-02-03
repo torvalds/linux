@@ -132,6 +132,21 @@ static void fuse_lookup_init(struct fuse_req *req, struct inode *dir,
 	req->out.args[0].value = outarg;
 }
 
+static u64 fuse_get_attr_version(struct fuse_conn *fc)
+{
+	u64 curr_version;
+
+	/*
+	 * The spin lock isn't actually needed on 64bit archs, but we
+	 * don't yet care too much about such optimizations.
+	 */
+	spin_lock(&fc->lock);
+	curr_version = fc->attr_version;
+	spin_unlock(&fc->lock);
+
+	return curr_version;
+}
+
 /*
  * Check whether the dentry is still valid
  *
@@ -171,9 +186,7 @@ static int fuse_dentry_revalidate(struct dentry *entry, struct nameidata *nd)
 			return 0;
 		}
 
-		spin_lock(&fc->lock);
-		attr_version = fc->attr_version;
-		spin_unlock(&fc->lock);
+		attr_version = fuse_get_attr_version(fc);
 
 		parent = dget_parent(entry);
 		fuse_lookup_init(req, parent->d_inode, entry, &outarg);
@@ -264,9 +277,7 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
 		return ERR_PTR(PTR_ERR(forget_req));
 	}
 
-	spin_lock(&fc->lock);
-	attr_version = fc->attr_version;
-	spin_unlock(&fc->lock);
+	attr_version = fuse_get_attr_version(fc);
 
 	fuse_lookup_init(req, dir, entry, &outarg);
 	request_send(fc, req);
@@ -646,6 +657,9 @@ static int fuse_rename(struct inode *olddir, struct dentry *oldent,
 	err = req->out.h.error;
 	fuse_put_request(fc, req);
 	if (!err) {
+		/* ctime changes */
+		fuse_invalidate_attr(oldent->d_inode);
+
 		fuse_invalidate_attr(olddir);
 		if (olddir != newdir)
 			fuse_invalidate_attr(newdir);
@@ -733,9 +747,7 @@ static int fuse_do_getattr(struct inode *inode, struct kstat *stat,
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
-	spin_lock(&fc->lock);
-	attr_version = fc->attr_version;
-	spin_unlock(&fc->lock);
+	attr_version = fuse_get_attr_version(fc);
 
 	memset(&inarg, 0, sizeof(inarg));
 	memset(&outarg, 0, sizeof(outarg));
@@ -772,6 +784,31 @@ static int fuse_do_getattr(struct inode *inode, struct kstat *stat,
 				fuse_fillattr(inode, &outarg.attr, stat);
 		}
 	}
+	return err;
+}
+
+int fuse_update_attributes(struct inode *inode, struct kstat *stat,
+			   struct file *file, bool *refreshed)
+{
+	struct fuse_inode *fi = get_fuse_inode(inode);
+	int err;
+	bool r;
+
+	if (fi->i_time < get_jiffies_64()) {
+		r = true;
+		err = fuse_do_getattr(inode, stat, file);
+	} else {
+		r = false;
+		err = 0;
+		if (stat) {
+			generic_fillattr(inode, stat);
+			stat->mode = fi->orig_i_mode;
+		}
+	}
+
+	if (refreshed != NULL)
+		*refreshed = r;
+
 	return err;
 }
 
@@ -862,14 +899,9 @@ static int fuse_permission(struct inode *inode, int mask, struct nameidata *nd)
 	 */
 	if ((fc->flags & FUSE_DEFAULT_PERMISSIONS) ||
 	    ((mask & MAY_EXEC) && S_ISREG(inode->i_mode))) {
-		struct fuse_inode *fi = get_fuse_inode(inode);
-		if (fi->i_time < get_jiffies_64()) {
-			err = fuse_do_getattr(inode, NULL, NULL);
-			if (err)
-				return err;
-
-			refreshed = true;
-		}
+		err = fuse_update_attributes(inode, NULL, NULL, &refreshed);
+		if (err)
+			return err;
 	}
 
 	if (fc->flags & FUSE_DEFAULT_PERMISSIONS) {
@@ -935,7 +967,6 @@ static int fuse_readdir(struct file *file, void *dstbuf, filldir_t filldir)
 	struct page *page;
 	struct inode *inode = file->f_path.dentry->d_inode;
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct fuse_file *ff = file->private_data;
 	struct fuse_req *req;
 
 	if (is_bad_inode(inode))
@@ -952,7 +983,7 @@ static int fuse_readdir(struct file *file, void *dstbuf, filldir_t filldir)
 	}
 	req->num_pages = 1;
 	req->pages[0] = page;
-	fuse_read_fill(req, ff, inode, file->f_pos, PAGE_SIZE, FUSE_READDIR);
+	fuse_read_fill(req, file, inode, file->f_pos, PAGE_SIZE, FUSE_READDIR);
 	request_send(fc, req);
 	nbytes = req->out.args[0].size;
 	err = req->out.h.error;
@@ -1173,22 +1204,12 @@ static int fuse_getattr(struct vfsmount *mnt, struct dentry *entry,
 			struct kstat *stat)
 {
 	struct inode *inode = entry->d_inode;
-	struct fuse_inode *fi = get_fuse_inode(inode);
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	int err;
 
 	if (!fuse_allow_task(fc, current))
 		return -EACCES;
 
-	if (fi->i_time < get_jiffies_64())
-		err = fuse_do_getattr(inode, stat, NULL);
-	else {
-		err = 0;
-		generic_fillattr(inode, stat);
-		stat->mode = fi->orig_i_mode;
-	}
-
-	return err;
+	return fuse_update_attributes(inode, stat, NULL, NULL);
 }
 
 static int fuse_setxattr(struct dentry *entry, const char *name,

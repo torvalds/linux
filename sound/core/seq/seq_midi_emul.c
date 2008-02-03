@@ -29,7 +29,6 @@
  * code in here.  If there is it should be reported as a bug.
  */
 
-#include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -229,13 +228,6 @@ snd_midi_process_event(struct snd_midi_op *ops,
 	case SNDRV_SEQ_EVENT_PORT_START:
 	case SNDRV_SEQ_EVENT_PORT_EXIT:
 	case SNDRV_SEQ_EVENT_PORT_CHANGE:
-	case SNDRV_SEQ_EVENT_SAMPLE:
-	case SNDRV_SEQ_EVENT_SAMPLE_START:
-	case SNDRV_SEQ_EVENT_SAMPLE_STOP:
-	case SNDRV_SEQ_EVENT_SAMPLE_FREQ:
-	case SNDRV_SEQ_EVENT_SAMPLE_VOLUME:
-	case SNDRV_SEQ_EVENT_SAMPLE_LOOP:
-	case SNDRV_SEQ_EVENT_SAMPLE_POSITION:
 	case SNDRV_SEQ_EVENT_ECHO:
 	not_yet:
 	default:

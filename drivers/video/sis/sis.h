@@ -39,12 +39,7 @@
 #include <linux/spinlock.h>
 
 #ifdef CONFIG_COMPAT
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,10)
-#include <linux/ioctl32.h>
-#define SIS_OLD_CONFIG_COMPAT
-#else
 #define SIS_NEW_CONFIG_COMPAT
-#endif
 #endif	/* CONFIG_COMPAT */
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,8)
@@ -607,9 +602,6 @@ struct sis_video_info {
 	int		haveXGIROM;
 	int		registered;
 	int		warncount;
-#ifdef SIS_OLD_CONFIG_COMPAT
-	int		ioctl32registered;
-#endif
 
 	int		sisvga_engine;
 	int		hwcursor_size;

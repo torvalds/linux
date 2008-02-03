@@ -54,13 +54,14 @@ struct sys_desc_table {
 };
 
 struct efi_info {
-	__u32 _pad1;
+	__u32 efi_loader_signature;
 	__u32 efi_systab;
 	__u32 efi_memdesc_size;
 	__u32 efi_memdesc_version;
 	__u32 efi_memmap;
 	__u32 efi_memmap_size;
-	__u32 _pad2[2];
+	__u32 efi_systab_hi;
+	__u32 efi_memmap_hi;
 };
 
 /* The so-called "zeropage" */

@@ -116,5 +116,5 @@ void __init mips_cpu_irq_init(void)
 
 	for (i = irq_base + 2; i < irq_base + 8; i++)
 		set_irq_chip_and_handler(i, &mips_cpu_irq_controller,
-					 handle_level_irq);
+					 handle_percpu_irq);
 }

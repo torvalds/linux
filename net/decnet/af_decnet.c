@@ -474,7 +474,7 @@ static struct proto dn_proto = {
 static struct sock *dn_alloc_sock(struct net *net, struct socket *sock, gfp_t gfp)
 {
 	struct dn_scp *scp;
-	struct sock *sk = sk_alloc(net, PF_DECnet, gfp, &dn_proto, 1);
+	struct sock *sk = sk_alloc(net, PF_DECnet, gfp, &dn_proto);
 
 	if  (!sk)
 		goto out;
@@ -1904,7 +1904,7 @@ static inline struct sk_buff *dn_alloc_send_pskb(struct sock *sk,
 	struct sk_buff *skb = sock_alloc_send_skb(sk, datalen,
 						   noblock, errcode);
 	if (skb) {
-		skb->protocol = __constant_htons(ETH_P_DNA_RT);
+		skb->protocol = htons(ETH_P_DNA_RT);
 		skb->pkt_type = PACKET_OUTGOING;
 	}
 	return skb;

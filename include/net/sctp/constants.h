@@ -186,6 +186,8 @@ typedef enum {
 	SCTP_IERROR_AUTH_BAD_HMAC,
 	SCTP_IERROR_AUTH_BAD_KEYID,
 	SCTP_IERROR_PROTO_VIOLATION,
+	SCTP_IERROR_ERROR,
+	SCTP_IERROR_ABORT,
 } sctp_ierror_t;
 
 
@@ -363,36 +365,12 @@ typedef enum {
  * Also, RFC 8.4, non-unicast addresses are not considered valid SCTP
  * addresses.
  */
-#define IS_IPV4_UNUSABLE_ADDRESS(a) \
-	((htonl(INADDR_BROADCAST) == *a) || \
-	(MULTICAST(*a)) || \
-	(((unsigned char *)(a))[0] == 0) || \
-	((((unsigned char *)(a))[0] == 198) && \
-	(((unsigned char *)(a))[1] == 18) && \
-	(((unsigned char *)(a))[2] == 0)) || \
-	((((unsigned char *)(a))[0] == 192) && \
-	(((unsigned char *)(a))[1] == 88) && \
-	(((unsigned char *)(a))[2] == 99)))
-
-/* IPv4 Link-local addresses: 169.254.0.0/16.  */
-#define IS_IPV4_LINK_ADDRESS(a) \
-	((((unsigned char *)(a))[0] == 169) && \
-	(((unsigned char *)(a))[1] == 254))
-
-/* RFC 1918 "Address Allocation for Private Internets" defines the IPv4
- * private address space as the following:
- *
- * 10.0.0.0 - 10.255.255.255 (10/8 prefix)
- * 172.16.0.0.0 - 172.31.255.255 (172.16/12 prefix)
- * 192.168.0.0 - 192.168.255.255 (192.168/16 prefix)
- */
-#define IS_IPV4_PRIVATE_ADDRESS(a) \
-	((((unsigned char *)(a))[0] == 10) || \
-	((((unsigned char *)(a))[0] == 172) && \
-	(((unsigned char *)(a))[1] >= 16) && \
-	(((unsigned char *)(a))[1] < 32)) || \
-	((((unsigned char *)(a))[0] == 192) && \
-	(((unsigned char *)(a))[1] == 168)))
+#define IS_IPV4_UNUSABLE_ADDRESS(a)	    \
+	((htonl(INADDR_BROADCAST) == a) ||  \
+	 ipv4_is_multicast(a) ||	    \
+	 ipv4_is_zeronet(a) ||		    \
+	 ipv4_is_test_198(a) ||		    \
+	 ipv4_is_anycast_6to4(a))
 
 /* Flags used for the bind address copy functions.  */
 #define SCTP_ADDR6_ALLOWED	0x00000001	/* IPv6 address is allowed by
@@ -407,6 +385,7 @@ typedef enum {
 	SCTP_RTXR_T3_RTX,
 	SCTP_RTXR_FAST_RTX,
 	SCTP_RTXR_PMTUD,
+	SCTP_RTXR_T1_RTX,
 } sctp_retransmit_reason_t;
 
 /* Reasons to lower cwnd. */
@@ -438,11 +417,14 @@ enum {
 	SCTP_AUTH_HMAC_ID_RESERVED_0,
 	SCTP_AUTH_HMAC_ID_SHA1,
 	SCTP_AUTH_HMAC_ID_RESERVED_2,
-	SCTP_AUTH_HMAC_ID_SHA256
+#if defined (CONFIG_CRYPTO_SHA256) || defined (CONFIG_CRYPTO_SHA256_MODULE)
+	SCTP_AUTH_HMAC_ID_SHA256,
+#endif
+	__SCTP_AUTH_HMAC_MAX
 };
 
-#define SCTP_AUTH_HMAC_ID_MAX	SCTP_AUTH_HMAC_ID_SHA256
-#define SCTP_AUTH_NUM_HMACS (SCTP_AUTH_HMAC_ID_SHA256 + 1)
+#define SCTP_AUTH_HMAC_ID_MAX	__SCTP_AUTH_HMAC_MAX - 1
+#define SCTP_AUTH_NUM_HMACS 	__SCTP_AUTH_HMAC_MAX
 #define SCTP_SHA1_SIG_SIZE 20
 #define SCTP_SHA256_SIG_SIZE 32
 

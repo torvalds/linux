@@ -40,6 +40,7 @@
 #include <acpi/acpi_drivers.h>
 #include <acpi/acpi_numa.h>
 #include <asm/acpi.h>
+#include <linux/dmi.h>
 
 
 #ifdef CONFIG_ACPI
@@ -132,6 +133,11 @@ extern unsigned long acpi_realmode_flags;
 int acpi_register_gsi (u32 gsi, int triggering, int polarity);
 int acpi_gsi_to_irq (u32 gsi, unsigned int *irq);
 
+#ifdef CONFIG_X86_IO_APIC
+extern int acpi_get_override_irq(int bus_irq, int *trigger, int *polarity);
+#else
+#define acpi_get_override_irq(bus, trigger, polarity) (-1)
+#endif
 /*
  * This function undoes the effect of one call to acpi_register_gsi().
  * If this matches the last registration, any IRQ resources for gsi
@@ -187,7 +193,9 @@ extern int ec_transaction(u8 command,
 #endif /*CONFIG_ACPI_EC*/
 
 extern int acpi_blacklisted(void);
-extern void acpi_bios_year(char *s);
+#ifdef CONFIG_DMI
+extern void acpi_dmi_osi_linux(int enable, const struct dmi_system_id *d);
+#endif
 
 #ifdef CONFIG_ACPI_NUMA
 int acpi_get_pxm(acpi_handle handle);
@@ -221,5 +229,5 @@ static inline int acpi_boot_table_init(void)
 	return 0;
 }
 
-#endif	/* CONFIG_ACPI */
+#endif	/* !CONFIG_ACPI */
 #endif	/*_LINUX_ACPI_H*/

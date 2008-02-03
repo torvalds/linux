@@ -2,7 +2,7 @@
  *
  *		Linux MegaRAID driver for SAS based RAID controllers
  *
- * Copyright (c) 2003-2005  LSI Logic Corporation.
+ * Copyright (c) 2003-2005  LSI Corporation.
  *
  *		This program is free software; you can redistribute it and/or
  *		modify it under the terms of the GNU General Public License
@@ -18,9 +18,9 @@
 /*
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"00.00.03.10-rc5"
-#define MEGASAS_RELDATE				"May 17, 2007"
-#define MEGASAS_EXT_VERSION			"Thu May 17 10:09:32 PDT 2007"
+#define MEGASAS_VERSION				"00.00.03.16-rc1"
+#define MEGASAS_RELDATE				"Nov. 07, 2007"
+#define MEGASAS_EXT_VERSION			"Thu. Nov. 07 10:09:32 PDT 2007"
 
 /*
  * Device IDs
@@ -117,6 +117,7 @@
 #define MR_FLUSH_DISK_CACHE			0x02
 
 #define MR_DCMD_CTRL_SHUTDOWN			0x01050000
+#define MR_DCMD_HIBERNATE_SHUTDOWN		0x01060000
 #define MR_ENABLE_DRIVE_SPINDOWN		0x01
 
 #define MR_DCMD_CTRL_EVENT_GET_INFO		0x01040100
@@ -570,7 +571,8 @@ struct megasas_ctrl_info {
 #define IS_DMA64				(sizeof(dma_addr_t) == 8)
 
 #define MFI_OB_INTR_STATUS_MASK			0x00000002
-#define MFI_POLL_TIMEOUT_SECS			10
+#define MFI_POLL_TIMEOUT_SECS			60
+#define MEGASAS_COMPLETION_TIMER_INTERVAL      (HZ/10)
 
 #define MFI_REPLY_1078_MESSAGE_INTERRUPT	0x80000000
 
@@ -1083,13 +1085,15 @@ struct megasas_instance {
 	struct megasas_cmd **cmd_list;
 	struct list_head cmd_pool;
 	spinlock_t cmd_pool_lock;
+	/* used to synch producer, consumer ptrs in dpc */
+	spinlock_t completion_lock;
 	struct dma_pool *frame_dma_pool;
 	struct dma_pool *sense_dma_pool;
 
 	struct megasas_evt_detail *evt_detail;
 	dma_addr_t evt_detail_h;
 	struct megasas_cmd *aen_cmd;
-	struct semaphore aen_mutex;
+	struct mutex aen_mutex;
 	struct semaphore ioctl_sem;
 
 	struct Scsi_Host *host;
@@ -1108,6 +1112,8 @@ struct megasas_instance {
 
 	u8 flag;
 	unsigned long last_time;
+
+	struct timer_list io_completion_timer;
 };
 
 #define MEGASAS_IS_LOGICAL(scp)						\

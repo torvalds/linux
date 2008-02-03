@@ -118,10 +118,6 @@ struct mmc_host {
 	unsigned int		removed:1;	/* host is being removed */
 #endif
 
-	unsigned int		mode;		/* current card mode of host */
-#define MMC_MODE_MMC		0
-#define MMC_MODE_SD		1
-
 	struct mmc_card		*card;		/* device attached to this host */
 
 	wait_queue_head_t	wq;

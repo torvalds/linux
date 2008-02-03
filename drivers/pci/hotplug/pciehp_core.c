@@ -453,13 +453,9 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 
 	pci_set_drvdata(pdev, ctrl);
 
-	ctrl->bus = pdev->bus->number;  /* ctrl bus */
-	ctrl->slot_bus = pdev->subordinate->number;  /* bus controlled by this HPC */
-
-	ctrl->device = PCI_SLOT(pdev->devfn);
-	ctrl->function = PCI_FUNC(pdev->devfn);
-	dbg("%s: ctrl bus=0x%x, device=%x, function=%x, irq=%x\n", __FUNCTION__,
-		ctrl->bus, ctrl->device, ctrl->function, pdev->irq);
+	dbg("%s: ctrl bus=0x%x, device=%x, function=%x, irq=%x\n",
+	    __FUNCTION__, pdev->bus->number, PCI_SLOT(pdev->devfn),
+	    PCI_FUNC(pdev->devfn), pdev->irq);
 
 	/* Setup the slot information structures */
 	rc = init_slots(ctrl);
@@ -471,6 +467,11 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 	t_slot = pciehp_find_slot(ctrl, ctrl->slot_device_offset);
 
 	t_slot->hpc_ops->get_adapter_status(t_slot, &value); /* Check if slot is occupied */
+	if (value) {
+		rc = pciehp_enable_slot(t_slot);
+		if (rc)	/* -ENODEV: shouldn't happen, but deal with it */
+			value = 0;
+	}
 	if ((POWER_CTRL(ctrl->ctrlcap)) && !value) {
 		rc = t_slot->hpc_ops->power_off_slot(t_slot); /* Power off slot if not occupied*/
 		if (rc)
@@ -509,6 +510,24 @@ static int pciehp_suspend (struct pcie_device *dev, pm_message_t state)
 static int pciehp_resume (struct pcie_device *dev)
 {
 	printk("%s ENTRY\n", __FUNCTION__);
+	if (pciehp_force) {
+		struct pci_dev *pdev = dev->port;
+		struct controller *ctrl = pci_get_drvdata(pdev);
+		struct slot *t_slot;
+		u8 status;
+
+		/* reinitialize the chipset's event detection logic */
+		pcie_init_hardware_part2(ctrl, dev);
+
+		t_slot = pciehp_find_slot(ctrl, ctrl->slot_device_offset);
+
+		/* Check if slot is occupied */
+		t_slot->hpc_ops->get_adapter_status(t_slot, &status);
+		if (status)
+			pciehp_enable_slot(t_slot);
+		else
+			pciehp_disable_slot(t_slot);
+	}
 	return 0;
 }
 #endif

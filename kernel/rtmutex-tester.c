@@ -394,7 +394,7 @@ static SYSDEV_ATTR(status, 0600, sysfs_test_status, NULL);
 static SYSDEV_ATTR(command, 0600, NULL, sysfs_test_command);
 
 static struct sysdev_class rttest_sysclass = {
-	set_kset_name("rttest"),
+	.name = "rttest",
 };
 
 static int init_test_thread(int id)

@@ -279,6 +279,7 @@ void ax25_disconnect(ax25_cb *ax25, int reason)
 	ax25_link_failed(ax25, reason);
 
 	if (ax25->sk != NULL) {
+		local_bh_disable();
 		bh_lock_sock(ax25->sk);
 		ax25->sk->sk_state     = TCP_CLOSE;
 		ax25->sk->sk_err       = reason;
@@ -288,5 +289,6 @@ void ax25_disconnect(ax25_cb *ax25, int reason)
 			sock_set_flag(ax25->sk, SOCK_DEAD);
 		}
 		bh_unlock_sock(ax25->sk);
+		local_bh_enable();
 	}
 }

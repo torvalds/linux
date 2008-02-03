@@ -4,6 +4,7 @@
  * Copyright (C) 1996 David S. Miller (dm@engr.sgi.com)
  * Copyright (C) 1999 Andrew R. Baker (andrewb@uab.edu) - Indigo2 changes
  * Copyright (C) 2003 Ladislav Michl  (ladis@linux-mips.org)
+ * Copyright (C) 2004 Peter Fuerst    (pf@net.alphadv.de) - IP28
  */
 
 #include <linux/init.h>
@@ -137,9 +138,12 @@ void __init sgimc_init(void)
 	/* Step 2: Enable all parity checking in cpu control register
 	 *         zero.
 	 */
+	/* don't touch parity settings for IP28 */
+#ifndef CONFIG_SGI_IP28
 	tmp = sgimc->cpuctrl0;
 	tmp |= (SGIMC_CCTRL0_EPERRGIO | SGIMC_CCTRL0_EPERRMEM |
 		SGIMC_CCTRL0_R4KNOCHKPARR);
+#endif
 	sgimc->cpuctrl0 = tmp;
 
 	/* Step 3: Setup the MC write buffer depth, this is controlled

@@ -77,8 +77,6 @@ int __init cpm_muram_init(void)
 	int i = 0;
 	int ret = 0;
 
-	printk("cpm_muram_init\n");
-
 	spin_lock_init(&cpm_muram_lock);
 	/* initialize the info header */
 	rh_init(&cpm_muram_info, 1,
@@ -193,7 +191,7 @@ void __iomem *cpm_muram_addr(unsigned long offset)
 EXPORT_SYMBOL(cpm_muram_addr);
 
 /**
- * cpm_muram_phys - turn a muram virtual address into a DMA address
+ * cpm_muram_dma - turn a muram virtual address into a DMA address
  * @offset: virtual address from cpm_muram_addr() to convert
  */
 dma_addr_t cpm_muram_dma(void __iomem *addr)

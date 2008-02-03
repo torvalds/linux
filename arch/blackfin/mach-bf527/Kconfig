@@ -1,5 +1,7 @@
 if (BF52x)
 
+source "arch/blackfin/mach-bf527/boards/Kconfig"
+
 menu "BF527 Specific Configuration"
 
 comment "Alternative Multiplexing Scheme"
@@ -41,7 +43,7 @@ endchoice
 
 choice
 	prompt "UART1"
-	default BF527_UART1_PORTG
+	default BF527_UART1_PORTF
 	help
 	  Select PORT used for UART1. See Hardware Reference Manual
 

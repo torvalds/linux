@@ -29,7 +29,7 @@
 #define MAX7310_TIMEOUT  0x04
 
 /* Addresses to scan */
-static unsigned short normal_i2c[] = { 0x18, I2C_CLIENT_END };
+static const unsigned short normal_i2c[] = { 0x18, I2C_CLIENT_END };
 
 /* I2C Magic */
 I2C_CLIENT_INSMOD;

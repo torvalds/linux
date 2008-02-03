@@ -509,7 +509,10 @@ static struct nfs4_lock_state *nfs4_alloc_lock_state(struct nfs4_state *state, f
 	lsp = kzalloc(sizeof(*lsp), GFP_KERNEL);
 	if (lsp == NULL)
 		return NULL;
-	lsp->ls_seqid.sequence = &state->owner->so_sequence;
+	rpc_init_wait_queue(&lsp->ls_sequence.wait, "lock_seqid_waitqueue");
+	spin_lock_init(&lsp->ls_sequence.lock);
+	INIT_LIST_HEAD(&lsp->ls_sequence.list);
+	lsp->ls_seqid.sequence = &lsp->ls_sequence;
 	atomic_set(&lsp->ls_count, 1);
 	lsp->ls_owner = fl_owner;
 	spin_lock(&clp->cl_lock);
@@ -641,27 +644,26 @@ void nfs4_copy_stateid(nfs4_stateid *dst, struct nfs4_state *state, fl_owner_t f
 
 struct nfs_seqid *nfs_alloc_seqid(struct nfs_seqid_counter *counter)
 {
-	struct rpc_sequence *sequence = counter->sequence;
 	struct nfs_seqid *new;
 
 	new = kmalloc(sizeof(*new), GFP_KERNEL);
 	if (new != NULL) {
 		new->sequence = counter;
-		spin_lock(&sequence->lock);
-		list_add_tail(&new->list, &sequence->list);
-		spin_unlock(&sequence->lock);
+		INIT_LIST_HEAD(&new->list);
 	}
 	return new;
 }
 
 void nfs_free_seqid(struct nfs_seqid *seqid)
 {
-	struct rpc_sequence *sequence = seqid->sequence->sequence;
+	if (!list_empty(&seqid->list)) {
+		struct rpc_sequence *sequence = seqid->sequence->sequence;
 
-	spin_lock(&sequence->lock);
-	list_del(&seqid->list);
-	spin_unlock(&sequence->lock);
-	rpc_wake_up(&sequence->wait);
+		spin_lock(&sequence->lock);
+		list_del(&seqid->list);
+		spin_unlock(&sequence->lock);
+		rpc_wake_up(&sequence->wait);
+	}
 	kfree(seqid);
 }
 
@@ -672,6 +674,7 @@ void nfs_free_seqid(struct nfs_seqid *seqid)
  */
 static void nfs_increment_seqid(int status, struct nfs_seqid *seqid)
 {
+	BUG_ON(list_first_entry(&seqid->sequence->sequence->list, struct nfs_seqid, list) != seqid);
 	switch (status) {
 		case 0:
 			break;
@@ -723,15 +726,15 @@ int nfs_wait_on_sequence(struct nfs_seqid *seqid, struct rpc_task *task)
 	struct rpc_sequence *sequence = seqid->sequence->sequence;
 	int status = 0;
 
-	if (sequence->list.next == &seqid->list)
-		goto out;
 	spin_lock(&sequence->lock);
-	if (sequence->list.next != &seqid->list) {
-		rpc_sleep_on(&sequence->wait, task, NULL, NULL);
-		status = -EAGAIN;
-	}
+	if (list_empty(&seqid->list))
+		list_add_tail(&seqid->list, &sequence->list);
+	if (list_first_entry(&sequence->list, struct nfs_seqid, list) == seqid)
+		goto unlock;
+	rpc_sleep_on(&sequence->wait, task, NULL, NULL);
+	status = -EAGAIN;
+unlock:
 	spin_unlock(&sequence->lock);
-out:
 	return status;
 }
 
@@ -755,8 +758,9 @@ static void nfs4_recover_state(struct nfs_client *clp)
 
 	__module_get(THIS_MODULE);
 	atomic_inc(&clp->cl_count);
-	task = kthread_run(reclaimer, clp, "%u.%u.%u.%u-reclaim",
-			NIPQUAD(clp->cl_addr.sin_addr));
+	task = kthread_run(reclaimer, clp, "%s-reclaim",
+				rpc_peeraddr2str(clp->cl_rpcclient,
+							RPC_DISPLAY_ADDR));
 	if (!IS_ERR(task))
 		return;
 	nfs4_clear_recover_bit(clp);
@@ -967,8 +971,8 @@ out:
 	module_put_and_exit(0);
 	return 0;
 out_error:
-	printk(KERN_WARNING "Error: state recovery failed on NFSv4 server %u.%u.%u.%u with error %d\n",
-				NIPQUAD(clp->cl_addr.sin_addr), -status);
+	printk(KERN_WARNING "Error: state recovery failed on NFSv4 server %s"
+			" with error %d\n", clp->cl_hostname, -status);
 	set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
 	goto out;
 }

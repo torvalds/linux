@@ -496,7 +496,7 @@ static int ircomm_param_poll(void *instance, irda_param_t *param, int get)
 	IRDA_ASSERT(self != NULL, return -1;);
 	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return -1;);
 
-	/* Poll parameters are always of lenght 0 (just a signal) */
+	/* Poll parameters are always of length 0 (just a signal) */
 	if (!get) {
 		/* Respond with DTE line settings */
 		ircomm_param_request(self, IRCOMM_DTE, TRUE);

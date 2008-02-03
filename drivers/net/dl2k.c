@@ -332,7 +332,7 @@ parse_eeprom (struct net_device *dev)
 #endif
 	/* Read eeprom */
 	for (i = 0; i < 128; i++) {
-		((u16 *) sromdata)[i] = le16_to_cpu (read_eeprom (ioaddr, i));
+		((__le16 *) sromdata)[i] = cpu_to_le16(read_eeprom (ioaddr, i));
 	}
 #ifdef	MEM_MAPPING
 	ioaddr = dev->base_addr;
@@ -516,7 +516,7 @@ rio_timer (unsigned long data)
 					  PCI_DMA_FROMDEVICE));
 			}
 			np->rx_ring[entry].fraginfo |=
-			    cpu_to_le64 (np->rx_buf_sz) << 48;
+			    cpu_to_le64((u64)np->rx_buf_sz << 48);
 			np->rx_ring[entry].status = 0;
 		} /* end for */
 	} /* end if */
@@ -584,11 +584,11 @@ alloc_list (struct net_device *dev)
 		    cpu_to_le64 ( pci_map_single (
 			 	  np->pdev, skb->data, np->rx_buf_sz,
 				  PCI_DMA_FROMDEVICE));
-		np->rx_ring[i].fraginfo |= cpu_to_le64 (np->rx_buf_sz) << 48;
+		np->rx_ring[i].fraginfo |= cpu_to_le64((u64)np->rx_buf_sz << 48);
 	}
 
 	/* Set RFDListPtr */
-	writel (cpu_to_le32 (np->rx_ring_dma), dev->base_addr + RFDListPtr0);
+	writel (np->rx_ring_dma, dev->base_addr + RFDListPtr0);
 	writel (0, dev->base_addr + RFDListPtr1);
 
 	return;
@@ -620,15 +620,14 @@ start_xmit (struct sk_buff *skb, struct net_device *dev)
 	}
 #endif
 	if (np->vlan) {
-		tfc_vlan_tag =
-		    cpu_to_le64 (VLANTagInsert) |
-		    (cpu_to_le64 (np->vlan) << 32) |
-		    (cpu_to_le64 (skb->priority) << 45);
+		tfc_vlan_tag = VLANTagInsert |
+		    ((u64)np->vlan << 32) |
+		    ((u64)skb->priority << 45);
 	}
 	txdesc->fraginfo = cpu_to_le64 (pci_map_single (np->pdev, skb->data,
 							skb->len,
 							PCI_DMA_TODEVICE));
-	txdesc->fraginfo |= cpu_to_le64 (skb->len) << 48;
+	txdesc->fraginfo |= cpu_to_le64((u64)skb->len << 48);
 
 	/* DL2K bug: DMA fails to get next descriptor ptr in 10Mbps mode
 	 * Work around: Always use 1 descriptor in 10Mbps mode */
@@ -708,6 +707,11 @@ rio_interrupt (int irq, void *dev_instance)
 	return IRQ_RETVAL(handled);
 }
 
+static inline dma_addr_t desc_to_dma(struct netdev_desc *desc)
+{
+	return le64_to_cpu(desc->fraginfo) & DMA_48BIT_MASK;
+}
+
 static void
 rio_free_tx (struct net_device *dev, int irq)
 {
@@ -725,11 +729,11 @@ rio_free_tx (struct net_device *dev, int irq)
 	while (entry != np->cur_tx) {
 		struct sk_buff *skb;
 
-		if (!(np->tx_ring[entry].status & TFDDone))
+		if (!(np->tx_ring[entry].status & cpu_to_le64(TFDDone)))
 			break;
 		skb = np->tx_skbuff[entry];
 		pci_unmap_single (np->pdev,
-				  np->tx_ring[entry].fraginfo & DMA_48BIT_MASK,
+				  desc_to_dma(&np->tx_ring[entry]),
 				  skb->len, PCI_DMA_TODEVICE);
 		if (irq)
 			dev_kfree_skb_irq (skb);
@@ -831,13 +835,14 @@ receive_packet (struct net_device *dev)
 		int pkt_len;
 		u64 frame_status;
 
-		if (!(desc->status & RFDDone) ||
-		    !(desc->status & FrameStart) || !(desc->status & FrameEnd))
+		if (!(desc->status & cpu_to_le64(RFDDone)) ||
+		    !(desc->status & cpu_to_le64(FrameStart)) ||
+		    !(desc->status & cpu_to_le64(FrameEnd)))
 			break;
 
 		/* Chip omits the CRC. */
-		pkt_len = le64_to_cpu (desc->status & 0xffff);
-		frame_status = le64_to_cpu (desc->status);
+		frame_status = le64_to_cpu(desc->status);
+		pkt_len = frame_status & 0xffff;
 		if (--cnt < 0)
 			break;
 		/* Update rx error statistics, drop packet. */
@@ -857,15 +862,14 @@ receive_packet (struct net_device *dev)
 			/* Small skbuffs for short packets */
 			if (pkt_len > copy_thresh) {
 				pci_unmap_single (np->pdev,
-						  desc->fraginfo & DMA_48BIT_MASK,
+						  desc_to_dma(desc),
 						  np->rx_buf_sz,
 						  PCI_DMA_FROMDEVICE);
 				skb_put (skb = np->rx_skbuff[entry], pkt_len);
 				np->rx_skbuff[entry] = NULL;
 			} else if ((skb = dev_alloc_skb (pkt_len + 2)) != NULL) {
 				pci_dma_sync_single_for_cpu(np->pdev,
-				  			    desc->fraginfo &
-							    	DMA_48BIT_MASK,
+							    desc_to_dma(desc),
 							    np->rx_buf_sz,
 							    PCI_DMA_FROMDEVICE);
 				/* 16 byte align the IP header */
@@ -875,8 +879,7 @@ receive_packet (struct net_device *dev)
 						  pkt_len);
 				skb_put (skb, pkt_len);
 				pci_dma_sync_single_for_device(np->pdev,
-				  			       desc->fraginfo &
-							       	 DMA_48BIT_MASK,
+							       desc_to_dma(desc),
 							       np->rx_buf_sz,
 							       PCI_DMA_FROMDEVICE);
 			}
@@ -919,7 +922,7 @@ receive_packet (struct net_device *dev)
 					  PCI_DMA_FROMDEVICE));
 		}
 		np->rx_ring[entry].fraginfo |=
-		    cpu_to_le64 (np->rx_buf_sz) << 48;
+		    cpu_to_le64((u64)np->rx_buf_sz << 48);
 		np->rx_ring[entry].status = 0;
 		entry = (entry + 1) % RX_RING_SIZE;
 	}
@@ -1121,7 +1124,7 @@ set_multicast (struct net_device *dev)
 
 	hash_table[0] = hash_table[1] = 0;
 	/* RxFlowcontrol DA: 01-80-C2-00-00-01. Hash index=0x39 */
-	hash_table[1] |= cpu_to_le32(0x02000000);
+	hash_table[1] |= 0x02000000;
 	if (dev->flags & IFF_PROMISC) {
 		/* Receive all frames promiscuously. */
 		rx_mode = ReceiveAllFrames;
@@ -1313,9 +1316,10 @@ rio_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 			    ("%02x:cur:%08x next:%08x status:%08x frag1:%08x frag0:%08x",
 			     i,
 			     (u32) (np->tx_ring_dma + i * sizeof (*desc)),
-			     (u32) desc->next_desc,
-			     (u32) desc->status, (u32) (desc->fraginfo >> 32),
-			     (u32) desc->fraginfo);
+			     (u32)le64_to_cpu(desc->next_desc),
+			     (u32)le64_to_cpu(desc->status),
+			     (u32)(le64_to_cpu(desc->fraginfo) >> 32),
+			     (u32)le64_to_cpu(desc->fraginfo));
 			printk ("\n");
 		}
 		printk ("\n");
@@ -1432,7 +1436,7 @@ mii_write (struct net_device *dev, int phy_addr, int reg_num, u16 data)
 static int
 mii_wait_link (struct net_device *dev, int wait)
 {
-	BMSR_t bmsr;
+	__u16 bmsr;
 	int phy_addr;
 	struct netdev_private *np;
 
@@ -1440,8 +1444,8 @@ mii_wait_link (struct net_device *dev, int wait)
 	phy_addr = np->phy_addr;
 
 	do {
-		bmsr.image = mii_read (dev, phy_addr, MII_BMSR);
-		if (bmsr.bits.link_status)
+		bmsr = mii_read (dev, phy_addr, MII_BMSR);
+		if (bmsr & MII_BMSR_LINK_STATUS)
 			return 0;
 		mdelay (1);
 	} while (--wait > 0);
@@ -1450,70 +1454,72 @@ mii_wait_link (struct net_device *dev, int wait)
 static int
 mii_get_media (struct net_device *dev)
 {
-	ANAR_t negotiate;
-	BMSR_t bmsr;
-	BMCR_t bmcr;
-	MSCR_t mscr;
-	MSSR_t mssr;
+	__u16 negotiate;
+	__u16 bmsr;
+	__u16 mscr;
+	__u16 mssr;
 	int phy_addr;
 	struct netdev_private *np;
 
 	np = netdev_priv(dev);
 	phy_addr = np->phy_addr;
 
-	bmsr.image = mii_read (dev, phy_addr, MII_BMSR);
+	bmsr = mii_read (dev, phy_addr, MII_BMSR);
 	if (np->an_enable) {
-		if (!bmsr.bits.an_complete) {
+		if (!(bmsr & MII_BMSR_AN_COMPLETE)) {
 			/* Auto-Negotiation not completed */
 			return -1;
 		}
-		negotiate.image = mii_read (dev, phy_addr, MII_ANAR) &
+		negotiate = mii_read (dev, phy_addr, MII_ANAR) &
 			mii_read (dev, phy_addr, MII_ANLPAR);
-		mscr.image = mii_read (dev, phy_addr, MII_MSCR);
-		mssr.image = mii_read (dev, phy_addr, MII_MSSR);
-		if (mscr.bits.media_1000BT_FD & mssr.bits.lp_1000BT_FD) {
+		mscr = mii_read (dev, phy_addr, MII_MSCR);
+		mssr = mii_read (dev, phy_addr, MII_MSSR);
+		if (mscr & MII_MSCR_1000BT_FD && mssr & MII_MSSR_LP_1000BT_FD) {
 			np->speed = 1000;
 			np->full_duplex = 1;
 			printk (KERN_INFO "Auto 1000 Mbps, Full duplex\n");
-		} else if (mscr.bits.media_1000BT_HD & mssr.bits.lp_1000BT_HD) {
+		} else if (mscr & MII_MSCR_1000BT_HD && mssr & MII_MSSR_LP_1000BT_HD) {
 			np->speed = 1000;
 			np->full_duplex = 0;
 			printk (KERN_INFO "Auto 1000 Mbps, Half duplex\n");
-		} else if (negotiate.bits.media_100BX_FD) {
+		} else if (negotiate & MII_ANAR_100BX_FD) {
 			np->speed = 100;
 			np->full_duplex = 1;
 			printk (KERN_INFO "Auto 100 Mbps, Full duplex\n");
-		} else if (negotiate.bits.media_100BX_HD) {
+		} else if (negotiate & MII_ANAR_100BX_HD) {
 			np->speed = 100;
 			np->full_duplex = 0;
 			printk (KERN_INFO "Auto 100 Mbps, Half duplex\n");
-		} else if (negotiate.bits.media_10BT_FD) {
+		} else if (negotiate & MII_ANAR_10BT_FD) {
 			np->speed = 10;
 			np->full_duplex = 1;
 			printk (KERN_INFO "Auto 10 Mbps, Full duplex\n");
-		} else if (negotiate.bits.media_10BT_HD) {
+		} else if (negotiate & MII_ANAR_10BT_HD) {
 			np->speed = 10;
 			np->full_duplex = 0;
 			printk (KERN_INFO "Auto 10 Mbps, Half duplex\n");
 		}
-		if (negotiate.bits.pause) {
+		if (negotiate & MII_ANAR_PAUSE) {
 			np->tx_flow &= 1;
 			np->rx_flow &= 1;
-		} else if (negotiate.bits.asymmetric) {
+		} else if (negotiate & MII_ANAR_ASYMMETRIC) {
 			np->tx_flow = 0;
 			np->rx_flow &= 1;
 		}
 		/* else tx_flow, rx_flow = user select  */
 	} else {
-		bmcr.image = mii_read (dev, phy_addr, MII_BMCR);
-		if (bmcr.bits.speed100 == 1 && bmcr.bits.speed1000 == 0) {
-			printk (KERN_INFO "Operating at 100 Mbps, ");
-		} else if (bmcr.bits.speed100 == 0 && bmcr.bits.speed1000 == 0) {
-			printk (KERN_INFO "Operating at 10 Mbps, ");
-		} else if (bmcr.bits.speed100 == 0 && bmcr.bits.speed1000 == 1) {
+		__u16 bmcr = mii_read (dev, phy_addr, MII_BMCR);
+		switch (bmcr & (MII_BMCR_SPEED_100 | MII_BMCR_SPEED_1000)) {
+		case MII_BMCR_SPEED_1000:
 			printk (KERN_INFO "Operating at 1000 Mbps, ");
+			break;
+		case MII_BMCR_SPEED_100:
+			printk (KERN_INFO "Operating at 100 Mbps, ");
+			break;
+		case 0:
+			printk (KERN_INFO "Operating at 10 Mbps, ");
 		}
-		if (bmcr.bits.duplex_mode) {
+		if (bmcr & MII_BMCR_DUPLEX_MODE) {
 			printk ("Full duplex\n");
 		} else {
 			printk ("Half duplex\n");
@@ -1534,10 +1540,10 @@ mii_get_media (struct net_device *dev)
 static int
 mii_set_media (struct net_device *dev)
 {
-	PHY_SCR_t pscr;
-	BMCR_t bmcr;
-	BMSR_t bmsr;
-	ANAR_t anar;
+	__u16 pscr;
+	__u16 bmcr;
+	__u16 bmsr;
+	__u16 anar;
 	int phy_addr;
 	struct netdev_private *np;
 	np = netdev_priv(dev);
@@ -1546,76 +1552,77 @@ mii_set_media (struct net_device *dev)
 	/* Does user set speed? */
 	if (np->an_enable) {
 		/* Advertise capabilities */
-		bmsr.image = mii_read (dev, phy_addr, MII_BMSR);
-		anar.image = mii_read (dev, phy_addr, MII_ANAR);
-		anar.bits.media_100BX_FD = bmsr.bits.media_100BX_FD;
-		anar.bits.media_100BX_HD = bmsr.bits.media_100BX_HD;
-		anar.bits.media_100BT4 = bmsr.bits.media_100BT4;
-		anar.bits.media_10BT_FD = bmsr.bits.media_10BT_FD;
-		anar.bits.media_10BT_HD = bmsr.bits.media_10BT_HD;
-		anar.bits.pause = 1;
-		anar.bits.asymmetric = 1;
-		mii_write (dev, phy_addr, MII_ANAR, anar.image);
+		bmsr = mii_read (dev, phy_addr, MII_BMSR);
+		anar = mii_read (dev, phy_addr, MII_ANAR) &
+			     ~MII_ANAR_100BX_FD &
+			     ~MII_ANAR_100BX_HD &
+			     ~MII_ANAR_100BT4 &
+			     ~MII_ANAR_10BT_FD &
+			     ~MII_ANAR_10BT_HD;
+		if (bmsr & MII_BMSR_100BX_FD)
+			anar |= MII_ANAR_100BX_FD;
+		if (bmsr & MII_BMSR_100BX_HD)
+			anar |= MII_ANAR_100BX_HD;
+		if (bmsr & MII_BMSR_100BT4)
+			anar |= MII_ANAR_100BT4;
+		if (bmsr & MII_BMSR_10BT_FD)
+			anar |= MII_ANAR_10BT_FD;
+		if (bmsr & MII_BMSR_10BT_HD)
+			anar |= MII_ANAR_10BT_HD;
+		anar |= MII_ANAR_PAUSE | MII_ANAR_ASYMMETRIC;
+		mii_write (dev, phy_addr, MII_ANAR, anar);
 
 		/* Enable Auto crossover */
-		pscr.image = mii_read (dev, phy_addr, MII_PHY_SCR);
-		pscr.bits.mdi_crossover_mode = 3;	/* 11'b */
-		mii_write (dev, phy_addr, MII_PHY_SCR, pscr.image);
+		pscr = mii_read (dev, phy_addr, MII_PHY_SCR);
+		pscr |= 3 << 5;	/* 11'b */
+		mii_write (dev, phy_addr, MII_PHY_SCR, pscr);
 
 		/* Soft reset PHY */
 		mii_write (dev, phy_addr, MII_BMCR, MII_BMCR_RESET);
-		bmcr.image = 0;
-		bmcr.bits.an_enable = 1;
-		bmcr.bits.restart_an = 1;
-		bmcr.bits.reset = 1;
-		mii_write (dev, phy_addr, MII_BMCR, bmcr.image);
+		bmcr = MII_BMCR_AN_ENABLE | MII_BMCR_RESTART_AN | MII_BMCR_RESET;
+		mii_write (dev, phy_addr, MII_BMCR, bmcr);
 		mdelay(1);
 	} else {
 		/* Force speed setting */
 		/* 1) Disable Auto crossover */
-		pscr.image = mii_read (dev, phy_addr, MII_PHY_SCR);
-		pscr.bits.mdi_crossover_mode = 0;
-		mii_write (dev, phy_addr, MII_PHY_SCR, pscr.image);
+		pscr = mii_read (dev, phy_addr, MII_PHY_SCR);
+		pscr &= ~(3 << 5);
+		mii_write (dev, phy_addr, MII_PHY_SCR, pscr);
 
 		/* 2) PHY Reset */
-		bmcr.image = mii_read (dev, phy_addr, MII_BMCR);
-		bmcr.bits.reset = 1;
-		mii_write (dev, phy_addr, MII_BMCR, bmcr.image);
+		bmcr = mii_read (dev, phy_addr, MII_BMCR);
+		bmcr |= MII_BMCR_RESET;
+		mii_write (dev, phy_addr, MII_BMCR, bmcr);
 
 		/* 3) Power Down */
-		bmcr.image = 0x1940;	/* must be 0x1940 */
-		mii_write (dev, phy_addr, MII_BMCR, bmcr.image);
+		bmcr = 0x1940;	/* must be 0x1940 */
+		mii_write (dev, phy_addr, MII_BMCR, bmcr);
 		mdelay (100);	/* wait a certain time */
 
 		/* 4) Advertise nothing */
 		mii_write (dev, phy_addr, MII_ANAR, 0);
 
 		/* 5) Set media and Power Up */
-		bmcr.image = 0;
-		bmcr.bits.power_down = 1;
+		bmcr = MII_BMCR_POWER_DOWN;
 		if (np->speed == 100) {
-			bmcr.bits.speed100 = 1;
-			bmcr.bits.speed1000 = 0;
+			bmcr |= MII_BMCR_SPEED_100;
 			printk (KERN_INFO "Manual 100 Mbps, ");
 		} else if (np->speed == 10) {
-			bmcr.bits.speed100 = 0;
-			bmcr.bits.speed1000 = 0;
 			printk (KERN_INFO "Manual 10 Mbps, ");
 		}
 		if (np->full_duplex) {
-			bmcr.bits.duplex_mode = 1;
+			bmcr |= MII_BMCR_DUPLEX_MODE;
 			printk ("Full duplex\n");
 		} else {
-			bmcr.bits.duplex_mode = 0;
 			printk ("Half duplex\n");
 		}
 #if 0
 		/* Set 1000BaseT Master/Slave setting */
-		mscr.image = mii_read (dev, phy_addr, MII_MSCR);
-		mscr.bits.cfg_enable = 1;
-		mscr.bits.cfg_value = 0;
+		mscr = mii_read (dev, phy_addr, MII_MSCR);
+		mscr |= MII_MSCR_CFG_ENABLE;
+		mscr &= ~MII_MSCR_CFG_VALUE = 0;
 #endif
-		mii_write (dev, phy_addr, MII_BMCR, bmcr.image);
+		mii_write (dev, phy_addr, MII_BMCR, bmcr);
 		mdelay(10);
 	}
 	return 0;
@@ -1624,43 +1631,42 @@ mii_set_media (struct net_device *dev)
 static int
 mii_get_media_pcs (struct net_device *dev)
 {
-	ANAR_PCS_t negotiate;
-	BMSR_t bmsr;
-	BMCR_t bmcr;
+	__u16 negotiate;
+	__u16 bmsr;
 	int phy_addr;
 	struct netdev_private *np;
 
 	np = netdev_priv(dev);
 	phy_addr = np->phy_addr;
 
-	bmsr.image = mii_read (dev, phy_addr, PCS_BMSR);
+	bmsr = mii_read (dev, phy_addr, PCS_BMSR);
 	if (np->an_enable) {
-		if (!bmsr.bits.an_complete) {
+		if (!(bmsr & MII_BMSR_AN_COMPLETE)) {
 			/* Auto-Negotiation not completed */
 			return -1;
 		}
-		negotiate.image = mii_read (dev, phy_addr, PCS_ANAR) &
+		negotiate = mii_read (dev, phy_addr, PCS_ANAR) &
 			mii_read (dev, phy_addr, PCS_ANLPAR);
 		np->speed = 1000;
-		if (negotiate.bits.full_duplex) {
+		if (negotiate & PCS_ANAR_FULL_DUPLEX) {
 			printk (KERN_INFO "Auto 1000 Mbps, Full duplex\n");
 			np->full_duplex = 1;
 		} else {
 			printk (KERN_INFO "Auto 1000 Mbps, half duplex\n");
 			np->full_duplex = 0;
 		}
-		if (negotiate.bits.pause) {
+		if (negotiate & PCS_ANAR_PAUSE) {
 			np->tx_flow &= 1;
 			np->rx_flow &= 1;
-		} else if (negotiate.bits.asymmetric) {
+		} else if (negotiate & PCS_ANAR_ASYMMETRIC) {
 			np->tx_flow = 0;
 			np->rx_flow &= 1;
 		}
 		/* else tx_flow, rx_flow = user select  */
 	} else {
-		bmcr.image = mii_read (dev, phy_addr, PCS_BMCR);
+		__u16 bmcr = mii_read (dev, phy_addr, PCS_BMCR);
 		printk (KERN_INFO "Operating at 1000 Mbps, ");
-		if (bmcr.bits.duplex_mode) {
+		if (bmcr & MII_BMCR_DUPLEX_MODE) {
 			printk ("Full duplex\n");
 		} else {
 			printk ("Half duplex\n");
@@ -1681,9 +1687,9 @@ mii_get_media_pcs (struct net_device *dev)
 static int
 mii_set_media_pcs (struct net_device *dev)
 {
-	BMCR_t bmcr;
-	ESR_t esr;
-	ANAR_PCS_t anar;
+	__u16 bmcr;
+	__u16 esr;
+	__u16 anar;
 	int phy_addr;
 	struct netdev_private *np;
 	np = netdev_priv(dev);
@@ -1692,41 +1698,37 @@ mii_set_media_pcs (struct net_device *dev)
 	/* Auto-Negotiation? */
 	if (np->an_enable) {
 		/* Advertise capabilities */
-		esr.image = mii_read (dev, phy_addr, PCS_ESR);
-		anar.image = mii_read (dev, phy_addr, MII_ANAR);
-		anar.bits.half_duplex =
-			esr.bits.media_1000BT_HD | esr.bits.media_1000BX_HD;
-		anar.bits.full_duplex =
-			esr.bits.media_1000BT_FD | esr.bits.media_1000BX_FD;
-		anar.bits.pause = 1;
-		anar.bits.asymmetric = 1;
-		mii_write (dev, phy_addr, MII_ANAR, anar.image);
+		esr = mii_read (dev, phy_addr, PCS_ESR);
+		anar = mii_read (dev, phy_addr, MII_ANAR) &
+			~PCS_ANAR_HALF_DUPLEX &
+			~PCS_ANAR_FULL_DUPLEX;
+		if (esr & (MII_ESR_1000BT_HD | MII_ESR_1000BX_HD))
+			anar |= PCS_ANAR_HALF_DUPLEX;
+		if (esr & (MII_ESR_1000BT_FD | MII_ESR_1000BX_FD))
+			anar |= PCS_ANAR_FULL_DUPLEX;
+		anar |= PCS_ANAR_PAUSE | PCS_ANAR_ASYMMETRIC;
+		mii_write (dev, phy_addr, MII_ANAR, anar);
 
 		/* Soft reset PHY */
 		mii_write (dev, phy_addr, MII_BMCR, MII_BMCR_RESET);
-		bmcr.image = 0;
-		bmcr.bits.an_enable = 1;
-		bmcr.bits.restart_an = 1;
-		bmcr.bits.reset = 1;
-		mii_write (dev, phy_addr, MII_BMCR, bmcr.image);
+		bmcr = MII_BMCR_AN_ENABLE | MII_BMCR_RESTART_AN |
+		       MII_BMCR_RESET;
+		mii_write (dev, phy_addr, MII_BMCR, bmcr);
 		mdelay(1);
 	} else {
 		/* Force speed setting */
 		/* PHY Reset */
-		bmcr.image = 0;
-		bmcr.bits.reset = 1;
-		mii_write (dev, phy_addr, MII_BMCR, bmcr.image);
+		bmcr = MII_BMCR_RESET;
+		mii_write (dev, phy_addr, MII_BMCR, bmcr);
 		mdelay(10);
-		bmcr.image = 0;
-		bmcr.bits.an_enable = 0;
 		if (np->full_duplex) {
-			bmcr.bits.duplex_mode = 1;
+			bmcr = MII_BMCR_DUPLEX_MODE;
 			printk (KERN_INFO "Manual full duplex\n");
 		} else {
-			bmcr.bits.duplex_mode = 0;
+			bmcr = 0;
 			printk (KERN_INFO "Manual half duplex\n");
 		}
-		mii_write (dev, phy_addr, MII_BMCR, bmcr.image);
+		mii_write (dev, phy_addr, MII_BMCR, bmcr);
 		mdelay(10);
 
 		/*  Advertise nothing */
@@ -1762,7 +1764,7 @@ rio_close (struct net_device *dev)
 		skb = np->rx_skbuff[i];
 		if (skb) {
 			pci_unmap_single(np->pdev,
-					 np->rx_ring[i].fraginfo & DMA_48BIT_MASK,
+					 desc_to_dma(&np->rx_ring[i]),
 					 skb->len, PCI_DMA_FROMDEVICE);
 			dev_kfree_skb (skb);
 			np->rx_skbuff[i] = NULL;
@@ -1772,7 +1774,7 @@ rio_close (struct net_device *dev)
 		skb = np->tx_skbuff[i];
 		if (skb) {
 			pci_unmap_single(np->pdev,
-					 np->tx_ring[i].fraginfo & DMA_48BIT_MASK,
+					 desc_to_dma(&np->tx_ring[i]),
 					 skb->len, PCI_DMA_TODEVICE);
 			dev_kfree_skb (skb);
 			np->tx_skbuff[i] = NULL;

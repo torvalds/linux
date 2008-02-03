@@ -11,6 +11,7 @@
  *  - DMC TSC-10/25
  *  - IRTOUCHSYSTEMS/UNITOP
  *  - IdealTEK URTC1000
+ *  - General Touch
  *  - GoTop Super_Q2/GogoPen/PenPower tablets
  *
  * Copyright (C) 2004-2007 by Daniel Ritz <daniel.ritz@gmx.ch>
@@ -50,7 +51,7 @@
 #include <linux/usb/input.h>
 
 
-#define DRIVER_VERSION		"v0.5"
+#define DRIVER_VERSION		"v0.6"
 #define DRIVER_AUTHOR		"Daniel Ritz <daniel.ritz@gmx.ch>"
 #define DRIVER_DESC		"USB Touchscreen Driver"
 
@@ -65,16 +66,20 @@ struct usbtouch_device_info {
 	int min_yc, max_yc;
 	int min_press, max_press;
 	int rept_size;
-	int flags;
 
 	void (*process_pkt) (struct usbtouch_usb *usbtouch, unsigned char *pkt, int len);
+
+	/*
+	 * used to get the packet len. possible return values:
+	 * > 0: packet len
+	 * = 0: skip one byte
+	 * < 0: -return value more bytes needed
+	 */
 	int  (*get_pkt_len) (unsigned char *pkt, int len);
+
 	int  (*read_data)   (struct usbtouch_usb *usbtouch, unsigned char *pkt);
 	int  (*init)        (struct usbtouch_usb *usbtouch);
 };
-
-#define USBTOUCH_FLG_BUFFER	0x01
-
 
 /* a usbtouch device */
 struct usbtouch_usb {
@@ -93,15 +98,6 @@ struct usbtouch_usb {
 	int touch, press;
 };
 
-
-#if defined(CONFIG_TOUCHSCREEN_USB_EGALAX) || defined(CONFIG_TOUCHSCREEN_USB_ETURBO) || defined(CONFIG_TOUCHSCREEN_USB_IDEALTEK)
-#define MULTI_PACKET
-#endif
-
-#ifdef MULTI_PACKET
-static void usbtouch_process_multi(struct usbtouch_usb *usbtouch,
-                                   unsigned char *pkt, int len);
-#endif
 
 /* device types */
 enum {
@@ -185,6 +181,10 @@ static struct usb_device_id usbtouch_devices[] = {
  */
 
 #ifdef CONFIG_TOUCHSCREEN_USB_EGALAX
+
+#ifndef MULTI_PACKET
+#define MULTI_PACKET
+#endif
 
 #define EGALAX_PKT_TYPE_MASK		0xFE
 #define EGALAX_PKT_TYPE_REPT		0x80
@@ -323,6 +323,9 @@ static int itm_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
  * eTurboTouch part
  */
 #ifdef CONFIG_TOUCHSCREEN_USB_ETURBO
+#ifndef MULTI_PACKET
+#define MULTI_PACKET
+#endif
 static int eturbo_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 {
 	unsigned int shift;
@@ -461,6 +464,9 @@ static int irtouch_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
  * IdealTEK URTC1000 Part
  */
 #ifdef CONFIG_TOUCHSCREEN_USB_IDEALTEK
+#ifndef MULTI_PACKET
+#define MULTI_PACKET
+#endif
 static int idealtek_get_pkt_len(unsigned char *buf, int len)
 {
 	if (buf[0] & 0x80)
@@ -525,6 +531,11 @@ static int gotop_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 /*****************************************************************************
  * the different device descriptors
  */
+#ifdef MULTI_PACKET
+static void usbtouch_process_multi(struct usbtouch_usb *usbtouch,
+				   unsigned char *pkt, int len);
+#endif
+
 static struct usbtouch_device_info usbtouch_dev_info[] = {
 #ifdef CONFIG_TOUCHSCREEN_USB_EGALAX
 	[DEVTYPE_EGALAX] = {
@@ -533,7 +544,6 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
 		.min_yc		= 0x0,
 		.max_yc		= 0x07ff,
 		.rept_size	= 16,
-		.flags		= USBTOUCH_FLG_BUFFER,
 		.process_pkt	= usbtouch_process_multi,
 		.get_pkt_len	= egalax_get_pkt_len,
 		.read_data	= egalax_read_data,
@@ -582,7 +592,6 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
 		.min_yc		= 0x0,
 		.max_yc		= 0x07ff,
 		.rept_size	= 8,
-		.flags		= USBTOUCH_FLG_BUFFER,
 		.process_pkt	= usbtouch_process_multi,
 		.get_pkt_len	= eturbo_get_pkt_len,
 		.read_data	= eturbo_read_data,
@@ -630,7 +639,6 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
 		.min_yc		= 0x0,
 		.max_yc		= 0x0fff,
 		.rept_size	= 8,
-		.flags		= USBTOUCH_FLG_BUFFER,
 		.process_pkt	= usbtouch_process_multi,
 		.get_pkt_len	= idealtek_get_pkt_len,
 		.read_data	= idealtek_read_data,
@@ -738,11 +746,14 @@ static void usbtouch_process_multi(struct usbtouch_usb *usbtouch,
 	pos = 0;
 	while (pos < buf_len) {
 		/* get packet len */
-		pkt_len = usbtouch->type->get_pkt_len(buffer + pos, len);
+		pkt_len = usbtouch->type->get_pkt_len(buffer + pos,
+							buf_len - pos);
 
-		/* unknown packet: drop everything */
-		if (unlikely(!pkt_len))
-			goto out_flush_buf;
+		/* unknown packet: skip one byte */
+		if (unlikely(!pkt_len)) {
+			pos++;
+			continue;
+		}
 
 		/* full packet: process */
 		if (likely((pkt_len > 0) && (pkt_len <= buf_len - pos))) {
@@ -857,7 +868,7 @@ static int usbtouch_probe(struct usb_interface *intf,
 	if (!usbtouch->data)
 		goto out_free;
 
-	if (type->flags & USBTOUCH_FLG_BUFFER) {
+	if (type->get_pkt_len) {
 		usbtouch->buffer = kmalloc(type->rept_size, GFP_KERNEL);
 		if (!usbtouch->buffer)
 			goto out_free_buffers;

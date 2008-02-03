@@ -47,7 +47,7 @@ static unsigned char irl2irq[HL_NR_IRL] __initdata = {
 };
 
 static DECLARE_INTC_DESC(intc_desc, "r7780mp", vectors,
-			 NULL, NULL, mask_registers, NULL, NULL);
+			 NULL, mask_registers, NULL, NULL);
 
 unsigned char * __init highlander_init_irq_r7780mp(void)
 {

@@ -19,7 +19,6 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
@@ -104,21 +103,15 @@ snd_wavefront_pnp (int dev, snd_wavefront_card_t *acard, struct pnp_card_link *c
 		   const struct pnp_card_device_id *id)
 {
 	struct pnp_dev *pdev;
-	struct pnp_resource_table *cfg = kmalloc(sizeof(*cfg), GFP_KERNEL);
 	int err;
-
-	if (!cfg)
-		return -ENOMEM;
 
 	/* Check for each logical device. */
 
 	/* CS4232 chip (aka "windows sound system") is logical device 0 */
 
 	acard->wss = pnp_request_card_device(card, id->devs[0].id, NULL);
-	if (acard->wss == NULL) {
-		kfree(cfg);
+	if (acard->wss == NULL)
 		return -EBUSY;
-	}
 
 	/* there is a game port at logical device 1, but we ignore it completely */
 
@@ -133,25 +126,19 @@ snd_wavefront_pnp (int dev, snd_wavefront_card_t *acard, struct pnp_card_link *c
 
 	if (use_cs4232_midi[dev]) {
 		acard->mpu = pnp_request_card_device(card, id->devs[2].id, NULL);
-		if (acard->mpu == NULL) {
-			kfree(cfg);
+		if (acard->mpu == NULL)
 			return -EBUSY;
-		}
 	}
 
 	/* The ICS2115 synth is logical device 4 */
 
 	acard->synth = pnp_request_card_device(card, id->devs[3].id, NULL);
-	if (acard->synth == NULL) {
-		kfree(cfg);
+	if (acard->synth == NULL)
 		return -EBUSY;
-	}
 
 	/* PCM/FM initialization */
 
 	pdev = acard->wss;
-
-	pnp_init_resource_table(cfg);
 
 	/* An interesting note from the Tropez+ FAQ:
 
@@ -165,23 +152,9 @@ snd_wavefront_pnp (int dev, snd_wavefront_card_t *acard, struct pnp_card_link *c
 
 	*/
 
-	if (cs4232_pcm_port[dev] != SNDRV_AUTO_PORT)
-		pnp_resource_change(&cfg->port_resource[0], cs4232_pcm_port[dev], 4);
-	if (fm_port[dev] != SNDRV_AUTO_PORT)
-		pnp_resource_change(&cfg->port_resource[1], fm_port[dev], 4);
-	if (dma1[dev] != SNDRV_AUTO_DMA)
-		pnp_resource_change(&cfg->dma_resource[0], dma1[dev], 1);
-	if (dma2[dev] != SNDRV_AUTO_DMA)
-		pnp_resource_change(&cfg->dma_resource[1], dma2[dev], 1);
-	if (cs4232_pcm_irq[dev] != SNDRV_AUTO_IRQ)
-		pnp_resource_change(&cfg->irq_resource[0], cs4232_pcm_irq[dev], 1);
-
-	if (pnp_manual_config_dev(pdev, cfg, 0) < 0)
-		snd_printk(KERN_ERR "PnP WSS the requested resources are invalid, using auto config\n");
 	err = pnp_activate_dev(pdev);
 	if (err < 0) {
 		snd_printk(KERN_ERR "PnP WSS pnp configure failure\n");
-		kfree(cfg);
 		return err;
 	}
 
@@ -195,22 +168,9 @@ snd_wavefront_pnp (int dev, snd_wavefront_card_t *acard, struct pnp_card_link *c
 
 	pdev = acard->synth;
 	
-	pnp_init_resource_table(cfg);
-
-	if (ics2115_port[dev] != SNDRV_AUTO_PORT) {
-		pnp_resource_change(&cfg->port_resource[0], ics2115_port[dev], 16);
-	}
-		
-	if (ics2115_port[dev] != SNDRV_AUTO_IRQ) {
-		pnp_resource_change(&cfg->irq_resource[0], ics2115_irq[dev], 1);
-	}
-
-	if (pnp_manual_config_dev(pdev, cfg, 0) < 0)
-		snd_printk(KERN_ERR "PnP ICS2115 the requested resources are invalid, using auto config\n");
 	err = pnp_activate_dev(pdev);
 	if (err < 0) {
 		snd_printk(KERN_ERR "PnP ICS2115 pnp configure failure\n");
-		kfree(cfg);
 		return err;
 	}
 
@@ -226,15 +186,6 @@ snd_wavefront_pnp (int dev, snd_wavefront_card_t *acard, struct pnp_card_link *c
 
 		pdev = acard->mpu;
 
-		pnp_init_resource_table(cfg);
-
-		if (cs4232_mpu_port[dev] != SNDRV_AUTO_PORT)
-			pnp_resource_change(&cfg->port_resource[0], cs4232_mpu_port[dev], 2);
-		if (cs4232_mpu_irq[dev] != SNDRV_AUTO_IRQ)
-			pnp_resource_change(&cfg->port_resource[0], cs4232_mpu_irq[dev], 1);
-
-		if (pnp_manual_config_dev(pdev, cfg, 0) < 0)
-			snd_printk(KERN_ERR "PnP MPU401 the requested resources are invalid, using auto config\n");
 		err = pnp_activate_dev(pdev);
 		if (err < 0) {
 			snd_printk(KERN_ERR "PnP MPU401 pnp configure failure\n");
@@ -258,7 +209,6 @@ snd_wavefront_pnp (int dev, snd_wavefront_card_t *acard, struct pnp_card_link *c
 		    ics2115_port[dev], 
 		    ics2115_irq[dev]);
 	
-	kfree(cfg);
 	return 0;
 }
 

@@ -46,9 +46,9 @@
 #define in_blk 16
 
 /* offsets in crypto_tfm structure */
-#define ekey (crypto_tfm_ctx_offset + 0)
-#define nrnd (crypto_tfm_ctx_offset + 256)
-#define dkey (crypto_tfm_ctx_offset + 260)
+#define klen (crypto_tfm_ctx_offset + 0)
+#define ekey (crypto_tfm_ctx_offset + 4)
+#define dkey (crypto_tfm_ctx_offset + 244)
 
 // register mapping for encrypt and decrypt subroutines
 
@@ -221,8 +221,8 @@
 
 .global  aes_enc_blk
 
-.extern  ft_tab
-.extern  fl_tab
+.extern  crypto_ft_tab
+.extern  crypto_fl_tab
 
 .align 4
 
@@ -236,7 +236,7 @@ aes_enc_blk:
 1:	push    %ebx
 	mov     in_blk+4(%esp),%r2
 	push    %esi
-	mov     nrnd(%ebp),%r3   // number of rounds
+	mov     klen(%ebp),%r3   // key size
 	push    %edi
 #if ekey != 0
 	lea     ekey(%ebp),%ebp  // key pointer
@@ -255,26 +255,26 @@ aes_enc_blk:
 
 	sub     $8,%esp		// space for register saves on stack
 	add     $16,%ebp	// increment to next round key
-	cmp     $12,%r3
+	cmp     $24,%r3
 	jb      4f		// 10 rounds for 128-bit key
 	lea     32(%ebp),%ebp
 	je      3f		// 12 rounds for 192-bit key
 	lea     32(%ebp),%ebp
 
-2:	fwd_rnd1( -64(%ebp) ,ft_tab)	// 14 rounds for 256-bit key
-	fwd_rnd2( -48(%ebp) ,ft_tab)
-3:	fwd_rnd1( -32(%ebp) ,ft_tab)	// 12 rounds for 192-bit key
-	fwd_rnd2( -16(%ebp) ,ft_tab)
-4:	fwd_rnd1(    (%ebp) ,ft_tab)	// 10 rounds for 128-bit key
-	fwd_rnd2( +16(%ebp) ,ft_tab)
-	fwd_rnd1( +32(%ebp) ,ft_tab)
-	fwd_rnd2( +48(%ebp) ,ft_tab)
-	fwd_rnd1( +64(%ebp) ,ft_tab)
-	fwd_rnd2( +80(%ebp) ,ft_tab)
-	fwd_rnd1( +96(%ebp) ,ft_tab)
-	fwd_rnd2(+112(%ebp) ,ft_tab)
-	fwd_rnd1(+128(%ebp) ,ft_tab)
-	fwd_rnd2(+144(%ebp) ,fl_tab)	// last round uses a different table
+2:	fwd_rnd1( -64(%ebp), crypto_ft_tab)	// 14 rounds for 256-bit key
+	fwd_rnd2( -48(%ebp), crypto_ft_tab)
+3:	fwd_rnd1( -32(%ebp), crypto_ft_tab)	// 12 rounds for 192-bit key
+	fwd_rnd2( -16(%ebp), crypto_ft_tab)
+4:	fwd_rnd1(    (%ebp), crypto_ft_tab)	// 10 rounds for 128-bit key
+	fwd_rnd2( +16(%ebp), crypto_ft_tab)
+	fwd_rnd1( +32(%ebp), crypto_ft_tab)
+	fwd_rnd2( +48(%ebp), crypto_ft_tab)
+	fwd_rnd1( +64(%ebp), crypto_ft_tab)
+	fwd_rnd2( +80(%ebp), crypto_ft_tab)
+	fwd_rnd1( +96(%ebp), crypto_ft_tab)
+	fwd_rnd2(+112(%ebp), crypto_ft_tab)
+	fwd_rnd1(+128(%ebp), crypto_ft_tab)
+	fwd_rnd2(+144(%ebp), crypto_fl_tab)	// last round uses a different table
 
 // move final values to the output array.  CAUTION: the 
 // order of these assigns rely on the register mappings
@@ -297,8 +297,8 @@ aes_enc_blk:
 
 .global  aes_dec_blk
 
-.extern  it_tab
-.extern  il_tab
+.extern  crypto_it_tab
+.extern  crypto_il_tab
 
 .align 4
 
@@ -312,14 +312,11 @@ aes_dec_blk:
 1:	push    %ebx
 	mov     in_blk+4(%esp),%r2
 	push    %esi
-	mov     nrnd(%ebp),%r3   // number of rounds
+	mov     klen(%ebp),%r3   // key size
 	push    %edi
 #if dkey != 0
 	lea     dkey(%ebp),%ebp  // key pointer
 #endif
-	mov     %r3,%r0
-	shl     $4,%r0
-	add     %r0,%ebp
 	
 // input four columns and xor in first round key
 
@@ -333,27 +330,27 @@ aes_dec_blk:
 	xor     12(%ebp),%r5
 
 	sub     $8,%esp		// space for register saves on stack
-	sub     $16,%ebp	// increment to next round key
-	cmp     $12,%r3
+	add     $16,%ebp	// increment to next round key
+	cmp     $24,%r3
 	jb      4f		// 10 rounds for 128-bit key
-	lea     -32(%ebp),%ebp
+	lea     32(%ebp),%ebp
 	je      3f		// 12 rounds for 192-bit key
-	lea     -32(%ebp),%ebp
+	lea     32(%ebp),%ebp
 
-2:	inv_rnd1( +64(%ebp), it_tab)	// 14 rounds for 256-bit key
-	inv_rnd2( +48(%ebp), it_tab)
-3:	inv_rnd1( +32(%ebp), it_tab)	// 12 rounds for 192-bit key
-	inv_rnd2( +16(%ebp), it_tab)
-4:	inv_rnd1(    (%ebp), it_tab)	// 10 rounds for 128-bit key
-	inv_rnd2( -16(%ebp), it_tab)
-	inv_rnd1( -32(%ebp), it_tab)
-	inv_rnd2( -48(%ebp), it_tab)
-	inv_rnd1( -64(%ebp), it_tab)
-	inv_rnd2( -80(%ebp), it_tab)
-	inv_rnd1( -96(%ebp), it_tab)
-	inv_rnd2(-112(%ebp), it_tab)
-	inv_rnd1(-128(%ebp), it_tab)
-	inv_rnd2(-144(%ebp), il_tab)	// last round uses a different table
+2:	inv_rnd1( -64(%ebp), crypto_it_tab)	// 14 rounds for 256-bit key
+	inv_rnd2( -48(%ebp), crypto_it_tab)
+3:	inv_rnd1( -32(%ebp), crypto_it_tab)	// 12 rounds for 192-bit key
+	inv_rnd2( -16(%ebp), crypto_it_tab)
+4:	inv_rnd1(    (%ebp), crypto_it_tab)	// 10 rounds for 128-bit key
+	inv_rnd2( +16(%ebp), crypto_it_tab)
+	inv_rnd1( +32(%ebp), crypto_it_tab)
+	inv_rnd2( +48(%ebp), crypto_it_tab)
+	inv_rnd1( +64(%ebp), crypto_it_tab)
+	inv_rnd2( +80(%ebp), crypto_it_tab)
+	inv_rnd1( +96(%ebp), crypto_it_tab)
+	inv_rnd2(+112(%ebp), crypto_it_tab)
+	inv_rnd1(+128(%ebp), crypto_it_tab)
+	inv_rnd2(+144(%ebp), crypto_il_tab)	// last round uses a different table
 
 // move final values to the output array.  CAUTION: the 
 // order of these assigns rely on the register mappings

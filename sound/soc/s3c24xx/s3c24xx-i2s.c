@@ -24,7 +24,7 @@
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
-#include <sound/driver.h>
+#include <linux/jiffies.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -33,12 +33,13 @@
 
 #include <asm/hardware.h>
 #include <asm/io.h>
-#include <asm/arch/regs-iis.h>
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/regs-clock.h>
 #include <asm/arch/audio.h>
 #include <asm/dma.h>
 #include <asm/arch/dma.h>
+
+#include <asm/plat-s3c24xx/regs-iis.h>
 
 #include "s3c24xx-pcm.h"
 #include "s3c24xx-i2s.h"
@@ -75,6 +76,10 @@ static struct s3c24xx_pcm_dma_params s3c24xx_i2s_pcm_stereo_in = {
 struct s3c24xx_i2s_info {
 	void __iomem	*regs;
 	struct clk	*iis_clk;
+	u32		iiscon;
+	u32		iismod;
+	u32		iisfcon;
+	u32		iispsr;
 };
 static struct s3c24xx_i2s_info s3c24xx_i2s;
 
@@ -184,7 +189,7 @@ static int s3c24xx_snd_lrsync(void)
 		if (iiscon & S3C2410_IISCON_LRINDEX)
 			break;
 
-		if (timeout < jiffies)
+		if (time_after(jiffies, timeout))
 			return -ETIMEDOUT;
 	}
 
@@ -405,6 +410,38 @@ static int s3c24xx_i2s_probe(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+int s3c24xx_i2s_suspend(struct platform_device *pdev,
+		struct snd_soc_cpu_dai *cpu_dai)
+{
+	s3c24xx_i2s.iiscon = readl(s3c24xx_i2s.regs + S3C2410_IISCON);
+	s3c24xx_i2s.iismod = readl(s3c24xx_i2s.regs + S3C2410_IISMOD);
+	s3c24xx_i2s.iisfcon = readl(s3c24xx_i2s.regs + S3C2410_IISFCON);
+	s3c24xx_i2s.iispsr = readl(s3c24xx_i2s.regs + S3C2410_IISPSR);
+
+	clk_disable(s3c24xx_i2s.iis_clk);
+
+	return 0;
+}
+
+int s3c24xx_i2s_resume(struct platform_device *pdev,
+		struct snd_soc_cpu_dai *cpu_dai)
+{
+	clk_enable(s3c24xx_i2s.iis_clk);
+
+	writel(s3c24xx_i2s.iiscon, s3c24xx_i2s.regs + S3C2410_IISCON);
+	writel(s3c24xx_i2s.iismod, s3c24xx_i2s.regs + S3C2410_IISMOD);
+	writel(s3c24xx_i2s.iisfcon, s3c24xx_i2s.regs + S3C2410_IISFCON);
+	writel(s3c24xx_i2s.iispsr, s3c24xx_i2s.regs + S3C2410_IISPSR);
+
+	return 0;
+}
+#else
+#define s3c24xx_i2s_suspend NULL
+#define s3c24xx_i2s_resume NULL
+#endif
+
+
 #define S3C24XX_I2S_RATES \
 	(SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 | SNDRV_PCM_RATE_16000 | \
 	SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 | \
@@ -415,6 +452,8 @@ struct snd_soc_cpu_dai s3c24xx_i2s_dai = {
 	.id = 0,
 	.type = SND_SOC_DAI_I2S,
 	.probe = s3c24xx_i2s_probe,
+	.suspend = s3c24xx_i2s_suspend,
+	.resume = s3c24xx_i2s_resume,
 	.playback = {
 		.channels_min = 2,
 		.channels_max = 2,

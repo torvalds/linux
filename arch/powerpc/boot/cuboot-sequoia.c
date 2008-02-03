@@ -39,7 +39,7 @@ static void sequoia_fixups(void)
 {
 	unsigned long sysclk = 33333333;
 
-	ibm440ep_fixup_clocks(sysclk, 11059200);
+	ibm440ep_fixup_clocks(sysclk, 11059200, 50000000);
 	ibm4xx_fixup_ebc_ranges("/plb/opb/ebc");
 	ibm4xx_denali_fixup_memsize();
 	dt_fixup_mac_addresses(&bd.bi_enetaddr, &bd.bi_enet1addr);
@@ -51,6 +51,6 @@ void platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	CUBOOT_INIT();
 	platform_ops.fixups = sequoia_fixups;
 	platform_ops.exit = ibm44x_dbcr_reset;
-	ft_init(_dtb_start, 0, 32);
+	fdt_init(_dtb_start);
 	serial_console_init();
 }

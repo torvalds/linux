@@ -16,6 +16,7 @@
 #define SH7780_VENDOR_ID	0x1912
 #define SH7781_DEVICE_ID	0x0001
 #define SH7780_DEVICE_ID	0x0002
+#define SH7763_DEVICE_ID	0x0004
 #define SH7785_DEVICE_ID	0x0007
 
 /* SH7780 Control Registers */
@@ -30,7 +31,7 @@
 #define SH7780_PCI_MEMORY_BASE	0xFD000000	/* Memory space base addr */
 #define SH7780_PCI_MEM_SIZE	0x01000000	/* Size of Memory window */
 
-#define SH7780_PCI_IO_BASE	0xFE400000	/* IO space base address */
+#define SH7780_PCI_IO_BASE	0xFE200000	/* IO space base address */
 #define SH7780_PCI_IO_SIZE	0x00400000	/* Size of IO window */
 
 #define SH7780_PCIREG_BASE	0xFE040000	/* PCI regs base address */

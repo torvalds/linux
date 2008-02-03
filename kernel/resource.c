@@ -277,7 +277,7 @@ walk_memory_resource(unsigned long start_pfn, unsigned long nr_pages, void *arg,
 	int ret = -1;
 	res.start = (u64) start_pfn << PAGE_SHIFT;
 	res.end = ((u64)(start_pfn + nr_pages) << PAGE_SHIFT) - 1;
-	res.flags = IORESOURCE_MEM;
+	res.flags = IORESOURCE_MEM | IORESOURCE_BUSY;
 	orig_end = res.end;
 	while ((res.start < res.end) && (find_next_system_ram(&res) >= 0)) {
 		pfn = (unsigned long)(res.start >> PAGE_SHIFT);

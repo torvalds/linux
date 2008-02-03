@@ -1990,7 +1990,6 @@ static struct scsi_host_template driver_template = {
 	.max_sectors		= TW_MAX_SECTORS,
 	.cmd_per_lun		= TW_MAX_CMDS_PER_LUN,
 	.use_clustering		= ENABLE_CLUSTERING,
-	.use_sg_chaining	= ENABLE_SG_CHAINING,
 	.shost_attrs		= twa_host_attrs,
 	.emulated		= 1
 };
@@ -2010,6 +2009,7 @@ static int __devinit twa_probe(struct pci_dev *pdev, const struct pci_device_id 
 	}
 
 	pci_set_master(pdev);
+	pci_try_set_mwi(pdev);
 
 	if (pci_set_dma_mask(pdev, DMA_64BIT_MASK)
 	    || pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK))

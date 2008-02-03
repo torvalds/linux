@@ -234,10 +234,6 @@ static int __init imacfb_probe(struct platform_device *dev)
 		size_remap = size_total;
 	imacfb_fix.smem_len = size_remap;
 
-#ifndef __i386__
-	screen_info.imacpm_seg = 0;
-#endif
-
 	if (!request_mem_region(imacfb_fix.smem_start, size_total, "imacfb")) {
 		printk(KERN_WARNING
 		       "imacfb: cannot reserve video memory at 0x%lx\n",

@@ -75,16 +75,32 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 
 	for (i = 0; i < pdata->nbuttons; i++) {
 		struct gpio_keys_button *button = &pdata->buttons[i];
-		int irq = gpio_to_irq(button->gpio);
+		int irq;
 		unsigned int type = button->type ?: EV_KEY;
 
+		error = gpio_request(button->gpio, button->desc ?: "gpio_keys");
+		if (error < 0) {
+			pr_err("gpio-keys: failed to request GPIO %d,"
+				" error %d\n", button->gpio, error);
+			goto fail;
+		}
+
+		error = gpio_direction_input(button->gpio);
+		if (error < 0) {
+			pr_err("gpio-keys: failed to configure input"
+				" direction for GPIO %d, error %d\n",
+				button->gpio, error);
+			gpio_free(button->gpio);
+			goto fail;
+		}
+
+		irq = gpio_to_irq(button->gpio);
 		if (irq < 0) {
 			error = irq;
-			printk(KERN_ERR
-				"gpio-keys: "
-				"Unable to get irq number for GPIO %d,"
-				"error %d\n",
+			pr_err("gpio-keys: Unable to get irq number"
+				" for GPIO %d, error %d\n",
 				button->gpio, error);
+			gpio_free(button->gpio);
 			goto fail;
 		}
 
@@ -94,9 +110,9 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 				    button->desc ? button->desc : "gpio_keys",
 				    pdev);
 		if (error) {
-			printk(KERN_ERR
-				"gpio-keys: Unable to claim irq %d; error %d\n",
+			pr_err("gpio-keys: Unable to claim irq %d; error %d\n",
 				irq, error);
+			gpio_free(button->gpio);
 			goto fail;
 		}
 
@@ -108,8 +124,7 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 
 	error = input_register_device(input);
 	if (error) {
-		printk(KERN_ERR
-			"gpio-keys: Unable to register input device, "
+		pr_err("gpio-keys: Unable to register input device, "
 			"error: %d\n", error);
 		goto fail;
 	}
@@ -119,8 +134,10 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 	return 0;
 
  fail:
-	while (--i >= 0)
+	while (--i >= 0) {
 		free_irq(gpio_to_irq(pdata->buttons[i].gpio), pdev);
+		gpio_free(pdata->buttons[i].gpio);
+	}
 
 	platform_set_drvdata(pdev, NULL);
 	input_free_device(input);
@@ -139,6 +156,7 @@ static int __devexit gpio_keys_remove(struct platform_device *pdev)
 	for (i = 0; i < pdata->nbuttons; i++) {
 		int irq = gpio_to_irq(pdata->buttons[i].gpio);
 		free_irq(irq, pdev);
+		gpio_free(pdata->buttons[i].gpio);
 	}
 
 	input_unregister_device(input);

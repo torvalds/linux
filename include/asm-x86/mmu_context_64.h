@@ -7,7 +7,9 @@
 #include <asm/pda.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
+#ifndef CONFIG_PARAVIRT
 #include <asm-generic/mm_hooks.h>
+#endif
 
 /*
  * possibly do the LDT unload here?
@@ -21,11 +23,6 @@ static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 	if (read_pda(mmu_state) == TLBSTATE_OK) 
 		write_pda(mmu_state, TLBSTATE_LAZY);
 #endif
-}
-
-static inline void load_cr3(pgd_t *pgd)
-{
-	asm volatile("movq %0,%%cr3" :: "r" (__pa(pgd)) : "memory");
 }
 
 static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next, 
@@ -43,20 +40,20 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 		load_cr3(next->pgd);
 
 		if (unlikely(next->context.ldt != prev->context.ldt)) 
-			load_LDT_nolock(&next->context, cpu);
+			load_LDT_nolock(&next->context);
 	}
 #ifdef CONFIG_SMP
 	else {
 		write_pda(mmu_state, TLBSTATE_OK);
 		if (read_pda(active_mm) != next)
-			out_of_line_bug();
+			BUG();
 		if (!cpu_test_and_set(cpu, next->cpu_vm_mask)) {
 			/* We were in lazy tlb mode and leave_mm disabled 
 			 * tlb flush IPI delivery. We must reload CR3
 			 * to make sure to use no freed page tables.
 			 */
 			load_cr3(next->pgd);
-			load_LDT_nolock(&next->context, cpu);
+			load_LDT_nolock(&next->context);
 		}
 	}
 #endif

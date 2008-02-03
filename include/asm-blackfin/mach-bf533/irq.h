@@ -130,11 +130,7 @@ Core        Emulation               **
 
 #define GPIO_IRQ_BASE		IRQ_PF0
 
-#ifdef CONFIG_IRQCHIP_DEMUX_GPIO
 #define	NR_IRQS		(IRQ_PF15+1)
-#else
-#define	NR_IRQS		SYS_IRQS
-#endif
 
 #define IVG7			7
 #define IVG8			8

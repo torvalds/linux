@@ -174,7 +174,7 @@ put16(unsigned char *cp, unsigned short x)
 
 
 /* Encode a number */
-unsigned char *
+static unsigned char *
 encode(unsigned char *cp, unsigned short n)
 {
 	if(n >= 256 || n == 0){
@@ -199,7 +199,7 @@ pull16(unsigned char **cpp)
 }
 
 /* Decode a number */
-long
+static long
 decode(unsigned char **cpp)
 {
 	register int x;
@@ -233,6 +233,7 @@ slhc_compress(struct slcompress *comp, unsigned char *icp, int isize,
 	register unsigned char *cp = new_seq;
 	struct iphdr *ip;
 	struct tcphdr *th, *oth;
+	__sum16 csum;
 
 
 	/*
@@ -428,7 +429,7 @@ found:
 	/* Grab the cksum before we overwrite it below.  Then update our
 	 * state with this packet's header.
 	 */
-	deltaA = ntohs(th->check);
+	csum = th->check;
 	memcpy(&cs->cs_ip,ip,20);
 	memcpy(&cs->cs_tcp,th,20);
 	/* We want to use the original packet as our compressed packet.
@@ -449,7 +450,8 @@ found:
 		*cpp = ocp;
 		*cp++ = changes;
 	}
-	cp = put16(cp,(short)deltaA);	/* Write TCP checksum */
+	*(__sum16 *)cp = csum;
+	cp += 2;
 /* deltaS is now the size of the change section of the compressed header */
 	memcpy(cp,new_seq,deltaS);	/* Write list of deltas */
 	memcpy(cp+deltaS,icp+hlen,isize-hlen);
@@ -519,10 +521,8 @@ slhc_uncompress(struct slcompress *comp, unsigned char *icp, int isize)
 	thp = &cs->cs_tcp;
 	ip = &cs->cs_ip;
 
-	if((x = pull16(&cp)) == -1) {	/* Read the TCP checksum */
-		goto bad;
-        }
-	thp->check = htons(x);
+	thp->check = *(__sum16 *)cp;
+	cp += 2;
 
 	thp->psh = (changes & TCP_PUSH_BIT) ? 1 : 0;
 /*

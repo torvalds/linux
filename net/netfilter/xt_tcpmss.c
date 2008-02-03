@@ -20,19 +20,15 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Marc Boucher <marc@mbsi.ca>");
-MODULE_DESCRIPTION("iptables TCP MSS match module");
+MODULE_DESCRIPTION("Xtables: TCP MSS match");
 MODULE_ALIAS("ipt_tcpmss");
 MODULE_ALIAS("ip6t_tcpmss");
 
 static bool
-match(const struct sk_buff *skb,
-      const struct net_device *in,
-      const struct net_device *out,
-      const struct xt_match *match,
-      const void *matchinfo,
-      int offset,
-      unsigned int protoff,
-      bool *hotdrop)
+tcpmss_mt(const struct sk_buff *skb, const struct net_device *in,
+          const struct net_device *out, const struct xt_match *match,
+          const void *matchinfo, int offset, unsigned int protoff,
+          bool *hotdrop)
 {
 	const struct xt_tcpmss_match_info *info = matchinfo;
 	struct tcphdr _tcph, *th;
@@ -82,11 +78,11 @@ dropit:
 	return false;
 }
 
-static struct xt_match xt_tcpmss_match[] __read_mostly = {
+static struct xt_match tcpmss_mt_reg[] __read_mostly = {
 	{
 		.name		= "tcpmss",
 		.family		= AF_INET,
-		.match		= match,
+		.match		= tcpmss_mt,
 		.matchsize	= sizeof(struct xt_tcpmss_match_info),
 		.proto		= IPPROTO_TCP,
 		.me		= THIS_MODULE,
@@ -94,23 +90,22 @@ static struct xt_match xt_tcpmss_match[] __read_mostly = {
 	{
 		.name		= "tcpmss",
 		.family		= AF_INET6,
-		.match		= match,
+		.match		= tcpmss_mt,
 		.matchsize	= sizeof(struct xt_tcpmss_match_info),
 		.proto		= IPPROTO_TCP,
 		.me		= THIS_MODULE,
 	},
 };
 
-static int __init xt_tcpmss_init(void)
+static int __init tcpmss_mt_init(void)
 {
-	return xt_register_matches(xt_tcpmss_match,
-				   ARRAY_SIZE(xt_tcpmss_match));
+	return xt_register_matches(tcpmss_mt_reg, ARRAY_SIZE(tcpmss_mt_reg));
 }
 
-static void __exit xt_tcpmss_fini(void)
+static void __exit tcpmss_mt_exit(void)
 {
-	xt_unregister_matches(xt_tcpmss_match, ARRAY_SIZE(xt_tcpmss_match));
+	xt_unregister_matches(tcpmss_mt_reg, ARRAY_SIZE(tcpmss_mt_reg));
 }
 
-module_init(xt_tcpmss_init);
-module_exit(xt_tcpmss_fini);
+module_init(tcpmss_mt_init);
+module_exit(tcpmss_mt_exit);

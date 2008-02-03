@@ -71,7 +71,7 @@ static int nowayout = WATCHDOG_NOWAYOUT;
 static struct watchdog_info bfin_wdt_info;
 static unsigned long open_check;
 static char expect_close;
-static spinlock_t bfin_wdt_spinlock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(bfin_wdt_spinlock);
 
 /**
  *	bfin_wdt_keepalive - Keep the Userspace Watchdog Alive
@@ -390,7 +390,7 @@ static struct platform_driver bfin_wdt_driver = {
 	.resume    = bfin_wdt_resume,
 };
 
-static struct file_operations bfin_wdt_fops = {
+static const struct file_operations bfin_wdt_fops = {
 	.owner    = THIS_MODULE,
 	.llseek   = no_llseek,
 	.write    = bfin_wdt_write,

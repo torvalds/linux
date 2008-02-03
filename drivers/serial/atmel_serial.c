@@ -204,8 +204,6 @@ static u_int atmel_get_mctrl(struct uart_port *port)
  */
 static void atmel_stop_tx(struct uart_port *port)
 {
-	struct atmel_uart_port *atmel_port = (struct atmel_uart_port *) port;
-
 	UART_PUT_IDR(port, ATMEL_US_TXRDY);
 }
 
@@ -214,8 +212,6 @@ static void atmel_stop_tx(struct uart_port *port)
  */
 static void atmel_start_tx(struct uart_port *port)
 {
-	struct atmel_uart_port *atmel_port = (struct atmel_uart_port *) port;
-
 	UART_PUT_IER(port, ATMEL_US_TXRDY);
 }
 
@@ -224,8 +220,6 @@ static void atmel_start_tx(struct uart_port *port)
  */
 static void atmel_stop_rx(struct uart_port *port)
 {
-	struct atmel_uart_port *atmel_port = (struct atmel_uart_port *) port;
-
 	UART_PUT_IDR(port, ATMEL_US_RXRDY);
 }
 
@@ -409,7 +403,6 @@ static irqreturn_t atmel_interrupt(int irq, void *dev_id)
  */
 static int atmel_startup(struct uart_port *port)
 {
-	struct atmel_uart_port *atmel_port = (struct atmel_uart_port *) port;
 	int retval;
 
 	/*
@@ -456,8 +449,6 @@ static int atmel_startup(struct uart_port *port)
  */
 static void atmel_shutdown(struct uart_port *port)
 {
-	struct atmel_uart_port *atmel_port = (struct atmel_uart_port *) port;
-
 	/*
 	 * Disable all interrupts, port and break condition.
 	 */

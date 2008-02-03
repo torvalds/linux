@@ -172,6 +172,15 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 	if (IS_ERR(clk))
 		return -EINVAL;
 
+	/* We do not default just do a clk->rate = rate as
+	 * the clock may have been made this way by choice.
+	 */
+
+	WARN_ON(clk->set_rate == NULL);
+
+	if (clk->set_rate == NULL)
+		return -EINVAL;
+
 	mutex_lock(&clocks_mutex);
 	ret = (clk->set_rate)(clk, rate);
 	mutex_unlock(&clocks_mutex);
@@ -213,6 +222,12 @@ EXPORT_SYMBOL(clk_set_parent);
 
 /* base clocks */
 
+static int clk_default_setrate(struct clk *clk, unsigned long rate)
+{
+	clk->rate = rate;
+	return 0;
+}
+
 struct clk clk_xtal = {
 	.name		= "xtal",
 	.id		= -1,
@@ -224,6 +239,7 @@ struct clk clk_xtal = {
 struct clk clk_mpll = {
 	.name		= "mpll",
 	.id		= -1,
+	.set_rate	= clk_default_setrate,
 };
 
 struct clk clk_upll = {
@@ -239,6 +255,7 @@ struct clk clk_f = {
 	.rate		= 0,
 	.parent		= &clk_mpll,
 	.ctrlbit	= 0,
+	.set_rate	= clk_default_setrate,
 };
 
 struct clk clk_h = {
@@ -247,6 +264,7 @@ struct clk clk_h = {
 	.rate		= 0,
 	.parent		= NULL,
 	.ctrlbit	= 0,
+	.set_rate	= clk_default_setrate,
 };
 
 struct clk clk_p = {
@@ -255,6 +273,7 @@ struct clk clk_p = {
 	.rate		= 0,
 	.parent		= NULL,
 	.ctrlbit	= 0,
+	.set_rate	= clk_default_setrate,
 };
 
 struct clk clk_usb_bus = {

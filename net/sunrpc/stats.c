@@ -33,7 +33,7 @@ struct proc_dir_entry	*proc_net_rpc = NULL;
 static int rpc_proc_show(struct seq_file *seq, void *v) {
 	const struct rpc_stat	*statp = seq->private;
 	const struct rpc_program *prog = statp->program;
-	int		i, j;
+	unsigned int i, j;
 
 	seq_printf(seq,
 		"net %u %u %u %u\n",
@@ -81,7 +81,7 @@ void svc_seq_show(struct seq_file *seq, const struct svc_stat *statp) {
 	const struct svc_program *prog = statp->program;
 	const struct svc_procedure *proc;
 	const struct svc_version *vers;
-	int		i, j;
+	unsigned int i, j;
 
 	seq_printf(seq,
 		"net %u %u %u %u\n",
@@ -106,6 +106,7 @@ void svc_seq_show(struct seq_file *seq, const struct svc_stat *statp) {
 		seq_putc(seq, '\n');
 	}
 }
+EXPORT_SYMBOL(svc_seq_show);
 
 /**
  * rpc_alloc_iostats - allocate an rpc_iostats structure
@@ -118,7 +119,7 @@ struct rpc_iostats *rpc_alloc_iostats(struct rpc_clnt *clnt)
 	new = kcalloc(clnt->cl_maxproc, sizeof(struct rpc_iostats), GFP_KERNEL);
 	return new;
 }
-EXPORT_SYMBOL(rpc_alloc_iostats);
+EXPORT_SYMBOL_GPL(rpc_alloc_iostats);
 
 /**
  * rpc_free_iostats - release an rpc_iostats structure
@@ -129,7 +130,7 @@ void rpc_free_iostats(struct rpc_iostats *stats)
 {
 	kfree(stats);
 }
-EXPORT_SYMBOL(rpc_free_iostats);
+EXPORT_SYMBOL_GPL(rpc_free_iostats);
 
 /**
  * rpc_count_iostats - tally up per-task stats
@@ -215,7 +216,7 @@ void rpc_print_iostats(struct seq_file *seq, struct rpc_clnt *clnt)
 				metrics->om_execute * MILLISECS_PER_JIFFY);
 	}
 }
-EXPORT_SYMBOL(rpc_print_iostats);
+EXPORT_SYMBOL_GPL(rpc_print_iostats);
 
 /*
  * Register/unregister RPC proc files
@@ -241,24 +242,28 @@ rpc_proc_register(struct rpc_stat *statp)
 {
 	return do_register(statp->program->name, statp, &rpc_proc_fops);
 }
+EXPORT_SYMBOL_GPL(rpc_proc_register);
 
 void
 rpc_proc_unregister(const char *name)
 {
 	remove_proc_entry(name, proc_net_rpc);
 }
+EXPORT_SYMBOL_GPL(rpc_proc_unregister);
 
 struct proc_dir_entry *
 svc_proc_register(struct svc_stat *statp, const struct file_operations *fops)
 {
 	return do_register(statp->program->pg_name, statp, fops);
 }
+EXPORT_SYMBOL(svc_proc_register);
 
 void
 svc_proc_unregister(const char *name)
 {
 	remove_proc_entry(name, proc_net_rpc);
 }
+EXPORT_SYMBOL(svc_proc_unregister);
 
 void
 rpc_proc_init(void)

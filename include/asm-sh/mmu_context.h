@@ -1,13 +1,13 @@
 /*
  * Copyright (C) 1999 Niibe Yutaka
- * Copyright (C) 2003 - 2006 Paul Mundt
+ * Copyright (C) 2003 - 2007 Paul Mundt
  *
  * ASID handling idea taken from MIPS implementation.
  */
 #ifndef __ASM_SH_MMU_CONTEXT_H
 #define __ASM_SH_MMU_CONTEXT_H
-#ifdef __KERNEL__
 
+#ifdef __KERNEL__
 #include <asm/cpu/mmu_context.h>
 #include <asm/tlbflush.h>
 #include <asm/uaccess.h>
@@ -19,7 +19,6 @@
  *    (a) TLB cache version (or round, cycle whatever expression you like)
  *    (b) ASID (Address Space IDentifier)
  */
-
 #define MMU_CONTEXT_ASID_MASK		0x000000ff
 #define MMU_CONTEXT_VERSION_MASK	0xffffff00
 #define MMU_CONTEXT_FIRST_VERSION	0x00000100
@@ -28,10 +27,11 @@
 /* ASID is 8-bit value, so it can't be 0x100 */
 #define MMU_NO_ASID			0x100
 
-#define cpu_context(cpu, mm)	((mm)->context.id[cpu])
-#define cpu_asid(cpu, mm)	(cpu_context((cpu), (mm)) & \
-				 MMU_CONTEXT_ASID_MASK)
 #define asid_cache(cpu)		(cpu_data[cpu].asid_cache)
+#define cpu_context(cpu, mm)	((mm)->context.id[cpu])
+
+#define cpu_asid(cpu, mm)	\
+	(cpu_context((cpu), (mm)) & MMU_CONTEXT_ASID_MASK)
 
 /*
  * Virtual Page Number mask
@@ -39,6 +39,12 @@
 #define MMU_VPN_MASK	0xfffff000
 
 #ifdef CONFIG_MMU
+#if defined(CONFIG_SUPERH32)
+#include "mmu_context_32.h"
+#else
+#include "mmu_context_64.h"
+#endif
+
 /*
  * Get MMU context if needed.
  */
@@ -58,6 +64,14 @@ static inline void get_mmu_context(struct mm_struct *mm, unsigned int cpu)
 		 * Flush all TLB and start new cycle.
 		 */
 		flush_tlb_all();
+
+#ifdef CONFIG_SUPERH64
+		/*
+		 * The SH-5 cache uses the ASIDs, requiring both the I and D
+		 * cache to be flushed when the ASID is exhausted. Weak.
+		 */
+		flush_cache_all();
+#endif
 
 		/*
 		 * Fix version; Note that we avoid version #0
@@ -86,39 +100,6 @@ static inline int init_new_context(struct task_struct *tsk,
 }
 
 /*
- * Destroy context related info for an mm_struct that is about
- * to be put to rest.
- */
-static inline void destroy_context(struct mm_struct *mm)
-{
-	/* Do nothing */
-}
-
-static inline void set_asid(unsigned long asid)
-{
-	unsigned long __dummy;
-
-	__asm__ __volatile__ ("mov.l	%2, %0\n\t"
-			      "and	%3, %0\n\t"
-			      "or	%1, %0\n\t"
-			      "mov.l	%0, %2"
-			      : "=&r" (__dummy)
-			      : "r" (asid), "m" (__m(MMU_PTEH)),
-			        "r" (0xffffff00));
-}
-
-static inline unsigned long get_asid(void)
-{
-	unsigned long asid;
-
-	__asm__ __volatile__ ("mov.l	%1, %0"
-			      : "=r" (asid)
-			      : "m" (__m(MMU_PTEH)));
-	asid &= MMU_CONTEXT_ASID_MASK;
-	return asid;
-}
-
-/*
  * After we have set current->mm to a new value, this activates
  * the context for the new mm so we see the new mappings.
  */
@@ -126,17 +107,6 @@ static inline void activate_context(struct mm_struct *mm, unsigned int cpu)
 {
 	get_mmu_context(mm, cpu);
 	set_asid(cpu_asid(cpu, mm));
-}
-
-/* MMU_TTB is used for optimizing the fault handling. */
-static inline void set_TTB(pgd_t *pgd)
-{
-	ctrl_outl((unsigned long)pgd, MMU_TTB);
-}
-
-static inline pgd_t *get_TTB(void)
-{
-	return (pgd_t *)ctrl_inl(MMU_TTB);
 }
 
 static inline void switch_mm(struct mm_struct *prev,
@@ -153,17 +123,7 @@ static inline void switch_mm(struct mm_struct *prev,
 		if (!cpu_test_and_set(cpu, next->cpu_vm_mask))
 			activate_context(next, cpu);
 }
-
-#define deactivate_mm(tsk,mm)	do { } while (0)
-
-#define activate_mm(prev, next) \
-	switch_mm((prev),(next),NULL)
-
-static inline void
-enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
-{
-}
-#else /* !CONFIG_MMU */
+#else
 #define get_mmu_context(mm)		do { } while (0)
 #define init_new_context(tsk,mm)	(0)
 #define destroy_context(mm)		do { } while (0)
@@ -173,10 +133,11 @@ enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 #define get_TTB()			(0)
 #define activate_context(mm,cpu)	do { } while (0)
 #define switch_mm(prev,next,tsk)	do { } while (0)
-#define deactivate_mm(tsk,mm)		do { } while (0)
-#define activate_mm(prev,next)		do { } while (0)
-#define enter_lazy_tlb(mm,tsk)		do { } while (0)
 #endif /* CONFIG_MMU */
+
+#define activate_mm(prev, next)		switch_mm((prev),(next),NULL)
+#define deactivate_mm(tsk,mm)		do { } while (0)
+#define enter_lazy_tlb(mm,tsk)		do { } while (0)
 
 #if defined(CONFIG_CPU_SH3) || defined(CONFIG_CPU_SH4)
 /*

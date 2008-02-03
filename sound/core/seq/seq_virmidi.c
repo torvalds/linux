@@ -35,7 +35,6 @@
  *
  */
 
-#include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/wait.h>
 #include <linux/slab.h>

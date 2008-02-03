@@ -27,7 +27,6 @@
  */
 
 #include <linux/spinlock.h>
-#include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/rawmidi.h>
 

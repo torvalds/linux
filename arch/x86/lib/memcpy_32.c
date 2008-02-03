@@ -34,8 +34,8 @@ void *memmove(void *dest, const void *src, size_t n)
 			"cld"
 			: "=&c" (d0), "=&S" (d1), "=&D" (d2)
 			:"0" (n),
-			 "1" (n-1+(const char *)src),
-			 "2" (n-1+(char *)dest)
+			 "1" (n-1+src),
+			 "2" (n-1+dest)
 			:"memory");
 	}
 	return dest;

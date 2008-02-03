@@ -38,33 +38,36 @@ int pxa_pm_enter(suspend_state_t state)
 		iwmmxt_task_disable(NULL);
 #endif
 
-	pxa_cpu_pm_fns->save(sleep_save);
+	/* skip registers saving for standby */
+	if (state != PM_SUSPEND_STANDBY) {
+		pxa_cpu_pm_fns->save(sleep_save);
+		/* before sleeping, calculate and save a checksum */
+		for (i = 0; i < pxa_cpu_pm_fns->save_size - 1; i++)
+			sleep_save_checksum += sleep_save[i];
+	}
 
 	/* Clear sleep reset status */
 	RCSR = RCSR_SMR;
-
-	/* before sleeping, calculate and save a checksum */
-	for (i = 0; i < pxa_cpu_pm_fns->save_size - 1; i++)
-		sleep_save_checksum += sleep_save[i];
 
 	/* *** go zzz *** */
 	pxa_cpu_pm_fns->enter(state);
 	cpu_init();
 
-	/* after sleeping, validate the checksum */
-	for (i = 0; i < pxa_cpu_pm_fns->save_size - 1; i++)
-		checksum += sleep_save[i];
+	if (state != PM_SUSPEND_STANDBY) {
+		/* after sleeping, validate the checksum */
+		for (i = 0; i < pxa_cpu_pm_fns->save_size - 1; i++)
+			checksum += sleep_save[i];
 
-	/* if invalid, display message and wait for a hardware reset */
-	if (checksum != sleep_save_checksum) {
+		/* if invalid, display message and wait for a hardware reset */
+		if (checksum != sleep_save_checksum) {
 #ifdef CONFIG_ARCH_LUBBOCK
-		LUB_HEXLED = 0xbadbadc5;
+			LUB_HEXLED = 0xbadbadc5;
 #endif
-		while (1)
-			pxa_cpu_pm_fns->enter(state);
+			while (1)
+				pxa_cpu_pm_fns->enter(state);
+		}
+		pxa_cpu_pm_fns->restore(sleep_save);
 	}
-
-	pxa_cpu_pm_fns->restore(sleep_save);
 
 	pr_debug("*** made it back from resume\n");
 

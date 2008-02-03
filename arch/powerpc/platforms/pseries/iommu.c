@@ -251,7 +251,7 @@ static void iommu_table_setparms(struct pci_controller *phb,
 	const unsigned long *basep;
 	const u32 *sizep;
 
-	node = (struct device_node *)phb->arch_data;
+	node = phb->dn;
 
 	basep = of_get_property(node, "linux,tce-base", NULL);
 	sizep = of_get_property(node, "linux,tce-size", NULL);
@@ -296,11 +296,12 @@ static void iommu_table_setparms(struct pci_controller *phb,
 static void iommu_table_setparms_lpar(struct pci_controller *phb,
 				      struct device_node *dn,
 				      struct iommu_table *tbl,
-				      const void *dma_window)
+				      const void *dma_window,
+				      int bussubno)
 {
 	unsigned long offset, size;
 
-	tbl->it_busno  = PCI_DN(dn)->bussubno;
+	tbl->it_busno  = bussubno;
 	of_parse_dma_window(dn, dma_window, &tbl->it_index, &offset, &size);
 
 	tbl->it_base   = 0;
@@ -420,17 +421,10 @@ static void pci_dma_bus_setup_pSeriesLP(struct pci_bus *bus)
 	    pdn->full_name, ppci->iommu_table);
 
 	if (!ppci->iommu_table) {
-		/* Bussubno hasn't been copied yet.
-		 * Do it now because iommu_table_setparms_lpar needs it.
-		 */
-
-		ppci->bussubno = bus->number;
-
 		tbl = kmalloc_node(sizeof(struct iommu_table), GFP_KERNEL,
 				   ppci->phb->node);
-
-		iommu_table_setparms_lpar(ppci->phb, pdn, tbl, dma_window);
-
+		iommu_table_setparms_lpar(ppci->phb, pdn, tbl, dma_window,
+			bus->number);
 		ppci->iommu_table = iommu_init_table(tbl, ppci->phb->node);
 		DBG("  created table: %p\n", ppci->iommu_table);
 	}
@@ -523,14 +517,10 @@ static void pci_dma_dev_setup_pSeriesLP(struct pci_dev *dev)
 
 	pci = PCI_DN(pdn);
 	if (!pci->iommu_table) {
-		/* iommu_table_setparms_lpar needs bussubno. */
-		pci->bussubno = pci->phb->bus->number;
-
 		tbl = kmalloc_node(sizeof(struct iommu_table), GFP_KERNEL,
 				   pci->phb->node);
-
-		iommu_table_setparms_lpar(pci->phb, pdn, tbl, dma_window);
-
+		iommu_table_setparms_lpar(pci->phb, pdn, tbl, dma_window,
+			pci->phb->bus->number);
 		pci->iommu_table = iommu_init_table(tbl, pci->phb->node);
 		DBG("  created table: %p\n", pci->iommu_table);
 	} else {
@@ -556,7 +546,7 @@ static int iommu_reconfig_notifier(struct notifier_block *nb, unsigned long acti
 	case PSERIES_RECONFIG_REMOVE:
 		if (pci && pci->iommu_table &&
 		    of_get_property(np, "ibm,dma-window", NULL))
-			iommu_free_table(np);
+			iommu_free_table(pci->iommu_table, np->full_name);
 		break;
 	default:
 		err = NOTIFY_DONE;

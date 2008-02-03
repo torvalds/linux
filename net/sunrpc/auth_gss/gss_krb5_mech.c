@@ -147,13 +147,17 @@ gss_import_sec_context_kerberos(const void *p,
 	p = simple_get_bytes(p, end, &tmp, sizeof(tmp));
 	if (IS_ERR(p))
 		goto out_err_free_ctx;
-	if (tmp != SGN_ALG_DES_MAC_MD5)
+	if (tmp != SGN_ALG_DES_MAC_MD5) {
+		p = ERR_PTR(-ENOSYS);
 		goto out_err_free_ctx;
+	}
 	p = simple_get_bytes(p, end, &tmp, sizeof(tmp));
 	if (IS_ERR(p))
 		goto out_err_free_ctx;
-	if (tmp != SEAL_ALG_DES)
+	if (tmp != SEAL_ALG_DES) {
+		p = ERR_PTR(-ENOSYS);
 		goto out_err_free_ctx;
+	}
 	p = simple_get_bytes(p, end, &ctx->endtime, sizeof(ctx->endtime));
 	if (IS_ERR(p))
 		goto out_err_free_ctx;

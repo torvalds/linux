@@ -45,7 +45,6 @@
  *  - scheduled action on the stream.
  */
 
-#include <sound/driver.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/delay.h>

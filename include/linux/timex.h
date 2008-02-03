@@ -137,6 +137,7 @@ struct timex {
 #define ADJ_TIMECONST		0x0020	/* pll time constant */
 #define ADJ_TICK		0x4000	/* tick value */
 #define ADJ_OFFSET_SINGLESHOT	0x8001	/* old-fashioned adjtime */
+#define ADJ_OFFSET_SS_READ	0xa001  /* read-only adjtime */
 
 /* xntp 3.4 compatibility names */
 #define MOD_OFFSET	ADJ_OFFSET

@@ -71,4 +71,6 @@
 #define PROM_NV_GET		53	/* XXX */
 #define PROM_NV_SET		54	/* XXX */
 
+extern char *prom_getenv(char *);
+
 #endif /* __ASM_MIPS_PROM_H */

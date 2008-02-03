@@ -886,7 +886,7 @@ xirc2ps_config(struct pcmcia_device * link)
 	}
 	printk(KNOT_XIRC "no ports available\n");
     } else {
-	link->irq.Attributes |= IRQ_TYPE_EXCLUSIVE;
+	link->irq.Attributes |= IRQ_TYPE_DYNAMIC_SHARING;
 	link->io.NumPorts1 = 16;
 	for (ioaddr = 0x300; ioaddr < 0x400; ioaddr += 0x10) {
 	    link->io.BasePort1 = ioaddr;

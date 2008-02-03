@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/ide/legacy/dtc2278.c		Version 0.02	Feb 10, 1996
- *
  *  Copyright (C) 1996  Linus Torvalds & author (see below)
  */
 
@@ -86,13 +84,19 @@ static void dtc2278_set_pio_mode(ide_drive_t *drive, const u8 pio)
 		/* Actually we do - there is a data sheet available for the
 		   Winbond but does anyone actually care */
 	}
-
-	/*
-	 * 32bit I/O has to be enabled for *both* drives at the same time.
-	 */
-	drive->io_32bit = 1;
-	HWIF(drive)->drives[!drive->select.b.unit].io_32bit = 1;
 }
+
+static const struct ide_port_info dtc2278_port_info __initdata = {
+	.chipset		= ide_dtc2278,
+	.host_flags		= IDE_HFLAG_SERIALIZE |
+				  IDE_HFLAG_NO_UNMASK_IRQS |
+				  IDE_HFLAG_IO_32BIT |
+				  /* disallow ->io_32bit changes */
+				  IDE_HFLAG_NO_IO_32BIT |
+				  IDE_HFLAG_NO_DMA |
+				  IDE_HFLAG_NO_AUTOTUNE,
+	.pio_mask		= ATA_PIO4,
+};
 
 static int __init dtc2278_probe(void)
 {
@@ -124,23 +128,9 @@ static int __init dtc2278_probe(void)
 #endif
 	local_irq_restore(flags);
 
-	hwif->serialized = 1;
-	hwif->chipset = ide_dtc2278;
-	hwif->pio_mask = ATA_PIO4;
 	hwif->set_pio_mode = &dtc2278_set_pio_mode;
-	hwif->drives[0].no_unmask = 1;
-	hwif->drives[1].no_unmask = 1;
-	hwif->mate = mate;
 
-	mate->serialized = 1;
-	mate->chipset = ide_dtc2278;
-	mate->pio_mask = ATA_PIO4;
-	mate->drives[0].no_unmask = 1;
-	mate->drives[1].no_unmask = 1;
-	mate->mate = hwif;
-	mate->channel = 1;
-
-	ide_device_add(idx);
+	ide_device_add(idx, &dtc2278_port_info);
 
 	return 0;
 }
@@ -150,8 +140,7 @@ int probe_dtc2278 = 0;
 module_param_named(probe, probe_dtc2278, bool, 0);
 MODULE_PARM_DESC(probe, "probe for DTC2278xx chipsets");
 
-/* Can be called directly from ide.c. */
-int __init dtc2278_init(void)
+static int __init dtc2278_init(void)
 {
 	if (probe_dtc2278 == 0)
 		return -ENODEV;
@@ -163,9 +152,7 @@ int __init dtc2278_init(void)
 	return 0;
 }
 
-#ifdef MODULE
 module_init(dtc2278_init);
-#endif
 
 MODULE_AUTHOR("See Local File");
 MODULE_DESCRIPTION("support of DTC-2278 VLB IDE chipsets");

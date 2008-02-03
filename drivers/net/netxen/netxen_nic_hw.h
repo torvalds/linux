@@ -235,7 +235,7 @@ typedef enum {
 	((config_word) |= 1 << 0)
 #define netxen_xg_set_xg1_mask(config_word)    \
 	((config_word) |= 1 << 3)
-		
+
 #define netxen_xg_get_xg0_mask(config_word)    \
 	_netxen_crb_get_bit((config_word), 0)
 #define netxen_xg_get_xg1_mask(config_word)    \
@@ -273,7 +273,7 @@ typedef enum {
 	_netxen_crb_get_bit((config_word), 4)
 #define netxen_gb_get_gb3_mask(config_word)    \
 	_netxen_crb_get_bit((config_word), 6)
-	
+
 #define netxen_gb_unset_gb0_mask(config_word)  \
 	((config_word) &= ~(1 << 0))
 #define netxen_gb_unset_gb1_mask(config_word)  \
@@ -437,7 +437,7 @@ typedef enum {
 
 /*
  * NIU GB Drop CRC Register
- * 
+ *
  * Bit 0 : drop_gb0 => 1:drop pkts with bad CRCs, 0:pass them on
  * Bit 1 : drop_gb1 => 1:drop pkts with bad CRCs, 0:pass them on
  * Bit 2 : drop_gb2 => 1:drop pkts with bad CRCs, 0:pass them on
@@ -480,7 +480,7 @@ typedef enum {
 
 /*
  * MAC Control Register
- * 
+ *
  * Bit 0-1   : id_pool0
  * Bit 2     : enable_xtnd0
  * Bit 4-5   : id_pool1
@@ -515,20 +515,16 @@ typedef enum {
 		((config) |= (((val) & 0x0f) << 28))
 
 /* Set promiscuous mode for a GbE interface */
-int netxen_niu_set_promiscuous_mode(struct netxen_adapter *adapter, 
+int netxen_niu_set_promiscuous_mode(struct netxen_adapter *adapter,
 				    netxen_niu_prom_mode_t mode);
 int netxen_niu_xg_set_promiscuous_mode(struct netxen_adapter *adapter,
 				       netxen_niu_prom_mode_t mode);
 
-/* get/set the MAC address for a given MAC */
-int netxen_niu_macaddr_get(struct netxen_adapter *adapter,
-			   netxen_ethernet_macaddr_t * addr);
+/* set the MAC address for a given MAC */
 int netxen_niu_macaddr_set(struct netxen_adapter *adapter,
 			   netxen_ethernet_macaddr_t addr);
 
-/* XG versons */
-int netxen_niu_xg_macaddr_get(struct netxen_adapter *adapter,
-			      netxen_ethernet_macaddr_t * addr);
+/* XG version */
 int netxen_niu_xg_macaddr_set(struct netxen_adapter *adapter,
 			      netxen_ethernet_macaddr_t addr);
 

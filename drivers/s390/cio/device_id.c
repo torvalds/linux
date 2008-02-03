@@ -24,6 +24,7 @@
 #include "css.h"
 #include "device.h"
 #include "ioasm.h"
+#include "io_sch.h"
 
 /*
  * Input :
@@ -118,14 +119,6 @@ __ccw_device_sense_id_start(struct ccw_device *cdev)
 	sch = to_subchannel(cdev->dev.parent);
 	/* Setup sense channel program. */
 	ccw = cdev->private->iccws;
-	if (sch->schib.pmcw.pim != 0x80) {
-		/* more than one path installed. */
-		ccw->cmd_code = CCW_CMD_SUSPEND_RECONN;
-		ccw->cda = 0;
-		ccw->count = 0;
-		ccw->flags = CCW_FLAG_SLI | CCW_FLAG_CC;
-		ccw++;
-	}
 	ccw->cmd_code = CCW_CMD_SENSE_ID;
 	ccw->cda = (__u32) __pa (&cdev->private->senseid);
 	ccw->count = sizeof (struct senseid);
@@ -227,11 +220,13 @@ ccw_device_check_sense_id(struct ccw_device *cdev)
 		return -EAGAIN;
 	}
 	if (irb->scsw.cc == 3) {
-		if ((sch->orb.lpm &
-		     sch->schib.pmcw.pim & sch->schib.pmcw.pam) != 0)
+		u8 lpm;
+
+		lpm = to_io_private(sch)->orb.lpm;
+		if ((lpm & sch->schib.pmcw.pim & sch->schib.pmcw.pam) != 0)
 			CIO_MSG_EVENT(2, "SenseID : path %02X for device %04x "
 				      "on subchannel 0.%x.%04x is "
-				      "'not operational'\n", sch->orb.lpm,
+				      "'not operational'\n", lpm,
 				      cdev->private->dev_id.devno,
 				      sch->schid.ssid, sch->schid.sch_no);
 		return -EACCES;

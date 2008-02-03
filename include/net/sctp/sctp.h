@@ -65,7 +65,6 @@
 
 
 #ifdef TEST_FRAME
-#undef CONFIG_PROC_FS
 #undef CONFIG_SCTP_DBG_OBJCNT
 #undef CONFIG_SYSCTL
 #endif /* TEST_FRAME */
@@ -149,13 +148,6 @@ int sctp_primitive_ABORT(struct sctp_association *, void *arg);
 int sctp_primitive_SEND(struct sctp_association *, void *arg);
 int sctp_primitive_REQUESTHEARTBEAT(struct sctp_association *, void *arg);
 int sctp_primitive_ASCONF(struct sctp_association *, void *arg);
-
-/*
- * sctp/crc32c.c
- */
-__u32 sctp_start_cksum(__u8 *ptr, __u16 count);
-__u32 sctp_update_cksum(__u8 *ptr, __u16 count, __u32 cksum);
-__u32 sctp_end_cksum(__u32 cksum);
 
 /*
  * sctp/input.c
@@ -267,6 +259,7 @@ enum
 	SCTP_MIB_T5_SHUTDOWN_GUARD_EXPIREDS,
 	SCTP_MIB_DELAY_SACK_EXPIREDS,
 	SCTP_MIB_AUTOCLOSE_EXPIREDS,
+	SCTP_MIB_T1_RETRANSMITS,
 	SCTP_MIB_T3_RETRANSMITS,
 	SCTP_MIB_PMTUD_RETRANSMITS,
 	SCTP_MIB_FAST_RETRANSMITS,
@@ -470,8 +463,7 @@ static inline void sctp_skb_set_owner_r(struct sk_buff *skb, struct sock *sk)
 	skb->destructor = sctp_sock_rfree;
 	atomic_add(event->rmem_len, &sk->sk_rmem_alloc);
 	/*
-	 * This mimics the behavior of
-	 * sk_stream_set_owner_r
+	 * This mimics the behavior of skb_set_owner_r
 	 */
 	sk->sk_forward_alloc -= event->rmem_len;
 }
@@ -663,6 +655,9 @@ static inline int sctp_vtag_hashfn(__u16 lport, __u16 rport, __u32 vtag)
 	h ^= vtag;
 	return (h & (sctp_assoc_hashsize-1));
 }
+
+#define sctp_for_each_hentry(epb, node, head) \
+	hlist_for_each_entry(epb, node, head, node)
 
 /* Is a socket of this style? */
 #define sctp_style(sk, style) __sctp_style((sk), (SCTP_SOCKET_##style))

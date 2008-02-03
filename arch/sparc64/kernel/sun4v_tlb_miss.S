@@ -215,6 +215,7 @@ sun4v_itlb_error:
 
 1:	ba,pt	%xcc, etrap
 2:	 or	%g7, %lo(2b), %g7
+	mov	%l4, %o1
 	call	sun4v_itlb_error_report
 	 add	%sp, PTREGS_OFF, %o0
 
@@ -241,6 +242,7 @@ sun4v_dtlb_error:
 
 1:	ba,pt	%xcc, etrap
 2:	 or	%g7, %lo(2b), %g7
+	mov	%l4, %o1
 	call	sun4v_dtlb_error_report
 	 add	%sp, PTREGS_OFF, %o0
 

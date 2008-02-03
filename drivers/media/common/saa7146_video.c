@@ -1205,13 +1205,10 @@ int saa7146_video_do_ioctl(struct inode *inode, struct file *file, unsigned int 
 		DEB_D(("VIDIOCGMBUF \n"));
 
 		q = &fh->video_q;
-		mutex_lock(&q->lock);
 		err = videobuf_mmap_setup(q,gbuffers,gbufsize,
 					  V4L2_MEMORY_MMAP);
-		if (err < 0) {
-			mutex_unlock(&q->lock);
+		if (err < 0)
 			return err;
-		}
 
 		gbuffers = err;
 		memset(mbuf,0,sizeof(*mbuf));
@@ -1219,7 +1216,6 @@ int saa7146_video_do_ioctl(struct inode *inode, struct file *file, unsigned int 
 		mbuf->size   = gbuffers * gbufsize;
 		for (i = 0; i < gbuffers; i++)
 			mbuf->offsets[i] = i * gbufsize;
-		mutex_unlock(&q->lock);
 		return 0;
 	}
 #endif
@@ -1239,7 +1235,7 @@ static int buffer_activate (struct saa7146_dev *dev,
 {
 	struct saa7146_vv *vv = dev->vv_data;
 
-	buf->vb.state = STATE_ACTIVE;
+	buf->vb.state = VIDEOBUF_ACTIVE;
 	saa7146_set_capture(dev,buf,next);
 
 	mod_timer(&vv->video_q.timeout, jiffies+BUFFER_TIMEOUT);
@@ -1285,7 +1281,7 @@ static int buffer_prepare(struct videobuf_queue *q,
 		saa7146_dma_free(dev,q,buf);
 	}
 
-	if (STATE_NEEDS_INIT == buf->vb.state) {
+	if (VIDEOBUF_NEEDS_INIT == buf->vb.state) {
 		struct saa7146_format *sfmt;
 
 		buf->vb.bytesperline  = fh->video_fmt.bytesperline;
@@ -1318,7 +1314,7 @@ static int buffer_prepare(struct videobuf_queue *q,
 		if (err)
 			goto oops;
 	}
-	buf->vb.state = STATE_PREPARED;
+	buf->vb.state = VIDEOBUF_PREPARED;
 	buf->activate = buffer_activate;
 
 	return 0;
@@ -1440,10 +1436,7 @@ static void video_close(struct saa7146_dev *dev, struct file *file)
 		err = saa7146_stop_preview(fh);
 	}
 
-	// release all capture buffers
-	mutex_lock(&q->lock);
-	videobuf_read_stop(q);
-	mutex_unlock(&q->lock);
+	videobuf_stop(q);
 
 	/* hmm, why is this function declared void? */
 	/* return err */
@@ -1460,7 +1453,7 @@ static void video_irq_done(struct saa7146_dev *dev, unsigned long st)
 
 	/* only finish the buffer if we have one... */
 	if( NULL != q->curr ) {
-		saa7146_buffer_finish(dev,q,STATE_DONE);
+		saa7146_buffer_finish(dev,q,VIDEOBUF_DONE);
 	}
 	saa7146_buffer_next(dev,q,0);
 

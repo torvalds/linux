@@ -16,6 +16,7 @@
  *  - add lk_flags in fuse_lk_in
  *  - add lock_owner field to fuse_setattr_in, fuse_read_in and fuse_write_in
  *  - add blksize field to fuse_attr
+ *  - add file flags field to fuse_read_in and fuse_write_in
  */
 
 #include <asm/types.h>
@@ -280,6 +281,8 @@ struct fuse_read_in {
 	__u32	size;
 	__u32	read_flags;
 	__u64	lock_owner;
+	__u32	flags;
+	__u32	padding;
 };
 
 #define FUSE_COMPAT_WRITE_IN_SIZE 24
@@ -290,6 +293,8 @@ struct fuse_write_in {
 	__u32	size;
 	__u32	write_flags;
 	__u64	lock_owner;
+	__u32	flags;
+	__u32	padding;
 };
 
 struct fuse_write_out {

@@ -43,6 +43,7 @@
 #include <asm/cacheflush.h>
 #include <asm/blackfin.h>
 #include <asm/cplbinit.h>
+#include <asm/div64.h>
 #include <asm/fixed_code.h>
 #include <asm/early_printk.h>
 
@@ -237,7 +238,13 @@ void __init setup_arch(char **cmdline_p)
 	memory_end = _ramend - DMA_UNCACHED_REGION;
 
 	_ramstart = (unsigned long)__bss_stop;
+	_rambase = (unsigned long)_stext;
+#ifdef CONFIG_MPU
+	/* Round up to multiple of 4MB.  */
+	memory_start = (_ramstart + 0x3fffff) & ~0x3fffff;
+#else
 	memory_start = PAGE_ALIGN(_ramstart);
+#endif
 
 #if defined(CONFIG_MTD_UCLINUX)
 	/* generic memory mapped MTD driver */
@@ -306,6 +313,11 @@ void __init setup_arch(char **cmdline_p)
 	printk(KERN_NOTICE "Warning: limiting memory to %liMB due to hardware anomaly 05000263\n", memory_end >> 20);
 #endif				/* ANOMALY_05000263 */
 
+#ifdef CONFIG_MPU
+	page_mask_nelts = ((_ramend >> PAGE_SHIFT) + 31) / 32;
+	page_mask_order = get_order(3 * page_mask_nelts * sizeof(long));
+#endif
+
 #if !defined(CONFIG_MTD_UCLINUX)
 	memory_end -= SIZE_4K; /*In case there is no valid CPLB behind memory_end make sure we don't get to close*/
 #endif
@@ -314,7 +326,14 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.end_data = (unsigned long)_edata;
 	init_mm.brk = (unsigned long)0;
 
-	init_leds();
+	_bfin_swrst = bfin_read_SWRST();
+
+	if (_bfin_swrst & RESET_DOUBLE)
+		printk(KERN_INFO "Recovering from Double Fault event\n");
+	else if (_bfin_swrst & RESET_WDOG)
+		printk(KERN_INFO "Recovering from Watchdog event\n");
+	else if (_bfin_swrst & RESET_SOFTWARE)
+		printk(KERN_NOTICE "Reset caused by Software reset\n");
 
 	printk(KERN_INFO "Blackfin support (C) 2004-2007 Analog Devices, Inc.\n");
 	if (bfin_compiled_revid() == 0xffff)
@@ -402,8 +421,6 @@ void __init setup_arch(char **cmdline_p)
 	if (l1_length > L1_DATA_A_LENGTH)
 		panic("L1 data memory overflow\n");
 
-	_bfin_swrst = bfin_read_SWRST();
-
 	/* Copy atomic sequences to their fixed location, and sanity check that
 	   these locations are the ones that we advertise to userspace.  */
 	memcpy((void *)FIXED_CODE_START, &fixed_code_start,
@@ -424,6 +441,8 @@ void __init setup_arch(char **cmdline_p)
 	       != ATOMIC_AND32 - FIXED_CODE_START);
 	BUG_ON((char *)&atomic_xor32 - (char *)&fixed_code_start
 	       != ATOMIC_XOR32 - FIXED_CODE_START);
+	BUG_ON((char *)&safe_user_instruction - (char *)&fixed_code_start
+		!= SAFE_USER_INSTRUCTION - FIXED_CODE_START);
 
 	init_exception_vectors();
 	bf53x_cache_init();
@@ -495,13 +514,17 @@ EXPORT_SYMBOL(get_sclk);
 
 unsigned long sclk_to_usecs(unsigned long sclk)
 {
-	return (USEC_PER_SEC * (u64)sclk) / get_sclk();
+	u64 tmp = USEC_PER_SEC * (u64)sclk;
+	do_div(tmp, get_sclk());
+	return tmp;
 }
 EXPORT_SYMBOL(sclk_to_usecs);
 
 unsigned long usecs_to_sclk(unsigned long usecs)
 {
-	return (get_sclk() * (u64)usecs) / USEC_PER_SEC;
+	u64 tmp = get_sclk() * (u64)usecs;
+	do_div(tmp, USEC_PER_SEC);
+	return tmp;
 }
 EXPORT_SYMBOL(usecs_to_sclk);
 

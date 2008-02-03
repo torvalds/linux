@@ -36,11 +36,12 @@
 #include <asm/time.h>
 #include <asm/mpc8xx.h>
 #include <asm/8xx_immap.h>
-#include <asm/commproc.h>
+#include <asm/cpm1.h>
 #include <asm/fs_pd.h>
 #include <asm/udbg.h>
 
-#include <sysdev/commproc.h>
+#include "mpc885ads.h"
+#include "mpc8xx.h"
 
 static u32 __iomem *bcsr, *bcsr5;
 
@@ -264,18 +265,17 @@ static struct of_device_id __initdata of_bus_ids[] = {
 static int __init declare_of_platform_devices(void)
 {
 	/* Publish the QE devices */
-	if (machine_is(mpc885_ads))
-		of_platform_bus_probe(NULL, of_bus_ids, NULL);
+	of_platform_bus_probe(NULL, of_bus_ids, NULL);
 
 	return 0;
 }
-device_initcall(declare_of_platform_devices);
+machine_device_initcall(mpc885_ads, declare_of_platform_devices);
 
 define_machine(mpc885_ads) {
 	.name			= "Freescale MPC885 ADS",
 	.probe			= mpc885ads_probe,
 	.setup_arch		= mpc885ads_setup_arch,
-	.init_IRQ		= m8xx_pic_init,
+	.init_IRQ		= mpc8xx_pics_init,
 	.get_irq		= mpc8xx_get_irq,
 	.restart		= mpc8xx_restart,
 	.calibrate_decr		= mpc8xx_calibrate_decr,

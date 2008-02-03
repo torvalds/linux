@@ -114,7 +114,7 @@ static int rxrpc_create_local(struct rxrpc_local *local)
 	return 0;
 
 error:
-	local->socket->ops->shutdown(local->socket, 2);
+	kernel_sock_shutdown(local->socket, SHUT_RDWR);
 	local->socket->sk->sk_user_data = NULL;
 	sock_release(local->socket);
 	local->socket = NULL;
@@ -267,7 +267,7 @@ static void rxrpc_destroy_local(struct work_struct *work)
 	/* finish cleaning up the local descriptor */
 	rxrpc_purge_queue(&local->accept_queue);
 	rxrpc_purge_queue(&local->reject_queue);
-	local->socket->ops->shutdown(local->socket, 2);
+	kernel_sock_shutdown(local->socket, SHUT_RDWR);
 	sock_release(local->socket);
 
 	up_read(&rxrpc_local_sem);

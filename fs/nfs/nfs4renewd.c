@@ -133,9 +133,7 @@ nfs4_renewd_prepare_shutdown(struct nfs_server *server)
 void
 nfs4_kill_renewd(struct nfs_client *clp)
 {
-	down_read(&clp->cl_sem);
 	cancel_delayed_work_sync(&clp->cl_renewd);
-	up_read(&clp->cl_sem);
 }
 
 /*

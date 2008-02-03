@@ -45,7 +45,6 @@ struct appldata_ops {
 	int    active;				/* monitoring status */
 
 	/* fill in from here */
-	unsigned int ctl_nr;			/* sysctl ID */
 	char name[APPLDATA_PROC_NAME_LENGTH];	/* name of /proc fs node */
 	unsigned char record_nr;		/* Record Nr. for Product ID */
 	void (*callback)(void *data);		/* callback function */

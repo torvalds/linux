@@ -16,7 +16,6 @@
 #include <linux/mmc/host.h>
 #include <linux/highmem.h>
 #include <linux/scatterlist.h>
-#include <linux/log2.h>
 #include <asm/io.h>
 
 #define DRIVER_NAME "tifm_sd"
@@ -638,16 +637,14 @@ static void tifm_sd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		goto err_out;
 	}
 
-	if (mrq->data && !is_power_of_2(mrq->data->blksz)) {
-		printk(KERN_ERR "%s: Unsupported block size (%d bytes)\n",
-			sock->dev.bus_id, mrq->data->blksz);
-		mrq->cmd->error = -EINVAL;
-		goto err_out;
-	}
-
 	host->cmd_flags = 0;
 	host->block_pos = 0;
 	host->sg_pos = 0;
+
+	if (mrq->data && !is_power_of_2(mrq->data->blksz))
+		host->no_dma = 1;
+	else
+		host->no_dma = no_dma ? 1 : 0;
 
 	if (r_data) {
 		tifm_sd_set_data_timeout(host, r_data);
@@ -676,7 +673,7 @@ static void tifm_sd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 					    : PCI_DMA_FROMDEVICE)) {
 				printk(KERN_ERR "%s : scatterlist map failed\n",
 				       sock->dev.bus_id);
-				spin_unlock_irqrestore(&sock->lock, flags);
+				mrq->cmd->error = -ENOMEM;
 				goto err_out;
 			}
 			host->sg_len = tifm_map_sg(sock, r_data->sg,
@@ -692,7 +689,7 @@ static void tifm_sd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 					      r_data->flags & MMC_DATA_WRITE
 					      ? PCI_DMA_TODEVICE
 					      : PCI_DMA_FROMDEVICE);
-				spin_unlock_irqrestore(&sock->lock, flags);
+				mrq->cmd->error = -ENOMEM;
 				goto err_out;
 			}
 
@@ -966,7 +963,6 @@ static int tifm_sd_probe(struct tifm_dev *sock)
 		return -ENOMEM;
 
 	host = mmc_priv(mmc);
-	host->no_dma = no_dma;
 	tifm_set_drvdata(sock, mmc);
 	host->dev = sock;
 	host->timeout_jiffies = msecs_to_jiffies(1000);

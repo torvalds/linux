@@ -3,7 +3,7 @@
  *
  *  Maintained by:  Jeff Garzik <jgarzik@pobox.com>
  * 		   Please ALWAYS copy linux-ide@vger.kernel.org
- 		   on emails.
+ *		   on emails.
  *
  *  Copyright 2003-2004 Red Hat, Inc.  All rights reserved.
  *  Copyright 2003-2004 Jeff Garzik
@@ -69,7 +69,7 @@ enum {
 	SATA_EXT_PHY		= (1 << 6), /* 0==use PATA, 1==ext phy */
 };
 
-static int svia_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
+static int svia_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 static int svia_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val);
 static int svia_scr_write(struct ata_port *ap, unsigned int sc_reg, u32 val);
 static void svia_noop_freeze(struct ata_port *ap);
@@ -372,12 +372,12 @@ static const unsigned int vt6421_bar_sizes[] = {
 	16, 16, 16, 16, 32, 128
 };
 
-static void __iomem * svia_scr_addr(void __iomem *addr, unsigned int port)
+static void __iomem *svia_scr_addr(void __iomem *addr, unsigned int port)
 {
 	return addr + (port * 128);
 }
 
-static void __iomem * vt6421_scr_addr(void __iomem *addr, unsigned int port)
+static void __iomem *vt6421_scr_addr(void __iomem *addr, unsigned int port)
 {
 	return addr + (port * 64);
 }
@@ -472,7 +472,7 @@ static void svia_configure(struct pci_dev *pdev)
 	if ((tmp8 & ALL_PORTS) != ALL_PORTS) {
 		dev_printk(KERN_DEBUG, &pdev->dev,
 			   "enabling SATA channels (0x%x)\n",
-		           (int) tmp8);
+			   (int) tmp8);
 		tmp8 |= ALL_PORTS;
 		pci_write_config_byte(pdev, SATA_CHAN_ENAB, tmp8);
 	}
@@ -482,7 +482,7 @@ static void svia_configure(struct pci_dev *pdev)
 	if ((tmp8 & ALL_PORTS) != ALL_PORTS) {
 		dev_printk(KERN_DEBUG, &pdev->dev,
 			   "enabling SATA channel interrupts (0x%x)\n",
-		           (int) tmp8);
+			   (int) tmp8);
 		tmp8 |= ALL_PORTS;
 		pci_write_config_byte(pdev, SATA_INT_GATE, tmp8);
 	}
@@ -492,13 +492,13 @@ static void svia_configure(struct pci_dev *pdev)
 	if ((tmp8 & NATIVE_MODE_ALL) != NATIVE_MODE_ALL) {
 		dev_printk(KERN_DEBUG, &pdev->dev,
 			   "enabling SATA channel native mode (0x%x)\n",
-		           (int) tmp8);
+			   (int) tmp8);
 		tmp8 |= NATIVE_MODE_ALL;
 		pci_write_config_byte(pdev, SATA_NATIVE_MODE, tmp8);
 	}
 }
 
-static int svia_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
+static int svia_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version;
 	unsigned int i;
@@ -525,8 +525,8 @@ static int svia_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 			dev_printk(KERN_ERR, &pdev->dev,
 				"invalid PCI BAR %u (sz 0x%llx, val 0x%llx)\n",
 				i,
-			        (unsigned long long)pci_resource_start(pdev, i),
-			        (unsigned long long)pci_resource_len(pdev, i));
+				(unsigned long long)pci_resource_start(pdev, i),
+				(unsigned long long)pci_resource_len(pdev, i));
 			return -ENODEV;
 		}
 

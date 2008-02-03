@@ -380,13 +380,6 @@ static int edac_create_csrow_object(struct mem_ctl_info *mci,
 	/* generate ..../edac/mc/mc<id>/csrow<index>   */
 	memset(&csrow->kobj, 0, sizeof(csrow->kobj));
 	csrow->mci = mci;	/* include container up link */
-	csrow->kobj.parent = kobj_mci;
-	csrow->kobj.ktype = &ktype_csrow;
-
-	/* name this instance of csrow<id> */
-	err = kobject_set_name(&csrow->kobj, "csrow%d", index);
-	if (err)
-		goto err_out;
 
 	/* bump the mci instance's kobject's ref count */
 	kobj = kobject_get(&mci->edac_mci_kobj);
@@ -396,12 +389,13 @@ static int edac_create_csrow_object(struct mem_ctl_info *mci,
 	}
 
 	/* Instanstiate the csrow object */
-	err = kobject_register(&csrow->kobj);
+	err = kobject_init_and_add(&csrow->kobj, &ktype_csrow, kobj_mci,
+				   "csrow%d", index);
 	if (err)
 		goto err_release_top_kobj;
 
 	/* At this point, to release a csrow kobj, one must
-	 * call the kobject_unregister and allow that tear down
+	 * call the kobject_put and allow that tear down
 	 * to work the releasing
 	 */
 
@@ -412,11 +406,11 @@ static int edac_create_csrow_object(struct mem_ctl_info *mci,
 		err = edac_create_channel_files(&csrow->kobj, chan);
 		if (err) {
 			/* special case the unregister here */
-			kobject_unregister(&csrow->kobj);
+			kobject_put(&csrow->kobj);
 			goto err_out;
 		}
 	}
-
+	kobject_uevent(&csrow->kobj, KOBJ_ADD);
 	return 0;
 
 	/* error unwind stack */
@@ -744,7 +738,6 @@ static struct kobj_type ktype_mc_set_attribs = {
  */
 static struct kset mc_kset = {
 	.kobj = {.ktype = &ktype_mc_set_attribs },
-	.ktype = &ktype_mci,
 };
 
 
@@ -765,14 +758,6 @@ int edac_mc_register_sysfs_main_kobj(struct mem_ctl_info *mci)
 	/* Init the mci's kobject */
 	memset(kobj_mci, 0, sizeof(*kobj_mci));
 
-	/* this instance become part of the mc_kset */
-	kobj_mci->kset = &mc_kset;
-
-	/* set the name of the mc<id> object */
-	err = kobject_set_name(kobj_mci, "mc%d", mci->mc_idx);
-	if (err)
-		goto fail_out;
-
 	/* Record which module 'owns' this control structure
 	 * and bump the ref count of the module
 	 */
@@ -784,13 +769,18 @@ int edac_mc_register_sysfs_main_kobj(struct mem_ctl_info *mci)
 		goto fail_out;
 	}
 
+	/* this instance become part of the mc_kset */
+	kobj_mci->kset = &mc_kset;
+
 	/* register the mc<id> kobject to the mc_kset */
-	err = kobject_register(kobj_mci);
+	err = kobject_init_and_add(kobj_mci, &ktype_mci, NULL,
+				   "mc%d", mci->mc_idx);
 	if (err) {
 		debugf1("%s()Failed to register '.../edac/mc%d'\n",
 			__func__, mci->mc_idx);
 		goto kobj_reg_fail;
 	}
+	kobject_uevent(kobj_mci, KOBJ_ADD);
 
 	/* At this point, to 'free' the control struct,
 	 * edac_mc_unregister_sysfs_main_kobj() must be used
@@ -818,7 +808,7 @@ fail_out:
 void edac_mc_unregister_sysfs_main_kobj(struct mem_ctl_info *mci)
 {
 	/* delete the kobj from the mc_kset */
-	kobject_unregister(&mci->edac_mci_kobj);
+	kobject_put(&mci->edac_mci_kobj);
 }
 
 #define EDAC_DEVICE_SYMLINK	"device"
@@ -933,7 +923,7 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 fail1:
 	for (i--; i >= 0; i--) {
 		if (csrow->nr_pages > 0) {
-			kobject_unregister(&mci->csrows[i].kobj);
+			kobject_put(&mci->csrows[i].kobj);
 		}
 	}
 
@@ -960,7 +950,7 @@ void edac_remove_sysfs_mci_device(struct mem_ctl_info *mci)
 	for (i = 0; i < mci->nr_csrows; i++) {
 		if (mci->csrows[i].nr_pages > 0) {
 			debugf0("%s()  unreg csrow-%d\n", __func__, i);
-			kobject_unregister(&mci->csrows[i].kobj);
+			kobject_put(&mci->csrows[i].kobj);
 		}
 	}
 
@@ -977,7 +967,7 @@ void edac_remove_sysfs_mci_device(struct mem_ctl_info *mci)
 	debugf0("%s()  unregister this mci kobj\n", __func__);
 
 	/* unregister this instance's kobject */
-	kobject_unregister(&mci->edac_mci_kobj);
+	kobject_put(&mci->edac_mci_kobj);
 }
 
 

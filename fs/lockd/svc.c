@@ -219,19 +219,6 @@ lockd(struct svc_rqst *rqstp)
 	module_put_and_exit(0);
 }
 
-
-static int find_socket(struct svc_serv *serv, int proto)
-{
-	struct svc_sock *svsk;
-	int found = 0;
-	list_for_each_entry(svsk, &serv->sv_permsocks, sk_list)
-		if (svsk->sk_sk->sk_protocol == proto) {
-			found = 1;
-			break;
-		}
-	return found;
-}
-
 /*
  * Make any sockets that are needed but not present.
  * If nlm_udpport or nlm_tcpport were set as module
@@ -240,17 +227,25 @@ static int find_socket(struct svc_serv *serv, int proto)
 static int make_socks(struct svc_serv *serv, int proto)
 {
 	static int warned;
+	struct svc_xprt *xprt;
 	int err = 0;
 
-	if (proto == IPPROTO_UDP || nlm_udpport)
-		if (!find_socket(serv, IPPROTO_UDP))
-			err = svc_makesock(serv, IPPROTO_UDP, nlm_udpport,
-						SVC_SOCK_DEFAULTS);
-	if (err >= 0 && (proto == IPPROTO_TCP || nlm_tcpport))
-		if (!find_socket(serv, IPPROTO_TCP))
-			err = svc_makesock(serv, IPPROTO_TCP, nlm_tcpport,
-						SVC_SOCK_DEFAULTS);
-
+	if (proto == IPPROTO_UDP || nlm_udpport) {
+		xprt = svc_find_xprt(serv, "udp", 0, 0);
+		if (!xprt)
+			err = svc_create_xprt(serv, "udp", nlm_udpport,
+					      SVC_SOCK_DEFAULTS);
+		else
+			svc_xprt_put(xprt);
+	}
+	if (err >= 0 && (proto == IPPROTO_TCP || nlm_tcpport)) {
+		xprt = svc_find_xprt(serv, "tcp", 0, 0);
+		if (!xprt)
+			err = svc_create_xprt(serv, "tcp", nlm_tcpport,
+					      SVC_SOCK_DEFAULTS);
+		else
+			svc_xprt_put(xprt);
+	}
 	if (err >= 0) {
 		warned = 0;
 		err = 0;

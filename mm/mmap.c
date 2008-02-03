@@ -251,7 +251,8 @@ asmlinkage unsigned long sys_brk(unsigned long brk)
 	 * not page aligned -Ram Gupta
 	 */
 	rlim = current->signal->rlim[RLIMIT_DATA].rlim_cur;
-	if (rlim < RLIM_INFINITY && brk - mm->start_data > rlim)
+	if (rlim < RLIM_INFINITY && (brk - mm->start_brk) +
+			(mm->end_data - mm->start_data) > rlim)
 		goto out;
 
 	newbrk = PAGE_ALIGN(brk);
@@ -911,6 +912,9 @@ unsigned long do_mmap_pgoff(struct file * file, unsigned long addr,
 
 	if (!len)
 		return -EINVAL;
+
+	if (!(flags & MAP_FIXED))
+		addr = round_hint_to_min(addr);
 
 	error = arch_mmap_check(addr, len, flags);
 	if (error)
@@ -1615,6 +1619,12 @@ static inline int expand_downwards(struct vm_area_struct *vma,
 	 */
 	if (unlikely(anon_vma_prepare(vma)))
 		return -ENOMEM;
+
+	address &= PAGE_MASK;
+	error = security_file_mmap(NULL, 0, 0, 0, address, 1);
+	if (error)
+		return error;
+
 	anon_vma_lock(vma);
 
 	/*
@@ -1622,8 +1632,6 @@ static inline int expand_downwards(struct vm_area_struct *vma,
 	 * is required to hold the mmap_sem in read mode.  We need the
 	 * anon_vma lock to serialize against concurrent expand_stacks.
 	 */
-	address &= PAGE_MASK;
-	error = 0;
 
 	/* Somebody else might have raced and expanded it already */
 	if (address < vma->vm_start) {
@@ -1933,6 +1941,10 @@ unsigned long do_brk(unsigned long addr, unsigned long len)
 
 	if (is_hugepage_only_range(mm, addr, len))
 		return -EINVAL;
+
+	error = security_file_mmap(NULL, 0, 0, 0, addr, 1);
+	if (error)
+		return error;
 
 	flags = VM_DATA_DEFAULT_FLAGS | VM_ACCOUNT | mm->def_flags;
 

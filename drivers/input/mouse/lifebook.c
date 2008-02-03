@@ -225,8 +225,13 @@ static void lifebook_set_resolution(struct psmouse *psmouse, unsigned int resolu
 
 static void lifebook_disconnect(struct psmouse *psmouse)
 {
+	struct lifebook_data *priv = psmouse->private;
+
 	psmouse_reset(psmouse);
-	kfree(psmouse->private);
+	if (priv) {
+		input_unregister_device(priv->dev2);
+		kfree(priv);
+	}
 	psmouse->private = NULL;
 }
 

@@ -263,27 +263,22 @@ static ctl_table sctp_table[] = {
 		.proc_handler	= &proc_dointvec,
 		.strategy	= &sysctl_intvec
 	},
-	{ .ctl_name = 0 }
-};
-
-static ctl_table sctp_net_table[] = {
 	{
-		.ctl_name	= NET_SCTP,
-		.procname	= "sctp",
-		.mode		= 0555,
-		.child		= sctp_table
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "addip_noauth_enable",
+		.data		= &sctp_addip_noauth,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+		.strategy	= &sysctl_intvec
 	},
 	{ .ctl_name = 0 }
 };
 
-static ctl_table sctp_root_table[] = {
-	{
-		.ctl_name	= CTL_NET,
-		.procname	= "net",
-		.mode		= 0555,
-		.child		= sctp_net_table
-	},
-	{ .ctl_name = 0 }
+static struct ctl_path sctp_path[] = {
+	{ .procname = "net", .ctl_name = CTL_NET, },
+	{ .procname = "sctp", .ctl_name = NET_SCTP, },
+	{ }
 };
 
 static struct ctl_table_header * sctp_sysctl_header;
@@ -291,7 +286,7 @@ static struct ctl_table_header * sctp_sysctl_header;
 /* Sysctl registration.  */
 void sctp_sysctl_register(void)
 {
-	sctp_sysctl_header = register_sysctl_table(sctp_root_table);
+	sctp_sysctl_header = register_sysctl_paths(sctp_path, sctp_table);
 }
 
 /* Sysctl deregistration.  */

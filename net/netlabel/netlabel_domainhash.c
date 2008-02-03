@@ -54,9 +54,6 @@ struct netlbl_domhsh_tbl {
  * hash table should be okay */
 static DEFINE_SPINLOCK(netlbl_domhsh_lock);
 static struct netlbl_domhsh_tbl *netlbl_domhsh = NULL;
-
-/* Default domain mapping */
-static DEFINE_SPINLOCK(netlbl_domhsh_def_lock);
 static struct netlbl_dom_map *netlbl_domhsh_def = NULL;
 
 /*
@@ -109,17 +106,14 @@ static u32 netlbl_domhsh_hash(const char *key)
 /**
  * netlbl_domhsh_search - Search for a domain entry
  * @domain: the domain
- * @def: return default if no match is found
  *
  * Description:
  * Searches the domain hash table and returns a pointer to the hash table
- * entry if found, otherwise NULL is returned.  If @def is non-zero and a
- * match is not found in the domain hash table the default mapping is returned
- * if it exists.  The caller is responsibile for the rcu hash table locks
- * (i.e. the caller much call rcu_read_[un]lock()).
+ * entry if found, otherwise NULL is returned.  The caller is responsibile for
+ * the rcu hash table locks (i.e. the caller much call rcu_read_[un]lock()).
  *
  */
-static struct netlbl_dom_map *netlbl_domhsh_search(const char *domain, u32 def)
+static struct netlbl_dom_map *netlbl_domhsh_search(const char *domain)
 {
 	u32 bkt;
 	struct netlbl_dom_map *iter;
@@ -133,10 +127,31 @@ static struct netlbl_dom_map *netlbl_domhsh_search(const char *domain, u32 def)
 				return iter;
 	}
 
-	if (def != 0) {
-		iter = rcu_dereference(netlbl_domhsh_def);
-		if (iter != NULL && iter->valid)
-			return iter;
+	return NULL;
+}
+
+/**
+ * netlbl_domhsh_search_def - Search for a domain entry
+ * @domain: the domain
+ * @def: return default if no match is found
+ *
+ * Description:
+ * Searches the domain hash table and returns a pointer to the hash table
+ * entry if an exact match is found, if an exact match is not present in the
+ * hash table then the default entry is returned if valid otherwise NULL is
+ * returned.  The caller is responsibile for the rcu hash table locks
+ * (i.e. the caller much call rcu_read_[un]lock()).
+ *
+ */
+static struct netlbl_dom_map *netlbl_domhsh_search_def(const char *domain)
+{
+	struct netlbl_dom_map *entry;
+
+	entry = netlbl_domhsh_search(domain);
+	if (entry == NULL) {
+		entry = rcu_dereference(netlbl_domhsh_def);
+		if (entry != NULL && entry->valid)
+			return entry;
 	}
 
 	return NULL;
@@ -221,24 +236,22 @@ int netlbl_domhsh_add(struct netlbl_dom_map *entry,
 	INIT_RCU_HEAD(&entry->rcu);
 
 	rcu_read_lock();
+	spin_lock(&netlbl_domhsh_lock);
 	if (entry->domain != NULL) {
 		bkt = netlbl_domhsh_hash(entry->domain);
-		spin_lock(&netlbl_domhsh_lock);
-		if (netlbl_domhsh_search(entry->domain, 0) == NULL)
+		if (netlbl_domhsh_search(entry->domain) == NULL)
 			list_add_tail_rcu(&entry->list,
 				    &rcu_dereference(netlbl_domhsh)->tbl[bkt]);
 		else
 			ret_val = -EEXIST;
-		spin_unlock(&netlbl_domhsh_lock);
 	} else {
 		INIT_LIST_HEAD(&entry->list);
-		spin_lock(&netlbl_domhsh_def_lock);
 		if (rcu_dereference(netlbl_domhsh_def) == NULL)
 			rcu_assign_pointer(netlbl_domhsh_def, entry);
 		else
 			ret_val = -EEXIST;
-		spin_unlock(&netlbl_domhsh_def_lock);
 	}
+	spin_unlock(&netlbl_domhsh_lock);
 	audit_buf = netlbl_audit_start_common(AUDIT_MAC_MAP_ADD, audit_info);
 	if (audit_buf != NULL) {
 		audit_log_format(audit_buf,
@@ -307,7 +320,10 @@ int netlbl_domhsh_remove(const char *domain, struct netlbl_audit *audit_info)
 	struct audit_buffer *audit_buf;
 
 	rcu_read_lock();
-	entry = netlbl_domhsh_search(domain, (domain != NULL ? 0 : 1));
+	if (domain)
+		entry = netlbl_domhsh_search(domain);
+	else
+		entry = netlbl_domhsh_search_def(domain);
 	if (entry == NULL)
 		goto remove_return;
 	switch (entry->type) {
@@ -316,23 +332,16 @@ int netlbl_domhsh_remove(const char *domain, struct netlbl_audit *audit_info)
 					   entry->domain);
 		break;
 	}
-	if (entry != rcu_dereference(netlbl_domhsh_def)) {
-		spin_lock(&netlbl_domhsh_lock);
-		if (entry->valid) {
-			entry->valid = 0;
+	spin_lock(&netlbl_domhsh_lock);
+	if (entry->valid) {
+		entry->valid = 0;
+		if (entry != rcu_dereference(netlbl_domhsh_def))
 			list_del_rcu(&entry->list);
-			ret_val = 0;
-		}
-		spin_unlock(&netlbl_domhsh_lock);
-	} else {
-		spin_lock(&netlbl_domhsh_def_lock);
-		if (entry->valid) {
-			entry->valid = 0;
+		else
 			rcu_assign_pointer(netlbl_domhsh_def, NULL);
-			ret_val = 0;
-		}
-		spin_unlock(&netlbl_domhsh_def_lock);
+		ret_val = 0;
 	}
+	spin_unlock(&netlbl_domhsh_lock);
 
 	audit_buf = netlbl_audit_start_common(AUDIT_MAC_MAP_DEL, audit_info);
 	if (audit_buf != NULL) {
@@ -377,7 +386,7 @@ int netlbl_domhsh_remove_default(struct netlbl_audit *audit_info)
  */
 struct netlbl_dom_map *netlbl_domhsh_getentry(const char *domain)
 {
-	return netlbl_domhsh_search(domain, 1);
+	return netlbl_domhsh_search_def(domain);
 }
 
 /**

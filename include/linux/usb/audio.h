@@ -27,13 +27,13 @@
 
 /* 4.3.2  Class-Specific AC Interface Descriptor */
 struct usb_ac_header_descriptor {
-	__u8  bLength;			// 8+n
-	__u8  bDescriptorType;		// USB_DT_CS_INTERFACE
-	__u8  bDescriptorSubtype;	// USB_MS_HEADER
-	__le16 bcdADC;			// 0x0100
-	__le16 wTotalLength;		// includes Unit and Terminal desc.
-	__u8  bInCollection;		// n
-	__u8  baInterfaceNr[];		// [n]
+	__u8  bLength;			/* 8+n */
+	__u8  bDescriptorType;		/* USB_DT_CS_INTERFACE */
+	__u8  bDescriptorSubtype;	/* USB_MS_HEADER */
+	__le16 bcdADC;			/* 0x0100 */
+	__le16 wTotalLength;		/* includes Unit and Terminal desc. */
+	__u8  bInCollection;		/* n */
+	__u8  baInterfaceNr[];		/* [n] */
 } __attribute__ ((packed));
 
 #define USB_DT_AC_HEADER_SIZE(n)	(8+(n))

@@ -11,100 +11,22 @@
 /* For __swab32 */
 #include <asm/byteorder.h>
 
-static inline void set_bit(int nr, volatile void * addr)
-{
-	int	mask;
-	volatile unsigned int *a = addr;
-	unsigned long flags;
+#ifdef CONFIG_GUSA_RB
+#include <asm/bitops-grb.h>
+#else
+#include <asm/bitops-irq.h>
+#endif
 
-	a += nr >> 5;
-	mask = 1 << (nr & 0x1f);
-	local_irq_save(flags);
-	*a |= mask;
-	local_irq_restore(flags);
-}
 
 /*
  * clear_bit() doesn't provide any barrier for the compiler.
  */
 #define smp_mb__before_clear_bit()	barrier()
 #define smp_mb__after_clear_bit()	barrier()
-static inline void clear_bit(int nr, volatile void * addr)
-{
-	int	mask;
-	volatile unsigned int *a = addr;
-	unsigned long flags;
-
-	a += nr >> 5;
-	mask = 1 << (nr & 0x1f);
-	local_irq_save(flags);
-	*a &= ~mask;
-	local_irq_restore(flags);
-}
-
-static inline void change_bit(int nr, volatile void * addr)
-{
-	int	mask;
-	volatile unsigned int *a = addr;
-	unsigned long flags;
-
-	a += nr >> 5;
-	mask = 1 << (nr & 0x1f);
-	local_irq_save(flags);
-	*a ^= mask;
-	local_irq_restore(flags);
-}
-
-static inline int test_and_set_bit(int nr, volatile void * addr)
-{
-	int	mask, retval;
-	volatile unsigned int *a = addr;
-	unsigned long flags;
-
-	a += nr >> 5;
-	mask = 1 << (nr & 0x1f);
-	local_irq_save(flags);
-	retval = (mask & *a) != 0;
-	*a |= mask;
-	local_irq_restore(flags);
-
-	return retval;
-}
-
-static inline int test_and_clear_bit(int nr, volatile void * addr)
-{
-	int	mask, retval;
-	volatile unsigned int *a = addr;
-	unsigned long flags;
-
-	a += nr >> 5;
-	mask = 1 << (nr & 0x1f);
-	local_irq_save(flags);
-	retval = (mask & *a) != 0;
-	*a &= ~mask;
-	local_irq_restore(flags);
-
-	return retval;
-}
-
-static inline int test_and_change_bit(int nr, volatile void * addr)
-{
-	int	mask, retval;
-	volatile unsigned int *a = addr;
-	unsigned long flags;
-
-	a += nr >> 5;
-	mask = 1 << (nr & 0x1f);
-	local_irq_save(flags);
-	retval = (mask & *a) != 0;
-	*a ^= mask;
-	local_irq_restore(flags);
-
-	return retval;
-}
 
 #include <asm-generic/bitops/non-atomic.h>
 
+#ifdef CONFIG_SUPERH32
 static inline unsigned long ffz(unsigned long word)
 {
 	unsigned long result;
@@ -138,6 +60,31 @@ static inline unsigned long __ffs(unsigned long word)
 		: "t");
 	return result;
 }
+#else
+static inline unsigned long ffz(unsigned long word)
+{
+	unsigned long result, __d2, __d3;
+
+        __asm__("gettr  tr0, %2\n\t"
+                "pta    $+32, tr0\n\t"
+                "andi   %1, 1, %3\n\t"
+                "beq    %3, r63, tr0\n\t"
+                "pta    $+4, tr0\n"
+                "0:\n\t"
+                "shlri.l        %1, 1, %1\n\t"
+                "addi   %0, 1, %0\n\t"
+                "andi   %1, 1, %3\n\t"
+                "beqi   %3, 1, tr0\n"
+                "1:\n\t"
+                "ptabs  %2, tr0\n\t"
+                : "=r" (result), "=r" (word), "=r" (__d2), "=r" (__d3)
+                : "0" (0L), "1" (word));
+
+	return result;
+}
+
+#include <asm-generic/bitops/__ffs.h>
+#endif
 
 #include <asm-generic/bitops/find.h>
 #include <asm-generic/bitops/ffs.h>

@@ -60,7 +60,7 @@
 	nop
 	movel	#0x0000c020, %d0	/* Set SDRAM cached only */
 	movec	%d0, %ACR0
-	movel	#0xff00c000, %d0	/* Cache Flash also */
+	movel	#0x00000000, %d0	/* No other regions cached */
 	movec	%d0, %ACR1
 	movel	#0x80000200, %d0	/* Setup cache mask */
 	movec	%d0, %CACR		/* Enable cache */

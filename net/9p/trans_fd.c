@@ -62,13 +62,14 @@ struct p9_trans_fd {
 
 enum {
 	/* Options that take integer arguments */
-	Opt_port, Opt_rfdno, Opt_wfdno,
+	Opt_port, Opt_rfdno, Opt_wfdno, Opt_err,
 };
 
 static match_table_t tokens = {
 	{Opt_port, "port=%u"},
 	{Opt_rfdno, "rfdno=%u"},
 	{Opt_wfdno, "wfdno=%u"},
+	{Opt_err, NULL},
 };
 
 /**

@@ -19,11 +19,17 @@
 #include <asm/sgialib.h>
 #endif
 
+#ifdef CONFIG_SNIPROM
+#include <asm/mipsprom.h>
+#endif
+
+#include <asm/bootinfo.h>
 #include <asm/io.h>
 #include <asm/reboot.h>
 #include <asm/sni.h>
 
 unsigned int sni_brd_type;
+EXPORT_SYMBOL(sni_brd_type);
 
 extern void sni_machine_restart(char *command);
 extern void sni_machine_power_off(void);
@@ -47,18 +53,150 @@ static void __init sni_display_setup(void)
 #endif
 }
 
+static void __init sni_console_setup(void)
+{
+#ifndef CONFIG_ARC
+	char *ctype;
+	char *cdev;
+	char *baud;
+	int port;
+	static char options[8];
+
+	cdev = prom_getenv("console_dev");
+	if (strncmp(cdev, "tty", 3) == 0) {
+		ctype = prom_getenv("console");
+		switch (*ctype) {
+		default:
+		case 'l':
+			port = 0;
+			baud = prom_getenv("lbaud");
+			break;
+		case 'r':
+			port = 1;
+			baud = prom_getenv("rbaud");
+			break;
+		}
+		if (baud)
+			strcpy(options, baud);
+		if (strncmp(cdev, "tty552", 6) == 0)
+			add_preferred_console("ttyS", port,
+					      baud ? options : NULL);
+		else
+			add_preferred_console("ttySC", port,
+					      baud ? options : NULL);
+	}
+#endif
+}
+
+#ifdef DEBUG
+static void __init sni_idprom_dump(void)
+{
+	int	i;
+
+	pr_debug("SNI IDProm dump:\n");
+	for (i = 0; i < 256; i++) {
+		if (i%16 == 0)
+			pr_debug("%04x ", i);
+
+		printk("%02x ", *(unsigned char *) (SNI_IDPROM_BASE + i));
+
+		if (i % 16 == 15)
+			printk("\n");
+	}
+}
+#endif
 
 void __init plat_mem_setup(void)
 {
+	int cputype;
+
 	set_io_port_base(SNI_PORT_BASE);
 //	ioport_resource.end = sni_io_resource.end;
 
 	/*
 	 * Setup (E)ISA I/O memory access stuff
 	 */
-	isa_slot_offset = 0xb0000000;
+	isa_slot_offset = CKSEG1ADDR(0xb0000000);
 #ifdef CONFIG_EISA
 	EISA_bus = 1;
+#endif
+
+	sni_brd_type = *(unsigned char *)SNI_IDPROM_BRDTYPE;
+	cputype = *(unsigned char *)SNI_IDPROM_CPUTYPE;
+	switch (sni_brd_type) {
+	case SNI_BRD_TOWER_OASIC:
+		switch (cputype) {
+		case SNI_CPU_M8030:
+			system_type = "RM400-330";
+			break;
+		case SNI_CPU_M8031:
+			system_type = "RM400-430";
+			break;
+		case SNI_CPU_M8037:
+			system_type = "RM400-530";
+			break;
+		case SNI_CPU_M8034:
+			system_type = "RM400-730";
+			break;
+		default:
+			system_type = "RM400-xxx";
+			break;
+		}
+		break;
+	case SNI_BRD_MINITOWER:
+		switch (cputype) {
+		case SNI_CPU_M8021:
+		case SNI_CPU_M8043:
+			system_type = "RM400-120";
+			break;
+		case SNI_CPU_M8040:
+			system_type = "RM400-220";
+			break;
+		case SNI_CPU_M8053:
+			system_type = "RM400-225";
+			break;
+		case SNI_CPU_M8050:
+			system_type = "RM400-420";
+			break;
+		default:
+			system_type = "RM400-xxx";
+			break;
+		}
+		break;
+	case SNI_BRD_PCI_TOWER:
+		system_type = "RM400-Cxx";
+		break;
+	case SNI_BRD_RM200:
+		system_type = "RM200-xxx";
+		break;
+	case SNI_BRD_PCI_MTOWER:
+		system_type = "RM300-Cxx";
+		break;
+	case SNI_BRD_PCI_DESKTOP:
+		switch (read_c0_prid() & 0xff00) {
+		case PRID_IMP_R4600:
+		case PRID_IMP_R4700:
+			system_type = "RM200-C20";
+			break;
+		case PRID_IMP_R5000:
+			system_type = "RM200-C40";
+			break;
+		default:
+			system_type = "RM200-Cxx";
+			break;
+		}
+		break;
+	case SNI_BRD_PCI_TOWER_CPLUS:
+		system_type = "RM400-Exx";
+		break;
+	case SNI_BRD_PCI_MTOWER_CPLUS:
+		system_type = "RM300-Exx";
+		break;
+	}
+	pr_debug("Found SNI brdtype %02x name %s\n", sni_brd_type, system_type);
+
+#ifdef DEBUG
+	sni_idprom_dump();
 #endif
 
 	switch (sni_brd_type) {
@@ -89,9 +227,10 @@ void __init plat_mem_setup(void)
 	pm_power_off = sni_machine_power_off;
 
 	sni_display_setup();
+	sni_console_setup();
 }
 
-#if CONFIG_PCI
+#ifdef CONFIG_PCI
 
 #include <linux/pci.h>
 #include <video/vga.h>

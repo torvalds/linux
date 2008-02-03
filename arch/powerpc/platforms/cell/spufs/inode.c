@@ -171,6 +171,7 @@ static int spufs_rmdir(struct inode *parent, struct dentry *dir)
 {
 	/* remove all entries */
 	spufs_prune_dir(dir);
+	d_drop(dir);
 
 	return simple_rmdir(parent, dir);
 }

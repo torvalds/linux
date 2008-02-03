@@ -15,49 +15,27 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-
-/*  *********************************************************************
-    *
-    *  Broadcom Common Firmware Environment (CFE)
-    *
-    *  Device function prototypes		File: cfe_api.h
-    *
-    *  This file contains declarations for doing callbacks to
-    *  cfe from an application.  It should be the only header
-    *  needed by the application to use this library
-    *
-    *  Authors:  Mitch Lichtenberg, Chris Demetriou
-    *
-    ********************************************************************* */
-
+/*
+ * Broadcom Common Firmware Environment (CFE)
+ *
+ * This file contains declarations for doing callbacks to
+ * cfe from an application.  It should be the only header
+ * needed by the application to use this library
+ *
+ * Authors:  Mitch Lichtenberg, Chris Demetriou
+ */
 #ifndef CFE_API_H
 #define CFE_API_H
 
-/*
- * Apply customizations here for different OSes.  These need to:
- *	* typedef uint64_t, int64_t, intptr_t, uintptr_t.
- *	* define cfe_strlen() if use of an existing function is desired.
- *	* define CFE_API_IMPL_NAMESPACE if API functions are to use
- *	  names in the implementation namespace.
- * Also, optionally, if the build environment does not do so automatically,
- * CFE_API_* can be defined here as desired.
- */
-/* Begin customization. */
 #include <linux/types.h>
 #include <linux/string.h>
 
 typedef long intptr_t;
 
-#define cfe_strlen strlen
 
-#define CFE_API_ALL
-#define CFE_API_STRLEN_CUSTOM
-/* End customization. */
-
-
-/*  *********************************************************************
-    *  Constants
-    ********************************************************************* */
+/*
+ * Constants
+ */
 
 /* Seal indicating CFE's presence, passed to user program. */
 #define CFE_EPTSEAL 0x43464531
@@ -109,54 +87,13 @@ typedef struct {
 
 
 /*
- * cfe_strlen is handled specially: If already defined, it has been
- * overridden in this environment with a standard strlen-like function.
- */
-#ifdef cfe_strlen
-# define CFE_API_STRLEN_CUSTOM
-#else
-# ifdef CFE_API_IMPL_NAMESPACE
-#  define cfe_strlen(a)			__cfe_strlen(a)
-# endif
-int cfe_strlen(char *name);
-#endif
-
-/*
  * Defines and prototypes for functions which take no arguments.
  */
-#ifdef CFE_API_IMPL_NAMESPACE
-int64_t __cfe_getticks(void);
-#define cfe_getticks()			__cfe_getticks()
-#else
 int64_t cfe_getticks(void);
-#endif
 
 /*
  * Defines and prototypes for the rest of the functions.
  */
-#ifdef CFE_API_IMPL_NAMESPACE
-#define cfe_close(a)			__cfe_close(a)
-#define cfe_cpu_start(a, b, c, d, e)	__cfe_cpu_start(a, b, c, d, e)
-#define cfe_cpu_stop(a)			__cfe_cpu_stop(a)
-#define cfe_enumenv(a, b, d, e, f)	__cfe_enumenv(a, b, d, e, f)
-#define cfe_enummem(a, b, c, d, e)	__cfe_enummem(a, b, c, d, e)
-#define cfe_exit(a, b)			__cfe_exit(a, b)
-#define cfe_flushcache(a)		__cfe_cacheflush(a)
-#define cfe_getdevinfo(a)		__cfe_getdevinfo(a)
-#define cfe_getenv(a, b, c)		__cfe_getenv(a, b, c)
-#define cfe_getfwinfo(a)		__cfe_getfwinfo(a)
-#define cfe_getstdhandle(a)		__cfe_getstdhandle(a)
-#define cfe_init(a, b)			__cfe_init(a, b)
-#define cfe_inpstat(a)			__cfe_inpstat(a)
-#define cfe_ioctl(a, b, c, d, e, f)	__cfe_ioctl(a, b, c, d, e, f)
-#define cfe_open(a)			__cfe_open(a)
-#define cfe_read(a, b, c)		__cfe_read(a, b, c)
-#define cfe_readblk(a, b, c, d)		__cfe_readblk(a, b, c, d)
-#define cfe_setenv(a, b)		__cfe_setenv(a, b)
-#define cfe_write(a, b, c)		__cfe_write(a, b, c)
-#define cfe_writeblk(a, b, c, d)	__cfe_writeblk(a, b, c, d)
-#endif				/* CFE_API_IMPL_NAMESPACE */
-
 int cfe_close(int handle);
 int cfe_cpu_start(int cpu, void (*fn) (void), long sp, long gp, long a1);
 int cfe_cpu_stop(int cpu);

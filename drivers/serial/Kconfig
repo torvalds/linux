@@ -600,7 +600,7 @@ config SERIAL_SA1100_CONSOLE
 
 config SERIAL_BFIN
 	tristate "Blackfin serial port support"
-	depends on BFIN
+	depends on BLACKFIN
 	select SERIAL_CORE
 	select SERIAL_BFIN_UART0 if (BF531 || BF532 || BF533 || BF561)
 	help
@@ -960,6 +960,30 @@ config SERIAL_COLDFIRE
 	  This driver supports the built-in serial ports of the Motorola ColdFire
 	  family of CPUs.
 
+config SERIAL_MCF
+	bool "Coldfire serial support (new style driver)"
+	depends on COLDFIRE
+	select SERIAL_CORE
+	help
+	  This new serial driver supports the Freescale Coldfire serial ports
+	  using the new serial driver subsystem.
+
+config SERIAL_MCF_BAUDRATE
+	int "Default baudrate for Coldfire serial ports"
+	depends on SERIAL_MCF
+	default 19200
+	help
+	  This setting lets you define what the default baudrate is for the
+	  ColdFire serial ports. The usual default varies from board to board,
+	  and this setting is a way of catering for that.
+
+config SERIAL_MCF_CONSOLE
+	bool "Coldfire serial console support"
+	depends on SERIAL_MCF
+	select SERIAL_CORE_CONSOLE
+	help
+	  Enable a ColdFire internal serial port to be the system console.
+
 config SERIAL_68360_SMC
 	bool "68360 SMC uart support"
 	depends on M68360
@@ -1283,5 +1307,15 @@ config SERIAL_OF_PLATFORM
 	  on a platform specific bus, you should enable this option.
 	  Currently, only 8250 compatible ports are supported, but
 	  others can easily be added.
+
+config SERIAL_QE
+	tristate "Freescale QUICC Engine serial port support"
+	depends on QUICC_ENGINE
+	select SERIAL_CORE
+	select FW_LOADER
+	default n
+	help
+	  This driver supports the QE serial ports on Freescale embedded
+	  PowerPC that contain a QUICC Engine.
 
 endmenu

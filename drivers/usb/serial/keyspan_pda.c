@@ -303,7 +303,7 @@ static void keyspan_pda_rx_unthrottle (struct usb_serial_port *port)
 }
 
 
-static int keyspan_pda_setbaud (struct usb_serial *serial, int baud)
+static speed_t keyspan_pda_setbaud (struct usb_serial *serial, speed_t baud)
 {
 	int rc;
 	int bindex;
@@ -319,7 +319,9 @@ static int keyspan_pda_setbaud (struct usb_serial *serial, int baud)
 		case 38400: bindex = 7; break;
 		case 57600: bindex = 8; break;
 		case 115200: bindex = 9; break;
-		default: return -EINVAL;
+		default:
+			bindex = 5;	/* Default to 9600 */
+			baud = 9600;
 	}
 
 	/* rather than figure out how to sleep while waiting for this
@@ -334,7 +336,9 @@ static int keyspan_pda_setbaud (struct usb_serial *serial, int baud)
 			     NULL, /* &data */
 			     0, /* size */
 			     2000); /* timeout */
-	return(rc);
+	if (rc < 0)
+		return 0;
+	return baud;
 }
 
 
@@ -366,7 +370,7 @@ static void keyspan_pda_set_termios (struct usb_serial_port *port,
 				     struct ktermios *old_termios)
 {
 	struct usb_serial *serial = port->serial;
-	unsigned int cflag = port->tty->termios->c_cflag;
+	speed_t speed;
 
 	/* cflag specifies lots of stuff: number of stop bits, parity, number
 	   of data bits, baud. What can the device actually handle?:
@@ -388,22 +392,18 @@ static void keyspan_pda_set_termios (struct usb_serial_port *port,
 
 	   For now, just do baud. */
 
-	switch (cflag & CBAUD) {
-		/* we could support more values here, just need to calculate
-		   the necessary divisors in the firmware. <asm/termbits.h>
-		   has the Bnnn constants. */
-		case B110: keyspan_pda_setbaud(serial, 110); break;
-		case B300: keyspan_pda_setbaud(serial, 300); break;
-		case B1200: keyspan_pda_setbaud(serial, 1200); break;
-		case B2400: keyspan_pda_setbaud(serial, 2400); break;
-		case B4800: keyspan_pda_setbaud(serial, 4800); break;
-		case B9600: keyspan_pda_setbaud(serial, 9600); break;
-		case B19200: keyspan_pda_setbaud(serial, 19200); break;
-		case B38400: keyspan_pda_setbaud(serial, 38400); break;
-		case B57600: keyspan_pda_setbaud(serial, 57600); break;
-		case B115200: keyspan_pda_setbaud(serial, 115200); break;
-		default: dbg("can't handle requested baud rate"); break;
+	speed = tty_get_baud_rate(port->tty);
+	speed = keyspan_pda_setbaud(serial, speed);
+
+	if (speed == 0) {
+		dbg("can't handle requested baud rate");
+		/* It hasn't changed so.. */
+		speed = tty_termios_baud_rate(old_termios);
 	}
+	/* Only speed can change so copy the old h/w parameters
+	   then encode the new speed */
+	tty_termios_copy_hw(port->tty->termios, old_termios);
+	tty_encode_baud_rate(port->tty, speed, speed);
 }
 
 

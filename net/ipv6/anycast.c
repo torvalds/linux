@@ -89,7 +89,7 @@ int ipv6_sock_ac_join(struct sock *sk, int ifindex, struct in6_addr *addr)
 		return -EPERM;
 	if (ipv6_addr_is_multicast(addr))
 		return -EINVAL;
-	if (ipv6_chk_addr(addr, NULL, 0))
+	if (ipv6_chk_addr(&init_net, addr, NULL, 0))
 		return -EINVAL;
 
 	pac = sock_kmalloc(sk, sizeof(struct ipv6_ac_socklist), GFP_KERNEL);
@@ -504,6 +504,7 @@ static struct ifacaddr6 *ac6_get_idx(struct seq_file *seq, loff_t pos)
 }
 
 static void *ac6_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(dev_base_lock)
 {
 	read_lock(&dev_base_lock);
 	return ac6_get_idx(seq, *pos);
@@ -518,6 +519,7 @@ static void *ac6_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void ac6_seq_stop(struct seq_file *seq, void *v)
+	__releases(dev_base_lock)
 {
 	struct ac6_iter_state *state = ac6_seq_private(seq);
 	if (likely(state->idev != NULL)) {

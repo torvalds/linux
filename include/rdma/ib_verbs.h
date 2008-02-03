@@ -48,9 +48,9 @@
 #include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/rwsem.h>
+#include <linux/scatterlist.h>
 
 #include <asm/atomic.h>
-#include <asm/scatterlist.h>
 #include <asm/uaccess.h>
 
 union ib_gid {
@@ -1026,7 +1026,7 @@ struct ib_device {
 
 	struct module               *owner;
 	struct class_device          class_dev;
-	struct kobject               ports_parent;
+	struct kobject               *ports_parent;
 	struct list_head             port_list;
 
 	enum {

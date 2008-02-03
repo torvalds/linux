@@ -32,9 +32,6 @@
 
 #include <asm/uaccess.h>
 
-extern char e1000_driver_name[];
-extern char e1000_driver_version[];
-
 extern int e1000_up(struct e1000_adapter *adapter);
 extern void e1000_down(struct e1000_adapter *adapter);
 extern void e1000_reinit_locked(struct e1000_adapter *adapter);
@@ -113,7 +110,7 @@ static const char e1000_gstrings_test[][ETH_GSTRING_LEN] = {
 	"Interrupt test (offline)", "Loopback test  (offline)",
 	"Link test   (on/offline)"
 };
-#define E1000_TEST_LEN sizeof(e1000_gstrings_test) / ETH_GSTRING_LEN
+#define E1000_TEST_LEN	ARRAY_SIZE(e1000_gstrings_test)
 
 static int
 e1000_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
@@ -731,38 +728,64 @@ err_setup:
 	return err;
 }
 
-#define REG_PATTERN_TEST(R, M, W)                                              \
-{                                                                              \
-	uint32_t pat, value;                                                   \
-	uint32_t test[] =                                                      \
-		{0x5A5A5A5A, 0xA5A5A5A5, 0x00000000, 0xFFFFFFFF};              \
-	for (pat = 0; pat < ARRAY_SIZE(test); pat++) {              \
-		E1000_WRITE_REG(&adapter->hw, R, (test[pat] & W));             \
-		value = E1000_READ_REG(&adapter->hw, R);                       \
-		if (value != (test[pat] & W & M)) {                             \
-			DPRINTK(DRV, ERR, "pattern test reg %04X failed: got " \
-			        "0x%08X expected 0x%08X\n",                    \
-			        E1000_##R, value, (test[pat] & W & M));        \
-			*data = (adapter->hw.mac_type < e1000_82543) ?         \
-				E1000_82542_##R : E1000_##R;                   \
-			return 1;                                              \
-		}                                                              \
-	}                                                                      \
+static bool reg_pattern_test(struct e1000_adapter *adapter, uint64_t *data,
+			     int reg, uint32_t mask, uint32_t write)
+{
+	static const uint32_t test[] =
+		{0x5A5A5A5A, 0xA5A5A5A5, 0x00000000, 0xFFFFFFFF};
+	uint8_t __iomem *address = adapter->hw.hw_addr + reg;
+	uint32_t read;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(test); i++) {
+		writel(write & test[i], address);
+		read = readl(address);
+		if (read != (write & test[i] & mask)) {
+			DPRINTK(DRV, ERR, "pattern test reg %04X failed: "
+				"got 0x%08X expected 0x%08X\n",
+				reg, read, (write & test[i] & mask));
+			*data = reg;
+			return true;
+		}
+	}
+	return false;
 }
 
-#define REG_SET_AND_CHECK(R, M, W)                                             \
-{                                                                              \
-	uint32_t value;                                                        \
-	E1000_WRITE_REG(&adapter->hw, R, W & M);                               \
-	value = E1000_READ_REG(&adapter->hw, R);                               \
-	if ((W & M) != (value & M)) {                                          \
-		DPRINTK(DRV, ERR, "set/check reg %04X test failed: got 0x%08X "\
-		        "expected 0x%08X\n", E1000_##R, (value & M), (W & M)); \
-		*data = (adapter->hw.mac_type < e1000_82543) ?                 \
-			E1000_82542_##R : E1000_##R;                           \
-		return 1;                                                      \
-	}                                                                      \
+static bool reg_set_and_check(struct e1000_adapter *adapter, uint64_t *data,
+			      int reg, uint32_t mask, uint32_t write)
+{
+	uint8_t __iomem *address = adapter->hw.hw_addr + reg;
+	uint32_t read;
+
+	writel(write & mask, address);
+	read = readl(address);
+	if ((read & mask) != (write & mask)) {
+		DPRINTK(DRV, ERR, "set/check reg %04X test failed: "
+			"got 0x%08X expected 0x%08X\n",
+			reg, (read & mask), (write & mask));
+		*data = reg;
+		return true;
+	}
+	return false;
 }
+
+#define REG_PATTERN_TEST(reg, mask, write)			     \
+	do {							     \
+		if (reg_pattern_test(adapter, data,		     \
+			     (adapter->hw.mac_type >= e1000_82543)   \
+			     ? E1000_##reg : E1000_82542_##reg,	     \
+			     mask, write))			     \
+			return 1;				     \
+	} while (0)
+
+#define REG_SET_AND_CHECK(reg, mask, write)			     \
+	do {							     \
+		if (reg_set_and_check(adapter, data,		     \
+			      (adapter->hw.mac_type >= e1000_82543)  \
+			      ? E1000_##reg : E1000_82542_##reg,     \
+			      mask, write))			     \
+			return 1;				     \
+	} while (0)
 
 static int
 e1000_reg_test(struct e1000_adapter *adapter, uint64_t *data)
@@ -1621,8 +1644,6 @@ e1000_get_sset_count(struct net_device *netdev, int sset)
 	}
 }
 
-extern void e1000_power_up_phy(struct e1000_adapter *);
-
 static void
 e1000_diag_test(struct net_device *netdev,
 		   struct ethtool_test *eth_test, uint64_t *data)
@@ -1859,8 +1880,8 @@ e1000_phys_id(struct net_device *netdev, uint32_t data)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 
-	if (!data || data > (uint32_t)(MAX_SCHEDULE_TIMEOUT / HZ))
-		data = (uint32_t)(MAX_SCHEDULE_TIMEOUT / HZ);
+	if (!data)
+		data = INT_MAX;
 
 	if (adapter->hw.mac_type < e1000_82571) {
 		if (!adapter->blink_timer.function) {
@@ -1928,7 +1949,7 @@ e1000_get_strings(struct net_device *netdev, uint32_t stringset, uint8_t *data)
 	switch (stringset) {
 	case ETH_SS_TEST:
 		memcpy(data, *e1000_gstrings_test,
-			E1000_TEST_LEN*ETH_GSTRING_LEN);
+			sizeof(e1000_gstrings_test));
 		break;
 	case ETH_SS_STATS:
 		for (i = 0; i < E1000_GLOBAL_STATS_LEN; i++) {

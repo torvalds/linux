@@ -633,7 +633,7 @@ static void apb_init(struct pci_bus *sabre_bus)
 	}
 }
 
-static void sabre_scan_bus(struct pci_pbm_info *pbm)
+static void __init sabre_scan_bus(struct pci_pbm_info *pbm)
 {
 	static int once;
 
@@ -731,7 +731,8 @@ static int sabre_iommu_init(struct pci_pbm_info *pbm,
 	return 0;
 }
 
-static void sabre_pbm_init(struct pci_controller_info *p, struct pci_pbm_info *pbm, struct device_node *dp)
+static void __init sabre_pbm_init(struct pci_controller_info *p,
+				  struct pci_pbm_info *pbm, struct device_node *dp)
 {
 	pbm->name = dp->full_name;
 	printk("%s: SABRE PCI Bus Module\n", pbm->name);
@@ -750,7 +751,7 @@ static void sabre_pbm_init(struct pci_controller_info *p, struct pci_pbm_info *p
 	pci_determine_mem_io_space(pbm);
 }
 
-void sabre_init(struct device_node *dp, char *model_name)
+void __init sabre_init(struct device_node *dp, char *model_name)
 {
 	const struct linux_prom64_registers *pr_regs;
 	struct pci_controller_info *p;

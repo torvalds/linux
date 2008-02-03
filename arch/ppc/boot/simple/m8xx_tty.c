@@ -11,7 +11,7 @@
 #include <linux/types.h>
 #include <asm/uaccess.h>
 #include <asm/mpc8xx.h>
-#include <asm/commproc.h>
+#include <asm/cpm1.h>
 
 #ifdef CONFIG_MBX
 #define MBX_CSR1	((volatile u_char *)0xfa100000)

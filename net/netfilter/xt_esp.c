@@ -20,7 +20,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Yon Uriarte <yon@astaro.de>");
-MODULE_DESCRIPTION("x_tables ESP SPI match module");
+MODULE_DESCRIPTION("Xtables: IPsec-ESP packet match");
 MODULE_ALIAS("ipt_esp");
 MODULE_ALIAS("ip6t_esp");
 
@@ -43,14 +43,9 @@ spi_match(u_int32_t min, u_int32_t max, u_int32_t spi, bool invert)
 }
 
 static bool
-match(const struct sk_buff *skb,
-      const struct net_device *in,
-      const struct net_device *out,
-      const struct xt_match *match,
-      const void *matchinfo,
-      int offset,
-      unsigned int protoff,
-      bool *hotdrop)
+esp_mt(const struct sk_buff *skb, const struct net_device *in,
+       const struct net_device *out, const struct xt_match *match,
+       const void *matchinfo, int offset, unsigned int protoff, bool *hotdrop)
 {
 	struct ip_esp_hdr _esp, *eh;
 	const struct xt_esp *espinfo = matchinfo;
@@ -75,11 +70,9 @@ match(const struct sk_buff *skb,
 
 /* Called when user tries to insert an entry of this type. */
 static bool
-checkentry(const char *tablename,
-	   const void *ip_void,
-	   const struct xt_match *match,
-	   void *matchinfo,
-	   unsigned int hook_mask)
+esp_mt_check(const char *tablename, const void *ip_void,
+             const struct xt_match *match, void *matchinfo,
+             unsigned int hook_mask)
 {
 	const struct xt_esp *espinfo = matchinfo;
 
@@ -91,12 +84,12 @@ checkentry(const char *tablename,
 	return true;
 }
 
-static struct xt_match xt_esp_match[] __read_mostly = {
+static struct xt_match esp_mt_reg[] __read_mostly = {
 	{
 		.name		= "esp",
 		.family		= AF_INET,
-		.checkentry	= checkentry,
-		.match		= match,
+		.checkentry	= esp_mt_check,
+		.match		= esp_mt,
 		.matchsize	= sizeof(struct xt_esp),
 		.proto		= IPPROTO_ESP,
 		.me		= THIS_MODULE,
@@ -104,23 +97,23 @@ static struct xt_match xt_esp_match[] __read_mostly = {
 	{
 		.name		= "esp",
 		.family		= AF_INET6,
-		.checkentry	= checkentry,
-		.match		= match,
+		.checkentry	= esp_mt_check,
+		.match		= esp_mt,
 		.matchsize	= sizeof(struct xt_esp),
 		.proto		= IPPROTO_ESP,
 		.me		= THIS_MODULE,
 	},
 };
 
-static int __init xt_esp_init(void)
+static int __init esp_mt_init(void)
 {
-	return xt_register_matches(xt_esp_match, ARRAY_SIZE(xt_esp_match));
+	return xt_register_matches(esp_mt_reg, ARRAY_SIZE(esp_mt_reg));
 }
 
-static void __exit xt_esp_cleanup(void)
+static void __exit esp_mt_exit(void)
 {
-	xt_unregister_matches(xt_esp_match, ARRAY_SIZE(xt_esp_match));
+	xt_unregister_matches(esp_mt_reg, ARRAY_SIZE(esp_mt_reg));
 }
 
-module_init(xt_esp_init);
-module_exit(xt_esp_cleanup);
+module_init(esp_mt_init);
+module_exit(esp_mt_exit);

@@ -38,8 +38,6 @@ EXPORT_SYMBOL(gameport_unregister_driver);
 EXPORT_SYMBOL(gameport_open);
 EXPORT_SYMBOL(gameport_close);
 EXPORT_SYMBOL(gameport_rescan);
-EXPORT_SYMBOL(gameport_cooked_read);
-EXPORT_SYMBOL(gameport_set_name);
 EXPORT_SYMBOL(gameport_set_phys);
 EXPORT_SYMBOL(gameport_start_polling);
 EXPORT_SYMBOL(gameport_stop_polling);

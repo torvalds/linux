@@ -72,7 +72,7 @@ set_bConfigurationValue(struct device *dev, struct device_attribute *attr,
 	return (value < 0) ? value : count;
 }
 
-static DEVICE_ATTR(bConfigurationValue, S_IRUGO | S_IWUSR, 
+static DEVICE_ATTR(bConfigurationValue, S_IRUGO | S_IWUSR,
 		show_bConfigurationValue, set_bConfigurationValue);
 
 /* String fields */
@@ -249,6 +249,41 @@ static void remove_persist_attributes(struct device *dev)
 #ifdef	CONFIG_USB_SUSPEND
 
 static ssize_t
+show_connected_duration(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct usb_device *udev = to_usb_device(dev);
+
+	return sprintf(buf, "%u\n",
+			jiffies_to_msecs(jiffies - udev->connect_time));
+}
+
+static DEVICE_ATTR(connected_duration, S_IRUGO, show_connected_duration, NULL);
+
+/*
+ * If the device is resumed, the last time the device was suspended has
+ * been pre-subtracted from active_duration.  We add the current time to
+ * get the duration that the device was actually active.
+ *
+ * If the device is suspended, the active_duration is up-to-date.
+ */
+static ssize_t
+show_active_duration(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct usb_device *udev = to_usb_device(dev);
+	int duration;
+
+	if (udev->state != USB_STATE_SUSPENDED)
+		duration = jiffies_to_msecs(jiffies + udev->active_duration);
+	else
+		duration = jiffies_to_msecs(udev->active_duration);
+	return sprintf(buf, "%u\n", duration);
+}
+
+static DEVICE_ATTR(active_duration, S_IRUGO, show_active_duration, NULL);
+
+static ssize_t
 show_autosuspend(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct usb_device *udev = to_usb_device(dev);
@@ -365,12 +400,26 @@ static int add_power_attributes(struct device *dev)
 			rc = sysfs_add_file_to_group(&dev->kobj,
 					&dev_attr_level.attr,
 					power_group);
+		if (rc == 0)
+			rc = sysfs_add_file_to_group(&dev->kobj,
+					&dev_attr_connected_duration.attr,
+					power_group);
+		if (rc == 0)
+			rc = sysfs_add_file_to_group(&dev->kobj,
+					&dev_attr_active_duration.attr,
+					power_group);
 	}
 	return rc;
 }
 
 static void remove_power_attributes(struct device *dev)
 {
+	sysfs_remove_file_from_group(&dev->kobj,
+			&dev_attr_active_duration.attr,
+			power_group);
+	sysfs_remove_file_from_group(&dev->kobj,
+			&dev_attr_connected_duration.attr,
+			power_group);
 	sysfs_remove_file_from_group(&dev->kobj,
 			&dev_attr_level.attr,
 			power_group);
@@ -601,21 +650,21 @@ void usb_remove_sysfs_dev_files(struct usb_device *udev)
 /* Interface Accociation Descriptor fields */
 #define usb_intf_assoc_attr(field, format_string)			\
 static ssize_t								\
-show_iad_##field (struct device *dev, struct device_attribute *attr,	\
+show_iad_##field(struct device *dev, struct device_attribute *attr,	\
 		char *buf)						\
 {									\
-	struct usb_interface *intf = to_usb_interface (dev);		\
+	struct usb_interface *intf = to_usb_interface(dev);		\
 									\
-	return sprintf (buf, format_string,				\
-			intf->intf_assoc->field); 		\
+	return sprintf(buf, format_string,				\
+			intf->intf_assoc->field); 			\
 }									\
 static DEVICE_ATTR(iad_##field, S_IRUGO, show_iad_##field, NULL);
 
-usb_intf_assoc_attr (bFirstInterface, "%02x\n")
-usb_intf_assoc_attr (bInterfaceCount, "%02d\n")
-usb_intf_assoc_attr (bFunctionClass, "%02x\n")
-usb_intf_assoc_attr (bFunctionSubClass, "%02x\n")
-usb_intf_assoc_attr (bFunctionProtocol, "%02x\n")
+usb_intf_assoc_attr(bFirstInterface, "%02x\n")
+usb_intf_assoc_attr(bInterfaceCount, "%02d\n")
+usb_intf_assoc_attr(bFunctionClass, "%02x\n")
+usb_intf_assoc_attr(bFunctionSubClass, "%02x\n")
+usb_intf_assoc_attr(bFunctionProtocol, "%02x\n")
 
 /* Interface fields */
 #define usb_intf_attr(field, format_string)				\
@@ -735,6 +784,8 @@ int usb_create_sysfs_intf_files(struct usb_interface *intf)
 	struct usb_host_interface *alt = intf->cur_altsetting;
 	int retval;
 
+	if (intf->sysfs_files_created)
+		return 0;
 	retval = sysfs_create_group(&dev->kobj, &intf_attr_grp);
 	if (retval)
 		return retval;
@@ -746,6 +797,7 @@ int usb_create_sysfs_intf_files(struct usb_interface *intf)
 	if (intf->intf_assoc)
 		retval = sysfs_create_group(&dev->kobj, &intf_assoc_attr_grp);
 	usb_create_intf_ep_files(intf, udev);
+	intf->sysfs_files_created = 1;
 	return 0;
 }
 
@@ -753,8 +805,11 @@ void usb_remove_sysfs_intf_files(struct usb_interface *intf)
 {
 	struct device *dev = &intf->dev;
 
+	if (!intf->sysfs_files_created)
+		return;
 	usb_remove_intf_ep_files(intf);
 	device_remove_file(dev, &dev_attr_interface);
 	sysfs_remove_group(&dev->kobj, &intf_attr_grp);
 	sysfs_remove_group(&intf->dev.kobj, &intf_assoc_attr_grp);
+	intf->sysfs_files_created = 0;
 }

@@ -128,11 +128,6 @@ static char *buf_put_stringn(struct cbuf *buf, const char *s, u16 slen)
 	return ret;
 }
 
-static inline void buf_put_string(struct cbuf *buf, const char *s)
-{
-	buf_put_stringn(buf, s, strlen(s));
-}
-
 static u8 buf_get_int8(struct cbuf *buf)
 {
 	u8 ret = 0;

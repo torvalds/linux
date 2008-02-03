@@ -60,7 +60,6 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  */
-#include <sound/driver.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -445,13 +444,11 @@ int __devinit snd_ca0106_proc_init(struct snd_ca0106 * emu)
 		snd_info_set_text_ops(entry, emu, snd_ca0106_proc_reg_read1);
 		entry->c.text.write = snd_ca0106_proc_reg_write;
 		entry->mode |= S_IWUSR;
-//		entry->private_data = emu;
 	}
 	if(! snd_card_proc_new(emu->card, "ca0106_i2c", &entry)) {
-		snd_info_set_text_ops(entry, emu, snd_ca0106_proc_i2c_write);
 		entry->c.text.write = snd_ca0106_proc_i2c_write;
+		entry->private_data = emu;
 		entry->mode |= S_IWUSR;
-//		entry->private_data = emu;
 	}
 	if(! snd_card_proc_new(emu->card, "ca0106_regs2", &entry)) 
 		snd_info_set_text_ops(entry, emu, snd_ca0106_proc_reg_read2);

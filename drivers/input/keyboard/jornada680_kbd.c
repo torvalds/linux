@@ -16,14 +16,14 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/init.h>
 #include <linux/input.h>
+#include <linux/input-polldev.h>
+#include <linux/interrupt.h>
+#include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
-#include <linux/input-polldev.h>
-#include <linux/jiffies.h>
 #include <linux/platform_device.h>
-#include <linux/interrupt.h>
 
 #include <asm/delay.h>
 #include <asm/io.h>
@@ -43,22 +43,22 @@
 #define PLDR 0xa4000134
 
 static const unsigned short jornada_scancodes[] = {
-/* PTD1 */	KEY_CAPSLOCK, KEY_MACRO, KEY_LEFTCTRL, 0, KEY_ESC, 0, 0, 0,	/*  1  -> 8   */
-		KEY_F1, KEY_F2, KEY_F3, KEY_F8, KEY_F7, KEY_F2, KEY_F4, KEY_F5,	/*  9  -> 16  */
-/* PTD5 */	KEY_SLASH, KEY_APOSTROPHE, KEY_ENTER, 0, KEY_Z, 0, 0, 0,	/*  17 -> 24  */
-		KEY_X, KEY_C, KEY_V, KEY_DOT, KEY_COMMA, KEY_M, KEY_B, KEY_N,	/*  25 -> 32  */
-/* PTD7 */	KEY_KP2, KEY_KP6, 0, 0, 0, 0, 0, 0,				/*  33 -> 40  */
-		0, 0, 0, KEY_KP4, 0, 0, KEY_LEFTALT, KEY_HANJA,			/*  41 -> 48  */
-/* PTE0 */	0, 0, 0, 0, KEY_FINANCE, 0, 0, 0,				/*  49 -> 56  */
-		KEY_LEFTCTRL, 0, KEY_SPACE, KEY_KPDOT, KEY_VOLUMEUP, 249, 0, 0, /*  57 -> 64  */
-/* PTE1 */	KEY_SEMICOLON, KEY_RIGHTBRACE, KEY_BACKSLASH, 0, KEY_A, 0, 0, 0,/*  65 -> 72  */
-		KEY_S, KEY_D, KEY_F, KEY_L, KEY_K, KEY_J, KEY_G, KEY_H,		/*  73 -> 80  */
-/* PTE3 */	KEY_KP8, KEY_LEFTMETA, KEY_RIGHTSHIFT, 0, KEY_TAB, 0, 0,0,	/*  81 -> 88  */
-		0, KEY_LEFTSHIFT, 0, 0, 0, 0, 0, 0,				/*  89 -> 96  */
-/* PTE6 */	KEY_P, KEY_LEFTBRACE, KEY_BACKSPACE, 0, KEY_Q, 0, 0, 0,		/*  97 -> 104 */
-		KEY_W, KEY_E, KEY_R, KEY_O, KEY_I, KEY_U, KEY_T, KEY_R,		/* 105 -> 112 */
-/* PTE7 */	KEY_0, KEY_MINUS, KEY_EQUAL, 0, KEY_1, 0, 0, 0,			/* 113 -> 120 */
-		KEY_2, KEY_3, KEY_4, KEY_9, KEY_8, KEY_7, KEY_5, KEY_6,		/* 121 -> 128 */
+/* PTD1 */	KEY_CAPSLOCK, KEY_MACRO, KEY_LEFTCTRL, 0, KEY_ESC, KEY_KP5, 0, 0,			/*  1  -> 8   */
+		KEY_F1, KEY_F2, KEY_F3, KEY_F8, KEY_F7, KEY_F6, KEY_F4, KEY_F5,				/*  9  -> 16  */
+/* PTD5 */	KEY_SLASH, KEY_APOSTROPHE, KEY_ENTER, 0, KEY_Z, 0, 0, 0,				/*  17 -> 24  */
+		KEY_X, KEY_C, KEY_V, KEY_DOT, KEY_COMMA, KEY_M, KEY_B, KEY_N,				/*  25 -> 32  */
+/* PTD7 */	KEY_KP2, KEY_KP6, KEY_KP3, 0, 0, 0, 0, 0,						/*  33 -> 40  */
+		KEY_F10, KEY_RO, KEY_F9, KEY_KP4, KEY_NUMLOCK, KEY_SCROLLLOCK, KEY_LEFTALT, KEY_HANJA,	/*  41 -> 48  */
+/* PTE0 */	KEY_KATAKANA, KEY_KP0, KEY_GRAVE, 0, KEY_FINANCE, 0, 0, 0,				/*  49 -> 56  */
+		KEY_KPMINUS, KEY_HIRAGANA, KEY_SPACE, KEY_KPDOT, KEY_VOLUMEUP, 249, 0, 0,		/*  57 -> 64  */
+/* PTE1 */	KEY_SEMICOLON, KEY_RIGHTBRACE, KEY_BACKSLASH, 0, KEY_A, 0, 0, 0,			/*  65 -> 72  */
+		KEY_S, KEY_D, KEY_F, KEY_L, KEY_K, KEY_J, KEY_G, KEY_H,					/*  73 -> 80  */
+/* PTE3 */	KEY_KP8, KEY_LEFTMETA, KEY_RIGHTSHIFT, 0, KEY_TAB, 0, 0, 0,				/*  81 -> 88  */
+		0, KEY_LEFTSHIFT, KEY_KP7, KEY_KP9, KEY_KP1, KEY_F11, KEY_KPPLUS, KEY_KPASTERISK,	/*  89 -> 96  */
+/* PTE6 */	KEY_P, KEY_LEFTBRACE, KEY_BACKSPACE, 0, KEY_Q, 0, 0, 0,					/*  97 -> 104 */
+		KEY_W, KEY_E, KEY_R, KEY_O, KEY_I, KEY_U, KEY_T, KEY_Y,					/* 105 -> 112 */
+/* PTE7 */	KEY_0, KEY_MINUS, KEY_EQUAL, 0, KEY_1, 0, 0, 0,						/* 113 -> 120 */
+		KEY_2, KEY_3, KEY_4, KEY_9, KEY_8, KEY_7, KEY_5, KEY_6,					/* 121 -> 128 */
 /* **** */	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0
 };

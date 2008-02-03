@@ -1311,7 +1311,7 @@ empty_zero_page:
 
 	.globl	swapper_pg_dir
 swapper_pg_dir:
-	.space	4096
+	.space	PGD_TABLE_SIZE
 
 	.globl intercept_table
 intercept_table:

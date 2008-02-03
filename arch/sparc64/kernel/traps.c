@@ -1950,6 +1950,8 @@ void sun4v_itlb_error_report(struct pt_regs *regs, int tl)
 	printk(KERN_EMERG "SUN4V-ITLB: Error at TPC[%lx], tl %d\n",
 	       regs->tpc, tl);
 	print_symbol(KERN_EMERG "SUN4V-ITLB: TPC<%s>\n", regs->tpc);
+	printk(KERN_EMERG "SUN4V-ITLB: O7[%lx]\n", regs->u_regs[UREG_I7]);
+	print_symbol(KERN_EMERG "SUN4V-ITLB: O7<%s>\n", regs->u_regs[UREG_I7]);
 	printk(KERN_EMERG "SUN4V-ITLB: vaddr[%lx] ctx[%lx] "
 	       "pte[%lx] error[%lx]\n",
 	       sun4v_err_itlb_vaddr, sun4v_err_itlb_ctx,
@@ -1971,6 +1973,8 @@ void sun4v_dtlb_error_report(struct pt_regs *regs, int tl)
 	printk(KERN_EMERG "SUN4V-DTLB: Error at TPC[%lx], tl %d\n",
 	       regs->tpc, tl);
 	print_symbol(KERN_EMERG "SUN4V-DTLB: TPC<%s>\n", regs->tpc);
+	printk(KERN_EMERG "SUN4V-DTLB: O7[%lx]\n", regs->u_regs[UREG_I7]);
+	print_symbol(KERN_EMERG "SUN4V-DTLB: O7<%s>\n", regs->u_regs[UREG_I7]);
 	printk(KERN_EMERG "SUN4V-DTLB: vaddr[%lx] ctx[%lx] "
 	       "pte[%lx] error[%lx]\n",
 	       sun4v_err_dtlb_vaddr, sun4v_err_dtlb_ctx,

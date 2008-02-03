@@ -180,7 +180,7 @@ static ssize_t mtx1_wdt_write(struct file *file, const char *buf, size_t count, 
 	return count;
 }
 
-static struct file_operations mtx1_wdt_fops = {
+static const struct file_operations mtx1_wdt_fops = {
 	.owner 		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.ioctl		= mtx1_wdt_ioctl,

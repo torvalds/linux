@@ -508,7 +508,7 @@ xfs_dir2_block_getdents(
 			continue;
 
 		cook = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk,
-						    ptr - (char *)block);
+					    (char *)dep - (char *)block);
 		ino = be64_to_cpu(dep->inumber);
 #if XFS_BIG_INUMS
 		ino += mp->m_inoadd;
@@ -519,9 +519,7 @@ xfs_dir2_block_getdents(
 		 */
 		if (filldir(dirent, dep->name, dep->namelen, cook,
 			    ino, DT_UNKNOWN)) {
-			*offset = xfs_dir2_db_off_to_dataptr(mp,
-					mp->m_dirdatablk,
-					(char *)dep - (char *)block);
+			*offset = cook;
 			xfs_da_brelse(NULL, bp);
 			return 0;
 		}

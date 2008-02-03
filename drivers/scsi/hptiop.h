@@ -1,5 +1,5 @@
 /*
- * HighPoint RR3xxx controller driver for Linux
+ * HighPoint RR3xxx/4xxx controller driver for Linux
  * Copyright (C) 2006-2007 HighPoint Technologies, Inc. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -18,8 +18,7 @@
 #ifndef _HPTIOP_H_
 #define _HPTIOP_H_
 
-struct hpt_iopmu
-{
+struct hpt_iopmu_itl {
 	__le32 resrved0[4];
 	__le32 inbound_msgaddr0;
 	__le32 inbound_msgaddr1;
@@ -54,6 +53,40 @@ struct hpt_iopmu
 #define IOPMU_INBOUND_INT_ERROR      8
 #define IOPMU_INBOUND_INT_POSTQUEUE  0x10
 
+#define MVIOP_QUEUE_LEN  512
+
+struct hpt_iopmu_mv {
+	__le32 inbound_head;
+	__le32 inbound_tail;
+	__le32 outbound_head;
+	__le32 outbound_tail;
+	__le32 inbound_msg;
+	__le32 outbound_msg;
+	__le32 reserve[10];
+	__le64 inbound_q[MVIOP_QUEUE_LEN];
+	__le64 outbound_q[MVIOP_QUEUE_LEN];
+};
+
+struct hpt_iopmv_regs {
+	__le32 reserved[0x20400 / 4];
+	__le32 inbound_doorbell;
+	__le32 inbound_intmask;
+	__le32 outbound_doorbell;
+	__le32 outbound_intmask;
+};
+
+#define MVIOP_MU_QUEUE_ADDR_HOST_MASK   (~(0x1full))
+#define MVIOP_MU_QUEUE_ADDR_HOST_BIT    4
+
+#define MVIOP_MU_QUEUE_ADDR_IOP_HIGH32  0xffffffff
+#define MVIOP_MU_QUEUE_REQUEST_RESULT_BIT   1
+#define MVIOP_MU_QUEUE_REQUEST_RETURN_CONTEXT 2
+
+#define MVIOP_MU_INBOUND_INT_MSG        1
+#define MVIOP_MU_INBOUND_INT_POSTQUEUE  2
+#define MVIOP_MU_OUTBOUND_INT_MSG       1
+#define MVIOP_MU_OUTBOUND_INT_POSTQUEUE 2
+
 enum hpt_iopmu_message {
 	/* host-to-iop messages */
 	IOPMU_INBOUND_MSG0_NOP = 0,
@@ -72,8 +105,7 @@ enum hpt_iopmu_message {
 	IOPMU_OUTBOUND_MSG0_REVALIDATE_DEVICE_MAX = 0x3ff,
 };
 
-struct hpt_iop_request_header
-{
+struct hpt_iop_request_header {
 	__le32 size;
 	__le32 type;
 	__le32 flags;
@@ -104,11 +136,10 @@ enum hpt_iop_result_type {
 	IOP_RESULT_RESET,
 	IOP_RESULT_INVALID_REQUEST,
 	IOP_RESULT_BAD_TARGET,
-	IOP_RESULT_MODE_SENSE_CHECK_CONDITION,
+	IOP_RESULT_CHECK_CONDITION,
 };
 
-struct hpt_iop_request_get_config
-{
+struct hpt_iop_request_get_config {
 	struct hpt_iop_request_header header;
 	__le32 interface_version;
 	__le32 firmware_version;
@@ -121,8 +152,7 @@ struct hpt_iop_request_get_config
 	__le32 sdram_size;
 };
 
-struct hpt_iop_request_set_config
-{
+struct hpt_iop_request_set_config {
 	struct hpt_iop_request_header header;
 	__le32 iop_id;
 	__le16 vbus_id;
@@ -130,15 +160,13 @@ struct hpt_iop_request_set_config
 	__le32 reserve[6];
 };
 
-struct hpt_iopsg
-{
+struct hpt_iopsg {
 	__le32 size;
 	__le32 eot; /* non-zero: end of table */
 	__le64 pci_address;
 };
 
-struct hpt_iop_request_block_command
-{
+struct hpt_iop_request_block_command {
 	struct hpt_iop_request_header header;
 	u8     channel;
 	u8     target;
@@ -156,8 +184,7 @@ struct hpt_iop_request_block_command
 #define IOP_BLOCK_COMMAND_FLUSH    4
 #define IOP_BLOCK_COMMAND_SHUTDOWN 5
 
-struct hpt_iop_request_scsi_command
-{
+struct hpt_iop_request_scsi_command {
 	struct hpt_iop_request_header header;
 	u8     channel;
 	u8     target;
@@ -168,8 +195,7 @@ struct hpt_iop_request_scsi_command
 	struct hpt_iopsg sg_list[1];
 };
 
-struct hpt_iop_request_ioctl_command
-{
+struct hpt_iop_request_ioctl_command {
 	struct hpt_iop_request_header header;
 	__le32 ioctl_code;
 	__le32 inbuf_size;
@@ -182,11 +208,11 @@ struct hpt_iop_request_ioctl_command
 #define HPTIOP_MAX_REQUESTS  256u
 
 struct hptiop_request {
-	struct hptiop_request * next;
-	void *                  req_virt;
-	u32                     req_shifted_phy;
-	struct scsi_cmnd *      scp;
-	int                     index;
+	struct hptiop_request *next;
+	void                  *req_virt;
+	u32                   req_shifted_phy;
+	struct scsi_cmnd      *scp;
+	int                   index;
 };
 
 struct hpt_scsi_pointer {
@@ -198,9 +224,21 @@ struct hpt_scsi_pointer {
 #define HPT_SCP(scp) ((struct hpt_scsi_pointer *)&(scp)->SCp)
 
 struct hptiop_hba {
-	struct hpt_iopmu __iomem * iop;
-	struct Scsi_Host * host;
-	struct pci_dev * pcidev;
+	struct hptiop_adapter_ops *ops;
+	union {
+		struct {
+			struct hpt_iopmu_itl __iomem *iop;
+		} itl;
+		struct {
+			struct hpt_iopmv_regs *regs;
+			struct hpt_iopmu_mv __iomem *mu;
+			void *internal_req;
+			dma_addr_t internal_req_phy;
+		} mv;
+	} u;
+
+	struct Scsi_Host *host;
+	struct pci_dev *pcidev;
 
 	/* IOP config info */
 	u32     interface_version;
@@ -213,15 +251,15 @@ struct hptiop_hba {
 
 	u32     req_size; /* host-allocated request buffer size */
 
-	int     iopintf_v2: 1;
-	int     initialized: 1;
-	int     msg_done: 1;
+	u32     iopintf_v2: 1;
+	u32     initialized: 1;
+	u32     msg_done: 1;
 
 	struct hptiop_request * req_list;
 	struct hptiop_request reqs[HPTIOP_MAX_REQUESTS];
 
 	/* used to free allocated dma area */
-	void *      dma_coherent;
+	void        *dma_coherent;
 	dma_addr_t  dma_coherent_handle;
 
 	atomic_t    reset_count;
@@ -231,17 +269,33 @@ struct hptiop_hba {
 	wait_queue_head_t ioctl_wq;
 };
 
-struct hpt_ioctl_k
-{
+struct hpt_ioctl_k {
 	struct hptiop_hba * hba;
 	u32    ioctl_code;
 	u32    inbuf_size;
 	u32    outbuf_size;
-	void * inbuf;
-	void * outbuf;
-	u32  * bytes_returned;
+	void   *inbuf;
+	void   *outbuf;
+	u32    *bytes_returned;
 	void (*done)(struct hpt_ioctl_k *);
 	int    result; /* HPT_IOCTL_RESULT_ */
+};
+
+struct hptiop_adapter_ops {
+	int  (*iop_wait_ready)(struct hptiop_hba *hba, u32 millisec);
+	int  (*internal_memalloc)(struct hptiop_hba *hba);
+	int  (*internal_memfree)(struct hptiop_hba *hba);
+	int  (*map_pci_bar)(struct hptiop_hba *hba);
+	void (*unmap_pci_bar)(struct hptiop_hba *hba);
+	void (*enable_intr)(struct hptiop_hba *hba);
+	void (*disable_intr)(struct hptiop_hba *hba);
+	int  (*get_config)(struct hptiop_hba *hba,
+				struct hpt_iop_request_get_config *config);
+	int  (*set_config)(struct hptiop_hba *hba,
+				struct hpt_iop_request_set_config *config);
+	int  (*iop_intr)(struct hptiop_hba *hba);
+	void (*post_msg)(struct hptiop_hba *hba, u32 msg);
+	void (*post_req)(struct hptiop_hba *hba, struct hptiop_request *_req);
 };
 
 #define HPT_IOCTL_RESULT_OK         0

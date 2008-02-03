@@ -2791,7 +2791,7 @@ irqreturn_t sym_interrupt(struct Scsi_Host *shost)
 	istat = INB(np, nc_istat);
 	if (istat & INTF) {
 		OUTB(np, nc_istat, (istat & SIGP) | INTF | np->istat_sem);
-		istat = INB(np, nc_istat);		/* DUMMY READ */
+		istat |= INB(np, nc_istat);		/* DUMMY READ */
 		if (DEBUG_FLAGS & DEBUG_TINY) printf ("F ");
 		sym_wakeup_done(np);
 	}

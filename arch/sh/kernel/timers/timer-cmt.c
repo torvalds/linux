@@ -31,7 +31,9 @@
 #define cmt_clock_enable() do {	ctrl_outb(ctrl_inb(STBCR3) & ~0x10, STBCR3); } while(0)
 #define CMT_CMCSR_INIT	0x0040
 #define CMT_CMCSR_CALIB	0x0000
-#elif defined(CONFIG_CPU_SUBTYPE_SH7206)
+#elif defined(CONFIG_CPU_SUBTYPE_SH7203) || \
+      defined(CONFIG_CPU_SUBTYPE_SH7206) || \
+      defined(CONFIG_CPU_SUBTYPE_SH7263)
 #define CMT_CMSTR	0xfffec000
 #define CMT_CMCSR_0	0xfffec002
 #define CMT_CMCNT_0	0xfffec004

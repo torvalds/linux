@@ -62,5 +62,6 @@
 #define PINNA_LINX_VD_IN_CAB_PAL                 61
 #define PINNA_PCTV_BUNGEE_PAL_FM                 62
 #define HPG_WINTV                                63
+#define PINNA_PCTV_USB_NTSC_FM_V3                64
 
 extern const int usbvision_device_data_size;

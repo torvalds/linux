@@ -1115,7 +1115,7 @@ list_modified:
 			rc = lcs_send_setipm(card, ipm);
 			spin_lock_irqsave(&card->ipm_lock, flags);
 			if (rc) {
-				PRINT_INFO("Adding multicast address failed."
+				PRINT_INFO("Adding multicast address failed. "
 					   "Table possibly full!\n");
 				/* store ipm in failed list -> will be added
 				 * to ipm_list again, so a retry will be done

@@ -1,4 +1,7 @@
-/* zd_rf_uw2453.c: Functions for the UW2453 RF controller
+/* ZD1211 USB-WLAN driver for Linux
+ *
+ * Copyright (C) 2005-2007 Ulrich Kunitz <kune@deine-taler.de>
+ * Copyright (C) 2006-2007 Daniel Drake <dsd@gentoo.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -403,7 +406,7 @@ static int uw2453_init_hw(struct zd_rf *rf)
 		if (r)
 			return r;
 
-		if (!intr_status & 0xf) {
+		if (!(intr_status & 0xf)) {
 			dev_dbg_f(zd_chip_dev(chip),
 				"PLL locked on configuration %d\n", i);
 			found_config = i;

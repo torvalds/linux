@@ -67,7 +67,7 @@ static DEFINE_SPINLOCK(time_lock);
 unsigned long wtimer;
 
 #ifdef CONFIG_PM
-irqreturn_t counter0_irq(int irq, void *dev_id)
+static irqreturn_t counter0_irq(int irq, void *dev_id)
 {
 	unsigned long pc0;
 	int time_elapsed;
@@ -116,6 +116,13 @@ irqreturn_t counter0_irq(int irq, void *dev_id)
 
 	return IRQ_HANDLED;
 }
+
+struct irqaction counter0_action = {
+	.handler	= counter0_irq,
+	.flags		= IRQF_DISABLED,
+	.name		= "alchemy-toy",
+	.dev_id		= NULL,
+};
 
 /* When we wakeup from sleep, we have to "catch up" on all of the
  * timer ticks we have missed.
@@ -221,7 +228,7 @@ unsigned long cal_r4koff(void)
 	return (cpu_speed / HZ);
 }
 
-void __init plat_timer_setup(struct irqaction *irq)
+void __init plat_time_init(void)
 {
 	unsigned int est_freq;
 
@@ -255,15 +262,10 @@ void __init plat_timer_setup(struct irqaction *irq)
 	 * we do this.
 	 */
 	if (no_au1xxx_32khz) {
-		unsigned int c0_status;
-
 		printk("WARNING: no 32KHz clock found.\n");
 
-		/* Ensure we get CPO_COUNTER interrupts.
-		*/
-		c0_status = read_c0_status();
-		c0_status |= IE_IRQ5;
-		write_c0_status(c0_status);
+		/* Ensure we get CPO_COUNTER interrupts.  */
+		set_c0_status(IE_IRQ5);
 	}
 	else {
 		while (au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_C0S);
@@ -280,7 +282,7 @@ void __init plat_timer_setup(struct irqaction *irq)
 		au_writel(last_match20 + MATCH20_INC, SYS_TOYMATCH2);
 		au_sync();
 		while (au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_M20);
-		startup_match20_interrupt(counter0_irq);
+		setup_irq(AU1000_TOY_MATCH2_INT, &counter0_action);
 
 		/* We can use the real 'wait' instruction.
 		*/

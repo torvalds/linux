@@ -136,10 +136,11 @@ EXPORT(_stext)
 	 * kernel load address.  This is needed because this platform does
 	 * not have a ELF loader yet.
 	 */
-	__INIT
+FEXPORT(__kernel_entry)
+	j	kernel_entry
 #endif
 
-	__INIT_REFOK
+	__REF
 
 NESTED(kernel_entry, 16, sp)			# kernel entry point
 

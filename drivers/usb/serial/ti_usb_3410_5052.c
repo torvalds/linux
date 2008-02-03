@@ -80,6 +80,7 @@
 #include <linux/ioctl.h>
 #include <linux/serial.h>
 #include <linux/circ_buf.h>
+#include <linux/mutex.h>
 #include <asm/uaccess.h>
 #include <asm/semaphore.h>
 #include <linux/usb.h>
@@ -139,7 +140,7 @@ struct ti_port {
 };
 
 struct ti_device {
-	struct semaphore	td_open_close_sem;
+	struct mutex		td_open_close_lock;
 	int			td_open_port_count;
 	struct usb_serial	*td_serial;
 	int			td_is_3410;
@@ -424,7 +425,7 @@ static int ti_startup(struct usb_serial *serial)
 		dev_err(&dev->dev, "%s - out of memory\n", __FUNCTION__);
 		return -ENOMEM;
 	}
-	sema_init(&tdev->td_open_close_sem, 1);
+	mutex_init(&tdev->td_open_close_lock);
 	tdev->td_serial = serial;
 	usb_set_serial_data(serial, tdev);
 
@@ -547,7 +548,7 @@ static int ti_open(struct usb_serial_port *port, struct file *file)
 	tdev = tport->tp_tdev;
 
 	/* only one open on any port on a device at a time */
-	if (down_interruptible(&tdev->td_open_close_sem))
+	if (mutex_lock_interruptible(&tdev->td_open_close_lock))
 		return -ERESTARTSYS;
 
 	if (port->tty)
@@ -568,7 +569,7 @@ static int ti_open(struct usb_serial_port *port, struct file *file)
 		if (!urb) {
 			dev_err(&port->dev, "%s - no interrupt urb\n", __FUNCTION__);
 			status = -EINVAL;
-			goto up_sem;
+			goto release_lock;
 		}
 		urb->complete = ti_interrupt_callback;
 		urb->context = tdev;
@@ -576,11 +577,11 @@ static int ti_open(struct usb_serial_port *port, struct file *file)
 		status = usb_submit_urb(urb, GFP_KERNEL);
 		if (status) {
 			dev_err(&port->dev, "%s - submit interrupt urb failed, %d\n", __FUNCTION__, status);
-			goto up_sem;
+			goto release_lock;
 		}
 	}
 
-	ti_set_termios(port, NULL);
+	ti_set_termios(port, port->tty->termios);
 
 	dbg("%s - sending TI_OPEN_PORT", __FUNCTION__);
 	status = ti_command_out_sync(tdev, TI_OPEN_PORT,
@@ -617,7 +618,7 @@ static int ti_open(struct usb_serial_port *port, struct file *file)
 	usb_clear_halt(dev, port->write_urb->pipe);
 	usb_clear_halt(dev, port->read_urb->pipe);
 
-	ti_set_termios(port, NULL);
+	ti_set_termios(port, port->tty->termios);
 
 	dbg("%s - sending TI_OPEN_PORT (2)", __FUNCTION__);
 	status = ti_command_out_sync(tdev, TI_OPEN_PORT,
@@ -656,13 +657,13 @@ static int ti_open(struct usb_serial_port *port, struct file *file)
 	tport->tp_is_open = 1;
 	++tdev->td_open_port_count;
 
-	goto up_sem;
+	goto release_lock;
 
 unlink_int_urb:
 	if (tdev->td_open_port_count == 0)
 		usb_kill_urb(port->serial->port[0]->interrupt_in_urb);
-up_sem:
-	up(&tdev->td_open_close_sem);
+release_lock:
+	mutex_unlock(&tdev->td_open_close_lock);
 	dbg("%s - exit %d", __FUNCTION__, status);
 	return status;
 }
@@ -674,7 +675,7 @@ static void ti_close(struct usb_serial_port *port, struct file *file)
 	struct ti_port *tport;
 	int port_number;
 	int status;
-	int do_up;
+	int do_unlock;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 			 
@@ -699,16 +700,16 @@ static void ti_close(struct usb_serial_port *port, struct file *file)
 	if (status)
 		dev_err(&port->dev, "%s - cannot send close port command, %d\n" , __FUNCTION__, status);
 
-	/* if down is interrupted, continue anyway */
-	do_up = !down_interruptible(&tdev->td_open_close_sem);
+	/* if mutex_lock is interrupted, continue anyway */
+	do_unlock = !mutex_lock_interruptible(&tdev->td_open_close_lock);
 	--tport->tp_tdev->td_open_port_count;
 	if (tport->tp_tdev->td_open_port_count <= 0) {
 		/* last port is closed, shut down interrupt urb */
 		usb_kill_urb(port->serial->port[0]->interrupt_in_urb);
 		tport->tp_tdev->td_open_port_count = 0;
 	}
-	if (do_up)
-		up(&tdev->td_open_close_sem);
+	if (do_unlock)
+		mutex_unlock(&tdev->td_open_close_lock);
 
 	dbg("%s - exit", __FUNCTION__);
 }
@@ -896,24 +897,11 @@ static void ti_set_termios(struct usb_serial_port *port,
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
-	if (!tty || !tty->termios) {
-		dbg("%s - no tty or termios", __FUNCTION__);
-		return;
-	}
-
 	cflag = tty->termios->c_cflag;
 	iflag = tty->termios->c_iflag;
 
-	if (old_termios && cflag == old_termios->c_cflag
-	&& iflag == old_termios->c_iflag) {
-		dbg("%s - nothing to change", __FUNCTION__);
-		return;
-	}
-
-	dbg("%s - clfag %08x, iflag %08x", __FUNCTION__, cflag, iflag);
-
-	if (old_termios)
-		dbg("%s - old clfag %08x, old iflag %08x", __FUNCTION__, old_termios->c_cflag, old_termios->c_iflag);
+	dbg("%s - cflag %08x, iflag %08x", __FUNCTION__, cflag, iflag);
+	dbg("%s - old clfag %08x, old iflag %08x", __FUNCTION__, old_termios->c_cflag, old_termios->c_iflag);
 
 	if (tport == NULL)
 		return;
@@ -946,6 +934,9 @@ static void ti_set_termios(struct usb_serial_port *port,
 			    config->bDataBits = TI_UART_8_DATA_BITS;
 			    break;
 	}
+
+	/* CMSPAR isn't supported by this driver */
+	tty->termios->c_cflag &= ~CMSPAR;
 
 	if (cflag & PARENB) {
 		if (cflag & PARODD) {
@@ -989,11 +980,16 @@ static void ti_set_termios(struct usb_serial_port *port,
 	}
 
 	baud = tty_get_baud_rate(tty);
-	if (!baud) baud = 9600;
+	if (!baud)
+		baud = 9600;
 	if (tport->tp_tdev->td_is_3410)
 		config->wBaudRate = (__u16)((923077 + baud/2) / baud);
 	else
 		config->wBaudRate = (__u16)((461538 + baud/2) / baud);
+
+	/* FIXME: Should calculate resulting baud here and report it back */
+	if ((cflag & CBAUD) != B0)
+		tty_encode_baud_rate(tty, baud, baud);
 
 	dbg("%s - BaudRate=%d, wBaudRate=%d, wFlags=0x%04X, bDataBits=%d, bParity=%d, bStopBits=%d, cXon=%d, cXoff=%d, bUartMode=%d",
 	__FUNCTION__, baud, config->wBaudRate, config->wFlags, config->bDataBits, config->bParity, config->bStopBits, config->cXon, config->cXoff, config->bUartMode);
@@ -1497,11 +1493,10 @@ static void ti_drain(struct ti_port *tport, unsigned long timeout, int flush)
 	struct ti_device *tdev = tport->tp_tdev;
 	struct usb_serial_port *port = tport->tp_port;
 	wait_queue_t wait;
-	unsigned long flags;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
-	spin_lock_irqsave(&tport->tp_lock, flags);
+	spin_lock_irq(&tport->tp_lock);
 
 	/* wait for data to drain from the buffer */
 	tdev->td_urb_error = 0;
@@ -1512,11 +1507,11 @@ static void ti_drain(struct ti_port *tport, unsigned long timeout, int flush)
 		if (ti_buf_data_avail(tport->tp_write_buf) == 0
 		|| timeout == 0 || signal_pending(current)
 		|| tdev->td_urb_error
-		|| !usb_get_intfdata(port->serial->interface))  /* disconnect */
+		|| port->serial->disconnected)  /* disconnect */
 			break;
-		spin_unlock_irqrestore(&tport->tp_lock, flags);
+		spin_unlock_irq(&tport->tp_lock);
 		timeout = schedule_timeout(timeout);
-		spin_lock_irqsave(&tport->tp_lock, flags);
+		spin_lock_irq(&tport->tp_lock);
 	}
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&tport->tp_write_wait, &wait);
@@ -1525,19 +1520,23 @@ static void ti_drain(struct ti_port *tport, unsigned long timeout, int flush)
 	if (flush)
 		ti_buf_clear(tport->tp_write_buf);
 
-	spin_unlock_irqrestore(&tport->tp_lock, flags);
+	spin_unlock_irq(&tport->tp_lock);
 
+	mutex_lock(&port->serial->disc_mutex);
 	/* wait for data to drain from the device */
 	/* wait for empty tx register, plus 20 ms */
 	timeout += jiffies;
 	tport->tp_lsr &= ~TI_LSR_TX_EMPTY;
 	while ((long)(jiffies - timeout) < 0 && !signal_pending(current)
 	&& !(tport->tp_lsr&TI_LSR_TX_EMPTY) && !tdev->td_urb_error
-	&& usb_get_intfdata(port->serial->interface)) {  /* not disconnected */
+	&& !port->serial->disconnected) {
 		if (ti_get_lsr(tport))
 			break;
+		mutex_unlock(&port->serial->disc_mutex);
 		msleep_interruptible(20);
+		mutex_lock(&port->serial->disc_mutex);
 	}
+	mutex_unlock(&port->serial->disc_mutex);
 }
 
 

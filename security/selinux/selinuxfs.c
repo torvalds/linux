@@ -2,6 +2,11 @@
  *
  * 	Added conditional policy language extensions
  *
+ *  Updated: Hewlett-Packard <paul.moore@hp.com>
+ *
+ *      Added support for the policy capability bitmap
+ *
+ * Copyright (C) 2007 Hewlett-Packard Development Company, L.P.
  * Copyright (C) 2003 - 2004 Tresys Technology, LLC
  * Copyright (C) 2004 Red Hat, Inc., James Morris <jmorris@redhat.com>
  *	This program is free software; you can redistribute it and/or modify
@@ -35,6 +40,11 @@
 #include "objsec.h"
 #include "conditional.h"
 
+/* Policy capability filenames */
+static char *policycap_names[] = {
+	"network_peer_controls"
+};
+
 unsigned int selinux_checkreqprot = CONFIG_SECURITY_SELINUX_CHECKREQPROT_VALUE;
 
 #ifdef CONFIG_SECURITY_SELINUX_ENABLE_SECMARK_DEFAULT
@@ -65,11 +75,15 @@ static DEFINE_MUTEX(sel_mutex);
 /* global data for booleans */
 static struct dentry *bool_dir = NULL;
 static int bool_num = 0;
+static char **bool_pending_names;
 static int *bool_pending_values = NULL;
 
 /* global data for classes */
 static struct dentry *class_dir = NULL;
 static unsigned long last_class_ino;
+
+/* global data for policy capabilities */
+static struct dentry *policycap_dir = NULL;
 
 extern void selnl_notify_setenforce(int val);
 
@@ -110,10 +124,11 @@ enum sel_inos {
 
 static unsigned long sel_last_ino = SEL_INO_NEXT - 1;
 
-#define SEL_INITCON_INO_OFFSET 	0x01000000
-#define SEL_BOOL_INO_OFFSET	0x02000000
-#define SEL_CLASS_INO_OFFSET	0x04000000
-#define SEL_INO_MASK		0x00ffffff
+#define SEL_INITCON_INO_OFFSET		0x01000000
+#define SEL_BOOL_INO_OFFSET		0x02000000
+#define SEL_CLASS_INO_OFFSET		0x04000000
+#define SEL_POLICYCAP_INO_OFFSET	0x08000000
+#define SEL_INO_MASK			0x00ffffff
 
 #define TMPBUFLEN	12
 static ssize_t sel_read_enforce(struct file *filp, char __user *buf,
@@ -157,9 +172,10 @@ static ssize_t sel_write_enforce(struct file * file, const char __user * buf,
 		if (length)
 			goto out;
 		audit_log(current->audit_context, GFP_KERNEL, AUDIT_MAC_STATUS,
-			"enforcing=%d old_enforcing=%d auid=%u", new_value, 
-			selinux_enforcing,
-			audit_get_loginuid(current->audit_context));
+			"enforcing=%d old_enforcing=%d auid=%u ses=%u",
+			new_value, selinux_enforcing,
+			audit_get_loginuid(current),
+			audit_get_sessionid(current));
 		selinux_enforcing = new_value;
 		if (selinux_enforcing)
 			avc_ss_reset(0);
@@ -228,8 +244,9 @@ static ssize_t sel_write_disable(struct file * file, const char __user * buf,
 		if (length < 0)
 			goto out;
 		audit_log(current->audit_context, GFP_KERNEL, AUDIT_MAC_STATUS,
-			"selinux=0 auid=%u",
-			audit_get_loginuid(current->audit_context));
+			"selinux=0 auid=%u ses=%u",
+			audit_get_loginuid(current),
+			audit_get_sessionid(current));
 	}
 
 	length = count;
@@ -262,6 +279,7 @@ static const struct file_operations sel_policyvers_ops = {
 /* declaration for sel_write_load */
 static int sel_make_bools(void);
 static int sel_make_classes(void);
+static int sel_make_policycap(void);
 
 /* declaration for sel_make_class_dirs */
 static int sel_make_dir(struct inode *dir, struct dentry *dentry,
@@ -322,6 +340,12 @@ static ssize_t sel_write_load(struct file * file, const char __user * buf,
 	}
 
 	ret = sel_make_classes();
+	if (ret) {
+		length = ret;
+		goto out1;
+	}
+
+	ret = sel_make_policycap();
 	if (ret)
 		length = ret;
 	else
@@ -334,8 +358,9 @@ out1:
 		(security_get_allow_unknown() ? "allow" : "deny")));
 
 	audit_log(current->audit_context, GFP_KERNEL, AUDIT_MAC_POLICY_LOAD,
-		"policy loaded auid=%u",
-		audit_get_loginuid(current->audit_context));
+		"policy loaded auid=%u ses=%u",
+		audit_get_loginuid(current),
+		audit_get_sessionid(current));
 out:
 	mutex_unlock(&sel_mutex);
 	vfree(data);
@@ -832,15 +857,16 @@ static ssize_t sel_read_bool(struct file *filep, char __user *buf,
 	ssize_t length;
 	ssize_t ret;
 	int cur_enforcing;
-	struct inode *inode;
+	struct inode *inode = filep->f_path.dentry->d_inode;
+	unsigned index = inode->i_ino & SEL_INO_MASK;
+	const char *name = filep->f_path.dentry->d_name.name;
 
 	mutex_lock(&sel_mutex);
 
-	ret = -EFAULT;
-
-	/* check to see if this file has been deleted */
-	if (!filep->f_op)
+	if (index >= bool_num || strcmp(name, bool_pending_names[index])) {
+		ret = -EINVAL;
 		goto out;
+	}
 
 	if (count > PAGE_SIZE) {
 		ret = -EINVAL;
@@ -851,15 +877,13 @@ static ssize_t sel_read_bool(struct file *filep, char __user *buf,
 		goto out;
 	}
 
-	inode = filep->f_path.dentry->d_inode;
-	cur_enforcing = security_get_bool_value(inode->i_ino&SEL_INO_MASK);
+	cur_enforcing = security_get_bool_value(index);
 	if (cur_enforcing < 0) {
 		ret = cur_enforcing;
 		goto out;
 	}
-
 	length = scnprintf(page, PAGE_SIZE, "%d %d", cur_enforcing,
-			  bool_pending_values[inode->i_ino&SEL_INO_MASK]);
+			  bool_pending_values[index]);
 	ret = simple_read_from_buffer(buf, count, ppos, page, length);
 out:
 	mutex_unlock(&sel_mutex);
@@ -872,9 +896,11 @@ static ssize_t sel_write_bool(struct file *filep, const char __user *buf,
 			      size_t count, loff_t *ppos)
 {
 	char *page = NULL;
-	ssize_t length = -EFAULT;
+	ssize_t length;
 	int new_value;
-	struct inode *inode;
+	struct inode *inode = filep->f_path.dentry->d_inode;
+	unsigned index = inode->i_ino & SEL_INO_MASK;
+	const char *name = filep->f_path.dentry->d_name.name;
 
 	mutex_lock(&sel_mutex);
 
@@ -882,16 +908,19 @@ static ssize_t sel_write_bool(struct file *filep, const char __user *buf,
 	if (length)
 		goto out;
 
-	/* check to see if this file has been deleted */
-	if (!filep->f_op)
+	if (index >= bool_num || strcmp(name, bool_pending_names[index])) {
+		length = -EINVAL;
 		goto out;
+	}
 
 	if (count >= PAGE_SIZE) {
 		length = -ENOMEM;
 		goto out;
 	}
+
 	if (*ppos != 0) {
 		/* No partial writes. */
+		length = -EINVAL;
 		goto out;
 	}
 	page = (char*)get_zeroed_page(GFP_KERNEL);
@@ -900,6 +929,7 @@ static ssize_t sel_write_bool(struct file *filep, const char __user *buf,
 		goto out;
 	}
 
+	length = -EFAULT;
 	if (copy_from_user(page, buf, count))
 		goto out;
 
@@ -910,8 +940,7 @@ static ssize_t sel_write_bool(struct file *filep, const char __user *buf,
 	if (new_value)
 		new_value = 1;
 
-	inode = filep->f_path.dentry->d_inode;
-	bool_pending_values[inode->i_ino&SEL_INO_MASK] = new_value;
+	bool_pending_values[index] = new_value;
 	length = count;
 
 out:
@@ -931,17 +960,13 @@ static ssize_t sel_commit_bools_write(struct file *filep,
 				      size_t count, loff_t *ppos)
 {
 	char *page = NULL;
-	ssize_t length = -EFAULT;
+	ssize_t length;
 	int new_value;
 
 	mutex_lock(&sel_mutex);
 
 	length = task_has_security(current, SECURITY__SETBOOL);
 	if (length)
-		goto out;
-
-	/* check to see if this file has been deleted */
-	if (!filep->f_op)
 		goto out;
 
 	if (count >= PAGE_SIZE) {
@@ -958,6 +983,7 @@ static ssize_t sel_commit_bools_write(struct file *filep,
 		goto out;
 	}
 
+	length = -EFAULT;
 	if (copy_from_user(page, buf, count))
 		goto out;
 
@@ -982,11 +1008,9 @@ static const struct file_operations sel_commit_bools_ops = {
 	.write          = sel_commit_bools_write,
 };
 
-/* partial revoke() from fs/proc/generic.c proc_kill_inodes */
 static void sel_remove_entries(struct dentry *de)
 {
-	struct list_head *p, *node;
-	struct super_block *sb = de->d_sb;
+	struct list_head *node;
 
 	spin_lock(&dcache_lock);
 	node = de->d_subdirs.next;
@@ -1006,18 +1030,6 @@ static void sel_remove_entries(struct dentry *de)
 	}
 
 	spin_unlock(&dcache_lock);
-
-	file_list_lock();
-	list_for_each(p, &sb->s_files) {
-		struct file * filp = list_entry(p, struct file, f_u.fu_list);
-		struct dentry * dentry = filp->f_path.dentry;
-
-		if (dentry->d_parent != de) {
-			continue;
-		}
-		filp->f_op = NULL;
-	}
-	file_list_unlock();
 }
 
 #define BOOL_DIR_NAME "booleans"
@@ -1036,7 +1048,9 @@ static int sel_make_bools(void)
 	u32 sid;
 
 	/* remove any existing files */
+	kfree(bool_pending_names);
 	kfree(bool_pending_values);
+	bool_pending_names = NULL;
 	bool_pending_values = NULL;
 
 	sel_remove_entries(dir);
@@ -1078,16 +1092,17 @@ static int sel_make_bools(void)
 		d_add(dentry, inode);
 	}
 	bool_num = num;
+	bool_pending_names = names;
 	bool_pending_values = values;
 out:
 	free_page((unsigned long)page);
+	return ret;
+err:
 	if (names) {
 		for (i = 0; i < num; i++)
 			kfree(names[i]);
 		kfree(names);
 	}
-	return ret;
-err:
 	kfree(values);
 	sel_remove_entries(dir);
 	ret = -ENOMEM;
@@ -1231,7 +1246,7 @@ static int sel_avc_stats_seq_show(struct seq_file *seq, void *v)
 static void sel_avc_stats_seq_stop(struct seq_file *seq, void *v)
 { }
 
-static struct seq_operations sel_avc_cache_stats_seq_ops = {
+static const struct seq_operations sel_avc_cache_stats_seq_ops = {
 	.start		= sel_avc_stats_seq_start,
 	.next		= sel_avc_stats_seq_next,
 	.show		= sel_avc_stats_seq_show,
@@ -1408,6 +1423,24 @@ static const struct file_operations sel_perm_ops = {
 	.read		= sel_read_perm,
 };
 
+static ssize_t sel_read_policycap(struct file *file, char __user *buf,
+				  size_t count, loff_t *ppos)
+{
+	int value;
+	char tmpbuf[TMPBUFLEN];
+	ssize_t length;
+	unsigned long i_ino = file->f_path.dentry->d_inode->i_ino;
+
+	value = security_policycap_supported(i_ino & SEL_INO_MASK);
+	length = scnprintf(tmpbuf, TMPBUFLEN, "%d", value);
+
+	return simple_read_from_buffer(buf, count, ppos, tmpbuf, length);
+}
+
+static const struct file_operations sel_policycap_ops = {
+	.read		= sel_read_policycap,
+};
+
 static int sel_make_perm_files(char *objclass, int classvalue,
 				struct dentry *dir)
 {
@@ -1554,6 +1587,36 @@ out:
 	return rc;
 }
 
+static int sel_make_policycap(void)
+{
+	unsigned int iter;
+	struct dentry *dentry = NULL;
+	struct inode *inode = NULL;
+
+	sel_remove_entries(policycap_dir);
+
+	for (iter = 0; iter <= POLICYDB_CAPABILITY_MAX; iter++) {
+		if (iter < ARRAY_SIZE(policycap_names))
+			dentry = d_alloc_name(policycap_dir,
+					      policycap_names[iter]);
+		else
+			dentry = d_alloc_name(policycap_dir, "unknown");
+
+		if (dentry == NULL)
+			return -ENOMEM;
+
+		inode = sel_make_inode(policycap_dir->d_sb, S_IFREG | S_IRUGO);
+		if (inode == NULL)
+			return -ENOMEM;
+
+		inode->i_fop = &sel_policycap_ops;
+		inode->i_ino = iter | SEL_POLICYCAP_INO_OFFSET;
+		d_add(dentry, inode);
+	}
+
+	return 0;
+}
+
 static int sel_make_dir(struct inode *dir, struct dentry *dentry,
 			unsigned long *ino)
 {
@@ -1681,6 +1744,18 @@ static int sel_fill_super(struct super_block * sb, void * data, int silent)
 		goto err;
 
 	class_dir = dentry;
+
+	dentry = d_alloc_name(sb->s_root, "policy_capabilities");
+	if (!dentry) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	ret = sel_make_dir(root_inode, dentry, &sel_last_ino);
+	if (ret)
+		goto err;
+
+	policycap_dir = dentry;
 
 out:
 	return ret;

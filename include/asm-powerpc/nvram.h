@@ -10,6 +10,8 @@
 #ifndef _ASM_POWERPC_NVRAM_H
 #define _ASM_POWERPC_NVRAM_H
 
+#include <linux/errno.h>
+
 #define NVRW_CNT 0x20
 #define NVRAM_HEADER_LEN 16 /* sizeof(struct nvram_header) */
 #define NVRAM_BLOCK_LEN 16
@@ -71,7 +73,16 @@ extern int nvram_clear_error_log(void);
 extern struct nvram_partition *nvram_find_partition(int sig, const char *name);
 
 extern int pSeries_nvram_init(void);
+
+#ifdef CONFIG_MMIO_NVRAM
 extern int mmio_nvram_init(void);
+#else
+static inline int mmio_nvram_init(void)
+{
+	return -ENODEV;
+}
+#endif
+
 #endif /* __KERNEL__ */
 
 /* PowerMac specific nvram stuffs */

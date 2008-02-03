@@ -41,6 +41,7 @@ found:
 }
 
 static void *x25_seq_route_start(struct seq_file *seq, loff_t *pos)
+	__acquires(x25_route_list_lock)
 {
 	loff_t l = *pos;
 
@@ -70,6 +71,7 @@ out:
 }
 
 static void x25_seq_route_stop(struct seq_file *seq, void *v)
+	__releases(x25_route_list_lock)
 {
 	read_unlock_bh(&x25_route_list_lock);
 }
@@ -105,6 +107,7 @@ found:
 }
 
 static void *x25_seq_socket_start(struct seq_file *seq, loff_t *pos)
+	__acquires(x25_list_lock)
 {
 	loff_t l = *pos;
 
@@ -127,6 +130,7 @@ out:
 }
 
 static void x25_seq_socket_stop(struct seq_file *seq, void *v)
+	__releases(x25_list_lock)
 {
 	read_unlock_bh(&x25_list_lock);
 }
@@ -183,6 +187,7 @@ found:
 }
 
 static void *x25_seq_forward_start(struct seq_file *seq, loff_t *pos)
+	__acquires(x25_forward_list_lock)
 {
 	loff_t l = *pos;
 
@@ -213,6 +218,7 @@ out:
 }
 
 static void x25_seq_forward_stop(struct seq_file *seq, void *v)
+	__releases(x25_forward_list_lock)
 {
 	read_unlock_bh(&x25_forward_list_lock);
 }
@@ -287,7 +293,7 @@ static const struct file_operations x25_seq_route_fops = {
 	.release	= seq_release,
 };
 
-static struct file_operations x25_seq_forward_fops = {
+static const struct file_operations x25_seq_forward_fops = {
 	.owner		= THIS_MODULE,
 	.open		= x25_seq_forward_open,
 	.read		= seq_read,

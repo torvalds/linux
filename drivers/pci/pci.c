@@ -18,6 +18,7 @@
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/log2.h>
+#include <linux/aspm.h>
 #include <asm/dma.h>	/* isa_dma_bridge_buggy */
 #include "pci.h"
 
@@ -314,6 +315,24 @@ int pci_find_ht_capability(struct pci_dev *dev, int ht_cap)
 }
 EXPORT_SYMBOL_GPL(pci_find_ht_capability);
 
+void pcie_wait_pending_transaction(struct pci_dev *dev)
+{
+	int pos;
+	u16 reg16;
+
+	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
+	if (!pos)
+		return;
+	while (1) {
+		pci_read_config_word(dev, pos + PCI_EXP_DEVSTA, &reg16);
+		if (!(reg16 & PCI_EXP_DEVSTA_TRPND))
+			break;
+		cpu_relax();
+	}
+
+}
+EXPORT_SYMBOL_GPL(pcie_wait_pending_transaction);
+
 /**
  * pci_find_parent_resource - return resource region of parent bus of given region
  * @dev: PCI device structure contains resources to be searched
@@ -353,7 +372,7 @@ pci_find_parent_resource(const struct pci_dev *dev, struct resource *res)
  * Restore the BAR values for a given device, so as to make it
  * accessible by its driver.
  */
-void
+static void
 pci_restore_bars(struct pci_dev *dev)
 {
 	int i, numres;
@@ -501,6 +520,9 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	if (need_restore)
 		pci_restore_bars(dev);
 
+	if (dev->bus->self)
+		pcie_aspm_pm_state_change(dev->bus->self);
+
 	return 0;
 }
 
@@ -551,6 +573,7 @@ static int pci_save_pcie_state(struct pci_dev *dev)
 	int pos, i = 0;
 	struct pci_cap_saved_state *save_state;
 	u16 *cap;
+	int found = 0;
 
 	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
 	if (pos <= 0)
@@ -559,6 +582,8 @@ static int pci_save_pcie_state(struct pci_dev *dev)
 	save_state = pci_find_saved_cap(dev, PCI_CAP_ID_EXP);
 	if (!save_state)
 		save_state = kzalloc(sizeof(*save_state) + sizeof(u16) * 4, GFP_KERNEL);
+	else
+		found = 1;
 	if (!save_state) {
 		dev_err(&dev->dev, "Out of memory in pci_save_pcie_state\n");
 		return -ENOMEM;
@@ -569,7 +594,9 @@ static int pci_save_pcie_state(struct pci_dev *dev)
 	pci_read_config_word(dev, pos + PCI_EXP_LNKCTL, &cap[i++]);
 	pci_read_config_word(dev, pos + PCI_EXP_SLTCTL, &cap[i++]);
 	pci_read_config_word(dev, pos + PCI_EXP_RTCTL, &cap[i++]);
-	pci_add_saved_cap(dev, save_state);
+	save_state->cap_nr = PCI_CAP_ID_EXP;
+	if (!found)
+		pci_add_saved_cap(dev, save_state);
 	return 0;
 }
 
@@ -597,14 +624,17 @@ static int pci_save_pcix_state(struct pci_dev *dev)
 	int pos, i = 0;
 	struct pci_cap_saved_state *save_state;
 	u16 *cap;
+	int found = 0;
 
 	pos = pci_find_capability(dev, PCI_CAP_ID_PCIX);
 	if (pos <= 0)
 		return 0;
 
-	save_state = pci_find_saved_cap(dev, PCI_CAP_ID_EXP);
+	save_state = pci_find_saved_cap(dev, PCI_CAP_ID_PCIX);
 	if (!save_state)
 		save_state = kzalloc(sizeof(*save_state) + sizeof(u16), GFP_KERNEL);
+	else
+		found = 1;
 	if (!save_state) {
 		dev_err(&dev->dev, "Out of memory in pci_save_pcie_state\n");
 		return -ENOMEM;
@@ -612,7 +642,9 @@ static int pci_save_pcix_state(struct pci_dev *dev)
 	cap = (u16 *)&save_state->data[0];
 
 	pci_read_config_word(dev, pos + PCI_X_CMD, &cap[i++]);
-	pci_add_saved_cap(dev, save_state);
+	save_state->cap_nr = PCI_CAP_ID_PCIX;
+	if (!found)
+		pci_add_saved_cap(dev, save_state);
 	return 0;
 }
 
@@ -713,27 +745,49 @@ int pci_reenable_device(struct pci_dev *dev)
 	return 0;
 }
 
-/**
- * pci_enable_device_bars - Initialize some of a device for use
- * @dev: PCI device to be initialized
- * @bars: bitmask of BAR's that must be configured
- *
- *  Initialize device before it's used by a driver. Ask low-level code
- *  to enable selected I/O and memory resources. Wake up the device if it
- *  was suspended. Beware, this function can fail.
- */
-int
-pci_enable_device_bars(struct pci_dev *dev, int bars)
+static int __pci_enable_device_flags(struct pci_dev *dev,
+				     resource_size_t flags)
 {
 	int err;
+	int i, bars = 0;
 
 	if (atomic_add_return(1, &dev->enable_cnt) > 1)
 		return 0;		/* already enabled */
+
+	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++)
+		if (dev->resource[i].flags & flags)
+			bars |= (1 << i);
 
 	err = do_pci_enable_device(dev, bars);
 	if (err < 0)
 		atomic_dec(&dev->enable_cnt);
 	return err;
+}
+
+/**
+ * pci_enable_device_io - Initialize a device for use with IO space
+ * @dev: PCI device to be initialized
+ *
+ *  Initialize device before it's used by a driver. Ask low-level code
+ *  to enable I/O resources. Wake up the device if it was suspended.
+ *  Beware, this function can fail.
+ */
+int pci_enable_device_io(struct pci_dev *dev)
+{
+	return __pci_enable_device_flags(dev, IORESOURCE_IO);
+}
+
+/**
+ * pci_enable_device_mem - Initialize a device for use with Memory space
+ * @dev: PCI device to be initialized
+ *
+ *  Initialize device before it's used by a driver. Ask low-level code
+ *  to enable Memory resources. Wake up the device if it was suspended.
+ *  Beware, this function can fail.
+ */
+int pci_enable_device_mem(struct pci_dev *dev)
+{
+	return __pci_enable_device_flags(dev, IORESOURCE_MEM);
 }
 
 /**
@@ -749,7 +803,7 @@ pci_enable_device_bars(struct pci_dev *dev, int bars)
  */
 int pci_enable_device(struct pci_dev *dev)
 {
-	return pci_enable_device_bars(dev, (1 << PCI_NUM_RESOURCES) - 1);
+	return __pci_enable_device_flags(dev, IORESOURCE_MEM | IORESOURCE_IO);
 }
 
 /*
@@ -823,7 +877,8 @@ int pcim_enable_device(struct pci_dev *pdev)
 	dr = get_pci_dr(pdev);
 	if (unlikely(!dr))
 		return -ENOMEM;
-	WARN_ON(!!dr->enabled);
+	if (dr->enabled)
+		return 0;
 
 	rc = pci_enable_device(pdev);
 	if (!rc) {
@@ -883,6 +938,9 @@ pci_disable_device(struct pci_dev *dev)
 
 	if (atomic_sub_return(1, &dev->enable_cnt) != 0)
 		return;
+
+	/* Wait for all transactions are finished before disabling the device */
+	pcie_wait_pending_transaction(dev);
 
 	pci_read_config_word(dev, PCI_COMMAND, &pci_command);
 	if (pci_command & PCI_COMMAND_MASTER) {
@@ -1618,9 +1676,9 @@ early_param("pci", pci_setup);
 
 device_initcall(pci_init);
 
-EXPORT_SYMBOL_GPL(pci_restore_bars);
 EXPORT_SYMBOL(pci_reenable_device);
-EXPORT_SYMBOL(pci_enable_device_bars);
+EXPORT_SYMBOL(pci_enable_device_io);
+EXPORT_SYMBOL(pci_enable_device_mem);
 EXPORT_SYMBOL(pci_enable_device);
 EXPORT_SYMBOL(pcim_enable_device);
 EXPORT_SYMBOL(pcim_pin_device);

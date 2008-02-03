@@ -83,7 +83,7 @@ static const char transfertypes[][12] = {
  */
 
 static int
-rpcrdma_convert_iovs(struct xdr_buf *xdrbuf, int pos,
+rpcrdma_convert_iovs(struct xdr_buf *xdrbuf, unsigned int pos,
 	enum rpcrdma_chunktype type, struct rpcrdma_mr_seg *seg, int nsegs)
 {
 	int len, n = 0, p;
@@ -92,7 +92,6 @@ rpcrdma_convert_iovs(struct xdr_buf *xdrbuf, int pos,
 		seg[n].mr_page = NULL;
 		seg[n].mr_offset = xdrbuf->head[0].iov_base;
 		seg[n].mr_len = xdrbuf->head[0].iov_len;
-		pos += xdrbuf->head[0].iov_len;
 		++n;
 	}
 
@@ -104,7 +103,6 @@ rpcrdma_convert_iovs(struct xdr_buf *xdrbuf, int pos,
 		seg[n].mr_len = min_t(u32,
 			PAGE_SIZE - xdrbuf->page_base, xdrbuf->page_len);
 		len = xdrbuf->page_len - seg[n].mr_len;
-		pos += len;
 		++n;
 		p = 1;
 		while (len > 0) {
@@ -119,19 +117,14 @@ rpcrdma_convert_iovs(struct xdr_buf *xdrbuf, int pos,
 		}
 	}
 
-	if (pos < xdrbuf->len && xdrbuf->tail[0].iov_len) {
+	if (xdrbuf->tail[0].iov_len) {
 		if (n == nsegs)
 			return 0;
 		seg[n].mr_page = NULL;
 		seg[n].mr_offset = xdrbuf->tail[0].iov_base;
 		seg[n].mr_len = xdrbuf->tail[0].iov_len;
-		pos += xdrbuf->tail[0].iov_len;
 		++n;
 	}
-
-	if (pos < xdrbuf->len)
-		dprintk("RPC:       %s: marshaled only %d of %d\n",
-				__func__, pos, xdrbuf->len);
 
 	return n;
 }
@@ -176,12 +169,12 @@ rpcrdma_create_chunks(struct rpc_rqst *rqst, struct xdr_buf *target,
 	struct rpcrdma_req *req = rpcr_to_rdmar(rqst);
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(rqst->rq_task->tk_xprt);
 	int nsegs, nchunks = 0;
-	int pos;
+	unsigned int pos;
 	struct rpcrdma_mr_seg *seg = req->rl_segments;
 	struct rpcrdma_read_chunk *cur_rchunk = NULL;
 	struct rpcrdma_write_array *warray = NULL;
 	struct rpcrdma_write_chunk *cur_wchunk = NULL;
-	u32 *iptr = headerp->rm_body.rm_chunks;
+	__be32 *iptr = headerp->rm_body.rm_chunks;
 
 	if (type == rpcrdma_readch || type == rpcrdma_areadch) {
 		/* a read chunk - server will RDMA Read our memory */
@@ -217,25 +210,25 @@ rpcrdma_create_chunks(struct rpc_rqst *rqst, struct xdr_buf *target,
 			cur_rchunk->rc_target.rs_handle = htonl(seg->mr_rkey);
 			cur_rchunk->rc_target.rs_length = htonl(seg->mr_len);
 			xdr_encode_hyper(
-					(u32 *)&cur_rchunk->rc_target.rs_offset,
+					(__be32 *)&cur_rchunk->rc_target.rs_offset,
 					seg->mr_base);
 			dprintk("RPC:       %s: read chunk "
-				"elem %d@0x%llx:0x%x pos %d (%s)\n", __func__,
-				seg->mr_len, seg->mr_base, seg->mr_rkey, pos,
-				n < nsegs ? "more" : "last");
+				"elem %d@0x%llx:0x%x pos %u (%s)\n", __func__,
+				seg->mr_len, (unsigned long long)seg->mr_base,
+				seg->mr_rkey, pos, n < nsegs ? "more" : "last");
 			cur_rchunk++;
 			r_xprt->rx_stats.read_chunk_count++;
 		} else {		/* write/reply */
 			cur_wchunk->wc_target.rs_handle = htonl(seg->mr_rkey);
 			cur_wchunk->wc_target.rs_length = htonl(seg->mr_len);
 			xdr_encode_hyper(
-					(u32 *)&cur_wchunk->wc_target.rs_offset,
+					(__be32 *)&cur_wchunk->wc_target.rs_offset,
 					seg->mr_base);
 			dprintk("RPC:       %s: %s chunk "
 				"elem %d@0x%llx:0x%x (%s)\n", __func__,
 				(type == rpcrdma_replych) ? "reply" : "write",
-				seg->mr_len, seg->mr_base, seg->mr_rkey,
-				n < nsegs ? "more" : "last");
+				seg->mr_len, (unsigned long long)seg->mr_base,
+				seg->mr_rkey, n < nsegs ? "more" : "last");
 			cur_wchunk++;
 			if (type == rpcrdma_replych)
 				r_xprt->rx_stats.reply_chunk_count++;
@@ -257,14 +250,14 @@ rpcrdma_create_chunks(struct rpc_rqst *rqst, struct xdr_buf *target,
 	 * finish off header. If write, marshal discrim and nchunks.
 	 */
 	if (cur_rchunk) {
-		iptr = (u32 *) cur_rchunk;
+		iptr = (__be32 *) cur_rchunk;
 		*iptr++ = xdr_zero;	/* finish the read chunk list */
 		*iptr++ = xdr_zero;	/* encode a NULL write chunk list */
 		*iptr++ = xdr_zero;	/* encode a NULL reply chunk */
 	} else {
 		warray->wc_discrim = xdr_one;
 		warray->wc_nchunks = htonl(nchunks);
-		iptr = (u32 *) cur_wchunk;
+		iptr = (__be32 *) cur_wchunk;
 		if (type == rpcrdma_writech) {
 			*iptr++ = xdr_zero; /* finish the write chunk list */
 			*iptr++ = xdr_zero; /* encode a NULL reply chunk */
@@ -387,7 +380,7 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	headerp->rm_xid = rqst->rq_xid;
 	headerp->rm_vers = xdr_one;
 	headerp->rm_credit = htonl(r_xprt->rx_buf.rb_max_requests);
-	headerp->rm_type = __constant_htonl(RDMA_MSG);
+	headerp->rm_type = htonl(RDMA_MSG);
 
 	/*
 	 * Chunks needed for results?
@@ -465,11 +458,11 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 						RPCRDMA_INLINE_PAD_VALUE(rqst));
 
 		if (padlen) {
-			headerp->rm_type = __constant_htonl(RDMA_MSGP);
+			headerp->rm_type = htonl(RDMA_MSGP);
 			headerp->rm_body.rm_padded.rm_align =
 				htonl(RPCRDMA_INLINE_PAD_VALUE(rqst));
 			headerp->rm_body.rm_padded.rm_thresh =
-				__constant_htonl(RPCRDMA_INLINE_PAD_THRESH);
+				htonl(RPCRDMA_INLINE_PAD_THRESH);
 			headerp->rm_body.rm_padded.rm_pempty[0] = xdr_zero;
 			headerp->rm_body.rm_padded.rm_pempty[1] = xdr_zero;
 			headerp->rm_body.rm_padded.rm_pempty[2] = xdr_zero;
@@ -559,7 +552,7 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
  * RDMA'd by server. See map at rpcrdma_create_chunks()! :-)
  */
 static int
-rpcrdma_count_chunks(struct rpcrdma_rep *rep, int max, int wrchunk, u32 **iptrp)
+rpcrdma_count_chunks(struct rpcrdma_rep *rep, unsigned int max, int wrchunk, __be32 **iptrp)
 {
 	unsigned int i, total_len;
 	struct rpcrdma_write_chunk *cur_wchunk;
@@ -573,11 +566,11 @@ rpcrdma_count_chunks(struct rpcrdma_rep *rep, int max, int wrchunk, u32 **iptrp)
 		struct rpcrdma_segment *seg = &cur_wchunk->wc_target;
 		ifdebug(FACILITY) {
 			u64 off;
-			xdr_decode_hyper((u32 *)&seg->rs_offset, &off);
+			xdr_decode_hyper((__be32 *)&seg->rs_offset, &off);
 			dprintk("RPC:       %s: chunk %d@0x%llx:0x%x\n",
 				__func__,
 				ntohl(seg->rs_length),
-				off,
+				(unsigned long long)off,
 				ntohl(seg->rs_handle));
 		}
 		total_len += ntohl(seg->rs_length);
@@ -585,7 +578,7 @@ rpcrdma_count_chunks(struct rpcrdma_rep *rep, int max, int wrchunk, u32 **iptrp)
 	}
 	/* check and adjust for properly terminated write chunk */
 	if (wrchunk) {
-		u32 *w = (u32 *) cur_wchunk;
+		__be32 *w = (__be32 *) cur_wchunk;
 		if (*w++ != xdr_zero)
 			return -1;
 		cur_wchunk = (struct rpcrdma_write_chunk *) w;
@@ -593,7 +586,7 @@ rpcrdma_count_chunks(struct rpcrdma_rep *rep, int max, int wrchunk, u32 **iptrp)
 	if ((char *) cur_wchunk > rep->rr_base + rep->rr_len)
 		return -1;
 
-	*iptrp = (u32 *) cur_wchunk;
+	*iptrp = (__be32 *) cur_wchunk;
 	return total_len;
 }
 
@@ -721,7 +714,7 @@ rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 	struct rpc_rqst *rqst;
 	struct rpc_xprt *xprt = rep->rr_xprt;
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
-	u32 *iptr;
+	__be32 *iptr;
 	int i, rdmalen, status;
 
 	/* Check status. If bad, signal disconnect and return rep to pool */
@@ -801,7 +794,7 @@ repost:
 			r_xprt->rx_stats.total_rdma_reply += rdmalen;
 		} else {
 			/* else ordinary inline */
-			iptr = (u32 *)((unsigned char *)headerp + 28);
+			iptr = (__be32 *)((unsigned char *)headerp + 28);
 			rep->rr_len -= 28; /*sizeof *headerp;*/
 			status = rep->rr_len;
 		}
@@ -816,7 +809,7 @@ repost:
 		    headerp->rm_body.rm_chunks[2] != xdr_one ||
 		    req->rl_nchunks == 0)
 			goto badheader;
-		iptr = (u32 *)((unsigned char *)headerp + 28);
+		iptr = (__be32 *)((unsigned char *)headerp + 28);
 		rdmalen = rpcrdma_count_chunks(rep, req->rl_nchunks, 0, &iptr);
 		if (rdmalen < 0)
 			goto badheader;

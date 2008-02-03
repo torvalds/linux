@@ -973,7 +973,7 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 
 		*id = vfd->current_norm;
 
-		dbgarg (cmd, "value=%Lu\n", (long long unsigned) *id);
+		dbgarg (cmd, "value=%08Lx\n", (long long unsigned) *id);
 
 		ret=0;
 		break;
@@ -982,7 +982,7 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	{
 		v4l2_std_id *id = arg,norm;
 
-		dbgarg (cmd, "value=%Lu\n", (long long unsigned) *id);
+		dbgarg (cmd, "value=%08Lx\n", (long long unsigned) *id);
 
 		norm = (*id) & vfd->tvnorms;
 		if ( vfd->tvnorms && !norm)	/* Check if std is supported */
@@ -1008,7 +1008,7 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 			break;
 		ret=vfd->vidioc_querystd(file, fh, arg);
 		if (!ret)
-			dbgarg (cmd, "detected std=%Lu\n",
+			dbgarg (cmd, "detected std=%08Lx\n",
 						(unsigned long long)*p);
 		break;
 	}
@@ -1028,7 +1028,7 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 		if (!ret)
 			dbgarg (cmd, "index=%d, name=%s, type=%d, "
 					"audioset=%d, "
-					"tuner=%d, std=%Ld, status=%d\n",
+					"tuner=%d, std=%08Lx, status=%d\n",
 					p->index,p->name,p->type,p->audioset,
 					p->tuner,
 					(unsigned long long)p->std,

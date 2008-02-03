@@ -79,17 +79,6 @@ static unsigned long dummy_gettimeoffset(void)
 }
 #endif
 
-/*
- * An implementation of printk_clock() independent from
- * sched_clock().  This avoids non-bootable kernels when
- * printk_clock is enabled.
- */
-unsigned long long printk_clock(void)
-{
-	return (unsigned long long)(jiffies - INITIAL_JIFFIES) *
-			(1000000000 / HZ);
-}
-
 static unsigned long next_rtc_update;
 
 /*
@@ -195,7 +184,7 @@ static int leds_shutdown(struct sys_device *dev)
 }
 
 static struct sysdev_class leds_sysclass = {
-	set_kset_name("leds"),
+	.name		= "leds",
 	.shutdown	= leds_shutdown,
 	.suspend	= leds_suspend,
 	.resume		= leds_resume,
@@ -336,7 +325,9 @@ void timer_tick(void)
 	profile_tick(CPU_PROFILING);
 	do_leds();
 	do_set_rtc();
+	write_seqlock(&xtime_lock);
 	do_timer(1);
+	write_sequnlock(&xtime_lock);
 #ifndef CONFIG_SMP
 	update_process_times(user_mode(get_irq_regs()));
 #endif
@@ -369,7 +360,7 @@ static int timer_resume(struct sys_device *dev)
 #endif
 
 static struct sysdev_class timer_sysclass = {
-	set_kset_name("timer"),
+	.name		= "timer",
 	.suspend	= timer_suspend,
 	.resume		= timer_resume,
 };

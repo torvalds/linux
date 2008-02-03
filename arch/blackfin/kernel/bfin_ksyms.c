@@ -37,9 +37,6 @@
 /* platform dependent support */
 
 EXPORT_SYMBOL(__ioremap);
-EXPORT_SYMBOL(strcmp);
-EXPORT_SYMBOL(strncmp);
-EXPORT_SYMBOL(dump_thread);
 
 EXPORT_SYMBOL(ip_fast_csum);
 
@@ -51,6 +48,7 @@ EXPORT_SYMBOL(__down_trylock);
 EXPORT_SYMBOL(__down_interruptible);
 
 EXPORT_SYMBOL(is_in_rom);
+EXPORT_SYMBOL(bfin_return_from_exception);
 
 /* Networking helper routines. */
 EXPORT_SYMBOL(csum_partial_copy);
@@ -60,13 +58,11 @@ EXPORT_SYMBOL(csum_partial_copy);
  * their interface isn't gonna change any time soon now, so
  * it's OK to leave it out of version control.
  */
-EXPORT_SYMBOL(strcpy);
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(memcmp);
 EXPORT_SYMBOL(memmove);
 EXPORT_SYMBOL(memchr);
-EXPORT_SYMBOL(get_wchan);
 
 /*
  * libgcc functions - functions that are used internally by the
@@ -102,6 +98,7 @@ EXPORT_SYMBOL(outsw);
 EXPORT_SYMBOL(insw);
 EXPORT_SYMBOL(outsl);
 EXPORT_SYMBOL(insl);
+EXPORT_SYMBOL(insl_16);
 EXPORT_SYMBOL(irq_flags);
 EXPORT_SYMBOL(iounmap);
 EXPORT_SYMBOL(blackfin_dcache_invalidate_range);

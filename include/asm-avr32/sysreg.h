@@ -93,6 +93,8 @@
 #define SYSREG_I3M_SIZE				1
 #define SYSREG_EM_OFFSET			21
 #define SYSREG_EM_SIZE				1
+#define SYSREG_MODE_OFFSET			22
+#define SYSREG_MODE_SIZE			3
 #define SYSREG_M0_OFFSET			22
 #define SYSREG_M0_SIZE				1
 #define SYSREG_M1_OFFSET			23
@@ -215,6 +217,8 @@
 #define SYSREG_IRP_SIZE				6
 
 /* Bitfields in PCCR */
+#define SYSREG_PCCR_E_OFFSET			0
+#define SYSREG_PCCR_E_SIZE			1
 #define SYSREG_PCCR_R_OFFSET			1
 #define SYSREG_PCCR_R_SIZE			1
 #define SYSREG_PCCR_C_OFFSET			2

@@ -219,7 +219,7 @@ static ssize_t tsf_write_file(struct file *file, const char __user *user_buf,
 	ssize_t buf_size;
 	ssize_t res;
 	unsigned long flags;
-	u64 tsf;
+	unsigned long long tsf;
 
 	buf_size = min(count, sizeof (really_big_buffer) - 1);
 	down(&big_buffer_sem);

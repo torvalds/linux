@@ -1,6 +1,4 @@
 /*
- *  kernel/cgroup.c
- *
  *  Generic process-grouping system.
  *
  *  Based originally on the cpuset system, extracted by Paul Menage
@@ -2200,7 +2198,8 @@ static void cgroup_init_subsys(struct cgroup_subsys *ss)
 {
 	struct cgroup_subsys_state *css;
 	struct list_head *l;
-	printk(KERN_ERR "Initializing cgroup subsys %s\n", ss->name);
+
+	printk(KERN_INFO "Initializing cgroup subsys %s\n", ss->name);
 
 	/* Create the top cgroup state for this subsystem */
 	ss->root = &rootnode;
@@ -2273,7 +2272,7 @@ int __init cgroup_init_early(void)
 		BUG_ON(!ss->create);
 		BUG_ON(!ss->destroy);
 		if (ss->subsys_id != i) {
-			printk(KERN_ERR "Subsys %s id == %d\n",
+			printk(KERN_ERR "cgroup: Subsys %s id == %d\n",
 			       ss->name, ss->subsys_id);
 			BUG();
 		}
@@ -2605,7 +2604,7 @@ int cgroup_clone(struct task_struct *tsk, struct cgroup_subsys *subsys)
 	dentry = lookup_one_len(nodename, parent->dentry, strlen(nodename));
 	if (IS_ERR(dentry)) {
 		printk(KERN_INFO
-		       "Couldn't allocate dentry for %s: %ld\n", nodename,
+		       "cgroup: Couldn't allocate dentry for %s: %ld\n", nodename,
 		       PTR_ERR(dentry));
 		ret = PTR_ERR(dentry);
 		goto out_release;

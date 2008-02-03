@@ -214,10 +214,6 @@ static inline struct htb_class *htb_find(u32 handle, struct Qdisc *sch)
  * then finish and return direct queue.
  */
 #define HTB_DIRECT (struct htb_class*)-1
-static inline u32 htb_classid(struct htb_class *cl)
-{
-	return (cl && cl != HTB_DIRECT) ? cl->classid : TC_H_UNSPEC;
-}
 
 static struct htb_class *htb_classify(struct sk_buff *skb, struct Qdisc *sch,
 				      int *qerr)
@@ -996,19 +992,33 @@ static void htb_reset(struct Qdisc *sch)
 		INIT_LIST_HEAD(q->drops + i);
 }
 
-static int htb_init(struct Qdisc *sch, struct rtattr *opt)
+static const struct nla_policy htb_policy[TCA_HTB_MAX + 1] = {
+	[TCA_HTB_PARMS]	= { .len = sizeof(struct tc_htb_opt) },
+	[TCA_HTB_INIT]	= { .len = sizeof(struct tc_htb_glob) },
+	[TCA_HTB_CTAB]	= { .type = NLA_BINARY, .len = TC_RTAB_SIZE },
+	[TCA_HTB_RTAB]	= { .type = NLA_BINARY, .len = TC_RTAB_SIZE },
+};
+
+static int htb_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct htb_sched *q = qdisc_priv(sch);
-	struct rtattr *tb[TCA_HTB_INIT];
+	struct nlattr *tb[TCA_HTB_INIT + 1];
 	struct tc_htb_glob *gopt;
+	int err;
 	int i;
-	if (!opt || rtattr_parse_nested(tb, TCA_HTB_INIT, opt) ||
-	    tb[TCA_HTB_INIT - 1] == NULL ||
-	    RTA_PAYLOAD(tb[TCA_HTB_INIT - 1]) < sizeof(*gopt)) {
+
+	if (!opt)
+		return -EINVAL;
+
+	err = nla_parse_nested(tb, TCA_HTB_INIT, opt, htb_policy);
+	if (err < 0)
+		return err;
+
+	if (tb[TCA_HTB_INIT] == NULL) {
 		printk(KERN_ERR "HTB: hey probably you have bad tc tool ?\n");
 		return -EINVAL;
 	}
-	gopt = RTA_DATA(tb[TCA_HTB_INIT - 1]);
+	gopt = nla_data(tb[TCA_HTB_INIT]);
 	if (gopt->version != HTB_VER >> 16) {
 		printk(KERN_ERR
 		       "HTB: need tc/htb version %d (minor is %d), you have %d\n",
@@ -1039,25 +1049,29 @@ static int htb_init(struct Qdisc *sch, struct rtattr *opt)
 static int htb_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct htb_sched *q = qdisc_priv(sch);
-	unsigned char *b = skb_tail_pointer(skb);
-	struct rtattr *rta;
+	struct nlattr *nest;
 	struct tc_htb_glob gopt;
-	spin_lock_bh(&sch->dev->queue_lock);
-	gopt.direct_pkts = q->direct_pkts;
 
+	spin_lock_bh(&sch->dev->queue_lock);
+
+	gopt.direct_pkts = q->direct_pkts;
 	gopt.version = HTB_VER;
 	gopt.rate2quantum = q->rate2quantum;
 	gopt.defcls = q->defcls;
 	gopt.debug = 0;
-	rta = (struct rtattr *)b;
-	RTA_PUT(skb, TCA_OPTIONS, 0, NULL);
-	RTA_PUT(skb, TCA_HTB_INIT, sizeof(gopt), &gopt);
-	rta->rta_len = skb_tail_pointer(skb) - b;
+
+	nest = nla_nest_start(skb, TCA_OPTIONS);
+	if (nest == NULL)
+		goto nla_put_failure;
+	NLA_PUT(skb, TCA_HTB_INIT, sizeof(gopt), &gopt);
+	nla_nest_end(skb, nest);
+
 	spin_unlock_bh(&sch->dev->queue_lock);
 	return skb->len;
-rtattr_failure:
+
+nla_put_failure:
 	spin_unlock_bh(&sch->dev->queue_lock);
-	nlmsg_trim(skb, skb_tail_pointer(skb));
+	nla_nest_cancel(skb, nest);
 	return -1;
 }
 
@@ -1065,8 +1079,7 @@ static int htb_dump_class(struct Qdisc *sch, unsigned long arg,
 			  struct sk_buff *skb, struct tcmsg *tcm)
 {
 	struct htb_class *cl = (struct htb_class *)arg;
-	unsigned char *b = skb_tail_pointer(skb);
-	struct rtattr *rta;
+	struct nlattr *nest;
 	struct tc_htb_opt opt;
 
 	spin_lock_bh(&sch->dev->queue_lock);
@@ -1075,8 +1088,9 @@ static int htb_dump_class(struct Qdisc *sch, unsigned long arg,
 	if (!cl->level && cl->un.leaf.q)
 		tcm->tcm_info = cl->un.leaf.q->handle;
 
-	rta = (struct rtattr *)b;
-	RTA_PUT(skb, TCA_OPTIONS, 0, NULL);
+	nest = nla_nest_start(skb, TCA_OPTIONS);
+	if (nest == NULL)
+		goto nla_put_failure;
 
 	memset(&opt, 0, sizeof(opt));
 
@@ -1087,13 +1101,15 @@ static int htb_dump_class(struct Qdisc *sch, unsigned long arg,
 	opt.quantum = cl->un.leaf.quantum;
 	opt.prio = cl->un.leaf.prio;
 	opt.level = cl->level;
-	RTA_PUT(skb, TCA_HTB_PARMS, sizeof(opt), &opt);
-	rta->rta_len = skb_tail_pointer(skb) - b;
+	NLA_PUT(skb, TCA_HTB_PARMS, sizeof(opt), &opt);
+
+	nla_nest_end(skb, nest);
 	spin_unlock_bh(&sch->dev->queue_lock);
 	return skb->len;
-rtattr_failure:
+
+nla_put_failure:
 	spin_unlock_bh(&sch->dev->queue_lock);
-	nlmsg_trim(skb, b);
+	nla_nest_cancel(skb, nest);
 	return -1;
 }
 
@@ -1294,29 +1310,35 @@ static void htb_put(struct Qdisc *sch, unsigned long arg)
 }
 
 static int htb_change_class(struct Qdisc *sch, u32 classid,
-			    u32 parentid, struct rtattr **tca,
+			    u32 parentid, struct nlattr **tca,
 			    unsigned long *arg)
 {
 	int err = -EINVAL;
 	struct htb_sched *q = qdisc_priv(sch);
 	struct htb_class *cl = (struct htb_class *)*arg, *parent;
-	struct rtattr *opt = tca[TCA_OPTIONS - 1];
+	struct nlattr *opt = tca[TCA_OPTIONS];
 	struct qdisc_rate_table *rtab = NULL, *ctab = NULL;
-	struct rtattr *tb[TCA_HTB_RTAB];
+	struct nlattr *tb[TCA_HTB_RTAB + 1];
 	struct tc_htb_opt *hopt;
 
 	/* extract all subattrs from opt attr */
-	if (!opt || rtattr_parse_nested(tb, TCA_HTB_RTAB, opt) ||
-	    tb[TCA_HTB_PARMS - 1] == NULL ||
-	    RTA_PAYLOAD(tb[TCA_HTB_PARMS - 1]) < sizeof(*hopt))
+	if (!opt)
+		goto failure;
+
+	err = nla_parse_nested(tb, TCA_HTB_RTAB, opt, htb_policy);
+	if (err < 0)
+		goto failure;
+
+	err = -EINVAL;
+	if (tb[TCA_HTB_PARMS] == NULL)
 		goto failure;
 
 	parent = parentid == TC_H_ROOT ? NULL : htb_find(parentid, sch);
 
-	hopt = RTA_DATA(tb[TCA_HTB_PARMS - 1]);
+	hopt = nla_data(tb[TCA_HTB_PARMS]);
 
-	rtab = qdisc_get_rtab(&hopt->rate, tb[TCA_HTB_RTAB - 1]);
-	ctab = qdisc_get_rtab(&hopt->ceil, tb[TCA_HTB_CTAB - 1]);
+	rtab = qdisc_get_rtab(&hopt->rate, tb[TCA_HTB_RTAB]);
+	ctab = qdisc_get_rtab(&hopt->ceil, tb[TCA_HTB_CTAB]);
 	if (!rtab || !ctab)
 		goto failure;
 
@@ -1324,12 +1346,12 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 		struct Qdisc *new_q;
 		int prio;
 		struct {
-			struct rtattr		rta;
+			struct nlattr		nla;
 			struct gnet_estimator	opt;
 		} est = {
-			.rta = {
-				.rta_len	= RTA_LENGTH(sizeof(est.opt)),
-				.rta_type	= TCA_RATE,
+			.nla = {
+				.nla_len	= nla_attr_size(sizeof(est.opt)),
+				.nla_type	= TCA_RATE,
 			},
 			.opt = {
 				/* 4s interval, 16s averaging constant */
@@ -1354,7 +1376,7 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 
 		gen_new_estimator(&cl->bstats, &cl->rate_est,
 				  &sch->dev->queue_lock,
-				  tca[TCA_RATE-1] ? : &est.rta);
+				  tca[TCA_RATE] ? : &est.nla);
 		cl->refcnt = 1;
 		INIT_LIST_HEAD(&cl->sibling);
 		INIT_HLIST_NODE(&cl->hlist);
@@ -1407,10 +1429,10 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 		list_add_tail(&cl->sibling,
 			      parent ? &parent->children : &q->root);
 	} else {
-		if (tca[TCA_RATE-1])
+		if (tca[TCA_RATE])
 			gen_replace_estimator(&cl->bstats, &cl->rate_est,
 					      &sch->dev->queue_lock,
-					      tca[TCA_RATE-1]);
+					      tca[TCA_RATE]);
 		sch_tree_lock(sch);
 	}
 
@@ -1529,7 +1551,7 @@ static void htb_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 	}
 }
 
-static struct Qdisc_class_ops htb_class_ops = {
+static const struct Qdisc_class_ops htb_class_ops = {
 	.graft		=	htb_graft,
 	.leaf		=	htb_leaf,
 	.qlen_notify	=	htb_qlen_notify,
@@ -1545,7 +1567,7 @@ static struct Qdisc_class_ops htb_class_ops = {
 	.dump_stats	=	htb_dump_class_stats,
 };
 
-static struct Qdisc_ops htb_qdisc_ops = {
+static struct Qdisc_ops htb_qdisc_ops __read_mostly = {
 	.next		=	NULL,
 	.cl_ops		=	&htb_class_ops,
 	.id		=	"htb",

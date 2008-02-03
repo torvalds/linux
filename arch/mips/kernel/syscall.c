@@ -73,7 +73,14 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 
 	task_size = STACK_TOP;
 
+	if (len > task_size)
+		return -ENOMEM;
+
 	if (flags & MAP_FIXED) {
+		/* Even MAP_FIXED mappings must reside within task_size.  */
+		if (task_size - len < addr)
+			return -EINVAL;
+
 		/*
 		 * We do not accept a shared mapping if it would violate
 		 * cache aliasing constraints.
@@ -83,8 +90,6 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 		return addr;
 	}
 
-	if (len > task_size)
-		return -ENOMEM;
 	do_color_align = 0;
 	if (filp || (flags & MAP_SHARED))
 		do_color_align = 1;

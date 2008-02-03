@@ -664,7 +664,7 @@ static int pt_open(struct inode *inode, struct file *file)
 		goto out;
 
 	err = -EROFS;
-	if ((!tape->flags & PT_WRITE_OK) && (file->f_mode & 2))
+	if ((!(tape->flags & PT_WRITE_OK)) && (file->f_mode & 2))
 		goto out;
 
 	if (!(iminor(inode) & 128))
@@ -972,10 +972,10 @@ static int __init pt_init(void)
 
 	for (unit = 0; unit < PT_UNITS; unit++)
 		if (pt[unit].present) {
-			class_device_create(pt_class, NULL, MKDEV(major, unit),
-					NULL, "pt%d", unit);
-			class_device_create(pt_class, NULL, MKDEV(major, unit + 128),
-					NULL, "pt%dn", unit);
+			device_create(pt_class, NULL, MKDEV(major, unit),
+				      "pt%d", unit);
+			device_create(pt_class, NULL, MKDEV(major, unit + 128),
+				      "pt%dn", unit);
 		}
 	goto out;
 
@@ -990,8 +990,8 @@ static void __exit pt_exit(void)
 	int unit;
 	for (unit = 0; unit < PT_UNITS; unit++)
 		if (pt[unit].present) {
-			class_device_destroy(pt_class, MKDEV(major, unit));
-			class_device_destroy(pt_class, MKDEV(major, unit + 128));
+			device_destroy(pt_class, MKDEV(major, unit));
+			device_destroy(pt_class, MKDEV(major, unit + 128));
 		}
 	class_destroy(pt_class);
 	unregister_chrdev(major, name);

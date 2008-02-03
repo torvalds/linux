@@ -565,16 +565,9 @@ static int nfs_read_done(struct rpc_task *task, struct nfs_read_data *data)
 	return 0;
 }
 
-static void nfs_proc_read_setup(struct nfs_read_data *data)
+static void nfs_proc_read_setup(struct nfs_read_data *data, struct rpc_message *msg)
 {
-	struct rpc_message	msg = {
-		.rpc_proc	= &nfs_procedures[NFSPROC_READ],
-		.rpc_argp	= &data->args,
-		.rpc_resp	= &data->res,
-		.rpc_cred	= data->cred,
-	};
-
-	rpc_call_setup(&data->task, &msg, 0);
+	msg->rpc_proc = &nfs_procedures[NFSPROC_READ];
 }
 
 static int nfs_write_done(struct rpc_task *task, struct nfs_write_data *data)
@@ -584,24 +577,15 @@ static int nfs_write_done(struct rpc_task *task, struct nfs_write_data *data)
 	return 0;
 }
 
-static void nfs_proc_write_setup(struct nfs_write_data *data, int how)
+static void nfs_proc_write_setup(struct nfs_write_data *data, struct rpc_message *msg)
 {
-	struct rpc_message	msg = {
-		.rpc_proc	= &nfs_procedures[NFSPROC_WRITE],
-		.rpc_argp	= &data->args,
-		.rpc_resp	= &data->res,
-		.rpc_cred	= data->cred,
-	};
-
 	/* Note: NFSv2 ignores @stable and always uses NFS_FILE_SYNC */
 	data->args.stable = NFS_FILE_SYNC;
-
-	/* Finalize the task. */
-	rpc_call_setup(&data->task, &msg, 0);
+	msg->rpc_proc = &nfs_procedures[NFSPROC_WRITE];
 }
 
 static void
-nfs_proc_commit_setup(struct nfs_write_data *data, int how)
+nfs_proc_commit_setup(struct nfs_write_data *data, struct rpc_message *msg)
 {
 	BUG();
 }
@@ -609,7 +593,9 @@ nfs_proc_commit_setup(struct nfs_write_data *data, int how)
 static int
 nfs_proc_lock(struct file *filp, int cmd, struct file_lock *fl)
 {
-	return nlmclnt_proc(filp->f_path.dentry->d_inode, cmd, fl);
+	struct inode *inode = filp->f_path.dentry->d_inode;
+
+	return nlmclnt_proc(NFS_SERVER(inode)->nlm_host, cmd, fl);
 }
 
 

@@ -2,8 +2,6 @@
 
     A driver for PCMCIA IDE/ATA disk cards
 
-    ide-cs.c 1.3 2002/10/26 05:45:31
-
     The contents of this file are subject to the Mozilla Public
     License Version 1.1 (the "License"); you may not use this file
     except in compliance with the License. You may obtain a copy of
@@ -147,13 +145,36 @@ static void ide_detach(struct pcmcia_device *link)
 
 static int idecs_register(unsigned long io, unsigned long ctl, unsigned long irq, struct pcmcia_device *handle)
 {
+    ide_hwif_t *hwif;
     hw_regs_t hw;
+    int i;
+    u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
+
     memset(&hw, 0, sizeof(hw));
-    ide_init_hwif_ports(&hw, io, ctl, NULL);
+    ide_std_init_ports(&hw, io, ctl);
     hw.irq = irq;
     hw.chipset = ide_pci;
     hw.dev = &handle->dev;
-    return ide_register_hw(&hw, &ide_undecoded_slave, 0, NULL);
+
+    hwif = ide_deprecated_find_port(hw.io_ports[IDE_DATA_OFFSET]);
+    if (hwif == NULL)
+	return -1;
+
+    i = hwif->index;
+
+    if (hwif->present)
+	ide_unregister(i, 0, 0);
+    else if (!hwif->hold)
+	ide_init_port_data(hwif, i);
+
+    ide_init_port_hw(hwif, &hw);
+    hwif->quirkproc = &ide_undecoded_slave;
+
+    idx[0] = i;
+
+    ide_device_add(idx, NULL);
+
+    return hwif->present ? i : -1;
 }
 
 /*======================================================================
@@ -339,7 +360,7 @@ void ide_release(struct pcmcia_device *link)
     if (info->ndev) {
 	/* FIXME: if this fails we need to queue the cleanup somehow
 	   -- need to investigate the required PCMCIA magic */
-	ide_unregister(info->hd);
+	ide_unregister(info->hd, 0, 0);
     }
     info->ndev = 0;
 

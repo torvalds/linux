@@ -11,6 +11,25 @@
 #include <linux/types.h>
 
 /*
+ * The maximum number of SG segments that we will put inside a
+ * scatterlist (unless chaining is used). Should ideally fit inside a
+ * single page, to avoid a higher order allocation.  We could define this
+ * to SG_MAX_SINGLE_ALLOC to pack correctly at the highest order.  The
+ * minimum value is 32
+ */
+#define SCSI_MAX_SG_SEGMENTS	128
+
+/*
+ * Like SCSI_MAX_SG_SEGMENTS, but for archs that have sg chaining. This limit
+ * is totally arbitrary, a setting of 2048 will get you at least 8mb ios.
+ */
+#ifdef ARCH_HAS_SG_CHAIN
+#define SCSI_MAX_SG_CHAIN_SEGMENTS	2048
+#else
+#define SCSI_MAX_SG_CHAIN_SEGMENTS	SCSI_MAX_SG_SEGMENTS
+#endif
+
+/*
  *	SCSI command lengths
  */
 
@@ -83,6 +102,7 @@ extern const unsigned char scsi_command_size[8];
 #define READ_TOC              0x43
 #define LOG_SELECT            0x4c
 #define LOG_SENSE             0x4d
+#define XDWRITEREAD_10        0x53
 #define MODE_SELECT_10        0x55
 #define RESERVE_10            0x56
 #define RELEASE_10            0x57

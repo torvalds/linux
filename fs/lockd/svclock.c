@@ -501,25 +501,29 @@ nlmsvc_testlock(struct svc_rqst *rqstp, struct nlm_file *file,
 			block, block->b_flags, block->b_fl);
 		if (block->b_flags & B_TIMED_OUT) {
 			nlmsvc_unlink_block(block);
-			return nlm_lck_denied;
+			ret = nlm_lck_denied;
+			goto out;
 		}
 		if (block->b_flags & B_GOT_CALLBACK) {
+			nlmsvc_unlink_block(block);
 			if (block->b_fl != NULL
 					&& block->b_fl->fl_type != F_UNLCK) {
 				lock->fl = *block->b_fl;
 				goto conf_lock;
-			}
-			else {
-				nlmsvc_unlink_block(block);
-				return nlm_granted;
+			} else {
+				ret = nlm_granted;
+				goto out;
 			}
 		}
-		return nlm_drop_reply;
+		ret = nlm_drop_reply;
+		goto out;
 	}
 
 	error = vfs_test_lock(file->f_file, &lock->fl);
-	if (error == -EINPROGRESS)
-		return nlmsvc_defer_lock_rqst(rqstp, block);
+	if (error == -EINPROGRESS) {
+		ret = nlmsvc_defer_lock_rqst(rqstp, block);
+		goto out;
+	}
 	if (error) {
 		ret = nlm_lck_denied_nolocks;
 		goto out;

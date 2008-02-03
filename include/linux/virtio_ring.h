@@ -67,7 +67,7 @@ struct vring {
 };
 
 /* The standard layout for the ring is a continuous chunk of memory which looks
- * like this.  The used fields will be aligned to a "num+1" boundary.
+ * like this.  We assume num is a power of 2.
  *
  * struct vring
  * {
@@ -79,8 +79,8 @@ struct vring {
  *	__u16 avail_idx;
  *	__u16 available[num];
  *
- *	// Padding so a correctly-chosen num value will cache-align used_idx.
- *	char pad[sizeof(struct vring_desc) - sizeof(avail_flags)];
+ *	// Padding to the next page boundary.
+ *	char pad[];
  *
  *	// A ring of used descriptor heads with free-running index.
  *	__u16 used_flags;
@@ -88,18 +88,21 @@ struct vring {
  *	struct vring_used_elem used[num];
  * };
  */
-static inline void vring_init(struct vring *vr, unsigned int num, void *p)
+static inline void vring_init(struct vring *vr, unsigned int num, void *p,
+			      unsigned int pagesize)
 {
 	vr->num = num;
 	vr->desc = p;
-	vr->avail = p + num*sizeof(struct vring);
-	vr->used = p + (num+1)*(sizeof(struct vring) + sizeof(__u16));
+	vr->avail = p + num*sizeof(struct vring_desc);
+	vr->used = (void *)(((unsigned long)&vr->avail->ring[num] + pagesize-1)
+			    & ~(pagesize - 1));
 }
 
-static inline unsigned vring_size(unsigned int num)
+static inline unsigned vring_size(unsigned int num, unsigned int pagesize)
 {
-	return (num + 1) * (sizeof(struct vring_desc) + sizeof(__u16))
-		+ sizeof(__u32) + num * sizeof(struct vring_used_elem);
+	return ((sizeof(struct vring_desc) * num + sizeof(__u16) * (2 + num)
+		 + pagesize - 1) & ~(pagesize - 1))
+		+ sizeof(__u16) * 2 + sizeof(struct vring_used_elem) * num;
 }
 
 #ifdef __KERNEL__

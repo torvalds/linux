@@ -22,7 +22,6 @@
 #include <linux/kernel_stat.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
-#include <linux/module.h>
 
 #include <asm/bootinfo.h>
 #include <asm/cpu.h>
@@ -41,27 +40,86 @@ static cycle_t hpt_read(void)
 	return read_c0_count2();
 }
 
-static void timer_ack(void)
+static struct clocksource pnx_clocksource = {
+	.name		= "pnx8xxx",
+	.rating		= 200,
+	.read		= hpt_read,
+	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
+};
+
+static irqreturn_t pnx8xxx_timer_interrupt(int irq, void *dev_id)
+{
+	struct clock_event_device *c = dev_id;
+
+	/* clear MATCH, signal the event */
+	c->event_handler(c);
+
+	return IRQ_HANDLED;
+}
+
+static struct irqaction pnx8xxx_timer_irq = {
+	.handler	= pnx8xxx_timer_interrupt,
+	.flags		= IRQF_DISABLED | IRQF_PERCPU,
+	.name		= "pnx8xxx_timer",
+};
+
+static irqreturn_t monotonic_interrupt(int irq, void *dev_id)
+{
+	/* Timer 2 clear interrupt */
+	write_c0_compare2(-1);
+	return IRQ_HANDLED;
+}
+
+static struct irqaction monotonic_irqaction = {
+	.handler = monotonic_interrupt,
+	.flags = IRQF_DISABLED,
+	.name = "Monotonic timer",
+};
+
+static int pnx8xxx_set_next_event(unsigned long delta,
+				struct clock_event_device *evt)
+{
+	write_c0_compare(delta);
+	return 0;
+}
+
+static struct clock_event_device pnx8xxx_clockevent = {
+	.name		= "pnx8xxx_clockevent",
+	.features	= CLOCK_EVT_FEAT_ONESHOT,
+	.set_next_event = pnx8xxx_set_next_event,
+};
+
+static inline void timer_ack(void)
 {
 	write_c0_compare(cpj);
 }
 
-/*
- * plat_time_init() - it does the following things:
- *
- * 1) plat_time_init() -
- * 	a) (optional) set up RTC routines,
- *      b) (optional) calibrate and set the mips_hpt_frequency
- *	    (only needed if you intended to use cpu counter as timer interrupt
- *	     source)
- */
-
 __init void plat_time_init(void)
 {
-	unsigned int             n;
-	unsigned int             m;
-	unsigned int             p;
-	unsigned int             pow2p;
+	unsigned int configPR;
+	unsigned int n;
+	unsigned int m;
+	unsigned int p;
+	unsigned int pow2p;
+
+	clockevents_register_device(&pnx8xxx_clockevent);
+	clocksource_register(&pnx_clocksource);
+
+	/* Timer 1 start */
+	configPR = read_c0_config7();
+	configPR &= ~0x00000008;
+	write_c0_config7(configPR);
+
+	/* Timer 2 start */
+	configPR = read_c0_config7();
+	configPR &= ~0x00000010;
+	write_c0_config7(configPR);
+
+	/* Timer 3 stop */
+	configPR = read_c0_config7();
+	configPR |= 0x00000020;
+	write_c0_config7(configPR);
+
 
         /* PLL0 sets MIPS clock (PLL1 <=> TM1, PLL6 <=> TM2, PLL5 <=> mem) */
         /* (but only if CLK_MIPS_CTL select value [bits 3:1] is 1:  FIXME) */
@@ -87,42 +145,6 @@ __init void plat_time_init(void)
 	write_c0_count2(0);
 	write_c0_compare2(0xffffffff);
 
-	clocksource_mips.read = hpt_read;
-	mips_timer_ack = timer_ack;
-}
-
-static irqreturn_t monotonic_interrupt(int irq, void *dev_id)
-{
-	/* Timer 2 clear interrupt */
-	write_c0_compare2(-1);
-	return IRQ_HANDLED;
-}
-
-static struct irqaction monotonic_irqaction = {
-	.handler = monotonic_interrupt,
-	.flags = IRQF_DISABLED,
-	.name = "Monotonic timer",
-};
-
-void __init plat_timer_setup(struct irqaction *irq)
-{
-	int configPR;
-
-	setup_irq(PNX8550_INT_TIMER1, irq);
+	setup_irq(PNX8550_INT_TIMER1, &pnx8xxx_timer_irq);
 	setup_irq(PNX8550_INT_TIMER2, &monotonic_irqaction);
-
-	/* Timer 1 start */
-	configPR = read_c0_config7();
-	configPR &= ~0x00000008;
-	write_c0_config7(configPR);
-
-	/* Timer 2 start */
-	configPR = read_c0_config7();
-	configPR &= ~0x00000010;
-	write_c0_config7(configPR);
-
-	/* Timer 3 stop */
-	configPR = read_c0_config7();
-	configPR |= 0x00000020;
-	write_c0_config7(configPR);
 }

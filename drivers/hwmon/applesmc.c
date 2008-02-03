@@ -80,7 +80,7 @@
 /*
  * Temperature sensors keys (sp78 - 2 bytes).
  */
-static const char* temperature_sensors_sets[][13] = {
+static const char* temperature_sensors_sets[][36] = {
 /* Set 0: Macbook Pro */
 	{ "TA0P", "TB0T", "TC0D", "TC0P", "TG0H", "TG0P", "TG0T", "Th0H",
 	  "Th1H", "Tm0P", "Ts0P", "Ts1P", NULL },
@@ -88,7 +88,13 @@ static const char* temperature_sensors_sets[][13] = {
 	{ "TB0T", "TC0D", "TC0P", "TM0P", "TN0P", "TN1P", "Th0H", "Th0S",
 	  "Th1H", "Ts0P", NULL },
 /* Set 2: Macmini set */
-	{ "TC0D", "TC0P", NULL }
+	{ "TC0D", "TC0P", NULL },
+/* Set 3: Mac Pro (2 x Quad-Core) */
+	{ "TA0P", "TCAG", "TCAH", "TCBG", "TCBH", "TC0C", "TC0D", "TC0P",
+	  "TC1C", "TC1D", "TC2C", "TC2D", "TC3C", "TC3D", "THTG", "TH0P",
+	  "TH1P", "TH2P", "TH3P", "TMAP", "TMAS", "TMBS", "TM0P", "TM0S",
+	  "TM1P", "TM1S", "TM2P", "TM2S", "TM3S", "TM8P", "TM8S", "TM9P",
+	  "TM9S", "TN0H", "TS0C", NULL },
 };
 
 /* List of keys used to read/write fan speeds */
@@ -990,14 +996,18 @@ static struct attribute *fan##offset##_attributes[] = { \
 
 /*
  * Create the needed functions for each fan using the macro defined above
- * (2 fans are supported)
+ * (4 fans are supported)
  */
 sysfs_fan_speeds_offset(1);
 sysfs_fan_speeds_offset(2);
+sysfs_fan_speeds_offset(3);
+sysfs_fan_speeds_offset(4);
 
 static const struct attribute_group fan_attribute_groups[] = {
 	{ .attrs = fan1_attributes },
-	{ .attrs = fan2_attributes }
+	{ .attrs = fan2_attributes },
+	{ .attrs = fan3_attributes },
+	{ .attrs = fan4_attributes },
 };
 
 /*
@@ -1027,6 +1037,52 @@ static SENSOR_DEVICE_ATTR(temp11_input, S_IRUGO,
 					applesmc_show_temperature, NULL, 10);
 static SENSOR_DEVICE_ATTR(temp12_input, S_IRUGO,
 					applesmc_show_temperature, NULL, 11);
+static SENSOR_DEVICE_ATTR(temp13_input, S_IRUGO,
+					applesmc_show_temperature, NULL, 12);
+static SENSOR_DEVICE_ATTR(temp14_input, S_IRUGO,
+					applesmc_show_temperature, NULL, 13);
+static SENSOR_DEVICE_ATTR(temp15_input, S_IRUGO,
+					applesmc_show_temperature, NULL, 14);
+static SENSOR_DEVICE_ATTR(temp16_input, S_IRUGO,
+					applesmc_show_temperature, NULL, 15);
+static SENSOR_DEVICE_ATTR(temp17_input, S_IRUGO,
+					applesmc_show_temperature, NULL, 16);
+static SENSOR_DEVICE_ATTR(temp18_input, S_IRUGO,
+					applesmc_show_temperature, NULL, 17);
+static SENSOR_DEVICE_ATTR(temp19_input, S_IRUGO,
+					applesmc_show_temperature, NULL, 18);
+static SENSOR_DEVICE_ATTR(temp20_input, S_IRUGO,
+					applesmc_show_temperature, NULL, 19);
+static SENSOR_DEVICE_ATTR(temp21_input, S_IRUGO,
+					applesmc_show_temperature, NULL, 20);
+static SENSOR_DEVICE_ATTR(temp22_input, S_IRUGO,
+					applesmc_show_temperature, NULL, 21);
+static SENSOR_DEVICE_ATTR(temp23_input, S_IRUGO,
+					applesmc_show_temperature, NULL, 22);
+static SENSOR_DEVICE_ATTR(temp24_input, S_IRUGO,
+					applesmc_show_temperature, NULL, 23);
+static SENSOR_DEVICE_ATTR(temp25_input, S_IRUGO,
+					applesmc_show_temperature, NULL, 24);
+static SENSOR_DEVICE_ATTR(temp26_input, S_IRUGO,
+					applesmc_show_temperature, NULL, 25);
+static SENSOR_DEVICE_ATTR(temp27_input, S_IRUGO,
+					applesmc_show_temperature, NULL, 26);
+static SENSOR_DEVICE_ATTR(temp28_input, S_IRUGO,
+					applesmc_show_temperature, NULL, 27);
+static SENSOR_DEVICE_ATTR(temp29_input, S_IRUGO,
+					applesmc_show_temperature, NULL, 28);
+static SENSOR_DEVICE_ATTR(temp30_input, S_IRUGO,
+					applesmc_show_temperature, NULL, 29);
+static SENSOR_DEVICE_ATTR(temp31_input, S_IRUGO,
+					applesmc_show_temperature, NULL, 30);
+static SENSOR_DEVICE_ATTR(temp32_input, S_IRUGO,
+					applesmc_show_temperature, NULL, 31);
+static SENSOR_DEVICE_ATTR(temp33_input, S_IRUGO,
+					applesmc_show_temperature, NULL, 32);
+static SENSOR_DEVICE_ATTR(temp34_input, S_IRUGO,
+					applesmc_show_temperature, NULL, 33);
+static SENSOR_DEVICE_ATTR(temp35_input, S_IRUGO,
+					applesmc_show_temperature, NULL, 34);
 
 static struct attribute *temperature_attributes[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
@@ -1041,6 +1097,29 @@ static struct attribute *temperature_attributes[] = {
 	&sensor_dev_attr_temp10_input.dev_attr.attr,
 	&sensor_dev_attr_temp11_input.dev_attr.attr,
 	&sensor_dev_attr_temp12_input.dev_attr.attr,
+	&sensor_dev_attr_temp13_input.dev_attr.attr,
+	&sensor_dev_attr_temp14_input.dev_attr.attr,
+	&sensor_dev_attr_temp15_input.dev_attr.attr,
+	&sensor_dev_attr_temp16_input.dev_attr.attr,
+	&sensor_dev_attr_temp17_input.dev_attr.attr,
+	&sensor_dev_attr_temp18_input.dev_attr.attr,
+	&sensor_dev_attr_temp19_input.dev_attr.attr,
+	&sensor_dev_attr_temp20_input.dev_attr.attr,
+	&sensor_dev_attr_temp21_input.dev_attr.attr,
+	&sensor_dev_attr_temp22_input.dev_attr.attr,
+	&sensor_dev_attr_temp23_input.dev_attr.attr,
+	&sensor_dev_attr_temp24_input.dev_attr.attr,
+	&sensor_dev_attr_temp25_input.dev_attr.attr,
+	&sensor_dev_attr_temp26_input.dev_attr.attr,
+	&sensor_dev_attr_temp27_input.dev_attr.attr,
+	&sensor_dev_attr_temp28_input.dev_attr.attr,
+	&sensor_dev_attr_temp29_input.dev_attr.attr,
+	&sensor_dev_attr_temp30_input.dev_attr.attr,
+	&sensor_dev_attr_temp31_input.dev_attr.attr,
+	&sensor_dev_attr_temp32_input.dev_attr.attr,
+	&sensor_dev_attr_temp33_input.dev_attr.attr,
+	&sensor_dev_attr_temp34_input.dev_attr.attr,
+	&sensor_dev_attr_temp35_input.dev_attr.attr,
 	NULL
 };
 
@@ -1137,6 +1216,8 @@ static __initdata struct dmi_match_data applesmc_dmi_data[] = {
 	{ .accelerometer = 1, .light = 0, .temperature_set = 1 },
 /* MacMini: temperature set 2 */
 	{ .accelerometer = 0, .light = 0, .temperature_set = 2 },
+/* MacPro: temperature set 3 */
+	{ .accelerometer = 0, .light = 0, .temperature_set = 3 },
 };
 
 /* Note that DMI_MATCH(...,"MacBook") will match "MacBookPro1,1".
@@ -1154,6 +1235,10 @@ static __initdata struct dmi_system_id applesmc_whitelist[] = {
 	  DMI_MATCH(DMI_BOARD_VENDOR,"Apple"),
 	  DMI_MATCH(DMI_PRODUCT_NAME,"Macmini") },
 		(void*)&applesmc_dmi_data[2]},
+	{ applesmc_dmi_match, "Apple MacPro2", {
+	  DMI_MATCH(DMI_BOARD_VENDOR,"Apple"),
+	  DMI_MATCH(DMI_PRODUCT_NAME,"MacPro2") },
+		(void*)&applesmc_dmi_data[3]},
 	{ .ident = NULL }
 };
 
@@ -1204,9 +1289,19 @@ static int __init applesmc_init(void)
 
 		switch (count) {
 		default:
-			printk(KERN_WARNING "applesmc: More than 2 fans found,"
-					" but at most 2 fans are supported"
+			printk(KERN_WARNING "applesmc: More than 4 fans found,"
+					" but at most 4 fans are supported"
 						" by the driver.\n");
+		case 4:
+			ret = sysfs_create_group(&pdev->dev.kobj,
+						 &fan_attribute_groups[3]);
+			if (ret)
+				goto out_key_enumeration;
+		case 3:
+			ret = sysfs_create_group(&pdev->dev.kobj,
+						 &fan_attribute_groups[2]);
+			if (ret)
+				goto out_key_enumeration;
 		case 2:
 			ret = sysfs_create_group(&pdev->dev.kobj,
 						 &fan_attribute_groups[1]);

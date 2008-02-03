@@ -1,0 +1,178 @@
+menu "Kernel hacking"
+
+source "lib/Kconfig.debug"
+
+config DEBUG_MMRS
+	bool "Generate Blackfin MMR tree"
+	select DEBUG_FS
+	help
+	  Create a tree of Blackfin MMRs via the debugfs tree.  If
+	  you enable this, you will find all MMRs laid out in the
+	  /sys/kernel/debug/blackfin/ directory where you can read/write
+	  MMRs directly from userspace.  This is obviously just a debug
+	  feature.
+
+config DEBUG_HWERR
+	bool "Hardware error interrupt debugging"
+	depends on DEBUG_KERNEL
+	help
+	  When enabled, the hardware error interrupt is never disabled, and
+	  will happen immediately when an error condition occurs.  This comes
+	  at a slight cost in code size, but is necessary if you are getting
+	  hardware error interrupts and need to know where they are coming
+	  from.
+
+config DEBUG_ICACHE_CHECK
+	bool "Check Instruction cache coherency"
+	depends on DEBUG_KERNEL
+	depends on DEBUG_HWERR
+	help
+	  Say Y here if you are getting weird unexplained errors. This will
+	  ensure that icache is what SDRAM says it should be by doing a
+	  byte wise comparison between SDRAM and instruction cache. This
+	  also relocates the irq_panic() function to L1 memory, (which is
+	  un-cached).
+
+config DEBUG_HUNT_FOR_ZERO
+	bool "Catch NULL pointer reads/writes"
+	default y
+	help
+	  Say Y here to catch reads/writes to anywhere in the memory range
+	  from 0x0000 - 0x0FFF (the first 4k) of memory.  This is useful in
+	  catching common programming errors such as NULL pointer dereferences.
+
+	  Misbehaving applications will be killed (generate a SEGV) while the
+	  kernel will trigger a panic.
+
+	  Enabling this option will take up an extra entry in CPLB table.
+	  Otherwise, there is no extra overhead.
+
+config DEBUG_BFIN_HWTRACE_ON
+	bool "Turn on Blackfin's Hardware Trace"
+	default y
+	help
+	  All Blackfins include a Trace Unit which stores a history of the last
+	  16 changes in program flow taken by the program sequencer. The history
+	  allows the user to recreate the program sequencer’s recent path. This
+	  can be handy when an application dies - we print out the execution
+	  path of how it got to the offending instruction.
+
+	  By turning this off, you may save a tiny amount of power.
+
+choice
+	prompt "Omit loop Tracing"
+	default DEBUG_BFIN_HWTRACE_COMPRESSION_OFF
+	depends on DEBUG_BFIN_HWTRACE_ON
+	help
+	  The trace buffer can be configured to omit recording of changes in
+	  program flow that match either the last entry or one of the last
+	  two entries. Omitting one of these entries from the record prevents
+	  the trace buffer from overflowing because of any sort of loop (for, do
+	  while, etc) in the program.
+
+	  Because zero-overhead Hardware loops are not recorded in the trace buffer,
+	  this feature can be used to prevent trace overflow from loops that
+	  are nested four deep.
+
+config DEBUG_BFIN_HWTRACE_COMPRESSION_OFF
+	bool "Trace all Loops"
+	help
+	  The trace buffer records all changes of flow 
+
+config DEBUG_BFIN_HWTRACE_COMPRESSION_ONE
+	bool "Compress single-level loops"
+	help
+	  The trace buffer does not record single loops - helpful if trace 
+	  is spinning on a while or do loop.
+
+config DEBUG_BFIN_HWTRACE_COMPRESSION_TWO
+	bool "Compress two-level loops"
+	help
+	  The trace buffer does not record loops two levels deep. Helpful if
+	  the trace is spinning in a nested loop
+
+endchoice
+
+config DEBUG_BFIN_HWTRACE_COMPRESSION
+	int
+	depends on DEBUG_BFIN_HWTRACE_ON
+	default 0 if DEBUG_BFIN_HWTRACE_COMPRESSION_OFF
+	default 1 if DEBUG_BFIN_HWTRACE_COMPRESSION_ONE
+	default 2 if DEBUG_BFIN_HWTRACE_COMPRESSION_TWO
+
+
+config DEBUG_BFIN_HWTRACE_EXPAND
+	bool "Expand Trace Buffer greater than 16 entries"
+	depends on DEBUG_BFIN_HWTRACE_ON
+	default n
+	help
+	  By selecting this option, every time the 16 hardware entries in
+	  the Blackfin's HW Trace buffer are full, the kernel will move them
+	  into a software buffer, for dumping when there is an issue. This 
+	  has a great impact on performance, (an interrupt every 16 change of 
+	  flows) and should normally be turned off, except in those nasty
+	  debugging sessions
+
+config DEBUG_BFIN_HWTRACE_EXPAND_LEN
+	int "Size of Trace buffer (in power of 2k)"
+	range 0 4
+	depends on DEBUG_BFIN_HWTRACE_EXPAND
+	default 1
+	help
+	  This sets the size of the software buffer that the trace information
+	  is kept in.
+	  0 for (2^0)  1k, or 256 entries,
+	  1 for (2^1)  2k, or 512 entries,
+	  2 for (2^2)  4k, or 1024 entries,
+	  3 for (2^3)  8k, or 2048 entries,
+	  4 for (2^4) 16k, or 4096 entries
+
+config DEBUG_BFIN_NO_KERN_HWTRACE
+	bool "Trace user apps (turn off hwtrace in kernel)"
+	depends on DEBUG_BFIN_HWTRACE_ON
+	default n
+	help
+	  Some pieces of the kernel contain a lot of flow changes which can
+	  quickly fill up the hardware trace buffer.  When debugging crashes,
+	  the hardware trace may indicate that the problem lies in kernel
+	  space when in reality an application is buggy.
+
+	  Say Y here to disable hardware tracing in some known "jumpy" pieces
+	  of code so that the trace buffer will extend further back.
+
+config EARLY_PRINTK
+	bool "Early printk" 
+	default n
+	help
+	  This option enables special console drivers which allow the kernel
+	  to print messages very early in the bootup process.
+
+	  This is useful for kernel debugging when your machine crashes very
+	  early before the console code is initialized. After enabling this
+	  feature, you must add "earlyprintk=serial,uart0,57600" to the
+	  command line (bootargs). It is safe to say Y here in all cases, as
+	  all of this lives in the init section and is thrown away after the
+	  kernel boots completely.
+
+config DUAL_CORE_TEST_MODULE
+	tristate "Dual Core Test Module"
+	depends on (BF561)
+	default n
+	help
+	  Say Y here to build-in dual core test module for dual core test.
+
+config CPLB_INFO
+	bool "Display the CPLB information"
+	help
+	  Display the CPLB information.
+
+config ACCESS_CHECK
+	bool "Check the user pointer address"
+	default y
+	help
+	  Usually the pointer transfer from user space is checked to see if its
+	  address is in the kernel space.
+
+	  Say N here to disable that check to improve the performance.
+
+endmenu

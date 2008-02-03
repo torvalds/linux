@@ -168,6 +168,8 @@ void __init s3c2412_init_clocks(int xtal)
 
 	fclk = s3c2410_get_pll(__raw_readl(S3C2410_MPLLCON), xtal*2);
 
+	clk_mpll.rate = fclk;
+
 	tmp = __raw_readl(S3C2410_CLKDIVN);
 
 	/* work out clock scalings */
@@ -196,7 +198,7 @@ void __init s3c2412_init_clocks(int xtal)
 */
 
 struct sysdev_class s3c2412_sysclass = {
-	set_kset_name("s3c2412-core"),
+	.name = "s3c2412-core",
 };
 
 static int __init s3c2412_core_init(void)

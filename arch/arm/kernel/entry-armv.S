@@ -11,8 +11,8 @@
  *
  *  Low-level vector interface routines
  *
- *  Note:  there is a StrongARM bug in the STMIA rn, {regs}^ instruction that causes
- *  it to save wrong values...  Be aware!
+ *  Note:  there is a StrongARM bug in the STMIA rn, {regs}^ instruction
+ *  that causes it to save wrong values...  Be aware!
  */
 
 #include <asm/memory.h>
@@ -57,6 +57,12 @@
 #endif
 
 	.endm
+
+#ifdef CONFIG_KPROBES
+	.section	.kprobes.text,"ax",%progbits
+#else
+	.text
+#endif
 
 /*
  * Invalid mode handlers
@@ -112,8 +118,8 @@ common_invalid:
 #define SPFIX(code...)
 #endif
 
-	.macro	svc_entry
-	sub	sp, sp, #S_FRAME_SIZE
+	.macro	svc_entry, stack_hole=0
+	sub	sp, sp, #(S_FRAME_SIZE + \stack_hole)
  SPFIX(	tst	sp, #4		)
  SPFIX(	bicne	sp, sp, #4	)
 	stmib	sp, {r1 - r12}
@@ -121,7 +127,7 @@ common_invalid:
 	ldmia	r0, {r1 - r3}
 	add	r5, sp, #S_SP		@ here for interlock avoidance
 	mov	r4, #-1			@  ""  ""      ""       ""
-	add	r0, sp, #S_FRAME_SIZE   @  ""  ""      ""       ""
+	add	r0, sp, #(S_FRAME_SIZE + \stack_hole)
  SPFIX(	addne	r0, r0, #4	)
 	str	r1, [sp]		@ save the "real" r0 copied
 					@ from the exception stack
@@ -242,7 +248,14 @@ svc_preempt:
 
 	.align	5
 __und_svc:
+#ifdef CONFIG_KPROBES
+	@ If a kprobe is about to simulate a "stmdb sp..." instruction,
+	@ it obviously needs free stack space which then will belong to
+	@ the saved context.
+	svc_entry 64
+#else
 	svc_entry
+#endif
 
 	@
 	@ call emulation code, which returns using r9 if it has emulated
@@ -339,16 +352,6 @@ __pabt_svc:
 	str	r1, [sp]		@ save the "real" r0 copied
 					@ from the exception stack
 
-#if __LINUX_ARM_ARCH__ < 6 && !defined(CONFIG_NEEDS_SYSCALL_FOR_CMPXCHG)
-#ifndef CONFIG_MMU
-#warning "NPTL on non MMU needs fixing"
-#else
-	@ make sure our user space atomic helper is aborted
-	cmp	r2, #TASK_SIZE
-	bichs	r3, r3, #PSR_Z_BIT
-#endif
-#endif
-
 	@
 	@ We are now ready to fill in the remaining blanks on the stack:
 	@
@@ -372,9 +375,25 @@ __pabt_svc:
 	zero_fp
 	.endm
 
+	.macro	kuser_cmpxchg_check
+#if __LINUX_ARM_ARCH__ < 6 && !defined(CONFIG_NEEDS_SYSCALL_FOR_CMPXCHG)
+#ifndef CONFIG_MMU
+#warning "NPTL on non MMU needs fixing"
+#else
+	@ Make sure our user space atomic helper is restarted
+	@ if it was interrupted in a critical region.  Here we
+	@ perform a quick test inline since it should be false
+	@ 99.9999% of the time.  The rest is done out of line.
+	cmp	r2, #TASK_SIZE
+	blhs	kuser_cmpxchg_fixup
+#endif
+#endif
+	.endm
+
 	.align	5
 __dabt_usr:
 	usr_entry
+	kuser_cmpxchg_check
 
 	@
 	@ Call the processor-specific abort handler:
@@ -404,6 +423,7 @@ __dabt_usr:
 	.align	5
 __irq_usr:
 	usr_entry
+	kuser_cmpxchg_check
 
 #ifdef CONFIG_TRACE_IRQFLAGS
 	bl	trace_hardirqs_off
@@ -446,9 +466,9 @@ __und_usr:
 	@
 	@  r0 - instruction
 	@
-1:	ldrt	r0, [r4]
 	adr	r9, ret_from_exception
 	adr	lr, __und_usr_unknown
+1:	ldrt	r0, [r4]
 	@
 	@ fallthrough to call_fpe
 	@
@@ -473,6 +493,13 @@ __und_usr:
  * co-processor instructions.  However, we have to watch out
  * for the ARM6/ARM7 SWI bug.
  *
+ * NEON is a special case that has to be handled here. Not all
+ * NEON instructions are co-processor instructions, so we have
+ * to make a special case of checking for them. Plus, there's
+ * five groups of them, so we have a table of mask/opcode pairs
+ * to check against, and if any match then we branch off into the
+ * NEON handler code.
+ *
  * Emulators may wish to make use of the following registers:
  *  r0  = instruction opcode.
  *  r2  = PC+4
@@ -481,6 +508,23 @@ __und_usr:
  *  lr  = unrecognised instruction return address
  */
 call_fpe:
+#ifdef CONFIG_NEON
+	adr	r6, .LCneon_opcodes
+2:
+	ldr	r7, [r6], #4			@ mask value
+	cmp	r7, #0				@ end mask?
+	beq	1f
+	and	r8, r0, r7
+	ldr	r7, [r6], #4			@ opcode bits matching in mask
+	cmp	r8, r7				@ NEON instruction?
+	bne	2b
+	get_thread_info r10
+	mov	r7, #1
+	strb	r7, [r10, #TI_USED_CP + 10]	@ mark CP#10 as used
+	strb	r7, [r10, #TI_USED_CP + 11]	@ mark CP#11 as used
+	b	do_vfp				@ let VFP handler handle this
+1:
+#endif
 	tst	r0, #0x08000000			@ only CDP/CPRT/LDC/STC have bit 27
 #if defined(CONFIG_CPU_ARM610) || defined(CONFIG_CPU_ARM710)
 	and	r8, r0, #0x0f000000		@ mask out op-code bits
@@ -530,6 +574,20 @@ call_fpe:
 	mov	pc, lr				@ CP#14 (Debug)
 	mov	pc, lr				@ CP#15 (Control)
 
+#ifdef CONFIG_NEON
+	.align	6
+
+.LCneon_opcodes:
+	.word	0xfe000000			@ mask
+	.word	0xf2000000			@ opcode
+
+	.word	0xff100000			@ mask
+	.word	0xf4000000			@ opcode
+
+	.word	0x00000000			@ mask
+	.word	0x00000000			@ opcode
+#endif
+
 do_fpe:
 	enable_irq
 	ldr	r4, .LCfp
@@ -548,7 +606,7 @@ do_fpe:
 	.data
 ENTRY(fp_enter)
 	.word	no_fp
-	.text
+	.previous
 
 no_fp:	mov	pc, lr
 
@@ -669,7 +727,7 @@ __kuser_helper_start:
  *
  * Clobbered:
  *
- *	the Z flag might be lost
+ *	none
  *
  * Definition and user space usage example:
  *
@@ -730,9 +788,6 @@ __kuser_memory_barrier:				@ 0xffff0fa0
  *
  *    - This routine already includes memory barriers as needed.
  *
- *    - A failure might be transient, i.e. it is possible, although unlikely,
- *      that "failure" be returned even if *ptr == oldval.
- *
  * For example, a user space atomic_add implementation could look like this:
  *
  * #define atomic_add(ptr, val) \
@@ -769,46 +824,62 @@ __kuser_cmpxchg:				@ 0xffff0fc0
 
 #elif __LINUX_ARM_ARCH__ < 6
 
-	/*
-	 * Theory of operation:
-	 *
-	 * We set the Z flag before loading oldval. If ever an exception
-	 * occurs we can not be sure the loaded value will still be the same
-	 * when the exception returns, therefore the user exception handler
-	 * will clear the Z flag whenever the interrupted user code was
-	 * actually from the kernel address space (see the usr_entry macro).
-	 *
-	 * The post-increment on the str is used to prevent a race with an
-	 * exception happening just after the str instruction which would
-	 * clear the Z flag although the exchange was done.
-	 */
 #ifdef CONFIG_MMU
-	teq	ip, ip			@ set Z flag
-	ldr	ip, [r2]		@ load current val
-	add	r3, r2, #1		@ prepare store ptr
-	teqeq	ip, r0			@ compare with oldval if still allowed
-	streq	r1, [r3, #-1]!		@ store newval if still allowed
-	subs	r0, r2, r3		@ if r2 == r3 the str occured
+
+	/*
+	 * The only thing that can break atomicity in this cmpxchg
+	 * implementation is either an IRQ or a data abort exception
+	 * causing another process/thread to be scheduled in the middle
+	 * of the critical sequence.  To prevent this, code is added to
+	 * the IRQ and data abort exception handlers to set the pc back
+	 * to the beginning of the critical section if it is found to be
+	 * within that critical section (see kuser_cmpxchg_fixup).
+	 */
+1:	ldr	r3, [r2]			@ load current val
+	subs	r3, r3, r0			@ compare with oldval
+2:	streq	r1, [r2]			@ store newval if eq
+	rsbs	r0, r3, #0			@ set return val and C flag
+	usr_ret	lr
+
+	.text
+kuser_cmpxchg_fixup:
+	@ Called from kuser_cmpxchg_check macro.
+	@ r2 = address of interrupted insn (must be preserved).
+	@ sp = saved regs. r7 and r8 are clobbered.
+	@ 1b = first critical insn, 2b = last critical insn.
+	@ If r2 >= 1b and r2 <= 2b then saved pc_usr is set to 1b.
+	mov	r7, #0xffff0fff
+	sub	r7, r7, #(0xffff0fff - (0xffff0fc0 + (1b - __kuser_cmpxchg)))
+	subs	r8, r2, r7
+	rsbcss	r8, r8, #(2b - 1b)
+	strcs	r7, [sp, #S_PC]
+	mov	pc, lr
+	.previous
+
 #else
 #warning "NPTL on non MMU needs fixing"
 	mov	r0, #-1
 	adds	r0, r0, #0
-#endif
 	usr_ret	lr
+#endif
 
 #else
 
 #ifdef CONFIG_SMP
 	mcr	p15, 0, r0, c7, c10, 5	@ dmb
 #endif
-	ldrex	r3, [r2]
+1:	ldrex	r3, [r2]
 	subs	r3, r3, r0
 	strexeq	r3, r1, [r2]
+	teqeq	r3, #1
+	beq	1b
 	rsbs	r0, r3, #0
+	/* beware -- each __kuser slot must be 8 instructions max */
 #ifdef CONFIG_SMP
-	mcr	p15, 0, r0, c7, c10, 5	@ dmb
-#endif
+	b	__kuser_memory_barrier
+#else
 	usr_ret	lr
+#endif
 
 #endif
 
@@ -829,7 +900,7 @@ __kuser_cmpxchg:				@ 0xffff0fc0
  *
  * Clobbered:
  *
- *	the Z flag might be lost
+ *	none
  *
  * Definition and user space usage example:
  *
