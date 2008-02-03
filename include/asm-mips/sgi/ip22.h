@@ -15,7 +15,7 @@
 /*
  * These are the virtual IRQ numbers, we divide all IRQ's into
  * 'spaces', the 'space' determines where and how to enable/disable
- * that particular IRQ on an SGI machine. HPC DMA and MC DMA interrups
+ * that particular IRQ on an SGI machine. HPC DMA and MC DMA interrupts
  * are not supported this way. Driver is supposed to allocate HPC/MC
  * interrupt as shareable and then look to proper status bit (see
  * HAL2 driver). This will prevent many complications, trust me ;-)

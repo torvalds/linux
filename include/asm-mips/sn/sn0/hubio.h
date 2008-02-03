@@ -338,7 +338,7 @@ typedef union io_perf_cnt {
 #define IIO_IFDR	0x400398	/* IOQ FIFO Depth */
 #define IIO_IIAP	0x4003a0	/* IIQ Arbitration Parameters */
 #define IIO_IMMR	IIO_IIAP
-#define IIO_ICMR	0x4003a8	/* CRB Managment Register */
+#define IIO_ICMR	0x4003a8	/* CRB Management Register */
 #define IIO_ICCR	0x4003b0	/* CRB Control Register */
 #define IIO_ICTO	0x4003b8	/* CRB Time Out Register */
 #define IIO_ICTP	0x4003c0	/* CRB Time Out Prescalar */
