@@ -13,7 +13,7 @@
  *	- SysKonnect TR4/16(+) ISA	(SK-4190)
  *
  *  Maintainer(s):
- *    AF        Adam Fritzler           mid@auk.cx
+ *    AF        Adam Fritzler
  *    JF	Jochen Friedrich	jochen@scram.de
  *
  *  Modification History:

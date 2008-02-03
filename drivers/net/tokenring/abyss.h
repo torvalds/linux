@@ -2,7 +2,7 @@
  * abyss.h: Header for the abyss tms380tr module
  *
  * Authors:
- * - Adam Fritzler <mid@auk.cx>
+ * - Adam Fritzler
  */
 
 #ifndef __LINUX_MADGETR_H

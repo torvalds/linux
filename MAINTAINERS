@@ -3822,13 +3822,6 @@ W:	http://www.kernel.org/pub/linux/kernel/people/bunk/trivial/
 T:	git kernel.org:/pub/scm/linux/kernel/git/bunk/trivial.git
 S:	Maintained
 
-TMS380 TOKEN-RING NETWORK DRIVER
-P:	Adam Fritzler
-M:	mid@auk.cx
-L:	linux-tr@linuxtr.net
-W:	http://www.auk.cx/tms380tr/
-S:	Maintained
-
 TULIP NETWORK DRIVER
 L:	tulip-users@lists.sourceforge.net
 W:	http://sourceforge.net/projects/tulip/
