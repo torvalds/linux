@@ -47,7 +47,7 @@
  *		  Mark IRQ_LCD valid
  *
  *   25-Jul-2005  Ben Dooks
- *		  Split the S3C2440 IRQ code to seperate file
+ *		  Split the S3C2440 IRQ code to separate file
 */
 
 #include <linux/init.h>
