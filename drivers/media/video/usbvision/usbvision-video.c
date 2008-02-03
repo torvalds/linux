@@ -131,7 +131,7 @@ static struct usbvision_v4l2_format_st usbvision_v4l2_format[] = {
 /* Function prototypes */
 static void usbvision_release(struct usb_usbvision *usbvision);
 
-/* Default initalization of device driver parameters */
+/* Default initialization of device driver parameters */
 /* Set the default format for ISOC endpoint */
 static int isocMode = ISOC_MODE_COMPRESS;
 /* Set the default Debug Mode of the device driver */

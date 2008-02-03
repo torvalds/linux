@@ -369,7 +369,7 @@ static struct dvb_tuner_ops mt2032_tuner_ops = {
 	.get_frequency     = microtune_get_frequency,
 };
 
-// Initalization as described in "MT203x Programming Procedures", Rev 1.2, Feb.2001
+// Initialization as described in "MT203x Programming Procedures", Rev 1.2, Feb.2001
 static int mt2032_init(struct dvb_frontend *fe)
 {
 	struct microtune_priv *priv = fe->tuner_priv;

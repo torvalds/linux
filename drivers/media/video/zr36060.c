@@ -163,7 +163,7 @@ zr36060_wait_end (struct zr36060 *ptr)
 		udelay(1);
 		if (i++ > 200000) {	// 200ms, there is for sure something wrong!!!
 			dprintk(1,
-				"%s: timout at wait_end (last status: 0x%02x)\n",
+				"%s: timeout at wait_end (last status: 0x%02x)\n",
 				ptr->name, ptr->status);
 			break;
 		}

@@ -388,7 +388,7 @@ static int saa7146_init_one(struct pci_dev *pci, const struct pci_device_id *ent
 	}
 	dev->revision &= 0xf;
 
-	/* remap the memory from virtual to physical adress */
+	/* remap the memory from virtual to physical address */
 
 	err = pci_request_region(pci, 0, "saa7146");
 	if (err < 0)
