@@ -340,7 +340,7 @@ EXPORT_SYMBOL(rfkill_allocate);
  * rfkill_free - Mark rfkill structure for deletion
  * @rfkill: rfkill structure to be destroyed
  *
- * Decrements reference count of rfkill structure so it is destoryed.
+ * Decrements reference count of rfkill structure so it is destroyed.
  * Note that rfkill_free() should _not_ be called after rfkill_unregister().
  */
 void rfkill_free(struct rfkill *rfkill)
