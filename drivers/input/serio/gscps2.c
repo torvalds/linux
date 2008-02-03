@@ -141,7 +141,7 @@ static void gscps2_flush(struct gscps2port *ps2port)
 /*
  * gscps2_writeb_output() - write a byte to the port
  *
- * returns 1 on sucess, 0 on error
+ * returns 1 on success, 0 on error
  */
 
 static inline int gscps2_writeb_output(struct gscps2port *ps2port, u8 data)
