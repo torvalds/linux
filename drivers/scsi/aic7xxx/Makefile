@@ -44,13 +44,8 @@ clean-files += aic79xx_seq.h aic79xx_reg.h aic79xx_reg_print.c
 
 # Dependencies for generated files need to be listed explicitly
 
-$(obj)/aic7xxx_core.o: $(obj)/aic7xxx_seq.h
-$(obj)/aic7xxx_core.o: $(obj)/aic7xxx_reg.h
-$(obj)/aic79xx_core.o: $(obj)/aic79xx_seq.h
-$(obj)/aic79xx_core.o: $(obj)/aic79xx_reg.h
-
-$(addprefix $(obj)/,$(aic7xxx-y)): $(obj)/aic7xxx_seq.h
-$(addprefix $(obj)/,$(aic79xx-y)): $(obj)/aic79xx_seq.h
+$(addprefix $(src)/,$(aic7xxx-y:.o=.c)): $(obj)/aic7xxx_seq.h $(obj)/aic7xxx_reg.h
+$(addprefix $(src)/,$(aic79xx-y:.o=.c)): $(obj)/aic79xx_seq.h $(obj)/aic79xx_reg.h
 
 aic7xxx-gen-$(CONFIG_AIC7XXX_BUILD_FIRMWARE)	:= $(obj)/aic7xxx_reg.h
 aic7xxx-gen-$(CONFIG_AIC7XXX_REG_PRETTY_PRINT)	+= $(obj)/aic7xxx_reg_print.c
