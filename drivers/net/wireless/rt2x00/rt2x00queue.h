@@ -46,9 +46,6 @@
  * queue would be sufficient. Although this is almost one third of
  * the amount the legacy driver allocated, the queues aren't getting
  * filled to the maximum even when working with the maximum rate.
- *
- * FIXME: For virtual interfaces we need a different number
- * of beacons, since more interfaces require more beacons.
  */
 #define RX_ENTRIES	12
 #define TX_ENTRIES	12

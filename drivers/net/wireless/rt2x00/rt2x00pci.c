@@ -38,20 +38,14 @@ int rt2x00pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 			    struct ieee80211_tx_control *control)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
+	struct rt2x00_intf *intf = vif_to_intf(control->vif);
 	struct queue_entry_priv_pci_tx *priv_tx;
 	struct skb_frame_desc *skbdesc;
-	struct data_queue *queue;
-	struct queue_entry *entry;
 
-	/*
-	 * Just in case mac80211 doesn't set this correctly,
-	 * but we need this queue set for the descriptor
-	 * initialization.
-	 */
-	control->queue = IEEE80211_TX_QUEUE_BEACON;
-	queue = rt2x00queue_get_queue(rt2x00dev, control->queue);
-	entry = rt2x00queue_get_entry(queue, Q_INDEX);
-	priv_tx = entry->priv_data;
+	if (unlikely(!intf->beacon))
+		return -ENOBUFS;
+
+	priv_tx = intf->beacon->priv_data;
 
 	/*
 	 * Fill in skb descriptor
@@ -59,17 +53,25 @@ int rt2x00pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 	skbdesc = get_skb_frame_desc(skb);
 	memset(skbdesc, 0, sizeof(*skbdesc));
 	skbdesc->data = skb->data;
-	skbdesc->data_len = queue->data_size;
+	skbdesc->data_len = skb->len;
 	skbdesc->desc = priv_tx->desc;
-	skbdesc->desc_len = queue->desc_size;
-	skbdesc->entry = entry;
+	skbdesc->desc_len = intf->beacon->queue->desc_size;
+	skbdesc->entry = intf->beacon;
 
-	memcpy(priv_tx->data, skb->data, skb->len);
+	/*
+	 * Just in case mac80211 doesn't set this correctly,
+	 * but we need this queue set for the descriptor
+	 * initialization.
+	 */
+	control->queue = IEEE80211_TX_QUEUE_BEACON;
 	rt2x00lib_write_tx_desc(rt2x00dev, skb, control);
 
 	/*
 	 * Enable beacon generation.
+	 * Write entire beacon with descriptor to register,
+	 * and kick the beacon generator.
 	 */
+	memcpy(priv_tx->data, skb->data, skb->len);
 	rt2x00dev->ops->lib->kick_tx_queue(rt2x00dev, control->queue);
 
 	return 0;

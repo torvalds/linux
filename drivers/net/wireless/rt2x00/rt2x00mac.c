@@ -52,11 +52,11 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 	skb_put(skb, size);
 
 	if (control->flags & IEEE80211_TXCTL_USE_CTS_PROTECT)
-		ieee80211_ctstoself_get(rt2x00dev->hw, rt2x00dev->interface.id,
+		ieee80211_ctstoself_get(rt2x00dev->hw, control->vif,
 					frag_skb->data, frag_skb->len, control,
 					(struct ieee80211_cts *)(skb->data));
 	else
-		ieee80211_rts_get(rt2x00dev->hw, rt2x00dev->interface.id,
+		ieee80211_rts_get(rt2x00dev->hw, control->vif,
 				  frag_skb->data, frag_skb->len, control,
 				  (struct ieee80211_rts *)(skb->data));
 
@@ -162,19 +162,67 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 			    struct ieee80211_if_init_conf *conf)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
-	struct interface *intf = &rt2x00dev->interface;
+	struct rt2x00_intf *intf = vif_to_intf(conf->vif);
+	struct data_queue *queue =
+	    rt2x00queue_get_queue(rt2x00dev, IEEE80211_TX_QUEUE_BEACON);
+	struct queue_entry *entry = NULL;
+	unsigned int i;
 
 	/*
-	 * Don't allow interfaces to be added while
-	 * either the device has disappeared or when
-	 * another interface is already present.
+	 * Don't allow interfaces to be added
+	 * the device has disappeared.
 	 */
 	if (!test_bit(DEVICE_PRESENT, &rt2x00dev->flags) ||
-	    is_interface_present(intf))
+	    !test_bit(DEVICE_STARTED, &rt2x00dev->flags))
+		return -ENODEV;
+
+	/*
+	 * When we don't support mixed interfaces (a combination
+	 * of sta and ap virtual interfaces) then we can only
+	 * add this interface when the rival interface count is 0.
+	 */
+	if (!test_bit(DRIVER_SUPPORT_MIXED_INTERFACES, &rt2x00dev->flags) &&
+	    ((conf->type == IEEE80211_IF_TYPE_AP && rt2x00dev->intf_sta_count) ||
+	     (conf->type != IEEE80211_IF_TYPE_AP && rt2x00dev->intf_ap_count)))
 		return -ENOBUFS;
 
-	intf->id = conf->vif;
-	intf->type = conf->type;
+	/*
+	 * Check if we exceeded the maximum amount of supported interfaces.
+	 */
+	if ((conf->type == IEEE80211_IF_TYPE_AP &&
+	     rt2x00dev->intf_ap_count >= rt2x00dev->ops->max_ap_intf) ||
+	    (conf->type != IEEE80211_IF_TYPE_AP &&
+	     rt2x00dev->intf_sta_count >= rt2x00dev->ops->max_sta_intf))
+		return -ENOBUFS;
+
+	/*
+	 * Loop through all beacon queues to find a free
+	 * entry. Since there are as much beacon entries
+	 * as the maximum interfaces, this search shouldn't
+	 * fail.
+	 */
+	for (i = 0; i < queue->limit; i++) {
+		entry = &queue->entries[i];
+		if (!__test_and_set_bit(ENTRY_BCN_ASSIGNED, &entry->flags))
+			break;
+	}
+
+	if (unlikely(i == queue->limit))
+		return -ENOBUFS;
+
+	/*
+	 * We are now absolutely sure the interface can be created,
+	 * increase interface count and start initialization.
+	 */
+
+	if (conf->type == IEEE80211_IF_TYPE_AP)
+		rt2x00dev->intf_ap_count++;
+	else
+		rt2x00dev->intf_sta_count++;
+
+	spin_lock_init(&intf->lock);
+	intf->beacon = entry;
+
 	if (conf->type == IEEE80211_IF_TYPE_AP)
 		memcpy(&intf->bssid, conf->mac_addr, ETH_ALEN);
 	memcpy(&intf->mac, conf->mac_addr, ETH_ALEN);
@@ -184,8 +232,7 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 	 * has been initialized. Otherwise the device can reset
 	 * the MAC registers.
 	 */
-	rt2x00lib_config_mac_addr(rt2x00dev, intf->mac);
-	rt2x00lib_config_type(rt2x00dev, conf->type);
+	rt2x00lib_config_intf(rt2x00dev, intf, conf->type, intf->mac, NULL);
 
 	return 0;
 }
@@ -195,7 +242,7 @@ void rt2x00mac_remove_interface(struct ieee80211_hw *hw,
 				struct ieee80211_if_init_conf *conf)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
-	struct interface *intf = &rt2x00dev->interface;
+	struct rt2x00_intf *intf = vif_to_intf(conf->vif);
 
 	/*
 	 * Don't allow interfaces to be remove while
@@ -203,21 +250,27 @@ void rt2x00mac_remove_interface(struct ieee80211_hw *hw,
 	 * no interface is present.
 	 */
 	if (!test_bit(DEVICE_PRESENT, &rt2x00dev->flags) ||
-	    !is_interface_present(intf))
+	    (conf->type == IEEE80211_IF_TYPE_AP && !rt2x00dev->intf_ap_count) ||
+	    (conf->type != IEEE80211_IF_TYPE_AP && !rt2x00dev->intf_sta_count))
 		return;
 
-	intf->id = NULL;
-	intf->type = IEEE80211_IF_TYPE_INVALID;
-	memset(&intf->bssid, 0x00, ETH_ALEN);
-	memset(&intf->mac, 0x00, ETH_ALEN);
+	if (conf->type == IEEE80211_IF_TYPE_AP)
+		rt2x00dev->intf_ap_count--;
+	else
+		rt2x00dev->intf_sta_count--;
+
+	/*
+	 * Release beacon entry so it is available for
+	 * new interfaces again.
+	 */
+	__clear_bit(ENTRY_BCN_ASSIGNED, &intf->beacon->flags);
 
 	/*
 	 * Make sure the bssid and mac address registers
 	 * are cleared to prevent false ACKing of frames.
 	 */
-	rt2x00lib_config_mac_addr(rt2x00dev, intf->mac);
-	rt2x00lib_config_bssid(rt2x00dev, intf->bssid);
-	rt2x00lib_config_type(rt2x00dev, intf->type);
+	rt2x00lib_config_intf(rt2x00dev, intf,
+			      IEEE80211_IF_TYPE_INVALID, NULL, NULL);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_remove_interface);
 
@@ -262,7 +315,7 @@ int rt2x00mac_config_interface(struct ieee80211_hw *hw,
 			       struct ieee80211_if_conf *conf)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
-	struct interface *intf = &rt2x00dev->interface;
+	struct rt2x00_intf *intf = vif_to_intf(vif);
 	int status;
 
 	/*
@@ -272,12 +325,7 @@ int rt2x00mac_config_interface(struct ieee80211_hw *hw,
 	if (!test_bit(DEVICE_PRESENT, &rt2x00dev->flags))
 		return 0;
 
-	/*
-	 * If the given type does not match the configured type,
-	 * there has been a problem.
-	 */
-	if (conf->type != intf->type)
-		return -EINVAL;
+	spin_lock(&intf->lock);
 
 	/*
 	 * If the interface does not work in master mode,
@@ -286,7 +334,9 @@ int rt2x00mac_config_interface(struct ieee80211_hw *hw,
 	 */
 	if (conf->type != IEEE80211_IF_TYPE_AP)
 		memcpy(&intf->bssid, conf->bssid, ETH_ALEN);
-	rt2x00lib_config_bssid(rt2x00dev, intf->bssid);
+	rt2x00lib_config_intf(rt2x00dev, intf, conf->type, NULL, intf->bssid);
+
+	spin_unlock(&intf->lock);
 
 	/*
 	 * We only need to initialize the beacon when master mode is enabled.
@@ -342,35 +392,35 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 				u32 changes)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
-	int short_preamble;
-	int ack_timeout;
-	int ack_consume_time;
-	int difs;
-	int preamble;
+	struct rt2x00_intf *intf = vif_to_intf(vif);
 
 	/*
-	 * We only support changing preamble mode.
+	 * When the association status has changed we must reset the link
+	 * tuner counter. This is because some drivers determine if they
+	 * should perform link tuning based on the number of seconds
+	 * while associated or not associated.
 	 */
-	if (!(changes & BSS_CHANGED_ERP_PREAMBLE))
-		return;
+	if (changes & BSS_CHANGED_ASSOC) {
+		rt2x00dev->link.count = 0;
 
-	short_preamble = bss_conf->use_short_preamble;
-	preamble = bss_conf->use_short_preamble ?
-				SHORT_PREAMBLE : PREAMBLE;
+		if (bss_conf->assoc)
+			rt2x00dev->intf_associated++;
+		else
+			rt2x00dev->intf_associated--;
+	}
 
-	difs = (hw->conf.flags & IEEE80211_CONF_SHORT_SLOT_TIME) ?
-		SHORT_DIFS : DIFS;
-	ack_timeout = difs + PLCP + preamble + get_duration(ACK_SIZE, 10);
+	/*
+	 * When the preamble mode has changed, we should perform additional
+	 * configuration steps. For all other changes we are already done.
+	 */
+	if (changes & BSS_CHANGED_ERP_PREAMBLE) {
+		rt2x00lib_config_preamble(rt2x00dev, intf,
+					  bss_conf->use_short_preamble);
 
-	ack_consume_time = SIFS + PLCP + preamble + get_duration(ACK_SIZE, 10);
-
-	if (short_preamble)
-		__set_bit(CONFIG_SHORT_PREAMBLE, &rt2x00dev->flags);
-	else
-		__clear_bit(CONFIG_SHORT_PREAMBLE, &rt2x00dev->flags);
-
-	rt2x00dev->ops->lib->config_preamble(rt2x00dev, short_preamble,
-					     ack_timeout, ack_consume_time);
+		spin_lock(&intf->lock);
+		memcpy(&intf->conf, bss_conf, sizeof(*bss_conf));
+		spin_unlock(&intf->lock);
+	}
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_bss_info_changed);
 

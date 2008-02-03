@@ -50,9 +50,13 @@ void rt2x00lib_stop(struct rt2x00_dev *rt2x00dev);
 /*
  * Configuration handlers.
  */
-void rt2x00lib_config_mac_addr(struct rt2x00_dev *rt2x00dev, u8 *mac);
-void rt2x00lib_config_bssid(struct rt2x00_dev *rt2x00dev, u8 *bssid);
-void rt2x00lib_config_type(struct rt2x00_dev *rt2x00dev, const int type);
+void rt2x00lib_config_intf(struct rt2x00_dev *rt2x00dev,
+			   struct rt2x00_intf *intf,
+			   enum ieee80211_if_types type,
+			   u8 *mac, u8 *bssid);
+void rt2x00lib_config_preamble(struct rt2x00_dev *rt2x00dev,
+			       struct rt2x00_intf *intf,
+			       const unsigned int short_preamble);
 void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 			      enum antenna rx, enum antenna tx);
 void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,

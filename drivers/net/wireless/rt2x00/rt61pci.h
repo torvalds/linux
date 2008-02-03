@@ -161,7 +161,9 @@ struct hw_pairwise_ta_entry {
 #define HW_BEACON_BASE1			0x2d00
 #define HW_BEACON_BASE2			0x2e00
 #define HW_BEACON_BASE3			0x2f00
-#define HW_BEACON_OFFSET		0x0100
+
+#define HW_BEACON_OFFSET(__index) \
+	( HW_BEACON_BASE0 + (__index * 0x0100) )
 
 /*
  * HOST-MCU shared memory.
@@ -234,6 +236,11 @@ struct hw_pairwise_ta_entry {
 
 /*
  * MAC_CSR3: STA MAC register 1.
+ * UNICAST_TO_ME_MASK:
+ *	Used to mask off bits from byte 5 of the MAC address
+ *	to determine the UNICAST_TO_ME bit for RX frames.
+ *	The full mask is complemented by BSS_ID_MASK:
+ *		MASK = BSS_ID_MASK & UNICAST_TO_ME_MASK
  */
 #define MAC_CSR3			0x300c
 #define MAC_CSR3_BYTE4			FIELD32(0x000000ff)
@@ -251,7 +258,14 @@ struct hw_pairwise_ta_entry {
 
 /*
  * MAC_CSR5: BSSID register 1.
- * BSS_ID_MASK: 3: one BSSID, 0: 4 BSSID, 2 or 1: 2 BSSID.
+ * BSS_ID_MASK:
+ *	This mask is used to mask off bits 0 and 1 of byte 5 of the
+ *	BSSID. This will make sure that those bits will be ignored
+ *	when determining the MY_BSS of RX frames.
+ *		0: 1-BSSID mode (BSS index = 0)
+ *		1: 2-BSSID mode (BSS index: Byte5, bit 0)
+ *		2: 2-BSSID mode (BSS index: byte5, bit 1)
+ *		3: 4-BSSID mode (BSS index: byte5, bit 0 - 1)
  */
 #define MAC_CSR5			0x3014
 #define MAC_CSR5_BYTE4			FIELD32(0x000000ff)

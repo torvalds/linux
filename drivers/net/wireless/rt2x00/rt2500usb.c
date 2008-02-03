@@ -285,70 +285,65 @@ static const struct rt2x00debug rt2500usb_rt2x00debug = {
 /*
  * Configuration handlers.
  */
-static void rt2500usb_config_mac_addr(struct rt2x00_dev *rt2x00dev,
-				      __le32 *mac)
+static void rt2500usb_config_intf(struct rt2x00_dev *rt2x00dev,
+				  struct rt2x00_intf *intf,
+				  struct rt2x00intf_conf *conf,
+				  const unsigned int flags)
 {
-	rt2500usb_register_multiwrite(rt2x00dev, MAC_CSR2, mac,
-				      (3 * sizeof(__le16)));
-}
-
-static void rt2500usb_config_bssid(struct rt2x00_dev *rt2x00dev,
-				   __le32 *bssid)
-{
-	rt2500usb_register_multiwrite(rt2x00dev, MAC_CSR5, bssid,
-				      (3 * sizeof(__le16)));
-}
-
-static void rt2500usb_config_type(struct rt2x00_dev *rt2x00dev, const int type,
-				  const int tsf_sync)
-{
+	unsigned int bcn_preload;
 	u16 reg;
 
-	rt2500usb_register_write(rt2x00dev, TXRX_CSR19, 0);
+	if (flags & CONFIG_UPDATE_TYPE) {
+		rt2500usb_register_write(rt2x00dev, TXRX_CSR19, 0);
 
-	/*
-	 * Enable beacon config
-	 */
-	rt2500usb_register_read(rt2x00dev, TXRX_CSR20, &reg);
-	rt2x00_set_field16(&reg, TXRX_CSR20_OFFSET,
-			   (PREAMBLE + get_duration(IEEE80211_HEADER, 20)) >> 6);
-	if (type == IEEE80211_IF_TYPE_STA)
-		rt2x00_set_field16(&reg, TXRX_CSR20_BCN_EXPECT_WINDOW, 0);
-	else
-		rt2x00_set_field16(&reg, TXRX_CSR20_BCN_EXPECT_WINDOW, 2);
-	rt2500usb_register_write(rt2x00dev, TXRX_CSR20, reg);
+		/*
+		 * Enable beacon config
+		 */
+		bcn_preload = PREAMBLE + get_duration(IEEE80211_HEADER, 20);
+		rt2500usb_register_read(rt2x00dev, TXRX_CSR20, &reg);
+		rt2x00_set_field16(&reg, TXRX_CSR20_OFFSET, bcn_preload >> 6);
+		rt2x00_set_field16(&reg, TXRX_CSR20_BCN_EXPECT_WINDOW,
+				   2 * (conf->type != IEEE80211_IF_TYPE_STA));
+		rt2500usb_register_write(rt2x00dev, TXRX_CSR20, reg);
 
-	/*
-	 * Enable synchronisation.
-	 */
-	rt2500usb_register_read(rt2x00dev, TXRX_CSR18, &reg);
-	rt2x00_set_field16(&reg, TXRX_CSR18_OFFSET, 0);
-	rt2500usb_register_write(rt2x00dev, TXRX_CSR18, reg);
+		/*
+		 * Enable synchronisation.
+		 */
+		rt2500usb_register_read(rt2x00dev, TXRX_CSR18, &reg);
+		rt2x00_set_field16(&reg, TXRX_CSR18_OFFSET, 0);
+		rt2500usb_register_write(rt2x00dev, TXRX_CSR18, reg);
 
-	rt2500usb_register_read(rt2x00dev, TXRX_CSR19, &reg);
-	rt2x00_set_field16(&reg, TXRX_CSR19_TSF_COUNT, 1);
-	rt2x00_set_field16(&reg, TXRX_CSR19_TBCN,
-			   (tsf_sync == TSF_SYNC_BEACON));
-	rt2x00_set_field16(&reg, TXRX_CSR19_BEACON_GEN, 0);
-	rt2x00_set_field16(&reg, TXRX_CSR19_TSF_SYNC, tsf_sync);
-	rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);
-}
-
-static void rt2500usb_config_preamble(struct rt2x00_dev *rt2x00dev,
-				      const int short_preamble,
-				      const int ack_timeout,
-				      const int ack_consume_time)
-{
-	u16 reg;
-
-	/*
-	 * When in atomic context, reschedule and let rt2x00lib
-	 * call this function again.
-	 */
-	if (in_atomic()) {
-		queue_work(rt2x00dev->hw->workqueue, &rt2x00dev->config_work);
-		return;
+		rt2500usb_register_read(rt2x00dev, TXRX_CSR19, &reg);
+		rt2x00_set_field16(&reg, TXRX_CSR19_TSF_COUNT, 1);
+		rt2x00_set_field16(&reg, TXRX_CSR19_TBCN,
+				   (conf->sync == TSF_SYNC_BEACON));
+		rt2x00_set_field16(&reg, TXRX_CSR19_BEACON_GEN, 0);
+		rt2x00_set_field16(&reg, TXRX_CSR19_TSF_SYNC, conf->sync);
+		rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);
 	}
+
+	if (flags & CONFIG_UPDATE_MAC)
+		rt2500usb_register_multiwrite(rt2x00dev, MAC_CSR2, conf->mac,
+					      (3 * sizeof(__le16)));
+
+	if (flags & CONFIG_UPDATE_BSSID)
+		rt2500usb_register_multiwrite(rt2x00dev, MAC_CSR5, conf->bssid,
+					      (3 * sizeof(__le16)));
+}
+
+static int rt2500usb_config_preamble(struct rt2x00_dev *rt2x00dev,
+				     const int short_preamble,
+				     const int ack_timeout,
+				     const int ack_consume_time)
+{
+	u16 reg;
+
+	/*
+	 * When in atomic context, we should let rt2x00lib
+	 * try this configuration again later.
+	 */
+	if (in_atomic())
+		return -EAGAIN;
 
 	rt2500usb_register_read(rt2x00dev, TXRX_CSR1, &reg);
 	rt2x00_set_field16(&reg, TXRX_CSR1_ACK_TIMEOUT, ack_timeout);
@@ -358,6 +353,8 @@ static void rt2500usb_config_preamble(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field16(&reg, TXRX_CSR10_AUTORESPOND_PREAMBLE,
 			   !!short_preamble);
 	rt2500usb_register_write(rt2x00dev, TXRX_CSR10, reg);
+
+	return 0;
 }
 
 static void rt2500usb_config_phymode(struct rt2x00_dev *rt2x00dev,
@@ -518,8 +515,8 @@ static void rt2500usb_config_duration(struct rt2x00_dev *rt2x00dev,
 }
 
 static void rt2500usb_config(struct rt2x00_dev *rt2x00dev,
-			     const unsigned int flags,
-			     struct rt2x00lib_conf *libconf)
+			     struct rt2x00lib_conf *libconf,
+			     const unsigned int flags)
 {
 	if (flags & CONFIG_UPDATE_PHYMODE)
 		rt2500usb_config_phymode(rt2x00dev, libconf->phymode,
@@ -626,6 +623,24 @@ static void rt2500usb_link_tuner(struct rt2x00_dev *rt2x00dev)
 	u8 low_bound;
 
 	/*
+	 * Read current r17 value, as well as the sensitivity values
+	 * for the r17 register.
+	 */
+	rt2500usb_bbp_read(rt2x00dev, 17, &r17);
+	rt2x00_eeprom_read(rt2x00dev, EEPROM_BBPTUNE_R17, &r17_sens);
+
+	rt2x00_eeprom_read(rt2x00dev, EEPROM_BBPTUNE_VGC, &vgc_bound);
+	up_bound = rt2x00_get_field16(vgc_bound, EEPROM_BBPTUNE_VGCUPPER);
+	low_bound = rt2x00_get_field16(vgc_bound, EEPROM_BBPTUNE_VGCLOWER);
+
+	/*
+	 * If we are not associated, we should go straight to the
+	 * dynamic CCA tuning.
+	 */
+	if (!rt2x00dev->intf_associated)
+		goto dynamic_cca_tune;
+
+	/*
 	 * Determine the BBP tuning threshold and correctly
 	 * set BBP 24, 25 and 61.
 	 */
@@ -649,13 +664,6 @@ static void rt2500usb_link_tuner(struct rt2x00_dev *rt2x00dev)
 	rt2500usb_bbp_write(rt2x00dev, 24, r24);
 	rt2500usb_bbp_write(rt2x00dev, 25, r25);
 	rt2500usb_bbp_write(rt2x00dev, 61, r61);
-
-	/*
-	 * Read current r17 value, as well as the sensitivity values
-	 * for the r17 register.
-	 */
-	rt2500usb_bbp_read(rt2x00dev, 17, &r17);
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_BBPTUNE_R17, &r17_sens);
 
 	/*
 	 * A too low RSSI will cause too much false CCA which will
@@ -692,14 +700,9 @@ static void rt2500usb_link_tuner(struct rt2x00_dev *rt2x00dev)
 	 * Leave short or middle distance condition, restore r17
 	 * to the dynamic tuning range.
 	 */
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_BBPTUNE_VGC, &vgc_bound);
-	vgc_bound = rt2x00_get_field16(vgc_bound, EEPROM_BBPTUNE_VGCUPPER);
-
 	low_bound = 0x32;
-	if (rssi >= -77)
-		up_bound = vgc_bound;
-	else
-		up_bound = vgc_bound - (-77 - rssi);
+	if (rssi < -77)
+		up_bound -= (-77 - rssi);
 
 	if (up_bound < low_bound)
 		up_bound = low_bound;
@@ -707,7 +710,16 @@ static void rt2500usb_link_tuner(struct rt2x00_dev *rt2x00dev)
 	if (r17 > up_bound) {
 		rt2500usb_bbp_write(rt2x00dev, 17, up_bound);
 		rt2x00dev->link.vgc_level = up_bound;
-	} else if (rt2x00dev->link.qual.false_cca > 512 && r17 < up_bound) {
+		return;
+	}
+
+dynamic_cca_tune:
+
+	/*
+	 * R17 is inside the dynamic tuning range,
+	 * start tuning the link based on the false cca counter.
+	 */
+	if (rt2x00dev->link.qual.false_cca > 512 && r17 < up_bound) {
 		rt2500usb_bbp_write(rt2x00dev, 17, ++r17);
 		rt2x00dev->link.vgc_level = r17;
 	} else if (rt2x00dev->link.qual.false_cca < 100 && r17 > low_bound) {
@@ -1203,6 +1215,7 @@ static int rt2500usb_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 {
 	u16 word;
 	u8 *mac;
+	u8 bbp;
 
 	rt2x00usb_eeprom_read(rt2x00dev, rt2x00dev->eeprom, EEPROM_SIZE);
 
@@ -1257,9 +1270,17 @@ static int rt2500usb_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		EEPROM(rt2x00dev, "BBPtune: 0x%04x\n", word);
 	}
 
+	/*
+	 * Switch lower vgc bound to current BBP R17 value,
+	 * lower the value a bit for better quality.
+	 */
+	rt2500usb_bbp_read(rt2x00dev, 17, &bbp);
+	bbp -= 6;
+
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_BBPTUNE_VGC, &word);
 	if (word == 0xffff) {
 		rt2x00_set_field16(&word, EEPROM_BBPTUNE_VGCUPPER, 0x40);
+		rt2x00_set_field16(&word, EEPROM_BBPTUNE_VGCLOWER, bbp);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_BBPTUNE_VGC, word);
 		EEPROM(rt2x00dev, "BBPtune vgc: 0x%04x\n", word);
 	}
@@ -1270,6 +1291,9 @@ static int rt2500usb_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_set_field16(&word, EEPROM_BBPTUNE_R17_HIGH, 0x41);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_BBPTUNE_R17, word);
 		EEPROM(rt2x00dev, "BBPtune r17: 0x%04x\n", word);
+	} else {
+		rt2x00_set_field16(&word, EEPROM_BBPTUNE_VGCLOWER, bbp);
+		rt2x00_eeprom_write(rt2x00dev, EEPROM_BBPTUNE_VGC, word);
 	}
 
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_BBPTUNE_R24, &word);
@@ -1705,40 +1729,40 @@ static int rt2500usb_beacon_update(struct ieee80211_hw *hw,
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct usb_device *usb_dev = rt2x00dev_usb_dev(rt2x00dev);
+	struct rt2x00_intf *intf = vif_to_intf(control->vif);
 	struct queue_entry_priv_usb_bcn *priv_bcn;
 	struct skb_frame_desc *skbdesc;
-	struct data_queue *queue;
-	struct queue_entry *entry;
 	int pipe = usb_sndbulkpipe(usb_dev, 1);
 	int length;
 
-	/*
-	 * Just in case the ieee80211 doesn't set this,
-	 * but we need this queue set for the descriptor
-	 * initialization.
-	 */
-	control->queue = IEEE80211_TX_QUEUE_BEACON;
-	queue = rt2x00queue_get_queue(rt2x00dev, control->queue);
-	entry = rt2x00queue_get_entry(queue, Q_INDEX);
-	priv_bcn = entry->priv_data;
+	if (unlikely(!intf->beacon))
+		return -ENOBUFS;
+
+	priv_bcn = intf->beacon->priv_data;
 
 	/*
 	 * Add the descriptor in front of the skb.
 	 */
-	skb_push(skb, queue->desc_size);
-	memset(skb->data, 0, queue->desc_size);
+	skb_push(skb, intf->beacon->queue->desc_size);
+	memset(skb->data, 0, intf->beacon->queue->desc_size);
 
 	/*
 	 * Fill in skb descriptor
 	 */
 	skbdesc = get_skb_frame_desc(skb);
 	memset(skbdesc, 0, sizeof(*skbdesc));
-	skbdesc->data = skb->data + queue->desc_size;
-	skbdesc->data_len = queue->data_size;
+	skbdesc->data = skb->data + intf->beacon->queue->desc_size;
+	skbdesc->data_len = skb->len - intf->beacon->queue->desc_size;
 	skbdesc->desc = skb->data;
-	skbdesc->desc_len = queue->desc_size;
-	skbdesc->entry = entry;
+	skbdesc->desc_len = intf->beacon->queue->desc_size;
+	skbdesc->entry = intf->beacon;
 
+	/*
+	 * Just in case mac80211 doesn't set this correctly,
+	 * but we need this queue set for the descriptor
+	 * initialization.
+	 */
+	control->queue = IEEE80211_TX_QUEUE_BEACON;
 	rt2x00lib_write_tx_desc(rt2x00dev, skb, control);
 
 	/*
@@ -1749,7 +1773,8 @@ static int rt2500usb_beacon_update(struct ieee80211_hw *hw,
 	length = rt2500usb_get_tx_data_len(rt2x00dev, skb);
 
 	usb_fill_bulk_urb(priv_bcn->urb, usb_dev, pipe,
-			  skb->data, length, rt2500usb_beacondone, entry);
+			  skb->data, length, rt2500usb_beacondone,
+			  intf->beacon);
 
 	/*
 	 * Second we need to create the guardian byte.
@@ -1759,7 +1784,7 @@ static int rt2500usb_beacon_update(struct ieee80211_hw *hw,
 	priv_bcn->guardian_data = 0;
 	usb_fill_bulk_urb(priv_bcn->guardian_urb, usb_dev, pipe,
 			  &priv_bcn->guardian_data, 1, rt2500usb_beacondone,
-			  entry);
+			  intf->beacon);
 
 	/*
 	 * Send out the guardian byte.
@@ -1769,7 +1794,7 @@ static int rt2500usb_beacon_update(struct ieee80211_hw *hw,
 	/*
 	 * Enable beacon generation.
 	 */
-	rt2500usb_kick_tx_queue(rt2x00dev, IEEE80211_TX_QUEUE_BEACON);
+	rt2500usb_kick_tx_queue(rt2x00dev, control->queue);
 
 	return 0;
 }
@@ -1805,9 +1830,7 @@ static const struct rt2x00lib_ops rt2500usb_rt2x00_ops = {
 	.get_tx_data_len	= rt2500usb_get_tx_data_len,
 	.kick_tx_queue		= rt2500usb_kick_tx_queue,
 	.fill_rxdone		= rt2500usb_fill_rxdone,
-	.config_mac_addr	= rt2500usb_config_mac_addr,
-	.config_bssid		= rt2500usb_config_bssid,
-	.config_type		= rt2500usb_config_type,
+	.config_intf		= rt2500usb_config_intf,
 	.config_preamble	= rt2500usb_config_preamble,
 	.config			= rt2500usb_config,
 };
@@ -1842,6 +1865,8 @@ static const struct data_queue_desc rt2500usb_queue_atim = {
 
 static const struct rt2x00_ops rt2500usb_ops = {
 	.name		= KBUILD_MODNAME,
+	.max_sta_intf	= 1,
+	.max_ap_intf	= 1,
 	.eeprom_size	= EEPROM_SIZE,
 	.rf_size	= RF_SIZE,
 	.rx		= &rt2500usb_queue_rx,

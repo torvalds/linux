@@ -29,64 +29,89 @@
 #include "rt2x00.h"
 #include "rt2x00lib.h"
 
-
-/*
- * The MAC and BSSID addressess are simple array of bytes,
- * these arrays are little endian, so when sending the addressess
- * to the drivers, copy the it into a endian-signed variable.
- *
- * Note that all devices (except rt2500usb) have 32 bits
- * register word sizes. This means that whatever variable we
- * pass _must_ be a multiple of 32 bits. Otherwise the device
- * might not accept what we are sending to it.
- * This will also make it easier for the driver to write
- * the data to the device.
- *
- * Also note that when NULL is passed as address the
- * we will send 00:00:00:00:00 to the device to clear the address.
- * This will prevent the device being confused when it wants
- * to ACK frames or consideres itself associated.
- */
-void rt2x00lib_config_mac_addr(struct rt2x00_dev *rt2x00dev, u8 *mac)
+void rt2x00lib_config_intf(struct rt2x00_dev *rt2x00dev,
+			   struct rt2x00_intf *intf,
+			   enum ieee80211_if_types type,
+			   u8 *mac, u8 *bssid)
 {
-	__le32 reg[2];
+	struct rt2x00intf_conf conf;
+	unsigned int flags = 0;
 
-	memset(&reg, 0, sizeof(reg));
-	if (mac)
-		memcpy(&reg, mac, ETH_ALEN);
-
-	rt2x00dev->ops->lib->config_mac_addr(rt2x00dev, &reg[0]);
-}
-
-void rt2x00lib_config_bssid(struct rt2x00_dev *rt2x00dev, u8 *bssid)
-{
-	__le32 reg[2];
-
-	memset(&reg, 0, sizeof(reg));
-	if (bssid)
-		memcpy(&reg, bssid, ETH_ALEN);
-
-	rt2x00dev->ops->lib->config_bssid(rt2x00dev, &reg[0]);
-}
-
-void rt2x00lib_config_type(struct rt2x00_dev *rt2x00dev, const int type)
-{
-	int tsf_sync;
+	conf.type = type;
 
 	switch (type) {
 	case IEEE80211_IF_TYPE_IBSS:
 	case IEEE80211_IF_TYPE_AP:
-		tsf_sync = TSF_SYNC_BEACON;
+		conf.sync = TSF_SYNC_BEACON;
 		break;
 	case IEEE80211_IF_TYPE_STA:
-		tsf_sync = TSF_SYNC_INFRA;
+		conf.sync = TSF_SYNC_INFRA;
 		break;
 	default:
-		tsf_sync = TSF_SYNC_NONE;
+		conf.sync = TSF_SYNC_NONE;
 		break;
 	}
 
-	rt2x00dev->ops->lib->config_type(rt2x00dev, type, tsf_sync);
+	/*
+	 * Note that when NULL is passed as address we will send
+	 * 00:00:00:00:00 to the device to clear the address.
+	 * This will prevent the device being confused when it wants
+	 * to ACK frames or consideres itself associated.
+	 */
+	memset(&conf.mac, 0, sizeof(conf.mac));
+	if (mac)
+		memcpy(&conf.mac, mac, ETH_ALEN);
+
+	memset(&conf.bssid, 0, sizeof(conf.bssid));
+	if (bssid)
+		memcpy(&conf.bssid, bssid, ETH_ALEN);
+
+	flags |= CONFIG_UPDATE_TYPE;
+	if (mac || (!rt2x00dev->intf_ap_count && !rt2x00dev->intf_sta_count))
+		flags |= CONFIG_UPDATE_MAC;
+	if (bssid || (!rt2x00dev->intf_ap_count && !rt2x00dev->intf_sta_count))
+		flags |= CONFIG_UPDATE_BSSID;
+
+	rt2x00dev->ops->lib->config_intf(rt2x00dev, intf, &conf, flags);
+}
+
+void rt2x00lib_config_preamble(struct rt2x00_dev *rt2x00dev,
+			       struct rt2x00_intf *intf,
+			       const unsigned int short_preamble)
+{
+	int retval;
+	int ack_timeout;
+	int ack_consume_time;
+
+	ack_timeout = PLCP + get_duration(ACK_SIZE, 10);
+	ack_consume_time = SIFS + PLCP + get_duration(ACK_SIZE, 10);
+
+	if (rt2x00dev->hw->conf.flags & IEEE80211_CONF_SHORT_SLOT_TIME)
+		ack_timeout += SHORT_DIFS;
+	else
+		ack_timeout += DIFS;
+
+	if (short_preamble) {
+		ack_timeout += SHORT_PREAMBLE;
+		ack_consume_time += SHORT_PREAMBLE;
+	} else {
+		ack_timeout += PREAMBLE;
+		ack_consume_time += PREAMBLE;
+	}
+
+	retval = rt2x00dev->ops->lib->config_preamble(rt2x00dev,
+						      short_preamble,
+						      ack_timeout,
+						      ack_consume_time);
+
+	spin_lock(&intf->lock);
+
+	if (retval) {
+		intf->delayed_flags |= DELAYED_CONFIG_PREAMBLE;
+		queue_work(rt2x00dev->hw->workqueue, &rt2x00dev->intf_work);
+	}
+
+	spin_unlock(&intf->lock);
 }
 
 void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
@@ -113,7 +138,7 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 	 * The latter is required since we need to recalibrate the
 	 * noise-sensitivity ratio for the new setup.
 	 */
-	rt2x00dev->ops->lib->config(rt2x00dev, CONFIG_UPDATE_ANTENNA, &libconf);
+	rt2x00dev->ops->lib->config(rt2x00dev, &libconf, CONFIG_UPDATE_ANTENNA);
 	rt2x00lib_reset_link_tuner(rt2x00dev);
 
 	rt2x00dev->link.ant.active.rx = libconf.ant.rx;
@@ -266,7 +291,7 @@ config:
 	/*
 	 * Start configuration.
 	 */
-	rt2x00dev->ops->lib->config(rt2x00dev, flags, &libconf);
+	rt2x00dev->ops->lib->config(rt2x00dev, &libconf, flags);
 
 	/*
 	 * Some configuration changes affect the link quality

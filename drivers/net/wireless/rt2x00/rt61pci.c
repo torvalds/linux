@@ -271,63 +271,60 @@ static int rt61pci_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 /*
  * Configuration handlers.
  */
-static void rt61pci_config_mac_addr(struct rt2x00_dev *rt2x00dev, __le32 *mac)
+static void rt61pci_config_intf(struct rt2x00_dev *rt2x00dev,
+				struct rt2x00_intf *intf,
+				struct rt2x00intf_conf *conf,
+				const unsigned int flags)
 {
-	u32 tmp;
-
-	tmp = le32_to_cpu(mac[1]);
-	rt2x00_set_field32(&tmp, MAC_CSR3_UNICAST_TO_ME_MASK, 0xff);
-	mac[1] = cpu_to_le32(tmp);
-
-	rt2x00pci_register_multiwrite(rt2x00dev, MAC_CSR2, mac,
-				      (2 * sizeof(__le32)));
-}
-
-static void rt61pci_config_bssid(struct rt2x00_dev *rt2x00dev, __le32 *bssid)
-{
-	u32 tmp;
-
-	tmp = le32_to_cpu(bssid[1]);
-	rt2x00_set_field32(&tmp, MAC_CSR5_BSS_ID_MASK, 3);
-	bssid[1] = cpu_to_le32(tmp);
-
-	rt2x00pci_register_multiwrite(rt2x00dev, MAC_CSR4, bssid,
-				      (2 * sizeof(__le32)));
-}
-
-static void rt61pci_config_type(struct rt2x00_dev *rt2x00dev, const int type,
-				const int tsf_sync)
-{
+	unsigned int beacon_base;
 	u32 reg;
 
-	/*
-	 * Clear current synchronisation setup.
-	 * For the Beacon base registers we only need to clear
-	 * the first byte since that byte contains the VALID and OWNER
-	 * bits which (when set to 0) will invalidate the entire beacon.
-	 */
-	rt2x00pci_register_write(rt2x00dev, TXRX_CSR9, 0);
-	rt2x00pci_register_write(rt2x00dev, HW_BEACON_BASE0, 0);
-	rt2x00pci_register_write(rt2x00dev, HW_BEACON_BASE1, 0);
-	rt2x00pci_register_write(rt2x00dev, HW_BEACON_BASE2, 0);
-	rt2x00pci_register_write(rt2x00dev, HW_BEACON_BASE3, 0);
+	if (flags & CONFIG_UPDATE_TYPE) {
+		/*
+		 * Clear current synchronisation setup.
+		 * For the Beacon base registers we only need to clear
+		 * the first byte since that byte contains the VALID and OWNER
+		 * bits which (when set to 0) will invalidate the entire beacon.
+		 */
+		beacon_base = HW_BEACON_OFFSET(intf->beacon->entry_idx);
+		rt2x00pci_register_write(rt2x00dev, TXRX_CSR9, 0);
+		rt2x00pci_register_write(rt2x00dev, beacon_base, 0);
 
-	/*
-	 * Enable synchronisation.
-	 */
-	rt2x00pci_register_read(rt2x00dev, TXRX_CSR9, &reg);
-	rt2x00_set_field32(&reg, TXRX_CSR9_TSF_TICKING, 1);
-	rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE,
-			  (tsf_sync == TSF_SYNC_BEACON));
-	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 0);
-	rt2x00_set_field32(&reg, TXRX_CSR9_TSF_SYNC, tsf_sync);
-	rt2x00pci_register_write(rt2x00dev, TXRX_CSR9, reg);
+		/*
+		 * Enable synchronisation.
+		 */
+		rt2x00pci_register_read(rt2x00dev, TXRX_CSR9, &reg);
+		rt2x00_set_field32(&reg, TXRX_CSR9_TSF_TICKING, 1);
+		rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE,
+				  (conf->sync == TSF_SYNC_BEACON));
+		rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 0);
+		rt2x00_set_field32(&reg, TXRX_CSR9_TSF_SYNC, conf->sync);
+		rt2x00pci_register_write(rt2x00dev, TXRX_CSR9, reg);
+	}
+
+	if (flags & CONFIG_UPDATE_MAC) {
+		reg = le32_to_cpu(conf->mac[1]);
+		rt2x00_set_field32(&reg, MAC_CSR3_UNICAST_TO_ME_MASK, 0xff);
+		conf->mac[1] = cpu_to_le32(reg);
+
+		rt2x00pci_register_multiwrite(rt2x00dev, MAC_CSR2,
+					      conf->mac, sizeof(conf->mac));
+	}
+
+	if (flags & CONFIG_UPDATE_BSSID) {
+		reg = le32_to_cpu(conf->bssid[1]);
+		rt2x00_set_field32(&reg, MAC_CSR5_BSS_ID_MASK, 3);
+		conf->bssid[1] = cpu_to_le32(reg);
+
+		rt2x00pci_register_multiwrite(rt2x00dev, MAC_CSR4,
+					      conf->bssid, sizeof(conf->bssid));
+	}
 }
 
-static void rt61pci_config_preamble(struct rt2x00_dev *rt2x00dev,
-				    const int short_preamble,
-				    const int ack_timeout,
-				    const int ack_consume_time)
+static int rt61pci_config_preamble(struct rt2x00_dev *rt2x00dev,
+				   const int short_preamble,
+				   const int ack_timeout,
+				   const int ack_consume_time)
 {
 	u32 reg;
 
@@ -339,6 +336,8 @@ static void rt61pci_config_preamble(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&reg, TXRX_CSR4_AUTORESPOND_PREAMBLE,
 			   !!short_preamble);
 	rt2x00pci_register_write(rt2x00dev, TXRX_CSR4, reg);
+
+	return 0;
 }
 
 static void rt61pci_config_phymode(struct rt2x00_dev *rt2x00dev,
@@ -667,8 +666,8 @@ static void rt61pci_config_duration(struct rt2x00_dev *rt2x00dev,
 }
 
 static void rt61pci_config(struct rt2x00_dev *rt2x00dev,
-			   const unsigned int flags,
-			   struct rt2x00lib_conf *libconf)
+			   struct rt2x00lib_conf *libconf,
+			   const unsigned int flags)
 {
 	if (flags & CONFIG_UPDATE_PHYMODE)
 		rt61pci_config_phymode(rt2x00dev, libconf->basic_rates);
@@ -816,6 +815,13 @@ static void rt61pci_link_tuner(struct rt2x00_dev *rt2x00dev)
 	}
 
 	/*
+	 * If we are not associated, we should go straight to the
+	 * dynamic CCA tuning.
+	 */
+	if (!rt2x00dev->intf_associated)
+		goto dynamic_cca_tune;
+
+	/*
 	 * Special big-R17 for very short distance
 	 */
 	if (rssi >= -35) {
@@ -865,6 +871,8 @@ static void rt61pci_link_tuner(struct rt2x00_dev *rt2x00dev)
 		rt61pci_bbp_write(rt2x00dev, 17, up_bound);
 		return;
 	}
+
+dynamic_cca_tune:
 
 	/*
 	 * r17 does not yet exceed upper limit, continue and base
@@ -1213,6 +1221,17 @@ static int rt61pci_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field32(&reg, AC_TXOP_CSR1_AC2_TX_OP, 192);
 	rt2x00_set_field32(&reg, AC_TXOP_CSR1_AC3_TX_OP, 48);
 	rt2x00pci_register_write(rt2x00dev, AC_TXOP_CSR1, reg);
+
+	/*
+	 * Clear all beacons
+	 * For the Beacon base registers we only need to clear
+	 * the first byte since that byte contains the VALID and OWNER
+	 * bits which (when set to 0) will invalidate the entire beacon.
+	 */
+	rt2x00pci_register_write(rt2x00dev, HW_BEACON_BASE0, 0);
+	rt2x00pci_register_write(rt2x00dev, HW_BEACON_BASE1, 0);
+	rt2x00pci_register_write(rt2x00dev, HW_BEACON_BASE2, 0);
+	rt2x00pci_register_write(rt2x00dev, HW_BEACON_BASE3, 0);
 
 	/*
 	 * We must clear the error counters.
@@ -2378,25 +2397,20 @@ static int rt61pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 			  struct ieee80211_tx_control *control)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
+	struct rt2x00_intf *intf = vif_to_intf(control->vif);
 	struct skb_frame_desc *skbdesc;
-	struct data_queue *queue;
-	struct queue_entry *entry;
+	unsigned int beacon_base;
 
-	/*
-	 * Just in case the ieee80211 doesn't set this,
-	 * but we need this queue set for the descriptor
-	 * initialization.
-	 */
-	control->queue = IEEE80211_TX_QUEUE_BEACON;
-	queue = rt2x00queue_get_queue(rt2x00dev, control->queue);
-	entry = rt2x00queue_get_entry(queue, Q_INDEX);
+	if (unlikely(!intf->beacon))
+		return -ENOBUFS;
 
 	/*
 	 * We need to append the descriptor in front of the
 	 * beacon frame.
 	 */
-	if (skb_headroom(skb) < queue->desc_size) {
-		if (pskb_expand_head(skb, queue->desc_size, 0, GFP_ATOMIC)) {
+	if (skb_headroom(skb) < intf->beacon->queue->desc_size) {
+		if (pskb_expand_head(skb, intf->beacon->queue->desc_size,
+				     0, GFP_ATOMIC)) {
 			dev_kfree_skb(skb);
 			return -ENOMEM;
 		}
@@ -2405,29 +2419,36 @@ static int rt61pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 	/*
 	 * Add the descriptor in front of the skb.
 	 */
-	skb_push(skb, queue->desc_size);
-	memset(skb->data, 0, queue->desc_size);
+	skb_push(skb, intf->beacon->queue->desc_size);
+	memset(skb->data, 0, intf->beacon->queue->desc_size);
 
 	/*
 	 * Fill in skb descriptor
 	 */
 	skbdesc = get_skb_frame_desc(skb);
 	memset(skbdesc, 0, sizeof(*skbdesc));
-	skbdesc->data = skb->data + queue->desc_size;
-	skbdesc->data_len = queue->data_size;
+	skbdesc->data = skb->data + intf->beacon->queue->desc_size;
+	skbdesc->data_len = skb->len - intf->beacon->queue->desc_size;
 	skbdesc->desc = skb->data;
-	skbdesc->desc_len = queue->desc_size;
-	skbdesc->entry = entry;
+	skbdesc->desc_len = intf->beacon->queue->desc_size;
+	skbdesc->entry = intf->beacon;
 
+	/*
+	 * Just in case the ieee80211 doesn't set this,
+	 * but we need this queue set for the descriptor
+	 * initialization.
+	 */
+	control->queue = IEEE80211_TX_QUEUE_BEACON;
 	rt2x00lib_write_tx_desc(rt2x00dev, skb, control);
 
 	/*
 	 * Write entire beacon with descriptor to register,
 	 * and kick the beacon generator.
 	 */
-	rt2x00pci_register_multiwrite(rt2x00dev, HW_BEACON_BASE0,
+	beacon_base = HW_BEACON_OFFSET(intf->beacon->entry_idx);
+	rt2x00pci_register_multiwrite(rt2x00dev, beacon_base,
 				      skb->data, skb->len);
-	rt61pci_kick_tx_queue(rt2x00dev, IEEE80211_TX_QUEUE_BEACON);
+	rt61pci_kick_tx_queue(rt2x00dev, control->queue);
 
 	return 0;
 }
@@ -2469,9 +2490,7 @@ static const struct rt2x00lib_ops rt61pci_rt2x00_ops = {
 	.write_tx_data		= rt2x00pci_write_tx_data,
 	.kick_tx_queue		= rt61pci_kick_tx_queue,
 	.fill_rxdone		= rt61pci_fill_rxdone,
-	.config_mac_addr	= rt61pci_config_mac_addr,
-	.config_bssid		= rt61pci_config_bssid,
-	.config_type		= rt61pci_config_type,
+	.config_intf		= rt61pci_config_intf,
 	.config_preamble	= rt61pci_config_preamble,
 	.config			= rt61pci_config,
 };
@@ -2491,7 +2510,7 @@ static const struct data_queue_desc rt61pci_queue_tx = {
 };
 
 static const struct data_queue_desc rt61pci_queue_bcn = {
-	.entry_num		= BEACON_ENTRIES,
+	.entry_num		= 4 * BEACON_ENTRIES,
 	.data_size		= MGMT_FRAME_SIZE,
 	.desc_size		= TXINFO_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_pci_tx),
@@ -2499,6 +2518,8 @@ static const struct data_queue_desc rt61pci_queue_bcn = {
 
 static const struct rt2x00_ops rt61pci_ops = {
 	.name		= KBUILD_MODNAME,
+	.max_sta_intf	= 1,
+	.max_ap_intf	= 4,
 	.eeprom_size	= EEPROM_SIZE,
 	.rf_size	= RF_SIZE,
 	.rx		= &rt61pci_queue_rx,

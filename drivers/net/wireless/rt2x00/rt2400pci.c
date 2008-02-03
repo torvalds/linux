@@ -246,50 +246,50 @@ static int rt2400pci_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 /*
  * Configuration handlers.
  */
-static void rt2400pci_config_mac_addr(struct rt2x00_dev *rt2x00dev,
-				      __le32 *mac)
+static void rt2400pci_config_intf(struct rt2x00_dev *rt2x00dev,
+				  struct rt2x00_intf *intf,
+				  struct rt2x00intf_conf *conf,
+				  const unsigned int flags)
 {
-	rt2x00pci_register_multiwrite(rt2x00dev, CSR3, mac,
-				      (2 * sizeof(__le32)));
-}
-
-static void rt2400pci_config_bssid(struct rt2x00_dev *rt2x00dev,
-				   __le32 *bssid)
-{
-	rt2x00pci_register_multiwrite(rt2x00dev, CSR5, bssid,
-				      (2 * sizeof(__le32)));
-}
-
-static void rt2400pci_config_type(struct rt2x00_dev *rt2x00dev, const int type,
-				  const int tsf_sync)
-{
+	unsigned int bcn_preload;
 	u32 reg;
 
-	rt2x00pci_register_write(rt2x00dev, CSR14, 0);
+	if (flags & CONFIG_UPDATE_TYPE) {
+		rt2x00pci_register_write(rt2x00dev, CSR14, 0);
 
-	/*
-	 * Enable beacon config
-	 */
-	rt2x00pci_register_read(rt2x00dev, BCNCSR1, &reg);
-	rt2x00_set_field32(&reg, BCNCSR1_PRELOAD,
-			   PREAMBLE + get_duration(IEEE80211_HEADER, 20));
-	rt2x00pci_register_write(rt2x00dev, BCNCSR1, reg);
+		/*
+		 * Enable beacon config
+		 */
+		bcn_preload = PREAMBLE + get_duration(IEEE80211_HEADER, 20);
+		rt2x00pci_register_read(rt2x00dev, BCNCSR1, &reg);
+		rt2x00_set_field32(&reg, BCNCSR1_PRELOAD, bcn_preload);
+		rt2x00pci_register_write(rt2x00dev, BCNCSR1, reg);
 
-	/*
-	 * Enable synchronisation.
-	 */
-	rt2x00pci_register_read(rt2x00dev, CSR14, &reg);
-	rt2x00_set_field32(&reg, CSR14_TSF_COUNT, 1);
-	rt2x00_set_field32(&reg, CSR14_TBCN, (tsf_sync == TSF_SYNC_BEACON));
-	rt2x00_set_field32(&reg, CSR14_BEACON_GEN, 0);
-	rt2x00_set_field32(&reg, CSR14_TSF_SYNC, tsf_sync);
-	rt2x00pci_register_write(rt2x00dev, CSR14, reg);
+		/*
+		 * Enable synchronisation.
+		 */
+		rt2x00pci_register_read(rt2x00dev, CSR14, &reg);
+		rt2x00_set_field32(&reg, CSR14_TSF_COUNT, 1);
+		rt2x00_set_field32(&reg, CSR14_TBCN,
+				   (conf->sync == TSF_SYNC_BEACON));
+		rt2x00_set_field32(&reg, CSR14_BEACON_GEN, 0);
+		rt2x00_set_field32(&reg, CSR14_TSF_SYNC, conf->sync);
+		rt2x00pci_register_write(rt2x00dev, CSR14, reg);
+	}
+
+	if (flags & CONFIG_UPDATE_MAC)
+		rt2x00pci_register_multiwrite(rt2x00dev, CSR3,
+					      conf->mac, sizeof(conf->mac));
+
+	if (flags & CONFIG_UPDATE_BSSID)
+		rt2x00pci_register_multiwrite(rt2x00dev, CSR5,
+					      conf->bssid, sizeof(conf->bssid));
 }
 
-static void rt2400pci_config_preamble(struct rt2x00_dev *rt2x00dev,
-				      const int short_preamble,
-				      const int ack_timeout,
-				      const int ack_consume_time)
+static int rt2400pci_config_preamble(struct rt2x00_dev *rt2x00dev,
+				     const int short_preamble,
+				     const int ack_timeout,
+				     const int ack_consume_time)
 {
 	int preamble_mask;
 	u32 reg;
@@ -327,6 +327,8 @@ static void rt2400pci_config_preamble(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&reg, ARCSR5_SERVICE, 0x84);
 	rt2x00_set_field32(&reg, ARCSR2_LENGTH, get_duration(ACK_SIZE, 110));
 	rt2x00pci_register_write(rt2x00dev, ARCSR5, reg);
+
+	return 0;
 }
 
 static void rt2400pci_config_phymode(struct rt2x00_dev *rt2x00dev,
@@ -481,8 +483,8 @@ static void rt2400pci_config_duration(struct rt2x00_dev *rt2x00dev,
 }
 
 static void rt2400pci_config(struct rt2x00_dev *rt2x00dev,
-			     const unsigned int flags,
-			     struct rt2x00lib_conf *libconf)
+			     struct rt2x00lib_conf *libconf,
+			     const unsigned int flags)
 {
 	if (flags & CONFIG_UPDATE_PHYMODE)
 		rt2400pci_config_phymode(rt2x00dev, libconf->basic_rates);
@@ -1553,9 +1555,7 @@ static const struct rt2x00lib_ops rt2400pci_rt2x00_ops = {
 	.write_tx_data		= rt2x00pci_write_tx_data,
 	.kick_tx_queue		= rt2400pci_kick_tx_queue,
 	.fill_rxdone		= rt2400pci_fill_rxdone,
-	.config_mac_addr	= rt2400pci_config_mac_addr,
-	.config_bssid		= rt2400pci_config_bssid,
-	.config_type		= rt2400pci_config_type,
+	.config_intf		= rt2400pci_config_intf,
 	.config_preamble	= rt2400pci_config_preamble,
 	.config			= rt2400pci_config,
 };
@@ -1590,6 +1590,8 @@ static const struct data_queue_desc rt2400pci_queue_atim = {
 
 static const struct rt2x00_ops rt2400pci_ops = {
 	.name		= KBUILD_MODNAME,
+	.max_sta_intf	= 1,
+	.max_ap_intf	= 1,
 	.eeprom_size	= EEPROM_SIZE,
 	.rf_size	= RF_SIZE,
 	.rx		= &rt2400pci_queue_rx,

@@ -136,12 +136,10 @@ void rt2x00lib_disable_radio(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Stop all scheduled work.
 	 */
-	if (work_pending(&rt2x00dev->beacon_work))
-		cancel_work_sync(&rt2x00dev->beacon_work);
+	if (work_pending(&rt2x00dev->intf_work))
+		cancel_work_sync(&rt2x00dev->intf_work);
 	if (work_pending(&rt2x00dev->filter_work))
 		cancel_work_sync(&rt2x00dev->filter_work);
-	if (work_pending(&rt2x00dev->config_work))
-		cancel_work_sync(&rt2x00dev->config_work);
 
 	/*
 	 * Stop the TX queues.
@@ -173,7 +171,7 @@ void rt2x00lib_toggle_rx(struct rt2x00_dev *rt2x00dev, enum dev_state state)
 	 * When we are enabling the RX, we should also start the link tuner.
 	 */
 	if (state == STATE_RADIO_RX_ON &&
-	    is_interface_present(&rt2x00dev->interface))
+	    (rt2x00dev->intf_ap_count || rt2x00dev->intf_sta_count))
 		rt2x00lib_start_link_tuner(rt2x00dev);
 }
 
@@ -401,10 +399,10 @@ static void rt2x00lib_packetfilter_scheduled(struct work_struct *work)
 	unsigned int filter = rt2x00dev->packet_filter;
 
 	/*
-	 * Since we had stored the filter inside interface.filter,
+	 * Since we had stored the filter inside rt2x00dev->packet_filter,
 	 * we should now clear that field. Otherwise the driver will
 	 * assume nothing has changed (*total_flags will be compared
-	 * to interface.filter to determine if any action is required).
+	 * to rt2x00dev->packet_filter to determine if any action is required).
 	 */
 	rt2x00dev->packet_filter = 0;
 
@@ -412,41 +410,72 @@ static void rt2x00lib_packetfilter_scheduled(struct work_struct *work)
 					     filter, &filter, 0, NULL);
 }
 
-static void rt2x00lib_configuration_scheduled(struct work_struct *work)
+static void rt2x00lib_intf_scheduled_iter(void *data, u8 *mac,
+					  struct ieee80211_vif *vif)
 {
-	struct rt2x00_dev *rt2x00dev =
-	    container_of(work, struct rt2x00_dev, config_work);
-	struct ieee80211_bss_conf bss_conf;
-
-	bss_conf.use_short_preamble =
-		test_bit(CONFIG_SHORT_PREAMBLE, &rt2x00dev->flags);
+	struct rt2x00_dev *rt2x00dev = data;
+	struct rt2x00_intf *intf = vif_to_intf(vif);
+	struct sk_buff *skb;
+	struct ieee80211_tx_control control;
+	struct ieee80211_bss_conf conf;
+	int delayed_flags;
 
 	/*
-	 * FIXME: shouldn't invoke it this way because all other contents
-	 *	  of bss_conf is invalid.
+	 * Copy all data we need during this action under the protection
+	 * of a spinlock. Otherwise race conditions might occur which results
+	 * into an invalid configuration.
 	 */
-	rt2x00mac_bss_info_changed(rt2x00dev->hw, rt2x00dev->interface.id,
-				   &bss_conf, BSS_CHANGED_ERP_PREAMBLE);
+	spin_lock(&intf->lock);
+
+	memcpy(&conf, &intf->conf, sizeof(conf));
+	delayed_flags = intf->delayed_flags;
+	intf->delayed_flags = 0;
+
+	spin_unlock(&intf->lock);
+
+	if (delayed_flags & DELAYED_UPDATE_BEACON) {
+		skb = ieee80211_beacon_get(rt2x00dev->hw, vif, &control);
+		if (skb) {
+			rt2x00dev->ops->hw->beacon_update(rt2x00dev->hw, skb,
+							  &control);
+			dev_kfree_skb(skb);
+		}
+	}
+
+	if (delayed_flags & DELAYED_CONFIG_PREAMBLE)
+		rt2x00lib_config_preamble(rt2x00dev, intf,
+					  intf->conf.use_short_preamble);
+}
+
+static void rt2x00lib_intf_scheduled(struct work_struct *work)
+{
+	struct rt2x00_dev *rt2x00dev =
+	    container_of(work, struct rt2x00_dev, intf_work);
+
+	/*
+	 * Iterate over each interface and perform the
+	 * requested configurations.
+	 */
+	ieee80211_iterate_active_interfaces(rt2x00dev->hw,
+					    rt2x00lib_intf_scheduled_iter,
+					    rt2x00dev);
 }
 
 /*
  * Interrupt context handlers.
  */
-static void rt2x00lib_beacondone_scheduled(struct work_struct *work)
+static void rt2x00lib_beacondone_iter(void *data, u8 *mac,
+				      struct ieee80211_vif *vif)
 {
-	struct rt2x00_dev *rt2x00dev =
-	    container_of(work, struct rt2x00_dev, beacon_work);
-	struct ieee80211_tx_control control;
-	struct sk_buff *skb;
+	struct rt2x00_intf *intf = vif_to_intf(vif);
 
-	skb = ieee80211_beacon_get(rt2x00dev->hw,
-				   rt2x00dev->interface.id, &control);
-	if (!skb)
+	if (vif->type != IEEE80211_IF_TYPE_AP &&
+	    vif->type != IEEE80211_IF_TYPE_IBSS)
 		return;
 
-	rt2x00dev->ops->hw->beacon_update(rt2x00dev->hw, skb, &control);
-
-	dev_kfree_skb(skb);
+	spin_lock(&intf->lock);
+	intf->delayed_flags |= DELAYED_UPDATE_BEACON;
+	spin_unlock(&intf->lock);
 }
 
 void rt2x00lib_beacondone(struct rt2x00_dev *rt2x00dev)
@@ -454,7 +483,11 @@ void rt2x00lib_beacondone(struct rt2x00_dev *rt2x00dev)
 	if (!test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags))
 		return;
 
-	queue_work(rt2x00dev->hw->workqueue, &rt2x00dev->beacon_work);
+	ieee80211_iterate_active_interfaces(rt2x00dev->hw,
+					    rt2x00lib_beacondone_iter,
+					    rt2x00dev);
+
+	queue_work(rt2x00dev->hw->workqueue, &rt2x00dev->intf_work);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_beacondone);
 
@@ -1037,6 +1070,10 @@ int rt2x00lib_start(struct rt2x00_dev *rt2x00dev)
 		return retval;
 	}
 
+	rt2x00dev->intf_ap_count = 0;
+	rt2x00dev->intf_sta_count = 0;
+	rt2x00dev->intf_associated = 0;
+
 	__set_bit(DEVICE_STARTED, &rt2x00dev->flags);
 
 	return 0;
@@ -1053,6 +1090,10 @@ void rt2x00lib_stop(struct rt2x00_dev *rt2x00dev)
 	 */
 	rt2x00lib_disable_radio(rt2x00dev);
 
+	rt2x00dev->intf_ap_count = 0;
+	rt2x00dev->intf_sta_count = 0;
+	rt2x00dev->intf_associated = 0;
+
 	__clear_bit(DEVICE_STARTED, &rt2x00dev->flags);
 }
 
@@ -1062,6 +1103,12 @@ void rt2x00lib_stop(struct rt2x00_dev *rt2x00dev)
 int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 {
 	int retval = -ENOMEM;
+
+	/*
+	 * Make room for rt2x00_intf inside the per-interface
+	 * structure ieee80211_vif.
+	 */
+	rt2x00dev->hw->vif_data_size = sizeof(struct rt2x00_intf);
 
 	/*
 	 * Let the driver probe the device to detect the capabilities.
@@ -1075,15 +1122,9 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Initialize configuration work.
 	 */
-	INIT_WORK(&rt2x00dev->beacon_work, rt2x00lib_beacondone_scheduled);
+	INIT_WORK(&rt2x00dev->intf_work, rt2x00lib_intf_scheduled);
 	INIT_WORK(&rt2x00dev->filter_work, rt2x00lib_packetfilter_scheduled);
-	INIT_WORK(&rt2x00dev->config_work, rt2x00lib_configuration_scheduled);
 	INIT_DELAYED_WORK(&rt2x00dev->link.work, rt2x00lib_link_tuner);
-
-	/*
-	 * Reset current working type.
-	 */
-	rt2x00dev->interface.type = IEEE80211_IF_TYPE_INVALID;
 
 	/*
 	 * Allocate queue array.
@@ -1203,9 +1244,30 @@ exit:
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_suspend);
 
+static void rt2x00lib_resume_intf(void *data, u8 *mac,
+				  struct ieee80211_vif *vif)
+{
+	struct rt2x00_dev *rt2x00dev = data;
+	struct rt2x00_intf *intf = vif_to_intf(vif);
+
+	spin_lock(&intf->lock);
+
+	rt2x00lib_config_intf(rt2x00dev, intf,
+			      vif->type, intf->mac, intf->bssid);
+
+
+	/*
+	 * Master or Ad-hoc mode require a new beacon update.
+	 */
+	if (vif->type == IEEE80211_IF_TYPE_AP ||
+	    vif->type == IEEE80211_IF_TYPE_IBSS)
+		intf->delayed_flags |= DELAYED_UPDATE_BEACON;
+
+	spin_unlock(&intf->lock);
+}
+
 int rt2x00lib_resume(struct rt2x00_dev *rt2x00dev)
 {
-	struct interface *intf = &rt2x00dev->interface;
 	int retval;
 
 	NOTICE(rt2x00dev, "Waking up.\n");
@@ -1235,9 +1297,12 @@ int rt2x00lib_resume(struct rt2x00_dev *rt2x00dev)
 	if (!rt2x00dev->hw->conf.radio_enabled)
 		rt2x00lib_disable_radio(rt2x00dev);
 
-	rt2x00lib_config_mac_addr(rt2x00dev, intf->mac);
-	rt2x00lib_config_bssid(rt2x00dev, intf->bssid);
-	rt2x00lib_config_type(rt2x00dev, intf->type);
+	/*
+	 * Iterator over each active interface to
+	 * reconfigure the hardware.
+	 */
+	ieee80211_iterate_active_interfaces(rt2x00dev->hw,
+					    rt2x00lib_resume_intf, rt2x00dev);
 
 	/*
 	 * We are ready again to receive requests from mac80211.
@@ -1253,12 +1318,11 @@ int rt2x00lib_resume(struct rt2x00_dev *rt2x00dev)
 	ieee80211_start_queues(rt2x00dev->hw);
 
 	/*
-	 * When in Master or Ad-hoc mode,
-	 * restart Beacon transmitting by faking a beacondone event.
+	 * During interface iteration we might have changed the
+	 * delayed_flags, time to handles the event by calling
+	 * the work handler directly.
 	 */
-	if (intf->type == IEEE80211_IF_TYPE_AP ||
-	    intf->type == IEEE80211_IF_TYPE_IBSS)
-		rt2x00lib_beacondone(rt2x00dev);
+	rt2x00lib_intf_scheduled(&rt2x00dev->intf_work);
 
 	return 0;
 

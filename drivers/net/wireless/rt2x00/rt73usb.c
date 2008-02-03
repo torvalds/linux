@@ -281,74 +281,69 @@ static const struct rt2x00debug rt73usb_rt2x00debug = {
 /*
  * Configuration handlers.
  */
-static void rt73usb_config_mac_addr(struct rt2x00_dev *rt2x00dev, __le32 *mac)
+static void rt73usb_config_intf(struct rt2x00_dev *rt2x00dev,
+				struct rt2x00_intf *intf,
+				struct rt2x00intf_conf *conf,
+				const unsigned int flags)
 {
-	u32 tmp;
-
-	tmp = le32_to_cpu(mac[1]);
-	rt2x00_set_field32(&tmp, MAC_CSR3_UNICAST_TO_ME_MASK, 0xff);
-	mac[1] = cpu_to_le32(tmp);
-
-	rt73usb_register_multiwrite(rt2x00dev, MAC_CSR2, mac,
-				    (2 * sizeof(__le32)));
-}
-
-static void rt73usb_config_bssid(struct rt2x00_dev *rt2x00dev, __le32 *bssid)
-{
-	u32 tmp;
-
-	tmp = le32_to_cpu(bssid[1]);
-	rt2x00_set_field32(&tmp, MAC_CSR5_BSS_ID_MASK, 3);
-	bssid[1] = cpu_to_le32(tmp);
-
-	rt73usb_register_multiwrite(rt2x00dev, MAC_CSR4, bssid,
-				    (2 * sizeof(__le32)));
-}
-
-static void rt73usb_config_type(struct rt2x00_dev *rt2x00dev, const int type,
-				const int tsf_sync)
-{
+	unsigned int beacon_base;
 	u32 reg;
 
-	/*
-	 * Clear current synchronisation setup.
-	 * For the Beacon base registers we only need to clear
-	 * the first byte since that byte contains the VALID and OWNER
-	 * bits which (when set to 0) will invalidate the entire beacon.
-	 */
-	rt73usb_register_write(rt2x00dev, TXRX_CSR9, 0);
-	rt73usb_register_write(rt2x00dev, HW_BEACON_BASE0, 0);
-	rt73usb_register_write(rt2x00dev, HW_BEACON_BASE1, 0);
-	rt73usb_register_write(rt2x00dev, HW_BEACON_BASE2, 0);
-	rt73usb_register_write(rt2x00dev, HW_BEACON_BASE3, 0);
+	if (flags & CONFIG_UPDATE_TYPE) {
+		/*
+		 * Clear current synchronisation setup.
+		 * For the Beacon base registers we only need to clear
+		 * the first byte since that byte contains the VALID and OWNER
+		 * bits which (when set to 0) will invalidate the entire beacon.
+		 */
+		beacon_base = HW_BEACON_OFFSET(intf->beacon->entry_idx);
+		rt73usb_register_write(rt2x00dev, TXRX_CSR9, 0);
+		rt73usb_register_write(rt2x00dev, beacon_base, 0);
 
-	/*
-	 * Enable synchronisation.
-	 */
-	rt73usb_register_read(rt2x00dev, TXRX_CSR9, &reg);
-	rt2x00_set_field32(&reg, TXRX_CSR9_TSF_TICKING, 1);
-	rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE,
-			   (tsf_sync == TSF_SYNC_BEACON));
-	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 0);
-	rt2x00_set_field32(&reg, TXRX_CSR9_TSF_SYNC, tsf_sync);
-	rt73usb_register_write(rt2x00dev, TXRX_CSR9, reg);
-}
-
-static void rt73usb_config_preamble(struct rt2x00_dev *rt2x00dev,
-				      const int short_preamble,
-				      const int ack_timeout,
-				      const int ack_consume_time)
-{
-	u32 reg;
-
-	/*
-	 * When in atomic context, reschedule and let rt2x00lib
-	 * call this function again.
-	 */
-	if (in_atomic()) {
-		queue_work(rt2x00dev->hw->workqueue, &rt2x00dev->config_work);
-		return;
+		/*
+		 * Enable synchronisation.
+		 */
+		rt73usb_register_read(rt2x00dev, TXRX_CSR9, &reg);
+		rt2x00_set_field32(&reg, TXRX_CSR9_TSF_TICKING, 1);
+		rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE,
+				  (conf->sync == TSF_SYNC_BEACON));
+		rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 0);
+		rt2x00_set_field32(&reg, TXRX_CSR9_TSF_SYNC, conf->sync);
+		rt73usb_register_write(rt2x00dev, TXRX_CSR9, reg);
 	}
+
+	if (flags & CONFIG_UPDATE_MAC) {
+		reg = le32_to_cpu(conf->mac[1]);
+		rt2x00_set_field32(&reg, MAC_CSR3_UNICAST_TO_ME_MASK, 0xff);
+		conf->mac[1] = cpu_to_le32(reg);
+
+		rt73usb_register_multiwrite(rt2x00dev, MAC_CSR2,
+					    conf->mac, sizeof(conf->mac));
+	}
+
+	if (flags & CONFIG_UPDATE_BSSID) {
+		reg = le32_to_cpu(conf->bssid[1]);
+		rt2x00_set_field32(&reg, MAC_CSR5_BSS_ID_MASK, 3);
+		conf->bssid[1] = cpu_to_le32(reg);
+
+		rt73usb_register_multiwrite(rt2x00dev, MAC_CSR4,
+					    conf->bssid, sizeof(conf->bssid));
+	}
+}
+
+static int rt73usb_config_preamble(struct rt2x00_dev *rt2x00dev,
+				   const int short_preamble,
+				   const int ack_timeout,
+				   const int ack_consume_time)
+{
+	u32 reg;
+
+	/*
+	 * When in atomic context, we should let rt2x00lib
+	 * try this configuration again later.
+	 */
+	if (in_atomic())
+		return -EAGAIN;
 
 	rt73usb_register_read(rt2x00dev, TXRX_CSR0, &reg);
 	rt2x00_set_field32(&reg, TXRX_CSR0_RX_ACK_TIMEOUT, ack_timeout);
@@ -358,6 +353,8 @@ static void rt73usb_config_preamble(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&reg, TXRX_CSR4_AUTORESPOND_PREAMBLE,
 			   !!short_preamble);
 	rt73usb_register_write(rt2x00dev, TXRX_CSR4, reg);
+
+	return 0;
 }
 
 static void rt73usb_config_phymode(struct rt2x00_dev *rt2x00dev,
@@ -617,8 +614,8 @@ static void rt73usb_config_duration(struct rt2x00_dev *rt2x00dev,
 }
 
 static void rt73usb_config(struct rt2x00_dev *rt2x00dev,
-			   const unsigned int flags,
-			   struct rt2x00lib_conf *libconf)
+			   struct rt2x00lib_conf *libconf,
+			   const unsigned int flags)
 {
 	if (flags & CONFIG_UPDATE_PHYMODE)
 		rt73usb_config_phymode(rt2x00dev, libconf->basic_rates);
@@ -766,6 +763,13 @@ static void rt73usb_link_tuner(struct rt2x00_dev *rt2x00dev)
 	}
 
 	/*
+	 * If we are not associated, we should go straight to the
+	 * dynamic CCA tuning.
+	 */
+	if (!rt2x00dev->intf_associated)
+		goto dynamic_cca_tune;
+
+	/*
 	 * Special big-R17 for very short distance
 	 */
 	if (rssi > -35) {
@@ -814,6 +818,8 @@ static void rt73usb_link_tuner(struct rt2x00_dev *rt2x00dev)
 		rt73usb_bbp_write(rt2x00dev, 17, up_bound);
 		return;
 	}
+
+dynamic_cca_tune:
 
 	/*
 	 * r17 does not yet exceed upper limit, continue and base
@@ -1019,6 +1025,17 @@ static int rt73usb_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt73usb_register_read(rt2x00dev, MAC_CSR9, &reg);
 	rt2x00_set_field32(&reg, MAC_CSR9_CW_SELECT, 0);
 	rt73usb_register_write(rt2x00dev, MAC_CSR9, reg);
+
+	/*
+	 * Clear all beacons
+	 * For the Beacon base registers we only need to clear
+	 * the first byte since that byte contains the VALID and OWNER
+	 * bits which (when set to 0) will invalidate the entire beacon.
+	 */
+	rt73usb_register_write(rt2x00dev, HW_BEACON_BASE0, 0);
+	rt73usb_register_write(rt2x00dev, HW_BEACON_BASE1, 0);
+	rt73usb_register_write(rt2x00dev, HW_BEACON_BASE2, 0);
+	rt73usb_register_write(rt2x00dev, HW_BEACON_BASE3, 0);
 
 	/*
 	 * We must clear the error counters.
@@ -1985,13 +2002,33 @@ static void rt73usb_reset_tsf(struct ieee80211_hw *hw)
 }
 
 static int rt73usb_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
-			  struct ieee80211_tx_control *control)
+				 struct ieee80211_tx_control *control)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
+	struct rt2x00_intf *intf = vif_to_intf(control->vif);
 	struct skb_frame_desc *skbdesc;
-	struct data_queue *queue;
-	struct queue_entry *entry;
-	int timeout;
+	unsigned int beacon_base;
+	unsigned int timeout;
+
+	if (unlikely(!intf->beacon))
+		return -ENOBUFS;
+
+	/*
+	 * Add the descriptor in front of the skb.
+	 */
+	skb_push(skb, intf->beacon->queue->desc_size);
+	memset(skb->data, 0, intf->beacon->queue->desc_size);
+
+	/*
+	 * Fill in skb descriptor
+	 */
+	skbdesc = get_skb_frame_desc(skb);
+	memset(skbdesc, 0, sizeof(*skbdesc));
+	skbdesc->data = skb->data + intf->beacon->queue->desc_size;
+	skbdesc->data_len = skb->len - intf->beacon->queue->desc_size;
+	skbdesc->desc = skb->data;
+	skbdesc->desc_len = intf->beacon->queue->desc_size;
+	skbdesc->entry = intf->beacon;
 
 	/*
 	 * Just in case the ieee80211 doesn't set this,
@@ -1999,38 +2036,18 @@ static int rt73usb_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 	 * initialization.
 	 */
 	control->queue = IEEE80211_TX_QUEUE_BEACON;
-	queue = rt2x00queue_get_queue(rt2x00dev, control->queue);
-	entry = rt2x00queue_get_entry(queue, Q_INDEX);
-
-	/*
-	 * Add the descriptor in front of the skb.
-	 */
-	skb_push(skb, queue->desc_size);
-	memset(skb->data, 0, queue->desc_size);
-
-	/*
-	 * Fill in skb descriptor
-	 */
-	skbdesc = get_skb_frame_desc(skb);
-	memset(skbdesc, 0, sizeof(*skbdesc));
-	skbdesc->data = skb->data + queue->desc_size;
-	skbdesc->data_len = queue->data_size;
-	skbdesc->desc = skb->data;
-	skbdesc->desc_len = queue->desc_size;
-	skbdesc->entry = entry;
-
 	rt2x00lib_write_tx_desc(rt2x00dev, skb, control);
 
 	/*
 	 * Write entire beacon with descriptor to register,
 	 * and kick the beacon generator.
 	 */
+	beacon_base = HW_BEACON_OFFSET(intf->beacon->entry_idx);
 	timeout = REGISTER_TIMEOUT * (skb->len / sizeof(u32));
 	rt2x00usb_vendor_request(rt2x00dev, USB_MULTI_WRITE,
-				 USB_VENDOR_REQUEST_OUT,
-				 HW_BEACON_BASE0, 0x0000,
+				 USB_VENDOR_REQUEST_OUT, beacon_base, 0,
 				 skb->data, skb->len, timeout);
-	rt73usb_kick_tx_queue(rt2x00dev, IEEE80211_TX_QUEUE_BEACON);
+	rt73usb_kick_tx_queue(rt2x00dev, control->queue);
 
 	return 0;
 }
@@ -2071,9 +2088,7 @@ static const struct rt2x00lib_ops rt73usb_rt2x00_ops = {
 	.get_tx_data_len	= rt73usb_get_tx_data_len,
 	.kick_tx_queue		= rt73usb_kick_tx_queue,
 	.fill_rxdone		= rt73usb_fill_rxdone,
-	.config_mac_addr	= rt73usb_config_mac_addr,
-	.config_bssid		= rt73usb_config_bssid,
-	.config_type		= rt73usb_config_type,
+	.config_intf		= rt73usb_config_intf,
 	.config_preamble	= rt73usb_config_preamble,
 	.config			= rt73usb_config,
 };
@@ -2093,7 +2108,7 @@ static const struct data_queue_desc rt73usb_queue_tx = {
 };
 
 static const struct data_queue_desc rt73usb_queue_bcn = {
-	.entry_num		= BEACON_ENTRIES,
+	.entry_num		= 4 * BEACON_ENTRIES,
 	.data_size		= MGMT_FRAME_SIZE,
 	.desc_size		= TXINFO_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_usb_tx),
@@ -2101,6 +2116,8 @@ static const struct data_queue_desc rt73usb_queue_bcn = {
 
 static const struct rt2x00_ops rt73usb_ops = {
 	.name		= KBUILD_MODNAME,
+	.max_sta_intf	= 1,
+	.max_ap_intf	= 4,
 	.eeprom_size	= EEPROM_SIZE,
 	.rf_size	= RF_SIZE,
 	.rx		= &rt73usb_queue_rx,
