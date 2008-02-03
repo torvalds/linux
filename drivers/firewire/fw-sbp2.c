@@ -710,6 +710,11 @@ static void sbp2_login(struct work_struct *work)
 	node_id       = device->node_id;
 	local_node_id = device->card->node_id;
 
+	/* If this is a re-login attempt, log out, or we might be rejected. */
+	if (lu->sdev)
+		sbp2_send_management_orb(lu, device->node_id, generation,
+				SBP2_LOGOUT_REQUEST, lu->login_id, NULL);
+
 	if (sbp2_send_management_orb(lu, node_id, generation,
 				SBP2_LOGIN_REQUEST, lu->lun, &response) < 0) {
 		if (lu->retries++ < 5)
@@ -997,9 +1002,17 @@ static void sbp2_reconnect(struct work_struct *work)
 	if (sbp2_send_management_orb(lu, node_id, generation,
 				     SBP2_RECONNECT_REQUEST,
 				     lu->login_id, NULL) < 0) {
-		if (lu->retries++ >= 5) {
+		/*
+		 * If reconnect was impossible even though we are in the
+		 * current generation, fall back and try to log in again.
+		 *
+		 * We could check for "Function rejected" status, but
+		 * looking at the bus generation as simpler and more general.
+		 */
+		smp_rmb(); /* get current card generation */
+		if (generation == device->card->generation ||
+		    lu->retries++ >= 5) {
 			fw_error("%s: failed to reconnect\n", tgt->bus_id);
-			/* Fall back and try to log in again. */
 			lu->retries = 0;
 			PREPARE_DELAYED_WORK(&lu->work, sbp2_login);
 		}
