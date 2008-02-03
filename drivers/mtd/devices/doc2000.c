@@ -376,7 +376,7 @@ static int DoC_IdentChip(struct DiskOnChip *doc, int floor, int chip)
 	 * hardware restriction. */
 	if (doc->mfr) {
 		if (doc->mfr == mfr && doc->id == id)
-			return 1;	/* This is another the same the first */
+			return 1;	/* This is the same as the first */
 		else
 			printk(KERN_WARNING
 			       "Flash chip at floor %d, chip %d is different:\n",

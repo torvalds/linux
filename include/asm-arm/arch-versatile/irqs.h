@@ -22,7 +22,7 @@
 #include <asm/arch/platform.h>
 
 /* 
- *  IRQ interrupts definitions are the same the INT definitions
+ *  IRQ interrupts definitions are the same as the INT definitions
  *  held within platform.h
  */
 #define IRQ_VIC_START		0
@@ -94,7 +94,7 @@
 #define IRQMASK_VICSOURCE31	INTMASK_VICSOURCE31
 
 /* 
- *  FIQ interrupts definitions are the same the INT definitions.
+ *  FIQ interrupts definitions are the same as the INT definitions.
  */
 #define FIQ_WDOGINT		INT_WDOGINT
 #define FIQ_SOFTINT		INT_SOFTINT
