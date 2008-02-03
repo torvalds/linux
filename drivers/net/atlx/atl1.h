@@ -794,7 +794,7 @@ struct atl1_adapter {
 	struct atl1_rrd_ring rrd_ring;
 	u64 hw_csum_err;
 	u64 hw_csum_good;
-
+	u32 msg_enable;
 	u16 imt;		/* interrupt moderator timer (2us resolution) */
 	u16 ict;		/* interrupt clear timer (2us resolution */
 	struct mii_if_info mii;	/* MII interface info */
