@@ -1453,7 +1453,7 @@ static int cciss_eh_device_reset_handler(struct scsi_cmnd *scsicmd)
 	rc = sendcmd(CCISS_RESET_MSG, ctlr, NULL, 0, 2, 0, 0, 
 		(unsigned char *) &cmd_in_trouble->Header.LUN.LunAddrBytes[0], 
 		TYPE_MSG);
-	/* sendcmd turned off interrputs on the board, turn 'em back on. */
+	/* sendcmd turned off interrupts on the board, turn 'em back on. */
 	(*c)->access.set_intr_mask(*c, CCISS_INTR_ON);
 	if (rc == 0)
 		return SUCCESS;
@@ -1483,7 +1483,7 @@ static int  cciss_eh_abort_handler(struct scsi_cmnd *scsicmd)
 		0, 2, 0, 0, 
 		(unsigned char *) &cmd_to_abort->Header.LUN.LunAddrBytes[0], 
 		TYPE_MSG);
-	/* sendcmd turned off interrputs on the board, turn 'em back on. */
+	/* sendcmd turned off interrupts on the board, turn 'em back on. */
 	(*c)->access.set_intr_mask(*c, CCISS_INTR_ON);
 	if (rc == 0)
 		return SUCCESS;
