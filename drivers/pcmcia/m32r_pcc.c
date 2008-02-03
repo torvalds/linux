@@ -368,7 +368,7 @@ static irqreturn_t pcc_interrupt(int irq, void *dev)
 			handled = 1;
 			irc = pcc_get(i, PCIRC);
 			irc >>=16;
-			debug(2, "m32r-pcc:interrput: socket %d pcirc 0x%02x ", i, irc);
+			debug(2, "m32r-pcc:interrupt: socket %d pcirc 0x%02x ", i, irc);
 			if (!irc)
 				continue;
 

@@ -851,7 +851,7 @@ static int m8xx_set_socket(struct pcmcia_socket *sock, socket_state_t * state)
 	   I tried to control the CxOE signal with SS_OUTPUT_ENA,
 	   but the reset signal seems connected via the 541.
 	   If the CxOE is left high are some signals tristated and
-	   no pullups are present -> the cards act wierd.
+	   no pullups are present -> the cards act weird.
 	   So right now the buffers are enabled if the power is on. */
 
 	if (state->Vcc || state->Vpp)
