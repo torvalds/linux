@@ -1347,16 +1347,17 @@ static int atl1_tx_csum(struct atl1_adapter *adapter, struct sk_buff *skb,
 	u8 css, cso;
 
 	if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
-		cso = skb_transport_offset(skb);
-		css = cso + skb->csum_offset;
-		if (unlikely(cso & 0x1)) {
+		css = (u8) (skb->csum_start - skb_headroom(skb));
+		cso = css + (u8) skb->csum_offset;
+		if (unlikely(css & 0x1)) {
+			/* L1 hardware requires an even number here */
 			dev_printk(KERN_DEBUG, &adapter->pdev->dev,
 				"payload offset not an even number\n");
 			return -1;
 		}
-		ptpd->word3 |= (cso & TPD_PLOADOFFSET_MASK) <<
+		ptpd->word3 |= (css & TPD_PLOADOFFSET_MASK) <<
 			TPD_PLOADOFFSET_SHIFT;
-		ptpd->word3 |= (css & TPD_CCSUMOFFSET_MASK) <<
+		ptpd->word3 |= (cso & TPD_CCSUMOFFSET_MASK) <<
 			TPD_CCSUMOFFSET_SHIFT;
 		ptpd->word3 |= 1 << TPD_CUST_CSUM_EN_SHIFT;
 		return true;
