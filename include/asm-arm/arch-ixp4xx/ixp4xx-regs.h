@@ -587,23 +587,23 @@
 #define UICR1_IM14	(1 << 6)	/* Interrupt mask ep 14 */
 #define UICR1_IM15	(1 << 7)	/* Interrupt mask ep 15 */
 
-#define USIR0_IR0	(1 << 0)	/* Interrup request ep 0 */
-#define USIR0_IR1	(1 << 1)	/* Interrup request ep 1 */
-#define USIR0_IR2	(1 << 2)	/* Interrup request ep 2 */
-#define USIR0_IR3	(1 << 3)	/* Interrup request ep 3 */
-#define USIR0_IR4	(1 << 4)	/* Interrup request ep 4 */
-#define USIR0_IR5	(1 << 5)	/* Interrup request ep 5 */
-#define USIR0_IR6	(1 << 6)	/* Interrup request ep 6 */
-#define USIR0_IR7	(1 << 7)	/* Interrup request ep 7 */
+#define USIR0_IR0	(1 << 0)	/* Interrupt request ep 0 */
+#define USIR0_IR1	(1 << 1)	/* Interrupt request ep 1 */
+#define USIR0_IR2	(1 << 2)	/* Interrupt request ep 2 */
+#define USIR0_IR3	(1 << 3)	/* Interrupt request ep 3 */
+#define USIR0_IR4	(1 << 4)	/* Interrupt request ep 4 */
+#define USIR0_IR5	(1 << 5)	/* Interrupt request ep 5 */
+#define USIR0_IR6	(1 << 6)	/* Interrupt request ep 6 */
+#define USIR0_IR7	(1 << 7)	/* Interrupt request ep 7 */
 
-#define USIR1_IR8	(1 << 0)	/* Interrup request ep 8 */
-#define USIR1_IR9	(1 << 1)	/* Interrup request ep 9 */
-#define USIR1_IR10	(1 << 2)	/* Interrup request ep 10 */
-#define USIR1_IR11	(1 << 3)	/* Interrup request ep 11 */
-#define USIR1_IR12	(1 << 4)	/* Interrup request ep 12 */
-#define USIR1_IR13	(1 << 5)	/* Interrup request ep 13 */
-#define USIR1_IR14	(1 << 6)	/* Interrup request ep 14 */
-#define USIR1_IR15	(1 << 7)	/* Interrup request ep 15 */
+#define USIR1_IR8	(1 << 0)	/* Interrupt request ep 8 */
+#define USIR1_IR9	(1 << 1)	/* Interrupt request ep 9 */
+#define USIR1_IR10	(1 << 2)	/* Interrupt request ep 10 */
+#define USIR1_IR11	(1 << 3)	/* Interrupt request ep 11 */
+#define USIR1_IR12	(1 << 4)	/* Interrupt request ep 12 */
+#define USIR1_IR13	(1 << 5)	/* Interrupt request ep 13 */
+#define USIR1_IR14	(1 << 6)	/* Interrupt request ep 14 */
+#define USIR1_IR15	(1 << 7)	/* Interrupt request ep 15 */
 
 #define DCMD_LENGTH	0x01fff		/* length mask (max = 8K - 1) */
 
