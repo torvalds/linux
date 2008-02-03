@@ -1891,9 +1891,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	st=		[HW,SCSI] SCSI tape parameters (buffers, etc.)
 			See Documentation/scsi/st.txt.
 
-	st0x=		[HW,SCSI]
-			See header of drivers/scsi/seagate.c.
-
 	sti=		[PARISC,HW]
 			Format: <num>
 			Set the STI (builtin display/keyboard on the HP-PARISC
@@ -1977,9 +1974,6 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	tipar.delay=	[HW,PPT]
 			Set inter-bit delay in microseconds (default 10).
-
-	tmc8xx=		[HW,SCSI]
-			See header of drivers/scsi/seagate.c.
 
 	tmscsim=	[HW,SCSI]
 			See comment before function dc390_setup() in
