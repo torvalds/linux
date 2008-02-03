@@ -1436,7 +1436,6 @@ static void rt61pci_disable_radio(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field32(&reg, TX_CNTL_CSR_ABORT_TX_AC1, 1);
 	rt2x00_set_field32(&reg, TX_CNTL_CSR_ABORT_TX_AC2, 1);
 	rt2x00_set_field32(&reg, TX_CNTL_CSR_ABORT_TX_AC3, 1);
-	rt2x00_set_field32(&reg, TX_CNTL_CSR_ABORT_TX_MGMT, 1);
 	rt2x00pci_register_write(rt2x00dev, TX_CNTL_CSR, reg);
 
 	/*
@@ -1611,8 +1610,6 @@ static void rt61pci_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 			   (queue == IEEE80211_TX_QUEUE_DATA2));
 	rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_AC3,
 			   (queue == IEEE80211_TX_QUEUE_DATA3));
-	rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_MGMT,
-			   (queue == IEEE80211_TX_QUEUE_DATA4));
 	rt2x00pci_register_write(rt2x00dev, TX_CNTL_CSR, reg);
 }
 
@@ -2212,7 +2209,7 @@ static void rt61pci_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	rt2x00dev->hw->extra_tx_headroom = 0;
 	rt2x00dev->hw->max_signal = MAX_SIGNAL;
 	rt2x00dev->hw->max_rssi = MAX_RX_SSI;
-	rt2x00dev->hw->queues = 5;
+	rt2x00dev->hw->queues = 4;
 
 	SET_IEEE80211_DEV(rt2x00dev->hw, &rt2x00dev_pci(rt2x00dev)->dev);
 	SET_IEEE80211_PERM_ADDR(rt2x00dev->hw,
