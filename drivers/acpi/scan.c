@@ -830,7 +830,7 @@ static int acpi_bus_get_flags(struct acpi_device *device)
 	if (ACPI_SUCCESS(status))
 		device->flags.wake_capable = 1;
 
-	/* TBD: Peformance management */
+	/* TBD: Performance management */
 
 	return 0;
 }

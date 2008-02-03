@@ -1,6 +1,6 @@
 /*******************************************************************************
  *
- * Module Name: utresrc - Resource managment utilities
+ * Module Name: utresrc - Resource management utilities
  *
  ******************************************************************************/
 
