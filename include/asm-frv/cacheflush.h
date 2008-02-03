@@ -29,7 +29,7 @@
 #define flush_dcache_mmap_unlock(mapping)	do {} while(0)
 
 /*
- * physically-indexed cache managment
+ * physically-indexed cache management
  * - see arch/frv/lib/cache.S
  */
 extern void frv_dcache_writeback(unsigned long start, unsigned long size);
