@@ -1736,7 +1736,7 @@ mptscsih_IssueTaskMgmt(MPT_SCSI_HOST *hd, u8 type, u8 channel, u8 id, int lun, i
  fail_out:
 
 	/*
-	 * Free task managment mf, and corresponding tm flags
+	 * Free task management mf, and corresponding tm flags
 	 */
 	mpt_free_msg_frame(ioc, mf);
 	hd->tmPending = 0;
