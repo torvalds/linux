@@ -358,12 +358,9 @@ static ssize_t
 guid_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct fw_device *device = fw_device(dev);
-	u64 guid;
 
-	guid = ((u64)device->config_rom[3] << 32) | device->config_rom[4];
-
-	return snprintf(buf, PAGE_SIZE, "0x%016llx\n",
-			(unsigned long long)guid);
+	return snprintf(buf, PAGE_SIZE, "0x%08x%08x\n",
+			device->config_rom[3], device->config_rom[4]);
 }
 
 static struct device_attribute fw_device_attributes[] = {
@@ -723,13 +720,22 @@ static void fw_device_init(struct work_struct *work)
 	 */
 	if (atomic_cmpxchg(&device->state,
 		    FW_DEVICE_INITIALIZING,
-		    FW_DEVICE_RUNNING) == FW_DEVICE_SHUTDOWN)
+		    FW_DEVICE_RUNNING) == FW_DEVICE_SHUTDOWN) {
 		fw_device_shutdown(&device->work.work);
-	else
-		fw_notify("created new fw device %s "
-			  "(%d config rom retries, S%d00)\n",
-			  device->device.bus_id, device->config_rom_retries,
-			  1 << device->max_speed);
+	} else {
+		if (device->config_rom_retries)
+			fw_notify("created device %s: GUID %08x%08x, S%d00, "
+				  "%d config ROM retries\n",
+				  device->device.bus_id,
+				  device->config_rom[3], device->config_rom[4],
+				  1 << device->max_speed,
+				  device->config_rom_retries);
+		else
+			fw_notify("created device %s: GUID %08x%08x, S%d00\n",
+				  device->device.bus_id,
+				  device->config_rom[3], device->config_rom[4],
+				  1 << device->max_speed);
+	}
 
 	/*
 	 * Reschedule the IRM work if we just finished reading the
