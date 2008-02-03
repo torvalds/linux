@@ -60,6 +60,11 @@ config ICPLUS_PHY
 	---help---
 	  Currently supports the IP175C PHY.
 
+config REALTEK_PHY
+	tristate "Drivers for Realtek PHYs"
+	---help---
+	  Supports the Realtek 821x PHY.
+
 config FIXED_PHY
 	bool "Driver for MDIO Bus/PHY emulation with fixed speed/link PHYs"
 	---help---
