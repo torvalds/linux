@@ -117,7 +117,7 @@ static int padzero(unsigned long elf_bss)
 	return 0;
 }
 
-/* Let's use some macros to make this stack manipulation a litle clearer */
+/* Let's use some macros to make this stack manipulation a little clearer */
 #ifdef CONFIG_STACK_GROWSUP
 #define STACK_ADD(sp, items) ((elf_addr_t __user *)(sp) + (items))
 #define STACK_ROUND(sp, items) \
