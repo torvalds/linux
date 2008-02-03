@@ -628,20 +628,10 @@ void rt2x00lib_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 
 	memset(&txdesc, 0, sizeof(txdesc));
 
+	txdesc.queue = skbdesc->entry->queue->qid;
 	txdesc.cw_min = skbdesc->entry->queue->cw_min;
 	txdesc.cw_max = skbdesc->entry->queue->cw_max;
 	txdesc.aifs = skbdesc->entry->queue->aifs;
-
-	/*
-	 * Identify queue
-	 */
-	if (control->queue < rt2x00dev->hw->queues)
-		txdesc.queue = control->queue;
-	else if (control->queue == IEEE80211_TX_QUEUE_BEACON ||
-		 control->queue == IEEE80211_TX_QUEUE_AFTER_BEACON)
-		txdesc.queue = QID_MGMT;
-	else
-		txdesc.queue = QID_OTHER;
 
 	/*
 	 * Read required fields from ieee80211 header.
