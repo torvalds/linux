@@ -111,7 +111,7 @@
 
 #define FIXED_MODE(d) ((d)->fixed_mode)
 
-/*** Driver paramters ***/
+/*** Driver parameters ***/
 
 #define RINGBUFFER_SIZE		KB(64)
 #define HW_CURSOR_SIZE		KB(4)

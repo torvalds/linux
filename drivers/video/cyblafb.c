@@ -1156,7 +1156,7 @@ static struct fb_ops cyblafb_ops __devinitdata = {
 // need altered timings to display correctly. So I decided that it is much
 // better to provide a limited optimized set of modes plus the option of
 // using the mode in effect at startup time (might be selected using the
-// vga=??? paramter). After that the user might use fbset to select any
+// vga=??? parameter). After that the user might use fbset to select any
 // mode he likes, check_var will not try to alter geometry parameters as
 // it would be necessary otherwise.
 //
