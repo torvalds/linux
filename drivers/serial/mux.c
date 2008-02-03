@@ -582,7 +582,7 @@ static struct parisc_driver serial_mux_driver = {
 };
 
 /**
- * mux_init - Serial MUX initalization procedure.
+ * mux_init - Serial MUX initialization procedure.
  *
  * Register the Serial MUX driver.
  */
