@@ -525,6 +525,7 @@ struct dccp_sock {
 	__u64				dccps_gsr;
 	__u64				dccps_gar;
 	__be32				dccps_service;
+	__u32				dccps_mss_cache;
 	struct dccp_service_list	*dccps_service_list;
 	__u32				dccps_timestamp_echo;
 	__u32				dccps_timestamp_time;
@@ -533,7 +534,6 @@ struct dccp_sock {
 	__u16				dccps_pcslen;
 	__u16				dccps_pcrlen;
 	unsigned long			dccps_ndp_count;
-	__u32				dccps_mss_cache;
 	unsigned long			dccps_rate_last;
 	struct dccp_minisock		dccps_minisock;
 	struct dccp_ackvec		*dccps_hc_rx_ackvec;
