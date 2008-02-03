@@ -3,8 +3,14 @@
  *
  * NAS 100d board-setup
  *
- * based ixdp425-setup.c:
+ * Copyright (C) 2008 Rod Whitby <rod@whitby.id.au>
+ *
+ * based on ixdp425-setup.c:
  *      Copyright (C) 2003-2004 MontaVista Software, Inc.
+ * based on nas100d-power.c:
+ *	Copyright (C) 2005 Tower Technologies
+ * based on nas100d-io.c
+ *	Copyright (C) 2004 Karen Spearel
  *
  * Author: Alessandro Zummo <a.zummo@towertech.it>
  * Author: Rod Whitby <rod@whitby.id.au>
@@ -13,10 +19,13 @@
  */
 
 #include <linux/if_ether.h>
-#include <linux/kernel.h>
+#include <linux/irq.h>
+#include <linux/jiffies.h>
+#include <linux/timer.h>
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
 #include <linux/leds.h>
+#include <linux/reboot.h>
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
 
@@ -24,6 +33,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 #include <asm/io.h>
+#include <asm/gpio.h>
 
 static struct flash_platform_data nas100d_flash_data = {
 	.map_name		= "cfi_probe",
@@ -168,6 +178,57 @@ static void nas100d_power_off(void)
 	gpio_line_set(NAS100D_PO_GPIO, IXP4XX_GPIO_HIGH);
 }
 
+/* This is used to make sure the power-button pusher is serious.  The button
+ * must be held until the value of this counter reaches zero.
+ */
+static int power_button_countdown;
+
+/* Must hold the button down for at least this many counts to be processed */
+#define PBUTTON_HOLDDOWN_COUNT 4 /* 2 secs */
+
+static void nas100d_power_handler(unsigned long data);
+static DEFINE_TIMER(nas100d_power_timer, nas100d_power_handler, 0, 0);
+
+static void nas100d_power_handler(unsigned long data)
+{
+	/* This routine is called twice per second to check the
+	 * state of the power button.
+	 */
+
+	if (gpio_get_value(NAS100D_PB_GPIO)) {
+
+		/* IO Pin is 1 (button pushed) */
+		if (power_button_countdown > 0)
+			power_button_countdown--;
+
+	} else {
+
+		/* Done on button release, to allow for auto-power-on mods. */
+		if (power_button_countdown == 0) {
+			/* Signal init to do the ctrlaltdel action,
+			 * this will bypass init if it hasn't started
+			 * and do a kernel_restart.
+			 */
+			ctrl_alt_del();
+
+			/* Change the state of the power LED to "blink" */
+			gpio_line_set(NAS100D_LED_PWR_GPIO, IXP4XX_GPIO_LOW);
+		} else {
+			power_button_countdown = PBUTTON_HOLDDOWN_COUNT;
+		}
+	}
+
+	mod_timer(&nas100d_power_timer, jiffies + msecs_to_jiffies(500));
+}
+
+static irqreturn_t nas100d_reset_handler(int irq, void *dev_id)
+{
+	/* This is the paper-clip reset, it shuts the machine down directly. */
+	machine_power_off();
+
+	return IRQ_HANDLED;
+}
+
 static void __init nas100d_init(void)
 {
 	DECLARE_MAC_BUF(mac_buf);
@@ -183,8 +244,6 @@ static void __init nas100d_init(void)
 	nas100d_flash_resource.end =
 		IXP4XX_EXP_BUS_BASE(0) + ixp4xx_exp_bus_size - 1;
 
-	pm_power_off = nas100d_power_off;
-
 	i2c_register_board_info(0, nas100d_i2c_board_info,
 				ARRAY_SIZE(nas100d_i2c_board_info));
 
@@ -196,6 +255,29 @@ static void __init nas100d_init(void)
 	(void)platform_device_register(&nas100d_uart);
 
 	platform_add_devices(nas100d_devices, ARRAY_SIZE(nas100d_devices));
+
+	pm_power_off = nas100d_power_off;
+
+	if (request_irq(gpio_to_irq(NAS100D_RB_GPIO), &nas100d_reset_handler,
+		IRQF_DISABLED | IRQF_TRIGGER_LOW,
+		"NAS100D reset button", NULL) < 0) {
+
+		printk(KERN_DEBUG "Reset Button IRQ %d not available\n",
+			gpio_to_irq(NAS100D_RB_GPIO));
+	}
+
+	/* The power button on the Iomega NAS100d is on GPIO 14, but
+	 * it cannot handle interrupts on that GPIO line.  So we'll
+	 * have to poll it with a kernel timer.
+	 */
+
+	/* Make sure that the power button GPIO is set up as an input */
+	gpio_line_config(NAS100D_PB_GPIO, IXP4XX_GPIO_IN);
+
+	/* Set the initial value for the power button IRQ handler */
+	power_button_countdown = PBUTTON_HOLDDOWN_COUNT;
+
+	mod_timer(&nas100d_power_timer, jiffies + msecs_to_jiffies(500));
 
 	/*
 	 * Map in a portion of the flash and read the MAC address.
