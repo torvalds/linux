@@ -229,23 +229,10 @@ config:
 	memset(&libconf, 0, sizeof(libconf));
 
 	if (flags & CONFIG_UPDATE_PHYMODE) {
-		switch (conf->channel->band) {
-		case IEEE80211_BAND_5GHZ:
-			libconf.phymode = HWMODE_A;
-			break;
-		case IEEE80211_BAND_2GHZ:
-			/* Uh oh. what about B? */
-			libconf.phymode = HWMODE_G;
-			break;
-		default:
-			ERROR(rt2x00dev,
-			      "Attempt to configure unsupported mode (%d)"
-			      "Defaulting to 802.11b", conf->channel->band);
-			libconf.phymode = HWMODE_B;
-		}
-
 		band = &rt2x00dev->bands[conf->channel->band];
 		rate = &band->bitrates[band->n_bitrates - 1];
+
+		libconf.band = conf->channel->band;
 		libconf.basic_rates = rt2x00_get_rate(rate->hw_value)->ratemask;
 	}
 

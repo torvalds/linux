@@ -135,7 +135,7 @@
  * Misc MAC_CSR registers.
  * MAC_CSR9: Timer control.
  * MAC_CSR10: Slot time.
- * MAC_CSR11: IFS.
+ * MAC_CSR11: SIFS.
  * MAC_CSR12: EIFS.
  * MAC_CSR13: Power mode0.
  * MAC_CSR14: Power mode1.

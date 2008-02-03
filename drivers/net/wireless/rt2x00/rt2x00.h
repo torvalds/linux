@@ -390,10 +390,6 @@ static inline struct rt2x00_intf* vif_to_intf(struct ieee80211_vif *vif)
 	return (struct rt2x00_intf *)vif->drv_priv;
 }
 
-#define HWMODE_B	0
-#define HWMODE_G	1
-#define HWMODE_A	2
-
 /*
  * Details about the supported modes, rates and channels
  * of a particular chipset. This is used by rt2x00lib
@@ -433,7 +429,7 @@ struct rt2x00lib_conf {
 
 	struct antenna_setup ant;
 
-	int phymode;
+	enum ieee80211_band band;
 
 	int basic_rates;
 	int slot_time;

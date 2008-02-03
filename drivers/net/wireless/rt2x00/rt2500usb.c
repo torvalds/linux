@@ -358,18 +358,9 @@ static int rt2500usb_config_preamble(struct rt2x00_dev *rt2x00dev,
 }
 
 static void rt2500usb_config_phymode(struct rt2x00_dev *rt2x00dev,
-				     const int phymode,
 				     const int basic_rate_mask)
 {
 	rt2500usb_register_write(rt2x00dev, TXRX_CSR11, basic_rate_mask);
-
-	if (phymode == HWMODE_B) {
-		rt2500usb_register_write(rt2x00dev, MAC_CSR11, 0x000b);
-		rt2500usb_register_write(rt2x00dev, MAC_CSR12, 0x0040);
-	} else {
-		rt2500usb_register_write(rt2x00dev, MAC_CSR11, 0x0005);
-		rt2500usb_register_write(rt2x00dev, MAC_CSR12, 0x016c);
-	}
 }
 
 static void rt2500usb_config_channel(struct rt2x00_dev *rt2x00dev,
@@ -507,6 +498,8 @@ static void rt2500usb_config_duration(struct rt2x00_dev *rt2x00dev,
 	u16 reg;
 
 	rt2500usb_register_write(rt2x00dev, MAC_CSR10, libconf->slot_time);
+	rt2500usb_register_write(rt2x00dev, MAC_CSR11, libconf->sifs);
+	rt2500usb_register_write(rt2x00dev, MAC_CSR12, libconf->eifs);
 
 	rt2500usb_register_read(rt2x00dev, TXRX_CSR18, &reg);
 	rt2x00_set_field16(&reg, TXRX_CSR18_INTERVAL,
@@ -519,8 +512,7 @@ static void rt2500usb_config(struct rt2x00_dev *rt2x00dev,
 			     const unsigned int flags)
 {
 	if (flags & CONFIG_UPDATE_PHYMODE)
-		rt2500usb_config_phymode(rt2x00dev, libconf->phymode,
-					 libconf->basic_rates);
+		rt2500usb_config_phymode(rt2x00dev, libconf->basic_rates);
 	if (flags & CONFIG_UPDATE_CHANNEL)
 		rt2500usb_config_channel(rt2x00dev, &libconf->rf,
 					 libconf->conf->power_level);

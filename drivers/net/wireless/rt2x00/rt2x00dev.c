@@ -896,7 +896,7 @@ static int rt2x00lib_probe_hw_modes(struct rt2x00_dev *rt2x00dev,
 	 * Rates: CCK.
 	 * Channels: 2.4 GHz
 	 */
-	if (spec->num_modes > HWMODE_B) {
+	if (spec->num_modes > 0) {
 		sbands[IEEE80211_BAND_2GHZ].n_channels = 14;
 		sbands[IEEE80211_BAND_2GHZ].n_bitrates = 4;
 		sbands[IEEE80211_BAND_2GHZ].channels = channels;
@@ -909,7 +909,7 @@ static int rt2x00lib_probe_hw_modes(struct rt2x00_dev *rt2x00dev,
 	 * Rates: CCK, OFDM.
 	 * Channels: 2.4 GHz
 	 */
-	if (spec->num_modes > HWMODE_G) {
+	if (spec->num_modes > 1) {
 		sbands[IEEE80211_BAND_2GHZ].n_channels = 14;
 		sbands[IEEE80211_BAND_2GHZ].n_bitrates = spec->num_rates;
 		sbands[IEEE80211_BAND_2GHZ].channels = channels;
@@ -922,7 +922,7 @@ static int rt2x00lib_probe_hw_modes(struct rt2x00_dev *rt2x00dev,
 	 * Rates: OFDM.
 	 * Channels: OFDM, UNII, HiperLAN2.
 	 */
-	if (spec->num_modes > HWMODE_A) {
+	if (spec->num_modes > 2) {
 		sbands[IEEE80211_BAND_5GHZ].n_channels = spec->num_channels - 14;
 		sbands[IEEE80211_BAND_5GHZ].n_bitrates = spec->num_rates - 4;
 		sbands[IEEE80211_BAND_5GHZ].channels = &channels[14];
