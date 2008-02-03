@@ -4,7 +4,7 @@
  *	http://blackfin.uclinux.org/
  *	Bryan Wu <bryan.wu@analog.com>
  *
- * Blackfin BF5xx on-chip NAND flash controler driver
+ * Blackfin BF5xx on-chip NAND flash controller driver
  *
  * Derived from drivers/mtd/nand/s3c2410.c
  * Copyright (c) 2007 Ben Dooks <ben@simtec.co.uk>

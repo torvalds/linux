@@ -8,7 +8,7 @@
  *
  * Changelog:
  *	21-Sep-2004  BJD  Initial version
- *	23-Sep-2004  BJD  Mulitple device support
+ *	23-Sep-2004  BJD  Multiple device support
  *	28-Sep-2004  BJD  Fixed ECC placement for Hardware mode
  *	12-Oct-2004  BJD  Fixed errors in use of platform data
  *	18-Feb-2005  BJD  Fix sparse errors

@@ -210,7 +210,7 @@ MODULE_PARM_DESC(overridesize,   "Specifies the NAND Flash size overriding the I
 #define STATE_CMD_RESET        0x0000000C /* reset */
 #define STATE_CMD_MASK         0x0000000F /* command states mask */
 
-/* After an addres is input, the simulator goes to one of these states */
+/* After an address is input, the simulator goes to one of these states */
 #define STATE_ADDR_PAGE        0x00000010 /* full (row, column) address is accepted */
 #define STATE_ADDR_SEC         0x00000020 /* sector address was accepted */
 #define STATE_ADDR_ZERO        0x00000030 /* one byte zero address was accepted */

@@ -89,7 +89,7 @@ static int nand_do_write_oob(struct mtd_info *mtd, loff_t to,
 			     struct mtd_oob_ops *ops);
 
 /*
- * For devices which display every fart in the system on a seperate LED. Is
+ * For devices which display every fart in the system on a separate LED. Is
  * compiled away when LED support is disabled.
  */
 DEFINE_LED_TRIGGER(nand_led_trigger);
