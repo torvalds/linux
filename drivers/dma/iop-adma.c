@@ -284,7 +284,7 @@ iop_adma_alloc_slots(struct iop_adma_chan *iop_chan, int num_slots,
 			int slots_per_op)
 {
 	struct iop_adma_desc_slot *iter, *_iter, *alloc_start = NULL;
-	struct list_head chain = LIST_HEAD_INIT(chain);
+	LIST_HEAD(chain);
 	int slots_found, retry = 0;
 
 	/* start search from the last allocated descrtiptor
