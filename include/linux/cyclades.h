@@ -177,7 +177,7 @@ struct	CUSTOM_REG {
 	__u32	fpga_version;		/* FPGA Version Number Register */
 	__u32	cpu_start;		/* CPU start Register (write) */
 	__u32	cpu_stop;		/* CPU stop Register (write) */
-	__u32	misc_reg;		/* Miscelaneous Register */
+	__u32	misc_reg;		/* Miscellaneous Register */
 	__u32	idt_mode;		/* IDT mode Register */
 	__u32	uart_irq_status;	/* UART IRQ status Register */
 	__u32	clear_timer0_irq;	/* Clear timer interrupt Register */

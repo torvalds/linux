@@ -29,7 +29,7 @@
 #include <linux/dma-mapping.h>
 
 /**
- * enum dma_state - resource PNP/power managment state
+ * enum dma_state - resource PNP/power management state
  * @DMA_RESOURCE_SUSPEND: DMA device going into low power state
  * @DMA_RESOURCE_RESUME: DMA device returning to full power
  * @DMA_RESOURCE_AVAILABLE: DMA device available to the system

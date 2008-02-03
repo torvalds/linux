@@ -49,9 +49,9 @@ enum llc_sockopts {
 
 /* LLC SAP types. */
 #define LLC_SAP_NULL	0x00		/* NULL SAP. 			*/
-#define LLC_SAP_LLC	0x02		/* LLC Sublayer Managment. 	*/
+#define LLC_SAP_LLC	0x02		/* LLC Sublayer Management. 	*/
 #define LLC_SAP_SNA	0x04		/* SNA Path Control. 		*/
-#define LLC_SAP_PNM	0x0E		/* Proway Network Managment.	*/	
+#define LLC_SAP_PNM	0x0E		/* Proway Network Management.	*/	
 #define LLC_SAP_IP	0x06		/* TCP/IP. 			*/
 #define LLC_SAP_BSPAN	0x42		/* Bridge Spanning Tree Proto	*/
 #define LLC_SAP_MMS	0x4E		/* Manufacturing Message Srv.	*/

@@ -309,7 +309,7 @@ int ethtool_op_set_flags(struct net_device *dev, u32 data);
  * get_ringparam: Report ring sizes
  * set_ringparam: Set ring sizes
  * get_pauseparam: Report pause parameters
- * set_pauseparam: Set pause paramters
+ * set_pauseparam: Set pause parameters
  * get_rx_csum: Report whether receive checksums are turned on or off
  * set_rx_csum: Turn receive checksum on or off
  * get_tx_csum: Report whether transmit checksums are turned on or off

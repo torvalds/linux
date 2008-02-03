@@ -21,7 +21,7 @@
 /*
  * In the UP-nondebug case there's no real locking going on, so the
  * only thing we have to do is to keep the preempt counts and irq
- * flags straight, to supress compiler warnings of unused lock
+ * flags straight, to suppress compiler warnings of unused lock
  * variables, and to add the proper checker annotations:
  */
 #define __LOCK(lock) \
