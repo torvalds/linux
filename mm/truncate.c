@@ -21,7 +21,7 @@
 
 
 /**
- * do_invalidatepage - invalidate part of all of a page
+ * do_invalidatepage - invalidate part or all of a page
  * @page: the page which is affected
  * @offset: the index of the truncation point
  *
