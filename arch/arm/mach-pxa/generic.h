@@ -29,6 +29,8 @@ extern int pxa_last_gpio;
 	mi->bank[__nr].size = (__size), \
 	mi->bank[__nr].node = (((unsigned)(__start) - PHYS_OFFSET) >> 27)
 
+#define ARRAY_AND_SIZE(x)	(x), ARRAY_SIZE(x)
+
 #ifdef CONFIG_PXA25x
 extern unsigned pxa25x_get_clk_frequency_khz(int);
 extern unsigned pxa25x_get_memclk_frequency_10khz(void);

@@ -21,7 +21,7 @@
 #include <asm/arch/mfp-pxa300.h>
 #include <asm/arch/zylonite.h>
 
-#define ARRAY_AND_SIZE(x)	(x), ARRAY_SIZE(x)
+#include "generic.h"
 
 /* PXA300/PXA310 common configurations */
 static mfp_cfg_t common_mfp_cfg[] __initdata = {

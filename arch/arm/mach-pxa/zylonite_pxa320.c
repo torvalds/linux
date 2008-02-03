@@ -21,7 +21,7 @@
 #include <asm/arch/mfp-pxa320.h>
 #include <asm/arch/zylonite.h>
 
-#define ARRAY_AND_SIZE(x)	(x), ARRAY_SIZE(x)
+#include "generic.h"
 
 static mfp_cfg_t mfp_cfg[] __initdata = {
 	/* LCD */
