@@ -144,7 +144,6 @@ struct ubi_volume_desc;
  * @readers: number of users holding this volume in read-only mode
  * @writers: number of users holding this volume in read-write mode
  * @exclusive: whether somebody holds this volume in exclusive mode
- * @checked: if this static volume was checked
  *
  * @reserved_pebs: how many physical eraseblocks are reserved for this volume
  * @vol_type: volume type (%UBI_DYNAMIC_VOLUME or %UBI_STATIC_VOLUME)
@@ -152,21 +151,30 @@ struct ubi_volume_desc;
  * @used_ebs: how many logical eraseblocks in this volume contain data
  * @last_eb_bytes: how many bytes are stored in the last logical eraseblock
  * @used_bytes: how many bytes of data this volume contains
- * @upd_marker: non-zero if the update marker is set for this volume
- * @corrupted: non-zero if the volume is corrupted (static volumes only)
  * @alignment: volume alignment
  * @data_pad: how many bytes are not used at the end of physical eraseblocks to
  *            satisfy the requested alignment
  * @name_len: volume name length
  * @name: volume name
  *
- * @updating: whether the volume is being updated
  * @upd_ebs: how many eraseblocks are expected to be updated
- * @upd_bytes: how many bytes are expected to be received
- * @upd_received: how many update bytes were already received
- * @upd_buf: update buffer which is used to collect update data
+ * @ch_lnum: LEB number which is being changing by the atomic LEB change
+ *           operation
+ * @ch_dtype: data persistency type which is being changing by the atomic LEB
+ *            change operation
+ * @upd_bytes: how many bytes are expected to be received for volume update or
+ *             atomic LEB change
+ * @upd_received: how many bytes were already received for volume update or
+ *                atomic LEB change
+ * @upd_buf: update buffer which is used to collect update data or data for
+ *           atomic LEB change
  *
  * @eba_tbl: EBA table of this volume (LEB->PEB mapping)
+ * @checked: %1 if this static volume was checked
+ * @corrupted: %1 if the volume is corrupted (static volumes only)
+ * @upd_marker: %1 if the update marker is set for this volume
+ * @updating: %1 if the volume is being updated
+ * @changing_leb: %1 if the atomic LEB change ioctl command is in progress
  *
  * @gluebi_desc: gluebi UBI volume descriptor
  * @gluebi_refcount: reference count of the gluebi MTD device
@@ -189,7 +197,6 @@ struct ubi_volume {
 	int readers;
 	int writers;
 	int exclusive;
-	int checked;
 
 	int reserved_pebs;
 	int vol_type;
@@ -197,23 +204,31 @@ struct ubi_volume {
 	int used_ebs;
 	int last_eb_bytes;
 	long long used_bytes;
-	int upd_marker;
-	int corrupted;
 	int alignment;
 	int data_pad;
 	int name_len;
 	char name[UBI_VOL_NAME_MAX+1];
 
-	int updating;
 	int upd_ebs;
+	int ch_lnum;
+	int ch_dtype;
 	long long upd_bytes;
 	long long upd_received;
 	void *upd_buf;
 
 	int *eba_tbl;
+	int checked:1;
+	int corrupted:1;
+	int upd_marker:1;
+	int updating:1;
+	int changing_leb:1;
 
 #ifdef CONFIG_MTD_UBI_GLUEBI
-	/* Gluebi-related stuff may be compiled out */
+	/*
+	 * Gluebi-related stuff may be compiled out.
+	 * TODO: this should not be built into UBI but should be a separate
+	 * ubimtd driver which works on top of UBI and emulates MTD devices.
+	 */
 	struct ubi_volume_desc *gluebi_desc;
 	int gluebi_refcount;
 	struct mtd_info gluebi_mtd;
@@ -250,9 +265,11 @@ struct ubi_wl_entry;
  * @rsvd_pebs: count of reserved physical eraseblocks
  * @avail_pebs: count of available physical eraseblocks
  * @beb_rsvd_pebs: how many physical eraseblocks are reserved for bad PEB
- * handling
+ *                 handling
  * @beb_rsvd_level: normal level of PEBs reserved for bad PEB handling
  *
+ * @autoresize_vol_id: ID of the volume which has to be auto-resized at the end
+ *                     of UBI ititializetion
  * @vtbl_slots: how many slots are available in the volume table
  * @vtbl_size: size of the volume table in bytes
  * @vtbl: in-RAM volume table copy
@@ -333,12 +350,14 @@ struct ubi_device {
 	int beb_rsvd_pebs;
 	int beb_rsvd_level;
 
+	int autoresize_vol_id;
 	int vtbl_slots;
 	int vtbl_size;
 	struct ubi_vtbl_record *vtbl;
 	struct mutex volumes_mutex;
 
 	int max_ec;
+	/* TODO: mean_ec is not updated run-time, fix */
 	int mean_ec;
 
 	/* EBA unit's stuff */
@@ -399,7 +418,6 @@ struct ubi_device {
 #endif
 };
 
-extern struct kmem_cache *ubi_ltree_slab;
 extern struct kmem_cache *ubi_wl_entry_slab;
 extern struct file_operations ubi_ctrl_cdev_operations;
 extern struct file_operations ubi_cdev_operations;
@@ -420,9 +438,14 @@ int ubi_add_volume(struct ubi_device *ubi, struct ubi_volume *vol);
 void ubi_free_volume(struct ubi_device *ubi, struct ubi_volume *vol);
 
 /* upd.c */
-int ubi_start_update(struct ubi_device *ubi, int vol_id, long long bytes);
-int ubi_more_update_data(struct ubi_device *ubi, int vol_id,
+int ubi_start_update(struct ubi_device *ubi, struct ubi_volume *vol,
+		     long long bytes);
+int ubi_more_update_data(struct ubi_device *ubi, struct ubi_volume *vol,
 			 const void __user *buf, int count);
+int ubi_start_leb_change(struct ubi_device *ubi, struct ubi_volume *vol,
+			 const struct ubi_leb_change_req *req);
+int ubi_more_leb_change_data(struct ubi_device *ubi, struct ubi_volume *vol,
+			     const void __user *buf, int count);
 
 /* misc.c */
 int ubi_calc_data_len(const struct ubi_device *ubi, const void *buf, int length);

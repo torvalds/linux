@@ -78,7 +78,7 @@ static unsigned long long next_sqnum(struct ubi_device *ubi)
  */
 static int ubi_get_compat(const struct ubi_device *ubi, int vol_id)
 {
-	if (vol_id == UBI_LAYOUT_VOL_ID)
+	if (vol_id == UBI_LAYOUT_VOLUME_ID)
 		return UBI_LAYOUT_VOLUME_COMPAT;
 	return 0;
 }
@@ -137,10 +137,12 @@ static struct ubi_ltree_entry *ltree_add_entry(struct ubi_device *ubi,
 {
 	struct ubi_ltree_entry *le, *le1, *le_free;
 
-	le = kmem_cache_alloc(ubi_ltree_slab, GFP_NOFS);
+	le = kmalloc(sizeof(struct ubi_ltree_entry), GFP_NOFS);
 	if (!le)
 		return ERR_PTR(-ENOMEM);
 
+	le->users = 0;
+	init_rwsem(&le->mutex);
 	le->vol_id = vol_id;
 	le->lnum = lnum;
 
@@ -188,7 +190,7 @@ static struct ubi_ltree_entry *ltree_add_entry(struct ubi_device *ubi,
 	spin_unlock(&ubi->ltree_lock);
 
 	if (le_free)
-		kmem_cache_free(ubi_ltree_slab, le_free);
+		kfree(le_free);
 
 	return le;
 }
@@ -236,7 +238,7 @@ static void leb_read_unlock(struct ubi_device *ubi, int vol_id, int lnum)
 
 	up_read(&le->mutex);
 	if (free)
-		kmem_cache_free(ubi_ltree_slab, le);
+		kfree(le);
 }
 
 /**
@@ -292,7 +294,7 @@ static int leb_write_trylock(struct ubi_device *ubi, int vol_id, int lnum)
 		free = 0;
 	spin_unlock(&ubi->ltree_lock);
 	if (free)
-		kmem_cache_free(ubi_ltree_slab, le);
+		kfree(le);
 
 	return 1;
 }
@@ -321,7 +323,7 @@ static void leb_write_unlock(struct ubi_device *ubi, int vol_id, int lnum)
 
 	up_write(&le->mutex);
 	if (free)
-		kmem_cache_free(ubi_ltree_slab, le);
+		kfree(le);
 }
 
 /**
@@ -338,9 +340,6 @@ int ubi_eba_unmap_leb(struct ubi_device *ubi, struct ubi_volume *vol,
 		      int lnum)
 {
 	int err, pnum, vol_id = vol->vol_id;
-
-	ubi_assert(ubi->ref_count > 0);
-	ubi_assert(vol->ref_count > 0);
 
 	if (ubi->ro_mode)
 		return -EROFS;
@@ -389,9 +388,6 @@ int ubi_eba_read_leb(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
 	int err, pnum, scrub = 0, vol_id = vol->vol_id;
 	struct ubi_vid_hdr *vid_hdr;
 	uint32_t uninitialized_var(crc);
-
-	ubi_assert(ubi->ref_count > 0);
-	ubi_assert(vol->ref_count > 0);
 
 	err = leb_read_lock(ubi, vol_id, lnum);
 	if (err)
@@ -616,9 +612,6 @@ int ubi_eba_write_leb(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
 	int err, pnum, tries = 0, vol_id = vol->vol_id;
 	struct ubi_vid_hdr *vid_hdr;
 
-	ubi_assert(ubi->ref_count > 0);
-	ubi_assert(vol->ref_count > 0);
-
 	if (ubi->ro_mode)
 		return -EROFS;
 
@@ -752,9 +745,6 @@ int ubi_eba_write_leb_st(struct ubi_device *ubi, struct ubi_volume *vol,
 	struct ubi_vid_hdr *vid_hdr;
 	uint32_t crc;
 
-	ubi_assert(ubi->ref_count > 0);
-	ubi_assert(vol->ref_count > 0);
-
 	if (ubi->ro_mode)
 		return -EROFS;
 
@@ -869,11 +859,19 @@ int ubi_eba_atomic_leb_change(struct ubi_device *ubi, struct ubi_volume *vol,
 	struct ubi_vid_hdr *vid_hdr;
 	uint32_t crc;
 
-	ubi_assert(ubi->ref_count > 0);
-	ubi_assert(vol->ref_count > 0);
-
 	if (ubi->ro_mode)
 		return -EROFS;
+
+	if (len == 0) {
+		/*
+		 * Special case when data length is zero. In this case the LEB
+		 * has to be unmapped and mapped somewhere else.
+		 */
+		err = ubi_eba_unmap_leb(ubi, vol, lnum);
+		if (err)
+			return err;
+		return ubi_eba_write_leb(ubi, vol, lnum, NULL, 0, 0, dtype);
+	}
 
 	vid_hdr = ubi_zalloc_vid_hdr(ubi, GFP_NOFS);
 	if (!vid_hdr)

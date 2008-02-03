@@ -497,8 +497,6 @@ int ubi_resize_volume(struct ubi_volume_desc *desc, int reserved_pebs)
 
 	dbg_msg("re-size volume %d to from %d to %d PEBs",
 		vol_id, vol->reserved_pebs, reserved_pebs);
-	ubi_assert(desc->mode == UBI_EXCLUSIVE);
-	ubi_assert(vol == ubi->volumes[vol_id]);
 
 	if (vol->vol_type == UBI_STATIC_VOLUME &&
 	    reserved_pebs < vol->used_ebs) {
@@ -525,7 +523,6 @@ int ubi_resize_volume(struct ubi_volume_desc *desc, int reserved_pebs)
 		goto out_free;
 	}
 	spin_unlock(&ubi->volumes_lock);
-
 
 	/* Reserve physical eraseblocks */
 	pebs = reserved_pebs - vol->reserved_pebs;
@@ -746,11 +743,6 @@ static void paranoid_check_volume(struct ubi_device *ubi, int vol_id)
 		goto fail;
 	}
 
-	if (vol->upd_marker != 0 && vol->upd_marker != 1) {
-		ubi_err("bad upd_marker");
-		goto fail;
-	}
-
 	if (vol->upd_marker && vol->corrupted) {
 		dbg_err("update marker and corrupted simultaneously");
 		goto fail;
@@ -785,7 +777,7 @@ static void paranoid_check_volume(struct ubi_device *ubi, int vol_id)
 
 	n = (long long)vol->used_ebs * vol->usable_leb_size;
 	if (vol->vol_type == UBI_DYNAMIC_VOLUME) {
-		if (vol->corrupted != 0) {
+		if (vol->corrupted) {
 			ubi_err("corrupted dynamic volume");
 			goto fail;
 		}
@@ -802,10 +794,6 @@ static void paranoid_check_volume(struct ubi_device *ubi, int vol_id)
 			goto fail;
 		}
 	} else {
-		if (vol->corrupted != 0 && vol->corrupted != 1) {
-			ubi_err("bad corrupted");
-			goto fail;
-		}
 		if (vol->used_ebs < 0 || vol->used_ebs > vol->reserved_pebs) {
 			ubi_err("bad used_ebs");
 			goto fail;

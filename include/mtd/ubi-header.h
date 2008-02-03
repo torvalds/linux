@@ -58,6 +58,43 @@ enum {
 };
 
 /*
+ * Volume flags used in the volume table record.
+ *
+ * @UBI_VTBL_AUTORESIZE_FLG: auto-resize this volume
+ *
+ * %UBI_VTBL_AUTORESIZE_FLG flag can be set only for one volume in the volume
+ * table. UBI automatically re-sizes the volume which has this flag and makes
+ * the volume to be of largest possible size. This means that if after the
+ * initialization UBI finds out that there are available physical eraseblocks
+ * present on the device, it automatically appends all of them to the volume
+ * (the physical eraseblocks reserved for bad eraseblocks handling and other
+ * reserved physical eraseblocks are not taken). So, if there is a volume with
+ * the %UBI_VTBL_AUTORESIZE_FLG flag set, the amount of available logical
+ * eraseblocks will be zero after UBI is loaded, because all of them will be
+ * reserved for this volume. Note, the %UBI_VTBL_AUTORESIZE_FLG bit is cleared
+ * after the volume had been initialized.
+ *
+ * The auto-resize feature is useful for device production purposes. For
+ * example, different NAND flash chips may have different amount of initial bad
+ * eraseblocks, depending of particular chip instance. Manufacturers of NAND
+ * chips usually guarantee that the amount of initial bad eraseblocks does not
+ * exceed certain percent, e.g. 2%. When one creates an UBI image which will be
+ * flashed to the end devices in production, he does not know the exact amount
+ * of good physical eraseblocks the NAND chip on the device will have, but this
+ * number is required to calculate the volume sized and put them to the volume
+ * table of the UBI image. In this case, one of the volumes (e.g., the one
+ * which will store the root file system) is marked as "auto-resizable", and
+ * UBI will adjust its size on the first boot if needed.
+ *
+ * Note, first UBI reserves some amount of physical eraseblocks for bad
+ * eraseblock handling, and then re-sizes the volume, not vice-versa. This
+ * means that the pool of reserved physical eraseblocks will always be present.
+ */
+enum {
+	UBI_VTBL_AUTORESIZE_FLG = 0x01,
+};
+
+/*
  * Compatibility constants used by internal volumes.
  *
  * @UBI_COMPAT_DELETE: delete this internal volume before anything is written
@@ -262,7 +299,9 @@ struct ubi_vid_hdr {
 
 /* The layout volume contains the volume table */
 
-#define UBI_LAYOUT_VOL_ID        UBI_INTERNAL_VOL_START
+#define UBI_LAYOUT_VOLUME_ID     UBI_INTERNAL_VOL_START
+#define UBI_LAYOUT_VOLUME_TYPE   UBI_VID_DYNAMIC
+#define UBI_LAYOUT_VOLUME_ALIGN  1
 #define UBI_LAYOUT_VOLUME_EBS    2
 #define UBI_LAYOUT_VOLUME_NAME   "layout volume"
 #define UBI_LAYOUT_VOLUME_COMPAT UBI_COMPAT_REJECT
@@ -289,7 +328,8 @@ struct ubi_vid_hdr {
  * @upd_marker: if volume update was started but not finished
  * @name_len: volume name length
  * @name: the volume name
- * @padding2: reserved, zeroes
+ * @flags: volume flags (%UBI_VTBL_AUTORESIZE_FLG)
+ * @padding: reserved, zeroes
  * @crc: a CRC32 checksum of the record
  *
  * The volume table records are stored in the volume table, which is stored in
@@ -324,7 +364,8 @@ struct ubi_vtbl_record {
 	__u8    upd_marker;
 	__be16  name_len;
 	__u8    name[UBI_VOL_NAME_MAX+1];
-	__u8    padding2[24];
+	__u8    flags;
+	__u8    padding[23];
 	__be32  crc;
 } __attribute__ ((packed));
 

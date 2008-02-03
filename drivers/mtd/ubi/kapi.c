@@ -480,9 +480,9 @@ int ubi_leb_erase(struct ubi_volume_desc *desc, int lnum)
 {
 	struct ubi_volume *vol = desc->vol;
 	struct ubi_device *ubi = vol->ubi;
-	int err, vol_id = vol->vol_id;
+	int err;
 
-	dbg_msg("erase LEB %d:%d", vol_id, lnum);
+	dbg_msg("erase LEB %d:%d", vol->vol_id, lnum);
 
 	if (desc->mode == UBI_READONLY || vol->vol_type == UBI_STATIC_VOLUME)
 		return -EROFS;
@@ -541,9 +541,8 @@ int ubi_leb_unmap(struct ubi_volume_desc *desc, int lnum)
 {
 	struct ubi_volume *vol = desc->vol;
 	struct ubi_device *ubi = vol->ubi;
-	int vol_id = vol->vol_id;
 
-	dbg_msg("unmap LEB %d:%d", vol_id, lnum);
+	dbg_msg("unmap LEB %d:%d", vol->vol_id, lnum);
 
 	if (desc->mode == UBI_READONLY || vol->vol_type == UBI_STATIC_VOLUME)
 		return -EROFS;
@@ -579,9 +578,8 @@ int ubi_leb_map(struct ubi_volume_desc *desc, int lnum, int dtype)
 {
 	struct ubi_volume *vol = desc->vol;
 	struct ubi_device *ubi = vol->ubi;
-	int vol_id = vol->vol_id;
 
-	dbg_msg("unmap LEB %d:%d", vol_id, lnum);
+	dbg_msg("unmap LEB %d:%d", vol->vol_id, lnum);
 
 	if (desc->mode == UBI_READONLY || vol->vol_type == UBI_STATIC_VOLUME)
 		return -EROFS;

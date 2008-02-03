@@ -26,23 +26,6 @@
 #include <mtd/ubi-user.h>
 
 /*
- * UBI data type hint constants.
- *
- * UBI_LONGTERM: long-term data
- * UBI_SHORTTERM: short-term data
- * UBI_UNKNOWN: data persistence is unknown
- *
- * These constants are used when data is written to UBI volumes in order to
- * help the UBI wear-leveling unit to find more appropriate physical
- * eraseblocks.
- */
-enum {
-	UBI_LONGTERM = 1,
-	UBI_SHORTTERM,
-	UBI_UNKNOWN
-};
-
-/*
  * enum ubi_open_mode - UBI volume open mode constants.
  *
  * UBI_READONLY: read-only mode

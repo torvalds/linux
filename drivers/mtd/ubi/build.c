@@ -66,9 +66,6 @@ static struct mtd_dev_param mtd_dev_param[UBI_MAX_DEVICES];
 /* Root UBI "class" object (corresponds to '/<sysfs>/class/ubi/') */
 struct class *ubi_class;
 
-/* Slab cache for lock-tree entries */
-struct kmem_cache *ubi_ltree_slab;
-
 /* Slab cache for wear-leveling entries */
 struct kmem_cache *ubi_wl_entry_slab;
 
@@ -369,9 +366,6 @@ static int uif_init(struct ubi_device *ubi)
 	int i, err;
 	dev_t dev;
 
-	mutex_init(&ubi->volumes_mutex);
-	spin_lock_init(&ubi->volumes_lock);
-
 	sprintf(ubi->ubi_name, UBI_NAME_STR "%d", ubi->ubi_num);
 
 	/*
@@ -568,7 +562,7 @@ static int io_init(struct ubi_device *ubi)
 	}
 
 	/* Similar for the data offset */
-	ubi->leb_start = ubi->vid_hdr_offset + ubi->vid_hdr_alsize;
+	ubi->leb_start = ubi->vid_hdr_offset + UBI_EC_HDR_SIZE;
 	ubi->leb_start = ALIGN(ubi->leb_start, ubi->min_io_size);
 
 	dbg_msg("vid_hdr_offset   %d", ubi->vid_hdr_offset);
@@ -623,6 +617,58 @@ static int io_init(struct ubi_device *ubi)
 	 * uninitialized and initialize it after scanning.
 	 */
 
+	return 0;
+}
+
+/**
+ * autoresize - re-size the volume which has the "auto-resize" flag set.
+ * @ubi: UBI device description object
+ * @vol_id: ID of the volume to re-size
+ *
+ * This function re-sizes the volume marked by the @UBI_VTBL_AUTORESIZE_FLG in
+ * the volume table to the largest possible size. See comments in ubi-header.h
+ * for more description of the flag. Returns zero in case of success and a
+ * negative error code in case of failure.
+ */
+static int autoresize(struct ubi_device *ubi, int vol_id)
+{
+	struct ubi_volume_desc desc;
+	struct ubi_volume *vol = ubi->volumes[vol_id];
+	int err, old_reserved_pebs = vol->reserved_pebs;
+
+	/*
+	 * Clear the auto-resize flag in the volume in-memory copy of the
+	 * volume table, and 'ubi_resize_volume()' will propogate this change
+	 * to the flash.
+	 */
+	ubi->vtbl[vol_id].flags &= ~UBI_VTBL_AUTORESIZE_FLG;
+
+	if (ubi->avail_pebs == 0) {
+		struct ubi_vtbl_record vtbl_rec;
+
+		/*
+		 * No avalilable PEBs to re-size the volume, clear the flag on
+		 * flash and exit.
+		 */
+		memcpy(&vtbl_rec, &ubi->vtbl[vol_id],
+		       sizeof(struct ubi_vtbl_record));
+		err = ubi_change_vtbl_record(ubi, vol_id, &vtbl_rec);
+		if (err)
+			ubi_err("cannot clean auto-resize flag for volume %d",
+				vol_id);
+	} else {
+		desc.vol = vol;
+		err = ubi_resize_volume(&desc,
+					old_reserved_pebs + ubi->avail_pebs);
+		if (err)
+			ubi_err("cannot auto-resize volume %d", vol_id);
+	}
+
+	if (err)
+		return err;
+
+	ubi_msg("volume %d (\"%s\") re-sized from %d to %d LEBs", vol_id,
+		vol->name, old_reserved_pebs, vol->reserved_pebs);
 	return 0;
 }
 
@@ -702,6 +748,12 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 	ubi->mtd = mtd;
 	ubi->ubi_num = ubi_num;
 	ubi->vid_hdr_offset = vid_hdr_offset;
+	ubi->autoresize_vol_id = -1;
+
+	mutex_init(&ubi->buf_mutex);
+	mutex_init(&ubi->ckvol_mutex);
+	mutex_init(&ubi->volumes_mutex);
+	spin_lock_init(&ubi->volumes_lock);
 
 	dbg_msg("attaching mtd%d to ubi%d: VID header offset %d",
 		mtd->index, ubi_num, vid_hdr_offset);
@@ -710,8 +762,6 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 	if (err)
 		goto out_free;
 
-	mutex_init(&ubi->buf_mutex);
-	mutex_init(&ubi->ckvol_mutex);
 	ubi->peb_buf1 = vmalloc(ubi->peb_size);
 	if (!ubi->peb_buf1)
 		goto out_free;
@@ -731,6 +781,12 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 	if (err) {
 		dbg_err("failed to attach by scanning, error %d", err);
 		goto out_free;
+	}
+
+	if (ubi->autoresize_vol_id != -1) {
+		err = autoresize(ubi, ubi->autoresize_vol_id);
+		if (err)
+			goto out_detach;
 	}
 
 	err = uif_init(ubi);
@@ -858,20 +914,6 @@ int ubi_detach_mtd_dev(int ubi_num, int anyway)
 }
 
 /**
- * ltree_entry_ctor - lock tree entries slab cache constructor.
- * @obj: the lock-tree entry to construct
- * @cache: the lock tree entry slab cache
- * @flags: constructor flags
- */
-static void ltree_entry_ctor(struct kmem_cache *cache, void *obj)
-{
-	struct ubi_ltree_entry *le = obj;
-
-	le->users = 0;
-	init_rwsem(&le->mutex);
-}
-
-/**
  * find_mtd_device - open an MTD device by its name or number.
  * @mtd_dev: name or number of the device
  *
@@ -933,17 +975,11 @@ static int __init ubi_init(void)
 		goto out_version;
 	}
 
-	ubi_ltree_slab = kmem_cache_create("ubi_ltree_slab",
-					   sizeof(struct ubi_ltree_entry), 0,
-					   0, &ltree_entry_ctor);
-	if (!ubi_ltree_slab)
-		goto out_dev_unreg;
-
 	ubi_wl_entry_slab = kmem_cache_create("ubi_wl_entry_slab",
 						sizeof(struct ubi_wl_entry),
 						0, 0, NULL);
 	if (!ubi_wl_entry_slab)
-		goto out_ltree;
+		goto out_dev_unreg;
 
 	/* Attach MTD devices */
 	for (i = 0; i < mtd_devs; i++) {
@@ -980,8 +1016,6 @@ out_detach:
 			mutex_unlock(&ubi_devices_mutex);
 		}
 	kmem_cache_destroy(ubi_wl_entry_slab);
-out_ltree:
-	kmem_cache_destroy(ubi_ltree_slab);
 out_dev_unreg:
 	misc_deregister(&ubi_ctrl_cdev);
 out_version:
@@ -1005,7 +1039,6 @@ static void __exit ubi_exit(void)
 			mutex_unlock(&ubi_devices_mutex);
 		}
 	kmem_cache_destroy(ubi_wl_entry_slab);
-	kmem_cache_destroy(ubi_ltree_slab);
 	misc_deregister(&ubi_ctrl_cdev);
 	class_remove_file(ubi_class, &ubi_version);
 	class_destroy(ubi_class);
@@ -1066,7 +1099,7 @@ static int __init ubi_mtd_param_parse(const char *val, struct kernel_param *kp)
 	struct mtd_dev_param *p;
 	char buf[MTD_PARAM_LEN_MAX];
 	char *pbuf = &buf[0];
-	char *tokens[3] = {NULL, NULL, NULL};
+	char *tokens[2] = {NULL, NULL};
 
 	if (!val)
 		return -EINVAL;
@@ -1096,7 +1129,7 @@ static int __init ubi_mtd_param_parse(const char *val, struct kernel_param *kp)
 	if (buf[len - 1] == '\n')
 		buf[len - 1] = '\0';
 
-	for (i = 0; i < 3; i++)
+	for (i = 0; i < 2; i++)
 		tokens[i] = strsep(&pbuf, ",");
 
 	if (pbuf) {
