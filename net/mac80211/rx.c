@@ -340,10 +340,14 @@ static u32 ieee80211_rx_load_stats(struct ieee80211_local *local,
 	return load;
 }
 
+#ifdef CONFIG_MAC80211_DEBUG_PACKET_ALIGNMENT
 static ieee80211_txrx_result
 ieee80211_rx_h_verify_ip_alignment(struct ieee80211_txrx_data *rx)
 {
 	int hdrlen;
+
+	if (!WLAN_FC_DATA_PRESENT(rx->fc))
+		return TXRX_CONTINUE;
 
 	/*
 	 * Drivers are required to align the payload data in a way that
@@ -371,11 +375,14 @@ ieee80211_rx_h_verify_ip_alignment(struct ieee80211_txrx_data *rx)
 
 	return TXRX_CONTINUE;
 }
+#endif
 
 ieee80211_rx_handler ieee80211_rx_pre_handlers[] =
 {
 	ieee80211_rx_h_parse_qos,
+#ifdef CONFIG_MAC80211_DEBUG_PACKET_ALIGNMENT
 	ieee80211_rx_h_verify_ip_alignment,
+#endif
 	NULL
 };
 

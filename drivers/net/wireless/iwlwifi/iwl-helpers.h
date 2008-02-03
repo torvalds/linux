@@ -147,9 +147,6 @@ static inline struct ieee80211_conf *ieee80211_get_hw_conf(
 
 #define QOS_CONTROL_LEN 2
 
-#define IEEE80211_STYPE_BACK_REQ	0x0080
-#define IEEE80211_STYPE_BACK		0x0090
-
 
 static inline int ieee80211_is_management(u16 fc)
 {
