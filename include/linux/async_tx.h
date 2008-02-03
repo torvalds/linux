@@ -62,9 +62,15 @@ enum async_tx_flags {
 void async_tx_issue_pending_all(void);
 enum dma_status dma_wait_for_async_tx(struct dma_async_tx_descriptor *tx);
 void async_tx_run_dependencies(struct dma_async_tx_descriptor *tx);
+#ifdef CONFIG_ARCH_HAS_ASYNC_TX_FIND_CHANNEL
+#include <asm/async_tx.h>
+#else
+#define async_tx_find_channel(dep, type, dst, dst_count, src, src_count, len) \
+	 __async_tx_find_channel(dep, type)
 struct dma_chan *
-async_tx_find_channel(struct dma_async_tx_descriptor *depend_tx,
+__async_tx_find_channel(struct dma_async_tx_descriptor *depend_tx,
 	enum dma_transaction_type tx_type);
+#endif /* CONFIG_ARCH_HAS_ASYNC_TX_FIND_CHANNEL */
 #else
 static inline void async_tx_issue_pending_all(void)
 {
@@ -86,7 +92,8 @@ async_tx_run_dependencies(struct dma_async_tx_descriptor *tx,
 
 static inline struct dma_chan *
 async_tx_find_channel(struct dma_async_tx_descriptor *depend_tx,
-	enum dma_transaction_type tx_type)
+	enum dma_transaction_type tx_type, struct page **dst, int dst_count,
+	struct page **src, int src_count, size_t len)
 {
 	return NULL;
 }

@@ -129,7 +129,9 @@ async_xor(struct page *dest, struct page **src_list, unsigned int offset,
 	struct dma_async_tx_descriptor *depend_tx,
 	dma_async_tx_callback cb_fn, void *cb_param)
 {
-	struct dma_chan *chan = async_tx_find_channel(depend_tx, DMA_XOR);
+	struct dma_chan *chan = async_tx_find_channel(depend_tx, DMA_XOR,
+						      &dest, 1, src_list,
+						      src_cnt, len);
 	struct dma_device *device = chan ? chan->device : NULL;
 	struct dma_async_tx_descriptor *tx = NULL;
 	dma_async_tx_callback _cb_fn;
@@ -261,7 +263,9 @@ async_xor_zero_sum(struct page *dest, struct page **src_list,
 	struct dma_async_tx_descriptor *depend_tx,
 	dma_async_tx_callback cb_fn, void *cb_param)
 {
-	struct dma_chan *chan = async_tx_find_channel(depend_tx, DMA_ZERO_SUM);
+	struct dma_chan *chan = async_tx_find_channel(depend_tx, DMA_ZERO_SUM,
+						      &dest, 1, src_list,
+						      src_cnt, len);
 	struct dma_device *device = chan ? chan->device : NULL;
 	struct dma_async_tx_descriptor *tx = NULL;
 
