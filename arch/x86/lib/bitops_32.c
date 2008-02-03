@@ -2,7 +2,7 @@
 #include <linux/module.h>
 
 /**
- * find_next_bit - find the first set bit in a memory region
+ * find_next_bit - find the next set bit in a memory region
  * @addr: The address to base the search on
  * @offset: The bitnumber to start searching at
  * @size: The maximum size to search
