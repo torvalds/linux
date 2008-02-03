@@ -383,7 +383,7 @@ static void btuart_change_speed(btuart_info_t *info, unsigned int speed)
 	outb(lcr, iobase + UART_LCR);	/* Set 8N1  */
 	outb(fcr, iobase + UART_FCR);	/* Enable FIFO's */
 
-	/* Turn on interrups */
+	/* Turn on interrupts */
 	outb(UART_IER_RLSI | UART_IER_RDI | UART_IER_THRI, iobase + UART_IER);
 
 	spin_unlock_irqrestore(&(info->lock), flags);
