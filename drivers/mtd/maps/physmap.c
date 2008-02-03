@@ -204,7 +204,7 @@ static int physmap_flash_suspend(struct platform_device *dev, pm_message_t state
 
 	if (info)
 		for (i = 0; i < MAX_RESOURCES; i++)
-			ret |= info->mtd[i].suspend(info->mtd[i]);
+			ret |= info->mtd[i]->suspend(info->mtd[i]);
 
 	return ret;
 }
@@ -216,7 +216,7 @@ static int physmap_flash_resume(struct platform_device *dev)
 
 	if (info)
 		for (i = 0; i < MAX_RESOURCES; i++)
-			info->mtd[i].resume(info->mtd[i]);
+			info->mtd[i]->resume(info->mtd[i]);
 	return 0;
 }
 
@@ -226,19 +226,21 @@ static void physmap_flash_shutdown(struct platform_device *dev)
 	int i;
 
 	for (i = 0; i < MAX_RESOURCES; i++)
-		if (info && info->mtd[i].suspend(info->mtd[i]) == 0)
-			info->mtd[i].resume(info->mtd[i]);
+		if (info && info->mtd[i]->suspend(info->mtd[i]) == 0)
+			info->mtd[i]->resume(info->mtd[i]);
 }
+#else
+#define physmap_flash_suspend NULL
+#define physmap_flash_resume NULL
+#define physmap_flash_shutdown NULL
 #endif
 
 static struct platform_driver physmap_flash_driver = {
 	.probe		= physmap_flash_probe,
 	.remove		= physmap_flash_remove,
-#ifdef CONFIG_PM
 	.suspend	= physmap_flash_suspend,
 	.resume		= physmap_flash_resume,
 	.shutdown	= physmap_flash_shutdown,
-#endif
 	.driver		= {
 		.name	= "physmap-flash",
 	},
