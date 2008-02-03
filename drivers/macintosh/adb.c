@@ -36,6 +36,7 @@
 #include <linux/completion.h>
 #include <linux/device.h>
 #include <linux/kthread.h>
+#include <linux/platform_device.h>
 
 #include <asm/uaccess.h>
 #include <asm/semaphore.h>
