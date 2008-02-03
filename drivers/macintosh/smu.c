@@ -12,7 +12,7 @@
  *  - maybe add timeout to commands ?
  *  - blocking version of time functions
  *  - polling version of i2c commands (including timer that works with
- *    interrutps off)
+ *    interrupts off)
  *  - maybe avoid some data copies with i2c by directly using the smu cmd
  *    buffer and a lower level internal interface
  *  - understand SMU -> CPU events and implement reception of them via
