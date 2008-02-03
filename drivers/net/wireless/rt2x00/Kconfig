@@ -133,6 +133,13 @@ config RT2500USB
 
 	  When compiled as a module, this driver will be called "rt2500usb.ko".
 
+config RT2500USB_LEDS
+	bool "RT2500 leds support"
+	depends on RT2500USB
+	select RT2X00_LIB_LEDS
+	---help---
+	  This adds support for led triggers provided my mac80211.
+
 config RT73USB
 	tristate "Ralink rt73 usb support"
 	depends on RT2X00 && USB
@@ -142,6 +149,13 @@ config RT73USB
 	  This is an experimental driver for the Ralink rt73 wireless chip.
 
 	  When compiled as a module, this driver will be called "rt73usb.ko".
+
+config RT73USB_LEDS
+	bool "RT73 leds support"
+	depends on RT73USB
+	select RT2X00_LIB_LEDS
+	---help---
+	  This adds support for led triggers provided my mac80211.
 
 config RT2X00_LIB_DEBUGFS
 	bool "Ralink debugfs support"

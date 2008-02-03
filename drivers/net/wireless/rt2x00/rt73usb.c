@@ -294,28 +294,25 @@ static void rt73usb_led_brightness(struct led_classdev *led_cdev,
 		rt2x00_set_field16(&led->rt2x00dev->led_mcu_reg,
 				   MCU_LEDCS_RADIO_STATUS, enabled);
 
-		rt2x00usb_vendor_request_sw(led->rt2x00dev, USB_LED_CONTROL, 0,
-					    led->rt2x00dev->led_mcu_reg,
-					    REGISTER_TIMEOUT);
+		rt2x00usb_vendor_request_async(led->rt2x00dev, USB_LED_CONTROL,
+					       0, led->rt2x00dev->led_mcu_reg);
 	} else if (led->type == LED_TYPE_ASSOC) {
 		rt2x00_set_field16(&led->rt2x00dev->led_mcu_reg,
 				   MCU_LEDCS_LINK_BG_STATUS, bg_mode);
 		rt2x00_set_field16(&led->rt2x00dev->led_mcu_reg,
 				   MCU_LEDCS_LINK_A_STATUS, a_mode);
 
-		rt2x00usb_vendor_request_sw(led->rt2x00dev, USB_LED_CONTROL, 0,
-					    led->rt2x00dev->led_mcu_reg,
-					    REGISTER_TIMEOUT);
+		rt2x00usb_vendor_request_async(led->rt2x00dev, USB_LED_CONTROL,
+					       0, led->rt2x00dev->led_mcu_reg);
 	} else if (led->type == LED_TYPE_QUALITY) {
 		/*
 		 * The brightness is divided into 6 levels (0 - 5),
 		 * this means we need to convert the brightness
 		 * argument into the matching level within that range.
 		 */
-		rt2x00usb_vendor_request_sw(led->rt2x00dev, USB_LED_CONTROL,
-					    brightness / (LED_FULL / 6),
-					    led->rt2x00dev->led_mcu_reg,
-					    REGISTER_TIMEOUT);
+		rt2x00usb_vendor_request_async(led->rt2x00dev, USB_LED_CONTROL,
+					       brightness / (LED_FULL / 6),
+					       led->rt2x00dev->led_mcu_reg);
 	}
 }
 #else
@@ -871,7 +868,7 @@ static int rt73usb_load_firmware(struct rt2x00_dev *rt2x00dev, void *data,
 
 		rt2x00usb_vendor_request(rt2x00dev, USB_MULTI_WRITE,
 					 USB_VENDOR_REQUEST_OUT,
-					 FIRMWARE_IMAGE_BASE + i, 0x0000,
+					 FIRMWARE_IMAGE_BASE + i, 0,
 					 cache, buflen, timeout);
 
 		ptr += buflen;
@@ -884,7 +881,7 @@ static int rt73usb_load_firmware(struct rt2x00_dev *rt2x00dev, void *data,
 	 * we need to specify a long timeout time.
 	 */
 	status = rt2x00usb_vendor_request_sw(rt2x00dev, USB_DEVICE_MODE,
-					     0x0000, USB_MODE_FIRMWARE,
+					     0, USB_MODE_FIRMWARE,
 					     REGISTER_TIMEOUT_FIRMWARE);
 	if (status < 0) {
 		ERROR(rt2x00dev, "Failed to write Firmware to device.\n");

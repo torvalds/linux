@@ -291,17 +291,16 @@ static void rt2500usb_led_brightness(struct led_classdev *led_cdev,
 	unsigned int enabled = brightness != LED_OFF;
 	unsigned int activity =
 	    led->rt2x00dev->led_flags & LED_SUPPORT_ACTIVITY;
-	u16 reg;
-
-	rt2500usb_register_read(led->rt2x00dev, MAC_CSR20, &reg);
 
 	if (led->type == LED_TYPE_RADIO || led->type == LED_TYPE_ASSOC) {
-		rt2x00_set_field16(&reg, MAC_CSR20_LINK, enabled);
-		rt2x00_set_field16(&reg, MAC_CSR20_ACTIVITY,
-				   enabled && activity);
+		rt2x00_set_field16(&led->rt2x00dev->led_mcu_reg,
+				   MAC_CSR20_LINK, enabled);
+		rt2x00_set_field16(&led->rt2x00dev->led_mcu_reg,
+				   MAC_CSR20_ACTIVITY, enabled && activity);
 	}
 
-	rt2500usb_register_write(led->rt2x00dev, MAC_CSR20, reg);
+	rt2x00usb_vendor_request_async(led->rt2x00dev, USB_SINGLE_WRITE,
+				       MAC_CSR20, led->rt2x00dev->led_mcu_reg);
 }
 #else
 #define rt2500usb_led_brightness	NULL
@@ -1377,6 +1376,13 @@ static int rt2500usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00dev->led_flags = LED_SUPPORT_RADIO;
 		break;
 	}
+
+	/*
+	 * Store the current led register value, we need it later
+	 * in set_brightness but that is called in irq context which
+	 * means we can't use rt2500usb_register_read() at that time.
+	 */
+	rt2500usb_register_read(rt2x00dev, MAC_CSR20, &rt2x00dev->led_mcu_reg);
 #endif /* CONFIG_RT2500USB_LEDS */
 
 	/*
