@@ -57,8 +57,7 @@ static struct chan_ref_percpu *channel_table[DMA_TX_TYPE_END];
  */
 static spinlock_t async_tx_lock;
 
-static struct list_head
-async_tx_master_list = LIST_HEAD_INIT(async_tx_master_list);
+static LIST_HEAD(async_tx_master_list);
 
 /* async_tx_issue_pending_all - start all transactions on all channels */
 void async_tx_issue_pending_all(void)
