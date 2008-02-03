@@ -28,15 +28,15 @@
  * and many others.
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/mod_devicetable.h>
+#include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
-#include <linux/blkdev.h>
+#include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
+#include <linux/module.h>
+#include <linux/moduleparam.h>
+#include <linux/scatterlist.h>
 #include <linux/string.h>
 #include <linux/stringify.h>
 #include <linux/timer.h>
@@ -48,9 +48,9 @@
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 
-#include "fw-transaction.h"
-#include "fw-topology.h"
 #include "fw-device.h"
+#include "fw-topology.h"
+#include "fw-transaction.h"
 
 /*
  * So far only bridges from Oxford Semiconductor are known to support
