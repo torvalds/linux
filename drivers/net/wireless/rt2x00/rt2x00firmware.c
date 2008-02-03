@@ -23,6 +23,7 @@
 	Abstract: rt2x00 firmware loading routines.
  */
 
+#include <linux/crc-ccitt.h>
 #include <linux/crc-itu-t.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -37,7 +38,6 @@ static int rt2x00lib_request_firmware(struct rt2x00_dev *rt2x00dev)
 	char *fw_name;
 	int retval;
 	u16 crc;
-	u16 tmp;
 
 	/*
 	 * Read correct firmware from harddisk.
@@ -64,17 +64,37 @@ static int rt2x00lib_request_firmware(struct rt2x00_dev *rt2x00dev)
 	}
 
 	/*
-	 * Validate the firmware using 16 bit CRC.
-	 * The last 2 bytes of the firmware are the CRC
-	 * so substract those 2 bytes from the CRC checksum,
-	 * and set those 2 bytes to 0 when calculating CRC.
+	 * Perform crc validation on the firmware.
+	 * The last 2 bytes in the firmware array are the crc checksum itself,
+	 * this means that we should never pass those 2 bytes to the crc
+	 * algorithm.
 	 */
-	tmp = 0;
-	crc = crc_itu_t(0, fw->data, fw->size - 2);
-	crc = crc_itu_t(crc, (u8 *)&tmp, 2);
+	if (test_bit(DRIVER_REQUIRE_FIRMWARE_CRC_ITU_T, &rt2x00dev->flags)) {
+		/*
+		 * Use the crc itu-t algorithm.
+		 * Use 0 for the last 2 bytes to complete the checksum.
+		 */
+		crc = crc_itu_t(0, fw->data, fw->size - 2);
+		crc = crc_itu_t_byte(crc, 0);
+		crc = crc_itu_t_byte(crc, 0);
+	} else if (test_bit(DRIVER_REQUIRE_FIRMWARE_CCITT, &rt2x00dev->flags)) {
+		/*
+		 * Use the crc ccitt algorithm.
+		 * This will return the same value as the legacy driver which
+		 * used bit ordering reversion on the both the firmware bytes
+		 * before input input as well as on the final output.
+		 * Obviously using crc ccitt directly is much more efficient.
+		 */
+		crc = crc_ccitt(~0, fw->data, fw->size - 2);
+	} else {
+		ERROR(rt2x00dev, "No checksum algorithm selected "
+		      "for firmware validation.\n");
+		retval = -ENOENT;
+		goto exit;
+	}
 
 	if (crc != (fw->data[fw->size - 2] << 8 | fw->data[fw->size - 1])) {
-		ERROR(rt2x00dev, "Firmware CRC error.\n");
+		ERROR(rt2x00dev, "Firmware checksum error.\n");
 		retval = -ENOENT;
 		goto exit;
 	}
@@ -95,6 +115,9 @@ exit:
 int rt2x00lib_load_firmware(struct rt2x00_dev *rt2x00dev)
 {
 	int retval;
+
+	if (!test_bit(DRIVER_REQUIRE_FIRMWARE, &rt2x00dev->flags))
+		return 0;
 
 	if (!rt2x00dev->fw) {
 		retval = rt2x00lib_request_firmware(rt2x00dev);
