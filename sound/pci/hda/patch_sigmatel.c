@@ -39,6 +39,7 @@
 
 enum {
 	STAC_REF,
+	STAC_9200_OQO,
 	STAC_9200_DELL_D21,
 	STAC_9200_DELL_D22,
 	STAC_9200_DELL_D23,
@@ -1052,9 +1053,15 @@ static unsigned int dell9200_m27_pin_configs[8] = {
 	0x90170310, 0x04a11020, 0x90170310, 0x40f003fc,
 };
 
+static unsigned int oqo9200_pin_configs[8] = {
+	0x40c000f0, 0x404000f1, 0x0221121f, 0x02211210,
+	0x90170111, 0x90a70120, 0x400000f2, 0x400000f3,
+};
+
 
 static unsigned int *stac9200_brd_tbl[STAC_9200_MODELS] = {
 	[STAC_REF] = ref9200_pin_configs,
+	[STAC_9200_OQO] = oqo9200_pin_configs,
 	[STAC_9200_DELL_D21] = dell9200_d21_pin_configs,
 	[STAC_9200_DELL_D22] = dell9200_d22_pin_configs,
 	[STAC_9200_DELL_D23] = dell9200_d23_pin_configs,
@@ -1069,6 +1076,7 @@ static unsigned int *stac9200_brd_tbl[STAC_9200_MODELS] = {
 
 static const char *stac9200_models[STAC_9200_MODELS] = {
 	[STAC_REF] = "ref",
+	[STAC_9200_OQO] = "oqo",
 	[STAC_9200_DELL_D21] = "dell-d21",
 	[STAC_9200_DELL_D22] = "dell-d22",
 	[STAC_9200_DELL_D23] = "dell-d23",
@@ -1153,6 +1161,8 @@ static struct snd_pci_quirk stac9200_cfg_tbl[] = {
 		      STAC_9200_GATEWAY),
 	SND_PCI_QUIRK(0x107b, 0x0318, "Gateway ML3019, MT3707",
 		      STAC_9200_GATEWAY),
+	/* OQO Mobile */
+	SND_PCI_QUIRK(0x1106, 0x3288, "OQO Model 2", STAC_9200_OQO),
 	{} /* terminator */
 };
 
@@ -3147,7 +3157,8 @@ static int patch_stac9200(struct hda_codec *codec)
 	spec->num_adcs = 1;
 	spec->num_pwrs = 0;
 
-	if (spec->board_config == STAC_9200_GATEWAY)
+	if (spec->board_config == STAC_9200_GATEWAY ||
+	    spec->board_config == STAC_9200_OQO)
 		spec->init = stac9200_eapd_init;
 	else
 		spec->init = stac9200_core_init;
