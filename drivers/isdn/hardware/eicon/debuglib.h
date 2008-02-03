@@ -177,7 +177,7 @@ DBG_DECL(PRV3)
 } }
 #endif
 /*
- * For event level debug use a separate define, the paramete are
+ * For event level debug use a separate define, the parameter are
  * different and cause compiler errors on some systems.
  */
 #define DBG_EVL_ID(args) \

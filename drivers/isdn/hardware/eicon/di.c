@@ -285,7 +285,7 @@ byte pr_dpc(ADAPTER * a)
                 a->ram_in(a, &RcIn->RcId),
                 a->ram_in(a, &RcIn->RcCh),
                 a->ram_inw(a, &RcIn->Reference),
-                tmp[0],  /* type of extended informtion */
+                tmp[0],  /* type of extended information */
                 tmp[1]); /* extended information        */
         a->ram_out(a, &RcIn->Rc, 0);
       }
