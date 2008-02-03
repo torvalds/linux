@@ -182,7 +182,7 @@ struct acpi_processor_throttling {
 /* Limit Interface */
 
 struct acpi_processor_lx {
-	int px;			/* performace state */
+	int px;			/* performance state */
 	int tx;			/* throttle level */
 };
 
