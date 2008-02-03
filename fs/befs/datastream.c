@@ -236,7 +236,7 @@ befs_count_blocks(struct super_block * sb, befs_data_stream * ds)
 	as in the indirect region code).
 	
 	When/if blockno is found, if blockno is inside of a block 
-	run as stored on disk, we offset the start and lenght members 
+	run as stored on disk, we offset the start and length members
 	of the block run, so that blockno is the start and len is
 	still valid (the run ends in the same place).
 	

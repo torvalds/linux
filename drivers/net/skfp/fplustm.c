@@ -398,7 +398,7 @@ static void copy_tx_mac(struct s_smc *smc, u_long td, struct fddi_mac *mac,
 /* u_long td;		 transmit descriptor */
 /* struct fddi_mac *mac; mac frame pointer */
 /* unsigned off;	 start address within buffer memory */
-/* int len ;		 lenght of the frame including the FC */
+/* int len ;		 length of the frame including the FC */
 {
 	int	i ;
 	u_int	*p ;

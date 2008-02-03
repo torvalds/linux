@@ -1473,7 +1473,7 @@ int lbs_get_scan(struct net_device *dev, struct iw_request_info *info,
  *  Called via lbs_prepare_and_send_command(priv, CMD_802_11_SCAN, ...)
  *  from cmd.c
  *
- *  Sends a fixed lenght data part (specifying the BSS type and BSSID filters)
+ *  Sends a fixed length data part (specifying the BSS type and BSSID filters)
  *  as well as a variable number/length of TLVs to the firmware.
  *
  *  @param priv       A pointer to struct lbs_private structure

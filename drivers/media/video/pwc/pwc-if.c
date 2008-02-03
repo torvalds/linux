@@ -542,7 +542,7 @@ int pwc_handle_frame(struct pwc_device *pdev)
 	}
 
 	if (pdev->read_frame != NULL) {
-		/* Decompression is a lenghty process, so it's outside of the lock.
+		/* Decompression is a lengthy process, so it's outside of the lock.
 		   This gives the isoc_handler the opportunity to fill more frames
 		   in the mean time.
 		*/

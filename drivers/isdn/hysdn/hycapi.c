@@ -541,7 +541,7 @@ hycapi_rx_capipkt(hysdn_card * card, unsigned char *buf, unsigned short len)
 	}
 	ctrl = &cinfo->capi_ctrl;
 	if(len < CAPI_MSG_BASELEN) {
-		printk(KERN_ERR "HYSDN Card%d: invalid CAPI-message, lenght %d!\n",
+		printk(KERN_ERR "HYSDN Card%d: invalid CAPI-message, length %d!\n",
 		       card->myid, len);
 		return;
 	}	

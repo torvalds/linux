@@ -162,7 +162,7 @@
 #define PL_LOGINFO_SUB_CODE_FRAME_XFER_ERROR                 (0x00000400) /* Bits 0-3 encode Transport Status Register (offset 0x08) */
                                                                           /* Bit 0 is Status Bit 0: FrameXferErr */
                                                                           /* Bit 1 & 2 are Status Bits 16 and 17: FrameXmitErrStatus */
-                                                                          /* Bit 3 is Status Bit 18 WriteDataLenghtGTDataLengthErr */
+                                                                          /* Bit 3 is Status Bit 18 WriteDataLengthGTDataLengthErr */
 
 #define PL_LOGINFO_SUB_CODE_TX_FM_CONNECTED_LOW              (0x00000500)
 #define PL_LOGINFO_SUB_CODE_SATA_NON_NCQ_RW_ERR_BIT_SET      (0x00000600)

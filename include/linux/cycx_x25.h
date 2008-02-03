@@ -81,7 +81,7 @@ struct cycx_x25_cmd {
  *	@n2win - level 2 window (values: 1 thru 7)
  *	@n3win - level 3 window (values: 1 thru 7)
  *	@nvc - # of logical channels (values: 1 thru 64)
- *	@pktlen - level 3 packet lenght - log base 2 of size
+ *	@pktlen - level 3 packet length - log base 2 of size
  *	@locaddr - my address
  *	@remaddr - remote address
  *	@t1 - time, in seconds

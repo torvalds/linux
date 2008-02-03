@@ -598,7 +598,7 @@ static void ess_send_alc_req(struct s_smc *smc)
 	req->cmd.sba_cmd = REQUEST_ALLOCATION ;
 
 	/*
-	 * set the parameter type and parameter lenght of all used
+	 * set the parameter type and parameter length of all used
 	 * parameters
 	 */
 

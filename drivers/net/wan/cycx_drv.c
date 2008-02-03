@@ -322,7 +322,7 @@ static int cycx_data_boot(void __iomem *addr, u8 *code, u32 len)
 	void __iomem *pt_boot_cmd = addr + CMD_OFFSET;
 	u32 i;
 
-	/* boot buffer lenght */
+	/* boot buffer length */
 	writew(CFM_LOAD_BUFSZ, pt_boot_cmd + sizeof(u16));
 	writew(GEN_DEFPAR, pt_boot_cmd);
 
@@ -353,7 +353,7 @@ static int cycx_code_boot(void __iomem *addr, u8 *code, u32 len)
 	void __iomem *pt_boot_cmd = addr + CMD_OFFSET;
 	u32 i;
 
-	/* boot buffer lenght */
+	/* boot buffer length */
 	writew(CFM_LOAD_BUFSZ, pt_boot_cmd + sizeof(u16));
 	writew(GEN_DEFPAR, pt_boot_cmd);
 

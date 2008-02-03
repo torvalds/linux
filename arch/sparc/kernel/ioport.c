@@ -305,7 +305,7 @@ void *sbus_alloc_consistent(struct sbus_dev *sdev, long len, u32 *dma_addrp)
 	struct resource *res;
 	int order;
 
-	/* XXX why are some lenghts signed, others unsigned? */
+	/* XXX why are some lengths signed, others unsigned? */
 	if (len <= 0) {
 		return NULL;
 	}
@@ -393,7 +393,7 @@ void sbus_free_consistent(struct sbus_dev *sdev, long n, void *p, u32 ba)
  */
 dma_addr_t sbus_map_single(struct sbus_dev *sdev, void *va, size_t len, int direction)
 {
-	/* XXX why are some lenghts signed, others unsigned? */
+	/* XXX why are some lengths signed, others unsigned? */
 	if (len <= 0) {
 		return 0;
 	}
