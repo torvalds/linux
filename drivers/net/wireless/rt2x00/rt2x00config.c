@@ -246,9 +246,7 @@ config:
 
 		band = &rt2x00dev->bands[conf->channel->band];
 		rate = &band->bitrates[band->n_bitrates - 1];
-
-		libconf.basic_rates =
-		    DEVICE_GET_RATE_FIELD(rate->hw_value, RATEMASK) & DEV_BASIC_RATEMASK;
+		libconf.basic_rates = rt2x00_get_rate(rate->hw_value)->ratemask;
 	}
 
 	if (flags & CONFIG_UPDATE_CHANNEL) {

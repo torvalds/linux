@@ -551,10 +551,10 @@ void rt2x00lib_rxdone(struct queue_entry *entry,
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct ieee80211_rx_status *rx_status = &rt2x00dev->rx_status;
 	struct ieee80211_supported_band *sband;
-	struct ieee80211_rate *rate;
 	struct ieee80211_hdr *hdr;
+	const struct rt2x00_rate *rate;
 	unsigned int i;
-	int val = 0, idx = -1;
+	int idx = -1;
 	u16 fc;
 
 	/*
@@ -562,19 +562,15 @@ void rt2x00lib_rxdone(struct queue_entry *entry,
 	 */
 	sband = &rt2x00dev->bands[rt2x00dev->curr_band];
 	for (i = 0; i < sband->n_bitrates; i++) {
-		rate = &sband->bitrates[i];
+		rate = rt2x00_get_rate(sband->bitrates[i].hw_value);
 
 		/*
 		 * When frame was received with an OFDM bitrate,
 		 * the signal is the PLCP value. If it was received with
-		 * a CCK bitrate the signal is the rate in 0.5kbit/s.
+		 * a CCK bitrate the signal is the rate in 100kbit/s.
 		 */
-		if (!rxdesc->ofdm)
-			val = DEVICE_GET_RATE_FIELD(rate->hw_value, RATE);
-		else
-			val = DEVICE_GET_RATE_FIELD(rate->hw_value, PLCP);
-
-		if (val == rxdesc->signal) {
+		if ((rxdesc->ofdm && rate->plcp == rxdesc->signal) ||
+		    (!rxdesc->ofdm && rate->bitrate == rxdesc->signal)) {
 			idx = i;
 			break;
 		}
@@ -583,7 +579,7 @@ void rt2x00lib_rxdone(struct queue_entry *entry,
 	/*
 	 * Only update link status if this is a beacon frame carrying our bssid.
 	 */
-	hdr = (struct ieee80211_hdr*)entry->skb->data;
+	hdr = (struct ieee80211_hdr *)entry->skb->data;
 	fc = le16_to_cpu(hdr->frame_control);
 	if (is_beacon(fc) && rxdesc->my_bss)
 		rt2x00lib_update_link_stats(&rt2x00dev->link, rxdesc->rssi);
@@ -617,9 +613,9 @@ void rt2x00lib_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 {
 	struct txentry_desc txdesc;
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
-	struct ieee80211_hdr *ieee80211hdr = (struct ieee80211_hdr *)skb->data;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	const struct rt2x00_rate *rate;
 	int tx_rate;
-	int bitrate;
 	int length;
 	int duration;
 	int residual;
@@ -636,8 +632,8 @@ void rt2x00lib_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Read required fields from ieee80211 header.
 	 */
-	frame_control = le16_to_cpu(ieee80211hdr->frame_control);
-	seq_ctrl = le16_to_cpu(ieee80211hdr->seq_ctrl);
+	frame_control = le16_to_cpu(hdr->frame_control);
+	seq_ctrl = le16_to_cpu(hdr->seq_ctrl);
 
 	tx_rate = control->tx_rate->hw_value;
 
@@ -661,16 +657,12 @@ void rt2x00lib_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 			tx_rate = control->rts_cts_rate->hw_value;
 	}
 
-	/*
-	 * Check for OFDM
-	 */
-	if (DEVICE_GET_RATE_FIELD(tx_rate, RATEMASK) & DEV_OFDM_RATEMASK)
-		__set_bit(ENTRY_TXD_OFDM_RATE, &txdesc.flags);
+	rate = rt2x00_get_rate(tx_rate);
 
 	/*
 	 * Check if more fragments are pending
 	 */
-	if (ieee80211_get_morefrag(ieee80211hdr)) {
+	if (ieee80211_get_morefrag(hdr)) {
 		__set_bit(ENTRY_TXD_BURST, &txdesc.flags);
 		__set_bit(ENTRY_TXD_MORE_FRAG, &txdesc.flags);
 	}
@@ -698,21 +690,21 @@ void rt2x00lib_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	 * PLCP setup
 	 * Length calculation depends on OFDM/CCK rate.
 	 */
-	txdesc.signal = DEVICE_GET_RATE_FIELD(tx_rate, PLCP);
+	txdesc.signal = rate->plcp;
 	txdesc.service = 0x04;
 
 	length = skb->len + FCS_LEN;
-	if (test_bit(ENTRY_TXD_OFDM_RATE, &txdesc.flags)) {
+	if (rate->flags & DEV_RATE_OFDM) {
+		__set_bit(ENTRY_TXD_OFDM_RATE, &txdesc.flags);
+
 		txdesc.length_high = (length >> 6) & 0x3f;
 		txdesc.length_low = length & 0x3f;
 	} else {
-		bitrate = DEVICE_GET_RATE_FIELD(tx_rate, RATE);
-
 		/*
 		 * Convert length to microseconds.
 		 */
-		residual = get_duration_res(length, bitrate);
-		duration = get_duration(length, bitrate);
+		residual = get_duration_res(length, rate->bitrate);
+		duration = get_duration(length, rate->bitrate);
 
 		if (residual != 0) {
 			duration++;
@@ -720,7 +712,7 @@ void rt2x00lib_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 			/*
 			 * Check if we need to set the Length Extension
 			 */
-			if (bitrate == 110 && residual <= 30)
+			if (rate->bitrate == 110 && residual <= 30)
 				txdesc.service |= 0x80;
 		}
 
@@ -731,7 +723,7 @@ void rt2x00lib_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 		 * When preamble is enabled we should set the
 		 * preamble bit for the signal.
 		 */
-		if (DEVICE_GET_RATE_FIELD(tx_rate, PREAMBLE))
+		if (rt2x00_get_rate_preamble(tx_rate))
 			txdesc.signal |= 0x08;
 	}
 
@@ -756,6 +748,81 @@ EXPORT_SYMBOL_GPL(rt2x00lib_write_tx_desc);
 /*
  * Driver initialization handlers.
  */
+const struct rt2x00_rate rt2x00_supported_rates[12] = {
+	{
+		.flags = 0,
+		.bitrate = 10,
+		.ratemask = DEV_RATEMASK_1MB,
+		.plcp = 0x00,
+	},
+	{
+		.flags = DEV_RATE_SHORT_PREAMBLE,
+		.bitrate = 20,
+		.ratemask = DEV_RATEMASK_2MB,
+		.plcp = 0x01,
+	},
+	{
+		.flags = DEV_RATE_SHORT_PREAMBLE,
+		.bitrate = 55,
+		.ratemask = DEV_RATEMASK_5_5MB,
+		.plcp = 0x02,
+	},
+	{
+		.flags = DEV_RATE_SHORT_PREAMBLE,
+		.bitrate = 110,
+		.ratemask = DEV_RATEMASK_11MB,
+		.plcp = 0x03,
+	},
+	{
+		.flags = DEV_RATE_OFDM,
+		.bitrate = 60,
+		.ratemask = DEV_RATEMASK_6MB,
+		.plcp = 0x0b,
+	},
+	{
+		.flags = DEV_RATE_OFDM,
+		.bitrate = 90,
+		.ratemask = DEV_RATEMASK_9MB,
+		.plcp = 0x0f,
+	},
+	{
+		.flags = DEV_RATE_OFDM,
+		.bitrate = 120,
+		.ratemask = DEV_RATEMASK_12MB,
+		.plcp = 0x0a,
+	},
+	{
+		.flags = DEV_RATE_OFDM,
+		.bitrate = 180,
+		.ratemask = DEV_RATEMASK_18MB,
+		.plcp = 0x0e,
+	},
+	{
+		.flags = DEV_RATE_OFDM,
+		.bitrate = 240,
+		.ratemask = DEV_RATEMASK_24MB,
+		.plcp = 0x09,
+	},
+	{
+		.flags = DEV_RATE_OFDM,
+		.bitrate = 360,
+		.ratemask = DEV_RATEMASK_36MB,
+		.plcp = 0x0d,
+	},
+	{
+		.flags = DEV_RATE_OFDM,
+		.bitrate = 480,
+		.ratemask = DEV_RATEMASK_48MB,
+		.plcp = 0x08,
+	},
+	{
+		.flags = DEV_RATE_OFDM,
+		.bitrate = 540,
+		.ratemask = DEV_RATEMASK_54MB,
+		.plcp = 0x0c,
+	},
+};
+
 static void rt2x00lib_channel(struct ieee80211_channel *entry,
 			      const int channel, const int tx_power,
 			      const int value)
@@ -770,18 +837,17 @@ static void rt2x00lib_channel(struct ieee80211_channel *entry,
 }
 
 static void rt2x00lib_rate(struct ieee80211_rate *entry,
-			   const int rate, const int mask,
-			   const int plcp, const int flags)
+			   const u16 index, const struct rt2x00_rate *rate)
 {
-	entry->bitrate = rate;
-	entry->hw_value =
-	    DEVICE_SET_RATE_FIELD(rate, RATE) |
-	    DEVICE_SET_RATE_FIELD(mask, RATEMASK) |
-	    DEVICE_SET_RATE_FIELD(plcp, PLCP);
-	entry->flags = flags;
+	entry->flags = 0;
+	entry->bitrate = rate->bitrate;
+	entry->hw_value = rt2x00_create_rate_hw_value(index, 0);
 	entry->hw_value_short = entry->hw_value;
-	if (entry->flags & IEEE80211_RATE_SHORT_PREAMBLE)
-		entry->hw_value_short |= DEVICE_SET_RATE_FIELD(1, PREAMBLE);
+
+	if (rate->flags & DEV_RATE_SHORT_PREAMBLE) {
+		entry->flags |= IEEE80211_RATE_SHORT_PREAMBLE;
+		entry->hw_value_short |= rt2x00_create_rate_hw_value(index, 1);
+	}
 }
 
 static int rt2x00lib_probe_hw_modes(struct rt2x00_dev *rt2x00dev,
@@ -807,33 +873,8 @@ static int rt2x00lib_probe_hw_modes(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Initialize Rate list.
 	 */
-	rt2x00lib_rate(&rates[0], 10, DEV_RATEMASK_1MB,
-		       0x00, 0);
-	rt2x00lib_rate(&rates[1], 20, DEV_RATEMASK_2MB,
-		       0x01, IEEE80211_RATE_SHORT_PREAMBLE);
-	rt2x00lib_rate(&rates[2], 55, DEV_RATEMASK_5_5MB,
-		       0x02, IEEE80211_RATE_SHORT_PREAMBLE);
-	rt2x00lib_rate(&rates[3], 110, DEV_RATEMASK_11MB,
-		       0x03, IEEE80211_RATE_SHORT_PREAMBLE);
-
-	if (spec->num_rates > 4) {
-		rt2x00lib_rate(&rates[4], 60, DEV_RATEMASK_6MB,
-			       0x0b, 0);
-		rt2x00lib_rate(&rates[5], 90, DEV_RATEMASK_9MB,
-			       0x0f, 0);
-		rt2x00lib_rate(&rates[6], 120, DEV_RATEMASK_12MB,
-			       0x0a, 0);
-		rt2x00lib_rate(&rates[7], 180, DEV_RATEMASK_18MB,
-			       0x0e, 0);
-		rt2x00lib_rate(&rates[8], 240, DEV_RATEMASK_24MB,
-			       0x09, 0);
-		rt2x00lib_rate(&rates[9], 360, DEV_RATEMASK_36MB,
-			       0x0d, 0);
-		rt2x00lib_rate(&rates[10], 480, DEV_RATEMASK_48MB,
-			       0x08, 0);
-		rt2x00lib_rate(&rates[11], 540, DEV_RATEMASK_54MB,
-			       0x0c, 0);
-	}
+	for (i = 0; i < spec->num_rates; i++)
+		rt2x00lib_rate(&rates[0], i, rt2x00_get_rate(i));
 
 	/*
 	 * Initialize Channel list.

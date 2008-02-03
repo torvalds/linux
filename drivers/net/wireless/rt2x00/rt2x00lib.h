@@ -34,6 +34,51 @@
 #define RFKILL_POLL_INTERVAL	( 1000 )
 
 /*
+ * rt2x00_rate: Per rate device information
+ */
+struct rt2x00_rate {
+	unsigned short flags;
+#define DEV_RATE_OFDM			0x0001
+#define DEV_RATE_SHORT_PREAMBLE		0x0002
+
+	unsigned short bitrate; /* In 100kbit/s */
+
+	unsigned short ratemask;
+#define DEV_RATEMASK_1MB	( (1 << 1) - 1 )
+#define DEV_RATEMASK_2MB	( (1 << 2) - 1 )
+#define DEV_RATEMASK_5_5MB	( (1 << 3) - 1 )
+#define DEV_RATEMASK_11MB	( (1 << 4) - 1 )
+#define DEV_RATEMASK_6MB	( (1 << 5) - 1 )
+#define DEV_RATEMASK_9MB	( (1 << 6) - 1 )
+#define DEV_RATEMASK_12MB	( (1 << 7) - 1 )
+#define DEV_RATEMASK_18MB	( (1 << 8) - 1 )
+#define DEV_RATEMASK_24MB	( (1 << 9) - 1 )
+#define DEV_RATEMASK_36MB	( (1 << 10) - 1 )
+#define DEV_RATEMASK_48MB	( (1 << 11) - 1 )
+#define DEV_RATEMASK_54MB	( (1 << 12) - 1 )
+
+	unsigned short plcp;
+};
+
+extern const struct rt2x00_rate rt2x00_supported_rates[12];
+
+static inline u16 rt2x00_create_rate_hw_value(const u16 index,
+					      const u16 short_preamble)
+{
+	return (short_preamble << 8) | (index & 0xff);
+}
+
+static inline const struct rt2x00_rate *rt2x00_get_rate(const u16 hw_value)
+{
+	return &rt2x00_supported_rates[hw_value & 0xff];
+}
+
+static inline int rt2x00_get_rate_preamble(const u16 hw_value)
+{
+	return (hw_value & 0xff00);
+}
+
+/*
  * Radio control handlers.
  */
 int rt2x00lib_enable_radio(struct rt2x00_dev *rt2x00dev);
