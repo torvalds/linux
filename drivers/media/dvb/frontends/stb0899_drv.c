@@ -1241,7 +1241,7 @@ static int stb0899_set_tone(struct dvb_frontend *fe, fe_sec_tone_mode_t tone)
 	return 0;
 }
 
-static int stb0899_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
+int stb0899_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
 	int i2c_stat;
 	struct stb0899_state *state = fe->demodulator_priv;
@@ -1255,10 +1255,15 @@ static int stb0899_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 		i2c_stat |=  STB0899_I2CTON;
 		if (stb0899_write_reg(state, STB0899_I2CRPT, i2c_stat) < 0)
 			goto err;
+	} else {
+		dprintk(state->verbose, FE_DEBUG, 1, "Disabling I2C Repeater ...");
+		i2c_stat &= ~STB0899_I2CTON;
+		if (stb0899_write_reg(state, STB0899_I2CRPT, i2c_stat) < 0)
+			goto err;
 	}
 	return 0;
 err:
-	dprintk(state->verbose, FE_ERROR, 1, "I2C Repeater enable failed");
+	dprintk(state->verbose, FE_ERROR, 1, "I2C Repeater control failed");
 	return -EREMOTEIO;
 }
 
@@ -1592,10 +1597,17 @@ static enum dvbfe_search stb0899_search(struct dvb_frontend *fe, struct dvbfe_pa
 			internal->derot_percent	= 30;
 
 			/* What to do for tuners having no bandwidth setup ?	*/
+			/* enable tuner I/O */
+			stb0899_i2c_gate_ctrl(&state->frontend, 1);
+
 			if (state->config->tuner_set_bandwidth)
 				state->config->tuner_set_bandwidth(fe, (13 * (stb0899_carr_width(state) + SearchRange)) / 10);
 			if (state->config->tuner_get_bandwidth)
 				state->config->tuner_get_bandwidth(fe, &internal->tuner_bw);
+
+			/* disable tuner I/O */
+			stb0899_i2c_gate_ctrl(&state->frontend, 0);
+
 			/* Set DVB-S1 AGC		*/
 			stb0899_write_reg(state, STB0899_AGCRFCFG, 0x11);
 
@@ -1624,10 +1636,16 @@ static enum dvbfe_search stb0899_search(struct dvb_frontend *fe, struct dvbfe_pa
 			internal->srate			= i_params->srate;
 			internal->srch_range		= SearchRange;
 
+			/* enable tuner I/O */
+			stb0899_i2c_gate_ctrl(&state->frontend, 1);
+
 			if (state->config->tuner_set_bandwidth)
 				state->config->tuner_set_bandwidth(fe, (stb0899_carr_width(state) + SearchRange));
 			if (state->config->tuner_get_bandwidth)
 				state->config->tuner_get_bandwidth(fe, &internal->tuner_bw);
+
+			/* disable tuner I/O */
+			stb0899_i2c_gate_ctrl(&state->frontend, 0);
 
 //			pParams->SpectralInv		= pSearch->IQ_Inversion;
 

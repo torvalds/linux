@@ -583,6 +583,9 @@ enum stb0899_status stb0899_dvbs_algo(struct stb0899_state *state)
 		internal->derot_freq = 0;
 		internal->status = NOAGC1;
 
+		/* enable tuner I/O */
+		stb0899_i2c_gate_ctrl(&state->frontend, 1);
+
 		/* Move tuner to frequency	*/
 		dprintk(state->verbose, FE_DEBUG, 1, "Tuner set frequency");
 		if (state->config->tuner_set_frequency)
@@ -598,6 +601,10 @@ enum stb0899_status stb0899_dvbs_algo(struct stb0899_state *state)
 		/* There is signal in the band	*/
 		if (config->tuner_get_bandwidth)
 			config->tuner_get_bandwidth(&state->frontend, &bandwidth);
+
+		/* disable tuner I/O */
+		stb0899_i2c_gate_ctrl(&state->frontend, 0);
+
 		if (params->srate <= bandwidth / 2)
 			stb0899_search_tmg(state); /* For low rates (SCPC)	*/
 		else
@@ -1325,11 +1332,17 @@ enum stb0899_status stb0899_dvbs2_algo(struct stb0899_state *state)
 	STB0899_SETFIELD_VAL(FRESRS, reg, 1);
 	stb0899_write_reg(state, STB0899_TSTRES, reg);
 
+	/* enable tuner I/O */
+	stb0899_i2c_gate_ctrl(&state->frontend, 1);
+
 	/* Move tuner to frequency	*/
 	if (state->config->tuner_set_frequency)
 		state->config->tuner_set_frequency(&state->frontend, internal->freq);
 	if (state->config->tuner_get_frequency)
 		state->config->tuner_get_frequency(&state->frontend, &internal->freq);
+
+	/* disable tuner I/O */
+	stb0899_i2c_gate_ctrl(&state->frontend, 0);
 
 	/* Set IF AGC to acquisition	*/
 	reg = STB0899_READ_S2REG(STB0899_S2DEMOD, IF_AGC_CNTRL);

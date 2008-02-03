@@ -919,7 +919,7 @@ static const struct stb0899_s1_reg knc1_stb0899_s1_init_1[] = {
 	{ STB0899_IRQMSK_0		, 0xff },
 	{ STB0899_IRQCFG		, 0x00 },
 	{ STB0899_I2CCFG		, 0x88 },
-	{ STB0899_I2CRPT		, 0x5c },
+	{ STB0899_I2CRPT		, 0x58 }, /* Repeater=8, Stop=disabled */
 	{ STB0899_IOPVALUE5		, 0x00 },
 	{ STB0899_IOPVALUE4		, 0x20 },
 	{ STB0899_IOPVALUE3		, 0xc9 },

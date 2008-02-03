@@ -134,16 +134,7 @@ static int stb6100_read_regs(struct stb6100_state *state, u8 regs[])
 		.len	= STB6100_NUMREGS
 	};
 
-	if (state->frontend->ops.i2c_gate_ctrl)
-		if ((rc = state->frontend->ops.i2c_gate_ctrl(state->frontend, 1)) < 0)
-			return rc;
-
 	rc = i2c_transfer(state->i2c, &msg, 1);
-	if (state->frontend->ops.i2c_gate_ctrl) {
-		int rc2;
-		if ((rc2 = state->frontend->ops.i2c_gate_ctrl(state->frontend, 0)) < 0)
-			return rc2;
-	}
 	if (unlikely(rc != 1)) {
 		dprintk(verbose, FE_ERROR, 1, "Read (0x%x) err, rc=[%d]",
 			state->config->tuner_address, rc);
@@ -200,15 +191,7 @@ static int stb6100_write_reg_range(struct stb6100_state *state, u8 buf[], int st
 		for (i = 0; i < len; i++)
 			dprintk(verbose, FE_DEBUG, 1, "        %s: 0x%02x", stb6100_regnames[start + i], buf[i]);
 	}
-	if (state->frontend->ops.i2c_gate_ctrl)
-		if ((rc = state->frontend->ops.i2c_gate_ctrl(state->frontend, 1)) < 0)
-			return rc;
 	rc = i2c_transfer(state->i2c, &msg, 1);
-	if (state->frontend->ops.i2c_gate_ctrl) {
-		int rc2;
-		if ((rc2 = state->frontend->ops.i2c_gate_ctrl(state->frontend, 0)) < 0)
-			return rc2;
-	}
 	if (unlikely(rc != 1)) {
 		dprintk(verbose, FE_ERROR, 1, "(0x%x) write err [%d:%d], rc=[%d]",
 			(unsigned int)state->config->tuner_address, start, len,	rc);

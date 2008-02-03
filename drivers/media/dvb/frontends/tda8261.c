@@ -37,13 +37,9 @@ struct tda8261_state {
 
 static int tda8261_read(struct tda8261_state *state, u8 *buf)
 {
-	struct dvb_frontend *fe = state->fe;
 	const struct tda8261_config *config = state->config;
 	int err = 0;
 	struct i2c_msg msg = { .addr	= config->addr, .flags = I2C_M_RD,.buf = buf,  .len = 2 };
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
 
 	if ((err = i2c_transfer(state->i2c, &msg, 1)) != 1)
 		printk("%s: read error, err=%d\n", __func__, err);
@@ -53,13 +49,9 @@ static int tda8261_read(struct tda8261_state *state, u8 *buf)
 
 static int tda8261_write(struct tda8261_state *state, u8 *buf)
 {
-	struct dvb_frontend *fe = state->fe;
 	const struct tda8261_config *config = state->config;
 	int err = 0;
 	struct i2c_msg msg = { .addr = config->addr, .flags = 0, .buf = buf, .len = 4 };
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
 
 	if ((err = i2c_transfer(state->i2c, &msg, 1)) != 1)
 		printk("%s: write error, err=%d\n", __func__, err);
