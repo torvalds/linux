@@ -11,7 +11,7 @@
  *
  * This code takes information provided by BIOS EDD calls
  * fn41 - Check Extensions Present and
- * fn48 - Get Device Parametes with EDD extensions
+ * fn48 - Get Device Parameters with EDD extensions
  * made in setup.S, copied to safe structures in setup.c,
  * and presents it in sysfs.
  *
