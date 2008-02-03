@@ -272,7 +272,7 @@ static inline int block_group_used(struct super_block *s, u32 id)
 
 	/* If we don't have cached information on this bitmap block, we're
 	 * going to have to load it later anyway. Loading it here allows us
-	 * to make a better decision. This favors long-term performace gain
+	 * to make a better decision. This favors long-term performance gain
 	 * with a better on-disk layout vs. a short term gain of skipping the
 	 * read and potentially having a bad placement. */
 	if (info->free_count == UINT_MAX) {
@@ -663,7 +663,7 @@ static inline void new_hashed_relocation(reiserfs_blocknr_hint_t * hint)
 
 /*
  * Relocation based on dirid, hashing them into a given bitmap block
- * files. Formatted nodes are unaffected, a seperate policy covers them
+ * files. Formatted nodes are unaffected, a separate policy covers them
  */
 static void dirid_groups(reiserfs_blocknr_hint_t * hint)
 {
@@ -688,7 +688,7 @@ static void dirid_groups(reiserfs_blocknr_hint_t * hint)
 
 /*
  * Relocation based on oid, hashing them into a given bitmap block
- * files. Formatted nodes are unaffected, a seperate policy covers them
+ * files. Formatted nodes are unaffected, a separate policy covers them
  */
 static void oid_groups(reiserfs_blocknr_hint_t * hint)
 {

@@ -646,7 +646,7 @@ bail:
  * sync-data inodes."
  *
  * Note: OCFS2 already does this differently for metadata vs data
- * allocations, as those bitmaps are seperate and undo access is never
+ * allocations, as those bitmaps are separate and undo access is never
  * called on a metadata group descriptor.
  */
 static int ocfs2_test_bg_bit_allocatable(struct buffer_head *bg_bh,

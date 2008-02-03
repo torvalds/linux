@@ -232,7 +232,7 @@ befs_bt_read_node(struct super_block *sb, befs_data_stream * ds,
  * @key: Key string to lookup in btree
  * @value: Value stored with @key
  *
- * On sucess, returns BEFS_OK and sets *@value to the value stored
+ * On success, returns BEFS_OK and sets *@value to the value stored
  * with @key (usually the disk block number of an inode).
  *
  * On failure, returns BEFS_ERR or BEFS_BT_NOT_FOUND.

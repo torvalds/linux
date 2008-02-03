@@ -41,7 +41,7 @@
  * VxFS directory block header.
  *
  * This entry is the head of every filesystem block in a directory.
- * It is used for free space managment and additionally includes
+ * It is used for free space management and additionally includes
  * a hash for speeding up directory search (lookup).
  *
  * The hash may be empty and in fact we do not use it all in the
