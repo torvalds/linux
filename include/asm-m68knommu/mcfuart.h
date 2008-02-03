@@ -71,7 +71,7 @@ struct mcf_platform_uart {
 #define	MCFUART_UTB		0x0c		/* Transmit Buffer (w) */
 #define	MCFUART_UIPCR		0x10		/* Input Port Change (r) */
 #define	MCFUART_UACR		0x10		/* Auxiliary Control (w) */
-#define	MCFUART_UISR		0x14		/* Interrup Status (r) */
+#define	MCFUART_UISR		0x14		/* Interrupt Status (r) */
 #define	MCFUART_UIMR		0x14		/* Interrupt Mask (w) */
 #define	MCFUART_UBG1		0x18		/* Baud Rate MSB (r/w) */
 #define	MCFUART_UBG2		0x1c		/* Baud Rate LSB (r/w) */

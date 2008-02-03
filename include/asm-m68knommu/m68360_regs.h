@@ -138,7 +138,7 @@
 #define CICR_SCC_SCC3           ((uint)0x00200000)      /* SCC3 @ SCCc */
 #define CICR_SCD_SCC4           ((uint)0x00c00000)      /* SCC4 @ SCCd */
 
-#define CICR_IRL_MASK           ((uint)0x0000e000)      /* Core interrrupt */
+#define CICR_IRL_MASK           ((uint)0x0000e000)      /* Core interrupt */
 #define CICR_HP_MASK            ((uint)0x00001f00)      /* Hi-pri int. */
 #define CICR_VBA_MASK           ((uint)0x000000e0)      /* Vector Base Address */
 #define CICR_SPS                ((uint)0x00000001)      /* SCC Spread */

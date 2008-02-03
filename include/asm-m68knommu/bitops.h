@@ -262,7 +262,7 @@ static __inline__ unsigned long ext2_find_next_zero_bit(void *addr, unsigned lon
 		 * tmp = __swab32(*(p++));
 		 * tmp |= ~0UL >> (32-offset);
 		 *
-		 * but this would decrease preformance, so we change the
+		 * but this would decrease performance, so we change the
 		 * shift:
 		 */
 		tmp = *(p++);
