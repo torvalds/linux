@@ -221,7 +221,7 @@ void sp_work_handle_request(void)
 		}
 	}
 
-	/* Run the syscall at the priviledge of the user who loaded the
+	/* Run the syscall at the privilege of the user who loaded the
 	   SP program */
 
 	if (vpe_getuid(tclimit))

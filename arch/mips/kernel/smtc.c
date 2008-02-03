@@ -65,7 +65,7 @@ asiduse smtc_live_asid[MAX_SMTC_TLBS][MAX_SMTC_ASIDS];
 static atomic_t ipi_timer_latch[NR_CPUS];
 
 /*
- * Number of InterProcessor Interupt (IPI) message buffers to allocate
+ * Number of InterProcessor Interrupt (IPI) message buffers to allocate
  */
 
 #define IPIBUF_PER_CPU 4
@@ -780,7 +780,7 @@ void smtc_send_ipi(int cpu, int type, unsigned int action)
 	if (cpu_data[cpu].vpe_id != cpu_data[smp_processor_id()].vpe_id) {
 		if (type == SMTC_CLOCK_TICK)
 			atomic_inc(&ipi_timer_latch[cpu]);
-		/* If not on same VPE, enqueue and send cross-VPE interupt */
+		/* If not on same VPE, enqueue and send cross-VPE interrupt */
 		smtc_ipi_nq(&IPIQ[cpu], pipi);
 		LOCK_CORE_PRA();
 		settc(cpu_data[cpu].tc_id);
@@ -1063,7 +1063,7 @@ static void setup_cross_vpe_interrupts(unsigned int nvpe)
 		return;
 
 	if (!cpu_has_vint)
-		panic("SMTC Kernel requires Vectored Interupt support");
+		panic("SMTC Kernel requires Vectored Interrupt support");
 
 	set_vi_handler(MIPS_CPU_IPI_IRQ, ipi_irq_dispatch);
 

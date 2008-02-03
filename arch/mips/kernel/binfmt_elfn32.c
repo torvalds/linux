@@ -98,7 +98,7 @@ static __inline__ void
 jiffies_to_compat_timeval(unsigned long jiffies, struct compat_timeval *value)
 {
 	/*
-	 * Convert jiffies to nanoseconds and seperate with
+	 * Convert jiffies to nanoseconds and separate with
 	 * one divide.
 	 */
 	u64 nsec = (u64)jiffies * TICK_NSEC;

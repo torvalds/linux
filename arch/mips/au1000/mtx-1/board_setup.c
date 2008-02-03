@@ -99,7 +99,7 @@ mtx1_pci_idsel(unsigned int devsel, int assert)
 #endif
 
        if (assert && devsel != 0) {
-               // supress signal to cardbus
+               // suppress signal to cardbus
                au_writel( 0x00000002, SYS_OUTPUTCLR ); // set EXT_IO3 OFF
        }
        else {
