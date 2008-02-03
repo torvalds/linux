@@ -1187,7 +1187,7 @@ static struct hp_hardware hp_hardware_list[] __devinitdata = {
 	{HPHW_FIO, 0x005, 0x000A9, 0x00, "AllegroLow Core PCI USB KB"}, 
 	{HPHW_FIO, 0x006, 0x000A9, 0x00, "AllegroHigh Core PCI SuperIO RS-232"}, 
 	{HPHW_FIO, 0x006, 0x000A9, 0x00, "AllegroHigh Core PCI USB KB"}, 
-	{HPHW_FIO, 0x007, 0x000A9, 0x0, "Miscelaneous PCI Plug-in"}, 
+	{HPHW_FIO, 0x007, 0x000A9, 0x0, "Miscellaneous PCI Plug-in"},
 	{HPHW_FIO, 0x00A, 0x000A9, 0x0, "Lego 360 Core PCI SuperIO RS-232"}, 
 	{HPHW_FIO, 0x00A, 0x000A9, 0x0, "Lego 360 Core PCI USB KB"}, 
 	{HPHW_FIO, 0x004, 0x00320, 0x0, "Metheus Frame Buffer"}, 
