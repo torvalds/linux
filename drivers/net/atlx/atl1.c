@@ -1144,14 +1144,32 @@ chk_rrd:
 			/* check rrd status */
 			if (likely(rrd->num_buf == 1))
 				goto rrd_ok;
+			else if (netif_msg_rx_err(adapter)) {
+				dev_printk(KERN_DEBUG, &adapter->pdev->dev,
+					"unexpected RRD buffer count\n");
+				dev_printk(KERN_DEBUG, &adapter->pdev->dev,
+					"rx_buf_len = %d\n",
+					adapter->rx_buffer_len);
+				dev_printk(KERN_DEBUG, &adapter->pdev->dev,
+					"RRD num_buf = %d\n",
+					rrd->num_buf);
+				dev_printk(KERN_DEBUG, &adapter->pdev->dev,
+					"RRD pkt_len = %d\n",
+					rrd->xsz.xsum_sz.pkt_size);
+				dev_printk(KERN_DEBUG, &adapter->pdev->dev,
+					"RRD pkt_flg = 0x%08X\n",
+					rrd->pkt_flg);
+				dev_printk(KERN_DEBUG, &adapter->pdev->dev,
+					"RRD err_flg = 0x%08X\n",
+					rrd->err_flg);
+				dev_printk(KERN_DEBUG, &adapter->pdev->dev,
+					"RRD vlan_tag = 0x%08X\n",
+					rrd->vlan_tag);
+			}
 
 			/* rrd seems to be bad */
 			if (unlikely(i-- > 0)) {
 				/* rrd may not be DMAed completely */
-				if (netif_msg_rx_err(adapter))
-					dev_printk(KERN_DEBUG,
-						&adapter->pdev->dev,
-						"unexpected RRD count\n");
 				udelay(1);
 				goto chk_rrd;
 			}
