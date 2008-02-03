@@ -48,20 +48,20 @@ async_memset(struct page *dest, int val, unsigned int offset,
 {
 	struct dma_chan *chan = async_tx_find_channel(depend_tx, DMA_MEMSET);
 	struct dma_device *device = chan ? chan->device : NULL;
-	int int_en = cb_fn ? 1 : 0;
-	struct dma_async_tx_descriptor *tx = device ?
-		device->device_prep_dma_memset(chan, val, len,
-			int_en) : NULL;
+	struct dma_async_tx_descriptor *tx = NULL;
 
-	if (tx) { /* run the memset asynchronously */
-		dma_addr_t dma_addr;
+	if (device) {
+		dma_addr_t dma_dest;
 
-		pr_debug("%s: (async) len: %zu\n", __FUNCTION__, len);
-
-		dma_addr = dma_map_page(device->dev, dest, offset, len,
+		dma_dest = dma_map_page(device->dev, dest, offset, len,
 					DMA_FROM_DEVICE);
-		tx->tx_set_dest(dma_addr, tx, 0);
 
+		tx = device->device_prep_dma_memset(chan, dma_dest, val, len,
+						    cb_fn != NULL);
+	}
+
+	if (tx) {
+		pr_debug("%s: (async) len: %zu\n", __FUNCTION__, len);
 		async_tx_submit(chan, tx, flags, depend_tx, cb_fn, cb_param);
 	} else { /* run the memset synchronously */
 		void *dest_buf;

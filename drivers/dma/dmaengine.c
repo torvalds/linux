@@ -473,20 +473,22 @@ dma_async_memcpy_buf_to_buf(struct dma_chan *chan, void *dest,
 {
 	struct dma_device *dev = chan->device;
 	struct dma_async_tx_descriptor *tx;
-	dma_addr_t addr;
+	dma_addr_t dma_dest, dma_src;
 	dma_cookie_t cookie;
 	int cpu;
 
-	tx = dev->device_prep_dma_memcpy(chan, len, 0);
-	if (!tx)
+	dma_src = dma_map_single(dev->dev, src, len, DMA_TO_DEVICE);
+	dma_dest = dma_map_single(dev->dev, dest, len, DMA_FROM_DEVICE);
+	tx = dev->device_prep_dma_memcpy(chan, dma_dest, dma_src, len, 0);
+
+	if (!tx) {
+		dma_unmap_single(dev->dev, dma_src, len, DMA_TO_DEVICE);
+		dma_unmap_single(dev->dev, dma_dest, len, DMA_FROM_DEVICE);
 		return -ENOMEM;
+	}
 
 	tx->ack = 1;
 	tx->callback = NULL;
-	addr = dma_map_single(dev->dev, src, len, DMA_TO_DEVICE);
-	tx->tx_set_src(addr, tx, 0);
-	addr = dma_map_single(dev->dev, dest, len, DMA_FROM_DEVICE);
-	tx->tx_set_dest(addr, tx, 0);
 	cookie = tx->tx_submit(tx);
 
 	cpu = get_cpu();
@@ -517,20 +519,22 @@ dma_async_memcpy_buf_to_pg(struct dma_chan *chan, struct page *page,
 {
 	struct dma_device *dev = chan->device;
 	struct dma_async_tx_descriptor *tx;
-	dma_addr_t addr;
+	dma_addr_t dma_dest, dma_src;
 	dma_cookie_t cookie;
 	int cpu;
 
-	tx = dev->device_prep_dma_memcpy(chan, len, 0);
-	if (!tx)
+	dma_src = dma_map_single(dev->dev, kdata, len, DMA_TO_DEVICE);
+	dma_dest = dma_map_page(dev->dev, page, offset, len, DMA_FROM_DEVICE);
+	tx = dev->device_prep_dma_memcpy(chan, dma_dest, dma_src, len, 0);
+
+	if (!tx) {
+		dma_unmap_single(dev->dev, dma_src, len, DMA_TO_DEVICE);
+		dma_unmap_page(dev->dev, dma_dest, len, DMA_FROM_DEVICE);
 		return -ENOMEM;
+	}
 
 	tx->ack = 1;
 	tx->callback = NULL;
-	addr = dma_map_single(dev->dev, kdata, len, DMA_TO_DEVICE);
-	tx->tx_set_src(addr, tx, 0);
-	addr = dma_map_page(dev->dev, page, offset, len, DMA_FROM_DEVICE);
-	tx->tx_set_dest(addr, tx, 0);
 	cookie = tx->tx_submit(tx);
 
 	cpu = get_cpu();
@@ -563,20 +567,23 @@ dma_async_memcpy_pg_to_pg(struct dma_chan *chan, struct page *dest_pg,
 {
 	struct dma_device *dev = chan->device;
 	struct dma_async_tx_descriptor *tx;
-	dma_addr_t addr;
+	dma_addr_t dma_dest, dma_src;
 	dma_cookie_t cookie;
 	int cpu;
 
-	tx = dev->device_prep_dma_memcpy(chan, len, 0);
-	if (!tx)
+	dma_src = dma_map_page(dev->dev, src_pg, src_off, len, DMA_TO_DEVICE);
+	dma_dest = dma_map_page(dev->dev, dest_pg, dest_off, len,
+				DMA_FROM_DEVICE);
+	tx = dev->device_prep_dma_memcpy(chan, dma_dest, dma_src, len, 0);
+
+	if (!tx) {
+		dma_unmap_page(dev->dev, dma_src, len, DMA_TO_DEVICE);
+		dma_unmap_page(dev->dev, dma_dest, len, DMA_FROM_DEVICE);
 		return -ENOMEM;
+	}
 
 	tx->ack = 1;
 	tx->callback = NULL;
-	addr = dma_map_page(dev->dev, src_pg, src_off, len, DMA_TO_DEVICE);
-	tx->tx_set_src(addr, tx, 0);
-	addr = dma_map_page(dev->dev, dest_pg, dest_off, len, DMA_FROM_DEVICE);
-	tx->tx_set_dest(addr, tx, 0);
 	cookie = tx->tx_submit(tx);
 
 	cpu = get_cpu();

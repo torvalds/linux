@@ -34,29 +34,46 @@
  * 	This routine is marked __always_inline so it can be compiled away
  * 	when CONFIG_DMA_ENGINE=n
  */
-static __always_inline void
-do_async_xor(struct dma_async_tx_descriptor *tx, struct dma_device *device,
+static __always_inline struct dma_async_tx_descriptor *
+do_async_xor(struct dma_device *device,
 	struct dma_chan *chan, struct page *dest, struct page **src_list,
 	unsigned int offset, unsigned int src_cnt, size_t len,
 	enum async_tx_flags flags, struct dma_async_tx_descriptor *depend_tx,
 	dma_async_tx_callback cb_fn, void *cb_param)
 {
-	dma_addr_t dma_addr;
+	dma_addr_t dma_dest;
+	dma_addr_t *dma_src = (dma_addr_t *) src_list;
+	struct dma_async_tx_descriptor *tx;
 	int i;
 
 	pr_debug("%s: len: %zu\n", __FUNCTION__, len);
 
-	dma_addr = dma_map_page(device->dev, dest, offset, len,
+	dma_dest = dma_map_page(device->dev, dest, offset, len,
 				DMA_FROM_DEVICE);
-	tx->tx_set_dest(dma_addr, tx, 0);
 
-	for (i = 0; i < src_cnt; i++) {
-		dma_addr = dma_map_page(device->dev, src_list[i],
-			offset, len, DMA_TO_DEVICE);
-		tx->tx_set_src(dma_addr, tx, i);
+	for (i = 0; i < src_cnt; i++)
+		dma_src[i] = dma_map_page(device->dev, src_list[i], offset,
+					  len, DMA_TO_DEVICE);
+
+	/* Since we have clobbered the src_list we are committed
+	 * to doing this asynchronously.  Drivers force forward progress
+	 * in case they can not provide a descriptor
+	 */
+	tx = device->device_prep_dma_xor(chan, dma_dest, dma_src, src_cnt, len,
+					 cb_fn != NULL);
+	if (!tx) {
+		if (depend_tx)
+			dma_wait_for_async_tx(depend_tx);
+
+		while (!tx)
+			tx = device->device_prep_dma_xor(chan, dma_dest,
+							 dma_src, src_cnt, len,
+							 cb_fn != NULL);
 	}
 
 	async_tx_submit(chan, tx, flags, depend_tx, cb_fn, cb_param);
+
+	return tx;
 }
 
 static void
@@ -118,7 +135,7 @@ async_xor(struct page *dest, struct page **src_list, unsigned int offset,
 	void *_cb_param;
 	unsigned long local_flags;
 	int xor_src_cnt;
-	int i = 0, src_off = 0, int_en;
+	int i = 0, src_off = 0;
 
 	BUG_ON(src_cnt <= 1);
 
@@ -138,20 +155,11 @@ async_xor(struct page *dest, struct page **src_list, unsigned int offset,
 				_cb_param = cb_param;
 			}
 
-			int_en = _cb_fn ? 1 : 0;
-
-			tx = device->device_prep_dma_xor(
-				chan, xor_src_cnt, len, int_en);
-
-			if (tx) {
-				do_async_xor(tx, device, chan, dest,
-				&src_list[src_off], offset, xor_src_cnt, len,
-				local_flags, depend_tx, _cb_fn,
-				_cb_param);
-			} else /* fall through */
-				goto xor_sync;
+			tx = do_async_xor(device, chan, dest,
+					  &src_list[src_off], offset,
+					  xor_src_cnt, len, local_flags,
+					  depend_tx, _cb_fn, _cb_param);
 		} else { /* run the xor synchronously */
-xor_sync:
 			/* in the sync case the dest is an implied source
 			 * (assumes the dest is at the src_off index)
 			 */
@@ -254,23 +262,31 @@ async_xor_zero_sum(struct page *dest, struct page **src_list,
 {
 	struct dma_chan *chan = async_tx_find_channel(depend_tx, DMA_ZERO_SUM);
 	struct dma_device *device = chan ? chan->device : NULL;
-	int int_en = cb_fn ? 1 : 0;
-	struct dma_async_tx_descriptor *tx = device ?
-		device->device_prep_dma_zero_sum(chan, src_cnt, len, result,
-			int_en) : NULL;
-	int i;
+	struct dma_async_tx_descriptor *tx = NULL;
 
 	BUG_ON(src_cnt <= 1);
 
-	if (tx) {
-		dma_addr_t dma_addr;
+	if (device) {
+		dma_addr_t *dma_src = (dma_addr_t *) src_list;
+		int i;
 
 		pr_debug("%s: (async) len: %zu\n", __FUNCTION__, len);
 
-		for (i = 0; i < src_cnt; i++) {
-			dma_addr = dma_map_page(device->dev, src_list[i],
-				offset, len, DMA_TO_DEVICE);
-			tx->tx_set_src(dma_addr, tx, i);
+		for (i = 0; i < src_cnt; i++)
+			dma_src[i] = dma_map_page(device->dev, src_list[i],
+						  offset, len, DMA_TO_DEVICE);
+
+		tx = device->device_prep_dma_zero_sum(chan, dma_src, src_cnt,
+						      len, result,
+						      cb_fn != NULL);
+		if (!tx) {
+			if (depend_tx)
+				dma_wait_for_async_tx(depend_tx);
+
+			while (!tx)
+				tx = device->device_prep_dma_zero_sum(chan,
+					dma_src, src_cnt, len, result,
+					cb_fn != NULL);
 		}
 
 		async_tx_submit(chan, tx, flags, depend_tx, cb_fn, cb_param);
@@ -305,6 +321,16 @@ EXPORT_SYMBOL_GPL(async_xor_zero_sum);
 
 static int __init async_xor_init(void)
 {
+	#ifdef CONFIG_DMA_ENGINE
+	/* To conserve stack space the input src_list (array of page pointers)
+	 * is reused to hold the array of dma addresses passed to the driver.
+	 * This conversion is only possible when dma_addr_t is less than the
+	 * the size of a pointer.  HIGHMEM64G is known to violate this
+	 * assumption.
+	 */
+	BUILD_BUG_ON(sizeof(dma_addr_t) > sizeof(struct page *));
+	#endif
+
 	return 0;
 }
 

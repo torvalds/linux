@@ -48,26 +48,25 @@ async_memcpy(struct page *dest, struct page *src, unsigned int dest_offset,
 {
 	struct dma_chan *chan = async_tx_find_channel(depend_tx, DMA_MEMCPY);
 	struct dma_device *device = chan ? chan->device : NULL;
-	int int_en = cb_fn ? 1 : 0;
-	struct dma_async_tx_descriptor *tx = device ?
-		device->device_prep_dma_memcpy(chan, len,
-		int_en) : NULL;
+	struct dma_async_tx_descriptor *tx = NULL;
 
-	if (tx) { /* run the memcpy asynchronously */
-		dma_addr_t addr;
+	if (device) {
+		dma_addr_t dma_dest, dma_src;
 
+		dma_dest = dma_map_page(device->dev, dest, dest_offset, len,
+					DMA_FROM_DEVICE);
+
+		dma_src = dma_map_page(device->dev, src, src_offset, len,
+				       DMA_TO_DEVICE);
+
+		tx = device->device_prep_dma_memcpy(chan, dma_dest, dma_src,
+						    len, cb_fn != NULL);
+	}
+
+	if (tx) {
 		pr_debug("%s: (async) len: %zu\n", __FUNCTION__, len);
-
-		addr = dma_map_page(device->dev, dest, dest_offset, len,
-				    DMA_FROM_DEVICE);
-		tx->tx_set_dest(addr, tx, 0);
-
-		addr = dma_map_page(device->dev, src, src_offset, len,
-				    DMA_TO_DEVICE);
-		tx->tx_set_src(addr, tx, 0);
-
 		async_tx_submit(chan, tx, flags, depend_tx, cb_fn, cb_param);
-	} else { /* run the memcpy synchronously */
+	} else {
 		void *dest_buf, *src_buf;
 		pr_debug("%s: (sync) len: %zu\n", __FUNCTION__, len);
 
