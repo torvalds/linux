@@ -364,8 +364,6 @@ sharedsubtree.txt
 	- a description of shared subtrees for namespaces.
 smart-config.txt
 	- description of the Smart Config makefile feature.
-smp.txt
-	- a few notes on symmetric multi-processing.
 sony-laptop.txt
 	- Sony Notebook Control Driver (SNC) Readme.
 sonypi.txt
