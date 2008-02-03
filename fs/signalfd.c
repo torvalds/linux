@@ -66,7 +66,7 @@ static int signalfd_copyinfo(struct signalfd_siginfo __user *uinfo,
 	BUILD_BUG_ON(sizeof(struct signalfd_siginfo) != 128);
 
 	/*
-	 * Unused memebers should be zero ...
+	 * Unused members should be zero ...
 	 */
 	err = __clear_user(uinfo, sizeof(*uinfo));
 

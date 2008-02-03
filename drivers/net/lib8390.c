@@ -148,7 +148,7 @@ static void __NS8390_init(struct net_device *dev, int startp);
  *
  *	"The author (me) didn't use spin_lock_irqsave because the slowness of the
  *	card means that approach caused horrible problems like losing serial data
- *	at 38400 baud on some chips. Rememeber many 8390 nics on PCI were ISA
+ *	at 38400 baud on some chips. Remember many 8390 nics on PCI were ISA
  *	chips with FPGA front ends.
  *	
  *	Ok the logic behind the 8390 is very simple:
