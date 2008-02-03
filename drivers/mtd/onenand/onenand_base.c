@@ -170,6 +170,18 @@ static int onenand_buffer_address(int dataram1, int sectors, int count)
 }
 
 /**
+ * onenand_get_density - [DEFAULT] Get OneNAND density
+ * @param dev_id	OneNAND device ID
+ *
+ * Get OneNAND density from device ID
+ */
+static inline int onenand_get_density(int dev_id)
+{
+	int density = dev_id >> ONENAND_DEVICE_DENSITY_SHIFT;
+	return (density & ONENAND_DEVICE_DENSITY_MASK);
+}
+
+/**
  * onenand_command - [DEFAULT] Send command to OneNAND device
  * @param mtd		MTD device structure
  * @param cmd		the command to be sent
@@ -182,8 +194,7 @@ static int onenand_buffer_address(int dataram1, int sectors, int count)
 static int onenand_command(struct mtd_info *mtd, int cmd, loff_t addr, size_t len)
 {
 	struct onenand_chip *this = mtd->priv;
-	int value, readcmd = 0, block_cmd = 0;
-	int block, page;
+	int value, block, page;
 
 	/* Address translation */
 	switch (cmd) {
@@ -198,7 +209,6 @@ static int onenand_command(struct mtd_info *mtd, int cmd, loff_t addr, size_t le
 	case ONENAND_CMD_ERASE:
 	case ONENAND_CMD_BUFFERRAM:
 	case ONENAND_CMD_OTP_ACCESS:
-		block_cmd = 1;
 		block = (int) (addr >> this->erase_shift);
 		page = -1;
 		break;
@@ -240,11 +250,9 @@ static int onenand_command(struct mtd_info *mtd, int cmd, loff_t addr, size_t le
 		value = onenand_block_address(this, block);
 		this->write_word(value, this->base + ONENAND_REG_START_ADDRESS1);
 
-		if (block_cmd) {
-			/* Select DataRAM for DDP */
-			value = onenand_bufferram_address(this, block);
-			this->write_word(value, this->base + ONENAND_REG_START_ADDRESS2);
-		}
+		/* Select DataRAM for DDP */
+		value = onenand_bufferram_address(this, block);
+		this->write_word(value, this->base + ONENAND_REG_START_ADDRESS2);
 	}
 
 	if (page != -1) {
@@ -256,7 +264,6 @@ static int onenand_command(struct mtd_info *mtd, int cmd, loff_t addr, size_t le
 		case ONENAND_CMD_READ:
 		case ONENAND_CMD_READOOB:
 			dataram = ONENAND_SET_NEXT_BUFFERRAM(this);
-			readcmd = 1;
 			break;
 
 		default:
@@ -273,12 +280,6 @@ static int onenand_command(struct mtd_info *mtd, int cmd, loff_t addr, size_t le
 		/* Write 'BSA, BSC' of DataRAM */
 		value = onenand_buffer_address(dataram, sectors, count);
 		this->write_word(value, this->base + ONENAND_REG_START_BUFFER);
-
-		if (readcmd) {
-			/* Select DataRAM for DDP */
-			value = onenand_bufferram_address(this, block);
-			this->write_word(value, this->base + ONENAND_REG_START_ADDRESS2);
-		}
 	}
 
 	/* Interrupt clear */
@@ -1118,12 +1119,10 @@ static int onenand_bbt_wait(struct mtd_info *mtd, int state)
 	interrupt = this->read_word(this->base + ONENAND_REG_INTERRUPT);
 	ctrl = this->read_word(this->base + ONENAND_REG_CTRL_STATUS);
 
+	/* Initial bad block case: 0x2400 or 0x0400 */
 	if (ctrl & ONENAND_CTRL_ERROR) {
 		printk(KERN_DEBUG "onenand_bbt_wait: controller error = 0x%04x\n", ctrl);
-		/* Initial bad block case */
-		if (ctrl & ONENAND_CTRL_LOAD)
-			return ONENAND_BBT_READ_ERROR;
-		return ONENAND_BBT_READ_FATAL_ERROR;
+		return ONENAND_BBT_READ_ERROR;
 	}
 
 	if (interrupt & ONENAND_INT_READ) {
@@ -1218,7 +1217,7 @@ int onenand_bbt_read_oob(struct mtd_info *mtd, loff_t from,
 static int onenand_verify_oob(struct mtd_info *mtd, const u_char *buf, loff_t to)
 {
 	struct onenand_chip *this = mtd->priv;
-	char oobbuf[64];
+	u_char *oob_buf = this->oob_buf;
 	int status, i;
 
 	this->command(mtd, ONENAND_CMD_READOOB, to, mtd->oobsize);
@@ -1227,9 +1226,9 @@ static int onenand_verify_oob(struct mtd_info *mtd, const u_char *buf, loff_t to
 	if (status)
 		return status;
 
-	this->read_bufferram(mtd, ONENAND_SPARERAM, oobbuf, 0, mtd->oobsize);
+	this->read_bufferram(mtd, ONENAND_SPARERAM, oob_buf, 0, mtd->oobsize);
 	for (i = 0; i < mtd->oobsize; i++)
-		if (buf[i] != 0xFF && buf[i] != oobbuf[i])
+		if (buf[i] != 0xFF && buf[i] != oob_buf[i])
 			return -EBADMSG;
 
 	return 0;
@@ -1431,7 +1430,7 @@ static int onenand_write_ops_nolock(struct mtd_info *mtd, loff_t to,
 		}
 
 		/* Only check verify write turn on */
-		ret = onenand_verify(mtd, (u_char *) wbuf, to, thislen);
+		ret = onenand_verify(mtd, buf, to, thislen);
 		if (ret) {
 			printk(KERN_ERR "onenand_write_ops_nolock: verify failed %d\n", ret);
 			break;
@@ -1446,9 +1445,6 @@ static int onenand_write_ops_nolock(struct mtd_info *mtd, loff_t to,
 		to += thislen;
 		buf += thislen;
 	}
-
-	/* Deselect and wake up anyone waiting on the device */
-	onenand_release_device(mtd);
 
 	ops->retlen = written;
 
@@ -2160,7 +2156,7 @@ static int onenand_otp_walk(struct mtd_info *mtd, loff_t from, size_t len,
 
 	*retlen = 0;
 
-	density = this->device_id >> ONENAND_DEVICE_DENSITY_SHIFT;
+	density = onenand_get_density(this->device_id);
 	if (density < ONENAND_DEVICE_DENSITY_512Mb)
 		otp_pages = 20;
 	else
@@ -2311,7 +2307,8 @@ static int onenand_write_user_prot_reg(struct mtd_info *mtd, loff_t from,
 static int onenand_lock_user_prot_reg(struct mtd_info *mtd, loff_t from,
 			size_t len)
 {
-	unsigned char oob_buf[64];
+	struct onenand_chip *this = mtd->priv;
+	u_char *oob_buf = this->oob_buf;
 	size_t retlen;
 	int ret;
 
@@ -2351,7 +2348,7 @@ static void onenand_check_features(struct mtd_info *mtd)
 	unsigned int density, process;
 
 	/* Lock scheme depends on density and process */
-	density = this->device_id >> ONENAND_DEVICE_DENSITY_SHIFT;
+	density = onenand_get_density(this->device_id);
 	process = this->version_id >> ONENAND_VERSION_PROCESS_SHIFT;
 
 	/* Lock scheme */
@@ -2400,7 +2397,7 @@ static void onenand_print_device_info(int device, int version)
         vcc = device & ONENAND_DEVICE_VCC_MASK;
         demuxed = device & ONENAND_DEVICE_IS_DEMUX;
         ddp = device & ONENAND_DEVICE_IS_DDP;
-        density = device >> ONENAND_DEVICE_DENSITY_SHIFT;
+        density = onenand_get_density(device);
         printk(KERN_INFO "%sOneNAND%s %dMB %sV 16-bit (0x%02x)\n",
                 demuxed ? "" : "Muxed ",
                 ddp ? "(DDP)" : "",
@@ -2492,7 +2489,7 @@ static int onenand_probe(struct mtd_info *mtd)
 	this->device_id = dev_id;
 	this->version_id = ver_id;
 
-	density = dev_id >> ONENAND_DEVICE_DENSITY_SHIFT;
+	density = onenand_get_density(dev_id);
 	this->chipsize = (16 << density) << 20;
 	/* Set density mask. it is used for DDP */
 	if (ONENAND_IS_DDP(this))
