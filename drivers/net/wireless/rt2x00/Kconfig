@@ -38,6 +38,13 @@ config RT2X00_LIB_RFKILL
 	select RFKILL
 	select INPUT_POLLDEV
 
+config RT2X00_LIB_LEDS
+	boolean
+	depends on RT2X00_LIB
+	select LEDS_CLASS
+	select LEDS_TRIGGERS
+	select MAC80211_LEDS
+
 config RT2400PCI
 	tristate "Ralink rt2400 pci/pcmcia support"
 	depends on RT2X00 && PCI
@@ -56,6 +63,13 @@ config RT2400PCI_RFKILL
 	  This adds support for integrated rt2400 devices that feature a
 	  hardware button to control the radio state.
 	  This feature depends on the RF switch subsystem rfkill.
+
+config RT2400PCI_LEDS
+	bool "RT2400 leds support"
+	depends on RT2400PCI
+	select RT2X00_LIB_LEDS
+	---help---
+	  This adds support for led triggers provided my mac80211.
 
 config RT2500PCI
 	tristate "Ralink rt2500 pci/pcmcia support"
@@ -76,6 +90,13 @@ config RT2500PCI_RFKILL
 	  hardware button to control the radio state.
 	  This feature depends on the RF switch subsystem rfkill.
 
+config RT2500PCI_LEDS
+	bool "RT2500 leds support"
+	depends on RT2500PCI
+	select RT2X00_LIB_LEDS
+	---help---
+	  This adds support for led triggers provided my mac80211.
+
 config RT61PCI
 	tristate "Ralink rt61 pci/pcmcia support"
 	depends on RT2X00 && PCI
@@ -95,6 +116,13 @@ config RT61PCI_RFKILL
 	  This adds support for integrated rt61 devices that feature a
 	  hardware button to control the radio state.
 	  This feature depends on the RF switch subsystem rfkill.
+
+config RT61PCI_LEDS
+	bool "RT61 leds support"
+	depends on RT61PCI
+	select RT2X00_LIB_LEDS
+	---help---
+	  This adds support for led triggers provided my mac80211.
 
 config RT2500USB
 	tristate "Ralink rt2500 usb support"

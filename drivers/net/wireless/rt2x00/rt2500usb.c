@@ -282,6 +282,31 @@ static const struct rt2x00debug rt2500usb_rt2x00debug = {
 };
 #endif /* CONFIG_RT2X00_LIB_DEBUGFS */
 
+#ifdef CONFIG_RT2500USB_LEDS
+static void rt2500usb_led_brightness(struct led_classdev *led_cdev,
+				     enum led_brightness brightness)
+{
+	struct rt2x00_led *led =
+	    container_of(led_cdev, struct rt2x00_led, led_dev);
+	unsigned int enabled = brightness != LED_OFF;
+	unsigned int activity =
+	    led->rt2x00dev->led_flags & LED_SUPPORT_ACTIVITY;
+	u16 reg;
+
+	rt2500usb_register_read(led->rt2x00dev, MAC_CSR20, &reg);
+
+	if (led->type == LED_TYPE_RADIO || led->type == LED_TYPE_ASSOC) {
+		rt2x00_set_field16(&reg, MAC_CSR20_LINK, enabled);
+		rt2x00_set_field16(&reg, MAC_CSR20_ACTIVITY,
+				   enabled && activity);
+	}
+
+	rt2500usb_register_write(led->rt2x00dev, MAC_CSR20, reg);
+}
+#else
+#define rt2500usb_led_brightness	NULL
+#endif /* CONFIG_RT2500USB_LEDS */
+
 /*
  * Configuration handlers.
  */
@@ -526,36 +551,6 @@ static void rt2500usb_config(struct rt2x00_dev *rt2x00dev,
 }
 
 /*
- * LED functions.
- */
-static void rt2500usb_enable_led(struct rt2x00_dev *rt2x00dev)
-{
-	u16 reg;
-
-	rt2500usb_register_read(rt2x00dev, MAC_CSR21, &reg);
-	rt2x00_set_field16(&reg, MAC_CSR21_ON_PERIOD, 70);
-	rt2x00_set_field16(&reg, MAC_CSR21_OFF_PERIOD, 30);
-	rt2500usb_register_write(rt2x00dev, MAC_CSR21, reg);
-
-	rt2500usb_register_read(rt2x00dev, MAC_CSR20, &reg);
-	rt2x00_set_field16(&reg, MAC_CSR20_LINK,
-			   (rt2x00dev->led_mode != LED_MODE_ASUS));
-	rt2x00_set_field16(&reg, MAC_CSR20_ACTIVITY,
-			   (rt2x00dev->led_mode != LED_MODE_TXRX_ACTIVITY));
-	rt2500usb_register_write(rt2x00dev, MAC_CSR20, reg);
-}
-
-static void rt2500usb_disable_led(struct rt2x00_dev *rt2x00dev)
-{
-	u16 reg;
-
-	rt2500usb_register_read(rt2x00dev, MAC_CSR20, &reg);
-	rt2x00_set_field16(&reg, MAC_CSR20_LINK, 0);
-	rt2x00_set_field16(&reg, MAC_CSR20_ACTIVITY, 0);
-	rt2500usb_register_write(rt2x00dev, MAC_CSR20, reg);
-}
-
-/*
  * Link tuning
  */
 static void rt2500usb_link_stats(struct rt2x00_dev *rt2x00dev,
@@ -751,6 +746,11 @@ static int rt2500usb_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field16(&reg, MAC_CSR1_HOST_READY, 0);
 	rt2500usb_register_write(rt2x00dev, MAC_CSR1, reg);
 
+	rt2500usb_register_read(rt2x00dev, MAC_CSR21, &reg);
+	rt2x00_set_field16(&reg, MAC_CSR21_ON_PERIOD, 70);
+	rt2x00_set_field16(&reg, MAC_CSR21_OFF_PERIOD, 30);
+	rt2500usb_register_write(rt2x00dev, MAC_CSR21, reg);
+
 	rt2500usb_register_read(rt2x00dev, TXRX_CSR5, &reg);
 	rt2x00_set_field16(&reg, TXRX_CSR5_BBP_ID0, 13);
 	rt2x00_set_field16(&reg, TXRX_CSR5_BBP_ID0_VALID, 1);
@@ -924,21 +924,11 @@ static int rt2500usb_enable_radio(struct rt2x00_dev *rt2x00dev)
 		return -EIO;
 	}
 
-	/*
-	 * Enable LED
-	 */
-	rt2500usb_enable_led(rt2x00dev);
-
 	return 0;
 }
 
 static void rt2500usb_disable_radio(struct rt2x00_dev *rt2x00dev)
 {
-	/*
-	 * Disable LED
-	 */
-	rt2500usb_disable_led(rt2x00dev);
-
 	rt2500usb_register_write(rt2x00dev, MAC_CSR13, 0x2121);
 	rt2500usb_register_write(rt2x00dev, MAC_CSR14, 0x2121);
 
@@ -1370,8 +1360,24 @@ static int rt2500usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Store led mode, for correct led behaviour.
 	 */
-	rt2x00dev->led_mode =
-	    rt2x00_get_field16(eeprom, EEPROM_ANTENNA_LED_MODE);
+#ifdef CONFIG_RT2500USB_LEDS
+	value = rt2x00_get_field16(eeprom, EEPROM_ANTENNA_LED_MODE);
+
+	switch (value) {
+	case LED_MODE_ASUS:
+	case LED_MODE_ALPHA:
+	case LED_MODE_DEFAULT:
+		rt2x00dev->led_flags = LED_SUPPORT_RADIO;
+		break;
+	case LED_MODE_TXRX_ACTIVITY:
+		rt2x00dev->led_flags =
+		    LED_SUPPORT_RADIO | LED_SUPPORT_ACTIVITY;
+		break;
+	case LED_MODE_SIGNAL_STRENGTH:
+		rt2x00dev->led_flags = LED_SUPPORT_RADIO;
+		break;
+	}
+#endif /* CONFIG_RT2500USB_LEDS */
 
 	/*
 	 * Check if the BBP tuning should be disabled.
@@ -1817,6 +1823,7 @@ static const struct rt2x00lib_ops rt2500usb_rt2x00_ops = {
 	.link_stats		= rt2500usb_link_stats,
 	.reset_tuner		= rt2500usb_reset_tuner,
 	.link_tuner		= rt2500usb_link_tuner,
+	.led_brightness		= rt2500usb_led_brightness,
 	.write_tx_desc		= rt2500usb_write_tx_desc,
 	.write_tx_data		= rt2x00usb_write_tx_data,
 	.get_tx_data_len	= rt2500usb_get_tx_data_len,

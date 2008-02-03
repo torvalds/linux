@@ -30,12 +30,14 @@
 #include <linux/skbuff.h>
 #include <linux/workqueue.h>
 #include <linux/firmware.h>
+#include <linux/leds.h>
 #include <linux/mutex.h>
 #include <linux/etherdevice.h>
 
 #include <net/mac80211.h>
 
 #include "rt2x00debug.h"
+#include "rt2x00leds.h"
 #include "rt2x00reg.h"
 #include "rt2x00queue.h"
 
@@ -512,6 +514,8 @@ struct rt2x00lib_ops {
 			    struct link_qual *qual);
 	void (*reset_tuner) (struct rt2x00_dev *rt2x00dev);
 	void (*link_tuner) (struct rt2x00_dev *rt2x00dev);
+	void (*led_brightness) (struct led_classdev *led_cdev,
+				enum led_brightness brightness);
 
 	/*
 	 * TX control handlers
@@ -665,6 +669,19 @@ struct rt2x00_dev {
 #endif /* CONFIG_RT2X00_LIB_DEBUGFS */
 
 	/*
+	 * LED structure for changing the LED status
+	 * by mac8011 or the kernel.
+	 */
+#ifdef CONFIG_RT2X00_LIB_LEDS
+	unsigned int led_flags;
+	struct rt2x00_trigger trigger_qual;
+	struct rt2x00_led led_radio;
+	struct rt2x00_led led_assoc;
+	struct rt2x00_led led_qual;
+	u16 led_mcu_reg;
+#endif /* CONFIG_RT2X00_LIB_LEDS */
+
+	/*
 	 * Device flags.
 	 * In these flags the current status and some
 	 * of the device capabilities are stored.
@@ -754,16 +771,6 @@ struct rt2x00_dev {
 	 * Current TX power value.
 	 */
 	u16 tx_power;
-
-	/*
-	 * LED register (for rt61pci & rt73usb).
-	 */
-	u16 led_reg;
-
-	/*
-	 * Led mode (LED_MODE_*)
-	 */
-	u8 led_mode;
 
 	/*
 	 * Rssi <-> Dbm offset

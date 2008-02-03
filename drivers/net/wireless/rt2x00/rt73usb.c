@@ -278,6 +278,50 @@ static const struct rt2x00debug rt73usb_rt2x00debug = {
 };
 #endif /* CONFIG_RT2X00_LIB_DEBUGFS */
 
+#ifdef CONFIG_RT73USB_LEDS
+static void rt73usb_led_brightness(struct led_classdev *led_cdev,
+				   enum led_brightness brightness)
+{
+	struct rt2x00_led *led =
+	   container_of(led_cdev, struct rt2x00_led, led_dev);
+	unsigned int enabled = brightness != LED_OFF;
+	unsigned int a_mode =
+	    (enabled && led->rt2x00dev->curr_band == IEEE80211_BAND_5GHZ);
+	unsigned int bg_mode =
+	    (enabled && led->rt2x00dev->curr_band == IEEE80211_BAND_2GHZ);
+
+	if (led->type == LED_TYPE_RADIO) {
+		rt2x00_set_field16(&led->rt2x00dev->led_mcu_reg,
+				   MCU_LEDCS_RADIO_STATUS, enabled);
+
+		rt2x00usb_vendor_request_sw(led->rt2x00dev, USB_LED_CONTROL, 0,
+					    led->rt2x00dev->led_mcu_reg,
+					    REGISTER_TIMEOUT);
+	} else if (led->type == LED_TYPE_ASSOC) {
+		rt2x00_set_field16(&led->rt2x00dev->led_mcu_reg,
+				   MCU_LEDCS_LINK_BG_STATUS, bg_mode);
+		rt2x00_set_field16(&led->rt2x00dev->led_mcu_reg,
+				   MCU_LEDCS_LINK_A_STATUS, a_mode);
+
+		rt2x00usb_vendor_request_sw(led->rt2x00dev, USB_LED_CONTROL, 0,
+					    led->rt2x00dev->led_mcu_reg,
+					    REGISTER_TIMEOUT);
+	} else if (led->type == LED_TYPE_QUALITY) {
+		/*
+		 * The brightness is divided into 6 levels (0 - 5),
+		 * this means we need to convert the brightness
+		 * argument into the matching level within that range.
+		 */
+		rt2x00usb_vendor_request_sw(led->rt2x00dev, USB_LED_CONTROL,
+					    brightness / (LED_FULL / 6),
+					    led->rt2x00dev->led_mcu_reg,
+					    REGISTER_TIMEOUT);
+	}
+}
+#else
+#define rt73usb_led_brightness	NULL
+#endif /* CONFIG_RT73USB_LEDS */
+
 /*
  * Configuration handlers.
  */
@@ -630,68 +674,6 @@ static void rt73usb_config(struct rt2x00_dev *rt2x00dev,
 }
 
 /*
- * LED functions.
- */
-static void rt73usb_enable_led(struct rt2x00_dev *rt2x00dev)
-{
-	u32 reg;
-
-	rt73usb_register_read(rt2x00dev, MAC_CSR14, &reg);
-	rt2x00_set_field32(&reg, MAC_CSR14_ON_PERIOD, 70);
-	rt2x00_set_field32(&reg, MAC_CSR14_OFF_PERIOD, 30);
-	rt73usb_register_write(rt2x00dev, MAC_CSR14, reg);
-
-	rt2x00_set_field16(&rt2x00dev->led_reg, MCU_LEDCS_RADIO_STATUS, 1);
-	rt2x00_set_field16(&rt2x00dev->led_reg, MCU_LEDCS_LINK_A_STATUS,
-			   (rt2x00dev->rx_status.band == IEEE80211_BAND_5GHZ));
-	rt2x00_set_field16(&rt2x00dev->led_reg, MCU_LEDCS_LINK_BG_STATUS,
-			   (rt2x00dev->rx_status.band != IEEE80211_BAND_5GHZ));
-
-	rt2x00usb_vendor_request_sw(rt2x00dev, USB_LED_CONTROL, 0x0000,
-				    rt2x00dev->led_reg, REGISTER_TIMEOUT);
-}
-
-static void rt73usb_disable_led(struct rt2x00_dev *rt2x00dev)
-{
-	rt2x00_set_field16(&rt2x00dev->led_reg, MCU_LEDCS_RADIO_STATUS, 0);
-	rt2x00_set_field16(&rt2x00dev->led_reg, MCU_LEDCS_LINK_BG_STATUS, 0);
-	rt2x00_set_field16(&rt2x00dev->led_reg, MCU_LEDCS_LINK_A_STATUS, 0);
-
-	rt2x00usb_vendor_request_sw(rt2x00dev, USB_LED_CONTROL, 0x0000,
-				    rt2x00dev->led_reg, REGISTER_TIMEOUT);
-}
-
-static void rt73usb_activity_led(struct rt2x00_dev *rt2x00dev, int rssi)
-{
-	u32 led;
-
-	if (rt2x00dev->led_mode != LED_MODE_SIGNAL_STRENGTH)
-		return;
-
-	/*
-	 * Led handling requires a positive value for the rssi,
-	 * to do that correctly we need to add the correction.
-	 */
-	rssi += rt2x00dev->rssi_offset;
-
-	if (rssi <= 30)
-		led = 0;
-	else if (rssi <= 39)
-		led = 1;
-	else if (rssi <= 49)
-		led = 2;
-	else if (rssi <= 53)
-		led = 3;
-	else if (rssi <= 63)
-		led = 4;
-	else
-		led = 5;
-
-	rt2x00usb_vendor_request_sw(rt2x00dev, USB_LED_CONTROL, led,
-				    rt2x00dev->led_reg, REGISTER_TIMEOUT);
-}
-
-/*
  * Link tuning
  */
 static void rt73usb_link_stats(struct rt2x00_dev *rt2x00dev,
@@ -724,11 +706,6 @@ static void rt73usb_link_tuner(struct rt2x00_dev *rt2x00dev)
 	u8 r17;
 	u8 up_bound;
 	u8 low_bound;
-
-	/*
-	 * Update Led strength
-	 */
-	rt73usb_activity_led(rt2x00dev, rssi);
 
 	rt73usb_bbp_read(rt2x00dev, 17, &r17);
 
@@ -914,8 +891,6 @@ static int rt73usb_load_firmware(struct rt2x00_dev *rt2x00dev, void *data,
 		return status;
 	}
 
-	rt73usb_disable_led(rt2x00dev);
-
 	return 0;
 }
 
@@ -992,6 +967,11 @@ static int rt73usb_init_registers(struct rt2x00_dev *rt2x00dev)
 		return -EBUSY;
 
 	rt73usb_register_write(rt2x00dev, MAC_CSR13, 0x00007f00);
+
+	rt73usb_register_read(rt2x00dev, MAC_CSR14, &reg);
+	rt2x00_set_field32(&reg, MAC_CSR14_ON_PERIOD, 70);
+	rt2x00_set_field32(&reg, MAC_CSR14_OFF_PERIOD, 30);
+	rt73usb_register_write(rt2x00dev, MAC_CSR14, reg);
 
 	/*
 	 * Invalidate all Shared Keys (SEC_CSR0),
@@ -1152,21 +1132,11 @@ static int rt73usb_enable_radio(struct rt2x00_dev *rt2x00dev)
 		return -EIO;
 	}
 
-	/*
-	 * Enable LED
-	 */
-	rt73usb_enable_led(rt2x00dev);
-
 	return 0;
 }
 
 static void rt73usb_disable_radio(struct rt2x00_dev *rt2x00dev)
 {
-	/*
-	 * Disable LED
-	 */
-	rt73usb_disable_led(rt2x00dev);
-
 	rt73usb_register_write(rt2x00dev, MAC_CSR10, 0x00001818);
 
 	/*
@@ -1615,33 +1585,49 @@ static int rt73usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Store led settings, for correct led behaviour.
 	 */
+#ifdef CONFIG_RT73USB_LEDS
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED, &eeprom);
 
-	rt2x00_set_field16(&rt2x00dev->led_reg, MCU_LEDCS_LED_MODE,
-			   rt2x00dev->led_mode);
-	rt2x00_set_field16(&rt2x00dev->led_reg, MCU_LEDCS_POLARITY_GPIO_0,
+	switch (value) {
+	case LED_MODE_TXRX_ACTIVITY:
+	case LED_MODE_ASUS:
+	case LED_MODE_ALPHA:
+	case LED_MODE_DEFAULT:
+		rt2x00dev->led_flags =
+		    LED_SUPPORT_RADIO | LED_SUPPORT_ASSOC;
+		break;
+	case LED_MODE_SIGNAL_STRENGTH:
+		rt2x00dev->led_flags =
+		    LED_SUPPORT_RADIO | LED_SUPPORT_ASSOC |
+		    LED_SUPPORT_QUALITY;
+		break;
+	}
+
+	rt2x00_set_field16(&rt2x00dev->led_mcu_reg, MCU_LEDCS_LED_MODE, value);
+	rt2x00_set_field16(&rt2x00dev->led_mcu_reg, MCU_LEDCS_POLARITY_GPIO_0,
 			   rt2x00_get_field16(eeprom,
 					      EEPROM_LED_POLARITY_GPIO_0));
-	rt2x00_set_field16(&rt2x00dev->led_reg, MCU_LEDCS_POLARITY_GPIO_1,
+	rt2x00_set_field16(&rt2x00dev->led_mcu_reg, MCU_LEDCS_POLARITY_GPIO_1,
 			   rt2x00_get_field16(eeprom,
 					      EEPROM_LED_POLARITY_GPIO_1));
-	rt2x00_set_field16(&rt2x00dev->led_reg, MCU_LEDCS_POLARITY_GPIO_2,
+	rt2x00_set_field16(&rt2x00dev->led_mcu_reg, MCU_LEDCS_POLARITY_GPIO_2,
 			   rt2x00_get_field16(eeprom,
 					      EEPROM_LED_POLARITY_GPIO_2));
-	rt2x00_set_field16(&rt2x00dev->led_reg, MCU_LEDCS_POLARITY_GPIO_3,
+	rt2x00_set_field16(&rt2x00dev->led_mcu_reg, MCU_LEDCS_POLARITY_GPIO_3,
 			   rt2x00_get_field16(eeprom,
 					      EEPROM_LED_POLARITY_GPIO_3));
-	rt2x00_set_field16(&rt2x00dev->led_reg, MCU_LEDCS_POLARITY_GPIO_4,
+	rt2x00_set_field16(&rt2x00dev->led_mcu_reg, MCU_LEDCS_POLARITY_GPIO_4,
 			   rt2x00_get_field16(eeprom,
 					      EEPROM_LED_POLARITY_GPIO_4));
-	rt2x00_set_field16(&rt2x00dev->led_reg, MCU_LEDCS_POLARITY_ACT,
+	rt2x00_set_field16(&rt2x00dev->led_mcu_reg, MCU_LEDCS_POLARITY_ACT,
 			   rt2x00_get_field16(eeprom, EEPROM_LED_POLARITY_ACT));
-	rt2x00_set_field16(&rt2x00dev->led_reg, MCU_LEDCS_POLARITY_READY_BG,
+	rt2x00_set_field16(&rt2x00dev->led_mcu_reg, MCU_LEDCS_POLARITY_READY_BG,
 			   rt2x00_get_field16(eeprom,
 					      EEPROM_LED_POLARITY_RDY_G));
-	rt2x00_set_field16(&rt2x00dev->led_reg, MCU_LEDCS_POLARITY_READY_A,
+	rt2x00_set_field16(&rt2x00dev->led_mcu_reg, MCU_LEDCS_POLARITY_READY_A,
 			   rt2x00_get_field16(eeprom,
 					      EEPROM_LED_POLARITY_RDY_A));
+#endif /* CONFIG_RT73USB_LEDS */
 
 	return 0;
 }
@@ -2084,6 +2070,7 @@ static const struct rt2x00lib_ops rt73usb_rt2x00_ops = {
 	.link_stats		= rt73usb_link_stats,
 	.reset_tuner		= rt73usb_reset_tuner,
 	.link_tuner		= rt73usb_link_tuner,
+	.led_brightness		= rt73usb_led_brightness,
 	.write_tx_desc		= rt73usb_write_tx_desc,
 	.write_tx_data		= rt2x00usb_write_tx_data,
 	.get_tx_data_len	= rt73usb_get_tx_data_len,

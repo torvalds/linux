@@ -12,6 +12,10 @@ ifeq ($(CONFIG_RT2X00_LIB_FIRMWARE),y)
 	rt2x00lib-objs += rt2x00firmware.o
 endif
 
+ifeq ($(CONFIG_RT2X00_LIB_LEDS),y)
+	rt2x00lib-objs += rt2x00leds.o
+endif
+
 obj-$(CONFIG_RT2X00_LIB)	+= rt2x00lib.o
 obj-$(CONFIG_RT2X00_LIB_PCI)	+= rt2x00pci.o
 obj-$(CONFIG_RT2X00_LIB_USB)	+= rt2x00usb.o

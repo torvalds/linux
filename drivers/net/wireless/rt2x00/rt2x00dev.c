@@ -379,6 +379,11 @@ static void rt2x00lib_link_tuner(struct work_struct *work)
 	rt2x00lib_precalculate_link_signal(&rt2x00dev->link.qual);
 
 	/*
+	 * Send a signal to the led to update the led signal strength.
+	 */
+	rt2x00leds_led_quality(rt2x00dev, rt2x00dev->link.qual.avg_rssi);
+
+	/*
 	 * Evaluate antenna setup, make this the last step since this could
 	 * possibly reset some statistics.
 	 */
@@ -1140,6 +1145,11 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 	}
 
 	/*
+	 * Register LED.
+	 */
+	rt2x00leds_register(rt2x00dev);
+
+	/*
 	 * Allocatie rfkill.
 	 */
 	retval = rt2x00rfkill_allocate(rt2x00dev);
@@ -1187,6 +1197,11 @@ void rt2x00lib_remove_dev(struct rt2x00_dev *rt2x00dev)
 	rt2x00rfkill_free(rt2x00dev);
 
 	/*
+	 * Free LED.
+	 */
+	rt2x00leds_unregister(rt2x00dev);
+
+	/*
 	 * Free ieee80211_hw memory.
 	 */
 	rt2x00lib_remove_hw(rt2x00dev);
@@ -1227,6 +1242,7 @@ int rt2x00lib_suspend(struct rt2x00_dev *rt2x00dev, pm_message_t state)
 	 */
 	rt2x00lib_stop(rt2x00dev);
 	rt2x00lib_uninitialize(rt2x00dev);
+	rt2x00leds_suspend(rt2x00dev);
 	rt2x00debug_deregister(rt2x00dev);
 
 exit:
@@ -1270,9 +1286,10 @@ int rt2x00lib_resume(struct rt2x00_dev *rt2x00dev)
 	NOTICE(rt2x00dev, "Waking up.\n");
 
 	/*
-	 * Open the debugfs entry.
+	 * Open the debugfs entry and restore led handling.
 	 */
 	rt2x00debug_register(rt2x00dev);
+	rt2x00leds_resume(rt2x00dev);
 
 	/*
 	 * Only continue if mac80211 had open interfaces.

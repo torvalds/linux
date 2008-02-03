@@ -243,6 +243,30 @@ static int rt2400pci_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 #define rt2400pci_rfkill_poll	NULL
 #endif /* CONFIG_RT2400PCI_RFKILL */
 
+#ifdef CONFIG_RT2400PCI_LEDS
+static void rt2400pci_led_brightness(struct led_classdev *led_cdev,
+				     enum led_brightness brightness)
+{
+	struct rt2x00_led *led =
+	    container_of(led_cdev, struct rt2x00_led, led_dev);
+	unsigned int enabled = brightness != LED_OFF;
+	unsigned int activity =
+	    led->rt2x00dev->led_flags & LED_SUPPORT_ACTIVITY;
+	u32 reg;
+
+	rt2x00pci_register_read(led->rt2x00dev, LEDCSR, &reg);
+
+	if (led->type == LED_TYPE_RADIO || led->type == LED_TYPE_ASSOC) {
+		rt2x00_set_field32(&reg, LEDCSR_LINK, enabled);
+		rt2x00_set_field32(&reg, LEDCSR_ACTIVITY, enabled && activity);
+	}
+
+	rt2x00pci_register_write(led->rt2x00dev, LEDCSR, reg);
+}
+#else
+#define rt2400pci_led_brightness	NULL
+#endif /* CONFIG_RT2400PCI_LEDS */
+
 /*
  * Configuration handlers.
  */
@@ -511,34 +535,6 @@ static void rt2400pci_config_cw(struct rt2x00_dev *rt2x00dev,
 }
 
 /*
- * LED functions.
- */
-static void rt2400pci_enable_led(struct rt2x00_dev *rt2x00dev)
-{
-	u32 reg;
-
-	rt2x00pci_register_read(rt2x00dev, LEDCSR, &reg);
-
-	rt2x00_set_field32(&reg, LEDCSR_ON_PERIOD, 70);
-	rt2x00_set_field32(&reg, LEDCSR_OFF_PERIOD, 30);
-	rt2x00_set_field32(&reg, LEDCSR_LINK,
-			   (rt2x00dev->led_mode != LED_MODE_ASUS));
-	rt2x00_set_field32(&reg, LEDCSR_ACTIVITY,
-			   (rt2x00dev->led_mode != LED_MODE_TXRX_ACTIVITY));
-	rt2x00pci_register_write(rt2x00dev, LEDCSR, reg);
-}
-
-static void rt2400pci_disable_led(struct rt2x00_dev *rt2x00dev)
-{
-	u32 reg;
-
-	rt2x00pci_register_read(rt2x00dev, LEDCSR, &reg);
-	rt2x00_set_field32(&reg, LEDCSR_LINK, 0);
-	rt2x00_set_field32(&reg, LEDCSR_ACTIVITY, 0);
-	rt2x00pci_register_write(rt2x00dev, LEDCSR, reg);
-}
-
-/*
  * Link tuning
  */
 static void rt2400pci_link_stats(struct rt2x00_dev *rt2x00dev,
@@ -702,6 +698,11 @@ static int rt2400pci_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field32(&reg, CSR9_MAX_FRAME_UNIT,
 			   (rt2x00dev->rx->data_size / 128));
 	rt2x00pci_register_write(rt2x00dev, CSR9, reg);
+
+	rt2x00pci_register_read(rt2x00dev, LEDCSR, &reg);
+	rt2x00_set_field32(&reg, LEDCSR_ON_PERIOD, 70);
+	rt2x00_set_field32(&reg, LEDCSR_OFF_PERIOD, 30);
+	rt2x00pci_register_write(rt2x00dev, LEDCSR, reg);
 
 	rt2x00pci_register_write(rt2x00dev, CNT3, 0x3f080000);
 
@@ -872,22 +873,12 @@ static int rt2400pci_enable_radio(struct rt2x00_dev *rt2x00dev)
 	 */
 	rt2400pci_toggle_irq(rt2x00dev, STATE_RADIO_IRQ_ON);
 
-	/*
-	 * Enable LED
-	 */
-	rt2400pci_enable_led(rt2x00dev);
-
 	return 0;
 }
 
 static void rt2400pci_disable_radio(struct rt2x00_dev *rt2x00dev)
 {
 	u32 reg;
-
-	/*
-	 * Disable LED
-	 */
-	rt2400pci_disable_led(rt2x00dev);
 
 	rt2x00pci_register_write(rt2x00dev, PWRCSR0, 0);
 
@@ -1273,8 +1264,24 @@ static int rt2400pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Store led mode, for correct led behaviour.
 	 */
-	rt2x00dev->led_mode =
-	    rt2x00_get_field16(eeprom, EEPROM_ANTENNA_LED_MODE);
+#ifdef CONFIG_RT2400PCI_LEDS
+	value = rt2x00_get_field16(eeprom, EEPROM_ANTENNA_LED_MODE);
+
+	switch (value) {
+	case LED_MODE_ASUS:
+	case LED_MODE_ALPHA:
+	case LED_MODE_DEFAULT:
+		rt2x00dev->led_flags = LED_SUPPORT_RADIO;
+		break;
+	case LED_MODE_TXRX_ACTIVITY:
+		rt2x00dev->led_flags =
+		    LED_SUPPORT_RADIO | LED_SUPPORT_ACTIVITY;
+		break;
+	case LED_MODE_SIGNAL_STRENGTH:
+		rt2x00dev->led_flags = LED_SUPPORT_RADIO;
+		break;
+	}
+#endif /* CONFIG_RT2400PCI_LEDS */
 
 	/*
 	 * Detect if this device has an hardware controlled radio.
@@ -1594,6 +1601,7 @@ static const struct rt2x00lib_ops rt2400pci_rt2x00_ops = {
 	.link_stats		= rt2400pci_link_stats,
 	.reset_tuner		= rt2400pci_reset_tuner,
 	.link_tuner		= rt2400pci_link_tuner,
+	.led_brightness		= rt2400pci_led_brightness,
 	.write_tx_desc		= rt2400pci_write_tx_desc,
 	.write_tx_data		= rt2x00pci_write_tx_data,
 	.kick_tx_queue		= rt2400pci_kick_tx_queue,
