@@ -52,12 +52,13 @@ async_memset(struct page *dest, int val, unsigned int offset,
 
 	if (device) {
 		dma_addr_t dma_dest;
+		unsigned long dma_prep_flags = cb_fn ? DMA_PREP_INTERRUPT : 0;
 
 		dma_dest = dma_map_page(device->dev, dest, offset, len,
 					DMA_FROM_DEVICE);
 
 		tx = device->device_prep_dma_memset(chan, dma_dest, val, len,
-						    cb_fn != NULL);
+						    dma_prep_flags);
 	}
 
 	if (tx) {

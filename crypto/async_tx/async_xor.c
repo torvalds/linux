@@ -45,6 +45,7 @@ do_async_xor(struct dma_device *device,
 	dma_addr_t *dma_src = (dma_addr_t *) src_list;
 	struct dma_async_tx_descriptor *tx;
 	int i;
+	unsigned long dma_prep_flags = cb_fn ? DMA_PREP_INTERRUPT : 0;
 
 	pr_debug("%s: len: %zu\n", __FUNCTION__, len);
 
@@ -60,7 +61,7 @@ do_async_xor(struct dma_device *device,
 	 * in case they can not provide a descriptor
 	 */
 	tx = device->device_prep_dma_xor(chan, dma_dest, dma_src, src_cnt, len,
-					 cb_fn != NULL);
+					 dma_prep_flags);
 	if (!tx) {
 		if (depend_tx)
 			dma_wait_for_async_tx(depend_tx);
@@ -68,7 +69,7 @@ do_async_xor(struct dma_device *device,
 		while (!tx)
 			tx = device->device_prep_dma_xor(chan, dma_dest,
 							 dma_src, src_cnt, len,
-							 cb_fn != NULL);
+							 dma_prep_flags);
 	}
 
 	async_tx_submit(chan, tx, flags, depend_tx, cb_fn, cb_param);
@@ -268,6 +269,7 @@ async_xor_zero_sum(struct page *dest, struct page **src_list,
 
 	if (device) {
 		dma_addr_t *dma_src = (dma_addr_t *) src_list;
+		unsigned long dma_prep_flags = cb_fn ? DMA_PREP_INTERRUPT : 0;
 		int i;
 
 		pr_debug("%s: (async) len: %zu\n", __FUNCTION__, len);
@@ -278,7 +280,7 @@ async_xor_zero_sum(struct page *dest, struct page **src_list,
 
 		tx = device->device_prep_dma_zero_sum(chan, dma_src, src_cnt,
 						      len, result,
-						      cb_fn != NULL);
+						      dma_prep_flags);
 		if (!tx) {
 			if (depend_tx)
 				dma_wait_for_async_tx(depend_tx);
@@ -286,7 +288,7 @@ async_xor_zero_sum(struct page *dest, struct page **src_list,
 			while (!tx)
 				tx = device->device_prep_dma_zero_sum(chan,
 					dma_src, src_cnt, len, result,
-					cb_fn != NULL);
+					dma_prep_flags);
 		}
 
 		async_tx_submit(chan, tx, flags, depend_tx, cb_fn, cb_param);

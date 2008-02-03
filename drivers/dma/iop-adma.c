@@ -537,7 +537,7 @@ iop_adma_prep_dma_interrupt(struct dma_chan *chan)
 
 static struct dma_async_tx_descriptor *
 iop_adma_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dma_dest,
-			 dma_addr_t dma_src, size_t len, int int_en)
+			 dma_addr_t dma_src, size_t len, unsigned long flags)
 {
 	struct iop_adma_chan *iop_chan = to_iop_adma_chan(chan);
 	struct iop_adma_desc_slot *sw_desc, *grp_start;
@@ -555,7 +555,7 @@ iop_adma_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dma_dest,
 	sw_desc = iop_adma_alloc_slots(iop_chan, slot_cnt, slots_per_op);
 	if (sw_desc) {
 		grp_start = sw_desc->group_head;
-		iop_desc_init_memcpy(grp_start, int_en);
+		iop_desc_init_memcpy(grp_start, flags);
 		iop_desc_set_byte_count(grp_start, iop_chan, len);
 		iop_desc_set_dest_addr(grp_start, iop_chan, dma_dest);
 		iop_desc_set_memcpy_src_addr(grp_start, dma_src);
@@ -569,7 +569,7 @@ iop_adma_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dma_dest,
 
 static struct dma_async_tx_descriptor *
 iop_adma_prep_dma_memset(struct dma_chan *chan, dma_addr_t dma_dest,
-			 int value, size_t len, int int_en)
+			 int value, size_t len, unsigned long flags)
 {
 	struct iop_adma_chan *iop_chan = to_iop_adma_chan(chan);
 	struct iop_adma_desc_slot *sw_desc, *grp_start;
@@ -587,7 +587,7 @@ iop_adma_prep_dma_memset(struct dma_chan *chan, dma_addr_t dma_dest,
 	sw_desc = iop_adma_alloc_slots(iop_chan, slot_cnt, slots_per_op);
 	if (sw_desc) {
 		grp_start = sw_desc->group_head;
-		iop_desc_init_memset(grp_start, int_en);
+		iop_desc_init_memset(grp_start, flags);
 		iop_desc_set_byte_count(grp_start, iop_chan, len);
 		iop_desc_set_block_fill_val(grp_start, value);
 		iop_desc_set_dest_addr(grp_start, iop_chan, dma_dest);
@@ -602,7 +602,7 @@ iop_adma_prep_dma_memset(struct dma_chan *chan, dma_addr_t dma_dest,
 static struct dma_async_tx_descriptor *
 iop_adma_prep_dma_xor(struct dma_chan *chan, dma_addr_t dma_dest,
 		      dma_addr_t *dma_src, unsigned int src_cnt, size_t len,
-		      int int_en)
+		      unsigned long flags)
 {
 	struct iop_adma_chan *iop_chan = to_iop_adma_chan(chan);
 	struct iop_adma_desc_slot *sw_desc, *grp_start;
@@ -613,15 +613,15 @@ iop_adma_prep_dma_xor(struct dma_chan *chan, dma_addr_t dma_dest,
 	BUG_ON(unlikely(len > IOP_ADMA_XOR_MAX_BYTE_COUNT));
 
 	dev_dbg(iop_chan->device->common.dev,
-		"%s src_cnt: %d len: %u int_en: %d\n",
-		__FUNCTION__, src_cnt, len, int_en);
+		"%s src_cnt: %d len: %u flags: %lx\n",
+		__FUNCTION__, src_cnt, len, flags);
 
 	spin_lock_bh(&iop_chan->lock);
 	slot_cnt = iop_chan_xor_slot_count(len, src_cnt, &slots_per_op);
 	sw_desc = iop_adma_alloc_slots(iop_chan, slot_cnt, slots_per_op);
 	if (sw_desc) {
 		grp_start = sw_desc->group_head;
-		iop_desc_init_xor(grp_start, src_cnt, int_en);
+		iop_desc_init_xor(grp_start, src_cnt, flags);
 		iop_desc_set_byte_count(grp_start, iop_chan, len);
 		iop_desc_set_dest_addr(grp_start, iop_chan, dma_dest);
 		sw_desc->unmap_src_cnt = src_cnt;
@@ -638,7 +638,7 @@ iop_adma_prep_dma_xor(struct dma_chan *chan, dma_addr_t dma_dest,
 static struct dma_async_tx_descriptor *
 iop_adma_prep_dma_zero_sum(struct dma_chan *chan, dma_addr_t *dma_src,
 			   unsigned int src_cnt, size_t len, u32 *result,
-			   int int_en)
+			   unsigned long flags)
 {
 	struct iop_adma_chan *iop_chan = to_iop_adma_chan(chan);
 	struct iop_adma_desc_slot *sw_desc, *grp_start;
@@ -655,7 +655,7 @@ iop_adma_prep_dma_zero_sum(struct dma_chan *chan, dma_addr_t *dma_src,
 	sw_desc = iop_adma_alloc_slots(iop_chan, slot_cnt, slots_per_op);
 	if (sw_desc) {
 		grp_start = sw_desc->group_head;
-		iop_desc_init_zero_sum(grp_start, src_cnt, int_en);
+		iop_desc_init_zero_sum(grp_start, src_cnt, flags);
 		iop_desc_set_zero_sum_byte_count(grp_start, len);
 		grp_start->xor_check_result = result;
 		pr_debug("\t%s: grp_start->xor_check_result: %p\n",

@@ -95,6 +95,15 @@ enum dma_transaction_type {
 #define DMA_TX_TYPE_END (DMA_INTERRUPT + 1)
 
 /**
+ * enum dma_prep_flags - DMA flags to augment operation preparation
+ * @DMA_PREP_INTERRUPT - trigger an interrupt (callback) upon completion of
+ * 	this transaction
+ */
+enum dma_prep_flags {
+	DMA_PREP_INTERRUPT = (1 << 0),
+};
+
+/**
  * dma_cap_mask_t - capabilities bitmap modeled after cpumask_t.
  * See linux/cpumask.h
  */
@@ -274,16 +283,16 @@ struct dma_device {
 
 	struct dma_async_tx_descriptor *(*device_prep_dma_memcpy)(
 		struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
-		size_t len, int int_en);
+		size_t len, unsigned long flags);
 	struct dma_async_tx_descriptor *(*device_prep_dma_xor)(
 		struct dma_chan *chan, dma_addr_t dest, dma_addr_t *src,
-		unsigned int src_cnt, size_t len, int int_en);
+		unsigned int src_cnt, size_t len, unsigned long flags);
 	struct dma_async_tx_descriptor *(*device_prep_dma_zero_sum)(
 		struct dma_chan *chan, dma_addr_t *src,	unsigned int src_cnt,
-		size_t len, u32 *result, int int_en);
+		size_t len, u32 *result, unsigned long flags);
 	struct dma_async_tx_descriptor *(*device_prep_dma_memset)(
 		struct dma_chan *chan, dma_addr_t dest, int value, size_t len,
-		int int_en);
+		unsigned long flags);
 	struct dma_async_tx_descriptor *(*device_prep_dma_interrupt)(
 		struct dma_chan *chan);
 

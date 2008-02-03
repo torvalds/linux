@@ -701,7 +701,7 @@ static struct dma_async_tx_descriptor *ioat1_dma_prep_memcpy(
 						dma_addr_t dma_dest,
 						dma_addr_t dma_src,
 						size_t len,
-						int int_en)
+						unsigned long flags)
 {
 	struct ioat_dma_chan *ioat_chan = to_ioat_chan(chan);
 	struct ioat_desc_sw *new;
@@ -724,7 +724,7 @@ static struct dma_async_tx_descriptor *ioat2_dma_prep_memcpy(
 						dma_addr_t dma_dest,
 						dma_addr_t dma_src,
 						size_t len,
-						int int_en)
+						unsigned long flags)
 {
 	struct ioat_dma_chan *ioat_chan = to_ioat_chan(chan);
 	struct ioat_desc_sw *new;
