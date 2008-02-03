@@ -25,7 +25,7 @@ obj-$(CONFIG_ARCH_ADI_COYOTE)	+= coyote-setup.o
 obj-$(CONFIG_MACH_GTWX5715)	+= gtwx5715-setup.o
 obj-$(CONFIG_MACH_NSLU2)	+= nslu2-setup.o
 obj-$(CONFIG_MACH_NAS100D)	+= nas100d-setup.o
-obj-$(CONFIG_MACH_DSMG600)      += dsmg600-setup.o dsmg600-power.o
+obj-$(CONFIG_MACH_DSMG600)      += dsmg600-setup.o
 obj-$(CONFIG_MACH_GATEWAY7001)	+= gateway7001-setup.o
 obj-$(CONFIG_MACH_WG302V2)	+= wg302v2-setup.o
 
