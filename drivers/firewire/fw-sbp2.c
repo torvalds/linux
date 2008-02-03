@@ -603,29 +603,46 @@ sbp2_send_management_orb(struct sbp2_logical_unit *lu, int node_id,
 
 static void
 complete_agent_reset_write(struct fw_card *card, int rcode,
-			   void *payload, size_t length, void *data)
+			   void *payload, size_t length, void *done)
 {
-	struct fw_transaction *t = data;
-
-	kfree(t);
+	complete(done);
 }
 
-static int sbp2_agent_reset(struct sbp2_logical_unit *lu)
+static void sbp2_agent_reset(struct sbp2_logical_unit *lu)
+{
+	struct fw_device *device = fw_device(lu->tgt->unit->device.parent);
+	DECLARE_COMPLETION_ONSTACK(done);
+	struct fw_transaction t;
+	static u32 z;
+
+	fw_send_request(device->card, &t, TCODE_WRITE_QUADLET_REQUEST,
+			lu->tgt->node_id, lu->generation, device->max_speed,
+			lu->command_block_agent_address + SBP2_AGENT_RESET,
+			&z, sizeof(z), complete_agent_reset_write, &done);
+	wait_for_completion(&done);
+}
+
+static void
+complete_agent_reset_write_no_wait(struct fw_card *card, int rcode,
+				   void *payload, size_t length, void *data)
+{
+	kfree(data);
+}
+
+static void sbp2_agent_reset_no_wait(struct sbp2_logical_unit *lu)
 {
 	struct fw_device *device = fw_device(lu->tgt->unit->device.parent);
 	struct fw_transaction *t;
-	static u32 zero;
+	static u32 z;
 
-	t = kzalloc(sizeof(*t), GFP_ATOMIC);
+	t = kmalloc(sizeof(*t), GFP_ATOMIC);
 	if (t == NULL)
-		return -ENOMEM;
+		return;
 
 	fw_send_request(device->card, t, TCODE_WRITE_QUADLET_REQUEST,
 			lu->tgt->node_id, lu->generation, device->max_speed,
 			lu->command_block_agent_address + SBP2_AGENT_RESET,
-			&zero, sizeof(zero), complete_agent_reset_write, t);
-
-	return 0;
+			&z, sizeof(z), complete_agent_reset_write_no_wait, t);
 }
 
 static void sbp2_release_target(struct kref *kref)
@@ -1086,7 +1103,7 @@ complete_command_orb(struct sbp2_orb *base_orb, struct sbp2_status *status)
 
 	if (status != NULL) {
 		if (STATUS_GET_DEAD(*status))
-			sbp2_agent_reset(orb->lu);
+			sbp2_agent_reset_no_wait(orb->lu);
 
 		switch (STATUS_GET_RESPONSE(*status)) {
 		case SBP2_STATUS_REQUEST_COMPLETE:
