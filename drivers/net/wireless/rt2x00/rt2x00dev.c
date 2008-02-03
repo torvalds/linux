@@ -827,10 +827,7 @@ static void rt2x00lib_channel(struct ieee80211_channel *entry,
 			      const int channel, const int tx_power,
 			      const int value)
 {
-	if (channel <= 14)
-		entry->center_freq = 2407 + (5 * channel);
-	else
-		entry->center_freq = 5000 + (5 * channel);
+	entry->center_freq = ieee80211_channel_to_frequency(channel);
 	entry->hw_value = value;
 	entry->max_power = tx_power;
 	entry->max_antenna_gain = 0xff;
