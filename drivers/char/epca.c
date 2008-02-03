@@ -1797,7 +1797,7 @@ static unsigned termios2digi_c(struct channel *ch, unsigned cflag)
 	res |= cflag & ((CBAUD ^ CBAUDEX) | PARODD | PARENB | CSTOPB | CSIZE);
 	/*
 	 * This gets a little confusing. The Digi cards have their own
-	 * representation of c_cflags controling baud rate. For the most part
+	 * representation of c_cflags controlling baud rate. For the most part
 	 * this is identical to the Linux implementation. However; Digi
 	 * supports one rate (76800) that Linux doesn't. This means that the
 	 * c_cflag entry that would normally mean 76800 for Digi actually means
@@ -2068,7 +2068,7 @@ static int info_ioctl(struct tty_struct *tty, struct file *file,
 		{
 			/*
 			 * This call is made by the apps to complete the
-			 * initilization of the board(s). This routine is
+			 * initialization of the board(s). This routine is
 			 * responsible for setting the card to its initial
 			 * state and setting the drivers control fields to the
 			 * sutianle settings for the card in question.

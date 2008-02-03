@@ -26,7 +26,7 @@
  * The hangcheck-timer driver uses the TSC to catch delays that
  * jiffies does not notice.  A timer is set.  When the timer fires, it
  * checks whether it was delayed and if that delay exceeds a given
- * margin of error.  The hangcheck_tick module paramter takes the timer
+ * margin of error.  The hangcheck_tick module parameter takes the timer
  * duration in seconds.  The hangcheck_margin parameter defines the
  * margin of error, in seconds.  The defaults are 60 seconds for the
  * timer and 180 seconds for the margin of error.  IOW, a timer is set

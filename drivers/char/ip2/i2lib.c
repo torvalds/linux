@@ -661,7 +661,7 @@ i2QueueCommands(int type, i2ChanStrPtr pCh, int timeout, int nCommands,
 		if (!in_interrupt()) {
 			schedule_timeout_interruptible(1);	// short nap
 		} else {
-			// we cannot sched/sleep in interrrupt silly
+			// we cannot sched/sleep in interrupt silly
 			return 0;   
 		}
 		if (signal_pending(current)) {

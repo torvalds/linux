@@ -400,7 +400,7 @@ static inline uint32_t *via_align_buffer(drm_via_private_t * dev_priv,
 }
 
 /*
- * This function is used internally by ring buffer mangement code.
+ * This function is used internally by ring buffer management code.
  *
  * Returns virtual pointer to ring buffer.
  */

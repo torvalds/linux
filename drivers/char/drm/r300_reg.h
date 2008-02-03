@@ -584,7 +584,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define R300_RE_FOG_START                     0x4298
 
 /* Not sure why there are duplicate of factor and constant values.
- * My best guess so far is that there are seperate zbiases for test and write.
+ * My best guess so far is that there are separate zbiases for test and write.
  * Ordering might be wrong.
  * Some of the tests indicate that fgl has a fallback implementation of zbias
  * via pixel shaders.
