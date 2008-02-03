@@ -39,34 +39,17 @@
 
 /* Buttons */
 
-#define NSLU2_PB_GPIO		5
+#define NSLU2_PB_GPIO		5	/* power button */
 #define NSLU2_PO_GPIO		8	/* power off */
-#define NSLU2_RB_GPIO		12
-
-#define NSLU2_PB_IRQ		IRQ_IXP4XX_GPIO5
-#define NSLU2_RB_IRQ		IRQ_IXP4XX_GPIO12
-
-#define NSLU2_PB_BM		(1L << NSLU2_PB_GPIO)
-#define NSLU2_PO_BM		(1L << NSLU2_PO_GPIO)
-#define NSLU2_RB_BM		(1L << NSLU2_RB_GPIO)
+#define NSLU2_RB_GPIO		12	/* reset button */
 
 /* Buzzer */
 
 #define NSLU2_GPIO_BUZZ		4
-#define NSLU2_BZ_BM		(1L << NSLU2_GPIO_BUZZ)
 
 /* LEDs */
 
 #define NSLU2_LED_RED_GPIO	0
 #define NSLU2_LED_GRN_GPIO	1
-
-#define NSLU2_LED_RED_BM	(1L << NSLU2_LED_RED_GPIO)
-#define NSLU2_LED_GRN_BM	(1L << NSLU2_LED_GRN_GPIO)
-
 #define NSLU2_LED_DISK1_GPIO	3
 #define NSLU2_LED_DISK2_GPIO	2
-
-#define NSLU2_LED_DISK1_BM	(1L << NSLU2_LED_DISK1_GPIO)
-#define NSLU2_LED_DISK2_BM	(1L << NSLU2_LED_DISK2_GPIO)
-
-

@@ -3,22 +3,26 @@
  *
  * NSLU2 board-setup
  *
- * based ixdp425-setup.c:
+ * Copyright (C) 2008 Rod Whitby <rod@whitby.id.au>
+ *
+ * based on ixdp425-setup.c:
  *      Copyright (C) 2003-2004 MontaVista Software, Inc.
+ * based on nslu2-power.c:
+ *	Copyright (C) 2005 Tower Technologies
  *
  * Author: Mark Rakes <mrakes at mac.com>
  * Author: Rod Whitby <rod@whitby.id.au>
+ * Author: Alessandro Zummo <a.zummo@towertech.it>
  * Maintainers: http://www.nslu2-linux.org/
  *
- * Fixed missing init_time in MACHINE_START kas11 10/22/04
- * Changed to conform to new style __init ixdp425 kas11 10/22/04
  */
 
 #include <linux/if_ether.h>
-#include <linux/kernel.h>
+#include <linux/irq.h>
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
 #include <linux/leds.h>
+#include <linux/reboot.h>
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
 
@@ -27,6 +31,7 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/time.h>
 #include <asm/io.h>
+#include <asm/gpio.h>
 
 static struct flash_platform_data nslu2_flash_data = {
 	.map_name		= "cfi_probe",
@@ -181,6 +186,25 @@ static void nslu2_power_off(void)
 	gpio_line_set(NSLU2_PO_GPIO, IXP4XX_GPIO_HIGH);
 }
 
+static irqreturn_t nslu2_power_handler(int irq, void *dev_id)
+{
+	/* Signal init to do the ctrlaltdel action, this will bypass init if
+	 * it hasn't started and do a kernel_restart.
+	 */
+	ctrl_alt_del();
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t nslu2_reset_handler(int irq, void *dev_id)
+{
+	/* This is the paper-clip reset, it shuts the machine down directly.
+	 */
+	machine_power_off();
+
+	return IRQ_HANDLED;
+}
+
 static void __init nslu2_timer_init(void)
 {
     /* The xtal on this machine is non-standard. */
@@ -206,8 +230,6 @@ static void __init nslu2_init(void)
 	nslu2_flash_resource.end =
 		IXP4XX_EXP_BUS_BASE(0) + ixp4xx_exp_bus_size - 1;
 
-	pm_power_off = nslu2_power_off;
-
 	i2c_register_board_info(0, nslu2_i2c_board_info,
 				ARRAY_SIZE(nslu2_i2c_board_info));
 
@@ -220,6 +242,23 @@ static void __init nslu2_init(void)
 
 	platform_add_devices(nslu2_devices, ARRAY_SIZE(nslu2_devices));
 
+	pm_power_off = nslu2_power_off;
+
+	if (request_irq(gpio_to_irq(NSLU2_RB_GPIO), &nslu2_reset_handler,
+		IRQF_DISABLED | IRQF_TRIGGER_LOW,
+		"NSLU2 reset button", NULL) < 0) {
+
+		printk(KERN_DEBUG "Reset Button IRQ %d not available\n",
+			gpio_to_irq(NSLU2_RB_GPIO));
+	}
+
+	if (request_irq(gpio_to_irq(NSLU2_PB_GPIO), &nslu2_power_handler,
+		IRQF_DISABLED | IRQF_TRIGGER_HIGH,
+		"NSLU2 power button", NULL) < 0) {
+
+		printk(KERN_DEBUG "Power Button IRQ %d not available\n",
+			gpio_to_irq(NSLU2_PB_GPIO));
+	}
 
 	/*
 	 * Map in a portion of the flash and read the MAC address.
