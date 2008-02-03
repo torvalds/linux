@@ -190,7 +190,7 @@ typedef struct user_regs_struct32 compat_elf_gregset_t;
  * A pointer passed in from user mode. This should not
  * be used for syscall parameters, just declare them
  * as pointers because the syscall entry code will have
- * appropriately comverted them already.
+ * appropriately converted them already.
  */
 typedef	u32		compat_uptr_t;
 
