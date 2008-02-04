@@ -281,7 +281,12 @@ static int try_preserve_large_page(pte_t *kpte, unsigned long address,
 		psize = PMD_PAGE_SIZE;
 		pmask = PMD_PAGE_MASK;
 		break;
+#ifdef CONFIG_X86_64
 	case PG_LEVEL_1G:
+		psize = PMD_PAGE_SIZE;
+		pmask = PMD_PAGE_MASK;
+		break;
+#endif
 	default:
 		res = -EINVAL;
 		goto out_unlock;
@@ -343,7 +348,7 @@ static int split_large_page(pte_t *kpte, unsigned long address)
 {
 	pgprot_t ref_prot;
 	gfp_t gfp_flags = GFP_KERNEL;
-	unsigned long flags, addr, pfn;
+	unsigned long flags, addr, pfn, pfninc = 1;
 	pte_t *pbase, *tmp;
 	struct page *base;
 	unsigned int i, level;
@@ -372,11 +377,19 @@ static int split_large_page(pte_t *kpte, unsigned long address)
 #endif
 	ref_prot = pte_pgprot(pte_clrhuge(*kpte));
 
+#ifdef CONFIG_X86_64
+	if (level == PG_LEVEL_1G) {
+		pfninc = PMD_PAGE_SIZE >> PAGE_SHIFT;
+		pgprot_val(ref_prot) |= _PAGE_PSE;
+		addr &= PUD_PAGE_MASK;
+	}
+#endif
+
 	/*
 	 * Get the target pfn from the original entry:
 	 */
 	pfn = pte_pfn(*kpte);
-	for (i = 0; i < PTRS_PER_PTE; i++, pfn++)
+	for (i = 0; i < PTRS_PER_PTE; i++, pfn += pfninc)
 		set_pte(&pbase[i], pfn_pte(pfn, ref_prot));
 
 	/*
