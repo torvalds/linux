@@ -312,6 +312,66 @@ acpi_os_predefined_override(const struct acpi_predefined_names *init_val,
 	return AE_OK;
 }
 
+#ifdef CONFIG_ACPI_CUSTOM_DSDT_INITRD
+struct acpi_table_header *acpi_find_dsdt_initrd(void)
+{
+	struct file *firmware_file;
+	mm_segment_t oldfs;
+	unsigned long len, len2;
+	struct acpi_table_header *dsdt_buffer, *ret = NULL;
+	struct kstat stat;
+	char *ramfs_dsdt_name = "/DSDT.aml";
+
+	printk(KERN_INFO PREFIX "Looking for DSDT in initramfs... ");
+
+	/*
+	 * Never do this at home, only the user-space is allowed to open a file.
+	 * The clean way would be to use the firmware loader. But this code must be run
+	 * before there is any userspace available. So we need a static/init firmware
+	 * infrastructure, which doesn't exist yet...
+	 */
+	if (vfs_stat(ramfs_dsdt_name, &stat) < 0) {
+		printk("not found.\n");
+		return ret;
+	}
+
+	len = stat.size;
+	/* check especially against empty files */
+	if (len <= 4) {
+		printk("error, file is too small: only %lu bytes.\n", len);
+		return ret;
+	}
+
+	firmware_file = filp_open(ramfs_dsdt_name, O_RDONLY, 0);
+	if (IS_ERR(firmware_file)) {
+		printk("error, could not open file %s.\n", ramfs_dsdt_name);
+		return ret;
+	}
+
+	dsdt_buffer = ACPI_ALLOCATE(len);
+	if (!dsdt_buffer) {
+		printk("error when allocating %lu bytes of memory.\n", len);
+		goto err;
+	}
+
+	oldfs = get_fs();
+	set_fs(KERNEL_DS);
+	len2 = vfs_read(firmware_file, (char __user *)dsdt_buffer, len, &firmware_file->f_pos);
+	set_fs(oldfs);
+	if (len2 < len) {
+		printk("error trying to read %lu bytes from %s.\n", len, ramfs_dsdt_name);
+		ACPI_FREE(dsdt_buffer);
+		goto err;
+	}
+
+	printk("successfully read %lu bytes from %s.\n", len, ramfs_dsdt_name);
+	ret = dsdt_buffer;
+err:
+	filp_close(firmware_file, NULL);
+	return ret;
+}
+#endif
+
 acpi_status
 acpi_os_table_override(struct acpi_table_header * existing_table,
 		       struct acpi_table_header ** new_table)
@@ -319,13 +379,18 @@ acpi_os_table_override(struct acpi_table_header * existing_table,
 	if (!existing_table || !new_table)
 		return AE_BAD_PARAMETER;
 
+	*new_table = NULL;
+
 #ifdef CONFIG_ACPI_CUSTOM_DSDT
 	if (strncmp(existing_table->signature, "DSDT", 4) == 0)
 		*new_table = (struct acpi_table_header *)AmlCode;
-	else
-		*new_table = NULL;
-#else
-	*new_table = NULL;
+#endif
+#ifdef CONFIG_ACPI_CUSTOM_DSDT_INITRD
+	if (strncmp(existing_table->signature, "DSDT", 4) == 0) {
+		struct acpi_table_header *initrd_table = acpi_find_dsdt_initrd();
+		if (initrd_table)
+			*new_table = initrd_table;
+	}
 #endif
 	return AE_OK;
 }

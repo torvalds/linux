@@ -274,6 +274,23 @@ config ACPI_CUSTOM_DSDT_FILE
 	  Enter the full path name to the file which includes the AmlCode
 	  declaration.
 
+config ACPI_CUSTOM_DSDT_INITRD
+	bool "Read Custom DSDT from initramfs"
+	depends on BLK_DEV_INITRD
+	default n
+	help
+	  The DSDT (Differentiated System Description Table) often needs to be
+	  overridden because of broken BIOS implementations. If this feature is
+	  activated you will be able to provide a customized DSDT by adding it
+	  to your initramfs. If your mkinitrd tool does not support this feature
+	  a script is provided in the documentation. For more details see
+	  <file:Documentation/dsdt-initrd.txt> or <http://gaugusch.at/kernel.shtml>.
+	  If there is no table found, it will fall-back to the custom DSDT
+	  in-kernel (if activated) or to the DSDT from the BIOS.
+
+	  Even if you do not need a new one at the moment, you may want to use a
+	  better DSDT later. It is safe to say Y here.
+
 config ACPI_BLACKLIST_YEAR
 	int "Disable ACPI for systems before Jan 1st this year" if X86_32
 	default 0
