@@ -18,10 +18,15 @@
 
 struct cpa_data {
 	unsigned long	vaddr;
-	int		numpages;
 	pgprot_t	mask_set;
 	pgprot_t	mask_clr;
+	int		numpages;
 	int		flushtlb;
+};
+
+enum {
+	CPA_NO_SPLIT = 0,
+	CPA_SPLIT,
 };
 
 static inline int
@@ -230,6 +235,86 @@ static void __set_pmd_pte(pte_t *kpte, unsigned long address, pte_t pte)
 #endif
 }
 
+static int try_preserve_large_page(pte_t *kpte, unsigned long address,
+				   struct cpa_data *cpa)
+{
+	unsigned long nextpage_addr, numpages, pmask, psize, flags;
+	pte_t new_pte, old_pte, *tmp;
+	pgprot_t old_prot, new_prot;
+	int level, res = CPA_SPLIT;
+
+	spin_lock_irqsave(&pgd_lock, flags);
+	/*
+	 * Check for races, another CPU might have split this page
+	 * up already:
+	 */
+	tmp = lookup_address(address, &level);
+	if (tmp != kpte)
+		goto out_unlock;
+
+	switch (level) {
+	case PG_LEVEL_2M:
+		psize = LARGE_PAGE_SIZE;
+		pmask = LARGE_PAGE_MASK;
+		break;
+	case PG_LEVEL_1G:
+	default:
+		res = -EINVAL;
+		goto out_unlock;
+	}
+
+	/*
+	 * Calculate the number of pages, which fit into this large
+	 * page starting at address:
+	 */
+	nextpage_addr = (address + psize) & pmask;
+	numpages = (nextpage_addr - address) >> PAGE_SHIFT;
+	if (numpages < cpa->numpages)
+		cpa->numpages = numpages;
+
+	/*
+	 * We are safe now. Check whether the new pgprot is the same:
+	 */
+	old_pte = *kpte;
+	old_prot = new_prot = pte_pgprot(old_pte);
+
+	pgprot_val(new_prot) &= ~pgprot_val(cpa->mask_clr);
+	pgprot_val(new_prot) |= pgprot_val(cpa->mask_set);
+	new_prot = static_protections(new_prot, address);
+
+	/*
+	 * If there are no changes, return. maxpages has been updated
+	 * above:
+	 */
+	if (pgprot_val(new_prot) == pgprot_val(old_prot)) {
+		res = CPA_NO_SPLIT;
+		goto out_unlock;
+	}
+
+	/*
+	 * We need to change the attributes. Check, whether we can
+	 * change the large page in one go. We request a split, when
+	 * the address is not aligned and the number of pages is
+	 * smaller than the number of pages in the large page. Note
+	 * that we limited the number of possible pages already to
+	 * the number of pages in the large page.
+	 */
+	if (address == (nextpage_addr - psize) && cpa->numpages == numpages) {
+		/*
+		 * The address is aligned and the number of pages
+		 * covers the full page.
+		 */
+		new_pte = pfn_pte(pte_pfn(old_pte), canon_pgprot(new_prot));
+		__set_pmd_pte(kpte, address, new_pte);
+		cpa->flushtlb = 1;
+		res = CPA_NO_SPLIT;
+	}
+
+out_unlock:
+	spin_unlock_irqrestore(&pgd_lock, flags);
+	return res;
+}
+
 static int split_large_page(pte_t *kpte, unsigned long address)
 {
 	pgprot_t ref_prot = pte_pgprot(pte_clrhuge(*kpte));
@@ -295,7 +380,7 @@ out_unlock:
 static int __change_page_attr(unsigned long address, struct cpa_data *cpa)
 {
 	struct page *kpte_page;
-	int level, err = 0;
+	int level, res;
 	pte_t *kpte;
 
 repeat:
@@ -338,13 +423,34 @@ repeat:
 			set_pte_atomic(kpte, new_pte);
 			cpa->flushtlb = 1;
 		}
-	} else {
-		err = split_large_page(kpte, address);
-		if (!err)
-			goto repeat;
-		cpa->flushtlb = 1;
+		cpa->numpages = 1;
+		return 0;
 	}
-	return err;
+
+	/*
+	 * Check, whether we can keep the large page intact
+	 * and just change the pte:
+	 */
+	res = try_preserve_large_page(kpte, address, cpa);
+	if (res < 0)
+		return res;
+
+	/*
+	 * When the range fits into the existing large page,
+	 * return. cp->numpages and cpa->tlbflush have been updated in
+	 * try_large_page:
+	 */
+	if (res == CPA_NO_SPLIT)
+		return 0;
+
+	/*
+	 * We have to split the large page:
+	 */
+	res = split_large_page(kpte, address);
+	if (res)
+		return res;
+	cpa->flushtlb = 1;
+	goto repeat;
 }
 
 /**
@@ -410,15 +516,27 @@ static int change_page_attr_addr(struct cpa_data *cpa)
 
 static int __change_page_attr_set_clr(struct cpa_data *cpa)
 {
-	unsigned int i;
-	int ret;
+	int ret, numpages = cpa->numpages;
 
-	for (i = 0; i < cpa->numpages ; i++, cpa->vaddr += PAGE_SIZE) {
+	while (numpages) {
+		/*
+		 * Store the remaining nr of pages for the large page
+		 * preservation check.
+		 */
+		cpa->numpages = numpages;
 		ret = change_page_attr_addr(cpa);
 		if (ret)
 			return ret;
-	}
 
+		/*
+		 * Adjust the number of pages with the result of the
+		 * CPA operation. Either a large page has been
+		 * preserved or a single page update happened.
+		 */
+		BUG_ON(cpa->numpages > numpages);
+		numpages -= cpa->numpages;
+		cpa->vaddr += cpa->numpages * PAGE_SIZE;
+	}
 	return 0;
 }
 
