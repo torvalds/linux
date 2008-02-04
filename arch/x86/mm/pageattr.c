@@ -277,16 +277,11 @@ out_unlock:
 }
 
 static int
-__change_page_attr(unsigned long address, unsigned long pfn,
-		   pgprot_t mask_set, pgprot_t mask_clr)
+__change_page_attr(unsigned long address, pgprot_t mask_set, pgprot_t mask_clr)
 {
 	struct page *kpte_page;
 	int level, err = 0;
 	pte_t *kpte;
-
-#ifdef CONFIG_X86_32
-	BUG_ON(pfn > max_low_pfn);
-#endif
 
 repeat:
 	kpte = lookup_address(address, &level);
@@ -298,17 +293,25 @@ repeat:
 	BUG_ON(PageCompound(kpte_page));
 
 	if (level == PG_LEVEL_4K) {
-		pgprot_t new_prot = pte_pgprot(*kpte);
 		pte_t new_pte, old_pte = *kpte;
+		pgprot_t new_prot = pte_pgprot(old_pte);
+
+		if(!pte_val(old_pte)) {
+			WARN_ON_ONCE(1);
+			return -EINVAL;
+		}
 
 		pgprot_val(new_prot) &= ~pgprot_val(mask_clr);
 		pgprot_val(new_prot) |= pgprot_val(mask_set);
 
 		new_prot = static_protections(new_prot, address);
 
-		new_pte = pfn_pte(pfn, canon_pgprot(new_prot));
-		BUG_ON(pte_pfn(new_pte) != pte_pfn(old_pte));
-
+		/*
+		 * We need to keep the pfn from the existing PTE,
+		 * after all we're only going to change it's attributes
+		 * not the memory it points to
+		 */
+		new_pte = pfn_pte(pte_pfn(old_pte), canon_pgprot(new_prot));
 		set_pte_atomic(kpte, new_pte);
 	} else {
 		err = split_large_page(kpte, address);
@@ -337,11 +340,11 @@ static int
 change_page_attr_addr(unsigned long address, pgprot_t mask_set,
 		      pgprot_t mask_clr)
 {
-	unsigned long phys_addr = __pa(address);
-	unsigned long pfn = phys_addr >> PAGE_SHIFT;
 	int err;
 
 #ifdef CONFIG_X86_64
+	unsigned long phys_addr = __pa(address);
+
 	/*
 	 * If we are inside the high mapped kernel range, then we
 	 * fixup the low mapping first. __va() returns the virtual
@@ -351,7 +354,7 @@ change_page_attr_addr(unsigned long address, pgprot_t mask_set,
 		address = (unsigned long) __va(phys_addr);
 #endif
 
-	err = __change_page_attr(address, pfn, mask_set, mask_clr);
+	err = __change_page_attr(address, mask_set, mask_clr);
 	if (err)
 		return err;
 
@@ -375,7 +378,7 @@ change_page_attr_addr(unsigned long address, pgprot_t mask_set,
 		 * everything between 0 and KERNEL_TEXT_SIZE, so do
 		 * not propagate lookup failures back to users:
 		 */
-		__change_page_attr(address, pfn, mask_set, mask_clr);
+		__change_page_attr(address, mask_set, mask_clr);
 	}
 #endif
 	return err;
