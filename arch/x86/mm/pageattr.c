@@ -16,6 +16,9 @@
 #include <asm/uaccess.h>
 #include <asm/pgalloc.h>
 
+/*
+ * The current flushing context - we pass it instead of 5 arguments:
+ */
 struct cpa_data {
 	unsigned long	vaddr;
 	pgprot_t	mask_set;
@@ -206,6 +209,7 @@ pte_t *lookup_address(unsigned long address, int *level)
 
 	if (pgd_none(*pgd))
 		return NULL;
+
 	pud = pud_offset(pgd, address);
 	if (pud_none(*pud))
 		return NULL;
@@ -223,9 +227,13 @@ pte_t *lookup_address(unsigned long address, int *level)
 		return (pte_t *)pmd;
 
 	*level = PG_LEVEL_4K;
+
 	return pte_offset_kernel(pmd, address);
 }
 
+/*
+ * Set the new pmd in all the pgds we know about:
+ */
 static void __set_pmd_pte(pte_t *kpte, unsigned long address, pte_t pte)
 {
 	/* change init_mm */
@@ -248,8 +256,9 @@ static void __set_pmd_pte(pte_t *kpte, unsigned long address, pte_t pte)
 #endif
 }
 
-static int try_preserve_large_page(pte_t *kpte, unsigned long address,
-				   struct cpa_data *cpa)
+static int
+try_preserve_large_page(pte_t *kpte, unsigned long address,
+			struct cpa_data *cpa)
 {
 	unsigned long nextpage_addr, numpages, pmask, psize, flags;
 	pte_t new_pte, old_pte, *tmp;
@@ -341,17 +350,18 @@ static int try_preserve_large_page(pte_t *kpte, unsigned long address,
 
 out_unlock:
 	spin_unlock_irqrestore(&pgd_lock, flags);
+
 	return res;
 }
 
 static int split_large_page(pte_t *kpte, unsigned long address)
 {
-	pgprot_t ref_prot;
-	gfp_t gfp_flags = GFP_KERNEL;
 	unsigned long flags, addr, pfn, pfninc = 1;
-	pte_t *pbase, *tmp;
-	struct page *base;
+	gfp_t gfp_flags = GFP_KERNEL;
 	unsigned int i, level;
+	pte_t *pbase, *tmp;
+	pgprot_t ref_prot;
+	struct page *base;
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
 	gfp_flags = GFP_ATOMIC | __GFP_NOWARN;
@@ -505,7 +515,6 @@ repeat:
  *
  * Modules and drivers should use the set_memory_* APIs instead.
  */
-
 static int change_page_attr_addr(struct cpa_data *cpa)
 {
 	int err;
