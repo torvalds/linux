@@ -353,28 +353,20 @@ static struct snd_ak4xxx_private akm_ap192_priv __devinitdata = {
 	.cif = 0,
 	.data_mask = VT1724_REVO_CDOUT,
 	.clk_mask = VT1724_REVO_CCLK,
-	.cs_mask = VT1724_REVO_CS0 | VT1724_REVO_CS3,
-	.cs_addr = VT1724_REVO_CS3,
-	.cs_none = VT1724_REVO_CS0 | VT1724_REVO_CS3,
+	.cs_mask = VT1724_REVO_CS0 | VT1724_REVO_CS1,
+	.cs_addr = VT1724_REVO_CS1,
+	.cs_none = VT1724_REVO_CS0 | VT1724_REVO_CS1,
 	.add_flags = VT1724_REVO_CCLK, /* high at init */
 	.mask_flags = 0,
 };
 
-#if 0
-/* FIXME: ak4114 makes the sound much lower due to some confliction,
- *        so let's disable it right now...
- */
-#define BUILD_AK4114_AP192
-#endif
-
-#ifdef BUILD_AK4114_AP192
 /* AK4114 support on Audiophile 192 */
 /* CDTO (pin 32) -- GPIO2 pin 52
  * CDTI (pin 33) -- GPIO3 pin 53 (shared with AK4358)
  * CCLK (pin 34) -- GPIO1 pin 51 (shared with AK4358)
  * CSN  (pin 35) -- GPIO7 pin 59
  */
-#define AK4114_ADDR	0x00
+#define AK4114_ADDR	0x02
 
 static void write_data(struct snd_ice1712 *ice, unsigned int gpio,
 		       unsigned int data, int idx)
@@ -428,7 +420,7 @@ static unsigned int ap192_4wire_start(struct snd_ice1712 *ice)
 	tmp = snd_ice1712_gpio_read(ice);
 	tmp |= VT1724_REVO_CCLK; /* high at init */
 	tmp |= VT1724_REVO_CS0;
-	tmp &= ~VT1724_REVO_CS3;
+	tmp &= ~VT1724_REVO_CS1;
 	snd_ice1712_gpio_write(ice, tmp);
 	udelay(1);
 	return tmp;
@@ -436,7 +428,7 @@ static unsigned int ap192_4wire_start(struct snd_ice1712 *ice)
 
 static void ap192_4wire_finish(struct snd_ice1712 *ice, unsigned int tmp)
 {
-	tmp |= VT1724_REVO_CS3;
+	tmp |= VT1724_REVO_CS1;
 	tmp |= VT1724_REVO_CS0;
 	snd_ice1712_gpio_write(ice, tmp);
 	udelay(1);
@@ -485,13 +477,13 @@ static int __devinit ap192_ak4114_init(struct snd_ice1712 *ice)
 	struct ak4114 *ak;
 	int err;
 
-	return snd_ak4114_create(ice->card,
+	err = snd_ak4114_create(ice->card,
 				 ap192_ak4114_read,
 				 ap192_ak4114_write,
 				 ak4114_init_vals, ak4114_init_txcsb,
 				 ice, &ak);
+	return 0; /* error ignored; it's no fatal error */
 }
-#endif /* BUILD_AK4114_AP192 */
 
 static int __devinit revo_init(struct snd_ice1712 *ice)
 {
@@ -588,11 +580,9 @@ static int __devinit revo_add_controls(struct snd_ice1712 *ice)
 		err = snd_ice1712_akm4xxx_build_controls(ice);
 		if (err < 0)
 			return err;
-#ifdef BUILD_AK4114_AP192
 		err = ap192_ak4114_init(ice);
 		if (err < 0)
 			return err;
-#endif
 		break;
 	}
 	return 0;
