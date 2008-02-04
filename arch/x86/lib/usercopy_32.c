@@ -48,10 +48,7 @@ do {									   \
 		"3:	movl %5,%0\n"					   \
 		"	jmp 2b\n"					   \
 		".previous\n"						   \
-		".section __ex_table,\"a\"\n"				   \
-		"	.align 4\n"					   \
-		"	.long 0b,3b\n"					   \
-		".previous"						   \
+		_ASM_EXTABLE(0b,3b)					   \
 		: "=d"(res), "=c"(count), "=&a" (__d0), "=&S" (__d1),	   \
 		  "=&D" (__d2)						   \
 		: "i"(-EFAULT), "0"(count), "1"(count), "3"(src), "4"(dst) \
@@ -132,11 +129,8 @@ do {									\
 		"3:	lea 0(%2,%0,4),%0\n"				\
 		"	jmp 2b\n"					\
 		".previous\n"						\
-		".section __ex_table,\"a\"\n"				\
-		"	.align 4\n"					\
-		"	.long 0b,3b\n"					\
-		"	.long 1b,2b\n"					\
-		".previous"						\
+		_ASM_EXTABLE(0b,3b)					\
+		_ASM_EXTABLE(1b,2b)					\
 		: "=&c"(size), "=&D" (__d0)				\
 		: "r"(size & 3), "0"(size / 4), "1"(addr), "a"(0));	\
 } while (0)
