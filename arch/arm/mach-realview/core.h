@@ -27,8 +27,6 @@
 #include <asm/leds.h>
 #include <asm/io.h>
 
-extern struct sys_timer realview_timer;
-
 #define AMBA_DEVICE(name,busid,base,plat)			\
 static struct amba_device name##_device = {			\
 	.dev		= {					\
@@ -55,5 +53,6 @@ extern struct clcd_board clcd_plat_data;
 extern void __iomem *gic_cpu_base_addr;
 
 extern void realview_leds_event(led_event_t ledevt);
+extern void realview_timer_init(unsigned int timer_irq);
 
 #endif

@@ -36,6 +36,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/mmc.h>
+#include <asm/mach/time.h>
 
 #include <asm/arch/board-eb.h>
 #include <asm/arch/irqs.h>
@@ -304,6 +305,22 @@ static void realview_eb11mp_fixup(void)
 	realview_eb_smc91x_resources[1].end	= IRQ_EB11MP_ETH;
 }
 
+static void __init realview_eb_timer_init(void)
+{
+	unsigned int timer_irq;
+
+	if (core_tile_eb11mp())
+		timer_irq = IRQ_EB11MP_TIMER0_1;
+	else
+		timer_irq = IRQ_EB_TIMER0_1;
+
+	realview_timer_init(timer_irq);
+}
+
+static struct sys_timer realview_eb_timer = {
+	.init		= realview_eb_timer_init,
+};
+
 static void __init realview_eb_init(void)
 {
 	int i;
@@ -339,6 +356,6 @@ MACHINE_START(REALVIEW_EB, "ARM-RealView EB")
 	.boot_params	= 0x00000100,
 	.map_io		= realview_eb_map_io,
 	.init_irq	= gic_init_irq,
-	.timer		= &realview_timer,
+	.timer		= &realview_eb_timer,
 	.init_machine	= realview_eb_init,
 MACHINE_END

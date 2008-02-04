@@ -39,7 +39,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 #include <asm/mach/irq.h>
-#include <asm/mach/time.h>
 #include <asm/mach/map.h>
 #include <asm/mach/mmc.h>
 
@@ -513,12 +512,12 @@ static struct clock_event_device timer0_clockevent =	 {
 	.set_mode	= timer_set_mode,
 	.set_next_event	= timer_set_next_event,
 	.rating		= 300,
-	.irq		= IRQ_TIMERINT0_1,
 	.cpumask	= CPU_MASK_ALL,
 };
 
-static void __init realview_clockevents_init(void)
+static void __init realview_clockevents_init(unsigned int timer_irq)
 {
+	timer0_clockevent.irq = timer_irq;
 	timer0_clockevent.mult =
 		div_sc(1000000, NSEC_PER_SEC, timer0_clockevent.shift);
 	timer0_clockevent.max_delta_ns =
@@ -581,7 +580,7 @@ static void __init realview_clocksource_init(void)
 /*
  * Set up the clock source and clock events devices
  */
-static void __init realview_timer_init(void)
+void __init realview_timer_init(unsigned int timer_irq)
 {
 	u32 val;
 
@@ -616,12 +615,8 @@ static void __init realview_timer_init(void)
 	/* 
 	 * Make irqs happen for the system timer
 	 */
-	setup_irq(IRQ_TIMERINT0_1, &realview_timer_irq);
+	setup_irq(timer_irq, &realview_timer_irq);
 
 	realview_clocksource_init();
-	realview_clockevents_init();
+	realview_clockevents_init(timer_irq);
 }
-
-struct sys_timer realview_timer = {
-	.init		= realview_timer_init,
-};
