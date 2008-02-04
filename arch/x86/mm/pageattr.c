@@ -237,6 +237,7 @@ static void __set_pmd_pte(pte_t *kpte, unsigned long address, pte_t pte)
 	if (!SHARED_KERNEL_PMD) {
 		struct page *page;
 
+		address = __pa(address);
 		list_for_each_entry(page, &pgd_list, lru) {
 			pgd_t *pgd;
 			pud_t *pud;
@@ -351,7 +352,7 @@ out_unlock:
 
 static int split_large_page(pte_t *kpte, unsigned long address)
 {
-	unsigned long flags, addr, pfn, pfninc = 1;
+	unsigned long flags, pfn, pfninc = 1;
 	gfp_t gfp_flags = GFP_KERNEL;
 	unsigned int i, level;
 	pte_t *pbase, *tmp;
@@ -374,8 +375,6 @@ static int split_large_page(pte_t *kpte, unsigned long address)
 	if (tmp != kpte)
 		goto out_unlock;
 
-	address = __pa(address);
-	addr = address & PMD_PAGE_MASK;
 	pbase = (pte_t *)page_address(base);
 #ifdef CONFIG_X86_32
 	paravirt_alloc_pt(&init_mm, page_to_pfn(base));
@@ -386,7 +385,6 @@ static int split_large_page(pte_t *kpte, unsigned long address)
 	if (level == PG_LEVEL_1G) {
 		pfninc = PMD_PAGE_SIZE >> PAGE_SHIFT;
 		pgprot_val(ref_prot) |= _PAGE_PSE;
-		addr &= PUD_PAGE_MASK;
 	}
 #endif
 
