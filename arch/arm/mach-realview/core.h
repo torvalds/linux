@@ -51,6 +51,10 @@ extern struct mmc_platform_data realview_mmc1_plat_data;
 extern struct clk realview_clcd_clk;
 extern struct clcd_board clcd_plat_data;
 extern void __iomem *gic_cpu_base_addr;
+#ifdef CONFIG_LOCAL_TIMERS
+extern void __iomem *twd_base_addr;
+extern unsigned int twd_size;
+#endif
 
 extern void realview_leds_event(led_event_t ledevt);
 extern void realview_timer_init(unsigned int timer_irq);

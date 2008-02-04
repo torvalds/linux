@@ -309,9 +309,13 @@ static void __init realview_eb_timer_init(void)
 {
 	unsigned int timer_irq;
 
-	if (core_tile_eb11mp())
+	if (core_tile_eb11mp()) {
+#ifdef CONFIG_LOCAL_TIMERS
+		twd_base_addr = __io_address(REALVIEW_EB11MP_TWD_BASE);
+		twd_size = REALVIEW_EB11MP_TWD_SIZE;
+#endif
 		timer_irq = IRQ_EB11MP_TIMER0_1;
-	else
+	} else
 		timer_irq = IRQ_EB_TIMER0_1;
 
 	realview_timer_init(timer_irq);

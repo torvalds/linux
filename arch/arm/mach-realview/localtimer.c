@@ -24,9 +24,6 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-#define TWD_BASE(cpu)	(__io_address(REALVIEW_EB11MP_TWD_BASE) + \
-			 ((cpu) * REALVIEW_EB11MP_TWD_SIZE))
-
 static DEFINE_PER_CPU(struct clock_event_device, local_clockevent);
 
 /*
@@ -40,6 +37,12 @@ void local_timer_interrupt(void)
 }
 
 #ifdef CONFIG_LOCAL_TIMERS
+
+#define TWD_BASE(cpu)	(twd_base_addr + (cpu) * twd_size)
+
+/* set up by the platform code */
+void __iomem *twd_base_addr;
+unsigned int twd_size;
 
 static unsigned long mpcore_timer_rate;
 
