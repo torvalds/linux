@@ -1037,14 +1037,22 @@ void snd_hda_set_vmaster_tlv(struct hda_codec *codec, hda_nid_t nid, int dir,
 }
 
 /* find a mixer control element with the given name */
-struct snd_kcontrol *snd_hda_find_mixer_ctl(struct hda_codec *codec,
-					    const char *name)
+static struct snd_kcontrol *
+_snd_hda_find_mixer_ctl(struct hda_codec *codec,
+			const char *name, int idx)
 {
 	struct snd_ctl_elem_id id;
 	memset(&id, 0, sizeof(id));
 	id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+	id.index = idx;
 	strcpy(id.name, name);
 	return snd_ctl_find_id(codec->bus->card, &id);
+}
+
+struct snd_kcontrol *snd_hda_find_mixer_ctl(struct hda_codec *codec,
+					    const char *name)
+{
+	return _snd_hda_find_mixer_ctl(codec, name, 0);
 }
 
 /* create a virtual master control and add slaves */
@@ -1481,6 +1489,8 @@ static struct snd_kcontrol_new dig_mixes[] = {
 	{ } /* end */
 };
 
+#define SPDIF_MAX_IDX	4	/* 4 instances should be enough to probe */
+
 /**
  * snd_hda_create_spdif_out_ctls - create Output SPDIF-related controls
  * @codec: the HDA codec
@@ -1496,9 +1506,20 @@ int snd_hda_create_spdif_out_ctls(struct hda_codec *codec, hda_nid_t nid)
 	int err;
 	struct snd_kcontrol *kctl;
 	struct snd_kcontrol_new *dig_mix;
+	int idx;
 
+	for (idx = 0; idx < SPDIF_MAX_IDX; idx++) {
+		if (!_snd_hda_find_mixer_ctl(codec, "IEC958 Playback Switch",
+					     idx))
+			break;
+	}
+	if (idx >= SPDIF_MAX_IDX) {
+		printk(KERN_ERR "hda_codec: too many IEC958 outputs\n");
+		return -EBUSY;
+	}
 	for (dig_mix = dig_mixes; dig_mix->name; dig_mix++) {
 		kctl = snd_ctl_new1(dig_mix, codec);
+		kctl->id.index = idx;
 		kctl->private_value = nid;
 		err = snd_ctl_add(codec->bus->card, kctl);
 		if (err < 0)
@@ -1595,7 +1616,17 @@ int snd_hda_create_spdif_in_ctls(struct hda_codec *codec, hda_nid_t nid)
 	int err;
 	struct snd_kcontrol *kctl;
 	struct snd_kcontrol_new *dig_mix;
+	int idx;
 
+	for (idx = 0; idx < SPDIF_MAX_IDX; idx++) {
+		if (!_snd_hda_find_mixer_ctl(codec, "IEC958 Capture Switch",
+					     idx))
+			break;
+	}
+	if (idx >= SPDIF_MAX_IDX) {
+		printk(KERN_ERR "hda_codec: too many IEC958 inputs\n");
+		return -EBUSY;
+	}
 	for (dig_mix = dig_in_ctls; dig_mix->name; dig_mix++) {
 		kctl = snd_ctl_new1(dig_mix, codec);
 		kctl->private_value = nid;
