@@ -240,9 +240,6 @@ void iounmap(volatile void __iomem *addr)
 		return;
 	}
 
-	/* Reset the direct mapping. Can block */
-	ioremap_change_attr(p->phys_addr, p->size, IOR_MODE_CACHED);
-
 	/* Finally remove it */
 	o = remove_vm_area((void *)addr);
 	BUG_ON(p != o || o == NULL);
