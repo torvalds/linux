@@ -59,12 +59,6 @@ struct mtrr_ops * mtrr_if = NULL;
 static void set_mtrr(unsigned int reg, unsigned long base,
 		     unsigned long size, mtrr_type type);
 
-#ifndef CONFIG_X86_64
-extern int arr3_protected;
-#else
-#define arr3_protected 0
-#endif
-
 void set_mtrr_ops(struct mtrr_ops * ops)
 {
 	if (ops->vendor && ops->vendor < X86_VENDOR_NUM)
@@ -512,12 +506,6 @@ int mtrr_del_page(int reg, unsigned long base, unsigned long size)
 	if (reg >= max) {
 		printk(KERN_WARNING "mtrr: register: %d too big\n", reg);
 		goto out;
-	}
-	if (is_cpu(CYRIX) && !use_intel()) {
-		if ((reg == 3) && arr3_protected) {
-			printk(KERN_WARNING "mtrr: ARR3 cannot be changed\n");
-			goto out;
-		}
 	}
 	mtrr_if->get(reg, &lbase, &lsize, &ltype);
 	if (lsize < 1) {
