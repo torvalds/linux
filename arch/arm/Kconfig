@@ -169,6 +169,7 @@ config ARCH_REALVIEW
 	select ARM_AMBA
 	select ICST307
 	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
 	help
 	  This enables support for ARM Ltd RealView boards.
 
