@@ -63,7 +63,7 @@ startup_64:
 
 	/* Is the address not 2M aligned? */
 	movq	%rbp, %rax
-	andl	$~LARGE_PAGE_MASK, %eax
+	andl	$~PMD_PAGE_MASK, %eax
 	testl	%eax, %eax
 	jnz	bad_address
 
@@ -88,7 +88,7 @@ startup_64:
 
 	/* Add an Identity mapping if I am above 1G */
 	leaq	_text(%rip), %rdi
-	andq	$LARGE_PAGE_MASK, %rdi
+	andq	$PMD_PAGE_MASK, %rdi
 
 	movq	%rdi, %rax
 	shrq	$PUD_SHIFT, %rax

@@ -273,8 +273,8 @@ static int try_preserve_large_page(pte_t *kpte, unsigned long address,
 
 	switch (level) {
 	case PG_LEVEL_2M:
-		psize = LARGE_PAGE_SIZE;
-		pmask = LARGE_PAGE_MASK;
+		psize = PMD_PAGE_SIZE;
+		pmask = PMD_PAGE_MASK;
 		break;
 	case PG_LEVEL_1G:
 	default:
@@ -363,7 +363,7 @@ static int split_large_page(pte_t *kpte, unsigned long address)
 	}
 
 	address = __pa(address);
-	addr = address & LARGE_PAGE_MASK;
+	addr = address & PMD_PAGE_MASK;
 	pbase = (pte_t *)page_address(base);
 #ifdef CONFIG_X86_32
 	paravirt_alloc_pt(&init_mm, page_to_pfn(base));

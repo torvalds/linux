@@ -444,10 +444,10 @@ void __init clear_kernel_mapping(unsigned long address, unsigned long size)
 {
 	unsigned long end = address + size;
 
-	BUG_ON(address & ~LARGE_PAGE_MASK);
-	BUG_ON(size & ~LARGE_PAGE_MASK);
+	BUG_ON(address & ~PMD_PAGE_MASK);
+	BUG_ON(size & ~PMD_PAGE_MASK);
 
-	for (; address < end; address += LARGE_PAGE_SIZE) {
+	for (; address < end; address += PMD_PAGE_SIZE) {
 		pgd_t *pgd = pgd_offset_k(address);
 		pud_t *pud;
 		pmd_t *pmd;
