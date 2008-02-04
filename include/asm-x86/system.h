@@ -271,9 +271,9 @@ static inline void native_wbinvd(void)
 
 #endif /* __KERNEL__ */
 
-static inline void clflush(void *__p)
+static inline void clflush(volatile void *__p)
 {
-	asm volatile("clflush %0" : "+m" (*(char __force *)__p));
+	asm volatile("clflush %0" : "+m" (*(volatile char __force *)__p));
 }
 
 #define nop() __asm__ __volatile__ ("nop")
