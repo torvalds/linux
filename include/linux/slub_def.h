@@ -12,11 +12,11 @@
 #include <linux/kobject.h>
 
 struct kmem_cache_cpu {
-	void **freelist;
-	struct page *page;
-	int node;
-	unsigned int offset;
-	unsigned int objsize;
+	void **freelist;	/* Pointer to first free per cpu object */
+	struct page *page;	/* The slab from which we are allocating */
+	int node;		/* The node of the page (or -1 for debug) */
+	unsigned int offset;	/* Freepointer offset (in word units) */
+	unsigned int objsize;	/* Size of an object (from kmem_cache) */
 };
 
 struct kmem_cache_node {
@@ -59,7 +59,10 @@ struct kmem_cache {
 #endif
 
 #ifdef CONFIG_NUMA
-	int defrag_ratio;
+	/*
+	 * Defragmentation by allocating from a remote node.
+	 */
+	int remote_node_defrag_ratio;
 	struct kmem_cache_node *node[MAX_NUMNODES];
 #endif
 #ifdef CONFIG_SMP
