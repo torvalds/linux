@@ -187,10 +187,14 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	if (max_cpus > ncores)
 		max_cpus = ncores;
 
+#ifdef CONFIG_LOCAL_TIMERS
 	/*
-	 * Enable the local timer for primary CPU
+	 * Enable the local timer for primary CPU. If the device is
+	 * dummy (!CONFIG_LOCAL_TIMERS), it was already registers in
+	 * realview_timer_init
 	 */
 	local_timer_setup(cpu);
+#endif
 
 	/*
 	 * Initialise the present map, which describes the set of CPUs

@@ -14,6 +14,8 @@
 #include <linux/device.h>
 #include <linux/smp.h>
 #include <linux/jiffies.h>
+#include <linux/percpu.h>
+#include <linux/clockchips.h>
 
 #include <asm/mach/time.h>
 #include <asm/hardware/arm_twd.h>
@@ -24,6 +26,20 @@
 
 #define TWD_BASE(cpu)	(__io_address(REALVIEW_TWD_BASE) + \
 			 ((cpu) * REALVIEW_TWD_SIZE))
+
+static DEFINE_PER_CPU(struct clock_event_device, local_clockevent);
+
+/*
+ * Used on SMP for either the local timer or IPI_TIMER
+ */
+void local_timer_interrupt(void)
+{
+	struct clock_event_device *clk = &__get_cpu_var(local_clockevent);
+
+	clk->event_handler(clk);
+}
+
+#ifdef CONFIG_LOCAL_TIMERS
 
 static unsigned long mpcore_timer_rate;
 
@@ -127,3 +143,26 @@ void __cpuexit local_timer_stop(unsigned int cpu)
 {
 	__raw_writel(0, TWD_BASE(cpu) + TWD_TIMER_CONTROL);
 }
+
+#else	/* CONFIG_LOCAL_TIMERS */
+
+static void dummy_timer_set_mode(enum clock_event_mode mode,
+				 struct clock_event_device *clk)
+{
+}
+
+void __cpuinit local_timer_setup(unsigned int cpu)
+{
+	struct clock_event_device *clk = &per_cpu(local_clockevent, cpu);
+
+	clk->name		= "dummy_timer";
+	clk->features		= CLOCK_EVT_FEAT_DUMMY;
+	clk->rating		= 200;
+	clk->set_mode		= dummy_timer_set_mode;
+	clk->broadcast		= smp_timer_broadcast;
+	clk->cpumask		= cpumask_of_cpu(cpu);
+
+	clockevents_register_device(clk);
+}
+
+#endif	/* !CONFIG_LOCAL_TIMERS */

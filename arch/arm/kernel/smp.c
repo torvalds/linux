@@ -290,6 +290,11 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	local_irq_enable();
 	local_fiq_enable();
 
+	/*
+	 * Setup local timer for this CPU.
+	 */
+	local_timer_setup(cpu);
+
 	calibrate_delay();
 
 	smp_store_cpu_info(cpu);
@@ -298,11 +303,6 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	 * OK, now it's safe to let the boot CPU continue
 	 */
 	cpu_set(cpu, cpu_online_map);
-
-	/*
-	 * Setup local timer for this CPU.
-	 */
-	local_timer_setup(cpu);
 
 	/*
 	 * OK, it's off to the idle thread for us

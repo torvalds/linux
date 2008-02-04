@@ -107,10 +107,6 @@ extern void platform_cpu_enable(unsigned int cpu);
 extern void local_timer_interrupt(void);
 
 #ifdef CONFIG_LOCAL_TIMERS
-/*
- * Setup a local timer interrupt for a CPU.
- */
-extern void local_timer_setup(unsigned int cpu);
 
 /*
  * Stop a local timer interrupt.
@@ -124,15 +120,16 @@ extern int local_timer_ack(void);
 
 #else
 
-static inline void local_timer_setup(unsigned int cpu)
-{
-}
-
 static inline void local_timer_stop(unsigned int cpu)
 {
 }
 
 #endif
+
+/*
+ * Setup a local timer interrupt for a CPU.
+ */
+extern void local_timer_setup(unsigned int cpu);
 
 /*
  * show local interrupt info

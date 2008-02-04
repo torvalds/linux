@@ -33,6 +33,11 @@ config GENERIC_CLOCKEVENTS
 	bool
 	default n
 
+config GENERIC_CLOCKEVENTS_BROADCAST
+	bool
+	depends on GENERIC_CLOCKEVENTS
+	default y if SMP && !LOCAL_TIMERS
+
 config MMU
 	bool
 	default y

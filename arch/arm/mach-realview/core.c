@@ -596,11 +596,19 @@ static void __init realview_clocksource_init(void)
 }
 
 /*
- * Set up timer interrupt, and return the current time in seconds.
+ * Set up the clock source and clock events devices
  */
 static void __init realview_timer_init(void)
 {
 	u32 val;
+
+#ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
+	/*
+	 * The dummy clock device has to be registered before the main device
+	 * so that the latter will broadcast the clock events
+	 */
+	local_timer_setup(smp_processor_id());
+#endif
 
 	/* 
 	 * set clock frequency: 
