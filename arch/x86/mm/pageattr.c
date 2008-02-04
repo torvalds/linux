@@ -188,6 +188,14 @@ static inline pgprot_t static_protections(pgprot_t prot, unsigned long address)
 	return prot;
 }
 
+/*
+ * Lookup the page table entry for a virtual address. Return a pointer
+ * to the entry and the level of the mapping.
+ *
+ * Note: We return pud and pmd either when the entry is marked large
+ * or when the present bit is not set. Otherwise we would return a
+ * pointer to a nonexisting mapping.
+ */
 pte_t *lookup_address(unsigned long address, int *level)
 {
 	pgd_t *pgd = pgd_offset_k(address);
@@ -206,7 +214,7 @@ pte_t *lookup_address(unsigned long address, int *level)
 		return NULL;
 
 	*level = PG_LEVEL_2M;
-	if (pmd_large(*pmd))
+	if (pmd_large(*pmd) || !pmd_present(*pmd))
 		return (pte_t *)pmd;
 
 	*level = PG_LEVEL_4K;
