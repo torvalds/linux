@@ -18,6 +18,7 @@
  *
  */
 
+#include <linux/kthread.h>
 #include "dvbdev.h"
 #include "pvrusb2-hdw-internal.h"
 #include "pvrusb2-hdw.h"
@@ -25,18 +26,56 @@
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
+static int pvr2_dvb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
+{
+	struct pvr2_dvb_adapter *adap = dvbdmxfeed->demux->priv;
+	int newfeedcount, ret = 0;
+
+	if (adap == NULL)
+		return -ENODEV;
+
+	mutex_lock(&adap->lock);
+	newfeedcount = adap->feedcount + (onoff ? 1 : -1);
+
+	if (newfeedcount == 0) {
+		printk(KERN_DEBUG "stop feeding\n");
+
+		ret = kthread_stop(adap->thread);
+		adap->thread = NULL;
+	}
+
+	adap->feedcount = newfeedcount;
+
+	if (adap->feedcount == onoff && adap->feedcount > 0) {
+		if (NULL != adap->thread)
+			goto fail;
+
+		printk(KERN_DEBUG "start feeding\n");
+
+		if (IS_ERR(adap->thread)) {
+			ret = PTR_ERR(adap->thread);
+			adap->thread = NULL;
+		}
+		//ret = newfeedcount;
+	}
+fail:
+	mutex_unlock(&adap->lock);
+
+	return ret;
+}
+
 static int pvr2_dvb_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 {
 	printk(KERN_DEBUG "start pid: 0x%04x, feedtype: %d\n",
 	       dvbdmxfeed->pid, dvbdmxfeed->type);
-	return 0; /* FIXME: pvr2_dvb_ctrl_feed(dvbdmxfeed, 1); */
+	return pvr2_dvb_ctrl_feed(dvbdmxfeed, 1);
 }
 
 static int pvr2_dvb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 {
 	printk(KERN_DEBUG "stop pid: 0x%04x, feedtype: %d\n",
 	       dvbdmxfeed->pid, dvbdmxfeed->type);
-	return 0; /* FIXME: pvr2_dvb_ctrl_feed(dvbdmxfeed, 0); */
+	return pvr2_dvb_ctrl_feed(dvbdmxfeed, 0);
 }
 
 static int pvr2_dvb_bus_ctrl(struct dvb_frontend *fe, int acquire)
@@ -172,6 +211,7 @@ int pvr2_dvb_init(struct pvr2_context *pvr)
 	int ret = 0;
 
 	pvr->hdw->dvb.pvr = pvr;
+	mutex_init(&pvr->hdw->dvb.lock);
 
 	ret = pvr2_dvb_adapter_init(&pvr->hdw->dvb);
 	if (ret < 0)

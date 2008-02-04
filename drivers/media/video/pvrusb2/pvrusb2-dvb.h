@@ -19,6 +19,9 @@ struct pvr2_dvb_adapter {
 	int			feedcount;
 	int			max_feed_count;
 
+	struct task_struct	*thread;
+	struct mutex		lock;
+
 	unsigned int		digital_up:1;
 };
 
