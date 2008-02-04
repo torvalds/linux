@@ -107,7 +107,7 @@ static struct vm_operations_struct videobuf_vm_ops =
 
 static void *__videobuf_alloc(size_t size)
 {
-	struct videbuf_vmalloc_memory *mem;
+	struct videobuf_vmalloc_memory *mem;
 	struct videobuf_buffer *vb;
 
 	vb = kzalloc(size+sizeof(*mem),GFP_KERNEL);
@@ -127,9 +127,7 @@ static int __videobuf_iolock (struct videobuf_queue* q,
 			      struct v4l2_framebuffer *fbuf)
 {
 	int pages;
-
-	struct videbuf_vmalloc_memory *mem=vb->priv;
-
+	struct videobuf_vmalloc_memory *mem=vb->priv;
 
 	BUG_ON(!mem);
 
@@ -195,7 +193,7 @@ static int __videobuf_mmap_free(struct videobuf_queue *q)
 static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 			 struct vm_area_struct *vma)
 {
-	struct videbuf_vmalloc_memory *mem;
+	struct videobuf_vmalloc_memory *mem;
 	struct videobuf_mapping *map;
 	unsigned int first;
 	int retval;
@@ -267,7 +265,7 @@ static int __videobuf_copy_to_user ( struct videobuf_queue *q,
 				char __user *data, size_t count,
 				int nonblocking )
 {
-	struct videbuf_vmalloc_memory *mem=q->read_buf->priv;
+	struct videobuf_vmalloc_memory *mem=q->read_buf->priv;
 	BUG_ON (!mem);
 	MAGIC_CHECK(mem->magic,MAGIC_VMAL_MEM);
 
@@ -288,7 +286,7 @@ static int __videobuf_copy_stream ( struct videobuf_queue *q,
 				int vbihack, int nonblocking )
 {
 	unsigned int  *fc;
-	struct videbuf_vmalloc_memory *mem=q->read_buf->priv;
+	struct videobuf_vmalloc_memory *mem=q->read_buf->priv;
 	BUG_ON (!mem);
 	MAGIC_CHECK(mem->magic,MAGIC_VMAL_MEM);
 
@@ -341,7 +339,7 @@ EXPORT_SYMBOL_GPL(videobuf_queue_vmalloc_init);
 
 void *videobuf_to_vmalloc (struct videobuf_buffer *buf)
 {
-	struct videbuf_vmalloc_memory *mem=buf->priv;
+	struct videobuf_vmalloc_memory *mem=buf->priv;
 	BUG_ON (!mem);
 	MAGIC_CHECK(mem->magic,MAGIC_VMAL_MEM);
 
@@ -351,7 +349,7 @@ EXPORT_SYMBOL_GPL(videobuf_to_vmalloc);
 
 void videobuf_vmalloc_free (struct videobuf_buffer *buf)
 {
-	struct videbuf_vmalloc_memory *mem=buf->priv;
+	struct videobuf_vmalloc_memory *mem=buf->priv;
 	BUG_ON (!mem);
 
 	MAGIC_CHECK(mem->magic,MAGIC_VMAL_MEM);
