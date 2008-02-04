@@ -39,6 +39,17 @@ static int pvr2_dvb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	return 0; /* FIXME: pvr2_dvb_ctrl_feed(dvbdmxfeed, 0); */
 }
 
+static int pvr2_dvb_bus_ctrl(struct dvb_frontend *fe, int acquire)
+{
+	/* TO DO: This function will call into the core and request for
+	 * input to be set to 'dtv' if (acquire) and if it isn't set already.
+	 *
+	 * If (!acquire) then we should do nothing -- don't switch inputs
+	 * again unless the analog side of the driver requests the bus.
+	 */
+	return 0;
+}
+
 static int pvr2_dvb_adapter_init(struct pvr2_dvb_adapter *adap)
 {
 	int ret;
@@ -135,6 +146,9 @@ static int pvr2_dvb_frontend_init(struct pvr2_dvb_adapter *adap)
 
 		if (adap->fe->ops.analog_ops.standby)
 			adap->fe->ops.analog_ops.standby(adap->fe);
+
+		/* Ensure all frontends negotiate bus access */
+		adap->fe->ops.ts_bus_ctrl = pvr2_dvb_bus_ctrl;
 
 	} else {
 		err("no frontend was attached!");
