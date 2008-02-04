@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
- *   
- *   Copyright 2000 H. Peter Anvin - All Rights Reserved
+ *
+ *   Copyright 2000-2008 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -16,6 +16,10 @@
  * This device is accessed by lseek() to the appropriate CPUID level
  * and then read in chunks of 16 bytes.  A larger size means multiple
  * reads of consecutive levels.
+ *
+ * The lower 32 bits of the file position is used as the incoming %eax,
+ * and the upper 32 bits of the file position as the incoming %ecx,
+ * the latter intended for "counting" eax levels like eax=4.
  *
  * This driver uses /dev/cpu/%d/cpuid where %d is the minor number, and on
  * an SMP box will direct the access to CPU %d.
@@ -43,27 +47,16 @@
 
 static struct class *cpuid_class;
 
-struct cpuid_command {
-	u32 reg;
-	u32 *data;
+struct cpuid_regs {
+	u32 eax, ebx, ecx, edx;
 };
 
 static void cpuid_smp_cpuid(void *cmd_block)
 {
-	struct cpuid_command *cmd = cmd_block;
+	struct cpuid_regs *cmd = (struct cpuid_regs *)cmd_block;
 
-	cpuid(cmd->reg, &cmd->data[0], &cmd->data[1], &cmd->data[2],
-		      &cmd->data[3]);
-}
-
-static inline void do_cpuid(int cpu, u32 reg, u32 * data)
-{
-	struct cpuid_command cmd;
-
-	cmd.reg = reg;
-	cmd.data = data;
-
-	smp_call_function_single(cpu, cpuid_smp_cpuid, &cmd, 1, 1);
+	cpuid_count(cmd->eax, cmd->ecx,
+		    &cmd->eax, &cmd->ebx, &cmd->ecx, &cmd->edx);
 }
 
 static loff_t cpuid_seek(struct file *file, loff_t offset, int orig)
@@ -93,19 +86,21 @@ static ssize_t cpuid_read(struct file *file, char __user *buf,
 			  size_t count, loff_t * ppos)
 {
 	char __user *tmp = buf;
-	u32 data[4];
-	u32 reg = *ppos;
+	struct cpuid_regs cmd;
 	int cpu = iminor(file->f_path.dentry->d_inode);
+	u64 pos = *ppos;
 
 	if (count % 16)
 		return -EINVAL;	/* Invalid chunk size */
 
 	for (; count; count -= 16) {
-		do_cpuid(cpu, reg, data);
-		if (copy_to_user(tmp, &data, 16))
+		cmd.eax = pos;
+		cmd.ecx = pos >> 32;
+		smp_call_function_single(cpu, cpuid_smp_cpuid, &cmd, 1, 1);
+		if (copy_to_user(tmp, &cmd, 16))
 			return -EFAULT;
 		tmp += 16;
-		*ppos = reg++;
+		*ppos = ++pos;
 	}
 
 	return tmp - buf;
@@ -193,7 +188,7 @@ static int __init cpuid_init(void)
 	}
 	for_each_online_cpu(i) {
 		err = cpuid_device_create(i);
-		if (err != 0) 
+		if (err != 0)
 			goto out_class;
 	}
 	register_hotcpu_notifier(&cpuid_class_cpu_notifier);
@@ -208,7 +203,7 @@ out_class:
 	}
 	class_destroy(cpuid_class);
 out_chrdev:
-	unregister_chrdev(CPUID_MAJOR, "cpu/cpuid");	
+	unregister_chrdev(CPUID_MAJOR, "cpu/cpuid");
 out:
 	return err;
 }
