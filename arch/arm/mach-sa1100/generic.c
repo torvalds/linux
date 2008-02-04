@@ -470,7 +470,7 @@ void __init sa1110_mb_disable(void)
  * If the system is going to use the SA-1111 DMA engines, set up
  * the memory bus request/grant pins.
  */
-void __init sa1110_mb_enable(void)
+void __devinit sa1110_mb_enable(void)
 {
 	unsigned long flags;
 

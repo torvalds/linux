@@ -7,23 +7,6 @@
 	.globl relocate_new_kernel
 relocate_new_kernel:
 
-	/* Move boot params back to where the kernel expects them */
-
-	ldr	r0,kexec_boot_params_address
-	teq	r0,#0
-	beq	8f
-
-	ldr	r1,kexec_boot_params_copy
-	mov	r6,#KEXEC_BOOT_PARAMS_SIZE/4
-7:
-	ldr	r5,[r1],#4
-	str	r5,[r0],#4
-	subs	r6,r6,#1
-	bne	7b
-
-8:
-	/* Boot params moved, now go on with the kernel */
-
 	ldr	r0,kexec_indirection_page
 	ldr	r1,kexec_start_address
 
@@ -67,7 +50,7 @@ relocate_new_kernel:
 	mov lr,r1
 	mov r0,#0
 	ldr r1,kexec_mach_type
-	ldr r2,kexec_boot_params_address
+	ldr r2,kexec_boot_atags
 	mov pc,lr
 
 	.globl kexec_start_address
@@ -82,14 +65,9 @@ kexec_indirection_page:
 kexec_mach_type:
 	.long	0x0
 
-	/* phy addr where new kernel will expect to find boot params */
-	.globl kexec_boot_params_address
-kexec_boot_params_address:
-	.long	0x0
-
-	/* phy addr where old kernel put a copy of orig boot params */
-	.globl kexec_boot_params_copy
-kexec_boot_params_copy:
+	/* phy addr of the atags for the new kernel */
+	.globl kexec_boot_atags
+kexec_boot_atags:
 	.long	0x0
 
 relocate_new_kernel_end:

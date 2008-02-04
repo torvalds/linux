@@ -12,6 +12,19 @@
 
 #ifndef __ASM_ARCH_PXA3XX_REGS_H
 #define __ASM_ARCH_PXA3XX_REGS_H
+/*
+ * Service Power Management Unit (MPMU)
+ */
+#define PMCR		__REG(0x40F50000)	/* Power Manager Control Register */
+#define PSR		__REG(0x40F50004)	/* Power Manager S2 Status Register */
+#define PSPR		__REG(0x40F50008)	/* Power Manager Scratch Pad Register */
+#define PCFR		__REG(0x40F5000C)	/* Power Manager General Configuration Register */
+#define PWER		__REG(0x40F50010)	/* Power Manager Wake-up Enable Register */
+#define PWSR		__REG(0x40F50014)	/* Power Manager Wake-up Status Register */
+#define PECR		__REG(0x40F50018)	/* Power Manager EXT_WAKEUP[1:0] Control Register */
+#define DCDCSR		__REG(0x40F50080)	/* DC-DC Controller Status Register */
+#define PVCR		__REG(0x40F50100)	/* Power Manager Voltage Change Control Register */
+#define PCMD(x)		__REG(0x40F50110 + ((x) << 2))
 
 /*
  * Slave Power Managment Unit

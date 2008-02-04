@@ -101,7 +101,7 @@ static struct pcmcia_low_level jornada720_pcmcia_ops = {
   .socket_suspend	= sa1111_pcmcia_socket_suspend,
 };
 
-int __init pcmcia_jornada720_init(struct device *dev)
+int __devinit pcmcia_jornada720_init(struct device *dev)
 {
 	int ret = -ENODEV;
 

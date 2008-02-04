@@ -21,6 +21,7 @@ extern void setup_mm_for_reboot(char mode);
 extern unsigned long kexec_start_address;
 extern unsigned long kexec_indirection_page;
 extern unsigned long kexec_mach_type;
+extern unsigned long kexec_boot_atags;
 
 /*
  * Provide a dummy crash_notes definition while crash dump arrives to arm.
@@ -62,6 +63,7 @@ void machine_kexec(struct kimage *image)
 	kexec_start_address = image->start;
 	kexec_indirection_page = page_list;
 	kexec_mach_type = machine_arch_type;
+	kexec_boot_atags = image->start - KEXEC_ARM_ZIMAGE_OFFSET + KEXEC_ARM_ATAGS_OFFSET;
 
 	/* copy our kernel relocation code to the control code page */
 	memcpy(reboot_code_buffer,

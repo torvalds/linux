@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
+#include <linux/sysdev.h>
 
 #include <asm/hardware.h>
 #include <asm/irq.h>
@@ -321,3 +322,64 @@ void __init pxa_init_irq_set_wake(int (*set_wake)(unsigned int, unsigned int))
 	pxa_low_gpio_chip.set_wake = set_wake;
 	pxa_muxed_gpio_chip.set_wake = set_wake;
 }
+
+#ifdef CONFIG_PM
+static unsigned long saved_icmr[2];
+
+static int pxa_irq_suspend(struct sys_device *dev, pm_message_t state)
+{
+	switch (dev->id) {
+	case 0:
+		saved_icmr[0] = ICMR;
+		ICMR = 0;
+		break;
+#if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
+	case 1:
+		saved_icmr[1] = ICMR2;
+		ICMR2 = 0;
+		break;
+#endif
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int pxa_irq_resume(struct sys_device *dev)
+{
+	switch (dev->id) {
+	case 0:
+		ICMR = saved_icmr[0];
+		ICLR = 0;
+		ICCR = 1;
+		break;
+#if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
+	case 1:
+		ICMR2 = saved_icmr[1];
+		ICLR2 = 0;
+		break;
+#endif
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+#else
+#define pxa_irq_suspend		NULL
+#define pxa_irq_resume		NULL
+#endif
+
+struct sysdev_class pxa_irq_sysclass = {
+	.name		= "irq",
+	.suspend	= pxa_irq_suspend,
+	.resume		= pxa_irq_resume,
+};
+
+static int __init pxa_irq_init(void)
+{
+	return sysdev_class_register(&pxa_irq_sysclass);
+}
+
+core_initcall(pxa_irq_init);

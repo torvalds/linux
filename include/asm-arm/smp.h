@@ -61,6 +61,11 @@ extern void smp_cross_call(cpumask_t callmap);
 extern void smp_send_timer(void);
 
 /*
+ * Broadcast a clock event to other CPUs.
+ */
+extern void smp_timer_broadcast(cpumask_t mask);
+
+/*
  * Boot a secondary CPU, and assign it the specified idle task.
  * This also gives us the initial stack to use for this CPU.
  */
@@ -96,11 +101,12 @@ extern void platform_cpu_die(unsigned int cpu);
 extern int platform_cpu_kill(unsigned int cpu);
 extern void platform_cpu_enable(unsigned int cpu);
 
-#ifdef CONFIG_LOCAL_TIMERS
 /*
- * Setup a local timer interrupt for a CPU.
+ * Local timer interrupt handling function (can be IPI'ed).
  */
-extern void local_timer_setup(unsigned int cpu);
+extern void local_timer_interrupt(void);
+
+#ifdef CONFIG_LOCAL_TIMERS
 
 /*
  * Stop a local timer interrupt.
@@ -114,15 +120,16 @@ extern int local_timer_ack(void);
 
 #else
 
-static inline void local_timer_setup(unsigned int cpu)
-{
-}
-
 static inline void local_timer_stop(unsigned int cpu)
 {
 }
 
 #endif
+
+/*
+ * Setup a local timer interrupt for a CPU.
+ */
+extern void local_timer_setup(unsigned int cpu);
 
 /*
  * show local interrupt info

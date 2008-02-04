@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/sysdev.h>
 
 #include <asm/hardware.h>
 #include <asm/arch/pxa3xx-regs.h>
@@ -39,6 +40,7 @@
 #define RO_CLK		60000000
 
 #define ACCR_D0CS	(1 << 26)
+#define ACCR_PCCE	(1 << 11)
 
 /* crystal frequency to static memory controller multiplier (SMCFS) */
 static unsigned char smcfs_mult[8] = { 6, 0, 8, 0, 0, 16, };
@@ -203,7 +205,6 @@ static struct clk pxa3xx_clks[] = {
 };
 
 #ifdef CONFIG_PM
-#define SLEEP_SAVE_SIZE	4
 
 #define ISRAM_START	0x5c000000
 #define ISRAM_SIZE	SZ_256K
@@ -211,25 +212,29 @@ static struct clk pxa3xx_clks[] = {
 static void __iomem *sram;
 static unsigned long wakeup_src;
 
+#define SAVE(x)		sleep_save[SLEEP_SAVE_##x] = x
+#define RESTORE(x)	x = sleep_save[SLEEP_SAVE_##x]
+
+enum {	SLEEP_SAVE_START = 0,
+	SLEEP_SAVE_CKENA,
+	SLEEP_SAVE_CKENB,
+	SLEEP_SAVE_ACCR,
+
+	SLEEP_SAVE_SIZE,
+};
+
 static void pxa3xx_cpu_pm_save(unsigned long *sleep_save)
 {
-	pr_debug("PM: CKENA=%08x CKENB=%08x\n", CKENA, CKENB);
-
-	if (CKENA & (1 << CKEN_USBH)) {
-		printk(KERN_ERR "PM: USB host clock not stopped?\n");
-		CKENA &= ~(1 << CKEN_USBH);
-	}
-//	CKENA |= 1 << (CKEN_ISC & 31);
-
-	/*
-	 * Low power modes require the HSIO2 clock to be enabled.
-	 */
-	CKENB |= 1 << (CKEN_HSIO2 & 31);
+	SAVE(CKENA);
+	SAVE(CKENB);
+	SAVE(ACCR);
 }
 
 static void pxa3xx_cpu_pm_restore(unsigned long *sleep_save)
 {
-	CKENB &= ~(1 << (CKEN_HSIO2 & 31));
+	RESTORE(ACCR);
+	RESTORE(CKENA);
+	RESTORE(CKENB);
 }
 
 /*
@@ -265,6 +270,46 @@ static void pxa3xx_cpu_standby(unsigned int pwrmode)
 	printk("PM: AD2D0SR=%08x ASCR=%08x\n", AD2D0SR, ASCR);
 }
 
+/*
+ * NOTE:  currently, the OBM (OEM Boot Module) binary comes along with
+ * PXA3xx development kits assumes that the resuming process continues
+ * with the address stored within the first 4 bytes of SDRAM. The PSPR
+ * register is used privately by BootROM and OBM, and _must_ be set to
+ * 0x5c014000 for the moment.
+ */
+static void pxa3xx_cpu_pm_suspend(void)
+{
+	volatile unsigned long *p = (volatile void *)0xc0000000;
+	unsigned long saved_data = *p;
+
+	extern void pxa3xx_cpu_suspend(void);
+	extern void pxa3xx_cpu_resume(void);
+
+	/* resuming from D2 requires the HSIO2/BOOT/TPM clocks enabled */
+	CKENA |= (1 << CKEN_BOOT) | (1 << CKEN_TPM);
+	CKENB |= 1 << (CKEN_HSIO2 & 0x1f);
+
+	/* clear and setup wakeup source */
+	AD3SR = ~0;
+	AD3ER = wakeup_src;
+	ASCR = ASCR;
+	ARSR = ARSR;
+
+	PCFR |= (1u << 13);			/* L1_DIS */
+	PCFR &= ~((1u << 12) | (1u << 1));	/* L0_EN | SL_ROD */
+
+	PSPR = 0x5c014000;
+
+	/* overwrite with the resume address */
+	*p = virt_to_phys(pxa3xx_cpu_resume);
+
+	pxa3xx_cpu_suspend();
+
+	*p = saved_data;
+
+	AD3ER = 0;
+}
+
 static void pxa3xx_cpu_pm_enter(suspend_state_t state)
 {
 	/*
@@ -279,6 +324,7 @@ static void pxa3xx_cpu_pm_enter(suspend_state_t state)
 		break;
 
 	case PM_SUSPEND_MEM:
+		pxa3xx_cpu_pm_suspend();
 		break;
 	}
 }
@@ -452,9 +498,21 @@ static struct platform_device *devices[] __initdata = {
 	&pxa3xx_device_ssp4,
 };
 
+static struct sys_device pxa3xx_sysdev[] = {
+	{
+		.id	= 0,
+		.cls	= &pxa_irq_sysclass,
+	}, {
+		.id	= 1,
+		.cls	= &pxa_irq_sysclass,
+	}, {
+		.cls	= &pxa_gpio_sysclass,
+	},
+};
+
 static int __init pxa3xx_init(void)
 {
-	int ret = 0;
+	int i, ret = 0;
 
 	if (cpu_is_pxa3xx()) {
 		clks_register(pxa3xx_clks, ARRAY_SIZE(pxa3xx_clks));
@@ -464,9 +522,16 @@ static int __init pxa3xx_init(void)
 
 		pxa3xx_init_pm();
 
-		return platform_add_devices(devices, ARRAY_SIZE(devices));
+		for (i = 0; i < ARRAY_SIZE(pxa3xx_sysdev); i++) {
+			ret = sysdev_register(&pxa3xx_sysdev[i]);
+			if (ret)
+				pr_err("failed to register sysdev[%d]\n", i);
+		}
+
+		ret = platform_add_devices(devices, ARRAY_SIZE(devices));
 	}
-	return 0;
+
+	return ret;
 }
 
 subsys_initcall(pxa3xx_init);

@@ -23,7 +23,6 @@
 #define __ASM_ARCH_HARDWARE_H
 
 #include <asm/sizes.h>
-#include <asm/arch/platform.h>
 
 /* macro to get at IO space when running virtually */
 #define IO_ADDRESS(x)		((((x) & 0x0effffff) | (((x) >> 4) & 0x0f000000)) + 0xf0000000)

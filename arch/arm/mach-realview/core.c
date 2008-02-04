@@ -25,6 +25,8 @@
 #include <linux/interrupt.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
+#include <linux/clocksource.h>
+#include <linux/clockchips.h>
 
 #include <asm/system.h>
 #include <asm/hardware.h>
@@ -37,7 +39,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 #include <asm/mach/irq.h>
-#include <asm/mach/time.h>
 #include <asm/mach/map.h>
 #include <asm/mach/mmc.h>
 
@@ -47,6 +48,9 @@
 #include "clock.h"
 
 #define REALVIEW_REFCOUNTER	(__io_address(REALVIEW_SYS_BASE) + REALVIEW_SYS_24MHz_OFFSET)
+
+/* used by entry-macro.S */
+void __iomem *gic_cpu_base_addr;
 
 /*
  * This is the RealView sched_clock implementation.  This has
@@ -119,26 +123,6 @@ struct platform_device realview_flash_device = {
 	},
 	.num_resources		= 1,
 	.resource		= &realview_flash_resource,
-};
-
-static struct resource realview_smc91x_resources[] = {
-	[0] = {
-		.start		= REALVIEW_ETH_BASE,
-		.end		= REALVIEW_ETH_BASE + SZ_64K - 1,
-		.flags		= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start		= IRQ_ETH,
-		.end		= IRQ_ETH,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device realview_smc91x_device = {
-	.name		= "smc91x",
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(realview_smc91x_resources),
-	.resource	= realview_smc91x_resources,
 };
 
 static struct resource realview_i2c_resource = {
@@ -484,45 +468,64 @@ void realview_leds_event(led_event_t ledevt)
 #define TICKS2USECS(x)	((x) / TICKS_PER_uSEC)
 #endif
 
-/*
- * Returns number of ms since last clock interrupt.  Note that interrupts
- * will have been disabled by do_gettimeoffset()
- */
-static unsigned long realview_gettimeoffset(void)
+static void timer_set_mode(enum clock_event_mode mode,
+			   struct clock_event_device *clk)
 {
-	unsigned long ticks1, ticks2, status;
+	unsigned long ctrl;
 
-	/*
-	 * Get the current number of ticks.  Note that there is a race
-	 * condition between us reading the timer and checking for
-	 * an interrupt.  We get around this by ensuring that the
-	 * counter has not reloaded between our two reads.
-	 */
-	ticks2 = readl(TIMER0_VA_BASE + TIMER_VALUE) & 0xffff;
-	do {
-		ticks1 = ticks2;
-		status = __raw_readl(__io_address(REALVIEW_GIC_DIST_BASE + GIC_DIST_PENDING_SET)
-				     + ((IRQ_TIMERINT0_1 >> 5) << 2));
-		ticks2 = readl(TIMER0_VA_BASE + TIMER_VALUE) & 0xffff;
-	} while (ticks2 > ticks1);
+	switch(mode) {
+	case CLOCK_EVT_MODE_PERIODIC:
+		writel(TIMER_RELOAD, TIMER0_VA_BASE + TIMER_LOAD);
 
-	/*
-	 * Number of ticks since last interrupt.
-	 */
-	ticks1 = TIMER_RELOAD - ticks2;
+		ctrl = TIMER_CTRL_PERIODIC;
+		ctrl |= TIMER_CTRL_32BIT | TIMER_CTRL_IE | TIMER_CTRL_ENABLE;
+		break;
+	case CLOCK_EVT_MODE_ONESHOT:
+		/* period set, and timer enabled in 'next_event' hook */
+		ctrl = TIMER_CTRL_ONESHOT;
+		ctrl |= TIMER_CTRL_32BIT | TIMER_CTRL_IE;
+		break;
+	case CLOCK_EVT_MODE_UNUSED:
+	case CLOCK_EVT_MODE_SHUTDOWN:
+	default:
+		ctrl = 0;
+	}
 
-	/*
-	 * Interrupt pending?  If so, we've reloaded once already.
-	 *
-	 * FIXME: Need to check this is effectively timer 0 that expires
-	 */
-	if (status & IRQMASK_TIMERINT0_1)
-		ticks1 += TIMER_RELOAD;
+	writel(ctrl, TIMER0_VA_BASE + TIMER_CTRL);
+}
 
-	/*
-	 * Convert the ticks to usecs
-	 */
-	return TICKS2USECS(ticks1);
+static int timer_set_next_event(unsigned long evt,
+				struct clock_event_device *unused)
+{
+	unsigned long ctrl = readl(TIMER0_VA_BASE + TIMER_CTRL);
+
+	writel(evt, TIMER0_VA_BASE + TIMER_LOAD);
+	writel(ctrl | TIMER_CTRL_ENABLE, TIMER0_VA_BASE + TIMER_CTRL);
+
+	return 0;
+}
+
+static struct clock_event_device timer0_clockevent =	 {
+	.name		= "timer0",
+	.shift		= 32,
+	.features       = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
+	.set_mode	= timer_set_mode,
+	.set_next_event	= timer_set_next_event,
+	.rating		= 300,
+	.cpumask	= CPU_MASK_ALL,
+};
+
+static void __init realview_clockevents_init(unsigned int timer_irq)
+{
+	timer0_clockevent.irq = timer_irq;
+	timer0_clockevent.mult =
+		div_sc(1000000, NSEC_PER_SEC, timer0_clockevent.shift);
+	timer0_clockevent.max_delta_ns =
+		clockevent_delta2ns(0xffffffff, &timer0_clockevent);
+	timer0_clockevent.min_delta_ns =
+		clockevent_delta2ns(0xf, &timer0_clockevent);
+
+	clockevents_register_device(&timer0_clockevent);
 }
 
 /*
@@ -530,15 +533,12 @@ static unsigned long realview_gettimeoffset(void)
  */
 static irqreturn_t realview_timer_interrupt(int irq, void *dev_id)
 {
-	// ...clear the interrupt
+	struct clock_event_device *evt = &timer0_clockevent;
+
+	/* clear the interrupt */
 	writel(1, TIMER0_VA_BASE + TIMER_INTCLR);
 
-	timer_tick();
-
-#if defined(CONFIG_SMP) && !defined(CONFIG_LOCAL_TIMERS)
-	smp_send_timer();
-	update_process_times(user_mode(get_irq_regs()));
-#endif
+	evt->event_handler(evt);
 
 	return IRQ_HANDLED;
 }
@@ -549,12 +549,48 @@ static struct irqaction realview_timer_irq = {
 	.handler	= realview_timer_interrupt,
 };
 
+static cycle_t realview_get_cycles(void)
+{
+	return ~readl(TIMER3_VA_BASE + TIMER_VALUE);
+}
+
+static struct clocksource clocksource_realview = {
+	.name	= "timer3",
+	.rating	= 200,
+	.read	= realview_get_cycles,
+	.mask	= CLOCKSOURCE_MASK(32),
+	.shift	= 20,
+	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
+};
+
+static void __init realview_clocksource_init(void)
+{
+	/* setup timer 0 as free-running clocksource */
+	writel(0, TIMER3_VA_BASE + TIMER_CTRL);
+	writel(0xffffffff, TIMER3_VA_BASE + TIMER_LOAD);
+	writel(0xffffffff, TIMER3_VA_BASE + TIMER_VALUE);
+	writel(TIMER_CTRL_32BIT | TIMER_CTRL_ENABLE | TIMER_CTRL_PERIODIC,
+		TIMER3_VA_BASE + TIMER_CTRL);
+
+	clocksource_realview.mult =
+		clocksource_khz2mult(1000, clocksource_realview.shift);
+	clocksource_register(&clocksource_realview);
+}
+
 /*
- * Set up timer interrupt, and return the current time in seconds.
+ * Set up the clock source and clock events devices
  */
-static void __init realview_timer_init(void)
+void __init realview_timer_init(unsigned int timer_irq)
 {
 	u32 val;
+
+#ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
+	/*
+	 * The dummy clock device has to be registered before the main device
+	 * so that the latter will broadcast the clock events
+	 */
+	local_timer_setup(smp_processor_id());
+#endif
 
 	/* 
 	 * set clock frequency: 
@@ -576,18 +612,11 @@ static void __init realview_timer_init(void)
 	writel(0, TIMER2_VA_BASE + TIMER_CTRL);
 	writel(0, TIMER3_VA_BASE + TIMER_CTRL);
 
-	writel(TIMER_RELOAD, TIMER0_VA_BASE + TIMER_LOAD);
-	writel(TIMER_RELOAD, TIMER0_VA_BASE + TIMER_VALUE);
-	writel(TIMER_DIVISOR | TIMER_CTRL_ENABLE | TIMER_CTRL_PERIODIC |
-	       TIMER_CTRL_IE, TIMER0_VA_BASE + TIMER_CTRL);
-
 	/* 
 	 * Make irqs happen for the system timer
 	 */
-	setup_irq(IRQ_TIMERINT0_1, &realview_timer_irq);
-}
+	setup_irq(timer_irq, &realview_timer_irq);
 
-struct sys_timer realview_timer = {
-	.init		= realview_timer_init,
-	.offset		= realview_gettimeoffset,
-};
+	realview_clocksource_init();
+	realview_clockevents_init(timer_irq);
+}

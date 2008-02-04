@@ -10,6 +10,7 @@
 #include <asm/arch/mmc.h>
 #include <asm/arch/irda.h>
 #include <asm/arch/i2c.h>
+#include <asm/arch/ohci.h>
 
 #include "devices.h"
 
