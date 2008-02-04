@@ -96,23 +96,14 @@ static inline void pud_clear(pud_t *pudp)
 	set_pud(pudp, __pud(0));
 
 	/*
-	 * In principle we need to do a cr3 reload here to make sure
-	 * the processor recognizes the changed pgd.  In practice, all
-	 * the places where pud_clear() gets called are followed by
-	 * full tlb flushes anyway, so we can defer the cost here.
+	 * Pentium-II erratum A13: in PAE mode we explicitly have to flush
+	 * the TLB via cr3 if the top-level pgd is changed...
 	 *
-	 * Specifically:
-	 *
-	 * mm/memory.c:free_pmd_range() - immediately after the
-	 * pud_clear() it does a pmd_free_tlb().  We change the
-	 * mmu_gather structure to do a full tlb flush (which has the
-	 * effect of reloading cr3) when the pagetable free is
-	 * complete.
-	 *
-	 * arch/x86/mm/hugetlbpage.c:huge_pmd_unshare() - the call to
-	 * this is followed by a flush_tlb_range, which on x86 does a
-	 * full tlb flush.
+	 * XXX I don't think we need to worry about this here, since
+	 * when clearing the pud, the calling code needs to flush the
+	 * tlb anyway.  But do it now for safety's sake. - jsgf
 	 */
+	write_cr3(read_cr3());
 }
 
 #define pud_page(pud) \
