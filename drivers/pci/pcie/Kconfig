@@ -26,23 +26,3 @@ config HOTPLUG_PCI_PCIE
 	  When in doubt, say N.
 
 source "drivers/pci/pcie/aer/Kconfig"
-
-#
-# PCI Express ASPM
-#
-config PCIEASPM
-	bool "PCI Express ASPM support(Experimental)"
-	depends on PCI && EXPERIMENTAL
-	default y
-	help
-	  This enables PCI Express ASPM (Active State Power Management) and
-	  Clock Power Management. ASPM supports state L0/L0s/L1.
-
-	  When in doubt, say N.
-config PCIEASPM_DEBUG
-	bool "Debug PCI Express ASPM"
-	depends on PCIEASPM
-	default n
-	help
-	  This enables PCI Express ASPM debug support. It will add per-device
-	  interface to control ASPM.

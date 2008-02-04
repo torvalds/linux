@@ -456,7 +456,7 @@ pci_bus_size_cardbus(struct pci_bus *bus)
 	}
 }
 
-void pci_bus_size_bridges(struct pci_bus *bus)
+void __ref pci_bus_size_bridges(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
 	unsigned long mask, prefmask;
@@ -511,7 +511,7 @@ void pci_bus_size_bridges(struct pci_bus *bus)
 }
 EXPORT_SYMBOL(pci_bus_size_bridges);
 
-void pci_bus_assign_resources(struct pci_bus *bus)
+void __ref pci_bus_assign_resources(struct pci_bus *bus)
 {
 	struct pci_bus *b;
 	struct pci_dev *dev;

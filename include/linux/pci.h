@@ -128,7 +128,6 @@ struct pci_cap_saved_state {
 	u32 data[0];
 };
 
-struct pcie_link_state;
 /*
  * The pci_dev structure is used to describe PCI devices.
  */
@@ -163,10 +162,6 @@ struct pci_dev {
 	pci_power_t     current_state;  /* Current operating state. In ACPI-speak,
 					   this is D0-D3, D0 being fully functional,
 					   and D3 being off. */
-
-#ifdef CONFIG_PCIEASPM
-	struct pcie_link_state	*link_state;	/* ASPM link state. */
-#endif
 
 	pci_channel_state_t error_state;	/* current connectivity state */
 	struct	device	dev;		/* Generic device interface */

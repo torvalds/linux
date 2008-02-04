@@ -9,7 +9,6 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/cpumask.h>
-#include <linux/aspm.h>
 #include "pci.h"
 
 #define CARDBUS_LATENCY_TIMER	176	/* secondary latency timer */
@@ -434,7 +433,7 @@ pci_alloc_child_bus(struct pci_bus *parent, struct pci_dev *bridge, int busnr)
 	return child;
 }
 
-struct pci_bus *pci_add_new_bus(struct pci_bus *parent, struct pci_dev *dev, int busnr)
+struct pci_bus *__ref pci_add_new_bus(struct pci_bus *parent, struct pci_dev *dev, int busnr)
 {
 	struct pci_bus *child;
 
@@ -949,7 +948,7 @@ void pci_device_add(struct pci_dev *dev, struct pci_bus *bus)
 	up_write(&pci_bus_sem);
 }
 
-struct pci_dev *pci_scan_single_device(struct pci_bus *bus, int devfn)
+struct pci_dev *__ref pci_scan_single_device(struct pci_bus *bus, int devfn)
 {
 	struct pci_dev *dev;
 
@@ -1002,10 +1001,6 @@ int pci_scan_slot(struct pci_bus *bus, int devfn)
 				break;
 		}
 	}
-
-	if (bus->self)
-		pcie_aspm_init_link_state(bus->self);
-
 	return nr;
 }
 
@@ -1042,20 +1037,6 @@ unsigned int pci_scan_child_bus(struct pci_bus *bus)
 	 */
 	pr_debug("PCI: Bus scan for %04x:%02x returning with max=%02x\n",
 		pci_domain_nr(bus), bus->number, max);
-	return max;
-}
-
-unsigned int __devinit pci_do_scan_bus(struct pci_bus *bus)
-{
-	unsigned int max;
-
-	max = pci_scan_child_bus(bus);
-
-	/*
-	 * Make the discovered devices available.
-	 */
-	pci_bus_add_devices(bus);
-
 	return max;
 }
 
@@ -1145,7 +1126,6 @@ EXPORT_SYMBOL(pci_scan_bus_parented);
 
 #ifdef CONFIG_HOTPLUG
 EXPORT_SYMBOL(pci_add_new_bus);
-EXPORT_SYMBOL(pci_do_scan_bus);
 EXPORT_SYMBOL(pci_scan_slot);
 EXPORT_SYMBOL(pci_scan_bridge);
 EXPORT_SYMBOL_GPL(pci_scan_child_bus);

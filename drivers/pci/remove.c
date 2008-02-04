@@ -1,6 +1,5 @@
 #include <linux/pci.h>
 #include <linux/module.h>
-#include <linux/aspm.h>
 #include "pci.h"
 
 static void pci_free_resources(struct pci_dev *dev)
@@ -31,9 +30,6 @@ static void pci_stop_dev(struct pci_dev *dev)
 		dev->global_list.next = dev->global_list.prev = NULL;
 		up_write(&pci_bus_sem);
 	}
-
-	if (dev->bus->self)
-		pcie_aspm_exit_link_state(dev);
 }
 
 static void pci_destroy_dev(struct pci_dev *dev)
