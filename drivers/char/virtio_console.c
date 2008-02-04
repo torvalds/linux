@@ -158,13 +158,13 @@ static int __devinit virtcons_probe(struct virtio_device *dev)
 	/* Find the input queue. */
 	/* FIXME: This is why we want to wean off hvc: we do nothing
 	 * when input comes in. */
-	in_vq = vdev->config->find_vq(vdev, NULL);
+	in_vq = vdev->config->find_vq(vdev, 0, NULL);
 	if (IS_ERR(in_vq)) {
 		err = PTR_ERR(in_vq);
 		goto free;
 	}
 
-	out_vq = vdev->config->find_vq(vdev, NULL);
+	out_vq = vdev->config->find_vq(vdev, 1, NULL);
 	if (IS_ERR(out_vq)) {
 		err = PTR_ERR(out_vq);
 		goto free_in_vq;

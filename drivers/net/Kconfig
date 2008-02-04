@@ -3114,6 +3114,7 @@ config VIRTIO_NET
 	tristate "Virtio network driver (EXPERIMENTAL)"
 	depends on EXPERIMENTAL && VIRTIO
 	---help---
-	  This is the virtual network driver for lguest.  Say Y or M.
+	  This is the virtual network driver for virtio.  It can be used with
+          lguest or QEMU based VMMs (like KVM or Xen).  Say Y or M.
 
 endif # NETDEVICES

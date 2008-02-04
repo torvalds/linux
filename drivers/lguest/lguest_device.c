@@ -52,57 +52,82 @@ struct lguest_device {
 /*D:130
  * Device configurations
  *
- * The configuration information for a device consists of a series of fields.
- * We don't really care what they are: the Launcher set them up, and the driver
- * will look at them during setup.
+ * The configuration information for a device consists of one or more
+ * virtqueues, a feature bitmaks, and some configuration bytes.  The
+ * configuration bytes don't really matter to us: the Launcher sets them up, and
+ * the driver will look at them during setup.
  *
- * For us these fields come immediately after that device's descriptor in the
- * lguest_devices page.
- *
- * Each field starts with a "type" byte, a "length" byte, then that number of
- * bytes of configuration information.  The device descriptor tells us the
- * total configuration length so we know when we've reached the last field. */
+ * A convenient routine to return the device's virtqueue config array:
+ * immediately after the descriptor. */
+static struct lguest_vqconfig *lg_vq(const struct lguest_device_desc *desc)
+{
+	return (void *)(desc + 1);
+}
 
-/* type + length bytes */
-#define FHDR_LEN 2
+/* The features come immediately after the virtqueues. */
+static u8 *lg_features(const struct lguest_device_desc *desc)
+{
+	return (void *)(lg_vq(desc) + desc->num_vq);
+}
 
-/* This finds the first field of a given type for a device's configuration. */
-static void *lg_find(struct virtio_device *vdev, u8 type, unsigned int *len)
+/* The config space comes after the two feature bitmasks. */
+static u8 *lg_config(const struct lguest_device_desc *desc)
+{
+	return lg_features(desc) + desc->feature_len * 2;
+}
+
+/* The total size of the config page used by this device (incl. desc) */
+static unsigned desc_size(const struct lguest_device_desc *desc)
+{
+	return sizeof(*desc)
+		+ desc->num_vq * sizeof(struct lguest_vqconfig)
+		+ desc->feature_len * 2
+		+ desc->config_len;
+}
+
+/* This tests (and acknowleges) a feature bit. */
+static bool lg_feature(struct virtio_device *vdev, unsigned fbit)
 {
 	struct lguest_device_desc *desc = to_lgdev(vdev)->desc;
-	int i;
+	u8 *features;
 
-	for (i = 0; i < desc->config_len; i += FHDR_LEN + desc->config[i+1]) {
-		if (desc->config[i] == type) {
-			/* Mark it used, so Host can know we looked at it, and
-			 * also so we won't find the same one twice. */
-			desc->config[i] |= 0x80;
-			/* Remember, the second byte is the length. */
-			*len = desc->config[i+1];
-			/* We return a pointer to the field header. */
-			return desc->config + i;
-		}
-	}
+	/* Obviously if they ask for a feature off the end of our feature
+	 * bitmap, it's not set. */
+	if (fbit / 8 > desc->feature_len)
+		return false;
 
-	/* Not found: return NULL for failure. */
-	return NULL;
+	/* The feature bitmap comes after the virtqueues. */
+	features = lg_features(desc);
+	if (!(features[fbit / 8] & (1 << (fbit % 8))))
+		return false;
+
+	/* We set the matching bit in the other half of the bitmap to tell the
+	 * Host we want to use this feature.  We don't use this yet, but we
+	 * could in future. */
+	features[desc->feature_len + fbit / 8] |= (1 << (fbit % 8));
+	return true;
 }
 
 /* Once they've found a field, getting a copy of it is easy. */
-static void lg_get(struct virtio_device *vdev, void *token,
+static void lg_get(struct virtio_device *vdev, unsigned int offset,
 		   void *buf, unsigned len)
 {
-	/* Check they didn't ask for more than the length of the field! */
-	BUG_ON(len > ((u8 *)token)[1]);
-	memcpy(buf, token + FHDR_LEN, len);
+	struct lguest_device_desc *desc = to_lgdev(vdev)->desc;
+
+	/* Check they didn't ask for more than the length of the config! */
+	BUG_ON(offset + len > desc->config_len);
+	memcpy(buf, lg_config(desc) + offset, len);
 }
 
 /* Setting the contents is also trivial. */
-static void lg_set(struct virtio_device *vdev, void *token,
+static void lg_set(struct virtio_device *vdev, unsigned int offset,
 		   const void *buf, unsigned len)
 {
-	BUG_ON(len > ((u8 *)token)[1]);
-	memcpy(token + FHDR_LEN, buf, len);
+	struct lguest_device_desc *desc = to_lgdev(vdev)->desc;
+
+	/* Check they didn't ask for more than the length of the config! */
+	BUG_ON(offset + len > desc->config_len);
+	memcpy(lg_config(desc) + offset, buf, len);
 }
 
 /* The operations to get and set the status word just access the status field
@@ -114,7 +139,18 @@ static u8 lg_get_status(struct virtio_device *vdev)
 
 static void lg_set_status(struct virtio_device *vdev, u8 status)
 {
+	BUG_ON(!status);
 	to_lgdev(vdev)->desc->status = status;
+}
+
+/* To reset the device, we (ab)use the NOTIFY hypercall, with the descriptor
+ * address of the device.  The Host will zero the status and all the
+ * features. */
+static void lg_reset(struct virtio_device *vdev)
+{
+	unsigned long offset = (void *)to_lgdev(vdev)->desc - lguest_devices;
+
+	hcall(LHCALL_NOTIFY, (max_pfn<<PAGE_SHIFT) + offset, 0, 0);
 }
 
 /*
@@ -165,39 +201,29 @@ static void lg_notify(struct virtqueue *vq)
  *
  * So we provide devices with a "find virtqueue and set it up" function. */
 static struct virtqueue *lg_find_vq(struct virtio_device *vdev,
-				    bool (*callback)(struct virtqueue *vq))
+				    unsigned index,
+				    void (*callback)(struct virtqueue *vq))
 {
+	struct lguest_device *ldev = to_lgdev(vdev);
 	struct lguest_vq_info *lvq;
 	struct virtqueue *vq;
-	unsigned int len;
-	void *token;
 	int err;
 
-	/* Look for a field of the correct type to mark a virtqueue.  Note that
-	 * if this succeeds, then the type will be changed so it won't be found
-	 * again, and future lg_find_vq() calls will find the next
-	 * virtqueue (if any). */
-	token = vdev->config->find(vdev, VIRTIO_CONFIG_F_VIRTQUEUE, &len);
-	if (!token)
+	/* We must have this many virtqueues. */
+	if (index >= ldev->desc->num_vq)
 		return ERR_PTR(-ENOENT);
 
 	lvq = kmalloc(sizeof(*lvq), GFP_KERNEL);
 	if (!lvq)
 		return ERR_PTR(-ENOMEM);
 
-	/* Note: we could use a configuration space inside here, just like we
-	 * do for the device.  This would allow expansion in future, because
-	 * our configuration system is designed to be expansible.  But this is
-	 * way easier. */
-	if (len != sizeof(lvq->config)) {
-		dev_err(&vdev->dev, "Unexpected virtio config len %u\n", len);
-		err = -EIO;
-		goto free_lvq;
-	}
-	/* Make a copy of the "struct lguest_vqconfig" field.  We need a copy
-	 * because the config space might not be aligned correctly. */
-	vdev->config->get(vdev, token, &lvq->config, sizeof(lvq->config));
+	/* Make a copy of the "struct lguest_vqconfig" entry, which sits after
+	 * the descriptor.  We need a copy because the config space might not
+	 * be aligned correctly. */
+	memcpy(&lvq->config, lg_vq(ldev->desc)+index, sizeof(lvq->config));
 
+	printk("Mapping virtqueue %i addr %lx\n", index,
+	       (unsigned long)lvq->config.pfn << PAGE_SHIFT);
 	/* Figure out how many pages the ring will take, and map that memory */
 	lvq->pages = lguest_map((unsigned long)lvq->config.pfn << PAGE_SHIFT,
 				DIV_ROUND_UP(vring_size(lvq->config.num,
@@ -259,11 +285,12 @@ static void lg_del_vq(struct virtqueue *vq)
 
 /* The ops structure which hooks everything together. */
 static struct virtio_config_ops lguest_config_ops = {
-	.find = lg_find,
+	.feature = lg_feature,
 	.get = lg_get,
 	.set = lg_set,
 	.get_status = lg_get_status,
 	.set_status = lg_set_status,
+	.reset = lg_reset,
 	.find_vq = lg_find_vq,
 	.del_vq = lg_del_vq,
 };
@@ -329,13 +356,14 @@ static void scan_devices(void)
 	struct lguest_device_desc *d;
 
 	/* We start at the page beginning, and skip over each entry. */
-	for (i = 0; i < PAGE_SIZE; i += sizeof(*d) + d->config_len) {
+	for (i = 0; i < PAGE_SIZE; i += desc_size(d)) {
 		d = lguest_devices + i;
 
 		/* Once we hit a zero, stop. */
 		if (d->type == 0)
 			break;
 
+		printk("Device at %i has size %u\n", i, desc_size(d));
 		add_lguest_device(d);
 	}
 }

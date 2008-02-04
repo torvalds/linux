@@ -2461,6 +2461,34 @@ int skb_cow_data(struct sk_buff *skb, int tailbits, struct sk_buff **trailer)
 	return elt;
 }
 
+/**
+ * skb_partial_csum_set - set up and verify partial csum values for packet
+ * @skb: the skb to set
+ * @start: the number of bytes after skb->data to start checksumming.
+ * @off: the offset from start to place the checksum.
+ *
+ * For untrusted partially-checksummed packets, we need to make sure the values
+ * for skb->csum_start and skb->csum_offset are valid so we don't oops.
+ *
+ * This function checks and sets those values and skb->ip_summed: if this
+ * returns false you should drop the packet.
+ */
+bool skb_partial_csum_set(struct sk_buff *skb, u16 start, u16 off)
+{
+	if (unlikely(start > skb->len - 2) ||
+	    unlikely((int)start + off > skb->len - 2)) {
+		if (net_ratelimit())
+			printk(KERN_WARNING
+			       "bad partial csum: csum=%u/%u len=%u\n",
+			       start, off, skb->len);
+		return false;
+	}
+	skb->ip_summed = CHECKSUM_PARTIAL;
+	skb->csum_start = skb_headroom(skb) + start;
+	skb->csum_offset = off;
+	return true;
+}
+
 EXPORT_SYMBOL(___pskb_trim);
 EXPORT_SYMBOL(__kfree_skb);
 EXPORT_SYMBOL(kfree_skb);
@@ -2497,3 +2525,4 @@ EXPORT_SYMBOL(skb_append_datato_frags);
 
 EXPORT_SYMBOL_GPL(skb_to_sgvec);
 EXPORT_SYMBOL_GPL(skb_cow_data);
+EXPORT_SYMBOL_GPL(skb_partial_csum_set);

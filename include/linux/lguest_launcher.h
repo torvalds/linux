@@ -23,7 +23,12 @@
 struct lguest_device_desc {
 	/* The device type: console, network, disk etc.  Type 0 terminates. */
 	__u8 type;
-	/* The number of bytes of the config array. */
+	/* The number of virtqueues (first in config array) */
+	__u8 num_vq;
+	/* The number of bytes of feature bits.  Multiply by 2: one for host
+	 * features and one for guest acknowledgements. */
+	__u8 feature_len;
+	/* The number of bytes of the config array after virtqueues. */
 	__u8 config_len;
 	/* A status byte, written by the Guest. */
 	__u8 status;
@@ -31,7 +36,7 @@ struct lguest_device_desc {
 };
 
 /*D:135 This is how we expect the device configuration field for a virtqueue
- * (type VIRTIO_CONFIG_F_VIRTQUEUE) to be laid out: */
+ * to be laid out in config space. */
 struct lguest_vqconfig {
 	/* The number of entries in the virtio_ring */
 	__u16 num;

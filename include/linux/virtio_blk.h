@@ -6,15 +6,19 @@
 #define VIRTIO_ID_BLOCK	2
 
 /* Feature bits */
-#define VIRTIO_CONFIG_BLK_F	0x40
-#define VIRTIO_BLK_F_BARRIER	1	/* Does host support barriers? */
+#define VIRTIO_BLK_F_BARRIER	0	/* Does host support barriers? */
+#define VIRTIO_BLK_F_SIZE_MAX	1	/* Indicates maximum segment size */
+#define VIRTIO_BLK_F_SEG_MAX	2	/* Indicates maximum # of segments */
 
-/* The capacity (in 512-byte sectors). */
-#define VIRTIO_CONFIG_BLK_F_CAPACITY	0x41
-/* The maximum segment size. */
-#define VIRTIO_CONFIG_BLK_F_SIZE_MAX	0x42
-/* The maximum number of segments. */
-#define VIRTIO_CONFIG_BLK_F_SEG_MAX	0x43
+struct virtio_blk_config
+{
+	/* The capacity (in 512-byte sectors). */
+	__le64 capacity;
+	/* The maximum segment size (if VIRTIO_BLK_F_SIZE_MAX) */
+	__le32 size_max;
+	/* The maximum number of segments (if VIRTIO_BLK_F_SEG_MAX) */
+	__le32 seg_max;
+} __attribute__((packed));
 
 /* These two define direction. */
 #define VIRTIO_BLK_T_IN		0
@@ -35,8 +39,6 @@ struct virtio_blk_outhdr
 	__u32 ioprio;
 	/* Sector (ie. 512 byte offset) */
 	__u64 sector;
-	/* Where to put reply. */
-	__u64 id;
 };
 
 #define VIRTIO_BLK_S_OK		0
