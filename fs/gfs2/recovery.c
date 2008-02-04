@@ -450,7 +450,7 @@ int gfs2_recover_journal(struct gfs2_jdesc *jd)
 		fs_info(sdp, "jid=%u: Trying to acquire journal lock...\n",
 			jd->jd_jid);
 
-		/* Aquire the journal lock so we can do recovery */
+		/* Acquire the journal lock so we can do recovery */
 
 		error = gfs2_glock_nq_num(sdp, jd->jd_jid, &gfs2_journal_glops,
 					  LM_ST_EXCLUSIVE,

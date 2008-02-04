@@ -838,7 +838,7 @@ static int __devexit hvcs_remove(struct vio_dev *dev)
 	if (!hvcsd)
 		return -ENODEV;
 
-	/* By this time the vty-server won't be getting any more interrups */
+	/* By this time the vty-server won't be getting any more interrupts */
 
 	spin_lock_irqsave(&hvcsd->lock, flags);
 

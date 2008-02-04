@@ -14,7 +14,7 @@
  *      - 3Com 3C339 Token Link Velocity
  *
  *  Maintainer(s):
- *    AF	Adam Fritzler		mid@auk.cx
+ *    AF	Adam Fritzler
  *
  *  Modification History:
  *	30-Dec-99	AF	Split off from the tms380tr driver.

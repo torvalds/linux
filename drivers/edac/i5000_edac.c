@@ -351,7 +351,7 @@ struct i5000_pvt {
 	u16 b1_ambpresent0;	/* Branch 1, Channel 8 */
 	u16 b1_ambpresent1;	/* Branch 1, Channel 1 */
 
-	/* DIMM infomation matrix, allocating architecture maximums */
+	/* DIMM information matrix, allocating architecture maximums */
 	struct i5000_dimm_info dimm_info[MAX_CSROWS][MAX_CHANNELS];
 
 	/* Actual values for this controller */

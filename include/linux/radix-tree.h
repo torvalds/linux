@@ -91,7 +91,7 @@ do {									\
  *
  * For API usage, in general,
  * - any function _modifying_ the tree or tags (inserting or deleting
- *   items, setting or clearing tags must exclude other modifications, and
+ *   items, setting or clearing tags) must exclude other modifications, and
  *   exclude any functions reading the tree.
  * - any function _reading_ the tree or tags (looking up items or tags,
  *   gang lookups) must exclude modifications to the tree, but may occur

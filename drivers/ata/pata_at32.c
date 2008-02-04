@@ -324,7 +324,7 @@ static int __init pata_at32_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	/* Setup struct containing private infomation */
+	/* Setup struct containing private information */
 	info = kzalloc(sizeof(struct at32_ide_info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;

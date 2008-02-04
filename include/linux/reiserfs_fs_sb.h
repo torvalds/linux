@@ -185,7 +185,7 @@ struct reiserfs_journal {
 	unsigned long j_trans_id;
 	unsigned long j_mount_id;
 	unsigned long j_start;	/* start of current waiting commit (index into j_ap_blocks) */
-	unsigned long j_len;	/* lenght of current waiting commit */
+	unsigned long j_len;	/* length of current waiting commit */
 	unsigned long j_len_alloc;	/* number of buffers requested by journal_begin() */
 	atomic_t j_wcount;	/* count of writers for current commit */
 	unsigned long j_bcount;	/* batch count. allows turning X transactions into 1 */

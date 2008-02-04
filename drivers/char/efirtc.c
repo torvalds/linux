@@ -18,7 +18,7 @@
  *
  * NOTES:
  *	- Locking is required for safe execution of EFI calls with regards
- *	  to interrrupts and SMP.
+ *	  to interrupts and SMP.
  *
  * TODO (December 1999):
  * 	- provide the API to set/get the WakeUp Alarm (different from the

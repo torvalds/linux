@@ -220,20 +220,8 @@ decreasing the likelihood of your MIME-attached change being accepted.
 Exception:  If your mailer is mangling patches then someone may ask
 you to re-send them using MIME.
 
-
-WARNING: Some mailers like Mozilla send your messages with
----- message header ----
-Content-Type: text/plain; charset=us-ascii; format=flowed
----- message header ----
-The problem is that "format=flowed" makes some of the mailers
-on receiving side to replace TABs with spaces and do similar
-changes. Thus the patches from you can look corrupted.
-
-To fix this just make your mozilla defaults/pref/mailnews.js file to look like:
-pref("mailnews.send_plaintext_flowed", false); // RFC 2646=======
-pref("mailnews.display.disable_format_flowed_support", true);
-
-
+See Documentation/email-clients.txt for hints about configuring
+your e-mail client so that it sends your patches untouched.
 
 8) E-mail size.
 

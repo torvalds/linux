@@ -28,7 +28,7 @@
 #define EFA_PARISC_1_1		    0x0210 /* PA-RISC 1.1 big-endian.  */
 #define EFA_PARISC_2_0		    0x0214 /* PA-RISC 2.0 big-endian.  */
 
-/* Additional section indeces.  */
+/* Additional section indices.  */
 
 #define SHN_PARISC_ANSI_COMMON	0xff00	   /* Section for tenatively declared
 					      symbols in ANSI C.  */

@@ -95,7 +95,7 @@ struct pm_dev
 };
 
 /* Functions above this comment are list-based old-style power
- * managment. Please avoid using them.  */
+ * management. Please avoid using them.  */
 
 /*
  * Callbacks for platform drivers to implement.

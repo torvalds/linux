@@ -1,6 +1,6 @@
 /* NCR53C9x.c:  Defines and structures for the NCR53C9x generic driver.
  *
- * Originaly esp.h:  Defines and structures for the Sparc ESP 
+ * Originally esp.h:  Defines and structures for the Sparc ESP 
  *                   (Enhanced SCSI Processor) driver under Linux.
  *
  * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)

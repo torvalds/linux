@@ -3177,7 +3177,7 @@ S:	Maintained
 
 RAYLINK/WEBGEAR 802.11 WIRELESS LAN DRIVER
 P:	Corey Thomas
-M:	corey@world.std.com
+M:	coreythomas@charter.net
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
 
@@ -3790,18 +3790,9 @@ L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
 TRIVIAL PATCHES
-P:	Adrian Bunk
+P:	Jesper Juhl
 M:	trivial@kernel.org
 L:	linux-kernel@vger.kernel.org
-W:	http://www.kernel.org/pub/linux/kernel/people/bunk/trivial/
-T:	git kernel.org:/pub/scm/linux/kernel/git/bunk/trivial.git
-S:	Maintained
-
-TMS380 TOKEN-RING NETWORK DRIVER
-P:	Adam Fritzler
-M:	mid@auk.cx
-L:	linux-tr@linuxtr.net
-W:	http://www.auk.cx/tms380tr/
 S:	Maintained
 
 TULIP NETWORK DRIVER

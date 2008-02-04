@@ -305,7 +305,7 @@ flush_user_cache_page_non_current(struct vm_area_struct *vma,
 	/* save the current process space and pgd */
 	unsigned long space = mfsp(3), pgd = mfctl(25);
 
-	/* we don't mind taking interrups since they may not
+	/* we don't mind taking interrupts since they may not
 	 * do anything with user space, but we can't
 	 * be preempted here */
 	preempt_disable();

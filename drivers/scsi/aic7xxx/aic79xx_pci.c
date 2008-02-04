@@ -979,7 +979,7 @@ ahd_aic790X_setup(struct ahd_softc *ahd)
 			  |  AHD_FAINT_LED_BUG;
 
 		/*
-		 * IO Cell paramter setup.
+		 * IO Cell parameter setup.
 		 */
 		AHD_SET_PRECOMP(ahd, AHD_PRECOMP_CUTBACK_29);
 
@@ -1006,7 +1006,7 @@ ahd_aic790X_setup(struct ahd_softc *ahd)
 			ahd->bugs |= AHD_INTCOLLISION_BUG|AHD_ABORT_LQI_BUG;
 
 		/*
-		 * IO Cell paramter setup.
+		 * IO Cell parameter setup.
 		 */
 		AHD_SET_PRECOMP(ahd, AHD_PRECOMP_CUTBACK_29);
 		AHD_SET_SLEWRATE(ahd, AHD_SLEWRATE_DEF_REVB);

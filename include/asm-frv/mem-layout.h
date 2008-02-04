@@ -39,7 +39,7 @@
 
 #ifdef CONFIG_MMU
 
-/* see Documentation/fujitsu/frv/mmu-layout.txt */
+/* see Documentation/frv/mmu-layout.txt */
 #define KERNEL_LOWMEM_START		__UL(0xc0000000)
 #define KERNEL_LOWMEM_END		__UL(0xd0000000)
 #define VMALLOC_START			__UL(0xd0000000)

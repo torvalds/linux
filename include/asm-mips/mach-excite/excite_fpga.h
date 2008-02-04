@@ -3,7 +3,7 @@
 
 
 /**
- * Adress alignment of the individual FPGA bytes.
+ * Address alignment of the individual FPGA bytes.
  * The address arrangement of the individual bytes of the FPGA is two
  * byte aligned at the embedded MK2 platform.
  */

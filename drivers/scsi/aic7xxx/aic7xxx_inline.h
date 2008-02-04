@@ -229,7 +229,7 @@ ahc_name(struct ahc_softc *ahc)
 	return (ahc->name);
 }
 
-/*********************** Miscelaneous Support Functions ***********************/
+/*********************** Miscellaneous Support Functions ***********************/
 
 static __inline void	ahc_update_residual(struct ahc_softc *ahc,
 					    struct scb *scb);

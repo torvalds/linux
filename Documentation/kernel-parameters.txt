@@ -549,7 +549,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			1 will print _a lot_ more information - normally
 			only useful to kernel developers.
 
-	decnet=		[HW,NET]
+	decnet.addr=	[HW,NET]
 			Format: <area>[,<node>]
 			See also Documentation/networking/decnet.txt.
 
@@ -1561,14 +1561,17 @@ and is between 256 and 4096 characters. It is defined in the file
 	ramdisk_size=	[RAM] Sizes of RAM disks in kilobytes
 			See Documentation/ramdisk.txt.
 
-	rcu.blimit=	[KNL,BOOT] Set maximum number of finished
-			RCU callbacks to process in one batch.
+	rcupdate.blimit=	[KNL,BOOT]
+			Set maximum number of finished RCU callbacks to process
+			in one batch.
 
-	rcu.qhimark=	[KNL,BOOT] Set threshold of queued
+	rcupdate.qhimark=	[KNL,BOOT]
+			Set threshold of queued
 			RCU callbacks over which batch limiting is disabled.
 
-	rcu.qlowmark=	[KNL,BOOT] Set threshold of queued
-			RCU callbacks below which batch limiting is re-enabled.
+	rcupdate.qlowmark=	[KNL,BOOT]
+			Set threshold of queued RCU callbacks below which
+			batch limiting is re-enabled.
 
 	rdinit=		[KNL]
 			Format: <full_path>
@@ -1888,9 +1891,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	st=		[HW,SCSI] SCSI tape parameters (buffers, etc.)
 			See Documentation/scsi/st.txt.
 
-	st0x=		[HW,SCSI]
-			See header of drivers/scsi/seagate.c.
-
 	sti=		[PARISC,HW]
 			Format: <num>
 			Set the STI (builtin display/keyboard on the HP-PARISC
@@ -1974,9 +1974,6 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	tipar.delay=	[HW,PPT]
 			Set inter-bit delay in microseconds (default 10).
-
-	tmc8xx=		[HW,SCSI]
-			See header of drivers/scsi/seagate.c.
 
 	tmscsim=	[HW,SCSI]
 			See comment before function dc390_setup() in

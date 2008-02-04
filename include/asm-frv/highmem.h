@@ -4,7 +4,7 @@
  * Written by David Howells (dhowells@redhat.com)
  * - Derived from include/asm-i386/highmem.h
  *
- * See Documentation/fujitsu/frv/mmu-layout.txt for more information.
+ * See Documentation/frv/mmu-layout.txt for more information.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License

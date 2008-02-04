@@ -42,7 +42,7 @@ extern unsigned long it8152_base_address;
 #define IT8152_GPIO_GPDR		__REG_IT8152(0x3f00500)
 
 /*
-  Interrup contoler per register summary:
+  Interrupt controller per register summary:
   ---------------------------------------
   LCDNIRR:
   IT8152_LD_IRQ(8) PCICLK stop

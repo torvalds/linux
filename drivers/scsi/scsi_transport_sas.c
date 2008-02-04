@@ -6,7 +6,7 @@
  *
  * The SAS transport class contains common code to deal with SAS HBAs,
  * an aproximated representation of SAS topologies in the driver model,
- * and various sysfs attributes to expose these topologies and managment
+ * and various sysfs attributes to expose these topologies and management
  * interfaces to userspace.
  *
  * In addition to the basic SCSI core objects this transport class

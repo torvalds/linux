@@ -681,7 +681,7 @@ static void dvb_net_ule( struct net_device *dev, const u8 *buf, size_t buf_len )
 							drop = 1;
 						/* else: destination address matches the MAC address of our receiver device */
 					}
-					/* else: promiscious mode; pass everything up the stack */
+					/* else: promiscuous mode; pass everything up the stack */
 
 					if (drop) {
 #ifdef ULE_DEBUG

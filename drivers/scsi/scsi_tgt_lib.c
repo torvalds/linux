@@ -320,7 +320,7 @@ int scsi_tgt_queue_command(struct scsi_cmnd *cmd, u64 itn_id,
 EXPORT_SYMBOL_GPL(scsi_tgt_queue_command);
 
 /*
- * This is run from a interrpt handler normally and the unmap
+ * This is run from a interrupt handler normally and the unmap
  * needs process context so we must queue
  */
 static void scsi_tgt_cmd_done(struct scsi_cmnd *cmd)

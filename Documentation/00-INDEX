@@ -154,7 +154,7 @@ firmware_class/
 	- request_firmware() hotplug interface info.
 floppy.txt
 	- notes and driver options for the floppy disk driver.
-fujitsu/
+frv/
 	- Fujitsu FR-V Linux documentation.
 gpio.txt
 	- overview of GPIO (General Purpose Input/Output) access conventions.
@@ -364,8 +364,6 @@ sharedsubtree.txt
 	- a description of shared subtrees for namespaces.
 smart-config.txt
 	- description of the Smart Config makefile feature.
-smp.txt
-	- a few notes on symmetric multi-processing.
 sony-laptop.txt
 	- Sony Notebook Control Driver (SNC) Readme.
 sonypi.txt

@@ -4344,7 +4344,7 @@ static void rv605_muxsel(struct bttv *btv, unsigned int input)
 	gpio_bits(0x200,0x000);
 	mdelay(1);
 
-	/* create a new conection */
+	/* create a new connection */
 	gpio_bits(0x480,0x080);
 	gpio_bits(0x480,0x480);
 	mdelay(1);

@@ -58,7 +58,7 @@ long find_first_zero_bit(const unsigned long * addr, unsigned long size)
 }
 
 /**
- * find_next_zero_bit - find the first zero bit in a memory region
+ * find_next_zero_bit - find the next zero bit in a memory region
  * @addr: The address to base the search on
  * @offset: The bitnumber to start searching at
  * @size: The maximum size to search

@@ -1215,7 +1215,7 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 	down_write(&oi->ip_alloc_sem);
 
 	/*
-	 * Prepare for worst case allocation scenario of two seperate
+	 * Prepare for worst case allocation scenario of two separate
 	 * extents.
 	 */
 	if (alloc == 2)

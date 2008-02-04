@@ -112,7 +112,7 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 	err |= PUTREG(regs, RSI, to, si);
 	err |= PUTREG(regs, RBP, to, bp);
 	/*
-	 * Must use orignal RSP, which is passed in, rather than what's in
+	 * Must use original RSP, which is passed in, rather than what's in
 	 * the pt_regs, because that's already been updated to point at the
 	 * signal frame.
 	 */

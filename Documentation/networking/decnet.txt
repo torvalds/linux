@@ -60,7 +60,7 @@ operation of the local communications in any other way though.
 
 The kernel command line takes options looking like the following:
 
-    decnet=1,2
+    decnet.addr=1,2
 
 the two numbers are the node address 1,2 = 1.2 For 2.2.xx kernels
 and early 2.3.xx kernels, you must use a comma when specifying the

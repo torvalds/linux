@@ -165,7 +165,7 @@ int collie_read_temp(void)
 
 	ucb1x00_adc_enable(ucb);
 	ucb1x00_io_write(ucb, COLLIE_TC35143_GPIO_TMP_ON, 0);
-	/* >1010 = battery removed, 460 = 22C ?, higer = lower temp ? */
+	/* >1010 = battery removed, 460 = 22C ?, higher = lower temp ? */
 	voltage = ucb1x00_adc_read(ucb, UCB_ADC_INP_AD0, UCB_SYNC);
 	ucb1x00_io_write(ucb, 0, COLLIE_TC35143_GPIO_TMP_ON);
 	ucb1x00_adc_disable(ucb);

@@ -737,25 +737,25 @@
 
 #define USIR0		__REG(0x40600058)  /* UDC Status Interrupt Register 0 */
 
-#define USIR0_IR0	(1 << 0)	/* Interrup request ep 0 */
-#define USIR0_IR1	(1 << 1)	/* Interrup request ep 1 */
-#define USIR0_IR2	(1 << 2)	/* Interrup request ep 2 */
-#define USIR0_IR3	(1 << 3)	/* Interrup request ep 3 */
-#define USIR0_IR4	(1 << 4)	/* Interrup request ep 4 */
-#define USIR0_IR5	(1 << 5)	/* Interrup request ep 5 */
-#define USIR0_IR6	(1 << 6)	/* Interrup request ep 6 */
-#define USIR0_IR7	(1 << 7)	/* Interrup request ep 7 */
+#define USIR0_IR0	(1 << 0)	/* Interrupt request ep 0 */
+#define USIR0_IR1	(1 << 1)	/* Interrupt request ep 1 */
+#define USIR0_IR2	(1 << 2)	/* Interrupt request ep 2 */
+#define USIR0_IR3	(1 << 3)	/* Interrupt request ep 3 */
+#define USIR0_IR4	(1 << 4)	/* Interrupt request ep 4 */
+#define USIR0_IR5	(1 << 5)	/* Interrupt request ep 5 */
+#define USIR0_IR6	(1 << 6)	/* Interrupt request ep 6 */
+#define USIR0_IR7	(1 << 7)	/* Interrupt request ep 7 */
 
 #define USIR1		__REG(0x4060005C)  /* UDC Status Interrupt Register 1 */
 
-#define USIR1_IR8	(1 << 0)	/* Interrup request ep 8 */
-#define USIR1_IR9	(1 << 1)	/* Interrup request ep 9 */
-#define USIR1_IR10	(1 << 2)	/* Interrup request ep 10 */
-#define USIR1_IR11	(1 << 3)	/* Interrup request ep 11 */
-#define USIR1_IR12	(1 << 4)	/* Interrup request ep 12 */
-#define USIR1_IR13	(1 << 5)	/* Interrup request ep 13 */
-#define USIR1_IR14	(1 << 6)	/* Interrup request ep 14 */
-#define USIR1_IR15	(1 << 7)	/* Interrup request ep 15 */
+#define USIR1_IR8	(1 << 0)	/* Interrupt request ep 8 */
+#define USIR1_IR9	(1 << 1)	/* Interrupt request ep 9 */
+#define USIR1_IR10	(1 << 2)	/* Interrupt request ep 10 */
+#define USIR1_IR11	(1 << 3)	/* Interrupt request ep 11 */
+#define USIR1_IR12	(1 << 4)	/* Interrupt request ep 12 */
+#define USIR1_IR13	(1 << 5)	/* Interrupt request ep 13 */
+#define USIR1_IR14	(1 << 6)	/* Interrupt request ep 14 */
+#define USIR1_IR15	(1 << 7)	/* Interrupt request ep 15 */
 
 #elif defined(CONFIG_PXA27x)
 
@@ -1020,7 +1020,7 @@
 #define ICSR0		__REG(0x40800014)  /* ICP Status Register 0 */
 #define ICSR1		__REG(0x40800018)  /* ICP Status Register 1 */
 
-#define ICCR0_AME	(1 << 7)	/* Adress match enable */
+#define ICCR0_AME	(1 << 7)	/* Address match enable */
 #define ICCR0_TIE	(1 << 6)	/* Transmit FIFO interrupt enable */
 #define ICCR0_RIE	(1 << 5)	/* Recieve FIFO interrupt enable */
 #define ICCR0_RXE	(1 << 4)	/* Receive enable */

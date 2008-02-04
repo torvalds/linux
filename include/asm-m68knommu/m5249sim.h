@@ -43,10 +43,10 @@
 #define MCFSIM_CSAR1		0x8c		/* CS 1 Address reg (r/w) */
 #define MCFSIM_CSMR1		0x90		/* CS 1 Mask reg (r/w) */
 #define MCFSIM_CSCR1		0x96		/* CS 1 Control reg (r/w) */
-#define MCFSIM_CSAR2		0x98		/* CS 2 Adress reg (r/w) */
+#define MCFSIM_CSAR2		0x98		/* CS 2 Address reg (r/w) */
 #define MCFSIM_CSMR2		0x9c		/* CS 2 Mask reg (r/w) */
 #define MCFSIM_CSCR2		0xa2		/* CS 2 Control reg (r/w) */
-#define MCFSIM_CSAR3		0xa4		/* CS 3 Adress reg (r/w) */
+#define MCFSIM_CSAR3		0xa4		/* CS 3 Address reg (r/w) */
 #define MCFSIM_CSMR3		0xa8		/* CS 3 Mask reg (r/w) */
 #define MCFSIM_CSCR3		0xae		/* CS 3 Control reg (r/w) */
 

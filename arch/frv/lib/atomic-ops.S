@@ -1,7 +1,7 @@
 /* atomic-ops.S: kernel atomic operations
  *
  * For an explanation of how atomic ops work in this arch, see:
- *   Documentation/fujitsu/frv/atomic-ops.txt
+ *   Documentation/frv/atomic-ops.txt
  *
  * Copyright (C) 2004 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)

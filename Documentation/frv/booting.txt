@@ -177,5 +177,5 @@ separated by spaces:
   (*) vdc=...
 
       This option configures the MB93493 companion chip visual display
-      driver. Please see Documentation/fujitsu/mb93493/vdc.txt for more
+      driver. Please see Documentation/frv/mb93493/vdc.txt for more
       information.

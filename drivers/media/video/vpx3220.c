@@ -566,7 +566,7 @@ vpx3220_init_client (struct i2c_client *client)
 }
 
 /* -----------------------------------------------------------------------
- * Client managment code
+ * Client management code
  */
 
 /*

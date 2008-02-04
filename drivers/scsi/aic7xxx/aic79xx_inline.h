@@ -417,7 +417,7 @@ ahd_targetcmd_offset(struct ahd_softc *ahd, u_int index)
 	       - (uint8_t *)ahd->qoutfifo);
 }
 
-/*********************** Miscelaneous Support Functions ***********************/
+/*********************** Miscellaneous Support Functions ***********************/
 static __inline struct ahd_initiator_tinfo *
 			ahd_fetch_transinfo(struct ahd_softc *ahd,
 					    char channel, u_int our_id,

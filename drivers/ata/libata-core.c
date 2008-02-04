@@ -3097,7 +3097,7 @@ static int ata_dev_set_mode(struct ata_device *dev)
 /**
  *	ata_do_set_mode - Program timings and issue SET FEATURES - XFER
  *	@link: link on which timings will be programmed
- *	@r_failed_dev: out paramter for failed device
+ *	@r_failed_dev: out parameter for failed device
  *
  *	Standard implementation of the function used to tune and set
  *	ATA device disk transfer mode (PIO3, UDMA6, etc.).  If

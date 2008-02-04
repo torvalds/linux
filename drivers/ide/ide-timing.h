@@ -199,7 +199,7 @@ static int ide_timing_compute(ide_drive_t *drive, short speed, struct ide_timing
 	}
 
 /*
- * Lenghten active & recovery time so that cycle time is correct.
+ * Lengthen active & recovery time so that cycle time is correct.
  */
 
 	if (t->act8b + t->rec8b < t->cyc8b) {

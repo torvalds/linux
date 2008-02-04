@@ -377,7 +377,7 @@ more explicit to have a method whereby userspace sees this divergence.
 Rather than have a group where some items behave differently than
 others, configfs provides a method whereby one or many subgroups are
 automatically created inside the parent at its creation.  Thus,
-mkdir("parent) results in "parent", "parent/subgroup1", up through
+mkdir("parent") results in "parent", "parent/subgroup1", up through
 "parent/subgroupN".  Items of type 1 can now be created in
 "parent/subgroup1", and items of type N can be created in
 "parent/subgroupN".

@@ -673,9 +673,8 @@ config SMP
 	  People using multiprocessor machines who say Y here should also say
 	  Y to "Enhanced Real Time Clock Support", below.
 
-	  See also the <file:Documentation/smp.txt>,
-	  <file:Documentation/nmi_watchdog.txt> and the SMP-HOWTO available
-	  at <http://www.tldp.org/docs.html#howto>.
+	  See also <file:Documentation/nmi_watchdog.txt> and the SMP-HOWTO
+	  available at <http://www.tldp.org/docs.html#howto>.
 
 	  If you don't know what to do here, say N.
 

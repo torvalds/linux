@@ -125,7 +125,7 @@ static int __init ep7312_init(void)
 		return -ENOMEM;
 	}
 
-	/* map physical adress */
+	/* map physical address */
 	ep7312_fio_base = ioremap(ep7312_fio_pbase, SZ_1K);
 	if (!ep7312_fio_base) {
 		printk("ioremap EDB7312 NAND flash failed\n");

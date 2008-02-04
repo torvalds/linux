@@ -326,7 +326,7 @@ static int indycam_attach(struct i2c_adapter *adap, int addr, int kind)
 	// initialize
 	err = indycam_write_block(client, 0, sizeof(initseq), (u8 *)&initseq);
 	if (err) {
-		printk(KERN_ERR "IndyCam initalization failed\n");
+		printk(KERN_ERR "IndyCam initialization failed\n");
 		err = -EIO;
 		goto out_detach_client;
 	}

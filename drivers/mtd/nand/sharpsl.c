@@ -165,7 +165,7 @@ static int __init sharpsl_nand_init(void)
 		return -ENOMEM;
 	}
 
-	/* map physical adress */
+	/* map physical address */
 	sharpsl_io_base = ioremap(sharpsl_phys_base, 0x1000);
 	if (!sharpsl_io_base) {
 		printk("ioremap to access Sharp SL NAND chip failed\n");

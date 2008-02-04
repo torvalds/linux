@@ -85,7 +85,7 @@ involve special block devices or loopbacks; you merely create a directory on
 disk with the desired initrd content, cd to that directory, and run (as an
 example):
 
-find . | cpio --quiet -c -o | gzip -9 -n > /boot/imagefile.img
+find . | cpio --quiet -H newc -o | gzip -9 -n > /boot/imagefile.img
 
 Examining the contents of an existing image file is just as simple:
 

@@ -2561,7 +2561,7 @@ static void radeon_set_suspend(struct radeonfb_info *rinfo, int suspend)
 			pci_read_config_dword(rinfo->pdev, i * 4,
 					      &rinfo->cfg_save[i]);
 
-		/* Switch PCI power managment to D2. */
+		/* Switch PCI power management to D2. */
 		pci_disable_device(rinfo->pdev);
 		for (;;) {
 			pci_read_config_word(

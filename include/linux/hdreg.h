@@ -364,7 +364,7 @@ typedef struct hd_drive_hob_hdr {
 #define SETFEATURES_EN_RLA	0xAA	/* Enable read look-ahead feature */
 #define SETFEATURES_PREFETCH	0xAB	/* Sets drive prefetch value */
 #define SETFEATURES_EN_REST	0xAC	/* ATA-1 */
-#define SETFEATURES_4B_RW_LONG	0xBB	/* Set Lenght of 4 bytes */
+#define SETFEATURES_4B_RW_LONG	0xBB	/* Set Length of 4 bytes */
 #define SETFEATURES_DIS_AAM	0xC2	/* Disable Automatic Acoustic Management */
 #define SETFEATURES_EN_RPOD	0xCC	/* Enable reverting to power on defaults */
 #define SETFEATURES_DIS_RI	0xDD	/* Disable release interrupt ATAPI */

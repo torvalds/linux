@@ -12,7 +12,7 @@
  *  - maybe add timeout to commands ?
  *  - blocking version of time functions
  *  - polling version of i2c commands (including timer that works with
- *    interrutps off)
+ *    interrupts off)
  *  - maybe avoid some data copies with i2c by directly using the smu cmd
  *    buffer and a lower level internal interface
  *  - understand SMU -> CPU events and implement reception of them via
@@ -179,7 +179,7 @@ static irqreturn_t smu_db_intr(int irq, void *arg)
 		/* CPU might have brought back the cache line, so we need
 		 * to flush again before peeking at the SMU response. We
 		 * flush the entire buffer for now as we haven't read the
-		 * reply lenght (it's only 2 cache lines anyway)
+		 * reply length (it's only 2 cache lines anyway)
 		 */
 		faddr = (unsigned long)smu->cmd_buf;
 		flush_inval_dcache_range(faddr, faddr + 256);

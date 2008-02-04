@@ -3,4 +3,4 @@
 
 /* nothing */
 
-#endif __ASM_PARISC_VGA_H__
+#endif /* __ASM_PARISC_VGA_H__ */

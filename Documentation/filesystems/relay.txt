@@ -140,7 +140,7 @@ close()     decrements the channel buffer's refcount.  When the refcount
 In order for a user application to make use of relay files, the
 host filesystem must be mounted.  For example,
 
-	mount -t debugfs debugfs /debug
+	mount -t debugfs debugfs /sys/kernel/debug
 
 NOTE:   the host filesystem doesn't need to be mounted for kernel
 	clients to create or use channels - it only needs to be

@@ -95,7 +95,7 @@ static struct parisc_driver hppb_driver = {
 };
 
 /**
- * hppb_init - HP-PB bus initalization procedure.
+ * hppb_init - HP-PB bus initialization procedure.
  *
  * Register this driver.   
  */

@@ -85,7 +85,7 @@ acpi_install_initialization_handler(acpi_init_handler handler, u32 function);
 #endif
 
 /*
- * ACPI Memory managment
+ * ACPI Memory management
  */
 void *acpi_allocate(u32 size);
 

@@ -48,7 +48,7 @@ enum sm501_controller {
 	HEAD_PANEL	= 1,
 };
 
-/* SM501 memory adress */
+/* SM501 memory address */
 struct sm501_mem {
 	unsigned long	 size;
 	unsigned long	 sm_addr;

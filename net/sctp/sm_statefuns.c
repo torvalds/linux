@@ -537,7 +537,7 @@ sctp_disposition_t sctp_sf_do_5_1C_ack(const struct sctp_endpoint *ep,
 		 *
 		 * This means that if we only want to abort associations
 		 * in an authenticated way (i.e AUTH+ABORT), then we
-		 * can't destory this association just becuase the packet
+		 * can't destroy this association just becuase the packet
 		 * was malformed.
 		 */
 		if (sctp_auth_recv_cid(SCTP_CID_ABORT, asoc))
@@ -4130,7 +4130,7 @@ static sctp_disposition_t sctp_sf_abort_violation(
 	 *
 	 * This means that if we only want to abort associations
 	 * in an authenticated way (i.e AUTH+ABORT), then we
-	 * can't destory this association just becuase the packet
+	 * can't destroy this association just becuase the packet
 	 * was malformed.
 	 */
 	if (sctp_auth_recv_cid(SCTP_CID_ABORT, asoc))

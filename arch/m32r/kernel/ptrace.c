@@ -476,7 +476,7 @@ unregister_debug_trap(struct task_struct *child, unsigned long addr,
 		return 0;
 	}
 
-	/* Recover orignal instruction code. */
+	/* Recover original instruction code. */
 	*code = p->insn[i];
 
 	/* Shift debug trap entries. */

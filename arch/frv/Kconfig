@@ -79,7 +79,7 @@ config FRV_OUTOFLINE_ATOMIC_OPS
 	  Setting this option causes the FR-V atomic operations to be mostly
 	  implemented out-of-line.
 
-	  See Documentation/fujitsu/frv/atomic-ops.txt for more information.
+	  See Documentation/frv/atomic-ops.txt for more information.
 
 config HIGHMEM
 	bool "High memory support"

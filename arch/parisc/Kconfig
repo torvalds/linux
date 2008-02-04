@@ -206,9 +206,8 @@ config SMP
 	  singleprocessor machines. On a singleprocessor machine, the kernel
 	  will run faster if you say N here.
 
-	  See also the <file:Documentation/smp.txt>,
-	  <file:Documentation/nmi_watchdog.txt> and the SMP-HOWTO available
-	  at <http://www.tldp.org/docs.html#howto>.
+	  See also <file:Documentation/nmi_watchdog.txt> and the SMP-HOWTO
+	  available at <http://www.tldp.org/docs.html#howto>.
 
 	  If you don't know what to do here, say N.
 

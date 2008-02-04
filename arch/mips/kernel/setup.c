@@ -424,13 +424,13 @@ static void __init bootmem_init(void)
 #endif	/* CONFIG_SGI_IP27 */
 
 /*
- * arch_mem_init - initialize memory managment subsystem
+ * arch_mem_init - initialize memory management subsystem
  *
  *  o plat_mem_setup() detects the memory configuration and will record detected
  *    memory areas using add_memory_region.
  *
  * At this stage the memory configuration of the system is known to the
- * kernel but generic memory managment system is still entirely uninitialized.
+ * kernel but generic memory management system is still entirely uninitialized.
  *
  *  o bootmem_init()
  *  o sparse_init()

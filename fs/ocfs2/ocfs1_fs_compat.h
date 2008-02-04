@@ -77,7 +77,7 @@ struct ocfs1_disk_lock
 {
 /*00*/	__u32 curr_master;
 	__u8 file_lock;
-	__u8 compat_pad[3];  /* Not in orignal definition.  Used to
+	__u8 compat_pad[3];  /* Not in original definition.  Used to
 				make the already existing alignment
 				explicit */
 	__u64 last_write_time;

@@ -93,7 +93,7 @@ extern unsigned long empty_zero_page;
 
 /*
  * we use 2-level page tables, folding the PMD (mid-level table) into the PGE (top-level entry)
- * [see Documentation/fujitsu/frv/mmu-layout.txt]
+ * [see Documentation/frv/mmu-layout.txt]
  *
  * Page Directory:
  *  - Size: 16KB

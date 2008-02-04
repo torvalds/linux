@@ -508,12 +508,8 @@ D: REINER SCT cyberJack pinpad/e-com USB chipcard reader driver
 S: Germany
 
 N: Adrian Bunk
-E: bunk@stusta.de
 P: 1024D/4F12B400  B29C E71E FE19 6755 5C8A  84D4 99FC EA98 4F12 B400
 D: misc kernel hacking and testing
-S: Grasmeierstrasse 11
-S: 80805 Muenchen
-S: Germany
 
 N: Ray Burr
 E: ryb@nightmare.com
@@ -1123,6 +1119,9 @@ D: AdvanSys SCSI driver
 S: 1150 Ringwood Court
 S: San Jose, California 95131
 S: USA
+
+N: Adam Fritzler
+E: mid@zigamorph.net
 
 N: Fernando Fuganti
 E: fuganti@conectiva.com.br

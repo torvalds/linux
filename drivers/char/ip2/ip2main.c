@@ -1251,7 +1251,7 @@ ip2_poll(unsigned long arg)
 
 	// Just polled boards, IRQ = 0 will hit all non-interrupt boards.
 	// It will NOT poll boards handled by hard interrupts.
-	// The issue of queued BH interrups is handled in ip2_interrupt().
+	// The issue of queued BH interrupts is handled in ip2_interrupt().
 	ip2_polled_interrupt();
 
 	PollTimer.expires = POLL_TIMEOUT;

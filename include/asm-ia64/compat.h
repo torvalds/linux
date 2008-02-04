@@ -181,7 +181,7 @@ struct compat_shmid64_ds {
 /*
  * A pointer passed in from user mode. This should not be used for syscall parameters,
  * just declare them as pointers because the syscall entry code will have appropriately
- * comverted them already.
+ * converted them already.
  */
 typedef	u32		compat_uptr_t;
 

@@ -325,7 +325,7 @@ struct lpfc_vport {
 
 #define WORKER_MBOX_TMO                0x100	/* hba: MBOX timeout */
 #define WORKER_HB_TMO                  0x200	/* hba: Heart beat timeout */
-#define WORKER_FABRIC_BLOCK_TMO        0x400	/* hba: fabric block timout */
+#define WORKER_FABRIC_BLOCK_TMO        0x400	/* hba: fabric block timeout */
 #define WORKER_RAMP_DOWN_QUEUE         0x800	/* hba: Decrease Q depth */
 #define WORKER_RAMP_UP_QUEUE           0x1000	/* hba: Increase Q depth */
 

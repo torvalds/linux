@@ -3,7 +3,7 @@
  *
  * Authors:
  * - Christoph Goos <cgoos@syskonnect.de>
- * - Adam Fritzler <mid@auk.cx>
+ * - Adam Fritzler
  */
 
 #ifndef __LINUX_TMS380TR_H

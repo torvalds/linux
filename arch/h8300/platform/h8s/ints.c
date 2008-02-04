@@ -121,7 +121,7 @@ void __init init_IRQ(void)
 		printk("virtual vector at 0x%08lx\n",(unsigned long)ramvec);
 
 #if defined(CONFIG_GDB_DEBUG)
-	/* save orignal break vector */
+	/* save original break vector */
 	break_vec = ramvec[TRAP3_VEC];
 #else
 	break_vec = VECTOR(trace_break);

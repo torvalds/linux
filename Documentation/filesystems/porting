@@ -1,6 +1,6 @@
 Changes since 2.5.0:
 
---- 
+---
 [recommended]
 
 New helpers: sb_bread(), sb_getblk(), sb_find_get_block(), set_bh(),
@@ -10,7 +10,7 @@ Use them.
 
 (sb_find_get_block() replaces 2.4's get_hash_table())
 
---- 
+---
 [recommended]
 
 New methods: ->alloc_inode() and ->destroy_inode().
@@ -28,7 +28,7 @@ Declare
 
 Use FOO_I(inode) instead of &inode->u.foo_inode_i;
 
-Add foo_alloc_inode() and foo_destory_inode() - the former should allocate
+Add foo_alloc_inode() and foo_destroy_inode() - the former should allocate
 foo_inode_info and return the address of ->vfs_inode, the latter should free
 FOO_I(inode) (see in-tree filesystems for examples).
 

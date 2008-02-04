@@ -1185,7 +1185,7 @@ void process_receive(struct s_smc *smc)
 
 		DB_RX("frame length = %d",len,0,4) ;
 		/*
-		 * check the frame_lenght and all error flags
+		 * check the frame_length and all error flags
 		 */
 		if (rfsw & (RX_MSRABT|RX_FS_E|RX_FS_CRC|RX_FS_IMPL)){
 			if (rfsw & RD_S_MSRABT) {

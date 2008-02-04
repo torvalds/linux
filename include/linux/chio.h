@@ -108,7 +108,7 @@ struct changer_element_status {
 
 /*
  * CHIOGELEM
- *    get more detailed status informtion for a single element
+ *    get more detailed status information for a single element
  */
 struct changer_get_element {
 	int	cge_type;	 /* type/unit */

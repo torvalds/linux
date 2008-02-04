@@ -312,7 +312,7 @@ static irqreturn_t lcdc_irq_handler(int irq, void *dev_id)
 /*
  * Change to a new video mode. We defer this to a later time to avoid any
  * flicker and not to mess up the current LCD DMA context. For this we disable
- * the LCD controler, which will generate a DONE irq after the last frame has
+ * the LCD controller, which will generate a DONE irq after the last frame has
  * been transferred. Then it'll be safe to reconfigure both the LCD controller
  * as well as the LCD DMA.
  */

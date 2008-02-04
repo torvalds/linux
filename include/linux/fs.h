@@ -1308,7 +1308,7 @@ struct super_operations {
  *			being set.  find_inode() uses this to prevent returning
  *			nearly-dead inodes.
  * I_SYNC		Similar to I_LOCK, but limited in scope to writeback
- *			of inode dirty data.  Having a seperate lock for this
+ *			of inode dirty data.  Having a separate lock for this
  *			purpose reduces latency and prevents some filesystem-
  *			specific deadlocks.
  *

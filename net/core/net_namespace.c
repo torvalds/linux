@@ -287,7 +287,7 @@ EXPORT_SYMBOL_GPL(register_pernet_subsys);
  *	@ops: pernet operations structure to manipulate
  *
  *	Remove the pernet operations structure from the list to be
- *	used when network namespaces are created or destoryed.  In
+ *	used when network namespaces are created or destroyed.  In
  *	addition run the exit method for all existing network
  *	namespaces.
  */
@@ -335,7 +335,7 @@ EXPORT_SYMBOL_GPL(register_pernet_device);
  *	@ops: pernet operations structure to manipulate
  *
  *	Remove the pernet operations structure from the list to be
- *	used when network namespaces are created or destoryed.  In
+ *	used when network namespaces are created or destroyed.  In
  *	addition run the exit method for all existing network
  *	namespaces.
  */

@@ -73,7 +73,7 @@ EXPORT_SYMBOL_GPL(edac_pci_alloc_ctl_info);
  *
  *	Last action on the pci control structure.
  *
- *	call the remove sysfs informaton, which will unregister
+ *	call the remove sysfs information, which will unregister
  *	this control struct's kobj. When that kobj's ref count
  *	goes to zero, its release function will be call and then
  *	kfree() the memory.

@@ -1309,7 +1309,7 @@ ips_intr_copperhead(ips_ha_t * ha)
 			cstatus.value = (*ha->func.statupd) (ha);
 
 		if (cstatus.fields.command_id > (IPS_MAX_CMDS - 1)) {
-			/* Spurious Interupt ? */
+			/* Spurious Interrupt ? */
 			continue;
 		}
 

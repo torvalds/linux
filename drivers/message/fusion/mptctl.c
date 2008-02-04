@@ -1708,7 +1708,7 @@ mptctl_replace_fw (unsigned long arg)
  *
  * Outputs:	None.
  * Return:	0 if successful
- *		-EBUSY  if previous command timout and IOC reset is not complete.
+ *		-EBUSY  if previous command timeout and IOC reset is not complete.
  *		-EFAULT if data unavailable
  *		-ENODEV if no such device/adapter
  *		-ETIME	if timer expires
@@ -1748,7 +1748,7 @@ mptctl_mpt_command (unsigned long arg)
  *
  * Outputs:	None.
  * Return:	0 if successful
- *		-EBUSY  if previous command timout and IOC reset is not complete.
+ *		-EBUSY  if previous command timeout and IOC reset is not complete.
  *		-EFAULT if data unavailable
  *		-ENODEV if no such device/adapter
  *		-ETIME	if timer expires
@@ -2316,7 +2316,7 @@ done_free_mem:
  * Outputs:	None.
  * Return:	0 if successful
  *		-EFAULT if data unavailable
- *		-EBUSY  if previous command timout and IOC reset is not complete.
+ *		-EBUSY  if previous command timeout and IOC reset is not complete.
  *		-ENODEV if no such device/adapter
  *		-ETIME	if timer expires
  *		-ENOMEM if memory allocation error
@@ -2553,7 +2553,7 @@ mptctl_hp_hostinfo(unsigned long arg, unsigned int data_size)
  * Outputs:	None.
  * Return:	0 if successful
  *		-EFAULT if data unavailable
- *		-EBUSY  if previous command timout and IOC reset is not complete.
+ *		-EBUSY  if previous command timeout and IOC reset is not complete.
  *		-ENODEV if no such device/adapter
  *		-ETIME	if timer expires
  *		-ENOMEM if memory allocation error

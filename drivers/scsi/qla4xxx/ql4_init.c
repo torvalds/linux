@@ -1098,7 +1098,7 @@ static int qla4xxx_start_firmware(struct scsi_qla_host *ha)
 		}
 		config_chip = 1;
 
-		/* Reset clears the semaphore, so aquire again */
+		/* Reset clears the semaphore, so acquire again */
 		if (ql4xxx_lock_drvr_wait(ha) != QLA_SUCCESS)
 			return QLA_ERROR;
 	}

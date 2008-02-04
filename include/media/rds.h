@@ -4,7 +4,7 @@
     saa6588.c and every driver (e.g. bttv-driver.c) that wants
     to use the saa6588 module.
 
-    Instead of having a seperate rds.h, I'd prefer to include
+    Instead of having a separate rds.h, I'd prefer to include
     this stuff in one of the already existing files like tuner.h
 
     (c) 2005 by Hans J. Koch

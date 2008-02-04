@@ -118,7 +118,7 @@ All this differs from the old initrd in several ways:
     with the new root (cd /newmount; mount --move . /; chroot .), attach
     stdin/stdout/stderr to the new /dev/console, and exec the new init.
 
-    Since this is a remarkably persnickity process (and involves deleting
+    Since this is a remarkably persnickety process (and involves deleting
     commands before you can run them), the klibc package introduced a helper
     program (utils/run_init.c) to do all this for you.  Most other packages
     (such as busybox) have named this command "switch_root".

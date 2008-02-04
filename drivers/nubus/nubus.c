@@ -352,7 +352,7 @@ nubus_find_rsrc(struct nubus_dir* dir, unsigned char rsrc_type,
    resource blocks. */
 
 /* FIXME: A lot of this stuff will eventually be useful after
-   initializaton, for intelligently probing Ethernet and video chips,
+   initialization, for intelligently probing Ethernet and video chips,
    among other things.  The rest of it should go in the /proc code.
    For now, we just use it to give verbose boot logs. */
 

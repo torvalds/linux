@@ -493,7 +493,7 @@ sys_timer_create(const clockid_t which_clock,
 		goto retry;
 	else if (error) {
 		/*
-		 * Wierd looking, but we return EAGAIN if the IDR is
+		 * Weird looking, but we return EAGAIN if the IDR is
 		 * full (proper POSIX return value for this)
 		 */
 		error = -EAGAIN;

@@ -1270,7 +1270,7 @@ zoran_setup_videocodec (struct zoran *zr,
 }
 
 /*
- *   Scan for a Buz card (actually for the PCI contoler ZR36057),
+ *   Scan for a Buz card (actually for the PCI controller ZR36057),
  *   request the irq and map the io memory
  */
 static int __devinit

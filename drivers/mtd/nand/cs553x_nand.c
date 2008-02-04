@@ -337,7 +337,7 @@ static void __exit cs553x_cleanup(void)
 		nand_release(cs553x_mtd[i]);
 		cs553x_mtd[i] = NULL;
 
-		/* unmap physical adress */
+		/* unmap physical address */
 		iounmap(mmio_base);
 
 		/* Free the MTD device structure */

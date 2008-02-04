@@ -1544,7 +1544,7 @@ static void mgsl_isr_receive_data( struct mgsl_struct *info )
 
 /* mgsl_isr_misc()
  * 
- * 	Service a miscellaneos interrupt source.
+ * 	Service a miscellaneous interrupt source.
  * 	
  * Arguments:		info		pointer to device extension (instance data)
  * Return Value:	None

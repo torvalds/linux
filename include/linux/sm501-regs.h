@@ -171,7 +171,7 @@
 /* USB slave/gadget data port base */
 #define SM501_USB_GADGET_DATA		(0x070000)
 
-/* Display contoller/video engine base */
+/* Display controller/video engine base */
 #define SM501_DC			(0x080000)
 
 /* common defines for the SM501 address registers */

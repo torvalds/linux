@@ -1484,7 +1484,7 @@ kernelversion:
 # Single targets
 # ---------------------------------------------------------------------------
 # Single targets are compatible with:
-# - build whith mixed source and output
+# - build with mixed source and output
 # - build with separate output dir 'make O=...'
 # - external modules
 #

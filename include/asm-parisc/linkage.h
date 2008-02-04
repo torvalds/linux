@@ -8,7 +8,7 @@
 
 /*
  * In parisc assembly a semicolon marks a comment while a
- * exclamation mark is used to seperate independent lines.
+ * exclamation mark is used to separate independent lines.
  */
 #ifdef __ASSEMBLY__
 

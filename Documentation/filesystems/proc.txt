@@ -216,6 +216,7 @@ Table 1-3: Contents of the stat files (as of 2.6.22-rc3)
   priority      priority level
   nice          nice level
   num_threads   number of threads
+  it_real_value	(obsolete, always 0)
   start_time    time the process started after system boot
   vsize         virtual memory size
   rss           resident set memory size

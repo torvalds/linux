@@ -68,7 +68,7 @@ static inline void _udelay(unsigned long usecs)
 /*
  *	Moved the udelay() function into library code, no longer inlined.
  *	I had to change the algorithm because we are overflowing now on
- *	the faster ColdFire parts. The code is a little biger, so it makes
+ *	the faster ColdFire parts. The code is a little bigger, so it makes
  *	sense to library it.
  */
 extern void udelay(unsigned long usecs);

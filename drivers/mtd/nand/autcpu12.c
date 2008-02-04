@@ -20,7 +20,7 @@
  *
  *	02-12-2002 TG	Cleanup of module params
  *
- *	02-20-2002 TG	adjusted for different rd/wr adress support
+ *	02-20-2002 TG	adjusted for different rd/wr address support
  *			added support for read device ready/busy line
  *			added page_cache
  *
@@ -144,7 +144,7 @@ static int __init autcpu12_init(void)
 		goto out;
 	}
 
-	/* map physical adress */
+	/* map physical address */
 	autcpu12_fio_base = ioremap(AUTCPU12_PHYS_SMC, SZ_1K);
 	if (!autcpu12_fio_base) {
 		printk("Ioremap autcpu12 SmartMedia Card failed\n");
@@ -227,7 +227,7 @@ static void __exit autcpu12_cleanup(void)
 	/* Release resources, unregister device */
 	nand_release(autcpu12_mtd);
 
-	/* unmap physical adress */
+	/* unmap physical address */
 	iounmap(autcpu12_fio_base);
 
 	/* Free the MTD device structure */

@@ -106,7 +106,7 @@ DbgRegister (char *drvName, char *drvTag, unsigned long dbgMask)
   return (1) ;
  }
 /*
- * Check if we registered whith an old maint driver (see debuglib.h)
+ * Check if we registered with an old maint driver (see debuglib.h)
  */
  if ( myDriverDebugHandle.dbg_end != NULL
    /* location of 'dbg_prt' in _OldDbgHandle_ struct */

@@ -126,7 +126,7 @@ struct pnp_resource_table {
 };
 
 /*
- * Device Managemnt
+ * Device Management
  */
 
 struct pnp_card {

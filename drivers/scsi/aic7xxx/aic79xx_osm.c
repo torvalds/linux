@@ -325,7 +325,7 @@ MODULE_PARM_DESC(aic79xx,
 "	verbose			Enable verbose/diagnostic logging\n"
 "	allow_memio		Allow device registers to be memory mapped\n"
 "	debug			Bitmask of debug values to enable\n"
-"	no_reset		Supress initial bus resets\n"
+"	no_reset		Suppress initial bus resets\n"
 "	extended		Enable extended geometry on all controllers\n"
 "	periodic_otag		Send an ordered tagged transaction\n"
 "				periodically to prevent tag starvation.\n"

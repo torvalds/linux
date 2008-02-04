@@ -1,5 +1,5 @@
-#ifndef _ASM_LINUX_DMA_MAPPING_H
-#define _ASM_LINUX_DMA_MAPPING_H
+#ifndef _LINUX_DMA_MAPPING_H
+#define _LINUX_DMA_MAPPING_H
 
 #include <linux/device.h>
 #include <linux/err.h>
