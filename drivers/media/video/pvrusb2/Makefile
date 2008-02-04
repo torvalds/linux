@@ -1,6 +1,6 @@
 obj-pvrusb2-sysfs-$(CONFIG_VIDEO_PVRUSB2_SYSFS) := pvrusb2-sysfs.o
 obj-pvrusb2-debugifc-$(CONFIG_VIDEO_PVRUSB2_DEBUGIFC) := pvrusb2-debugifc.o
-obj-pvrusb2-debugifc-$(CONFIG_VIDEO_PVRUSB2_DVB) := pvrusb2-dvb.o
+obj-pvrusb2-dvb-$(CONFIG_VIDEO_PVRUSB2_DVB) := pvrusb2-dvb.o
 
 pvrusb2-objs	:= pvrusb2-i2c-core.o pvrusb2-i2c-cmd-v4l2.o \
 		   pvrusb2-audio.o pvrusb2-i2c-chips-v4l2.o \
