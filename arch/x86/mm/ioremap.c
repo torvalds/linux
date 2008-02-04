@@ -116,7 +116,7 @@ static void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 {
 	void __iomem *addr;
 	struct vm_struct *area;
-	unsigned long offset, last_addr;
+	unsigned long pfn, offset, last_addr;
 	pgprot_t prot;
 
 	/* Don't allow wraparound or zero size */
@@ -133,9 +133,10 @@ static void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 	/*
 	 * Don't allow anybody to remap normal RAM that we're using..
 	 */
-	for (offset = phys_addr >> PAGE_SHIFT; offset < max_pfn_mapped &&
-	     (offset << PAGE_SHIFT) < last_addr; offset++) {
-		if (page_is_ram(offset))
+	for (pfn = phys_addr >> PAGE_SHIFT; pfn < max_pfn_mapped &&
+	     (pfn << PAGE_SHIFT) < last_addr; pfn++) {
+		if (page_is_ram(pfn) && pfn_valid(pfn) &&
+		    !PageReserved(pfn_to_page(pfn)))
 			return NULL;
 	}
 
