@@ -31,6 +31,7 @@
 #include <linux/initrd.h>
 #include <linux/cpumask.h>
 
+#include <asm/asm.h>
 #include <asm/processor.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -718,10 +719,7 @@ static noinline int do_test_wp_bit(void)
 		"1:	movb %1, %0	\n"
 		"	xorl %2, %2	\n"
 		"2:			\n"
-		".section __ex_table, \"a\"\n"
-		"	.align 4	\n"
-		"	.long 1b, 2b	\n"
-		".previous		\n"
+		_ASM_EXTABLE(1b,2b)
 		:"=m" (*(char *)fix_to_virt(FIX_WP_TEST)),
 		 "=q" (tmp_reg),
 		 "=r" (flag)
