@@ -42,6 +42,8 @@ config GENERIC_CALIBRATE_DELAY
 config PPC
 	bool
 	default y
+	select HAVE_OPROFILE
+	select HAVE_KPROBES
 
 config PPC32
 	bool
@@ -1255,8 +1257,6 @@ config SERIAL_SICC_CONSOLE
 endmenu
 
 source "lib/Kconfig"
-
-source "kernel/Kconfig.instrumentation"
 
 source "arch/ppc/Kconfig.debug"
 

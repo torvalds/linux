@@ -81,7 +81,7 @@ config HEADERS_CHECK
 
 config DEBUG_SECTION_MISMATCH
 	bool "Enable full Section mismatch analysis"
-	default n
+	depends on UNDEFINED
 	help
 	  The section mismatch analysis checks if there are illegal
 	  references from one section to another section.
@@ -90,19 +90,19 @@ config DEBUG_SECTION_MISMATCH
 	  most likely result in an oops.
 	  In the code functions and variables are annotated with
 	  __init, __devinit etc. (see full list in include/linux/init.h)
-	  which result in the code/data being placed in specific sections.
-	  The section mismatch anaylsis are always done after a full
-	  kernel build but enabling this options will in addition
+	  which results in the code/data being placed in specific sections.
+	  The section mismatch analysis is always done after a full
+	  kernel build but enabling this option will in addition
 	  do the following:
 	  - Add the option -fno-inline-functions-called-once to gcc
 	    When inlining a function annotated __init in a non-init
-	    function we would loose the section information and thus
+	    function we would lose the section information and thus
 	    the analysis would not catch the illegal reference.
-	    This options tell gcc to inline less but will also
+	    This option tells gcc to inline less but will also
 	    result in a larger kernel.
 	  - Run the section mismatch analysis for each module/built-in.o
 	    When we run the section mismatch analysis on vmlinux.o we
-	    looses valueable information about where the mismatch was
+	    lose valueble information about where the mismatch was
 	    introduced.
 	    Running the analysis for each module/built-in.o file
 	    will tell where the mismatch happens much closer to the

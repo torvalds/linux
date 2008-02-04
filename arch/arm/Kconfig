@@ -10,6 +10,8 @@ config ARM
 	default y
 	select RTC_LIB
 	select SYS_SUPPORTS_APM_EMULATION
+	select HAVE_OPROFILE
+	select HAVE_KPROBES if (!XIP_KERNEL)
 	help
 	  The ARM series is a line of low-power-consumption RISC chip designs
 	  licensed by ARM Ltd and targeted at embedded applications and
@@ -134,6 +136,23 @@ config FIQ
 
 config ARCH_MTD_XIP
 	bool
+
+if OPROFILE
+
+config OPROFILE_ARMV6
+	def_bool y
+	depends on CPU_V6 && !SMP
+	select OPROFILE_ARM11_CORE
+
+config OPROFILE_MPCORE
+	def_bool y
+	depends on CPU_V6 && SMP
+	select OPROFILE_ARM11_CORE
+
+config OPROFILE_ARM11_CORE
+	bool
+
+endif
 
 config VECTORS_BASE
 	hex
@@ -1127,8 +1146,6 @@ source "drivers/dca/Kconfig"
 endmenu
 
 source "fs/Kconfig"
-
-source "arch/arm/Kconfig.instrumentation"
 
 source "arch/arm/Kconfig.debug"
 

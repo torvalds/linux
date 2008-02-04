@@ -8,6 +8,8 @@ mainmenu "Linux/UltraSPARC Kernel Configuration"
 config SPARC
 	bool
 	default y
+	select HAVE_OPROFILE
+	select HAVE_KPROBES
 
 config SPARC64
 	bool
@@ -464,8 +466,6 @@ source "drivers/Kconfig"
 source "drivers/sbus/char/Kconfig"
 
 source "fs/Kconfig"
-
-source "kernel/Kconfig.instrumentation"
 
 source "arch/sparc64/Kconfig.debug"
 

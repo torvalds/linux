@@ -15,6 +15,8 @@ config IA64
 	select ACPI if (!IA64_HP_SIM)
 	select PM if (!IA64_HP_SIM)
 	select ARCH_SUPPORTS_MSI
+	select HAVE_OPROFILE
+	select HAVE_KPROBES
 	default y
 	help
 	  The Itanium Processor Family is Intel's 64-bit successor to
@@ -599,8 +601,6 @@ config IRQ_PER_CPU
 	default y
 
 source "arch/ia64/hp/sim/Kconfig"
-
-source "kernel/Kconfig.instrumentation"
 
 source "arch/ia64/Kconfig.debug"
 

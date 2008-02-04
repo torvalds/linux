@@ -87,6 +87,8 @@ config ARCH_NO_VIRT_TO_BUS
 config PPC
 	bool
 	default y
+	select HAVE_OPROFILE
+	select HAVE_KPROBES
 
 config EARLY_PRINTK
 	bool
@@ -712,8 +714,6 @@ source "fs/Kconfig"
 source "arch/powerpc/sysdev/qe_lib/Kconfig"
 
 source "lib/Kconfig"
-
-source "kernel/Kconfig.instrumentation"
 
 source "arch/powerpc/Kconfig.debug"
 

@@ -18,6 +18,8 @@ config X86_64
 ### Arch settings
 config X86
 	def_bool y
+	select HAVE_OPROFILE
+	select HAVE_KPROBES
 
 config GENERIC_LOCKBREAK
 	def_bool n
@@ -105,10 +107,6 @@ config GENERIC_TIME_VSYSCALL
 
 config HAVE_SETUP_PER_CPU_AREA
 	def_bool X86_64
-
-config ARCH_SUPPORTS_OPROFILE
-	bool
-	default y
 
 select HAVE_KVM
 
@@ -1596,8 +1594,6 @@ source "drivers/Kconfig"
 source "drivers/firmware/Kconfig"
 
 source "fs/Kconfig"
-
-source "kernel/Kconfig.instrumentation"
 
 source "arch/x86/Kconfig.debug"
 
