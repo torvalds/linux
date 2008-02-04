@@ -336,7 +336,7 @@ out_unlock:
 
 static int split_large_page(pte_t *kpte, unsigned long address)
 {
-	pgprot_t ref_prot = pte_pgprot(pte_clrhuge(*kpte));
+	pgprot_t ref_prot;
 	gfp_t gfp_flags = GFP_KERNEL;
 	unsigned long flags, addr, pfn;
 	pte_t *pbase, *tmp;
@@ -344,7 +344,6 @@ static int split_large_page(pte_t *kpte, unsigned long address)
 	unsigned int i, level;
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
-	gfp_flags = __GFP_HIGH | __GFP_NOFAIL | __GFP_NOWARN;
 	gfp_flags = GFP_ATOMIC | __GFP_NOWARN;
 #endif
 	base = alloc_pages(gfp_flags, 0);
@@ -368,6 +367,7 @@ static int split_large_page(pte_t *kpte, unsigned long address)
 #ifdef CONFIG_X86_32
 	paravirt_alloc_pt(&init_mm, page_to_pfn(base));
 #endif
+	ref_prot = pte_pgprot(pte_clrhuge(*kpte));
 
 	/*
 	 * Get the target pfn from the original entry:
@@ -377,13 +377,17 @@ static int split_large_page(pte_t *kpte, unsigned long address)
 		set_pte(&pbase[i], pfn_pte(pfn, ref_prot));
 
 	/*
-	 * Install the new, split up pagetable. Important detail here:
+	 * Install the new, split up pagetable. Important details here:
 	 *
 	 * On Intel the NX bit of all levels must be cleared to make a
 	 * page executable. See section 4.13.2 of Intel 64 and IA-32
 	 * Architectures Software Developer's Manual).
+	 *
+	 * Mark the entry present. The current mapping might be
+	 * set to not present, which we preserved above.
 	 */
 	ref_prot = pte_pgprot(pte_mkexec(pte_clrhuge(*kpte)));
+	pgprot_val(ref_prot) |= _PAGE_PRESENT;
 	__set_pmd_pte(kpte, address, mk_pte(base, ref_prot));
 	base = NULL;
 
