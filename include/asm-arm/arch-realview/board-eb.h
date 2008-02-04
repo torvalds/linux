@@ -26,7 +26,7 @@
 /*
  * RealView EB + ARM11MPCore peripheral addresses
  */
-#ifdef CONFIG_REALVIEW_MPCORE_REVB
+#ifdef CONFIG_REALVIEW_EB_ARM11MP_REVB
 #define REALVIEW_EB11MP_SCU_BASE	0x10100000	/* SCU registers */
 #define REALVIEW_EB11MP_GIC_CPU_BASE	0x10100100	/* Generic interrupt controller CPU interface */
 #define REALVIEW_EB11MP_TWD_BASE	0x10100700
@@ -143,7 +143,7 @@
 #define NR_IRQS			NR_IRQS_EB
 #endif
 
-#if defined(CONFIG_REALVIEW_MPCORE) \
+#if defined(CONFIG_REALVIEW_EB_ARM11MP) \
 	&& (!defined(MAX_GIC_NR) || (MAX_GIC_NR < NR_GIC_EB11MP))
 #undef MAX_GIC_NR
 #define MAX_GIC_NR		NR_GIC_EB11MP
@@ -162,7 +162,7 @@
 	((readl(__io_address(REALVIEW_SYS_PROCID)) & REALVIEW_EB_PROC_MASK)	\
 	 == proc_type)
 
-#ifdef CONFIG_REALVIEW_MPCORE
+#ifdef CONFIG_REALVIEW_EB_ARM11MP
 #define core_tile_eb11mp()	check_eb_proc(REALVIEW_EB_PROC_ARM11MP)
 #else
 #define core_tile_eb11mp()	0

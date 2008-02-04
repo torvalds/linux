@@ -261,7 +261,7 @@ static void __init gic_init_irq(void)
 		gic_dist_init(0, __io_address(REALVIEW_EB11MP_GIC_DIST_BASE), 29);
 		gic_cpu_init(0, gic_cpu_base_addr);
 
-#ifndef CONFIG_REALVIEW_MPCORE_REVB
+#ifndef CONFIG_REALVIEW_EB_ARM11MP_REVB
 		/* board GIC, secondary */
 		gic_dist_init(1, __io_address(REALVIEW_GIC_DIST_BASE), 64);
 		gic_cpu_init(1, __io_address(REALVIEW_GIC_CPU_BASE));
