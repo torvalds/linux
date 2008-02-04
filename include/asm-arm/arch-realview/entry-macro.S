@@ -9,17 +9,13 @@
  */
 #include <asm/hardware.h>
 #include <asm/hardware/gic.h>
-#include <asm/arch/board-eb.h>
 
 		.macro	disable_fiq
 		.endm
 
 		.macro  get_irqnr_preamble, base, tmp
-#ifdef CONFIG_REALVIEW_MPCORE
-		ldr     \base, =IO_ADDRESS(REALVIEW_EB11MP_GIC_CPU_BASE)
-#else
-		ldr     \base, =IO_ADDRESS(REALVIEW_GIC_CPU_BASE)
-#endif
+		ldr	\base, =gic_cpu_base_addr
+		ldr	\base, [\base]
 		.endm
 
 		.macro  arch_ret_to_user, tmp1, tmp2

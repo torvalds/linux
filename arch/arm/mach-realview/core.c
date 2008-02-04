@@ -50,6 +50,9 @@
 
 #define REALVIEW_REFCOUNTER	(__io_address(REALVIEW_SYS_BASE) + REALVIEW_SYS_24MHz_OFFSET)
 
+/* used by entry-macro.S */
+void __iomem *gic_cpu_base_addr;
+
 /*
  * This is the RealView sched_clock implementation.  This has
  * a resolution of 41.7ns, and a maximum value of about 179s.
