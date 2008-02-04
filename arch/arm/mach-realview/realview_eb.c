@@ -59,26 +59,7 @@ static struct map_desc realview_eb_io_desc[] __initdata = {
 		.pfn		= __phys_to_pfn(REALVIEW_GIC_DIST_BASE),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
-	},
-#ifdef CONFIG_REALVIEW_MPCORE
-	{
-		.virtual	= IO_ADDRESS(REALVIEW_GIC1_CPU_BASE),
-		.pfn		= __phys_to_pfn(REALVIEW_GIC1_CPU_BASE),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE,
 	}, {
-		.virtual	= IO_ADDRESS(REALVIEW_GIC1_DIST_BASE),
-		.pfn		= __phys_to_pfn(REALVIEW_GIC1_DIST_BASE),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= IO_ADDRESS(REALVIEW_MPCORE_L220_BASE),
-		.pfn		= __phys_to_pfn(REALVIEW_MPCORE_L220_BASE),
-		.length		= SZ_8K,
-		.type		= MT_DEVICE,
-	},
-#endif
-	{
 		.virtual	= IO_ADDRESS(REALVIEW_SCTL_BASE),
 		.pfn		= __phys_to_pfn(REALVIEW_SCTL_BASE),
 		.length		= SZ_4K,
@@ -104,9 +85,30 @@ static struct map_desc realview_eb_io_desc[] __initdata = {
 #endif
 };
 
+static struct map_desc realview_eb11mp_io_desc[] __initdata = {
+	{
+		.virtual	= IO_ADDRESS(REALVIEW_EB11MP_GIC_CPU_BASE),
+		.pfn		= __phys_to_pfn(REALVIEW_EB11MP_GIC_CPU_BASE),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= IO_ADDRESS(REALVIEW_EB11MP_GIC_DIST_BASE),
+		.pfn		= __phys_to_pfn(REALVIEW_EB11MP_GIC_DIST_BASE),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= IO_ADDRESS(REALVIEW_EB11MP_L220_BASE),
+		.pfn		= __phys_to_pfn(REALVIEW_EB11MP_L220_BASE),
+		.length		= SZ_8K,
+		.type		= MT_DEVICE,
+	}
+};
+
 static void __init realview_eb_map_io(void)
 {
 	iotable_init(realview_eb_io_desc, ARRAY_SIZE(realview_eb_io_desc));
+	if (core_tile_eb11mp())
+		iotable_init(realview_eb11mp_io_desc, ARRAY_SIZE(realview_eb11mp_io_desc));
 }
 
 /*
@@ -243,24 +245,33 @@ static struct platform_device realview_eb_smc91x_device = {
 
 static void __init gic_init_irq(void)
 {
-#ifdef CONFIG_REALVIEW_MPCORE
-	unsigned int pldctrl;
-	writel(0x0000a05f, __io_address(REALVIEW_SYS_LOCK));
-	pldctrl = readl(__io_address(REALVIEW_SYS_BASE)	+ REALVIEW_MPCORE_SYS_PLD_CTRL1);
-	pldctrl |= 0x00800000;	/* New irq mode */
-	writel(pldctrl, __io_address(REALVIEW_SYS_BASE) + REALVIEW_MPCORE_SYS_PLD_CTRL1);
-	writel(0x00000000, __io_address(REALVIEW_SYS_LOCK));
+	if (core_tile_eb11mp()) {
+		unsigned int pldctrl;
+
+		/* new irq mode */
+		writel(0x0000a05f, __io_address(REALVIEW_SYS_LOCK));
+		pldctrl = readl(__io_address(REALVIEW_SYS_BASE)	+ REALVIEW_EB11MP_SYS_PLD_CTRL1);
+		pldctrl |= 0x00800000;
+		writel(pldctrl, __io_address(REALVIEW_SYS_BASE) + REALVIEW_EB11MP_SYS_PLD_CTRL1);
+		writel(0x00000000, __io_address(REALVIEW_SYS_LOCK));
+
+		/* core tile GIC, primary */
+		gic_dist_init(0, __io_address(REALVIEW_EB11MP_GIC_DIST_BASE), 29);
+		gic_cpu_init(0, __io_address(REALVIEW_EB11MP_GIC_CPU_BASE));
+
+#ifndef CONFIG_REALVIEW_MPCORE_REVB
+		/* board GIC, secondary */
+		gic_dist_init(1, __io_address(REALVIEW_GIC_DIST_BASE), 64);
+		gic_cpu_init(1, __io_address(REALVIEW_GIC_CPU_BASE));
+		gic_cascade_irq(1, IRQ_EB11MP_EB_IRQ1);
 #endif
-	gic_dist_init(0, __io_address(REALVIEW_GIC_DIST_BASE), 29);
-	gic_cpu_init(0, __io_address(REALVIEW_GIC_CPU_BASE));
-#if defined(CONFIG_REALVIEW_MPCORE) && !defined(CONFIG_REALVIEW_MPCORE_REVB)
-	gic_dist_init(1, __io_address(REALVIEW_GIC1_DIST_BASE), 64);
-	gic_cpu_init(1, __io_address(REALVIEW_GIC1_CPU_BASE));
-	gic_cascade_irq(1, IRQ_EB_IRQ1);
-#endif
+	} else {
+		/* board GIC, primary */
+		gic_dist_init(0, __io_address(REALVIEW_GIC_DIST_BASE), 29);
+		gic_cpu_init(0, __io_address(REALVIEW_GIC_CPU_BASE));
+	}
 }
 
-#ifdef CONFIG_REALVIEW_MPCORE
 /*
  * Fix up the IRQ numbers for the RealView EB/ARM11MPCore tile
  */
@@ -290,19 +301,19 @@ static void realview_eb11mp_fixup(void)
 	realview_eb_smc91x_resources[1].start	= IRQ_EB11MP_ETH;
 	realview_eb_smc91x_resources[1].end	= IRQ_EB11MP_ETH;
 }
-#endif
 
 static void __init realview_eb_init(void)
 {
 	int i;
 
-#ifdef CONFIG_REALVIEW_MPCORE
-	realview_eb11mp_fixup();
+	if (core_tile_eb11mp()) {
+		realview_eb11mp_fixup();
 
-	/* 1MB (128KB/way), 8-way associativity, evmon/parity/share enabled
-	 * Bits:  .... ...0 0111 1001 0000 .... .... .... */
-	l2x0_init(__io_address(REALVIEW_MPCORE_L220_BASE), 0x00790000, 0xfe000fff);
-#endif
+		/* 1MB (128KB/way), 8-way associativity, evmon/parity/share enabled
+		 * Bits:  .... ...0 0111 1001 0000 .... .... .... */
+		l2x0_init(__io_address(REALVIEW_EB11MP_L220_BASE), 0x00790000, 0xfe000fff);
+	}
+
 	clk_register(&realview_clcd_clk);
 
 	platform_device_register(&realview_flash_device);

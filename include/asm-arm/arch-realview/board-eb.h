@@ -149,4 +149,23 @@
 #define MAX_GIC_NR		NR_GIC_EB11MP
 #endif
 
+/*
+ * Core tile identification (REALVIEW_SYS_PROCID)
+ */
+#define REALVIEW_EB_PROC_MASK		0xFF000000
+#define REALVIEW_EB_PROC_ARM7TDMI	0x00000000
+#define REALVIEW_EB_PROC_ARM9		0x02000000
+#define REALVIEW_EB_PROC_ARM11		0x04000000
+#define REALVIEW_EB_PROC_ARM11MP	0x06000000
+
+#define check_eb_proc(proc_type)						\
+	((readl(__io_address(REALVIEW_SYS_PROCID)) & REALVIEW_EB_PROC_MASK)	\
+	 == proc_type)
+
+#ifdef CONFIG_REALVIEW_MPCORE
+#define core_tile_eb11mp()	check_eb_proc(REALVIEW_EB_PROC_ARM11MP)
+#else
+#define core_tile_eb11mp()	0
+#endif
+
 #endif	/* __ASM_ARCH_BOARD_EB_H */

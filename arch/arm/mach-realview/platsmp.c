@@ -18,6 +18,7 @@
 #include <asm/hardware/arm_scu.h>
 #include <asm/hardware.h>
 #include <asm/io.h>
+#include <asm/mach-types.h>
 
 extern void realview_secondary_startup(void);
 
@@ -31,9 +32,13 @@ static unsigned int __init get_core_count(void)
 {
 	unsigned int ncores;
 
-	ncores = __raw_readl(__io_address(REALVIEW_EB11MP_SCU_BASE) + SCU_CONFIG);
+	if (machine_is_realview_eb() && core_tile_eb11mp()) {
+		ncores = __raw_readl(__io_address(REALVIEW_EB11MP_SCU_BASE) + SCU_CONFIG);
+		ncores = (ncores & 0x03) + 1;
+	} else
+		ncores = 1;
 
-	return (ncores & 0x03) + 1;
+	return ncores;
 }
 
 static DEFINE_SPINLOCK(boot_lock);
@@ -193,7 +198,8 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	 * dummy (!CONFIG_LOCAL_TIMERS), it was already registers in
 	 * realview_timer_init
 	 */
-	local_timer_setup(cpu);
+	if (machine_is_realview_eb() && core_tile_eb11mp())
+		local_timer_setup(cpu);
 #endif
 
 	/*
