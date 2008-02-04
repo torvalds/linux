@@ -52,3 +52,6 @@ extern unsigned pxa3xx_get_memclk_frequency_10khz(void);
 #define pxa3xx_get_clk_frequency_khz(x)		(0)
 #define pxa3xx_get_memclk_frequency_10khz()	(0)
 #endif
+
+extern struct sysdev_class pxa_irq_sysclass;
+extern struct sysdev_class pxa_gpio_sysclass;

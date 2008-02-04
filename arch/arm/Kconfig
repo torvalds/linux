@@ -35,6 +35,11 @@ config GENERIC_CLOCKEVENTS
 	bool
 	default n
 
+config GENERIC_CLOCKEVENTS_BROADCAST
+	bool
+	depends on GENERIC_CLOCKEVENTS
+	default y if SMP && !LOCAL_TIMERS
+
 config MMU
 	bool
 	default y
@@ -187,6 +192,8 @@ config ARCH_REALVIEW
 	bool "ARM Ltd. RealView family"
 	select ARM_AMBA
 	select ICST307
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
 	help
 	  This enables support for ARM Ltd RealView boards.
 
@@ -623,7 +630,7 @@ source "kernel/time/Kconfig"
 
 config SMP
 	bool "Symmetric Multi-Processing (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && REALVIEW_MPCORE
+	depends on EXPERIMENTAL && REALVIEW_EB_ARM11MP
 	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If
@@ -656,7 +663,7 @@ config HOTPLUG_CPU
 
 config LOCAL_TIMERS
 	bool "Use local timer interrupts"
-	depends on SMP && REALVIEW_MPCORE
+	depends on SMP && REALVIEW_EB_ARM11MP
 	default y
 	help
 	  Enable support for local timers on SMP platforms, rather then the
@@ -911,6 +918,13 @@ config KEXEC
 	  is properly shutdown, so do not be surprised if this code does not
 	  initially work for you.  It may help to enable device hotplugging
 	  support.
+
+config ATAGS_PROC
+	bool "Export atags in procfs"
+	default n
+	help
+	  Should the atags used to boot the kernel be exported in an "atags"
+	  file in procfs. Useful with kexec.
 
 endmenu
 

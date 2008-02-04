@@ -290,6 +290,11 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	local_irq_enable();
 	local_fiq_enable();
 
+	/*
+	 * Setup local timer for this CPU.
+	 */
+	local_timer_setup(cpu);
+
 	calibrate_delay();
 
 	smp_store_cpu_info(cpu);
@@ -298,11 +303,6 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	 * OK, now it's safe to let the boot CPU continue
 	 */
 	cpu_set(cpu, cpu_online_map);
-
-	/*
-	 * Setup local timer for this CPU.
-	 */
-	local_timer_setup(cpu);
 
 	/*
 	 * OK, it's off to the idle thread for us
@@ -454,6 +454,27 @@ int smp_call_function(void (*func)(void *info), void *info, int retry,
 }
 EXPORT_SYMBOL_GPL(smp_call_function);
 
+int smp_call_function_single(int cpu, void (*func)(void *info), void *info,
+			     int retry, int wait)
+{
+	/* prevent preemption and reschedule on another processor */
+	int current_cpu = get_cpu();
+	int ret = 0;
+
+	if (cpu == current_cpu) {
+		local_irq_disable();
+		func(info);
+		local_irq_enable();
+	} else
+		ret = smp_call_function_on_cpu(func, info, retry, wait,
+					       cpumask_of_cpu(cpu));
+
+	put_cpu();
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(smp_call_function_single);
+
 void show_ipi_list(struct seq_file *p)
 {
 	unsigned int cpu;
@@ -481,8 +502,7 @@ void show_local_irqs(struct seq_file *p)
 static void ipi_timer(void)
 {
 	irq_enter();
-	profile_tick(CPU_PROFILING);
-	update_process_times(user_mode(get_irq_regs()));
+	local_timer_interrupt();
 	irq_exit();
 }
 
@@ -618,6 +638,11 @@ void smp_send_timer(void)
 {
 	cpumask_t mask = cpu_online_map;
 	cpu_clear(smp_processor_id(), mask);
+	send_ipi_message(mask, IPI_TIMER);
+}
+
+void smp_timer_broadcast(cpumask_t mask)
+{
 	send_ipi_message(mask, IPI_TIMER);
 }
 

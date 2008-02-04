@@ -40,18 +40,13 @@
 /* Buttons */
 
 #define DSMG600_PB_GPIO		15	/* power button */
-#define DSMG600_PB_BM		(1L << DSMG600_PB_GPIO)
-
 #define DSMG600_RB_GPIO		3	/* reset button */
 
-#define DSMG600_RB_IRQ		IRQ_IXP4XX_GPIO3
+/* Power control */
 
 #define DSMG600_PO_GPIO		2	/* power off */
 
 /* LEDs */
 
 #define DSMG600_LED_PWR_GPIO	0
-#define DSMG600_LED_PWR_BM	(1L << DSMG600_LED_PWR_GPIO)
-
 #define DSMG600_LED_WLAN_GPIO	14
-#define DSMG600_LED_WLAN_BM	(1L << DSMG600_LED_WLAN_GPIO)

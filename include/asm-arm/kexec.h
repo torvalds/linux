@@ -16,6 +16,9 @@
 
 #define KEXEC_BOOT_PARAMS_SIZE 1536
 
+#define KEXEC_ARM_ATAGS_OFFSET  0x1000
+#define KEXEC_ARM_ZIMAGE_OFFSET 0x8000
+
 #ifndef __ASSEMBLY__
 
 struct kimage;

@@ -22,6 +22,7 @@
 #include <asm/hardware.h>
 #include <asm/arch/mfp.h>
 #include <asm/arch/mfp-pxa3xx.h>
+#include <asm/arch/pxa3xx-regs.h>
 
 /* mfp_spin_lock is used to ensure that MFP register configuration
  * (most likely a read-modify-write operation) is atomic, and that
@@ -223,11 +224,19 @@ static int pxa3xx_mfp_resume(struct sys_device *d)
 		struct pxa3xx_mfp_pin *p = &mfp_table[pin];
 		__mfp_config_run(p);
 	}
+
+	/* clear RDH bit when MFP settings are restored
+	 *
+	 * NOTE: the last 3 bits DxS are write-1-to-clear so carefully
+	 * preserve them here in case they will be referenced later
+	 */
+	ASCR &= ~(ASCR_RDH | ASCR_D1S | ASCR_D2S | ASCR_D3S);
+
 	return 0;
 }
 
 static struct sysdev_class mfp_sysclass = {
-	set_kset_name("mfp"),
+	.name		= "mfp",
 	.suspend	= pxa3xx_mfp_suspend,
 	.resume 	= pxa3xx_mfp_resume,
 };

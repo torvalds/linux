@@ -18,8 +18,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef __address_h
-#define __address_h                     1
+#ifndef __ASM_ARCH_PLATFORM_H
+#define __ASM_ARCH_PLATFORM_H
 
 /*
  * Memory definitions
@@ -81,11 +81,12 @@
 #define REALVIEW_SYS_24MHz_OFFSET            0x5C
 #define REALVIEW_SYS_MISC_OFFSET             0x60
 #define REALVIEW_SYS_IOSEL_OFFSET            0x70
-#define REALVIEW_SYS_TEST_OSC0_OFFSET        0x80
-#define REALVIEW_SYS_TEST_OSC1_OFFSET        0x84
-#define REALVIEW_SYS_TEST_OSC2_OFFSET        0x88
-#define REALVIEW_SYS_TEST_OSC3_OFFSET        0x8C
-#define REALVIEW_SYS_TEST_OSC4_OFFSET        0x90
+#define REALVIEW_SYS_PROCID_OFFSET           0x84
+#define REALVIEW_SYS_TEST_OSC0_OFFSET        0xC0
+#define REALVIEW_SYS_TEST_OSC1_OFFSET        0xC4
+#define REALVIEW_SYS_TEST_OSC2_OFFSET        0xC8
+#define REALVIEW_SYS_TEST_OSC3_OFFSET        0xCC
+#define REALVIEW_SYS_TEST_OSC4_OFFSET        0xD0
 
 #define REALVIEW_SYS_BASE                    0x10000000
 #define REALVIEW_SYS_ID                      (REALVIEW_SYS_BASE + REALVIEW_SYS_ID_OFFSET)
@@ -114,6 +115,7 @@
 #define REALVIEW_SYS_24MHz                   (REALVIEW_SYS_BASE + REALVIEW_SYS_24MHz_OFFSET)
 #define REALVIEW_SYS_MISC                    (REALVIEW_SYS_BASE + REALVIEW_SYS_MISC_OFFSET)
 #define REALVIEW_SYS_IOSEL                   (REALVIEW_SYS_BASE + REALVIEW_SYS_IOSEL_OFFSET)
+#define REALVIEW_SYS_PROCID                  (REALVIEW_SYS_BASE + REALVIEW_SYS_PROCID_OFFSET)
 #define REALVIEW_SYS_TEST_OSC0               (REALVIEW_SYS_BASE + REALVIEW_SYS_TEST_OSC0_OFFSET)
 #define REALVIEW_SYS_TEST_OSC1               (REALVIEW_SYS_BASE + REALVIEW_SYS_TEST_OSC1_OFFSET)
 #define REALVIEW_SYS_TEST_OSC2               (REALVIEW_SYS_BASE + REALVIEW_SYS_TEST_OSC2_OFFSET)
@@ -203,30 +205,8 @@
 	/* Reserved 0x1001A000 - 0x1001FFFF */
 #define REALVIEW_CLCD_BASE            0x10020000	/* CLCD */
 #define REALVIEW_DMAC_BASE            0x10030000	/* DMA controller */
-#ifndef CONFIG_REALVIEW_MPCORE
 #define REALVIEW_GIC_CPU_BASE         0x10040000	/* Generic interrupt controller CPU interface */
 #define REALVIEW_GIC_DIST_BASE        0x10041000	/* Generic interrupt controller distributor */
-#else
-#ifdef CONFIG_REALVIEW_MPCORE_REVB
-#define REALVIEW_MPCORE_SCU_BASE	0x10100000	/*  SCU registers */
-#define REALVIEW_GIC_CPU_BASE		0x10100100	/* Generic interrupt controller CPU interface */
-#define REALVIEW_TWD_BASE		0x10100700
-#define REALVIEW_TWD_SIZE		0x00000100
-#define REALVIEW_GIC_DIST_BASE		0x10101000	/* Generic interrupt controller distributor */
-#define REALVIEW_MPCORE_L220_BASE	0x10102000	/* L220 registers */
-#define REALVIEW_MPCORE_SYS_PLD_CTRL1 0xD8		/*  Register offset for MPCore sysctl */
-#else
-#define REALVIEW_MPCORE_SCU_BASE      0x1F000000	/*  SCU registers */
-#define REALVIEW_GIC_CPU_BASE         0x1F000100	/* Generic interrupt controller CPU interface */
-#define REALVIEW_TWD_BASE             0x1F000700
-#define REALVIEW_TWD_SIZE             0x00000100
-#define REALVIEW_GIC_DIST_BASE        0x1F001000	/* Generic interrupt controller distributor */
-#define REALVIEW_MPCORE_L220_BASE     0x1F002000	/* L220 registers */
-#define REALVIEW_MPCORE_SYS_PLD_CTRL1 0x74		/*  Register offset for MPCore sysctl */
-#endif
-#define REALVIEW_GIC1_CPU_BASE        0x10040000	/* Generic interrupt controller CPU interface */
-#define REALVIEW_GIC1_DIST_BASE       0x10041000	/* Generic interrupt controller distributor */
-#endif
 #define REALVIEW_SMC_BASE             0x10080000	/* SMC */
 	/* Reserved 0x10090000 - 0x100EFFFF */
 
@@ -283,134 +263,6 @@
 #define REALVIEW_INTREG_OFFSET		0x8	/* Interrupt control */
 #define REALVIEW_DECODE_OFFSET		0xC	/* Fitted logic modules */
 
-/* ------------------------------------------------------------------------
- *  Interrupts - bit assignment (primary)
- * ------------------------------------------------------------------------
- */
-#ifndef CONFIG_REALVIEW_MPCORE
-#define INT_WDOGINT			0	/* Watchdog timer */
-#define INT_SOFTINT			1	/* Software interrupt */
-#define INT_COMMRx			2	/* Debug Comm Rx interrupt */
-#define INT_COMMTx			3	/* Debug Comm Tx interrupt */
-#define INT_TIMERINT0_1			4	/* Timer 0 and 1 */
-#define INT_TIMERINT2_3			5	/* Timer 2 and 3 */
-#define INT_GPIOINT0			6	/* GPIO 0 */
-#define INT_GPIOINT1			7	/* GPIO 1 */
-#define INT_GPIOINT2			8	/* GPIO 2 */
-/* 9 reserved */
-#define INT_RTCINT			10	/* Real Time Clock */
-#define INT_SSPINT			11	/* Synchronous Serial Port */
-#define INT_UARTINT0			12	/* UART 0 on development chip */
-#define INT_UARTINT1			13	/* UART 1 on development chip */
-#define INT_UARTINT2			14	/* UART 2 on development chip */
-#define INT_UARTINT3			15	/* UART 3 on development chip */
-#define INT_SCIINT			16	/* Smart Card Interface */
-#define INT_MMCI0A			17	/* Multimedia Card 0A */
-#define INT_MMCI0B			18	/* Multimedia Card 0B */
-#define INT_AACI			19	/* Audio Codec */
-#define INT_KMI0			20	/* Keyboard/Mouse port 0 */
-#define INT_KMI1			21	/* Keyboard/Mouse port 1 */
-#define INT_CHARLCD			22	/* Character LCD */
-#define INT_CLCDINT			23	/* CLCD controller */
-#define INT_DMAINT			24	/* DMA controller */
-#define INT_PWRFAILINT			25	/* Power failure */
-#define INT_PISMO			26
-#define INT_DoC				27	/* Disk on Chip memory controller */
-#define INT_ETH				28	/* Ethernet controller */
-#define INT_USB				29	/* USB controller */
-#define INT_TSPENINT			30	/* Touchscreen pen */
-#define INT_TSKPADINT			31	/* Touchscreen keypad */
-
-#else
-
-#define MAX_GIC_NR			2
-
-#define INT_AACI			0
-#define INT_TIMERINT0_1			1
-#define INT_TIMERINT2_3			2
-#define INT_USB				3
-#define INT_UARTINT0			4
-#define INT_UARTINT1			5
-#define INT_RTCINT			6
-#define INT_KMI0			7
-#define INT_KMI1			8
-#define INT_ETH				9
-#define INT_EB_IRQ1			10	/* main GIC */
-#define INT_EB_IRQ2			11	/* tile GIC */
-#define INT_EB_FIQ1			12	/* main GIC */
-#define INT_EB_FIQ2			13	/* tile GIC */
-#define INT_MMCI0A			14
-#define INT_MMCI0B			15
-
-#define INT_PMU_CPU0			17
-#define INT_PMU_CPU1			18
-#define INT_PMU_CPU2			19
-#define INT_PMU_CPU3			20
-#define INT_PMU_SCU0			21
-#define INT_PMU_SCU1			22
-#define INT_PMU_SCU2			23
-#define INT_PMU_SCU3			24
-#define INT_PMU_SCU4			25
-#define INT_PMU_SCU5			26
-#define INT_PMU_SCU6			27
-#define INT_PMU_SCU7			28
-
-#define INT_L220_EVENT			29
-#define INT_L220_SLAVE			30
-#define INT_L220_DECODE			31
-
-#define INT_UARTINT2			-1
-#define INT_UARTINT3			-1
-#define INT_CLCDINT			-1
-#define INT_DMAINT			-1
-#define INT_WDOGINT			-1
-#define INT_GPIOINT0			-1
-#define INT_GPIOINT1			-1
-#define INT_GPIOINT2			-1
-#define INT_SCIINT			-1
-#define INT_SSPINT			-1
-#endif
-
-/* 
- *  Interrupt bit positions
- * 
- */
-#define INTMASK_WDOGINT			(1 << INT_WDOGINT)
-#define INTMASK_SOFTINT			(1 << INT_SOFTINT)
-#define INTMASK_COMMRx			(1 << INT_COMMRx)
-#define INTMASK_COMMTx			(1 << INT_COMMTx)
-#define INTMASK_TIMERINT0_1		(1 << INT_TIMERINT0_1)
-#define INTMASK_TIMERINT2_3		(1 << INT_TIMERINT2_3)
-#define INTMASK_GPIOINT0		(1 << INT_GPIOINT0)
-#define INTMASK_GPIOINT1		(1 << INT_GPIOINT1)
-#define INTMASK_GPIOINT2		(1 << INT_GPIOINT2)
-#define INTMASK_RTCINT			(1 << INT_RTCINT)
-#define INTMASK_SSPINT			(1 << INT_SSPINT)
-#define INTMASK_UARTINT0		(1 << INT_UARTINT0)
-#define INTMASK_UARTINT1		(1 << INT_UARTINT1)
-#define INTMASK_UARTINT2		(1 << INT_UARTINT2)
-#define INTMASK_UARTINT3		(1 << INT_UARTINT3)
-#define INTMASK_SCIINT			(1 << INT_SCIINT)
-#define INTMASK_MMCI0A			(1 << INT_MMCI0A)
-#define INTMASK_MMCI0B			(1 << INT_MMCI0B)
-#define INTMASK_AACI			(1 << INT_AACI)
-#define INTMASK_KMI0			(1 << INT_KMI0)
-#define INTMASK_KMI1			(1 << INT_KMI1)
-#define INTMASK_CHARLCD			(1 << INT_CHARLCD)
-#define INTMASK_CLCDINT			(1 << INT_CLCDINT)
-#define INTMASK_DMAINT			(1 << INT_DMAINT)
-#define INTMASK_PWRFAILINT		(1 << INT_PWRFAILINT)
-#define INTMASK_PISMO			(1 << INT_PISMO)
-#define INTMASK_DoC			(1 << INT_DoC)
-#define INTMASK_ETH			(1 << INT_ETH)
-#define INTMASK_USB			(1 << INT_USB)
-#define INTMASK_TSPENINT		(1 << INT_TSPENINT)
-#define INTMASK_TSKPADINT		(1 << INT_TSKPADINT)
-
-#define MAXIRQNUM                       31
-#define MAXFIQNUM                       31
-#define MAXSWINUM                       31
-
 /* 
  *  Application Flash
  * 
@@ -463,6 +315,4 @@
 #define REALVIEW_CSR_BASE             0x10000000
 #define REALVIEW_CSR_SIZE             0x10000000
 
-#endif
-
-/* 	END */
+#endif	/* __ASM_ARCH_PLATFORM_H */

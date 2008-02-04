@@ -14,18 +14,74 @@
 #include <linux/device.h>
 #include <linux/smp.h>
 #include <linux/jiffies.h>
+#include <linux/percpu.h>
+#include <linux/clockchips.h>
+#include <linux/irq.h>
 
-#include <asm/mach/time.h>
 #include <asm/hardware/arm_twd.h>
 #include <asm/hardware/gic.h>
 #include <asm/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 
-#define TWD_BASE(cpu)	(__io_address(REALVIEW_TWD_BASE) + \
-			 ((cpu) * REALVIEW_TWD_SIZE))
+static DEFINE_PER_CPU(struct clock_event_device, local_clockevent);
+
+/*
+ * Used on SMP for either the local timer or IPI_TIMER
+ */
+void local_timer_interrupt(void)
+{
+	struct clock_event_device *clk = &__get_cpu_var(local_clockevent);
+
+	clk->event_handler(clk);
+}
+
+#ifdef CONFIG_LOCAL_TIMERS
+
+#define TWD_BASE(cpu)	(twd_base_addr + (cpu) * twd_size)
+
+/* set up by the platform code */
+void __iomem *twd_base_addr;
+unsigned int twd_size;
 
 static unsigned long mpcore_timer_rate;
+
+static void local_timer_set_mode(enum clock_event_mode mode,
+				 struct clock_event_device *clk)
+{
+	void __iomem *base = TWD_BASE(smp_processor_id());
+	unsigned long ctrl;
+
+	switch(mode) {
+	case CLOCK_EVT_MODE_PERIODIC:
+		/* timer load already set up */
+		ctrl = TWD_TIMER_CONTROL_ENABLE | TWD_TIMER_CONTROL_IT_ENABLE
+			| TWD_TIMER_CONTROL_PERIODIC;
+		break;
+	case CLOCK_EVT_MODE_ONESHOT:
+		/* period set, and timer enabled in 'next_event' hook */
+		ctrl = TWD_TIMER_CONTROL_IT_ENABLE | TWD_TIMER_CONTROL_ONESHOT;
+		break;
+	case CLOCK_EVT_MODE_UNUSED:
+	case CLOCK_EVT_MODE_SHUTDOWN:
+	default:
+		ctrl = 0;
+	}
+
+	__raw_writel(ctrl, base + TWD_TIMER_CONTROL);
+}
+
+static int local_timer_set_next_event(unsigned long evt,
+				      struct clock_event_device *unused)
+{
+	void __iomem *base = TWD_BASE(smp_processor_id());
+	unsigned long ctrl = __raw_readl(base + TWD_TIMER_CONTROL);
+
+	__raw_writel(evt, base + TWD_TIMER_COUNTER);
+	__raw_writel(ctrl | TWD_TIMER_CONTROL_ENABLE, base + TWD_TIMER_CONTROL);
+
+	return 0;
+}
 
 /*
  * local_timer_ack: checks for a local timer interrupt.
@@ -45,12 +101,11 @@ int local_timer_ack(void)
 	return 0;
 }
 
-void __cpuinit local_timer_setup(unsigned int cpu)
+static void __cpuinit twd_calibrate_rate(unsigned int cpu)
 {
 	void __iomem *base = TWD_BASE(cpu);
-	unsigned int load, offset;
+	unsigned long load, count;
 	u64 waitjiffies;
-	unsigned int count;
 
 	/*
 	 * If this is the first time round, we need to work out how fast
@@ -88,36 +143,36 @@ void __cpuinit local_timer_setup(unsigned int cpu)
 	load = mpcore_timer_rate / HZ;
 
 	__raw_writel(load, base + TWD_TIMER_LOAD);
-	__raw_writel(0x7,  base + TWD_TIMER_CONTROL);
+}
 
-	/*
-	 * Now maneuver our local tick into the right part of the jiffy.
-	 * Start by working out where within the tick our local timer
-	 * interrupt should go.
-	 */
-	offset = ((mpcore_timer_rate / HZ) / (NR_CPUS + 1)) * (cpu + 1);
+/*
+ * Setup the local clock events for a CPU.
+ */
+void __cpuinit local_timer_setup(unsigned int cpu)
+{
+	struct clock_event_device *clk = &per_cpu(local_clockevent, cpu);
+	unsigned long flags;
 
-	/*
-	 * gettimeoffset() will return a number of us since the last tick.
-	 * Convert this number of us to a local timer tick count.
-	 * Be careful of integer overflow whilst keeping maximum precision.
-	 *
-	 * with HZ=100 and 1MHz (fpga) ~ 1GHz processor:
-	 * load = 1 ~ 10,000
-	 * mpcore_timer_rate/10000 = 100 ~ 100,000
-	 *
-	 * so the multiply value will be less than 10^9 always.
-	 */
-	load = (system_timer->offset() * (mpcore_timer_rate / 10000)) / 100;
+	twd_calibrate_rate(cpu);
 
-	/* Add on our offset to get the load value */
-	load = (load + offset) % (mpcore_timer_rate / HZ);
-
-	__raw_writel(load, base + TWD_TIMER_COUNTER);
+	clk->name		= "local_timer";
+	clk->features		= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT;
+	clk->rating		= 350;
+	clk->set_mode		= local_timer_set_mode;
+	clk->set_next_event	= local_timer_set_next_event;
+	clk->irq		= IRQ_LOCALTIMER;
+	clk->cpumask		= cpumask_of_cpu(cpu);
+	clk->shift		= 20;
+	clk->mult		= div_sc(mpcore_timer_rate, NSEC_PER_SEC, clk->shift);
+	clk->max_delta_ns	= clockevent_delta2ns(0xffffffff, clk);
+	clk->min_delta_ns	= clockevent_delta2ns(0xf, clk);
 
 	/* Make sure our local interrupt controller has this enabled */
-	__raw_writel(1 << IRQ_LOCALTIMER,
-		     __io_address(REALVIEW_GIC_DIST_BASE) + GIC_DIST_ENABLE_SET);
+	local_irq_save(flags);
+	get_irq_chip(IRQ_LOCALTIMER)->unmask(IRQ_LOCALTIMER);
+	local_irq_restore(flags);
+
+	clockevents_register_device(clk);
 }
 
 /*
@@ -127,3 +182,26 @@ void __cpuexit local_timer_stop(unsigned int cpu)
 {
 	__raw_writel(0, TWD_BASE(cpu) + TWD_TIMER_CONTROL);
 }
+
+#else	/* CONFIG_LOCAL_TIMERS */
+
+static void dummy_timer_set_mode(enum clock_event_mode mode,
+				 struct clock_event_device *clk)
+{
+}
+
+void __cpuinit local_timer_setup(unsigned int cpu)
+{
+	struct clock_event_device *clk = &per_cpu(local_clockevent, cpu);
+
+	clk->name		= "dummy_timer";
+	clk->features		= CLOCK_EVT_FEAT_DUMMY;
+	clk->rating		= 200;
+	clk->set_mode		= dummy_timer_set_mode;
+	clk->broadcast		= smp_timer_broadcast;
+	clk->cpumask		= cpumask_of_cpu(cpu);
+
+	clockevents_register_device(clk);
+}
+
+#endif	/* !CONFIG_LOCAL_TIMERS */

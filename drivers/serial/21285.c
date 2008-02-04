@@ -237,6 +237,12 @@ serial21285_set_termios(struct uart_port *port, struct ktermios *termios,
 	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk/16); 
 	quot = uart_get_divisor(port, baud);
 
+	if (port->info && port->info->tty) {
+		struct tty_struct *tty = port->info->tty;
+		unsigned int b = port->uartclk / (16 * quot);
+		tty_encode_baud_rate(tty, b, b);
+	}
+
 	switch (termios->c_cflag & CSIZE) {
 	case CS5:
 		h_lcr = 0x00;
@@ -276,8 +282,6 @@ serial21285_set_termios(struct uart_port *port, struct ktermios *termios,
 	port->read_status_mask = RXSTAT_OVERRUN;
 	if (termios->c_iflag & INPCK)
 		port->read_status_mask |= RXSTAT_FRAME | RXSTAT_PARITY;
-
-	tty_encode_baud_rate(tty,  baud, baud);
 
 	/*
 	 * Which character status flags should we ignore?

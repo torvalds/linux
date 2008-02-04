@@ -6,7 +6,7 @@
 obj-y				+= clock.o devices.o generic.o irq.o dma.o time.o
 obj-$(CONFIG_PXA25x)		+= pxa25x.o
 obj-$(CONFIG_PXA27x)		+= pxa27x.o
-obj-$(CONFIG_PXA3xx)		+= pxa3xx.o mfp.o
+obj-$(CONFIG_PXA3xx)		+= pxa3xx.o mfp.o smemc.o
 obj-$(CONFIG_CPU_PXA300)	+= pxa300.o
 obj-$(CONFIG_CPU_PXA320)	+= pxa320.o
 

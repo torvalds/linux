@@ -1,5 +1,5 @@
 /*
- * drivers/serial/atmel_serial.h
+ * include/linux/atmel_serial.h
  *
  * Copyright (C) 2005 Ivan Kokshaysky
  * Copyright (C) SAN People

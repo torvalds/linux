@@ -19,6 +19,8 @@
  */
 #include <asm/hardware.h>
 
+#include <asm/arch/platform.h>
+
 #define AMBA_UART_DR	(*(volatile unsigned char *) (REALVIEW_UART0_BASE + 0x00))
 #define AMBA_UART_LCRH	(*(volatile unsigned char *) (REALVIEW_UART0_BASE + 0x2c))
 #define AMBA_UART_CR	(*(volatile unsigned char *) (REALVIEW_UART0_BASE + 0x30))

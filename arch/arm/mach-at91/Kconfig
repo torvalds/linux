@@ -253,6 +253,36 @@ config AT91_TIMER_HZ
 	  system clock (of at least several MHz), rounding is less of a
 	  problem so it can be safer to use a decimal values like 100.
 
+choice
+	prompt "Select a UART for early kernel messages"
+
+config AT91_EARLY_DBGU
+	bool "DBGU"
+
+config AT91_EARLY_USART0
+	bool "USART0"
+
+config AT91_EARLY_USART1
+	bool "USART1"
+
+config AT91_EARLY_USART2
+	bool "USART2"
+	depends on ! ARCH_AT91X40
+
+config AT91_EARLY_USART3
+	bool "USART3"
+	depends on (ARCH_AT91RM9200 || ARCH_AT91SAM9RL || ARCH_AT91SAM9260)
+
+config AT91_EARLY_USART4
+	bool "USART4"
+	depends on ARCH_AT91SAM9260
+
+config AT91_EARLY_USART5
+	bool "USART5"
+	depends on ARCH_AT91SAM9260
+
+endchoice
+
 endmenu
 
 endif

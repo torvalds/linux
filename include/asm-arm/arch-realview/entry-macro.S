@@ -14,7 +14,8 @@
 		.endm
 
 		.macro  get_irqnr_preamble, base, tmp
-		ldr     \base, =IO_ADDRESS(REALVIEW_GIC_CPU_BASE)
+		ldr	\base, =gic_cpu_base_addr
+		ldr	\base, [\base]
 		.endm
 
 		.macro  arch_ret_to_user, tmp1, tmp2
