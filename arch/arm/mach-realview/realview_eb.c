@@ -109,6 +109,69 @@ static void __init realview_eb_map_io(void)
 	iotable_init(realview_eb_io_desc, ARRAY_SIZE(realview_eb_io_desc));
 }
 
+/*
+ * RealView EB AMBA devices
+ */
+
+/*
+ * These devices are connected via the core APB bridge
+ */
+#define GPIO2_IRQ	{ IRQ_EB_GPIO2, NO_IRQ }
+#define GPIO2_DMA	{ 0, 0 }
+#define GPIO3_IRQ	{ IRQ_EB_GPIO3, NO_IRQ }
+#define GPIO3_DMA	{ 0, 0 }
+
+#define AACI_IRQ	{ IRQ_EB_AACI, NO_IRQ }
+#define AACI_DMA	{ 0x80, 0x81 }
+#define MMCI0_IRQ	{ IRQ_EB_MMCI0A, IRQ_EB_MMCI0B }
+#define MMCI0_DMA	{ 0x84, 0 }
+#define KMI0_IRQ	{ IRQ_EB_KMI0, NO_IRQ }
+#define KMI0_DMA	{ 0, 0 }
+#define KMI1_IRQ	{ IRQ_EB_KMI1, NO_IRQ }
+#define KMI1_DMA	{ 0, 0 }
+
+/*
+ * These devices are connected directly to the multi-layer AHB switch
+ */
+#define SMC_IRQ		{ NO_IRQ, NO_IRQ }
+#define SMC_DMA		{ 0, 0 }
+#define MPMC_IRQ	{ NO_IRQ, NO_IRQ }
+#define MPMC_DMA	{ 0, 0 }
+#define CLCD_IRQ	{ IRQ_EB_CLCD, NO_IRQ }
+#define CLCD_DMA	{ 0, 0 }
+#define DMAC_IRQ	{ IRQ_EB_DMA, NO_IRQ }
+#define DMAC_DMA	{ 0, 0 }
+
+/*
+ * These devices are connected via the core APB bridge
+ */
+#define SCTL_IRQ	{ NO_IRQ, NO_IRQ }
+#define SCTL_DMA	{ 0, 0 }
+#define WATCHDOG_IRQ	{ IRQ_EB_WDOG, NO_IRQ }
+#define WATCHDOG_DMA	{ 0, 0 }
+#define GPIO0_IRQ	{ IRQ_EB_GPIO0, NO_IRQ }
+#define GPIO0_DMA	{ 0, 0 }
+#define GPIO1_IRQ	{ IRQ_EB_GPIO1, NO_IRQ }
+#define GPIO1_DMA	{ 0, 0 }
+#define RTC_IRQ		{ IRQ_EB_RTC, NO_IRQ }
+#define RTC_DMA		{ 0, 0 }
+
+/*
+ * These devices are connected via the DMA APB bridge
+ */
+#define SCI_IRQ		{ IRQ_EB_SCI, NO_IRQ }
+#define SCI_DMA		{ 7, 6 }
+#define UART0_IRQ	{ IRQ_EB_UART0, NO_IRQ }
+#define UART0_DMA	{ 15, 14 }
+#define UART1_IRQ	{ IRQ_EB_UART1, NO_IRQ }
+#define UART1_DMA	{ 13, 12 }
+#define UART2_IRQ	{ IRQ_EB_UART2, NO_IRQ }
+#define UART2_DMA	{ 11, 10 }
+#define UART3_IRQ	{ IRQ_EB_UART3, NO_IRQ }
+#define UART3_DMA	{ 0x86, 0x87 }
+#define SSP_IRQ		{ IRQ_EB_SSP, NO_IRQ }
+#define SSP_DMA		{ 9, 8 }
+
 /* FPGA Primecells */
 AMBA_DEVICE(aaci,  "fpga:04", AACI,     NULL);
 AMBA_DEVICE(mmc0,  "fpga:05", MMCI0,    &realview_mmc0_plat_data);
@@ -154,6 +217,30 @@ static struct amba_device *amba_devs[] __initdata = {
 	&kmi1_device,
 };
 
+/*
+ * RealView EB platform devices
+ */
+
+static struct resource realview_eb_smc91x_resources[] = {
+	[0] = {
+		.start		= REALVIEW_ETH_BASE,
+		.end		= REALVIEW_ETH_BASE + SZ_64K - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start		= IRQ_EB_ETH,
+		.end		= IRQ_EB_ETH,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device realview_eb_smc91x_device = {
+	.name		= "smc91x",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(realview_eb_smc91x_resources),
+	.resource	= realview_eb_smc91x_resources,
+};
+
 static void __init gic_init_irq(void)
 {
 #ifdef CONFIG_REALVIEW_MPCORE
@@ -173,11 +260,45 @@ static void __init gic_init_irq(void)
 #endif
 }
 
+#ifdef CONFIG_REALVIEW_MPCORE
+/*
+ * Fix up the IRQ numbers for the RealView EB/ARM11MPCore tile
+ */
+static void realview_eb11mp_fixup(void)
+{
+	/* AMBA devices */
+	dmac_device.irq[0]	= IRQ_EB11MP_DMA;
+	uart0_device.irq[0]	= IRQ_EB11MP_UART0;
+	uart1_device.irq[0]	= IRQ_EB11MP_UART1;
+	uart2_device.irq[0]	= IRQ_EB11MP_UART2;
+	uart3_device.irq[0]	= IRQ_EB11MP_UART3;
+	clcd_device.irq[0]	= IRQ_EB11MP_CLCD;
+	wdog_device.irq[0]	= IRQ_EB11MP_WDOG;
+	gpio0_device.irq[0]	= IRQ_EB11MP_GPIO0;
+	gpio1_device.irq[0]	= IRQ_EB11MP_GPIO1;
+	gpio2_device.irq[0]	= IRQ_EB11MP_GPIO2;
+	rtc_device.irq[0]	= IRQ_EB11MP_RTC;
+	sci0_device.irq[0]	= IRQ_EB11MP_SCI;
+	ssp0_device.irq[0]	= IRQ_EB11MP_SSP;
+	aaci_device.irq[0]	= IRQ_EB11MP_AACI;
+	mmc0_device.irq[0]	= IRQ_EB11MP_MMCI0A;
+	mmc0_device.irq[1]	= IRQ_EB11MP_MMCI0B;
+	kmi0_device.irq[0]	= IRQ_EB11MP_KMI0;
+	kmi1_device.irq[0]	= IRQ_EB11MP_KMI1;
+
+	/* platform devices */
+	realview_eb_smc91x_resources[1].start	= IRQ_EB11MP_ETH;
+	realview_eb_smc91x_resources[1].end	= IRQ_EB11MP_ETH;
+}
+#endif
+
 static void __init realview_eb_init(void)
 {
 	int i;
 
 #ifdef CONFIG_REALVIEW_MPCORE
+	realview_eb11mp_fixup();
+
 	/* 1MB (128KB/way), 8-way associativity, evmon/parity/share enabled
 	 * Bits:  .... ...0 0111 1001 0000 .... .... .... */
 	l2x0_init(__io_address(REALVIEW_MPCORE_L220_BASE), 0x00790000, 0xfe000fff);
@@ -185,7 +306,7 @@ static void __init realview_eb_init(void)
 	clk_register(&realview_clcd_clk);
 
 	platform_device_register(&realview_flash_device);
-	platform_device_register(&realview_smc91x_device);
+	platform_device_register(&realview_eb_smc91x_device);
 	platform_device_register(&realview_i2c_device);
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {

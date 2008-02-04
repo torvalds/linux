@@ -123,26 +123,6 @@ struct platform_device realview_flash_device = {
 	.resource		= &realview_flash_resource,
 };
 
-static struct resource realview_smc91x_resources[] = {
-	[0] = {
-		.start		= REALVIEW_ETH_BASE,
-		.end		= REALVIEW_ETH_BASE + SZ_64K - 1,
-		.flags		= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start		= IRQ_ETH,
-		.end		= IRQ_ETH,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device realview_smc91x_device = {
-	.name		= "smc91x",
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(realview_smc91x_resources),
-	.resource	= realview_smc91x_resources,
-};
-
 static struct resource realview_i2c_resource = {
 	.start		= REALVIEW_I2C_BASE,
 	.end		= REALVIEW_I2C_BASE + SZ_4K - 1,
