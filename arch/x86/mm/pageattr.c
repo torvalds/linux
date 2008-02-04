@@ -225,7 +225,6 @@ static int split_large_page(pte_t *kpte, unsigned long address)
 	paravirt_alloc_pt(&init_mm, page_to_pfn(base));
 #endif
 
-	pgprot_val(ref_prot) &= ~_PAGE_NX;
 	for (i = 0; i < PTRS_PER_PTE; i++, addr += PAGE_SIZE)
 		set_pte(&pbase[i], pfn_pte(addr >> PAGE_SHIFT, ref_prot));
 
