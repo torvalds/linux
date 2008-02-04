@@ -35,7 +35,8 @@ static int alloc_ldt(mm_context_t *pc, int mincount, int reload)
 	if (mincount <= pc->size)
 		return 0;
 	oldsize = pc->size;
-	mincount = (mincount + 511) & (~511);
+	mincount = (mincount + (PAGE_SIZE / LDT_ENTRY_SIZE - 1)) &
+			(~(PAGE_SIZE / LDT_ENTRY_SIZE - 1));
 	if (mincount * LDT_ENTRY_SIZE > PAGE_SIZE)
 		newldt = vmalloc(mincount * LDT_ENTRY_SIZE);
 	else
