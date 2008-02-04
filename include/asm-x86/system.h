@@ -20,8 +20,8 @@
 #ifdef CONFIG_X86_32
 
 struct task_struct; /* one of the stranger aspects of C forward declarations */
-extern struct task_struct *FASTCALL(__switch_to(struct task_struct *prev,
-						struct task_struct *next));
+struct task_struct *__switch_to(struct task_struct *prev,
+				struct task_struct *next);
 
 /*
  * Saving eflags is important. It switches not only IOPL between tasks,
