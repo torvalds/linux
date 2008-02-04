@@ -93,17 +93,20 @@ static inline void native_pmd_clear(pmd_t *pmd)
 
 static inline void pud_clear(pud_t *pudp)
 {
+	unsigned long pgd;
+
 	set_pud(pudp, __pud(0));
 
 	/*
 	 * Pentium-II erratum A13: in PAE mode we explicitly have to flush
 	 * the TLB via cr3 if the top-level pgd is changed...
 	 *
-	 * XXX I don't think we need to worry about this here, since
-	 * when clearing the pud, the calling code needs to flush the
-	 * tlb anyway.  But do it now for safety's sake. - jsgf
+	 * Make sure the pud entry we're updating is within the
+	 * current pgd to avoid unnecessary TLB flushes.
 	 */
-	write_cr3(read_cr3());
+	pgd = read_cr3();
+	if (__pa(pudp) >= pgd && __pa(pudp) < (pgd + sizeof(pgd_t)*PTRS_PER_PGD))
+		write_cr3(pgd);
 }
 
 #define pud_page(pud) \
