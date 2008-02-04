@@ -273,7 +273,6 @@ phys_pmd_init(pmd_t *pmd_page, unsigned long address, unsigned long end)
 	int i = pmd_index(address);
 
 	for (; i < PTRS_PER_PMD; i++, address += PMD_SIZE) {
-		unsigned long entry;
 		pmd_t *pmd = pmd_page + pmd_index(address);
 
 		if (address >= end) {
@@ -287,9 +286,8 @@ phys_pmd_init(pmd_t *pmd_page, unsigned long address, unsigned long end)
 		if (pmd_val(*pmd))
 			continue;
 
-		entry = __PAGE_KERNEL_LARGE|_PAGE_GLOBAL|address;
-		entry &= __supported_pte_mask;
-		set_pmd(pmd, __pmd(entry));
+		set_pte((pte_t *)pmd,
+			pfn_pte(address >> PAGE_SHIFT, PAGE_KERNEL_LARGE));
 	}
 }
 
