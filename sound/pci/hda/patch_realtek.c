@@ -107,6 +107,7 @@ enum {
 	ALC268_TOSHIBA,
 	ALC268_ACER,
 	ALC268_DELL,
+	ALC268_ZEPTO,
 #ifdef CONFIG_SND_DEBUG
 	ALC268_TEST,
 #endif
@@ -10105,6 +10106,7 @@ static const char *alc268_models[ALC268_MODEL_LAST] = {
 	[ALC268_TOSHIBA]	= "toshiba",
 	[ALC268_ACER]		= "acer",
 	[ALC268_DELL]		= "dell",
+	[ALC268_ZEPTO]		= "zepto",
 #ifdef CONFIG_SND_DEBUG
 	[ALC268_TEST]		= "test",
 #endif
@@ -10122,6 +10124,7 @@ static struct snd_pci_quirk alc268_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1179, 0xff10, "TOSHIBA A205", ALC268_TOSHIBA),
 	SND_PCI_QUIRK(0x1179, 0xff50, "TOSHIBA A305", ALC268_TOSHIBA),
 	SND_PCI_QUIRK(0x152d, 0x0763, "Diverse (CPR2000)", ALC268_ACER),
+	SND_PCI_QUIRK(0x1170, 0x0040, "ZEPTO", ALC268_ZEPTO),
 	{}
 };
 
@@ -10181,6 +10184,22 @@ static struct alc_config_preset alc268_presets[] = {
 		.unsol_event = alc268_dell_unsol_event,
 		.init_hook = alc268_dell_init_hook,
 		.input_mux = &alc268_capture_source,
+	},
+	[ALC268_ZEPTO] = {
+		.mixers = { alc268_base_mixer, alc268_capture_alt_mixer },
+		.init_verbs = { alc268_base_init_verbs, alc268_eapd_verbs,
+				alc268_toshiba_verbs },
+		.num_dacs = ARRAY_SIZE(alc268_dac_nids),
+		.dac_nids = alc268_dac_nids,
+		.num_adc_nids = ARRAY_SIZE(alc268_adc_nids_alt),
+		.adc_nids = alc268_adc_nids_alt,
+		.hp_nid = 0x03,
+		.dig_out_nid = ALC268_DIGOUT_NID,
+		.num_channel_mode = ARRAY_SIZE(alc268_modes),
+		.channel_mode = alc268_modes,
+		.input_mux = &alc268_capture_source,
+		.unsol_event = alc268_toshiba_unsol_event,
+		.init_hook = alc268_toshiba_automute
 	},
 #ifdef CONFIG_SND_DEBUG
 	[ALC268_TEST] = {
