@@ -8,6 +8,7 @@
 #include <linux/thread_info.h>
 #include <linux/prefetch.h>
 #include <linux/string.h>
+#include <asm/asm.h>
 #include <asm/page.h>
 
 #define VERIFY_READ 0
@@ -287,11 +288,8 @@ extern void __put_user_8(void);
 		"4:	movl %3,%0\n"				\
 		"	jmp 3b\n"				\
 		".previous\n"					\
-		".section __ex_table,\"a\"\n"			\
-		"	.align 4\n"				\
-		"	.long 1b,4b\n"				\
-		"	.long 2b,4b\n"				\
-		".previous"					\
+		_ASM_EXTABLE(1b,4b)				\
+		_ASM_EXTABLE(2b,4b)				\
 		: "=r"(err)					\
 		: "A" (x), "r" (addr), "i"(-EFAULT), "0"(err))
 
@@ -338,10 +336,7 @@ struct __large_struct { unsigned long buf[100]; };
 		"3:	movl %3,%0\n"					\
 		"	jmp 2b\n"					\
 		".previous\n"						\
-		".section __ex_table,\"a\"\n"				\
-		"	.align 4\n"					\
-		"	.long 1b,3b\n"					\
-		".previous"						\
+		_ASM_EXTABLE(1b,3b)					\
 		: "=r"(err)						\
 		: ltype (x), "m"(__m(addr)), "i"(errret), "0"(err))
 
@@ -378,10 +373,7 @@ do {									\
 		"	xor"itype" %"rtype"1,%"rtype"1\n"		\
 		"	jmp 2b\n"					\
 		".previous\n"						\
-		".section __ex_table,\"a\"\n"				\
-		"	.align 4\n"					\
-		"	.long 1b,3b\n"					\
-		".previous"						\
+		_ASM_EXTABLE(1b,3b)					\
 		: "=r"(err), ltype (x)					\
 		: "m"(__m(addr)), "i"(errret), "0"(err))
 
