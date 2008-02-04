@@ -80,7 +80,7 @@ MODULE_AUTHOR("Nick Kossifidis");
 MODULE_DESCRIPTION("Support for 5xxx series of Atheros 802.11 wireless LAN cards.");
 MODULE_SUPPORTED_DEVICE("Atheros 5xxx WLAN cards");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_VERSION("0.1.1 (EXPERIMENTAL)");
+MODULE_VERSION("0.5.0 (EXPERIMENTAL)");
 
 
 /* Known PCI ids */
@@ -513,35 +513,46 @@ ath5k_pci_probe(struct pci_dev *pdev,
 					sc->ah->ah_mac_srev,
 					sc->ah->ah_phy_revision);
 
-	if(!sc->ah->ah_single_chip){
+	if (!sc->ah->ah_single_chip) {
 		/* Single chip radio (!RF5111) */
-		if(sc->ah->ah_radio_5ghz_revision && !sc->ah->ah_radio_2ghz_revision) {
+		if (sc->ah->ah_radio_5ghz_revision &&
+			!sc->ah->ah_radio_2ghz_revision) {
 			/* No 5GHz support -> report 2GHz radio */
-			if(!test_bit(AR5K_MODE_11A, sc->ah->ah_capabilities.cap_mode)){
+			if (!test_bit(AR5K_MODE_11A,
+				sc->ah->ah_capabilities.cap_mode)) {
 				ATH5K_INFO(sc, "RF%s 2GHz radio found (0x%x)\n",
-					ath5k_chip_name(AR5K_VERSION_RAD,sc->ah->ah_radio_5ghz_revision),
-							sc->ah->ah_radio_5ghz_revision);
-			/* No 2GHz support (5110 and some 5Ghz only cards) -> report 5Ghz radio */
-			} else if(!test_bit(AR5K_MODE_11B, sc->ah->ah_capabilities.cap_mode)){
+					ath5k_chip_name(AR5K_VERSION_RAD,
+						sc->ah->ah_radio_5ghz_revision),
+						sc->ah->ah_radio_5ghz_revision);
+			/* No 2GHz support (5110 and some
+			 * 5Ghz only cards) -> report 5Ghz radio */
+			} else if (!test_bit(AR5K_MODE_11B,
+				sc->ah->ah_capabilities.cap_mode)) {
 				ATH5K_INFO(sc, "RF%s 5GHz radio found (0x%x)\n",
-					ath5k_chip_name(AR5K_VERSION_RAD,sc->ah->ah_radio_5ghz_revision),
-							sc->ah->ah_radio_5ghz_revision);
+					ath5k_chip_name(AR5K_VERSION_RAD,
+						sc->ah->ah_radio_5ghz_revision),
+						sc->ah->ah_radio_5ghz_revision);
 			/* Multiband radio */
 			} else {
 				ATH5K_INFO(sc, "RF%s multiband radio found"
 					" (0x%x)\n",
-					ath5k_chip_name(AR5K_VERSION_RAD,sc->ah->ah_radio_5ghz_revision),
-							sc->ah->ah_radio_5ghz_revision);
+					ath5k_chip_name(AR5K_VERSION_RAD,
+						sc->ah->ah_radio_5ghz_revision),
+						sc->ah->ah_radio_5ghz_revision);
 			}
 		}
-		/* Multi chip radio (RF5111 - RF2111) -> report both 2GHz/5GHz radios */
-		else if(sc->ah->ah_radio_5ghz_revision && sc->ah->ah_radio_2ghz_revision){
+		/* Multi chip radio (RF5111 - RF2111) ->
+		 * report both 2GHz/5GHz radios */
+		else if (sc->ah->ah_radio_5ghz_revision &&
+				sc->ah->ah_radio_2ghz_revision){
 			ATH5K_INFO(sc, "RF%s 5GHz radio found (0x%x)\n",
-				ath5k_chip_name(AR5K_VERSION_RAD,sc->ah->ah_radio_5ghz_revision),
-						sc->ah->ah_radio_5ghz_revision);
+				ath5k_chip_name(AR5K_VERSION_RAD,
+					sc->ah->ah_radio_5ghz_revision),
+					sc->ah->ah_radio_5ghz_revision);
 			ATH5K_INFO(sc, "RF%s 2GHz radio found (0x%x)\n",
-				ath5k_chip_name(AR5K_VERSION_RAD,sc->ah->ah_radio_2ghz_revision),
-						sc->ah->ah_radio_2ghz_revision);
+				ath5k_chip_name(AR5K_VERSION_RAD,
+					sc->ah->ah_radio_2ghz_revision),
+					sc->ah->ah_radio_2ghz_revision);
 		}
 	}
 
@@ -891,14 +902,17 @@ ath5k_copy_channels(struct ath5k_hw *ah,
 
 		/* Write channel info and increment counter */
 		channels[count].center_freq = freq;
-
-		if((mode == AR5K_MODE_11A) ||
-		(mode == AR5K_MODE_11G)){
-			channels[count].hw_value = chfreq|CHANNEL_OFDM;
-		} else if((mode == AR5K_MODE_11A_TURBO) ||
-		(mode == AR5K_MODE_11G_TURBO)){
-			channels[count].hw_value = chfreq|CHANNEL_OFDM|CHANNEL_TURBO;
-		}if(mode == AR5K_MODE_11B) {
+		switch (mode) {
+		case AR5K_MODE_11A:
+		case AR5K_MODE_11G:
+			channels[count].hw_value = chfreq | CHANNEL_OFDM;
+			break;
+		case AR5K_MODE_11A_TURBO:
+		case AR5K_MODE_11G_TURBO:
+			channels[count].hw_value = chfreq |
+				CHANNEL_OFDM | CHANNEL_TURBO;
+			break;
+		case AR5K_MODE_11B:
 			channels[count].hw_value = CHANNEL_B;
 		}
 
@@ -926,15 +940,16 @@ ath5k_getchannels(struct ieee80211_hw *hw)
 	count_r = count_c = 0;
 
 	/* 2GHz band */
-	if(!test_bit(AR5K_MODE_11G, sc->ah->ah_capabilities.cap_mode)){
+	if (!test_bit(AR5K_MODE_11G, sc->ah->ah_capabilities.cap_mode)) {
 		mode2g = AR5K_MODE_11B;
-		if(!test_bit(AR5K_MODE_11B, sc->ah->ah_capabilities.cap_mode)){
+		if (!test_bit(AR5K_MODE_11B,
+			sc->ah->ah_capabilities.cap_mode))
 			mode2g = -1;
-		}
 	}
 
-	if(mode2g > 0){
-		struct ieee80211_supported_band *sband = &sbands[IEEE80211_BAND_2GHZ];
+	if (mode2g > 0) {
+		struct ieee80211_supported_band *sband =
+			&sbands[IEEE80211_BAND_2GHZ];
 
 		sband->bitrates = sc->rates;
 		sband->channels = sc->channels;
@@ -945,7 +960,7 @@ ath5k_getchannels(struct ieee80211_hw *hw)
 
 		hw_rates = ath5k_hw_get_rate_table(ah, mode2g);
 		sband->n_bitrates = ath5k_copy_rates(sband->bitrates,
-					hw_rates,max_r);
+					hw_rates, max_r);
 
 		count_c = sband->n_channels;
 		count_r = sband->n_bitrates;
@@ -959,8 +974,9 @@ ath5k_getchannels(struct ieee80211_hw *hw)
 
 	/* 5GHz band */
 
-	if(test_bit(AR5K_MODE_11A, sc->ah->ah_capabilities.cap_mode)){
-		struct ieee80211_supported_band *sband = &sbands[IEEE80211_BAND_5GHZ];
+	if (test_bit(AR5K_MODE_11A, sc->ah->ah_capabilities.cap_mode)) {
+		struct ieee80211_supported_band *sband =
+			&sbands[IEEE80211_BAND_5GHZ];
 
 		sband->bitrates = &sc->rates[count_r];
 		sband->channels = &sc->channels[count_c];
@@ -971,7 +987,7 @@ ath5k_getchannels(struct ieee80211_hw *hw)
 
 		hw_rates = ath5k_hw_get_rate_table(ah, AR5K_MODE_11A);
 		sband->n_bitrates = ath5k_copy_rates(sband->bitrates,
-					hw_rates,max_r);
+					hw_rates, max_r);
 
 		hw->wiphy->bands[IEEE80211_BAND_5GHZ] = sband;
 	}
@@ -1109,7 +1125,7 @@ ath5k_setcurmode(struct ath5k_softc *sc, unsigned int mode)
 
 	sc->curmode = mode;
 
-	if(mode == AR5K_MODE_11A){
+	if (mode == AR5K_MODE_11A) {
 		sc->curband = &sc->sbands[IEEE80211_BAND_5GHZ];
 	} else {
 		sc->curband = &sc->sbands[IEEE80211_BAND_2GHZ];
@@ -1161,43 +1177,43 @@ ath5k_mode_setup(struct ath5k_softc *sc)
  * When hw returns eg. 27 it points to the last 802.11g rate (54Mbits) etc
  */
 static void
-ath5k_set_total_hw_rates(struct ath5k_softc *sc){
+ath5k_set_total_hw_rates(struct ath5k_softc *sc) {
 
 	struct ath5k_hw *ah = sc->ah;
 
-	if(test_bit(AR5K_MODE_11A, ah->ah_modes))
+	if (test_bit(AR5K_MODE_11A, ah->ah_modes))
 		sc->a_rates = 8;
 
-	if(test_bit(AR5K_MODE_11B, ah->ah_modes))
+	if (test_bit(AR5K_MODE_11B, ah->ah_modes))
 		sc->b_rates = 4;
 
-	if(test_bit(AR5K_MODE_11G, ah->ah_modes))
+	if (test_bit(AR5K_MODE_11G, ah->ah_modes))
 		sc->g_rates = 12;
 
 	/* XXX: Need to see what what happens when
 		xr disable bits in eeprom are set */
-	if(ah->ah_version >= AR5K_AR5212)
+	if (ah->ah_version >= AR5K_AR5212)
 		sc->xr_rates = 4;
 
 }
 
 static inline int
-ath5k_hw_to_driver_rix(struct ath5k_softc *sc, int hw_rix){
+ath5k_hw_to_driver_rix(struct ath5k_softc *sc, int hw_rix) {
 
 	int mac80211_rix;
 
-	if(sc->curband->band == IEEE80211_BAND_2GHZ){
+	if(sc->curband->band == IEEE80211_BAND_2GHZ) {
 		/* We setup a g ratetable for both b/g modes */
-		mac80211_rix = hw_rix - sc->b_rates - sc->a_rates - sc->xr_rates;
+		mac80211_rix =
+			hw_rix - sc->b_rates - sc->a_rates - sc->xr_rates;
 	} else {
 		mac80211_rix = hw_rix - sc->xr_rates;
 	}
 
 	/* Something went wrong, fallback to basic rate for this band */
-	if((mac80211_rix >= sc->curband->n_bitrates) ||
-	(mac80211_rix <= 0 )){
+	if ((mac80211_rix >= sc->curband->n_bitrates) ||
+		(mac80211_rix <= 0 ))
 		mac80211_rix = 1;
-	}
 
 	return mac80211_rix;
 }
@@ -1306,7 +1322,8 @@ ath5k_txbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf,
 
 	ret = ah->ah_setup_tx_desc(ah, ds, pktlen,
 		ieee80211_get_hdrlen_from_skb(skb), AR5K_PKT_TYPE_NORMAL,
-		(sc->power_level * 2), ctl->tx_rate->hw_value, ctl->retry_limit, keyidx, 0, flags, 0, 0);
+		(sc->power_level * 2), ctl->tx_rate->hw_value,
+		ctl->retry_limit, keyidx, 0, flags, 0, 0);
 	if (ret)
 		goto err_unmap;
 
@@ -1848,7 +1865,8 @@ accept:
 		rxs.signal = ds->ds_rxstat.rs_rssi * 100 / 64;
 
 		rxs.antenna = ds->ds_rxstat.rs_antenna;
-		rxs.rate_idx = ath5k_hw_to_driver_rix(sc,ds->ds_rxstat.rs_rate);
+		rxs.rate_idx = ath5k_hw_to_driver_rix(sc,
+			ds->ds_rxstat.rs_rate);
 		rxs.flag |= ath5k_rx_decrypted(sc, ds, skb);
 
 		ath5k_debug_dump_skb(sc, skb, "RX  ", 0);
@@ -1995,8 +2013,9 @@ ath5k_beacon_setup(struct ath5k_softc *sc, struct ath5k_buf *bf,
 	ds->ds_data = bf->skbaddr;
 	ret = ah->ah_setup_tx_desc(ah, ds, skb->len,
 			ieee80211_get_hdrlen_from_skb(skb),
-			AR5K_PKT_TYPE_BEACON, (sc->power_level * 2), ctl->tx_rate->hw_value, 1,
-			AR5K_TXKEYIX_INVALID, antenna, flags, 0, 0);
+			AR5K_PKT_TYPE_BEACON, (sc->power_level * 2),
+			ctl->tx_rate->hw_value, 1, AR5K_TXKEYIX_INVALID,
+			antenna, flags, 0, 0);
 	if (ret)
 		goto err_unmap;
 
@@ -2486,7 +2505,8 @@ ath5k_calibrate(unsigned long data)
 	struct ath5k_hw *ah = sc->ah;
 
 	ATH5K_DBG(sc, ATH5K_DEBUG_CALIBRATE, "channel %u/%x\n",
-		ieee80211_frequency_to_channel(sc->curchan->center_freq), sc->curchan->hw_value);
+		ieee80211_frequency_to_channel(sc->curchan->center_freq),
+		sc->curchan->hw_value);
 
 	if (ath5k_hw_get_rf_gain(ah) == AR5K_RFGAIN_NEED_CHANGE) {
 		/*
@@ -2498,7 +2518,8 @@ ath5k_calibrate(unsigned long data)
 	}
 	if (ath5k_hw_phy_calibrate(ah, sc->curchan))
 		ATH5K_ERR(sc, "calibration of channel %u failed\n",
-				ieee80211_frequency_to_channel(sc->curchan->center_freq));
+			ieee80211_frequency_to_channel(
+				sc->curchan->center_freq));
 
 	mod_timer(&sc->calib_tim, round_jiffies(jiffies +
 			msecs_to_jiffies(ath5k_calinterval * 1000)));

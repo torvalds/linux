@@ -263,8 +263,10 @@ enum ath5k_driver_mode {
 /* adding this flag to rate_code enables short preamble, see ar5212_reg.h */
 #define AR5K_SET_SHORT_PREAMBLE 0x04
 
-#define HAS_SHPREAMBLE(_ix) (rt->rates[_ix].modulation == IEEE80211_RATE_SHORT_PREAMBLE)
-#define SHPREAMBLE_FLAG(_ix) (HAS_SHPREAMBLE(_ix) ? AR5K_SET_SHORT_PREAMBLE : 0)
+#define HAS_SHPREAMBLE(_ix) \
+	(rt->rates[_ix].modulation == IEEE80211_RATE_SHORT_PREAMBLE)
+#define SHPREAMBLE_FLAG(_ix) \
+	(HAS_SHPREAMBLE(_ix) ? AR5K_SET_SHORT_PREAMBLE : 0)
 
 /****************\
   TX DEFINITIONS
@@ -892,6 +894,8 @@ enum ath5k_capability_type {
 	AR5K_CAP_RFSILENT		= 20,	/* Supports RFsilent */
 };
 
+
+/* XXX: we *may* move cap_range stuff to struct wiphy */
 struct ath5k_capabilities {
 	/*
 	 * Supported PHY modes

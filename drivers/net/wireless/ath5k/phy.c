@@ -1124,7 +1124,7 @@ static int ath5k_hw_rf5112_rfregs(struct ath5k_hw *ah,
 	rf = ah->ah_rf_banks;
 
 	if (ah->ah_radio_5ghz_revision >= AR5K_SREV_RAD_2112A
-		&& !test_bit(AR5K_MODE_11A, ah->ah_capabilities.cap_mode)){
+		&& !test_bit(AR5K_MODE_11A, ah->ah_capabilities.cap_mode)) {
 		rf_ini = rfregs_2112a;
 		rf_size = ARRAY_SIZE(rfregs_5112a);
 		if (mode < 2) {
@@ -1445,9 +1445,10 @@ static u32 ath5k_hw_rf5110_chan2athchan(struct ieee80211_channel *channel)
 	 * newer chipsets like the AR5212A who have a completely
 	 * different RF/PHY part.
 	 */
-	athchan = (ath5k_hw_bitswap((ieee80211_frequency_to_channel(channel->center_freq) - 24) / 2, 5) << 1) |
-		(1 << 6) | 0x1;
-
+	athchan = (ath5k_hw_bitswap(
+			(ieee80211_frequency_to_channel(
+				channel->center_freq) - 24) / 2, 5)
+				<< 1) | (1 << 6) | 0x1;
 	return athchan;
 }
 
@@ -1506,7 +1507,8 @@ static int ath5k_hw_rf5111_channel(struct ath5k_hw *ah,
 		struct ieee80211_channel *channel)
 {
 	struct ath5k_athchan_2ghz ath5k_channel_2ghz;
-	unsigned int ath5k_channel = ieee80211_frequency_to_channel(channel->center_freq);
+	unsigned int ath5k_channel =
+		ieee80211_frequency_to_channel(channel->center_freq);
 	u32 data0, data1, clock;
 	int ret;
 
@@ -1517,8 +1519,9 @@ static int ath5k_hw_rf5111_channel(struct ath5k_hw *ah,
 
 	if (channel->hw_value & CHANNEL_2GHZ) {
 		/* Map 2GHz channel to 5GHz Atheros channel ID */
-		ret = ath5k_hw_rf5111_chan2athchan(ieee80211_frequency_to_channel(channel->center_freq),
-				&ath5k_channel_2ghz);
+		ret = ath5k_hw_rf5111_chan2athchan(
+			ieee80211_frequency_to_channel(channel->center_freq),
+			&ath5k_channel_2ghz);
 		if (ret)
 			return ret;
 
@@ -1599,19 +1602,17 @@ static int ath5k_hw_rf5112_channel(struct ath5k_hw *ah,
 int ath5k_hw_channel(struct ath5k_hw *ah, struct ieee80211_channel *channel)
 {
 	int ret;
-
 	/*
-	 * Check bounds supported by the PHY
-	 * (don't care about regulation restrictions at this point)
-	 */
-	if ((channel->center_freq < ah->ah_capabilities.cap_range.range_2ghz_min ||
-	    channel->center_freq > ah->ah_capabilities.cap_range.range_2ghz_max) &&
-	    (channel->center_freq < ah->ah_capabilities.cap_range.range_5ghz_min ||
-	    channel->center_freq > ah->ah_capabilities.cap_range.range_5ghz_max)) {
+	 * Check bounds supported by the PHY (we don't care about regultory
+	 * restrictions at this point). Note: hw_value already has the band
+	 * (CHANNEL_2GHZ, or CHANNEL_5GHZ) so we inform ath5k_channel_ok()
+	 * of the band by that */
+	if (!ath5k_channel_ok(ah, channel->center_freq, channel->hw_value)) {
 		ATH5K_ERR(ah->ah_sc,
-			"channel out of supported range (%u MHz)\n",
+			"channel frequency (%u MHz) out of supported "
+			"band range\n",
 			channel->center_freq);
-		return -EINVAL;
+			return -EINVAL;
 	}
 
 	/*
