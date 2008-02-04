@@ -37,7 +37,7 @@ extern struct kmem_cache *btrfs_transaction_cachep;
 extern struct kmem_cache *btrfs_bit_radix_cachep;
 extern struct kmem_cache *btrfs_path_cachep;
 
-#define BTRFS_MAGIC "_B3RfS_M"
+#define BTRFS_MAGIC "_B4RfS_M"
 
 #define BTRFS_MAX_LEVEL 8
 #define BTRFS_ROOT_TREE_OBJECTID 1ULL
