@@ -220,21 +220,21 @@ static void vmi_set_tr(void)
 static void vmi_write_idt_entry(gate_desc *dt, int entry, const gate_desc *g)
 {
 	u32 *idt_entry = (u32 *)g;
-	vmi_ops.write_idt_entry(dt, entry, idt_entry[0], idt_entry[2]);
+	vmi_ops.write_idt_entry(dt, entry, idt_entry[0], idt_entry[1]);
 }
 
 static void vmi_write_gdt_entry(struct desc_struct *dt, int entry,
 				const void *desc, int type)
 {
 	u32 *gdt_entry = (u32 *)desc;
-	vmi_ops.write_gdt_entry(dt, entry, gdt_entry[0], gdt_entry[2]);
+	vmi_ops.write_gdt_entry(dt, entry, gdt_entry[0], gdt_entry[1]);
 }
 
 static void vmi_write_ldt_entry(struct desc_struct *dt, int entry,
 				const void *desc)
 {
 	u32 *ldt_entry = (u32 *)desc;
-	vmi_ops.write_idt_entry(dt, entry, ldt_entry[0], ldt_entry[2]);
+	vmi_ops.write_idt_entry(dt, entry, ldt_entry[0], ldt_entry[1]);
 }
 
 static void vmi_load_sp0(struct tss_struct *tss,
