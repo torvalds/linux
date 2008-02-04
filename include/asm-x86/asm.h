@@ -29,4 +29,11 @@
 
 #endif /* CONFIG_X86_32 */
 
+/* Exception table entry */
+# define _ASM_EXTABLE(from,to) \
+	" .section __ex_table,\"a\"\n" \
+	_ASM_ALIGN "\n" \
+	_ASM_PTR #from "," #to "\n" \
+	" .previous\n"
+
 #endif /* _ASM_X86_ASM_H */
