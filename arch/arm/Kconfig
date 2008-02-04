@@ -168,6 +168,7 @@ config ARCH_REALVIEW
 	bool "ARM Ltd. RealView family"
 	select ARM_AMBA
 	select ICST307
+	select GENERIC_TIME
 	help
 	  This enables support for ARM Ltd RealView boards.
 
