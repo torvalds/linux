@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
- *   
- *   Copyright 2000 H. Peter Anvin - All Rights Reserved
+ *
+ *   Copyright 2000-2008 H. Peter Anvin - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -45,9 +45,10 @@ static struct class *msr_class;
 
 static loff_t msr_seek(struct file *file, loff_t offset, int orig)
 {
-	loff_t ret = -EINVAL;
+	loff_t ret;
+	struct inode *inode = file->f_mapping->host;
 
-	lock_kernel();
+	mutex_lock(&inode->i_mutex);
 	switch (orig) {
 	case 0:
 		file->f_pos = offset;
@@ -56,8 +57,11 @@ static loff_t msr_seek(struct file *file, loff_t offset, int orig)
 	case 1:
 		file->f_pos += offset;
 		ret = file->f_pos;
+		break;
+	default:
+		ret = -EINVAL;
 	}
-	unlock_kernel();
+	mutex_unlock(&inode->i_mutex);
 	return ret;
 }
 

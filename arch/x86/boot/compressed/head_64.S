@@ -80,8 +80,8 @@ startup_32:
 
 #ifdef CONFIG_RELOCATABLE
 	movl	%ebp, %ebx
-	addl	$(LARGE_PAGE_SIZE -1), %ebx
-	andl	$LARGE_PAGE_MASK, %ebx
+	addl	$(PMD_PAGE_SIZE -1), %ebx
+	andl	$PMD_PAGE_MASK, %ebx
 #else
 	movl	$CONFIG_PHYSICAL_START, %ebx
 #endif
@@ -220,8 +220,8 @@ ENTRY(startup_64)
 	/* Start with the delta to where the kernel will run at. */
 #ifdef CONFIG_RELOCATABLE
 	leaq	startup_32(%rip) /* - $startup_32 */, %rbp
-	addq	$(LARGE_PAGE_SIZE - 1), %rbp
-	andq	$LARGE_PAGE_MASK, %rbp
+	addq	$(PMD_PAGE_SIZE - 1), %rbp
+	andq	$PMD_PAGE_MASK, %rbp
 	movq	%rbp, %rbx
 #else
 	movq	$CONFIG_PHYSICAL_START, %rbp

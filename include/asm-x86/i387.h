@@ -13,6 +13,7 @@
 #include <linux/sched.h>
 #include <linux/kernel_stat.h>
 #include <linux/regset.h>
+#include <asm/asm.h>
 #include <asm/processor.h>
 #include <asm/sigcontext.h>
 #include <asm/user.h>
@@ -41,10 +42,7 @@ static inline void tolerant_fwait(void)
 {
 	asm volatile("1: fwait\n"
 		     "2:\n"
-		     "   .section __ex_table,\"a\"\n"
-		     "	.align 8\n"
-		     "	.quad 1b,2b\n"
-		     "	.previous\n");
+		     _ASM_EXTABLE(1b,2b));
 }
 
 static inline int restore_fpu_checking(struct i387_fxsave_struct *fx)
@@ -57,10 +55,7 @@ static inline int restore_fpu_checking(struct i387_fxsave_struct *fx)
 		     "3:  movl $-1,%[err]\n"
 		     "    jmp  2b\n"
 		     ".previous\n"
-		     ".section __ex_table,\"a\"\n"
-		     "   .align 8\n"
-		     "   .quad  1b,3b\n"
-		     ".previous"
+		     _ASM_EXTABLE(1b,3b)
 		     : [err] "=r" (err)
 #if 0 /* See comment in __save_init_fpu() below. */
 		     : [fx] "r" (fx), "m" (*fx), "0" (0));
@@ -99,10 +94,7 @@ static inline int save_i387_checking(struct i387_fxsave_struct __user *fx)
 		     "3:  movl $-1,%[err]\n"
 		     "    jmp  2b\n"
 		     ".previous\n"
-		     ".section __ex_table,\"a\"\n"
-		     "   .align 8\n"
-		     "   .quad  1b,3b\n"
-		     ".previous"
+		     _ASM_EXTABLE(1b,3b)
 		     : [err] "=r" (err), "=m" (*fx)
 #if 0 /* See comment in __fxsave_clear() below. */
 		     : [fx] "r" (fx), "0" (0));

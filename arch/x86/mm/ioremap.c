@@ -70,24 +70,11 @@ int page_is_ram(unsigned long pagenr)
  * Fix up the linear direct mapping of the kernel to avoid cache attribute
  * conflicts.
  */
-static int ioremap_change_attr(unsigned long paddr, unsigned long size,
+static int ioremap_change_attr(unsigned long vaddr, unsigned long size,
 			       enum ioremap_mode mode)
 {
-	unsigned long vaddr = (unsigned long)__va(paddr);
 	unsigned long nrpages = size >> PAGE_SHIFT;
-	unsigned int level;
 	int err;
-
-	/* No change for pages after the last mapping */
-	if ((paddr + size - 1) >= (max_pfn_mapped << PAGE_SHIFT))
-		return 0;
-
-	/*
-	 * If there is no identity map for this address,
-	 * change_page_attr_addr is unnecessary
-	 */
-	if (!lookup_address(vaddr, &level))
-		return 0;
 
 	switch (mode) {
 	case IOR_MODE_UNCACHED:
@@ -114,9 +101,8 @@ static int ioremap_change_attr(unsigned long paddr, unsigned long size,
 static void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 			       enum ioremap_mode mode)
 {
-	void __iomem *addr;
+	unsigned long pfn, offset, last_addr, vaddr;
 	struct vm_struct *area;
-	unsigned long offset, last_addr;
 	pgprot_t prot;
 
 	/* Don't allow wraparound or zero size */
@@ -133,9 +119,10 @@ static void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 	/*
 	 * Don't allow anybody to remap normal RAM that we're using..
 	 */
-	for (offset = phys_addr >> PAGE_SHIFT; offset < max_pfn_mapped &&
-	     (offset << PAGE_SHIFT) < last_addr; offset++) {
-		if (page_is_ram(offset))
+	for (pfn = phys_addr >> PAGE_SHIFT; pfn < max_pfn_mapped &&
+	     (pfn << PAGE_SHIFT) < last_addr; pfn++) {
+		if (page_is_ram(pfn) && pfn_valid(pfn) &&
+		    !PageReserved(pfn_to_page(pfn)))
 			return NULL;
 	}
 
@@ -163,19 +150,18 @@ static void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 	if (!area)
 		return NULL;
 	area->phys_addr = phys_addr;
-	addr = (void __iomem *) area->addr;
-	if (ioremap_page_range((unsigned long)addr, (unsigned long)addr + size,
-			       phys_addr, prot)) {
-		remove_vm_area((void *)(PAGE_MASK & (unsigned long) addr));
+	vaddr = (unsigned long) area->addr;
+	if (ioremap_page_range(vaddr, vaddr + size, phys_addr, prot)) {
+		remove_vm_area((void *)(vaddr & PAGE_MASK));
 		return NULL;
 	}
 
-	if (ioremap_change_attr(phys_addr, size, mode) < 0) {
-		vunmap(addr);
+	if (ioremap_change_attr(vaddr, size, mode) < 0) {
+		vunmap(area->addr);
 		return NULL;
 	}
 
-	return (void __iomem *) (offset + (char __iomem *)addr);
+	return (void __iomem *) (vaddr + offset);
 }
 
 /**
@@ -253,9 +239,6 @@ void iounmap(volatile void __iomem *addr)
 		dump_stack();
 		return;
 	}
-
-	/* Reset the direct mapping. Can block */
-	ioremap_change_attr(p->phys_addr, p->size, IOR_MODE_CACHED);
 
 	/* Finally remove it */
 	o = remove_vm_area((void *)addr);

@@ -501,7 +501,7 @@ static __init unsigned long check_iommu_size(unsigned long aper, u64 aper_size)
 	}
 
 	a = aper + iommu_size;
-	iommu_size -= round_up(a, LARGE_PAGE_SIZE) - a;
+	iommu_size -= round_up(a, PMD_PAGE_SIZE) - a;
 
 	if (iommu_size < 64*1024*1024) {
 		printk(KERN_WARNING
@@ -731,7 +731,8 @@ void __init gart_iommu_init(void)
 	 * the backing memory. The GART address is only used by PCI
 	 * devices.
 	 */
-	clear_kernel_mapping((unsigned long)__va(iommu_bus_base), iommu_size);
+	set_memory_np((unsigned long)__va(iommu_bus_base),
+				iommu_size >> PAGE_SHIFT);
 
 	/*
 	 * Try to workaround a bug (thanks to BenH)

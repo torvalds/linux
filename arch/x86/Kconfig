@@ -306,6 +306,7 @@ config X86_RDC321X
 	select M486
 	select X86_REBOOTFIXUPS
 	select GENERIC_GPIO
+	select LEDS_CLASS
 	select LEDS_GPIO
 	help
 	  This option is needed for RDC R-321x system-on-chip, also known

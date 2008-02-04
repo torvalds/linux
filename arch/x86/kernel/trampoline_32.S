@@ -11,12 +11,7 @@
  *	trampoline page to make our stack and everything else
  *	is a mystery.
  *
- *	In fact we don't actually need a stack so we don't
- *	set one up.
- *
- *	We jump into the boot/compressed/head.S code. So you'd
- *	better be running a compressed kernel image or you
- *	won't get very far.
+ *	We jump into arch/x86/kernel/head_32.S.
  *
  *	On entry to trampoline_data, the processor is in real mode
  *	with 16-bit addressing and 16-bit data.  CS has some value

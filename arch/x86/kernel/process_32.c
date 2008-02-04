@@ -251,7 +251,7 @@ void cpu_idle_wait(void)
 		 * because it has nothing to do.
 		 * Give all the remaining CPUS a kick.
 		 */
-		smp_call_function_mask(map, do_nothing, 0, 0);
+		smp_call_function_mask(map, do_nothing, NULL, 0);
 	} while (!cpus_empty(map));
 
 	set_cpus_allowed(current, tmp);

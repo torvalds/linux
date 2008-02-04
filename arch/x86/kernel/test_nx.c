@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/sort.h>
 #include <asm/uaccess.h>
+#include <asm/asm.h>
 
 extern int rodata_test_data;
 
@@ -89,16 +90,7 @@ static noinline int test_address(void *address)
 		"2:	mov %[zero], %[rslt]\n"
 		"	ret\n"
 		".previous\n"
-		".section __ex_table,\"a\"\n"
-		"       .align 8\n"
-#ifdef CONFIG_X86_32
-		"	.long 0b\n"
-		"	.long 2b\n"
-#else
-		"	.quad 0b\n"
-		"	.quad 2b\n"
-#endif
-		".previous\n"
+		_ASM_EXTABLE(0b,2b)
 		: [rslt] "=r" (result)
 		: [fake_code] "r" (address), [zero] "r" (0UL), "0" (result)
 	);

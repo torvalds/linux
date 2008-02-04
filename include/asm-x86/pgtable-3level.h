@@ -93,26 +93,22 @@ static inline void native_pmd_clear(pmd_t *pmd)
 
 static inline void pud_clear(pud_t *pudp)
 {
+	unsigned long pgd;
+
 	set_pud(pudp, __pud(0));
 
 	/*
-	 * In principle we need to do a cr3 reload here to make sure
-	 * the processor recognizes the changed pgd.  In practice, all
-	 * the places where pud_clear() gets called are followed by
-	 * full tlb flushes anyway, so we can defer the cost here.
+	 * According to Intel App note "TLBs, Paging-Structure Caches,
+	 * and Their Invalidation", April 2007, document 317080-001,
+	 * section 8.1: in PAE mode we explicitly have to flush the
+	 * TLB via cr3 if the top-level pgd is changed...
 	 *
-	 * Specifically:
-	 *
-	 * mm/memory.c:free_pmd_range() - immediately after the
-	 * pud_clear() it does a pmd_free_tlb().  We change the
-	 * mmu_gather structure to do a full tlb flush (which has the
-	 * effect of reloading cr3) when the pagetable free is
-	 * complete.
-	 *
-	 * arch/x86/mm/hugetlbpage.c:huge_pmd_unshare() - the call to
-	 * this is followed by a flush_tlb_range, which on x86 does a
-	 * full tlb flush.
+	 * Make sure the pud entry we're updating is within the
+	 * current pgd to avoid unnecessary TLB flushes.
 	 */
+	pgd = read_cr3();
+	if (__pa(pudp) >= pgd && __pa(pudp) < (pgd + sizeof(pgd_t)*PTRS_PER_PGD))
+		write_cr3(pgd);
 }
 
 #define pud_page(pud) \

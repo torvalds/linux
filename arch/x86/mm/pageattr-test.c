@@ -137,7 +137,8 @@ static __init int exercise_pageattr(void)
 
 		for (k = 0; k < len[i]; k++) {
 			pte = lookup_address(addr[i] + k*PAGE_SIZE, &level);
-			if (!pte || pgprot_val(pte_pgprot(*pte)) == 0) {
+			if (!pte || pgprot_val(pte_pgprot(*pte)) == 0 ||
+			    !(pte_val(*pte) & _PAGE_PRESENT)) {
 				addr[i] = 0;
 				break;
 			}

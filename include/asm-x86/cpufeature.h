@@ -4,9 +4,6 @@
 #ifndef _ASM_X86_CPUFEATURE_H
 #define _ASM_X86_CPUFEATURE_H
 
-#ifndef __ASSEMBLY__
-#include <linux/bitops.h>
-#endif
 #include <asm/required-features.h>
 
 #define NCAPINTS	8	/* N 32-bit words worth of info */
@@ -49,6 +46,7 @@
 #define X86_FEATURE_MP		(1*32+19) /* MP Capable. */
 #define X86_FEATURE_NX		(1*32+20) /* Execute Disable */
 #define X86_FEATURE_MMXEXT	(1*32+22) /* AMD MMX extensions */
+#define X86_FEATURE_GBPAGES	(1*32+26) /* GB pages */
 #define X86_FEATURE_RDTSCP	(1*32+27) /* RDTSCP */
 #define X86_FEATURE_LM		(1*32+29) /* Long Mode (x86-64) */
 #define X86_FEATURE_3DNOWEXT	(1*32+30) /* AMD 3DNow! extensions */
@@ -115,6 +113,13 @@
  */
 #define X86_FEATURE_IDA		(7*32+ 0) /* Intel Dynamic Acceleration */
 
+#if defined(__KERNEL__) && !defined(__ASSEMBLY__)
+
+#include <linux/bitops.h>
+
+extern const char * const x86_cap_flags[NCAPINTS*32];
+extern const char * const x86_power_flags[32];
+
 #define cpu_has(c, bit)							\
 	(__builtin_constant_p(bit) &&					\
 	 ( (((bit)>>5)==0 && (1UL<<((bit)&31) & REQUIRED_MASK0)) ||	\
@@ -175,6 +180,7 @@
 #define cpu_has_pebs		boot_cpu_has(X86_FEATURE_PEBS)
 #define cpu_has_clflush		boot_cpu_has(X86_FEATURE_CLFLSH)
 #define cpu_has_bts		boot_cpu_has(X86_FEATURE_BTS)
+#define cpu_has_gbpages		boot_cpu_has(X86_FEATURE_GBPAGES)
 
 #if defined(CONFIG_X86_INVLPG) || defined(CONFIG_X86_64)
 # define cpu_has_invlpg		1
@@ -203,5 +209,7 @@
 #define cpu_has_centaur_mcr	0
 
 #endif /* CONFIG_X86_64 */
+
+#endif /* defined(__KERNEL__) && !defined(__ASSEMBLY__) */
 
 #endif /* _ASM_X86_CPUFEATURE_H */

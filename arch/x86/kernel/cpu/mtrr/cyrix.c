@@ -7,8 +7,6 @@
 #include <asm/processor-flags.h>
 #include "mtrr.h"
 
-int arr3_protected;
-
 static void
 cyrix_get_arr(unsigned int reg, unsigned long *base,
 	      unsigned long *size, mtrr_type * type)
@@ -99,8 +97,6 @@ cyrix_get_free_region(unsigned long base, unsigned long size, int replace_reg)
 	case 4:
 		return replace_reg;
 	case 3:
-		if (arr3_protected)
-			break;
 	case 2:
 	case 1:
 	case 0:
@@ -115,8 +111,6 @@ cyrix_get_free_region(unsigned long base, unsigned long size, int replace_reg)
 	} else {
 		for (i = 0; i < 7; i++) {
 			cyrix_get_arr(i, &lbase, &lsize, &ltype);
-			if ((i == 3) && arr3_protected)
-				continue;
 			if (lsize == 0)
 				return i;
 		}
@@ -259,107 +253,6 @@ static void cyrix_set_all(void)
 
 	post_set();
 }
-
-#if 0
-/*
- * On Cyrix 6x86(MX) and M II the ARR3 is special: it has connection
- * with the SMM (System Management Mode) mode. So we need the following:
- * Check whether SMI_LOCK (CCR3 bit 0) is set
- *   if it is set, write a warning message: ARR3 cannot be changed!
- *     (it cannot be changed until the next processor reset)
- *   if it is reset, then we can change it, set all the needed bits:
- *   - disable access to SMM memory through ARR3 range (CCR1 bit 7 reset)
- *   - disable access to SMM memory (CCR1 bit 2 reset)
- *   - disable SMM mode (CCR1 bit 1 reset)
- *   - disable write protection of ARR3 (CCR6 bit 1 reset)
- *   - (maybe) disable ARR3
- * Just to be sure, we enable ARR usage by the processor (CCR5 bit 5 set)
- */
-static void __init
-cyrix_arr_init(void)
-{
-	struct set_mtrr_context ctxt;
-	unsigned char ccr[7];
-	int ccrc[7] = { 0, 0, 0, 0, 0, 0, 0 };
-#ifdef CONFIG_SMP
-	int i;
-#endif
-
-	/* flush cache and enable MAPEN */
-	set_mtrr_prepare_save(&ctxt);
-	set_mtrr_cache_disable(&ctxt);
-
-	/* Save all CCRs locally */
-	ccr[0] = getCx86(CX86_CCR0);
-	ccr[1] = getCx86(CX86_CCR1);
-	ccr[2] = getCx86(CX86_CCR2);
-	ccr[3] = ctxt.ccr3;
-	ccr[4] = getCx86(CX86_CCR4);
-	ccr[5] = getCx86(CX86_CCR5);
-	ccr[6] = getCx86(CX86_CCR6);
-
-	if (ccr[3] & 1) {
-		ccrc[3] = 1;
-		arr3_protected = 1;
-	} else {
-		/* Disable SMM mode (bit 1), access to SMM memory (bit 2) and
-		 * access to SMM memory through ARR3 (bit 7).
-		 */
-		if (ccr[1] & 0x80) {
-			ccr[1] &= 0x7f;
-			ccrc[1] |= 0x80;
-		}
-		if (ccr[1] & 0x04) {
-			ccr[1] &= 0xfb;
-			ccrc[1] |= 0x04;
-		}
-		if (ccr[1] & 0x02) {
-			ccr[1] &= 0xfd;
-			ccrc[1] |= 0x02;
-		}
-		arr3_protected = 0;
-		if (ccr[6] & 0x02) {
-			ccr[6] &= 0xfd;
-			ccrc[6] = 1;	/* Disable write protection of ARR3 */
-			setCx86(CX86_CCR6, ccr[6]);
-		}
-		/* Disable ARR3. This is safe now that we disabled SMM. */
-		/* cyrix_set_arr_up (3, 0, 0, 0, FALSE); */
-	}
-	/* If we changed CCR1 in memory, change it in the processor, too. */
-	if (ccrc[1])
-		setCx86(CX86_CCR1, ccr[1]);
-
-	/* Enable ARR usage by the processor */
-	if (!(ccr[5] & 0x20)) {
-		ccr[5] |= 0x20;
-		ccrc[5] = 1;
-		setCx86(CX86_CCR5, ccr[5]);
-	}
-#ifdef CONFIG_SMP
-	for (i = 0; i < 7; i++)
-		ccr_state[i] = ccr[i];
-	for (i = 0; i < 8; i++)
-		cyrix_get_arr(i,
-			      &arr_state[i].base, &arr_state[i].size,
-			      &arr_state[i].type);
-#endif
-
-	set_mtrr_done(&ctxt);	/* flush cache and disable MAPEN */
-
-	if (ccrc[5])
-		printk(KERN_INFO "mtrr: ARR usage was not enabled, enabled manually\n");
-	if (ccrc[3])
-		printk(KERN_INFO "mtrr: ARR3 cannot be changed\n");
-/*
-    if ( ccrc[1] & 0x80) printk ("mtrr: SMM memory access through ARR3 disabled\n");
-    if ( ccrc[1] & 0x04) printk ("mtrr: SMM memory access disabled\n");
-    if ( ccrc[1] & 0x02) printk ("mtrr: SMM mode disabled\n");
-*/
-	if (ccrc[6])
-		printk(KERN_INFO "mtrr: ARR3 was write protected, unprotected\n");
-}
-#endif
 
 static struct mtrr_ops cyrix_mtrr_ops = {
 	.vendor            = X86_VENDOR_CYRIX,

@@ -54,10 +54,10 @@ static void __init early_mapping_set_exec(unsigned long start,
 		else
 			set_pte(kpte, __pte((pte_val(*kpte) | _PAGE_NX) & \
 					    __supported_pte_mask));
-		if (level == 4)
-			start = (start + PMD_SIZE) & PMD_MASK;
-		else
+		if (level == PG_LEVEL_4K)
 			start = (start + PAGE_SIZE) & PAGE_MASK;
+		else
+			start = (start + PMD_SIZE) & PMD_MASK;
 	}
 }
 
@@ -109,23 +109,23 @@ void __init efi_reserve_bootmem(void)
 				memmap.nr_map * memmap.desc_size);
 }
 
-void __iomem * __init efi_ioremap(unsigned long offset,
-				  unsigned long size)
+void __iomem * __init efi_ioremap(unsigned long phys_addr, unsigned long size)
 {
 	static unsigned pages_mapped;
-	unsigned long last_addr;
 	unsigned i, pages;
 
-	last_addr = offset + size - 1;
-	offset &= PAGE_MASK;
-	pages = (PAGE_ALIGN(last_addr) - offset) >> PAGE_SHIFT;
+	/* phys_addr and size must be page aligned */
+	if ((phys_addr & ~PAGE_MASK) || (size & ~PAGE_MASK))
+		return NULL;
+
+	pages = size >> PAGE_SHIFT;
 	if (pages_mapped + pages > MAX_EFI_IO_PAGES)
 		return NULL;
 
 	for (i = 0; i < pages; i++) {
 		__set_fixmap(FIX_EFI_IO_MAP_FIRST_PAGE - pages_mapped,
-			     offset, PAGE_KERNEL_EXEC_NOCACHE);
-		offset += PAGE_SIZE;
+			     phys_addr, PAGE_KERNEL);
+		phys_addr += PAGE_SIZE;
 		pages_mapped++;
 	}
 

@@ -240,7 +240,8 @@ void dump_pagetable(unsigned long address)
 	pud = pud_offset(pgd, address);
 	if (bad_address(pud)) goto bad;
 	printk("PUD %lx ", pud_val(*pud));
-	if (!pud_present(*pud))	goto ret;
+	if (!pud_present(*pud) || pud_large(*pud))
+		goto ret;
 
 	pmd = pmd_offset(pud, address);
 	if (bad_address(pmd)) goto bad;
@@ -508,6 +509,10 @@ static int vmalloc_fault(unsigned long address)
 	pmd_t *pmd, *pmd_ref;
 	pte_t *pte, *pte_ref;
 
+	/* Make sure we are in vmalloc area */
+	if (!(address >= VMALLOC_START && address < VMALLOC_END))
+		return -1;
+
 	/* Copy kernel mappings over when needed. This can also
 	   happen within a race in page table update. In the later
 	   case just flush. */
@@ -603,6 +608,9 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 	 */
 #ifdef CONFIG_X86_32
 	if (unlikely(address >= TASK_SIZE)) {
+#else
+	if (unlikely(address >= TASK_SIZE64)) {
+#endif
 		if (!(error_code & (PF_RSVD|PF_USER|PF_PROT)) &&
 		    vmalloc_fault(address) >= 0)
 			return;
@@ -618,6 +626,8 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 		goto bad_area_nosemaphore;
 	}
 
+
+#ifdef CONFIG_X86_32
 	/* It's safe to allow irq's after cr2 has been saved and the vmalloc
 	   fault has been handled. */
 	if (regs->flags & (X86_EFLAGS_IF|VM_MASK))
@@ -630,28 +640,6 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 	if (in_atomic() || !mm)
 		goto bad_area_nosemaphore;
 #else /* CONFIG_X86_64 */
-	if (unlikely(address >= TASK_SIZE64)) {
-		/*
-		 * Don't check for the module range here: its PML4
-		 * is always initialized because it's shared with the main
-		 * kernel text. Only vmalloc may need PML4 syncups.
-		 */
-		if (!(error_code & (PF_RSVD|PF_USER|PF_PROT)) &&
-		      ((address >= VMALLOC_START && address < VMALLOC_END))) {
-			if (vmalloc_fault(address) >= 0)
-				return;
-		}
-
-		/* Can handle a stale RO->RW TLB */
-		if (spurious_fault(address, error_code))
-			return;
-
-		/*
-		 * Don't take the mm semaphore here. If we fixup a prefetch
-		 * fault we could otherwise deadlock.
-		 */
-		goto bad_area_nosemaphore;
-	}
 	if (likely(regs->flags & X86_EFLAGS_IF))
 		local_irq_enable();
 

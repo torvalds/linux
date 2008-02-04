@@ -26,7 +26,7 @@ SVGA_MODE := -DSVGA_MODE=NORMAL_VGA
 #RAMDISK := -DRAMDISK=512
 
 targets		:= vmlinux.bin setup.bin setup.elf zImage bzImage
-subdir- 	:= compressed
+subdir-		:= compressed
 
 setup-y		+= a20.o cmdline.o copy.o cpu.o cpucheck.o edd.o
 setup-y		+= header.o main.o mca.o memory.o pm.o pmjump.o
@@ -43,9 +43,17 @@ setup-y		+= video-vesa.o
 setup-y		+= video-bios.o
 
 targets		+= $(setup-y)
-hostprogs-y	:= tools/build
+hostprogs-y	:= mkcpustr tools/build
 
-HOSTCFLAGS_build.o := $(LINUXINCLUDE)
+HOST_EXTRACFLAGS += $(LINUXINCLUDE)
+
+$(obj)/cpu.o: $(obj)/cpustr.h
+
+quiet_cmd_cpustr = CPUSTR  $@
+      cmd_cpustr = $(obj)/mkcpustr > $@
+targets		+= cpustr.h
+$(obj)/cpustr.h: $(obj)/mkcpustr FORCE
+	$(call if_changed,cpustr)
 
 # ---------------------------------------------------------------------------
 
@@ -80,6 +88,7 @@ $(obj)/zImage $(obj)/bzImage: $(obj)/setup.bin \
 	$(call if_changed,image)
 	@echo 'Kernel: $@ is ready' ' (#'`cat .version`')'
 
+OBJCOPYFLAGS_vmlinux.bin := -O binary -R .note -R .comment -S
 $(obj)/vmlinux.bin: $(obj)/compressed/vmlinux FORCE
 	$(call if_changed,objcopy)
 
@@ -90,7 +99,6 @@ $(obj)/setup.elf: $(src)/setup.ld $(SETUP_OBJS) FORCE
 	$(call if_changed,ld)
 
 OBJCOPYFLAGS_setup.bin	:= -O binary
-
 $(obj)/setup.bin: $(obj)/setup.elf FORCE
 	$(call if_changed,objcopy)
 
@@ -98,7 +106,7 @@ $(obj)/compressed/vmlinux: FORCE
 	$(Q)$(MAKE) $(build)=$(obj)/compressed IMAGE_OFFSET=$(IMAGE_OFFSET) $@
 
 # Set this if you want to pass append arguments to the zdisk/fdimage/isoimage kernel
-FDARGS = 
+FDARGS =
 # Set this if you want an initrd included with the zdisk/fdimage/isoimage kernel
 FDINITRD =
 

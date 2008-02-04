@@ -13,6 +13,7 @@
 #include <asm/uaccess.h>
 #include <asm/ptrace.h>
 #include <asm/ds.h>
+#include <asm/bugs.h>
 
 #include "cpu.h"
 

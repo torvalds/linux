@@ -275,29 +275,6 @@ static inline void slow_down_io(void) {
 
 #endif
 
-#ifdef CONFIG_X86_NUMAQ
-extern void *xquad_portio;    /* Where the IO area was mapped */
-#define XQUAD_PORT_ADDR(port, quad) (xquad_portio + (XQUAD_PORTIO_QUAD*quad) + port)
-#define __BUILDIO(bwl,bw,type) \
-static inline void out##bwl##_quad(unsigned type value, int port, int quad) { \
-	if (xquad_portio) \
-		write##bwl(value, XQUAD_PORT_ADDR(port, quad)); \
-	else \
-		out##bwl##_local(value, port); \
-} \
-static inline void out##bwl(unsigned type value, int port) { \
-	out##bwl##_quad(value, port, 0); \
-} \
-static inline unsigned type in##bwl##_quad(int port, int quad) { \
-	if (xquad_portio) \
-		return read##bwl(XQUAD_PORT_ADDR(port, quad)); \
-	else \
-		return in##bwl##_local(port); \
-} \
-static inline unsigned type in##bwl(int port) { \
-	return in##bwl##_quad(port, 0); \
-}
-#else
 #define __BUILDIO(bwl,bw,type) \
 static inline void out##bwl(unsigned type value, int port) { \
 	out##bwl##_local(value, port); \
@@ -305,8 +282,6 @@ static inline void out##bwl(unsigned type value, int port) { \
 static inline unsigned type in##bwl(int port) { \
 	return in##bwl##_local(port); \
 }
-#endif
-
 
 #define BUILDIO(bwl,bw,type) \
 static inline void out##bwl##_local(unsigned type value, int port) { \

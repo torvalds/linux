@@ -21,7 +21,6 @@ extern pgd_t init_level4_pgt[];
 #define swapper_pg_dir init_level4_pgt
 
 extern void paging_init(void);
-extern void clear_kernel_mapping(unsigned long addr, unsigned long size);
 
 #endif /* !__ASSEMBLY__ */
 
@@ -198,6 +197,12 @@ static inline unsigned long pmd_bad(pmd_t pmd)
 #define pud_index(address) (((address) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
 #define pud_offset(pgd, address) ((pud_t *) pgd_page_vaddr(*(pgd)) + pud_index(address))
 #define pud_present(pud) (pud_val(pud) & _PAGE_PRESENT)
+
+static inline int pud_large(pud_t pte)
+{
+	return (pud_val(pte) & (_PAGE_PSE|_PAGE_PRESENT)) ==
+		(_PAGE_PSE|_PAGE_PRESENT);
+}
 
 /* PMD  - Level 2 access */
 #define pmd_page_vaddr(pmd) ((unsigned long) __va(pmd_val(pmd) & PTE_MASK))
