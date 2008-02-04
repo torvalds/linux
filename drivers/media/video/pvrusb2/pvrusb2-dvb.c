@@ -19,12 +19,197 @@
  */
 
 #include <linux/kthread.h>
+#include <linux/freezer.h>
 #include "dvbdev.h"
 #include "pvrusb2-hdw-internal.h"
 #include "pvrusb2-hdw.h"
+#include "pvrusb2-io.h"
 #include "pvrusb2-dvb.h"
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
+#define BUFFER_COUNT 32
+#define BUFFER_SIZE PAGE_ALIGN(0x4000)
+
+struct pvr2_dvb_fh {
+	struct pvr2_channel	channel;
+	struct pvr2_stream	*stream;
+	struct pvr2_dvb_adapter	*adap;
+	wait_queue_head_t	wait_data;
+	char			*buffer_storage[BUFFER_COUNT];
+};
+
+static void pvr2_dvb_notify(struct pvr2_dvb_fh *fhp)
+{
+	wake_up(&fhp->wait_data);
+}
+
+static int pvr2_dvb_fh_init(struct pvr2_dvb_fh *fh,
+			    struct pvr2_dvb_adapter *adap)
+{
+	struct pvr2_context *pvr = adap->pvr;
+	unsigned int idx;
+	int ret;
+	struct pvr2_buffer *bp;
+
+	init_waitqueue_head(&fh->wait_data);
+
+	fh->adap = adap;
+
+	pvr2_channel_init(&fh->channel, adap->pvr);
+
+	ret = pvr2_channel_claim_stream(&fh->channel, &pvr->video_stream);
+	/* somebody else already has the stream */
+	if (ret != 0)
+		return ret;
+
+	fh->stream = pvr->video_stream.stream;
+
+	for (idx = 0; idx < BUFFER_COUNT; idx++) {
+		fh->buffer_storage[idx] = kmalloc(BUFFER_SIZE, GFP_KERNEL);
+		if (!(fh->buffer_storage[idx]))
+			break;
+	}
+
+	if (idx < BUFFER_COUNT) {
+		/* An allocation appears to have failed */
+		ret = -ENOMEM;
+		goto cleanup;
+	}
+
+	pvr2_stream_set_callback(pvr->video_stream.stream,
+				 (pvr2_stream_callback) pvr2_dvb_notify, fh);
+
+	ret = pvr2_stream_set_buffer_count(fh->stream, BUFFER_COUNT);
+	if (ret < 0)
+		return ret;
+
+	for (idx = 0; idx < BUFFER_COUNT; idx++) {
+		bp = pvr2_stream_get_buffer(fh->stream, idx);
+		pvr2_buffer_set_buffer(bp,
+				       fh->buffer_storage[idx],
+				       BUFFER_SIZE);
+	}
+
+	ret = pvr2_hdw_set_streaming(fh->channel.hdw, 1);
+	if (ret < 0)
+		goto cleanup;
+
+	while ((bp = pvr2_stream_get_idle_buffer(fh->stream)) != 0) {
+		ret = pvr2_buffer_queue(bp);
+		if (ret < 0)
+			goto cleanup;
+	}
+
+	return ret;
+
+cleanup:
+	if (fh->stream)
+		pvr2_stream_kill(fh->stream);
+
+	for (idx = 0; idx < BUFFER_COUNT; idx++) {
+		if (!(fh->buffer_storage[idx]))
+			continue;
+
+		kfree(fh->buffer_storage[idx]);
+	}
+	pvr2_channel_done(&fh->channel);
+
+	return ret;
+}
+
+static void pvr2_dvb_fh_done(struct pvr2_dvb_fh *fh)
+{
+	unsigned int idx;
+
+	pvr2_hdw_set_streaming(fh->channel.hdw, 0);
+
+	pvr2_stream_kill(fh->stream);
+
+//	pvr2_channel_claim_stream(&fh->channel, NULL);
+
+	for (idx = 0; idx < BUFFER_COUNT; idx++) {
+		if (!(fh->buffer_storage[idx]))
+			continue;
+
+		kfree(fh->buffer_storage[idx]);
+	}
+
+	pvr2_channel_done(&fh->channel);
+}
+
+static int pvr2_dvb_feed_thread(void *data)
+{
+	struct pvr2_dvb_adapter *adap = data;
+	struct pvr2_dvb_fh fh;
+	int ret;
+	unsigned int count;
+	struct pvr2_buffer *bp;
+
+	printk(KERN_DEBUG "dvb thread started\n");
+	set_freezable();
+
+	memset(&fh, 0, sizeof(fh));
+
+	ret = pvr2_dvb_fh_init(&fh, adap);
+	if (ret != 0)
+		return ret;
+
+	for (;;) {
+		if ((0 == adap->feedcount) || (kthread_should_stop()))
+			break;
+
+		/* Not sure about this... */
+		try_to_freeze();
+
+		bp = pvr2_stream_get_ready_buffer(fh.stream);
+		if (bp != NULL) {
+			count = pvr2_buffer_get_count(bp);
+			if (count) {
+				dvb_dmx_swfilter(
+					&adap->demux,
+					fh.buffer_storage[
+						pvr2_buffer_get_id(bp)],
+					count);
+			} else {
+				ret = pvr2_buffer_get_status(bp);
+				if (ret < 0)
+					break;
+			}
+			ret = pvr2_buffer_queue(bp);
+			if (ret < 0)
+				break;
+
+			/* Since we know we did something to a buffer,
+			   just go back and try again.  No point in
+			   blocking unless we really ran out of
+			   buffers to process. */
+			continue;
+		}
+
+
+		/* Wait until more buffers become available. */
+		ret = wait_event_interruptible(
+			fh.wait_data,
+			pvr2_stream_get_ready_count(fh.stream) > 0);
+		if (ret < 0)
+			break;
+	}
+
+	pvr2_dvb_fh_done(&fh);
+
+	/* If we get here and ret is < 0, then an error has occurred.
+	   Probably would be a good idea to communicate that to DVB core... */
+
+	printk(KERN_DEBUG "dvb thread stopped\n");
+
+	/* from videobuf-dvb.c: */
+	while (!kthread_should_stop()) {
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule();
+	}
+	return 0;
+}
 
 static int pvr2_dvb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 {
@@ -52,6 +237,8 @@ static int pvr2_dvb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 
 		printk(KERN_DEBUG "start feeding\n");
 
+		adap->thread = kthread_run(pvr2_dvb_feed_thread,
+					   adap, "pvrusb2-dvb");
 		if (IS_ERR(adap->thread)) {
 			ret = PTR_ERR(adap->thread);
 			adap->thread = NULL;
