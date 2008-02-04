@@ -405,8 +405,18 @@ static int __change_page_attr_set_clr(unsigned long addr, int numpages,
 static int change_page_attr_set_clr(unsigned long addr, int numpages,
 				    pgprot_t mask_set, pgprot_t mask_clr)
 {
-	int ret = __change_page_attr_set_clr(addr, numpages, mask_set,
-					     mask_clr);
+	int ret;
+
+	/*
+	 * Check, if we are requested to change a not supported
+	 * feature:
+	 */
+	mask_set = canon_pgprot(mask_set);
+	mask_clr = canon_pgprot(mask_clr);
+	if (!pgprot_val(mask_set) && !pgprot_val(mask_clr))
+		return 0;
+
+	ret = __change_page_attr_set_clr(addr, numpages, mask_set, mask_clr);
 
 	/*
 	 * On success we use clflush, when the CPU supports it to
