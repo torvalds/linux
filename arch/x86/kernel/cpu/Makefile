@@ -3,6 +3,7 @@
 #
 
 obj-y			:= intel_cacheinfo.o addon_cpuid_features.o
+obj-y			+= feature_names.o
 
 obj-$(CONFIG_X86_32)	+= common.o proc.o bugs.o
 obj-$(CONFIG_X86_32)	+= amd.o
