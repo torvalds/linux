@@ -1416,7 +1416,7 @@ static int end_bio_extent_writepage(struct bio *bio,
 		 * to the correct offsets in the file
 		 */
 		if (state && (state->end + 1 != start ||
-		    !state->state & EXTENT_WRITEBACK)) {
+		    !(state->state & EXTENT_WRITEBACK))) {
 			state = NULL;
 		}
 		spin_unlock_irqrestore(&tree->lock, flags);
@@ -1539,7 +1539,7 @@ static int end_bio_extent_readpage(struct bio *bio,
 		 * to the correct offsets in the file
 		 */
 		if (state && (state->end + 1 != start ||
-		    !state->state & EXTENT_WRITEBACK)) {
+		    !(state->state & EXTENT_LOCKED))) {
 			state = NULL;
 		}
 		spin_unlock_irqrestore(&tree->lock, flags);

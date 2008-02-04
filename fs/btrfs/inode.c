@@ -364,8 +364,7 @@ int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 	if (btrfs_test_opt(root, NODATASUM) ||
 	    btrfs_test_flag(inode, NODATASUM))
 		return 0;
-
-	if (state->start == start) {
+	if (state && state->start == start) {
 		private = state->private;
 		ret = 0;
 	} else {
