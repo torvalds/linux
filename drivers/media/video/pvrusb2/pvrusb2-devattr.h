@@ -23,6 +23,7 @@
 
 #include <linux/mod_devicetable.h>
 #include <linux/videodev2.h>
+#include "pvrusb2-dvb.h"
 
 /*
 
@@ -64,6 +65,9 @@ struct pvr2_device_desc {
 	   FX2 firmware check / load is skipped and we assume the device
 	   was initialized from internal ROM. */
 	struct pvr2_string_table fx2_firmware;
+
+	/* callback functions to handle attachment of digital tuner & demod */
+	struct pvr2_dvb_props *dvb_props;
 
 	/* Initial standard bits to use for this device, if not zero.
 	   Anything set here is also implied as an available standard.

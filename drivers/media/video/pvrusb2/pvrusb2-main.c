@@ -60,6 +60,10 @@ static void pvr_setup_attach(struct pvr2_context *pvr)
 {
 	/* Create association with v4l layer */
 	pvr2_v4l2_create(pvr);
+#ifdef CONFIG_VIDEO_PVRUSB2_DVB
+	/* Create association with dvb layer */
+	pvr2_dvb_init(pvr);
+#endif
 #ifdef CONFIG_VIDEO_PVRUSB2_SYSFS
 	pvr2_sysfs_create(pvr,class_ptr);
 #endif /* CONFIG_VIDEO_PVRUSB2_SYSFS */
@@ -95,6 +99,9 @@ static void pvr_disconnect(struct usb_interface *intf)
 
 	pvr2_trace(PVR2_TRACE_INIT,"pvr_disconnect(pvr=%p) BEGIN",pvr);
 
+#ifdef CONFIG_VIDEO_PVRUSB2_DVB
+	pvr2_dvb_exit(pvr);
+#endif
 	usb_set_intfdata (intf, NULL);
 	pvr2_context_disconnect(pvr);
 
