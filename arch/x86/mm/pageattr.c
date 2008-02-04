@@ -27,11 +27,6 @@ struct cpa_data {
 	int		flushtlb;
 };
 
-enum {
-	CPA_NO_SPLIT = 0,
-	CPA_SPLIT,
-};
-
 static inline int
 within(unsigned long addr, unsigned long start, unsigned long end)
 {
@@ -263,7 +258,7 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
 	unsigned long nextpage_addr, numpages, pmask, psize, flags;
 	pte_t new_pte, old_pte, *tmp;
 	pgprot_t old_prot, new_prot;
-	int level, res = CPA_SPLIT;
+	int level, do_split = 1;
 
 	/*
 	 * An Athlon 64 X2 showed hard hangs if we tried to preserve
@@ -274,7 +269,7 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
 	 * disable this code until the hang can be debugged:
 	 */
 	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
-		return res;
+		return 1;
 
 	spin_lock_irqsave(&pgd_lock, flags);
 	/*
@@ -297,7 +292,7 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
 		break;
 #endif
 	default:
-		res = -EINVAL;
+		do_split = -EINVAL;
 		goto out_unlock;
 	}
 
@@ -325,7 +320,7 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
 	 * above:
 	 */
 	if (pgprot_val(new_prot) == pgprot_val(old_prot)) {
-		res = CPA_NO_SPLIT;
+		do_split = 0;
 		goto out_unlock;
 	}
 
@@ -345,13 +340,13 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
 		new_pte = pfn_pte(pte_pfn(old_pte), canon_pgprot(new_prot));
 		__set_pmd_pte(kpte, address, new_pte);
 		cpa->flushtlb = 1;
-		res = CPA_NO_SPLIT;
+		do_split = 0;
 	}
 
 out_unlock:
 	spin_unlock_irqrestore(&pgd_lock, flags);
 
-	return res;
+	return do_split;
 }
 
 static int split_large_page(pte_t *kpte, unsigned long address)
@@ -429,7 +424,7 @@ out_unlock:
 static int __change_page_attr(unsigned long address, struct cpa_data *cpa)
 {
 	struct page *kpte_page;
-	int level, res;
+	int level, do_split;
 	pte_t *kpte;
 
 repeat:
@@ -480,25 +475,26 @@ repeat:
 	 * Check, whether we can keep the large page intact
 	 * and just change the pte:
 	 */
-	res = try_preserve_large_page(kpte, address, cpa);
-	if (res < 0)
-		return res;
+	do_split = try_preserve_large_page(kpte, address, cpa);
+	if (do_split < 0)
+		return do_split;
 
 	/*
 	 * When the range fits into the existing large page,
 	 * return. cp->numpages and cpa->tlbflush have been updated in
 	 * try_large_page:
 	 */
-	if (res == CPA_NO_SPLIT)
+	if (do_split == 0)
 		return 0;
 
 	/*
 	 * We have to split the large page:
 	 */
-	res = split_large_page(kpte, address);
-	if (res)
-		return res;
+	do_split = split_large_page(kpte, address);
+	if (do_split)
+		return do_split;
 	cpa->flushtlb = 1;
+
 	goto repeat;
 }
 
