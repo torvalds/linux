@@ -534,10 +534,16 @@ extern struct device *device_create(struct class *cls, struct device *parent,
 extern void device_destroy(struct class *cls, dev_t devt);
 #ifdef CONFIG_PM_SLEEP
 extern void destroy_suspended_device(struct class *cls, dev_t devt);
+extern void device_pm_schedule_removal(struct device *);
 #else /* !CONFIG_PM_SLEEP */
 static inline void destroy_suspended_device(struct class *cls, dev_t devt)
 {
 	device_destroy(cls, devt);
+}
+
+static inline void device_pm_schedule_removal(struct device *dev)
+{
+	device_unregister(dev);
 }
 #endif /* !CONFIG_PM_SLEEP */
 

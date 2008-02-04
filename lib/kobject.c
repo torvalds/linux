@@ -637,7 +637,7 @@ struct kobject *kobject_create(void)
  * @name: the name for the kset
  * @parent: the parent kobject of this kobject, if any.
  *
- * This function creates a kset structure dynamically and registers it
+ * This function creates a kobject structure dynamically and registers it
  * with sysfs.  When you are finished with this structure, call
  * kobject_put() and the structure will be dynamically freed when
  * it is no longer being used.
