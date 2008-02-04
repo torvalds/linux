@@ -731,7 +731,8 @@ void __init gart_iommu_init(void)
 	 * the backing memory. The GART address is only used by PCI
 	 * devices.
 	 */
-	clear_kernel_mapping((unsigned long)__va(iommu_bus_base), iommu_size);
+	set_memory_np((unsigned long)__va(iommu_bus_base),
+				iommu_size >> PAGE_SHIFT);
 
 	/*
 	 * Try to workaround a bug (thanks to BenH)
