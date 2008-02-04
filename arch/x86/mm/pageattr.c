@@ -16,6 +16,13 @@
 #include <asm/uaccess.h>
 #include <asm/pgalloc.h>
 
+struct cpa_data {
+	unsigned long	vaddr;
+	int		numpages;
+	pgprot_t	mask_set;
+	pgprot_t	mask_clr;
+};
+
 static inline int
 within(unsigned long addr, unsigned long start, unsigned long end)
 {
@@ -284,8 +291,7 @@ out_unlock:
 	return 0;
 }
 
-static int
-__change_page_attr(unsigned long address, pgprot_t mask_set, pgprot_t mask_clr)
+static int __change_page_attr(unsigned long address, struct cpa_data *cpa)
 {
 	struct page *kpte_page;
 	int level, err = 0;
@@ -305,12 +311,15 @@ repeat:
 		pgprot_t new_prot = pte_pgprot(old_pte);
 
 		if(!pte_val(old_pte)) {
-			WARN_ON_ONCE(1);
+			printk(KERN_WARNING "CPA: called for zero pte. "
+			       "vaddr = %lx cpa->vaddr = %lx\n", address,
+				cpa->vaddr);
+			WARN_ON(1);
 			return -EINVAL;
 		}
 
-		pgprot_val(new_prot) &= ~pgprot_val(mask_clr);
-		pgprot_val(new_prot) |= pgprot_val(mask_set);
+		pgprot_val(new_prot) &= ~pgprot_val(cpa->mask_clr);
+		pgprot_val(new_prot) |= pgprot_val(cpa->mask_set);
 
 		new_prot = static_protections(new_prot, address);
 
@@ -343,12 +352,10 @@ repeat:
  * Modules and drivers should use the set_memory_* APIs instead.
  */
 
-
-static int
-change_page_attr_addr(unsigned long address, pgprot_t mask_set,
-		      pgprot_t mask_clr)
+static int change_page_attr_addr(struct cpa_data *cpa)
 {
 	int err;
+	unsigned long address = cpa->vaddr;
 
 #ifdef CONFIG_X86_64
 	unsigned long phys_addr = __pa(address);
@@ -362,7 +369,7 @@ change_page_attr_addr(unsigned long address, pgprot_t mask_set,
 		address = (unsigned long) __va(phys_addr);
 #endif
 
-	err = __change_page_attr(address, mask_set, mask_clr);
+	err = __change_page_attr(address, cpa);
 	if (err)
 		return err;
 
@@ -386,20 +393,19 @@ change_page_attr_addr(unsigned long address, pgprot_t mask_set,
 		 * everything between 0 and KERNEL_TEXT_SIZE, so do
 		 * not propagate lookup failures back to users:
 		 */
-		__change_page_attr(address, mask_set, mask_clr);
+		__change_page_attr(address, cpa);
 	}
 #endif
 	return err;
 }
 
-static int __change_page_attr_set_clr(unsigned long addr, int numpages,
-				      pgprot_t mask_set, pgprot_t mask_clr)
+static int __change_page_attr_set_clr(struct cpa_data *cpa)
 {
 	unsigned int i;
 	int ret;
 
-	for (i = 0; i < numpages ; i++, addr += PAGE_SIZE) {
-		ret = change_page_attr_addr(addr, mask_set, mask_clr);
+	for (i = 0; i < cpa->numpages ; i++, cpa->vaddr += PAGE_SIZE) {
+		ret = change_page_attr_addr(cpa);
 		if (ret)
 			return ret;
 	}
@@ -416,6 +422,7 @@ static inline int cache_attr(pgprot_t attr)
 static int change_page_attr_set_clr(unsigned long addr, int numpages,
 				    pgprot_t mask_set, pgprot_t mask_clr)
 {
+	struct cpa_data cpa;
 	int ret, cache;
 
 	/*
@@ -427,7 +434,12 @@ static int change_page_attr_set_clr(unsigned long addr, int numpages,
 	if (!pgprot_val(mask_set) && !pgprot_val(mask_clr))
 		return 0;
 
-	ret = __change_page_attr_set_clr(addr, numpages, mask_set, mask_clr);
+	cpa.vaddr = addr;
+	cpa.numpages = numpages;
+	cpa.mask_set = mask_set;
+	cpa.mask_clr = mask_clr;
+
+	ret = __change_page_attr_set_clr(&cpa);
 
 	/*
 	 * No need to flush, when we did not set any of the caching
@@ -548,37 +560,26 @@ int set_pages_rw(struct page *page, int numpages)
 	return set_memory_rw(addr, numpages);
 }
 
-
-#if defined(CONFIG_DEBUG_PAGEALLOC) || defined(CONFIG_CPA_DEBUG)
-static inline int __change_page_attr_set(unsigned long addr, int numpages,
-					 pgprot_t mask)
-{
-	return __change_page_attr_set_clr(addr, numpages, mask, __pgprot(0));
-}
-
-static inline int __change_page_attr_clear(unsigned long addr, int numpages,
-					   pgprot_t mask)
-{
-	return __change_page_attr_set_clr(addr, numpages, __pgprot(0), mask);
-}
-#endif
-
 #ifdef CONFIG_DEBUG_PAGEALLOC
 
 static int __set_pages_p(struct page *page, int numpages)
 {
-	unsigned long addr = (unsigned long)page_address(page);
+	struct cpa_data cpa = { .vaddr = (unsigned long) page_address(page),
+				.numpages = numpages,
+				.mask_set = __pgprot(_PAGE_PRESENT | _PAGE_RW),
+				.mask_clr = __pgprot(0)};
 
-	return __change_page_attr_set(addr, numpages,
-				      __pgprot(_PAGE_PRESENT | _PAGE_RW));
+	return __change_page_attr_set_clr(&cpa);
 }
 
 static int __set_pages_np(struct page *page, int numpages)
 {
-	unsigned long addr = (unsigned long)page_address(page);
+	struct cpa_data cpa = { .vaddr = (unsigned long) page_address(page),
+				.numpages = numpages,
+				.mask_set = __pgprot(0),
+				.mask_clr = __pgprot(_PAGE_PRESENT | _PAGE_RW)};
 
-	return __change_page_attr_clear(addr, numpages,
-					__pgprot(_PAGE_PRESENT));
+	return __change_page_attr_set_clr(&cpa);
 }
 
 void kernel_map_pages(struct page *page, int numpages, int enable)
