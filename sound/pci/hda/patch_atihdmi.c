@@ -58,6 +58,10 @@ static int atihdmi_build_controls(struct hda_codec *codec)
 static int atihdmi_init(struct hda_codec *codec)
 {
 	snd_hda_sequence_write(codec, atihdmi_basic_init);
+	/* SI codec requires to unmute the pin */
+	if (get_wcaps(codec, 0x03) & AC_WCAP_OUT_AMP)
+		snd_hda_codec_write(codec, 0x03, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+				    AMP_OUT_UNMUTE);
 	return 0;
 }
 
@@ -158,5 +162,6 @@ struct hda_codec_preset snd_hda_preset_atihdmi[] = {
 	{ .id = 0x10027919, .name = "ATI RS600 HDMI", .patch = patch_atihdmi },
 	{ .id = 0x1002791a, .name = "ATI RS690/780 HDMI", .patch = patch_atihdmi },
 	{ .id = 0x1002aa01, .name = "ATI R6xx HDMI", .patch = patch_atihdmi },
+	{ .id = 0x10951392, .name = "SI HDMI", .patch = patch_atihdmi },
 	{} /* terminator */
 };
