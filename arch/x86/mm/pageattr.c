@@ -106,6 +106,22 @@ static void cpa_flush_range(unsigned long start, int numpages)
 	}
 }
 
+#define HIGH_MAP_START	__START_KERNEL_map
+#define HIGH_MAP_END	(__START_KERNEL_map + KERNEL_TEXT_SIZE)
+
+
+/*
+ * Converts a virtual address to a X86-64 highmap address
+ */
+static unsigned long virt_to_highmap(void *address)
+{
+#ifdef CONFIG_X86_64
+	return __pa((unsigned long)address) + HIGH_MAP_START - phys_base;
+#else
+	return (unsigned long)address;
+#endif
+}
+
 /*
  * Certain areas of memory on x86 require very specific protection flags,
  * for example the BIOS area or kernel text. Callers don't always get this
@@ -129,11 +145,23 @@ static inline pgprot_t static_protections(pgprot_t prot, unsigned long address)
 	 */
 	if (within(address, (unsigned long)_text, (unsigned long)_etext))
 		pgprot_val(forbidden) |= _PAGE_NX;
+	/*
+	 * Do the same for the x86-64 high kernel mapping
+	 */
+	if (within(address, virt_to_highmap(_text), virt_to_highmap(_etext)))
+		pgprot_val(forbidden) |= _PAGE_NX;
+
 
 #ifdef CONFIG_DEBUG_RODATA
 	/* The .rodata section needs to be read-only */
 	if (within(address, (unsigned long)__start_rodata,
 				(unsigned long)__end_rodata))
+		pgprot_val(forbidden) |= _PAGE_RW;
+	/*
+	 * Do the same for the x86-64 high kernel mapping
+	 */
+	if (within(address, virt_to_highmap(__start_rodata),
+				virt_to_highmap(__end_rodata)))
 		pgprot_val(forbidden) |= _PAGE_RW;
 #endif
 
@@ -304,8 +332,6 @@ repeat:
  * Modules and drivers should use the set_memory_* APIs instead.
  */
 
-#define HIGH_MAP_START	__START_KERNEL_map
-#define HIGH_MAP_END	(__START_KERNEL_map + KERNEL_TEXT_SIZE)
 
 static int
 change_page_attr_addr(unsigned long address, pgprot_t mask_set,
@@ -338,10 +364,11 @@ change_page_attr_addr(unsigned long address, pgprot_t mask_set,
 		/*
 		 * Calc the high mapping address. See __phys_addr()
 		 * for the non obvious details.
+		 *
+		 * Note that NX and other required permissions are
+		 * checked in static_protections().
 		 */
 		address = phys_addr + HIGH_MAP_START - phys_base;
-		/* Make sure the kernel mappings stay executable */
-		pgprot_val(mask_clr) |= _PAGE_NX;
 
 		/*
 		 * Our high aliases are imprecise, because we check
