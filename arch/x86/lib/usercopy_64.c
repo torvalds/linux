@@ -31,10 +31,7 @@ do {									   \
 		"3:	movq %5,%0\n"					   \
 		"	jmp 2b\n"					   \
 		".previous\n"						   \
-		".section __ex_table,\"a\"\n"				   \
-		"	.align 8\n"					   \
-		"	.quad 0b,3b\n"					   \
-		".previous"						   \
+		_ASM_EXTABLE(0b,3b)					   \
 		: "=r"(res), "=c"(count), "=&a" (__d0), "=&S" (__d1),	   \
 		  "=&D" (__d2)						   \
 		: "i"(-EFAULT), "0"(count), "1"(count), "3"(src), "4"(dst) \
@@ -87,11 +84,8 @@ unsigned long __clear_user(void __user *addr, unsigned long size)
 		"3:	lea 0(%[size1],%[size8],8),%[size8]\n"
 		"	jmp 2b\n"
 		".previous\n"
-		".section __ex_table,\"a\"\n"
-		"       .align 8\n"
-		"	.quad 0b,3b\n"
-		"	.quad 1b,2b\n"
-		".previous"
+		_ASM_EXTABLE(0b,3b)
+		_ASM_EXTABLE(1b,2b)
 		: [size8] "=c"(size), [dst] "=&D" (__d0)
 		: [size1] "r"(size & 7), "[size8]" (size / 8), "[dst]"(addr),
 		  [zero] "r" (0UL), [eight] "r" (8UL));
