@@ -322,17 +322,23 @@ static struct snd_pt2258 ptc_revo51_volume;
 static void ap192_set_rate_val(struct snd_akm4xxx *ak, unsigned int rate)
 {
 	struct snd_ice1712 *ice = ak->private_data[0];
+	int dfs;
 
 	revo_set_rate_val(ak, rate);
 
-#if 1 /* FIXME: do we need this procedure? */
-	/* reset DFS pin of AK5385A for ADC, too */
-	/* DFS0 (pin 18) -- GPIO10 pin 77 */
-	snd_ice1712_save_gpio_status(ice);
-	snd_ice1712_gpio_write_bits(ice, 1 << 10,
-				    rate > 48000 ? (1 << 10) : 0);
-	snd_ice1712_restore_gpio_status(ice);
-#endif
+	/* reset CKS */
+	snd_ice1712_gpio_write_bits(ice, 1 << 8, rate > 96000 ? 1 : 0);
+	/* reset DFS pins of AK5385A for ADC, too */
+	if (rate > 96000)
+		dfs = 2;
+	else if (rate > 48000)
+		dfs = 1;
+	else
+		dfs = 0;
+	snd_ice1712_gpio_write_bits(ice, 3 << 9, dfs << 9);
+	/* reset ADC */
+	snd_ice1712_gpio_write_bits(ice, 1 << 11, 0);
+	snd_ice1712_gpio_write_bits(ice, 1 << 11, 1);
 }
 
 static const struct snd_akm4xxx_dac_channel ap192_dac[] = {
@@ -549,6 +555,9 @@ static int __devinit revo_init(struct snd_ice1712 *ice)
 		if (err < 0)
 			return err;
 		
+		/* unmute all codecs */
+		snd_ice1712_gpio_write_bits(ice, VT1724_REVO_MUTE,
+					    VT1724_REVO_MUTE);
 		break;
 	}
 
