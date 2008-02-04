@@ -97,3 +97,7 @@ void mtrr_state_warn(void);
 const char *mtrr_attrib_to_str(int x);
 void mtrr_wrmsr(unsigned, unsigned, unsigned);
 
+/* CPU specific mtrr init functions */
+int amd_init_mtrr(void);
+int cyrix_init_mtrr(void);
+int centaur_init_mtrr(void);
