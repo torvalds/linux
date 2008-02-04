@@ -37,6 +37,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/mmc.h>
 
+#include <asm/arch/board-eb.h>
 #include <asm/arch/irqs.h>
 
 #include "core.h"
