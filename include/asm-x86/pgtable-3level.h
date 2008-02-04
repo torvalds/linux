@@ -98,8 +98,10 @@ static inline void pud_clear(pud_t *pudp)
 	set_pud(pudp, __pud(0));
 
 	/*
-	 * Pentium-II erratum A13: in PAE mode we explicitly have to flush
-	 * the TLB via cr3 if the top-level pgd is changed...
+	 * According to Intel App note "TLBs, Paging-Structure Caches,
+	 * and Their Invalidation", April 2007, document 317080-001,
+	 * section 8.1: in PAE mode we explicitly have to flush the
+	 * TLB via cr3 if the top-level pgd is changed...
 	 *
 	 * Make sure the pud entry we're updating is within the
 	 * current pgd to avoid unnecessary TLB flushes.
