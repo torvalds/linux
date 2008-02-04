@@ -130,10 +130,7 @@ extern void load_gs_index(unsigned);
 		"movl %k1, %%" #seg "\n\t"	\
 		"jmp 2b\n"			\
 		".previous\n"			\
-		".section __ex_table,\"a\"\n\t"	\
-		_ASM_ALIGN "\n\t"		\
-		_ASM_PTR " 1b,3b\n"		\
-		".previous"			\
+		_ASM_EXTABLE(1b,3b)		\
 		: :"r" (value), "r" (0))
 
 
@@ -214,12 +211,10 @@ static inline unsigned long native_read_cr4_safe(void)
 	/* This could fault if %cr4 does not exist. In x86_64, a cr4 always
 	 * exists, so it will never fail. */
 #ifdef CONFIG_X86_32
-	asm volatile("1: mov %%cr4, %0		\n"
-		"2:				\n"
-		".section __ex_table,\"a\"	\n"
-		".long 1b,2b			\n"
-		".previous			\n"
-		: "=r" (val), "=m" (__force_order) : "0" (0));
+	asm volatile("1: mov %%cr4, %0\n"
+		     "2:\n"
+		     _ASM_EXTABLE(1b,2b)
+		     : "=r" (val), "=m" (__force_order) : "0" (0));
 #else
 	val = native_read_cr4();
 #endif
