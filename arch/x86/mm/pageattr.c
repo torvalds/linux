@@ -209,6 +209,11 @@ pte_t *lookup_address(unsigned long address, int *level)
 	pud = pud_offset(pgd, address);
 	if (pud_none(*pud))
 		return NULL;
+
+	*level = PG_LEVEL_1G;
+	if (pud_large(*pud) || !pud_present(*pud))
+		return (pte_t *)pud;
+
 	pmd = pmd_offset(pud, address);
 	if (pmd_none(*pmd))
 		return NULL;
