@@ -221,8 +221,7 @@ static int split_large_page(pte_t *kpte, unsigned long address)
 {
 	pgprot_t ref_prot = pte_pgprot(pte_clrhuge(*kpte));
 	gfp_t gfp_flags = GFP_KERNEL;
-	unsigned long flags;
-	unsigned long addr;
+	unsigned long flags, addr, pfn;
 	pte_t *pbase, *tmp;
 	struct page *base;
 	unsigned int i, level;
@@ -253,8 +252,12 @@ static int split_large_page(pte_t *kpte, unsigned long address)
 	paravirt_alloc_pt(&init_mm, page_to_pfn(base));
 #endif
 
-	for (i = 0; i < PTRS_PER_PTE; i++, addr += PAGE_SIZE)
-		set_pte(&pbase[i], pfn_pte(addr >> PAGE_SHIFT, ref_prot));
+	/*
+	 * Get the target pfn from the original entry:
+	 */
+	pfn = pte_pfn(*kpte);
+	for (i = 0; i < PTRS_PER_PTE; i++, pfn++)
+		set_pte(&pbase[i], pfn_pte(pfn, ref_prot));
 
 	/*
 	 * Install the new, split up pagetable. Important detail here:
