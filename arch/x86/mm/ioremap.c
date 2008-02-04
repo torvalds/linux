@@ -70,24 +70,11 @@ int page_is_ram(unsigned long pagenr)
  * Fix up the linear direct mapping of the kernel to avoid cache attribute
  * conflicts.
  */
-static int ioremap_change_attr(unsigned long paddr, unsigned long size,
+static int ioremap_change_attr(unsigned long vaddr, unsigned long size,
 			       enum ioremap_mode mode)
 {
-	unsigned long vaddr = (unsigned long)__va(paddr);
 	unsigned long nrpages = size >> PAGE_SHIFT;
-	unsigned int level;
 	int err;
-
-	/* No change for pages after the last mapping */
-	if ((paddr + size - 1) >= (max_pfn_mapped << PAGE_SHIFT))
-		return 0;
-
-	/*
-	 * If there is no identity map for this address,
-	 * change_page_attr_addr is unnecessary
-	 */
-	if (!lookup_address(vaddr, &level))
-		return 0;
 
 	switch (mode) {
 	case IOR_MODE_UNCACHED:
@@ -169,7 +156,7 @@ static void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 		return NULL;
 	}
 
-	if (ioremap_change_attr(phys_addr, size, mode) < 0) {
+	if (ioremap_change_attr(vaddr, size, mode) < 0) {
 		vunmap(area->addr);
 		return NULL;
 	}
