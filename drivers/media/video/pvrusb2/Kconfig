@@ -67,9 +67,10 @@ config VIDEO_PVRUSB2_DVB
 	  This option enables compilation of a DVB interface for the
 	  pvrusb2 driver.  Currently this is very very experimental.
 	  It is also limiting - the DVB interface can only access the
-	  side of hybrid devices, and there are going to be issues if
-	  you attempt to mess with the V4L side at the same time.
-	  Don't turn this on unless you know what you are doing.
+	  digital side of hybrid devices, and there are going to be
+	  issues if you attempt to mess with the V4L side at the same
+	  time.  Don't turn this on unless you know what you are
+	  doing.
 
 	  If you are in doubt, say N.
 
