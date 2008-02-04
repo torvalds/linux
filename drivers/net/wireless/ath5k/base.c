@@ -994,7 +994,7 @@ ath5k_getchannels(struct ieee80211_hw *hw)
 		hw->wiphy->bands[IEEE80211_BAND_5GHZ] = sband;
 	}
 
-/* FIXME:	ath5k_debug_dump_modes(sc, modes); */
+	ath5k_debug_dump_bands(sc);
 
 	return 0;
 }

@@ -108,9 +108,9 @@ struct ath5k_softc {
 	u8			g_rates;
 	u8			xr_rates;
 
-#if ATH5K_DEBUG
+#ifdef CONFIG_ATH5K_DEBUG
 	struct ath5k_dbg_info	debug;		/* debug info */
-#endif
+#endif /* CONFIG_ATH5K_DEBUG */
 
 	struct ath5k_buf	*bufptr;	/* allocated buffer ptr */
 	struct ath5k_desc	*desc;		/* TX/RX descriptors */
