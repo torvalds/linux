@@ -119,7 +119,7 @@ static void cpa_flush_range(unsigned long start, int numpages, int cache)
 		/*
 		 * Only flush present addresses:
 		 */
-		if (pte && pte_present(*pte))
+		if (pte && (pte_val(*pte) & _PAGE_PRESENT))
 			clflush_cache_range((void *) addr, PAGE_SIZE);
 	}
 }
