@@ -4790,7 +4790,7 @@ static int fan_set_level(int level)
 		 * or FULLSPEED mode bits and just ignore them */
 		if (level & TP_EC_FAN_FULLSPEED)
 			level |= 7;	/* safety min speed 7 */
-		else if (level & TP_EC_FAN_FULLSPEED)
+		else if (level & TP_EC_FAN_AUTO)
 			level |= 4;	/* safety min speed 4 */
 
 		if (!acpi_ec_write(fan_status_offset, level))
