@@ -80,6 +80,7 @@ $(obj)/zImage $(obj)/bzImage: $(obj)/setup.bin \
 	$(call if_changed,image)
 	@echo 'Kernel: $@ is ready' ' (#'`cat .version`')'
 
+OBJCOPYFLAGS_vmlinux.bin := -O binary -R .note -R .comment -S
 $(obj)/vmlinux.bin: $(obj)/compressed/vmlinux FORCE
 	$(call if_changed,objcopy)
 
@@ -90,7 +91,6 @@ $(obj)/setup.elf: $(src)/setup.ld $(SETUP_OBJS) FORCE
 	$(call if_changed,ld)
 
 OBJCOPYFLAGS_setup.bin	:= -O binary
-
 $(obj)/setup.bin: $(obj)/setup.elf FORCE
 	$(call if_changed,objcopy)
 

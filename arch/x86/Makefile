@@ -92,7 +92,6 @@ KBUILD_AFLAGS += $(cfi) $(cfi-sigframe)
 KBUILD_CFLAGS += $(cfi) $(cfi-sigframe)
 
 LDFLAGS := -m elf_$(UTS_MACHINE)
-OBJCOPYFLAGS := -O binary -R .note -R .comment -S
 
 # Speed up the build
 KBUILD_CFLAGS += -pipe
