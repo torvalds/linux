@@ -77,6 +77,10 @@ static struct workqueue_struct *kacpi_notify_wq;
 #define	OSI_STRING_LENGTH_MAX 64	/* arbitrary */
 static char osi_additional_string[OSI_STRING_LENGTH_MAX];
 
+#ifdef CONFIG_ACPI_CUSTOM_DSDT_INITRD
+static int acpi_no_initrd_override;
+#endif
+
 /*
  * "Ode to _OSI(Linux)"
  *
@@ -386,7 +390,8 @@ acpi_os_table_override(struct acpi_table_header * existing_table,
 		*new_table = (struct acpi_table_header *)AmlCode;
 #endif
 #ifdef CONFIG_ACPI_CUSTOM_DSDT_INITRD
-	if (strncmp(existing_table->signature, "DSDT", 4) == 0) {
+	if ((strncmp(existing_table->signature, "DSDT", 4) == 0) &&
+	    !acpi_no_initrd_override) {
 		struct acpi_table_header *initrd_table = acpi_find_dsdt_initrd();
 		if (initrd_table)
 			*new_table = initrd_table;
@@ -401,6 +406,15 @@ acpi_os_table_override(struct acpi_table_header * existing_table,
 	}
 	return AE_OK;
 }
+
+#ifdef CONFIG_ACPI_CUSTOM_DSDT_INITRD
+int __init acpi_no_initrd_override_setup(char *s)
+{
+	acpi_no_initrd_override = 1;
+	return 1;
+}
+__setup("acpi_no_initrd_override", acpi_no_initrd_override_setup);
+#endif
 
 static irqreturn_t acpi_irq(int irq, void *dev_id)
 {
