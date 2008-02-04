@@ -202,6 +202,8 @@ void __init setup_node_bootmem(int nodeid, unsigned long start,
 	if (node_data[nodeid] == NULL)
 		return;
 	nodedata_phys = __pa(node_data[nodeid]);
+	printk(KERN_INFO "  NODE_DATA [%016lx - %016lx]\n", nodedata_phys,
+		nodedata_phys + pgdat_size - 1);
 
 	memset(NODE_DATA(nodeid), 0, sizeof(pg_data_t));
 	NODE_DATA(nodeid)->bdata = &plat_node_bdata[nodeid];
@@ -225,11 +227,14 @@ void __init setup_node_bootmem(int nodeid, unsigned long start,
 		return;
 	}
 	bootmap_start = __pa(bootmap);
-	Dprintk("bootmap start %lu pages %lu\n", bootmap_start, bootmap_pages);
 
 	bootmap_size = init_bootmem_node(NODE_DATA(nodeid),
 					 bootmap_start >> PAGE_SHIFT,
 					 start_pfn, end_pfn);
+
+	printk(KERN_INFO "  bootmap [%016lx -  %016lx] pages %lx\n",
+		 bootmap_start, bootmap_start + bootmap_size - 1,
+		 bootmap_pages);
 
 	free_bootmem_with_active_regions(nodeid, end);
 
