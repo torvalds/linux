@@ -52,21 +52,23 @@ void clflush_cache_range(void *vaddr, unsigned int size)
 
 static void __cpa_flush_all(void *arg)
 {
+	unsigned long cache = (unsigned long)arg;
+
 	/*
 	 * Flush all to work around Errata in early athlons regarding
 	 * large page flushing.
 	 */
 	__flush_tlb_all();
 
-	if (boot_cpu_data.x86_model >= 4)
+	if (cache && boot_cpu_data.x86_model >= 4)
 		wbinvd();
 }
 
-static void cpa_flush_all(void)
+static void cpa_flush_all(unsigned long cache)
 {
 	BUG_ON(irqs_disabled());
 
-	on_each_cpu(__cpa_flush_all, NULL, 1, 1);
+	on_each_cpu(__cpa_flush_all, (void *) cache, 1, 1);
 }
 
 static void __cpa_flush_range(void *arg)
@@ -79,7 +81,7 @@ static void __cpa_flush_range(void *arg)
 	__flush_tlb_all();
 }
 
-static void cpa_flush_range(unsigned long start, int numpages)
+static void cpa_flush_range(unsigned long start, int numpages, int cache)
 {
 	unsigned int i, level;
 	unsigned long addr;
@@ -88,6 +90,9 @@ static void cpa_flush_range(unsigned long start, int numpages)
 	WARN_ON(PAGE_ALIGN(start) != start);
 
 	on_each_cpu(__cpa_flush_range, NULL, 1, 1);
+
+	if (!cache)
+		return;
 
 	/*
 	 * We only need to flush on one CPU,
@@ -402,10 +407,16 @@ static int __change_page_attr_set_clr(unsigned long addr, int numpages,
 	return 0;
 }
 
+static inline int cache_attr(pgprot_t attr)
+{
+	return pgprot_val(attr) &
+		(_PAGE_PAT | _PAGE_PAT_LARGE | _PAGE_PWT | _PAGE_PCD);
+}
+
 static int change_page_attr_set_clr(unsigned long addr, int numpages,
 				    pgprot_t mask_set, pgprot_t mask_clr)
 {
-	int ret;
+	int ret, cache;
 
 	/*
 	 * Check, if we are requested to change a not supported
@@ -419,15 +430,21 @@ static int change_page_attr_set_clr(unsigned long addr, int numpages,
 	ret = __change_page_attr_set_clr(addr, numpages, mask_set, mask_clr);
 
 	/*
+	 * No need to flush, when we did not set any of the caching
+	 * attributes:
+	 */
+	cache = cache_attr(mask_set);
+
+	/*
 	 * On success we use clflush, when the CPU supports it to
 	 * avoid the wbindv. If the CPU does not support it and in the
 	 * error case we fall back to cpa_flush_all (which uses
 	 * wbindv):
 	 */
 	if (!ret && cpu_has_clflush)
-		cpa_flush_range(addr, numpages);
+		cpa_flush_range(addr, numpages, cache);
 	else
-		cpa_flush_all();
+		cpa_flush_all(cache);
 
 	return ret;
 }
