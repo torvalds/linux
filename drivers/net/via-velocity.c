@@ -8,7 +8,6 @@
  * for 64bit hardware platforms.
  *
  * TODO
- *	Big-endian support
  *	rx_copybreak/alignment
  *	Scatter gather
  *	More testing
@@ -681,7 +680,7 @@ static void velocity_rx_reset(struct velocity_info *vptr)
 	 *	Init state, all RD entries belong to the NIC
 	 */
 	for (i = 0; i < vptr->options.numrx; ++i)
-		vptr->rd_ring[i].rdesc0.owner = OWNED_BY_NIC;
+		vptr->rd_ring[i].rdesc0.len |= OWNED_BY_NIC;
 
 	writew(vptr->options.numrx, &regs->RBRDU);
 	writel(vptr->rd_pool_dma, &regs->RDBaseLo);
@@ -777,7 +776,7 @@ static void velocity_init_registers(struct velocity_info *vptr,
 
 		vptr->int_mask = INT_MASK_DEF;
 
-		writel(cpu_to_le32(vptr->rd_pool_dma), &regs->RDBaseLo);
+		writel(vptr->rd_pool_dma, &regs->RDBaseLo);
 		writew(vptr->options.numrx - 1, &regs->RDCSize);
 		mac_rx_queue_run(regs);
 		mac_rx_queue_wake(regs);
@@ -785,7 +784,7 @@ static void velocity_init_registers(struct velocity_info *vptr,
 		writew(vptr->options.numtx - 1, &regs->TDCSize);
 
 		for (i = 0; i < vptr->num_txq; i++) {
-			writel(cpu_to_le32(vptr->td_pool_dma[i]), &(regs->TDBaseLo[i]));
+			writel(vptr->td_pool_dma[i], &regs->TDBaseLo[i]);
 			mac_tx_queue_run(regs, i);
 		}
 
@@ -1195,7 +1194,7 @@ static inline void velocity_give_many_rx_descs(struct velocity_info *vptr)
 	dirty = vptr->rd_dirty - unusable;
 	for (avail = vptr->rd_filled & 0xfffc; avail; avail--) {
 		dirty = (dirty > 0) ? dirty - 1 : vptr->options.numrx - 1;
-		vptr->rd_ring[dirty].rdesc0.owner = OWNED_BY_NIC;
+		vptr->rd_ring[dirty].rdesc0.len |= OWNED_BY_NIC;
 	}
 
 	writew(vptr->rd_filled & 0xfffc, &regs->RBRDU);
@@ -1210,7 +1209,7 @@ static int velocity_rx_refill(struct velocity_info *vptr)
 		struct rx_desc *rd = vptr->rd_ring + dirty;
 
 		/* Fine for an all zero Rx desc at init time as well */
-		if (rd->rdesc0.owner == OWNED_BY_NIC)
+		if (rd->rdesc0.len & OWNED_BY_NIC)
 			break;
 
 		if (!vptr->rd_info[dirty].skb) {
@@ -1413,7 +1412,7 @@ static int velocity_rx_srv(struct velocity_info *vptr, int status)
 		if (!vptr->rd_info[rd_curr].skb)
 			break;
 
-		if (rd->rdesc0.owner == OWNED_BY_NIC)
+		if (rd->rdesc0.len & OWNED_BY_NIC)
 			break;
 
 		rmb();
@@ -1421,7 +1420,7 @@ static int velocity_rx_srv(struct velocity_info *vptr, int status)
 		/*
 		 *	Don't drop CE or RL error frame although RXOK is off
 		 */
-		if ((rd->rdesc0.RSR & RSR_RXOK) || (!(rd->rdesc0.RSR & RSR_RXOK) && (rd->rdesc0.RSR & (RSR_CE | RSR_RL)))) {
+		if (rd->rdesc0.RSR & (RSR_RXOK | RSR_CE | RSR_RL)) {
 			if (velocity_receive_frame(vptr, rd_curr) < 0)
 				stats->rx_dropped++;
 		} else {
@@ -1433,7 +1432,7 @@ static int velocity_rx_srv(struct velocity_info *vptr, int status)
 			stats->rx_dropped++;
 		}
 
-		rd->inten = 1;
+		rd->size |= RX_INTEN;
 
 		vptr->dev->last_rx = jiffies;
 
@@ -1554,7 +1553,7 @@ static int velocity_receive_frame(struct velocity_info *vptr, int idx)
 	struct net_device_stats *stats = &vptr->stats;
 	struct velocity_rd_info *rd_info = &(vptr->rd_info[idx]);
 	struct rx_desc *rd = &(vptr->rd_ring[idx]);
-	int pkt_len = rd->rdesc0.len;
+	int pkt_len = le16_to_cpu(rd->rdesc0.len) & 0x3fff;
 	struct sk_buff *skb;
 
 	if (rd->rdesc0.RSR & (RSR_STP | RSR_EDP)) {
@@ -1637,8 +1636,7 @@ static int velocity_alloc_rx_buf(struct velocity_info *vptr, int idx)
  	 */
 
 	*((u32 *) & (rd->rdesc0)) = 0;
-	rd->len = cpu_to_le32(vptr->rx_buf_sz);
-	rd->inten = 1;
+	rd->size = cpu_to_le16(vptr->rx_buf_sz) | RX_INTEN;
 	rd->pa_low = cpu_to_le32(rd_info->skb_dma);
 	rd->pa_high = 0;
 	return 0;
@@ -1674,7 +1672,7 @@ static int velocity_tx_srv(struct velocity_info *vptr, u32 status)
 			td = &(vptr->td_rings[qnum][idx]);
 			tdinfo = &(vptr->td_infos[qnum][idx]);
 
-			if (td->tdesc0.owner == OWNED_BY_NIC)
+			if (td->tdesc0.len & OWNED_BY_NIC)
 				break;
 
 			if ((works++ > 15))
@@ -1874,7 +1872,7 @@ static void velocity_free_tx_buf(struct velocity_info *vptr, struct velocity_td_
 
 		for (i = 0; i < tdinfo->nskb_dma; i++) {
 #ifdef VELOCITY_ZERO_COPY_SUPPORT
-			pci_unmap_single(vptr->pdev, tdinfo->skb_dma[i], td->tdesc1.len, PCI_DMA_TODEVICE);
+			pci_unmap_single(vptr->pdev, tdinfo->skb_dma[i], le16_to_cpu(td->tdesc1.len), PCI_DMA_TODEVICE);
 #else
 			pci_unmap_single(vptr->pdev, tdinfo->skb_dma[i], skb->len, PCI_DMA_TODEVICE);
 #endif
@@ -2067,8 +2065,8 @@ static int velocity_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct velocity_td_info *tdinfo;
 	unsigned long flags;
 	int index;
-
 	int pktlen = skb->len;
+	__le16 len = cpu_to_le16(pktlen);
 
 #ifdef VELOCITY_ZERO_COPY_SUPPORT
 	if (skb_shinfo(skb)->nr_frags > 6 && __skb_linearize(skb)) {
@@ -2083,9 +2081,8 @@ static int velocity_xmit(struct sk_buff *skb, struct net_device *dev)
 	td_ptr = &(vptr->td_rings[qnum][index]);
 	tdinfo = &(vptr->td_infos[qnum][index]);
 
-	td_ptr->tdesc1.TCPLS = TCPLS_NORMAL;
 	td_ptr->tdesc1.TCR = TCR0_TIC;
-	td_ptr->td_buf[0].queue = 0;
+	td_ptr->td_buf[0].size &= ~TD_QUEUE;
 
 	/*
 	 *	Pad short frames.
@@ -2093,16 +2090,16 @@ static int velocity_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (pktlen < ETH_ZLEN) {
 		/* Cannot occur until ZC support */
 		pktlen = ETH_ZLEN;
+		len = cpu_to_le16(ETH_ZLEN);
 		skb_copy_from_linear_data(skb, tdinfo->buf, skb->len);
 		memset(tdinfo->buf + skb->len, 0, ETH_ZLEN - skb->len);
 		tdinfo->skb = skb;
 		tdinfo->skb_dma[0] = tdinfo->buf_dma;
-		td_ptr->tdesc0.pktsize = pktlen;
+		td_ptr->tdesc0.len = len;
 		td_ptr->td_buf[0].pa_low = cpu_to_le32(tdinfo->skb_dma[0]);
 		td_ptr->td_buf[0].pa_high = 0;
-		td_ptr->td_buf[0].bufsize = td_ptr->tdesc0.pktsize;
+		td_ptr->td_buf[0].size = len;	/* queue is 0 anyway */
 		tdinfo->nskb_dma = 1;
-		td_ptr->tdesc1.CMDZ = 2;
 	} else
 #ifdef VELOCITY_ZERO_COPY_SUPPORT
 	if (skb_shinfo(skb)->nr_frags > 0) {
@@ -2111,36 +2108,35 @@ static int velocity_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (nfrags > 6) {
 			skb_copy_from_linear_data(skb, tdinfo->buf, skb->len);
 			tdinfo->skb_dma[0] = tdinfo->buf_dma;
-			td_ptr->tdesc0.pktsize =
+			td_ptr->tdesc0.len = len;
 			td_ptr->td_buf[0].pa_low = cpu_to_le32(tdinfo->skb_dma[0]);
 			td_ptr->td_buf[0].pa_high = 0;
-			td_ptr->td_buf[0].bufsize = td_ptr->tdesc0.pktsize;
+			td_ptr->td_buf[0].size = len;	/* queue is 0 anyway */
 			tdinfo->nskb_dma = 1;
-			td_ptr->tdesc1.CMDZ = 2;
 		} else {
 			int i = 0;
 			tdinfo->nskb_dma = 0;
-			tdinfo->skb_dma[i] = pci_map_single(vptr->pdev, skb->data, skb->len - skb->data_len, PCI_DMA_TODEVICE);
+			tdinfo->skb_dma[i] = pci_map_single(vptr->pdev, skb->data,
+						skb_headlen(skb), PCI_DMA_TODEVICE);
 
-			td_ptr->tdesc0.pktsize = pktlen;
+			td_ptr->tdesc0.len = len;
 
 			/* FIXME: support 48bit DMA later */
 			td_ptr->td_buf[i].pa_low = cpu_to_le32(tdinfo->skb_dma);
 			td_ptr->td_buf[i].pa_high = 0;
-			td_ptr->td_buf[i].bufsize = skb->len->skb->data_len;
+			td_ptr->td_buf[i].size = cpu_to_le16(skb_headlen(skb));
 
 			for (i = 0; i < nfrags; i++) {
 				skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
-				void *addr = ((void *) page_address(frag->page + frag->page_offset));
+				void *addr = (void *)page_address(frag->page) + frag->page_offset;
 
 				tdinfo->skb_dma[i + 1] = pci_map_single(vptr->pdev, addr, frag->size, PCI_DMA_TODEVICE);
 
 				td_ptr->td_buf[i + 1].pa_low = cpu_to_le32(tdinfo->skb_dma[i + 1]);
 				td_ptr->td_buf[i + 1].pa_high = 0;
-				td_ptr->td_buf[i + 1].bufsize = frag->size;
+				td_ptr->td_buf[i + 1].size = cpu_to_le16(frag->size);
 			}
 			tdinfo->nskb_dma = i - 1;
-			td_ptr->tdesc1.CMDZ = i;
 		}
 
 	} else
@@ -2152,18 +2148,16 @@ static int velocity_xmit(struct sk_buff *skb, struct net_device *dev)
 		 */
 		tdinfo->skb = skb;
 		tdinfo->skb_dma[0] = pci_map_single(vptr->pdev, skb->data, pktlen, PCI_DMA_TODEVICE);
-		td_ptr->tdesc0.pktsize = pktlen;
+		td_ptr->tdesc0.len = len;
 		td_ptr->td_buf[0].pa_low = cpu_to_le32(tdinfo->skb_dma[0]);
 		td_ptr->td_buf[0].pa_high = 0;
-		td_ptr->td_buf[0].bufsize = td_ptr->tdesc0.pktsize;
+		td_ptr->td_buf[0].size = len;
 		tdinfo->nskb_dma = 1;
-		td_ptr->tdesc1.CMDZ = 2;
 	}
+	td_ptr->tdesc1.cmd = TCPLS_NORMAL + (tdinfo->nskb_dma + 1) * 16;
 
 	if (vptr->vlgrp && vlan_tx_tag_present(skb)) {
-		td_ptr->tdesc1.pqinf.VID = vlan_tx_tag_get(skb);
-		td_ptr->tdesc1.pqinf.priority = 0;
-		td_ptr->tdesc1.pqinf.CFI = 0;
+		td_ptr->tdesc1.vlan = cpu_to_le16(vlan_tx_tag_get(skb));
 		td_ptr->tdesc1.TCR |= TCR0_VETAG;
 	}
 
@@ -2185,7 +2179,7 @@ static int velocity_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		if (prev < 0)
 			prev = vptr->options.numtx - 1;
-		td_ptr->tdesc0.owner = OWNED_BY_NIC;
+		td_ptr->tdesc0.len |= OWNED_BY_NIC;
 		vptr->td_used[qnum]++;
 		vptr->td_curr[qnum] = (index + 1) % vptr->options.numtx;
 
@@ -2193,7 +2187,7 @@ static int velocity_xmit(struct sk_buff *skb, struct net_device *dev)
 			netif_stop_queue(dev);
 
 		td_ptr = &(vptr->td_rings[qnum][prev]);
-		td_ptr->td_buf[0].queue = 1;
+		td_ptr->td_buf[0].size |= TD_QUEUE;
 		mac_tx_queue_wake(vptr->mac_regs, qnum);
 	}
 	dev->trans_start = jiffies;
@@ -3410,7 +3404,7 @@ static int velocity_suspend(struct pci_dev *pdev, pm_message_t state)
 		velocity_save_context(vptr, &vptr->context);
 		velocity_shutdown(vptr);
 		velocity_set_wol(vptr);
-		pci_enable_wake(pdev, 3, 1);
+		pci_enable_wake(pdev, PCI_D3hot, 1);
 		pci_set_power_state(pdev, PCI_D3hot);
 	} else {
 		velocity_save_context(vptr, &vptr->context);

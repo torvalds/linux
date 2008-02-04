@@ -108,22 +108,6 @@ struct inet_hashinfo __cacheline_aligned tcp_hashinfo = {
 	.lhash_wait  = __WAIT_QUEUE_HEAD_INITIALIZER(tcp_hashinfo.lhash_wait),
 };
 
-static int tcp_v4_get_port(struct sock *sk, unsigned short snum)
-{
-	return inet_csk_get_port(&tcp_hashinfo, sk, snum,
-				 inet_csk_bind_conflict);
-}
-
-static void tcp_v4_hash(struct sock *sk)
-{
-	inet_hash(&tcp_hashinfo, sk);
-}
-
-void tcp_unhash(struct sock *sk)
-{
-	inet_unhash(&tcp_hashinfo, sk);
-}
-
 static inline __u32 tcp_v4_init_sequence(struct sk_buff *skb)
 {
 	return secure_tcp_sequence_number(ip_hdr(skb)->daddr,
@@ -1478,8 +1462,8 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	}
 #endif
 
-	__inet_hash_nolisten(&tcp_hashinfo, newsk);
-	__inet_inherit_port(&tcp_hashinfo, sk, newsk);
+	__inet_hash_nolisten(newsk);
+	__inet_inherit_port(sk, newsk);
 
 	return newsk;
 
@@ -1827,6 +1811,7 @@ struct inet_connection_sock_af_ops ipv4_specific = {
 	.getsockopt	   = ip_getsockopt,
 	.addr2sockaddr	   = inet_csk_addr2sockaddr,
 	.sockaddr_len	   = sizeof(struct sockaddr_in),
+	.bind_conflict	   = inet_csk_bind_conflict,
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_ip_setsockopt,
 	.compat_getsockopt = compat_ip_getsockopt,
@@ -1926,7 +1911,7 @@ int tcp_v4_destroy_sock(struct sock *sk)
 
 	/* Clean up a referenced TCP bind bucket. */
 	if (inet_csk(sk)->icsk_bind_hash)
-		inet_put_port(&tcp_hashinfo, sk);
+		inet_put_port(sk);
 
 	/*
 	 * If sendmsg cached page exists, toss it.
@@ -2435,9 +2420,9 @@ struct proto tcp_prot = {
 	.getsockopt		= tcp_getsockopt,
 	.recvmsg		= tcp_recvmsg,
 	.backlog_rcv		= tcp_v4_do_rcv,
-	.hash			= tcp_v4_hash,
-	.unhash			= tcp_unhash,
-	.get_port		= tcp_v4_get_port,
+	.hash			= inet_hash,
+	.unhash			= inet_unhash,
+	.get_port		= inet_csk_get_port,
 	.enter_memory_pressure	= tcp_enter_memory_pressure,
 	.sockets_allocated	= &tcp_sockets_allocated,
 	.orphan_count		= &tcp_orphan_count,
@@ -2450,6 +2435,7 @@ struct proto tcp_prot = {
 	.obj_size		= sizeof(struct tcp_sock),
 	.twsk_prot		= &tcp_timewait_sock_ops,
 	.rsk_prot		= &tcp_request_sock_ops,
+	.hashinfo		= &tcp_hashinfo,
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt	= compat_tcp_setsockopt,
 	.compat_getsockopt	= compat_tcp_getsockopt,
@@ -2467,7 +2453,6 @@ void __init tcp_v4_init(struct net_proto_family *ops)
 EXPORT_SYMBOL(ipv4_specific);
 EXPORT_SYMBOL(tcp_hashinfo);
 EXPORT_SYMBOL(tcp_prot);
-EXPORT_SYMBOL(tcp_unhash);
 EXPORT_SYMBOL(tcp_v4_conn_request);
 EXPORT_SYMBOL(tcp_v4_connect);
 EXPORT_SYMBOL(tcp_v4_do_rcv);

@@ -8118,7 +8118,7 @@ static void initiate_new_session(struct lro *lro, u8 *l2h,
 	lro->iph = ip;
 	lro->tcph = tcp;
 	lro->tcp_next_seq = tcp_pyld_len + ntohl(tcp->seq);
-	lro->tcp_ack = ntohl(tcp->ack_seq);
+	lro->tcp_ack = tcp->ack_seq;
 	lro->sg_num = 1;
 	lro->total_len = ntohs(ip->tot_len);
 	lro->frags_len = 0;
@@ -8127,10 +8127,10 @@ static void initiate_new_session(struct lro *lro, u8 *l2h,
 	 * already been done.
  	 */
 	if (tcp->doff == 8) {
-		u32 *ptr;
-		ptr = (u32 *)(tcp+1);
+		__be32 *ptr;
+		ptr = (__be32 *)(tcp+1);
 		lro->saw_ts = 1;
-		lro->cur_tsval = *(ptr+1);
+		lro->cur_tsval = ntohl(*(ptr+1));
 		lro->cur_tsecr = *(ptr+2);
 	}
 	lro->in_use = 1;
@@ -8156,7 +8156,7 @@ static void update_L3L4_header(struct s2io_nic *sp, struct lro *lro)
 
 	/* Update tsecr field if this session has timestamps enabled */
 	if (lro->saw_ts) {
-		u32 *ptr = (u32 *)(tcp + 1);
+		__be32 *ptr = (__be32 *)(tcp + 1);
 		*(ptr+2) = lro->cur_tsecr;
 	}
 
@@ -8181,10 +8181,10 @@ static void aggregate_new_rx(struct lro *lro, struct iphdr *ip,
 	lro->window = tcp->window;
 
 	if (lro->saw_ts) {
-		u32 *ptr;
+		__be32 *ptr;
 		/* Update tsecr and tsval from this packet */
-		ptr = (u32 *) (tcp + 1);
-		lro->cur_tsval = *(ptr + 1);
+		ptr = (__be32 *)(tcp+1);
+		lro->cur_tsval = ntohl(*(ptr+1));
 		lro->cur_tsecr = *(ptr + 2);
 	}
 }
@@ -8235,11 +8235,11 @@ static int verify_l3_l4_lro_capable(struct lro *l_lro, struct iphdr *ip,
 
 		/* Ensure timestamp value increases monotonically */
 		if (l_lro)
-			if (l_lro->cur_tsval > *((u32 *)(ptr+2)))
+			if (l_lro->cur_tsval > ntohl(*((__be32 *)(ptr+2))))
 				return -1;
 
 		/* timestamp echo reply should be non-zero */
-		if (*((u32 *)(ptr+6)) == 0)
+		if (*((__be32 *)(ptr+6)) == 0)
 			return -1;
 	}
 

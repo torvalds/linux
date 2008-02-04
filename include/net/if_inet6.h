@@ -112,13 +112,13 @@ struct ifmcaddr6
 	struct ip6_sf_list	*mca_sources;
 	struct ip6_sf_list	*mca_tomb;
 	unsigned int		mca_sfmode;
+	unsigned char		mca_crcount;
 	unsigned long		mca_sfcount[2];
 	struct timer_list	mca_timer;
 	unsigned		mca_flags;
 	int			mca_users;
 	atomic_t		mca_refcnt;
 	spinlock_t		mca_lock;
-	unsigned char		mca_crcount;
 	unsigned long		mca_cstamp;
 	unsigned long		mca_tstamp;
 };
@@ -166,11 +166,11 @@ struct inet6_dev
 	struct ifmcaddr6	*mc_list;
 	struct ifmcaddr6	*mc_tomb;
 	rwlock_t		mc_lock;
-	unsigned long		mc_v1_seen;
-	unsigned long		mc_maxdelay;
 	unsigned char		mc_qrv;
 	unsigned char		mc_gq_running;
 	unsigned char		mc_ifc_count;
+	unsigned long		mc_v1_seen;
+	unsigned long		mc_maxdelay;
 	struct timer_list	mc_gq_timer;	/* general query timer */
 	struct timer_list	mc_ifc_timer;	/* interface change timer */
 

@@ -1,34 +1,11 @@
 /*
- * File:	drivers/net/bfin_mac.c
- * Based on:
- * Maintainer:
- * 		Bryan Wu <bryan.wu@analog.com>
+ * Blackfin On-Chip MAC Driver
  *
- * Original author:
- * 		Luke Yang <luke.yang@analog.com>
+ * Copyright 2004-2007 Analog Devices Inc.
  *
- * Created:
- * Description:
+ * Enter bugs at http://blackfin.uclinux.org/
  *
- * Modified:
- *		Copyright 2004-2006 Analog Devices Inc.
- *
- * Bugs:	Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software ;  you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation ;  either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY ;  without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program ;  see the file COPYING.
- * If not, write to the Free Software Foundation,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * Licensed under the GPL-2 or later.
  */
 
 #include <linux/init.h>
@@ -65,7 +42,7 @@
 #define DRV_NAME	"bfin_mac"
 #define DRV_VERSION	"1.1"
 #define DRV_AUTHOR	"Bryan Wu, Luke Yang"
-#define DRV_DESC	"Blackfin BF53[67] on-chip Ethernet MAC driver"
+#define DRV_DESC	"Blackfin BF53[67] BF527 on-chip Ethernet MAC driver"
 
 MODULE_AUTHOR(DRV_AUTHOR);
 MODULE_LICENSE("GPL");
@@ -296,7 +273,7 @@ static void mdio_poll(void)
 
 	/* poll the STABUSY bit */
 	while ((bfin_read_EMAC_STAADD()) & STABUSY) {
-		mdelay(10);
+		udelay(1);
 		if (timeout_cnt-- < 0) {
 			printk(KERN_ERR DRV_NAME
 			": wait MDC/MDIO transaction to complete timeout\n");
@@ -412,20 +389,26 @@ static void bf537_adjust_link(struct net_device *dev)
 	spin_unlock_irqrestore(&lp->lock, flags);
 }
 
+/* MDC  = 2.5 MHz */
+#define MDC_CLK 2500000
+
 static int mii_probe(struct net_device *dev)
 {
 	struct bf537mac_local *lp = netdev_priv(dev);
 	struct phy_device *phydev = NULL;
 	unsigned short sysctl;
 	int i;
+	u32 sclk, mdc_div;
 
 	/* Enable PHY output early */
 	if (!(bfin_read_VR_CTL() & PHYCLKOE))
 		bfin_write_VR_CTL(bfin_read_VR_CTL() | PHYCLKOE);
 
-	/* MDC  = 2.5 MHz */
+	sclk = get_sclk();
+	mdc_div = ((sclk / MDC_CLK) / 2) - 1;
+
 	sysctl = bfin_read_EMAC_SYSCTL();
-	sysctl |= SET_MDCDIV(24);
+	sysctl = (sysctl & ~MDCDIV) | SET_MDCDIV(mdc_div);
 	bfin_write_EMAC_SYSCTL(sysctl);
 
 	/* search for connect PHY device */
@@ -477,8 +460,10 @@ static int mii_probe(struct net_device *dev)
 	lp->phydev = phydev;
 
 	printk(KERN_INFO "%s: attached PHY driver [%s] "
-	       "(mii_bus:phy_addr=%s, irq=%d)\n",
-	       DRV_NAME, phydev->drv->name, phydev->dev.bus_id, phydev->irq);
+	       "(mii_bus:phy_addr=%s, irq=%d, mdc_clk=%dHz(mdc_div=%d)"
+	       "@sclk=%dMHz)\n",
+	       DRV_NAME, phydev->drv->name, phydev->dev.bus_id, phydev->irq,
+	       MDC_CLK, mdc_div, sclk/1000000);
 
 	return 0;
 }
@@ -551,7 +536,7 @@ static void adjust_tx_list(void)
 	 */
 	if (current_tx_ptr->next->next == tx_list_head) {
 		while (tx_list_head->status.status_word == 0) {
-			mdelay(10);
+			mdelay(1);
 			if (tx_list_head->status.status_word != 0
 			    || !(bfin_read_DMA2_IRQ_STATUS() & 0x08)) {
 				goto adjust_head;
@@ -666,6 +651,12 @@ static void bf537mac_rx(struct net_device *dev)
 	current_rx_ptr->skb = new_skb;
 	current_rx_ptr->desc_a.start_addr = (unsigned long)new_skb->data - 2;
 
+	/* Invidate the data cache of skb->data range when it is write back
+	 * cache. It will prevent overwritting the new data from DMA
+	 */
+	blackfin_dcache_invalidate_range((unsigned long)new_skb->head,
+					 (unsigned long)new_skb->end);
+
 	len = (unsigned short)((current_rx_ptr->status.status_word) & RX_FRLEN);
 	skb_put(skb, len);
 	blackfin_dcache_invalidate_range((unsigned long)skb->head,
@@ -767,7 +758,7 @@ static void bf537mac_enable(void)
 
 #if defined(CONFIG_BFIN_MAC_RMII)
 	opmode |= RMII; /* For Now only 100MBit are supported */
-#ifdef CONFIG_BF_REV_0_2
+#if (defined(CONFIG_BF537) || defined(CONFIG_BF536)) && CONFIG_BF_REV_0_2
 	opmode |= TE;
 #endif
 #endif
@@ -792,6 +783,39 @@ static void bf537mac_timeout(struct net_device *dev)
 	netif_wake_queue(dev);
 }
 
+static void bf537mac_multicast_hash(struct net_device *dev)
+{
+	u32 emac_hashhi, emac_hashlo;
+	struct dev_mc_list *dmi = dev->mc_list;
+	char *addrs;
+	int i;
+	u32 crc;
+
+	emac_hashhi = emac_hashlo = 0;
+
+	for (i = 0; i < dev->mc_count; i++) {
+		addrs = dmi->dmi_addr;
+		dmi = dmi->next;
+
+		/* skip non-multicast addresses */
+		if (!(*addrs & 1))
+			continue;
+
+		crc = ether_crc(ETH_ALEN, addrs);
+		crc >>= 26;
+
+		if (crc & 0x20)
+			emac_hashhi |= 1 << (crc & 0x1f);
+		else
+			emac_hashlo |= 1 << (crc & 0x1f);
+	}
+
+	bfin_write_EMAC_HASHHI(emac_hashhi);
+	bfin_write_EMAC_HASHLO(emac_hashlo);
+
+	return;
+}
+
 /*
  * This routine will, depending on the values passed to it,
  * either make it accept multicast packets, go into
@@ -807,11 +831,17 @@ static void bf537mac_set_multicast_list(struct net_device *dev)
 		sysctl = bfin_read_EMAC_OPMODE();
 		sysctl |= RAF;
 		bfin_write_EMAC_OPMODE(sysctl);
-	} else if (dev->flags & IFF_ALLMULTI || dev->mc_count) {
+	} else if (dev->flags & IFF_ALLMULTI) {
 		/* accept all multicast */
 		sysctl = bfin_read_EMAC_OPMODE();
 		sysctl |= PAM;
 		bfin_write_EMAC_OPMODE(sysctl);
+	} else if (dev->mc_count) {
+		/* set up multicast hash table */
+		sysctl = bfin_read_EMAC_OPMODE();
+		sysctl |= HM;
+		bfin_write_EMAC_OPMODE(sysctl);
+		bf537mac_multicast_hash(dev);
 	} else {
 		/* clear promisc or multicast mode */
 		sysctl = bfin_read_EMAC_OPMODE();
@@ -860,10 +890,10 @@ static int bf537mac_open(struct net_device *dev)
 		return retval;
 
 	phy_start(lp->phydev);
+	phy_write(lp->phydev, MII_BMCR, BMCR_RESET);
 	setup_system_regs(dev);
 	bf537mac_disable();
 	bf537mac_enable();
-
 	pr_debug("hardware init finished\n");
 	netif_start_queue(dev);
 	netif_carrier_on(dev);
@@ -886,6 +916,7 @@ static int bf537mac_close(struct net_device *dev)
 	netif_carrier_off(dev);
 
 	phy_stop(lp->phydev);
+	phy_write(lp->phydev, MII_BMCR, BMCR_PDOWN);
 
 	/* clear everything */
 	bf537mac_shutdown(dev);
@@ -970,7 +1001,7 @@ static int __init bf537mac_probe(struct net_device *dev)
 	/* register irq handler */
 	if (request_irq
 	    (IRQ_MAC_RX, bf537mac_interrupt, IRQF_DISABLED | IRQF_SHARED,
-	     "BFIN537_MAC_RX", dev)) {
+	     "EMAC_RX", dev)) {
 		printk(KERN_WARNING DRV_NAME
 		       ": Unable to attach BlackFin MAC RX interrupt\n");
 		return -EBUSY;

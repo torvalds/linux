@@ -1669,7 +1669,7 @@ void tcp_set_state(struct sock *sk, int state)
 		sk->sk_prot->unhash(sk);
 		if (inet_csk(sk)->icsk_bind_hash &&
 		    !(sk->sk_userlocks & SOCK_BINDPORT_LOCK))
-			inet_put_port(&tcp_hashinfo, sk);
+			inet_put_port(sk);
 		/* fall through */
 	default:
 		if (oldstate==TCP_ESTABLISHED)

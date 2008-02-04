@@ -38,12 +38,6 @@
  */
 static struct socket *dccp_v4_ctl_socket;
 
-static int dccp_v4_get_port(struct sock *sk, const unsigned short snum)
-{
-	return inet_csk_get_port(&dccp_hashinfo, sk, snum,
-				 inet_csk_bind_conflict);
-}
-
 int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {
 	struct inet_sock *inet = inet_sk(sk);
@@ -408,8 +402,8 @@ struct sock *dccp_v4_request_recv_sock(struct sock *sk, struct sk_buff *skb,
 
 	dccp_sync_mss(newsk, dst_mtu(dst));
 
-	__inet_hash_nolisten(&dccp_hashinfo, newsk);
-	__inet_inherit_port(&dccp_hashinfo, sk, newsk);
+	__inet_hash_nolisten(newsk);
+	__inet_inherit_port(sk, newsk);
 
 	return newsk;
 
@@ -898,6 +892,7 @@ static struct inet_connection_sock_af_ops dccp_ipv4_af_ops = {
 	.getsockopt	   = ip_getsockopt,
 	.addr2sockaddr	   = inet_csk_addr2sockaddr,
 	.sockaddr_len	   = sizeof(struct sockaddr_in),
+	.bind_conflict	   = inet_csk_bind_conflict,
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_ip_setsockopt,
 	.compat_getsockopt = compat_ip_getsockopt,
@@ -937,10 +932,10 @@ static struct proto dccp_v4_prot = {
 	.sendmsg		= dccp_sendmsg,
 	.recvmsg		= dccp_recvmsg,
 	.backlog_rcv		= dccp_v4_do_rcv,
-	.hash			= dccp_hash,
-	.unhash			= dccp_unhash,
+	.hash			= inet_hash,
+	.unhash			= inet_unhash,
 	.accept			= inet_csk_accept,
-	.get_port		= dccp_v4_get_port,
+	.get_port		= inet_csk_get_port,
 	.shutdown		= dccp_shutdown,
 	.destroy		= dccp_destroy_sock,
 	.orphan_count		= &dccp_orphan_count,
@@ -948,6 +943,7 @@ static struct proto dccp_v4_prot = {
 	.obj_size		= sizeof(struct dccp_sock),
 	.rsk_prot		= &dccp_request_sock_ops,
 	.twsk_prot		= &dccp_timewait_sock_ops,
+	.hashinfo		= &dccp_hashinfo,
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt	= compat_dccp_setsockopt,
 	.compat_getsockopt	= compat_dccp_getsockopt,

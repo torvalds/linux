@@ -1084,7 +1084,7 @@ static int macb_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	return phy_mii_ioctl(phydev, if_mii(rq), cmd);
 }
 
-static int __devinit macb_probe(struct platform_device *pdev)
+static int __init macb_probe(struct platform_device *pdev)
 {
 	struct eth_platform_data *pdata;
 	struct resource *regs;
@@ -1248,7 +1248,7 @@ err_out:
 	return err;
 }
 
-static int __devexit macb_remove(struct platform_device *pdev)
+static int __exit macb_remove(struct platform_device *pdev)
 {
 	struct net_device *dev;
 	struct macb *bp;
@@ -1276,8 +1276,7 @@ static int __devexit macb_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver macb_driver = {
-	.probe		= macb_probe,
-	.remove		= __devexit_p(macb_remove),
+	.remove		= __exit_p(macb_remove),
 	.driver		= {
 		.name		= "macb",
 	},
@@ -1285,7 +1284,7 @@ static struct platform_driver macb_driver = {
 
 static int __init macb_init(void)
 {
-	return platform_driver_register(&macb_driver);
+	return platform_driver_probe(&macb_driver, macb_probe);
 }
 
 static void __exit macb_exit(void)

@@ -59,6 +59,7 @@ struct pasemi_mac {
 	struct phy_device *phydev;
 	struct napi_struct napi;
 
+	int		bufsz; /* RX ring buffer size */
 	u8		type;
 #define MAC_TYPE_GMAC	1
 #define MAC_TYPE_XAUI	2
@@ -96,6 +97,9 @@ struct pasemi_mac_buffer {
 /* MAC CFG register offsets */
 enum {
 	PAS_MAC_CFG_PCFG = 0x80,
+	PAS_MAC_CFG_MACCFG = 0x84,
+	PAS_MAC_CFG_ADR0 = 0x8c,
+	PAS_MAC_CFG_ADR1 = 0x90,
 	PAS_MAC_CFG_TXP = 0x98,
 	PAS_MAC_IPC_CHNL = 0x208,
 };
@@ -130,6 +134,18 @@ enum {
 #define PAS_MAC_CFG_PCFG_SPD_100M	0x00000001
 #define PAS_MAC_CFG_PCFG_SPD_1G		0x00000002
 #define PAS_MAC_CFG_PCFG_SPD_10G	0x00000003
+
+#define PAS_MAC_CFG_MACCFG_TXT_M	0x70000000
+#define PAS_MAC_CFG_MACCFG_TXT_S	28
+#define PAS_MAC_CFG_MACCFG_PRES_M	0x0f000000
+#define PAS_MAC_CFG_MACCFG_PRES_S	24
+#define PAS_MAC_CFG_MACCFG_MAXF_M	0x00ffff00
+#define PAS_MAC_CFG_MACCFG_MAXF_S	8
+#define PAS_MAC_CFG_MACCFG_MAXF(x)	(((x) << PAS_MAC_CFG_MACCFG_MAXF_S) & \
+					 PAS_MAC_CFG_MACCFG_MAXF_M)
+#define PAS_MAC_CFG_MACCFG_MINF_M	0x000000ff
+#define PAS_MAC_CFG_MACCFG_MINF_S	0
+
 #define PAS_MAC_CFG_TXP_FCF		0x01000000
 #define PAS_MAC_CFG_TXP_FCE		0x00800000
 #define PAS_MAC_CFG_TXP_FC		0x00400000

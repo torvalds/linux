@@ -945,11 +945,7 @@ static int e1000_request_irq(struct e1000_adapter *adapter)
 	int irq_flags = IRQF_SHARED;
 	int err;
 
-	err = pci_enable_msi(adapter->pdev);
-	if (err) {
-		ndev_warn(netdev,
-		 "Unable to allocate MSI interrupt Error: %d\n", err);
-	} else {
+	if (!pci_enable_msi(adapter->pdev)) {
 		adapter->flags |= FLAG_MSI_ENABLED;
 		handler = e1000_intr_msi;
 		irq_flags = 0;
@@ -958,10 +954,12 @@ static int e1000_request_irq(struct e1000_adapter *adapter)
 	err = request_irq(adapter->pdev->irq, handler, irq_flags, netdev->name,
 			  netdev);
 	if (err) {
+		ndev_err(netdev,
+		       "Unable to allocate %s interrupt (return: %d)\n",
+			adapter->flags & FLAG_MSI_ENABLED ? "MSI":"INTx",
+			err);
 		if (adapter->flags & FLAG_MSI_ENABLED)
 			pci_disable_msi(adapter->pdev);
-		ndev_err(netdev,
-		       "Unable to allocate interrupt Error: %d\n", err);
 	}
 
 	return err;

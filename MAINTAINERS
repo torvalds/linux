@@ -84,13 +84,6 @@ S: Status, one of the following:
 			it has been replaced by a better system and you
 			should be using that.
 
-3C359 NETWORK DRIVER
-P:	Mike Phillips
-M:	mikep@linuxtr.net
-L:	netdev@vger.kernel.org
-W:	http://www.linuxtr.net
-S:	Maintained
-
 3C505 NETWORK DRIVER
 P:	Philip Blundell
 M:	philb@gnu.org
@@ -939,8 +932,6 @@ M:	maxk@qualcomm.com
 S:	Maintained
 
 BONDING DRIVER
-P:	Chad Tindel
-M:	ctindel@users.sourceforge.net
 P:	Jay Vosburgh
 M:	fubar@us.ibm.com
 L:	bonding-devel@lists.sourceforge.net
@@ -2864,15 +2855,6 @@ L:	ocfs2-devel@oss.oracle.com
 W:	http://oss.oracle.com/projects/ocfs2/
 S:	Supported
 
-OLYMPIC NETWORK DRIVER
-P:	Peter De Shrijver
-M:	p2@ace.ulyssis.student.kuleuven.ac.be
-P:	Mike Phillips
-M:	mikep@linuxtr.net
-L:	netdev@vger.kernel.org
-W:	http://www.linuxtr.net
-S:	Maintained
-
 OMNIKEY CARDMAN 4000 DRIVER
 P:	Harald Welte
 M:	laforge@gnumonks.org
@@ -3786,13 +3768,6 @@ P:	Samuel Chessman
 M:	chessman@tux.org
 L:	tlan-devel@lists.sourceforge.net (subscribers-only)
 W:	http://sourceforge.net/projects/tlan/
-S:	Maintained
-
-TOKEN-RING NETWORK DRIVER
-P:	Mike Phillips
-M:	mikep@linuxtr.net
-L:	netdev@vger.kernel.org
-W:	http://www.linuxtr.net
 S:	Maintained
 
 TOSHIBA ACPI EXTRAS DRIVER

@@ -853,7 +853,7 @@ e1000_reset(struct e1000_adapter *adapter)
 /**
  *  Dump the eeprom for users having checksum issues
  **/
-void e1000_dump_eeprom(struct e1000_adapter *adapter)
+static void e1000_dump_eeprom(struct e1000_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct ethtool_eeprom eeprom;

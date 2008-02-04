@@ -63,6 +63,7 @@
 #define E1000_WUFC_EX   0x00000004 /* Directed Exact Wakeup Enable */
 #define E1000_WUFC_MC   0x00000008 /* Directed Multicast Wakeup Enable */
 #define E1000_WUFC_BC   0x00000010 /* Broadcast Wakeup Enable */
+#define E1000_WUFC_ARP  0x00000020 /* ARP Request Packet Wakeup Enable */
 
 /* Extended Device Control */
 #define E1000_CTRL_EXT_SDP7_DATA 0x00000080 /* Value of SW Defineable Pin 7 */

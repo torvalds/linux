@@ -747,7 +747,7 @@ static inline void qec_init_once(struct sunqec *qecp, struct sbus_dev *qsdev)
 		    qecp->gregs + GLOB_RSIZE);
 }
 
-static u8 __init qec_get_burst(struct device_node *dp)
+static u8 __devinit qec_get_burst(struct device_node *dp)
 {
 	u8 bsizes, bsizes_more;
 
@@ -767,7 +767,7 @@ static u8 __init qec_get_burst(struct device_node *dp)
 	return bsizes;
 }
 
-static struct sunqec * __init get_qec(struct sbus_dev *child_sdev)
+static struct sunqec * __devinit get_qec(struct sbus_dev *child_sdev)
 {
 	struct sbus_dev *qec_sdev = child_sdev->parent;
 	struct sunqec *qecp;
@@ -823,7 +823,7 @@ fail:
 	return NULL;
 }
 
-static int __init qec_ether_init(struct sbus_dev *sdev)
+static int __devinit qec_ether_init(struct sbus_dev *sdev)
 {
 	static unsigned version_printed;
 	struct net_device *dev;

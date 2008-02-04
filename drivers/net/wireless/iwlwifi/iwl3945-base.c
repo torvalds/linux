@@ -6330,6 +6330,11 @@ static int __iwl3945_up(struct iwl3945_priv *priv)
 		return -ENODEV;
 	}
 
+	if (!priv->ucode_data_backup.v_addr || !priv->ucode_data.v_addr) {
+		IWL_ERROR("ucode not available for device bringup\n");
+		return -EIO;
+	}
+
 	/* If platform's RF_KILL switch is NOT set to KILL */
 	if (iwl3945_read32(priv, CSR_GP_CNTRL) &
 				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW)
@@ -6340,11 +6345,6 @@ static int __iwl3945_up(struct iwl3945_priv *priv)
 			IWL_WARNING("Radio disabled by HW RF Kill switch\n");
 			return -ENODEV;
 		}
-	}
-
-	if (!priv->ucode_data_backup.v_addr || !priv->ucode_data.v_addr) {
-		IWL_ERROR("ucode not available for device bringup\n");
-		return -EIO;
 	}
 
 	iwl3945_write32(priv, CSR_INT, 0xFFFFFFFF);

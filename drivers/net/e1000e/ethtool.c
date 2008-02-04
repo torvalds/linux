@@ -690,8 +690,8 @@ err_setup:
 	return err;
 }
 
-bool reg_pattern_test_array(struct e1000_adapter *adapter, u64 *data,
-			    int reg, int offset, u32 mask, u32 write)
+static bool reg_pattern_test_array(struct e1000_adapter *adapter, u64 *data,
+				   int reg, int offset, u32 mask, u32 write)
 {
 	int i;
 	u32 read;
@@ -1632,7 +1632,8 @@ static void e1000_get_wol(struct net_device *netdev,
 		return;
 
 	wol->supported = WAKE_UCAST | WAKE_MCAST |
-			 WAKE_BCAST | WAKE_MAGIC;
+	                 WAKE_BCAST | WAKE_MAGIC |
+	                 WAKE_PHY | WAKE_ARP;
 
 	/* apply any specific unsupported masks here */
 	if (adapter->flags & FLAG_NO_WAKE_UCAST) {
@@ -1651,6 +1652,10 @@ static void e1000_get_wol(struct net_device *netdev,
 		wol->wolopts |= WAKE_BCAST;
 	if (adapter->wol & E1000_WUFC_MAG)
 		wol->wolopts |= WAKE_MAGIC;
+	if (adapter->wol & E1000_WUFC_LNKC)
+		wol->wolopts |= WAKE_PHY;
+	if (adapter->wol & E1000_WUFC_ARP)
+		wol->wolopts |= WAKE_ARP;
 }
 
 static int e1000_set_wol(struct net_device *netdev,
@@ -1658,7 +1663,7 @@ static int e1000_set_wol(struct net_device *netdev,
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 
-	if (wol->wolopts & (WAKE_PHY | WAKE_ARP | WAKE_MAGICSECURE))
+	if (wol->wolopts & WAKE_MAGICSECURE)
 		return -EOPNOTSUPP;
 
 	if (!(adapter->flags & FLAG_HAS_WOL))
@@ -1675,6 +1680,10 @@ static int e1000_set_wol(struct net_device *netdev,
 		adapter->wol |= E1000_WUFC_BC;
 	if (wol->wolopts & WAKE_MAGIC)
 		adapter->wol |= E1000_WUFC_MAG;
+	if (wol->wolopts & WAKE_PHY)
+		adapter->wol |= E1000_WUFC_LNKC;
+	if (wol->wolopts & WAKE_ARP)
+		adapter->wol |= E1000_WUFC_ARP;
 
 	return 0;
 }

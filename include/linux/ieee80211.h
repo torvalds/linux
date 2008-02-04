@@ -287,6 +287,12 @@ struct ieee80211_ht_addt_info {
 #define IEEE80211_HT_IE_NON_GF_STA_PRSNT	0x0004
 #define IEEE80211_HT_IE_NON_HT_STA_PRSNT	0x0010
 
+/* MIMO Power Save Modes */
+#define WLAN_HT_CAP_MIMO_PS_STATIC         0
+#define WLAN_HT_CAP_MIMO_PS_DYNAMIC        1
+#define WLAN_HT_CAP_MIMO_PS_INVALID        2
+#define WLAN_HT_CAP_MIMO_PS_DISABLED       3
+
 /* Authentication algorithms */
 #define WLAN_AUTH_OPEN 0
 #define WLAN_AUTH_SHARED_KEY 1

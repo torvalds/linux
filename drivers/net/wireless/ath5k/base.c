@@ -153,7 +153,7 @@ static int		ath5k_pci_resume(struct pci_dev *pdev);
 #define ath5k_pci_resume NULL
 #endif /* CONFIG_PM */
 
-static struct pci_driver ath5k_pci_drv_id = {
+static struct pci_driver ath5k_pci_driver = {
 	.name		= "ath5k_pci",
 	.id_table	= ath5k_pci_id_table,
 	.probe		= ath5k_pci_probe,
@@ -329,7 +329,7 @@ init_ath5k_pci(void)
 
 	ath5k_debug_init();
 
-	ret = pci_register_driver(&ath5k_pci_drv_id);
+	ret = pci_register_driver(&ath5k_pci_driver);
 	if (ret) {
 		printk(KERN_ERR "ath5k_pci: can't register pci driver\n");
 		return ret;
@@ -341,7 +341,7 @@ init_ath5k_pci(void)
 static void __exit
 exit_ath5k_pci(void)
 {
-	pci_unregister_driver(&ath5k_pci_drv_id);
+	pci_unregister_driver(&ath5k_pci_driver);
 
 	ath5k_debug_finish();
 }

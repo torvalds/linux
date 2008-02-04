@@ -22,9 +22,9 @@
 #include <net/inet6_hashtables.h>
 #include <net/ip.h>
 
-void __inet6_hash(struct inet_hashinfo *hashinfo,
-				struct sock *sk)
+void __inet6_hash(struct sock *sk)
 {
+	struct inet_hashinfo *hashinfo = sk->sk_prot->hashinfo;
 	struct hlist_head *list;
 	rwlock_t *lock;
 

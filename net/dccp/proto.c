@@ -78,7 +78,7 @@ void dccp_set_state(struct sock *sk, const int state)
 		sk->sk_prot->unhash(sk);
 		if (inet_csk(sk)->icsk_bind_hash != NULL &&
 		    !(sk->sk_userlocks & SOCK_BINDPORT_LOCK))
-			inet_put_port(&dccp_hashinfo, sk);
+			inet_put_port(sk);
 		/* fall through */
 	default:
 		if (oldstate == DCCP_OPEN)
@@ -173,20 +173,6 @@ const char *dccp_state_name(const int state)
 
 EXPORT_SYMBOL_GPL(dccp_state_name);
 
-void dccp_hash(struct sock *sk)
-{
-	inet_hash(&dccp_hashinfo, sk);
-}
-
-EXPORT_SYMBOL_GPL(dccp_hash);
-
-void dccp_unhash(struct sock *sk)
-{
-	inet_unhash(&dccp_hashinfo, sk);
-}
-
-EXPORT_SYMBOL_GPL(dccp_unhash);
-
 int dccp_init_sock(struct sock *sk, const __u8 ctl_sock_initialized)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
@@ -268,7 +254,7 @@ int dccp_destroy_sock(struct sock *sk)
 
 	/* Clean up a referenced DCCP bind bucket. */
 	if (inet_csk(sk)->icsk_bind_hash != NULL)
-		inet_put_port(&dccp_hashinfo, sk);
+		inet_put_port(sk);
 
 	kfree(dp->dccps_service_list);
 	dp->dccps_service_list = NULL;

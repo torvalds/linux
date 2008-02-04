@@ -1344,17 +1344,17 @@ static int __init ieee80211_init(void)
 
 	ret = rc80211_simple_init();
 	if (ret)
-		goto fail;
+		goto out;
 
 	ret = rc80211_pid_init();
 	if (ret)
-		goto fail_simple;
+		goto out_cleanup_simple;
 
 	ret = ieee80211_wme_register();
 	if (ret) {
 		printk(KERN_DEBUG "ieee80211_init: failed to "
 		       "initialize WME (err=%d)\n", ret);
-		goto fail_pid;
+		goto out_cleanup_pid;
 	}
 
 	ieee80211_debugfs_netdev_init();
@@ -1362,11 +1362,11 @@ static int __init ieee80211_init(void)
 
 	return 0;
 
- fail_pid:
-	rc80211_simple_exit();
- fail_simple:
+ out_cleanup_pid:
 	rc80211_pid_exit();
- fail:
+ out_cleanup_simple:
+	rc80211_simple_exit();
+ out:
 	return ret;
 }
 

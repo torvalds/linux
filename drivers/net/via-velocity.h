@@ -70,40 +70,27 @@
  * Bits in the RSR0 register
  */
 
-#define RSR_DETAG          0x0080
-#define RSR_SNTAG          0x0040
-#define RSR_RXER           0x0020
-#define RSR_RL             0x0010
-#define RSR_CE             0x0008
-#define RSR_FAE            0x0004
-#define RSR_CRC            0x0002
-#define RSR_VIDM           0x0001
+#define RSR_DETAG	cpu_to_le16(0x0080)
+#define RSR_SNTAG	cpu_to_le16(0x0040)
+#define RSR_RXER	cpu_to_le16(0x0020)
+#define RSR_RL		cpu_to_le16(0x0010)
+#define RSR_CE		cpu_to_le16(0x0008)
+#define RSR_FAE		cpu_to_le16(0x0004)
+#define RSR_CRC		cpu_to_le16(0x0002)
+#define RSR_VIDM	cpu_to_le16(0x0001)
 
 /*
  * Bits in the RSR1 register
  */
 
-#define RSR_RXOK           0x8000	// rx OK
-#define RSR_PFT            0x4000	// Perfect filtering address match
-#define RSR_MAR            0x2000	// MAC accept multicast address packet
-#define RSR_BAR            0x1000	// MAC accept broadcast address packet
-#define RSR_PHY            0x0800	// MAC accept physical address packet
-#define RSR_VTAG           0x0400	// 802.1p/1q tagging packet indicator
-#define RSR_STP            0x0200	// start of packet
-#define RSR_EDP            0x0100	// end of packet
-
-/*
- * Bits in the RSR1 register
- */
-
-#define RSR1_RXOK           0x80	// rx OK
-#define RSR1_PFT            0x40	// Perfect filtering address match
-#define RSR1_MAR            0x20	// MAC accept multicast address packet
-#define RSR1_BAR            0x10	// MAC accept broadcast address packet
-#define RSR1_PHY            0x08	// MAC accept physical address packet
-#define RSR1_VTAG           0x04	// 802.1p/1q tagging packet indicator
-#define RSR1_STP            0x02	// start of packet
-#define RSR1_EDP            0x01	// end of packet
+#define RSR_RXOK	cpu_to_le16(0x8000) // rx OK
+#define RSR_PFT		cpu_to_le16(0x4000) // Perfect filtering address match
+#define RSR_MAR		cpu_to_le16(0x2000) // MAC accept multicast address packet
+#define RSR_BAR		cpu_to_le16(0x1000) // MAC accept broadcast address packet
+#define RSR_PHY		cpu_to_le16(0x0800) // MAC accept physical address packet
+#define RSR_VTAG	cpu_to_le16(0x0400) // 802.1p/1q tagging packet indicator
+#define RSR_STP		cpu_to_le16(0x0200) // start of packet
+#define RSR_EDP		cpu_to_le16(0x0100) // end of packet
 
 /*
  * Bits in the CSM register
@@ -120,33 +107,21 @@
  * Bits in the TSR0 register
  */
 
-#define TSR0_ABT            0x0080	// Tx abort because of excessive collision
-#define TSR0_OWT            0x0040	// Jumbo frame Tx abort
-#define TSR0_OWC            0x0020	// Out of window collision
-#define TSR0_COLS           0x0010	// experience collision in this transmit event
-#define TSR0_NCR3           0x0008	// collision retry counter[3]
-#define TSR0_NCR2           0x0004	// collision retry counter[2]
-#define TSR0_NCR1           0x0002	// collision retry counter[1]
-#define TSR0_NCR0           0x0001	// collision retry counter[0]
-#define TSR0_TERR           0x8000	//
-#define TSR0_FDX            0x4000	// current transaction is serviced by full duplex mode
-#define TSR0_GMII           0x2000	// current transaction is serviced by GMII mode
-#define TSR0_LNKFL          0x1000	// packet serviced during link down
-#define TSR0_SHDN           0x0400	// shutdown case
-#define TSR0_CRS            0x0200	// carrier sense lost
-#define TSR0_CDH            0x0100	// AQE test fail (CD heartbeat)
-
-/*
- * Bits in the TSR1 register
- */
-
-#define TSR1_TERR           0x80	//
-#define TSR1_FDX            0x40	// current transaction is serviced by full duplex mode
-#define TSR1_GMII           0x20	// current transaction is serviced by GMII mode
-#define TSR1_LNKFL          0x10	// packet serviced during link down
-#define TSR1_SHDN           0x04	// shutdown case
-#define TSR1_CRS            0x02	// carrier sense lost
-#define TSR1_CDH            0x01	// AQE test fail (CD heartbeat)
+#define TSR0_ABT	cpu_to_le16(0x0080) // Tx abort because of excessive collision
+#define TSR0_OWT	cpu_to_le16(0x0040) // Jumbo frame Tx abort
+#define TSR0_OWC	cpu_to_le16(0x0020) // Out of window collision
+#define TSR0_COLS	cpu_to_le16(0x0010) // experience collision in this transmit event
+#define TSR0_NCR3	cpu_to_le16(0x0008) // collision retry counter[3]
+#define TSR0_NCR2	cpu_to_le16(0x0004) // collision retry counter[2]
+#define TSR0_NCR1	cpu_to_le16(0x0002) // collision retry counter[1]
+#define TSR0_NCR0	cpu_to_le16(0x0001) // collision retry counter[0]
+#define TSR0_TERR	cpu_to_le16(0x8000) //
+#define TSR0_FDX	cpu_to_le16(0x4000) // current transaction is serviced by full duplex mode
+#define TSR0_GMII	cpu_to_le16(0x2000) // current transaction is serviced by GMII mode
+#define TSR0_LNKFL	cpu_to_le16(0x1000) // packet serviced during link down
+#define TSR0_SHDN	cpu_to_le16(0x0400) // shutdown case
+#define TSR0_CRS	cpu_to_le16(0x0200) // carrier sense lost
+#define TSR0_CDH	cpu_to_le16(0x0100) // AQE test fail (CD heartbeat)
 
 //
 // Bits in the TCR0 register
@@ -197,25 +172,26 @@
  */
 
 struct rdesc0 {
-	u16 RSR;		/* Receive status */
-	u16 len:14;		/* Received packet length */
-	u16 reserved:1;
-	u16 owner:1;		/* Who owns this buffer ? */
+	__le16 RSR;		/* Receive status */
+	__le16 len;		/* bits 0--13; bit 15 - owner */
 };
 
 struct rdesc1 {
-	u16 PQTAG;
+	__le16 PQTAG;
 	u8 CSM;
 	u8 IPKT;
+};
+
+enum {
+	RX_INTEN = __constant_cpu_to_le16(0x8000)
 };
 
 struct rx_desc {
 	struct rdesc0 rdesc0;
 	struct rdesc1 rdesc1;
-	u32 pa_low;		/* Low 32 bit PCI address */
-	u16 pa_high;		/* Next 16 bit PCI address (48 total) */
-	u16 len:15;		/* Frame size */
-	u16 inten:1;		/* Enable interrupt */
+	__le32 pa_low;		/* Low 32 bit PCI address */
+	__le16 pa_high;		/* Next 16 bit PCI address (48 total) */
+	__le16 size;		/* bits 0--14 - frame size, bit 15 - enable int. */
 } __attribute__ ((__packed__));
 
 /*
@@ -223,32 +199,24 @@ struct rx_desc {
  */
 
 struct tdesc0 {
-	u16 TSR;		/* Transmit status register */
-	u16 pktsize:14;		/* Size of frame */
-	u16 reserved:1;
-	u16 owner:1;		/* Who owns the buffer */
+	__le16 TSR;		/* Transmit status register */
+	__le16 len;		/* bits 0--13 - size of frame, bit 15 - owner */
 };
 
-struct pqinf {			/* Priority queue info */
-	u16 VID:12;
-	u16 CFI:1;
-	u16 priority:3;
+struct tdesc1 {
+	__le16 vlan;
+	u8 TCR;
+	u8 cmd;			/* bits 0--1 - TCPLS, bits 4--7 - CMDZ */
 } __attribute__ ((__packed__));
 
-struct tdesc1 {
-	struct pqinf pqinf;
-	u8 TCR;
-	u8 TCPLS:2;
-	u8 reserved:2;
-	u8 CMDZ:4;
-} __attribute__ ((__packed__));
+enum {
+	TD_QUEUE = __constant_cpu_to_le16(0x8000)
+};
 
 struct td_buf {
-	u32 pa_low;
-	u16 pa_high;
-	u16 bufsize:14;
-	u16 reserved:1;
-	u16 queue:1;
+	__le32 pa_low;
+	__le16 pa_high;
+	__le16 size;		/* bits 0--13 - size, bit 15 - queue */
 } __attribute__ ((__packed__));
 
 struct tx_desc {
@@ -276,7 +244,7 @@ struct velocity_td_info {
 
 enum  velocity_owner {
 	OWNED_BY_HOST = 0,
-	OWNED_BY_NIC = 1
+	OWNED_BY_NIC = __constant_cpu_to_le16(0x8000)
 };
 
 
@@ -1012,45 +980,45 @@ struct mac_regs {
 	volatile u8 RCR;
 	volatile u8 TCR;
 
-	volatile u32 CR0Set;		/* 0x08 */
-	volatile u32 CR0Clr;		/* 0x0C */
+	volatile __le32 CR0Set;		/* 0x08 */
+	volatile __le32 CR0Clr;		/* 0x0C */
 
 	volatile u8 MARCAM[8];		/* 0x10 */
 
-	volatile u32 DecBaseHi;		/* 0x18 */
-	volatile u16 DbfBaseHi;		/* 0x1C */
-	volatile u16 reserved_1E;
+	volatile __le32 DecBaseHi;	/* 0x18 */
+	volatile __le16 DbfBaseHi;	/* 0x1C */
+	volatile __le16 reserved_1E;
 
-	volatile u16 ISRCTL;		/* 0x20 */
+	volatile __le16 ISRCTL;		/* 0x20 */
 	volatile u8 TXESR;
 	volatile u8 RXESR;
 
-	volatile u32 ISR;		/* 0x24 */
-	volatile u32 IMR;
+	volatile __le32 ISR;		/* 0x24 */
+	volatile __le32 IMR;
 
-	volatile u32 TDStatusPort;	/* 0x2C */
+	volatile __le32 TDStatusPort;	/* 0x2C */
 
-	volatile u16 TDCSRSet;		/* 0x30 */
+	volatile __le16 TDCSRSet;	/* 0x30 */
 	volatile u8 RDCSRSet;
 	volatile u8 reserved_33;
-	volatile u16 TDCSRClr;
+	volatile __le16 TDCSRClr;
 	volatile u8 RDCSRClr;
 	volatile u8 reserved_37;
 
-	volatile u32 RDBaseLo;		/* 0x38 */
-	volatile u16 RDIdx;		/* 0x3C */
-	volatile u16 reserved_3E;
+	volatile __le32 RDBaseLo;	/* 0x38 */
+	volatile __le16 RDIdx;		/* 0x3C */
+	volatile __le16 reserved_3E;
 
-	volatile u32 TDBaseLo[4];	/* 0x40 */
+	volatile __le32 TDBaseLo[4];	/* 0x40 */
 
-	volatile u16 RDCSize;		/* 0x50 */
-	volatile u16 TDCSize;		/* 0x52 */
-	volatile u16 TDIdx[4];		/* 0x54 */
-	volatile u16 tx_pause_timer;	/* 0x5C */
-	volatile u16 RBRDU;		/* 0x5E */
+	volatile __le16 RDCSize;	/* 0x50 */
+	volatile __le16 TDCSize;	/* 0x52 */
+	volatile __le16 TDIdx[4];	/* 0x54 */
+	volatile __le16 tx_pause_timer;	/* 0x5C */
+	volatile __le16 RBRDU;		/* 0x5E */
 
-	volatile u32 FIFOTest0;		/* 0x60 */
-	volatile u32 FIFOTest1;		/* 0x64 */
+	volatile __le32 FIFOTest0;	/* 0x60 */
+	volatile __le32 FIFOTest1;	/* 0x64 */
 
 	volatile u8 CAMADDR;		/* 0x68 */
 	volatile u8 CAMCR;		/* 0x69 */
@@ -1063,18 +1031,18 @@ struct mac_regs {
 	volatile u8 PHYSR1;
 	volatile u8 MIICR;
 	volatile u8 MIIADR;
-	volatile u16 MIIDATA;
+	volatile __le16 MIIDATA;
 
-	volatile u16 SoftTimer0;	/* 0x74 */
-	volatile u16 SoftTimer1;
+	volatile __le16 SoftTimer0;	/* 0x74 */
+	volatile __le16 SoftTimer1;
 
 	volatile u8 CFGA;		/* 0x78 */
 	volatile u8 CFGB;
 	volatile u8 CFGC;
 	volatile u8 CFGD;
 
-	volatile u16 DCFG;		/* 0x7C */
-	volatile u16 MCFG;
+	volatile __le16 DCFG;		/* 0x7C */
+	volatile __le16 MCFG;
 
 	volatile u8 TBIST;		/* 0x80 */
 	volatile u8 RBIST;
@@ -1086,9 +1054,9 @@ struct mac_regs {
 	volatile u8 rev_id;
 	volatile u8 PORSTS;
 
-	volatile u32 MIBData;		/* 0x88 */
+	volatile __le32 MIBData;	/* 0x88 */
 
-	volatile u16 EEWrData;
+	volatile __le16 EEWrData;
 
 	volatile u8 reserved_8E;
 	volatile u8 BPMDWr;
@@ -1098,7 +1066,7 @@ struct mac_regs {
 	volatile u8 EECHKSUM;		/* 0x92 */
 	volatile u8 EECSR;
 
-	volatile u16 EERdData;		/* 0x94 */
+	volatile __le16 EERdData;	/* 0x94 */
 	volatile u8 EADDR;
 	volatile u8 EMBCMD;
 
@@ -1112,22 +1080,22 @@ struct mac_regs {
 	volatile u8 DEBUG;
 	volatile u8 CHIPGCR;
 
-	volatile u16 WOLCRSet;		/* 0xA0 */
+	volatile __le16 WOLCRSet;	/* 0xA0 */
 	volatile u8 PWCFGSet;
 	volatile u8 WOLCFGSet;
 
-	volatile u16 WOLCRClr;		/* 0xA4 */
+	volatile __le16 WOLCRClr;	/* 0xA4 */
 	volatile u8 PWCFGCLR;
 	volatile u8 WOLCFGClr;
 
-	volatile u16 WOLSRSet;		/* 0xA8 */
-	volatile u16 reserved_AA;
+	volatile __le16 WOLSRSet;	/* 0xA8 */
+	volatile __le16 reserved_AA;
 
-	volatile u16 WOLSRClr;		/* 0xAC */
-	volatile u16 reserved_AE;
+	volatile __le16 WOLSRClr;	/* 0xAC */
+	volatile __le16 reserved_AE;
 
-	volatile u16 PatternCRC[8];	/* 0xB0 */
-	volatile u32 ByteMask[4][4];	/* 0xC0 */
+	volatile __le16 PatternCRC[8];	/* 0xB0 */
+	volatile __le32 ByteMask[4][4];	/* 0xC0 */
 } __attribute__ ((__packed__));
 
 
@@ -1238,12 +1206,12 @@ typedef u8 MCAM_ADDR[ETH_ALEN];
 struct arp_packet {
 	u8 dest_mac[ETH_ALEN];
 	u8 src_mac[ETH_ALEN];
-	u16 type;
-	u16 ar_hrd;
-	u16 ar_pro;
+	__be16 type;
+	__be16 ar_hrd;
+	__be16 ar_pro;
 	u8 ar_hln;
 	u8 ar_pln;
-	u16 ar_op;
+	__be16 ar_op;
 	u8 ar_sha[ETH_ALEN];
 	u8 ar_sip[4];
 	u8 ar_tha[ETH_ALEN];
@@ -1253,7 +1221,7 @@ struct arp_packet {
 struct _magic_packet {
 	u8 dest_mac[6];
 	u8 src_mac[6];
-	u16 type;
+	__be16 type;
 	u8 MAC[16][6];
 	u8 password[6];
 } __attribute__ ((__packed__));

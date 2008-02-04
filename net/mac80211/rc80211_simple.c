@@ -389,7 +389,7 @@ int __init rc80211_simple_init(void)
 	return ieee80211_rate_control_register(&mac80211_rcsimple);
 }
 
-void __exit rc80211_simple_exit(void)
+void rc80211_simple_exit(void)
 {
 	ieee80211_rate_control_unregister(&mac80211_rcsimple);
 }

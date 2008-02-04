@@ -88,7 +88,7 @@ struct mii_bus {
 
 	/* A lock to ensure that only one thing can read/write
 	 * the MDIO bus at a time */
-	spinlock_t mdio_lock;
+	struct mutex mdio_lock;
 
 	struct device *dev;
 
@@ -284,10 +284,11 @@ struct phy_device {
 
 	/* Interrupt and Polling infrastructure */
 	struct work_struct phy_queue;
+	struct work_struct state_queue;
 	struct timer_list phy_timer;
 	atomic_t irq_disable;
 
-	spinlock_t lock;
+	struct mutex lock;
 
 	struct net_device *attached_dev;
 

@@ -221,9 +221,9 @@ static inline int inet_sk_listen_hashfn(const struct sock *sk)
 }
 
 /* Caller must disable local BH processing. */
-static inline void __inet_inherit_port(struct inet_hashinfo *table,
-				       struct sock *sk, struct sock *child)
+static inline void __inet_inherit_port(struct sock *sk, struct sock *child)
 {
+	struct inet_hashinfo *table = sk->sk_prot->hashinfo;
 	const int bhash = inet_bhashfn(inet_sk(child)->num, table->bhash_size);
 	struct inet_bind_hashbucket *head = &table->bhash[bhash];
 	struct inet_bind_bucket *tb;
@@ -235,15 +235,14 @@ static inline void __inet_inherit_port(struct inet_hashinfo *table,
 	spin_unlock(&head->lock);
 }
 
-static inline void inet_inherit_port(struct inet_hashinfo *table,
-				     struct sock *sk, struct sock *child)
+static inline void inet_inherit_port(struct sock *sk, struct sock *child)
 {
 	local_bh_disable();
-	__inet_inherit_port(table, sk, child);
+	__inet_inherit_port(sk, child);
 	local_bh_enable();
 }
 
-extern void inet_put_port(struct inet_hashinfo *table, struct sock *sk);
+extern void inet_put_port(struct sock *sk);
 
 extern void inet_listen_wlock(struct inet_hashinfo *hashinfo);
 
@@ -266,41 +265,9 @@ static inline void inet_listen_unlock(struct inet_hashinfo *hashinfo)
 		wake_up(&hashinfo->lhash_wait);
 }
 
-extern void __inet_hash(struct inet_hashinfo *hashinfo, struct sock *sk);
-extern void __inet_hash_nolisten(struct inet_hashinfo *hinfo, struct sock *sk);
-
-static inline void inet_hash(struct inet_hashinfo *hashinfo, struct sock *sk)
-{
-	if (sk->sk_state != TCP_CLOSE) {
-		local_bh_disable();
-		__inet_hash(hashinfo, sk);
-		local_bh_enable();
-	}
-}
-
-static inline void inet_unhash(struct inet_hashinfo *hashinfo, struct sock *sk)
-{
-	rwlock_t *lock;
-
-	if (sk_unhashed(sk))
-		goto out;
-
-	if (sk->sk_state == TCP_LISTEN) {
-		local_bh_disable();
-		inet_listen_wlock(hashinfo);
-		lock = &hashinfo->lhash_lock;
-	} else {
-		lock = inet_ehash_lockp(hashinfo, sk->sk_hash);
-		write_lock_bh(lock);
-	}
-
-	if (__sk_del_node_init(sk))
-		sock_prot_inuse_add(sk->sk_prot, -1);
-	write_unlock_bh(lock);
-out:
-	if (sk->sk_state == TCP_LISTEN)
-		wake_up(&hashinfo->lhash_wait);
-}
+extern void __inet_hash_nolisten(struct sock *sk);
+extern void inet_hash(struct sock *sk);
+extern void inet_unhash(struct sock *sk);
 
 extern struct sock *__inet_lookup_listener(struct net *net,
 					   struct inet_hashinfo *hashinfo,
@@ -425,7 +392,7 @@ extern int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 		struct sock *sk,
 		int (*check_established)(struct inet_timewait_death_row *,
 			struct sock *, __u16, struct inet_timewait_sock **),
-		void (*hash)(struct inet_hashinfo *, struct sock *));
+			       void (*hash)(struct sock *sk));
 extern int inet_hash_connect(struct inet_timewait_death_row *death_row,
 			     struct sock *sk);
 #endif /* _INET_HASHTABLES_H */

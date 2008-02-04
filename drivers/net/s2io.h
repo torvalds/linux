@@ -809,7 +809,7 @@ struct lro {
 	int		in_use;
 	__be16		window;
 	u32		cur_tsval;
-	u32		cur_tsecr;
+	__be32		cur_tsecr;
 	u8		saw_ts;
 };
 

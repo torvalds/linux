@@ -40,7 +40,7 @@ static int ehea_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		return ret;
 
 	if (netif_carrier_ok(dev)) {
-		switch(port->port_speed) {
+		switch (port->port_speed) {
 		case EHEA_SPEED_10M: cmd->speed = SPEED_10; break;
 		case EHEA_SPEED_100M: cmd->speed = SPEED_100; break;
 		case EHEA_SPEED_1G: cmd->speed = SPEED_1000; break;
@@ -78,7 +78,7 @@ static int ehea_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		goto doit;
 	}
 
-	switch(cmd->speed) {
+	switch (cmd->speed) {
 	case SPEED_10:
 		if (cmd->duplex == DUPLEX_FULL)
 			sp = H_SPEED_10M_F;

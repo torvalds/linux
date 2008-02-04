@@ -66,8 +66,9 @@ void inet_bind_hash(struct sock *sk, struct inet_bind_bucket *tb,
 /*
  * Get rid of any references to a local port held by the given sock.
  */
-static void __inet_put_port(struct inet_hashinfo *hashinfo, struct sock *sk)
+static void __inet_put_port(struct sock *sk)
 {
+	struct inet_hashinfo *hashinfo = sk->sk_prot->hashinfo;
 	const int bhash = inet_bhashfn(inet_sk(sk)->num, hashinfo->bhash_size);
 	struct inet_bind_hashbucket *head = &hashinfo->bhash[bhash];
 	struct inet_bind_bucket *tb;
@@ -81,10 +82,10 @@ static void __inet_put_port(struct inet_hashinfo *hashinfo, struct sock *sk)
 	spin_unlock(&head->lock);
 }
 
-void inet_put_port(struct inet_hashinfo *hashinfo, struct sock *sk)
+void inet_put_port(struct sock *sk)
 {
 	local_bh_disable();
-	__inet_put_port(hashinfo, sk);
+	__inet_put_port(sk);
 	local_bh_enable();
 }
 
@@ -317,8 +318,9 @@ static inline u32 inet_sk_port_offset(const struct sock *sk)
 					  inet->dport);
 }
 
-void __inet_hash_nolisten(struct inet_hashinfo *hashinfo, struct sock *sk)
+void __inet_hash_nolisten(struct sock *sk)
 {
+	struct inet_hashinfo *hashinfo = sk->sk_prot->hashinfo;
 	struct hlist_head *list;
 	rwlock_t *lock;
 	struct inet_ehash_bucket *head;
@@ -337,13 +339,14 @@ void __inet_hash_nolisten(struct inet_hashinfo *hashinfo, struct sock *sk)
 }
 EXPORT_SYMBOL_GPL(__inet_hash_nolisten);
 
-void __inet_hash(struct inet_hashinfo *hashinfo, struct sock *sk)
+static void __inet_hash(struct sock *sk)
 {
+	struct inet_hashinfo *hashinfo = sk->sk_prot->hashinfo;
 	struct hlist_head *list;
 	rwlock_t *lock;
 
 	if (sk->sk_state != TCP_LISTEN) {
-		__inet_hash_nolisten(hashinfo, sk);
+		__inet_hash_nolisten(sk);
 		return;
 	}
 
@@ -357,13 +360,48 @@ void __inet_hash(struct inet_hashinfo *hashinfo, struct sock *sk)
 	write_unlock(lock);
 	wake_up(&hashinfo->lhash_wait);
 }
-EXPORT_SYMBOL_GPL(__inet_hash);
+
+void inet_hash(struct sock *sk)
+{
+	if (sk->sk_state != TCP_CLOSE) {
+		local_bh_disable();
+		__inet_hash(sk);
+		local_bh_enable();
+	}
+}
+EXPORT_SYMBOL_GPL(inet_hash);
+
+void inet_unhash(struct sock *sk)
+{
+	rwlock_t *lock;
+	struct inet_hashinfo *hashinfo = sk->sk_prot->hashinfo;
+
+	if (sk_unhashed(sk))
+		goto out;
+
+	if (sk->sk_state == TCP_LISTEN) {
+		local_bh_disable();
+		inet_listen_wlock(hashinfo);
+		lock = &hashinfo->lhash_lock;
+	} else {
+		lock = inet_ehash_lockp(hashinfo, sk->sk_hash);
+		write_lock_bh(lock);
+	}
+
+	if (__sk_del_node_init(sk))
+		sock_prot_inuse_add(sk->sk_prot, -1);
+	write_unlock_bh(lock);
+out:
+	if (sk->sk_state == TCP_LISTEN)
+		wake_up(&hashinfo->lhash_wait);
+}
+EXPORT_SYMBOL_GPL(inet_unhash);
 
 int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 		struct sock *sk,
 		int (*check_established)(struct inet_timewait_death_row *,
 			struct sock *, __u16, struct inet_timewait_sock **),
-		void (*hash)(struct inet_hashinfo *, struct sock *))
+		void (*hash)(struct sock *sk))
 {
 	struct inet_hashinfo *hinfo = death_row->hashinfo;
 	const unsigned short snum = inet_sk(sk)->num;
@@ -427,7 +465,7 @@ ok:
 		inet_bind_hash(sk, tb, port);
 		if (sk_unhashed(sk)) {
 			inet_sk(sk)->sport = htons(port);
-			hash(hinfo, sk);
+			hash(sk);
 		}
 		spin_unlock(&head->lock);
 
@@ -444,7 +482,7 @@ ok:
 	tb  = inet_csk(sk)->icsk_bind_hash;
 	spin_lock_bh(&head->lock);
 	if (sk_head(&tb->owners) == sk && !sk->sk_bind_node.next) {
-		hash(hinfo, sk);
+		hash(sk);
 		spin_unlock_bh(&head->lock);
 		return 0;
 	} else {

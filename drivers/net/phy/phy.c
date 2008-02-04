@@ -26,7 +26,6 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-#include <linux/spinlock.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/mii.h>
@@ -72,9 +71,11 @@ int phy_read(struct phy_device *phydev, u16 regnum)
 	int retval;
 	struct mii_bus *bus = phydev->bus;
 
-	spin_lock_bh(&bus->mdio_lock);
+	BUG_ON(in_interrupt());
+
+	mutex_lock(&bus->mdio_lock);
 	retval = bus->read(bus, phydev->addr, regnum);
-	spin_unlock_bh(&bus->mdio_lock);
+	mutex_unlock(&bus->mdio_lock);
 
 	return retval;
 }
@@ -95,9 +96,11 @@ int phy_write(struct phy_device *phydev, u16 regnum, u16 val)
 	int err;
 	struct mii_bus *bus = phydev->bus;
 
-	spin_lock_bh(&bus->mdio_lock);
+	BUG_ON(in_interrupt());
+
+	mutex_lock(&bus->mdio_lock);
 	err = bus->write(bus, phydev->addr, regnum, val);
-	spin_unlock_bh(&bus->mdio_lock);
+	mutex_unlock(&bus->mdio_lock);
 
 	return err;
 }
@@ -428,7 +431,7 @@ int phy_start_aneg(struct phy_device *phydev)
 {
 	int err;
 
-	spin_lock_bh(&phydev->lock);
+	mutex_lock(&phydev->lock);
 
 	if (AUTONEG_DISABLE == phydev->autoneg)
 		phy_sanitize_settings(phydev);
@@ -449,13 +452,14 @@ int phy_start_aneg(struct phy_device *phydev)
 	}
 
 out_unlock:
-	spin_unlock_bh(&phydev->lock);
+	mutex_unlock(&phydev->lock);
 	return err;
 }
 EXPORT_SYMBOL(phy_start_aneg);
 
 
 static void phy_change(struct work_struct *work);
+static void phy_state_machine(struct work_struct *work);
 static void phy_timer(unsigned long data);
 
 /**
@@ -476,6 +480,7 @@ void phy_start_machine(struct phy_device *phydev,
 {
 	phydev->adjust_state = handler;
 
+	INIT_WORK(&phydev->state_queue, phy_state_machine);
 	init_timer(&phydev->phy_timer);
 	phydev->phy_timer.function = &phy_timer;
 	phydev->phy_timer.data = (unsigned long) phydev;
@@ -493,11 +498,12 @@ void phy_start_machine(struct phy_device *phydev,
 void phy_stop_machine(struct phy_device *phydev)
 {
 	del_timer_sync(&phydev->phy_timer);
+	cancel_work_sync(&phydev->state_queue);
 
-	spin_lock_bh(&phydev->lock);
+	mutex_lock(&phydev->lock);
 	if (phydev->state > PHY_UP)
 		phydev->state = PHY_UP;
-	spin_unlock_bh(&phydev->lock);
+	mutex_unlock(&phydev->lock);
 
 	phydev->adjust_state = NULL;
 }
@@ -541,9 +547,9 @@ static void phy_force_reduction(struct phy_device *phydev)
  */
 void phy_error(struct phy_device *phydev)
 {
-	spin_lock_bh(&phydev->lock);
+	mutex_lock(&phydev->lock);
 	phydev->state = PHY_HALTED;
-	spin_unlock_bh(&phydev->lock);
+	mutex_unlock(&phydev->lock);
 }
 
 /**
@@ -705,10 +711,10 @@ static void phy_change(struct work_struct *work)
 	if (err)
 		goto phy_err;
 
-	spin_lock_bh(&phydev->lock);
+	mutex_lock(&phydev->lock);
 	if ((PHY_RUNNING == phydev->state) || (PHY_NOLINK == phydev->state))
 		phydev->state = PHY_CHANGELINK;
-	spin_unlock_bh(&phydev->lock);
+	mutex_unlock(&phydev->lock);
 
 	atomic_dec(&phydev->irq_disable);
 	enable_irq(phydev->irq);
@@ -735,7 +741,7 @@ phy_err:
  */
 void phy_stop(struct phy_device *phydev)
 {
-	spin_lock_bh(&phydev->lock);
+	mutex_lock(&phydev->lock);
 
 	if (PHY_HALTED == phydev->state)
 		goto out_unlock;
@@ -751,7 +757,7 @@ void phy_stop(struct phy_device *phydev)
 	phydev->state = PHY_HALTED;
 
 out_unlock:
-	spin_unlock_bh(&phydev->lock);
+	mutex_unlock(&phydev->lock);
 
 	/*
 	 * Cannot call flush_scheduled_work() here as desired because
@@ -773,7 +779,7 @@ out_unlock:
  */
 void phy_start(struct phy_device *phydev)
 {
-	spin_lock_bh(&phydev->lock);
+	mutex_lock(&phydev->lock);
 
 	switch (phydev->state) {
 		case PHY_STARTING:
@@ -787,19 +793,26 @@ void phy_start(struct phy_device *phydev)
 		default:
 			break;
 	}
-	spin_unlock_bh(&phydev->lock);
+	mutex_unlock(&phydev->lock);
 }
 EXPORT_SYMBOL(phy_stop);
 EXPORT_SYMBOL(phy_start);
 
-/* PHY timer which handles the state machine */
-static void phy_timer(unsigned long data)
+/**
+ * phy_state_machine - Handle the state machine
+ * @work: work_struct that describes the work to be done
+ *
+ * Description: Scheduled by the state_queue workqueue each time
+ *   phy_timer is triggered.
+ */
+static void phy_state_machine(struct work_struct *work)
 {
-	struct phy_device *phydev = (struct phy_device *)data;
+	struct phy_device *phydev =
+			container_of(work, struct phy_device, state_queue);
 	int needs_aneg = 0;
 	int err = 0;
 
-	spin_lock_bh(&phydev->lock);
+	mutex_lock(&phydev->lock);
 
 	if (phydev->adjust_state)
 		phydev->adjust_state(phydev->attached_dev);
@@ -965,7 +978,7 @@ static void phy_timer(unsigned long data)
 			break;
 	}
 
-	spin_unlock_bh(&phydev->lock);
+	mutex_unlock(&phydev->lock);
 
 	if (needs_aneg)
 		err = phy_start_aneg(phydev);
@@ -976,3 +989,14 @@ static void phy_timer(unsigned long data)
 	mod_timer(&phydev->phy_timer, jiffies + PHY_STATE_TIME * HZ);
 }
 
+/* PHY timer which schedules the state machine work */
+static void phy_timer(unsigned long data)
+{
+	struct phy_device *phydev = (struct phy_device *)data;
+
+	/*
+	 * PHY I/O operations can potentially sleep so we ensure that
+	 * it's done from a process context
+	 */
+	schedule_work(&phydev->state_queue);
+}
