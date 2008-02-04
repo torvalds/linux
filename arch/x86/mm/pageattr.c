@@ -423,8 +423,8 @@ out_unlock:
 
 static int __change_page_attr(unsigned long address, struct cpa_data *cpa)
 {
+	int level, do_split, err;
 	struct page *kpte_page;
-	int level, do_split;
 	pte_t *kpte;
 
 repeat:
@@ -476,26 +476,24 @@ repeat:
 	 * and just change the pte:
 	 */
 	do_split = try_preserve_large_page(kpte, address, cpa);
-	if (do_split < 0)
-		return do_split;
-
 	/*
 	 * When the range fits into the existing large page,
 	 * return. cp->numpages and cpa->tlbflush have been updated in
 	 * try_large_page:
 	 */
-	if (do_split == 0)
-		return 0;
+	if (do_split <= 0)
+		return do_split;
 
 	/*
 	 * We have to split the large page:
 	 */
-	do_split = split_large_page(kpte, address);
-	if (do_split)
-		return do_split;
-	cpa->flushtlb = 1;
+	err = split_large_page(kpte, address);
+	if (!err) {
+		cpa->flushtlb = 1;
+		goto repeat;
+	}
 
-	goto repeat;
+	return err;
 }
 
 /**
