@@ -356,10 +356,8 @@ static int split_large_page(pte_t *kpte, unsigned long address)
 	 * up for us already:
 	 */
 	tmp = lookup_address(address, &level);
-	if (tmp != kpte) {
-		WARN_ON_ONCE(1);
+	if (tmp != kpte)
 		goto out_unlock;
-	}
 
 	address = __pa(address);
 	addr = address & PMD_PAGE_MASK;
