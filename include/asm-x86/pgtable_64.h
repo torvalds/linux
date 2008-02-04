@@ -21,7 +21,6 @@ extern pgd_t init_level4_pgt[];
 #define swapper_pg_dir init_level4_pgt
 
 extern void paging_init(void);
-extern void clear_kernel_mapping(unsigned long addr, unsigned long size);
 
 #endif /* !__ASSEMBLY__ */
 

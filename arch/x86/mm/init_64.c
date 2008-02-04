@@ -435,49 +435,6 @@ void __init paging_init(void)
 #endif
 
 /*
- * Unmap a kernel mapping if it exists. This is useful to avoid
- * prefetches from the CPU leading to inconsistent cache lines.
- * address and size must be aligned to 2MB boundaries.
- * Does nothing when the mapping doesn't exist.
- */
-void __init clear_kernel_mapping(unsigned long address, unsigned long size)
-{
-	unsigned long end = address + size;
-
-	BUG_ON(address & ~PMD_PAGE_MASK);
-	BUG_ON(size & ~PMD_PAGE_MASK);
-
-	for (; address < end; address += PMD_PAGE_SIZE) {
-		pgd_t *pgd = pgd_offset_k(address);
-		pud_t *pud;
-		pmd_t *pmd;
-
-		if (pgd_none(*pgd))
-			continue;
-
-		pud = pud_offset(pgd, address);
-		if (pud_none(*pud))
-			continue;
-
-		pmd = pmd_offset(pud, address);
-		if (!pmd || pmd_none(*pmd))
-			continue;
-
-		if (!(pmd_val(*pmd) & _PAGE_PSE)) {
-			/*
-			 * Could handle this, but it should not happen
-			 * currently:
-			 */
-			printk(KERN_ERR "clear_kernel_mapping: "
-				"mapping has been split. will leak memory\n");
-			pmd_ERROR(*pmd);
-		}
-		set_pmd(pmd, __pmd(0));
-	}
-	__flush_tlb_all();
-}
-
-/*
  * Memory hotplug specific functions
  */
 void online_page(struct page *page)
