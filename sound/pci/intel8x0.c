@@ -1740,6 +1740,12 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 	},
 	{
 		.subvendor = 0x1025,
+		.subdevice = 0x0082,
+		.name = "Acer Travelmate 2310",
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
+		.subvendor = 0x1025,
 		.subdevice = 0x0083,
 		.name = "Acer Aspire 3003LCi",
 		.type = AC97_TUNE_HP_ONLY
