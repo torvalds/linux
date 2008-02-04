@@ -1178,6 +1178,9 @@ static int ath5k_hw_rf5112_rfregs(struct ath5k_hw *ah,
 			(channel->center_freq >= 5260 ? 1 :
 			    (channel->center_freq > 4000 ? 0 : -1)));
 
+		if (obdb == -1)
+			return -EINVAL;
+
 		if (!ath5k_hw_rfregs_op(rf, ah->ah_offset[6],
 				ee->ee_ob[ee_mode][obdb], 3, 279, 0, true))
 			return -EINVAL;
