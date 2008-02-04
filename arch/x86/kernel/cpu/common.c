@@ -623,16 +623,6 @@ cpumask_t cpu_initialized __cpuinitdata = CPU_MASK_NONE;
  * They will insert themselves into the cpu_devs structure.
  * Then, when cpu_init() is called, we can just iterate over that array.
  */
-
-extern int intel_cpu_init(void);
-extern int cyrix_init_cpu(void);
-extern int nsc_init_cpu(void);
-extern int amd_init_cpu(void);
-extern int centaur_init_cpu(void);
-extern int transmeta_init_cpu(void);
-extern int nexgen_init_cpu(void);
-extern int umc_init_cpu(void);
-
 void __init early_cpu_init(void)
 {
 	intel_cpu_init();
