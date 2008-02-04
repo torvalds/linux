@@ -21,6 +21,7 @@ struct cpa_data {
 	int		numpages;
 	pgprot_t	mask_set;
 	pgprot_t	mask_clr;
+	int		flushtlb;
 };
 
 static inline int
@@ -329,11 +330,19 @@ repeat:
 		 * not the memory it points to
 		 */
 		new_pte = pfn_pte(pte_pfn(old_pte), canon_pgprot(new_prot));
-		set_pte_atomic(kpte, new_pte);
+
+		/*
+		 * Do we really change anything ?
+		 */
+		if (pte_val(old_pte) != pte_val(new_pte)) {
+			set_pte_atomic(kpte, new_pte);
+			cpa->flushtlb = 1;
+		}
 	} else {
 		err = split_large_page(kpte, address);
 		if (!err)
 			goto repeat;
+		cpa->flushtlb = 1;
 	}
 	return err;
 }
@@ -438,8 +447,15 @@ static int change_page_attr_set_clr(unsigned long addr, int numpages,
 	cpa.numpages = numpages;
 	cpa.mask_set = mask_set;
 	cpa.mask_clr = mask_clr;
+	cpa.flushtlb = 0;
 
 	ret = __change_page_attr_set_clr(&cpa);
+
+	/*
+	 * Check whether we really changed something:
+	 */
+	if (!cpa.flushtlb)
+		return ret;
 
 	/*
 	 * No need to flush, when we did not set any of the caching
