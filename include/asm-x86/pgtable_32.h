@@ -148,6 +148,8 @@ static inline void clone_pgd_range(pgd_t *dst, pgd_t *src, int count)
  */
 #define pgd_offset_k(address) pgd_offset(&init_mm, address)
 
+static inline int pud_large(pud_t pud) { return 0; }
+
 /*
  * the pmd page can be thought of an array like this: pmd_t[PTRS_PER_PMD]
  *
