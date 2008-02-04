@@ -902,6 +902,8 @@ ath5k_copy_channels(struct ath5k_hw *ah,
 
 		/* Write channel info and increment counter */
 		channels[count].center_freq = freq;
+		channels[count].band = (chfreq == CHANNEL_2GHZ) ?
+			IEEE80211_BAND_2GHZ : IEEE80211_BAND_5GHZ;
 		switch (mode) {
 		case AR5K_MODE_11A:
 		case AR5K_MODE_11G:
