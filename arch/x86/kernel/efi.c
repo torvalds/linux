@@ -379,11 +379,9 @@ void __init efi_init(void)
 #endif
 }
 
-#if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
 static void __init runtime_code_page_mkexec(void)
 {
 	efi_memory_desc_t *md;
-	unsigned long end;
 	void *p;
 
 	if (!(__supported_pte_mask & _PAGE_NX))
@@ -392,18 +390,13 @@ static void __init runtime_code_page_mkexec(void)
 	/* Make EFI runtime service code area executable */
 	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
 		md = p;
-		end = md->phys_addr + (md->num_pages << EFI_PAGE_SHIFT);
-		if (md->type == EFI_RUNTIME_SERVICES_CODE &&
-		    (end >> PAGE_SHIFT) <= max_pfn_mapped) {
-			set_memory_x(md->virt_addr, md->num_pages);
-			set_memory_uc(md->virt_addr, md->num_pages);
-		}
+
+		if (md->type != EFI_RUNTIME_SERVICES_CODE)
+			continue;
+
+		set_memory_x(md->virt_addr, md->num_pages << EFI_PAGE_SHIFT);
 	}
-	__flush_tlb_all();
 }
-#else
-static inline void __init runtime_code_page_mkexec(void) { }
-#endif
 
 /*
  * This function will switch the EFI runtime services to virtual mode.
@@ -417,30 +410,40 @@ void __init efi_enter_virtual_mode(void)
 {
 	efi_memory_desc_t *md;
 	efi_status_t status;
-	unsigned long end;
-	void *p;
+	unsigned long size;
+	u64 end, systab;
+	void *p, *va;
 
 	efi.systab = NULL;
 	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
 		md = p;
 		if (!(md->attribute & EFI_MEMORY_RUNTIME))
 			continue;
-		end = md->phys_addr + (md->num_pages << EFI_PAGE_SHIFT);
-		if ((md->attribute & EFI_MEMORY_WB) &&
-		    ((end >> PAGE_SHIFT) <= max_pfn_mapped))
-			md->virt_addr = (unsigned long)__va(md->phys_addr);
+
+		size = md->num_pages << EFI_PAGE_SHIFT;
+		end = md->phys_addr + size;
+
+		if ((end >> PAGE_SHIFT) <= max_pfn_mapped)
+			va = __va(md->phys_addr);
 		else
-			md->virt_addr = (unsigned long)
-				efi_ioremap(md->phys_addr,
-					    md->num_pages << EFI_PAGE_SHIFT);
-		if (!md->virt_addr)
+			va = efi_ioremap(md->phys_addr, size);
+
+		if (md->attribute & EFI_MEMORY_WB)
+			set_memory_uc(md->virt_addr, size);
+
+		md->virt_addr = (u64) (unsigned long) va;
+
+		if (!va) {
 			printk(KERN_ERR PFX "ioremap of 0x%llX failed!\n",
 			       (unsigned long long)md->phys_addr);
-		if ((md->phys_addr <= (unsigned long)efi_phys.systab) &&
-		    ((unsigned long)efi_phys.systab < end))
-			efi.systab = (efi_system_table_t *)(unsigned long)
-				(md->virt_addr - md->phys_addr +
-				 (unsigned long)efi_phys.systab);
+			continue;
+		}
+
+		systab = (u64) (unsigned long) efi_phys.systab;
+		if (md->phys_addr <= systab && systab < end) {
+			systab += md->virt_addr - md->phys_addr;
+			efi.systab = (efi_system_table_t *) (unsigned long) systab;
+		}
 	}
 
 	BUG_ON(!efi.systab);
