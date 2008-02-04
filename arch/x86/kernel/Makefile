@@ -75,7 +75,8 @@ ifdef CONFIG_INPUT_PCSPKR
 obj-y				+= pcspeaker.o
 endif
 
-obj-$(CONFIG_SCx200)		+= scx200_32.o
+obj-$(CONFIG_SCx200)		+= scx200.o
+scx200-y			+= scx200_32.o
 
 ###
 # 64 bit specific files
