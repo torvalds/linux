@@ -1751,7 +1751,11 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 update_block:
 	ret = update_block_group(trans, root, ins->objectid, ins->offset, 1, 0,
 				 data);
-	BUG_ON(ret);
+	if (ret) {
+		printk("update block group failed for %Lu %Lu\n",
+		       ins->objectid, ins->offset);
+		BUG();
+	}
 	return 0;
 }
 
