@@ -323,8 +323,8 @@ enum {
 	NvRegMIIStatus = 0x180,
 #define NVREG_MIISTAT_ERROR		0x0001
 #define NVREG_MIISTAT_LINKCHANGE	0x0008
-#define NVREG_MIISTAT_MASK		0x000f
-#define NVREG_MIISTAT_MASK2		0x000f
+#define NVREG_MIISTAT_MASK_RW		0x0007
+#define NVREG_MIISTAT_MASK_ALL		0x000f
 	NvRegMIIMask = 0x184,
 #define NVREG_MII_LINKCHANGE		0x0008
 
@@ -1064,7 +1064,7 @@ static int mii_rw(struct net_device *dev, int addr, int miireg, int value)
 	u32 reg;
 	int retval;
 
-	writel(NVREG_MIISTAT_MASK, base + NvRegMIIStatus);
+	writel(NVREG_MIISTAT_MASK_RW, base + NvRegMIIStatus);
 
 	reg = readl(base + NvRegMIIControl);
 	if (reg & NVREG_MIICTL_INUSE) {
@@ -2995,7 +2995,7 @@ static void nv_link_irq(struct net_device *dev)
 	u32 miistat;
 
 	miistat = readl(base + NvRegMIIStatus);
-	writel(NVREG_MIISTAT_MASK, base + NvRegMIIStatus);
+	writel(NVREG_MIISTAT_LINKCHANGE, base + NvRegMIIStatus);
 	dprintk(KERN_INFO "%s: link change irq, status 0x%x.\n", dev->name, miistat);
 
 	if (miistat & (NVREG_MIISTAT_LINKCHANGE))
@@ -4870,7 +4870,7 @@ static int nv_open(struct net_device *dev)
 
 	writel(0, base + NvRegMIIMask);
 	writel(NVREG_IRQSTAT_MASK, base + NvRegIrqStatus);
-	writel(NVREG_MIISTAT_MASK2, base + NvRegMIIStatus);
+	writel(NVREG_MIISTAT_MASK_ALL, base + NvRegMIIStatus);
 
 	writel(NVREG_MISC1_FORCE | NVREG_MISC1_HD, base + NvRegMisc1);
 	writel(readl(base + NvRegTransmitterStatus), base + NvRegTransmitterStatus);
@@ -4908,7 +4908,7 @@ static int nv_open(struct net_device *dev)
 
 	nv_disable_hw_interrupts(dev, np->irqmask);
 	pci_push(base);
-	writel(NVREG_MIISTAT_MASK2, base + NvRegMIIStatus);
+	writel(NVREG_MIISTAT_MASK_ALL, base + NvRegMIIStatus);
 	writel(NVREG_IRQSTAT_MASK, base + NvRegIrqStatus);
 	pci_push(base);
 
@@ -4931,7 +4931,7 @@ static int nv_open(struct net_device *dev)
 	{
 		u32 miistat;
 		miistat = readl(base + NvRegMIIStatus);
-		writel(NVREG_MIISTAT_MASK, base + NvRegMIIStatus);
+		writel(NVREG_MIISTAT_MASK_ALL, base + NvRegMIIStatus);
 		dprintk(KERN_INFO "startup: got 0x%08x.\n", miistat);
 	}
 	/* set linkspeed to invalid value, thus force nv_update_linkspeed
@@ -5299,7 +5299,7 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		phystate &= ~NVREG_ADAPTCTL_RUNNING;
 		writel(phystate, base + NvRegAdapterControl);
 	}
-	writel(NVREG_MIISTAT_MASK, base + NvRegMIIStatus);
+	writel(NVREG_MIISTAT_MASK_ALL, base + NvRegMIIStatus);
 
 	if (id->driver_data & DEV_HAS_MGMT_UNIT) {
 		/* management unit running on the mac? */
