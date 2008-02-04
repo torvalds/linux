@@ -234,22 +234,22 @@ static int pxa3xx_mfp_resume(struct sys_device *d)
 
 	return 0;
 }
+#else
+#define pxa3xx_mfp_suspend	NULL
+#define pxa3xx_mfp_resume	NULL
+#endif
 
-static struct sysdev_class mfp_sysclass = {
+struct sysdev_class pxa3xx_mfp_sysclass = {
 	.name		= "mfp",
 	.suspend	= pxa3xx_mfp_suspend,
 	.resume 	= pxa3xx_mfp_resume,
 };
 
-static struct sys_device mfp_device = {
-	.id		= 0,
-	.cls		= &mfp_sysclass,
-};
-
 static int __init mfp_init_devicefs(void)
 {
-	sysdev_class_register(&mfp_sysclass);
-	return sysdev_register(&mfp_device);
+	if (cpu_is_pxa3xx())
+		return sysdev_class_register(&pxa3xx_mfp_sysclass);
+
+	return 0;
 }
-device_initcall(mfp_init_devicefs);
-#endif
+postcore_initcall(mfp_init_devicefs);

@@ -55,3 +55,4 @@ extern unsigned pxa3xx_get_memclk_frequency_10khz(void);
 
 extern struct sysdev_class pxa_irq_sysclass;
 extern struct sysdev_class pxa_gpio_sysclass;
+extern struct sysdev_class pxa3xx_mfp_sysclass;
