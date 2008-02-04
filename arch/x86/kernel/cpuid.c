@@ -62,9 +62,9 @@ static void cpuid_smp_cpuid(void *cmd_block)
 static loff_t cpuid_seek(struct file *file, loff_t offset, int orig)
 {
 	loff_t ret;
+	struct inode *inode = file->f_mapping->host;
 
-	lock_kernel();
-
+	mutex_lock(&inode->i_mutex);
 	switch (orig) {
 	case 0:
 		file->f_pos = offset;
@@ -77,8 +77,7 @@ static loff_t cpuid_seek(struct file *file, loff_t offset, int orig)
 	default:
 		ret = -EINVAL;
 	}
-
-	unlock_kernel();
+	mutex_unlock(&inode->i_mutex);
 	return ret;
 }
 
