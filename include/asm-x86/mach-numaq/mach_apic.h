@@ -109,6 +109,8 @@ static inline int mpc_apic_id(struct mpc_config_processor *m,
 	return logical_apicid;
 }
 
+extern void *xquad_portio;
+
 static inline void setup_portio_remap(void)
 {
 	int num_quads = num_online_nodes();
