@@ -9,6 +9,9 @@
 #include "sysdep/ptrace.h"
 #include "sysdep/syscalls.h"
 
+extern int syscall_table_size;
+#define NR_syscalls (syscall_table_size / sizeof(void *))
+
 void handle_syscall(struct uml_pt_regs *r)
 {
 	struct pt_regs *regs = container_of(r, struct pt_regs, regs);

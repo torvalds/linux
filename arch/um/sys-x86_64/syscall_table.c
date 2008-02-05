@@ -52,11 +52,19 @@ typedef void (*sys_call_ptr_t)(void);
 
 extern void sys_ni_syscall(void);
 
-sys_call_ptr_t sys_call_table[UM_NR_syscall_max+1] __cacheline_aligned = {
-	/*
-	 * Smells like a like a compiler bug -- it doesn't work when the &
-	 * below is removed.
-	 */
-	[0 ... UM_NR_syscall_max] = &sys_ni_syscall,
+/*
+ * We used to have a trick here which made sure that holes in the
+ * x86_64 table were filled in with sys_ni_syscall, but a comment in
+ * unistd_64.h says that holes aren't allowed, so the trick was
+ * removed.
+ * The trick looked like this
+ *	[0 ... UM_NR_syscall_max] = &sys_ni_syscall
+ * before including unistd_64.h - the later initializations overwrote
+ * the sys_ni_syscall filler.
+ */
+
+sys_call_ptr_t sys_call_table[] __cacheline_aligned = {
 #include <asm-x86/unistd_64.h>
 };
+
+int syscall_table_size = sizeof(sys_call_table);
