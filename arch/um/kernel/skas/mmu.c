@@ -58,9 +58,9 @@ static int init_stub_pte(struct mm_struct *mm, unsigned long proc,
 	return 0;
 
  out_pmd:
-	pud_free(pud);
+	pud_free(mm, pud);
  out_pte:
-	pmd_free(pmd);
+	pmd_free(mm, pmd);
  out:
 	return -ENOMEM;
 }
@@ -144,10 +144,10 @@ void destroy_context(struct mm_struct *mm)
 	if (!proc_mm || !ptrace_faultinfo) {
 		free_page(mmu->id.stack);
 		pte_lock_deinit(virt_to_page(mmu->last_page_table));
-		pte_free_kernel((pte_t *) mmu->last_page_table);
+		pte_free_kernel(mm, (pte_t *) mmu->last_page_table);
 		dec_zone_page_state(virt_to_page(mmu->last_page_table), NR_PAGETABLE);
 #ifdef CONFIG_3_LEVEL_PGTABLES
-		pmd_free((pmd_t *) mmu->last_pmd);
+		pmd_free(mm, (pmd_t *) mmu->last_pmd);
 #endif
 	}
 

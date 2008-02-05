@@ -65,9 +65,9 @@ static inline void tlb_flush_mmu(struct mmu_gather *tlb,
 	if (!tlb->fullmm && (tlb->nr_ptes > 0 || tlb->nr_pmds < TLB_NR_PTRS))
 		__tlb_flush_mm(tlb->mm);
 	while (tlb->nr_ptes > 0)
-		pte_free(tlb->array[--tlb->nr_ptes]);
+		pte_free(tlb->mm, tlb->array[--tlb->nr_ptes]);
 	while (tlb->nr_pmds < TLB_NR_PTRS)
-		pmd_free((pmd_t *) tlb->array[tlb->nr_pmds++]);
+		pmd_free(tlb->mm, (pmd_t *) tlb->array[tlb->nr_pmds++]);
 }
 
 static inline void tlb_finish_mmu(struct mmu_gather *tlb,
@@ -102,7 +102,7 @@ static inline void pte_free_tlb(struct mmu_gather *tlb, struct page *page)
 		if (tlb->nr_ptes >= tlb->nr_pmds)
 			tlb_flush_mmu(tlb, 0, 0);
 	} else
-		pte_free(page);
+		pte_free(tlb->mm, page);
 }
 
 /*
@@ -117,7 +117,7 @@ static inline void pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd)
 		if (tlb->nr_ptes >= tlb->nr_pmds)
 			tlb_flush_mmu(tlb, 0, 0);
 	} else
-		pmd_free(pmd);
+		pmd_free(tlb->mm, pmd);
 #endif
 }
 

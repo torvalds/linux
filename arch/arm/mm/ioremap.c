@@ -162,7 +162,7 @@ static void unmap_area_sections(unsigned long virt, unsigned long size)
 			 * Free the page table, if there was one.
 			 */
 			if ((pmd_val(pmd) & PMD_TYPE_MASK) == PMD_TYPE_TABLE)
-				pte_free_kernel(pmd_page_vaddr(pmd));
+				pte_free_kernel(&init_mm, pmd_page_vaddr(pmd));
 		}
 
 		addr += PGDIR_SIZE;

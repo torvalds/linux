@@ -31,7 +31,7 @@ pgd_alloc(struct mm_struct *mm)
 	return (pgd_t*) __get_free_pages(GFP_KERNEL | __GFP_ZERO, PGD_ORDER);
 }
 
-static inline void pgd_free(pgd_t *pgd)
+static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
 	free_page((unsigned long)pgd);
 }
@@ -52,12 +52,12 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm,
 	return virt_to_page(pte_alloc_one_kernel(mm, addr));
 }
 
-static inline void pte_free_kernel(pte_t *pte)
+static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 {
 	kmem_cache_free(pgtable_cache, pte);
 }
 
-static inline void pte_free(struct page *page)
+static inline void pte_free(struct mm_struct *mm, struct page *page)
 {
 	kmem_cache_free(pgtable_cache, page_address(page));
 }

@@ -21,12 +21,12 @@ extern const char bad_pmd_string[];
 #define pmd_alloc_one(mm,address)       ({ BUG(); ((pmd_t *)2); })
 
 
-static inline void pte_free_kernel(pte_t * pte)
+static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 {
         free_page((unsigned long) pte);
 }
 
-static inline void pte_free(struct page *page)
+static inline void pte_free(struct mm_struct *mm, struct page *page)
 {
         __free_page(page);
 }
@@ -72,10 +72,10 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd, struct page *p
  * allocating and freeing a pmd is trivial: the 1-entry pmd is
  * inside the pgd, so has no extra memory associated with it.
  */
-#define pmd_free(x)			do { } while (0)
+#define pmd_free(mm, x)			do { } while (0)
 #define __pmd_free_tlb(tlb, x)		do { } while (0)
 
-static inline void pgd_free(pgd_t * pgd)
+static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
         free_page((unsigned long) pgd);
 }

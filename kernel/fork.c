@@ -325,7 +325,7 @@ static inline int mm_alloc_pgd(struct mm_struct * mm)
 
 static inline void mm_free_pgd(struct mm_struct * mm)
 {
-	pgd_free(mm->pgd);
+	pgd_free(mm, mm->pgd);
 }
 #else
 #define dup_mmap(mm, oldmm)	(0)

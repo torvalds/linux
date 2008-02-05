@@ -57,10 +57,10 @@ static inline unsigned long pgd_entry_type(struct mm_struct *mm)
 }
 
 #define pud_alloc_one(mm,address)		({ BUG(); ((pud_t *)2); })
-#define pud_free(x)				do { } while (0)
+#define pud_free(mm, x)				do { } while (0)
 
 #define pmd_alloc_one(mm,address)		({ BUG(); ((pmd_t *)2); })
-#define pmd_free(x)				do { } while (0)
+#define pmd_free(mm, x)				do { } while (0)
 
 #define pgd_populate(mm, pgd, pud)		BUG()
 #define pgd_populate_kernel(mm, pgd, pud)	BUG()
@@ -76,7 +76,7 @@ static inline unsigned long pgd_entry_type(struct mm_struct *mm)
 }
 
 #define pud_alloc_one(mm,address)		({ BUG(); ((pud_t *)2); })
-#define pud_free(x)				do { } while (0)
+#define pud_free(mm, x)				do { } while (0)
 
 static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long vmaddr)
 {
@@ -85,7 +85,7 @@ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long vmaddr)
 		crst_table_init(crst, _SEGMENT_ENTRY_EMPTY);
 	return (pmd_t *) crst;
 }
-#define pmd_free(pmd) crst_table_free((unsigned long *) pmd)
+#define pmd_free(mm, pmd) crst_table_free((unsigned long *)pmd)
 
 #define pgd_populate(mm, pgd, pud)		BUG()
 #define pgd_populate_kernel(mm, pgd, pud)	BUG()
@@ -115,7 +115,7 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 		crst_table_init(crst, pgd_entry_type(mm));
 	return (pgd_t *) crst;
 }
-#define pgd_free(pgd) crst_table_free((unsigned long *) pgd)
+#define pgd_free(mm, pgd) crst_table_free((unsigned long *) pgd)
 
 static inline void 
 pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd, pte_t *pte)
@@ -151,9 +151,9 @@ pmd_populate(struct mm_struct *mm, pmd_t *pmd, struct page *page)
 #define pte_alloc_one(mm, vmaddr) \
 	virt_to_page(page_table_alloc(s390_noexec))
 
-#define pte_free_kernel(pte) \
+#define pte_free_kernel(mm, pte) \
 	page_table_free((unsigned long *) pte)
-#define pte_free(pte) \
+#define pte_free(mm, pte) \
 	page_table_free((unsigned long *) page_to_phys((struct page *) pte))
 
 #endif /* _S390_PGALLOC_H */

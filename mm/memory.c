@@ -305,7 +305,7 @@ int __pte_alloc(struct mm_struct *mm, pmd_t *pmd, unsigned long address)
 	spin_lock(&mm->page_table_lock);
 	if (pmd_present(*pmd)) {	/* Another has populated it */
 		pte_lock_deinit(new);
-		pte_free(new);
+		pte_free(mm, new);
 	} else {
 		mm->nr_ptes++;
 		inc_zone_page_state(new, NR_PAGETABLE);
@@ -323,7 +323,7 @@ int __pte_alloc_kernel(pmd_t *pmd, unsigned long address)
 
 	spin_lock(&init_mm.page_table_lock);
 	if (pmd_present(*pmd))		/* Another has populated it */
-		pte_free_kernel(new);
+		pte_free_kernel(&init_mm, new);
 	else
 		pmd_populate_kernel(&init_mm, pmd, new);
 	spin_unlock(&init_mm.page_table_lock);
@@ -2501,7 +2501,7 @@ int __pud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
 
 	spin_lock(&mm->page_table_lock);
 	if (pgd_present(*pgd))		/* Another has populated it */
-		pud_free(new);
+		pud_free(mm, new);
 	else
 		pgd_populate(mm, pgd, new);
 	spin_unlock(&mm->page_table_lock);
@@ -2523,12 +2523,12 @@ int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address)
 	spin_lock(&mm->page_table_lock);
 #ifndef __ARCH_HAS_4LEVEL_HACK
 	if (pud_present(*pud))		/* Another has populated it */
-		pmd_free(new);
+		pmd_free(mm, new);
 	else
 		pud_populate(mm, pud, new);
 #else
 	if (pgd_present(*pud))		/* Another has populated it */
-		pmd_free(new);
+		pmd_free(mm, new);
 	else
 		pgd_populate(mm, pud, new);
 #endif /* __ARCH_HAS_4LEVEL_HACK */

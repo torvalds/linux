@@ -24,7 +24,7 @@ static __inline__ pgd_t *pgd_alloc(struct mm_struct *mm)
 	return pgd;
 }
 
-static __inline__ void pgd_free(pgd_t *pgd)
+static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
 	free_page((unsigned long)pgd);
 }
@@ -46,17 +46,17 @@ static __inline__ struct page *pte_alloc_one(struct mm_struct *mm,
 	return pte;
 }
 
-static __inline__ void pte_free_kernel(pte_t *pte)
+static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 {
 	free_page((unsigned long)pte);
 }
 
-static __inline__ void pte_free(struct page *pte)
+static inline void pte_free(struct mm_struct *mm, struct page *pte)
 {
 	__free_page(pte);
 }
 
-#define __pte_free_tlb(tlb, pte)	pte_free((pte))
+#define __pte_free_tlb(tlb, pte)	pte_free((tlb)->mm, (pte))
 
 /*
  * allocating and freeing a pmd is trivial: the 1-entry pmd is
@@ -65,7 +65,7 @@ static __inline__ void pte_free(struct page *pte)
  */
 
 #define pmd_alloc_one(mm, addr)		({ BUG(); ((pmd_t *)2); })
-#define pmd_free(x)			do { } while (0)
+#define pmd_free(mm, x)			do { } while (0)
 #define __pmd_free_tlb(tlb, x)		do { } while (0)
 #define pgd_populate(mm, pmd, pte)	BUG()
 

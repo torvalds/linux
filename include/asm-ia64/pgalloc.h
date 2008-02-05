@@ -27,7 +27,7 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 	return quicklist_alloc(0, GFP_KERNEL, NULL);
 }
 
-static inline void pgd_free(pgd_t * pgd)
+static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
 	quicklist_free(0, NULL, pgd);
 }
@@ -44,11 +44,11 @@ static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
 	return quicklist_alloc(0, GFP_KERNEL, NULL);
 }
 
-static inline void pud_free(pud_t * pud)
+static inline void pud_free(struct mm_struct *mm, pud_t *pud)
 {
 	quicklist_free(0, NULL, pud);
 }
-#define __pud_free_tlb(tlb, pud)	pud_free(pud)
+#define __pud_free_tlb(tlb, pud)	pud_free((tlb)->mm, pud)
 #endif /* CONFIG_PGTABLE_4 */
 
 static inline void
@@ -62,12 +62,12 @@ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
 	return quicklist_alloc(0, GFP_KERNEL, NULL);
 }
 
-static inline void pmd_free(pmd_t * pmd)
+static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
 {
 	quicklist_free(0, NULL, pmd);
 }
 
-#define __pmd_free_tlb(tlb, pmd)	pmd_free(pmd)
+#define __pmd_free_tlb(tlb, pmd)	pmd_free((tlb)->mm, pmd)
 
 static inline void
 pmd_populate(struct mm_struct *mm, pmd_t * pmd_entry, struct page *pte)
@@ -94,12 +94,12 @@ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
 	return quicklist_alloc(0, GFP_KERNEL, NULL);
 }
 
-static inline void pte_free(struct page *pte)
+static inline void pte_free(struct mm_struct *mm, struct page *pte)
 {
 	quicklist_free_page(0, NULL, pte);
 }
 
-static inline void pte_free_kernel(pte_t * pte)
+static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 {
 	quicklist_free(0, NULL, pte);
 }
@@ -109,6 +109,6 @@ static inline void check_pgt_cache(void)
 	quicklist_trim(0, NULL, 25, 16);
 }
 
-#define __pte_free_tlb(tlb, pte)	pte_free(pte)
+#define __pte_free_tlb(tlb, pte)	pte_free((tlb)->mm, pte)
 
 #endif				/* _ASM_IA64_PGALLOC_H */
