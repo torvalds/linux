@@ -193,7 +193,7 @@ static struct backing_dev_info shmem_backing_dev_info  __read_mostly = {
 };
 
 static LIST_HEAD(shmem_swaplist);
-static DEFINE_SPINLOCK(shmem_swaplist_lock);
+static DEFINE_MUTEX(shmem_swaplist_mutex);
 
 static void shmem_free_blocks(struct inode *inode, long pages)
 {
@@ -796,9 +796,9 @@ static void shmem_delete_inode(struct inode *inode)
 		inode->i_size = 0;
 		shmem_truncate(inode);
 		if (!list_empty(&info->swaplist)) {
-			spin_lock(&shmem_swaplist_lock);
+			mutex_lock(&shmem_swaplist_mutex);
 			list_del_init(&info->swaplist);
-			spin_unlock(&shmem_swaplist_lock);
+			mutex_unlock(&shmem_swaplist_mutex);
 		}
 	}
 	BUG_ON(inode->i_blocks);
@@ -851,6 +851,14 @@ static int shmem_unuse_inode(struct shmem_inode_info *info, swp_entry_t entry, s
 	for (idx = SHMEM_NR_DIRECT; idx < limit; idx += ENTRIES_PER_PAGE, dir++) {
 		if (unlikely(idx == stage)) {
 			shmem_dir_unmap(dir-1);
+			if (cond_resched_lock(&info->lock)) {
+				/* check it has not been truncated */
+				if (limit > info->next_index) {
+					limit = info->next_index;
+					if (idx >= limit)
+						goto lost2;
+				}
+			}
 			dir = shmem_dir_map(info->i_indirect) +
 			    ENTRIES_PER_PAGE/2 + idx/ENTRIES_PER_PAGEPAGE;
 			while (!*dir) {
@@ -924,7 +932,7 @@ int shmem_unuse(swp_entry_t entry, struct page *page)
 	struct shmem_inode_info *info;
 	int found = 0;
 
-	spin_lock(&shmem_swaplist_lock);
+	mutex_lock(&shmem_swaplist_mutex);
 	list_for_each_safe(p, next, &shmem_swaplist) {
 		info = list_entry(p, struct shmem_inode_info, swaplist);
 		if (!info->swapped)
@@ -935,8 +943,9 @@ int shmem_unuse(swp_entry_t entry, struct page *page)
 			found = 1;
 			break;
 		}
+		cond_resched();
 	}
-	spin_unlock(&shmem_swaplist_lock);
+	mutex_unlock(&shmem_swaplist_mutex);
 	return found;
 }
 
@@ -996,10 +1005,10 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 		shmem_swp_unmap(entry);
 		spin_unlock(&info->lock);
 		if (list_empty(&info->swaplist)) {
-			spin_lock(&shmem_swaplist_lock);
+			mutex_lock(&shmem_swaplist_mutex);
 			/* move instead of add in case we're racing */
 			list_move_tail(&info->swaplist, &shmem_swaplist);
-			spin_unlock(&shmem_swaplist_lock);
+			mutex_unlock(&shmem_swaplist_mutex);
 		}
 		swap_duplicate(swap);
 		BUG_ON(page_mapped(page));
