@@ -90,9 +90,9 @@
 #define writesb	outsb
 #define writesw	outsw
 #define writesl	outsl
-#define DM9000_IRQ_FLAGS	(IRQF_SHARED | IRQF_TRIGGER_HIGH)
+#define DEFAULT_TRIGGER IRQF_TRIGGER_HIGH
 #else
-#define DM9000_IRQ_FLAGS	(IRQF_SHARED | IRQT_RISING)
+#define DEFAULT_TRIGGER (0)
 #endif
 
 /*
@@ -614,10 +614,21 @@ static int
 dm9000_open(struct net_device *dev)
 {
 	board_info_t *db = (board_info_t *) dev->priv;
+	unsigned long irqflags = db->irq_res->flags & IRQF_TRIGGER_MASK;
 
 	dev_dbg(db->dev, "entering %s\n", __func__);
 
-	if (request_irq(dev->irq, &dm9000_interrupt, DM9000_IRQ_FLAGS, dev->name, dev))
+	/* If there is no IRQ type specified, default to something that
+	 * may work, and tell the user that this is a problem */
+
+	if (irqflags == IRQF_TRIGGER_NONE) {
+		dev_warn(db->dev, "WARNING: no IRQ resource flags set.\n");
+		irqflags = DEFAULT_TRIGGER;
+	}
+	
+	irqflags |= IRQF_SHARED;
+
+	if (request_irq(dev->irq, &dm9000_interrupt, irqflags, dev->name, dev))
 		return -EAGAIN;
 
 	/* Initialize DM9000 board */
