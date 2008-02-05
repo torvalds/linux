@@ -293,6 +293,6 @@ sys_call_table:
 	.long	sys_shmctl
 	.long	sys_utimensat
 	.long	sys_signalfd
-	.long	sys_timerfd		/* 280 */
+	.long	sys_ni_syscall		/* 280, was sys_timerfd */
 	.long	sys_eventfd
 	.long	sys_ni_syscall		/* r8 is saturated at nr_syscalls */
