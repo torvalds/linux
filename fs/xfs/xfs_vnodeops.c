@@ -898,27 +898,6 @@ xfs_setattr(
 	return code;
 }
 
-
-/*
- * xfs_access
- * Null conversion from vnode mode bits to inode mode bits, as in efs.
- */
-int
-xfs_access(
-	xfs_inode_t	*ip,
-	int		mode,
-	cred_t		*credp)
-{
-	int		error;
-
-	xfs_itrace_entry(ip);
-	xfs_ilock(ip, XFS_ILOCK_SHARED);
-	error = xfs_iaccess(ip, mode, credp);
-	xfs_iunlock(ip, XFS_ILOCK_SHARED);
-	return error;
-}
-
-
 /*
  * The maximum pathlen is 1024 bytes. Since the minimum file system
  * blocksize is 512 bytes, we can get a max of 2 extents back from

@@ -559,12 +559,31 @@ xfs_vn_put_link(
 
 #ifdef CONFIG_XFS_POSIX_ACL
 STATIC int
-xfs_vn_permission(
-	struct inode	*inode,
-	int		mode,
-	struct nameidata *nd)
+xfs_check_acl(
+	struct inode		*inode,
+	int			mask)
 {
-	return -xfs_access(XFS_I(inode), mode << 6, NULL);
+	struct xfs_inode	*ip = XFS_I(inode);
+	int			error;
+
+	xfs_itrace_entry(ip);
+
+	if (XFS_IFORK_Q(ip)) {
+		error = xfs_acl_iaccess(ip, mask, NULL);
+		if (error != -1)
+			return -error;
+	}
+
+	return -EAGAIN;
+}
+
+STATIC int
+xfs_vn_permission(
+	struct inode		*inode,
+	int			mask,
+	struct nameidata	*nd)
+{
+	return generic_permission(inode, mask, xfs_check_acl);
 }
 #else
 #define xfs_vn_permission NULL

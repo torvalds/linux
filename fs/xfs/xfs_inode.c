@@ -3583,69 +3583,6 @@ xfs_iflush_all(
 	XFS_MOUNT_IUNLOCK(mp);
 }
 
-/*
- * xfs_iaccess: check accessibility of inode for mode.
- */
-int
-xfs_iaccess(
-	xfs_inode_t	*ip,
-	mode_t		mode,
-	cred_t		*cr)
-{
-	int		error;
-	mode_t		orgmode = mode;
-	struct inode	*inode = vn_to_inode(XFS_ITOV(ip));
-
-	if (mode & S_IWUSR) {
-		umode_t		imode = inode->i_mode;
-
-		if (IS_RDONLY(inode) &&
-		    (S_ISREG(imode) || S_ISDIR(imode) || S_ISLNK(imode)))
-			return XFS_ERROR(EROFS);
-
-		if (IS_IMMUTABLE(inode))
-			return XFS_ERROR(EACCES);
-	}
-
-	/*
-	 * If there's an Access Control List it's used instead of
-	 * the mode bits.
-	 */
-	if ((error = _ACL_XFS_IACCESS(ip, mode, cr)) != -1)
-		return error ? XFS_ERROR(error) : 0;
-
-	if (current_fsuid(cr) != ip->i_d.di_uid) {
-		mode >>= 3;
-		if (!in_group_p((gid_t)ip->i_d.di_gid))
-			mode >>= 3;
-	}
-
-	/*
-	 * If the DACs are ok we don't need any capability check.
-	 */
-	if ((ip->i_d.di_mode & mode) == mode)
-		return 0;
-	/*
-	 * Read/write DACs are always overridable.
-	 * Executable DACs are overridable if at least one exec bit is set.
-	 */
-	if (!(orgmode & S_IXUSR) ||
-	    (inode->i_mode & S_IXUGO) || S_ISDIR(inode->i_mode))
-		if (capable_cred(cr, CAP_DAC_OVERRIDE))
-			return 0;
-
-	if ((orgmode == S_IRUSR) ||
-	    (S_ISDIR(inode->i_mode) && (!(orgmode & S_IWUSR)))) {
-		if (capable_cred(cr, CAP_DAC_READ_SEARCH))
-			return 0;
-#ifdef	NOISE
-		cmn_err(CE_NOTE, "Ick: mode=%o, orgmode=%o", mode, orgmode);
-#endif	/* NOISE */
-		return XFS_ERROR(EACCES);
-	}
-	return XFS_ERROR(EACCES);
-}
-
 #ifdef XFS_ILOCK_TRACE
 ktrace_t	*xfs_ilock_trace_buf;
 
