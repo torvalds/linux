@@ -509,6 +509,7 @@ dm9000_probe(struct platform_device *pdev)
 	struct dm9000_plat_data *pdata = pdev->dev.platform_data;
 	struct board_info *db;	/* Point a board information structure */
 	struct net_device *ndev;
+	const unsigned char *mac_src;
 	unsigned long base;
 	int ret = 0;
 	int iosize;
@@ -687,13 +688,16 @@ dm9000_probe(struct platform_device *pdev)
 	db->mii.mdio_read    = dm9000_phy_read;
 	db->mii.mdio_write   = dm9000_phy_write;
 
+	mac_src = "eeprom";
+
 	/* try reading the node address from the attached EEPROM */
 	for (i = 0; i < 6; i += 2)
 		dm9000_read_eeprom(db, i / 2, ndev->dev_addr+i);
 
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
 		/* try reading from mac */
-
+		
+		mac_src = "chip";
 		for (i = 0; i < 6; i++)
 			ndev->dev_addr[i] = ior(db, i+DM9000_PAR);
 	}
@@ -707,9 +711,9 @@ dm9000_probe(struct platform_device *pdev)
 
 	if (ret == 0) {
 		DECLARE_MAC_BUF(mac);
-		printk("%s: dm9000 at %p,%p IRQ %d MAC: %s\n",
+		printk("%s: dm9000 at %p,%p IRQ %d MAC: %s (%s)\n",
 		       ndev->name,  db->io_addr, db->io_data, ndev->irq,
-		       print_mac(mac, ndev->dev_addr));
+		       print_mac(mac, ndev->dev_addr), mac_src);
 	}
 	return 0;
 
