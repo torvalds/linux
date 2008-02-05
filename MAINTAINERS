@@ -1794,6 +1794,11 @@ P:	Jaroslav Kysela
 M:	perex@perex.cz
 S:	Maintained
 
+HP COMPAQ TC1100 TABLET WMI EXTRAS DRIVER
+P:	Carlos Corbacho
+M:	carlos@strangeworlds.co.uk
+S:	Odd Fixes
+
 HPET:	High Precision Event Timers driver (hpet.c)
 P:	Clemens Ladisch
 M:	clemens@ladisch.de

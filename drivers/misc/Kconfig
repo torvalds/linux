@@ -142,6 +142,15 @@ config FUJITSU_LAPTOP
 
 	  If you have a Fujitsu laptop, say Y or M here.
 
+config TC1100_WMI
+	tristate "HP Compaq TC1100 Tablet WMI Extras"
+	depends on X86 && !X86_64
+	depends on ACPI
+	depends on ACPI_WMI
+	---help---
+	  This is a driver for the WMI extensions (wireless and bluetooth power
+	  control) of the HP Compaq TC1100 tablet.
+
 config MSI_LAPTOP
         tristate "MSI Laptop Extras"
         depends on X86
