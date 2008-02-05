@@ -901,12 +901,16 @@ found:
 	error = 1;
 	if (!inode)
 		goto out;
+	error = radix_tree_preload(GFP_KERNEL);
+	if (error)
+		goto out;
+	error = 1;
 
 	spin_lock(&info->lock);
 	ptr = shmem_swp_entry(info, idx, NULL);
 	if (ptr && ptr->val == entry.val)
 		error = add_to_page_cache(page, inode->i_mapping,
-						idx, GFP_ATOMIC);
+						idx, GFP_NOWAIT);
 	if (error == -EEXIST) {
 		struct page *filepage = find_get_page(inode->i_mapping, idx);
 		error = 1;
@@ -931,6 +935,7 @@ found:
 	if (ptr)
 		shmem_swp_unmap(ptr);
 	spin_unlock(&info->lock);
+	radix_tree_preload_end();
 out:
 	unlock_page(page);
 	page_cache_release(page);
@@ -1185,6 +1190,16 @@ repeat:
 		goto done;
 	error = 0;
 	gfp = mapping_gfp_mask(mapping);
+	if (!filepage) {
+		/*
+		 * Try to preload while we can wait, to not make a habit of
+		 * draining atomic reserves; but don't latch on to this cpu.
+		 */
+		error = radix_tree_preload(gfp & ~__GFP_HIGHMEM);
+		if (error)
+			goto failed;
+		radix_tree_preload_end();
+	}
 
 	spin_lock(&info->lock);
 	shmem_recalc_inode(inode);
@@ -1266,7 +1281,7 @@ repeat:
 			set_page_dirty(filepage);
 			swap_free(swap);
 		} else if (!(error = add_to_page_cache(
-				swappage, mapping, idx, GFP_ATOMIC))) {
+				swappage, mapping, idx, GFP_NOWAIT))) {
 			info->flags |= SHMEM_PAGEIN;
 			shmem_swp_set(info, entry, 0);
 			shmem_swp_unmap(entry);
@@ -1280,10 +1295,6 @@ repeat:
 			spin_unlock(&info->lock);
 			unlock_page(swappage);
 			page_cache_release(swappage);
-			if (error == -ENOMEM) {
-				/* let kswapd refresh zone for GFP_ATOMICs */
-				congestion_wait(WRITE, HZ/50);
-			}
 			goto repeat;
 		}
 	} else if (sgp == SGP_READ && !filepage) {
@@ -1338,7 +1349,7 @@ repeat:
 				shmem_swp_unmap(entry);
 			}
 			if (error || swap.val || 0 != add_to_page_cache_lru(
-					filepage, mapping, idx, GFP_ATOMIC)) {
+					filepage, mapping, idx, GFP_NOWAIT)) {
 				spin_unlock(&info->lock);
 				page_cache_release(filepage);
 				shmem_unacct_blocks(info->flags, 1);
