@@ -273,7 +273,7 @@ int start_userspace(unsigned long stub_stack)
 	if (stack == MAP_FAILED) {
 		err = -errno;
 		printk(UM_KERN_ERR "start_userspace : mmap failed, "
-		       "errno = %d", errno);
+		       "errno = %d\n", errno);
 		return err;
 	}
 
@@ -289,7 +289,7 @@ int start_userspace(unsigned long stub_stack)
 	if (pid < 0) {
 		err = -errno;
 		printk(UM_KERN_ERR "start_userspace : clone failed, "
-		       "errno = %d", errno);
+		       "errno = %d\n", errno);
 		return err;
 	}
 
@@ -298,7 +298,7 @@ int start_userspace(unsigned long stub_stack)
 		if (n < 0) {
 			err = -errno;
 			printk(UM_KERN_ERR "start_userspace : wait failed, "
-			       "errno = %d", errno);
+			       "errno = %d\n", errno);
 			goto out_kill;
 		}
 	} while (WIFSTOPPED(status) && (WSTOPSIG(status) == SIGVTALRM));
@@ -306,7 +306,7 @@ int start_userspace(unsigned long stub_stack)
 	if (!WIFSTOPPED(status) || (WSTOPSIG(status) != SIGSTOP)) {
 		err = -EINVAL;
 		printk(UM_KERN_ERR "start_userspace : expected SIGSTOP, got "
-		       "status = %d", status);
+		       "status = %d\n", status);
 		goto out_kill;
 	}
 
