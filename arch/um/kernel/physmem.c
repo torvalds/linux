@@ -164,10 +164,10 @@ __uml_setup("iomem=", parse_iomem,
  * setup_iomem, both of which run during early boot.  Afterwards, it's
  * unchanged.
  */
-struct iomem_region *iomem_regions = NULL;
+struct iomem_region *iomem_regions;
 
-/* Initialized in parse_iomem */
-int iomem_size = 0;
+/* Initialized in parse_iomem and unchanged thereafter */
+int iomem_size;
 
 unsigned long find_iomem(char *driver, unsigned long *len_out)
 {

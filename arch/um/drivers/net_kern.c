@@ -368,7 +368,6 @@ static struct platform_driver uml_net_driver = {
 		.name  = DRIVER_NAME,
 	},
 };
-static int driver_registered;
 
 static void net_device_release(struct device *dev)
 {
@@ -382,6 +381,12 @@ static void net_device_release(struct device *dev)
 	kfree(device);
 	free_netdev(netdev);
 }
+
+/*
+ * Ensures that platform_driver_register is called only once by
+ * eth_configure.  Will be set in an initcall.
+ */
+static int driver_registered;
 
 static void eth_configure(int n, void *init, char *mac,
 			  struct transport *transport)
