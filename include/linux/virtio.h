@@ -98,12 +98,15 @@ void unregister_virtio_device(struct virtio_device *dev);
  * @probe: the function to call when a device is found.  Returns a token for
  *    remove, or PTR_ERR().
  * @remove: the function when a device is removed.
+ * @config_changed: optional function to call when the device configuration
+ *    changes; may be called in interrupt context.
  */
 struct virtio_driver {
 	struct device_driver driver;
 	const struct virtio_device_id *id_table;
 	int (*probe)(struct virtio_device *dev);
 	void (*remove)(struct virtio_device *dev);
+	void (*config_changed)(struct virtio_device *dev);
 };
 
 int register_virtio_driver(struct virtio_driver *drv);
