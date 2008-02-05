@@ -112,7 +112,7 @@ static struct cfi_private *genprobe_ident_chips(struct map_info *map, struct chi
 		max_chips = 1;
 	}
 
-	mapsize = (max_chips + BITS_PER_LONG-1) / BITS_PER_LONG;
+	mapsize = sizeof(long) * ( (max_chips + BITS_PER_LONG-1) / BITS_PER_LONG );
 	chip_map = kzalloc(mapsize, GFP_KERNEL);
 	if (!chip_map) {
 		printk(KERN_WARNING "%s: kmalloc failed for CFI chip map\n", map->name);
