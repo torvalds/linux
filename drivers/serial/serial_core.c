@@ -1977,6 +1977,7 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *port)
 
 	if (state->info && state->info->flags & UIF_INITIALIZED) {
 		const struct uart_ops *ops = port->ops;
+		int tries;
 
 		state->info->flags = (state->info->flags & ~UIF_INITIALIZED)
 				     | UIF_SUSPENDED;
@@ -1990,9 +1991,14 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *port)
 		/*
 		 * Wait for the transmitter to empty.
 		 */
-		while (!ops->tx_empty(port)) {
+		for (tries = 3; !ops->tx_empty(port) && tries; tries--) {
 			msleep(10);
 		}
+		if (!tries)
+			printk(KERN_ERR "%s%s%s%d: Unable to drain transmitter\n",
+			       port->dev ? port->dev->bus_id : "",
+			       port->dev ? ": " : "",
+			       drv->dev_name, port->line);
 
 		ops->shutdown(port);
 	}
