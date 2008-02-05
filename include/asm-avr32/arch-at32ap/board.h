@@ -42,7 +42,8 @@ at32_add_device_spi(unsigned int id, struct spi_board_info *b, unsigned int n);
 struct atmel_lcdfb_info;
 struct platform_device *
 at32_add_device_lcdc(unsigned int id, struct atmel_lcdfb_info *data,
-		     unsigned long fbmem_start, unsigned long fbmem_len);
+		     unsigned long fbmem_start, unsigned long fbmem_len,
+		     unsigned int pin_config);
 
 struct usba_platform_data;
 struct platform_device *

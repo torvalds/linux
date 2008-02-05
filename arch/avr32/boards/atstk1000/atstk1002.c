@@ -238,7 +238,7 @@ static int __init atstk1002_init(void)
 	set_hw_addr(at32_add_device_eth(1, &eth_data[1]));
 #else
 	at32_add_device_lcdc(0, &atstk1000_lcdc_data,
-			     fbmem_start, fbmem_size);
+			     fbmem_start, fbmem_size, 0);
 #endif
 	at32_add_device_usba(0, NULL);
 #ifndef CONFIG_BOARD_ATSTK100X_SW3_CUSTOM
