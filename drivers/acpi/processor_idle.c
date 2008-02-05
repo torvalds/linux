@@ -38,7 +38,7 @@
 #include <linux/dmi.h>
 #include <linux/moduleparam.h>
 #include <linux/sched.h>	/* need_resched() */
-#include <linux/latency.h>
+#include <linux/pm_qos_params.h>
 #include <linux/clockchips.h>
 #include <linux/cpuidle.h>
 
@@ -648,7 +648,8 @@ static void acpi_processor_idle(void)
 	if (cx->promotion.state &&
 	    ((cx->promotion.state - pr->power.states) <= max_cstate)) {
 		if (sleep_ticks > cx->promotion.threshold.ticks &&
-		  cx->promotion.state->latency <= system_latency_constraint()) {
+		  cx->promotion.state->latency <=
+				pm_qos_requirement(PM_QOS_CPU_DMA_LATENCY)) {
 			cx->promotion.count++;
 			cx->demotion.count = 0;
 			if (cx->promotion.count >=
@@ -692,7 +693,8 @@ static void acpi_processor_idle(void)
 	 * or if the latency of the current state is unacceptable
 	 */
 	if ((pr->power.state - pr->power.states) > max_cstate ||
-		pr->power.state->latency > system_latency_constraint()) {
+		pr->power.state->latency >
+				pm_qos_requirement(PM_QOS_CPU_DMA_LATENCY)) {
 		if (cx->demotion.state)
 			next_state = cx->demotion.state;
 	}
@@ -1200,7 +1202,7 @@ static int acpi_processor_power_seq_show(struct seq_file *seq, void *offset)
 		   "maximum allowed latency: %d usec\n",
 		   pr->power.state ? pr->power.state - pr->power.states : 0,
 		   max_cstate, (unsigned)pr->power.bm_activity,
-		   system_latency_constraint());
+		   pm_qos_requirement(PM_QOS_CPU_DMA_LATENCY));
 
 	seq_puts(seq, "states:\n");
 
@@ -1718,8 +1720,9 @@ int __cpuinit acpi_processor_power_init(struct acpi_processor *pr,
 			       "ACPI: processor limited to max C-state %d\n",
 			       max_cstate);
 		first_run++;
-#if !defined (CONFIG_CPU_IDLE) && defined (CONFIG_SMP)
-		register_latency_notifier(&acpi_processor_latency_notifier);
+#if !defined(CONFIG_CPU_IDLE) && defined(CONFIG_SMP)
+		pm_qos_add_notifier(PM_QOS_CPU_DMA_LATENCY,
+				&acpi_processor_latency_notifier);
 #endif
 	}
 
@@ -1806,7 +1809,8 @@ int acpi_processor_power_exit(struct acpi_processor *pr,
 		 */
 		cpu_idle_wait();
 #ifdef CONFIG_SMP
-		unregister_latency_notifier(&acpi_processor_latency_notifier);
+		pm_qos_remove_notifier(PM_QOS_CPU_DMA_LATENCY,
+				&acpi_processor_latency_notifier);
 #endif
 	}
 #endif
