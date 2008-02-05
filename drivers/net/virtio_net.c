@@ -311,10 +311,8 @@ static int virtnet_close(struct net_device *dev)
 static int virtnet_probe(struct virtio_device *vdev)
 {
 	int err;
-	unsigned int len;
 	struct net_device *dev;
 	struct virtnet_info *vi;
-	void *token;
 
 	/* Allocate ourselves a network device with room for our info */
 	dev = alloc_etherdev(sizeof(struct virtnet_info));
@@ -330,25 +328,24 @@ static int virtnet_probe(struct virtio_device *vdev)
 	SET_NETDEV_DEV(dev, &vdev->dev);
 
 	/* Do we support "hardware" checksums? */
-	token = vdev->config->find(vdev, VIRTIO_CONFIG_NET_F, &len);
-	if (virtio_use_bit(vdev, token, len, VIRTIO_NET_F_NO_CSUM)) {
+	if (vdev->config->feature(vdev, VIRTIO_NET_F_NO_CSUM)) {
 		/* This opens up the world of extra features. */
 		dev->features |= NETIF_F_HW_CSUM|NETIF_F_SG|NETIF_F_FRAGLIST;
-		if (virtio_use_bit(vdev, token, len, VIRTIO_NET_F_TSO4))
+		if (vdev->config->feature(vdev, VIRTIO_NET_F_TSO4))
 			dev->features |= NETIF_F_TSO;
-		if (virtio_use_bit(vdev, token, len, VIRTIO_NET_F_UFO))
+		if (vdev->config->feature(vdev, VIRTIO_NET_F_UFO))
 			dev->features |= NETIF_F_UFO;
-		if (virtio_use_bit(vdev, token, len, VIRTIO_NET_F_TSO4_ECN))
+		if (vdev->config->feature(vdev, VIRTIO_NET_F_TSO4_ECN))
 			dev->features |= NETIF_F_TSO_ECN;
-		if (virtio_use_bit(vdev, token, len, VIRTIO_NET_F_TSO6))
+		if (vdev->config->feature(vdev, VIRTIO_NET_F_TSO6))
 			dev->features |= NETIF_F_TSO6;
 	}
 
 	/* Configuration may specify what MAC to use.  Otherwise random. */
-	token = vdev->config->find(vdev, VIRTIO_CONFIG_NET_MAC_F, &len);
-	if (token) {
-		dev->addr_len = len;
-		vdev->config->get(vdev, token, dev->dev_addr, len);
+	if (vdev->config->feature(vdev, VIRTIO_NET_F_MAC)) {
+		vdev->config->get(vdev,
+				  offsetof(struct virtio_net_config, mac),
+				  dev->dev_addr, dev->addr_len);
 	} else
 		random_ether_addr(dev->dev_addr);
 
@@ -359,13 +356,13 @@ static int virtnet_probe(struct virtio_device *vdev)
 	vi->vdev = vdev;
 
 	/* We expect two virtqueues, receive then send. */
-	vi->rvq = vdev->config->find_vq(vdev, skb_recv_done);
+	vi->rvq = vdev->config->find_vq(vdev, 0, skb_recv_done);
 	if (IS_ERR(vi->rvq)) {
 		err = PTR_ERR(vi->rvq);
 		goto free;
 	}
 
-	vi->svq = vdev->config->find_vq(vdev, skb_xmit_done);
+	vi->svq = vdev->config->find_vq(vdev, 1, skb_xmit_done);
 	if (IS_ERR(vi->svq)) {
 		err = PTR_ERR(vi->svq);
 		goto free_recv;

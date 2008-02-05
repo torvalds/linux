@@ -236,13 +236,13 @@ static int p9_virtio_probe(struct virtio_device *dev)
 
 	/* Find the input queue. */
 	dev->priv = chan;
-	chan->in_vq = dev->config->find_vq(dev, p9_virtio_intr);
+	chan->in_vq = dev->config->find_vq(dev, 0, p9_virtio_intr);
 	if (IS_ERR(chan->in_vq)) {
 		err = PTR_ERR(chan->in_vq);
 		goto free;
 	}
 
-	chan->out_vq = dev->config->find_vq(dev, NULL);
+	chan->out_vq = dev->config->find_vq(dev, 1, NULL);
 	if (IS_ERR(chan->out_vq)) {
 		err = PTR_ERR(chan->out_vq);
 		goto free_in_vq;

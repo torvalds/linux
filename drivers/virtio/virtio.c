@@ -148,51 +148,6 @@ void unregister_virtio_device(struct virtio_device *dev)
 }
 EXPORT_SYMBOL_GPL(unregister_virtio_device);
 
-int __virtio_config_val(struct virtio_device *vdev,
-			u8 type, void *val, size_t size)
-{
-	void *token;
-	unsigned int len;
-
-	token = vdev->config->find(vdev, type, &len);
-	if (!token)
-		return -ENOENT;
-
-	if (len != size)
-		return -EIO;
-
-	vdev->config->get(vdev, token, val, size);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(__virtio_config_val);
-
-int virtio_use_bit(struct virtio_device *vdev,
-		   void *token, unsigned int len, unsigned int bitnum)
-{
-	unsigned long bits[16];
-
-	/* This makes it convenient to pass-through find() results. */
-	if (!token)
-		return 0;
-
-	/* bit not in range of this bitfield? */
-	if (bitnum * 8 >= len / 2)
-		return 0;
-
-	/* Giant feature bitfields are silly. */
-	BUG_ON(len > sizeof(bits));
-	vdev->config->get(vdev, token, bits, len);
-
-	if (!test_bit(bitnum, bits))
-		return 0;
-
-	/* Set acknowledge bit, and write it back. */
-	set_bit(bitnum + len * 8 / 2, bits);
-	vdev->config->set(vdev, token, bits, len);
-	return 1;
-}
-EXPORT_SYMBOL_GPL(virtio_use_bit);
-
 static int virtio_init(void)
 {
 	if (bus_register(&virtio_bus) != 0)

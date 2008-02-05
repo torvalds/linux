@@ -5,16 +5,19 @@
 /* The ID for virtio_net */
 #define VIRTIO_ID_NET	1
 
-/* The bitmap of config for virtio net */
-#define VIRTIO_CONFIG_NET_F	0x40
+/* The feature bitmap for virtio net */
 #define VIRTIO_NET_F_NO_CSUM	0
 #define VIRTIO_NET_F_TSO4	1
 #define VIRTIO_NET_F_UFO	2
 #define VIRTIO_NET_F_TSO4_ECN	3
 #define VIRTIO_NET_F_TSO6	4
+#define VIRTIO_NET_F_MAC	5
 
-/* The config defining mac address. */
-#define VIRTIO_CONFIG_NET_MAC_F	0x41
+struct virtio_net_config
+{
+	/* The config defining mac address (if VIRTIO_NET_F_MAC) */
+	__u8 mac[6];
+} __attribute__((packed));
 
 /* This is the first element of the scatter-gather list.  If you don't
  * specify GSO or CSUM features, you can simply ignore the header. */

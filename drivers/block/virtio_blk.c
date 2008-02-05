@@ -162,8 +162,6 @@ static int virtblk_probe(struct virtio_device *vdev)
 {
 	struct virtio_blk *vblk;
 	int err, major;
-	void *token;
-	unsigned int len;
 	u64 cap;
 	u32 v;
 
@@ -178,7 +176,7 @@ static int virtblk_probe(struct virtio_device *vdev)
 	vblk->vdev = vdev;
 
 	/* We expect one virtqueue, for output. */
-	vblk->vq = vdev->config->find_vq(vdev, blk_done);
+	vblk->vq = vdev->config->find_vq(vdev, 0, blk_done);
 	if (IS_ERR(vblk->vq)) {
 		err = PTR_ERR(vblk->vq);
 		goto out_free_vblk;
@@ -216,15 +214,12 @@ static int virtblk_probe(struct virtio_device *vdev)
 	vblk->disk->fops = &virtblk_fops;
 
 	/* If barriers are supported, tell block layer that queue is ordered */
-	token = vdev->config->find(vdev, VIRTIO_CONFIG_BLK_F, &len);
-	if (virtio_use_bit(vdev, token, len, VIRTIO_BLK_F_BARRIER))
+	if (vdev->config->feature(vdev, VIRTIO_BLK_F_BARRIER))
 		blk_queue_ordered(vblk->disk->queue, QUEUE_ORDERED_TAG, NULL);
 
-	err = virtio_config_val(vdev, VIRTIO_CONFIG_BLK_F_CAPACITY, &cap);
-	if (err) {
-		dev_err(&vdev->dev, "Bad/missing capacity in config\n");
-		goto out_cleanup_queue;
-	}
+	/* Host must always specify the capacity. */
+	__virtio_config_val(vdev, offsetof(struct virtio_blk_config, capacity),
+			    &cap);
 
 	/* If capacity is too big, truncate with warning. */
 	if ((sector_t)cap != cap) {
@@ -234,27 +229,23 @@ static int virtblk_probe(struct virtio_device *vdev)
 	}
 	set_capacity(vblk->disk, cap);
 
-	err = virtio_config_val(vdev, VIRTIO_CONFIG_BLK_F_SIZE_MAX, &v);
+	/* Host can optionally specify maximum segment size and number of
+	 * segments. */
+	err = virtio_config_val(vdev, VIRTIO_BLK_F_SIZE_MAX,
+				offsetof(struct virtio_blk_config, size_max),
+				&v);
 	if (!err)
 		blk_queue_max_segment_size(vblk->disk->queue, v);
-	else if (err != -ENOENT) {
-		dev_err(&vdev->dev, "Bad SIZE_MAX in config\n");
-		goto out_cleanup_queue;
-	}
 
-	err = virtio_config_val(vdev, VIRTIO_CONFIG_BLK_F_SEG_MAX, &v);
+	err = virtio_config_val(vdev, VIRTIO_BLK_F_SEG_MAX,
+				offsetof(struct virtio_blk_config, seg_max),
+				&v);
 	if (!err)
 		blk_queue_max_hw_segments(vblk->disk->queue, v);
-	else if (err != -ENOENT) {
-		dev_err(&vdev->dev, "Bad SEG_MAX in config\n");
-		goto out_cleanup_queue;
-	}
 
 	add_disk(vblk->disk);
 	return 0;
 
-out_cleanup_queue:
-	blk_cleanup_queue(vblk->disk->queue);
 out_put_disk:
 	put_disk(vblk->disk);
 out_unregister_blkdev:
