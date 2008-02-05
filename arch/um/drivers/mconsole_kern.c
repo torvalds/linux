@@ -741,7 +741,6 @@ void mconsole_stack(struct mc_request *req)
 {
 	char *ptr = req->request.data;
 	int pid_requested= -1;
-	struct task_struct *from = NULL;
 	struct task_struct *to = NULL;
 
 	/*
@@ -762,8 +761,6 @@ void mconsole_stack(struct mc_request *req)
 		mconsole_reply(req, "Please specify a pid", 1, 0);
 		return;
 	}
-
-	from = current;
 
 	to = find_task_by_pid(pid_requested);
 	if ((to == NULL) || (pid_requested == 0)) {
