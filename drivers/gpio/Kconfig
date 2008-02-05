@@ -52,4 +52,11 @@ config GPIO_PCF857X
 
 comment "SPI GPIO expanders:"
 
+config GPIO_MCP23S08
+	tristate "Microchip MCP23S08 I/O expander"
+	depends on SPI_MASTER
+	help
+	  SPI driver for Microchip MCP23S08 I/O expander.  This provides
+	  a GPIO interface supporting inputs and outputs.
+
 endmenu
