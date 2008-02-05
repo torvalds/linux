@@ -6,12 +6,9 @@
 #define VIRTIO_ID_NET	1
 
 /* The feature bitmap for virtio net */
-#define VIRTIO_NET_F_NO_CSUM	0
-#define VIRTIO_NET_F_TSO4	1
-#define VIRTIO_NET_F_UFO	2
-#define VIRTIO_NET_F_TSO4_ECN	3
-#define VIRTIO_NET_F_TSO6	4
-#define VIRTIO_NET_F_MAC	5
+#define VIRTIO_NET_F_CSUM	0	/* Can handle pkts w/ partial csum */
+#define VIRTIO_NET_F_MAC	5	/* Host has given MAC address. */
+#define VIRTIO_NET_F_GSO	6	/* Can handle pkts w/ any GSO type */
 
 struct virtio_net_config
 {
@@ -27,10 +24,9 @@ struct virtio_net_hdr
 	__u8 flags;
 #define VIRTIO_NET_HDR_GSO_NONE		0	// Not a GSO frame
 #define VIRTIO_NET_HDR_GSO_TCPV4	1	// GSO frame, IPv4 TCP (TSO)
-/* FIXME: Do we need this?  If they said they can handle ECN, do they care? */
-#define VIRTIO_NET_HDR_GSO_TCPV4_ECN	2	// GSO frame, IPv4 TCP w/ ECN
 #define VIRTIO_NET_HDR_GSO_UDP		3	// GSO frame, IPv4 UDP (UFO)
 #define VIRTIO_NET_HDR_GSO_TCPV6	4	// GSO frame, IPv6 TCP
+#define VIRTIO_NET_HDR_GSO_ECN		0x80	// TCP has ECN set
 	__u8 gso_type;
 	__u16 hdr_len;		/* Ethernet + IP + tcp/udp hdrs */
 	__u16 gso_size;		/* Bytes to append to gso_hdr_len per frame */

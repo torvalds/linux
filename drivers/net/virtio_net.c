@@ -24,6 +24,10 @@
 #include <linux/virtio_net.h>
 #include <linux/scatterlist.h>
 
+static int csum = 1, gso = 1;
+module_param(csum, bool, 0444);
+module_param(gso, bool, 0444);
+
 /* FIXME: MTU in config. */
 #define MAX_PACKET_LEN (ETH_HLEN+ETH_DATA_LEN)
 
@@ -88,12 +92,9 @@ static void receive_skb(struct net_device *dev, struct sk_buff *skb,
 
 	if (hdr->gso_type != VIRTIO_NET_HDR_GSO_NONE) {
 		pr_debug("GSO!\n");
-		switch (hdr->gso_type) {
+		switch (hdr->gso_type & ~VIRTIO_NET_HDR_GSO_ECN) {
 		case VIRTIO_NET_HDR_GSO_TCPV4:
 			skb_shinfo(skb)->gso_type = SKB_GSO_TCPV4;
-			break;
-		case VIRTIO_NET_HDR_GSO_TCPV4_ECN:
-			skb_shinfo(skb)->gso_type = SKB_GSO_TCP_ECN;
 			break;
 		case VIRTIO_NET_HDR_GSO_UDP:
 			skb_shinfo(skb)->gso_type = SKB_GSO_UDP;
@@ -107,6 +108,9 @@ static void receive_skb(struct net_device *dev, struct sk_buff *skb,
 				       dev->name, hdr->gso_type);
 			goto frame_err;
 		}
+
+		if (hdr->gso_type & VIRTIO_NET_HDR_GSO_ECN)
+			skb_shinfo(skb)->gso_type |= SKB_GSO_TCP_ECN;
 
 		skb_shinfo(skb)->gso_size = hdr->gso_size;
 		if (skb_shinfo(skb)->gso_size == 0) {
@@ -244,9 +248,7 @@ static int start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (skb_is_gso(skb)) {
 		hdr->hdr_len = skb_transport_header(skb) - skb->data;
 		hdr->gso_size = skb_shinfo(skb)->gso_size;
-		if (skb_shinfo(skb)->gso_type & SKB_GSO_TCP_ECN)
-			hdr->gso_type = VIRTIO_NET_HDR_GSO_TCPV4_ECN;
-		else if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV4)
+		if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV4)
 			hdr->gso_type = VIRTIO_NET_HDR_GSO_TCPV4;
 		else if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV6)
 			hdr->gso_type = VIRTIO_NET_HDR_GSO_TCPV6;
@@ -254,6 +256,8 @@ static int start_xmit(struct sk_buff *skb, struct net_device *dev)
 			hdr->gso_type = VIRTIO_NET_HDR_GSO_UDP;
 		else
 			BUG();
+		if (skb_shinfo(skb)->gso_type & SKB_GSO_TCP_ECN)
+			hdr->gso_type |= VIRTIO_NET_HDR_GSO_ECN;
 	} else {
 		hdr->gso_type = VIRTIO_NET_HDR_GSO_NONE;
 		hdr->gso_size = hdr->hdr_len = 0;
@@ -330,17 +334,13 @@ static int virtnet_probe(struct virtio_device *vdev)
 	SET_NETDEV_DEV(dev, &vdev->dev);
 
 	/* Do we support "hardware" checksums? */
-	if (vdev->config->feature(vdev, VIRTIO_NET_F_NO_CSUM)) {
+	if (csum && vdev->config->feature(vdev, VIRTIO_NET_F_CSUM)) {
 		/* This opens up the world of extra features. */
 		dev->features |= NETIF_F_HW_CSUM|NETIF_F_SG|NETIF_F_FRAGLIST;
-		if (vdev->config->feature(vdev, VIRTIO_NET_F_TSO4))
-			dev->features |= NETIF_F_TSO;
-		if (vdev->config->feature(vdev, VIRTIO_NET_F_UFO))
-			dev->features |= NETIF_F_UFO;
-		if (vdev->config->feature(vdev, VIRTIO_NET_F_TSO4_ECN))
-			dev->features |= NETIF_F_TSO_ECN;
-		if (vdev->config->feature(vdev, VIRTIO_NET_F_TSO6))
-			dev->features |= NETIF_F_TSO6;
+		if (gso && vdev->config->feature(vdev, VIRTIO_NET_F_GSO)) {
+			dev->features |= NETIF_F_TSO | NETIF_F_UFO
+				| NETIF_F_TSO_ECN | NETIF_F_TSO6;
+		}
 	}
 
 	/* Configuration may specify what MAC to use.  Otherwise random. */
