@@ -31,9 +31,6 @@
 
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 
-extern void *um_virt_to_phys(struct task_struct *task, unsigned long virt,
-			     pte_t *pte_out);
-
 /* zero page used for uninitialized stuff */
 extern unsigned long *empty_zero_page;
 
