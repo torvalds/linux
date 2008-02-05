@@ -79,7 +79,7 @@ extern void iommu_free_table(struct iommu_table *tbl, const char *node_name);
 extern struct iommu_table *iommu_init_table(struct iommu_table * tbl,
 					    int nid);
 
-extern int iommu_map_sg(struct iommu_table *tbl, struct scatterlist *sglist,
+extern int iommu_map_sg(struct device *dev, struct scatterlist *sglist,
 			int nelems, unsigned long mask,
 			enum dma_data_direction direction);
 extern void iommu_unmap_sg(struct iommu_table *tbl, struct scatterlist *sglist,

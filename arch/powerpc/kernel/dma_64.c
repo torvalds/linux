@@ -68,7 +68,7 @@ static void dma_iommu_unmap_single(struct device *dev, dma_addr_t dma_handle,
 static int dma_iommu_map_sg(struct device *dev, struct scatterlist *sglist,
 			    int nelems, enum dma_data_direction direction)
 {
-	return iommu_map_sg(dev->archdata.dma_data, sglist, nelems,
+	return iommu_map_sg(dev, sglist, nelems,
 			    device_to_mask(dev), direction);
 }
 
