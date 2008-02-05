@@ -1344,9 +1344,11 @@ xfs_fs_fill_super(
 	sb->s_time_gran = 1;
 	set_posix_acl_flag(sb);
 
-	error = xfs_root(mp, &rootvp);
-	if (error)
+	rootvp = igrab(mp->m_rootip->i_vnode);
+	if (!rootvp) {
+		error = ENOENT;
 		goto fail_unmount;
+	}
 
 	sb->s_root = d_alloc_root(vn_to_inode(rootvp));
 	if (!sb->s_root) {

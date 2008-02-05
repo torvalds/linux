@@ -13,7 +13,6 @@ int xfs_mount(struct xfs_mount *mp, struct xfs_mount_args *args,
 int xfs_unmount(struct xfs_mount *mp, int flags, struct cred *credp);
 int xfs_mntupdate(struct xfs_mount *mp, int *flags,
 		struct xfs_mount_args *args);
-int xfs_root(struct xfs_mount *mp, bhv_vnode_t **vpp);
 int xfs_sync(struct xfs_mount *mp, int flags);
 void xfs_do_force_shutdown(struct xfs_mount *mp, int flags, char *fname,
 		int lnnum);

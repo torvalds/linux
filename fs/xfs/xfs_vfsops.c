@@ -808,26 +808,6 @@ fscorrupt_out2:
 }
 
 /*
- * xfs_root extracts the root vnode from a vfs.
- *
- * vfsp -- the vfs struct for the desired file system
- * vpp  -- address of the caller's vnode pointer which should be
- *         set to the desired fs root vnode
- */
-int
-xfs_root(
-	xfs_mount_t	*mp,
-	bhv_vnode_t	**vpp)
-{
-	bhv_vnode_t	*vp;
-
-	vp = XFS_ITOV(mp->m_rootip);
-	VN_HOLD(vp);
-	*vpp = vp;
-	return 0;
-}
-
-/*
  * xfs_sync flushes any pending I/O to file system vfsp.
  *
  * This routine is called by vfs_sync() to make sure that things make it
