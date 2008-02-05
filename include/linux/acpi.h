@@ -25,6 +25,7 @@
 #ifndef _LINUX_ACPI_H
 #define _LINUX_ACPI_H
 
+#include <linux/ioport.h>	/* for struct resource */
 
 #ifdef	CONFIG_ACPI
 
@@ -217,6 +218,8 @@ extern int pnpacpi_disabled;
 #define PXM_INVAL	(-1)
 #define NID_INVAL	(-1)
 
+int acpi_check_resource_conflict(struct resource *res);
+
 int acpi_check_region(resource_size_t start, resource_size_t n,
 		      const char *name);
 int acpi_check_mem_region(resource_size_t start, resource_size_t n,
@@ -230,6 +233,11 @@ static inline int acpi_boot_init(void)
 }
 
 static inline int acpi_boot_table_init(void)
+{
+	return 0;
+}
+
+static inline int acpi_check_resource_conflict(struct resource *res)
 {
 	return 0;
 }
