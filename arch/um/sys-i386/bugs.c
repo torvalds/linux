@@ -15,7 +15,6 @@
 
 /* Set during early boot */
 int host_has_cmov = 1;
-int host_has_xmm = 0;
 
 static char token(int fd, char *buf, int len, char stop)
 {
@@ -163,8 +162,6 @@ void arch_check_bugs(void)
 	}
 	if (check_cpu_flag("cmov", &have_it))
 		host_has_cmov = have_it;
-	if (check_cpu_flag("xmm", &have_it))
-		host_has_xmm = have_it;
 }
 
 int arch_handle_signal(int sig, struct uml_pt_regs *regs)
