@@ -83,17 +83,8 @@ static void receive_skb(struct net_device *dev, struct sk_buff *skb,
 
 	if (hdr->flags & VIRTIO_NET_HDR_F_NEEDS_CSUM) {
 		pr_debug("Needs csum!\n");
-		skb->ip_summed = CHECKSUM_PARTIAL;
-		skb->csum_start = hdr->csum_start;
-		skb->csum_offset = hdr->csum_offset;
-		if (skb->csum_start > skb->len - 2
-		    || skb->csum_offset > skb->len - 2) {
-			if (net_ratelimit())
-				printk(KERN_WARNING "%s: csum=%u/%u len=%u\n",
-				       dev->name, skb->csum_start,
-				       skb->csum_offset, skb->len);
+		if (!skb_partial_csum_set(skb,hdr->csum_start,hdr->csum_offset))
 			goto frame_err;
-		}
 	}
 
 	if (hdr->gso_type != VIRTIO_NET_HDR_GSO_NONE) {

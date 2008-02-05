@@ -1810,5 +1810,6 @@ static inline void skb_forward_csum(struct sk_buff *skb)
 		skb->ip_summed = CHECKSUM_NONE;
 }
 
+bool skb_partial_csum_set(struct sk_buff *skb, u16 start, u16 off);
 #endif	/* __KERNEL__ */
 #endif	/* _LINUX_SKBUFF_H */
