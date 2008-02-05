@@ -109,7 +109,7 @@ static int slip_tramp(char **argv, int fd)
 	read_output(fds[0], output, output_len);
 	printk("%s", output);
 
-	err = helper_wait(pid, 0, argv[0]);
+	err = helper_wait(pid);
 	close(fds[0]);
 
 out_free:

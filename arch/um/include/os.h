@@ -207,7 +207,7 @@ extern int execvp_noalloc(char *buf, const char *file, char *const argv[]);
 extern int run_helper(void (*pre_exec)(void *), void *pre_data, char **argv);
 extern int run_helper_thread(int (*proc)(void *), void *arg,
 			     unsigned int flags, unsigned long *stack_out);
-extern int helper_wait(int pid, int nohang, char *pname);
+extern int helper_wait(int pid);
 
 
 /* tls.c */
