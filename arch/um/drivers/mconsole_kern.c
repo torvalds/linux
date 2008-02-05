@@ -1,24 +1,25 @@
 /*
  * Copyright (C) 2001 Lennert Buytenhek (buytenh@gnu.org)
- * Copyright (C) 2001 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
+ * Copyright (C) 2001 - 2008 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
-#include "linux/console.h"
-#include "linux/ctype.h"
-#include "linux/interrupt.h"
-#include "linux/list.h"
-#include "linux/mm.h"
-#include "linux/module.h"
-#include "linux/notifier.h"
-#include "linux/reboot.h"
-#include "linux/proc_fs.h"
-#include "linux/slab.h"
-#include "linux/syscalls.h"
-#include "linux/utsname.h"
-#include "linux/workqueue.h"
-#include "linux/mutex.h"
-#include "asm/uaccess.h"
+#include <linux/console.h>
+#include <linux/ctype.h>
+#include <linux/interrupt.h>
+#include <linux/list.h>
+#include <linux/mm.h>
+#include <linux/module.h>
+#include <linux/notifier.h>
+#include <linux/reboot.h>
+#include <linux/proc_fs.h>
+#include <linux/slab.h>
+#include <linux/syscalls.h>
+#include <linux/utsname.h>
+#include <linux/workqueue.h>
+#include <linux/mutex.h>
+#include <asm/uaccess.h>
+
 #include "init.h"
 #include "irq_kern.h"
 #include "irq_user.h"
@@ -765,7 +766,7 @@ void mconsole_stack(struct mc_request *req)
 		return;
 	}
 
-	to = find_task_by_pid(pid_requested);
+	to = find_task_by_pid_ns(pid_requested, &init_pid_ns);
 	if ((to == NULL) || (pid_requested == 0)) {
 		mconsole_reply(req, "Couldn't find that pid", 1, 0);
 		return;
