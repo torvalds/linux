@@ -99,16 +99,14 @@ static int vring_add_buf(struct virtqueue *_vq,
 	head = vq->free_head;
 	for (i = vq->free_head; out; i = vq->vring.desc[i].next, out--) {
 		vq->vring.desc[i].flags = VRING_DESC_F_NEXT;
-		vq->vring.desc[i].addr = (page_to_pfn(sg_page(sg))<<PAGE_SHIFT)
-			+ sg->offset;
+		vq->vring.desc[i].addr = sg_phys(sg);
 		vq->vring.desc[i].len = sg->length;
 		prev = i;
 		sg++;
 	}
 	for (; in; i = vq->vring.desc[i].next, in--) {
 		vq->vring.desc[i].flags = VRING_DESC_F_NEXT|VRING_DESC_F_WRITE;
-		vq->vring.desc[i].addr = (page_to_pfn(sg_page(sg))<<PAGE_SHIFT)
-			+ sg->offset;
+		vq->vring.desc[i].addr = sg_phys(sg);
 		vq->vring.desc[i].len = sg->length;
 		prev = i;
 		sg++;
