@@ -184,6 +184,9 @@ static inline int update_pte_range(pmd_t *pmd, unsigned long addr,
 
 	pte = pte_offset_kernel(pmd, addr);
 	do {
+		if ((addr >= STUB_START) && (addr < STUB_END))
+			continue;
+
 		r = pte_read(*pte);
 		w = pte_write(*pte);
 		x = pte_exec(*pte);
@@ -486,9 +489,6 @@ void __flush_tlb_one(unsigned long addr)
 static void fix_range(struct mm_struct *mm, unsigned long start_addr,
 		      unsigned long end_addr, int force)
 {
-	if (!proc_mm && (end_addr > STUB_START))
-		end_addr = STUB_START;
-
 	fix_range_common(mm, start_addr, end_addr, force);
 }
 
@@ -502,8 +502,6 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 
 void flush_tlb_mm(struct mm_struct *mm)
 {
-	unsigned long end;
-
 	/*
 	 * Don't bother flushing if this address space is about to be
 	 * destroyed.
@@ -511,8 +509,7 @@ void flush_tlb_mm(struct mm_struct *mm)
 	if (atomic_read(&mm->mm_users) == 0)
 		return;
 
-	end = proc_mm ? TASK_SIZE : STUB_START;
-	fix_range(mm, 0, end, 0);
+	fix_range(mm, 0, TASK_SIZE, 0);
 }
 
 void force_flush_all(void)

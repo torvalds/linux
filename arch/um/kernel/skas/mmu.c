@@ -34,25 +34,6 @@ static int init_stub_pte(struct mm_struct *mm, unsigned long proc,
 	if (!pte)
 		goto out_pte;
 
-	/*
-	 * There's an interaction between the skas0 stub pages, stack
-	 * randomization, and the BUG at the end of exit_mmap.  exit_mmap
-	 * checks that the number of page tables freed is the same as had
-	 * been allocated.  If the stack is on the last page table page,
-	 * then the stack pte page will be freed, and if not, it won't.  To
-	 * avoid having to know where the stack is, or if the process mapped
-	 * something at the top of its address space for some other reason,
-	 * we set TASK_SIZE to end at the start of the last page table.
-	 * This keeps exit_mmap off the last page, but introduces a leak
-	 * of that page.  So, we hang onto it here and free it in
-	 * destroy_context_skas.
-	 */
-
-	mm->context.last_page_table = pmd_page_vaddr(*pmd);
-#ifdef CONFIG_3_LEVEL_PGTABLES
-	mm->context.last_pmd = (unsigned long) __va(pud_val(*pud));
-#endif
-
 	*pte = mk_pte(virt_to_page(kernel), __pgprot(_PAGE_PRESENT));
 	*pte = pte_mkread(*pte);
 	return 0;
@@ -76,24 +57,6 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
 		stack = get_zeroed_page(GFP_KERNEL);
 		if (stack == 0)
 			goto out;
-
-		/*
-		 * This zeros the entry that pgd_alloc didn't, needed since
-		 * we are about to reinitialize it, and want mm.nr_ptes to
-		 * be accurate.
-		 */
-		mm->pgd[USER_PTRS_PER_PGD] = __pgd(0);
-
-		ret = init_stub_pte(mm, STUB_CODE,
-				    (unsigned long) &__syscall_stub_start);
-		if (ret)
-			goto out_free;
-
-		ret = init_stub_pte(mm, STUB_DATA, stack);
-		if (ret)
-			goto out_free;
-
-		mm->nr_ptes--;
 	}
 
 	to_mm->id.stack = stack;
@@ -137,6 +100,64 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
 	return ret;
 }
 
+void arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
+{
+	struct page **pages;
+	int err, ret;
+
+	if (!skas_needs_stub)
+		return;
+
+	ret = init_stub_pte(mm, STUB_CODE,
+			    (unsigned long) &__syscall_stub_start);
+	if (ret)
+		goto out;
+
+	ret = init_stub_pte(mm, STUB_DATA, mm->context.id.stack);
+	if (ret)
+		goto out;
+
+	pages = kmalloc(2 * sizeof(struct page *), GFP_KERNEL);
+	if (pages == NULL) {
+		printk(KERN_ERR "arch_dup_mmap failed to allocate 2 page "
+		       "pointers\n");
+		goto out;
+	}
+
+	pages[0] = virt_to_page(&__syscall_stub_start);
+	pages[1] = virt_to_page(mm->context.id.stack);
+
+	/* dup_mmap already holds mmap_sem */
+	err = install_special_mapping(mm, STUB_START, STUB_END - STUB_START,
+				      VM_READ | VM_MAYREAD | VM_EXEC |
+				      VM_MAYEXEC | VM_DONTCOPY, pages);
+	if (err) {
+		printk(KERN_ERR "install_special_mapping returned %d\n", err);
+		goto out_free;
+	}
+	return;
+
+out_free:
+	kfree(pages);
+out:
+	force_sigsegv(SIGSEGV, current);
+}
+
+void arch_exit_mmap(struct mm_struct *mm)
+{
+	pte_t *pte;
+
+	pte = virt_to_pte(mm, STUB_CODE);
+	if (pte != NULL)
+		pte_clear(mm, STUB_CODE, pte);
+
+	pte = virt_to_pte(mm, STUB_DATA);
+	if (pte == NULL)
+		return;
+
+	pte_clear(mm, STUB_DATA, pte);
+}
+
 void destroy_context(struct mm_struct *mm)
 {
 	struct mm_context *mmu = &mm->context;
@@ -146,15 +167,8 @@ void destroy_context(struct mm_struct *mm)
 	else
 		os_kill_ptraced_process(mmu->id.u.pid, 1);
 
-	if (!proc_mm || !ptrace_faultinfo) {
+	if (skas_needs_stub)
 		free_page(mmu->id.stack);
-		pte_lock_deinit(virt_to_page(mmu->last_page_table));
-		pte_free_kernel(mm, (pte_t *) mmu->last_page_table);
-		dec_zone_page_state(virt_to_page(mmu->last_page_table), NR_PAGETABLE);
-#ifdef CONFIG_3_LEVEL_PGTABLES
-		pmd_free(mm, (pmd_t *) mmu->last_pmd);
-#endif
-	}
 
 	free_ldt(mmu);
 }

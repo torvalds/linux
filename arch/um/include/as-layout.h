@@ -29,21 +29,10 @@
 #define _AC(X, Y)	__AC(X, Y)
 #endif
 
-/*
- * The "- 1"'s are to avoid gcc complaining about integer overflows
- * and unrepresentable decimal constants.  With 3-level page tables,
- * TASK_SIZE is 0x80000000, which gets turned into its signed decimal
- * equivalent in asm-offsets.s.  gcc then complains about that being
- * unsigned only in C90.  To avoid that, UM_TASK_SIZE is defined as
- * TASK_SIZE - 1.  To compensate, we need to add the 1 back here.
- * However, adding it back to UM_TASK_SIZE produces more gcc
- * complaints.  So, I adjust the thing being subtracted from
- * UM_TASK_SIZE instead.  Bah.
- */
-#define STUB_CODE _AC((unsigned long), \
-		      UM_TASK_SIZE - (2 * UM_KERN_PAGE_SIZE - 1))
-#define STUB_DATA _AC((unsigned long), UM_TASK_SIZE - (UM_KERN_PAGE_SIZE - 1))
-#define STUB_START _AC(, STUB_CODE)
+#define STUB_START _AC(, 0x100000)
+#define STUB_CODE _AC((unsigned long), STUB_START)
+#define STUB_DATA _AC((unsigned long), STUB_CODE + UM_KERN_PAGE_SIZE)
+#define STUB_END _AC((unsigned long), STUB_DATA + UM_KERN_PAGE_SIZE)
 
 #ifndef __ASSEMBLY__
 
