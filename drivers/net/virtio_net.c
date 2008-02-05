@@ -56,11 +56,13 @@ static inline void vnet_hdr_to_sg(struct scatterlist *sg, struct sk_buff *skb)
 	sg_init_one(sg, skb_vnet_hdr(skb), sizeof(struct virtio_net_hdr));
 }
 
-static void skb_xmit_done(struct virtqueue *rvq)
+static void skb_xmit_done(struct virtqueue *svq)
 {
-	struct virtnet_info *vi = rvq->vdev->priv;
+	struct virtnet_info *vi = svq->vdev->priv;
 
-	/* In case we were waiting for output buffers. */
+	/* Suppress further interrupts. */
+	svq->vq_ops->disable_cb(svq);
+	/* We were waiting for more output buffers. */
 	netif_wake_queue(vi->dev);
 }
 
@@ -232,8 +234,6 @@ static int start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	pr_debug("%s: xmit %p %s\n", dev->name, skb, print_mac(mac, dest));
 
-	free_old_xmit_skbs(vi);
-
 	/* Encode metadata header at front. */
 	hdr = skb_vnet_hdr(skb);
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
@@ -266,11 +266,24 @@ static int start_xmit(struct sk_buff *skb, struct net_device *dev)
 	vnet_hdr_to_sg(sg, skb);
 	num = skb_to_sgvec(skb, sg+1, 0, skb->len) + 1;
 	__skb_queue_head(&vi->send, skb);
+
+again:
+	/* Free up any pending old buffers before queueing new ones. */
+	free_old_xmit_skbs(vi);
 	err = vi->svq->vq_ops->add_buf(vi->svq, sg, num, 0, skb);
 	if (err) {
 		pr_debug("%s: virtio not prepared to send\n", dev->name);
-		skb_unlink(skb, &vi->send);
 		netif_stop_queue(dev);
+
+		/* Activate callback for using skbs: if this fails it
+		 * means some were used in the meantime. */
+		if (unlikely(!vi->svq->vq_ops->enable_cb(vi->svq))) {
+			printk("Unlikely: restart svq failed\n");
+			netif_start_queue(dev);
+			goto again;
+		}
+		__skb_unlink(skb, &vi->send);
+
 		return NETDEV_TX_BUSY;
 	}
 	vi->svq->vq_ops->kick(vi->svq);
