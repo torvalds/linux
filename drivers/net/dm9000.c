@@ -142,6 +142,7 @@ static int dm9000_probe(struct platform_device *);
 static int dm9000_open(struct net_device *);
 static int dm9000_start_xmit(struct sk_buff *, struct net_device *);
 static int dm9000_stop(struct net_device *);
+static int dm9000_ioctl(struct net_device *dev, struct ifreq *req, int cmd);
 
 static void dm9000_init_dm9000(struct net_device *);
 
@@ -331,6 +332,16 @@ static void dm9000_poll_controller(struct net_device *dev)
 	enable_irq(dev->irq);
 }
 #endif
+
+static int dm9000_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
+{
+	board_info_t *dm = to_dm9000_board(dev);
+
+	if (!netif_running(dev))
+		return -EINVAL;
+
+	return generic_mii_ioctl(&dm->mii, if_mii(req), cmd, NULL);
+}
 
 /* ethtool ops */
 
@@ -661,6 +672,7 @@ dm9000_probe(struct platform_device *pdev)
 	ndev->stop		 = &dm9000_stop;
 	ndev->set_multicast_list = &dm9000_hash_table;
 	ndev->ethtool_ops	 = &dm9000_ethtool_ops;
+	ndev->do_ioctl		 = &dm9000_ioctl;
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	ndev->poll_controller	 = &dm9000_poll_controller;
