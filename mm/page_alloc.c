@@ -890,7 +890,14 @@ void drain_zone_pages(struct zone *zone, struct per_cpu_pages *pcp)
 }
 #endif
 
-static void __drain_pages(unsigned int cpu)
+/*
+ * Drain pages of the indicated processor.
+ *
+ * The processor must either be the current processor and the
+ * thread pinned to the current processor or a processor that
+ * is not online.
+ */
+static void drain_pages(unsigned int cpu)
 {
 	unsigned long flags;
 	struct zone *zone;
@@ -913,6 +920,22 @@ static void __drain_pages(unsigned int cpu)
 			local_irq_restore(flags);
 		}
 	}
+}
+
+/*
+ * Spill all of this CPU's per-cpu pages back into the buddy allocator.
+ */
+void drain_local_pages(void *arg)
+{
+	drain_pages(smp_processor_id());
+}
+
+/*
+ * Spill all the per-cpu pages from all CPUs back into the buddy allocator
+ */
+void drain_all_pages(void)
+{
+	on_each_cpu(drain_local_pages, NULL, 0, 1);
 }
 
 #ifdef CONFIG_HIBERNATION
@@ -950,37 +973,6 @@ void mark_free_pages(struct zone *zone)
 	spin_unlock_irqrestore(&zone->lock, flags);
 }
 #endif /* CONFIG_PM */
-
-/*
- * Spill all of this CPU's per-cpu pages back into the buddy allocator.
- */
-void drain_local_pages(void)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);	
-	__drain_pages(smp_processor_id());
-	local_irq_restore(flags);	
-}
-
-void smp_drain_local_pages(void *arg)
-{
-	drain_local_pages();
-}
-
-/*
- * Spill all the per-cpu pages from all CPUs back into the buddy allocator
- */
-void drain_all_local_pages(void)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	__drain_pages(smp_processor_id());
-	local_irq_restore(flags);
-
-	smp_call_function(smp_drain_local_pages, NULL, 0, 1);
-}
 
 /*
  * Free a 0-order page
@@ -1569,7 +1561,7 @@ nofail_alloc:
 	cond_resched();
 
 	if (order != 0)
-		drain_all_local_pages();
+		drain_all_pages();
 
 	if (likely(did_some_progress)) {
 		page = get_page_from_freelist(gfp_mask, order,
@@ -3978,10 +3970,23 @@ static int page_alloc_cpu_notify(struct notifier_block *self,
 	int cpu = (unsigned long)hcpu;
 
 	if (action == CPU_DEAD || action == CPU_DEAD_FROZEN) {
-		local_irq_disable();
-		__drain_pages(cpu);
+		drain_pages(cpu);
+
+		/*
+		 * Spill the event counters of the dead processor
+		 * into the current processors event counters.
+		 * This artificially elevates the count of the current
+		 * processor.
+		 */
 		vm_events_fold_cpu(cpu);
-		local_irq_enable();
+
+		/*
+		 * Zero the differential counters of the dead processor
+		 * so that the vm statistics are consistent.
+		 *
+		 * This is only okay since the processor is dead and cannot
+		 * race with what we are doing.
+		 */
 		refresh_cpu_vm_stats(cpu);
 	}
 	return NOTIFY_OK;
@@ -4480,7 +4485,7 @@ int set_migratetype_isolate(struct page *page)
 out:
 	spin_unlock_irqrestore(&zone->lock, flags);
 	if (!ret)
-		drain_all_local_pages();
+		drain_all_pages();
 	return ret;
 }
 
