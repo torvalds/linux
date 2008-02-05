@@ -334,9 +334,6 @@ __writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 		WARN_ON(inode->i_state & I_WILL_FREE);
 
 	if ((wbc->sync_mode != WB_SYNC_ALL) && (inode->i_state & I_SYNC)) {
-		struct address_space *mapping = inode->i_mapping;
-		int ret;
-
 		/*
 		 * We're skipping this inode because it's locked, and we're not
 		 * doing writeback-for-data-integrity.  Move it to s_more_io so
@@ -345,15 +342,7 @@ __writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 		 * completed a full scan of s_io.
 		 */
 		requeue_io(inode);
-
-		/*
-		 * Even if we don't actually write the inode itself here,
-		 * we can at least start some of the data writeout..
-		 */
-		spin_unlock(&inode_lock);
-		ret = do_writepages(mapping, wbc);
-		spin_lock(&inode_lock);
-		return ret;
+		return 0;
 	}
 
 	/*
