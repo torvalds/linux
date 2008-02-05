@@ -13,9 +13,7 @@
  * this archive for more details.
  */
 
-#if defined(CONFIG_PLAT_M32700UT_Alpha)
-#define PLD_PLAT_BASE		0x08c00000
-#elif defined(CONFIG_PLAT_M32700UT) || defined(CONFIG_PLAT_USRV)
+#if defined(CONFIG_PLAT_M32700UT) || defined(CONFIG_PLAT_USRV)
 #define PLD_PLAT_BASE		0x04c00000
 #else
 #error "no platform configuration"
