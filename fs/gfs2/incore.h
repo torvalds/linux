@@ -636,9 +636,6 @@ struct gfs2_sbd {
 
 	/* Counters */
 
-	atomic_t sd_glock_count;
-	atomic_t sd_glock_held_count;
-	atomic_t sd_inode_count;
 	atomic_t sd_reclaimed;
 
 	char sd_fsname[GFS2_FSNAME_LEN];
