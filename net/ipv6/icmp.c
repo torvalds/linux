@@ -683,7 +683,8 @@ static int icmpv6_rcv(struct sk_buff *skb)
 		}
 	}
 
-	__skb_pull(skb, sizeof(*hdr));
+	if (!pskb_pull(skb, sizeof(*hdr)))
+		goto discard_it;
 
 	hdr = icmp6_hdr(skb);
 

@@ -1015,7 +1015,8 @@ int icmp_rcv(struct sk_buff *skb)
 			goto error;
 	}
 
-	__skb_pull(skb, sizeof(*icmph));
+	if (!pskb_pull(skb, sizeof(*icmph)))
+		goto error;
 
 	icmph = icmp_hdr(skb);
 
