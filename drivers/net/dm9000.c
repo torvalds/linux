@@ -116,6 +116,7 @@ typedef struct board_info {
 	u8 io_mode;		/* 0:word, 2:byte */
 	u8 phy_addr;
 	unsigned int flags;
+	unsigned int in_suspend :1;
 
 	int debug_level;
 
@@ -1108,6 +1109,18 @@ dm9000_hash_table(struct net_device *dev)
 
 
 /*
+ * Sleep, either by using msleep() or if we are suspending, then
+ * use mdelay() to sleep.
+ */
+static void dm9000_msleep(board_info_t *db, unsigned int ms)
+{
+	if (db->in_suspend)
+		mdelay(ms);
+	else
+		msleep(ms);
+}
+
+/*
  *   Read a word from phyxcer
  */
 static int
@@ -1131,7 +1144,7 @@ dm9000_phy_read(struct net_device *dev, int phy_reg_unused, int reg)
 	writeb(reg_save, db->io_addr);
 	spin_unlock_irqrestore(&db->lock,flags);
 
-	udelay(100);		/* Wait read complete */
+	dm9000_msleep(db, 1);		/* Wait read complete */
 
 	spin_lock_irqsave(&db->lock,flags);
 	reg_save = readb(db->io_addr);
@@ -1175,7 +1188,7 @@ dm9000_phy_write(struct net_device *dev, int phyaddr_unused, int reg, int value)
 	writeb(reg_save, db->io_addr);
 	spin_unlock_irqrestore(&db->lock,flags);
 
-	udelay(500);		/* Wait write complete */
+	dm9000_msleep(db, 1);		/* Wait write complete */
 
 	spin_lock_irqsave(&db->lock,flags);
 	reg_save = readb(db->io_addr);
@@ -1192,8 +1205,12 @@ static int
 dm9000_drv_suspend(struct platform_device *dev, pm_message_t state)
 {
 	struct net_device *ndev = platform_get_drvdata(dev);
+	board_info_t *db;
 
 	if (ndev) {
+		db = (board_info_t *) ndev->priv;
+		db->in_suspend = 1;
+
 		if (netif_running(ndev)) {
 			netif_device_detach(ndev);
 			dm9000_shutdown(ndev);
@@ -1216,6 +1233,8 @@ dm9000_drv_resume(struct platform_device *dev)
 
 			netif_device_attach(ndev);
 		}
+
+		db->in_suspend = 0;
 	}
 	return 0;
 }
