@@ -4,6 +4,7 @@
  * Copyright (C) 1999 David S. Miller (davem@redhat.com)
  */
 
+#include <linux/dma-mapping.h>
 #include "iommu_common.h"
 
 /* You are _strongly_ advised to enable the following debugging code
@@ -201,21 +202,24 @@ void verify_sglist(struct scatterlist *sglist, int nents, iopte_t *iopte, int np
 }
 #endif
 
-unsigned long prepare_sg(struct scatterlist *sg, int nents)
+unsigned long prepare_sg(struct device *dev, struct scatterlist *sg, int nents)
 {
 	struct scatterlist *dma_sg = sg;
 	unsigned long prev;
 	u32 dent_addr, dent_len;
+	unsigned int max_seg_size;
 
 	prev  = (unsigned long) sg_virt(sg);
 	prev += (unsigned long) (dent_len = sg->length);
 	dent_addr = (u32) ((unsigned long)(sg_virt(sg)) & (IO_PAGE_SIZE - 1UL));
+	max_seg_size = dma_get_max_seg_size(dev);
 	while (--nents) {
 		unsigned long addr;
 
 		sg = sg_next(sg);
 		addr = (unsigned long) sg_virt(sg);
-		if (! VCONTIG(prev, addr)) {
+		if (! VCONTIG(prev, addr) ||
+			dent_len + sg->length > max_seg_size) {
 			dma_sg->dma_address = dent_addr;
 			dma_sg->dma_length = dent_len;
 			dma_sg = sg_next(dma_sg);
