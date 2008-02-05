@@ -283,6 +283,13 @@ static int virtnet_open(struct net_device *dev)
 	struct virtnet_info *vi = netdev_priv(dev);
 
 	napi_enable(&vi->napi);
+
+	/* If all buffers were filled by other side before we napi_enabled, we
+	 * won't get another interrupt, so process any outstanding packets
+	 * now.  virtnet_poll wants re-enable the queue, so we disable here. */
+	vi->rvq->vq_ops->disable_cb(vi->rvq);
+	netif_rx_schedule(vi->dev, &vi->napi);
+
 	return 0;
 }
 
