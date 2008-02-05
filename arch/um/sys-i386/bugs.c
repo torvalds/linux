@@ -10,11 +10,41 @@
 #include "os.h"
 #include "task.h"
 #include "user.h"
+#include "sysdep/archsetjmp.h"
 
 #define MAXTOKEN 64
 
 /* Set during early boot */
 int host_has_cmov = 1;
+static jmp_buf cmov_test_return;
+
+static void cmov_sigill_test_handler(int sig)
+{
+	host_has_cmov = 0;
+	longjmp(cmov_test_return, 1);
+}
+
+static void test_for_host_cmov(void)
+{
+	struct sigaction old, new;
+
+	printk(UM_KERN_INFO "Checking for host processor cmov support...");
+	new.sa_handler = cmov_sigill_test_handler;
+
+	/* Make sure that SIGILL is enabled after the handler longjmps back */
+	new.sa_flags = SA_NODEFER;
+	sigemptyset(&new.sa_mask);
+	sigaction(SIGILL, &new, &old);
+
+	if (setjmp(cmov_test_return) == 0) {
+		unsigned long foo = 0;
+		__asm__ __volatile__("cmovz %0, %1" : "=r" (foo) : "0" (foo));
+		printk(UM_KERN_CONT "Yes\n");
+	} else
+		printk(UM_KERN_CONT "No\n");
+
+	sigaction(SIGILL, &old, &new);
+}
 
 static char token(int fd, char *buf, int len, char stop)
 {
@@ -153,15 +183,7 @@ void arch_init_thread(void)
 
 void arch_check_bugs(void)
 {
-	int have_it;
-
-	if (os_access("/proc/cpuinfo", OS_ACC_R_OK) < 0) {
-		printk(UM_KERN_ERR "/proc/cpuinfo not available - skipping CPU "
-		       "capability checks\n");
-		return;
-	}
-	if (check_cpu_flag("cmov", &have_it))
-		host_has_cmov = have_it;
+	test_for_host_cmov();
 }
 
 int arch_handle_signal(int sig, struct uml_pt_regs *regs)
