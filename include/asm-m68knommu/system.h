@@ -207,23 +207,6 @@ cmpxchg(volatile int *p, int old, int new)
 }
 
 
-#ifdef CONFIG_M68332
-#define HARD_RESET_NOW() ({		\
-        local_irq_disable();		\
-        asm("				\
-	movew   #0x0000, 0xfffa6a;	\
-        reset;				\
-        /*movew #0x1557, 0xfffa44;*/	\
-        /*movew #0x0155, 0xfffa46;*/	\
-        moveal #0, %a0;			\
-        movec %a0, %vbr;		\
-        moveal 0, %sp;			\
-        moveal 4, %a0;			\
-        jmp (%a0);			\
-        ");				\
-})
-#endif
-
 #if defined( CONFIG_M68328 ) || defined( CONFIG_M68EZ328 ) || \
 	defined (CONFIG_M68360) || defined( CONFIG_M68VZ328 )
 #define HARD_RESET_NOW() ({		\
