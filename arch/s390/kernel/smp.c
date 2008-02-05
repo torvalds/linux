@@ -225,12 +225,11 @@ EXPORT_SYMBOL(smp_call_function_single);
  * You must not call this function with disabled interrupts or from a
  * hardware interrupt handler or from a bottom half handler.
  */
-int
-smp_call_function_mask(cpumask_t mask,
-			void (*func)(void *), void *info,
-			int wait)
+int smp_call_function_mask(cpumask_t mask, void (*func)(void *), void *info,
+			   int wait)
 {
 	preempt_disable();
+	cpu_clear(smp_processor_id(), mask);
 	__smp_call_function_map(func, info, 0, wait, mask);
 	preempt_enable();
 	return 0;
