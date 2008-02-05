@@ -1127,7 +1127,15 @@ dm9000_phy_read(struct net_device *dev, int phy_reg_unused, int reg)
 	iow(db, DM9000_EPAR, DM9000_PHY | reg);
 
 	iow(db, DM9000_EPCR, 0xc);	/* Issue phyxcer read command */
+
+	writeb(reg_save, db->io_addr);
+	spin_unlock_irqrestore(&db->lock,flags);
+
 	udelay(100);		/* Wait read complete */
+
+	spin_lock_irqsave(&db->lock,flags);
+	reg_save = readb(db->io_addr);
+
 	iow(db, DM9000_EPCR, 0x0);	/* Clear phyxcer read command */
 
 	/* The read data keeps on REG_0D & REG_0E */
@@ -1135,7 +1143,6 @@ dm9000_phy_read(struct net_device *dev, int phy_reg_unused, int reg)
 
 	/* restore the previous address */
 	writeb(reg_save, db->io_addr);
-
 	spin_unlock_irqrestore(&db->lock,flags);
 
 	return ret;
@@ -1164,7 +1171,15 @@ dm9000_phy_write(struct net_device *dev, int phyaddr_unused, int reg, int value)
 	iow(db, DM9000_EPDRH, ((value >> 8) & 0xff));
 
 	iow(db, DM9000_EPCR, 0xa);	/* Issue phyxcer write command */
+
+	writeb(reg_save, db->io_addr);
+	spin_unlock_irqrestore(&db->lock,flags);
+
 	udelay(500);		/* Wait write complete */
+
+	spin_lock_irqsave(&db->lock,flags);
+	reg_save = readb(db->io_addr);
+
 	iow(db, DM9000_EPCR, 0x0);	/* Clear phyxcer write command */
 
 	/* restore the previous address */
