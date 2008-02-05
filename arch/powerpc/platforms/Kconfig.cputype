@@ -94,6 +94,7 @@ config 8xx
 	bool
 
 config E500
+	select FSL_EMB_PERFMON
 	bool
 
 config PPC_FPU
@@ -114,6 +115,9 @@ config FSL_BOOKE
 	bool
 	depends on E200 || E500
 	default y
+
+config FSL_EMB_PERFMON
+	bool
 
 config PTE_64BIT
 	bool
