@@ -1688,9 +1688,6 @@ static int do_signal_stop(int signr)
 	struct signal_struct *sig = current->signal;
 	int stop_count;
 
-	if (!likely(sig->flags & SIGNAL_STOP_DEQUEUED))
-		return 0;
-
 	if (sig->group_stop_count > 0) {
 		/*
 		 * There is a group stop in progress.  We don't need to
@@ -1698,12 +1695,14 @@ static int do_signal_stop(int signr)
 		 */
 		stop_count = --sig->group_stop_count;
 	} else {
+		struct task_struct *t;
+
+		if (!likely(sig->flags & SIGNAL_STOP_DEQUEUED))
+			return 0;
 		/*
 		 * There is no group stop already in progress.
 		 * We must initiate one now.
 		 */
-		struct task_struct *t;
-
 		sig->group_exit_code = signr;
 
 		stop_count = 0;
@@ -1731,38 +1730,6 @@ static int do_signal_stop(int signr)
 	return 1;
 }
 
-/*
- * Do appropriate magic when group_stop_count > 0.
- * We return nonzero if we stopped, after releasing the siglock.
- * We return zero if we still hold the siglock and should look
- * for another signal without checking group_stop_count again.
- */
-static int handle_group_stop(void)
-{
-	int stop_count;
-
-	if (current->signal->flags & SIGNAL_GROUP_EXIT)
-		/*
-		 * Group stop is so another thread can do a core dump,
-		 * or else we are racing against a death signal.
-		 * Just punt the stop so we can get the next signal.
-		 */
-		return 0;
-
-	/*
-	 * There is a group stop in progress.  We stop
-	 * without any associated signal being in our queue.
-	 */
-	stop_count = --current->signal->group_stop_count;
-	if (stop_count == 0)
-		current->signal->flags = SIGNAL_STOP_STOPPED;
-	current->exit_code = current->signal->group_exit_code;
-	set_current_state(TASK_STOPPED);
-	spin_unlock_irq(&current->sighand->siglock);
-	finish_stop(stop_count);
-	return 1;
-}
-
 int get_signal_to_deliver(siginfo_t *info, struct k_sigaction *return_ka,
 			  struct pt_regs *regs, void *cookie)
 {
@@ -1777,7 +1744,7 @@ relock:
 		struct k_sigaction *ka;
 
 		if (unlikely(current->signal->group_stop_count > 0) &&
-		    handle_group_stop())
+		    do_signal_stop(0))
 			goto relock;
 
 		signr = dequeue_signal(current, mask, info);
