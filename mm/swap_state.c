@@ -64,10 +64,10 @@ void show_swap_cache_info(void)
 }
 
 /*
- * __add_to_swap_cache resembles add_to_page_cache on swapper_space,
+ * add_to_swap_cache resembles add_to_page_cache on swapper_space,
  * but sets SwapCache flag and private instead of mapping and index.
  */
-static int __add_to_swap_cache(struct page *page, swp_entry_t entry,
+static int add_to_swap_cache(struct page *page, swp_entry_t entry,
 			       gfp_t gfp_mask)
 {
 	int error;
@@ -92,28 +92,6 @@ static int __add_to_swap_cache(struct page *page, swp_entry_t entry,
 		radix_tree_preload_end();
 	}
 	return error;
-}
-
-static int add_to_swap_cache(struct page *page, swp_entry_t entry,
-				gfp_t gfp_mask)
-{
-	int error;
-
-	BUG_ON(PageLocked(page));
-	if (!swap_duplicate(entry))
-		return -ENOENT;
-
-	SetPageLocked(page);
-	error = __add_to_swap_cache(page, entry, gfp_mask & GFP_KERNEL);
-	/*
-	 * Anon pages are already on the LRU, we don't run lru_cache_add here.
-	 */
-	if (error) {
-		ClearPageLocked(page);
-		swap_free(entry);
-		return error;
-	}
-	return 0;
 }
 
 /*
@@ -165,7 +143,7 @@ int add_to_swap(struct page * page, gfp_t gfp_mask)
 		/*
 		 * Add it to the swap cache and mark it dirty
 		 */
-		err = __add_to_swap_cache(page, entry,
+		err = add_to_swap_cache(page, entry,
 				gfp_mask|__GFP_NOMEMALLOC|__GFP_NOWARN);
 
 		switch (err) {
@@ -210,7 +188,7 @@ void delete_from_swap_cache(struct page *page)
  */
 int move_to_swap_cache(struct page *page, swp_entry_t entry)
 {
-	int err = __add_to_swap_cache(page, entry, GFP_ATOMIC);
+	int err = add_to_swap_cache(page, entry, GFP_ATOMIC);
 	if (!err) {
 		remove_from_page_cache(page);
 		page_cache_release(page);	/* pagecache ref */
@@ -335,16 +313,21 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 		}
 
 		/*
+		 * Swap entry may have been freed since our caller observed it.
+		 */
+		if (!swap_duplicate(entry))
+			break;
+
+		/*
 		 * Associate the page with swap entry in the swap cache.
-		 * May fail (-ENOENT) if swap entry has been freed since
-		 * our caller observed it.  May fail (-EEXIST) if there
-		 * is already a page associated with this entry in the
-		 * swap cache: added by a racing read_swap_cache_async,
-		 * or by try_to_swap_out (or shmem_writepage) re-using
-		 * the just freed swap entry for an existing page.
+		 * May fail (-EEXIST) if there is already a page associated
+		 * with this entry in the swap cache: added by a racing
+		 * read_swap_cache_async, or add_to_swap or shmem_writepage
+		 * re-using the just freed swap entry for an existing page.
 		 * May fail (-ENOMEM) if radix-tree node allocation failed.
 		 */
-		err = add_to_swap_cache(new_page, entry, gfp_mask);
+		SetPageLocked(new_page);
+		err = add_to_swap_cache(new_page, entry, gfp_mask & GFP_KERNEL);
 		if (!err) {
 			/*
 			 * Initiate read into locked page and return.
@@ -353,7 +336,9 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 			swap_readpage(NULL, new_page);
 			return new_page;
 		}
-	} while (err != -ENOENT && err != -ENOMEM);
+		ClearPageLocked(new_page);
+		swap_free(entry);
+	} while (err != -ENOMEM);
 
 	if (new_page)
 		page_cache_release(new_page);
