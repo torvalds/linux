@@ -1451,6 +1451,14 @@ pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask)
 }
 #endif
 
+#ifndef HAVE_ARCH_PCI_SET_DMA_MAX_SEGMENT_SIZE
+int pci_set_dma_max_seg_size(struct pci_dev *dev, unsigned int size)
+{
+	return dma_set_max_seg_size(&dev->dev, size);
+}
+EXPORT_SYMBOL(pci_set_dma_max_seg_size);
+#endif
+
 /**
  * pcix_get_max_mmrbc - get PCI-X maximum designed memory read byte count
  * @dev: PCI device to query

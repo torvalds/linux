@@ -933,7 +933,10 @@ void pci_device_add(struct pci_dev *dev, struct pci_bus *bus)
 
 	set_dev_node(&dev->dev, pcibus_to_node(bus));
 	dev->dev.dma_mask = &dev->dma_mask;
+	dev->dev.dma_parms = &dev->dma_parms;
 	dev->dev.coherent_dma_mask = 0xffffffffull;
+
+	pci_set_dma_max_seg_size(dev, 65536);
 
 	/* Fix up broken headers */
 	pci_fixup_device(pci_fixup_header, dev);
