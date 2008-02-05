@@ -202,6 +202,13 @@ L:	linux-scsi@vger.kernel.org
 W:	http://www.adaptec.com/
 S:	Supported
 
+ACER WMI LAPTOP EXTRAS
+P:	Carlos Corbacho
+M:	carlos@strangeworlds.co.uk
+L:	aceracpi@googlegroups.com (subscribers-only)
+W:	http://code.google.com/p/aceracpi
+S:	Maintained
+
 ACPI
 P:	Len Brown
 M:	len.brown@intel.com

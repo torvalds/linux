@@ -92,6 +92,22 @@ config TIFM_7XX1
           To compile this driver as a module, choose M here: the module will
 	  be called tifm_7xx1.
 
+config ACER_WMI
+        tristate "Acer WMI Laptop Extras (EXPERIMENTAL)"
+	depends on X86
+	depends on EXPERIMENTAL
+	depends on ACPI
+	depends on ACPI_WMI
+	depends on LEDS_CLASS
+	depends on BACKLIGHT_CLASS_DEVICE
+	---help---
+	  This is a driver for newer Acer (and Wistron) laptops. It adds
+	  wireless radio and bluetooth control, and on some laptops,
+	  exposes the mail LED and LCD backlight.
+
+	  If you have an ACPI-WMI compatible Acer/ Wistron laptop, say Y or M
+	  here.
+
 config ASUS_LAPTOP
         tristate "Asus Laptop Extras (EXPERIMENTAL)"
         depends on X86
