@@ -465,6 +465,9 @@ config CALGARY_IOMMU_ENABLED_BY_DEFAULT
 	  Calgary anyway, pass 'iommu=calgary' on the kernel command line.
 	  If unsure, say Y.
 
+config IOMMU_HELPER
+	def_bool CALGARY_IOMMU
+
 # need this always selected by IOMMU for the VIA workaround
 config SWIOTLB
 	bool
