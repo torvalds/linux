@@ -794,7 +794,6 @@ static int mts_usb_probe(struct usb_interface *intf,
 
 	new_desc->usb_dev = dev;
 	new_desc->usb_intf = intf;
-	init_MUTEX(&new_desc->lock);
 
 	/* endpoints */
 	new_desc->ep_out = ep_out;
