@@ -14,7 +14,8 @@
 static unsigned long save_context_stack(struct stack_trace *trace,
 					unsigned long sp,
 					unsigned long low,
-					unsigned long high)
+					unsigned long high,
+					int savesched)
 {
 	struct stack_frame *sf;
 	struct pt_regs *regs;
@@ -47,10 +48,12 @@ static unsigned long save_context_stack(struct stack_trace *trace,
 			return sp;
 		regs = (struct pt_regs *)sp;
 		addr = regs->psw.addr & PSW_ADDR_INSN;
-		if (!trace->skip)
-			trace->entries[trace->nr_entries++] = addr;
-		else
-			trace->skip--;
+		if (savesched || !in_sched_functions(addr)) {
+			if (!trace->skip)
+				trace->entries[trace->nr_entries++] = addr;
+			else
+				trace->skip--;
+		}
 		if (trace->nr_entries >= trace->max_entries)
 			return sp;
 		low = sp;
@@ -66,15 +69,27 @@ void save_stack_trace(struct stack_trace *trace)
 	orig_sp = sp & PSW_ADDR_INSN;
 	new_sp = save_context_stack(trace, orig_sp,
 				    S390_lowcore.panic_stack - PAGE_SIZE,
-				    S390_lowcore.panic_stack);
+				    S390_lowcore.panic_stack, 1);
 	if (new_sp != orig_sp)
 		return;
 	new_sp = save_context_stack(trace, new_sp,
 				    S390_lowcore.async_stack - ASYNC_SIZE,
-				    S390_lowcore.async_stack);
+				    S390_lowcore.async_stack, 1);
 	if (new_sp != orig_sp)
 		return;
 	save_context_stack(trace, new_sp,
 			   S390_lowcore.thread_info,
-			   S390_lowcore.thread_info + THREAD_SIZE);
+			   S390_lowcore.thread_info + THREAD_SIZE, 1);
+}
+
+void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
+{
+	unsigned long sp, low, high;
+
+	sp = tsk->thread.ksp & PSW_ADDR_INSN;
+	low = (unsigned long) task_stack_page(tsk);
+	high = (unsigned long) task_pt_regs(tsk);
+	save_context_stack(trace, sp, low, high, 0);
+	if (trace->nr_entries < trace->max_entries)
+		trace->entries[trace->nr_entries++] = ULONG_MAX;
 }
