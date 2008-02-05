@@ -225,7 +225,8 @@ out:
 }
 
 /* XXX: use do_get_thread_area to read the host value? I'm not at all sure! */
-static int get_tls_entry(struct task_struct* task, struct user_desc *info, int idx)
+static int get_tls_entry(struct task_struct *task, struct user_desc *info,
+			 int idx)
 {
 	struct thread_struct *t = &task->thread;
 
@@ -263,7 +264,7 @@ clear:
 	goto out;
 }
 
-asmlinkage int sys_set_thread_area(struct user_desc __user *user_desc)
+int sys_set_thread_area(struct user_desc __user *user_desc)
 {
 	struct user_desc info;
 	int idx, ret;
@@ -298,7 +299,7 @@ asmlinkage int sys_set_thread_area(struct user_desc __user *user_desc)
  * i386. However the only possible error are caused by bugs.
  */
 int ptrace_set_thread_area(struct task_struct *child, int idx,
-		struct user_desc __user *user_desc)
+			   struct user_desc __user *user_desc)
 {
 	struct user_desc info;
 
@@ -311,7 +312,7 @@ int ptrace_set_thread_area(struct task_struct *child, int idx,
 	return set_tls_entry(child, &info, idx, 0);
 }
 
-asmlinkage int sys_get_thread_area(struct user_desc __user *user_desc)
+int sys_get_thread_area(struct user_desc __user *user_desc)
 {
 	struct user_desc info;
 	int idx, ret;
