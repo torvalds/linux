@@ -678,6 +678,16 @@ config MARKERS
 
 source "arch/Kconfig"
 
+config PROC_PAGE_MONITOR
+ 	default y
+	depends on PROC_FS && MMU
+	bool "Enable /proc page monitoring" if EMBEDDED
+ 	help
+	  Various /proc files exist to monitor process memory utilization:
+	  /proc/pid/smaps, /proc/pid/clear_refs, /proc/pid/pagemap,
+	  /proc/kpagecount, and /proc/kpageflags. Disabling these
+          interfaces will reduce the size of the kernel by approximately 4kb.
+
 endmenu		# General setup
 
 config SLABINFO

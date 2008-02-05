@@ -337,6 +337,7 @@ const struct file_operations proc_maps_operations = {
  */
 #define PSS_SHIFT 12
 
+#ifdef CONFIG_PROC_PAGE_MONITOR
 struct mem_size_stats
 {
 	struct vm_area_struct *vma;
@@ -717,6 +718,7 @@ const struct file_operations proc_pagemap_operations = {
 	.llseek		= mem_lseek, /* borrow this */
 	.read		= pagemap_read,
 };
+#endif /* CONFIG_PROC_PAGE_MONITOR */
 
 #ifdef CONFIG_NUMA
 extern int show_numa_map(struct seq_file *m, void *v);

@@ -676,6 +676,7 @@ static const struct file_operations proc_sysrq_trigger_operations = {
 };
 #endif
 
+#ifdef CONFIG_PROC_PAGE_MONITOR
 #define KPMSIZE sizeof(u64)
 #define KPMMASK (KPMSIZE - 1)
 /* /proc/kpagecount - an array exposing page counts
@@ -804,6 +805,7 @@ static struct file_operations proc_kpageflags_operations = {
 	.llseek = mem_lseek,
 	.read = kpageflags_read,
 };
+#endif /* CONFIG_PROC_PAGE_MONITOR */
 
 struct proc_dir_entry *proc_root_kcore;
 
@@ -885,8 +887,10 @@ void __init proc_misc_init(void)
 				(size_t)high_memory - PAGE_OFFSET + PAGE_SIZE;
 	}
 #endif
+#ifdef CONFIG_PROC_PAGE_MONITOR
 	create_seq_entry("kpagecount", S_IRUSR, &proc_kpagecount_operations);
 	create_seq_entry("kpageflags", S_IRUSR, &proc_kpageflags_operations);
+#endif
 #ifdef CONFIG_PROC_VMCORE
 	proc_vmcore = create_proc_entry("vmcore", S_IRUSR, NULL);
 	if (proc_vmcore)
