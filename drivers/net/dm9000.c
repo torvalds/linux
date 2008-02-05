@@ -191,10 +191,6 @@ static void dm9000_write_eeprom(board_info_t *, int addr, u8 *dp);
 static void dm9000_rx(struct net_device *);
 static void dm9000_hash_table(struct net_device *);
 
-//#define DM9000_PROGRAM_EEPROM
-#ifdef DM9000_PROGRAM_EEPROM
-static void program_eeprom(board_info_t * db);
-#endif
 /* DM9000 network board routine ---------------------------- */
 
 static void
@@ -699,9 +695,6 @@ dm9000_probe(struct platform_device *pdev)
 	ndev->poll_controller	 = &dm9000_poll_controller;
 #endif
 
-#ifdef DM9000_PROGRAM_EEPROM
-	program_eeprom(db);
-#endif
 	db->msg_enable       = NETIF_MSG_LINK;
 	db->mii.phy_id_mask  = 0x1f;
 	db->mii.reg_num_mask = 0x1f;
@@ -1111,28 +1104,6 @@ dm9000_write_eeprom(board_info_t *db, int offset, u8 *data)
 
 	mutex_unlock(&db->addr_lock);
 }
-
-#ifdef DM9000_PROGRAM_EEPROM
-/*
- * Only for development:
- * Here we write static data to the eeprom in case
- * we don't have valid content on a new board
- */
-static void
-program_eeprom(board_info_t * db)
-{
-	u16 eeprom[] = { 0x0c00, 0x007f, 0x1300,	/* MAC Address */
-		0x0000,		/* Autoload: accept nothing */
-		0x0a46, 0x9000,	/* Vendor / Product ID */
-		0x0000,		/* pin control */
-		0x0000,
-	};			/* Wake-up mode control */
-	int i;
-	for (i = 0; i < 8; i++)
-		write_srom_word(db, i, eeprom[i]);
-}
-#endif
-
 
 /*
  *  Calculate the CRC valude of the Rx packet
