@@ -15,9 +15,13 @@
 /* This marks a buffer as write-only (otherwise read-only). */
 #define VRING_DESC_F_WRITE	2
 
-/* This means don't notify other side when buffer added. */
+/* The Host uses this in used->flags to advise the Guest: don't kick me when
+ * you add a buffer.  It's unreliable, so it's simply an optimization.  Guest
+ * will still kick if it's out of buffers. */
 #define VRING_USED_F_NO_NOTIFY	1
-/* This means don't interrupt guest when buffer consumed. */
+/* The Guest uses this in avail->flags to advise the Host: don't interrupt me
+ * when you consume a buffer.  It's unreliable, so it's simply an
+ * optimization.  */
 #define VRING_AVAIL_F_NO_INTERRUPT	1
 
 /* Virtio ring descriptors: 16 bytes.  These can chain together via "next". */

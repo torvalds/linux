@@ -87,6 +87,8 @@ static int vring_add_buf(struct virtqueue *_vq,
 	if (vq->num_free < out + in) {
 		pr_debug("Can't add buf len %i - avail = %i\n",
 			 out + in, vq->num_free);
+		/* We notify *even if* VRING_USED_F_NO_NOTIFY is set here. */
+		vq->notify(&vq->vq);
 		END_USE(vq);
 		return -ENOSPC;
 	}

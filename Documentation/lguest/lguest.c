@@ -923,10 +923,10 @@ static void handle_output(int fd, unsigned long addr)
 	/* Check each virtqueue. */
 	for (i = devices.dev; i; i = i->next) {
 		for (vq = i->vq; vq; vq = vq->next) {
-			if (vq->config.pfn == addr/getpagesize()
-			    && vq->handle_output) {
+			if (vq->config.pfn == addr/getpagesize()) {
 				verbose("Output to %s\n", vq->dev->name);
-				vq->handle_output(fd, vq);
+				if (vq->handle_output)
+					vq->handle_output(fd, vq);
 				return;
 			}
 		}
@@ -1068,7 +1068,8 @@ static void add_virtqueue(struct device *dev, unsigned int num_descs,
 	 * virtqueue. */
 	vq->handle_output = handle_output;
 
-	/* Set the "Don't Notify Me" flag if we don't have a handler */
+	/* As an optimization, set the advisory "Don't Notify Me" flag if we
+	 * don't have a handler */
 	if (!handle_output)
 		vq->vring.used->flags = VRING_USED_F_NO_NOTIFY;
 }
