@@ -901,24 +901,21 @@ static void drain_pages(unsigned int cpu)
 {
 	unsigned long flags;
 	struct zone *zone;
-	int i;
 
 	for_each_zone(zone) {
 		struct per_cpu_pageset *pset;
+		struct per_cpu_pages *pcp;
 
 		if (!populated_zone(zone))
 			continue;
 
 		pset = zone_pcp(zone, cpu);
-		for (i = 0; i < ARRAY_SIZE(pset->pcp); i++) {
-			struct per_cpu_pages *pcp;
 
-			pcp = &pset->pcp[i];
-			local_irq_save(flags);
-			free_pages_bulk(zone, pcp->count, &pcp->list, 0);
-			pcp->count = 0;
-			local_irq_restore(flags);
-		}
+		pcp = &pset->pcp;
+		local_irq_save(flags);
+		free_pages_bulk(zone, pcp->count, &pcp->list, 0);
+		pcp->count = 0;
+		local_irq_restore(flags);
 	}
 }
 
@@ -993,10 +990,13 @@ static void fastcall free_hot_cold_page(struct page *page, int cold)
 	arch_free_page(page, 0);
 	kernel_map_pages(page, 1, 0);
 
-	pcp = &zone_pcp(zone, get_cpu())->pcp[cold];
+	pcp = &zone_pcp(zone, get_cpu())->pcp;
 	local_irq_save(flags);
 	__count_vm_event(PGFREE);
-	list_add(&page->lru, &pcp->list);
+	if (cold)
+		list_add_tail(&page->lru, &pcp->list);
+	else
+		list_add(&page->lru, &pcp->list);
 	set_page_private(page, get_pageblock_migratetype(page));
 	pcp->count++;
 	if (pcp->count >= pcp->high) {
@@ -1054,7 +1054,7 @@ again:
 	if (likely(order == 0)) {
 		struct per_cpu_pages *pcp;
 
-		pcp = &zone_pcp(zone, cpu)->pcp[cold];
+		pcp = &zone_pcp(zone, cpu)->pcp;
 		local_irq_save(flags);
 		if (!pcp->count) {
 			pcp->count = rmqueue_bulk(zone, 0,
@@ -1064,9 +1064,15 @@ again:
 		}
 
 		/* Find a page of the appropriate migrate type */
-		list_for_each_entry(page, &pcp->list, lru)
-			if (page_private(page) == migratetype)
-				break;
+		if (cold) {
+			list_for_each_entry_reverse(page, &pcp->list, lru)
+				if (page_private(page) == migratetype)
+					break;
+		} else {
+			list_for_each_entry(page, &pcp->list, lru)
+				if (page_private(page) == migratetype)
+					break;
+		}
 
 		/* Allocate more to the pcp list if necessary */
 		if (unlikely(&page->lru == &pcp->list)) {
@@ -1793,12 +1799,9 @@ void show_free_areas(void)
 
 			pageset = zone_pcp(zone, cpu);
 
-			printk("CPU %4d: Hot: hi:%5d, btch:%4d usd:%4d   "
-			       "Cold: hi:%5d, btch:%4d usd:%4d\n",
-			       cpu, pageset->pcp[0].high,
-			       pageset->pcp[0].batch, pageset->pcp[0].count,
-			       pageset->pcp[1].high, pageset->pcp[1].batch,
-			       pageset->pcp[1].count);
+			printk("CPU %4d: hi:%5d, btch:%4d usd:%4d\n",
+			       cpu, pageset->pcp.high,
+			       pageset->pcp.batch, pageset->pcp.count);
 		}
 	}
 
@@ -2596,16 +2599,10 @@ inline void setup_pageset(struct per_cpu_pageset *p, unsigned long batch)
 
 	memset(p, 0, sizeof(*p));
 
-	pcp = &p->pcp[0];		/* hot */
+	pcp = &p->pcp;
 	pcp->count = 0;
 	pcp->high = 6 * batch;
 	pcp->batch = max(1UL, 1 * batch);
-	INIT_LIST_HEAD(&pcp->list);
-
-	pcp = &p->pcp[1];		/* cold*/
-	pcp->count = 0;
-	pcp->high = 2 * batch;
-	pcp->batch = max(1UL, batch/2);
 	INIT_LIST_HEAD(&pcp->list);
 }
 
@@ -2619,7 +2616,7 @@ static void setup_pagelist_highmark(struct per_cpu_pageset *p,
 {
 	struct per_cpu_pages *pcp;
 
-	pcp = &p->pcp[0]; /* hot list */
+	pcp = &p->pcp;
 	pcp->high = high;
 	pcp->batch = max(1UL, high/4);
 	if ((high/4) > (PAGE_SHIFT * 8))
