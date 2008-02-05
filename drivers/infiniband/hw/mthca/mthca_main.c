@@ -126,7 +126,7 @@ module_param_named(fmr_reserved_mtts, hca_profile.fmr_reserved_mtts, int, 0444);
 MODULE_PARM_DESC(fmr_reserved_mtts,
 		 "number of memory translation table segments reserved for FMR");
 
-static const char mthca_version[] __devinitdata =
+static char mthca_version[] __devinitdata =
 	DRV_NAME ": Mellanox InfiniBand HCA driver v"
 	DRV_VERSION " (" DRV_RELDATE ")\n";
 
