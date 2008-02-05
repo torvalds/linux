@@ -10,6 +10,7 @@
  *  Copyright (c) 2000-2003 David McCullough <davidm@snapgear.com>
  *  Copyright (c) 2000-2001 D Jeff Dionne <jeff@uClinux.org>
  *  Copyright (c) 2002      Greg Ungerer <gerg@snapgear.com>
+ *  Copyright (c) 2007      Paul Mundt <lethal@linux-sh.org>
  */
 
 #include <linux/module.h>
@@ -183,6 +184,26 @@ void *__vmalloc(unsigned long size, gfp_t gfp_mask, pgprot_t prot)
 }
 EXPORT_SYMBOL(__vmalloc);
 
+void *vmalloc_user(unsigned long size)
+{
+	void *ret;
+
+	ret = __vmalloc(size, GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO,
+			PAGE_KERNEL);
+	if (ret) {
+		struct vm_area_struct *vma;
+
+		down_write(&current->mm->mmap_sem);
+		vma = find_vma(current->mm, (unsigned long)ret);
+		if (vma)
+			vma->vm_flags |= VM_USERMAP;
+		up_write(&current->mm->mmap_sem);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(vmalloc_user);
+
 struct page *vmalloc_to_page(const void *addr)
 {
 	return virt_to_page(addr);
@@ -253,10 +274,17 @@ EXPORT_SYMBOL(vmalloc_32);
  *
  * The resulting memory area is 32bit addressable and zeroed so it can be
  * mapped to userspace without leaking data.
+ *
+ * VM_USERMAP is set on the corresponding VMA so that subsequent calls to
+ * remap_vmalloc_range() are permissible.
  */
 void *vmalloc_32_user(unsigned long size)
 {
-	return __vmalloc(size, GFP_KERNEL | __GFP_ZERO, PAGE_KERNEL);
+	/*
+	 * We'll have to sort out the ZONE_DMA bits for 64-bit,
+	 * but for now this can simply use vmalloc_user() directly.
+	 */
+	return vmalloc_user(size);
 }
 EXPORT_SYMBOL(vmalloc_32_user);
 
@@ -1215,6 +1243,21 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
 	return 0;
 }
 EXPORT_SYMBOL(remap_pfn_range);
+
+int remap_vmalloc_range(struct vm_area_struct *vma, void *addr,
+			unsigned long pgoff)
+{
+	unsigned int size = vma->vm_end - vma->vm_start;
+
+	if (!(vma->vm_flags & VM_USERMAP))
+		return -EINVAL;
+
+	vma->vm_start = (unsigned long)(addr + (pgoff << PAGE_SHIFT));
+	vma->vm_end = vma->vm_start + size;
+
+	return 0;
+}
+EXPORT_SYMBOL(remap_vmalloc_range);
 
 void swap_unplug_io_fn(struct backing_dev_info *bdi, struct page *page)
 {
