@@ -193,18 +193,18 @@ static inline int update_pte_range(pmd_t *pmd, unsigned long addr,
 		if (!pte_young(*pte)) {
 			r = 0;
 			w = 0;
-		} else if (!pte_dirty(*pte)) {
+		} else if (!pte_dirty(*pte))
 			w = 0;
-		}
+
 		prot = ((r ? UM_PROT_READ : 0) | (w ? UM_PROT_WRITE : 0) |
 			(x ? UM_PROT_EXEC : 0));
 		if (hvc->force || pte_newpage(*pte)) {
 			if (pte_present(*pte))
 				ret = add_mmap(addr, pte_val(*pte) & PAGE_MASK,
 					       PAGE_SIZE, prot, hvc);
-			else ret = add_munmap(addr, PAGE_SIZE, hvc);
-		}
-		else if (pte_newprot(*pte))
+			else
+				ret = add_munmap(addr, PAGE_SIZE, hvc);
+		} else if (pte_newprot(*pte))
 			ret = add_mprotect(addr, PAGE_SIZE, prot, hvc);
 		*pte = pte_mkuptodate(*pte);
 	} while (pte++, addr += PAGE_SIZE, ((addr < end) && !ret));
@@ -500,7 +500,8 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 	else fix_range(vma->vm_mm, start, end, 0);
 }
 
-void flush_tlb_mm(struct mm_struct *mm)
+void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
+			unsigned long end)
 {
 	/*
 	 * Don't bother flushing if this address space is about to be
@@ -509,7 +510,17 @@ void flush_tlb_mm(struct mm_struct *mm)
 	if (atomic_read(&mm->mm_users) == 0)
 		return;
 
-	fix_range(mm, 0, TASK_SIZE, 0);
+	fix_range(mm, start, end, 0);
+}
+
+void flush_tlb_mm(struct mm_struct *mm)
+{
+	struct vm_area_struct *vma = mm->mmap;
+
+	while (vma != NULL) {
+		fix_range(mm, vma->vm_start, vma->vm_end, 0);
+		vma = vma->vm_next;
+	}
 }
 
 void force_flush_all(void)
