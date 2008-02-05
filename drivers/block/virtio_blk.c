@@ -264,12 +264,16 @@ static void virtblk_remove(struct virtio_device *vdev)
 	struct virtio_blk *vblk = vdev->priv;
 	int major = vblk->disk->major;
 
+	/* Nothing should be pending. */
 	BUG_ON(!list_empty(&vblk->reqs));
+
+	/* Stop all the virtqueues. */
+	vdev->config->reset(vdev);
+
 	blk_cleanup_queue(vblk->disk->queue);
 	put_disk(vblk->disk);
 	unregister_blkdev(major, "virtblk");
 	mempool_destroy(vblk->pool);
-	/* There should be nothing in the queue now, so no need to shutdown */
 	vdev->config->del_vq(vblk->vq);
 	kfree(vblk);
 }

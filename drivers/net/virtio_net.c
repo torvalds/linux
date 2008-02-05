@@ -390,13 +390,14 @@ static void virtnet_remove(struct virtio_device *vdev)
 	struct virtnet_info *vi = vdev->priv;
 	struct sk_buff *skb;
 
+	/* Stop all the virtqueues. */
+	vdev->config->reset(vdev);
+
 	/* Free our skbs in send and recv queues, if any. */
-	vi->rvq->vq_ops->shutdown(vi->rvq);
 	while ((skb = __skb_dequeue(&vi->recv)) != NULL) {
 		kfree_skb(skb);
 		vi->num--;
 	}
-	vi->svq->vq_ops->shutdown(vi->svq);
 	while ((skb = __skb_dequeue(&vi->send)) != NULL)
 		kfree_skb(skb);
 

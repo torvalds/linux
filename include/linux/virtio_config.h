@@ -43,6 +43,9 @@ struct virtio_device;
  * @set_status: write the status byte
  *	vdev: the virtio_device
  *	status: the new status byte
+ * @reset: reset the device
+ *	vdev: the virtio device
+ *	After this, status and feature negotiation must be done again
  * @find_vq: find a virtqueue and instantiate it.
  *	vdev: the virtio_device
  *	index: the 0-based virtqueue number in case there's more than one.
@@ -59,6 +62,7 @@ struct virtio_config_ops
 		    const void *buf, unsigned len);
 	u8 (*get_status)(struct virtio_device *vdev);
 	void (*set_status)(struct virtio_device *vdev, u8 status);
+	void (*reset)(struct virtio_device *vdev);
 	struct virtqueue *(*find_vq)(struct virtio_device *vdev,
 				     unsigned index,
 				     void (*callback)(struct virtqueue *));

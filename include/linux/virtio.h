@@ -45,9 +45,6 @@ struct virtqueue
  *	vq: the struct virtqueue we're talking about.
  *	This returns "false" (and doesn't re-enable) if there are pending
  *	buffers in the queue, to avoid a race.
- * @shutdown: "unadd" all buffers.
- *	vq: the struct virtqueue we're talking about.
- *	Remove everything from the queue.
  *
  * Locking rules are straightforward: the driver is responsible for
  * locking.  No two operations may be invoked simultaneously.
@@ -67,8 +64,6 @@ struct virtqueue_ops {
 
 	void (*disable_cb)(struct virtqueue *vq);
 	bool (*enable_cb)(struct virtqueue *vq);
-
-	void (*shutdown)(struct virtqueue *vq);
 };
 
 /**

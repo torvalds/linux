@@ -173,16 +173,6 @@ static void detach_buf(struct vring_virtqueue *vq, unsigned int head)
 	vq->num_free++;
 }
 
-/* FIXME: We need to tell other side about removal, to synchronize. */
-static void vring_shutdown(struct virtqueue *_vq)
-{
-	struct vring_virtqueue *vq = to_vvq(_vq);
-	unsigned int i;
-
-	for (i = 0; i < vq->vring.num; i++)
-		detach_buf(vq, i);
-}
-
 static inline bool more_used(const struct vring_virtqueue *vq)
 {
 	return vq->last_used_idx != vq->vring.used->idx;
@@ -278,7 +268,6 @@ static struct virtqueue_ops vring_vq_ops = {
 	.kick = vring_kick,
 	.disable_cb = vring_disable_cb,
 	.enable_cb = vring_enable_cb,
-	.shutdown = vring_shutdown,
 };
 
 struct virtqueue *vring_new_virtqueue(unsigned int num,

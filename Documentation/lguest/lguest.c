@@ -193,6 +193,13 @@ static void *_convert(struct iovec *iov, size_t size, size_t align,
 #define le32_to_cpu(v32) (v32)
 #define le64_to_cpu(v64) (v64)
 
+/* The device virtqueue descriptors are followed by feature bitmasks. */
+static u8 *get_feature_bits(struct device *dev)
+{
+	return (u8 *)(dev->desc + 1)
+		+ dev->desc->num_vq * sizeof(struct lguest_vqconfig);
+}
+
 /*L:100 The Launcher code itself takes us out into userspace, that scary place
  * where pointers run wild and free!  Unfortunately, like most userspace
  * programs, it's quite boring (which is why everyone likes to hack on the
@@ -914,21 +921,58 @@ static void enable_fd(int fd, struct virtqueue *vq)
 	write(waker_fd, &vq->dev->fd, sizeof(vq->dev->fd));
 }
 
+/* Resetting a device is fairly easy. */
+static void reset_device(struct device *dev)
+{
+	struct virtqueue *vq;
+
+	verbose("Resetting device %s\n", dev->name);
+	/* Clear the status. */
+	dev->desc->status = 0;
+
+	/* Clear any features they've acked. */
+	memset(get_feature_bits(dev) + dev->desc->feature_len, 0,
+	       dev->desc->feature_len);
+
+	/* Zero out the virtqueues. */
+	for (vq = dev->vq; vq; vq = vq->next) {
+		memset(vq->vring.desc, 0,
+		       vring_size(vq->config.num, getpagesize()));
+		vq->last_avail_idx = 0;
+	}
+}
+
 /* This is the generic routine we call when the Guest uses LHCALL_NOTIFY. */
 static void handle_output(int fd, unsigned long addr)
 {
 	struct device *i;
 	struct virtqueue *vq;
 
-	/* Check each virtqueue. */
+	/* Check each device and virtqueue. */
 	for (i = devices.dev; i; i = i->next) {
+		/* Notifications to device descriptors reset the device. */
+		if (from_guest_phys(addr) == i->desc) {
+			reset_device(i);
+			return;
+		}
+
+		/* Notifications to virtqueues mean output has occurred. */
 		for (vq = i->vq; vq; vq = vq->next) {
-			if (vq->config.pfn == addr/getpagesize()) {
-				verbose("Output to %s\n", vq->dev->name);
-				if (vq->handle_output)
-					vq->handle_output(fd, vq);
+			if (vq->config.pfn != addr/getpagesize())
+				continue;
+
+			/* Guest should acknowledge (and set features!)  before
+			 * using the device. */
+			if (i->desc->status == 0) {
+				warnx("%s gave early output", i->name);
 				return;
 			}
+
+			if (strcmp(vq->dev->name, "console") != 0)
+				verbose("Output to %s\n", vq->dev->name);
+			if (vq->handle_output)
+				vq->handle_output(fd, vq);
+			return;
 		}
 	}
 
@@ -1074,19 +1118,17 @@ static void add_virtqueue(struct device *dev, unsigned int num_descs,
 		vq->vring.used->flags = VRING_USED_F_NO_NOTIFY;
 }
 
-/* The virtqueue descriptors are followed by feature bytes. */
+/* The first half of the feature bitmask is for us to advertise features.  The
+ * second half if for the Guest to accept features. */
 static void add_feature(struct device *dev, unsigned bit)
 {
-	u8 *features;
+	u8 *features = get_feature_bits(dev);
 
 	/* We can't extend the feature bits once we've added config bytes */
 	if (dev->desc->feature_len <= bit / CHAR_BIT) {
 		assert(dev->desc->config_len == 0);
 		dev->desc->feature_len = (bit / CHAR_BIT) + 1;
 	}
-
-	features = (u8 *)(dev->desc + 1)
-		+ dev->desc->num_vq * sizeof(struct lguest_vqconfig);
 
 	features[bit / CHAR_BIT] |= (1 << (bit % CHAR_BIT));
 }
