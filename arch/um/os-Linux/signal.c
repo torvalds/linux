@@ -15,6 +15,9 @@
 #include "sysdep/sigcontext.h"
 #include "user.h"
 
+/* Copied from linux/compiler-gcc.h since we can't include it directly */
+#define barrier() __asm__ __volatile__("": : :"memory")
+
 /*
  * These are the asynchronous signals.  SIGPROF is excluded because we want to
  * be able to profile all of UML, not just the non-critical sections.  If
@@ -27,13 +30,8 @@
 #define SIGVTALRM_BIT 1
 #define SIGVTALRM_MASK (1 << SIGVTALRM_BIT)
 
-/*
- * These are used by both the signal handlers and
- * block/unblock_signals.  I don't want modifications cached in a
- * register - they must go straight to memory.
- */
-static volatile int signals_enabled = 1;
-static volatile int pending = 0;
+static int signals_enabled;
+static unsigned int pending;
 
 void sig_handler(int sig, struct sigcontext *sc)
 {
@@ -198,7 +196,7 @@ void block_signals(void)
 	 * This might matter if gcc figures out how to inline this and
 	 * decides to shuffle this code into the caller.
 	 */
-	mb();
+	barrier();
 }
 
 void unblock_signals(void)
@@ -224,21 +222,11 @@ void unblock_signals(void)
 		 * Setting signals_enabled and reading pending must
 		 * happen in this order.
 		 */
-		mb();
+		barrier();
 
 		save_pending = pending;
-		if (save_pending == 0) {
-			/*
-			 * This must return with signals enabled, so
-			 * this barrier ensures that writes are
-			 * flushed out before the return.  This might
-			 * matter if gcc figures out how to inline
-			 * this (unlikely, given its size) and decides
-			 * to shuffle this code into the caller.
-			 */
-			mb();
+		if (save_pending == 0)
 			return;
-		}
 
 		pending = 0;
 
