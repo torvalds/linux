@@ -473,7 +473,7 @@ ia64_set_psr (__u64 psr)
 {
 	ia64_stop();
 	ia64_setreg(_IA64_REG_PSR_L, psr);
-	ia64_srlz_d();
+	ia64_srlz_i();
 }
 
 /*

@@ -27,7 +27,7 @@
 
 #include "ia32priv.h"
 
-extern void die_if_kernel (char *str, struct pt_regs *regs, long err);
+extern int die_if_kernel (char *str, struct pt_regs *regs, long err);
 
 struct exec_domain ia32_exec_domain;
 struct page *ia32_shared_page[NR_CPUS];
@@ -217,7 +217,8 @@ ia32_bad_interrupt (unsigned long int_num, struct pt_regs *regs)
 {
 	siginfo_t siginfo;
 
-	die_if_kernel("Bad IA-32 interrupt", regs, int_num);
+	if (die_if_kernel("Bad IA-32 interrupt", regs, int_num))
+		return;
 
 	siginfo.si_signo = SIGTRAP;
 	siginfo.si_errno = int_num;	/* XXX is it OK to abuse si_errno like this? */

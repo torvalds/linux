@@ -1,24 +1,28 @@
-//
-// assembly portion of the IA64 MCA handling
-//
-// Mods by cfleck to integrate into kernel build
-// 00/03/15 davidm Added various stop bits to get a clean compile
-//
-// 00/03/29 cfleck Added code to save INIT handoff state in pt_regs format, switch to temp
-//		   kstack, switch modes, jump to C INIT handler
-//
-// 02/01/04 J.Hall <jenna.s.hall@intel.com>
-//		   Before entering virtual mode code:
-//		   1. Check for TLB CPU error
-//		   2. Restore current thread pointer to kr6
-//		   3. Move stack ptr 16 bytes to conform to C calling convention
-//
-// 04/11/12 Russ Anderson <rja@sgi.com>
-//		   Added per cpu MCA/INIT stack save areas.
-//
-// 12/08/05 Keith Owens <kaos@sgi.com>
-//		   Use per cpu MCA/INIT stacks for all data.
-//
+/*
+ * File:	mca_asm.S
+ * Purpose:	assembly portion of the IA64 MCA handling
+ *
+ * Mods by cfleck to integrate into kernel build
+ *
+ * 2000-03-15 David Mosberger-Tang <davidm@hpl.hp.com>
+ *		Added various stop bits to get a clean compile
+ *
+ * 2000-03-29 Chuck Fleckenstein <cfleck@co.intel.com>
+ *		Added code to save INIT handoff state in pt_regs format,
+ *		switch to temp kstack, switch modes, jump to C INIT handler
+ *
+ * 2002-01-04 J.Hall <jenna.s.hall@intel.com>
+ *		Before entering virtual mode code:
+ *		 1. Check for TLB CPU error
+ *		 2. Restore current thread pointer to kr6
+ *		 3. Move stack ptr 16 bytes to conform to C calling convention
+ *
+ * 2004-11-12 Russ Anderson <rja@sgi.com>
+ *		Added per cpu MCA/INIT stack save areas.
+ *
+ * 2005-12-08 Keith Owens <kaos@sgi.com>
+ *		Use per cpu MCA/INIT stacks for all data.
+ */
 #include <linux/threads.h>
 
 #include <asm/asmmacro.h>

@@ -33,6 +33,7 @@
 #include <linux/smp_lock.h>
 #include <linux/nodemask.h>
 #include <linux/smp.h>
+#include <linux/mutex.h>
 
 #include <asm/processor.h>
 #include <asm/topology.h>
@@ -50,7 +51,7 @@ static void *sn_hwperf_salheap = NULL;
 static int sn_hwperf_obj_cnt = 0;
 static nasid_t sn_hwperf_master_nasid = INVALID_NASID;
 static int sn_hwperf_init(void);
-static DECLARE_MUTEX(sn_hwperf_init_mutex);
+static DEFINE_MUTEX(sn_hwperf_init_mutex);
 
 #define cnode_possible(n)	((n) < num_cnodes)
 
@@ -577,7 +578,7 @@ static void sn_topology_stop(struct seq_file *m, void *v)
 /*
  * /proc/sgi_sn/sn_topology, read-only using seq_file
  */
-static struct seq_operations sn_topology_seq_ops = {
+static const struct seq_operations sn_topology_seq_ops = {
 	.start = sn_topology_start,
 	.next = sn_topology_next,
 	.stop = sn_topology_stop,
@@ -884,10 +885,10 @@ static int sn_hwperf_init(void)
 	int e = 0;
 
 	/* single threaded, once-only initialization */
-	down(&sn_hwperf_init_mutex);
+	mutex_lock(&sn_hwperf_init_mutex);
 
 	if (sn_hwperf_salheap) {
-		up(&sn_hwperf_init_mutex);
+		mutex_unlock(&sn_hwperf_init_mutex);
 		return e;
 	}
 
@@ -936,7 +937,7 @@ out:
 		sn_hwperf_salheap = NULL;
 		sn_hwperf_obj_cnt = 0;
 	}
-	up(&sn_hwperf_init_mutex);
+	mutex_unlock(&sn_hwperf_init_mutex);
 	return e;
 }
 

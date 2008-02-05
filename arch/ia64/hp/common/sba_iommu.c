@@ -1875,7 +1875,7 @@ ioc_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-static struct seq_operations ioc_seq_ops = {
+static const struct seq_operations ioc_seq_ops = {
 	.start = ioc_start,
 	.next  = ioc_next,
 	.stop  = ioc_stop,

@@ -2654,11 +2654,11 @@ pfm_get_task(pfm_context_t *ctx, pid_t pid, struct task_struct **task)
 	/* XXX: need to add more checks here */
 	if (pid < 2) return -EPERM;
 
-	if (pid != current->pid) {
+	if (pid != task_pid_vnr(current)) {
 
 		read_lock(&tasklist_lock);
 
-		p = find_task_by_pid(pid);
+		p = find_task_by_vpid(pid);
 
 		/* make sure task cannot go away while we operate on it */
 		if (p) get_task_struct(p);
@@ -5795,7 +5795,7 @@ pfm_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-struct seq_operations pfm_seq_ops = {
+const struct seq_operations pfm_seq_ops = {
 	.start =	pfm_proc_start,
  	.next =		pfm_proc_next,
  	.stop =		pfm_proc_stop,

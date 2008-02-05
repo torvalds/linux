@@ -523,7 +523,7 @@ static ssize_t sn2_ptc_proc_write(struct file *file, const char __user *user, si
 	return count;
 }
 
-static struct seq_operations sn2_ptc_seq_ops = {
+static const struct seq_operations sn2_ptc_seq_ops = {
 	.start = sn2_ptc_seq_start,
 	.next = sn2_ptc_seq_next,
 	.stop = sn2_ptc_seq_stop,
