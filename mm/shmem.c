@@ -729,6 +729,8 @@ static int shmem_notify_change(struct dentry *dentry, struct iattr *attr)
 				(void) shmem_getpage(inode,
 					attr->ia_size>>PAGE_CACHE_SHIFT,
 						&page, SGP_READ, NULL);
+				if (page)
+					unlock_page(page);
 			}
 			/*
 			 * Reset SHMEM_PAGEIN flag so that shmem_truncate can
@@ -1286,12 +1288,7 @@ repeat:
 		SetPageUptodate(filepage);
 	}
 done:
-	if (*pagep != filepage) {
-		*pagep = filepage;
-		if (sgp != SGP_CACHE)
-			unlock_page(filepage);
-
-	}
+	*pagep = filepage;
 	return 0;
 
 failed:
@@ -1469,11 +1466,12 @@ shmem_write_end(struct file *file, struct address_space *mapping,
 {
 	struct inode *inode = mapping->host;
 
+	if (pos + copied > inode->i_size)
+		i_size_write(inode, pos + copied);
+
+	unlock_page(page);
 	set_page_dirty(page);
 	page_cache_release(page);
-
-	if (pos+copied > inode->i_size)
-		i_size_write(inode, pos+copied);
 
 	return copied;
 }
@@ -1529,6 +1527,7 @@ shmem_file_write(struct file *file, const char __user *buf, size_t count, loff_t
 		if (err)
 			break;
 
+		unlock_page(page);
 		left = bytes;
 		if (PageHighMem(page)) {
 			volatile unsigned char dummy;
@@ -1610,6 +1609,8 @@ static void do_shmem_file_read(struct file *filp, loff_t *ppos, read_descriptor_
 				desc->error = 0;
 			break;
 		}
+		if (page)
+			unlock_page(page);
 
 		/*
 		 * We must evaluate after, since reads (unlike writes)
@@ -1899,6 +1900,7 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
 			iput(inode);
 			return error;
 		}
+		unlock_page(page);
 		inode->i_op = &shmem_symlink_inode_operations;
 		kaddr = kmap_atomic(page, KM_USER0);
 		memcpy(kaddr, symname, len);
@@ -1926,6 +1928,8 @@ static void *shmem_follow_link(struct dentry *dentry, struct nameidata *nd)
 	struct page *page = NULL;
 	int res = shmem_getpage(dentry->d_inode, 0, &page, SGP_READ, NULL);
 	nd_set_link(nd, res ? ERR_PTR(res) : kmap(page));
+	if (page)
+		unlock_page(page);
 	return page;
 }
 
