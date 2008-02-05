@@ -774,9 +774,11 @@ static irqreturn_t winch_interrupt(int irq, void *data)
 	tty = winch->tty;
 	if (tty != NULL) {
 		line = tty->driver_data;
-		chan_window_size(&line->chan_list, &tty->winsize.ws_row,
-				 &tty->winsize.ws_col);
-		kill_pgrp(tty->pgrp, SIGWINCH, 1);
+		if (line != NULL) {
+			chan_window_size(&line->chan_list, &tty->winsize.ws_row,
+					 &tty->winsize.ws_col);
+			kill_pgrp(tty->pgrp, SIGWINCH, 1);
+		}
 	}
  out:
 	if (winch->fd != -1)

@@ -792,6 +792,8 @@ static int __init mconsole_init(void)
 		printk(KERN_ERR "Failed to initialize management console\n");
 		return 1;
 	}
+	if (os_set_fd_block(sock, 0))
+		goto out;
 
 	register_reboot_notifier(&reboot_notifier);
 
@@ -800,7 +802,7 @@ static int __init mconsole_init(void)
 			     "mconsole", (void *)sock);
 	if (err) {
 		printk(KERN_ERR "Failed to get IRQ for management console\n");
-		return 1;
+		goto out;
 	}
 
 	if (notify_socket != NULL) {
@@ -816,6 +818,10 @@ static int __init mconsole_init(void)
 	printk(KERN_INFO "mconsole (version %d) initialized on %s\n",
 	       MCONSOLE_VERSION, mconsole_socket_name);
 	return 0;
+
+ out:
+	os_close_file(sock);
+	return 1;
 }
 
 __initcall(mconsole_init);
