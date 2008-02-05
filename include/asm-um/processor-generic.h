@@ -11,6 +11,7 @@ struct pt_regs;
 struct task_struct;
 
 #include "asm/ptrace.h"
+#include "asm/pgtable.h"
 #include "registers.h"
 #include "sysdep/archsetjmp.h"
 
@@ -67,10 +68,6 @@ struct thread_struct {
 	.arch			= INIT_ARCH_THREAD, \
 	.request		= { 0 } \
 }
-
-typedef struct {
-	unsigned long seg;
-} mm_segment_t;
 
 extern struct task_struct *alloc_task_struct(void);
 

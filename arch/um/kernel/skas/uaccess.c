@@ -3,12 +3,13 @@
  * Licensed under the GPL
  */
 
-#include "linux/err.h"
-#include "linux/highmem.h"
-#include "linux/mm.h"
-#include "asm/current.h"
-#include "asm/page.h"
-#include "asm/pgtable.h"
+#include <linux/err.h>
+#include <linux/highmem.h>
+#include <linux/mm.h>
+#include <linux/sched.h>
+#include <asm/current.h>
+#include <asm/page.h>
+#include <asm/pgtable.h>
 #include "kern_util.h"
 #include "os.h"
 

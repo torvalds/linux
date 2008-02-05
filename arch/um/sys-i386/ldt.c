@@ -3,8 +3,9 @@
  * Licensed under the GPL
  */
 
-#include "linux/mm.h"
-#include "asm/unistd.h"
+#include <linux/mm.h>
+#include <linux/sched.h>
+#include <asm/unistd.h>
 #include "os.h"
 #include "proc_mm.h"
 #include "skas.h"

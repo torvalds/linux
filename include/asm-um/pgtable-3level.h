@@ -59,15 +59,8 @@ static inline void pgd_mkuptodate(pgd_t pgd) { pgd_val(pgd) &= ~_PAGE_NEWPAGE; }
 
 #define set_pmd(pmdptr, pmdval) set_64bit((phys_t *) (pmdptr), pmd_val(pmdval))
 
-static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
-{
-        pmd_t *pmd = (pmd_t *) __get_free_page(GFP_KERNEL);
-
-        if(pmd)
-                memset(pmd, 0, PAGE_SIZE);
-
-        return pmd;
-}
+struct mm_struct;
+extern pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address);
 
 static inline void pud_clear (pud_t *pud)
 {

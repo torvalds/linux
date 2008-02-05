@@ -8,8 +8,9 @@
 
 #ifndef __ASSEMBLY__
 
-#include <asm/processor.h>
 #include <asm/types.h>
+#include <asm/page.h>
+#include <asm/uaccess.h>
 
 struct thread_info {
 	struct task_struct	*task;		/* main task structure */

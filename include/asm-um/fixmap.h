@@ -1,9 +1,10 @@
 #ifndef __UM_FIXMAP_H
 #define __UM_FIXMAP_H
 
+#include <asm/system.h>
 #include <asm/kmap_types.h>
 #include <asm/archparam.h>
-#include <asm/elf.h>
+#include <asm/page.h>
 
 /*
  * Here we define all the compile-time 'special' virtual

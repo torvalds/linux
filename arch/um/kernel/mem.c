@@ -152,7 +152,7 @@ pgprot_t kmap_prot;
 
 #define kmap_get_fixmap_pte(vaddr)					\
 	pte_offset_kernel(pmd_offset(pud_offset(pgd_offset_k(vaddr), (vaddr)),\
- 			  (vaddr)), (vaddr))
+				     (vaddr)), (vaddr))
 
 static void __init kmap_init(void)
 {
@@ -278,7 +278,8 @@ struct page *arch_validate(struct page *page, gfp_t mask, int order)
 	goto again;
 }
 
-/* This can't do anything because nothing in the kernel image can be freed
+/*
+ * This can't do anything because nothing in the kernel image can be freed
  * since it's not in kernel physical memory.
  */
 
@@ -331,9 +332,7 @@ void show_mem(void)
 	printk("%d pages swap cached\n", cached);
 }
 
-/*
- * Allocate and free page tables.
- */
+/* Allocate and free page tables. */
 
 pgd_t *pgd_alloc(struct mm_struct *mm)
 {
@@ -368,3 +367,15 @@ struct page *pte_alloc_one(struct mm_struct *mm, unsigned long address)
 	pte = alloc_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
 	return pte;
 }
+
+#ifdef CONFIG_3_LEVEL_PGTABLES
+pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
+{
+	pmd_t *pmd = (pmd_t *) __get_free_page(GFP_KERNEL);
+
+	if (pmd)
+		memset(pmd, 0, PAGE_SIZE);
+
+	return pmd;
+}
+#endif

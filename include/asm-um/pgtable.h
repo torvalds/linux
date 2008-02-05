@@ -8,7 +8,6 @@
 #ifndef __UM_PGTABLE_H
 #define __UM_PGTABLE_H
 
-#include "linux/sched.h"
 #include <asm/fixmap.h>
 
 #define _PAGE_PRESENT	0x001
