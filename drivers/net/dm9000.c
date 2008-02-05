@@ -867,7 +867,8 @@ dm9000_timer(unsigned long data)
 }
 
 struct dm9000_rxhdr {
-	u16	RxStatus;
+	u8	RxPktReady;
+	u8	RxStatus;
 	u16	RxLen;
 } __attribute__((__packed__));
 
@@ -908,7 +909,7 @@ dm9000_rx(struct net_device *dev)
 
 		(db->inblk)(db->io_data, &rxhdr, sizeof(rxhdr));
 
-		RxLen = rxhdr.RxLen;
+		RxLen = le16_to_cpu(rxhdr.RxLen);
 
 		/* Packet Status check */
 		if (RxLen < 0x40) {
@@ -920,17 +921,17 @@ dm9000_rx(struct net_device *dev)
 			PRINTK1("RST: RX Len:%x\n", RxLen);
 		}
 
-		if (rxhdr.RxStatus & 0xbf00) {
+		if (rxhdr.RxStatus & 0xbf) {
 			GoodPacket = false;
-			if (rxhdr.RxStatus & 0x100) {
+			if (rxhdr.RxStatus & 0x01) {
 				PRINTK1("fifo error\n");
 				dev->stats.rx_fifo_errors++;
 			}
-			if (rxhdr.RxStatus & 0x200) {
+			if (rxhdr.RxStatus & 0x02) {
 				PRINTK1("crc error\n");
 				dev->stats.rx_crc_errors++;
 			}
-			if (rxhdr.RxStatus & 0x8000) {
+			if (rxhdr.RxStatus & 0x80) {
 				PRINTK1("length error\n");
 				dev->stats.rx_length_errors++;
 			}
