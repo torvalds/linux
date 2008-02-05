@@ -163,7 +163,7 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	return 0;
 }
 
-static int __devinit mlx4_load_fw(struct mlx4_dev *dev)
+static int mlx4_load_fw(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	int err;
@@ -197,8 +197,8 @@ err_free:
 	return err;
 }
 
-static int __devinit mlx4_init_cmpt_table(struct mlx4_dev *dev, u64 cmpt_base,
-					  int cmpt_entry_sz)
+static int mlx4_init_cmpt_table(struct mlx4_dev *dev, u64 cmpt_base,
+				int cmpt_entry_sz)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	int err;
@@ -688,7 +688,7 @@ err_uar_table_free:
 	return err;
 }
 
-static void __devinit mlx4_enable_msi_x(struct mlx4_dev *dev)
+static void mlx4_enable_msi_x(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct msix_entry entries[MLX4_NUM_EQ];

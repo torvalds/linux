@@ -122,7 +122,7 @@ static void mlx4_buddy_free(struct mlx4_buddy *buddy, u32 seg, int order)
 	spin_unlock(&buddy->lock);
 }
 
-static int __devinit mlx4_buddy_init(struct mlx4_buddy *buddy, int max_order)
+static int mlx4_buddy_init(struct mlx4_buddy *buddy, int max_order)
 {
 	int i, s;
 
