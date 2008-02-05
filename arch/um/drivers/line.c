@@ -48,7 +48,7 @@ static int write_room(struct line *line)
 	n = line->head - line->tail;
 
 	if (n <= 0)
-		n = LINE_BUFSIZE + n; /* The other case */
+		n += LINE_BUFSIZE; /* The other case */
 	return n - 1;
 }
 
@@ -58,17 +58,10 @@ int line_write_room(struct tty_struct *tty)
 	unsigned long flags;
 	int room;
 
-	if (tty->stopped)
-		return 0;
-
 	spin_lock_irqsave(&line->lock, flags);
 	room = write_room(line);
 	spin_unlock_irqrestore(&line->lock, flags);
 
-	/*XXX: Warning to remove */
-	if (0 == room)
-		printk(KERN_DEBUG "%s: %s: no room left in buffer\n",
-		       __FUNCTION__,tty->name);
 	return room;
 }
 
@@ -79,8 +72,7 @@ int line_chars_in_buffer(struct tty_struct *tty)
 	int ret;
 
 	spin_lock_irqsave(&line->lock, flags);
-
-	/*write_room subtracts 1 for the needed NULL, so we readd it.*/
+	/* write_room subtracts 1 for the needed NULL, so we readd it.*/
 	ret = LINE_BUFSIZE - (write_room(line) + 1);
 	spin_unlock_irqrestore(&line->lock, flags);
 
@@ -184,10 +176,6 @@ void line_flush_buffer(struct tty_struct *tty)
 	unsigned long flags;
 	int err;
 
-	/*XXX: copied from line_write, verify if it is correct!*/
-	if (tty->stopped)
-		return;
-
 	spin_lock_irqsave(&line->lock, flags);
 	err = flush_buffer(line);
 	spin_unlock_irqrestore(&line->lock, flags);
@@ -212,9 +200,6 @@ int line_write(struct tty_struct *tty, const unsigned char *buf, int len)
 	struct line *line = tty->driver_data;
 	unsigned long flags;
 	int n, ret = 0;
-
-	if (tty->stopped)
-		return 0;
 
 	spin_lock_irqsave(&line->lock, flags);
 	if (line->head != line->tail)
