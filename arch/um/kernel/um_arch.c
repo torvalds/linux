@@ -198,7 +198,7 @@ __uml_setup("--help", Usage,
 "    Prints this message.\n\n"
 );
 
-static int __init uml_checksetup(char *line, int *add)
+static void __init uml_checksetup(char *line, int *add)
 {
 	struct uml_param *p;
 
@@ -208,10 +208,9 @@ static int __init uml_checksetup(char *line, int *add)
 
 		n = strlen(p->str);
 		if (!strncmp(line, p->str, n) && p->setup_func(line + n, add))
-			return 1;
+			return;
 		p++;
 	}
-	return 0;
 }
 
 static void __init uml_postsetup(void)

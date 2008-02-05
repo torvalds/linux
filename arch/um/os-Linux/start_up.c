@@ -466,7 +466,7 @@ static inline void check_skas3_proc_mm(void)
 	else non_fatal("found\n");
 }
 
-int can_do_skas(void)
+void can_do_skas(void)
 {
 	non_fatal("Checking for the skas3 patch in the host:\n");
 
@@ -476,8 +476,6 @@ int can_do_skas(void)
 
 	if (!proc_mm || !ptrace_faultinfo || !ptrace_ldt)
 		skas_needs_stub = 1;
-
-	return 1;
 }
 
 int __init parse_iomem(char *str, int *add)
