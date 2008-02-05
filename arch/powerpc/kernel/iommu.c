@@ -453,9 +453,6 @@ void iommu_unmap_sg(struct iommu_table *tbl, struct scatterlist *sglist,
 struct iommu_table *iommu_init_table(struct iommu_table *tbl, int nid)
 {
 	unsigned long sz;
-	unsigned long start_index, end_index;
-	unsigned long entries_per_4g;
-	unsigned long index;
 	static int welcomed = 0;
 	struct page *page;
 
@@ -477,6 +474,7 @@ struct iommu_table *iommu_init_table(struct iommu_table *tbl, int nid)
 
 #ifdef CONFIG_CRASH_DUMP
 	if (ppc_md.tce_get) {
+		unsigned long index;
 		unsigned long tceval;
 		unsigned long tcecount = 0;
 
@@ -506,23 +504,6 @@ struct iommu_table *iommu_init_table(struct iommu_table *tbl, int nid)
 	/* Clear the hardware table in case firmware left allocations in it */
 	ppc_md.tce_free(tbl, tbl->it_offset, tbl->it_size);
 #endif
-
-	/*
-	 * DMA cannot cross 4 GB boundary.  Mark last entry of each 4
-	 * GB chunk as reserved.
-	 */
-	if (protect4gb) {
-		entries_per_4g = 0x100000000l >> IOMMU_PAGE_SHIFT;
-
-		/* Mark the last bit before a 4GB boundary as used */
-		start_index = tbl->it_offset | (entries_per_4g - 1);
-		start_index -= tbl->it_offset;
-
-		end_index = tbl->it_size;
-
-		for (index = start_index; index < end_index - 1; index += entries_per_4g)
-			__set_bit(index, tbl->it_map);
-	}
 
 	if (!welcomed) {
 		printk(KERN_INFO "IOMMU table initialized, virtual merging %s\n",
