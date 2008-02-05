@@ -26,6 +26,11 @@ int do_set_thread_area(struct user_desc *info)
 	cpu = get_cpu();
 	ret = os_set_thread_area(info, userspace_pid[cpu]);
 	put_cpu();
+
+	if (ret)
+		printk(KERN_ERR "PTRACE_SET_THREAD_AREA failed, err = %d, "
+		       "index = %d\n", ret, info->entry_number);
+
 	return ret;
 }
 
@@ -37,6 +42,11 @@ int do_get_thread_area(struct user_desc *info)
 	cpu = get_cpu();
 	ret = os_get_thread_area(info, userspace_pid[cpu]);
 	put_cpu();
+
+	if (ret)
+		printk(KERN_ERR "PTRACE_GET_THREAD_AREA failed, err = %d, "
+		       "index = %d\n", ret, info->entry_number);
+
 	return ret;
 }
 
@@ -356,10 +366,9 @@ out:
 	return ret;
 }
 
-
 /*
- * XXX: This part is probably common to i386 and x86-64. Don't create a common
- * file for now, do that when implementing x86-64 support.
+ * This code is really i386-only, but it detects and logs x86_64 GDT indexes
+ * if a 32-bit UML is running on a 64-bit host.
  */
 static int __init __setup_host_supports_tls(void)
 {
@@ -368,13 +377,16 @@ static int __init __setup_host_supports_tls(void)
 		printk(KERN_INFO "Host TLS support detected\n");
 		printk(KERN_INFO "Detected host type: ");
 		switch (host_gdt_entry_tls_min) {
-			case GDT_ENTRY_TLS_MIN_I386:
-				printk("i386\n");
-				break;
-			case GDT_ENTRY_TLS_MIN_X86_64:
-				printk("x86_64\n");
-				break;
+		case GDT_ENTRY_TLS_MIN_I386:
+			printk(KERN_CONT "i386");
+			break;
+		case GDT_ENTRY_TLS_MIN_X86_64:
+			printk(KERN_CONT "x86_64");
+			break;
 		}
+		printk(KERN_CONT " (GDT indexes %d to %d)\n",
+		       host_gdt_entry_tls_min,
+		       host_gdt_entry_tls_min + GDT_ENTRY_TLS_ENTRIES);
 	} else
 		printk(KERN_ERR "  Host TLS support NOT detected! "
 				"TLS support inside UML will not work\n");
