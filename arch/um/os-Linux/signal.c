@@ -10,13 +10,14 @@
 #include <signal.h>
 #include <strings.h>
 #include "as-layout.h"
-#include "kern_constants.h"
 #include "kern_util.h"
 #include "os.h"
 #include "sysdep/barrier.h"
 #include "sysdep/sigcontext.h"
-#include "task.h"
 #include "user.h"
+
+/* Copied from linux/compiler-gcc.h since we can't include it directly */
+#define barrier() __asm__ __volatile__("": : :"memory")
 
 void (*sig_info[NSIG])(int, struct uml_pt_regs *) = {
 	[SIGTRAP]	= relay_signal,
@@ -28,57 +29,26 @@ void (*sig_info[NSIG])(int, struct uml_pt_regs *) = {
 	[SIGIO]		= sigio_handler,
 	[SIGVTALRM]	= timer_handler };
 
-static struct uml_pt_regs ksig_regs[UM_NR_CPUS];
-
-void sig_handler_common_skas(int sig, void *sc_ptr)
+static void sig_handler_common(int sig, struct sigcontext *sc)
 {
-	struct sigcontext *sc = sc_ptr;
-	struct uml_pt_regs *r;
-	void (*handler)(int, struct uml_pt_regs *);
-	int save_user, save_errno = errno;
+	struct uml_pt_regs r;
+	int save_errno = errno;
 
-	/*
-	 * This is done because to allow SIGSEGV to be delivered inside a SEGV
-	 * handler.  This can happen in copy_user, and if SEGV is disabled,
-	 * the process will die.
-	 * XXX Figure out why this is better than SA_NODEFER
-	 */
+	r.is_user = 0;
 	if (sig == SIGSEGV) {
-		change_sig(SIGSEGV, 1);
-		/*
-		 * For segfaults, we want the data from the
-		 * sigcontext.  In this case, we don't want to mangle
-		 * the process registers, so use a static set of
-		 * registers.  For other signals, the process
-		 * registers are OK.
-		 */
-		r = &ksig_regs[cpu()];
-		copy_sc(r, sc_ptr);
-	} else
-		r = TASK_REGS(get_current());
+		/* For segfaults, we want the data from the sigcontext. */
+		copy_sc(&r, sc);
+		GET_FAULTINFO_FROM_SC(r.faultinfo, sc);
+	}
 
-	save_user = r->is_user;
-	r->is_user = 0;
-	if ((sig == SIGFPE) || (sig == SIGSEGV) || (sig == SIGBUS) ||
-	    (sig == SIGILL) || (sig == SIGTRAP))
-		GET_FAULTINFO_FROM_SC(r->faultinfo, sc);
-
-	change_sig(SIGUSR1, 1);
-
-	handler = sig_info[sig];
-
-	/* unblock SIGVTALRM, SIGIO if sig isn't IRQ signal */
+	/* enable signals if sig isn't IRQ signal */
 	if ((sig != SIGIO) && (sig != SIGWINCH) && (sig != SIGVTALRM))
 		unblock_signals();
 
-	handler(sig, r);
+	(*sig_info[sig])(sig, &r);
 
 	errno = save_errno;
-	r->is_user = save_user;
 }
-
-/* Copied from linux/compiler-gcc.h since we can't include it directly */
-#define barrier() __asm__ __volatile__("": : :"memory")
 
 /*
  * These are the asynchronous signals.  SIGPROF is excluded because we want to
@@ -107,7 +77,7 @@ void sig_handler(int sig, struct sigcontext *sc)
 
 	block_signals();
 
-	sig_handler_common_skas(sig, sc);
+	sig_handler_common(sig, sc);
 
 	set_signals(enabled);
 }
@@ -227,6 +197,9 @@ void set_handler(int sig, void (*handler)(int), int flags, ...)
 		sigaddset(&action.sa_mask, mask);
 	va_end(ap);
 
+	if (sig == SIGSEGV)
+		flags |= SA_NODEFER;
+
 	action.sa_flags = flags;
 	action.sa_restorer = NULL;
 	if (sigaction(sig, &action, NULL) < 0)
@@ -306,7 +279,7 @@ void unblock_signals(void)
 		 * back here.
 		 */
 		if (save_pending & SIGIO_MASK)
-			sig_handler_common_skas(SIGIO, NULL);
+			sig_handler_common(SIGIO, NULL);
 
 		if (save_pending & SIGVTALRM_MASK)
 			real_alarm_handler(NULL);
