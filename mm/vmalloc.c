@@ -463,8 +463,8 @@ void *vmap(struct page **pages, unsigned int count,
 }
 EXPORT_SYMBOL(vmap);
 
-void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
-				pgprot_t prot, int node)
+static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+				 pgprot_t prot, int node)
 {
 	struct page **pages;
 	unsigned int nr_pages, array_size, i;
