@@ -458,11 +458,9 @@ int acpi_power_transition(struct acpi_device *device, int state)
 	}
 
      end:
-	if (result) {
+	if (result)
 		device->power.state = ACPI_STATE_UNKNOWN;
-		printk(KERN_WARNING PREFIX "Transitioning device [%s] to D%d\n",
-			      device->pnp.bus_id, state);
-	} else {
+	else {
 	/* We shouldn't change the state till all above operations succeed */
 		device->power.state = state;
 	}
