@@ -13,70 +13,60 @@
 #include "kern_util.h"
 #include "os.h"
 
-static void *um_virt_to_phys(struct task_struct *task, unsigned long addr,
-			     pte_t *pte_out)
+pte_t *virt_to_pte(struct mm_struct *mm, unsigned long addr)
 {
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
-	pte_t *pte;
-	pte_t ptent;
 
-	if (task->mm == NULL)
-		return ERR_PTR(-EINVAL);
-	pgd = pgd_offset(task->mm, addr);
+	if (mm == NULL)
+		return NULL;
+
+	pgd = pgd_offset(mm, addr);
 	if (!pgd_present(*pgd))
-		return ERR_PTR(-EINVAL);
+		return NULL;
 
 	pud = pud_offset(pgd, addr);
 	if (!pud_present(*pud))
-		return ERR_PTR(-EINVAL);
+		return NULL;
 
 	pmd = pmd_offset(pud, addr);
 	if (!pmd_present(*pmd))
-		return ERR_PTR(-EINVAL);
+		return NULL;
 
-	pte = pte_offset_kernel(pmd, addr);
-	ptent = *pte;
-	if (!pte_present(ptent))
-		return ERR_PTR(-EINVAL);
-
-	if (pte_out != NULL)
-		*pte_out = ptent;
-	return (void *) (pte_val(ptent) & PAGE_MASK) + (addr & ~PAGE_MASK);
+	return pte_offset_kernel(pmd, addr);
 }
 
-static unsigned long maybe_map(unsigned long virt, int is_write)
+static pte_t *maybe_map(unsigned long virt, int is_write)
 {
-	pte_t pte;
-	int err;
+	pte_t *pte = virt_to_pte(current->mm, virt);
+	int err, dummy_code;
 
-	void *phys = um_virt_to_phys(current, virt, &pte);
-	int dummy_code;
-
-	if (IS_ERR(phys) || (is_write && !pte_write(pte))) {
+	if ((pte == NULL) || !pte_present(*pte) ||
+	    (is_write && !pte_write(*pte))) {
 		err = handle_page_fault(virt, 0, is_write, 1, &dummy_code);
 		if (err)
-			return -1UL;
-		phys = um_virt_to_phys(current, virt, NULL);
+			return NULL;
+		pte = virt_to_pte(current->mm, virt);
 	}
-	if (IS_ERR(phys))
-		phys = (void *) -1;
+	if (!pte_present(*pte))
+		pte = NULL;
 
-	return (unsigned long) phys;
+	return pte;
 }
 
 static int do_op_one_page(unsigned long addr, int len, int is_write,
 		 int (*op)(unsigned long addr, int len, void *arg), void *arg)
 {
 	struct page *page;
+	pte_t *pte;
 	int n;
 
-	addr = maybe_map(addr, is_write);
-	if (addr == -1UL)
+	pte = maybe_map(addr, is_write);
+	if (pte == NULL)
 		return -1;
 
-	page = phys_to_page(addr);
+	page = pte_page(*pte);
 	addr = (unsigned long) kmap_atomic(page, KM_UML_USERCOPY) +
 		(addr & ~PAGE_MASK);
 

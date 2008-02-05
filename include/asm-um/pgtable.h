@@ -323,6 +323,9 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 #define pte_unmap(pte) do { } while (0)
 #define pte_unmap_nested(pte) do { } while (0)
 
+struct mm_struct;
+extern pte_t *virt_to_pte(struct mm_struct *mm, unsigned long addr);
+
 #define update_mmu_cache(vma,address,pte) do ; while (0)
 
 /* Encode and de-code a swap entry */
