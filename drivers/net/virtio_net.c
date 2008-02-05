@@ -242,6 +242,7 @@ static int start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if (skb_is_gso(skb)) {
+		hdr->hdr_len = skb_transport_header(skb) - skb->data;
 		hdr->gso_size = skb_shinfo(skb)->gso_size;
 		if (skb_shinfo(skb)->gso_type & SKB_GSO_TCP_ECN)
 			hdr->gso_type = VIRTIO_NET_HDR_GSO_TCPV4_ECN;
@@ -255,7 +256,7 @@ static int start_xmit(struct sk_buff *skb, struct net_device *dev)
 			BUG();
 	} else {
 		hdr->gso_type = VIRTIO_NET_HDR_GSO_NONE;
-		hdr->gso_size = 0;
+		hdr->gso_size = hdr->hdr_len = 0;
 	}
 
 	vnet_hdr_to_sg(sg, skb);
