@@ -911,27 +911,6 @@ __group_complete_signal(int sig, struct task_struct *p)
 			} while_each_thread(p, t);
 			return;
 		}
-
-		/*
-		 * There will be a core dump.  We make all threads other
-		 * than the chosen one go into a group stop so that nothing
-		 * happens until it gets scheduled, takes the signal off
-		 * the shared queue, and does the core dump.  This is a
-		 * little more complicated than strictly necessary, but it
-		 * keeps the signal state that winds up in the core dump
-		 * unchanged from the death state, e.g. which thread had
-		 * the core-dump signal unblocked.
-		 */
-		rm_from_queue(SIG_KERNEL_STOP_MASK, &t->pending);
-		rm_from_queue(SIG_KERNEL_STOP_MASK, &p->signal->shared_pending);
-		p->signal->group_stop_count = 0;
-		p->signal->group_exit_task = t;
-		p = t;
-		do {
-			p->signal->group_stop_count++;
-			signal_wake_up(t, t == p);
-		} while_each_thread(p, t);
-		return;
 	}
 
 	/*
@@ -1761,15 +1740,6 @@ static int do_signal_stop(int signr)
 static int handle_group_stop(void)
 {
 	int stop_count;
-
-	if (current->signal->group_exit_task == current) {
-		/*
-		 * Group stop is so we can do a core dump,
-		 * We are the initiating thread, so get on with it.
-		 */
-		current->signal->group_exit_task = NULL;
-		return 0;
-	}
 
 	if (current->signal->flags & SIGNAL_GROUP_EXIT)
 		/*
