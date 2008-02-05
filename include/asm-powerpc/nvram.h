@@ -58,6 +58,9 @@ struct nvram_header {
 };
 
 #ifdef __KERNEL__
+
+#include <linux/list.h>
+
 struct nvram_partition {
 	struct list_head partition;
 	struct nvram_header header;
