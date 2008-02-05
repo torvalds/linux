@@ -594,11 +594,11 @@ static int flow_dump(struct tcf_proto *tp, unsigned long fh,
 
 	if (tcf_exts_dump(skb, &f->exts, &flow_ext_map) < 0)
 		goto nla_put_failure;
-
+#ifdef CONFIG_NET_EMATCH
 	if (f->ematches.hdr.nmatches &&
 	    tcf_em_tree_dump(skb, &f->ematches, TCA_FLOW_EMATCHES) < 0)
 		goto nla_put_failure;
-
+#endif
 	nla_nest_end(skb, nest);
 
 	if (tcf_exts_dump_stats(skb, &f->exts, &flow_ext_map) < 0)
