@@ -597,7 +597,6 @@ static void intel_i830_fini_flush(void)
 	kunmap(intel_private.i8xx_page);
 	intel_private.i8xx_flush_page = NULL;
 	unmap_page_from_agp(intel_private.i8xx_page);
-	flush_agp_mappings();
 
 	__free_page(intel_private.i8xx_page);
 	intel_private.i8xx_page = NULL;
@@ -615,7 +614,6 @@ static void intel_i830_setup_flush(void)
 
 	/* make page uncached */
 	map_page_into_agp(intel_private.i8xx_page);
-	flush_agp_mappings();
 
 	intel_private.i8xx_flush_page = kmap(intel_private.i8xx_page);
 	if (!intel_private.i8xx_flush_page)
