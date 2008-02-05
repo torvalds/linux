@@ -865,11 +865,12 @@ static int pcmcia_load_firmware(struct pcmcia_device *dev, char * filename)
 	ds_dbg(1, "trying to load CIS file %s\n", filename);
 
 	if (strlen(filename) > 14) {
-		printk(KERN_WARNING "pcmcia: CIS filename is too long\n");
+		printk(KERN_WARNING "pcmcia: CIS filename is too long [%s]\n",
+			filename);
 		return -EINVAL;
 	}
 
-	snprintf(path, 20, "%s", filename);
+	snprintf(path, sizeof(path), "%s", filename);
 
 	if (request_firmware(&fw, path, &dev->dev) == 0) {
 		if (fw->size >= CISTPL_MAX_CIS_SIZE) {
