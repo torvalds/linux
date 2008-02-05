@@ -1874,6 +1874,8 @@ void show_free_areas(void)
 		printk("= %lukB\n", K(total));
 	}
 
+	printk("%ld total pagecache pages\n", global_page_state(NR_FILE_PAGES));
+
 	show_swap_cache_info();
 }
 
