@@ -150,6 +150,7 @@ config ETRAX_FLASH_BUSWIDTH
 	  Width in bytes of the Flash bus (1, 2 or 4). Is usually 2.
 
 source arch/cris/arch-v10/Kconfig
+source arch/cris/arch-v32/Kconfig
 
 endmenu
 
@@ -157,8 +158,8 @@ source "net/Kconfig"
 
 # bring in ETRAX built-in drivers
 menu "Drivers for built-in interfaces"
-# arch/cris/arch is a symlink to correct arch (arch-v10 or arch-v32)
-source arch/cris/arch/drivers/Kconfig
+source arch/cris/arch-v10/drivers/Kconfig
+source arch/cris/arch-v32/drivers/Kconfig
 
 endmenu
 

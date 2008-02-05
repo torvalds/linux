@@ -1,3 +1,5 @@
+if ETRAX_ARCH_V10
+
 config ETRAX_ETHERNET
 	bool "Ethernet support"
 	depends on ETRAX_ARCH_V10
@@ -806,3 +808,5 @@ config ETRAX_DS1302_TRICKLE_CHARGE
 	  1 = 2kohm, 2 = 4kohm, 3 = 4kohm
 	  4 = 1 diode, 8 = 2 diodes
 	  Allowed values are (increasing current): 0, 11, 10, 9, 7, 6, 5
+
+endif

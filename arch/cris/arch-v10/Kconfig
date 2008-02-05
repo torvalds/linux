@@ -1,3 +1,5 @@
+if ETRAX_ARCH_V10
+
 # ETRAX 100LX v1 has a MMU "feature" requiring a low mapping
 config CRIS_LOW_MAP
 	bool
@@ -451,3 +453,5 @@ config ETRAX_POWERBUTTON_BIT
 	default "25"
 	help
 	  Configure where power button is connected.
+
+endif
