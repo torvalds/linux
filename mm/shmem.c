@@ -827,6 +827,7 @@ static int shmem_unuse_inode(struct shmem_inode_info *info, swp_entry_t entry, s
 	struct page *subdir;
 	swp_entry_t *ptr;
 	int offset;
+	int error;
 
 	idx = 0;
 	ptr = info->i_direct;
@@ -884,7 +885,20 @@ lost2:
 found:
 	idx += offset;
 	inode = &info->vfs_inode;
-	if (add_to_page_cache(page, inode->i_mapping, idx, GFP_ATOMIC) == 0) {
+	error = add_to_page_cache(page, inode->i_mapping, idx, GFP_ATOMIC);
+	if (error == -EEXIST) {
+		struct page *filepage = find_get_page(inode->i_mapping, idx);
+		if (filepage) {
+			/*
+			 * There might be a more uptodate page coming down
+			 * from a stacked writepage: forget our swappage if so.
+			 */
+			if (PageUptodate(filepage))
+				error = 0;
+			page_cache_release(filepage);
+		}
+	}
+	if (!error) {
 		delete_from_swap_cache(page);
 		set_page_dirty(page);
 		info->flags |= SHMEM_PAGEIN;
@@ -937,44 +951,45 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 	struct inode *inode;
 
 	BUG_ON(!PageLocked(page));
-	/*
-	 * shmem_backing_dev_info's capabilities prevent regular writeback or
-	 * sync from ever calling shmem_writepage; but a stacking filesystem
-	 * may use the ->writepage of its underlying filesystem, in which case
-	 * we want to do nothing when that underlying filesystem is tmpfs
-	 * (writing out to swap is useful as a response to memory pressure, but
-	 * of no use to stabilize the data) - just redirty the page, unlock it
-	 * and claim success in this case.  AOP_WRITEPAGE_ACTIVATE, and the
-	 * page_mapped check below, must be avoided unless we're in reclaim.
-	 */
-	if (!wbc->for_reclaim) {
-		set_page_dirty(page);
-		unlock_page(page);
-		return 0;
-	}
-	BUG_ON(page_mapped(page));
-
 	mapping = page->mapping;
 	index = page->index;
 	inode = mapping->host;
 	info = SHMEM_I(inode);
 	if (info->flags & VM_LOCKED)
 		goto redirty;
-	swap = get_swap_page();
-	if (!swap.val)
+	if (!total_swap_pages)
 		goto redirty;
 
+	/*
+	 * shmem_backing_dev_info's capabilities prevent regular writeback or
+	 * sync from ever calling shmem_writepage; but a stacking filesystem
+	 * may use the ->writepage of its underlying filesystem, in which case
+	 * tmpfs should write out to swap only in response to memory pressure,
+	 * and not for pdflush or sync.  However, in those cases, we do still
+	 * want to check if there's a redundant swappage to be discarded.
+	 */
+	if (wbc->for_reclaim)
+		swap = get_swap_page();
+	else
+		swap.val = 0;
+
 	spin_lock(&info->lock);
-	shmem_recalc_inode(inode);
 	if (index >= info->next_index) {
 		BUG_ON(!(info->flags & SHMEM_TRUNCATE));
 		goto unlock;
 	}
 	entry = shmem_swp_entry(info, index, NULL);
-	BUG_ON(!entry);
-	BUG_ON(entry->val);
+	if (entry->val) {
+		/*
+		 * The more uptodate page coming down from a stacked
+		 * writepage should replace our old swappage.
+		 */
+		free_swap_and_cache(*entry);
+		shmem_swp_set(info, entry, 0);
+	}
+	shmem_recalc_inode(inode);
 
-	if (add_to_swap_cache(page, swap, GFP_ATOMIC) == 0) {
+	if (swap.val && add_to_swap_cache(page, swap, GFP_ATOMIC) == 0) {
 		remove_from_page_cache(page);
 		shmem_swp_set(info, entry, swap.val);
 		shmem_swp_unmap(entry);
@@ -986,6 +1001,7 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 			spin_unlock(&shmem_swaplist_lock);
 		}
 		swap_duplicate(swap);
+		BUG_ON(page_mapped(page));
 		page_cache_release(page);	/* pagecache ref */
 		set_page_dirty(page);
 		unlock_page(page);
@@ -998,7 +1014,10 @@ unlock:
 	swap_free(swap);
 redirty:
 	set_page_dirty(page);
-	return AOP_WRITEPAGE_ACTIVATE;	/* Return with the page locked */
+	if (wbc->for_reclaim)
+		return AOP_WRITEPAGE_ACTIVATE;	/* Return with page locked */
+	unlock_page(page);
+	return 0;
 }
 
 #ifdef CONFIG_NUMA
