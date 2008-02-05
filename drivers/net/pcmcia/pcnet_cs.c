@@ -349,7 +349,7 @@ static hw_info_t *get_hwinfo(struct pcmcia_device *link)
 static hw_info_t *get_prom(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
-    kio_addr_t ioaddr = dev->base_addr;
+    unsigned int ioaddr = dev->base_addr;
     u_char prom[32];
     int i, j;
 
@@ -425,7 +425,7 @@ static hw_info_t *get_dl10019(struct pcmcia_device *link)
 static hw_info_t *get_ax88190(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
-    kio_addr_t ioaddr = dev->base_addr;
+    unsigned int ioaddr = dev->base_addr;
     int i, j;
 
     /* Not much of a test, but the alternatives are messy */
@@ -756,7 +756,7 @@ static int pcnet_resume(struct pcmcia_device *link)
 #define MDIO_DATA_READ		0x10
 #define MDIO_MASK		0x0f
 
-static void mdio_sync(kio_addr_t addr)
+static void mdio_sync(unsigned int addr)
 {
     int bits, mask = inb(addr) & MDIO_MASK;
     for (bits = 0; bits < 32; bits++) {
@@ -765,7 +765,7 @@ static void mdio_sync(kio_addr_t addr)
     }
 }
 
-static int mdio_read(kio_addr_t addr, int phy_id, int loc)
+static int mdio_read(unsigned int addr, int phy_id, int loc)
 {
     u_int cmd = (0x06<<10)|(phy_id<<5)|loc;
     int i, retval = 0, mask = inb(addr) & MDIO_MASK;
@@ -784,7 +784,7 @@ static int mdio_read(kio_addr_t addr, int phy_id, int loc)
     return (retval>>1) & 0xffff;
 }
 
-static void mdio_write(kio_addr_t addr, int phy_id, int loc, int value)
+static void mdio_write(unsigned int addr, int phy_id, int loc, int value)
 {
     u_int cmd = (0x05<<28)|(phy_id<<23)|(loc<<18)|(1<<17)|value;
     int i, mask = inb(addr) & MDIO_MASK;
@@ -818,10 +818,10 @@ static void mdio_write(kio_addr_t addr, int phy_id, int loc, int value)
 
 #define DL19FDUPLX	0x0400	/* DL10019 Full duplex mode */
 
-static int read_eeprom(kio_addr_t ioaddr, int location)
+static int read_eeprom(unsigned int ioaddr, int location)
 {
     int i, retval = 0;
-    kio_addr_t ee_addr = ioaddr + DLINK_EEPROM;
+    unsigned int ee_addr = ioaddr + DLINK_EEPROM;
     int read_cmd = location | (EE_READ_CMD << 8);
 
     outb(0, ee_addr);
@@ -852,10 +852,10 @@ static int read_eeprom(kio_addr_t ioaddr, int location)
     In ASIC mode, EE_ADOT is used to output the data to the ASIC.
 */
 
-static void write_asic(kio_addr_t ioaddr, int location, short asic_data)
+static void write_asic(unsigned int ioaddr, int location, short asic_data)
 {
 	int i;
-	kio_addr_t ee_addr = ioaddr + DLINK_EEPROM;
+	unsigned int ee_addr = ioaddr + DLINK_EEPROM;
 	short dataval;
 	int read_cmd = location | (EE_READ_CMD << 8);
 
@@ -897,7 +897,7 @@ static void write_asic(kio_addr_t ioaddr, int location, short asic_data)
 
 static void set_misc_reg(struct net_device *dev)
 {
-    kio_addr_t nic_base = dev->base_addr;
+    unsigned int nic_base = dev->base_addr;
     pcnet_dev_t *info = PRIV(dev);
     u_char tmp;
 
@@ -936,7 +936,7 @@ static void set_misc_reg(struct net_device *dev)
 static void mii_phy_probe(struct net_device *dev)
 {
     pcnet_dev_t *info = PRIV(dev);
-    kio_addr_t mii_addr = dev->base_addr + DLINK_GPIO;
+    unsigned int mii_addr = dev->base_addr + DLINK_GPIO;
     int i;
     u_int tmp, phyid;
 
@@ -1014,7 +1014,7 @@ static int pcnet_close(struct net_device *dev)
 
 static void pcnet_reset_8390(struct net_device *dev)
 {
-    kio_addr_t nic_base = dev->base_addr;
+    unsigned int nic_base = dev->base_addr;
     int i;
 
     ei_status.txing = ei_status.dmaing = 0;
@@ -1074,8 +1074,8 @@ static void ei_watchdog(u_long arg)
 {
     struct net_device *dev = (struct net_device *)arg;
     pcnet_dev_t *info = PRIV(dev);
-    kio_addr_t nic_base = dev->base_addr;
-    kio_addr_t mii_addr = nic_base + DLINK_GPIO;
+    unsigned int nic_base = dev->base_addr;
+    unsigned int mii_addr = nic_base + DLINK_GPIO;
     u_short link;
 
     if (!netif_device_present(dev)) goto reschedule;
@@ -1177,7 +1177,7 @@ static int ei_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
     pcnet_dev_t *info = PRIV(dev);
     u16 *data = (u16 *)&rq->ifr_ifru;
-    kio_addr_t mii_addr = dev->base_addr + DLINK_GPIO;
+    unsigned int mii_addr = dev->base_addr + DLINK_GPIO;
     switch (cmd) {
     case SIOCGMIIPHY:
 	data[0] = info->phy_id;
@@ -1199,7 +1199,7 @@ static void dma_get_8390_hdr(struct net_device *dev,
 			     struct e8390_pkt_hdr *hdr,
 			     int ring_page)
 {
-    kio_addr_t nic_base = dev->base_addr;
+    unsigned int nic_base = dev->base_addr;
 
     if (ei_status.dmaing) {
 	printk(KERN_NOTICE "%s: DMAing conflict in dma_block_input."
@@ -1230,7 +1230,7 @@ static void dma_get_8390_hdr(struct net_device *dev,
 static void dma_block_input(struct net_device *dev, int count,
 			    struct sk_buff *skb, int ring_offset)
 {
-    kio_addr_t nic_base = dev->base_addr;
+    unsigned int nic_base = dev->base_addr;
     int xfer_count = count;
     char *buf = skb->data;
 
@@ -1285,7 +1285,7 @@ static void dma_block_input(struct net_device *dev, int count,
 static void dma_block_output(struct net_device *dev, int count,
 			     const u_char *buf, const int start_page)
 {
-    kio_addr_t nic_base = dev->base_addr;
+    unsigned int nic_base = dev->base_addr;
     pcnet_dev_t *info = PRIV(dev);
 #ifdef PCMCIA_DEBUG
     int retries = 0;

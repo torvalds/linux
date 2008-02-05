@@ -58,7 +58,7 @@ typedef struct pcc_socket {
 	u_short			type, flags;
 	struct pcmcia_socket	socket;
 	unsigned int		number;
- 	kio_addr_t		ioaddr;
+	unsigned int		ioaddr;
 	u_long			mapaddr;
 	u_long			base;	/* PCC register base */
 	u_char			cs_irq1, cs_irq2, intr;
@@ -298,7 +298,8 @@ static int __init is_alive(u_short sock)
 	return 0;
 }
 
-static void add_pcc_socket(ulong base, int irq, ulong mapaddr, kio_addr_t ioaddr)
+static void add_pcc_socket(ulong base, int irq, ulong mapaddr,
+			   unsigned int ioaddr)
 {
 	pcc_socket_t *t = &socket[pcc_sockets];
 
@@ -738,7 +739,7 @@ static int __init init_m32r_pcc(void)
 #else	/* CONFIG_PLAT_USRV */
 	{
 		ulong base, mapaddr;
-		kio_addr_t ioaddr;
+		unsigned int ioaddr;
 
 		for (i = 0 ; i < M32R_MAX_PCC ; i++) {
 			base = (ulong)PLD_CFRSTCR;
