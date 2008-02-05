@@ -96,7 +96,8 @@ static int __add_to_swap_cache(struct page *page, swp_entry_t entry,
 	return error;
 }
 
-static int add_to_swap_cache(struct page *page, swp_entry_t entry)
+static int add_to_swap_cache(struct page *page, swp_entry_t entry,
+				gfp_t gfp_mask)
 {
 	int error;
 
@@ -106,7 +107,7 @@ static int add_to_swap_cache(struct page *page, swp_entry_t entry)
 		return -ENOENT;
 	}
 	SetPageLocked(page);
-	error = __add_to_swap_cache(page, entry, GFP_KERNEL);
+	error = __add_to_swap_cache(page, entry, gfp_mask & GFP_KERNEL);
 	/*
 	 * Anon pages are already on the LRU, we don't run lru_cache_add here.
 	 */
@@ -318,7 +319,7 @@ struct page * lookup_swap_cache(swp_entry_t entry)
  * A failure return means that either the page allocation failed or that
  * the swap entry is no longer in use.
  */
-struct page *read_swap_cache_async(swp_entry_t entry,
+struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 			struct vm_area_struct *vma, unsigned long addr)
 {
 	struct page *found_page, *new_page = NULL;
@@ -338,8 +339,7 @@ struct page *read_swap_cache_async(swp_entry_t entry,
 		 * Get a new page to read into from swap.
 		 */
 		if (!new_page) {
-			new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE,
-								vma, addr);
+			new_page = alloc_page_vma(gfp_mask, vma, addr);
 			if (!new_page)
 				break;		/* Out of memory */
 		}
@@ -354,7 +354,7 @@ struct page *read_swap_cache_async(swp_entry_t entry,
 		 * the just freed swap entry for an existing page.
 		 * May fail (-ENOMEM) if radix-tree node allocation failed.
 		 */
-		err = add_to_swap_cache(new_page, entry);
+		err = add_to_swap_cache(new_page, entry, gfp_mask);
 		if (!err) {
 			/*
 			 * Initiate read into locked page and return.
@@ -388,7 +388,7 @@ struct page *read_swap_cache_async(swp_entry_t entry,
  *
  * Caller must hold down_read on the vma->vm_mm if vma is not NULL.
  */
-struct page *swapin_readahead(swp_entry_t entry,
+struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
 			struct vm_area_struct *vma, unsigned long addr)
 {
 	int nr_pages;
@@ -407,11 +407,11 @@ struct page *swapin_readahead(swp_entry_t entry,
 	for (end_offset = offset + nr_pages; offset < end_offset; offset++) {
 		/* Ok, do the async read-ahead now */
 		page = read_swap_cache_async(swp_entry(swp_type(entry), offset),
-						vma, addr);
+						gfp_mask, vma, addr);
 		if (!page)
 			break;
 		page_cache_release(page);
 	}
 	lru_add_drain();	/* Push any new pages onto the LRU now */
-	return read_swap_cache_async(entry, vma, addr);
+	return read_swap_cache_async(entry, gfp_mask, vma, addr);
 }

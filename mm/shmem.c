@@ -1025,8 +1025,8 @@ out:
 	return err;
 }
 
-static struct page *shmem_swapin(struct shmem_inode_info *info,
-				       swp_entry_t entry, unsigned long idx)
+static struct page *shmem_swapin(swp_entry_t entry, gfp_t gfp,
+			struct shmem_inode_info *info, unsigned long idx)
 {
 	struct vm_area_struct pvma;
 	struct page *page;
@@ -1036,13 +1036,13 @@ static struct page *shmem_swapin(struct shmem_inode_info *info,
 	pvma.vm_pgoff = idx;
 	pvma.vm_ops = NULL;
 	pvma.vm_policy = mpol_shared_policy_lookup(&info->policy, idx);
-	page = swapin_readahead(entry, &pvma, 0);
+	page = swapin_readahead(entry, gfp, &pvma, 0);
 	mpol_free(pvma.vm_policy);
 	return page;
 }
 
-static struct page *shmem_alloc_page(gfp_t gfp, struct shmem_inode_info *info,
-					unsigned long idx)
+static struct page *shmem_alloc_page(gfp_t gfp,
+			struct shmem_inode_info *info, unsigned long idx)
 {
 	struct vm_area_struct pvma;
 	struct page *page;
@@ -1063,14 +1063,14 @@ static inline int shmem_parse_mpol(char *value, int *policy,
 	return 1;
 }
 
-static inline struct page *
-shmem_swapin(struct shmem_inode_info *info,swp_entry_t entry,unsigned long idx)
+static inline struct page *shmem_swapin(swp_entry_t entry, gfp_t gfp,
+			struct shmem_inode_info *info, unsigned long idx)
 {
-	return swapin_readahead(entry, NULL, 0);
+	return swapin_readahead(entry, gfp, NULL, 0);
 }
 
-static inline struct page *
-shmem_alloc_page(gfp_t gfp,struct shmem_inode_info *info, unsigned long idx)
+static inline struct page *shmem_alloc_page(gfp_t gfp,
+			struct shmem_inode_info *info, unsigned long idx)
 {
 	return alloc_page(gfp);
 }
@@ -1093,6 +1093,7 @@ static int shmem_getpage(struct inode *inode, unsigned long idx,
 	struct page *swappage;
 	swp_entry_t *entry;
 	swp_entry_t swap;
+	gfp_t gfp;
 	int error;
 
 	if (idx >= SHMEM_MAX_INDEX)
@@ -1117,6 +1118,7 @@ repeat:
 	error = 0;
 	if (sgp == SGP_QUICK)
 		goto failed;
+	gfp = mapping_gfp_mask(mapping);
 
 	spin_lock(&info->lock);
 	shmem_recalc_inode(inode);
@@ -1139,7 +1141,7 @@ repeat:
 				*type |= VM_FAULT_MAJOR;
 			}
 			spin_unlock(&info->lock);
-			swappage = shmem_swapin(info, swap, idx);
+			swappage = shmem_swapin(swap, gfp, info, idx);
 			if (!swappage) {
 				spin_lock(&info->lock);
 				entry = shmem_swp_alloc(info, idx, sgp);
@@ -1251,9 +1253,7 @@ repeat:
 
 		if (!filepage) {
 			spin_unlock(&info->lock);
-			filepage = shmem_alloc_page(mapping_gfp_mask(mapping),
-						    info,
-						    idx);
+			filepage = shmem_alloc_page(gfp, info, idx);
 			if (!filepage) {
 				shmem_unacct_blocks(info->flags, 1);
 				shmem_free_blocks(inode, 1);
