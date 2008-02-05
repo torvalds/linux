@@ -3,7 +3,7 @@
 #
 
 obj-y		:= config.o time.o debug.o ataints.o stdma.o \
-			atasound.o stram.o atari_ksyms.o
+			atasound.o stram.o
 
 ifeq ($(CONFIG_PCI),y)
 obj-$(CONFIG_HADES)	+= hades-pci.o
