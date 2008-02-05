@@ -68,6 +68,10 @@ config IRQ_RELEASE_METHOD
 	bool
 	default y
 
+config HZ
+	int
+	default 100
+
 menu "UML-specific options"
 
 config STATIC_LINK
