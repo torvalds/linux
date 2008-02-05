@@ -416,6 +416,8 @@ gart_map_sg(struct device *dev, struct scatterlist *sg, int nents, int dir)
 	struct scatterlist *s, *ps, *start_sg, *sgmap;
 	int need = 0, nextneed, i, out, start;
 	unsigned long pages = 0;
+	unsigned int seg_size;
+	unsigned int max_seg_size;
 
 	if (nents == 0)
 		return 0;
@@ -426,6 +428,8 @@ gart_map_sg(struct device *dev, struct scatterlist *sg, int nents, int dir)
 	out = 0;
 	start = 0;
 	start_sg = sgmap = sg;
+	seg_size = 0;
+	max_seg_size = dma_get_max_seg_size(dev);
 	ps = NULL; /* shut up gcc */
 	for_each_sg(sg, s, nents, i) {
 		dma_addr_t addr = sg_phys(s);
@@ -443,11 +447,13 @@ gart_map_sg(struct device *dev, struct scatterlist *sg, int nents, int dir)
 			 * offset.
 			 */
 			if (!iommu_merge || !nextneed || !need || s->offset ||
+			    (s->length + seg_size > max_seg_size) ||
 			    (ps->offset + ps->length) % PAGE_SIZE) {
 				if (dma_map_cont(start_sg, i - start, sgmap,
 						  pages, need) < 0)
 					goto error;
 				out++;
+				seg_size = 0;
 				sgmap = sg_next(sgmap);
 				pages = 0;
 				start = i;
@@ -455,6 +461,7 @@ gart_map_sg(struct device *dev, struct scatterlist *sg, int nents, int dir)
 			}
 		}
 
+		seg_size += s->length;
 		need = nextneed;
 		pages += to_pages(s->offset, s->length);
 		ps = s;
