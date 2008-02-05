@@ -1073,7 +1073,7 @@ static int __set_page_dirty(struct page *page)
 	return 0;
 }
 
-int fastcall set_page_dirty(struct page *page)
+int set_page_dirty(struct page *page)
 {
 	int ret = __set_page_dirty(page);
 	if (ret)
