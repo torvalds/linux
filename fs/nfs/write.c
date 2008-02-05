@@ -665,9 +665,7 @@ zero_page:
 	 * then we need to zero any uninitalised data. */
 	if (req->wb_pgbase == 0 && req->wb_bytes != PAGE_CACHE_SIZE
 			&& !PageUptodate(req->wb_page))
-		zero_user_page(req->wb_page, req->wb_bytes,
-				PAGE_CACHE_SIZE - req->wb_bytes,
-				KM_USER0);
+		zero_user_segment(req->wb_page, req->wb_bytes, PAGE_CACHE_SIZE);
 	return req;
 }
 

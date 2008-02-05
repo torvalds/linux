@@ -257,8 +257,7 @@ static int fill_zeros_to_end_of_page(struct page *page, unsigned int to)
 	end_byte_in_page = i_size_read(inode) % PAGE_CACHE_SIZE;
 	if (to > end_byte_in_page)
 		end_byte_in_page = to;
-	zero_user_page(page, end_byte_in_page,
-		PAGE_CACHE_SIZE - end_byte_in_page, KM_USER0);
+	zero_user_segment(page, end_byte_in_page, PAGE_CACHE_SIZE);
 out:
 	return 0;
 }
@@ -307,7 +306,7 @@ static int ecryptfs_prepare_write(struct file *file, struct page *page,
 	 */
 	if ((i_size_read(page->mapping->host) == prev_page_end_size) &&
 	    (from != 0)) {
-		zero_user_page(page, 0, PAGE_CACHE_SIZE, KM_USER0);
+		zero_user(page, 0, PAGE_CACHE_SIZE);
 	}
 out:
 	return rc;
