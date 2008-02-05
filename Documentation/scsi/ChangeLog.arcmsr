@@ -68,4 +68,45 @@
 **						2. modify the arcmsr_pci_slot_reset function
 **						3. modify the arcmsr_pci_ers_disconnect_forepart function
 **						4. modify the arcmsr_pci_ers_need_reset_forepart function
+** 1.20.00.15   09/27/2007	 Erich Chen & Nick Cheng
+**						1. add arcmsr_enable_eoi_mode() on adapter Type B
+** 						2. add readl(reg->iop2drv_doorbell_reg) in arcmsr_handle_hbb_isr()
+**						in case of the doorbell interrupt clearance is cached
+** 1.20.00.15   10/01/2007	 Erich Chen & Nick Cheng
+**						1. modify acb->devstate[i][j]
+**						as ARECA_RAID_GOOD instead of
+**						ARECA_RAID_GONE in arcmsr_alloc_ccb_pool
+** 1.20.00.15   11/06/2007       Erich Chen & Nick Cheng
+**						1. add conditional declaration for
+** 						arcmsr_pci_error_detected() and
+**						arcmsr_pci_slot_reset
+** 1.20.00.15	11/23/2007       Erich Chen & Nick Cheng
+**						1.check if the sg list member number
+**						exceeds arcmsr default limit in arcmsr_build_ccb()
+**						2.change the returned value type of arcmsr_build_ccb()
+**						from "void" to "int"
+**						3.add the conditional check if arcmsr_build_ccb()
+**						returns FAILED
+** 1.20.00.15	12/04/2007	 Erich Chen & Nick Cheng
+**						1. modify arcmsr_drain_donequeue() to ignore unknown
+**						command and let kernel process command timeout.
+**						This could handle IO request violating max. segments
+**						while Linux XFS over DM-CRYPT.
+**						Thanks to Milan Broz's comments <mbroz@redhat.com>
+** 1.20.00.15	12/24/2007	 Erich Chen & Nick Cheng
+**						1.fix the portability problems
+**						2.fix type B where we should _not_ iounmap() acb->pmu;
+**						it's not ioremapped.
+**						3.add return -ENOMEM if ioremap() fails
+**						4.transfer IS_SG64_ADDR w/ cpu_to_le32()
+**						in arcmsr_build_ccb
+**						5. modify acb->devstate[i][j] as ARECA_RAID_GONE instead of
+**						ARECA_RAID_GOOD in arcmsr_alloc_ccb_pool()
+**						6.fix arcmsr_cdb->Context as (unsigned long)arcmsr_cdb
+**						7.add the checking state of
+**						(outbound_intstatus & ARCMSR_MU_OUTBOUND_HANDLE_INT) == 0
+**						in arcmsr_handle_hba_isr
+**						8.replace pci_alloc_consistent()/pci_free_consistent() with kmalloc()/kfree() in arcmsr_iop_message_xfer()
+**						9. fix the release of dma memory for type B in arcmsr_free_ccb_pool()
+**						10.fix the arcmsr_polling_hbb_ccbdone()
 **************************************************************************
