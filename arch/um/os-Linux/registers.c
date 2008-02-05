@@ -10,15 +10,6 @@
 #include "sysdep/ptrace.h"
 #include "user.h"
 
-/* This is set once at boot time and not changed thereafter */
-
-static unsigned long exec_regs[MAX_REG_NR];
-
-void init_thread_registers(struct uml_pt_regs *to)
-{
-	memcpy(to->gp, exec_regs, sizeof(to->gp));
-}
-
 void save_registers(int pid, struct uml_pt_regs *regs)
 {
 	int err;
@@ -38,6 +29,10 @@ void restore_registers(int pid, struct uml_pt_regs *regs)
 		panic("restore_registers - saving registers failed, "
 		      "errno = %d\n", errno);
 }
+
+/* This is set once at boot time and not changed thereafter */
+
+static unsigned long exec_regs[MAX_REG_NR];
 
 void init_registers(int pid)
 {

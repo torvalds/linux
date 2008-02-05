@@ -300,7 +300,9 @@ void userspace(struct uml_pt_regs *regs)
 	nsecs += os_nsecs();
 
 	while (1) {
-		restore_registers(pid, regs);
+		if (ptrace(PTRACE_SETREGS, pid, 0, regs->gp))
+			panic("userspace - PTRACE_SETREGS failed, "
+			      "errno = %d\n", errno);
 
 		/* Now we set local_using_sysemu to be used for one loop */
 		local_using_sysemu = get_using_sysemu();
@@ -320,7 +322,10 @@ void userspace(struct uml_pt_regs *regs)
 			      errno);
 
 		regs->is_user = 1;
-		save_registers(pid, regs);
+		if (ptrace(PTRACE_GETREGS, pid, 0, regs->gp))
+			panic("userspace - saving registers failed, "
+			      "errno = %d\n", errno);
+
 		UPT_SYSCALL_NR(regs) = -1; /* Assume: It's not a syscall */
 
 		if (WIFSTOPPED(status)) {
@@ -343,7 +348,7 @@ void userspace(struct uml_pt_regs *regs)
 				break;
 			case SIGVTALRM:
 				now = os_nsecs();
-				if(now < nsecs)
+				if (now < nsecs)
 					break;
 				block_signals();
 				(*sig_info[sig])(sig, regs);
