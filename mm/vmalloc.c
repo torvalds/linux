@@ -169,7 +169,7 @@ EXPORT_SYMBOL_GPL(map_vm_area);
 /*
  * Map a vmalloc()-space virtual address to the physical page.
  */
-struct page *vmalloc_to_page(void *vmalloc_addr)
+struct page *vmalloc_to_page(const void *vmalloc_addr)
 {
 	unsigned long addr = (unsigned long) vmalloc_addr;
 	struct page *page = NULL;
@@ -198,7 +198,7 @@ EXPORT_SYMBOL(vmalloc_to_page);
 /*
  * Map a vmalloc()-space virtual address to the physical page frame number.
  */
-unsigned long vmalloc_to_pfn(void *vmalloc_addr)
+unsigned long vmalloc_to_pfn(const void *vmalloc_addr)
 {
 	return page_to_pfn(vmalloc_to_page(vmalloc_addr));
 }
@@ -306,7 +306,7 @@ struct vm_struct *get_vm_area_node(unsigned long size, unsigned long flags,
 }
 
 /* Caller must hold vmlist_lock */
-static struct vm_struct *__find_vm_area(void *addr)
+static struct vm_struct *__find_vm_area(const void *addr)
 {
 	struct vm_struct *tmp;
 
@@ -319,7 +319,7 @@ static struct vm_struct *__find_vm_area(void *addr)
 }
 
 /* Caller must hold vmlist_lock */
-static struct vm_struct *__remove_vm_area(void *addr)
+static struct vm_struct *__remove_vm_area(const void *addr)
 {
 	struct vm_struct **p, *tmp;
 
@@ -348,7 +348,7 @@ found:
  *	This function returns the found VM area, but using it is NOT safe
  *	on SMP machines, except for its size or flags.
  */
-struct vm_struct *remove_vm_area(void *addr)
+struct vm_struct *remove_vm_area(const void *addr)
 {
 	struct vm_struct *v;
 	write_lock(&vmlist_lock);
@@ -357,7 +357,7 @@ struct vm_struct *remove_vm_area(void *addr)
 	return v;
 }
 
-static void __vunmap(void *addr, int deallocate_pages)
+static void __vunmap(const void *addr, int deallocate_pages)
 {
 	struct vm_struct *area;
 
@@ -408,7 +408,7 @@ static void __vunmap(void *addr, int deallocate_pages)
  *
  *	Must not be called in interrupt context.
  */
-void vfree(void *addr)
+void vfree(const void *addr)
 {
 	BUG_ON(in_interrupt());
 	__vunmap(addr, 1);
@@ -424,7 +424,7 @@ EXPORT_SYMBOL(vfree);
  *
  *	Must not be called in interrupt context.
  */
-void vunmap(void *addr)
+void vunmap(const void *addr)
 {
 	BUG_ON(in_interrupt());
 	__vunmap(addr, 0);

@@ -232,8 +232,8 @@ static inline int get_page_unless_zero(struct page *page)
 }
 
 /* Support for virtually mapped pages */
-struct page *vmalloc_to_page(void *addr);
-unsigned long vmalloc_to_pfn(void *addr);
+struct page *vmalloc_to_page(const void *addr);
+unsigned long vmalloc_to_pfn(const void *addr);
 
 static inline struct page *compound_head(struct page *page)
 {

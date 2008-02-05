@@ -167,7 +167,7 @@ EXPORT_SYMBOL(get_user_pages);
 DEFINE_RWLOCK(vmlist_lock);
 struct vm_struct *vmlist;
 
-void vfree(void *addr)
+void vfree(const void *addr)
 {
 	kfree(addr);
 }
@@ -183,13 +183,13 @@ void *__vmalloc(unsigned long size, gfp_t gfp_mask, pgprot_t prot)
 }
 EXPORT_SYMBOL(__vmalloc);
 
-struct page * vmalloc_to_page(void *addr)
+struct page *vmalloc_to_page(const void *addr)
 {
 	return virt_to_page(addr);
 }
 EXPORT_SYMBOL(vmalloc_to_page);
 
-unsigned long vmalloc_to_pfn(void *addr)
+unsigned long vmalloc_to_pfn(const void *addr)
 {
 	return page_to_pfn(virt_to_page(addr));
 }
@@ -267,7 +267,7 @@ void *vmap(struct page **pages, unsigned int count, unsigned long flags, pgprot_
 }
 EXPORT_SYMBOL(vmap);
 
-void vunmap(void *addr)
+void vunmap(const void *addr)
 {
 	BUG();
 }
