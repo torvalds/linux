@@ -27,7 +27,6 @@
 #define RT2X00_H
 
 #include <linux/bitops.h>
-#include <linux/prefetch.h>
 #include <linux/skbuff.h>
 #include <linux/workqueue.h>
 #include <linux/firmware.h>
@@ -38,7 +37,7 @@
 
 #include "rt2x00debug.h"
 #include "rt2x00reg.h"
-#include "rt2x00ring.h"
+#include "rt2x00queue.h"
 
 /*
  * Module information.
@@ -89,26 +88,6 @@
 	DEBUG_PRINTK(__dev, KERN_DEBUG, "Debug", __msg, ##__args)
 #define EEPROM(__dev, __msg, __args...) \
 	DEBUG_PRINTK(__dev, KERN_DEBUG, "EEPROM recovery", __msg, ##__args)
-
-/*
- * Ring sizes.
- * Ralink PCI devices demand the Frame size to be a multiple of 128 bytes.
- * DATA_FRAME_SIZE is used for TX, RX, ATIM and PRIO rings.
- * MGMT_FRAME_SIZE is used for the BEACON ring.
- */
-#define DATA_FRAME_SIZE	2432
-#define MGMT_FRAME_SIZE	256
-
-/*
- * Number of entries in a packet ring.
- * PCI devices only need 1 Beacon entry,
- * but USB devices require a second because they
- * have to send a Guardian byte first.
- */
-#define RX_ENTRIES	12
-#define TX_ENTRIES	12
-#define ATIM_ENTRIES	1
-#define BEACON_ENTRIES	2
 
 /*
  * Standard timing and size defines.
@@ -474,12 +453,12 @@ struct rt2x00lib_ops {
 	void (*uninitialize) (struct rt2x00_dev *rt2x00dev);
 
 	/*
-	 * Ring initialization handlers
+	 * queue initialization handlers
 	 */
 	void (*init_rxentry) (struct rt2x00_dev *rt2x00dev,
-			      struct data_entry *entry);
+			      struct queue_entry *entry);
 	void (*init_txentry) (struct rt2x00_dev *rt2x00dev,
-			      struct data_entry *entry);
+			      struct queue_entry *entry);
 
 	/*
 	 * Radio control handlers.
@@ -497,10 +476,10 @@ struct rt2x00lib_ops {
 	 */
 	void (*write_tx_desc) (struct rt2x00_dev *rt2x00dev,
 			       struct sk_buff *skb,
-			       struct txdata_entry_desc *desc,
+			       struct txentry_desc *txdesc,
 			       struct ieee80211_tx_control *control);
 	int (*write_tx_data) (struct rt2x00_dev *rt2x00dev,
-			      struct data_ring *ring, struct sk_buff *skb,
+			      struct data_queue *queue, struct sk_buff *skb,
 			      struct ieee80211_tx_control *control);
 	int (*get_tx_data_len) (struct rt2x00_dev *rt2x00dev,
 				struct sk_buff *skb);
@@ -510,8 +489,8 @@ struct rt2x00lib_ops {
 	/*
 	 * RX control handlers
 	 */
-	void (*fill_rxdone) (struct data_entry *entry,
-			     struct rxdata_entry_desc *desc);
+	void (*fill_rxdone) (struct queue_entry *entry,
+			     struct rxdone_entry_desc *rxdesc);
 
 	/*
 	 * Configuration handlers.
@@ -540,10 +519,12 @@ struct rt2x00lib_ops {
  */
 struct rt2x00_ops {
 	const char *name;
-	const unsigned int rxd_size;
-	const unsigned int txd_size;
 	const unsigned int eeprom_size;
 	const unsigned int rf_size;
+	const struct data_queue_desc *rx;
+	const struct data_queue_desc *tx;
+	const struct data_queue_desc *bcn;
+	const struct data_queue_desc *atim;
 	const struct rt2x00lib_ops *lib;
 	const struct ieee80211_ops *hw;
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
@@ -570,7 +551,8 @@ enum rt2x00_flags {
 	 * Driver features
 	 */
 	DRIVER_REQUIRE_FIRMWARE,
-	DRIVER_REQUIRE_BEACON_RING,
+	DRIVER_REQUIRE_BEACON_GUARD,
+	DRIVER_REQUIRE_ATIM_QUEUE,
 
 	/*
 	 * Driver configuration
@@ -597,8 +579,10 @@ struct rt2x00_dev {
 	 * macro's should be used for correct typecasting.
 	 */
 	void *dev;
-#define rt2x00dev_pci(__dev)	( (struct pci_dev*)(__dev)->dev )
-#define rt2x00dev_usb(__dev)	( (struct usb_interface*)(__dev)->dev )
+#define rt2x00dev_pci(__dev)	( (struct pci_dev *)(__dev)->dev )
+#define rt2x00dev_usb(__dev)	( (struct usb_interface *)(__dev)->dev )
+#define rt2x00dev_usb_dev(__dev)\
+	( (struct usb_device *)interface_to_usbdev(rt2x00dev_usb(__dev)) )
 
 	/*
 	 * Callback functions.
@@ -757,51 +741,20 @@ struct rt2x00_dev {
 	struct work_struct config_work;
 
 	/*
-	 * Data ring arrays for RX, TX and Beacon.
-	 * The Beacon array also contains the Atim ring
+	 * Data queue arrays for RX, TX and Beacon.
+	 * The Beacon array also contains the Atim queue
 	 * if that is supported by the device.
 	 */
-	int data_rings;
-	struct data_ring *rx;
-	struct data_ring *tx;
-	struct data_ring *bcn;
+	int data_queues;
+	struct data_queue *rx;
+	struct data_queue *tx;
+	struct data_queue *bcn;
 
 	/*
 	 * Firmware image.
 	 */
 	const struct firmware *fw;
 };
-
-/*
- * For-each loop for the ring array.
- * All rings have been allocated as a single array,
- * this means we can create a very simply loop macro
- * that is capable of looping through all rings.
- * ring_end(), txring_end() and ring_loop() are helper macro's which
- * should not be used directly. Instead the following should be used:
- * ring_for_each() - Loops through all rings (RX, TX, Beacon & Atim)
- * txring_for_each() - Loops through TX data rings (TX only)
- * txringall_for_each() - Loops through all TX rings (TX, Beacon & Atim)
- */
-#define ring_end(__dev) \
-	&(__dev)->rx[(__dev)->data_rings]
-
-#define txring_end(__dev) \
-	&(__dev)->tx[(__dev)->hw->queues]
-
-#define ring_loop(__entry, __start, __end)			\
-	for ((__entry) = (__start);				\
-	     prefetch(&(__entry)[1]), (__entry) != (__end);	\
-	     (__entry) = &(__entry)[1])
-
-#define ring_for_each(__dev, __entry) \
-	ring_loop(__entry, (__dev)->rx, ring_end(__dev))
-
-#define txring_for_each(__dev, __entry) \
-	ring_loop(__entry, (__dev)->tx, txring_end(__dev))
-
-#define txringall_for_each(__dev, __entry) \
-	ring_loop(__entry, (__dev)->tx, ring_end(__dev))
 
 /*
  * Generic RF access.
@@ -895,20 +848,42 @@ static inline u16 get_duration_res(const unsigned int size, const u8 rate)
 	return ((size * 8 * 10) % rate);
 }
 
-/*
- * Library functions.
+/**
+ * rt2x00queue_get_queue - Convert mac80211 queue index to rt2x00 queue
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
+ * @queue: mac80211 queue index (see &enum ieee80211_tx_queue).
  */
-struct data_ring *rt2x00lib_get_ring(struct rt2x00_dev *rt2x00dev,
-				     const unsigned int queue);
+struct data_queue *rt2x00queue_get_queue(struct rt2x00_dev *rt2x00dev,
+					 const enum ieee80211_tx_queue queue);
+
+/**
+ * rt2x00queue_get_entry - Get queue entry where the given index points to.
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
+ * @index: Index identifier for obtaining the correct index.
+ */
+struct queue_entry *rt2x00queue_get_entry(struct data_queue *queue,
+					  enum queue_index index);
+
+/**
+ * rt2x00queue_index_inc - Index incrementation function
+ * @queue: Queue (&struct data_queue) to perform the action on.
+ * @action: Index type (&enum queue_index) to perform the action on.
+ *
+ * This function will increase the requested index on the queue,
+ * it will grab the appropriate locks and handle queue overflow events by
+ * resetting the index to the start of the queue.
+ */
+void rt2x00queue_index_inc(struct data_queue *queue, enum queue_index index);
+
 
 /*
  * Interrupt context handlers.
  */
 void rt2x00lib_beacondone(struct rt2x00_dev *rt2x00dev);
-void rt2x00lib_txdone(struct data_entry *entry,
-		      const int status, const int retry);
-void rt2x00lib_rxdone(struct data_entry *entry, struct sk_buff *skb,
-		      struct rxdata_entry_desc *desc);
+void rt2x00lib_txdone(struct queue_entry *entry,
+		      struct txdone_entry_desc *txdesc);
+void rt2x00lib_rxdone(struct queue_entry *entry,
+		      struct rxdone_entry_desc *rxdesc);
 
 /*
  * TX descriptor initializer

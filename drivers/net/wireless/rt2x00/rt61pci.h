@@ -1247,6 +1247,7 @@ struct hw_pairwise_ta_entry {
  * DMA descriptor defines.
  */
 #define TXD_DESC_SIZE			( 16 * sizeof(__le32) )
+#define TXINFO_SIZE			( 6 * sizeof(__le32) )
 #define RXD_DESC_SIZE			( 16 * sizeof(__le32) )
 
 /*

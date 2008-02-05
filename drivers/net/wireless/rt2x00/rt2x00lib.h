@@ -59,6 +59,16 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 		      struct ieee80211_conf *conf, const int force_config);
 
 /*
+ * Queue handlers.
+ */
+void rt2x00queue_init_rx(struct rt2x00_dev *rt2x00dev);
+void rt2x00queue_init_tx(struct rt2x00_dev *rt2x00dev);
+int rt2x00queue_initialize(struct rt2x00_dev *rt2x00dev);
+void rt2x00queue_uninitialize(struct rt2x00_dev *rt2x00dev);
+int rt2x00queue_allocate(struct rt2x00_dev *rt2x00dev);
+void rt2x00queue_free(struct rt2x00_dev *rt2x00dev);
+
+/*
  * Firmware handlers.
  */
 #ifdef CONFIG_RT2X00_LIB_FIRMWARE

@@ -116,7 +116,7 @@ void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 			    struct sk_buff *skb)
 {
 	struct rt2x00debug_intf *intf = rt2x00dev->debugfs_intf;
-	struct skb_desc *desc = get_skb_desc(skb);
+	struct skb_frame_desc *desc = get_skb_frame_desc(skb);
 	struct sk_buff *skbcopy;
 	struct rt2x00dump_hdr *dump_hdr;
 	struct timeval timestamp;
@@ -147,7 +147,7 @@ void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 	dump_hdr->chip_rf = cpu_to_le16(rt2x00dev->chip.rf);
 	dump_hdr->chip_rev = cpu_to_le32(rt2x00dev->chip.rev);
 	dump_hdr->type = cpu_to_le16(desc->frame_type);
-	dump_hdr->ring_index = desc->ring->queue_idx;
+	dump_hdr->queue_index = desc->entry->queue->qid;
 	dump_hdr->entry_index = desc->entry->entry_idx;
 	dump_hdr->timestamp_sec = cpu_to_le32(timestamp.tv_sec);
 	dump_hdr->timestamp_usec = cpu_to_le32(timestamp.tv_usec);
@@ -186,7 +186,7 @@ static int rt2x00debug_file_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int rt2x00debug_open_ring_dump(struct inode *inode, struct file *file)
+static int rt2x00debug_open_queue_dump(struct inode *inode, struct file *file)
 {
 	struct rt2x00debug_intf *intf = inode->i_private;
 	int retval;
@@ -203,7 +203,7 @@ static int rt2x00debug_open_ring_dump(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int rt2x00debug_release_ring_dump(struct inode *inode, struct file *file)
+static int rt2x00debug_release_queue_dump(struct inode *inode, struct file *file)
 {
 	struct rt2x00debug_intf *intf = inode->i_private;
 
@@ -214,10 +214,10 @@ static int rt2x00debug_release_ring_dump(struct inode *inode, struct file *file)
 	return rt2x00debug_file_release(inode, file);
 }
 
-static ssize_t rt2x00debug_read_ring_dump(struct file *file,
-					  char __user *buf,
-					  size_t length,
-					  loff_t *offset)
+static ssize_t rt2x00debug_read_queue_dump(struct file *file,
+					   char __user *buf,
+					   size_t length,
+					   loff_t *offset)
 {
 	struct rt2x00debug_intf *intf = file->private_data;
 	struct sk_buff *skb;
@@ -248,8 +248,8 @@ exit:
 	return status;
 }
 
-static unsigned int rt2x00debug_poll_ring_dump(struct file *file,
-					       poll_table *wait)
+static unsigned int rt2x00debug_poll_queue_dump(struct file *file,
+					        poll_table *wait)
 {
 	struct rt2x00debug_intf *intf = file->private_data;
 
@@ -261,12 +261,12 @@ static unsigned int rt2x00debug_poll_ring_dump(struct file *file,
 	return 0;
 }
 
-static const struct file_operations rt2x00debug_fop_ring_dump = {
+static const struct file_operations rt2x00debug_fop_queue_dump = {
 	.owner		= THIS_MODULE,
-	.read		= rt2x00debug_read_ring_dump,
-	.poll		= rt2x00debug_poll_ring_dump,
-	.open		= rt2x00debug_open_ring_dump,
-	.release	= rt2x00debug_release_ring_dump,
+	.read		= rt2x00debug_read_queue_dump,
+	.poll		= rt2x00debug_poll_queue_dump,
+	.open		= rt2x00debug_open_queue_dump,
+	.release	= rt2x00debug_release_queue_dump,
 };
 
 #define RT2X00DEBUGFS_OPS_READ(__name, __format, __type)	\
@@ -503,7 +503,7 @@ void rt2x00debug_register(struct rt2x00_dev *rt2x00dev)
 
 	intf->frame_dump_entry =
 	    debugfs_create_file("dump", S_IRUGO, intf->frame_folder,
-				intf, &rt2x00debug_fop_ring_dump);
+				intf, &rt2x00debug_fop_queue_dump);
 	if (IS_ERR(intf->frame_dump_entry))
 		goto exit;
 

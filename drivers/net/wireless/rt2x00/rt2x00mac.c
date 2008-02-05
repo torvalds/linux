@@ -30,7 +30,7 @@
 #include "rt2x00lib.h"
 
 static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
-				struct data_ring *ring,
+				struct data_queue *queue,
 				struct sk_buff *frag_skb,
 				struct ieee80211_tx_control *control)
 {
@@ -60,7 +60,7 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 				  frag_skb->data, frag_skb->len, control,
 				  (struct ieee80211_rts *)(skb->data));
 
-	if (rt2x00dev->ops->lib->write_tx_data(rt2x00dev, ring, skb, control)) {
+	if (rt2x00dev->ops->lib->write_tx_data(rt2x00dev, queue, skb, control)) {
 		WARNING(rt2x00dev, "Failed to send RTS/CTS frame.\n");
 		return NETDEV_TX_BUSY;
 	}
@@ -73,7 +73,7 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct ieee80211_hdr *ieee80211hdr = (struct ieee80211_hdr *)skb->data;
-	struct data_ring *ring;
+	struct data_queue *queue;
 	u16 frame_control;
 
 	/*
@@ -88,10 +88,10 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	}
 
 	/*
-	 * Determine which ring to put packet on.
+	 * Determine which queue to put packet on.
 	 */
-	ring = rt2x00lib_get_ring(rt2x00dev, control->queue);
-	if (unlikely(!ring)) {
+	queue = rt2x00queue_get_queue(rt2x00dev, control->queue);
+	if (unlikely(!queue)) {
 		ERROR(rt2x00dev,
 		      "Attempt to send packet over invalid queue %d.\n"
 		      "Please file bug report to %s.\n",
@@ -110,23 +110,23 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	if (!is_rts_frame(frame_control) && !is_cts_frame(frame_control) &&
 	    (control->flags & (IEEE80211_TXCTL_USE_RTS_CTS |
 			       IEEE80211_TXCTL_USE_CTS_PROTECT))) {
-		if (rt2x00_ring_free(ring) <= 1) {
+		if (rt2x00queue_available(queue) <= 1) {
 			ieee80211_stop_queue(rt2x00dev->hw, control->queue);
 			return NETDEV_TX_BUSY;
 		}
 
-		if (rt2x00mac_tx_rts_cts(rt2x00dev, ring, skb, control)) {
+		if (rt2x00mac_tx_rts_cts(rt2x00dev, queue, skb, control)) {
 			ieee80211_stop_queue(rt2x00dev->hw, control->queue);
 			return NETDEV_TX_BUSY;
 		}
 	}
 
-	if (rt2x00dev->ops->lib->write_tx_data(rt2x00dev, ring, skb, control)) {
+	if (rt2x00dev->ops->lib->write_tx_data(rt2x00dev, queue, skb, control)) {
 		ieee80211_stop_queue(rt2x00dev->hw, control->queue);
 		return NETDEV_TX_BUSY;
 	}
 
-	if (rt2x00_ring_full(ring))
+	if (rt2x00queue_full(queue))
 		ieee80211_stop_queue(rt2x00dev->hw, control->queue);
 
 	if (rt2x00dev->ops->lib->kick_tx_queue)
@@ -214,7 +214,7 @@ void rt2x00mac_remove_interface(struct ieee80211_hw *hw,
 	    !is_interface_present(intf))
 		return;
 
-	intf->id = 0;
+	intf->id = NULL;
 	intf->type = IEEE80211_IF_TYPE_INVALID;
 	memset(&intf->bssid, 0x00, ETH_ALEN);
 	memset(&intf->mac, 0x00, ETH_ALEN);
@@ -334,9 +334,11 @@ int rt2x00mac_get_tx_stats(struct ieee80211_hw *hw,
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	unsigned int i;
 
-	for (i = 0; i < hw->queues; i++)
-		memcpy(&stats->data[i], &rt2x00dev->tx[i].stats,
-		       sizeof(rt2x00dev->tx[i].stats));
+	for (i = 0; i < hw->queues; i++) {
+		stats->data[i].len = rt2x00dev->tx[i].length;
+		stats->data[i].limit = rt2x00dev->tx[i].limit;
+		stats->data[i].count = rt2x00dev->tx[i].count;
+	}
 
 	return 0;
 }
@@ -380,14 +382,14 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_bss_info_changed);
 
-int rt2x00mac_conf_tx(struct ieee80211_hw *hw, int queue,
+int rt2x00mac_conf_tx(struct ieee80211_hw *hw, int queue_idx,
 		      const struct ieee80211_tx_queue_params *params)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
-	struct data_ring *ring;
+	struct data_queue *queue;
 
-	ring = rt2x00lib_get_ring(rt2x00dev, queue);
-	if (unlikely(!ring))
+	queue = rt2x00queue_get_queue(rt2x00dev, queue_idx);
+	if (unlikely(!queue))
 		return -EINVAL;
 
 	/*
@@ -395,24 +397,23 @@ int rt2x00mac_conf_tx(struct ieee80211_hw *hw, int queue,
 	 * Ralink registers require to know the bit number 'n'.
 	 */
 	if (params->cw_min)
-		ring->tx_params.cw_min = fls(params->cw_min);
+		queue->cw_min = fls(params->cw_min);
 	else
-		ring->tx_params.cw_min = 5; /* cw_min: 2^5 = 32. */
+		queue->cw_min = 5; /* cw_min: 2^5 = 32. */
 
 	if (params->cw_max)
-		ring->tx_params.cw_max = fls(params->cw_max);
+		queue->cw_max = fls(params->cw_max);
 	else
-		ring->tx_params.cw_max = 10; /* cw_min: 2^10 = 1024. */
+		queue->cw_max = 10; /* cw_min: 2^10 = 1024. */
 
 	if (params->aifs)
-		ring->tx_params.aifs = params->aifs;
+		queue->aifs = params->aifs;
 	else
-		ring->tx_params.aifs = 2;
+		queue->aifs = 2;
 
 	INFO(rt2x00dev,
-	     "Configured TX ring %d - CWmin: %d, CWmax: %d, Aifs: %d.\n",
-	     queue, ring->tx_params.cw_min, ring->tx_params.cw_max,
-	     ring->tx_params.aifs);
+	     "Configured TX queue %d - CWmin: %d, CWmax: %d, Aifs: %d.\n",
+	     queue_idx, queue->cw_min, queue->cw_max, queue->aifs);
 
 	return 0;
 }

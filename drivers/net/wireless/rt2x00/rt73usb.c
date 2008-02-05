@@ -1234,10 +1234,10 @@ static int rt73usb_set_device_state(struct rt2x00_dev *rt2x00dev,
  */
 static void rt73usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 				    struct sk_buff *skb,
-				    struct txdata_entry_desc *desc,
+				    struct txentry_desc *txdesc,
 				    struct ieee80211_tx_control *control)
 {
-	struct skb_desc *skbdesc = get_skb_desc(skb);
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
 	__le32 *txd = skbdesc->desc;
 	u32 word;
 
@@ -1245,19 +1245,19 @@ static void rt73usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	 * Start writing the descriptor words.
 	 */
 	rt2x00_desc_read(txd, 1, &word);
-	rt2x00_set_field32(&word, TXD_W1_HOST_Q_ID, desc->queue);
-	rt2x00_set_field32(&word, TXD_W1_AIFSN, desc->aifs);
-	rt2x00_set_field32(&word, TXD_W1_CWMIN, desc->cw_min);
-	rt2x00_set_field32(&word, TXD_W1_CWMAX, desc->cw_max);
+	rt2x00_set_field32(&word, TXD_W1_HOST_Q_ID, txdesc->queue);
+	rt2x00_set_field32(&word, TXD_W1_AIFSN, txdesc->aifs);
+	rt2x00_set_field32(&word, TXD_W1_CWMIN, txdesc->cw_min);
+	rt2x00_set_field32(&word, TXD_W1_CWMAX, txdesc->cw_max);
 	rt2x00_set_field32(&word, TXD_W1_IV_OFFSET, IEEE80211_HEADER);
 	rt2x00_set_field32(&word, TXD_W1_HW_SEQUENCE, 1);
 	rt2x00_desc_write(txd, 1, word);
 
 	rt2x00_desc_read(txd, 2, &word);
-	rt2x00_set_field32(&word, TXD_W2_PLCP_SIGNAL, desc->signal);
-	rt2x00_set_field32(&word, TXD_W2_PLCP_SERVICE, desc->service);
-	rt2x00_set_field32(&word, TXD_W2_PLCP_LENGTH_LOW, desc->length_low);
-	rt2x00_set_field32(&word, TXD_W2_PLCP_LENGTH_HIGH, desc->length_high);
+	rt2x00_set_field32(&word, TXD_W2_PLCP_SIGNAL, txdesc->signal);
+	rt2x00_set_field32(&word, TXD_W2_PLCP_SERVICE, txdesc->service);
+	rt2x00_set_field32(&word, TXD_W2_PLCP_LENGTH_LOW, txdesc->length_low);
+	rt2x00_set_field32(&word, TXD_W2_PLCP_LENGTH_HIGH, txdesc->length_high);
 	rt2x00_desc_write(txd, 2, word);
 
 	rt2x00_desc_read(txd, 5, &word);
@@ -1268,24 +1268,24 @@ static void rt73usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 
 	rt2x00_desc_read(txd, 0, &word);
 	rt2x00_set_field32(&word, TXD_W0_BURST,
-			   test_bit(ENTRY_TXD_BURST, &desc->flags));
+			   test_bit(ENTRY_TXD_BURST, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W0_VALID, 1);
 	rt2x00_set_field32(&word, TXD_W0_MORE_FRAG,
-			   test_bit(ENTRY_TXD_MORE_FRAG, &desc->flags));
+			   test_bit(ENTRY_TXD_MORE_FRAG, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W0_ACK,
-			   test_bit(ENTRY_TXD_ACK, &desc->flags));
+			   test_bit(ENTRY_TXD_ACK, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W0_TIMESTAMP,
-			   test_bit(ENTRY_TXD_REQ_TIMESTAMP, &desc->flags));
+			   test_bit(ENTRY_TXD_REQ_TIMESTAMP, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W0_OFDM,
-			   test_bit(ENTRY_TXD_OFDM_RATE, &desc->flags));
-	rt2x00_set_field32(&word, TXD_W0_IFS, desc->ifs);
+			   test_bit(ENTRY_TXD_OFDM_RATE, &txdesc->flags));
+	rt2x00_set_field32(&word, TXD_W0_IFS, txdesc->ifs);
 	rt2x00_set_field32(&word, TXD_W0_RETRY_MODE,
 			   !!(control->flags &
 			      IEEE80211_TXCTL_LONG_RETRY_LIMIT));
 	rt2x00_set_field32(&word, TXD_W0_TKIP_MIC, 0);
 	rt2x00_set_field32(&word, TXD_W0_DATABYTE_COUNT, skbdesc->data_len);
 	rt2x00_set_field32(&word, TXD_W0_BURST2,
-			   test_bit(ENTRY_TXD_BURST, &desc->flags));
+			   test_bit(ENTRY_TXD_BURST, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W0_CIPHER_ALG, CIPHER_NONE);
 	rt2x00_desc_write(txd, 0, word);
 }
@@ -1377,37 +1377,57 @@ static int rt73usb_agc_to_rssi(struct rt2x00_dev *rt2x00dev, int rxd_w1)
 	return rt2x00_get_field32(rxd_w1, RXD_W1_RSSI_AGC) * 2 - offset;
 }
 
-static void rt73usb_fill_rxdone(struct data_entry *entry,
-			        struct rxdata_entry_desc *desc)
+static void rt73usb_fill_rxdone(struct queue_entry *entry,
+			        struct rxdone_entry_desc *rxdesc)
 {
-	struct skb_desc *skbdesc = get_skb_desc(entry->skb);
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	__le32 *rxd = (__le32 *)entry->skb->data;
+	struct ieee80211_hdr *hdr =
+	    (struct ieee80211_hdr *)entry->skb->data + entry->queue->desc_size;
+	int header_size = ieee80211_get_hdrlen(le16_to_cpu(hdr->frame_control));
 	u32 word0;
 	u32 word1;
 
 	rt2x00_desc_read(rxd, 0, &word0);
 	rt2x00_desc_read(rxd, 1, &word1);
 
-	desc->flags = 0;
+	rxdesc->flags = 0;
 	if (rt2x00_get_field32(word0, RXD_W0_CRC_ERROR))
-		desc->flags |= RX_FLAG_FAILED_FCS_CRC;
+		rxdesc->flags |= RX_FLAG_FAILED_FCS_CRC;
 
 	/*
 	 * Obtain the status about this packet.
 	 */
-	desc->signal = rt2x00_get_field32(word1, RXD_W1_SIGNAL);
-	desc->rssi = rt73usb_agc_to_rssi(entry->ring->rt2x00dev, word1);
-	desc->ofdm = rt2x00_get_field32(word0, RXD_W0_OFDM);
-	desc->size = rt2x00_get_field32(word0, RXD_W0_DATABYTE_COUNT);
-	desc->my_bss = !!rt2x00_get_field32(word0, RXD_W0_MY_BSS);
+	rxdesc->signal = rt2x00_get_field32(word1, RXD_W1_SIGNAL);
+	rxdesc->rssi = rt73usb_agc_to_rssi(entry->queue->rt2x00dev, word1);
+	rxdesc->ofdm = rt2x00_get_field32(word0, RXD_W0_OFDM);
+	rxdesc->size = rt2x00_get_field32(word0, RXD_W0_DATABYTE_COUNT);
+	rxdesc->my_bss = !!rt2x00_get_field32(word0, RXD_W0_MY_BSS);
+
+	/*
+	 * The data behind the ieee80211 header must be
+	 * aligned on a 4 byte boundary.
+	 */
+	if (header_size % 4 == 0) {
+		skb_push(entry->skb, 2);
+		memmove(entry->skb->data, entry->skb->data + 2,
+			entry->skb->len - 2);
+	}
 
 	/*
 	 * Set descriptor and data pointer.
 	 */
+	skbdesc->data = entry->skb->data + entry->queue->desc_size;
+	skbdesc->data_len = entry->queue->data_size;
 	skbdesc->desc = entry->skb->data;
-	skbdesc->desc_len = entry->ring->desc_size;
-	skbdesc->data = entry->skb->data + entry->ring->desc_size;
-	skbdesc->data_len = desc->size;
+	skbdesc->desc_len = entry->queue->desc_size;
+
+	/*
+	 * Remove descriptor from skb buffer and trim the whole thing
+	 * down to only contain data.
+	 */
+	skb_pull(entry->skb, skbdesc->desc_len);
+	skb_trim(entry->skb, rxdesc->size);
 }
 
 /*
@@ -1967,9 +1987,9 @@ static int rt73usb_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 			  struct ieee80211_tx_control *control)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
-	struct skb_desc *desc;
-	struct data_ring *ring;
-	struct data_entry *entry;
+	struct skb_frame_desc *skbdesc;
+	struct data_queue *queue;
+	struct queue_entry *entry;
 	int timeout;
 
 	/*
@@ -1978,25 +1998,25 @@ static int rt73usb_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 	 * initialization.
 	 */
 	control->queue = IEEE80211_TX_QUEUE_BEACON;
-	ring = rt2x00lib_get_ring(rt2x00dev, control->queue);
-	entry = rt2x00_get_data_entry(ring);
+	queue = rt2x00queue_get_queue(rt2x00dev, control->queue);
+	entry = rt2x00queue_get_entry(queue, Q_INDEX);
 
 	/*
 	 * Add the descriptor in front of the skb.
 	 */
-	skb_push(skb, ring->desc_size);
-	memset(skb->data, 0, ring->desc_size);
+	skb_push(skb, queue->desc_size);
+	memset(skb->data, 0, queue->desc_size);
 
 	/*
 	 * Fill in skb descriptor
 	 */
-	desc = get_skb_desc(skb);
-	desc->desc_len = ring->desc_size;
-	desc->data_len = skb->len - ring->desc_size;
-	desc->desc = skb->data;
-	desc->data = skb->data + ring->desc_size;
-	desc->ring = ring;
-	desc->entry = entry;
+	skbdesc = get_skb_frame_desc(skb);
+	memset(skbdesc, 0, sizeof(*skbdesc));
+	skbdesc->data = skb->data + queue->desc_size;
+	skbdesc->data_len = queue->data_size;
+	skbdesc->desc = skb->data;
+	skbdesc->desc_len = queue->desc_size;
+	skbdesc->entry = entry;
 
 	rt2x00lib_write_tx_desc(rt2x00dev, skb, control);
 
@@ -2057,12 +2077,34 @@ static const struct rt2x00lib_ops rt73usb_rt2x00_ops = {
 	.config			= rt73usb_config,
 };
 
+static const struct data_queue_desc rt73usb_queue_rx = {
+	.entry_num		= RX_ENTRIES,
+	.data_size		= DATA_FRAME_SIZE,
+	.desc_size		= RXD_DESC_SIZE,
+	.priv_size		= sizeof(struct queue_entry_priv_usb_rx),
+};
+
+static const struct data_queue_desc rt73usb_queue_tx = {
+	.entry_num		= TX_ENTRIES,
+	.data_size		= DATA_FRAME_SIZE,
+	.desc_size		= TXD_DESC_SIZE,
+	.priv_size		= sizeof(struct queue_entry_priv_usb_tx),
+};
+
+static const struct data_queue_desc rt73usb_queue_bcn = {
+	.entry_num		= BEACON_ENTRIES,
+	.data_size		= MGMT_FRAME_SIZE,
+	.desc_size		= TXINFO_SIZE,
+	.priv_size		= sizeof(struct queue_entry_priv_usb_tx),
+};
+
 static const struct rt2x00_ops rt73usb_ops = {
 	.name		= KBUILD_MODNAME,
-	.rxd_size	= RXD_DESC_SIZE,
-	.txd_size	= TXD_DESC_SIZE,
 	.eeprom_size	= EEPROM_SIZE,
 	.rf_size	= RF_SIZE,
+	.rx		= &rt73usb_queue_rx,
+	.tx		= &rt73usb_queue_tx,
+	.bcn		= &rt73usb_queue_bcn,
 	.lib		= &rt73usb_rt2x00_ops,
 	.hw		= &rt73usb_mac80211_ops,
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS

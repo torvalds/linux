@@ -97,15 +97,54 @@ int rt2x00pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
  * TX data handlers.
  */
 int rt2x00pci_write_tx_data(struct rt2x00_dev *rt2x00dev,
-			    struct data_ring *ring, struct sk_buff *skb,
+			    struct data_queue *queue, struct sk_buff *skb,
 			    struct ieee80211_tx_control *control);
 
-/*
- * RX/TX data handlers.
+/**
+ * struct queue_entry_priv_pci_rx: Per RX entry PCI specific information
+ *
+ * @desc: Pointer to device descriptor.
+ * @data: Pointer to device's entry memory.
+ * @dma: DMA pointer to &data.
+ */
+struct queue_entry_priv_pci_rx {
+	__le32 *desc;
+
+	void *data;
+	dma_addr_t dma;
+};
+
+/**
+ * struct queue_entry_priv_pci_tx: Per TX entry PCI specific information
+ *
+ * @desc: Pointer to device descriptor
+ * @data: Pointer to device's entry memory.
+ * @dma: DMA pointer to &data.
+ * @control: mac80211 control structure used to transmit data.
+ */
+struct queue_entry_priv_pci_tx {
+	__le32 *desc;
+
+	void *data;
+	dma_addr_t dma;
+
+	struct ieee80211_tx_control control;
+};
+
+/**
+ * rt2x00pci_rxdone - Handle RX done events
+ * @rt2x00dev: Device pointer, see &struct rt2x00_dev.
  */
 void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev);
-void rt2x00pci_txdone(struct rt2x00_dev *rt2x00dev, struct data_entry *entry,
-		      const int tx_status, const int retry);
+
+/**
+ * rt2x00pci_txdone - Handle TX done events
+ * @rt2x00dev: Device pointer, see &struct rt2x00_dev.
+ * @entry: Entry which has completed the transmission of a frame.
+ * @desc: TX done descriptor
+ */
+void rt2x00pci_txdone(struct rt2x00_dev *rt2x00dev, struct queue_entry *entry,
+		      struct txdone_entry_desc *desc);
 
 /*
  * Device initialization handlers.

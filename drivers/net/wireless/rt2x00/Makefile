@@ -1,4 +1,4 @@
-rt2x00lib-objs := rt2x00dev.o rt2x00mac.o rt2x00config.o
+rt2x00lib-objs := rt2x00dev.o rt2x00mac.o rt2x00config.o rt2x00queue.o
 
 ifeq ($(CONFIG_RT2X00_LIB_DEBUGFS),y)
 	rt2x00lib-objs += rt2x00debug.o
