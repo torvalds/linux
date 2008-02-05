@@ -3506,7 +3506,7 @@ ath5k_hw_setup_2word_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 {
 	u32 frame_type;
 	struct ath5k_hw_2w_tx_desc *tx_desc;
-	unsigned int buff_len;
+	unsigned int frame_len;
 
 	tx_desc = (struct ath5k_hw_2w_tx_desc *)&desc->ds_ctl0;
 
@@ -3537,22 +3537,25 @@ ath5k_hw_setup_2word_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 	/* Setup control descriptor */
 
 	/* Verify and set frame length */
-	if (pkt_len & ~AR5K_2W_TX_DESC_CTL0_FRAME_LEN)
+
+	/* remove padding we might have added before */
+	frame_len = pkt_len - (hdr_len & 3) + FCS_LEN;
+
+	if (frame_len & ~AR5K_2W_TX_DESC_CTL0_FRAME_LEN)
 		return -EINVAL;
 
-	tx_desc->tx_control_0 = pkt_len & AR5K_2W_TX_DESC_CTL0_FRAME_LEN;
+	tx_desc->tx_control_0 = frame_len & AR5K_2W_TX_DESC_CTL0_FRAME_LEN;
 
 	/* Verify and set buffer length */
-	buff_len = pkt_len - FCS_LEN;
 
 	/* NB: beacon's BufLen must be a multiple of 4 bytes */
 	if(type == AR5K_PKT_TYPE_BEACON)
-		buff_len = roundup(buff_len, 4);
+		pkt_len = roundup(pkt_len, 4);
 
-	if (buff_len & ~AR5K_2W_TX_DESC_CTL1_BUF_LEN)
+	if (pkt_len & ~AR5K_2W_TX_DESC_CTL1_BUF_LEN)
 		return -EINVAL;
 
-	tx_desc->tx_control_1 = buff_len & AR5K_2W_TX_DESC_CTL1_BUF_LEN;
+	tx_desc->tx_control_1 = pkt_len & AR5K_2W_TX_DESC_CTL1_BUF_LEN;
 
 	/*
 	 * Verify and set header length
@@ -3634,7 +3637,7 @@ static int ath5k_hw_setup_4word_tx_desc(struct ath5k_hw *ah,
 {
 	struct ath5k_hw_4w_tx_desc *tx_desc;
 	struct ath5k_hw_tx_status *tx_status;
-	unsigned int buff_len;
+	unsigned int frame_len;
 
 	ATH5K_TRACE(ah->ah_sc);
 	tx_desc = (struct ath5k_hw_4w_tx_desc *)&desc->ds_ctl0;
@@ -3669,22 +3672,25 @@ static int ath5k_hw_setup_4word_tx_desc(struct ath5k_hw *ah,
 	/* Setup control descriptor */
 
 	/* Verify and set frame length */
-	if (pkt_len & ~AR5K_4W_TX_DESC_CTL0_FRAME_LEN)
+
+	/* remove padding we might have added before */
+	frame_len = pkt_len - (hdr_len & 3) + FCS_LEN;
+
+	if (frame_len & ~AR5K_4W_TX_DESC_CTL0_FRAME_LEN)
 		return -EINVAL;
 
-	tx_desc->tx_control_0 = pkt_len & AR5K_4W_TX_DESC_CTL0_FRAME_LEN;
+	tx_desc->tx_control_0 = frame_len & AR5K_4W_TX_DESC_CTL0_FRAME_LEN;
 
 	/* Verify and set buffer length */
-	buff_len = pkt_len - FCS_LEN;
 
 	/* NB: beacon's BufLen must be a multiple of 4 bytes */
 	if(type == AR5K_PKT_TYPE_BEACON)
-		buff_len = roundup(buff_len, 4);
+		pkt_len = roundup(pkt_len, 4);
 
-	if (buff_len & ~AR5K_4W_TX_DESC_CTL1_BUF_LEN)
+	if (pkt_len & ~AR5K_4W_TX_DESC_CTL1_BUF_LEN)
 		return -EINVAL;
 
-	tx_desc->tx_control_1 = buff_len & AR5K_4W_TX_DESC_CTL1_BUF_LEN;
+	tx_desc->tx_control_1 = pkt_len & AR5K_4W_TX_DESC_CTL1_BUF_LEN;
 
 	tx_desc->tx_control_0 |=
 		AR5K_REG_SM(tx_power, AR5K_4W_TX_DESC_CTL0_XMIT_POWER) |
