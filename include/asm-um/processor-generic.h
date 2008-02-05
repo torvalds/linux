@@ -94,9 +94,7 @@ static inline void mm_copy_segments(struct mm_struct *from_mm,
 /*
  * User space process size: 3GB (default).
  */
-extern unsigned long task_size;
-
-#define TASK_SIZE	(task_size)
+#define TASK_SIZE (CONFIG_TOP_ADDR & PGDIR_MASK)
 
 /* This decides where the kernel will search for a free chunk of vm
  * space during mmap's.

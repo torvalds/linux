@@ -19,7 +19,7 @@
 void flush_thread(void)
 {
 	void *data = NULL;
-	unsigned long end = proc_mm ? task_size : STUB_START;
+	unsigned long end = proc_mm ? TASK_SIZE : STUB_START;
 	int ret;
 
 	arch_flush_thread(&current->thread.arch);

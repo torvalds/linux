@@ -56,9 +56,8 @@ extern void __set_fixmap (enum fixed_addresses idx,
  * the start of the fixmap, and leave one page empty
  * at the top of mem..
  */
-extern unsigned long get_kmem_end(void);
 
-#define FIXADDR_TOP	(get_kmem_end() - 0x2000)
+#define FIXADDR_TOP	(CONFIG_TOP_ADDR - 2 * PAGE_SIZE)
 #define FIXADDR_SIZE	(__end_of_fixed_addresses << PAGE_SHIFT)
 #define FIXADDR_START	(FIXADDR_TOP - FIXADDR_SIZE)
 

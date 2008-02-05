@@ -511,7 +511,7 @@ void flush_tlb_mm(struct mm_struct *mm)
 	if (atomic_read(&mm->mm_users) == 0)
 		return;
 
-	end = proc_mm ? task_size : STUB_START;
+	end = proc_mm ? TASK_SIZE : STUB_START;
 	fix_range(mm, 0, end, 0);
 }
 

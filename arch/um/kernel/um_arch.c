@@ -101,8 +101,6 @@ const struct seq_operations cpuinfo_op = {
 };
 
 /* Set in linux_main */
-unsigned long host_task_size;
-unsigned long task_size;
 unsigned long uml_physmem;
 unsigned long uml_reserved; /* Also modified in mem_init */
 unsigned long start_vm;
@@ -234,20 +232,6 @@ EXPORT_SYMBOL(end_iomem);
 
 extern char __binary_start;
 
-static unsigned long set_task_sizes_skas(unsigned long *task_size_out)
-{
-	/* Round up to the nearest 4M */
-	unsigned long host_task_size = ROUND_4M((unsigned long)
-						&host_task_size);
-
-	if (!skas_needs_stub)
-		*task_size_out = host_task_size;
-	else
-		*task_size_out = STUB_START & PGDIR_MASK;
-
-	return host_task_size;
-}
-
 int __init linux_main(int argc, char **argv)
 {
 	unsigned long avail, diff;
@@ -278,8 +262,6 @@ int __init linux_main(int argc, char **argv)
 
 	printf("UML running in %s mode\n", mode);
 
-	host_task_size = set_task_sizes_skas(&task_size);
-
 	brk_start = (unsigned long) sbrk(0);
 
 	/*
@@ -304,7 +286,7 @@ int __init linux_main(int argc, char **argv)
 
 	highmem = 0;
 	iomem_size = (iomem_size + PAGE_SIZE - 1) & PAGE_MASK;
-	max_physmem = get_kmem_end() - uml_physmem - iomem_size - MIN_VMALLOC;
+	max_physmem = CONFIG_TOP_ADDR - uml_physmem - iomem_size - MIN_VMALLOC;
 
 	/*
 	 * Zones have to begin on a 1 << MAX_ORDER page boundary,
@@ -336,7 +318,7 @@ int __init linux_main(int argc, char **argv)
 	}
 
 	virtmem_size = physmem_size;
-	avail = get_kmem_end() - start_vm;
+	avail = CONFIG_TOP_ADDR - start_vm;
 	if (physmem_size > avail)
 		virtmem_size = avail;
 	end_vm = start_vm + virtmem_size;

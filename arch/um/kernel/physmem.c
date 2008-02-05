@@ -55,16 +55,6 @@ int __init init_maps(unsigned long physmem, unsigned long iomem,
 	return 0;
 }
 
-/* Changed during early boot */
-static unsigned long kmem_top = 0;
-
-unsigned long get_kmem_end(void)
-{
-	if (kmem_top == 0)
-		kmem_top = host_task_size - 1024 * 1024;
-	return kmem_top;
-}
-
 void map_memory(unsigned long virt, unsigned long phys, unsigned long len,
 		int r, int w, int x)
 {
