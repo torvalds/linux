@@ -920,8 +920,7 @@ config ENC28J60
 	---help---
 	  Support for the Microchip EN28J60 ethernet chip.
 
-	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/networking/net-modules.txt>.  The module will be
+	  To compile this driver as a module, choose M here. The module will be
 	  called enc28j60.
 
 config ENC28J60_WRITEVERIFY
@@ -2041,8 +2040,7 @@ config IGB
          More specific information on configuring the driver is in
          <file:Documentation/networking/e1000.txt>.
 
-         To compile this driver as a module, choose M here and read
-         <file:Documentation/networking/net-modules.txt>.  The module
+         To compile this driver as a module, choose M here. The module
          will be called igb.
 
 source "drivers/net/ixp2000/Kconfig"
