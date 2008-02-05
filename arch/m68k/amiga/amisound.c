@@ -12,6 +12,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/string.h>
+#include <linux/module.h>
 
 #include <asm/system.h>
 #include <asm/amigahw.h>
@@ -31,6 +32,7 @@ static const signed char sine_data[] = {
      */
 
 volatile unsigned short amiga_audio_min_period = 124; /* Default for pre-OCS */
+EXPORT_SYMBOL(amiga_audio_min_period);
 
 #define MAX_PERIOD	(65535)
 
@@ -40,6 +42,7 @@ volatile unsigned short amiga_audio_min_period = 124; /* Default for pre-OCS */
      */
 
 unsigned short amiga_audio_period = MAX_PERIOD;
+EXPORT_SYMBOL(amiga_audio_period);
 
 static unsigned long clock_constant;
 
