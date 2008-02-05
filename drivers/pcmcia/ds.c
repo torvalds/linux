@@ -1130,8 +1130,6 @@ static int runtime_suspend(struct device *dev)
 	down(&dev->sem);
 	rc = pcmcia_dev_suspend(dev, PMSG_SUSPEND);
 	up(&dev->sem);
-	if (!rc)
-		dev->power.power_state.event = PM_EVENT_SUSPEND;
 	return rc;
 }
 
@@ -1142,8 +1140,6 @@ static void runtime_resume(struct device *dev)
 	down(&dev->sem);
 	rc = pcmcia_dev_resume(dev);
 	up(&dev->sem);
-	if (!rc)
-		dev->power.power_state.event = PM_EVENT_ON;
 }
 
 /************************ per-device sysfs output ***************************/
@@ -1265,6 +1261,9 @@ static int pcmcia_dev_suspend(struct device * dev, pm_message_t state)
 	struct pcmcia_driver *p_drv = NULL;
 	int ret = 0;
 
+	if (p_dev->suspended)
+		return 0;
+
 	ds_dbg(2, "suspending %s\n", dev->bus_id);
 
 	if (dev->driver)
@@ -1300,6 +1299,9 @@ static int pcmcia_dev_resume(struct device * dev)
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
         struct pcmcia_driver *p_drv = NULL;
 	int ret = 0;
+
+	if (!p_dev->suspended)
+		return 0;
 
 	ds_dbg(2, "resuming %s\n", dev->bus_id);
 
