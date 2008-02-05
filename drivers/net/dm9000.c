@@ -714,7 +714,8 @@ dm9000_open(struct net_device *dev)
 	board_info_t *db = (board_info_t *) dev->priv;
 	unsigned long irqflags = db->irq_res->flags & IRQF_TRIGGER_MASK;
 
-	dev_dbg(db->dev, "entering %s\n", __func__);
+	if (netif_msg_ifup(db))
+		dev_dbg(db->dev, "enabling %s\n", dev->name);
 
 	/* If there is no IRQ type specified, default to something that
 	 * may work, and tell the user that this is a problem */
@@ -855,7 +856,8 @@ dm9000_stop(struct net_device *ndev)
 {
 	board_info_t *db = (board_info_t *) ndev->priv;
 
-	dm9000_dbg(db, 1, "entering %s\n", __func__);
+	if (netif_msg_ifdown(db))
+		dev_dbg(db->dev, "shutting down %s\n", ndev->name);
 
 	netif_stop_queue(ndev);
 	netif_carrier_off(ndev);
@@ -882,6 +884,9 @@ dm9000_tx_done(struct net_device *dev, board_info_t * db)
 		/* One packet sent complete */
 		db->tx_pkt_cnt--;
 		dev->stats.tx_packets++;
+
+		if (netif_msg_tx_done(db))
+			dev_dbg(db->dev, "tx done, NSR %02x\n", tx_status);
 
 		/* Queue packet check & send */
 		if (db->tx_pkt_cnt > 0) {
@@ -917,6 +922,9 @@ dm9000_interrupt(int irq, void *dev_id)
 	/* Got DM9000 interrupt status */
 	int_status = ior(db, DM9000_ISR);	/* Got ISR */
 	iow(db, DM9000_ISR, int_status);	/* Clear ISR status */
+
+	if (netif_msg_intr(db))
+		dev_dbg(db->dev, "interrupt status %02x\n", int_status);
 
 	/* Received the coming packet */
 	if (int_status & ISR_PRS)
@@ -982,10 +990,15 @@ dm9000_rx(struct net_device *dev)
 
 		RxLen = le16_to_cpu(rxhdr.RxLen);
 
+		if (netif_msg_rx_status(db))
+			dev_dbg(db->dev, "RX: status %02x, length %04x\n",
+				rxhdr.RxStatus, RxLen);
+
 		/* Packet Status check */
 		if (RxLen < 0x40) {
 			GoodPacket = false;
-			dev_dbg(db->dev, "Bad Packet received (runt)\n");
+			if (netif_msg_rx_err(db))
+				dev_dbg(db->dev, "RX: Bad Packet (runt)\n");
 		}
 
 		if (RxLen > DM9000_PKT_MAX) {
@@ -995,15 +1008,18 @@ dm9000_rx(struct net_device *dev)
 		if (rxhdr.RxStatus & 0xbf) {
 			GoodPacket = false;
 			if (rxhdr.RxStatus & 0x01) {
-				dev_dbg(db->dev, "fifo error\n");
+				if (netif_msg_rx_err(db))
+					dev_dbg(db->dev, "fifo error\n");
 				dev->stats.rx_fifo_errors++;
 			}
 			if (rxhdr.RxStatus & 0x02) {
-				dev_dbg(db->dev, "crc error\n");
+				if (netif_msg_rx_err(db))
+					dev_dbg(db->dev, "crc error\n");
 				dev->stats.rx_crc_errors++;
 			}
 			if (rxhdr.RxStatus & 0x80) {
-				dev_dbg(db->dev, "length error\n");
+				if (netif_msg_rx_err(db))
+					dev_dbg(db->dev, "length error\n");
 				dev->stats.rx_length_errors++;
 			}
 		}
