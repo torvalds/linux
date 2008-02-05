@@ -4317,20 +4317,8 @@ xfs_change_file_space(
 
 	xfs_itrace_entry(ip);
 
-	/*
-	 * must be a regular file and have write permission
-	 */
 	if (!S_ISREG(ip->i_d.di_mode))
 		return XFS_ERROR(EINVAL);
-
-	xfs_ilock(ip, XFS_ILOCK_SHARED);
-
-	if ((error = xfs_iaccess(ip, S_IWUSR, credp))) {
-		xfs_iunlock(ip, XFS_ILOCK_SHARED);
-		return error;
-	}
-
-	xfs_iunlock(ip, XFS_ILOCK_SHARED);
 
 	switch (bf->l_whence) {
 	case 0: /*SEEK_SET*/
