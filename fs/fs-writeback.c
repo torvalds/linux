@@ -284,7 +284,17 @@ __sync_single_inode(struct inode *inode, struct writeback_control *wbc)
 				 * soon as the queue becomes uncongested.
 				 */
 				inode->i_state |= I_DIRTY_PAGES;
-				requeue_io(inode);
+				if (wbc->nr_to_write <= 0) {
+					/*
+					 * slice used up: queue for next turn
+					 */
+					requeue_io(inode);
+				} else {
+					/*
+					 * somehow blocked: retry later
+					 */
+					redirty_tail(inode);
+				}
 			} else {
 				/*
 				 * Otherwise fully redirty the inode so that
@@ -468,8 +478,12 @@ sync_sb_inodes(struct super_block *sb, struct writeback_control *wbc)
 		iput(inode);
 		cond_resched();
 		spin_lock(&inode_lock);
-		if (wbc->nr_to_write <= 0)
+		if (wbc->nr_to_write <= 0) {
+			wbc->more_io = 1;
 			break;
+		}
+		if (!list_empty(&sb->s_more_io))
+			wbc->more_io = 1;
 	}
 	return;		/* Leave any unwritten inodes on s_io */
 }
