@@ -74,10 +74,21 @@ xfs_swapext(
 		goto out_free_sxp;
 	}
 
+	if (!(file->f_mode & FMODE_WRITE) || (file->f_flags & O_APPEND)) {
+		error = XFS_ERROR(EBADF);
+		goto out_put_file;
+	}
+
 	target_file = fget((int)sxp->sx_fdtmp);
 	if (!target_file) {
 		error = XFS_ERROR(EINVAL);
 		goto out_put_file;
+	}
+
+	if (!(target_file->f_mode & FMODE_WRITE) ||
+	    (target_file->f_flags & O_APPEND)) {
+		error = XFS_ERROR(EBADF);
+		goto out_put_target_file;
 	}
 
 	ip = XFS_I(file->f_path.dentry->d_inode);
@@ -153,15 +164,6 @@ xfs_swap_extents(
 
 	xfs_lock_inodes(ips, 2, 0, lock_flags);
 	locked = 1;
-
-	/* Check permissions */
-	error = xfs_iaccess(ip, S_IWUSR, NULL);
-	if (error)
-		goto error0;
-
-	error = xfs_iaccess(tip, S_IWUSR, NULL);
-	if (error)
-		goto error0;
 
 	/* Verify that both files have the same format */
 	if ((ip->i_d.di_mode & S_IFMT) != (tip->i_d.di_mode & S_IFMT)) {
