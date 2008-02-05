@@ -498,11 +498,14 @@ xfs_log_reserve(xfs_mount_t	 *mp,
  * Return error or zero.
  */
 int
-xfs_log_mount(xfs_mount_t	*mp,
-	      xfs_buftarg_t	*log_target,
-	      xfs_daddr_t	blk_offset,
-	      int		num_bblks)
+xfs_log_mount(
+	xfs_mount_t	*mp,
+	xfs_buftarg_t	*log_target,
+	xfs_daddr_t	blk_offset,
+	int		num_bblks)
 {
+	int		error;
+
 	if (!(mp->m_flags & XFS_MOUNT_NORECOVERY))
 		cmn_err(CE_NOTE, "XFS mounting filesystem %s", mp->m_fsname);
 	else {
@@ -515,11 +518,21 @@ xfs_log_mount(xfs_mount_t	*mp,
 	mp->m_log = xlog_alloc_log(mp, log_target, blk_offset, num_bblks);
 
 	/*
+	 * Initialize the AIL now we have a log.
+	 */
+	spin_lock_init(&mp->m_ail_lock);
+	error = xfs_trans_ail_init(mp);
+	if (error) {
+		cmn_err(CE_WARN, "XFS: AIL initialisation failed: error %d", error);
+		goto error;
+	}
+
+	/*
 	 * skip log recovery on a norecovery mount.  pretend it all
 	 * just worked.
 	 */
 	if (!(mp->m_flags & XFS_MOUNT_NORECOVERY)) {
-		int		error, readonly = (mp->m_flags & XFS_MOUNT_RDONLY);
+		int	readonly = (mp->m_flags & XFS_MOUNT_RDONLY);
 
 		if (readonly)
 			mp->m_flags &= ~XFS_MOUNT_RDONLY;
@@ -530,8 +543,7 @@ xfs_log_mount(xfs_mount_t	*mp,
 			mp->m_flags |= XFS_MOUNT_RDONLY;
 		if (error) {
 			cmn_err(CE_WARN, "XFS: log mount/recovery failed: error %d", error);
-			xlog_dealloc_log(mp->m_log);
-			return error;
+			goto error;
 		}
 	}
 
@@ -540,6 +552,9 @@ xfs_log_mount(xfs_mount_t	*mp,
 
 	/* End mounting message in xfs_log_mount_finish */
 	return 0;
+error:
+	xfs_log_unmount_dealloc(mp);
+	return error;
 }	/* xfs_log_mount */
 
 /*
@@ -722,10 +737,14 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 
 /*
  * Deallocate log structures for unmount/relocation.
+ *
+ * We need to stop the aild from running before we destroy
+ * and deallocate the log as the aild references the log.
  */
 void
 xfs_log_unmount_dealloc(xfs_mount_t *mp)
 {
+	xfs_trans_ail_destroy(mp);
 	xlog_dealloc_log(mp->m_log);
 }
 

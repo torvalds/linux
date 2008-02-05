@@ -136,15 +136,9 @@ xfs_mount_init(void)
 		mp->m_flags |= XFS_MOUNT_NO_PERCPU_SB;
 	}
 
-	spin_lock_init(&mp->m_ail_lock);
 	spin_lock_init(&mp->m_sb_lock);
 	mutex_init(&mp->m_ilock);
 	mutex_init(&mp->m_growlock);
-	/*
-	 * Initialize the AIL.
-	 */
-	xfs_trans_ail_init(mp);
-
 	atomic_set(&mp->m_active_trans, 0);
 
 	return mp;

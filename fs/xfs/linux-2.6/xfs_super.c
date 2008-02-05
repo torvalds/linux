@@ -51,6 +51,7 @@
 #include "xfs_vfsops.h"
 #include "xfs_version.h"
 #include "xfs_log_priv.h"
+#include "xfs_trans_priv.h"
 
 #include <linux/namei.h>
 #include <linux/init.h>
@@ -764,6 +765,64 @@ xfs_blkdev_issue_flush(
 {
 	blkdev_issue_flush(buftarg->bt_bdev, NULL);
 }
+
+/*
+ * XFS AIL push thread support
+ */
+void
+xfsaild_wakeup(
+	xfs_mount_t		*mp,
+	xfs_lsn_t		threshold_lsn)
+{
+	mp->m_ail.xa_target = threshold_lsn;
+	wake_up_process(mp->m_ail.xa_task);
+}
+
+int
+xfsaild(
+	void	*data)
+{
+	xfs_mount_t	*mp = (xfs_mount_t *)data;
+	xfs_lsn_t	last_pushed_lsn = 0;
+	long		tout = 0;
+
+	while (!kthread_should_stop()) {
+		if (tout)
+			schedule_timeout_interruptible(msecs_to_jiffies(tout));
+		tout = 1000;
+
+		/* swsusp */
+		try_to_freeze();
+
+		ASSERT(mp->m_log);
+		if (XFS_FORCED_SHUTDOWN(mp))
+			continue;
+
+		tout = xfsaild_push(mp, &last_pushed_lsn);
+	}
+
+	return 0;
+}	/* xfsaild */
+
+int
+xfsaild_start(
+	xfs_mount_t	*mp)
+{
+	mp->m_ail.xa_target = 0;
+	mp->m_ail.xa_task = kthread_run(xfsaild, mp, "xfsaild");
+	if (IS_ERR(mp->m_ail.xa_task))
+		return -PTR_ERR(mp->m_ail.xa_task);
+	return 0;
+}
+
+void
+xfsaild_stop(
+	xfs_mount_t	*mp)
+{
+	kthread_stop(mp->m_ail.xa_task);
+}
+
+
 
 STATIC struct inode *
 xfs_fs_alloc_inode(
