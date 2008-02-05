@@ -74,8 +74,8 @@ config PM_TRACE_RTC
 	RTC across reboots, so that you can debug a machine that just hangs
 	during suspend (or more commonly, during resume).
 
-	To use this debugging feature you should attempt to suspend the machine,
-	then reboot it, then run
+	To use this debugging feature you should attempt to suspend the
+	machine, reboot it and then run
 
 		dmesg -s 1000000 | grep 'hash matches'
 
@@ -123,7 +123,10 @@ config HIBERNATION
 	  called "hibernation" in user interfaces.  STD checkpoints the
 	  system and powers it off; and restores that checkpoint on reboot.
 
-	  You can suspend your machine with 'echo disk > /sys/power/state'.
+	  You can suspend your machine with 'echo disk > /sys/power/state'
+	  after placing resume=/dev/swappartition on the kernel command line
+	  in your bootloader's configuration file.
+
 	  Alternatively, you can use the additional userland tools available
 	  from <http://suspend.sf.net>.
 
