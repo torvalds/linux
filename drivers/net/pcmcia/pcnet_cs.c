@@ -521,7 +521,7 @@ static int pcnet_config(struct pcmcia_device *link)
     int i, last_ret, last_fn, start_pg, stop_pg, cm_offset;
     int has_shmem = 0;
     u_short buf[64];
-    hw_info_t *hw_info;
+    hw_info_t *local_hw_info;
     DECLARE_MAC_BUF(mac);
 
     DEBUG(0, "pcnet_config(0x%p)\n", link);
@@ -590,23 +590,23 @@ static int pcnet_config(struct pcmcia_device *link)
 	dev->if_port = 0;
     }
 
-    hw_info = get_hwinfo(link);
-    if (hw_info == NULL)
-	hw_info = get_prom(link);
-    if (hw_info == NULL)
-	hw_info = get_dl10019(link);
-    if (hw_info == NULL)
-	hw_info = get_ax88190(link);
-    if (hw_info == NULL)
-	hw_info = get_hwired(link);
+    local_hw_info = get_hwinfo(link);
+    if (local_hw_info == NULL)
+	local_hw_info = get_prom(link);
+    if (local_hw_info == NULL)
+	local_hw_info = get_dl10019(link);
+    if (local_hw_info == NULL)
+	local_hw_info = get_ax88190(link);
+    if (local_hw_info == NULL)
+	local_hw_info = get_hwired(link);
 
-    if (hw_info == NULL) {
+    if (local_hw_info == NULL) {
 	printk(KERN_NOTICE "pcnet_cs: unable to read hardware net"
 	       " address for io base %#3lx\n", dev->base_addr);
 	goto failed;
     }
 
-    info->flags = hw_info->flags;
+    info->flags = local_hw_info->flags;
     /* Check for user overrides */
     info->flags |= (delay_output) ? DELAY_OUTPUT : 0;
     if ((link->manf_id == MANFID_SOCKET) &&
