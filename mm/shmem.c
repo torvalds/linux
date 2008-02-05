@@ -1036,8 +1036,7 @@ static struct page *shmem_swapin(struct shmem_inode_info *info,
 	pvma.vm_pgoff = idx;
 	pvma.vm_ops = NULL;
 	pvma.vm_policy = mpol_shared_policy_lookup(&info->policy, idx);
-	swapin_readahead(entry, 0, &pvma);
-	page = read_swap_cache_async(entry, &pvma, 0);
+	page = swapin_readahead(entry, &pvma, 0);
 	mpol_free(pvma.vm_policy);
 	return page;
 }
@@ -1067,8 +1066,7 @@ static inline int shmem_parse_mpol(char *value, int *policy,
 static inline struct page *
 shmem_swapin(struct shmem_inode_info *info,swp_entry_t entry,unsigned long idx)
 {
-	swapin_readahead(entry, 0, NULL);
-	return read_swap_cache_async(entry, NULL, 0);
+	return swapin_readahead(entry, NULL, 0);
 }
 
 static inline struct page *
