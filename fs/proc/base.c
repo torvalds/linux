@@ -783,7 +783,7 @@ out_no_task:
 }
 #endif
 
-static loff_t mem_lseek(struct file * file, loff_t offset, int orig)
+loff_t mem_lseek(struct file *file, loff_t offset, int orig)
 {
 	switch (orig) {
 	case 0:
@@ -2252,6 +2252,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 #ifdef CONFIG_MMU
 	REG("clear_refs", S_IWUSR, clear_refs),
 	REG("smaps",      S_IRUGO, smaps),
+	REG("pagemap",    S_IRUSR, pagemap),
 #endif
 #ifdef CONFIG_SECURITY
 	DIR("attr",       S_IRUGO|S_IXUGO, attr_dir),
@@ -2580,6 +2581,7 @@ static const struct pid_entry tid_base_stuff[] = {
 #ifdef CONFIG_MMU
 	REG("clear_refs", S_IWUSR, clear_refs),
 	REG("smaps",     S_IRUGO, smaps),
+	REG("pagemap",    S_IRUSR, pagemap),
 #endif
 #ifdef CONFIG_SECURITY
 	DIR("attr",      S_IRUGO|S_IXUGO, attr_dir),
