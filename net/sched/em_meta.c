@@ -65,6 +65,7 @@
 #include <linux/string.h>
 #include <linux/skbuff.h>
 #include <linux/random.h>
+#include <linux/if_vlan.h>
 #include <linux/tc_ematch/tc_em_meta.h>
 #include <net/dst.h>
 #include <net/route.h>
@@ -168,6 +169,21 @@ META_COLLECTOR(var_dev)
 {
 	*err = var_dev(skb->dev, dst);
 }
+
+/**************************************************************************
+ * vlan tag
+ **************************************************************************/
+
+META_COLLECTOR(int_vlan_tag)
+{
+	unsigned short tag;
+	if (vlan_get_tag(skb, &tag) < 0)
+		*err = -1;
+	else
+		dst->value = tag;
+}
+
+
 
 /**************************************************************************
  * skb attributes
@@ -520,6 +536,7 @@ static struct meta_ops __meta_ops[TCF_META_TYPE_MAX+1][TCF_META_ID_MAX+1] = {
 		[META_ID(SK_SNDTIMEO)]		= META_FUNC(int_sk_sndtimeo),
 		[META_ID(SK_SENDMSG_OFF)]	= META_FUNC(int_sk_sendmsg_off),
 		[META_ID(SK_WRITE_PENDING)]	= META_FUNC(int_sk_write_pend),
+		[META_ID(VLAN_TAG)]		= META_FUNC(int_vlan_tag),
 	}
 };
 

@@ -102,7 +102,7 @@ static int xfrm4_beet_input(struct xfrm_state *x, struct sk_buff *skb)
 
 		XFRM_MODE_SKB_CB(skb)->protocol = ph->nexthdr;
 
-		if (!pskb_may_pull(skb, phlen));
+		if (!pskb_may_pull(skb, phlen))
 			goto out;
 		__skb_pull(skb, phlen);
 	}
