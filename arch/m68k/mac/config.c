@@ -58,8 +58,6 @@ extern struct mem_info m68k_memory[NUM_MEMINFO];
 
 extern struct mem_info m68k_ramdisk;
 
-extern char m68k_command_line[CL_SIZE];
-
 void *mac_env;					/* Loaded by the boot asm */
 
 /* The phys. video addr. - might be bogus on some machines */
