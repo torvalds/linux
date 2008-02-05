@@ -901,16 +901,21 @@ static struct p9_stat *p9_clone_stat(struct p9_stat *st, int dotu)
 	memmove(ret, st, sizeof(struct p9_stat));
 	p = ((char *) ret) + sizeof(struct p9_stat);
 	memmove(p, st->name.str, st->name.len);
+	ret->name.str = p;
 	p += st->name.len;
 	memmove(p, st->uid.str, st->uid.len);
+	ret->uid.str = p;
 	p += st->uid.len;
 	memmove(p, st->gid.str, st->gid.len);
+	ret->gid.str = p;
 	p += st->gid.len;
 	memmove(p, st->muid.str, st->muid.len);
+	ret->muid.str = p;
 	p += st->muid.len;
 
 	if (dotu) {
 		memmove(p, st->extension.str, st->extension.len);
+		ret->extension.str = p;
 		p += st->extension.len;
 	}
 
