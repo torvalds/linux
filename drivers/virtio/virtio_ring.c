@@ -266,6 +266,7 @@ irqreturn_t vring_interrupt(int irq, void *_vq)
 
 	return IRQ_HANDLED;
 }
+EXPORT_SYMBOL_GPL(vring_interrupt);
 
 static struct virtqueue_ops vring_vq_ops = {
 	.add_buf = vring_add_buf,
@@ -318,9 +319,12 @@ struct virtqueue *vring_new_virtqueue(unsigned int num,
 
 	return &vq->vq;
 }
+EXPORT_SYMBOL_GPL(vring_new_virtqueue);
 
 void vring_del_virtqueue(struct virtqueue *vq)
 {
 	kfree(to_vvq(vq));
 }
+EXPORT_SYMBOL_GPL(vring_del_virtqueue);
 
+MODULE_LICENSE("GPL");

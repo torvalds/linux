@@ -1,8 +1,8 @@
 # Virtio always gets selected by whoever wants it.
 config VIRTIO
-	bool
+	tristate
 
 # Similarly the virtio ring implementation.
 config VIRTIO_RING
-	bool
+	tristate
 	depends on VIRTIO

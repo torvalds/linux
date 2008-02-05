@@ -162,4 +162,12 @@ static int virtio_init(void)
 		panic("virtio bus registration failed");
 	return 0;
 }
+
+static void __exit virtio_exit(void)
+{
+	bus_unregister(&virtio_bus);
+}
 core_initcall(virtio_init);
+module_exit(virtio_exit);
+
+MODULE_LICENSE("GPL");
