@@ -132,7 +132,7 @@ static void __init fixrange_init(unsigned long start, unsigned long end,
 		if (pud_none(*pud))
 			one_md_table_init(pud);
 		pmd = pmd_offset(pud, vaddr);
-		for (; (j < PTRS_PER_PMD) && (vaddr != end); pmd++, j++) {
+		for (; (j < PTRS_PER_PMD) && (vaddr < end); pmd++, j++) {
 			one_page_table_init(pmd);
 			vaddr += PMD_SIZE;
 		}
@@ -191,22 +191,23 @@ static void __init fixaddr_user_init( void)
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
-	unsigned long paddr, vaddr = FIXADDR_USER_START;
+	phys_t p;
+	unsigned long v, vaddr = FIXADDR_USER_START;
 
-	if (  ! size )
+	if (!size)
 		return;
 
 	fixrange_init( FIXADDR_USER_START, FIXADDR_USER_END, swapper_pg_dir);
-	paddr = (unsigned long)alloc_bootmem_low_pages( size);
-	memcpy( (void *)paddr, (void *)FIXADDR_USER_START, size);
-	paddr = __pa(paddr);
+	v = (unsigned long) alloc_bootmem_low_pages(size);
+	memcpy((void *) v , (void *) FIXADDR_USER_START, size);
+	p = __pa(v);
 	for ( ; size > 0; size -= PAGE_SIZE, vaddr += PAGE_SIZE,
-		      paddr += PAGE_SIZE) {
+		      p += PAGE_SIZE) {
 		pgd = swapper_pg_dir + pgd_index(vaddr);
 		pud = pud_offset(pgd, vaddr);
 		pmd = pmd_offset(pud, vaddr);
 		pte = pte_offset_kernel(pmd, vaddr);
-		pte_set_val( (*pte), paddr, PAGE_READONLY);
+		pte_set_val(*pte, p, PAGE_READONLY);
 	}
 #endif
 }
