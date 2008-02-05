@@ -137,6 +137,7 @@ static struct axon_msic *find_msi_translator(struct pci_dev *dev)
 
 	tmp = dn;
 	dn = of_find_node_by_phandle(*ph);
+	of_node_put(tmp);
 	if (!dn) {
 		dev_dbg(&dev->dev,
 			"axon_msi: msi-translator doesn't point to a node\n");
@@ -154,7 +155,6 @@ static struct axon_msic *find_msi_translator(struct pci_dev *dev)
 
 out_error:
 	of_node_put(dn);
-	of_node_put(tmp);
 
 	return msic;
 }
