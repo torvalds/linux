@@ -459,3 +459,38 @@ unsigned long arch_align_stack(unsigned long sp)
 	return sp & ~0xf;
 }
 #endif
+
+unsigned long get_wchan(struct task_struct *p)
+{
+	unsigned long stack_page, sp, ip;
+	bool seen_sched = 0;
+
+	if ((p == NULL) || (p == current) || (p->state == TASK_RUNNING))
+		return 0;
+
+	stack_page = (unsigned long) task_stack_page(p);
+	/* Bail if the process has no kernel stack for some reason */
+	if (stack_page == 0)
+		return 0;
+
+	sp = p->thread.switch_buf->JB_SP;
+	/*
+	 * Bail if the stack pointer is below the bottom of the kernel
+	 * stack for some reason
+	 */
+	if (sp < stack_page)
+		return 0;
+
+	while (sp < stack_page + THREAD_SIZE) {
+		ip = *((unsigned long *) sp);
+		if (in_sched_functions(ip))
+			/* Ignore everything until we're above the scheduler */
+			seen_sched = 1;
+		else if (kernel_text_address(ip) && seen_sched)
+			return ip;
+
+		sp += sizeof(unsigned long);
+	}
+
+	return 0;
+}
