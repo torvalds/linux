@@ -39,8 +39,6 @@ struct virtio_blk_outhdr
 	__u32 ioprio;
 	/* Sector (ie. 512 byte offset) */
 	__u64 sector;
-	/* Where to put reply. */
-	__u64 id;
 };
 
 #define VIRTIO_BLK_S_OK		0
