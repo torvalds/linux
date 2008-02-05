@@ -63,7 +63,7 @@ static void sig_handler_common(int sig, struct sigcontext *sc)
 #define SIGVTALRM_MASK (1 << SIGVTALRM_BIT)
 
 static int signals_enabled;
-static unsigned int pending;
+static unsigned int signals_pending;
 
 void sig_handler(int sig, struct sigcontext *sc)
 {
@@ -71,7 +71,7 @@ void sig_handler(int sig, struct sigcontext *sc)
 
 	enabled = signals_enabled;
 	if (!enabled && (sig == SIGIO)) {
-		pending |= SIGIO_MASK;
+		signals_pending |= SIGIO_MASK;
 		return;
 	}
 
@@ -99,7 +99,7 @@ void alarm_handler(int sig, struct sigcontext *sc)
 
 	enabled = signals_enabled;
 	if (!signals_enabled) {
-		pending |= SIGVTALRM_MASK;
+		signals_pending |= SIGVTALRM_MASK;
 		return;
 	}
 
@@ -123,16 +123,6 @@ void set_sigstack(void *sig_stack, int size)
 
 	if (sigaltstack(&stack, NULL) != 0)
 		panic("enabling signal stack failed, errno = %d\n", errno);
-}
-
-void remove_sigstack(void)
-{
-	stack_t stack = ((stack_t) { .ss_flags	= SS_DISABLE,
-				     .ss_sp	= NULL,
-				     .ss_size	= 0 });
-
-	if (sigaltstack(&stack, NULL) != 0)
-		panic("disabling signal stack failed, errno = %d\n", errno);
 }
 
 void (*handlers[_NSIG])(int sig, struct sigcontext *sc);
@@ -213,13 +203,14 @@ void set_handler(int sig, void (*handler)(int), int flags, ...)
 
 int change_sig(int signal, int on)
 {
-	sigset_t sigset, old;
+	sigset_t sigset;
 
 	sigemptyset(&sigset);
 	sigaddset(&sigset, signal);
-	if (sigprocmask(on ? SIG_UNBLOCK : SIG_BLOCK, &sigset, &old) < 0)
+	if (sigprocmask(on ? SIG_UNBLOCK : SIG_BLOCK, &sigset, NULL) < 0)
 		return -errno;
-	return !sigismember(&old, signal);
+
+	return 0;
 }
 
 void block_signals(void)
@@ -244,26 +235,26 @@ void unblock_signals(void)
 	/*
 	 * We loop because the IRQ handler returns with interrupts off.  So,
 	 * interrupts may have arrived and we need to re-enable them and
-	 * recheck pending.
+	 * recheck signals_pending.
 	 */
 	while(1) {
 		/*
 		 * Save and reset save_pending after enabling signals.  This
-		 * way, pending won't be changed while we're reading it.
+		 * way, signals_pending won't be changed while we're reading it.
 		 */
 		signals_enabled = 1;
 
 		/*
-		 * Setting signals_enabled and reading pending must
+		 * Setting signals_enabled and reading signals_pending must
 		 * happen in this order.
 		 */
 		barrier();
 
-		save_pending = pending;
+		save_pending = signals_pending;
 		if (save_pending == 0)
 			return;
 
-		pending = 0;
+		signals_pending = 0;
 
 		/*
 		 * We have pending interrupts, so disable signals, as the
