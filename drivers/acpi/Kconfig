@@ -199,6 +199,16 @@ config ACPI_NUMA
 	depends on (X86 || IA64)
 	default y if IA64_GENERIC || IA64_SGI_SN2
 
+config ACPI_WMI
+	tristate "WMI (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	help
+	  This driver adds support for the ACPI-WMI mapper device (PNP0C14)
+	  found on some systems.
+
+	  NOTE: You will need another driver or userspace application on top of
+	  this to actually use anything defined in the ACPI-WMI mapper.
+
 config ACPI_ASUS
         tristate "ASUS/Medion Laptop Extras"
 	depends on X86
