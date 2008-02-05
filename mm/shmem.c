@@ -838,10 +838,8 @@ static int shmem_unuse_inode(struct shmem_inode_info *info, swp_entry_t entry, s
 	if (size > SHMEM_NR_DIRECT)
 		size = SHMEM_NR_DIRECT;
 	offset = shmem_find_swp(entry, ptr, ptr+size);
-	if (offset >= 0) {
-		shmem_swp_balance_unmap();
+	if (offset >= 0)
 		goto found;
-	}
 	if (!info->i_indirect)
 		goto lost2;
 
@@ -879,11 +877,11 @@ static int shmem_unuse_inode(struct shmem_inode_info *info, swp_entry_t entry, s
 			if (size > ENTRIES_PER_PAGE)
 				size = ENTRIES_PER_PAGE;
 			offset = shmem_find_swp(entry, ptr, ptr+size);
+			shmem_swp_unmap(ptr);
 			if (offset >= 0) {
 				shmem_dir_unmap(dir);
 				goto found;
 			}
-			shmem_swp_unmap(ptr);
 		}
 	}
 lost1:
@@ -893,10 +891,25 @@ lost2:
 	return 0;
 found:
 	idx += offset;
-	inode = &info->vfs_inode;
-	error = add_to_page_cache(page, inode->i_mapping, idx, GFP_ATOMIC);
+	inode = igrab(&info->vfs_inode);
+	spin_unlock(&info->lock);
+
+	/* move head to start search for next from here */
+	list_move_tail(&shmem_swaplist, &info->swaplist);
+	mutex_unlock(&shmem_swaplist_mutex);
+
+	error = 1;
+	if (!inode)
+		goto out;
+
+	spin_lock(&info->lock);
+	ptr = shmem_swp_entry(info, idx, NULL);
+	if (ptr && ptr->val == entry.val)
+		error = add_to_page_cache(page, inode->i_mapping,
+						idx, GFP_ATOMIC);
 	if (error == -EEXIST) {
 		struct page *filepage = find_get_page(inode->i_mapping, idx);
+		error = 1;
 		if (filepage) {
 			/*
 			 * There might be a more uptodate page coming down
@@ -911,16 +924,18 @@ found:
 		delete_from_swap_cache(page);
 		set_page_dirty(page);
 		info->flags |= SHMEM_PAGEIN;
-		shmem_swp_set(info, ptr + offset, 0);
+		shmem_swp_set(info, ptr, 0);
+		swap_free(entry);
+		error = 1;	/* not an error, but entry was found */
 	}
-	shmem_swp_unmap(ptr);
+	if (ptr)
+		shmem_swp_unmap(ptr);
 	spin_unlock(&info->lock);
-	/*
-	 * Decrement swap count even when the entry is left behind:
-	 * try_to_unuse will skip over mms, then reincrement count.
-	 */
-	swap_free(entry);
-	return 1;
+out:
+	unlock_page(page);
+	page_cache_release(page);
+	iput(inode);		/* allows for NULL */
+	return error;
 }
 
 /*
@@ -935,18 +950,16 @@ int shmem_unuse(swp_entry_t entry, struct page *page)
 	mutex_lock(&shmem_swaplist_mutex);
 	list_for_each_safe(p, next, &shmem_swaplist) {
 		info = list_entry(p, struct shmem_inode_info, swaplist);
-		if (!info->swapped)
+		if (info->swapped)
+			found = shmem_unuse_inode(info, entry, page);
+		else
 			list_del_init(&info->swaplist);
-		else if (shmem_unuse_inode(info, entry, page)) {
-			/* move head to start search for next from here */
-			list_move_tail(&shmem_swaplist, &info->swaplist);
-			found = 1;
-			break;
-		}
 		cond_resched();
+		if (found)
+			goto out;
 	}
 	mutex_unlock(&shmem_swaplist_mutex);
-	return found;
+out:	return found;	/* 0 or 1 or -ENOMEM */
 }
 
 /*
