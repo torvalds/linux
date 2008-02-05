@@ -401,7 +401,7 @@ EXPORT(sysn32_call_table)
 	PTR	sys_ioprio_get
 	PTR	compat_sys_utimensat
 	PTR	compat_sys_signalfd		/* 5280 */
-	PTR	compat_sys_timerfd
+	PTR	sys_ni_syscall
 	PTR	sys_eventfd
 	PTR	sys_fallocate
 	.size	sysn32_call_table,.-sysn32_call_table

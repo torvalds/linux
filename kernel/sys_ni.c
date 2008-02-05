@@ -154,7 +154,10 @@ cond_syscall(sys_ioprio_get);
 
 /* New file descriptors */
 cond_syscall(sys_signalfd);
-cond_syscall(sys_timerfd);
 cond_syscall(compat_sys_signalfd);
-cond_syscall(compat_sys_timerfd);
+cond_syscall(sys_timerfd_create);
+cond_syscall(sys_timerfd_settime);
+cond_syscall(sys_timerfd_gettime);
+cond_syscall(compat_sys_timerfd_settime);
+cond_syscall(compat_sys_timerfd_gettime);
 cond_syscall(sys_eventfd);

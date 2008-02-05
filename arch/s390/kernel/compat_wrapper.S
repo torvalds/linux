@@ -1698,14 +1698,6 @@ compat_sys_signalfd_wrapper:
 	llgfr	%r4,%r4			# compat_size_t
 	jg	compat_sys_signalfd
 
-	.globl	compat_sys_timerfd_wrapper
-compat_sys_timerfd_wrapper:
-	lgfr	%r2,%r2			# int
-	lgfr	%r3,%r3			# int
-	lgfr	%r4,%r4			# int
-	llgtr	%r5,%r5			# struct compat_itimerspec *
-	jg	compat_sys_timerfd
-
 	.globl	sys_eventfd_wrapper
 sys_eventfd_wrapper:
 	llgfr	%r2,%r2			# unsigned int

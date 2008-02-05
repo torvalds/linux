@@ -1586,7 +1586,7 @@ sys_call_table:
 	data8 sys_epoll_pwait			// 1305
 	data8 sys_utimensat
 	data8 sys_signalfd
-	data8 sys_timerfd
+	data8 sys_ni_syscall
 	data8 sys_eventfd
 
 	.org sys_call_table + 8*NR_syscalls	// guard against failures to increase NR_syscalls

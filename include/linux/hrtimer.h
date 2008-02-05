@@ -301,12 +301,12 @@ static inline int hrtimer_is_queued(struct hrtimer *timer)
 }
 
 /* Forward a hrtimer so it expires after now: */
-extern unsigned long
+extern u64
 hrtimer_forward(struct hrtimer *timer, ktime_t now, ktime_t interval);
 
 /* Forward a hrtimer so it expires after the hrtimer's current now */
-static inline unsigned long hrtimer_forward_now(struct hrtimer *timer,
-						ktime_t interval)
+static inline u64 hrtimer_forward_now(struct hrtimer *timer,
+				      ktime_t interval)
 {
 	return hrtimer_forward(timer, timer->base->get_time(), interval);
 }
@@ -329,9 +329,9 @@ extern void hrtimer_run_pending(void);
 extern void __init hrtimers_init(void);
 
 #if BITS_PER_LONG < 64
-extern unsigned long ktime_divns(const ktime_t kt, s64 div);
+extern u64 ktime_divns(const ktime_t kt, s64 div);
 #else /* BITS_PER_LONG < 64 */
-# define ktime_divns(kt, div)		(unsigned long)((kt).tv64 / (div))
+# define ktime_divns(kt, div)		(u64)((kt).tv64 / (div))
 #endif
 
 /* Show pending timers: */
