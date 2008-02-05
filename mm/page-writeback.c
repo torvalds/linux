@@ -219,7 +219,7 @@ static inline void task_dirties_fraction(struct task_struct *tsk,
  *
  *   dirty -= (dirty/8) * p_{t}
  */
-void task_dirty_limit(struct task_struct *tsk, long *pdirty)
+static void task_dirty_limit(struct task_struct *tsk, long *pdirty)
 {
 	long numerator, denominator;
 	long dirty = *pdirty;
