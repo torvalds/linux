@@ -371,7 +371,8 @@ uart_get_baud_rate(struct uart_port *port, struct ktermios *termios,
 		 */
 		termios->c_cflag &= ~CBAUD;
 		if (old) {
-			termios->c_cflag |= old->c_cflag & CBAUD;
+			baud = tty_termios_baud_rate(old);
+			tty_termios_encode_baud_rate(termios, baud, baud);
 			old = NULL;
 			continue;
 		}
@@ -380,7 +381,7 @@ uart_get_baud_rate(struct uart_port *port, struct ktermios *termios,
 		 * As a last resort, if the quotient is zero,
 		 * default to 9600 bps
 		 */
-		termios->c_cflag |= B9600;
+		tty_termios_encode_baud_rate(termios, 9600, 9600);
 	}
 
 	return 0;
