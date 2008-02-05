@@ -254,6 +254,10 @@ static struct vm_struct *__get_vm_area_node(unsigned long size, unsigned long fl
 		if (addr > end - size)
 			goto out;
 	}
+	if ((size + addr) < addr)
+		goto out;
+	if (addr > end - size)
+		goto out;
 
 found:
 	area->next = *p;
