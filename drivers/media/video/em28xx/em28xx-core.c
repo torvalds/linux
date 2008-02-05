@@ -273,7 +273,8 @@ int em28xx_set_audio_source(struct em28xx *dev)
 	static char *enable  = "\x08\x08";
 	static char *disable = "\x08\x88";
 	char *video = enable, *line = disable;
-	int ret, no_ac97;
+	int ret;
+	int no_ac97 = 0;
 	u8 input;
 
 	if (dev->is_em2800) {
