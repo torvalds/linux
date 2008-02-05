@@ -130,7 +130,7 @@ static int fdomain_config(struct pcmcia_device *link)
     cisparse_t parse;
     int i, last_ret, last_fn;
     u_char tuple_data[64];
-    char str[16];
+    char str[22];
     struct Scsi_Host *host;
 
     DEBUG(0, "fdomain_config(0x%p)\n", link);
