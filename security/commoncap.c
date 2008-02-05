@@ -25,20 +25,6 @@
 #include <linux/mount.h>
 #include <linux/sched.h>
 
-#ifdef CONFIG_SECURITY_FILE_CAPABILITIES
-/*
- * Because of the reduced scope of CAP_SETPCAP when filesystem
- * capabilities are in effect, it is safe to allow this capability to
- * be available in the default configuration.
- */
-# define CAP_INIT_BSET  CAP_FULL_SET
-#else /* ie. ndef CONFIG_SECURITY_FILE_CAPABILITIES */
-# define CAP_INIT_BSET  CAP_INIT_EFF_SET
-#endif /* def CONFIG_SECURITY_FILE_CAPABILITIES */
-
-kernel_cap_t cap_bset = CAP_INIT_BSET;    /* systemwide capability bound */
-EXPORT_SYMBOL(cap_bset);
-
 /* Global security state */
 
 unsigned securebits = SECUREBITS_DEFAULT; /* systemwide security settings */
@@ -138,6 +124,12 @@ int cap_capset_check (struct task_struct *target, kernel_cap_t *effective,
 			     cap_combine(target->cap_inheritable,
 					 current->cap_permitted))) {
 		/* incapable of using this inheritable set */
+		return -EPERM;
+	}
+	if (!cap_issubset(*inheritable,
+			   cap_combine(target->cap_inheritable,
+				       current->cap_bset))) {
+		/* no new pI capabilities outside bounding set */
 		return -EPERM;
 	}
 
@@ -337,10 +329,11 @@ void cap_bprm_apply_creds (struct linux_binprm *bprm, int unsafe)
 	/* Derived from fs/exec.c:compute_creds. */
 	kernel_cap_t new_permitted, working;
 
-	new_permitted = cap_intersect (bprm->cap_permitted, cap_bset);
-	working = cap_intersect (bprm->cap_inheritable,
+	new_permitted = cap_intersect(bprm->cap_permitted,
+				 current->cap_bset);
+	working = cap_intersect(bprm->cap_inheritable,
 				 current->cap_inheritable);
-	new_permitted = cap_combine (new_permitted, working);
+	new_permitted = cap_combine(new_permitted, working);
 
 	if (bprm->e_uid != current->uid || bprm->e_gid != current->gid ||
 	    !cap_issubset (new_permitted, current->cap_permitted)) {
@@ -580,6 +573,23 @@ int cap_task_kill(struct task_struct *p, struct siginfo *info,
 		return 0;
 
 	return -EPERM;
+}
+
+/*
+ * called from kernel/sys.c for prctl(PR_CABSET_DROP)
+ * done without task_capability_lock() because it introduces
+ * no new races - i.e. only another task doing capget() on
+ * this task could get inconsistent info.  There can be no
+ * racing writer bc a task can only change its own caps.
+ */
+long cap_prctl_drop(unsigned long cap)
+{
+	if (!capable(CAP_SETPCAP))
+		return -EPERM;
+	if (!cap_valid(cap))
+		return -EINVAL;
+	cap_lower(current->cap_bset, cap);
+	return 0;
 }
 #else
 int cap_task_setscheduler (struct task_struct *p, int policy,

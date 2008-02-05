@@ -40,11 +40,6 @@
 #define ROOTCONTEXT_MNT		0x04
 #define DEFCONTEXT_MNT		0x08
 
-/*
- * Bounding set
- */
-extern kernel_cap_t cap_bset;
-
 extern unsigned securebits;
 
 struct ctl_table;

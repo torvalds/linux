@@ -152,7 +152,9 @@ typedef struct kernel_cap_struct {
  *   Transfer any capability in your permitted set to any pid,
  *   remove any capability in your permitted set from any pid
  * With VFS support for capabilities (neither of above, but)
- *   Add any capability to the current process' inheritable set
+ *   Add any capability from current's capability bounding set
+ *       to the current process' inheritable set
+ *   Allow taking bits out of capability bounding set
  */
 
 #define CAP_SETPCAP          8
@@ -202,7 +204,6 @@ typedef struct kernel_cap_struct {
 #define CAP_IPC_OWNER        15
 
 /* Insert and remove kernel modules - modify kernel without limit */
-/* Modify cap_bset */
 #define CAP_SYS_MODULE       16
 
 /* Allow ioperm/iopl access */
@@ -313,6 +314,10 @@ typedef struct kernel_cap_struct {
 #define CAP_AUDIT_CONTROL    30
 
 #define CAP_SETFCAP	     31
+
+#define CAP_LAST_CAP         CAP_SETFCAP
+
+#define cap_valid(x) ((x) >= 0 && (x) <= CAP_LAST_CAP)
 
 /*
  * Bit location of each capability (used by user-space library and kernel)
@@ -464,6 +469,8 @@ extern const kernel_cap_t __cap_init_eff_set;
 
 int capable(int cap);
 int __capable(struct task_struct *t, int cap);
+
+extern long cap_prctl_drop(unsigned long cap);
 
 #endif /* __KERNEL__ */
 
