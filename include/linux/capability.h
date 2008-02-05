@@ -14,7 +14,6 @@
 #define _LINUX_CAPABILITY_H
 
 #include <linux/types.h>
-#include <linux/compiler.h>
 
 struct task_struct;
 
