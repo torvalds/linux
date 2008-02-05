@@ -235,7 +235,6 @@ extern void stack_protections(unsigned long address);
 extern int raw(int fd);
 extern void setup_machinename(char *machine_out);
 extern void setup_hostinfo(char *buf, int len);
-extern int setjmp_wrapper(void (*proc)(void *, void *), ...);
 extern void os_dump_core(void) __attribute__ ((noreturn));
 
 /* time.c */
