@@ -21,7 +21,7 @@ static const signed char sine_data[] = {
 	0,  39,  75,  103,  121,  127,  121,  103,  75,  39,
 	0, -39, -75, -103, -121, -127, -121, -103, -75, -39
 };
-#define DATA_SIZE	(sizeof(sine_data)/sizeof(sine_data[0]))
+#define DATA_SIZE	ARRAY_SIZE(sine_data)
 
 #define custom amiga_custom
 
