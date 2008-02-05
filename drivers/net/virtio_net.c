@@ -282,12 +282,6 @@ static int virtnet_open(struct net_device *dev)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
 
-	try_fill_recv(vi);
-
-	/* If we didn't even get one input buffer, we're useless. */
-	if (vi->num == 0)
-		return -ENOMEM;
-
 	napi_enable(&vi->napi);
 	return 0;
 }
@@ -295,22 +289,9 @@ static int virtnet_open(struct net_device *dev)
 static int virtnet_close(struct net_device *dev)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
-	struct sk_buff *skb;
 
 	napi_disable(&vi->napi);
 
-	/* networking core has neutered skb_xmit_done/skb_recv_done, so don't
-	 * worry about races vs. get(). */
-	vi->rvq->vq_ops->shutdown(vi->rvq);
-	while ((skb = __skb_dequeue(&vi->recv)) != NULL) {
-		kfree_skb(skb);
-		vi->num--;
-	}
-	vi->svq->vq_ops->shutdown(vi->svq);
-	while ((skb = __skb_dequeue(&vi->send)) != NULL)
-		kfree_skb(skb);
-
-	BUG_ON(vi->num != 0);
 	return 0;
 }
 
@@ -379,10 +360,22 @@ static int virtnet_probe(struct virtio_device *vdev)
 		pr_debug("virtio_net: registering device failed\n");
 		goto free_send;
 	}
+
+	/* Last of all, set up some receive buffers. */
+	try_fill_recv(vi);
+
+	/* If we didn't even get one input buffer, we're useless. */
+	if (vi->num == 0) {
+		err = -ENOMEM;
+		goto unregister;
+	}
+
 	pr_debug("virtnet: registered device %s\n", dev->name);
 	vdev->priv = vi;
 	return 0;
 
+unregister:
+	unregister_netdev(dev);
 free_send:
 	vdev->config->del_vq(vi->svq);
 free_recv:
@@ -395,6 +388,19 @@ free:
 static void virtnet_remove(struct virtio_device *vdev)
 {
 	struct virtnet_info *vi = vdev->priv;
+	struct sk_buff *skb;
+
+	/* Free our skbs in send and recv queues, if any. */
+	vi->rvq->vq_ops->shutdown(vi->rvq);
+	while ((skb = __skb_dequeue(&vi->recv)) != NULL) {
+		kfree_skb(skb);
+		vi->num--;
+	}
+	vi->svq->vq_ops->shutdown(vi->svq);
+	while ((skb = __skb_dequeue(&vi->send)) != NULL)
+		kfree_skb(skb);
+
+	BUG_ON(vi->num != 0);
 
 	vdev->config->del_vq(vi->svq);
 	vdev->config->del_vq(vi->rvq);
