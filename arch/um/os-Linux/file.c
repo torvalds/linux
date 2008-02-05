@@ -19,7 +19,7 @@
 #include "user.h"
 #include "kern_util.h"
 
-static void copy_stat(struct uml_stat *dst, struct stat64 *src)
+static void copy_stat(struct uml_stat *dst, const struct stat64 *src)
 {
 	*dst = ((struct uml_stat) {
 		.ust_dev     = src->st_dev,     /* device */
@@ -168,7 +168,7 @@ int os_file_type(char *file)
 	else return OS_TYPE_FILE;
 }
 
-int os_file_mode(char *file, struct openflags *mode_out)
+int os_file_mode(const char *file, struct openflags *mode_out)
 {
 	int err;
 
@@ -189,7 +189,7 @@ int os_file_mode(char *file, struct openflags *mode_out)
 	return err;
 }
 
-int os_open_file(char *file, struct openflags flags, int mode)
+int os_open_file(const char *file, struct openflags flags, int mode)
 {
 	int fd, err, f = 0;
 
@@ -216,7 +216,7 @@ int os_open_file(char *file, struct openflags flags, int mode)
 	return fd;
 }
 
-int os_connect_socket(char *name)
+int os_connect_socket(const char *name)
 {
 	struct sockaddr_un sock;
 	int fd, err;
@@ -277,7 +277,7 @@ int os_write_file(int fd, const void *buf, int len)
 	return n;
 }
 
-int os_file_size(char *file, unsigned long long *size_out)
+int os_file_size(const char *file, unsigned long long *size_out)
 {
 	struct uml_stat buf;
 	int err;
@@ -314,7 +314,7 @@ int os_file_size(char *file, unsigned long long *size_out)
 	return 0;
 }
 
-int os_file_modtime(char *file, unsigned long *modtime)
+int os_file_modtime(const char *file, unsigned long *modtime)
 {
 	struct uml_stat buf;
 	int err;
@@ -514,7 +514,7 @@ int os_rcv_fd(int fd, int *helper_pid_out)
 	return new;
 }
 
-int os_create_unix_socket(char *file, int len, int close_on_exec)
+int os_create_unix_socket(const char *file, int len, int close_on_exec)
 {
 	struct sockaddr_un addr;
 	int sock, err;

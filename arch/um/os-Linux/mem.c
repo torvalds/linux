@@ -172,13 +172,15 @@ int __init make_tempfile(const char *template, char **out_tempname,
 
 	which_tmpdir();
 	tempname = malloc(MAXPATHLEN);
+	if (!tempname)
+		goto out;
 
 	find_tempdir();
 	if (template[0] != '/')
 		strcpy(tempname, tempdir);
 	else
 		tempname[0] = '\0';
-	strcat(tempname, template);
+	strncat(tempname, template, MAXPATHLEN-1-strlen(tempname));
 	fd = mkstemp(tempname);
 	if(fd < 0){
 		fprintf(stderr, "open - cannot create %s: %s\n", tempname,
@@ -268,6 +270,7 @@ void __init check_tmpexec(void)
 	if(addr == MAP_FAILED){
 		err = errno;
 		perror("failed");
+		close(fd);
 		if(err == EPERM)
 			printf("%s must be not mounted noexec\n",tempdir);
 		exit(1);

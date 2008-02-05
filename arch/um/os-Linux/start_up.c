@@ -63,7 +63,7 @@ static int ptrace_child(void)
 	_exit(ret);
 }
 
-static void fatal_perror(char *str)
+static void fatal_perror(const char *str)
 {
 	perror(str);
 	exit(1);

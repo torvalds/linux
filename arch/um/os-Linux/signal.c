@@ -183,7 +183,8 @@ int change_sig(int signal, int on)
 
 	sigemptyset(&sigset);
 	sigaddset(&sigset, signal);
-	sigprocmask(on ? SIG_UNBLOCK : SIG_BLOCK, &sigset, &old);
+	if (sigprocmask(on ? SIG_UNBLOCK : SIG_BLOCK, &sigset, &old) < 0)
+		return -errno;
 	return !sigismember(&old, signal);
 }
 
