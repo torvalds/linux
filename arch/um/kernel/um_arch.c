@@ -223,6 +223,23 @@ static void __init uml_postsetup(void)
 	return;
 }
 
+static int panic_exit(struct notifier_block *self, unsigned long unused1,
+		      void *unused2)
+{
+	bust_spinlocks(1);
+	show_regs(&(current->thread.regs));
+	bust_spinlocks(0);
+	uml_exitcode = 1;
+	os_dump_core();
+	return 0;
+}
+
+static struct notifier_block panic_exit_notifier = {
+	.notifier_call 		= panic_exit,
+	.next 			= NULL,
+	.priority 		= 0
+};
+
 /* Set during early boot */
 unsigned long brk_start;
 unsigned long end_iomem;
@@ -327,6 +344,9 @@ int __init linux_main(int argc, char **argv)
 		printf("Kernel virtual memory size shrunk to %lu bytes\n",
 		       virtmem_size);
 
+	atomic_notifier_chain_register(&panic_notifier_list,
+				       &panic_exit_notifier);
+
 	uml_postsetup();
 
 	stack_protections((unsigned long) &init_thread_info);
@@ -335,29 +355,8 @@ int __init linux_main(int argc, char **argv)
 	return start_uml();
 }
 
-extern int uml_exitcode;
-
-static int panic_exit(struct notifier_block *self, unsigned long unused1,
-		      void *unused2)
-{
-	bust_spinlocks(1);
-	show_regs(&(current->thread.regs));
-	bust_spinlocks(0);
-	uml_exitcode = 1;
-	os_dump_core();
-	return 0;
-}
-
-static struct notifier_block panic_exit_notifier = {
-	.notifier_call 		= panic_exit,
-	.next 			= NULL,
-	.priority 		= 0
-};
-
 void __init setup_arch(char **cmdline_p)
 {
-	atomic_notifier_chain_register(&panic_notifier_list,
-			&panic_exit_notifier);
 	paging_init();
 	strlcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
 	*cmdline_p = command_line;

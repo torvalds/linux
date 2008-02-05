@@ -9,6 +9,8 @@
 #include "sysdep/ptrace.h"
 #include "sysdep/faultinfo.h"
 
+extern int uml_exitcode;
+
 extern int ncpus;
 extern int kmalloc_ok;
 extern int nsyscalls;

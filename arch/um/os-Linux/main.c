@@ -111,8 +111,6 @@ static void setup_env_path(void)
 	}
 }
 
-extern int uml_exitcode;
-
 extern void scan_elf_aux( char **envp);
 
 int __init main(int argc, char **argv, char **envp)
