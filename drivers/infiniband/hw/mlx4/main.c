@@ -52,7 +52,7 @@ MODULE_DESCRIPTION("Mellanox ConnectX HCA InfiniBand driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(DRV_VERSION);
 
-static const char mlx4_ib_version[] __devinitdata =
+static const char mlx4_ib_version[] =
 	DRV_NAME ": Mellanox ConnectX InfiniBand driver v"
 	DRV_VERSION " (" DRV_RELDATE ")\n";
 
@@ -517,8 +517,15 @@ static struct class_device_attribute *mlx4_class_attributes[] = {
 
 static void *mlx4_ib_add(struct mlx4_dev *dev)
 {
+	static int mlx4_ib_version_printed;
 	struct mlx4_ib_dev *ibdev;
 	int i;
+
+
+	if (!mlx4_ib_version_printed) {
+		printk(KERN_INFO "%s", mlx4_ib_version);
+		++mlx4_ib_version_printed;
+	}
 
 	ibdev = (struct mlx4_ib_dev *) ib_alloc_device(sizeof *ibdev);
 	if (!ibdev) {
