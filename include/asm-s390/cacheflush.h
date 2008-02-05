@@ -24,4 +24,8 @@
 #define copy_from_user_page(vma, page, vaddr, dst, src, len) \
 	memcpy(dst, src, len)
 
+#ifdef CONFIG_DEBUG_PAGEALLOC
+void kernel_map_pages(struct page *page, int numpages, int enable);
+#endif
+
 #endif /* _S390_CACHEFLUSH_H */
