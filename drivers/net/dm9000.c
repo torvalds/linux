@@ -63,6 +63,7 @@
 #include <linux/spinlock.h>
 #include <linux/crc32.h>
 #include <linux/mii.h>
+#include <linux/ethtool.h>
 #include <linux/dm9000.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
@@ -80,6 +81,7 @@
 
 #define CARDNAME "dm9000"
 #define PFX CARDNAME ": "
+#define DRV_VERSION	"1.30"
 
 #ifdef CONFIG_BLACKFIN
 #define readsb	insb
@@ -144,6 +146,11 @@ typedef struct board_info {
 		dev_dbg(db->dev, msg);			\
 	}						\
 } while (0)
+
+static inline board_info_t *to_dm9000_board(struct net_device *dev)
+{
+	return dev->priv;
+}
 
 /* function declaration ------------------------------------- */
 static int dm9000_probe(struct platform_device *);
@@ -341,6 +348,64 @@ static void dm9000_poll_controller(struct net_device *dev)
 	enable_irq(dev->irq);
 }
 #endif
+
+/* ethtool ops */
+
+static void dm9000_get_drvinfo(struct net_device *dev,
+			       struct ethtool_drvinfo *info)
+{
+	board_info_t *dm = to_dm9000_board(dev);
+
+	strcpy(info->driver, CARDNAME);
+	strcpy(info->version, DRV_VERSION);
+	strcpy(info->bus_info, to_platform_device(dm->dev)->name);
+}
+
+static int dm9000_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+{
+	board_info_t *dm = to_dm9000_board(dev);
+	unsigned long flags;
+
+	spin_lock_irqsave(&dm->lock, flags);
+	mii_ethtool_gset(&dm->mii, cmd);
+	spin_lock_irqsave(&dm->lock, flags);
+
+	return 0;
+}
+
+static int dm9000_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+{
+	board_info_t *dm = to_dm9000_board(dev);
+	unsigned long flags;
+	int rc;
+
+	spin_lock_irqsave(&dm->lock, flags);
+	rc = mii_ethtool_sset(&dm->mii, cmd);
+	spin_lock_irqsave(&dm->lock, flags);
+
+	return rc;
+}
+
+static int dm9000_nway_reset(struct net_device *dev)
+{
+	board_info_t *dm = to_dm9000_board(dev);
+	return mii_nway_restart(&dm->mii);
+}
+
+static u32 dm9000_get_link(struct net_device *dev)
+{
+	board_info_t *dm = to_dm9000_board(dev);
+	return mii_link_ok(&dm->mii);
+}
+
+static const struct ethtool_ops dm9000_ethtool_ops = {
+	.get_drvinfo		= dm9000_get_drvinfo,
+	.get_settings		= dm9000_get_settings,
+	.set_settings		= dm9000_set_settings,
+	.nway_reset		= dm9000_nway_reset,
+	.get_link		= dm9000_get_link,
+};
+
 
 /* dm9000_release_board
  *
@@ -546,6 +611,8 @@ dm9000_probe(struct platform_device *pdev)
 	ndev->watchdog_timeo = msecs_to_jiffies(watchdog);
 	ndev->stop		 = &dm9000_stop;
 	ndev->set_multicast_list = &dm9000_hash_table;
+	ndev->ethtool_ops	 = &dm9000_ethtool_ops;
+
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	ndev->poll_controller	 = &dm9000_poll_controller;
 #endif
@@ -1167,7 +1234,7 @@ static struct platform_driver dm9000_driver = {
 static int __init
 dm9000_init(void)
 {
-	printk(KERN_INFO "%s Ethernet Driver\n", CARDNAME);
+	printk(KERN_INFO "%s Ethernet Driver, V%s\n", CARDNAME, DRV_VERSION);
 
 	return platform_driver_register(&dm9000_driver);	/* search board and register */
 }
