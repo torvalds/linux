@@ -1769,31 +1769,48 @@ get_swap_info_struct(unsigned type)
  */
 int valid_swaphandles(swp_entry_t entry, unsigned long *offset)
 {
+	struct swap_info_struct *si;
 	int our_page_cluster = page_cluster;
-	int ret = 0, i = 1 << our_page_cluster;
-	unsigned long toff;
-	struct swap_info_struct *swapdev = swp_type(entry) + swap_info;
+	pgoff_t target, toff;
+	pgoff_t base, end;
+	int nr_pages = 0;
 
 	if (!our_page_cluster)	/* no readahead */
 		return 0;
-	toff = (swp_offset(entry) >> our_page_cluster) << our_page_cluster;
-	if (!toff)		/* first page is swap header */
-		toff++, i--;
-	*offset = toff;
+
+	si = &swap_info[swp_type(entry)];
+	target = swp_offset(entry);
+	base = (target >> our_page_cluster) << our_page_cluster;
+	end = base + (1 << our_page_cluster);
+	if (!base)		/* first page is swap header */
+		base++;
 
 	spin_lock(&swap_lock);
-	do {
-		/* Don't read-ahead past the end of the swap area */
-		if (toff >= swapdev->max)
-			break;
+	if (end > si->max)	/* don't go beyond end of map */
+		end = si->max;
+
+	/* Count contiguous allocated slots above our target */
+	for (toff = target; ++toff < end; nr_pages++) {
 		/* Don't read in free or bad pages */
-		if (!swapdev->swap_map[toff])
+		if (!si->swap_map[toff])
 			break;
-		if (swapdev->swap_map[toff] == SWAP_MAP_BAD)
+		if (si->swap_map[toff] == SWAP_MAP_BAD)
 			break;
-		toff++;
-		ret++;
-	} while (--i);
+	}
+	/* Count contiguous allocated slots below our target */
+	for (toff = target; --toff >= base; nr_pages++) {
+		/* Don't read in free or bad pages */
+		if (!si->swap_map[toff])
+			break;
+		if (si->swap_map[toff] == SWAP_MAP_BAD)
+			break;
+	}
 	spin_unlock(&swap_lock);
-	return ret;
+
+	/*
+	 * Indicate starting offset, and return number of pages to get:
+	 * if only 1, say 0, since there's then no readahead to be done.
+	 */
+	*offset = ++toff;
+	return nr_pages? ++nr_pages: 0;
 }
