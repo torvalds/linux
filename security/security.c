@@ -493,11 +493,11 @@ int security_inode_killpriv(struct dentry *dentry)
 	return security_ops->inode_killpriv(dentry);
 }
 
-int security_inode_getsecurity(const struct inode *inode, const char *name, void *buffer, size_t size, int err)
+int security_inode_getsecurity(const struct inode *inode, const char *name, void **buffer, bool alloc)
 {
 	if (unlikely(IS_PRIVATE(inode)))
 		return 0;
-	return security_ops->inode_getsecurity(inode, name, buffer, size, err);
+	return security_ops->inode_getsecurity(inode, name, buffer, alloc);
 }
 
 int security_inode_setsecurity(struct inode *inode, const char *name, const void *value, size_t size, int flags)

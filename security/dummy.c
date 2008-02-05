@@ -402,7 +402,7 @@ static int dummy_inode_killpriv(struct dentry *dentry)
 	return 0;
 }
 
-static int dummy_inode_getsecurity(const struct inode *inode, const char *name, void *buffer, size_t size, int err)
+static int dummy_inode_getsecurity(const struct inode *inode, const char *name, void **buffer, bool alloc)
 {
 	return -EOPNOTSUPP;
 }

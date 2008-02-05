@@ -136,32 +136,6 @@ static DEFINE_SPINLOCK(sb_security_lock);
 
 static struct kmem_cache *sel_inode_cache;
 
-/* Return security context for a given sid or just the context 
-   length if the buffer is null or length is 0 */
-static int selinux_getsecurity(u32 sid, void *buffer, size_t size)
-{
-	char *context;
-	unsigned len;
-	int rc;
-
-	rc = security_sid_to_context(sid, &context, &len);
-	if (rc)
-		return rc;
-
-	if (!buffer || !size)
-		goto getsecurity_exit;
-
-	if (size < len) {
-		len = -ERANGE;
-		goto getsecurity_exit;
-	}
-	memcpy(buffer, context, len);
-
-getsecurity_exit:
-	kfree(context);
-	return len;
-}
-
 /**
  * selinux_secmark_enabled - Check to see if SECMARK is currently enabled
  *
@@ -2675,14 +2649,27 @@ static int selinux_inode_removexattr (struct dentry *dentry, char *name)
  *
  * Permission check is handled by selinux_inode_getxattr hook.
  */
-static int selinux_inode_getsecurity(const struct inode *inode, const char *name, void *buffer, size_t size, int err)
+static int selinux_inode_getsecurity(const struct inode *inode, const char *name, void **buffer, bool alloc)
 {
+	u32 size;
+	int error;
+	char *context = NULL;
 	struct inode_security_struct *isec = inode->i_security;
 
 	if (strcmp(name, XATTR_SELINUX_SUFFIX))
 		return -EOPNOTSUPP;
 
-	return selinux_getsecurity(isec->sid, buffer, size);
+	error = security_sid_to_context(isec->sid, &context, &size);
+	if (error)
+		return error;
+	error = size;
+	if (alloc) {
+		*buffer = context;
+		goto out_nofree;
+	}
+	kfree(context);
+out_nofree:
+	return error;
 }
 
 static int selinux_inode_setsecurity(struct inode *inode, const char *name,
