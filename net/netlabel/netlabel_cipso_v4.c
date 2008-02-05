@@ -90,7 +90,7 @@ static const struct nla_policy netlbl_cipsov4_genl_policy[NLBL_CIPSOV4_A_MAX + 1
  * safely.
  *
  */
-static void netlbl_cipsov4_doi_free(struct rcu_head *entry)
+void netlbl_cipsov4_doi_free(struct rcu_head *entry)
 {
 	struct cipso_v4_doi *ptr;
 
