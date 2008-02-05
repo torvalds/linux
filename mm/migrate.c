@@ -640,15 +640,33 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
 		rcu_read_lock();
 		rcu_locked = 1;
 	}
+
 	/*
-	 * This is a corner case handling.
-	 * When a new swap-cache is read into, it is linked to LRU
-	 * and treated as swapcache but has no rmap yet.
-	 * Calling try_to_unmap() against a page->mapping==NULL page is
-	 * BUG. So handle it here.
+	 * Corner case handling:
+	 * 1. When a new swap-cache page is read into, it is added to the LRU
+	 * and treated as swapcache but it has no rmap yet.
+	 * Calling try_to_unmap() against a page->mapping==NULL page will
+	 * trigger a BUG.  So handle it here.
+	 * 2. An orphaned page (see truncate_complete_page) might have
+	 * fs-private metadata. The page can be picked up due to memory
+	 * offlining.  Everywhere else except page reclaim, the page is
+	 * invisible to the vm, so the page can not be migrated.  So try to
+	 * free the metadata, so the page can be freed.
 	 */
-	if (!page->mapping)
+	if (!page->mapping) {
+		if (!PageAnon(page) && PagePrivate(page)) {
+			/*
+			 * Go direct to try_to_free_buffers() here because
+			 * a) that's what try_to_release_page() would do anyway
+			 * b) we may be under rcu_read_lock() here, so we can't
+			 *    use GFP_KERNEL which is what try_to_release_page()
+			 *    needs to be effective.
+			 */
+			try_to_free_buffers(page);
+		}
 		goto rcu_unlock;
+	}
+
 	/* Establish migration ptes or remove ptes */
 	try_to_unmap(page, 1);
 
