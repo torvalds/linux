@@ -1611,8 +1611,13 @@ check_pending:
 	}
 	ins->offset = num_bytes;
 	btrfs_free_path(path);
-	if (last_ptr)
+	if (last_ptr) {
 		*last_ptr = ins->objectid + ins->offset;
+		if (*last_ptr ==
+		    btrfs_super_total_bytes(&root->fs_info->super_copy)) {
+			*last_ptr = 0;
+		}
+	}
 	return 0;
 
 new_group:
