@@ -1007,7 +1007,7 @@ static struct notifier_block __cpuinitdata smp_cpu_nb = {
 	.notifier_call = smp_cpu_notify,
 };
 
-static int smp_add_present_cpu(int cpu)
+static int __devinit smp_add_present_cpu(int cpu)
 {
 	struct cpu *c = &per_cpu(cpu_devices, cpu);
 	struct sys_device *s = &c->sysdev;
@@ -1035,8 +1035,8 @@ out:
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-static ssize_t rescan_store(struct sys_device *dev, const char *buf,
-			    size_t count)
+static ssize_t __ref rescan_store(struct sys_device *dev,
+				  const char *buf, size_t count)
 {
 	cpumask_t newcpus;
 	int cpu;

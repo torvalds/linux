@@ -62,7 +62,7 @@ void __meminit memmap_init(unsigned long size, int nid, unsigned long zone,
 	}
 }
 
-static void __init_refok *vmem_alloc_pages(unsigned int order)
+static void __ref *vmem_alloc_pages(unsigned int order)
 {
 	if (slab_is_available())
 		return (void *)__get_free_pages(GFP_KERNEL, order);
