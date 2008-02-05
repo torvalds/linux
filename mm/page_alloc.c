@@ -2546,8 +2546,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
 	}
 }
 
-static void __meminit zone_init_free_lists(struct pglist_data *pgdat,
-				struct zone *zone, unsigned long size)
+static void __meminit zone_init_free_lists(struct zone *zone)
 {
 	int order, t;
 	for_each_migratetype_order(order, t) {
@@ -2820,7 +2819,7 @@ __meminit int init_currently_empty_zone(struct zone *zone,
 
 	memmap_init(size, pgdat->node_id, zone_idx(zone), zone_start_pfn);
 
-	zone_init_free_lists(pgdat, zone, zone->spanned_pages);
+	zone_init_free_lists(zone);
 
 	return 0;
 }
