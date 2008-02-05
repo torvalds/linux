@@ -95,14 +95,17 @@ static inline gfp_t root_gfp_mask(struct radix_tree_root *root)
 static struct radix_tree_node *
 radix_tree_node_alloc(struct radix_tree_root *root)
 {
-	struct radix_tree_node *ret;
+	struct radix_tree_node *ret = NULL;
 	gfp_t gfp_mask = root_gfp_mask(root);
 
-	ret = kmem_cache_alloc(radix_tree_node_cachep,
-				set_migrateflags(gfp_mask, __GFP_RECLAIMABLE));
-	if (ret == NULL && !(gfp_mask & __GFP_WAIT)) {
+	if (!(gfp_mask & __GFP_WAIT)) {
 		struct radix_tree_preload *rtp;
 
+		/*
+		 * Provided the caller has preloaded here, we will always
+		 * succeed in getting a node here (and never reach
+		 * kmem_cache_alloc)
+		 */
 		rtp = &__get_cpu_var(radix_tree_preloads);
 		if (rtp->nr) {
 			ret = rtp->nodes[rtp->nr - 1];
@@ -110,6 +113,10 @@ radix_tree_node_alloc(struct radix_tree_root *root)
 			rtp->nr--;
 		}
 	}
+	if (ret == NULL)
+		ret = kmem_cache_alloc(radix_tree_node_cachep,
+				set_migrateflags(gfp_mask, __GFP_RECLAIMABLE));
+
 	BUG_ON(radix_tree_is_indirect_ptr(ret));
 	return ret;
 }
