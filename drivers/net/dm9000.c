@@ -137,6 +137,7 @@ typedef struct board_info {
 	u16 dbug_cnt;
 	u8 io_mode;		/* 0:word, 2:byte */
 	u8 phy_addr;
+	unsigned int flags;
 
 	void (*inblk)(void __iomem *port, void *data, int length);
 	void (*outblk)(void __iomem *port, void *data, int length);
@@ -525,6 +526,8 @@ dm9000_probe(struct platform_device *pdev)
 
 		if (pdata->dumpblk != NULL)
 			db->dumpblk = pdata->dumpblk;
+
+		db->flags = pdata->flags;
 	}
 
 	dm9000_reset(db);
@@ -664,6 +667,9 @@ dm9000_init_dm9000(struct net_device *dev)
 	iow(db, DM9000_GPR, 0);	/* REG_1F bit0 activate phyxcer */
 	iow(db, DM9000_GPCR, GPCR_GEP_CNTL);	/* Let GPIO0 output */
 	iow(db, DM9000_GPR, 0);	/* Enable PHY */
+
+	if (db->flags & DM9000_PLATF_EXT_PHY)
+		iow(db, DM9000_NCR, NCR_EXT_PHY);
 
 	/* Program operating register */
 	iow(db, DM9000_TCR, 0);	        /* TX Polling clear */
