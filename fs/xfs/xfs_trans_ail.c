@@ -34,9 +34,9 @@ STATIC xfs_log_item_t * xfs_ail_min(xfs_ail_entry_t *);
 STATIC xfs_log_item_t * xfs_ail_next(xfs_ail_entry_t *, xfs_log_item_t *);
 
 #ifdef DEBUG
-STATIC void xfs_ail_check(xfs_ail_entry_t *);
+STATIC void xfs_ail_check(xfs_ail_entry_t *, xfs_log_item_t *);
 #else
-#define	xfs_ail_check(a)
+#define	xfs_ail_check(a,l)
 #endif /* DEBUG */
 
 
@@ -563,7 +563,7 @@ xfs_ail_insert(
 	next_lip->li_ail.ail_forw = lip;
 	lip->li_ail.ail_forw->li_ail.ail_back = lip;
 
-	xfs_ail_check(base);
+	xfs_ail_check(base, lip);
 	return;
 }
 
@@ -577,12 +577,12 @@ xfs_ail_delete(
 	xfs_log_item_t	*lip)
 /* ARGSUSED */
 {
+	xfs_ail_check(base, lip);
 	lip->li_ail.ail_forw->li_ail.ail_back = lip->li_ail.ail_back;
 	lip->li_ail.ail_back->li_ail.ail_forw = lip->li_ail.ail_forw;
 	lip->li_ail.ail_forw = NULL;
 	lip->li_ail.ail_back = NULL;
 
-	xfs_ail_check(base);
 	return lip;
 }
 
@@ -626,13 +626,13 @@ xfs_ail_next(
  */
 STATIC void
 xfs_ail_check(
-	xfs_ail_entry_t *base)
+	xfs_ail_entry_t *base,
+	xfs_log_item_t	*lip)
 {
-	xfs_log_item_t	*lip;
 	xfs_log_item_t	*prev_lip;
 
-	lip = base->ail_forw;
-	if (lip == (xfs_log_item_t*)base) {
+	prev_lip = base->ail_forw;
+	if (prev_lip == (xfs_log_item_t*)base) {
 		/*
 		 * Make sure the pointers are correct when the list
 		 * is empty.
@@ -642,9 +642,27 @@ xfs_ail_check(
 	}
 
 	/*
+	 * Check the next and previous entries are valid.
+	 */
+	ASSERT((lip->li_flags & XFS_LI_IN_AIL) != 0);
+	prev_lip = lip->li_ail.ail_back;
+	if (prev_lip != (xfs_log_item_t*)base) {
+		ASSERT(prev_lip->li_ail.ail_forw == lip);
+		ASSERT(XFS_LSN_CMP(prev_lip->li_lsn, lip->li_lsn) <= 0);
+	}
+	prev_lip = lip->li_ail.ail_forw;
+	if (prev_lip != (xfs_log_item_t*)base) {
+		ASSERT(prev_lip->li_ail.ail_back == lip);
+		ASSERT(XFS_LSN_CMP(prev_lip->li_lsn, lip->li_lsn) >= 0);
+	}
+
+
+#ifdef XFS_TRANS_DEBUG
+	/*
 	 * Walk the list checking forward and backward pointers,
 	 * lsn ordering, and that every entry has the XFS_LI_IN_AIL
-	 * flag set.
+	 * flag set. This is really expensive, so only do it when
+	 * specifically debugging the transaction subsystem.
 	 */
 	prev_lip = (xfs_log_item_t*)base;
 	while (lip != (xfs_log_item_t*)base) {
@@ -659,5 +677,6 @@ xfs_ail_check(
 	}
 	ASSERT(lip == (xfs_log_item_t*)base);
 	ASSERT(base->ail_back == prev_lip);
+#endif /* XFS_TRANS_DEBUG */
 }
 #endif /* DEBUG */
