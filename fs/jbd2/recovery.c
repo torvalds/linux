@@ -641,7 +641,7 @@ static int do_one_pass(journal_t *journal,
 				if (chksum_err) {
 					info->end_transaction = next_commit_ID;
 
-					if (!JBD2_HAS_COMPAT_FEATURE(journal,
+					if (!JBD2_HAS_INCOMPAT_FEATURE(journal,
 					   JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT)){
 						printk(KERN_ERR
 						       "JBD: Transaction %u "
