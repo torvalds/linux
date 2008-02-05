@@ -147,7 +147,7 @@ static int read_ldt(void __user * ptr, unsigned long bytecount)
 	if (ptrace_ldt)
 		return read_ldt_from_host(ptr, bytecount);
 
-	down(&ldt->semaphore);
+	mutex_lock(&ldt->lock);
 	if (ldt->entry_count <= LDT_DIRECT_ENTRIES) {
 		size = LDT_ENTRY_SIZE*LDT_DIRECT_ENTRIES;
 		if (size > bytecount)
@@ -171,7 +171,7 @@ static int read_ldt(void __user * ptr, unsigned long bytecount)
 			ptr += size;
 		}
 	}
-	up(&ldt->semaphore);
+	mutex_unlock(&ldt->lock);
 
 	if (bytecount == 0 || err == -EFAULT)
 		goto out;
@@ -229,7 +229,7 @@ static int write_ldt(void __user * ptr, unsigned long bytecount, int func)
 	}
 
 	if (!ptrace_ldt)
-		down(&ldt->semaphore);
+		mutex_lock(&ldt->lock);
 
 	err = write_ldt_entry(mm_idp, func, &ldt_info, &addr, 1);
 	if (err)
@@ -289,7 +289,7 @@ static int write_ldt(void __user * ptr, unsigned long bytecount, int func)
 	err = 0;
 
 out_unlock:
-	up(&ldt->semaphore);
+	mutex_unlock(&ldt->lock);
 out:
 	return err;
 }
@@ -396,7 +396,7 @@ long init_new_ldt(struct mm_context *new_mm, struct mm_context *from_mm)
 
 
 	if (!ptrace_ldt)
-		init_MUTEX(&new_mm->ldt.semaphore);
+		mutex_init(&new_mm->ldt.lock);
 
 	if (!from_mm) {
 		memset(&desc, 0, sizeof(desc));
@@ -456,7 +456,7 @@ long init_new_ldt(struct mm_context *new_mm, struct mm_context *from_mm)
 		 * i.e., we have to use the stub for modify_ldt, which
 		 * can't handle the big read buffer of up to 64kB.
 		 */
-		down(&from_mm->ldt.semaphore);
+		mutex_lock(&from_mm->ldt.lock);
 		if (from_mm->ldt.entry_count <= LDT_DIRECT_ENTRIES)
 			memcpy(new_mm->ldt.u.entries, from_mm->ldt.u.entries,
 			       sizeof(new_mm->ldt.u.entries));
@@ -475,7 +475,7 @@ long init_new_ldt(struct mm_context *new_mm, struct mm_context *from_mm)
 			}
 		}
 		new_mm->ldt.entry_count = from_mm->ldt.entry_count;
-		up(&from_mm->ldt.semaphore);
+		mutex_unlock(&from_mm->ldt.lock);
 	}
 
     out:
