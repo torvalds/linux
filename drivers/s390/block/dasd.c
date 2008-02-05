@@ -1706,7 +1706,7 @@ static void __dasd_cleanup_cqr(struct dasd_ccw_req *cqr)
 
 	req = (struct request *) cqr->callback_data;
 	dasd_profile_end(cqr->block, cqr, req);
-	status = cqr->memdev->discipline->free_cp(cqr, req);
+	status = cqr->block->base->discipline->free_cp(cqr, req);
 	if (status <= 0)
 		error = status ? status : -EIO;
 	dasd_end_request(req, error);
