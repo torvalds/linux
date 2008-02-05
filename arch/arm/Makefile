@@ -134,7 +134,6 @@ endif
  machine-$(CONFIG_ARCH_PNX4008)	   := pnx4008
  machine-$(CONFIG_ARCH_NETX)	   := netx
  machine-$(CONFIG_ARCH_NS9XXX)	   := ns9xxx
- textofs-$(CONFIG_ARCH_NS9XXX)	   := 0x00108000
  machine-$(CONFIG_ARCH_DAVINCI)	   := davinci
  machine-$(CONFIG_ARCH_KS8695)     := ks8695
   incdir-$(CONFIG_ARCH_MXC)	   := mxc
