@@ -145,6 +145,23 @@ out:
 	return ret;
 }
 #endif /* CONFIG_MEMORY_HOTREMOVE */
+
+/*
+ * walk_memory_resource() needs to make sure there is no holes in a given
+ * memory range. On PPC64, since this range comes from /sysfs, the range
+ * is guaranteed to be valid, non-overlapping and can not contain any
+ * holes. By the time we get here (memory add or remove), /proc/device-tree
+ * is updated and correct. Only reason we need to check against device-tree
+ * would be if we allow user-land to specify a memory range through a
+ * system call/ioctl etc. instead of doing offline/online through /sysfs.
+ */
+int
+walk_memory_resource(unsigned long start_pfn, unsigned long nr_pages, void *arg,
+			int (*func)(unsigned long, unsigned long, void *))
+{
+	return  (*func)(start_pfn, nr_pages, arg);
+}
+
 #endif /* CONFIG_MEMORY_HOTPLUG */
 
 void show_mem(void)
