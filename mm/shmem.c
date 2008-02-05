@@ -78,11 +78,9 @@
 
 /* Flag allocation requirements to shmem_getpage and shmem_swp_alloc */
 enum sgp_type {
-	SGP_QUICK,	/* don't try more than file page cache lookup */
 	SGP_READ,	/* don't exceed i_size, don't allocate page */
 	SGP_CACHE,	/* don't exceed i_size, may allocate page */
 	SGP_WRITE,	/* may exceed i_size, may allocate page */
-	SGP_FAULT,	/* same as SGP_CACHE, return with page locked */
 };
 
 static int shmem_getpage(struct inode *inode, unsigned long idx,
@@ -1116,8 +1114,6 @@ repeat:
 	if (filepage && PageUptodate(filepage))
 		goto done;
 	error = 0;
-	if (sgp == SGP_QUICK)
-		goto failed;
 	gfp = mapping_gfp_mask(mapping);
 
 	spin_lock(&info->lock);
@@ -1292,7 +1288,7 @@ repeat:
 done:
 	if (*pagep != filepage) {
 		*pagep = filepage;
-		if (sgp != SGP_FAULT)
+		if (sgp != SGP_CACHE)
 			unlock_page(filepage);
 
 	}
@@ -1315,7 +1311,7 @@ static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	if (((loff_t)vmf->pgoff << PAGE_CACHE_SHIFT) >= i_size_read(inode))
 		return VM_FAULT_SIGBUS;
 
-	error = shmem_getpage(inode, vmf->pgoff, &vmf->page, SGP_FAULT, &ret);
+	error = shmem_getpage(inode, vmf->pgoff, &vmf->page, SGP_CACHE, &ret);
 	if (error)
 		return ((error == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS);
 
