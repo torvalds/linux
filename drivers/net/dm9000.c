@@ -643,7 +643,7 @@ dm9000_probe(struct platform_device *pdev)
 	dm9000_reset(db);
 
 	/* try two times, DM9000 sometimes gets the first read wrong */
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < 8; i++) {
 		id_val  = ior(db, DM9000_VIDL);
 		id_val |= (u32)ior(db, DM9000_VIDH) << 8;
 		id_val |= (u32)ior(db, DM9000_PIDL) << 16;
