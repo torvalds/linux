@@ -437,7 +437,10 @@ __uml_help(ubd_setup,
 "    machine by running 'dd' on the device. <n> must be in the range\n"
 "    0 to 7. Appending an 'r' to the number will cause that device\n"
 "    to be mounted read-only. For example ubd1r=./ext_fs. Appending\n"
-"    an 's' will cause data to be written to disk on the host immediately.\n\n"
+"    an 's' will cause data to be written to disk on the host immediately.\n"
+"    'c' will cause the device to be treated as being shared between multiple\n"
+"    UMLs and file locking will be turned off - this is appropriate for a\n"
+"    cluster filesystem and inappropriate at almost all other times.\n\n"
 );
 
 static int udb_setup(char *str)
