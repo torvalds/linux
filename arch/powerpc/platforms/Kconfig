@@ -24,6 +24,7 @@ config PPC_83xx
 	select MPC83xx
 	select IPIC
 	select WANT_DEVICE_TREE
+	select FSL_EMB_PERFMON
 
 config PPC_86xx
 	bool "Freescale 86xx"
