@@ -315,7 +315,7 @@ static void kernel_kexec(void)
 #endif
 }
 
-void kernel_shutdown_prepare(enum system_states state)
+static void kernel_shutdown_prepare(enum system_states state)
 {
 	blocking_notifier_call_chain(&reboot_notifier_list,
 		(state == SYSTEM_HALT)?SYS_HALT:SYS_POWER_OFF, NULL);
