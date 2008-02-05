@@ -315,7 +315,24 @@ typedef struct kernel_cap_struct {
 
 #define CAP_SETFCAP	     31
 
-#define CAP_LAST_CAP         CAP_SETFCAP
+/* Override MAC access.
+   The base kernel enforces no MAC policy.
+   An LSM may enforce a MAC policy, and if it does and it chooses
+   to implement capability based overrides of that policy, this is
+   the capability it should use to do so. */
+
+#define CAP_MAC_OVERRIDE     32
+
+/* Allow MAC configuration or state changes.
+   The base kernel requires no MAC configuration.
+   An LSM may enforce a MAC policy, and if it does and it chooses
+   to implement capability based checks on modifications to that
+   policy or the data required to maintain it, this is the
+   capability it should use to do so. */
+
+#define CAP_MAC_ADMIN        33
+
+#define CAP_LAST_CAP         CAP_MAC_ADMIN
 
 #define cap_valid(x) ((x) >= 0 && (x) <= CAP_LAST_CAP)
 
@@ -341,6 +358,8 @@ typedef struct kernel_cap_struct {
 			    | CAP_TO_MASK(CAP_FOWNER)		\
 			    | CAP_TO_MASK(CAP_FSETID))
 
+# define CAP_FS_MASK_B1     (CAP_TO_MASK(CAP_MAC_OVERRIDE))
+
 #if _LINUX_CAPABILITY_U32S != 2
 # error Fix up hand-coded capability macro initializers
 #else /* HAND-CODED capability initializers */
@@ -348,8 +367,9 @@ typedef struct kernel_cap_struct {
 # define CAP_EMPTY_SET    {{ 0, 0 }}
 # define CAP_FULL_SET     {{ ~0, ~0 }}
 # define CAP_INIT_EFF_SET {{ ~CAP_TO_MASK(CAP_SETPCAP), ~0 }}
-# define CAP_FS_SET       {{ CAP_FS_MASK_B0, 0 }}
-# define CAP_NFSD_SET     {{ CAP_FS_MASK_B0|CAP_TO_MASK(CAP_SYS_RESOURCE), 0 }}
+# define CAP_FS_SET       {{ CAP_FS_MASK_B0, CAP_FS_MASK_B1 } }
+# define CAP_NFSD_SET     {{ CAP_FS_MASK_B0|CAP_TO_MASK(CAP_SYS_RESOURCE), \
+			     CAP_FS_MASK_B1 } }
 
 #endif /* _LINUX_CAPABILITY_U32S != 2 */
 
