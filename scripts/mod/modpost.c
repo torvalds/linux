@@ -1136,10 +1136,10 @@ static void report_sec_mismatch(const char *modname, enum mismatch mismatch,
 	if (!sec_mismatch_verbose)
 		return;
 
-	fprintf(stderr, "WARNING: %s(%s+0x%llx): Section mismatch in"
-	                " reference from the %s %s%s to the %s %s:%s%s\n",
-                        modname, fromsec, fromaddr, from, fromsym, from_p,
-	                to, tosec, tosym, to_p);
+	warn("%s(%s+0x%llx): Section mismatch in reference from the %s %s%s "
+	     "to the %s %s:%s%s\n",
+	     modname, fromsec, fromaddr, from, fromsym, from_p, to, tosec,
+	     tosym, to_p);
 
 	switch (mismatch) {
 	case TEXT_TO_INIT:
@@ -1945,10 +1945,10 @@ int main(int argc, char **argv)
 	if (dump_write)
 		write_dump(dump_write);
 	if (sec_mismatch_count && !sec_mismatch_verbose)
-		fprintf(stderr, "modpost: Found %d section mismatch(es).\n"
-		        "To see full details build your kernel with:\n"
-		        "'make CONFIG_DEBUG_SECTION_MISMATCH=y'\n",
-		        sec_mismatch_count);
+		warn("modpost: Found %d section mismatch(es).\n"
+		     "To see full details build your kernel with:\n"
+		     "'make CONFIG_DEBUG_SECTION_MISMATCH=y'\n",
+		     sec_mismatch_count);
 
 	return err;
 }
