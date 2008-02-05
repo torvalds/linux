@@ -265,16 +265,14 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 	set_extent_uptodate(io_tree, start_pos, end_of_last_block, GFP_NOFS);
 
 	/* FIXME...EIEIO, ENOSPC and more */
-
 	/* insert any holes we need to create */
-	if (inode->i_size < start_pos) {
+	if (isize < end_pos) {
 		u64 last_pos_in_file;
 		u64 hole_size;
 		u64 mask = root->sectorsize - 1;
 		last_pos_in_file = (isize + mask) & ~mask;
 		hole_size = (end_pos - last_pos_in_file + mask) & ~mask;
-
-		if (last_pos_in_file < start_pos) {
+		if (last_pos_in_file < end_pos) {
 			err = btrfs_drop_extents(trans, root, inode,
 						 last_pos_in_file,
 						 last_pos_in_file + hole_size,
