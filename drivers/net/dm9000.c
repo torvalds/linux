@@ -132,7 +132,6 @@ typedef struct board_info {
 	struct resource *data_req;
 	struct resource *irq_res;
 
-	unsigned char srom[128];
 	spinlock_t lock;
 
 	struct mii_if_info mii;
@@ -166,7 +165,8 @@ static irqreturn_t dm9000_interrupt(int, void *);
 static int dm9000_phy_read(struct net_device *dev, int phyaddr_unsused, int reg);
 static void dm9000_phy_write(struct net_device *dev, int phyaddr_unused, int reg,
 			   int value);
-static u16 read_srom_word(board_info_t *, int);
+
+static void dm9000_read_eeprom(board_info_t *, int addr, unsigned char *to);
 static void dm9000_rx(struct net_device *);
 static void dm9000_hash_table(struct net_device *);
 
@@ -630,13 +630,9 @@ dm9000_probe(struct platform_device *pdev)
 	db->mii.mdio_read    = dm9000_phy_read;
 	db->mii.mdio_write   = dm9000_phy_write;
 
-	/* Read SROM content */
-	for (i = 0; i < 64; i++)
-		((u16 *) db->srom)[i] = read_srom_word(db, i);
-
-	/* Set Node Address */
-	for (i = 0; i < 6; i++)
-		ndev->dev_addr[i] = db->srom[i];
+	/* try reading the node address from the attached EEPROM */
+	for (i = 0; i < 6; i += 2)
+		dm9000_read_eeprom(db, i / 2, ndev->dev_addr+i);
 
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
 		/* try reading from mac */
@@ -998,17 +994,19 @@ dm9000_rx(struct net_device *dev)
 }
 
 /*
- *  Read a word data from SROM
+ *  Read a word data from EEPROM
  */
-static u16
-read_srom_word(board_info_t * db, int offset)
+static void
+dm9000_read_eeprom(board_info_t * db, int offset, unsigned char *to)
 {
 	iow(db, DM9000_EPAR, offset);
 	iow(db, DM9000_EPCR, EPCR_ERPRR);
 	mdelay(8);		/* according to the datasheet 200us should be enough,
 				   but it doesn't work */
 	iow(db, DM9000_EPCR, 0x0);
-	return (ior(db, DM9000_EPDRL) + (ior(db, DM9000_EPDRH) << 8));
+
+	to[0] = ior(db, DM9000_EPDRL);
+	to[1] = ior(db, DM9000_EPDRH);
 }
 
 #ifdef DM9000_PROGRAM_EEPROM
