@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2000 - 2003 Jeff Dike (jdike@addtoit.com)
+ * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 #ifndef __UM_ELF_I386_H
@@ -46,7 +46,7 @@ typedef struct user_i387_struct elf_fpregset_t;
 	PT_REGS_EDI(regs) = 0; \
 	PT_REGS_EBP(regs) = 0; \
 	PT_REGS_EAX(regs) = 0; \
-} while(0)
+} while (0)
 
 #define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE 4096
@@ -74,7 +74,7 @@ typedef struct user_i387_struct elf_fpregset_t;
 	pr_reg[14] = PT_REGS_EFLAGS(regs);	\
 	pr_reg[15] = PT_REGS_SP(regs);		\
 	pr_reg[16] = PT_REGS_SS(regs);		\
-} while(0);
+} while (0);
 
 extern int elf_core_copy_fpregs(struct task_struct *t, elf_fpregset_t *fpu);
 
@@ -86,7 +86,7 @@ extern long elf_aux_hwcap;
 extern char * elf_aux_platform;
 #define ELF_PLATFORM (elf_aux_platform)
 
-#define SET_PERSONALITY(ex, ibcs2) do ; while(0)
+#define SET_PERSONALITY(ex, ibcs2) do { } while (0)
 
 extern unsigned long vsyscall_ehdr;
 extern unsigned long vsyscall_end;
@@ -161,14 +161,3 @@ if ( vsyscall_ehdr ) {							      \
 }
 
 #endif
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

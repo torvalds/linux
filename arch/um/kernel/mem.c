@@ -1,28 +1,22 @@
 /*
- * Copyright (C) 2000 - 2003 Jeff Dike (jdike@addtoit.com)
+ * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
-#include "linux/stddef.h"
-#include "linux/kernel.h"
-#include "linux/mm.h"
-#include "linux/bootmem.h"
-#include "linux/swap.h"
-#include "linux/highmem.h"
-#include "linux/gfp.h"
-#include "asm/page.h"
-#include "asm/fixmap.h"
-#include "asm/pgalloc.h"
-#include "kern_util.h"
+#include <linux/stddef.h>
+#include <linux/bootmem.h>
+#include <linux/gfp.h>
+#include <linux/highmem.h>
+#include <linux/mm.h>
+#include <linux/swap.h>
+#include <asm/fixmap.h>
+#include <asm/page.h>
 #include "as-layout.h"
-#include "kern.h"
-#include "mem_user.h"
-#include "um_uaccess.h"
-#include "os.h"
-#include "linux/types.h"
-#include "linux/string.h"
 #include "init.h"
-#include "kern_constants.h"
+#include "kern.h"
+#include "kern_util.h"
+#include "mem_user.h"
+#include "os.h"
 
 /* allocated in paging_init, zeroed in mem_init, and unchanged thereafter */
 unsigned long *empty_zero_page = NULL;
@@ -53,7 +47,7 @@ static void setup_highmem(unsigned long highmem_start,
 	int i;
 
 	highmem_pfn = __pa(highmem_start) >> PAGE_SHIFT;
-	for(i = 0; i < highmem_len >> PAGE_SHIFT; i++){
+	for (i = 0; i < highmem_len >> PAGE_SHIFT; i++) {
 		page = &mem_map[highmem_pfn + i];
 		ClearPageReserved(page);
 		init_page_count(page);
@@ -85,7 +79,7 @@ void __init mem_init(void)
 #endif
 	num_physpages = totalram_pages;
 	max_pfn = totalram_pages;
-	printk(KERN_INFO "Memory: %luk available\n", 
+	printk(KERN_INFO "Memory: %luk available\n",
 	       (unsigned long) nr_free_pages() << (PAGE_SHIFT-10));
 	kmalloc_ok = 1;
 
@@ -119,7 +113,7 @@ static void __init one_md_table_init(pud_t *pud)
 #endif
 }
 
-static void __init fixrange_init(unsigned long start, unsigned long end, 
+static void __init fixrange_init(unsigned long start, unsigned long end,
 				 pgd_t *pgd_base)
 {
 	pgd_t *pgd;
@@ -206,7 +200,8 @@ static void __init fixaddr_user_init( void)
 	paddr = (unsigned long)alloc_bootmem_low_pages( size);
 	memcpy( (void *)paddr, (void *)FIXADDR_USER_START, size);
 	paddr = __pa(paddr);
-	for ( ; size > 0; size-=PAGE_SIZE, vaddr+=PAGE_SIZE, paddr+=PAGE_SIZE){
+	for ( ; size > 0; size -= PAGE_SIZE, vaddr += PAGE_SIZE,
+		      paddr += PAGE_SIZE) {
 		pgd = swapper_pg_dir + pgd_index(vaddr);
 		pud = pud_offset(pgd, vaddr);
 		pmd = pmd_offset(pud, vaddr);
@@ -223,7 +218,7 @@ void __init paging_init(void)
 
 	empty_zero_page = (unsigned long *) alloc_bootmem_low_pages(PAGE_SIZE);
 	empty_bad_page = (unsigned long *) alloc_bootmem_low_pages(PAGE_SIZE);
-	for(i = 0; i < ARRAY_SIZE(zones_size); i++)
+	for (i = 0; i < ARRAY_SIZE(zones_size); i++)
 		zones_size[i] = 0;
 
 	zones_size[ZONE_NORMAL] = (end_iomem >> PAGE_SHIFT) -
@@ -253,26 +248,26 @@ struct page *arch_validate(struct page *page, gfp_t mask, int order)
 	int i;
 
  again:
-	if(page == NULL)
+	if (page == NULL)
 		return page;
-	if(PageHighMem(page))
+	if (PageHighMem(page))
 		return page;
 
 	addr = (unsigned long) page_address(page);
-	for(i = 0; i < (1 << order); i++){
+	for (i = 0; i < (1 << order); i++) {
 		current->thread.fault_addr = (void *) addr;
-		if(__do_copy_to_user((void __user *) addr, &zero,
+		if (__do_copy_to_user((void __user *) addr, &zero,
 				     sizeof(zero),
 				     &current->thread.fault_addr,
-				     &current->thread.fault_catcher)){
-			if(!(mask & __GFP_WAIT))
+				     &current->thread.fault_catcher)) {
+			if (!(mask & __GFP_WAIT))
 				return NULL;
 			else break;
 		}
 		addr += PAGE_SIZE;
 	}
 
-	if(i == (1 << order))
+	if (i == (1 << order))
 		return page;
 	page = alloc_pages(mask, order);
 	goto again;
@@ -291,8 +286,8 @@ void free_initmem(void)
 void free_initrd_mem(unsigned long start, unsigned long end)
 {
 	if (start < end)
-		printk ("Freeing initrd memory: %ldk freed\n", 
-			(end - start) >> 10);
+		printk(KERN_INFO "Freeing initrd memory: %ldk freed\n",
+		       (end - start) >> 10);
 	for (; start < end; start += PAGE_SIZE) {
 		ClearPageReserved(virt_to_page(start));
 		init_page_count(virt_to_page(start));
@@ -309,27 +304,28 @@ void show_mem(void)
 	int highmem = 0;
 	struct page *page;
 
-	printk("Mem-info:\n");
+	printk(KERN_INFO "Mem-info:\n");
 	show_free_areas();
-	printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
+	printk(KERN_INFO "Free swap:       %6ldkB\n",
+	       nr_swap_pages<<(PAGE_SHIFT-10));
 	pfn = max_mapnr;
-	while(pfn-- > 0) {
+	while (pfn-- > 0) {
 		page = pfn_to_page(pfn);
 		total++;
-		if(PageHighMem(page))
+		if (PageHighMem(page))
 			highmem++;
-		if(PageReserved(page))
+		if (PageReserved(page))
 			reserved++;
-		else if(PageSwapCache(page))
+		else if (PageSwapCache(page))
 			cached++;
-		else if(page_count(page))
+		else if (page_count(page))
 			shared += page_count(page) - 1;
 	}
-	printk("%d pages of RAM\n", total);
-	printk("%d pages of HIGHMEM\n", highmem);
-	printk("%d reserved pages\n", reserved);
-	printk("%d pages shared\n", shared);
-	printk("%d pages swap cached\n", cached);
+	printk(KERN_INFO "%d pages of RAM\n", total);
+	printk(KERN_INFO "%d pages of HIGHMEM\n", highmem);
+	printk(KERN_INFO "%d reserved pages\n", reserved);
+	printk(KERN_INFO "%d pages shared\n", shared);
+	printk(KERN_INFO "%d pages swap cached\n", cached);
 }
 
 /* Allocate and free page tables. */
@@ -340,8 +336,8 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 
 	if (pgd) {
 		memset(pgd, 0, USER_PTRS_PER_PGD * sizeof(pgd_t));
-		memcpy(pgd + USER_PTRS_PER_PGD, 
-		       swapper_pg_dir + USER_PTRS_PER_PGD, 
+		memcpy(pgd + USER_PTRS_PER_PGD,
+		       swapper_pg_dir + USER_PTRS_PER_PGD,
 		       (PTRS_PER_PGD - USER_PTRS_PER_PGD) * sizeof(pgd_t));
 	}
 	return pgd;
