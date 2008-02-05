@@ -167,6 +167,7 @@ static int pSeries_reconfig_remove_node(struct device_node *np)
 
 	if ((child = of_get_next_child(np, NULL))) {
 		of_node_put(child);
+		of_node_put(parent);
 		return -EBUSY;
 	}
 
