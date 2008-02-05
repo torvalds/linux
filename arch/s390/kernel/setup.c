@@ -145,7 +145,7 @@ __setup("condev=", condev_setup);
 
 static int __init conmode_setup(char *str)
 {
-#if defined(CONFIG_SCLP_CONSOLE)
+#if defined(CONFIG_SCLP_CONSOLE) || defined(CONFIG_SCLP_VT220_CONSOLE)
 	if (strncmp(str, "hwc", 4) == 0 || strncmp(str, "sclp", 5) == 0)
                 SET_CONSOLE_SCLP;
 #endif
@@ -183,7 +183,7 @@ static void __init conmode_default(void)
 		 */
 		cpcmd("TERM CONMODE 3215", NULL, 0, NULL);
 		if (ptr == NULL) {
-#if defined(CONFIG_SCLP_CONSOLE)
+#if defined(CONFIG_SCLP_CONSOLE) || defined(CONFIG_SCLP_VT220_CONSOLE)
 			SET_CONSOLE_SCLP;
 #endif
 			return;
@@ -193,7 +193,7 @@ static void __init conmode_default(void)
 			SET_CONSOLE_3270;
 #elif defined(CONFIG_TN3215_CONSOLE)
 			SET_CONSOLE_3215;
-#elif defined(CONFIG_SCLP_CONSOLE)
+#elif defined(CONFIG_SCLP_CONSOLE) || defined(CONFIG_SCLP_VT220_CONSOLE)
 			SET_CONSOLE_SCLP;
 #endif
 		} else if (strncmp(ptr + 8, "3215", 4) == 0) {
@@ -201,7 +201,7 @@ static void __init conmode_default(void)
 			SET_CONSOLE_3215;
 #elif defined(CONFIG_TN3270_CONSOLE)
 			SET_CONSOLE_3270;
-#elif defined(CONFIG_SCLP_CONSOLE)
+#elif defined(CONFIG_SCLP_CONSOLE) || defined(CONFIG_SCLP_VT220_CONSOLE)
 			SET_CONSOLE_SCLP;
 #endif
 		}
@@ -212,7 +212,7 @@ static void __init conmode_default(void)
 		SET_CONSOLE_3270;
 #endif
 	} else {
-#if defined(CONFIG_SCLP_CONSOLE)
+#if defined(CONFIG_SCLP_CONSOLE) || defined(CONFIG_SCLP_VT220_CONSOLE)
 		SET_CONSOLE_SCLP;
 #endif
 	}
