@@ -52,76 +52,61 @@ xfs_swapext(
 	xfs_swapext_t	__user *sxu)
 {
 	xfs_swapext_t	*sxp;
-	xfs_inode_t     *ip=NULL, *tip=NULL;
-	xfs_mount_t     *mp;
-	struct file	*fp = NULL, *tfp = NULL;
-	bhv_vnode_t	*vp, *tvp;
+	xfs_inode_t     *ip, *tip;
+	struct file	*file, *target_file;
 	int		error = 0;
 
 	sxp = kmem_alloc(sizeof(xfs_swapext_t), KM_MAYFAIL);
 	if (!sxp) {
 		error = XFS_ERROR(ENOMEM);
-		goto error0;
+		goto out;
 	}
 
 	if (copy_from_user(sxp, sxu, sizeof(xfs_swapext_t))) {
 		error = XFS_ERROR(EFAULT);
-		goto error0;
+		goto out_free_sxp;
 	}
 
 	/* Pull information for the target fd */
-	if (((fp = fget((int)sxp->sx_fdtarget)) == NULL) ||
-	    ((vp = vn_from_inode(fp->f_path.dentry->d_inode)) == NULL))  {
+	file = fget((int)sxp->sx_fdtarget);
+	if (!file) {
 		error = XFS_ERROR(EINVAL);
-		goto error0;
+		goto out_free_sxp;
 	}
 
-	ip = xfs_vtoi(vp);
-	if (ip == NULL) {
-		error = XFS_ERROR(EBADF);
-		goto error0;
-	}
-
-	if (((tfp = fget((int)sxp->sx_fdtmp)) == NULL) ||
-	    ((tvp = vn_from_inode(tfp->f_path.dentry->d_inode)) == NULL)) {
+	target_file = fget((int)sxp->sx_fdtmp);
+	if (!target_file) {
 		error = XFS_ERROR(EINVAL);
-		goto error0;
+		goto out_put_file;
 	}
 
-	tip = xfs_vtoi(tvp);
-	if (tip == NULL) {
-		error = XFS_ERROR(EBADF);
-		goto error0;
-	}
+	ip = XFS_I(file->f_path.dentry->d_inode);
+	tip = XFS_I(target_file->f_path.dentry->d_inode);
 
 	if (ip->i_mount != tip->i_mount) {
-		error =  XFS_ERROR(EINVAL);
-		goto error0;
+		error = XFS_ERROR(EINVAL);
+		goto out_put_target_file;
 	}
 
 	if (ip->i_ino == tip->i_ino) {
-		error =  XFS_ERROR(EINVAL);
-		goto error0;
+		error = XFS_ERROR(EINVAL);
+		goto out_put_target_file;
 	}
 
-	mp = ip->i_mount;
-
-	if (XFS_FORCED_SHUTDOWN(mp)) {
-		error =  XFS_ERROR(EIO);
-		goto error0;
+	if (XFS_FORCED_SHUTDOWN(ip->i_mount)) {
+		error = XFS_ERROR(EIO);
+		goto out_put_target_file;
 	}
 
 	error = xfs_swap_extents(ip, tip, sxp);
 
- error0:
-	if (fp != NULL)
-		fput(fp);
-	if (tfp != NULL)
-		fput(tfp);
-
-	if (sxp != NULL)
-		kmem_free(sxp, sizeof(xfs_swapext_t));
-
+ out_put_target_file:
+	fput(target_file);
+ out_put_file:
+	fput(file);
+ out_free_sxp:
+	kmem_free(sxp, sizeof(xfs_swapext_t));
+ out:
 	return error;
 }
 
