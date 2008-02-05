@@ -242,6 +242,9 @@ static int ohci_sm501_resume(struct platform_device *pdev)
 	usb_hcd_resume_root_hub(platform_get_drvdata(pdev));
 	return 0;
 }
+#else
+#define ohci_sm501_suspend NULL
+#define ohci_sm501_resume NULL
 #endif
 
 /*-------------------------------------------------------------------------*/
@@ -253,10 +256,8 @@ static struct platform_driver ohci_hcd_sm501_driver = {
 	.probe		= ohci_hcd_sm501_drv_probe,
 	.remove		= ohci_hcd_sm501_drv_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
-#ifdef	CONFIG_PM
 	.suspend	= ohci_sm501_suspend,
 	.resume		= ohci_sm501_resume,
-#endif
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "sm501-usb",
