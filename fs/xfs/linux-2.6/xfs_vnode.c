@@ -103,7 +103,6 @@ vn_revalidate(
 
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
 	inode->i_mode	    = ip->i_d.di_mode;
-	inode->i_nlink	    = ip->i_d.di_nlink;
 	inode->i_uid	    = ip->i_d.di_uid;
 	inode->i_gid	    = ip->i_d.di_gid;
 	inode->i_mtime.tv_sec = ip->i_d.di_mtime.t_sec;

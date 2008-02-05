@@ -201,7 +201,6 @@ xfs_validate_fields(
 	struct xfs_inode	*ip = XFS_I(inode);
 	loff_t size;
 
-	inode->i_nlink = ip->i_d.di_nlink;
 	/* we're under i_sem so i_size can't change under us */
 	size = XFS_ISIZE(ip);
 	if (i_size_read(inode) != size)
