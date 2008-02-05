@@ -833,6 +833,10 @@ static int shmem_unuse_inode(struct shmem_inode_info *info, swp_entry_t entry, s
 	idx = 0;
 	ptr = info->i_direct;
 	spin_lock(&info->lock);
+	if (!info->swapped) {
+		list_del_init(&info->swaplist);
+		goto lost2;
+	}
 	limit = info->next_index;
 	size = limit;
 	if (size > SHMEM_NR_DIRECT)
@@ -894,8 +898,15 @@ found:
 	inode = igrab(&info->vfs_inode);
 	spin_unlock(&info->lock);
 
-	/* move head to start search for next from here */
-	list_move_tail(&shmem_swaplist, &info->swaplist);
+	/*
+	 * Move _head_ to start search for next from here.
+	 * But be careful: shmem_delete_inode checks list_empty without taking
+	 * mutex, and there's an instant in list_move_tail when info->swaplist
+	 * would appear empty, if it were the only one on shmem_swaplist.  We
+	 * could avoid doing it if inode NULL; or use this minor optimization.
+	 */
+	if (shmem_swaplist.next != &info->swaplist)
+		list_move_tail(&shmem_swaplist, &info->swaplist);
 	mutex_unlock(&shmem_swaplist_mutex);
 
 	error = 1;
@@ -955,10 +966,7 @@ int shmem_unuse(swp_entry_t entry, struct page *page)
 	mutex_lock(&shmem_swaplist_mutex);
 	list_for_each_safe(p, next, &shmem_swaplist) {
 		info = list_entry(p, struct shmem_inode_info, swaplist);
-		if (info->swapped)
-			found = shmem_unuse_inode(info, entry, page);
-		else
-			list_del_init(&info->swaplist);
+		found = shmem_unuse_inode(info, entry, page);
 		cond_resched();
 		if (found)
 			goto out;
@@ -1021,18 +1029,23 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 		remove_from_page_cache(page);
 		shmem_swp_set(info, entry, swap.val);
 		shmem_swp_unmap(entry);
+		if (list_empty(&info->swaplist))
+			inode = igrab(inode);
+		else
+			inode = NULL;
 		spin_unlock(&info->lock);
-		if (list_empty(&info->swaplist)) {
-			mutex_lock(&shmem_swaplist_mutex);
-			/* move instead of add in case we're racing */
-			list_move_tail(&info->swaplist, &shmem_swaplist);
-			mutex_unlock(&shmem_swaplist_mutex);
-		}
 		swap_duplicate(swap);
 		BUG_ON(page_mapped(page));
 		page_cache_release(page);	/* pagecache ref */
 		set_page_dirty(page);
 		unlock_page(page);
+		if (inode) {
+			mutex_lock(&shmem_swaplist_mutex);
+			/* move instead of add in case we're racing */
+			list_move_tail(&info->swaplist, &shmem_swaplist);
+			mutex_unlock(&shmem_swaplist_mutex);
+			iput(inode);
+		}
 		return 0;
 	}
 
