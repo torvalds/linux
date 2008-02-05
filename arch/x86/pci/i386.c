@@ -72,7 +72,7 @@ pcibios_align_resource(void *data, struct resource *res,
 		}
 	}
 }
-
+EXPORT_SYMBOL(pcibios_align_resource);
 
 /*
  *  Handle resources of PCI devices.  If the world were perfect, we could

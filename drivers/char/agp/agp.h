@@ -117,7 +117,8 @@ struct agp_bridge_driver {
 	void (*free_by_type)(struct agp_memory *);
 	void *(*agp_alloc_page)(struct agp_bridge_data *);
 	void (*agp_destroy_page)(void *, int flags);
-        int (*agp_type_to_mask_type) (struct agp_bridge_data *, int);
+	int (*agp_type_to_mask_type) (struct agp_bridge_data *, int);
+	void (*chipset_flush)(struct agp_bridge_data *);
 };
 
 struct agp_bridge_data {
@@ -235,6 +236,9 @@ struct agp_bridge_data {
 #define I965_PGETBL_SIZE_512KB	(0 << 1)
 #define I965_PGETBL_SIZE_256KB	(1 << 1)
 #define I965_PGETBL_SIZE_128KB	(2 << 1)
+#define I965_PGETBL_SIZE_1MB	(3 << 1)
+#define I965_PGETBL_SIZE_2MB	(4 << 1)
+#define I965_PGETBL_SIZE_1_5MB	(5 << 1)
 #define G33_PGETBL_SIZE_MASK    (3 << 8)
 #define G33_PGETBL_SIZE_1M      (1 << 8)
 #define G33_PGETBL_SIZE_2M      (2 << 8)
