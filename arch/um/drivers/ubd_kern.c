@@ -460,20 +460,6 @@ __uml_help(udb_setup,
 "    in the boot output.\n\n"
 );
 
-static int fakehd_set = 0;
-static int fakehd(char *str)
-{
-	printk(KERN_INFO "fakehd : Changing ubd name to \"hd\".\n");
-	fakehd_set = 1;
-	return 1;
-}
-
-__setup("fakehd", fakehd);
-__uml_help(fakehd,
-"fakehd\n"
-"    Change the ubd device name to \"hd\".\n\n"
-);
-
 static void do_ubd_request(struct request_queue * q);
 
 /* Only changed by ubd_init, which is an initcall. */
@@ -722,8 +708,10 @@ static int ubd_add(int n, char **error_out)
 		ubd_disk_register(fake_major, ubd_dev->size, n,
 				  &fake_gendisk[n]);
 
-	/* perhaps this should also be under the "if (fake_major)" above */
-	/* using the fake_disk->disk_name and also the fakehd_set name */
+	/*
+	 * Perhaps this should also be under the "if (fake_major)" above
+	 * using the fake_disk->disk_name
+	 */
 	if (fake_ide)
 		make_ide_entries(ubd_gendisk[n]->disk_name);
 
