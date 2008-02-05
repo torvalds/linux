@@ -2029,8 +2029,6 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *port)
 	}
 	port->suspended = 0;
 
-	uart_change_pm(state, 0);
-
 	/*
 	 * Re-enable the console device after suspending.
 	 */
@@ -2049,6 +2047,7 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *port)
 		if (state->info && state->info->tty && termios.c_cflag == 0)
 			termios = *state->info->tty->termios;
 
+		uart_change_pm(state, 0);
 		port->ops->set_termios(port, &termios, NULL);
 		console_start(port->cons);
 	}
@@ -2057,6 +2056,7 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *port)
 		const struct uart_ops *ops = port->ops;
 		int ret;
 
+		uart_change_pm(state, 0);
 		ops->set_mctrl(port, 0);
 		ret = ops->startup(port);
 		if (ret == 0) {
