@@ -680,12 +680,7 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		neigh = *to_ipoib_neigh(skb->dst->neighbour);
 
-		if (ipoib_cm_get(neigh)) {
-			if (ipoib_cm_up(neigh)) {
-				ipoib_cm_send(dev, skb, ipoib_cm_get(neigh));
-				goto out;
-			}
-		} else if (neigh->ah) {
+		if (neigh->ah)
 			if (unlikely((memcmp(&neigh->dgid.raw,
 					    skb->dst->neighbour->ha + 4,
 					    sizeof(union ib_gid))) ||
@@ -706,6 +701,12 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				goto out;
 			}
 
+		if (ipoib_cm_get(neigh)) {
+			if (ipoib_cm_up(neigh)) {
+				ipoib_cm_send(dev, skb, ipoib_cm_get(neigh));
+				goto out;
+			}
+		} else if (neigh->ah) {
 			ipoib_send(dev, skb, neigh->ah, IPOIB_QPN(skb->dst->neighbour->ha));
 			goto out;
 		}
@@ -813,11 +814,9 @@ static void ipoib_neigh_cleanup(struct neighbour *n)
 	struct ipoib_ah *ah = NULL;
 
 	neigh = *to_ipoib_neigh(n);
-	if (neigh) {
+	if (neigh)
 		priv = netdev_priv(neigh->dev);
-		ipoib_dbg(priv, "neigh_destructor for bonding device: %s\n",
-			  n->dev->name);
-	} else
+	else
 		return;
 	ipoib_dbg(priv,
 		  "neigh_cleanup for %06x " IPOIB_GID_FMT "\n",
