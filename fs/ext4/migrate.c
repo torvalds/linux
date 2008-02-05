@@ -414,6 +414,12 @@ int ext4_ext_migrate(struct inode *inode, struct file *filp,
 	if ((EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL))
 		return -EINVAL;
 
+	if (S_ISLNK(inode->i_mode) && inode->i_blocks == 0)
+		/*
+		 * don't migrate fast symlink
+		 */
+		return retval;
+
 	down_write(&EXT4_I(inode)->i_data_sem);
 	handle = ext4_journal_start(inode,
 					EXT4_DATA_TRANS_BLOCKS(inode->i_sb) +
