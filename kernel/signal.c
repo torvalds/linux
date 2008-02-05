@@ -957,7 +957,6 @@ void zap_other_threads(struct task_struct *p)
 {
 	struct task_struct *t;
 
-	p->signal->flags = SIGNAL_GROUP_EXIT;
 	p->signal->group_stop_count = 0;
 
 	for (t = next_thread(p); t != p; t = next_thread(t)) {
@@ -1697,7 +1696,8 @@ static int do_signal_stop(int signr)
 	} else {
 		struct task_struct *t;
 
-		if (!likely(sig->flags & SIGNAL_STOP_DEQUEUED))
+		if (!likely(sig->flags & SIGNAL_STOP_DEQUEUED) ||
+		    unlikely(sig->group_exit_task))
 			return 0;
 		/*
 		 * There is no group stop already in progress.
