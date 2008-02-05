@@ -74,8 +74,7 @@ static int idle_proc(void *cpup)
 	if (err < 0)
 		panic("CPU#%d failed to create IPI pipe, err = %d", cpu, -err);
 
-	os_set_fd_async(cpu_data[cpu].ipi_pipe[0],
-		     current->thread.mode.tt.extern_pid);
+	os_set_fd_async(cpu_data[cpu].ipi_pipe[0]);
 
 	wmb();
 	if (cpu_test_and_set(cpu, cpu_callin_map)) {
@@ -128,8 +127,7 @@ void smp_prepare_cpus(unsigned int maxcpus)
 	if (err < 0)
 		panic("CPU#0 failed to create IPI pipe, errno = %d", -err);
 
-	os_set_fd_async(cpu_data[me].ipi_pipe[0],
-		     current->thread.mode.tt.extern_pid);
+	os_set_fd_async(cpu_data[me].ipi_pipe[0]);
 
 	for (cpu = 1; cpu < ncpus; cpu++) {
 		printk(KERN_INFO "Booting processor %d...\n", cpu);

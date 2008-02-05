@@ -328,19 +328,6 @@ int os_file_modtime(const char *file, unsigned long *modtime)
 	return 0;
 }
 
-int os_get_exec_close(int fd, int *close_on_exec)
-{
-	int ret;
-
-	CATCH_EINTR(ret = fcntl(fd, F_GETFD));
-
-	if(ret < 0)
-		return -errno;
-
-	*close_on_exec = (ret & FD_CLOEXEC) ? 1 : 0;
-	return ret;
-}
-
 int os_set_exec_close(int fd)
 {
 	int err;
@@ -380,30 +367,27 @@ int os_pipe(int *fds, int stream, int close_on_exec)
 	return err;
 }
 
-int os_set_fd_async(int fd, int owner)
+int os_set_fd_async(int fd)
 {
-	int err;
+	int err, flags;
 
-	/* XXX This should do F_GETFL first */
-	if(fcntl(fd, F_SETFL, O_ASYNC | O_NONBLOCK) < 0){
+	flags = fcntl(fd, F_GETFL);
+	if (flags < 0)
+		return -errno;
+
+	flags |= O_ASYNC | O_NONBLOCK;
+	if (fcntl(fd, F_SETFL, flags) < 0) {
 		err = -errno;
 		printk("os_set_fd_async : failed to set O_ASYNC and "
 		       "O_NONBLOCK on fd # %d, errno = %d\n", fd, errno);
 		return err;
 	}
-#ifdef notdef
-	if(fcntl(fd, F_SETFD, 1) < 0){
-		printk("os_set_fd_async : Setting FD_CLOEXEC failed, "
-		       "errno = %d\n", errno);
-	}
-#endif
 
-	if((fcntl(fd, F_SETSIG, SIGIO) < 0) ||
-	   (fcntl(fd, F_SETOWN, owner) < 0)){
+	if ((fcntl(fd, F_SETSIG, SIGIO) < 0) ||
+	    (fcntl(fd, F_SETOWN, os_getpid()) < 0)) {
 		err = -errno;
 		printk("os_set_fd_async : Failed to fcntl F_SETOWN "
-		       "(or F_SETSIG) fd %d to pid %d, errno = %d\n", fd,
-		       owner, errno);
+		       "(or F_SETSIG) fd %d, errno = %d\n", fd, errno);
 		return err;
 	}
 

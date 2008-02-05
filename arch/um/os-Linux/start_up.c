@@ -60,7 +60,8 @@ static int ptrace_child(void)
 		 * the UML code itself.
 		 */
 		ret = 2;
-	_exit(ret);
+
+	exit(ret);
 }
 
 static void fatal_perror(const char *str)

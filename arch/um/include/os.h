@@ -127,7 +127,6 @@ static inline struct openflags of_cloexec(struct openflags flags)
 extern int os_stat_file(const char *file_name, struct uml_stat *buf);
 extern int os_stat_fd(const int fd, struct uml_stat *buf);
 extern int os_access(const char *file, int mode);
-extern int os_get_exec_close(int fd, int *close_on_exec);
 extern int os_set_exec_close(int fd);
 extern int os_ioctl_generic(int fd, unsigned int cmd, unsigned long arg);
 extern int os_get_ifname(int fd, char *namebuf);
@@ -142,7 +141,7 @@ extern int os_write_file(int fd, const void *buf, int count);
 extern int os_file_size(const char *file, unsigned long long *size_out);
 extern int os_file_modtime(const char *file, unsigned long *modtime);
 extern int os_pipe(int *fd, int stream, int close_on_exec);
-extern int os_set_fd_async(int fd, int owner);
+extern int os_set_fd_async(int fd);
 extern int os_clear_fd_async(int fd);
 extern int os_set_fd_block(int fd, int blocking);
 extern int os_accept_connection(int fd);
