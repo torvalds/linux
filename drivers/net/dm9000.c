@@ -814,8 +814,8 @@ dm9000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* TX control: First packet immediately send, second packet queue */
 	if (db->tx_pkt_cnt == 1) {
 		/* Set TX length to DM9000 */
-		iow(db, DM9000_TXPLL, skb->len & 0xff);
-		iow(db, DM9000_TXPLH, (skb->len >> 8) & 0xff);
+		iow(db, DM9000_TXPLL, skb->len);
+		iow(db, DM9000_TXPLH, skb->len >> 8);
 
 		/* Issue TX polling command */
 		iow(db, DM9000_TCR, TCR_TXREQ);	/* Cleared after TX complete */
@@ -890,8 +890,8 @@ dm9000_tx_done(struct net_device *dev, board_info_t * db)
 
 		/* Queue packet check & send */
 		if (db->tx_pkt_cnt > 0) {
-			iow(db, DM9000_TXPLL, db->queue_pkt_len & 0xff);
-			iow(db, DM9000_TXPLH, (db->queue_pkt_len >> 8) & 0xff);
+			iow(db, DM9000_TXPLL, db->queue_pkt_len);
+			iow(db, DM9000_TXPLH, db->queue_pkt_len >> 8);
 			iow(db, DM9000_TCR, TCR_TXREQ);
 			dev->trans_start = jiffies;
 		}
@@ -1275,8 +1275,8 @@ dm9000_phy_write(struct net_device *dev, int phyaddr_unused, int reg, int value)
 	iow(db, DM9000_EPAR, DM9000_PHY | reg);
 
 	/* Fill the written data into REG_0D & REG_0E */
-	iow(db, DM9000_EPDRL, (value & 0xff));
-	iow(db, DM9000_EPDRH, ((value >> 8) & 0xff));
+	iow(db, DM9000_EPDRL, value);
+	iow(db, DM9000_EPDRH, value >> 8);
 
 	iow(db, DM9000_EPCR, 0xa);	/* Issue phyxcer write command */
 
