@@ -69,6 +69,7 @@
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/dmapool.h>
 #include <linux/dma-mapping.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
