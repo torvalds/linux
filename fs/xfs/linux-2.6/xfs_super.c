@@ -569,7 +569,7 @@ xfs_set_inodeops(
 		break;
 	case S_IFLNK:
 		inode->i_op = &xfs_symlink_inode_operations;
-		if (inode->i_blocks)
+		if (!(XFS_I(inode)->i_df.if_flags & XFS_IFINLINE))
 			inode->i_mapping->a_ops = &xfs_address_space_operations;
 		break;
 	default:
@@ -606,8 +606,6 @@ xfs_revalidate_inode(
 
 	inode->i_generation = ip->i_d.di_gen;
 	i_size_write(inode, ip->i_d.di_size);
-	inode->i_blocks =
-		XFS_FSB_TO_BB(mp, ip->i_d.di_nblocks + ip->i_delayed_blks);
 	inode->i_atime.tv_sec	= ip->i_d.di_atime.t_sec;
 	inode->i_atime.tv_nsec	= ip->i_d.di_atime.t_nsec;
 	inode->i_mtime.tv_sec	= ip->i_d.di_mtime.t_sec;

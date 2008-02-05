@@ -202,9 +202,6 @@ xfs_validate_fields(
 	loff_t size;
 
 	inode->i_nlink = ip->i_d.di_nlink;
-	inode->i_blocks =
-		XFS_FSB_TO_BB(ip->i_mount, ip->i_d.di_nblocks +
-					   ip->i_delayed_blks);
 	/* we're under i_sem so i_size can't change under us */
 	size = XFS_ISIZE(ip);
 	if (i_size_read(inode) != size)

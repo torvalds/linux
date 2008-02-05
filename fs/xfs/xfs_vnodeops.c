@@ -1536,9 +1536,6 @@ xfs_release(
 			error = xfs_free_eofblocks(mp, ip, XFS_FREE_EOF_LOCK);
 			if (error)
 				return error;
-			/* Update linux inode block count after free above */
-			vn_to_inode(vp)->i_blocks = XFS_FSB_TO_BB(mp,
-				ip->i_d.di_nblocks + ip->i_delayed_blks);
 		}
 	}
 
@@ -1612,9 +1609,6 @@ xfs_inactive(
 			error = xfs_free_eofblocks(mp, ip, XFS_FREE_EOF_LOCK);
 			if (error)
 				return VN_INACTIVE_CACHE;
-			/* Update linux inode block count after free above */
-			vn_to_inode(vp)->i_blocks = XFS_FSB_TO_BB(mp,
-				ip->i_d.di_nblocks + ip->i_delayed_blks);
 		}
 		goto out;
 	}

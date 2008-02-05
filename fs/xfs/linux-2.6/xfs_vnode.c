@@ -106,8 +106,6 @@ vn_revalidate(
 	inode->i_nlink	    = ip->i_d.di_nlink;
 	inode->i_uid	    = ip->i_d.di_uid;
 	inode->i_gid	    = ip->i_d.di_gid;
-	inode->i_blocks	    =
-		XFS_FSB_TO_BB(mp, ip->i_d.di_nblocks + ip->i_delayed_blks);
 	inode->i_mtime.tv_sec = ip->i_d.di_mtime.t_sec;
 	inode->i_mtime.tv_nsec = ip->i_d.di_mtime.t_nsec;
 	inode->i_ctime.tv_sec = ip->i_d.di_ctime.t_sec;
