@@ -146,6 +146,9 @@ static void handle_trap(int pid, struct uml_pt_regs *regs,
 {
 	int err, status;
 
+	if ((UPT_IP(regs) >= STUB_START) && (UPT_IP(regs) < STUB_END))
+		fatal_sigsegv();
+
 	/* Mark this as a syscall */
 	UPT_SYSCALL_NR(regs) = PT_SYSCALL_NR(regs->gp);
 
