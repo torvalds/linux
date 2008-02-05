@@ -164,8 +164,20 @@ void destroy_context(struct mm_struct *mm)
 
 	if (proc_mm)
 		os_close_file(mmu->id.u.mm_fd);
-	else
+	else {
+		/*
+		 * If init_new_context wasn't called, this will be
+		 * zero, resulting in a kill(0), which will result in the
+		 * whole UML suddenly dying.  Also, cover negative and
+		 * 1 cases, since they shouldn't happen either.
+		 */
+		if (mmu->id.u.pid < 2) {
+			printk(KERN_ERR "corrupt mm_context - pid = %d\n",
+			       mmu->id.u.pid);
+			return;
+		}
 		os_kill_ptraced_process(mmu->id.u.pid, 1);
+	}
 
 	if (skas_needs_stub)
 		free_page(mmu->id.stack);
