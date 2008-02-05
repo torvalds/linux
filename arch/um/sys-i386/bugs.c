@@ -3,14 +3,12 @@
  * Licensed under the GPL
  */
 
-#include <errno.h>
 #include <signal.h>
-#include <string.h>
 #include "kern_constants.h"
-#include "os.h"
+#include "longjmp.h"
 #include "task.h"
 #include "user.h"
-#include "sysdep/archsetjmp.h"
+#include "sysdep/ptrace.h"
 
 /* Set during early boot */
 int host_has_cmov = 1;
@@ -22,7 +20,7 @@ static void cmov_sigill_test_handler(int sig)
 	longjmp(cmov_test_return, 1);
 }
 
-static void test_for_host_cmov(void)
+void arch_check_bugs(void)
 {
 	struct sigaction old, new;
 
@@ -44,16 +42,7 @@ static void test_for_host_cmov(void)
 	sigaction(SIGILL, &old, &new);
 }
 
-void arch_init_thread(void)
-{
-}
-
-void arch_check_bugs(void)
-{
-	test_for_host_cmov();
-}
-
-int arch_handle_signal(int sig, struct uml_pt_regs *regs)
+void arch_examine_signal(int sig, struct uml_pt_regs *regs)
 {
 	unsigned char tmp[2];
 
@@ -62,20 +51,25 @@ int arch_handle_signal(int sig, struct uml_pt_regs *regs)
 	 * SIGILL in init.
 	 */
 	if ((sig != SIGILL) || (TASK_PID(get_current()) != 1))
-		return 0;
+		return;
 
-	if (copy_from_user_proc(tmp, (void *) UPT_IP(regs), 2))
-		panic("SIGILL in init, could not read instructions!\n");
+	if (copy_from_user_proc(tmp, (void *) UPT_IP(regs), 2)) {
+		printk(UM_KERN_ERR "SIGILL in init, could not read "
+		       "instructions!\n");
+		return;
+	}
+
 	if ((tmp[0] != 0x0f) || ((tmp[1] & 0xf0) != 0x40))
-		return 0;
+		return;
 
 	if (host_has_cmov == 0)
-		panic("SIGILL caused by cmov, which this processor doesn't "
-		      "implement, boot a filesystem compiled for older "
-		      "processors");
+		printk(UM_KERN_ERR "SIGILL caused by cmov, which this "
+		       "processor doesn't implement.  Boot a filesystem "
+		       "compiled for older processors");
 	else if (host_has_cmov == 1)
-		panic("SIGILL caused by cmov, which this processor claims to "
-		      "implement");
-	else panic("Bad value for host_has_cmov (%d)", host_has_cmov);
-	return 0;
+		printk(UM_KERN_ERR "SIGILL caused by cmov, which this "
+		       "processor claims to implement");
+	else
+		printk(UM_KERN_ERR "Bad value for host_has_cmov (%d)",
+			host_has_cmov);
 }
