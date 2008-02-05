@@ -52,16 +52,13 @@ static struct {
 	unsigned long del_total;
 	unsigned long find_success;
 	unsigned long find_total;
-	unsigned long noent_race;
-	unsigned long exist_race;
 } swap_cache_info;
 
 void show_swap_cache_info(void)
 {
-	printk("Swap cache: add %lu, delete %lu, find %lu/%lu, race %lu+%lu\n",
+	printk("Swap cache: add %lu, delete %lu, find %lu/%lu\n",
 		swap_cache_info.add_total, swap_cache_info.del_total,
-		swap_cache_info.find_success, swap_cache_info.find_total,
-		swap_cache_info.noent_race, swap_cache_info.exist_race);
+		swap_cache_info.find_success, swap_cache_info.find_total);
 	printk("Free swap  = %lukB\n", nr_swap_pages << (PAGE_SHIFT - 10));
 	printk("Total swap = %lukB\n", total_swap_pages << (PAGE_SHIFT - 10));
 }
@@ -89,6 +86,7 @@ static int __add_to_swap_cache(struct page *page, swp_entry_t entry,
 			set_page_private(page, entry.val);
 			total_swapcache_pages++;
 			__inc_zone_page_state(page, NR_FILE_PAGES);
+			INC_CACHE_INFO(add_total);
 		}
 		write_unlock_irq(&swapper_space.tree_lock);
 		radix_tree_preload_end();
@@ -102,10 +100,9 @@ static int add_to_swap_cache(struct page *page, swp_entry_t entry,
 	int error;
 
 	BUG_ON(PageLocked(page));
-	if (!swap_duplicate(entry)) {
-		INC_CACHE_INFO(noent_race);
+	if (!swap_duplicate(entry))
 		return -ENOENT;
-	}
+
 	SetPageLocked(page);
 	error = __add_to_swap_cache(page, entry, gfp_mask & GFP_KERNEL);
 	/*
@@ -114,11 +111,8 @@ static int add_to_swap_cache(struct page *page, swp_entry_t entry,
 	if (error) {
 		ClearPageLocked(page);
 		swap_free(entry);
-		if (error == -EEXIST)
-			INC_CACHE_INFO(exist_race);
 		return error;
 	}
-	INC_CACHE_INFO(add_total);
 	return 0;
 }
 
@@ -178,11 +172,9 @@ int add_to_swap(struct page * page, gfp_t gfp_mask)
 		case 0:				/* Success */
 			SetPageUptodate(page);
 			SetPageDirty(page);
-			INC_CACHE_INFO(add_total);
 			return 1;
 		case -EEXIST:
 			/* Raced with "speculative" read_swap_cache_async */
-			INC_CACHE_INFO(exist_race);
 			swap_free(entry);
 			continue;
 		default:
@@ -225,9 +217,7 @@ int move_to_swap_cache(struct page *page, swp_entry_t entry)
 		if (!swap_duplicate(entry))
 			BUG();
 		SetPageDirty(page);
-		INC_CACHE_INFO(add_total);
-	} else if (err == -EEXIST)
-		INC_CACHE_INFO(exist_race);
+	}
 	return err;
 }
 
