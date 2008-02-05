@@ -872,7 +872,8 @@ wait_for_iobuf:
 		if (err)
 			__jbd2_journal_abort_hard(journal);
 	}
-	err = journal_wait_on_commit_record(cbh);
+	if (!err && !is_journal_aborted(journal))
+		err = journal_wait_on_commit_record(cbh);
 
 	if (err)
 		jbd2_journal_abort(journal, err);
