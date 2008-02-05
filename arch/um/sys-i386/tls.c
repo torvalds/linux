@@ -172,7 +172,7 @@ void clear_flushed_tls(struct task_struct *task)
  * SKAS patch.
  */
 
-int arch_switch_tls(struct task_struct *from, struct task_struct *to)
+int arch_switch_tls(struct task_struct *to)
 {
 	if (!host_supports_tls)
 		return 0;

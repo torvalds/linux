@@ -81,12 +81,12 @@ static inline void set_current(struct task_struct *task)
 		{ external_pid(task), task });
 }
 
-extern void arch_switch_to(struct task_struct *from, struct task_struct *to);
+extern void arch_switch_to(struct task_struct *to);
 
 void *_switch_to(void *prev, void *next, void *last)
 {
 	struct task_struct *from = prev;
-	struct task_struct *to= next;
+	struct task_struct *to = next;
 
 	to->thread.prev_sched = from;
 	set_current(to);
@@ -94,16 +94,15 @@ void *_switch_to(void *prev, void *next, void *last)
 	do {
 		current->thread.saved_task = NULL;
 
-		switch_threads(&from->thread.switch_buf,
-			       &to->thread.switch_buf);
+		switch_threads(&from->thread.switch_buf, &to->thread.switch_buf);
 
-		arch_switch_to(current->thread.prev_sched, current);
+		arch_switch_to(current);
 
 		if (current->thread.saved_task)
 			show_regs(&(current->thread.regs));
-		next= current->thread.saved_task;
-		prev= current;
-	} while(current->thread.saved_task);
+		next = current->thread.saved_task;
+		prev = current;
+	} while (current->thread.saved_task);
 
 	return current->thread.prev_sched;
 
@@ -161,8 +160,6 @@ void new_thread_handler(void)
 void fork_handler(void)
 {
 	force_flush_all();
-	if (current->thread.prev_sched == NULL)
-		panic("blech");
 
 	schedule_tail(current->thread.prev_sched);
 
@@ -171,7 +168,7 @@ void fork_handler(void)
 	 * arch_switch_to isn't needed. We could want to apply this to
 	 * improve performance. -bb
 	 */
-	arch_switch_to(current->thread.prev_sched, current);
+	arch_switch_to(current);
 
 	current->thread.prev_sched = NULL;
 

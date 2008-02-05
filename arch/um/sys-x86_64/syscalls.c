@@ -105,7 +105,7 @@ long sys_clone(unsigned long clone_flags, unsigned long newsp,
 	return ret;
 }
 
-void arch_switch_to(struct task_struct *from, struct task_struct *to)
+void arch_switch_to(struct task_struct *to)
 {
 	if ((to->thread.arch.fs == 0) || (to->mm == NULL))
 		return;

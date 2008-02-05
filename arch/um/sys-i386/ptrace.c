@@ -8,11 +8,11 @@
 #include "asm/uaccess.h"
 #include "skas.h"
 
-extern int arch_switch_tls(struct task_struct *from, struct task_struct *to);
+extern int arch_switch_tls(struct task_struct *to);
 
-void arch_switch_to(struct task_struct *from, struct task_struct *to)
+void arch_switch_to(struct task_struct *to)
 {
-	int err = arch_switch_tls(from, to);
+	int err = arch_switch_tls(to);
 	if (!err)
 		return;
 
