@@ -1179,8 +1179,10 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_sackhdr *sack)
 		tchunk = list_entry(lchunk, struct sctp_chunk,
 				    transmitted_list);
 		tsn = ntohl(tchunk->subh.data_hdr->tsn);
-		if (TSN_lte(tsn, ctsn))
+		if (TSN_lte(tsn, ctsn)) {
+			list_del_init(&tchunk->transmitted_list);
 			sctp_chunk_free(tchunk);
+		}
 	}
 
 	/* ii) Set rwnd equal to the newly received a_rwnd minus the

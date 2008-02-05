@@ -3224,6 +3224,7 @@ int sctp_process_asconf_ack(struct sctp_association *asoc,
 	}
 
 	/* Free the cached last sent asconf chunk. */
+	list_del_init(&asconf->transmitted_list);
 	sctp_chunk_free(asconf);
 	asoc->addip_last_asconf = NULL;
 
