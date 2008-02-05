@@ -1,0 +1,16 @@
+config INFINIBAND_NES
+	tristate "NetEffect RNIC Driver"
+	depends on PCI && INET && INFINIBAND
+	select LIBCRC32C
+	---help---
+	  This is a low-level driver for NetEffect RDMA enabled
+	  Network Interface Cards (RNIC).
+
+config INFINIBAND_NES_DEBUG
+	bool "Verbose debugging output"
+	depends on INFINIBAND_NES
+	default n
+	---help---
+	  This option causes the NetEffect RNIC driver to produce debug
+	  messages.  Select this if you are developing the driver
+	  or trying to diagnose a problem.
