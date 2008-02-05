@@ -18,7 +18,7 @@ config SSL
           lines on the UML that are usually made to show up on the host as
           ttys or ptys.
 
-          See <http://user-mode-linux.sourceforge.net/input.html> for more
+          See <http://user-mode-linux.sourceforge.net/old/input.html> for more
           information and command line examples of how to use this facility.
 
           Unless you have a specific reason for disabling this, say Y.

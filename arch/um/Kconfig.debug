@@ -9,7 +9,7 @@ config GPROF
 	  This allows profiling of a User-Mode Linux kernel with the gprof
 	  utility.
 
-	  See <http://user-mode-linux.sourceforge.net/gprof.html> for more
+	  See <http://user-mode-linux.sourceforge.net/old/gprof.html> for more
 	  details.
 
 	  If you're involved in UML kernel development and want to use gprof,
@@ -22,7 +22,7 @@ config GCOV
 	  This option allows developers to retrieve coverage data from a UML
 	  session.
 
-	  See <http://user-mode-linux.sourceforge.net/gprof.html> for more
+	  See <http://user-mode-linux.sourceforge.net/old/gprof.html> for more
 	  details.
 
 	  If you're involved in UML kernel development and want to use gcov,
