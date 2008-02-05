@@ -1315,6 +1315,21 @@ for writeout by the pdflush daemons.  It is expressed in 100'ths of a second.
 Data which has been dirty in-memory for longer than this interval will be
 written out next time a pdflush daemon wakes up.
 
+highmem_is_dirtyable
+--------------------
+
+Only present if CONFIG_HIGHMEM is set.
+
+This defaults to 0 (false), meaning that the ratios set above are calculated
+as a percentage of lowmem only.  This protects against excessive scanning
+in page reclaim, swapping and general VM distress.
+
+Setting this to 1 can be useful on 32 bit machines where you want to make
+random changes within an MMAPed file that is larger than your available
+lowmem without causing large quantities of random IO.  Is is safe if the
+behavior of all programs running on the machine is known and memory will
+not be otherwise stressed.
+
 legacy_va_layout
 ----------------
 

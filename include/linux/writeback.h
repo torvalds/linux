@@ -100,6 +100,7 @@ extern int dirty_background_ratio;
 extern int vm_dirty_ratio;
 extern int dirty_writeback_interval;
 extern int dirty_expire_interval;
+extern int vm_highmem_is_dirtyable;
 extern int block_dump;
 extern int laptop_mode;
 
