@@ -220,11 +220,9 @@ extern struct address_space swapper_space;
 #define total_swapcache_pages  swapper_space.nrpages
 extern void show_swap_cache_info(void);
 extern int add_to_swap(struct page *, gfp_t);
+extern int add_to_swap_cache(struct page *, swp_entry_t, gfp_t);
 extern void __delete_from_swap_cache(struct page *);
 extern void delete_from_swap_cache(struct page *);
-extern int move_to_swap_cache(struct page *, swp_entry_t);
-extern int move_from_swap_cache(struct page *, unsigned long,
-		struct address_space *);
 extern void free_page_and_swap_cache(struct page *);
 extern void free_pages_and_swap_cache(struct page **, int);
 extern struct page *lookup_swap_cache(swp_entry_t);
@@ -319,15 +317,10 @@ static inline struct page *lookup_swap_cache(swp_entry_t swp)
 
 #define can_share_swap_page(p)			(page_mapcount(p) == 1)
 
-static inline int move_to_swap_cache(struct page *page, swp_entry_t entry)
+static inline int add_to_swap_cache(struct page *page, swp_entry_t entry,
+							gfp_t gfp_mask)
 {
-	return 1;
-}
-
-static inline int move_from_swap_cache(struct page *page, unsigned long index,
-					struct address_space *mapping)
-{
-	return 1;
+	return -1;
 }
 
 static inline void __delete_from_swap_cache(struct page *page)

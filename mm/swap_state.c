@@ -67,8 +67,7 @@ void show_swap_cache_info(void)
  * add_to_swap_cache resembles add_to_page_cache on swapper_space,
  * but sets SwapCache flag and private instead of mapping and index.
  */
-static int add_to_swap_cache(struct page *page, swp_entry_t entry,
-			       gfp_t gfp_mask)
+int add_to_swap_cache(struct page *page, swp_entry_t entry, gfp_t gfp_mask)
 {
 	int error;
 
@@ -181,38 +180,6 @@ void delete_from_swap_cache(struct page *page)
 
 	swap_free(entry);
 	page_cache_release(page);
-}
-
-/*
- * Strange swizzling function only for use by shmem_writepage
- */
-int move_to_swap_cache(struct page *page, swp_entry_t entry)
-{
-	int err = add_to_swap_cache(page, entry, GFP_ATOMIC);
-	if (!err) {
-		remove_from_page_cache(page);
-		page_cache_release(page);	/* pagecache ref */
-		if (!swap_duplicate(entry))
-			BUG();
-		SetPageDirty(page);
-	}
-	return err;
-}
-
-/*
- * Strange swizzling function for shmem_getpage (and shmem_unuse)
- */
-int move_from_swap_cache(struct page *page, unsigned long index,
-		struct address_space *mapping)
-{
-	int err = add_to_page_cache(page, mapping, index, GFP_ATOMIC);
-	if (!err) {
-		delete_from_swap_cache(page);
-		/* shift page from clean_pages to dirty_pages list */
-		ClearPageDirty(page);
-		set_page_dirty(page);
-	}
-	return err;
 }
 
 /* 

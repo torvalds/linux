@@ -884,7 +884,9 @@ lost2:
 found:
 	idx += offset;
 	inode = &info->vfs_inode;
-	if (move_from_swap_cache(page, idx, inode->i_mapping) == 0) {
+	if (add_to_page_cache(page, inode->i_mapping, idx, GFP_ATOMIC) == 0) {
+		delete_from_swap_cache(page);
+		set_page_dirty(page);
 		info->flags |= SHMEM_PAGEIN;
 		shmem_swp_set(info, ptr + offset, 0);
 	}
@@ -972,7 +974,8 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 	BUG_ON(!entry);
 	BUG_ON(entry->val);
 
-	if (move_to_swap_cache(page, swap) == 0) {
+	if (add_to_swap_cache(page, swap, GFP_ATOMIC) == 0) {
+		remove_from_page_cache(page);
 		shmem_swp_set(info, entry, swap.val);
 		shmem_swp_unmap(entry);
 		spin_unlock(&info->lock);
@@ -982,6 +985,9 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 			list_move_tail(&info->swaplist, &shmem_swaplist);
 			spin_unlock(&shmem_swaplist_lock);
 		}
+		swap_duplicate(swap);
+		page_cache_release(page);	/* pagecache ref */
+		set_page_dirty(page);
 		unlock_page(page);
 		return 0;
 	}
@@ -1217,13 +1223,15 @@ repeat:
 			SetPageUptodate(filepage);
 			set_page_dirty(filepage);
 			swap_free(swap);
-		} else if (!(error = move_from_swap_cache(
-				swappage, idx, mapping))) {
+		} else if (!(error = add_to_page_cache(
+				swappage, mapping, idx, GFP_ATOMIC))) {
 			info->flags |= SHMEM_PAGEIN;
 			shmem_swp_set(info, entry, 0);
 			shmem_swp_unmap(entry);
+			delete_from_swap_cache(swappage);
 			spin_unlock(&info->lock);
 			filepage = swappage;
+			set_page_dirty(filepage);
 			swap_free(swap);
 		} else {
 			shmem_swp_unmap(entry);
