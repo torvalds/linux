@@ -2,3 +2,5 @@
 
 ccflags-$(CONFIG_DEBUG_GPIO)	+= -DDEBUG
 
+obj-$(CONFIG_HAVE_GPIO_LIB)	+= gpiolib.o
+
