@@ -13,7 +13,6 @@ extern int uml_exitcode;
 
 extern int ncpus;
 extern int kmalloc_ok;
-extern int nsyscalls;
 
 #define UML_ROUND_UP(addr) \
 	((((unsigned long) addr) + PAGE_SIZE - 1) & PAGE_MASK)

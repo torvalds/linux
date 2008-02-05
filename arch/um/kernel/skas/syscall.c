@@ -17,9 +17,6 @@ void handle_syscall(struct uml_pt_regs *r)
 
 	syscall_trace(r, 0);
 
-	current->thread.nsyscalls++;
-	nsyscalls++;
-
 	/*
 	 * This should go in the declaration of syscall, but when I do that,
 	 * strace -f -c bash -c 'ls ; ls' breaks, sometimes not tracing
