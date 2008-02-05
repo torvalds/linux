@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <strings.h>
+#include "kern_util.h"
 #include "os.h"
 #include "sysdep/barrier.h"
 #include "sysdep/sigcontext.h"

@@ -15,6 +15,7 @@
 #include "as-layout.h"
 #include "chan_user.h"
 #include "kern_constants.h"
+#include "kern_util.h"
 #include "mem.h"
 #include "os.h"
 #include "process.h"

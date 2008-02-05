@@ -16,6 +16,7 @@
 #include "as-layout.h"
 #include "init.h"
 #include "kern.h"
+#include "kern_util.h"
 #include "mem_user.h"
 #include "os.h"
 #include "skas.h"
@@ -279,11 +280,6 @@ int __init linux_main(int argc, char **argv)
 	printf("UML running in %s mode\n", mode);
 
 	host_task_size = set_task_sizes_skas(&task_size);
-
-	/*
-	 * Setting up handlers to 'sig_info' struct
-	 */
-	os_fill_handlinfo(handlinfo_kern);
 
 	brk_start = (unsigned long) sbrk(0);
 

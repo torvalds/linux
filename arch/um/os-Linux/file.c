@@ -17,7 +17,6 @@
 #include <sys/uio.h>
 #include "os.h"
 #include "user.h"
-#include "kern_util.h"
 
 static void copy_stat(struct uml_stat *dst, const struct stat64 *src)
 {

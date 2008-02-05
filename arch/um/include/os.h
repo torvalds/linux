@@ -8,7 +8,6 @@
 
 #include <stdarg.h>
 #include "irq_user.h"
-#include "kern_util.h"
 #include "longjmp.h"
 #include "mm_id.h"
 #include "sysdep/tls.h"
@@ -236,9 +235,6 @@ extern void block_signals(void);
 extern void unblock_signals(void);
 extern int get_signals(void);
 extern int set_signals(int enable);
-
-/* trap.c */
-extern void os_fill_handlinfo(struct kern_handlers h);
 
 /* util.c */
 extern void stack_protections(unsigned long address);

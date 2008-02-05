@@ -3,21 +3,25 @@
  * Licensed under the GPL
  */
 
-#if 0
-#include "kern_util.h"
-#include "skas.h"
-#include "ptrace_user.h"
-#include "sysdep/ptrace_user.h"
-#endif
-
 #include <errno.h>
 #include <signal.h>
 #include "sysdep/ptrace.h"
 #include "kern_constants.h"
 #include "as-layout.h"
+#include "kern_util.h"
 #include "os.h"
 #include "sigcontext.h"
 #include "task.h"
+
+void (*sig_info[NSIG])(int, struct uml_pt_regs *) = {
+	[SIGTRAP]	= relay_signal,
+	[SIGFPE]	= relay_signal,
+	[SIGILL]	= relay_signal,
+	[SIGWINCH]	= winch,
+	[SIGBUS]	= bus_handler,
+	[SIGSEGV]	= segv_handler,
+	[SIGIO]		= sigio_handler,
+	[SIGVTALRM]	= timer_handler };
 
 static struct uml_pt_regs ksig_regs[UM_NR_CPUS];
 

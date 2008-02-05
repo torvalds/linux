@@ -128,7 +128,7 @@ static void bad_segv(struct faultinfo fi, unsigned long ip)
 	force_sig_info(SIGSEGV, &si, current);
 }
 
-static void segv_handler(int sig, struct uml_pt_regs *regs)
+void segv_handler(int sig, struct uml_pt_regs *regs)
 {
 	struct faultinfo * fi = UPT_FAULTINFO(regs);
 
@@ -229,26 +229,17 @@ void relay_signal(int sig, struct uml_pt_regs *regs)
 	force_sig(sig, current);
 }
 
-static void bus_handler(int sig, struct uml_pt_regs *regs)
+void bus_handler(int sig, struct uml_pt_regs *regs)
 {
 	if (current->thread.fault_catcher != NULL)
 		UML_LONGJMP(current->thread.fault_catcher, 1);
 	else relay_signal(sig, regs);
 }
 
-static void winch(int sig, struct uml_pt_regs *regs)
+void winch(int sig, struct uml_pt_regs *regs)
 {
 	do_IRQ(WINCH_IRQ, regs);
 }
-
-const struct kern_handlers handlinfo_kern = {
-	.relay_signal = relay_signal,
-	.winch = winch,
-	.bus_handler = bus_handler,
-	.page_fault = segv_handler,
-	.sigio_handler = sigio_handler,
-	.timer_handler = timer_handler
-};
 
 void trap_init(void)
 {

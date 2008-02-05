@@ -15,7 +15,6 @@
 #include "line.h"
 #include "ssl.h"
 #include "chan_kern.h"
-#include "kern_util.h"
 #include "kern.h"
 #include "init.h"
 #include "irq_user.h"

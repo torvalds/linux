@@ -9,7 +9,6 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/statfs.h>
-#include "kern_util.h"
 #include "user.h"
 #include "mem_user.h"
 #include "init.h"

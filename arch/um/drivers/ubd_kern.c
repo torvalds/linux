@@ -49,6 +49,7 @@
 #include "irq_user.h"
 #include "irq_kern.h"
 #include "ubd_user.h"
+#include "kern_util.h"
 #include "os.h"
 #include "mem.h"
 #include "mem_kern.h"

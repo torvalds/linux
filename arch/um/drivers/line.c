@@ -8,6 +8,7 @@
 #include "chan_kern.h"
 #include "irq_kern.h"
 #include "irq_user.h"
+#include "kern_util.h"
 #include "os.h"
 
 #define LINE_BUFSIZE 4096

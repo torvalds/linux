@@ -12,7 +12,6 @@
 #include <sys/time.h>
 #include "init.h"
 #include "user.h"
-#include "kern_util.h"
 #include "os.h"
 
 #define TTY_LOG_DIR "./"
