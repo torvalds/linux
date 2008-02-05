@@ -301,7 +301,6 @@ static int scsi_req_map_sg(struct request *rq, struct scatterlist *sgl,
 		page = sg_page(sg);
 		off = sg->offset;
 		len = sg->length;
- 		data_len += len;
 
 		while (len > 0 && data_len > 0) {
 			/*
