@@ -114,6 +114,11 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
 			to_mm->id.u.pid = copy_context_skas0(stack,
 							     from_mm->id.u.pid);
 		else to_mm->id.u.pid = start_userspace(stack);
+
+		if (to_mm->id.u.pid < 0) {
+			ret = to_mm->id.u.pid;
+			goto out_free;
+		}
 	}
 
 	ret = init_new_ldt(to_mm, from_mm);

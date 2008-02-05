@@ -129,6 +129,18 @@ static void bad_segv(struct faultinfo fi, unsigned long ip)
 	force_sig_info(SIGSEGV, &si, current);
 }
 
+void fatal_sigsegv(void)
+{
+	force_sigsegv(SIGSEGV, current);
+	do_signal();
+	/*
+	 * This is to tell gcc that we're not returning - do_signal
+	 * can, in general, return, but in this case, it's not, since
+	 * we just got a fatal SIGSEGV queued.
+	 */
+	os_dump_core();
+}
+
 void segv_handler(int sig, struct uml_pt_regs *regs)
 {
 	struct faultinfo * fi = UPT_FAULTINFO(regs);

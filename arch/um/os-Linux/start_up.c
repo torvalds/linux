@@ -411,7 +411,9 @@ static inline void check_skas3_ptrace_faultinfo(void)
 			non_fatal("found\n");
 	}
 
-	init_registers(pid);
+	if (init_registers(pid))
+		fatal("Failed to initialize default registers");
+
 	stop_ptraced_child(pid, 1, 1);
 }
 

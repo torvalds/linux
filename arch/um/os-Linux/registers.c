@@ -8,42 +8,41 @@
 #include <string.h>
 #include <sys/ptrace.h>
 #include "sysdep/ptrace.h"
-#include "user.h"
 
-void save_registers(int pid, struct uml_pt_regs *regs)
+int save_registers(int pid, struct uml_pt_regs *regs)
 {
 	int err;
 
 	err = ptrace(PTRACE_GETREGS, pid, 0, regs->gp);
 	if (err < 0)
-		panic("save_registers - saving registers failed, errno = %d\n",
-		      errno);
+		return -errno;
+	return 0;
 }
 
-void restore_registers(int pid, struct uml_pt_regs *regs)
+int restore_registers(int pid, struct uml_pt_regs *regs)
 {
 	int err;
 
 	err = ptrace(PTRACE_SETREGS, pid, 0, regs->gp);
 	if (err < 0)
-		panic("restore_registers - saving registers failed, "
-		      "errno = %d\n", errno);
+		return -errno;
+	return 0;
 }
 
 /* This is set once at boot time and not changed thereafter */
 
 static unsigned long exec_regs[MAX_REG_NR];
 
-void init_registers(int pid)
+int init_registers(int pid)
 {
 	int err;
 
 	err = ptrace(PTRACE_GETREGS, pid, 0, exec_regs);
-	if (err)
-		panic("check_ptrace : PTRACE_GETREGS failed, errno = %d",
-		      errno);
+	if (err < 0)
+		return -errno;
 
 	arch_init_registers(pid);
+	return 0;
 }
 
 void get_safe_registers(unsigned long *regs)
