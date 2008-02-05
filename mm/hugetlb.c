@@ -813,6 +813,7 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
 
 	spin_unlock(&mm->page_table_lock);
 	copy_huge_page(new_page, old_page, address, vma);
+	__SetPageUptodate(new_page);
 	spin_lock(&mm->page_table_lock);
 
 	ptep = huge_pte_offset(mm, address & HPAGE_MASK);
@@ -858,6 +859,7 @@ retry:
 			goto out;
 		}
 		clear_huge_page(page, address);
+		__SetPageUptodate(page);
 
 		if (vma->vm_flags & VM_SHARED) {
 			int err;

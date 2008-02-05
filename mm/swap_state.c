@@ -125,6 +125,7 @@ int add_to_swap(struct page * page, gfp_t gfp_mask)
 	int err;
 
 	BUG_ON(!PageLocked(page));
+	BUG_ON(!PageUptodate(page));
 
 	for (;;) {
 		entry = get_swap_page();
@@ -147,7 +148,6 @@ int add_to_swap(struct page * page, gfp_t gfp_mask)
 
 		switch (err) {
 		case 0:				/* Success */
-			SetPageUptodate(page);
 			SetPageDirty(page);
 			return 1;
 		case -EEXIST:

@@ -1518,10 +1518,8 @@ static inline void cow_user_page(struct page *dst, struct page *src, unsigned lo
 			memset(kaddr, 0, PAGE_SIZE);
 		kunmap_atomic(kaddr, KM_USER0);
 		flush_dcache_page(dst);
-		return;
-
-	}
-	copy_user_highpage(dst, src, va, vma);
+	} else
+		copy_user_highpage(dst, src, va, vma);
 }
 
 /*
@@ -1630,6 +1628,7 @@ gotten:
 	if (!new_page)
 		goto oom;
 	cow_user_page(new_page, old_page, address, vma);
+	__SetPageUptodate(new_page);
 
 	/*
 	 * Re-check the pte - we dropped the lock
@@ -2102,6 +2101,7 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	page = alloc_zeroed_user_highpage_movable(vma, address);
 	if (!page)
 		goto oom;
+	__SetPageUptodate(page);
 
 	entry = mk_pte(page, vma->vm_page_prot);
 	entry = maybe_mkwrite(pte_mkdirty(entry), vma);
@@ -2202,6 +2202,7 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 				goto out;
 			}
 			copy_user_highpage(page, vmf.page, address, vma);
+			__SetPageUptodate(page);
 		} else {
 			/*
 			 * If the page will be shareable, see if the backing
