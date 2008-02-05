@@ -102,6 +102,24 @@ static int watchdog = 5000;
 module_param(watchdog, int, 0400);
 MODULE_PARM_DESC(watchdog, "transmit timeout in milliseconds");
 
+/* DM9000 register address locking.
+ *
+ * The DM9000 uses an address register to control where data written
+ * to the data register goes. This means that the address register
+ * must be preserved over interrupts or similar calls.
+ *
+ * During interrupt and other critical calls, a spinlock is used to
+ * protect the system, but the calls themselves save the address
+ * in the address register in case they are interrupting another
+ * access to the device.
+ *
+ * For general accesses a lock is provided so that calls which are
+ * allowed to sleep are serialised so that the address register does
+ * not need to be saved. This lock also serves to serialise access
+ * to the EEPROM and PHY access registers which are shared between
+ * these two devices.
+ */
+
 /* Structure/enum declaration ------------------------------- */
 typedef struct board_info {
 
@@ -131,6 +149,8 @@ typedef struct board_info {
 	struct resource	*addr_req;   /* resources requested */
 	struct resource *data_req;
 	struct resource *irq_res;
+
+	struct mutex	 addr_lock;	/* phy and eeprom access lock */
 
 	spinlock_t lock;
 
@@ -365,26 +385,16 @@ static void dm9000_get_drvinfo(struct net_device *dev,
 static int dm9000_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	board_info_t *dm = to_dm9000_board(dev);
-	unsigned long flags;
 
-	spin_lock_irqsave(&dm->lock, flags);
 	mii_ethtool_gset(&dm->mii, cmd);
-	spin_lock_irqsave(&dm->lock, flags);
-
 	return 0;
 }
 
 static int dm9000_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	board_info_t *dm = to_dm9000_board(dev);
-	unsigned long flags;
-	int rc;
 
-	spin_lock_irqsave(&dm->lock, flags);
-	rc = mii_ethtool_sset(&dm->mii, cmd);
-	spin_lock_irqsave(&dm->lock, flags);
-
-	return rc;
+	return mii_ethtool_sset(&dm->mii, cmd);
 }
 
 static int dm9000_nway_reset(struct net_device *dev)
@@ -475,6 +485,7 @@ dm9000_probe(struct platform_device *pdev)
 	db->dev = &pdev->dev;
 
 	spin_lock_init(&db->lock);
+	mutex_init(&db->addr_lock);
 
 	if (pdev->num_resources < 2) {
 		ret = -ENODEV;
@@ -997,8 +1008,10 @@ dm9000_rx(struct net_device *dev)
  *  Read a word data from EEPROM
  */
 static void
-dm9000_read_eeprom(board_info_t * db, int offset, unsigned char *to)
+dm9000_read_eeprom(board_info_t *db, int offset, unsigned char *to)
 {
+	mutex_lock(&db->addr_lock);
+
 	iow(db, DM9000_EPAR, offset);
 	iow(db, DM9000_EPCR, EPCR_ERPRR);
 	mdelay(8);		/* according to the datasheet 200us should be enough,
@@ -1007,6 +1020,8 @@ dm9000_read_eeprom(board_info_t * db, int offset, unsigned char *to)
 
 	to[0] = ior(db, DM9000_EPDRL);
 	to[1] = ior(db, DM9000_EPDRH);
+
+	mutex_unlock(&db->addr_lock);
 }
 
 #ifdef DM9000_PROGRAM_EEPROM
@@ -1016,12 +1031,16 @@ dm9000_read_eeprom(board_info_t * db, int offset, unsigned char *to)
 static void
 write_srom_word(board_info_t * db, int offset, u16 val)
 {
+	mutex_lock(&db->addr_lock);
+
 	iow(db, DM9000_EPAR, offset);
 	iow(db, DM9000_EPDRH, ((val >> 8) & 0xff));
 	iow(db, DM9000_EPDRL, (val & 0xff));
 	iow(db, DM9000_EPCR, EPCR_WEP | EPCR_ERPRW);
 	mdelay(8);		/* same shit */
 	iow(db, DM9000_EPCR, 0);
+
+	mutex_unlock(&db->addr_lock);
 }
 
 /*
@@ -1129,6 +1148,8 @@ dm9000_phy_read(struct net_device *dev, int phy_reg_unused, int reg)
 	unsigned int reg_save;
 	int ret;
 
+	mutex_lock(&db->addr_lock);
+
 	spin_lock_irqsave(&db->lock,flags);
 
 	/* Save previous register address */
@@ -1156,6 +1177,7 @@ dm9000_phy_read(struct net_device *dev, int phy_reg_unused, int reg)
 	writeb(reg_save, db->io_addr);
 	spin_unlock_irqrestore(&db->lock,flags);
 
+	mutex_unlock(&db->addr_lock);
 	return ret;
 }
 
@@ -1168,6 +1190,8 @@ dm9000_phy_write(struct net_device *dev, int phyaddr_unused, int reg, int value)
 	board_info_t *db = (board_info_t *) dev->priv;
 	unsigned long flags;
 	unsigned long reg_save;
+
+	mutex_lock(&db->addr_lock);
 
 	spin_lock_irqsave(&db->lock,flags);
 
@@ -1184,7 +1208,7 @@ dm9000_phy_write(struct net_device *dev, int phyaddr_unused, int reg, int value)
 	iow(db, DM9000_EPCR, 0xa);	/* Issue phyxcer write command */
 
 	writeb(reg_save, db->io_addr);
-	spin_unlock_irqrestore(&db->lock,flags);
+	spin_unlock_irqrestore(&db->lock, flags);
 
 	dm9000_msleep(db, 1);		/* Wait write complete */
 
@@ -1196,7 +1220,8 @@ dm9000_phy_write(struct net_device *dev, int phyaddr_unused, int reg, int value)
 	/* restore the previous address */
 	writeb(reg_save, db->io_addr);
 
-	spin_unlock_irqrestore(&db->lock,flags);
+	spin_unlock_irqrestore(&db->lock, flags);
+	mutex_unlock(&db->addr_lock);
 }
 
 static int
