@@ -17,6 +17,7 @@
 #include "linux/syscalls.h"
 #include "linux/utsname.h"
 #include "linux/workqueue.h"
+#include "linux/mutex.h"
 #include "asm/uaccess.h"
 #include "init.h"
 #include "irq_kern.h"
@@ -360,7 +361,7 @@ struct unplugged_pages {
 	void *pages[UNPLUGGED_PER_PAGE];
 };
 
-static DECLARE_MUTEX(plug_mem_mutex);
+static DEFINE_MUTEX(plug_mem_mutex);
 static unsigned long long unplugged_pages_count = 0;
 static LIST_HEAD(unplugged_pages);
 static int unplug_index = UNPLUGGED_PER_PAGE;
@@ -396,7 +397,7 @@ static int mem_config(char *str, char **error_out)
 
 	diff /= PAGE_SIZE;
 
-	down(&plug_mem_mutex);
+	mutex_lock(&plug_mem_mutex);
 	for (i = 0; i < diff; i++) {
 		struct unplugged_pages *unplugged;
 		void *addr;
@@ -453,7 +454,7 @@ static int mem_config(char *str, char **error_out)
 
 	err = 0;
 out_unlock:
-	up(&plug_mem_mutex);
+	mutex_unlock(&plug_mem_mutex);
 out:
 	return err;
 }
