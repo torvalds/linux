@@ -342,6 +342,8 @@ static void __init check_coredump_limit(void)
 
 void __init os_early_checks(void)
 {
+	int pid;
+
 	/* Print out the core dump limits early */
 	check_coredump_limit();
 
@@ -351,6 +353,11 @@ void __init os_early_checks(void)
 	 * kernel is running.
 	 */
 	check_tmpexec();
+
+	pid = start_ptraced_child();
+	if (init_registers(pid))
+		fatal("Failed to initialize default registers");
+	stop_ptraced_child(pid, 1, 1);
 }
 
 static int __init noprocmm_cmd_param(char *str, int* add)
@@ -411,9 +418,6 @@ static inline void check_skas3_ptrace_faultinfo(void)
 		else
 			non_fatal("found\n");
 	}
-
-	if (init_registers(pid))
-		fatal("Failed to initialize default registers");
 
 	stop_ptraced_child(pid, 1, 1);
 }
