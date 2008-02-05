@@ -12,7 +12,7 @@ void (*pm_power_off)(void);
 
 static void kill_off_processes(void)
 {
-	if(proc_mm)
+	if (proc_mm)
 		/*
 		 * FIXME: need to loop over userspace_pids
 		 */
@@ -22,8 +22,8 @@ static void kill_off_processes(void)
 		int pid, me;
 
 		me = os_getpid();
-		for_each_process(p){
-			if(p->mm == NULL)
+		for_each_process(p) {
+			if (p->mm == NULL)
 				continue;
 
 			pid = p->mm->context.id.u.pid;

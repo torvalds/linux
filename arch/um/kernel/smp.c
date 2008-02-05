@@ -60,7 +60,7 @@ void smp_send_stop(void)
 			continue;
 		os_write_file(cpu_data[i].ipi_pipe[1], "S", 1);
 	}
-	printk(KERN_INFO "done\n");
+	printk(KERN_CONT "done\n");
 }
 
 static cpumask_t smp_commenced_mask = CPU_MASK_NONE;
@@ -140,9 +140,8 @@ void smp_prepare_cpus(unsigned int maxcpus)
 		while (waittime-- && !cpu_isset(cpu, cpu_callin_map))
 			cpu_relax();
 
-		if (cpu_isset(cpu, cpu_callin_map))
-			printk(KERN_INFO "done\n");
-		else printk(KERN_INFO "failed\n");
+		printk(KERN_INFO "%s\n",
+		       cpu_isset(cpu, cpu_calling_map) ? "done" : "failed");
 	}
 }
 

@@ -4,19 +4,21 @@
  * Licensed under the GPL
  */
 
-#include "linux/stddef.h"
-#include "linux/err.h"
-#include "linux/hardirq.h"
-#include "linux/mm.h"
-#include "linux/personality.h"
-#include "linux/proc_fs.h"
-#include "linux/ptrace.h"
-#include "linux/random.h"
-#include "linux/sched.h"
-#include "linux/tick.h"
-#include "linux/threads.h"
-#include "asm/pgtable.h"
-#include "asm/uaccess.h"
+#include <linux/stddef.h>
+#include <linux/err.h>
+#include <linux/hardirq.h>
+#include <linux/gfp.h>
+#include <linux/mm.h>
+#include <linux/personality.h>
+#include <linux/proc_fs.h>
+#include <linux/ptrace.h>
+#include <linux/random.h>
+#include <linux/sched.h>
+#include <linux/tick.h>
+#include <linux/threads.h>
+#include <asm/current.h>
+#include <asm/pgtable.h>
+#include <asm/uaccess.h>
 #include "as-layout.h"
 #include "kern_util.h"
 #include "os.h"
@@ -40,7 +42,7 @@ int pid_to_processor_id(int pid)
 {
 	int i;
 
-	for(i = 0; i < ncpus; i++) {
+	for (i = 0; i < ncpus; i++) {
 		if (cpu_tasks[i].pid == pid)
 			return i;
 	}
@@ -94,14 +96,15 @@ void *_switch_to(void *prev, void *next, void *last)
 	do {
 		current->thread.saved_task = NULL;
 
-		switch_threads(&from->thread.switch_buf, &to->thread.switch_buf);
+		switch_threads(&from->thread.switch_buf,
+			       &to->thread.switch_buf);
 
 		arch_switch_to(current);
 
 		if (current->thread.saved_task)
 			show_regs(&(current->thread.regs));
-		next = current->thread.saved_task;
-		prev = current;
+		to = current->thread.saved_task;
+		from = current;
 	} while (current->thread.saved_task);
 
 	return current->thread.prev_sched;
@@ -232,7 +235,7 @@ void default_idle(void)
 {
 	unsigned long long nsecs;
 
-	while(1) {
+	while (1) {
 		/* endless idle loop with no priority at all */
 
 		/*
@@ -387,7 +390,7 @@ int singlestepping(void * t)
 {
 	struct task_struct *task = t ? t : current;
 
-	if ( ! (task->ptrace & PT_DTRACE) )
+	if (!(task->ptrace & PT_DTRACE))
 		return 0;
 
 	if (task->thread.singlestep_syscall)

@@ -3,23 +3,23 @@
  * Licensed under the GPL
  */
 
-#include "linux/delay.h"
-#include "linux/mm.h"
-#include "linux/module.h"
-#include "linux/seq_file.h"
-#include "linux/string.h"
-#include "linux/utsname.h"
-#include "asm/pgtable.h"
-#include "asm/processor.h"
-#include "asm/setup.h"
-#include "arch.h"
+#include <linux/delay.h>
+#include <linux/init.h>
+#include <linux/mm.h>
+#include <linux/module.h>
+#include <linux/seq_file.h>
+#include <linux/string.h>
+#include <linux/utsname.h>
+#include <asm/pgtable.h>
+#include <asm/processor.h>
+#include <asm/setup.h>
 #include "as-layout.h"
+#include "arch.h"
 #include "init.h"
 #include "kern.h"
 #include "kern_util.h"
 #include "mem_user.h"
 #include "os.h"
-#include "skas.h"
 
 #define DEFAULT_COMMAND_LINE "root=98:0"
 
@@ -201,7 +201,7 @@ static void __init uml_checksetup(char *line, int *add)
 	struct uml_param *p;
 
 	p = &__uml_setup_start;
-	while(p < &__uml_setup_end) {
+	while (p < &__uml_setup_end) {
 		int n;
 
 		n = strlen(p->str);
@@ -216,7 +216,7 @@ static void __init uml_postsetup(void)
 	initcall_t *p;
 
 	p = &__uml_postsetup_start;
-	while(p < &__uml_postsetup_end) {
+	while (p < &__uml_postsetup_end) {
 		(*p)();
 		p++;
 	}

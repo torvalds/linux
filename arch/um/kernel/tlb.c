@@ -57,7 +57,7 @@ static int do_ops(struct host_vm_change *hvc, int end,
 
 	for (i = 0; i < end && !ret; i++) {
 		op = &hvc->ops[i];
-		switch(op->type) {
+		switch (op->type) {
 		case MMAP:
 			ret = map(hvc->id, op->u.mmap.addr, op->u.mmap.len,
 				  op->u.mmap.prot, op->u.mmap.fd,
