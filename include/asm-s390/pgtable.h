@@ -115,15 +115,21 @@ extern char empty_zero_page[PAGE_SIZE];
 #ifndef __s390x__
 #define VMALLOC_START	0x78000000UL
 #define VMALLOC_END	0x7e000000UL
-#define VMEM_MAP_MAX	0x80000000UL
+#define VMEM_MAP_END	0x80000000UL
 #else /* __s390x__ */
 #define VMALLOC_START	0x3e000000000UL
 #define VMALLOC_END	0x3e040000000UL
-#define VMEM_MAP_MAX	0x40000000000UL
+#define VMEM_MAP_END	0x40000000000UL
 #endif /* __s390x__ */
 
+/*
+ * VMEM_MAX_PHYS is the highest physical address that can be added to the 1:1
+ * mapping. This needs to be calculated at compile time since the size of the
+ * VMEM_MAP is static but the size of struct page can change.
+ */
+#define VMEM_MAX_PHYS	min(VMALLOC_START, ((VMEM_MAP_END - VMALLOC_END) / \
+			  sizeof(struct page) * PAGE_SIZE) & ~((16 << 20) - 1))
 #define VMEM_MAP	((struct page *) VMALLOC_END)
-#define VMEM_MAP_SIZE	((VMALLOC_START / PAGE_SIZE) * sizeof(struct page))
 
 /*
  * A 31 bit pagetable entry of S390 has following format:

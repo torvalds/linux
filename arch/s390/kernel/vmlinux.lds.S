@@ -35,7 +35,7 @@ SECTIONS
 		KPROBES_TEXT
 		*(.fixup)
 		*(.gnu.warning)
-	} = 0x0700
+	} :text = 0x0700
 
 	_etext = .;		/* End of text section */
 
