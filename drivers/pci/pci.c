@@ -1459,6 +1459,14 @@ int pci_set_dma_max_seg_size(struct pci_dev *dev, unsigned int size)
 EXPORT_SYMBOL(pci_set_dma_max_seg_size);
 #endif
 
+#ifndef HAVE_ARCH_PCI_SET_DMA_SEGMENT_BOUNDARY
+int pci_set_dma_seg_boundary(struct pci_dev *dev, unsigned long mask)
+{
+	return dma_set_seg_boundary(&dev->dev, mask);
+}
+EXPORT_SYMBOL(pci_set_dma_seg_boundary);
+#endif
+
 /**
  * pcix_get_max_mmrbc - get PCI-X maximum designed memory read byte count
  * @dev: PCI device to query
