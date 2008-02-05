@@ -13,8 +13,6 @@
 #define GPIO_PERIPH_A	0
 #define GPIO_PERIPH_B	1
 
-#define NR_GPIO_CONTROLLERS	4
-
 /*
  * Pin numbers identifying specific GPIO pins on the chip. They can
  * also be converted to IRQ numbers by passing them through

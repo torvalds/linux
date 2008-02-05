@@ -19,7 +19,7 @@
 #define PIO_OSR                                0x0018
 #define PIO_IFER                               0x0020
 #define PIO_IFDR                               0x0024
-#define PIO_ISFR                               0x0028
+#define PIO_IFSR                               0x0028
 #define PIO_SODR                               0x0030
 #define PIO_CODR                               0x0034
 #define PIO_ODSR                               0x0038
