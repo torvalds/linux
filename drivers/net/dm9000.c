@@ -405,6 +405,9 @@ static int dm9000_get_eeprom(struct net_device *dev,
 	if ((len & 1) != 0 || (offset & 1) != 0)
 		return -EINVAL;
 
+	if (dm->flags & DM9000_PLATF_NO_EEPROM)
+		return -ENOENT;
+
 	ee->magic = DM_EEPROM_MAGIC;
 
 	for (i = 0; i < len; i += 2)
@@ -425,6 +428,9 @@ static int dm9000_set_eeprom(struct net_device *dev,
 
 	if ((len & 1) != 0 || (offset & 1) != 0)
 		return -EINVAL;
+
+	if (dm->flags & DM9000_PLATF_NO_EEPROM)
+		return -ENOENT;
 
 	if (ee->magic != DM_EEPROM_MAGIC)
 		return -EINVAL;
@@ -1100,6 +1106,12 @@ dm9000_read_eeprom(board_info_t *db, int offset, u8 *to)
 {
 	unsigned long flags;
 
+	if (db->flags & DM9000_PLATF_NO_EEPROM) {
+		to[0] = 0xff;
+		to[1] = 0xff;
+		return;
+	}
+
 	mutex_lock(&db->addr_lock);
 
 	spin_lock_irqsave(&db->lock, flags);
@@ -1133,6 +1145,9 @@ static void
 dm9000_write_eeprom(board_info_t *db, int offset, u8 *data)
 {
 	unsigned long flags;
+
+	if (db->flags & DM9000_PLATF_NO_EEPROM)
+		return;
 
 	mutex_lock(&db->addr_lock);
 
