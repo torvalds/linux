@@ -507,11 +507,12 @@ next_slot:
 		slot = path->slots[0];
 		ret = 0;
 		btrfs_item_key_to_cpu(leaf, &key, slot);
-
-		if (key.offset >= end || key.objectid != inode->i_ino) {
+		if (btrfs_key_type(&key) == BTRFS_EXTENT_DATA_KEY &&
+		    key.offset >= end) {
 			goto out;
 		}
-		if (btrfs_key_type(&key) > BTRFS_EXTENT_DATA_KEY) {
+		if (btrfs_key_type(&key) > BTRFS_EXTENT_DATA_KEY ||
+		    key.objectid != inode->i_ino) {
 			goto out;
 		}
 		if (recow) {
