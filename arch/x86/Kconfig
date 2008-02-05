@@ -466,7 +466,7 @@ config CALGARY_IOMMU_ENABLED_BY_DEFAULT
 	  If unsure, say Y.
 
 config IOMMU_HELPER
-	def_bool CALGARY_IOMMU
+	def_bool (CALGARY_IOMMU || GART_IOMMU)
 
 # need this always selected by IOMMU for the VIA workaround
 config SWIOTLB
