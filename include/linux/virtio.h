@@ -11,15 +11,13 @@
 /**
  * virtqueue - a queue to register buffers for sending or receiving.
  * @callback: the function to call when buffers are consumed (can be NULL).
- *    If this returns false, callbacks are suppressed until vq_ops->restart
- *    is called.
  * @vdev: the virtio device this queue was created for.
  * @vq_ops: the operations for this virtqueue (see below).
  * @priv: a pointer for the virtqueue implementation to use.
  */
 struct virtqueue
 {
-	bool (*callback)(struct virtqueue *vq);
+	void (*callback)(struct virtqueue *vq);
 	struct virtio_device *vdev;
 	struct virtqueue_ops *vq_ops;
 	void *priv;
@@ -41,7 +39,9 @@ struct virtqueue
  *	vq: the struct virtqueue we're talking about.
  *	len: the length written into the buffer
  *	Returns NULL or the "data" token handed to add_buf.
- * @restart: restart callbacks after callback returned false.
+ * @disable_cb: disable callbacks
+ *	vq: the struct virtqueue we're talking about.
+ * @enable_cb: restart callbacks after disable_cb.
  *	vq: the struct virtqueue we're talking about.
  *	This returns "false" (and doesn't re-enable) if there are pending
  *	buffers in the queue, to avoid a race.
@@ -65,7 +65,8 @@ struct virtqueue_ops {
 
 	void *(*get_buf)(struct virtqueue *vq, unsigned int *len);
 
-	bool (*restart)(struct virtqueue *vq);
+	void (*disable_cb)(struct virtqueue *vq);
+	bool (*enable_cb)(struct virtqueue *vq);
 
 	void (*shutdown)(struct virtqueue *vq);
 };

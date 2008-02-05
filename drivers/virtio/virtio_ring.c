@@ -220,7 +220,17 @@ static void *vring_get_buf(struct virtqueue *_vq, unsigned int *len)
 	return ret;
 }
 
-static bool vring_restart(struct virtqueue *_vq)
+static void vring_disable_cb(struct virtqueue *_vq)
+{
+	struct vring_virtqueue *vq = to_vvq(_vq);
+
+	START_USE(vq);
+	BUG_ON(vq->vring.avail->flags & VRING_AVAIL_F_NO_INTERRUPT);
+	vq->vring.avail->flags |= VRING_AVAIL_F_NO_INTERRUPT;
+	END_USE(vq);
+}
+
+static bool vring_enable_cb(struct virtqueue *_vq)
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);
 
@@ -254,8 +264,8 @@ irqreturn_t vring_interrupt(int irq, void *_vq)
 		return IRQ_HANDLED;
 
 	pr_debug("virtqueue callback for %p (%p)\n", vq, vq->vq.callback);
-	if (vq->vq.callback && !vq->vq.callback(&vq->vq))
-		vq->vring.avail->flags |= VRING_AVAIL_F_NO_INTERRUPT;
+	if (vq->vq.callback)
+		vq->vq.callback(&vq->vq);
 
 	return IRQ_HANDLED;
 }
@@ -264,7 +274,8 @@ static struct virtqueue_ops vring_vq_ops = {
 	.add_buf = vring_add_buf,
 	.get_buf = vring_get_buf,
 	.kick = vring_kick,
-	.restart = vring_restart,
+	.disable_cb = vring_disable_cb,
+	.enable_cb = vring_enable_cb,
 	.shutdown = vring_shutdown,
 };
 
@@ -272,7 +283,7 @@ struct virtqueue *vring_new_virtqueue(unsigned int num,
 				      struct virtio_device *vdev,
 				      void *pages,
 				      void (*notify)(struct virtqueue *),
-				      bool (*callback)(struct virtqueue *))
+				      void (*callback)(struct virtqueue *))
 {
 	struct vring_virtqueue *vq;
 	unsigned int i;

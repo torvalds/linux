@@ -61,7 +61,7 @@ struct virtio_config_ops
 	void (*set_status)(struct virtio_device *vdev, u8 status);
 	struct virtqueue *(*find_vq)(struct virtio_device *vdev,
 				     unsigned index,
-				     bool (*callback)(struct virtqueue *));
+				     void (*callback)(struct virtqueue *));
 	void (*del_vq)(struct virtqueue *vq);
 };
 

@@ -36,7 +36,7 @@ struct virtblk_req
 	struct virtio_blk_inhdr in_hdr;
 };
 
-static bool blk_done(struct virtqueue *vq)
+static void blk_done(struct virtqueue *vq)
 {
 	struct virtio_blk *vblk = vq->vdev->priv;
 	struct virtblk_req *vbr;
@@ -65,7 +65,6 @@ static bool blk_done(struct virtqueue *vq)
 	/* In case queue is stopped waiting for more buffers. */
 	blk_start_queue(vblk->disk->queue);
 	spin_unlock_irqrestore(&vblk->lock, flags);
-	return true;
 }
 
 static bool do_req(struct request_queue *q, struct virtio_blk *vblk,

@@ -191,7 +191,7 @@ static void lg_notify(struct virtqueue *vq)
  * So we provide devices with a "find virtqueue and set it up" function. */
 static struct virtqueue *lg_find_vq(struct virtio_device *vdev,
 				    unsigned index,
-				    bool (*callback)(struct virtqueue *vq))
+				    void (*callback)(struct virtqueue *vq))
 {
 	struct lguest_device *ldev = to_lgdev(vdev);
 	struct lguest_vq_info *lvq;

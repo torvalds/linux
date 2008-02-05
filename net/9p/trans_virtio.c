@@ -199,14 +199,12 @@ static void p9_virtio_close(struct p9_trans *trans)
 	kfree(trans);
 }
 
-static bool p9_virtio_intr(struct virtqueue *q)
+static void p9_virtio_intr(struct virtqueue *q)
 {
 	struct virtio_chan *chan = q->vdev->priv;
 
 	P9_DPRINTK(P9_DEBUG_TRANS, "9p poll_wakeup: %p\n", &chan->wq);
 	wake_up_interruptible(&chan->wq);
-
-	return true;
 }
 
 static int p9_virtio_probe(struct virtio_device *dev)

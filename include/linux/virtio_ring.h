@@ -114,7 +114,7 @@ struct virtqueue *vring_new_virtqueue(unsigned int num,
 				      struct virtio_device *vdev,
 				      void *pages,
 				      void (*notify)(struct virtqueue *vq),
-				      bool (*callback)(struct virtqueue *vq));
+				      void (*callback)(struct virtqueue *vq));
 void vring_del_virtqueue(struct virtqueue *vq);
 
 irqreturn_t vring_interrupt(int irq, void *_vq);
