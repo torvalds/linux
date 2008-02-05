@@ -207,7 +207,7 @@ static inline int update_pte_range(pmd_t *pmd, unsigned long addr,
 		else if (pte_newprot(*pte))
 			ret = add_mprotect(addr, PAGE_SIZE, prot, hvc);
 		*pte = pte_mkuptodate(*pte);
-	} while (pte++, addr += PAGE_SIZE, ((addr != end) && !ret));
+	} while (pte++, addr += PAGE_SIZE, ((addr < end) && !ret));
 	return ret;
 }
 
@@ -229,7 +229,7 @@ static inline int update_pmd_range(pud_t *pud, unsigned long addr,
 			}
 		}
 		else ret = update_pte_range(pmd, addr, next, hvc);
-	} while (pmd++, addr = next, ((addr != end) && !ret));
+	} while (pmd++, addr = next, ((addr < end) && !ret));
 	return ret;
 }
 
@@ -251,7 +251,7 @@ static inline int update_pud_range(pgd_t *pgd, unsigned long addr,
 			}
 		}
 		else ret = update_pmd_range(pud, addr, next, hvc);
-	} while (pud++, addr = next, ((addr != end) && !ret));
+	} while (pud++, addr = next, ((addr < end) && !ret));
 	return ret;
 }
 
@@ -274,7 +274,7 @@ void fix_range_common(struct mm_struct *mm, unsigned long start_addr,
 			}
 		}
 		else ret = update_pud_range(pgd, addr, next, &hvc);
-	} while (pgd++, addr = next, ((addr != end_addr) && !ret));
+	} while (pgd++, addr = next, ((addr < end_addr) && !ret));
 
 	if (!ret)
 		ret = do_ops(&hvc, hvc.index, 1);

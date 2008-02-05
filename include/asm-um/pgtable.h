@@ -308,6 +308,9 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 #define pmd_page_vaddr(pmd) ((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
 #define pmd_index(address) (((address) >> PMD_SHIFT) & (PTRS_PER_PMD-1))
 
+#define pmd_page_vaddr(pmd) \
+	((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
+
 /*
  * the pte page can be thought of an array like this: pte_t[PTRS_PER_PTE]
  *
