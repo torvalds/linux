@@ -1497,7 +1497,8 @@ static void idetape_create_read_cmd(idetape_tape_t *tape, idetape_pc_t *pc, unsi
 		set_bit(PC_DMA_RECOMMENDED, &pc->flags);
 }
 
-static void idetape_create_read_buffer_cmd(idetape_tape_t *tape, idetape_pc_t *pc, unsigned int length, struct idetape_bh *bh)
+static void idetape_create_read_buffer_cmd(idetape_tape_t *tape,
+		idetape_pc_t *pc, struct idetape_bh *bh)
 {
 	int size = 32768;
 	struct idetape_bh *p = bh;
@@ -1515,7 +1516,8 @@ static void idetape_create_read_buffer_cmd(idetape_tape_t *tape, idetape_pc_t *p
 		atomic_set(&p->b_count, 0);
 		p = p->b_reqnext;
 	}
-	pc->request_transfer = pc->buffer_size = size;
+	pc->request_transfer = size;
+	pc->buffer_size = size;
 }
 
 static void idetape_create_write_cmd(idetape_tape_t *tape, idetape_pc_t *pc, unsigned int length, struct idetape_bh *bh)
@@ -1625,7 +1627,8 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 	if (rq->cmd[0] & REQ_IDETAPE_READ_BUFFER) {
 		tape->postpone_cnt = 0;
 		pc = idetape_next_pc_storage(drive);
-		idetape_create_read_buffer_cmd(tape, pc, rq->current_nr_sectors, (struct idetape_bh *)rq->special);
+		idetape_create_read_buffer_cmd(tape, pc,
+				(struct idetape_bh *)rq->special);
 		goto out;
 	}
 	if (rq->cmd[0] & REQ_IDETAPE_PC1) {
