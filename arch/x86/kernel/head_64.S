@@ -250,18 +250,13 @@ ENTRY(secondary_startup_64)
 	lretq
 
 	/* SMP bootup changes these two */
-#ifndef CONFIG_HOTPLUG_CPU
-	.pushsection .init.data
-#endif
+	__CPUINITDATA
 	.align	8
-	.globl	initial_code
-initial_code:
+	ENTRY(initial_code)
 	.quad	x86_64_start_kernel
-#ifndef CONFIG_HOTPLUG_CPU
-	.popsection
-#endif
-	.globl init_rsp
-init_rsp:
+	__FINITDATA
+
+	ENTRY(init_rsp)
 	.quad  init_thread_union+THREAD_SIZE-8
 
 bad_address:
