@@ -14,7 +14,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
-#include <linux/i2c/pca9539.h>
+#include <linux/i2c/pca953x.h>
 
 #include <asm/gpio.h>
 
