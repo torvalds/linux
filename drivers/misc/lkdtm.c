@@ -129,27 +129,28 @@ module_param(cpoint_count, int, 0644);
 MODULE_PARM_DESC(cpoint_count, " Crash Point Count, number of times the "\
 				"crash point is to be hit to trigger action");
 
-unsigned int jp_do_irq(unsigned int irq)
+static unsigned int jp_do_irq(unsigned int irq)
 {
 	lkdtm_handler();
 	jprobe_return();
 	return 0;
 }
 
-irqreturn_t jp_handle_irq_event(unsigned int irq, struct irqaction *action)
+static irqreturn_t jp_handle_irq_event(unsigned int irq,
+				       struct irqaction *action)
 {
 	lkdtm_handler();
 	jprobe_return();
 	return 0;
 }
 
-void jp_tasklet_action(struct softirq_action *a)
+static void jp_tasklet_action(struct softirq_action *a)
 {
 	lkdtm_handler();
 	jprobe_return();
 }
 
-void jp_ll_rw_block(int rw, int nr, struct buffer_head *bhs[])
+static void jp_ll_rw_block(int rw, int nr, struct buffer_head *bhs[])
 {
 	lkdtm_handler();
 	jprobe_return();
@@ -157,23 +158,24 @@ void jp_ll_rw_block(int rw, int nr, struct buffer_head *bhs[])
 
 struct scan_control;
 
-unsigned long jp_shrink_inactive_list(unsigned long max_scan,
-				struct zone *zone, struct scan_control *sc)
+static unsigned long jp_shrink_inactive_list(unsigned long max_scan,
+					     struct zone *zone,
+					     struct scan_control *sc)
 {
 	lkdtm_handler();
 	jprobe_return();
 	return 0;
 }
 
-int jp_hrtimer_start(struct hrtimer *timer, ktime_t tim,
-				const enum hrtimer_mode mode)
+static int jp_hrtimer_start(struct hrtimer *timer, ktime_t tim,
+			    const enum hrtimer_mode mode)
 {
 	lkdtm_handler();
 	jprobe_return();
 	return 0;
 }
 
-int jp_scsi_dispatch_cmd(struct scsi_cmnd *cmd)
+static int jp_scsi_dispatch_cmd(struct scsi_cmnd *cmd)
 {
 	lkdtm_handler();
 	jprobe_return();
@@ -270,7 +272,7 @@ void lkdtm_handler(void)
 	}
 }
 
-int lkdtm_module_init(void)
+static int __init lkdtm_module_init(void)
 {
 	int ret;
 
@@ -331,7 +333,7 @@ int lkdtm_module_init(void)
 	return 0;
 }
 
-void lkdtm_module_exit(void)
+static void __exit lkdtm_module_exit(void)
 {
         unregister_jprobe(&lkdtm);
         printk(KERN_INFO "lkdtm : Crash point unregistered\n");
