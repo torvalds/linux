@@ -176,6 +176,13 @@ config SPI_S3C24XX_GPIO
 	  the inbuilt hardware cannot provide the transfer mode, or
 	  where the board is using non hardware connected pins.
 
+config SPI_SH_SCI
+	tristate "SuperH SCI SPI controller"
+	depends on SPI_MASTER && SUPERH
+	select SPI_BITBANG
+	help
+	  SPI driver for SuperH SCI blocks.
+
 config SPI_TXX9
 	tristate "Toshiba TXx9 SPI controller"
 	depends on SPI_MASTER && GENERIC_GPIO && CPU_TX49XX
