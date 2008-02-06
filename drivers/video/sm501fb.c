@@ -1698,6 +1698,15 @@ static int sm501fb_suspend_fb(struct sm501fb_info *info,
 	if (par->screen.size == 0)
 		return 0;
 
+	/* blank the relevant interface to ensure unit power minimised */
+	(par->ops.fb_blank)(FB_BLANK_POWERDOWN, fbi);
+
+	/* tell console/fb driver we are suspending */
+
+	acquire_console_sem();
+	fb_set_suspend(fbi, 1);
+	release_console_sem();
+
 	/* backup copies in case chip is powered down over suspend */
 
 	par->store_fb = vmalloc(par->screen.size);
@@ -1717,12 +1726,6 @@ static int sm501fb_suspend_fb(struct sm501fb_info *info,
 
 	memcpy_fromio(par->store_fb, par->screen.k_addr, par->screen.size);
 	memcpy_fromio(par->store_cursor, par->cursor.k_addr, par->cursor.size);
-	/* blank the relevant interface to ensure unit power minimised */
-	(par->ops.fb_blank)(FB_BLANK_POWERDOWN, fbi);
-
-	acquire_console_sem();
-	fb_set_suspend(fbi, 1);
-	release_console_sem();
 
 	return 0;
 
