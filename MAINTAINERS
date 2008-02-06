@@ -3224,6 +3224,12 @@ M:	mporter@kernel.crashing.org
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
+RDC R-321X SoC
+P:	Florian Fainelli
+M:	florian.fainelli@telecomint.eu
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+
 RDC R6040 FAST ETHERNET DRIVER
 P:	Florian Fainelli
 M:	florian.fainelli@telecomint.eu

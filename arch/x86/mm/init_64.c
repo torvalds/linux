@@ -591,10 +591,17 @@ void mark_rodata_ro(void)
 	if (end <= start)
 		return;
 
-	set_memory_ro(start, (end - start) >> PAGE_SHIFT);
 
 	printk(KERN_INFO "Write protecting the kernel read-only data: %luk\n",
 	       (end - start) >> 10);
+	set_memory_ro(start, (end - start) >> PAGE_SHIFT);
+
+	/*
+	 * The rodata section (but not the kernel text!) should also be
+	 * not-executable.
+	 */
+	start = ((unsigned long)__start_rodata + PAGE_SIZE - 1) & PAGE_MASK;
+	set_memory_nx(start, (end - start) >> PAGE_SHIFT);
 
 	rodata_test();
 

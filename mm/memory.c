@@ -82,7 +82,18 @@ void * high_memory;
 EXPORT_SYMBOL(num_physpages);
 EXPORT_SYMBOL(high_memory);
 
-int randomize_va_space __read_mostly = 1;
+/*
+ * Randomize the address space (stacks, mmaps, brk, etc.).
+ *
+ * ( When CONFIG_COMPAT_BRK=y we exclude brk from randomization,
+ *   as ancient (libc5 based) binaries can segfault. )
+ */
+int randomize_va_space __read_mostly =
+#ifdef CONFIG_COMPAT_BRK
+					1;
+#else
+					2;
+#endif
 
 static int __init disable_randmaps(char *s)
 {

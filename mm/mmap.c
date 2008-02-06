@@ -245,7 +245,7 @@ asmlinkage unsigned long sys_brk(unsigned long brk)
 
 	down_write(&mm->mmap_sem);
 
-	if (brk < mm->end_code)
+	if (brk < mm->start_brk)
 		goto out;
 
 	/*

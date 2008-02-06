@@ -5,6 +5,7 @@
  * and compares page tables forwards and afterwards.
  */
 #include <linux/bootmem.h>
+#include <linux/kthread.h>
 #include <linux/random.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -14,8 +15,13 @@
 #include <asm/pgtable.h>
 #include <asm/kdebug.h>
 
+/*
+ * Only print the results of the first pass:
+ */
+static __read_mostly int print = 1;
+
 enum {
-	NTEST			= 4000,
+	NTEST			= 400,
 #ifdef CONFIG_X86_64
 	LPS			= (1 << PMD_SHIFT),
 #elif defined(CONFIG_X86_PAE)
@@ -31,7 +37,7 @@ struct split_state {
 	long min_exec, max_exec;
 };
 
-static __init int print_split(struct split_state *s)
+static int print_split(struct split_state *s)
 {
 	long i, expected, missed = 0;
 	int printed = 0;
@@ -82,10 +88,13 @@ static __init int print_split(struct split_state *s)
 				s->max_exec = addr;
 		}
 	}
-	printk(KERN_INFO
-		"CPA mapping 4k %lu large %lu gb %lu x %lu[%lx-%lx] miss %lu\n",
-		s->spg, s->lpg, s->gpg, s->exec,
-		s->min_exec != ~0UL ? s->min_exec : 0, s->max_exec, missed);
+	if (print) {
+		printk(KERN_INFO
+			" 4k %lu large %lu gb %lu x %lu[%lx-%lx] miss %lu\n",
+			s->spg, s->lpg, s->gpg, s->exec,
+			s->min_exec != ~0UL ? s->min_exec : 0,
+			s->max_exec, missed);
+	}
 
 	expected = (s->gpg*GPS + s->lpg*LPS)/PAGE_SIZE + s->spg + missed;
 	if (expected != i) {
@@ -96,11 +105,11 @@ static __init int print_split(struct split_state *s)
 	return err;
 }
 
-static unsigned long __initdata addr[NTEST];
-static unsigned int __initdata len[NTEST];
+static unsigned long addr[NTEST];
+static unsigned int len[NTEST];
 
 /* Change the global bit on random pages in the direct mapping */
-static __init int exercise_pageattr(void)
+static int pageattr_test(void)
 {
 	struct split_state sa, sb, sc;
 	unsigned long *bm;
@@ -110,7 +119,8 @@ static __init int exercise_pageattr(void)
 	int i, k;
 	int err;
 
-	printk(KERN_INFO "CPA exercising pageattr\n");
+	if (print)
+		printk(KERN_INFO "CPA self-test:\n");
 
 	bm = vmalloc((max_pfn_mapped + 7) / 8);
 	if (!bm) {
@@ -186,7 +196,6 @@ static __init int exercise_pageattr(void)
 
 	failed += print_split(&sb);
 
-	printk(KERN_INFO "CPA reverting everything\n");
 	for (i = 0; i < NTEST; i++) {
 		if (!addr[i])
 			continue;
@@ -214,12 +223,40 @@ static __init int exercise_pageattr(void)
 	failed += print_split(&sc);
 
 	if (failed) {
-		printk(KERN_ERR "CPA selftests NOT PASSED. Please report.\n");
+		printk(KERN_ERR "NOT PASSED. Please report.\n");
 		WARN_ON(1);
+		return -EINVAL;
 	} else {
-		printk(KERN_INFO "CPA selftests PASSED\n");
+		if (print)
+			printk(KERN_INFO "ok.\n");
 	}
 
 	return 0;
 }
-module_init(exercise_pageattr);
+
+static int do_pageattr_test(void *__unused)
+{
+	while (!kthread_should_stop()) {
+		schedule_timeout_interruptible(HZ*30);
+		if (pageattr_test() < 0)
+			break;
+		if (print)
+			print--;
+	}
+	return 0;
+}
+
+static int start_pageattr_test(void)
+{
+	struct task_struct *p;
+
+	p = kthread_create(do_pageattr_test, NULL, "pageattr-test");
+	if (!IS_ERR(p))
+		wake_up_process(p);
+	else
+		WARN_ON(1);
+
+	return 0;
+}
+
+module_init(start_pageattr_test);

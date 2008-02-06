@@ -42,19 +42,21 @@ static inline void pud_free(struct mm_struct *mm, pud_t *pud)
 static inline void pgd_list_add(pgd_t *pgd)
 {
 	struct page *page = virt_to_page(pgd);
+	unsigned long flags;
 
-	spin_lock(&pgd_lock);
+	spin_lock_irqsave(&pgd_lock, flags);
 	list_add(&page->lru, &pgd_list);
-	spin_unlock(&pgd_lock);
+	spin_unlock_irqrestore(&pgd_lock, flags);
 }
 
 static inline void pgd_list_del(pgd_t *pgd)
 {
 	struct page *page = virt_to_page(pgd);
+	unsigned long flags;
 
-	spin_lock(&pgd_lock);
+	spin_lock_irqsave(&pgd_lock, flags);
 	list_del(&page->lru);
-	spin_unlock(&pgd_lock);
+	spin_unlock_irqrestore(&pgd_lock, flags);
 }
 
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
