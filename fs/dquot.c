@@ -696,9 +696,8 @@ static int dqinit_needed(struct inode *inode, int type)
 /* This routine is guarded by dqonoff_mutex mutex */
 static void add_dquot_ref(struct super_block *sb, int type)
 {
-	struct inode *inode;
+	struct inode *inode, *old_inode = NULL;
 
-restart:
 	spin_lock(&inode_lock);
 	list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
 		if (!atomic_read(&inode->i_writecount))
@@ -711,12 +710,18 @@ restart:
 		__iget(inode);
 		spin_unlock(&inode_lock);
 
+		iput(old_inode);
 		sb->dq_op->initialize(inode, type);
-		iput(inode);
-		/* As we may have blocked we had better restart... */
-		goto restart;
+		/* We hold a reference to 'inode' so it couldn't have been
+		 * removed from s_inodes list while we dropped the inode_lock.
+		 * We cannot iput the inode now as we can be holding the last
+		 * reference and we cannot iput it under inode_lock. So we
+		 * keep the reference and iput it later. */
+		old_inode = inode;
+		spin_lock(&inode_lock);
 	}
 	spin_unlock(&inode_lock);
+	iput(old_inode);
 }
 
 /* Return 0 if dqput() won't block (note that 1 doesn't necessarily mean blocking) */
