@@ -66,6 +66,7 @@
 #include <asm/smp.h>
 #include <asm/vdso_datapage.h>
 #include <asm/firmware.h>
+#include <asm/cputime.h>
 #ifdef CONFIG_PPC_ISERIES
 #include <asm/iseries/it_lp_queue.h>
 #include <asm/iseries/hv_call_xm.h>
@@ -189,6 +190,8 @@ u64 __cputime_sec_factor;
 EXPORT_SYMBOL(__cputime_sec_factor);
 u64 __cputime_clockt_factor;
 EXPORT_SYMBOL(__cputime_clockt_factor);
+DEFINE_PER_CPU(unsigned long, cputime_last_delta);
+DEFINE_PER_CPU(unsigned long, cputime_scaled_last_delta);
 
 static void calc_cputime_factors(void)
 {
@@ -257,8 +260,8 @@ void account_system_vtime(struct task_struct *tsk)
 	}
 	account_system_time(tsk, 0, delta);
 	account_system_time_scaled(tsk, deltascaled);
-	get_paca()->purrdelta = delta;
-	get_paca()->spurrdelta = deltascaled;
+	per_cpu(cputime_last_delta, smp_processor_id()) = delta;
+	per_cpu(cputime_scaled_last_delta, smp_processor_id()) = deltascaled;
 	local_irq_restore(flags);
 }
 
@@ -276,10 +279,7 @@ void account_process_tick(struct task_struct *tsk, int user_tick)
 	get_paca()->user_time = 0;
 	account_user_time(tsk, utime);
 
-	/* Estimate the scaled utime by scaling the real utime based
-	 * on the last spurr to purr ratio */
-	utimescaled = utime * get_paca()->spurrdelta / get_paca()->purrdelta;
-	get_paca()->spurrdelta = get_paca()->purrdelta = 0;
+	utimescaled = cputime_to_scaled(utime);
 	account_user_time_scaled(tsk, utimescaled);
 }
 

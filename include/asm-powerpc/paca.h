@@ -115,8 +115,6 @@ struct paca_struct {
 	u64 system_time;		/* accumulated system TB ticks */
 	u64 startpurr;			/* PURR/TB value snapshot */
 	u64 startspurr;			/* SPURR value snapshot */
-	u64 purrdelta;			/* FIXME: document */
-	u64 spurrdelta;			/* FIXME: document */
 };
 
 extern struct paca_struct paca[];
