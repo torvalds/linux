@@ -226,17 +226,15 @@ out:
 	return rc;
 }
 
-enum { ecryptfs_opt_sig, ecryptfs_opt_ecryptfs_sig, ecryptfs_opt_debug,
-       ecryptfs_opt_ecryptfs_debug, ecryptfs_opt_cipher,
-       ecryptfs_opt_ecryptfs_cipher, ecryptfs_opt_ecryptfs_key_bytes,
+enum { ecryptfs_opt_sig, ecryptfs_opt_ecryptfs_sig,
+       ecryptfs_opt_cipher, ecryptfs_opt_ecryptfs_cipher,
+       ecryptfs_opt_ecryptfs_key_bytes,
        ecryptfs_opt_passthrough, ecryptfs_opt_xattr_metadata,
        ecryptfs_opt_encrypted_view, ecryptfs_opt_err };
 
 static match_table_t tokens = {
 	{ecryptfs_opt_sig, "sig=%s"},
 	{ecryptfs_opt_ecryptfs_sig, "ecryptfs_sig=%s"},
-	{ecryptfs_opt_debug, "debug=%u"},
-	{ecryptfs_opt_ecryptfs_debug, "ecryptfs_debug=%u"},
 	{ecryptfs_opt_cipher, "cipher=%s"},
 	{ecryptfs_opt_ecryptfs_cipher, "ecryptfs_cipher=%s"},
 	{ecryptfs_opt_ecryptfs_key_bytes, "ecryptfs_key_bytes=%u"},
@@ -313,7 +311,6 @@ static int ecryptfs_parse_options(struct super_block *sb, char *options)
 	substring_t args[MAX_OPT_ARGS];
 	int token;
 	char *sig_src;
-	char *debug_src;
 	char *cipher_name_dst;
 	char *cipher_name_src;
 	char *cipher_key_bytes_src;
@@ -340,16 +337,6 @@ static int ecryptfs_parse_options(struct super_block *sb, char *options)
 				goto out;
 			}
 			sig_set = 1;
-			break;
-		case ecryptfs_opt_debug:
-		case ecryptfs_opt_ecryptfs_debug:
-			debug_src = args[0].from;
-			ecryptfs_verbosity =
-				(int)simple_strtol(debug_src, &debug_src,
-						   0);
-			ecryptfs_printk(KERN_DEBUG,
-					"Verbosity set to [%d]" "\n",
-					ecryptfs_verbosity);
 			break;
 		case ecryptfs_opt_cipher:
 		case ecryptfs_opt_ecryptfs_cipher:
@@ -816,6 +803,10 @@ static int __init ecryptfs_init(void)
 		       "rc = [%d]\n", rc);
 		goto out_release_messaging;
 	}
+	if (ecryptfs_verbosity > 0)
+		printk(KERN_CRIT "eCryptfs verbosity set to %d. Secret values "
+			"will be written to the syslog!\n", ecryptfs_verbosity);
+
 	goto out;
 out_release_messaging:
 	ecryptfs_release_messaging(ecryptfs_transport);

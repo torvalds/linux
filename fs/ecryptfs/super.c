@@ -174,10 +174,6 @@ static int ecryptfs_show_options(struct seq_file *m, struct vfsmount *mnt)
 	}
 	mutex_unlock(&mount_crypt_stat->global_auth_tok_list_mutex);
 
-	/* Note this is global and probably shouldn't be a mount option */
-	if (ecryptfs_verbosity)
-		seq_printf(m, ",ecryptfs_debug=%d\n", ecryptfs_verbosity);
-
 	seq_printf(m, ",ecryptfs_cipher=%s",
 		mount_crypt_stat->global_default_cipher_name);
 
