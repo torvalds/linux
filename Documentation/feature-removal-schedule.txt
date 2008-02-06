@@ -208,13 +208,6 @@ Who:	Randy Dunlap <randy.dunlap@oracle.com>
 
 ---------------------------
 
-What:  drivers depending on OSS_OBSOLETE
-When:  options in 2.6.23, code in 2.6.25
-Why:   obsolete OSS drivers
-Who:   Adrian Bunk <bunk@stusta.de>
-
----------------------------
-
 What: libata spindown skipping and warning
 When: Dec 2008
 Why:  Some halt(8) implementations synchronize caches for and spin
