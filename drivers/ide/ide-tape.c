@@ -184,11 +184,13 @@ enum {
 /*
  *	For general magnetic tape device compatibility.
  */
-typedef enum {
-	idetape_direction_none,
-	idetape_direction_read,
-	idetape_direction_write
-} idetape_chrdev_direction_t;
+
+/* tape directions */
+enum {
+	IDETAPE_DIR_NONE  = (1 << 0),
+	IDETAPE_DIR_READ  = (1 << 1),
+	IDETAPE_DIR_WRITE = (1 << 2),
+};
 
 struct idetape_bh {
 	u32 b_size;
@@ -324,7 +326,7 @@ typedef struct ide_tape_obj {
 	/* device name */
 	char name[4];
 	/* Current character device data transfer direction */
-	idetape_chrdev_direction_t chrdev_direction;
+	u8 chrdev_dir;
 
 	/*
 	 *	Device information
@@ -1916,7 +1918,7 @@ static void idetape_init_merge_stage (idetape_tape_t *tape)
 	struct idetape_bh *bh = tape->merge_stage->bh;
 	
 	tape->bh = bh;
-	if (tape->chrdev_direction == idetape_direction_write)
+	if (tape->chrdev_dir == IDETAPE_DIR_WRITE)
 		atomic_set(&bh->b_count, 0);
 	else {
 		tape->b_data = bh->b_data;
@@ -2186,7 +2188,7 @@ static int __idetape_discard_read_pipeline (ide_drive_t *drive)
 	unsigned long flags;
 	int cnt;
 
-	if (tape->chrdev_direction != idetape_direction_read)
+	if (tape->chrdev_dir != IDETAPE_DIR_READ)
 		return 0;
 
 	/* Remove merge stage. */
@@ -2201,7 +2203,7 @@ static int __idetape_discard_read_pipeline (ide_drive_t *drive)
 
 	/* Clear pipeline flags. */
 	clear_bit(IDETAPE_PIPELINE_ERROR, &tape->flags);
-	tape->chrdev_direction = idetape_direction_none;
+	tape->chrdev_dir = IDETAPE_DIR_NONE;
 
 	/* Remove pipeline stages. */
 	if (tape->first_stage == NULL)
@@ -2241,7 +2243,7 @@ static int idetape_position_tape (ide_drive_t *drive, unsigned int block, u8 par
 	int retval;
 	idetape_pc_t pc;
 
-	if (tape->chrdev_direction == idetape_direction_read)
+	if (tape->chrdev_dir == IDETAPE_DIR_READ)
 		__idetape_discard_read_pipeline(drive);
 	idetape_wait_ready(drive, 60 * 5 * HZ);
 	idetape_create_locate_cmd(drive, &pc, block, partition, skip);
@@ -2468,7 +2470,7 @@ static void idetape_empty_write_pipeline (ide_drive_t *drive)
 	int blocks, min;
 	struct idetape_bh *bh;
 
-	if (tape->chrdev_direction != idetape_direction_write) {
+	if (tape->chrdev_dir != IDETAPE_DIR_WRITE) {
 		printk(KERN_ERR "ide-tape: bug: Trying to empty write pipeline, but we are not writing.\n");
 		return;
 	}
@@ -2511,7 +2513,7 @@ static void idetape_empty_write_pipeline (ide_drive_t *drive)
 		tape->merge_stage = NULL;
 	}
 	clear_bit(IDETAPE_PIPELINE_ERROR, &tape->flags);
-	tape->chrdev_direction = idetape_direction_none;
+	tape->chrdev_dir = IDETAPE_DIR_NONE;
 
 	/*
 	 *	On the next backup, perform the feedback loop again.
@@ -2555,8 +2557,8 @@ static int idetape_initiate_read (ide_drive_t *drive, int max_stages)
 	u16 blocks = *(u16 *)&tape->caps[12];
 
 	/* Initialize read operation */
-	if (tape->chrdev_direction != idetape_direction_read) {
-		if (tape->chrdev_direction == idetape_direction_write) {
+	if (tape->chrdev_dir != IDETAPE_DIR_READ) {
+		if (tape->chrdev_dir == IDETAPE_DIR_WRITE) {
 			idetape_empty_write_pipeline(drive);
 			idetape_flush_tape_buffers(drive);
 		}
@@ -2566,7 +2568,7 @@ static int idetape_initiate_read (ide_drive_t *drive, int max_stages)
 		}
 		if ((tape->merge_stage = __idetape_kmalloc_stage(tape, 0, 0)) == NULL)
 			return -ENOMEM;
-		tape->chrdev_direction = idetape_direction_read;
+		tape->chrdev_dir = IDETAPE_DIR_READ;
 
 		/*
 		 *	Issue a read 0 command to ensure that DSC handshake
@@ -2580,7 +2582,7 @@ static int idetape_initiate_read (ide_drive_t *drive, int max_stages)
 			if (bytes_read < 0) {
 				__idetape_kfree_stage(tape->merge_stage);
 				tape->merge_stage = NULL;
-				tape->chrdev_direction = idetape_direction_none;
+				tape->chrdev_dir = IDETAPE_DIR_NONE;
 				return bytes_read;
 			}
 		}
@@ -2801,7 +2803,7 @@ static int idetape_space_over_filemarks (ide_drive_t *drive,short mt_op,int mt_c
 		mt_count = - mt_count;
 	}
 
-	if (tape->chrdev_direction == idetape_direction_read) {
+	if (tape->chrdev_dir == IDETAPE_DIR_READ) {
 		/*
 		 *	We have a read-ahead buffer. Scan it for crossed
 		 *	filemarks.
@@ -2891,7 +2893,7 @@ static ssize_t idetape_chrdev_read (struct file *file, char __user *buf,
 
 	debug_log(DBG_CHRDEV, "Enter %s, count %Zd\n", __func__, count);
 
-	if (tape->chrdev_direction != idetape_direction_read) {
+	if (tape->chrdev_dir != IDETAPE_DIR_READ) {
 		if (test_bit(IDETAPE_DETECT_BS, &tape->flags))
 			if (count > tape->tape_block_size &&
 			    (count % tape->tape_block_size) == 0)
@@ -2956,8 +2958,8 @@ static ssize_t idetape_chrdev_write (struct file *file, const char __user *buf,
 	debug_log(DBG_CHRDEV, "Enter %s, count %Zd\n", __func__, count);
 
 	/* Initialize write operation */
-	if (tape->chrdev_direction != idetape_direction_write) {
-		if (tape->chrdev_direction == idetape_direction_read)
+	if (tape->chrdev_dir != IDETAPE_DIR_WRITE) {
+		if (tape->chrdev_dir == IDETAPE_DIR_READ)
 			idetape_discard_read_pipeline(drive, 1);
 		if (tape->merge_stage || tape->merge_stage_size) {
 			printk(KERN_ERR "ide-tape: merge_stage_size "
@@ -2966,7 +2968,7 @@ static ssize_t idetape_chrdev_write (struct file *file, const char __user *buf,
 		}
 		if ((tape->merge_stage = __idetape_kmalloc_stage(tape, 0, 0)) == NULL)
 			return -ENOMEM;
-		tape->chrdev_direction = idetape_direction_write;
+		tape->chrdev_dir = IDETAPE_DIR_WRITE;
 		idetape_init_merge_stage(tape);
 
 		/*
@@ -2981,7 +2983,7 @@ static ssize_t idetape_chrdev_write (struct file *file, const char __user *buf,
 			if (retval < 0) {
 				__idetape_kfree_stage(tape->merge_stage);
 				tape->merge_stage = NULL;
-				tape->chrdev_direction = idetape_direction_none;
+				tape->chrdev_dir = IDETAPE_DIR_NONE;
 				return retval;
 			}
 		}
@@ -3187,7 +3189,7 @@ static int idetape_chrdev_ioctl(struct inode *inode, struct file *file,
 	debug_log(DBG_CHRDEV, "Enter %s, cmd=%u\n", __func__, cmd);
 
 	tape->restart_speed_control_req = 1;
-	if (tape->chrdev_direction == idetape_direction_write) {
+	if (tape->chrdev_dir == IDETAPE_DIR_WRITE) {
 		idetape_empty_write_pipeline(drive);
 		idetape_flush_tape_buffers(drive);
 	}
@@ -3218,7 +3220,7 @@ static int idetape_chrdev_ioctl(struct inode *inode, struct file *file,
 				return -EFAULT;
 			return 0;
 		default:
-			if (tape->chrdev_direction == idetape_direction_read)
+			if (tape->chrdev_dir == IDETAPE_DIR_READ)
 				idetape_discard_read_pipeline(drive, 1);
 			return idetape_blkdev_ioctl(drive, cmd, arg);
 	}
@@ -3296,7 +3298,7 @@ static int idetape_chrdev_open (struct inode *inode, struct file *filp)
 	if (!test_bit(IDETAPE_ADDRESS_VALID, &tape->flags))
 		(void)idetape_rewind_tape(drive);
 
-	if (tape->chrdev_direction != idetape_direction_read)
+	if (tape->chrdev_dir != IDETAPE_DIR_READ)
 		clear_bit(IDETAPE_PIPELINE_ERROR, &tape->flags);
 
 	/* Read block size and write protect status from drive. */
@@ -3321,7 +3323,7 @@ static int idetape_chrdev_open (struct inode *inode, struct file *filp)
 	/*
 	 * Lock the tape drive door so user can't eject.
 	 */
-	if (tape->chrdev_direction == idetape_direction_none) {
+	if (tape->chrdev_dir == IDETAPE_DIR_NONE) {
 		if (idetape_create_prevent_cmd(drive, &pc, 1)) {
 			if (!idetape_queue_pc_tail(drive, &pc)) {
 				if (tape->door_locked != DOOR_EXPLICITLY_LOCKED)
@@ -3369,9 +3371,9 @@ static int idetape_chrdev_release (struct inode *inode, struct file *filp)
 
 	debug_log(DBG_CHRDEV, "Enter %s\n", __func__);
 
-	if (tape->chrdev_direction == idetape_direction_write)
+	if (tape->chrdev_dir == IDETAPE_DIR_WRITE)
 		idetape_write_release(drive, minor);
-	if (tape->chrdev_direction == idetape_direction_read) {
+	if (tape->chrdev_dir == IDETAPE_DIR_READ) {
 		if (minor < 128)
 			idetape_discard_read_pipeline(drive, 1);
 		else
@@ -3383,7 +3385,7 @@ static int idetape_chrdev_release (struct inode *inode, struct file *filp)
 	}
 	if (minor < 128 && test_bit(IDETAPE_MEDIUM_PRESENT, &tape->flags))
 		(void) idetape_rewind_tape(drive);
-	if (tape->chrdev_direction == idetape_direction_none) {
+	if (tape->chrdev_dir == IDETAPE_DIR_NONE) {
 		if (tape->door_locked == DOOR_LOCKED) {
 			if (idetape_create_prevent_cmd(drive, &pc, 0)) {
 				if (!idetape_queue_pc_tail(drive, &pc))
@@ -3577,7 +3579,7 @@ static void idetape_setup (ide_drive_t *drive, idetape_tape_t *tape, int minor)
 	tape->name[0] = 'h';
 	tape->name[1] = 't';
 	tape->name[2] = '0' + minor;
-	tape->chrdev_direction = idetape_direction_none;
+	tape->chrdev_dir = IDETAPE_DIR_NONE;
 	tape->pc = tape->pc_stack;
 	tape->max_insert_speed = 10000;
 	tape->speed_control = 1;
