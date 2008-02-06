@@ -93,7 +93,7 @@ struct hvc_struct {
 };
 
 /* dynamic list of hvc_struct instances */
-static struct list_head hvc_structs = LIST_HEAD_INIT(hvc_structs);
+static LIST_HEAD(hvc_structs);
 
 /*
  * Protect the list of hvc_struct instances from inserts and removals during
