@@ -141,10 +141,10 @@ The last rule (rule 3) is the nastiest one to handle.  Say, for
 instance, you have a list of items that are each kref-ed, and you wish
 to get the first one.  You can't just pull the first item off the list
 and kref_get() it.  That violates rule 3 because you are not already
-holding a valid pointer.  You must add locks or semaphores.  For
-instance:
+holding a valid pointer.  You must add a mutex (or some other lock).
+For instance:
 
-static DECLARE_MUTEX(sem);
+static DEFINE_MUTEX(mutex);
 static LIST_HEAD(q);
 struct my_data
 {
@@ -155,12 +155,12 @@ struct my_data
 static struct my_data *get_entry()
 {
 	struct my_data *entry = NULL;
-	down(&sem);
+	mutex_lock(&mutex);
 	if (!list_empty(&q)) {
 		entry = container_of(q.next, struct my_q_entry, link);
 		kref_get(&entry->refcount);
 	}
-	up(&sem);
+	mutex_unlock(&mutex);
 	return entry;
 }
 
@@ -174,9 +174,9 @@ static void release_entry(struct kref *ref)
 
 static void put_entry(struct my_data *entry)
 {
-	down(&sem);
+	mutex_lock(&mutex);
 	kref_put(&entry->refcount, release_entry);
-	up(&sem);
+	mutex_unlock(&mutex);
 }
 
 The kref_put() return value is useful if you do not want to hold the
@@ -191,13 +191,13 @@ static void release_entry(struct kref *ref)
 
 static void put_entry(struct my_data *entry)
 {
-	down(&sem);
+	mutex_lock(&mutex);
 	if (kref_put(&entry->refcount, release_entry)) {
 		list_del(&entry->link);
-		up(&sem);
+		mutex_unlock(&mutex);
 		kfree(entry);
 	} else
-		up(&sem);
+		mutex_unlock(&mutex);
 }
 
 This is really more useful if you have to call other routines as part
