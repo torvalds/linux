@@ -616,7 +616,7 @@ static void giveback(struct driver_data *drv_data)
 
 static irqreturn_t dma_irq_handler(int irq, void *dev_id)
 {
-	struct driver_data *drv_data = (struct driver_data *)dev_id;
+	struct driver_data *drv_data = dev_id;
 	struct chip_data *chip = drv_data->cur_chip;
 	struct spi_message *msg = drv_data->cur_msg;
 

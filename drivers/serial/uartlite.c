@@ -142,7 +142,7 @@ static int ulite_transmit(struct uart_port *port, int stat)
 
 static irqreturn_t ulite_isr(int irq, void *dev_id)
 {
-	struct uart_port *port = (struct uart_port *)dev_id;
+	struct uart_port *port = dev_id;
 	int busy;
 
 	do {

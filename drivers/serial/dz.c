@@ -324,7 +324,7 @@ static inline void check_modem_status(struct dz_port *dport)
  */
 static irqreturn_t dz_interrupt(int irq, void *dev)
 {
-	struct dz_port *dport = (struct dz_port *)dev;
+	struct dz_port *dport = dev;
 	unsigned short status;
 
 	/* get the reason why we just got an irq */

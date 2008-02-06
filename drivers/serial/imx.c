@@ -308,7 +308,7 @@ static void imx_start_tx(struct uart_port *port)
 
 static irqreturn_t imx_rtsint(int irq, void *dev_id)
 {
-	struct imx_port *sport = (struct imx_port *)dev_id;
+	struct imx_port *sport = dev_id;
 	unsigned int val = readl(sport->port.membase + USR1) & USR1_RTSS;
 	unsigned long flags;
 
@@ -324,7 +324,7 @@ static irqreturn_t imx_rtsint(int irq, void *dev_id)
 
 static irqreturn_t imx_txint(int irq, void *dev_id)
 {
-	struct imx_port *sport = (struct imx_port *)dev_id;
+	struct imx_port *sport = dev_id;
 	struct circ_buf *xmit = &sport->port.info->xmit;
 	unsigned long flags;
 

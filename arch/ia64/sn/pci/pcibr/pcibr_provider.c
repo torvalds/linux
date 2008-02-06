@@ -100,11 +100,11 @@ u16 sn_ioboard_to_pci_bus(struct pci_bus *pci_bus)
 static irqreturn_t
 pcibr_error_intr_handler(int irq, void *arg)
 {
-	struct pcibus_info *soft = (struct pcibus_info *)arg;
+	struct pcibus_info *soft = arg;
 
-	if (sal_pcibr_error_interrupt(soft) < 0) {
+	if (sal_pcibr_error_interrupt(soft) < 0)
 		panic("pcibr_error_intr_handler(): Fatal Bridge Error");
-	}
+
 	return IRQ_HANDLED;
 }
 

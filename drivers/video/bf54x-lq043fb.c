@@ -498,8 +498,7 @@ static struct lcd_device *lcd_dev;
 
 static irqreturn_t bfin_bf54x_irq_error(int irq, void *dev_id)
 {
-
-	/*struct bfin_bf54xfb_info *info = (struct bfin_bf54xfb_info *)dev_id;*/
+	/*struct bfin_bf54xfb_info *info = dev_id;*/
 
 	u16 status = bfin_read_EPPI0_STATUS();
 

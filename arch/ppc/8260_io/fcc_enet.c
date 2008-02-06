@@ -682,7 +682,7 @@ fcc_enet_rx(struct net_device *dev)
 	struct	sk_buff *skb;
 	ushort	pkt_len;
 
-	cep = (struct fcc_enet_private *)dev->priv;
+	cep = dev->priv;
 
 	/* First, grab all of the stats for the incoming packet.
 	 * These get messed up if we get called due to a busy condition.
