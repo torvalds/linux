@@ -1,8 +1,8 @@
 /*
  *   ALSA driver for ICEnsemble ICE1712 (Envy24)
  *
- *   Lowlevel functions for M-Audio Delta 1010, 44, 66, Dio2496, Audiophile
- *                          Digigram VX442
+ *   Lowlevel functions for M-Audio Delta 1010, 1010E, 44, 66, 66E, Dio2496,
+ *			    Audiophile, Digigram VX442
  *
  *	Copyright (c) 2000 Jaroslav Kysela <perex@perex.cz>
  *
@@ -536,8 +536,13 @@ static int __devinit snd_ice1712_delta_init(struct snd_ice1712 *ice)
 	int err;
 	struct snd_akm4xxx *ak;
 
-	if (ice->eeprom.subvendor && ice->eeprom.gpiodir == 0x7b)
+	if (ice->eeprom.subvendor == ICE1712_SUBDEVICE_DELTA1010 &&
+	    ice->eeprom.gpiodir == 0x7b)
 		ice->eeprom.subvendor = ICE1712_SUBDEVICE_DELTA1010E;
+
+	if (ice->eeprom.subvendor == ICE1712_SUBDEVICE_DELTA66 &&
+	    ice->eeprom.gpiodir == 0xfb)
+	    	ice->eeprom.subvendor = ICE1712_SUBDEVICE_DELTA66E;
 
 	/* determine I2C, DACs and ADCs */
 	switch (ice->eeprom.subvendor) {
@@ -565,6 +570,7 @@ static int __devinit snd_ice1712_delta_init(struct snd_ice1712 *ice)
 		ice->num_total_dacs = 4;	/* two AK4324 codecs */
 		break;
 	case ICE1712_SUBDEVICE_VX442:
+	case ICE1712_SUBDEVICE_DELTA66E:	/* omni not suported yet */
 		ice->num_total_dacs = 4;
 		ice->num_total_adcs = 4;
 		break;
@@ -577,6 +583,7 @@ static int __devinit snd_ice1712_delta_init(struct snd_ice1712 *ice)
 	case ICE1712_SUBDEVICE_DELTA1010E:
 	case ICE1712_SUBDEVICE_DELTA1010LT:
 	case ICE1712_SUBDEVICE_VX442:
+	case ICE1712_SUBDEVICE_DELTA66E:
 		if ((err = snd_i2c_bus_create(ice->card, "ICE1712 GPIO 1", NULL, &ice->i2c)) < 0) {
 			snd_printk(KERN_ERR "unable to create I2C bus\n");
 			return err;
@@ -635,6 +642,7 @@ static int __devinit snd_ice1712_delta_init(struct snd_ice1712 *ice)
 		err = snd_ice1712_akm4xxx_init(ak, &akm_delta44, &akm_delta44_priv, ice);
 		break;
 	case ICE1712_SUBDEVICE_VX442:
+	case ICE1712_SUBDEVICE_DELTA66E:
 		err = snd_ice1712_akm4xxx_init(ak, &akm_vx442, &akm_vx442_priv, ice);
 		break;
 	default:
@@ -725,6 +733,7 @@ static int __devinit snd_ice1712_delta_add_controls(struct snd_ice1712 *ice)
 	case ICE1712_SUBDEVICE_DELTA44:
 	case ICE1712_SUBDEVICE_DELTA66:
 	case ICE1712_SUBDEVICE_VX442:
+	case ICE1712_SUBDEVICE_DELTA66E:
 		err = snd_ice1712_akm4xxx_build_controls(ice);
 		if (err < 0)
 			return err;
