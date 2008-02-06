@@ -147,7 +147,8 @@ ide_startstop_t ide_dma_intr (ide_drive_t *drive)
 	u8 stat = 0, dma_stat = 0;
 
 	dma_stat = HWIF(drive)->ide_dma_end(drive);
-	stat = HWIF(drive)->INB(IDE_STATUS_REG);	/* get drive status */
+	stat = ide_read_status(drive);
+
 	if (OK_STAT(stat,DRIVE_READY,drive->bad_wstat|DRQ_STAT)) {
 		if (!dma_stat) {
 			struct request *rq = HWGROUP(drive)->rq;

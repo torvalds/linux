@@ -34,21 +34,7 @@
      *  Offsets from one of the above bases
      */
 
-#define GAYLE_DATA	0x00
-#define GAYLE_ERROR	0x06		/* see err-bits */
-#define GAYLE_NSECTOR	0x0a		/* nr of sectors to read/write */
-#define GAYLE_SECTOR	0x0e		/* starting sector */
-#define GAYLE_LCYL	0x12		/* starting cylinder */
-#define GAYLE_HCYL	0x16		/* high byte of starting cyl */
-#define GAYLE_SELECT	0x1a		/* 101dhhhh , d=drive, hhhh=head */
-#define GAYLE_STATUS	0x1e		/* see status-bits */
 #define GAYLE_CONTROL	0x101a
-
-static int gayle_offsets[IDE_NR_PORTS] __initdata = {
-    GAYLE_DATA, GAYLE_ERROR, GAYLE_NSECTOR, GAYLE_SECTOR, GAYLE_LCYL,
-    GAYLE_HCYL, GAYLE_SELECT, GAYLE_STATUS, -1, -1
-};
-
 
     /*
      *  These are at different offsets from the base
@@ -104,6 +90,26 @@ static int gayle_ack_intr_a1200(ide_hwif_t *hwif)
     (void)z_readb(hwif->io_ports[IDE_STATUS_OFFSET]);
     z_writeb(0x7c, hwif->io_ports[IDE_IRQ_OFFSET]);
     return 1;
+}
+
+static void __init gayle_setup_ports(hw_regs_t *hw, unsigned long base,
+				     unsigned long ctl, unsigned long irq_port,
+				     ide_ack_intr_t *ack_intr);
+{
+	int i;
+
+	memset(hw, 0, sizeof(*hw));
+
+	hw->io_ports[IDE_DATA_OFFSET] = base;
+
+	for (i = 1; i < 8; i++)
+		hw->io_ports[i] = base + 2 + i * 4;
+
+	hw->io_ports[IDE_CONTROL_OFFSET] = ctl;
+	hw->io_ports[IDE_IRQ_OFFSET] = irq_port;
+
+	hw->irq = IRQ_AMIGA_PORTS;
+	hw->ack_intr = ack_intr;
 }
 
     /*
@@ -167,10 +173,7 @@ found:
 	base = (unsigned long)ZTWO_VADDR(phys_base);
 	ctrlport = GAYLE_HAS_CONTROL_REG ? (base + GAYLE_CONTROL) : 0;
 
-	ide_setup_ports(&hw, base, gayle_offsets,
-			ctrlport, irqport, ack_intr,
-//			&gayle_iops,
-			IRQ_AMIGA_PORTS);
+	gayle_setup_ports(&hw, base, ctrlport, irqport, ack_intr);
 
 	hwif = ide_find_port(base);
 	if (hwif) {

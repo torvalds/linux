@@ -295,7 +295,8 @@ static int cdrom_decode_status(ide_drive_t *drive, int good_stat, int *stat_ret)
 	int stat, err, sense_key;
 	
 	/* Check for errors. */
-	stat = HWIF(drive)->INB(IDE_STATUS_REG);
+	stat = ide_read_status(drive);
+
 	if (stat_ret)
 		*stat_ret = stat;
 
@@ -303,7 +304,7 @@ static int cdrom_decode_status(ide_drive_t *drive, int good_stat, int *stat_ret)
 		return 0;
 
 	/* Get the IDE error register. */
-	err = HWIF(drive)->INB(IDE_ERROR_REG);
+	err = ide_read_error(drive);
 	sense_key = err >> 4;
 
 	if (rq == NULL) {
@@ -692,7 +693,7 @@ int ide_cd_check_ireason(ide_drive_t *drive, int len, int ireason, int rw)
 		/* Some drives (ASUS) seem to tell us that status
 		 * info is available. just get it and ignore.
 		 */
-		(void) HWIF(drive)->INB(IDE_STATUS_REG);
+		(void)ide_read_status(drive);
 		return 0;
 	} else {
 		/* Drive wants a command packet, or invalid ireason... */
@@ -1326,7 +1327,7 @@ ide_do_rw_cdrom (ide_drive_t *drive, struct request *rq, sector_t block)
 	if (blk_fs_request(rq)) {
 		if (info->cd_flags & IDE_CD_FLAG_SEEKING) {
 			unsigned long elapsed = jiffies - info->start_seek;
-			int stat = HWIF(drive)->INB(IDE_STATUS_REG);
+			int stat = ide_read_status(drive);
 
 			if ((stat & SEEK_STAT) != SEEK_STAT) {
 				if (elapsed < IDECD_SEEK_TIMEOUT) {

@@ -780,6 +780,9 @@ and is between 256 and 4096 characters. It is defined in the file
 			loop use the MONITOR/MWAIT idle loop anyways. Performance should be the same
 			as idle=poll.
 
+	ide-pci-generic.all-generic-ide [HW] (E)IDE subsystem
+			Claim all unknown PCI IDE storage controllers.
+
 	ignore_loglevel	[KNL]
 			Ignore loglevel setting - this will print /all/
 			kernel messages to the console. Useful for debugging.

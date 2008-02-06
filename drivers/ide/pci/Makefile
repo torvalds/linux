@@ -34,7 +34,8 @@ obj-$(CONFIG_BLK_DEV_TRM290)		+= trm290.o
 obj-$(CONFIG_BLK_DEV_VIA82CXXX)		+= via82cxxx.o
 
 # Must appear at the end of the block
-obj-$(CONFIG_BLK_DEV_GENERIC)          += generic.o
+obj-$(CONFIG_BLK_DEV_GENERIC)		+= ide-pci-generic.o
+ide-pci-generic-y			+= generic.o
 
 ifeq ($(CONFIG_BLK_DEV_CMD640), m)
 	obj-m += cmd640.o
