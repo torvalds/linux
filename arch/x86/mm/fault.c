@@ -428,6 +428,16 @@ static noinline void pgtable_bad(unsigned long address, struct pt_regs *regs,
 }
 #endif
 
+static int spurious_fault_check(unsigned long error_code, pte_t *pte)
+{
+	if ((error_code & PF_WRITE) && !pte_write(*pte))
+		return 0;
+	if ((error_code & PF_INSTR) && !pte_exec(*pte))
+		return 0;
+
+	return 1;
+}
+
 /*
  * Handle a spurious fault caused by a stale TLB entry.  This allows
  * us to lazily refresh the TLB when increasing the permissions of a
@@ -457,20 +467,21 @@ static int spurious_fault(unsigned long address,
 	if (!pud_present(*pud))
 		return 0;
 
+	if (pud_large(*pud))
+		return spurious_fault_check(error_code, (pte_t *) pud);
+
 	pmd = pmd_offset(pud, address);
 	if (!pmd_present(*pmd))
 		return 0;
+
+	if (pmd_large(*pmd))
+		return spurious_fault_check(error_code, (pte_t *) pmd);
 
 	pte = pte_offset_kernel(pmd, address);
 	if (!pte_present(*pte))
 		return 0;
 
-	if ((error_code & PF_WRITE) && !pte_write(*pte))
-		return 0;
-	if ((error_code & PF_INSTR) && !pte_exec(*pte))
-		return 0;
-
-	return 1;
+	return spurious_fault_check(error_code, pte);
 }
 
 /*
