@@ -262,8 +262,8 @@ len_err:
  * Resource Configuration Options
  */
 
-static void pnpbios_parse_mem_option(unsigned char *p, int size,
-				     struct pnp_option *option)
+static __init void pnpbios_parse_mem_option(unsigned char *p, int size,
+					    struct pnp_option *option)
 {
 	struct pnp_mem *mem;
 
@@ -278,8 +278,8 @@ static void pnpbios_parse_mem_option(unsigned char *p, int size,
 	pnp_register_mem_resource(option, mem);
 }
 
-static void pnpbios_parse_mem32_option(unsigned char *p, int size,
-				       struct pnp_option *option)
+static __init void pnpbios_parse_mem32_option(unsigned char *p, int size,
+					      struct pnp_option *option)
 {
 	struct pnp_mem *mem;
 
@@ -294,8 +294,8 @@ static void pnpbios_parse_mem32_option(unsigned char *p, int size,
 	pnp_register_mem_resource(option, mem);
 }
 
-static void pnpbios_parse_fixed_mem32_option(unsigned char *p, int size,
-					     struct pnp_option *option)
+static __init void pnpbios_parse_fixed_mem32_option(unsigned char *p, int size,
+						    struct pnp_option *option)
 {
 	struct pnp_mem *mem;
 
@@ -309,7 +309,7 @@ static void pnpbios_parse_fixed_mem32_option(unsigned char *p, int size,
 	pnp_register_mem_resource(option, mem);
 }
 
-static void pnpbios_parse_irq_option(unsigned char *p, int size,
+static __init void pnpbios_parse_irq_option(unsigned char *p, int size,
 				     struct pnp_option *option)
 {
 	struct pnp_irq *irq;
@@ -327,7 +327,7 @@ static void pnpbios_parse_irq_option(unsigned char *p, int size,
 	pnp_register_irq_resource(option, irq);
 }
 
-static void pnpbios_parse_dma_option(unsigned char *p, int size,
+static __init void pnpbios_parse_dma_option(unsigned char *p, int size,
 				     struct pnp_option *option)
 {
 	struct pnp_dma *dma;
@@ -340,8 +340,8 @@ static void pnpbios_parse_dma_option(unsigned char *p, int size,
 	pnp_register_dma_resource(option, dma);
 }
 
-static void pnpbios_parse_port_option(unsigned char *p, int size,
-				      struct pnp_option *option)
+static __init void pnpbios_parse_port_option(unsigned char *p, int size,
+					     struct pnp_option *option)
 {
 	struct pnp_port *port;
 
@@ -356,8 +356,8 @@ static void pnpbios_parse_port_option(unsigned char *p, int size,
 	pnp_register_port_resource(option, port);
 }
 
-static void pnpbios_parse_fixed_port_option(unsigned char *p, int size,
-					    struct pnp_option *option)
+static __init void pnpbios_parse_fixed_port_option(unsigned char *p, int size,
+						   struct pnp_option *option)
 {
 	struct pnp_port *port;
 
@@ -371,9 +371,9 @@ static void pnpbios_parse_fixed_port_option(unsigned char *p, int size,
 	pnp_register_port_resource(option, port);
 }
 
-static unsigned char *pnpbios_parse_resource_option_data(unsigned char *p,
-							 unsigned char *end,
-							 struct pnp_dev *dev)
+static __init unsigned char *
+pnpbios_parse_resource_option_data(unsigned char *p, unsigned char *end,
+					struct pnp_dev *dev)
 {
 	unsigned int len, tag;
 	int priority = 0;
@@ -781,7 +781,8 @@ len_err:
  * Core Parsing Functions
  */
 
-int pnpbios_parse_data_stream(struct pnp_dev *dev, struct pnp_bios_node *node)
+int __init pnpbios_parse_data_stream(struct pnp_dev *dev,
+					struct pnp_bios_node *node)
 {
 	unsigned char *p = (char *)node->data;
 	unsigned char *end = (char *)(node->data + node->size);

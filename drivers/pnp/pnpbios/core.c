@@ -315,7 +315,7 @@ struct pnp_protocol pnpbios_protocol = {
 	.disable = pnpbios_disable_resources,
 };
 
-static int insert_device(struct pnp_bios_node *node)
+static int __init insert_device(struct pnp_bios_node *node)
 {
 	struct list_head *pos;
 	struct pnp_dev *dev;
