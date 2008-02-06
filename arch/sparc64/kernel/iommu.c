@@ -472,94 +472,15 @@ static void dma_4u_unmap_single(struct device *dev, dma_addr_t bus_addr,
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
-#define SG_ENT_PHYS_ADDRESS(SG)	(__pa(sg_virt((SG))))
-
-static void fill_sg(iopte_t *iopte, struct scatterlist *sg,
-		    int nused, int nelems,
-		    unsigned long iopte_protection)
-{
-	struct scatterlist *dma_sg = sg;
-	int i;
-
-	for (i = 0; i < nused; i++) {
-		unsigned long pteval = ~0UL;
-		u32 dma_npages;
-
-		dma_npages = ((dma_sg->dma_address & (IO_PAGE_SIZE - 1UL)) +
-			      dma_sg->dma_length +
-			      ((IO_PAGE_SIZE - 1UL))) >> IO_PAGE_SHIFT;
-		do {
-			unsigned long offset;
-			signed int len;
-
-			/* If we are here, we know we have at least one
-			 * more page to map.  So walk forward until we
-			 * hit a page crossing, and begin creating new
-			 * mappings from that spot.
-			 */
-			for (;;) {
-				unsigned long tmp;
-
-				tmp = SG_ENT_PHYS_ADDRESS(sg);
-				len = sg->length;
-				if (((tmp ^ pteval) >> IO_PAGE_SHIFT) != 0UL) {
-					pteval = tmp & IO_PAGE_MASK;
-					offset = tmp & (IO_PAGE_SIZE - 1UL);
-					break;
-				}
-				if (((tmp ^ (tmp + len - 1UL)) >> IO_PAGE_SHIFT) != 0UL) {
-					pteval = (tmp + IO_PAGE_SIZE) & IO_PAGE_MASK;
-					offset = 0UL;
-					len -= (IO_PAGE_SIZE - (tmp & (IO_PAGE_SIZE - 1UL)));
-					break;
-				}
-				sg = sg_next(sg);
-				nelems--;
-			}
-
-			pteval = iopte_protection | (pteval & IOPTE_PAGE);
-			while (len > 0) {
-				*iopte++ = __iopte(pteval);
-				pteval += IO_PAGE_SIZE;
-				len -= (IO_PAGE_SIZE - offset);
-				offset = 0;
-				dma_npages--;
-			}
-
-			pteval = (pteval & IOPTE_PAGE) + len;
-			sg = sg_next(sg);
-			nelems--;
-
-			/* Skip over any tail mappings we've fully mapped,
-			 * adjusting pteval along the way.  Stop when we
-			 * detect a page crossing event.
-			 */
-			while (nelems &&
-			       (pteval << (64 - IO_PAGE_SHIFT)) != 0UL &&
-			       (pteval == SG_ENT_PHYS_ADDRESS(sg)) &&
-			       ((pteval ^
-				 (SG_ENT_PHYS_ADDRESS(sg) + sg->length - 1UL)) >> IO_PAGE_SHIFT) == 0UL) {
-				pteval += sg->length;
-				sg = sg_next(sg);
-				nelems--;
-			}
-			if ((pteval << (64 - IO_PAGE_SHIFT)) == 0UL)
-				pteval = ~0UL;
-		} while (dma_npages != 0);
-		dma_sg = sg_next(dma_sg);
-	}
-}
-
 static int dma_4u_map_sg(struct device *dev, struct scatterlist *sglist,
 			 int nelems, enum dma_data_direction direction)
 {
-	struct iommu *iommu;
+	unsigned long flags, ctx, i, npages, iopte_protection;
+	struct scatterlist *sg;
 	struct strbuf *strbuf;
-	unsigned long flags, ctx, npages, iopte_protection;
+	struct iommu *iommu;
 	iopte_t *base;
 	u32 dma_base;
-	struct scatterlist *sgtmp;
-	int used;
 
 	/* Fast path single entry scatterlists. */
 	if (nelems == 1) {
@@ -578,11 +499,7 @@ static int dma_4u_map_sg(struct device *dev, struct scatterlist *sglist,
 	if (unlikely(direction == DMA_NONE))
 		goto bad_no_ctx;
 
-	/* Step 1: Prepare scatter list. */
-
-	npages = prepare_sg(dev, sglist, nelems);
-
-	/* Step 2: Allocate a cluster and context, if necessary. */
+	npages = calc_npages(sglist, nelems);
 
 	spin_lock_irqsave(&iommu->lock, flags);
 
@@ -599,18 +516,6 @@ static int dma_4u_map_sg(struct device *dev, struct scatterlist *sglist,
 	dma_base = iommu->page_table_map_base +
 		((base - iommu->page_table) << IO_PAGE_SHIFT);
 
-	/* Step 3: Normalize DMA addresses. */
-	used = nelems;
-
-	sgtmp = sglist;
-	while (used && sgtmp->dma_length) {
-		sgtmp->dma_address += dma_base;
-		sgtmp = sg_next(sgtmp);
-		used--;
-	}
-	used = nelems - used;
-
-	/* Step 4: Create the mappings. */
 	if (strbuf->strbuf_enabled)
 		iopte_protection = IOPTE_STREAMING(ctx);
 	else
@@ -618,13 +523,27 @@ static int dma_4u_map_sg(struct device *dev, struct scatterlist *sglist,
 	if (direction != DMA_TO_DEVICE)
 		iopte_protection |= IOPTE_WRITE;
 
-	fill_sg(base, sglist, used, nelems, iopte_protection);
+	for_each_sg(sglist, sg, nelems, i) {
+		unsigned long paddr = SG_ENT_PHYS_ADDRESS(sg);
+		unsigned long slen = sg->length;
+		unsigned long this_npages;
 
-#ifdef VERIFY_SG
-	verify_sglist(sglist, nelems, base, npages);
-#endif
+		this_npages = iommu_num_pages(paddr, slen);
 
-	return used;
+		sg->dma_address = dma_base | (paddr & ~IO_PAGE_MASK);
+		sg->dma_length = slen;
+
+		paddr &= IO_PAGE_MASK;
+		while (this_npages--) {
+			iopte_val(*base) = iopte_protection | paddr;
+
+			base++;
+			paddr += IO_PAGE_SIZE;
+			dma_base += IO_PAGE_SIZE;
+		}
+	}
+
+	return nelems;
 
 bad:
 	iommu_free_ctx(iommu, ctx);
@@ -637,11 +556,10 @@ bad_no_ctx:
 static void dma_4u_unmap_sg(struct device *dev, struct scatterlist *sglist,
 			    int nelems, enum dma_data_direction direction)
 {
-	struct iommu *iommu;
-	struct strbuf *strbuf;
-	iopte_t *base;
 	unsigned long flags, ctx, i, npages;
-	struct scatterlist *sg, *sgprv;
+	struct strbuf *strbuf;
+	struct iommu *iommu;
+	iopte_t *base;
 	u32 bus_addr;
 
 	if (unlikely(direction == DMA_NONE)) {
@@ -654,15 +572,7 @@ static void dma_4u_unmap_sg(struct device *dev, struct scatterlist *sglist,
 
 	bus_addr = sglist->dma_address & IO_PAGE_MASK;
 
-	sgprv = NULL;
-	for_each_sg(sglist, sg, nelems, i) {
-		if (sg->dma_length == 0)
-			break;
-		sgprv = sg;
-	}
-
-	npages = (IO_PAGE_ALIGN(sgprv->dma_address + sgprv->dma_length) -
-		  bus_addr) >> IO_PAGE_SHIFT;
+	npages = calc_npages(sglist, nelems);
 
 	base = iommu->page_table +
 		((bus_addr - iommu->page_table_map_base) >> IO_PAGE_SHIFT);
