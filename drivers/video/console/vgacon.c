@@ -1153,8 +1153,6 @@ static int vgacon_do_font_op(struct vgastate *state,char *arg,int set,int ch512)
 
 	/* if 512 char mode is already enabled don't re-enable it. */
 	if ((set) && (ch512 != vga_512_chars)) {
-		int i;	
-		
 		/* attribute controller */
 		for (i = 0; i < MAX_NR_CONSOLES; i++) {
 			struct vc_data *c = vc_cons[i].d;
