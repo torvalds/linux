@@ -260,17 +260,6 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
 	pgprot_t old_prot, new_prot;
 	int level, do_split = 1;
 
-	/*
-	 * An Athlon 64 X2 showed hard hangs if we tried to preserve
-	 * largepages and changed the PSE entry from RW to RO.
-	 *
-	 * As AMD CPUs have a long series of erratas in this area,
-	 * (and none of the known ones seem to explain this hang),
-	 * disable this code until the hang can be debugged:
-	 */
-	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
-		return 1;
-
 	spin_lock_irqsave(&pgd_lock, flags);
 	/*
 	 * Check for races, another CPU might have split this page
