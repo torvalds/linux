@@ -81,6 +81,8 @@ struct mdk_rdev_s
 #define	In_sync		2		/* device is in_sync with rest of array */
 #define	WriteMostly	4		/* Avoid reading if at all possible */
 #define	BarriersNotsupp	5		/* BIO_RW_BARRIER is not supported */
+#define	AllReserved	6		/* If whole device is reserved for
+					 * one array */
 
 	int desc_nr;			/* descriptor index in the superblock */
 	int raid_disk;			/* role of device in array */
