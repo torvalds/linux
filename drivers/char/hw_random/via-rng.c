@@ -42,6 +42,8 @@ enum {
 	VIA_STRFILT_ENABLE	= (1 << 14),
 	VIA_RAWBITS_ENABLE	= (1 << 13),
 	VIA_RNG_ENABLE		= (1 << 6),
+	VIA_NOISESRC1		= (1 << 8),
+	VIA_NOISESRC2		= (1 << 9),
 	VIA_XSTORE_CNT_MASK	= 0x0F,
 
 	VIA_RNG_CHUNK_8		= 0x00,	/* 64 rand bits, 64 stored bits */
@@ -119,6 +121,7 @@ static int via_rng_data_read(struct hwrng *rng, u32 *data)
 
 static int via_rng_init(struct hwrng *rng)
 {
+	struct cpuinfo_x86 *c = &cpu_data(0);
 	u32 lo, hi, old_lo;
 
 	/* Control the RNG via MSR.  Tread lightly and pay very close
@@ -134,6 +137,17 @@ static int via_rng_init(struct hwrng *rng)
 	lo &= ~VIA_XSTORE_CNT_MASK;
 	lo &= ~(VIA_STRFILT_ENABLE | VIA_STRFILT_FAIL | VIA_RAWBITS_ENABLE);
 	lo |= VIA_RNG_ENABLE;
+	lo |= VIA_NOISESRC1;
+
+	/* Enable secondary noise source on CPUs where it is present. */
+
+	/* Nehemiah stepping 8 and higher */
+	if ((c->x86_model == 9) && (c->x86_mask > 7))
+		lo |= VIA_NOISESRC2;
+
+	/* Esther */
+	if (c->x86_model >= 10)
+		lo |= VIA_NOISESRC2;
 
 	if (lo != old_lo)
 		wrmsr(MSR_VIA_RNG, lo, hi);
