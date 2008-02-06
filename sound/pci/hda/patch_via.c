@@ -523,6 +523,7 @@ static int via_build_pcms(struct hda_codec *codec)
 		codec->num_pcms++;
 		info++;
 		info->name = spec->stream_name_digital;
+		info->pcm_type = HDA_PCM_TYPE_SPDIF;
 		if (spec->multiout.dig_out_nid) {
 			info->stream[SNDRV_PCM_STREAM_PLAYBACK] =
 				*(spec->stream_digital_playback);

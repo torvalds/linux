@@ -284,6 +284,7 @@ static int conexant_build_pcms(struct hda_codec *codec)
 		info++;
 		codec->num_pcms++;
 		info->name = "Conexant Digital";
+		info->pcm_type = HDA_PCM_TYPE_SPDIF;
 		info->stream[SNDRV_PCM_STREAM_PLAYBACK] =
 			conexant_pcm_digital_playback;
 		info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid =

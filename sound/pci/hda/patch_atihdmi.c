@@ -116,6 +116,7 @@ static int atihdmi_build_pcms(struct hda_codec *codec)
 	codec->pcm_info = info;
 
 	info->name = "ATI HDMI";
+	info->pcm_type = HDA_PCM_TYPE_HDMI;
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK] = atihdmi_pcm_digital_playback;
 
 	return 0;

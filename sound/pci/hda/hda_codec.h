@@ -590,11 +590,21 @@ struct hda_pcm_stream {
 	struct hda_pcm_ops ops;
 };
 
+/* PCM types */
+enum {
+	HDA_PCM_TYPE_AUDIO,
+	HDA_PCM_TYPE_SPDIF,
+	HDA_PCM_TYPE_HDMI,
+	HDA_PCM_TYPE_MODEM,
+	HDA_PCM_NTYPES
+};
+
 /* for PCM creation */
 struct hda_pcm {
 	char *name;
 	struct hda_pcm_stream stream[2];
-	unsigned int is_modem;	/* modem codec? */
+	unsigned int pcm_type;	/* HDA_PCM_TYPE_XXX */
+	int device;	/* assigned device number */
 };
 
 /* codec information */

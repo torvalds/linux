@@ -211,9 +211,7 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 /* max buffer size - no h/w limit, you can increase as you like */
 #define AZX_MAX_BUF_SIZE	(1024*1024*1024)
 /* max number of PCM devics per card */
-#define AZX_MAX_AUDIO_PCMS	6
-#define AZX_MAX_MODEM_PCMS	2
-#define AZX_MAX_PCMS		(AZX_MAX_AUDIO_PCMS + AZX_MAX_MODEM_PCMS)
+#define AZX_MAX_PCMS		8
 
 /* RIRB int mask: overrun[2], response[0] */
 #define RIRB_INT_RESPONSE	0x01
@@ -350,7 +348,6 @@ struct azx {
 	struct azx_dev *azx_dev;
 
 	/* PCM */
-	unsigned int pcm_devs;
 	struct snd_pcm *pcm[AZX_MAX_PCMS];
 
 	/* HD codec */
@@ -1386,7 +1383,7 @@ static void azx_pcm_free(struct snd_pcm *pcm)
 }
 
 static int __devinit create_codec_pcm(struct azx *chip, struct hda_codec *codec,
-				      struct hda_pcm *cpcm, int pcm_dev)
+				      struct hda_pcm *cpcm)
 {
 	int err;
 	struct snd_pcm *pcm;
@@ -1400,7 +1397,7 @@ static int __devinit create_codec_pcm(struct azx *chip, struct hda_codec *codec,
 
 	snd_assert(cpcm->name, return -EINVAL);
 
-	err = snd_pcm_new(chip->card, cpcm->name, pcm_dev,
+	err = snd_pcm_new(chip->card, cpcm->name, cpcm->device,
 			  cpcm->stream[0].substreams,
 			  cpcm->stream[1].substreams,
 			  &pcm);
@@ -1423,59 +1420,67 @@ static int __devinit create_codec_pcm(struct azx *chip, struct hda_codec *codec,
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 					      snd_dma_pci_data(chip->pci),
 					      1024 * 64, 1024 * 1024);
-	chip->pcm[pcm_dev] = pcm;
-	if (chip->pcm_devs < pcm_dev + 1)
-		chip->pcm_devs = pcm_dev + 1;
-
+	chip->pcm[cpcm->device] = pcm;
 	return 0;
 }
 
 static int __devinit azx_pcm_create(struct azx *chip)
 {
+	static const char *dev_name[HDA_PCM_NTYPES] = {
+		"Audio", "SPDIF", "HDMI", "Modem"
+	};
+	/* starting device index for each PCM type */
+	static int dev_idx[HDA_PCM_NTYPES] = {
+		[HDA_PCM_TYPE_AUDIO] = 0,
+		[HDA_PCM_TYPE_SPDIF] = 1,
+		[HDA_PCM_TYPE_HDMI] = 3,
+		[HDA_PCM_TYPE_MODEM] = 6
+	};
+	/* normal audio device indices; not linear to keep compatibility */
+	static int audio_idx[4] = { 0, 2, 4, 5 };
 	struct hda_codec *codec;
 	int c, err;
-	int pcm_dev;
+	int num_devs[HDA_PCM_NTYPES];
 
 	err = snd_hda_build_pcms(chip->bus);
 	if (err < 0)
 		return err;
 
 	/* create audio PCMs */
-	pcm_dev = 0;
+	memset(num_devs, 0, sizeof(num_devs));
 	list_for_each_entry(codec, &chip->bus->codec_list, list) {
 		for (c = 0; c < codec->num_pcms; c++) {
-			if (codec->pcm_info[c].is_modem)
-				continue; /* create later */
-			if (pcm_dev >= AZX_MAX_AUDIO_PCMS) {
-				snd_printk(KERN_ERR SFX
-					   "Too many audio PCMs\n");
-				return -EINVAL;
+			struct hda_pcm *cpcm = &codec->pcm_info[c];
+			int type = cpcm->pcm_type;
+			switch (type) {
+			case HDA_PCM_TYPE_AUDIO:
+				if (num_devs[type] >= ARRAY_SIZE(audio_idx)) {
+					snd_printk(KERN_WARNING
+						   "Too many audio devices\n");
+					continue;
+				}
+				cpcm->device = audio_idx[num_devs[type]];
+				break;
+			case HDA_PCM_TYPE_SPDIF:
+			case HDA_PCM_TYPE_HDMI:
+			case HDA_PCM_TYPE_MODEM:
+				if (num_devs[type]) {
+					snd_printk(KERN_WARNING
+						   "%s already defined\n",
+						   dev_name[type]);
+					continue;
+				}
+				cpcm->device = dev_idx[type];
+				break;
+			default:
+				snd_printk(KERN_WARNING
+					   "Invalid PCM type %d\n", type);
+				continue;
 			}
-			err = create_codec_pcm(chip, codec,
-					       &codec->pcm_info[c], pcm_dev);
+			num_devs[type]++;
+			err = create_codec_pcm(chip, codec, cpcm);
 			if (err < 0)
 				return err;
-			pcm_dev++;
-		}
-	}
-
-	/* create modem PCMs */
-	pcm_dev = AZX_MAX_AUDIO_PCMS;
-	list_for_each_entry(codec, &chip->bus->codec_list, list) {
-		for (c = 0; c < codec->num_pcms; c++) {
-			if (!codec->pcm_info[c].is_modem)
-				continue; /* already created */
-			if (pcm_dev >= AZX_MAX_PCMS) {
-				snd_printk(KERN_ERR SFX
-					   "Too many modem PCMs\n");
-				return -EINVAL;
-			}
-			err = create_codec_pcm(chip, codec,
-					       &codec->pcm_info[c], pcm_dev);
-			if (err < 0)
-				return err;
-			chip->pcm[pcm_dev]->dev_class = SNDRV_PCM_CLASS_MODEM;
-			pcm_dev++;
 		}
 	}
 	return 0;
@@ -1587,7 +1592,7 @@ static int azx_suspend(struct pci_dev *pci, pm_message_t state)
 	int i;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	for (i = 0; i < chip->pcm_devs; i++)
+	for (i = 0; i < AZX_MAX_PCMS; i++)
 		snd_pcm_suspend_all(chip->pcm[i]);
 	if (chip->initialized)
 		snd_hda_suspend(chip->bus, state);
