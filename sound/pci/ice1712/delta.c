@@ -86,6 +86,7 @@ static unsigned char ap_cs8427_codec_select(struct snd_ice1712 *ice)
 	unsigned char tmp;
 	tmp = snd_ice1712_read(ice, ICE1712_IREG_GPIO_DATA);
 	switch (ice->eeprom.subvendor) {
+	case ICE1712_SUBDEVICE_DELTA1010E:
 	case ICE1712_SUBDEVICE_DELTA1010LT:
 		tmp &= ~ICE1712_DELTA_1010LT_CS;
 		tmp |= ICE1712_DELTA_1010LT_CCLK | ICE1712_DELTA_1010LT_CS_CS8427;
@@ -109,6 +110,7 @@ static unsigned char ap_cs8427_codec_select(struct snd_ice1712 *ice)
 static void ap_cs8427_codec_deassert(struct snd_ice1712 *ice, unsigned char tmp)
 {
 	switch (ice->eeprom.subvendor) {
+	case ICE1712_SUBDEVICE_DELTA1010E:
 	case ICE1712_SUBDEVICE_DELTA1010LT:
 		tmp &= ~ICE1712_DELTA_1010LT_CS;
 		tmp |= ICE1712_DELTA_1010LT_CS_NONE;
@@ -534,6 +536,9 @@ static int __devinit snd_ice1712_delta_init(struct snd_ice1712 *ice)
 	int err;
 	struct snd_akm4xxx *ak;
 
+	if (ice->eeprom.subvendor && ice->eeprom.gpiodir == 0x7b)
+		ice->eeprom.subvendor = ICE1712_SUBDEVICE_DELTA1010E;
+
 	/* determine I2C, DACs and ADCs */
 	switch (ice->eeprom.subvendor) {
 	case ICE1712_SUBDEVICE_AUDIOPHILE:
@@ -550,6 +555,7 @@ static int __devinit snd_ice1712_delta_init(struct snd_ice1712 *ice)
 		ice->num_total_adcs = ice->omni ? 8 : 4;
 		break;
 	case ICE1712_SUBDEVICE_DELTA1010:
+	case ICE1712_SUBDEVICE_DELTA1010E:
 	case ICE1712_SUBDEVICE_DELTA1010LT:
 	case ICE1712_SUBDEVICE_MEDIASTATION:
 		ice->num_total_dacs = 8;
@@ -568,6 +574,7 @@ static int __devinit snd_ice1712_delta_init(struct snd_ice1712 *ice)
 	switch (ice->eeprom.subvendor) {
 	case ICE1712_SUBDEVICE_AUDIOPHILE:
 	case ICE1712_SUBDEVICE_DELTA410:
+	case ICE1712_SUBDEVICE_DELTA1010E:
 	case ICE1712_SUBDEVICE_DELTA1010LT:
 	case ICE1712_SUBDEVICE_VX442:
 		if ((err = snd_i2c_bus_create(ice->card, "ICE1712 GPIO 1", NULL, &ice->i2c)) < 0) {
@@ -601,6 +608,7 @@ static int __devinit snd_ice1712_delta_init(struct snd_ice1712 *ice)
 	/* no analog? */
 	switch (ice->eeprom.subvendor) {
 	case ICE1712_SUBDEVICE_DELTA1010:
+	case ICE1712_SUBDEVICE_DELTA1010E:
 	case ICE1712_SUBDEVICE_DELTADIO2496:
 	case ICE1712_SUBDEVICE_MEDIASTATION:
 		return 0;
@@ -674,6 +682,7 @@ static int __devinit snd_ice1712_delta_add_controls(struct snd_ice1712 *ice)
 		if (err < 0)
 			return err;
 		break;
+	case ICE1712_SUBDEVICE_DELTA1010E:
 	case ICE1712_SUBDEVICE_DELTA1010LT:
 		err = snd_ctl_add(ice->card, snd_ctl_new1(&snd_ice1712_delta1010lt_wordclock_select, ice));
 		if (err < 0)
