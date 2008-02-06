@@ -77,6 +77,7 @@ void change_console(struct vc_data *new_vc);
 void reset_vc(struct vc_data *vc);
 extern int unbind_con_driver(const struct consw *csw, int first, int last,
 			     int deflt);
+int vty_init(void);
 
 /*
  * vc_screen.c shares this temporary buffer with the console write code so that

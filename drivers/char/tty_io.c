@@ -4048,10 +4048,6 @@ void __init console_init(void)
 	}
 }
 
-#ifdef CONFIG_VT
-extern int vty_init(void);
-#endif
-
 static int __init tty_class_init(void)
 {
 	tty_class = class_create(THIS_MODULE, "tty");
