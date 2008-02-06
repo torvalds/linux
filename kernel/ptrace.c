@@ -20,6 +20,7 @@
 #include <linux/signal.h>
 #include <linux/audit.h>
 #include <linux/pid_namespace.h>
+#include <linux/syscalls.h>
 
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
