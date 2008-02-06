@@ -410,6 +410,10 @@ nlmsvc_lock(struct svc_rqst *rqstp, struct nlm_file *file,
 		ret = nlm_lck_denied_grace_period;
 		goto out;
 	}
+	if (reclaim && !locks_in_grace()) {
+		ret = nlm_lck_denied_grace_period;
+		goto out;
+	}
 
 	if (!wait)
 		lock->fl.fl_flags &= ~FL_SLEEP;
