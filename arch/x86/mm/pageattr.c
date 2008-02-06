@@ -167,8 +167,6 @@ static inline pgprot_t static_protections(pgprot_t prot, unsigned long address)
 	if (within(address, virt_to_highmap(_text), virt_to_highmap(_etext)))
 		pgprot_val(forbidden) |= _PAGE_NX;
 
-
-#ifdef CONFIG_DEBUG_RODATA
 	/* The .rodata section needs to be read-only */
 	if (within(address, (unsigned long)__start_rodata,
 				(unsigned long)__end_rodata))
@@ -179,7 +177,6 @@ static inline pgprot_t static_protections(pgprot_t prot, unsigned long address)
 	if (within(address, virt_to_highmap(__start_rodata),
 				virt_to_highmap(__end_rodata)))
 		pgprot_val(forbidden) |= _PAGE_RW;
-#endif
 
 	prot = __pgprot(pgprot_val(prot) & ~pgprot_val(forbidden));
 
