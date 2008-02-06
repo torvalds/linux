@@ -241,8 +241,6 @@ enum {
 struct gfs2_dinode_host {
 	u64 di_size;		/* number of bytes in file */
 	u64 di_blocks;		/* number of blocks in file */
-	u64 di_goal_meta;	/* rgrp to alloc from next */
-	u64 di_goal_data;	/* data block goal */
 	u64 di_generation;	/* generation number for NFS */
 	u32 di_flags;		/* GFS2_DIF_... */
 	/* These only apply to directories  */
@@ -262,8 +260,7 @@ struct gfs2_inode {
 	struct gfs2_holder i_iopen_gh;
 	struct gfs2_holder i_gh; /* for prepare/commit_write only */
 	struct gfs2_alloc *i_alloc;
-	u64 i_last_rg_alloc;
-
+	u64 i_goal;	/* goal block for allocations */
 	struct rw_semaphore i_rw_mutex;
 	u8 i_height;
 	u8 i_depth;

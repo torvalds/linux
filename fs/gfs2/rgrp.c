@@ -915,24 +915,20 @@ static struct inode *try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked)
 static struct gfs2_rgrpd *recent_rgrp_first(struct gfs2_sbd *sdp,
 					    u64 rglast)
 {
-	struct gfs2_rgrpd *rgd = NULL;
+	struct gfs2_rgrpd *rgd;
 
 	spin_lock(&sdp->sd_rindex_spin);
 
-	if (list_empty(&sdp->sd_rindex_recent_list))
-		goto out;
-
-	if (!rglast)
-		goto first;
-
-	list_for_each_entry(rgd, &sdp->sd_rindex_recent_list, rd_recent) {
-		if (rgd->rd_addr == rglast)
-			goto out;
+	if (rglast) {
+		list_for_each_entry(rgd, &sdp->sd_rindex_recent_list, rd_recent) {
+			if (rgrp_contains_block(rgd, rglast))
+				goto out;
+		}
 	}
-
-first:
-	rgd = list_entry(sdp->sd_rindex_recent_list.next, struct gfs2_rgrpd,
-			 rd_recent);
+	rgd = NULL;
+	if (!list_empty(&sdp->sd_rindex_recent_list))
+		rgd = list_entry(sdp->sd_rindex_recent_list.next,
+				 struct gfs2_rgrpd, rd_recent);
 out:
 	spin_unlock(&sdp->sd_rindex_spin);
 	return rgd;
@@ -1078,7 +1074,7 @@ static struct inode *get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 
 	/* Try recently successful rgrps */
 
-	rgd = recent_rgrp_first(sdp, ip->i_last_rg_alloc);
+	rgd = recent_rgrp_first(sdp, ip->i_goal);
 
 	while (rgd) {
 		rg_locked = 0;
@@ -1162,8 +1158,6 @@ static struct inode *get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 	}
 
 out:
-	ip->i_last_rg_alloc = rgd->rd_addr;
-
 	if (begin) {
 		recent_rgrp_add(rgd);
 		rgd = gfs2_rgrpd_get_next(rgd);
@@ -1425,8 +1419,8 @@ u64 gfs2_alloc_data(struct gfs2_inode *ip)
 	u32 goal, blk;
 	u64 block;
 
-	if (rgrp_contains_block(rgd, ip->i_di.di_goal_data))
-		goal = ip->i_di.di_goal_data - rgd->rd_data0;
+	if (rgrp_contains_block(rgd, ip->i_goal))
+		goal = ip->i_goal - rgd->rd_data0;
 	else
 		goal = rgd->rd_last_alloc_data;
 
@@ -1435,7 +1429,7 @@ u64 gfs2_alloc_data(struct gfs2_inode *ip)
 	rgd->rd_last_alloc_data = blk;
 
 	block = rgd->rd_data0 + blk;
-	ip->i_di.di_goal_data = block;
+	ip->i_goal = block;
 
 	gfs2_assert_withdraw(sdp, rgd->rd_rg.rg_free);
 	rgd->rd_rg.rg_free--;
@@ -1470,8 +1464,8 @@ u64 gfs2_alloc_meta(struct gfs2_inode *ip)
 	u32 goal, blk;
 	u64 block;
 
-	if (rgrp_contains_block(rgd, ip->i_di.di_goal_meta))
-		goal = ip->i_di.di_goal_meta - rgd->rd_data0;
+	if (rgrp_contains_block(rgd, ip->i_goal))
+		goal = ip->i_goal - rgd->rd_data0;
 	else
 		goal = rgd->rd_last_alloc_meta;
 
@@ -1480,7 +1474,7 @@ u64 gfs2_alloc_meta(struct gfs2_inode *ip)
 	rgd->rd_last_alloc_meta = blk;
 
 	block = rgd->rd_data0 + blk;
-	ip->i_di.di_goal_meta = block;
+	ip->i_goal = block;
 
 	gfs2_assert_withdraw(sdp, rgd->rd_rg.rg_free);
 	rgd->rd_rg.rg_free--;
