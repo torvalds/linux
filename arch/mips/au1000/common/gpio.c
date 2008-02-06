@@ -27,7 +27,6 @@
  * 	others have a second one : GPIO2
  */
 
-#include <linux/autoconf.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/types.h>
