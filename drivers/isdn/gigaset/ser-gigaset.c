@@ -17,6 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/tty.h>
 #include <linux/poll.h>
+#include <linux/completion.h>
 
 /* Version Information */
 #define DRIVER_AUTHOR "Tilman Schmidt"
@@ -48,7 +49,7 @@ struct ser_cardstate {
 	struct platform_device	dev;
 	struct tty_struct	*tty;
 	atomic_t		refcnt;
-	struct mutex		dead_mutex;
+	struct completion	dead_cmp;
 };
 
 static struct platform_driver device_driver = {
@@ -498,7 +499,7 @@ static struct cardstate *cs_get(struct tty_struct *tty)
 static void cs_put(struct cardstate *cs)
 {
 	if (atomic_dec_and_test(&cs->hw.ser->refcnt))
-		mutex_unlock(&cs->hw.ser->dead_mutex);
+		complete(&cs->hw.ser->dead_cmp);
 }
 
 /*
@@ -527,8 +528,8 @@ gigaset_tty_open(struct tty_struct *tty)
 
 	cs->dev = &cs->hw.ser->dev.dev;
 	cs->hw.ser->tty = tty;
-	mutex_init(&cs->hw.ser->dead_mutex);
 	atomic_set(&cs->hw.ser->refcnt, 1);
+	init_completion(&cs->hw.ser->dead_cmp);
 
 	tty->disc_data = cs;
 
@@ -543,7 +544,6 @@ gigaset_tty_open(struct tty_struct *tty)
 	}
 
 	gig_dbg(DEBUG_INIT, "Startup of HLL done");
-	mutex_lock(&cs->hw.ser->dead_mutex);
 	return 0;
 
 error:
@@ -577,7 +577,7 @@ gigaset_tty_close(struct tty_struct *tty)
 	else {
 		/* wait for running methods to finish */
 		if (!atomic_dec_and_test(&cs->hw.ser->refcnt))
-			mutex_lock(&cs->hw.ser->dead_mutex);
+			wait_for_completion(&cs->hw.ser->dead_cmp);
 	}
 
 	/* stop operations */
