@@ -122,8 +122,6 @@ outsl (unsigned long port, const void *src, unsigned long count)
 #endif
 
 /* Conversion between virtual and physical mappings.  */
-#define mm_ptov(addr)		((void *)__phys_to_virt (addr))
-#define mm_vtop(addr)		((unsigned long)__virt_to_phys (addr))
 #define phys_to_virt(addr)	((void *)__phys_to_virt (addr))
 #define virt_to_phys(addr)	((unsigned long)__virt_to_phys (addr))
 
