@@ -173,7 +173,11 @@ typedef struct acct acct_t;
 static inline u32 jiffies_to_AHZ(unsigned long x)
 {
 #if (TICK_NSEC % (NSEC_PER_SEC / AHZ)) == 0
+# if HZ < AHZ
+	return x * (AHZ / HZ);
+# else
 	return x / (HZ / AHZ);
+# endif
 #else
         u64 tmp = (u64)x * TICK_NSEC;
         do_div(tmp, (NSEC_PER_SEC / AHZ));

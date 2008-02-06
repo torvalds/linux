@@ -566,7 +566,11 @@ EXPORT_SYMBOL(jiffies_to_timeval);
 clock_t jiffies_to_clock_t(long x)
 {
 #if (TICK_NSEC % (NSEC_PER_SEC / USER_HZ)) == 0
+# if HZ < USER_HZ
+	return x * (USER_HZ / HZ);
+# else
 	return x / (HZ / USER_HZ);
+# endif
 #else
 	u64 tmp = (u64)x * TICK_NSEC;
 	do_div(tmp, (NSEC_PER_SEC / USER_HZ));
@@ -599,7 +603,12 @@ EXPORT_SYMBOL(clock_t_to_jiffies);
 u64 jiffies_64_to_clock_t(u64 x)
 {
 #if (TICK_NSEC % (NSEC_PER_SEC / USER_HZ)) == 0
+# if HZ < USER_HZ
+	x *= USER_HZ;
+	do_div(x, HZ);
+# else
 	do_div(x, HZ / USER_HZ);
+# endif
 #else
 	/*
 	 * There are better ways that don't overflow early,
@@ -611,7 +620,6 @@ u64 jiffies_64_to_clock_t(u64 x)
 #endif
 	return x;
 }
-
 EXPORT_SYMBOL(jiffies_64_to_clock_t);
 
 u64 nsec_to_clock_t(u64 x)
@@ -646,7 +654,6 @@ u64 get_jiffies_64(void)
 	} while (read_seqretry(&xtime_lock, seq));
 	return ret;
 }
-
 EXPORT_SYMBOL(get_jiffies_64);
 #endif
 
