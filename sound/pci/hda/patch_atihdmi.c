@@ -164,5 +164,6 @@ struct hda_codec_preset snd_hda_preset_atihdmi[] = {
 	{ .id = 0x1002791a, .name = "ATI RS690/780 HDMI", .patch = patch_atihdmi },
 	{ .id = 0x1002aa01, .name = "ATI R6xx HDMI", .patch = patch_atihdmi },
 	{ .id = 0x10951392, .name = "SI HDMI", .patch = patch_atihdmi },
+	{ .id = 0x17e80047, .name = "Unknown HDMI",  .patch = patch_atihdmi },
 	{} /* terminator */
 };
