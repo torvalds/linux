@@ -34,8 +34,6 @@
 #include <linux/scatterlist.h>
 #include "ecryptfs_kernel.h"
 
-struct kmem_cache *ecryptfs_lower_page_cache;
-
 /**
  * ecryptfs_get_locked_page
  *

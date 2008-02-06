@@ -376,8 +376,8 @@ out:
  *
  * Convert an eCryptfs page index into a lower byte offset
  */
-void ecryptfs_lower_offset_for_extent(loff_t *offset, loff_t extent_num,
-				      struct ecryptfs_crypt_stat *crypt_stat)
+static void ecryptfs_lower_offset_for_extent(loff_t *offset, loff_t extent_num,
+					     struct ecryptfs_crypt_stat *crypt_stat)
 {
 	(*offset) = ((crypt_stat->extent_size
 		      * crypt_stat->num_header_extents_at_front)
@@ -1802,8 +1802,8 @@ out:
 }
 
 struct kmem_cache *ecryptfs_key_tfm_cache;
-struct list_head key_tfm_list;
-struct mutex key_tfm_list_mutex;
+static struct list_head key_tfm_list;
+static struct mutex key_tfm_list_mutex;
 
 int ecryptfs_init_crypto(void)
 {

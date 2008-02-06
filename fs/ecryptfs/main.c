@@ -117,7 +117,7 @@ void __ecryptfs_printk(const char *fmt, ...)
  *
  * Returns zero on success; non-zero otherwise
  */
-int ecryptfs_init_persistent_file(struct dentry *ecryptfs_dentry)
+static int ecryptfs_init_persistent_file(struct dentry *ecryptfs_dentry)
 {
 	struct ecryptfs_inode_info *inode_info =
 		ecryptfs_inode_to_private(ecryptfs_dentry->d_inode);
