@@ -2400,13 +2400,15 @@ static void vt_console_print(struct console *co, const char *b, unsigned count)
 {
 	struct vc_data *vc = vc_cons[fg_console].d;
 	unsigned char c;
-	static unsigned long printing;
+	static DEFINE_SPINLOCK(printing_lock);
 	const ushort *start;
 	ushort cnt = 0;
 	ushort myx;
 
 	/* console busy or not yet initialized */
-	if (!printable || test_and_set_bit(0, &printing))
+	if (!printable)
+		return;
+	if (!spin_trylock(&printing_lock))
 		return;
 
 	if (kmsg_redirect && vc_cons_allocated(kmsg_redirect - 1))
@@ -2481,7 +2483,7 @@ static void vt_console_print(struct console *co, const char *b, unsigned count)
 	notify_update(vc);
 
 quit:
-	clear_bit(0, &printing);
+	spin_unlock(&printing_lock);
 }
 
 static struct tty_driver *vt_console_device(struct console *c, int *index)
