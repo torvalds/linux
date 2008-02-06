@@ -1,5 +1,5 @@
 /*
- *  pca953x.c - 16-bit I/O port with interrupt and reset
+ *  pca953x.c - 4/8/16 bit I/O ports
  *
  *  Copyright (C) 2005 Ben Gardner <bgardner@wabtec.com>
  *  Copyright (C) 2007 Marvell International Ltd.
@@ -18,13 +18,26 @@
 
 #include <asm/gpio.h>
 
+#define PCA953X_INPUT          0
+#define PCA953X_OUTPUT         1
+#define PCA953X_INVERT         2
+#define PCA953X_DIRECTION      3
 
-#define NR_PCA953X_GPIOS	16
+/* This is temporary - in 2.6.26 i2c_driver_data should replace it. */
+struct pca953x_desc {
+	char		name[I2C_NAME_SIZE];
+	unsigned long	driver_data;
+};
 
-#define PCA953X_INPUT		0
-#define PCA953X_OUTPUT		2
-#define PCA953X_INVERT		4
-#define PCA953X_DIRECTION	6
+static const struct pca953x_desc pca953x_descs[] = {
+	{ "pca9534", 8, },
+	{ "pca9535", 16, },
+	{ "pca9536", 4, },
+	{ "pca9537", 4, },
+	{ "pca9538", 8, },
+	{ "pca9539", 16, },
+	/* REVISIT several pca955x parts should work here too */
+};
 
 struct pca953x_chip {
 	unsigned gpio_start;
@@ -40,17 +53,30 @@ struct pca953x_chip {
  */
 static int pca953x_write_reg(struct pca953x_chip *chip, int reg, uint16_t val)
 {
-	if (i2c_smbus_write_word_data(chip->client, reg, val) < 0)
-		return -EIO;
+	int ret;
+
+	if (chip->gpio_chip.ngpio <= 8)
+		ret = i2c_smbus_write_byte_data(chip->client, reg, val);
 	else
-		return 0;
+		ret = i2c_smbus_write_word_data(chip->client, reg << 1, val);
+
+	if (ret < 0) {
+		dev_err(&chip->client->dev, "failed writing register\n");
+		return -EIO;
+	}
+
+	return 0;
 }
 
 static int pca953x_read_reg(struct pca953x_chip *chip, int reg, uint16_t *val)
 {
 	int ret;
 
-	ret = i2c_smbus_read_word_data(chip->client, reg);
+	if (chip->gpio_chip.ngpio <= 8)
+		ret = i2c_smbus_read_byte_data(chip->client, reg);
+	else
+		ret = i2c_smbus_read_word_data(chip->client, reg << 1);
+
 	if (ret < 0) {
 		dev_err(&chip->client->dev, "failed reading register\n");
 		return -EIO;
@@ -148,7 +174,7 @@ static void pca953x_gpio_set_value(struct gpio_chip *gc, unsigned off, int val)
 	chip->reg_output = reg_val;
 }
 
-static int pca953x_init_gpio(struct pca953x_chip *chip)
+static void pca953x_setup_gpio(struct pca953x_chip *chip, int gpios)
 {
 	struct gpio_chip *gc;
 
@@ -160,20 +186,28 @@ static int pca953x_init_gpio(struct pca953x_chip *chip)
 	gc->set = pca953x_gpio_set_value;
 
 	gc->base = chip->gpio_start;
-	gc->ngpio = NR_PCA953X_GPIOS;
-	gc->label = "pca953x";
-
-	return gpiochip_add(gc);
+	gc->ngpio = gpios;
+	gc->label = chip->client->name;
 }
 
 static int __devinit pca953x_probe(struct i2c_client *client)
 {
 	struct pca953x_platform_data *pdata;
 	struct pca953x_chip *chip;
-	int ret;
+	int ret, i;
+	const struct pca953x_desc *id = NULL;
 
 	pdata = client->dev.platform_data;
 	if (pdata == NULL)
+		return -ENODEV;
+
+	/* this loop vanishes when we get i2c_device_id */
+	for (i = 0; i < ARRAY_SIZE(pca953x_descs); i++)
+		if (!strcmp(pca953x_descs[i].name, client->name)) {
+			id = pca953x_descs + i;
+			break;
+		}
+	if (!id)
 		return -ENODEV;
 
 	chip = kzalloc(sizeof(struct pca953x_chip), GFP_KERNEL);
@@ -187,6 +221,8 @@ static int __devinit pca953x_probe(struct i2c_client *client)
 	/* initialize cached registers from their original values.
 	 * we can't share this chip with another i2c master.
 	 */
+	pca953x_setup_gpio(chip, id->driver_data);
+
 	ret = pca953x_read_reg(chip, PCA953X_OUTPUT, &chip->reg_output);
 	if (ret)
 		goto out_failed;
@@ -200,7 +236,8 @@ static int __devinit pca953x_probe(struct i2c_client *client)
 	if (ret)
 		goto out_failed;
 
-	ret = pca953x_init_gpio(chip);
+
+	ret = gpiochip_add(&chip->gpio_chip);
 	if (ret)
 		goto out_failed;
 
