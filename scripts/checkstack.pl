@@ -2,7 +2,7 @@
 
 #	Check the stack usage of functions
 #
-#	Copyright Joern Engel <joern@wh.fh-wedel.de>
+#	Copyright Joern Engel <joern@lazybastard.org>
 #	Inspired by Linus Torvalds
 #	Original idea maybe from Keith Owens
 #	s390 port and big speedup by Arnd Bergmann <arnd@bergmann-dalldorf.de>

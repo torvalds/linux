@@ -4,7 +4,7 @@
  * $Id: mtx-1_flash.c,v 1.2 2005/11/07 11:14:27 gleixner Exp $
  *
  * (C) 2005 Bruno Randolf <bruno.randolf@4g-systems.biz>
- * (C) 2005 Jörn Engel <joern@wohnheim.fh-wedel.de>
+ * (C) 2005 Joern Engel <joern@wohnheim.fh-wedel.de>
  *
  */
 
