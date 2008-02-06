@@ -46,9 +46,9 @@ static wait_queue_head_t *gpio_wq;
 #endif
 
 static int gpio_ioctl(struct inode *inode, struct file *file,
-		      unsigned int cmd, unsigned long arg);
-static ssize_t gpio_write(struct file * file, const char * buf, size_t count,
-                          loff_t *off);
+	unsigned int cmd, unsigned long arg);
+static ssize_t gpio_write(struct file *file, const char __user *buf,
+	size_t count, loff_t *off);
 static int gpio_open(struct inode *inode, struct file *filp);
 static int gpio_release(struct inode *inode, struct file *filp);
 static unsigned int gpio_poll(struct file *filp, struct poll_table_struct *wait);
@@ -74,10 +74,10 @@ struct gpio_private {
 
 /* linked list of alarms to check for */
 
-static struct gpio_private *alarmlist = 0;
+static struct gpio_private *alarmlist;
 
-static int gpio_some_alarms = 0; /* Set if someone uses alarm */
-static unsigned long gpio_pa_irq_enabled_mask = 0;
+static int gpio_some_alarms; /* Set if someone uses alarm */
+static unsigned long gpio_pa_irq_enabled_mask;
 
 static DEFINE_SPINLOCK(gpio_lock); /* Protect directions etc */
 
@@ -145,7 +145,7 @@ static unsigned long dir_g_shadow; /* 1=output */
 static unsigned int gpio_poll(struct file *file, poll_table *wait)
 {
 	unsigned int mask = 0;
-	struct gpio_private *priv = (struct gpio_private *)file->private_data;
+	struct gpio_private *priv = file->private_data;
 	unsigned long data;
 	unsigned long flags;
 
@@ -222,7 +222,7 @@ gpio_poll_timer_interrupt(int irq, void *dev_id)
 }
 
 static irqreturn_t
-gpio_pa_interrupt(int irq, void *dev_id)
+gpio_interrupt(int irq, void *dev_id)
 {
 	unsigned long tmp;
 	unsigned long flags;
@@ -272,10 +272,10 @@ static void gpio_write_byte(struct gpio_private *priv, unsigned char data)
 			gpio_write_bit(priv, data, i);
 }
 
-static ssize_t gpio_write(struct file * file, const char * buf, size_t count,
-                          loff_t *off)
+static ssize_t gpio_write(struct file *file, const char __user *buf,
+	size_t count, loff_t *off)
 {
-	struct gpio_private *priv = (struct gpio_private *)file->private_data;
+	struct gpio_private *priv = file->private_data;
 	unsigned long flags;
 	ssize_t retval = count;
 
@@ -318,12 +318,10 @@ gpio_open(struct inode *inode, struct file *filp)
 	if (p > GPIO_MINOR_LAST)
 		return -EINVAL;
 
-	priv = kmalloc(sizeof(struct gpio_private), GFP_KERNEL);
+	priv = kzalloc(sizeof(struct gpio_private), GFP_KERNEL);
 
 	if (!priv)
 		return -ENOMEM;
-
-	memset(priv, 0, sizeof(*priv));
 
 	priv->minor = p;
 
@@ -351,7 +349,7 @@ gpio_open(struct inode *inode, struct file *filp)
 	priv->data_mask = 0;
 	init_waitqueue_head(&priv->alarm_wq);
 
-	filp->private_data = (void *)priv;
+	filp->private_data = priv;
 
 	/* link it into our alarmlist */
 	spin_lock_irqsave(&gpio_lock, flags);
@@ -372,7 +370,7 @@ gpio_release(struct inode *inode, struct file *filp)
 	spin_lock_irqsave(&gpio_lock, flags);
 
 	p = alarmlist;
-	todel = (struct gpio_private *)filp->private_data;
+	todel = filp->private_data;
 
 	/* unlink from alarmlist and free the private structure */
 
@@ -511,7 +509,7 @@ gpio_ioctl(struct inode *inode, struct file *file,
 	unsigned long val;
         int ret = 0;
 
-	struct gpio_private *priv = (struct gpio_private *)file->private_data;
+	struct gpio_private *priv = file->private_data;
 	if (_IOC_TYPE(cmd) != ETRAXGPIO_IOCTYPE)
 		return -EINVAL;
 
@@ -633,7 +631,7 @@ gpio_ioctl(struct inode *inode, struct file *file,
 		} else if (priv->minor == GPIO_MINOR_G) {
 			val = *R_PORT_G_DATA;
 		}
-		if (copy_to_user((unsigned long*)arg, &val, sizeof(val)))
+		if (copy_to_user((void __user *)arg, &val, sizeof(val)))
 			ret = -EFAULT;
 		break;
 	case IO_READ_OUTBITS:
@@ -643,32 +641,32 @@ gpio_ioctl(struct inode *inode, struct file *file,
 		} else if (priv->minor == GPIO_MINOR_G) {
 			val = port_g_data_shadow;
 		}
-		if (copy_to_user((unsigned long*)arg, &val, sizeof(val)))
+		if (copy_to_user((void __user *)arg, &val, sizeof(val)))
 			ret = -EFAULT;
 		break;
 	case IO_SETGET_INPUT: 
 		/* bits set in *arg is set to input,
 		 * *arg updated with current input pins.
 		 */
-		if (copy_from_user(&val, (unsigned long*)arg, sizeof(val)))
+		if (copy_from_user(&val, (void __user *)arg, sizeof(val)))
 		{
 			ret = -EFAULT;
 			break;
 		}
 		val = setget_input(priv, val);
-		if (copy_to_user((unsigned long*)arg, &val, sizeof(val)))
+		if (copy_to_user((void __user *)arg, &val, sizeof(val)))
 			ret = -EFAULT;
 		break;
 	case IO_SETGET_OUTPUT:
 		/* bits set in *arg is set to output,
 		 * *arg updated with current output pins.
 		 */
-		if (copy_from_user(&val, (unsigned long *)arg, sizeof(val))) {
+		if (copy_from_user(&val, (void __user *)arg, sizeof(val))) {
 			ret = -EFAULT;
 			break;
 		}
 		val = setget_output(priv, val);
-		if (copy_to_user((unsigned long*)arg, &val, sizeof(val)))
+		if (copy_to_user((void __user *)arg, &val, sizeof(val)))
 			ret = -EFAULT;
 		break;
 	default:
@@ -711,7 +709,7 @@ gpio_leds_ioctl(unsigned int cmd, unsigned long arg)
 	return 0;
 }
 
-const struct file_operations gpio_fops = {
+static const struct file_operations gpio_fops = {
 	.owner       = THIS_MODULE,
 	.poll        = gpio_poll,
 	.ioctl       = gpio_ioctl,
@@ -720,10 +718,10 @@ const struct file_operations gpio_fops = {
 	.release     = gpio_release,
 };
 
-void ioif_watcher(const unsigned int gpio_in_available,
-		  const unsigned int gpio_out_available,
-		  const unsigned char pa_available,
-		  const unsigned char pb_available)
+static void ioif_watcher(const unsigned int gpio_in_available,
+	const unsigned int gpio_out_available,
+	const unsigned char pa_available,
+	const unsigned char pb_available)
 {
 	unsigned long int flags;
 
@@ -770,8 +768,7 @@ void ioif_watcher(const unsigned int gpio_in_available,
 
 /* main driver initialization routine, called from mem.c */
 
-static __init int
-gpio_init(void)
+static int __init gpio_init(void)
 {
 	int res;
 #if defined (CONFIG_ETRAX_CSP0_LEDS)
@@ -817,7 +814,7 @@ gpio_init(void)
 		printk(KERN_CRIT "err: timer0 irq for gpio\n");
 		return res;
 	}
-	res = request_irq(PA_IRQ_NBR, gpio_pa_interrupt,
+	res = request_irq(PA_IRQ_NBR, gpio_interrupt,
 		IRQF_SHARED | IRQF_DISABLED, "gpio PA", gpio_name);
 	if (res)
 		printk(KERN_CRIT "err: PA irq for gpio\n");
@@ -826,5 +823,5 @@ gpio_init(void)
 }
 
 /* this makes sure that gpio_init is called during kernel boot */
-
 module_init(gpio_init);
+
