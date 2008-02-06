@@ -338,7 +338,7 @@ static int ps3fb_get_res_table(u32 xres, u32 yres, int mode)
 static unsigned int ps3fb_find_mode(const struct fb_var_screeninfo *var,
 				    u32 *ddr_line_length, u32 *xdr_line_length)
 {
-	unsigned int i, mode;
+	unsigned int i, fi, mode;
 
 	for (i = 0; i < ARRAY_SIZE(ps3fb_modedb); i++)
 		if (var->xres == ps3fb_modedb[i].xres &&
@@ -359,7 +359,8 @@ static unsigned int ps3fb_find_mode(const struct fb_var_screeninfo *var,
 
 found:
 	/* Cropped broadcast modes use the full line length */
-	*ddr_line_length = ps3fb_modedb[i < 10 ? i + 13 : i].xres * BPP;
+	fi = i < PS3AV_MODE_1080P50 ? i + PS3AV_MODE_WUXGA : i;
+	*ddr_line_length = ps3fb_modedb[fi].xres * BPP;
 
 	if (ps3_compare_firmware_version(1, 9, 0) >= 0) {
 		*xdr_line_length = GPU_ALIGN_UP(max(var->xres,
@@ -370,7 +371,9 @@ found:
 		*xdr_line_length = *ddr_line_length;
 
 	/* Full broadcast modes have the full mode bit set */
-	mode = i > 12 ? (i - 12) | PS3FB_FULL_MODE_BIT : i + 1;
+	mode = i+1;
+	if (mode > PS3AV_MODE_WUXGA)
+		mode = (mode - PS3AV_MODE_WUXGA) | PS3FB_FULL_MODE_BIT;
 
 	pr_debug("ps3fb_find_mode: mode %u\n", mode);
 
@@ -382,14 +385,14 @@ static const struct fb_videomode *ps3fb_default_mode(int id)
 	u32 mode = id & PS3AV_MODE_MASK;
 	u32 flags;
 
-	if (mode < 1 || mode > 13)
+	if (mode < PS3AV_MODE_480I || mode > PS3AV_MODE_WUXGA)
 		return NULL;
 
 	flags = id & ~PS3AV_MODE_MASK;
 
-	if (mode <= 10 && flags & PS3FB_FULL_MODE_BIT) {
+	if (mode <= PS3AV_MODE_1080P50 && flags & PS3FB_FULL_MODE_BIT) {
 		/* Full broadcast mode */
-		return &ps3fb_modedb[mode + 12];
+		return &ps3fb_modedb[mode + PS3AV_MODE_WUXGA - 1];
 	}
 
 	return &ps3fb_modedb[mode - 1];
@@ -1080,7 +1083,7 @@ static int __devinit ps3fb_probe(struct ps3_system_bus_device *dev)
 
 	if (!ps3fb_mode)
 		ps3fb_mode = ps3av_get_mode();
-	dev_dbg(&dev->core, "ps3av_mode:%d\n", ps3fb_mode);
+	dev_dbg(&dev->core, "ps3fb_mode: %d\n", ps3fb_mode);
 
 	if (ps3fb_mode > 0 &&
 	    !ps3av_video_mode2res(ps3fb_mode, &xres, &yres)) {

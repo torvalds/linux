@@ -310,19 +310,25 @@
 #define PS3AV_MONITOR_TYPE_HDMI			1	/* HDMI */
 #define PS3AV_MONITOR_TYPE_DVI			2	/* DVI */
 
-#define PS3AV_DEFAULT_HDMI_MODE_ID_REG_60	2	/* 480p */
-#define PS3AV_DEFAULT_AVMULTI_MODE_ID_REG_60	1	/* 480i */
-#define PS3AV_DEFAULT_HDMI_MODE_ID_REG_50	7	/* 576p */
-#define PS3AV_DEFAULT_AVMULTI_MODE_ID_REG_50	6	/* 576i */
-
-#define PS3AV_REGION_60				0x01
-#define PS3AV_REGION_50				0x02
-#define PS3AV_REGION_RGB			0x10
-
-#define get_status(buf)				(((__u32 *)buf)[2])
-#define PS3AV_HDR_SIZE				4	/* version + size */
 
 /* for video mode */
+enum ps3av_mode_num {
+	PS3AV_MODE_AUTO				= 0,
+	PS3AV_MODE_480I				= 1,
+	PS3AV_MODE_480P				= 2,
+	PS3AV_MODE_720P60			= 3,
+	PS3AV_MODE_1080I60			= 4,
+	PS3AV_MODE_1080P60			= 5,
+	PS3AV_MODE_576I				= 6,
+	PS3AV_MODE_576P				= 7,
+	PS3AV_MODE_720P50			= 8,
+	PS3AV_MODE_1080I50			= 9,
+	PS3AV_MODE_1080P50			= 10,
+	PS3AV_MODE_WXGA				= 11,
+	PS3AV_MODE_SXGA				= 12,
+	PS3AV_MODE_WUXGA			= 13,
+};
+
 #define PS3AV_MODE_MASK				0x000F
 #define PS3AV_MODE_HDCP_OFF			0x1000	/* Retail PS3 product doesn't support this */
 #define PS3AV_MODE_DITHER			0x0800
@@ -331,6 +337,19 @@
 #define PS3AV_MODE_FULL				0x0080
 #define PS3AV_MODE_DVI				0x0040
 #define PS3AV_MODE_RGB				0x0020
+
+
+#define PS3AV_DEFAULT_HDMI_MODE_ID_REG_60	PS3AV_MODE_480P
+#define PS3AV_DEFAULT_AVMULTI_MODE_ID_REG_60	PS3AV_MODE_480I
+#define PS3AV_DEFAULT_HDMI_MODE_ID_REG_50	PS3AV_MODE_576P
+#define PS3AV_DEFAULT_AVMULTI_MODE_ID_REG_50	PS3AV_MODE_576I
+
+#define PS3AV_REGION_60				0x01
+#define PS3AV_REGION_50				0x02
+#define PS3AV_REGION_RGB			0x10
+
+#define get_status(buf)				(((__u32 *)buf)[2])
+#define PS3AV_HDR_SIZE				4	/* version + size */
 
 
 /** command packet structure **/

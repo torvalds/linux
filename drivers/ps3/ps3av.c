@@ -542,7 +542,7 @@ static void ps3av_set_videomode_packet(u32 id)
 
 static void ps3av_set_videomode_cont(u32 id, u32 old_id)
 {
-	static int vesa = 0;
+	static int vesa;
 	int res;
 
 	/* video signal off */
@@ -552,9 +552,9 @@ static void ps3av_set_videomode_cont(u32 id, u32 old_id)
 	 * AV backend needs non-VESA mode setting at least one time
 	 * when VESA mode is used.
 	 */
-	if (vesa == 0 && (id & PS3AV_MODE_MASK) >= 11) {
+	if (vesa == 0 && (id & PS3AV_MODE_MASK) >= PS3AV_MODE_WXGA) {
 		/* vesa mode */
-		ps3av_set_videomode_packet(2);	/* 480P */
+		ps3av_set_videomode_packet(PS3AV_MODE_480P);
 	}
 	vesa = 1;
 
@@ -594,20 +594,21 @@ static const struct {
 	unsigned mask : 19;
 	unsigned id :  4;
 } ps3av_preferred_modes[] = {
-	{ .mask = PS3AV_RESBIT_WUXGA		<< SHIFT_VESA,	.id = 13 },
-	{ .mask = PS3AV_RESBIT_1920x1080P	<< SHIFT_60,	.id = 5 },
-	{ .mask = PS3AV_RESBIT_1920x1080P	<< SHIFT_50,	.id = 10 },
-	{ .mask = PS3AV_RESBIT_1920x1080I	<< SHIFT_60,	.id = 4 },
-	{ .mask = PS3AV_RESBIT_1920x1080I	<< SHIFT_50,	.id = 9 },
-	{ .mask = PS3AV_RESBIT_SXGA		<< SHIFT_VESA,	.id = 12 },
-	{ .mask = PS3AV_RESBIT_WXGA		<< SHIFT_VESA,	.id = 11 },
-	{ .mask = PS3AV_RESBIT_1280x720P	<< SHIFT_60,	.id = 3 },
-	{ .mask = PS3AV_RESBIT_1280x720P	<< SHIFT_50,	.id = 8 },
-	{ .mask = PS3AV_RESBIT_720x480P		<< SHIFT_60,	.id = 2 },
-	{ .mask = PS3AV_RESBIT_720x576P		<< SHIFT_50,	.id = 7 },
+	{ PS3AV_RESBIT_WUXGA      << SHIFT_VESA, PS3AV_MODE_WUXGA   },
+	{ PS3AV_RESBIT_1920x1080P << SHIFT_60,   PS3AV_MODE_1080P60 },
+	{ PS3AV_RESBIT_1920x1080P << SHIFT_50,   PS3AV_MODE_1080P50 },
+	{ PS3AV_RESBIT_1920x1080I << SHIFT_60,   PS3AV_MODE_1080I60 },
+	{ PS3AV_RESBIT_1920x1080I << SHIFT_50,   PS3AV_MODE_1080I50 },
+	{ PS3AV_RESBIT_SXGA       << SHIFT_VESA, PS3AV_MODE_SXGA    },
+	{ PS3AV_RESBIT_WXGA       << SHIFT_VESA, PS3AV_MODE_WXGA    },
+	{ PS3AV_RESBIT_1280x720P  << SHIFT_60,   PS3AV_MODE_720P60  },
+	{ PS3AV_RESBIT_1280x720P  << SHIFT_50,   PS3AV_MODE_720P50  },
+	{ PS3AV_RESBIT_720x480P   << SHIFT_60,   PS3AV_MODE_480P    },
+	{ PS3AV_RESBIT_720x576P   << SHIFT_50,   PS3AV_MODE_576P    },
 };
 
-static int ps3av_resbit2id(u32 res_50, u32 res_60, u32 res_vesa)
+static enum ps3av_mode_num ps3av_resbit2id(u32 res_50, u32 res_60,
+					   u32 res_vesa)
 {
 	unsigned int i;
 	u32 res_all;
@@ -636,9 +637,9 @@ static int ps3av_resbit2id(u32 res_50, u32 res_60, u32 res_vesa)
 	return 0;
 }
 
-static int ps3av_hdmi_get_id(struct ps3av_info_monitor *info)
+static enum ps3av_mode_num ps3av_hdmi_get_id(struct ps3av_info_monitor *info)
 {
-	int id;
+	enum ps3av_mode_num id;
 
 	if (safe_mode)
 		return PS3AV_DEFAULT_HDMI_MODE_ID_REG_60;
@@ -852,7 +853,7 @@ int ps3av_set_video_mode(u32 id)
 
 	/* auto mode */
 	option = id & ~PS3AV_MODE_MASK;
-	if ((id & PS3AV_MODE_MASK) == 0) {
+	if ((id & PS3AV_MODE_MASK) == PS3AV_MODE_AUTO) {
 		id = ps3av_auto_videomode(&ps3av->av_hw_conf);
 		if (id < 1) {
 			printk(KERN_ERR "%s: invalid id :%d\n", __func__, id);
@@ -958,7 +959,7 @@ static int ps3av_probe(struct ps3_system_bus_device *dev)
 		return -ENOMEM;
 
 	mutex_init(&ps3av->mutex);
-	ps3av->ps3av_mode = 0;
+	ps3av->ps3av_mode = PS3AV_MODE_AUTO;
 	ps3av->dev = dev;
 
 	INIT_WORK(&ps3av->work, ps3avd);
