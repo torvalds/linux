@@ -156,8 +156,8 @@ struct io_pwm_set_mode {
 #define IO_PWM_SET_PERIOD   0x21
 
 struct io_pwm_set_period {
-	int lo;		/* 0..8191 */
-	int hi;		/* 0..8191 */
+	unsigned int lo;		/* 0..8191 */
+	unsigned int hi;		/* 0..8191 */
 };
 
 /* Only for modes PWM_STANDARD and PWM_FAST.
