@@ -189,7 +189,7 @@ out:
 }
 
 static int
-parse_tag_65_packet(struct ecryptfs_session_key *session_key, u16 *cipher_code,
+parse_tag_65_packet(struct ecryptfs_session_key *session_key, u8 *cipher_code,
 		    struct ecryptfs_message *msg)
 {
 	size_t i = 0;
@@ -275,7 +275,7 @@ out:
 
 
 static int
-write_tag_66_packet(char *signature, size_t cipher_code,
+write_tag_66_packet(char *signature, u8 cipher_code,
 		    struct ecryptfs_crypt_stat *crypt_stat, char **packet,
 		    size_t *packet_len)
 {
@@ -428,7 +428,7 @@ static int
 decrypt_pki_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
 				  struct ecryptfs_crypt_stat *crypt_stat)
 {
-	u16 cipher_code = 0;
+	u8 cipher_code = 0;
 	struct ecryptfs_msg_ctx *msg_ctx;
 	struct ecryptfs_message *msg = NULL;
 	char *auth_tok_sig;
@@ -1537,7 +1537,7 @@ write_tag_3_packet(char *dest, size_t *remaining_bytes,
 	struct scatterlist dst_sg;
 	struct scatterlist src_sg;
 	struct mutex *tfm_mutex = NULL;
-	size_t cipher_code;
+	u8 cipher_code;
 	size_t packet_size_length;
 	size_t max_packet_size;
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat =
