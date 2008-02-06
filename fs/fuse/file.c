@@ -77,8 +77,8 @@ static struct fuse_file *fuse_file_get(struct fuse_file *ff)
 
 static void fuse_release_end(struct fuse_conn *fc, struct fuse_req *req)
 {
-	dput(req->dentry);
-	mntput(req->vfsmount);
+	dput(req->misc.release.dentry);
+	mntput(req->misc.release.vfsmount);
 	fuse_put_request(fc, req);
 }
 
@@ -86,7 +86,8 @@ static void fuse_file_put(struct fuse_file *ff)
 {
 	if (atomic_dec_and_test(&ff->count)) {
 		struct fuse_req *req = ff->reserved_req;
-		struct fuse_conn *fc = get_fuse_conn(req->dentry->d_inode);
+		struct inode *inode = req->misc.release.dentry->d_inode;
+		struct fuse_conn *fc = get_fuse_conn(inode);
 		req->end = fuse_release_end;
 		request_send_background(fc, req);
 		kfree(ff);
@@ -137,7 +138,7 @@ int fuse_open_common(struct inode *inode, struct file *file, int isdir)
 void fuse_release_fill(struct fuse_file *ff, u64 nodeid, int flags, int opcode)
 {
 	struct fuse_req *req = ff->reserved_req;
-	struct fuse_release_in *inarg = &req->misc.release_in;
+	struct fuse_release_in *inarg = &req->misc.release.in;
 
 	inarg->fh = ff->fh;
 	inarg->flags = flags;
@@ -153,13 +154,14 @@ int fuse_release_common(struct inode *inode, struct file *file, int isdir)
 	struct fuse_file *ff = file->private_data;
 	if (ff) {
 		struct fuse_conn *fc = get_fuse_conn(inode);
+		struct fuse_req *req = ff->reserved_req;
 
 		fuse_release_fill(ff, get_node_id(inode), file->f_flags,
 				  isdir ? FUSE_RELEASEDIR : FUSE_RELEASE);
 
 		/* Hold vfsmount and dentry until release is finished */
-		ff->reserved_req->vfsmount = mntget(file->f_path.mnt);
-		ff->reserved_req->dentry = dget(file->f_path.dentry);
+		req->misc.release.vfsmount = mntget(file->f_path.mnt);
+		req->misc.release.dentry = dget(file->f_path.dentry);
 
 		spin_lock(&fc->lock);
 		list_del(&ff->write_entry);
