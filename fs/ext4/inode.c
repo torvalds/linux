@@ -2758,13 +2758,7 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 		ei->i_data[block] = raw_inode->i_block[block];
 	INIT_LIST_HEAD(&ei->i_orphan);
 
-	if (inode->i_ino >= EXT4_FIRST_INO(inode->i_sb) + 1 &&
-	    EXT4_INODE_SIZE(inode->i_sb) > EXT4_GOOD_OLD_INODE_SIZE) {
-		/*
-		 * When mke2fs creates big inodes it does not zero out
-		 * the unused bytes above EXT4_GOOD_OLD_INODE_SIZE,
-		 * so ignore those first few inodes.
-		 */
+	if (EXT4_INODE_SIZE(inode->i_sb) > EXT4_GOOD_OLD_INODE_SIZE) {
 		ei->i_extra_isize = le16_to_cpu(raw_inode->i_extra_isize);
 		if (EXT4_GOOD_OLD_INODE_SIZE + ei->i_extra_isize >
 		    EXT4_INODE_SIZE(inode->i_sb)) {
