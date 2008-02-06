@@ -1779,7 +1779,7 @@ out:
 
 struct kmem_cache *ecryptfs_key_tfm_cache;
 static struct list_head key_tfm_list;
-static struct mutex key_tfm_list_mutex;
+struct mutex key_tfm_list_mutex;
 
 int ecryptfs_init_crypto(void)
 {
@@ -1788,6 +1788,11 @@ int ecryptfs_init_crypto(void)
 	return 0;
 }
 
+/**
+ * ecryptfs_destroy_crypto - free all cached key_tfms on key_tfm_list
+ *
+ * Called only at module unload time
+ */
 int ecryptfs_destroy_crypto(void)
 {
 	struct ecryptfs_key_tfm *key_tfm, *key_tfm_tmp;
@@ -1810,6 +1815,8 @@ ecryptfs_add_new_key_tfm(struct ecryptfs_key_tfm **key_tfm, char *cipher_name,
 {
 	struct ecryptfs_key_tfm *tmp_tfm;
 	int rc = 0;
+
+	BUG_ON(!mutex_is_locked(&key_tfm_list_mutex));
 
 	tmp_tfm = kmem_cache_alloc(ecryptfs_key_tfm_cache, GFP_KERNEL);
 	if (key_tfm != NULL)
@@ -1837,13 +1844,50 @@ ecryptfs_add_new_key_tfm(struct ecryptfs_key_tfm **key_tfm, char *cipher_name,
 			(*key_tfm) = NULL;
 		goto out;
 	}
-	mutex_lock(&key_tfm_list_mutex);
 	list_add(&tmp_tfm->key_tfm_list, &key_tfm_list);
-	mutex_unlock(&key_tfm_list_mutex);
 out:
 	return rc;
 }
 
+/**
+ * ecryptfs_tfm_exists - Search for existing tfm for cipher_name.
+ * @cipher_name: the name of the cipher to search for
+ * @key_tfm: set to corresponding tfm if found
+ *
+ * Searches for cached key_tfm matching @cipher_name
+ * Must be called with &key_tfm_list_mutex held
+ * Returns 1 if found, with @key_tfm set
+ * Returns 0 if not found, with @key_tfm set to NULL
+ */
+int ecryptfs_tfm_exists(char *cipher_name, struct ecryptfs_key_tfm **key_tfm)
+{
+	struct ecryptfs_key_tfm *tmp_key_tfm;
+
+	BUG_ON(!mutex_is_locked(&key_tfm_list_mutex));
+
+	list_for_each_entry(tmp_key_tfm, &key_tfm_list, key_tfm_list) {
+		if (strcmp(tmp_key_tfm->cipher_name, cipher_name) == 0) {
+			if (key_tfm)
+				(*key_tfm) = tmp_key_tfm;
+			return 1;
+		}
+	}
+	if (key_tfm)
+		(*key_tfm) = NULL;
+	return 0;
+}
+
+/**
+ * ecryptfs_get_tfm_and_mutex_for_cipher_name
+ *
+ * @tfm: set to cached tfm found, or new tfm created
+ * @tfm_mutex: set to mutex for cached tfm found, or new tfm created
+ * @cipher_name: the name of the cipher to search for and/or add
+ *
+ * Sets pointers to @tfm & @tfm_mutex matching @cipher_name.
+ * Searches for cached item first, and creates new if not found.
+ * Returns 0 on success, non-zero if adding new cipher failed
+ */
 int ecryptfs_get_tfm_and_mutex_for_cipher_name(struct crypto_blkcipher **tfm,
 					       struct mutex **tfm_mutex,
 					       char *cipher_name)
@@ -1853,22 +1897,17 @@ int ecryptfs_get_tfm_and_mutex_for_cipher_name(struct crypto_blkcipher **tfm,
 
 	(*tfm) = NULL;
 	(*tfm_mutex) = NULL;
+
 	mutex_lock(&key_tfm_list_mutex);
-	list_for_each_entry(key_tfm, &key_tfm_list, key_tfm_list) {
-		if (strcmp(key_tfm->cipher_name, cipher_name) == 0) {
-			(*tfm) = key_tfm->key_tfm;
-			(*tfm_mutex) = &key_tfm->key_tfm_mutex;
-			mutex_unlock(&key_tfm_list_mutex);
+	if (!ecryptfs_tfm_exists(cipher_name, &key_tfm)) {
+		rc = ecryptfs_add_new_key_tfm(&key_tfm, cipher_name, 0);
+		if (rc) {
+			printk(KERN_ERR "Error adding new key_tfm to list; "
+					"rc = [%d]\n", rc);
 			goto out;
 		}
 	}
 	mutex_unlock(&key_tfm_list_mutex);
-	rc = ecryptfs_add_new_key_tfm(&key_tfm, cipher_name, 0);
-	if (rc) {
-		printk(KERN_ERR "Error adding new key_tfm to list; rc = [%d]\n",
-		       rc);
-		goto out;
-	}
 	(*tfm) = key_tfm->key_tfm;
 	(*tfm_mutex) = &key_tfm->key_tfm_mutex;
 out:
