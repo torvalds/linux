@@ -3632,10 +3632,6 @@ static int ide_tape_probe(ide_drive_t *drive)
 		printk("ide-tape: passing drive %s to ide-scsi emulation.\n", drive->name);
 		goto failed;
 	}
-	if (strstr(drive->id->model, "OnStream DI-")) {
-		printk(KERN_WARNING "ide-tape: Use drive %s with ide-scsi emulation and osst.\n", drive->name);
-		printk(KERN_WARNING "ide-tape: OnStream support will be removed soon from ide-tape!\n");
-	}
 	tape = kzalloc(sizeof (idetape_tape_t), GFP_KERNEL);
 	if (tape == NULL) {
 		printk(KERN_ERR "ide-tape: %s: Can't allocate a tape structure\n", drive->name);
