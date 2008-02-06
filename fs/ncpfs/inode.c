@@ -987,7 +987,7 @@ static struct file_system_type ncp_fs_type = {
 static int __init init_ncp_fs(void)
 {
 	int err;
-	DPRINTK("ncpfs: init_module called\n");
+	DPRINTK("ncpfs: init_ncp_fs called\n");
 
 	err = init_inodecache();
 	if (err)
@@ -1004,7 +1004,7 @@ out1:
 
 static void __exit exit_ncp_fs(void)
 {
-	DPRINTK("ncpfs: cleanup_module called\n");
+	DPRINTK("ncpfs: exit_ncp_fs called\n");
 	unregister_filesystem(&ncp_fs_type);
 	destroy_inodecache();
 }
