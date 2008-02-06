@@ -357,23 +357,15 @@ static int sa1100_rtc_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int sa1100_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	if (pdev->dev.power.power_state.event != state.event) {
-		if (state.event == PM_EVENT_SUSPEND &&
-		    device_may_wakeup(&pdev->dev))
-			enable_irq_wake(IRQ_RTCAlrm);
-
-		pdev->dev.power.power_state = state;
-	}
+	if (device_may_wakeup(&pdev->dev))
+		enable_irq_wake(IRQ_RTCAlrm);
 	return 0;
 }
 
 static int sa1100_rtc_resume(struct platform_device *pdev)
 {
-	if (pdev->dev.power.power_state.event != PM_EVENT_ON) {
-		if (device_may_wakeup(&pdev->dev))
-			disable_irq_wake(IRQ_RTCAlrm);
-		pdev->dev.power.power_state = PMSG_ON;
-	}
+	if (device_may_wakeup(&pdev->dev))
+		disable_irq_wake(IRQ_RTCAlrm);
 	return 0;
 }
 #else
