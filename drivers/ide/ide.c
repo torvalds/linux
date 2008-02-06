@@ -618,60 +618,6 @@ abort:
 
 EXPORT_SYMBOL(ide_unregister);
 
-
-/**
- *	ide_setup_ports 	-	set up IDE interface ports
- *	@hw: register descriptions
- *	@base: base register
- *	@offsets: table of register offsets
- *	@ctrl: control register
- *	@ack_irq: IRQ ack
- *	@irq: interrupt lie
- *
- *	Setup hw_regs_t structure described by parameters.  You
- *	may set up the hw structure yourself OR use this routine to
- *	do it for you. This is basically a helper
- *
- */
- 
-void ide_setup_ports (	hw_regs_t *hw,
-			unsigned long base, int *offsets,
-			unsigned long ctrl, unsigned long intr,
-			ide_ack_intr_t *ack_intr,
-/*
- *			ide_io_ops_t *iops,
- */
-			int irq)
-{
-	int i;
-
-	memset(hw, 0, sizeof(hw_regs_t));
-	for (i = 0; i < IDE_NR_PORTS; i++) {
-		if (offsets[i] == -1) {
-			switch(i) {
-				case IDE_CONTROL_OFFSET:
-					hw->io_ports[i] = ctrl;
-					break;
-#if defined(CONFIG_AMIGA) || defined(CONFIG_MAC)
-				case IDE_IRQ_OFFSET:
-					hw->io_ports[i] = intr;
-					break;
-#endif /* (CONFIG_AMIGA) || (CONFIG_MAC) */
-				default:
-					hw->io_ports[i] = 0;
-					break;
-			}
-		} else {
-			hw->io_ports[i] = base + offsets[i];
-		}
-	}
-	hw->irq = irq;
-	hw->ack_intr = ack_intr;
-/*
- *	hw->iops = iops;
- */
-}
-
 void ide_init_port_hw(ide_hwif_t *hwif, hw_regs_t *hw)
 {
 	memcpy(hwif->io_ports, hw->io_ports, sizeof(hwif->io_ports));

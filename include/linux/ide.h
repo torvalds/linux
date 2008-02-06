@@ -194,17 +194,6 @@ struct ide_drive_s;
 int ide_register_hw(hw_regs_t *, void (*)(struct ide_drive_s *),
 		    struct hwif_s **);
 
-void ide_setup_ports(	hw_regs_t *hw,
-			unsigned long base,
-			int *offsets,
-			unsigned long ctrl,
-			unsigned long intr,
-			ide_ack_intr_t *ack_intr,
-#if 0
-			ide_io_ops_t *iops,
-#endif
-			int irq);
-
 static inline void ide_std_init_ports(hw_regs_t *hw,
 				      unsigned long io_addr,
 				      unsigned long ctl_addr)
