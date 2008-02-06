@@ -25,7 +25,7 @@
 #include <asm/atomic.h>
 #include <asm/io.h>
 
-#define PHANTOM_VERSION		"n0.9.7"
+#define PHANTOM_VERSION		"n0.9.8"
 
 #define PHANTOM_MAX_MINORS	8
 
@@ -456,8 +456,9 @@ static int phantom_resume(struct pci_dev *pdev)
 #endif
 
 static struct pci_device_id phantom_pci_tbl[] __devinitdata = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9050),
-		.class = PCI_CLASS_BRIDGE_OTHER << 8, .class_mask = 0xffff00 },
+	{ .vendor = PCI_VENDOR_ID_PLX, .device = PCI_DEVICE_ID_PLX_9050,
+	  .subvendor = PCI_VENDOR_ID_PLX, .subdevice = PCI_DEVICE_ID_PLX_9050,
+	  .class = PCI_CLASS_BRIDGE_OTHER << 8, .class_mask = 0xffff00 },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, phantom_pci_tbl);
