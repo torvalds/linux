@@ -6,7 +6,7 @@
  * This file may be distributed under the terms of the GNU General Public License.
  *
  * This file contains hfs_read_super(), some of the super_ops and
- * init_module() and cleanup_module().	The remaining super_ops are in
+ * init_hfs_fs() and exit_hfs_fs().  The remaining super_ops are in
  * inode.c since they deal with inodes.
  *
  * Based on the minix file system code, (C) 1991, 1992 by Linus Torvalds
