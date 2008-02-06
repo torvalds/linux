@@ -343,7 +343,7 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 EXPORT_SYMBOL(clk_set_parent);
 
 /* establish PCK0..PCK3 parentage and rate */
-static void init_programmable_clock(struct clk *clk)
+static void __init init_programmable_clock(struct clk *clk)
 {
 	struct clk	*parent;
 	u32		pckr;
