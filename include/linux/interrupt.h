@@ -444,4 +444,6 @@ static inline void init_irq_proc(void)
 }
 #endif
 
+int show_interrupts(struct seq_file *p, void *v);
+
 #endif

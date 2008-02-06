@@ -29,6 +29,7 @@
 #include <linux/mm.h>
 #include <linux/mmzone.h>
 #include <linux/pagemap.h>
+#include <linux/interrupt.h>
 #include <linux/swap.h>
 #include <linux/slab.h>
 #include <linux/smp.h>
@@ -599,7 +600,6 @@ static void int_seq_stop(struct seq_file *f, void *v)
 }
 
 
-extern int show_interrupts(struct seq_file *f, void *v); /* In arch code */
 static struct seq_operations int_seq_ops = {
 	.start = int_seq_start,
 	.next  = int_seq_next,
