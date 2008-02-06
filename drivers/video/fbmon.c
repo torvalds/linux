@@ -686,7 +686,7 @@ static int fb_get_monitor_limits(unsigned char *edid, struct fb_monspecs *specs)
 	/* estimate monitor limits based on modes supported */
 	if (retval) {
 		struct fb_videomode *modes, *mode;
-		int num_modes, i, hz, hscan, pixclock;
+		int num_modes, hz, hscan, pixclock;
 		int vtotal, htotal;
 
 		modes = fb_create_modedb(edid, &num_modes);
