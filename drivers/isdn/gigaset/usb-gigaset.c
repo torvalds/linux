@@ -133,7 +133,7 @@ static struct usb_driver gigaset_usb_driver = {
 struct usb_cardstate {
 	struct usb_device	*udev;		/* usb device pointer */
 	struct usb_interface	*interface;	/* interface for this device */
-	atomic_t		busy;		/* bulk output in progress */
+	int			busy;		/* bulk output in progress */
 
 	/* Output buffer */
 	unsigned char		*bulk_out_buffer;
@@ -325,7 +325,7 @@ static void gigaset_modem_fill(unsigned long data)
 
 	gig_dbg(DEBUG_OUTPUT, "modem_fill");
 
-	if (atomic_read(&cs->hw.usb->busy)) {
+	if (cs->hw.usb->busy) {
 		gig_dbg(DEBUG_OUTPUT, "modem_fill: busy");
 		return;
 	}
@@ -430,7 +430,7 @@ static void gigaset_write_bulk_callback(struct urb *urb)
 		break;
 	case -ENOENT:		/* killed */
 		gig_dbg(DEBUG_ANY, "%s: killed", __func__);
-		atomic_set(&cs->hw.usb->busy, 0);
+		cs->hw.usb->busy = 0;
 		return;
 	default:
 		dev_err(cs->dev, "bulk transfer failed (status %d)\n",
@@ -443,7 +443,7 @@ static void gigaset_write_bulk_callback(struct urb *urb)
 	if (!cs->connected) {
 		err("%s: not connected", __func__);
 	} else {
-		atomic_set(&cs->hw.usb->busy, 0);
+		cs->hw.usb->busy = 0;
 		tasklet_schedule(&cs->write_tasklet);
 	}
 	spin_unlock_irqrestore(&cs->lock, flags);
@@ -491,14 +491,14 @@ static int send_cb(struct cardstate *cs, struct cmdbuf_t *cb)
 
 			cb->offset += count;
 			cb->len -= count;
-			atomic_set(&ucs->busy, 1);
+			ucs->busy = 1;
 
 			spin_lock_irqsave(&cs->lock, flags);
 			status = cs->connected ? usb_submit_urb(ucs->bulk_out_urb, GFP_ATOMIC) : -ENODEV;
 			spin_unlock_irqrestore(&cs->lock, flags);
 
 			if (status) {
-				atomic_set(&ucs->busy, 0);
+				ucs->busy = 0;
 				err("could not submit urb (error %d)\n",
 				    -status);
 				cb->len = 0; /* skip urb => remove cb+wakeup
@@ -517,7 +517,7 @@ static int gigaset_write_cmd(struct cardstate *cs, const unsigned char *buf,
 	struct cmdbuf_t *cb;
 	unsigned long flags;
 
-	gigaset_dbg_buffer(atomic_read(&cs->mstate) != MS_LOCKED ?
+	gigaset_dbg_buffer(cs->mstate != MS_LOCKED ?
 			     DEBUG_TRANSCMD : DEBUG_LOCKCMD,
 			   "CMD Transmit", len, buf);
 
@@ -654,7 +654,7 @@ static int write_modem(struct cardstate *cs)
 	count = min(bcs->tx_skb->len, (unsigned) ucs->bulk_out_size);
 	skb_copy_from_linear_data(bcs->tx_skb, ucs->bulk_out_buffer, count);
 	skb_pull(bcs->tx_skb, count);
-	atomic_set(&ucs->busy, 1);
+	ucs->busy = 1;
 	gig_dbg(DEBUG_OUTPUT, "write_modem: send %d bytes", count);
 
 	spin_lock_irqsave(&cs->lock, flags);
@@ -672,7 +672,7 @@ static int write_modem(struct cardstate *cs)
 
 	if (ret) {
 		err("could not submit urb (error %d)\n", -ret);
-		atomic_set(&ucs->busy, 0);
+		ucs->busy = 0;
 	}
 
 	if (!bcs->tx_skb->len) {
@@ -764,7 +764,7 @@ static int gigaset_probe(struct usb_interface *interface,
 
 	endpoint = &hostif->endpoint[1].desc;
 
-	atomic_set(&ucs->busy, 0);
+	ucs->busy = 0;
 
 	ucs->read_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!ucs->read_urb) {
@@ -797,7 +797,7 @@ static int gigaset_probe(struct usb_interface *interface,
 
 	/* tell common part that the device is ready */
 	if (startmode == SM_LOCKED)
-		atomic_set(&cs->mstate, MS_LOCKED);
+		cs->mstate = MS_LOCKED;
 
 	if (!gigaset_start(cs)) {
 		tasklet_kill(&cs->write_tasklet);

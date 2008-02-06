@@ -240,7 +240,7 @@ static int gigaset_write_cmd(struct cardstate *cs, const unsigned char *buf,
 	struct cmdbuf_t *cb;
 	unsigned long flags;
 
-	gigaset_dbg_buffer(atomic_read(&cs->mstate) != MS_LOCKED ?
+	gigaset_dbg_buffer(cs->mstate != MS_LOCKED ?
 	                     DEBUG_TRANSCMD : DEBUG_LOCKCMD,
 	                   "CMD Transmit", len, buf);
 
@@ -536,7 +536,7 @@ gigaset_tty_open(struct tty_struct *tty)
 	 * startup system and notify the LL that we are ready to run
 	 */
 	if (startmode == SM_LOCKED)
-		atomic_set(&cs->mstate, MS_LOCKED);
+		cs->mstate = MS_LOCKED;
 	if (!gigaset_start(cs)) {
 		tasklet_kill(&cs->write_tasklet);
 		goto error;
@@ -714,8 +714,8 @@ gigaset_tty_receive(struct tty_struct *tty, const unsigned char *buf,
 		return;
 	}
 
-	tail = atomic_read(&inbuf->tail);
-	head = atomic_read(&inbuf->head);
+	tail = inbuf->tail;
+	head = inbuf->head;
 	gig_dbg(DEBUG_INTR, "buffer state: %u -> %u, receive %u bytes",
 		head, tail, count);
 
@@ -742,7 +742,7 @@ gigaset_tty_receive(struct tty_struct *tty, const unsigned char *buf,
 	}
 
 	gig_dbg(DEBUG_INTR, "setting tail to %u", tail);
-	atomic_set(&inbuf->tail, tail);
+	inbuf->tail = tail;
 
 	/* Everything was received .. Push data into handler */
 	gig_dbg(DEBUG_INTR, "%s-->BH", __func__);

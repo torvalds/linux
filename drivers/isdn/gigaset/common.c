@@ -501,11 +501,11 @@ static void gigaset_inbuf_init(struct inbuf_t *inbuf, struct bc_state *bcs,
 			       struct cardstate *cs, int inputstate)
 /* inbuf->read must be allocated before! */
 {
-	atomic_set(&inbuf->head, 0);
-	atomic_set(&inbuf->tail, 0);
+	inbuf->head = 0;
+	inbuf->tail = 0;
 	inbuf->cs = cs;
 	inbuf->bcs = bcs; /*base driver: NULL*/
-	inbuf->rcvbuf = NULL; //FIXME
+	inbuf->rcvbuf = NULL;
 	inbuf->inputstate = inputstate;
 }
 
@@ -521,8 +521,8 @@ int gigaset_fill_inbuf(struct inbuf_t *inbuf, const unsigned char *src,
 		return 0;
 
 	bytesleft = numbytes;
-	tail = atomic_read(&inbuf->tail);
-	head = atomic_read(&inbuf->head);
+	tail = inbuf->tail;
+	head = inbuf->head;
 	gig_dbg(DEBUG_INTR, "buffer state: %u -> %u", head, tail);
 
 	while (bytesleft) {
@@ -546,7 +546,7 @@ int gigaset_fill_inbuf(struct inbuf_t *inbuf, const unsigned char *src,
 		src += n;
 	}
 	gig_dbg(DEBUG_INTR, "setting tail to %u", tail);
-	atomic_set(&inbuf->tail, tail);
+	inbuf->tail = tail;
 	return numbytes != bytesleft;
 }
 EXPORT_SYMBOL_GPL(gigaset_fill_inbuf);
@@ -668,7 +668,7 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 
 	tasklet_init(&cs->event_tasklet, &gigaset_handle_event,
 		     (unsigned long) cs);
-	atomic_set(&cs->commands_pending, 0);
+	cs->commands_pending = 0;
 	cs->cur_at_seq = 0;
 	cs->gotfwver = -1;
 	cs->open_count = 0;
@@ -688,8 +688,8 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	init_waitqueue_head(&cs->waitqueue);
 	cs->waiting = 0;
 
-	atomic_set(&cs->mode, M_UNKNOWN);
-	atomic_set(&cs->mstate, MS_UNINITIALIZED);
+	cs->mode = M_UNKNOWN;
+	cs->mstate = MS_UNINITIALIZED;
 
 	for (i = 0; i < channels; ++i) {
 		gig_dbg(DEBUG_INIT, "setting up bcs[%d].read", i);
@@ -806,8 +806,8 @@ static void cleanup_cs(struct cardstate *cs)
 
 	spin_lock_irqsave(&cs->lock, flags);
 
-	atomic_set(&cs->mode, M_UNKNOWN);
-	atomic_set(&cs->mstate, MS_UNINITIALIZED);
+	cs->mode = M_UNKNOWN;
+	cs->mstate = MS_UNINITIALIZED;
 
 	clear_at_state(&cs->at_state);
 	dealloc_at_states(cs);
@@ -817,8 +817,8 @@ static void cleanup_cs(struct cardstate *cs)
 	kfree(cs->inbuf->rcvbuf);
 	cs->inbuf->rcvbuf = NULL;
 	cs->inbuf->inputstate = INS_command;
-	atomic_set(&cs->inbuf->head, 0);
-	atomic_set(&cs->inbuf->tail, 0);
+	cs->inbuf->head = 0;
+	cs->inbuf->tail = 0;
 
 	cb = cs->cmdbuf;
 	while (cb) {
@@ -832,7 +832,7 @@ static void cleanup_cs(struct cardstate *cs)
 	cs->gotfwver = -1;
 	cs->dle = 0;
 	cs->cur_at_seq = 0;
-	atomic_set(&cs->commands_pending, 0);
+	cs->commands_pending = 0;
 	cs->cbytes = 0;
 
 	spin_unlock_irqrestore(&cs->lock, flags);
@@ -862,7 +862,7 @@ int gigaset_start(struct cardstate *cs)
 	cs->connected = 1;
 	spin_unlock_irqrestore(&cs->lock, flags);
 
-	if (atomic_read(&cs->mstate) != MS_LOCKED) {
+	if (cs->mstate != MS_LOCKED) {
 		cs->ops->set_modem_ctrl(cs, 0, TIOCM_DTR|TIOCM_RTS);
 		cs->ops->baud_rate(cs, B115200);
 		cs->ops->set_line_ctrl(cs, CS8);

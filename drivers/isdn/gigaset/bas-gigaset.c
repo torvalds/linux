@@ -113,7 +113,7 @@ struct bas_cardstate {
 	unsigned char		int_in_buf[3];
 
 	spinlock_t		lock;		/* locks all following */
-	atomic_t		basstate;	/* bitmap (BS_*) */
+	int			basstate;	/* bitmap (BS_*) */
 	int			pending;	/* uncompleted base request */
 	wait_queue_head_t	waitqueue;
 	int			rcvbuf_size;	/* size of AT receive buffer */
@@ -370,27 +370,27 @@ static void check_pending(struct bas_cardstate *ucs)
 	case 0:
 		break;
 	case HD_OPEN_ATCHANNEL:
-		if (atomic_read(&ucs->basstate) & BS_ATOPEN)
+		if (ucs->basstate & BS_ATOPEN)
 			ucs->pending = 0;
 		break;
 	case HD_OPEN_B1CHANNEL:
-		if (atomic_read(&ucs->basstate) & BS_B1OPEN)
+		if (ucs->basstate & BS_B1OPEN)
 			ucs->pending = 0;
 		break;
 	case HD_OPEN_B2CHANNEL:
-		if (atomic_read(&ucs->basstate) & BS_B2OPEN)
+		if (ucs->basstate & BS_B2OPEN)
 			ucs->pending = 0;
 		break;
 	case HD_CLOSE_ATCHANNEL:
-		if (!(atomic_read(&ucs->basstate) & BS_ATOPEN))
+		if (!(ucs->basstate & BS_ATOPEN))
 			ucs->pending = 0;
 		break;
 	case HD_CLOSE_B1CHANNEL:
-		if (!(atomic_read(&ucs->basstate) & BS_B1OPEN))
+		if (!(ucs->basstate & BS_B1OPEN))
 			ucs->pending = 0;
 		break;
 	case HD_CLOSE_B2CHANNEL:
-		if (!(atomic_read(&ucs->basstate) & BS_B2OPEN))
+		if (!(ucs->basstate & BS_B2OPEN))
 			ucs->pending = 0;
 		break;
 	case HD_DEVICE_INIT_ACK:		/* no reply expected */
@@ -456,8 +456,8 @@ inline static int update_basstate(struct bas_cardstate *ucs,
 	int state;
 
 	spin_lock_irqsave(&ucs->lock, flags);
-	state = atomic_read(&ucs->basstate);
-	atomic_set(&ucs->basstate, (state & ~clear) | set);
+	state = ucs->basstate;
+	ucs->basstate = (state & ~clear) | set;
 	spin_unlock_irqrestore(&ucs->lock, flags);
 	return state;
 }
@@ -832,7 +832,7 @@ static void read_iso_callback(struct urb *urb)
 			urb->iso_frame_desc[i].status = 0;
 			urb->iso_frame_desc[i].actual_length = 0;
 		}
-		if (likely(atomic_read(&ubc->running))) {
+		if (likely(ubc->running)) {
 			/* urb->dev is clobbered by USB subsystem */
 			urb->dev = bcs->cs->hw.bas->udev;
 			urb->transfer_flags = URB_ISO_ASAP;
@@ -909,7 +909,7 @@ static int starturbs(struct bc_state *bcs)
 		bcs->inputstate |= INS_flag_hunt;
 
 	/* submit all isochronous input URBs */
-	atomic_set(&ubc->running, 1);
+	ubc->running = 1;
 	for (k = 0; k < BAS_INURBS; k++) {
 		urb = ubc->isoinurbs[k];
 		if (!urb) {
@@ -992,7 +992,7 @@ static void stopurbs(struct bas_bc_state *ubc)
 {
 	int k, rc;
 
-	atomic_set(&ubc->running, 0);
+	ubc->running = 0;
 
 	for (k = 0; k < BAS_INURBS; ++k) {
 		rc = usb_unlink_urb(ubc->isoinurbs[k]);
@@ -1068,7 +1068,7 @@ static int submit_iso_write_urb(struct isow_urbctx_t *ucx)
 			}
 			break;
 		}
-		ucx->limit = atomic_read(&ubc->isooutbuf->nextread);
+		ucx->limit = ubc->isooutbuf->nextread;
 		ifd->status = 0;
 		ifd->actual_length = 0;
 	}
@@ -1115,7 +1115,7 @@ static void write_iso_tasklet(unsigned long data)
 
 	/* loop while completed URBs arrive in time */
 	for (;;) {
-		if (unlikely(!(atomic_read(&ubc->running)))) {
+		if (unlikely(!(ubc->running))) {
 			gig_dbg(DEBUG_ISO, "%s: not running", __func__);
 			return;
 		}
@@ -1220,7 +1220,7 @@ static void write_iso_tasklet(unsigned long data)
 
 		/* mark the write buffer area covered by this URB as free */
 		if (done->limit >= 0)
-			atomic_set(&ubc->isooutbuf->read, done->limit);
+			ubc->isooutbuf->read = done->limit;
 
 		/* mark URB as free */
 		spin_lock_irqsave(&ubc->isooutlock, flags);
@@ -1294,7 +1294,7 @@ static void read_iso_tasklet(unsigned long data)
 		}
 		spin_unlock_irqrestore(&ubc->isoinlock, flags);
 
-		if (unlikely(!(atomic_read(&ubc->running)))) {
+		if (unlikely(!(ubc->running))) {
 			gig_dbg(DEBUG_ISO,
 				"%s: channel not running, "
 				"dropped URB with status: %s",
@@ -1488,7 +1488,7 @@ static void write_ctrl_callback(struct urb *urb)
 	default:				/* any failure */
 		/* don't retry if suspend requested */
 		if (++ucs->retry_ctrl > BAS_RETRY ||
-		    (atomic_read(&ucs->basstate) & BS_SUSPEND)) {
+		    (ucs->basstate & BS_SUSPEND)) {
 			dev_err(&ucs->interface->dev,
 				"control request 0x%02x failed: %s\n",
 				ucs->dr_ctrl.bRequest,
@@ -1603,7 +1603,7 @@ static int gigaset_init_bchannel(struct bc_state *bcs)
 		return -ENODEV;
 	}
 
-	if (atomic_read(&cs->hw.bas->basstate) & BS_SUSPEND) {
+	if (cs->hw.bas->basstate & BS_SUSPEND) {
 		dev_notice(cs->dev,
 			   "not starting isochronous I/O, "
 			   "suspend in progress\n");
@@ -1658,8 +1658,7 @@ static int gigaset_close_bchannel(struct bc_state *bcs)
 		return -ENODEV;
 	}
 
-	if (!(atomic_read(&cs->hw.bas->basstate) &
-	      (bcs->channel ? BS_B2OPEN : BS_B1OPEN))) {
+	if (!(cs->hw.bas->basstate & (bcs->channel ? BS_B2OPEN : BS_B1OPEN))) {
 		/* channel not running: just signal common.c */
 		spin_unlock_irqrestore(&cs->lock, flags);
 		gigaset_bchannel_down(bcs);
@@ -1747,7 +1746,7 @@ static void write_command_callback(struct urb *urb)
 				 ucs->retry_cmd_out);
 			break;
 		}
-		if (atomic_read(&ucs->basstate) & BS_SUSPEND) {
+		if (ucs->basstate & BS_SUSPEND) {
 			dev_warn(cs->dev,
 				 "command write: %s, "
 				 "won't retry - suspend requested\n",
@@ -1863,13 +1862,13 @@ static int start_cbsend(struct cardstate *cs)
 	int retval = 0;
 
 	/* check if suspend requested */
-	if (atomic_read(&ucs->basstate) & BS_SUSPEND) {
+	if (ucs->basstate & BS_SUSPEND) {
 		gig_dbg(DEBUG_TRANSCMD|DEBUG_LOCKCMD, "suspending");
 		return -EHOSTUNREACH;
 	}
 
 	/* check if AT channel is open */
-	if (!(atomic_read(&ucs->basstate) & BS_ATOPEN)) {
+	if (!(ucs->basstate & BS_ATOPEN)) {
 		gig_dbg(DEBUG_TRANSCMD|DEBUG_LOCKCMD, "AT channel not open");
 		rc = req_submit(cs->bcs, HD_OPEN_ATCHANNEL, 0, BAS_TIMEOUT);
 		if (rc < 0) {
@@ -1885,8 +1884,7 @@ static int start_cbsend(struct cardstate *cs)
 	/* try to send first command in queue */
 	spin_lock_irqsave(&cs->cmdlock, flags);
 
-	while ((cb = cs->cmdbuf) != NULL &&
-	       atomic_read(&ucs->basstate) & BS_ATREADY) {
+	while ((cb = cs->cmdbuf) != NULL && (ucs->basstate & BS_ATREADY)) {
 		ucs->retry_cmd_out = 0;
 		rc = atwrite_submit(cs, cb->buf, cb->len);
 		if (unlikely(rc)) {
@@ -1924,7 +1922,7 @@ static int gigaset_write_cmd(struct cardstate *cs,
 	unsigned long flags;
 	int rc;
 
-	gigaset_dbg_buffer(atomic_read(&cs->mstate) != MS_LOCKED ?
+	gigaset_dbg_buffer(cs->mstate != MS_LOCKED ?
 			     DEBUG_TRANSCMD : DEBUG_LOCKCMD,
 			   "CMD Transmit", len, buf);
 
@@ -2039,7 +2037,7 @@ static int gigaset_freebcshw(struct bc_state *bcs)
 		return 0;
 
 	/* kill URBs and tasklets before freeing - better safe than sorry */
-	atomic_set(&ubc->running, 0);
+	ubc->running = 0;
 	gig_dbg(DEBUG_INIT, "%s: killing iso URBs", __func__);
 	for (i = 0; i < BAS_OUTURBS; ++i) {
 		usb_kill_urb(ubc->isoouturbs[i].urb);
@@ -2074,7 +2072,7 @@ static int gigaset_initbcshw(struct bc_state *bcs)
 		return 0;
 	}
 
-	atomic_set(&ubc->running, 0);
+	ubc->running = 0;
 	atomic_set(&ubc->corrbytes, 0);
 	spin_lock_init(&ubc->isooutlock);
 	for (i = 0; i < BAS_OUTURBS; ++i) {
@@ -2119,7 +2117,7 @@ static void gigaset_reinitbcshw(struct bc_state *bcs)
 {
 	struct bas_bc_state *ubc = bcs->hw.bas;
 
-	atomic_set(&bcs->hw.bas->running, 0);
+	bcs->hw.bas->running = 0;
 	atomic_set(&bcs->hw.bas->corrbytes, 0);
 	bcs->hw.bas->numsub = 0;
 	spin_lock_init(&ubc->isooutlock);
@@ -2150,7 +2148,7 @@ static int gigaset_initcshw(struct cardstate *cs)
 	spin_lock_init(&ucs->lock);
 	ucs->pending = 0;
 
-	atomic_set(&ucs->basstate, 0);
+	ucs->basstate = 0;
 	init_timer(&ucs->timer_ctrl);
 	init_timer(&ucs->timer_atrdy);
 	init_timer(&ucs->timer_cmd_in);
@@ -2307,7 +2305,7 @@ static int gigaset_probe(struct usb_interface *interface,
 
 	/* tell common part that the device is ready */
 	if (startmode == SM_LOCKED)
-		atomic_set(&cs->mstate, MS_LOCKED);
+		cs->mstate = MS_LOCKED;
 
 	/* save address of controller structure */
 	usb_set_intfdata(interface, cs);
@@ -2342,7 +2340,7 @@ static void gigaset_disconnect(struct usb_interface *interface)
 	dev_info(cs->dev, "disconnecting Gigaset base\n");
 
 	/* mark base as not ready, all channels disconnected */
-	atomic_set(&ucs->basstate, 0);
+	ucs->basstate = 0;
 
 	/* tell LL all channels are down */
 	for (j = 0; j < BAS_CHANNELS; ++j)
@@ -2374,7 +2372,6 @@ static int gigaset_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct cardstate *cs = usb_get_intfdata(intf);
 	struct bas_cardstate *ucs = cs->hw.bas;
-	int basstate;
 	int rc;
 
 	/* set suspend flag; this stops AT command/response traffic */
@@ -2385,29 +2382,28 @@ static int gigaset_suspend(struct usb_interface *intf, pm_message_t message)
 
 	/* wait a bit for blocking conditions to go away */
 	rc = wait_event_timeout(ucs->waitqueue,
-			!(atomic_read(&ucs->basstate) &
+			!(ucs->basstate &
 			  (BS_B1OPEN|BS_B2OPEN|BS_ATRDPEND|BS_ATWRPEND)),
 			BAS_TIMEOUT*HZ/10);
 	gig_dbg(DEBUG_SUSPEND, "wait_event_timeout() -> %d", rc);
 
 	/* check for conditions preventing suspend */
-	basstate = atomic_read(&ucs->basstate);
-	if (basstate & (BS_B1OPEN|BS_B2OPEN|BS_ATRDPEND|BS_ATWRPEND)) {
+	if (ucs->basstate & (BS_B1OPEN|BS_B2OPEN|BS_ATRDPEND|BS_ATWRPEND)) {
 		dev_warn(cs->dev, "cannot suspend:\n");
-		if (basstate & BS_B1OPEN)
+		if (ucs->basstate & BS_B1OPEN)
 			dev_warn(cs->dev, " B channel 1 open\n");
-		if (basstate & BS_B2OPEN)
+		if (ucs->basstate & BS_B2OPEN)
 			dev_warn(cs->dev, " B channel 2 open\n");
-		if (basstate & BS_ATRDPEND)
+		if (ucs->basstate & BS_ATRDPEND)
 			dev_warn(cs->dev, " receiving AT reply\n");
-		if (basstate & BS_ATWRPEND)
+		if (ucs->basstate & BS_ATWRPEND)
 			dev_warn(cs->dev, " sending AT command\n");
 		update_basstate(ucs, 0, BS_SUSPEND);
 		return -EBUSY;
 	}
 
 	/* close AT channel if open */
-	if (basstate & BS_ATOPEN) {
+	if (ucs->basstate & BS_ATOPEN) {
 		gig_dbg(DEBUG_SUSPEND, "closing AT channel");
 		rc = req_submit(cs->bcs, HD_CLOSE_ATCHANNEL, 0, 0);
 		if (rc) {
@@ -2546,25 +2542,25 @@ static void __exit bas_gigaset_exit(void)
 	/* from now on, no isdn callback should be possible */
 
 	/* close all still open channels */
-	if (atomic_read(&ucs->basstate) & BS_B1OPEN) {
+	if (ucs->basstate & BS_B1OPEN) {
 		gig_dbg(DEBUG_INIT, "closing B1 channel");
 		usb_control_msg(ucs->udev, usb_sndctrlpipe(ucs->udev, 0),
 				HD_CLOSE_B1CHANNEL, OUT_VENDOR_REQ, 0, 0,
 				NULL, 0, BAS_TIMEOUT);
 	}
-	if (atomic_read(&ucs->basstate) & BS_B2OPEN) {
+	if (ucs->basstate & BS_B2OPEN) {
 		gig_dbg(DEBUG_INIT, "closing B2 channel");
 		usb_control_msg(ucs->udev, usb_sndctrlpipe(ucs->udev, 0),
 				HD_CLOSE_B2CHANNEL, OUT_VENDOR_REQ, 0, 0,
 				NULL, 0, BAS_TIMEOUT);
 	}
-	if (atomic_read(&ucs->basstate) & BS_ATOPEN) {
+	if (ucs->basstate & BS_ATOPEN) {
 		gig_dbg(DEBUG_INIT, "closing AT channel");
 		usb_control_msg(ucs->udev, usb_sndctrlpipe(ucs->udev, 0),
 				HD_CLOSE_ATCHANNEL, OUT_VENDOR_REQ, 0, 0,
 				NULL, 0, BAS_TIMEOUT);
 	}
-	atomic_set(&ucs->basstate, 0);
+	ucs->basstate = 0;
 
 	/* deregister this driver with the USB subsystem */
 	usb_deregister(&gigaset_usb_driver);

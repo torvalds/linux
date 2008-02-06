@@ -307,7 +307,7 @@ struct inbuf_t {
 	struct bc_state		*bcs;
 	struct cardstate	*cs;
 	int			inputstate;
-	atomic_t		head, tail;
+	int			head, tail;
 	unsigned char		data[RBUFSIZE];
 };
 
@@ -329,9 +329,9 @@ struct inbuf_t {
  *   are also filled with that value
  */
 struct isowbuf_t {
-	atomic_t	read;
-	atomic_t	nextread;
-	atomic_t	write;
+	int		read;
+	int		nextread;
+	int		write;
 	atomic_t	writesem;
 	int		wbits;
 	unsigned char	data[BAS_OUTBUFSIZE + BAS_OUTBUFPAD];
@@ -441,8 +441,8 @@ struct cardstate {
 	/* Stuff to handle communication */
 	wait_queue_head_t waitqueue;
 	int waiting;
-	atomic_t mode;			/* see M_XXXX */
-	atomic_t mstate;		/* Modem state: see MS_XXXX */
+	int mode;			/* see M_XXXX */
+	int mstate;			/* Modem state: see MS_XXXX */
 					/* only changed by the event layer */
 	int cmd_result;
 
@@ -499,7 +499,7 @@ struct cardstate {
 					   processed */
 	int curchannel;			/* channel those commands are meant
 					   for */
-	atomic_t commands_pending;	/* flag(s) in xxx.commands_pending have
+	int commands_pending;		/* flag(s) in xxx.commands_pending have
 					   been set */
 	struct tasklet_struct event_tasklet;
 					/* tasklet for serializing AT commands.
@@ -555,7 +555,7 @@ struct cmdbuf_t {
 
 struct bas_bc_state {
 	/* isochronous output state */
-	atomic_t	running;
+	int		running;
 	atomic_t	corrbytes;
 	spinlock_t	isooutlock;
 	struct isow_urbctx_t	isoouturbs[BAS_OUTURBS];
