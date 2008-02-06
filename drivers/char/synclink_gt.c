@@ -73,6 +73,7 @@
 #include <linux/bitops.h>
 #include <linux/workqueue.h>
 #include <linux/hdlc.h>
+#include <linux/synclink.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -80,8 +81,6 @@
 #include <asm/dma.h>
 #include <asm/types.h>
 #include <asm/uaccess.h>
-
-#include "linux/synclink.h"
 
 #if defined(CONFIG_HDLC) || (defined(CONFIG_HDLC_MODULE) && defined(CONFIG_SYNCLINK_GT_MODULE))
 #define SYNCLINK_GENERIC_HDLC 1

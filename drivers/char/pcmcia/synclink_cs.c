@@ -57,6 +57,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/ioctl.h>
+#include <linux/synclink.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -86,8 +87,6 @@
 #define COPY_TO_USER(error,dest,src,size) error = copy_to_user(dest,src,size) ? -EFAULT : 0
 
 #include <asm/uaccess.h>
-
-#include "linux/synclink.h"
 
 static MGSL_PARAMS default_params = {
 	MGSL_MODE_HDLC,			/* unsigned long mode */
