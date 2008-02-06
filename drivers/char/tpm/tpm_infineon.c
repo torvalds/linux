@@ -611,7 +611,7 @@ static __devexit void tpm_inf_pnp_remove(struct pnp_dev *dev)
 	}
 }
 
-static struct pnp_driver tpm_inf_pnp = {
+static struct pnp_driver tpm_inf_pnp_driver = {
 	.name = "tpm_inf_pnp",
 	.driver = {
 		.owner = THIS_MODULE,
@@ -625,12 +625,12 @@ static struct pnp_driver tpm_inf_pnp = {
 
 static int __init init_inf(void)
 {
-	return pnp_register_driver(&tpm_inf_pnp);
+	return pnp_register_driver(&tpm_inf_pnp_driver);
 }
 
 static void __exit cleanup_inf(void)
 {
-	pnp_unregister_driver(&tpm_inf_pnp);
+	pnp_unregister_driver(&tpm_inf_pnp_driver);
 }
 
 module_init(init_inf);
