@@ -181,7 +181,7 @@ static u8 b43legacy_calc_fallback_rate(u8 bitrate)
 	return 0;
 }
 
-static void generate_txhdr_fw3(struct b43legacy_wldev *dev,
+static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 			       struct b43legacy_txhdr_fw3 *txhdr,
 			       const unsigned char *fragment_data,
 			       unsigned int fragment_len,
@@ -252,6 +252,13 @@ static void generate_txhdr_fw3(struct b43legacy_wldev *dev,
 			iv_len = min((size_t)txctl->iv_len,
 				     ARRAY_SIZE(txhdr->iv));
 			memcpy(txhdr->iv, ((u8 *)wlhdr) + wlhdr_len, iv_len);
+		} else {
+			/* This key is invalid. This might only happen
+			 * in a short timeframe after machine resume before
+			 * we were able to reconfigure keys.
+			 * Drop this packet completely. Do not transmit it
+			 * unencrypted to avoid leaking information. */
+			return -ENOKEY;
 		}
 	}
 	b43legacy_generate_plcp_hdr((struct b43legacy_plcp_hdr4 *)
@@ -345,16 +352,18 @@ static void generate_txhdr_fw3(struct b43legacy_wldev *dev,
 	/* Apply the bitfields */
 	txhdr->mac_ctl = cpu_to_le32(mac_ctl);
 	txhdr->phy_ctl = cpu_to_le16(phy_ctl);
+
+	return 0;
 }
 
-void b43legacy_generate_txhdr(struct b43legacy_wldev *dev,
+int b43legacy_generate_txhdr(struct b43legacy_wldev *dev,
 			      u8 *txhdr,
 			      const unsigned char *fragment_data,
 			      unsigned int fragment_len,
 			      const struct ieee80211_tx_control *txctl,
 			      u16 cookie)
 {
-	generate_txhdr_fw3(dev, (struct b43legacy_txhdr_fw3 *)txhdr,
+	return generate_txhdr_fw3(dev, (struct b43legacy_txhdr_fw3 *)txhdr,
 			   fragment_data, fragment_len,
 			   txctl, cookie);
 }

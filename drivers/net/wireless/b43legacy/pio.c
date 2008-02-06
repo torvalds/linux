@@ -181,7 +181,7 @@ union txhdr_union {
 	struct b43legacy_txhdr_fw3 txhdr_fw3;
 };
 
-static void pio_tx_write_fragment(struct b43legacy_pioqueue *queue,
+static int pio_tx_write_fragment(struct b43legacy_pioqueue *queue,
 				  struct sk_buff *skb,
 				  struct b43legacy_pio_txpacket *packet,
 				  size_t txhdr_size)
@@ -189,14 +189,17 @@ static void pio_tx_write_fragment(struct b43legacy_pioqueue *queue,
 	union txhdr_union txhdr_data;
 	u8 *txhdr = NULL;
 	unsigned int octets;
+	int err;
 
 	txhdr = (u8 *)(&txhdr_data.txhdr_fw3);
 
 	B43legacy_WARN_ON(skb_shinfo(skb)->nr_frags != 0);
-	b43legacy_generate_txhdr(queue->dev,
+	err = b43legacy_generate_txhdr(queue->dev,
 				 txhdr, skb->data, skb->len,
 				 &packet->txstat.control,
 				 generate_cookie(queue, packet));
+	if (err)
+		return err;
 
 	tx_start(queue);
 	octets = skb->len + txhdr_size;
@@ -204,6 +207,8 @@ static void pio_tx_write_fragment(struct b43legacy_pioqueue *queue,
 		octets--;
 	tx_data(queue, txhdr, (u8 *)skb->data, octets);
 	tx_complete(queue, skb);
+
+	return 0;
 }
 
 static void free_txpacket(struct b43legacy_pio_txpacket *packet,
@@ -226,6 +231,7 @@ static int pio_tx_packet(struct b43legacy_pio_txpacket *packet)
 	struct b43legacy_pioqueue *queue = packet->queue;
 	struct sk_buff *skb = packet->skb;
 	u16 octets;
+	int err;
 
 	octets = (u16)skb->len + sizeof(struct b43legacy_txhdr_fw3);
 	if (queue->tx_devq_size < octets) {
@@ -247,8 +253,14 @@ static int pio_tx_packet(struct b43legacy_pio_txpacket *packet)
 	if (queue->tx_devq_used + octets > queue->tx_devq_size)
 		return -EBUSY;
 	/* Now poke the device. */
-	pio_tx_write_fragment(queue, skb, packet,
+	err = pio_tx_write_fragment(queue, skb, packet,
 			      sizeof(struct b43legacy_txhdr_fw3));
+	if (unlikely(err == -ENOKEY)) {
+		/* Drop this packet, as we don't have the encryption key
+		 * anymore and must not transmit it unencrypted. */
+		free_txpacket(packet, 1);
+		return 0;
+	}
 
 	/* Account for the packet size.
 	 * (We must not overflow the device TX queue)
@@ -485,6 +497,9 @@ void b43legacy_pio_handle_txstatus(struct b43legacy_wldev *dev,
 
 	queue = parse_cookie(dev, status->cookie, &packet);
 	B43legacy_WARN_ON(!queue);
+
+	if (!packet->skb)
+		return;
 
 	queue->tx_devq_packets--;
 	queue->tx_devq_used -= (packet->skb->len +

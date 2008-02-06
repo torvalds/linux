@@ -203,6 +203,12 @@ struct b43_dma_ops {
 	void (*set_current_rxslot) (struct b43_dmaring * ring, int slot);
 };
 
+enum b43_dmatype {
+	B43_DMA_30BIT	= 30,
+	B43_DMA_32BIT	= 32,
+	B43_DMA_64BIT	= 64,
+};
+
 struct b43_dmaring {
 	/* Lowlevel DMA ops. */
 	const struct b43_dma_ops *ops;
@@ -235,8 +241,8 @@ struct b43_dmaring {
 	int index;
 	/* Boolean. Is this a TX ring? */
 	bool tx;
-	/* Boolean. 64bit DMA if true, 32bit DMA otherwise. */
-	bool dma64;
+	/* The type of DMA engine used. */
+	enum b43_dmatype type;
 	/* Boolean. Is this ring stopped at ieee80211 level? */
 	bool stopped;
 	/* Lock, only used for TX. */
@@ -255,21 +261,13 @@ static inline u32 b43_dma_read(struct b43_dmaring *ring, u16 offset)
 	return b43_read32(ring->dev, ring->mmio_base + offset);
 }
 
-static inline
-    void b43_dma_write(struct b43_dmaring *ring, u16 offset, u32 value)
+static inline void b43_dma_write(struct b43_dmaring *ring, u16 offset, u32 value)
 {
 	b43_write32(ring->dev, ring->mmio_base + offset, value);
 }
 
 int b43_dma_init(struct b43_wldev *dev);
 void b43_dma_free(struct b43_wldev *dev);
-
-int b43_dmacontroller_rx_reset(struct b43_wldev *dev,
-			       u16 dmacontroller_mmio_base, int dma64);
-int b43_dmacontroller_tx_reset(struct b43_wldev *dev,
-			       u16 dmacontroller_mmio_base, int dma64);
-
-u16 b43_dmacontroller_base(int dma64bit, int dmacontroller_idx);
 
 void b43_dma_tx_suspend(struct b43_wldev *dev);
 void b43_dma_tx_resume(struct b43_wldev *dev);

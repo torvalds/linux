@@ -1,6 +1,5 @@
 config MAC80211
 	tristate "Generic IEEE 802.11 Networking Stack (mac80211)"
-	depends on EXPERIMENTAL
 	select CRYPTO
 	select CRYPTO_ECB
 	select CRYPTO_ARC4

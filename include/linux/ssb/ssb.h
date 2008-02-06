@@ -373,6 +373,15 @@ void ssb_pcihost_set_power_state(struct ssb_device *sdev, pci_power_t state)
 	if (sdev->bus->bustype == SSB_BUSTYPE_PCI)
 		pci_set_power_state(sdev->bus->host_pci, state);
 }
+#else
+static inline void ssb_pcihost_unregister(struct pci_driver *driver)
+{
+}
+
+static inline
+void ssb_pcihost_set_power_state(struct ssb_device *sdev, pci_power_t state)
+{
+}
 #endif /* CONFIG_SSB_PCIHOST */
 
 
