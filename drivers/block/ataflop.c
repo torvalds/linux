@@ -90,7 +90,7 @@ static struct atari_disk_type {
 	unsigned	blocks;		/* total number of blocks */
 	unsigned	fdc_speed;	/* fdc_speed setting */
 	unsigned 	stretch;	/* track doubling ? */
-} disk_type[] = {
+} atari_disk_type[] = {
 	{ "d360",  9, 720, 0, 0},	/*  0: 360kB diskette */
 	{ "D360",  9, 720, 0, 1},	/*  1: 360kb in 720k or 1.2MB drive */
 	{ "D720",  9,1440, 0, 0},	/*  2: 720kb in 720k or 1.2MB drive */
@@ -658,7 +658,7 @@ static int do_format(int drive, int type, struct atari_format_descr *desc)
 			return -EINVAL;
 		}
 		type = minor2disktype[type].index;
-		UDT = &disk_type[type];
+		UDT = &atari_disk_type[type];
 	}
 
 	if (!UDT || desc->track >= UDT->blocks/UDT->spt/2 || desc->head >= 2) {
@@ -1064,7 +1064,7 @@ static void fd_rwsec_done1(int status)
 	       searched for a non-existent sector! */
 	    !(read_track && FDC_READ(FDCREG_SECTOR) > SUDT->spt)) {
 		if (Probing) {
-			if (SUDT > disk_type) {
+			if (SUDT > atari_disk_type) {
 			    if (SUDT[-1].blocks > ReqBlock) {
 				/* try another disk type */
 				SUDT--;
@@ -1082,7 +1082,7 @@ static void fd_rwsec_done1(int status)
 		} else {	
 /* record not found, but not probing. Maybe stretch wrong ? Restart probing */
 			if (SUD.autoprobe) {
-				SUDT = disk_type + StartDiskType[DriveType];
+				SUDT = atari_disk_type + StartDiskType[DriveType];
 				set_capacity(unit[SelectedDrive].disk,
 							SUDT->blocks);
 				Probing = 1;
@@ -1421,7 +1421,7 @@ repeat:
 	if (type == 0) {
 		if (!UDT) {
 			Probing = 1;
-			UDT = disk_type + StartDiskType[DriveType];
+			UDT = atari_disk_type + StartDiskType[DriveType];
 			set_capacity(floppy->disk, UDT->blocks);
 			UD.autoprobe = 1;
 		}
@@ -1439,7 +1439,7 @@ repeat:
 			goto repeat;
 		}
 		type = minor2disktype[type].index;
-		UDT = &disk_type[type];
+		UDT = &atari_disk_type[type];
 		set_capacity(floppy->disk, UDT->blocks);
 		UD.autoprobe = 0;
 	}
@@ -1505,7 +1505,7 @@ static int fd_ioctl(struct inode *inode, struct file *filp,
 			if (minor2disktype[type].drive_types > DriveType)
 				return -ENODEV;
 			type = minor2disktype[type].index;
-			dtp = &disk_type[type];
+			dtp = &atari_disk_type[type];
 			if (UD.flags & FTD_MSG)
 			    printk (KERN_ERR "floppy%d: found dtp %p name %s!\n",
 			        drive, dtp, dtp->name);
@@ -1576,7 +1576,7 @@ static int fd_ioctl(struct inode *inode, struct file *filp,
 				continue;
 			}
 			setidx = minor2disktype[settype].index;
-			dtp = &disk_type[setidx];
+			dtp = &atari_disk_type[setidx];
 
 			/* found matching entry ?? */
 			if (   dtp->blocks  == setprm.size 
