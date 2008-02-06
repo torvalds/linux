@@ -441,7 +441,7 @@ struct watcher_entry {
 int ipmi_smi_watcher_register(struct ipmi_smi_watcher *watcher)
 {
 	ipmi_smi_t intf;
-	struct list_head to_deliver = LIST_HEAD_INIT(to_deliver);
+	LIST_HEAD(to_deliver);
 	struct watcher_entry *e, *e2;
 
 	mutex_lock(&smi_watchers_mutex);
