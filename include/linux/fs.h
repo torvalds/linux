@@ -2113,6 +2113,7 @@ struct ctl_table;
 int proc_nr_files(struct ctl_table *table, int write, struct file *filp,
 		  void __user *buffer, size_t *lenp, loff_t *ppos);
 
+int get_filesystem_list(char * buf);
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_FS_H */

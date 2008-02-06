@@ -11,14 +11,13 @@
 #include <linux/mount.h>
 #include <linux/device.h>
 #include <linux/init.h>
+#include <linux/fs.h>
 
 #include <linux/nfs_fs.h>
 #include <linux/nfs_fs_sb.h>
 #include <linux/nfs_mount.h>
 
 #include "do_mounts.h"
-
-extern int get_filesystem_list(char * buf);
 
 int __initdata rd_doload;	/* 1 = load RAM disk, 0 = don't load */
 
