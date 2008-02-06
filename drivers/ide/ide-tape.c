@@ -810,25 +810,6 @@ static void idetape_activate_next_stage(ide_drive_t *drive)
 }
 
 /*
- *	idetape_increase_max_pipeline_stages is a part of the feedback
- *	loop which tries to find the optimum number of stages. In the
- *	feedback loop, we are starting from a minimum maximum number of
- *	stages, and if we sense that the pipeline is empty, we try to
- *	increase it, until we reach the user compile time memory limit.
- */
-static void idetape_increase_max_pipeline_stages (ide_drive_t *drive)
-{
-	idetape_tape_t *tape = drive->driver_data;
-	int increase = (tape->max_pipeline - tape->min_pipeline) / 10;
-
-	debug_log(DBG_PROCS, "Enter %s\n", __func__);
-
-	tape->max_stages += max(increase, 1);
-	tape->max_stages = max(tape->max_stages, tape->min_pipeline);
-	tape->max_stages = min(tape->max_stages, tape->max_pipeline);
-}
-
-/*
  *	idetape_kfree_stage calls kfree to completely free a stage, along with
  *	its related buffers.
  */
@@ -976,7 +957,21 @@ static int idetape_end_request(ide_drive_t *drive, int uptodate, int nr_sects)
 			(void)ide_do_drive_cmd(drive, tape->active_data_rq,
 						ide_end);
 		} else if (!error) {
-				idetape_increase_max_pipeline_stages(drive);
+			/*
+			 * This is a part of the feedback loop which tries to
+			 * find the optimum number of stages. We are starting
+			 * from a minimum maximum number of stages, and if we
+			 * sense that the pipeline is empty, we try to increase
+			 * it, until we reach the user compile time memory
+			 * limit.
+			 */
+			int i = (tape->max_pipeline - tape->min_pipeline) / 10;
+
+			tape->max_stages += max(i, 1);
+			tape->max_stages = max(tape->max_stages,
+						tape->min_pipeline);
+			tape->max_stages = min(tape->max_stages,
+						tape->max_pipeline);
 		}
 	}
 	ide_end_drive_cmd(drive, 0, 0);
