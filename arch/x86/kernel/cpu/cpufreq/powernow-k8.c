@@ -827,7 +827,6 @@ static int fill_powernow_table_pstate(struct powernow_k8_data *data, struct cpuf
 
 	for (i = 0; i < data->acpi_data.state_count; i++) {
 		u32 index;
-		u32 hi = 0, lo = 0;
 
 		index = data->acpi_data.states[i].control & HW_PSTATE_MASK;
 		if (index > data->max_hw_pstate) {
