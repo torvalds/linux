@@ -306,8 +306,7 @@ int sr_drive_status(struct cdrom_device_info *cdi, int slot)
 		/* we have no changer support */
 		return -EINVAL;
 	}
-	if (0 == scsi_test_unit_ready(cd->device, SR_TIMEOUT, MAX_RETRIES,
-				      &sshdr))
+	if (0 == sr_test_unit_ready(cd->device, &sshdr))
 		return CDS_DISC_OK;
 
 	if (!cdrom_get_media_event(cdi, &med)) {
