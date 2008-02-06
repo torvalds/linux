@@ -7,8 +7,7 @@
 #include <linux/jiffies.h>
 #include <linux/delay.h>
 #include <linux/init.h>
-
-#include <asm/timex.h>
+#include <linux/timex.h>
 
 unsigned long preset_lpj;
 static int __init lpj_setup(char *str)

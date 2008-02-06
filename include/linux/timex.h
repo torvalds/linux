@@ -244,6 +244,8 @@ extern int do_adjtimex(struct timex *);
 /* Don't use! Compatibility define for existing users. */
 #define tickadj	(500/HZ ? : 1)
 
+int read_current_timer(unsigned long *timer_val);
+
 #endif /* KERNEL */
 
 #endif /* LINUX_TIMEX_H */

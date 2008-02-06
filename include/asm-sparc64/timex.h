@@ -14,10 +14,6 @@
 typedef unsigned long cycles_t;
 #define get_cycles()	tick_ops->get_tick()
 
-#define ARCH_HAS_READ_CURRENT_TIMER	1
-#define read_current_timer(timer_val_p) 	\
-({	*timer_val_p = tick_ops->get_tick();	\
-	0;					\
-})
+#define ARCH_HAS_READ_CURRENT_TIMER
 
 #endif

@@ -34,7 +34,6 @@ static inline cycles_t get_cycles (void)
 	return 0;
 }
 
-extern int read_current_timer(unsigned long *timer_value);
-#define ARCH_HAS_READ_CURRENT_TIMER	1
+#define ARCH_HAS_READ_CURRENT_TIMER
 
 #endif /* __ASM_AVR32_TIMEX_H */

@@ -10,8 +10,10 @@
 
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/timex.h>
 #include <linux/preempt.h>
 #include <linux/delay.h>
+#include <linux/init.h>
 
 #include <asm/delay.h>
 #include <asm/msr.h>
@@ -20,7 +22,7 @@
 #include <asm/smp.h>
 #endif
 
-int read_current_timer(unsigned long *timer_value)
+int __devinit read_current_timer(unsigned long *timer_value)
 {
 	rdtscll(*timer_value);
 	return 0;
