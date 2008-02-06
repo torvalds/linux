@@ -379,8 +379,7 @@ out:
 static void ecryptfs_lower_offset_for_extent(loff_t *offset, loff_t extent_num,
 					     struct ecryptfs_crypt_stat *crypt_stat)
 {
-	(*offset) = ((crypt_stat->extent_size
-		      * crypt_stat->num_header_extents_at_front)
+	(*offset) = (crypt_stat->num_header_bytes_at_front
 		     + (crypt_stat->extent_size * extent_num));
 }
 
@@ -842,15 +841,13 @@ void ecryptfs_set_default_sizes(struct ecryptfs_crypt_stat *crypt_stat)
 	set_extent_mask_and_shift(crypt_stat);
 	crypt_stat->iv_bytes = ECRYPTFS_DEFAULT_IV_BYTES;
 	if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR)
-		crypt_stat->num_header_extents_at_front = 0;
+		crypt_stat->num_header_bytes_at_front = 0;
 	else {
 		if (PAGE_CACHE_SIZE <= ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE)
-			crypt_stat->num_header_extents_at_front =
-				(ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE
-				 / crypt_stat->extent_size);
+			crypt_stat->num_header_bytes_at_front =
+				ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE;
 		else
-			crypt_stat->num_header_extents_at_front =
-				(PAGE_CACHE_SIZE / crypt_stat->extent_size);
+			crypt_stat->num_header_bytes_at_front =	PAGE_CACHE_SIZE;
 	}
 }
 
@@ -1236,7 +1233,8 @@ ecryptfs_write_header_metadata(char *virt,
 
 	header_extent_size = (u32)crypt_stat->extent_size;
 	num_header_extents_at_front =
-		(u16)crypt_stat->num_header_extents_at_front;
+		(u16)(crypt_stat->num_header_bytes_at_front
+		      / crypt_stat->extent_size);
 	header_extent_size = cpu_to_be32(header_extent_size);
 	memcpy(virt, &header_extent_size, 4);
 	virt += 4;
@@ -1311,40 +1309,16 @@ static int ecryptfs_write_headers_virt(char *page_virt, size_t *size,
 static int
 ecryptfs_write_metadata_to_contents(struct ecryptfs_crypt_stat *crypt_stat,
 				    struct dentry *ecryptfs_dentry,
-				    char *page_virt)
+				    char *virt)
 {
-	int current_header_page;
-	int header_pages;
 	int rc;
 
-	rc = ecryptfs_write_lower(ecryptfs_dentry->d_inode, page_virt,
-				  0, PAGE_CACHE_SIZE);
-	if (rc) {
+	rc = ecryptfs_write_lower(ecryptfs_dentry->d_inode, virt,
+				  0, crypt_stat->num_header_bytes_at_front);
+	if (rc)
 		printk(KERN_ERR "%s: Error attempting to write header "
 		       "information to lower file; rc = [%d]\n", __FUNCTION__,
 		       rc);
-		goto out;
-	}
-	header_pages = ((crypt_stat->extent_size
-			 * crypt_stat->num_header_extents_at_front)
-			/ PAGE_CACHE_SIZE);
-	memset(page_virt, 0, PAGE_CACHE_SIZE);
-	current_header_page = 1;
-	while (current_header_page < header_pages) {
-		loff_t offset;
-
-		offset = (((loff_t)current_header_page) << PAGE_CACHE_SHIFT);
-		if ((rc = ecryptfs_write_lower(ecryptfs_dentry->d_inode,
-					       page_virt, offset,
-					       PAGE_CACHE_SIZE))) {
-			printk(KERN_ERR "%s: Error attempting to write header "
-			       "information to lower file; rc = [%d]\n",
-			       __FUNCTION__, rc);
-			goto out;
-		}
-		current_header_page++;
-	}
-out:
 	return rc;
 }
 
@@ -1370,15 +1344,13 @@ ecryptfs_write_metadata_to_xattr(struct dentry *ecryptfs_dentry,
  * retrieved via a prompt.  Exactly what happens at this point should
  * be policy-dependent.
  *
- * TODO: Support header information spanning multiple pages
- *
  * Returns zero on success; non-zero on error
  */
 int ecryptfs_write_metadata(struct dentry *ecryptfs_dentry)
 {
 	struct ecryptfs_crypt_stat *crypt_stat =
 		&ecryptfs_inode_to_private(ecryptfs_dentry->d_inode)->crypt_stat;
-	char *page_virt;
+	char *virt;
 	size_t size = 0;
 	int rc = 0;
 
@@ -1389,40 +1361,39 @@ int ecryptfs_write_metadata(struct dentry *ecryptfs_dentry)
 			goto out;
 		}
 	} else {
+		printk(KERN_WARNING "%s: Encrypted flag not set\n",
+		       __FUNCTION__);
 		rc = -EINVAL;
-		ecryptfs_printk(KERN_WARNING,
-				"Called with crypt_stat->encrypted == 0\n");
 		goto out;
 	}
 	/* Released in this function */
-	page_virt = kmem_cache_zalloc(ecryptfs_header_cache_0, GFP_USER);
-	if (!page_virt) {
-		ecryptfs_printk(KERN_ERR, "Out of memory\n");
+	virt = kzalloc(crypt_stat->num_header_bytes_at_front, GFP_KERNEL);
+	if (!virt) {
+		printk(KERN_ERR "%s: Out of memory\n", __FUNCTION__);
 		rc = -ENOMEM;
 		goto out;
 	}
-	rc = ecryptfs_write_headers_virt(page_virt, &size, crypt_stat,
-  					 ecryptfs_dentry);
+	rc = ecryptfs_write_headers_virt(virt, &size, crypt_stat,
+					 ecryptfs_dentry);
 	if (unlikely(rc)) {
-		ecryptfs_printk(KERN_ERR, "Error whilst writing headers\n");
-		memset(page_virt, 0, PAGE_CACHE_SIZE);
+		printk(KERN_ERR "%s: Error whilst writing headers; rc = [%d]\n",
+		       __FUNCTION__, rc);
 		goto out_free;
 	}
 	if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR)
 		rc = ecryptfs_write_metadata_to_xattr(ecryptfs_dentry,
-						      crypt_stat, page_virt,
-						      size);
+						      crypt_stat, virt, size);
 	else
 		rc = ecryptfs_write_metadata_to_contents(crypt_stat,
-							 ecryptfs_dentry,
-							 page_virt);
+							 ecryptfs_dentry, virt);
 	if (rc) {
-		printk(KERN_ERR "Error writing metadata out to lower file; "
-		       "rc = [%d]\n", rc);
+		printk(KERN_ERR "%s: Error writing metadata out to lower file; "
+		       "rc = [%d]\n", __FUNCTION__, rc);
 		goto out_free;
 	}
 out_free:
-	kmem_cache_free(ecryptfs_header_cache_0, page_virt);
+	memset(virt, 0, crypt_stat->num_header_bytes_at_front);
+	kfree(virt);
 out:
 	return rc;
 }
@@ -1442,16 +1413,16 @@ static int parse_header_metadata(struct ecryptfs_crypt_stat *crypt_stat,
 	virt += sizeof(u32);
 	memcpy(&num_header_extents_at_front, virt, sizeof(u16));
 	num_header_extents_at_front = be16_to_cpu(num_header_extents_at_front);
-	crypt_stat->num_header_extents_at_front =
-		(int)num_header_extents_at_front;
+	crypt_stat->num_header_bytes_at_front =
+		(((size_t)num_header_extents_at_front
+		  * (size_t)header_extent_size));
 	(*bytes_read) = (sizeof(u32) + sizeof(u16));
 	if ((validate_header_size == ECRYPTFS_VALIDATE_HEADER_SIZE)
-	    && ((crypt_stat->extent_size
-		 * crypt_stat->num_header_extents_at_front)
+	    && (crypt_stat->num_header_bytes_at_front
 		< ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE)) {
 		rc = -EINVAL;
-		printk(KERN_WARNING "Invalid number of header extents: [%zd]\n",
-		       crypt_stat->num_header_extents_at_front);
+		printk(KERN_WARNING "Invalid header size: [%zd]\n",
+		       crypt_stat->num_header_bytes_at_front);
 	}
 	return rc;
 }
@@ -1466,7 +1437,8 @@ static int parse_header_metadata(struct ecryptfs_crypt_stat *crypt_stat,
  */
 static void set_default_header_data(struct ecryptfs_crypt_stat *crypt_stat)
 {
-	crypt_stat->num_header_extents_at_front = 2;
+	crypt_stat->num_header_bytes_at_front =
+		ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE;
 }
 
 /**
