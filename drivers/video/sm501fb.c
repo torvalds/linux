@@ -1276,6 +1276,7 @@ static int sm501fb_start(struct sm501fb_info *info,
 {
 	struct resource	*res;
 	struct device *dev;
+	int k;
 	int ret;
 
 	info->dev = dev = &pdev->dev;
@@ -1336,6 +1337,13 @@ static int sm501fb_start(struct sm501fb_info *info,
 	}
 
 	info->fbmem_len = (res->end - res->start)+1;
+
+	/* clear framebuffer memory - avoids garbage data on unused fb */
+	memset(info->fbmem, 0, info->fbmem_len);
+
+	/* clear palette ram - undefined at power on */
+	for (k = 0; k < (256 * 3); k++)
+		writel(0, info->regs + SM501_DC_PANEL_PALETTE + (k * 4));
 
 	/* enable display controller */
 	sm501_unit_power(dev->parent, SM501_GATE_DISPLAY, 1);
