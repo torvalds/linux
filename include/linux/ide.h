@@ -115,10 +115,6 @@ typedef unsigned char	byte;	/* used everywhere */
 #define SATA_ERROR_OFFSET	(1)
 #define SATA_CONTROL_OFFSET	(2)
 
-#define SATA_MISC_OFFSET	(0)
-#define SATA_PHY_OFFSET		(1)
-#define SATA_IEN_OFFSET		(2)
-
 /*
  * Our Physical Region Descriptor (PRD) table should be large enough
  * to handle the biggest I/O request we are likely to see.  Since requests
@@ -473,7 +469,6 @@ typedef struct hwif_s {
 		/* task file registers for pata and sata */
 	unsigned long	io_ports[IDE_NR_PORTS];
 	unsigned long	sata_scr[SATA_NR_PORTS];
-	unsigned long	sata_misc[SATA_NR_PORTS];
 
 	ide_drive_t	drives[MAX_DRIVES];	/* drive info */
 
