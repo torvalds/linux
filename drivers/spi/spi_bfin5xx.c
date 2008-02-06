@@ -278,16 +278,16 @@ static void u8_writer(struct driver_data *drv_data)
 	dev_dbg(&drv_data->pdev->dev,
 		"cr8-s is 0x%x\n", read_STAT(drv_data));
 
-	/* poll for SPI completion before start */
-	while (!(read_STAT(drv_data) & BIT_STAT_SPIF))
-		cpu_relax();
-
 	while (drv_data->tx < drv_data->tx_end) {
 		write_TDBR(drv_data, (*(u8 *) (drv_data->tx)));
 		while (read_STAT(drv_data) & BIT_STAT_TXS)
 			cpu_relax();
 		++drv_data->tx;
 	}
+
+	/* poll for SPI completion before return */
+	while (!(read_STAT(drv_data) & BIT_STAT_SPIF))
+		cpu_relax();
 }
 
 static void u8_cs_chg_writer(struct driver_data *drv_data)
@@ -398,31 +398,29 @@ static void u16_writer(struct driver_data *drv_data)
 	dev_dbg(&drv_data->pdev->dev,
 		"cr16 is 0x%x\n", read_STAT(drv_data));
 
-	/* poll for SPI completion before start */
-	while (!(read_STAT(drv_data) & BIT_STAT_SPIF))
-		cpu_relax();
-
 	while (drv_data->tx < drv_data->tx_end) {
 		write_TDBR(drv_data, (*(u16 *) (drv_data->tx)));
 		while ((read_STAT(drv_data) & BIT_STAT_TXS))
 			cpu_relax();
 		drv_data->tx += 2;
 	}
+
+	/* poll for SPI completion before return */
+	while (!(read_STAT(drv_data) & BIT_STAT_SPIF))
+		cpu_relax();
 }
 
 static void u16_cs_chg_writer(struct driver_data *drv_data)
 {
 	struct chip_data *chip = drv_data->cur_chip;
 
-	/* poll for SPI completion before start */
-	while (!(read_STAT(drv_data) & BIT_STAT_SPIF))
-		cpu_relax();
-
 	while (drv_data->tx < drv_data->tx_end) {
 		cs_active(drv_data, chip);
 
 		write_TDBR(drv_data, (*(u16 *) (drv_data->tx)));
 		while ((read_STAT(drv_data) & BIT_STAT_TXS))
+			cpu_relax();
+		while (!(read_STAT(drv_data) & BIT_STAT_SPIF))
 			cpu_relax();
 
 		cs_deactive(drv_data, chip);
