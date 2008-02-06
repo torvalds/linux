@@ -241,7 +241,6 @@ static ide_startstop_t recal_intr(ide_drive_t *drive)
 static ide_startstop_t task_no_data_intr(ide_drive_t *drive)
 {
 	ide_task_t *args	= HWGROUP(drive)->rq->special;
-	ide_hwif_t *hwif	= HWIF(drive);
 	u8 stat;
 
 	local_irq_enable_in_hardirq();
@@ -252,7 +251,7 @@ static ide_startstop_t task_no_data_intr(ide_drive_t *drive)
 		/* calls ide_end_drive_cmd */
 
 	if (args)
-		ide_end_drive_cmd(drive, stat, hwif->INB(IDE_ERROR_REG));
+		ide_end_drive_cmd(drive, stat, ide_read_error(drive));
 
 	return ide_stopped;
 }
@@ -408,7 +407,7 @@ static ide_startstop_t task_error(ide_drive_t *drive, struct request *rq,
 void task_end_request(ide_drive_t *drive, struct request *rq, u8 stat)
 {
 	if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
-		u8 err = drive->hwif->INB(IDE_ERROR_REG);
+		u8 err = ide_read_error(drive);
 
 		ide_end_drive_cmd(drive, stat, err);
 		return;

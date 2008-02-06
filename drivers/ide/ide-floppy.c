@@ -465,7 +465,7 @@ static void idefloppy_retry_pc(ide_drive_t *drive)
 	idefloppy_pc_t *pc;
 	struct request *rq;
 
-	(void)drive->hwif->INB(IDE_ERROR_REG);
+	(void)ide_read_error(drive);
 	pc = idefloppy_next_pc_storage(drive);
 	rq = idefloppy_next_rq_storage(drive);
 	idefloppy_create_request_sense_cmd(pc);

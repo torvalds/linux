@@ -1323,4 +1323,11 @@ static inline u8 ide_read_altstatus(ide_drive_t *drive)
 	return hwif->INB(hwif->io_ports[IDE_CONTROL_OFFSET]);
 }
 
+static inline u8 ide_read_error(ide_drive_t *drive)
+{
+	ide_hwif_t *hwif = drive->hwif;
+
+	return hwif->INB(hwif->io_ports[IDE_ERROR_OFFSET]);
+}
+
 #endif /* _IDE_H */

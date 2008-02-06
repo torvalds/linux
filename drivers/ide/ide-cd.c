@@ -304,7 +304,7 @@ static int cdrom_decode_status(ide_drive_t *drive, int good_stat, int *stat_ret)
 		return 0;
 
 	/* Get the IDE error register. */
-	err = HWIF(drive)->INB(IDE_ERROR_REG);
+	err = ide_read_error(drive);
 	sense_key = err >> 4;
 
 	if (rq == NULL) {
