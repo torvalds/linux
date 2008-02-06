@@ -150,7 +150,7 @@ int em28xx_read_reg_req_len(struct em28xx *dev, u8 req, u16 reg,
 	if (reg_debug){
 		printk(ret < 0 ? " failed!\n" : "%02x values: ", ret);
 		for (byte = 0; byte < len; byte++) {
-			printk(" %02x", buf[byte]);
+			printk(" %02x", (unsigned char)buf[byte]);
 		}
 		printk("\n");
 	}
@@ -177,7 +177,8 @@ int em28xx_read_reg_req(struct em28xx *dev, u8 req, u16 reg)
 			      0x0000, reg, &val, 1, HZ);
 
 	if (reg_debug)
-		printk(ret < 0 ? " failed!\n" : "%02x\n", val);
+		printk(ret < 0 ? " failed!\n" :
+				 "%02x\n", (unsigned char) val);
 
 	if (ret < 0)
 		return ret;
