@@ -27,6 +27,7 @@
 #include <linux/list.h>
 #include <linux/anon_inodes.h>
 #include <linux/signalfd.h>
+#include <linux/syscalls.h>
 
 struct signalfd_ctx {
 	sigset_t sigmask;
