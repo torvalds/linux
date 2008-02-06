@@ -138,9 +138,8 @@ static void pvr2_dvb_fh_done(struct pvr2_dvb_fh *fh)
 	pvr2_channel_done(&fh->channel);
 }
 
-static int pvr2_dvb_feed_thread(void *data)
+static int pvr2_dvb_feed_func(struct pvr2_dvb_adapter *adap)
 {
-	struct pvr2_dvb_adapter *adap = data;
 	struct pvr2_dvb_fh fh;
 	int ret;
 	unsigned int count;
@@ -203,12 +202,18 @@ static int pvr2_dvb_feed_thread(void *data)
 
 	printk(KERN_DEBUG "dvb thread stopped\n");
 
+	return 0;
+}
+
+static int pvr2_dvb_feed_thread(void *data)
+{
+	int stat = pvr2_dvb_feed_func(data);
 	/* from videobuf-dvb.c: */
 	while (!kthread_should_stop()) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule();
 	}
-	return 0;
+	return stat;
 }
 
 static int pvr2_dvb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
