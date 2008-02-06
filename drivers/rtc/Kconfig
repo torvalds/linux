@@ -312,6 +312,16 @@ config RTC_DRV_DS1302
 	help
 	  If you say yes here you get support for the Dallas DS1302 RTC chips.
 
+config RTC_DRV_DS1511
+	tristate "Dallas DS1511"
+	depends on RTC_CLASS
+	help
+	  If you say yes here you get support for the
+	  Dallas DS1511 timekeeping/watchdog chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-ds1511.
+
 config RTC_DRV_DS1553
 	tristate "Maxim/Dallas DS1553"
 	help
