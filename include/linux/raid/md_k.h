@@ -130,6 +130,9 @@ struct mddev_s
 					minor_version,
 					patch_version;
 	int				persistent;
+	int 				external;	/* metadata is
+							 * managed externally */
+	char				metadata_type[17]; /* externally set*/
 	int				chunk_size;
 	time_t				ctime, utime;
 	int				level, layout;
