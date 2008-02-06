@@ -79,7 +79,7 @@ struct cpuidle_state_kobj {
 };
 
 struct cpuidle_device {
-	int			enabled:1;
+	unsigned int		enabled:1;
 	unsigned int		cpu;
 
 	int			last_residency;
