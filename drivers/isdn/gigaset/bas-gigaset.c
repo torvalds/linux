@@ -938,15 +938,15 @@ static int starturbs(struct bc_state *bcs)
 		ubc->isoouturbs[k].limit = -1;
 	}
 
-	/* submit two URBs, keep third one */
-	for (k = 0; k < 2; ++k) {
+	/* keep one URB free, submit the others */
+	for (k = 0; k < BAS_OUTURBS-1; ++k) {
 		dump_urb(DEBUG_ISO, "Initial isoc write", urb);
 		rc = usb_submit_urb(ubc->isoouturbs[k].urb, GFP_ATOMIC);
 		if (rc != 0)
 			goto error;
 	}
 	dump_urb(DEBUG_ISO, "Initial isoc write (free)", urb);
-	ubc->isooutfree = &ubc->isoouturbs[2];
+	ubc->isooutfree = &ubc->isoouturbs[BAS_OUTURBS-1];
 	ubc->isooutdone = ubc->isooutovfl = NULL;
 	return 0;
  error:
@@ -1559,37 +1559,38 @@ static int req_submit(struct bc_state *bcs, int req, int val, int timeout)
  */
 static int gigaset_init_bchannel(struct bc_state *bcs)
 {
+	struct cardstate *cs = bcs->cs;
 	int req, ret;
 	unsigned long flags;
 
-	spin_lock_irqsave(&bcs->cs->lock, flags);
-	if (unlikely(!bcs->cs->connected)) {
+	spin_lock_irqsave(&cs->lock, flags);
+	if (unlikely(!cs->connected)) {
 		gig_dbg(DEBUG_USBREQ, "%s: not connected", __func__);
-		spin_unlock_irqrestore(&bcs->cs->lock, flags);
+		spin_unlock_irqrestore(&cs->lock, flags);
 		return -ENODEV;
 	}
 
 	if ((ret = starturbs(bcs)) < 0) {
-		dev_err(bcs->cs->dev,
+		dev_err(cs->dev,
 			"could not start isochronous I/O for channel B%d: %s\n",
 			bcs->channel + 1,
 			ret == -EFAULT ? "null URB" : get_usb_rcmsg(ret));
 		if (ret != -ENODEV)
 			error_hangup(bcs);
-		spin_unlock_irqrestore(&bcs->cs->lock, flags);
+		spin_unlock_irqrestore(&cs->lock, flags);
 		return ret;
 	}
 
 	req = bcs->channel ? HD_OPEN_B2CHANNEL : HD_OPEN_B1CHANNEL;
 	if ((ret = req_submit(bcs, req, 0, BAS_TIMEOUT)) < 0) {
-		dev_err(bcs->cs->dev, "could not open channel B%d\n",
+		dev_err(cs->dev, "could not open channel B%d\n",
 			bcs->channel + 1);
 		stopurbs(bcs->hw.bas);
 		if (ret != -ENODEV)
 			error_hangup(bcs);
 	}
 
-	spin_unlock_irqrestore(&bcs->cs->lock, flags);
+	spin_unlock_irqrestore(&cs->lock, flags);
 	return ret;
 }
 
@@ -1605,20 +1606,21 @@ static int gigaset_init_bchannel(struct bc_state *bcs)
  */
 static int gigaset_close_bchannel(struct bc_state *bcs)
 {
+	struct cardstate *cs = bcs->cs;
 	int req, ret;
 	unsigned long flags;
 
-	spin_lock_irqsave(&bcs->cs->lock, flags);
-	if (unlikely(!bcs->cs->connected)) {
-		spin_unlock_irqrestore(&bcs->cs->lock, flags);
+	spin_lock_irqsave(&cs->lock, flags);
+	if (unlikely(!cs->connected)) {
+		spin_unlock_irqrestore(&cs->lock, flags);
 		gig_dbg(DEBUG_USBREQ, "%s: not connected", __func__);
 		return -ENODEV;
 	}
 
-	if (!(atomic_read(&bcs->cs->hw.bas->basstate) &
+	if (!(atomic_read(&cs->hw.bas->basstate) &
 	      (bcs->channel ? BS_B2OPEN : BS_B1OPEN))) {
 		/* channel not running: just signal common.c */
-		spin_unlock_irqrestore(&bcs->cs->lock, flags);
+		spin_unlock_irqrestore(&cs->lock, flags);
 		gigaset_bchannel_down(bcs);
 		return 0;
 	}
@@ -1626,10 +1628,10 @@ static int gigaset_close_bchannel(struct bc_state *bcs)
 	/* channel running: tell device to close it */
 	req = bcs->channel ? HD_CLOSE_B2CHANNEL : HD_CLOSE_B1CHANNEL;
 	if ((ret = req_submit(bcs, req, 0, BAS_TIMEOUT)) < 0)
-		dev_err(bcs->cs->dev, "closing channel B%d failed\n",
+		dev_err(cs->dev, "closing channel B%d failed\n",
 			bcs->channel + 1);
 
-	spin_unlock_irqrestore(&bcs->cs->lock, flags);
+	spin_unlock_irqrestore(&cs->lock, flags);
 	return ret;
 }
 
@@ -2114,7 +2116,7 @@ static void freeurbs(struct cardstate *cs)
 	int i, j;
 
 	gig_dbg(DEBUG_INIT, "%s: killing URBs", __func__);
-	for (j = 0; j < 2; ++j) {
+	for (j = 0; j < BAS_CHANNELS; ++j) {
 		ubc = cs->bcs[j].hw.bas;
 		for (i = 0; i < BAS_OUTURBS; ++i) {
 			usb_kill_urb(ubc->isoouturbs[i].urb);
@@ -2215,7 +2217,7 @@ static int gigaset_probe(struct usb_interface *interface,
 	    !(ucs->urb_ctrl = usb_alloc_urb(0, GFP_KERNEL)))
 		goto allocerr;
 
-	for (j = 0; j < 2; ++j) {
+	for (j = 0; j < BAS_CHANNELS; ++j) {
 		ubc = cs->bcs[j].hw.bas;
 		for (i = 0; i < BAS_OUTURBS; ++i)
 			if (!(ubc->isoouturbs[i].urb =
@@ -2287,8 +2289,7 @@ static void gigaset_disconnect(struct usb_interface *interface)
 	atomic_set(&ucs->basstate, 0);
 
 	/* tell LL all channels are down */
-	//FIXME shouldn't gigaset_stop() do this?
-	for (j = 0; j < 2; ++j)
+	for (j = 0; j < BAS_CHANNELS; ++j)
 		gigaset_bchannel_down(cs->bcs + j);
 
 	/* stop driver (common part) */
@@ -2343,7 +2344,7 @@ static int __init bas_gigaset_init(void)
 		goto error;
 
 	/* allocate memory for our device state and intialize it */
-	cardstate = gigaset_initcs(driver, 2, 0, 0, cidmode,
+	cardstate = gigaset_initcs(driver, BAS_CHANNELS, 0, 0, cidmode,
 				   GIGASET_MODULENAME);
 	if (!cardstate)
 		goto error;

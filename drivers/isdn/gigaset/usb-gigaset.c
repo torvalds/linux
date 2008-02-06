@@ -104,6 +104,7 @@ MODULE_DEVICE_TABLE(usb, gigaset_table);
  * flags per packet.
  */
 
+/* functions called if a device of this driver is connected/disconnected */
 static int gigaset_probe(struct usb_interface *interface,
 			 const struct usb_device_id *id);
 static void gigaset_disconnect(struct usb_interface *interface);
@@ -362,18 +363,12 @@ static void gigaset_read_int_callback(struct urb *urb)
 	struct inbuf_t *inbuf = urb->context;
 	struct cardstate *cs = inbuf->cs;
 	int status = urb->status;
-	int resubmit = 0;
 	int r;
 	unsigned numbytes;
 	unsigned char *src;
 	unsigned long flags;
 
 	if (!status) {
-		if (!cs->connected) {
-			err("%s: disconnected", __func__); /* should never happen */
-			return;
-		}
-
 		numbytes = urb->actual_length;
 
 		if (numbytes) {
@@ -390,28 +385,26 @@ static void gigaset_read_int_callback(struct urb *urb)
 			}
 		} else
 			gig_dbg(DEBUG_INTR, "Received zero block length");
-		resubmit = 1;
 	} else {
 		/* The urb might have been killed. */
-		gig_dbg(DEBUG_ANY, "%s - nonzero read bulk status received: %d",
+		gig_dbg(DEBUG_ANY, "%s - nonzero status received: %d",
 			__func__, status);
-		if (status != -ENOENT) { /* not killed */
-			if (!cs->connected) {
-				err("%s: disconnected", __func__); /* should never happen */
-				return;
-			}
-			resubmit = 1;
-		}
+		if (status == -ENOENT || status == -ESHUTDOWN)
+			/* killed or endpoint shutdown: don't resubmit */
+			return;
 	}
 
-	if (resubmit) {
-		spin_lock_irqsave(&cs->lock, flags);
-		r = cs->connected ? usb_submit_urb(urb, GFP_ATOMIC) : -ENODEV;
+	/* resubmit URB */
+	spin_lock_irqsave(&cs->lock, flags);
+	if (!cs->connected) {
 		spin_unlock_irqrestore(&cs->lock, flags);
-		if (r)
-			dev_err(cs->dev, "error %d when resubmitting urb.\n",
-				-r);
+		err("%s: disconnected", __func__);
+		return;
 	}
+	r = usb_submit_urb(urb, GFP_ATOMIC);
+	spin_unlock_irqrestore(&cs->lock, flags);
+	if (r)
+		dev_err(cs->dev, "error %d resubmitting URB\n", -r);
 }
 
 
@@ -422,11 +415,19 @@ static void gigaset_write_bulk_callback(struct urb *urb)
 	int status = urb->status;
 	unsigned long flags;
 
-	if (status)
+	switch (status) {
+	case 0:			/* normal completion */
+		break;
+	case -ENOENT:		/* killed */
+		gig_dbg(DEBUG_ANY, "%s: killed", __func__);
+		atomic_set(&cs->hw.usb->busy, 0);
+		return;
+	default:
 		dev_err(cs->dev, "bulk transfer failed (status %d)\n",
 			-status);
 		/* That's all we can do. Communication problems
 		   are handled by timeouts or network protocols. */
+	}
 
 	spin_lock_irqsave(&cs->lock, flags);
 	if (!cs->connected) {
@@ -682,43 +683,35 @@ static int gigaset_probe(struct usb_interface *interface,
 {
 	int retval;
 	struct usb_device *udev = interface_to_usbdev(interface);
-	unsigned int ifnum;
-	struct usb_host_interface *hostif;
+	struct usb_host_interface *hostif = interface->cur_altsetting;
 	struct cardstate *cs = NULL;
 	struct usb_cardstate *ucs = NULL;
 	struct usb_endpoint_descriptor *endpoint;
 	int buffer_size;
-	int alt;
 
-	gig_dbg(DEBUG_ANY,
-		"%s: Check if device matches .. (Vendor: 0x%x, Product: 0x%x)",
-		__func__, le16_to_cpu(udev->descriptor.idVendor),
-		le16_to_cpu(udev->descriptor.idProduct));
-
-	retval = -ENODEV; //FIXME
+	gig_dbg(DEBUG_ANY, "%s: Check if device matches ...", __func__);
 
 	/* See if the device offered us matches what we can accept */
 	if ((le16_to_cpu(udev->descriptor.idVendor)  != USB_M105_VENDOR_ID) ||
-	    (le16_to_cpu(udev->descriptor.idProduct) != USB_M105_PRODUCT_ID))
-		return -ENODEV;
-
-	/* this starts to become ascii art... */
-	hostif = interface->cur_altsetting;
-	alt = hostif->desc.bAlternateSetting;
-	ifnum = hostif->desc.bInterfaceNumber; // FIXME ?
-
-	if (alt != 0 || ifnum != 0) {
-		dev_warn(&udev->dev, "ifnum %d, alt %d\n", ifnum, alt);
+	    (le16_to_cpu(udev->descriptor.idProduct) != USB_M105_PRODUCT_ID)) {
+		gig_dbg(DEBUG_ANY, "device ID (0x%x, 0x%x) not for me - skip",
+			le16_to_cpu(udev->descriptor.idVendor),
+			le16_to_cpu(udev->descriptor.idProduct));
 		return -ENODEV;
 	}
-
-	/* Reject application specific intefaces
-	 *
-	 */
+	if (hostif->desc.bInterfaceNumber != 0) {
+		gig_dbg(DEBUG_ANY, "interface %d not for me - skip",
+			hostif->desc.bInterfaceNumber);
+		return -ENODEV;
+	}
+	if (hostif->desc.bAlternateSetting != 0) {
+		dev_notice(&udev->dev, "unsupported altsetting %d - skip",
+			   hostif->desc.bAlternateSetting);
+		return -ENODEV;
+	}
 	if (hostif->desc.bInterfaceClass != 255) {
-		dev_info(&udev->dev,
-		"%s: Device matched but iface_desc[%d]->bInterfaceClass==%d!\n",
-			 __func__, ifnum, hostif->desc.bInterfaceClass);
+		dev_notice(&udev->dev, "unsupported interface class %d - skip",
+			   hostif->desc.bInterfaceClass);
 		return -ENODEV;
 	}
 
@@ -826,6 +819,9 @@ static void gigaset_disconnect(struct usb_interface *interface)
 
 	cs = usb_get_intfdata(interface);
 	ucs = cs->hw.usb;
+
+	dev_info(cs->dev, "disconnecting Gigaset USB adapter\n");
+
 	usb_kill_urb(ucs->read_urb);
 
 	gigaset_stop(cs);
@@ -833,7 +829,7 @@ static void gigaset_disconnect(struct usb_interface *interface)
 	usb_set_intfdata(interface, NULL);
 	tasklet_kill(&cs->write_tasklet);
 
-	usb_kill_urb(ucs->bulk_out_urb);	/* FIXME: only if active? */
+	usb_kill_urb(ucs->bulk_out_urb);
 
 	kfree(ucs->bulk_out_buffer);
 	usb_free_urb(ucs->bulk_out_urb);

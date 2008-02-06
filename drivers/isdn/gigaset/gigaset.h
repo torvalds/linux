@@ -70,22 +70,13 @@
 
 extern int gigaset_debuglevel;	/* "needs" cast to (enum debuglevel) */
 
-/* any combination of these can be given with the 'debug=' parameter to insmod,
- * e.g. 'insmod usb_gigaset.o debug=0x2c' will set DEBUG_OPEN, DEBUG_CMD and
- * DEBUG_INTR.
- */
+/* debug flags, combine by adding/bitwise OR */
 enum debuglevel {
-	DEBUG_REG	  = 0x0002, /* serial port I/O register operations */
-	DEBUG_OPEN	  = 0x0004, /* open/close serial port */
-	DEBUG_INTR	  = 0x0008, /* interrupt processing */
-	DEBUG_INTR_DUMP	  = 0x0010, /* Activating hexdump debug output on
-				       interrupt requests, not available as
-				       run-time option */
+	DEBUG_INTR	  = 0x00008, /* interrupt processing */
 	DEBUG_CMD	  = 0x00020, /* sent/received LL commands */
 	DEBUG_STREAM	  = 0x00040, /* application data stream I/O events */
 	DEBUG_STREAM_DUMP = 0x00080, /* application data stream content */
 	DEBUG_LLDATA	  = 0x00100, /* sent/received LL data */
-	DEBUG_INTR_0	  = 0x00200, /* serial port interrupt processing */
 	DEBUG_DRIVER	  = 0x00400, /* driver structure */
 	DEBUG_HDLC	  = 0x00800, /* M10x HDLC processing */
 	DEBUG_WRITE	  = 0x01000, /* M105 data write */
@@ -93,7 +84,7 @@ enum debuglevel {
 	DEBUG_MCMD	  = 0x04000, /* COMMANDS THAT ARE SENT VERY OFTEN */
 	DEBUG_INIT	  = 0x08000, /* (de)allocation+initialization of data
 					structures */
-	DEBUG_LOCK	  = 0x10000, /* semaphore operations */
+	DEBUG_SUSPEND	  = 0x10000, /* suspend/resume processing */
 	DEBUG_OUTPUT	  = 0x20000, /* output to device */
 	DEBUG_ISO	  = 0x40000, /* isochronous transfers */
 	DEBUG_IF	  = 0x80000, /* character device operations */
@@ -190,6 +181,9 @@ void gigaset_dbg_buffer(enum debuglevel level, const unsigned char *msg,
 #define	HD_READ_ATMESSAGE		(0x13)		// 3070
 #define	HD_OPEN_ATCHANNEL		(0x28)		// 3070
 #define	HD_CLOSE_ATCHANNEL		(0x29)		// 3070
+
+/* number of B channels supported by base driver */
+#define BAS_CHANNELS	2
 
 /* USB frames for isochronous transfer */
 #define BAS_FRAMETIME	1	/* number of milliseconds between frames */
