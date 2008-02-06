@@ -1476,7 +1476,7 @@ check_failed:
 	if (last_ptr && *last_ptr && search_start != *last_ptr) {
 		*last_ptr = 0;
 		if (!empty_size) {
-			empty_size += 16 * 1024 * 1024;
+			empty_size += 2 * 1024 * 1024;
 			total_needed += empty_size;
 		}
 		search_start = find_search_start(root, &block_group,
