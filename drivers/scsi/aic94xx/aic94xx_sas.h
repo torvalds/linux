@@ -292,7 +292,7 @@ struct scb_header {
 #define INITIATE_SSP_TASK       0x00
 #define INITIATE_LONG_SSP_TASK  0x01
 #define INITIATE_BIDIR_SSP_TASK 0x02
-#define ABORT_TASK              0x03
+#define SCB_ABORT_TASK          0x03
 #define INITIATE_SSP_TMF        0x04
 #define SSP_TARG_GET_DATA       0x05
 #define SSP_TARG_GET_DATA_GOOD  0x06
