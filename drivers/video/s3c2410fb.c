@@ -817,6 +817,12 @@ static int __init s3c24xxfb_probe(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
+	if (mach_info->default_display >= mach_info->num_displays) {
+		dev_err(&pdev->dev, "default is %d but only %d displays\n",
+			mach_info->default_display, mach_info->num_displays);
+		return -EINVAL;
+	}
+
 	display = mach_info->displays + mach_info->default_display;
 
 	irq = platform_get_irq(pdev, 0);
