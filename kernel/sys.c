@@ -1145,16 +1145,16 @@ static int groups_to_user(gid_t __user *grouplist,
     struct group_info *group_info)
 {
 	int i;
-	int count = group_info->ngroups;
+	unsigned int count = group_info->ngroups;
 
 	for (i = 0; i < group_info->nblocks; i++) {
-		int cp_count = min(NGROUPS_PER_BLOCK, count);
-		int off = i * NGROUPS_PER_BLOCK;
-		int len = cp_count * sizeof(*grouplist);
+		unsigned int cp_count = min(NGROUPS_PER_BLOCK, count);
+		unsigned int len = cp_count * sizeof(*grouplist);
 
-		if (copy_to_user(grouplist+off, group_info->blocks[i], len))
+		if (copy_to_user(grouplist, group_info->blocks[i], len))
 			return -EFAULT;
 
+		grouplist += NGROUPS_PER_BLOCK;
 		count -= cp_count;
 	}
 	return 0;
@@ -1165,16 +1165,16 @@ static int groups_from_user(struct group_info *group_info,
     gid_t __user *grouplist)
 {
 	int i;
-	int count = group_info->ngroups;
+	unsigned int count = group_info->ngroups;
 
 	for (i = 0; i < group_info->nblocks; i++) {
-		int cp_count = min(NGROUPS_PER_BLOCK, count);
-		int off = i * NGROUPS_PER_BLOCK;
-		int len = cp_count * sizeof(*grouplist);
+		unsigned int cp_count = min(NGROUPS_PER_BLOCK, count);
+		unsigned int len = cp_count * sizeof(*grouplist);
 
-		if (copy_from_user(group_info->blocks[i], grouplist+off, len))
+		if (copy_from_user(group_info->blocks[i], grouplist, len))
 			return -EFAULT;
 
+		grouplist += NGROUPS_PER_BLOCK;
 		count -= cp_count;
 	}
 	return 0;
