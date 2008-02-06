@@ -277,6 +277,7 @@ EXPORT_SYMBOL(sys_getpid);
 EXPORT_SYMBOL(sys_geteuid);
 EXPORT_SYMBOL(sys_getuid);
 EXPORT_SYMBOL(sys_getegid);
+EXPORT_SYMBOL(sysctl_nr_open);
 EXPORT_SYMBOL(sys_getgid);
 EXPORT_SYMBOL(svr4_getcontext);
 EXPORT_SYMBOL(svr4_setcontext);

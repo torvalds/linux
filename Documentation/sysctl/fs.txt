@@ -23,6 +23,7 @@ Currently, these files are in /proc/sys/fs:
 - inode-max
 - inode-nr
 - inode-state
+- nr_open
 - overflowuid
 - overflowgid
 - suid_dumpable
@@ -88,6 +89,15 @@ number of file handles. When the allocated file handles come
 close to the maximum, but the number of unused file handles is
 significantly greater than 0, you've encountered a peak in your 
 usage of file handles and you don't need to increase the maximum.
+
+==============================================================
+
+nr_open:
+
+This denotes the maximum number of file-handles a process can
+allocate. Default value is 1024*1024 (1048576) which should be
+enough for most machines. Actual limit depends on RLIMIT_NOFILE
+resource limit.
 
 ==============================================================
 

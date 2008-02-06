@@ -624,7 +624,7 @@ asmlinkage int solaris_ulimit(int cmd, int val)
 	case 3: /* UL_GMEMLIM */
 		return current->signal->rlim[RLIMIT_DATA].rlim_cur;
 	case 4: /* UL_GDESLIM */
-		return NR_OPEN;
+		return sysctl_nr_open;
 	}
 	return -EINVAL;
 }
