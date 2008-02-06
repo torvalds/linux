@@ -2795,7 +2795,7 @@ static int fbcon_scrolldelta(struct vc_data *vc, int lines)
 {
 	struct fb_info *info = registered_fb[con2fb_map[fg_console]];
 	struct fbcon_ops *ops = info->fbcon_par;
-	struct display *p = &fb_display[fg_console];
+	struct display *disp = &fb_display[fg_console];
 	int offset, limit, scrollback_old;
 
 	if (softback_top) {
@@ -2833,7 +2833,7 @@ static int fbcon_scrolldelta(struct vc_data *vc, int lines)
 			logo_shown = FBCON_LOGO_CANSHOW;
 		}
 		fbcon_cursor(vc, CM_ERASE | CM_SOFTBACK);
-		fbcon_redraw_softback(vc, p, lines);
+		fbcon_redraw_softback(vc, disp, lines);
 		fbcon_cursor(vc, CM_DRAW | CM_SOFTBACK);
 		return 0;
 	}
@@ -2855,9 +2855,9 @@ static int fbcon_scrolldelta(struct vc_data *vc, int lines)
 
 	fbcon_cursor(vc, CM_ERASE);
 
-	offset = p->yscroll - scrollback_current;
-	limit = p->vrows;
-	switch (p->scrollmode) {
+	offset = disp->yscroll - scrollback_current;
+	limit = disp->vrows;
+	switch (disp->scrollmode) {
 	case SCROLL_WRAP_MOVE:
 		info->var.vmode |= FB_VMODE_YWRAP;
 		break;
