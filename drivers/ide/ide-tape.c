@@ -3274,8 +3274,8 @@ static int idetape_identify_device(ide_drive_t *drive)
 	else if (!removable)
 		printk(KERN_ERR "ide-tape: The removable flag is not set\n");
 	else if (packet_size != 0) {
-		printk(KERN_ERR "ide-tape: Packet size (0x%02x) is not 12 "
-				"bytes long\n", packet_size);
+		printk(KERN_ERR "ide-tape: Packet size (0x%02x) is not 12"
+				" bytes\n", packet_size);
 	} else
 		return 1;
 	return 0;
