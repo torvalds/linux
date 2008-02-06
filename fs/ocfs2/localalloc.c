@@ -120,9 +120,6 @@ int ocfs2_load_local_alloc(struct ocfs2_super *osb)
 
 	mlog_entry_void();
 
-	if (ocfs2_mount_local(osb))
-		goto bail;
-
 	if (osb->local_alloc_size == 0)
 		goto bail;
 
