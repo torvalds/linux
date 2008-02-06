@@ -2935,7 +2935,7 @@ trident_ac97_set(struct ac97_codec *codec, u8 reg, u16 val)
 	do {
 		if ((inw(TRID_REG(card, address)) & busy) == 0)
 			break;
-	} while (count--);
+	} while (--count);
 
 	data |= (mask | (reg & AC97_REG_ADDR));
 
@@ -2996,7 +2996,7 @@ trident_ac97_get(struct ac97_codec *codec, u8 reg)
 		data = inl(TRID_REG(card, address));
 		if ((data & busy) == 0)
 			break;
-	} while (count--);
+	} while (--count);
 	spin_unlock_irqrestore(&card->lock, flags);
 
 	if (count == 0) {
