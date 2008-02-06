@@ -182,8 +182,8 @@ driver returns ENOIOCTLCMD.  Some common examples:
 	since the frequency is stored in the irq_freq member of the rtc_device
 	structure.  Your driver needs to initialize the irq_freq member during
 	init.  Make sure you check the requested frequency is in range of your
-	hardware in the irq_set_freq function.  If you cannot actually change
-	the frequency, just return -ENOTTY.
+	hardware in the irq_set_freq function.  If it isn't, return -EINVAL.  If
+	you cannot actually change the frequency, do not define irq_set_freq.
 
 If all else fails, check out the rtc-test.c driver!
 
