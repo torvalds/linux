@@ -675,7 +675,6 @@ static void w1_slave_found(void *data, u64 rn)
 	struct w1_slave *sl;
 	struct list_head *ent;
 	struct w1_reg_num *tmp;
-	int family_found = 0;
 	struct w1_master *dev;
 	u64 rn_le = cpu_to_le64(rn);
 
@@ -697,9 +696,6 @@ static void w1_slave_found(void *data, u64 rn)
 		    sl->reg_num.id == tmp->id &&
 		    sl->reg_num.crc == tmp->crc) {
 			set_bit(W1_SLAVE_ACTIVE, (long *)&sl->flags);
-			break;
-		} else if (sl->reg_num.family == tmp->family) {
-			family_found = 1;
 			break;
 		}
 
