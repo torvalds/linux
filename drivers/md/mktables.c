@@ -1,13 +1,10 @@
-#ident "$Id: mktables.c,v 1.2 2002/12/12 22:41:27 hpa Exp $"
-/* ----------------------------------------------------------------------- *
+/* -*- linux-c -*- ------------------------------------------------------- *
  *
- *   Copyright 2002 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2002-2007 H. Peter Anvin - All Rights Reserved
  *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, Inc., 53 Temple Place Ste 330,
- *   Bostom MA 02111-1307, USA; either version 2 of the License, or
- *   (at your option) any later version; incorporated herein by reference.
+ *   This file is part of the Linux kernel, and is made available under
+ *   the terms of the GNU General Public License version 2 or (at your
+ *   option) any later version; incorporated herein by reference.
  *
  * ----------------------------------------------------------------------- */
 
@@ -73,8 +70,8 @@ int main(int argc, char *argv[])
 		for (j = 0; j < 256; j += 8) {
 			printf("\t\t");
 			for (k = 0; k < 8; k++)
-				printf("0x%02x, ", gfmul(i, j+k));
-			printf("\n");
+				printf("0x%02x,%c", gfmul(i, j + k),
+				       (k == 7) ? '\n' : ' ');
 		}
 		printf("\t},\n");
 	}
@@ -83,47 +80,41 @@ int main(int argc, char *argv[])
 	/* Compute power-of-2 table (exponent) */
 	v = 1;
 	printf("\nconst u8 __attribute__((aligned(256)))\n"
-		"raid6_gfexp[256] =\n"
-		"{\n");
+	       "raid6_gfexp[256] =\n" "{\n");
 	for (i = 0; i < 256; i += 8) {
 		printf("\t");
 		for (j = 0; j < 8; j++) {
-			exptbl[i+j] = v;
-			printf("0x%02x, ", v);
+			exptbl[i + j] = v;
+			printf("0x%02x,%c", v, (j == 7) ? '\n' : ' ');
 			v = gfmul(v, 2);
 			if (v == 1)
 				v = 0;	/* For entry 255, not a real entry */
 		}
-		printf("\n");
 	}
 	printf("};\n");
 
 	/* Compute inverse table x^-1 == x^254 */
 	printf("\nconst u8 __attribute__((aligned(256)))\n"
-		"raid6_gfinv[256] =\n"
-		"{\n");
+	       "raid6_gfinv[256] =\n" "{\n");
 	for (i = 0; i < 256; i += 8) {
 		printf("\t");
 		for (j = 0; j < 8; j++) {
-			v = gfpow(i+j, 254);
-			invtbl[i+j] = v;
-			printf("0x%02x, ", v);
+			invtbl[i + j] = v = gfpow(i + j, 254);
+			printf("0x%02x,%c", v, (j == 7) ? '\n' : ' ');
 		}
-		printf("\n");
 	}
 	printf("};\n");
 
 	/* Compute inv(2^x + 1) (exponent-xor-inverse) table */
 	printf("\nconst u8 __attribute__((aligned(256)))\n"
-		"raid6_gfexi[256] =\n"
-		"{\n");
+	       "raid6_gfexi[256] =\n" "{\n");
 	for (i = 0; i < 256; i += 8) {
 		printf("\t");
 		for (j = 0; j < 8; j++)
-			printf("0x%02x, ", invtbl[exptbl[i+j]^1]);
-		printf("\n");
+			printf("0x%02x,%c", invtbl[exptbl[i + j] ^ 1],
+			       (j == 7) ? '\n' : ' ');
 	}
-	printf("};\n\n");
+	printf("};\n");
 
 	return 0;
 }
