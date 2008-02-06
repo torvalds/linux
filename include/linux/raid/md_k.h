@@ -322,7 +322,7 @@ static inline char * mdname (mddev_t * mddev)
 /*
  * iterates through the 'same array disks' ringlist
  */
-#define ITERATE_RDEV(mddev,rdev,tmp)					\
+#define rdev_for_each(rdev, tmp, mddev)				\
 	ITERATE_RDEV_GENERIC((mddev)->disks,rdev,tmp)
 
 /*

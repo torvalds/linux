@@ -237,7 +237,7 @@ static struct page *read_sb_page(mddev_t *mddev, long offset, unsigned long inde
 	if (!page)
 		return ERR_PTR(-ENOMEM);
 
-	ITERATE_RDEV(mddev, rdev, tmp) {
+	rdev_for_each(rdev, tmp, mddev) {
 		if (! test_bit(In_sync, &rdev->flags)
 		    || test_bit(Faulty, &rdev->flags))
 			continue;
@@ -261,7 +261,7 @@ static int write_sb_page(struct bitmap *bitmap, struct page *page, int wait)
 	struct list_head *tmp;
 	mddev_t *mddev = bitmap->mddev;
 
-	ITERATE_RDEV(mddev, rdev, tmp)
+	rdev_for_each(rdev, tmp, mddev)
 		if (test_bit(In_sync, &rdev->flags)
 		    && !test_bit(Faulty, &rdev->flags)) {
 			int size = PAGE_SIZE;
