@@ -22,7 +22,7 @@
 #ifndef __ATMEL_LCDC_H__
 #define __ATMEL_LCDC_H__
 
- /* LCD Controller info data structure */
+ /* LCD Controller info data structure, stored in device platform_data */
 struct atmel_lcdfb_info {
 	spinlock_t		lock;
 	struct fb_info		*info;
@@ -33,7 +33,14 @@ struct atmel_lcdfb_info {
 	struct platform_device	*pdev;
 	struct clk		*bus_clk;
 	struct clk		*lcdc_clk;
-	unsigned int		default_bpp;
+
+#ifdef CONFIG_BACKLIGHT_ATMEL_LCDC
+	struct backlight_device	*backlight;
+	u8			bl_power;
+#endif
+	bool			lcdcon_is_backlight;
+
+	u8			default_bpp;
 	unsigned int		default_lcdcon2;
 	unsigned int		default_dmacon;
 	void (*atmel_lcdfb_power_control)(int on);

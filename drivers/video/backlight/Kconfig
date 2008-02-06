@@ -50,6 +50,19 @@ config BACKLIGHT_CLASS_DEVICE
 	  To have support for your specific LCD panel you will have to
 	  select the proper drivers which depend on this option.
 
+config BACKLIGHT_ATMEL_LCDC
+	bool "Atmel LCDC Contrast-as-Backlight control"
+	depends on BACKLIGHT_CLASS_DEVICE && FB_ATMEL
+	default y if MACH_SAM9261EK || MACH_SAM9263EK
+	help
+	  This provides a backlight control internal to the Atmel LCDC
+	  driver.  If the LCD "contrast control" on your board is wired
+	  so it controls the backlight brightness, select this option to
+	  export this as a PWM-based backlight control.
+
+	  If in doubt, it's safe to enable this option; it doesn't kick
+	  in unless the board's description says it's wired that way.
+
 config BACKLIGHT_CORGI
 	tristate "Generic (aka Sharp Corgi) Backlight Driver"
 	depends on BACKLIGHT_CLASS_DEVICE

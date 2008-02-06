@@ -253,6 +253,7 @@ static void at91_lcdc_power_control(int on)
 
 /* Driver datas */
 static struct atmel_lcdfb_info __initdata ek_lcdc_data = {
+	.lcdcon_is_backlight		= true,
 	.default_bpp			= 16,
 	.default_dmacon			= ATMEL_LCDC_DMAEN,
 	.default_lcdcon2		= AT91SAM9263_DEFAULT_LCDCON2,
