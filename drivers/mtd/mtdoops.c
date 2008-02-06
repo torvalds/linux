@@ -28,6 +28,7 @@
 #include <linux/workqueue.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
+#include <linux/delay.h>
 #include <linux/spinlock.h>
 #include <linux/mtd/mtd.h>
 
@@ -183,10 +184,8 @@ badblock:
 	goto badblock;
 }
 
-static void mtdoops_workfunc_write(struct work_struct *work)
+static void mtdoops_write(struct mtdoops_context *cxt, int panic)
 {
-	struct mtdoops_context *cxt =
-			container_of(work, struct mtdoops_context, work_write);
 	struct mtd_info *mtd = cxt->mtd;
 	size_t retlen;
 	int ret;
@@ -195,7 +194,11 @@ static void mtdoops_workfunc_write(struct work_struct *work)
 		memset(cxt->oops_buf + cxt->writecount, 0xff,
 					OOPS_PAGE_SIZE - cxt->writecount);
 
-	ret = mtd->write(mtd, cxt->nextpage * OOPS_PAGE_SIZE,
+	if (panic)
+		ret = mtd->panic_write(mtd, cxt->nextpage * OOPS_PAGE_SIZE,
+					OOPS_PAGE_SIZE, &retlen, cxt->oops_buf);
+	else
+		ret = mtd->write(mtd, cxt->nextpage * OOPS_PAGE_SIZE,
 					OOPS_PAGE_SIZE, &retlen, cxt->oops_buf);
 
 	cxt->writecount = 0;
@@ -205,6 +208,15 @@ static void mtdoops_workfunc_write(struct work_struct *work)
 			cxt->nextpage * OOPS_PAGE_SIZE, retlen,	OOPS_PAGE_SIZE, ret);
 
 	mtdoops_inc_counter(cxt);
+}
+
+
+static void mtdoops_workfunc_write(struct work_struct *work)
+{
+	struct mtdoops_context *cxt =
+			container_of(work, struct mtdoops_context, work_write);
+
+	mtdoops_write(cxt, 0);
 }					
 
 static void find_next_position(struct mtdoops_context *cxt)
@@ -314,7 +326,11 @@ static void mtdoops_console_sync(void)
 	cxt->ready = 0;
 	spin_unlock_irqrestore(&cxt->writecount_lock, flags);
 
-	schedule_work(&cxt->work_write);
+	if (mtd->panic_write && in_interrupt())
+		/* Interrupt context, we're going to panic so try and log */
+		mtdoops_write(cxt, 1);
+	else
+		schedule_work(&cxt->work_write);
 }
 
 static void
