@@ -109,6 +109,11 @@ static int gigaset_probe(struct usb_interface *interface,
 			 const struct usb_device_id *id);
 static void gigaset_disconnect(struct usb_interface *interface);
 
+/* functions called before/after suspend */
+static int gigaset_suspend(struct usb_interface *intf, pm_message_t message);
+static int gigaset_resume(struct usb_interface *intf);
+static int gigaset_pre_reset(struct usb_interface *intf);
+
 static struct gigaset_driver *driver = NULL;
 static struct cardstate *cardstate = NULL;
 
@@ -118,6 +123,11 @@ static struct usb_driver gigaset_usb_driver = {
 	.probe =	gigaset_probe,
 	.disconnect =	gigaset_disconnect,
 	.id_table =	gigaset_table,
+	.suspend =	gigaset_suspend,
+	.resume =	gigaset_resume,
+	.reset_resume =	gigaset_resume,
+	.pre_reset =	gigaset_pre_reset,
+	.post_reset =	gigaset_resume,
 };
 
 struct usb_cardstate {
@@ -843,6 +853,52 @@ static void gigaset_disconnect(struct usb_interface *interface)
 	ucs->udev = NULL;
 	cs->dev = NULL;
 	gigaset_unassign(cs);
+}
+
+/* gigaset_suspend
+ * This function is called before the USB connection is suspended or reset.
+ */
+static int gigaset_suspend(struct usb_interface *intf, pm_message_t message)
+{
+	struct cardstate *cs = usb_get_intfdata(intf);
+
+	/* stop activity */
+	cs->connected = 0;	/* prevent rescheduling */
+	usb_kill_urb(cs->hw.usb->read_urb);
+	tasklet_kill(&cs->write_tasklet);
+	usb_kill_urb(cs->hw.usb->bulk_out_urb);
+
+	gig_dbg(DEBUG_SUSPEND, "suspend complete");
+	return 0;
+}
+
+/* gigaset_resume
+ * This function is called after the USB connection has been resumed or reset.
+ */
+static int gigaset_resume(struct usb_interface *intf)
+{
+	struct cardstate *cs = usb_get_intfdata(intf);
+	int rc;
+
+	/* resubmit interrupt URB */
+	cs->connected = 1;
+	rc = usb_submit_urb(cs->hw.usb->read_urb, GFP_KERNEL);
+	if (rc) {
+		dev_err(cs->dev, "Could not submit read URB (error %d)\n", -rc);
+		return rc;
+	}
+
+	gig_dbg(DEBUG_SUSPEND, "resume complete");
+	return 0;
+}
+
+/* gigaset_pre_reset
+ * This function is called before the USB connection is reset.
+ */
+static int gigaset_pre_reset(struct usb_interface *intf)
+{
+	/* same as suspend */
+	return gigaset_suspend(intf, PMSG_ON);
 }
 
 static const struct gigaset_ops ops = {
