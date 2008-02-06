@@ -220,9 +220,9 @@ config DEBUG_BOOT_PARAMS
 	  This option will cause struct boot_params to be exported via debugfs.
 
 config CPA_DEBUG
-	bool "CPA self test code"
+	bool "CPA self-test code"
 	depends on DEBUG_KERNEL
 	help
-	  Do change_page_attr self tests at boot.
+	  Do change_page_attr() self-tests every 30 seconds.
 
 endmenu
