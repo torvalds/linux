@@ -1686,17 +1686,6 @@ static void spi_imx_shutdown(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static int suspend_devices(struct device *dev, void *pm_message)
-{
-	pm_message_t *state = pm_message;
-
-	if (dev->power.power_state.event != state->event) {
-		dev_warn(dev, "pm state does not match request\n");
-		return -1;
-	}
-
-	return 0;
-}
 
 static int spi_imx_suspend(struct platform_device *pdev, pm_message_t state)
 {
