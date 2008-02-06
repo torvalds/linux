@@ -40,7 +40,7 @@
 #define vptosync(v)             (&vsync[((unsigned long)v) % NVSYNC])
 static wait_queue_head_t vsync[NVSYNC];
 
-void
+void __init
 vn_init(void)
 {
 	int i;

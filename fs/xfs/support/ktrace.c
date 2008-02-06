@@ -21,7 +21,7 @@ static kmem_zone_t *ktrace_hdr_zone;
 static kmem_zone_t *ktrace_ent_zone;
 static int          ktrace_zentries;
 
-void
+void __init
 ktrace_init(int zentries)
 {
 	ktrace_zentries = zentries;
@@ -36,7 +36,7 @@ ktrace_init(int zentries)
 	ASSERT(ktrace_ent_zone);
 }
 
-void
+void __exit
 ktrace_uninit(void)
 {
 	kmem_zone_destroy(ktrace_hdr_zone);

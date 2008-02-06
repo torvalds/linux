@@ -58,7 +58,7 @@
 #include "xfs_vfsops.h"
 
 
-int
+int __init
 xfs_init(void)
 {
 #ifdef XFS_DABUF_DEBUG
@@ -147,7 +147,7 @@ xfs_init(void)
 	return 0;
 }
 
-void
+void __exit
 xfs_cleanup(void)
 {
 	extern kmem_zone_t	*xfs_inode_zone;
