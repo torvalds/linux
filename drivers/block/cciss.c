@@ -2630,12 +2630,14 @@ static void do_cciss_request(struct request_queue *q)
 			c->Request.CDB[8] = creq->nr_sectors & 0xff;
 			c->Request.CDB[9] = c->Request.CDB[11] = c->Request.CDB[12] = 0;
 		} else {
+			u32 upper32 = upper_32_bits(start_blk);
+
 			c->Request.CDBLen = 16;
 			c->Request.CDB[1]= 0;
-			c->Request.CDB[2]= (start_blk >> 56) & 0xff;	//MSB
-			c->Request.CDB[3]= (start_blk >> 48) & 0xff;
-			c->Request.CDB[4]= (start_blk >> 40) & 0xff;
-			c->Request.CDB[5]= (start_blk >> 32) & 0xff;
+			c->Request.CDB[2]= (upper32 >> 24) & 0xff;	//MSB
+			c->Request.CDB[3]= (upper32 >> 16) & 0xff;
+			c->Request.CDB[4]= (upper32 >>  8) & 0xff;
+			c->Request.CDB[5]= upper32 & 0xff;
 			c->Request.CDB[6]= (start_blk >> 24) & 0xff;
 			c->Request.CDB[7]= (start_blk >> 16) & 0xff;
 			c->Request.CDB[8]= (start_blk >>  8) & 0xff;
