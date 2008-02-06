@@ -1088,7 +1088,7 @@ static void dmar_init_reserved_ranges(void)
 	int i;
 	u64 addr, size;
 
-	init_iova_domain(&reserved_iova_list);
+	init_iova_domain(&reserved_iova_list, DMA_32BIT_PFN);
 
 	/* IOAPIC ranges shouldn't be accessed by DMA */
 	iova = reserve_iova(&reserved_iova_list, IOVA_PFN(IOAPIC_RANGE_START),
@@ -1142,7 +1142,7 @@ static int domain_init(struct dmar_domain *domain, int guest_width)
 	int adjust_width, agaw;
 	unsigned long sagaw;
 
-	init_iova_domain(&domain->iovad);
+	init_iova_domain(&domain->iovad, DMA_32BIT_PFN);
 	spin_lock_init(&domain->mapping_lock);
 
 	domain_reserve_special_ranges(domain);
