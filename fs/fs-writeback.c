@@ -515,8 +515,7 @@ writeback_inodes(struct writeback_control *wbc)
 	might_sleep();
 	spin_lock(&sb_lock);
 restart:
-	sb = sb_entry(super_blocks.prev);
-	for (; sb != sb_entry(&super_blocks); sb = sb_entry(sb->s_list.prev)) {
+	list_for_each_entry_reverse(sb, &super_blocks, s_list) {
 		if (sb_has_dirty_inodes(sb)) {
 			/* we're making our own get_super here */
 			sb->s_count++;
@@ -581,10 +580,8 @@ static void set_sb_syncing(int val)
 {
 	struct super_block *sb;
 	spin_lock(&sb_lock);
-	sb = sb_entry(super_blocks.prev);
-	for (; sb != sb_entry(&super_blocks); sb = sb_entry(sb->s_list.prev)) {
+	list_for_each_entry_reverse(sb, &super_blocks, s_list)
 		sb->s_syncing = val;
-	}
 	spin_unlock(&sb_lock);
 }
 
