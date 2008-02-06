@@ -127,7 +127,7 @@ int gfar_mdio_reset(struct mii_bus *bus)
 	struct gfar_mii __iomem *regs = (void __iomem *)bus->priv;
 	unsigned int timeout = PHY_INIT_TIMEOUT;
 
-	spin_lock_bh(&bus->mdio_lock);
+	mutex_lock(&bus->mdio_lock);
 
 	/* Reset the management interface */
 	gfar_write(&regs->miimcfg, MIIMCFG_RESET);
@@ -140,7 +140,7 @@ int gfar_mdio_reset(struct mii_bus *bus)
 			timeout--)
 		cpu_relax();
 
-	spin_unlock_bh(&bus->mdio_lock);
+	mutex_unlock(&bus->mdio_lock);
 
 	if(timeout <= 0) {
 		printk(KERN_ERR "%s: The MII Bus is stuck!\n",

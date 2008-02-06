@@ -327,7 +327,7 @@ static inline struct sk_buff *vlan_put_tag(struct sk_buff *skb, unsigned short t
  * 
  * Returns error if the skb is not of VLAN type
  */
-static inline int __vlan_get_tag(struct sk_buff *skb, unsigned short *tag)
+static inline int __vlan_get_tag(const struct sk_buff *skb, unsigned short *tag)
 {
 	struct vlan_ethhdr *veth = (struct vlan_ethhdr *)skb->data;
 
@@ -347,7 +347,8 @@ static inline int __vlan_get_tag(struct sk_buff *skb, unsigned short *tag)
  * 
  * Returns error if @skb->cb[] is not set correctly
  */
-static inline int __vlan_hwaccel_get_tag(struct sk_buff *skb, unsigned short *tag)
+static inline int __vlan_hwaccel_get_tag(const struct sk_buff *skb,
+					 unsigned short *tag)
 {
 	struct vlan_skb_tx_cookie *cookie;
 
@@ -370,7 +371,7 @@ static inline int __vlan_hwaccel_get_tag(struct sk_buff *skb, unsigned short *ta
  * 
  * Returns error if the skb is not VLAN tagged
  */
-static inline int vlan_get_tag(struct sk_buff *skb, unsigned short *tag)
+static inline int vlan_get_tag(const struct sk_buff *skb, unsigned short *tag)
 {
 	if (skb->dev->features & NETIF_F_HW_VLAN_TX) {
 		return __vlan_hwaccel_get_tag(skb, tag);

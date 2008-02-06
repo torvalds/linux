@@ -19,6 +19,7 @@
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
+#include <linux/if_vlan.h>
 
 #include <net/pkt_cls.h>
 #include <net/ip.h>
@@ -270,6 +271,15 @@ static u32 flow_get_skgid(const struct sk_buff *skb)
 	return 0;
 }
 
+static u32 flow_get_vlan_tag(const struct sk_buff *skb)
+{
+	u16 uninitialized_var(tag);
+
+	if (vlan_get_tag(skb, &tag) < 0)
+		return 0;
+	return tag & VLAN_VID_MASK;
+}
+
 static u32 flow_key_get(const struct sk_buff *skb, int key)
 {
 	switch (key) {
@@ -305,6 +315,8 @@ static u32 flow_key_get(const struct sk_buff *skb, int key)
 		return flow_get_skuid(skb);
 	case FLOW_KEY_SKGID:
 		return flow_get_skgid(skb);
+	case FLOW_KEY_VLAN_TAG:
+		return flow_get_vlan_tag(skb);
 	default:
 		WARN_ON(1);
 		return 0;
@@ -402,12 +414,13 @@ static int flow_change(struct tcf_proto *tp, unsigned long base,
 
 	if (tb[TCA_FLOW_KEYS]) {
 		keymask = nla_get_u32(tb[TCA_FLOW_KEYS]);
-		if (fls(keymask) - 1 > FLOW_KEY_MAX)
-			return -EOPNOTSUPP;
 
 		nkeys = hweight32(keymask);
 		if (nkeys == 0)
 			return -EINVAL;
+
+		if (fls(keymask) - 1 > FLOW_KEY_MAX)
+			return -EOPNOTSUPP;
 	}
 
 	err = tcf_exts_validate(tp, tb, tca[TCA_RATE], &e, &flow_ext_map);

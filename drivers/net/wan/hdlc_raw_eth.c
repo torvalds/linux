@@ -18,7 +18,6 @@
 #include <linux/init.h>
 #include <linux/skbuff.h>
 #include <linux/pkt_sched.h>
-#include <linux/random.h>
 #include <linux/inetdevice.h>
 #include <linux/lapb.h>
 #include <linux/rtnetlink.h>
@@ -96,7 +95,7 @@ static int raw_eth_ioctl(struct net_device *dev, struct ifreq *ifr)
 		if (result)
 			return result;
 
-		result = attach_hdlc_protocol(dev, &proto, NULL,
+		result = attach_hdlc_protocol(dev, &proto,
 					      sizeof(raw_hdlc_proto));
 		if (result)
 			return result;
@@ -107,8 +106,7 @@ static int raw_eth_ioctl(struct net_device *dev, struct ifreq *ifr)
 		ether_setup(dev);
 		dev->change_mtu = old_ch_mtu;
 		dev->tx_queue_len = old_qlen;
-		memcpy(dev->dev_addr, "\x00\x01", 2);
-                get_random_bytes(dev->dev_addr + 2, ETH_ALEN - 2);
+		random_ether_addr(dev->dev_addr);
 		netif_dormant_off(dev);
 		return 0;
 	}

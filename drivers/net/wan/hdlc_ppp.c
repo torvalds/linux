@@ -122,7 +122,7 @@ static int ppp_ioctl(struct net_device *dev, struct ifreq *ifr)
 		if (result)
 			return result;
 
-		result = attach_hdlc_protocol(dev, &proto, NULL,
+		result = attach_hdlc_protocol(dev, &proto,
 					      sizeof(struct ppp_state));
 		if (result)
 			return result;

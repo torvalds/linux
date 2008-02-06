@@ -302,10 +302,12 @@ static int virtnet_open(struct net_device *dev)
 
 	/* If all buffers were filled by other side before we napi_enabled, we
 	 * won't get another interrupt, so process any outstanding packets
-	 * now.  virtnet_poll wants re-enable the queue, so we disable here. */
-	vi->rvq->vq_ops->disable_cb(vi->rvq);
-	netif_rx_schedule(vi->dev, &vi->napi);
-
+	 * now.  virtnet_poll wants re-enable the queue, so we disable here.
+	 * We synchronize against interrupts via NAPI_STATE_SCHED */
+	if (netif_rx_schedule_prep(dev, &vi->napi)) {
+		vi->rvq->vq_ops->disable_cb(vi->rvq);
+		__netif_rx_schedule(dev, &vi->napi);
+	}
 	return 0;
 }
 

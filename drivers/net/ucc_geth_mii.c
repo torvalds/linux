@@ -109,7 +109,7 @@ int uec_mdio_reset(struct mii_bus *bus)
 	struct ucc_mii_mng __iomem *regs = (void __iomem *)bus->priv;
 	unsigned int timeout = PHY_INIT_TIMEOUT;
 
-	spin_lock_bh(&bus->mdio_lock);
+	mutex_lock(&bus->mdio_lock);
 
 	/* Reset the management interface */
 	out_be32(&regs->miimcfg, MIIMCFG_RESET_MANAGEMENT);
@@ -121,7 +121,7 @@ int uec_mdio_reset(struct mii_bus *bus)
 	while ((in_be32(&regs->miimind) & MIIMIND_BUSY) && timeout--)
 		cpu_relax();
 
-	spin_unlock_bh(&bus->mdio_lock);
+	mutex_unlock(&bus->mdio_lock);
 
 	if (timeout <= 0) {
 		printk(KERN_ERR "%s: The MII Bus is stuck!\n", bus->name);
