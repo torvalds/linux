@@ -74,7 +74,7 @@ static int srcu_readers_active_idx(struct srcu_struct *sp, int idx)
  * severe errors when invoked on an active srcu_struct.  That said, it
  * can be useful as an error check at cleanup time.
  */
-int srcu_readers_active(struct srcu_struct *sp)
+static int srcu_readers_active(struct srcu_struct *sp)
 {
 	return srcu_readers_active_idx(sp, 0) + srcu_readers_active_idx(sp, 1);
 }
@@ -255,4 +255,3 @@ EXPORT_SYMBOL_GPL(srcu_read_lock);
 EXPORT_SYMBOL_GPL(srcu_read_unlock);
 EXPORT_SYMBOL_GPL(synchronize_srcu);
 EXPORT_SYMBOL_GPL(srcu_batches_completed);
-EXPORT_SYMBOL_GPL(srcu_readers_active);
