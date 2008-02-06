@@ -189,7 +189,7 @@ static void video_mux(struct em28xx *dev, int index)
 		em28xx_i2c_call_clients(dev, VIDIOC_INT_S_AUDIO_ROUTING, &route);
 	}
 
-	em28xx_set_audio_source(dev);
+	em28xx_audio_analog_set(dev);
 }
 
 /* Usage lock check functions */
@@ -837,7 +837,6 @@ static int em28xx_reg_len(int reg)
 	case AC97LSB_REG:
 	case HSCALELOW_REG:
 	case VSCALELOW_REG:
-
 		return 2;
 	default:
 		return 1;

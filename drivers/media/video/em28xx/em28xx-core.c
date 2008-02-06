@@ -255,21 +255,26 @@ static int em28xx_write_reg_bits(struct em28xx *dev, u16 reg, u8 val,
  */
 static int em28xx_write_ac97(struct em28xx *dev, u8 reg, u8 *val)
 {
-	int ret;
+	int ret, i;
 	u8 addr = reg & 0x7f;
 	if ((ret = em28xx_write_regs(dev, AC97LSB_REG, val, 2)) < 0)
 		return ret;
 	if ((ret = em28xx_write_regs(dev, AC97ADDR_REG, &addr, 1)) < 0)
 		return ret;
-	if ((ret = em28xx_read_reg(dev, AC97BUSY_REG)) < 0)
-		return ret;
-	else if (((u8) ret) & 0x01) {
-		em28xx_warn ("AC97 command still being executed: not handled properly!\n");
+
+	/* Wait up to 50 ms for AC97 command to complete */
+	for (i = 0; i < 10; i++) {
+		if ((ret = em28xx_read_reg(dev, AC97BUSY_REG)) < 0)
+			return ret;
+		if (!((u8) ret) & 0x01)
+			return 0;
+		msleep(5);
 	}
+	em28xx_warn ("AC97 command still being executed: not handled properly!\n");
 	return 0;
 }
 
-int em28xx_set_audio_source(struct em28xx *dev)
+static int em28xx_set_audio_source(struct em28xx *dev)
 {
 	static char *enable  = "\x08\x08";
 	static char *disable = "\x08\x88";
@@ -312,6 +317,7 @@ int em28xx_set_audio_source(struct em28xx *dev)
 	ret = em28xx_write_reg_bits(dev, AUDIOSRC_REG, input, 0xc0);
 	if (ret < 0)
 		return ret;
+	msleep(5);
 
 	/* Sets AC97 mixer registers
 	   This is seems to be needed, even for non-ac97 configs
@@ -334,9 +340,10 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 	s[0] |= 0x1f - dev->volume;
 	s[1] |= 0x1f - dev->volume;
 
-	if (dev->mute)
-		s[1] |= 0x80;
+	/* Mute */
+	s[1] |= 0x80;
 	ret = em28xx_write_ac97(dev, MASTER_AC97, s);
+
 	if (ret < 0)
 		return ret;
 
@@ -353,6 +360,11 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 
 	/* Selects the proper audio input */
 	ret = em28xx_set_audio_source(dev);
+
+	/* Unmute device */
+	if (!dev->mute)
+		s[1] &= ~0x80;
+	ret = em28xx_write_ac97(dev, MASTER_AC97, s);
 
 	return ret;
 }
