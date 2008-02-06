@@ -402,12 +402,13 @@ static int flow_change(struct tcf_proto *tp, unsigned long base,
 
 	if (tb[TCA_FLOW_KEYS]) {
 		keymask = nla_get_u32(tb[TCA_FLOW_KEYS]);
-		if (fls(keymask) - 1 > FLOW_KEY_MAX)
-			return -EOPNOTSUPP;
 
 		nkeys = hweight32(keymask);
 		if (nkeys == 0)
 			return -EINVAL;
+
+		if (fls(keymask) - 1 > FLOW_KEY_MAX)
+			return -EOPNOTSUPP;
 	}
 
 	err = tcf_exts_validate(tp, tb, tca[TCA_RATE], &e, &flow_ext_map);
