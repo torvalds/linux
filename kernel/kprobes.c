@@ -699,6 +699,12 @@ static int __kprobes pre_handler_kretprobe(struct kprobe *p,
 				 struct kretprobe_instance, uflist);
 		ri->rp = rp;
 		ri->task = current;
+
+		if (rp->entry_handler && rp->entry_handler(ri, regs)) {
+			spin_unlock_irqrestore(&kretprobe_lock, flags);
+			return 0;
+		}
+
 		arch_prepare_kretprobe(ri, regs);
 
 		/* XXX(hch): why is there no hlist_move_head? */
@@ -745,7 +751,8 @@ int __kprobes register_kretprobe(struct kretprobe *rp)
 	INIT_HLIST_HEAD(&rp->used_instances);
 	INIT_HLIST_HEAD(&rp->free_instances);
 	for (i = 0; i < rp->maxactive; i++) {
-		inst = kmalloc(sizeof(struct kretprobe_instance), GFP_KERNEL);
+		inst = kmalloc(sizeof(struct kretprobe_instance) +
+			       rp->data_size, GFP_KERNEL);
 		if (inst == NULL) {
 			free_rp_inst(rp);
 			return -ENOMEM;
