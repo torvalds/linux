@@ -77,10 +77,6 @@ int smp_num_probed;		/* Internal processor count */
 int smp_num_cpus = 1;		/* Number that came online.  */
 EXPORT_SYMBOL(smp_num_cpus);
 
-extern void calibrate_delay(void);
-
-
-
 /*
  * Called by both boot and secondaries to move global data into
  *  per-processor storage.

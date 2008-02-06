@@ -28,7 +28,7 @@ __setup("lpj=", lpj_setup);
 #define DELAY_CALIBRATION_TICKS			((HZ < 100) ? 1 : (HZ/100))
 #define MAX_DIRECT_CALIBRATION_RETRIES		5
 
-static unsigned long __devinit calibrate_delay_direct(void)
+static unsigned long __cpuinit calibrate_delay_direct(void)
 {
 	unsigned long pre_start, start, post_start;
 	unsigned long pre_end, end, post_end;
@@ -101,7 +101,7 @@ static unsigned long __devinit calibrate_delay_direct(void)
 	return 0;
 }
 #else
-static unsigned long __devinit calibrate_delay_direct(void) {return 0;}
+static unsigned long __cpuinit calibrate_delay_direct(void) {return 0;}
 #endif
 
 /*
@@ -111,7 +111,7 @@ static unsigned long __devinit calibrate_delay_direct(void) {return 0;}
  */
 #define LPS_PREC 8
 
-void __devinit calibrate_delay(void)
+void __cpuinit calibrate_delay(void)
 {
 	unsigned long ticks, loopbit;
 	int lps_precision = LPS_PREC;

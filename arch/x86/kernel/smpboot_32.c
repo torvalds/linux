@@ -202,8 +202,6 @@ valid_k7:
 	;
 }
 
-extern void calibrate_delay(void);
-
 static atomic_t init_deasserted;
 
 static void __cpuinit smp_callin(void)

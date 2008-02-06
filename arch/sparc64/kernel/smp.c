@@ -46,8 +46,6 @@
 #include <asm/ldc.h>
 #include <asm/hypervisor.h>
 
-extern void calibrate_delay(void);
-
 int sparc64_multi_core __read_mostly;
 
 cpumask_t cpu_possible_map __read_mostly = CPU_MASK_NONE;

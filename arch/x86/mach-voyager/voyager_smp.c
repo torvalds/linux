@@ -444,8 +444,6 @@ static __u32 __init setup_trampoline(void)
 static void __init start_secondary(void *unused)
 {
 	__u8 cpuid = hard_smp_processor_id();
-	/* external functions not defined in the headers */
-	extern void calibrate_delay(void);
 
 	cpu_init();
 

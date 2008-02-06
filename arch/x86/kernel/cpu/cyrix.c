@@ -83,8 +83,6 @@ static char cyrix_model_mult2[] __cpuinitdata = "12233445";
  * FIXME: our newer udelay uses the tsc. We don't need to frob with SLOP
  */
 
-extern void calibrate_delay(void) __init;
-
 static void __cpuinit check_cx686_slop(struct cpuinfo_x86 *c)
 {
 	unsigned long flags;
