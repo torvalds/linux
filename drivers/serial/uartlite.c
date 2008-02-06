@@ -389,32 +389,6 @@ static void ulite_console_write(struct console *co, const char *s,
 		spin_unlock_irqrestore(&port->lock, flags);
 }
 
-#if defined(CONFIG_OF)
-static inline void __init ulite_console_of_find_device(int id)
-{
-	struct device_node *np;
-	struct resource res;
-	const unsigned int *of_id;
-	int rc;
-
-	for_each_matching_node(np, ulite_of_match) {
-		of_id = of_get_property(np, "port-number", NULL);
-		if ((!of_id) || (*of_id != id))
-			continue;
-
-		rc = of_address_to_resource(np, 0, &res);
-		if (rc)
-			continue;
-
-		ulite_ports[id].mapbase = res.start;
-		of_node_put(np);
-		return;
-	}
-}
-#else /* CONFIG_OF */
-static inline void __init ulite_console_of_find_device(int id) { /* do nothing */ }
-#endif /* CONFIG_OF */
-
 static int __init ulite_console_setup(struct console *co, char *options)
 {
 	struct uart_port *port;
@@ -428,11 +402,7 @@ static int __init ulite_console_setup(struct console *co, char *options)
 
 	port = &ulite_ports[co->index];
 
-	/* Check if it is an OF device */
-	if (!port->mapbase)
-		ulite_console_of_find_device(co->index);
-
-	/* Do we have a device now? */
+	/* Has the device been initialized yet? */
 	if (!port->mapbase) {
 		pr_debug("console on ttyUL%i not present\n", co->index);
 		return -ENODEV;
