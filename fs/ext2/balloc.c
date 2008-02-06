@@ -1533,9 +1533,6 @@ int ext2_bg_has_super(struct super_block *sb, int group)
  */
 unsigned long ext2_bg_num_gdb(struct super_block *sb, int group)
 {
-	if (EXT2_HAS_RO_COMPAT_FEATURE(sb,EXT2_FEATURE_RO_COMPAT_SPARSE_SUPER)&&
-	    !ext2_group_sparse(group))
-		return 0;
-	return EXT2_SB(sb)->s_gdb_count;
+	return ext2_bg_has_super(sb, group) ? EXT2_SB(sb)->s_gdb_count : 0;
 }
 

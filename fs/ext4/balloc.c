@@ -2011,11 +2011,7 @@ static unsigned long ext4_bg_num_gdb_meta(struct super_block *sb,
 static unsigned long ext4_bg_num_gdb_nometa(struct super_block *sb,
 					ext4_group_t group)
 {
-	if (EXT4_HAS_RO_COMPAT_FEATURE(sb,
-				EXT4_FEATURE_RO_COMPAT_SPARSE_SUPER) &&
-			!ext4_group_sparse(group))
-		return 0;
-	return EXT4_SB(sb)->s_gdb_count;
+	return ext4_bg_has_super(sb, group) ? EXT4_SB(sb)->s_gdb_count : 0;
 }
 
 /**
