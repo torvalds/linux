@@ -679,7 +679,7 @@ static int __init s3c2410fb_map_video_memory(struct fb_info *info)
 		/* prevent initial garbage on screen */
 		dprintk("map_video_memory: clear %p:%08x\n",
 			info->screen_base, map_size);
-		memset(info->screen_base, 0xf0, map_size);
+		memset(info->screen_base, 0x00, map_size);
 
 		info->fix.smem_start = map_dma;
 
