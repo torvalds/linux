@@ -17,6 +17,13 @@
 
 /* device attributes */
 
+/*
+ * NOTE:  RTC times displayed in sysfs use the RTC's timezone.  That's
+ * ideally UTC.  However, PCs that also boot to MS-Windows normally use
+ * the local time and change to match daylight savings time.  That affects
+ * attributes including date, time, since_epoch, and wakealarm.
+ */
+
 static ssize_t
 rtc_sysfs_show_name(struct device *dev, struct device_attribute *attr,
 		char *buf)
@@ -113,13 +120,13 @@ rtc_sysfs_show_wakealarm(struct device *dev, struct device_attribute *attr,
 	unsigned long alarm;
 	struct rtc_wkalrm alm;
 
-	/* Don't show disabled alarms; but the RTC could leave the
-	 * alarm enabled after it's already triggered.  Alarms are
-	 * conceptually one-shot, even though some common hardware
-	 * (PCs) doesn't actually work that way.
+	/* Don't show disabled alarms.  For uniformity, RTC alarms are
+	 * conceptually one-shot, even though some common RTCs (on PCs)
+	 * don't actually work that way.
 	 *
-	 * REVISIT maybe we should require RTC implementations to
-	 * disable the RTC alarm after it triggers, for uniformity.
+	 * NOTE: RTC implementations where the alarm doesn't match an
+	 * exact YYYY-MM-DD HH:MM[:SS] date *must* disable their RTC
+	 * alarms after they trigger, to ensure one-shot semantics.
 	 */
 	retval = rtc_read_alarm(to_rtc_device(dev), &alm);
 	if (retval == 0 && alm.enabled) {
