@@ -274,7 +274,6 @@ int em28xx_set_audio_source(struct em28xx *dev)
 	static char *disable = "\x08\x88";
 	char *video = enable, *line = disable;
 	int ret;
-	int no_ac97 = 0;
 	u8 input;
 
 	if (dev->is_em2800) {
@@ -294,11 +293,9 @@ int em28xx_set_audio_source(struct em28xx *dev)
 		switch (dev->ctl_ainput) {
 		case EM28XX_AMUX_VIDEO:
 			input = EM28XX_AUDIO_SRC_TUNER;
-			no_ac97 = 1;
 			break;
 		case EM28XX_AMUX_LINE_IN:
 			input = EM28XX_AUDIO_SRC_LINE;
-			no_ac97 = 1;
 			break;
 		case EM28XX_AMUX_AC97_VIDEO:
 			input = EM28XX_AUDIO_SRC_LINE;
@@ -315,11 +312,9 @@ int em28xx_set_audio_source(struct em28xx *dev)
 	if (ret < 0)
 		return ret;
 
-	if (no_ac97)
-		return 0;
-
-	/* Sets AC97 mixer registers */
-
+	/* Sets AC97 mixer registers
+	   This is seems to be needed, even for non-ac97 configs
+	 */
 	ret = em28xx_write_ac97(dev, VIDEO_AC97, video);
 	if (ret < 0)
 		return ret;
