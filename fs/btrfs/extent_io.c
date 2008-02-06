@@ -1705,7 +1705,7 @@ static int submit_extent_page(int rw, struct extent_io_tree *tree,
 			return 0;
 		}
 	}
-	nr = min_t(int, max_pages, bio_get_nr_vecs(bdev));
+	nr = bio_get_nr_vecs(bdev);
 	bio = extent_bio_alloc(bdev, sector, nr, GFP_NOFS | __GFP_HIGH);
 	if (!bio) {
 		printk("failed to allocate bio nr %d\n", nr);
