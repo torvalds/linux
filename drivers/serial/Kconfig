@@ -1318,4 +1318,19 @@ config SERIAL_QE
 	  This driver supports the QE serial ports on Freescale embedded
 	  PowerPC that contain a QUICC Engine.
 
+config SERIAL_SC26XX
+	tristate "SC2681/SC2692 serial port support"
+	depends on SNI_RM
+	select SERIAL_CORE
+	help
+	  This is a driver for the onboard serial ports of
+	  older RM400 machines.
+
+config SERIAL_SC26XX_CONSOLE
+	bool "Console on SC2681/SC2692 serial port"
+	depends on SERIAL_SC26XX
+	select SERIAL_CORE_CONSOLE
+	help
+	  Support for Console on SC2681/SC2692 serial ports.
+
 endmenu
