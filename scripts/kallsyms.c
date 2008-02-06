@@ -31,13 +31,12 @@
 
 #define KSYM_NAME_LEN		128
 
-
 struct sym_entry {
 	unsigned long long addr;
 	unsigned int len;
+	unsigned int start_pos;
 	unsigned char *sym;
 };
-
 
 static struct sym_entry *table;
 static unsigned int table_size, table_cnt;
@@ -198,8 +197,10 @@ static void read_map(FILE *in)
 				exit (1);
 			}
 		}
-		if (read_symbol(in, &table[table_cnt]) == 0)
+		if (read_symbol(in, &table[table_cnt]) == 0) {
+			table[table_cnt].start_pos = table_cnt;
 			table_cnt++;
+		}
 	}
 }
 
@@ -502,6 +503,35 @@ static void optimize_token_table(void)
 	optimize_result();
 }
 
+static int compare_symbols(const void *a, const void *b)
+{
+	const struct sym_entry *sa;
+	const struct sym_entry *sb;
+	int wa, wb;
+
+	sa = a;
+	sb = b;
+
+	/* sort by address first */
+	if (sa->addr > sb->addr)
+		return 1;
+	if (sa->addr < sb->addr)
+		return -1;
+
+	/* sort by "weakness" type */
+	wa = (sa->sym[0] == 'w') || (sa->sym[0] == 'W');
+	wb = (sb->sym[0] == 'w') || (sb->sym[0] == 'W');
+	if (wa != wb)
+		return wa - wb;
+
+	/* sort by initial order, so that other symbols are left undisturbed */
+	return sa->start_pos - sb->start_pos;
+}
+
+static void sort_symbols(void)
+{
+	qsort(table, table_cnt, sizeof(struct sym_entry), compare_symbols);
+}
 
 int main(int argc, char **argv)
 {
@@ -523,6 +553,7 @@ int main(int argc, char **argv)
 		usage();
 
 	read_map(stdin);
+	sort_symbols();
 	optimize_token_table();
 	write_src();
 
