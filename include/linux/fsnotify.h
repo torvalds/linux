@@ -92,6 +92,14 @@ static inline void fsnotify_inoderemove(struct inode *inode)
 }
 
 /*
+ * fsnotify_link_count - inode's link count changed
+ */
+static inline void fsnotify_link_count(struct inode *inode)
+{
+	inotify_inode_queue_event(inode, IN_ATTRIB, 0, NULL, NULL);
+}
+
+/*
  * fsnotify_create - 'name' was linked in
  */
 static inline void fsnotify_create(struct inode *inode, struct dentry *dentry)
@@ -100,6 +108,20 @@ static inline void fsnotify_create(struct inode *inode, struct dentry *dentry)
 	inotify_inode_queue_event(inode, IN_CREATE, 0, dentry->d_name.name,
 				  dentry->d_inode);
 	audit_inode_child(dentry->d_name.name, dentry, inode);
+}
+
+/*
+ * fsnotify_link - new hardlink in 'inode' directory
+ * Note: We have to pass also the linked inode ptr as some filesystems leave
+ *   new_dentry->d_inode NULL and instantiate inode pointer later
+ */
+static inline void fsnotify_link(struct inode *dir, struct inode *inode, struct dentry *new_dentry)
+{
+	inode_dir_notify(dir, DN_CREATE);
+	inotify_inode_queue_event(dir, IN_CREATE, 0, new_dentry->d_name.name,
+				  inode);
+	fsnotify_link_count(inode);
+	audit_inode_child(new_dentry->d_name.name, new_dentry, dir);
 }
 
 /*
