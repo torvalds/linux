@@ -498,20 +498,6 @@ enum {
 #define	IDETAPE_ERROR_FILEMARK		102
 #define	IDETAPE_ERROR_EOD		103
 
-/*
- *	The following is used to format the general configuration word of
- *	the ATAPI IDENTIFY DEVICE command.
- */
-struct idetape_id_gcw {	
-	unsigned packet_size		:2;	/* Packet Size */
-	unsigned reserved234		:3;	/* Reserved */
-	unsigned drq_type		:2;	/* Command packet DRQ type */
-	unsigned removable		:1;	/* Removable media */
-	unsigned device_type		:5;	/* Device type */
-	unsigned reserved13		:1;	/* Reserved */
-	unsigned protocol		:2;	/* Protocol type */
-};
-
 /* Structures related to the SELECT SENSE / MODE SENSE packet commands. */
 #define IDETAPE_BLOCK_DESCRIPTOR	0
 #define	IDETAPE_CAPABILITIES_PAGE	0x2a
@@ -3254,37 +3240,39 @@ static int idetape_chrdev_release (struct inode *inode, struct file *filp)
 }
 
 /*
- *	idetape_identify_device is called to check the contents of the
- *	ATAPI IDENTIFY command results. We return:
+ * check the contents of the ATAPI IDENTIFY command results. We return:
  *
- *	1	If the tape can be supported by us, based on the information
- *		we have so far.
+ * 1 - If the tape can be supported by us, based on the information we have so
+ * far.
  *
- *	0 	If this tape driver is not currently supported by us.
+ * 0 - If this tape driver is not currently supported by us.
  */
-static int idetape_identify_device (ide_drive_t *drive)
+static int idetape_identify_device(ide_drive_t *drive)
 {
-	struct idetape_id_gcw gcw;
-	struct hd_driveid *id = drive->id;
+	u8 gcw[2], protocol, device_type, removable, packet_size;
 
 	if (drive->id_read == 0)
 		return 1;
 
-	*((unsigned short *) &gcw) = id->config;
+	*((unsigned short *) &gcw) = drive->id->config;
+
+	protocol	=   (gcw[1] & 0xC0) >> 6;
+	device_type	=    gcw[1] & 0x1F;
+	removable	= !!(gcw[0] & 0x80);
+	packet_size	=    gcw[0] & 0x3;
 
 	/* Check that we can support this device */
-
-	if (gcw.protocol != 2)
+	if (protocol != 2)
 		printk(KERN_ERR "ide-tape: Protocol (0x%02x) is not ATAPI\n",
-				gcw.protocol);
-	else if (gcw.device_type != 1)
+				protocol);
+	else if (device_type != 1)
 		printk(KERN_ERR "ide-tape: Device type (0x%02x) is not set "
-				"to tape\n", gcw.device_type);
-	else if (!gcw.removable)
+				"to tape\n", device_type);
+	else if (!removable)
 		printk(KERN_ERR "ide-tape: The removable flag is not set\n");
-	else if (gcw.packet_size != 0) {
+	else if (packet_size != 0) {
 		printk(KERN_ERR "ide-tape: Packet size (0x%02x) is not 12 "
-				"bytes long\n", gcw.packet_size);
+				"bytes long\n", packet_size);
 	} else
 		return 1;
 	return 0;
@@ -3409,8 +3397,8 @@ static void idetape_setup (ide_drive_t *drive, idetape_tape_t *tape, int minor)
 {
 	unsigned long t1, tmid, tn, t;
 	int speed;
-	struct idetape_id_gcw gcw;
 	int stage_size;
+	u8 gcw[2];
 	struct sysinfo si;
 	u16 *ctl = (u16 *)&tape->caps[12];
 
@@ -3433,7 +3421,9 @@ static void idetape_setup (ide_drive_t *drive, idetape_tape_t *tape, int minor)
 	tape->max_insert_speed = 10000;
 	tape->speed_control = 1;
 	*((unsigned short *) &gcw) = drive->id->config;
-	if (gcw.drq_type == 1)
+
+	/* Command packet DRQ type */
+	if (((gcw[0] & 0x60) >> 5) == 1)
 		set_bit(IDETAPE_DRQ_INTERRUPT, &tape->flags);
 
 	tape->min_pipeline = tape->max_pipeline = tape->max_stages = 10;
