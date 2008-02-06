@@ -147,7 +147,16 @@
 
 #define S3C2412_FRCPAT(x)	S3C2410_LCDREG(0xB4 + ((x)*4))
 
+/* general registers */
+
+/* base of the LCD registers, where INTPND, INTSRC and then INTMSK
+ * are available. */
+
+#define S3C2410_LCDINTBASE	S3C2410_LCDREG(0x54)
+#define S3C2412_LCDINTBASE	S3C2410_LCDREG(0x24)
+
+#define S3C24XX_LCDINTPND	(0x00)
+#define S3C24XX_LCDSRCPND	(0x04)
+#define S3C24XX_LCDINTMSK	(0x08)
+
 #endif /* ___ASM_ARCH_REGS_LCD_H */
-
-
-
