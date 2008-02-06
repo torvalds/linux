@@ -4,6 +4,7 @@
 #include <linux/notifier.h>
 #include <linux/rcupdate.h>
 #include <linux/vmalloc.h>
+#include <linux/reboot.h>
 
 /*
  *	Notifier list for kernel code which wants to be called
