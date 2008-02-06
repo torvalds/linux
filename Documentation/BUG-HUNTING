@@ -214,6 +214,23 @@ And recompile the kernel with CONFIG_DEBUG_INFO enabled:
   gdb vmlinux
   (gdb) p vt_ioctl
   (gdb) l *(0x<address of vt_ioctl> + 0xda8)
+or, as one command
+  (gdb) l *(vt_ioctl + 0xda8)
+
+If you have a call trace, such as :-
+>Call Trace:
+> [<ffffffff8802c8e9>] :jbd:log_wait_commit+0xa3/0xf5
+> [<ffffffff810482d9>] autoremove_wake_function+0x0/0x2e
+> [<ffffffff8802770b>] :jbd:journal_stop+0x1be/0x1ee
+> ...
+this shows the problem in the :jbd: module. You can load that module in gdb
+and list the relevant code.
+  gdb fs/jbd/jbd.ko
+  (gdb) p log_wait_commit
+  (gdb) l *(0x<address> + 0xa3)
+or
+  (gdb) l *(log_wait_commit + 0xa3)
+
 
 Another very useful option of the Kernel Hacking section in menuconfig is
 Debug memory allocations. This will help you see whether data has been
