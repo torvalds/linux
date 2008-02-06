@@ -1590,8 +1590,6 @@ repeat:
 					goto repeat;
 				if (retval != 0) /* He released the lock.  */
 					goto end;
-			} else if (p->exit_state == EXIT_DEAD) {
-				continue;
 			} else if (p->exit_state == EXIT_ZOMBIE) {
 				/*
 				 * Eligible but we cannot release it yet:
@@ -1606,7 +1604,7 @@ repeat:
 				/* He released the lock.  */
 				if (retval != 0)
 					goto end;
-			} else {
+			} else if (p->exit_state != EXIT_DEAD) {
 check_continued:
 				/*
 				 * It's running now, so it might later
