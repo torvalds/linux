@@ -13,7 +13,7 @@ extern void __bad_ndelay(void);
 
 extern void __udelay(unsigned long usecs);
 extern void __ndelay(unsigned long nsecs);
-extern void __const_udelay(unsigned long usecs);
+extern void __const_udelay(unsigned long xloops);
 extern void __delay(unsigned long loops);
 
 /* 0x10c7 is 2**32 / 1000000 (rounded up) */
