@@ -7,8 +7,11 @@
 #include "dmxdev.h"
 #include "pvrusb2-context.h"
 
+#define PVR2_DVB_BUFFER_COUNT 32
+#define PVR2_DVB_BUFFER_SIZE PAGE_ALIGN(0x4000)
+
 struct pvr2_dvb_adapter {
-	struct pvr2_context	*pvr;
+	struct pvr2_channel	channel;
 
 	struct dvb_adapter	dvb_adap;
 	struct dmxdev		dmxdev;
@@ -23,6 +26,11 @@ struct pvr2_dvb_adapter {
 	struct mutex		lock;
 
 	unsigned int		digital_up:1;
+	unsigned int		stream_run:1;
+	unsigned int		init:1;
+
+	wait_queue_head_t	buffer_wait_data;
+	char			*buffer_storage[PVR2_DVB_BUFFER_COUNT];
 };
 
 struct pvr2_dvb_props {
