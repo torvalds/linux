@@ -575,6 +575,8 @@ void print_block(struct buffer_head *bh, ...)	//int print_mode, int first, int l
 					printk
 					    ("Block %llu contains unformatted data\n",
 					     (unsigned long long)bh->b_blocknr);
+
+	va_end(args);
 }
 
 static char print_tb_buf[2048];
