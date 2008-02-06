@@ -15,7 +15,7 @@
  */
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/pata_platform.h>
+#include <linux/ata_platform.h>
 #include <linux/types.h>
 #include <net/ax88796.h>
 #include <asm/machvec.h>
