@@ -1540,6 +1540,38 @@ static void __devinit detect_and_report_smsc (void)
 	smsc_check(0x3f0,0x44);
 	smsc_check(0x370,0x44);
 }
+
+static void __devinit detect_and_report_it87(void)
+{
+	u16 dev;
+	u8 r;
+	if (verbose_probing)
+		printk(KERN_DEBUG "IT8705 Super-IO detection, now testing port 2E ...\n");
+	if (!request_region(0x2e, 1, __FUNCTION__))
+		return;
+	outb(0x87, 0x2e);
+	outb(0x01, 0x2e);
+	outb(0x55, 0x2e);
+	outb(0x55, 0x2e);
+	outb(0x20, 0x2e);
+	dev = inb(0x2f) << 8;
+	outb(0x21, 0x2e);
+	dev |= inb(0x2f);
+	if (dev == 0x8712 || dev == 0x8705 || dev == 0x8715 ||
+	    dev == 0x8716 || dev == 0x8718 || dev == 0x8726) {
+		printk(KERN_INFO "IT%04X SuperIO detected.\n", dev);
+		outb(0x07, 0x2E);	/* Parallel Port */
+		outb(0x03, 0x2F);
+		outb(0xF0, 0x2E);	/* BOOT 0x80 off */
+		r = inb(0x2f);
+		outb(0xF0, 0x2E);
+		outb(r | 8, 0x2F);
+		outb(0x02, 0x2E);	/* Lock */
+		outb(0x02, 0x2F);
+
+		release_region(0x2e, 1);
+	}
+}
 #endif /* CONFIG_PARPORT_PC_SUPERIO */
 
 static int get_superio_dma (struct parport *p)
@@ -3164,24 +3196,25 @@ static void __init parport_pc_find_ports (int autoirq, int autodma)
 	int count = 0, err;
 
 #ifdef CONFIG_PARPORT_PC_SUPERIO
-	detect_and_report_winbond ();
-	detect_and_report_smsc ();
+	detect_and_report_it87();
+	detect_and_report_winbond();
+	detect_and_report_smsc();
 #endif
 
 	/* Onboard SuperIO chipsets that show themselves on the PCI bus. */
-	count += parport_pc_init_superio (autoirq, autodma);
+	count += parport_pc_init_superio(autoirq, autodma);
 
 	/* PnP ports, skip detection if SuperIO already found them */
 	if (!count) {
-		err = pnp_register_driver (&parport_pc_pnp_driver);
+		err = pnp_register_driver(&parport_pc_pnp_driver);
 		if (!err)
 			pnp_registered_parport = 1;
 	}
 
 	/* ISA ports and whatever (see asm/parport.h). */
-	parport_pc_find_nonpci_ports (autoirq, autodma);
+	parport_pc_find_nonpci_ports(autoirq, autodma);
 
-	err = pci_register_driver (&parport_pc_pci_driver);
+	err = pci_register_driver(&parport_pc_pci_driver);
 	if (!err)
 		pci_registered_parport = 1;
 }
