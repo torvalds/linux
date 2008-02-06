@@ -54,7 +54,7 @@ void __init setup_kexec_cpu_down_mpic(void)
 static void pseries_kexec_cpu_down_xics(int crash_shutdown, int secondary)
 {
 	pseries_kexec_cpu_down(crash_shutdown, secondary);
-	xics_teardown_cpu(secondary);
+	xics_kexec_teardown_cpu(secondary);
 }
 
 void __init setup_kexec_cpu_down_xics(void)

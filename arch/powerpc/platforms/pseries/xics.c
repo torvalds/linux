@@ -775,11 +775,9 @@ void xics_request_IPIs(void)
 }
 #endif /* CONFIG_SMP */
 
-void xics_teardown_cpu(int secondary)
+void xics_teardown_cpu()
 {
 	int cpu = smp_processor_id();
-	unsigned int ipi;
-	struct irq_desc *desc;
 
 	xics_set_cpu_priority(0);
 
@@ -790,9 +788,17 @@ void xics_teardown_cpu(int secondary)
 		lpar_qirr_info(cpu, 0xff);
 	else
 		direct_qirr_info(cpu, 0xff);
+}
+
+void xics_kexec_teardown_cpu(int secondary)
+{
+	unsigned int ipi;
+	struct irq_desc *desc;
+
+	xics_teardown_cpu();
 
 	/*
-	 * we need to EOI the IPI if we got here from kexec down IPI
+	 * we need to EOI the IPI
 	 *
 	 * probably need to check all the other interrupts too
 	 * should we be flagging idle loop instead?
