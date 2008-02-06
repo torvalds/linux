@@ -3698,6 +3698,25 @@ static sector_t reshape_request(mddev_t *mddev, sector_t sector_nr, int *skipped
 		release_stripe(sh);
 		first_sector += STRIPE_SECTORS;
 	}
+	/* If this takes us to the resync_max point where we have to pause,
+	 * then we need to write out the superblock.
+	 */
+	sector_nr += conf->chunk_size>>9;
+	if (sector_nr >= mddev->resync_max) {
+		/* Cannot proceed until we've updated the superblock... */
+		wait_event(conf->wait_for_overlap,
+			   atomic_read(&conf->reshape_stripes) == 0);
+		mddev->reshape_position = conf->expand_progress;
+		set_bit(MD_CHANGE_DEVS, &mddev->flags);
+		md_wakeup_thread(mddev->thread);
+		wait_event(mddev->sb_wait,
+			   !test_bit(MD_CHANGE_DEVS, &mddev->flags)
+			   || kthread_should_stop());
+		spin_lock_irq(&conf->device_lock);
+		conf->expand_lo = mddev->reshape_position;
+		spin_unlock_irq(&conf->device_lock);
+		wake_up(&conf->wait_for_overlap);
+	}
 	return conf->chunk_size>>9;
 }
 
@@ -3733,6 +3752,12 @@ static inline sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *ski
 
 	if (test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery))
 		return reshape_request(mddev, sector_nr, skipped);
+
+	/* No need to check resync_max as we never do more than one
+	 * stripe, and as resync_max will always be on a chunk boundary,
+	 * if the check in md_do_sync didn't fire, there is no chance
+	 * of overstepping resync_max here
+	 */
 
 	/* if there is too many failed drives and we are trying
 	 * to resync, then assert that we are finished, because there is

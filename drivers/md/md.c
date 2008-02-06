@@ -275,6 +275,7 @@ static mddev_t * mddev_find(dev_t unit)
 	spin_lock_init(&new->write_lock);
 	init_waitqueue_head(&new->sb_wait);
 	new->reshape_position = MaxSector;
+	new->resync_max = MaxSector;
 
 	new->queue = blk_alloc_queue(GFP_KERNEL);
 	if (!new->queue) {
@@ -2921,6 +2922,43 @@ sync_completed_show(mddev_t *mddev, char *page)
 static struct md_sysfs_entry md_sync_completed = __ATTR_RO(sync_completed);
 
 static ssize_t
+max_sync_show(mddev_t *mddev, char *page)
+{
+	if (mddev->resync_max == MaxSector)
+		return sprintf(page, "max\n");
+	else
+		return sprintf(page, "%llu\n",
+			       (unsigned long long)mddev->resync_max);
+}
+static ssize_t
+max_sync_store(mddev_t *mddev, const char *buf, size_t len)
+{
+	if (strncmp(buf, "max", 3) == 0)
+		mddev->resync_max = MaxSector;
+	else {
+		char *ep;
+		unsigned long long max = simple_strtoull(buf, &ep, 10);
+		if (ep == buf || (*ep != 0 && *ep != '\n'))
+			return -EINVAL;
+		if (max < mddev->resync_max &&
+		    test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
+			return -EBUSY;
+
+		/* Must be a multiple of chunk_size */
+		if (mddev->chunk_size) {
+			if (max & (sector_t)((mddev->chunk_size>>9)-1))
+				return -EINVAL;
+		}
+		mddev->resync_max = max;
+	}
+	wake_up(&mddev->recovery_wait);
+	return len;
+}
+
+static struct md_sysfs_entry md_max_sync =
+__ATTR(sync_max, S_IRUGO|S_IWUSR, max_sync_show, max_sync_store);
+
+static ssize_t
 suspend_lo_show(mddev_t *mddev, char *page)
 {
 	return sprintf(page, "%llu\n", (unsigned long long)mddev->suspend_lo);
@@ -3030,6 +3068,7 @@ static struct attribute *md_redundancy_attrs[] = {
 	&md_sync_max.attr,
 	&md_sync_speed.attr,
 	&md_sync_completed.attr,
+	&md_max_sync.attr,
 	&md_suspend_lo.attr,
 	&md_suspend_hi.attr,
 	&md_bitmap.attr,
@@ -3579,6 +3618,7 @@ static int do_md_stop(mddev_t * mddev, int mode)
 		mddev->size = 0;
 		mddev->raid_disks = 0;
 		mddev->recovery_cp = 0;
+		mddev->resync_max = MaxSector;
 		mddev->reshape_position = MaxSector;
 		mddev->external = 0;
 
@@ -5443,8 +5483,16 @@ void md_do_sync(mddev_t *mddev)
 		sector_t sectors;
 
 		skipped = 0;
+		if (j >= mddev->resync_max) {
+			sysfs_notify(&mddev->kobj, NULL, "sync_completed");
+			wait_event(mddev->recovery_wait,
+				   mddev->resync_max > j
+				   || kthread_should_stop());
+		}
+		if (kthread_should_stop())
+			goto interrupted;
 		sectors = mddev->pers->sync_request(mddev, j, &skipped,
-					    currspeed < speed_min(mddev));
+						  currspeed < speed_min(mddev));
 		if (sectors == 0) {
 			set_bit(MD_RECOVERY_ERR, &mddev->recovery);
 			goto out;
@@ -5486,15 +5534,9 @@ void md_do_sync(mddev_t *mddev)
 		}
 
 
-		if (kthread_should_stop()) {
-			/*
-			 * got a signal, exit.
-			 */
-			printk(KERN_INFO 
-				"md: md_do_sync() got signal ... exiting\n");
-			set_bit(MD_RECOVERY_INTR, &mddev->recovery);
-			goto out;
-		}
+		if (kthread_should_stop())
+			goto interrupted;
+
 
 		/*
 		 * this loop exits only if either when we are slower than
@@ -5558,9 +5600,22 @@ void md_do_sync(mddev_t *mddev)
 
  skip:
 	mddev->curr_resync = 0;
+	mddev->resync_max = MaxSector;
+	sysfs_notify(&mddev->kobj, NULL, "sync_completed");
 	wake_up(&resync_wait);
 	set_bit(MD_RECOVERY_DONE, &mddev->recovery);
 	md_wakeup_thread(mddev->thread);
+	return;
+
+ interrupted:
+	/*
+	 * got a signal, exit.
+	 */
+	printk(KERN_INFO
+	       "md: md_do_sync() got signal ... exiting\n");
+	set_bit(MD_RECOVERY_INTR, &mddev->recovery);
+	goto out;
+
 }
 EXPORT_SYMBOL_GPL(md_do_sync);
 

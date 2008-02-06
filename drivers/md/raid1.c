@@ -1767,6 +1767,8 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 		return rv;
 	}
 
+	if (max_sector > mddev->resync_max)
+		max_sector = mddev->resync_max; /* Don't do IO beyond here */
 	nr_sectors = 0;
 	sync_blocks = 0;
 	do {
