@@ -1843,6 +1843,10 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 	gcap = azx_readw(chip, GCAP);
 	snd_printdd("chipset global capabilities = 0x%x\n", gcap);
 
+	/* allow 64bit DMA address if supported by H/W */
+	if ((gcap & 0x01) && !pci_set_dma_mask(pci, DMA_64BIT_MASK))
+		pci_set_consistent_dma_mask(pci, DMA_64BIT_MASK);
+
 	if (gcap) {
 		/* read number of streams from GCAP register instead of using
 		 * hardcoded value
