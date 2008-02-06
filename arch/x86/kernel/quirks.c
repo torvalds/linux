@@ -380,19 +380,19 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NVIDIA, 0x0367,
 void force_hpet_resume(void)
 {
 	switch (force_hpet_resume_type) {
-	    case ICH_FORCE_HPET_RESUME:
-		return ich_force_hpet_resume();
-
-	    case OLD_ICH_FORCE_HPET_RESUME:
-		return old_ich_force_hpet_resume();
-
-	    case VT8237_FORCE_HPET_RESUME:
-		return vt8237_force_hpet_resume();
-
-	    case NVIDIA_FORCE_HPET_RESUME:
-		return nvidia_force_hpet_resume();
-
-	    default:
+	case ICH_FORCE_HPET_RESUME:
+		ich_force_hpet_resume();
+		return;
+	case OLD_ICH_FORCE_HPET_RESUME:
+		old_ich_force_hpet_resume();
+		return;
+	case VT8237_FORCE_HPET_RESUME:
+		vt8237_force_hpet_resume();
+		return;
+	case NVIDIA_FORCE_HPET_RESUME:
+		nvidia_force_hpet_resume();
+		return;
+	default:
 		break;
 	}
 }
