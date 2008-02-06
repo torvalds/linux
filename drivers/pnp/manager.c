@@ -513,7 +513,7 @@ int pnp_activate_dev(struct pnp_dev *dev)
 	int error;
 
 	if (dev->active)
-		return 0;	/* the device is already active */
+		return 0;
 
 	/* ensure resources are allocated */
 	if (pnp_auto_config_dev(dev))
@@ -524,7 +524,7 @@ int pnp_activate_dev(struct pnp_dev *dev)
 		return error;
 
 	dev->active = 1;
-	return 1;
+	return 0;
 }
 
 /**
@@ -538,7 +538,7 @@ int pnp_disable_dev(struct pnp_dev *dev)
 	int error;
 
 	if (!dev->active)
-		return 0;	/* the device is already disabled */
+		return 0;
 
 	error = pnp_stop_dev(dev);
 	if (error)
@@ -551,7 +551,7 @@ int pnp_disable_dev(struct pnp_dev *dev)
 	pnp_clean_resource_table(&dev->res);
 	up(&pnp_res_mutex);
 
-	return 1;
+	return 0;
 }
 
 /**
