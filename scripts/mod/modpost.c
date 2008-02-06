@@ -613,7 +613,7 @@ static const char *sym_name(struct elf_info *elf, Elf_Sym *sym)
 	if (sym)
 		return elf->strtab + sym->st_name;
 	else
-		return "";
+		return "(unknown)";
 }
 
 static const char *sec_name(struct elf_info *elf, int shndx)
@@ -1102,7 +1102,7 @@ static int is_function(Elf_Sym *sym)
 	if (sym)
 		return ELF_ST_TYPE(sym->st_info) == STT_FUNC;
 	else
-		return 0;
+		return -1;
 }
 
 /*
@@ -1120,10 +1120,17 @@ static void report_sec_mismatch(const char *modname, enum mismatch mismatch,
 {
 	const char *from, *from_p;
 	const char *to, *to_p;
-	from = from_is_func ? "function" : "variable";
-	from_p = from_is_func ? "()" : "";
-	to = to_is_func ? "function" : "variable";
-	to_p = to_is_func ? "()" : "";
+
+	switch (from_is_func) {
+	case 0: from = "variable"; from_p = "";   break;
+	case 1: from = "function"; from_p = "()"; break;
+	default: from = "(unknown reference)"; from_p = ""; break;
+	}
+	switch (to_is_func) {
+	case 0: to = "variable"; to_p = "";   break;
+	case 1: to = "function"; to_p = "()"; break;
+	default: to = "(unknown reference)"; to_p = ""; break;
+	}
 
 	sec_mismatch_count++;
 	if (!sec_mismatch_verbose)
@@ -1137,7 +1144,7 @@ static void report_sec_mismatch(const char *modname, enum mismatch mismatch,
 	switch (mismatch) {
 	case TEXT_TO_INIT:
 		fprintf(stderr,
-		"The function %s %s() references\n"
+		"The function %s%s() references\n"
 		"the %s %s%s%s.\n"
 		"This is often because %s lacks a %s\n"
 		"annotation or the annotation of %s is wrong.\n",
