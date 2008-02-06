@@ -582,7 +582,6 @@ retint_restore_args:	/* return to kernel space */
 	TRACE_IRQS_IRETQ
 restore_args:
 	RESTORE_ARGS 0,8,0						
-iret_label:	
 #ifdef CONFIG_PARAVIRT
 	INTERRUPT_RETURN
 #endif
@@ -920,7 +919,7 @@ error_kernelspace:
 	   iret run with kernel gs again, so don't set the user space flag.
 	   B stepping K8s sometimes report an truncated RIP for IRET 
 	   exceptions returning to compat mode. Check for these here too. */
-	leaq iret_label(%rip),%rbp
+	leaq native_iret(%rip),%rbp
 	cmpq %rbp,RIP(%rsp) 
 	je   error_swapgs
 	movl %ebp,%ebp	/* zero extend */
