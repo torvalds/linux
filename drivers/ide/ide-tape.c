@@ -3684,9 +3684,6 @@ failed:
 	return -ENODEV;
 }
 
-MODULE_DESCRIPTION("ATAPI Streaming TAPE Driver");
-MODULE_LICENSE("GPL");
-
 static void __exit idetape_exit (void)
 {
 	driver_unregister(&idetape_driver.gen_driver);
@@ -3729,3 +3726,5 @@ MODULE_ALIAS("ide:*m-tape*");
 module_init(idetape_init);
 module_exit(idetape_exit);
 MODULE_ALIAS_CHARDEV_MAJOR(IDETAPE_MAJOR);
+MODULE_DESCRIPTION("ATAPI Streaming TAPE Driver");
+MODULE_LICENSE("GPL");
