@@ -1,6 +1,6 @@
 /* platform data for the PCA9539 16-bit I/O expander driver */
 
-struct pca9539_platform_data {
+struct pca953x_platform_data {
 	/* number of the first GPIO */
 	unsigned	gpio_base;
 

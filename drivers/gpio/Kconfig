@@ -27,15 +27,16 @@ config DEBUG_GPIO
 
 comment "I2C GPIO expanders:"
 
-config GPIO_PCA9539
-	tristate "PCA9539 16-bit I/O port"
+config GPIO_PCA953X
+	tristate "PCA953x I/O ports"
 	depends on I2C
 	help
-	  Say yes here to support the PCA9539 16-bit I/O port. These
-	  parts are made by NXP and TI.
+	  Say yes here to support the PCA9534 (8-bit), PCA9535 (16-bit),
+	  PCA9536 (4-bit), PCA9537 (4-bit), PCA9538 (8-bit), and PCA9539
+	  (16-bit) I/O ports. These parts are made by NXP and TI.
 
 	  This driver can also be built as a module.  If so, the module
-	  will be called pca9539.
+	  will be called pca953x.
 
 config GPIO_PCF857X
 	tristate "PCF857x, PCA857x, and PCA967x I2C GPIO expanders"
