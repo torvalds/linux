@@ -459,7 +459,7 @@ static int __devexit xilinxfb_of_remove(struct of_device *op)
 }
 
 /* Match table for of_platform binding */
-static struct of_device_id __devinit xilinxfb_of_match[] = {
+static struct of_device_id xilinxfb_of_match[] __devinitdata = {
 	{ .compatible = "xilinx,ml300-fb", },
 	{},
 };

@@ -1202,7 +1202,7 @@ static int __devexit ace_of_remove(struct of_device *op)
 }
 
 /* Match table for of_platform binding */
-static struct of_device_id __devinit ace_of_match[] = {
+static struct of_device_id ace_of_match[] __devinitdata = {
 	{ .compatible = "xilinx,xsysace", },
 	{},
 };
