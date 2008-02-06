@@ -880,8 +880,8 @@ void xics_migrate_irqs_away(void)
 		       virq, cpu);
 
 		/* Reset affinity to all cpus */
+		irq_desc[virq].affinity = CPU_MASK_ALL;
 		desc->chip->set_affinity(virq, CPU_MASK_ALL);
-		irq_desc[irq].affinity = CPU_MASK_ALL;
 unlock:
 		spin_unlock_irqrestore(&desc->lock, flags);
 	}
