@@ -115,7 +115,6 @@ static int gigaset_resume(struct usb_interface *intf);
 static int gigaset_pre_reset(struct usb_interface *intf);
 
 static struct gigaset_driver *driver = NULL;
-static struct cardstate *cardstate = NULL;
 
 /* usb specific object needed to register this driver with the usb subsystem */
 static struct usb_driver gigaset_usb_driver = {
@@ -727,11 +726,10 @@ static int gigaset_probe(struct usb_interface *interface,
 
 	dev_info(&udev->dev, "%s: Device matched ... !\n", __func__);
 
-	cs = gigaset_getunassignedcs(driver);
-	if (!cs) {
-		dev_warn(&udev->dev, "no free cardstate\n");
+	/* allocate memory for our device state and intialize it */
+	cs = gigaset_initcs(driver, 1, 1, 0, cidmode, GIGASET_MODULENAME);
+	if (!cs)
 		return -ENODEV;
-	}
 	ucs = cs->hw.usb;
 
 	/* save off device structure ptrs for later use */
@@ -818,7 +816,7 @@ error:
 	usb_put_dev(ucs->udev);
 	ucs->udev = NULL;
 	ucs->interface = NULL;
-	gigaset_unassign(cs);
+	gigaset_freecs(cs);
 	return retval;
 }
 
@@ -852,7 +850,7 @@ static void gigaset_disconnect(struct usb_interface *interface)
 	ucs->interface = NULL;
 	ucs->udev = NULL;
 	cs->dev = NULL;
-	gigaset_unassign(cs);
+	gigaset_freecs(cs);
 }
 
 /* gigaset_suspend
@@ -934,11 +932,6 @@ static int __init usb_gigaset_init(void)
 				       &ops, THIS_MODULE)) == NULL)
 		goto error;
 
-	/* allocate memory for our device state and intialize it */
-	cardstate = gigaset_initcs(driver, 1, 1, 0, cidmode, GIGASET_MODULENAME);
-	if (!cardstate)
-		goto error;
-
 	/* register this driver with the USB subsystem */
 	result = usb_register(&gigaset_usb_driver);
 	if (result < 0) {
@@ -951,9 +944,7 @@ static int __init usb_gigaset_init(void)
 	info(DRIVER_DESC);
 	return 0;
 
-error:	if (cardstate)
-		gigaset_freecs(cardstate);
-	cardstate = NULL;
+error:
 	if (driver)
 		gigaset_freedriver(driver);
 	driver = NULL;
@@ -967,11 +958,16 @@ error:	if (cardstate)
  */
 static void __exit usb_gigaset_exit(void)
 {
+	int i;
+
 	gigaset_blockdriver(driver); /* => probe will fail
 				      * => no gigaset_start any more
 				      */
 
-	gigaset_shutdown(cardstate);
+	/* stop all connected devices */
+	for (i = 0; i < driver->minors; i++)
+		gigaset_shutdown(driver->cs + i);
+
 	/* from now on, no isdn callback should be possible */
 
 	/* deregister this driver with the USB subsystem */
@@ -979,8 +975,6 @@ static void __exit usb_gigaset_exit(void)
 	/* this will call the disconnect-callback */
 	/* from now on, no disconnect/probe callback should be running */
 
-	gigaset_freecs(cardstate);
-	cardstate = NULL;
 	gigaset_freedriver(driver);
 	driver = NULL;
 }

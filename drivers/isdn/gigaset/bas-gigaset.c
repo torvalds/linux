@@ -134,7 +134,6 @@ struct bas_cardstate {
 
 
 static struct gigaset_driver *driver = NULL;
-static struct cardstate *cardstate = NULL;
 
 /* usb specific object needed to register this driver with the usb subsystem */
 static struct usb_driver gigaset_usb_driver = {
@@ -2247,11 +2246,11 @@ static int gigaset_probe(struct usb_interface *interface,
 		 __func__, le16_to_cpu(udev->descriptor.idVendor),
 		 le16_to_cpu(udev->descriptor.idProduct));
 
-	cs = gigaset_getunassignedcs(driver);
-	if (!cs) {
-		dev_err(&udev->dev, "no free cardstate\n");
+	/* allocate memory for our device state and intialize it */
+	cs = gigaset_initcs(driver, BAS_CHANNELS, 0, 0, cidmode,
+			    GIGASET_MODULENAME);
+	if (!cs)
 		return -ENODEV;
-	}
 	ucs = cs->hw.bas;
 
 	/* save off device structure ptrs for later use */
@@ -2320,7 +2319,7 @@ allocerr:
 error:
 	freeurbs(cs);
 	usb_set_intfdata(interface, NULL);
-	gigaset_unassign(cs);
+	gigaset_freecs(cs);
 	return -ENODEV;
 }
 
@@ -2362,7 +2361,7 @@ static void gigaset_disconnect(struct usb_interface *interface)
 	ucs->interface = NULL;
 	ucs->udev = NULL;
 	cs->dev = NULL;
-	gigaset_unassign(cs);
+	gigaset_freecs(cs);
 }
 
 /* gigaset_suspend
@@ -2501,12 +2500,6 @@ static int __init bas_gigaset_init(void)
 				       &gigops, THIS_MODULE)) == NULL)
 		goto error;
 
-	/* allocate memory for our device state and intialize it */
-	cardstate = gigaset_initcs(driver, BAS_CHANNELS, 0, 0, cidmode,
-				   GIGASET_MODULENAME);
-	if (!cardstate)
-		goto error;
-
 	/* register this driver with the USB subsystem */
 	result = usb_register(&gigaset_usb_driver);
 	if (result < 0) {
@@ -2518,9 +2511,7 @@ static int __init bas_gigaset_init(void)
 	info(DRIVER_DESC);
 	return 0;
 
-error:	if (cardstate)
-		gigaset_freecs(cardstate);
-	cardstate = NULL;
+error:
 	if (driver)
 		gigaset_freedriver(driver);
 	driver = NULL;
@@ -2532,43 +2523,50 @@ error:	if (cardstate)
  */
 static void __exit bas_gigaset_exit(void)
 {
-	struct bas_cardstate *ucs = cardstate->hw.bas;
+	struct bas_cardstate *ucs;
+	int i;
 
 	gigaset_blockdriver(driver); /* => probe will fail
 				      * => no gigaset_start any more
 				      */
 
-	gigaset_shutdown(cardstate);
-	/* from now on, no isdn callback should be possible */
+	/* stop all connected devices */
+	for (i = 0; i < driver->minors; i++) {
+		if (gigaset_shutdown(driver->cs + i) < 0)
+			continue;		/* no device */
+		/* from now on, no isdn callback should be possible */
 
-	/* close all still open channels */
-	if (ucs->basstate & BS_B1OPEN) {
-		gig_dbg(DEBUG_INIT, "closing B1 channel");
-		usb_control_msg(ucs->udev, usb_sndctrlpipe(ucs->udev, 0),
-				HD_CLOSE_B1CHANNEL, OUT_VENDOR_REQ, 0, 0,
-				NULL, 0, BAS_TIMEOUT);
+		/* close all still open channels */
+		ucs = driver->cs[i].hw.bas;
+		if (ucs->basstate & BS_B1OPEN) {
+			gig_dbg(DEBUG_INIT, "closing B1 channel");
+			usb_control_msg(ucs->udev,
+					usb_sndctrlpipe(ucs->udev, 0),
+					HD_CLOSE_B1CHANNEL, OUT_VENDOR_REQ,
+					0, 0, NULL, 0, BAS_TIMEOUT);
+		}
+		if (ucs->basstate & BS_B2OPEN) {
+			gig_dbg(DEBUG_INIT, "closing B2 channel");
+			usb_control_msg(ucs->udev,
+					usb_sndctrlpipe(ucs->udev, 0),
+					HD_CLOSE_B2CHANNEL, OUT_VENDOR_REQ,
+					0, 0, NULL, 0, BAS_TIMEOUT);
+		}
+		if (ucs->basstate & BS_ATOPEN) {
+			gig_dbg(DEBUG_INIT, "closing AT channel");
+			usb_control_msg(ucs->udev,
+					usb_sndctrlpipe(ucs->udev, 0),
+					HD_CLOSE_ATCHANNEL, OUT_VENDOR_REQ,
+					0, 0, NULL, 0, BAS_TIMEOUT);
+		}
+		ucs->basstate = 0;
 	}
-	if (ucs->basstate & BS_B2OPEN) {
-		gig_dbg(DEBUG_INIT, "closing B2 channel");
-		usb_control_msg(ucs->udev, usb_sndctrlpipe(ucs->udev, 0),
-				HD_CLOSE_B2CHANNEL, OUT_VENDOR_REQ, 0, 0,
-				NULL, 0, BAS_TIMEOUT);
-	}
-	if (ucs->basstate & BS_ATOPEN) {
-		gig_dbg(DEBUG_INIT, "closing AT channel");
-		usb_control_msg(ucs->udev, usb_sndctrlpipe(ucs->udev, 0),
-				HD_CLOSE_ATCHANNEL, OUT_VENDOR_REQ, 0, 0,
-				NULL, 0, BAS_TIMEOUT);
-	}
-	ucs->basstate = 0;
 
 	/* deregister this driver with the USB subsystem */
 	usb_deregister(&gigaset_usb_driver);
 	/* this will call the disconnect-callback */
 	/* from now on, no disconnect/probe callback should be running */
 
-	gigaset_freecs(cardstate);
-	cardstate = NULL;
 	gigaset_freedriver(driver);
 	driver = NULL;
 }

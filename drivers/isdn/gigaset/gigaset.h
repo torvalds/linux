@@ -435,6 +435,7 @@ struct cardstate {
 	unsigned minor_index;
 	struct device *dev;
 	struct device *tty_dev;
+	unsigned flags;
 
 	const struct gigaset_ops *ops;
 
@@ -539,7 +540,6 @@ struct gigaset_driver {
 	unsigned minor;
 	unsigned minors;
 	struct cardstate *cs;
-	unsigned *flags;
 	int blocked;
 
 	const struct gigaset_ops *ops;
@@ -767,10 +767,6 @@ void gigaset_freedriver(struct gigaset_driver *drv);
 void gigaset_debugdrivers(void);
 struct cardstate *gigaset_get_cs_by_tty(struct tty_struct *tty);
 struct cardstate *gigaset_get_cs_by_id(int id);
-
-/* For drivers without fixed assignment device<->cardstate (usb) */
-struct cardstate *gigaset_getunassignedcs(struct gigaset_driver *drv);
-void gigaset_unassign(struct cardstate *cs);
 void gigaset_blockdriver(struct gigaset_driver *drv);
 
 /* Allocate and initialize card state. Calls hardware dependent
@@ -789,7 +785,7 @@ int gigaset_start(struct cardstate *cs);
 void gigaset_stop(struct cardstate *cs);
 
 /* Tell common.c that the driver is being unloaded. */
-void gigaset_shutdown(struct cardstate *cs);
+int gigaset_shutdown(struct cardstate *cs);
 
 /* Tell common.c that an skb has been sent. */
 void gigaset_skb_sent(struct bc_state *bcs, struct sk_buff *skb);

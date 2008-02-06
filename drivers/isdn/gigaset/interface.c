@@ -161,7 +161,7 @@ static int if_open(struct tty_struct *tty, struct file *filp)
 	tty->driver_data = NULL;
 
 	cs = gigaset_get_cs_by_tty(tty);
-	if (!cs)
+	if (!cs || !try_module_get(cs->driver->owner))
 		return -ENODEV;
 
 	if (mutex_lock_interruptible(&cs->mutex))
@@ -207,6 +207,8 @@ static void if_close(struct tty_struct *tty, struct file *filp)
 	}
 
 	mutex_unlock(&cs->mutex);
+
+	module_put(cs->driver->owner);
 }
 
 static int if_ioctl(struct tty_struct *tty, struct file *file,
