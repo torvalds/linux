@@ -2468,9 +2468,10 @@ static int __init pppol2tp_init(void)
 
 out:
 	return err;
-
+#ifdef CONFIG_PROC_FS
 out_unregister_pppox_proto:
 	unregister_pppox_proto(PX_PROTO_OL2TP);
+#endif
 out_unregister_pppol2tp_proto:
 	proto_unregister(&pppol2tp_sk_proto);
 	goto out;
