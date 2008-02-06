@@ -772,17 +772,21 @@ extern int iwl4965_set_fat_chan_info(struct iwl4965_priv *priv,
 extern void iwl4965_rf_kill_ct_config(struct iwl4965_priv *priv);
 
 #ifdef CONFIG_IWL4965_HT
-extern void iwl4965_init_ht_hw_capab(struct ieee80211_ht_info *ht_info,
-					int mode);
-extern void iwl4965_set_rxon_ht(struct iwl4965_priv *priv,
-				struct iwl_ht_info *ht_info);
-extern void iwl4965_set_ht_add_station(struct iwl4965_priv *priv, u8 index,
+void iwl4965_init_ht_hw_capab(struct ieee80211_ht_info *ht_info,
+			      enum ieee80211_band band);
+void iwl4965_set_rxon_ht(struct iwl4965_priv *priv,
+			 struct iwl_ht_info *ht_info);
+void iwl4965_set_ht_add_station(struct iwl4965_priv *priv, u8 index,
 				struct ieee80211_ht_info *sta_ht_inf);
-extern int iwl4965_mac_ampdu_action(struct ieee80211_hw *hw,
+int iwl4965_mac_ampdu_action(struct ieee80211_hw *hw,
 				    enum ieee80211_ampdu_mlme_action action,
 				    const u8 *addr, u16 tid, u16 *ssn);
-extern int iwl4965_check_empty_hw_queue(struct iwl4965_priv *priv, int sta_id,
+int iwl4965_check_empty_hw_queue(struct iwl4965_priv *priv, int sta_id,
 					u8 tid, int txq_id);
+#else
+static inline void iwl4965_init_ht_hw_capab(struct ieee80211_ht_info *ht_info,
+					    enum ieee80211_band band) {}
+
 #endif /*CONFIG_IWL4965_HT */
 /* Structures, enum, and defines specific to the 4965 */
 

@@ -464,7 +464,7 @@ static void rs_tx_status(void *priv_rate,
 	IWL_DEBUG_RATE("enter\n");
 
 	retries = tx_resp->retry_count;
-
+	/* FIXME : this is wrong */
 	first_index = &sband->bitrates[0] - tx_resp->control.tx_rate;
 	if ((first_index < 0) || (first_index >= IWL_RATE_COUNT)) {
 		IWL_DEBUG_RATE("leave: Rate out of bounds: %d\n", first_index);

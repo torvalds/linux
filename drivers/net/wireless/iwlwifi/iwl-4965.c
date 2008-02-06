@@ -3459,14 +3459,15 @@ static int parse_elems(u8 *start, size_t len, struct ieee802_11_elems *elems)
 	return 0;
 }
 
-void iwl4965_init_ht_hw_capab(struct ieee80211_ht_info *ht_info, int mode)
+void iwl4965_init_ht_hw_capab(struct ieee80211_ht_info *ht_info,
+			      enum ieee80211_band band)
 {
 	ht_info->cap = 0;
 	memset(ht_info->supp_mcs_set, 0, 16);
 
 	ht_info->ht_supported = 1;
 
-	if (mode == MODE_IEEE80211A) {
+	if (band == IEEE80211_BAND_5GHZ) {
 		ht_info->cap |= (u16)IEEE80211_HT_CAP_SUP_WIDTH;
 		ht_info->cap |= (u16)IEEE80211_HT_CAP_SGI_40;
 		ht_info->supp_mcs_set[4] = 0x01;
@@ -3896,7 +3897,9 @@ static int iwl4965_tx_status_reply_compressed_ba(struct iwl4965_priv *priv,
 	tx_status->flags |= IEEE80211_TX_STATUS_AMPDU;
 	tx_status->ampdu_ack_map = successes;
 	tx_status->ampdu_ack_len = agg->frame_count;
+	/* FIXME Wrong rate
 	tx_status->control.tx_rate = agg->rate_n_flags;
+	*/
 
 	IWL_DEBUG_TX_REPLY("Bitmap %llx\n", bitmap);
 
@@ -4218,7 +4221,7 @@ void iwl4965_add_station(struct iwl4965_priv *priv, const u8 *addr, int is_ap)
 
 static u8 iwl4965_is_channel_extension(struct iwl4965_priv *priv,
 				       enum ieee80211_band band,
-				   u16 channel, u8 extension_chan_offset)
+				       u16 channel, u8 extension_chan_offset)
 {
 	const struct iwl4965_channel_info *ch_info;
 
@@ -4252,7 +4255,7 @@ static u8 iwl4965_is_fat_tx_allowed(struct iwl4965_priv *priv,
 			return 0;
 	}
 
-	return (iwl4965_is_channel_extension(priv, priv->phymode,
+	return (iwl4965_is_channel_extension(priv, priv->band,
 					 iwl_ht_conf->control_channel,
 					 iwl_ht_conf->extension_chan_offset));
 }

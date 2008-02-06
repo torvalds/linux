@@ -1893,24 +1893,20 @@ static u16 iwl4965_supported_rate_to_ie(u8 *ie, u16 supported_rate,
 	return ret_rates;
 }
 
-#ifdef CONFIG_IWL4965_HT
-void static iwl4965_set_ht_capab(struct ieee80211_hw *hw,
-			     struct ieee80211_ht_cap *ht_cap,
-			     u8 use_current_config);
-#endif
-
 /**
  * iwl4965_fill_probe_req - fill in all required fields and IE for probe request
  */
 static u16 iwl4965_fill_probe_req(struct iwl4965_priv *priv,
-			      struct ieee80211_mgmt *frame,
-			      int left, int is_direct)
+				  enum ieee80211_band band,
+				  struct ieee80211_mgmt *frame,
+				  int left, int is_direct)
 {
 	int len = 0;
 	u8 *pos = NULL;
 	u16 active_rates, ret_rates, cck_rates, active_rate_basic;
 #ifdef CONFIG_IWL4965_HT
-	struct ieee80211_hw_mode *mode;
+	const struct ieee80211_supported_band *sband =
+						iwl4965_get_hw_mode(priv, band);
 #endif /* CONFIG_IWL4965_HT */
 
 	/* Make sure there is enough space for the probe request,
@@ -1995,13 +1991,18 @@ static u16 iwl4965_fill_probe_req(struct iwl4965_priv *priv,
 		len += 2 + *pos;
 
 #ifdef CONFIG_IWL4965_HT
-	mode = priv->hw->conf.mode;
-	if (mode->ht_info.ht_supported) {
+	if (sband && sband->ht_info.ht_supported) {
+		struct ieee80211_ht_cap *ht_cap;
 		pos += (*pos) + 1;
 		*pos++ = WLAN_EID_HT_CAPABILITY;
 		*pos++ = sizeof(struct ieee80211_ht_cap);
-		iwl4965_set_ht_capab(priv->hw,
-				(struct ieee80211_ht_cap *)pos, 0);
+		ht_cap = (struct ieee80211_ht_cap *)pos;
+		ht_cap->cap_info = cpu_to_le16(sband->ht_info.cap);
+		memcpy(ht_cap->supp_mcs_set, sband->ht_info.supp_mcs_set, 16);
+		ht_cap->ampdu_params_info =(sband->ht_info.ampdu_factor &
+					    IEEE80211_HT_CAP_AMPDU_FACTOR) |
+					    ((sband->ht_info.ampdu_density << 2) &
+					    IEEE80211_HT_CAP_AMPDU_DENSITY);
 		len += 2 + sizeof(struct ieee80211_ht_cap);
 	}
 #endif  /*CONFIG_IWL4965_HT */
@@ -3592,8 +3593,9 @@ static int iwl4965_tx_status_reply_tx(struct iwl4965_priv *priv,
 		tx_status->control.flags &= ~IEEE80211_TXCTL_AMPDU;
 		tx_status->flags = iwl4965_is_tx_success(status)?
 			IEEE80211_TX_STATUS_ACK : 0;
+		/* FIXME Wrong Rate
 		tx_status->control.tx_rate =
-				iwl4965_hw_get_rate_n_flags(tx_resp->rate_n_flags);
+				iwl4965_hw_get_rate_n_flags(tx_resp->rate_n_flags); */
 		/* FIXME: code repetition end */
 
 		IWL_DEBUG_TX_REPLY("1 Frame 0x%x failure :%d\n",
@@ -5775,21 +5777,19 @@ static int iwl4965_init_geos(struct iwl4965_priv *priv)
 	}
 
 	/* 5.2GHz channels start after the 2.4GHz channels */
-#ifdef CONFIG_IWL4965_HT
-	iwl4965_init_ht_hw_capab(&modes[A].ht_info, MODE_IEEE80211A);
-#endif
-#ifdef CONFIG_IWL4965_HT
-	iwl4965_init_ht_hw_capab(&modes[G].ht_info, MODE_IEEE80211G);
-#endif
 	band = &priv->bands[IEEE80211_BAND_5GHZ];
 	band->channels = &channels[ARRAY_SIZE(iwl4965_eeprom_band_1)];
 	band->bitrates = &rates[4];
 	band->n_bitrates = 8;	/* just OFDM */
 
+	iwl4965_init_ht_hw_capab(&band->ht_info, IEEE80211_BAND_5GHZ);
+
 	band = &priv->bands[IEEE80211_BAND_2GHZ];
 	band->channels = channels;
 	band->bitrates = rates;
 	band->n_bitrates = 12;	/* OFDM & CCK */
+
+	iwl4965_init_ht_hw_capab(&band->ht_info, IEEE80211_BAND_2GHZ);
 
 	priv->ieee_channels = channels;
 	priv->ieee_rates = rates;
@@ -6860,8 +6860,9 @@ static void iwl4965_bg_request_scan(struct work_struct *data)
 	int rc = 0;
 	struct iwl4965_scan_cmd *scan;
 	struct ieee80211_conf *conf = NULL;
-	u8 direct_mask;
+	u16 cmd_len;
 	enum ieee80211_band band;
+	u8 direct_mask;
 
 	conf = ieee80211_get_hw_conf(priv->hw);
 
@@ -6970,18 +6971,10 @@ static void iwl4965_bg_request_scan(struct work_struct *data)
 	} else
 		direct_mask = 0;
 
-	/* We don't build a direct scan probe request; the uCode will do
-	 * that based on the direct_mask added to each channel entry */
-	scan->tx_cmd.len = cpu_to_le16(
-		iwl4965_fill_probe_req(priv, (struct ieee80211_mgmt *)scan->data,
-			IWL_MAX_SCAN_SIZE - sizeof(*scan), 0));
 	scan->tx_cmd.tx_flags = TX_CMD_FLG_SEQ_CTL_MSK;
 	scan->tx_cmd.sta_id = priv->hw_setting.bcast_sta_id;
 	scan->tx_cmd.stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
 
-	/* flags + rate selection */
-
-	scan->tx_cmd.tx_flags |= cpu_to_le32(0x200);
 
 	switch (priv->scan_bands) {
 	case 2:
@@ -7007,6 +7000,13 @@ static void iwl4965_bg_request_scan(struct work_struct *data)
 		goto done;
 	}
 
+	/* We don't build a direct scan probe request; the uCode will do
+	 * that based on the direct_mask added to each channel entry */
+	cmd_len = iwl4965_fill_probe_req(priv, band,
+					(struct ieee80211_mgmt *)scan->data,
+					IWL_MAX_SCAN_SIZE - sizeof(*scan), 0);
+
+	scan->tx_cmd.len = cpu_to_le16(cmd_len);
 	/* select Rx chains */
 
 	/* Force use of chains B and C (0x6) for scan Rx.
@@ -7468,10 +7468,10 @@ static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *co
 	}
 
 #ifdef CONFIG_IWL4965_HT
-	/* if we are switching fron ht to 2.4 clear flags
+	/* if we are switching from ht to 2.4 clear flags
 	 * from any ht related info since 2.4 does not
 	 * support ht */
-	if ((le16_to_cpu(priv->staging_rxon.channel) != conf->channel)
+	if ((le16_to_cpu(priv->staging_rxon.channel) != conf->channel->hw_value)
 #ifdef IEEE80211_CONF_CHANNEL_SWITCH
 	    && !(conf->flags & IEEE80211_CONF_CHANNEL_SWITCH)
 #endif
@@ -8186,27 +8186,6 @@ static int iwl4965_mac_conf_ht(struct ieee80211_hw *hw,
 
 	IWL_DEBUG_MAC80211("leave:\n");
 	return 0;
-}
-
-static void iwl4965_set_ht_capab(struct ieee80211_hw *hw,
-			struct ieee80211_ht_cap *ht_cap,
-			u8 use_current_config)
-{
-	struct ieee80211_conf *conf = &hw->conf;
-
-	if (use_current_config) {
-		ht_cap->cap_info = cpu_to_le16(conf->ht_conf.cap);
-		memcpy(ht_cap->supp_mcs_set,
-				conf->ht_conf.supp_mcs_set, 16);
-	} else {
-		ht_cap->cap_info = cpu_to_le16(mode->ht_info.cap);
-		memcpy(ht_cap->supp_mcs_set,
-				mode->ht_info.supp_mcs_set, 16);
-	}
-	ht_cap->ampdu_params_info =
-		(mode->ht_info.ampdu_factor & IEEE80211_HT_CAP_AMPDU_FACTOR) |
-		((mode->ht_info.ampdu_density << 2) &
-					IEEE80211_HT_CAP_AMPDU_DENSITY);
 }
 
 #endif /*CONFIG_IWL4965_HT*/
