@@ -1458,7 +1458,7 @@ int ext4_group_desc_csum_verify(struct ext4_sb_info *sbi, __u32 block_group,
 }
 
 /* Called at mount-time, super-block is locked */
-static int ext4_check_descriptors (struct super_block * sb)
+static int ext4_check_descriptors(struct super_block *sb)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	ext4_fsblk_t first_block = le32_to_cpu(sbi->s_es->s_first_data_block);
@@ -1466,8 +1466,6 @@ static int ext4_check_descriptors (struct super_block * sb)
 	ext4_fsblk_t block_bitmap;
 	ext4_fsblk_t inode_bitmap;
 	ext4_fsblk_t inode_table;
-	struct ext4_group_desc * gdp = NULL;
-	int desc_block = 0;
 	int flexbg_flag = 0;
 	ext4_group_t i;
 
@@ -1476,17 +1474,15 @@ static int ext4_check_descriptors (struct super_block * sb)
 
 	ext4_debug ("Checking group descriptors");
 
-	for (i = 0; i < sbi->s_groups_count; i++)
-	{
+	for (i = 0; i < sbi->s_groups_count; i++) {
+		struct ext4_group_desc *gdp = ext4_get_group_desc(sb, i, NULL);
+
 		if (i == sbi->s_groups_count - 1 || flexbg_flag)
 			last_block = ext4_blocks_count(sbi->s_es) - 1;
 		else
 			last_block = first_block +
 				(EXT4_BLOCKS_PER_GROUP(sb) - 1);
 
-		if ((i % EXT4_DESC_PER_BLOCK(sb)) == 0)
-			gdp = (struct ext4_group_desc *)
-					sbi->s_group_desc[desc_block++]->b_data;
 		block_bitmap = ext4_block_bitmap(sb, gdp);
 		if (block_bitmap < first_block || block_bitmap > last_block)
 		{
@@ -1524,8 +1520,6 @@ static int ext4_check_descriptors (struct super_block * sb)
 		}
 		if (!flexbg_flag)
 			first_block += EXT4_BLOCKS_PER_GROUP(sb);
-		gdp = (struct ext4_group_desc *)
-			((__u8 *)gdp + EXT4_DESC_SIZE(sb));
 	}
 
 	ext4_free_blocks_count_set(sbi->s_es, ext4_count_free_blocks(sb));
