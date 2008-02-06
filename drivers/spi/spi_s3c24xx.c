@@ -237,10 +237,8 @@ static int __init s3c24xx_spi_probe(struct platform_device *pdev)
 {
 	struct s3c24xx_spi *hw;
 	struct spi_master *master;
-	struct spi_board_info *bi;
 	struct resource *res;
 	int err = 0;
-	int i;
 
 	master = spi_alloc_master(&pdev->dev, sizeof(struct s3c24xx_spi));
 	if (master == NULL) {
@@ -346,16 +344,6 @@ static int __init s3c24xx_spi_probe(struct platform_device *pdev)
 	if (err) {
 		dev_err(&pdev->dev, "Failed to register SPI master\n");
 		goto err_register;
-	}
-
-	/* register all the devices associated */
-
-	bi = &hw->pdata->board_info[0];
-	for (i = 0; i < hw->pdata->board_size; i++, bi++) {
-		dev_info(hw->dev, "registering %s\n", bi->modalias);
-
-		bi->controller_data = hw;
-		spi_new_device(master, bi);
 	}
 
 	return 0;
