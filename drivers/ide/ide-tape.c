@@ -15,7 +15,7 @@
  * Documentation/ide/ChangeLog.ide-tape.1995-2002
  */
 
-#define IDETAPE_VERSION "1.19"
+#define IDETAPE_VERSION "1.20"
 
 #include <linux/module.h>
 #include <linux/types.h>
