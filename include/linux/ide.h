@@ -1309,4 +1309,18 @@ static inline void ide_set_irq(ide_drive_t *drive, int on)
 	drive->hwif->OUTB(drive->ctl | (on ? 0 : 2), IDE_CONTROL_REG);
 }
 
+static inline u8 ide_read_status(ide_drive_t *drive)
+{
+	ide_hwif_t *hwif = drive->hwif;
+
+	return hwif->INB(hwif->io_ports[IDE_STATUS_OFFSET]);
+}
+
+static inline u8 ide_read_altstatus(ide_drive_t *drive)
+{
+	ide_hwif_t *hwif = drive->hwif;
+
+	return hwif->INB(hwif->io_ports[IDE_CONTROL_OFFSET]);
+}
+
 #endif /* _IDE_H */

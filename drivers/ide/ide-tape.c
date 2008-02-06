@@ -1178,7 +1178,7 @@ static ide_startstop_t idetape_pc_intr (ide_drive_t *drive)
 #endif /* IDETAPE_DEBUG_LOG */	
 
 	/* Clear the interrupt */
-	stat = hwif->INB(IDE_STATUS_REG);
+	stat = ide_read_status(drive);
 
 	if (test_bit(PC_DMA_IN_PROGRESS, &pc->flags)) {
 		if (hwif->ide_dma_end(drive) || (stat & ERR_STAT)) {
@@ -1598,7 +1598,8 @@ static ide_startstop_t idetape_media_access_finished (ide_drive_t *drive)
 	idetape_pc_t *pc = tape->pc;
 	u8 stat;
 
-	stat = drive->hwif->INB(IDE_STATUS_REG);
+	stat = ide_read_status(drive);
+
 	if (stat & SEEK_STAT) {
 		if (stat & ERR_STAT) {
 			/* Error detected */
@@ -1758,7 +1759,7 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 	 * If the tape is still busy, postpone our request and service
 	 * the other device meanwhile.
 	 */
-	stat = drive->hwif->INB(IDE_STATUS_REG);
+	stat = ide_read_status(drive);
 
 	if (!drive->dsc_overlap && !(rq->cmd[0] & REQ_IDETAPE_PC2))
 		set_bit(IDETAPE_IGNORE_DSC, &tape->flags);
