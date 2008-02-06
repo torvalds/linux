@@ -606,8 +606,10 @@ u64 jiffies_64_to_clock_t(u64 x)
 # if HZ < USER_HZ
 	x *= USER_HZ;
 	do_div(x, HZ);
-# else
+# elif HZ > USER_HZ
 	do_div(x, HZ / USER_HZ);
+# else
+	/* Nothing to do */
 # endif
 #else
 	/*
