@@ -111,6 +111,7 @@ int shm_init_ns(struct ipc_namespace *ns)
 void shm_exit_ns(struct ipc_namespace *ns)
 {
 	struct shmid_kernel *shp;
+	struct kern_ipc_perm *perm;
 	int next_id;
 	int total, in_use;
 
@@ -119,10 +120,11 @@ void shm_exit_ns(struct ipc_namespace *ns)
 	in_use = shm_ids(ns).in_use;
 
 	for (total = 0, next_id = 0; total < in_use; next_id++) {
-		shp = idr_find(&shm_ids(ns).ipcs_idr, next_id);
-		if (shp == NULL)
+		perm = idr_find(&shm_ids(ns).ipcs_idr, next_id);
+		if (perm == NULL)
 			continue;
-		ipc_lock_by_ptr(&shp->shm_perm);
+		ipc_lock_by_ptr(perm);
+		shp = container_of(perm, struct shmid_kernel, shm_perm);
 		do_shm_rmid(ns, shp);
 		total++;
 	}
@@ -149,6 +151,9 @@ static inline struct shmid_kernel *shm_lock_down(struct ipc_namespace *ns,
 {
 	struct kern_ipc_perm *ipcp = ipc_lock_down(&shm_ids(ns), id);
 
+	if (IS_ERR(ipcp))
+		return (struct shmid_kernel *)ipcp;
+
 	return container_of(ipcp, struct shmid_kernel, shm_perm);
 }
 
@@ -157,6 +162,9 @@ static inline struct shmid_kernel *shm_lock_check_down(
 						int id)
 {
 	struct kern_ipc_perm *ipcp = ipc_lock_check_down(&shm_ids(ns), id);
+
+	if (IS_ERR(ipcp))
+		return (struct shmid_kernel *)ipcp;
 
 	return container_of(ipcp, struct shmid_kernel, shm_perm);
 }
@@ -169,6 +177,9 @@ static inline struct shmid_kernel *shm_lock(struct ipc_namespace *ns, int id)
 {
 	struct kern_ipc_perm *ipcp = ipc_lock(&shm_ids(ns), id);
 
+	if (IS_ERR(ipcp))
+		return (struct shmid_kernel *)ipcp;
+
 	return container_of(ipcp, struct shmid_kernel, shm_perm);
 }
 
@@ -176,6 +187,9 @@ static inline struct shmid_kernel *shm_lock_check(struct ipc_namespace *ns,
 						int id)
 {
 	struct kern_ipc_perm *ipcp = ipc_lock_check(&shm_ids(ns), id);
+
+	if (IS_ERR(ipcp))
+		return (struct shmid_kernel *)ipcp;
 
 	return container_of(ipcp, struct shmid_kernel, shm_perm);
 }

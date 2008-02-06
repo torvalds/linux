@@ -105,6 +105,7 @@ int msg_init_ns(struct ipc_namespace *ns)
 void msg_exit_ns(struct ipc_namespace *ns)
 {
 	struct msg_queue *msq;
+	struct kern_ipc_perm *perm;
 	int next_id;
 	int total, in_use;
 
@@ -113,10 +114,11 @@ void msg_exit_ns(struct ipc_namespace *ns)
 	in_use = msg_ids(ns).in_use;
 
 	for (total = 0, next_id = 0; total < in_use; next_id++) {
-		msq = idr_find(&msg_ids(ns).ipcs_idr, next_id);
-		if (msq == NULL)
+		perm = idr_find(&msg_ids(ns).ipcs_idr, next_id);
+		if (perm == NULL)
 			continue;
-		ipc_lock_by_ptr(&msq->q_perm);
+		ipc_lock_by_ptr(perm);
+		msq = container_of(perm, struct msg_queue, q_perm);
 		freeque(ns, msq);
 		total++;
 	}
@@ -144,6 +146,9 @@ static inline struct msg_queue *msg_lock_check_down(struct ipc_namespace *ns,
 {
 	struct kern_ipc_perm *ipcp = ipc_lock_check_down(&msg_ids(ns), id);
 
+	if (IS_ERR(ipcp))
+		return (struct msg_queue *)ipcp;
+
 	return container_of(ipcp, struct msg_queue, q_perm);
 }
 
@@ -155,6 +160,9 @@ static inline struct msg_queue *msg_lock(struct ipc_namespace *ns, int id)
 {
 	struct kern_ipc_perm *ipcp = ipc_lock(&msg_ids(ns), id);
 
+	if (IS_ERR(ipcp))
+		return (struct msg_queue *)ipcp;
+
 	return container_of(ipcp, struct msg_queue, q_perm);
 }
 
@@ -162,6 +170,9 @@ static inline struct msg_queue *msg_lock_check(struct ipc_namespace *ns,
 						int id)
 {
 	struct kern_ipc_perm *ipcp = ipc_lock_check(&msg_ids(ns), id);
+
+	if (IS_ERR(ipcp))
+		return (struct msg_queue *)ipcp;
 
 	return container_of(ipcp, struct msg_queue, q_perm);
 }
