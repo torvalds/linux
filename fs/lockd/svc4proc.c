@@ -88,12 +88,6 @@ nlm4svc_proc_test(struct svc_rqst *rqstp, struct nlm_args *argp,
 	dprintk("lockd: TEST4        called\n");
 	resp->cookie = argp->cookie;
 
-	/* Don't accept test requests during grace period */
-	if (locks_in_grace()) {
-		resp->status = nlm_lck_denied_grace_period;
-		return rc;
-	}
-
 	/* Obtain client and file */
 	if ((resp->status = nlm4svc_retrieve_args(rqstp, argp, &host, &file)))
 		return resp->status == nlm_drop_reply ? rpc_drop_reply :rpc_success;
@@ -122,12 +116,6 @@ nlm4svc_proc_lock(struct svc_rqst *rqstp, struct nlm_args *argp,
 
 	resp->cookie = argp->cookie;
 
-	/* Don't accept new lock requests during grace period */
-	if (locks_in_grace() && !argp->reclaim) {
-		resp->status = nlm_lck_denied_grace_period;
-		return rc;
-	}
-
 	/* Obtain client and file */
 	if ((resp->status = nlm4svc_retrieve_args(rqstp, argp, &host, &file)))
 		return resp->status == nlm_drop_reply ? rpc_drop_reply :rpc_success;
@@ -146,7 +134,8 @@ nlm4svc_proc_lock(struct svc_rqst *rqstp, struct nlm_args *argp,
 
 	/* Now try to lock the file */
 	resp->status = nlmsvc_lock(rqstp, file, host, &argp->lock,
-					argp->block, &argp->cookie);
+					argp->block, &argp->cookie,
+					argp->reclaim);
 	if (resp->status == nlm_drop_reply)
 		rc = rpc_drop_reply;
 	else
