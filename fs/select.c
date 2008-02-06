@@ -739,7 +739,7 @@ asmlinkage long sys_poll(struct pollfd __user *ufds, unsigned int nfds,
 			timeout_jiffies = -1;
 		else
 #endif
-			timeout_jiffies = msecs_to_jiffies(timeout_msecs);
+			timeout_jiffies = msecs_to_jiffies(timeout_msecs) + 1;
 	} else {
 		/* Infinite (< 0) or no (0) timeout */
 		timeout_jiffies = timeout_msecs;
