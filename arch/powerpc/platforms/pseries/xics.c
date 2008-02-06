@@ -160,6 +160,46 @@ static inline void lpar_qirr_info(int n_cpu , u8 value)
 
 /* High level handlers and init code */
 
+static void xics_update_irq_servers(void)
+{
+	int i, j;
+	struct device_node *np;
+	u32 ilen;
+	const u32 *ireg, *isize;
+	u32 hcpuid;
+
+	/* Find the server numbers for the boot cpu. */
+	np = of_get_cpu_node(boot_cpuid, NULL);
+	BUG_ON(!np);
+
+	ireg = of_get_property(np, "ibm,ppc-interrupt-gserver#s", &ilen);
+	if (!ireg) {
+		of_node_put(np);
+		return;
+	}
+
+	i = ilen / sizeof(int);
+	hcpuid = get_hard_smp_processor_id(boot_cpuid);
+
+	/* Global interrupt distribution server is specified in the last
+	 * entry of "ibm,ppc-interrupt-gserver#s" property. Get the last
+	 * entry fom this property for current boot cpu id and use it as
+	 * default distribution server
+	 */
+	for (j = 0; j < i; j += 2) {
+		if (ireg[j] == hcpuid) {
+			default_server = hcpuid;
+			default_distrib_server = ireg[j+1];
+
+			isize = of_get_property(np,
+					"ibm,interrupt-server#-size", NULL);
+			if (isize)
+				interrupt_server_size = *isize;
+		}
+	}
+
+	of_node_put(np);
+}
 
 #ifdef CONFIG_SMP
 static int get_irq_server(unsigned int virq, unsigned int strict_check)
@@ -168,6 +208,9 @@ static int get_irq_server(unsigned int virq, unsigned int strict_check)
 	/* For the moment only implement delivery to all cpus or one cpu */
 	cpumask_t cpumask = irq_desc[virq].affinity;
 	cpumask_t tmp = CPU_MASK_NONE;
+
+	if (! cpu_isset(default_server, cpu_online_map))
+		xics_update_irq_servers();
 
 	if (!distribute_irqs)
 		return default_server;
@@ -660,12 +703,9 @@ static void __init xics_setup_8259_cascade(void)
 
 void __init xics_init_IRQ(void)
 {
-	int i, j;
 	struct device_node *np;
-	u32 ilen, indx = 0;
-	const u32 *ireg, *isize;
+	u32 indx = 0;
 	int found = 0;
-	u32 hcpuid;
 
 	ppc64_boot_msg(0x20, "XICS Init");
 
@@ -684,34 +724,7 @@ void __init xics_init_IRQ(void)
 		return;
 
 	xics_init_host();
-
-	/* Find the server numbers for the boot cpu. */
-	np = of_get_cpu_node(boot_cpuid, NULL);
-	BUG_ON(!np);
-	ireg = of_get_property(np, "ibm,ppc-interrupt-gserver#s", &ilen);
-	if (!ireg)
-		goto skip_gserver_check;
-	i = ilen / sizeof(int);
-	hcpuid = get_hard_smp_processor_id(boot_cpuid);
-
-	/* Global interrupt distribution server is specified in the last
-	 * entry of "ibm,ppc-interrupt-gserver#s" property. Get the last
-	 * entry fom this property for current boot cpu id and use it as
-	 * default distribution server
-	 */
-	for (j = 0; j < i; j += 2) {
-		if (ireg[j] == hcpuid) {
-			default_server = hcpuid;
-			default_distrib_server = ireg[j+1];
-
-			isize = of_get_property(np,
-					"ibm,interrupt-server#-size", NULL);
-			if (isize)
-				interrupt_server_size = *isize;
-		}
-	}
-skip_gserver_check:
-	of_node_put(np);
+	xics_update_irq_servers();
 
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		ppc_md.get_irq = xics_get_irq_lpar;
