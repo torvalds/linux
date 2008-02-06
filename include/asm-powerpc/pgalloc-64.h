@@ -29,7 +29,7 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 	return kmem_cache_alloc(pgtable_cache[PGD_CACHE_NUM], GFP_KERNEL);
 }
 
-static inline void pgd_free(pgd_t *pgd)
+static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
 	subpage_prot_free(pgd);
 	kmem_cache_free(pgtable_cache[PGD_CACHE_NUM], pgd);
@@ -45,7 +45,7 @@ static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
 				GFP_KERNEL|__GFP_REPEAT);
 }
 
-static inline void pud_free(pud_t *pud)
+static inline void pud_free(struct mm_struct *mm, pud_t *pud)
 {
 	kmem_cache_free(pgtable_cache[PUD_CACHE_NUM], pud);
 }
@@ -81,7 +81,7 @@ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
 				GFP_KERNEL|__GFP_REPEAT);
 }
 
-static inline void pmd_free(pmd_t *pmd)
+static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
 {
 	kmem_cache_free(pgtable_cache[PMD_CACHE_NUM], pmd);
 }
@@ -99,12 +99,12 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm,
 	return pte ? virt_to_page(pte) : NULL;
 }
 
-static inline void pte_free_kernel(pte_t *pte)
+static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 {
 	free_page((unsigned long)pte);
 }
 
-static inline void pte_free(struct page *ptepage)
+static inline void pte_free(struct mm_struct *mm, struct page *ptepage)
 {
 	__free_page(ptepage);
 }

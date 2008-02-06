@@ -282,6 +282,15 @@ address_needs_mapping(struct device *hwdev, dma_addr_t addr)
 	return (addr & ~mask) != 0;
 }
 
+static inline unsigned int is_span_boundary(unsigned int index,
+					    unsigned int nslots,
+					    unsigned long offset_slots,
+					    unsigned long max_slots)
+{
+	unsigned long offset = (offset_slots + index) & (max_slots - 1);
+	return offset + nslots > max_slots;
+}
+
 /*
  * Allocates bounce buffer and returns its kernel virtual address.
  */
@@ -292,6 +301,16 @@ map_single(struct device *hwdev, char *buffer, size_t size, int dir)
 	char *dma_addr;
 	unsigned int nslots, stride, index, wrap;
 	int i;
+	unsigned long start_dma_addr;
+	unsigned long mask;
+	unsigned long offset_slots;
+	unsigned long max_slots;
+
+	mask = dma_get_seg_boundary(hwdev);
+	start_dma_addr = virt_to_bus(io_tlb_start) & mask;
+
+	offset_slots = ALIGN(start_dma_addr, 1 << IO_TLB_SHIFT) >> IO_TLB_SHIFT;
+	max_slots = ALIGN(mask + 1, 1 << IO_TLB_SHIFT) >> IO_TLB_SHIFT;
 
 	/*
 	 * For mappings greater than a page, we limit the stride (and
@@ -311,10 +330,17 @@ map_single(struct device *hwdev, char *buffer, size_t size, int dir)
 	 */
 	spin_lock_irqsave(&io_tlb_lock, flags);
 	{
-		wrap = index = ALIGN(io_tlb_index, stride);
-
+		index = ALIGN(io_tlb_index, stride);
 		if (index >= io_tlb_nslabs)
-			wrap = index = 0;
+			index = 0;
+
+		while (is_span_boundary(index, nslots, offset_slots,
+					max_slots)) {
+			index += stride;
+			if (index >= io_tlb_nslabs)
+				index = 0;
+		}
+		wrap = index;
 
 		do {
 			/*
@@ -341,9 +367,12 @@ map_single(struct device *hwdev, char *buffer, size_t size, int dir)
 
 				goto found;
 			}
-			index += stride;
-			if (index >= io_tlb_nslabs)
-				index = 0;
+			do {
+				index += stride;
+				if (index >= io_tlb_nslabs)
+					index = 0;
+			} while (is_span_boundary(index, nslots, offset_slots,
+						  max_slots));
 		} while (index != wrap);
 
 		spin_unlock_irqrestore(&io_tlb_lock, flags);

@@ -12,7 +12,7 @@
 #include <linux/mutex.h>
 #include <linux/sched.h>
 #include <linux/notifier.h>
-#include <linux/latency.h>
+#include <linux/pm_qos_params.h>
 #include <linux/cpu.h>
 #include <linux/cpuidle.h>
 
@@ -265,7 +265,10 @@ static struct notifier_block cpuidle_latency_notifier = {
 	.notifier_call = cpuidle_latency_notify,
 };
 
-#define latency_notifier_init(x) do { register_latency_notifier(x); } while (0)
+static inline void latency_notifier_init(struct notifier_block *n)
+{
+	pm_qos_add_notifier(PM_QOS_CPU_DMA_LATENCY, n);
+}
 
 #else /* CONFIG_SMP */
 

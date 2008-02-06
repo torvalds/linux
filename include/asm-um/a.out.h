@@ -13,11 +13,9 @@
 
 extern unsigned long stacksizelim;
 
-extern unsigned long host_task_size;
-
 #define STACK_ROOM (stacksizelim)
 
-#define STACK_TOP task_size
+#define STACK_TOP (TASK_SIZE - 2 * PAGE_SIZE)
 
 #define STACK_TOP_MAX STACK_TOP
 

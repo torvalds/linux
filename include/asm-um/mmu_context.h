@@ -6,10 +6,11 @@
 #ifndef __UM_MMU_CONTEXT_H
 #define __UM_MMU_CONTEXT_H
 
-#include <asm-generic/mm_hooks.h>
-
 #include "linux/sched.h"
 #include "um_mmu.h"
+
+extern void arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm);
+extern void arch_exit_mmap(struct mm_struct *mm);
 
 #define get_mmu_context(task) do ; while(0)
 #define activate_context(tsk) do ; while(0)
@@ -30,6 +31,8 @@ static inline void activate_mm(struct mm_struct *old, struct mm_struct *new)
 	 */
 	if (old != new && (current->flags & PF_BORROWED_MM))
 		__switch_mm(&new->context.id);
+
+	arch_dup_mmap(old, new);
 }
 
 static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next, 

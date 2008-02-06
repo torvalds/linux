@@ -12,10 +12,6 @@
 
 typedef struct mm_context {
 	struct mm_id id;
-	unsigned long last_page_table;
-#ifdef CONFIG_3_LEVEL_PGTABLES
-	unsigned long last_pmd;
-#endif
 	struct uml_ldt ldt;
 } mm_context_t;
 

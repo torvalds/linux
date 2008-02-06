@@ -228,5 +228,7 @@ extern void FASTCALL(free_cold_page(struct page *page));
 
 void page_alloc_init(void);
 void drain_zone_pages(struct zone *zone, struct per_cpu_pages *pcp);
+void drain_all_pages(void);
+void drain_local_pages(void *dummy);
 
 #endif /* __LINUX_GFP_H */

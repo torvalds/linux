@@ -932,7 +932,7 @@ static int gfs2_block_truncate_page(struct address_space *mapping)
 	if (!gfs2_is_writeback(ip))
 		gfs2_trans_add_bh(ip->i_gl, bh, 0);
 
-	zero_user_page(page, offset, length, KM_USER0);
+	zero_user(page, offset, length);
 
 unlock:
 	unlock_page(page);

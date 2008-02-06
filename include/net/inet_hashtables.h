@@ -389,7 +389,7 @@ static inline struct sock *inet_lookup(struct net *net,
 }
 
 extern int __inet_hash_connect(struct inet_timewait_death_row *death_row,
-		struct sock *sk,
+		struct sock *sk, u32 port_offset,
 		int (*check_established)(struct inet_timewait_death_row *,
 			struct sock *, __u16, struct inet_timewait_sock **),
 			       void (*hash)(struct sock *sk));

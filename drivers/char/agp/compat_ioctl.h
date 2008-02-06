@@ -39,6 +39,7 @@
 #define AGPIOC_DEALLOCATE32 _IOW (AGPIOC_BASE, 7, compat_int_t)
 #define AGPIOC_BIND32       _IOW (AGPIOC_BASE, 8, compat_uptr_t)
 #define AGPIOC_UNBIND32     _IOW (AGPIOC_BASE, 9, compat_uptr_t)
+#define AGPIOC_CHIPSET_FLUSH32 _IO (AGPIOC_BASE, 10)
 
 struct agp_info32 {
 	struct agp_version version;	/* version of the driver        */
@@ -101,5 +102,6 @@ void agp_free_memory_wrap(struct agp_memory *memory);
 struct agp_memory *agp_allocate_memory_wrap(size_t pg_count, u32 type);
 struct agp_memory *agp_find_mem_by_key(int key);
 struct agp_client *agp_find_client_by_pid(pid_t id);
+int agpioc_chipset_flush_wrap(struct agp_file_private *priv);
 
 #endif /* _AGP_COMPAT_H */

@@ -100,8 +100,8 @@ static inline void tlb_remove_page(struct mmu_gather *mp, struct page *page)
 }
 
 #define tlb_remove_tlb_entry(mp,ptep,addr) do { } while (0)
-#define pte_free_tlb(mp,ptepage) pte_free(ptepage)
-#define pmd_free_tlb(mp,pmdp) pmd_free(pmdp)
+#define pte_free_tlb(mp, ptepage) pte_free((mp)->mm, ptepage)
+#define pmd_free_tlb(mp, pmdp) pmd_free((mp)->mm, pmdp)
 #define pud_free_tlb(tlb,pudp) __pud_free_tlb(tlb,pudp)
 
 #define tlb_migrate_finish(mm)	do { } while (0)

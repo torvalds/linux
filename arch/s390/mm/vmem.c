@@ -62,7 +62,7 @@ void __meminit memmap_init(unsigned long size, int nid, unsigned long zone,
 	}
 }
 
-static void __init_refok *vmem_alloc_pages(unsigned int order)
+static void __ref *vmem_alloc_pages(unsigned int order)
 {
 	if (slab_is_available())
 		return (void *)__get_free_pages(GFP_KERNEL, order);
@@ -250,7 +250,7 @@ static int insert_memory_segment(struct memory_segment *seg)
 {
 	struct memory_segment *tmp;
 
-	if (seg->start + seg->size >= VMALLOC_START ||
+	if (seg->start + seg->size >= VMEM_MAX_PHYS ||
 	    seg->start + seg->size < seg->start)
 		return -ERANGE;
 
@@ -360,7 +360,6 @@ void __init vmem_map_init(void)
 {
 	int i;
 
-	BUILD_BUG_ON((unsigned long)VMEM_MAP + VMEM_MAP_SIZE > VMEM_MAP_MAX);
 	NODE_DATA(0)->node_mem_map = VMEM_MAP;
 	for (i = 0; i < MEMORY_CHUNKS && memory_chunk[i].size > 0; i++)
 		vmem_add_mem(memory_chunk[i].addr, memory_chunk[i].size);

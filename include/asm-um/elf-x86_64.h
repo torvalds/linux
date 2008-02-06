@@ -7,7 +7,6 @@
 #ifndef __UM_ELF_X86_64_H
 #define __UM_ELF_X86_64_H
 
-#include <linux/sched.h>
 #include <asm/user.h>
 #include "skas.h"
 
@@ -96,12 +95,7 @@ typedef struct user_i387_struct elf_fpregset_t;
 	(pr_reg)[25] = 0;					\
 	(pr_reg)[26] = 0;
 
-static inline int elf_core_copy_fpregs(struct task_struct *t,
-				       elf_fpregset_t *fpu)
-{
-	int cpu = current_thread->cpu;
-	return save_fp_registers(userspace_pid[cpu], (unsigned long *) fpu);
-}
+extern int elf_core_copy_fpregs(struct task_struct *t, elf_fpregset_t *fpu);
 
 #define ELF_CORE_COPY_FPREGS(t, fpu) elf_core_copy_fpregs(t, fpu)
 

@@ -8,7 +8,7 @@
 #ifndef __ASM_LDT_H
 #define __ASM_LDT_H
 
-#include "asm/semaphore.h"
+#include <linux/mutex.h>
 #include "asm/host_ldt.h"
 
 extern void ldt_host_info(void);
@@ -27,7 +27,7 @@ struct ldt_entry {
 
 typedef struct uml_ldt {
 	int entry_count;
-	struct semaphore semaphore;
+	struct mutex lock;
 	union {
 		struct ldt_entry * pages[LDT_PAGES_MAX];
 		struct ldt_entry entries[LDT_DIRECT_ENTRIES];

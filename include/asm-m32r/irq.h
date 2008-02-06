@@ -3,7 +3,7 @@
 #define _ASM_M32R_IRQ_H
 
 
-#if defined(CONFIG_PLAT_M32700UT_Alpha) || defined(CONFIG_PLAT_USRV)
+#if defined(CONFIG_PLAT_USRV)
 /*
  * IRQ definitions for M32700UT
  *  M32700 Chip: 64 interrupts

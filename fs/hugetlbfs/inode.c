@@ -768,7 +768,7 @@ hugetlbfs_parse_options(char *options, struct hugetlbfs_config *pconfig)
 		case Opt_mode:
 			if (match_octal(&args[0], &option))
  				goto bad_val;
-			pconfig->mode = option & 0777U;
+			pconfig->mode = option & 01777U;
 			break;
 
 		case Opt_size: {

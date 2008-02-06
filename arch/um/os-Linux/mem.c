@@ -9,7 +9,6 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/statfs.h>
-#include "kern_util.h"
 #include "user.h"
 #include "mem_user.h"
 #include "init.h"
@@ -30,7 +29,7 @@ static char *tempdir = NULL;
 
 static void __init find_tempdir(void)
 {
-	char *dirs[] = { "TMP", "TEMP", "TMPDIR", NULL };
+	const char *dirs[] = { "TMP", "TEMP", "TMPDIR", NULL };
 	int i;
 	char *dir = NULL;
 
@@ -59,9 +58,10 @@ static void __init find_tempdir(void)
  * read the file as needed.  If there's an error, -errno is returned;
  * if the end of the file is reached, 0 is returned.
  */
-static int next(int fd, char *buf, int size, char c)
+static int next(int fd, char *buf, size_t size, char c)
 {
-	int n, len;
+	ssize_t n;
+	size_t len;
 	char *ptr;
 
 	while((ptr = strchr(buf, c)) == NULL){
@@ -172,13 +172,15 @@ int __init make_tempfile(const char *template, char **out_tempname,
 
 	which_tmpdir();
 	tempname = malloc(MAXPATHLEN);
+	if (!tempname)
+		goto out;
 
 	find_tempdir();
 	if (template[0] != '/')
 		strcpy(tempname, tempdir);
 	else
 		tempname[0] = '\0';
-	strcat(tempname, template);
+	strncat(tempname, template, MAXPATHLEN-1-strlen(tempname));
 	fd = mkstemp(tempname);
 	if(fd < 0){
 		fprintf(stderr, "open - cannot create %s: %s\n", tempname,
@@ -268,6 +270,7 @@ void __init check_tmpexec(void)
 	if(addr == MAP_FAILED){
 		err = errno;
 		perror("failed");
+		close(fd);
 		if(err == EPERM)
 			printf("%s must be not mounted noexec\n",tempdir);
 		exit(1);

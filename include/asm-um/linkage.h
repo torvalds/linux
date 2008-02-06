@@ -3,10 +3,4 @@
 
 #include "asm/arch/linkage.h"
 
-
-/* <linux/linkage.h> will pick sane defaults */
-#ifdef CONFIG_GPROF
-#undef fastcall
-#endif
-
 #endif

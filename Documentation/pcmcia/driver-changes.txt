@@ -33,8 +33,8 @@ This file details changes in 2.6 which affect PCMCIA card driver authors:
    and can be used (e.g. for SET_NETDEV_DEV) by using
    handle_to_dev(client_handle_t * handle).
 
-* Convert internal I/O port addresses to unsigned long (as of 2.6.11)
-   ioaddr_t should be replaced by kio_addr_t in PCMCIA card drivers.
+* Convert internal I/O port addresses to unsigned int (as of 2.6.11)
+   ioaddr_t should be replaced by unsigned int in PCMCIA card drivers.
 
 * irq_mask and irq_list parameters (as of 2.6.11)
    The irq_mask and irq_list parameters should no longer be used in

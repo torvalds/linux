@@ -31,14 +31,6 @@
  * These match MkLinux so they should be correct.
  */
 
-#define IDE_DATA	0x00
-#define IDE_ERROR	0x04	/* see err-bits */
-#define IDE_NSECTOR	0x08	/* nr of sectors to read/write */
-#define IDE_SECTOR	0x0c	/* starting sector */
-#define IDE_LCYL	0x10	/* starting cylinder */
-#define IDE_HCYL	0x14	/* high byte of starting cyl */
-#define IDE_SELECT	0x18	/* 101dhhhh , d=drive, hhhh=head */
-#define IDE_STATUS	0x1c	/* see status-bits */
 #define IDE_CONTROL	0x38	/* control/altstatus */
 
 /*
@@ -63,11 +55,6 @@
 
 volatile unsigned char *ide_ifr = (unsigned char *) (IDE_BASE + IDE_IFR);
 
-static int macide_offsets[IDE_NR_PORTS] = {
-    IDE_DATA, IDE_ERROR,  IDE_NSECTOR, IDE_SECTOR, IDE_LCYL,
-    IDE_HCYL, IDE_SELECT, IDE_STATUS,  IDE_CONTROL
-};
-
 int macide_ack_intr(ide_hwif_t* hwif)
 {
 	if (*ide_ifr & 0x20) {
@@ -75,6 +62,22 @@ int macide_ack_intr(ide_hwif_t* hwif)
 		return 1;
 	}
 	return 0;
+}
+
+static void __init macide_setup_ports(hw_regs_t *hw, unsigned long base,
+				      int irq, ide_ack_intr_t *ack_intr)
+{
+	int i;
+
+	memset(hw, 0, sizeof(*hw));
+
+	for (i = 0; i < 8; i++)
+		hw->io_ports[i] = base + i * 4;
+
+	hw->io_ports[IDE_CONTROL_OFFSET] = IDE_CONTROL;
+
+	hw->irq = irq;
+	hw->ack_intr = ack_intr;
 }
 
 static const char *mac_ide_name[] =
@@ -86,27 +89,27 @@ static const char *mac_ide_name[] =
 
 static int __init macide_init(void)
 {
-	hw_regs_t hw;
 	ide_hwif_t *hwif;
+	ide_ack_intr_t *ack_intr;
+	unsigned long base;
+	int irq;
+	hw_regs_t hw;
 
 	switch (macintosh_config->ide_type) {
 	case MAC_IDE_QUADRA:
-		ide_setup_ports(&hw, IDE_BASE, macide_offsets,
-				0, 0, macide_ack_intr,
-//				quadra_ide_iops,
-				IRQ_NUBUS_F);
+		base = IDE_BASE;
+		ack_intr = macide_ack_intr;
+		irq = IRQ_NUBUS_F;
 		break;
 	case MAC_IDE_PB:
-		ide_setup_ports(&hw, IDE_BASE, macide_offsets,
-				0, 0, macide_ack_intr,
-//				macide_pb_iops,
-				IRQ_NUBUS_C);
+		base = IDE_BASE;
+		ack_intr = macide_ack_intr;
+		irq = IRQ_NUBUS_C;
 		break;
 	case MAC_IDE_BABOON:
-		ide_setup_ports(&hw, BABOON_BASE, macide_offsets,
-				0, 0, NULL,
-//				macide_baboon_iops,
-				IRQ_BABOON_1);
+		base = BABOON_BASE;
+		ack_intr = NULL;
+		irq = IRQ_BABOON_1;
 		break;
 	default:
 		return -ENODEV;
@@ -114,6 +117,8 @@ static int __init macide_init(void)
 
 	printk(KERN_INFO "ide: Macintosh %s IDE controller\n",
 			 mac_ide_name[macintosh_config->ide_type - 1]);
+
+	macide_setup_ports(&hw, base, irq, ack_intr);
 
 	hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
 	if (hwif) {

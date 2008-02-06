@@ -14,7 +14,7 @@ config UML_NET
 
         For more information, including explanations of the networking and
         sample configurations, see
-        <http://user-mode-linux.sourceforge.net/networking.html>.
+        <http://user-mode-linux.sourceforge.net/old/networking.html>.
 
         If you'd like to be able to enable networking in the User-Mode
         linux environment, say Y; otherwise say N.  Note that you must
@@ -38,7 +38,7 @@ config UML_NET_ETHERTAP
         CONFIG_NETLINK_DEV configured as Y or M.
 
         For more information, see
-        <http://user-mode-linux.sourceforge.net/networking.html>  That site
+        <http://user-mode-linux.sourceforge.net/old/networking.html>  That site
         has examples of the UML command line to use to enable Ethertap
         networking.
 
@@ -72,7 +72,7 @@ config UML_NET_SLIP
         To use this, your host must support slip devices.
 
         For more information, see
-        <http://user-mode-linux.sourceforge.net/networking.html>.  That site
+        <http://user-mode-linux.sourceforge.net/old/networking.html>.
         has examples of the UML command line to use to enable slip
         networking, and details of a few quirks with it.
 
@@ -96,7 +96,7 @@ config UML_NET_DAEMON
         networking daemon on the host.
 
         For more information, see
-        <http://user-mode-linux.sourceforge.net/networking.html>  That site
+        <http://user-mode-linux.sourceforge.net/old/networking.html>  That site
         has examples of the UML command line to use to enable Daemon
         networking.
 
@@ -144,7 +144,7 @@ config UML_NET_MCAST
         To use this, your host kernel(s) must support IP Multicasting.
 
         For more information, see
-        <http://user-mode-linux.sourceforge.net/networking.html>  That site
+        <http://user-mode-linux.sourceforge.net/old/networking.html>  That site
         has examples of the UML command line to use to enable Multicast
         networking, and notes about the security of this approach.
 
@@ -165,7 +165,7 @@ config UML_NET_PCAP
 	installed in order to build the pcap transport into UML.
 
         For more information, see
-        <http://user-mode-linux.sourceforge.net/networking.html>  That site
+        <http://user-mode-linux.sourceforge.net/old/networking.html>  That site
         has examples of the UML command line to use to enable this option.
 
 	If you intend to use UML as a network monitor for the host, say

@@ -472,7 +472,7 @@ int ehca_init_device(struct ehca_shca *shca)
 	shca->ib_device.dealloc_fmr	    = ehca_dealloc_fmr;
 	shca->ib_device.attach_mcast	    = ehca_attach_mcast;
 	shca->ib_device.detach_mcast	    = ehca_detach_mcast;
-	/* shca->ib_device.process_mad	    = ehca_process_mad;	    */
+	shca->ib_device.process_mad	    = ehca_process_mad;
 	shca->ib_device.mmap		    = ehca_mmap;
 
 	if (EHCA_BMASK_GET(HCA_CAP_SRQ, shca->hca_cap)) {

@@ -24,7 +24,9 @@
 extern void ia64_bad_param_for_setreg (void);
 extern void ia64_bad_param_for_getreg (void);
 
+#ifdef __KERNEL__
 register unsigned long ia64_r13 asm ("r13") __used;
+#endif
 
 #define ia64_setreg(regnum, val)						\
 ({										\

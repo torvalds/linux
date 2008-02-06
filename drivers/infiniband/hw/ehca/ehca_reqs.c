@@ -209,6 +209,10 @@ static inline int ehca_write_swqe(struct ehca_qp *qp,
 			ehca_gen_err("wr.ud.ah is NULL. qp=%p", qp);
 			return -EINVAL;
 		}
+		if (unlikely(send_wr->wr.ud.remote_qpn == 0)) {
+			ehca_gen_err("dest QP# is 0. qp=%x", qp->real_qp_num);
+			return -EINVAL;
+		}
 		my_av = container_of(send_wr->wr.ud.ah, struct ehca_av, ib_ah);
 		wqe_p->u.ud_av.ud_av = my_av->av;
 

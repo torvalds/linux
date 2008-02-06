@@ -911,27 +911,6 @@ __group_complete_signal(int sig, struct task_struct *p)
 			} while_each_thread(p, t);
 			return;
 		}
-
-		/*
-		 * There will be a core dump.  We make all threads other
-		 * than the chosen one go into a group stop so that nothing
-		 * happens until it gets scheduled, takes the signal off
-		 * the shared queue, and does the core dump.  This is a
-		 * little more complicated than strictly necessary, but it
-		 * keeps the signal state that winds up in the core dump
-		 * unchanged from the death state, e.g. which thread had
-		 * the core-dump signal unblocked.
-		 */
-		rm_from_queue(SIG_KERNEL_STOP_MASK, &t->pending);
-		rm_from_queue(SIG_KERNEL_STOP_MASK, &p->signal->shared_pending);
-		p->signal->group_stop_count = 0;
-		p->signal->group_exit_task = t;
-		p = t;
-		do {
-			p->signal->group_stop_count++;
-			signal_wake_up(t, t == p);
-		} while_each_thread(p, t);
-		return;
 	}
 
 	/*
@@ -978,7 +957,6 @@ void zap_other_threads(struct task_struct *p)
 {
 	struct task_struct *t;
 
-	p->signal->flags = SIGNAL_GROUP_EXIT;
 	p->signal->group_stop_count = 0;
 
 	for (t = next_thread(p); t != p; t = next_thread(t)) {
@@ -1709,9 +1687,6 @@ static int do_signal_stop(int signr)
 	struct signal_struct *sig = current->signal;
 	int stop_count;
 
-	if (!likely(sig->flags & SIGNAL_STOP_DEQUEUED))
-		return 0;
-
 	if (sig->group_stop_count > 0) {
 		/*
 		 * There is a group stop in progress.  We don't need to
@@ -1719,12 +1694,15 @@ static int do_signal_stop(int signr)
 		 */
 		stop_count = --sig->group_stop_count;
 	} else {
+		struct task_struct *t;
+
+		if (!likely(sig->flags & SIGNAL_STOP_DEQUEUED) ||
+		    unlikely(sig->group_exit_task))
+			return 0;
 		/*
 		 * There is no group stop already in progress.
 		 * We must initiate one now.
 		 */
-		struct task_struct *t;
-
 		sig->group_exit_code = signr;
 
 		stop_count = 0;
@@ -1752,47 +1730,6 @@ static int do_signal_stop(int signr)
 	return 1;
 }
 
-/*
- * Do appropriate magic when group_stop_count > 0.
- * We return nonzero if we stopped, after releasing the siglock.
- * We return zero if we still hold the siglock and should look
- * for another signal without checking group_stop_count again.
- */
-static int handle_group_stop(void)
-{
-	int stop_count;
-
-	if (current->signal->group_exit_task == current) {
-		/*
-		 * Group stop is so we can do a core dump,
-		 * We are the initiating thread, so get on with it.
-		 */
-		current->signal->group_exit_task = NULL;
-		return 0;
-	}
-
-	if (current->signal->flags & SIGNAL_GROUP_EXIT)
-		/*
-		 * Group stop is so another thread can do a core dump,
-		 * or else we are racing against a death signal.
-		 * Just punt the stop so we can get the next signal.
-		 */
-		return 0;
-
-	/*
-	 * There is a group stop in progress.  We stop
-	 * without any associated signal being in our queue.
-	 */
-	stop_count = --current->signal->group_stop_count;
-	if (stop_count == 0)
-		current->signal->flags = SIGNAL_STOP_STOPPED;
-	current->exit_code = current->signal->group_exit_code;
-	set_current_state(TASK_STOPPED);
-	spin_unlock_irq(&current->sighand->siglock);
-	finish_stop(stop_count);
-	return 1;
-}
-
 int get_signal_to_deliver(siginfo_t *info, struct k_sigaction *return_ka,
 			  struct pt_regs *regs, void *cookie)
 {
@@ -1807,7 +1744,7 @@ relock:
 		struct k_sigaction *ka;
 
 		if (unlikely(current->signal->group_stop_count > 0) &&
-		    handle_group_stop())
+		    do_signal_stop(0))
 			goto relock;
 
 		signr = dequeue_signal(current, mask, info);

@@ -24,7 +24,7 @@ static inline void set_page_count(struct page *page, int v)
  */
 static inline void set_page_refcounted(struct page *page)
 {
-	VM_BUG_ON(PageCompound(page) && PageTail(page));
+	VM_BUG_ON(PageTail(page));
 	VM_BUG_ON(atomic_read(&page->_count));
 	set_page_count(page, 1);
 }
@@ -34,7 +34,7 @@ static inline void __put_page(struct page *page)
 	atomic_dec(&page->_count);
 }
 
-extern void fastcall __init __free_pages_bootmem(struct page *page,
+extern void __init __free_pages_bootmem(struct page *page,
 						unsigned int order);
 
 /*

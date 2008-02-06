@@ -31,8 +31,8 @@ static inline unsigned long device_to_mask(struct device *dev)
 static void *dma_iommu_alloc_coherent(struct device *dev, size_t size,
 				      dma_addr_t *dma_handle, gfp_t flag)
 {
-	return iommu_alloc_coherent(dev->archdata.dma_data, size, dma_handle,
-				    device_to_mask(dev), flag,
+	return iommu_alloc_coherent(dev, dev->archdata.dma_data, size,
+				    dma_handle, device_to_mask(dev), flag,
 				    dev->archdata.numa_node);
 }
 
@@ -52,7 +52,7 @@ static dma_addr_t dma_iommu_map_single(struct device *dev, void *vaddr,
 				       size_t size,
 				       enum dma_data_direction direction)
 {
-	return iommu_map_single(dev->archdata.dma_data, vaddr, size,
+	return iommu_map_single(dev, dev->archdata.dma_data, vaddr, size,
 			        device_to_mask(dev), direction);
 }
 
@@ -68,7 +68,7 @@ static void dma_iommu_unmap_single(struct device *dev, dma_addr_t dma_handle,
 static int dma_iommu_map_sg(struct device *dev, struct scatterlist *sglist,
 			    int nelems, enum dma_data_direction direction)
 {
-	return iommu_map_sg(dev->archdata.dma_data, sglist, nelems,
+	return iommu_map_sg(dev, sglist, nelems,
 			    device_to_mask(dev), direction);
 }
 

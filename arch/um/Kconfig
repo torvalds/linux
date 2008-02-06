@@ -68,6 +68,10 @@ config IRQ_RELEASE_METHOD
 	bool
 	default y
 
+config HZ
+	int
+	default 100
+
 menu "UML-specific options"
 
 config STATIC_LINK
@@ -94,23 +98,6 @@ config LD_SCRIPT_DYN
 	bool
 	default y
 	depends on !LD_SCRIPT_STATIC
-
-config NET
-	bool "Networking support"
-	help
-	  Unless you really know what you are doing, you should say Y here.
-	  The reason is that some programs need kernel networking support even
-	  when running on a stand-alone machine that isn't connected to any
-	  other computer. If you are upgrading from an older kernel, you
-	  should consider updating your networking tools too because changes
-	  in the kernel and the tools often go hand in hand. The tools are
-	  contained in the package net-tools, the location and version number
-	  of which are given in <file:Documentation/Changes>.
-
-	  For a general introduction to Linux networking, it is highly
-	  recommended to read the NET-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
 
 source "fs/Kconfig.binfmt"
 
@@ -145,7 +132,7 @@ config HPPFS
 	  by removing or changing anything in /proc which gives away the
 	  identity of a UML.
 
-	  See <http://user-mode-linux.sf.net/hppfs.html> for more information.
+	  See <http://user-mode-linux.sf.net/old/hppfs.html> for more information.
 
 	  You only need this if you are setting up a UML honeypot.  Otherwise,
 	  it is safe to say 'N' here.
@@ -189,8 +176,7 @@ config MAGIC_SYSRQ
 config SMP
 	bool "Symmetric multi-processing support (EXPERIMENTAL)"
 	default n
-	#SMP_BROKEN is for x86_64.
-	depends on EXPERIMENTAL && (!SMP_BROKEN || (BROKEN && SMP_BROKEN))
+	depends on BROKEN
 	help
 	  This option enables UML SMP support.
 	  It is NOT related to having a real SMP box. Not directly, at least.

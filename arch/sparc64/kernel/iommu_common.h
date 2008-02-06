@@ -9,6 +9,7 @@
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/scatterlist.h>
+#include <linux/device.h>
 
 #include <asm/iommu.h>
 #include <asm/scatterlist.h>
@@ -46,4 +47,4 @@ extern void verify_sglist(struct scatterlist *sg, int nents, iopte_t *iopte, int
 #define VCONTIG(__X, __Y)	(((__X) == (__Y)) || \
 				 (((__X) | (__Y)) << (64UL - PAGE_SHIFT)) == 0UL)
 
-extern unsigned long prepare_sg(struct scatterlist *sg, int nents);
+extern unsigned long prepare_sg(struct device *dev, struct scatterlist *sg, int nents);

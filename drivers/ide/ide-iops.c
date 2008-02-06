@@ -430,10 +430,10 @@ int drive_is_ready (ide_drive_t *drive)
 	 * about possible isa-pnp and pci-pnp issues yet.
 	 */
 	if (IDE_CONTROL_REG)
-		stat = hwif->INB(IDE_ALTSTATUS_REG);
+		stat = ide_read_altstatus(drive);
 	else
 		/* Note: this may clear a pending IRQ!! */
-		stat = hwif->INB(IDE_STATUS_REG);
+		stat = ide_read_status(drive);
 
 	if (stat & BUSY_STAT)
 		/* drive busy:  definitely not interrupting */
@@ -458,23 +458,24 @@ EXPORT_SYMBOL(drive_is_ready);
  */
 static int __ide_wait_stat(ide_drive_t *drive, u8 good, u8 bad, unsigned long timeout, u8 *rstat)
 {
-	ide_hwif_t *hwif = drive->hwif;
 	unsigned long flags;
 	int i;
 	u8 stat;
 
 	udelay(1);	/* spec allows drive 400ns to assert "BUSY" */
-	if ((stat = hwif->INB(IDE_STATUS_REG)) & BUSY_STAT) {
+	stat = ide_read_status(drive);
+
+	if (stat & BUSY_STAT) {
 		local_irq_set(flags);
 		timeout += jiffies;
-		while ((stat = hwif->INB(IDE_STATUS_REG)) & BUSY_STAT) {
+		while ((stat = ide_read_status(drive)) & BUSY_STAT) {
 			if (time_after(jiffies, timeout)) {
 				/*
 				 * One last read after the timeout in case
 				 * heavy interrupt load made us not make any
 				 * progress during the timeout..
 				 */
-				stat = hwif->INB(IDE_STATUS_REG);
+				stat = ide_read_status(drive);
 				if (!(stat & BUSY_STAT))
 					break;
 
@@ -494,7 +495,9 @@ static int __ide_wait_stat(ide_drive_t *drive, u8 good, u8 bad, unsigned long ti
 	 */
 	for (i = 0; i < 10; i++) {
 		udelay(1);
-		if (OK_STAT((stat = hwif->INB(IDE_STATUS_REG)), good, bad)) {
+		stat = ide_read_status(drive);
+
+		if (OK_STAT(stat, good, bad)) {
 			*rstat = stat;
 			return 0;
 		}
@@ -617,6 +620,7 @@ int ide_driveid_update(ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	struct hd_driveid *id;
 	unsigned long timeout, flags;
+	u8 stat;
 
 	/*
 	 * Re-read drive->id for possible DMA mode
@@ -633,10 +637,15 @@ int ide_driveid_update(ide_drive_t *drive)
 			SELECT_MASK(drive, 0);
 			return 0;	/* drive timed-out */
 		}
+
 		msleep(50);	/* give drive a breather */
-	} while (hwif->INB(IDE_ALTSTATUS_REG) & BUSY_STAT);
+		stat = ide_read_altstatus(drive);
+	} while (stat & BUSY_STAT);
+
 	msleep(50);	/* wait for IRQ and DRQ_STAT */
-	if (!OK_STAT(hwif->INB(IDE_STATUS_REG),DRQ_STAT,BAD_R_STAT)) {
+	stat = ide_read_status(drive);
+
+	if (!OK_STAT(stat, DRQ_STAT, BAD_R_STAT)) {
 		SELECT_MASK(drive, 0);
 		printk("%s: CHECK for good STATUS\n", drive->name);
 		return 0;
@@ -649,7 +658,7 @@ int ide_driveid_update(ide_drive_t *drive)
 		return 0;
 	}
 	ata_input_data(drive, id, SECTOR_WORDS);
-	(void) hwif->INB(IDE_STATUS_REG);	/* clear drive IRQ */
+	(void)ide_read_status(drive);	/* clear drive IRQ */
 	local_irq_enable();
 	local_irq_restore(flags);
 	ide_fix_driveid(id);
@@ -850,17 +859,16 @@ static ide_startstop_t do_reset1 (ide_drive_t *, int);
 static ide_startstop_t atapi_reset_pollfunc (ide_drive_t *drive)
 {
 	ide_hwgroup_t *hwgroup	= HWGROUP(drive);
-	ide_hwif_t *hwif	= HWIF(drive);
 	u8 stat;
 
 	SELECT_DRIVE(drive);
 	udelay (10);
+	stat = ide_read_status(drive);
 
-	if (OK_STAT(stat = hwif->INB(IDE_STATUS_REG), 0, BUSY_STAT)) {
+	if (OK_STAT(stat, 0, BUSY_STAT))
 		printk("%s: ATAPI reset complete\n", drive->name);
-	} else {
+	else {
 		if (time_before(jiffies, hwgroup->poll_timeout)) {
-			BUG_ON(HWGROUP(drive)->handler != NULL);
 			ide_set_handler(drive, &atapi_reset_pollfunc, HZ/20, NULL);
 			/* continue polling */
 			return ide_started;
@@ -898,9 +906,10 @@ static ide_startstop_t reset_pollfunc (ide_drive_t *drive)
 		}
 	}
 
-	if (!OK_STAT(tmp = hwif->INB(IDE_STATUS_REG), 0, BUSY_STAT)) {
+	tmp = ide_read_status(drive);
+
+	if (!OK_STAT(tmp, 0, BUSY_STAT)) {
 		if (time_before(jiffies, hwgroup->poll_timeout)) {
-			BUG_ON(HWGROUP(drive)->handler != NULL);
 			ide_set_handler(drive, &reset_pollfunc, HZ/20, NULL);
 			/* continue polling */
 			return ide_started;
@@ -909,7 +918,9 @@ static ide_startstop_t reset_pollfunc (ide_drive_t *drive)
 		drive->failures++;
 	} else  {
 		printk("%s: reset: ", hwif->name);
-		if ((tmp = hwif->INB(IDE_ERROR_REG)) == 1) {
+		tmp = ide_read_error(drive);
+
+		if (tmp == 1) {
 			printk("success\n");
 			drive->failures = 0;
 		} else {

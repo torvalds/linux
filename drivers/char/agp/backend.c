@@ -43,7 +43,7 @@
  * fix some real stupidity. It's only by chance we can bump
  * past 0.99 at all due to some boolean logic error. */
 #define AGPGART_VERSION_MAJOR 0
-#define AGPGART_VERSION_MINOR 102
+#define AGPGART_VERSION_MINOR 103
 static const struct agp_version agp_current_version =
 {
 	.major = AGPGART_VERSION_MAJOR,

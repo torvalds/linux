@@ -1,3 +1,5 @@
+if ETRAX_ARCH_V32
+
 config ETRAX_DRAM_VIRTUAL_BASE
 	hex
 	depends on ETRAX_ARCH_V32
@@ -294,3 +296,5 @@ config ETRAX_DEF_GIO_PE_OUT
 	help
 	  Configures the initial data for the general port E bits.  Most
 	  products should use 00000 here.
+
+endif

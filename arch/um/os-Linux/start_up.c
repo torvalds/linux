@@ -60,10 +60,11 @@ static int ptrace_child(void)
 		 * the UML code itself.
 		 */
 		ret = 2;
-	_exit(ret);
+
+	exit(ret);
 }
 
-static void fatal_perror(char *str)
+static void fatal_perror(const char *str)
 {
 	perror(str);
 	exit(1);
@@ -341,6 +342,8 @@ static void __init check_coredump_limit(void)
 
 void __init os_early_checks(void)
 {
+	int pid;
+
 	/* Print out the core dump limits early */
 	check_coredump_limit();
 
@@ -350,6 +353,11 @@ void __init os_early_checks(void)
 	 * kernel is running.
 	 */
 	check_tmpexec();
+
+	pid = start_ptraced_child();
+	if (init_registers(pid))
+		fatal("Failed to initialize default registers");
+	stop_ptraced_child(pid, 1, 1);
 }
 
 static int __init noprocmm_cmd_param(char *str, int* add)
@@ -411,7 +419,6 @@ static inline void check_skas3_ptrace_faultinfo(void)
 			non_fatal("found\n");
 	}
 
-	init_registers(pid);
 	stop_ptraced_child(pid, 1, 1);
 }
 
@@ -466,7 +473,7 @@ static inline void check_skas3_proc_mm(void)
 	else non_fatal("found\n");
 }
 
-int can_do_skas(void)
+void can_do_skas(void)
 {
 	non_fatal("Checking for the skas3 patch in the host:\n");
 
@@ -476,8 +483,6 @@ int can_do_skas(void)
 
 	if (!proc_mm || !ptrace_faultinfo || !ptrace_ldt)
 		skas_needs_stub = 1;
-
-	return 1;
 }
 
 int __init parse_iomem(char *str, int *add)

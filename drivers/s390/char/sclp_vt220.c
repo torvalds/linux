@@ -400,7 +400,7 @@ __sclp_vt220_write(const unsigned char *buf, int count, int do_schedule,
 			while (list_empty(&sclp_vt220_empty)) {
 				spin_unlock_irqrestore(&sclp_vt220_lock,
 						       flags);
-				if (in_interrupt())
+				if (in_atomic())
 					sclp_sync_wait();
 				else
 					wait_event(sclp_vt220_waitq,

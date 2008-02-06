@@ -376,6 +376,6 @@ sys_call_table:
 	.long sys_epoll_pwait
 	.long sys_utimensat
 	.long sys_signalfd
-	.long sys_timerfd		/* 350 */
+	.long sys_ni_syscall		/* 350 */
 	.long sys_eventfd
 	.long sys_fallocate

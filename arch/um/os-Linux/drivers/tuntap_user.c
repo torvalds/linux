@@ -14,6 +14,7 @@
 #include <sys/wait.h>
 #include <sys/uio.h>
 #include "kern_constants.h"
+#include "kern_util.h"
 #include "os.h"
 #include "tuntap.h"
 #include "user.h"
@@ -107,7 +108,7 @@ static int tuntap_open_tramp(char *gate, int *fd_out, int me, int remote,
 		       "errno = %d\n", errno);
 		return err;
 	}
-	helper_wait(pid, 0, "tuntap_open_tramp");
+	helper_wait(pid);
 
 	cmsg = CMSG_FIRSTHDR(&msg);
 	if (cmsg == NULL) {
@@ -148,7 +149,7 @@ static int tuntap_open(void *data)
 		memset(&ifr, 0, sizeof(ifr));
 		ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
 		strlcpy(ifr.ifr_name, pri->dev_name, sizeof(ifr.ifr_name));
-		if (ioctl(pri->fd, TUNSETIFF, (void *) &ifr) < 0) {
+		if (ioctl(pri->fd, TUNSETIFF, &ifr) < 0) {
 			err = -errno;
 			printk(UM_KERN_ERR "TUNSETIFF failed, errno = %d\n",
 			       errno);

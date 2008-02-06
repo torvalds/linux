@@ -13,10 +13,13 @@
 #include <linux/ioport.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/module.h>
+
 #include <asm/page.h>
 #include <asm/amigahw.h>
 
 unsigned long amiga_chip_size;
+EXPORT_SYMBOL(amiga_chip_size);
 
 static struct resource chipram_res = {
     .name = "Chip RAM", .start = CHIP_PHYSADDR
@@ -67,6 +70,7 @@ void *amiga_chip_alloc(unsigned long size, const char *name)
 #endif
     return (void *)ZTWO_VADDR(res->start);
 }
+EXPORT_SYMBOL(amiga_chip_alloc);
 
 
     /*
@@ -120,6 +124,7 @@ void amiga_chip_free(void *ptr)
     }
     printk("amiga_chip_free: trying to free nonexistent region at %p\n", ptr);
 }
+EXPORT_SYMBOL(amiga_chip_free);
 
 
 unsigned long amiga_chip_avail(void)
@@ -129,3 +134,5 @@ unsigned long amiga_chip_avail(void)
 #endif
 	return chipavail;
 }
+EXPORT_SYMBOL(amiga_chip_avail);
+

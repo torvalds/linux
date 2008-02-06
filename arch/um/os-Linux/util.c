@@ -88,21 +88,6 @@ void setup_hostinfo(char *buf, int len)
 		 host.release, host.version, host.machine);
 }
 
-int setjmp_wrapper(void (*proc)(void *, void *), ...)
-{
-	va_list args;
-	jmp_buf buf;
-	int n;
-
-	n = UML_SETJMP(&buf);
-	if(n == 0){
-		va_start(args, proc);
-		(*proc)(&buf, &args);
-	}
-	va_end(args);
-	return n;
-}
-
 void os_dump_core(void)
 {
 	int pid;

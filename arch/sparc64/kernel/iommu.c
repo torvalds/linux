@@ -580,7 +580,7 @@ static int dma_4u_map_sg(struct device *dev, struct scatterlist *sglist,
 
 	/* Step 1: Prepare scatter list. */
 
-	npages = prepare_sg(sglist, nelems);
+	npages = prepare_sg(dev, sglist, nelems);
 
 	/* Step 2: Allocate a cluster and context, if necessary. */
 

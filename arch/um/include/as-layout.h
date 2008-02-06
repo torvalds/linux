@@ -10,23 +10,31 @@
 #include "kern_constants.h"
 
 /*
- * Assembly doesn't want any casting, but C does, so define these
- * without casts here, and define new symbols with casts inside the C
- * section.
+ * Stolen from linux/const.h, which can't be directly included since
+ * this is used in userspace code, which has no access to the kernel
+ * headers.  Changed to be suitable for adding casts to the start,
+ * rather than "UL" to the end.
  */
-#define ASM_STUB_CODE (UML_CONFIG_TOP_ADDR - 2 * UM_KERN_PAGE_SIZE)
-#define ASM_STUB_DATA (UML_CONFIG_TOP_ADDR - UM_KERN_PAGE_SIZE)
-#define ASM_STUB_START ASM_STUB_CODE
 
-/*
- * This file is included by the assembly stubs, which just want the
- * definitions above.
+/* Some constant macros are used in both assembler and
+ * C code.  Therefore we cannot annotate them always with
+ * 'UL' and other type specifiers unilaterally.  We
+ * use the following macros to deal with this.
  */
+
+#ifdef __ASSEMBLY__
+#define _AC(X, Y)	(Y)
+#else
+#define __AC(X, Y)	(X (Y))
+#define _AC(X, Y)	__AC(X, Y)
+#endif
+
+#define STUB_START _AC(, 0x100000)
+#define STUB_CODE _AC((unsigned long), STUB_START)
+#define STUB_DATA _AC((unsigned long), STUB_CODE + UM_KERN_PAGE_SIZE)
+#define STUB_END _AC((unsigned long), STUB_DATA + UM_KERN_PAGE_SIZE)
+
 #ifndef __ASSEMBLY__
-
-#define STUB_CODE ((unsigned long) ASM_STUB_CODE)
-#define STUB_DATA ((unsigned long) ASM_STUB_DATA)
-#define STUB_START ((unsigned long) ASM_STUB_START)
 
 #include "sysdep/ptrace.h"
 

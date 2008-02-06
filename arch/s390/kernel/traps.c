@@ -271,7 +271,10 @@ void die(const char * str, struct pt_regs * regs, long err)
 	printk("PREEMPT ");
 #endif
 #ifdef CONFIG_SMP
-	printk("SMP");
+	printk("SMP ");
+#endif
+#ifdef CONFIG_DEBUG_PAGEALLOC
+	printk("DEBUG_PAGEALLOC");
 #endif
 	printk("\n");
 	notify_die(DIE_OOPS, str, regs, err, current->thread.trap_no, SIGSEGV);

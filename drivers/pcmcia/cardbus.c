@@ -143,7 +143,7 @@ int read_cb_mem(struct pcmcia_socket * s, int space, u_int addr, u_int len, void
 	/* Config space? */
 	if (space == 0) {
 		if (addr + len > 0x100)
-			goto fail;
+			goto failput;
 		for (; len; addr++, ptr++, len--)
 			pci_read_config_byte(dev, addr, ptr);
 		return 0;
@@ -171,6 +171,8 @@ int read_cb_mem(struct pcmcia_socket * s, int space, u_int addr, u_int len, void
 	memcpy_fromio(ptr, s->cb_cis_virt + addr, len);
 	return 0;
 
+failput:
+	pci_dev_put(dev);
 fail:
 	memset(ptr, 0xff, len);
 	return -1;

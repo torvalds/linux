@@ -465,7 +465,7 @@ static void idefloppy_retry_pc(ide_drive_t *drive)
 	idefloppy_pc_t *pc;
 	struct request *rq;
 
-	(void)drive->hwif->INB(IDE_ERROR_REG);
+	(void)ide_read_error(drive);
 	pc = idefloppy_next_pc_storage(drive);
 	rq = idefloppy_next_rq_storage(drive);
 	idefloppy_create_request_sense_cmd(pc);
@@ -501,7 +501,7 @@ static ide_startstop_t idefloppy_pc_intr (ide_drive_t *drive)
 	}
 
 	/* Clear the interrupt */
-	stat = drive->hwif->INB(IDE_STATUS_REG);
+	stat = ide_read_status(drive);
 
 	/* No more interrupts */
 	if ((stat & DRQ_STAT) == 0) {
@@ -1246,7 +1246,7 @@ static int idefloppy_get_format_progress(ide_drive_t *drive, int __user *arg)
 		u8 stat;
 
 		local_irq_save(flags);
-		stat = drive->hwif->INB(IDE_STATUS_REG);
+		stat = ide_read_status(drive);
 		local_irq_restore(flags);
 
 		progress_indication = ((stat & SEEK_STAT) == 0) ? 0 : 0x10000;

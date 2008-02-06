@@ -3,22 +3,23 @@
  * Licensed under the GPL
  */
 
-#include "linux/delay.h"
-#include "linux/mm.h"
-#include "linux/module.h"
-#include "linux/seq_file.h"
-#include "linux/string.h"
-#include "linux/utsname.h"
-#include "asm/pgtable.h"
-#include "asm/processor.h"
-#include "asm/setup.h"
-#include "arch.h"
+#include <linux/delay.h>
+#include <linux/init.h>
+#include <linux/mm.h>
+#include <linux/module.h>
+#include <linux/seq_file.h>
+#include <linux/string.h>
+#include <linux/utsname.h>
+#include <asm/pgtable.h>
+#include <asm/processor.h>
+#include <asm/setup.h>
 #include "as-layout.h"
+#include "arch.h"
 #include "init.h"
 #include "kern.h"
+#include "kern_util.h"
 #include "mem_user.h"
 #include "os.h"
-#include "skas.h"
 
 #define DEFAULT_COMMAND_LINE "root=98:0"
 
@@ -100,8 +101,6 @@ const struct seq_operations cpuinfo_op = {
 };
 
 /* Set in linux_main */
-unsigned long host_task_size;
-unsigned long task_size;
 unsigned long uml_physmem;
 unsigned long uml_reserved; /* Also modified in mem_init */
 unsigned long start_vm;
@@ -197,20 +196,19 @@ __uml_setup("--help", Usage,
 "    Prints this message.\n\n"
 );
 
-static int __init uml_checksetup(char *line, int *add)
+static void __init uml_checksetup(char *line, int *add)
 {
 	struct uml_param *p;
 
 	p = &__uml_setup_start;
-	while(p < &__uml_setup_end) {
+	while (p < &__uml_setup_end) {
 		int n;
 
 		n = strlen(p->str);
 		if (!strncmp(line, p->str, n) && p->setup_func(line + n, add))
-			return 1;
+			return;
 		p++;
 	}
-	return 0;
 }
 
 static void __init uml_postsetup(void)
@@ -218,12 +216,29 @@ static void __init uml_postsetup(void)
 	initcall_t *p;
 
 	p = &__uml_postsetup_start;
-	while(p < &__uml_postsetup_end) {
+	while (p < &__uml_postsetup_end) {
 		(*p)();
 		p++;
 	}
 	return;
 }
+
+static int panic_exit(struct notifier_block *self, unsigned long unused1,
+		      void *unused2)
+{
+	bust_spinlocks(1);
+	show_regs(&(current->thread.regs));
+	bust_spinlocks(0);
+	uml_exitcode = 1;
+	os_dump_core();
+	return 0;
+}
+
+static struct notifier_block panic_exit_notifier = {
+	.notifier_call 		= panic_exit,
+	.next 			= NULL,
+	.priority 		= 0
+};
 
 /* Set during early boot */
 unsigned long brk_start;
@@ -233,20 +248,6 @@ EXPORT_SYMBOL(end_iomem);
 #define MIN_VMALLOC (32 * 1024 * 1024)
 
 extern char __binary_start;
-
-static unsigned long set_task_sizes_skas(unsigned long *task_size_out)
-{
-	/* Round up to the nearest 4M */
-	unsigned long host_task_size = ROUND_4M((unsigned long)
-						&host_task_size);
-
-	if (!skas_needs_stub)
-		*task_size_out = host_task_size;
-	else
-		*task_size_out = STUB_START & PGDIR_MASK;
-
-	return host_task_size;
-}
 
 int __init linux_main(int argc, char **argv)
 {
@@ -278,13 +279,6 @@ int __init linux_main(int argc, char **argv)
 
 	printf("UML running in %s mode\n", mode);
 
-	host_task_size = set_task_sizes_skas(&task_size);
-
-	/*
-	 * Setting up handlers to 'sig_info' struct
-	 */
-	os_fill_handlinfo(handlinfo_kern);
-
 	brk_start = (unsigned long) sbrk(0);
 
 	/*
@@ -309,7 +303,7 @@ int __init linux_main(int argc, char **argv)
 
 	highmem = 0;
 	iomem_size = (iomem_size + PAGE_SIZE - 1) & PAGE_MASK;
-	max_physmem = get_kmem_end() - uml_physmem - iomem_size - MIN_VMALLOC;
+	max_physmem = CONFIG_TOP_ADDR - uml_physmem - iomem_size - MIN_VMALLOC;
 
 	/*
 	 * Zones have to begin on a 1 << MAX_ORDER page boundary,
@@ -341,7 +335,7 @@ int __init linux_main(int argc, char **argv)
 	}
 
 	virtmem_size = physmem_size;
-	avail = get_kmem_end() - start_vm;
+	avail = CONFIG_TOP_ADDR - start_vm;
 	if (physmem_size > avail)
 		virtmem_size = avail;
 	end_vm = start_vm + virtmem_size;
@@ -349,6 +343,9 @@ int __init linux_main(int argc, char **argv)
 	if (virtmem_size < physmem_size)
 		printf("Kernel virtual memory size shrunk to %lu bytes\n",
 		       virtmem_size);
+
+	atomic_notifier_chain_register(&panic_notifier_list,
+				       &panic_exit_notifier);
 
 	uml_postsetup();
 
@@ -358,29 +355,8 @@ int __init linux_main(int argc, char **argv)
 	return start_uml();
 }
 
-extern int uml_exitcode;
-
-static int panic_exit(struct notifier_block *self, unsigned long unused1,
-		      void *unused2)
-{
-	bust_spinlocks(1);
-	show_regs(&(current->thread.regs));
-	bust_spinlocks(0);
-	uml_exitcode = 1;
-	os_dump_core();
-	return 0;
-}
-
-static struct notifier_block panic_exit_notifier = {
-	.notifier_call 		= panic_exit,
-	.next 			= NULL,
-	.priority 		= 0
-};
-
 void __init setup_arch(char **cmdline_p)
 {
-	atomic_notifier_chain_register(&panic_notifier_list,
-			&panic_exit_notifier);
 	paging_init();
 	strlcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
 	*cmdline_p = command_line;

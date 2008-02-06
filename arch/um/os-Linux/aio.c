@@ -12,6 +12,7 @@
 #include "aio.h"
 #include "init.h"
 #include "kern_constants.h"
+#include "kern_util.h"
 #include "os.h"
 #include "user.h"
 

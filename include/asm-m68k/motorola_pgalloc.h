@@ -22,7 +22,7 @@ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long ad
 	return pte;
 }
 
-static inline void pte_free_kernel(pte_t *pte)
+static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 {
 	cache_page(pte);
 	free_page((unsigned long) pte);
@@ -47,7 +47,7 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm, unsigned long add
 	return page;
 }
 
-static inline void pte_free(struct page *page)
+static inline void pte_free(struct mm_struct *mm, struct page *page)
 {
 	cache_page(kmap(page));
 	kunmap(page);
@@ -67,7 +67,7 @@ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
 	return get_pointer_table();
 }
 
-static inline int pmd_free(pmd_t *pmd)
+static inline int pmd_free(struct mm_struct *mm, pmd_t *pmd)
 {
 	return free_pointer_table(pmd);
 }
@@ -78,9 +78,9 @@ static inline int __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd)
 }
 
 
-static inline void pgd_free(pgd_t *pgd)
+static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
-	pmd_free((pmd_t *)pgd);
+	pmd_free(mm, (pmd_t *)pgd);
 }
 
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)

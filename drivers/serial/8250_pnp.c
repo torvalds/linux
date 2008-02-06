@@ -414,8 +414,9 @@ static int __devinit check_resources(struct pnp_option *option)
  */
 static int __devinit serial_pnp_guess_board(struct pnp_dev *dev, int *flags)
 {
-	if (!(check_name(pnp_dev_name(dev)) || (dev->card && check_name(dev->card->name))))
-		return -ENODEV;
+	if (!(check_name(pnp_dev_name(dev)) ||
+		(dev->card && check_name(dev->card->name))))
+			return -ENODEV;
 
 	if (check_resources(dev->independent))
 		return 0;
@@ -452,8 +453,9 @@ serial_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 		return -ENODEV;
 
 #ifdef SERIAL_DEBUG_PNP
-	printk("Setup PNP port: port %x, mem 0x%lx, irq %d, type %d\n",
-	       port.iobase, port.mapbase, port.irq, port.iotype);
+	printk(KERN_DEBUG
+		"Setup PNP port: port %x, mem 0x%lx, irq %d, type %d\n",
+		       port.iobase, port.mapbase, port.irq, port.iotype);
 #endif
 
 	port.flags |= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF;

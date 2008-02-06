@@ -30,6 +30,4 @@ extern long old_mmap(unsigned long addr, unsigned long len,
 extern syscall_handler_t sys_modify_ldt;
 extern syscall_handler_t sys_arch_prctl;
 
-#define NR_syscalls (UM_NR_syscall_max + 1)
-
 #endif

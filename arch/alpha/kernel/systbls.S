@@ -495,7 +495,7 @@ sys_call_table:
 	.quad sys_epoll_pwait
 	.quad sys_utimensat			/* 475 */
 	.quad sys_signalfd
-	.quad sys_timerfd
+	.quad sys_ni_syscall
 	.quad sys_eventfd
 
 	.size sys_call_table, . - sys_call_table

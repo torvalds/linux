@@ -1,3 +1,5 @@
+if ETRAX_ARCH_V32
+
 config ETRAX_ETHERNET
 	bool "Ethernet support"
 	depends on ETRAX_ARCH_V32
@@ -610,3 +612,5 @@ config ETRAX_STREAMCOPROC
 	help
 	  This option enables a driver for the stream co-processor
 	  for cryptographic operations.
+
+endif

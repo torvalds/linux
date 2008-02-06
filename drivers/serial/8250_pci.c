@@ -106,6 +106,32 @@ setup_port(struct serial_private *priv, struct uart_port *port,
 }
 
 /*
+ * ADDI-DATA GmbH communication cards <info@addi-data.com>
+ */
+static int addidata_apci7800_setup(struct serial_private *priv,
+				struct pciserial_board *board,
+				struct uart_port *port, int idx)
+{
+	unsigned int bar = 0, offset = board->first_offset;
+	bar = FL_GET_BASE(board->flags);
+
+	if (idx < 2) {
+		offset += idx * board->uart_offset;
+	} else if ((idx >= 2) && (idx < 4)) {
+		bar += 1;
+		offset += ((idx - 2) * board->uart_offset);
+	} else if ((idx >= 4) && (idx < 6)) {
+		bar += 2;
+		offset += ((idx - 4) * board->uart_offset);
+	} else if (idx >= 6) {
+		bar += 3;
+		offset += ((idx - 6) * board->uart_offset);
+	}
+
+	return setup_port(priv, port, bar, offset, board->reg_shift);
+}
+
+/*
  * AFAVLAB uses a different mixture of BARs and offsets
  * Not that ugly ;) -- HW
  */
@@ -752,6 +778,16 @@ pci_default_setup(struct serial_private *priv, struct pciserial_board *board,
  */
 static struct pci_serial_quirk pci_serial_quirks[] = {
 	/*
+	* ADDI-DATA GmbH communication cards <info@addi-data.com>
+	*/
+	{
+		.vendor         = PCI_VENDOR_ID_ADDIDATA_OLD,
+		.device         = PCI_DEVICE_ID_ADDIDATA_APCI7800,
+		.subvendor      = PCI_ANY_ID,
+		.subdevice      = PCI_ANY_ID,
+		.setup          = addidata_apci7800_setup,
+	},
+	/*
 	 * AFAVLAB cards - these may be called via parport_serial
 	 *  It is not clear whether this applies to all products.
 	 */
@@ -1170,6 +1206,12 @@ static struct pciserial_board pci_boards[] __devinitdata = {
 	[pbn_b0_5_115200] = {
 		.flags		= FL_BASE0,
 		.num_ports	= 5,
+		.base_baud	= 115200,
+		.uart_offset	= 8,
+	},
+	[pbn_b0_8_115200] = {
+		.flags		= FL_BASE0,
+		.num_ports	= 8,
 		.base_baud	= 115200,
 		.uart_offset	= 8,
 	},
@@ -2695,6 +2737,97 @@ static struct pci_device_id serial_pci_tbl[] = {
 	{	PCI_VENDOR_ID_PASEMI, 0xa004,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		pbn_pasemi_1682M },
+
+	/*
+	* ADDI-DATA GmbH communication cards <info@addi-data.com>
+	*/
+	{	PCI_VENDOR_ID_ADDIDATA,
+		PCI_DEVICE_ID_ADDIDATA_APCI7500,
+		PCI_ANY_ID,
+		PCI_ANY_ID,
+		0,
+		0,
+		pbn_b0_4_115200 },
+
+	{	PCI_VENDOR_ID_ADDIDATA,
+		PCI_DEVICE_ID_ADDIDATA_APCI7420,
+		PCI_ANY_ID,
+		PCI_ANY_ID,
+		0,
+		0,
+		pbn_b0_2_115200 },
+
+	{	PCI_VENDOR_ID_ADDIDATA,
+		PCI_DEVICE_ID_ADDIDATA_APCI7300,
+		PCI_ANY_ID,
+		PCI_ANY_ID,
+		0,
+		0,
+		pbn_b0_1_115200 },
+
+	{	PCI_VENDOR_ID_ADDIDATA_OLD,
+		PCI_DEVICE_ID_ADDIDATA_APCI7800,
+		PCI_ANY_ID,
+		PCI_ANY_ID,
+		0,
+		0,
+		pbn_b1_8_115200 },
+
+	{	PCI_VENDOR_ID_ADDIDATA,
+		PCI_DEVICE_ID_ADDIDATA_APCI7500_2,
+		PCI_ANY_ID,
+		PCI_ANY_ID,
+		0,
+		0,
+		pbn_b0_4_115200 },
+
+	{	PCI_VENDOR_ID_ADDIDATA,
+		PCI_DEVICE_ID_ADDIDATA_APCI7420_2,
+		PCI_ANY_ID,
+		PCI_ANY_ID,
+		0,
+		0,
+		pbn_b0_2_115200 },
+
+	{	PCI_VENDOR_ID_ADDIDATA,
+		PCI_DEVICE_ID_ADDIDATA_APCI7300_2,
+		PCI_ANY_ID,
+		PCI_ANY_ID,
+		0,
+		0,
+		pbn_b0_1_115200 },
+
+	{	PCI_VENDOR_ID_ADDIDATA,
+		PCI_DEVICE_ID_ADDIDATA_APCI7500_3,
+		PCI_ANY_ID,
+		PCI_ANY_ID,
+		0,
+		0,
+		pbn_b0_4_115200 },
+
+	{	PCI_VENDOR_ID_ADDIDATA,
+		PCI_DEVICE_ID_ADDIDATA_APCI7420_3,
+		PCI_ANY_ID,
+		PCI_ANY_ID,
+		0,
+		0,
+		pbn_b0_2_115200 },
+
+	{	PCI_VENDOR_ID_ADDIDATA,
+		PCI_DEVICE_ID_ADDIDATA_APCI7300_3,
+		PCI_ANY_ID,
+		PCI_ANY_ID,
+		0,
+		0,
+		pbn_b0_1_115200 },
+
+	{	PCI_VENDOR_ID_ADDIDATA,
+		PCI_DEVICE_ID_ADDIDATA_APCI7800_3,
+		PCI_ANY_ID,
+		PCI_ANY_ID,
+		0,
+		0,
+		pbn_b0_8_115200 },
 
 	/*
 	 * These entries match devices with class COMMUNICATION_SERIAL,

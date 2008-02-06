@@ -547,8 +547,8 @@ int cipso_v4_doi_remove(u32 doi,
 		rcu_read_lock();
 		list_for_each_entry_rcu(dom_iter, &doi_def->dom_list, list)
 			if (dom_iter->valid)
-				netlbl_domhsh_remove(dom_iter->domain,
-						     audit_info);
+				netlbl_cfg_map_del(dom_iter->domain,
+						   audit_info);
 		rcu_read_unlock();
 		cipso_v4_cache_invalidate();
 		call_rcu(&doi_def->rcu, callback);

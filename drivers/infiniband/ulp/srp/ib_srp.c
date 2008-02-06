@@ -204,6 +204,22 @@ out:
 	return ret;
 }
 
+static int srp_new_cm_id(struct srp_target_port *target)
+{
+	struct ib_cm_id *new_cm_id;
+
+	new_cm_id = ib_create_cm_id(target->srp_host->dev->dev,
+				    srp_cm_handler, target);
+	if (IS_ERR(new_cm_id))
+		return PTR_ERR(new_cm_id);
+
+	if (target->cm_id)
+		ib_destroy_cm_id(target->cm_id);
+	target->cm_id = new_cm_id;
+
+	return 0;
+}
+
 static int srp_create_target_ib(struct srp_target_port *target)
 {
 	struct ib_qp_init_attr *init_attr;
@@ -436,6 +452,7 @@ static void srp_remove_work(struct work_struct *work)
 
 static int srp_connect_target(struct srp_target_port *target)
 {
+	int retries = 3;
 	int ret;
 
 	ret = srp_lookup_path(target);
@@ -466,6 +483,21 @@ static int srp_connect_target(struct srp_target_port *target)
 			break;
 
 		case SRP_DLID_REDIRECT:
+			break;
+
+		case SRP_STALE_CONN:
+			/* Our current CM id was stale, and is now in timewait.
+			 * Try to reconnect with a new one.
+			 */
+			if (!retries-- || srp_new_cm_id(target)) {
+				shost_printk(KERN_ERR, target->scsi_host, PFX
+					     "giving up on stale connection\n");
+				target->status = -ECONNRESET;
+				return target->status;
+			}
+
+			shost_printk(KERN_ERR, target->scsi_host, PFX
+				     "retrying stale connection\n");
 			break;
 
 		default:
@@ -507,7 +539,6 @@ static void srp_reset_req(struct srp_target_port *target, struct srp_request *re
 
 static int srp_reconnect_target(struct srp_target_port *target)
 {
-	struct ib_cm_id *new_cm_id;
 	struct ib_qp_attr qp_attr;
 	struct srp_request *req, *tmp;
 	struct ib_wc wc;
@@ -526,14 +557,9 @@ static int srp_reconnect_target(struct srp_target_port *target)
 	 * Now get a new local CM ID so that we avoid confusing the
 	 * target in case things are really fouled up.
 	 */
-	new_cm_id = ib_create_cm_id(target->srp_host->dev->dev,
-				    srp_cm_handler, target);
-	if (IS_ERR(new_cm_id)) {
-		ret = PTR_ERR(new_cm_id);
+	ret = srp_new_cm_id(target);
+	if (ret)
 		goto err;
-	}
-	ib_destroy_cm_id(target->cm_id);
-	target->cm_id = new_cm_id;
 
 	qp_attr.qp_state = IB_QPS_RESET;
 	ret = ib_modify_qp(target->qp, &qp_attr, IB_QP_STATE);
@@ -1169,6 +1195,11 @@ static void srp_cm_rej_handler(struct ib_cm_id *cm_id,
 				     "  REJ reason: IB_CM_REJ_CONSUMER_DEFINED,"
 				     " opcode 0x%02x\n", opcode);
 		target->status = -ECONNRESET;
+		break;
+
+	case IB_CM_REJ_STALE_CONN:
+		shost_printk(KERN_WARNING, shost, "  REJ reason: stale connection\n");
+		target->status = SRP_STALE_CONN;
 		break;
 
 	default:
@@ -1862,11 +1893,9 @@ static ssize_t srp_create_target(struct class_device *class_dev,
 	if (ret)
 		goto err;
 
-	target->cm_id = ib_create_cm_id(host->dev->dev, srp_cm_handler, target);
-	if (IS_ERR(target->cm_id)) {
-		ret = PTR_ERR(target->cm_id);
+	ret = srp_new_cm_id(target);
+	if (ret)
 		goto err_free;
-	}
 
 	target->qp_in_error = 0;
 	ret = srp_connect_target(target);

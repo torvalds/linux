@@ -66,16 +66,12 @@ static int q40ide_default_irq(unsigned long base)
 
 
 /*
- * This is very similar to ide_setup_ports except that addresses
- * are pretranslated for q40 ISA access
+ * Addresses are pretranslated for Q40 ISA access.
  */
 void q40_ide_setup_ports ( hw_regs_t *hw,
 			unsigned long base, int *offsets,
 			unsigned long ctrl, unsigned long intr,
 			ide_ack_intr_t *ack_intr,
-/*
- *			ide_io_ops_t *iops,
- */
 			int irq)
 {
 	int i;
@@ -92,9 +88,6 @@ void q40_ide_setup_ports ( hw_regs_t *hw,
 
 	hw->irq = irq;
 	hw->ack_intr = ack_intr;
-/*
- *	hw->iops = iops;
- */
 }
 
 

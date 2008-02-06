@@ -41,9 +41,6 @@ static inline void pgd_mkuptodate(pgd_t pgd)	{ }
 #define pfn_pte(pfn, prot) __pte(pfn_to_phys(pfn) | pgprot_val(prot))
 #define pfn_pmd(pfn, prot) __pmd(pfn_to_phys(pfn) | pgprot_val(prot))
 
-#define pmd_page_vaddr(pmd) \
-	((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
-
 /*
  * Bits 0 through 4 are taken
  */

@@ -14,7 +14,7 @@
 
 #include <linux/kernel.h>
 #include <linux/cpuidle.h>
-#include <linux/latency.h>
+#include <linux/pm_qos_params.h>
 #include <linux/moduleparam.h>
 #include <linux/jiffies.h>
 
@@ -81,7 +81,8 @@ static int ladder_select_state(struct cpuidle_device *dev)
 	/* consider promotion */
 	if (last_idx < dev->state_count - 1 &&
 	    last_residency > last_state->threshold.promotion_time &&
-	    dev->states[last_idx + 1].exit_latency <= system_latency_constraint()) {
+	    dev->states[last_idx + 1].exit_latency <=
+			pm_qos_requirement(PM_QOS_CPU_DMA_LATENCY)) {
 		last_state->stats.promotion_count++;
 		last_state->stats.demotion_count = 0;
 		if (last_state->stats.promotion_count >= last_state->threshold.promotion_count) {

@@ -36,7 +36,7 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 	return quicklist_alloc(QUICK_PGD, GFP_KERNEL | __GFP_REPEAT, pgd_ctor);
 }
 
-static inline void pgd_free(pgd_t *pgd)
+static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
 	quicklist_free(QUICK_PGD, NULL, pgd);
 }
@@ -54,12 +54,12 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm,
 	return pg ? virt_to_page(pg) : NULL;
 }
 
-static inline void pte_free_kernel(pte_t *pte)
+static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 {
 	quicklist_free(QUICK_PT, NULL, pte);
 }
 
-static inline void pte_free(struct page *pte)
+static inline void pte_free(struct mm_struct *mm, struct page *pte)
 {
 	quicklist_free_page(QUICK_PT, NULL, pte);
 }
@@ -71,7 +71,7 @@ static inline void pte_free(struct page *pte)
  * inside the pgd, so has no extra memory associated with it.
  */
 
-#define pmd_free(x)			do { } while (0)
+#define pmd_free(mm, x)			do { } while (0)
 #define __pmd_free_tlb(tlb,x)		do { } while (0)
 
 static inline void check_pgt_cache(void)

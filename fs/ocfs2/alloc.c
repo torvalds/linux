@@ -5670,7 +5670,7 @@ static void ocfs2_map_and_dirty_page(struct inode *inode, handle_t *handle,
 		mlog_errno(ret);
 
 	if (zero)
-		zero_user_page(page, from, to - from, KM_USER0);
+		zero_user_segment(page, from, to);
 
 	/*
 	 * Need to set the buffers we zero'd into uptodate

@@ -181,7 +181,7 @@ int cxn_pin_by_pid(pid_t pid)
 
 	/* get a handle on the mm_struct */
 	read_lock(&tasklist_lock);
-	tsk = find_task_by_pid(pid);
+	tsk = find_task_by_vpid(pid);
 	if (tsk) {
 		ret = -EINVAL;
 

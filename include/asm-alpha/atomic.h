@@ -100,7 +100,7 @@ static __inline__ void atomic64_sub(long i, atomic64_t * v)
 /*
  * Same as above, but return the result value
  */
-static __inline__ long atomic_add_return(int i, atomic_t * v)
+static inline int atomic_add_return(int i, atomic_t *v)
 {
 	long temp, result;
 	smp_mb();

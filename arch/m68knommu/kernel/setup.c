@@ -64,9 +64,6 @@ void (*mach_power_off)(void);
 #ifdef CONFIG_M68VZ328
 	#define CPU "MC68VZ328"
 #endif
-#ifdef CONFIG_M68332
-	#define CPU "MC68332"
-#endif
 #ifdef CONFIG_M68360
 	#define CPU "MC68360"
 #endif

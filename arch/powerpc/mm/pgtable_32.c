@@ -86,7 +86,7 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 	return ret;
 }
 
-void pgd_free(pgd_t *pgd)
+void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
 	free_pages((unsigned long)pgd, PGDIR_ORDER);
 }
@@ -123,7 +123,7 @@ struct page *pte_alloc_one(struct mm_struct *mm, unsigned long address)
 	return ptepage;
 }
 
-void pte_free_kernel(pte_t *pte)
+void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 {
 #ifdef CONFIG_SMP
 	hash_page_sync();
@@ -131,7 +131,7 @@ void pte_free_kernel(pte_t *pte)
 	free_page((unsigned long)pte);
 }
 
-void pte_free(struct page *ptepage)
+void pte_free(struct mm_struct *mm, struct page *ptepage)
 {
 #ifdef CONFIG_SMP
 	hash_page_sync();

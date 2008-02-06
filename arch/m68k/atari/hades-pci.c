@@ -376,8 +376,8 @@ struct pci_bus_info * __init init_hades_pci(void)
 	 */
 
 	bus = kzalloc(sizeof(struct pci_bus_info), GFP_KERNEL);
-	if (!bus)
-		return NULL;
+	if (unlikely(!bus))
+		goto iounmap_base_virt;
 
 	/*
 	 * Claim resources. The m68k has no separate I/O space, both
@@ -385,43 +385,25 @@ struct pci_bus_info * __init init_hades_pci(void)
 	 * the I/O resources are requested in memory space as well.
 	 */
 
-	if (request_resource(&iomem_resource, &config_space) != 0)
-	{
-		kfree(bus);
-		return NULL;
-	}
+	if (unlikely(request_resource(&iomem_resource, &config_space) != 0))
+		goto free_bus;
 
-	if (request_resource(&iomem_resource, &io_space) != 0)
-	{
-		release_resource(&config_space);
-		kfree(bus);
-		return NULL;
-	}
+	if (unlikely(request_resource(&iomem_resource, &io_space) != 0))
+		goto release_config_space;
 
 	bus->mem_space.start = HADES_MEM_BASE;
 	bus->mem_space.end = HADES_MEM_BASE + HADES_MEM_SIZE - 1;
 	bus->mem_space.name = pci_mem_name;
 #if 1
-	if (request_resource(&iomem_resource, &bus->mem_space) != 0)
-	{
-		release_resource(&io_space);
-		release_resource(&config_space);
-		kfree(bus);
-		return NULL;
-	}
+	if (unlikely(request_resource(&iomem_resource, &bus->mem_space) != 0))
+		goto release_io_space;
 #endif
 	bus->io_space.start = pci_io_base_virt;
 	bus->io_space.end = pci_io_base_virt + HADES_VIRT_IO_SIZE - 1;
 	bus->io_space.name = pci_io_name;
 #if 1
-	if (request_resource(&ioport_resource, &bus->io_space) != 0)
-	{
-		release_resource(&bus->mem_space);
-		release_resource(&io_space);
-		release_resource(&config_space);
-		kfree(bus);
-		return NULL;
-	}
+	if (unlikely(request_resource(&ioport_resource, &bus->io_space) != 0))
+		goto release_bus_mem_space;
 #endif
 	/*
 	 * Set hardware dependent functions.
@@ -438,5 +420,21 @@ struct pci_bus_info * __init init_hades_pci(void)
 	tt_mfp.active_edge &= ~0x27;
 
 	return bus;
+
+release_bus_mem_space:
+	release_resource(&bus->mem_space);
+release_io_space:
+	release_resource(&io_space);
+release_config_space:
+	release_resource(&config_space);
+free_bus:
+	kfree(bus);
+iounmap_base_virt:
+	iounmap((void *)pci_io_base_virt);
+
+	for (i = 0; i < N_SLOTS; i++)
+		iounmap((void *)pci_conf_base_virt[i]);
+
+	return NULL;
 }
 #endif

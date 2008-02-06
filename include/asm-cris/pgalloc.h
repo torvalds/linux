@@ -16,7 +16,7 @@ static inline pgd_t *pgd_alloc (struct mm_struct *mm)
 	return (pgd_t *)get_zeroed_page(GFP_KERNEL);
 }
 
-static inline void pgd_free (pgd_t *pgd)
+static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
 	free_page((unsigned long)pgd);
 }
@@ -34,12 +34,12 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm, unsigned long add
 	return pte;
 }
 
-static inline void pte_free_kernel(pte_t *pte)
+static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 {
 	free_page((unsigned long)pte);
 }
 
-static inline void pte_free(struct page *pte)
+static inline void pte_free(struct mm_struct *mm, struct page *pte)
 {
 	__free_page(pte);
 }

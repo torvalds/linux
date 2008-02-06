@@ -500,6 +500,13 @@ static int smb_fill_super(struct super_block *sb, void *raw_data, int silent)
 	struct smb_fattr root;
 	int ver;
 	void *mem;
+	static int warn_count;
+
+	if (warn_count < 5) {
+		warn_count++;
+		printk(KERN_EMERG "smbfs is deprecated and will be removed"
+			"from the 2.6.27 kernel.  Please migrate to cifs\n");
+	}
 
 	if (!raw_data)
 		goto out_no_data;

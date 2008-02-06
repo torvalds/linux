@@ -2249,6 +2249,15 @@ L:	kvm-devel@lists.sourceforge.net
 W:	kvm.sourceforge.net
 S:	Supported
 
+KERNEL VIRTUAL MACHINE For Itanium(KVM/IA64)
+P:	Anthony Xu
+M:	anthony.xu@intel.com
+P:	Xiantao Zhang
+M:	xiantao.zhang@intel.com
+L:	kvm-ia64-devel@lists.sourceforge.net
+W:	kvm.sourceforge.net
+S:	Supported
+
 KEXEC
 P:	Eric Biederman
 M:	ebiederm@xmission.com
@@ -2680,6 +2689,16 @@ P:	James E.J. Bottomley
 M:	James.Bottomley@HansenPartnership.com
 L:	linux-scsi@vger.kernel.org
 S:	Maintained
+
+NETEFFECT IWARP RNIC DRIVER (IW_NES)
+P:	Faisal Latif
+M:	flatif@neteffect.com
+P:	Glenn Streiff
+M:	gstreiff@neteffect.com
+L:	general@lists.openfabrics.org
+W:	http://www.neteffect.com
+S:	Supported
+F:	drivers/infiniband/hw/nes/
 
 NETEM NETWORK EMULATOR
 P:	Stephen Hemminger

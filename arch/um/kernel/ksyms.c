@@ -18,15 +18,11 @@ EXPORT_SYMBOL(set_signals);
 EXPORT_SYMBOL(get_signals);
 EXPORT_SYMBOL(kernel_thread);
 EXPORT_SYMBOL(sys_waitpid);
-EXPORT_SYMBOL(task_size);
 EXPORT_SYMBOL(flush_tlb_range);
-EXPORT_SYMBOL(host_task_size);
 EXPORT_SYMBOL(arch_validate);
-EXPORT_SYMBOL(get_kmem_end);
 
 EXPORT_SYMBOL(high_physmem);
 EXPORT_SYMBOL(empty_zero_page);
-EXPORT_SYMBOL(um_virt_to_phys);
 EXPORT_SYMBOL(handle_page_fault);
 EXPORT_SYMBOL(find_iomem);
 
@@ -40,7 +36,6 @@ EXPORT_SYMBOL(uml_strdup);
 EXPORT_SYMBOL(os_stat_fd);
 EXPORT_SYMBOL(os_stat_file);
 EXPORT_SYMBOL(os_access);
-EXPORT_SYMBOL(os_get_exec_close);
 EXPORT_SYMBOL(os_set_exec_close);
 EXPORT_SYMBOL(os_getpid);
 EXPORT_SYMBOL(os_open_file);

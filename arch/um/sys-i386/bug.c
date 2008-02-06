@@ -4,6 +4,7 @@
  */
 
 #include <linux/uaccess.h>
+#include <asm/errno.h>
 
 /* Mostly copied from i386/x86_86 - eliminated the eip < PAGE_OFFSET because
  * that's not relevant in skas mode.

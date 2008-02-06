@@ -1798,7 +1798,7 @@ void page_zero_new_buffers(struct page *page, unsigned from, unsigned to)
 					start = max(from, block_start);
 					size = min(to, block_end) - start;
 
-					zero_user_page(page, start, size, KM_USER0);
+					zero_user(page, start, size);
 					set_buffer_uptodate(bh);
 				}
 
@@ -1861,19 +1861,10 @@ static int __block_prepare_write(struct inode *inode, struct page *page,
 					mark_buffer_dirty(bh);
 					continue;
 				}
-				if (block_end > to || block_start < from) {
-					void *kaddr;
-
-					kaddr = kmap_atomic(page, KM_USER0);
-					if (block_end > to)
-						memset(kaddr+to, 0,
-							block_end-to);
-					if (block_start < from)
-						memset(kaddr+block_start,
-							0, from-block_start);
-					flush_dcache_page(page);
-					kunmap_atomic(kaddr, KM_USER0);
-				}
+				if (block_end > to || block_start < from)
+					zero_user_segments(page,
+						to, block_end,
+						block_start, from);
 				continue;
 			}
 		}
@@ -2104,8 +2095,7 @@ int block_read_full_page(struct page *page, get_block_t *get_block)
 					SetPageError(page);
 			}
 			if (!buffer_mapped(bh)) {
-				zero_user_page(page, i * blocksize, blocksize,
-						KM_USER0);
+				zero_user(page, i * blocksize, blocksize);
 				if (!err)
 					set_buffer_uptodate(bh);
 				continue;
@@ -2218,7 +2208,7 @@ int cont_expand_zero(struct file *file, struct address_space *mapping,
 						&page, &fsdata);
 		if (err)
 			goto out;
-		zero_user_page(page, zerofrom, len, KM_USER0);
+		zero_user(page, zerofrom, len);
 		err = pagecache_write_end(file, mapping, curpos, len, len,
 						page, fsdata);
 		if (err < 0)
@@ -2245,7 +2235,7 @@ int cont_expand_zero(struct file *file, struct address_space *mapping,
 						&page, &fsdata);
 		if (err)
 			goto out;
-		zero_user_page(page, zerofrom, len, KM_USER0);
+		zero_user(page, zerofrom, len);
 		err = pagecache_write_end(file, mapping, curpos, len, len,
 						page, fsdata);
 		if (err < 0)
@@ -2422,7 +2412,6 @@ int nobh_write_begin(struct file *file, struct address_space *mapping,
 	unsigned block_in_page;
 	unsigned block_start, block_end;
 	sector_t block_in_file;
-	char *kaddr;
 	int nr_reads = 0;
 	int ret = 0;
 	int is_mapped_to_disk = 1;
@@ -2493,13 +2482,8 @@ int nobh_write_begin(struct file *file, struct address_space *mapping,
 			continue;
 		}
 		if (buffer_new(bh) || !buffer_mapped(bh)) {
-			kaddr = kmap_atomic(page, KM_USER0);
-			if (block_start < from)
-				memset(kaddr+block_start, 0, from-block_start);
-			if (block_end > to)
-				memset(kaddr + to, 0, block_end - to);
-			flush_dcache_page(page);
-			kunmap_atomic(kaddr, KM_USER0);
+			zero_user_segments(page, block_start, from,
+							to, block_end);
 			continue;
 		}
 		if (buffer_uptodate(bh))
@@ -2636,7 +2620,7 @@ int nobh_writepage(struct page *page, get_block_t *get_block,
 	 * the  page size, the remaining memory is zeroed when mapped, and
 	 * writes to that region are not written out to the file."
 	 */
-	zero_user_page(page, offset, PAGE_CACHE_SIZE - offset, KM_USER0);
+	zero_user_segment(page, offset, PAGE_CACHE_SIZE);
 out:
 	ret = mpage_writepage(page, get_block, wbc);
 	if (ret == -EAGAIN)
@@ -2709,7 +2693,7 @@ has_buffers:
 		if (page_has_buffers(page))
 			goto has_buffers;
 	}
-	zero_user_page(page, offset, length, KM_USER0);
+	zero_user(page, offset, length);
 	set_page_dirty(page);
 	err = 0;
 
@@ -2785,7 +2769,7 @@ int block_truncate_page(struct address_space *mapping,
 			goto unlock;
 	}
 
-	zero_user_page(page, offset, length, KM_USER0);
+	zero_user(page, offset, length);
 	mark_buffer_dirty(bh);
 	err = 0;
 
@@ -2831,7 +2815,7 @@ int block_write_full_page(struct page *page, get_block_t *get_block,
 	 * the  page size, the remaining memory is zeroed when mapped, and
 	 * writes to that region are not written out to the file."
 	 */
-	zero_user_page(page, offset, PAGE_CACHE_SIZE - offset, KM_USER0);
+	zero_user_segment(page, offset, PAGE_CACHE_SIZE);
 	return __block_write_full_page(inode, page, get_block, wbc);
 }
 
@@ -3169,7 +3153,7 @@ static void recalc_bh_state(void)
 	
 struct buffer_head *alloc_buffer_head(gfp_t gfp_flags)
 {
-	struct buffer_head *ret = kmem_cache_zalloc(bh_cachep,
+	struct buffer_head *ret = kmem_cache_alloc(bh_cachep,
 				set_migrateflags(gfp_flags, __GFP_RECLAIMABLE));
 	if (ret) {
 		INIT_LIST_HEAD(&ret->b_assoc_buffers);
@@ -3257,12 +3241,24 @@ int bh_submit_read(struct buffer_head *bh)
 }
 EXPORT_SYMBOL(bh_submit_read);
 
+static void
+init_buffer_head(struct kmem_cache *cachep, void *data)
+{
+	struct buffer_head *bh = data;
+
+	memset(bh, 0, sizeof(*bh));
+	INIT_LIST_HEAD(&bh->b_assoc_buffers);
+}
+
 void __init buffer_init(void)
 {
 	int nrpages;
 
-	bh_cachep = KMEM_CACHE(buffer_head,
-			SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|SLAB_MEM_SPREAD);
+	bh_cachep = kmem_cache_create("buffer_head",
+			sizeof(struct buffer_head), 0,
+				(SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|
+				SLAB_MEM_SPREAD),
+				init_buffer_head);
 
 	/*
 	 * Limit the bh occupancy to 10% of ZONE_NORMAL

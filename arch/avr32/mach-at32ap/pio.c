@@ -24,11 +24,11 @@
 #define MAX_NR_PIO_DEVICES		8
 
 struct pio_device {
+	struct gpio_chip chip;
 	void __iomem *regs;
 	const struct platform_device *pdev;
 	struct clk *clk;
 	u32 pinmux_mask;
-	u32 gpio_mask;
 	char name[8];
 };
 
@@ -64,7 +64,8 @@ void __init at32_select_periph(unsigned int pin, unsigned int periph,
 		goto fail;
 	}
 
-	if (unlikely(test_and_set_bit(pin_index, &pio->pinmux_mask))) {
+	if (unlikely(test_and_set_bit(pin_index, &pio->pinmux_mask)
+			 || gpiochip_is_requested(&pio->chip, pin_index))) {
 		printk("%s: pin %u is busy\n", pio->name, pin_index);
 		goto fail;
 	}
@@ -78,9 +79,6 @@ void __init at32_select_periph(unsigned int pin, unsigned int periph,
 	pio_writel(pio, PDR, mask);
 	if (!(flags & AT32_GPIOF_PULLUP))
 		pio_writel(pio, PUDR, mask);
-
-	/* gpio_request NOT allowed */
-	set_bit(pin_index, &pio->gpio_mask);
 
 	return;
 
@@ -130,9 +128,6 @@ void __init at32_select_gpio(unsigned int pin, unsigned long flags)
 
 	pio_writel(pio, PER, mask);
 
-	/* gpio_request now allowed */
-	clear_bit(pin_index, &pio->gpio_mask);
-
 	return;
 
 fail:
@@ -166,96 +161,50 @@ fail:
 
 /* GPIO API */
 
-int gpio_request(unsigned int gpio, const char *label)
+static int direction_input(struct gpio_chip *chip, unsigned offset)
 {
-	struct pio_device *pio;
-	unsigned int pin;
+	struct pio_device *pio = container_of(chip, struct pio_device, chip);
+	u32 mask = 1 << offset;
 
-	pio = gpio_to_pio(gpio);
-	if (!pio)
-		return -ENODEV;
+	if (!(pio_readl(pio, PSR) & mask))
+		return -EINVAL;
 
-	pin = gpio & 0x1f;
-	if (test_and_set_bit(pin, &pio->gpio_mask))
-		return -EBUSY;
-
+	pio_writel(pio, ODR, mask);
 	return 0;
 }
-EXPORT_SYMBOL(gpio_request);
 
-void gpio_free(unsigned int gpio)
+static int gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct pio_device *pio;
-	unsigned int pin;
+	struct pio_device *pio = container_of(chip, struct pio_device, chip);
 
-	pio = gpio_to_pio(gpio);
-	if (!pio) {
-		printk(KERN_ERR
-		       "gpio: attempted to free invalid pin %u\n", gpio);
-		return;
-	}
-
-	pin = gpio & 0x1f;
-	if (!test_and_clear_bit(pin, &pio->gpio_mask))
-		printk(KERN_ERR "gpio: freeing free or non-gpio pin %s-%u\n",
-		       pio->name, pin);
+	return (pio_readl(pio, PDSR) >> offset) & 1;
 }
-EXPORT_SYMBOL(gpio_free);
 
-int gpio_direction_input(unsigned int gpio)
+static void gpio_set(struct gpio_chip *chip, unsigned offset, int value);
+
+static int direction_output(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct pio_device *pio;
-	unsigned int pin;
+	struct pio_device *pio = container_of(chip, struct pio_device, chip);
+	u32 mask = 1 << offset;
 
-	pio = gpio_to_pio(gpio);
-	if (!pio)
-		return -ENODEV;
+	if (!(pio_readl(pio, PSR) & mask))
+		return -EINVAL;
 
-	pin = gpio & 0x1f;
-	pio_writel(pio, ODR, 1 << pin);
-
+	gpio_set(chip, offset, value);
+	pio_writel(pio, OER, mask);
 	return 0;
 }
-EXPORT_SYMBOL(gpio_direction_input);
 
-int gpio_direction_output(unsigned int gpio, int value)
+static void gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct pio_device *pio;
-	unsigned int pin;
+	struct pio_device *pio = container_of(chip, struct pio_device, chip);
+	u32 mask = 1 << offset;
 
-	pio = gpio_to_pio(gpio);
-	if (!pio)
-		return -ENODEV;
-
-	gpio_set_value(gpio, value);
-
-	pin = gpio & 0x1f;
-	pio_writel(pio, OER, 1 << pin);
-
-	return 0;
-}
-EXPORT_SYMBOL(gpio_direction_output);
-
-int gpio_get_value(unsigned int gpio)
-{
-	struct pio_device *pio = &pio_dev[gpio >> 5];
-
-	return (pio_readl(pio, PDSR) >> (gpio & 0x1f)) & 1;
-}
-EXPORT_SYMBOL(gpio_get_value);
-
-void gpio_set_value(unsigned int gpio, int value)
-{
-	struct pio_device *pio = &pio_dev[gpio >> 5];
-	u32 mask;
-
-	mask = 1 << (gpio & 0x1f);
 	if (value)
 		pio_writel(pio, SODR, mask);
 	else
 		pio_writel(pio, CODR, mask);
 }
-EXPORT_SYMBOL(gpio_set_value);
 
 /*--------------------------------------------------------------------------*/
 
@@ -339,6 +288,63 @@ gpio_irq_setup(struct pio_device *pio, int irq, int gpio_irq)
 
 /*--------------------------------------------------------------------------*/
 
+#ifdef CONFIG_DEBUG_FS
+
+#include <linux/seq_file.h>
+
+/*
+ * This shows more info than the generic gpio dump code:
+ * pullups, deglitching, open drain drive.
+ */
+static void pio_bank_show(struct seq_file *s, struct gpio_chip *chip)
+{
+	struct pio_device *pio = container_of(chip, struct pio_device, chip);
+	u32			psr, osr, imr, pdsr, pusr, ifsr, mdsr;
+	unsigned		i;
+	u32			mask;
+	char			bank;
+
+	psr = pio_readl(pio, PSR);
+	osr = pio_readl(pio, OSR);
+	imr = pio_readl(pio, IMR);
+	pdsr = pio_readl(pio, PDSR);
+	pusr = pio_readl(pio, PUSR);
+	ifsr = pio_readl(pio, IFSR);
+	mdsr = pio_readl(pio, MDSR);
+
+	bank = 'A' + pio->pdev->id;
+
+	for (i = 0, mask = 1; i < 32; i++, mask <<= 1) {
+		const char *label;
+
+		label = gpiochip_is_requested(chip, i);
+		if (!label)
+			continue;
+
+		seq_printf(s, " gpio-%-3d P%c%-2d (%-12s) %s %s %s",
+			chip->base + i, bank, i,
+			label,
+			(osr & mask) ? "out" : "in ",
+			(mask & pdsr) ? "hi" : "lo",
+			(mask & pusr) ? "  " : "up");
+		if (ifsr & mask)
+			seq_printf(s, " deglitch");
+		if ((osr & mdsr) & mask)
+			seq_printf(s, " open-drain");
+		if (imr & mask)
+			seq_printf(s, " irq-%d edge-both",
+				gpio_to_irq(chip->base + i));
+		seq_printf(s, "\n");
+	}
+}
+
+#else
+#define pio_bank_show	NULL
+#endif
+
+
+/*--------------------------------------------------------------------------*/
+
 static int __init pio_probe(struct platform_device *pdev)
 {
 	struct pio_device *pio = NULL;
@@ -348,6 +354,18 @@ static int __init pio_probe(struct platform_device *pdev)
 	BUG_ON(pdev->id >= MAX_NR_PIO_DEVICES);
 	pio = &pio_dev[pdev->id];
 	BUG_ON(!pio->regs);
+
+	pio->chip.label = pio->name;
+	pio->chip.base = pdev->id * 32;
+	pio->chip.ngpio = 32;
+
+	pio->chip.direction_input = direction_input;
+	pio->chip.get = gpio_get;
+	pio->chip.direction_output = direction_output;
+	pio->chip.set = gpio_set;
+	pio->chip.dbg_show = pio_bank_show;
+
+	gpiochip_add(&pio->chip);
 
 	gpio_irq_setup(pio, irq, gpio_irq_base);
 
@@ -405,12 +423,6 @@ void __init at32_init_pio(struct platform_device *pdev)
 
 	pio->pdev = pdev;
 	pio->regs = ioremap(regs->start, regs->end - regs->start + 1);
-
-	/*
-	 * request_gpio() is only valid for pins that have been
-	 * explicitly configured as GPIO and not previously requested
-	 */
-	pio->gpio_mask = ~0UL;
 
 	/* start with irqs disabled and acked */
 	pio_writel(pio, IDR, ~0UL);

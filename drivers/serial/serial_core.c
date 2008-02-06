@@ -371,7 +371,8 @@ uart_get_baud_rate(struct uart_port *port, struct ktermios *termios,
 		 */
 		termios->c_cflag &= ~CBAUD;
 		if (old) {
-			termios->c_cflag |= old->c_cflag & CBAUD;
+			baud = tty_termios_baud_rate(old);
+			tty_termios_encode_baud_rate(termios, baud, baud);
 			old = NULL;
 			continue;
 		}
@@ -380,7 +381,7 @@ uart_get_baud_rate(struct uart_port *port, struct ktermios *termios,
 		 * As a last resort, if the quotient is zero,
 		 * default to 9600 bps
 		 */
-		termios->c_cflag |= B9600;
+		tty_termios_encode_baud_rate(termios, 9600, 9600);
 	}
 
 	return 0;
@@ -1977,6 +1978,7 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *port)
 
 	if (state->info && state->info->flags & UIF_INITIALIZED) {
 		const struct uart_ops *ops = port->ops;
+		int tries;
 
 		state->info->flags = (state->info->flags & ~UIF_INITIALIZED)
 				     | UIF_SUSPENDED;
@@ -1990,9 +1992,14 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *port)
 		/*
 		 * Wait for the transmitter to empty.
 		 */
-		while (!ops->tx_empty(port)) {
+		for (tries = 3; !ops->tx_empty(port) && tries; tries--) {
 			msleep(10);
 		}
+		if (!tries)
+			printk(KERN_ERR "%s%s%s%d: Unable to drain transmitter\n",
+			       port->dev ? port->dev->bus_id : "",
+			       port->dev ? ": " : "",
+			       drv->dev_name, port->line);
 
 		ops->shutdown(port);
 	}
@@ -2029,8 +2036,6 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *port)
 	}
 	port->suspended = 0;
 
-	uart_change_pm(state, 0);
-
 	/*
 	 * Re-enable the console device after suspending.
 	 */
@@ -2049,6 +2054,7 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *port)
 		if (state->info && state->info->tty && termios.c_cflag == 0)
 			termios = *state->info->tty->termios;
 
+		uart_change_pm(state, 0);
 		port->ops->set_termios(port, &termios, NULL);
 		console_start(port->cons);
 	}
@@ -2057,6 +2063,7 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *port)
 		const struct uart_ops *ops = port->ops;
 		int ret;
 
+		uart_change_pm(state, 0);
 		ops->set_mctrl(port, 0);
 		ret = ops->startup(port);
 		if (ret == 0) {
@@ -2150,10 +2157,11 @@ uart_configure_port(struct uart_driver *drv, struct uart_state *state,
 
 		/*
 		 * Ensure that the modem control lines are de-activated.
+		 * keep the DTR setting that is set in uart_set_options()
 		 * We probably don't need a spinlock around this, but
 		 */
 		spin_lock_irqsave(&port->lock, flags);
-		port->ops->set_mctrl(port, 0);
+		port->ops->set_mctrl(port, port->mctrl & TIOCM_DTR);
 		spin_unlock_irqrestore(&port->lock, flags);
 
 		/*

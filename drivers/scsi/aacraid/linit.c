@@ -449,9 +449,6 @@ static int aac_slave_configure(struct scsi_device *sdev)
 		else if (depth < 2)
 			depth = 2;
 		scsi_adjust_queue_depth(sdev, MSG_ORDERED_TAG, depth);
-		if (!(((struct aac_dev *)host->hostdata)->adapter_info.options &
-				AAC_OPT_NEW_COMM))
-			blk_queue_max_segment_size(sdev->request_queue, 65536);
 	} else
 		scsi_adjust_queue_depth(sdev, 0, 1);
 
@@ -1132,6 +1129,12 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	error = aac_get_adapter_info(aac);
 	if (error < 0)
 		goto out_deinit;
+
+	if (!(aac->adapter_info.options & AAC_OPT_NEW_COMM)) {
+		error = pci_set_dma_max_seg_size(pdev, 65536);
+		if (error)
+			goto out_deinit;
+	}
 
 	/*
  	 * Lets override negotiations and drop the maximum SG limit to 34

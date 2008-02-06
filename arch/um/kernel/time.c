@@ -3,12 +3,12 @@
  * Licensed under the GPL
  */
 
-#include "linux/clockchips.h"
-#include "linux/interrupt.h"
-#include "linux/jiffies.h"
-#include "linux/threads.h"
-#include "asm/irq.h"
-#include "asm/param.h"
+#include <linux/clockchips.h>
+#include <linux/interrupt.h>
+#include <linux/jiffies.h>
+#include <linux/threads.h>
+#include <asm/irq.h>
+#include <asm/param.h>
 #include "kern_util.h"
 #include "os.h"
 
@@ -32,7 +32,7 @@ void timer_handler(int sig, struct uml_pt_regs *regs)
 static void itimer_set_mode(enum clock_event_mode mode,
 			    struct clock_event_device *evt)
 {
-	switch(mode) {
+	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
 		set_interval();
 		break;

@@ -256,6 +256,9 @@ config IOMMU_VMERGE
 
 	  Most drivers don't have this problem; it is safe to say Y here.
 
+config IOMMU_HELPER
+	def_bool PPC64
+
 config HOTPLUG_CPU
 	bool "Support for enabling/disabling CPUs"
 	depends on SMP && HOTPLUG && EXPERIMENTAL && (PPC_PSERIES || PPC_PMAC)

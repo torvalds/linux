@@ -439,7 +439,7 @@ static void ipl_run(struct shutdown_trigger *trigger)
 		reipl_ccw_dev(&ipl_info.data.ccw.dev_id);
 }
 
-static int ipl_init(void)
+static int __init ipl_init(void)
 {
 	int rc;
 
@@ -471,8 +471,11 @@ out:
 	return 0;
 }
 
-static struct shutdown_action ipl_action = {SHUTDOWN_ACTION_IPL_STR, ipl_run,
-					    ipl_init};
+static struct shutdown_action __refdata ipl_action = {
+	.name	= SHUTDOWN_ACTION_IPL_STR,
+	.fn	= ipl_run,
+	.init	= ipl_init,
+};
 
 /*
  * reipl shutdown action: Reboot Linux on shutdown.
@@ -792,7 +795,7 @@ static int __init reipl_fcp_init(void)
 	return 0;
 }
 
-static int reipl_init(void)
+static int __init reipl_init(void)
 {
 	int rc;
 
@@ -819,8 +822,11 @@ static int reipl_init(void)
 	return 0;
 }
 
-static struct shutdown_action reipl_action = {SHUTDOWN_ACTION_REIPL_STR,
-					      reipl_run, reipl_init};
+static struct shutdown_action __refdata reipl_action = {
+	.name	= SHUTDOWN_ACTION_REIPL_STR,
+	.fn	= reipl_run,
+	.init	= reipl_init,
+};
 
 /*
  * dump shutdown action: Dump Linux on shutdown.
@@ -998,7 +1004,7 @@ static int __init dump_fcp_init(void)
 	return 0;
 }
 
-static int dump_init(void)
+static int __init dump_init(void)
 {
 	int rc;
 
@@ -1020,8 +1026,11 @@ static int dump_init(void)
 	return 0;
 }
 
-static struct shutdown_action dump_action = {SHUTDOWN_ACTION_DUMP_STR,
-					     dump_run, dump_init};
+static struct shutdown_action __refdata dump_action = {
+	.name	= SHUTDOWN_ACTION_DUMP_STR,
+	.fn	= dump_run,
+	.init	= dump_init,
+};
 
 /*
  * vmcmd shutdown action: Trigger vm command on shutdown.

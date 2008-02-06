@@ -565,7 +565,7 @@ int ntfs_read_compressed_block(struct page *page)
 	if (xpage >= max_page) {
 		kfree(bhs);
 		kfree(pages);
-		zero_user_page(page, 0, PAGE_CACHE_SIZE, KM_USER0);
+		zero_user(page, 0, PAGE_CACHE_SIZE);
 		ntfs_debug("Compressed read outside i_size - truncated?");
 		SetPageUptodate(page);
 		unlock_page(page);

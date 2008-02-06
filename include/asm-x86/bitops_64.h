@@ -37,28 +37,12 @@ static inline long __scanbit(unsigned long val, unsigned long max)
   ((off)+(__scanbit(~(((*(unsigned long *)addr)) >> (off)),(size)-(off)))) : \
 	find_next_zero_bit(addr,size,off)))
 
-/* 
- * Find string of zero bits in a bitmap. -1 when not found.
- */ 
-extern unsigned long 
-find_next_zero_string(unsigned long *bitmap, long start, long nbits, int len);
-
 static inline void set_bit_string(unsigned long *bitmap, unsigned long i, 
 				  int len) 
 { 
 	unsigned long end = i + len; 
 	while (i < end) {
 		__set_bit(i, bitmap); 
-		i++;
-	}
-} 
-
-static inline void __clear_bit_string(unsigned long *bitmap, unsigned long i, 
-				    int len) 
-{ 
-	unsigned long end = i + len; 
-	while (i < end) {
-		__clear_bit(i, bitmap); 
 		i++;
 	}
 } 

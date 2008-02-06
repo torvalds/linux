@@ -26,7 +26,7 @@
 
 
 static int noresume = 0;
-char resume_file[256] = CONFIG_PM_STD_PARTITION;
+static char resume_file[256] = CONFIG_PM_STD_PARTITION;
 dev_t swsusp_resume_device;
 sector_t swsusp_resume_block;
 
@@ -185,7 +185,7 @@ static void platform_restore_cleanup(int platform_mode)
  *	reappears in this routine after a restore.
  */
 
-int create_image(int platform_mode)
+static int create_image(int platform_mode)
 {
 	int error;
 

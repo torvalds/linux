@@ -14,8 +14,6 @@ extern void mac_init_IRQ(void);
 extern int mac_irq_pending(unsigned int);
 extern void mac_identify(void);
 extern void mac_report_hardware(void);
-extern void mac_debugging_penguin(int);
-extern void mac_boom(int);
 
 /*
  *	Floppy driver magic hook - probably shouldnt be here

@@ -150,7 +150,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	secondary_data.pgdir = 0;
 
 	*pmd_offset(pgd, PHYS_OFFSET) = __pmd(0);
-	pgd_free(pgd);
+	pgd_free(&init_mm, pgd);
 
 	if (ret) {
 		printk(KERN_CRIT "CPU%u: processor failed to boot\n", cpu);

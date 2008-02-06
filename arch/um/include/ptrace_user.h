@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2000, 2001, 2002 Jeff Dike (jdike@karaya.com)
+ * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
@@ -10,12 +10,6 @@
 
 extern int ptrace_getregs(long pid, unsigned long *regs_out);
 extern int ptrace_setregs(long pid, unsigned long *regs_in);
-extern int ptrace_getfpregs(long pid, unsigned long *regs_out);
-extern int ptrace_setfpregs(long pid, unsigned long *regs);
-extern void arch_enter_kernel(void *task, int pid);
-extern void arch_leave_kernel(void *task, int pid);
-extern void ptrace_pokeuser(unsigned long addr, unsigned long data);
-
 
 /* syscall emulation path in ptrace */
 
@@ -54,7 +48,8 @@ extern int sysemu_supported;
 	(((int[3][3] ) { \
 		{ PTRACE_SYSCALL, PTRACE_SYSCALL, PTRACE_SINGLESTEP }, \
 		{ PTRACE_SYSEMU, PTRACE_SYSEMU, PTRACE_SINGLESTEP }, \
-		{ PTRACE_SYSEMU, PTRACE_SYSEMU_SINGLESTEP, PTRACE_SYSEMU_SINGLESTEP }}) \
+		{ PTRACE_SYSEMU, PTRACE_SYSEMU_SINGLESTEP, \
+		  PTRACE_SYSEMU_SINGLESTEP } }) \
 		[sysemu_mode][singlestep_mode])
 
 #endif

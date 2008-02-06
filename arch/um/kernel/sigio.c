@@ -1,18 +1,12 @@
 /*
- * Copyright (C) 2002 - 2003 Jeff Dike (jdike@addtoit.com)
+ * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{linux.intel,addtoit}.com)
  * Licensed under the GPL
  */
 
-#include "linux/kernel.h"
-#include "linux/list.h"
-#include "linux/slab.h"
-#include "linux/signal.h"
-#include "linux/interrupt.h"
-#include "init.h"
-#include "sigio.h"
-#include "irq_user.h"
+#include <linux/interrupt.h>
 #include "irq_kern.h"
 #include "os.h"
+#include "sigio.h"
 
 /* Protected by sigio_lock() called from write_sigio_workaround */
 static int sigio_irq_fd = -1;
@@ -33,9 +27,9 @@ int write_sigio_irq(int fd)
 	err = um_request_irq(SIGIO_WRITE_IRQ, fd, IRQ_READ, sigio_interrupt,
 			     IRQF_DISABLED|IRQF_SAMPLE_RANDOM, "write sigio",
 			     NULL);
-	if(err){
-		printk("write_sigio_irq : um_request_irq failed, err = %d\n",
-		       err);
+	if (err) {
+		printk(KERN_ERR "write_sigio_irq : um_request_irq failed, "
+		       "err = %d\n", err);
 		return -1;
 	}
 	sigio_irq_fd = fd;

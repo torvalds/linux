@@ -8,7 +8,6 @@
 
 #include <stdarg.h>
 #include "irq_user.h"
-#include "kern_util.h"
 #include "longjmp.h"
 #include "mm_id.h"
 #include "sysdep/tls.h"
@@ -128,33 +127,31 @@ static inline struct openflags of_cloexec(struct openflags flags)
 extern int os_stat_file(const char *file_name, struct uml_stat *buf);
 extern int os_stat_fd(const int fd, struct uml_stat *buf);
 extern int os_access(const char *file, int mode);
-extern int os_get_exec_close(int fd, int *close_on_exec);
 extern int os_set_exec_close(int fd);
 extern int os_ioctl_generic(int fd, unsigned int cmd, unsigned long arg);
 extern int os_get_ifname(int fd, char *namebuf);
 extern int os_set_slip(int fd);
-extern int os_set_owner(int fd, int pid);
 extern int os_mode_fd(int fd, int mode);
 
 extern int os_seek_file(int fd, unsigned long long offset);
-extern int os_open_file(char *file, struct openflags flags, int mode);
+extern int os_open_file(const char *file, struct openflags flags, int mode);
 extern int os_read_file(int fd, void *buf, int len);
 extern int os_write_file(int fd, const void *buf, int count);
-extern int os_file_size(char *file, unsigned long long *size_out);
-extern int os_file_modtime(char *file, unsigned long *modtime);
+extern int os_file_size(const char *file, unsigned long long *size_out);
+extern int os_file_modtime(const char *file, unsigned long *modtime);
 extern int os_pipe(int *fd, int stream, int close_on_exec);
-extern int os_set_fd_async(int fd, int owner);
+extern int os_set_fd_async(int fd);
 extern int os_clear_fd_async(int fd);
 extern int os_set_fd_block(int fd, int blocking);
 extern int os_accept_connection(int fd);
-extern int os_create_unix_socket(char *file, int len, int close_on_exec);
+extern int os_create_unix_socket(const char *file, int len, int close_on_exec);
 extern int os_shutdown_socket(int fd, int r, int w);
 extern void os_close_file(int fd);
 extern int os_rcv_fd(int fd, int *helper_pid_out);
 extern int create_unix_socket(char *file, int len, int close_on_exec);
-extern int os_connect_socket(char *name);
+extern int os_connect_socket(const char *name);
 extern int os_file_type(char *file);
-extern int os_file_mode(char *file, struct openflags *mode_out);
+extern int os_file_mode(const char *file, struct openflags *mode_out);
 extern int os_lock_file(int fd, int excl);
 extern void os_flush_stdout(void);
 extern int os_stat_filesystem(char *path, long *bsize_out,
@@ -168,13 +165,9 @@ extern int os_fchange_dir(int fd);
 
 /* start_up.c */
 extern void os_early_checks(void);
-extern int can_do_skas(void);
+extern void can_do_skas(void);
 extern void os_check_bugs(void);
 extern void check_host_supports_tls(int *supports_tls, int *tls_min);
-
-/* Make sure they are clear when running in TT mode. Required by
- * SEGV_MAYBE_FIXABLE */
-#define clear_can_do_skas() do { ptrace_faultinfo = proc_mm = 0; } while (0)
 
 /* mem.c */
 extern int create_mem_file(unsigned long long len);
@@ -214,7 +207,7 @@ extern int execvp_noalloc(char *buf, const char *file, char *const argv[]);
 extern int run_helper(void (*pre_exec)(void *), void *pre_data, char **argv);
 extern int run_helper_thread(int (*proc)(void *), void *arg,
 			     unsigned int flags, unsigned long *stack_out);
-extern int helper_wait(int pid, int nohang, char *pname);
+extern int helper_wait(int pid);
 
 
 /* tls.c */
@@ -237,16 +230,12 @@ extern void unblock_signals(void);
 extern int get_signals(void);
 extern int set_signals(int enable);
 
-/* trap.c */
-extern void os_fill_handlinfo(struct kern_handlers h);
-
 /* util.c */
 extern void stack_protections(unsigned long address);
 extern int raw(int fd);
 extern void setup_machinename(char *machine_out);
 extern void setup_hostinfo(char *buf, int len);
-extern int setjmp_wrapper(void (*proc)(void *, void *), ...);
-extern void os_dump_core(void);
+extern void os_dump_core(void) __attribute__ ((noreturn));
 
 /* time.c */
 extern void idle_sleep(unsigned long long nsecs);
@@ -275,11 +264,9 @@ extern int protect(struct mm_id * mm_idp, unsigned long addr,
 extern int is_skas_winch(int pid, int fd, void *data);
 extern int start_userspace(unsigned long stub_stack);
 extern int copy_context_skas0(unsigned long stack, int pid);
-extern void save_registers(int pid, struct uml_pt_regs *regs);
-extern void restore_registers(int pid, struct uml_pt_regs *regs);
 extern void userspace(struct uml_pt_regs *regs);
-extern void map_stub_pages(int fd, unsigned long code,
-			   unsigned long data, unsigned long stack);
+extern int map_stub_pages(int fd, unsigned long code, unsigned long data,
+			  unsigned long stack);
 extern void new_thread(void *stack, jmp_buf *buf, void (*handler)(void));
 extern void switch_threads(jmp_buf *me, jmp_buf *you);
 extern int start_idle_thread(void *stack, jmp_buf *switch_buf);
@@ -298,15 +285,11 @@ extern void os_free_irq_later(struct irq_fd *active_fds,
 extern int os_get_pollfd(int i);
 extern void os_set_pollfd(int i, int fd);
 extern void os_set_ioignore(void);
-extern void init_irq_signals(int on_sigstack);
 
 /* sigio.c */
 extern int add_sigio_fd(int fd);
 extern int ignore_sigio_fd(int fd);
 extern void maybe_sigio_broken(int fd, int read);
-
-/* skas/trap */
-extern void sig_handler_common_skas(int sig, void *sc_ptr);
 
 /* sys-x86_64/prctl.c */
 extern int os_arch_prctl(int pid, int code, unsigned long *addr);

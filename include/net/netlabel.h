@@ -36,6 +36,8 @@
 #include <net/netlink.h>
 #include <asm/atomic.h>
 
+struct cipso_v4_doi;
+
 /*
  * NetLabel - A management interface for maintaining network packet label
  *            mapping tables for explicit packet labling protocols.
@@ -102,12 +104,6 @@ struct netlbl_audit {
 	u32 secid;
 	uid_t loginuid;
 };
-
-/* Domain mapping definition struct */
-struct netlbl_dom_map;
-
-/* Domain mapping operations */
-int netlbl_domhsh_remove(const char *domain, struct netlbl_audit *audit_info);
 
 /*
  * LSM security attributes
@@ -344,6 +340,19 @@ static inline void netlbl_secattr_free(struct netlbl_lsm_secattr *secattr)
 
 #ifdef CONFIG_NETLABEL
 /*
+ * LSM configuration operations
+ */
+int netlbl_cfg_map_del(const char *domain, struct netlbl_audit *audit_info);
+int netlbl_cfg_unlbl_add_map(const char *domain,
+			     struct netlbl_audit *audit_info);
+int netlbl_cfg_cipsov4_add(struct cipso_v4_doi *doi_def,
+			   struct netlbl_audit *audit_info);
+int netlbl_cfg_cipsov4_add_map(struct cipso_v4_doi *doi_def,
+			       const char *domain,
+			       struct netlbl_audit *audit_info);
+int netlbl_cfg_cipsov4_del(u32 doi, struct netlbl_audit *audit_info);
+
+/*
  * LSM security attribute operations
  */
 int netlbl_secattr_catmap_walk(struct netlbl_lsm_secattr_catmap *catmap,
@@ -378,6 +387,32 @@ void netlbl_cache_invalidate(void);
 int netlbl_cache_add(const struct sk_buff *skb,
 		     const struct netlbl_lsm_secattr *secattr);
 #else
+static inline int netlbl_cfg_map_del(const char *domain,
+				     struct netlbl_audit *audit_info)
+{
+	return -ENOSYS;
+}
+static inline int netlbl_cfg_unlbl_add_map(const char *domain,
+					   struct netlbl_audit *audit_info)
+{
+	return -ENOSYS;
+}
+static inline int netlbl_cfg_cipsov4_add(struct cipso_v4_doi *doi_def,
+					 struct netlbl_audit *audit_info)
+{
+	return -ENOSYS;
+}
+static inline int netlbl_cfg_cipsov4_add_map(struct cipso_v4_doi *doi_def,
+					     const char *domain,
+					     struct netlbl_audit *audit_info)
+{
+	return -ENOSYS;
+}
+static inline int netlbl_cfg_cipsov4_del(u32 doi,
+					 struct netlbl_audit *audit_info)
+{
+	return -ENOSYS;
+}
 static inline int netlbl_secattr_catmap_walk(
 	                              struct netlbl_lsm_secattr_catmap *catmap,
 				      u32 offset)

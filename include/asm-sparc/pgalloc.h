@@ -32,7 +32,7 @@ BTFIXUPDEF_CALL(pgd_t *, get_pgd_fast, void)
 BTFIXUPDEF_CALL(void, free_pgd_fast, pgd_t *)
 #define free_pgd_fast(pgd)	BTFIXUP_CALL(free_pgd_fast)(pgd)
 
-#define pgd_free(pgd)	free_pgd_fast(pgd)
+#define pgd_free(mm, pgd)	free_pgd_fast(pgd)
 #define pgd_alloc(mm)	get_pgd_fast()
 
 BTFIXUPDEF_CALL(void, pgd_set, pgd_t *, pmd_t *)
@@ -45,8 +45,8 @@ BTFIXUPDEF_CALL(pmd_t *, pmd_alloc_one, struct mm_struct *, unsigned long)
 BTFIXUPDEF_CALL(void, free_pmd_fast, pmd_t *)
 #define free_pmd_fast(pmd)	BTFIXUP_CALL(free_pmd_fast)(pmd)
 
-#define pmd_free(pmd)           free_pmd_fast(pmd)
-#define __pmd_free_tlb(tlb, pmd) pmd_free(pmd)
+#define pmd_free(mm, pmd)	free_pmd_fast(pmd)
+#define __pmd_free_tlb(tlb, pmd) pmd_free((tlb)->mm, pmd)
 
 BTFIXUPDEF_CALL(void, pmd_populate, pmd_t *, struct page *)
 #define pmd_populate(MM, PMD, PTE)        BTFIXUP_CALL(pmd_populate)(PMD, PTE)
@@ -59,10 +59,10 @@ BTFIXUPDEF_CALL(pte_t *, pte_alloc_one_kernel, struct mm_struct *, unsigned long
 #define pte_alloc_one_kernel(mm, addr)	BTFIXUP_CALL(pte_alloc_one_kernel)(mm, addr)
 
 BTFIXUPDEF_CALL(void, free_pte_fast, pte_t *)
-#define pte_free_kernel(pte)	BTFIXUP_CALL(free_pte_fast)(pte)
+#define pte_free_kernel(mm, pte)	BTFIXUP_CALL(free_pte_fast)(pte)
 
 BTFIXUPDEF_CALL(void, pte_free, struct page *)
-#define pte_free(pte)		BTFIXUP_CALL(pte_free)(pte)
-#define __pte_free_tlb(tlb, pte)	pte_free(pte)
+#define pte_free(mm, pte)	BTFIXUP_CALL(pte_free)(pte)
+#define __pte_free_tlb(tlb, pte)	pte_free((tlb)->mm, pte)
 
 #endif /* _SPARC_PGALLOC_H */

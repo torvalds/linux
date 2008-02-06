@@ -1,23 +1,25 @@
 /*
  * Copyright (C) 2001 Lennert Buytenhek (buytenh@gnu.org)
- * Copyright (C) 2001 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
+ * Copyright (C) 2001 - 2008 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
-#include "linux/console.h"
-#include "linux/ctype.h"
-#include "linux/interrupt.h"
-#include "linux/list.h"
-#include "linux/mm.h"
-#include "linux/module.h"
-#include "linux/notifier.h"
-#include "linux/reboot.h"
-#include "linux/proc_fs.h"
-#include "linux/slab.h"
-#include "linux/syscalls.h"
-#include "linux/utsname.h"
-#include "linux/workqueue.h"
-#include "asm/uaccess.h"
+#include <linux/console.h>
+#include <linux/ctype.h>
+#include <linux/interrupt.h>
+#include <linux/list.h>
+#include <linux/mm.h>
+#include <linux/module.h>
+#include <linux/notifier.h>
+#include <linux/reboot.h>
+#include <linux/proc_fs.h>
+#include <linux/slab.h>
+#include <linux/syscalls.h>
+#include <linux/utsname.h>
+#include <linux/workqueue.h>
+#include <linux/mutex.h>
+#include <asm/uaccess.h>
+
 #include "init.h"
 #include "irq_kern.h"
 #include "irq_user.h"
@@ -305,7 +307,9 @@ void mconsole_stop(struct mc_request *req)
 	deactivate_fd(req->originating_fd, MCONSOLE_IRQ);
 	os_set_fd_block(req->originating_fd, 1);
 	mconsole_reply(req, "stopped", 0, 0);
-	while (mconsole_get_request(req->originating_fd, req)) {
+	for (;;) {
+		if (!mconsole_get_request(req->originating_fd, req))
+			continue;
 		if (req->cmd->handler == mconsole_go)
 			break;
 		if (req->cmd->handler == mconsole_stop) {
@@ -358,7 +362,7 @@ struct unplugged_pages {
 	void *pages[UNPLUGGED_PER_PAGE];
 };
 
-static DECLARE_MUTEX(plug_mem_mutex);
+static DEFINE_MUTEX(plug_mem_mutex);
 static unsigned long long unplugged_pages_count = 0;
 static LIST_HEAD(unplugged_pages);
 static int unplug_index = UNPLUGGED_PER_PAGE;
@@ -394,7 +398,7 @@ static int mem_config(char *str, char **error_out)
 
 	diff /= PAGE_SIZE;
 
-	down(&plug_mem_mutex);
+	mutex_lock(&plug_mem_mutex);
 	for (i = 0; i < diff; i++) {
 		struct unplugged_pages *unplugged;
 		void *addr;
@@ -451,7 +455,7 @@ static int mem_config(char *str, char **error_out)
 
 	err = 0;
 out_unlock:
-	up(&plug_mem_mutex);
+	mutex_unlock(&plug_mem_mutex);
 out:
 	return err;
 }
@@ -741,7 +745,6 @@ void mconsole_stack(struct mc_request *req)
 {
 	char *ptr = req->request.data;
 	int pid_requested= -1;
-	struct task_struct *from = NULL;
 	struct task_struct *to = NULL;
 
 	/*
@@ -763,9 +766,7 @@ void mconsole_stack(struct mc_request *req)
 		return;
 	}
 
-	from = current;
-
-	to = find_task_by_pid(pid_requested);
+	to = find_task_by_pid_ns(pid_requested, &init_pid_ns);
 	if ((to == NULL) || (pid_requested == 0)) {
 		mconsole_reply(req, "Couldn't find that pid", 1, 0);
 		return;
@@ -795,6 +796,8 @@ static int __init mconsole_init(void)
 		printk(KERN_ERR "Failed to initialize management console\n");
 		return 1;
 	}
+	if (os_set_fd_block(sock, 0))
+		goto out;
 
 	register_reboot_notifier(&reboot_notifier);
 
@@ -803,7 +806,7 @@ static int __init mconsole_init(void)
 			     "mconsole", (void *)sock);
 	if (err) {
 		printk(KERN_ERR "Failed to get IRQ for management console\n");
-		return 1;
+		goto out;
 	}
 
 	if (notify_socket != NULL) {
@@ -819,6 +822,10 @@ static int __init mconsole_init(void)
 	printk(KERN_INFO "mconsole (version %d) initialized on %s\n",
 	       MCONSOLE_VERSION, mconsole_socket_name);
 	return 0;
+
+ out:
+	os_close_file(sock);
+	return 1;
 }
 
 __initcall(mconsole_init);

@@ -13,9 +13,6 @@
 #include "asm/uaccess.h"
 #include "asm/unistd.h"
 
-/*  Unlocked, I don't care if this is a bit off */
-int nsyscalls = 0;
-
 long sys_fork(void)
 {
 	long ret;

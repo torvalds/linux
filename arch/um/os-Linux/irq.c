@@ -1,23 +1,19 @@
 /*
- * Copyright (C) 2000, 2001, 2002 Jeff Dike (jdike@karaya.com)
+ * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Licensed under the GPL
  */
 
 #include <stdlib.h>
-#include <unistd.h>
 #include <errno.h>
+#include <poll.h>
 #include <signal.h>
 #include <string.h>
-#include <sys/poll.h>
-#include <sys/types.h>
-#include <sys/time.h>
-#include "kern_util.h"
-#include "user.h"
-#include "process.h"
-#include "sigio.h"
 #include "irq_user.h"
+#include "kern_constants.h"
 #include "os.h"
+#include "process.h"
 #include "um_malloc.h"
+#include "user.h"
 
 /*
  * Locked by irq_lock in arch/um/kernel/irq.c.  Changed by os_create_pollfd
@@ -36,7 +32,7 @@ int os_waiting_for_events(struct irq_fd *active_fds)
 	if (n < 0) {
 		err = -errno;
 		if (errno != EINTR)
-			printk("sigio_handler: os_waiting_for_events:"
+			printk(UM_KERN_ERR "os_waiting_for_events:"
 			       " poll returned %d, errno = %d\n", n, errno);
 		return err;
 	}
@@ -95,24 +91,26 @@ void os_free_irq_by_cb(int (*test)(struct irq_fd *, void *), void *arg,
 			struct irq_fd *old_fd = *prev;
 			if ((pollfds[i].fd != -1) &&
 			    (pollfds[i].fd != (*prev)->fd)) {
-				printk("os_free_irq_by_cb - mismatch between "
-				       "active_fds and pollfds, fd %d vs %d\n",
+				printk(UM_KERN_ERR "os_free_irq_by_cb - "
+				       "mismatch between active_fds and "
+				       "pollfds, fd %d vs %d\n",
 				       (*prev)->fd, pollfds[i].fd);
 				goto out;
 			}
 
 			pollfds_num--;
 
-			/* This moves the *whole* array after pollfds[i]
+			/*
+			 * This moves the *whole* array after pollfds[i]
 			 * (though it doesn't spot as such)!
 			 */
 			memmove(&pollfds[i], &pollfds[i + 1],
 			       (pollfds_num - i) * sizeof(pollfds[0]));
-			if(*last_irq_ptr2 == &old_fd->next)
+			if (*last_irq_ptr2 == &old_fd->next)
 				*last_irq_ptr2 = prev;
 
 			*prev = (*prev)->next;
-			if(old_fd->type == IRQ_WRITE)
+			if (old_fd->type == IRQ_WRITE)
 				ignore_sigio_fd(old_fd->fd);
 			kfree(old_fd);
 			continue;
@@ -137,15 +135,4 @@ void os_set_pollfd(int i, int fd)
 void os_set_ioignore(void)
 {
 	signal(SIGIO, SIG_IGN);
-}
-
-void init_irq_signals(int on_sigstack)
-{
-	int flags;
-
-	flags = on_sigstack ? SA_ONSTACK : 0;
-
-	set_handler(SIGIO, (__sighandler_t) sig_handler, flags | SA_RESTART,
-		    SIGUSR1, SIGIO, SIGWINCH, SIGVTALRM, -1);
-	signal(SIGWINCH, SIG_IGN);
 }

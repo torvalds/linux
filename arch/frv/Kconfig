@@ -138,6 +138,15 @@ config UCPAGE_OFFSET_C0000000
 
 endchoice
 
+config PAGE_OFFSET
+	hex
+	default 0x20000000 if UCPAGE_OFFSET_20000000
+	default 0x40000000 if UCPAGE_OFFSET_40000000
+	default 0x60000000 if UCPAGE_OFFSET_60000000
+	default 0x80000000 if UCPAGE_OFFSET_80000000
+	default 0xA0000000 if UCPAGE_OFFSET_A0000000
+	default 0xC0000000
+
 config PROTECT_KERNEL
 	bool "Protect core kernel against userspace"
 	depends on !MMU

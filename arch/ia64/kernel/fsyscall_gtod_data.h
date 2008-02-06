@@ -14,10 +14,10 @@ struct fsyscall_gtod_data_t {
 	u32		clk_shift;
 	void		*clk_fsys_mmio;
 	cycle_t		clk_cycle_last;
-} __attribute__ ((aligned (L1_CACHE_BYTES)));
+} ____cacheline_aligned;
 
 struct itc_jitter_data_t {
 	int		itc_jitter;
 	cycle_t		itc_lastcycle;
-} __attribute__ ((aligned (L1_CACHE_BYTES)));
+} ____cacheline_aligned;
 

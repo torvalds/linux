@@ -1527,7 +1527,7 @@ static inline void s3c2440_serial_exit(void)
 #define s3c2440_uart_inf_at NULL
 #endif /* CONFIG_CPU_S3C2440 */
 
-#if defined(CONFIG_CPU_S3C2412) || defined(CONFIG_CPU_S3C2413)
+#if defined(CONFIG_CPU_S3C2412)
 
 static int s3c2412_serial_setsource(struct uart_port *port,
 				     struct s3c24xx_uart_clksrc *clk)
