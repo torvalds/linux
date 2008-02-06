@@ -136,6 +136,7 @@ struct sigmatel_spec {
 	/* power management */
 	unsigned int num_pwrs;
 	hda_nid_t *pwr_nids;
+	hda_nid_t *dac_list;
 
 	/* playback */
 	struct hda_input_mux *mono_mux;
@@ -289,6 +290,10 @@ static hda_nid_t stac927x_adc_nids[3] = {
 
 static hda_nid_t stac927x_mux_nids[3] = {
         0x15, 0x16, 0x17
+};
+
+static hda_nid_t stac927x_dac_nids[6] = {
+	0x02, 0x03, 0x04, 0x05, 0x06, 0
 };
 
 static hda_nid_t stac927x_dmux_nids[1] = {
@@ -2877,6 +2882,18 @@ static int is_nid_hp_pin(struct auto_pin_cfg *cfg, hda_nid_t nid)
 	return 0; /* nid is not a HP-Out */
 };
 
+static void stac92xx_power_down(struct hda_codec *codec)
+{
+	struct sigmatel_spec *spec = codec->spec;
+
+	/* power down inactive DACs */
+	hda_nid_t *dac;
+	for (dac = spec->dac_list; *dac; dac++)
+		if (!is_in_dac_nids(spec, *dac))
+			snd_hda_codec_write_cache(codec, *dac, 0,
+					AC_VERB_SET_POWER_STATE, AC_PWRST_D3);
+}
+
 static int stac92xx_init(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
@@ -2929,7 +2946,8 @@ static int stac92xx_init(struct hda_codec *codec)
 		enable_pin_detect(codec, spec->pwr_nids[i], event | i);
 		codec->patch_ops.unsol_event(codec, (event | i) << 26);
 	}
-
+	if (spec->dac_list)
+		stac92xx_power_down(codec);
 	if (cfg->dig_out_pin)
 		stac92xx_auto_set_pinctl(codec, cfg->dig_out_pin,
 					 AC_PINCTL_OUT_EN);
@@ -3102,6 +3120,9 @@ static int stac92xx_resume(struct hda_codec *codec)
 		spec->gpio_dir, spec->gpio_data);
 	snd_hda_codec_resume_amp(codec);
 	snd_hda_codec_resume_cache(codec);
+	/* power down inactive DACs */
+	if (spec->dac_list)
+		stac92xx_power_down(codec);
 	/* invoke unsolicited event to reset the HP state */
 	if (spec->hp_detect)
 		codec->patch_ops.unsol_event(codec, STAC_HP_EVENT << 26);
@@ -3589,6 +3610,7 @@ static int patch_stac927x(struct hda_codec *codec)
 	spec->num_adcs = ARRAY_SIZE(stac927x_adc_nids);
 	spec->mux_nids = stac927x_mux_nids;
 	spec->num_muxes = ARRAY_SIZE(stac927x_mux_nids);
+	spec->dac_list = stac927x_dac_nids;
 	spec->multiout.dac_nids = spec->dac_nids;
 
 	switch (spec->board_config) {
