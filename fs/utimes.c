@@ -6,6 +6,7 @@
 #include <linux/sched.h>
 #include <linux/stat.h>
 #include <linux/utime.h>
+#include <linux/syscalls.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 
