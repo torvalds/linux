@@ -87,7 +87,8 @@ enum {
  *	the optimum value or until we reach MAX.
  *
  *	Setting the following parameter to 0 is illegal: the pipelined mode
- *	cannot be disabled (calculate_speeds() divides by tape->max_stages.)
+ *	cannot be disabled (idetape_calculate_speeds() divides by
+ *	tape->max_stages.)
  */
 #define IDETAPE_MIN_PIPELINE_STAGES	  1
 #define IDETAPE_MAX_PIPELINE_STAGES	400
@@ -1475,10 +1476,9 @@ static void idetape_create_mode_sense_cmd (idetape_pc_t *pc, u8 page_code)
 	pc->callback = &idetape_pc_callback;
 }
 
-static void calculate_speeds(ide_drive_t *drive)
+static void idetape_calculate_speeds(ide_drive_t *drive)
 {
 	idetape_tape_t *tape = drive->driver_data;
-	int full = 125, empty = 75;
 
 	if (time_after(jiffies, tape->controlled_pipeline_head_time + 120 * HZ)) {
 		tape->controlled_previous_pipeline_head = tape->controlled_last_pipeline_head;
@@ -1505,22 +1505,20 @@ static void calculate_speeds(ide_drive_t *drive)
 		}
 	}
 	tape->pipeline_head_speed = max(tape->uncontrolled_pipeline_head_speed, tape->controlled_pipeline_head_speed);
-	if (tape->speed_control == 0) {
-		tape->max_insert_speed = 5000;
-	} else if (tape->speed_control == 1) {
+
+	if (tape->speed_control == 1) {
 		if (tape->nr_pending_stages >= tape->max_stages / 2)
 			tape->max_insert_speed = tape->pipeline_head_speed +
 				(1100 - tape->pipeline_head_speed) * 2 * (tape->nr_pending_stages - tape->max_stages / 2) / tape->max_stages;
 		else
 			tape->max_insert_speed = 500 +
 				(tape->pipeline_head_speed - 500) * 2 * tape->nr_pending_stages / tape->max_stages;
+
 		if (tape->nr_pending_stages >= tape->max_stages * 99 / 100)
 			tape->max_insert_speed = 5000;
-	} else if (tape->speed_control == 2) {
-		tape->max_insert_speed = tape->pipeline_head_speed * empty / 100 +
-			(tape->pipeline_head_speed * full / 100 - tape->pipeline_head_speed * empty / 100) * tape->nr_pending_stages / tape->max_stages;
 	} else
 		tape->max_insert_speed = tape->speed_control;
+
 	tape->max_insert_speed = max(tape->max_insert_speed, 500);
 }
 
@@ -1698,7 +1696,7 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 		tape->measure_insert_time = 1;
 	if (time_after(jiffies, tape->insert_time))
 		tape->insert_speed = tape->insert_size / 1024 * HZ / (jiffies - tape->insert_time);
-	calculate_speeds(drive);
+	idetape_calculate_speeds(drive);
 	if (!test_and_clear_bit(IDETAPE_IGNORE_DSC, &tape->flags) &&
 	    (stat & SEEK_STAT) == 0) {
 		if (postponed_rq == NULL) {
@@ -2419,7 +2417,7 @@ static int idetape_add_chrdev_write_request (ide_drive_t *drive, int blocks)
 	idetape_switch_buffers(tape, new_stage);
 	idetape_add_stage_tail(drive, new_stage);
 	tape->pipeline_head++;
-	calculate_speeds(drive);
+	idetape_calculate_speeds(drive);
 
 	/*
 	 *	Estimate whether the tape has stopped writing by checking
@@ -2659,7 +2657,7 @@ static int idetape_add_chrdev_read_request (ide_drive_t *drive,int blocks)
 		idetape_remove_stage_head(drive);
 		spin_unlock_irqrestore(&tape->spinlock, flags);
 		tape->pipeline_head++;
-		calculate_speeds(drive);
+		idetape_calculate_speeds(drive);
 	}
 	if (bytes_read > blocks * tape->tape_block_size) {
 		printk(KERN_ERR "ide-tape: bug: trying to return more bytes than requested\n");
