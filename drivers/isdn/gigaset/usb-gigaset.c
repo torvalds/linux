@@ -361,13 +361,14 @@ static void gigaset_read_int_callback(struct urb *urb)
 {
 	struct inbuf_t *inbuf = urb->context;
 	struct cardstate *cs = inbuf->cs;
+	int status = urb->status;
 	int resubmit = 0;
 	int r;
 	unsigned numbytes;
 	unsigned char *src;
 	unsigned long flags;
 
-	if (!urb->status) {
+	if (!status) {
 		if (!cs->connected) {
 			err("%s: disconnected", __func__); /* should never happen */
 			return;
@@ -393,8 +394,8 @@ static void gigaset_read_int_callback(struct urb *urb)
 	} else {
 		/* The urb might have been killed. */
 		gig_dbg(DEBUG_ANY, "%s - nonzero read bulk status received: %d",
-			__func__, urb->status);
-		if (urb->status != -ENOENT) { /* not killed */
+			__func__, status);
+		if (status != -ENOENT) { /* not killed */
 			if (!cs->connected) {
 				err("%s: disconnected", __func__); /* should never happen */
 				return;
@@ -418,11 +419,12 @@ static void gigaset_read_int_callback(struct urb *urb)
 static void gigaset_write_bulk_callback(struct urb *urb)
 {
 	struct cardstate *cs = urb->context;
+	int status = urb->status;
 	unsigned long flags;
 
-	if (urb->status)
+	if (status)
 		dev_err(cs->dev, "bulk transfer failed (status %d)\n",
-			-urb->status);
+			-status);
 		/* That's all we can do. Communication problems
 		   are handled by timeouts or network protocols. */
 

@@ -248,12 +248,12 @@ static inline void dump_urb(enum debuglevel level, const char *tag,
 	if (urb) {
 		gig_dbg(level,
 			"  dev=0x%08lx, pipe=%s:EP%d/DV%d:%s, "
-			"status=%d, hcpriv=0x%08lx, transfer_flags=0x%x,",
+			"hcpriv=0x%08lx, transfer_flags=0x%x,",
 			(unsigned long) urb->dev,
 			usb_pipetype_str(urb->pipe),
 			usb_pipeendpoint(urb->pipe), usb_pipedevice(urb->pipe),
 			usb_pipein(urb->pipe) ? "in" : "out",
-			urb->status, (unsigned long) urb->hcpriv,
+			(unsigned long) urb->hcpriv,
 			urb->transfer_flags);
 		gig_dbg(level,
 			"  transfer_buffer=0x%08lx[%d], actual_length=%d, "
@@ -459,6 +459,7 @@ static void read_ctrl_callback(struct urb *urb)
 	struct inbuf_t *inbuf = urb->context;
 	struct cardstate *cs = inbuf->cs;
 	struct bas_cardstate *ucs = cs->hw.bas;
+	int status = urb->status;
 	int have_data = 0;
 	unsigned numbytes;
 	int rc;
@@ -472,7 +473,7 @@ static void read_ctrl_callback(struct urb *urb)
 
 	del_timer(&ucs->timer_cmd_in);
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:				/* normal completion */
 		numbytes = urb->actual_length;
 		if (unlikely(numbytes != ucs->rcvbuf_size)) {
@@ -506,12 +507,12 @@ static void read_ctrl_callback(struct urb *urb)
 	case -ESHUTDOWN:		/* device shut down */
 		/* no action necessary */
 		gig_dbg(DEBUG_USBREQ, "%s: %s",
-			__func__, get_usb_statmsg(urb->status));
+			__func__, get_usb_statmsg(status));
 		break;
 
 	default:			/* severe trouble */
 		dev_warn(cs->dev, "control read: %s\n",
-			 get_usb_statmsg(urb->status));
+			 get_usb_statmsg(status));
 		if (ucs->retry_cmd_in++ < BAS_RETRY) {
 			dev_notice(cs->dev, "control read: retry %d\n",
 				   ucs->retry_cmd_in);
@@ -601,12 +602,13 @@ static void read_int_callback(struct urb *urb)
 	struct cardstate *cs = urb->context;
 	struct bas_cardstate *ucs = cs->hw.bas;
 	struct bc_state *bcs;
+	int status = urb->status;
 	unsigned long flags;
 	int rc;
 	unsigned l;
 	int channel;
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:			/* success */
 		break;
 	case -ENOENT:			/* cancelled */
@@ -614,7 +616,7 @@ static void read_int_callback(struct urb *urb)
 	case -EINPROGRESS:		/* pending */
 		/* ignore silently */
 		gig_dbg(DEBUG_USBREQ, "%s: %s",
-			__func__, get_usb_statmsg(urb->status));
+			__func__, get_usb_statmsg(status));
 		return;
 	case -ENODEV:			/* device removed */
 	case -ESHUTDOWN:		/* device shut down */
@@ -623,7 +625,7 @@ static void read_int_callback(struct urb *urb)
 		return;
 	default:		/* severe trouble */
 		dev_warn(cs->dev, "interrupt read: %s\n",
-			 get_usb_statmsg(urb->status));
+			 get_usb_statmsg(status));
 		//FIXME corrective action? resubmission always ok?
 		goto resubmit;
 	}
@@ -766,17 +768,18 @@ static void read_iso_callback(struct urb *urb)
 {
 	struct bc_state *bcs;
 	struct bas_bc_state *ubc;
+	int status = urb->status;
 	unsigned long flags;
 	int i, rc;
 
 	/* status codes not worth bothering the tasklet with */
-	if (unlikely(urb->status == -ENOENT ||
-		     urb->status == -ECONNRESET ||
-		     urb->status == -EINPROGRESS ||
-		     urb->status == -ENODEV ||
-		     urb->status == -ESHUTDOWN)) {
+	if (unlikely(status == -ENOENT ||
+		     status == -ECONNRESET ||
+		     status == -EINPROGRESS ||
+		     status == -ENODEV ||
+		     status == -ESHUTDOWN)) {
 		gig_dbg(DEBUG_ISO, "%s: %s",
-			__func__, get_usb_statmsg(urb->status));
+			__func__, get_usb_statmsg(status));
 		return;
 	}
 
@@ -787,10 +790,11 @@ static void read_iso_callback(struct urb *urb)
 	if (likely(ubc->isoindone == NULL)) {
 		/* pass URB to tasklet */
 		ubc->isoindone = urb;
+		ubc->isoinstatus = status;
 		tasklet_schedule(&ubc->rcvd_tasklet);
 	} else {
 		/* tasklet still busy, drop data and resubmit URB */
-		ubc->loststatus = urb->status;
+		ubc->loststatus = status;
 		for (i = 0; i < BAS_NUMFRAMES; i++) {
 			ubc->isoinlost += urb->iso_frame_desc[i].actual_length;
 			if (unlikely(urb->iso_frame_desc[i].status != 0 &&
@@ -831,22 +835,24 @@ static void write_iso_callback(struct urb *urb)
 {
 	struct isow_urbctx_t *ucx;
 	struct bas_bc_state *ubc;
+	int status = urb->status;
 	unsigned long flags;
 
 	/* status codes not worth bothering the tasklet with */
-	if (unlikely(urb->status == -ENOENT ||
-		     urb->status == -ECONNRESET ||
-		     urb->status == -EINPROGRESS ||
-		     urb->status == -ENODEV ||
-		     urb->status == -ESHUTDOWN)) {
+	if (unlikely(status == -ENOENT ||
+		     status == -ECONNRESET ||
+		     status == -EINPROGRESS ||
+		     status == -ENODEV ||
+		     status == -ESHUTDOWN)) {
 		gig_dbg(DEBUG_ISO, "%s: %s",
-			__func__, get_usb_statmsg(urb->status));
+			__func__, get_usb_statmsg(status));
 		return;
 	}
 
 	/* pass URB context to tasklet */
 	ucx = urb->context;
 	ubc = ucx->bcs->hw.bas;
+	ucx->status = status;
 
 	spin_lock_irqsave(&ubc->isooutlock, flags);
 	ubc->isooutovfl = ubc->isooutdone;
@@ -1070,6 +1076,7 @@ static void write_iso_tasklet(unsigned long data)
 	struct cardstate *cs = bcs->cs;
 	struct isow_urbctx_t *done, *next, *ovfl;
 	struct urb *urb;
+	int status;
 	struct usb_iso_packet_descriptor *ifd;
 	int offset;
 	unsigned long flags;
@@ -1126,7 +1133,8 @@ static void write_iso_tasklet(unsigned long data)
 
 		/* process completed URB */
 		urb = done->urb;
-		switch (urb->status) {
+		status = done->status;
+		switch (status) {
 		case -EXDEV:			/* partial completion */
 			gig_dbg(DEBUG_ISO, "%s: URB partially completed",
 				__func__);
@@ -1179,7 +1187,7 @@ static void write_iso_tasklet(unsigned long data)
 			break;
 		default:			/* severe trouble */
 			dev_warn(cs->dev, "isochronous write: %s\n",
-				 get_usb_statmsg(urb->status));
+				 get_usb_statmsg(status));
 		}
 
 		/* mark the write buffer area covered by this URB as free */
@@ -1233,6 +1241,7 @@ static void read_iso_tasklet(unsigned long data)
 	struct bas_bc_state *ubc = bcs->hw.bas;
 	struct cardstate *cs = bcs->cs;
 	struct urb *urb;
+	int status;
 	char *rcvbuf;
 	unsigned long flags;
 	int totleft, numbytes, offset, frame, rc;
@@ -1245,6 +1254,7 @@ static void read_iso_tasklet(unsigned long data)
 			spin_unlock_irqrestore(&ubc->isoinlock, flags);
 			return;
 		}
+		status = ubc->isoinstatus;
 		ubc->isoindone = NULL;
 		if (unlikely(ubc->loststatus != -EINPROGRESS)) {
 			dev_warn(cs->dev,
@@ -1260,11 +1270,11 @@ static void read_iso_tasklet(unsigned long data)
 			gig_dbg(DEBUG_ISO,
 				"%s: channel not running, "
 				"dropped URB with status: %s",
-				__func__, get_usb_statmsg(urb->status));
+				__func__, get_usb_statmsg(status));
 			return;
 		}
 
-		switch (urb->status) {
+		switch (status) {
 		case 0:				/* normal completion */
 			break;
 		case -EXDEV:			/* inspect individual frames
@@ -1276,7 +1286,7 @@ static void read_iso_tasklet(unsigned long data)
 		case -ECONNRESET:
 		case -EINPROGRESS:
 			gig_dbg(DEBUG_ISO, "%s: %s",
-				__func__, get_usb_statmsg(urb->status));
+				__func__, get_usb_statmsg(status));
 			continue;		/* -> skip */
 		case -EPIPE:
 			dev_err(cs->dev, "isochronous read stalled\n");
@@ -1284,7 +1294,7 @@ static void read_iso_tasklet(unsigned long data)
 			continue;		/* -> skip */
 		default:			/* severe trouble */
 			dev_warn(cs->dev, "isochronous read: %s\n",
-				 get_usb_statmsg(urb->status));
+				 get_usb_statmsg(status));
 			goto error;
 		}
 
@@ -1418,11 +1428,12 @@ static void req_timeout(unsigned long data)
 static void write_ctrl_callback(struct urb *urb)
 {
 	struct bas_cardstate *ucs = urb->context;
+	int status = urb->status;
 	int rc;
 	unsigned long flags;
 
 	/* check status */
-	switch (urb->status) {
+	switch (status) {
 	case 0:					/* normal completion */
 		spin_lock_irqsave(&ucs->lock, flags);
 		switch (ucs->pending) {
@@ -1441,7 +1452,7 @@ static void write_ctrl_callback(struct urb *urb)
 	case -ESHUTDOWN:		/* device shut down */
 		/* ignore silently */
 		gig_dbg(DEBUG_USBREQ, "%s: %s",
-			__func__, get_usb_statmsg(urb->status));
+			__func__, get_usb_statmsg(status));
 		break;
 
 	default:				/* any failure */
@@ -1449,12 +1460,12 @@ static void write_ctrl_callback(struct urb *urb)
 			dev_err(&ucs->interface->dev,
 				"control request 0x%02x failed: %s\n",
 				ucs->dr_ctrl.bRequest,
-				get_usb_statmsg(urb->status));
+				get_usb_statmsg(status));
 			break;		/* give up */
 		}
 		dev_notice(&ucs->interface->dev,
 			   "control request 0x%02x: %s, retry %d\n",
-			   ucs->dr_ctrl.bRequest, get_usb_statmsg(urb->status),
+			   ucs->dr_ctrl.bRequest, get_usb_statmsg(status),
 			   ucs->retry_ctrl);
 		/* urb->dev is clobbered by USB subsystem */
 		urb->dev = ucs->udev;
@@ -1665,12 +1676,13 @@ static void write_command_callback(struct urb *urb)
 {
 	struct cardstate *cs = urb->context;
 	struct bas_cardstate *ucs = cs->hw.bas;
+	int status = urb->status;
 	unsigned long flags;
 
 	update_basstate(ucs, 0, BS_ATWRPEND);
 
 	/* check status */
-	switch (urb->status) {
+	switch (status) {
 	case 0:					/* normal completion */
 		break;
 	case -ENOENT:			/* cancelled */
@@ -1680,14 +1692,14 @@ static void write_command_callback(struct urb *urb)
 	case -ESHUTDOWN:		/* device shut down */
 		/* ignore silently */
 		gig_dbg(DEBUG_USBREQ, "%s: %s",
-			__func__, get_usb_statmsg(urb->status));
+			__func__, get_usb_statmsg(status));
 		return;
 	default:				/* any failure */
 		if (++ucs->retry_cmd_out > BAS_RETRY) {
 			dev_warn(cs->dev,
 				 "command write: %s, "
 				 "giving up after %d retries\n",
-				 get_usb_statmsg(urb->status),
+				 get_usb_statmsg(status),
 				 ucs->retry_cmd_out);
 			break;
 		}
@@ -1695,11 +1707,11 @@ static void write_command_callback(struct urb *urb)
 			dev_warn(cs->dev,
 				 "command write: %s, "
 				 "cannot retry - cmdbuf gone\n",
-				 get_usb_statmsg(urb->status));
+				 get_usb_statmsg(status));
 			break;
 		}
 		dev_notice(cs->dev, "command write: %s, retry %d\n",
-			   get_usb_statmsg(urb->status), ucs->retry_cmd_out);
+			   get_usb_statmsg(status), ucs->retry_cmd_out);
 		if (atwrite_submit(cs, cs->cmdbuf->buf, cs->cmdbuf->len) >= 0)
 			/* resubmitted - bypass regular exit block */
 			return;

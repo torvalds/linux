@@ -350,11 +350,13 @@ struct isowbuf_t {
  * - urb: pointer to the URB itself
  * - bcs: pointer to the B Channel control structure
  * - limit: end of write buffer area covered by this URB
+ * - status: URB completion status
  */
 struct isow_urbctx_t {
 	struct urb *urb;
 	struct bc_state *bcs;
 	int limit;
+	int status;
 };
 
 /* AT state structure
@@ -574,6 +576,7 @@ struct bas_bc_state {
 	struct urb *isoinurbs[BAS_INURBS];
 	unsigned char isoinbuf[BAS_INBUFSIZE * BAS_INURBS];
 	struct urb *isoindone;		/* completed isoc read URB */
+	int isoinstatus;		/* status of completed URB */
 	int loststatus;			/* status of dropped URB */
 	unsigned isoinlost;		/* number of bytes lost */
 	/* state of bit unstuffing algorithm
