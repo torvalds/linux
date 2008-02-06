@@ -658,31 +658,6 @@ static void __init xics_setup_8259_cascade(void)
 	set_irq_chained_handler(cascade, pseries_8259_cascade);
 }
 
-static struct device_node *cpuid_to_of_node(int cpu)
-{
-	struct device_node *np;
-	u32 hcpuid = get_hard_smp_processor_id(cpu);
-
-	for_each_node_by_type(np, "cpu") {
-		int i, len;
-		const u32 *intserv;
-
-		intserv = of_get_property(np, "ibm,ppc-interrupt-server#s",
-					&len);
-
-		if (!intserv)
-			intserv = of_get_property(np, "reg", &len);
-
-		i = len / sizeof(u32);
-
-		while (i--)
-			if (intserv[i] == hcpuid)
-				return np;
-	}
-
-	return NULL;
-}
-
 void __init xics_init_IRQ(void)
 {
 	int i, j;
@@ -711,7 +686,7 @@ void __init xics_init_IRQ(void)
 	xics_init_host();
 
 	/* Find the server numbers for the boot cpu. */
-	np = cpuid_to_of_node(boot_cpuid);
+	np = of_get_cpu_node(boot_cpuid, NULL);
 	BUG_ON(!np);
 	ireg = of_get_property(np, "ibm,ppc-interrupt-gserver#s", &ilen);
 	if (!ireg)
