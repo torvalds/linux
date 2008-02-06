@@ -168,20 +168,14 @@ static void set_dentry_child_flags(struct inode *inode, int watched)
 		struct dentry *child;
 
 		list_for_each_entry(child, &alias->d_subdirs, d_u.d_child) {
-			if (!child->d_inode) {
-				WARN_ON(child->d_flags & DCACHE_INOTIFY_PARENT_WATCHED);
+			if (!child->d_inode)
 				continue;
-			}
+
 			spin_lock(&child->d_lock);
-			if (watched) {
-				WARN_ON(child->d_flags &
-						DCACHE_INOTIFY_PARENT_WATCHED);
+			if (watched)
 				child->d_flags |= DCACHE_INOTIFY_PARENT_WATCHED;
-			} else {
-				WARN_ON(!(child->d_flags &
-					DCACHE_INOTIFY_PARENT_WATCHED));
-				child->d_flags&=~DCACHE_INOTIFY_PARENT_WATCHED;
-			}
+			else
+				child->d_flags &=~DCACHE_INOTIFY_PARENT_WATCHED;
 			spin_unlock(&child->d_lock);
 		}
 	}
@@ -253,7 +247,6 @@ void inotify_d_instantiate(struct dentry *entry, struct inode *inode)
 	if (!inode)
 		return;
 
-	WARN_ON(entry->d_flags & DCACHE_INOTIFY_PARENT_WATCHED);
 	spin_lock(&entry->d_lock);
 	parent = entry->d_parent;
 	if (parent->d_inode && inotify_inode_watched(parent->d_inode))
