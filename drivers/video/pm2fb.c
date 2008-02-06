@@ -1159,6 +1159,11 @@ static void pm2fb_imageblit(struct fb_info *info, const struct fb_image *image)
 	u32 fgx, bgx;
 	const u32 *src = (const u32 *)image->data;
 	u32 xres = (info->var.xres + 31) & ~31;
+	int raster_mode = 1; /* invert bits */
+
+#ifdef __LITTLE_ENDIAN
+	raster_mode |= 3 << 7; /* reverse byte order */
+#endif
 
 	if (info->state != FBINFO_STATE_RUNNING)
 		return;
@@ -1208,9 +1213,8 @@ static void pm2fb_imageblit(struct fb_info *info, const struct fb_image *image)
 		pm2_WR(par, PM2R_RENDER,
 			PM2F_RENDER_RECTANGLE |
 			PM2F_INCREASE_X | PM2F_INCREASE_Y);
-		/* BitMapPackEachScanline & invert bits and byte order*/
-		/* force background */
-		pm2_WR(par, PM2R_RASTERIZER_MODE,  (1 << 9) | 1 | (3 << 7));
+		/* BitMapPackEachScanline */
+		pm2_WR(par, PM2R_RASTERIZER_MODE, raster_mode | (1 << 9));
 		pm2_WR(par, PM2R_CONSTANT_COLOR, fgx);
 		pm2_WR(par, PM2R_RENDER,
 			PM2F_RENDER_RECTANGLE |
@@ -1224,8 +1228,7 @@ static void pm2fb_imageblit(struct fb_info *info, const struct fb_image *image)
 			PM2F_RENDER_RECTANGLE |
 			PM2F_RENDER_FASTFILL |
 			PM2F_INCREASE_X | PM2F_INCREASE_Y);
-		/* invert bits and byte order*/
-		pm2_WR(par, PM2R_RASTERIZER_MODE,  1 | (3 << 7));
+		pm2_WR(par, PM2R_RASTERIZER_MODE, raster_mode);
 		pm2_WR(par, PM2R_FB_BLOCK_COLOR, fgx);
 		pm2_WR(par, PM2R_RENDER,
 			PM2F_RENDER_RECTANGLE |
