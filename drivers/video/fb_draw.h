@@ -91,6 +91,7 @@ static inline unsigned long fb_rev_pixels_in_long(unsigned long val,
 		val = comp(val >> 2, val << 2, REV_PIXELS_MASK2);
 	if (bswapmask & 3)
 		val = comp(val >> 4, val << 4, REV_PIXELS_MASK4);
+	return val;
 }
 
 static inline u32 fb_shifted_pixels_mask_u32(u32 index, u32 bswapmask)
