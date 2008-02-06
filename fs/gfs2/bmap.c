@@ -136,8 +136,9 @@ int gfs2_unstuff_dinode(struct gfs2_inode *ip, struct page *page)
 		/* Get a free block, fill it with the stuffed data,
 		   and write it out to disk */
 
+		unsigned int n = 1;
+		block = gfs2_alloc_block(ip, &n);
 		if (isdir) {
-			block = gfs2_alloc_block(ip);
 			gfs2_trans_add_unrevoke(GFS2_SB(&ip->i_inode), block, 1);
 			error = gfs2_dir_get_new_buffer(ip, block, &bh);
 			if (error)
@@ -146,8 +147,6 @@ int gfs2_unstuff_dinode(struct gfs2_inode *ip, struct page *page)
 					      dibh, sizeof(struct gfs2_dinode));
 			brelse(bh);
 		} else {
-			block = gfs2_alloc_block(ip);
-
 			error = gfs2_unstuffer_page(ip, dibh, block, page);
 			if (error)
 				goto out_brelse;
@@ -195,7 +194,7 @@ static int build_height(struct inode *inode, struct metapath *mp, unsigned heigh
 	int error;
 	__be64 *bp;
 	u64 bn;
-	unsigned n;
+	unsigned n, i = 0;
 
 	if (height <= ip->i_height)
 		return 0;
@@ -204,12 +203,16 @@ static int build_height(struct inode *inode, struct metapath *mp, unsigned heigh
 	if (error)
 		return error;
 
-	for(n = 0; n < new_height; n++) {
-		bn = gfs2_alloc_block(ip);
-		gfs2_trans_add_unrevoke(GFS2_SB(inode), bn, 1);
-		mp->mp_bh[n] = gfs2_meta_new(ip->i_gl, bn);
-		gfs2_trans_add_bh(ip->i_gl, mp->mp_bh[n], 1);
-	}
+	do {
+		n = new_height - i;
+		bn = gfs2_alloc_block(ip, &n);
+		gfs2_trans_add_unrevoke(GFS2_SB(inode), bn, n);
+		do {
+			mp->mp_bh[i] = gfs2_meta_new(ip->i_gl, bn++);
+			gfs2_trans_add_bh(ip->i_gl, mp->mp_bh[i], 1);
+			i++;
+		} while(i < n);
+	} while(i < new_height);
 
 	n = 0;
 	bn = mp->mp_bh[0]->b_blocknr;
@@ -358,6 +361,7 @@ static int lookup_block(struct gfs2_inode *ip, unsigned int height,
 {
 	int boundary;
 	__be64 *ptr = metapointer(&boundary, height, mp);
+	unsigned int n = 1;
 
 	if (*ptr) {
 		*block = be64_to_cpu(*ptr);
@@ -369,7 +373,7 @@ static int lookup_block(struct gfs2_inode *ip, unsigned int height,
 	if (!create)
 		return 0;
 
-	*block = gfs2_alloc_block(ip);
+	*block = gfs2_alloc_block(ip, &n);
 	if (height != ip->i_height - 1 || gfs2_is_dir(ip))
 		gfs2_trans_add_unrevoke(GFS2_SB(&ip->i_inode), *block, 1);
 
