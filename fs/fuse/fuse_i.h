@@ -296,6 +296,12 @@ struct fuse_conn {
 	/** Number of requests currently in the background */
 	unsigned num_background;
 
+	/** Number of background requests currently queued for userspace */
+	unsigned active_background;
+
+	/** The list of background requests set aside for later queuing */
+	struct list_head bg_queue;
+
 	/** Pending interrupts */
 	struct list_head interrupts;
 
