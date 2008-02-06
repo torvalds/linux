@@ -45,7 +45,7 @@
 
 #include <asm/blackfin.h>
 
-#define stamp(fmt, args...) pr_debug("%s:%i: " fmt "\n", __FUNCTION__, __LINE__, ## args)
+#define stamp(fmt, args...) pr_debug("%s:%i: " fmt "\n", __func__, __LINE__, ## args)
 #define stampit() stamp("here i am")
 
 struct bfin_rtc {
@@ -343,22 +343,20 @@ static int bfin_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 static int bfin_rtc_proc(struct device *dev, struct seq_file *seq)
 {
-#define yesno(x) (x ? "yes" : "no")
+#define yesno(x) ((x) ? "yes" : "no")
 	u16 ictl = bfin_read_RTC_ICTL();
 	stampit();
-	seq_printf(seq, "alarm_IRQ\t: %s\n", yesno(ictl & RTC_ISTAT_ALARM));
-	seq_printf(seq, "wkalarm_IRQ\t: %s\n", yesno(ictl & RTC_ISTAT_ALARM_DAY));
-	seq_printf(seq, "seconds_IRQ\t: %s\n", yesno(ictl & RTC_ISTAT_SEC));
-	seq_printf(seq, "periodic_IRQ\t: %s\n", yesno(ictl & RTC_ISTAT_STOPWATCH));
-#ifdef DEBUG
-	seq_printf(seq, "RTC_STAT\t: 0x%08X\n", bfin_read_RTC_STAT());
-	seq_printf(seq, "RTC_ICTL\t: 0x%04X\n", bfin_read_RTC_ICTL());
-	seq_printf(seq, "RTC_ISTAT\t: 0x%04X\n", bfin_read_RTC_ISTAT());
-	seq_printf(seq, "RTC_SWCNT\t: 0x%04X\n", bfin_read_RTC_SWCNT());
-	seq_printf(seq, "RTC_ALARM\t: 0x%08X\n", bfin_read_RTC_ALARM());
-	seq_printf(seq, "RTC_PREN\t: 0x%04X\n", bfin_read_RTC_PREN());
-#endif
+	seq_printf(seq,
+		"alarm_IRQ\t: %s\n"
+		"wkalarm_IRQ\t: %s\n"
+		"seconds_IRQ\t: %s\n"
+		"periodic_IRQ\t: %s\n",
+		yesno(ictl & RTC_ISTAT_ALARM),
+		yesno(ictl & RTC_ISTAT_ALARM_DAY),
+		yesno(ictl & RTC_ISTAT_SEC),
+		yesno(ictl & RTC_ISTAT_STOPWATCH));
 	return 0;
+#undef yesno
 }
 
 /**
