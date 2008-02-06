@@ -258,6 +258,7 @@ extern struct pnp_protocol isapnp_protocol;
 #else
 #define pnp_device_is_isapnp(dev) 0
 #endif
+extern struct mutex pnp_res_mutex;
 
 #ifdef CONFIG_PNPBIOS
 extern struct pnp_protocol pnpbios_protocol;
