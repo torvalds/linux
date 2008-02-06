@@ -618,7 +618,7 @@ acpi_ev_gpe_dispatch(struct acpi_gpe_event_info *gpe_event_info, u32 gpe_number)
 
 	ACPI_FUNCTION_TRACE(ev_gpe_dispatch);
 
-	acpi_gpe_count++;
+	acpi_os_gpe_count(gpe_number);
 
 	/*
 	 * If edge-triggered, clear the GPE status bit now.  Note that
