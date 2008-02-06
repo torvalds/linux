@@ -441,7 +441,7 @@ static int xircom_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	spin_unlock_irqrestore(&card->lock,flags);
 	trigger_transmit(card);
 
-	return -EIO;
+	return NETDEV_TX_BUSY;
 }
 
 

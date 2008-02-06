@@ -250,7 +250,7 @@ static int cisco_rx(struct sk_buff *skb)
 	return NET_RX_DROP;
 
  rx_error:
-	dev_to_desc(dev)->stats.rx_errors++; /* Mark error */
+	dev_to_hdlc(dev)->stats.rx_errors++; /* Mark error */
 	dev_kfree_skb_any(skb);
 	return NET_RX_DROP;
 }
@@ -314,6 +314,7 @@ static struct hdlc_proto proto = {
 	.stop		= cisco_stop,
 	.type_trans	= cisco_type_trans,
 	.ioctl		= cisco_ioctl,
+	.netif_rx	= cisco_rx,
 	.module		= THIS_MODULE,
 };
 
@@ -360,7 +361,7 @@ static int cisco_ioctl(struct net_device *dev, struct ifreq *ifr)
 		if (result)
 			return result;
 
-		result = attach_hdlc_protocol(dev, &proto, cisco_rx,
+		result = attach_hdlc_protocol(dev, &proto,
 					      sizeof(struct cisco_state));
 		if (result)
 			return result;
