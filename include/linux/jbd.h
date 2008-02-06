@@ -33,7 +33,6 @@
 #include <linux/lockdep.h>
 
 #include <asm/semaphore.h>
-#endif
 
 #define journal_oom_retry 1
 
@@ -84,7 +83,6 @@ static inline void jbd_free(void *ptr, size_t size)
 
 #define JFS_MIN_JOURNAL_BLOCKS 1024
 
-#ifdef __KERNEL__
 
 /**
  * typedef handle_t - The handle_t type represents a single atomic update being performed by some process.
