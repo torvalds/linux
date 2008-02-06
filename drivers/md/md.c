@@ -2075,12 +2075,18 @@ rdev_attr_store(struct kobject *kobj, struct attribute *attr,
 {
 	struct rdev_sysfs_entry *entry = container_of(attr, struct rdev_sysfs_entry, attr);
 	mdk_rdev_t *rdev = container_of(kobj, mdk_rdev_t, kobj);
+	int rv;
 
 	if (!entry->store)
 		return -EIO;
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
-	return entry->store(rdev, page, length);
+	rv = mddev_lock(rdev->mddev);
+	if (!rv) {
+		rv = entry->store(rdev, page, length);
+		mddev_unlock(rdev->mddev);
+	}
+	return rv;
 }
 
 static void rdev_free(struct kobject *ko)
