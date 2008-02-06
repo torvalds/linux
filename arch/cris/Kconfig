@@ -259,6 +259,21 @@ menu "Drivers for built-in interfaces"
 source arch/cris/arch-v10/drivers/Kconfig
 source arch/cris/arch-v32/drivers/Kconfig
 
+config ETRAX_AXISFLASHMAP
+	bool "Axis flash-map support"
+	select MTD
+	select MTD_CFI
+	select MTD_CFI_AMDSTD
+	select MTD_JEDECPROBE if ETRAX_ARCH_V32
+	select MTD_CHAR
+	select MTD_BLOCK
+	select MTD_PARTITIONS
+	select MTD_CONCAT
+	select MTD_COMPLEX_MAPPINGS
+	help
+	  This option enables MTD mapping of flash devices.  Needed to use
+	  flash memories.  If unsure, say Y.
+
 config ETRAX_RTC
 	bool "Real Time Clock support"
 	depends on ETRAX_I2C

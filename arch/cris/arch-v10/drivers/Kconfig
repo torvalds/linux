@@ -428,21 +428,6 @@ config ETRAX_USB_HOST_PORT2
 	depends on ETRAX_USB_HOST
 	default n
 
-config ETRAX_AXISFLASHMAP
-	bool "Axis flash-map support"
-	depends on ETRAX_ARCH_V10
-	select MTD
-	select MTD_CFI
-	select MTD_CFI_AMDSTD
-	select MTD_CHAR
-	select MTD_BLOCK
-	select MTD_PARTITIONS
-	select MTD_CONCAT
-	select MTD_COMPLEX_MAPPINGS
-	help
-	  This option enables MTD mapping of flash devices.  Needed to use
-	  flash memories.  If unsure, say Y.
-
 config ETRAX_PTABLE_SECTOR
 	int "Byte-offset of partition table sector"
 	depends on ETRAX_AXISFLASHMAP
