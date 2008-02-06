@@ -469,10 +469,47 @@ config RTC_DRV_AT32AP700X
 	  AT32AP700x family processors.
 
 config RTC_DRV_AT91RM9200
-	tristate "AT91RM9200"
-	depends on ARCH_AT91RM9200
+	tristate "AT91RM9200 or AT91SAM9RL"
+	depends on ARCH_AT91RM9200 || ARCH_AT91SAM9RL
 	help
-	  Driver for the Atmel AT91RM9200's internal RTC (Realtime Clock).
+	  Driver for the internal RTC (Realtime Clock) module found on
+	  Atmel AT91RM9200's and AT91SAM9RL chips.  On SAM9RL chips
+	  this is powered by the backup power supply.
+
+config RTC_DRV_AT91SAM9
+	tristate "AT91SAM9x"
+	depends on ARCH_AT91 && !(ARCH_AT91RM9200 || ARCH_AT91X40)
+	help
+	  RTC driver for the Atmel AT91SAM9x internal RTT (Real Time Timer).
+	  These timers are powered by the backup power supply (such as a
+	  small coin cell battery), but do not need to be used as RTCs.
+
+	  (On AT91SAM9rl chips you probably want to use the dedicated RTC
+	  module and leave the RTT available for other uses.)
+
+config RTC_DRV_AT91SAM9_RTT
+	int
+	range 0 1
+	default 0
+	prompt "RTT module Number" if ARCH_AT91SAM9263
+	depends on RTC_DRV_AT91SAM9
+	help
+	  More than one RTT module is available.  You can choose which
+	  one will be used as an RTC.  The default of zero is normally
+	  OK to use, though some systems use that for non-RTC purposes.
+
+config RTC_DRV_AT91SAM9_GPBR
+	int
+	range 0 3 if !ARCH_AT91SAM9263
+	range 0 15 if ARCH_AT91SAM9263
+	default 0
+	prompt "Backup Register Number"
+	depends on RTC_DRV_AT91SAM9
+	help
+	  The RTC driver needs to use one of the General Purpose Backup
+	  Registers (GPBRs) as well as the RTT.  You can choose which one
+	  will be used.  The default of zero is normally OK to use, but
+	  on some systems other software needs to use that register.
 
 config RTC_DRV_BFIN
 	tristate "Blackfin On-Chip RTC"
