@@ -144,8 +144,8 @@ static void rtc_bfin_reset(struct bfin_rtc *rtc)
 
 static irqreturn_t bfin_rtc_interrupt(int irq, void *dev_id)
 {
-	struct platform_device *pdev = to_platform_device(dev_id);
-	struct bfin_rtc *rtc = platform_get_drvdata(pdev);
+	struct device *dev = dev_id;
+	struct bfin_rtc *rtc = dev_get_drvdata(dev);
 	unsigned long events = 0;
 	u16 rtc_istat;
 
