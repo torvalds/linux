@@ -22,6 +22,7 @@ obj-$(CONFIG_RTC_DRV_AT91RM9200)+= rtc-at91rm9200.o
 obj-$(CONFIG_RTC_DRV_BFIN)	+= rtc-bfin.o
 obj-$(CONFIG_RTC_DRV_CMOS)	+= rtc-cmos.o
 obj-$(CONFIG_RTC_DRV_DS1216)	+= rtc-ds1216.o
+obj-$(CONFIG_RTC_DRV_DS1302)	+= rtc-ds1302.o
 obj-$(CONFIG_RTC_DRV_DS1307)	+= rtc-ds1307.o
 obj-$(CONFIG_RTC_DRV_DS1374)	+= rtc-ds1374.o
 obj-$(CONFIG_RTC_DRV_DS1553)	+= rtc-ds1553.o
