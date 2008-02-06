@@ -1084,7 +1084,7 @@ ssize_t reiserfs_listxattr(struct dentry * dentry, char *buffer, size_t size)
 }
 
 /* This is the implementation for the xattr plugin infrastructure */
-static struct list_head xattr_handlers = LIST_HEAD_INIT(xattr_handlers);
+static LIST_HEAD(xattr_handlers);
 static DEFINE_RWLOCK(handler_lock);
 
 static struct reiserfs_xattr_handler *find_xattr_handler_prefix(const char
