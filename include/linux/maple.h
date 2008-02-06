@@ -56,7 +56,6 @@ struct maple_device {
 	unsigned char port, unit;
 	char product_name[32];
 	char product_licence[64];
-	int registered;
 	struct device dev;
 };
 
