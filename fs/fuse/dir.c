@@ -416,6 +416,7 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry, int mode,
 	fuse_put_request(fc, forget_req);
 	d_instantiate(entry, inode);
 	fuse_change_entry_timeout(entry, &outentry);
+	fuse_invalidate_attr(dir);
 	file = lookup_instantiate_filp(nd, entry, generic_file_open);
 	if (IS_ERR(file)) {
 		ff->fh = outopen.fh;
