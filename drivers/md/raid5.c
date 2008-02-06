@@ -3753,6 +3753,9 @@ static inline sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *ski
 		return sync_blocks * STRIPE_SECTORS; /* keep things rounded to whole stripes */
 	}
 
+
+	bitmap_cond_end_sync(mddev->bitmap, sector_nr);
+
 	pd_idx = stripe_to_pdidx(sector_nr, conf, raid_disks);
 	sh = get_active_stripe(conf, sector_nr, raid_disks, pd_idx, 1);
 	if (sh == NULL) {
