@@ -404,7 +404,7 @@ found:
 			if (neigh->nud_state & NUD_FAILED) {
 				arpq = e->arpq_head;
 				e->arpq_head = e->arpq_tail = NULL;
-			} else if (neigh_is_connected(neigh))
+			} else if (neigh->nud_state & (NUD_CONNECTED|NUD_STALE))
 				setup_l2e_send_pending(dev, NULL, e);
 		} else {
 			e->state = neigh_is_connected(neigh) ?
