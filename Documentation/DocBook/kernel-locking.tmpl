@@ -717,7 +717,7 @@ used, and when it gets full, throws out the least used one.
     <para>
 For our first example, we assume that all operations are in user
 context (ie. from system calls), so we can sleep.  This means we can
-use a semaphore to protect the cache and all the objects within
+use a mutex to protect the cache and all the objects within
 it.  Here's the code:
     </para>
 
@@ -725,7 +725,7 @@ it.  Here's the code:
 #include &lt;linux/list.h&gt;
 #include &lt;linux/slab.h&gt;
 #include &lt;linux/string.h&gt;
-#include &lt;asm/semaphore.h&gt;
+#include &lt;linux/mutex.h&gt;
 #include &lt;asm/errno.h&gt;
 
 struct object
@@ -737,7 +737,7 @@ struct object
 };
 
 /* Protects the cache, cache_num, and the objects within it */
-static DECLARE_MUTEX(cache_lock);
+static DEFINE_MUTEX(cache_lock);
 static LIST_HEAD(cache);
 static unsigned int cache_num = 0;
 #define MAX_CACHE_SIZE 10
@@ -789,17 +789,17 @@ int cache_add(int id, const char *name)
         obj-&gt;id = id;
         obj-&gt;popularity = 0;
 
-        down(&amp;cache_lock);
+        mutex_lock(&amp;cache_lock);
         __cache_add(obj);
-        up(&amp;cache_lock);
+        mutex_unlock(&amp;cache_lock);
         return 0;
 }
 
 void cache_delete(int id)
 {
-        down(&amp;cache_lock);
+        mutex_lock(&amp;cache_lock);
         __cache_delete(__cache_find(id));
-        up(&amp;cache_lock);
+        mutex_unlock(&amp;cache_lock);
 }
 
 int cache_find(int id, char *name)
@@ -807,13 +807,13 @@ int cache_find(int id, char *name)
         struct object *obj;
         int ret = -ENOENT;
 
-        down(&amp;cache_lock);
+        mutex_lock(&amp;cache_lock);
         obj = __cache_find(id);
         if (obj) {
                 ret = 0;
                 strcpy(name, obj-&gt;name);
         }
-        up(&amp;cache_lock);
+        mutex_unlock(&amp;cache_lock);
         return ret;
 }
 </programlisting>
@@ -853,7 +853,7 @@ The change is shown below, in standard patch format: the
          int popularity;
  };
 
--static DECLARE_MUTEX(cache_lock);
+-static DEFINE_MUTEX(cache_lock);
 +static spinlock_t cache_lock = SPIN_LOCK_UNLOCKED;
  static LIST_HEAD(cache);
  static unsigned int cache_num = 0;
@@ -870,22 +870,22 @@ The change is shown below, in standard patch format: the
          obj-&gt;id = id;
          obj-&gt;popularity = 0;
 
--        down(&amp;cache_lock);
+-        mutex_lock(&amp;cache_lock);
 +        spin_lock_irqsave(&amp;cache_lock, flags);
          __cache_add(obj);
--        up(&amp;cache_lock);
+-        mutex_unlock(&amp;cache_lock);
 +        spin_unlock_irqrestore(&amp;cache_lock, flags);
          return 0;
  }
 
  void cache_delete(int id)
  {
--        down(&amp;cache_lock);
+-        mutex_lock(&amp;cache_lock);
 +        unsigned long flags;
 +
 +        spin_lock_irqsave(&amp;cache_lock, flags);
          __cache_delete(__cache_find(id));
--        up(&amp;cache_lock);
+-        mutex_unlock(&amp;cache_lock);
 +        spin_unlock_irqrestore(&amp;cache_lock, flags);
  }
 
@@ -895,14 +895,14 @@ The change is shown below, in standard patch format: the
          int ret = -ENOENT;
 +        unsigned long flags;
 
--        down(&amp;cache_lock);
+-        mutex_lock(&amp;cache_lock);
 +        spin_lock_irqsave(&amp;cache_lock, flags);
          obj = __cache_find(id);
          if (obj) {
                  ret = 0;
                  strcpy(name, obj-&gt;name);
          }
--        up(&amp;cache_lock);
+-        mutex_unlock(&amp;cache_lock);
 +        spin_unlock_irqrestore(&amp;cache_lock, flags);
          return ret;
  }
