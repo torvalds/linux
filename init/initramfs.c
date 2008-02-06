@@ -503,7 +503,6 @@ static int __init retain_initrd_param(char *str)
 __setup("retain_initrd", retain_initrd_param);
 
 extern char __initramfs_start[], __initramfs_end[];
-#ifdef CONFIG_BLK_DEV_INITRD
 #include <linux/initrd.h>
 #include <linux/kexec.h>
 
@@ -539,15 +538,12 @@ skip:
 	initrd_end = 0;
 }
 
-#endif
-
 static int __init populate_rootfs(void)
 {
 	char *err = unpack_to_rootfs(__initramfs_start,
 			 __initramfs_end - __initramfs_start, 0);
 	if (err)
 		panic(err);
-#ifdef CONFIG_BLK_DEV_INITRD
 	if (initrd_start) {
 #ifdef CONFIG_BLK_DEV_RAM
 		int fd;
@@ -579,7 +575,6 @@ static int __init populate_rootfs(void)
 		free_initrd();
 #endif
 	}
-#endif
 	return 0;
 }
 rootfs_initcall(populate_rootfs);
