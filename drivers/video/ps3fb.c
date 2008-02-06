@@ -57,8 +57,6 @@
 #define GPU_ALIGN_UP(x)				_ALIGN_UP((x), 64)
 #define GPU_MAX_LINE_LENGTH			(65536 - 64)
 
-#define PS3FB_FULL_MODE_BIT			0x80
-
 #define GPU_INTR_STATUS_VSYNC_0			0	/* vsync on head A */
 #define GPU_INTR_STATUS_VSYNC_1			1	/* vsync on head B */
 #define GPU_INTR_STATUS_FLIP_0			3	/* flip head A */
@@ -310,7 +308,7 @@ static int ps3fb_get_res_table(u32 xres, u32 yres, int mode)
 	unsigned int i;
 	u32 x, y, f;
 
-	full_mode = (mode & PS3FB_FULL_MODE_BIT) ? PS3FB_RES_FULL : 0;
+	full_mode = (mode & PS3AV_MODE_FULL) ? PS3FB_RES_FULL : 0;
 	for (i = 0;; i++) {
 		x = ps3fb_res[i].xres;
 		y = ps3fb_res[i].yres;
@@ -373,7 +371,7 @@ found:
 	/* Full broadcast modes have the full mode bit set */
 	mode = i+1;
 	if (mode > PS3AV_MODE_WUXGA)
-		mode = (mode - PS3AV_MODE_WUXGA) | PS3FB_FULL_MODE_BIT;
+		mode = (mode - PS3AV_MODE_WUXGA) | PS3AV_MODE_FULL;
 
 	pr_debug("ps3fb_find_mode: mode %u\n", mode);
 
@@ -390,7 +388,7 @@ static const struct fb_videomode *ps3fb_default_mode(int id)
 
 	flags = id & ~PS3AV_MODE_MASK;
 
-	if (mode <= PS3AV_MODE_1080P50 && flags & PS3FB_FULL_MODE_BIT) {
+	if (mode <= PS3AV_MODE_1080P50 && flags & PS3AV_MODE_FULL) {
 		/* Full broadcast mode */
 		return &ps3fb_modedb[mode + PS3AV_MODE_WUXGA - 1];
 	}
