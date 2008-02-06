@@ -270,32 +270,57 @@ module_param(ps3fb_mode, int, 0);
 
 static char *mode_option __devinitdata;
 
-static unsigned int ps3fb_find_mode(const struct fb_var_screeninfo *var,
+static int ps3fb_cmp_mode(const struct fb_videomode *vmode,
+			  const struct fb_var_screeninfo *var)
+{
+	/* resolution + black border must match a native resolution */
+	if (vmode->left_margin + vmode->xres + vmode->right_margin !=
+	    var->left_margin + var->xres + var->right_margin ||
+	    vmode->upper_margin + vmode->yres + vmode->lower_margin !=
+	    var->upper_margin + var->yres + var->lower_margin)
+		return -1;
+
+	/* minimum limits for margins */
+	if (vmode->left_margin > var->left_margin ||
+	    vmode->right_margin > var->right_margin ||
+	    vmode->upper_margin > var->upper_margin ||
+	    vmode->lower_margin > var->lower_margin)
+		return -1;
+
+	/* these fields must match exactly */
+	if (vmode->pixclock != var->pixclock ||
+	    vmode->hsync_len != var->hsync_len ||
+	    vmode->vsync_len != var->vsync_len ||
+	    vmode->sync != var->sync ||
+	    vmode->vmode != (var->vmode & FB_VMODE_MASK))
+		return -1;
+
+	return 0;
+}
+
+static unsigned int ps3fb_find_mode(struct fb_var_screeninfo *var,
 				    u32 *ddr_line_length, u32 *xdr_line_length)
 {
-	unsigned int i, fi, mode;
+	unsigned int i, mode;
 
-	for (i = 0; i < ARRAY_SIZE(ps3fb_modedb); i++)
-		if (var->xres == ps3fb_modedb[i].xres &&
-		    var->yres == ps3fb_modedb[i].yres &&
-		    var->pixclock == ps3fb_modedb[i].pixclock &&
-		    var->hsync_len == ps3fb_modedb[i].hsync_len &&
-		    var->vsync_len == ps3fb_modedb[i].vsync_len &&
-		    var->left_margin == ps3fb_modedb[i].left_margin &&
-		    var->right_margin == ps3fb_modedb[i].right_margin &&
-		    var->upper_margin == ps3fb_modedb[i].upper_margin &&
-		    var->lower_margin == ps3fb_modedb[i].lower_margin &&
-		    var->sync == ps3fb_modedb[i].sync &&
-		    (var->vmode & FB_VMODE_MASK) == ps3fb_modedb[i].vmode)
+	for (i = PS3AV_MODE_1080P50; i < ARRAY_SIZE(ps3fb_modedb); i++)
+		if (!ps3fb_cmp_mode(&ps3fb_modedb[i], var))
 			goto found;
 
 	pr_debug("ps3fb_find_mode: mode not found\n");
 	return 0;
 
 found:
-	/* Cropped broadcast modes use the full line length */
-	fi = i < PS3AV_MODE_1080P50 ? i + PS3AV_MODE_WUXGA : i;
-	*ddr_line_length = ps3fb_modedb[fi].xres * BPP;
+	*ddr_line_length = ps3fb_modedb[i].xres * BPP;
+
+	if (!var->xres) {
+		var->xres = 1;
+		var->right_margin--;
+	}
+	if (!var->yres) {
+		var->yres = 1;
+		var->lower_margin--;
+	}
 
 	if (ps3_compare_firmware_version(1, 9, 0) >= 0) {
 		*xdr_line_length = GPU_ALIGN_UP(max(var->xres,
@@ -305,10 +330,14 @@ found:
 	} else
 		*xdr_line_length = *ddr_line_length;
 
-	/* Full broadcast modes have the full mode bit set */
 	mode = i+1;
-	if (mode > PS3AV_MODE_WUXGA)
-		mode = (mode - PS3AV_MODE_WUXGA) | PS3AV_MODE_FULL;
+	if (mode > PS3AV_MODE_WUXGA) {
+		mode -= PS3AV_MODE_WUXGA;
+		/* Full broadcast modes have the full mode bit set */
+		if (ps3fb_modedb[i].xres == var->xres &&
+		    ps3fb_modedb[i].yres == var->yres)
+			mode |= PS3AV_MODE_FULL;
+	}
 
 	pr_debug("ps3fb_find_mode: mode %u\n", mode);
 
