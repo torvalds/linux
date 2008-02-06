@@ -173,7 +173,7 @@ enum {		ide_unknown,	ide_generic,	ide_pci,
 		ide_rz1000,	ide_trm290,
 		ide_cmd646,	ide_cy82c693,	ide_4drives,
 		ide_pmac,	ide_etrax100,	ide_acorn,
-		ide_au1xxx, ide_forced
+		ide_au1xxx,	ide_palm3710,	ide_forced
 };
 
 typedef u8 hwif_chipset_t;
@@ -1014,7 +1014,8 @@ extern int __ide_pci_register_driver(struct pci_driver *driver, struct module *o
 void ide_pci_setup_ports(struct pci_dev *, const struct ide_port_info *, int, u8 *);
 void ide_setup_pci_noise(struct pci_dev *, const struct ide_port_info *);
 
-#ifdef CONFIG_BLK_DEV_IDEDMA_PCI
+/* FIXME: palm_bk3710 uses BLK_DEV_IDEDMA_PCI without BLK_DEV_IDEPCI! */
+#if defined(CONFIG_BLK_DEV_IDEPCI) && defined(CONFIG_BLK_DEV_IDEDMA_PCI)
 void ide_hwif_setup_dma(ide_hwif_t *, const struct ide_port_info *);
 #else
 static inline void ide_hwif_setup_dma(ide_hwif_t *hwif,
