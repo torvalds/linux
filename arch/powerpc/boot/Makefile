@@ -60,8 +60,9 @@ src-wlib := string.S crt0.S stdio.c main.c \
 src-plat := of.c cuboot-52xx.c cuboot-824x.c cuboot-83xx.c cuboot-85xx.c holly.c \
 		cuboot-ebony.c treeboot-ebony.c prpmc2800.c \
 		ps3-head.S ps3-hvcall.S ps3.c treeboot-bamboo.c cuboot-8xx.c \
-		cuboot-pq2.c cuboot-sequoia.c treeboot-walnut.c cuboot-bamboo.c \
-		fixed-head.S ep88xc.c cuboot-hpc2.c ep405.c cuboot-taishan.c \
+		cuboot-pq2.c cuboot-sequoia.c treeboot-walnut.c \
+		cuboot-bamboo.c cuboot-mpc7448hpc2.c cuboot-taishan.c \
+		fixed-head.S ep88xc.c ep405.c \
 		cuboot-katmai.c cuboot-rainier.c redboot-8xx.c ep8248e.c \
 		cuboot-warp.c cuboot-85xx-cpm2.c
 src-boot := $(src-wlib) $(src-plat) empty.c
@@ -123,6 +124,8 @@ targets		+= $(patsubst $(obj)/%,%,$(obj-boot) wrapper.a)
 extra-y		:= $(obj)/wrapper.a $(obj-plat) $(obj)/empty.o \
 		   $(obj)/zImage.lds $(obj)/zImage.coff.lds $(obj)/zImage.ps3.lds
 
+dtstree		:= $(srctree)/$(src)/dts
+
 wrapper		:=$(srctree)/$(src)/wrapper
 wrapperbits	:= $(extra-y) $(addprefix $(obj)/,addnote hack-coff mktree dtc) \
 			$(wrapper) FORCE
@@ -181,7 +184,7 @@ quiet_cmd_wrap	= WRAP    $@
 image-$(CONFIG_PPC_PSERIES)		+= zImage.pseries
 image-$(CONFIG_PPC_MAPLE)		+= zImage.pseries
 image-$(CONFIG_PPC_IBM_CELL_BLADE)	+= zImage.pseries
-image-$(CONFIG_PPC_PS3)			+= zImage.ps3
+image-$(CONFIG_PPC_PS3)			+= zImage-dtb.ps3
 image-$(CONFIG_PPC_CELLEB)		+= zImage.pseries
 image-$(CONFIG_PPC_CHRP)		+= zImage.chrp
 image-$(CONFIG_PPC_EFIKA)		+= zImage.chrp
@@ -191,33 +194,69 @@ image-$(CONFIG_PPC_PRPMC2800)		+= zImage.prpmc2800
 image-$(CONFIG_PPC_ISERIES)		+= zImage.iseries
 image-$(CONFIG_DEFAULT_UIMAGE)		+= uImage
 
-ifneq ($(CONFIG_DEVICE_TREE),"")
-image-$(CONFIG_PPC_8xx)			+= cuImage.8xx
-image-$(CONFIG_PPC_EP88XC)		+= zImage.ep88xc
-image-$(CONFIG_EP405)			+= zImage.ep405
-image-$(CONFIG_8260)			+= cuImage.pq2
-image-$(CONFIG_EP8248E)			+= zImage.ep8248e
-image-$(CONFIG_PPC_MPC52xx)		+= cuImage.52xx
-image-$(CONFIG_STORCENTER)		+= cuImage.824x
-image-$(CONFIG_PPC_83xx)		+= cuImage.83xx
-image-$(CONFIG_PPC_85xx)		+= cuImage.85xx
-ifeq ($(CONFIG_CPM2),y)
-image-$(CONFIG_PPC_85xx)		+= cuImage.85xx-cpm2
-endif
-image-$(CONFIG_MPC7448HPC2)		+= cuImage.hpc2
+#
+# Targets which embed a device tree blob
+#
+# Theses are default targets to build images which embed device tree blobs.
+# They are only required on boards which do not have FDT support in firmware.
+# Boards with newish u-boot firmare can use the uImage target above
+#
+
+# Board ports in arch/powerpc/platform/40x/Kconfig
+image-$(CONFIG_EP405)			+= zImage-dtb.ep405
+image-$(CONFIG_WALNUT)			+= treeImage.walnut
+
+# Board ports in arch/powerpc/platform/44x/Kconfig
 image-$(CONFIG_EBONY)			+= treeImage.ebony cuImage.ebony
 image-$(CONFIG_BAMBOO)			+= treeImage.bamboo cuImage.bamboo
 image-$(CONFIG_SEQUOIA)			+= cuImage.sequoia
 image-$(CONFIG_RAINIER)			+= cuImage.rainier
-image-$(CONFIG_WALNUT)			+= treeImage.walnut
 image-$(CONFIG_TAISHAN)			+= cuImage.taishan
 image-$(CONFIG_KATMAI)			+= cuImage.katmai
 image-$(CONFIG_WARP)			+= cuImage.warp
-endif
 
-ifneq ($(CONFIG_REDBOOT),"")
-image-$(CONFIG_PPC_8xx)			+= zImage.redboot-8xx
-endif
+# Board ports in arch/powerpc/platform/8xx/Kconfig
+image-$(CONFIG_PPC_MPC86XADS)		+= cuImage.mpc866ads
+image-$(CONFIG_PPC_MPC885ADS)		+= cuImage.mpc885ads
+image-$(CONFIG_PPC_EP88XC)		+= zImage-dtb.ep88xc
+image-$(CONFIG_PPC_ADDER875)		+= cuImage.adder875-uboot \
+					   zImage-dtb.adder875-redboot
+
+# Board ports in arch/powerpc/platform/52xx/Kconfig
+image-$(CONFIG_PPC_LITE5200)		+= cuImage.lite5200 cuImage.lite5200b
+
+# Board ports in arch/powerpc/platform/82xx/Kconfig
+image-$(CONFIG_MPC8272_ADS)		+= cuImage.mpc8272ads
+image-$(CONFIG_PQ2FADS)			+= cuImage.pq2fads
+image-$(CONFIG_EP8248E)			+= zImage-dtb.ep8248e
+
+# Board ports in arch/powerpc/platform/83xx/Kconfig
+image-$(CONFIG_MPC832x_MDS)		+= cuImage.mpc832x_mds
+image-$(CONFIG_MPC832x_RDB)		+= cuImage.mpc832x_rdb
+image-$(CONFIG_MPC834x_ITX)		+= cuImage.mpc8349emitx \
+					   cuImage.mpc8349emitxgp
+image-$(CONFIG_MPC834x_MDS)		+= cuImage.mpc834x_mds
+image-$(CONFIG_MPC836x_MDS)		+= cuImage.mpc836x_mds
+
+# Board ports in arch/powerpc/platform/85xx/Kconfig
+image-$(CONFIG_MPC8540_ADS)		+= cuImage.mpc8540ads
+image-$(CONFIG_MPC8560_ADS)		+= cuImage.mpc8560ads
+image-$(CONFIG_MPC85xx_CDS)		+= cuImage.mpc8541cds \
+					   cuImage.mpc8548cds \
+					   cuImage.mpc8555cds
+image-$(CONFIG_MPC85xx_MDS)		+= cuImage.mpc8568mds
+image-$(CONFIG_MPC85xx_DS)		+= cuImage.mpc8544ds \
+					   cuImage.mpc8572ds
+image-$(CONFIG_TQM8540)			+= cuImage.tqm8540
+image-$(CONFIG_TQM8541)			+= cuImage.tqm8541
+image-$(CONFIG_TQM8555)			+= cuImage.tqm8555
+image-$(CONFIG_TQM8560)			+= cuImage.tqm8560
+image-$(CONFIG_SBC8548)			+= cuImage.tqm8548
+image-$(CONFIG_SBC8560)			+= cuImage.tqm8560
+
+# Board ports in arch/powerpc/platform/embedded6xx/Kconfig
+image-$(CONFIG_STORCENTER)		+= cuImage.storcenter
+image-$(CONFIG_MPC7448HPC2)		+= cuImage.mpc7448hpc2
 
 # For 32-bit powermacs, build the COFF and miboot images
 # as well as the ELF images.
@@ -233,24 +272,20 @@ targets	+= $(image-y) $(initrd-y)
 
 $(addprefix $(obj)/, $(initrd-y)): $(obj)/ramdisk.image.gz
 
-# If CONFIG_WANT_DEVICE_TREE is set and CONFIG_DEVICE_TREE isn't an
-# empty string, define 'dts' to be path to the dts
-# CONFIG_DEVICE_TREE will have "" around it, make sure to strip them
-ifeq ($(CONFIG_WANT_DEVICE_TREE),y)
-ifneq ($(CONFIG_DEVICE_TREE),"")
-dts = $(if $(shell echo $(CONFIG_DEVICE_TREE) | grep '^/'),\
-	,$(srctree)/$(src)/dts/)$(CONFIG_DEVICE_TREE:"%"=%)
-endif
-endif
-
 # Don't put the ramdisk on the pattern rule; when its missing make will try
 # the pattern rule with less dependencies that also matches (even with the
 # hard dependency listed).
-$(obj)/zImage.initrd.%: vmlinux $(wrapperbits) $(dts)
-	$(call if_changed,wrap,$*,$(dts),,$(obj)/ramdisk.image.gz)
+$(obj)/zImage.initrd.%: vmlinux $(wrapperbits)
+	$(call if_changed,wrap,$*,,,$(obj)/ramdisk.image.gz)
 
-$(obj)/zImage.%: vmlinux $(wrapperbits) $(dts)
-	$(call if_changed,wrap,$*,$(dts))
+$(obj)/zImage.%: vmlinux $(wrapperbits)
+	$(call if_changed,wrap,$*)
+
+$(obj)/zImage-dtb.initrd.%: vmlinux $(wrapperbits) $(dtstree)/%.dts
+	$(call if_changed,wrap,$*,$(dtstree)/$*.dts,,$(obj)/ramdisk.image.gz)
+
+$(obj)/zImage-dtb.%: vmlinux $(wrapperbits) $(dtstree)/%.dts
+	$(call if_changed,wrap,$*,$(dtstree)/$*.dts)
 
 # This cannot be in the root of $(src) as the zImage rule always adds a $(obj)
 # prefix
@@ -260,24 +295,17 @@ $(obj)/vmlinux.strip: vmlinux
 $(obj)/zImage.iseries: vmlinux
 	$(STRIP) -s -R .comment $< -o $@
 
-$(obj)/zImage.ps3: vmlinux  $(wrapper) $(wrapperbits) $(srctree)/$(src)/dts/ps3.dts
-	$(STRIP) -s -R .comment $< -o vmlinux.strip
-	$(call cmd,wrap,ps3,$(srctree)/$(src)/dts/ps3.dts,,)
-
-$(obj)/zImage.initrd.ps3: vmlinux  $(wrapper) $(wrapperbits) $(srctree)/$(src)/dts/ps3.dts $(obj)/ramdisk.image.gz
-	$(call cmd,wrap,ps3,$(srctree)/$(src)/dts/ps3.dts,,$(obj)/ramdisk.image.gz)
-
 $(obj)/uImage: vmlinux $(wrapperbits)
 	$(call if_changed,wrap,uboot)
 
-$(obj)/cuImage.%: vmlinux $(dts) $(wrapperbits)
-	$(call if_changed,wrap,cuboot-$*,$(dts))
+$(obj)/cuImage.%: vmlinux $(dtstree)/%.dts $(wrapperbits)
+	$(call if_changed,wrap,cuboot-$*,$(dtstree)/$*.dts)
 
-$(obj)/treeImage.initrd.%: vmlinux $(dts) $(wrapperbits)
-	$(call if_changed,wrap,treeboot-$*,$(dts),,$(obj)/ramdisk.image.gz)
+$(obj)/treeImage.initrd.%: vmlinux $(dtstree)/%.dts $(wrapperbits)
+	$(call if_changed,wrap,treeboot-$*,$(dtstree)/$*.dts,,$(obj)/ramdisk.image.gz)
 
-$(obj)/treeImage.%: vmlinux $(dts) $(wrapperbits)
-	$(call if_changed,wrap,treeboot-$*,$(dts))
+$(obj)/treeImage.%: vmlinux $(dtstree)/%.dts $(wrapperbits)
+	$(call if_changed,wrap,treeboot-$*,$(dtstree)/$*.dts)
 
 # If there isn't a platform selected then just strip the vmlinux.
 ifeq (,$(image-y))

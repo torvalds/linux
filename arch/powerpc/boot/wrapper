@@ -158,6 +158,29 @@ miboot|uboot)
 cuboot*)
     binary=y
     gzip=
+    case "$platform" in
+    *-mpc885ads|*-adder875*|*-ep88xc)
+        platformo=$object/cuboot-8xx.o
+        ;;
+    *5200*|*-motionpro)
+        platformo=$object/cuboot-52xx.o
+        ;;
+    *-pq2fads|*-ep8248e|*-mpc8272*|*-storcenter)
+        platformo=$object/cuboot-pq2.o
+        ;;
+    *-mpc824*)
+        platformo=$object/cuboot-824x.o
+        ;;
+    *-mpc83*)
+        platformo=$object/cuboot-83xx.o
+        ;;
+    *-tqm8541|*-mpc8560*|*-tqm8560|*-tqm8555*)
+        platformo=$object/cuboot-85xx-cpm2.o
+        ;;
+    *-mpc85*)
+        platformo=$object/cuboot-85xx.o
+        ;;
+    esac
     ;;
 ps3)
     platformo="$object/ps3-head.o $object/ps3-hvcall.o $object/ps3.o"
