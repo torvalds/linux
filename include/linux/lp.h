@@ -99,7 +99,7 @@
 #ifdef __KERNEL__
 
 #include <linux/wait.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 
 /* Magic numbers for defining port-device mappings */
 #define LP_PARPORT_UNSPEC -4
@@ -145,7 +145,7 @@ struct lp_struct {
 #endif
 	wait_queue_head_t waitq;
 	unsigned int last_error;
-	struct semaphore port_mutex;
+	struct mutex port_mutex;
 	wait_queue_head_t dataq;
 	long timeout;
 	unsigned int best_mode;
