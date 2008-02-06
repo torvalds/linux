@@ -190,4 +190,20 @@ unsigned long __rounddown_pow_of_two(unsigned long n)
 	__rounddown_pow_of_two(n)		\
  )
 
+/**
+ * order_base_2 - calculate the (rounded up) base 2 order of the argument
+ * @n: parameter
+ *
+ * The first few values calculated by this routine:
+ *  ob2(0) = 0
+ *  ob2(1) = 0
+ *  ob2(2) = 1
+ *  ob2(3) = 2
+ *  ob2(4) = 2
+ *  ob2(5) = 3
+ *  ... and so on.
+ */
+
+#define order_base_2(n) ilog2(roundup_pow_of_two(n))
+
 #endif /* _LINUX_LOG2_H */
