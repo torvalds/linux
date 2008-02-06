@@ -1737,10 +1737,8 @@ config SC92031
 
 config CPMAC
 	tristate "TI AR7 CPMAC Ethernet support (EXPERIMENTAL)"
-	depends on NET_ETHERNET && EXPERIMENTAL && AR7
+	depends on NET_ETHERNET && EXPERIMENTAL && AR7 && BROKEN
 	select PHYLIB
-	select FIXED_PHY
-	select FIXED_MII_100_FDX
 	help
 	  TI AR7 CPMAC Ethernet support
 

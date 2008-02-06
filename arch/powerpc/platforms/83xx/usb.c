@@ -104,6 +104,7 @@ int mpc831x_usb_cfg(void)
 	u32 temp;
 	void __iomem *immap, *usb_regs;
 	struct device_node *np = NULL;
+	struct device_node *immr_node = NULL;
 	const void *prop;
 	struct resource res;
 	int ret = 0;
@@ -124,10 +125,15 @@ int mpc831x_usb_cfg(void)
 	}
 
 	/* Configure clock */
-	temp = in_be32(immap + MPC83XX_SCCR_OFFS);
-	temp &= ~MPC83XX_SCCR_USB_MASK;
-	temp |= MPC83XX_SCCR_USB_DRCM_11;  /* 1:3 */
-	out_be32(immap + MPC83XX_SCCR_OFFS, temp);
+	immr_node = of_get_parent(np);
+	if (immr_node && of_device_is_compatible(immr_node, "fsl,mpc8315-immr"))
+		clrsetbits_be32(immap + MPC83XX_SCCR_OFFS,
+		                MPC8315_SCCR_USB_MASK,
+		                MPC8315_SCCR_USB_DRCM_11);
+	else
+		clrsetbits_be32(immap + MPC83XX_SCCR_OFFS,
+		                MPC83XX_SCCR_USB_MASK,
+		                MPC83XX_SCCR_USB_DRCM_11);
 
 	/* Configure pin mux for ULPI.  There is no pin mux for UTMI */
 	if (prop && !strcmp(prop, "ulpi")) {
@@ -143,6 +149,9 @@ int mpc831x_usb_cfg(void)
 	}
 
 	iounmap(immap);
+
+	if (immr_node)
+		of_node_put(immr_node);
 
 	/* Map USB SOC space */
 	ret = of_address_to_resource(np, 0, &res);

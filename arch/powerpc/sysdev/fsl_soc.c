@@ -1342,7 +1342,7 @@ static int __init of_fsl_spi_probe(char *type, char *compatible, u32 sysclk,
 		if (ret)
 			goto unreg;
 
-		ret = platform_device_register(pdev);
+		ret = platform_device_add(pdev);
 		if (ret)
 			goto unreg;
 

@@ -18,6 +18,10 @@
 #include <asm/reg_booke.h>
 #endif /* CONFIG_BOOKE || CONFIG_40x */
 
+#ifdef CONFIG_FSL_EMB_PERFMON
+#include <asm/reg_fsl_emb.h>
+#endif
+
 #ifdef CONFIG_8xx
 #include <asm/reg_8xx.h>
 #endif /* CONFIG_8xx */
