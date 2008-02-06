@@ -2014,7 +2014,6 @@ static u16 iwl4965_fill_probe_req(struct iwl4965_priv *priv,
 /*
  * QoS  support
 */
-#ifdef CONFIG_IWL4965_QOS
 static int iwl4965_send_qos_params_command(struct iwl4965_priv *priv,
 				       struct iwl4965_qosparam_cmd *qos)
 {
@@ -2148,7 +2147,6 @@ static void iwl4965_activate_qos(struct iwl4965_priv *priv, u8 force)
 	}
 }
 
-#endif /* CONFIG_IWL4965_QOS */
 /*
  * Power management (not Tx power!) functions
  */
@@ -7200,9 +7198,8 @@ static void iwl4965_bg_post_associate(struct work_struct *data)
 	if (priv->iw_mode == IEEE80211_IF_TYPE_IBSS)
 		priv->assoc_station_added = 1;
 
-#ifdef CONFIG_IWL4965_QOS
 	iwl4965_activate_qos(priv, 0);
-#endif /* CONFIG_IWL4965_QOS */
+
 	/* we have just associated, don't start scan too early */
 	priv->next_scan_jiffies = jiffies + IWL_DELAY_NEXT_SCAN;
 	mutex_unlock(&priv->mutex);
@@ -7577,9 +7574,7 @@ static void iwl4965_config_ap(struct iwl4965_priv *priv)
 		/* restore RXON assoc */
 		priv->staging_rxon.filter_flags |= RXON_FILTER_ASSOC_MSK;
 		iwl4965_commit_rxon(priv);
-#ifdef CONFIG_IWL4965_QOS
 		iwl4965_activate_qos(priv, 1);
-#endif
 		iwl4965_rxon_add_station(priv, iwl4965_broadcast_addr, 0);
 	}
 	iwl4965_send_beacon_cmd(priv);
@@ -7893,10 +7888,8 @@ static int iwl4965_mac_conf_tx(struct ieee80211_hw *hw, int queue,
 			   const struct ieee80211_tx_queue_params *params)
 {
 	struct iwl4965_priv *priv = hw->priv;
-#ifdef CONFIG_IWL4965_QOS
 	unsigned long flags;
 	int q;
-#endif /* CONFIG_IWL4965_QOS */
 
 	IWL_DEBUG_MAC80211("enter\n");
 
@@ -7910,7 +7903,6 @@ static int iwl4965_mac_conf_tx(struct ieee80211_hw *hw, int queue,
 		return 0;
 	}
 
-#ifdef CONFIG_IWL4965_QOS
 	if (!priv->qos_data.qos_enable) {
 		priv->qos_data.qos_active = 0;
 		IWL_DEBUG_MAC80211("leave - qos not enabled\n");
@@ -7938,8 +7930,6 @@ static int iwl4965_mac_conf_tx(struct ieee80211_hw *hw, int queue,
 		iwl4965_activate_qos(priv, 0);
 
 	mutex_unlock(&priv->mutex);
-
-#endif /*CONFIG_IWL4965_QOS */
 
 	IWL_DEBUG_MAC80211("leave\n");
 	return 0;
@@ -8012,9 +8002,7 @@ static void iwl4965_mac_reset_tsf(struct ieee80211_hw *hw)
 	spin_unlock_irqrestore(&priv->lock, flags);
 #endif /* CONFIG_IWL4965_HT */
 
-#ifdef CONFIG_IWL4965_QOS
 	iwl4965_reset_qos(priv);
-#endif
 
 	cancel_delayed_work(&priv->post_associate);
 
@@ -8103,9 +8091,7 @@ static int iwl4965_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *sk
 	IWL_DEBUG_MAC80211("leave\n");
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-#ifdef CONFIG_IWL4965_QOS
 	iwl4965_reset_qos(priv);
-#endif
 
 	queue_work(priv->workqueue, &priv->post_associate.work);
 
@@ -8934,7 +8920,6 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 		goto out_iounmap;
 	}
 
-#ifdef CONFIG_IWL4965_QOS
 	if (iwl4965_param_qos_enable)
 		priv->qos_data.qos_enable = 1;
 
@@ -8942,7 +8927,6 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 
 	priv->qos_data.qos_active = 0;
 	priv->qos_data.qos_cap.val = 0;
-#endif /* CONFIG_IWL4965_QOS */
 
 	iwl4965_set_rxon_channel(priv, IEEE80211_BAND_2GHZ, 6);
 	iwl4965_setup_deferred_work(priv);

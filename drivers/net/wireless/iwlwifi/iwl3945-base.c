@@ -1910,7 +1910,6 @@ static u16 iwl3945_fill_probe_req(struct iwl3945_priv *priv,
 /*
  * QoS  support
 */
-#ifdef CONFIG_IWL3945_QOS
 static int iwl3945_send_qos_params_command(struct iwl3945_priv *priv,
 				       struct iwl3945_qosparam_cmd *qos)
 {
@@ -2039,7 +2038,6 @@ static void iwl3945_activate_qos(struct iwl3945_priv *priv, u8 force)
 	}
 }
 
-#endif /* CONFIG_IWL3945_QOS */
 /*
  * Power management (not Tx power!) functions
  */
@@ -6770,9 +6768,8 @@ static void iwl3945_bg_post_associate(struct work_struct *data)
 
 	iwl3945_sequence_reset(priv);
 
-#ifdef CONFIG_IWL3945_QOS
 	iwl3945_activate_qos(priv, 0);
-#endif /* CONFIG_IWL3945_QOS */
+
 	/* we have just associated, don't start scan too early */
 	priv->next_scan_jiffies = jiffies + IWL_DELAY_NEXT_SCAN;
 	mutex_unlock(&priv->mutex);
@@ -7417,10 +7414,8 @@ static int iwl3945_mac_conf_tx(struct ieee80211_hw *hw, int queue,
 			   const struct ieee80211_tx_queue_params *params)
 {
 	struct iwl3945_priv *priv = hw->priv;
-#ifdef CONFIG_IWL3945_QOS
 	unsigned long flags;
 	int q;
-#endif /* CONFIG_IWL3945_QOS */
 
 	IWL_DEBUG_MAC80211("enter\n");
 
@@ -7434,7 +7429,6 @@ static int iwl3945_mac_conf_tx(struct ieee80211_hw *hw, int queue,
 		return 0;
 	}
 
-#ifdef CONFIG_IWL3945_QOS
 	if (!priv->qos_data.qos_enable) {
 		priv->qos_data.qos_active = 0;
 		IWL_DEBUG_MAC80211("leave - qos not enabled\n");
@@ -7462,8 +7456,6 @@ static int iwl3945_mac_conf_tx(struct ieee80211_hw *hw, int queue,
 		iwl3945_activate_qos(priv, 0);
 
 	mutex_unlock(&priv->mutex);
-
-#endif /*CONFIG_IWL3945_QOS */
 
 	IWL_DEBUG_MAC80211("leave\n");
 	return 0;
@@ -7529,9 +7521,8 @@ static void iwl3945_mac_reset_tsf(struct ieee80211_hw *hw)
 	mutex_lock(&priv->mutex);
 	IWL_DEBUG_MAC80211("enter\n");
 
-#ifdef CONFIG_IWL3945_QOS
 	iwl3945_reset_qos(priv);
-#endif
+
 	cancel_delayed_work(&priv->post_associate);
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -7619,9 +7610,7 @@ static int iwl3945_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *sk
 	IWL_DEBUG_MAC80211("leave\n");
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-#ifdef CONFIG_IWL3945_QOS
 	iwl3945_reset_qos(priv);
-#endif
 
 	queue_work(priv->workqueue, &priv->post_associate.work);
 
@@ -8409,7 +8398,6 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 		goto out_iounmap;
 	}
 
-#ifdef CONFIG_IWL3945_QOS
 	if (iwl3945_param_qos_enable)
 		priv->qos_data.qos_enable = 1;
 
@@ -8417,7 +8405,6 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 
 	priv->qos_data.qos_active = 0;
 	priv->qos_data.qos_cap.val = 0;
-#endif /* CONFIG_IWL3945_QOS */
 
 	iwl3945_set_rxon_channel(priv, IEEE80211_BAND_2GHZ, 6);
 	iwl3945_setup_deferred_work(priv);

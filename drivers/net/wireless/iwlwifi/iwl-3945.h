@@ -431,8 +431,6 @@ union iwl3945_ht_rate_supp {
 	};
 };
 
-#ifdef CONFIG_IWL3945_QOS
-
 union iwl3945_qos_capabity {
 	struct {
 		u8 edca_count:4;	/* bit 0-3 */
@@ -460,7 +458,6 @@ struct iwl3945_qos_info {
 	union iwl3945_qos_capabity qos_cap;
 	struct iwl3945_qosparam_cmd def_qos_parm;
 };
-#endif /*CONFIG_IWL3945_QOS */
 
 #define STA_PS_STATUS_WAKE             0
 #define STA_PS_STATUS_SLEEP            1
@@ -869,9 +866,7 @@ struct iwl3945_priv {
 	u16 assoc_capability;
 	u8 ps_mode;
 
-#ifdef CONFIG_IWL3945_QOS
 	struct iwl3945_qos_info qos_data;
-#endif /*CONFIG_IWL3945_QOS */
 
 	struct workqueue_struct *workqueue;
 
