@@ -1295,10 +1295,8 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 
 		fsinfo = (struct fat_boot_fsinfo *)fsinfo_bh->b_data;
 		if (!IS_FSINFO(fsinfo)) {
-			printk(KERN_WARNING
-			       "FAT: Did not find valid FSINFO signature.\n"
-			       "     Found signature1 0x%08x signature2 0x%08x"
-			       " (sector = %lu)\n",
+			printk(KERN_WARNING "FAT: Invalid FSINFO signature: "
+			       "0x%08x, 0x%08x (sector = %lu)\n",
 			       le32_to_cpu(fsinfo->signature1),
 			       le32_to_cpu(fsinfo->signature2),
 			       sbi->fsinfo_sector);

@@ -55,9 +55,8 @@ void fat_clusters_flush(struct super_block *sb)
 	fsinfo = (struct fat_boot_fsinfo *)bh->b_data;
 	/* Sanity check */
 	if (!IS_FSINFO(fsinfo)) {
-		printk(KERN_ERR "FAT: Did not find valid FSINFO signature.\n"
-		       "     Found signature1 0x%08x signature2 0x%08x"
-		       " (sector = %lu)\n",
+		printk(KERN_ERR "FAT: Invalid FSINFO signature: "
+		       "0x%08x, 0x%08x (sector = %lu)\n",
 		       le32_to_cpu(fsinfo->signature1),
 		       le32_to_cpu(fsinfo->signature2),
 		       sbi->fsinfo_sector);
