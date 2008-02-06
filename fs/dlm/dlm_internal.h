@@ -92,8 +92,6 @@ do { \
   } \
 }
 
-#define DLM_FAKE_USER_AST ERR_PTR(-EINVAL)
-
 
 struct dlm_direntry {
 	struct list_head	list;
@@ -146,9 +144,9 @@ struct dlm_recover {
 
 struct dlm_args {
 	uint32_t		flags;
-	void			*astaddr;
-	long			astparam;
-	void			*bastaddr;
+	void			(*astfn) (void *astparam);
+	void			*astparam;
+	void			(*bastfn) (void *astparam, int mode);
 	int			mode;
 	struct dlm_lksb		*lksb;
 	unsigned long		timeout;
@@ -253,9 +251,9 @@ struct dlm_lkb {
 
 	char			*lkb_lvbptr;
 	struct dlm_lksb		*lkb_lksb;      /* caller's status block */
-	void			*lkb_astaddr;	/* caller's ast function */
-	void			*lkb_bastaddr;	/* caller's bast function */
-	long			lkb_astparam;	/* caller's ast arg */
+	void			(*lkb_astfn) (void *astparam);
+	void			(*lkb_bastfn) (void *astparam, int mode);
+	void			*lkb_astparam;	/* caller's ast arg */
 };
 
 

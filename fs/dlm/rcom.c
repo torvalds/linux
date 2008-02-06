@@ -318,9 +318,9 @@ static void pack_rcom_lock(struct dlm_rsb *r, struct dlm_lkb *lkb,
 	rl->rl_status = lkb->lkb_status;
 	rl->rl_wait_type = cpu_to_le16(lkb->lkb_wait_type);
 
-	if (lkb->lkb_bastaddr)
+	if (lkb->lkb_bastfn)
 		rl->rl_asts |= AST_BAST;
-	if (lkb->lkb_astaddr)
+	if (lkb->lkb_astfn)
 		rl->rl_asts |= AST_COMP;
 
 	rl->rl_namelen = cpu_to_le16(r->res_length);
