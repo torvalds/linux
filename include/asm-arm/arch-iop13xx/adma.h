@@ -247,7 +247,7 @@ static inline u32 iop_desc_get_src_count(struct iop_adma_desc_slot *desc,
 }
 
 static inline void
-iop_desc_init_memcpy(struct iop_adma_desc_slot *desc, int int_en)
+iop_desc_init_memcpy(struct iop_adma_desc_slot *desc, unsigned long flags)
 {
 	struct iop13xx_adma_desc_hw *hw_desc = desc->hw_desc;
 	union {
@@ -257,13 +257,13 @@ iop_desc_init_memcpy(struct iop_adma_desc_slot *desc, int int_en)
 
 	u_desc_ctrl.value = 0;
 	u_desc_ctrl.field.xfer_dir = 3; /* local to internal bus */
-	u_desc_ctrl.field.int_en = int_en;
+	u_desc_ctrl.field.int_en = flags & DMA_PREP_INTERRUPT;
 	hw_desc->desc_ctrl = u_desc_ctrl.value;
 	hw_desc->crc_addr = 0;
 }
 
 static inline void
-iop_desc_init_memset(struct iop_adma_desc_slot *desc, int int_en)
+iop_desc_init_memset(struct iop_adma_desc_slot *desc, unsigned long flags)
 {
 	struct iop13xx_adma_desc_hw *hw_desc = desc->hw_desc;
 	union {
@@ -274,14 +274,15 @@ iop_desc_init_memset(struct iop_adma_desc_slot *desc, int int_en)
 	u_desc_ctrl.value = 0;
 	u_desc_ctrl.field.xfer_dir = 3; /* local to internal bus */
 	u_desc_ctrl.field.block_fill_en = 1;
-	u_desc_ctrl.field.int_en = int_en;
+	u_desc_ctrl.field.int_en = flags & DMA_PREP_INTERRUPT;
 	hw_desc->desc_ctrl = u_desc_ctrl.value;
 	hw_desc->crc_addr = 0;
 }
 
 /* to do: support buffers larger than ADMA_MAX_BYTE_COUNT */
 static inline void
-iop_desc_init_xor(struct iop_adma_desc_slot *desc, int src_cnt, int int_en)
+iop_desc_init_xor(struct iop_adma_desc_slot *desc, int src_cnt,
+		  unsigned long flags)
 {
 	struct iop13xx_adma_desc_hw *hw_desc = desc->hw_desc;
 	union {
@@ -292,7 +293,7 @@ iop_desc_init_xor(struct iop_adma_desc_slot *desc, int src_cnt, int int_en)
 	u_desc_ctrl.value = 0;
 	u_desc_ctrl.field.src_select = src_cnt - 1;
 	u_desc_ctrl.field.xfer_dir = 3; /* local to internal bus */
-	u_desc_ctrl.field.int_en = int_en;
+	u_desc_ctrl.field.int_en = flags & DMA_PREP_INTERRUPT;
 	hw_desc->desc_ctrl = u_desc_ctrl.value;
 	hw_desc->crc_addr = 0;
 
@@ -301,7 +302,8 @@ iop_desc_init_xor(struct iop_adma_desc_slot *desc, int src_cnt, int int_en)
 
 /* to do: support buffers larger than ADMA_MAX_BYTE_COUNT */
 static inline int
-iop_desc_init_zero_sum(struct iop_adma_desc_slot *desc, int src_cnt, int int_en)
+iop_desc_init_zero_sum(struct iop_adma_desc_slot *desc, int src_cnt,
+		       unsigned long flags)
 {
 	struct iop13xx_adma_desc_hw *hw_desc = desc->hw_desc;
 	union {
@@ -314,7 +316,7 @@ iop_desc_init_zero_sum(struct iop_adma_desc_slot *desc, int src_cnt, int int_en)
 	u_desc_ctrl.field.xfer_dir = 3; /* local to internal bus */
 	u_desc_ctrl.field.zero_result = 1;
 	u_desc_ctrl.field.status_write_back_en = 1;
-	u_desc_ctrl.field.int_en = int_en;
+	u_desc_ctrl.field.int_en = flags & DMA_PREP_INTERRUPT;
 	hw_desc->desc_ctrl = u_desc_ctrl.value;
 	hw_desc->crc_addr = 0;
 

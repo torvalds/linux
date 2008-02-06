@@ -159,20 +159,6 @@ static int ioat_dma_enumerate_channels(struct ioatdma_device *device)
 	return device->common.chancnt;
 }
 
-static void ioat_set_src(dma_addr_t addr,
-			 struct dma_async_tx_descriptor *tx,
-			 int index)
-{
-	tx_to_ioat_desc(tx)->src = addr;
-}
-
-static void ioat_set_dest(dma_addr_t addr,
-			  struct dma_async_tx_descriptor *tx,
-			  int index)
-{
-	tx_to_ioat_desc(tx)->dst = addr;
-}
-
 /**
  * ioat_dma_memcpy_issue_pending - push potentially unrecognized appended
  *                                 descriptors to hw
@@ -415,8 +401,6 @@ static struct ioat_desc_sw *ioat_dma_alloc_descriptor(
 
 	memset(desc, 0, sizeof(*desc));
 	dma_async_tx_descriptor_init(&desc_sw->async_tx, &ioat_chan->common);
-	desc_sw->async_tx.tx_set_src = ioat_set_src;
-	desc_sw->async_tx.tx_set_dest = ioat_set_dest;
 	switch (ioat_chan->device->version) {
 	case IOAT_VER_1_2:
 		desc_sw->async_tx.tx_submit = ioat1_tx_submit;
@@ -714,8 +698,10 @@ static struct ioat_desc_sw *ioat_dma_get_next_descriptor(
 
 static struct dma_async_tx_descriptor *ioat1_dma_prep_memcpy(
 						struct dma_chan *chan,
+						dma_addr_t dma_dest,
+						dma_addr_t dma_src,
 						size_t len,
-						int int_en)
+						unsigned long flags)
 {
 	struct ioat_dma_chan *ioat_chan = to_ioat_chan(chan);
 	struct ioat_desc_sw *new;
@@ -726,6 +712,8 @@ static struct dma_async_tx_descriptor *ioat1_dma_prep_memcpy(
 
 	if (new) {
 		new->len = len;
+		new->dst = dma_dest;
+		new->src = dma_src;
 		return &new->async_tx;
 	} else
 		return NULL;
@@ -733,8 +721,10 @@ static struct dma_async_tx_descriptor *ioat1_dma_prep_memcpy(
 
 static struct dma_async_tx_descriptor *ioat2_dma_prep_memcpy(
 						struct dma_chan *chan,
+						dma_addr_t dma_dest,
+						dma_addr_t dma_src,
 						size_t len,
-						int int_en)
+						unsigned long flags)
 {
 	struct ioat_dma_chan *ioat_chan = to_ioat_chan(chan);
 	struct ioat_desc_sw *new;
@@ -749,6 +739,8 @@ static struct dma_async_tx_descriptor *ioat2_dma_prep_memcpy(
 
 	if (new) {
 		new->len = len;
+		new->dst = dma_dest;
+		new->src = dma_src;
 		return &new->async_tx;
 	} else
 		return NULL;
@@ -1045,7 +1037,7 @@ static int ioat_dma_self_test(struct ioatdma_device *device)
 	u8 *dest;
 	struct dma_chan *dma_chan;
 	struct dma_async_tx_descriptor *tx;
-	dma_addr_t addr;
+	dma_addr_t dma_dest, dma_src;
 	dma_cookie_t cookie;
 	int err = 0;
 
@@ -1073,7 +1065,12 @@ static int ioat_dma_self_test(struct ioatdma_device *device)
 		goto out;
 	}
 
-	tx = device->common.device_prep_dma_memcpy(dma_chan, IOAT_TEST_SIZE, 0);
+	dma_src = dma_map_single(dma_chan->device->dev, src, IOAT_TEST_SIZE,
+				 DMA_TO_DEVICE);
+	dma_dest = dma_map_single(dma_chan->device->dev, dest, IOAT_TEST_SIZE,
+				  DMA_FROM_DEVICE);
+	tx = device->common.device_prep_dma_memcpy(dma_chan, dma_dest, dma_src,
+						   IOAT_TEST_SIZE, 0);
 	if (!tx) {
 		dev_err(&device->pdev->dev,
 			"Self-test prep failed, disabling\n");
@@ -1082,12 +1079,6 @@ static int ioat_dma_self_test(struct ioatdma_device *device)
 	}
 
 	async_tx_ack(tx);
-	addr = dma_map_single(dma_chan->device->dev, src, IOAT_TEST_SIZE,
-			      DMA_TO_DEVICE);
-	tx->tx_set_src(addr, tx, 0);
-	addr = dma_map_single(dma_chan->device->dev, dest, IOAT_TEST_SIZE,
-			      DMA_FROM_DEVICE);
-	tx->tx_set_dest(addr, tx, 0);
 	tx->callback = ioat_dma_test_callback;
 	tx->callback_param = (void *)0x8086;
 	cookie = tx->tx_submit(tx);

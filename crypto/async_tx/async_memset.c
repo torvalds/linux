@@ -35,7 +35,7 @@
  * @val: fill value
  * @offset: offset in pages to start transaction
  * @len: length in bytes
- * @flags: ASYNC_TX_ASSUME_COHERENT, ASYNC_TX_ACK, ASYNC_TX_DEP_ACK
+ * @flags: ASYNC_TX_ACK, ASYNC_TX_DEP_ACK
  * @depend_tx: memset depends on the result of this transaction
  * @cb_fn: function to call when the memcpy completes
  * @cb_param: parameter to pass to the callback routine
@@ -46,24 +46,24 @@ async_memset(struct page *dest, int val, unsigned int offset,
 	struct dma_async_tx_descriptor *depend_tx,
 	dma_async_tx_callback cb_fn, void *cb_param)
 {
-	struct dma_chan *chan = async_tx_find_channel(depend_tx, DMA_MEMSET);
+	struct dma_chan *chan = async_tx_find_channel(depend_tx, DMA_MEMSET,
+						      &dest, 1, NULL, 0, len);
 	struct dma_device *device = chan ? chan->device : NULL;
-	int int_en = cb_fn ? 1 : 0;
-	struct dma_async_tx_descriptor *tx = device ?
-		device->device_prep_dma_memset(chan, val, len,
-			int_en) : NULL;
+	struct dma_async_tx_descriptor *tx = NULL;
 
-	if (tx) { /* run the memset asynchronously */
-		dma_addr_t dma_addr;
-		enum dma_data_direction dir;
+	if (device) {
+		dma_addr_t dma_dest;
+		unsigned long dma_prep_flags = cb_fn ? DMA_PREP_INTERRUPT : 0;
 
+		dma_dest = dma_map_page(device->dev, dest, offset, len,
+					DMA_FROM_DEVICE);
+
+		tx = device->device_prep_dma_memset(chan, dma_dest, val, len,
+						    dma_prep_flags);
+	}
+
+	if (tx) {
 		pr_debug("%s: (async) len: %zu\n", __FUNCTION__, len);
-		dir = (flags & ASYNC_TX_ASSUME_COHERENT) ?
-			DMA_NONE : DMA_FROM_DEVICE;
-
-		dma_addr = dma_map_page(device->dev, dest, offset, len, dir);
-		tx->tx_set_dest(dma_addr, tx, 0);
-
 		async_tx_submit(chan, tx, flags, depend_tx, cb_fn, cb_param);
 	} else { /* run the memset synchronously */
 		void *dest_buf;
