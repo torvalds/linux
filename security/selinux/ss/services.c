@@ -2246,39 +2246,6 @@ int security_get_allow_unknown(void)
 }
 
 /**
- * security_get_policycaps - Query the loaded policy for its capabilities
- * @len: the number of capability bits
- * @values: the capability bit array
- *
- * Description:
- * Get an array of the policy capabilities in @values where each entry in
- * @values is either true (1) or false (0) depending the policy's support of
- * that feature.  The policy capabilities are defined by the
- * POLICYDB_CAPABILITY_* enums.  The size of the array is stored in @len and it
- * is up to the caller to free the array in @values.  Returns zero on success,
- * negative values on failure.
- *
- */
-int security_get_policycaps(int *len, int **values)
-{
-	int rc = -ENOMEM;
-	unsigned int iter;
-
-	POLICY_RDLOCK;
-
-	*values = kcalloc(POLICYDB_CAPABILITY_MAX, sizeof(int), GFP_ATOMIC);
-	if (*values == NULL)
-		goto out;
-	for (iter = 0; iter < POLICYDB_CAPABILITY_MAX; iter++)
-		(*values)[iter] = ebitmap_get_bit(&policydb.policycaps, iter);
-	*len = POLICYDB_CAPABILITY_MAX;
-
-out:
-	POLICY_RDUNLOCK;
-	return rc;
-}
-
-/**
  * security_policycap_supported - Check for a specific policy capability
  * @req_cap: capability
  *
