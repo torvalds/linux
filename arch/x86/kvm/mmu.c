@@ -1097,6 +1097,7 @@ static void mmu_alloc_roots(struct kvm_vcpu *vcpu)
 	int i;
 	gfn_t root_gfn;
 	struct kvm_mmu_page *sp;
+	int metaphysical = 0;
 
 	root_gfn = vcpu->arch.cr3 >> PAGE_SHIFT;
 
@@ -1105,14 +1106,20 @@ static void mmu_alloc_roots(struct kvm_vcpu *vcpu)
 		hpa_t root = vcpu->arch.mmu.root_hpa;
 
 		ASSERT(!VALID_PAGE(root));
+		if (tdp_enabled)
+			metaphysical = 1;
 		sp = kvm_mmu_get_page(vcpu, root_gfn, 0,
-				      PT64_ROOT_LEVEL, 0, ACC_ALL, NULL);
+				      PT64_ROOT_LEVEL, metaphysical,
+				      ACC_ALL, NULL);
 		root = __pa(sp->spt);
 		++sp->root_count;
 		vcpu->arch.mmu.root_hpa = root;
 		return;
 	}
 #endif
+	metaphysical = !is_paging(vcpu);
+	if (tdp_enabled)
+		metaphysical = 1;
 	for (i = 0; i < 4; ++i) {
 		hpa_t root = vcpu->arch.mmu.pae_root[i];
 
@@ -1126,7 +1133,7 @@ static void mmu_alloc_roots(struct kvm_vcpu *vcpu)
 		} else if (vcpu->arch.mmu.root_level == 0)
 			root_gfn = 0;
 		sp = kvm_mmu_get_page(vcpu, root_gfn, i << 30,
-				      PT32_ROOT_LEVEL, !is_paging(vcpu),
+				      PT32_ROOT_LEVEL, metaphysical,
 				      ACC_ALL, NULL);
 		root = __pa(sp->spt);
 		++sp->root_count;
@@ -1158,6 +1165,36 @@ static int nonpaging_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
 
 	return nonpaging_map(vcpu, gva & PAGE_MASK,
 			     error_code & PFERR_WRITE_MASK, gfn);
+}
+
+static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa,
+				u32 error_code)
+{
+	struct page *page;
+	int r;
+
+	ASSERT(vcpu);
+	ASSERT(VALID_PAGE(vcpu->arch.mmu.root_hpa));
+
+	r = mmu_topup_memory_caches(vcpu);
+	if (r)
+		return r;
+
+	down_read(&current->mm->mmap_sem);
+	page = gfn_to_page(vcpu->kvm, gpa >> PAGE_SHIFT);
+	if (is_error_page(page)) {
+		kvm_release_page_clean(page);
+		up_read(&current->mm->mmap_sem);
+		return 1;
+	}
+	spin_lock(&vcpu->kvm->mmu_lock);
+	kvm_mmu_free_some_pages(vcpu);
+	r = __direct_map(vcpu, gpa, error_code & PFERR_WRITE_MASK,
+			 gpa >> PAGE_SHIFT, page, TDP_ROOT_LEVEL);
+	spin_unlock(&vcpu->kvm->mmu_lock);
+	up_read(&current->mm->mmap_sem);
+
+	return r;
 }
 
 static void nonpaging_free(struct kvm_vcpu *vcpu)
@@ -1253,7 +1290,35 @@ static int paging32E_init_context(struct kvm_vcpu *vcpu)
 	return paging64_init_context_common(vcpu, PT32E_ROOT_LEVEL);
 }
 
-static int init_kvm_mmu(struct kvm_vcpu *vcpu)
+static int init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
+{
+	struct kvm_mmu *context = &vcpu->arch.mmu;
+
+	context->new_cr3 = nonpaging_new_cr3;
+	context->page_fault = tdp_page_fault;
+	context->free = nonpaging_free;
+	context->prefetch_page = nonpaging_prefetch_page;
+	context->shadow_root_level = TDP_ROOT_LEVEL;
+	context->root_hpa = INVALID_PAGE;
+
+	if (!is_paging(vcpu)) {
+		context->gva_to_gpa = nonpaging_gva_to_gpa;
+		context->root_level = 0;
+	} else if (is_long_mode(vcpu)) {
+		context->gva_to_gpa = paging64_gva_to_gpa;
+		context->root_level = PT64_ROOT_LEVEL;
+	} else if (is_pae(vcpu)) {
+		context->gva_to_gpa = paging64_gva_to_gpa;
+		context->root_level = PT32E_ROOT_LEVEL;
+	} else {
+		context->gva_to_gpa = paging32_gva_to_gpa;
+		context->root_level = PT32_ROOT_LEVEL;
+	}
+
+	return 0;
+}
+
+static int init_kvm_softmmu(struct kvm_vcpu *vcpu)
 {
 	ASSERT(vcpu);
 	ASSERT(!VALID_PAGE(vcpu->arch.mmu.root_hpa));
@@ -1266,6 +1331,14 @@ static int init_kvm_mmu(struct kvm_vcpu *vcpu)
 		return paging32E_init_context(vcpu);
 	else
 		return paging32_init_context(vcpu);
+}
+
+static int init_kvm_mmu(struct kvm_vcpu *vcpu)
+{
+	if (tdp_enabled)
+		return init_kvm_tdp_mmu(vcpu);
+	else
+		return init_kvm_softmmu(vcpu);
 }
 
 static void destroy_kvm_mmu(struct kvm_vcpu *vcpu)
