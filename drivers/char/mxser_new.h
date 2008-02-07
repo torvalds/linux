@@ -29,14 +29,10 @@
 
 #define MOXA_SDS_RSTICOUNTER	(MOXA + 69)
 #define MOXA_ASPP_OQUEUE  	(MOXA + 70)
-#define MOXA_ASPP_SETBAUD 	(MOXA + 71)
-#define MOXA_ASPP_GETBAUD 	(MOXA + 72)
 #define MOXA_ASPP_MON     	(MOXA + 73)
 #define MOXA_ASPP_LSTATUS 	(MOXA + 74)
 #define MOXA_ASPP_MON_EXT 	(MOXA + 75)
 #define MOXA_SET_BAUD_METHOD	(MOXA + 76)
-#define MOXA_SET_SPECIAL_BAUD_RATE	(MOXA + 77)
-#define MOXA_GET_SPECIAL_BAUD_RATE	(MOXA + 78)
 
 /* --------------------------------------------------- */
 

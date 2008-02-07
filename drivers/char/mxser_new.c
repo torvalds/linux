@@ -173,18 +173,6 @@ static struct pci_device_id mxser_pcibrds[] = {
 };
 MODULE_DEVICE_TABLE(pci, mxser_pcibrds);
 
-static int mxvar_baud_table[] = {
-	0, 50, 75, 110, 134, 150, 200, 300, 600, 1200, 1800, 2400,
-	4800, 9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600
-};
-static unsigned int mxvar_baud_table1[] = {
-	0, B50, B75, B110, B134, B150, B200, B300, B600, B1200, B1800, B2400,
-	B4800, B9600, B19200, B38400, B57600, B115200, B230400, B460800, B921600
-};
-#define BAUD_TABLE_NO ARRAY_SIZE(mxvar_baud_table)
-
-#define B_SPEC	B2000000
-
 static int ioaddr[MXSER_BOARDS] = { 0, 0, 0, 0 };
 static int ttymajor = MXSERMAJOR;
 static int calloutmajor = MXSERCUMAJOR;
@@ -243,10 +231,8 @@ struct mxser_port {
 	int rx_trigger;		/* Rx fifo trigger level */
 	int rx_low_water;
 	int baud_base;		/* max. speed */
-	long realbaud;
 	int type;		/* UART type */
 	int flags;		/* defined in tty.h */
-	int speed;
 
 	int x_char;		/* xon/xoff character */
 	int IER;		/* Interrupt Enable Register */
@@ -451,7 +437,6 @@ static int mxser_block_til_ready(struct tty_struct *tty, struct file *filp,
 
 static int mxser_set_baud(struct mxser_port *info, long newspd)
 {
-	unsigned int i;
 	int quot = 0, baud;
 	unsigned char cval;
 
@@ -464,27 +449,17 @@ static int mxser_set_baud(struct mxser_port *info, long newspd)
 	if (newspd > info->max_baud)
 		return -1;
 
-	info->realbaud = newspd;
-	for (i = 0; i < BAUD_TABLE_NO; i++)
-	       if (newspd == mxvar_baud_table[i])
-		       break;
-	if (i == BAUD_TABLE_NO) {
-		quot = info->baud_base / info->speed;
-		if (info->speed <= 0 || info->speed > info->max_baud)
-			quot = 0;
+	if (newspd == 134) {
+		quot = 2 * info->baud_base / 269;
+		tty_encode_baud_rate(info->tty, 134, 134);
+	} else if (newspd) {
+		quot = info->baud_base / newspd;
+		if (quot == 0)
+			quot = 1;
+		baud = info->baud_base/quot;
+		tty_encode_baud_rate(info->tty, baud, baud);
 	} else {
-		if (newspd == 134) {
-			quot = (2 * info->baud_base / 269);
-			tty_encode_baud_rate(info->tty, 134, 134);
-		} else if (newspd) {
-			quot = info->baud_base / newspd;
-			if (quot == 0)
-				quot = 1;
-			baud = info->baud_base/quot;
-			tty_encode_baud_rate(info->tty, baud, baud);
-		} else {
-			quot = 0;
-		}
+		quot = 0;
 	}
 
 	info->timeout = ((info->xmit_fifo_size * HZ * 10 * quot) / info->baud_base);
@@ -507,17 +482,19 @@ static int mxser_set_baud(struct mxser_port *info, long newspd)
 	outb(quot >> 8, info->ioaddr + UART_DLM);	/* MS of divisor */
 	outb(cval, info->ioaddr + UART_LCR);	/* reset DLAB */
 
-	if (i == BAUD_TABLE_NO) {
-		quot = info->baud_base % info->speed;
+#ifdef BOTHER
+	if (C_BAUD(info->tty) == BOTHER) {
+		quot = info->baud_base % newspd;
 		quot *= 8;
-		if ((quot % info->speed) > (info->speed / 2)) {
-			quot /= info->speed;
+		if (quot % newspd > newspd / 2) {
+			quot /= newspd;
 			quot++;
-		} else {
-			quot /= info->speed;
-		}
+		} else
+			quot /= newspd;
+
 		SET_MOXA_MUST_ENUM_VALUE(info->ioaddr, quot);
 	} else
+#endif
 		SET_MOXA_MUST_ENUM_VALUE(info->ioaddr, 0);
 
 	return 0;
@@ -533,7 +510,6 @@ static int mxser_change_speed(struct mxser_port *info,
 	unsigned cflag, cval, fcr;
 	int ret = 0;
 	unsigned char status;
-	long baud;
 
 	if (!info->tty || !info->tty->termios)
 		return ret;
@@ -541,13 +517,8 @@ static int mxser_change_speed(struct mxser_port *info,
 	if (!(info->ioaddr))
 		return ret;
 
-	if (mxser_set_baud_method[info->tty->index] == 0) {
-		if ((cflag & CBAUD) == B_SPEC)
-			baud = info->speed;
-		else
-			baud = tty_get_baud_rate(info->tty);
-		mxser_set_baud(info, baud);
-	}
+	if (mxser_set_baud_method[info->tty->index] == 0)
+		mxser_set_baud(info, tty_get_baud_rate(info->tty));
 
 	/* byte size and parity */
 	switch (cflag & CSIZE) {
@@ -1587,7 +1558,8 @@ static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 					port->mon_data.up_txcnt;
 				mon_data_ext.modem_status[i] =
 					port->mon_data.modem_status;
-				mon_data_ext.baudrate[i] = port->realbaud;
+				mon_data_ext.baudrate[i] =
+					tty_get_baud_rate(port->tty);
 
 				if (!port->tty || !port->tty->termios) {
 					cflag = port->normal_termios.c_cflag;
@@ -1645,7 +1617,6 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 	struct serial_icounter_struct __user *p_cuser;
 	unsigned long templ;
 	unsigned long flags;
-	unsigned int i;
 	void __user *argp = (void __user *)arg;
 	int retval;
 
@@ -1681,36 +1652,6 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 			if (copy_to_user(argp, &opmode, sizeof(int)))
 				return -EFAULT;
 		}
-		return 0;
-	}
-
-	if (cmd == MOXA_SET_SPECIAL_BAUD_RATE) {
-		int speed;
-
-		if (get_user(speed, (int __user *)argp))
-			return -EFAULT;
-		if (speed <= 0 || speed > info->max_baud)
-			return -EFAULT;
-		if (!info->tty || !info->tty->termios || !info->ioaddr)
-			return 0;
-		info->tty->termios->c_cflag &= ~(CBAUD | CBAUDEX);
-		for (i = 0; i < BAUD_TABLE_NO; i++)
-			if (speed == mxvar_baud_table[i])
-				break;
-		if (i == BAUD_TABLE_NO) {
-			info->tty->termios->c_cflag |= B_SPEC;
-		} else if (speed != 0)
-			info->tty->termios->c_cflag |= mxvar_baud_table1[i];
-
-		info->speed = speed;
-		spin_lock_irqsave(&info->slock, flags);
-		mxser_change_speed(info, NULL);
-		spin_unlock_irqrestore(&info->slock, flags);
-
-		return 0;
-	} else if (cmd == MOXA_GET_SPECIAL_BAUD_RATE) {
-		if (copy_to_user(argp, &info->speed, sizeof(int)))
-		     return -EFAULT;
 		return 0;
 	}
 
@@ -1806,20 +1747,6 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 	case MOXA_SDS_RSTICOUNTER:
 		info->mon_data.rxcnt = 0;
 		info->mon_data.txcnt = 0;
-		return 0;
-	case MOXA_ASPP_SETBAUD:{
-		long baud;
-		if (get_user(baud, (long __user *)argp))
-			return -EFAULT;
-		spin_lock_irqsave(&info->slock, flags);
-		mxser_set_baud(info, baud);
-		spin_unlock_irqrestore(&info->slock, flags);
-		return 0;
-	}
-	case MOXA_ASPP_GETBAUD:
-		if (copy_to_user(argp, &info->realbaud, sizeof(long)))
-			return -EFAULT;
-
 		return 0;
 
 	case MOXA_ASPP_OQUEUE:{
@@ -2434,7 +2361,6 @@ static int __devinit mxser_initbrd(struct mxser_board *brd,
 		info->normal_termios = mxvar_sdriver->init_termios;
 		init_waitqueue_head(&info->open_wait);
 		init_waitqueue_head(&info->delta_msr_wait);
-		info->speed = 9600;
 		memset(&info->mon_data, 0, sizeof(struct mxser_mon));
 		info->err_shadow = 0;
 		spin_lock_init(&info->slock);
