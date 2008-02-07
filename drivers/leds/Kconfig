@@ -91,6 +91,13 @@ config LEDS_COBALT_RAQ
 	help
 	  This option enables support for the Cobalt Raq series LEDs.
 
+config LEDS_HP6XX
+	tristate "LED Support for the HP Jornada 6xx"
+	depends on LEDS_CLASS && SH_HP6XX
+	help
+	  This option enables led support for the handheld
+	  HP Jornada 620/660/680/690.
+
 config LEDS_GPIO
 	tristate "LED Support for GPIO connected LEDs"
 	depends on LEDS_CLASS && GENERIC_GPIO
