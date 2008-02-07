@@ -354,8 +354,8 @@ static void __init db88f5281_init(void)
 
 MACHINE_START(DB88F5281, "Marvell Orion-2 Development Board")
 	/* Maintainer: Tzachi Perelstein <tzachi@marvell.com> */
-	.phys_io	= ORION_REGS_BASE,
-	.io_pg_offst	= ((ORION_REGS_BASE) >> 18) & 0xfffc,
+	.phys_io	= ORION_REGS_PHYS_BASE,
+	.io_pg_offst	= ((ORION_REGS_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
 	.init_machine	= db88f5281_init,
 	.map_io		= orion_map_io,
