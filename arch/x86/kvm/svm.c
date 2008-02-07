@@ -47,6 +47,8 @@ MODULE_LICENSE("GPL");
 #define SVM_FEATURE_LBRV (1 << 1)
 #define SVM_DEATURE_SVML (1 << 2)
 
+static bool npt_enabled = false;
+
 static void kvm_reput_irq(struct vcpu_svm *svm);
 
 static inline struct vcpu_svm *to_svm(struct kvm_vcpu *vcpu)
@@ -412,6 +414,12 @@ static __init int svm_hardware_setup(void)
 	}
 
 	svm_features = cpuid_edx(SVM_CPUID_FUNC);
+
+	if (!svm_has(SVM_FEATURE_NPT))
+		npt_enabled = false;
+
+	if (npt_enabled)
+		printk(KERN_INFO "kvm: Nested Paging enabled\n");
 
 	return 0;
 
