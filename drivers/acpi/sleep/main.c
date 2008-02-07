@@ -472,11 +472,20 @@ int acpi_pm_device_sleep_state(struct device *dev, int wake, int *d_min_p)
 	if (acpi_target_sleep_state == ACPI_STATE_S0 ||
 	    (wake && adev->wakeup.state.enabled &&
 	     adev->wakeup.sleep_state <= acpi_target_sleep_state)) {
+		acpi_status status;
+
 		acpi_method[3] = 'W';
-		acpi_evaluate_integer(handle, acpi_method, NULL, &d_max);
-		/* Sanity check */
-		if (d_max < d_min)
+		status = acpi_evaluate_integer(handle, acpi_method, NULL,
+						&d_max);
+		if (ACPI_FAILURE(status)) {
+			d_max = d_min;
+		} else if (d_max < d_min) {
+			/* Warn the user of the broken DSDT */
+			printk(KERN_WARNING "ACPI: Wrong value from %s\n",
+				acpi_method);
+			/* Sanitize it */
 			d_min = d_max;
+		}
 	}
 
 	if (d_min_p)

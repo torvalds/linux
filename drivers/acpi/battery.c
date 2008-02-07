@@ -194,6 +194,9 @@ static int acpi_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_MANUFACTURER:
 		val->strval = battery->oem_info;
 		break;
+	case POWER_SUPPLY_PROP_SERIAL_NUMBER:
+		val->strval = battery->serial_number;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -212,6 +215,7 @@ static enum power_supply_property charge_battery_props[] = {
 	POWER_SUPPLY_PROP_CHARGE_NOW,
 	POWER_SUPPLY_PROP_MODEL_NAME,
 	POWER_SUPPLY_PROP_MANUFACTURER,
+	POWER_SUPPLY_PROP_SERIAL_NUMBER,
 };
 
 static enum power_supply_property energy_battery_props[] = {
@@ -226,6 +230,7 @@ static enum power_supply_property energy_battery_props[] = {
 	POWER_SUPPLY_PROP_ENERGY_NOW,
 	POWER_SUPPLY_PROP_MODEL_NAME,
 	POWER_SUPPLY_PROP_MANUFACTURER,
+	POWER_SUPPLY_PROP_SERIAL_NUMBER,
 };
 #endif
 
