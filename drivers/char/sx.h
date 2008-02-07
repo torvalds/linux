@@ -88,8 +88,6 @@ struct vpd_prom {
 
 #define IS_CF_BOARD(board) (board->flags & (SX_CFISA_BOARD | SX_CFPCI_BOARD))
 
-#define SERIAL_TYPE_NORMAL 1
-
 /* The SI processor clock is required to calculate the cc_int_count register
    value for the SI cards. */
 #define SI_PROCESSOR_CLOCK 25000000

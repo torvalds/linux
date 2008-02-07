@@ -111,9 +111,6 @@ static char serial_version[] __initdata = "2.2";
 
 static struct tty_driver *esp_driver;
 
-/* serial subtype definitions */
-#define SERIAL_TYPE_NORMAL	1
-
 /*
  * Serial driver configuration section.  Here are the various options:
  *
