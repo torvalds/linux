@@ -329,23 +329,26 @@ static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
 	 * with it
 	 */
 retry:
-	lock_page_cgroup(page);
-	pc = page_get_page_cgroup(page);
-	/*
-	 * The page_cgroup exists and the page has already been accounted
-	 */
-	if (pc) {
-		if (unlikely(!atomic_inc_not_zero(&pc->ref_cnt))) {
-			/* this page is under being uncharged ? */
-			unlock_page_cgroup(page);
-			cpu_relax();
-			goto retry;
-		} else {
-			unlock_page_cgroup(page);
-			goto done;
+	if (page) {
+		lock_page_cgroup(page);
+		pc = page_get_page_cgroup(page);
+		/*
+		 * The page_cgroup exists and
+		 * the page has already been accounted.
+		 */
+		if (pc) {
+			if (unlikely(!atomic_inc_not_zero(&pc->ref_cnt))) {
+				/* this page is under being uncharged ? */
+				unlock_page_cgroup(page);
+				cpu_relax();
+				goto retry;
+			} else {
+				unlock_page_cgroup(page);
+				goto done;
+			}
 		}
+		unlock_page_cgroup(page);
 	}
-	unlock_page_cgroup(page);
 
 	pc = kzalloc(sizeof(struct page_cgroup), gfp_mask);
 	if (pc == NULL)
@@ -404,7 +407,7 @@ retry:
 	if (ctype == MEM_CGROUP_CHARGE_TYPE_CACHE)
 		pc->flags |= PAGE_CGROUP_FLAG_CACHE;
 
-	if (page_cgroup_assign_new_page_cgroup(page, pc)) {
+	if (!page || page_cgroup_assign_new_page_cgroup(page, pc)) {
 		/*
 		 * Another charge has been added to this page already.
 		 * We take lock_page_cgroup(page) again and read
@@ -413,6 +416,8 @@ retry:
 		res_counter_uncharge(&mem->res, PAGE_SIZE);
 		css_put(&mem->css);
 		kfree(pc);
+		if (!page)
+			goto done;
 		goto retry;
 	}
 
