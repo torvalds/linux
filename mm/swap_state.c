@@ -75,13 +75,13 @@ int add_to_swap_cache(struct page *page, swp_entry_t entry, gfp_t gfp_mask)
 	BUG_ON(!PageLocked(page));
 	BUG_ON(PageSwapCache(page));
 	BUG_ON(PagePrivate(page));
+
+	error = mem_cgroup_cache_charge(page, current->mm, gfp_mask);
+	if (error)
+		goto out;
+
 	error = radix_tree_preload(gfp_mask);
 	if (!error) {
-
-		error = mem_cgroup_cache_charge(page, current->mm, gfp_mask);
-		if (error)
-			goto out;
-
 		write_lock_irq(&swapper_space.tree_lock);
 		error = radix_tree_insert(&swapper_space.page_tree,
 						entry.val, page);
@@ -97,7 +97,8 @@ int add_to_swap_cache(struct page *page, swp_entry_t entry, gfp_t gfp_mask)
 		}
 		write_unlock_irq(&swapper_space.tree_lock);
 		radix_tree_preload_end();
-	}
+	} else
+		mem_cgroup_uncharge_page(page);
 out:
 	return error;
 }

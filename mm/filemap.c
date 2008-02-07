@@ -460,14 +460,12 @@ int filemap_write_and_wait_range(struct address_space *mapping,
 int add_to_page_cache(struct page *page, struct address_space *mapping,
 		pgoff_t offset, gfp_t gfp_mask)
 {
-	int error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
+	int error = mem_cgroup_cache_charge(page, current->mm, gfp_mask);
+	if (error)
+		goto out;
 
+	error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
 	if (error == 0) {
-
-		error = mem_cgroup_cache_charge(page, current->mm, gfp_mask);
-		if (error)
-			goto out;
-
 		write_lock_irq(&mapping->tree_lock);
 		error = radix_tree_insert(&mapping->page_tree, offset, page);
 		if (!error) {
@@ -482,7 +480,8 @@ int add_to_page_cache(struct page *page, struct address_space *mapping,
 
 		write_unlock_irq(&mapping->tree_lock);
 		radix_tree_preload_end();
-	}
+	} else
+		mem_cgroup_uncharge_page(page);
 out:
 	return error;
 }
