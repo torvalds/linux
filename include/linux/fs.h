@@ -1780,6 +1780,7 @@ static inline struct inode *iget(struct super_block *sb, unsigned long ino)
 }
 
 extern void __iget(struct inode * inode);
+extern void iget_failed(struct inode *);
 extern void clear_inode(struct inode *);
 extern void destroy_inode(struct inode *);
 extern struct inode *new_inode(struct super_block *);
