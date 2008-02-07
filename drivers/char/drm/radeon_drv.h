@@ -123,6 +123,12 @@ enum radeon_family {
 	CHIP_R420,
 	CHIP_RV410,
 	CHIP_RS400,
+	CHIP_RV515,
+	CHIP_R520,
+	CHIP_RV530,
+	CHIP_RV560,
+	CHIP_RV570,
+	CHIP_R580,
 	CHIP_LAST,
 };
 
@@ -165,6 +171,12 @@ typedef struct drm_radeon_ring_buffer {
 	u32 *end;
 	int size;
 	int size_l2qw;
+
+	int rptr_update; /* Double Words */
+	int rptr_update_l2qw; /* log2 Quad Words */
+
+	int fetch_size; /* Double Words */
+	int fetch_size_l2ow; /* log2 Oct Words */
 
 	u32 tail;
 	u32 tail_mask;
@@ -336,6 +348,7 @@ extern int radeon_cp_resume(struct drm_device *dev, void *data, struct drm_file 
 extern int radeon_engine_reset(struct drm_device *dev, void *data, struct drm_file *file_priv);
 extern int radeon_fullscreen(struct drm_device *dev, void *data, struct drm_file *file_priv);
 extern int radeon_cp_buffers(struct drm_device *dev, void *data, struct drm_file *file_priv);
+extern u32 radeon_read_fb_location(drm_radeon_private_t *dev_priv);
 
 extern void radeon_freelist_reset(struct drm_device * dev);
 extern struct drm_buf *radeon_freelist_get(struct drm_device * dev);
@@ -382,7 +395,7 @@ extern long radeon_compat_ioctl(struct file *filp, unsigned int cmd,
 				unsigned long arg);
 
 /* r300_cmdbuf.c */
-extern void r300_init_reg_flags(void);
+extern void r300_init_reg_flags(struct drm_device *dev);
 
 extern int r300_do_cp_cmdbuf(struct drm_device * dev,
 			     struct drm_file *file_priv,
@@ -429,7 +442,7 @@ extern int r300_do_cp_cmdbuf(struct drm_device * dev,
 #define RADEON_PCIE_INDEX               0x0030
 #define RADEON_PCIE_DATA                0x0034
 #define RADEON_PCIE_TX_GART_CNTL	0x10
-#	define RADEON_PCIE_TX_GART_EN   	(1 << 0)
+#	define RADEON_PCIE_TX_GART_EN		(1 << 0)
 #	define RADEON_PCIE_TX_GART_UNMAPPED_ACCESS_PASS_THRU (0<<1)
 #	define RADEON_PCIE_TX_GART_UNMAPPED_ACCESS_CLAMP_LO  (1<<1)
 #	define RADEON_PCIE_TX_GART_UNMAPPED_ACCESS_DISCARD   (3<<1)
@@ -439,7 +452,7 @@ extern int r300_do_cp_cmdbuf(struct drm_device * dev,
 #	define RADEON_PCIE_TX_GART_INVALIDATE_TLB	(1<<8)
 #define RADEON_PCIE_TX_DISCARD_RD_ADDR_LO 0x11
 #define RADEON_PCIE_TX_DISCARD_RD_ADDR_HI 0x12
-#define RADEON_PCIE_TX_GART_BASE  	0x13
+#define RADEON_PCIE_TX_GART_BASE	0x13
 #define RADEON_PCIE_TX_GART_START_LO	0x14
 #define RADEON_PCIE_TX_GART_START_HI	0x15
 #define RADEON_PCIE_TX_GART_END_LO	0x16
@@ -453,6 +466,16 @@ extern int r300_do_cp_cmdbuf(struct drm_device * dev,
 #define RADEON_IGPGART_FLUSH            0x2e
 #define RADEON_IGPGART_ENABLE           0x38
 #define RADEON_IGPGART_UNK_39           0x39
+
+#define R520_MC_IND_INDEX 0x70
+#define R520_MC_IND_WR_EN (1<<24)
+#define R520_MC_IND_DATA  0x74
+
+#define RV515_MC_FB_LOCATION 0x01
+#define RV515_MC_AGP_LOCATION 0x02
+
+#define R520_MC_FB_LOCATION 0x04
+#define R520_MC_AGP_LOCATION 0x05
 
 #define RADEON_MPP_TB_CONFIG		0x01c0
 #define RADEON_MEM_CNTL			0x0140
@@ -512,12 +535,12 @@ extern int r300_do_cp_cmdbuf(struct drm_device * dev,
 
 #define RADEON_GEN_INT_STATUS		0x0044
 #	define RADEON_CRTC_VBLANK_STAT		(1 << 0)
-#	define RADEON_CRTC_VBLANK_STAT_ACK   	(1 << 0)
+#	define RADEON_CRTC_VBLANK_STAT_ACK	(1 << 0)
 #	define RADEON_CRTC2_VBLANK_STAT		(1 << 9)
-#	define RADEON_CRTC2_VBLANK_STAT_ACK   	(1 << 9)
+#	define RADEON_CRTC2_VBLANK_STAT_ACK	(1 << 9)
 #	define RADEON_GUI_IDLE_INT_TEST_ACK     (1 << 19)
 #	define RADEON_SW_INT_TEST		(1 << 25)
-#	define RADEON_SW_INT_TEST_ACK   	(1 << 25)
+#	define RADEON_SW_INT_TEST_ACK		(1 << 25)
 #	define RADEON_SW_INT_FIRE		(1 << 26)
 
 #define RADEON_HOST_PATH_CNTL		0x0130
@@ -615,9 +638,51 @@ extern int r300_do_cp_cmdbuf(struct drm_device * dev,
 #	define RADEON_SOFT_RESET_E2		(1 <<  5)
 #	define RADEON_SOFT_RESET_RB		(1 <<  6)
 #	define RADEON_SOFT_RESET_HDP		(1 <<  7)
+/*
+ *   6:0  Available slots in the FIFO
+ *   8    Host Interface active
+ *   9    CP request active
+ *   10   FIFO request active
+ *   11   Host Interface retry active
+ *   12   CP retry active
+ *   13   FIFO retry active
+ *   14   FIFO pipeline busy
+ *   15   Event engine busy
+ *   16   CP command stream busy
+ *   17   2D engine busy
+ *   18   2D portion of render backend busy
+ *   20   3D setup engine busy
+ *   26   GA engine busy
+ *   27   CBA 2D engine busy
+ *   31   2D engine busy or 3D engine busy or FIFO not empty or CP busy or
+ *           command stream queue not empty or Ring Buffer not empty
+ */
 #define RADEON_RBBM_STATUS		0x0e40
+/* Same as the previous RADEON_RBBM_STATUS; this is a mirror of that register.  */
+/* #define RADEON_RBBM_STATUS		0x1740 */
+/* bits 6:0 are dword slots available in the cmd fifo */
 #	define RADEON_RBBM_FIFOCNT_MASK		0x007f
-#	define RADEON_RBBM_ACTIVE		(1 << 31)
+#	define RADEON_HIRQ_ON_RBB	(1 <<  8)
+#	define RADEON_CPRQ_ON_RBB	(1 <<  9)
+#	define RADEON_CFRQ_ON_RBB	(1 << 10)
+#	define RADEON_HIRQ_IN_RTBUF	(1 << 11)
+#	define RADEON_CPRQ_IN_RTBUF	(1 << 12)
+#	define RADEON_CFRQ_IN_RTBUF	(1 << 13)
+#	define RADEON_PIPE_BUSY		(1 << 14)
+#	define RADEON_ENG_EV_BUSY	(1 << 15)
+#	define RADEON_CP_CMDSTRM_BUSY	(1 << 16)
+#	define RADEON_E2_BUSY		(1 << 17)
+#	define RADEON_RB2D_BUSY		(1 << 18)
+#	define RADEON_RB3D_BUSY		(1 << 19) /* not used on r300 */
+#	define RADEON_VAP_BUSY		(1 << 20)
+#	define RADEON_RE_BUSY		(1 << 21) /* not used on r300 */
+#	define RADEON_TAM_BUSY		(1 << 22) /* not used on r300 */
+#	define RADEON_TDM_BUSY		(1 << 23) /* not used on r300 */
+#	define RADEON_PB_BUSY		(1 << 24) /* not used on r300 */
+#	define RADEON_TIM_BUSY		(1 << 25) /* not used on r300 */
+#	define RADEON_GA_BUSY		(1 << 26)
+#	define RADEON_CBA2D_BUSY	(1 << 27)
+#	define RADEON_RBBM_ACTIVE	(1 << 31)
 #define RADEON_RE_LINE_PATTERN		0x1cd0
 #define RADEON_RE_MISC			0x26c4
 #define RADEON_RE_TOP_LEFT		0x26c0
@@ -1004,6 +1069,13 @@ do {									\
 	RADEON_WRITE( RADEON_PCIE_DATA, (val) );			\
 } while (0)
 
+#define RADEON_WRITE_MCIND( addr, val )					\
+	do {								\
+		RADEON_WRITE(R520_MC_IND_INDEX, 0xff0000 | ((addr) & 0xff));	\
+		RADEON_WRITE(R520_MC_IND_DATA, (val));			\
+		RADEON_WRITE(R520_MC_IND_INDEX, 0);	\
+	} while (0)
+
 #define CP_PACKET0( reg, n )						\
 	(RADEON_CP_PACKET0 | ((n) << 16) | ((reg) >> 2))
 #define CP_PACKET0_TABLE( reg, n )					\
@@ -1114,8 +1186,7 @@ do {									\
 
 #define BEGIN_RING( n ) do {						\
 	if ( RADEON_VERBOSE ) {						\
-		DRM_INFO( "BEGIN_RING( %d ) in %s\n",			\
-			   n, __FUNCTION__ );				\
+		DRM_INFO( "BEGIN_RING( %d )\n", (n));			\
 	}								\
 	if ( dev_priv->ring.space <= (n) * sizeof(u32) ) {		\
                 COMMIT_RING();						\
@@ -1133,7 +1204,7 @@ do {									\
 			  write, dev_priv->ring.tail );			\
 	}								\
 	if (((dev_priv->ring.tail + _nr) & mask) != write) {		\
-		DRM_ERROR( 						\
+		DRM_ERROR(						\
 			"ADVANCE_RING(): mismatch: nr: %x write: %x line: %d\n",	\
 			((dev_priv->ring.tail + _nr) & mask),		\
 			write, __LINE__);						\

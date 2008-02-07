@@ -898,7 +898,7 @@ static void radeon_cp_dispatch_clear(struct drm_device * dev,
 			int w = pbox[i].x2 - x;
 			int h = pbox[i].y2 - y;
 
-			DRM_DEBUG("dispatch clear %d,%d-%d,%d flags 0x%x\n",
+			DRM_DEBUG("%d,%d-%d,%d flags 0x%x\n",
 				  x, y, w, h, flags);
 
 			if (flags & RADEON_FRONT) {
@@ -1368,7 +1368,7 @@ static void radeon_cp_dispatch_swap(struct drm_device * dev)
 		int w = pbox[i].x2 - x;
 		int h = pbox[i].y2 - y;
 
-		DRM_DEBUG("dispatch swap %d,%d-%d,%d\n", x, y, w, h);
+		DRM_DEBUG("%d,%d-%d,%d\n", x, y, w, h);
 
 		BEGIN_RING(9);
 
@@ -1422,8 +1422,7 @@ static void radeon_cp_dispatch_flip(struct drm_device * dev)
 	int offset = (dev_priv->sarea_priv->pfCurrentPage == 1)
 	    ? dev_priv->front_offset : dev_priv->back_offset;
 	RING_LOCALS;
-	DRM_DEBUG("%s: pfCurrentPage=%d\n",
-		  __FUNCTION__,
+	DRM_DEBUG("pfCurrentPage=%d\n",
 		  dev_priv->sarea_priv->pfCurrentPage);
 
 	/* Do some trivial performance monitoring...
@@ -1562,7 +1561,7 @@ static void radeon_cp_dispatch_indirect(struct drm_device * dev,
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	RING_LOCALS;
-	DRM_DEBUG("indirect: buf=%d s=0x%x e=0x%x\n", buf->idx, start, end);
+	DRM_DEBUG("buf=%d s=0x%x e=0x%x\n", buf->idx, start, end);
 
 	if (start != end) {
 		int offset = (dev_priv->gart_buffers_offset
@@ -1758,7 +1757,7 @@ static int radeon_cp_dispatch_texture(struct drm_device * dev,
 			buf = radeon_freelist_get(dev);
 		}
 		if (!buf) {
-			DRM_DEBUG("radeon_cp_dispatch_texture: EAGAIN\n");
+			DRM_DEBUG("EAGAIN\n");
 			if (DRM_COPY_TO_USER(tex->image, image, sizeof(*image)))
 				return -EFAULT;
 			return -EAGAIN;
@@ -2413,7 +2412,7 @@ static int radeon_cp_indirect(struct drm_device *dev, void *data, struct drm_fil
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	DRM_DEBUG("indirect: idx=%d s=%d e=%d d=%d\n",
+	DRM_DEBUG("idx=%d s=%d e=%d d=%d\n",
 		  indirect->idx, indirect->start, indirect->end,
 		  indirect->discard);
 
@@ -2779,7 +2778,7 @@ static int radeon_emit_wait(struct drm_device * dev, int flags)
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	RING_LOCALS;
 
-	DRM_DEBUG("%s: %x\n", __FUNCTION__, flags);
+	DRM_DEBUG("%x\n", flags);
 	switch (flags) {
 	case RADEON_WAIT_2D:
 		BEGIN_RING(2);
@@ -3034,6 +3033,9 @@ static int radeon_cp_getparam(struct drm_device *dev, void *data, struct drm_fil
 		break;
 	case RADEON_PARAM_VBLANK_CRTC:
 		value = radeon_vblank_crtc_get(dev);
+		break;
+	case RADEON_PARAM_FB_LOCATION:
+		value = radeon_read_fb_location(dev_priv);
 		break;
 	default:
 		DRM_DEBUG("Invalid parameter %d\n", param->param);

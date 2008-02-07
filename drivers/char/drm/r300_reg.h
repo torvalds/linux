@@ -853,13 +853,13 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #	define R300_TX_FORMAT_W8Z8Y8X8		    0xC
 #	define R300_TX_FORMAT_W2Z10Y10X10	    0xD
 #	define R300_TX_FORMAT_W16Z16Y16X16	    0xE
-#	define R300_TX_FORMAT_DXT1	    	    0xF
-#	define R300_TX_FORMAT_DXT3	    	    0x10
-#	define R300_TX_FORMAT_DXT5	    	    0x11
+#	define R300_TX_FORMAT_DXT1		    0xF
+#	define R300_TX_FORMAT_DXT3		    0x10
+#	define R300_TX_FORMAT_DXT5		    0x11
 #	define R300_TX_FORMAT_D3DMFT_CxV8U8	    0x12     /* no swizzle */
-#	define R300_TX_FORMAT_A8R8G8B8	    	    0x13     /* no swizzle */
-#	define R300_TX_FORMAT_B8G8_B8G8	    	    0x14     /* no swizzle */
-#	define R300_TX_FORMAT_G8R8_G8B8	    	    0x15     /* no swizzle */
+#	define R300_TX_FORMAT_A8R8G8B8		    0x13     /* no swizzle */
+#	define R300_TX_FORMAT_B8G8_B8G8		    0x14     /* no swizzle */
+#	define R300_TX_FORMAT_G8R8_G8B8		    0x15     /* no swizzle */
 	/* 0x16 - some 16 bit green format.. ?? */
 #	define R300_TX_FORMAT_UNK25		   (1 << 25) /* no swizzle */
 #	define R300_TX_FORMAT_CUBIC_MAP		   (1 << 26)
@@ -867,19 +867,19 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 	/* gap */
 	/* Floating point formats */
 	/* Note - hardware supports both 16 and 32 bit floating point */
-#	define R300_TX_FORMAT_FL_I16	    	    0x18
-#	define R300_TX_FORMAT_FL_I16A16	    	    0x19
+#	define R300_TX_FORMAT_FL_I16		    0x18
+#	define R300_TX_FORMAT_FL_I16A16		    0x19
 #	define R300_TX_FORMAT_FL_R16G16B16A16	    0x1A
-#	define R300_TX_FORMAT_FL_I32	    	    0x1B
-#	define R300_TX_FORMAT_FL_I32A32	    	    0x1C
+#	define R300_TX_FORMAT_FL_I32		    0x1B
+#	define R300_TX_FORMAT_FL_I32A32		    0x1C
 #	define R300_TX_FORMAT_FL_R32G32B32A32	    0x1D
 	/* alpha modes, convenience mostly */
 	/* if you have alpha, pick constant appropriate to the
 	   number of channels (1 for I8, 2 for I8A8, 4 for R8G8B8A8, etc */
-# 	define R300_TX_FORMAT_ALPHA_1CH		    0x000
-# 	define R300_TX_FORMAT_ALPHA_2CH		    0x200
-# 	define R300_TX_FORMAT_ALPHA_4CH		    0x600
-# 	define R300_TX_FORMAT_ALPHA_NONE	    0xA00
+#	define R300_TX_FORMAT_ALPHA_1CH		    0x000
+#	define R300_TX_FORMAT_ALPHA_2CH		    0x200
+#	define R300_TX_FORMAT_ALPHA_4CH		    0x600
+#	define R300_TX_FORMAT_ALPHA_NONE	    0xA00
 	/* Swizzling */
 	/* constants */
 #	define R300_TX_FORMAT_X		0
@@ -1360,11 +1360,11 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 #       define R300_RB3D_Z_DISABLED_2            0x00000014
 #       define R300_RB3D_Z_TEST                  0x00000012
 #       define R300_RB3D_Z_TEST_AND_WRITE        0x00000016
-#       define R300_RB3D_Z_WRITE_ONLY        	 0x00000006
+#       define R300_RB3D_Z_WRITE_ONLY		 0x00000006
 
 #       define R300_RB3D_Z_TEST                  0x00000012
 #       define R300_RB3D_Z_TEST_AND_WRITE        0x00000016
-#       define R300_RB3D_Z_WRITE_ONLY        	 0x00000006
+#       define R300_RB3D_Z_WRITE_ONLY		 0x00000006
 #	define R300_RB3D_STENCIL_ENABLE		 0x00000001
 
 #define R300_RB3D_ZSTENCIL_CNTL_1                   0x4F04

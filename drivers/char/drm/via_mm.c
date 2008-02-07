@@ -53,7 +53,7 @@ int via_agp_init(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	dev_priv->agp_offset = agp->offset;
 	mutex_unlock(&dev->struct_mutex);
 
-	DRM_DEBUG("offset = %u, size = %u", agp->offset, agp->size);
+	DRM_DEBUG("offset = %u, size = %u\n", agp->offset, agp->size);
 	return 0;
 }
 
@@ -77,7 +77,7 @@ int via_fb_init(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	dev_priv->vram_offset = fb->offset;
 
 	mutex_unlock(&dev->struct_mutex);
-	DRM_DEBUG("offset = %u, size = %u", fb->offset, fb->size);
+	DRM_DEBUG("offset = %u, size = %u\n", fb->offset, fb->size);
 
 	return 0;
 
@@ -113,7 +113,7 @@ void via_lastclose(struct drm_device *dev)
 	dev_priv->vram_initialized = 0;
 	dev_priv->agp_initialized = 0;
 	mutex_unlock(&dev->struct_mutex);
-}	
+}
 
 int via_mem_alloc(struct drm_device *dev, void *data,
 		  struct drm_file *file_priv)

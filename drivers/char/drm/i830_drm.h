@@ -12,9 +12,9 @@
 #define _I830_DEFINES_
 
 #define I830_DMA_BUF_ORDER		12
-#define I830_DMA_BUF_SZ 		(1<<I830_DMA_BUF_ORDER)
-#define I830_DMA_BUF_NR 		256
-#define I830_NR_SAREA_CLIPRECTS 	8
+#define I830_DMA_BUF_SZ			(1<<I830_DMA_BUF_ORDER)
+#define I830_DMA_BUF_NR			256
+#define I830_NR_SAREA_CLIPRECTS		8
 
 /* Each region is a minimum of 64k, and there are at most 64 of them.
  */
@@ -58,7 +58,7 @@
 #define I830_UPLOAD_TEXBLEND_MASK	0xf00000
 #define I830_UPLOAD_TEX_PALETTE_N(n)    (0x1000000 << (n))
 #define I830_UPLOAD_TEX_PALETTE_SHARED	0x4000000
-#define I830_UPLOAD_STIPPLE         	0x8000000
+#define I830_UPLOAD_STIPPLE		0x8000000
 
 /* Indices into buf.Setup where various bits of state are mirrored per
  * context and per buffer.  These can be fired at the card as a unit,

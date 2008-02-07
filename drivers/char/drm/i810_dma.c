@@ -40,7 +40,7 @@
 
 #define I810_BUF_FREE		2
 #define I810_BUF_CLIENT		1
-#define I810_BUF_HARDWARE      	0
+#define I810_BUF_HARDWARE	0
 
 #define I810_BUF_UNMAPPED 0
 #define I810_BUF_MAPPED   1
@@ -570,7 +570,7 @@ static void i810EmitState(struct drm_device * dev)
 	drm_i810_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	unsigned int dirty = sarea_priv->dirty;
 
-	DRM_DEBUG("%s %x\n", __FUNCTION__, dirty);
+	DRM_DEBUG("%x\n", dirty);
 
 	if (dirty & I810_UPLOAD_BUFFERS) {
 		i810EmitDestVerified(dev, sarea_priv->BufferState);
@@ -802,8 +802,7 @@ static void i810_dma_dispatch_flip(struct drm_device * dev)
 	int pitch = dev_priv->pitch;
 	RING_LOCALS;
 
-	DRM_DEBUG("%s: page=%d pfCurrentPage=%d\n",
-		  __FUNCTION__,
+	DRM_DEBUG("page=%d pfCurrentPage=%d\n",
 		  dev_priv->current_page,
 		  dev_priv->sarea_priv->pf_current_page);
 
@@ -848,8 +847,6 @@ static void i810_dma_quiescent(struct drm_device * dev)
 	drm_i810_private_t *dev_priv = dev->dev_private;
 	RING_LOCALS;
 
-/*  	printk("%s\n", __FUNCTION__); */
-
 	i810_kernel_lost_context(dev);
 
 	BEGIN_LP_RING(4);
@@ -868,8 +865,6 @@ static int i810_flush_queue(struct drm_device * dev)
 	struct drm_device_dma *dma = dev->dma;
 	int i, ret = 0;
 	RING_LOCALS;
-
-/*  	printk("%s\n", __FUNCTION__); */
 
 	i810_kernel_lost_context(dev);
 
@@ -949,7 +944,7 @@ static int i810_dma_vertex(struct drm_device *dev, void *data,
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	DRM_DEBUG("i810 dma vertex, idx %d used %d discard %d\n",
+	DRM_DEBUG("idx %d used %d discard %d\n",
 		  vertex->idx, vertex->used, vertex->discard);
 
 	if (vertex->idx < 0 || vertex->idx > dma->buf_count)
@@ -987,7 +982,7 @@ static int i810_clear_bufs(struct drm_device *dev, void *data,
 static int i810_swap_bufs(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv)
 {
-	DRM_DEBUG("i810_swap_bufs\n");
+	DRM_DEBUG("\n");
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
@@ -1068,11 +1063,10 @@ static void i810_dma_dispatch_mc(struct drm_device * dev, struct drm_buf * buf, 
 
 	sarea_priv->dirty = 0x7f;
 
-	DRM_DEBUG("dispatch mc addr 0x%lx, used 0x%x\n", address, used);
+	DRM_DEBUG("addr 0x%lx, used 0x%x\n", address, used);
 
 	dev_priv->counter++;
 	DRM_DEBUG("dispatch counter : %ld\n", dev_priv->counter);
-	DRM_DEBUG("i810_dma_dispatch_mc\n");
 	DRM_DEBUG("start : %lx\n", start);
 	DRM_DEBUG("used : %d\n", used);
 	DRM_DEBUG("start + used - 4 : %ld\n", start + used - 4);
@@ -1179,7 +1173,7 @@ static void i810_do_init_pageflip(struct drm_device * dev)
 {
 	drm_i810_private_t *dev_priv = dev->dev_private;
 
-	DRM_DEBUG("%s\n", __FUNCTION__);
+	DRM_DEBUG("\n");
 	dev_priv->page_flipping = 1;
 	dev_priv->current_page = 0;
 	dev_priv->sarea_priv->pf_current_page = dev_priv->current_page;
@@ -1189,7 +1183,7 @@ static int i810_do_cleanup_pageflip(struct drm_device * dev)
 {
 	drm_i810_private_t *dev_priv = dev->dev_private;
 
-	DRM_DEBUG("%s\n", __FUNCTION__);
+	DRM_DEBUG("\n");
 	if (dev_priv->current_page != 0)
 		i810_dma_dispatch_flip(dev);
 
@@ -1202,7 +1196,7 @@ static int i810_flip_bufs(struct drm_device *dev, void *data,
 {
 	drm_i810_private_t *dev_priv = dev->dev_private;
 
-	DRM_DEBUG("%s\n", __FUNCTION__);
+	DRM_DEBUG("\n");
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
