@@ -51,9 +51,9 @@ static long jfs_map_ext2(unsigned long flags, int from)
 }
 
 
-int jfs_ioctl(struct inode * inode, struct file * filp, unsigned int cmd,
-		unsigned long arg)
+long jfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
+	struct inode *inode = filp->f_dentry->d_inode;
 	struct jfs_inode_info *jfs_inode = JFS_IP(inode);
 	unsigned int flags;
 
@@ -82,6 +82,10 @@ int jfs_ioctl(struct inode * inode, struct file * filp, unsigned int cmd,
 		/* Is it quota file? Do not allow user to mess with it */
 		if (IS_NOQUOTA(inode))
 			return -EPERM;
+
+		/* Lock against other parallel changes of flags */
+		mutex_lock(&inode->i_mutex);
+
 		jfs_get_inode_flags(jfs_inode);
 		oldflags = jfs_inode->mode2;
 
@@ -92,8 +96,10 @@ int jfs_ioctl(struct inode * inode, struct file * filp, unsigned int cmd,
 		if ((oldflags & JFS_IMMUTABLE_FL) ||
 			((flags ^ oldflags) &
 			(JFS_APPEND_FL | JFS_IMMUTABLE_FL))) {
-			if (!capable(CAP_LINUX_IMMUTABLE))
+			if (!capable(CAP_LINUX_IMMUTABLE)) {
+				mutex_unlock(&inode->i_mutex);
 				return -EPERM;
+			}
 		}
 
 		flags = flags & JFS_FL_USER_MODIFIABLE;
@@ -101,6 +107,7 @@ int jfs_ioctl(struct inode * inode, struct file * filp, unsigned int cmd,
 		jfs_inode->mode2 = flags;
 
 		jfs_set_inode_flags(inode);
+		mutex_unlock(&inode->i_mutex);
 		inode->i_ctime = CURRENT_TIME_SEC;
 		mark_inode_dirty(inode);
 		return 0;
@@ -110,3 +117,21 @@ int jfs_ioctl(struct inode * inode, struct file * filp, unsigned int cmd,
 	}
 }
 
+#ifdef CONFIG_COMPAT
+long jfs_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+	/* While these ioctl numbers defined with 'long' and have different
+	 * numbers than the 64bit ABI,
+	 * the actual implementation only deals with ints and is compatible.
+	 */
+	switch (cmd) {
+	case JFS_IOC_GETFLAGS32:
+		cmd = JFS_IOC_GETFLAGS;
+		break;
+	case JFS_IOC_SETFLAGS32:
+		cmd = JFS_IOC_SETFLAGS;
+		break;
+	}
+	return jfs_ioctl(filp, cmd, arg);
+}
+#endif

@@ -170,5 +170,7 @@ struct dinode {
 #define JFS_IOC_GETFLAGS	_IOR('f', 1, long)
 #define JFS_IOC_SETFLAGS	_IOW('f', 2, long)
 
+#define JFS_IOC_GETFLAGS32	_IOR('f', 1, int)
+#define JFS_IOC_SETFLAGS32	_IOW('f', 2, int)
 
 #endif /*_H_JFS_DINODE */
