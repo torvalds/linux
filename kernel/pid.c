@@ -368,6 +368,7 @@ struct task_struct * fastcall pid_task(struct pid *pid, enum pid_type type)
 	}
 	return result;
 }
+EXPORT_SYMBOL(pid_task);
 
 /*
  * Must be called under rcu_read_lock() or with tasklist_lock read-held.

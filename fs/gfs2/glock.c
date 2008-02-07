@@ -334,7 +334,7 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 	gl->gl_state = LM_ST_UNLOCKED;
 	gl->gl_demote_state = LM_ST_EXCLUSIVE;
 	gl->gl_hash = hash;
-	gl->gl_owner_pid = 0;
+	gl->gl_owner_pid = NULL;
 	gl->gl_ip = 0;
 	gl->gl_ops = glops;
 	gl->gl_req_gh = NULL;
@@ -632,7 +632,7 @@ static void gfs2_glmutex_lock(struct gfs2_glock *gl)
 		wait_on_holder(&gh);
 		gfs2_holder_uninit(&gh);
 	} else {
-		gl->gl_owner_pid = current->pid;
+		gl->gl_owner_pid = get_pid(task_pid(current));
 		gl->gl_ip = (unsigned long)__builtin_return_address(0);
 		spin_unlock(&gl->gl_spin);
 	}
@@ -653,7 +653,7 @@ static int gfs2_glmutex_trylock(struct gfs2_glock *gl)
 	if (test_and_set_bit(GLF_LOCK, &gl->gl_flags)) {
 		acquired = 0;
 	} else {
-		gl->gl_owner_pid = current->pid;
+		gl->gl_owner_pid = get_pid(task_pid(current));
 		gl->gl_ip = (unsigned long)__builtin_return_address(0);
 	}
 	spin_unlock(&gl->gl_spin);
@@ -669,12 +669,17 @@ static int gfs2_glmutex_trylock(struct gfs2_glock *gl)
 
 static void gfs2_glmutex_unlock(struct gfs2_glock *gl)
 {
+	struct pid *pid;
+
 	spin_lock(&gl->gl_spin);
 	clear_bit(GLF_LOCK, &gl->gl_flags);
-	gl->gl_owner_pid = 0;
+	pid = gl->gl_owner_pid;
+	gl->gl_owner_pid = NULL;
 	gl->gl_ip = 0;
 	run_queue(gl);
 	spin_unlock(&gl->gl_spin);
+
+	put_pid(pid);
 }
 
 /**
@@ -1881,13 +1886,13 @@ static int dump_glock(struct glock_iter *gi, struct gfs2_glock *gl)
 	print_dbg(gi, "  gl_ref = %d\n", atomic_read(&gl->gl_ref));
 	print_dbg(gi, "  gl_state = %u\n", gl->gl_state);
 	if (gl->gl_owner_pid) {
-		gl_owner = find_task_by_pid(gl->gl_owner_pid);
+		gl_owner = pid_task(gl->gl_owner_pid, PIDTYPE_PID);
 		if (gl_owner)
 			print_dbg(gi, "  gl_owner = pid %d (%s)\n",
-				  gl->gl_owner_pid, gl_owner->comm);
+				  pid_nr(gl->gl_owner_pid), gl_owner->comm);
 		else
 			print_dbg(gi, "  gl_owner = %d (ended)\n",
-				  gl->gl_owner_pid);
+				  pid_nr(gl->gl_owner_pid));
 	} else
 		print_dbg(gi, "  gl_owner = -1\n");
 	print_dbg(gi, "  gl_ip = %lu\n", gl->gl_ip);
