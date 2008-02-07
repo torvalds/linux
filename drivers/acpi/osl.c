@@ -665,25 +665,6 @@ static void acpi_os_execute_deferred(struct work_struct *work)
 	dpc->function(dpc->context);
 	kfree(dpc);
 
-	/* Yield cpu to notify thread */
-	cond_resched();
-
-	return;
-}
-
-static void acpi_os_execute_notify(struct work_struct *work)
-{
-	struct acpi_os_dpc *dpc = container_of(work, struct acpi_os_dpc, work);
-
-	if (!dpc) {
-		printk(KERN_ERR PREFIX "Invalid (NULL) context\n");
-		return;
-	}
-
-	dpc->function(dpc->context);
-
-	kfree(dpc);
-
 	return;
 }
 
@@ -707,7 +688,7 @@ acpi_status acpi_os_execute(acpi_execute_type type,
 {
 	acpi_status status = AE_OK;
 	struct acpi_os_dpc *dpc;
-
+	struct workqueue_struct *queue;
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 			  "Scheduling function [%p(%p)] for deferred execution.\n",
 			  function, context));
@@ -731,20 +712,13 @@ acpi_status acpi_os_execute(acpi_execute_type type,
 	dpc->function = function;
 	dpc->context = context;
 
-	if (type == OSL_NOTIFY_HANDLER) {
-		INIT_WORK(&dpc->work, acpi_os_execute_notify);
-		if (!queue_work(kacpi_notify_wq, &dpc->work)) {
-			status = AE_ERROR;
-			kfree(dpc);
-		}
-	} else {
-		INIT_WORK(&dpc->work, acpi_os_execute_deferred);
-		if (!queue_work(kacpid_wq, &dpc->work)) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Call to queue_work() failed.\n"));
-			status = AE_ERROR;
-			kfree(dpc);
-		}
+	INIT_WORK(&dpc->work, acpi_os_execute_deferred);
+	queue = (type == OSL_NOTIFY_HANDLER) ? kacpi_notify_wq : kacpid_wq;
+	if (!queue_work(queue, &dpc->work)) {
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+			  "Call to queue_work() failed.\n"));
+		status = AE_ERROR;
+		kfree(dpc);
 	}
 	return_ACPI_STATUS(status);
 }
