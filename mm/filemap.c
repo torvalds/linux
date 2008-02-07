@@ -460,7 +460,8 @@ int filemap_write_and_wait_range(struct address_space *mapping,
 int add_to_page_cache(struct page *page, struct address_space *mapping,
 		pgoff_t offset, gfp_t gfp_mask)
 {
-	int error = mem_cgroup_cache_charge(page, current->mm, gfp_mask);
+	int error = mem_cgroup_cache_charge(page, current->mm,
+					gfp_mask & ~__GFP_HIGHMEM);
 	if (error)
 		goto out;
 
