@@ -32,6 +32,7 @@ Currently, these files are in /proc/sys/vm:
 - min_unmapped_ratio
 - min_slab_ratio
 - panic_on_oom
+- oom_dump_tasks
 - oom_kill_allocating_task
 - mmap_min_address
 - numa_zonelist_order
@@ -229,6 +230,27 @@ above-mentioned.
 The default value is 0.
 1 and 2 are for failover of clustering. Please select either
 according to your policy of failover.
+
+=============================================================
+
+oom_dump_tasks
+
+Enables a system-wide task dump (excluding kernel threads) to be
+produced when the kernel performs an OOM-killing and includes such
+information as pid, uid, tgid, vm size, rss, cpu, oom_adj score, and
+name.  This is helpful to determine why the OOM killer was invoked
+and to identify the rogue task that caused it.
+
+If this is set to zero, this information is suppressed.  On very
+large systems with thousands of tasks it may not be feasible to dump
+the memory state information for each one.  Such systems should not
+be forced to incur a performance penalty in OOM conditions when the
+information may not be desired.
+
+If this is set to non-zero, this information is shown whenever the
+OOM killer actually kills a memory-hogging task.
+
+The default value is 0.
 
 =============================================================
 

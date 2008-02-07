@@ -29,6 +29,7 @@
 
 int sysctl_panic_on_oom;
 int sysctl_oom_kill_allocating_task;
+int sysctl_oom_dump_tasks;
 static DEFINE_SPINLOCK(zone_scan_mutex);
 /* #define DEBUG */
 
@@ -263,6 +264,41 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
 }
 
 /**
+ * Dumps the current memory state of all system tasks, excluding kernel threads.
+ * State information includes task's pid, uid, tgid, vm size, rss, cpu, oom_adj
+ * score, and name.
+ *
+ * If the actual is non-NULL, only tasks that are a member of the mem_cgroup are
+ * shown.
+ *
+ * Call with tasklist_lock read-locked.
+ */
+static void dump_tasks(const struct mem_cgroup *mem)
+{
+	struct task_struct *g, *p;
+
+	printk(KERN_INFO "[ pid ]   uid  tgid total_vm      rss cpu oom_adj "
+	       "name\n");
+	do_each_thread(g, p) {
+		/*
+		 * total_vm and rss sizes do not exist for tasks with a
+		 * detached mm so there's no need to report them.
+		 */
+		if (!p->mm)
+			continue;
+		if (mem && !task_in_mem_cgroup(p, mem))
+			continue;
+
+		task_lock(p);
+		printk(KERN_INFO "[%5d] %5d %5d %8lu %8lu %3d     %3d %s\n",
+		       p->pid, p->uid, p->tgid, p->mm->total_vm,
+		       get_mm_rss(p->mm), (int)task_cpu(p), p->oomkilladj,
+		       p->comm);
+		task_unlock(p);
+	} while_each_thread(g, p);
+}
+
+/**
  * Send SIGKILL to the selected  process irrespective of  CAP_SYS_RAW_IO
  * flag though it's unlikely that  we select a process with CAP_SYS_RAW_IO
  * set.
@@ -339,7 +375,8 @@ static int oom_kill_task(struct task_struct *p)
 }
 
 static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
-			    unsigned long points, const char *message)
+			    unsigned long points, struct mem_cgroup *mem,
+			    const char *message)
 {
 	struct task_struct *c;
 
@@ -349,6 +386,8 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 			current->comm, gfp_mask, order, current->oomkilladj);
 		dump_stack();
 		show_mem();
+		if (sysctl_oom_dump_tasks)
+			dump_tasks(mem);
 	}
 
 	/*
@@ -389,7 +428,7 @@ retry:
 	if (!p)
 		p = current;
 
-	if (oom_kill_process(p, gfp_mask, 0, points,
+	if (oom_kill_process(p, gfp_mask, 0, points, mem,
 				"Memory cgroup out of memory"))
 		goto retry;
 out:
@@ -495,7 +534,7 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order)
 
 	switch (constraint) {
 	case CONSTRAINT_MEMORY_POLICY:
-		oom_kill_process(current, gfp_mask, order, points,
+		oom_kill_process(current, gfp_mask, order, points, NULL,
 				"No available memory (MPOL_BIND)");
 		break;
 
@@ -505,7 +544,7 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order)
 		/* Fall-through */
 	case CONSTRAINT_CPUSET:
 		if (sysctl_oom_kill_allocating_task) {
-			oom_kill_process(current, gfp_mask, order, points,
+			oom_kill_process(current, gfp_mask, order, points, NULL,
 					"Out of memory (oom_kill_allocating_task)");
 			break;
 		}
@@ -525,7 +564,7 @@ retry:
 			panic("Out of memory and no killable processes...\n");
 		}
 
-		if (oom_kill_process(p, gfp_mask, order, points,
+		if (oom_kill_process(p, gfp_mask, order, points, NULL,
 				     "Out of memory"))
 			goto retry;
 
