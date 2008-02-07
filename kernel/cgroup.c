@@ -141,7 +141,7 @@ enum {
 	ROOT_NOPREFIX, /* mounted subsystems have no named prefix */
 };
 
-inline int cgroup_is_releasable(const struct cgroup *cgrp)
+static int cgroup_is_releasable(const struct cgroup *cgrp)
 {
 	const int bits =
 		(1 << CGRP_RELEASABLE) |
@@ -149,7 +149,7 @@ inline int cgroup_is_releasable(const struct cgroup *cgrp)
 	return (cgrp->flags & bits) == bits;
 }
 
-inline int notify_on_release(const struct cgroup *cgrp)
+static int notify_on_release(const struct cgroup *cgrp)
 {
 	return test_bit(CGRP_NOTIFY_ON_RELEASE, &cgrp->flags);
 }
