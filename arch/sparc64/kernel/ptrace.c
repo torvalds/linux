@@ -689,11 +689,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	long addr2 = task_pt_regs(current)->u_regs[UREG_I4];
 	int i, ret;
 
-#if 1
-	printk(KERN_INFO
-	       "arch_ptrace: request[%ld] addr[%lx] data[%lx] addr2[%lx]\n",
-	       request, addr, data, addr2);
-#endif
 	if (test_thread_flag(TIF_32BIT))
 		addr2 &= 0xffffffffUL;
 
