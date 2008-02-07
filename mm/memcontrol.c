@@ -83,7 +83,9 @@ struct page_cgroup {
 	struct mem_cgroup *mem_cgroup;
 	atomic_t ref_cnt;		/* Helpful when pages move b/w  */
 					/* mapped and cached states     */
+	int	 flags;
 };
+#define PAGE_CGROUP_FLAG_CACHE	(0x1)	/* charged as cache */
 
 enum {
 	MEM_CGROUP_TYPE_UNSPEC = 0,
@@ -91,6 +93,11 @@ enum {
 	MEM_CGROUP_TYPE_CACHED,
 	MEM_CGROUP_TYPE_ALL,
 	MEM_CGROUP_TYPE_MAX,
+};
+
+enum charge_type {
+	MEM_CGROUP_CHARGE_TYPE_CACHE = 0,
+	MEM_CGROUP_CHARGE_TYPE_MAPPED,
 };
 
 static struct mem_cgroup init_mem_cgroup;
@@ -306,8 +313,8 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
  * 0 if the charge was successful
  * < 0 if the cgroup is over its limit
  */
-int mem_cgroup_charge(struct page *page, struct mm_struct *mm,
-				gfp_t gfp_mask)
+static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
+				gfp_t gfp_mask, enum charge_type ctype)
 {
 	struct mem_cgroup *mem;
 	struct page_cgroup *pc;
@@ -409,6 +416,9 @@ noreclaim:
 	atomic_set(&pc->ref_cnt, 1);
 	pc->mem_cgroup = mem;
 	pc->page = page;
+	pc->flags = 0;
+	if (ctype == MEM_CGROUP_CHARGE_TYPE_CACHE)
+		pc->flags |= PAGE_CGROUP_FLAG_CACHE;
 	if (page_cgroup_assign_new_page_cgroup(page, pc)) {
 		/*
 		 * an another charge is added to this page already.
@@ -433,6 +443,13 @@ err:
 	return -ENOMEM;
 }
 
+int mem_cgroup_charge(struct page *page, struct mm_struct *mm,
+			gfp_t gfp_mask)
+{
+	return mem_cgroup_charge_common(page, mm, gfp_mask,
+			MEM_CGROUP_CHARGE_TYPE_MAPPED);
+}
+
 /*
  * See if the cached pages should be charged at all?
  */
@@ -445,7 +462,8 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
 
 	mem = rcu_dereference(mm->mem_cgroup);
 	if (mem->control_type == MEM_CGROUP_TYPE_ALL)
-		return mem_cgroup_charge(page, mm, gfp_mask);
+		return mem_cgroup_charge_common(page, mm, gfp_mask,
+				MEM_CGROUP_CHARGE_TYPE_CACHE);
 	else
 		return 0;
 }
