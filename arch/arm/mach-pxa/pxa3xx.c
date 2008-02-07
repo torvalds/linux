@@ -266,8 +266,6 @@ static void pxa3xx_cpu_standby(unsigned int pwrmode)
 
 	AD2D0ER = 0;
 	AD2D1ER = 0;
-
-	printk("PM: AD2D0SR=%08x ASCR=%08x\n", AD2D0SR, ASCR);
 }
 
 /*
