@@ -105,12 +105,6 @@ static inline unsigned short sInW(unsigned short port)
 #define AIOPID_NULL -1		/* no AIOP or channel exists */
 #define AIOPID_0001 0x0001	/* AIOP release 1 */
 
-#define NULLDEV -1		/* identifies non-existant device */
-#define NULLCTL -1		/* identifies non-existant controller */
-#define NULLCTLPTR (CONTROLLER_T *)0	/* identifies non-existant controller */
-#define NULLAIOP -1		/* identifies non-existant AIOP */
-#define NULLCHAN -1		/* identifies non-existant channel */
-
 /************************************************************************
  Global Register Offsets - Direct Access - Fixed values
 ************************************************************************/
@@ -1187,9 +1181,6 @@ struct r_port {
 #define ROCKET_CLOSING		0x40000000	/* Serial port is closing */
 #define ROCKET_NORMAL_ACTIVE	0x20000000	/* Normal port is active */
 
-/* tty subtypes */
-#define SERIAL_TYPE_NORMAL 1
-
 /*
  * Assigned major numbers for the Comtrol Rocketport
  */
@@ -1239,13 +1230,4 @@ struct r_port {
 
 /* Compact PCI device */ 
 #define PCI_DEVICE_ID_CRP16INTF		0x0903	/* Rocketport Compact PCI 16 port w/external I/F */
-
-#define TTY_GET_LINE(t) t->index
-#define TTY_DRIVER_MINOR_START(t) t->driver->minor_start
-#define TTY_DRIVER_SUBTYPE(t) t->driver->subtype
-#define TTY_DRIVER_NAME(t) t->driver->name
-#define TTY_DRIVER_NAME_BASE(t) t->driver->name_base
-#define TTY_DRIVER_FLUSH_BUFFER_EXISTS(t) t->driver->flush_buffer
-#define TTY_DRIVER_FLUSH_BUFFER(t) t->driver->flush_buffer(t)
-
 

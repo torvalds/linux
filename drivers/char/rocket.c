@@ -40,12 +40,6 @@
  */
 
 /****** Defines ******/
-#ifdef PCI_NUM_RESOURCES
-#define PCI_BASE_ADDRESS(dev, r) ((dev)->resource[r].start)
-#else
-#define PCI_BASE_ADDRESS(dev, r) ((dev)->base_address[r])
-#endif
-
 #define ROCKET_PARANOIA_CHECK
 #define ROCKET_DISABLE_SIMUSAGE
 
@@ -981,7 +975,7 @@ static int rp_open(struct tty_struct *tty, struct file *filp)
 	CHANNEL_t *cp;
 	unsigned long page;
 
-	line = TTY_GET_LINE(tty);
+	line = tty->index;
 	if ((line < 0) || (line >= MAX_RP_PORTS) || ((info = rp_table[line]) == NULL))
 		return -ENXIO;
 
@@ -1166,8 +1160,7 @@ static void rp_close(struct tty_struct *tty, struct file *filp)
 	if (C_HUPCL(tty))
 		sClrDTR(cp);
 
-	if (TTY_DRIVER_FLUSH_BUFFER_EXISTS(tty))
-		TTY_DRIVER_FLUSH_BUFFER(tty);
+	rp_flush_buffer(tty);
 		
 	tty_ldisc_flush(tty);
 
