@@ -63,9 +63,9 @@ static struct dentry *ext2_lookup(struct inode * dir, struct dentry *dentry, str
 	ino = ext2_inode_by_name(dir, dentry);
 	inode = NULL;
 	if (ino) {
-		inode = iget(dir->i_sb, ino);
-		if (!inode)
-			return ERR_PTR(-EACCES);
+		inode = ext2_iget(dir->i_sb, ino);
+		if (IS_ERR(inode))
+			return ERR_CAST(inode);
 	}
 	return d_splice_alias(inode, dentry);
 }
@@ -83,10 +83,10 @@ struct dentry *ext2_get_parent(struct dentry *child)
 	ino = ext2_inode_by_name(child->d_inode, &dotdot);
 	if (!ino)
 		return ERR_PTR(-ENOENT);
-	inode = iget(child->d_inode->i_sb, ino);
+	inode = ext2_iget(child->d_inode->i_sb, ino);
 
-	if (!inode)
-		return ERR_PTR(-EACCES);
+	if (IS_ERR(inode))
+		return ERR_CAST(inode);
 	parent = d_alloc_anon(inode);
 	if (!parent) {
 		iput(inode);
