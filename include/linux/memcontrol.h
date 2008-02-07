@@ -39,6 +39,7 @@ extern unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 					int mode, struct zone *z,
 					struct mem_cgroup *mem_cont,
 					int active);
+extern void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask);
 
 static inline void mem_cgroup_uncharge_page(struct page *page)
 {

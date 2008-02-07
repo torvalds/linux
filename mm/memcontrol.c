@@ -329,6 +329,7 @@ retry:
 		}
 
 		css_put(&mem->css);
+		mem_cgroup_out_of_memory(mem, GFP_KERNEL);
 		goto free_pc;
 	}
 
