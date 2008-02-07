@@ -979,10 +979,9 @@ static void nonpaging_new_cr3(struct kvm_vcpu *vcpu)
 {
 }
 
-static int __nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, int write,
-			   gfn_t gfn, struct page *page)
+static int __direct_map(struct kvm_vcpu *vcpu, gpa_t v, int write,
+			   gfn_t gfn, struct page *page, int level)
 {
-	int level = PT32E_ROOT_LEVEL;
 	hpa_t table_addr = vcpu->arch.mmu.root_hpa;
 	int pt_write = 0;
 
@@ -1042,7 +1041,7 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, int write, gfn_t gfn)
 
 	spin_lock(&vcpu->kvm->mmu_lock);
 	kvm_mmu_free_some_pages(vcpu);
-	r = __nonpaging_map(vcpu, v, write, gfn, page);
+	r = __direct_map(vcpu, v, write, gfn, page, PT32E_ROOT_LEVEL);
 	spin_unlock(&vcpu->kvm->mmu_lock);
 
 	up_read(&vcpu->kvm->slots_lock);
