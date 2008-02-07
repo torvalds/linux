@@ -64,13 +64,7 @@ static void mlx4_ib_cq_event(struct mlx4_cq *cq, enum mlx4_event type)
 
 static void *get_cqe_from_buf(struct mlx4_ib_cq_buf *buf, int n)
 {
-	int offset = n * sizeof (struct mlx4_cqe);
-
-	if (buf->buf.nbufs == 1)
-		return buf->buf.u.direct.buf + offset;
-	else
-		return buf->buf.u.page_list[offset >> PAGE_SHIFT].buf +
-			(offset & (PAGE_SIZE - 1));
+	return mlx4_buf_offset(&buf->buf, n * sizeof (struct mlx4_cqe));
 }
 
 static void *get_cqe(struct mlx4_ib_cq *cq, int n)

@@ -96,11 +96,7 @@ static int is_qp0(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp)
 
 static void *get_wqe(struct mlx4_ib_qp *qp, int offset)
 {
-	if (qp->buf.nbufs == 1)
-		return qp->buf.u.direct.buf + offset;
-	else
-		return qp->buf.u.page_list[offset >> PAGE_SHIFT].buf +
-			(offset & (PAGE_SIZE - 1));
+	return mlx4_buf_offset(&qp->buf, offset);
 }
 
 static void *get_recv_wqe(struct mlx4_ib_qp *qp, int n)

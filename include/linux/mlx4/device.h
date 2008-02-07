@@ -308,6 +308,14 @@ struct mlx4_init_port_param {
 int mlx4_buf_alloc(struct mlx4_dev *dev, int size, int max_direct,
 		   struct mlx4_buf *buf);
 void mlx4_buf_free(struct mlx4_dev *dev, int size, struct mlx4_buf *buf);
+static inline void *mlx4_buf_offset(struct mlx4_buf *buf, int offset)
+{
+	if (buf->nbufs == 1)
+		return buf->u.direct.buf + offset;
+	else
+		return buf->u.page_list[offset >> PAGE_SHIFT].buf +
+			(offset & (PAGE_SIZE - 1));
+}
 
 int mlx4_pd_alloc(struct mlx4_dev *dev, u32 *pdn);
 void mlx4_pd_free(struct mlx4_dev *dev, u32 pdn);
