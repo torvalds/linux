@@ -1218,13 +1218,13 @@ static struct svc_export *exp_find(struct auth_domain *clp, int fsid_type,
 	struct svc_export *exp;
 	struct svc_expkey *ek = exp_find_key(clp, fsid_type, fsidv, reqp);
 	if (IS_ERR(ek))
-		return ERR_PTR(PTR_ERR(ek));
+		return ERR_CAST(ek);
 
 	exp = exp_get_by_name(clp, ek->ek_mnt, ek->ek_dentry, reqp);
 	cache_put(&ek->h, &svc_expkey_cache);
 
 	if (IS_ERR(exp))
-		return ERR_PTR(PTR_ERR(exp));
+		return ERR_CAST(exp);
 	return exp;
 }
 

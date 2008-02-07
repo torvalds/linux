@@ -209,7 +209,7 @@ affs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 	bh = affs_find_entry(dir, dentry);
 	affs_unlock_dir(dir);
 	if (IS_ERR(bh)) {
-		return ERR_PTR(PTR_ERR(bh));
+		return ERR_CAST(bh);
 	}
 	if (bh) {
 		u32 ino = bh->b_blocknr;

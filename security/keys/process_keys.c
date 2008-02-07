@@ -660,7 +660,7 @@ key_ref_t lookup_user_key(struct task_struct *context, key_serial_t id,
 
 		key = key_lookup(id);
 		if (IS_ERR(key)) {
-			key_ref = ERR_PTR(PTR_ERR(key));
+			key_ref = ERR_CAST(key);
 			goto error;
 		}
 

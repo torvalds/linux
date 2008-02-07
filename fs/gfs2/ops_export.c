@@ -143,7 +143,7 @@ static struct dentry *gfs2_get_parent(struct dentry *child)
 	 * have to return that as a(n invalid) pointer to dentry.
 	 */
 	if (IS_ERR(inode))
-		return ERR_PTR(PTR_ERR(inode));
+		return ERR_CAST(inode);
 
 	dentry = d_alloc_anon(inode);
 	if (!dentry) {

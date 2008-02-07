@@ -111,7 +111,7 @@ static struct dentry *gfs2_lookup(struct inode *dir, struct dentry *dentry,
 
 	inode = gfs2_lookupi(dir, &dentry->d_name, 0, nd);
 	if (inode && IS_ERR(inode))
-		return ERR_PTR(PTR_ERR(inode));
+		return ERR_CAST(inode);
 
 	if (inode) {
 		struct gfs2_glock *gl = GFS2_I(inode)->i_gl;

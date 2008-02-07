@@ -269,12 +269,12 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
 
 	req = fuse_get_req(fc);
 	if (IS_ERR(req))
-		return ERR_PTR(PTR_ERR(req));
+		return ERR_CAST(req);
 
 	forget_req = fuse_get_req(fc);
 	if (IS_ERR(forget_req)) {
 		fuse_put_request(fc, req);
-		return ERR_PTR(PTR_ERR(forget_req));
+		return ERR_CAST(forget_req);
 	}
 
 	attr_version = fuse_get_attr_version(fc);
@@ -1006,7 +1006,7 @@ static char *read_link(struct dentry *dentry)
 	char *link;
 
 	if (IS_ERR(req))
-		return ERR_PTR(PTR_ERR(req));
+		return ERR_CAST(req);
 
 	link = (char *) __get_free_page(GFP_KERNEL);
 	if (!link) {

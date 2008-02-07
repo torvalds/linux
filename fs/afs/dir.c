@@ -512,7 +512,7 @@ static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
 	key = afs_request_key(vnode->volume->cell);
 	if (IS_ERR(key)) {
 		_leave(" = %ld [key]", PTR_ERR(key));
-		return ERR_PTR(PTR_ERR(key));
+		return ERR_CAST(key);
 	}
 
 	ret = afs_validate(vnode, key);
@@ -540,7 +540,7 @@ static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
 	key_put(key);
 	if (IS_ERR(inode)) {
 		_leave(" = %ld", PTR_ERR(inode));
-		return ERR_PTR(PTR_ERR(inode));
+		return ERR_CAST(inode);
 	}
 
 	dentry->d_op = &afs_fs_dentry_operations;

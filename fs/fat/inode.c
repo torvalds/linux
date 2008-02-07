@@ -760,7 +760,7 @@ static struct dentry *fat_get_parent(struct dentry *child)
 	inode = fat_build_inode(child->d_sb, de, i_pos);
 	brelse(bh);
 	if (IS_ERR(inode)) {
-		parent = ERR_PTR(PTR_ERR(inode));
+		parent = ERR_CAST(inode);
 		goto out;
 	}
 	parent = d_alloc_anon(inode);
