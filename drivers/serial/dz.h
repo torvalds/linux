@@ -33,6 +33,8 @@
 #define DZ_FERR        0x2000                 /* Frame error indicator */
 #define DZ_PERR        0x1000                 /* Parity error indicator */
 
+#define DZ_BREAK       0x0800                 /* BREAK event software flag */
+
 #define LINE(x) ((x & DZ_LINE_MASK) >> 8)     /* Get the line number
                                                  from the input buffer */
 #define UCHAR(x) ((unsigned char)(x & DZ_RBUF_MASK))
