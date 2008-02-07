@@ -106,41 +106,41 @@ static const struct {
 #define UART_INFO_NUM	ARRAY_SIZE(Gpci_uart_info)
 
 struct mxser_cardinfo {
-	unsigned int nports;
 	char *name;
+	unsigned int nports;
 	unsigned int flags;
 };
 
 static const struct mxser_cardinfo mxser_cards[] = {
-/* 0*/	{ 8, "C168 series", },
-	{ 4, "C104 series", },
-	{ 4, "CI-104J series", },
-	{ 8, "C168H/PCI series", },
-	{ 4, "C104H/PCI series", },
-/* 5*/	{ 4, "C102 series", MXSER_HAS2 },	/* C102-ISA */
-	{ 4, "CI-132 series", MXSER_HAS2 },
-	{ 4, "CI-134 series", },
-	{ 2, "CP-132 series", },
-	{ 4, "CP-114 series", },
-/*10*/	{ 4, "CT-114 series", },
-	{ 2, "CP-102 series", MXSER_HIGHBAUD },
-	{ 4, "CP-104U series", },
-	{ 8, "CP-168U series", },
-	{ 2, "CP-132U series", },
-/*15*/	{ 4, "CP-134U series", },
-	{ 4, "CP-104JU series", },
-	{ 8, "Moxa UC7000 Serial", },		/* RC7000 */
-	{ 8, "CP-118U series", },
-	{ 2, "CP-102UL series", },
-/*20*/	{ 2, "CP-102U series", },
-	{ 8, "CP-118EL series", },
-	{ 8, "CP-168EL series", },
-	{ 4, "CP-104EL series", },
-	{ 8, "CB-108 series", },
-/*25*/	{ 4, "CB-114 series", },
-	{ 4, "CB-134I series", },
-	{ 8, "CP-138U series", },
-	{ 4, "POS-104UL series", }
+/* 0*/	{ "C168 series",	8, },
+	{ "C104 series",	4, },
+	{ "CI-104J series",	4, },
+	{ "C168H/PCI series",	8, },
+	{ "C104H/PCI series",	4, },
+/* 5*/	{ "C102 series",	4, MXSER_HAS2 },	/* C102-ISA */
+	{ "CI-132 series",	4, MXSER_HAS2 },
+	{ "CI-134 series",	4, },
+	{ "CP-132 series",	2, },
+	{ "CP-114 series",	4, },
+/*10*/	{ "CT-114 series",	4, },
+	{ "CP-102 series",	2, MXSER_HIGHBAUD },
+	{ "CP-104U series",	4, },
+	{ "CP-168U series",	8, },
+	{ "CP-132U series",	2, },
+/*15*/	{ "CP-134U series",	4, },
+	{ "CP-104JU series",	4, },
+	{ "Moxa UC7000 Serial",	8, },		/* RC7000 */
+	{ "CP-118U series",	8, },
+	{ "CP-102UL series",	2, },
+/*20*/	{ "CP-102U series",	2, },
+	{ "CP-118EL series",	8, },
+	{ "CP-168EL series",	8, },
+	{ "CP-104EL series",	4, },
+	{ "CB-108 series",	8, },
+/*25*/	{ "CB-114 series",	4, },
+	{ "CB-134I series",	4, },
+	{ "CP-138U series",	8, },
+	{ "POS-104UL series",	4, }
 };
 
 /* driver_data correspond to the lines in the structure above
