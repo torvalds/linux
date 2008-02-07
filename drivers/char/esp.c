@@ -242,17 +242,6 @@ static void rs_start(struct tty_struct *tty)
  * -----------------------------------------------------------------------
  */
 
-/*
- * This routine is used by the interrupt handler to schedule
- * processing in the software interrupt portion of the driver.
- */
-static inline void rs_sched_event(struct esp_struct *info,
-				  int event)
-{
-	info->event |= 1 << event;
-	schedule_work(&info->tqueue);
-}
-
 static DEFINE_SPINLOCK(pio_lock);
 
 static inline struct esp_pio_buffer *get_pio_buffer(void)
@@ -474,7 +463,8 @@ static inline void transmit_chars_pio(struct esp_struct *info,
 	}
 
 	if (info->xmit_cnt < WAKEUP_CHARS) {
-		rs_sched_event(info, ESP_EVENT_WRITE_WAKEUP);
+		if (info->tty)
+			tty_wakeup(info->tty);
 
 #ifdef SERIAL_DEBUG_INTR
 		printk("THRE...");
@@ -512,7 +502,8 @@ static inline void transmit_chars_dma(struct esp_struct *info, int num_bytes)
 	info->xmit_tail = (info->xmit_tail + dma_bytes) & (ESP_XMIT_SIZE - 1);
 
 	if (info->xmit_cnt < WAKEUP_CHARS) {
-		rs_sched_event(info, ESP_EVENT_WRITE_WAKEUP);
+		if (info->tty)
+			tty_wakeup(info->tty);
 
 #ifdef SERIAL_DEBUG_INTR
 		printk("THRE...");
@@ -604,7 +595,7 @@ static inline void check_modem_status(struct esp_struct *info)
 #ifdef SERIAL_DEBUG_OPEN
 			printk("scheduling hangup...");
 #endif
-			schedule_work(&info->tqueue_hangup);
+			tty_hangup(info->tty);
 		}
 	}
 }
@@ -719,41 +710,6 @@ static irqreturn_t rs_interrupt_single(int irq, void *dev_id)
  * Here ends the serial interrupt routines.
  * -------------------------------------------------------------------
  */
-
-static void do_softint(struct work_struct *work)
-{
-	struct esp_struct	*info =
-		container_of(work, struct esp_struct, tqueue);
-	struct tty_struct	*tty;
-	
-	tty = info->tty;
-	if (!tty)
-		return;
-
-	if (test_and_clear_bit(ESP_EVENT_WRITE_WAKEUP, &info->event)) {
-		tty_wakeup(tty);
-	}
-}
-
-/*
- * This routine is called from the scheduler tqueue when the interrupt
- * routine has signalled that a hangup has occurred.  The path of
- * hangup processing is:
- *
- * 	serial interrupt routine -> (scheduler tqueue) ->
- * 	do_serial_hangup() -> tty->hangup() -> esp_hangup()
- * 
- */
-static void do_serial_hangup(struct work_struct *work)
-{
-	struct esp_struct	*info =
-		container_of(work, struct esp_struct, tqueue_hangup);
-	struct tty_struct	*tty;
-	
-	tty = info->tty;
-	if (tty)
-		tty_hangup(tty);
-}
 
 /*
  * ---------------------------------------------------------------
@@ -2038,7 +1994,6 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 		tty->driver->flush_buffer(tty);
 	tty_ldisc_flush(tty);
 	tty->closing = 0;
-	info->event = 0;
 	info->tty = NULL;
 
 	if (info->blocked_open) {
@@ -2106,7 +2061,6 @@ static void esp_hangup(struct tty_struct *tty)
 	
 	rs_flush_buffer(tty);
 	shutdown(info);
-	info->event = 0;
 	info->count = 0;
 	info->flags &= ~ASYNC_NORMAL_ACTIVE;
 	info->tty = NULL;
@@ -2492,8 +2446,6 @@ static int __init espserial_init(void)
 		info->magic = ESP_MAGIC;
 		info->close_delay = 5*HZ/10;
 		info->closing_wait = 30*HZ;
-		INIT_WORK(&info->tqueue, do_softint);
-		INIT_WORK(&info->tqueue_hangup, do_serial_hangup);
 		info->config.rx_timeout = rx_timeout;
 		info->config.flow_on = flow_on;
 		info->config.flow_off = flow_off;
