@@ -812,11 +812,18 @@ static int is_processor_present(acpi_handle handle)
 
 
 	status = acpi_evaluate_integer(handle, "_STA", NULL, &sta);
-	if (ACPI_FAILURE(status) || !(sta & ACPI_STA_DEVICE_PRESENT)) {
-		ACPI_EXCEPTION((AE_INFO, status, "Processor Device is not present"));
-		return 0;
-	}
-	return 1;
+	/*
+	 * if a processor object does not have an _STA object,
+	 * OSPM assumes that the processor is present.
+	 */
+	if (status == AE_NOT_FOUND)
+		return 1;
+
+	if (ACPI_SUCCESS(status) && (sta & ACPI_STA_DEVICE_PRESENT))
+		return 1;
+
+	ACPI_EXCEPTION((AE_INFO, status, "Processor Device is not present"));
+	return 0;
 }
 
 static

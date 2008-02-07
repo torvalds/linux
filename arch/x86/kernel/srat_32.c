@@ -274,7 +274,7 @@ int __init get_memcfg_from_srat(void)
 	int tables = 0;
 	int i = 0;
 
-	rsdp_address = acpi_find_rsdp();
+	rsdp_address = acpi_os_get_root_pointer();
 	if (!rsdp_address) {
 		printk("%s: System description tables not found\n",
 		       __FUNCTION__);

@@ -70,8 +70,6 @@ static struct acpi_blacklist_item acpi_blacklist[] __initdata = {
 	/* IBM 600E - _ADR should return 7, but it returns 1 */
 	{"IBM   ", "TP600E  ", 0x00000105, ACPI_SIG_DSDT, less_than_or_equal,
 	 "Incorrect _ADR", 1},
-	{"ASUS\0\0", "P2B-S   ", 0, ACPI_SIG_DSDT, all_versions,
-	 "Bogus PCI routing", 1},
 
 	{""}
 };

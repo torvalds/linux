@@ -178,6 +178,9 @@ static int get_date_field(char **p, u32 * value)
 	 * Try to find delimeter, only to insert null.  The end of the
 	 * string won't have one, but is still valid.
 	 */
+	if (*p == NULL)
+		return result;
+
 	next = strpbrk(*p, "- :");
 	if (next)
 		*next++ = '\0';
@@ -190,6 +193,8 @@ static int get_date_field(char **p, u32 * value)
 
 	if (next)
 		*p = next;
+	else
+		*p = NULL;
 
 	return result;
 }
@@ -251,27 +256,6 @@ acpi_system_write_alarm(struct file *file,
 	if ((result = get_date_field(&p, &sec)))
 		goto end;
 
-	if (sec > 59) {
-		min += 1;
-		sec -= 60;
-	}
-	if (min > 59) {
-		hr += 1;
-		min -= 60;
-	}
-	if (hr > 23) {
-		day += 1;
-		hr -= 24;
-	}
-	if (day > 31) {
-		mo += 1;
-		day -= 31;
-	}
-	if (mo > 12) {
-		yr += 1;
-		mo -= 12;
-	}
-
 	spin_lock_irq(&rtc_lock);
 
 	rtc_control = CMOS_READ(RTC_CONTROL);
@@ -288,24 +272,24 @@ acpi_system_write_alarm(struct file *file,
 	spin_unlock_irq(&rtc_lock);
 
 	if (sec > 59) {
-		min++;
-		sec -= 60;
+		min += sec/60;
+		sec = sec%60;
 	}
 	if (min > 59) {
-		hr++;
-		min -= 60;
+		hr += min/60;
+		min = min%60;
 	}
 	if (hr > 23) {
-		day++;
-		hr -= 24;
+		day += hr/24;
+		hr = hr%24;
 	}
 	if (day > 31) {
-		mo++;
-		day -= 31;
+		mo += day/32;
+		day = day%32;
 	}
 	if (mo > 12) {
-		yr++;
-		mo -= 12;
+		yr += mo/13;
+		mo = mo%13;
 	}
 
 	spin_lock_irq(&rtc_lock);

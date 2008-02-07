@@ -250,8 +250,12 @@ acpi_physical_address __init acpi_os_get_root_pointer(void)
 			       "System description tables not found\n");
 			return 0;
 		}
-	} else
-		return acpi_find_rsdp();
+	} else {
+		acpi_physical_address pa = 0;
+
+		acpi_find_root_pointer(&pa);
+		return pa;
+	}
 }
 
 void __iomem *acpi_os_map_memory(acpi_physical_address phys, acpi_size size)

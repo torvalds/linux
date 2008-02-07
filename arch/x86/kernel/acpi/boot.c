@@ -587,25 +587,6 @@ int acpi_unregister_ioapic(acpi_handle handle, u32 gsi_base)
 
 EXPORT_SYMBOL(acpi_unregister_ioapic);
 
-static unsigned long __init
-acpi_scan_rsdp(unsigned long start, unsigned long length)
-{
-	unsigned long offset = 0;
-	unsigned long sig_len = sizeof("RSD PTR ") - 1;
-
-	/*
-	 * Scan all 16-byte boundaries of the physical memory region for the
-	 * RSDP signature.
-	 */
-	for (offset = 0; offset < length; offset += 16) {
-		if (strncmp((char *)(phys_to_virt(start) + offset), "RSD PTR ", sig_len))
-			continue;
-		return (start + offset);
-	}
-
-	return 0;
-}
-
 static int __init acpi_parse_sbf(struct acpi_table_header *table)
 {
 	struct acpi_table_boot *sb;
@@ -746,27 +727,6 @@ static int __init acpi_parse_fadt(struct acpi_table_header *table)
 		       pmtmr_ioport);
 #endif
 	return 0;
-}
-
-unsigned long __init acpi_find_rsdp(void)
-{
-	unsigned long rsdp_phys = 0;
-
-	if (efi_enabled) {
-		if (efi.acpi20 != EFI_INVALID_TABLE_ADDR)
-			return efi.acpi20;
-		else if (efi.acpi != EFI_INVALID_TABLE_ADDR)
-			return efi.acpi;
-	}
-	/*
-	 * Scan memory looking for the RSDP signature. First search EBDA (low
-	 * memory) paragraphs and then search upper memory (E0000-FFFFF).
-	 */
-	rsdp_phys = acpi_scan_rsdp(0, 0x400);
-	if (!rsdp_phys)
-		rsdp_phys = acpi_scan_rsdp(0xE0000, 0x20000);
-
-	return rsdp_phys;
 }
 
 #ifdef	CONFIG_X86_LOCAL_APIC

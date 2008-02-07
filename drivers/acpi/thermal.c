@@ -492,7 +492,7 @@ static int acpi_thermal_get_devices(struct acpi_thermal *tz)
 
 static int acpi_thermal_critical(struct acpi_thermal *tz)
 {
-	if (!tz || !tz->trips.critical.flags.valid || nocrt)
+	if (!tz || !tz->trips.critical.flags.valid)
 		return -EINVAL;
 
 	if (tz->temperature >= tz->trips.critical.temperature) {
@@ -501,9 +501,6 @@ static int acpi_thermal_critical(struct acpi_thermal *tz)
 	} else if (tz->trips.critical.flags.enabled)
 		tz->trips.critical.flags.enabled = 0;
 
-	printk(KERN_EMERG
-	       "Critical temperature reached (%ld C), shutting down.\n",
-	       KELVIN_TO_CELSIUS(tz->temperature));
 	acpi_bus_generate_proc_event(tz->device, ACPI_THERMAL_NOTIFY_CRITICAL,
 				tz->trips.critical.flags.enabled);
 	acpi_bus_generate_netlink_event(tz->device->pnp.device_class,
@@ -511,14 +508,20 @@ static int acpi_thermal_critical(struct acpi_thermal *tz)
 					  ACPI_THERMAL_NOTIFY_CRITICAL,
 					  tz->trips.critical.flags.enabled);
 
-	orderly_poweroff(true);
+	/* take no action if nocrt is set */
+	if(!nocrt) {
+		printk(KERN_EMERG
+			"Critical temperature reached (%ld C), shutting down.\n",
+			KELVIN_TO_CELSIUS(tz->temperature));
+		orderly_poweroff(true);
+	}
 
 	return 0;
 }
 
 static int acpi_thermal_hot(struct acpi_thermal *tz)
 {
-	if (!tz || !tz->trips.hot.flags.valid || nocrt)
+	if (!tz || !tz->trips.hot.flags.valid)
 		return -EINVAL;
 
 	if (tz->temperature >= tz->trips.hot.temperature) {
@@ -534,7 +537,7 @@ static int acpi_thermal_hot(struct acpi_thermal *tz)
 					  ACPI_THERMAL_NOTIFY_HOT,
 					  tz->trips.hot.flags.enabled);
 
-	/* TBD: Call user-mode "sleep(S4)" function */
+	/* TBD: Call user-mode "sleep(S4)" function if nocrt is cleared */
 
 	return 0;
 }
