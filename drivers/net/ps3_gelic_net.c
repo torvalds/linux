@@ -98,7 +98,7 @@ gelic_net_get_descr_status(struct gelic_net_descr *descr)
 {
 	u32 cmd_status;
 
-	cmd_status = descr->dmac_cmd_status;
+	cmd_status = be32_to_cpu(descr->dmac_cmd_status);
 	cmd_status >>= GELIC_NET_DESCR_IND_PROC_SHIFT;
 	return cmd_status;
 }
@@ -117,13 +117,13 @@ static void gelic_net_set_descr_status(struct gelic_net_descr *descr,
 	u32 cmd_status;
 
 	/* read the status */
-	cmd_status = descr->dmac_cmd_status;
+	cmd_status = be32_to_cpu(descr->dmac_cmd_status);
 	/* clean the upper 4 bits */
 	cmd_status &= GELIC_NET_DESCR_IND_PROC_MASKO;
 	/* add the status to it */
 	cmd_status |= ((u32)status) << GELIC_NET_DESCR_IND_PROC_SHIFT;
 	/* and write it back */
-	descr->dmac_cmd_status = cmd_status;
+	descr->dmac_cmd_status = cpu_to_be32(cmd_status);
 	/*
 	 * dma_cmd_status field is used to indicate whether the descriptor
 	 * is valid or not.
@@ -193,7 +193,7 @@ static int gelic_net_init_chain(struct gelic_net_card *card,
 	/* chain bus addr of hw descriptor */
 	descr = start_descr;
 	for (i = 0; i < no; i++, descr++) {
-		descr->next_descr_addr = descr->next->bus_addr;
+		descr->next_descr_addr = cpu_to_be32(descr->next->bus_addr);
 	}
 
 	chain->head = start_descr;
@@ -245,7 +245,7 @@ static int gelic_net_prepare_rx_descr(struct gelic_net_card *card,
 			 "%s:allocate skb failed !!\n", __func__);
 		return -ENOMEM;
 	}
-	descr->buf_size = bufsize;
+	descr->buf_size = cpu_to_be32(bufsize);
 	descr->dmac_cmd_status = 0;
 	descr->result_size = 0;
 	descr->valid_size = 0;
@@ -256,9 +256,10 @@ static int gelic_net_prepare_rx_descr(struct gelic_net_card *card,
 	if (offset)
 		skb_reserve(descr->skb, GELIC_NET_RXBUF_ALIGN - offset);
 	/* io-mmu-map the skb */
-	descr->buf_addr = dma_map_single(ctodev(card), descr->skb->data,
-					 GELIC_NET_MAX_MTU,
-					 DMA_FROM_DEVICE);
+	descr->buf_addr = cpu_to_be32(dma_map_single(ctodev(card),
+						     descr->skb->data,
+						     GELIC_NET_MAX_MTU,
+						     DMA_FROM_DEVICE));
 	if (!descr->buf_addr) {
 		dev_kfree_skb_any(descr->skb);
 		descr->skb = NULL;
@@ -284,7 +285,7 @@ static void gelic_net_release_rx_chain(struct gelic_net_card *card)
 	do {
 		if (descr->skb) {
 			dma_unmap_single(ctodev(card),
-					 descr->buf_addr,
+					 be32_to_cpu(descr->buf_addr),
 					 descr->skb->len,
 					 DMA_FROM_DEVICE);
 			descr->buf_addr = 0;
@@ -353,10 +354,11 @@ static void gelic_net_release_tx_descr(struct gelic_net_card *card,
 {
 	struct sk_buff *skb = descr->skb;
 
-	BUG_ON(!(descr->data_status & (1 << GELIC_NET_TXDESC_TAIL)));
+	BUG_ON(!(be32_to_cpu(descr->data_status) &
+		 (1 << GELIC_NET_TXDESC_TAIL)));
 
-	dma_unmap_single(ctodev(card), descr->buf_addr, skb->len,
-			 DMA_TO_DEVICE);
+	dma_unmap_single(ctodev(card),
+			 be32_to_cpu(descr->buf_addr), skb->len, DMA_TO_DEVICE);
 	dev_kfree_skb_any(skb);
 
 	descr->buf_addr = 0;
@@ -610,28 +612,29 @@ static void gelic_net_set_txdescr_cmdstat(struct gelic_net_descr *descr,
 					  struct sk_buff *skb)
 {
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
-		descr->dmac_cmd_status = GELIC_NET_DMAC_CMDSTAT_NOCS |
-			GELIC_NET_DMAC_CMDSTAT_END_FRAME;
+		descr->dmac_cmd_status =
+			cpu_to_be32(GELIC_NET_DMAC_CMDSTAT_NOCS |
+				    GELIC_NET_DMAC_CMDSTAT_END_FRAME);
 	else {
 		/* is packet ip?
 		 * if yes: tcp? udp? */
 		if (skb->protocol == htons(ETH_P_IP)) {
 			if (ip_hdr(skb)->protocol == IPPROTO_TCP)
 				descr->dmac_cmd_status =
-					GELIC_NET_DMAC_CMDSTAT_TCPCS |
-					GELIC_NET_DMAC_CMDSTAT_END_FRAME;
+				cpu_to_be32(GELIC_NET_DMAC_CMDSTAT_TCPCS |
+					    GELIC_NET_DMAC_CMDSTAT_END_FRAME);
 
 			else if (ip_hdr(skb)->protocol == IPPROTO_UDP)
 				descr->dmac_cmd_status =
-					GELIC_NET_DMAC_CMDSTAT_UDPCS |
-					GELIC_NET_DMAC_CMDSTAT_END_FRAME;
+				cpu_to_be32(GELIC_NET_DMAC_CMDSTAT_UDPCS |
+					    GELIC_NET_DMAC_CMDSTAT_END_FRAME);
 			else	/*
 				 * the stack should checksum non-tcp and non-udp
 				 * packets on his own: NETIF_F_IP_CSUM
 				 */
 				descr->dmac_cmd_status =
-					GELIC_NET_DMAC_CMDSTAT_NOCS |
-					GELIC_NET_DMAC_CMDSTAT_END_FRAME;
+				cpu_to_be32(GELIC_NET_DMAC_CMDSTAT_NOCS |
+					    GELIC_NET_DMAC_CMDSTAT_END_FRAME);
 		}
 	}
 }
@@ -694,8 +697,8 @@ static int gelic_net_prepare_tx_descr_v(struct gelic_net_card *card,
 		return -ENOMEM;
 	}
 
-	descr->buf_addr = buf;
-	descr->buf_size = skb->len;
+	descr->buf_addr = cpu_to_be32(buf);
+	descr->buf_size = cpu_to_be32(skb->len);
 	descr->skb = skb;
 	descr->data_status = 0;
 	descr->next_descr_addr = 0; /* terminate hw descr */
@@ -774,7 +777,7 @@ static int gelic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 	 * link this prepared descriptor to previous one
 	 * to achieve high performance
 	 */
-	descr->prev->next_descr_addr = descr->bus_addr;
+	descr->prev->next_descr_addr = cpu_to_be32(descr->bus_addr);
 	/*
 	 * as hardware descriptor is modified in the above lines,
 	 * ensure that the hardware sees it
@@ -814,19 +817,23 @@ static void gelic_net_pass_skb_up(struct gelic_net_descr *descr,
 	struct net_device *netdev;
 	u32 data_status, data_error;
 
-	data_status = descr->data_status;
-	data_error = descr->data_error;
+	data_status = be32_to_cpu(descr->data_status);
+	data_error = be32_to_cpu(descr->data_error);
 	netdev = card->netdev;
 	/* unmap skb buffer */
 	skb = descr->skb;
-	dma_unmap_single(ctodev(card), descr->buf_addr, GELIC_NET_MAX_MTU,
+	dma_unmap_single(ctodev(card),
+			 be32_to_cpu(descr->buf_addr), GELIC_NET_MAX_MTU,
 			 DMA_FROM_DEVICE);
 
-	skb_put(skb, descr->valid_size? descr->valid_size : descr->result_size);
+	skb_put(skb, descr->valid_size ?
+		be32_to_cpu(descr->valid_size) :
+		be32_to_cpu(descr->result_size));
 	if (!descr->valid_size)
 		dev_info(ctodev(card), "buffer full %x %x %x\n",
-			 descr->result_size, descr->buf_size,
-			 descr->dmac_cmd_status);
+			 be32_to_cpu(descr->result_size),
+			 be32_to_cpu(descr->buf_size),
+			 be32_to_cpu(descr->dmac_cmd_status));
 
 	descr->skb = NULL;
 	/*
@@ -873,7 +880,8 @@ static int gelic_net_decode_one_descr(struct gelic_net_card *card)
 	status = gelic_net_get_descr_status(descr);
 	/* is this descriptor terminated with next_descr == NULL? */
 	dmac_chain_ended =
-		descr->dmac_cmd_status & GELIC_NET_DMAC_CMDSTAT_RXDCEIS;
+		be32_to_cpu(descr->dmac_cmd_status) &
+		GELIC_NET_DMAC_CMDSTAT_RXDCEIS;
 
 	if (status == GELIC_NET_DESCR_CARDOWNED)
 		return 0;
@@ -940,7 +948,7 @@ refill:
 	/*
 	 * Set this descriptor the end of the chain.
 	 */
-	descr->prev->next_descr_addr = descr->bus_addr;
+	descr->prev->next_descr_addr = cpu_to_be32(descr->bus_addr);
 
 	/*
 	 * If dmac chain was met, DMAC stopped.

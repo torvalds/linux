@@ -169,14 +169,14 @@ enum gelic_net_descr_status {
 #define GELIC_NET_DESCR_SIZE	(32)
 struct gelic_net_descr {
 	/* as defined by the hardware */
-	u32 buf_addr;
-	u32 buf_size;
-	u32 next_descr_addr;
-	u32 dmac_cmd_status;
-	u32 result_size;
-	u32 valid_size;	/* all zeroes for tx */
-	u32 data_status;
-	u32 data_error;	/* all zeroes for tx */
+	__be32 buf_addr;
+	__be32 buf_size;
+	__be32 next_descr_addr;
+	__be32 dmac_cmd_status;
+	__be32 result_size;
+	__be32 valid_size;	/* all zeroes for tx */
+	__be32 data_status;
+	__be32 data_error;	/* all zeroes for tx */
 
 	/* used in the driver */
 	struct sk_buff *skb;
