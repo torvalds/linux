@@ -9,9 +9,6 @@
 #ifndef _ASM_PAGE_H
 #define _ASM_PAGE_H
 
-
-#ifdef __KERNEL__
-
 #include <spaces.h>
 
 /*
@@ -189,7 +186,5 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
-
-#endif /* defined (__KERNEL__) */
 
 #endif /* _ASM_PAGE_H */

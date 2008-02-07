@@ -1,8 +1,6 @@
 #ifndef _PARISC_PAGE_H
 #define _PARISC_PAGE_H
 
-#ifdef __KERNEL__
-
 #include <linux/const.h>
 
 #if defined(CONFIG_PARISC_PAGE_SIZE_4KB)
@@ -174,7 +172,5 @@ extern int npmem_ranges;
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
-
-#endif /* __KERNEL__ */
 
 #endif /* _PARISC_PAGE_H */

@@ -7,8 +7,6 @@
  *	David Mosberger-Tang <davidm@hpl.hp.com>
  */
 
-# ifdef __KERNEL__
-
 #include <asm/intrinsics.h>
 #include <asm/types.h>
 
@@ -227,5 +225,4 @@ get_order (unsigned long size)
 					 (((current->personality & READ_IMPLIES_EXEC) != 0)	\
 					  ? VM_EXEC : 0))
 
-# endif /* __KERNEL__ */
 #endif /* _ASM_IA64_PAGE_H */

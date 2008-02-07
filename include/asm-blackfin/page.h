@@ -11,8 +11,6 @@
 #endif
 #define PAGE_MASK	(~(PAGE_SIZE-1))
 
-#ifdef __KERNEL__
-
 #include <asm/setup.h>
 
 #ifndef __ASSEMBLY__
@@ -88,6 +86,5 @@ extern unsigned long memory_end;
 #include <asm-generic/page.h>
 
 #endif				/* __ASSEMBLY__ */
-#endif				/* __KERNEL__ */
 
 #endif				/* _BLACKFIN_PAGE_H */

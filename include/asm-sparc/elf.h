@@ -85,7 +85,6 @@ typedef struct {
 	unsigned int	pr_q[64];
 } elf_fpregset_t;
 
-#ifdef __KERNEL__
 #include <asm/mbus.h>
 #include <asm/uaccess.h>
 
@@ -165,7 +164,5 @@ do {	unsigned long *dest = &(__elf_regs[0]);		\
 #define ELF_PLATFORM	(NULL)
 
 #define SET_PERSONALITY(ex, ibcs2) set_personality((ibcs2)?PER_SVR4:PER_LINUX)
-
-#endif /* __KERNEL__ */
 
 #endif /* !(__ASMSPARC_ELF_H) */

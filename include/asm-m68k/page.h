@@ -1,9 +1,6 @@
 #ifndef _M68K_PAGE_H
 #define _M68K_PAGE_H
 
-
-#ifdef __KERNEL__
-
 #include <linux/const.h>
 
 /* PAGE_SHIFT determines the page size */
@@ -229,7 +226,5 @@ static inline __attribute_const__ int __virt_to_node_shift(void)
 				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
 #include <asm-generic/page.h>
-
-#endif /* __KERNEL__ */
 
 #endif /* _M68K_PAGE_H */

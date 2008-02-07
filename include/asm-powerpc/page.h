@@ -10,7 +10,6 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#ifdef __KERNEL__
 #include <asm/asm-compat.h>
 #include <asm/kdump.h>
 
@@ -193,7 +192,5 @@ struct vm_area_struct;
 
 #include <asm-generic/memory_model.h>
 #endif /* __ASSEMBLY__ */
-
-#endif /* __KERNEL__ */
 
 #endif /* _ASM_POWERPC_PAGE_H */

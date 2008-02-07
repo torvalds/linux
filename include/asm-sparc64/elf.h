@@ -7,11 +7,9 @@
  */
 
 #include <asm/ptrace.h>
-#ifdef __KERNEL__
 #include <asm/processor.h>
 #include <asm/uaccess.h>
 #include <asm/spitfire.h>
-#endif
 
 /*
  * Sparc section types
@@ -175,7 +173,6 @@ static inline unsigned int sparc64_elf_hwcap(void)
 
 #define ELF_PLATFORM	(NULL)
 
-#ifdef __KERNEL__
 #define SET_PERSONALITY(ex, ibcs2)			\
 do {	unsigned long new_flags = current_thread_info()->flags; \
 	new_flags &= _TIF_32BIT;			\
@@ -194,6 +191,5 @@ do {	unsigned long new_flags = current_thread_info()->flags; \
 	else if (current->personality != PER_LINUX32)	\
 		set_personality(PER_LINUX);		\
 } while (0)
-#endif
 
 #endif /* !(__ASM_SPARC64_ELF_H) */

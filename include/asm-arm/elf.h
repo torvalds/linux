@@ -41,7 +41,6 @@ typedef struct user_fp elf_fpregset_t;
 #endif
 #define ELF_ARCH	EM_ARM
 
-#ifdef __KERNEL__
 #ifndef __ASSEMBLY__
 /*
  * This yields a string that ld.so will use to load implementation
@@ -113,7 +112,5 @@ extern char elf_platform[];
 				clear_thread_flag(TIF_USING_IWMMXT);	\
 		}							\
 	} while (0)
-
-#endif
 
 #endif

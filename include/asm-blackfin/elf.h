@@ -120,8 +120,6 @@ do {											\
 
 #define ELF_PLATFORM  (NULL)
 
-#ifdef __KERNEL__
 #define SET_PERSONALITY(ex, ibcs2) set_personality((ibcs2)?PER_SVR4:PER_LINUX)
-#endif
 
 #endif

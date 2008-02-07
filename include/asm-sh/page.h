@@ -7,8 +7,6 @@
 
 #include <linux/const.h>
 
-#ifdef __KERNEL__
-
 /* PAGE_SHIFT determines the page size */
 #if defined(CONFIG_PAGE_SIZE_4KB)
 # define PAGE_SHIFT	12
@@ -178,5 +176,4 @@ typedef struct { unsigned long pgd; } pgd_t;
 #define ARCH_SLAB_MINALIGN	8
 #endif
 
-#endif /* __KERNEL__ */
 #endif /* __ASM_SH_PAGE_H */

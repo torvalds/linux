@@ -45,7 +45,6 @@ typedef unsigned long elf_fpregset_t;
 #define ELF_DATA	ELFDATA2LSB
 #define ELF_ARCH	EM_CRIS
 
-#ifdef __KERNEL__
 #include <asm/arch/elf.h>
 
 /* The master for these definitions is {binutils}/include/elf/cris.h:  */
@@ -90,7 +89,5 @@ typedef unsigned long elf_fpregset_t;
 #define ELF_PLATFORM  (NULL)
 
 #define SET_PERSONALITY(ex, ibcs2) set_personality((ibcs2)?PER_SVR4:PER_LINUX)
-
-#endif /* __KERNEL__ */
 
 #endif

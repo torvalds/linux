@@ -14,8 +14,6 @@
 #ifndef __V850_PAGE_H__
 #define __V850_PAGE_H__
 
-#ifdef __KERNEL__
-
 #include <asm/machdep.h>
 
 
@@ -125,7 +123,5 @@ typedef unsigned long pgprot_t;
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
-
-#endif /* KERNEL */
 
 #endif /* __V850_PAGE_H__ */

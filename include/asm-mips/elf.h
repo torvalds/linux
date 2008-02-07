@@ -239,8 +239,6 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 
 #endif /* !defined(ELF_ARCH) */
 
-#ifdef __KERNEL__
-
 struct mips_abi;
 
 extern struct mips_abi mips_abi;
@@ -327,8 +325,6 @@ extern int dump_task_fpu(struct task_struct *, elf_fpregset_t *);
 #define ELF_CORE_COPY_TASK_REGS(tsk, elf_regs) dump_task_regs(tsk, elf_regs)
 #define ELF_CORE_COPY_FPREGS(tsk, elf_fpregs)			\
 	dump_task_fpu(tsk, elf_fpregs)
-
-#endif /* __KERNEL__ */
 
 #define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE	PAGE_SIZE

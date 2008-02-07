@@ -1,8 +1,6 @@
 #ifndef _H8300_PAGE_H
 #define _H8300_PAGE_H
 
-#ifdef __KERNEL__
-
 /* PAGE_SHIFT determines the page size */
 
 #define PAGE_SHIFT	(12)
@@ -78,7 +76,5 @@ extern unsigned long memory_end;
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
-
-#endif /* __KERNEL__ */
 
 #endif /* _H8300_PAGE_H */

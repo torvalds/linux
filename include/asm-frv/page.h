@@ -1,8 +1,6 @@
 #ifndef _ASM_PAGE_H
 #define _ASM_PAGE_H
 
-#ifdef __KERNEL__
-
 #include <asm/virtconvert.h>
 #include <asm/mem-layout.h>
 #include <asm/sections.h>
@@ -78,7 +76,5 @@ extern unsigned long max_pfn;
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
-
-#endif /* __KERNEL__ */
 
 #endif /* _ASM_PAGE_H */

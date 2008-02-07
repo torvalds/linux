@@ -3,8 +3,6 @@
 
 /* Adapted from <asm-ppc/user.h>.  */
 
-#ifdef __KERNEL__
-
 #include <linux/ptrace.h>
 #include <asm/page.h>
 
@@ -50,7 +48,5 @@ struct user {
 #define HOST_TEXT_START_ADDR	(u.start_code)
 #define HOST_DATA_START_ADDR	(u.start_data)
 #define HOST_STACK_END_ADDR	(u.start_stack + u.u_ssize * NBPG)
-
-#endif /* __KERNEL__ */
 
 #endif /* __V850_USER_H__ */

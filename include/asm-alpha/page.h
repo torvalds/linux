@@ -1,8 +1,6 @@
 #ifndef _ALPHA_PAGE_H
 #define _ALPHA_PAGE_H
 
-#ifdef __KERNEL__
-
 #include <linux/const.h>
 #include <asm/pal.h>
 
@@ -98,5 +96,4 @@ typedef unsigned long pgprot_t;
 #include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
 
-#endif /* __KERNEL__ */
 #endif /* _ALPHA_PAGE_H */

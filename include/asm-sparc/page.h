@@ -8,8 +8,6 @@
 #ifndef _SPARC_PAGE_H
 #define _SPARC_PAGE_H
 
-#ifdef __KERNEL__
-
 #ifdef CONFIG_SUN4
 #define PAGE_SHIFT   13
 #else
@@ -162,7 +160,5 @@ extern unsigned long pfn_base;
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
-
-#endif /* __KERNEL__ */
 
 #endif /* _SPARC_PAGE_H */

@@ -3,8 +3,6 @@
 #ifndef _SPARC64_PAGE_H
 #define _SPARC64_PAGE_H
 
-#ifdef __KERNEL__
-
 #include <linux/const.h>
 
 #if defined(CONFIG_SPARC64_PAGE_SIZE_8KB)
@@ -143,5 +141,4 @@ typedef unsigned long pgprot_t;
 
 #include <asm-generic/page.h>
 
-#endif /* __KERNEL__ */
 #endif /* _SPARC64_PAGE_H */

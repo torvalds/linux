@@ -8,8 +8,6 @@
 #ifndef _ASM_USER_H
 #define _ASM_USER_H
 
-#ifdef __KERNEL__
-
 #include <asm/page.h>
 #include <asm/reg.h>
 
@@ -56,7 +54,5 @@ struct user {
 #define HOST_TEXT_START_ADDR	(u.start_code)
 #define HOST_DATA_START_ADDR	(u.start_data)
 #define HOST_STACK_END_ADDR	(u.start_stack + u.u_ssize * NBPG)
-
-#endif /* __KERNEL__ */
 
 #endif /* _ASM_USER_H */

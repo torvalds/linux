@@ -257,8 +257,6 @@ extern void xtensa_elf_core_copy_regs (xtensa_gregset_t *, struct pt_regs *);
        _r->areg[12]=0; _r->areg[13]=0;   _r->areg[14]=0; _r->areg[15]=0; \
   } while (0)
 
-#ifdef __KERNEL__
-
 #define SET_PERSONALITY(ex, ibcs2) set_personality(PER_LINUX_32BIT)
 
 struct task_struct;
@@ -272,5 +270,4 @@ extern void do_save_fpregs (elf_fpregset_t*, struct pt_regs*,
 extern int do_restore_fpregs (elf_fpregset_t*, struct pt_regs*,
 			      struct task_struct*);
 
-#endif	/* __KERNEL__ */
 #endif	/* _XTENSA_ELF_H */
