@@ -46,9 +46,10 @@
 #include <asm/lv1call.h>
 
 #include "ps3_gelic_net.h"
+#include "ps3_gelic_wireless.h"
 
 #define DRV_NAME "Gelic Network Driver"
-#define DRV_VERSION "1.1"
+#define DRV_VERSION "2.0"
 
 MODULE_AUTHOR("SCE Inc.");
 MODULE_DESCRIPTION("Gelic Network driver");
@@ -1154,6 +1155,12 @@ static irqreturn_t gelic_card_interrupt(int irq, void *ptr)
 	if (status & GELIC_CARD_PORT_STATUS_CHANGED)
 		gelic_card_get_ether_port_status(card, 1);
 
+#ifdef CONFIG_GELIC_WIRELESS
+	if (status & (GELIC_CARD_WLAN_EVENT_RECEIVED |
+		      GELIC_CARD_WLAN_COMMAND_COMPLETED))
+		gelic_wl_interrupt(card->netdev[GELIC_PORT_WIRELESS], status);
+#endif
+
 	return IRQ_HANDLED;
 }
 
@@ -1635,6 +1642,12 @@ static int ps3_gelic_driver_probe(struct ps3_system_bus_device *dev)
 		goto fail_setup_netdev;
 	}
 
+#ifdef CONFIG_GELIC_WIRELESS
+	if (gelic_wl_driver_probe(card)) {
+		dev_dbg(&dev->core, "%s: WL init failed\n", __func__);
+		goto fail_setup_netdev;
+	}
+#endif
 	pr_debug("%s: done\n", __func__);
 	return 0;
 
@@ -1674,6 +1687,9 @@ static int ps3_gelic_driver_remove(struct ps3_system_bus_device *dev)
 	struct net_device *netdev0;
 	pr_debug("%s: called\n", __func__);
 
+#ifdef CONFIG_GELIC_WIRELESS
+	gelic_wl_driver_remove(card);
+#endif
 	/* stop interrupt */
 	gelic_card_set_irq_mask(card, 0);
 

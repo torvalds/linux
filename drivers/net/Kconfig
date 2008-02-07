@@ -2352,6 +2352,16 @@ config GELIC_NET
 	  To compile this driver as a module, choose M here: the
 	  module will be called ps3_gelic.
 
+config GELIC_WIRELESS
+       bool "PS3 Wireless support"
+       depends on GELIC_NET
+       help
+        This option adds the support for the wireless feature of PS3.
+        If you have the wireless-less model of PS3 or have no plan to
+        use wireless feature, disabling this option saves memory.  As
+        the driver automatically distinguishes the models, you can
+        safely enable this option even if you have a wireless-less model.
+
 config GIANFAR
 	tristate "Gianfar Ethernet"
 	depends on FSL_SOC
