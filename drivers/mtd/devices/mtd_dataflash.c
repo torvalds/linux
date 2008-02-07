@@ -420,7 +420,7 @@ static int dataflash_write(struct mtd_info *mtd, loff_t to, size_t len,
 		status = dataflash_waitready(priv->spi);
 
 		/* Check result of the compare operation */
-		if ((status & (1 << 6)) == 1) {
+		if (status & (1 << 6)) {
 			printk(KERN_ERR "%s: compare page %u, err %d\n",
 				spi->dev.bus_id, pageaddr, status);
 			remaining = 0;

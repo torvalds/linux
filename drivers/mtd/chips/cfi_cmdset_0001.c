@@ -50,6 +50,7 @@
 #define I82802AC	0x00ac
 #define MANUFACTURER_ST         0x0020
 #define M50LPW080       0x002F
+#define AT49BV640D	0x02de
 
 static int cfi_intelext_read (struct mtd_info *, loff_t, size_t, size_t *, u_char *);
 static int cfi_intelext_write_words(struct mtd_info *, loff_t, size_t, size_t *, const u_char *);
@@ -157,6 +158,47 @@ static void cfi_tell_features(struct cfi_pri_intelext *extp)
 }
 #endif
 
+/* Atmel chips don't use the same PRI format as Intel chips */
+static void fixup_convert_atmel_pri(struct mtd_info *mtd, void *param)
+{
+	struct map_info *map = mtd->priv;
+	struct cfi_private *cfi = map->fldrv_priv;
+	struct cfi_pri_intelext *extp = cfi->cmdset_priv;
+	struct cfi_pri_atmel atmel_pri;
+	uint32_t features = 0;
+
+	/* Reverse byteswapping */
+	extp->FeatureSupport = cpu_to_le32(extp->FeatureSupport);
+	extp->BlkStatusRegMask = cpu_to_le16(extp->BlkStatusRegMask);
+	extp->ProtRegAddr = cpu_to_le16(extp->ProtRegAddr);
+
+	memcpy(&atmel_pri, extp, sizeof(atmel_pri));
+	memset((char *)extp + 5, 0, sizeof(*extp) - 5);
+
+	printk(KERN_ERR "atmel Features: %02x\n", atmel_pri.Features);
+
+	if (atmel_pri.Features & 0x01) /* chip erase supported */
+		features |= (1<<0);
+	if (atmel_pri.Features & 0x02) /* erase suspend supported */
+		features |= (1<<1);
+	if (atmel_pri.Features & 0x04) /* program suspend supported */
+		features |= (1<<2);
+	if (atmel_pri.Features & 0x08) /* simultaneous operations supported */
+		features |= (1<<9);
+	if (atmel_pri.Features & 0x20) /* page mode read supported */
+		features |= (1<<7);
+	if (atmel_pri.Features & 0x40) /* queued erase supported */
+		features |= (1<<4);
+	if (atmel_pri.Features & 0x80) /* Protection bits supported */
+		features |= (1<<6);
+
+	extp->FeatureSupport = features;
+
+	/* burst write mode not supported */
+	cfi->cfiq->BufWriteTimeoutTyp = 0;
+	cfi->cfiq->BufWriteTimeoutMax = 0;
+}
+
 #ifdef CMDSET0001_DISABLE_ERASE_SUSPEND_ON_WRITE
 /* Some Intel Strata Flash prior to FPO revision C has bugs in this area */
 static void fixup_intel_strataflash(struct mtd_info *mtd, void* param)
@@ -227,13 +269,20 @@ static void fixup_use_write_buffers(struct mtd_info *mtd, void *param)
 /*
  * Some chips power-up with all sectors locked by default.
  */
-static void fixup_use_powerup_lock(struct mtd_info *mtd, void *param)
+static void fixup_unlock_powerup_lock(struct mtd_info *mtd, void *param)
 {
-	printk(KERN_INFO "Using auto-unlock on power-up/resume\n" );
-	mtd->flags |= MTD_STUPID_LOCK;
+	struct map_info *map = mtd->priv;
+	struct cfi_private *cfi = map->fldrv_priv;
+	struct cfi_pri_intelext *cfip = cfi->cmdset_priv;
+
+	if (cfip->FeatureSupport&32) {
+		printk(KERN_INFO "Using auto-unlock on power-up/resume\n" );
+		mtd->flags |= MTD_POWERUP_LOCK;
+	}
 }
 
 static struct cfi_fixup cfi_fixup_table[] = {
+	{ CFI_MFR_ATMEL, CFI_ID_ANY, fixup_convert_atmel_pri, NULL },
 #ifdef CMDSET0001_DISABLE_ERASE_SUSPEND_ON_WRITE
 	{ CFI_MFR_ANY, CFI_ID_ANY, fixup_intel_strataflash, NULL },
 #endif
@@ -245,7 +294,7 @@ static struct cfi_fixup cfi_fixup_table[] = {
 #endif
 	{ CFI_MFR_ST, 0x00ba, /* M28W320CT */ fixup_st_m28w320ct, NULL },
 	{ CFI_MFR_ST, 0x00bb, /* M28W320CB */ fixup_st_m28w320cb, NULL },
-	{ MANUFACTURER_INTEL, 0x891c,	      fixup_use_powerup_lock, NULL, },
+	{ MANUFACTURER_INTEL, CFI_ID_ANY, fixup_unlock_powerup_lock, NULL, },
 	{ 0, 0, NULL, NULL }
 };
 
@@ -277,7 +326,7 @@ read_pri_intelext(struct map_info *map, __u16 adr)
 		return NULL;
 
 	if (extp->MajorVersion != '1' ||
-	    (extp->MinorVersion < '0' || extp->MinorVersion > '4')) {
+	    (extp->MinorVersion < '0' || extp->MinorVersion > '5')) {
 		printk(KERN_ERR "  Unknown Intel/Sharp Extended Query "
 		       "version %c.%c.\n",  extp->MajorVersion,
 		       extp->MinorVersion);
@@ -752,6 +801,7 @@ static int chip_ready (struct map_info *map, struct flchip *chip, unsigned long 
 static int get_chip(struct map_info *map, struct flchip *chip, unsigned long adr, int mode)
 {
 	int ret;
+	DECLARE_WAITQUEUE(wait, current);
 
  retry:
 	if (chip->priv && (mode == FL_WRITING || mode == FL_ERASING
@@ -806,6 +856,20 @@ static int get_chip(struct map_info *map, struct flchip *chip, unsigned long adr
 			}
 			spin_lock(&shared->lock);
 			spin_unlock(contender->mutex);
+		}
+
+		/* Check if we already have suspended erase
+		 * on this chip. Sleep. */
+		if (mode == FL_ERASING && shared->erasing
+		    && shared->erasing->oldstate == FL_ERASING) {
+			spin_unlock(&shared->lock);
+			set_current_state(TASK_UNINTERRUPTIBLE);
+			add_wait_queue(&chip->wq, &wait);
+			spin_unlock(chip->mutex);
+			schedule();
+			remove_wait_queue(&chip->wq, &wait);
+			spin_lock(chip->mutex);
+			goto retry;
 		}
 
 		/* We now own it */
@@ -2294,7 +2358,7 @@ static int cfi_intelext_suspend(struct mtd_info *mtd)
 	struct flchip *chip;
 	int ret = 0;
 
-	if ((mtd->flags & MTD_STUPID_LOCK)
+	if ((mtd->flags & MTD_POWERUP_LOCK)
 	    && extp && (extp->FeatureSupport & (1 << 5)))
 		cfi_intelext_save_locks(mtd);
 
@@ -2405,7 +2469,7 @@ static void cfi_intelext_resume(struct mtd_info *mtd)
 		spin_unlock(chip->mutex);
 	}
 
-	if ((mtd->flags & MTD_STUPID_LOCK)
+	if ((mtd->flags & MTD_POWERUP_LOCK)
 	    && extp && (extp->FeatureSupport & (1 << 5)))
 		cfi_intelext_restore_locks(mtd);
 }

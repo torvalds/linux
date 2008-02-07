@@ -248,9 +248,9 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 		return -EBUSY;
 	}
 
-	mutex_init(&new->lock);
 	list_add_tail(&new->list, &tr->devs);
  added:
+	mutex_init(&new->lock);
 	if (!tr->writesect)
 		new->readonly = 1;
 

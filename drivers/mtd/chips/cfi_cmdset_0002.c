@@ -185,6 +185,10 @@ static void fixup_convert_atmel_pri(struct mtd_info *mtd, void *param)
 		extp->TopBottom = 2;
 	else
 		extp->TopBottom = 3;
+
+	/* burst write mode not supported */
+	cfi->cfiq->BufWriteTimeoutTyp = 0;
+	cfi->cfiq->BufWriteTimeoutMax = 0;
 }
 
 static void fixup_use_secsi(struct mtd_info *mtd, void *param)
@@ -213,10 +217,11 @@ static void fixup_use_atmel_lock(struct mtd_info *mtd, void *param)
 {
 	mtd->lock = cfi_atmel_lock;
 	mtd->unlock = cfi_atmel_unlock;
-	mtd->flags |= MTD_STUPID_LOCK;
+	mtd->flags |= MTD_POWERUP_LOCK;
 }
 
 static struct cfi_fixup cfi_fixup_table[] = {
+	{ CFI_MFR_ATMEL, CFI_ID_ANY, fixup_convert_atmel_pri, NULL },
 #ifdef AMD_BOOTLOC_BUG
 	{ CFI_MFR_AMD, CFI_ID_ANY, fixup_amd_bootblock, NULL },
 #endif
@@ -229,7 +234,6 @@ static struct cfi_fixup cfi_fixup_table[] = {
 #if !FORCE_WORD_WRITE
 	{ CFI_MFR_ANY, CFI_ID_ANY, fixup_use_write_buffers, NULL, },
 #endif
-	{ CFI_MFR_ATMEL, CFI_ID_ANY, fixup_convert_atmel_pri, NULL },
 	{ 0, 0, NULL, NULL }
 };
 static struct cfi_fixup jedec_fixup_table[] = {
@@ -338,10 +342,12 @@ struct mtd_info *cfi_cmdset_0002(struct map_info *map, int primary)
 		/* Modify the unlock address if we are in compatibility mode */
 		if (	/* x16 in x8 mode */
 			((cfi->device_type == CFI_DEVICETYPE_X8) &&
-				(cfi->cfiq->InterfaceDesc == 2)) ||
+				(cfi->cfiq->InterfaceDesc ==
+					CFI_INTERFACE_X8_BY_X16_ASYNC)) ||
 			/* x32 in x16 mode */
 			((cfi->device_type == CFI_DEVICETYPE_X16) &&
-				(cfi->cfiq->InterfaceDesc == 4)))
+				(cfi->cfiq->InterfaceDesc ==
+					CFI_INTERFACE_X16_BY_X32_ASYNC)))
 		{
 			cfi->addr_unlock1 = 0xaaa;
 			cfi->addr_unlock2 = 0x555;

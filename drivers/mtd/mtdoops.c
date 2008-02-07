@@ -28,19 +28,26 @@
 #include <linux/workqueue.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
+#include <linux/delay.h>
+#include <linux/spinlock.h>
+#include <linux/interrupt.h>
 #include <linux/mtd/mtd.h>
 
 #define OOPS_PAGE_SIZE 4096
 
-static struct mtdoops_context {
+struct mtdoops_context {
 	int mtd_index;
-	struct work_struct work;
+	struct work_struct work_erase;
+	struct work_struct work_write;
 	struct mtd_info *mtd;
 	int oops_pages;
 	int nextpage;
 	int nextcount;
 
 	void *oops_buf;
+
+	/* writecount and disabling ready are spin lock protected */
+	spinlock_t writecount_lock;
 	int ready;
 	int writecount;
 } oops_cxt;
@@ -62,10 +69,7 @@ static int mtdoops_erase_block(struct mtd_info *mtd, int offset)
 	erase.mtd = mtd;
 	erase.callback = mtdoops_erase_callback;
 	erase.addr = offset;
-	if (mtd->erasesize < OOPS_PAGE_SIZE)
-		erase.len = OOPS_PAGE_SIZE;
-	else
-		erase.len = mtd->erasesize;
+	erase.len = mtd->erasesize;
 	erase.priv = (u_long)&wait_q;
 
 	set_current_state(TASK_INTERRUPTIBLE);
@@ -87,7 +91,7 @@ static int mtdoops_erase_block(struct mtd_info *mtd, int offset)
 	return 0;
 }
 
-static int mtdoops_inc_counter(struct mtdoops_context *cxt)
+static void mtdoops_inc_counter(struct mtdoops_context *cxt)
 {
 	struct mtd_info *mtd = cxt->mtd;
 	size_t retlen;
@@ -103,25 +107,30 @@ static int mtdoops_inc_counter(struct mtdoops_context *cxt)
 
 	ret = mtd->read(mtd, cxt->nextpage * OOPS_PAGE_SIZE, 4,
 			&retlen, (u_char *) &count);
-	if ((retlen != 4) || (ret < 0)) {
+	if ((retlen != 4) || ((ret < 0) && (ret != -EUCLEAN))) {
 		printk(KERN_ERR "mtdoops: Read failure at %d (%td of 4 read)"
 				", err %d.\n", cxt->nextpage * OOPS_PAGE_SIZE,
 				retlen, ret);
-		return 1;
+		schedule_work(&cxt->work_erase);
+		return;
 	}
 
 	/* See if we need to erase the next block */
-	if (count != 0xffffffff)
-		return 1;
+	if (count != 0xffffffff) {
+		schedule_work(&cxt->work_erase);
+		return;
+	}
 
 	printk(KERN_DEBUG "mtdoops: Ready %d, %d (no erase)\n",
 			cxt->nextpage, cxt->nextcount);
 	cxt->ready = 1;
-	return 0;
 }
 
-static void mtdoops_prepare(struct mtdoops_context *cxt)
+/* Scheduled work - when we can't proceed without erasing a block */
+static void mtdoops_workfunc_erase(struct work_struct *work)
 {
+	struct mtdoops_context *cxt =
+			container_of(work, struct mtdoops_context, work_erase);
 	struct mtd_info *mtd = cxt->mtd;
 	int i = 0, j, ret, mod;
 
@@ -136,8 +145,14 @@ static void mtdoops_prepare(struct mtdoops_context *cxt)
 			cxt->nextpage = 0;
 	}
 
-	while (mtd->block_isbad &&
-			mtd->block_isbad(mtd, cxt->nextpage * OOPS_PAGE_SIZE)) {
+	while (mtd->block_isbad) {
+		ret = mtd->block_isbad(mtd, cxt->nextpage * OOPS_PAGE_SIZE);
+		if (!ret)
+			break;
+		if (ret < 0) {
+			printk(KERN_ERR "mtdoops: block_isbad failed, aborting.\n");
+			return;
+		}
 badblock:
 		printk(KERN_WARNING "mtdoops: Bad block at %08x\n",
 				cxt->nextpage * OOPS_PAGE_SIZE);
@@ -154,34 +169,72 @@ badblock:
 	for (j = 0, ret = -1; (j < 3) && (ret < 0); j++)
 		ret = mtdoops_erase_block(mtd, cxt->nextpage * OOPS_PAGE_SIZE);
 
-	if (ret < 0) {
-		if (mtd->block_markbad)
-			mtd->block_markbad(mtd, cxt->nextpage * OOPS_PAGE_SIZE);
-		goto badblock;
+	if (ret >= 0) {
+		printk(KERN_DEBUG "mtdoops: Ready %d, %d \n", cxt->nextpage, cxt->nextcount);
+		cxt->ready = 1;
+		return;
 	}
 
-	printk(KERN_DEBUG "mtdoops: Ready %d, %d \n", cxt->nextpage, cxt->nextcount);
-
-	cxt->ready = 1;
+	if (mtd->block_markbad && (ret == -EIO)) {
+		ret = mtd->block_markbad(mtd, cxt->nextpage * OOPS_PAGE_SIZE);
+		if (ret < 0) {
+			printk(KERN_ERR "mtdoops: block_markbad failed, aborting.\n");
+			return;
+		}
+	}
+	goto badblock;
 }
 
-static void mtdoops_workfunc(struct work_struct *work)
-{
-	struct mtdoops_context *cxt =
-			container_of(work, struct mtdoops_context, work);
-
-	mtdoops_prepare(cxt);
-}
-
-static int find_next_position(struct mtdoops_context *cxt)
+static void mtdoops_write(struct mtdoops_context *cxt, int panic)
 {
 	struct mtd_info *mtd = cxt->mtd;
-	int page, maxpos = 0;
+	size_t retlen;
+	int ret;
+
+	if (cxt->writecount < OOPS_PAGE_SIZE)
+		memset(cxt->oops_buf + cxt->writecount, 0xff,
+					OOPS_PAGE_SIZE - cxt->writecount);
+
+	if (panic)
+		ret = mtd->panic_write(mtd, cxt->nextpage * OOPS_PAGE_SIZE,
+					OOPS_PAGE_SIZE, &retlen, cxt->oops_buf);
+	else
+		ret = mtd->write(mtd, cxt->nextpage * OOPS_PAGE_SIZE,
+					OOPS_PAGE_SIZE, &retlen, cxt->oops_buf);
+
+	cxt->writecount = 0;
+
+	if ((retlen != OOPS_PAGE_SIZE) || (ret < 0))
+		printk(KERN_ERR "mtdoops: Write failure at %d (%td of %d written), err %d.\n",
+			cxt->nextpage * OOPS_PAGE_SIZE, retlen,	OOPS_PAGE_SIZE, ret);
+
+	mtdoops_inc_counter(cxt);
+}
+
+
+static void mtdoops_workfunc_write(struct work_struct *work)
+{
+	struct mtdoops_context *cxt =
+			container_of(work, struct mtdoops_context, work_write);
+
+	mtdoops_write(cxt, 0);
+}					
+
+static void find_next_position(struct mtdoops_context *cxt)
+{
+	struct mtd_info *mtd = cxt->mtd;
+	int ret, page, maxpos = 0;
 	u32 count, maxcount = 0xffffffff;
 	size_t retlen;
 
 	for (page = 0; page < cxt->oops_pages; page++) {
-		mtd->read(mtd, page * OOPS_PAGE_SIZE, 4, &retlen, (u_char *) &count);
+		ret = mtd->read(mtd, page * OOPS_PAGE_SIZE, 4, &retlen, (u_char *) &count);
+		if ((retlen != 4) || ((ret < 0) && (ret != -EUCLEAN))) {
+			printk(KERN_ERR "mtdoops: Read failure at %d (%td of 4 read)"
+				", err %d.\n", page * OOPS_PAGE_SIZE, retlen, ret);
+			continue;
+		}
+
 		if (count == 0xffffffff)
 			continue;
 		if (maxcount == 0xffffffff) {
@@ -205,20 +258,19 @@ static int find_next_position(struct mtdoops_context *cxt)
 		cxt->ready = 1;
 		printk(KERN_DEBUG "mtdoops: Ready %d, %d (first init)\n",
 				cxt->nextpage, cxt->nextcount);
-		return 0;
+		return;
 	}
 
 	cxt->nextpage = maxpos;
 	cxt->nextcount = maxcount;
 
-	return mtdoops_inc_counter(cxt);
+	mtdoops_inc_counter(cxt);
 }
 
 
 static void mtdoops_notify_add(struct mtd_info *mtd)
 {
 	struct mtdoops_context *cxt = &oops_cxt;
-	int ret;
 
 	if ((mtd->index != cxt->mtd_index) || cxt->mtd_index < 0)
 		return;
@@ -229,14 +281,18 @@ static void mtdoops_notify_add(struct mtd_info *mtd)
 		return;
 	}
 
+	if (mtd->erasesize < OOPS_PAGE_SIZE) {
+		printk(KERN_ERR "Eraseblock size of MTD partition %d too small\n",
+				mtd->index);
+		return;
+	}
+
 	cxt->mtd = mtd;
 	cxt->oops_pages = mtd->size / OOPS_PAGE_SIZE;
 
-	ret = find_next_position(cxt);
-	if (ret == 1)
-		mtdoops_prepare(cxt);
+	find_next_position(cxt);
 
-	printk(KERN_DEBUG "mtdoops: Attached to MTD device %d\n", mtd->index);
+	printk(KERN_INFO "mtdoops: Attached to MTD device %d\n", mtd->index);
 }
 
 static void mtdoops_notify_remove(struct mtd_info *mtd)
@@ -254,31 +310,28 @@ static void mtdoops_console_sync(void)
 {
 	struct mtdoops_context *cxt = &oops_cxt;
 	struct mtd_info *mtd = cxt->mtd;
-	size_t retlen;
-	int ret;
+	unsigned long flags;
 
-	if (!cxt->ready || !mtd)
+	if (!cxt->ready || !mtd || cxt->writecount == 0)
 		return;
 
-	if (cxt->writecount == 0)
+	/* 
+	 *  Once ready is 0 and we've held the lock no further writes to the 
+	 *  buffer will happen
+	 */
+	spin_lock_irqsave(&cxt->writecount_lock, flags);
+	if (!cxt->ready) {
+		spin_unlock_irqrestore(&cxt->writecount_lock, flags);
 		return;
-
-	if (cxt->writecount < OOPS_PAGE_SIZE)
-		memset(cxt->oops_buf + cxt->writecount, 0xff,
-					OOPS_PAGE_SIZE - cxt->writecount);
-
-	ret = mtd->write(mtd, cxt->nextpage * OOPS_PAGE_SIZE,
-					OOPS_PAGE_SIZE, &retlen, cxt->oops_buf);
+	}
 	cxt->ready = 0;
-	cxt->writecount = 0;
+	spin_unlock_irqrestore(&cxt->writecount_lock, flags);
 
-	if ((retlen != OOPS_PAGE_SIZE) || (ret < 0))
-		printk(KERN_ERR "mtdoops: Write failure at %d (%td of %d written), err %d.\n",
-			cxt->nextpage * OOPS_PAGE_SIZE, retlen,	OOPS_PAGE_SIZE, ret);
-
-	ret = mtdoops_inc_counter(cxt);
-	if (ret == 1)
-		schedule_work(&cxt->work);
+	if (mtd->panic_write && in_interrupt())
+		/* Interrupt context, we're going to panic so try and log */
+		mtdoops_write(cxt, 1);
+	else
+		schedule_work(&cxt->work_write);
 }
 
 static void
@@ -286,7 +339,7 @@ mtdoops_console_write(struct console *co, const char *s, unsigned int count)
 {
 	struct mtdoops_context *cxt = co->data;
 	struct mtd_info *mtd = cxt->mtd;
-	int i;
+	unsigned long flags;
 
 	if (!oops_in_progress) {
 		mtdoops_console_sync();
@@ -294,6 +347,13 @@ mtdoops_console_write(struct console *co, const char *s, unsigned int count)
 	}
 
 	if (!cxt->ready || !mtd)
+		return;
+
+	/* Locking on writecount ensures sequential writes to the buffer */
+	spin_lock_irqsave(&cxt->writecount_lock, flags);
+
+	/* Check ready status didn't change whilst waiting for the lock */
+	if (!cxt->ready)
 		return;
 
 	if (cxt->writecount == 0) {
@@ -305,10 +365,13 @@ mtdoops_console_write(struct console *co, const char *s, unsigned int count)
 	if ((count + cxt->writecount) > OOPS_PAGE_SIZE)
 		count = OOPS_PAGE_SIZE - cxt->writecount;
 
-	for (i = 0; i < count; i++, s++)
-		*((char *)(cxt->oops_buf) + cxt->writecount + i) = *s;
+	memcpy(cxt->oops_buf + cxt->writecount, s, count);
+	cxt->writecount += count;
 
-	cxt->writecount = cxt->writecount + count;
+	spin_unlock_irqrestore(&cxt->writecount_lock, flags);
+
+	if (cxt->writecount == OOPS_PAGE_SIZE)
+		mtdoops_console_sync();
 }
 
 static int __init mtdoops_console_setup(struct console *co, char *options)
@@ -334,7 +397,6 @@ static struct console mtdoops_console = {
 	.write		= mtdoops_console_write,
 	.setup		= mtdoops_console_setup,
 	.unblank	= mtdoops_console_sync,
-	.flags		= CON_PRINTBUFFER,
 	.index		= -1,
 	.data		= &oops_cxt,
 };
@@ -347,11 +409,12 @@ static int __init mtdoops_console_init(void)
 	cxt->oops_buf = vmalloc(OOPS_PAGE_SIZE);
 
 	if (!cxt->oops_buf) {
-		printk(KERN_ERR "Failed to allocate oops buffer workspace\n");
+		printk(KERN_ERR "Failed to allocate mtdoops buffer workspace\n");
 		return -ENOMEM;
 	}
 
-	INIT_WORK(&cxt->work, mtdoops_workfunc);
+	INIT_WORK(&cxt->work_erase, mtdoops_workfunc_erase);
+	INIT_WORK(&cxt->work_write, mtdoops_workfunc_write);
 
 	register_console(&mtdoops_console);
 	register_mtd_user(&mtdoops_notifier);

@@ -150,6 +150,14 @@ config MTD_AFS_PARTS
 	  for your particular device. It won't happen automatically. The
 	  'armflash' map driver (CONFIG_MTD_ARMFLASH) does this, for example.
 
+config MTD_OF_PARTS
+	tristate "Flash partition map based on OF description"
+	depends on PPC_OF && MTD_PARTITIONS
+	help
+	  This provides a partition parsing function which derives
+	  the partition map from the children of the flash node,
+	  as described in Documentation/powerpc/booting-without-of.txt.
+
 comment "User Modules And Translation Layers"
 
 config MTD_CHAR
@@ -285,6 +293,9 @@ config MTD_OOPS
 	  This enables panic and oops messages to be logged to a circular
 	  buffer in a flash partition where it can be read back at some
 	  later point.
+
+	  To use, add console=ttyMTDx to the kernel command line,
+	  where x is the MTD device number to use.
 
 source "drivers/mtd/chips/Kconfig"
 

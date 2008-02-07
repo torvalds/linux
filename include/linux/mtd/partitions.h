@@ -71,5 +71,12 @@ extern int parse_mtd_partitions(struct mtd_info *master, const char **types,
 
 #define put_partition_parser(p) do { module_put((p)->owner); } while(0)
 
-#endif
+struct device;
+struct device_node;
 
+int __devinit of_mtd_parse_partitions(struct device *dev,
+                                      struct mtd_info *mtd,
+                                      struct device_node *node,
+                                      struct mtd_partition **pparts);
+
+#endif

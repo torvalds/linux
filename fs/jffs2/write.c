@@ -582,7 +582,7 @@ int jffs2_do_unlink(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f,
 		jffs2_add_fd_to_list(c, fd, &dir_f->dents);
 		up(&dir_f->sem);
 	} else {
-		struct jffs2_full_dirent **prev = &dir_f->dents;
+		struct jffs2_full_dirent *fd = dir_f->dents;
 		uint32_t nhash = full_name_hash(name, namelen);
 
 		/* We don't actually want to reserve any space, but we do
@@ -590,21 +590,22 @@ int jffs2_do_unlink(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f,
 		down(&c->alloc_sem);
 		down(&dir_f->sem);
 
-		while ((*prev) && (*prev)->nhash <= nhash) {
-			if ((*prev)->nhash == nhash &&
-			    !memcmp((*prev)->name, name, namelen) &&
-			    !(*prev)->name[namelen]) {
-				struct jffs2_full_dirent *this = *prev;
+		for (fd = dir_f->dents; fd; fd = fd->next) {
+			if (fd->nhash == nhash &&
+			    !memcmp(fd->name, name, namelen) &&
+			    !fd->name[namelen]) {
 
 				D1(printk(KERN_DEBUG "Marking old dirent node (ino #%u) @%08x obsolete\n",
-					  this->ino, ref_offset(this->raw)));
-
-				*prev = this->next;
-				jffs2_mark_node_obsolete(c, (this->raw));
-				jffs2_free_full_dirent(this);
+					  fd->ino, ref_offset(fd->raw)));
+				jffs2_mark_node_obsolete(c, fd->raw);
+				/* We don't want to remove it from the list immediately,
+				   because that screws up getdents()/seek() semantics even
+				   more than they're screwed already. Turn it into a
+				   node-less deletion dirent instead -- a placeholder */
+				fd->raw = NULL;
+				fd->ino = 0;
 				break;
 			}
-			prev = &((*prev)->next);
 		}
 		up(&dir_f->sem);
 	}
@@ -630,7 +631,8 @@ int jffs2_do_unlink(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f,
 					D1(printk(KERN_DEBUG "Removing deletion dirent for \"%s\" from dir ino #%u\n",
 						fd->name, dead_f->inocache->ino));
 				}
-				jffs2_mark_node_obsolete(c, fd->raw);
+				if (fd->raw)
+					jffs2_mark_node_obsolete(c, fd->raw);
 				jffs2_free_full_dirent(fd);
 			}
 		}

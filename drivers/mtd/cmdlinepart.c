@@ -9,7 +9,7 @@
  *
  * mtdparts=<mtddef>[;<mtddef]
  * <mtddef>  := <mtd-id>:<partdef>[,<partdef>]
- * <partdef> := <size>[@offset][<name>][ro]
+ * <partdef> := <size>[@offset][<name>][ro][lk]
  * <mtd-id>  := unique name used in mapping driver/device (mtd->name)
  * <size>    := standard linux memsize OR "-" to denote all remaining space
  * <name>    := '(' NAME ')'
@@ -140,6 +140,13 @@ static struct mtd_partition * newpart(char *s,
         if (strncmp(s, "ro", 2) == 0)
 	{
 		mask_flags |= MTD_WRITEABLE;
+		s += 2;
+        }
+
+        /* if lk is found do NOT unlock the MTD partition*/
+        if (strncmp(s, "lk", 2) == 0)
+	{
+		mask_flags |= MTD_POWERUP_LOCK;
 		s += 2;
         }
 

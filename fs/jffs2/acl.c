@@ -176,7 +176,7 @@ static void jffs2_iset_acl(struct inode *inode, struct posix_acl **i_acl, struct
 	spin_unlock(&inode->i_lock);
 }
 
-struct posix_acl *jffs2_get_acl(struct inode *inode, int type)
+static struct posix_acl *jffs2_get_acl(struct inode *inode, int type)
 {
 	struct jffs2_inode_info *f = JFFS2_INODE_INFO(inode);
 	struct posix_acl *acl;
@@ -345,8 +345,10 @@ int jffs2_init_acl_pre(struct inode *dir_i, struct inode *inode, int *i_mode)
 		if (!clone)
 			return -ENOMEM;
 		rc = posix_acl_create_masq(clone, (mode_t *)i_mode);
-		if (rc < 0)
+		if (rc < 0) {
+			posix_acl_release(clone);
 			return rc;
+		}
 		if (rc > 0)
 			jffs2_iset_acl(inode, &f->i_acl_access, clone);
 

@@ -80,64 +80,6 @@ static int parse_obsolete_partitions(struct of_device *dev,
 
 	return nr_parts;
 }
-
-static int __devinit parse_partitions(struct of_flash *info,
-				      struct of_device *dev)
-{
-	const char *partname;
-	static const char *part_probe_types[]
-		= { "cmdlinepart", "RedBoot", NULL };
-	struct device_node *dp = dev->node, *pp;
-	int nr_parts, i;
-
-	/* First look for RedBoot table or partitions on the command
-	 * line, these take precedence over device tree information */
-	nr_parts = parse_mtd_partitions(info->mtd, part_probe_types,
-					&info->parts, 0);
-	if (nr_parts > 0) {
-		add_mtd_partitions(info->mtd, info->parts, nr_parts);
-		return 0;
-	}
-
-	/* First count the subnodes */
-	nr_parts = 0;
-	for (pp = dp->child; pp; pp = pp->sibling)
-		nr_parts++;
-
-	if (nr_parts == 0)
-		return parse_obsolete_partitions(dev, info, dp);
-
-	info->parts = kzalloc(nr_parts * sizeof(*info->parts),
-			      GFP_KERNEL);
-	if (!info->parts)
-		return -ENOMEM;
-
-	for (pp = dp->child, i = 0; pp; pp = pp->sibling, i++) {
-		const u32 *reg;
-		int len;
-
-		reg = of_get_property(pp, "reg", &len);
-		if (!reg || (len != 2*sizeof(u32))) {
-			dev_err(&dev->dev, "Invalid 'reg' on %s\n",
-				dp->full_name);
-			kfree(info->parts);
-			info->parts = NULL;
-			return -EINVAL;
-		}
-		info->parts[i].offset = reg[0];
-		info->parts[i].size = reg[1];
-
-		partname = of_get_property(pp, "label", &len);
-		if (!partname)
-			partname = of_get_property(pp, "name", &len);
-		info->parts[i].name = (char *)partname;
-
-		if (of_get_property(pp, "read-only", &len))
-			info->parts[i].mask_flags = MTD_WRITEABLE;
-	}
-
-	return nr_parts;
-}
 #else /* MTD_PARTITIONS */
 #define	OF_FLASH_PARTS(info)		(0)
 #define parse_partitions(info, dev)	(0)
@@ -212,6 +154,10 @@ static struct mtd_info * __devinit obsolete_probe(struct of_device *dev,
 static int __devinit of_flash_probe(struct of_device *dev,
 				    const struct of_device_id *match)
 {
+#ifdef CONFIG_MTD_PARTITIONS
+	static const char *part_probe_types[]
+		= { "cmdlinepart", "RedBoot", NULL };
+#endif
 	struct device_node *dp = dev->node;
 	struct resource res;
 	struct of_flash *info;
@@ -274,13 +220,33 @@ static int __devinit of_flash_probe(struct of_device *dev,
 	}
 	info->mtd->owner = THIS_MODULE;
 
-	err = parse_partitions(info, dev);
+#ifdef CONFIG_MTD_PARTITIONS
+	/* First look for RedBoot table or partitions on the command
+	 * line, these take precedence over device tree information */
+	err = parse_mtd_partitions(info->mtd, part_probe_types,
+	                           &info->parts, 0);
 	if (err < 0)
-		goto err_out;
+		return err;
+
+#ifdef CONFIG_MTD_OF_PARTS
+	if (err == 0) {
+		err = of_mtd_parse_partitions(&dev->dev, info->mtd,
+		                              dp, &info->parts);
+		if (err < 0)
+			return err;
+	}
+#endif
+
+	if (err == 0) {
+		err = parse_obsolete_partitions(dev, info, dp);
+		if (err < 0)
+			return err;
+	}
 
 	if (err > 0)
-		add_mtd_partitions(info->mtd, OF_FLASH_PARTS(info), err);
+		add_mtd_partitions(info->mtd, info->parts, err);
 	else
+#endif
 		add_mtd_device(info->mtd);
 
 	return 0;

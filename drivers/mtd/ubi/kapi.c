@@ -30,23 +30,27 @@
  * @ubi_num: UBI device number
  * @di: the information is stored here
  *
- * This function returns %0 in case of success and a %-ENODEV if there is no
- * such UBI device.
+ * This function returns %0 in case of success, %-EINVAL if the UBI device
+ * number is invalid, and %-ENODEV if there is no such UBI device.
  */
 int ubi_get_device_info(int ubi_num, struct ubi_device_info *di)
 {
-	const struct ubi_device *ubi;
+	struct ubi_device *ubi;
 
-	if (ubi_num < 0 || ubi_num >= UBI_MAX_DEVICES ||
-	    !ubi_devices[ubi_num])
+	if (ubi_num < 0 || ubi_num >= UBI_MAX_DEVICES)
+		return -EINVAL;
+
+	ubi = ubi_get_device(ubi_num);
+	if (!ubi)
 		return -ENODEV;
 
-	ubi = ubi_devices[ubi_num];
 	di->ubi_num = ubi->ubi_num;
 	di->leb_size = ubi->leb_size;
 	di->min_io_size = ubi->min_io_size;
 	di->ro_mode = ubi->ro_mode;
-	di->cdev = MKDEV(ubi->major, 0);
+	di->cdev = ubi->cdev.dev;
+
+	ubi_put_device(ubi);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ubi_get_device_info);
@@ -73,7 +77,7 @@ void ubi_get_volume_info(struct ubi_volume_desc *desc,
 	vi->usable_leb_size = vol->usable_leb_size;
 	vi->name_len = vol->name_len;
 	vi->name = vol->name;
-	vi->cdev = MKDEV(ubi->major, vi->vol_id + 1);
+	vi->cdev = vol->cdev.dev;
 }
 EXPORT_SYMBOL_GPL(ubi_get_volume_info);
 
@@ -104,37 +108,39 @@ struct ubi_volume_desc *ubi_open_volume(int ubi_num, int vol_id, int mode)
 
 	dbg_msg("open device %d volume %d, mode %d", ubi_num, vol_id, mode);
 
-	err = -ENODEV;
-	if (ubi_num < 0)
-		return ERR_PTR(err);
+	if (ubi_num < 0 || ubi_num >= UBI_MAX_DEVICES)
+		return ERR_PTR(-EINVAL);
 
-	ubi = ubi_devices[ubi_num];
-
-	if (!try_module_get(THIS_MODULE))
-		return ERR_PTR(err);
-
-	if (ubi_num >= UBI_MAX_DEVICES || !ubi)
-		goto out_put;
-
-	err = -EINVAL;
-	if (vol_id < 0 || vol_id >= ubi->vtbl_slots)
-		goto out_put;
 	if (mode != UBI_READONLY && mode != UBI_READWRITE &&
 	    mode != UBI_EXCLUSIVE)
-		goto out_put;
+		return ERR_PTR(-EINVAL);
+
+	/*
+	 * First of all, we have to get the UBI device to prevent its removal.
+	 */
+	ubi = ubi_get_device(ubi_num);
+	if (!ubi)
+		return ERR_PTR(-ENODEV);
+
+	if (vol_id < 0 || vol_id >= ubi->vtbl_slots) {
+		err = -EINVAL;
+		goto out_put_ubi;
+	}
 
 	desc = kmalloc(sizeof(struct ubi_volume_desc), GFP_KERNEL);
 	if (!desc) {
 		err = -ENOMEM;
-		goto out_put;
+		goto out_put_ubi;
 	}
+
+	err = -ENODEV;
+	if (!try_module_get(THIS_MODULE))
+		goto out_free;
 
 	spin_lock(&ubi->volumes_lock);
 	vol = ubi->volumes[vol_id];
-	if (!vol) {
-		err = -ENODEV;
+	if (!vol)
 		goto out_unlock;
-	}
 
 	err = -EBUSY;
 	switch (mode) {
@@ -156,21 +162,19 @@ struct ubi_volume_desc *ubi_open_volume(int ubi_num, int vol_id, int mode)
 		vol->exclusive = 1;
 		break;
 	}
+	get_device(&vol->dev);
+	vol->ref_count += 1;
 	spin_unlock(&ubi->volumes_lock);
 
 	desc->vol = vol;
 	desc->mode = mode;
 
-	/*
-	 * To prevent simultaneous checks of the same volume we use @vtbl_mutex,
-	 * although it is not the purpose it was introduced for.
-	 */
-	mutex_lock(&ubi->vtbl_mutex);
+	mutex_lock(&ubi->ckvol_mutex);
 	if (!vol->checked) {
 		/* This is the first open - check the volume */
 		err = ubi_check_volume(ubi, vol_id);
 		if (err < 0) {
-			mutex_unlock(&ubi->vtbl_mutex);
+			mutex_unlock(&ubi->ckvol_mutex);
 			ubi_close_volume(desc);
 			return ERR_PTR(err);
 		}
@@ -181,14 +185,17 @@ struct ubi_volume_desc *ubi_open_volume(int ubi_num, int vol_id, int mode)
 		}
 		vol->checked = 1;
 	}
-	mutex_unlock(&ubi->vtbl_mutex);
+	mutex_unlock(&ubi->ckvol_mutex);
+
 	return desc;
 
 out_unlock:
 	spin_unlock(&ubi->volumes_lock);
-	kfree(desc);
-out_put:
 	module_put(THIS_MODULE);
+out_free:
+	kfree(desc);
+out_put_ubi:
+	ubi_put_device(ubi);
 	return ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(ubi_open_volume);
@@ -205,8 +212,8 @@ struct ubi_volume_desc *ubi_open_volume_nm(int ubi_num, const char *name,
 					   int mode)
 {
 	int i, vol_id = -1, len;
-	struct ubi_volume_desc *ret;
 	struct ubi_device *ubi;
+	struct ubi_volume_desc *ret;
 
 	dbg_msg("open volume %s, mode %d", name, mode);
 
@@ -217,14 +224,12 @@ struct ubi_volume_desc *ubi_open_volume_nm(int ubi_num, const char *name,
 	if (len > UBI_VOL_NAME_MAX)
 		return ERR_PTR(-EINVAL);
 
-	ret = ERR_PTR(-ENODEV);
-	if (!try_module_get(THIS_MODULE))
-		return ret;
+	if (ubi_num < 0 || ubi_num >= UBI_MAX_DEVICES)
+		return ERR_PTR(-EINVAL);
 
-	if (ubi_num < 0 || ubi_num >= UBI_MAX_DEVICES || !ubi_devices[ubi_num])
-		goto out_put;
-
-	ubi = ubi_devices[ubi_num];
+	ubi = ubi_get_device(ubi_num);
+	if (!ubi)
+		return ERR_PTR(-ENODEV);
 
 	spin_lock(&ubi->volumes_lock);
 	/* Walk all volumes of this UBI device */
@@ -238,13 +243,16 @@ struct ubi_volume_desc *ubi_open_volume_nm(int ubi_num, const char *name,
 	}
 	spin_unlock(&ubi->volumes_lock);
 
-	if (vol_id < 0)
-		goto out_put;
+	if (vol_id >= 0)
+		ret = ubi_open_volume(ubi_num, vol_id, mode);
+	else
+		ret = ERR_PTR(-ENODEV);
 
-	ret = ubi_open_volume(ubi_num, vol_id, mode);
-
-out_put:
-	module_put(THIS_MODULE);
+	/*
+	 * We should put the UBI device even in case of success, because
+	 * 'ubi_open_volume()' took a reference as well.
+	 */
+	ubi_put_device(ubi);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(ubi_open_volume_nm);
@@ -256,10 +264,11 @@ EXPORT_SYMBOL_GPL(ubi_open_volume_nm);
 void ubi_close_volume(struct ubi_volume_desc *desc)
 {
 	struct ubi_volume *vol = desc->vol;
+	struct ubi_device *ubi = vol->ubi;
 
 	dbg_msg("close volume %d, mode %d", vol->vol_id, desc->mode);
 
-	spin_lock(&vol->ubi->volumes_lock);
+	spin_lock(&ubi->volumes_lock);
 	switch (desc->mode) {
 	case UBI_READONLY:
 		vol->readers -= 1;
@@ -270,9 +279,12 @@ void ubi_close_volume(struct ubi_volume_desc *desc)
 	case UBI_EXCLUSIVE:
 		vol->exclusive = 0;
 	}
-	spin_unlock(&vol->ubi->volumes_lock);
+	vol->ref_count -= 1;
+	spin_unlock(&ubi->volumes_lock);
 
 	kfree(desc);
+	put_device(&vol->dev);
+	ubi_put_device(ubi);
 	module_put(THIS_MODULE);
 }
 EXPORT_SYMBOL_GPL(ubi_close_volume);
@@ -332,7 +344,7 @@ int ubi_leb_read(struct ubi_volume_desc *desc, int lnum, char *buf, int offset,
 	if (len == 0)
 		return 0;
 
-	err = ubi_eba_read_leb(ubi, vol_id, lnum, buf, offset, len, check);
+	err = ubi_eba_read_leb(ubi, vol, lnum, buf, offset, len, check);
 	if (err && err == -EBADMSG && vol->vol_type == UBI_STATIC_VOLUME) {
 		ubi_warn("mark volume %d as corrupted", vol_id);
 		vol->corrupted = 1;
@@ -399,7 +411,7 @@ int ubi_leb_write(struct ubi_volume_desc *desc, int lnum, const void *buf,
 	if (len == 0)
 		return 0;
 
-	return ubi_eba_write_leb(ubi, vol_id, lnum, buf, offset, len, dtype);
+	return ubi_eba_write_leb(ubi, vol, lnum, buf, offset, len, dtype);
 }
 EXPORT_SYMBOL_GPL(ubi_leb_write);
 
@@ -448,7 +460,7 @@ int ubi_leb_change(struct ubi_volume_desc *desc, int lnum, const void *buf,
 	if (len == 0)
 		return 0;
 
-	return ubi_eba_atomic_leb_change(ubi, vol_id, lnum, buf, len, dtype);
+	return ubi_eba_atomic_leb_change(ubi, vol, lnum, buf, len, dtype);
 }
 EXPORT_SYMBOL_GPL(ubi_leb_change);
 
@@ -468,9 +480,9 @@ int ubi_leb_erase(struct ubi_volume_desc *desc, int lnum)
 {
 	struct ubi_volume *vol = desc->vol;
 	struct ubi_device *ubi = vol->ubi;
-	int err, vol_id = vol->vol_id;
+	int err;
 
-	dbg_msg("erase LEB %d:%d", vol_id, lnum);
+	dbg_msg("erase LEB %d:%d", vol->vol_id, lnum);
 
 	if (desc->mode == UBI_READONLY || vol->vol_type == UBI_STATIC_VOLUME)
 		return -EROFS;
@@ -481,7 +493,7 @@ int ubi_leb_erase(struct ubi_volume_desc *desc, int lnum)
 	if (vol->upd_marker)
 		return -EBADF;
 
-	err = ubi_eba_unmap_leb(ubi, vol_id, lnum);
+	err = ubi_eba_unmap_leb(ubi, vol, lnum);
 	if (err)
 		return err;
 
@@ -529,9 +541,8 @@ int ubi_leb_unmap(struct ubi_volume_desc *desc, int lnum)
 {
 	struct ubi_volume *vol = desc->vol;
 	struct ubi_device *ubi = vol->ubi;
-	int vol_id = vol->vol_id;
 
-	dbg_msg("unmap LEB %d:%d", vol_id, lnum);
+	dbg_msg("unmap LEB %d:%d", vol->vol_id, lnum);
 
 	if (desc->mode == UBI_READONLY || vol->vol_type == UBI_STATIC_VOLUME)
 		return -EROFS;
@@ -542,9 +553,53 @@ int ubi_leb_unmap(struct ubi_volume_desc *desc, int lnum)
 	if (vol->upd_marker)
 		return -EBADF;
 
-	return ubi_eba_unmap_leb(ubi, vol_id, lnum);
+	return ubi_eba_unmap_leb(ubi, vol, lnum);
 }
 EXPORT_SYMBOL_GPL(ubi_leb_unmap);
+
+/**
+ * ubi_leb_map - map logical erasblock to a physical eraseblock.
+ * @desc: volume descriptor
+ * @lnum: logical eraseblock number
+ * @dtype: expected data type
+ *
+ * This function maps an un-mapped logical eraseblock @lnum to a physical
+ * eraseblock. This means, that after a successfull invocation of this
+ * function the logical eraseblock @lnum will be empty (contain only %0xFF
+ * bytes) and be mapped to a physical eraseblock, even if an unclean reboot
+ * happens.
+ *
+ * This function returns zero in case of success, %-EBADF if the volume is
+ * damaged because of an interrupted update, %-EBADMSG if the logical
+ * eraseblock is already mapped, and other negative error codes in case of
+ * other failures.
+ */
+int ubi_leb_map(struct ubi_volume_desc *desc, int lnum, int dtype)
+{
+	struct ubi_volume *vol = desc->vol;
+	struct ubi_device *ubi = vol->ubi;
+
+	dbg_msg("unmap LEB %d:%d", vol->vol_id, lnum);
+
+	if (desc->mode == UBI_READONLY || vol->vol_type == UBI_STATIC_VOLUME)
+		return -EROFS;
+
+	if (lnum < 0 || lnum >= vol->reserved_pebs)
+		return -EINVAL;
+
+	if (dtype != UBI_LONGTERM && dtype != UBI_SHORTTERM &&
+	    dtype != UBI_UNKNOWN)
+		return -EINVAL;
+
+	if (vol->upd_marker)
+		return -EBADF;
+
+	if (vol->eba_tbl[lnum] >= 0)
+		return -EBADMSG;
+
+	return ubi_eba_write_leb(ubi, vol, lnum, NULL, 0, 0, dtype);
+}
+EXPORT_SYMBOL_GPL(ubi_leb_map);
 
 /**
  * ubi_is_mapped - check if logical eraseblock is mapped.
