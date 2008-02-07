@@ -3,7 +3,9 @@
 
 #include <linux/types.h>
 #include <linux/elf-em.h>
+#ifdef __KERNEL__
 #include <asm/elf.h>
+#endif
 
 struct file;
 
