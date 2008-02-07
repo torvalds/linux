@@ -123,6 +123,12 @@ enum radeon_family {
 	CHIP_R420,
 	CHIP_RV410,
 	CHIP_RS400,
+	CHIP_RV515,
+	CHIP_R520,
+	CHIP_RV530,
+	CHIP_RV560,
+	CHIP_RV570,
+	CHIP_R580,
 	CHIP_LAST,
 };
 
@@ -342,6 +348,7 @@ extern int radeon_cp_resume(struct drm_device *dev, void *data, struct drm_file 
 extern int radeon_engine_reset(struct drm_device *dev, void *data, struct drm_file *file_priv);
 extern int radeon_fullscreen(struct drm_device *dev, void *data, struct drm_file *file_priv);
 extern int radeon_cp_buffers(struct drm_device *dev, void *data, struct drm_file *file_priv);
+extern u32 radeon_read_fb_location(drm_radeon_private_t *dev_priv);
 
 extern void radeon_freelist_reset(struct drm_device * dev);
 extern struct drm_buf *radeon_freelist_get(struct drm_device * dev);
@@ -388,7 +395,7 @@ extern long radeon_compat_ioctl(struct file *filp, unsigned int cmd,
 				unsigned long arg);
 
 /* r300_cmdbuf.c */
-extern void r300_init_reg_flags(void);
+extern void r300_init_reg_flags(struct drm_device *dev);
 
 extern int r300_do_cp_cmdbuf(struct drm_device * dev,
 			     struct drm_file *file_priv,
@@ -459,6 +466,16 @@ extern int r300_do_cp_cmdbuf(struct drm_device * dev,
 #define RADEON_IGPGART_FLUSH            0x2e
 #define RADEON_IGPGART_ENABLE           0x38
 #define RADEON_IGPGART_UNK_39           0x39
+
+#define R520_MC_IND_INDEX 0x70
+#define R520_MC_IND_WR_EN (1<<24)
+#define R520_MC_IND_DATA  0x74
+
+#define RV515_MC_FB_LOCATION 0x01
+#define RV515_MC_AGP_LOCATION 0x02
+
+#define R520_MC_FB_LOCATION 0x04
+#define R520_MC_AGP_LOCATION 0x05
 
 #define RADEON_MPP_TB_CONFIG		0x01c0
 #define RADEON_MEM_CNTL			0x0140
@@ -1051,6 +1068,13 @@ do {									\
 			((addr) & 0xff));				\
 	RADEON_WRITE( RADEON_PCIE_DATA, (val) );			\
 } while (0)
+
+#define RADEON_WRITE_MCIND( addr, val )					\
+	do {								\
+		RADEON_WRITE(R520_MC_IND_INDEX, 0xff0000 | ((addr) & 0xff));	\
+		RADEON_WRITE(R520_MC_IND_DATA, (val));			\
+		RADEON_WRITE(R520_MC_IND_INDEX, 0);	\
+	} while (0)
 
 #define CP_PACKET0( reg, n )						\
 	(RADEON_CP_PACKET0 | ((n) << 16) | ((reg) >> 2))
