@@ -95,8 +95,6 @@ struct sparc_trapf {
 
 #ifdef __KERNEL__
 
-#define __ARCH_SYS_PTRACE	1
-
 #define force_successful_syscall_return()	    \
 do {	current_thread_info()->syscall_noerror = 1; \
 } while (0)
@@ -261,8 +259,6 @@ extern void show_regs(struct pt_regs *);
 #define SF_XXARG  0x5c
 
 /* Stuff for the ptrace system call */
-#define PTRACE_SUNATTACH          10
-#define PTRACE_SUNDETACH          11
 #define PTRACE_GETREGS            12
 #define PTRACE_SETREGS            13
 #define PTRACE_GETFPREGS          14
@@ -283,19 +279,5 @@ extern void show_regs(struct pt_regs *);
 /* PTRACE_SYSCALL is 24 */
 #define PTRACE_GETFPREGS64	  25
 #define PTRACE_SETFPREGS64	  26
-
-#define PTRACE_GETUCODE           29  /* stupid bsd-ism */
-
-/* These are for 32-bit processes debugging 64-bit ones.
- * Here addr and addr2 are passed in %g2 and %g3 respectively.
- */
-#define PTRACE_PEEKTEXT64         (30 + PTRACE_PEEKTEXT)
-#define PTRACE_POKETEXT64         (30 + PTRACE_POKETEXT)
-#define PTRACE_PEEKDATA64         (30 + PTRACE_PEEKDATA)
-#define PTRACE_POKEDATA64         (30 + PTRACE_POKEDATA)
-#define PTRACE_READDATA64         (30 + PTRACE_READDATA)
-#define PTRACE_WRITEDATA64        (30 + PTRACE_WRITEDATA)
-#define PTRACE_READTEXT64         (30 + PTRACE_READTEXT)
-#define PTRACE_WRITETEXT64        (30 + PTRACE_WRITETEXT)
 
 #endif /* !(_SPARC64_PTRACE_H) */

@@ -632,10 +632,35 @@ tlb_fixup_done:
 	/* Not reached... */
 
 1:
+	/* If we boot on a non-zero cpu, all of the per-cpu
+	 * variable references we make before setting up the
+	 * per-cpu areas will use a bogus offset.  Put a
+	 * compensating factor into __per_cpu_base to handle
+	 * this cleanly.
+	 *
+	 * What the per-cpu code calculates is:
+	 *
+	 *	__per_cpu_base + (cpu << __per_cpu_shift)
+	 *
+	 * These two variables are zero initially, so to
+	 * make it all cancel out to zero we need to put
+	 * "0 - (cpu << 0)" into __per_cpu_base so that the
+	 * above formula evaluates to zero.
+	 *
+	 * We cannot even perform a printk() until this stuff
+	 * is setup as that calls cpu_clock() which uses
+	 * per-cpu variables.
+	 */
+	sub	%g0, %o0, %o1
+	sethi	%hi(__per_cpu_base), %o2
+	stx	%o1, [%o2 + %lo(__per_cpu_base)]
 #else
 	mov	0, %o0
 #endif
 	sth	%o0, [%g6 + TI_CPU]
+
+	call	prom_init_report
+	 nop
 
 	/* Off we go.... */
 	call	start_kernel

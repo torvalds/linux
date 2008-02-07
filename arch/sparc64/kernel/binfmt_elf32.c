@@ -1,20 +1,13 @@
 /*
  * binfmt_elf32.c: Support 32-bit Sparc ELF binaries on Ultra.
  *
- * Copyright (C) 1995, 1996, 1997, 1998 David S. Miller	(davem@davemloft.net)
+ * Copyright (C) 1995, 1996, 1997, 1998, 2008 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1995, 1996, 1997, 1998 Jakub Jelinek	(jj@ultra.linux.cz)
  */
 
 #define ELF_ARCH		EM_SPARC
 #define ELF_CLASS		ELFCLASS32
 #define ELF_DATA		ELFDATA2MSB;
-
-/* For the most part we present code dumps in the format
- * Solaris does.
- */
-typedef unsigned int elf_greg_t;
-#define ELF_NGREG 38
-typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 
 /* Format is:
  * 	G0 --> G7
@@ -23,25 +16,9 @@ typedef elf_greg_t elf_gregset_t[ELF_NGREG];
  *	I0 --> I7
  *	PSR, PC, nPC, Y, WIM, TBR
  */
-#include <asm/psrcompat.h>
-#define ELF_CORE_COPY_REGS(__elf_regs, __pt_regs)	\
-do {	unsigned int *dest = &(__elf_regs[0]);		\
-	struct pt_regs *src = (__pt_regs);		\
-	unsigned int __user *sp;			\
-	int i;						\
-	for(i = 0; i < 16; i++)				\
-		dest[i] = (unsigned int) src->u_regs[i];\
-	/* Don't try this at home kids... */		\
-	sp = (unsigned int __user *) (src->u_regs[14] &	\
-		0x00000000fffffffc);			\
-	for(i = 0; i < 16; i++)				\
-		__get_user(dest[i+16], &sp[i]);		\
-	dest[32] = tstate_to_psr(src->tstate);		\
-	dest[33] = (unsigned int) src->tpc;		\
-	dest[34] = (unsigned int) src->tnpc;		\
-	dest[35] = src->y;				\
-	dest[36] = dest[37] = 0; /* XXX */		\
-} while(0);
+typedef unsigned int elf_greg_t;
+#define ELF_NGREG 38
+typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 
 typedef struct {
 	union {

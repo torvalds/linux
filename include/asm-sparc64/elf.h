@@ -70,6 +70,8 @@
 #define HWCAP_SPARC_BLKINIT	64
 #define HWCAP_SPARC_N2		128
 
+#define CORE_DUMP_USE_REGSET
+
 /*
  * These are used to set parameters in the core dumps.
  */
@@ -78,10 +80,6 @@
 #define ELF_CLASS		ELFCLASS64
 #define ELF_DATA		ELFDATA2MSB
 
-typedef unsigned long elf_greg_t;
-
-#define ELF_NGREG 36
-typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 /* Format of 64-bit elf_gregset_t is:
  * 	G0 --> G7
  * 	O0 --> O7
@@ -92,24 +90,9 @@ typedef elf_greg_t elf_gregset_t[ELF_NGREG];
  *	TNPC
  *	Y
  */
-#define ELF_CORE_COPY_REGS(__elf_regs, __pt_regs)	\
-do {	unsigned long *dest = &(__elf_regs[0]);		\
-	struct pt_regs *src = (__pt_regs);		\
-	unsigned long __user *sp;			\
-	int i;						\
-	for(i = 0; i < 16; i++)				\
-		dest[i] = src->u_regs[i];		\
-	/* Don't try this at home kids... */		\
-	sp = (unsigned long __user *)			\
-	 ((src->u_regs[14] + STACK_BIAS)		\
-	  & 0xfffffffffffffff8UL);			\
-	for(i = 0; i < 16; i++)				\
-		__get_user(dest[i+16], &sp[i]);		\
-	dest[32] = src->tstate;				\
-	dest[33] = src->tpc;				\
-	dest[34] = src->tnpc;				\
-	dest[35] = src->y;				\
-} while (0);
+typedef unsigned long elf_greg_t;
+#define ELF_NGREG 36
+typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 
 typedef struct {
 	unsigned long	pr_regs[32];
@@ -118,9 +101,6 @@ typedef struct {
 	unsigned long	pr_fprs;
 } elf_fpregset_t;
 #endif
-
-#define ELF_CORE_COPY_TASK_REGS(__tsk, __elf_regs)	\
-	({ ELF_CORE_COPY_REGS((*(__elf_regs)), task_pt_regs(__tsk)); 1; })
 
 /*
  * This is used to ensure we don't load something for the wrong architecture.

@@ -61,8 +61,6 @@ struct sparc_stackf {
 
 #ifdef __KERNEL__
 
-#define __ARCH_SYS_PTRACE	1
-
 #define user_mode(regs) (!((regs)->psr & PSR_PS))
 #define instruction_pointer(regs) ((regs)->pc)
 unsigned long profile_pc(struct pt_regs *);
@@ -151,8 +149,6 @@ extern void show_regs(struct pt_regs *);
 #define SF_XXARG  0x5c
 
 /* Stuff for the ptrace system call */
-#define PTRACE_SUNATTACH	  10
-#define PTRACE_SUNDETACH	  11
 #define PTRACE_GETREGS            12
 #define PTRACE_SETREGS            13
 #define PTRACE_GETFPREGS          14
@@ -163,8 +159,5 @@ extern void show_regs(struct pt_regs *);
 #define PTRACE_WRITETEXT          19
 #define PTRACE_GETFPAREGS         20
 #define PTRACE_SETFPAREGS         21
-
-#define PTRACE_GETUCODE           29  /* stupid bsd-ism */
-
 
 #endif /* !(_SPARC_PTRACE_H) */
