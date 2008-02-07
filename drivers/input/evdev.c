@@ -617,7 +617,7 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 		if (get_user(t, ip))
 			return -EFAULT;
 
-		error = dev->getkeycode(dev, t, &v);
+		error = input_get_keycode(dev, t, &v);
 		if (error)
 			return error;
 
@@ -630,7 +630,7 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 		if (get_user(t, ip) || get_user(v, ip + 1))
 			return -EFAULT;
 
-		return dev->setkeycode(dev, t, v);
+		return input_set_keycode(dev, t, v);
 
 	case EVIOCSFF:
 		if (copy_from_user(&effect, p, sizeof(effect)))
@@ -683,7 +683,7 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 				case EV_FF:  bits = dev->ffbit;  len = FF_MAX;  break;
 				case EV_SW:  bits = dev->swbit;  len = SW_MAX;  break;
 				default: return -EINVAL;
-			}
+				}
 				return bits_to_user(bits, len, _IOC_SIZE(cmd), p, compat_mode);
 			}
 

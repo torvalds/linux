@@ -154,6 +154,27 @@ config KEYBOARD_SPITZ
 	  To compile this driver as a module, choose M here: the
 	  module will be called spitzkbd.
 
+config KEYBOARD_TOSA
+	tristate "Tosa keyboard"
+	depends on MACH_TOSA
+	default y
+	help
+	  Say Y here to enable the keyboard on the Sharp Zaurus SL-6000x (Tosa)
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tosakbd.
+
+config KEYBOARD_TOSA_USE_EXT_KEYCODES
+	bool "Tosa keyboard: use extended keycodes"
+	depends on KEYBOARD_TOSA
+	default n
+	help
+	  Say Y here to enable the tosa keyboard driver to generate extended
+	  (>= 127) keycodes. Be aware, that they can't be correctly interpreted
+	  by either console keyboard driver or by Kdrive keybd driver.
+
+	  Say Y only if you know, what you are doing!
+
 config KEYBOARD_AMIGA
 	tristate "Amiga keyboard"
 	depends on AMIGA
@@ -239,13 +260,13 @@ config KEYBOARD_OMAP
 	  module will be called omap-keypad.
 
 config KEYBOARD_PXA27x
-	tristate "PXA27x keyboard support"
-	depends on PXA27x
+	tristate "PXA27x/PXA3xx keypad support"
+	depends on PXA27x || PXA3xx
 	help
-	  Enable support for PXA27x matrix keyboard controller
+	  Enable support for PXA27x/PXA3xx keypad controller
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called pxa27x_keyboard.
+	  module will be called pxa27x_keypad.
 
 config KEYBOARD_AAED2000
 	tristate "AAED-2000 keyboard"

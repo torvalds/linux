@@ -40,6 +40,20 @@ config INPUT_M68K_BEEP
 	tristate "M68k Beeper support"
 	depends on M68K
 
+config INPUT_APANEL
+	tristate "Fujitsu Lifebook Application Panel buttons"
+	depends on X86
+	select I2C_I801
+	select INPUT_POLLDEV
+	select CHECK_SIGNATURE
+	help
+	 Say Y here for support of the Application Panel buttons, used on
+	 Fujitsu Lifebook. These are attached to the mainboard through
+	 an SMBus interface managed by the I2C Intel ICH (i801) driver.
+
+	 To compile this driver as a module, choose M here: the module will
+	 be called apanel.
+
 config INPUT_IXP4XX_BEEPER
 	tristate "IXP4XX Beeper support"
 	depends on ARCH_IXP4XX

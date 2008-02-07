@@ -21,6 +21,8 @@
 #include <linux/mmc/host.h>
 #include <linux/pm.h>
 #include <linux/delay.h>
+#include <linux/gpio_keys.h>
+#include <linux/input.h>
 
 #include <asm/setup.h>
 #include <asm/memory.h>
@@ -246,6 +248,46 @@ static struct platform_device tosakbd_device = {
 	.id		= -1,
 };
 
+static struct gpio_keys_button tosa_gpio_keys[] = {
+	{
+		.type	= EV_PWR,
+		.code	= KEY_SUSPEND,
+		.gpio	= TOSA_GPIO_ON_KEY,
+		.desc	= "On key",
+		.wakeup	= 1,
+		.active_low = 1,
+	},
+	{
+		.type	= EV_KEY,
+		.code	= TOSA_KEY_RECORD,
+		.gpio	= TOSA_GPIO_RECORD_BTN,
+		.desc	= "Record Button",
+		.wakeup	= 1,
+		.active_low = 1,
+	},
+	{
+		.type	= EV_KEY,
+		.code	= TOSA_KEY_SYNC,
+		.gpio	= TOSA_GPIO_SYNC,
+		.desc	= "Sync Button",
+		.wakeup	= 1,
+		.active_low = 1,
+	},
+};
+
+static struct gpio_keys_platform_data tosa_gpio_keys_platform_data = {
+	.buttons	= tosa_gpio_keys,
+	.nbuttons	= ARRAY_SIZE(tosa_gpio_keys),
+};
+
+static struct platform_device tosa_gpio_keys_device = {
+	.name	= "gpio-keys",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &tosa_gpio_keys_platform_data,
+	},
+};
+
 /*
  * Tosa LEDs
  */
@@ -258,6 +300,7 @@ static struct platform_device *devices[] __initdata = {
 	&tosascoop_device,
 	&tosascoop_jc_device,
 	&tosakbd_device,
+	&tosa_gpio_keys_device,
 	&tosaled_device,
 };
 

@@ -27,55 +27,48 @@
 #define BUTTONS_COUNT_THRESHOLD	3
 #define BUTTONS_STATUS_MASK	0xfe000000
 
+static const unsigned short cobalt_map[] = {
+	KEY_RESERVED,
+	KEY_RESTART,
+	KEY_LEFT,
+	KEY_UP,
+	KEY_DOWN,
+	KEY_RIGHT,
+	KEY_ENTER,
+	KEY_SELECT
+};
+
 struct buttons_dev {
 	struct input_polled_dev *poll_dev;
+	unsigned short keymap[ARRAY_SIZE(cobalt_map)];
+	int count[ARRAY_SIZE(cobalt_map)];
 	void __iomem *reg;
-};
-
-struct buttons_map {
-	uint32_t mask;
-	int keycode;
-	int count;
-};
-
-static struct buttons_map buttons_map[] = {
-	{ 0x02000000, KEY_RESTART, },
-	{ 0x04000000, KEY_LEFT, },
-	{ 0x08000000, KEY_UP, },
-	{ 0x10000000, KEY_DOWN, },
-	{ 0x20000000, KEY_RIGHT, },
-	{ 0x40000000, KEY_ENTER, },
-	{ 0x80000000, KEY_SELECT, },
 };
 
 static void handle_buttons(struct input_polled_dev *dev)
 {
-	struct buttons_map *button = buttons_map;
 	struct buttons_dev *bdev = dev->private;
 	struct input_dev *input = dev->input;
 	uint32_t status;
 	int i;
 
-	status = readl(bdev->reg);
-	status = ~status & BUTTONS_STATUS_MASK;
+	status = ~readl(bdev->reg) >> 24;
 
-	for (i = 0; i < ARRAY_SIZE(buttons_map); i++) {
-		if (status & button->mask) {
-			button->count++;
-		} else {
-			if (button->count >= BUTTONS_COUNT_THRESHOLD) {
-				input_report_key(input, button->keycode, 0);
+	for (i = 0; i < ARRAY_SIZE(bdev->keymap); i++) {
+		if (status & (1UL << i)) {
+			if (++bdev->count[i] == BUTTONS_COUNT_THRESHOLD) {
+				input_event(input, EV_MSC, MSC_SCAN, i);
+				input_report_key(input, bdev->keymap[i], 1);
 				input_sync(input);
 			}
-			button->count = 0;
+		} else {
+			if (bdev->count[i] >= BUTTONS_COUNT_THRESHOLD) {
+				input_event(input, EV_MSC, MSC_SCAN, i);
+				input_report_key(input, bdev->keymap[i], 0);
+				input_sync(input);
+			}
+			bdev->count[i] = 0;
 		}
-
-		if (button->count == BUTTONS_COUNT_THRESHOLD) {
-			input_report_key(input, button->keycode, 1);
-			input_sync(input);
-		}
-
-		button++;
 	}
 }
 
@@ -94,6 +87,8 @@ static int __devinit cobalt_buttons_probe(struct platform_device *pdev)
 		goto err_free_mem;
 	}
 
+	memcpy(bdev->keymap, cobalt_map, sizeof(bdev->keymap));
+
 	poll_dev->private = bdev;
 	poll_dev->poll = handle_buttons;
 	poll_dev->poll_interval = BUTTONS_POLL_INTERVAL;
@@ -104,11 +99,15 @@ static int __devinit cobalt_buttons_probe(struct platform_device *pdev)
 	input->id.bustype = BUS_HOST;
 	input->cdev.dev = &pdev->dev;
 
-	input->evbit[0] = BIT_MASK(EV_KEY);
-	for (i = 0; i < ARRAY_SIZE(buttons_map); i++) {
-		set_bit(buttons_map[i].keycode, input->keybit);
-		buttons_map[i].count = 0;
-	}
+	input->keycode = pdev->keymap;
+	input->keycodemax = ARRAY_SIZE(pdev->keymap);
+	input->keycodesize = sizeof(unsigned short);
+
+	input_set_capability(input, EV_MSC, MSC_SCAN);
+	__set_bit(EV_KEY, input->evbit);
+	for (i = 0; i < ARRAY_SIZE(buttons_map); i++)
+		__set_bit(input->keycode[i], input->keybit);
+	__clear_bit(KEY_RESERVED, input->keybit);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
