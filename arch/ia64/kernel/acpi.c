@@ -615,8 +615,6 @@ int acpi_register_gsi(u32 gsi, int triggering, int polarity)
 				     IOSAPIC_LEVEL);
 }
 
-EXPORT_SYMBOL(acpi_register_gsi);
-
 void acpi_unregister_gsi(u32 gsi)
 {
 	if (acpi_irq_model == ACPI_IRQ_MODEL_PLATFORM)
@@ -624,8 +622,6 @@ void acpi_unregister_gsi(u32 gsi)
 
 	iosapic_unregister_intr(gsi);
 }
-
-EXPORT_SYMBOL(acpi_unregister_gsi);
 
 static int __init acpi_parse_fadt(struct acpi_table_header *table)
 {

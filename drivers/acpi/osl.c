@@ -233,8 +233,6 @@ void acpi_os_printf(const char *fmt, ...)
 	va_end(args);
 }
 
-EXPORT_SYMBOL(acpi_os_printf);
-
 void acpi_os_vprintf(const char *fmt, va_list args)
 {
 	static char buffer[512];
@@ -413,8 +411,6 @@ void acpi_os_sleep(acpi_integer ms)
 	schedule_timeout_interruptible(msecs_to_jiffies(ms));
 }
 
-EXPORT_SYMBOL(acpi_os_sleep);
-
 void acpi_os_stall(u32 us)
 {
 	while (us) {
@@ -427,8 +423,6 @@ void acpi_os_stall(u32 us)
 		us -= delay;
 	}
 }
-
-EXPORT_SYMBOL(acpi_os_stall);
 
 /*
  * Support ACPI 3.0 AML Timer operand
@@ -578,8 +572,6 @@ acpi_os_read_pci_configuration(struct acpi_pci_id * pci_id, u32 reg,
 
 	return (result ? AE_ERROR : AE_OK);
 }
-
-EXPORT_SYMBOL(acpi_os_read_pci_configuration);
 
 acpi_status
 acpi_os_write_pci_configuration(struct acpi_pci_id * pci_id, u32 reg,
@@ -796,8 +788,6 @@ acpi_os_create_semaphore(u32 max_units, u32 initial_units, acpi_handle * handle)
 	return AE_OK;
 }
 
-EXPORT_SYMBOL(acpi_os_create_semaphore);
-
 /*
  * TODO: A better way to delete semaphores?  Linux doesn't have a
  * 'delete_semaphore()' function -- may result in an invalid
@@ -820,8 +810,6 @@ acpi_status acpi_os_delete_semaphore(acpi_handle handle)
 
 	return AE_OK;
 }
-
-EXPORT_SYMBOL(acpi_os_delete_semaphore);
 
 /*
  * TODO: The kernel doesn't have a 'down_timeout' function -- had to
@@ -915,8 +903,6 @@ acpi_status acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 timeout)
 	return status;
 }
 
-EXPORT_SYMBOL(acpi_os_wait_semaphore);
-
 /*
  * TODO: Support for units > 1?
  */
@@ -938,8 +924,6 @@ acpi_status acpi_os_signal_semaphore(acpi_handle handle, u32 units)
 
 	return AE_OK;
 }
-
-EXPORT_SYMBOL(acpi_os_signal_semaphore);
 
 #ifdef ACPI_FUTURE_USAGE
 u32 acpi_os_get_line(char *buffer)
@@ -983,8 +967,6 @@ acpi_status acpi_os_signal(u32 function, void *info)
 
 	return AE_OK;
 }
-
-EXPORT_SYMBOL(acpi_os_signal);
 
 static int __init acpi_os_name_setup(char *str)
 {

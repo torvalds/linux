@@ -888,7 +888,7 @@ static void acpi_charger_remove(struct acpi_sbs *sbs)
 #endif
 }
 
-void acpi_sbs_callback(void *context)
+static void acpi_sbs_callback(void *context)
 {
 	int id;
 	struct acpi_sbs *sbs = context;

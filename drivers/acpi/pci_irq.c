@@ -475,8 +475,6 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 	return 0;
 }
 
-EXPORT_SYMBOL(acpi_pci_irq_enable);
-
 /* FIXME: implement x86/x86_64 version */
 void __attribute__ ((weak)) acpi_unregister_gsi(u32 i)
 {

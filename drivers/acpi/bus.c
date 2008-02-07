@@ -391,7 +391,6 @@ int acpi_bus_receive_event(struct acpi_bus_event *event)
 	return 0;
 }
 
-EXPORT_SYMBOL(acpi_bus_receive_event);
 #endif	/* CONFIG_ACPI_PROC_EVENT */
 
 /* --------------------------------------------------------------------------

@@ -78,7 +78,6 @@ int acpi_ht __initdata = 1;	/* enable HT */
 int acpi_lapic;
 int acpi_ioapic;
 int acpi_strict;
-EXPORT_SYMBOL(acpi_strict);
 
 u8 acpi_sci_flags __initdata;
 int acpi_sci_override_gsi __initdata;
@@ -489,8 +488,6 @@ int acpi_register_gsi(u32 gsi, int triggering, int polarity)
 	acpi_gsi_to_irq(plat_gsi, &irq);
 	return irq;
 }
-
-EXPORT_SYMBOL(acpi_register_gsi);
 
 /*
  *  ACPI based hotplug support for CPU

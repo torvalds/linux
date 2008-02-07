@@ -134,7 +134,7 @@ static ssize_t show_present(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", bay_present(bay));
 
 }
-DEVICE_ATTR(present, S_IRUGO, show_present, NULL);
+static DEVICE_ATTR(present, S_IRUGO, show_present, NULL);
 
 /*
  * write_eject - write method for "eject" file in sysfs
@@ -150,7 +150,7 @@ static ssize_t write_eject(struct device *dev, struct device_attribute *attr,
 	eject_device(bay->handle);
 	return count;
 }
-DEVICE_ATTR(eject, S_IWUSR, NULL, write_eject);
+static DEVICE_ATTR(eject, S_IWUSR, NULL, write_eject);
 
 /**
  * is_ata - see if a device is an ata device

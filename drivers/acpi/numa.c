@@ -78,6 +78,7 @@ int acpi_map_pxm_to_node(int pxm)
 	return node;
 }
 
+#if 0
 void __cpuinit acpi_unmap_pxm_to_node(int node)
 {
 	int pxm = node_to_pxm_map[node];
@@ -85,6 +86,7 @@ void __cpuinit acpi_unmap_pxm_to_node(int node)
 	node_to_pxm_map[node] = PXM_INVAL;
 	node_clear(node, nodes_found_map);
 }
+#endif  /*  0  */
 
 static void __init
 acpi_table_print_srat_entry(struct acpi_subtable_header *header)
@@ -247,7 +249,6 @@ int acpi_get_pxm(acpi_handle h)
 	} while (ACPI_SUCCESS(status));
 	return -1;
 }
-EXPORT_SYMBOL(acpi_get_pxm);
 
 int acpi_get_node(acpi_handle *handle)
 {
