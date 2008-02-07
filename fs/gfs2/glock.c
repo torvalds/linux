@@ -399,7 +399,7 @@ void gfs2_holder_init(struct gfs2_glock *gl, unsigned int state, unsigned flags,
 	INIT_LIST_HEAD(&gh->gh_list);
 	gh->gh_gl = gl;
 	gh->gh_ip = (unsigned long)__builtin_return_address(0);
-	gh->gh_owner_pid = current->pid;
+	gh->gh_owner_pid = get_pid(task_pid(current));
 	gh->gh_state = state;
 	gh->gh_flags = flags;
 	gh->gh_error = 0;
@@ -433,6 +433,7 @@ void gfs2_holder_reinit(unsigned int state, unsigned flags, struct gfs2_holder *
 
 void gfs2_holder_uninit(struct gfs2_holder *gh)
 {
+	put_pid(gh->gh_owner_pid);
 	gfs2_glock_put(gh->gh_gl);
 	gh->gh_gl = NULL;
 	gh->gh_ip = 0;
@@ -1045,7 +1046,7 @@ static int glock_wait_internal(struct gfs2_holder *gh)
 }
 
 static inline struct gfs2_holder *
-find_holder_by_owner(struct list_head *head, pid_t pid)
+find_holder_by_owner(struct list_head *head, struct pid *pid)
 {
 	struct gfs2_holder *gh;
 
@@ -1082,7 +1083,7 @@ static void add_to_queue(struct gfs2_holder *gh)
 	struct gfs2_glock *gl = gh->gh_gl;
 	struct gfs2_holder *existing;
 
-	BUG_ON(!gh->gh_owner_pid);
+	BUG_ON(gh->gh_owner_pid == NULL);
 	if (test_and_set_bit(HIF_WAIT, &gh->gh_iflags))
 		BUG();
 
@@ -1092,12 +1093,14 @@ static void add_to_queue(struct gfs2_holder *gh)
 		if (existing) {
 			print_symbol(KERN_WARNING "original: %s\n", 
 				     existing->gh_ip);
-			printk(KERN_INFO "pid : %d\n", existing->gh_owner_pid);
+			printk(KERN_INFO "pid : %d\n",
+					pid_nr(existing->gh_owner_pid));
 			printk(KERN_INFO "lock type : %d lock state : %d\n",
 			       existing->gh_gl->gl_name.ln_type, 
 			       existing->gh_gl->gl_state);
 			print_symbol(KERN_WARNING "new: %s\n", gh->gh_ip);
-			printk(KERN_INFO "pid : %d\n", gh->gh_owner_pid);
+			printk(KERN_INFO "pid : %d\n",
+					pid_nr(gh->gh_owner_pid));
 			printk(KERN_INFO "lock type : %d lock state : %d\n",
 			       gl->gl_name.ln_type, gl->gl_state);
 			BUG();
@@ -1798,8 +1801,9 @@ static int dump_holder(struct glock_iter *gi, char *str,
 
 	print_dbg(gi, "  %s\n", str);
 	if (gh->gh_owner_pid) {
-		print_dbg(gi, "    owner = %ld ", (long)gh->gh_owner_pid);
-		gh_owner = find_task_by_pid(gh->gh_owner_pid);
+		print_dbg(gi, "    owner = %ld ",
+				(long)pid_nr(gh->gh_owner_pid));
+		gh_owner = pid_task(gh->gh_owner_pid, PIDTYPE_PID);
 		if (gh_owner)
 			print_dbg(gi, "(%s)\n", gh_owner->comm);
 		else

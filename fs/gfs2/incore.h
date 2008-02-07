@@ -151,7 +151,7 @@ struct gfs2_holder {
 	struct list_head gh_list;
 
 	struct gfs2_glock *gh_gl;
-	pid_t gh_owner_pid;
+	struct pid *gh_owner_pid;
 	unsigned int gh_state;
 	unsigned gh_flags;
 
