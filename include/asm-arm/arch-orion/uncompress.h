@@ -27,16 +27,6 @@ static void flush(void)
 {
 }
 
-static void orion_early_putstr(const char *ptr)
-{
-	char c;
-	while ((c = *ptr++) != '\0') {
-		if (c == '\n')
-			putc('\r');
-		putc(c);
-	}
-}
-
 /*
  * nothing to do
  */
