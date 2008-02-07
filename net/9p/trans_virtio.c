@@ -385,6 +385,18 @@ static struct p9_trans *p9_virtio_create(const char *devname, char *args)
 	return trans;
 }
 
+static void p9_virtio_remove(struct virtio_device *vdev)
+{
+	struct virtio_chan *chan = vdev->priv;
+
+	BUG_ON(chan->inuse);
+
+	if (chan->initialized) {
+		vdev->config->del_vq(chan->vq);
+		chan->initialized = false;
+	}
+}
+
 #define VIRTIO_ID_9P 9
 
 static struct virtio_device_id id_table[] = {
@@ -398,6 +410,7 @@ static struct virtio_driver p9_virtio_drv = {
 	.driver.owner = THIS_MODULE,
 	.id_table =	id_table,
 	.probe = 	p9_virtio_probe,
+	.remove =	p9_virtio_remove,
 };
 
 static struct p9_trans_module p9_virtio_trans = {
@@ -419,7 +432,13 @@ static int __init p9_virtio_init(void)
 	return register_virtio_driver(&p9_virtio_drv);
 }
 
+static void __exit p9_virtio_cleanup(void)
+{
+	unregister_virtio_driver(&p9_virtio_drv);
+}
+
 module_init(p9_virtio_init);
+module_exit(p9_virtio_cleanup);
 
 MODULE_DEVICE_TABLE(virtio, id_table);
 MODULE_AUTHOR("Eric Van Hensbergen <ericvh@gmail.com>");
