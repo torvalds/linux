@@ -131,7 +131,6 @@ struct mem_cgroup {
 	 */
 	struct mem_cgroup_lru_info info;
 
-	unsigned long control_type;	/* control RSS or RSS+Pagecache */
 	int	prev_priority;	/* for recording reclaim priority */
 	/*
 	 * statistics.
@@ -709,24 +708,17 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
 				gfp_t gfp_mask)
 {
 	int ret = 0;
-	struct mem_cgroup *mem;
 	if (!mm)
 		mm = &init_mm;
 
-	rcu_read_lock();
-	mem = rcu_dereference(mm->mem_cgroup);
-	css_get(&mem->css);
-	rcu_read_unlock();
-	if (mem->control_type == MEM_CGROUP_TYPE_ALL)
-		ret = mem_cgroup_charge_common(page, mm, gfp_mask,
+	ret = mem_cgroup_charge_common(page, mm, gfp_mask,
 				MEM_CGROUP_CHARGE_TYPE_CACHE);
-	css_put(&mem->css);
 	return ret;
 }
 
 /*
  * Uncharging is always a welcome operation, we never complain, simply
- * uncharge.
+ * uncharge. This routine should be called with lock_page_cgroup held
  */
 void mem_cgroup_uncharge(struct page_cgroup *pc)
 {
@@ -736,8 +728,7 @@ void mem_cgroup_uncharge(struct page_cgroup *pc)
 	unsigned long flags;
 
 	/*
-	 * This can handle cases when a page is not charged at all and we
-	 * are switching between handling the control_type.
+	 * Check if our page_cgroup is valid
 	 */
 	if (!pc)
 		return;
@@ -749,6 +740,7 @@ void mem_cgroup_uncharge(struct page_cgroup *pc)
 		 * get page->cgroup and clear it under lock.
 		 * force_empty can drop page->cgroup without checking refcnt.
 		 */
+		unlock_page_cgroup(page);
 		if (clear_page_cgroup(page, pc) == pc) {
 			mem = pc->mem_cgroup;
 			css_put(&mem->css);
@@ -758,7 +750,15 @@ void mem_cgroup_uncharge(struct page_cgroup *pc)
 			spin_unlock_irqrestore(&mz->lru_lock, flags);
 			kfree(pc);
 		}
+		lock_page_cgroup(page);
 	}
+}
+
+void mem_cgroup_uncharge_page(struct page *page)
+{
+	lock_page_cgroup(page);
+	mem_cgroup_uncharge(page_get_page_cgroup(page));
+	unlock_page_cgroup(page);
 }
 
 /*
@@ -780,8 +780,12 @@ int mem_cgroup_prepare_migration(struct page *page)
 
 void mem_cgroup_end_migration(struct page *page)
 {
-	struct page_cgroup *pc = page_get_page_cgroup(page);
+	struct page_cgroup *pc;
+
+	lock_page_cgroup(page);
+	pc = page_get_page_cgroup(page);
 	mem_cgroup_uncharge(pc);
+	unlock_page_cgroup(page);
 }
 /*
  * We know both *page* and *newpage* are now not-on-LRU and Pg_locked.
@@ -936,61 +940,6 @@ static ssize_t mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
 				mem_cgroup_write_strategy);
 }
 
-static ssize_t mem_control_type_write(struct cgroup *cont,
-			struct cftype *cft, struct file *file,
-			const char __user *userbuf,
-			size_t nbytes, loff_t *pos)
-{
-	int ret;
-	char *buf, *end;
-	unsigned long tmp;
-	struct mem_cgroup *mem;
-
-	mem = mem_cgroup_from_cont(cont);
-	buf = kmalloc(nbytes + 1, GFP_KERNEL);
-	ret = -ENOMEM;
-	if (buf == NULL)
-		goto out;
-
-	buf[nbytes] = 0;
-	ret = -EFAULT;
-	if (copy_from_user(buf, userbuf, nbytes))
-		goto out_free;
-
-	ret = -EINVAL;
-	tmp = simple_strtoul(buf, &end, 10);
-	if (*end != '\0')
-		goto out_free;
-
-	if (tmp <= MEM_CGROUP_TYPE_UNSPEC || tmp >= MEM_CGROUP_TYPE_MAX)
-		goto out_free;
-
-	mem->control_type = tmp;
-	ret = nbytes;
-out_free:
-	kfree(buf);
-out:
-	return ret;
-}
-
-static ssize_t mem_control_type_read(struct cgroup *cont,
-				struct cftype *cft,
-				struct file *file, char __user *userbuf,
-				size_t nbytes, loff_t *ppos)
-{
-	unsigned long val;
-	char buf[64], *s;
-	struct mem_cgroup *mem;
-
-	mem = mem_cgroup_from_cont(cont);
-	s = buf;
-	val = mem->control_type;
-	s += sprintf(s, "%lu\n", val);
-	return simple_read_from_buffer((void __user *)userbuf, nbytes,
-			ppos, buf, s - buf);
-}
-
-
 static ssize_t mem_force_empty_write(struct cgroup *cont,
 				struct cftype *cft, struct file *file,
 				const char __user *userbuf,
@@ -1089,11 +1038,6 @@ static struct cftype mem_cgroup_files[] = {
 		.read = mem_cgroup_read,
 	},
 	{
-		.name = "control_type",
-		.write = mem_control_type_write,
-		.read = mem_control_type_read,
-	},
-	{
 		.name = "force_empty",
 		.write = mem_force_empty_write,
 		.read = mem_force_empty_read,
@@ -1161,7 +1105,6 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
 
 	res_counter_init(&mem->res);
 
-	mem->control_type = MEM_CGROUP_TYPE_ALL;
 	memset(&mem->info, 0, sizeof(mem->info));
 
 	for_each_node_state(node, N_POSSIBLE)

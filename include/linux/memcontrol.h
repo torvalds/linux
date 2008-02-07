@@ -38,6 +38,7 @@ extern struct page_cgroup *page_get_page_cgroup(struct page *page);
 extern int mem_cgroup_charge(struct page *page, struct mm_struct *mm,
 				gfp_t gfp_mask);
 extern void mem_cgroup_uncharge(struct page_cgroup *pc);
+extern void mem_cgroup_uncharge_page(struct page *page);
 extern void mem_cgroup_move_lists(struct page_cgroup *pc, bool active);
 extern unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 					struct list_head *dst,
@@ -53,11 +54,6 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem);
 static inline struct mem_cgroup *mm_cgroup(const struct mm_struct *mm)
 {
 	return rcu_dereference(mm->mem_cgroup);
-}
-
-static inline void mem_cgroup_uncharge_page(struct page *page)
-{
-	mem_cgroup_uncharge(page_get_page_cgroup(page));
 }
 
 extern int mem_cgroup_prepare_migration(struct page *page);
