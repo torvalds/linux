@@ -645,7 +645,8 @@ bail:
 	return status;
 }
 
-struct dlm_ctxt *user_dlm_register_context(struct qstr *name)
+struct dlm_ctxt *user_dlm_register_context(struct qstr *name,
+					   struct dlm_protocol_version *proto)
 {
 	struct dlm_ctxt *dlm;
 	u32 dlm_key;
@@ -661,7 +662,7 @@ struct dlm_ctxt *user_dlm_register_context(struct qstr *name)
 
 	snprintf(domain, name->len + 1, "%.*s", name->len, name->name);
 
-	dlm = dlm_register_domain(domain, dlm_key);
+	dlm = dlm_register_domain(domain, dlm_key, proto);
 	if (IS_ERR(dlm))
 		mlog_errno(PTR_ERR(dlm));
 
