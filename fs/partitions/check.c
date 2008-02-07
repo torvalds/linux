@@ -319,6 +319,14 @@ void delete_partition(struct gendisk *disk, int part)
 	put_device(&p->dev);
 }
 
+static ssize_t whole_disk_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	return 0;
+}
+static DEVICE_ATTR(whole_disk, S_IRUSR | S_IRGRP | S_IROTH,
+		   whole_disk_show, NULL);
+
 void add_partition(struct gendisk *disk, int part, sector_t start, sector_t len, int flags)
 {
 	struct hd_struct *p;
@@ -352,13 +360,8 @@ void add_partition(struct gendisk *disk, int part, sector_t start, sector_t len,
 	device_add(&p->dev);
 	partition_sysfs_add_subdir(p);
 	p->dev.uevent_suppress = 0;
-	if (flags & ADDPART_FLAG_WHOLEDISK) {
-		static struct attribute addpartattr = {
-			.name = "whole_disk",
-			.mode = S_IRUSR | S_IRGRP | S_IROTH,
-		};
-		err = sysfs_create_file(&p->dev.kobj, &addpartattr);
-	}
+	if (flags & ADDPART_FLAG_WHOLEDISK)
+		err = device_create_file(&p->dev, &dev_attr_whole_disk);
 
 	/* suppress uevent if the disk supresses it */
 	if (!disk->dev.uevent_suppress)
