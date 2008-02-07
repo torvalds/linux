@@ -58,7 +58,7 @@ extern struct inode *		vxfs_get_fake_inode(struct super_block *,
 extern void			vxfs_put_fake_inode(struct inode *);
 extern struct vxfs_inode_info *	vxfs_blkiget(struct super_block *, u_long, ino_t);
 extern struct vxfs_inode_info *	vxfs_stiget(struct super_block *, ino_t);
-extern void			vxfs_read_inode(struct inode *);
+extern struct inode *		vxfs_iget(struct super_block *, ino_t);
 extern void			vxfs_clear_inode(struct inode *);
 
 /* vxfs_lookup.c */

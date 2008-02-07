@@ -213,10 +213,10 @@ vxfs_lookup(struct inode *dip, struct dentry *dp, struct nameidata *nd)
 	lock_kernel();
 	ino = vxfs_inode_by_name(dip, dp);
 	if (ino) {
-		ip = iget(dip->i_sb, ino);
-		if (!ip) {
+		ip = vxfs_iget(dip->i_sb, ino);
+		if (IS_ERR(ip)) {
 			unlock_kernel();
-			return ERR_PTR(-EACCES);
+			return ERR_CAST(ip);
 		}
 	}
 	unlock_kernel();

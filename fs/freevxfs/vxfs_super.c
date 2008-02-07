@@ -60,7 +60,6 @@ static int		vxfs_statfs(struct dentry *, struct kstatfs *);
 static int		vxfs_remount(struct super_block *, int *, char *);
 
 static const struct super_operations vxfs_super_ops = {
-	.read_inode =		vxfs_read_inode,
 	.clear_inode =		vxfs_clear_inode,
 	.put_super =		vxfs_put_super,
 	.statfs =		vxfs_statfs,
@@ -153,6 +152,7 @@ static int vxfs_fill_super(struct super_block *sbp, void *dp, int silent)
 	struct buffer_head	*bp = NULL;
 	u_long			bsize;
 	struct inode *root;
+	int ret = -EINVAL;
 
 	sbp->s_flags |= MS_RDONLY;
 
@@ -219,7 +219,11 @@ static int vxfs_fill_super(struct super_block *sbp, void *dp, int silent)
 	}
 
 	sbp->s_op = &vxfs_super_ops;
-	root = iget(sbp, VXFS_ROOT_INO);
+	root = vxfs_iget(sbp, VXFS_ROOT_INO);
+	if (IS_ERR(root)) {
+		ret = PTR_ERR(root);
+		goto out;
+	}
 	sbp->s_root = d_alloc_root(root);
 	if (!sbp->s_root) {
 		iput(root);
@@ -236,7 +240,7 @@ out_free_ilist:
 out:
 	brelse(bp);
 	kfree(infp);
-	return -EINVAL;
+	return ret;
 }
 
 /*
