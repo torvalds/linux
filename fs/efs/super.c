@@ -107,7 +107,6 @@ static int efs_remount(struct super_block *sb, int *flags, char *data)
 static const struct super_operations efs_superblock_operations = {
 	.alloc_inode	= efs_alloc_inode,
 	.destroy_inode	= efs_destroy_inode,
-	.read_inode	= efs_read_inode,
 	.put_super	= efs_put_super,
 	.statfs		= efs_statfs,
 	.remount_fs	= efs_remount,
@@ -247,6 +246,7 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
 	struct efs_sb_info *sb;
 	struct buffer_head *bh;
 	struct inode *root;
+	int ret = -EINVAL;
 
  	sb = kzalloc(sizeof(struct efs_sb_info), GFP_KERNEL);
 	if (!sb)
@@ -303,12 +303,18 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
 	}
 	s->s_op   = &efs_superblock_operations;
 	s->s_export_op = &efs_export_ops;
-	root = iget(s, EFS_ROOTINODE);
-	s->s_root = d_alloc_root(root);
- 
-	if (!(s->s_root)) {
+	root = efs_iget(s, EFS_ROOTINODE);
+	if (IS_ERR(root)) {
 		printk(KERN_ERR "EFS: get root inode failed\n");
+		ret = PTR_ERR(root);
+		goto out_no_fs;
+	}
+
+	s->s_root = d_alloc_root(root);
+	if (!(s->s_root)) {
+		printk(KERN_ERR "EFS: get root dentry failed\n");
 		iput(root);
+		ret = -ENOMEM;
 		goto out_no_fs;
 	}
 
@@ -318,7 +324,7 @@ out_no_fs_ul:
 out_no_fs:
 	s->s_fs_info = NULL;
 	kfree(sb);
-	return -EINVAL;
+	return ret;
 }
 
 static int efs_statfs(struct dentry *dentry, struct kstatfs *buf) {
