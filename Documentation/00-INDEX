@@ -332,20 +332,8 @@ rtc.txt
 	- notes on how to use the Real Time Clock (aka CMOS clock) driver.
 s390/
 	- directory with info on using Linux on the IBM S390.
-sched-arch.txt
-	- CPU Scheduler implementation hints for architecture specific code.
-sched-coding.txt
-	- reference for various scheduler-related methods in the O(1) scheduler.
-sched-design.txt
-	- goals, design and implementation of the Linux O(1) scheduler.
-sched-design-CFS.txt
-	- goals, design and implementation of the Complete Fair Scheduler.
-sched-domains.txt
-	- information on scheduling domains.
-sched-nice-design.txt
-	- How and why the scheduler's nice levels are implemented.
-sched-stats.txt
-	- information on schedstats (Linux Scheduler Statistics).
+scheduler/
+	- directory with info on the scheduler.
 scsi/
 	- directory with info on Linux scsi support.
 serial/
