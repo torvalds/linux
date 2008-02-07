@@ -714,25 +714,29 @@ static int ufs2_read_inode(struct inode *inode, struct ufs2_inode *ufs2_inode)
 	return 0;
 }
 
-void ufs_read_inode(struct inode * inode)
+struct inode *ufs_iget(struct super_block *sb, unsigned long ino)
 {
-	struct ufs_inode_info *ufsi = UFS_I(inode);
-	struct super_block * sb;
-	struct ufs_sb_private_info * uspi;
+	struct ufs_inode_info *ufsi;
+	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
 	struct buffer_head * bh;
+	struct inode *inode;
 	int err;
 
-	UFSD("ENTER, ino %lu\n", inode->i_ino);
+	UFSD("ENTER, ino %lu\n", ino);
 
-	sb = inode->i_sb;
-	uspi = UFS_SB(sb)->s_uspi;
-
-	if (inode->i_ino < UFS_ROOTINO ||
-	    inode->i_ino > (uspi->s_ncg * uspi->s_ipg)) {
+	if (ino < UFS_ROOTINO || ino > (uspi->s_ncg * uspi->s_ipg)) {
 		ufs_warning(sb, "ufs_read_inode", "bad inode number (%lu)\n",
-			    inode->i_ino);
-		goto bad_inode;
+			    ino);
+		return ERR_PTR(-EIO);
 	}
+
+	inode = iget_locked(sb, ino);
+	if (!inode)
+		return ERR_PTR(-ENOMEM);
+	if (!(inode->i_state & I_NEW))
+		return inode;
+
+	ufsi = UFS_I(inode);
 
 	bh = sb_bread(sb, uspi->s_sbbase + ufs_inotofsba(inode->i_ino));
 	if (!bh) {
@@ -765,10 +769,12 @@ void ufs_read_inode(struct inode * inode)
 	brelse(bh);
 
 	UFSD("EXIT\n");
-	return;
+	unlock_new_inode(inode);
+	return inode;
 
 bad_inode:
-	make_bad_inode(inode);
+	iget_failed(inode);
+	return ERR_PTR(-EIO);
 }
 
 static void ufs1_update_inode(struct inode *inode, struct ufs_inode *ufs_inode)
