@@ -14,6 +14,7 @@
 #include <linux/nodemask.h>
 #include <linux/rcupdate.h>
 #include <linux/cgroupstats.h>
+#include <linux/prio_heap.h>
 
 #ifdef CONFIG_CGROUPS
 
@@ -207,6 +208,14 @@ struct cftype {
 	int (*release) (struct inode *inode, struct file *file);
 };
 
+struct cgroup_scanner {
+	struct cgroup *cg;
+	int (*test_task)(struct task_struct *p, struct cgroup_scanner *scan);
+	void (*process_task)(struct task_struct *p,
+			struct cgroup_scanner *scan);
+	struct ptr_heap *heap;
+};
+
 /* Add a new file to the given cgroup directory. Should only be
  * called by subsystems from within a populate() method */
 int cgroup_add_file(struct cgroup *cont, struct cgroup_subsys *subsys,
@@ -299,11 +308,16 @@ struct cgroup_iter {
  *    returns NULL or until you want to end the iteration
  *
  * 3) call cgroup_iter_end() to destroy the iterator.
+ *
+ * Or, call cgroup_scan_tasks() to iterate through every task in a cpuset.
+ *    - cgroup_scan_tasks() holds the css_set_lock when calling the test_task()
+ *      callback, but not while calling the process_task() callback.
  */
 void cgroup_iter_start(struct cgroup *cont, struct cgroup_iter *it);
 struct task_struct *cgroup_iter_next(struct cgroup *cont,
 					struct cgroup_iter *it);
 void cgroup_iter_end(struct cgroup *cont, struct cgroup_iter *it);
+int cgroup_scan_tasks(struct cgroup_scanner *scan);
 
 #else /* !CONFIG_CGROUPS */
 
