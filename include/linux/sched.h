@@ -92,6 +92,7 @@ struct sched_param {
 
 #include <asm/processor.h>
 
+struct mem_cgroup;
 struct exec_domain;
 struct futex_pi_state;
 struct robust_list_head;
