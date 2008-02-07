@@ -24,7 +24,7 @@ extern struct inode *ialloc(struct inode *, umode_t);
 extern int jfs_fsync(struct file *, struct dentry *, int);
 extern int jfs_ioctl(struct inode *, struct file *,
 			unsigned int, unsigned long);
-extern void jfs_read_inode(struct inode *);
+extern struct inode *jfs_iget(struct super_block *, unsigned long);
 extern int jfs_commit_inode(struct inode *, int);
 extern int jfs_write_inode(struct inode*, int);
 extern void jfs_delete_inode(struct inode *);

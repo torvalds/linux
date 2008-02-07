@@ -1462,12 +1462,10 @@ static struct dentry *jfs_lookup(struct inode *dip, struct dentry *dentry, struc
 		}
 	}
 
-	ip = iget(dip->i_sb, inum);
-	if (ip == NULL || is_bad_inode(ip)) {
+	ip = jfs_iget(dip->i_sb, inum);
+	if (IS_ERR(ip)) {
 		jfs_err("jfs_lookup: iget failed on inum %d", (uint) inum);
-		if (ip)
-			iput(ip);
-		return ERR_PTR(-EACCES);
+		return ERR_CAST(ip);
 	}
 
 	dentry = d_splice_alias(ip, dentry);
@@ -1485,12 +1483,11 @@ static struct inode *jfs_nfs_get_inode(struct super_block *sb,
 
 	if (ino == 0)
 		return ERR_PTR(-ESTALE);
-	inode = iget(sb, ino);
-	if (inode == NULL)
-		return ERR_PTR(-ENOMEM);
+	inode = jfs_iget(sb, ino);
+	if (IS_ERR(inode))
+		return ERR_CAST(inode);
 
-	if (is_bad_inode(inode) ||
-	    (generation && inode->i_generation != generation)) {
+	if (generation && inode->i_generation != generation) {
 		iput(inode);
 		return ERR_PTR(-ESTALE);
 	}
@@ -1521,17 +1518,14 @@ struct dentry *jfs_get_parent(struct dentry *dentry)
 
 	parent_ino =
 		le32_to_cpu(JFS_IP(dentry->d_inode)->i_dtroot.header.idotdot);
-	inode = iget(sb, parent_ino);
-	if (inode) {
-		if (is_bad_inode(inode)) {
+	inode = jfs_iget(sb, parent_ino);
+	if (IS_ERR(inode)) {
+		parent = ERR_CAST(inode);
+	} else {
+		parent = d_alloc_anon(inode);
+		if (!parent) {
+			parent = ERR_PTR(-ENOMEM);
 			iput(inode);
-			parent = ERR_PTR(-EACCES);
-		} else {
-			parent = d_alloc_anon(inode);
-			if (!parent) {
-				parent = ERR_PTR(-ENOMEM);
-				iput(inode);
-			}
 		}
 	}
 
