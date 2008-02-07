@@ -4,4 +4,3 @@ header-y += registers.h
 
 unifdef-y += termios.h
 unifdef-y += ptrace.h
-unifdef-y += page.h

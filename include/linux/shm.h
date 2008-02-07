@@ -3,7 +3,11 @@
 
 #include <linux/ipc.h>
 #include <linux/errno.h>
+#ifdef __KERNEL__
 #include <asm/page.h>
+#else
+#include <unistd.h>
+#endif
 
 /*
  * SHMMAX, SHMMNI and SHMALL are upper limits are defaults which can
@@ -13,7 +17,11 @@
 #define SHMMAX 0x2000000		 /* max shared seg size (bytes) */
 #define SHMMIN 1			 /* min shared seg size (bytes) */
 #define SHMMNI 4096			 /* max num of segs system wide */
+#ifdef __KERNEL__
 #define SHMALL (SHMMAX/PAGE_SIZE*(SHMMNI/16)) /* max shm system wide (pages) */
+#else
+#define SHMALL (SHMMAX/getpagesize()*(SHMMNI/16))
+#endif
 #define SHMSEG SHMMNI			 /* max shared segs per process */
 
 #ifdef __KERNEL__
