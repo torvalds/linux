@@ -131,31 +131,6 @@ static irqreturn_t mpc52xx_uart_int(int irq, void *dev_id);
 #define uart_console(port)	(0)
 #endif
 
-#if defined(CONFIG_PPC_MERGE)
-static struct of_device_id mpc52xx_uart_of_match[] = {
-#ifdef CONFIG_PPC_MPC52xx
-	{ .compatible = "fsl,mpc5200-psc-uart", .data = &mpc52xx_psc_ops, },
-	/* binding used by old lite5200 device trees: */
-	{ .compatible = "mpc5200-psc-uart", .data = &mpc52xx_psc_ops, },
-	/* binding used by efika: */
-	{ .compatible = "mpc5200-serial", .data = &mpc52xx_psc_ops, },
-#endif
-#ifdef CONFIG_PPC_MPC512x
-	{ .compatible = "fsl,mpc5121-psc-uart", .data = &mpc512x_psc_ops, },
-	{},
-#endif
-};
-#if defined(CONFIG_PPC_MERGE)
-static const struct of_device_id mpc52xx_uart_of_match[] = {
-	{.type = "serial",
-	 .compatible = "mpc5200-psc-uart",
-#endif
-	{},
-};
-#endif
-
-#endif
-
 /* ======================================================================== */
 /* PSC fifo operations for isolating differences between 52xx and 512x      */
 /* ======================================================================== */
@@ -1233,6 +1208,20 @@ static struct platform_driver mpc52xx_uart_platform_driver = {
 /* ======================================================================== */
 /* OF Platform Driver                                                       */
 /* ======================================================================== */
+
+static struct of_device_id mpc52xx_uart_of_match[] = {
+#ifdef CONFIG_PPC_MPC52xx
+	{ .compatible = "fsl,mpc5200-psc-uart", .data = &mpc52xx_psc_ops, },
+	/* binding used by old lite5200 device trees: */
+	{ .compatible = "mpc5200-psc-uart", .data = &mpc52xx_psc_ops, },
+	/* binding used by efika: */
+	{ .compatible = "mpc5200-serial", .data = &mpc52xx_psc_ops, },
+#endif
+#ifdef CONFIG_PPC_MPC512x
+	{ .compatible = "fsl,mpc5121-psc-uart", .data = &mpc512x_psc_ops, },
+	{},
+#endif
+};
 
 static int __devinit
 mpc52xx_uart_of_probe(struct of_device *op, const struct of_device_id *match)
