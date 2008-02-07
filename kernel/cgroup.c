@@ -586,6 +586,21 @@ static struct inode *cgroup_new_inode(mode_t mode, struct super_block *sb)
 	return inode;
 }
 
+/*
+ * Call subsys's pre_destroy handler.
+ * This is called before css refcnt check.
+ */
+
+static void cgroup_call_pre_destroy(struct cgroup *cgrp)
+{
+	struct cgroup_subsys *ss;
+	for_each_subsys(cgrp->root, ss)
+		if (ss->pre_destroy && cgrp->subsys[ss->subsys_id])
+			ss->pre_destroy(ss, cgrp);
+	return;
+}
+
+
 static void cgroup_diput(struct dentry *dentry, struct inode *inode)
 {
 	/* is dentry a directory ? if so, kfree() associated cgroup */
@@ -2160,6 +2175,13 @@ static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry)
 	parent = cgrp->parent;
 	root = cgrp->root;
 	sb = root->sb;
+	/*
+	 * Call pre_destroy handlers of subsys
+	 */
+	cgroup_call_pre_destroy(cgrp);
+	/*
+	 * Notify subsyses that rmdir() request comes.
+	 */
 
 	if (cgroup_has_css_refs(cgrp)) {
 		mutex_unlock(&cgroup_mutex);
