@@ -145,8 +145,7 @@ static struct stlbrd		*stl_brds[STL_MAXBRDS];
  */
 #define	ASYI_TXBUSY	1
 #define	ASYI_TXLOW	2
-#define	ASYI_DCDCHANGE	3
-#define	ASYI_TXFLOWED	4
+#define	ASYI_TXFLOWED	3
 
 /*
  *	Define an array of board names as printable strings. Handy for
@@ -609,6 +608,23 @@ static const struct file_operations	stl_fsiomem = {
 };
 
 static struct class *stallion_class;
+
+static void stl_cd_change(struct stlport *portp)
+{
+	unsigned int oldsigs = portp->sigs;
+
+	if (!portp->tty)
+		return;
+
+	portp->sigs = stl_getsignals(portp);
+
+	if ((portp->sigs & TIOCM_CD) && ((oldsigs & TIOCM_CD) == 0))
+		wake_up_interruptible(&portp->open_wait);
+
+	if ((oldsigs & TIOCM_CD) && ((portp->sigs & TIOCM_CD) == 0))
+		if (portp->flags & ASYNC_CHECK_CD)
+			tty_hangup(portp->tty);
+}
 
 /*
  *	Check for any arguments passed in on the module load command line.
@@ -1771,41 +1787,6 @@ static int stl_echpci64intr(struct stlbrd *brdp)
 /*****************************************************************************/
 
 /*
- *	Service an off-level request for some channel.
- */
-static void stl_offintr(struct work_struct *work)
-{
-	struct stlport		*portp = container_of(work, struct stlport, tqueue);
-	struct tty_struct	*tty;
-	unsigned int		oldsigs;
-
-	pr_debug("stl_offintr(portp=%p)\n", portp);
-
-	if (portp == NULL)
-		return;
-
-	tty = portp->tty;
-	if (tty == NULL)
-		return;
-
-	if (test_bit(ASYI_TXLOW, &portp->istate))
-		tty_wakeup(tty);
-
-	if (test_bit(ASYI_DCDCHANGE, &portp->istate)) {
-		clear_bit(ASYI_DCDCHANGE, &portp->istate);
-		oldsigs = portp->sigs;
-		portp->sigs = stl_getsignals(portp);
-		if ((portp->sigs & TIOCM_CD) && ((oldsigs & TIOCM_CD) == 0))
-			wake_up_interruptible(&portp->open_wait);
-		if ((oldsigs & TIOCM_CD) && ((portp->sigs & TIOCM_CD) == 0))
-			if (portp->flags & ASYNC_CHECK_CD)
-				tty_hangup(tty);	/* FIXME: module removal race here - AKPM */
-	}
-}
-
-/*****************************************************************************/
-
-/*
  *	Initialize all the ports on a panel.
  */
 
@@ -1840,7 +1821,6 @@ static int __devinit stl_initports(struct stlbrd *brdp, struct stlpanel *panelp)
 		portp->baud_base = STL_BAUDBASE;
 		portp->close_delay = STL_CLOSEDELAY;
 		portp->closing_wait = 30 * HZ;
-		INIT_WORK(&portp->tqueue, stl_offintr);
 		init_waitqueue_head(&portp->open_wait);
 		init_waitqueue_head(&portp->close_wait);
 		portp->stats.brd = portp->brdnr;
@@ -3530,7 +3510,8 @@ static void stl_cd1400txisr(struct stlpanel *panelp, int ioaddr)
 	if ((len == 0) || ((len < STL_TXBUFLOW) &&
 	    (test_bit(ASYI_TXLOW, &portp->istate) == 0))) {
 		set_bit(ASYI_TXLOW, &portp->istate);
-		schedule_work(&portp->tqueue);
+		if (portp->tty)
+			tty_wakeup(portp->tty);
 	}
 
 	if (len == 0) {
@@ -3693,8 +3674,7 @@ static void stl_cd1400mdmisr(struct stlpanel *panelp, int ioaddr)
 	outb((MISR + portp->uartaddr), ioaddr);
 	misr = inb(ioaddr + EREG_DATA);
 	if (misr & MISR_DCD) {
-		set_bit(ASYI_DCDCHANGE, &portp->istate);
-		schedule_work(&portp->tqueue);
+		stl_cd_change(portp);
 		portp->stats.modem++;
 	}
 
@@ -4448,7 +4428,8 @@ static void stl_sc26198txisr(struct stlport *portp)
 	if ((len == 0) || ((len < STL_TXBUFLOW) &&
 	    (test_bit(ASYI_TXLOW, &portp->istate) == 0))) {
 		set_bit(ASYI_TXLOW, &portp->istate);
-		schedule_work(&portp->tqueue); 
+		if (portp->tty)
+			tty_wakeup(portp->tty);
 	}
 
 	if (len == 0) {
@@ -4649,8 +4630,7 @@ static void stl_sc26198otherisr(struct stlport *portp, unsigned int iack)
 	case CIR_SUBCOS:
 		ipr = stl_sc26198getreg(portp, IPR);
 		if (ipr & IPR_DCDCHANGE) {
-			set_bit(ASYI_DCDCHANGE, &portp->istate);
-			schedule_work(&portp->tqueue); 
+			stl_cd_change(portp);
 			portp->stats.modem++;
 		}
 		break;
