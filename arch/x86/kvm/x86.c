@@ -213,6 +213,7 @@ out:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(load_pdptrs);
 
 static bool pdptrs_changed(struct kvm_vcpu *vcpu)
 {
