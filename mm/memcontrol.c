@@ -29,6 +29,8 @@
 #include <linux/spinlock.h>
 #include <linux/fs.h>
 
+#include <asm/uaccess.h>
+
 struct cgroup_subsys mem_cgroup_subsys;
 static const int MEM_CGROUP_RECLAIM_RETRIES = 5;
 
@@ -60,6 +62,7 @@ struct mem_cgroup {
 	 * spin_lock to protect the per cgroup LRU
 	 */
 	spinlock_t lru_lock;
+	unsigned long control_type;	/* control RSS or RSS+Pagecache */
 };
 
 /*
@@ -82,6 +85,15 @@ struct page_cgroup {
 					/* mapped and cached states     */
 };
 
+enum {
+	MEM_CGROUP_TYPE_UNSPEC = 0,
+	MEM_CGROUP_TYPE_MAPPED,
+	MEM_CGROUP_TYPE_CACHED,
+	MEM_CGROUP_TYPE_ALL,
+	MEM_CGROUP_TYPE_MAX,
+};
+
+static struct mem_cgroup init_mem_cgroup;
 
 static inline
 struct mem_cgroup *mem_cgroup_from_cont(struct cgroup *cont)
@@ -139,18 +151,18 @@ struct page_cgroup *page_get_page_cgroup(struct page *page)
 		(page->page_cgroup & ~PAGE_CGROUP_LOCK);
 }
 
-void __always_inline lock_page_cgroup(struct page *page)
+static void __always_inline lock_page_cgroup(struct page *page)
 {
 	bit_spin_lock(PAGE_CGROUP_LOCK_BIT, &page->page_cgroup);
 	VM_BUG_ON(!page_cgroup_locked(page));
 }
 
-void __always_inline unlock_page_cgroup(struct page *page)
+static void __always_inline unlock_page_cgroup(struct page *page)
 {
 	bit_spin_unlock(PAGE_CGROUP_LOCK_BIT, &page->page_cgroup);
 }
 
-void __mem_cgroup_move_lists(struct page_cgroup *pc, bool active)
+static void __mem_cgroup_move_lists(struct page_cgroup *pc, bool active)
 {
 	if (active)
 		list_move(&pc->lru, &pc->mem_cgroup->active_list);
@@ -366,6 +378,22 @@ err:
 }
 
 /*
+ * See if the cached pages should be charged at all?
+ */
+int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm)
+{
+	struct mem_cgroup *mem;
+	if (!mm)
+		mm = &init_mm;
+
+	mem = rcu_dereference(mm->mem_cgroup);
+	if (mem->control_type == MEM_CGROUP_TYPE_ALL)
+		return mem_cgroup_charge(page, mm);
+	else
+		return 0;
+}
+
+/*
  * Uncharging is always a welcome operation, we never complain, simply
  * uncharge.
  */
@@ -375,6 +403,10 @@ void mem_cgroup_uncharge(struct page_cgroup *pc)
 	struct page *page;
 	unsigned long flags;
 
+	/*
+	 * This can handle cases when a page is not charged at all and we
+	 * are switching between handling the control_type.
+	 */
 	if (!pc)
 		return;
 
@@ -425,6 +457,60 @@ static ssize_t mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
 				mem_cgroup_write_strategy);
 }
 
+static ssize_t mem_control_type_write(struct cgroup *cont,
+			struct cftype *cft, struct file *file,
+			const char __user *userbuf,
+			size_t nbytes, loff_t *pos)
+{
+	int ret;
+	char *buf, *end;
+	unsigned long tmp;
+	struct mem_cgroup *mem;
+
+	mem = mem_cgroup_from_cont(cont);
+	buf = kmalloc(nbytes + 1, GFP_KERNEL);
+	ret = -ENOMEM;
+	if (buf == NULL)
+		goto out;
+
+	buf[nbytes] = 0;
+	ret = -EFAULT;
+	if (copy_from_user(buf, userbuf, nbytes))
+		goto out_free;
+
+	ret = -EINVAL;
+	tmp = simple_strtoul(buf, &end, 10);
+	if (*end != '\0')
+		goto out_free;
+
+	if (tmp <= MEM_CGROUP_TYPE_UNSPEC || tmp >= MEM_CGROUP_TYPE_MAX)
+		goto out_free;
+
+	mem->control_type = tmp;
+	ret = nbytes;
+out_free:
+	kfree(buf);
+out:
+	return ret;
+}
+
+static ssize_t mem_control_type_read(struct cgroup *cont,
+				struct cftype *cft,
+				struct file *file, char __user *userbuf,
+				size_t nbytes, loff_t *ppos)
+{
+	unsigned long val;
+	char buf[64], *s;
+	struct mem_cgroup *mem;
+
+	mem = mem_cgroup_from_cont(cont);
+	s = buf;
+	val = mem->control_type;
+	s += sprintf(s, "%lu\n", val);
+	return simple_read_from_buffer((void __user *)userbuf, nbytes,
+			ppos, buf, s - buf);
+}
+
 static struct cftype mem_cgroup_files[] = {
 	{
 		.name = "usage_in_bytes",
@@ -441,6 +527,11 @@ static struct cftype mem_cgroup_files[] = {
 		.name = "failcnt",
 		.private = RES_FAILCNT,
 		.read = mem_cgroup_read,
+	},
+	{
+		.name = "control_type",
+		.write = mem_control_type_write,
+		.read = mem_control_type_read,
 	},
 };
 
@@ -464,6 +555,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
 	INIT_LIST_HEAD(&mem->active_list);
 	INIT_LIST_HEAD(&mem->inactive_list);
 	spin_lock_init(&mem->lru_lock);
+	mem->control_type = MEM_CGROUP_TYPE_ALL;
 	return &mem->css;
 }
 

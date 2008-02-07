@@ -22,6 +22,8 @@
 
 struct mem_cgroup;
 struct page_cgroup;
+struct page;
+struct mm_struct;
 
 #ifdef CONFIG_CGROUP_MEM_CONT
 
@@ -40,6 +42,7 @@ extern unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 					struct mem_cgroup *mem_cont,
 					int active);
 extern void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask);
+extern int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm);
 
 static inline void mem_cgroup_uncharge_page(struct page *page)
 {
@@ -82,6 +85,12 @@ static inline void mem_cgroup_uncharge_page(struct page *page)
 static inline void mem_cgroup_move_lists(struct page_cgroup *pc,
 						bool active)
 {
+}
+
+static inline int mem_cgroup_cache_charge(struct page *page,
+						struct mm_struct *mm)
+{
+	return 0;
 }
 
 #endif /* CONFIG_CGROUP_MEM_CONT */

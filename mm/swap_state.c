@@ -78,7 +78,7 @@ int add_to_swap_cache(struct page *page, swp_entry_t entry, gfp_t gfp_mask)
 	error = radix_tree_preload(gfp_mask);
 	if (!error) {
 
-		error = mem_cgroup_charge(page, current->mm);
+		error = mem_cgroup_cache_charge(page, current->mm);
 		if (error)
 			goto out;
 
