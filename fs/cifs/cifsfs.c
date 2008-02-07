@@ -203,9 +203,8 @@ cifs_put_super(struct super_block *sb)
 		return;
 	}
 	rc = cifs_umount(sb, cifs_sb);
-	if (rc) {
+	if (rc)
 		cERROR(1, ("cifs_umount failed with return code %d", rc));
-	}
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	if (cifs_sb->mountdata) {
 		kfree(cifs_sb->mountdata);

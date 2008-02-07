@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/netmisc.c
  *
- *   Copyright (c) International Business Machines  Corp., 2002
+ *   Copyright (c) International Business Machines  Corp., 2002,2008
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   Error mapping routines from Samba libsmb/errormap.c
@@ -253,7 +253,8 @@ static const struct {
 	ERRDOS, 87, NT_STATUS_INVALID_PARAMETER_MIX}, {
 	ERRHRD, ERRgeneral, NT_STATUS_INVALID_QUOTA_LOWER}, {
 	ERRHRD, ERRgeneral, NT_STATUS_DISK_CORRUPT_ERROR}, {
-	ERRDOS, ERRbadfile, NT_STATUS_OBJECT_NAME_INVALID}, {	/* mapping changed since shell does lookup on * and expects file not found */
+	 /* mapping changed since shell does lookup on * expects FileNotFound */
+	ERRDOS, ERRbadfile, NT_STATUS_OBJECT_NAME_INVALID}, {
 	ERRDOS, ERRbadfile, NT_STATUS_OBJECT_NAME_NOT_FOUND}, {
 	ERRDOS, ERRalreadyexists, NT_STATUS_OBJECT_NAME_COLLISION}, {
 	ERRHRD, ERRgeneral, NT_STATUS_HANDLE_NOT_WAITABLE}, {
@@ -820,7 +821,8 @@ map_smb_to_linux_error(struct smb_hdr *smb, int logErr)
 	/* old style errors */
 
 	/* DOS class smb error codes - map DOS */
-	if (smberrclass == ERRDOS) {  /* 1 byte field no need to byte reverse */
+	if (smberrclass == ERRDOS) {
+		/* 1 byte field no need to byte reverse */
 		for (i = 0;
 		     i <
 		     sizeof(mapping_table_ERRDOS) /
@@ -834,7 +836,8 @@ map_smb_to_linux_error(struct smb_hdr *smb, int logErr)
 			}
 			/* else try next error mapping one to see if match */
 		}
-	} else if (smberrclass == ERRSRV) {   /* server class of error codes */
+	} else if (smberrclass == ERRSRV) {
+		/* server class of error codes */
 		for (i = 0;
 		     i <
 		     sizeof(mapping_table_ERRSRV) /
@@ -922,8 +925,8 @@ struct timespec cnvrtDosUnixTm(__u16 date, __u16 time)
 {
 	struct timespec ts;
 	int sec, min, days, month, year;
-	SMB_TIME * st = (SMB_TIME *)&time;
-	SMB_DATE * sd = (SMB_DATE *)&date;
+	SMB_TIME *st = (SMB_TIME *)&time;
+	SMB_DATE *sd = (SMB_DATE *)&date;
 
 	cFYI(1, ("date %d time %d", date, time));
 

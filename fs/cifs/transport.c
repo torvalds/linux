@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/transport.c
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2007
+ *   Copyright (C) International Business Machines  Corp., 2002,2008
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *   Jeremy Allison (jra@samba.org) 2006.
  *
@@ -358,9 +358,9 @@ static int allocate_mid(struct cifsSesInfo *ses, struct smb_hdr *in_buf,
 	} else if (ses->status != CifsGood) {
 		/* check if SMB session is bad because we are setting it up */
 		if ((in_buf->Command != SMB_COM_SESSION_SETUP_ANDX) &&
-			(in_buf->Command != SMB_COM_NEGOTIATE)) {
+			(in_buf->Command != SMB_COM_NEGOTIATE))
 			return -EAGAIN;
-		} /* else ok - we are setting up session */
+		/* else ok - we are setting up session */
 	}
 	*ppmidQ = AllocMidQEntry(in_buf, ses);
 	if (*ppmidQ == NULL)

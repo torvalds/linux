@@ -46,8 +46,7 @@ static struct cifs_wksid wksidarr[NUM_WK_SIDS] = {
 static const struct cifs_sid sid_everyone = {
 	1, 1, {0, 0, 0, 0, 0, 1}, {0} };
 /* group users */
-static const struct cifs_sid sid_user =
-		{1, 2 , {0, 0, 0, 0, 0, 5}, {} };
+static const struct cifs_sid sid_user = {1, 2 , {0, 0, 0, 0, 0, 5}, {} };
 
 
 int match_sid(struct cifs_sid *ctsid)
@@ -195,9 +194,9 @@ static void access_flags_to_mode(__le32 ace_flags, int type, umode_t *pmode,
 	/* For deny ACEs we change the mask so that subsequent allow access
 	   control entries do not turn on the bits we are denying */
 	if (type == ACCESS_DENIED) {
-		if (flags & GENERIC_ALL) {
+		if (flags & GENERIC_ALL)
 			*pbits_to_set &= ~S_IRWXUGO;
-		}
+
 		if ((flags & GENERIC_WRITE) ||
 			((flags & FILE_WRITE_RIGHTS) == FILE_WRITE_RIGHTS))
 			*pbits_to_set &= ~S_IWUGO;

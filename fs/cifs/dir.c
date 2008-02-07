@@ -3,7 +3,7 @@
  *
  *   vfs operations that deal with dentries
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2007
+ *   Copyright (C) International Business Machines  Corp., 2002,2008
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -111,16 +111,6 @@ cifs_bp_rename_retry:
 	return full_path;
 }
 
-/* char * build_wildcard_path_from_dentry(struct dentry *direntry)
-{
-	if(full_path == NULL)
-		return full_path;
-
-	full_path[namelen] = '\\';
-	full_path[namelen+1] = '*';
-	full_path[namelen+2] = 0;
-BB remove above eight lines BB */
-
 /* Inode operations in similar order to how they appear in Linux file fs.h */
 
 int
@@ -171,9 +161,8 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 			disposition = FILE_OVERWRITE_IF;
 		else if ((oflags & O_CREAT) == O_CREAT)
 			disposition = FILE_OPEN_IF;
-		else {
+		else
 			cFYI(1, ("Create flag not set in create function"));
-		}
 	}
 
 	/* BB add processing to set equivalent of mode - e.g. via CreateX with
@@ -367,7 +356,7 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode,
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) {
 			int oplock = 0;
 			u16 fileHandle;
-			FILE_ALL_INFO * buf;
+			FILE_ALL_INFO *buf;
 
 			cFYI(1, ("sfu compat create special file"));
 
@@ -534,9 +523,8 @@ cifs_d_revalidate(struct dentry *direntry, struct nameidata *nd)
 	int isValid = 1;
 
 	if (direntry->d_inode) {
-		if (cifs_revalidate(direntry)) {
+		if (cifs_revalidate(direntry))
 			return 0;
-		}
 	} else {
 		cFYI(1, ("neg dentry 0x%p name = %s",
 			 direntry, direntry->d_name.name));

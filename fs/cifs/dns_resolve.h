@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/dns_resolve.h -- DNS Resolver upcall management for CIFS DFS
  *                            Handles host name to IP address resolution
- * 
+ *
  *   Copyright (c) International Business Machines  Corp., 2008
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *

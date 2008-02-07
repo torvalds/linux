@@ -490,9 +490,9 @@ int cifs_get_inode_info(struct inode **pinode,
 			if (decode_sfu_inode(inode,
 					 le64_to_cpu(pfindData->EndOfFile),
 					 search_path,
-					 cifs_sb, xid)) {
+					 cifs_sb, xid))
 				cFYI(1, ("Unrecognized sfu inode type"));
-			}
+
 			cFYI(1, ("sfu mode 0%o", inode->i_mode));
 		} else {
 			inode->i_mode |= S_IFREG;
@@ -1198,9 +1198,8 @@ int cifs_rename(struct inode *source_inode, struct dentry *source_direntry,
 		} /* if we can not get memory just leave rc as EEXIST */
 	}
 
-	if (rc) {
+	if (rc)
 		cFYI(1, ("rename rc %d", rc));
-	}
 
 	if ((rc == -EIO) || (rc == -EEXIST)) {
 		int oplock = FALSE;

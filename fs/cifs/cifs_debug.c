@@ -98,8 +98,7 @@ void cifs_dump_mids(struct TCP_Server_Info *server)
 			if (mid_entry->resp_buf) {
 				cifs_dump_detail(mid_entry->resp_buf);
 				cifs_dump_mem("existing buf: ",
-					mid_entry->resp_buf,
-					62 /* fixme */);
+					mid_entry->resp_buf, 62);
 			}
 		}
 	}

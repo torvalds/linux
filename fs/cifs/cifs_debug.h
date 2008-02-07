@@ -64,10 +64,10 @@ extern int cifsERROR;
  *	---------
  */
 #else		/* _CIFS_DEBUG */
-#define cERROR(button,prspec)
-#define cEVENT(format,arg...)
+#define cERROR(button, prspec)
+#define cEVENT(format, arg...)
 #define cFYI(button, prspec)
-#define cifserror(format,arg...)
+#define cifserror(format, arg...)
 #endif		/* _CIFS_DEBUG */
 
 #endif				/* _H_CIFS_DEBUG */
