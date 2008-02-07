@@ -452,18 +452,17 @@ static int mxser_block_til_ready(struct tty_struct *tty, struct file *filp,
 static int mxser_set_baud(struct mxser_port *info, long newspd)
 {
 	unsigned int i;
-	int quot = 0;
+	int quot = 0, baud;
 	unsigned char cval;
-	int ret = 0;
 
 	if (!info->tty || !info->tty->termios)
-		return ret;
+		return -1;
 
 	if (!(info->ioaddr))
-		return ret;
+		return -1;
 
 	if (newspd > info->max_baud)
-		return 0;
+		return -1;
 
 	info->realbaud = newspd;
 	for (i = 0; i < BAUD_TABLE_NO; i++)
@@ -476,10 +475,13 @@ static int mxser_set_baud(struct mxser_port *info, long newspd)
 	} else {
 		if (newspd == 134) {
 			quot = (2 * info->baud_base / 269);
+			tty_encode_baud_rate(info->tty, 134, 134);
 		} else if (newspd) {
 			quot = info->baud_base / newspd;
 			if (quot == 0)
 				quot = 1;
+			baud = info->baud_base/quot;
+			tty_encode_baud_rate(info->tty, baud, baud);
 		} else {
 			quot = 0;
 		}
@@ -494,7 +496,7 @@ static int mxser_set_baud(struct mxser_port *info, long newspd)
 	} else {
 		info->MCR &= ~UART_MCR_DTR;
 		outb(info->MCR, info->ioaddr + UART_MCR);
-		return ret;
+		return 0;
 	}
 
 	cval = inb(info->ioaddr + UART_LCR);
@@ -518,7 +520,7 @@ static int mxser_set_baud(struct mxser_port *info, long newspd)
 	} else
 		SET_MOXA_MUST_ENUM_VALUE(info->ioaddr, 0);
 
-	return ret;
+	return 0;
 }
 
 /*

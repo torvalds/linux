@@ -1391,7 +1391,8 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file, unsigned int c
 			long baud;
 			if (get_user(baud, (long __user *)argp))
 				return -EFAULT;
-			mxser_set_baud(info, baud);
+			if (mxser_set_baud(info, baud) == -1)
+				return -1;
 			return 0;
 		}
 	case MOXA_ASPP_GETBAUD:
@@ -2517,7 +2518,13 @@ static int mxser_change_speed(struct mxser_struct *info, struct ktermios *old_te
 #endif
 	if (mxser_set_baud_method[info->port] == 0) {
 		baud = tty_get_baud_rate(info->tty);
-		mxser_set_baud(info, baud);
+		if (mxser_set_baud(info, baud) == -1) {
+			/* Use previous rate on a failure */
+			if (old_termios) {
+				baud = tty_termios_baud_rate(old_termios);
+				tty_encode_baud_rate(info->tty, baud, baud);
+			}
+		}
 	}
 
 	/* byte size and parity */
@@ -2691,27 +2698,31 @@ static int mxser_set_baud(struct mxser_struct *info, long newspd)
 {
 	int quot = 0;
 	unsigned char cval;
-	int ret = 0;
 	unsigned long flags;
+	unsigned int baud;
 
 	if (!info->tty || !info->tty->termios)
-		return ret;
+		return -1;
 
 	if (!(info->base))
-		return ret;
+		return -1;
 
 	if (newspd > info->MaxCanSetBaudRate)
-		return 0;
+		return -1;
 
 	info->realbaud = newspd;
 	if (newspd == 134) {
 		quot = (2 * info->baud_base / 269);
+		tty_encode_baud_rate(info->tty, 134, 134);
 	} else if (newspd) {
 		quot = info->baud_base / newspd;
 		if (quot == 0)
 			quot = 1;
+		baud = info->baud_base / quot;
+		tty_encode_baud_rate(info->tty, baud, baud);
 	} else {
 		quot = 0;
+		tty_encode_baud_rate(info->tty, 0, 0);
 	}
 
 	info->timeout = ((info->xmit_fifo_size * HZ * 10 * quot) / info->baud_base);
@@ -2727,7 +2738,7 @@ static int mxser_set_baud(struct mxser_struct *info, long newspd)
 		info->MCR &= ~UART_MCR_DTR;
 		outb(info->MCR, info->base + UART_MCR);
 		spin_unlock_irqrestore(&info->slock, flags);
-		return ret;
+		return 0;
 	}
 
 	cval = inb(info->base + UART_LCR);
@@ -2739,7 +2750,7 @@ static int mxser_set_baud(struct mxser_struct *info, long newspd)
 	outb(cval, info->base + UART_LCR);	/* reset DLAB */
 
 
-	return ret;
+	return 0;
 }
 
 /*
