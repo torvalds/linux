@@ -476,6 +476,7 @@ config SH_HIGHLANDER
 	bool "Highlander"
 	depends on CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785
 	select SYS_SUPPORTS_PCI
+	select IO_TRAPPED
 
 config SH_MIGOR
 	bool "Migo-R"
