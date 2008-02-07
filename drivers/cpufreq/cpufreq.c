@@ -1221,21 +1221,17 @@ static int cpufreq_suspend(struct sys_device * sysdev, pm_message_t pmsg)
 		return -EINVAL;
 
 	/* only handle each CPU group once */
-	if (unlikely(cpu_policy->cpu != cpu)) {
-		cpufreq_cpu_put(cpu_policy);
-		return 0;
-	}
+	if (unlikely(cpu_policy->cpu != cpu))
+		goto out;
 
 	if (cpufreq_driver->suspend) {
 		ret = cpufreq_driver->suspend(cpu_policy, pmsg);
 		if (ret) {
 			printk(KERN_ERR "cpufreq: suspend failed in ->suspend "
 					"step on CPU %u\n", cpu_policy->cpu);
-			cpufreq_cpu_put(cpu_policy);
-			return ret;
+			goto out;
 		}
 	}
-
 
 	if (cpufreq_driver->flags & CPUFREQ_CONST_LOOPS)
 		goto out;
@@ -1270,7 +1266,7 @@ static int cpufreq_suspend(struct sys_device * sysdev, pm_message_t pmsg)
 
 out:
 	cpufreq_cpu_put(cpu_policy);
-	return 0;
+	return ret;
 }
 
 /**
@@ -1302,18 +1298,15 @@ static int cpufreq_resume(struct sys_device * sysdev)
 		return -EINVAL;
 
 	/* only handle each CPU group once */
-	if (unlikely(cpu_policy->cpu != cpu)) {
-		cpufreq_cpu_put(cpu_policy);
-		return 0;
-	}
+	if (unlikely(cpu_policy->cpu != cpu))
+		goto fail;
 
 	if (cpufreq_driver->resume) {
 		ret = cpufreq_driver->resume(cpu_policy);
 		if (ret) {
 			printk(KERN_ERR "cpufreq: resume failed in ->resume "
 					"step on CPU %u\n", cpu_policy->cpu);
-			cpufreq_cpu_put(cpu_policy);
-			return ret;
+			goto fail;
 		}
 	}
 
@@ -1353,6 +1346,7 @@ static int cpufreq_resume(struct sys_device * sysdev)
 
 out:
 	schedule_work(&cpu_policy->update);
+fail:
 	cpufreq_cpu_put(cpu_policy);
 	return ret;
 }
