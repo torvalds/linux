@@ -261,6 +261,8 @@ struct gelic_card {
 	atomic_t tx_timeout_task_counter;
 	wait_queue_head_t waitq;
 
+	u64 ether_port_status;
+
 	struct gelic_descr *tx_top, *rx_top;
 	struct gelic_descr descr[0];
 };

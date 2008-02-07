@@ -87,6 +87,28 @@ static inline void gelic_card_rx_irq_off(struct gelic_card *card)
 {
 	gelic_card_set_irq_mask(card, card->ghiintmask & ~GELIC_CARD_RXINT);
 }
+
+static void
+gelic_card_get_ether_port_status(struct gelic_card *card, int inform)
+{
+	u64 v2;
+	struct net_device *ether_netdev;
+
+	lv1_net_control(bus_id(card), dev_id(card),
+			GELIC_LV1_GET_ETH_PORT_STATUS,
+			GELIC_LV1_VLAN_TX_ETHERNET, 0, 0,
+			&card->ether_port_status, &v2);
+
+	if (inform) {
+		ether_netdev = card->netdev;
+		if (card->ether_port_status & GELIC_LV1_ETHER_LINK_UP)
+			netif_carrier_on(ether_netdev);
+		else
+			netif_carrier_off(ether_netdev);
+	}
+}
+
+
 /**
  * gelic_descr_get_status -- returns the status of a descriptor
  * @descr: descriptor to look at
@@ -1032,6 +1054,10 @@ static irqreturn_t gelic_card_interrupt(int irq, void *ptr)
 		gelic_card_kick_txdma(card, card->tx_chain.tail);
 		spin_unlock_irqrestore(&card->tx_dma_lock, flags);
 	}
+
+	/* ether port status changed */
+	if (status & GELIC_CARD_PORT_STATUS_CHANGED)
+		gelic_card_get_ether_port_status(card, 1);
 	return IRQ_HANDLED;
 }
 
@@ -1128,13 +1154,14 @@ static int gelic_net_open(struct net_device *netdev)
 	napi_enable(&card->napi);
 
 	card->tx_dma_progress = 0;
-	card->ghiintmask = GELIC_CARD_RXINT | GELIC_CARD_TXINT;
+	card->ghiintmask = GELIC_CARD_RXINT | GELIC_CARD_TXINT |
+		GELIC_CARD_PORT_STATUS_CHANGED;
 
 	gelic_card_set_irq_mask(card, card->ghiintmask);
 	gelic_card_enable_rxdmac(card);
 
 	netif_start_queue(netdev);
-	netif_carrier_on(netdev);
+	gelic_card_get_ether_port_status(card, 1);
 
 	return 0;
 
@@ -1157,39 +1184,35 @@ static int gelic_ether_get_settings(struct net_device *netdev,
 				    struct ethtool_cmd *cmd)
 {
 	struct gelic_card *card = netdev_priv(netdev);
-	int status;
-	u64 v1, v2;
-	int speed, duplex;
 
-	speed = duplex = -1;
-	status = lv1_net_control(bus_id(card), dev_id(card),
-				 GELIC_LV1_GET_ETH_PORT_STATUS,
-				 GELIC_LV1_VLAN_TX_ETHERNET, 0, 0,
-				 &v1, &v2);
-	if (status) {
-		/* link down */
-	} else {
-		if (v1 & GELIC_LV1_ETHER_FULL_DUPLEX) {
-			duplex = DUPLEX_FULL;
-		} else {
-			duplex = DUPLEX_HALF;
-		}
+	gelic_card_get_ether_port_status(card, 0);
 
-		if (v1 & GELIC_LV1_ETHER_SPEED_10) {
-			speed = SPEED_10;
-		} else if (v1 & GELIC_LV1_ETHER_SPEED_100) {
-			speed = SPEED_100;
-		} else if (v1 & GELIC_LV1_ETHER_SPEED_1000) {
-			speed = SPEED_1000;
-		}
+	if (card->ether_port_status & GELIC_LV1_ETHER_FULL_DUPLEX)
+		cmd->duplex = DUPLEX_FULL;
+	else
+		cmd->duplex = DUPLEX_HALF;
+
+	switch (card->ether_port_status & GELIC_LV1_ETHER_SPEED_MASK) {
+	case GELIC_LV1_ETHER_SPEED_10:
+		cmd->speed = SPEED_10;
+		break;
+	case GELIC_LV1_ETHER_SPEED_100:
+		cmd->speed = SPEED_100;
+		break;
+	case GELIC_LV1_ETHER_SPEED_1000:
+		cmd->speed = SPEED_1000;
+		break;
+	default:
+		pr_info("%s: speed unknown\n", __func__);
+		cmd->speed = SPEED_10;
+		break;
 	}
+
 	cmd->supported = SUPPORTED_TP | SUPPORTED_Autoneg |
 			SUPPORTED_10baseT_Half | SUPPORTED_10baseT_Full |
 			SUPPORTED_100baseT_Half | SUPPORTED_100baseT_Full |
 			SUPPORTED_1000baseT_Half | SUPPORTED_1000baseT_Full;
 	cmd->advertising = cmd->supported;
-	cmd->speed = speed;
-	cmd->duplex = duplex;
 	cmd->autoneg = AUTONEG_ENABLE; /* always enabled */
 	cmd->port = PORT_TP;
 
