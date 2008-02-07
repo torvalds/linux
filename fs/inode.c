@@ -928,8 +928,6 @@ EXPORT_SYMBOL(ilookup);
  * @set:	callback used to initialize a new struct inode
  * @data:	opaque data pointer to pass to @test and @set
  *
- * This is iget() without the read_inode() portion of get_new_inode().
- *
  * iget5_locked() uses ifind() to search for the inode specified by @hashval
  * and @data in the inode cache and if present it is returned with an increased
  * reference count. This is a generalized version of iget_locked() for file
@@ -965,8 +963,6 @@ EXPORT_SYMBOL(iget5_locked);
  * iget_locked - obtain an inode from a mounted file system
  * @sb:		super block of file system
  * @ino:	inode number to get
- *
- * This is iget() without the read_inode() portion of get_new_inode_fast().
  *
  * iget_locked() uses ifind_fast() to search for the inode specified by @ino in
  * the inode cache and if present it is returned with an increased reference

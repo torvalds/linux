@@ -203,8 +203,6 @@ struct super_operations {
         struct inode *(*alloc_inode)(struct super_block *sb);
         void (*destroy_inode)(struct inode *);
 
-        void (*read_inode) (struct inode *);
-
         void (*dirty_inode) (struct inode *);
         int (*write_inode) (struct inode *, int);
         void (*put_inode) (struct inode *);
@@ -241,15 +239,6 @@ or bottom half).
   	resources allocated for struct inode.  It is only required if
   	->alloc_inode was defined and simply undoes anything done by
 	->alloc_inode.
-
-  read_inode: this method is called to read a specific inode from the
-        mounted filesystem.  The i_ino member in the struct inode is
-	initialized by the VFS to indicate which inode to read. Other
-	members are filled in by this method.
-
-	You can set this to NULL and use iget5_locked() instead of iget()
-	to read inodes.  This is necessary for filesystems for which the
-	inode number is not sufficient to identify an inode.
 
   dirty_inode: this method is called by the VFS to mark an inode dirty.
 
@@ -308,9 +297,9 @@ or bottom half).
 
   quota_write: called by the VFS to write to filesystem quota file.
 
-The read_inode() method is responsible for filling in the "i_op"
-field. This is a pointer to a "struct inode_operations" which
-describes the methods that can be performed on individual inodes.
+Whoever sets up the inode is responsible for filling in the "i_op" field. This
+is a pointer to a "struct inode_operations" which describes the methods that
+can be performed on individual inodes.
 
 
 The Inode Object
