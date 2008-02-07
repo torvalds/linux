@@ -358,8 +358,6 @@ sgi-visws.txt
 	- short blurb on the SGI Visual Workstations.
 sh/
 	- directory with info on porting Linux to a new architecture.
-sharedsubtree.txt
-	- a description of shared subtrees for namespaces.
 smart-config.txt
 	- description of the Smart Config makefile feature.
 sony-laptop.txt

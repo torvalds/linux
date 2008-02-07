@@ -82,6 +82,8 @@ relay.txt
 	- info on relay, for efficient streaming from kernel to user space.
 romfs.txt
 	- description of the ROMFS filesystem.
+sharedsubtree.txt
+	- a description of shared subtrees for namespaces.
 smbfs.txt
 	- info on using filesystems with the SMB protocol (Win 3.11 and NT).
 spufs.txt
