@@ -1091,6 +1091,8 @@ static int __init acpi_processor_init(void)
 
 	acpi_processor_ppc_init();
 
+	acpi_processor_throttling_init();
+
 	return 0;
 
 out_cpuidle:
