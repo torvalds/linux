@@ -32,6 +32,15 @@
 #include <asm/cmpxchg.h>
 #include <asm/io.h>
 
+/*
+ * When setting this variable to true it enables Two-Dimensional-Paging
+ * where the hardware walks 2 page tables:
+ * 1. the guest-virtual to guest-physical
+ * 2. while doing 1. it walks guest-physical to host-physical
+ * If the hardware supports that we don't need to do shadow paging.
+ */
+static bool tdp_enabled = false;
+
 #undef MMU_DEBUG
 
 #undef AUDIT
@@ -1581,6 +1590,12 @@ out:
 	return r;
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_page_fault);
+
+void kvm_enable_tdp(void)
+{
+	tdp_enabled = true;
+}
+EXPORT_SYMBOL_GPL(kvm_enable_tdp);
 
 static void free_mmu_pages(struct kvm_vcpu *vcpu)
 {
