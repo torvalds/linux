@@ -23,6 +23,7 @@
 #include <linux/device.h>
 #include <linux/mm.h>
 #include <linux/uio.h>
+#include <linux/mutex.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -281,7 +282,7 @@ static inline int mbcs_algo_start(struct mbcs_soft *soft)
 	void *mmr_base = soft->mmr_base;
 	union cm_control cm_control;
 
-	if (down_interruptible(&soft->algolock))
+	if (mutex_lock_interruptible(&soft->algolock))
 		return -ERESTARTSYS;
 
 	atomic_set(&soft->algo_done, 0);
@@ -298,7 +299,7 @@ static inline int mbcs_algo_start(struct mbcs_soft *soft)
 	cm_control.alg_go = 1;
 	MBCS_MMR_SET(mmr_base, MBCS_CM_CONTROL, cm_control.cm_control_reg);
 
-	up(&soft->algolock);
+	mutex_unlock(&soft->algolock);
 
 	return 0;
 }
@@ -764,7 +765,7 @@ static int mbcs_probe(struct cx_dev *dev, const struct cx_device_id *id)
 
 	init_MUTEX(&soft->dmawritelock);
 	init_MUTEX(&soft->dmareadlock);
-	init_MUTEX(&soft->algolock);
+	mutex_init(&soft->algolock);
 
 	mbcs_getdma_init(&soft->getdma);
 	mbcs_putdma_init(&soft->putdma);
