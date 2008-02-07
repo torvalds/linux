@@ -337,7 +337,15 @@ acpi_os_table_override(struct acpi_table_header * existing_table,
 
 static irqreturn_t acpi_irq(int irq, void *dev_id)
 {
-	return (*acpi_irq_handler) (acpi_irq_context) ? IRQ_HANDLED : IRQ_NONE;
+	u32 handled;
+
+	handled = (*acpi_irq_handler) (acpi_irq_context);
+
+	if (handled) {
+		acpi_irq_handled++;
+		return IRQ_HANDLED;
+	} else
+		return IRQ_NONE;
 }
 
 acpi_status
@@ -345,6 +353,8 @@ acpi_os_install_interrupt_handler(u32 gsi, acpi_osd_handler handler,
 				  void *context)
 {
 	unsigned int irq;
+
+	acpi_irq_stats_init();
 
 	/*
 	 * Ignore the GSI from the core, and use the value in our copy of the

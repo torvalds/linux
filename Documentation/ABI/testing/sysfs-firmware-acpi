@@ -1,0 +1,99 @@
+What:		/sys/firmware/acpi/interrupts/
+Date:		February 2008
+Contact:	Len Brown <lenb@kernel.org>
+Description:
+		All ACPI interrupts are handled via a single IRQ,
+		the System Control Interrupt (SCI), which appears
+		as "acpi" in /proc/interrupts.
+
+		However, one of the main functions of ACPI is to make
+		the platform understand random hardware without
+		special driver support.  So while the SCI handles a few
+		well known (fixed feature) interrupts sources, such
+		as the power button, it can also handle a variable
+		number of a "General Purpose Events" (GPE).
+
+		A GPE vectors to a specified handler in AML, which
+		can do a anything the BIOS writer wants from
+		OS context.  GPE 0x12, for example, would vector
+		to a level or edge handler called _L12 or _E12.
+		The handler may do its business and return.
+		Or the handler may send send a Notify event
+		to a Linux device driver registered on an ACPI device,
+		such as a battery, or a processor.
+
+		To figure out where all the SCI's are coming from,
+		/sys/firmware/acpi/interrupts contains a file listing
+		every possible source, and the count of how many
+		times it has triggered.
+
+		$ cd /sys/firmware/acpi/interrupts
+		$ grep . *
+		error:0
+		ff_gbl_lock:0
+		ff_pmtimer:0
+		ff_pwr_btn:0
+		ff_rt_clk:0
+		ff_slp_btn:0
+		gpe00:0
+		gpe01:0
+		gpe02:0
+		gpe03:0
+		gpe04:0
+		gpe05:0
+		gpe06:0
+		gpe07:0
+		gpe08:0
+		gpe09:174
+		gpe0A:0
+		gpe0B:0
+		gpe0C:0
+		gpe0D:0
+		gpe0E:0
+		gpe0F:0
+		gpe10:0
+		gpe11:60
+		gpe12:0
+		gpe13:0
+		gpe14:0
+		gpe15:0
+		gpe16:0
+		gpe17:0
+		gpe18:0
+		gpe19:7
+		gpe1A:0
+		gpe1B:0
+		gpe1C:0
+		gpe1D:0
+		gpe1E:0
+		gpe1F:0
+		gpe_all:241
+		sci:241
+
+		sci - The total number of times the ACPI SCI
+		has claimed an interrupt.
+
+		gpe_all - count of SCI caused by GPEs.
+
+		gpeXX - count for individual GPE source
+
+		ff_gbl_lock - Global Lock
+
+		ff_pmtimer - PM Timer
+
+		ff_pwr_btn - Power Button
+
+		ff_rt_clk - Real Time Clock
+
+		ff_slp_btn - Sleep Button
+
+		error - an interrupt that can't be accounted for above.
+
+		Root has permission to clear any of these counters.  Eg.
+		# echo 0 > gpe11
+
+		All counters can be cleared by clearing the total "sci":
+		# echo 0 > sci
+
+		None of these counters has an effect on the function
+		of the system, they are simply statistics.

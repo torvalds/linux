@@ -117,10 +117,6 @@ extern u32 acpi_dbg_layer;
 
 extern u32 acpi_gbl_nesting_level;
 
-/* Event counters */
-
-ACPI_EXTERN u32 acpi_gpe_count;
-
 /* Support for dynamic control method tracing mechanism */
 
 ACPI_EXTERN u32 acpi_gbl_original_dbg_level;
