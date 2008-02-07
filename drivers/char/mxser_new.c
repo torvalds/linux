@@ -2153,7 +2153,7 @@ static void mxser_transmit_chars(struct mxser_port *port)
 		return;
 	}
 
-	if (port->xmit_buf == 0)
+	if (port->xmit_buf == NULL)
 		return;
 
 	if ((port->xmit_cnt <= 0) || port->tty->stopped ||
