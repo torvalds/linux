@@ -263,8 +263,10 @@ config ACPI_CUSTOM_DSDT
 	depends on !STANDALONE
 	default n 
 	help
-	  This option is to load a custom ACPI DSDT
-	  If you don't know what that is, say N.
+	  This option supports a custom DSDT by linking it into the kernel.
+	  See Documentation/acpi/dsdt-override.txt
+
+	  If unsure, say N.
 
 config ACPI_CUSTOM_DSDT_FILE
 	string "Custom DSDT Table file to include"
@@ -279,17 +281,11 @@ config ACPI_CUSTOM_DSDT_INITRD
 	depends on BLK_DEV_INITRD
 	default n
 	help
-	  The DSDT (Differentiated System Description Table) often needs to be
-	  overridden because of broken BIOS implementations. If this feature is
-	  activated you will be able to provide a customized DSDT by adding it
-	  to your initramfs. If your mkinitrd tool does not support this feature
-	  a script is provided in the documentation. For more details see
-	  <file:Documentation/dsdt-initrd.txt> or <http://gaugusch.at/kernel.shtml>.
-	  If there is no table found, it will fall-back to the custom DSDT
-	  in-kernel (if activated) or to the DSDT from the BIOS.
+	  This option supports a custom DSDT by optionally loading it from initrd.
+	  See Documentation/acpi/dsdt-override.txt
 
-	  Even if you do not need a new one at the moment, you may want to use a
-	  better DSDT later. It is safe to say Y here.
+	  If you are not using this feature now, but may use it later,
+	  it is safe to say Y here.
 
 config ACPI_BLACKLIST_YEAR
 	int "Disable ACPI for systems before Jan 1st this year" if X86_32
