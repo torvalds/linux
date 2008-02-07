@@ -204,6 +204,7 @@ config ACPI_NUMA
 
 config ACPI_WMI
 	tristate "WMI (EXPERIMENTAL)"
+	depends on X86
 	depends on EXPERIMENTAL
 	help
 	  This driver adds support for the ACPI-WMI mapper device (PNP0C14)
