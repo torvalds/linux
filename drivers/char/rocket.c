@@ -2191,10 +2191,10 @@ static __init int register_PCI(int i, struct pci_dev *dev)
 		num_chan = ports_per_aiop;
 		for (chan = 0; chan < num_chan; chan++)
 			sPCIModemReset(ctlp, chan, 1);
-		mdelay(500);
+		msleep(500);
 		for (chan = 0; chan < num_chan; chan++)
 			sPCIModemReset(ctlp, chan, 0);
-		mdelay(500);
+		msleep(500);
 		rmSpeakerReset(ctlp, rocketModel[i].model);
 	}
 	return (1);
@@ -2309,10 +2309,10 @@ static int __init init_ISA(int i)
 		total_num_chan = num_chan;
 		for (chan = 0; chan < num_chan; chan++)
 			sModemReset(ctlp, chan, 1);
-		mdelay(500);
+		msleep(500);
 		for (chan = 0; chan < num_chan; chan++)
 			sModemReset(ctlp, chan, 0);
-		mdelay(500);
+		msleep(500);
 		strcpy(rocketModel[i].modelString, "RocketModem ISA");
 	} else {
 		strcpy(rocketModel[i].modelString, "RocketPort ISA");
