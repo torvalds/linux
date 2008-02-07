@@ -578,10 +578,9 @@ static void print_basics(struct powernow_k8_data *data)
 	for (j = 0; j < data->numps; j++) {
 		if (data->powernow_table[j].frequency != CPUFREQ_ENTRY_INVALID) {
 			if (cpu_family == CPU_HW_PSTATE) {
-				printk(KERN_INFO PFX "   %d : fid 0x%x did 0x%x (%d MHz)\n",
+				printk(KERN_INFO PFX "   %d : pstate %d (%d MHz)\n",
 					j,
-					(data->powernow_table[j].index & 0xff00) >> 8,
-					(data->powernow_table[j].index & 0xff0000) >> 16,
+					data->powernow_table[j].index,
 					data->powernow_table[j].frequency/1000);
 			} else {
 				printk(KERN_INFO PFX "   %d : fid 0x%x (%d MHz), vid 0x%x\n",
@@ -1235,8 +1234,10 @@ static unsigned int powernowk8_get (unsigned int cpu)
 	struct powernow_k8_data *data;
 	cpumask_t oldmask = current->cpus_allowed;
 	unsigned int khz = 0;
+	unsigned int first;
 
-	data = per_cpu(powernow_data, first_cpu(per_cpu(cpu_core_map, cpu)));
+	first = first_cpu(per_cpu(cpu_core_map, cpu));
+	data = per_cpu(powernow_data, first);
 
 	if (!data)
 		return -EINVAL;

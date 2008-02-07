@@ -23,6 +23,7 @@
 #define EPS_BRAND_C7	1
 #define EPS_BRAND_EDEN	2
 #define EPS_BRAND_C3	3
+#define EPS_BRAND_C7D	4
 
 struct eps_cpu_data {
 	u32 fsb;
@@ -54,6 +55,7 @@ static int eps_set_state(struct eps_cpu_data *centaur,
 {
 	struct cpufreq_freqs freqs;
 	u32 lo, hi;
+	u8 current_multiplier, current_voltage;
 	int err = 0;
 	int i;
 
@@ -92,6 +94,15 @@ static int eps_set_state(struct eps_cpu_data *centaur,
 postchange:
 	rdmsr(MSR_IA32_PERF_STATUS, lo, hi);
 	freqs.new = centaur->fsb * ((lo >> 8) & 0xff);
+
+	/* Print voltage and multiplier */
+	rdmsr(MSR_IA32_PERF_STATUS, lo, hi);
+	current_voltage = lo & 0xff;
+	printk(KERN_INFO "eps: Current voltage = %dmV\n",
+		current_voltage * 16 + 700);
+	current_multiplier = (lo >> 8) & 0xff;
+	printk(KERN_INFO "eps: Current multiplier = %d\n",
+		current_multiplier);
 
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 	return err;
@@ -141,9 +152,10 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 	u8 current_multiplier, current_voltage;
 	u8 max_multiplier, max_voltage;
 	u8 min_multiplier, min_voltage;
-	u8 brand;
+	u8 brand = 0;
 	u32 fsb;
 	struct eps_cpu_data *centaur;
+	struct cpuinfo_x86 *c = &cpu_data(0);
 	struct cpufreq_frequency_table *f_table;
 	int k, step, voltage;
 	int ret;
@@ -153,21 +165,36 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 		return -ENODEV;
 
 	/* Check brand */
-	printk("eps: Detected VIA ");
-	rdmsr(0x1153, lo, hi);
-	brand = (((lo >> 2) ^ lo) >> 18) & 3;
+	printk(KERN_INFO "eps: Detected VIA ");
+
+	switch (c->x86_model) {
+	case 10:
+		rdmsr(0x1153, lo, hi);
+		brand = (((lo >> 2) ^ lo) >> 18) & 3;
+		printk(KERN_CONT "Model A ");
+		break;
+	case 13:
+		rdmsr(0x1154, lo, hi);
+		brand = (((lo >> 4) ^ (lo >> 2))) & 0x000000ff;
+		printk(KERN_CONT "Model D ");
+		break;
+	}
+
 	switch(brand) {
 	case EPS_BRAND_C7M:
-		printk("C7-M\n");
+		printk(KERN_CONT "C7-M\n");
 		break;
 	case EPS_BRAND_C7:
-		printk("C7\n");
+		printk(KERN_CONT "C7\n");
 		break;
 	case EPS_BRAND_EDEN:
-		printk("Eden\n");
+		printk(KERN_CONT "Eden\n");
+		break;
+	case EPS_BRAND_C7D:
+		printk(KERN_CONT "C7-D\n");
 		break;
 	case EPS_BRAND_C3:
-		printk("C3\n");
+		printk(KERN_CONT "C3\n");
 		return -ENODEV;
 		break;
 	}
@@ -179,7 +206,7 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 		/* Can be locked at 0 */
 		rdmsrl(MSR_IA32_MISC_ENABLE, val);
 		if (!(val & 1 << 16)) {
-			printk("eps: Can't enable Enhanced PowerSaver\n");
+			printk(KERN_INFO "eps: Can't enable Enhanced PowerSaver\n");
 			return -ENODEV;
 		}
 	}
@@ -187,19 +214,19 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 	/* Print voltage and multiplier */
 	rdmsr(MSR_IA32_PERF_STATUS, lo, hi);
 	current_voltage = lo & 0xff;
-	printk("eps: Current voltage = %dmV\n", current_voltage * 16 + 700);
+	printk(KERN_INFO "eps: Current voltage = %dmV\n", current_voltage * 16 + 700);
 	current_multiplier = (lo >> 8) & 0xff;
-	printk("eps: Current multiplier = %d\n", current_multiplier);
+	printk(KERN_INFO "eps: Current multiplier = %d\n", current_multiplier);
 
 	/* Print limits */
 	max_voltage = hi & 0xff;
-	printk("eps: Highest voltage = %dmV\n", max_voltage * 16 + 700);
+	printk(KERN_INFO "eps: Highest voltage = %dmV\n", max_voltage * 16 + 700);
 	max_multiplier = (hi >> 8) & 0xff;
-	printk("eps: Highest multiplier = %d\n", max_multiplier);
+	printk(KERN_INFO "eps: Highest multiplier = %d\n", max_multiplier);
 	min_voltage = (hi >> 16) & 0xff;
-	printk("eps: Lowest voltage = %dmV\n", min_voltage * 16 + 700);
+	printk(KERN_INFO "eps: Lowest voltage = %dmV\n", min_voltage * 16 + 700);
 	min_multiplier = (hi >> 24) & 0xff;
-	printk("eps: Lowest multiplier = %d\n", min_multiplier);
+	printk(KERN_INFO "eps: Lowest multiplier = %d\n", min_multiplier);
 
 	/* Sanity checks */
 	if (current_multiplier == 0 || max_multiplier == 0
@@ -208,7 +235,7 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 	if (current_multiplier > max_multiplier
 	    || max_multiplier <= min_multiplier)
 		return -EINVAL;
-	if (current_voltage > 0x1c || max_voltage > 0x1c)
+	if (current_voltage > 0x1f || max_voltage > 0x1f)
 		return -EINVAL;
 	if (max_voltage < min_voltage)
 		return -EINVAL;
@@ -310,7 +337,7 @@ static int __init eps_init(void)
 	/* This driver will work only on Centaur C7 processors with
 	 * Enhanced SpeedStep/PowerSaver registers */
 	if (c->x86_vendor != X86_VENDOR_CENTAUR
-	    || c->x86 != 6 || c->x86_model != 10)
+	    || c->x86 != 6 || c->x86_model < 10)
 		return -ENODEV;
 	if (!cpu_has(c, X86_FEATURE_EST))
 		return -ENODEV;

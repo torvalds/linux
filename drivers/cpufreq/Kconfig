@@ -9,9 +9,6 @@ config CPU_FREQ
 	  clock speed, you need to either enable a dynamic cpufreq governor
 	  (see below) after boot, or use a userspace tool.
 
-	  To compile this driver as a module, choose M here: the
-	  module will be called cpufreq.
-
 	  For details, take a look at <file:Documentation/cpu-freq>.
 
 	  If in doubt, say N.

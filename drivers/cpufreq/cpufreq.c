@@ -287,7 +287,7 @@ static void adjust_jiffies(unsigned long val, struct cpufreq_freqs *ci)
 	if (!l_p_j_ref_freq) {
 		l_p_j_ref = loops_per_jiffy;
 		l_p_j_ref_freq = ci->old;
-		dprintk("saving %lu as reference value for loops_per_jiffy;"
+		dprintk("saving %lu as reference value for loops_per_jiffy; "
 			"freq is %u kHz\n", l_p_j_ref, l_p_j_ref_freq);
 	}
 	if ((val == CPUFREQ_PRECHANGE  && ci->old < ci->new) ||
@@ -295,7 +295,7 @@ static void adjust_jiffies(unsigned long val, struct cpufreq_freqs *ci)
 	    (val == CPUFREQ_RESUMECHANGE || val == CPUFREQ_SUSPENDCHANGE)) {
 		loops_per_jiffy = cpufreq_scale(l_p_j_ref, l_p_j_ref_freq,
 								ci->new);
-		dprintk("scaling loops_per_jiffy to %lu"
+		dprintk("scaling loops_per_jiffy to %lu "
 			"for frequency %u kHz\n", loops_per_jiffy, ci->new);
 	}
 }
@@ -601,6 +601,31 @@ static ssize_t show_affected_cpus (struct cpufreq_policy * policy, char *buf)
 	return i;
 }
 
+static ssize_t store_scaling_setspeed(struct cpufreq_policy *policy,
+		const char *buf, size_t count)
+{
+	unsigned int freq = 0;
+	unsigned int ret;
+
+	if (!policy->governor->store_setspeed)
+		return -EINVAL;
+
+	ret = sscanf(buf, "%u", &freq);
+	if (ret != 1)
+		return -EINVAL;
+
+	policy->governor->store_setspeed(policy, freq);
+
+	return count;
+}
+
+static ssize_t show_scaling_setspeed(struct cpufreq_policy *policy, char *buf)
+{
+	if (!policy->governor->show_setspeed)
+		return sprintf(buf, "<unsupported>\n");
+
+	return policy->governor->show_setspeed(policy, buf);
+}
 
 #define define_one_ro(_name) \
 static struct freq_attr _name = \
@@ -624,6 +649,7 @@ define_one_ro(affected_cpus);
 define_one_rw(scaling_min_freq);
 define_one_rw(scaling_max_freq);
 define_one_rw(scaling_governor);
+define_one_rw(scaling_setspeed);
 
 static struct attribute * default_attrs[] = {
 	&cpuinfo_min_freq.attr,
@@ -634,6 +660,7 @@ static struct attribute * default_attrs[] = {
 	&scaling_governor.attr,
 	&scaling_driver.attr,
 	&scaling_available_governors.attr,
+	&scaling_setspeed.attr,
 	NULL
 };
 
@@ -1313,7 +1340,7 @@ static int cpufreq_resume(struct sys_device * sysdev)
 			struct cpufreq_freqs freqs;
 
 			if (!(cpufreq_driver->flags & CPUFREQ_PM_NO_WARN))
-				dprintk("Warning: CPU frequency"
+				dprintk("Warning: CPU frequency "
 				       "is %u, cpufreq assumed %u kHz.\n",
 				       cur_freq, cpu_policy->cur);
 
