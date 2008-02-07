@@ -766,8 +766,7 @@ asmlinkage void do_ptrace(struct pt_regs *regs)
 		goto out;
 	}
 
-	if ((current->personality == PER_SUNOS && request == PTRACE_SUNATTACH)
-	    || (current->personality != PER_SUNOS && request == PTRACE_ATTACH)) {
+	if (request == PTRACE_ATTACH) {
 		if (ptrace_attach(child)) {
 			pt_error_return(regs, EPERM);
 			goto out_tsk;
@@ -1136,18 +1135,6 @@ asmlinkage void do_ptrace(struct pt_regs *regs)
 		pt_succ_return(regs, 0);
 		goto out_tsk;
 	}
-
-	case PTRACE_SUNDETACH: { /* detach a process that was attached. */
-		int error = ptrace_detach(child, data);
-		if (error) {
-			pt_error_return(regs, EIO);
-			goto out_tsk;
-		}
-		pt_succ_return(regs, 0);
-		goto out_tsk;
-	}
-
-	/* PTRACE_DUMPCORE unsupported... */
 
 	case PTRACE_GETEVENTMSG: {
 		int err;
