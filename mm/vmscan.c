@@ -1365,15 +1365,12 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
 		.mem_cgroup = mem_cont,
 		.isolate_pages = mem_cgroup_isolate_pages,
 	};
-	int node;
 	struct zone **zones;
 	int target_zone = gfp_zone(GFP_HIGHUSER_MOVABLE);
 
-	for_each_online_node(node) {
-		zones = NODE_DATA(node)->node_zonelists[target_zone].zones;
-		if (do_try_to_free_pages(zones, sc.gfp_mask, &sc))
-			return 1;
-	}
+	zones = NODE_DATA(numa_node_id())->node_zonelists[target_zone].zones;
+	if (do_try_to_free_pages(zones, sc.gfp_mask, &sc))
+		return 1;
 	return 0;
 }
 #endif
