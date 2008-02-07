@@ -744,7 +744,7 @@ static int __init dz_console_setup(struct console *co, char *options)
 }
 
 static struct uart_driver dz_reg;
-static struct console dz_sercons = {
+static struct console dz_console = {
 	.name	= "ttyS",
 	.write	= dz_console_print,
 	.device	= uart_console_device,
@@ -758,7 +758,7 @@ static int __init dz_serial_console_init(void)
 {
 	if (!IOASIC) {
 		dz_init_ports();
-		register_console(&dz_sercons);
+		register_console(&dz_console);
 		return 0;
 	} else
 		return -ENXIO;
@@ -766,7 +766,7 @@ static int __init dz_serial_console_init(void)
 
 console_initcall(dz_serial_console_init);
 
-#define SERIAL_DZ_CONSOLE	&dz_sercons
+#define SERIAL_DZ_CONSOLE	&dz_console
 #else
 #define SERIAL_DZ_CONSOLE	NULL
 #endif /* CONFIG_SERIAL_DZ_CONSOLE */
