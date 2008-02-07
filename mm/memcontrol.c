@@ -260,24 +260,20 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 	spin_lock(&mem_cont->lru_lock);
 	scan = 0;
 	list_for_each_entry_safe_reverse(pc, tmp, src, lru) {
-		if (scan++ > nr_to_scan)
+		if (scan >= nr_to_scan)
 			break;
 		page = pc->page;
 		VM_BUG_ON(!pc);
 
-		if (unlikely(!PageLRU(page))) {
-			scan--;
+		if (unlikely(!PageLRU(page)))
 			continue;
-		}
 
 		if (PageActive(page) && !active) {
 			__mem_cgroup_move_lists(pc, true);
-			scan--;
 			continue;
 		}
 		if (!PageActive(page) && active) {
 			__mem_cgroup_move_lists(pc, false);
-			scan--;
 			continue;
 		}
 
@@ -288,13 +284,8 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 		if (page_zone(page) != z)
 			continue;
 
-		/*
-		 * Check if the meta page went away from under us
-		 */
-		if (!list_empty(&pc->lru))
-			list_move(&pc->lru, &pc_list);
-		else
-			continue;
+		scan++;
+		list_move(&pc->lru, &pc_list);
 
 		if (__isolate_lru_page(page, mode) == 0) {
 			list_move(&page->lru, dst);
