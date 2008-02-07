@@ -1907,7 +1907,7 @@ sub process_file($) {
 		$newsection = $1;
 		$newcontents = $2;
 
-		if ($contents ne "") {
+		if (($contents ne "") && ($contents ne "\n")) {
 		    if (!$in_doc_sect && $verbose) {
 			print STDERR "Warning(${file}:$.): contents before sections\n";
 			++$warnings;
