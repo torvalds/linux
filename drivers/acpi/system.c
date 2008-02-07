@@ -357,8 +357,8 @@ void acpi_irq_stats_init(void)
 	}
 
 	interrupt_stats_attr_group.attrs = all_attrs;
-	sysfs_create_group(acpi_kobj, &interrupt_stats_attr_group);
-	return;
+	if (!sysfs_create_group(acpi_kobj, &interrupt_stats_attr_group))
+		return;
 
 fail:
 	delete_gpe_attr_array();
