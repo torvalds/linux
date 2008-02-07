@@ -681,12 +681,17 @@ __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new, int size)
 	return old;
 }
 
-#define cmpxchg(ptr,o,n)						 \
+#define cmpxchg(ptr, o, n)						 \
   ({									 \
      __typeof__(*(ptr)) _o_ = (o);					 \
      __typeof__(*(ptr)) _n_ = (n);					 \
      (__typeof__(*(ptr))) __cmpxchg((ptr), (unsigned long)_o_,		 \
 				    (unsigned long)_n_, sizeof(*(ptr))); \
+  })
+#define cmpxchg64(ptr, o, n)						 \
+  ({									 \
+	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				 \
+	cmpxchg((ptr), (o), (n));					 \
   })
 
 static inline unsigned long
@@ -803,13 +808,19 @@ __cmpxchg_local(volatile void *ptr, unsigned long old, unsigned long new,
 	return old;
 }
 
-#define cmpxchg_local(ptr,o,n)						 \
+#define cmpxchg_local(ptr, o, n)					 \
   ({									 \
      __typeof__(*(ptr)) _o_ = (o);					 \
      __typeof__(*(ptr)) _n_ = (n);					 \
      (__typeof__(*(ptr))) __cmpxchg_local((ptr), (unsigned long)_o_,	 \
 				    (unsigned long)_n_, sizeof(*(ptr))); \
   })
+#define cmpxchg64_local(ptr, o, n)					 \
+  ({									 \
+	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				 \
+	cmpxchg_local((ptr), (o), (n));					 \
+  })
+
 
 #endif /* __ASSEMBLY__ */
 
