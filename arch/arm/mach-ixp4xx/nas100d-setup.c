@@ -60,17 +60,17 @@ static struct i2c_board_info __initdata nas100d_i2c_board_info [] = {
 
 static struct gpio_led nas100d_led_pins[] = {
 	{
-		.name		= "wlan",   /* green led */
+		.name		= "nas100d:green:wlan",
 		.gpio		= NAS100D_LED_WLAN_GPIO,
 		.active_low	= true,
 	},
 	{
-		.name		= "power",  /* blue power led (off=flashing) */
+		.name		= "nas100d:blue:power",  /* (off=flashing) */
 		.gpio		= NAS100D_LED_PWR_GPIO,
 		.active_low	= true,
 	},
 	{
-		.name		= "disk",   /* yellow led */
+		.name		= "nas100d:yellow:disk",
 		.gpio		= NAS100D_LED_DISK_GPIO,
 		.active_low	= true,
 	},

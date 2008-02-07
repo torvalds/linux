@@ -39,15 +39,6 @@ config LEDS_SPITZ
 	  This option enables support for the LEDs on Sharp Zaurus
 	  SL-Cxx00 series (C1000, C3000, C3100).
 
-config LEDS_IXP4XX
-	tristate "LED Support for GPIO connected LEDs on IXP4XX processors"
-	depends on LEDS_CLASS && ARCH_IXP4XX
-	help
-	  This option enables support for the LEDs connected to GPIO
-	  outputs of the Intel IXP4XX processors.  To be useful the
-	  particular board must have LEDs and they must be connected
-	  to the GPIO lines.  If unsure, say Y.
-
 config LEDS_TOSA
 	tristate "LED Support for the Sharp SL-6000 series"
 	depends on LEDS_CLASS && PXA_SHARPSL
@@ -100,6 +91,13 @@ config LEDS_COBALT_RAQ
 	help
 	  This option enables support for the Cobalt Raq series LEDs.
 
+config LEDS_HP6XX
+	tristate "LED Support for the HP Jornada 6xx"
+	depends on LEDS_CLASS && SH_HP6XX
+	help
+	  This option enables led support for the handheld
+	  HP Jornada 620/660/680/690.
+
 config LEDS_GPIO
 	tristate "LED Support for GPIO connected LEDs"
 	depends on LEDS_CLASS && GENERIC_GPIO
@@ -113,6 +111,32 @@ config LEDS_CM_X270
 	depends on LEDS_CLASS && MACH_ARMCORE
 	help
 	  This option enables support for the CM-X270 LEDs.
+
+config LEDS_CLEVO_MAIL
+	tristate "Mail LED on Clevo notebook (EXPERIMENTAL)"
+	depends on LEDS_CLASS && X86 && SERIO_I8042 && DMI && EXPERIMENTAL
+	help
+	  This driver makes the mail LED accessible from userspace
+	  programs through the leds subsystem. This LED have three
+	  known mode: off, blink at 0.5Hz and blink at 1Hz.
+
+	  The driver supports two kinds of interface: using ledtrig-timer
+	  or through /sys/class/leds/clevo::mail/brightness. As this LED
+	  cannot change it's brightness it blinks instead. The brightness
+	  value 0 means off, 1..127 means blink at 0.5Hz and 128..255 means
+	  blink at 1Hz.
+
+	  This module can drive the mail LED for the following notebooks:
+
+	  	Clevo D410J
+	  	Clevo D410V
+	  	Clevo D400V/D470V (not tested, but might work)
+	  	Clevo M540N
+	  	Clevo M5x0N (not tested, but might work)
+	  	Positivo Mobile (Clevo M5x0V)
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called leds-clevo-mail.
 
 comment "LED Triggers"
 
@@ -128,7 +152,11 @@ config LEDS_TRIGGER_TIMER
 	depends on LEDS_TRIGGERS
 	help
 	  This allows LEDs to be controlled by a programmable timer
-	  via sysfs. If unsure, say Y.
+	  via sysfs. Some LED hardware can be programmed to start
+	  blinking the LED without any further software interaction.
+	  For more details read Documentation/leds-class.txt.
+
+	  If unsure, say Y.
 
 config LEDS_TRIGGER_IDE_DISK
 	bool "LED IDE Disk Trigger"

@@ -45,13 +45,13 @@ static void tosaled_green_set(struct led_classdev *led_cdev,
 }
 
 static struct led_classdev tosa_amber_led = {
-	.name			= "tosa:amber",
+	.name			= "tosa:amber:charge",
 	.default_trigger	= "sharpsl-charge",
 	.brightness_set		= tosaled_amber_set,
 };
 
 static struct led_classdev tosa_green_led = {
-	.name			= "tosa:green",
+	.name			= "tosa:green:mail",
 	.default_trigger	= "nand-disk",
 	.brightness_set		= tosaled_green_set,
 };

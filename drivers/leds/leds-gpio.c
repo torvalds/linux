@@ -85,7 +85,7 @@ static int gpio_led_probe(struct platform_device *pdev)
 		led_dat->can_sleep = gpio_cansleep(cur_led->gpio);
 		led_dat->active_low = cur_led->active_low;
 		led_dat->cdev.brightness_set = gpio_led_set;
-		led_dat->cdev.brightness = cur_led->active_low ? LED_FULL : LED_OFF;
+		led_dat->cdev.brightness = LED_OFF;
 
 		ret = gpio_request(led_dat->gpio, led_dat->cdev.name);
 		if (ret < 0)

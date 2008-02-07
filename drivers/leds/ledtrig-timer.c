@@ -77,8 +77,21 @@ static ssize_t led_delay_on_store(struct device *dev,
 		count++;
 
 	if (count == size) {
-		timer_data->delay_on = state;
-		mod_timer(&timer_data->timer, jiffies + 1);
+		if (timer_data->delay_on != state) {
+			/* the new value differs from the previous */
+			timer_data->delay_on = state;
+
+			/* deactivate previous settings */
+			del_timer_sync(&timer_data->timer);
+
+			/* try to activate hardware acceleration, if any */
+			if (!led_cdev->blink_set ||
+			    led_cdev->blink_set(led_cdev,
+				&timer_data->delay_on, &timer_data->delay_off)) {
+				/* no hardware acceleration, blink via timer */
+				mod_timer(&timer_data->timer, jiffies + 1);
+			}
+		}
 		ret = count;
 	}
 
@@ -110,8 +123,21 @@ static ssize_t led_delay_off_store(struct device *dev,
 		count++;
 
 	if (count == size) {
-		timer_data->delay_off = state;
-		mod_timer(&timer_data->timer, jiffies + 1);
+		if (timer_data->delay_off != state) {
+			/* the new value differs from the previous */
+			timer_data->delay_off = state;
+
+			/* deactivate previous settings */
+			del_timer_sync(&timer_data->timer);
+
+			/* try to activate hardware acceleration, if any */
+			if (!led_cdev->blink_set ||
+			    led_cdev->blink_set(led_cdev,
+				&timer_data->delay_on, &timer_data->delay_off)) {
+				/* no hardware acceleration, blink via timer */
+				mod_timer(&timer_data->timer, jiffies + 1);
+			}
+		}
 		ret = count;
 	}
 
@@ -142,6 +168,13 @@ static void timer_trig_activate(struct led_classdev *led_cdev)
 	rc = device_create_file(led_cdev->dev, &dev_attr_delay_off);
 	if (rc)
 		goto err_out_delayon;
+
+	/* If there is hardware support for blinking, start one
+	 * user friendly blink rate chosen by the driver.
+	 */
+	if (led_cdev->blink_set)
+		led_cdev->blink_set(led_cdev,
+			&timer_data->delay_on, &timer_data->delay_off);
 
 	return;
 

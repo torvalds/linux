@@ -998,12 +998,12 @@ static void wistron_wifi_led_set(struct led_classdev *led_cdev,
 }
 
 static struct led_classdev wistron_mail_led = {
-	.name			= "mail:green",
+	.name			= "wistron:green:mail",
 	.brightness_set		= wistron_mail_led_set,
 };
 
 static struct led_classdev wistron_wifi_led = {
-	.name			= "wifi:red",
+	.name			= "wistron:red:wifi",
 	.brightness_set		= wistron_wifi_led_set,
 };
 

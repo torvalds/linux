@@ -38,13 +38,13 @@ static void corgiled_green_set(struct led_classdev *led_cdev, enum led_brightnes
 }
 
 static struct led_classdev corgi_amber_led = {
-	.name			= "corgi:amber",
+	.name			= "corgi:amber:charge",
 	.default_trigger	= "sharpsl-charge",
 	.brightness_set		= corgiled_amber_set,
 };
 
 static struct led_classdev corgi_green_led = {
-	.name			= "corgi:green",
+	.name			= "corgi:green:mail",
 	.default_trigger	= "nand-disk",
 	.brightness_set		= corgiled_green_set,
 };
