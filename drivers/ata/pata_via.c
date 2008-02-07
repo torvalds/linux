@@ -84,6 +84,7 @@ enum {
 	VIA_BAD_ID	= 0x100, /* Has wrong vendor ID (0x1107) */
 	VIA_BAD_AST	= 0x200, /* Don't touch Address Setup Timing */
 	VIA_NO_ENABLES	= 0x400, /* Has no enablebits */
+	VIA_SATA_PATA	= 0x800, /* SATA/PATA combined configuration */
 };
 
 /*
@@ -100,7 +101,7 @@ static const struct via_isa_bridge {
 	{ "vx800",	PCI_DEVICE_ID_VIA_VX800,    0x00, 0x2f, VIA_UDMA_133 | VIA_BAD_AST },
 	{ "vt8237s",	PCI_DEVICE_ID_VIA_8237S,    0x00, 0x2f, VIA_UDMA_133 | VIA_BAD_AST },
 	{ "vt8251",	PCI_DEVICE_ID_VIA_8251,     0x00, 0x2f, VIA_UDMA_133 | VIA_BAD_AST },
-	{ "cx700",	PCI_DEVICE_ID_VIA_CX700,    0x00, 0x2f, VIA_UDMA_133 | VIA_BAD_AST },
+	{ "cx700",	PCI_DEVICE_ID_VIA_CX700,    0x00, 0x2f, VIA_UDMA_133 | VIA_BAD_AST | VIA_SATA_PATA },
 	{ "vt6410",	PCI_DEVICE_ID_VIA_6410,     0x00, 0x2f, VIA_UDMA_133 | VIA_BAD_AST | VIA_NO_ENABLES},
 	{ "vt8237a",	PCI_DEVICE_ID_VIA_8237A,    0x00, 0x2f, VIA_UDMA_133 | VIA_BAD_AST },
 	{ "vt8237",	PCI_DEVICE_ID_VIA_8237,     0x00, 0x2f, VIA_UDMA_133 | VIA_BAD_AST },
@@ -171,6 +172,9 @@ static int via_cable_detect(struct ata_port *ap) {
 
 	if (via_cable_override(pdev))
 		return ATA_CBL_PATA40_SHORT;
+
+	if ((config->flags & VIA_SATA_PATA) && ap->port_no == 0)
+		return ATA_CBL_SATA;
 
 	/* Early chips are 40 wire */
 	if ((config->flags & VIA_UDMA) < VIA_UDMA_66)
