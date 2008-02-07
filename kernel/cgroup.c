@@ -1181,9 +1181,8 @@ static int attach_task(struct cgroup *cgrp, struct task_struct *tsk)
 	for_each_subsys(root, ss) {
 		if (ss->can_attach) {
 			retval = ss->can_attach(ss, cgrp, tsk);
-			if (retval) {
+			if (retval)
 				return retval;
-			}
 		}
 	}
 
@@ -1192,9 +1191,8 @@ static int attach_task(struct cgroup *cgrp, struct task_struct *tsk)
 	 * based on its final set of cgroups
 	 */
 	newcg = find_css_set(cg, cgrp);
-	if (!newcg) {
+	if (!newcg)
 		return -ENOMEM;
-	}
 
 	task_lock(tsk);
 	if (tsk->flags & PF_EXITING) {
@@ -1214,9 +1212,8 @@ static int attach_task(struct cgroup *cgrp, struct task_struct *tsk)
 	write_unlock(&css_set_lock);
 
 	for_each_subsys(root, ss) {
-		if (ss->attach) {
+		if (ss->attach)
 			ss->attach(ss, cgrp, oldcgrp, tsk);
-		}
 	}
 	set_bit(CGRP_RELEASABLE, &oldcgrp->flags);
 	synchronize_rcu();
@@ -1352,9 +1349,8 @@ static ssize_t cgroup_common_file_write(struct cgroup *cgrp,
 	{
 		struct cgroupfs_root *root = cgrp->root;
 		/* Strip trailing newline */
-		if (nbytes && (buffer[nbytes-1] == '\n')) {
+		if (nbytes && (buffer[nbytes-1] == '\n'))
 			buffer[nbytes-1] = 0;
-		}
 
 		/* We never write anything other than '\0'
 		 * into the last char of release_agent_path,
@@ -2124,9 +2120,8 @@ static inline int cgroup_has_css_refs(struct cgroup *cgrp)
 		 * matter, since it can only happen if the cgroup
 		 * has been deleted and hence no longer needs the
 		 * release agent to be called anyway. */
-		if (css && atomic_read(&css->refcnt)) {
+		if (css && atomic_read(&css->refcnt))
 			return 1;
-		}
 	}
 	return 0;
 }
