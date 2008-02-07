@@ -687,10 +687,13 @@ const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
 	long addr2 = task_pt_regs(current)->u_regs[UREG_I4];
-	int i, ret;
+	const struct user_regset_view *view;
+	int ret;
 
 	if (test_thread_flag(TIF_32BIT))
 		addr2 &= 0xffffffffUL;
+
+	view = task_user_regset_view(child);
 
 	switch(request) {
 	case PTRACE_PEEKUSR:
@@ -746,111 +749,66 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	case PTRACE_GETREGS: {
 		struct pt_regs32 __user *pregs =
 			(struct pt_regs32 __user *) addr;
-		struct pt_regs *cregs = task_pt_regs(child);
 
-		ret = -EFAULT;
-		if (__put_user(tstate_to_psr(cregs->tstate), (&pregs->psr)) ||
-		    __put_user(cregs->tpc, (&pregs->pc)) ||
-		    __put_user(cregs->tnpc, (&pregs->npc)) ||
-		    __put_user(cregs->y, (&pregs->y)))
-			break;
-		for (i = 1; i < 16; i++) {
-			if (__put_user(cregs->u_regs[i],
-				       (&pregs->u_regs[i - 1])))
-				break;
-		}
-		if (i == 16)
-			ret = 0;
+		ret = copy_regset_to_user(child, view, REGSET_GENERAL,
+					  32 * sizeof(u32),
+					  4 * sizeof(u32),
+					  &pregs->psr);
+		if (!ret)
+			ret = copy_regset_to_user(child, view, REGSET_GENERAL,
+						  1 * sizeof(u32),
+						  15 * sizeof(u32),
+						  &pregs->u_regs[0]);
 		break;
 	}
 
 	case PTRACE_GETREGS64: {
 		struct pt_regs __user *pregs = (struct pt_regs __user *) addr;
-		struct pt_regs *cregs = task_pt_regs(child);
-		unsigned long tpc = cregs->tpc;
 
-		if ((task_thread_info(child)->flags & _TIF_32BIT) != 0)
-			tpc &= 0xffffffff;
-
-		ret = -EFAULT;
-		if (__put_user(cregs->tstate, (&pregs->tstate)) ||
-		    __put_user(tpc, (&pregs->tpc)) ||
-		    __put_user(cregs->tnpc, (&pregs->tnpc)) ||
-		    __put_user(cregs->y, (&pregs->y)))
-			break;
-		for (i = 1; i < 16; i++) {
-			if (__put_user(cregs->u_regs[i],
-				       (&pregs->u_regs[i - 1])))
-				break;
+		ret = copy_regset_to_user(child, view, REGSET_GENERAL,
+					  1 * sizeof(u64),
+					  15 * sizeof(u64),
+					  &pregs->u_regs[0]);
+		if (!ret) {
+			/* XXX doesn't handle 'y' register correctly XXX */
+			ret = copy_regset_to_user(child, view, REGSET_GENERAL,
+						  32 * sizeof(u64),
+						  4 * sizeof(u64),
+						  &pregs->tstate);
 		}
-		if (i == 16)
-			ret = 0;
 		break;
 	}
 
 	case PTRACE_SETREGS: {
 		struct pt_regs32 __user *pregs =
 			(struct pt_regs32 __user *) addr;
-		struct pt_regs *cregs = task_pt_regs(child);
-		unsigned int psr, pc, npc, y;
 
-		/* Must be careful, tracing process can only set certain
-		 * bits in the psr.
-		 */
-		ret = -EFAULT;
-		if (__get_user(psr, (&pregs->psr)) ||
-		    __get_user(pc, (&pregs->pc)) ||
-		    __get_user(npc, (&pregs->npc)) ||
-		    __get_user(y, (&pregs->y)))
-			break;
-		cregs->tstate &= ~(TSTATE_ICC);
-		cregs->tstate |= psr_to_tstate_icc(psr);
-               	if (!((pc | npc) & 3)) {
-			cregs->tpc = pc;
-			cregs->tnpc = npc;
-		}
-		cregs->y = y;
-		for (i = 1; i < 16; i++) {
-			if (__get_user(cregs->u_regs[i], (&pregs->u_regs[i-1])))
-				break;
-		}
-		if (i == 16)
-			ret = 0;
+		ret = copy_regset_from_user(child, view, REGSET_GENERAL,
+					    32 * sizeof(u32),
+					    4 * sizeof(u32),
+					    &pregs->psr);
+		if (!ret)
+			ret = copy_regset_from_user(child, view, REGSET_GENERAL,
+						    1 * sizeof(u32),
+						    15 * sizeof(u32),
+						    &pregs->u_regs[0]);
 		break;
 	}
 
 	case PTRACE_SETREGS64: {
 		struct pt_regs __user *pregs = (struct pt_regs __user *) addr;
-		struct pt_regs *cregs = task_pt_regs(child);
-		unsigned long tstate, tpc, tnpc, y;
 
-		/* Must be careful, tracing process can only set certain
-		 * bits in the psr.
-		 */
-		ret = -EFAULT;
-		if (__get_user(tstate, (&pregs->tstate)) ||
-		    __get_user(tpc, (&pregs->tpc)) ||
-		    __get_user(tnpc, (&pregs->tnpc)) ||
-		    __get_user(y, (&pregs->y)))
-			break;
-		if ((task_thread_info(child)->flags & _TIF_32BIT) != 0) {
-			tpc &= 0xffffffff;
-			tnpc &= 0xffffffff;
+		ret = copy_regset_from_user(child, view, REGSET_GENERAL,
+					    1 * sizeof(u64),
+					    15 * sizeof(u64),
+					    &pregs->u_regs[0]);
+		if (!ret) {
+			/* XXX doesn't handle 'y' register correctly XXX */
+			ret = copy_regset_from_user(child, view, REGSET_GENERAL,
+						    32 * sizeof(u64),
+						    4 * sizeof(u64),
+						    &pregs->tstate);
 		}
-		tstate &= (TSTATE_ICC | TSTATE_XCC);
-		cregs->tstate &= ~(TSTATE_ICC | TSTATE_XCC);
-		cregs->tstate |= tstate;
-		if (!((tpc | tnpc) & 3)) {
-			cregs->tpc = tpc;
-			cregs->tnpc = tnpc;
-		}
-		cregs->y = y;
-		for (i = 1; i < 16; i++) {
-			if (__get_user(cregs->u_regs[i], (&pregs->u_regs[i-1])))
-				break;
-		}
-		if (i == 16)
-			ret = 0;
 		break;
 	}
 
@@ -867,19 +825,23 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			} fpq[16];
 		};
 		struct fps __user *fps = (struct fps __user *) addr;
-		unsigned long *fpregs = task_thread_info(child)->fpregs;
 
-		ret = -EFAULT;
-		if (copy_to_user(&fps->regs[0], fpregs,
-				 (32 * sizeof(unsigned int))) ||
-		    __put_user(task_thread_info(child)->xfsr[0], (&fps->fsr)) ||
-		    __put_user(0, (&fps->fpqd)) ||
-		    __put_user(0, (&fps->flags)) ||
-		    __put_user(0, (&fps->extra)) ||
-		    clear_user(&fps->fpq[0], 32 * sizeof(unsigned int)))
-			break;
-
-		ret = 0;
+		ret = copy_regset_to_user(child, view, REGSET_FP,
+					  0 * sizeof(u32),
+					  32 * sizeof(u32),
+					  &fps->regs[0]);
+		if (!ret)
+			ret = copy_regset_to_user(child, view, REGSET_FP,
+						  33 * sizeof(u32),
+						  1 * sizeof(u32),
+						  &fps->fsr);
+		if (!ret) {
+			if (__put_user(0, &fps->flags) ||
+			    __put_user(0, &fps->extra) ||
+			    __put_user(0, &fps->fpqd) ||
+			    clear_user(&fps->fpq[0], 32 * sizeof(unsigned int)))
+				ret = -EFAULT;
+		}
 		break;
 	}
 
@@ -889,15 +851,11 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			unsigned long fsr;
 		};
 		struct fps __user *fps = (struct fps __user *) addr;
-		unsigned long *fpregs = task_thread_info(child)->fpregs;
 
-		ret = -EFAULT;
-		if (copy_to_user(&fps->regs[0], fpregs,
-				 (64 * sizeof(unsigned int))) ||
-		    __put_user(task_thread_info(child)->xfsr[0], (&fps->fsr)))
-			break;
-
-		ret = 0;
+		ret = copy_regset_to_user(child, view, REGSET_FP,
+					  0 * sizeof(u64),
+					  33 * sizeof(u64),
+					  fps);
 		break;
 	}
 
@@ -914,21 +872,16 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			} fpq[16];
 		};
 		struct fps __user *fps = (struct fps __user *) addr;
-		unsigned long *fpregs = task_thread_info(child)->fpregs;
-		unsigned fsr;
 
-		ret = -EFAULT;
-		if (copy_from_user(fpregs, &fps->regs[0],
-				   (32 * sizeof(unsigned int))) ||
-		    __get_user(fsr, (&fps->fsr)))
-			break;
-
-		task_thread_info(child)->xfsr[0] &= 0xffffffff00000000UL;
-		task_thread_info(child)->xfsr[0] |= fsr;
-		if (!(task_thread_info(child)->fpsaved[0] & FPRS_FEF))
-			task_thread_info(child)->gsr[0] = 0;
-		task_thread_info(child)->fpsaved[0] |= (FPRS_FEF | FPRS_DL);
-		ret = 0;
+		ret = copy_regset_from_user(child, view, REGSET_FP,
+					    0 * sizeof(u32),
+					    32 * sizeof(u32),
+					    &fps->regs[0]);
+		if (!ret)
+			ret = copy_regset_from_user(child, view, REGSET_FP,
+						    33 * sizeof(u32),
+						    1 * sizeof(u32),
+						    &fps->fsr);
 		break;
 	}
 
@@ -938,19 +891,11 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			unsigned long fsr;
 		};
 		struct fps __user *fps = (struct fps __user *) addr;
-		unsigned long *fpregs = task_thread_info(child)->fpregs;
 
-		ret = -EFAULT;
-		if (copy_from_user(fpregs, &fps->regs[0],
-				   (64 * sizeof(unsigned int))) ||
-		    __get_user(task_thread_info(child)->xfsr[0], (&fps->fsr)))
-			break;
-
-		if (!(task_thread_info(child)->fpsaved[0] & FPRS_FEF))
-			task_thread_info(child)->gsr[0] = 0;
-		task_thread_info(child)->fpsaved[0] |=
-			(FPRS_FEF | FPRS_DL | FPRS_DU);
-		ret = 0;
+		ret = copy_regset_to_user(child, view, REGSET_FP,
+					  0 * sizeof(u64),
+					  33 * sizeof(u64),
+					  fps);
 		break;
 	}
 
