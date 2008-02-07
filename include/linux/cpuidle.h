@@ -73,19 +73,6 @@ cpuidle_set_statedata(struct cpuidle_state *state, void *data)
 	state->driver_data = data;
 }
 
-#ifdef CONFIG_SMP
-#ifdef CONFIG_ARCH_HAS_CPU_IDLE_WAIT
-static inline void cpuidle_kick_cpus(void)
-{
-	cpu_idle_wait();
-}
-#else /* !CONFIG_ARCH_HAS_CPU_IDLE_WAIT */
-#error "Arch needs cpu_idle_wait() equivalent here"
-#endif /* !CONFIG_ARCH_HAS_CPU_IDLE_WAIT */
-#else /* !CONFIG_SMP */
-static inline void cpuidle_kick_cpus(void) {}
-#endif /* !CONFIG_SMP */
-
 struct cpuidle_state_kobj {
 	struct cpuidle_state *state;
 	struct completion kobj_unregister;
