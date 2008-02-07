@@ -32,6 +32,13 @@ extern void page_assign_page_cgroup(struct page *page,
 extern struct page_cgroup *page_get_page_cgroup(struct page *page);
 extern int mem_cgroup_charge(struct page *page, struct mm_struct *mm);
 extern void mem_cgroup_uncharge(struct page_cgroup *pc);
+extern void mem_cgroup_move_lists(struct page_cgroup *pc, bool active);
+extern unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
+					struct list_head *dst,
+					unsigned long *scanned, int order,
+					int mode, struct zone *z,
+					struct mem_cgroup *mem_cont,
+					int active);
 
 static inline void mem_cgroup_uncharge_page(struct page *page)
 {
@@ -68,6 +75,11 @@ static inline void mem_cgroup_uncharge(struct page_cgroup *pc)
 }
 
 static inline void mem_cgroup_uncharge_page(struct page *page)
+{
+}
+
+static inline void mem_cgroup_move_lists(struct page_cgroup *pc,
+						bool active)
 {
 }
 

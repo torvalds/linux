@@ -22,10 +22,15 @@
 #include <linux/cgroup.h>
 #include <linux/mm.h>
 #include <linux/page-flags.h>
+#include <linux/backing-dev.h>
 #include <linux/bit_spinlock.h>
 #include <linux/rcupdate.h>
+#include <linux/swap.h>
+#include <linux/spinlock.h>
+#include <linux/fs.h>
 
 struct cgroup_subsys mem_cgroup_subsys;
+static const int MEM_CGROUP_RECLAIM_RETRIES = 5;
 
 /*
  * The memory controller data structure. The memory controller controls both
@@ -51,6 +56,10 @@ struct mem_cgroup {
 	 */
 	struct list_head active_list;
 	struct list_head inactive_list;
+	/*
+	 * spin_lock to protect the per cgroup LRU
+	 */
+	spinlock_t lru_lock;
 };
 
 /*
@@ -141,6 +150,94 @@ void __always_inline unlock_page_cgroup(struct page *page)
 	bit_spin_unlock(PAGE_CGROUP_LOCK_BIT, &page->page_cgroup);
 }
 
+void __mem_cgroup_move_lists(struct page_cgroup *pc, bool active)
+{
+	if (active)
+		list_move(&pc->lru, &pc->mem_cgroup->active_list);
+	else
+		list_move(&pc->lru, &pc->mem_cgroup->inactive_list);
+}
+
+/*
+ * This routine assumes that the appropriate zone's lru lock is already held
+ */
+void mem_cgroup_move_lists(struct page_cgroup *pc, bool active)
+{
+	struct mem_cgroup *mem;
+	if (!pc)
+		return;
+
+	mem = pc->mem_cgroup;
+
+	spin_lock(&mem->lru_lock);
+	__mem_cgroup_move_lists(pc, active);
+	spin_unlock(&mem->lru_lock);
+}
+
+unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
+					struct list_head *dst,
+					unsigned long *scanned, int order,
+					int mode, struct zone *z,
+					struct mem_cgroup *mem_cont,
+					int active)
+{
+	unsigned long nr_taken = 0;
+	struct page *page;
+	unsigned long scan;
+	LIST_HEAD(pc_list);
+	struct list_head *src;
+	struct page_cgroup *pc;
+
+	if (active)
+		src = &mem_cont->active_list;
+	else
+		src = &mem_cont->inactive_list;
+
+	spin_lock(&mem_cont->lru_lock);
+	for (scan = 0; scan < nr_to_scan && !list_empty(src); scan++) {
+		pc = list_entry(src->prev, struct page_cgroup, lru);
+		page = pc->page;
+		VM_BUG_ON(!pc);
+
+		if (PageActive(page) && !active) {
+			__mem_cgroup_move_lists(pc, true);
+			scan--;
+			continue;
+		}
+		if (!PageActive(page) && active) {
+			__mem_cgroup_move_lists(pc, false);
+			scan--;
+			continue;
+		}
+
+		/*
+		 * Reclaim, per zone
+		 * TODO: make the active/inactive lists per zone
+		 */
+		if (page_zone(page) != z)
+			continue;
+
+		/*
+		 * Check if the meta page went away from under us
+		 */
+		if (!list_empty(&pc->lru))
+			list_move(&pc->lru, &pc_list);
+		else
+			continue;
+
+		if (__isolate_lru_page(page, mode) == 0) {
+			list_move(&page->lru, dst);
+			nr_taken++;
+		}
+	}
+
+	list_splice(&pc_list, src);
+	spin_unlock(&mem_cont->lru_lock);
+
+	*scanned = scan;
+	return nr_taken;
+}
+
 /*
  * Charge the memory controller for page usage.
  * Return
@@ -151,6 +248,8 @@ int mem_cgroup_charge(struct page *page, struct mm_struct *mm)
 {
 	struct mem_cgroup *mem;
 	struct page_cgroup *pc, *race_pc;
+	unsigned long flags;
+	unsigned long nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
 
 	/*
 	 * Should page_cgroup's go to their own slab?
@@ -159,14 +258,20 @@ int mem_cgroup_charge(struct page *page, struct mm_struct *mm)
 	 * to see if the cgroup page already has a page_cgroup associated
 	 * with it
 	 */
+retry:
 	lock_page_cgroup(page);
 	pc = page_get_page_cgroup(page);
 	/*
 	 * The page_cgroup exists and the page has already been accounted
 	 */
 	if (pc) {
-		atomic_inc(&pc->ref_cnt);
-		goto done;
+		if (unlikely(!atomic_inc_not_zero(&pc->ref_cnt))) {
+			/* this page is under being uncharged ? */
+			unlock_page_cgroup(page);
+			cpu_relax();
+			goto retry;
+		} else
+			goto done;
 	}
 
 	unlock_page_cgroup(page);
@@ -197,7 +302,32 @@ int mem_cgroup_charge(struct page *page, struct mm_struct *mm)
 	 * If we created the page_cgroup, we should free it on exceeding
 	 * the cgroup limit.
 	 */
-	if (res_counter_charge(&mem->res, 1)) {
+	while (res_counter_charge(&mem->res, 1)) {
+		if (try_to_free_mem_cgroup_pages(mem))
+			continue;
+
+		/*
+ 		 * try_to_free_mem_cgroup_pages() might not give us a full
+ 		 * picture of reclaim. Some pages are reclaimed and might be
+ 		 * moved to swap cache or just unmapped from the cgroup.
+ 		 * Check the limit again to see if the reclaim reduced the
+ 		 * current usage of the cgroup before giving up
+ 		 */
+		if (res_counter_check_under_limit(&mem->res))
+			continue;
+			/*
+			 * Since we control both RSS and cache, we end up with a
+			 * very interesting scenario where we end up reclaiming
+			 * memory (essentially RSS), since the memory is pushed
+			 * to swap cache, we eventually end up adding those
+			 * pages back to our list. Hence we give ourselves a
+			 * few chances before we fail
+			 */
+		else if (nr_retries--) {
+			congestion_wait(WRITE, HZ/10);
+			continue;
+		}
+
 		css_put(&mem->css);
 		goto free_pc;
 	}
@@ -221,14 +351,16 @@ int mem_cgroup_charge(struct page *page, struct mm_struct *mm)
 	pc->page = page;
 	page_assign_page_cgroup(page, pc);
 
+	spin_lock_irqsave(&mem->lru_lock, flags);
+	list_add(&pc->lru, &mem->active_list);
+	spin_unlock_irqrestore(&mem->lru_lock, flags);
+
 done:
 	unlock_page_cgroup(page);
 	return 0;
 free_pc:
 	kfree(pc);
-	return -ENOMEM;
 err:
-	unlock_page_cgroup(page);
 	return -ENOMEM;
 }
 
@@ -240,6 +372,7 @@ void mem_cgroup_uncharge(struct page_cgroup *pc)
 {
 	struct mem_cgroup *mem;
 	struct page *page;
+	unsigned long flags;
 
 	if (!pc)
 		return;
@@ -252,6 +385,10 @@ void mem_cgroup_uncharge(struct page_cgroup *pc)
 		page_assign_page_cgroup(page, NULL);
 		unlock_page_cgroup(page);
 		res_counter_uncharge(&mem->res, 1);
+
+ 		spin_lock_irqsave(&mem->lru_lock, flags);
+ 		list_del_init(&pc->lru);
+ 		spin_unlock_irqrestore(&mem->lru_lock, flags);
 		kfree(pc);
 	}
 }
@@ -310,6 +447,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
 	res_counter_init(&mem->res);
 	INIT_LIST_HEAD(&mem->active_list);
 	INIT_LIST_HEAD(&mem->inactive_list);
+	spin_lock_init(&mem->lru_lock);
 	return &mem->css;
 }
 
