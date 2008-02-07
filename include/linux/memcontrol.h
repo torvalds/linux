@@ -48,6 +48,7 @@ extern unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 extern void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask);
 extern int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
 					gfp_t gfp_mask);
+int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem);
 
 static inline struct mem_cgroup *mm_cgroup(const struct mm_struct *mm)
 {
@@ -108,6 +109,12 @@ static inline int mem_cgroup_cache_charge(struct page *page,
 static inline struct mem_cgroup *mm_cgroup(const struct mm_struct *mm)
 {
 	return NULL;
+}
+
+static inline int task_in_mem_cgroup(struct task_struct *task,
+				     const struct mem_cgroup *mem)
+{
+	return 1;
 }
 
 #endif /* CONFIG_CGROUP_MEM_CONT */

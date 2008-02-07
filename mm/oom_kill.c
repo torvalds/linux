@@ -65,13 +65,6 @@ unsigned long badness(struct task_struct *p, unsigned long uptime,
 		return 0;
 	}
 
-#ifdef CONFIG_CGROUP_MEM_CONT
-	if (mem != NULL && mm->mem_cgroup != mem) {
-		task_unlock(p);
-		return 0;
-	}
-#endif
-
 	/*
 	 * The memory size of the process is the basis for the badness.
 	 */
@@ -222,6 +215,8 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
 			continue;
 		/* skip the init task */
 		if (is_global_init(p))
+			continue;
+		if (mem && !task_in_mem_cgroup(p, mem))
 			continue;
 
 		/*
