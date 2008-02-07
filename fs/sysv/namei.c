@@ -53,9 +53,9 @@ static struct dentry *sysv_lookup(struct inode * dir, struct dentry * dentry, st
 	ino = sysv_inode_by_name(dentry);
 
 	if (ino) {
-		inode = iget(dir->i_sb, ino);
-		if (!inode)
-			return ERR_PTR(-EACCES);
+		inode = sysv_iget(dir->i_sb, ino);
+		if (IS_ERR(inode))
+			return ERR_CAST(inode);
 	}
 	d_add(dentry, inode);
 	return NULL;

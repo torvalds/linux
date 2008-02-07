@@ -141,6 +141,7 @@ extern int __sysv_write_begin(struct file *file, struct address_space *mapping,
 			struct page **pagep, void **fsdata);
 
 /* inode.c */
+extern struct inode *sysv_iget(struct super_block *, unsigned int);
 extern int sysv_write_inode(struct inode *, int);
 extern int sysv_sync_inode(struct inode *);
 extern int sysv_sync_file(struct file *, struct dentry *, int);
