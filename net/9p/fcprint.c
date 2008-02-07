@@ -347,12 +347,12 @@ p9_printfcall(char *buf, int buflen, struct p9_fcall *fc, int extended)
 
 	return ret;
 }
-
 #else
 int
 p9_printfcall(char *buf, int buflen, struct p9_fcall *fc, int extended)
 {
 	return 0;
 }
-EXPORT_SYMBOL(p9_printfcall);
 #endif /* CONFIG_NET_9P_DEBUG */
+EXPORT_SYMBOL(p9_printfcall);
+

@@ -77,6 +77,8 @@ static int unixmode2p9mode(struct v9fs_session_info *v9ses, int mode)
 			res |= P9_DMSETUID;
 		if ((mode & S_ISGID) == S_ISGID)
 			res |= P9_DMSETGID;
+		if ((mode & S_ISVTX) == S_ISVTX)
+			res |= P9_DMSETVTX;
 		if ((mode & P9_DMLINK))
 			res |= P9_DMLINK;
 	}
@@ -119,6 +121,9 @@ static int p9mode2unixmode(struct v9fs_session_info *v9ses, int mode)
 
 		if ((mode & P9_DMSETGID) == P9_DMSETGID)
 			res |= S_ISGID;
+
+		if ((mode & P9_DMSETVTX) == P9_DMSETVTX)
+			res |= S_ISVTX;
 	}
 
 	return res;
