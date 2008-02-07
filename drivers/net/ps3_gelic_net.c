@@ -1512,7 +1512,7 @@ static int ps3_gelic_driver_probe (struct ps3_system_bus_device *dev)
 
 fail_setup_netdev:
 	lv1_net_set_interrupt_status_indicator(bus_id(card),
-					       bus_id(card),
+					       dev_id(card),
 					       0 , 0);
 fail_status_indicator:
 	ps3_dma_region_free(dev->d_region);
