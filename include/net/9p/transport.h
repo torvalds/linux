@@ -40,7 +40,7 @@ struct p9_trans {
 	void (*close) (struct p9_trans *);
 	unsigned int (*poll)(struct p9_trans *, struct poll_table_struct *);
 	int (*rpc) (struct p9_trans *t, struct p9_fcall *tc,
-							struct p9_fcall **rc);
+				struct p9_fcall **rc, int msize, int dotu);
 };
 
 struct p9_trans_module {
