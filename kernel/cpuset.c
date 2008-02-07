@@ -752,7 +752,7 @@ static int update_cpumask(struct cpuset *cs, char *buf)
 	trialcs = *cs;
 
 	/*
-	 * An empty cpus_allowed is ok if there are no tasks in the cpuset.
+	 * An empty cpus_allowed is ok only if the cpuset has no tasks.
 	 * Since cpulist_parse() fails on an empty mask, we special case
 	 * that parsing.  The validate_change() call ensures that cpusets
 	 * with tasks have cpus.
@@ -809,7 +809,7 @@ static int update_cpumask(struct cpuset *cs, char *buf)
  *    so that the migration code can allocate pages on these nodes.
  *
  *    Call holding cgroup_mutex, so current's cpuset won't change
- *    during this call, as cgroup_mutex holds off any attach_task()
+ *    during this call, as manage_mutex holds off any cpuset_attach()
  *    calls.  Therefore we don't need to take task_lock around the
  *    call to guarantee_online_mems(), as we know no one is changing
  *    our task's cpuset.
@@ -1661,8 +1661,8 @@ void cpuset_do_move_task(struct task_struct *tsk, struct cgroup_scanner *scan)
  * @from: cpuset in which the tasks currently reside
  * @to: cpuset to which the tasks will be moved
  *
- * Called with manage_sem held
- * callback_mutex must not be held, as attach_task() will take it.
+ * Called with cgroup_mutex held
+ * callback_mutex must not be held, as cpuset_attach() will take it.
  *
  * The cgroup_scan_tasks() function will scan all the tasks in a cgroup,
  * calling callback functions for each.
@@ -1689,18 +1689,18 @@ static void move_member_tasks_to_cpuset(struct cpuset *from, struct cpuset *to)
  * last CPU or node from a cpuset, then move the tasks in the empty
  * cpuset to its next-highest non-empty parent.
  *
- * The parent cpuset has some superset of the 'mems' nodes that the
- * newly empty cpuset held, so no migration of memory is necessary.
- *
- * Called with both manage_sem and callback_sem held
+ * Called with cgroup_mutex held
+ * callback_mutex must not be held, as cpuset_attach() will take it.
  */
 static void remove_tasks_in_empty_cpuset(struct cpuset *cs)
 {
 	struct cpuset *parent;
 
-	/* the cgroup's css_sets list is in use if there are tasks
-	   in the cpuset; the list is empty if there are none;
-	   the cs->css.refcnt seems always 0 */
+	/*
+	 * The cgroup's css_sets list is in use if there are tasks
+	 * in the cpuset; the list is empty if there are none;
+	 * the cs->css.refcnt seems always 0.
+	 */
 	if (list_empty(&cs->css.cgroup->css_sets))
 		return;
 
@@ -1709,14 +1709,8 @@ static void remove_tasks_in_empty_cpuset(struct cpuset *cs)
 	 * has online cpus, so can't be empty).
 	 */
 	parent = cs->parent;
-	while (cpus_empty(parent->cpus_allowed)) {
-		/*
-		 * this empty cpuset should now be considered to
-		 * have been used, and therefore eligible for
-		 * release when empty (if it is notify_on_release)
-		 */
+	while (cpus_empty(parent->cpus_allowed))
 		parent = parent->parent;
-	}
 
 	move_member_tasks_to_cpuset(cs, parent);
 }
@@ -1724,10 +1718,6 @@ static void remove_tasks_in_empty_cpuset(struct cpuset *cs)
 /*
  * Walk the specified cpuset subtree and look for empty cpusets.
  * The tasks of such cpuset must be moved to a parent cpuset.
- *
- * Note that such a notify_on_release cpuset must have had, at some time,
- * member tasks or cpuset descendants and cpus and memory, before it can
- * be a candidate for release.
  *
  * Called with cgroup_mutex held.  We take callback_mutex to modify
  * cpus_allowed and mems_allowed.
@@ -1764,8 +1754,8 @@ static void scan_for_empty_cpusets(const struct cpuset *root)
 		cpus_and(cp->cpus_allowed, cp->cpus_allowed, cpu_online_map);
 		nodes_and(cp->mems_allowed, cp->mems_allowed,
 						node_states[N_HIGH_MEMORY]);
-		if ((cpus_empty(cp->cpus_allowed) ||
-		     nodes_empty(cp->mems_allowed))) {
+		if (cpus_empty(cp->cpus_allowed) ||
+		     nodes_empty(cp->mems_allowed)) {
 			/* Move tasks from the empty cpuset to a parent */
 			mutex_unlock(&callback_mutex);
 			remove_tasks_in_empty_cpuset(cp);
@@ -1773,7 +1763,6 @@ static void scan_for_empty_cpusets(const struct cpuset *root)
 		}
 	}
 	mutex_unlock(&callback_mutex);
-	return;
 }
 
 /*
@@ -2207,7 +2196,7 @@ void __cpuset_memory_pressure_bump(void)
  *  - Used for /proc/<pid>/cpuset.
  *  - No need to task_lock(tsk) on this tsk->cpuset reference, as it
  *    doesn't really matter if tsk->cpuset changes after we read it,
- *    and we take cgroup_mutex, keeping attach_task() from changing it
+ *    and we take cgroup_mutex, keeping cpuset_attach() from changing it
  *    anyway.
  */
 static int proc_cpuset_show(struct seq_file *m, void *unused_v)
