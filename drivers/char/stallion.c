@@ -3546,7 +3546,8 @@ static void stl_cd1400txisr(struct stlpanel *panelp, int ioaddr)
 	} else {
 		len = min(len, CD1400_TXFIFOSIZE);
 		portp->stats.txtotal += len;
-		stlen = min(len, ((portp->tx.buf + STL_TXBUFSIZE) - tail));
+		stlen = min_t(unsigned int, len,
+				(portp->tx.buf + STL_TXBUFSIZE) - tail);
 		outb((TDR + portp->uartaddr), ioaddr);
 		outsb((ioaddr + EREG_DATA), tail, stlen);
 		len -= stlen;
@@ -3599,7 +3600,7 @@ static void stl_cd1400rxisr(struct stlpanel *panelp, int ioaddr)
 		outb((RDCR + portp->uartaddr), ioaddr);
 		len = inb(ioaddr + EREG_DATA);
 		if (tty == NULL || (buflen = tty_buffer_request_room(tty, len)) == 0) {
-			len = min(len, sizeof(stl_unwanted));
+			len = min_t(unsigned int, len, sizeof(stl_unwanted));
 			outb((RDSR + portp->uartaddr), ioaddr);
 			insb((ioaddr + EREG_DATA), &stl_unwanted[0], len);
 			portp->stats.rxlost += len;
@@ -4465,7 +4466,8 @@ static void stl_sc26198txisr(struct stlport *portp)
 	} else {
 		len = min(len, SC26198_TXFIFOSIZE);
 		portp->stats.txtotal += len;
-		stlen = min(len, ((portp->tx.buf + STL_TXBUFSIZE) - tail));
+		stlen = min_t(unsigned int, len,
+				(portp->tx.buf + STL_TXBUFSIZE) - tail);
 		outb(GTXFIFO, (ioaddr + XP_ADDR));
 		outsb((ioaddr + XP_DATA), tail, stlen);
 		len -= stlen;
@@ -4506,7 +4508,7 @@ static void stl_sc26198rxisr(struct stlport *portp, unsigned int iack)
 
 	if ((iack & IVR_TYPEMASK) == IVR_RXDATA) {
 		if (tty == NULL || (buflen = tty_buffer_request_room(tty, len)) == 0) {
-			len = min(len, sizeof(stl_unwanted));
+			len = min_t(unsigned int, len, sizeof(stl_unwanted));
 			outb(GRXFIFO, (ioaddr + XP_ADDR));
 			insb((ioaddr + XP_DATA), &stl_unwanted[0], len);
 			portp->stats.rxlost += len;
