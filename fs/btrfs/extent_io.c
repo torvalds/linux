@@ -2859,8 +2859,8 @@ EXPORT_SYMBOL(extent_buffer_uptodate);
 
 int read_extent_buffer_pages(struct extent_io_tree *tree,
 			     struct extent_buffer *eb,
-			     u64 start,
-			     int wait)
+			     u64 start, int wait,
+			     get_extent_t *get_extent)
 {
 	unsigned long i;
 	unsigned long start_i;
@@ -2868,6 +2868,8 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 	int err;
 	int ret = 0;
 	unsigned long num_pages;
+	struct bio *bio = NULL;
+
 
 	if (eb->flags & EXTENT_UPTODATE)
 		return 0;
@@ -2899,7 +2901,8 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 			lock_page(page);
 		}
 		if (!PageUptodate(page)) {
-			err = page->mapping->a_ops->readpage(NULL, page);
+			err = __extent_read_full_page(tree, page,
+						      get_extent, &bio);
 			if (err) {
 				ret = err;
 			}
@@ -2907,6 +2910,9 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 			unlock_page(page);
 		}
 	}
+
+	if (bio)
+		submit_one_bio(READ, bio);
 
 	if (ret || !wait) {
 		return ret;

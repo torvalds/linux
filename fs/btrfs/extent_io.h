@@ -157,7 +157,8 @@ struct extent_buffer *find_extent_buffer(struct extent_io_tree *tree,
 					  gfp_t mask);
 void free_extent_buffer(struct extent_buffer *eb);
 int read_extent_buffer_pages(struct extent_io_tree *tree,
-			     struct extent_buffer *eb, u64 start, int wait);
+			     struct extent_buffer *eb, u64 start, int wait,
+			     get_extent_t *get_extent);
 
 static inline void extent_buffer_get(struct extent_buffer *eb)
 {
