@@ -15,20 +15,25 @@
 extern const struct inode_operations affs_symlink_inode_operations;
 extern struct timezone sys_tz;
 
-void
-affs_read_inode(struct inode *inode)
+struct inode *affs_iget(struct super_block *sb, unsigned long ino)
 {
-	struct super_block	*sb = inode->i_sb;
 	struct affs_sb_info	*sbi = AFFS_SB(sb);
 	struct buffer_head	*bh;
 	struct affs_head	*head;
 	struct affs_tail	*tail;
+	struct inode		*inode;
 	u32			 block;
 	u32			 size;
 	u32			 prot;
 	u16			 id;
 
-	pr_debug("AFFS: read_inode(%lu)\n",inode->i_ino);
+	inode = iget_locked(sb, ino);
+	if (!inode)
+		return ERR_PTR(-ENOMEM);
+	if (!(inode->i_state & I_NEW))
+		return inode;
+
+	pr_debug("AFFS: affs_iget(%lu)\n", inode->i_ino);
 
 	block = inode->i_ino;
 	bh = affs_bread(sb, block);
@@ -154,12 +159,13 @@ affs_read_inode(struct inode *inode)
 			 sys_tz.tz_minuteswest * 60;
 	inode->i_mtime.tv_nsec = inode->i_ctime.tv_nsec = inode->i_atime.tv_nsec = 0;
 	affs_brelse(bh);
-	return;
+	unlock_new_inode(inode);
+	return inode;
 
 bad_inode:
-	make_bad_inode(inode);
 	affs_brelse(bh);
-	return;
+	iget_failed(inode);
+	return ERR_PTR(-EIO);
 }
 
 int
