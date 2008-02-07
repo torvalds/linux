@@ -990,7 +990,9 @@ static struct clk atmel_twi0_pclk = {
 	.index		= 2,
 };
 
-struct platform_device *__init at32_add_device_twi(unsigned int id)
+struct platform_device *__init at32_add_device_twi(unsigned int id,
+						    struct i2c_board_info *b,
+						    unsigned int n)
 {
 	struct platform_device *pdev;
 
@@ -1009,6 +1011,9 @@ struct platform_device *__init at32_add_device_twi(unsigned int id)
 	select_peripheral(PA(7),  PERIPH_A, 0);	/* SDL	*/
 
 	atmel_twi0_pclk.dev = &pdev->dev;
+
+	if (b)
+		i2c_register_board_info(id, b, n);
 
 	platform_device_add(pdev);
 	return pdev;
