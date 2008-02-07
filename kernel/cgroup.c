@@ -1326,6 +1326,7 @@ static ssize_t cgroup_common_file_write(struct cgroup *cgrp,
 		goto out1;
 	}
 	buffer[nbytes] = 0;	/* nul-terminate */
+	strstrip(buffer);	/* strip -just- trailing whitespace */
 
 	mutex_lock(&cgroup_mutex);
 
@@ -1346,21 +1347,9 @@ static ssize_t cgroup_common_file_write(struct cgroup *cgrp,
 			clear_bit(CGRP_NOTIFY_ON_RELEASE, &cgrp->flags);
 		break;
 	case FILE_RELEASE_AGENT:
-	{
-		struct cgroupfs_root *root = cgrp->root;
-		/* Strip trailing newline */
-		if (nbytes && (buffer[nbytes-1] == '\n'))
-			buffer[nbytes-1] = 0;
-
-		/* We never write anything other than '\0'
-		 * into the last char of release_agent_path,
-		 * so it always remains a NUL-terminated
-		 * string */
-		strncpy(root->release_agent_path, buffer, nbytes);
-		root->release_agent_path[nbytes] = 0;
-
+		BUILD_BUG_ON(sizeof(cgrp->root->release_agent_path) < PATH_MAX);
+		strcpy(cgrp->root->release_agent_path, buffer);
 		break;
-	}
 	default:
 		retval = -EINVAL;
 		goto out2;
