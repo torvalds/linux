@@ -92,6 +92,22 @@ config TIFM_7XX1
           To compile this driver as a module, choose M here: the module will
 	  be called tifm_7xx1.
 
+config ACER_WMI
+        tristate "Acer WMI Laptop Extras (EXPERIMENTAL)"
+	depends on X86
+	depends on EXPERIMENTAL
+	depends on ACPI
+	depends on ACPI_WMI
+	depends on LEDS_CLASS
+	depends on BACKLIGHT_CLASS_DEVICE
+	---help---
+	  This is a driver for newer Acer (and Wistron) laptops. It adds
+	  wireless radio and bluetooth control, and on some laptops,
+	  exposes the mail LED and LCD backlight.
+
+	  If you have an ACPI-WMI compatible Acer/ Wistron laptop, say Y or M
+	  here.
+
 config ASUS_LAPTOP
         tristate "Asus Laptop Extras (EXPERIMENTAL)"
         depends on X86
@@ -125,6 +141,15 @@ config FUJITSU_LAPTOP
 	  It adds support for LCD brightness control.
 
 	  If you have a Fujitsu laptop, say Y or M here.
+
+config TC1100_WMI
+	tristate "HP Compaq TC1100 Tablet WMI Extras"
+	depends on X86 && !X86_64
+	depends on ACPI
+	depends on ACPI_WMI
+	---help---
+	  This is a driver for the WMI extensions (wireless and bluetooth power
+	  control) of the HP Compaq TC1100 tablet.
 
 config MSI_LAPTOP
         tristate "MSI Laptop Extras"
@@ -219,6 +244,25 @@ config THINKPAD_ACPI_BAY
 
 	  If you are not sure, say Y here.
 
+config THINKPAD_ACPI_HOTKEY_POLL
+	bool "Suport NVRAM polling for hot keys"
+	depends on THINKPAD_ACPI
+	default y
+	---help---
+	  Some thinkpad models benefit from NVRAM polling to detect a few of
+	  the hot key press events.  If you know your ThinkPad model does not
+	  need to do NVRAM polling to support any of the hot keys you use,
+	  unselecting this option will save about 1kB of memory.
+
+	  ThinkPads T40 and newer, R52 and newer, and X31 and newer are
+	  unlikely to need NVRAM polling in their latest BIOS versions.
+
+	  NVRAM polling can detect at most the following keys: ThinkPad/Access
+	  IBM, Zoom, Switch Display (fn+F7), ThinkLight, Volume up/down/mute,
+	  Brightness up/down, Display Expand (fn+F8), Hibernate (fn+F12).
+
+	  If you are not sure, say Y here.  The driver enables polling only if
+	  it is strictly necessary to do so.
 
 config ATMEL_SSC
 	tristate "Device driver for Atmel SSC peripheral"
@@ -229,6 +273,15 @@ config ATMEL_SSC
 
 	  The SSC peripheral supports a wide variety of serial frame based
 	  communications, i.e. I2S, SPI, etc.
+
+	  If unsure, say N.
+
+config INTEL_MENLOW
+	tristate "Thermal Management driver for Intel menlow platform"
+	depends on ACPI_THERMAL
+	---help---
+	  ACPI thermal management enhancement driver on
+	  Intel Menlow platform.
 
 	  If unsure, say N.
 

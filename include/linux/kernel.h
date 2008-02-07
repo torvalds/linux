@@ -243,6 +243,7 @@ extern enum system_states {
 #define TAINT_BAD_PAGE			(1<<5)
 #define TAINT_USER			(1<<6)
 #define TAINT_DIE			(1<<7)
+#define TAINT_OVERRIDDEN_ACPI_TABLE	(1<<8)
 
 extern void dump_stack(void) __cold;
 

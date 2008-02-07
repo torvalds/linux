@@ -122,6 +122,31 @@ int acpi_bus_get_status(struct acpi_device *device)
 
 EXPORT_SYMBOL(acpi_bus_get_status);
 
+void acpi_bus_private_data_handler(acpi_handle handle,
+				   u32 function, void *context)
+{
+	return;
+}
+EXPORT_SYMBOL(acpi_bus_private_data_handler);
+
+int acpi_bus_get_private_data(acpi_handle handle, void **data)
+{
+	acpi_status status = AE_OK;
+
+	if (!*data)
+		return -EINVAL;
+
+	status = acpi_get_data(handle, acpi_bus_private_data_handler, data);
+	if (ACPI_FAILURE(status) || !*data) {
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No context for object [%p]\n",
+				handle));
+		return -ENODEV;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(acpi_bus_get_private_data);
+
 /* --------------------------------------------------------------------------
                                  Power Management
    -------------------------------------------------------------------------- */
@@ -366,7 +391,6 @@ int acpi_bus_receive_event(struct acpi_bus_event *event)
 	return 0;
 }
 
-EXPORT_SYMBOL(acpi_bus_receive_event);
 #endif	/* CONFIG_ACPI_PROC_EVENT */
 
 /* --------------------------------------------------------------------------

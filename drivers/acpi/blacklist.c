@@ -70,8 +70,6 @@ static struct acpi_blacklist_item acpi_blacklist[] __initdata = {
 	/* IBM 600E - _ADR should return 7, but it returns 1 */
 	{"IBM   ", "TP600E  ", 0x00000105, ACPI_SIG_DSDT, less_than_or_equal,
 	 "Incorrect _ADR", 1},
-	{"ASUS\0\0", "P2B-S   ", 0, ACPI_SIG_DSDT, all_versions,
-	 "Bogus PCI routing", 1},
 
 	{""}
 };
@@ -208,33 +206,35 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 	 * Disable OSI(Linux) warnings on all "Acer, inc."
 	 *
 	 * _OSI(Linux) disables the latest Windows BIOS code:
+	 * DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 3100"),
 	 * DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 5050"),
+	 * DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 5100"),
 	 * DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 5580"),
 	 * DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 3010"),
 	 * _OSI(Linux) effect unknown:
 	 * DMI_MATCH(DMI_PRODUCT_NAME, "Ferrari 5000"),
 	 */
-	{
-	.callback = dmi_disable_osi_linux,
-	.ident = "Acer, inc.",
-	.matches = {
-		     DMI_MATCH(DMI_SYS_VENDOR, "Acer, inc."),
-		},
-	},
+	/*
+	 * note that dmi_check_system() uses strstr()
+	 * to match sub-strings rather than !strcmp(),
+	 * so "Acer" below matches "Acer, inc." above.
+	 */
 	/*
 	 * Disable OSI(Linux) warnings on all "Acer"
 	 *
 	 * _OSI(Linux) effect unknown:
-	 * DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 5100"),
 	 * DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 5610"),
 	 * DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 7720Z"),
 	 * DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 5520"),
 	 * DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 6460"),
 	 * DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 7510"),
 	 * DMI_MATCH(DMI_PRODUCT_NAME, "Extensa 5220"),
+	 *
+	 * _OSI(Linux) is a NOP:
+	 * DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 5315"),
 	 */
 	{
-	.callback = dmi_unknown_osi_linux,
+	.callback = dmi_disable_osi_linux,
 	.ident = "Acer",
 	.matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
@@ -242,21 +242,22 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 	},
 	/*
 	 * Disable OSI(Linux) warnings on all "Apple Computer, Inc."
+	 * Disable OSI(Linux) warnings on all "Apple Inc."
 	 *
 	 * _OSI(Linux) confirmed to be a NOP:
 	 * DMI_MATCH(DMI_PRODUCT_NAME, "MacBook1,1"),
 	 * DMI_MATCH(DMI_PRODUCT_NAME, "MacBook2,1"),
 	 * DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro2,2"),
+	 * DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro3,1"),
 	 * _OSI(Linux) effect unknown:
 	 * DMI_MATCH(DMI_PRODUCT_NAME, "MacPro2,1"),
 	 * DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro1,1"),
-	 * DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro3,1"),
 	 */
 	{
 	.callback = dmi_disable_osi_linux,
 	.ident = "Apple",
 	.matches = {
-		     DMI_MATCH(DMI_SYS_VENDOR, "Apple Computer, Inc."),
+		     DMI_MATCH(DMI_SYS_VENDOR, "Apple"),
 		},
 	},
 	/*
@@ -294,13 +295,13 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 	 * DMI_MATCH(DMI_BOARD_NAME, "IFL91"),
 	 */
 	{
-	.callback = dmi_unknown_osi_linux,
+	.callback = dmi_disable_osi_linux,
 	.ident = "Compal",
 	.matches = {
 		     DMI_MATCH(DMI_BIOS_VENDOR, "COMPAL"),
 		},
 	},
-	{ /* OSI(Linux) touches USB, breaks suspend to disk */
+	{ /* OSI(Linux) touches USB, unknown side-effect */
 	.callback = dmi_disable_osi_linux,
 	.ident = "Dell Dimension 5150",
 	.matches = {
@@ -310,7 +311,7 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 	},
 	{ /* OSI(Linux) is a NOP */
 	.callback = dmi_disable_osi_linux,
-	.ident = "Dell",
+	.ident = "Dell i1501",
 	.matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 		     DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 1501"),
@@ -318,7 +319,7 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 	},
 	{ /* OSI(Linux) effect unknown */
 	.callback = dmi_unknown_osi_linux,
-	.ident = "Dell",
+	.ident = "Dell Latitude D830",
 	.matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 		     DMI_MATCH(DMI_PRODUCT_NAME, "Latitude D830"),
@@ -326,7 +327,7 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 	},
 	{ /* OSI(Linux) effect unknown */
 	.callback = dmi_unknown_osi_linux,
-	.ident = "Dell",
+	.ident = "Dell OP GX620",
 	.matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 		     DMI_MATCH(DMI_PRODUCT_NAME, "OptiPlex GX620"),
@@ -334,15 +335,23 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 	},
 	{ /* OSI(Linux) effect unknown */
 	.callback = dmi_unknown_osi_linux,
-	.ident = "Dell",
+	.ident = "Dell PE 1900",
 	.matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 		     DMI_MATCH(DMI_PRODUCT_NAME, "PowerEdge 1900"),
 		},
 	},
+	{ /* OSI(Linux) is a NOP */
+	.callback = dmi_disable_osi_linux,
+	.ident = "Dell PE R200",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "PowerEdge R200"),
+		},
+	},
 	{ /* OSI(Linux) touches USB */
 	.callback = dmi_disable_osi_linux,
-	.ident = "Dell",
+	.ident = "Dell PR 390",
 	.matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 		     DMI_MATCH(DMI_PRODUCT_NAME, "Precision WorkStation 390"),
@@ -358,7 +367,7 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 	},
 	{ /* OSI(Linux) effect unknown */
 	.callback = dmi_unknown_osi_linux,
-	.ident = "Dell",
+	.ident = "Dell PE SC440",
 	.matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 		     DMI_MATCH(DMI_PRODUCT_NAME, "PowerEdge SC440"),
@@ -474,6 +483,11 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 	 *
 	 * _OSI(Linux) confirmed to be a NOP:
 	 * DMI_MATCH(DMI_PRODUCT_NAME, "P1-J150B"),
+	 * with DMI_MATCH(DMI_BOARD_NAME, "ROCKY"),
+	 *
+	 * unknown:
+	 * DMI_MATCH(DMI_PRODUCT_NAME, "S1-MDGDG"),
+	 * with DMI_MATCH(DMI_BOARD_NAME, "ROCKY"),
 	 */
 	{
 	.callback = dmi_disable_osi_linux,
@@ -516,7 +530,7 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 	 * DMI_MATCH(DMI_PRODUCT_NAME, "VGN-FZ11M"),
 	 */
 	{
-	.callback = dmi_unknown_osi_linux,
+	.callback = dmi_disable_osi_linux,
 	.ident = "Sony",
 	.matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),

@@ -115,6 +115,7 @@ static struct device_attribute power_supply_attrs[] = {
 	/* Properties of type `const char *' */
 	POWER_SUPPLY_ATTR(model_name),
 	POWER_SUPPLY_ATTR(manufacturer),
+	POWER_SUPPLY_ATTR(serial_number),
 };
 
 static ssize_t power_supply_show_static_attrs(struct device *dev,

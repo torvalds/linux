@@ -44,6 +44,8 @@
 #include <asm/uaccess.h>
 
 #include <linux/efi.h>
+#include <linux/ioport.h>
+#include <linux/list.h>
 
 #define _COMPONENT		ACPI_OS_SERVICES
 ACPI_MODULE_NAME("osl");
@@ -74,8 +76,24 @@ static void *acpi_irq_context;
 static struct workqueue_struct *kacpid_wq;
 static struct workqueue_struct *kacpi_notify_wq;
 
+struct acpi_res_list {
+	resource_size_t start;
+	resource_size_t end;
+	acpi_adr_space_type resource_type; /* IO port, System memory, ...*/
+	char name[5];   /* only can have a length of 4 chars, make use of this
+			   one instead of res->name, no need to kalloc then */
+	struct list_head resource_list;
+};
+
+static LIST_HEAD(resource_list_head);
+static DEFINE_SPINLOCK(acpi_res_lock);
+
 #define	OSI_STRING_LENGTH_MAX 64	/* arbitrary */
 static char osi_additional_string[OSI_STRING_LENGTH_MAX];
+
+#ifdef CONFIG_ACPI_CUSTOM_DSDT_INITRD
+static int acpi_no_initrd_override;
+#endif
 
 /*
  * "Ode to _OSI(Linux)"
@@ -120,7 +138,7 @@ static char osi_additional_string[OSI_STRING_LENGTH_MAX];
  */
 #define OSI_LINUX_ENABLE 0
 
-struct osi_linux {
+static struct osi_linux {
 	unsigned int	enable:1;
 	unsigned int	dmi:1;
 	unsigned int	cmdline:1;
@@ -219,8 +237,6 @@ void acpi_os_printf(const char *fmt, ...)
 	va_end(args);
 }
 
-EXPORT_SYMBOL(acpi_os_printf);
-
 void acpi_os_vprintf(const char *fmt, va_list args)
 {
 	static char buffer[512];
@@ -250,11 +266,16 @@ acpi_physical_address __init acpi_os_get_root_pointer(void)
 			       "System description tables not found\n");
 			return 0;
 		}
-	} else
-		return acpi_find_rsdp();
+	} else {
+		acpi_physical_address pa = 0;
+
+		acpi_find_root_pointer(&pa);
+		return pa;
+	}
 }
 
-void __iomem *acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
+void __iomem *__init_refok
+acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
 {
 	if (phys > ULONG_MAX) {
 		printk(KERN_ERR PREFIX "Cannot map memory that high\n");
@@ -312,6 +333,67 @@ acpi_os_predefined_override(const struct acpi_predefined_names *init_val,
 	return AE_OK;
 }
 
+#ifdef CONFIG_ACPI_CUSTOM_DSDT_INITRD
+struct acpi_table_header *acpi_find_dsdt_initrd(void)
+{
+	struct file *firmware_file;
+	mm_segment_t oldfs;
+	unsigned long len, len2;
+	struct acpi_table_header *dsdt_buffer, *ret = NULL;
+	struct kstat stat;
+	char *ramfs_dsdt_name = "/DSDT.aml";
+
+	printk(KERN_INFO PREFIX "Checking initramfs for custom DSDT");
+
+	/*
+	 * Never do this at home, only the user-space is allowed to open a file.
+	 * The clean way would be to use the firmware loader.
+	 * But this code must be run before there is any userspace available.
+	 * A static/init firmware infrastructure doesn't exist yet...
+	 */
+	if (vfs_stat(ramfs_dsdt_name, &stat) < 0)
+		return ret;
+
+	len = stat.size;
+	/* check especially against empty files */
+	if (len <= 4) {
+		printk(KERN_ERR PREFIX "Failed: DSDT only %lu bytes.\n", len);
+		return ret;
+	}
+
+	firmware_file = filp_open(ramfs_dsdt_name, O_RDONLY, 0);
+	if (IS_ERR(firmware_file)) {
+		printk(KERN_ERR PREFIX "Failed to open %s.\n", ramfs_dsdt_name);
+		return ret;
+	}
+
+	dsdt_buffer = kmalloc(len, GFP_ATOMIC);
+	if (!dsdt_buffer) {
+		printk(KERN_ERR PREFIX "Failed to allocate %lu bytes.\n", len);
+		goto err;
+	}
+
+	oldfs = get_fs();
+	set_fs(KERNEL_DS);
+	len2 = vfs_read(firmware_file, (char __user *)dsdt_buffer, len,
+		&firmware_file->f_pos);
+	set_fs(oldfs);
+	if (len2 < len) {
+		printk(KERN_ERR PREFIX "Failed to read %lu bytes from %s.\n",
+			len, ramfs_dsdt_name);
+		ACPI_FREE(dsdt_buffer);
+		goto err;
+	}
+
+	printk(KERN_INFO PREFIX "Found %lu byte DSDT in %s.\n",
+			len, ramfs_dsdt_name);
+	ret = dsdt_buffer;
+err:
+	filp_close(firmware_file, NULL);
+	return ret;
+}
+#endif
+
 acpi_status
 acpi_os_table_override(struct acpi_table_header * existing_table,
 		       struct acpi_table_header ** new_table)
@@ -319,20 +401,52 @@ acpi_os_table_override(struct acpi_table_header * existing_table,
 	if (!existing_table || !new_table)
 		return AE_BAD_PARAMETER;
 
+	*new_table = NULL;
+
 #ifdef CONFIG_ACPI_CUSTOM_DSDT
 	if (strncmp(existing_table->signature, "DSDT", 4) == 0)
 		*new_table = (struct acpi_table_header *)AmlCode;
-	else
-		*new_table = NULL;
-#else
-	*new_table = NULL;
 #endif
+#ifdef CONFIG_ACPI_CUSTOM_DSDT_INITRD
+	if ((strncmp(existing_table->signature, "DSDT", 4) == 0) &&
+	    !acpi_no_initrd_override) {
+		struct acpi_table_header *initrd_table;
+
+		initrd_table = acpi_find_dsdt_initrd();
+		if (initrd_table)
+			*new_table = initrd_table;
+	}
+#endif
+	if (*new_table != NULL) {
+		printk(KERN_WARNING PREFIX "Override [%4.4s-%8.8s], "
+			   "this is unsafe: tainting kernel\n",
+		       existing_table->signature,
+		       existing_table->oem_table_id);
+		add_taint(TAINT_OVERRIDDEN_ACPI_TABLE);
+	}
 	return AE_OK;
 }
 
+#ifdef CONFIG_ACPI_CUSTOM_DSDT_INITRD
+int __init acpi_no_initrd_override_setup(char *s)
+{
+	acpi_no_initrd_override = 1;
+	return 1;
+}
+__setup("acpi_no_initrd_override", acpi_no_initrd_override_setup);
+#endif
+
 static irqreturn_t acpi_irq(int irq, void *dev_id)
 {
-	return (*acpi_irq_handler) (acpi_irq_context) ? IRQ_HANDLED : IRQ_NONE;
+	u32 handled;
+
+	handled = (*acpi_irq_handler) (acpi_irq_context);
+
+	if (handled) {
+		acpi_irq_handled++;
+		return IRQ_HANDLED;
+	} else
+		return IRQ_NONE;
 }
 
 acpi_status
@@ -340,6 +454,8 @@ acpi_os_install_interrupt_handler(u32 gsi, acpi_osd_handler handler,
 				  void *context)
 {
 	unsigned int irq;
+
+	acpi_irq_stats_init();
 
 	/*
 	 * Ignore the GSI from the core, and use the value in our copy of the
@@ -384,8 +500,6 @@ void acpi_os_sleep(acpi_integer ms)
 	schedule_timeout_interruptible(msecs_to_jiffies(ms));
 }
 
-EXPORT_SYMBOL(acpi_os_sleep);
-
 void acpi_os_stall(u32 us)
 {
 	while (us) {
@@ -398,8 +512,6 @@ void acpi_os_stall(u32 us)
 		us -= delay;
 	}
 }
-
-EXPORT_SYMBOL(acpi_os_stall);
 
 /*
  * Support ACPI 3.0 AML Timer operand
@@ -550,8 +662,6 @@ acpi_os_read_pci_configuration(struct acpi_pci_id * pci_id, u32 reg,
 	return (result ? AE_ERROR : AE_OK);
 }
 
-EXPORT_SYMBOL(acpi_os_read_pci_configuration);
-
 acpi_status
 acpi_os_write_pci_configuration(struct acpi_pci_id * pci_id, u32 reg,
 				acpi_integer value, u32 width)
@@ -661,25 +771,6 @@ static void acpi_os_execute_deferred(struct work_struct *work)
 	dpc->function(dpc->context);
 	kfree(dpc);
 
-	/* Yield cpu to notify thread */
-	cond_resched();
-
-	return;
-}
-
-static void acpi_os_execute_notify(struct work_struct *work)
-{
-	struct acpi_os_dpc *dpc = container_of(work, struct acpi_os_dpc, work);
-
-	if (!dpc) {
-		printk(KERN_ERR PREFIX "Invalid (NULL) context\n");
-		return;
-	}
-
-	dpc->function(dpc->context);
-
-	kfree(dpc);
-
 	return;
 }
 
@@ -703,7 +794,7 @@ acpi_status acpi_os_execute(acpi_execute_type type,
 {
 	acpi_status status = AE_OK;
 	struct acpi_os_dpc *dpc;
-
+	struct workqueue_struct *queue;
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 			  "Scheduling function [%p(%p)] for deferred execution.\n",
 			  function, context));
@@ -727,20 +818,13 @@ acpi_status acpi_os_execute(acpi_execute_type type,
 	dpc->function = function;
 	dpc->context = context;
 
-	if (type == OSL_NOTIFY_HANDLER) {
-		INIT_WORK(&dpc->work, acpi_os_execute_notify);
-		if (!queue_work(kacpi_notify_wq, &dpc->work)) {
-			status = AE_ERROR;
-			kfree(dpc);
-		}
-	} else {
-		INIT_WORK(&dpc->work, acpi_os_execute_deferred);
-		if (!queue_work(kacpid_wq, &dpc->work)) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Call to queue_work() failed.\n"));
-			status = AE_ERROR;
-			kfree(dpc);
-		}
+	INIT_WORK(&dpc->work, acpi_os_execute_deferred);
+	queue = (type == OSL_NOTIFY_HANDLER) ? kacpi_notify_wq : kacpid_wq;
+	if (!queue_work(queue, &dpc->work)) {
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+			  "Call to queue_work() failed.\n"));
+		status = AE_ERROR;
+		kfree(dpc);
 	}
 	return_ACPI_STATUS(status);
 }
@@ -793,8 +877,6 @@ acpi_os_create_semaphore(u32 max_units, u32 initial_units, acpi_handle * handle)
 	return AE_OK;
 }
 
-EXPORT_SYMBOL(acpi_os_create_semaphore);
-
 /*
  * TODO: A better way to delete semaphores?  Linux doesn't have a
  * 'delete_semaphore()' function -- may result in an invalid
@@ -817,8 +899,6 @@ acpi_status acpi_os_delete_semaphore(acpi_handle handle)
 
 	return AE_OK;
 }
-
-EXPORT_SYMBOL(acpi_os_delete_semaphore);
 
 /*
  * TODO: The kernel doesn't have a 'down_timeout' function -- had to
@@ -912,8 +992,6 @@ acpi_status acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 timeout)
 	return status;
 }
 
-EXPORT_SYMBOL(acpi_os_wait_semaphore);
-
 /*
  * TODO: Support for units > 1?
  */
@@ -935,8 +1013,6 @@ acpi_status acpi_os_signal_semaphore(acpi_handle handle, u32 units)
 
 	return AE_OK;
 }
-
-EXPORT_SYMBOL(acpi_os_signal_semaphore);
 
 #ifdef ACPI_FUTURE_USAGE
 u32 acpi_os_get_line(char *buffer)
@@ -980,8 +1056,6 @@ acpi_status acpi_os_signal(u32 function, void *info)
 
 	return AE_OK;
 }
-
-EXPORT_SYMBOL(acpi_os_signal);
 
 static int __init acpi_os_name_setup(char *str)
 {
@@ -1102,6 +1176,128 @@ static int __init acpi_wake_gpes_always_on_setup(char *str)
 
 __setup("acpi_wake_gpes_always_on", acpi_wake_gpes_always_on_setup);
 
+/* Check of resource interference between native drivers and ACPI
+ * OperationRegions (SystemIO and System Memory only).
+ * IO ports and memory declared in ACPI might be used by the ACPI subsystem
+ * in arbitrary AML code and can interfere with legacy drivers.
+ * acpi_enforce_resources= can be set to:
+ *
+ *   - strict           (2)
+ *     -> further driver trying to access the resources will not load
+ *   - lax (default)    (1)
+ *     -> further driver trying to access the resources will load, but you
+ *     get a system message that something might go wrong...
+ *
+ *   - no               (0)
+ *     -> ACPI Operation Region resources will not be registered
+ *
+ */
+#define ENFORCE_RESOURCES_STRICT 2
+#define ENFORCE_RESOURCES_LAX    1
+#define ENFORCE_RESOURCES_NO     0
+
+static unsigned int acpi_enforce_resources = ENFORCE_RESOURCES_LAX;
+
+static int __init acpi_enforce_resources_setup(char *str)
+{
+	if (str == NULL || *str == '\0')
+		return 0;
+
+	if (!strcmp("strict", str))
+		acpi_enforce_resources = ENFORCE_RESOURCES_STRICT;
+	else if (!strcmp("lax", str))
+		acpi_enforce_resources = ENFORCE_RESOURCES_LAX;
+	else if (!strcmp("no", str))
+		acpi_enforce_resources = ENFORCE_RESOURCES_NO;
+
+	return 1;
+}
+
+__setup("acpi_enforce_resources=", acpi_enforce_resources_setup);
+
+/* Check for resource conflicts between ACPI OperationRegions and native
+ * drivers */
+int acpi_check_resource_conflict(struct resource *res)
+{
+	struct acpi_res_list *res_list_elem;
+	int ioport;
+	int clash = 0;
+
+	if (acpi_enforce_resources == ENFORCE_RESOURCES_NO)
+		return 0;
+	if (!(res->flags & IORESOURCE_IO) && !(res->flags & IORESOURCE_MEM))
+		return 0;
+
+	ioport = res->flags & IORESOURCE_IO;
+
+	spin_lock(&acpi_res_lock);
+	list_for_each_entry(res_list_elem, &resource_list_head,
+			    resource_list) {
+		if (ioport && (res_list_elem->resource_type
+			       != ACPI_ADR_SPACE_SYSTEM_IO))
+			continue;
+		if (!ioport && (res_list_elem->resource_type
+				!= ACPI_ADR_SPACE_SYSTEM_MEMORY))
+			continue;
+
+		if (res->end < res_list_elem->start
+		    || res_list_elem->end < res->start)
+			continue;
+		clash = 1;
+		break;
+	}
+	spin_unlock(&acpi_res_lock);
+
+	if (clash) {
+		if (acpi_enforce_resources != ENFORCE_RESOURCES_NO) {
+			printk(KERN_INFO "%sACPI: %s resource %s [0x%llx-0x%llx]"
+			       " conflicts with ACPI region %s"
+			       " [0x%llx-0x%llx]\n",
+			       acpi_enforce_resources == ENFORCE_RESOURCES_LAX
+			       ? KERN_WARNING : KERN_ERR,
+			       ioport ? "I/O" : "Memory", res->name,
+			       (long long) res->start, (long long) res->end,
+			       res_list_elem->name,
+			       (long long) res_list_elem->start,
+			       (long long) res_list_elem->end);
+			printk(KERN_INFO "ACPI: Device needs an ACPI driver\n");
+		}
+		if (acpi_enforce_resources == ENFORCE_RESOURCES_STRICT)
+			return -EBUSY;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(acpi_check_resource_conflict);
+
+int acpi_check_region(resource_size_t start, resource_size_t n,
+		      const char *name)
+{
+	struct resource res = {
+		.start = start,
+		.end   = start + n - 1,
+		.name  = name,
+		.flags = IORESOURCE_IO,
+	};
+
+	return acpi_check_resource_conflict(&res);
+}
+EXPORT_SYMBOL(acpi_check_region);
+
+int acpi_check_mem_region(resource_size_t start, resource_size_t n,
+		      const char *name)
+{
+	struct resource res = {
+		.start = start,
+		.end   = start + n - 1,
+		.name  = name,
+		.flags = IORESOURCE_MEM,
+	};
+
+	return acpi_check_resource_conflict(&res);
+
+}
+EXPORT_SYMBOL(acpi_check_mem_region);
+
 /*
  * Acquire a spinlock.
  *
@@ -1213,24 +1409,24 @@ acpi_status acpi_os_release_object(acpi_cache_t * cache, void *object)
  *
  *	Returns 0 on success
  */
-int acpi_dmi_dump(void)
+static int acpi_dmi_dump(void)
 {
 
 	if (!dmi_available)
 		return -1;
 
 	printk(KERN_NOTICE PREFIX "DMI System Vendor: %s\n",
-		dmi_get_slot(DMI_SYS_VENDOR));
+		dmi_get_system_info(DMI_SYS_VENDOR));
 	printk(KERN_NOTICE PREFIX "DMI Product Name: %s\n",
-		dmi_get_slot(DMI_PRODUCT_NAME));
+		dmi_get_system_info(DMI_PRODUCT_NAME));
 	printk(KERN_NOTICE PREFIX "DMI Product Version: %s\n",
-		dmi_get_slot(DMI_PRODUCT_VERSION));
+		dmi_get_system_info(DMI_PRODUCT_VERSION));
 	printk(KERN_NOTICE PREFIX "DMI Board Name: %s\n",
-		dmi_get_slot(DMI_BOARD_NAME));
+		dmi_get_system_info(DMI_BOARD_NAME));
 	printk(KERN_NOTICE PREFIX "DMI BIOS Vendor: %s\n",
-		dmi_get_slot(DMI_BIOS_VENDOR));
+		dmi_get_system_info(DMI_BIOS_VENDOR));
 	printk(KERN_NOTICE PREFIX "DMI BIOS Date: %s\n",
-		dmi_get_slot(DMI_BIOS_DATE));
+		dmi_get_system_info(DMI_BIOS_DATE));
 
 	return 0;
 }
@@ -1303,10 +1499,46 @@ acpi_status
 acpi_os_validate_address (
     u8                   space_id,
     acpi_physical_address   address,
-    acpi_size               length)
+    acpi_size               length,
+    char *name)
 {
+	struct acpi_res_list *res;
+	if (acpi_enforce_resources == ENFORCE_RESOURCES_NO)
+		return AE_OK;
 
-    return AE_OK;
+	switch (space_id) {
+	case ACPI_ADR_SPACE_SYSTEM_IO:
+	case ACPI_ADR_SPACE_SYSTEM_MEMORY:
+		/* Only interference checks against SystemIO and SytemMemory
+		   are needed */
+		res = kzalloc(sizeof(struct acpi_res_list), GFP_KERNEL);
+		if (!res)
+			return AE_OK;
+		/* ACPI names are fixed to 4 bytes, still better use strlcpy */
+		strlcpy(res->name, name, 5);
+		res->start = address;
+		res->end = address + length - 1;
+		res->resource_type = space_id;
+		spin_lock(&acpi_res_lock);
+		list_add(&res->resource_list, &resource_list_head);
+		spin_unlock(&acpi_res_lock);
+		pr_debug("Added %s resource: start: 0x%llx, end: 0x%llx, "
+			 "name: %s\n", (space_id == ACPI_ADR_SPACE_SYSTEM_IO)
+			 ? "SystemIO" : "System Memory",
+			 (unsigned long long)res->start,
+			 (unsigned long long)res->end,
+			 res->name);
+		break;
+	case ACPI_ADR_SPACE_PCI_CONFIG:
+	case ACPI_ADR_SPACE_EC:
+	case ACPI_ADR_SPACE_SMBUS:
+	case ACPI_ADR_SPACE_CMOS:
+	case ACPI_ADR_SPACE_PCI_BAR_TARGET:
+	case ACPI_ADR_SPACE_DATA_TABLE:
+	case ACPI_ADR_SPACE_FIXED_HARDWARE:
+		break;
+	}
+	return AE_OK;
 }
 
 #endif

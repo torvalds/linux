@@ -105,6 +105,9 @@ config GENERIC_TIME_VSYSCALL
 	bool
 	default X86_64
 
+config ARCH_HAS_CPU_RELAX
+	def_bool y
+
 config HAVE_SETUP_PER_CPU_AREA
 	def_bool X86_64
 

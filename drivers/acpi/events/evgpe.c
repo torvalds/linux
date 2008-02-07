@@ -270,18 +270,18 @@ acpi_status acpi_ev_disable_gpe(struct acpi_gpe_event_info *gpe_event_info)
 	case ACPI_GPE_TYPE_WAKE_RUN:
 		ACPI_CLEAR_BIT(gpe_event_info->flags, ACPI_GPE_WAKE_ENABLED);
 
-		/*lint -fallthrough */
+		/* fallthrough */
 
 	case ACPI_GPE_TYPE_RUNTIME:
 
 		/* Disable the requested runtime GPE */
 
 		ACPI_CLEAR_BIT(gpe_event_info->flags, ACPI_GPE_RUN_ENABLED);
-		status = acpi_hw_write_gpe_enable_reg(gpe_event_info);
-		break;
+
+		/* fallthrough */
 
 	default:
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
+		acpi_hw_write_gpe_enable_reg(gpe_event_info);
 	}
 
 	return_ACPI_STATUS(AE_OK);
@@ -501,6 +501,7 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
  *              an interrupt handler.
  *
  ******************************************************************************/
+static void acpi_ev_asynch_enable_gpe(void *context);
 
 static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 {
@@ -576,22 +577,30 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 					 method_node)));
 		}
 	}
+	/* Defer enabling of GPE until all notify handlers are done */
+	acpi_os_execute(OSL_NOTIFY_HANDLER, acpi_ev_asynch_enable_gpe,
+				gpe_event_info);
+	return_VOID;
+}
 
-	if ((local_gpe_event_info.flags & ACPI_GPE_XRUPT_TYPE_MASK) ==
+static void acpi_ev_asynch_enable_gpe(void *context)
+{
+	struct acpi_gpe_event_info *gpe_event_info = context;
+	acpi_status status;
+	if ((gpe_event_info->flags & ACPI_GPE_XRUPT_TYPE_MASK) ==
 	    ACPI_GPE_LEVEL_TRIGGERED) {
 		/*
 		 * GPE is level-triggered, we clear the GPE status bit after
 		 * handling the event.
 		 */
-		status = acpi_hw_clear_gpe(&local_gpe_event_info);
+		status = acpi_hw_clear_gpe(gpe_event_info);
 		if (ACPI_FAILURE(status)) {
 			return_VOID;
 		}
 	}
 
 	/* Enable this GPE */
-
-	(void)acpi_hw_write_gpe_enable_reg(&local_gpe_event_info);
+	(void)acpi_hw_write_gpe_enable_reg(gpe_event_info);
 	return_VOID;
 }
 
@@ -618,7 +627,7 @@ acpi_ev_gpe_dispatch(struct acpi_gpe_event_info *gpe_event_info, u32 gpe_number)
 
 	ACPI_FUNCTION_TRACE(ev_gpe_dispatch);
 
-	acpi_gpe_count++;
+	acpi_os_gpe_count(gpe_number);
 
 	/*
 	 * If edge-triggered, clear the GPE status bit now.  Note that

@@ -25,6 +25,7 @@
 #ifndef _LINUX_ACPI_H
 #define _LINUX_ACPI_H
 
+#include <linux/ioport.h>	/* for struct resource */
 
 #ifdef	CONFIG_ACPI
 
@@ -42,8 +43,6 @@
 #include <asm/acpi.h>
 #include <linux/dmi.h>
 
-
-#ifdef CONFIG_ACPI
 
 enum acpi_irq_model_id {
 	ACPI_IRQ_MODEL_PIC = 0,
@@ -80,7 +79,6 @@ typedef int (*acpi_table_handler) (struct acpi_table_header *table);
 typedef int (*acpi_table_entry_handler) (struct acpi_subtable_header *header, const unsigned long end);
 
 char * __acpi_map_table (unsigned long phys_addr, unsigned long size);
-unsigned long acpi_find_rsdp (void);
 int acpi_boot_init (void);
 int acpi_boot_table_init (void);
 int acpi_numa_init (void);
@@ -115,20 +113,14 @@ int acpi_unmap_lsapic(int cpu);
 
 int acpi_register_ioapic(acpi_handle handle, u64 phys_addr, u32 gsi_base);
 int acpi_unregister_ioapic(acpi_handle handle, u32 gsi_base);
-
-extern int acpi_mp_config;
+void acpi_irq_stats_init(void);
+extern u32 acpi_irq_handled;
 
 extern struct acpi_mcfg_allocation *pci_mmcfg_config;
 extern int pci_mmcfg_config_num;
 
 extern int sbf_port;
 extern unsigned long acpi_realmode_flags;
-
-#else	/* !CONFIG_ACPI */
-
-#define acpi_mp_config	0
-
-#endif 	/* !CONFIG_ACPI */
 
 int acpi_register_gsi (u32 gsi, int triggering, int polarity);
 int acpi_gsi_to_irq (u32 gsi, unsigned int *irq);
@@ -144,8 +136,6 @@ extern int acpi_get_override_irq(int bus_irq, int *trigger, int *polarity);
  * are freed.
  */
 void acpi_unregister_gsi (u32 gsi);
-
-#ifdef CONFIG_ACPI
 
 struct acpi_prt_entry {
 	struct list_head	node;
@@ -179,8 +169,6 @@ struct acpi_pci_driver {
 int acpi_pci_register_driver(struct acpi_pci_driver *driver);
 void acpi_pci_unregister_driver(struct acpi_pci_driver *driver);
 
-#endif /* CONFIG_ACPI */
-
 #ifdef CONFIG_ACPI_EC
 
 extern int ec_read(u8 addr, u8 *val);
@@ -191,6 +179,26 @@ extern int ec_transaction(u8 command,
 			  int force_poll);
 
 #endif /*CONFIG_ACPI_EC*/
+
+#if defined(CONFIG_ACPI_WMI) || defined(CONFIG_ACPI_WMI_MODULE)
+
+typedef void (*wmi_notify_handler) (u32 value, void *context);
+
+extern acpi_status wmi_evaluate_method(const char *guid, u8 instance,
+					u32 method_id,
+					const struct acpi_buffer *in,
+					struct acpi_buffer *out);
+extern acpi_status wmi_query_block(const char *guid, u8 instance,
+					struct acpi_buffer *out);
+extern acpi_status wmi_set_block(const char *guid, u8 instance,
+					const struct acpi_buffer *in);
+extern acpi_status wmi_install_notify_handler(const char *guid,
+					wmi_notify_handler handler, void *data);
+extern acpi_status wmi_remove_notify_handler(const char *guid);
+extern acpi_status wmi_get_event_data(u32 event, struct acpi_buffer *out);
+extern bool wmi_has_guid(const char *guid);
+
+#endif	/* CONFIG_ACPI_WMI */
 
 extern int acpi_blacklisted(void);
 #ifdef CONFIG_DMI
@@ -217,6 +225,13 @@ extern int pnpacpi_disabled;
 #define PXM_INVAL	(-1)
 #define NID_INVAL	(-1)
 
+int acpi_check_resource_conflict(struct resource *res);
+
+int acpi_check_region(resource_size_t start, resource_size_t n,
+		      const char *name);
+int acpi_check_mem_region(resource_size_t start, resource_size_t n,
+		      const char *name);
+
 #else	/* CONFIG_ACPI */
 
 static inline int acpi_boot_init(void)
@@ -225,6 +240,23 @@ static inline int acpi_boot_init(void)
 }
 
 static inline int acpi_boot_table_init(void)
+{
+	return 0;
+}
+
+static inline int acpi_check_resource_conflict(struct resource *res)
+{
+	return 0;
+}
+
+static inline int acpi_check_region(resource_size_t start, resource_size_t n,
+				    const char *name)
+{
+	return 0;
+}
+
+static inline int acpi_check_mem_region(resource_size_t start,
+					resource_size_t n, const char *name)
 {
 	return 0;
 }

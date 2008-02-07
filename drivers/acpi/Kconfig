@@ -68,26 +68,28 @@ config ACPI_PROCFS
 
 	  Say N to delete /proc/acpi/ files that have moved to /sys/
 config ACPI_PROCFS_POWER
-	bool "Deprecated power /proc/acpi folders"
+	bool "Deprecated power /proc/acpi directories"
 	depends on PROC_FS
 	default y
 	---help---
 	  For backwards compatibility, this option allows
-          deprecated power /proc/acpi/ folders to exist, even when
+          deprecated power /proc/acpi/ directories to exist, even when
           they have been replaced by functions in /sys.
-          The deprecated folders (and their replacements) include:
+          The deprecated directories (and their replacements) include:
 	  /proc/acpi/battery/* (/sys/class/power_supply/*)
 	  /proc/acpi/ac_adapter/* (sys/class/power_supply/*)
-	  This option has no effect on /proc/acpi/ folders
+	  This option has no effect on /proc/acpi/ directories
 	  and functions, which do not yet exist in /sys
 
-	  Say N to delete power /proc/acpi/ folders that have moved to /sys/
+	  Say N to delete power /proc/acpi/ directories that have moved to /sys/
+
 config ACPI_SYSFS_POWER
 	bool "Future power /sys interface"
 	select POWER_SUPPLY
 	default y
 	---help---
 	  Say N to disable power /sys interface
+
 config ACPI_PROC_EVENT
 	bool "Deprecated /proc/acpi/event support"
 	depends on PROC_FS
@@ -186,6 +188,7 @@ config ACPI_HOTPLUG_CPU
 config ACPI_THERMAL
 	tristate "Thermal Zone"
 	depends on ACPI_PROCESSOR
+	select THERMAL
 	default y
 	help
 	  This driver adds support for ACPI thermal zones.  Most mobile and
@@ -198,6 +201,16 @@ config ACPI_NUMA
 	depends on NUMA
 	depends on (X86 || IA64)
 	default y if IA64_GENERIC || IA64_SGI_SN2
+
+config ACPI_WMI
+	tristate "WMI (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	help
+	  This driver adds support for the ACPI-WMI mapper device (PNP0C14)
+	  found on some systems.
+
+	  NOTE: You will need another driver or userspace application on top of
+	  this to actually use anything defined in the ACPI-WMI mapper.
 
 config ACPI_ASUS
         tristate "ASUS/Medion Laptop Extras"
@@ -263,8 +276,10 @@ config ACPI_CUSTOM_DSDT
 	depends on !STANDALONE
 	default n 
 	help
-	  This option is to load a custom ACPI DSDT
-	  If you don't know what that is, say N.
+	  This option supports a custom DSDT by linking it into the kernel.
+	  See Documentation/acpi/dsdt-override.txt
+
+	  If unsure, say N.
 
 config ACPI_CUSTOM_DSDT_FILE
 	string "Custom DSDT Table file to include"
@@ -273,6 +288,17 @@ config ACPI_CUSTOM_DSDT_FILE
 	help
 	  Enter the full path name to the file which includes the AmlCode
 	  declaration.
+
+config ACPI_CUSTOM_DSDT_INITRD
+	bool "Read Custom DSDT from initramfs"
+	depends on BLK_DEV_INITRD
+	default n
+	help
+	  This option supports a custom DSDT by optionally loading it from initrd.
+	  See Documentation/acpi/dsdt-override.txt
+
+	  If you are not using this feature now, but may use it later,
+	  it is safe to say Y here.
 
 config ACPI_BLACKLIST_YEAR
 	int "Disable ACPI for systems before Jan 1st this year" if X86_32

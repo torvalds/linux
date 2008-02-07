@@ -1,7 +1,7 @@
 		     ThinkPad ACPI Extras Driver
 
-                            Version 0.17
-                         October 04th, 2007
+                            Version 0.19
+                         January 06th, 2008
 
                Borislav Deianov <borislav@users.sf.net>
              Henrique de Moraes Holschuh <hmh@hmh.eng.br>
@@ -215,6 +215,11 @@ The following commands can be written to the /proc/acpi/ibm/hotkey file:
 	... any other 8-hex-digit mask ...
 	echo reset > /proc/acpi/ibm/hotkey -- restore the original mask
 
+The procfs interface does not support NVRAM polling control.  So as to
+maintain maximum bug-to-bug compatibility, it does not report any masks,
+nor does it allow one to manipulate the hot key mask when the firmware
+does not support masks at all, even if NVRAM polling is in use.
+
 sysfs notes:
 
 	hotkey_bios_enabled:
@@ -231,17 +236,26 @@ sysfs notes:
 		to this value.
 
 	hotkey_enable:
-		Enables/disables the hot keys feature, and reports
-		current status of the hot keys feature.
+		Enables/disables the hot keys feature in the ACPI
+		firmware, and reports current status of the hot keys
+		feature.  Has no effect on the NVRAM hot key polling
+		functionality.
 
 		0: disables the hot keys feature / feature disabled
 		1: enables the hot keys feature / feature enabled
 
 	hotkey_mask:
-		bit mask to enable driver-handling and ACPI event
-		generation for each hot key (see above).  Returns the
-		current status of the hot keys mask, and allows one to
-		modify it.
+		bit mask to enable driver-handling (and depending on
+		the firmware, ACPI event generation) for each hot key
+		(see above).  Returns the current status of the hot keys
+		mask, and allows one to modify it.
+
+		Note: when NVRAM polling is active, the firmware mask
+		will be different from the value returned by
+		hotkey_mask.  The driver will retain enabled bits for
+		hotkeys that are under NVRAM polling even if the
+		firmware refuses them, and will not set these bits on
+		the firmware hot key mask.
 
 	hotkey_all_mask:
 		bit mask that should enable event reporting for all
@@ -257,11 +271,47 @@ sysfs notes:
 		handled by the firmware anyway.  Echo it to
 		hotkey_mask above, to use.
 
+	hotkey_source_mask:
+		bit mask that selects which hot keys will the driver
+		poll the NVRAM for.  This is auto-detected by the driver
+		based on the capabilities reported by the ACPI firmware,
+		but it can be overridden at runtime.
+
+		Hot keys whose bits are set in both hotkey_source_mask
+		and also on hotkey_mask are polled for in NVRAM.  Only a
+		few hot keys are available through CMOS NVRAM polling.
+
+		Warning: when in NVRAM mode, the volume up/down/mute
+		keys are synthesized according to changes in the mixer,
+		so you have to use volume up or volume down to unmute,
+		as per the ThinkPad volume mixer user interface.  When
+		in ACPI event mode, volume up/down/mute are reported as
+		separate events, but this behaviour may be corrected in
+		future releases of this driver, in which case the
+		ThinkPad volume mixer user interface semanthics will be
+		enforced.
+
+	hotkey_poll_freq:
+		frequency in Hz for hot key polling. It must be between
+		0 and 25 Hz.  Polling is only carried out when strictly
+		needed.
+
+		Setting hotkey_poll_freq to zero disables polling, and
+		will cause hot key presses that require NVRAM polling
+		to never be reported.
+
+		Setting hotkey_poll_freq too low will cause repeated
+		pressings of the same hot key to be misreported as a
+		single key press, or to not even be detected at all.
+		The recommended polling frequency is 10Hz.
+
 	hotkey_radio_sw:
 		if the ThinkPad has a hardware radio switch, this
 		attribute will read 0 if the switch is in the "radios
 		disabled" postition, and 1 if the switch is in the
 		"radios enabled" position.
+
+		This attribute has poll()/select() support.
 
 	hotkey_report_mode:
 		Returns the state of the procfs ACPI event report mode
@@ -276,6 +326,25 @@ sysfs notes:
 
 		May return -EPERM (write access locked out by module
 		parameter) or -EACCES (read-only).
+
+	wakeup_reason:
+		Set to 1 if the system is waking up because the user
+		requested a bay ejection.  Set to 2 if the system is
+		waking up because the user requested the system to
+		undock.  Set to zero for normal wake-ups or wake-ups
+		due to unknown reasons.
+
+		This attribute has poll()/select() support.
+
+	wakeup_hotunplug_complete:
+		Set to 1 if the system was waken up because of an
+		undock or bay ejection request, and that request
+		was sucessfully completed.  At this point, it might
+		be useful to send the system back to sleep, at the
+		user's choice.  Refer to HKEY events 0x4003 and
+		0x3003, below.
+
+		This attribute has poll()/select() support.
 
 input layer notes:
 
@@ -426,6 +495,23 @@ Non hot-key ACPI HKEY event map:
 
 The above events are not propagated by the driver, except for legacy
 compatibility purposes when hotkey_report_mode is set to 1.
+
+0x2304		System is waking up from suspend to undock
+0x2305		System is waking up from suspend to eject bay
+0x2404		System is waking up from hibernation to undock
+0x2405		System is waking up from hibernation to eject bay
+
+The above events are never propagated by the driver.
+
+0x3003		Bay ejection (see 0x2x05) complete, can sleep again
+0x4003		Undocked (see 0x2x04), can sleep again
+0x5009		Tablet swivel: switched to tablet mode
+0x500A		Tablet swivel: switched to normal mode
+0x500B		Tablet pen insterted into its storage bay
+0x500C		Tablet pen removed from its storage bay
+0x5010		Brightness level changed (newer Lenovo BIOSes)
+
+The above events are propagated by the driver.
 
 Compatibility notes:
 
@@ -1263,3 +1349,17 @@ Sysfs interface changelog:
 		and the hwmon class for libsensors4 (lm-sensors 3)
 		compatibility.  Moved all hwmon attributes to this
 		new platform device.
+
+0x020100:	Marker for thinkpad-acpi with hot key NVRAM polling
+		support.  If you must, use it to know you should not
+		start an userspace NVRAM poller (allows to detect when
+		NVRAM is compiled out by the user because it is
+		unneeded/undesired in the first place).
+0x020101:	Marker for thinkpad-acpi with hot key NVRAM polling
+		and proper hotkey_mask semanthics (version 8 of the
+		NVRAM polling patch).  Some development snapshots of
+		0.18 had an earlier version that did strange things
+		to hotkey_mask.
+
+0x020200:	Add poll()/select() support to the following attributes:
+		hotkey_radio_sw, wakeup_hotunplug_complete, wakeup_reason

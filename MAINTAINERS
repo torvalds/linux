@@ -202,6 +202,13 @@ L:	linux-scsi@vger.kernel.org
 W:	http://www.adaptec.com/
 S:	Supported
 
+ACER WMI LAPTOP EXTRAS
+P:	Carlos Corbacho
+M:	carlos@strangeworlds.co.uk
+L:	aceracpi@googlegroups.com (subscribers-only)
+W:	http://code.google.com/p/aceracpi
+S:	Maintained
+
 ACPI
 P:	Len Brown
 M:	len.brown@intel.com
@@ -251,6 +258,13 @@ M:	rui.zhang@intel.com
 L:	linux-acpi@vger.kernel.org
 W:	http://acpi.sourceforge.net/
 S:	Supported
+
+ACPI WMI DRIVER
+P:      Carlos Corbacho
+M:      carlos@strangeworlds.co.uk
+L:      linux-acpi@vger.kernel.org
+W:      http://www.lesswatts.org/projects/acpi/
+S:      Maintained
 
 ADM1025 HARDWARE MONITOR DRIVER
 P:	Jean Delvare
@@ -1789,6 +1803,11 @@ HP100:	Driver for HP 10/100 Mbit/s Voice Grade Network Adapter Series
 P:	Jaroslav Kysela
 M:	perex@perex.cz
 S:	Maintained
+
+HP COMPAQ TC1100 TABLET WMI EXTRAS DRIVER
+P:	Carlos Corbacho
+M:	carlos@strangeworlds.co.uk
+S:	Odd Fixes
 
 HPET:	High Precision Event Timers driver (hpet.c)
 P:	Clemens Ladisch

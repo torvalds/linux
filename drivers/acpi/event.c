@@ -109,6 +109,34 @@ static const struct file_operations acpi_system_event_ops = {
 };
 #endif	/* CONFIG_ACPI_PROC_EVENT */
 
+/* ACPI notifier chain */
+BLOCKING_NOTIFIER_HEAD(acpi_chain_head);
+
+int acpi_notifier_call_chain(struct acpi_device *dev, u32 type, u32 data)
+{
+	struct acpi_bus_event event;
+
+	strcpy(event.device_class, dev->pnp.device_class);
+	strcpy(event.bus_id, dev->pnp.bus_id);
+	event.type = type;
+	event.data = data;
+	return (blocking_notifier_call_chain(&acpi_chain_head, 0, (void *)&event)
+                        == NOTIFY_BAD) ? -EINVAL : 0;
+}
+EXPORT_SYMBOL(acpi_notifier_call_chain);
+
+int register_acpi_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&acpi_chain_head, nb);
+}
+EXPORT_SYMBOL(register_acpi_notifier);
+
+int unregister_acpi_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&acpi_chain_head, nb);
+}
+EXPORT_SYMBOL(unregister_acpi_notifier);
+
 #ifdef CONFIG_NET
 static unsigned int acpi_event_seqnum;
 struct acpi_genl_event {

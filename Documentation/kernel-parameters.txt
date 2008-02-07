@@ -147,8 +147,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			default: 0
 
 	acpi_sleep=	[HW,ACPI] Sleep options
-			Format: { s3_bios, s3_mode }
-			See Documentation/power/video.txt
+			Format: { s3_bios, s3_mode, s3_beep }
+			See Documentation/power/video.txt for s3_bios and s3_mode.
+			s3_beep is for debugging; it makes the PC's speaker beep
+			as soon as the kernel's real-mode entry point is called.
 
 	acpi_sci=	[HW,ACPI] ACPI System Control Interrupt trigger mode
 			Format: { level | edge | high | low }
@@ -174,6 +176,9 @@ and is between 256 and 4096 characters. It is defined in the file
 			default: pre ACPI 2.0 ordering of _PTS
 
 	acpi_no_auto_ssdt	[HW,ACPI] Disable automatic loading of SSDT
+
+	acpi_no_initrd_override	[KNL,ACPI]
+			Disable loading custom ACPI tables from the initramfs
 
 	acpi_os_name=	[HW,ACPI] Tell ACPI BIOS the name of the OS
 			Format: To spoof as Windows 98: ="Microsoft Windows"
