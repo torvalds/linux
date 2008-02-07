@@ -1308,9 +1308,8 @@ static int azx_pcm_prepare(struct snd_pcm_substream *substream)
 		return -EINVAL;
 	}
 
-	snd_printdd("azx_pcm_prepare: bufsize=0x%x, fragsize=0x%x, "
-		    "format=0x%x\n",
-		    azx_dev->bufsize, azx_dev->fragsize, azx_dev->format_val);
+	snd_printdd("azx_pcm_prepare: bufsize=0x%x, format=0x%x\n",
+		    azx_dev->bufsize, azx_dev->format_val);
 	if (azx_setup_periods(substream, azx_dev) < 0)
 		return -EINVAL;
 	azx_setup_controller(chip, azx_dev);
