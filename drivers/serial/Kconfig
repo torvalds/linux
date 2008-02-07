@@ -1142,17 +1142,17 @@ config SERIAL_SGI_L1_CONSOLE
 		say Y.  Otherwise, say N.
 
 config SERIAL_MPC52xx
-	tristate "Freescale MPC52xx family PSC serial support"
-	depends on PPC_MPC52xx
+	tristate "Freescale MPC52xx/MPC512x family PSC serial support"
+	depends on PPC_MPC52xx || PPC_MPC512x
 	select SERIAL_CORE
 	help
-	  This drivers support the MPC52xx PSC serial ports. If you would
-	  like to use them, you must answer Y or M to this option. Not that
+	  This driver supports MPC52xx and MPC512x PSC serial ports. If you would
+	  like to use them, you must answer Y or M to this option. Note that
 	  for use as console, it must be included in kernel and not as a
 	  module.
 
 config SERIAL_MPC52xx_CONSOLE
-	bool "Console on a Freescale MPC52xx family PSC serial port"
+	bool "Console on a Freescale MPC52xx/MPC512x family PSC serial port"
 	depends on SERIAL_MPC52xx=y
 	select SERIAL_CORE_CONSOLE
 	help
@@ -1160,7 +1160,7 @@ config SERIAL_MPC52xx_CONSOLE
 	  of the Freescale MPC52xx family as a console.
 
 config SERIAL_MPC52xx_CONSOLE_BAUD
-	int "Freescale MPC52xx family PSC serial port baud"
+	int "Freescale MPC52xx/MPC512x family PSC serial port baud"
 	depends on SERIAL_MPC52xx_CONSOLE=y
 	default "9600"
 	help

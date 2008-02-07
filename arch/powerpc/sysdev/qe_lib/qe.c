@@ -66,7 +66,7 @@ phys_addr_t get_qe_base(void)
 {
 	struct device_node *qe;
 	unsigned int size;
-	const void *prop;
+	const u32 *prop;
 
 	if (qebase != -1)
 		return qebase;
@@ -79,7 +79,8 @@ phys_addr_t get_qe_base(void)
 	}
 
 	prop = of_get_property(qe, "reg", &size);
-	qebase = of_translate_address(qe, prop);
+	if (prop && size >= sizeof(*prop))
+		qebase = of_translate_address(qe, prop);
 	of_node_put(qe);
 
 	return qebase;
@@ -172,10 +173,9 @@ unsigned int get_brg_clk(void)
 	}
 
 	prop = of_get_property(qe, "brg-frequency", &size);
-	if (!prop || size != sizeof(*prop))
-		return brg_clk;
+	if (prop && size == sizeof(*prop))
+		brg_clk = *prop;
 
-	brg_clk = *prop;
 	of_node_put(qe);
 
 	return brg_clk;

@@ -98,7 +98,7 @@ static int __init cell_publish_devices(void)
 	}
 	return 0;
 }
-machine_device_initcall(cell, cell_publish_devices);
+machine_subsys_initcall(cell, cell_publish_devices);
 
 static void cell_mpic_cascade(unsigned int irq, struct irq_desc *desc)
 {

@@ -2,6 +2,8 @@
 # Makefile for the linux kernel.
 #
 
+CFLAGS_ptrace.o		+= -DUTS_MACHINE='"$(UTS_MACHINE)"'
+
 ifeq ($(CONFIG_PPC64),y)
 CFLAGS_prom_init.o	+= -mno-minimal-toc
 endif
@@ -15,7 +17,7 @@ obj-y				:= semaphore.o cputable.o ptrace.o syscalls.o \
 				   init_task.o process.o systbl.o idle.o \
 				   signal.o
 obj-y				+= vdso32/
-obj-$(CONFIG_PPC64)		+= setup_64.o binfmt_elf32.o sys_ppc32.o \
+obj-$(CONFIG_PPC64)		+= setup_64.o sys_ppc32.o \
 				   signal_64.o ptrace32.o \
 				   paca.o cpu_setup_ppc970.o \
 				   cpu_setup_pa6t.o \

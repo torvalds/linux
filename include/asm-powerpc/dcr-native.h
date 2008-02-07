@@ -59,25 +59,36 @@ do {								\
 /* R/W of indirect DCRs make use of standard naming conventions for DCRs */
 extern spinlock_t dcr_ind_lock;
 
-#define mfdcri(base, reg)				\
-({							\
-	unsigned long flags; 				\
-	unsigned int val;				\
-	spin_lock_irqsave(&dcr_ind_lock, flags);	\
-	mtdcr(DCRN_ ## base ## _CONFIG_ADDR, reg);	\
-	val = mfdcr(DCRN_ ## base ## _CONFIG_DATA);	\
-	spin_unlock_irqrestore(&dcr_ind_lock, flags);	\
-	val;						\
-})
+static inline unsigned __mfdcri(int base_addr, int base_data, int reg)
+{
+	unsigned long flags;
+	unsigned int val;
 
-#define mtdcri(base, reg, data)				\
-do {							\
-	unsigned long flags; 				\
-	spin_lock_irqsave(&dcr_ind_lock, flags);	\
-	mtdcr(DCRN_ ## base ## _CONFIG_ADDR, reg);	\
-	mtdcr(DCRN_ ## base ## _CONFIG_DATA, data);	\
-	spin_unlock_irqrestore(&dcr_ind_lock, flags);	\
-} while (0)
+	spin_lock_irqsave(&dcr_ind_lock, flags);
+	__mtdcr(base_addr, reg);
+	val = __mfdcr(base_data);
+	spin_unlock_irqrestore(&dcr_ind_lock, flags);
+	return val;
+}
+
+static inline void __mtdcri(int base_addr, int base_data, int reg,
+			    unsigned val)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&dcr_ind_lock, flags);
+	__mtdcr(base_addr, reg);
+	__mtdcr(base_data, val);
+	spin_unlock_irqrestore(&dcr_ind_lock, flags);
+}
+
+#define mfdcri(base, reg)	__mfdcri(DCRN_ ## base ## _CONFIG_ADDR,	\
+					 DCRN_ ## base ## _CONFIG_DATA,	\
+					 reg)
+
+#define mtdcri(base, reg, data)	__mtdcri(DCRN_ ## base ## _CONFIG_ADDR,	\
+					 DCRN_ ## base ## _CONFIG_DATA,	\
+					 reg, data)
 
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */

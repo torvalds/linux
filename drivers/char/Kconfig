@@ -830,6 +830,16 @@ config DTLK
 	  To compile this driver as a module, choose M here: the
 	  module will be called dtlk.
 
+config XILINX_HWICAP
+	tristate "Xilinx HWICAP Support"
+	depends on XILINX_VIRTEX
+	help
+	  This option enables support for Xilinx Internal Configuration
+	  Access Port (ICAP) driver.  The ICAP is used on Xilinx Virtex
+	  FPGA platforms to partially reconfigure the FPGA at runtime.
+
+	  If unsure, say N.
+
 config R3964
 	tristate "Siemens R3964 line discipline"
 	---help---

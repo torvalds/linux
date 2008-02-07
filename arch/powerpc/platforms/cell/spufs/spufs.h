@@ -325,4 +325,9 @@ extern void spu_free_lscsa(struct spu_state *csa);
 extern void spuctx_switch_state(struct spu_context *ctx,
 		enum spu_utilization_state new_state);
 
+#define spu_context_trace(name, ctx, spu) \
+	trace_mark(name, "%p %p", ctx, spu);
+#define spu_context_nospu_trace(name, ctx) \
+	trace_mark(name, "%p", ctx);
+
 #endif

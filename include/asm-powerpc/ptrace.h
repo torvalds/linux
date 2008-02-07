@@ -55,6 +55,8 @@ struct pt_regs {
 
 #ifdef __powerpc64__
 
+#define __ARCH_WANT_COMPAT_SYS_PTRACE
+
 #define STACK_FRAME_OVERHEAD	112	/* size of minimum stack frame */
 
 /* Size of dummy stack frame allocated when calling signal handler. */

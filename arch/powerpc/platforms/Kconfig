@@ -24,6 +24,7 @@ config PPC_83xx
 	select MPC83xx
 	select IPIC
 	select WANT_DEVICE_TREE
+	select FSL_EMB_PERFMON
 
 config PPC_86xx
 	bool "Freescale 86xx"
@@ -41,6 +42,7 @@ config CLASSIC32
 source "arch/powerpc/platforms/pseries/Kconfig"
 source "arch/powerpc/platforms/iseries/Kconfig"
 source "arch/powerpc/platforms/chrp/Kconfig"
+source "arch/powerpc/platforms/512x/Kconfig"
 source "arch/powerpc/platforms/52xx/Kconfig"
 source "arch/powerpc/platforms/powermac/Kconfig"
 source "arch/powerpc/platforms/prep/Kconfig"

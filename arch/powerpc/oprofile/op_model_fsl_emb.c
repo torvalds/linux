@@ -1,7 +1,5 @@
 /*
- * arch/powerpc/oprofile/op_model_fsl_booke.c
- *
- * Freescale Book-E oprofile support, based on ppc64 oprofile support
+ * Freescale Embedded oprofile support, based on ppc64 oprofile support
  * Copyright (C) 2004 Anton Blanchard <anton@au.ibm.com>, IBM
  *
  * Copyright (c) 2004 Freescale Semiconductor, Inc
@@ -22,7 +20,7 @@
 #include <asm/system.h>
 #include <asm/processor.h>
 #include <asm/cputable.h>
-#include <asm/reg_booke.h>
+#include <asm/reg_fsl_emb.h>
 #include <asm/page.h>
 #include <asm/pmc.h>
 #include <asm/oprofile_impl.h>
@@ -244,7 +242,7 @@ static void dump_pmcs(void)
 			mfpmr(PMRN_PMLCA3), mfpmr(PMRN_PMLCB3));
 }
 
-static int fsl_booke_cpu_setup(struct op_counter_config *ctr)
+static int fsl_emb_cpu_setup(struct op_counter_config *ctr)
 {
 	int i;
 
@@ -262,7 +260,7 @@ static int fsl_booke_cpu_setup(struct op_counter_config *ctr)
 	return 0;
 }
 
-static int fsl_booke_reg_setup(struct op_counter_config *ctr,
+static int fsl_emb_reg_setup(struct op_counter_config *ctr,
 			     struct op_system_config *sys,
 			     int num_ctrs)
 {
@@ -281,7 +279,7 @@ static int fsl_booke_reg_setup(struct op_counter_config *ctr,
 	return 0;
 }
 
-static int fsl_booke_start(struct op_counter_config *ctr)
+static int fsl_emb_start(struct op_counter_config *ctr)
 {
 	int i;
 
@@ -315,7 +313,7 @@ static int fsl_booke_start(struct op_counter_config *ctr)
 	return 0;
 }
 
-static void fsl_booke_stop(void)
+static void fsl_emb_stop(void)
 {
 	/* freeze counters */
 	pmc_stop_ctrs();
@@ -329,7 +327,7 @@ static void fsl_booke_stop(void)
 }
 
 
-static void fsl_booke_handle_interrupt(struct pt_regs *regs,
+static void fsl_emb_handle_interrupt(struct pt_regs *regs,
 				    struct op_counter_config *ctr)
 {
 	unsigned long pc;
@@ -362,10 +360,10 @@ static void fsl_booke_handle_interrupt(struct pt_regs *regs,
 	pmc_start_ctrs(1);
 }
 
-struct op_powerpc_model op_model_fsl_booke = {
-	.reg_setup		= fsl_booke_reg_setup,
-	.cpu_setup		= fsl_booke_cpu_setup,
-	.start			= fsl_booke_start,
-	.stop			= fsl_booke_stop,
-	.handle_interrupt	= fsl_booke_handle_interrupt,
+struct op_powerpc_model op_model_fsl_emb = {
+	.reg_setup		= fsl_emb_reg_setup,
+	.cpu_setup		= fsl_emb_cpu_setup,
+	.start			= fsl_emb_start,
+	.stop			= fsl_emb_stop,
+	.handle_interrupt	= fsl_emb_handle_interrupt,
 };

@@ -42,6 +42,18 @@
 			bus-frequency = <0>;
 			clock-frequency = <0>;
 		};
+
+		PowerPC,8572@1 {
+			device_type = "cpu";
+			reg = <1>;
+			d-cache-line-size = <20>;	// 32 bytes
+			i-cache-line-size = <20>;	// 32 bytes
+			d-cache-size = <8000>;		// L1, 32K
+			i-cache-size = <8000>;		// L1, 32K
+			timebase-frequency = <0>;
+			bus-frequency = <0>;
+			clock-frequency = <0>;
+		};
 	};
 
 	memory {

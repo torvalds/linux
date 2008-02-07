@@ -138,6 +138,31 @@ struct device_node *of_get_parent(const struct device_node *node)
 EXPORT_SYMBOL(of_get_parent);
 
 /**
+ *	of_get_next_parent - Iterate to a node's parent
+ *	@node:	Node to get parent of
+ *
+ * 	This is like of_get_parent() except that it drops the
+ * 	refcount on the passed node, making it suitable for iterating
+ * 	through a node's parents.
+ *
+ *	Returns a node pointer with refcount incremented, use
+ *	of_node_put() on it when done.
+ */
+struct device_node *of_get_next_parent(struct device_node *node)
+{
+	struct device_node *parent;
+
+	if (!node)
+		return NULL;
+
+	read_lock(&devtree_lock);
+	parent = of_node_get(node->parent);
+	of_node_put(node);
+	read_unlock(&devtree_lock);
+	return parent;
+}
+
+/**
  *	of_get_next_child - Iterate a node childs
  *	@node:	parent node
  *	@prev:	previous child of the parent node, or NULL to get first

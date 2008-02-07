@@ -21,6 +21,8 @@
 #include <linux/smp.h>
 #include <linux/errno.h>
 #include <linux/ptrace.h>
+#include <linux/regset.h>
+#include <linux/elf.h>
 #include <linux/user.h>
 #include <linux/security.h>
 #include <linux/signal.h>
@@ -58,20 +60,38 @@
 #define PT_MAX_PUT_REG	PT_CCR
 #endif
 
+static unsigned long get_user_msr(struct task_struct *task)
+{
+	return task->thread.regs->msr | task->thread.fpexc_mode;
+}
+
+static int set_user_msr(struct task_struct *task, unsigned long msr)
+{
+	task->thread.regs->msr &= ~MSR_DEBUGCHANGE;
+	task->thread.regs->msr |= msr & MSR_DEBUGCHANGE;
+	return 0;
+}
+
+/*
+ * We prevent mucking around with the reserved area of trap
+ * which are used internally by the kernel.
+ */
+static int set_user_trap(struct task_struct *task, unsigned long trap)
+{
+	task->thread.regs->trap = trap & 0xfff0;
+	return 0;
+}
+
 /*
  * Get contents of register REGNO in task TASK.
  */
 unsigned long ptrace_get_reg(struct task_struct *task, int regno)
 {
-	unsigned long tmp = 0;
-
 	if (task->thread.regs == NULL)
 		return -EIO;
 
-	if (regno == PT_MSR) {
-		tmp = ((unsigned long *)task->thread.regs)[PT_MSR];
-		return tmp | task->thread.fpexc_mode;
-	}
+	if (regno == PT_MSR)
+		return get_user_msr(task);
 
 	if (regno < (sizeof(struct pt_regs) / sizeof(unsigned long)))
 		return ((unsigned long *)task->thread.regs)[regno];
@@ -87,40 +107,134 @@ int ptrace_put_reg(struct task_struct *task, int regno, unsigned long data)
 	if (task->thread.regs == NULL)
 		return -EIO;
 
-	if (regno <= PT_MAX_PUT_REG || regno == PT_TRAP) {
-		if (regno == PT_MSR)
-			data = (data & MSR_DEBUGCHANGE)
-				| (task->thread.regs->msr & ~MSR_DEBUGCHANGE);
-		/* We prevent mucking around with the reserved area of trap
-		 * which are used internally by the kernel
-		 */
-		if (regno == PT_TRAP)
-			data &= 0xfff0;
+	if (regno == PT_MSR)
+		return set_user_msr(task, data);
+	if (regno == PT_TRAP)
+		return set_user_trap(task, data);
+
+	if (regno <= PT_MAX_PUT_REG) {
 		((unsigned long *)task->thread.regs)[regno] = data;
 		return 0;
 	}
 	return -EIO;
 }
 
-
-static int get_fpregs(void __user *data, struct task_struct *task,
-		      int has_fpscr)
+static int gpr_get(struct task_struct *target, const struct user_regset *regset,
+		   unsigned int pos, unsigned int count,
+		   void *kbuf, void __user *ubuf)
 {
-	unsigned int count = has_fpscr ? 33 : 32;
+	int ret;
 
-	if (copy_to_user(data, task->thread.fpr, count * sizeof(double)))
-		return -EFAULT;
-	return 0;
+	if (target->thread.regs == NULL)
+		return -EIO;
+
+	CHECK_FULL_REGS(target->thread.regs);
+
+	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				  target->thread.regs,
+				  0, offsetof(struct pt_regs, msr));
+	if (!ret) {
+		unsigned long msr = get_user_msr(target);
+		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, &msr,
+					  offsetof(struct pt_regs, msr),
+					  offsetof(struct pt_regs, msr) +
+					  sizeof(msr));
+	}
+
+	BUILD_BUG_ON(offsetof(struct pt_regs, orig_gpr3) !=
+		     offsetof(struct pt_regs, msr) + sizeof(long));
+
+	if (!ret)
+		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+					  &target->thread.regs->orig_gpr3,
+					  offsetof(struct pt_regs, orig_gpr3),
+					  sizeof(struct pt_regs));
+	if (!ret)
+		ret = user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
+					       sizeof(struct pt_regs), -1);
+
+	return ret;
 }
 
-static int set_fpregs(void __user *data, struct task_struct *task,
-		      int has_fpscr)
+static int gpr_set(struct task_struct *target, const struct user_regset *regset,
+		   unsigned int pos, unsigned int count,
+		   const void *kbuf, const void __user *ubuf)
 {
-	unsigned int count = has_fpscr ? 33 : 32;
+	unsigned long reg;
+	int ret;
 
-	if (copy_from_user(task->thread.fpr, data, count * sizeof(double)))
-		return -EFAULT;
-	return 0;
+	if (target->thread.regs == NULL)
+		return -EIO;
+
+	CHECK_FULL_REGS(target->thread.regs);
+
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				 target->thread.regs,
+				 0, PT_MSR * sizeof(reg));
+
+	if (!ret && count > 0) {
+		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &reg,
+					 PT_MSR * sizeof(reg),
+					 (PT_MSR + 1) * sizeof(reg));
+		if (!ret)
+			ret = set_user_msr(target, reg);
+	}
+
+	BUILD_BUG_ON(offsetof(struct pt_regs, orig_gpr3) !=
+		     offsetof(struct pt_regs, msr) + sizeof(long));
+
+	if (!ret)
+		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+					 &target->thread.regs->orig_gpr3,
+					 PT_ORIG_R3 * sizeof(reg),
+					 (PT_MAX_PUT_REG + 1) * sizeof(reg));
+
+	if (PT_MAX_PUT_REG + 1 < PT_TRAP && !ret)
+		ret = user_regset_copyin_ignore(
+			&pos, &count, &kbuf, &ubuf,
+			(PT_MAX_PUT_REG + 1) * sizeof(reg),
+			PT_TRAP * sizeof(reg));
+
+	if (!ret && count > 0) {
+		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &reg,
+					 PT_TRAP * sizeof(reg),
+					 (PT_TRAP + 1) * sizeof(reg));
+		if (!ret)
+			ret = set_user_trap(target, reg);
+	}
+
+	if (!ret)
+		ret = user_regset_copyin_ignore(
+			&pos, &count, &kbuf, &ubuf,
+			(PT_TRAP + 1) * sizeof(reg), -1);
+
+	return ret;
+}
+
+static int fpr_get(struct task_struct *target, const struct user_regset *regset,
+		   unsigned int pos, unsigned int count,
+		   void *kbuf, void __user *ubuf)
+{
+	flush_fp_to_thread(target);
+
+	BUILD_BUG_ON(offsetof(struct thread_struct, fpscr) !=
+		     offsetof(struct thread_struct, fpr[32]));
+
+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				   &target->thread.fpr, 0, -1);
+}
+
+static int fpr_set(struct task_struct *target, const struct user_regset *regset,
+		   unsigned int pos, unsigned int count,
+		   const void *kbuf, const void __user *ubuf)
+{
+	flush_fp_to_thread(target);
+
+	BUILD_BUG_ON(offsetof(struct thread_struct, fpscr) !=
+		     offsetof(struct thread_struct, fpr[32]));
+
+	return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				  &target->thread.fpr, 0, -1);
 }
 
 
@@ -138,56 +252,74 @@ static int set_fpregs(void __user *data, struct task_struct *task,
  * (combined (32- and 64-bit) gdb.
  */
 
-/*
- * Get contents of AltiVec register state in task TASK
- */
-static int get_vrregs(unsigned long __user *data, struct task_struct *task)
+static int vr_active(struct task_struct *target,
+		     const struct user_regset *regset)
 {
-	unsigned long regsize;
-
-	/* copy AltiVec registers VR[0] .. VR[31] */
-	regsize = 32 * sizeof(vector128);
-	if (copy_to_user(data, task->thread.vr, regsize))
-		return -EFAULT;
-	data += (regsize / sizeof(unsigned long));
-
-	/* copy VSCR */
-	regsize = 1 * sizeof(vector128);
-	if (copy_to_user(data, &task->thread.vscr, regsize))
-		return -EFAULT;
-	data += (regsize / sizeof(unsigned long));
-
-	/* copy VRSAVE */
-	if (put_user(task->thread.vrsave, (u32 __user *)data))
-		return -EFAULT;
-
-	return 0;
+	flush_altivec_to_thread(target);
+	return target->thread.used_vr ? regset->n : 0;
 }
 
-/*
- * Write contents of AltiVec register state into task TASK.
- */
-static int set_vrregs(struct task_struct *task, unsigned long __user *data)
+static int vr_get(struct task_struct *target, const struct user_regset *regset,
+		  unsigned int pos, unsigned int count,
+		  void *kbuf, void __user *ubuf)
 {
-	unsigned long regsize;
+	int ret;
 
-	/* copy AltiVec registers VR[0] .. VR[31] */
-	regsize = 32 * sizeof(vector128);
-	if (copy_from_user(task->thread.vr, data, regsize))
-		return -EFAULT;
-	data += (regsize / sizeof(unsigned long));
+	flush_altivec_to_thread(target);
 
-	/* copy VSCR */
-	regsize = 1 * sizeof(vector128);
-	if (copy_from_user(&task->thread.vscr, data, regsize))
-		return -EFAULT;
-	data += (regsize / sizeof(unsigned long));
+	BUILD_BUG_ON(offsetof(struct thread_struct, vscr) !=
+		     offsetof(struct thread_struct, vr[32]));
 
-	/* copy VRSAVE */
-	if (get_user(task->thread.vrsave, (u32 __user *)data))
-		return -EFAULT;
+	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				  &target->thread.vr, 0,
+				  33 * sizeof(vector128));
+	if (!ret) {
+		/*
+		 * Copy out only the low-order word of vrsave.
+		 */
+		union {
+			elf_vrreg_t reg;
+			u32 word;
+		} vrsave;
+		memset(&vrsave, 0, sizeof(vrsave));
+		vrsave.word = target->thread.vrsave;
+		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, &vrsave,
+					  33 * sizeof(vector128), -1);
+	}
 
-	return 0;
+	return ret;
+}
+
+static int vr_set(struct task_struct *target, const struct user_regset *regset,
+		  unsigned int pos, unsigned int count,
+		  const void *kbuf, const void __user *ubuf)
+{
+	int ret;
+
+	flush_altivec_to_thread(target);
+
+	BUILD_BUG_ON(offsetof(struct thread_struct, vscr) !=
+		     offsetof(struct thread_struct, vr[32]));
+
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				 &target->thread.vr, 0, 33 * sizeof(vector128));
+	if (!ret && count > 0) {
+		/*
+		 * We use only the first word of vrsave.
+		 */
+		union {
+			elf_vrreg_t reg;
+			u32 word;
+		} vrsave;
+		memset(&vrsave, 0, sizeof(vrsave));
+		vrsave.word = target->thread.vrsave;
+		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &vrsave,
+					 33 * sizeof(vector128), -1);
+		if (!ret)
+			target->thread.vrsave = vrsave.word;
+	}
+
+	return ret;
 }
 #endif /* CONFIG_ALTIVEC */
 
@@ -203,57 +335,273 @@ static int set_vrregs(struct task_struct *task, unsigned long __user *data)
  * }
  */
 
-/*
- * Get contents of SPE register state in task TASK.
- */
-static int get_evrregs(unsigned long *data, struct task_struct *task)
+static int evr_active(struct task_struct *target,
+		      const struct user_regset *regset)
 {
-	int i;
-
-	if (!access_ok(VERIFY_WRITE, data, 35 * sizeof(unsigned long)))
-		return -EFAULT;
-
-	/* copy SPEFSCR */
-	if (__put_user(task->thread.spefscr, &data[34]))
-		return -EFAULT;
-
-	/* copy SPE registers EVR[0] .. EVR[31] */
-	for (i = 0; i < 32; i++, data++)
-		if (__put_user(task->thread.evr[i], data))
-			return -EFAULT;
-
-	/* copy ACC */
-	if (__put_user64(task->thread.acc, (unsigned long long *)data))
-		return -EFAULT;
-
-	return 0;
+	flush_spe_to_thread(target);
+	return target->thread.used_spe ? regset->n : 0;
 }
 
-/*
- * Write contents of SPE register state into task TASK.
- */
-static int set_evrregs(struct task_struct *task, unsigned long *data)
+static int evr_get(struct task_struct *target, const struct user_regset *regset,
+		   unsigned int pos, unsigned int count,
+		   void *kbuf, void __user *ubuf)
 {
-	int i;
+	int ret;
 
-	if (!access_ok(VERIFY_READ, data, 35 * sizeof(unsigned long)))
-		return -EFAULT;
+	flush_spe_to_thread(target);
 
-	/* copy SPEFSCR */
-	if (__get_user(task->thread.spefscr, &data[34]))
-		return -EFAULT;
+	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				  &target->thread.evr,
+				  0, sizeof(target->thread.evr));
 
-	/* copy SPE registers EVR[0] .. EVR[31] */
-	for (i = 0; i < 32; i++, data++)
-		if (__get_user(task->thread.evr[i], data))
-			return -EFAULT;
-	/* copy ACC */
-	if (__get_user64(task->thread.acc, (unsigned long long*)data))
-		return -EFAULT;
+	BUILD_BUG_ON(offsetof(struct thread_struct, acc) + sizeof(u64) !=
+		     offsetof(struct thread_struct, spefscr));
 
-	return 0;
+	if (!ret)
+		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+					  &target->thread.acc,
+					  sizeof(target->thread.evr), -1);
+
+	return ret;
+}
+
+static int evr_set(struct task_struct *target, const struct user_regset *regset,
+		   unsigned int pos, unsigned int count,
+		   const void *kbuf, const void __user *ubuf)
+{
+	int ret;
+
+	flush_spe_to_thread(target);
+
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				 &target->thread.evr,
+				 0, sizeof(target->thread.evr));
+
+	BUILD_BUG_ON(offsetof(struct thread_struct, acc) + sizeof(u64) !=
+		     offsetof(struct thread_struct, spefscr));
+
+	if (!ret)
+		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+					 &target->thread.acc,
+					 sizeof(target->thread.evr), -1);
+
+	return ret;
 }
 #endif /* CONFIG_SPE */
+
+
+/*
+ * These are our native regset flavors.
+ */
+enum powerpc_regset {
+	REGSET_GPR,
+	REGSET_FPR,
+#ifdef CONFIG_ALTIVEC
+	REGSET_VMX,
+#endif
+#ifdef CONFIG_SPE
+	REGSET_SPE,
+#endif
+};
+
+static const struct user_regset native_regsets[] = {
+	[REGSET_GPR] = {
+		.core_note_type = NT_PRSTATUS, .n = ELF_NGREG,
+		.size = sizeof(long), .align = sizeof(long),
+		.get = gpr_get, .set = gpr_set
+	},
+	[REGSET_FPR] = {
+		.core_note_type = NT_PRFPREG, .n = ELF_NFPREG,
+		.size = sizeof(double), .align = sizeof(double),
+		.get = fpr_get, .set = fpr_set
+	},
+#ifdef CONFIG_ALTIVEC
+	[REGSET_VMX] = {
+		.core_note_type = NT_PPC_VMX, .n = 34,
+		.size = sizeof(vector128), .align = sizeof(vector128),
+		.active = vr_active, .get = vr_get, .set = vr_set
+	},
+#endif
+#ifdef CONFIG_SPE
+	[REGSET_SPE] = {
+		.n = 35,
+		.size = sizeof(u32), .align = sizeof(u32),
+		.active = evr_active, .get = evr_get, .set = evr_set
+	},
+#endif
+};
+
+static const struct user_regset_view user_ppc_native_view = {
+	.name = UTS_MACHINE, .e_machine = ELF_ARCH, .ei_osabi = ELF_OSABI,
+	.regsets = native_regsets, .n = ARRAY_SIZE(native_regsets)
+};
+
+#ifdef CONFIG_PPC64
+#include <linux/compat.h>
+
+static int gpr32_get(struct task_struct *target,
+		     const struct user_regset *regset,
+		     unsigned int pos, unsigned int count,
+		     void *kbuf, void __user *ubuf)
+{
+	const unsigned long *regs = &target->thread.regs->gpr[0];
+	compat_ulong_t *k = kbuf;
+	compat_ulong_t __user *u = ubuf;
+	compat_ulong_t reg;
+
+	if (target->thread.regs == NULL)
+		return -EIO;
+
+	CHECK_FULL_REGS(target->thread.regs);
+
+	pos /= sizeof(reg);
+	count /= sizeof(reg);
+
+	if (kbuf)
+		for (; count > 0 && pos < PT_MSR; --count)
+			*k++ = regs[pos++];
+	else
+		for (; count > 0 && pos < PT_MSR; --count)
+			if (__put_user((compat_ulong_t) regs[pos++], u++))
+				return -EFAULT;
+
+	if (count > 0 && pos == PT_MSR) {
+		reg = get_user_msr(target);
+		if (kbuf)
+			*k++ = reg;
+		else if (__put_user(reg, u++))
+			return -EFAULT;
+		++pos;
+		--count;
+	}
+
+	if (kbuf)
+		for (; count > 0 && pos < PT_REGS_COUNT; --count)
+			*k++ = regs[pos++];
+	else
+		for (; count > 0 && pos < PT_REGS_COUNT; --count)
+			if (__put_user((compat_ulong_t) regs[pos++], u++))
+				return -EFAULT;
+
+	kbuf = k;
+	ubuf = u;
+	pos *= sizeof(reg);
+	count *= sizeof(reg);
+	return user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
+					PT_REGS_COUNT * sizeof(reg), -1);
+}
+
+static int gpr32_set(struct task_struct *target,
+		     const struct user_regset *regset,
+		     unsigned int pos, unsigned int count,
+		     const void *kbuf, const void __user *ubuf)
+{
+	unsigned long *regs = &target->thread.regs->gpr[0];
+	const compat_ulong_t *k = kbuf;
+	const compat_ulong_t __user *u = ubuf;
+	compat_ulong_t reg;
+
+	if (target->thread.regs == NULL)
+		return -EIO;
+
+	CHECK_FULL_REGS(target->thread.regs);
+
+	pos /= sizeof(reg);
+	count /= sizeof(reg);
+
+	if (kbuf)
+		for (; count > 0 && pos < PT_MSR; --count)
+			regs[pos++] = *k++;
+	else
+		for (; count > 0 && pos < PT_MSR; --count) {
+			if (__get_user(reg, u++))
+				return -EFAULT;
+			regs[pos++] = reg;
+		}
+
+
+	if (count > 0 && pos == PT_MSR) {
+		if (kbuf)
+			reg = *k++;
+		else if (__get_user(reg, u++))
+			return -EFAULT;
+		set_user_msr(target, reg);
+		++pos;
+		--count;
+	}
+
+	if (kbuf)
+		for (; count > 0 && pos <= PT_MAX_PUT_REG; --count)
+			regs[pos++] = *k++;
+	else
+		for (; count > 0 && pos <= PT_MAX_PUT_REG; --count) {
+			if (__get_user(reg, u++))
+				return -EFAULT;
+			regs[pos++] = reg;
+		}
+
+	if (count > 0 && pos == PT_TRAP) {
+		if (kbuf)
+			reg = *k++;
+		else if (__get_user(reg, u++))
+			return -EFAULT;
+		set_user_trap(target, reg);
+		++pos;
+		--count;
+	}
+
+	kbuf = k;
+	ubuf = u;
+	pos *= sizeof(reg);
+	count *= sizeof(reg);
+	return user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+					 (PT_TRAP + 1) * sizeof(reg), -1);
+}
+
+/*
+ * These are the regset flavors matching the CONFIG_PPC32 native set.
+ */
+static const struct user_regset compat_regsets[] = {
+	[REGSET_GPR] = {
+		.core_note_type = NT_PRSTATUS, .n = ELF_NGREG,
+		.size = sizeof(compat_long_t), .align = sizeof(compat_long_t),
+		.get = gpr32_get, .set = gpr32_set
+	},
+	[REGSET_FPR] = {
+		.core_note_type = NT_PRFPREG, .n = ELF_NFPREG,
+		.size = sizeof(double), .align = sizeof(double),
+		.get = fpr_get, .set = fpr_set
+	},
+#ifdef CONFIG_ALTIVEC
+	[REGSET_VMX] = {
+		.core_note_type = NT_PPC_VMX, .n = 34,
+		.size = sizeof(vector128), .align = sizeof(vector128),
+		.active = vr_active, .get = vr_get, .set = vr_set
+	},
+#endif
+#ifdef CONFIG_SPE
+	[REGSET_SPE] = {
+		.core_note_type = NT_PPC_SPE, .n = 35,
+		.size = sizeof(u32), .align = sizeof(u32),
+		.active = evr_active, .get = evr_get, .set = evr_set
+	},
+#endif
+};
+
+static const struct user_regset_view user_ppc_compat_view = {
+	.name = "ppc", .e_machine = EM_PPC, .ei_osabi = ELF_OSABI,
+	.regsets = compat_regsets, .n = ARRAY_SIZE(compat_regsets)
+};
+#endif	/* CONFIG_PPC64 */
+
+const struct user_regset_view *task_user_regset_view(struct task_struct *task)
+{
+#ifdef CONFIG_PPC64
+	if (test_tsk_thread_flag(task, TIF_32BIT))
+		return &user_ppc_compat_view;
+#endif
+	return &user_ppc_native_view;
+}
 
 
 void user_enable_single_step(struct task_struct *task)
@@ -323,55 +671,29 @@ void ptrace_disable(struct task_struct *child)
 static long arch_ptrace_old(struct task_struct *child, long request, long addr,
 			    long data)
 {
-	int ret = -EPERM;
+	switch (request) {
+	case PPC_PTRACE_GETREGS:	/* Get GPRs 0 - 31. */
+		return copy_regset_to_user(child, &user_ppc_native_view,
+					   REGSET_GPR, 0, 32 * sizeof(long),
+					   (void __user *) data);
 
-	switch(request) {
-	case PPC_PTRACE_GETREGS: { /* Get GPRs 0 - 31. */
-		int i;
-		unsigned long *reg = &((unsigned long *)child->thread.regs)[0];
-		unsigned long __user *tmp = (unsigned long __user *)addr;
+	case PPC_PTRACE_SETREGS:	/* Set GPRs 0 - 31. */
+		return copy_regset_from_user(child, &user_ppc_native_view,
+					     REGSET_GPR, 0, 32 * sizeof(long),
+					     (const void __user *) data);
 
-		CHECK_FULL_REGS(child->thread.regs);
-		for (i = 0; i < 32; i++) {
-			ret = put_user(*reg, tmp);
-			if (ret)
-				break;
-			reg++;
-			tmp++;
-		}
-		break;
+	case PPC_PTRACE_GETFPREGS:	/* Get FPRs 0 - 31. */
+		return copy_regset_to_user(child, &user_ppc_native_view,
+					   REGSET_FPR, 0, 32 * sizeof(double),
+					   (void __user *) data);
+
+	case PPC_PTRACE_SETFPREGS:	/* Set FPRs 0 - 31. */
+		return copy_regset_from_user(child, &user_ppc_native_view,
+					     REGSET_FPR, 0, 32 * sizeof(double),
+					     (const void __user *) data);
 	}
 
-	case PPC_PTRACE_SETREGS: { /* Set GPRs 0 - 31. */
-		int i;
-		unsigned long *reg = &((unsigned long *)child->thread.regs)[0];
-		unsigned long __user *tmp = (unsigned long __user *)addr;
-
-		CHECK_FULL_REGS(child->thread.regs);
-		for (i = 0; i < 32; i++) {
-			ret = get_user(*reg, tmp);
-			if (ret)
-				break;
-			reg++;
-			tmp++;
-		}
-		break;
-	}
-
-	case PPC_PTRACE_GETFPREGS: { /* Get FPRs 0 - 31. */
-		flush_fp_to_thread(child);
-		ret = get_fpregs((void __user *)addr, child, 0);
-		break;
-	}
-
-	case PPC_PTRACE_SETFPREGS: { /* Get FPRs 0 - 31. */
-		flush_fp_to_thread(child);
-		ret = set_fpregs((void __user *)addr, child, 0);
-		break;
-	}
-
-	}
-	return ret;
+	return -EPERM;
 }
 
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)
@@ -379,12 +701,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	int ret = -EPERM;
 
 	switch (request) {
-	/* when I and D space are separate, these will need to be fixed. */
-	case PTRACE_PEEKTEXT: /* read word at location addr. */
-	case PTRACE_PEEKDATA:
-		ret = generic_ptrace_peekdata(child, addr, data);
-		break;
-
 	/* read the word at location addr in the USER area. */
 	case PTRACE_PEEKUSR: {
 		unsigned long index, tmp;
@@ -411,12 +727,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		ret = put_user(tmp,(unsigned long __user *) data);
 		break;
 	}
-
-	/* If I and D space are separate, this will have to be fixed. */
-	case PTRACE_POKETEXT: /* write the word at location addr. */
-	case PTRACE_POKEDATA:
-		ret = generic_ptrace_pokedata(child, addr, data);
-		break;
 
 	/* write the word at location addr in the USER area */
 	case PTRACE_POKEUSR: {
@@ -462,85 +772,60 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 #ifdef CONFIG_PPC64
 	case PTRACE_GETREGS64:
 #endif
-	case PTRACE_GETREGS: { /* Get all pt_regs from the child. */
-		int ui;
-	  	if (!access_ok(VERIFY_WRITE, (void __user *)data,
-			       sizeof(struct pt_regs))) {
-			ret = -EIO;
-			break;
-		}
-		CHECK_FULL_REGS(child->thread.regs);
-		ret = 0;
-		for (ui = 0; ui < PT_REGS_COUNT; ui ++) {
-			ret |= __put_user(ptrace_get_reg(child, ui),
-					  (unsigned long __user *) data);
-			data += sizeof(long);
-		}
-		break;
-	}
+	case PTRACE_GETREGS:	/* Get all pt_regs from the child. */
+		return copy_regset_to_user(child, &user_ppc_native_view,
+					   REGSET_GPR,
+					   0, sizeof(struct pt_regs),
+					   (void __user *) data);
 
 #ifdef CONFIG_PPC64
 	case PTRACE_SETREGS64:
 #endif
-	case PTRACE_SETREGS: { /* Set all gp regs in the child. */
-		unsigned long tmp;
-		int ui;
-	  	if (!access_ok(VERIFY_READ, (void __user *)data,
-			       sizeof(struct pt_regs))) {
-			ret = -EIO;
-			break;
-		}
-		CHECK_FULL_REGS(child->thread.regs);
-		ret = 0;
-		for (ui = 0; ui < PT_REGS_COUNT; ui ++) {
-			ret = __get_user(tmp, (unsigned long __user *) data);
-			if (ret)
-				break;
-			ptrace_put_reg(child, ui, tmp);
-			data += sizeof(long);
-		}
-		break;
-	}
+	case PTRACE_SETREGS:	/* Set all gp regs in the child. */
+		return copy_regset_from_user(child, &user_ppc_native_view,
+					     REGSET_GPR,
+					     0, sizeof(struct pt_regs),
+					     (const void __user *) data);
 
-	case PTRACE_GETFPREGS: { /* Get the child FPU state (FPR0...31 + FPSCR) */
-		flush_fp_to_thread(child);
-		ret = get_fpregs((void __user *)data, child, 1);
-		break;
-	}
+	case PTRACE_GETFPREGS: /* Get the child FPU state (FPR0...31 + FPSCR) */
+		return copy_regset_to_user(child, &user_ppc_native_view,
+					   REGSET_FPR,
+					   0, sizeof(elf_fpregset_t),
+					   (void __user *) data);
 
-	case PTRACE_SETFPREGS: { /* Set the child FPU state (FPR0...31 + FPSCR) */
-		flush_fp_to_thread(child);
-		ret = set_fpregs((void __user *)data, child, 1);
-		break;
-	}
+	case PTRACE_SETFPREGS: /* Set the child FPU state (FPR0...31 + FPSCR) */
+		return copy_regset_from_user(child, &user_ppc_native_view,
+					     REGSET_FPR,
+					     0, sizeof(elf_fpregset_t),
+					     (const void __user *) data);
 
 #ifdef CONFIG_ALTIVEC
 	case PTRACE_GETVRREGS:
-		/* Get the child altivec register state. */
-		flush_altivec_to_thread(child);
-		ret = get_vrregs((unsigned long __user *)data, child);
-		break;
+		return copy_regset_to_user(child, &user_ppc_native_view,
+					   REGSET_VMX,
+					   0, (33 * sizeof(vector128) +
+					       sizeof(u32)),
+					   (void __user *) data);
 
 	case PTRACE_SETVRREGS:
-		/* Set the child altivec register state. */
-		flush_altivec_to_thread(child);
-		ret = set_vrregs(child, (unsigned long __user *)data);
-		break;
+		return copy_regset_from_user(child, &user_ppc_native_view,
+					     REGSET_VMX,
+					     0, (33 * sizeof(vector128) +
+						 sizeof(u32)),
+					     (const void __user *) data);
 #endif
 #ifdef CONFIG_SPE
 	case PTRACE_GETEVRREGS:
 		/* Get the child spe register state. */
-		flush_spe_to_thread(child);
-		ret = get_evrregs((unsigned long __user *)data, child);
-		break;
+		return copy_regset_to_user(child, &user_ppc_native_view,
+					   REGSET_SPE, 0, 35 * sizeof(u32),
+					   (void __user *) data);
 
 	case PTRACE_SETEVRREGS:
 		/* Set the child spe register state. */
-		/* this is to clear the MSR_SPE bit to force a reload
-		 * of register state from memory */
-		flush_spe_to_thread(child);
-		ret = set_evrregs(child, (unsigned long __user *)data);
-		break;
+		return copy_regset_from_user(child, &user_ppc_native_view,
+					     REGSET_SPE, 0, 35 * sizeof(u32),
+					     (const void __user *) data);
 #endif
 
 	/* Old reverse args ptrace callss */

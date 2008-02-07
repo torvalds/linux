@@ -322,7 +322,7 @@ static struct spu_context *
 spufs_assert_affinity(unsigned int flags, struct spu_gang *gang,
 						struct file *filp)
 {
-	struct spu_context *tmp, *neighbor;
+	struct spu_context *tmp, *neighbor, *err;
 	int count, node;
 	int aff_supp;
 
@@ -354,11 +354,15 @@ spufs_assert_affinity(unsigned int flags, struct spu_gang *gang,
 		if (!list_empty(&neighbor->aff_list) && !(neighbor->aff_head) &&
 		    !list_is_last(&neighbor->aff_list, &gang->aff_list_head) &&
 		    !list_entry(neighbor->aff_list.next, struct spu_context,
-		    aff_list)->aff_head)
-			return ERR_PTR(-EEXIST);
+		    aff_list)->aff_head) {
+			err = ERR_PTR(-EEXIST);
+			goto out_put_neighbor;
+		}
 
-		if (gang != neighbor->gang)
-			return ERR_PTR(-EINVAL);
+		if (gang != neighbor->gang) {
+			err = ERR_PTR(-EINVAL);
+			goto out_put_neighbor;
+		}
 
 		count = 1;
 		list_for_each_entry(tmp, &gang->aff_list_head, aff_list)
@@ -372,11 +376,17 @@ spufs_assert_affinity(unsigned int flags, struct spu_gang *gang,
 				break;
 		}
 
-		if (node == MAX_NUMNODES)
-			return ERR_PTR(-EEXIST);
+		if (node == MAX_NUMNODES) {
+			err = ERR_PTR(-EEXIST);
+			goto out_put_neighbor;
+		}
 	}
 
 	return neighbor;
+
+out_put_neighbor:
+	put_spu_context(neighbor);
+	return err;
 }
 
 static void
@@ -454,9 +464,12 @@ spufs_create_context(struct inode *inode, struct dentry *dentry,
 	if (ret)
 		goto out_aff_unlock;
 
-	if (affinity)
+	if (affinity) {
 		spufs_set_affinity(flags, SPUFS_I(dentry->d_inode)->i_ctx,
 								neighbor);
+		if (neighbor)
+			put_spu_context(neighbor);
+	}
 
 	/*
 	 * get references for dget and mntget, will be released

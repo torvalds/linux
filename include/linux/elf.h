@@ -357,6 +357,7 @@ typedef struct elf64_shdr {
 #define NT_AUXV		6
 #define NT_PRXFPREG     0x46e62b7f      /* copied from gdb5.1/include/elf/common.h */
 #define NT_PPC_VMX	0x100		/* PowerPC Altivec/VMX registers */
+#define NT_PPC_SPE	0x101		/* PowerPC SPE/EVR registers */
 #define NT_386_TLS	0x200		/* i386 TLS slots (struct user_desc) */
 
 

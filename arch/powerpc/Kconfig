@@ -97,6 +97,7 @@ config EARLY_PRINTK
 config COMPAT
 	bool
 	default y if PPC64
+	select COMPAT_BINFMT_ELF
 
 config SYSVIPC_COMPAT
 	bool
@@ -438,25 +439,6 @@ config WANT_DEVICE_TREE
 	bool
 	default n
 
-config DEVICE_TREE
-	string "Static device tree source file"
-	depends on WANT_DEVICE_TREE
-	help
-	  This specifies the device tree source (.dts) file to be
-	  compiled and included when building the bootwrapper.  If a
-	  relative filename is given, then it will be relative to
-	  arch/powerpc/boot/dts.  If you are not using the bootwrapper,
-	  or do not need to build a dts into the bootwrapper, this
-	  field is ignored.
-
-	  For example, this is required when building a cuImage target
-	  for an older U-Boot, which cannot pass a device tree itself.
-	  Such a kernel will not work with a newer U-Boot that tries to
-	  pass a device tree (unless you tell it not to).  If your U-Boot
-	  does not mention a device tree in "help bootm", then use the
-	  cuImage target and specify a device tree here.  Otherwise, use
-	  the uImage target and leave this field blank.
-
 endmenu
 
 config ISA_DMA_API
@@ -512,7 +494,7 @@ config PCI
 	bool "PCI support" if 40x || CPM2 || PPC_83xx || PPC_85xx || PPC_86xx \
 		|| PPC_MPC52xx || (EMBEDDED && (PPC_PSERIES || PPC_ISERIES)) \
 		|| PPC_PS3 || 44x
-	default y if !40x && !CPM2 && !8xx && !PPC_83xx \
+	default y if !40x && !CPM2 && !8xx && !PPC_MPC512x && !PPC_83xx \
 		&& !PPC_85xx && !PPC_86xx
 	default PCI_PERMEDIA if !4xx && !CPM2 && !8xx
 	default PCI_QSPAN if !4xx && !CPM2 && 8xx

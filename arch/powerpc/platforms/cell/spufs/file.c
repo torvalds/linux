@@ -29,6 +29,7 @@
 #include <linux/poll.h>
 #include <linux/ptrace.h>
 #include <linux/seq_file.h>
+#include <linux/marker.h>
 
 #include <asm/io.h>
 #include <asm/semaphore.h>
@@ -358,6 +359,8 @@ static unsigned long spufs_ps_nopfn(struct vm_area_struct *vma,
 	struct spu_context *ctx = vma->vm_file->private_data;
 	unsigned long area, offset = address - vma->vm_start;
 
+	spu_context_nospu_trace(spufs_ps_nopfn__enter, ctx);
+
 	offset += vma->vm_pgoff << PAGE_SHIFT;
 	if (offset >= ps_size)
 		return NOPFN_SIGBUS;
@@ -375,11 +378,14 @@ static unsigned long spufs_ps_nopfn(struct vm_area_struct *vma,
 
 	if (ctx->state == SPU_STATE_SAVED) {
 		up_read(&current->mm->mmap_sem);
+		spu_context_nospu_trace(spufs_ps_nopfn__sleep, ctx);
 		spufs_wait(ctx->run_wq, ctx->state == SPU_STATE_RUNNABLE);
+		spu_context_trace(spufs_ps_nopfn__wake, ctx, ctx->spu);
 		down_read(&current->mm->mmap_sem);
 	} else {
 		area = ctx->spu->problem_phys + ps_offs;
 		vm_insert_pfn(vma, address, (area + offset) >> PAGE_SHIFT);
+		spu_context_trace(spufs_ps_nopfn__insert, ctx, ctx->spu);
 	}
 
 	spu_release(ctx);

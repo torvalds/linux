@@ -58,7 +58,7 @@ static void pseries_mach_cpu_die(void)
 {
 	local_irq_disable();
 	idle_task_exit();
-	xics_teardown_cpu(0);
+	xics_teardown_cpu();
 	unregister_slb_shadow(hard_smp_processor_id(), __pa(get_slb_shadow()));
 	rtas_stop_self();
 	/* Should never get here... */
