@@ -153,7 +153,7 @@ static void remove_migration_pte(struct vm_area_struct *vma,
  		return;
  	}
 
-	if (mem_cgroup_charge(new, mm)) {
+	if (mem_cgroup_charge(new, mm, GFP_KERNEL)) {
 		pte_unmap(ptep);
 		return;
 	}

@@ -464,7 +464,7 @@ int add_to_page_cache(struct page *page, struct address_space *mapping,
 
 	if (error == 0) {
 
-		error = mem_cgroup_cache_charge(page, current->mm);
+		error = mem_cgroup_cache_charge(page, current->mm, gfp_mask);
 		if (error)
 			goto out;
 

@@ -1337,16 +1337,11 @@ unsigned long try_to_free_pages(struct zone **zones, int order, gfp_t gfp_mask)
 
 #ifdef CONFIG_CGROUP_MEM_CONT
 
-#ifdef CONFIG_HIGHMEM
-#define ZONE_USERPAGES ZONE_HIGHMEM
-#else
-#define ZONE_USERPAGES ZONE_NORMAL
-#endif
-
-unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont)
+unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
+						gfp_t gfp_mask)
 {
 	struct scan_control sc = {
-		.gfp_mask = GFP_KERNEL,
+		.gfp_mask = gfp_mask,
 		.may_writepage = !laptop_mode,
 		.may_swap = 1,
 		.swap_cluster_max = SWAP_CLUSTER_MAX,
@@ -1357,9 +1352,10 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont)
 	};
 	int node;
 	struct zone **zones;
+	int target_zone = gfp_zone(GFP_HIGHUSER_MOVABLE);
 
 	for_each_online_node(node) {
-		zones = NODE_DATA(node)->node_zonelists[ZONE_USERPAGES].zones;
+		zones = NODE_DATA(node)->node_zonelists[target_zone].zones;
 		if (do_try_to_free_pages(zones, sc.gfp_mask, &sc))
 			return 1;
 	}

@@ -261,7 +261,8 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
  * 0 if the charge was successful
  * < 0 if the cgroup is over its limit
  */
-int mem_cgroup_charge(struct page *page, struct mm_struct *mm)
+int mem_cgroup_charge(struct page *page, struct mm_struct *mm,
+				gfp_t gfp_mask)
 {
 	struct mem_cgroup *mem;
 	struct page_cgroup *pc, *race_pc;
@@ -293,7 +294,7 @@ retry:
 
 	unlock_page_cgroup(page);
 
-	pc = kzalloc(sizeof(struct page_cgroup), GFP_KERNEL);
+	pc = kzalloc(sizeof(struct page_cgroup), gfp_mask);
 	if (pc == NULL)
 		goto err;
 
@@ -320,7 +321,14 @@ retry:
 	 * the cgroup limit.
 	 */
 	while (res_counter_charge(&mem->res, PAGE_SIZE)) {
-		if (try_to_free_mem_cgroup_pages(mem))
+		bool is_atomic = gfp_mask & GFP_ATOMIC;
+		/*
+		 * We cannot reclaim under GFP_ATOMIC, fail the charge
+		 */
+		if (is_atomic)
+			goto noreclaim;
+
+		if (try_to_free_mem_cgroup_pages(mem, gfp_mask))
 			continue;
 
 		/*
@@ -344,9 +352,10 @@ retry:
 			congestion_wait(WRITE, HZ/10);
 			continue;
 		}
-
+noreclaim:
 		css_put(&mem->css);
-		mem_cgroup_out_of_memory(mem, GFP_KERNEL);
+		if (!is_atomic)
+			mem_cgroup_out_of_memory(mem, GFP_KERNEL);
 		goto free_pc;
 	}
 
@@ -385,7 +394,8 @@ err:
 /*
  * See if the cached pages should be charged at all?
  */
-int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm)
+int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
+				gfp_t gfp_mask)
 {
 	struct mem_cgroup *mem;
 	if (!mm)
@@ -393,7 +403,7 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm)
 
 	mem = rcu_dereference(mm->mem_cgroup);
 	if (mem->control_type == MEM_CGROUP_TYPE_ALL)
-		return mem_cgroup_charge(page, mm);
+		return mem_cgroup_charge(page, mm, gfp_mask);
 	else
 		return 0;
 }

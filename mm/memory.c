@@ -1147,7 +1147,7 @@ static int insert_page(struct mm_struct *mm, unsigned long addr, struct page *pa
 	pte_t *pte;
 	spinlock_t *ptl;
 
-	retval = mem_cgroup_charge(page, mm);
+	retval = mem_cgroup_charge(page, mm, GFP_KERNEL);
 	if (retval)
 		goto out;
 
@@ -1650,7 +1650,7 @@ gotten:
 	cow_user_page(new_page, old_page, address, vma);
 	__SetPageUptodate(new_page);
 
-	if (mem_cgroup_charge(new_page, mm))
+	if (mem_cgroup_charge(new_page, mm, GFP_KERNEL))
 		goto oom_free_new;
 
 	/*
@@ -2052,7 +2052,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		count_vm_event(PGMAJFAULT);
 	}
 
-	if (mem_cgroup_charge(page, mm)) {
+	if (mem_cgroup_charge(page, mm, GFP_KERNEL)) {
 		delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
 		ret = VM_FAULT_OOM;
 		goto out;
@@ -2139,7 +2139,7 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		goto oom;
 	__SetPageUptodate(page);
 
-	if (mem_cgroup_charge(page, mm))
+	if (mem_cgroup_charge(page, mm, GFP_KERNEL))
 		goto oom_free_page;
 
 	entry = mk_pte(page, vma->vm_page_prot);
@@ -2277,7 +2277,7 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 
 	}
 
-	if (mem_cgroup_charge(page, mm)) {
+	if (mem_cgroup_charge(page, mm, GFP_KERNEL)) {
 		ret = VM_FAULT_OOM;
 		goto out;
 	}
