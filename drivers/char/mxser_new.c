@@ -320,7 +320,7 @@ static struct mxser_mon_ext mon_data_ext;
 static int mxser_set_baud_method[MXSER_PORTS + 1];
 
 #ifdef CONFIG_PCI
-static int __devinit CheckIsMoxaMust(int io)
+static int __devinit CheckIsMoxaMust(unsigned long io)
 {
 	u8 oldmcr, hwid;
 	int i;
