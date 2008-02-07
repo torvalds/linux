@@ -96,4 +96,7 @@ do {							\
 		: "=&r" (__dummy));			\
 } while (0)
 
+int handle_unaligned_access(opcode_t instruction, struct pt_regs *regs,
+			    struct mem_access *ma);
+
 #endif /* __ASM_SH_SYSTEM_32_H */

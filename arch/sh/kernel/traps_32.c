@@ -172,6 +172,11 @@ static inline void sign_extend(unsigned int count, unsigned char *dst)
 #endif
 }
 
+static struct mem_access user_mem_access = {
+	copy_from_user,
+	copy_to_user,
+};
+
 /*
  * handle an instruction that does an unaligned memory access by emulating the
  * desired behaviour
@@ -179,7 +184,8 @@ static inline void sign_extend(unsigned int count, unsigned char *dst)
  *   (if that instruction is in a branch delay slot)
  * - return 0 if emulation okay, -EFAULT on existential error
  */
-static int handle_unaligned_ins(opcode_t instruction, struct pt_regs *regs)
+static int handle_unaligned_ins(opcode_t instruction, struct pt_regs *regs,
+				struct mem_access *ma)
 {
 	int ret, index, count;
 	unsigned long *rm, *rn;
@@ -206,7 +212,7 @@ static int handle_unaligned_ins(opcode_t instruction, struct pt_regs *regs)
 #if !defined(__LITTLE_ENDIAN__)
 			dst += 4-count;
 #endif
-			if (copy_from_user(dst, src, count))
+			if (ma->from(dst, src, count))
 				goto fetch_fault;
 
 			sign_extend(count, dst);
@@ -219,7 +225,7 @@ static int handle_unaligned_ins(opcode_t instruction, struct pt_regs *regs)
 			dst = (unsigned char*) *rn;
 			dst += regs->regs[0];
 
-			if (copy_to_user(dst, src, count))
+			if (ma->to(dst, src, count))
 				goto fetch_fault;
 		}
 		ret = 0;
@@ -230,7 +236,7 @@ static int handle_unaligned_ins(opcode_t instruction, struct pt_regs *regs)
 		dst = (unsigned char*) *rn;
 		dst += (instruction&0x000F)<<2;
 
-		if (copy_to_user(dst,src,4))
+		if (ma->to(dst, src, 4))
 			goto fetch_fault;
 		ret = 0;
 		break;
@@ -243,7 +249,7 @@ static int handle_unaligned_ins(opcode_t instruction, struct pt_regs *regs)
 #if !defined(__LITTLE_ENDIAN__)
 		src += 4-count;
 #endif
-		if (copy_to_user(dst, src, count))
+		if (ma->to(dst, src, count))
 			goto fetch_fault;
 		ret = 0;
 		break;
@@ -254,7 +260,7 @@ static int handle_unaligned_ins(opcode_t instruction, struct pt_regs *regs)
 		dst = (unsigned char*) rn;
 		*(unsigned long*)dst = 0;
 
-		if (copy_from_user(dst,src,4))
+		if (ma->from(dst, src, 4))
 			goto fetch_fault;
 		ret = 0;
 		break;
@@ -269,7 +275,7 @@ static int handle_unaligned_ins(opcode_t instruction, struct pt_regs *regs)
 #if !defined(__LITTLE_ENDIAN__)
 		dst += 4-count;
 #endif
-		if (copy_from_user(dst, src, count))
+		if (ma->from(dst, src, count))
 			goto fetch_fault;
 		sign_extend(count, dst);
 		ret = 0;
@@ -285,7 +291,7 @@ static int handle_unaligned_ins(opcode_t instruction, struct pt_regs *regs)
 			dst = (unsigned char*) *rm; /* called Rn in the spec */
 			dst += (instruction&0x000F)<<1;
 
-			if (copy_to_user(dst, src, 2))
+			if (ma->to(dst, src, 2))
 				goto fetch_fault;
 			ret = 0;
 			break;
@@ -299,7 +305,7 @@ static int handle_unaligned_ins(opcode_t instruction, struct pt_regs *regs)
 #if !defined(__LITTLE_ENDIAN__)
 			dst += 2;
 #endif
-			if (copy_from_user(dst, src, 2))
+			if (ma->from(dst, src, 2))
 				goto fetch_fault;
 			sign_extend(2, dst);
 			ret = 0;
@@ -320,8 +326,9 @@ static int handle_unaligned_ins(opcode_t instruction, struct pt_regs *regs)
  * emulate the instruction in the delay slot
  * - fetches the instruction from PC+2
  */
-static inline int handle_unaligned_delayslot(struct pt_regs *regs,
-					     opcode_t old_instruction)
+static inline int handle_delayslot(struct pt_regs *regs,
+				   opcode_t old_instruction,
+				   struct mem_access *ma)
 {
 	opcode_t instruction;
 	void *addr = (void *)(regs->pc + instruction_size(old_instruction));
@@ -336,7 +343,7 @@ static inline int handle_unaligned_delayslot(struct pt_regs *regs,
 		    regs, 0);
 	}
 
-	return handle_unaligned_ins(instruction, regs);
+	return handle_unaligned_ins(instruction, regs, ma);
 }
 
 /*
@@ -362,7 +369,8 @@ static inline int handle_unaligned_delayslot(struct pt_regs *regs,
 
 static int handle_unaligned_notify_count = 10;
 
-static int handle_unaligned_access(opcode_t instruction, struct pt_regs *regs)
+int handle_unaligned_access(opcode_t instruction, struct pt_regs *regs,
+			    struct mem_access *ma)
 {
 	u_int rm;
 	int ret, index;
@@ -385,19 +393,19 @@ static int handle_unaligned_access(opcode_t instruction, struct pt_regs *regs)
 	case 0x0000:
 		if (instruction==0x000B) {
 			/* rts */
-			ret = handle_unaligned_delayslot(regs, instruction);
+			ret = handle_delayslot(regs, instruction, ma);
 			if (ret==0)
 				regs->pc = regs->pr;
 		}
 		else if ((instruction&0x00FF)==0x0023) {
 			/* braf @Rm */
-			ret = handle_unaligned_delayslot(regs, instruction);
+			ret = handle_delayslot(regs, instruction, ma);
 			if (ret==0)
 				regs->pc += rm + 4;
 		}
 		else if ((instruction&0x00FF)==0x0003) {
 			/* bsrf @Rm */
-			ret = handle_unaligned_delayslot(regs, instruction);
+			ret = handle_delayslot(regs, instruction, ma);
 			if (ret==0) {
 				regs->pr = regs->pc + 4;
 				regs->pc += rm + 4;
@@ -418,13 +426,13 @@ static int handle_unaligned_access(opcode_t instruction, struct pt_regs *regs)
 	case 0x4000:
 		if ((instruction&0x00FF)==0x002B) {
 			/* jmp @Rm */
-			ret = handle_unaligned_delayslot(regs, instruction);
+			ret = handle_delayslot(regs, instruction, ma);
 			if (ret==0)
 				regs->pc = rm;
 		}
 		else if ((instruction&0x00FF)==0x000B) {
 			/* jsr @Rm */
-			ret = handle_unaligned_delayslot(regs, instruction);
+			ret = handle_delayslot(regs, instruction, ma);
 			if (ret==0) {
 				regs->pr = regs->pc + 4;
 				regs->pc = rm;
@@ -451,7 +459,7 @@ static int handle_unaligned_access(opcode_t instruction, struct pt_regs *regs)
 		case 0x0B00: /* bf   lab - no delayslot*/
 			break;
 		case 0x0F00: /* bf/s lab */
-			ret = handle_unaligned_delayslot(regs, instruction);
+			ret = handle_delayslot(regs, instruction, ma);
 			if (ret==0) {
 #if defined(CONFIG_CPU_SH4) || defined(CONFIG_SH7705_CACHE_32KB)
 				if ((regs->sr & 0x00000001) != 0)
@@ -464,7 +472,7 @@ static int handle_unaligned_access(opcode_t instruction, struct pt_regs *regs)
 		case 0x0900: /* bt   lab - no delayslot */
 			break;
 		case 0x0D00: /* bt/s lab */
-			ret = handle_unaligned_delayslot(regs, instruction);
+			ret = handle_delayslot(regs, instruction, ma);
 			if (ret==0) {
 #if defined(CONFIG_CPU_SH4) || defined(CONFIG_SH7705_CACHE_32KB)
 				if ((regs->sr & 0x00000001) == 0)
@@ -478,13 +486,13 @@ static int handle_unaligned_access(opcode_t instruction, struct pt_regs *regs)
 		break;
 
 	case 0xA000: /* bra label */
-		ret = handle_unaligned_delayslot(regs, instruction);
+		ret = handle_delayslot(regs, instruction, ma);
 		if (ret==0)
 			regs->pc += SH_PC_12BIT_OFFSET(instruction);
 		break;
 
 	case 0xB000: /* bsr label */
-		ret = handle_unaligned_delayslot(regs, instruction);
+		ret = handle_delayslot(regs, instruction, ma);
 		if (ret==0) {
 			regs->pr = regs->pc + 4;
 			regs->pc += SH_PC_12BIT_OFFSET(instruction);
@@ -495,7 +503,7 @@ static int handle_unaligned_access(opcode_t instruction, struct pt_regs *regs)
 
 	/* handle non-delay-slot instruction */
  simple:
-	ret = handle_unaligned_ins(instruction, regs);
+	ret = handle_unaligned_ins(instruction, regs, ma);
 	if (ret==0)
 		regs->pc += instruction_size(instruction);
 	return ret;
@@ -558,7 +566,8 @@ asmlinkage void do_address_error(struct pt_regs *regs,
 			goto uspace_segv;
 		}
 
-		tmp = handle_unaligned_access(instruction, regs);
+		tmp = handle_unaligned_access(instruction, regs,
+					      &user_mem_access);
 		set_fs(oldfs);
 
 		if (tmp==0)
@@ -587,7 +596,7 @@ uspace_segv:
 			die("insn faulting in do_address_error", regs, 0);
 		}
 
-		handle_unaligned_access(instruction, regs);
+		handle_unaligned_access(instruction, regs, &user_mem_access);
 		set_fs(oldfs);
 	}
 }

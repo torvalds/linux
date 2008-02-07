@@ -93,6 +93,9 @@ config ARCH_NO_VIRT_TO_BUS
 config ARCH_SUPPORTS_AOUT
 	def_bool y
 
+config IO_TRAPPED
+	bool
+
 source "init/Kconfig"
 
 menu "System type"
