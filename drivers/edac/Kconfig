@@ -123,6 +123,13 @@ config EDAC_I5000
 	  Support for error detection and correction the Intel
 	  Greekcreek/Blackford chipsets.
 
+config EDAC_MPC85XX
+	tristate "Freescale MPC85xx"
+	depends on EDAC_MM_EDAC && FSL_SOC && MPC85xx
+	help
+	  Support for error detection and correction on the Freescale
+	  MPC8560, MPC8540, MPC8548
+
 config EDAC_PASEMI
 	tristate "PA Semi PWRficient"
 	depends on EDAC_MM_EDAC && PCI
