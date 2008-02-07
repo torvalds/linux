@@ -794,17 +794,27 @@ static int __init dz_init(void)
 	dz_reset(&dz_ports[0]);
 #endif
 
-	if (request_irq(dz_ports[0].port.irq, dz_interrupt,
-			IRQF_DISABLED, "DZ", &dz_ports[0]))
-		panic("Unable to register DZ interrupt");
-
 	ret = uart_register_driver(&dz_reg);
 	if (ret != 0)
-		return ret;
+		goto out;
+
+	ret = request_irq(dz_ports[0].port.irq, dz_interrupt, IRQF_DISABLED,
+			  "DZ", &dz_ports[0]);
+	if (ret != 0) {
+		printk(KERN_ERR "dz: Cannot get IRQ %d!\n",
+		       dz_ports[0].port.irq);
+		goto out_unregister;
+	}
 
 	for (i = 0; i < DZ_NB_PORT; i++)
 		uart_add_one_port(&dz_reg, &dz_ports[i].port);
 
+	return ret;
+
+out_unregister:
+	uart_unregister_driver(&dz_reg);
+
+out:
 	return ret;
 }
 
