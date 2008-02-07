@@ -195,8 +195,8 @@ void dlm_user_add_ast(struct dlm_lkb *lkb, int type)
 	if (lkb->lkb_flags & (DLM_IFL_ORPHAN | DLM_IFL_DEAD))
 		goto out;
 
-	DLM_ASSERT(lkb->lkb_astparam, dlm_print_lkb(lkb););
-	ua = (struct dlm_user_args *)lkb->lkb_astparam;
+	DLM_ASSERT(lkb->lkb_ua, dlm_print_lkb(lkb););
+	ua = lkb->lkb_ua;
 	proc = ua->proc;
 
 	if (type == AST_BAST && ua->bastaddr == NULL)
@@ -771,7 +771,6 @@ static ssize_t device_read(struct file *file, char __user *buf, size_t count,
 {
 	struct dlm_user_proc *proc = file->private_data;
 	struct dlm_lkb *lkb;
-	struct dlm_user_args *ua;
 	DECLARE_WAITQUEUE(wait, current);
 	int error, type=0, bmode=0, removed = 0;
 
@@ -842,8 +841,7 @@ static ssize_t device_read(struct file *file, char __user *buf, size_t count,
 	}
 	spin_unlock(&proc->asts_spin);
 
-	ua = (struct dlm_user_args *)lkb->lkb_astparam;
-	error = copy_result_to_user(ua,
+	error = copy_result_to_user(lkb->lkb_ua,
 			 	test_bit(DLM_PROC_FLAGS_COMPAT, &proc->flags),
 				type, bmode, buf, count);
 

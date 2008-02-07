@@ -104,7 +104,6 @@ void dlm_netlink_exit(void)
 static void fill_data(struct dlm_lock_data *data, struct dlm_lkb *lkb)
 {
 	struct dlm_rsb *r = lkb->lkb_resource;
-	struct dlm_user_args *ua = (struct dlm_user_args *) lkb->lkb_astparam;
 
 	memset(data, 0, sizeof(struct dlm_lock_data));
 
@@ -117,8 +116,8 @@ static void fill_data(struct dlm_lock_data *data, struct dlm_lkb *lkb)
 	data->grmode = lkb->lkb_grmode;
 	data->rqmode = lkb->lkb_rqmode;
 	data->timestamp = lkb->lkb_timestamp;
-	if (ua)
-		data->xid = ua->xid;
+	if (lkb->lkb_ua)
+		data->xid = lkb->lkb_ua->xid;
 	if (r) {
 		data->lockspace_id = r->res_ls->ls_global_id;
 		data->resource_namelen = r->res_length;

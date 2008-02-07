@@ -80,7 +80,7 @@ void dlm_free_lkb(struct dlm_lkb *lkb)
 {
 	if (lkb->lkb_flags & DLM_IFL_USER) {
 		struct dlm_user_args *ua;
-		ua = (struct dlm_user_args *)lkb->lkb_astparam;
+		ua = lkb->lkb_ua;
 		if (ua) {
 			if (ua->lksb.sb_lvbptr)
 				kfree(ua->lksb.sb_lvbptr);

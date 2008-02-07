@@ -162,14 +162,12 @@ static int print_resource(struct dlm_rsb *res, struct seq_file *s)
 
 static void print_lock(struct seq_file *s, struct dlm_lkb *lkb, struct dlm_rsb *r)
 {
-	struct dlm_user_args *ua;
 	unsigned int waiting = 0;
 	uint64_t xid = 0;
 
 	if (lkb->lkb_flags & DLM_IFL_USER) {
-		ua = (struct dlm_user_args *) lkb->lkb_astparam;
-		if (ua)
-			xid = ua->xid;
+		if (lkb->lkb_ua)
+			xid = lkb->lkb_ua->xid;
 	}
 
 	if (lkb->lkb_timestamp)

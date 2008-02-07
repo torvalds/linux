@@ -253,7 +253,10 @@ struct dlm_lkb {
 	struct dlm_lksb		*lkb_lksb;      /* caller's status block */
 	void			(*lkb_astfn) (void *astparam);
 	void			(*lkb_bastfn) (void *astparam, int mode);
-	void			*lkb_astparam;	/* caller's ast arg */
+	union {
+		void			*lkb_astparam;	/* caller's ast arg */
+		struct dlm_user_args	*lkb_ua;
+	};
 };
 
 
