@@ -1716,13 +1716,15 @@ static void mv_host_intr(struct ata_host *host, u32 relevant, unsigned int hc)
 	VPRINTK("ENTER, hc%u relevant=0x%08x HC IRQ cause=0x%08x\n",
 		hc, relevant, hc_irq_cause);
 
-	for (port = port0; port < port0 + last_port; port++) {
+	for (port = port0; port < last_port; port++) {
 		struct ata_port *ap = host->ports[port];
-		struct mv_port_priv *pp = ap->private_data;
+		struct mv_port_priv *pp;
 		int have_err_bits, hard_port, shift;
 
 		if ((!ap) || (ap->flags & ATA_FLAG_DISABLED))
 			continue;
+
+		pp = ap->private_data;
 
 		shift = port << 1;		/* (port * 2) */
 		if (port >= MV_PORTS_PER_HC) {
