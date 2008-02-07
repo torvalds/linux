@@ -316,7 +316,8 @@ static inline ktime_t ktime_sub_us(const ktime_t kt, const u64 usec)
  * idea of the (in)accuracy of timers. Timer values are rounded up to
  * this resolution values.
  */
-#define KTIME_LOW_RES		(ktime_t){ .tv64 = TICK_NSEC }
+#define LOW_RES_NSEC		TICK_NSEC
+#define KTIME_LOW_RES		(ktime_t){ .tv64 = LOW_RES_NSEC }
 
 /* Get the monotonic time in timespec format: */
 extern void ktime_get_ts(struct timespec *ts);
