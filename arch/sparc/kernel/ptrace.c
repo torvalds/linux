@@ -322,54 +322,39 @@ const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
 	unsigned long addr2 = current->thread.kregs->u_regs[UREG_I4];
-	int i, ret;
+	const struct user_regset_view *view;
+	int ret;
+
+	view = task_user_regset_view(child);
 
 	switch(request) {
 	case PTRACE_GETREGS: {
 		struct pt_regs __user *pregs = (struct pt_regs __user *) addr;
-		struct pt_regs *cregs = child->thread.kregs;
 
-		ret = -EFAULT;
-		if (!access_ok(VERIFY_WRITE, pregs, sizeof(struct pt_regs)))
-			break;
-
-		__put_user(cregs->psr, (&pregs->psr));
-		__put_user(cregs->pc, (&pregs->pc));
-		__put_user(cregs->npc, (&pregs->npc));
-		__put_user(cregs->y, (&pregs->y));
-		for (i = 1; i < 16; i++)
-			__put_user(cregs->u_regs[i], &pregs->u_regs[i - 1]);
-		ret = 0;
+		ret = copy_regset_to_user(child, view, REGSET_GENERAL,
+					  32 * sizeof(u32),
+					  4 * sizeof(u32),
+					  &pregs->psr);
+		if (!ret)
+			copy_regset_to_user(child, view, REGSET_GENERAL,
+					    1 * sizeof(u32),
+					    15 * sizeof(u32),
+					    &pregs->u_regs[0]);
 		break;
 	}
 
 	case PTRACE_SETREGS: {
 		struct pt_regs __user *pregs = (struct pt_regs __user *) addr;
-		struct pt_regs *cregs = child->thread.kregs;
-		unsigned long psr, pc, npc, y;
 
-		/* Must be careful, tracing process can only set certain
-		 * bits in the psr.
-		 */
-		ret = -EFAULT;
-		if (!access_ok(VERIFY_READ, pregs, sizeof(struct pt_regs)))
-			break;
-
-		__get_user(psr, (&pregs->psr));
-		__get_user(pc, (&pregs->pc));
-		__get_user(npc, (&pregs->npc));
-		__get_user(y, (&pregs->y));
-		psr &= PSR_ICC;
-		cregs->psr &= ~PSR_ICC;
-		cregs->psr |= psr;
-		if (!((pc | npc) & 3)) {
-			cregs->pc = pc;
-			cregs->npc =npc;
-		}
-		cregs->y = y;
-		for (i = 1; i < 16; i++)
-			__get_user(cregs->u_regs[i], &pregs->u_regs[i-1]);
-		ret = 0;
+		ret = copy_regset_from_user(child, view, REGSET_GENERAL,
+					    32 * sizeof(u32),
+					    4 * sizeof(u32),
+					    &pregs->psr);
+		if (!ret)
+			copy_regset_from_user(child, view, REGSET_GENERAL,
+					      1 * sizeof(u32),
+					      15 * sizeof(u32),
+					      &pregs->u_regs[0]);
 		break;
 	}
 
@@ -387,23 +372,23 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		};
 		struct fps __user *fps = (struct fps __user *) addr;
 
-		ret = -EFAULT;
-		if (!access_ok(VERIFY_WRITE, fps, sizeof(struct fps)))
-			break;
+		ret = copy_regset_to_user(child, view, REGSET_FP,
+					  0 * sizeof(u32),
+					  32 * sizeof(u32),
+					  &fps->regs[0]);
+		if (!ret)
+			ret = copy_regset_to_user(child, view, REGSET_FP,
+						  33 * sizeof(u32),
+						  1 * sizeof(u32),
+						  &fps->fsr);
 
-		for (i = 0; i < 32; i++)
-			__put_user(child->thread.float_regs[i], &fps->regs[i]);
-		__put_user(child->thread.fsr, (&fps->fsr));
-		__put_user(child->thread.fpqdepth, (&fps->fpqd));
-		__put_user(0, (&fps->flags));
-		__put_user(0, (&fps->extra));
-		for (i = 0; i < 16; i++) {
-			__put_user(child->thread.fpqueue[i].insn_addr,
-				   (&fps->fpq[i].insnaddr));
-			__put_user(child->thread.fpqueue[i].insn,
-				   &fps->fpq[i].insn);
+		if (!ret) {
+			if (__put_user(0, &fps->fpqd) ||
+			    __put_user(0, &fps->flags) ||
+			    __put_user(0, &fps->extra) ||
+			    clear_user(fps->fpq, sizeof(fps->fpq)))
+				ret = -EFAULT;
 		}
-		ret = 0;
 		break;
 	}
 
@@ -421,21 +406,15 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		};
 		struct fps __user *fps = (struct fps __user *) addr;
 
-		ret = -EFAULT;
-		if (!access_ok(VERIFY_READ, fps, sizeof(struct fps)))
-			break;
-
-		copy_from_user(&child->thread.float_regs[0], &fps->regs[0],
-			       (32 * sizeof(unsigned long)));
-		__get_user(child->thread.fsr, (&fps->fsr));
-		__get_user(child->thread.fpqdepth, (&fps->fpqd));
-		for (i = 0; i < 16; i++) {
-			__get_user(child->thread.fpqueue[i].insn_addr,
-				   (&fps->fpq[i].insnaddr));
-			__get_user(child->thread.fpqueue[i].insn,
-				   &fps->fpq[i].insn);
-		}
-		ret = 0;
+		ret = copy_regset_from_user(child, view, REGSET_FP,
+					    0 * sizeof(u32),
+					    32 * sizeof(u32),
+					    &fps->regs[0]);
+		if (!ret)
+			ret = copy_regset_from_user(child, view, REGSET_FP,
+						    33 * sizeof(u32),
+						    1 * sizeof(u32),
+						    &fps->fsr);
 		break;
 	}
 
