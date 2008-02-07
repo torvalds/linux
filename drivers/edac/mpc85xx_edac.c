@@ -43,7 +43,7 @@ static u32 orig_pci_err_en;
 static u32 orig_l2_err_disable;
 static u32 orig_hid1;
 
-const char *mpc85xx_ctl_name = "MPC85xx";
+static const char *mpc85xx_ctl_name = "MPC85xx";
 
 /************************ MC SYSFS parts ***********************************/
 
