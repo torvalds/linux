@@ -18,6 +18,7 @@
 #include <linux/skbuff.h>
 #include <linux/file.h>
 #include <linux/freezer.h>
+#include <linux/kthread.h>
 #include <net/sock.h>
 #include <net/checksum.h>
 #include <net/ip.h>
@@ -587,6 +588,8 @@ int svc_recv(struct svc_rqst *rqstp, long timeout)
 			struct page *p = alloc_page(GFP_KERNEL);
 			if (!p) {
 				int j = msecs_to_jiffies(500);
+				if (kthread_should_stop())
+					return -EINTR;
 				schedule_timeout_uninterruptible(j);
 			}
 			rqstp->rq_pages[i] = p;
@@ -607,7 +610,7 @@ int svc_recv(struct svc_rqst *rqstp, long timeout)
 
 	try_to_freeze();
 	cond_resched();
-	if (signalled())
+	if (signalled() || kthread_should_stop())
 		return -EINTR;
 
 	spin_lock_bh(&pool->sp_lock);
@@ -626,6 +629,20 @@ int svc_recv(struct svc_rqst *rqstp, long timeout)
 		 * to bring down the daemons ...
 		 */
 		set_current_state(TASK_INTERRUPTIBLE);
+
+		/*
+		 * checking kthread_should_stop() here allows us to avoid
+		 * locking and signalling when stopping kthreads that call
+		 * svc_recv. If the thread has already been woken up, then
+		 * we can exit here without sleeping. If not, then it
+		 * it'll be woken up quickly during the schedule_timeout
+		 */
+		if (kthread_should_stop()) {
+			set_current_state(TASK_RUNNING);
+			spin_unlock_bh(&pool->sp_lock);
+			return -EINTR;
+		}
+
 		add_wait_queue(&rqstp->rq_wait, &wait);
 		spin_unlock_bh(&pool->sp_lock);
 
@@ -641,7 +658,10 @@ int svc_recv(struct svc_rqst *rqstp, long timeout)
 			svc_thread_dequeue(pool, rqstp);
 			spin_unlock_bh(&pool->sp_lock);
 			dprintk("svc: server %p, no data yet\n", rqstp);
-			return signalled()? -EINTR : -EAGAIN;
+			if (signalled() || kthread_should_stop())
+				return -EINTR;
+			else
+				return -EAGAIN;
 		}
 	}
 	spin_unlock_bh(&pool->sp_lock);
