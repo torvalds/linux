@@ -463,40 +463,18 @@ config OCFS2_DEBUG_FS
 	  this option for debugging only as it is likely to decrease
 	  performance of the filesystem.
 
-config MINIX_FS
-	tristate "Minix fs support"
+endif # BLOCK
+
+config DNOTIFY
+	bool "Dnotify support"
+	default y
 	help
-	  Minix is a simple operating system used in many classes about OS's.
-	  The minix file system (method to organize files on a hard disk
-	  partition or a floppy disk) was the original file system for Linux,
-	  but has been superseded by the second extended file system ext2fs.
-	  You don't want to use the minix file system on your hard disk
-	  because of certain built-in restrictions, but it is sometimes found
-	  on older Linux floppy disks.  This option will enlarge your kernel
-	  by about 28 KB. If unsure, say N.
+	  Dnotify is a directory-based per-fd file change notification system
+	  that uses signals to communicate events to user-space.  There exist
+	  superior alternatives, but some applications may still rely on
+	  dnotify.
 
-	  To compile this file system support as a module, choose M here: the
-	  module will be called minix.  Note that the file system of your root
-	  partition (the one containing the directory /) cannot be compiled as
-	  a module.
-
-config ROMFS_FS
-	tristate "ROM file system support"
-	---help---
-	  This is a very small read-only file system mainly intended for
-	  initial ram disks of installation disks, but it could be used for
-	  other read-only media as well.  Read
-	  <file:Documentation/filesystems/romfs.txt> for details.
-
-	  To compile this file system support as a module, choose M here: the
-	  module will be called romfs.  Note that the file system of your
-	  root partition (the one containing the directory /) cannot be a
-	  module.
-
-	  If you don't know whether you need it, then you don't need it:
-	  answer N.
-
-endif
+	  If unsure, say Y.
 
 config INOTIFY
 	bool "Inotify file change notification support"
@@ -576,17 +554,6 @@ config QUOTACTL
 	bool
 	depends on XFS_QUOTA || QUOTA
 	default y
-
-config DNOTIFY
-	bool "Dnotify support"
-	default y
-	help
-	  Dnotify is a directory-based per-fd file change notification system
-	  that uses signals to communicate events to user-space.  There exist
-	  superior alternatives, but some applications may still rely on
-	  dnotify.
-
-	  If unsure, say Y.
 
 config AUTOFS_FS
 	tristate "Kernel automounter support"
@@ -713,7 +680,7 @@ config UDF_NLS
 	depends on (UDF_FS=m && NLS) || (UDF_FS=y && NLS=y)
 
 endmenu
-endif
+endif # BLOCK
 
 if BLOCK
 menu "DOS/FAT/NT Filesystems"
@@ -896,7 +863,7 @@ config NTFS_RW
 	  It is perfectly safe to say N here.
 
 endmenu
-endif
+endif # BLOCK
 
 menu "Pseudo filesystems"
 
@@ -1417,6 +1384,24 @@ config VXFS_FS
 	  To compile this as a module, choose M here: the module will be
 	  called freevxfs.  If unsure, say N.
 
+config MINIX_FS
+	tristate "Minix file system support"
+	depends on BLOCK
+	help
+	  Minix is a simple operating system used in many classes about OS's.
+	  The minix file system (method to organize files on a hard disk
+	  partition or a floppy disk) was the original file system for Linux,
+	  but has been superseded by the second extended file system ext2fs.
+	  You don't want to use the minix file system on your hard disk
+	  because of certain built-in restrictions, but it is sometimes found
+	  on older Linux floppy disks.  This option will enlarge your kernel
+	  by about 28 KB. If unsure, say N.
+
+	  To compile this file system support as a module, choose M here: the
+	  module will be called minix.  Note that the file system of your root
+	  partition (the one containing the directory /) cannot be compiled as
+	  a module.
+
 
 config HPFS_FS
 	tristate "OS/2 HPFS file system support"
@@ -1432,7 +1417,6 @@ config HPFS_FS
 
 	  To compile this file system support as a module, choose M here: the
 	  module will be called hpfs.  If unsure, say N.
-
 
 
 config QNX4FS_FS
@@ -1461,6 +1445,22 @@ config QNX4FS_RW
 	  It's currently broken, so for now:
 	  answer N.
 
+config ROMFS_FS
+	tristate "ROM file system support"
+	depends on BLOCK
+	---help---
+	  This is a very small read-only file system mainly intended for
+	  initial ram disks of installation disks, but it could be used for
+	  other read-only media as well.  Read
+	  <file:Documentation/filesystems/romfs.txt> for details.
+
+	  To compile this file system support as a module, choose M here: the
+	  module will be called romfs.  Note that the file system of your
+	  root partition (the one containing the directory /) cannot be a
+	  module.
+
+	  If you don't know whether you need it, then you don't need it:
+	  answer N.
 
 
 config SYSV_FS
@@ -1499,7 +1499,6 @@ config SYSV_FS
 	  sysv.
 
 	  If you haven't heard about all of this before, it's safe to say N.
-
 
 
 config UFS_FS
