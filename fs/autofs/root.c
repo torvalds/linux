@@ -114,8 +114,8 @@ static int try_to_fill_dentry(struct dentry *dentry, struct super_block *sb, str
 	dentry->d_time = (unsigned long) ent;
 	
 	if (!dentry->d_inode) {
-		inode = iget(sb, ent->ino);
-		if (!inode) {
+		inode = autofs_iget(sb, ent->ino);
+		if (IS_ERR(inode)) {
 			/* Failed, but leave pending for next time */
 			return 1;
 		}
@@ -274,6 +274,7 @@ static int autofs_root_symlink(struct inode *dir, struct dentry *dentry, const c
 	unsigned int n;
 	int slsize;
 	struct autofs_symlink *sl;
+	struct inode *inode;
 
 	DPRINTK(("autofs_root_symlink: %s <- ", symname));
 	autofs_say(dentry->d_name.name,dentry->d_name.len);
@@ -331,7 +332,12 @@ static int autofs_root_symlink(struct inode *dir, struct dentry *dentry, const c
 	ent->dentry = NULL;	/* We don't keep the dentry for symlinks */
 
 	autofs_hash_insert(dh,ent);
-	d_instantiate(dentry, iget(dir->i_sb,ent->ino));
+
+	inode = autofs_iget(dir->i_sb, ent->ino);
+	if (IS_ERR(inode))
+		return PTR_ERR(inode);
+
+	d_instantiate(dentry, inode);
 	unlock_kernel();
 	return 0;
 }
@@ -428,6 +434,7 @@ static int autofs_root_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	struct autofs_sb_info *sbi = autofs_sbi(dir->i_sb);
 	struct autofs_dirhash *dh = &sbi->dirhash;
 	struct autofs_dir_ent *ent;
+	struct inode *inode;
 	ino_t ino;
 
 	lock_kernel();
@@ -469,7 +476,14 @@ static int autofs_root_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	autofs_hash_insert(dh,ent);
 
 	inc_nlink(dir);
-	d_instantiate(dentry, iget(dir->i_sb,ino));
+
+	inode = autofs_iget(dir->i_sb, ino);
+	if (IS_ERR(inode)) {
+		drop_nlink(dir);
+		return PTR_ERR(inode);
+	}
+
+	d_instantiate(dentry, inode);
 	unlock_kernel();
 
 	return 0;

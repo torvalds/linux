@@ -52,10 +52,7 @@ out_kill_sb:
 	kill_anon_super(sb);
 }
 
-static void autofs_read_inode(struct inode *inode);
-
 static const struct super_operations autofs_sops = {
-	.read_inode	= autofs_read_inode,
 	.statfs		= simple_statfs,
 };
 
@@ -164,7 +161,9 @@ int autofs_fill_super(struct super_block *s, void *data, int silent)
 	s->s_time_gran = 1;
 	sbi->sb = s;
 
-	root_inode = iget(s, AUTOFS_ROOT_INO);
+	root_inode = autofs_iget(s, AUTOFS_ROOT_INO);
+	if (IS_ERR(root_inode))
+		goto fail_free;
 	root = d_alloc_root(root_inode);
 	pipe = NULL;
 
@@ -230,11 +229,17 @@ fail_unlock:
 	return -EINVAL;
 }
 
-static void autofs_read_inode(struct inode *inode)
+struct inode *autofs_iget(struct super_block *sb, unsigned long ino)
 {
-	ino_t ino = inode->i_ino;
 	unsigned int n;
-	struct autofs_sb_info *sbi = autofs_sbi(inode->i_sb);
+	struct autofs_sb_info *sbi = autofs_sbi(sb);
+	struct inode *inode;
+
+	inode = iget_locked(sb, ino);
+	if (!inode)
+		return ERR_PTR(-ENOMEM);
+	if (!(inode->i_state & I_NEW))
+		return inode;
 
 	/* Initialize to the default case (stub directory) */
 
@@ -250,7 +255,7 @@ static void autofs_read_inode(struct inode *inode)
 		inode->i_op = &autofs_root_inode_operations;
 		inode->i_fop = &autofs_root_operations;
 		inode->i_uid = inode->i_gid = 0; /* Changed in read_super */
-		return;
+		goto done;
 	} 
 	
 	inode->i_uid = inode->i_sb->s_root->d_inode->i_uid;
@@ -263,7 +268,7 @@ static void autofs_read_inode(struct inode *inode)
 		n = ino - AUTOFS_FIRST_SYMLINK;
 		if (n >= AUTOFS_MAX_SYMLINKS || !test_bit(n,sbi->symlink_bitmap)) {
 			printk("autofs: Looking for bad symlink inode %u\n", (unsigned int) ino);
-			return;
+			goto done;
 		}
 		
 		inode->i_op = &autofs_symlink_inode_operations;
@@ -275,4 +280,8 @@ static void autofs_read_inode(struct inode *inode)
 		inode->i_size = sl->len;
 		inode->i_nlink = 1;
 	}
+
+done:
+	unlock_new_inode(inode);
+	return inode;
 }
