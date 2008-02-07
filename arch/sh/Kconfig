@@ -459,6 +459,7 @@ config SH_RTS7751R2D
 	bool "RTS7751R2D"
 	depends on CPU_SUBTYPE_SH7751R
 	select SYS_SUPPORTS_PCI
+	select IO_TRAPPED
 	help
 	  Select RTS7751R2D if configuring for a Renesas Technology
 	  Sales SH-Graphics board.
