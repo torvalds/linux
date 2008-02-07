@@ -60,6 +60,10 @@ static inline void mem_cgroup_uncharge_page(struct page *page)
 	mem_cgroup_uncharge(page_get_page_cgroup(page));
 }
 
+extern int mem_cgroup_prepare_migration(struct page *page);
+extern void mem_cgroup_end_migration(struct page *page);
+extern void mem_cgroup_page_migration(struct page *page, struct page *newpage);
+
 #else /* CONFIG_CGROUP_MEM_CONT */
 static inline void mm_init_cgroup(struct mm_struct *mm,
 					struct task_struct *p)
@@ -116,6 +120,21 @@ static inline int task_in_mem_cgroup(struct task_struct *task,
 {
 	return 1;
 }
+
+static inline int mem_cgroup_prepare_migration(struct page *page)
+{
+	return 0;
+}
+
+static inline void mem_cgroup_end_migration(struct page *page)
+{
+}
+
+static inline void
+mem_cgroup_page_migration(struct page *page, struct page *newpage)
+{
+}
+
 
 #endif /* CONFIG_CGROUP_MEM_CONT */
 

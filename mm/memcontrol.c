@@ -492,6 +492,49 @@ void mem_cgroup_uncharge(struct page_cgroup *pc)
 		}
 	}
 }
+/*
+ * Returns non-zero if a page (under migration) has valid page_cgroup member.
+ * Refcnt of page_cgroup is incremented.
+ */
+
+int mem_cgroup_prepare_migration(struct page *page)
+{
+	struct page_cgroup *pc;
+	int ret = 0;
+	lock_page_cgroup(page);
+	pc = page_get_page_cgroup(page);
+	if (pc && atomic_inc_not_zero(&pc->ref_cnt))
+		ret = 1;
+	unlock_page_cgroup(page);
+	return ret;
+}
+
+void mem_cgroup_end_migration(struct page *page)
+{
+	struct page_cgroup *pc = page_get_page_cgroup(page);
+	mem_cgroup_uncharge(pc);
+}
+/*
+ * We know both *page* and *newpage* are now not-on-LRU and Pg_locked.
+ * And no race with uncharge() routines because page_cgroup for *page*
+ * has extra one reference by mem_cgroup_prepare_migration.
+ */
+
+void mem_cgroup_page_migration(struct page *page, struct page *newpage)
+{
+	struct page_cgroup *pc;
+retry:
+	pc = page_get_page_cgroup(page);
+	if (!pc)
+		return;
+	if (clear_page_cgroup(page, pc) != pc)
+		goto retry;
+	pc->page = newpage;
+	lock_page_cgroup(newpage);
+	page_assign_page_cgroup(newpage, pc);
+	unlock_page_cgroup(newpage);
+	return;
+}
 
 int mem_cgroup_write_strategy(char *buf, unsigned long long *tmp)
 {
