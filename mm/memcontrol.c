@@ -345,23 +345,22 @@ retry:
 			goto done;
 		}
 	}
-
 	unlock_page_cgroup(page);
 
 	pc = kzalloc(sizeof(struct page_cgroup), gfp_mask);
 	if (pc == NULL)
 		goto err;
 
-	rcu_read_lock();
 	/*
-	 * We always charge the cgroup the mm_struct belongs to
-	 * the mm_struct's mem_cgroup changes on task migration if the
+	 * We always charge the cgroup the mm_struct belongs to.
+	 * The mm_struct's mem_cgroup changes on task migration if the
 	 * thread group leader migrates. It's possible that mm is not
 	 * set, if so charge the init_mm (happens for pagecache usage).
 	 */
 	if (!mm)
 		mm = &init_mm;
 
+	rcu_read_lock();
 	mem = rcu_dereference(mm->mem_cgroup);
 	/*
 	 * For every charge from the cgroup, increment reference
@@ -375,12 +374,8 @@ retry:
 	 * the cgroup limit.
 	 */
 	while (res_counter_charge(&mem->res, PAGE_SIZE)) {
-		bool is_atomic = gfp_mask & GFP_ATOMIC;
-		/*
-		 * We cannot reclaim under GFP_ATOMIC, fail the charge
-		 */
-		if (is_atomic)
-			goto noreclaim;
+		if (!(gfp_mask & __GFP_WAIT))
+			goto out;
 
 		if (try_to_free_mem_cgroup_pages(mem, gfp_mask))
 			continue;
@@ -394,23 +389,12 @@ retry:
  		 */
 		if (res_counter_check_under_limit(&mem->res))
 			continue;
-			/*
-			 * Since we control both RSS and cache, we end up with a
-			 * very interesting scenario where we end up reclaiming
-			 * memory (essentially RSS), since the memory is pushed
-			 * to swap cache, we eventually end up adding those
-			 * pages back to our list. Hence we give ourselves a
-			 * few chances before we fail
-			 */
-		else if (nr_retries--) {
-			congestion_wait(WRITE, HZ/10);
-			continue;
+
+		if (!nr_retries--) {
+			mem_cgroup_out_of_memory(mem, gfp_mask);
+			goto out;
 		}
-noreclaim:
-		css_put(&mem->css);
-		if (!is_atomic)
-			mem_cgroup_out_of_memory(mem, GFP_KERNEL);
-		goto free_pc;
+		congestion_wait(WRITE, HZ/10);
 	}
 
 	atomic_set(&pc->ref_cnt, 1);
@@ -419,10 +403,11 @@ noreclaim:
 	pc->flags = 0;
 	if (ctype == MEM_CGROUP_CHARGE_TYPE_CACHE)
 		pc->flags |= PAGE_CGROUP_FLAG_CACHE;
+
 	if (page_cgroup_assign_new_page_cgroup(page, pc)) {
 		/*
-		 * an another charge is added to this page already.
-		 * we do take lock_page_cgroup(page) again and read
+		 * Another charge has been added to this page already.
+		 * We take lock_page_cgroup(page) again and read
 		 * page->cgroup, increment refcnt.... just retry is OK.
 		 */
 		res_counter_uncharge(&mem->res, PAGE_SIZE);
@@ -437,7 +422,8 @@ noreclaim:
 
 done:
 	return 0;
-free_pc:
+out:
+	css_put(&mem->css);
 	kfree(pc);
 err:
 	return -ENOMEM;
