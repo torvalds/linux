@@ -35,12 +35,11 @@
 #define GELIC_NET_MAX_MTU               VLAN_ETH_FRAME_LEN
 #define GELIC_NET_MIN_MTU               VLAN_ETH_ZLEN
 #define GELIC_NET_RXBUF_ALIGN           128
-#define GELIC_NET_RX_CSUM_DEFAULT       1 /* hw chksum */
+#define GELIC_CARD_RX_CSUM_DEFAULT      1 /* hw chksum */
 #define GELIC_NET_WATCHDOG_TIMEOUT      5*HZ
 #define GELIC_NET_NAPI_WEIGHT           (GELIC_NET_RX_DESCRIPTORS)
 #define GELIC_NET_BROADCAST_ADDR        0xffffffffffffL
-#define GELIC_NET_VLAN_POS              (VLAN_ETH_ALEN * 2)
-#define GELIC_NET_VLAN_MAX              4
+
 #define GELIC_NET_MC_COUNT_MAX          32 /* multicast address list */
 
 /* virtual interrupt status register bits */
@@ -206,6 +205,13 @@ enum gelic_lv1_vlan_index {
 
 /* size of hardware part of gelic descriptor */
 #define GELIC_DESCR_SIZE	(32)
+
+enum gelic_port_type {
+	GELIC_PORT_ETHERNET = 0,
+	GELIC_PORT_WIRELESS = 1,
+	GELIC_PORT_MAX
+};
+
 struct gelic_descr {
 	/* as defined by the hardware */
 	__be32 buf_addr;
@@ -222,7 +228,6 @@ struct gelic_descr {
 	dma_addr_t bus_addr;
 	struct gelic_descr *next;
 	struct gelic_descr *prev;
-	struct vlan_ethhdr vlan;
 } __attribute__((aligned(32)));
 
 struct gelic_descr_chain {
@@ -231,43 +236,116 @@ struct gelic_descr_chain {
 	struct gelic_descr *tail;
 };
 
+struct gelic_vlan_id {
+	u16 tx;
+	u16 rx;
+};
+
 struct gelic_card {
-	struct net_device *netdev;
 	struct napi_struct napi;
+	struct net_device *netdev[GELIC_PORT_MAX];
 	/*
 	 * hypervisor requires irq_status should be
 	 * 8 bytes aligned, but u64 member is
 	 * always disposed in that manner
 	 */
 	u64 irq_status;
-	u64 ghiintmask;
+	u64 irq_mask;
 
 	struct ps3_system_bus_device *dev;
-	u32 vlan_id[GELIC_NET_VLAN_MAX];
-	int vlan_index;
+	struct gelic_vlan_id vlan[GELIC_PORT_MAX];
+	int vlan_required;
 
 	struct gelic_descr_chain tx_chain;
 	struct gelic_descr_chain rx_chain;
 	int rx_dma_restart_required;
-	/* gurad dmac descriptor chain*/
-	spinlock_t chain_lock;
-
 	int rx_csum;
-	/* guard tx_dma_progress */
-	spinlock_t tx_dma_lock;
+	/*
+	 * tx_lock guards tx descriptor list and
+	 * tx_dma_progress.
+	 */
+	spinlock_t tx_lock;
 	int tx_dma_progress;
 
 	struct work_struct tx_timeout_task;
 	atomic_t tx_timeout_task_counter;
 	wait_queue_head_t waitq;
 
-	u64 ether_port_status;
+	/* only first user should up the card */
+	struct semaphore updown_lock;
+	atomic_t users;
 
+	u64 ether_port_status;
+	/* original address returned by kzalloc */
+	void *unalign;
+
+	/*
+	 * each netdevice has copy of irq
+	 */
+	unsigned int irq;
 	struct gelic_descr *tx_top, *rx_top;
-	struct gelic_descr descr[0];
+	struct gelic_descr descr[0]; /* must be the last */
 };
 
+struct gelic_port {
+	struct gelic_card *card;
+	struct net_device *netdev;
+	enum gelic_port_type type;
+	long priv[0]; /* long for alignment */
+};
 
-extern unsigned long p_to_lp(long pa);
+static inline struct gelic_card *port_to_card(struct gelic_port *p)
+{
+	return p->card;
+}
+static inline struct net_device *port_to_netdev(struct gelic_port *p)
+{
+	return p->netdev;
+}
+static inline struct gelic_card *netdev_card(struct net_device *d)
+{
+	return ((struct gelic_port *)netdev_priv(d))->card;
+}
+static inline struct gelic_port *netdev_port(struct net_device *d)
+{
+	return (struct gelic_port *)netdev_priv(d);
+}
+static inline struct device *ctodev(struct gelic_card *card)
+{
+	return &card->dev->core;
+}
+static inline u64 bus_id(struct gelic_card *card)
+{
+	return card->dev->bus_id;
+}
+static inline u64 dev_id(struct gelic_card *card)
+{
+	return card->dev->dev_id;
+}
+
+static inline void *port_priv(struct gelic_port *port)
+{
+	return port->priv;
+}
+
+extern int gelic_card_set_irq_mask(struct gelic_card *card, u64 mask);
+/* shared netdev ops */
+extern void gelic_card_up(struct gelic_card *card);
+extern void gelic_card_down(struct gelic_card *card);
+extern int gelic_net_open(struct net_device *netdev);
+extern int gelic_net_stop(struct net_device *netdev);
+extern int gelic_net_xmit(struct sk_buff *skb, struct net_device *netdev);
+extern void gelic_net_set_multi(struct net_device *netdev);
+extern void gelic_net_tx_timeout(struct net_device *netdev);
+extern int gelic_net_change_mtu(struct net_device *netdev, int new_mtu);
+extern int gelic_net_setup_netdev(struct net_device *netdev,
+				  struct gelic_card *card);
+
+/* shared ethtool ops */
+extern void gelic_net_get_drvinfo(struct net_device *netdev,
+				  struct ethtool_drvinfo *info);
+extern u32 gelic_net_get_rx_csum(struct net_device *netdev);
+extern int gelic_net_set_rx_csum(struct net_device *netdev, u32 data);
+extern void gelic_net_poll_controller(struct net_device *netdev);
 
 #endif /* _GELIC_NET_H */
