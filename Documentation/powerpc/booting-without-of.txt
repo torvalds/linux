@@ -2578,6 +2578,20 @@ platforms are moved over to use the flattened-device-tree model.
       Requred properties:
        - current-speed : Baud rate of uartlite
 
+      v) Xilinx hwicap
+
+		Xilinx hwicap devices provide access to the configuration logic
+		of the FPGA through the Internal Configuration Access Port
+		(ICAP).  The ICAP enables partial reconfiguration of the FPGA,
+		readback of the configuration information, and some control over
+		'warm boots' of the FPGA fabric.
+
+		Required properties:
+		- xlnx,family : The family of the FPGA, necessary since the
+                      capabilities of the underlying ICAP hardware
+                      differ between different families.  May be
+                      'virtex2p', 'virtex4', or 'virtex5'.
+
     p) Freescale Synchronous Serial Interface
 
        The SSI is a serial device that communicates with audio codecs.  It can
