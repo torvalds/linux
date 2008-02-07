@@ -210,12 +210,12 @@ static inline int vn_count(bhv_vnode_t *vp)
  */
 extern bhv_vnode_t	*vn_hold(bhv_vnode_t *);
 
-#if defined(XFS_VNODE_TRACE)
+#if defined(XFS_INODE_TRACE)
 #define VN_HOLD(vp)		\
 	((void)vn_hold(vp),	\
-	  vn_trace_hold(xfs_vtoi(vp), __FILE__, __LINE__, (inst_t *)__return_address))
+	  xfs_itrace_hold(xfs_vtoi(vp), __FILE__, __LINE__, (inst_t *)__return_address))
 #define VN_RELE(vp)		\
-	  (vn_trace_rele(xfs_vtoi(vp), __FILE__, __LINE__, (inst_t *)__return_address), \
+	  (xfs_itrace_rele(xfs_vtoi(vp), __FILE__, __LINE__, (inst_t *)__return_address), \
 	   iput(vn_to_inode(vp)))
 #else
 #define VN_HOLD(vp)		((void)vn_hold(vp))
@@ -296,26 +296,33 @@ static inline void vn_atime_to_time_t(bhv_vnode_t *vp, time_t *tt)
 /*
  * Tracking vnode activity.
  */
-#if defined(XFS_VNODE_TRACE)
+#if defined(XFS_INODE_TRACE)
 
-#define	VNODE_TRACE_SIZE	16		/* number of trace entries */
-#define	VNODE_KTRACE_ENTRY	1
-#define	VNODE_KTRACE_EXIT	2
-#define	VNODE_KTRACE_HOLD	3
-#define	VNODE_KTRACE_REF	4
-#define	VNODE_KTRACE_RELE	5
+#define	INODE_TRACE_SIZE	16		/* number of trace entries */
+#define	INODE_KTRACE_ENTRY	1
+#define	INODE_KTRACE_EXIT	2
+#define	INODE_KTRACE_HOLD	3
+#define	INODE_KTRACE_REF	4
+#define	INODE_KTRACE_RELE	5
 
-extern void vn_trace_entry(struct xfs_inode *, const char *, inst_t *);
-extern void vn_trace_exit(struct xfs_inode *, const char *, inst_t *);
-extern void vn_trace_hold(struct xfs_inode *, char *, int, inst_t *);
-extern void vn_trace_ref(struct xfs_inode *, char *, int, inst_t *);
-extern void vn_trace_rele(struct xfs_inode *, char *, int, inst_t *);
+extern void _xfs_itrace_entry(struct xfs_inode *, const char *, inst_t *);
+extern void _xfs_itrace_exit(struct xfs_inode *, const char *, inst_t *);
+extern void xfs_itrace_hold(struct xfs_inode *, char *, int, inst_t *);
+extern void _xfs_itrace_ref(struct xfs_inode *, char *, int, inst_t *);
+extern void xfs_itrace_rele(struct xfs_inode *, char *, int, inst_t *);
+#define xfs_itrace_entry(ip)	\
+	_xfs_itrace_entry(ip, __FUNCTION__, (inst_t *)__return_address)
+#define xfs_itrace_exit(ip)	\
+	_xfs_itrace_exit(ip, __FUNCTION__, (inst_t *)__return_address)
+#define xfs_itrace_ref(ip)	\
+	_xfs_itrace_ref(ip, __FILE__, __LINE__, (inst_t *)__return_address)
+
 #else
-#define	vn_trace_entry(a,b,c)
-#define	vn_trace_exit(a,b,c)
-#define	vn_trace_hold(a,b,c,d)
-#define	vn_trace_ref(a,b,c,d)
-#define	vn_trace_rele(a,b,c,d)
+#define	xfs_itrace_entry(a)
+#define	xfs_itrace_exit(a)
+#define	xfs_itrace_hold(a, b, c, d)
+#define	xfs_itrace_ref(a)
+#define	xfs_itrace_rele(a, b, c, d)
 #endif
 
 #endif	/* __XFS_VNODE_H__ */

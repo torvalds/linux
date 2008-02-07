@@ -739,8 +739,7 @@ xfs_ioctl(
 	xfs_mount_t		*mp = ip->i_mount;
 	int			error;
 
-	vn_trace_entry(XFS_I(inode), "xfs_ioctl", (inst_t *)__return_address);
-
+	xfs_itrace_entry(XFS_I(inode));
 	switch (cmd) {
 
 	case XFS_IOC_ALLOCSP:

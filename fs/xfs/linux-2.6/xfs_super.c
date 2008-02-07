@@ -410,8 +410,7 @@ xfs_fs_write_inode(
 {
 	int			error = 0, flags = FLUSH_INODE;
 
-	vn_trace_entry(XFS_I(inode), __FUNCTION__,
-			(inst_t *)__return_address);
+	xfs_itrace_entry(XFS_I(inode));
 	if (sync) {
 		filemap_fdatawait(inode->i_mapping);
 		flags |= FLUSH_SYNC;
@@ -438,8 +437,7 @@ xfs_fs_clear_inode(
 	 * find an inode with di_mode == 0 but without IGET_CREATE set.
 	 */
 	if (ip) {
-		vn_trace_entry(ip, __FUNCTION__, (inst_t *)__return_address);
-
+		xfs_itrace_entry(ip);
 		XFS_STATS_INC(vn_rele);
 		XFS_STATS_INC(vn_remove);
 		XFS_STATS_INC(vn_reclaim);
@@ -841,8 +839,7 @@ xfs_fs_fill_super(
 		goto fail_vnrele;
 	}
 
-	vn_trace_exit(XFS_I(sb->s_root->d_inode), __FUNCTION__,
-			(inst_t *)__return_address);
+	xfs_itrace_exit(XFS_I(sb->s_root->d_inode));
 
 	kmem_free(args, sizeof(*args));
 	return 0;

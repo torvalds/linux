@@ -143,7 +143,7 @@ __vn_revalidate(
 {
 	int		error;
 
-	vn_trace_entry(xfs_vtoi(vp), __FUNCTION__, (inst_t *)__return_address);
+	xfs_itrace_entry(xfs_vtoi(vp));
 	vattr->va_mask = XFS_AT_STAT | XFS_AT_XFLAGS;
 	error = xfs_getattr(xfs_vtoi(vp), vattr, 0);
 	if (likely(!error)) {
@@ -179,7 +179,7 @@ vn_hold(
 	return vp;
 }
 
-#ifdef	XFS_VNODE_TRACE
+#ifdef	XFS_INODE_TRACE
 
 /*
  * Reference count of Linux inode if present, -1 if the xfs_inode
@@ -211,32 +211,32 @@ static inline int xfs_icount(struct xfs_inode *ip)
  * Vnode tracing code.
  */
 void
-vn_trace_entry(xfs_inode_t *ip, const char *func, inst_t *ra)
+_xfs_itrace_entry(xfs_inode_t *ip, const char *func, inst_t *ra)
 {
-	KTRACE_ENTER(ip, VNODE_KTRACE_ENTRY, func, 0, ra);
+	KTRACE_ENTER(ip, INODE_KTRACE_ENTRY, func, 0, ra);
 }
 
 void
-vn_trace_exit(xfs_inode_t *ip, const char *func, inst_t *ra)
+_xfs_itrace_exit(xfs_inode_t *ip, const char *func, inst_t *ra)
 {
-	KTRACE_ENTER(ip, VNODE_KTRACE_EXIT, func, 0, ra);
+	KTRACE_ENTER(ip, INODE_KTRACE_EXIT, func, 0, ra);
 }
 
 void
-vn_trace_hold(xfs_inode_t *ip, char *file, int line, inst_t *ra)
+xfs_itrace_hold(xfs_inode_t *ip, char *file, int line, inst_t *ra)
 {
-	KTRACE_ENTER(ip, VNODE_KTRACE_HOLD, file, line, ra);
+	KTRACE_ENTER(ip, INODE_KTRACE_HOLD, file, line, ra);
 }
 
 void
-vn_trace_ref(xfs_inode_t *ip, char *file, int line, inst_t *ra)
+_xfs_itrace_ref(xfs_inode_t *ip, char *file, int line, inst_t *ra)
 {
-	KTRACE_ENTER(ip, VNODE_KTRACE_REF, file, line, ra);
+	KTRACE_ENTER(ip, INODE_KTRACE_REF, file, line, ra);
 }
 
 void
-vn_trace_rele(xfs_inode_t *ip, char *file, int line, inst_t *ra)
+xfs_itrace_rele(xfs_inode_t *ip, char *file, int line, inst_t *ra)
 {
-	KTRACE_ENTER(ip, VNODE_KTRACE_RELE, file, line, ra);
+	KTRACE_ENTER(ip, INODE_KTRACE_RELE, file, line, ra);
 }
-#endif	/* XFS_VNODE_TRACE */
+#endif	/* XFS_INODE_TRACE */

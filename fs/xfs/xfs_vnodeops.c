@@ -88,7 +88,7 @@ xfs_getattr(
 	bhv_vnode_t	*vp = XFS_ITOV(ip);
 	xfs_mount_t	*mp = ip->i_mount;
 
-	vn_trace_entry(ip, __FUNCTION__, (inst_t *)__return_address);
+	xfs_itrace_entry(ip);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
@@ -228,7 +228,7 @@ xfs_setattr(
 	int			file_owner;
 	int			need_iolock = 1;
 
-	vn_trace_entry(ip, __FUNCTION__, (inst_t *)__return_address);
+	xfs_itrace_entry(ip);
 
 	if (mp->m_flags & XFS_MOUNT_RDONLY)
 		return XFS_ERROR(EROFS);
@@ -915,8 +915,7 @@ xfs_access(
 {
 	int		error;
 
-	vn_trace_entry(ip, __FUNCTION__, (inst_t *)__return_address);
-
+	xfs_itrace_entry(ip);
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
 	error = xfs_iaccess(ip, mode, credp);
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
@@ -987,7 +986,7 @@ xfs_readlink(
 	int		pathlen;
 	int		error = 0;
 
-	vn_trace_entry(ip, __FUNCTION__, (inst_t *)__return_address);
+	xfs_itrace_entry(ip);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
@@ -1033,7 +1032,7 @@ xfs_fsync(
 	int		error;
 	int		log_flushed = 0, changed = 1;
 
-	vn_trace_entry(ip, __FUNCTION__, (inst_t *)__return_address);
+	xfs_itrace_entry(ip);
 
 	ASSERT(start >= 0 && stop >= -1);
 
@@ -1592,7 +1591,7 @@ xfs_inactive(
 	int		error;
 	int		truncate;
 
-	vn_trace_entry(ip, __FUNCTION__, (inst_t *)__return_address);
+	xfs_itrace_entry(ip);
 
 	/*
 	 * If the inode is already free, then there can be nothing
@@ -1805,7 +1804,7 @@ xfs_lookup(
 	int			error;
 	uint			lock_mode;
 
-	vn_trace_entry(dp, __FUNCTION__, (inst_t *)__return_address);
+	xfs_itrace_entry(dp);
 
 	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
 		return XFS_ERROR(EIO);
@@ -1814,7 +1813,7 @@ xfs_lookup(
 	error = xfs_dir_lookup_int(dp, lock_mode, dentry, &e_inum, &ip);
 	if (!error) {
 		*vpp = XFS_ITOV(ip);
-		ITRACE(ip);
+		xfs_itrace_ref(ip);
 	}
 	xfs_iunlock_map_shared(dp, lock_mode);
 	return error;
@@ -1848,7 +1847,7 @@ xfs_create(
 	int			namelen;
 
 	ASSERT(!*vpp);
-	vn_trace_entry(dp, __FUNCTION__, (inst_t *)__return_address);
+	xfs_itrace_entry(dp);
 
 	namelen = VNAMELEN(dentry);
 
@@ -1930,7 +1929,7 @@ xfs_create(
 			goto error_return;
 		goto abort_return;
 	}
-	ITRACE(ip);
+	xfs_itrace_ref(ip);
 
 	/*
 	 * At this point, we've gotten a newly allocated inode.
@@ -2098,7 +2097,7 @@ again:
 
 	e_inum = ip->i_ino;
 
-	ITRACE(ip);
+	xfs_itrace_ref(ip);
 
 	/*
 	 * We want to lock in increasing inum. Since we've already
@@ -2321,7 +2320,7 @@ xfs_remove(
 	uint			resblks;
 	int			namelen;
 
-	vn_trace_entry(dp, __FUNCTION__, (inst_t *)__return_address);
+	xfs_itrace_entry(dp);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
@@ -2364,9 +2363,8 @@ xfs_remove(
 
 	dm_di_mode = ip->i_d.di_mode;
 
-	vn_trace_entry(ip, __FUNCTION__, (inst_t *)__return_address);
-
-	ITRACE(ip);
+	xfs_itrace_entry(ip);
+	xfs_itrace_ref(ip);
 
 	error = XFS_QM_DQATTACH(mp, dp, 0);
 	if (!error && dp != ip)
@@ -2498,8 +2496,7 @@ xfs_remove(
 	if (link_zero && xfs_inode_is_filestream(ip))
 		xfs_filestream_deassociate(ip);
 
-	vn_trace_exit(ip, __FUNCTION__, (inst_t *)__return_address);
-
+	xfs_itrace_exit(ip);
 	IRELE(ip);
 
 /*	Fall through to std_return with error = 0 */
@@ -2562,8 +2559,8 @@ xfs_link(
 	char			*target_name = VNAME(dentry);
 	int			target_namelen;
 
-	vn_trace_entry(tdp, __FUNCTION__, (inst_t *)__return_address);
-	vn_trace_entry(xfs_vtoi(src_vp), __FUNCTION__, (inst_t *)__return_address);
+	xfs_itrace_entry(tdp);
+	xfs_itrace_entry(xfs_vtoi(src_vp));
 
 	target_namelen = VNAMELEN(dentry);
 	ASSERT(!VN_ISDIR(src_vp));
@@ -2744,7 +2741,7 @@ xfs_mkdir(
 
 	/* Return through std_return after this point. */
 
-	vn_trace_entry(dp, __FUNCTION__, (inst_t *)__return_address);
+	xfs_itrace_entry(dp);
 
 	mp = dp->i_mount;
 	udqp = gdqp = NULL;
@@ -2810,7 +2807,7 @@ xfs_mkdir(
 			goto error_return;
 		goto abort_return;
 	}
-	ITRACE(cdp);
+	xfs_itrace_ref(cdp);
 
 	/*
 	 * Now we add the directory inode to the transaction.
@@ -2936,7 +2933,7 @@ xfs_rmdir(
 	int			last_cdp_link;
 	uint			resblks;
 
-	vn_trace_entry(dp, __FUNCTION__, (inst_t *)__return_address);
+	xfs_itrace_entry(dp);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
@@ -3041,7 +3038,7 @@ xfs_rmdir(
 		VN_HOLD(dir_vp);
 	}
 
-	ITRACE(cdp);
+	xfs_itrace_ref(cdp);
 	xfs_trans_ijoin(tp, cdp, XFS_ILOCK_EXCL);
 
 	ASSERT(cdp->i_d.di_nlink >= 2);
@@ -3189,8 +3186,7 @@ xfs_symlink(
 	ip = NULL;
 	tp = NULL;
 
-	vn_trace_entry(dp, __FUNCTION__, (inst_t *)__return_address);
-
+	xfs_itrace_entry(dp);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
@@ -3317,7 +3313,7 @@ xfs_symlink(
 			goto error_return;
 		goto error1;
 	}
-	ITRACE(ip);
+	xfs_itrace_ref(ip);
 
 	/*
 	 * An error after we've joined dp to the transaction will result in the
@@ -3471,7 +3467,7 @@ xfs_fid2(
 	xfs_inode_t	*ip,
 	xfs_fid_t	*xfid)
 {
-	vn_trace_entry(ip, __FUNCTION__, (inst_t *)__return_address);
+	xfs_itrace_entry(ip);
 
 	xfid->fid_len = sizeof(xfs_fid_t) - sizeof(xfid->fid_len);
 	xfid->fid_pad = 0;
@@ -3653,7 +3649,7 @@ xfs_reclaim(
 {
 	bhv_vnode_t	*vp = XFS_ITOV(ip);
 
-	vn_trace_entry(ip, __FUNCTION__, (inst_t *)__return_address);
+	xfs_itrace_entry(ip);
 
 	ASSERT(!VN_MAPPED(vp));
 
@@ -3871,7 +3867,7 @@ xfs_alloc_file_space(
 	int			committed;
 	int			error;
 
-	vn_trace_entry(ip, __FUNCTION__, (inst_t *)__return_address);
+	xfs_itrace_entry(ip);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
@@ -4141,7 +4137,7 @@ xfs_free_file_space(
 	vp = XFS_ITOV(ip);
 	mp = ip->i_mount;
 
-	vn_trace_entry(ip, __FUNCTION__, (inst_t *)__return_address);
+	xfs_itrace_entry(ip);
 
 	if ((error = XFS_QM_DQATTACH(mp, ip, 0)))
 		return error;
@@ -4347,7 +4343,7 @@ xfs_change_file_space(
 	xfs_trans_t	*tp;
 	bhv_vattr_t	va;
 
-	vn_trace_entry(ip, __FUNCTION__, (inst_t *)__return_address);
+	xfs_itrace_entry(ip);
 
 	/*
 	 * must be a regular file and have write permission
