@@ -77,7 +77,12 @@ void sysfs_remove_group(struct kobject * kobj,
 
 	if (grp->name) {
 		sd = sysfs_get_dirent(dir_sd, grp->name);
-		BUG_ON(!sd);
+		if (!sd) {
+			printk(KERN_WARNING "sysfs group %p not found for "
+				"kobject '%s'\n", grp, kobject_name(kobj));
+			WARN_ON(!sd);
+			return;
+		}
 	} else
 		sd = sysfs_get(dir_sd);
 
