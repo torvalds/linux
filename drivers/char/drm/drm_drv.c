@@ -495,23 +495,25 @@ int drm_ioctl(struct inode *inode, struct file *filp,
 	} else {
 		if (cmd & (IOC_IN | IOC_OUT)) {
 			kdata = kmalloc(_IOC_SIZE(cmd), GFP_KERNEL);
-			if (!kdata)
-				return -ENOMEM;
+			if (!kdata) {
+				retcode = -ENOMEM;
+				goto err_i1;
+			}
 		}
 
 		if (cmd & IOC_IN) {
 			if (copy_from_user(kdata, (void __user *)arg,
 					   _IOC_SIZE(cmd)) != 0) {
-				retcode = -EACCES;
+				retcode = -EFAULT;
 				goto err_i1;
 			}
 		}
 		retcode = func(dev, kdata, file_priv);
 
-		if (cmd & IOC_OUT) {
+		if ((retcode == 0) && (cmd & IOC_OUT)) {
 			if (copy_to_user((void __user *)arg, kdata,
 					 _IOC_SIZE(cmd)) != 0)
-				retcode = -EACCES;
+				retcode = -EFAULT;
 		}
 	}
 
