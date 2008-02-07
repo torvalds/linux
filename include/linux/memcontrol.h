@@ -70,6 +70,11 @@ extern void mem_cgroup_page_migration(struct page *page, struct page *newpage);
 extern int mem_cgroup_calc_mapped_ratio(struct mem_cgroup *mem);
 extern long mem_cgroup_reclaim_imbalance(struct mem_cgroup *mem);
 
+extern int mem_cgroup_get_reclaim_priority(struct mem_cgroup *mem);
+extern void mem_cgroup_note_reclaim_priority(struct mem_cgroup *mem,
+							int priority);
+extern void mem_cgroup_record_reclaim_priority(struct mem_cgroup *mem,
+							int priority);
 
 
 #else /* CONFIG_CGROUP_MEM_CONT */
@@ -151,6 +156,21 @@ static inline int mem_cgroup_calc_mapped_ratio(struct mem_cgroup *mem)
 static inline int mem_cgroup_reclaim_imbalance(struct mem_cgroup *mem)
 {
 	return 0;
+}
+
+static inline int mem_cgroup_get_reclaim_priority(struct mem_cgroup *mem)
+{
+	return 0;
+}
+
+static inline void mem_cgroup_note_reclaim_priority(struct mem_cgroup *mem,
+						int priority)
+{
+}
+
+static inline void mem_cgroup_record_reclaim_priority(struct mem_cgroup *mem,
+						int priority)
+{
 }
 
 #endif /* CONFIG_CGROUP_MEM_CONT */
