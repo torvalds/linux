@@ -39,15 +39,6 @@ config LEDS_SPITZ
 	  This option enables support for the LEDs on Sharp Zaurus
 	  SL-Cxx00 series (C1000, C3000, C3100).
 
-config LEDS_IXP4XX
-	tristate "LED Support for GPIO connected LEDs on IXP4XX processors"
-	depends on LEDS_CLASS && ARCH_IXP4XX
-	help
-	  This option enables support for the LEDs connected to GPIO
-	  outputs of the Intel IXP4XX processors.  To be useful the
-	  particular board must have LEDs and they must be connected
-	  to the GPIO lines.  If unsure, say Y.
-
 config LEDS_TOSA
 	tristate "LED Support for the Sharp SL-6000 series"
 	depends on LEDS_CLASS && PXA_SHARPSL
