@@ -1618,7 +1618,7 @@ static const struct tty_operations riscom_ops = {
 	.tiocmset = rc_tiocmset,
 };
 
-static inline int rc_init_drivers(void)
+static int __init rc_init_drivers(void)
 {
 	int error;
 	int i;
