@@ -39,6 +39,23 @@ static struct p9_fid *p9_fid_create(struct p9_client *clnt);
 static void p9_fid_destroy(struct p9_fid *fid);
 static struct p9_stat *p9_clone_stat(struct p9_stat *st, int dotu);
 
+/**
+ * p9_client_rpc - sends 9P request and waits until a response is available.
+ *      The function can be interrupted.
+ * @c: client data
+ * @tc: request to be sent
+ * @rc: pointer where a pointer to the response is stored
+ */
+int
+p9_client_rpc(struct p9_client *c, struct p9_fcall *tc,
+	struct p9_fcall **rc)
+{
+	if (c->trans->rpc)
+		return c->trans->rpc(c->trans, tc, rc);
+	else
+		return p9_conn_rpc(c->conn, tc, rc);
+}
+
 struct p9_client *p9_client_create(struct p9_trans *trans, int msize,
 								   int dotu)
 {
@@ -82,7 +99,7 @@ struct p9_client *p9_client_create(struct p9_trans *trans, int msize,
 		goto error;
 	}
 
-	err = p9_conn_rpc(clnt->conn, tc, &rc);
+	err = p9_client_rpc(clnt->conn, tc, &rc);
 	if (err)
 		goto error;
 
@@ -174,7 +191,7 @@ struct p9_fid *p9_client_attach(struct p9_client *clnt, struct p9_fid *afid,
 		goto error;
 	}
 
-	err = p9_conn_rpc(clnt->conn, tc, &rc);
+	err = p9_client_rpc(clnt->conn, tc, &rc);
 	if (err)
 		goto error;
 
@@ -219,7 +236,7 @@ struct p9_fid *p9_client_auth(struct p9_client *clnt, char *uname,
 		goto error;
 	}
 
-	err = p9_conn_rpc(clnt->conn, tc, &rc);
+	err = p9_client_rpc(clnt->conn, tc, &rc);
 	if (err)
 		goto error;
 
@@ -270,7 +287,7 @@ struct p9_fid *p9_client_walk(struct p9_fid *oldfid, int nwname, char **wnames,
 		goto error;
 	}
 
-	err = p9_conn_rpc(clnt->conn, tc, &rc);
+	err = p9_client_rpc(clnt->conn, tc, &rc);
 	if (err) {
 		if (rc && rc->id == P9_RWALK)
 			goto clunk_fid;
@@ -305,7 +322,7 @@ clunk_fid:
 		goto error;
 	}
 
-	p9_conn_rpc(clnt->conn, tc, &rc);
+	p9_client_rpc(clnt->conn, tc, &rc);
 
 error:
 	kfree(tc);
@@ -339,7 +356,7 @@ int p9_client_open(struct p9_fid *fid, int mode)
 		goto done;
 	}
 
-	err = p9_conn_rpc(clnt->conn, tc, &rc);
+	err = p9_client_rpc(clnt->conn, tc, &rc);
 	if (err)
 		goto done;
 
@@ -378,7 +395,7 @@ int p9_client_fcreate(struct p9_fid *fid, char *name, u32 perm, int mode,
 		goto done;
 	}
 
-	err = p9_conn_rpc(clnt->conn, tc, &rc);
+	err = p9_client_rpc(clnt->conn, tc, &rc);
 	if (err)
 		goto done;
 
@@ -411,7 +428,7 @@ int p9_client_clunk(struct p9_fid *fid)
 		goto done;
 	}
 
-	err = p9_conn_rpc(clnt->conn, tc, &rc);
+	err = p9_client_rpc(clnt->conn, tc, &rc);
 	if (err)
 		goto done;
 
@@ -443,7 +460,7 @@ int p9_client_remove(struct p9_fid *fid)
 		goto done;
 	}
 
-	err = p9_conn_rpc(clnt->conn, tc, &rc);
+	err = p9_client_rpc(clnt->conn, tc, &rc);
 	if (err)
 		goto done;
 
@@ -485,7 +502,7 @@ int p9_client_read(struct p9_fid *fid, char *data, u64 offset, u32 count)
 			goto error;
 		}
 
-		err = p9_conn_rpc(clnt->conn, tc, &rc);
+		err = p9_client_rpc(clnt->conn, tc, &rc);
 		if (err)
 			goto error;
 
@@ -542,7 +559,7 @@ int p9_client_write(struct p9_fid *fid, char *data, u64 offset, u32 count)
 			goto error;
 		}
 
-		err = p9_conn_rpc(clnt->conn, tc, &rc);
+		err = p9_client_rpc(clnt->conn, tc, &rc);
 		if (err)
 			goto error;
 
@@ -596,7 +613,7 @@ p9_client_uread(struct p9_fid *fid, char __user *data, u64 offset, u32 count)
 			goto error;
 		}
 
-		err = p9_conn_rpc(clnt->conn, tc, &rc);
+		err = p9_client_rpc(clnt->conn, tc, &rc);
 		if (err)
 			goto error;
 
@@ -660,7 +677,7 @@ p9_client_uwrite(struct p9_fid *fid, const char __user *data, u64 offset,
 			goto error;
 		}
 
-		err = p9_conn_rpc(clnt->conn, tc, &rc);
+		err = p9_client_rpc(clnt->conn, tc, &rc);
 		if (err)
 			goto error;
 
@@ -731,7 +748,7 @@ struct p9_stat *p9_client_stat(struct p9_fid *fid)
 		goto error;
 	}
 
-	err = p9_conn_rpc(clnt->conn, tc, &rc);
+	err = p9_client_rpc(clnt->conn, tc, &rc);
 	if (err)
 		goto error;
 
@@ -773,7 +790,7 @@ int p9_client_wstat(struct p9_fid *fid, struct p9_wstat *wst)
 		goto done;
 	}
 
-	err = p9_conn_rpc(clnt->conn, tc, &rc);
+	err = p9_client_rpc(clnt->conn, tc, &rc);
 
 done:
 	kfree(tc);
@@ -830,7 +847,7 @@ struct p9_stat *p9_client_dirread(struct p9_fid *fid, u64 offset)
 				goto error;
 			}
 
-			err = p9_conn_rpc(clnt->conn, tc, &rc);
+			err = p9_client_rpc(clnt->conn, tc, &rc);
 			if (err)
 				goto error;
 
