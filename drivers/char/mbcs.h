@@ -538,7 +538,7 @@ struct mbcs_soft {
 	atomic_t dmaread_done;
 	atomic_t algo_done;
 	struct mutex dmawritelock;
-	struct semaphore dmareadlock;
+	struct mutex dmareadlock;
 	struct mutex algolock;
 };
 

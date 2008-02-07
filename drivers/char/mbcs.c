@@ -347,7 +347,7 @@ do_mbcs_sram_dmaread(struct mbcs_soft *soft, uint64_t hostAddr,
 {
 	int rv = 0;
 
-	if (down_interruptible(&soft->dmareadlock))
+	if (mutex_lock_interruptible(&soft->dmareadlock))
 		return -ERESTARTSYS;
 
 	atomic_set(&soft->dmawrite_done, 0);
@@ -372,7 +372,7 @@ do_mbcs_sram_dmaread(struct mbcs_soft *soft, uint64_t hostAddr,
 	*off += len;
 
 dmaread_exit:
-	up(&soft->dmareadlock);
+	mutex_unlock(&soft->dmareadlock);
 
 	return rv;
 }
@@ -764,7 +764,7 @@ static int mbcs_probe(struct cx_dev *dev, const struct cx_device_id *id)
 	init_waitqueue_head(&soft->algo_queue);
 
 	mutex_init(&soft->dmawritelock);
-	init_MUTEX(&soft->dmareadlock);
+	mutex_init(&soft->dmareadlock);
 	mutex_init(&soft->algolock);
 
 	mbcs_getdma_init(&soft->getdma);
