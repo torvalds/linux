@@ -112,7 +112,6 @@ struct specialix_port {
 	struct tty_struct 	* tty;
 	int			count;
 	int			blocked_open;
-	ulong			event;
 	int			timeout;
 	int			close_delay;
 	unsigned char 		* xmit_buf;
@@ -122,8 +121,6 @@ struct specialix_port {
 	int			xmit_cnt;
 	wait_queue_head_t	open_wait;
 	wait_queue_head_t	close_wait;
-	struct work_struct	tqueue;
-	struct work_struct	tqueue_hangup;
 	short			wakeup_chars;
 	short			break_length;
 	unsigned short		closing_wait;
