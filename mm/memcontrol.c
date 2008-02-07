@@ -456,16 +456,20 @@ int mem_cgroup_charge(struct page *page, struct mm_struct *mm,
 int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
 				gfp_t gfp_mask)
 {
+	int ret = 0;
 	struct mem_cgroup *mem;
 	if (!mm)
 		mm = &init_mm;
 
+	rcu_read_lock();
 	mem = rcu_dereference(mm->mem_cgroup);
+	css_get(&mem->css);
+	rcu_read_unlock();
 	if (mem->control_type == MEM_CGROUP_TYPE_ALL)
-		return mem_cgroup_charge_common(page, mm, gfp_mask,
+		ret = mem_cgroup_charge_common(page, mm, gfp_mask,
 				MEM_CGROUP_CHARGE_TYPE_CACHE);
-	else
-		return 0;
+	css_put(&mem->css);
+	return ret;
 }
 
 /*
