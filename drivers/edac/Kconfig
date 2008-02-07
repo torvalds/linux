@@ -130,6 +130,13 @@ config EDAC_MPC85XX
 	  Support for error detection and correction on the Freescale
 	  MPC8560, MPC8540, MPC8548
 
+config EDAC_MV64X60
+	tristate "Marvell MV64x60"
+	depends on EDAC_MM_EDAC && MV64X60
+	help
+	  Support for error detection and correction on the Marvell
+	  MV64360 and MV64460 chipsets.
+
 config EDAC_PASEMI
 	tristate "PA Semi PWRficient"
 	depends on EDAC_MM_EDAC && PCI
