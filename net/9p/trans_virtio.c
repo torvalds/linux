@@ -232,7 +232,6 @@ p9_virtio_rpc(struct p9_trans *t, struct p9_fcall *tc, struct p9_fcall **rc,
 
 	rdata = (char *)*rc+sizeof(struct p9_fcall);
 
-	spin_lock_irqsave(&chan->lock, flags);
 	n = P9_NOTAG;
 	if (tc->id != P9_TVERSION) {
 		n = p9_idpool_get(chan->tagpool);
@@ -240,6 +239,7 @@ p9_virtio_rpc(struct p9_trans *t, struct p9_fcall *tc, struct p9_fcall **rc,
 			return -ENOMEM;
 	}
 
+	spin_lock_irqsave(&chan->lock, flags);
 	req = p9_lookup_tag(chan, n);
 	spin_unlock_irqrestore(&chan->lock, flags);
 
