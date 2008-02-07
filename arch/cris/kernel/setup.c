@@ -137,7 +137,7 @@ setup_arch(char **cmdline_p)
 	 * Arguments are start, size
          */
 
-        reserve_bootmem(PFN_PHYS(start_pfn), bootmap_size);
+	reserve_bootmem(PFN_PHYS(start_pfn), bootmap_size, BOOTMEM_DEFAULT);
 
 	/* paging_init() sets up the MMU and marks all pages as reserved */
 

@@ -428,7 +428,8 @@ setup_memory(void *kernel_end)
 	}
 
 	/* Reserve the bootmap memory.  */
-	reserve_bootmem(PFN_PHYS(bootmap_start), bootmap_size);
+	reserve_bootmem(PFN_PHYS(bootmap_start), bootmap_size,
+			BOOTMEM_DEFAULT);
 	printk("reserving pages %ld:%ld\n", bootmap_start, bootmap_start+PFN_UP(bootmap_size));
 
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -446,7 +447,7 @@ setup_memory(void *kernel_end)
 				       phys_to_virt(PFN_PHYS(max_low_pfn)));
 		} else {
 			reserve_bootmem(virt_to_phys((void *)initrd_start),
-					INITRD_SIZE);
+					INITRD_SIZE, BOOTMEM_DEFAULT);
 		}
 	}
 #endif /* CONFIG_BLK_DEV_INITRD */

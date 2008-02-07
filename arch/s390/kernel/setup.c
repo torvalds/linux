@@ -649,21 +649,24 @@ setup_memory(void)
 	/*
 	 * Reserve memory used for lowcore/command line/kernel image.
 	 */
-	reserve_bootmem(0, (unsigned long)_ehead);
+	reserve_bootmem(0, (unsigned long)_ehead, BOOTMEM_DEFAULT);
 	reserve_bootmem((unsigned long)_stext,
-			PFN_PHYS(start_pfn) - (unsigned long)_stext);
+			PFN_PHYS(start_pfn) - (unsigned long)_stext,
+			BOOTMEM_DEFAULT);
 	/*
 	 * Reserve the bootmem bitmap itself as well. We do this in two
 	 * steps (first step was init_bootmem()) because this catches
 	 * the (very unlikely) case of us accidentally initializing the
 	 * bootmem allocator with an invalid RAM area.
 	 */
-	reserve_bootmem(start_pfn << PAGE_SHIFT, bootmap_size);
+	reserve_bootmem(start_pfn << PAGE_SHIFT, bootmap_size,
+			BOOTMEM_DEFAULT);
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (INITRD_START && INITRD_SIZE) {
 		if (INITRD_START + INITRD_SIZE <= memory_end) {
-			reserve_bootmem(INITRD_START, INITRD_SIZE);
+			reserve_bootmem(INITRD_START, INITRD_SIZE,
+					BOOTMEM_DEFAULT);
 			initrd_start = INITRD_START;
 			initrd_end = initrd_start + INITRD_SIZE;
 		} else {

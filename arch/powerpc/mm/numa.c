@@ -675,7 +675,7 @@ void __init do_init_bootmem(void)
 				dbg("reserve_bootmem %lx %lx\n", physbase,
 				    size);
 				reserve_bootmem_node(NODE_DATA(nid), physbase,
-						     size);
+						     size, BOOTMEM_DEFAULT);
 			}
 		}
 

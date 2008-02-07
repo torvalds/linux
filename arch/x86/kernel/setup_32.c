@@ -390,7 +390,7 @@ static void __init reserve_ebda_region(void)
 	unsigned int addr;
 	addr = get_bios_ebda();
 	if (addr)
-		reserve_bootmem(addr, PAGE_SIZE);
+		reserve_bootmem(addr, PAGE_SIZE, BOOTMEM_DEFAULT);
 }
 
 #ifndef CONFIG_NEED_MULTIPLE_NODES
@@ -484,7 +484,8 @@ static void __init reserve_crashkernel(void)
 					(unsigned long)(total_mem >> 20));
 			crashk_res.start = crash_base;
 			crashk_res.end   = crash_base + crash_size - 1;
-			reserve_bootmem(crash_base, crash_size);
+			reserve_bootmem(crash_base, crash_size,
+					BOOTMEM_DEFAULT);
 		} else
 			printk(KERN_INFO "crashkernel reservation failed - "
 					"you have to specify a base address\n");
@@ -525,7 +526,7 @@ static void __init reserve_initrd(void)
 	}
 	if (ramdisk_end <= end_of_lowmem) {
 		/* All in lowmem, easy case */
-		reserve_bootmem(ramdisk_image, ramdisk_size);
+		reserve_bootmem(ramdisk_image, ramdisk_size, BOOTMEM_DEFAULT);
 		initrd_start = ramdisk_image + PAGE_OFFSET;
 		initrd_end = initrd_start+ramdisk_size;
 		return;
@@ -536,7 +537,7 @@ static void __init reserve_initrd(void)
 
 	/* Note: this includes all the lowmem currently occupied by
 	   the initrd, we rely on that fact to keep the data intact. */
-	reserve_bootmem(ramdisk_here, ramdisk_size);
+	reserve_bootmem(ramdisk_here, ramdisk_size, BOOTMEM_DEFAULT);
 	initrd_start = ramdisk_here + PAGE_OFFSET;
 	initrd_end   = initrd_start + ramdisk_size;
 
@@ -606,13 +607,14 @@ void __init setup_bootmem_allocator(void)
 	 * bootmem allocator with an invalid RAM area.
 	 */
 	reserve_bootmem(__pa_symbol(_text), (PFN_PHYS(min_low_pfn) +
-			 bootmap_size + PAGE_SIZE-1) - __pa_symbol(_text));
+			 bootmap_size + PAGE_SIZE-1) - __pa_symbol(_text),
+			 BOOTMEM_DEFAULT);
 
 	/*
 	 * reserve physical page 0 - it's a special BIOS page on many boxes,
 	 * enabling clean reboots, SMP operation, laptop functions.
 	 */
-	reserve_bootmem(0, PAGE_SIZE);
+	reserve_bootmem(0, PAGE_SIZE, BOOTMEM_DEFAULT);
 
 	/* reserve EBDA region, it's a 4K region */
 	reserve_ebda_region();
@@ -622,7 +624,7 @@ void __init setup_bootmem_allocator(void)
        unless you have no PS/2 mouse plugged in. */
 	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD &&
 	    boot_cpu_data.x86 == 6)
-	     reserve_bootmem(0xa0000 - 4096, 4096);
+	     reserve_bootmem(0xa0000 - 4096, 4096, BOOTMEM_DEFAULT);
 
 #ifdef CONFIG_SMP
 	/*
@@ -630,7 +632,7 @@ void __init setup_bootmem_allocator(void)
 	 * FIXME: Don't need the extra page at 4K, but need to fix
 	 * trampoline before removing it. (see the GDT stuff)
 	 */
-	reserve_bootmem(PAGE_SIZE, PAGE_SIZE);
+	reserve_bootmem(PAGE_SIZE, PAGE_SIZE, BOOTMEM_DEFAULT);
 #endif
 #ifdef CONFIG_ACPI_SLEEP
 	/*

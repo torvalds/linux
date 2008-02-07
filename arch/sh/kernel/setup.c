@@ -148,7 +148,8 @@ static void __init reserve_crashkernel(void)
 					(unsigned long)(free_mem >> 20));
 			crashk_res.start = crash_base;
 			crashk_res.end   = crash_base + crash_size - 1;
-			reserve_bootmem(crash_base, crash_size);
+			reserve_bootmem(crash_base, crash_size,
+					BOOTMEM_DEFAULT);
 		} else
 			printk(KERN_INFO "crashkernel reservation failed - "
 					"you have to specify a base address\n");
@@ -184,13 +185,14 @@ void __init setup_bootmem_allocator(unsigned long free_pfn)
 	 * an invalid RAM area.
 	 */
 	reserve_bootmem(__MEMORY_START+PAGE_SIZE,
-		(PFN_PHYS(free_pfn)+bootmap_size+PAGE_SIZE-1)-__MEMORY_START);
+		(PFN_PHYS(free_pfn)+bootmap_size+PAGE_SIZE-1)-__MEMORY_START,
+		BOOTMEM_DEFAULT);
 
 	/*
 	 * reserve physical page 0 - it's a special BIOS page on many boxes,
 	 * enabling clean reboots, SMP operation, laptop functions.
 	 */
-	reserve_bootmem(__MEMORY_START, PAGE_SIZE);
+	reserve_bootmem(__MEMORY_START, PAGE_SIZE, BOOTMEM_DEFAULT);
 
 	sparse_memory_present_with_active_regions(0);
 
@@ -200,7 +202,7 @@ void __init setup_bootmem_allocator(unsigned long free_pfn)
 	if (LOADER_TYPE && INITRD_START) {
 		if (INITRD_START + INITRD_SIZE <= (max_low_pfn << PAGE_SHIFT)) {
 			reserve_bootmem(INITRD_START + __MEMORY_START,
-					INITRD_SIZE);
+					INITRD_SIZE, BOOTMEM_DEFAULT);
 			initrd_start = INITRD_START + PAGE_OFFSET +
 					__MEMORY_START;
 			initrd_end = initrd_start + INITRD_SIZE;

@@ -259,7 +259,7 @@ unsigned long __init bootmem_init(unsigned long *pages_avail)
 	if (initrd_start) {
 		/* Reserve the initrd image area. */
 		size = initrd_end - initrd_start;
-		reserve_bootmem(initrd_start, size);
+		reserve_bootmem(initrd_start, size, BOOTMEM_DEFAULT);
 		*pages_avail -= PAGE_ALIGN(size) >> PAGE_SHIFT;
 
 		initrd_start = (initrd_start - phys_base) + PAGE_OFFSET;
@@ -268,7 +268,7 @@ unsigned long __init bootmem_init(unsigned long *pages_avail)
 #endif
 	/* Reserve the kernel text/data/bss. */
 	size = (start_pfn << PAGE_SHIFT) - phys_base;
-	reserve_bootmem(phys_base, size);
+	reserve_bootmem(phys_base, size, BOOTMEM_DEFAULT);
 	*pages_avail -= PAGE_ALIGN(size) >> PAGE_SHIFT;
 
 	/* Reserve the bootmem map.   We do not account for it
@@ -276,7 +276,7 @@ unsigned long __init bootmem_init(unsigned long *pages_avail)
 	 * in free_all_bootmem.
 	 */
 	size = bootmap_size;
-	reserve_bootmem((bootmap_pfn << PAGE_SHIFT), size);
+	reserve_bootmem((bootmap_pfn << PAGE_SHIFT), size, BOOTMEM_DEFAULT);
 	*pages_avail -= PAGE_ALIGN(size) >> PAGE_SHIFT;
 
 	return max_pfn;

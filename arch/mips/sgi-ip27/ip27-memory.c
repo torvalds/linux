@@ -465,7 +465,8 @@ static void __init node_mem_init(cnodeid_t node)
 	free_bootmem_node(NODE_DATA(node), slot_firstpfn << PAGE_SHIFT,
 			(slot_lastpfn - slot_firstpfn) << PAGE_SHIFT);
 	reserve_bootmem_node(NODE_DATA(node), slot_firstpfn << PAGE_SHIFT,
-		((slot_freepfn - slot_firstpfn) << PAGE_SHIFT) + bootmap_size);
+		((slot_freepfn - slot_firstpfn) << PAGE_SHIFT) + bootmap_size,
+		BOOTMEM_DEFAULT);
 }
 
 /*

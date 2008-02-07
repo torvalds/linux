@@ -315,11 +315,13 @@ static void __init setup_bootmem(void)
 #define PDC_CONSOLE_IO_IODC_SIZE 32768
 
 	reserve_bootmem_node(NODE_DATA(0), 0UL,
-			(unsigned long)(PAGE0->mem_free + PDC_CONSOLE_IO_IODC_SIZE));
+			(unsigned long)(PAGE0->mem_free +
+				PDC_CONSOLE_IO_IODC_SIZE), BOOTMEM_DEFAULT);
 	reserve_bootmem_node(NODE_DATA(0), __pa((unsigned long)_text),
-			(unsigned long)(_end - _text));
+			(unsigned long)(_end - _text), BOOTMEM_DEFAULT);
 	reserve_bootmem_node(NODE_DATA(0), (bootmap_start_pfn << PAGE_SHIFT),
-			((bootmap_pfn - bootmap_start_pfn) << PAGE_SHIFT));
+			((bootmap_pfn - bootmap_start_pfn) << PAGE_SHIFT),
+			BOOTMEM_DEFAULT);
 
 #ifndef CONFIG_DISCONTIGMEM
 
@@ -328,7 +330,8 @@ static void __init setup_bootmem(void)
 	for (i = 0; i < npmem_holes; i++) {
 		reserve_bootmem_node(NODE_DATA(0),
 				(pmem_holes[i].start_pfn << PAGE_SHIFT),
-				(pmem_holes[i].pages << PAGE_SHIFT));
+				(pmem_holes[i].pages << PAGE_SHIFT),
+				BOOTMEM_DEFAULT);
 	}
 #endif
 
@@ -346,7 +349,8 @@ static void __init setup_bootmem(void)
 			initrd_below_start_ok = 1;
 			printk(KERN_INFO "initrd: reserving %08lx-%08lx (mem_max %08lx)\n", __pa(initrd_start), __pa(initrd_start) + initrd_reserve, mem_max);
 
-			reserve_bootmem_node(NODE_DATA(0),__pa(initrd_start), initrd_reserve);
+			reserve_bootmem_node(NODE_DATA(0), __pa(initrd_start),
+					initrd_reserve, BOOTMEM_DEFAULT);
 		}
 	}
 #endif

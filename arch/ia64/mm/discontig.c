@@ -299,12 +299,12 @@ static void __init reserve_pernode_space(void)
 		pages = bdp->node_low_pfn - (bdp->node_boot_start>>PAGE_SHIFT);
 		size = bootmem_bootmap_pages(pages) << PAGE_SHIFT;
 		base = __pa(bdp->node_bootmem_map);
-		reserve_bootmem_node(pdp, base, size);
+		reserve_bootmem_node(pdp, base, size, BOOTMEM_DEFAULT);
 
 		/* Now the per-node space */
 		size = mem_data[node].pernode_size;
 		base = __pa(mem_data[node].pernode_addr);
-		reserve_bootmem_node(pdp, base, size);
+		reserve_bootmem_node(pdp, base, size, BOOTMEM_DEFAULT);
 	}
 }
 

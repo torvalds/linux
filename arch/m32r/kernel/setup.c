@@ -177,25 +177,28 @@ static unsigned long __init setup_memory(void)
 	 */
 	reserve_bootmem(CONFIG_MEMORY_START + PAGE_SIZE,
 		(PFN_PHYS(start_pfn) + bootmap_size + PAGE_SIZE - 1)
-		- CONFIG_MEMORY_START);
+		- CONFIG_MEMORY_START,
+		BOOTMEM_DEFAULT);
 
 	/*
 	 * reserve physical page 0 - it's a special BIOS page on many boxes,
 	 * enabling clean reboots, SMP operation, laptop functions.
 	 */
-	reserve_bootmem(CONFIG_MEMORY_START, PAGE_SIZE);
+	reserve_bootmem(CONFIG_MEMORY_START, PAGE_SIZE, BOOTMEM_DEFAULT);
 
 	/*
 	 * reserve memory hole
 	 */
 #ifdef CONFIG_MEMHOLE
-	reserve_bootmem(CONFIG_MEMHOLE_START, CONFIG_MEMHOLE_SIZE);
+	reserve_bootmem(CONFIG_MEMHOLE_START, CONFIG_MEMHOLE_SIZE,
+			BOOTMEM_DEFAULT);
 #endif
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (LOADER_TYPE && INITRD_START) {
 		if (INITRD_START + INITRD_SIZE <= (max_low_pfn << PAGE_SHIFT)) {
-			reserve_bootmem(INITRD_START, INITRD_SIZE);
+			reserve_bootmem(INITRD_START, INITRD_SIZE,
+					BOOTMEM_DEFAULT);
 			initrd_start = INITRD_START + PAGE_OFFSET;
 			initrd_end = initrd_start + INITRD_SIZE;
 			printk("initrd:start[%08lx],size[%08lx]\n",

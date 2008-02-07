@@ -107,8 +107,8 @@ static inline int pfn_valid(int pfn)
 /*
  * Following are macros that are specific to this numa platform.
  */
-#define reserve_bootmem(addr, size) \
-	reserve_bootmem_node(NODE_DATA(0), (addr), (size))
+#define reserve_bootmem(addr, size, flags) \
+	reserve_bootmem_node(NODE_DATA(0), (addr), (size), (flags))
 #define alloc_bootmem(x) \
 	__alloc_bootmem_node(NODE_DATA(0), (x), SMP_CACHE_BYTES, __pa(MAX_DMA_ADDRESS))
 #define alloc_bootmem_low(x) \

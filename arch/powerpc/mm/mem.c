@@ -220,12 +220,13 @@ void __init do_init_bootmem(void)
 				     lmb_size_bytes(&lmb.reserved, i) - 1;
 		if (addr < total_lowmem)
 			reserve_bootmem(lmb.reserved.region[i].base,
-					lmb_size_bytes(&lmb.reserved, i));
+					lmb_size_bytes(&lmb.reserved, i),
+					BOOTMEM_DEFAULT);
 		else if (lmb.reserved.region[i].base < total_lowmem) {
 			unsigned long adjusted_size = total_lowmem -
 				      lmb.reserved.region[i].base;
 			reserve_bootmem(lmb.reserved.region[i].base,
-					adjusted_size);
+					adjusted_size, BOOTMEM_DEFAULT);
 		}
 	}
 #else
@@ -234,7 +235,8 @@ void __init do_init_bootmem(void)
 	/* reserve the sections we're already using */
 	for (i = 0; i < lmb.reserved.cnt; i++)
 		reserve_bootmem(lmb.reserved.region[i].base,
-				lmb_size_bytes(&lmb.reserved, i));
+				lmb_size_bytes(&lmb.reserved, i),
+				BOOTMEM_DEFAULT);
 
 #endif
 	/* XXX need to clip this if using highmem? */

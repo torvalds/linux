@@ -488,7 +488,8 @@ void __init srat_reserve_add_area(int nodeid)
 		printk(KERN_INFO "SRAT: This will cost you %Lu MB of "
 				"pre-allocated memory.\n", (unsigned long long)total_mb);
 		reserve_bootmem_node(NODE_DATA(nodeid), nodes_add[nodeid].start,
-			       nodes_add[nodeid].end - nodes_add[nodeid].start);
+			       nodes_add[nodeid].end - nodes_add[nodeid].start,
+			       BOOTMEM_DEFAULT);
 	}
 }
 

@@ -644,9 +644,9 @@ void __init reserve_bootmem_generic(unsigned long phys, unsigned len)
 
 	/* Should check here against the e820 map to avoid double free */
 #ifdef CONFIG_NUMA
-	reserve_bootmem_node(NODE_DATA(nid), phys, len);
+	reserve_bootmem_node(NODE_DATA(nid), phys, len, BOOTMEM_DEFAULT);
 #else
-	reserve_bootmem(phys, len);
+	reserve_bootmem(phys, len, BOOTMEM_DEFAULT);
 #endif
 	if (phys+len <= MAX_DMA_PFN*PAGE_SIZE) {
 		dma_reserve += len / PAGE_SIZE;

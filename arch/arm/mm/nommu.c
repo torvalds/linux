@@ -27,9 +27,11 @@ void __init reserve_node_zero(pg_data_t *pgdat)
 	 * Note that this can only be in node 0.
 	 */
 #ifdef CONFIG_XIP_KERNEL
-	reserve_bootmem_node(pgdat, __pa(&__data_start), &_end - &__data_start);
+	reserve_bootmem_node(pgdat, __pa(&__data_start), &_end - &__data_start,
+			BOOTMEM_DEFAULT);
 #else
-	reserve_bootmem_node(pgdat, __pa(&_stext), &_end - &_stext);
+	reserve_bootmem_node(pgdat, __pa(&_stext), &_end - &_stext,
+			BOOTMEM_DEFAULT);
 #endif
 
 	/*
@@ -37,7 +39,8 @@ void __init reserve_node_zero(pg_data_t *pgdat)
 	 * some architectures which the DRAM is the exception vector to trap,
 	 * alloc_page breaks with error, although it is not NULL, but "0."
 	 */
-	reserve_bootmem_node(pgdat, CONFIG_VECTORS_BASE, PAGE_SIZE);
+	reserve_bootmem_node(pgdat, CONFIG_VECTORS_BASE, PAGE_SIZE,
+			BOOTMEM_DEFAULT);
 }
 
 /*

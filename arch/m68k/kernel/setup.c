@@ -323,7 +323,8 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (m68k_ramdisk.size) {
 		reserve_bootmem_node(__virt_to_node(phys_to_virt(m68k_ramdisk.addr)),
-				     m68k_ramdisk.addr, m68k_ramdisk.size);
+				     m68k_ramdisk.addr, m68k_ramdisk.size,
+				     BOOTMEM_DEFAULT);
 		initrd_start = (unsigned long)phys_to_virt(m68k_ramdisk.addr);
 		initrd_end = initrd_start + m68k_ramdisk.size;
 		printk("initrd: %08lx - %08lx\n", initrd_start, initrd_end);

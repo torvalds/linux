@@ -111,11 +111,12 @@ static unsigned long __init init_bootmem_core(pg_data_t *pgdat,
  * might be used for boot-time allocations - or it might get added
  * to the free page pool later on.
  */
-static void __init reserve_bootmem_core(bootmem_data_t *bdata, unsigned long addr,
-					unsigned long size)
+static int __init reserve_bootmem_core(bootmem_data_t *bdata,
+			unsigned long addr, unsigned long size, int flags)
 {
 	unsigned long sidx, eidx;
 	unsigned long i;
+	int ret;
 
 	/*
 	 * round up, partially reserved pages are considered
@@ -133,7 +134,20 @@ static void __init reserve_bootmem_core(bootmem_data_t *bdata, unsigned long add
 #ifdef CONFIG_DEBUG_BOOTMEM
 			printk("hm, page %08lx reserved twice.\n", i*PAGE_SIZE);
 #endif
+			if (flags & BOOTMEM_EXCLUSIVE) {
+				ret = -EBUSY;
+				goto err;
+			}
 		}
+
+	return 0;
+
+err:
+	/* unreserve memory we accidentally reserved */
+	for (i--; i >= sidx; i--)
+		clear_bit(i, bdata->node_bootmem_map);
+
+	return ret;
 }
 
 static void __init free_bootmem_core(bootmem_data_t *bdata, unsigned long addr,
@@ -374,9 +388,9 @@ unsigned long __init init_bootmem_node(pg_data_t *pgdat, unsigned long freepfn,
 }
 
 void __init reserve_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
-				 unsigned long size)
+				 unsigned long size, int flags)
 {
-	reserve_bootmem_core(pgdat->bdata, physaddr, size);
+	reserve_bootmem_core(pgdat->bdata, physaddr, size, flags);
 }
 
 void __init free_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
@@ -398,9 +412,10 @@ unsigned long __init init_bootmem(unsigned long start, unsigned long pages)
 }
 
 #ifndef CONFIG_HAVE_ARCH_BOOTMEM_NODE
-void __init reserve_bootmem(unsigned long addr, unsigned long size)
+int __init reserve_bootmem(unsigned long addr, unsigned long size,
+			    int flags)
 {
-	reserve_bootmem_core(NODE_DATA(0)->bdata, addr, size);
+	return reserve_bootmem_core(NODE_DATA(0)->bdata, addr, size, flags);
 }
 #endif /* !CONFIG_HAVE_ARCH_BOOTMEM_NODE */
 

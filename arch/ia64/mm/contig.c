@@ -218,7 +218,7 @@ find_memory (void)
 
 	/* Free all available memory, then mark bootmem-map as being in use. */
 	efi_memmap_walk(filter_rsvd_memory, free_bootmem);
-	reserve_bootmem(bootmap_start, bootmap_size);
+	reserve_bootmem(bootmap_start, bootmap_size, BOOTMEM_DEFAULT);
 
 	find_initrd();
 

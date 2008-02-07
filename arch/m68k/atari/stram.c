@@ -154,7 +154,7 @@ void __init atari_stram_reserve_pages(void *start_mem)
 	/* always reserve first page of ST-RAM, the first 2 kB are
 	 * supervisor-only! */
 	if (!kernel_in_stram)
-		reserve_bootmem (0, PAGE_SIZE);
+		reserve_bootmem(0, PAGE_SIZE, BOOTMEM_DEFAULT);
 
 }
 

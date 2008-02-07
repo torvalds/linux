@@ -925,13 +925,15 @@ static void __init setup_linux_memory(void)
 #endif
 
 	/* take back the memory occupied by the kernel image and the bootmem alloc map */
-	reserve_bootmem(kstart, kend - kstart + bootmap_size);
+	reserve_bootmem(kstart, kend - kstart + bootmap_size,
+			BOOTMEM_DEFAULT);
 
 	/* reserve the memory occupied by the initial ramdisk */
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (LOADER_TYPE && INITRD_START) {
 		if (INITRD_START + INITRD_SIZE <= (low_top_pfn << PAGE_SHIFT)) {
-			reserve_bootmem(INITRD_START, INITRD_SIZE);
+			reserve_bootmem(INITRD_START, INITRD_SIZE,
+					BOOTMEM_DEFAULT);
 			initrd_start = INITRD_START + PAGE_OFFSET;
 			initrd_end = initrd_start + INITRD_SIZE;
 		}
@@ -986,9 +988,10 @@ static void __init setup_uclinux_memory(void)
 
 	/* now take back the bits the core kernel is occupying */
 #ifndef CONFIG_PROTECT_KERNEL
-	reserve_bootmem(kend, bootmap_size);
+	reserve_bootmem(kend, bootmap_size, BOOTMEM_DEFAULT);
 	reserve_bootmem((unsigned long) &__kernel_image_start,
-			kend - (unsigned long) &__kernel_image_start);
+			kend - (unsigned long) &__kernel_image_start,
+			BOOTMEM_DEFAULT);
 
 #else
 	dampr = __get_DAMPR(0);
@@ -996,14 +999,15 @@ static void __init setup_uclinux_memory(void)
 	dampr = (dampr >> 4) + 17;
 	dampr = 1 << dampr;
 
-	reserve_bootmem(__get_DAMPR(0) & xAMPRx_PPFN, dampr);
+	reserve_bootmem(__get_DAMPR(0) & xAMPRx_PPFN, dampr, BOOTMEM_DEFAULT);
 #endif
 
 	/* reserve some memory to do uncached DMA through if requested */
 #ifdef CONFIG_RESERVE_DMA_COHERENT
 	if (dma_coherent_mem_start)
 		reserve_bootmem(dma_coherent_mem_start,
-				dma_coherent_mem_end - dma_coherent_mem_start);
+				dma_coherent_mem_end - dma_coherent_mem_start,
+				BOOTMEM_DEFAULT);
 #endif
 
 } /* end setup_uclinux_memory() */

@@ -239,7 +239,7 @@ bootmem_init_node(int node, int initrd_node, struct meminfo *mi)
 	 * Reserve the bootmem bitmap for this node.
 	 */
 	reserve_bootmem_node(pgdat, boot_pfn << PAGE_SHIFT,
-			     boot_pages << PAGE_SHIFT);
+			     boot_pages << PAGE_SHIFT, BOOTMEM_DEFAULT);
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	/*
@@ -247,7 +247,7 @@ bootmem_init_node(int node, int initrd_node, struct meminfo *mi)
 	 */
 	if (node == initrd_node) {
 		reserve_bootmem_node(pgdat, phys_initrd_start,
-				     phys_initrd_size);
+				     phys_initrd_size, BOOTMEM_DEFAULT);
 		initrd_start = __phys_to_virt(phys_initrd_start);
 		initrd_end = initrd_start + phys_initrd_size;
 	}

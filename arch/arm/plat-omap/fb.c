@@ -207,7 +207,7 @@ void __init omapfb_reserve_sdram(void)
 			return;
 		}
 		if (rg.paddr)
-			reserve_bootmem(rg.paddr, rg.size);
+			reserve_bootmem(rg.paddr, rg.size, BOOTMEM_DEFAULT);
 		reserved += rg.size;
 		omapfb_config.mem_desc.region[i] = rg;
 		configured_regions++;
