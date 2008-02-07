@@ -166,6 +166,12 @@ typedef struct drm_radeon_ring_buffer {
 	int size;
 	int size_l2qw;
 
+	int rptr_update; /* Double Words */
+	int rptr_update_l2qw; /* log2 Quad Words */
+
+	int fetch_size; /* Double Words */
+	int fetch_size_l2ow; /* log2 Oct Words */
+
 	u32 tail;
 	u32 tail_mask;
 	int space;
@@ -615,9 +621,51 @@ extern int r300_do_cp_cmdbuf(struct drm_device * dev,
 #	define RADEON_SOFT_RESET_E2		(1 <<  5)
 #	define RADEON_SOFT_RESET_RB		(1 <<  6)
 #	define RADEON_SOFT_RESET_HDP		(1 <<  7)
+/*
+ *   6:0  Available slots in the FIFO
+ *   8    Host Interface active
+ *   9    CP request active
+ *   10   FIFO request active
+ *   11   Host Interface retry active
+ *   12   CP retry active
+ *   13   FIFO retry active
+ *   14   FIFO pipeline busy
+ *   15   Event engine busy
+ *   16   CP command stream busy
+ *   17   2D engine busy
+ *   18   2D portion of render backend busy
+ *   20   3D setup engine busy
+ *   26   GA engine busy
+ *   27   CBA 2D engine busy
+ *   31   2D engine busy or 3D engine busy or FIFO not empty or CP busy or
+ *           command stream queue not empty or Ring Buffer not empty
+ */
 #define RADEON_RBBM_STATUS		0x0e40
+/* Same as the previous RADEON_RBBM_STATUS; this is a mirror of that register.  */
+/* #define RADEON_RBBM_STATUS		0x1740 */
+/* bits 6:0 are dword slots available in the cmd fifo */
 #	define RADEON_RBBM_FIFOCNT_MASK		0x007f
-#	define RADEON_RBBM_ACTIVE		(1 << 31)
+#	define RADEON_HIRQ_ON_RBB	(1 <<  8)
+#	define RADEON_CPRQ_ON_RBB	(1 <<  9)
+#	define RADEON_CFRQ_ON_RBB	(1 << 10)
+#	define RADEON_HIRQ_IN_RTBUF	(1 << 11)
+#	define RADEON_CPRQ_IN_RTBUF	(1 << 12)
+#	define RADEON_CFRQ_IN_RTBUF	(1 << 13)
+#	define RADEON_PIPE_BUSY		(1 << 14)
+#	define RADEON_ENG_EV_BUSY	(1 << 15)
+#	define RADEON_CP_CMDSTRM_BUSY	(1 << 16)
+#	define RADEON_E2_BUSY		(1 << 17)
+#	define RADEON_RB2D_BUSY		(1 << 18)
+#	define RADEON_RB3D_BUSY		(1 << 19) /* not used on r300 */
+#	define RADEON_VAP_BUSY		(1 << 20)
+#	define RADEON_RE_BUSY		(1 << 21) /* not used on r300 */
+#	define RADEON_TAM_BUSY		(1 << 22) /* not used on r300 */
+#	define RADEON_TDM_BUSY		(1 << 23) /* not used on r300 */
+#	define RADEON_PB_BUSY		(1 << 24) /* not used on r300 */
+#	define RADEON_TIM_BUSY		(1 << 25) /* not used on r300 */
+#	define RADEON_GA_BUSY		(1 << 26)
+#	define RADEON_CBA2D_BUSY	(1 << 27)
+#	define RADEON_RBBM_ACTIVE	(1 << 31)
 #define RADEON_RE_LINE_PATTERN		0x1cd0
 #define RADEON_RE_MISC			0x26c4
 #define RADEON_RE_TOP_LEFT		0x26c0
