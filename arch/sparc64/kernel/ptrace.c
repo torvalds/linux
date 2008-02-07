@@ -36,56 +36,6 @@
 #include <asm/page.h>
 #include <asm/cpudata.h>
 
-/* Returning from ptrace is a bit tricky because the syscall return
- * low level code assumes any value returned which is negative and
- * is a valid errno will mean setting the condition codes to indicate
- * an error return.  This doesn't work, so we have this hook.
- */
-static inline void pt_error_return(struct pt_regs *regs, unsigned long error)
-{
-	regs->u_regs[UREG_I0] = error;
-	regs->tstate |= (TSTATE_ICARRY | TSTATE_XCARRY);
-	regs->tpc = regs->tnpc;
-	regs->tnpc += 4;
-}
-
-static inline void pt_succ_return(struct pt_regs *regs, unsigned long value)
-{
-	regs->u_regs[UREG_I0] = value;
-	regs->tstate &= ~(TSTATE_ICARRY | TSTATE_XCARRY);
-	regs->tpc = regs->tnpc;
-	regs->tnpc += 4;
-}
-
-static inline void
-pt_succ_return_linux(struct pt_regs *regs, unsigned long value, void __user *addr)
-{
-	if (test_thread_flag(TIF_32BIT)) {
-		if (put_user(value, (unsigned int __user *) addr)) {
-			pt_error_return(regs, EFAULT);
-			return;
-		}
-	} else {
-		if (put_user(value, (long __user *) addr)) {
-			pt_error_return(regs, EFAULT);
-			return;
-		}
-	}
-	regs->u_regs[UREG_I0] = 0;
-	regs->tstate &= ~(TSTATE_ICARRY | TSTATE_XCARRY);
-	regs->tpc = regs->tnpc;
-	regs->tnpc += 4;
-}
-
-static void
-pt_os_succ_return (struct pt_regs *regs, unsigned long val, void __user *addr)
-{
-	if (current->personality == PER_SUNOS)
-		pt_succ_return (regs, val);
-	else
-		pt_succ_return_linux (regs, val, addr);
-}
-
 /* #define ALLOW_INIT_TRACING */
 
 /*
@@ -734,171 +684,113 @@ const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 	return &user_sparc64_view;
 }
 
-asmlinkage void do_ptrace(struct pt_regs *regs)
+long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
-	int request = regs->u_regs[UREG_I0];
-	pid_t pid = regs->u_regs[UREG_I1];
-	unsigned long addr = regs->u_regs[UREG_I2];
-	unsigned long data = regs->u_regs[UREG_I3];
-	unsigned long addr2 = regs->u_regs[UREG_I4];
-	struct task_struct *child;
-	int ret;
+	long addr2 = task_pt_regs(current)->u_regs[UREG_I4];
+	int i, ret;
 
-	if (test_thread_flag(TIF_32BIT)) {
-		addr &= 0xffffffffUL;
-		data &= 0xffffffffUL;
+#if 1
+	printk(KERN_INFO
+	       "arch_ptrace: request[%ld] addr[%lx] data[%lx] addr2[%lx]\n",
+	       request, addr, data, addr2);
+#endif
+	if (test_thread_flag(TIF_32BIT))
 		addr2 &= 0xffffffffUL;
-	}
-	lock_kernel();
-	if (request == PTRACE_TRACEME) {
-		ret = ptrace_traceme();
-		if (ret < 0)
-			pt_error_return(regs, -ret);
-		else
-			pt_succ_return(regs, 0);
-		goto out;
-	}
-
-	child = ptrace_get_task_struct(pid);
-	if (IS_ERR(child)) {
-		ret = PTR_ERR(child);
-		pt_error_return(regs, -ret);
-		goto out;
-	}
-
-	if (request == PTRACE_ATTACH) {
-		if (ptrace_attach(child)) {
-			pt_error_return(regs, EPERM);
-			goto out_tsk;
-		}
-		pt_succ_return(regs, 0);
-		goto out_tsk;
-	}
-
-	ret = ptrace_check_attach(child, request == PTRACE_KILL);
-	if (ret < 0) {
-		pt_error_return(regs, -ret);
-		goto out_tsk;
-	}
-
-	if (!(test_thread_flag(TIF_32BIT))	&&
-	    ((request == PTRACE_READDATA64)		||
-	     (request == PTRACE_WRITEDATA64)		||
-	     (request == PTRACE_READTEXT64)		||
-	     (request == PTRACE_WRITETEXT64)		||
-	     (request == PTRACE_PEEKTEXT64)		||
-	     (request == PTRACE_POKETEXT64)		||
-	     (request == PTRACE_PEEKDATA64)		||
-	     (request == PTRACE_POKEDATA64))) {
-		addr = regs->u_regs[UREG_G2];
-		addr2 = regs->u_regs[UREG_G3];
-		request -= 30; /* wheee... */
-	}
 
 	switch(request) {
 	case PTRACE_PEEKUSR:
-		if (addr != 0)
-			pt_error_return(regs, EIO);
-		else
-			pt_succ_return(regs, 0);
-		goto out_tsk;
+		ret = (addr != 0) ? -EIO : 0;
+		break;
 
 	case PTRACE_PEEKTEXT: /* read word at location addr. */ 
 	case PTRACE_PEEKDATA: {
 		unsigned long tmp64;
 		unsigned int tmp32;
-		int res, copied;
+		int copied;
 
-		res = -EIO;
+		ret = -EIO;
 		if (test_thread_flag(TIF_32BIT)) {
 			copied = access_process_vm(child, addr,
 						   &tmp32, sizeof(tmp32), 0);
-			tmp64 = (unsigned long) tmp32;
 			if (copied == sizeof(tmp32))
-				res = 0;
+				ret = put_user(tmp32,
+					       (unsigned int __user *) data);
 		} else {
 			copied = access_process_vm(child, addr,
 						   &tmp64, sizeof(tmp64), 0);
 			if (copied == sizeof(tmp64))
-				res = 0;
+				ret = put_user(tmp64,
+					       (unsigned long __user *) data);
 		}
-		if (res < 0)
-			pt_error_return(regs, -res);
-		else
-			pt_os_succ_return(regs, tmp64, (void __user *) data);
-		goto out_tsk;
+		break;
 	}
 
 	case PTRACE_POKETEXT: /* write the word at location addr. */
 	case PTRACE_POKEDATA: {
 		unsigned long tmp64;
 		unsigned int tmp32;
-		int copied, res = -EIO;
+		int copied;
 
+		ret = -EIO;
 		if (test_thread_flag(TIF_32BIT)) {
 			tmp32 = data;
 			copied = access_process_vm(child, addr,
 						   &tmp32, sizeof(tmp32), 1);
 			if (copied == sizeof(tmp32))
-				res = 0;
+				ret = 0;
 		} else {
 			tmp64 = data;
 			copied = access_process_vm(child, addr,
 						   &tmp64, sizeof(tmp64), 1);
 			if (copied == sizeof(tmp64))
-				res = 0;
+				ret = 0;
 		}
-		if (res < 0)
-			pt_error_return(regs, -res);
-		else
-			pt_succ_return(regs, res);
-		goto out_tsk;
+		break;
 	}
 
 	case PTRACE_GETREGS: {
 		struct pt_regs32 __user *pregs =
 			(struct pt_regs32 __user *) addr;
 		struct pt_regs *cregs = task_pt_regs(child);
-		int rval;
 
+		ret = -EFAULT;
 		if (__put_user(tstate_to_psr(cregs->tstate), (&pregs->psr)) ||
 		    __put_user(cregs->tpc, (&pregs->pc)) ||
 		    __put_user(cregs->tnpc, (&pregs->npc)) ||
-		    __put_user(cregs->y, (&pregs->y))) {
-			pt_error_return(regs, EFAULT);
-			goto out_tsk;
+		    __put_user(cregs->y, (&pregs->y)))
+			break;
+		for (i = 1; i < 16; i++) {
+			if (__put_user(cregs->u_regs[i],
+				       (&pregs->u_regs[i - 1])))
+				break;
 		}
-		for (rval = 1; rval < 16; rval++)
-			if (__put_user(cregs->u_regs[rval], (&pregs->u_regs[rval - 1]))) {
-				pt_error_return(regs, EFAULT);
-				goto out_tsk;
-			}
-		pt_succ_return(regs, 0);
-		goto out_tsk;
+		if (i == 16)
+			ret = 0;
+		break;
 	}
 
 	case PTRACE_GETREGS64: {
 		struct pt_regs __user *pregs = (struct pt_regs __user *) addr;
 		struct pt_regs *cregs = task_pt_regs(child);
 		unsigned long tpc = cregs->tpc;
-		int rval;
 
 		if ((task_thread_info(child)->flags & _TIF_32BIT) != 0)
 			tpc &= 0xffffffff;
+
+		ret = -EFAULT;
 		if (__put_user(cregs->tstate, (&pregs->tstate)) ||
 		    __put_user(tpc, (&pregs->tpc)) ||
 		    __put_user(cregs->tnpc, (&pregs->tnpc)) ||
-		    __put_user(cregs->y, (&pregs->y))) {
-			pt_error_return(regs, EFAULT);
-			goto out_tsk;
+		    __put_user(cregs->y, (&pregs->y)))
+			break;
+		for (i = 1; i < 16; i++) {
+			if (__put_user(cregs->u_regs[i],
+				       (&pregs->u_regs[i - 1])))
+				break;
 		}
-		for (rval = 1; rval < 16; rval++)
-			if (__put_user(cregs->u_regs[rval], (&pregs->u_regs[rval - 1]))) {
-				pt_error_return(regs, EFAULT);
-				goto out_tsk;
-			}
-		pt_succ_return(regs, 0);
-		goto out_tsk;
+		if (i == 16)
+			ret = 0;
+		break;
 	}
 
 	case PTRACE_SETREGS: {
@@ -906,18 +798,16 @@ asmlinkage void do_ptrace(struct pt_regs *regs)
 			(struct pt_regs32 __user *) addr;
 		struct pt_regs *cregs = task_pt_regs(child);
 		unsigned int psr, pc, npc, y;
-		int i;
 
 		/* Must be careful, tracing process can only set certain
 		 * bits in the psr.
 		 */
+		ret = -EFAULT;
 		if (__get_user(psr, (&pregs->psr)) ||
 		    __get_user(pc, (&pregs->pc)) ||
 		    __get_user(npc, (&pregs->npc)) ||
-		    __get_user(y, (&pregs->y))) {
-			pt_error_return(regs, EFAULT);
-			goto out_tsk;
-		}
+		    __get_user(y, (&pregs->y)))
+			break;
 		cregs->tstate &= ~(TSTATE_ICC);
 		cregs->tstate |= psr_to_tstate_icc(psr);
                	if (!((pc | npc) & 3)) {
@@ -926,31 +816,28 @@ asmlinkage void do_ptrace(struct pt_regs *regs)
 		}
 		cregs->y = y;
 		for (i = 1; i < 16; i++) {
-			if (__get_user(cregs->u_regs[i], (&pregs->u_regs[i-1]))) {
-				pt_error_return(regs, EFAULT);
-				goto out_tsk;
-			}
+			if (__get_user(cregs->u_regs[i], (&pregs->u_regs[i-1])))
+				break;
 		}
-		pt_succ_return(regs, 0);
-		goto out_tsk;
+		if (i == 16)
+			ret = 0;
+		break;
 	}
 
 	case PTRACE_SETREGS64: {
 		struct pt_regs __user *pregs = (struct pt_regs __user *) addr;
 		struct pt_regs *cregs = task_pt_regs(child);
 		unsigned long tstate, tpc, tnpc, y;
-		int i;
 
 		/* Must be careful, tracing process can only set certain
 		 * bits in the psr.
 		 */
+		ret = -EFAULT;
 		if (__get_user(tstate, (&pregs->tstate)) ||
 		    __get_user(tpc, (&pregs->tpc)) ||
 		    __get_user(tnpc, (&pregs->tnpc)) ||
-		    __get_user(y, (&pregs->y))) {
-			pt_error_return(regs, EFAULT);
-			goto out_tsk;
-		}
+		    __get_user(y, (&pregs->y)))
+			break;
 		if ((task_thread_info(child)->flags & _TIF_32BIT) != 0) {
 			tpc &= 0xffffffff;
 			tnpc &= 0xffffffff;
@@ -964,13 +851,12 @@ asmlinkage void do_ptrace(struct pt_regs *regs)
 		}
 		cregs->y = y;
 		for (i = 1; i < 16; i++) {
-			if (__get_user(cregs->u_regs[i], (&pregs->u_regs[i-1]))) {
-				pt_error_return(regs, EFAULT);
-				goto out_tsk;
-			}
+			if (__get_user(cregs->u_regs[i], (&pregs->u_regs[i-1])))
+				break;
 		}
-		pt_succ_return(regs, 0);
-		goto out_tsk;
+		if (i == 16)
+			ret = 0;
+		break;
 	}
 
 	case PTRACE_GETFPREGS: {
@@ -988,18 +874,18 @@ asmlinkage void do_ptrace(struct pt_regs *regs)
 		struct fps __user *fps = (struct fps __user *) addr;
 		unsigned long *fpregs = task_thread_info(child)->fpregs;
 
+		ret = -EFAULT;
 		if (copy_to_user(&fps->regs[0], fpregs,
 				 (32 * sizeof(unsigned int))) ||
 		    __put_user(task_thread_info(child)->xfsr[0], (&fps->fsr)) ||
 		    __put_user(0, (&fps->fpqd)) ||
 		    __put_user(0, (&fps->flags)) ||
 		    __put_user(0, (&fps->extra)) ||
-		    clear_user(&fps->fpq[0], 32 * sizeof(unsigned int))) {
-			pt_error_return(regs, EFAULT);
-			goto out_tsk;
-		}
-		pt_succ_return(regs, 0);
-		goto out_tsk;
+		    clear_user(&fps->fpq[0], 32 * sizeof(unsigned int)))
+			break;
+
+		ret = 0;
+		break;
 	}
 
 	case PTRACE_GETFPREGS64: {
@@ -1010,14 +896,14 @@ asmlinkage void do_ptrace(struct pt_regs *regs)
 		struct fps __user *fps = (struct fps __user *) addr;
 		unsigned long *fpregs = task_thread_info(child)->fpregs;
 
+		ret = -EFAULT;
 		if (copy_to_user(&fps->regs[0], fpregs,
 				 (64 * sizeof(unsigned int))) ||
-		    __put_user(task_thread_info(child)->xfsr[0], (&fps->fsr))) {
-			pt_error_return(regs, EFAULT);
-			goto out_tsk;
-		}
-		pt_succ_return(regs, 0);
-		goto out_tsk;
+		    __put_user(task_thread_info(child)->xfsr[0], (&fps->fsr)))
+			break;
+
+		ret = 0;
+		break;
 	}
 
 	case PTRACE_SETFPREGS: {
@@ -1036,19 +922,19 @@ asmlinkage void do_ptrace(struct pt_regs *regs)
 		unsigned long *fpregs = task_thread_info(child)->fpregs;
 		unsigned fsr;
 
+		ret = -EFAULT;
 		if (copy_from_user(fpregs, &fps->regs[0],
 				   (32 * sizeof(unsigned int))) ||
-		    __get_user(fsr, (&fps->fsr))) {
-			pt_error_return(regs, EFAULT);
-			goto out_tsk;
-		}
+		    __get_user(fsr, (&fps->fsr)))
+			break;
+
 		task_thread_info(child)->xfsr[0] &= 0xffffffff00000000UL;
 		task_thread_info(child)->xfsr[0] |= fsr;
 		if (!(task_thread_info(child)->fpsaved[0] & FPRS_FEF))
 			task_thread_info(child)->gsr[0] = 0;
 		task_thread_info(child)->fpsaved[0] |= (FPRS_FEF | FPRS_DL);
-		pt_succ_return(regs, 0);
-		goto out_tsk;
+		ret = 0;
+		break;
 	}
 
 	case PTRACE_SETFPREGS64: {
@@ -1059,113 +945,56 @@ asmlinkage void do_ptrace(struct pt_regs *regs)
 		struct fps __user *fps = (struct fps __user *) addr;
 		unsigned long *fpregs = task_thread_info(child)->fpregs;
 
+		ret = -EFAULT;
 		if (copy_from_user(fpregs, &fps->regs[0],
 				   (64 * sizeof(unsigned int))) ||
-		    __get_user(task_thread_info(child)->xfsr[0], (&fps->fsr))) {
-			pt_error_return(regs, EFAULT);
-			goto out_tsk;
-		}
+		    __get_user(task_thread_info(child)->xfsr[0], (&fps->fsr)))
+			break;
+
 		if (!(task_thread_info(child)->fpsaved[0] & FPRS_FEF))
 			task_thread_info(child)->gsr[0] = 0;
-		task_thread_info(child)->fpsaved[0] |= (FPRS_FEF | FPRS_DL | FPRS_DU);
-		pt_succ_return(regs, 0);
-		goto out_tsk;
-	}
-
-	case PTRACE_READTEXT:
-	case PTRACE_READDATA: {
-		int res = ptrace_readdata(child, addr,
-					  (char __user *)addr2, data);
-		if (res == data) {
-			pt_succ_return(regs, 0);
-			goto out_tsk;
-		}
-		if (res >= 0)
-			res = -EIO;
-		pt_error_return(regs, -res);
-		goto out_tsk;
-	}
-
-	case PTRACE_WRITETEXT:
-	case PTRACE_WRITEDATA: {
-		int res = ptrace_writedata(child, (char __user *) addr2,
-					   addr, data);
-		if (res == data) {
-			pt_succ_return(regs, 0);
-			goto out_tsk;
-		}
-		if (res >= 0)
-			res = -EIO;
-		pt_error_return(regs, -res);
-		goto out_tsk;
-	}
-	case PTRACE_SYSCALL: /* continue and stop at (return from) syscall */
-		addr = 1;
-
-	case PTRACE_CONT: { /* restart after signal. */
-		if (!valid_signal(data)) {
-			pt_error_return(regs, EIO);
-			goto out_tsk;
-		}
-
-		if (request == PTRACE_SYSCALL) {
-			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		} else {
-			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		}
-
-		child->exit_code = data;
-		wake_up_process(child);
-		pt_succ_return(regs, 0);
-		goto out_tsk;
-	}
-
-/*
- * make the child exit.  Best I can do is send it a sigkill. 
- * perhaps it should be put in the status that it wants to 
- * exit.
- */
-	case PTRACE_KILL: {
-		if (child->exit_state == EXIT_ZOMBIE) {	/* already dead */
-			pt_succ_return(regs, 0);
-			goto out_tsk;
-		}
-		child->exit_code = SIGKILL;
-		wake_up_process(child);
-		pt_succ_return(regs, 0);
-		goto out_tsk;
-	}
-
-	case PTRACE_GETEVENTMSG: {
-		int err;
-
-		if (test_thread_flag(TIF_32BIT))
-			err = put_user(child->ptrace_message,
-				       (unsigned int __user *) data);
-		else
-			err = put_user(child->ptrace_message,
-				       (unsigned long __user *) data);
-		if (err)
-			pt_error_return(regs, -err);
-		else
-			pt_succ_return(regs, 0);
+		task_thread_info(child)->fpsaved[0] |=
+			(FPRS_FEF | FPRS_DL | FPRS_DU);
+		ret = 0;
 		break;
 	}
 
-	default: {
-		int err = ptrace_request(child, request, addr, data);
-		if (err)
-			pt_error_return(regs, -err);
+	case PTRACE_READTEXT:
+	case PTRACE_READDATA:
+		ret = ptrace_readdata(child, addr,
+				      (char __user *)addr2, data);
+		if (ret == data)
+			ret = 0;
+		else if (ret >= 0)
+			ret = -EIO;
+		break;
+
+	case PTRACE_WRITETEXT:
+	case PTRACE_WRITEDATA:
+		ret = ptrace_writedata(child, (char __user *) addr2,
+				       addr, data);
+		if (ret == data)
+			ret = 0;
+		else if (ret >= 0)
+			ret = -EIO;
+		break;
+
+	case PTRACE_GETEVENTMSG: {
+		if (test_thread_flag(TIF_32BIT))
+			ret = put_user(child->ptrace_message,
+				       (unsigned int __user *) data);
 		else
-			pt_succ_return(regs, 0);
-		goto out_tsk;
+			ret = put_user(child->ptrace_message,
+				       (unsigned long __user *) data);
+		break;
 	}
+
+	default:
+		ret = ptrace_request(child, request, addr, data);
+		break;
 	}
-out_tsk:
-	if (child)
-		put_task_struct(child);
-out:
-	unlock_kernel();
+
+	return ret;
 }
 
 asmlinkage void syscall_trace(struct pt_regs *regs, int syscall_exit_p)
