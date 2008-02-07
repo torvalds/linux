@@ -45,6 +45,7 @@ struct minix_sb_info {
 	unsigned short s_version;
 };
 
+extern struct inode *minix_iget(struct super_block *, unsigned long);
 extern struct minix_inode * minix_V1_raw_inode(struct super_block *, ino_t, struct buffer_head **);
 extern struct minix2_inode * minix_V2_raw_inode(struct super_block *, ino_t, struct buffer_head **);
 extern struct inode * minix_new_inode(const struct inode * dir, int * error);
