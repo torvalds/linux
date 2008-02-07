@@ -1941,7 +1941,9 @@ extern int vfs_stat_fd(int dfd, char __user *, struct kstat *);
 extern int vfs_lstat_fd(int dfd, char __user *, struct kstat *);
 extern int vfs_fstat(unsigned int, struct kstat *);
 
-extern int vfs_ioctl(struct file *, unsigned int, unsigned int, unsigned long);
+extern long vfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
+extern int do_vfs_ioctl(struct file *filp, unsigned int fd, unsigned int cmd,
+		    unsigned long arg);
 
 extern void get_filesystem(struct file_system_type *fs);
 extern void put_filesystem(struct file_system_type *fs);

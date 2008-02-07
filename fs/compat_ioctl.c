@@ -2986,7 +2986,7 @@ asmlinkage long compat_sys_ioctl(unsigned int fd, unsigned int cmd,
 	}
 
  do_ioctl:
-	error = vfs_ioctl(filp, fd, cmd, arg);
+	error = do_vfs_ioctl(filp, fd, cmd, arg);
  out_fput:
 	fput_light(filp, fput_needed);
  out:

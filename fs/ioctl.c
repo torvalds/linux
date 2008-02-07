@@ -16,8 +16,20 @@
 
 #include <asm/ioctls.h>
 
-static long do_ioctl(struct file *filp, unsigned int cmd,
-		unsigned long arg)
+/**
+ * vfs_ioctl - call filesystem specific ioctl methods
+ * @filp: [in]     open file to invoke ioctl method on
+ * @cmd:  [in]     ioctl command to execute
+ * @arg:  [in/out] command-specific argument for ioctl
+ *
+ * Invokes filesystem specific ->unlocked_ioctl, if one exists; otherwise
+ * invokes * filesystem specific ->ioctl method.  If neither method exists,
+ * returns -ENOTTY.
+ *
+ * Returns 0 on success, -errno on error.
+ */
+long vfs_ioctl(struct file *filp, unsigned int cmd,
+	       unsigned long arg)
 {
 	int error = -ENOTTY;
 
@@ -72,18 +84,18 @@ static int file_ioctl(struct file *filp, unsigned int cmd,
 		return put_user(i_size_read(inode) - filp->f_pos, p);
 	}
 
-	return do_ioctl(filp, cmd, arg);
+	return vfs_ioctl(filp, cmd, arg);
 }
 
 /*
  * When you add any new common ioctls to the switches above and below
  * please update compat_sys_ioctl() too.
  *
- * vfs_ioctl() is not for drivers and not intended to be EXPORT_SYMBOL()'d.
+ * do_vfs_ioctl() is not for drivers and not intended to be EXPORT_SYMBOL()'d.
  * It's just a simple helper for sys_ioctl and compat_sys_ioctl.
  */
-int vfs_ioctl(struct file *filp, unsigned int fd, unsigned int cmd,
-	      unsigned long arg)
+int do_vfs_ioctl(struct file *filp, unsigned int fd, unsigned int cmd,
+	     unsigned long arg)
 {
 	unsigned int flag;
 	int on, error = 0;
@@ -152,7 +164,7 @@ int vfs_ioctl(struct file *filp, unsigned int fd, unsigned int cmd,
 		if (S_ISREG(filp->f_path.dentry->d_inode->i_mode))
 			error = file_ioctl(filp, cmd, arg);
 		else
-			error = do_ioctl(filp, cmd, arg);
+			error = vfs_ioctl(filp, cmd, arg);
 		break;
 	}
 	return error;
@@ -172,7 +184,7 @@ asmlinkage long sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
 	if (error)
 		goto out_fput;
 
-	error = vfs_ioctl(filp, fd, cmd, arg);
+	error = do_vfs_ioctl(filp, fd, cmd, arg);
  out_fput:
 	fput_light(filp, fput_needed);
  out:
