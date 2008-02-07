@@ -1024,7 +1024,7 @@ int ext4_get_blocks_handle(handle_t *handle, struct inode *inode,
 				struct buffer_head *bh_result,
 				int create, int extend_disksize);
 
-extern void ext4_read_inode (struct inode *);
+extern struct inode *ext4_iget(struct super_block *, unsigned long);
 extern int  ext4_write_inode (struct inode *, int);
 extern int  ext4_setattr (struct dentry *, struct iattr *);
 extern void ext4_delete_inode (struct inode *);
