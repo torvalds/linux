@@ -106,7 +106,7 @@ enum acpi_irq_model_id acpi_irq_model = ACPI_IRQ_MODEL_PIC;
 #ifdef	CONFIG_X86_64
 
 /* rely on all ACPI tables being in the direct mapping */
-char *__acpi_map_table(unsigned long phys_addr, unsigned long size)
+char *__init __acpi_map_table(unsigned long phys_addr, unsigned long size)
 {
 	if (!phys_addr || !size)
 		return NULL;
@@ -131,7 +131,7 @@ char *__acpi_map_table(unsigned long phys_addr, unsigned long size)
  * from the fixed base.  That's why we start at FIX_IO_APIC_BASE_END and
  * count idx down while incrementing the phys address.
  */
-char *__acpi_map_table(unsigned long phys, unsigned long size)
+char *__init __acpi_map_table(unsigned long phys, unsigned long size)
 {
 	unsigned long base, offset, mapped_size;
 	int idx;

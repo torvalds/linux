@@ -166,7 +166,7 @@ int acpi_request_vector(u32 int_type)
 	return vector;
 }
 
-char *__acpi_map_table(unsigned long phys_addr, unsigned long size)
+char *__init __acpi_map_table(unsigned long phys_addr, unsigned long size)
 {
 	return __va(phys_addr);
 }
