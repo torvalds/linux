@@ -586,10 +586,18 @@ static const struct inode_operations cifs_ipc_inode_ops = {
 };
 
 /* gets root inode */
-void cifs_read_inode(struct inode *inode)
+struct inode *cifs_iget(struct super_block *sb, unsigned long ino)
 {
-	int xid, rc;
+	int xid;
 	struct cifs_sb_info *cifs_sb;
+	struct inode *inode;
+	long rc;
+
+	inode = iget_locked(sb, ino);
+	if (!inode)
+		return ERR_PTR(-ENOMEM);
+	if (!(inode->i_state & I_NEW))
+		return inode;
 
 	cifs_sb = CIFS_SB(inode->i_sb);
 	xid = GetXid();
@@ -606,10 +614,18 @@ void cifs_read_inode(struct inode *inode)
 		inode->i_fop = &simple_dir_operations;
 		inode->i_uid = cifs_sb->mnt_uid;
 		inode->i_gid = cifs_sb->mnt_gid;
+		_FreeXid(xid);
+		iget_failed(inode);
+		return ERR_PTR(rc);
 	}
 
-	/* can not call macro FreeXid here since in a void func */
+	unlock_new_inode(inode);
+
+	/* can not call macro FreeXid here since in a void func
+	 * TODO: This is no longer true
+	 */
 	_FreeXid(xid);
+	return inode;
 }
 
 int cifs_unlink(struct inode *inode, struct dentry *direntry)
