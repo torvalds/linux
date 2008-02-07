@@ -250,7 +250,7 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 	unsigned long scan;
 	LIST_HEAD(pc_list);
 	struct list_head *src;
-	struct page_cgroup *pc;
+	struct page_cgroup *pc, *tmp;
 
 	if (active)
 		src = &mem_cont->active_list;
@@ -258,10 +258,17 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 		src = &mem_cont->inactive_list;
 
 	spin_lock(&mem_cont->lru_lock);
-	for (scan = 0; scan < nr_to_scan && !list_empty(src); scan++) {
-		pc = list_entry(src->prev, struct page_cgroup, lru);
+	scan = 0;
+	list_for_each_entry_safe_reverse(pc, tmp, src, lru) {
+		if (scan++ > nr_to_scan)
+			break;
 		page = pc->page;
 		VM_BUG_ON(!pc);
+
+		if (unlikely(!PageLRU(page))) {
+			scan--;
+			continue;
+		}
 
 		if (PageActive(page) && !active) {
 			__mem_cgroup_move_lists(pc, true);
