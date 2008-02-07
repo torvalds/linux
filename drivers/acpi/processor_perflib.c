@@ -60,6 +60,11 @@ static DEFINE_MUTEX(performance_mutex);
  * policy is adjusted accordingly.
  */
 
+static unsigned int ignore_ppc = 0;
+module_param(ignore_ppc, uint, 0644);
+MODULE_PARM_DESC(ignore_ppc, "If the frequency of your machine gets wrongly" \
+		 "limited by BIOS, this should help");
+
 #define PPC_REGISTERED   1
 #define PPC_IN_USE       2
 
@@ -71,6 +76,9 @@ static int acpi_processor_ppc_notifier(struct notifier_block *nb,
 	struct cpufreq_policy *policy = data;
 	struct acpi_processor *pr;
 	unsigned int ppc = 0;
+
+	if (ignore_ppc)
+		return 0;
 
 	mutex_lock(&performance_mutex);
 
@@ -130,7 +138,13 @@ static int acpi_processor_get_platform_limit(struct acpi_processor *pr)
 
 int acpi_processor_ppc_has_changed(struct acpi_processor *pr)
 {
-	int ret = acpi_processor_get_platform_limit(pr);
+	int ret;
+
+	if (ignore_ppc)
+		return 0;
+
+	ret = acpi_processor_get_platform_limit(pr);
+
 	if (ret < 0)
 		return (ret);
 	else
