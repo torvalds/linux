@@ -218,6 +218,7 @@ sub usage {
     print "         [ -function funcname [ -function funcname ...] ]\n";
     print "         [ -nofunction funcname [ -nofunction funcname ...] ]\n";
     print "         c source file(s) > outputfile\n";
+    print "         -v : verbose output, more warnings & other info listed\n";
     exit 1;
 }
 
@@ -1881,6 +1882,13 @@ sub process_file($) {
 		} else {
 		    $declaration_purpose = "";
 		}
+
+		if (($declaration_purpose eq "") && $verbose) {
+			print STDERR "Warning(${file}:$.): missing initial short description on line:\n";
+			print STDERR $_;
+			++$warnings;
+		}
+
 		if ($identifier =~ m/^struct/) {
 		    $decl_type = 'struct';
 		} elsif ($identifier =~ m/^union/) {
