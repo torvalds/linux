@@ -854,7 +854,8 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 		return;
 
 	/* handle input events for quirky devices */
-	hidinput_event_quirks(hid, field, usage, value);
+	if (hidinput_event_quirks(hid, field, usage, value))
+		return;
 
 	if (usage->hat_min < usage->hat_max || usage->hat_dir) {
 		int hat_dir = usage->hat_dir;
