@@ -631,7 +631,6 @@ config TOSHIBA
 
 config I8K
 	tristate "Dell laptop support"
-	depends on X86_32
 	---help---
 	  This adds a driver to safely access the System Management Mode
 	  of the CPU on the Dell Inspiron 8000. The System Management Mode
