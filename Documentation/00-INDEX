@@ -132,12 +132,12 @@ dontdiff
 	- file containing a list of files that should never be diff'ed.
 driver-model/
 	- directory with info about Linux driver model.
-drivers/
-	- directory with driver documentation (currently only EDAC).
 dvb/
 	- info on Linux Digital Video Broadcast (DVB) subsystem.
 early-userspace/
 	- info about initramfs, klibc, and userspace early during boot.
+edac.txt
+	- information on EDAC - Error Detection And Correction
 eisa.txt
 	- info on EISA bus support.
 exception.txt
