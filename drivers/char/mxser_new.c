@@ -1168,21 +1168,18 @@ static void mxser_flush_buffer(struct tty_struct *tty)
 static int mxser_get_serial_info(struct mxser_port *info,
 		struct serial_struct __user *retinfo)
 {
-	struct serial_struct tmp;
-
-	if (!retinfo)
-		return -EFAULT;
-	memset(&tmp, 0, sizeof(tmp));
-	tmp.type = info->type;
-	tmp.line = info->tty->index;
-	tmp.port = info->ioaddr;
-	tmp.irq = info->board->irq;
-	tmp.flags = info->flags;
-	tmp.baud_base = info->baud_base;
-	tmp.close_delay = info->close_delay;
-	tmp.closing_wait = info->closing_wait;
-	tmp.custom_divisor = info->custom_divisor;
-	tmp.hub6 = 0;
+	struct serial_struct tmp = {
+		.type = info->type,
+		.line = info->tty->index,
+		.port = info->ioaddr,
+		.irq = info->board->irq,
+		.flags = info->flags,
+		.baud_base = info->baud_base,
+		.close_delay = info->close_delay,
+		.closing_wait = info->closing_wait,
+		.custom_divisor = info->custom_divisor,
+		.hub6 = 0
+	};
 	if (copy_to_user(retinfo, &tmp, sizeof(*retinfo)))
 		return -EFAULT;
 	return 0;
