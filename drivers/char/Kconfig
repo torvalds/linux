@@ -194,17 +194,6 @@ config MOXA_INTELLIO
 	  module will be called moxa.
 
 config MOXA_SMARTIO
-	tristate "Moxa SmartIO support (OBSOLETE)"
-	depends on SERIAL_NONSTANDARD
-	help
-	  Say Y here if you have a Moxa SmartIO multiport serial card.
-
-	  This driver can also be built as a module ( = code which can be
-	  inserted in and removed from the running kernel whenever you want).
-	  The module will be called mxser. If you want to do that, say M
-	  here.
-
-config MOXA_SMARTIO_NEW
 	tristate "Moxa SmartIO support v. 2.0"
 	depends on SERIAL_NONSTANDARD && (PCI || EISA || ISA)
 	help
@@ -215,7 +204,7 @@ config MOXA_SMARTIO_NEW
 	  changes finally resulting in PCI probing.
 
 	  This driver can also be built as a module. The module will be called
-	  mxser_new. If you want to do that, say M here.
+	  mxser. If you want to do that, say M here.
 
 config ISI
 	tristate "Multi-Tech multiport card support (EXPERIMENTAL)"

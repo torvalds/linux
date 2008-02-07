@@ -6,14 +6,6 @@ be removed from this file.
 
 ---------------------------
 
-What:	MXSER
-When:	December 2007
-Why:	Old mxser driver is obsoleted by the mxser_new. Give it some time yet
-	and remove it.
-Who:	Jiri Slaby <jirislaby@gmail.com>
-
----------------------------
-
 What:	dev->power.power_state
 When:	July 2007
 Why:	Broken design for runtime control over driver power states, confusing
