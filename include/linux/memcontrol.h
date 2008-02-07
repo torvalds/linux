@@ -20,6 +20,9 @@
 #ifndef _LINUX_MEMCONTROL_H
 #define _LINUX_MEMCONTROL_H
 
+#include <linux/rcupdate.h>
+#include <linux/mm.h>
+
 struct mem_cgroup;
 struct page_cgroup;
 struct page;
@@ -45,7 +48,11 @@ extern unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 extern void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask);
 extern int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
 					gfp_t gfp_mask);
-extern struct mem_cgroup *mm_cgroup(struct mm_struct *mm);
+
+static inline struct mem_cgroup *mm_cgroup(const struct mm_struct *mm)
+{
+	return rcu_dereference(mm->mem_cgroup);
+}
 
 static inline void mem_cgroup_uncharge_page(struct page *page)
 {
@@ -98,7 +105,7 @@ static inline int mem_cgroup_cache_charge(struct page *page,
 	return 0;
 }
 
-static inline struct mem_cgroup *mm_cgroup(struct mm_struct *mm)
+static inline struct mem_cgroup *mm_cgroup(const struct mm_struct *mm)
 {
 	return NULL;
 }
