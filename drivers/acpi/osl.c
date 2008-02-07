@@ -120,7 +120,7 @@ static char osi_additional_string[OSI_STRING_LENGTH_MAX];
  */
 #define OSI_LINUX_ENABLE 0
 
-struct osi_linux {
+static struct osi_linux {
 	unsigned int	enable:1;
 	unsigned int	dmi:1;
 	unsigned int	cmdline:1;
@@ -1217,24 +1217,24 @@ acpi_status acpi_os_release_object(acpi_cache_t * cache, void *object)
  *
  *	Returns 0 on success
  */
-int acpi_dmi_dump(void)
+static int acpi_dmi_dump(void)
 {
 
 	if (!dmi_available)
 		return -1;
 
 	printk(KERN_NOTICE PREFIX "DMI System Vendor: %s\n",
-		dmi_get_slot(DMI_SYS_VENDOR));
+		dmi_get_system_info(DMI_SYS_VENDOR));
 	printk(KERN_NOTICE PREFIX "DMI Product Name: %s\n",
-		dmi_get_slot(DMI_PRODUCT_NAME));
+		dmi_get_system_info(DMI_PRODUCT_NAME));
 	printk(KERN_NOTICE PREFIX "DMI Product Version: %s\n",
-		dmi_get_slot(DMI_PRODUCT_VERSION));
+		dmi_get_system_info(DMI_PRODUCT_VERSION));
 	printk(KERN_NOTICE PREFIX "DMI Board Name: %s\n",
-		dmi_get_slot(DMI_BOARD_NAME));
+		dmi_get_system_info(DMI_BOARD_NAME));
 	printk(KERN_NOTICE PREFIX "DMI BIOS Vendor: %s\n",
-		dmi_get_slot(DMI_BIOS_VENDOR));
+		dmi_get_system_info(DMI_BIOS_VENDOR));
 	printk(KERN_NOTICE PREFIX "DMI BIOS Date: %s\n",
-		dmi_get_slot(DMI_BIOS_DATE));
+		dmi_get_system_info(DMI_BIOS_DATE));
 
 	return 0;
 }
