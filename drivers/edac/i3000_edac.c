@@ -44,6 +44,13 @@
 				 */
 #define I3000_DEAP_GRAIN 		(1 << 7)
 
+/*
+ * Helper functions to decode the DEAP/EDEAP hardware registers.
+ *
+ * The type promotion here is deliberate; we're deriving an
+ * unsigned long pfn and offset from hardware regs which are u8/u32.
+ */
+
 static inline unsigned long deap_pfn(u8 edeap, u32 deap)
 {
 	deap >>= PAGE_SHIFT;
