@@ -32,6 +32,8 @@ directory-locking
 	- info about the locking scheme used for directory operations.
 dlmfs.txt
 	- info on the userspace interface to the OCFS2 DLM.
+dnotify.txt
+	- info about directory notification in Linux.
 ecryptfs.txt
 	- docs on eCryptfs: stacked cryptographic filesystem for Linux.
 ext2.txt

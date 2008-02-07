@@ -126,8 +126,6 @@ devices.txt
 	- plain ASCII listing of all the nodes in /dev/ with major minor #'s.
 digiepca.txt
 	- info on Digi Intl. {PC,PCI,EISA}Xx and Xem series cards.
-dnotify.txt
-	- info about directory notification in Linux.
 dontdiff
 	- file containing a list of files that should never be diff'ed.
 driver-model/
