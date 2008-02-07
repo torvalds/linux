@@ -78,6 +78,31 @@ static s64 mem_cgroup_read_stat(struct mem_cgroup_stat *stat,
 }
 
 /*
+ * per-zone information in memory controller.
+ */
+
+enum mem_cgroup_zstat_index {
+	MEM_CGROUP_ZSTAT_ACTIVE,
+	MEM_CGROUP_ZSTAT_INACTIVE,
+
+	NR_MEM_CGROUP_ZSTAT,
+};
+
+struct mem_cgroup_per_zone {
+	unsigned long count[NR_MEM_CGROUP_ZSTAT];
+};
+/* Macro for accessing counter */
+#define MEM_CGROUP_ZSTAT(mz, idx)	((mz)->count[(idx)])
+
+struct mem_cgroup_per_node {
+	struct mem_cgroup_per_zone zoneinfo[MAX_NR_ZONES];
+};
+
+struct mem_cgroup_lru_info {
+	struct mem_cgroup_per_node *nodeinfo[MAX_NUMNODES];
+};
+
+/*
  * The memory controller data structure. The memory controller controls both
  * page cache and RSS per cgroup. We would eventually like to provide
  * statistics based on the statistics developed by Rik Van Riel for clock-pro,
@@ -101,6 +126,7 @@ struct mem_cgroup {
 	 */
 	struct list_head active_list;
 	struct list_head inactive_list;
+	struct mem_cgroup_lru_info info;
 	/*
 	 * spin_lock to protect the per cgroup LRU
 	 */
@@ -158,6 +184,7 @@ enum charge_type {
 	MEM_CGROUP_CHARGE_TYPE_MAPPED,
 };
 
+
 /*
  * Always modified under lru lock. Then, not necessary to preempt_disable()
  */
@@ -173,7 +200,38 @@ static void mem_cgroup_charge_statistics(struct mem_cgroup *mem, int flags,
 					MEM_CGROUP_STAT_CACHE, val);
 	else
 		__mem_cgroup_stat_add_safe(stat, MEM_CGROUP_STAT_RSS, val);
+}
 
+static inline struct mem_cgroup_per_zone *
+mem_cgroup_zoneinfo(struct mem_cgroup *mem, int nid, int zid)
+{
+	BUG_ON(!mem->info.nodeinfo[nid]);
+	return &mem->info.nodeinfo[nid]->zoneinfo[zid];
+}
+
+static inline struct mem_cgroup_per_zone *
+page_cgroup_zoneinfo(struct page_cgroup *pc)
+{
+	struct mem_cgroup *mem = pc->mem_cgroup;
+	int nid = page_cgroup_nid(pc);
+	int zid = page_cgroup_zid(pc);
+
+	return mem_cgroup_zoneinfo(mem, nid, zid);
+}
+
+static unsigned long mem_cgroup_get_all_zonestat(struct mem_cgroup *mem,
+					enum mem_cgroup_zstat_index idx)
+{
+	int nid, zid;
+	struct mem_cgroup_per_zone *mz;
+	u64 total = 0;
+
+	for_each_online_node(nid)
+		for (zid = 0; zid < MAX_NR_ZONES; zid++) {
+			mz = mem_cgroup_zoneinfo(mem, nid, zid);
+			total += MEM_CGROUP_ZSTAT(mz, idx);
+		}
+	return total;
 }
 
 static struct mem_cgroup init_mem_cgroup;
@@ -286,12 +344,51 @@ static struct page_cgroup *clear_page_cgroup(struct page *page,
 	return ret;
 }
 
+static void __mem_cgroup_remove_list(struct page_cgroup *pc)
+{
+	int from = pc->flags & PAGE_CGROUP_FLAG_ACTIVE;
+	struct mem_cgroup_per_zone *mz = page_cgroup_zoneinfo(pc);
+
+	if (from)
+		MEM_CGROUP_ZSTAT(mz, MEM_CGROUP_ZSTAT_ACTIVE) -= 1;
+	else
+		MEM_CGROUP_ZSTAT(mz, MEM_CGROUP_ZSTAT_INACTIVE) -= 1;
+
+	mem_cgroup_charge_statistics(pc->mem_cgroup, pc->flags, false);
+	list_del_init(&pc->lru);
+}
+
+static void __mem_cgroup_add_list(struct page_cgroup *pc)
+{
+	int to = pc->flags & PAGE_CGROUP_FLAG_ACTIVE;
+	struct mem_cgroup_per_zone *mz = page_cgroup_zoneinfo(pc);
+
+	if (!to) {
+		MEM_CGROUP_ZSTAT(mz, MEM_CGROUP_ZSTAT_INACTIVE) += 1;
+		list_add(&pc->lru, &pc->mem_cgroup->inactive_list);
+	} else {
+		MEM_CGROUP_ZSTAT(mz, MEM_CGROUP_ZSTAT_ACTIVE) += 1;
+		list_add(&pc->lru, &pc->mem_cgroup->active_list);
+	}
+	mem_cgroup_charge_statistics(pc->mem_cgroup, pc->flags, true);
+}
+
 static void __mem_cgroup_move_lists(struct page_cgroup *pc, bool active)
 {
+	int from = pc->flags & PAGE_CGROUP_FLAG_ACTIVE;
+	struct mem_cgroup_per_zone *mz = page_cgroup_zoneinfo(pc);
+
+	if (from)
+		MEM_CGROUP_ZSTAT(mz, MEM_CGROUP_ZSTAT_ACTIVE) -= 1;
+	else
+		MEM_CGROUP_ZSTAT(mz, MEM_CGROUP_ZSTAT_INACTIVE) -= 1;
+
 	if (active) {
+		MEM_CGROUP_ZSTAT(mz, MEM_CGROUP_ZSTAT_ACTIVE) += 1;
 		pc->flags |= PAGE_CGROUP_FLAG_ACTIVE;
 		list_move(&pc->lru, &pc->mem_cgroup->active_list);
 	} else {
+		MEM_CGROUP_ZSTAT(mz, MEM_CGROUP_ZSTAT_INACTIVE) += 1;
 		pc->flags &= ~PAGE_CGROUP_FLAG_ACTIVE;
 		list_move(&pc->lru, &pc->mem_cgroup->inactive_list);
 	}
@@ -501,8 +598,7 @@ retry:
 
 	spin_lock_irqsave(&mem->lru_lock, flags);
 	/* Update statistics vector */
-	mem_cgroup_charge_statistics(mem, pc->flags, true);
-	list_add(&pc->lru, &mem->active_list);
+	__mem_cgroup_add_list(pc);
 	spin_unlock_irqrestore(&mem->lru_lock, flags);
 
 done:
@@ -571,13 +667,13 @@ void mem_cgroup_uncharge(struct page_cgroup *pc)
 			css_put(&mem->css);
 			res_counter_uncharge(&mem->res, PAGE_SIZE);
 			spin_lock_irqsave(&mem->lru_lock, flags);
-			list_del_init(&pc->lru);
-			mem_cgroup_charge_statistics(mem, pc->flags, false);
+			__mem_cgroup_remove_list(pc);
 			spin_unlock_irqrestore(&mem->lru_lock, flags);
 			kfree(pc);
 		}
 	}
 }
+
 /*
  * Returns non-zero if a page (under migration) has valid page_cgroup member.
  * Refcnt of page_cgroup is incremented.
@@ -609,16 +705,26 @@ void mem_cgroup_end_migration(struct page *page)
 void mem_cgroup_page_migration(struct page *page, struct page *newpage)
 {
 	struct page_cgroup *pc;
+	struct mem_cgroup *mem;
+	unsigned long flags;
 retry:
 	pc = page_get_page_cgroup(page);
 	if (!pc)
 		return;
+	mem = pc->mem_cgroup;
 	if (clear_page_cgroup(page, pc) != pc)
 		goto retry;
+
+	spin_lock_irqsave(&mem->lru_lock, flags);
+
+	__mem_cgroup_remove_list(pc);
 	pc->page = newpage;
 	lock_page_cgroup(newpage);
 	page_assign_page_cgroup(newpage, pc);
 	unlock_page_cgroup(newpage);
+	__mem_cgroup_add_list(pc);
+
+	spin_unlock_irqrestore(&mem->lru_lock, flags);
 	return;
 }
 
@@ -648,8 +754,7 @@ retry:
 		if (clear_page_cgroup(page, pc) == pc) {
 			css_put(&mem->css);
 			res_counter_uncharge(&mem->res, PAGE_SIZE);
-			list_del_init(&pc->lru);
-			mem_cgroup_charge_statistics(mem, pc->flags, false);
+			__mem_cgroup_remove_list(pc);
 			kfree(pc);
 		} else 	/* being uncharged ? ...do relax */
 			break;
@@ -828,6 +933,17 @@ static int mem_control_stat_show(struct seq_file *m, void *arg)
 		seq_printf(m, "%s %lld\n", mem_cgroup_stat_desc[i].msg,
 				(long long)val);
 	}
+	/* showing # of active pages */
+	{
+		unsigned long active, inactive;
+
+		inactive = mem_cgroup_get_all_zonestat(mem_cont,
+						MEM_CGROUP_ZSTAT_INACTIVE);
+		active = mem_cgroup_get_all_zonestat(mem_cont,
+						MEM_CGROUP_ZSTAT_ACTIVE);
+		seq_printf(m, "active %ld\n", (active) * PAGE_SIZE);
+		seq_printf(m, "inactive %ld\n", (inactive) * PAGE_SIZE);
+	}
 	return 0;
 }
 
@@ -881,12 +997,25 @@ static struct cftype mem_cgroup_files[] = {
 	},
 };
 
+static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
+{
+	struct mem_cgroup_per_node *pn;
+
+	pn = kmalloc_node(sizeof(*pn), GFP_KERNEL, node);
+	if (!pn)
+		return 1;
+	mem->info.nodeinfo[node] = pn;
+	memset(pn, 0, sizeof(*pn));
+	return 0;
+}
+
 static struct mem_cgroup init_mem_cgroup;
 
 static struct cgroup_subsys_state *
 mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
 {
 	struct mem_cgroup *mem;
+	int node;
 
 	if (unlikely((cont->parent) == NULL)) {
 		mem = &init_mem_cgroup;
@@ -902,7 +1031,19 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
 	INIT_LIST_HEAD(&mem->inactive_list);
 	spin_lock_init(&mem->lru_lock);
 	mem->control_type = MEM_CGROUP_TYPE_ALL;
+	memset(&mem->info, 0, sizeof(mem->info));
+
+	for_each_node_state(node, N_POSSIBLE)
+		if (alloc_mem_cgroup_per_zone_info(mem, node))
+			goto free_out;
+
 	return &mem->css;
+free_out:
+	for_each_node_state(node, N_POSSIBLE)
+		kfree(mem->info.nodeinfo[node]);
+	if (cont->parent != NULL)
+		kfree(mem);
+	return NULL;
 }
 
 static void mem_cgroup_pre_destroy(struct cgroup_subsys *ss,
@@ -915,6 +1056,12 @@ static void mem_cgroup_pre_destroy(struct cgroup_subsys *ss,
 static void mem_cgroup_destroy(struct cgroup_subsys *ss,
 				struct cgroup *cont)
 {
+	int node;
+	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
+
+	for_each_node_state(node, N_POSSIBLE)
+		kfree(mem->info.nodeinfo[node]);
+
 	kfree(mem_cgroup_from_cont(cont));
 }
 
@@ -967,5 +1114,5 @@ struct cgroup_subsys mem_cgroup_subsys = {
 	.destroy = mem_cgroup_destroy,
 	.populate = mem_cgroup_populate,
 	.attach = mem_cgroup_move_task,
-	.early_init = 1,
+	.early_init = 0,
 };
