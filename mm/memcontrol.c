@@ -21,6 +21,7 @@
 #include <linux/memcontrol.h>
 #include <linux/cgroup.h>
 #include <linux/mm.h>
+#include <linux/smp.h>
 #include <linux/page-flags.h>
 #include <linux/backing-dev.h>
 #include <linux/bit_spinlock.h>
@@ -33,6 +34,47 @@
 
 struct cgroup_subsys mem_cgroup_subsys;
 static const int MEM_CGROUP_RECLAIM_RETRIES = 5;
+
+/*
+ * Statistics for memory cgroup.
+ */
+enum mem_cgroup_stat_index {
+	/*
+	 * For MEM_CONTAINER_TYPE_ALL, usage = pagecache + rss.
+	 */
+	MEM_CGROUP_STAT_CACHE, 	   /* # of pages charged as cache */
+	MEM_CGROUP_STAT_RSS,	   /* # of pages charged as rss */
+
+	MEM_CGROUP_STAT_NSTATS,
+};
+
+struct mem_cgroup_stat_cpu {
+	s64 count[MEM_CGROUP_STAT_NSTATS];
+} ____cacheline_aligned_in_smp;
+
+struct mem_cgroup_stat {
+	struct mem_cgroup_stat_cpu cpustat[NR_CPUS];
+};
+
+/*
+ * For accounting under irq disable, no need for increment preempt count.
+ */
+static void __mem_cgroup_stat_add_safe(struct mem_cgroup_stat *stat,
+		enum mem_cgroup_stat_index idx, int val)
+{
+	int cpu = smp_processor_id();
+	stat->cpustat[cpu].count[idx] += val;
+}
+
+static s64 mem_cgroup_read_stat(struct mem_cgroup_stat *stat,
+		enum mem_cgroup_stat_index idx)
+{
+	int cpu;
+	s64 ret = 0;
+	for_each_possible_cpu(cpu)
+		ret += stat->cpustat[cpu].count[idx];
+	return ret;
+}
 
 /*
  * The memory controller data structure. The memory controller controls both
@@ -63,6 +105,10 @@ struct mem_cgroup {
 	 */
 	spinlock_t lru_lock;
 	unsigned long control_type;	/* control RSS or RSS+Pagecache */
+	/*
+	 * statistics.
+	 */
+	struct mem_cgroup_stat stat;
 };
 
 /*
@@ -100,6 +146,24 @@ enum charge_type {
 	MEM_CGROUP_CHARGE_TYPE_CACHE = 0,
 	MEM_CGROUP_CHARGE_TYPE_MAPPED,
 };
+
+/*
+ * Always modified under lru lock. Then, not necessary to preempt_disable()
+ */
+static void mem_cgroup_charge_statistics(struct mem_cgroup *mem, int flags,
+					bool charge)
+{
+	int val = (charge)? 1 : -1;
+	struct mem_cgroup_stat *stat = &mem->stat;
+	VM_BUG_ON(!irqs_disabled());
+
+	if (flags & PAGE_CGROUP_FLAG_CACHE)
+		__mem_cgroup_stat_add_safe(stat,
+					MEM_CGROUP_STAT_CACHE, val);
+	else
+		__mem_cgroup_stat_add_safe(stat, MEM_CGROUP_STAT_RSS, val);
+
+}
 
 static struct mem_cgroup init_mem_cgroup;
 
@@ -175,8 +239,8 @@ static void __always_inline unlock_page_cgroup(struct page *page)
  * This can fail if the page has been tied to a page_cgroup.
  * If success, returns 0.
  */
-static inline int
-page_cgroup_assign_new_page_cgroup(struct page *page, struct page_cgroup *pc)
+static int page_cgroup_assign_new_page_cgroup(struct page *page,
+						struct page_cgroup *pc)
 {
 	int ret = 0;
 
@@ -198,8 +262,8 @@ page_cgroup_assign_new_page_cgroup(struct page *page, struct page_cgroup *pc)
  *  clear_page_cgroup(page, pc) == pc
  */
 
-static inline struct page_cgroup *
-clear_page_cgroup(struct page *page, struct page_cgroup *pc)
+static struct page_cgroup *clear_page_cgroup(struct page *page,
+						struct page_cgroup *pc)
 {
 	struct page_cgroup *ret;
 	/* lock and clear */
@@ -210,7 +274,6 @@ clear_page_cgroup(struct page *page, struct page_cgroup *pc)
 	unlock_page_cgroup(page);
 	return ret;
 }
-
 
 static void __mem_cgroup_move_lists(struct page_cgroup *pc, bool active)
 {
@@ -426,6 +489,8 @@ retry:
 	}
 
 	spin_lock_irqsave(&mem->lru_lock, flags);
+	/* Update statistics vector */
+	mem_cgroup_charge_statistics(mem, pc->flags, true);
 	list_add(&pc->lru, &mem->active_list);
 	spin_unlock_irqrestore(&mem->lru_lock, flags);
 
@@ -496,6 +561,7 @@ void mem_cgroup_uncharge(struct page_cgroup *pc)
 			res_counter_uncharge(&mem->res, PAGE_SIZE);
 			spin_lock_irqsave(&mem->lru_lock, flags);
 			list_del_init(&pc->lru);
+			mem_cgroup_charge_statistics(mem, pc->flags, false);
 			spin_unlock_irqrestore(&mem->lru_lock, flags);
 			kfree(pc);
 		}
@@ -572,6 +638,7 @@ retry:
 			css_put(&mem->css);
 			res_counter_uncharge(&mem->res, PAGE_SIZE);
 			list_del_init(&pc->lru);
+			mem_cgroup_charge_statistics(mem, pc->flags, false);
 			kfree(pc);
 		} else 	/* being uncharged ? ...do relax */
 			break;
