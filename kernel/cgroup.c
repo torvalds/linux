@@ -1355,16 +1355,14 @@ static ssize_t cgroup_common_file_write(struct cgroup *cgrp,
 		if (nbytes && (buffer[nbytes-1] == '\n')) {
 			buffer[nbytes-1] = 0;
 		}
-		if (nbytes < sizeof(root->release_agent_path)) {
-			/* We never write anything other than '\0'
-			 * into the last char of release_agent_path,
-			 * so it always remains a NUL-terminated
-			 * string */
-			strncpy(root->release_agent_path, buffer, nbytes);
-			root->release_agent_path[nbytes] = 0;
-		} else {
-			retval = -ENOSPC;
-		}
+
+		/* We never write anything other than '\0'
+		 * into the last char of release_agent_path,
+		 * so it always remains a NUL-terminated
+		 * string */
+		strncpy(root->release_agent_path, buffer, nbytes);
+		root->release_agent_path[nbytes] = 0;
+
 		break;
 	}
 	default:
