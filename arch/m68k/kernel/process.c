@@ -335,7 +335,7 @@ void dump_thread(struct pt_regs * regs, struct user * dump)
 	if (dump->start_stack < TASK_SIZE)
 		dump->u_ssize = ((unsigned long) (TASK_SIZE - dump->start_stack)) >> PAGE_SHIFT;
 
-	dump->u_ar0 = (struct user_regs_struct *)((int)&dump->regs - (int)dump);
+	dump->u_ar0 = offsetof(struct user, regs);
 	sw = ((struct switch_stack *)regs) - 1;
 	dump->regs.d1 = regs->d1;
 	dump->regs.d2 = regs->d2;
