@@ -68,6 +68,11 @@ struct dz_port {
 
 static struct dz_port dz_ports[DZ_NB_PORT];
 
+static inline struct dz_port *to_dport(struct uart_port *uport)
+{
+	return container_of(uport, struct dz_port, port);
+}
+
 /*
  * ------------------------------------------------------------
  * dz_in () and dz_out ()
@@ -106,7 +111,7 @@ static inline void dz_out(struct dz_port *dport, unsigned offset,
 
 static void dz_stop_tx(struct uart_port *uport)
 {
-	struct dz_port *dport = (struct dz_port *)uport;
+	struct dz_port *dport = to_dport(uport);
 	unsigned short tmp, mask = 1 << dport->port.line;
 
 	tmp = dz_in(dport, DZ_TCR);	/* read the TX flag */
@@ -116,7 +121,7 @@ static void dz_stop_tx(struct uart_port *uport)
 
 static void dz_start_tx(struct uart_port *uport)
 {
-	struct dz_port *dport = (struct dz_port *)uport;
+	struct dz_port *dport = to_dport(uport);
 	unsigned short tmp, mask = 1 << dport->port.line;
 
 	tmp = dz_in(dport, DZ_TCR);	/* read the TX flag */
@@ -126,7 +131,7 @@ static void dz_start_tx(struct uart_port *uport)
 
 static void dz_stop_rx(struct uart_port *uport)
 {
-	struct dz_port *dport = (struct dz_port *)uport;
+	struct dz_port *dport = to_dport(uport);
 
 	dport->cflag &= ~DZ_RXENAB;
 	dz_out(dport, DZ_LPR, dport->cflag);
@@ -349,7 +354,7 @@ static unsigned int dz_get_mctrl(struct uart_port *uport)
 	/*
 	 * FIXME: Handle the 3100/5000 as appropriate. --macro
 	 */
-	struct dz_port *dport = (struct dz_port *)uport;
+	struct dz_port *dport = to_dport(uport);
 	unsigned int mctrl = TIOCM_CAR | TIOCM_DSR | TIOCM_CTS;
 
 	if (dport->port.line == DZ_MODEM) {
@@ -365,7 +370,7 @@ static void dz_set_mctrl(struct uart_port *uport, unsigned int mctrl)
 	/*
 	 * FIXME: Handle the 3100/5000 as appropriate. --macro
 	 */
-	struct dz_port *dport = (struct dz_port *)uport;
+	struct dz_port *dport = to_dport(uport);
 	unsigned short tmp;
 
 	if (dport->port.line == DZ_MODEM) {
@@ -387,7 +392,7 @@ static void dz_set_mctrl(struct uart_port *uport, unsigned int mctrl)
  */
 static int dz_startup(struct uart_port *uport)
 {
-	struct dz_port *dport = (struct dz_port *)uport;
+	struct dz_port *dport = to_dport(uport);
 	unsigned long flags;
 	unsigned short tmp;
 
@@ -413,7 +418,7 @@ static int dz_startup(struct uart_port *uport)
  */
 static void dz_shutdown(struct uart_port *uport)
 {
-	struct dz_port *dport = (struct dz_port *)uport;
+	struct dz_port *dport = to_dport(uport);
 	unsigned long flags;
 
 	spin_lock_irqsave(&dport->port.lock, flags);
@@ -435,7 +440,7 @@ static void dz_shutdown(struct uart_port *uport)
  */
 static unsigned int dz_tx_empty(struct uart_port *uport)
 {
-	struct dz_port *dport = (struct dz_port *)uport;
+	struct dz_port *dport = to_dport(uport);
 	unsigned short tmp, mask = 1 << dport->port.line;
 
 	tmp = dz_in(dport, DZ_TCR);
@@ -450,7 +455,7 @@ static void dz_break_ctl(struct uart_port *uport, int break_state)
 	 * FIXME: Can't access BREAK bits in TDR easily;
 	 * reuse the code for polled TX. --macro
 	 */
-	struct dz_port *dport = (struct dz_port *)uport;
+	struct dz_port *dport = to_dport(uport);
 	unsigned long flags;
 	unsigned short tmp, mask = 1 << dport->port.line;
 
@@ -505,7 +510,7 @@ static int dz_encode_baud_rate(unsigned int baud)
 static void dz_set_termios(struct uart_port *uport, struct ktermios *termios,
 			   struct ktermios *old_termios)
 {
-	struct dz_port *dport = (struct dz_port *)uport;
+	struct dz_port *dport = to_dport(uport);
 	unsigned long flags;
 	unsigned int cflag, baud;
 	int bflag;
@@ -685,7 +690,7 @@ static void dz_reset(struct dz_port *dport)
  */
 static void dz_console_putchar(struct uart_port *uport, int ch)
 {
-	struct dz_port *dport = (struct dz_port *)uport;
+	struct dz_port *dport = to_dport(uport);
 	unsigned long flags;
 	unsigned short csr, tcr, trdy, mask;
 	int loops = 10000;
