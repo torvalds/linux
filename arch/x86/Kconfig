@@ -98,12 +98,18 @@ config ARCH_HAS_ILOG2_U32
 config ARCH_HAS_ILOG2_U64
 	def_bool n
 
+config ARCH_HAS_CPU_IDLE_WAIT
+	def_bool y
+
 config GENERIC_CALIBRATE_DELAY
 	def_bool y
 
 config GENERIC_TIME_VSYSCALL
 	bool
 	default X86_64
+
+config ARCH_HAS_CPU_RELAX
+	def_bool y
 
 config HAVE_SETUP_PER_CPU_AREA
 	def_bool X86_64

@@ -46,9 +46,10 @@ struct cpuidle_state {
 /* Idle State Flags */
 #define CPUIDLE_FLAG_TIME_VALID	(0x01) /* is residency time measurable? */
 #define CPUIDLE_FLAG_CHECK_BM	(0x02) /* BM activity will exit state */
-#define CPUIDLE_FLAG_SHALLOW	(0x10) /* low latency, minimal savings */
-#define CPUIDLE_FLAG_BALANCED	(0x20) /* medium latency, moderate savings */
-#define CPUIDLE_FLAG_DEEP	(0x40) /* high latency, large savings */
+#define CPUIDLE_FLAG_POLL	(0x10) /* no latency, no savings */
+#define CPUIDLE_FLAG_SHALLOW	(0x20) /* low latency, minimal savings */
+#define CPUIDLE_FLAG_BALANCED	(0x40) /* medium latency, moderate savings */
+#define CPUIDLE_FLAG_DEEP	(0x80) /* high latency, large savings */
 
 #define CPUIDLE_DRIVER_FLAGS_MASK (0xFFFF0000)
 
@@ -71,6 +72,19 @@ cpuidle_set_statedata(struct cpuidle_state *state, void *data)
 {
 	state->driver_data = data;
 }
+
+#ifdef CONFIG_SMP
+#ifdef CONFIG_ARCH_HAS_CPU_IDLE_WAIT
+static inline void cpuidle_kick_cpus(void)
+{
+	cpu_idle_wait();
+}
+#else /* !CONFIG_ARCH_HAS_CPU_IDLE_WAIT */
+#error "Arch needs cpu_idle_wait() equivalent here"
+#endif /* !CONFIG_ARCH_HAS_CPU_IDLE_WAIT */
+#else /* !CONFIG_SMP */
+static inline void cpuidle_kick_cpus(void) {}
+#endif /* !CONFIG_SMP */
 
 struct cpuidle_state_kobj {
 	struct cpuidle_state *state;
@@ -176,6 +190,12 @@ static inline int cpuidle_register_governor(struct cpuidle_governor *gov)
 {return 0;}
 static inline void cpuidle_unregister_governor(struct cpuidle_governor *gov) { }
 
+#endif
+
+#ifdef CONFIG_ARCH_HAS_CPU_RELAX
+#define CPUIDLE_DRIVER_STATE_START	1
+#else
+#define CPUIDLE_DRIVER_STATE_START	0
 #endif
 
 #endif /* _LINUX_CPUIDLE_H */
