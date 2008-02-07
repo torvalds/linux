@@ -136,6 +136,7 @@ enum mem_type {
 	MEM_DDR2,		/* DDR2 RAM */
 	MEM_FB_DDR2,		/* fully buffered DDR2 */
 	MEM_RDDR2,		/* Registered DDR2 RAM */
+	MEM_XDR,		/* Rambus XDR */
 };
 
 #define MEM_FLAG_EMPTY		BIT(MEM_EMPTY)
@@ -152,6 +153,7 @@ enum mem_type {
 #define MEM_FLAG_DDR2           BIT(MEM_DDR2)
 #define MEM_FLAG_FB_DDR2        BIT(MEM_FB_DDR2)
 #define MEM_FLAG_RDDR2          BIT(MEM_RDDR2)
+#define MEM_FLAG_XDR            BIT(MEM_XDR)
 
 /* chipset Error Detection and Correction capabilities and mode */
 enum edac_type {
