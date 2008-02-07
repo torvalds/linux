@@ -175,7 +175,6 @@ MODULE_DEVICE_TABLE(pci, mxser_pcibrds);
 
 static int ioaddr[MXSER_BOARDS] = { 0, 0, 0, 0 };
 static int ttymajor = MXSERMAJOR;
-static int calloutmajor = MXSERCUMAJOR;
 
 /* Variables for insmod */
 
@@ -1454,21 +1453,8 @@ static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 	unsigned int i, j;
 
 	switch (cmd) {
-	case MOXA_GET_CONF:
-/*		if (copy_to_user(argp, mxsercfg,
-				sizeof(struct mxser_hwconf) * 4))
-			return -EFAULT;
-		return 0;*/
-		return -ENXIO;
 	case MOXA_GET_MAJOR:
-		if (copy_to_user(argp, &ttymajor, sizeof(int)))
-			return -EFAULT;
-		return 0;
-
-	case MOXA_GET_CUMAJOR:
-		if (copy_to_user(argp, &calloutmajor, sizeof(int)))
-			return -EFAULT;
-		return 0;
+		return put_user(ttymajor, (int __user *)argp);
 
 	case MOXA_CHKPORTENABLE:
 		result = 0;
@@ -1606,13 +1592,33 @@ static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 	return 0;
 }
 
+static int mxser_cflags_changed(struct mxser_port *info, unsigned long arg,
+		struct async_icount *cprev)
+{
+	struct async_icount cnow;
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&info->slock, flags);
+	cnow = info->icount;	/* atomic copy */
+	spin_unlock_irqrestore(&info->slock, flags);
+
+	ret =	((arg & TIOCM_RNG) && (cnow.rng != cprev->rng)) ||
+		((arg & TIOCM_DSR) && (cnow.dsr != cprev->dsr)) ||
+		((arg & TIOCM_CD)  && (cnow.dcd != cprev->dcd)) ||
+		((arg & TIOCM_CTS) && (cnow.cts != cprev->cts));
+
+	*cprev = cnow;
+
+	return ret;
+}
+
 static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 		unsigned int cmd, unsigned long arg)
 {
 	struct mxser_port *info = tty->driver_data;
-	struct async_icount cprev, cnow;	/* kernel counter temps */
+	struct async_icount cnow;
 	struct serial_icounter_struct __user *p_cuser;
-	unsigned long templ;
 	unsigned long flags;
 	void __user *argp = (void __user *)arg;
 	int retval;
@@ -1646,7 +1652,7 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 			shiftbit = p * 2;
 			opmode = inb(info->opmode_ioaddr) >> shiftbit;
 			opmode &= OP_MODE_MASK;
-			if (copy_to_user(argp, &opmode, sizeof(int)))
+			if (put_user(opmode, (int __user *)argp))
 				return -EFAULT;
 		}
 		return 0;
@@ -1673,11 +1679,10 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 		mxser_send_break(info, arg ? arg * (HZ / 10) : HZ / 4);
 		return 0;
 	case TIOCGSOFTCAR:
-		return put_user(C_CLOCAL(tty) ? 1 : 0, (unsigned long __user *)argp);
+		return put_user(!!C_CLOCAL(tty), (unsigned long __user *)argp);
 	case TIOCSSOFTCAR:
-		if (get_user(templ, (unsigned long __user *) argp))
+		if (get_user(arg, (unsigned long __user *)argp))
 			return -EFAULT;
-		arg = templ;
 		tty->termios->c_cflag = ((tty->termios->c_cflag & ~CLOCAL) | (arg ? CLOCAL : 0));
 		return 0;
 	case TIOCGSERIAL:
@@ -1697,18 +1702,8 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 		cnow = info->icount;	/* note the counters on entry */
 		spin_unlock_irqrestore(&info->slock, flags);
 
-		wait_event_interruptible(info->delta_msr_wait, ({
-			cprev = cnow;
-			spin_lock_irqsave(&info->slock, flags);
-			cnow = info->icount;	/* atomic copy */
-			spin_unlock_irqrestore(&info->slock, flags);
-
-			((arg & TIOCM_RNG) && (cnow.rng != cprev.rng)) ||
-			((arg & TIOCM_DSR) && (cnow.dsr != cprev.dsr)) ||
-			((arg & TIOCM_CD)  && (cnow.dcd != cprev.dcd)) ||
-			((arg & TIOCM_CTS) && (cnow.cts != cprev.cts));
-		}));
-		break;
+		return wait_event_interruptible(info->delta_msr_wait,
+				mxser_cflags_changed(info, arg, &cnow));
 	/*
 	 * Get counter of input serial line interrupts (DCD,RI,DSR,CTS)
 	 * Return: write counters to the user passed counter struct
@@ -1755,10 +1750,7 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 
 		len += (lsr ? 0 : 1);
 
-		if (copy_to_user(argp, &len, sizeof(int)))
-			return -EFAULT;
-
-		return 0;
+		return put_user(len, (int __user *)argp);
 	}
 	case MOXA_ASPP_MON: {
 		int mcr, status;
@@ -1789,8 +1781,7 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 		return 0;
 	}
 	case MOXA_ASPP_LSTATUS: {
-		if (copy_to_user(argp, &info->err_shadow,
-				sizeof(unsigned char)))
+		if (put_user(info->err_shadow, (unsigned char __user *)argp))
 			return -EFAULT;
 
 		info->err_shadow = 0;
@@ -1802,10 +1793,7 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 		if (get_user(method, (int __user *)argp))
 			return -EFAULT;
 		mxser_set_baud_method[tty->index] = method;
-		if (copy_to_user(argp, &method, sizeof(int)))
-			return -EFAULT;
-
-		return 0;
+		return put_user(method, (int __user *)argp);
 	}
 	default:
 		return -ENOIOCTLCMD;
