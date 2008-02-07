@@ -34,6 +34,7 @@
 #include <linux/seq_file.h>
 #include <linux/input.h>
 #include <linux/backlight.h>
+#include <linux/thermal.h>
 #include <linux/video_output.h>
 #include <asm/uaccess.h>
 
@@ -179,6 +180,7 @@ struct acpi_video_device {
 	struct acpi_device *dev;
 	struct acpi_video_device_brightness *brightness;
 	struct backlight_device *backlight;
+	struct thermal_cooling_device *cdev;
 	struct output_device *output_dev;
 };
 
@@ -342,6 +344,54 @@ static struct output_properties acpi_output_properties = {
 	.set_state = acpi_video_output_set,
 	.get_status = acpi_video_output_get,
 };
+
+
+/* thermal cooling device callbacks */
+static int video_get_max_state(struct thermal_cooling_device *cdev, char *buf)
+{
+	struct acpi_device *device = cdev->devdata;
+	struct acpi_video_device *video = acpi_driver_data(device);
+
+	return sprintf(buf, "%d\n", video->brightness->count - 3);
+}
+
+static int video_get_cur_state(struct thermal_cooling_device *cdev, char *buf)
+{
+	struct acpi_device *device = cdev->devdata;
+	struct acpi_video_device *video = acpi_driver_data(device);
+	unsigned long level;
+	int state;
+
+	acpi_video_device_lcd_get_level_current(video, &level);
+	for (state = 2; state < video->brightness->count; state++)
+		if (level == video->brightness->levels[state])
+			return sprintf(buf, "%d\n",
+				       video->brightness->count - state - 1);
+
+	return -EINVAL;
+}
+
+static int
+video_set_cur_state(struct thermal_cooling_device *cdev, unsigned int state)
+{
+	struct acpi_device *device = cdev->devdata;
+	struct acpi_video_device *video = acpi_driver_data(device);
+	int level;
+
+	if ( state >= video->brightness->count - 2)
+		return -EINVAL;
+
+	state = video->brightness->count - state;
+	level = video->brightness->levels[state -1];
+	return acpi_video_device_lcd_set_level(video, level);
+}
+
+static struct thermal_cooling_device_ops video_cooling_ops = {
+	.get_max_state = video_get_max_state,
+	.get_cur_state = video_get_cur_state,
+	.set_cur_state = video_set_cur_state,
+};
+
 /* --------------------------------------------------------------------------
                                Video Management
    -------------------------------------------------------------------------- */
@@ -660,6 +710,7 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 	kfree(obj);
 
 	if (device->cap._BCL && device->cap._BCM && device->cap._BQC && max_level > 0){
+		int result;
 		static int count = 0;
 		char *name;
 		name = kzalloc(MAX_NAME_LEN, GFP_KERNEL);
@@ -672,8 +723,25 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 		device->backlight->props.max_brightness = device->brightness->count-3;
 		device->backlight->props.brightness = acpi_video_get_brightness(device->backlight);
 		backlight_update_status(device->backlight);
-
 		kfree(name);
+
+		device->cdev = thermal_cooling_device_register("LCD",
+					device->dev, &video_cooling_ops);
+		if (device->cdev) {
+			printk(KERN_INFO PREFIX
+				"%s is registered as cooling_device%d\n",
+				device->dev->dev.bus_id, device->cdev->id);
+			result = sysfs_create_link(&device->dev->dev.kobj,
+					  &device->cdev->device.kobj,
+					  "thermal_cooling");
+			if (result)
+				printk(KERN_ERR PREFIX "Create sysfs link\n");
+			result = sysfs_create_link(&device->cdev->device.kobj,
+					  &device->dev->dev.kobj,
+					  "device");
+                        if (result)
+				printk(KERN_ERR PREFIX "Create sysfs link\n");
+		}
 	}
 	if (device->cap._DCS && device->cap._DSS){
 		static int count = 0;
@@ -1764,6 +1832,14 @@ static int acpi_video_bus_put_one_device(struct acpi_video_device *device)
 					    ACPI_DEVICE_NOTIFY,
 					    acpi_video_device_notify);
 	backlight_device_unregister(device->backlight);
+	if (device->cdev) {
+		sysfs_remove_link(&device->dev->dev.kobj,
+				  "thermal_cooling");
+		sysfs_remove_link(&device->cdev->device.kobj,
+				  "device");
+		thermal_cooling_device_unregister(device->cdev);
+		device->cdev = NULL;
+	}
 	video_output_unregister(device->output_dev);
 
 	return 0;

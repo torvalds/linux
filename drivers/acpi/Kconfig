@@ -186,6 +186,7 @@ config ACPI_HOTPLUG_CPU
 config ACPI_THERMAL
 	tristate "Thermal Zone"
 	depends on ACPI_PROCESSOR
+	select THERMAL
 	default y
 	help
 	  This driver adds support for ACPI thermal zones.  Most mobile and

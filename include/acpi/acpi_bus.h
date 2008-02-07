@@ -321,6 +321,8 @@ struct acpi_bus_event {
 
 extern struct kobject *acpi_kobj;
 extern int acpi_bus_generate_netlink_event(const char*, const char*, u8, int);
+void acpi_bus_private_data_handler(acpi_handle, u32, void *);
+int acpi_bus_get_private_data(acpi_handle, void **);
 /*
  * External Functions
  */

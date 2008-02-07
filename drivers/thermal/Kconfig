@@ -1,0 +1,15 @@
+#
+# Generic thermal sysfs drivers configuration
+#
+
+menuconfig THERMAL
+	bool "Generic Thermal sysfs driver"
+	default y
+	help
+	  Generic Thermal Sysfs driver offers a generic mechanism for
+	  thermal management. Usually it's made up of one or more thermal
+	  zone and cooling device.
+	  each thermal zone contains its own temperature, trip points,
+	  cooling devices.
+	  All platforms with ACPI thermal support can use this driver.
+	  If you want this support, you should say Y here
