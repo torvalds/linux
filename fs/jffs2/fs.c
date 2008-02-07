@@ -230,16 +230,23 @@ void jffs2_clear_inode (struct inode *inode)
 	jffs2_do_clear_inode(c, f);
 }
 
-void jffs2_read_inode (struct inode *inode)
+struct inode *jffs2_iget(struct super_block *sb, unsigned long ino)
 {
 	struct jffs2_inode_info *f;
 	struct jffs2_sb_info *c;
 	struct jffs2_raw_inode latest_node;
 	union jffs2_device_node jdev;
+	struct inode *inode;
 	dev_t rdev = 0;
 	int ret;
 
-	D1(printk(KERN_DEBUG "jffs2_read_inode(): inode->i_ino == %lu\n", inode->i_ino));
+	D1(printk(KERN_DEBUG "jffs2_iget(): ino == %lu\n", ino));
+
+	inode = iget_locked(sb, ino);
+	if (!inode)
+		return ERR_PTR(-ENOMEM);
+	if (!(inode->i_state & I_NEW))
+		return inode;
 
 	f = JFFS2_INODE_INFO(inode);
 	c = JFFS2_SB_INFO(inode->i_sb);
@@ -250,9 +257,9 @@ void jffs2_read_inode (struct inode *inode)
 	ret = jffs2_do_read_inode(c, f, inode->i_ino, &latest_node);
 
 	if (ret) {
-		make_bad_inode(inode);
 		up(&f->sem);
-		return;
+		iget_failed(inode);
+		return ERR_PTR(ret);
 	}
 	inode->i_mode = jemode_to_cpu(latest_node.mode);
 	inode->i_uid = je16_to_cpu(latest_node.uid);
@@ -303,19 +310,14 @@ void jffs2_read_inode (struct inode *inode)
 		if (f->metadata->size != sizeof(jdev.old) &&
 		    f->metadata->size != sizeof(jdev.new)) {
 			printk(KERN_NOTICE "Device node has strange size %d\n", f->metadata->size);
-			up(&f->sem);
-			jffs2_do_clear_inode(c, f);
-			make_bad_inode(inode);
-			return;
+			goto error_io;
 		}
 		D1(printk(KERN_DEBUG "Reading device numbers from flash\n"));
-		if (jffs2_read_dnode(c, f, f->metadata, (char *)&jdev, 0, f->metadata->size) < 0) {
+		ret = jffs2_read_dnode(c, f, f->metadata, (char *)&jdev, 0, f->metadata->size);
+		if (ret < 0) {
 			/* Eep */
 			printk(KERN_NOTICE "Read device numbers for inode %lu failed\n", (unsigned long)inode->i_ino);
-			up(&f->sem);
-			jffs2_do_clear_inode(c, f);
-			make_bad_inode(inode);
-			return;
+			goto error;
 		}
 		if (f->metadata->size == sizeof(jdev.old))
 			rdev = old_decode_dev(je16_to_cpu(jdev.old));
@@ -335,6 +337,16 @@ void jffs2_read_inode (struct inode *inode)
 	up(&f->sem);
 
 	D1(printk(KERN_DEBUG "jffs2_read_inode() returning\n"));
+	unlock_new_inode(inode);
+	return inode;
+
+error_io:
+	ret = -EIO;
+error:
+	up(&f->sem);
+	jffs2_do_clear_inode(c, f);
+	iget_failed(inode);
+	return ERR_PTR(ret);
 }
 
 void jffs2_dirty_inode(struct inode *inode)
@@ -522,14 +534,15 @@ int jffs2_do_fill_super(struct super_block *sb, void *data, int silent)
 	if ((ret = jffs2_do_mount_fs(c)))
 		goto out_inohash;
 
-	ret = -EINVAL;
-
 	D1(printk(KERN_DEBUG "jffs2_do_fill_super(): Getting root inode\n"));
-	root_i = iget(sb, 1);
-	if (is_bad_inode(root_i)) {
+	root_i = jffs2_iget(sb, 1);
+	if (IS_ERR(root_i)) {
 		D1(printk(KERN_WARNING "get root inode failed\n"));
-		goto out_root_i;
+		ret = PTR_ERR(root_i);
+		goto out_root;
 	}
+
+	ret = -ENOMEM;
 
 	D1(printk(KERN_DEBUG "jffs2_do_fill_super(): d_alloc_root()\n"));
 	sb->s_root = d_alloc_root(root_i);
@@ -546,6 +559,7 @@ int jffs2_do_fill_super(struct super_block *sb, void *data, int silent)
 
  out_root_i:
 	iput(root_i);
+out_root:
 	jffs2_free_ino_caches(c);
 	jffs2_free_raw_node_refs(c);
 	if (jffs2_blocks_use_vmalloc(c))
@@ -615,9 +629,9 @@ struct jffs2_inode_info *jffs2_gc_fetch_inode(struct jffs2_sb_info *c,
 		   jffs2_do_unlink() would need the alloc_sem and we have it.
 		   Just iget() it, and if read_inode() is necessary that's OK.
 		*/
-		inode = iget(OFNI_BS_2SFFJ(c), inum);
-		if (!inode)
-			return ERR_PTR(-ENOMEM);
+		inode = jffs2_iget(OFNI_BS_2SFFJ(c), inum);
+		if (IS_ERR(inode))
+			return ERR_CAST(inode);
 	}
 	if (is_bad_inode(inode)) {
 		printk(KERN_NOTICE "Eep. read_inode() failed for ino #%u. nlink %d\n",
