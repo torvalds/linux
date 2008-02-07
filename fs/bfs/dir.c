@@ -148,10 +148,10 @@ static struct dentry *bfs_lookup(struct inode *dir, struct dentry *dentry,
 	if (bh) {
 		unsigned long ino = (unsigned long)le16_to_cpu(de->ino);
 		brelse(bh);
-		inode = iget(dir->i_sb, ino);
-		if (!inode) {
+		inode = bfs_iget(dir->i_sb, ino);
+		if (IS_ERR(inode)) {
 			unlock_kernel();
-			return ERR_PTR(-EACCES);
+			return ERR_CAST(inode);
 		}
 	}
 	unlock_kernel();
