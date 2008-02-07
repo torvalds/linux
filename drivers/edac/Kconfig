@@ -131,5 +131,12 @@ config EDAC_PASEMI
 	  Support for error detection and correction on PA Semi
 	  PWRficient.
 
+config EDAC_CELL
+	tristate "Cell Broadband Engine memory controller"
+	depends on EDAC_MM_EDAC && PPC_CELL_NATIVE
+	help
+	  Support for error detection and correction on the
+	  Cell Broadband Engine internal memory controller
+	  on platform without a hypervisor
 
 endif # EDAC
