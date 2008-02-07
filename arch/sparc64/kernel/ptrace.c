@@ -87,19 +87,6 @@ pt_os_succ_return (struct pt_regs *regs, unsigned long val, void __user *addr)
 }
 
 /* #define ALLOW_INIT_TRACING */
-/* #define DEBUG_PTRACE */
-
-#ifdef DEBUG_PTRACE
-char *pt_rq [] = {
-	/* 0  */ "TRACEME", "PEEKTEXT", "PEEKDATA", "PEEKUSR",
-	/* 4  */ "POKETEXT", "POKEDATA", "POKEUSR", "CONT",
-	/* 8  */ "KILL", "SINGLESTEP", "SUNATTACH", "SUNDETACH",
-	/* 12 */ "GETREGS", "SETREGS", "GETFPREGS", "SETFPREGS",
-	/* 16 */ "READDATA", "WRITEDATA", "READTEXT", "WRITETEXT",
-	/* 20 */ "GETFPAREGS", "SETFPAREGS", "unknown", "unknown",
-	/* 24 */ "SYSCALL", ""
-};
-#endif
 
 /*
  * Called by kernel/ptrace.c when detaching..
@@ -763,23 +750,6 @@ asmlinkage void do_ptrace(struct pt_regs *regs)
 		addr2 &= 0xffffffffUL;
 	}
 	lock_kernel();
-#ifdef DEBUG_PTRACE
-	{
-		char *s;
-
-		if ((request >= 0) && (request <= 24))
-			s = pt_rq [request];
-		else
-			s = "unknown";
-
-		if (request == PTRACE_POKEDATA && data == 0x91d02001){
-			printk ("do_ptrace: breakpoint pid=%d, addr=%016lx addr2=%016lx\n",
-				pid, addr, addr2);
-		} else 
-			printk("do_ptrace: rq=%s(%d) pid=%d addr=%016lx data=%016lx addr2=%016lx\n",
-			       s, request, pid, addr, data, addr2);
-	}
-#endif
 	if (request == PTRACE_TRACEME) {
 		ret = ptrace_traceme();
 		if (ret < 0)
@@ -905,9 +875,6 @@ asmlinkage void do_ptrace(struct pt_regs *regs)
 				goto out_tsk;
 			}
 		pt_succ_return(regs, 0);
-#ifdef DEBUG_PTRACE
-		printk ("PC=%lx nPC=%lx o7=%lx\n", cregs->tpc, cregs->tnpc, cregs->u_regs [15]);
-#endif
 		goto out_tsk;
 	}
 
@@ -932,9 +899,6 @@ asmlinkage void do_ptrace(struct pt_regs *regs)
 				goto out_tsk;
 			}
 		pt_succ_return(regs, 0);
-#ifdef DEBUG_PTRACE
-		printk ("PC=%lx nPC=%lx o7=%lx\n", cregs->tpc, cregs->tnpc, cregs->u_regs [15]);
-#endif
 		goto out_tsk;
 	}
 
@@ -1152,13 +1116,6 @@ asmlinkage void do_ptrace(struct pt_regs *regs)
 		}
 
 		child->exit_code = data;
-#ifdef DEBUG_PTRACE
-		printk("CONT: %s [%d]: set exit_code = %x %lx %lx\n", child->comm,
-			child->pid, child->exit_code,
-			task_pt_regs(child)->tpc,
-			task_pt_regs(child)->tnpc);
-		       
-#endif
 		wake_up_process(child);
 		pt_succ_return(regs, 0);
 		goto out_tsk;

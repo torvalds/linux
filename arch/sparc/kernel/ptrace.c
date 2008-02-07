@@ -236,19 +236,6 @@ failure:
 }
 
 /* #define ALLOW_INIT_TRACING */
-/* #define DEBUG_PTRACE */
-
-#ifdef DEBUG_PTRACE
-char *pt_rq [] = {
-	/* 0  */ "TRACEME", "PEEKTEXT", "PEEKDATA", "PEEKUSR",
-	/* 4  */ "POKETEXT", "POKEDATA", "POKEUSR", "CONT",
-	/* 8  */ "KILL", "SINGLESTEP", "SUNATTACH", "SUNDETACH",
-	/* 12 */ "GETREGS", "SETREGS", "GETFPREGS", "SETFPREGS",
-	/* 16 */ "READDATA", "WRITEDATA", "READTEXT", "WRITETEXT",
-	/* 20 */ "GETFPAREGS", "SETFPAREGS", "unknown", "unknown",
-	/* 24 */ "SYSCALL", ""
-};
-#endif
 
 /*
  * Called by kernel/ptrace.c when detaching..
@@ -552,23 +539,6 @@ asmlinkage void do_ptrace(struct pt_regs *regs)
 	int ret;
 
 	lock_kernel();
-#ifdef DEBUG_PTRACE
-	{
-		char *s;
-
-		if ((request >= 0) && (request <= 24))
-			s = pt_rq [request];
-		else
-			s = "unknown";
-
-		if (request == PTRACE_POKEDATA && data == 0x91d02001){
-			printk ("do_ptrace: breakpoint pid=%d, addr=%08lx addr2=%08lx\n",
-				pid, addr, addr2);
-		} else 
-			printk("do_ptrace: rq=%s(%d) pid=%d addr=%08lx data=%08lx addr2=%08lx\n",
-			       s, (int) request, (int) pid, addr, data, addr2);
-	}
-#endif
 
 	if (request == PTRACE_TRACEME) {
 		ret = ptrace_traceme();
@@ -650,9 +620,6 @@ asmlinkage void do_ptrace(struct pt_regs *regs)
 		for(rval = 1; rval < 16; rval++)
 			__put_user(cregs->u_regs[rval], (&pregs->u_regs[rval - 1]));
 		pt_succ_return(regs, 0);
-#ifdef DEBUG_PTRACE
-		printk ("PC=%x nPC=%x o7=%x\n", cregs->pc, cregs->npc, cregs->u_regs [15]);
-#endif
 		goto out_tsk;
 	}
 
@@ -801,12 +768,6 @@ asmlinkage void do_ptrace(struct pt_regs *regs)
 			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 
 		child->exit_code = data;
-#ifdef DEBUG_PTRACE
-		printk("CONT: %s [%d]: set exit_code = %x %lx %lx\n",
-			child->comm, child->pid, child->exit_code,
-			child->thread.kregs->pc,
-			child->thread.kregs->npc);
-#endif
 		wake_up_process(child);
 		pt_succ_return(regs, 0);
 		goto out_tsk;
@@ -858,9 +819,6 @@ out:
 
 asmlinkage void syscall_trace(void)
 {
-#ifdef DEBUG_PTRACE
-	printk("%s [%d]: syscall_trace\n", current->comm, current->pid);
-#endif
 	if (!test_thread_flag(TIF_SYSCALL_TRACE))
 		return;
 	if (!(current->ptrace & PT_PTRACED))
@@ -873,10 +831,6 @@ asmlinkage void syscall_trace(void)
 	 * for normal use.  strace only continues with a signal if the
 	 * stopping signal is not SIGTRAP.  -brl
 	 */
-#ifdef DEBUG_PTRACE
-	printk("%s [%d]: syscall_trace exit= %x\n", current->comm,
-		current->pid, current->exit_code);
-#endif
 	if (current->exit_code) {
 		send_sig (current->exit_code, current, 1);
 		current->exit_code = 0;
