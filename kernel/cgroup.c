@@ -591,6 +591,7 @@ static void cgroup_diput(struct dentry *dentry, struct inode *inode)
 	/* is dentry a directory ? if so, kfree() associated cgroup */
 	if (S_ISDIR(inode->i_mode)) {
 		struct cgroup *cgrp = dentry->d_fsdata;
+		struct cgroup_subsys *ss;
 		BUG_ON(!(cgroup_is_removed(cgrp)));
 		/* It's possible for external users to be holding css
 		 * reference counts on a cgroup; css_put() needs to
@@ -599,6 +600,23 @@ static void cgroup_diput(struct dentry *dentry, struct inode *inode)
 		 * queue the cgroup to be handled by the release
 		 * agent */
 		synchronize_rcu();
+
+		mutex_lock(&cgroup_mutex);
+		/*
+		 * Release the subsystem state objects.
+		 */
+		for_each_subsys(cgrp->root, ss) {
+			if (cgrp->subsys[ss->subsys_id])
+				ss->destroy(ss, cgrp);
+		}
+
+		cgrp->root->number_of_cgroups--;
+		mutex_unlock(&cgroup_mutex);
+
+		/* Drop the active superblock reference that we took when we
+		 * created the cgroup */
+		deactivate_super(cgrp->root->sb);
+
 		kfree(cgrp);
 	}
 	iput(inode);
@@ -1330,6 +1348,10 @@ static ssize_t cgroup_common_file_write(struct cgroup *cgrp,
 
 	mutex_lock(&cgroup_mutex);
 
+	/*
+	 * This was already checked for in cgroup_file_write(), but
+	 * check again now we're holding cgroup_mutex.
+	 */
 	if (cgroup_is_removed(cgrp)) {
 		retval = -ENODEV;
 		goto out2;
@@ -1370,7 +1392,7 @@ static ssize_t cgroup_file_write(struct file *file, const char __user *buf,
 	struct cftype *cft = __d_cft(file->f_dentry);
 	struct cgroup *cgrp = __d_cgrp(file->f_dentry->d_parent);
 
-	if (!cft)
+	if (!cft || cgroup_is_removed(cgrp))
 		return -ENODEV;
 	if (cft->write)
 		return cft->write(cgrp, cft, file, buf, nbytes, ppos);
@@ -1440,7 +1462,7 @@ static ssize_t cgroup_file_read(struct file *file, char __user *buf,
 	struct cftype *cft = __d_cft(file->f_dentry);
 	struct cgroup *cgrp = __d_cgrp(file->f_dentry->d_parent);
 
-	if (!cft)
+	if (!cft || cgroup_is_removed(cgrp))
 		return -ENODEV;
 
 	if (cft->read)
@@ -2120,7 +2142,6 @@ static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry)
 	struct cgroup *cgrp = dentry->d_fsdata;
 	struct dentry *d;
 	struct cgroup *parent;
-	struct cgroup_subsys *ss;
 	struct super_block *sb;
 	struct cgroupfs_root *root;
 
@@ -2145,11 +2166,6 @@ static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry)
 		return -EBUSY;
 	}
 
-	for_each_subsys(root, ss) {
-		if (cgrp->subsys[ss->subsys_id])
-			ss->destroy(ss, cgrp);
-	}
-
 	spin_lock(&release_list_lock);
 	set_bit(CGRP_REMOVED, &cgrp->flags);
 	if (!list_empty(&cgrp->release_list))
@@ -2164,15 +2180,11 @@ static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry)
 
 	cgroup_d_remove_dir(d);
 	dput(d);
-	root->number_of_cgroups--;
 
 	set_bit(CGRP_RELEASABLE, &parent->flags);
 	check_for_release(parent);
 
 	mutex_unlock(&cgroup_mutex);
-	/* Drop the active superblock reference that we took when we
-	 * created the cgroup */
-	deactivate_super(sb);
 	return 0;
 }
 
