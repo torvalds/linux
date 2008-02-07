@@ -465,20 +465,24 @@ config SERIAL_DZ
 	bool "DECstation DZ serial driver"
 	depends on MACH_DECSTATION && 32BIT
 	select SERIAL_CORE
-	help
-	  DZ11-family serial controllers for VAXstations, including the
-	  DC7085, M7814, and M7819.
+	default y
+	---help---
+	  DZ11-family serial controllers for DECstations and VAXstations,
+	  including the DC7085, M7814, and M7819.
 
 config SERIAL_DZ_CONSOLE
 	bool "Support console on DECstation DZ serial driver"
 	depends on SERIAL_DZ=y
 	select SERIAL_CORE_CONSOLE
-	help
+	default y
+	---help---
 	  If you say Y here, it will be possible to use a serial port as the
 	  system console (the system console is the device which receives all
 	  kernel messages and warnings and which allows logins in single user
-	  mode).  Note that the firmware uses ttyS0 as the serial console on
-	  the Maxine and ttyS2 on the others.
+	  mode).
+
+	  Note that the firmware uses ttyS3 as the serial console on
+	  DECstations that use this driver.
 
 	  If unsure, say Y.
 
