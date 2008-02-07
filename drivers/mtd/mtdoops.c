@@ -30,6 +30,7 @@
 #include <linux/wait.h>
 #include <linux/delay.h>
 #include <linux/spinlock.h>
+#include <linux/interrupt.h>
 #include <linux/mtd/mtd.h>
 
 #define OOPS_PAGE_SIZE 4096
