@@ -184,7 +184,7 @@ static const struct file_operations v9fs_cached_file_operations = {
 	.open = v9fs_file_open,
 	.release = v9fs_dir_release,
 	.lock = v9fs_file_lock,
-	.mmap = generic_file_mmap,
+	.mmap = generic_file_readonly_mmap,
 };
 
 const struct file_operations v9fs_file_operations = {
@@ -194,5 +194,5 @@ const struct file_operations v9fs_file_operations = {
 	.open = v9fs_file_open,
 	.release = v9fs_dir_release,
 	.lock = v9fs_file_lock,
-	.mmap = generic_file_mmap,
+	.mmap = generic_file_readonly_mmap,
 };
