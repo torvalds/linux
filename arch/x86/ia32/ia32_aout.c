@@ -172,8 +172,7 @@ static int aout_core_dump(long signr, struct pt_regs *regs, struct file *file,
 	has_dumped = 1;
 	current->flags |= PF_DUMPCORE;
 	strncpy(dump.u_comm, current->comm, sizeof(current->comm));
-	dump.u_ar0 = (u32)(((unsigned long)(&dump.regs)) -
-			   ((unsigned long)(&dump)));
+	dump.u_ar0 = offsetof(struct user32, regs);
 	dump.signal = signr;
 	dump_thread32(regs, &dump);
 

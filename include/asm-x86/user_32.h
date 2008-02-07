@@ -116,7 +116,7 @@ struct user{
 				   esp register.  */
   long int signal;     		/* Signal that caused the core dump. */
   int reserved;			/* No longer used */
-  struct user_pt_regs * u_ar0;	/* Used by gdb to help find the values for */
+  unsigned long u_ar0;		/* Used by gdb to help find the values for */
 				/* the registers. */
   struct user_i387_struct* u_fpstate;	/* Math Co-processor pointer. */
   unsigned long magic;		/* To uniquely identify a core file */

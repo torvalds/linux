@@ -63,8 +63,7 @@ struct user {
 				   the top of the stack is always found in the
 				   esp register.  */
   long int signal;     		/* Signal that caused the core dump. */
-  struct user_regs_struct *u_ar0;
-				/* Used by gdb to help find the values for */
+  unsigned long u_ar0;		/* Used by gdb to help find the values for */
 				/* the registers. */
   unsigned long magic;		/* To uniquely identify a core file */
   char u_comm[32];		/* User command that was responsible */

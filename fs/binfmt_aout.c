@@ -115,7 +115,7 @@ static int aout_core_dump(long signr, struct pt_regs *regs, struct file *file, u
 	current->flags |= PF_DUMPCORE;
        	strncpy(dump.u_comm, current->comm, sizeof(dump.u_comm));
 #ifndef __sparc__
-	dump.u_ar0 = (void *)(((unsigned long)(&dump.regs)) - ((unsigned long)(&dump)));
+	dump.u_ar0 = offsetof(struct user, regs);
 #endif
 	dump.signal = signr;
 	dump_thread(regs, &dump);
