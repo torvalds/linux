@@ -165,7 +165,7 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 		return -ENODEV;
 
 	/* Check brand */
-	printk("eps: Detected VIA ");
+	printk(KERN_INFO "eps: Detected VIA ");
 
 	switch (c->x86_model) {
 	case 10:
@@ -182,19 +182,19 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 
 	switch(brand) {
 	case EPS_BRAND_C7M:
-		printk("C7-M\n");
+		printk(KERN_CONT "C7-M\n");
 		break;
 	case EPS_BRAND_C7:
-		printk("C7\n");
+		printk(KERN_CONT "C7\n");
 		break;
 	case EPS_BRAND_EDEN:
-		printk("Eden\n");
+		printk(KERN_CONT "Eden\n");
 		break;
 	case EPS_BRAND_C7D:
 		printk(KERN_CONT "C7-D\n");
 		break;
 	case EPS_BRAND_C3:
-		printk("C3\n");
+		printk(KERN_CONT "C3\n");
 		return -ENODEV;
 		break;
 	}
@@ -206,7 +206,7 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 		/* Can be locked at 0 */
 		rdmsrl(MSR_IA32_MISC_ENABLE, val);
 		if (!(val & 1 << 16)) {
-			printk("eps: Can't enable Enhanced PowerSaver\n");
+			printk(KERN_INFO "eps: Can't enable Enhanced PowerSaver\n");
 			return -ENODEV;
 		}
 	}
@@ -214,19 +214,19 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 	/* Print voltage and multiplier */
 	rdmsr(MSR_IA32_PERF_STATUS, lo, hi);
 	current_voltage = lo & 0xff;
-	printk("eps: Current voltage = %dmV\n", current_voltage * 16 + 700);
+	printk(KERN_INFO "eps: Current voltage = %dmV\n", current_voltage * 16 + 700);
 	current_multiplier = (lo >> 8) & 0xff;
-	printk("eps: Current multiplier = %d\n", current_multiplier);
+	printk(KERN_INFO "eps: Current multiplier = %d\n", current_multiplier);
 
 	/* Print limits */
 	max_voltage = hi & 0xff;
-	printk("eps: Highest voltage = %dmV\n", max_voltage * 16 + 700);
+	printk(KERN_INFO "eps: Highest voltage = %dmV\n", max_voltage * 16 + 700);
 	max_multiplier = (hi >> 8) & 0xff;
-	printk("eps: Highest multiplier = %d\n", max_multiplier);
+	printk(KERN_INFO "eps: Highest multiplier = %d\n", max_multiplier);
 	min_voltage = (hi >> 16) & 0xff;
-	printk("eps: Lowest voltage = %dmV\n", min_voltage * 16 + 700);
+	printk(KERN_INFO "eps: Lowest voltage = %dmV\n", min_voltage * 16 + 700);
 	min_multiplier = (hi >> 24) & 0xff;
-	printk("eps: Lowest multiplier = %d\n", min_multiplier);
+	printk(KERN_INFO "eps: Lowest multiplier = %d\n", min_multiplier);
 
 	/* Sanity checks */
 	if (current_multiplier == 0 || max_multiplier == 0
