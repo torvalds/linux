@@ -14,6 +14,7 @@
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/slab.h>
+#include <linux/edac.h>
 #include "edac_core.h"
 
 #define I3000_REVISION		"1.1"
@@ -318,6 +319,15 @@ static int i3000_probe1(struct pci_dev *pdev, int dev_idx)
 		return -ENODEV;
 	}
 
+	switch (edac_op_state) {
+	case EDAC_OPSTATE_POLL:
+	case EDAC_OPSTATE_NMI:
+		break;
+	default:
+		edac_op_state = EDAC_OPSTATE_POLL;
+		break;
+	}
+
 	c0dra[0] = readb(window + I3000_C0DRA + 0);	/* ranks 0,1 */
 	c0dra[1] = readb(window + I3000_C0DRA + 1);	/* ranks 2,3 */
 	c1dra[0] = readb(window + I3000_C1DRA + 0);	/* ranks 0,1 */
@@ -537,3 +547,6 @@ module_exit(i3000_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Akamai Technologies Arthur Ulfeldt/Jason Uhlenkott");
 MODULE_DESCRIPTION("MC support for Intel 3000 memory hub controllers");
+
+module_param(edac_op_state, int, 0444);
+MODULE_PARM_DESC(edac_op_state, "EDAC Error Reporting state: 0=Poll,1=NMI");
