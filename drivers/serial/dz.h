@@ -109,8 +109,8 @@
 #define DZ_B7200         0x0D00
 #define DZ_B9600         0x0E00
 
-#define DZ_CREAD         0x1000               /* Enable receiver */
-#define DZ_RXENAB        0x1000               /* enable receive char */
+#define DZ_RXENAB        0x1000               /* Receiver Enable */
+
 /*
  * Addresses for the DZ registers
  */
