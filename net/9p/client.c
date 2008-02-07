@@ -3,6 +3,7 @@
  *
  * 9P Client
  *
+ *  Copyright (C) 2008 by Eric Van Hensbergen <ericvh@gmail.com>
  *  Copyright (C) 2007 by Latchesar Ionkov <lucho@ionkov.net>
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -25,6 +26,7 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
+#include <linux/poll.h>
 #include <linux/idr.h>
 #include <linux/mutex.h>
 #include <linux/sched.h>
@@ -32,12 +34,81 @@
 #include <net/9p/9p.h>
 #include <linux/parser.h>
 #include <net/9p/transport.h>
-#include <net/9p/conn.h>
 #include <net/9p/client.h>
 
 static struct p9_fid *p9_fid_create(struct p9_client *clnt);
 static void p9_fid_destroy(struct p9_fid *fid);
 static struct p9_stat *p9_clone_stat(struct p9_stat *st, int dotu);
+
+/*
+  * Client Option Parsing (code inspired by NFS code)
+  *  - a little lazy - parse all client options
+  */
+
+enum {
+	Opt_msize,
+	Opt_trans,
+	Opt_legacy,
+	Opt_err,
+};
+
+static match_table_t tokens = {
+	{Opt_msize, "msize=%u"},
+	{Opt_legacy, "noextend"},
+	{Opt_trans, "trans=%s"},
+	{Opt_err, NULL},
+};
+
+/**
+ * v9fs_parse_options - parse mount options into session structure
+ * @options: options string passed from mount
+ * @v9ses: existing v9fs session information
+ *
+ */
+
+static void parse_opts(char *options, struct p9_client *clnt)
+{
+	char *p;
+	substring_t args[MAX_OPT_ARGS];
+	int option;
+	int ret;
+
+	clnt->trans_mod = v9fs_default_trans();
+	clnt->dotu = 1;
+	clnt->msize = 8192;
+
+	if (!options)
+		return;
+
+	while ((p = strsep(&options, ",")) != NULL) {
+		int token;
+		if (!*p)
+			continue;
+		token = match_token(p, tokens, args);
+		if (token < Opt_trans) {
+			ret = match_int(&args[0], &option);
+			if (ret < 0) {
+				P9_DPRINTK(P9_DEBUG_ERROR,
+					"integer field, but no integer?\n");
+				continue;
+			}
+		}
+		switch (token) {
+		case Opt_msize:
+			clnt->msize = option;
+			break;
+		case Opt_trans:
+			clnt->trans_mod = v9fs_match_trans(&args[0]);
+			break;
+		case Opt_legacy:
+			clnt->dotu = 0;
+			break;
+		default:
+			continue;
+		}
+	}
+}
+
 
 /**
  * p9_client_rpc - sends 9P request and waits until a response is available.
@@ -50,14 +121,10 @@ int
 p9_client_rpc(struct p9_client *c, struct p9_fcall *tc,
 	struct p9_fcall **rc)
 {
-	if (c->trans->rpc)
-		return c->trans->rpc(c->trans, tc, rc, c->msize, c->dotu);
-	else
-		return p9_conn_rpc(c->conn, tc, rc);
+	return c->trans->rpc(c->trans, tc, rc);
 }
 
-struct p9_client *p9_client_create(struct p9_trans *trans, int msize,
-								   int dotu)
+struct p9_client *p9_client_create(const char *dev_name, char *options)
 {
 	int err, n;
 	struct p9_client *clnt;
@@ -71,12 +138,7 @@ struct p9_client *p9_client_create(struct p9_trans *trans, int msize,
 	if (!clnt)
 		return ERR_PTR(-ENOMEM);
 
-	P9_DPRINTK(P9_DEBUG_9P, "clnt %p trans %p msize %d dotu %d\n",
-		clnt, trans, msize, dotu);
 	spin_lock_init(&clnt->lock);
-	clnt->trans = trans;
-	clnt->msize = msize;
-	clnt->dotu = dotu;
 	INIT_LIST_HEAD(&clnt->fidlist);
 	clnt->fidpool = p9_idpool_create();
 	if (!clnt->fidpool) {
@@ -85,12 +147,28 @@ struct p9_client *p9_client_create(struct p9_trans *trans, int msize,
 		goto error;
 	}
 
-	clnt->conn = p9_conn_create(clnt->trans, clnt->msize, &clnt->dotu);
-	if (IS_ERR(clnt->conn)) {
-		err = PTR_ERR(clnt->conn);
-		clnt->conn = NULL;
+	parse_opts(options, clnt);
+	if (clnt->trans_mod == NULL) {
+		err = -EPROTONOSUPPORT;
+		P9_DPRINTK(P9_DEBUG_ERROR,
+				"No transport defined or default transport\n");
 		goto error;
 	}
+
+	P9_DPRINTK(P9_DEBUG_9P, "clnt %p trans %p msize %d dotu %d\n",
+		clnt, clnt->trans_mod, clnt->msize, clnt->dotu);
+
+
+	clnt->trans = clnt->trans_mod->create(dev_name, options, clnt->msize,
+								clnt->dotu);
+	if (IS_ERR(clnt->trans)) {
+		err = PTR_ERR(clnt->trans);
+		clnt->trans = NULL;
+		goto error;
+	}
+
+	if ((clnt->msize+P9_IOHDRSZ) > clnt->trans_mod->maxsize)
+		clnt->msize = clnt->trans_mod->maxsize-P9_IOHDRSZ;
 
 	tc = p9_create_tversion(clnt->msize, clnt->dotu?"9P2000.u":"9P2000");
 	if (IS_ERR(tc)) {
@@ -134,10 +212,6 @@ void p9_client_destroy(struct p9_client *clnt)
 	struct p9_fid *fid, *fidptr;
 
 	P9_DPRINTK(P9_DEBUG_9P, "clnt %p\n", clnt);
-	if (clnt->conn) {
-		p9_conn_destroy(clnt->conn);
-		clnt->conn = NULL;
-	}
 
 	if (clnt->trans) {
 		clnt->trans->close(clnt->trans);
@@ -159,7 +233,6 @@ void p9_client_disconnect(struct p9_client *clnt)
 {
 	P9_DPRINTK(P9_DEBUG_9P, "clnt %p\n", clnt);
 	clnt->trans->status = Disconnected;
-	p9_conn_cancel(clnt->conn, -EIO);
 }
 EXPORT_SYMBOL(p9_client_disconnect);
 

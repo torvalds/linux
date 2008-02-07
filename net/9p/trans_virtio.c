@@ -130,29 +130,6 @@ static unsigned int rest_of_page(void *data)
 	return PAGE_SIZE - ((unsigned long)data % PAGE_SIZE);
 }
 
-static int p9_virtio_write(struct p9_trans *trans, void *buf, int count)
-{
-	/* Only use the rpc mechanism for now */
-	return count;
-}
-
-static int p9_virtio_read(struct p9_trans *trans, void *buf, int count)
-{
-	/* Only use the rpc mechanism for now */
-	return 0;
-}
-
-/* The poll function is used by 9p transports to determine if there
- * is there is activity available on a particular channel.  In our case
- * we use it to wait for a callback from the input routines.
- */
-static unsigned int
-p9_virtio_poll(struct p9_trans *trans, struct poll_table_struct *pt)
-{
-	/* Only use the rpc mechanism for now */
-	return 0;
-}
-
 static void p9_virtio_close(struct p9_trans *trans)
 {
 	struct virtio_chan *chan = trans->priv;
@@ -214,8 +191,7 @@ pack_sg_list(struct scatterlist *sg, int start, int limit, char *data,
 }
 
 static int
-p9_virtio_rpc(struct p9_trans *t, struct p9_fcall *tc, struct p9_fcall **rc,
-		int msize, int dotu)
+p9_virtio_rpc(struct p9_trans *t, struct p9_fcall *tc, struct p9_fcall **rc)
 {
 	int in, out;
 	int n, err, size;
@@ -225,7 +201,7 @@ p9_virtio_rpc(struct p9_trans *t, struct p9_fcall *tc, struct p9_fcall **rc,
 	unsigned long flags;
 
 	if (*rc == NULL) {
-		*rc = kmalloc(sizeof(struct p9_fcall) + msize, GFP_KERNEL);
+		*rc = kmalloc(sizeof(struct p9_fcall) + t->msize, GFP_KERNEL);
 		if (!*rc)
 			return -ENOMEM;
 	}
@@ -248,7 +224,7 @@ p9_virtio_rpc(struct p9_trans *t, struct p9_fcall *tc, struct p9_fcall **rc,
 	P9_DPRINTK(P9_DEBUG_TRANS, "9p debug: virtio rpc tag %d\n", n);
 
 	out = pack_sg_list(chan->sg, 0, VIRTQUEUE_NUM, tc->sdata, tc->size);
-	in = pack_sg_list(chan->sg, out, VIRTQUEUE_NUM-out, rdata, msize);
+	in = pack_sg_list(chan->sg, out, VIRTQUEUE_NUM-out, rdata, t->msize);
 
 	req->status = REQ_STATUS_SENT;
 
@@ -264,7 +240,7 @@ p9_virtio_rpc(struct p9_trans *t, struct p9_fcall *tc, struct p9_fcall **rc,
 
 	size = le32_to_cpu(*(__le32 *) rdata);
 
-	err = p9_deserialize_fcall(rdata, size, *rc, dotu);
+	err = p9_deserialize_fcall(rdata, size, *rc, t->extended);
 	if (err < 0) {
 		P9_DPRINTK(P9_DEBUG_TRANS,
 			"9p debug: virtio rpc deserialize returned %d\n", err);
@@ -275,7 +251,7 @@ p9_virtio_rpc(struct p9_trans *t, struct p9_fcall *tc, struct p9_fcall **rc,
 	if ((p9_debug_level&P9_DEBUG_FCALL) == P9_DEBUG_FCALL) {
 		char buf[150];
 
-		p9_printfcall(buf, sizeof(buf), *rc, dotu);
+		p9_printfcall(buf, sizeof(buf), *rc, t->extended);
 		printk(KERN_NOTICE ">>> %p %s\n", t, buf);
 	}
 #endif
@@ -337,7 +313,9 @@ fail:
  * alternate channels by matching devname versus a virtio_config entry.
  * We use a simple reference count mechanism to ensure that only a single
  * mount has a channel open at a time. */
-static struct p9_trans *p9_virtio_create(const char *devname, char *args)
+static struct p9_trans *
+p9_virtio_create(const char *devname, char *args, int msize,
+							unsigned char extended)
 {
 	struct p9_trans *trans;
 	struct virtio_chan *chan = channels;
@@ -374,11 +352,9 @@ static struct p9_trans *p9_virtio_create(const char *devname, char *args)
 		printk(KERN_ERR "9p: couldn't allocate transport\n");
 		return ERR_PTR(-ENOMEM);
 	}
-
-	trans->write = p9_virtio_write;
-	trans->read = p9_virtio_read;
+	trans->extended = extended;
+	trans->msize = msize;
 	trans->close = p9_virtio_close;
-	trans->poll = p9_virtio_poll;
 	trans->rpc = p9_virtio_rpc;
 	trans->priv = chan;
 
