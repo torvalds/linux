@@ -1138,7 +1138,7 @@ unsigned int cpufreq_quick_get(unsigned int cpu)
 		cpufreq_cpu_put(policy);
 	}
 
-	return (ret_freq);
+	return ret_freq;
 }
 EXPORT_SYMBOL(cpufreq_quick_get);
 
@@ -1149,7 +1149,7 @@ static unsigned int __cpufreq_get(unsigned int cpu)
 	unsigned int ret_freq = 0;
 
 	if (!cpufreq_driver->get)
-		return (ret_freq);
+		return ret_freq;
 
 	ret_freq = cpufreq_driver->get(cpu);
 
@@ -1163,7 +1163,7 @@ static unsigned int __cpufreq_get(unsigned int cpu)
 		}
 	}
 
-	return (ret_freq);
+	return ret_freq;
 }
 
 /**
@@ -1190,7 +1190,7 @@ unsigned int cpufreq_get(unsigned int cpu)
 out_policy:
 	cpufreq_cpu_put(policy);
 out:
-	return (ret_freq);
+	return ret_freq;
 }
 EXPORT_SYMBOL(cpufreq_get);
 
@@ -1842,7 +1842,7 @@ int cpufreq_register_driver(struct cpufreq_driver *driver_data)
 		cpufreq_debug_enable_ratelimit();
 	}
 
-	return (ret);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(cpufreq_register_driver);
 
