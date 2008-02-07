@@ -56,6 +56,8 @@
 #include <asm/atomic.h>
 #include <linux/mutex.h>
 #include <linux/kfifo.h>
+#include <linux/workqueue.h>
+#include <linux/cgroup.h>
 
 /*
  * Tracks how many cpusets are currently defined in system.
@@ -96,6 +98,9 @@ struct cpuset {
 
 	/* partition number for rebuild_sched_domains() */
 	int pn;
+
+	/* used for walking a cpuset heirarchy */
+	struct list_head stack_list;
 };
 
 /* Retrieve the cpuset for a cgroup */
@@ -111,7 +116,10 @@ static inline struct cpuset *task_cs(struct task_struct *task)
 	return container_of(task_subsys_state(task, cpuset_subsys_id),
 			    struct cpuset, css);
 }
-
+struct cpuset_hotplug_scanner {
+	struct cgroup_scanner scan;
+	struct cgroup *to;
+};
 
 /* bits in struct cpuset flags field */
 typedef enum {
@@ -1687,53 +1695,146 @@ int __init cpuset_init(void)
 	return 0;
 }
 
+/**
+ * cpuset_do_move_task - move a given task to another cpuset
+ * @tsk: pointer to task_struct the task to move
+ * @scan: struct cgroup_scanner contained in its struct cpuset_hotplug_scanner
+ *
+ * Called by cgroup_scan_tasks() for each task in a cgroup.
+ * Return nonzero to stop the walk through the tasks.
+ */
+void cpuset_do_move_task(struct task_struct *tsk, struct cgroup_scanner *scan)
+{
+	struct cpuset_hotplug_scanner *chsp;
+
+	chsp = container_of(scan, struct cpuset_hotplug_scanner, scan);
+	cgroup_attach_task(chsp->to, tsk);
+}
+
+/**
+ * move_member_tasks_to_cpuset - move tasks from one cpuset to another
+ * @from: cpuset in which the tasks currently reside
+ * @to: cpuset to which the tasks will be moved
+ *
+ * Called with manage_sem held
+ * callback_mutex must not be held, as attach_task() will take it.
+ *
+ * The cgroup_scan_tasks() function will scan all the tasks in a cgroup,
+ * calling callback functions for each.
+ */
+static void move_member_tasks_to_cpuset(struct cpuset *from, struct cpuset *to)
+{
+	struct cpuset_hotplug_scanner scan;
+
+	scan.scan.cg = from->css.cgroup;
+	scan.scan.test_task = NULL; /* select all tasks in cgroup */
+	scan.scan.process_task = cpuset_do_move_task;
+	scan.scan.heap = NULL;
+	scan.to = to->css.cgroup;
+
+	if (cgroup_scan_tasks((struct cgroup_scanner *)&scan))
+		printk(KERN_ERR "move_member_tasks_to_cpuset: "
+				"cgroup_scan_tasks failed\n");
+}
+
 /*
  * If common_cpu_mem_hotplug_unplug(), below, unplugs any CPUs
  * or memory nodes, we need to walk over the cpuset hierarchy,
  * removing that CPU or node from all cpusets.  If this removes the
- * last CPU or node from a cpuset, then the guarantee_online_cpus()
- * or guarantee_online_mems() code will use that emptied cpusets
- * parent online CPUs or nodes.  Cpusets that were already empty of
- * CPUs or nodes are left empty.
+ * last CPU or node from a cpuset, then move the tasks in the empty
+ * cpuset to its next-highest non-empty parent.
  *
- * This routine is intentionally inefficient in a couple of regards.
- * It will check all cpusets in a subtree even if the top cpuset of
- * the subtree has no offline CPUs or nodes.  It checks both CPUs and
- * nodes, even though the caller could have been coded to know that
- * only one of CPUs or nodes needed to be checked on a given call.
- * This was done to minimize text size rather than cpu cycles.
+ * The parent cpuset has some superset of the 'mems' nodes that the
+ * newly empty cpuset held, so no migration of memory is necessary.
  *
- * Call with both manage_mutex and callback_mutex held.
- *
- * Recursive, on depth of cpuset subtree.
+ * Called with both manage_sem and callback_sem held
  */
-
-static void guarantee_online_cpus_mems_in_subtree(const struct cpuset *cur)
+static void remove_tasks_in_empty_cpuset(struct cpuset *cs)
 {
-	struct cgroup *cont;
-	struct cpuset *c;
+	struct cpuset *parent;
 
-	/* Each of our child cpusets mems must be online */
-	list_for_each_entry(cont, &cur->css.cgroup->children, sibling) {
-		c = cgroup_cs(cont);
-		guarantee_online_cpus_mems_in_subtree(c);
-		if (!cpus_empty(c->cpus_allowed))
-			guarantee_online_cpus(c, &c->cpus_allowed);
-		if (!nodes_empty(c->mems_allowed))
-			guarantee_online_mems(c, &c->mems_allowed);
+	/* the cgroup's css_sets list is in use if there are tasks
+	   in the cpuset; the list is empty if there are none;
+	   the cs->css.refcnt seems always 0 */
+	if (list_empty(&cs->css.cgroup->css_sets))
+		return;
+
+	/*
+	 * Find its next-highest non-empty parent, (top cpuset
+	 * has online cpus, so can't be empty).
+	 */
+	parent = cs->parent;
+	while (cpus_empty(parent->cpus_allowed)) {
+		/*
+		 * this empty cpuset should now be considered to
+		 * have been used, and therefore eligible for
+		 * release when empty (if it is notify_on_release)
+		 */
+		parent = parent->parent;
 	}
+
+	move_member_tasks_to_cpuset(cs, parent);
+}
+
+/*
+ * Walk the specified cpuset subtree and look for empty cpusets.
+ * The tasks of such cpuset must be moved to a parent cpuset.
+ *
+ * Note that such a notify_on_release cpuset must have had, at some time,
+ * member tasks or cpuset descendants and cpus and memory, before it can
+ * be a candidate for release.
+ *
+ * Called with manage_mutex held.  We take callback_mutex to modify
+ * cpus_allowed and mems_allowed.
+ *
+ * This walk processes the tree from top to bottom, completing one layer
+ * before dropping down to the next.  It always processes a node before
+ * any of its children.
+ *
+ * For now, since we lack memory hot unplug, we'll never see a cpuset
+ * that has tasks along with an empty 'mems'.  But if we did see such
+ * a cpuset, we'd handle it just like we do if its 'cpus' was empty.
+ */
+static void scan_for_empty_cpusets(const struct cpuset *root)
+{
+	struct cpuset *cp;	/* scans cpusets being updated */
+	struct cpuset *child;	/* scans child cpusets of cp */
+	struct list_head queue;
+	struct cgroup *cont;
+
+	INIT_LIST_HEAD(&queue);
+
+	list_add_tail((struct list_head *)&root->stack_list, &queue);
+
+	mutex_lock(&callback_mutex);
+	while (!list_empty(&queue)) {
+		cp = container_of(queue.next, struct cpuset, stack_list);
+		list_del(queue.next);
+		list_for_each_entry(cont, &cp->css.cgroup->children, sibling) {
+			child = cgroup_cs(cont);
+			list_add_tail(&child->stack_list, &queue);
+		}
+		cont = cp->css.cgroup;
+		/* Remove offline cpus and mems from this cpuset. */
+		cpus_and(cp->cpus_allowed, cp->cpus_allowed, cpu_online_map);
+		nodes_and(cp->mems_allowed, cp->mems_allowed,
+						node_states[N_HIGH_MEMORY]);
+		if ((cpus_empty(cp->cpus_allowed) ||
+		     nodes_empty(cp->mems_allowed))) {
+			/* Move tasks from the empty cpuset to a parent */
+			mutex_unlock(&callback_mutex);
+			remove_tasks_in_empty_cpuset(cp);
+			mutex_lock(&callback_mutex);
+		}
+	}
+	mutex_unlock(&callback_mutex);
+	return;
 }
 
 /*
  * The cpus_allowed and mems_allowed nodemasks in the top_cpuset track
  * cpu_online_map and node_states[N_HIGH_MEMORY].  Force the top cpuset to
- * track what's online after any CPU or memory node hotplug or unplug
- * event.
- *
- * To ensure that we don't remove a CPU or node from the top cpuset
- * that is currently in use by a child cpuset (which would violate
- * the rule that cpusets must be subsets of their parent), we first
- * call the recursive routine guarantee_online_cpus_mems_in_subtree().
+ * track what's online after any CPU or memory node hotplug or unplug event.
  *
  * Since there are two callers of this routine, one for CPU hotplug
  * events and one for memory node hotplug events, we could have coded
@@ -1744,13 +1845,11 @@ static void guarantee_online_cpus_mems_in_subtree(const struct cpuset *cur)
 static void common_cpu_mem_hotplug_unplug(void)
 {
 	cgroup_lock();
-	mutex_lock(&callback_mutex);
 
-	guarantee_online_cpus_mems_in_subtree(&top_cpuset);
 	top_cpuset.cpus_allowed = cpu_online_map;
 	top_cpuset.mems_allowed = node_states[N_HIGH_MEMORY];
+	scan_for_empty_cpusets(&top_cpuset);
 
-	mutex_unlock(&callback_mutex);
 	cgroup_unlock();
 }
 

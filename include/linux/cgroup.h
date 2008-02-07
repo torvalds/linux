@@ -318,6 +318,7 @@ struct task_struct *cgroup_iter_next(struct cgroup *cont,
 					struct cgroup_iter *it);
 void cgroup_iter_end(struct cgroup *cont, struct cgroup_iter *it);
 int cgroup_scan_tasks(struct cgroup_scanner *scan);
+int cgroup_attach_task(struct cgroup *, struct task_struct *);
 
 #else /* !CONFIG_CGROUPS */
 

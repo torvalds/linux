@@ -489,7 +489,7 @@ static struct css_set *find_css_set(
  * Any task can increment and decrement the count field without lock.
  * So in general, code holding cgroup_mutex can't rely on the count
  * field not changing.  However, if the count goes to zero, then only
- * attach_task() can increment it again.  Because a count of zero
+ * cgroup_attach_task() can increment it again.  Because a count of zero
  * means that no tasks are currently attached, therefore there is no
  * way a task attached to that cgroup can fork (the other way to
  * increment the count).  So code holding cgroup_mutex can safely
@@ -520,17 +520,17 @@ static struct css_set *find_css_set(
  *	The task_lock() exception
  *
  * The need for this exception arises from the action of
- * attach_task(), which overwrites one tasks cgroup pointer with
+ * cgroup_attach_task(), which overwrites one tasks cgroup pointer with
  * another.  It does so using cgroup_mutexe, however there are
  * several performance critical places that need to reference
  * task->cgroup without the expense of grabbing a system global
  * mutex.  Therefore except as noted below, when dereferencing or, as
- * in attach_task(), modifying a task'ss cgroup pointer we use
+ * in cgroup_attach_task(), modifying a task'ss cgroup pointer we use
  * task_lock(), which acts on a spinlock (task->alloc_lock) already in
  * the task_struct routinely used for such matters.
  *
  * P.S.  One more locking exception.  RCU is used to guard the
- * update of a tasks cgroup pointer by attach_task()
+ * update of a tasks cgroup pointer by cgroup_attach_task()
  */
 
 /**
@@ -1194,7 +1194,7 @@ static void get_first_subsys(const struct cgroup *cgrp,
  * Call holding cgroup_mutex.  May take task_lock of
  * the task 'pid' during call.
  */
-static int attach_task(struct cgroup *cgrp, struct task_struct *tsk)
+int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
 {
 	int retval = 0;
 	struct cgroup_subsys *ss;
@@ -1287,7 +1287,7 @@ static int attach_task_by_pid(struct cgroup *cgrp, char *pidbuf)
 		get_task_struct(tsk);
 	}
 
-	ret = attach_task(cgrp, tsk);
+	ret = cgroup_attach_task(cgrp, tsk);
 	put_task_struct(tsk);
 	return ret;
 }
@@ -2514,7 +2514,7 @@ out:
  *  - Used for /proc/<pid>/cgroup.
  *  - No need to task_lock(tsk) on this tsk->cgroup reference, as it
  *    doesn't really matter if tsk->cgroup changes after we read it,
- *    and we take cgroup_mutex, keeping attach_task() from changing it
+ *    and we take cgroup_mutex, keeping cgroup_attach_task() from changing it
  *    anyway.  No need to check that tsk->cgroup != NULL, thanks to
  *    the_top_cgroup_hack in cgroup_exit(), which sets an exiting tasks
  *    cgroup to top_cgroup.
@@ -2625,7 +2625,7 @@ static struct file_operations proc_cgroupstats_operations = {
  * A pointer to the shared css_set was automatically copied in
  * fork.c by dup_task_struct().  However, we ignore that copy, since
  * it was not made under the protection of RCU or cgroup_mutex, so
- * might no longer be a valid cgroup pointer.  attach_task() might
+ * might no longer be a valid cgroup pointer.  cgroup_attach_task() might
  * have already changed current->cgroups, allowing the previously
  * referenced cgroup group to be removed and freed.
  *
@@ -2704,8 +2704,8 @@ void cgroup_post_fork(struct task_struct *child)
  *    attach us to a different cgroup, decrementing the count on
  *    the first cgroup that we never incremented.  But in this case,
  *    top_cgroup isn't going away, and either task has PF_EXITING set,
- *    which wards off any attach_task() attempts, or task is a failed
- *    fork, never visible to attach_task.
+ *    which wards off any cgroup_attach_task() attempts, or task is a failed
+ *    fork, never visible to cgroup_attach_task.
  *
  */
 void cgroup_exit(struct task_struct *tsk, int run_callbacks)
@@ -2845,7 +2845,7 @@ int cgroup_clone(struct task_struct *tsk, struct cgroup_subsys *subsys)
 	}
 
 	/* All seems fine. Finish by moving the task into the new cgroup */
-	ret = attach_task(child, tsk);
+	ret = cgroup_attach_task(child, tsk);
 	mutex_unlock(&cgroup_mutex);
 
  out_release:
