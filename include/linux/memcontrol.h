@@ -30,6 +30,13 @@ extern void mm_free_cgroup(struct mm_struct *mm);
 extern void page_assign_page_cgroup(struct page *page,
 					struct page_cgroup *pc);
 extern struct page_cgroup *page_get_page_cgroup(struct page *page);
+extern int mem_cgroup_charge(struct page *page, struct mm_struct *mm);
+extern void mem_cgroup_uncharge(struct page_cgroup *pc);
+
+static inline void mem_cgroup_uncharge_page(struct page *page)
+{
+	mem_cgroup_uncharge(page_get_page_cgroup(page));
+}
 
 #else /* CONFIG_CGROUP_MEM_CONT */
 static inline void mm_init_cgroup(struct mm_struct *mm,
@@ -49,6 +56,19 @@ static inline void page_assign_page_cgroup(struct page *page,
 static inline struct page_cgroup *page_get_page_cgroup(struct page *page)
 {
 	return NULL;
+}
+
+static inline int mem_cgroup_charge(struct page *page, struct mm_struct *mm)
+{
+	return 0;
+}
+
+static inline void mem_cgroup_uncharge(struct page_cgroup *pc)
+{
+}
+
+static inline void mem_cgroup_uncharge_page(struct page *page)
+{
 }
 
 #endif /* CONFIG_CGROUP_MEM_CONT */

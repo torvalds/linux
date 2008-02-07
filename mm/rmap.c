@@ -48,6 +48,7 @@
 #include <linux/rcupdate.h>
 #include <linux/module.h>
 #include <linux/kallsyms.h>
+#include <linux/memcontrol.h>
 
 #include <asm/tlbflush.h>
 
@@ -554,8 +555,14 @@ void page_add_anon_rmap(struct page *page,
 	VM_BUG_ON(address < vma->vm_start || address >= vma->vm_end);
 	if (atomic_inc_and_test(&page->_mapcount))
 		__page_set_anon_rmap(page, vma, address);
-	else
+	else {
 		__page_check_anon_rmap(page, vma, address);
+		/*
+		 * We unconditionally charged during prepare, we uncharge here
+		 * This takes care of balancing the reference counts
+		 */
+		mem_cgroup_uncharge_page(page);
+	}
 }
 
 /*
@@ -586,6 +593,12 @@ void page_add_file_rmap(struct page *page)
 {
 	if (atomic_inc_and_test(&page->_mapcount))
 		__inc_zone_page_state(page, NR_FILE_MAPPED);
+	else
+		/*
+		 * We unconditionally charged during prepare, we uncharge here
+		 * This takes care of balancing the reference counts
+		 */
+		mem_cgroup_uncharge_page(page);
 }
 
 #ifdef CONFIG_DEBUG_VM
@@ -646,6 +659,8 @@ void page_remove_rmap(struct page *page, struct vm_area_struct *vma)
 			page_clear_dirty(page);
 			set_page_dirty(page);
 		}
+		mem_cgroup_uncharge_page(page);
+
 		__dec_zone_page_state(page,
 				PageAnon(page) ? NR_ANON_PAGES : NR_FILE_MAPPED);
 	}

@@ -29,6 +29,7 @@
 #include <linux/mempolicy.h>
 #include <linux/vmalloc.h>
 #include <linux/security.h>
+#include <linux/memcontrol.h>
 
 #include "internal.h"
 
@@ -151,6 +152,11 @@ static void remove_migration_pte(struct vm_area_struct *vma,
 		pte_unmap(ptep);
  		return;
  	}
+
+	if (mem_cgroup_charge(new, mm)) {
+		pte_unmap(ptep);
+		return;
+	}
 
  	ptl = pte_lockptr(mm, pmd);
  	spin_lock(ptl);

@@ -50,6 +50,7 @@
 #include <linux/delayacct.h>
 #include <linux/init.h>
 #include <linux/writeback.h>
+#include <linux/memcontrol.h>
 
 #include <asm/pgalloc.h>
 #include <asm/uaccess.h>
@@ -1144,16 +1145,20 @@ static int insert_page(struct mm_struct *mm, unsigned long addr, struct page *pa
 {
 	int retval;
 	pte_t *pte;
-	spinlock_t *ptl;  
+	spinlock_t *ptl;
+
+	retval = mem_cgroup_charge(page, mm);
+	if (retval)
+		goto out;
 
 	retval = -EINVAL;
 	if (PageAnon(page))
-		goto out;
+		goto out_uncharge;
 	retval = -ENOMEM;
 	flush_dcache_page(page);
 	pte = get_locked_pte(mm, addr, &ptl);
 	if (!pte)
-		goto out;
+		goto out_uncharge;
 	retval = -EBUSY;
 	if (!pte_none(*pte))
 		goto out_unlock;
@@ -1165,8 +1170,12 @@ static int insert_page(struct mm_struct *mm, unsigned long addr, struct page *pa
 	set_pte_at(mm, addr, pte, mk_pte(page, prot));
 
 	retval = 0;
+	pte_unmap_unlock(pte, ptl);
+	return retval;
 out_unlock:
 	pte_unmap_unlock(pte, ptl);
+out_uncharge:
+	mem_cgroup_uncharge_page(page);
 out:
 	return retval;
 }
@@ -1641,6 +1650,9 @@ gotten:
 	cow_user_page(new_page, old_page, address, vma);
 	__SetPageUptodate(new_page);
 
+	if (mem_cgroup_charge(new_page, mm))
+		goto oom_free_new;
+
 	/*
 	 * Re-check the pte - we dropped the lock
 	 */
@@ -1672,7 +1684,9 @@ gotten:
 		/* Free the old page.. */
 		new_page = old_page;
 		ret |= VM_FAULT_WRITE;
-	}
+	} else
+		mem_cgroup_uncharge_page(new_page);
+
 	if (new_page)
 		page_cache_release(new_page);
 	if (old_page)
@@ -1696,6 +1710,8 @@ unlock:
 		put_page(dirty_page);
 	}
 	return ret;
+oom_free_new:
+	__free_page(new_page);
 oom:
 	if (old_page)
 		page_cache_release(old_page);
@@ -2036,6 +2052,12 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		count_vm_event(PGMAJFAULT);
 	}
 
+	if (mem_cgroup_charge(page, mm)) {
+		delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
+		ret = VM_FAULT_OOM;
+		goto out;
+	}
+
 	mark_page_accessed(page);
 	lock_page(page);
 	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
@@ -2073,8 +2095,10 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	if (write_access) {
 		/* XXX: We could OR the do_wp_page code with this one? */
 		if (do_wp_page(mm, vma, address,
-				page_table, pmd, ptl, pte) & VM_FAULT_OOM)
+				page_table, pmd, ptl, pte) & VM_FAULT_OOM) {
+			mem_cgroup_uncharge_page(page);
 			ret = VM_FAULT_OOM;
+		}
 		goto out;
 	}
 
@@ -2085,6 +2109,7 @@ unlock:
 out:
 	return ret;
 out_nomap:
+	mem_cgroup_uncharge_page(page);
 	pte_unmap_unlock(page_table, ptl);
 	unlock_page(page);
 	page_cache_release(page);
@@ -2114,6 +2139,9 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		goto oom;
 	__SetPageUptodate(page);
 
+	if (mem_cgroup_charge(page, mm))
+		goto oom_free_page;
+
 	entry = mk_pte(page, vma->vm_page_prot);
 	entry = maybe_mkwrite(pte_mkdirty(entry), vma);
 
@@ -2131,8 +2159,11 @@ unlock:
 	pte_unmap_unlock(page_table, ptl);
 	return 0;
 release:
+	mem_cgroup_uncharge_page(page);
 	page_cache_release(page);
 	goto unlock;
+oom_free_page:
+	__free_page(page);
 oom:
 	return VM_FAULT_OOM;
 }
@@ -2246,6 +2277,11 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 
 	}
 
+	if (mem_cgroup_charge(page, mm)) {
+		ret = VM_FAULT_OOM;
+		goto out;
+	}
+
 	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
 
 	/*
@@ -2281,6 +2317,7 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		/* no need to invalidate: a not-present page won't be cached */
 		update_mmu_cache(vma, address, entry);
 	} else {
+		mem_cgroup_uncharge_page(page);
 		if (anon)
 			page_cache_release(page);
 		else
