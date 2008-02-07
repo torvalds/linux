@@ -43,5 +43,14 @@ config CARDMAN_4040
 	  (http://www.omnikey.com/), or a current development version of OpenCT
 	  (http://www.opensc.org/).
 
+config IPWIRELESS
+	tristate "IPWireless 3G UMTS PCMCIA card support"
+	depends on PCMCIA
+	select PPP
+	help
+	  This is a driver for 3G UMTS PCMCIA card from IPWireless company. In
+	  some countries (for example Czech Republic, T-Mobile ISP) this card
+	  is shipped for service called UMTS 4G.
+
 endmenu
 

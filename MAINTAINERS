@@ -2150,6 +2150,14 @@ M:	acme@ghostprotocols.net
 L:	netdev@vger.kernel.org
 S:	Maintained
 
+IPWIRELES DRIVER
+P:	Jiri Kosina
+M:	jkosina@suse.cz
+P:	David Sterba
+M:	dsterba@suse.cz
+S:	Maintained
+T:	git://git.kernel.org/pub/scm/linux/kernel/git/jikos/ipwireless_cs.git
+
 IRDA SUBSYSTEM
 P:	Samuel Ortiz
 M:	samuel@sortiz.org
