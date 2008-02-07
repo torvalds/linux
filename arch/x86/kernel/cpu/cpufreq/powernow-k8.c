@@ -1234,8 +1234,10 @@ static unsigned int powernowk8_get (unsigned int cpu)
 	struct powernow_k8_data *data;
 	cpumask_t oldmask = current->cpus_allowed;
 	unsigned int khz = 0;
+	unsigned int first;
 
-	data = per_cpu(powernow_data, first_cpu(per_cpu(cpu_core_map, cpu)));
+	first = first_cpu(per_cpu(cpu_core_map, cpu));
+	data = per_cpu(powernow_data, first);
 
 	if (!data)
 		return -EINVAL;
