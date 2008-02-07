@@ -1196,49 +1196,12 @@ static int gelic_ether_get_settings(struct net_device *netdev,
 	return 0;
 }
 
-static u32 gelic_ether_get_link(struct net_device *netdev)
-{
-	struct gelic_card *card = netdev_priv(netdev);
-	int status;
-	u64 v1, v2;
-	int link;
-
-	status = lv1_net_control(bus_id(card), dev_id(card),
-				 GELIC_LV1_GET_ETH_PORT_STATUS,
-				 GELIC_LV1_VLAN_TX_ETHERNET, 0, 0,
-				 &v1, &v2);
-	if (status)
-		return 0; /* link down */
-
-	if (v1 & GELIC_LV1_ETHER_LINK_UP)
-		link = 1;
-	else
-		link = 0;
-
-	return link;
-}
-
 static int gelic_net_nway_reset(struct net_device *netdev)
 {
 	if (netif_running(netdev)) {
 		gelic_net_stop(netdev);
 		gelic_net_open(netdev);
 	}
-	return 0;
-}
-
-static u32 gelic_net_get_tx_csum(struct net_device *netdev)
-{
-	return (netdev->features & NETIF_F_IP_CSUM) != 0;
-}
-
-static int gelic_net_set_tx_csum(struct net_device *netdev, u32 data)
-{
-	if (data)
-		netdev->features |= NETIF_F_IP_CSUM;
-	else
-		netdev->features &= ~NETIF_F_IP_CSUM;
-
 	return 0;
 }
 
@@ -1260,10 +1223,10 @@ static int gelic_net_set_rx_csum(struct net_device *netdev, u32 data)
 static struct ethtool_ops gelic_net_ethtool_ops = {
 	.get_drvinfo	= gelic_net_get_drvinfo,
 	.get_settings	= gelic_ether_get_settings,
-	.get_link	= gelic_ether_get_link,
+	.get_link	= ethtool_op_get_link,
 	.nway_reset	= gelic_net_nway_reset,
-	.get_tx_csum	= gelic_net_get_tx_csum,
-	.set_tx_csum	= gelic_net_set_tx_csum,
+	.get_tx_csum	= ethtool_op_get_tx_csum,
+	.set_tx_csum	= ethtool_op_set_tx_csum,
 	.get_rx_csum	= gelic_net_get_rx_csum,
 	.set_rx_csum	= gelic_net_set_rx_csum,
 };
