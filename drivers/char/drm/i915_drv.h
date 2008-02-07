@@ -187,7 +187,7 @@ typedef struct drm_i915_private {
 	u32 saveSWF2[3];
 	u8 saveMSR;
 	u8 saveSR[8];
-	u8 saveGR[24];
+	u8 saveGR[25];
 	u8 saveAR_INDEX;
 	u8 saveAR[20];
 	u8 saveDACMASK;
