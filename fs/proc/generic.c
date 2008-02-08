@@ -521,6 +521,7 @@ static const struct inode_operations proc_dir_inode_operations = {
 static int proc_register(struct proc_dir_entry * dir, struct proc_dir_entry * dp)
 {
 	unsigned int i;
+	struct proc_dir_entry *tmp;
 	
 	i = get_inode_number();
 	if (i == 0)
@@ -544,6 +545,15 @@ static int proc_register(struct proc_dir_entry * dir, struct proc_dir_entry * dp
 	}
 
 	spin_lock(&proc_subdir_lock);
+
+	for (tmp = dir->subdir; tmp; tmp = tmp->next)
+		if (strcmp(tmp->name, dp->name) == 0) {
+			printk(KERN_WARNING "proc_dir_entry '%s' already "
+					"registered\n", dp->name);
+			dump_stack();
+			break;
+		}
+
 	dp->next = dir->subdir;
 	dp->parent = dir;
 	dir->subdir = dp;
