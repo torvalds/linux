@@ -388,7 +388,7 @@ void daemonize(const char *name, ...)
 		get_nsproxy(&init_nsproxy);
 		switch_task_namespaces(current, &init_nsproxy);
 	}
-	set_special_pids(find_pid(1));
+	set_special_pids(&init_struct_pid);
 	proc_clear_tty(current);
 
 	/* Block and flush all signals */
