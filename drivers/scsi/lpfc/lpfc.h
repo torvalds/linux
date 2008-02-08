@@ -495,6 +495,8 @@ struct lpfc_hba {
 	wait_queue_head_t    *work_wait;
 	struct task_struct   *worker_thread;
 
+	uint32_t hbq_in_use;		/* HBQs in use flag */
+	struct list_head hbqbuf_in_list;  /* in-fly hbq buffer list */
 	uint32_t hbq_count;	        /* Count of configured HBQs */
 	struct hbq_s hbqs[LPFC_MAX_HBQS]; /* local copy of hbq indicies  */
 

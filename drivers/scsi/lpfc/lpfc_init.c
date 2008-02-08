@@ -2087,6 +2087,8 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 
 	memset(phba->hbqslimp.virt, 0, lpfc_sli_hbq_size());
 
+	INIT_LIST_HEAD(&phba->hbqbuf_in_list);
+
 	/* Initialize the SLI Layer to run with lpfc HBAs. */
 	lpfc_sli_setup(phba);
 	lpfc_sli_queue_setup(phba);
