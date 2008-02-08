@@ -213,11 +213,15 @@ static void unregister_snapshot(struct dm_snapshot *s)
 
 /*
  * Implementation of the exception hash tables.
+ * The lowest hash_shift bits of the chunk number are ignored, allowing
+ * some consecutive chunks to be grouped together.
  */
-static int init_exception_table(struct exception_table *et, uint32_t size)
+static int init_exception_table(struct exception_table *et, uint32_t size,
+				unsigned hash_shift)
 {
 	unsigned int i;
 
+	et->hash_shift = hash_shift;
 	et->hash_mask = size - 1;
 	et->table = dm_vcalloc(size, sizeof(struct list_head));
 	if (!et->table)
@@ -248,7 +252,7 @@ static void exit_exception_table(struct exception_table *et, struct kmem_cache *
 
 static uint32_t exception_hash(struct exception_table *et, chunk_t chunk)
 {
-	return chunk & et->hash_mask;
+	return (chunk >> et->hash_shift) & et->hash_mask;
 }
 
 static void insert_exception(struct exception_table *eh,
@@ -275,7 +279,8 @@ static struct dm_snap_exception *lookup_exception(struct exception_table *et,
 
 	slot = &et->table[exception_hash(et, chunk)];
 	list_for_each_entry (e, slot, hash_list)
-		if (e->old_chunk == chunk)
+		if (chunk >= e->old_chunk &&
+		    chunk <= e->old_chunk + dm_consecutive_chunk_count(e))
 			return e;
 
 	return NULL;
@@ -307,6 +312,49 @@ static void free_pending_exception(struct dm_snap_pending_exception *pe)
 	mempool_free(pe, pending_pool);
 }
 
+static void insert_completed_exception(struct dm_snapshot *s,
+				       struct dm_snap_exception *new_e)
+{
+	struct exception_table *eh = &s->complete;
+	struct list_head *l;
+	struct dm_snap_exception *e = NULL;
+
+	l = &eh->table[exception_hash(eh, new_e->old_chunk)];
+
+	/* Add immediately if this table doesn't support consecutive chunks */
+	if (!eh->hash_shift)
+		goto out;
+
+	/* List is ordered by old_chunk */
+	list_for_each_entry_reverse(e, l, hash_list) {
+		/* Insert after an existing chunk? */
+		if (new_e->old_chunk == (e->old_chunk +
+					 dm_consecutive_chunk_count(e) + 1) &&
+		    new_e->new_chunk == (dm_chunk_number(e->new_chunk) +
+					 dm_consecutive_chunk_count(e) + 1)) {
+			dm_consecutive_chunk_count_inc(e);
+			free_exception(new_e);
+			return;
+		}
+
+		/* Insert before an existing chunk? */
+		if (new_e->old_chunk == (e->old_chunk - 1) &&
+		    new_e->new_chunk == (dm_chunk_number(e->new_chunk) - 1)) {
+			dm_consecutive_chunk_count_inc(e);
+			e->old_chunk--;
+			e->new_chunk--;
+			free_exception(new_e);
+			return;
+		}
+
+		if (new_e->old_chunk > e->old_chunk)
+			break;
+	}
+
+out:
+	list_add(&new_e->hash_list, e ? &e->hash_list : l);
+}
+
 int dm_add_exception(struct dm_snapshot *s, chunk_t old, chunk_t new)
 {
 	struct dm_snap_exception *e;
@@ -316,8 +364,12 @@ int dm_add_exception(struct dm_snapshot *s, chunk_t old, chunk_t new)
 		return -ENOMEM;
 
 	e->old_chunk = old;
+
+	/* Consecutive_count is implicitly initialised to zero */
 	e->new_chunk = new;
-	insert_exception(&s->complete, e);
+
+	insert_completed_exception(s, e);
+
 	return 0;
 }
 
@@ -331,16 +383,6 @@ static int calc_max_buckets(void)
 	mem /= sizeof(struct list_head);
 
 	return mem;
-}
-
-/*
- * Rounds a number down to a power of 2.
- */
-static uint32_t round_down(uint32_t n)
-{
-	while (n & (n - 1))
-		n &= (n - 1);
-	return n;
 }
 
 /*
@@ -361,9 +403,9 @@ static int init_hash_tables(struct dm_snapshot *s)
 	hash_size = min(origin_dev_size, cow_dev_size) >> s->chunk_shift;
 	hash_size = min(hash_size, max_buckets);
 
-	/* Round it down to a power of 2 */
-	hash_size = round_down(hash_size);
-	if (init_exception_table(&s->complete, hash_size))
+	hash_size = rounddown_pow_of_two(hash_size);
+	if (init_exception_table(&s->complete, hash_size,
+				 DM_CHUNK_CONSECUTIVE_BITS))
 		return -ENOMEM;
 
 	/*
@@ -374,7 +416,7 @@ static int init_hash_tables(struct dm_snapshot *s)
 	if (hash_size < 64)
 		hash_size = 64;
 
-	if (init_exception_table(&s->pending, hash_size)) {
+	if (init_exception_table(&s->pending, hash_size, 0)) {
 		exit_exception_table(&s->complete, exception_cache);
 		return -ENOMEM;
 	}
@@ -733,7 +775,7 @@ static void pending_complete(struct dm_snap_pending_exception *pe, int success)
 	 * Add a proper exception, and remove the
 	 * in-flight exception from the list.
 	 */
-	insert_exception(&s->complete, e);
+	insert_completed_exception(s, e);
 
  out:
 	remove_exception(&pe->e);
@@ -867,11 +909,12 @@ __find_pending_exception(struct dm_snapshot *s, struct bio *bio)
 }
 
 static void remap_exception(struct dm_snapshot *s, struct dm_snap_exception *e,
-			    struct bio *bio)
+			    struct bio *bio, chunk_t chunk)
 {
 	bio->bi_bdev = s->cow->bdev;
-	bio->bi_sector = chunk_to_sector(s, e->new_chunk) +
-		(bio->bi_sector & s->chunk_mask);
+	bio->bi_sector = chunk_to_sector(s, dm_chunk_number(e->new_chunk) +
+			 (chunk - e->old_chunk)) +
+			 (bio->bi_sector & s->chunk_mask);
 }
 
 static int snapshot_map(struct dm_target *ti, struct bio *bio,
@@ -902,7 +945,7 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio,
 	/* If the block is already remapped - use that, else remap it */
 	e = lookup_exception(&s->complete, chunk);
 	if (e) {
-		remap_exception(s, e, bio);
+		remap_exception(s, e, bio, chunk);
 		goto out_unlock;
 	}
 
@@ -919,7 +962,7 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio,
 			goto out_unlock;
 		}
 
-		remap_exception(s, &pe->e, bio);
+		remap_exception(s, &pe->e, bio, chunk);
 		bio_list_add(&pe->snapshot_bios, bio);
 
 		r = DM_MAPIO_SUBMITTED;
@@ -1207,7 +1250,7 @@ static int origin_status(struct dm_target *ti, status_type_t type, char *result,
 
 static struct target_type origin_target = {
 	.name    = "snapshot-origin",
-	.version = {1, 5, 0},
+	.version = {1, 6, 0},
 	.module  = THIS_MODULE,
 	.ctr     = origin_ctr,
 	.dtr     = origin_dtr,
@@ -1218,7 +1261,7 @@ static struct target_type origin_target = {
 
 static struct target_type snapshot_target = {
 	.name    = "snapshot",
-	.version = {1, 5, 0},
+	.version = {1, 6, 0},
 	.module  = THIS_MODULE,
 	.ctr     = snapshot_ctr,
 	.dtr     = snapshot_dtr,

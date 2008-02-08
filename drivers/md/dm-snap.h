@@ -16,19 +16,22 @@
 
 struct exception_table {
 	uint32_t hash_mask;
+	unsigned hash_shift;
 	struct list_head *table;
 };
 
 /*
  * The snapshot code deals with largish chunks of the disk at a
- * time. Typically 64k - 256k.
+ * time. Typically 32k - 512k.
  */
-/* FIXME: can we get away with limiting these to a uint32_t ? */
 typedef sector_t chunk_t;
 
 /*
  * An exception is used where an old chunk of data has been
  * replaced by a new one.
+ * If chunk_t is 64 bits in size, the top 8 bits of new_chunk hold the number
+ * of chunks that follow contiguously.  Remaining bits hold the number of the
+ * chunk within the device.
  */
 struct dm_snap_exception {
 	struct list_head hash_list;
@@ -36,6 +39,49 @@ struct dm_snap_exception {
 	chunk_t old_chunk;
 	chunk_t new_chunk;
 };
+
+/*
+ * Funtions to manipulate consecutive chunks
+ */
+#  if defined(CONFIG_LBD) || (BITS_PER_LONG == 64)
+#    define DM_CHUNK_CONSECUTIVE_BITS 8
+#    define DM_CHUNK_NUMBER_BITS 56
+
+static inline chunk_t dm_chunk_number(chunk_t chunk)
+{
+	return chunk & (chunk_t)((1ULL << DM_CHUNK_NUMBER_BITS) - 1ULL);
+}
+
+static inline unsigned dm_consecutive_chunk_count(struct dm_snap_exception *e)
+{
+	return e->new_chunk >> DM_CHUNK_NUMBER_BITS;
+}
+
+static inline void dm_consecutive_chunk_count_inc(struct dm_snap_exception *e)
+{
+	e->new_chunk += (1ULL << DM_CHUNK_NUMBER_BITS);
+
+	BUG_ON(!dm_consecutive_chunk_count(e));
+}
+
+#  else
+#    define DM_CHUNK_CONSECUTIVE_BITS 0
+
+static inline chunk_t dm_chunk_number(chunk_t chunk)
+{
+	return chunk;
+}
+
+static inline unsigned dm_consecutive_chunk_count(struct dm_snap_exception *e)
+{
+	return 0;
+}
+
+static inline void dm_consecutive_chunk_count_inc(struct dm_snap_exception *e)
+{
+}
+
+#  endif
 
 /*
  * Abstraction to handle the meta/layout of exception stores (the
