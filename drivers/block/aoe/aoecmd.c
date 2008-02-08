@@ -957,15 +957,17 @@ addtgt(struct aoedev *d, char *addr, ulong nframes)
 	for (; tt < te && *tt; tt++)
 		;
 
-	if (tt == te)
+	if (tt == te) {
+		printk(KERN_INFO
+			"aoe: device addtgt failure; too many targets\n");
 		return NULL;
-
+	}
 	t = kcalloc(1, sizeof *t, GFP_ATOMIC);
-	if (!t)
-		return NULL;
 	f = kcalloc(nframes, sizeof *f, GFP_ATOMIC);
-	if (!f) {
+	if (!t || !f) {
+		kfree(f);
 		kfree(t);
+		printk(KERN_INFO "aoe: cannot allocate memory to add target\n");
 		return NULL;
 	}
 
@@ -1029,9 +1031,6 @@ aoecmd_cfg_rsp(struct sk_buff *skb)
 	if (!t) {
 		t = addtgt(d, h->src, n);
 		if (!t) {
-			printk(KERN_INFO
-				"aoe: device addtgt failure; "
-				"too many targets?\n");
 			spin_unlock_irqrestore(&d->lock, flags);
 			return;
 		}
