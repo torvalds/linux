@@ -67,9 +67,7 @@ struct msg_sender {
 #define SEARCH_NOTEQUAL		3
 #define SEARCH_LESSEQUAL	4
 
-static struct ipc_ids init_msg_ids;
-
-#define msg_ids(ns)	(*((ns)->ids[IPC_MSG_IDS]))
+#define msg_ids(ns)	((ns)->ids[IPC_MSG_IDS])
 
 #define msg_unlock(msq)		ipc_unlock(&(msq)->q_perm)
 #define msg_buildid(id, seq)	ipc_buildid(id, seq)
@@ -80,30 +78,17 @@ static int newque(struct ipc_namespace *, struct ipc_params *);
 static int sysvipc_msg_proc_show(struct seq_file *s, void *it);
 #endif
 
-static void __msg_init_ns(struct ipc_namespace *ns, struct ipc_ids *ids)
+void msg_init_ns(struct ipc_namespace *ns)
 {
-	ns->ids[IPC_MSG_IDS] = ids;
 	ns->msg_ctlmax = MSGMAX;
 	ns->msg_ctlmnb = MSGMNB;
 	ns->msg_ctlmni = MSGMNI;
 	atomic_set(&ns->msg_bytes, 0);
 	atomic_set(&ns->msg_hdrs, 0);
-	ipc_init_ids(ids);
+	ipc_init_ids(&ns->ids[IPC_MSG_IDS]);
 }
 
 #ifdef CONFIG_IPC_NS
-int msg_init_ns(struct ipc_namespace *ns)
-{
-	struct ipc_ids *ids;
-
-	ids = kmalloc(sizeof(struct ipc_ids), GFP_KERNEL);
-	if (ids == NULL)
-		return -ENOMEM;
-
-	__msg_init_ns(ns, ids);
-	return 0;
-}
-
 void msg_exit_ns(struct ipc_namespace *ns)
 {
 	struct msg_queue *msq;
@@ -126,15 +111,12 @@ void msg_exit_ns(struct ipc_namespace *ns)
 	}
 
 	up_write(&msg_ids(ns).rw_mutex);
-
-	kfree(ns->ids[IPC_MSG_IDS]);
-	ns->ids[IPC_MSG_IDS] = NULL;
 }
 #endif
 
 void __init msg_init(void)
 {
-	__msg_init_ns(&init_ipc_ns, &init_msg_ids);
+	msg_init_ns(&init_ipc_ns);
 	ipc_init_proc_interface("sysvipc/msg",
 				"       key      msqid perms      cbytes       qnum lspid lrpid   uid   gid  cuid  cgid      stime      rtime      ctime\n",
 				IPC_MSG_IDS, sysvipc_msg_proc_show);

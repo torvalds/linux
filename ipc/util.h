@@ -10,7 +10,6 @@
 #ifndef _IPC_UTIL_H
 #define _IPC_UTIL_H
 
-#include <linux/idr.h>
 #include <linux/err.h>
 
 #define USHRT_MAX 0xffff
@@ -22,21 +21,13 @@ void shm_init (void);
 
 struct ipc_namespace;
 
-int sem_init_ns(struct ipc_namespace *ns);
-int msg_init_ns(struct ipc_namespace *ns);
-int shm_init_ns(struct ipc_namespace *ns);
+void sem_init_ns(struct ipc_namespace *ns);
+void msg_init_ns(struct ipc_namespace *ns);
+void shm_init_ns(struct ipc_namespace *ns);
 
 void sem_exit_ns(struct ipc_namespace *ns);
 void msg_exit_ns(struct ipc_namespace *ns);
 void shm_exit_ns(struct ipc_namespace *ns);
-
-struct ipc_ids {
-	int in_use;
-	unsigned short seq;
-	unsigned short seq_max;
-	struct rw_semaphore rw_mutex;
-	struct idr ipcs_idr;
-};
 
 /*
  * Structure that holds the parameters needed by the ipc operations
@@ -68,6 +59,7 @@ struct ipc_ops {
 };
 
 struct seq_file;
+struct ipc_ids;
 
 void ipc_init_ids(struct ipc_ids *);
 #ifdef CONFIG_PROC_FS

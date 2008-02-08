@@ -833,7 +833,7 @@ static void *sysvipc_proc_next(struct seq_file *s, void *it, loff_t *pos)
 	if (ipc && ipc != SEQ_START_TOKEN)
 		ipc_unlock(ipc);
 
-	return sysvipc_find_ipc(iter->ns->ids[iface->ids], *pos, pos);
+	return sysvipc_find_ipc(&iter->ns->ids[iface->ids], *pos, pos);
 }
 
 /*
@@ -846,7 +846,7 @@ static void *sysvipc_proc_start(struct seq_file *s, loff_t *pos)
 	struct ipc_proc_iface *iface = iter->iface;
 	struct ipc_ids *ids;
 
-	ids = iter->ns->ids[iface->ids];
+	ids = &iter->ns->ids[iface->ids];
 
 	/*
 	 * Take the lock - this will be released by the corresponding
@@ -877,7 +877,7 @@ static void sysvipc_proc_stop(struct seq_file *s, void *it)
 	if (ipc && ipc != SEQ_START_TOKEN)
 		ipc_unlock(ipc);
 
-	ids = iter->ns->ids[iface->ids];
+	ids = &iter->ns->ids[iface->ids];
 	/* Release the lock we took in start() */
 	up_read(&ids->rw_mutex);
 }

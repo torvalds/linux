@@ -2,11 +2,20 @@
 #define __IPC_NAMESPACE_H__
 
 #include <linux/err.h>
+#include <linux/idr.h>
+#include <linux/rwsem.h>
 
-struct ipc_ids;
+struct ipc_ids {
+	int in_use;
+	unsigned short seq;
+	unsigned short seq_max;
+	struct rw_semaphore rw_mutex;
+	struct idr ipcs_idr;
+};
+
 struct ipc_namespace {
 	struct kref	kref;
-	struct ipc_ids	*ids[3];
+	struct ipc_ids	ids[3];
 
 	int		sem_ctls[4];
 	int		used_sems;

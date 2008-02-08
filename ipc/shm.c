@@ -56,9 +56,7 @@ struct shm_file_data {
 static const struct file_operations shm_file_operations;
 static struct vm_operations_struct shm_vm_ops;
 
-static struct ipc_ids init_shm_ids;
-
-#define shm_ids(ns)	(*((ns)->ids[IPC_SHM_IDS]))
+#define shm_ids(ns)	((ns)->ids[IPC_SHM_IDS])
 
 #define shm_unlock(shp)			\
 	ipc_unlock(&(shp)->shm_perm)
@@ -72,14 +70,13 @@ static void shm_destroy (struct ipc_namespace *ns, struct shmid_kernel *shp);
 static int sysvipc_shm_proc_show(struct seq_file *s, void *it);
 #endif
 
-static void __shm_init_ns(struct ipc_namespace *ns, struct ipc_ids *ids)
+void shm_init_ns(struct ipc_namespace *ns)
 {
-	ns->ids[IPC_SHM_IDS] = ids;
 	ns->shm_ctlmax = SHMMAX;
 	ns->shm_ctlall = SHMALL;
 	ns->shm_ctlmni = SHMMNI;
 	ns->shm_tot = 0;
-	ipc_init_ids(ids);
+	ipc_init_ids(&ns->ids[IPC_SHM_IDS]);
 }
 
 /*
@@ -98,18 +95,6 @@ static void do_shm_rmid(struct ipc_namespace *ns, struct shmid_kernel *shp)
 }
 
 #ifdef CONFIG_IPC_NS
-int shm_init_ns(struct ipc_namespace *ns)
-{
-	struct ipc_ids *ids;
-
-	ids = kmalloc(sizeof(struct ipc_ids), GFP_KERNEL);
-	if (ids == NULL)
-		return -ENOMEM;
-
-	__shm_init_ns(ns, ids);
-	return 0;
-}
-
 void shm_exit_ns(struct ipc_namespace *ns)
 {
 	struct shmid_kernel *shp;
@@ -131,15 +116,12 @@ void shm_exit_ns(struct ipc_namespace *ns)
 		total++;
 	}
 	up_write(&shm_ids(ns).rw_mutex);
-
-	kfree(ns->ids[IPC_SHM_IDS]);
-	ns->ids[IPC_SHM_IDS] = NULL;
 }
 #endif
 
 void __init shm_init (void)
 {
-	__shm_init_ns(&init_ipc_ns, &init_shm_ids);
+	shm_init_ns(&init_ipc_ns);
 	ipc_init_proc_interface("sysvipc/shm",
 				"       key      shmid perms       size  cpid  lpid nattch   uid   gid  cuid  cgid      atime      dtime      ctime\n",
 				IPC_SHM_IDS, sysvipc_shm_proc_show);

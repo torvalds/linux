@@ -14,35 +14,18 @@
 
 static struct ipc_namespace *clone_ipc_ns(struct ipc_namespace *old_ns)
 {
-	int err;
 	struct ipc_namespace *ns;
 
-	err = -ENOMEM;
 	ns = kmalloc(sizeof(struct ipc_namespace), GFP_KERNEL);
 	if (ns == NULL)
-		goto err_mem;
+		return ERR_PTR(-ENOMEM);
 
-	err = sem_init_ns(ns);
-	if (err)
-		goto err_sem;
-	err = msg_init_ns(ns);
-	if (err)
-		goto err_msg;
-	err = shm_init_ns(ns);
-	if (err)
-		goto err_shm;
+	sem_init_ns(ns);
+	msg_init_ns(ns);
+	shm_init_ns(ns);
 
 	kref_init(&ns->kref);
 	return ns;
-
-err_shm:
-	msg_exit_ns(ns);
-err_msg:
-	sem_exit_ns(ns);
-err_sem:
-	kfree(ns);
-err_mem:
-	return ERR_PTR(err);
 }
 
 struct ipc_namespace *copy_ipcs(unsigned long flags, struct ipc_namespace *ns)
