@@ -522,7 +522,7 @@ static struct irq_chip sun4v_virq = {
 	.set_affinity	= sun4v_virt_set_affinity,
 };
 
-static void fastcall pre_flow_handler(unsigned int virt_irq,
+static void pre_flow_handler(unsigned int virt_irq,
 				      struct irq_desc *desc)
 {
 	struct irq_handler_data *data = get_irq_chip_data(virt_irq);
