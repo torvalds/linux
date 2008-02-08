@@ -475,7 +475,7 @@ static int __table_get_device(struct dm_table *t, struct dm_target *ti,
 			      int mode, struct dm_dev **result)
 {
 	int r;
-	dev_t dev;
+	dev_t uninitialized_var(dev);
 	struct dm_dev *dd;
 	unsigned int major, minor;
 
