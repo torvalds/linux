@@ -94,7 +94,7 @@ struct dn_rt_hash_bucket
 {
 	struct dn_route *chain;
 	spinlock_t lock;
-} __attribute__((__aligned__(8)));
+};
 
 extern struct neigh_table dn_neigh_table;
 
