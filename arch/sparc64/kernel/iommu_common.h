@@ -1,8 +1,10 @@
-/* $Id: iommu_common.h,v 1.5 2001/12/11 09:41:01 davem Exp $
- * iommu_common.h: UltraSparc SBUS/PCI common iommu declarations.
+/* iommu_common.h: UltraSparc SBUS/PCI common iommu declarations.
  *
- * Copyright (C) 1999 David S. Miller (davem@redhat.com)
+ * Copyright (C) 1999, 2008 David S. Miller (davem@davemloft.net)
  */
+
+#ifndef _IOMMU_COMMON_H
+#define _IOMMU_COMMON_H
 
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -55,3 +57,5 @@ static inline unsigned long calc_npages(struct scatterlist *sglist, int nelems)
 
 	return npages;
 }
+
+#endif /* _IOMMU_COMMON_H */
