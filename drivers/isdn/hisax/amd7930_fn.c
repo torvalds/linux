@@ -744,8 +744,7 @@ dbusy_timer_handler(struct IsdnCardState *cs)
 
 
 
-void __devinit
-Amd7930_init(struct IsdnCardState *cs)
+void Amd7930_init(struct IsdnCardState *cs)
 {
     WORD *ptr;
     BYTE cmd, cnt;
