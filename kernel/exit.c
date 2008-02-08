@@ -1511,6 +1511,7 @@ repeat:
 			}
 			allowed = 1;
 
+			retval = 0;
 			if (task_is_stopped_or_traced(p)) {
 				/*
 				 * It's stopped now, so it might later
@@ -1524,8 +1525,6 @@ repeat:
 				retval = wait_task_stopped(p, ret == 2,
 						(options & WNOWAIT), infop,
 						stat_addr, ru);
-				if (retval != 0) /* He released the lock.  */
-					goto end;
 			} else if (p->exit_state == EXIT_ZOMBIE) {
 				/*
 				 * Eligible but we cannot release it yet:
@@ -1537,9 +1536,6 @@ repeat:
 				retval = wait_task_zombie(p,
 						(options & WNOWAIT), infop,
 						stat_addr, ru);
-				/* He released the lock.  */
-				if (retval != 0)
-					goto end;
 			} else if (p->exit_state != EXIT_DEAD) {
 check_continued:
 				/*
@@ -1552,9 +1548,9 @@ check_continued:
 				retval = wait_task_continued(p,
 						(options & WNOWAIT), infop,
 						stat_addr, ru);
-				if (retval != 0) /* He released the lock.  */
-					goto end;
 			}
+			if (retval != 0) /* tasklist_lock released */
+				goto end;
 		}
 		if (!flag) {
 			list_for_each_entry(p, &tsk->ptrace_children,
@@ -1590,7 +1586,7 @@ end:
 	remove_wait_queue(&current->signal->wait_chldexit,&wait);
 	if (infop) {
 		if (retval > 0)
-		retval = 0;
+			retval = 0;
 		else {
 			/*
 			 * For a WNOHANG return, clear out all the fields
