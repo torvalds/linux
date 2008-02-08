@@ -54,7 +54,8 @@ extern int proc_tid_stat(struct seq_file *m, struct pid_namespace *ns,
 extern int proc_tgid_stat(struct seq_file *m, struct pid_namespace *ns,
 				struct pid *pid, struct task_struct *task);
 extern int proc_pid_status(struct task_struct *, char *);
-extern int proc_pid_statm(struct task_struct *, char *);
+extern int proc_pid_statm(struct seq_file *m, struct pid_namespace *ns,
+				struct pid *pid, struct task_struct *task);
 extern loff_t mem_lseek(struct file *file, loff_t offset, int orig);
 
 extern const struct file_operations proc_maps_operations;
