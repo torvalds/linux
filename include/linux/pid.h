@@ -152,7 +152,13 @@ pid_t pid_vnr(struct pid *pid);
 			hlist_for_each_entry_rcu((task), pos___,	\
 				&pid->tasks[type], pids[type].node) {
 
+			/*
+			 * Both old and new leaders may be attached to
+			 * the same pid in the middle of de_thread().
+			 */
 #define while_each_pid_task(pid, type, task)				\
+				if (type == PIDTYPE_PID)		\
+					break;				\
 			}						\
 	} while (0)
 
