@@ -1564,7 +1564,6 @@ static void udf_open_lvid(struct super_block *sb)
 	struct udf_sb_info *sbi = UDF_SB(sb);
 	struct buffer_head *bh = sbi->s_lvid_bh;
 	if (bh) {
-		int i;
 		kernel_timestamp cpu_time;
 		struct logicalVolIntegrityDesc *lvid =
 				(struct logicalVolIntegrityDesc *)bh->b_data;
@@ -1582,12 +1581,7 @@ static void udf_open_lvid(struct super_block *sb)
 				le16_to_cpu(lvid->descTag.descCRCLength),
 				0));
 
-		lvid->descTag.tagChecksum = 0;
-		for (i = 0; i < 16; i++)
-			if (i != 4)
-				lvid->descTag.tagChecksum +=
-					((uint8_t *) &(lvid->descTag))[i];
-
+		lvid->descTag.tagChecksum = udf_tag_checksum(&lvid->descTag);
 		mark_buffer_dirty(bh);
 	}
 }
@@ -1595,7 +1589,6 @@ static void udf_open_lvid(struct super_block *sb)
 static void udf_close_lvid(struct super_block *sb)
 {
 	kernel_timestamp cpu_time;
-	int i;
 	struct udf_sb_info *sbi = UDF_SB(sb);
 	struct buffer_head *bh = sbi->s_lvid_bh;
 	struct logicalVolIntegrityDesc *lvid;
@@ -1626,12 +1619,7 @@ static void udf_close_lvid(struct super_block *sb)
 				le16_to_cpu(lvid->descTag.descCRCLength),
 				0));
 
-		lvid->descTag.tagChecksum = 0;
-		for (i = 0; i < 16; i++)
-			if (i != 4)
-				lvid->descTag.tagChecksum +=
-					((uint8_t *)&(lvid->descTag))[i];
-
+		lvid->descTag.tagChecksum = udf_tag_checksum(&lvid->descTag);
 		mark_buffer_dirty(bh);
 	}
 }

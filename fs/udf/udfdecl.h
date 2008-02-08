@@ -36,6 +36,9 @@
 
 #define udf_get_lb_pblock(sb,loc,offset) udf_get_pblock((sb), (loc).logicalBlockNum, (loc).partitionReferenceNum, (offset))
 
+/* computes tag checksum */
+u8 udf_tag_checksum(const tag *t);
+
 struct dentry;
 struct inode;
 struct task_struct;

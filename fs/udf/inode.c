@@ -1440,7 +1440,6 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 	uint32_t udfperms;
 	uint16_t icbflags;
 	uint16_t crclen;
-	int i;
 	kernel_timestamp cpu_time;
 	int err = 0;
 	struct udf_sb_info *sbi = UDF_SB(inode->i_sb);
@@ -1476,12 +1475,7 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 		use->descTag.descCRC = cpu_to_le16(udf_crc((char *)use +
 							   sizeof(tag), crclen,
 							   0));
-
-		use->descTag.tagChecksum = 0;
-		for (i = 0; i < 16; i++)
-			if (i != 4)
-				use->descTag.tagChecksum +=
-						((uint8_t *)&(use->descTag))[i];
+		use->descTag.tagChecksum = udf_tag_checksum(&use->descTag);
 
 		mark_buffer_dirty(bh);
 		brelse(bh);
@@ -1650,12 +1644,7 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 	fe->descTag.descCRCLength = cpu_to_le16(crclen);
 	fe->descTag.descCRC = cpu_to_le16(udf_crc((char *)fe + sizeof(tag),
 						  crclen, 0));
-
-	fe->descTag.tagChecksum = 0;
-	for (i = 0; i < 16; i++)
-		if (i != 4)
-			fe->descTag.tagChecksum +=
-				((uint8_t *)&(fe->descTag))[i];
+	fe->descTag.tagChecksum = udf_tag_checksum(&fe->descTag);
 
 	/* write the data blocks */
 	mark_buffer_dirty(bh);

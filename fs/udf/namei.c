@@ -47,8 +47,6 @@ int udf_write_fi(struct inode *inode, struct fileIdentDesc *cfi,
 {
 	uint16_t crclen = fibh->eoffset - fibh->soffset - sizeof(tag);
 	uint16_t crc;
-	uint8_t checksum = 0;
-	int i;
 	int offset;
 	uint16_t liu = le16_to_cpu(cfi->lengthOfImpUse);
 	uint8_t lfi = cfi->lengthFileIdent;
@@ -122,13 +120,8 @@ int udf_write_fi(struct inode *inode, struct fileIdentDesc *cfi,
 
 	cfi->descTag.descCRC = cpu_to_le16(crc);
 	cfi->descTag.descCRCLength = cpu_to_le16(crclen);
+	cfi->descTag.tagChecksum = udf_tag_checksum(&cfi->descTag);
 
-	for (i = 0; i < 16; i++) {
-		if (i != 4)
-			checksum += ((uint8_t *)&cfi->descTag)[i];
-	}
-
-	cfi->descTag.tagChecksum = checksum;
 	if (adinicb || (sizeof(struct fileIdentDesc) <= -fibh->soffset)) {
 		memcpy((uint8_t *)sfi, (uint8_t *)cfi,
 			sizeof(struct fileIdentDesc));

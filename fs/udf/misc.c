@@ -51,7 +51,6 @@ struct genericFormat *udf_add_extendedattr(struct inode *inode, uint32_t size,
 	uint8_t *ea = NULL, *ad = NULL;
 	int offset;
 	uint16_t crclen;
-	int i;
 
 	ea = UDF_I_DATA(inode);
 	if (UDF_I_LENEATTR(inode)) {
@@ -138,11 +137,7 @@ struct genericFormat *udf_add_extendedattr(struct inode *inode, uint32_t size,
 		eahd->descTag.descCRCLength = cpu_to_le16(crclen);
 		eahd->descTag.descCRC = cpu_to_le16(udf_crc((char *)eahd +
 						sizeof(tag), crclen, 0));
-		eahd->descTag.tagChecksum = 0;
-		for (i = 0; i < 16; i++)
-			if (i != 4)
-				eahd->descTag.tagChecksum +=
-					((uint8_t *)&(eahd->descTag))[i];
+		eahd->descTag.tagChecksum = udf_tag_checksum(&eahd->descTag);
 		UDF_I_LENEATTR(inode) += size;
 		return (struct genericFormat *)&ea[offset];
 	}
@@ -207,8 +202,6 @@ struct buffer_head *udf_read_tagged(struct super_block *sb, uint32_t block,
 {
 	tag *tag_p;
 	struct buffer_head *bh = NULL;
-	register uint8_t checksum;
-	register int i;
 	struct udf_sb_info *sbi = UDF_SB(sb);
 
 	/* Read the block */
@@ -234,12 +227,7 @@ struct buffer_head *udf_read_tagged(struct super_block *sb, uint32_t block,
 	}
 
 	/* Verify the tag checksum */
-	checksum = 0U;
-	for (i = 0; i < 4; i++)
-		checksum += (uint8_t)(bh->b_data[i]);
-	for (i = 5; i < 16; i++)
-		checksum += (uint8_t)(bh->b_data[i]);
-	if (checksum != tag_p->tagChecksum) {
+	if (udf_tag_checksum(tag_p) != tag_p->tagChecksum) {
 		printk(KERN_ERR "udf: tag checksum failed block %d\n", block);
 		goto error_out;
 	}
@@ -277,17 +265,11 @@ struct buffer_head *udf_read_ptagged(struct super_block *sb, kernel_lb_addr loc,
 void udf_update_tag(char *data, int length)
 {
 	tag *tptr = (tag *)data;
-	int i;
-
 	length -= sizeof(tag);
 
-	tptr->tagChecksum = 0;
 	tptr->descCRCLength = cpu_to_le16(length);
 	tptr->descCRC = cpu_to_le16(udf_crc(data + sizeof(tag), length, 0));
-
-	for (i = 0; i < 16; i++)
-		if (i != 4)
-			tptr->tagChecksum += (uint8_t)(data[i]);
+	tptr->tagChecksum = udf_tag_checksum(tptr);
 }
 
 void udf_new_tag(char *data, uint16_t ident, uint16_t version, uint16_t snum,
@@ -299,4 +281,15 @@ void udf_new_tag(char *data, uint16_t ident, uint16_t version, uint16_t snum,
 	tptr->tagSerialNum = cpu_to_le16(snum);
 	tptr->tagLocation = cpu_to_le32(loc);
 	udf_update_tag(data, length);
+}
+
+u8 udf_tag_checksum(const tag *t)
+{
+	u8 *data = (u8 *)t;
+	u8 checksum = 0;
+	int i;
+	for (i = 0; i < sizeof(tag); ++i)
+		if (i != 4) /* position of checksum */
+			checksum += data[i];
+	return checksum;
 }
