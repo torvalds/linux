@@ -367,6 +367,9 @@ set_irq_chained_handler(unsigned int irq,
 	__set_irq_handler(irq, handle, 1, NULL);
 }
 
+extern void set_irq_noprobe(unsigned int irq);
+extern void set_irq_probe(unsigned int irq);
+
 /* Handle dynamic irq creation and destruction */
 extern int create_irq(void);
 extern void destroy_irq(unsigned int irq);
