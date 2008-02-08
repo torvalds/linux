@@ -793,6 +793,7 @@ static void atmel_tasklet_func(unsigned long data)
 static int atmel_startup(struct uart_port *port)
 {
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
+	struct tty_struct *tty = port->info->tty;
 	int retval;
 
 	/*
@@ -806,7 +807,7 @@ static int atmel_startup(struct uart_port *port)
 	 * Allocate the IRQ
 	 */
 	retval = request_irq(port->irq, atmel_interrupt, IRQF_SHARED,
-			"atmel_serial", port);
+			tty ? tty->name : "atmel_serial", port);
 	if (retval) {
 		printk("atmel_serial: atmel_startup - Can't get irq\n");
 		return retval;
