@@ -673,7 +673,7 @@ void free_proc_entry(struct proc_dir_entry *de)
 
 	release_inode_number(ino);
 
-	if (S_ISLNK(de->mode) && de->data)
+	if (S_ISLNK(de->mode))
 		kfree(de->data);
 	kfree(de);
 }
