@@ -110,6 +110,7 @@ struct crypt_config {
 static struct kmem_cache *_crypt_io_pool;
 
 static void clone_init(struct dm_crypt_io *, struct bio *);
+static void kcryptd_queue_crypt(struct dm_crypt_io *io);
 
 /*
  * Different IV generation algorithms:
@@ -481,25 +482,6 @@ static void crypt_dec_pending(struct dm_crypt_io *io)
  * starved by new requests which can block in the first stages due
  * to memory allocation.
  */
-static void kcryptd_io(struct work_struct *work);
-static void kcryptd_crypt(struct work_struct *work);
-
-static void kcryptd_queue_io(struct dm_crypt_io *io)
-{
-	struct crypt_config *cc = io->target->private;
-
-	INIT_WORK(&io->work, kcryptd_io);
-	queue_work(cc->io_queue, &io->work);
-}
-
-static void kcryptd_queue_crypt(struct dm_crypt_io *io)
-{
-	struct crypt_config *cc = io->target->private;
-
-	INIT_WORK(&io->work, kcryptd_crypt);
-	queue_work(cc->crypt_queue, &io->work);
-}
-
 static void crypt_endio(struct bio *clone, int error)
 {
 	struct dm_crypt_io *io = clone->bi_private;
@@ -573,6 +555,24 @@ static void kcryptd_io_read(struct dm_crypt_io *io)
 
 static void kcryptd_io_write(struct dm_crypt_io *io)
 {
+}
+
+static void kcryptd_io(struct work_struct *work)
+{
+	struct dm_crypt_io *io = container_of(work, struct dm_crypt_io, work);
+
+	if (bio_data_dir(io->base_bio) == READ)
+		kcryptd_io_read(io);
+	else
+		kcryptd_io_write(io);
+}
+
+static void kcryptd_queue_io(struct dm_crypt_io *io)
+{
+	struct crypt_config *cc = io->target->private;
+
+	INIT_WORK(&io->work, kcryptd_io);
+	queue_work(cc->io_queue, &io->work);
 }
 
 static void kcryptd_crypt_write_io_submit(struct dm_crypt_io *io, int error)
@@ -658,16 +658,6 @@ static void kcryptd_crypt_read_convert(struct dm_crypt_io *io)
 	kcryptd_crypt_read_done(io, r);
 }
 
-static void kcryptd_io(struct work_struct *work)
-{
-	struct dm_crypt_io *io = container_of(work, struct dm_crypt_io, work);
-
-	if (bio_data_dir(io->base_bio) == READ)
-		kcryptd_io_read(io);
-	else
-		kcryptd_io_write(io);
-}
-
 static void kcryptd_crypt(struct work_struct *work)
 {
 	struct dm_crypt_io *io = container_of(work, struct dm_crypt_io, work);
@@ -676,6 +666,14 @@ static void kcryptd_crypt(struct work_struct *work)
 		kcryptd_crypt_read_convert(io);
 	else
 		kcryptd_crypt_write_convert(io);
+}
+
+static void kcryptd_queue_crypt(struct dm_crypt_io *io)
+{
+	struct crypt_config *cc = io->target->private;
+
+	INIT_WORK(&io->work, kcryptd_crypt);
+	queue_work(cc->crypt_queue, &io->work);
 }
 
 /*
