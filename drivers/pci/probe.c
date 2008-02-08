@@ -631,7 +631,9 @@ int __devinit pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max,
 		pci_write_config_byte(dev, PCI_SUBORDINATE_BUS, max);
 	}
 
-	sprintf(child->name, (is_cardbus ? "PCI CardBus #%02x" : "PCI Bus #%02x"), child->number);
+	sprintf(child->name,
+		(is_cardbus ? "PCI CardBus %04x:%02x" : "PCI Bus %04x:%02x"),
+		pci_domain_nr(bus), child->number);
 
 	/* Has only triggered on CardBus, fixup is in yenta_socket */
 	while (bus->parent) {
