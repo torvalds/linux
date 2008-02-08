@@ -132,6 +132,12 @@ int __init detect_cpu_and_cache_system(void)
 			boot_cpu_data.dcache.ways = 4;
 			boot_cpu_data.flags |= CPU_HAS_LLSC;
 		}
+		else if (prr == 0x70) {
+			boot_cpu_data.type = CPU_SH7366;
+			boot_cpu_data.icache.ways = 4;
+			boot_cpu_data.dcache.ways = 4;
+			boot_cpu_data.flags |= CPU_HAS_LLSC;
+		}
 		break;
 	case 0x4000:	/* 1st cut */
 	case 0x4001:	/* 2nd cut */

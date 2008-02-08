@@ -315,6 +315,13 @@ config CPU_SUBTYPE_SH7722
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_NUMA
 
+config CPU_SUBTYPE_SH7366
+	bool "Support SH7366 processor"
+	select CPU_SH4AL_DSP
+	select CPU_SHX2
+	select ARCH_SPARSEMEM_ENABLE
+	select SYS_SUPPORTS_NUMA
+
 # SH-5 Processor Support
 
 config CPU_SUBTYPE_SH5_101
