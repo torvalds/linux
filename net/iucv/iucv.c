@@ -693,9 +693,9 @@ int iucv_register(struct iucv_handler *handler, int smp)
 		iucv_setmask_up();
 	INIT_LIST_HEAD(&handler->paths);
 
-	spin_lock_irq(&iucv_table_lock);
+	spin_lock_bh(&iucv_table_lock);
 	list_add_tail(&handler->list, &iucv_handler_list);
-	spin_unlock_irq(&iucv_table_lock);
+	spin_unlock_bh(&iucv_table_lock);
 	rc = 0;
 out_mutex:
 	mutex_unlock(&iucv_register_mutex);
