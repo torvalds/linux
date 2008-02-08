@@ -1458,7 +1458,7 @@ int aac_check_health(struct aac_dev * aac)
 
 	printk(KERN_ERR "%s: Host adapter BLINK LED 0x%x\n", aac->name, BlinkLED);
 
-	if (!aac_check_reset || ((aac_check_reset != 1) &&
+	if (!aac_check_reset || ((aac_check_reset == 1) &&
 		(aac->supplement_adapter_info.SupportedOptions2 &
 			AAC_OPTION_IGNORE_RESET)))
 		goto out;

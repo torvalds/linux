@@ -1341,7 +1341,7 @@ int aac_get_adapter_info(struct aac_dev* dev)
 			  (int)sizeof(dev->supplement_adapter_info.VpdInfo.Tsid),
 			  dev->supplement_adapter_info.VpdInfo.Tsid);
 		}
-		if (!aac_check_reset || ((aac_check_reset != 1) &&
+		if (!aac_check_reset || ((aac_check_reset == 1) &&
 		  (dev->supplement_adapter_info.SupportedOptions2 &
 		  AAC_OPTION_IGNORE_RESET))) {
 			printk(KERN_INFO "%s%d: Reset Adapter Ignored\n",
@@ -1379,13 +1379,14 @@ int aac_get_adapter_info(struct aac_dev* dev)
 
 	if (nondasd != -1)
 		dev->nondasd_support = (nondasd!=0);
-	if(dev->nondasd_support != 0) {
+	if (dev->nondasd_support && !dev->in_reset)
 		printk(KERN_INFO "%s%d: Non-DASD support enabled.\n",dev->name, dev->id);
-	}
 
 	dev->dac_support = 0;
 	if( (sizeof(dma_addr_t) > 4) && (dev->adapter_info.options & AAC_OPT_SGMAP_HOST64)){
-		printk(KERN_INFO "%s%d: 64bit support enabled.\n", dev->name, dev->id);
+		if (!dev->in_reset)
+			printk(KERN_INFO "%s%d: 64bit support enabled.\n",
+				dev->name, dev->id);
 		dev->dac_support = 1;
 	}
 
@@ -1395,8 +1396,9 @@ int aac_get_adapter_info(struct aac_dev* dev)
 	if(dev->dac_support != 0) {
 		if (!pci_set_dma_mask(dev->pdev, DMA_64BIT_MASK) &&
 			!pci_set_consistent_dma_mask(dev->pdev, DMA_64BIT_MASK)) {
-			printk(KERN_INFO"%s%d: 64 Bit DAC enabled\n",
-				dev->name, dev->id);
+			if (!dev->in_reset)
+				printk(KERN_INFO"%s%d: 64 Bit DAC enabled\n",
+					dev->name, dev->id);
 		} else if (!pci_set_dma_mask(dev->pdev, DMA_32BIT_MASK) &&
 			!pci_set_consistent_dma_mask(dev->pdev, DMA_32BIT_MASK)) {
 			printk(KERN_INFO"%s%d: DMA mask set failed, 64 Bit DAC disabled\n",
