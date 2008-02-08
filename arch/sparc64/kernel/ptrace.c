@@ -684,72 +684,39 @@ const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 	return &user_sparc64_view;
 }
 
-long arch_ptrace(struct task_struct *child, long request, long addr, long data)
+struct compat_fps {
+	unsigned int regs[32];
+	unsigned int fsr;
+	unsigned int flags;
+	unsigned int extra;
+	unsigned int fpqd;
+	struct compat_fq {
+		unsigned int insnaddr;
+		unsigned int insn;
+	} fpq[16];
+};
+
+long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
+			compat_ulong_t caddr, compat_ulong_t cdata)
 {
-	long addr2 = task_pt_regs(current)->u_regs[UREG_I4];
-	const struct user_regset_view *view;
+	const struct user_regset_view *view = task_user_regset_view(child);
+	compat_ulong_t caddr2 = task_pt_regs(current)->u_regs[UREG_I4];
+	struct pt_regs32 __user *pregs;
+	struct compat_fps __user *fps;
+	unsigned long addr2 = caddr2;
+	unsigned long addr = caddr;
+	unsigned long data = cdata;
 	int ret;
 
-	if (test_thread_flag(TIF_32BIT))
-		addr2 &= 0xffffffffUL;
+	pregs = (struct pt_regs32 __user *) addr;
+	fps = (struct compat_fps __user *) addr;
 
-	view = task_user_regset_view(child);
-
-	switch(request) {
+	switch (request) {
 	case PTRACE_PEEKUSR:
 		ret = (addr != 0) ? -EIO : 0;
 		break;
 
-	case PTRACE_PEEKTEXT: /* read word at location addr. */ 
-	case PTRACE_PEEKDATA: {
-		unsigned long tmp64;
-		unsigned int tmp32;
-		int copied;
-
-		ret = -EIO;
-		if (test_thread_flag(TIF_32BIT)) {
-			copied = access_process_vm(child, addr,
-						   &tmp32, sizeof(tmp32), 0);
-			if (copied == sizeof(tmp32))
-				ret = put_user(tmp32,
-					       (unsigned int __user *) data);
-		} else {
-			copied = access_process_vm(child, addr,
-						   &tmp64, sizeof(tmp64), 0);
-			if (copied == sizeof(tmp64))
-				ret = put_user(tmp64,
-					       (unsigned long __user *) data);
-		}
-		break;
-	}
-
-	case PTRACE_POKETEXT: /* write the word at location addr. */
-	case PTRACE_POKEDATA: {
-		unsigned long tmp64;
-		unsigned int tmp32;
-		int copied;
-
-		ret = -EIO;
-		if (test_thread_flag(TIF_32BIT)) {
-			tmp32 = data;
-			copied = access_process_vm(child, addr,
-						   &tmp32, sizeof(tmp32), 1);
-			if (copied == sizeof(tmp32))
-				ret = 0;
-		} else {
-			tmp64 = data;
-			copied = access_process_vm(child, addr,
-						   &tmp64, sizeof(tmp64), 1);
-			if (copied == sizeof(tmp64))
-				ret = 0;
-		}
-		break;
-	}
-
-	case PTRACE_GETREGS: {
-		struct pt_regs32 __user *pregs =
-			(struct pt_regs32 __user *) addr;
-
+	case PTRACE_GETREGS:
 		ret = copy_regset_to_user(child, view, REGSET_GENERAL,
 					  32 * sizeof(u32),
 					  4 * sizeof(u32),
@@ -760,29 +727,8 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 						  15 * sizeof(u32),
 						  &pregs->u_regs[0]);
 		break;
-	}
 
-	case PTRACE_GETREGS64: {
-		struct pt_regs __user *pregs = (struct pt_regs __user *) addr;
-
-		ret = copy_regset_to_user(child, view, REGSET_GENERAL,
-					  1 * sizeof(u64),
-					  15 * sizeof(u64),
-					  &pregs->u_regs[0]);
-		if (!ret) {
-			/* XXX doesn't handle 'y' register correctly XXX */
-			ret = copy_regset_to_user(child, view, REGSET_GENERAL,
-						  32 * sizeof(u64),
-						  4 * sizeof(u64),
-						  &pregs->tstate);
-		}
-		break;
-	}
-
-	case PTRACE_SETREGS: {
-		struct pt_regs32 __user *pregs =
-			(struct pt_regs32 __user *) addr;
-
+	case PTRACE_SETREGS:
 		ret = copy_regset_from_user(child, view, REGSET_GENERAL,
 					    32 * sizeof(u32),
 					    4 * sizeof(u32),
@@ -793,39 +739,8 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 						    15 * sizeof(u32),
 						    &pregs->u_regs[0]);
 		break;
-	}
 
-	case PTRACE_SETREGS64: {
-		struct pt_regs __user *pregs = (struct pt_regs __user *) addr;
-
-		ret = copy_regset_from_user(child, view, REGSET_GENERAL,
-					    1 * sizeof(u64),
-					    15 * sizeof(u64),
-					    &pregs->u_regs[0]);
-		if (!ret) {
-			/* XXX doesn't handle 'y' register correctly XXX */
-			ret = copy_regset_from_user(child, view, REGSET_GENERAL,
-						    32 * sizeof(u64),
-						    4 * sizeof(u64),
-						    &pregs->tstate);
-		}
-		break;
-	}
-
-	case PTRACE_GETFPREGS: {
-		struct fps {
-			unsigned int regs[32];
-			unsigned int fsr;
-			unsigned int flags;
-			unsigned int extra;
-			unsigned int fpqd;
-			struct fq {
-				unsigned int insnaddr;
-				unsigned int insn;
-			} fpq[16];
-		};
-		struct fps __user *fps = (struct fps __user *) addr;
-
+	case PTRACE_GETFPREGS:
 		ret = copy_regset_to_user(child, view, REGSET_FP,
 					  0 * sizeof(u32),
 					  32 * sizeof(u32),
@@ -843,36 +758,8 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 				ret = -EFAULT;
 		}
 		break;
-	}
 
-	case PTRACE_GETFPREGS64: {
-		struct fps {
-			unsigned int regs[64];
-			unsigned long fsr;
-		};
-		struct fps __user *fps = (struct fps __user *) addr;
-
-		ret = copy_regset_to_user(child, view, REGSET_FP,
-					  0 * sizeof(u64),
-					  33 * sizeof(u64),
-					  fps);
-		break;
-	}
-
-	case PTRACE_SETFPREGS: {
-		struct fps {
-			unsigned int regs[32];
-			unsigned int fsr;
-			unsigned int flags;
-			unsigned int extra;
-			unsigned int fpqd;
-			struct fq {
-				unsigned int insnaddr;
-				unsigned int insn;
-			} fpq[16];
-		};
-		struct fps __user *fps = (struct fps __user *) addr;
-
+	case PTRACE_SETFPREGS:
 		ret = copy_regset_from_user(child, view, REGSET_FP,
 					    0 * sizeof(u32),
 					    32 * sizeof(u32),
@@ -883,21 +770,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 						    1 * sizeof(u32),
 						    &fps->fsr);
 		break;
-	}
-
-	case PTRACE_SETFPREGS64: {
-		struct fps {
-			unsigned int regs[64];
-			unsigned long fsr;
-		};
-		struct fps __user *fps = (struct fps __user *) addr;
-
-		ret = copy_regset_to_user(child, view, REGSET_FP,
-					  0 * sizeof(u64),
-					  33 * sizeof(u64),
-					  fps);
-		break;
-	}
 
 	case PTRACE_READTEXT:
 	case PTRACE_READDATA:
@@ -919,15 +791,93 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			ret = -EIO;
 		break;
 
-	case PTRACE_GETEVENTMSG: {
-		if (test_thread_flag(TIF_32BIT))
-			ret = put_user(child->ptrace_message,
-				       (unsigned int __user *) data);
-		else
-			ret = put_user(child->ptrace_message,
-				       (unsigned long __user *) data);
+	default:
+		ret = compat_ptrace_request(child, request, addr, data);
 		break;
 	}
+
+	return ret;
+}
+
+struct fps {
+	unsigned int regs[64];
+	unsigned long fsr;
+};
+
+long arch_ptrace(struct task_struct *child, long request, long addr, long data)
+{
+	const struct user_regset_view *view = task_user_regset_view(child);
+	struct pt_regs __user *pregs = (struct pt_regs __user *) addr;
+	unsigned long addr2 = task_pt_regs(current)->u_regs[UREG_I4];
+	struct fps __user *fps = (struct fps __user *) addr;
+	int ret;
+
+	switch (request) {
+	case PTRACE_PEEKUSR:
+		ret = (addr != 0) ? -EIO : 0;
+		break;
+
+	case PTRACE_GETREGS64:
+		ret = copy_regset_to_user(child, view, REGSET_GENERAL,
+					  1 * sizeof(u64),
+					  15 * sizeof(u64),
+					  &pregs->u_regs[0]);
+		if (!ret) {
+			/* XXX doesn't handle 'y' register correctly XXX */
+			ret = copy_regset_to_user(child, view, REGSET_GENERAL,
+						  32 * sizeof(u64),
+						  4 * sizeof(u64),
+						  &pregs->tstate);
+		}
+		break;
+
+	case PTRACE_SETREGS64:
+		ret = copy_regset_from_user(child, view, REGSET_GENERAL,
+					    1 * sizeof(u64),
+					    15 * sizeof(u64),
+					    &pregs->u_regs[0]);
+		if (!ret) {
+			/* XXX doesn't handle 'y' register correctly XXX */
+			ret = copy_regset_from_user(child, view, REGSET_GENERAL,
+						    32 * sizeof(u64),
+						    4 * sizeof(u64),
+						    &pregs->tstate);
+		}
+		break;
+
+	case PTRACE_GETFPREGS64:
+		ret = copy_regset_to_user(child, view, REGSET_FP,
+					  0 * sizeof(u64),
+					  33 * sizeof(u64),
+					  fps);
+		break;
+
+	case PTRACE_SETFPREGS64:
+		ret = copy_regset_to_user(child, view, REGSET_FP,
+					  0 * sizeof(u64),
+					  33 * sizeof(u64),
+					  fps);
+		break;
+
+	case PTRACE_READTEXT:
+	case PTRACE_READDATA:
+		ret = ptrace_readdata(child, addr,
+				      (char __user *)addr2, data);
+		if (ret == data)
+			ret = 0;
+		else if (ret >= 0)
+			ret = -EIO;
+		break;
+
+	case PTRACE_WRITETEXT:
+	case PTRACE_WRITEDATA:
+		ret = ptrace_writedata(child, (char __user *) addr2,
+				       addr, data);
+		if (ret == data)
+			ret = 0;
+		else if (ret >= 0)
+			ret = -EIO;
+		break;
 
 	default:
 		ret = ptrace_request(child, request, addr, data);

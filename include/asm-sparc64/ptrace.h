@@ -95,6 +95,8 @@ struct sparc_trapf {
 
 #ifdef __KERNEL__
 
+#define __ARCH_WANT_COMPAT_SYS_PTRACE
+
 #define force_successful_syscall_return()	    \
 do {	current_thread_info()->syscall_noerror = 1; \
 } while (0)

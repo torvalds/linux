@@ -383,13 +383,7 @@ config COMPAT
 	bool
 	depends on SPARC32_COMPAT
 	default y
-
-config BINFMT_ELF32
-	bool "Kernel support for 32-bit ELF binaries"
-	depends on SPARC32_COMPAT
-	help
-	  This allows you to run 32-bit Linux/ELF binaries on your Ultra.
-	  Everybody wants this; say Y.
+	select COMPAT_BINFMT_ELF
 
 config BINFMT_AOUT32
 	bool "Kernel support for 32-bit (ie. SunOS) a.out binaries"
