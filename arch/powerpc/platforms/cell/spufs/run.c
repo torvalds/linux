@@ -395,15 +395,13 @@ long spufs_run_spu(struct spu_context *ctx, u32 *npc, u32 *event)
 				      SPU_STATUS_STOPPED_BY_HALT |
 				       SPU_STATUS_SINGLE_STEP)));
 
-	if ((status & SPU_STATUS_STOPPED_BY_STOP) &&
-	    (((status >> SPU_STOP_STATUS_SHIFT) & 0x3f00) == 0x2100) &&
-	    (ctx->state == SPU_STATE_RUNNABLE))
-		ctx->stats.libassist++;
-
-
 	spu_disable_spu(ctx);
 	ret = spu_run_fini(ctx, npc, &status);
 	spu_yield(ctx);
+
+	if ((status & SPU_STATUS_STOPPED_BY_STOP) &&
+	    (((status >> SPU_STOP_STATUS_SHIFT) & 0x3f00) == 0x2100))
+		ctx->stats.libassist++;
 
 	if ((ret == 0) ||
 	    ((ret == -ERESTARTSYS) &&
