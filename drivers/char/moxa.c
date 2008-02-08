@@ -207,7 +207,7 @@ static int moxa_tiocmget(struct tty_struct *tty, struct file *file);
 static int moxa_tiocmset(struct tty_struct *tty, struct file *file,
 			 unsigned int set, unsigned int clear);
 static void moxa_poll(unsigned long);
-static void moxa_set_tty_param(struct tty_struct *);
+static void moxa_set_tty_param(struct tty_struct *, struct ktermios *);
 static int moxa_block_till_ready(struct tty_struct *, struct file *,
 			    struct moxa_port *);
 static void moxa_setup_empty_event(struct tty_struct *);
@@ -500,7 +500,7 @@ static int moxa_open(struct tty_struct *tty, struct file *filp)
 	ch->tty = tty;
 	if (!(ch->asyncflags & ASYNC_INITIALIZED)) {
 		ch->statusflags = 0;
-		moxa_set_tty_param(tty);
+		moxa_set_tty_param(tty, tty->termios);
 		MoxaPortLineCtrl(ch->port, 1, 1);
 		MoxaPortEnable(ch->port);
 		ch->asyncflags |= ASYNC_INITIALIZED;
@@ -803,7 +803,7 @@ static void moxa_set_termios(struct tty_struct *tty,
 
 	if (ch == NULL)
 		return;
-	moxa_set_tty_param(tty);
+	moxa_set_tty_param(tty, old_termios);
 	if (!(old_termios->c_cflag & CLOCAL) &&
 	    (tty->termios->c_cflag & CLOCAL))
 		wake_up_interruptible(&ch->open_wait);
@@ -903,11 +903,11 @@ static void moxa_poll(unsigned long ignored)
 
 /******************************************************************************/
 
-static void moxa_set_tty_param(struct tty_struct *tty)
+static void moxa_set_tty_param(struct tty_struct *tty, struct ktermios *old_termios)
 {
 	register struct ktermios *ts;
 	struct moxa_port *ch;
-	int rts, cts, txflow, rxflow, xany;
+	int rts, cts, txflow, rxflow, xany, baud;
 
 	ch = (struct moxa_port *) tty->driver_data;
 	ts = tty->termios;
@@ -924,8 +924,15 @@ static void moxa_set_tty_param(struct tty_struct *tty)
 		rxflow = 1;
 	if (ts->c_iflag & IXANY)
 		xany = 1;
+
+	/* Clear the features we don't support */
+	ts->c_cflag &= ~CMSPAR;
 	MoxaPortFlowCtrl(ch->port, rts, cts, txflow, rxflow, xany);
-	MoxaPortSetTermio(ch->port, ts, tty_get_baud_rate(tty));
+	baud = MoxaPortSetTermio(ch->port, ts, tty_get_baud_rate(tty));
+	if (baud == -1)
+		baud = tty_termios_baud_rate(old_termios);
+	/* Not put the baud rate into the termios data */
+	tty_encode_baud_rate(tty, baud, baud);
 }
 
 static int moxa_block_till_ready(struct tty_struct *tty, struct file *filp,
@@ -2065,7 +2072,7 @@ int MoxaPortSetTermio(int port, struct ktermios *termio, speed_t baud)
 		if (baud >= 921600L)
 			return (-1);
 	}
-	MoxaPortSetBaud(port, baud);
+	baud = MoxaPortSetBaud(port, baud);
 
 	if (termio->c_iflag & (IXON | IXOFF | IXANY)) {
 		writeb(termio->c_cc[VSTART], ofsAddr + FuncArg);
@@ -2074,7 +2081,7 @@ int MoxaPortSetTermio(int port, struct ktermios *termio, speed_t baud)
 		moxa_wait_finish(ofsAddr);
 
 	}
-	return (0);
+	return (baud);
 }
 
 int MoxaPortGetLineOut(int port, int *dtrState, int *rtsState)
