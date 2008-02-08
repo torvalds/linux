@@ -73,7 +73,7 @@ union map_info *dm_get_mapinfo(struct bio *bio)
 
 struct mapped_device {
 	struct rw_semaphore io_lock;
-	struct semaphore suspend_lock;
+	struct mutex suspend_lock;
 	spinlock_t pushback_lock;
 	rwlock_t map_lock;
 	atomic_t holders;
@@ -994,7 +994,7 @@ static struct mapped_device *alloc_dev(int minor)
 
 	memset(md, 0, sizeof(*md));
 	init_rwsem(&md->io_lock);
-	init_MUTEX(&md->suspend_lock);
+	mutex_init(&md->suspend_lock);
 	spin_lock_init(&md->pushback_lock);
 	rwlock_init(&md->map_lock);
 	atomic_set(&md->holders, 1);
@@ -1282,7 +1282,7 @@ int dm_swap_table(struct mapped_device *md, struct dm_table *table)
 {
 	int r = -EINVAL;
 
-	down(&md->suspend_lock);
+	mutex_lock(&md->suspend_lock);
 
 	/* device must be suspended */
 	if (!dm_suspended(md))
@@ -1297,7 +1297,7 @@ int dm_swap_table(struct mapped_device *md, struct dm_table *table)
 	r = __bind(md, table);
 
 out:
-	up(&md->suspend_lock);
+	mutex_unlock(&md->suspend_lock);
 	return r;
 }
 
@@ -1353,7 +1353,7 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 	int do_lockfs = suspend_flags & DM_SUSPEND_LOCKFS_FLAG ? 1 : 0;
 	int noflush = suspend_flags & DM_SUSPEND_NOFLUSH_FLAG ? 1 : 0;
 
-	down(&md->suspend_lock);
+	mutex_lock(&md->suspend_lock);
 
 	if (dm_suspended(md))
 		goto out_unlock;
@@ -1475,7 +1475,7 @@ out:
 	dm_table_put(map);
 
 out_unlock:
-	up(&md->suspend_lock);
+	mutex_unlock(&md->suspend_lock);
 	return r;
 }
 
@@ -1485,7 +1485,7 @@ int dm_resume(struct mapped_device *md)
 	struct bio *def;
 	struct dm_table *map = NULL;
 
-	down(&md->suspend_lock);
+	mutex_lock(&md->suspend_lock);
 	if (!dm_suspended(md))
 		goto out;
 
@@ -1521,7 +1521,7 @@ int dm_resume(struct mapped_device *md)
 
 out:
 	dm_table_put(map);
-	up(&md->suspend_lock);
+	mutex_unlock(&md->suspend_lock);
 
 	return r;
 }
