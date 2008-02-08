@@ -3,7 +3,7 @@
 
 
 #ifndef HZ
-#define HZ 100
+#define HZ CONFIG_HZ
 #endif
 
 #ifdef __KERNEL__

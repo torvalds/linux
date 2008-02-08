@@ -134,10 +134,4 @@ extern void anna_uart_pre_configure (unsigned chan,
 #define V850E_TIMER_D_TMCD_CS_MIN	1 /* min 2^1 divider */
 
 
-/* For <asm/param.h> */
-#ifndef HZ
-#define HZ	100
-#endif
-
-
 #endif /* __V850_ANNA_H__ */

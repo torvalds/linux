@@ -82,6 +82,10 @@ config PCI
 	bool
 	default n
 
+config HZ
+	int
+	default 100
+
 source "init/Kconfig"
 
 source "arch/h8300/Kconfig.cpu"

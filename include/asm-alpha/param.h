@@ -5,15 +5,7 @@
    hardware ignores reprogramming.  We also need userland buy-in to the 
    change in HZ, since this is visible in the wait4 resources etc.  */
 
-
-#ifndef HZ
-# ifndef CONFIG_ALPHA_RAWHIDE
-#  define HZ	1024
-# else
-#  define HZ	1200
-# endif
-#endif
-
+#define HZ		CONFIG_HZ
 #define USER_HZ		HZ
 
 #define EXEC_PAGESIZE	8192

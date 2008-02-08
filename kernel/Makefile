@@ -91,3 +91,11 @@ quiet_cmd_ikconfiggz = IKCFG   $@
 targets += config_data.h
 $(obj)/config_data.h: $(obj)/config_data.gz FORCE
 	$(call if_changed,ikconfiggz)
+
+$(obj)/time.o: $(obj)/timeconst.h
+
+quiet_cmd_timeconst  = TIMEC   $@
+      cmd_timeconst  = $(PERL) $< $(CONFIG_HZ) > $@
+targets += timeconst.h
+$(obj)/timeconst.h: $(src)/timeconst.pl FORCE
+	$(call if_changed,timeconst)

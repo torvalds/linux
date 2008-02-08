@@ -30,6 +30,10 @@ config OF
 config ARCH_SUPPORTS_AOUT
 	def_bool y
 
+config HZ
+	int
+	default 100
+
 source "init/Kconfig"
 
 menu "General machine setup"

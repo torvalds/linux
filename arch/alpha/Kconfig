@@ -615,6 +615,11 @@ config VERBOSE_MCHECK_ON
 
 	  Take the default (1) unless you want more control or more info.
 
+config HZ
+	int
+	default 1200 if ALPHA_RAWHIDE
+	default 1024
+
 source "drivers/pci/Kconfig"
 source "drivers/eisa/Kconfig"
 

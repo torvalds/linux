@@ -57,6 +57,10 @@ config ARCH_HAS_ILOG2_U64
 	bool
 	default y
 
+config HZ
+	int
+	default 1000
+
 mainmenu "Fujitsu FR-V Kernel Configuration"
 
 source "init/Kconfig"

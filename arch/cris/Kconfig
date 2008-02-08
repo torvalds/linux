@@ -55,6 +55,10 @@ config CRIS
 	bool
 	default y
 
+config HZ
+	int
+	default 100
+
 source "init/Kconfig"
 
 menu "General setup"

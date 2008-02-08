@@ -215,6 +215,13 @@ menu "Processor type and features"
    	  bool
 	  default !V850E_CACHE && !V850E2_CACHE
 
+   # HZ depends on the platform
+   config HZ
+	  int
+	  default 24  if V850E_SIM || V850E2_SIM85E2
+	  default 122 if V850E2_FPGA85E2C
+	  default 100
+
    #### Misc config
 
    config ROM_KERNEL

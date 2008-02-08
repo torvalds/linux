@@ -79,10 +79,4 @@ extern char _r0_ram;
 #endif
 
 
-/* For <asm/param.h> */
-#ifndef HZ
-#define HZ			122 /* actually, 8.192ms ticks =~ 122.07 */
-#endif
-
-
 #endif /* __V850_FPGA85E2C_H__ */

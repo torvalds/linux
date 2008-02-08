@@ -49,6 +49,10 @@ config ARCH_HAS_ILOG2_U64
 config NO_IOPORT
 	def_bool y
 
+config HZ
+	int
+	default 100
+
 source "init/Kconfig"
 
 menu "Processor type and features"

@@ -525,6 +525,11 @@ config 4KSTACKS
 	  running more threads on a system and also reduces the pressure
 	  on the VM subsystem for higher order allocations.
 
+config HZ
+	int
+	default 1000 if CLEOPATRA
+	default 100
+
 comment "RAM configuration"
 
 config RAMBASE
