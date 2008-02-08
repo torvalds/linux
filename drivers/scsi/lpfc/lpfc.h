@@ -392,6 +392,13 @@ enum hba_temp_state {
 	HBA_OVER_TEMP
 };
 
+enum intr_type_t {
+	NONE = 0,
+	INTx,
+	MSI,
+	MSIX,
+};
+
 struct lpfc_hba {
 	struct lpfc_sli sli;
 	uint32_t sli_rev;		/* SLI2 or SLI3 */
@@ -555,7 +562,8 @@ struct lpfc_hba {
 	mempool_t *nlp_mem_pool;
 
 	struct fc_host_statistics link_stats;
-	uint8_t using_msi;
+	enum intr_type_t intr_type;
+	struct msix_entry msix_entries[1];
 
 	struct list_head port_list;
 	struct lpfc_vport *pport;	/* physical lpfc_vport pointer */

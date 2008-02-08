@@ -1592,9 +1592,11 @@ LPFC_ATTR_RW(poll_tmo, 10, 1, 255,
 #		support this feature
 #       0  = MSI disabled (default)
 #       1  = MSI enabled
-# Value range is [0,1]. Default value is 0.
+#	2  = MSI-X enabled
+# Value range is [0,2]. Default value is 0.
 */
-LPFC_ATTR_R(use_msi, 0, 0, 1, "Use Message Signaled Interrupts, if possible");
+LPFC_ATTR_R(use_msi, 0, 0, 2, "Use Message Signaled Interrupts (1) or "
+	    "MSI-X (2), if possible");
 
 /*
 # lpfc_enable_hba_reset: Allow or prevent HBA resets to the hardware.

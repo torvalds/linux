@@ -1924,6 +1924,42 @@ void lpfc_host_attrib_init(struct Scsi_Host *shost)
 	spin_unlock_irq(shost->host_lock);
 }
 
+static int
+lpfc_enable_msix(struct lpfc_hba *phba)
+{
+	int error;
+
+	phba->msix_entries[0].entry = 0;
+	phba->msix_entries[0].vector = 0;
+
+	error = pci_enable_msix(phba->pcidev, phba->msix_entries,
+				ARRAY_SIZE(phba->msix_entries));
+	if (error) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+				"0420 Enable MSI-X failed (%d), continuing "
+				"with MSI\n", error);
+		pci_disable_msix(phba->pcidev);
+		return error;
+	}
+
+	error =	request_irq(phba->msix_entries[0].vector, lpfc_intr_handler, 0,
+			    LPFC_DRIVER_NAME, phba);
+	if (error) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"0421 MSI-X request_irq failed (%d), "
+				"continuing with MSI\n", error);
+		pci_disable_msix(phba->pcidev);
+	}
+	return error;
+}
+
+static void
+lpfc_disable_msix(struct lpfc_hba *phba)
+{
+	free_irq(phba->msix_entries[0].vector, phba);
+	pci_disable_msix(phba->pcidev);
+}
+
 static int __devinit
 lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 {
@@ -2125,24 +2161,36 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	lpfc_debugfs_initialize(vport);
 
 	pci_set_drvdata(pdev, shost);
+	phba->intr_type = NONE;
 
-	if (phba->cfg_use_msi) {
+	if (phba->cfg_use_msi == 2) {
+		error = lpfc_enable_msix(phba);
+		if (!error)
+			phba->intr_type = MSIX;
+	}
+
+	/* Fallback to MSI if MSI-X initialization failed */
+	if (phba->cfg_use_msi >= 1 && phba->intr_type == NONE) {
 		retval = pci_enable_msi(phba->pcidev);
 		if (!retval)
-			phba->using_msi = 1;
+			phba->intr_type = MSI;
 		else
 			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 					"0452 Enable MSI failed, continuing "
 					"with IRQ\n");
 	}
 
-	retval = request_irq(phba->pcidev->irq, lpfc_intr_handler, IRQF_SHARED,
-			    LPFC_DRIVER_NAME, phba);
-	if (retval) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"0451 Enable interrupt handler failed\n");
-		error = retval;
-		goto out_disable_msi;
+	/* MSI-X is the only case the doesn't need to call request_irq */
+	if (phba->intr_type != MSIX) {
+		retval = request_irq(phba->pcidev->irq, lpfc_intr_handler,
+				     IRQF_SHARED, LPFC_DRIVER_NAME, phba);
+		if (retval) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT, "0451 Enable "
+					"interrupt handler failed\n");
+			error = retval;
+			goto out_disable_msi;
+		} else if (phba->intr_type != MSI)
+			phba->intr_type = INTx;
 	}
 
 	phba->MBslimaddr = phba->slim_memmap_p;
@@ -2187,9 +2235,14 @@ out_remove_device:
 out_free_irq:
 	lpfc_stop_phba_timers(phba);
 	phba->pport->work_port_events = 0;
-	free_irq(phba->pcidev->irq, phba);
+
+	if (phba->intr_type == MSIX)
+		lpfc_disable_msix(phba);
+	else
+		free_irq(phba->pcidev->irq, phba);
+
 out_disable_msi:
-	if (phba->using_msi)
+	if (phba->intr_type == MSI)
 		pci_disable_msi(phba->pcidev);
 	destroy_port(vport);
 out_kthread_stop:
@@ -2262,10 +2315,13 @@ lpfc_pci_remove_one(struct pci_dev *pdev)
 
 	lpfc_debugfs_terminate(vport);
 
-	/* Release the irq reservation */
-	free_irq(phba->pcidev->irq, phba);
-	if (phba->using_msi)
-		pci_disable_msi(phba->pcidev);
+	if (phba->intr_type == MSIX)
+		lpfc_disable_msix(phba);
+	else {
+		free_irq(phba->pcidev->irq, phba);
+		if (phba->intr_type == MSI)
+			pci_disable_msi(phba->pcidev);
+	}
 
 	pci_set_drvdata(pdev, NULL);
 	scsi_host_put(shost);
@@ -2324,10 +2380,13 @@ static pci_ers_result_t lpfc_io_error_detected(struct pci_dev *pdev,
 	pring = &psli->ring[psli->fcp_ring];
 	lpfc_sli_abort_iocb_ring(phba, pring);
 
-	/* Release the irq reservation */
-	free_irq(phba->pcidev->irq, phba);
-	if (phba->using_msi)
-		pci_disable_msi(phba->pcidev);
+	if (phba->intr_type == MSIX)
+		lpfc_disable_msix(phba);
+	else {
+		free_irq(phba->pcidev->irq, phba);
+		if (phba->intr_type == MSI)
+			pci_disable_msi(phba->pcidev);
+	}
 
 	/* Request a slot reset. */
 	return PCI_ERS_RESULT_NEED_RESET;
