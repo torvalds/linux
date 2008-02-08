@@ -1081,6 +1081,7 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 	time_t convtime;
 	long convtime_usec;
 	int offset;
+	struct udf_sb_info *sbi = UDF_SB(inode->i_sb);
 
 	fe = (struct fileEntry *)bh->b_data;
 	efe = (struct extendedFileEntry *)bh->b_data;
@@ -1160,7 +1161,7 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 			inode->i_atime.tv_sec = convtime;
 			inode->i_atime.tv_nsec = convtime_usec * 1000;
 		} else {
-			inode->i_atime = UDF_SB_RECORDTIME(inode->i_sb);
+			inode->i_atime = sbi->s_record_time;
 		}
 
 		if (udf_stamp_to_time(&convtime, &convtime_usec,
@@ -1168,7 +1169,7 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 			inode->i_mtime.tv_sec = convtime;
 			inode->i_mtime.tv_nsec = convtime_usec * 1000;
 		} else {
-			inode->i_mtime = UDF_SB_RECORDTIME(inode->i_sb);
+			inode->i_mtime = sbi->s_record_time;
 		}
 
 		if (udf_stamp_to_time(&convtime, &convtime_usec,
@@ -1176,7 +1177,7 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 			inode->i_ctime.tv_sec = convtime;
 			inode->i_ctime.tv_nsec = convtime_usec * 1000;
 		} else {
-			inode->i_ctime = UDF_SB_RECORDTIME(inode->i_sb);
+			inode->i_ctime = sbi->s_record_time;
 		}
 
 		UDF_I_UNIQUE(inode) = le64_to_cpu(fe->uniqueID);
@@ -1192,7 +1193,7 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 			inode->i_atime.tv_sec = convtime;
 			inode->i_atime.tv_nsec = convtime_usec * 1000;
 		} else {
-			inode->i_atime = UDF_SB_RECORDTIME(inode->i_sb);
+			inode->i_atime = sbi->s_record_time;
 		}
 
 		if (udf_stamp_to_time(&convtime, &convtime_usec,
@@ -1200,7 +1201,7 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 			inode->i_mtime.tv_sec = convtime;
 			inode->i_mtime.tv_nsec = convtime_usec * 1000;
 		} else {
-			inode->i_mtime = UDF_SB_RECORDTIME(inode->i_sb);
+			inode->i_mtime = sbi->s_record_time;
 		}
 
 		if (udf_stamp_to_time(&convtime, &convtime_usec,
@@ -1208,7 +1209,7 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 			UDF_I_CRTIME(inode).tv_sec = convtime;
 			UDF_I_CRTIME(inode).tv_nsec = convtime_usec * 1000;
 		} else {
-			UDF_I_CRTIME(inode) = UDF_SB_RECORDTIME(inode->i_sb);
+			UDF_I_CRTIME(inode) = sbi->s_record_time;
 		}
 
 		if (udf_stamp_to_time(&convtime, &convtime_usec,
@@ -1216,7 +1217,7 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 			inode->i_ctime.tv_sec = convtime;
 			inode->i_ctime.tv_nsec = convtime_usec * 1000;
 		} else {
-			inode->i_ctime = UDF_SB_RECORDTIME(inode->i_sb);
+			inode->i_ctime = sbi->s_record_time;
 		}
 
 		UDF_I_UNIQUE(inode) = le64_to_cpu(efe->uniqueID);
@@ -1353,6 +1354,7 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 	int i;
 	kernel_timestamp cpu_time;
 	int err = 0;
+	struct udf_sb_info *sbi = UDF_SB(inode->i_sb);
 
 	bh = udf_tread(inode->i_sb, udf_get_lb_pblock(inode->i_sb, UDF_I_LOCATION(inode), 0));
 	if (!bh) {
@@ -1537,11 +1539,11 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 				ICBTAG_FLAG_SETGID | ICBTAG_FLAG_STICKY));
 
 	fe->icbTag.flags = cpu_to_le16(icbflags);
-	if (UDF_SB_UDFREV(inode->i_sb) >= 0x0200)
+	if (sbi->s_udfrev >= 0x0200)
 		fe->descTag.descVersion = cpu_to_le16(3);
 	else
 		fe->descTag.descVersion = cpu_to_le16(2);
-	fe->descTag.tagSerialNum = cpu_to_le16(UDF_SB_SERIALNUM(inode->i_sb));
+	fe->descTag.tagSerialNum = cpu_to_le16(sbi->s_serial_number);
 	fe->descTag.tagLocation = cpu_to_le32(UDF_I_LOCATION(inode).logicalBlockNum);
 	crclen += UDF_I_LENEATTR(inode) + UDF_I_LENALLOC(inode) - sizeof(tag);
 	fe->descTag.descCRCLength = cpu_to_le16(crclen);
@@ -1585,7 +1587,7 @@ struct inode *udf_iget(struct super_block *sb, kernel_lb_addr ino)
 	if (is_bad_inode(inode))
 		goto out_iput;
 
-	if (ino.logicalBlockNum >= UDF_SB_PARTLEN(sb, ino.partitionReferenceNum)) {
+	if (ino.logicalBlockNum >= UDF_SB(sb)->s_partmaps[ino.partitionReferenceNum].s_partition_len) {
 		udf_debug("block=%d, partition=%d out of range\n",
 			  ino.logicalBlockNum, ino.partitionReferenceNum);
 		make_bad_inode(inode);
@@ -1667,7 +1669,7 @@ int8_t udf_add_aext(struct inode * inode, struct extent_position * epos,
 				mark_inode_dirty(inode);
 			}
 		}
-		if (UDF_SB_UDFREV(inode->i_sb) >= 0x0200)
+		if (UDF_SB(inode->i_sb)->s_udfrev >= 0x0200)
 			udf_new_tag(nbh->b_data, TAG_IDENT_AED, 3, 1,
 				    epos->block.logicalBlockNum, sizeof(tag));
 		else
@@ -1690,7 +1692,7 @@ int8_t udf_add_aext(struct inode * inode, struct extent_position * epos,
 		}
 		if (epos->bh) {
 			if (!UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_STRICT) ||
-			    UDF_SB_UDFREV(inode->i_sb) >= 0x0201)
+			    UDF_SB(inode->i_sb)->s_udfrev >= 0x0201)
 				udf_update_tag(epos->bh->b_data, loffset);
 			else
 				udf_update_tag(epos->bh->b_data, sizeof(struct allocExtDesc));
@@ -1711,7 +1713,7 @@ int8_t udf_add_aext(struct inode * inode, struct extent_position * epos,
 		aed = (struct allocExtDesc *)epos->bh->b_data;
 		aed->lengthAllocDescs =
 			cpu_to_le32(le32_to_cpu(aed->lengthAllocDescs) + adsize);
-		if (!UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_STRICT) || UDF_SB_UDFREV(inode->i_sb) >= 0x0201)
+		if (!UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_STRICT) || UDF_SB(inode->i_sb)->s_udfrev >= 0x0201)
 			udf_update_tag(epos->bh->b_data, epos->offset + (inc ? 0 : adsize));
 		else
 			udf_update_tag(epos->bh->b_data, sizeof(struct allocExtDesc));
@@ -1754,7 +1756,7 @@ int8_t udf_write_aext(struct inode * inode, struct extent_position * epos,
 
 	if (epos->bh) {
 		if (!UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_STRICT) ||
-		    UDF_SB_UDFREV(inode->i_sb) >= 0x0201) {
+		    UDF_SB(inode->i_sb)->s_udfrev >= 0x0201) {
 			struct allocExtDesc *aed = (struct allocExtDesc *)epos->bh->b_data;
 			udf_update_tag(epos->bh->b_data,
 				       le32_to_cpu(aed->lengthAllocDescs) + sizeof(struct allocExtDesc));
@@ -1907,7 +1909,7 @@ int8_t udf_delete_aext(struct inode * inode, struct extent_position epos,
 			aed->lengthAllocDescs =
 				cpu_to_le32(le32_to_cpu(aed->lengthAllocDescs) - (2 * adsize));
 			if (!UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_STRICT) ||
-			    UDF_SB_UDFREV(inode->i_sb) >= 0x0201)
+			    UDF_SB(inode->i_sb)->s_udfrev >= 0x0201)
 				udf_update_tag(oepos.bh->b_data, oepos.offset - (2 * adsize));
 			else
 				udf_update_tag(oepos.bh->b_data, sizeof(struct allocExtDesc));
@@ -1923,7 +1925,7 @@ int8_t udf_delete_aext(struct inode * inode, struct extent_position epos,
 			aed->lengthAllocDescs =
 				cpu_to_le32(le32_to_cpu(aed->lengthAllocDescs) - adsize);
 			if (!UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_STRICT) ||
-			    UDF_SB_UDFREV(inode->i_sb) >= 0x0201)
+			    UDF_SB(inode->i_sb)->s_udfrev >= 0x0201)
 				udf_update_tag(oepos.bh->b_data, epos.offset - adsize);
 			else
 				udf_update_tag(oepos.bh->b_data, sizeof(struct allocExtDesc));

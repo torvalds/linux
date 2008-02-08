@@ -43,15 +43,17 @@ void udf_free_inode(struct inode *inode)
 	clear_inode(inode);
 
 	mutex_lock(&sbi->s_alloc_mutex);
-	if (sbi->s_lvidbh) {
+	if (sbi->s_lvid_bh) {
+		struct logicalVolIntegrityDescImpUse *lvidiu =
+							udf_sb_lvidiu(sbi);
 		if (S_ISDIR(inode->i_mode))
-			UDF_SB_LVIDIU(sb)->numDirs =
-				cpu_to_le32(le32_to_cpu(UDF_SB_LVIDIU(sb)->numDirs) - 1);
+			lvidiu->numDirs =
+				cpu_to_le32(le32_to_cpu(lvidiu->numDirs) - 1);
 		else
-			UDF_SB_LVIDIU(sb)->numFiles =
-				cpu_to_le32(le32_to_cpu(UDF_SB_LVIDIU(sb)->numFiles) - 1);
+			lvidiu->numFiles =
+				cpu_to_le32(le32_to_cpu(lvidiu->numFiles) - 1);
 
-		mark_buffer_dirty(sbi->s_lvidbh);
+		mark_buffer_dirty(sbi->s_lvid_bh);
 	}
 	mutex_unlock(&sbi->s_alloc_mutex);
 
@@ -88,21 +90,23 @@ struct inode *udf_new_inode(struct inode *dir, int mode, int *err)
 	}
 
 	mutex_lock(&sbi->s_alloc_mutex);
-	if (UDF_SB_LVIDBH(sb)) {
+	if (sbi->s_lvid_bh) {
+		struct logicalVolIntegrityDesc *lvid = (struct logicalVolIntegrityDesc *)sbi->s_lvid_bh->b_data;
+		struct logicalVolIntegrityDescImpUse *lvidiu = udf_sb_lvidiu(sbi);
 		struct logicalVolHeaderDesc *lvhd;
 		uint64_t uniqueID;
-		lvhd = (struct logicalVolHeaderDesc *)(UDF_SB_LVID(sb)->logicalVolContentsUse);
+		lvhd = (struct logicalVolHeaderDesc *)(lvid->logicalVolContentsUse);
 		if (S_ISDIR(mode))
-			UDF_SB_LVIDIU(sb)->numDirs =
-				cpu_to_le32(le32_to_cpu(UDF_SB_LVIDIU(sb)->numDirs) + 1);
+			lvidiu->numDirs =
+				cpu_to_le32(le32_to_cpu(lvidiu->numDirs) + 1);
 		else
-			UDF_SB_LVIDIU(sb)->numFiles =
-				cpu_to_le32(le32_to_cpu(UDF_SB_LVIDIU(sb)->numFiles) + 1);
+			lvidiu->numFiles =
+				cpu_to_le32(le32_to_cpu(lvidiu->numFiles) + 1);
 		UDF_I_UNIQUE(inode) = uniqueID = le64_to_cpu(lvhd->uniqueID);
 		if (!(++uniqueID & 0x00000000FFFFFFFFUL))
 			uniqueID += 16;
 		lvhd->uniqueID = cpu_to_le64(uniqueID);
-		mark_buffer_dirty(UDF_SB_LVIDBH(sb));
+		mark_buffer_dirty(sbi->s_lvid_bh);
 	}
 	inode->i_mode = mode;
 	inode->i_uid = current->fsuid;
@@ -123,7 +127,8 @@ struct inode *udf_new_inode(struct inode *dir, int mode, int *err)
 	UDF_I_USE(inode) = 0;
 	if (UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_USE_EXTENDED_FE)) {
 		UDF_I_EFE(inode) = 1;
-		UDF_UPDATE_UDFREV(inode->i_sb, UDF_VERS_USE_EXTENDED_FE);
+		if (UDF_VERS_USE_EXTENDED_FE > sbi->s_udfrev)
+			sbi->s_udfrev = UDF_VERS_USE_EXTENDED_FE;
 		UDF_I_DATA(inode) = kzalloc(inode->i_sb->s_blocksize - sizeof(struct extendedFileEntry), GFP_KERNEL);
 	} else {
 		UDF_I_EFE(inode) = 0;

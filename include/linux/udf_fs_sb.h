@@ -75,7 +75,7 @@ struct udf_part_map
 struct udf_sb_info
 {
 	struct udf_part_map	*s_partmaps;
-	__u8			s_volident[32];
+	__u8			s_volume_ident[32];
 
 	/* Overall info */
 	__u16			s_partitions;
@@ -84,9 +84,9 @@ struct udf_sb_info
 	/* Sector headers */
 	__s32			s_session;
 	__u32			s_anchor[4];
-	__u32			s_lastblock;
+	__u32			s_last_block;
 
-	struct buffer_head	*s_lvidbh;
+	struct buffer_head	*s_lvid_bh;
 
 	/* Default permissions */
 	mode_t			s_umask;
@@ -94,10 +94,10 @@ struct udf_sb_info
 	uid_t			s_uid;
 
 	/* Root Info */
-	struct timespec		s_recordtime;
+	struct timespec		s_record_time;
 
 	/* Fileset Info */
-	__u16			s_serialnum;
+	__u16			s_serial_number;
 
 	/* highest UDF revision we have recorded to this media */
 	__u16			s_udfrev;
@@ -109,7 +109,7 @@ struct udf_sb_info
 	struct nls_table	*s_nls_map;
 
 	/* VAT inode */
-	struct inode		*s_vat;
+	struct inode		*s_vat_inode;
 
 	struct mutex		s_alloc_mutex;
 };

@@ -192,7 +192,7 @@ int udf_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 	switch (cmd) {
 	case UDF_GETVOLIDENT:
 		return copy_to_user((char __user *)arg,
-				    UDF_SB_VOLIDENT(inode->i_sb), 32) ? -EFAULT : 0;
+				    UDF_SB(inode->i_sb)->s_volume_ident, 32) ? -EFAULT : 0;
 	case UDF_RELOCATE_BLOCKS:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EACCES;

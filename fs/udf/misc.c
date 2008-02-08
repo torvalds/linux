@@ -81,14 +81,16 @@ struct genericFormat *udf_add_extendedattr(struct inode *inode, uint32_t size,
 				return NULL;
 			}
 		} else {
+			struct udf_sb_info *sbi = UDF_SB(inode->i_sb);
+
 			size -= sizeof(struct extendedAttrHeaderDesc);
 			UDF_I_LENEATTR(inode) += sizeof(struct extendedAttrHeaderDesc);
 			eahd->descTag.tagIdent = cpu_to_le16(TAG_IDENT_EAHD);
-			if (UDF_SB_UDFREV(inode->i_sb) >= 0x0200)
+			if (sbi->s_udfrev >= 0x0200)
 				eahd->descTag.descVersion = cpu_to_le16(3);
 			else
 				eahd->descTag.descVersion = cpu_to_le16(2);
-			eahd->descTag.tagSerialNum = cpu_to_le16(UDF_SB_SERIALNUM(inode->i_sb));
+			eahd->descTag.tagSerialNum = cpu_to_le16(sbi->s_serial_number);
 			eahd->descTag.tagLocation = cpu_to_le32(UDF_I_LOCATION(inode).logicalBlockNum);
 			eahd->impAttrLocation = cpu_to_le32(0xFFFFFFFF);
 			eahd->appAttrLocation = cpu_to_le32(0xFFFFFFFF);
@@ -192,15 +194,16 @@ struct buffer_head *udf_read_tagged(struct super_block *sb, uint32_t block,
 	struct buffer_head *bh = NULL;
 	register uint8_t checksum;
 	register int i;
+	struct udf_sb_info *sbi = UDF_SB(sb);
 
 	/* Read the block */
 	if (block == 0xFFFFFFFF)
 		return NULL;
 
-	bh = udf_tread(sb, block + UDF_SB_SESSION(sb));
+	bh = udf_tread(sb, block + sbi->s_session);
 	if (!bh) {
 		udf_debug("block=%d, location=%d: read failed\n",
-			  block + UDF_SB_SESSION(sb), location);
+			  block + sbi->s_session, location);
 		return NULL;
 	}
 
@@ -210,7 +213,7 @@ struct buffer_head *udf_read_tagged(struct super_block *sb, uint32_t block,
 
 	if (location != le32_to_cpu(tag_p->tagLocation)) {
 		udf_debug("location mismatch block %u, tag %u != %u\n",
-			  block + UDF_SB_SESSION(sb), le32_to_cpu(tag_p->tagLocation), location);
+			  block + sbi->s_session, le32_to_cpu(tag_p->tagLocation), location);
 		goto error_out;
 	}
 
@@ -240,7 +243,7 @@ struct buffer_head *udf_read_tagged(struct super_block *sb, uint32_t block,
 		return bh;
 	}
 	udf_debug("Crc failure block %d: crc = %d, crclen = %d\n",
-		  block + UDF_SB_SESSION(sb), le16_to_cpu(tag_p->descCRC),
+		  block + sbi->s_session, le16_to_cpu(tag_p->descCRC),
 		  le16_to_cpu(tag_p->descCRCLength));
 
 error_out:

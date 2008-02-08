@@ -163,7 +163,7 @@ void udf_discard_prealloc(struct inode *inode)
 				cpu_to_le32(epos.offset -
 					    sizeof(struct allocExtDesc));
 			if (!UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_STRICT) ||
-			    UDF_SB_UDFREV(inode->i_sb) >= 0x0201)
+			    UDF_SB(inode->i_sb)->s_udfrev >= 0x0201)
 				udf_update_tag(epos.bh->b_data, epos.offset);
 			else
 				udf_update_tag(epos.bh->b_data,
@@ -184,6 +184,7 @@ void udf_truncate_extents(struct inode *inode)
 	uint32_t elen, nelen = 0, indirect_ext_len = 0, lenalloc;
 	int8_t etype;
 	struct super_block *sb = inode->i_sb;
+	struct udf_sb_info *sbi = UDF_SB(sb);
 	sector_t first_block = inode->i_size >> sb->s_blocksize_bits, offset;
 	loff_t byte_offset;
 	int adsize;
@@ -232,7 +233,7 @@ void udf_truncate_extents(struct inode *inode)
 						aed->lengthAllocDescs =
 						    cpu_to_le32(lenalloc);
 						if (!UDF_QUERY_FLAG(sb, UDF_FLAG_STRICT) ||
-						    UDF_SB_UDFREV(sb) >= 0x0201)
+						    sbi->s_udfrev >= 0x0201)
 							udf_update_tag(epos.bh->b_data,
 								       lenalloc +
 								       sizeof(struct allocExtDesc));
@@ -271,7 +272,7 @@ void udf_truncate_extents(struct inode *inode)
 				    (struct allocExtDesc *)(epos.bh->b_data);
 				aed->lengthAllocDescs = cpu_to_le32(lenalloc);
 				if (!UDF_QUERY_FLAG(sb, UDF_FLAG_STRICT) ||
-				    UDF_SB_UDFREV(sb) >= 0x0201)
+				    sbi->s_udfrev >= 0x0201)
 					udf_update_tag(epos.bh->b_data,
 						       lenalloc + sizeof(struct allocExtDesc));
 				else
