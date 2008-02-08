@@ -20,7 +20,7 @@
 struct rq_entry {
 	struct list_head list;
 	int nodeid;
-	char request[0];
+	struct dlm_message request;
 };
 
 /*
@@ -30,10 +30,10 @@ struct rq_entry {
  * lockspace is enabled on some while still suspended on others.
  */
 
-void dlm_add_requestqueue(struct dlm_ls *ls, int nodeid, struct dlm_header *hd)
+void dlm_add_requestqueue(struct dlm_ls *ls, int nodeid, struct dlm_message *ms)
 {
 	struct rq_entry *e;
-	int length = hd->h_length;
+	int length = ms->m_header.h_length - sizeof(struct dlm_message);
 
 	e = kmalloc(sizeof(struct rq_entry) + length, GFP_KERNEL);
 	if (!e) {
@@ -42,7 +42,7 @@ void dlm_add_requestqueue(struct dlm_ls *ls, int nodeid, struct dlm_header *hd)
 	}
 
 	e->nodeid = nodeid;
-	memcpy(e->request, hd, length);
+	memcpy(&e->request, ms, ms->m_header.h_length);
 
 	mutex_lock(&ls->ls_requestqueue_mutex);
 	list_add_tail(&e->list, &ls->ls_requestqueue);
@@ -76,7 +76,7 @@ int dlm_process_requestqueue(struct dlm_ls *ls)
 		e = list_entry(ls->ls_requestqueue.next, struct rq_entry, list);
 		mutex_unlock(&ls->ls_requestqueue_mutex);
 
-		dlm_receive_message_saved(ls, (struct dlm_message *)e->request);
+		dlm_receive_message_saved(ls, &e->request);
 
 		mutex_lock(&ls->ls_requestqueue_mutex);
 		list_del(&e->list);
@@ -176,7 +176,7 @@ void dlm_purge_requestqueue(struct dlm_ls *ls)
 
 	mutex_lock(&ls->ls_requestqueue_mutex);
 	list_for_each_entry_safe(e, safe, &ls->ls_requestqueue, list) {
-		ms = (struct dlm_message *) e->request;
+		ms =  &e->request;
 
 		if (purge_request(ls, ms, e->nodeid)) {
 			list_del(&e->list);
