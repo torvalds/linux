@@ -98,7 +98,6 @@ static void raw_rcv(struct sk_buff *skb, void *data)
 	struct sock *sk = (struct sock *)data;
 	struct raw_sock *ro = raw_sk(sk);
 	struct sockaddr_can *addr;
-	int error;
 
 	if (!ro->recv_own_msgs) {
 		/* check the received tx sock reference */
@@ -121,14 +120,12 @@ static void raw_rcv(struct sk_buff *skb, void *data)
 	addr->can_family  = AF_CAN;
 	addr->can_ifindex = skb->dev->ifindex;
 
-	error = sock_queue_rcv_skb(sk, skb);
-	if (error < 0)
+	if (sock_queue_rcv_skb(sk, skb) < 0)
 		kfree_skb(skb);
 }
 
 static int raw_enable_filters(struct net_device *dev, struct sock *sk,
-			      struct can_filter *filter,
-			      int count)
+			      struct can_filter *filter, int count)
 {
 	int err = 0;
 	int i;
@@ -163,8 +160,7 @@ static int raw_enable_errfilter(struct net_device *dev, struct sock *sk,
 }
 
 static void raw_disable_filters(struct net_device *dev, struct sock *sk,
-			      struct can_filter *filter,
-			      int count)
+			      struct can_filter *filter, int count)
 {
 	int i;
 
@@ -353,7 +349,6 @@ static int raw_bind(struct socket *sock, struct sockaddr *uaddr, int len)
 		/* filters set by default/setsockopt */
 		err = raw_enable_allfilters(dev, sk);
 		dev_put(dev);
-
 	} else {
 		ifindex = 0;
 
@@ -466,7 +461,6 @@ static int raw_setsockopt(struct socket *sock, int level, int optname,
 			if (err) {
 				if (count > 1)
 					kfree(filter);
-
 				goto out_fil;
 			}
 
@@ -673,25 +667,25 @@ static int raw_recvmsg(struct kiocb *iocb, struct socket *sock,
 {
 	struct sock *sk = sock->sk;
 	struct sk_buff *skb;
-	int error = 0;
+	int err = 0;
 	int noblock;
 
 	noblock =  flags & MSG_DONTWAIT;
 	flags   &= ~MSG_DONTWAIT;
 
-	skb = skb_recv_datagram(sk, flags, noblock, &error);
+	skb = skb_recv_datagram(sk, flags, noblock, &err);
 	if (!skb)
-		return error;
+		return err;
 
 	if (size < skb->len)
 		msg->msg_flags |= MSG_TRUNC;
 	else
 		size = skb->len;
 
-	error = memcpy_toiovec(msg->msg_iov, skb->data, size);
-	if (error < 0) {
+	err = memcpy_toiovec(msg->msg_iov, skb->data, size);
+	if (err < 0) {
 		skb_free_datagram(sk, skb);
-		return error;
+		return err;
 	}
 
 	sock_recv_timestamp(msg, sk, skb);
