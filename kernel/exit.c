@@ -1196,10 +1196,6 @@ static int wait_task_zombie(struct task_struct *p, int noreap,
 		int exit_code = p->exit_code;
 		int why, status;
 
-		if (unlikely(p->exit_state != EXIT_ZOMBIE))
-			return 0;
-		if (unlikely(p->exit_signal == -1 && p->ptrace == 0))
-			return 0;
 		get_task_struct(p);
 		read_unlock(&tasklist_lock);
 		if ((exit_code & 0x7f) == 0) {
