@@ -13,6 +13,15 @@ menuconfig MISC_DEVICES
 
 if MISC_DEVICES
 
+config ATMEL_PWM
+	tristate "Atmel AT32/AT91 PWM support"
+	depends on AVR32 || ARCH_AT91
+	help
+	  This option enables device driver support for the PWM channels
+	  on certain Atmel prcoessors.  Pulse Width Modulation is used for
+	  purposes including software controlled power-efficent backlights
+	  on LCD displays, motor control, and waveform generation.
+
 config IBM_ASM
 	tristate "Device driver for IBM RSA service processor"
 	depends on X86 && PCI && INPUT && EXPERIMENTAL
