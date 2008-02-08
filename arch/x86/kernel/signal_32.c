@@ -24,7 +24,7 @@
 #include <asm/uaccess.h>
 #include <asm/i387.h>
 #include <asm/vdso.h>
-#include "sigframe_32.h"
+#include "sigframe.h"
 
 #define DEBUG_SIG 0
 

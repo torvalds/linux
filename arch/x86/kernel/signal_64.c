@@ -26,6 +26,7 @@
 #include <asm/proto.h>
 #include <asm/ia32_unistd.h>
 #include <asm/mce.h>
+#include "sigframe.h"
 
 /* #define DEBUG_SIG 1 */
 
@@ -58,14 +59,6 @@ sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
 /*
  * Do a signal return; undo the signal stack.
  */
-
-struct rt_sigframe
-{
-	char __user *pretcode;
-	struct ucontext uc;
-	struct siginfo info;
-};
-
 static int
 restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, unsigned long *prax)
 {
