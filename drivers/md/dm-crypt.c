@@ -577,18 +577,34 @@ static void kcryptd_queue_io(struct dm_crypt_io *io)
 
 static void kcryptd_crypt_write_io_submit(struct dm_crypt_io *io, int error)
 {
+	struct bio *clone = io->ctx.bio_out;
+	struct crypt_config *cc = io->target->private;
+
+	if (unlikely(error < 0)) {
+		crypt_free_buffer_pages(cc, clone);
+		bio_put(clone);
+		io->error = -EIO;
+		crypt_dec_pending(io);
+		return;
+	}
+
+	/* crypt_convert should have filled the clone bio */
+	BUG_ON(io->ctx.idx_out < clone->bi_vcnt);
+
+	clone->bi_sector = cc->start + io->sector;
+	io->sector += bio_sectors(clone);
 }
 
 static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 {
 	struct crypt_config *cc = io->target->private;
-	struct bio *base_bio = io->base_bio;
 	struct bio *clone;
-	unsigned remaining = base_bio->bi_size;
+	unsigned remaining = io->base_bio->bi_size;
+	int r;
 
 	atomic_inc(&io->pending);
 
-	crypt_convert_init(cc, &io->ctx, NULL, base_bio, io->sector);
+	crypt_convert_init(cc, &io->ctx, NULL, io->base_bio, io->sector);
 
 	/*
 	 * The allocated buffers can be smaller than the whole bio,
@@ -605,20 +621,13 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 		io->ctx.bio_out = clone;
 		io->ctx.idx_out = 0;
 
-		if (unlikely(crypt_convert(cc, &io->ctx) < 0)) {
-			crypt_free_buffer_pages(cc, clone);
-			bio_put(clone);
-			io->error = -EIO;
-			crypt_dec_pending(io);
-			return;
-		}
-
-		/* crypt_convert should have filled the clone bio */
-		BUG_ON(io->ctx.idx_out < clone->bi_vcnt);
-
-		clone->bi_sector = cc->start + io->sector;
 		remaining -= clone->bi_size;
-		io->sector += bio_sectors(clone);
+
+		r = crypt_convert(cc, &io->ctx);
+
+		kcryptd_crypt_write_io_submit(io, r);
+		if (unlikely(r < 0))
+			return;
 
 		/* Grab another reference to the io struct
 		 * before we kick off the request */
@@ -631,7 +640,7 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 		 * may be gone already. */
 
 		/* out of memory -> run queues */
-		if (remaining)
+		if (unlikely(remaining))
 			congestion_wait(WRITE, HZ/100);
 	}
 }
