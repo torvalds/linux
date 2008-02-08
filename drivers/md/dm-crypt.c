@@ -406,11 +406,17 @@ static int crypt_convert_block(struct crypt_config *cc,
 					 ctx->sector);
 }
 
+static void kcryptd_async_done(struct crypto_async_request *async_req,
+			       int error);
 static void crypt_alloc_req(struct crypt_config *cc,
 			    struct convert_context *ctx)
 {
 	if (!cc->req)
 		cc->req = mempool_alloc(cc->req_pool, GFP_NOIO);
+	ablkcipher_request_set_tfm(cc->req, cc->tfm);
+	ablkcipher_request_set_callback(cc->req, CRYPTO_TFM_REQ_MAY_BACKLOG |
+					     CRYPTO_TFM_REQ_MAY_SLEEP,
+					     kcryptd_async_done, ctx);
 }
 
 /*
@@ -615,6 +621,9 @@ static void kcryptd_io_read(struct dm_crypt_io *io)
 
 static void kcryptd_io_write(struct dm_crypt_io *io)
 {
+	struct bio *clone = io->ctx.bio_out;
+
+	generic_make_request(clone);
 }
 
 static void kcryptd_io(struct work_struct *work)
@@ -635,7 +644,8 @@ static void kcryptd_queue_io(struct dm_crypt_io *io)
 	queue_work(cc->io_queue, &io->work);
 }
 
-static void kcryptd_crypt_write_io_submit(struct dm_crypt_io *io, int error)
+static void kcryptd_crypt_write_io_submit(struct dm_crypt_io *io,
+					  int error, int async)
 {
 	struct bio *clone = io->ctx.bio_out;
 	struct crypt_config *cc = io->target->private;
@@ -653,8 +663,12 @@ static void kcryptd_crypt_write_io_submit(struct dm_crypt_io *io, int error)
 	clone->bi_sector = cc->start + io->sector;
 	io->sector += bio_sectors(clone);
 
-	atomic_inc(&io->pending);
-	generic_make_request(clone);
+	if (async)
+		kcryptd_queue_io(io);
+	else {
+		atomic_inc(&io->pending);
+		generic_make_request(clone);
+	}
 }
 
 static void kcryptd_crypt_write_convert_loop(struct dm_crypt_io *io)
@@ -682,7 +696,7 @@ static void kcryptd_crypt_write_convert_loop(struct dm_crypt_io *io)
 
 		r = crypt_convert(cc, &io->ctx);
 
-		kcryptd_crypt_write_io_submit(io, r);
+		kcryptd_crypt_write_io_submit(io, r, 0);
 		if (unlikely(r < 0))
 			return;
 
@@ -726,6 +740,29 @@ static void kcryptd_crypt_read_convert(struct dm_crypt_io *io)
 	r = crypt_convert(cc, &io->ctx);
 
 	kcryptd_crypt_read_done(io, r);
+}
+
+static void kcryptd_async_done(struct crypto_async_request *async_req,
+			       int error)
+{
+	struct convert_context *ctx = async_req->data;
+	struct dm_crypt_io *io = container_of(ctx, struct dm_crypt_io, ctx);
+	struct crypt_config *cc = io->target->private;
+
+	if (error == -EINPROGRESS) {
+		complete(&ctx->restart);
+		return;
+	}
+
+	mempool_free(ablkcipher_request_cast(async_req), cc->req_pool);
+
+	if (!atomic_dec_and_test(&ctx->pending))
+		return;
+
+	if (bio_data_dir(io->base_bio) == READ)
+		kcryptd_crypt_read_done(io, error);
+	else
+		kcryptd_crypt_write_io_submit(io, error, 1);
 }
 
 static void kcryptd_crypt(struct work_struct *work)
