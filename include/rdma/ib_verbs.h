@@ -900,8 +900,6 @@ struct ib_device {
 	int                          *pkey_tbl_len;
 	int                          *gid_tbl_len;
 
-	u32                           flags;
-
 	int			      num_comp_vectors;
 
 	struct iw_cm_verbs	     *iwcm;
