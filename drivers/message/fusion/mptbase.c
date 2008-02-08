@@ -1658,6 +1658,9 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	ioc->active = 0;
 	CHIPREG_WRITE32(&ioc->chip->IntStatus, 0);
 
+	/* Set IOC ptr in the pcidev's driver data. */
+	pci_set_drvdata(ioc->pcidev, ioc);
+
 	/* Set lookup ptr. */
 	list_add_tail(&ioc->list, &ioc_list);
 
@@ -1999,7 +2002,6 @@ mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
 			irq_allocated = 1;
 			ioc->pci_irq = ioc->pcidev->irq;
 			pci_set_master(ioc->pcidev);		/* ?? */
-			pci_set_drvdata(ioc->pcidev, ioc);
 			dprintk(ioc, printk(MYIOC_s_INFO_FMT "installed at interrupt "
 			    "%d\n", ioc->name, ioc->pcidev->irq));
 		}
