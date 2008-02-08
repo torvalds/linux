@@ -231,9 +231,7 @@ static int udf_bitmap_prealloc_blocks(struct super_block *sb,
 		block_count = part_len - first_block;
 
 repeat:
-	nr_groups = (sbi->s_partmaps[partition].s_partition_len +
-		     (sizeof(struct spaceBitmapDesc) << 3) +
-		     (sb->s_blocksize * 8) - 1) / (sb->s_blocksize * 8);
+	nr_groups = udf_compute_nr_groups(sb, partition);
 	block = first_block + (sizeof(struct spaceBitmapDesc) << 3);
 	block_group = block >> (sb->s_blocksize_bits + 3);
 	group_start = block_group ? 0 : sizeof(struct spaceBitmapDesc);

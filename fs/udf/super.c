@@ -937,18 +937,22 @@ static void udf_load_fileset(struct super_block *sb, struct buffer_head *bh,
 		  root->logicalBlockNum, root->partitionReferenceNum);
 }
 
+int udf_compute_nr_groups(struct super_block *sb, u32 partition)
+{
+	struct udf_part_map *map = &UDF_SB(sb)->s_partmaps[partition];
+	return (map->s_partition_len +
+		(sizeof(struct spaceBitmapDesc) << 3) +
+		(sb->s_blocksize * 8) - 1) /
+		(sb->s_blocksize * 8);
+}
+
 static struct udf_bitmap *udf_sb_alloc_bitmap(struct super_block *sb, u32 index)
 {
-	struct udf_part_map *map = &UDF_SB(sb)->s_partmaps[index];
 	struct udf_bitmap *bitmap;
 	int nr_groups;
 	int size;
 
-	/* TODO: move calculating of nr_groups into helper function */
-	nr_groups = (map->s_partition_len +
-			(sizeof(struct spaceBitmapDesc) << 3) +
-			(sb->s_blocksize * 8) - 1) /
-			(sb->s_blocksize * 8);
+	nr_groups = udf_compute_nr_groups(sb, index);
 	size = sizeof(struct udf_bitmap) +
 		(sizeof(struct buffer_head *) * nr_groups);
 
