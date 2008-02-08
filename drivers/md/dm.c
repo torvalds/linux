@@ -1259,6 +1259,29 @@ void dm_put(struct mapped_device *md)
 }
 EXPORT_SYMBOL_GPL(dm_put);
 
+static int dm_wait_for_completion(struct mapped_device *md)
+{
+	int r = 0;
+
+	while (1) {
+		set_current_state(TASK_INTERRUPTIBLE);
+
+		smp_mb();
+		if (!atomic_read(&md->pending))
+			break;
+
+		if (signal_pending(current)) {
+			r = -EINTR;
+			break;
+		}
+
+		io_schedule();
+	}
+	set_current_state(TASK_RUNNING);
+
+	return r;
+}
+
 /*
  * Process the deferred bios
  */
@@ -1357,7 +1380,7 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 {
 	struct dm_table *map = NULL;
 	DECLARE_WAITQUEUE(wait, current);
-	int pending, r = 0;
+	int r = 0;
 	int do_lockfs = suspend_flags & DM_SUSPEND_LOCKFS_FLAG ? 1 : 0;
 	int noflush = suspend_flags & DM_SUSPEND_NOFLUSH_FLAG ? 1 : 0;
 
@@ -1414,20 +1437,9 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 		dm_table_unplug_all(map);
 
 	/*
-	 * Then we wait for the already mapped ios to
-	 * complete.
+	 * Wait for the already-mapped ios to complete.
 	 */
-	while (1) {
-		set_current_state(TASK_INTERRUPTIBLE);
-
-		smp_mb();
-		pending = atomic_read(&md->pending);
-		if (!pending || signal_pending(current))
-			break;
-
-		io_schedule();
-	}
-	set_current_state(TASK_RUNNING);
+	r = dm_wait_for_completion(md);
 
 	down_write(&md->io_lock);
 	remove_wait_queue(&md->wait, &wait);
@@ -1437,13 +1449,12 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 	up_write(&md->io_lock);
 
 	/* were we interrupted ? */
-	if (pending) {
+	if (r < 0) {
 		down_write(&md->io_lock);
 		__flush_deferred_io(md);
 		up_write(&md->io_lock);
 
 		unlock_fs(md);
-		r = -EINTR;
 		goto out; /* pushback list is already flushed, so skip flush */
 	}
 
