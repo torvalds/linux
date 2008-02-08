@@ -330,8 +330,6 @@ void delete_partition(struct gendisk *disk, int part)
 	disk->part[part-1] = NULL;
 	p->start_sect = 0;
 	p->nr_sects = 0;
-	p->ios[0] = p->ios[1] = 0;
-	p->sectors[0] = p->sectors[1] = 0;
 	part_stat_set_all(p, 0);
 	kobject_put(p->holder_dir);
 	device_del(&p->dev);

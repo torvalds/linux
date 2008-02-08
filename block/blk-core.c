@@ -1219,10 +1219,6 @@ static inline void blk_partition_remap(struct bio *bio)
 
 	if (bio_sectors(bio) && bdev != bdev->bd_contains) {
 		struct hd_struct *p = bdev->bd_part;
-		const int rw = bio_data_dir(bio);
-
-		p->sectors[rw] += bio_sectors(bio);
-		p->ios[rw]++;
 
 		bio->bi_sector += p->start_sect;
 		bio->bi_bdev = bdev->bd_contains;

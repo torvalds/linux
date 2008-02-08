@@ -105,7 +105,6 @@ struct hd_struct {
 	sector_t nr_sects;
 	struct device dev;
 	struct kobject *holder_dir;
-	unsigned ios[2], sectors[2];	/* READs and WRITEs */
 	int policy, partno;
 #ifdef CONFIG_FAIL_MAKE_REQUEST
 	int make_it_fail;
