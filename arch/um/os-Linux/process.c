@@ -224,7 +224,7 @@ int __init can_drop_memory(void)
 		goto out_unmap;
 	}
 
-	printk("OK\n");
+	printk(UM_KERN_CONT "OK\n");
 	ok = 1;
 
 out_unmap:

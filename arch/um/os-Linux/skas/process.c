@@ -341,7 +341,7 @@ void userspace(struct uml_pt_regs *regs)
 	int local_using_sysemu;
 
 	if (getitimer(ITIMER_VIRTUAL, &timer))
-		printk("Failed to get itimer, errno = %d\n", errno);
+		printk(UM_KERN_ERR "Failed to get itimer, errno = %d\n", errno);
 	nsecs = timer.it_value.tv_sec * UM_NSEC_PER_SEC +
 		timer.it_value.tv_usec * UM_NSEC_PER_USEC;
 	nsecs += os_nsecs();
@@ -388,7 +388,7 @@ void userspace(struct uml_pt_regs *regs)
 
 		if (WIFSTOPPED(status)) {
 			int sig = WSTOPSIG(status);
-		  	switch(sig) {
+			switch (sig) {
 			case SIGSEGV:
 				if (PTRACE_FULL_FAULTINFO ||
 				    !ptrace_faultinfo) {
@@ -641,7 +641,7 @@ int start_idle_thread(void *stack, jmp_buf *switch_buf)
 	 * after returning to the jumper.
 	 */
 	n = setjmp(initial_jmpbuf);
-	switch(n) {
+	switch (n) {
 	case INIT_JMP_NEW_THREAD:
 		(*switch_buf)[0].JB_IP = (unsigned long) new_thread_handler;
 		(*switch_buf)[0].JB_SP = (unsigned long) stack +
