@@ -99,17 +99,6 @@ Who:	Eric Biederman <ebiederm@xmission.com>
 
 ---------------------------
 
-What:  a.out interpreter support for ELF executables
-When:  2.6.25
-Files: fs/binfmt_elf.c
-Why:   Using a.out interpreters for ELF executables was a feature for
-       transition from a.out to ELF. But now it is unlikely to be still
-       needed anymore and removing it would simplify the hairy ELF
-       loader code.
-Who:   Andi Kleen <ak@suse.de>
-
----------------------------
-
 What:	remove EXPORT_SYMBOL(kernel_thread)
 When:	August 2006
 Files:	arch/*/kernel/*_ksyms.c
