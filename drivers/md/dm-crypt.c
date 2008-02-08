@@ -38,7 +38,6 @@ struct convert_context {
 	unsigned int idx_in;
 	unsigned int idx_out;
 	sector_t sector;
-	int write;
 };
 
 /*
@@ -327,7 +326,7 @@ crypt_convert_scatterlist(struct crypt_config *cc, struct scatterlist *out,
 static void crypt_convert_init(struct crypt_config *cc,
 			       struct convert_context *ctx,
 			       struct bio *bio_out, struct bio *bio_in,
-			       sector_t sector, int write)
+			       sector_t sector)
 {
 	ctx->bio_in = bio_in;
 	ctx->bio_out = bio_out;
@@ -336,7 +335,6 @@ static void crypt_convert_init(struct crypt_config *cc,
 	ctx->idx_in = bio_in ? bio_in->bi_idx : 0;
 	ctx->idx_out = bio_out ? bio_out->bi_idx : 0;
 	ctx->sector = sector + cc->iv_offset;
-	ctx->write = write;
 }
 
 /*
@@ -372,7 +370,7 @@ static int crypt_convert(struct crypt_config *cc,
 		}
 
 		r = crypt_convert_scatterlist(cc, &sg_out, &sg_in, sg_in.length,
-					      ctx->write, ctx->sector);
+			bio_data_dir(ctx->bio_in) == WRITE, ctx->sector);
 		if (r < 0)
 			break;
 
@@ -587,7 +585,7 @@ static void process_write(struct dm_crypt_io *io)
 
 	atomic_inc(&io->pending);
 
-	crypt_convert_init(cc, &io->ctx, NULL, base_bio, sector, 1);
+	crypt_convert_init(cc, &io->ctx, NULL, base_bio, sector);
 
 	/*
 	 * The allocated buffers can be smaller than the whole bio,
@@ -638,7 +636,7 @@ static void process_read_endio(struct dm_crypt_io *io)
 	struct crypt_config *cc = io->target->private;
 
 	crypt_convert_init(cc, &io->ctx, io->base_bio, io->base_bio,
-			   io->base_bio->bi_sector - io->target->begin, 0);
+			   io->base_bio->bi_sector - io->target->begin);
 
 	crypt_dec_pending(io, crypt_convert(cc, &io->ctx));
 }
