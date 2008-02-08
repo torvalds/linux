@@ -617,6 +617,7 @@ static const struct super_operations reiserfs_sops = {
 	.unlockfs = reiserfs_unlockfs,
 	.statfs = reiserfs_statfs,
 	.remount_fs = reiserfs_remount,
+	.show_options = generic_show_options,
 #ifdef CONFIG_QUOTA
 	.quota_read = reiserfs_quota_read,
 	.quota_write = reiserfs_quota_write,
@@ -1138,6 +1139,7 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 	unsigned long safe_mask = 0;
 	unsigned int commit_max_age = (unsigned int)-1;
 	struct reiserfs_journal *journal = SB_JOURNAL(s);
+	char *new_opts = kstrdup(arg, GFP_KERNEL);
 	int err;
 #ifdef CONFIG_QUOTA
 	int i;
@@ -1153,7 +1155,8 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 			REISERFS_SB(s)->s_qf_names[i] = NULL;
 		}
 #endif
-		return -EINVAL;
+		err = -EINVAL;
+		goto out_err;
 	}
 
 	handle_attrs(s);
@@ -1191,9 +1194,9 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 	}
 
 	if (blocks) {
-		int rc = reiserfs_resize(s, blocks);
-		if (rc != 0)
-			return rc;
+		err = reiserfs_resize(s, blocks);
+		if (err != 0)
+			goto out_err;
 	}
 
 	if (*mount_flags & MS_RDONLY) {
@@ -1201,16 +1204,16 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 		/* remount read-only */
 		if (s->s_flags & MS_RDONLY)
 			/* it is read-only already */
-			return 0;
+			goto out_ok;
 		/* try to remount file system with read-only permissions */
 		if (sb_umount_state(rs) == REISERFS_VALID_FS
 		    || REISERFS_SB(s)->s_mount_state != REISERFS_VALID_FS) {
-			return 0;
+			goto out_ok;
 		}
 
 		err = journal_begin(&th, s, 10);
 		if (err)
-			return err;
+			goto out_err;
 
 		/* Mounting a rw partition read-only. */
 		reiserfs_prepare_for_journal(s, SB_BUFFER_WITH_SB(s), 1);
@@ -1220,11 +1223,13 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 		/* remount read-write */
 		if (!(s->s_flags & MS_RDONLY)) {
 			reiserfs_xattr_init(s, *mount_flags);
-			return 0;	/* We are read-write already */
+			goto out_ok;	/* We are read-write already */
 		}
 
-		if (reiserfs_is_journal_aborted(journal))
-			return journal->j_errno;
+		if (reiserfs_is_journal_aborted(journal)) {
+			err = journal->j_errno;
+			goto out_err;
+		}
 
 		handle_data_mode(s, mount_options);
 		handle_barrier_mode(s, mount_options);
@@ -1232,7 +1237,7 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 		s->s_flags &= ~MS_RDONLY;	/* now it is safe to call journal_begin */
 		err = journal_begin(&th, s, 10);
 		if (err)
-			return err;
+			goto out_err;
 
 		/* Mount a partition which is read-only, read-write */
 		reiserfs_prepare_for_journal(s, SB_BUFFER_WITH_SB(s), 1);
@@ -1247,7 +1252,7 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 	SB_JOURNAL(s)->j_must_wait = 1;
 	err = journal_end(&th, s, 10);
 	if (err)
-		return err;
+		goto out_err;
 	s->s_dirt = 0;
 
 	if (!(*mount_flags & MS_RDONLY)) {
@@ -1255,7 +1260,14 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 		reiserfs_xattr_init(s, *mount_flags);
 	}
 
+out_ok:
+	kfree(s->s_options);
+	s->s_options = new_opts;
 	return 0;
+
+out_err:
+	kfree(new_opts);
+	return err;
 }
 
 static int read_super_block(struct super_block *s, int offset)
@@ -1558,6 +1570,8 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 	char *jdev_name;
 	struct reiserfs_sb_info *sbi;
 	int errval = -EINVAL;
+
+	save_mount_options(s, data);
 
 	sbi = kzalloc(sizeof(struct reiserfs_sb_info), GFP_KERNEL);
 	if (!sbi) {
