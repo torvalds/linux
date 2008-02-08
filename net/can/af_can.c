@@ -118,7 +118,6 @@ static int can_create(struct net *net, struct socket *sock, int protocol)
 {
 	struct sock *sk;
 	struct can_proto *cp;
-	char module_name[sizeof("can-proto-000")];
 	int err = 0;
 
 	sock->state = SS_UNCONNECTED;
@@ -129,26 +128,21 @@ static int can_create(struct net *net, struct socket *sock, int protocol)
 	if (net != &init_net)
 		return -EAFNOSUPPORT;
 
+#ifdef CONFIG_KMOD
 	/* try to load protocol module, when CONFIG_KMOD is defined */
 	if (!proto_tab[protocol]) {
-		sprintf(module_name, "can-proto-%d", protocol);
-		err = request_module(module_name);
+		err = request_module("can-proto-%d", protocol);
 
 		/*
 		 * In case of error we only print a message but don't
 		 * return the error code immediately.  Below we will
 		 * return -EPROTONOSUPPORT
 		 */
-		if (err == -ENOSYS) {
-			if (printk_ratelimit())
-				printk(KERN_INFO "can: request_module(%s)"
-				       " not implemented.\n", module_name);
-		} else if (err) {
-			if (printk_ratelimit())
-				printk(KERN_ERR "can: request_module(%s)"
-				       " failed.\n", module_name);
-		}
+		if (err && printk_ratelimit())
+			printk(KERN_ERR "can: request_module "
+			       "(can-proto-%d) failed.\n", protocol);
 	}
+#endif
 
 	spin_lock(&proto_tab_lock);
 	cp = proto_tab[protocol];
