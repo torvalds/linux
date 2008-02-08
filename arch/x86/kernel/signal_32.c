@@ -131,14 +131,8 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, int *peax
 	COPY_SEG(fs);
 	COPY_SEG(es);
 	COPY_SEG(ds);
-	COPY(di);
-	COPY(si);
-	COPY(bp);
-	COPY(sp);
-	COPY(bx);
-	COPY(dx);
-	COPY(cx);
-	COPY(ip);
+	COPY(di); COPY(si); COPY(bp); COPY(sp); COPY(bx);
+	COPY(dx); COPY(cx); COPY(ip);
 	COPY_SEG_STRICT(cs);
 	COPY_SEG_STRICT(ss);
 	
@@ -412,7 +406,7 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 		ptrace_notify(SIGTRAP);
 
 #if DEBUG_SIG
-	printk("SIG deliver (%s:%d): sp=%p pc=%p ra=%p\n",
+	printk("SIG deliver (%s:%d): sp=%p pc=%lx ra=%p\n",
 		current->comm, current->pid, frame, regs->ip, frame->pretcode);
 #endif
 
@@ -522,7 +516,7 @@ give_sigsegv:
 
 static int
 handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
-	      sigset_t *oldset,	struct pt_regs * regs)
+	      sigset_t *oldset, struct pt_regs *regs)
 {
 	int ret;
 
@@ -530,20 +524,21 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 	if ((long)regs->orig_ax >= 0) {
 		/* If so, check system call restarting.. */
 		switch (regs->ax) {
-		        case -ERESTART_RESTARTBLOCK:
-			case -ERESTARTNOHAND:
+		case -ERESTART_RESTARTBLOCK:
+		case -ERESTARTNOHAND:
+			regs->ax = -EINTR;
+			break;
+
+		case -ERESTARTSYS:
+			if (!(ka->sa.sa_flags & SA_RESTART)) {
 				regs->ax = -EINTR;
 				break;
-
-			case -ERESTARTSYS:
-				if (!(ka->sa.sa_flags & SA_RESTART)) {
-					regs->ax = -EINTR;
-					break;
-				}
-			/* fallthrough */
-			case -ERESTARTNOINTR:
-				regs->ax = regs->orig_ax;
-				regs->ip -= 2;
+			}
+		/* fallthrough */
+		case -ERESTARTNOINTR:
+			regs->ax = regs->orig_ax;
+			regs->ip -= 2;
+			break;
 		}
 	}
 
@@ -580,18 +575,17 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
  */
 static void do_signal(struct pt_regs *regs)
 {
+	struct k_sigaction ka;
 	siginfo_t info;
 	int signr;
-	struct k_sigaction ka;
 	sigset_t *oldset;
 
 	/*
-	 * We want the common case to go fast, which
-	 * is why we may in certain cases get here from
-	 * kernel mode. Just return without doing anything
- 	 * if so.  vm86 regs switched out by assembly code
- 	 * before reaching here, so testing against kernel
- 	 * CS suffices.
+	 * We want the common case to go fast, which is why we may in certain
+	 * cases get here from kernel mode. Just return without doing anything
+	 * if so.
+	 * X86_32: vm86 regs switched out by assembly code before reaching
+	 * here, so testing against kernel CS suffices.
 	 */
 	if (!user_mode(regs))
 		return;
@@ -608,7 +602,7 @@ static void do_signal(struct pt_regs *regs)
 		 * have been cleared if the watchpoint triggered
 		 * inside the kernel.
 		 */
-		if (unlikely(current->thread.debugreg7))
+		if (current->thread.debugreg7)
 			set_debugreg(current->thread.debugreg7, 7);
 
 		/* Whee!  Actually deliver the signal.  */
@@ -642,8 +636,10 @@ static void do_signal(struct pt_regs *regs)
 		}
 	}
 
-	/* if there's no signal to deliver, we just put the saved sigmask
-	 * back */
+	/*
+	 * If there's no signal to deliver, we just put the saved sigmask
+	 * back.
+	 */
 	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
 		clear_thread_flag(TIF_RESTORE_SIGMASK);
 		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
@@ -654,12 +650,12 @@ static void do_signal(struct pt_regs *regs)
  * notification of userspace execution resumption
  * - triggered by the TIF_WORK_MASK flags
  */
-void do_notify_resume(struct pt_regs *regs, void *_unused,
+void do_notify_resume(struct pt_regs *regs, void *unused,
 		      __u32 thread_info_flags)
 {
 	/* Pending single-step? */
 	if (thread_info_flags & _TIF_SINGLESTEP) {
-		regs->flags |= TF_MASK;
+		regs->flags |= X86_EFLAGS_TF;
 		clear_thread_flag(TIF_SINGLESTEP);
 	}
 

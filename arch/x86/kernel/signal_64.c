@@ -345,7 +345,7 @@ static long current_syscall_ret(struct pt_regs *regs)
 
 static int
 handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
-		sigset_t *oldset, struct pt_regs *regs)
+	      sigset_t *oldset, struct pt_regs *regs)
 {
 	int ret;
 
@@ -359,21 +359,21 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 	if (current_syscall(regs) >= 0) {
 		/* If so, check system call restarting.. */
 		switch (current_syscall_ret(regs)) {
-		        case -ERESTART_RESTARTBLOCK:
-			case -ERESTARTNOHAND:
+		case -ERESTART_RESTARTBLOCK:
+		case -ERESTARTNOHAND:
+			regs->ax = -EINTR;
+			break;
+
+		case -ERESTARTSYS:
+			if (!(ka->sa.sa_flags & SA_RESTART)) {
 				regs->ax = -EINTR;
 				break;
-
-			case -ERESTARTSYS:
-				if (!(ka->sa.sa_flags & SA_RESTART)) {
-					regs->ax = -EINTR;
-					break;
-				}
-				/* fallthrough */
-			case -ERESTARTNOINTR:
-				regs->ax = regs->orig_ax;
-				regs->ip -= 2;
-				break;
+			}
+		/* fallthrough */
+		case -ERESTARTNOINTR:
+			regs->ax = regs->orig_ax;
+			regs->ip -= 2;
+			break;
 		}
 	}
 
@@ -420,10 +420,11 @@ static void do_signal(struct pt_regs *regs)
 	sigset_t *oldset;
 
 	/*
-	 * We want the common case to go fast, which
-	 * is why we may in certain cases get here from
-	 * kernel mode. Just return without doing anything
+	 * We want the common case to go fast, which is why we may in certain
+	 * cases get here from kernel mode. Just return without doing anything
 	 * if so.
+	 * X86_32: vm86 regs switched out by assembly code before reaching
+	 * here, so testing against kernel CS suffices.
 	 */
 	if (!user_mode(regs))
 		return;
@@ -473,16 +474,18 @@ static void do_signal(struct pt_regs *regs)
 		}
 	}
 
-	/* if there's no signal to deliver, we just put the saved sigmask
-	   back. */
+	/*
+	 * If there's no signal to deliver, we just put the saved sigmask
+	 * back.
+	 */
 	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
 		clear_thread_flag(TIF_RESTORE_SIGMASK);
 		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
 	}
 }
 
-void
-do_notify_resume(struct pt_regs *regs, void *unused, __u32 thread_info_flags)
+void do_notify_resume(struct pt_regs *regs, void *unused,
+		      __u32 thread_info_flags)
 {
 #ifdef DEBUG_SIG
 	printk("do_notify_resume flags:%x ip:%lx sp:%lx caller:%p pending:%x\n",
@@ -502,7 +505,7 @@ do_notify_resume(struct pt_regs *regs, void *unused, __u32 thread_info_flags)
 #endif /* CONFIG_X86_MCE */
 
 	/* deal with pending signal delivery */
-	if (thread_info_flags & (_TIF_SIGPENDING|_TIF_RESTORE_SIGMASK))
+	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK))
 		do_signal(regs);
 
 	if (thread_info_flags & _TIF_HRTICK_RESCHED)
