@@ -60,7 +60,8 @@ sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
  * Do a signal return; undo the signal stack.
  */
 static int
-restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, unsigned long *prax)
+restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc,
+		   unsigned long *pax)
 {
 	unsigned int err = 0;
 
@@ -113,7 +114,7 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, unsigned 
 		}
 	}
 
-	err |= __get_user(*prax, &sc->ax);
+	err |= __get_user(*pax, &sc->ax);
 	return err;
 
 badframe:

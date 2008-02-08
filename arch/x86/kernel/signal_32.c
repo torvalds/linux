@@ -107,9 +107,9 @@ sys_sigaltstack(unsigned long bx)
 /*
  * Do a signal return; undo the signal stack.
  */
-
 static int
-restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, int *peax)
+restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc,
+		   unsigned long *pax)
 {
 	unsigned int err = 0;
 
@@ -165,19 +165,19 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, int *peax
 		}
 	}
 
-	err |= __get_user(*peax, &sc->ax);
+	err |= __get_user(*pax, &sc->ax);
 	return err;
 
 badframe:
 	return 1;
 }
 
-asmlinkage int sys_sigreturn(unsigned long __unused)
+asmlinkage unsigned long sys_sigreturn(unsigned long __unused)
 {
 	struct pt_regs *regs = (struct pt_regs *) &__unused;
 	struct sigframe __user *frame = (struct sigframe __user *)(regs->sp - 8);
 	sigset_t set;
-	int ax;
+	unsigned long ax;
 
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
@@ -216,8 +216,8 @@ asmlinkage int sys_rt_sigreturn(unsigned long __unused)
 {
 	struct pt_regs *regs = (struct pt_regs *)&__unused;
 	struct rt_sigframe __user *frame;
+	unsigned long ax;
 	sigset_t set;
-	int ax;
 
 	frame = (struct rt_sigframe __user *)(regs->sp - sizeof(long));
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
