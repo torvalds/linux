@@ -49,6 +49,7 @@
 #include <linux/ctype.h>
 #include <linux/migrate.h>
 #include <linux/highmem.h>
+#include <linux/seq_file.h>
 
 #include <asm/uaccess.h>
 #include <asm/div64.h>
@@ -83,6 +84,16 @@ enum sgp_type {
 	SGP_DIRTY,	/* like SGP_CACHE, but set new page dirty */
 	SGP_WRITE,	/* may exceed i_size, may allocate page */
 };
+
+static unsigned long shmem_default_max_blocks(void)
+{
+	return totalram_pages / 2;
+}
+
+static unsigned long shmem_default_max_inodes(void)
+{
+	return min(totalram_pages - totalhigh_pages, totalram_pages / 2);
+}
 
 static int shmem_getpage(struct inode *inode, unsigned long idx,
 			 struct page **pagep, enum sgp_type sgp, int *type);
@@ -1068,7 +1079,8 @@ redirty:
 }
 
 #ifdef CONFIG_NUMA
-static inline int shmem_parse_mpol(char *value, int *policy, nodemask_t *policy_nodes)
+#ifdef CONFIG_TMPFS
+static int shmem_parse_mpol(char *value, int *policy, nodemask_t *policy_nodes)
 {
 	char *nodelist = strchr(value, ':');
 	int err = 1;
@@ -1117,6 +1129,42 @@ out:
 	return err;
 }
 
+static void shmem_show_mpol(struct seq_file *seq, int policy,
+			    const nodemask_t policy_nodes)
+{
+	char *policy_string;
+
+	switch (policy) {
+	case MPOL_PREFERRED:
+		policy_string = "prefer";
+		break;
+	case MPOL_BIND:
+		policy_string = "bind";
+		break;
+	case MPOL_INTERLEAVE:
+		policy_string = "interleave";
+		break;
+	default:
+		/* MPOL_DEFAULT */
+		return;
+	}
+
+	seq_printf(seq, ",mpol=%s", policy_string);
+
+	if (policy != MPOL_INTERLEAVE ||
+	    !nodes_equal(policy_nodes, node_states[N_HIGH_MEMORY])) {
+		char buffer[64];
+		int len;
+
+		len = nodelist_scnprintf(buffer, sizeof(buffer), policy_nodes);
+		if (len < sizeof(buffer))
+			seq_printf(seq, ":%s", buffer);
+		else
+			seq_printf(seq, ":?");
+	}
+}
+#endif /* CONFIG_TMPFS */
+
 static struct page *shmem_swapin(swp_entry_t entry, gfp_t gfp,
 			struct shmem_inode_info *info, unsigned long idx)
 {
@@ -1148,12 +1196,19 @@ static struct page *shmem_alloc_page(gfp_t gfp,
 	mpol_free(pvma.vm_policy);
 	return page;
 }
-#else
+#else /* !CONFIG_NUMA */
+#ifdef CONFIG_TMPFS
 static inline int shmem_parse_mpol(char *value, int *policy,
 						nodemask_t *policy_nodes)
 {
 	return 1;
 }
+
+static inline void shmem_show_mpol(struct seq_file *seq, int policy,
+			    const nodemask_t policy_nodes)
+{
+}
+#endif /* CONFIG_TMPFS */
 
 static inline struct page *shmem_swapin(swp_entry_t entry, gfp_t gfp,
 			struct shmem_inode_info *info, unsigned long idx)
@@ -1166,7 +1221,7 @@ static inline struct page *shmem_alloc_page(gfp_t gfp,
 {
 	return alloc_page(gfp);
 }
-#endif
+#endif /* CONFIG_NUMA */
 
 /*
  * shmem_getpage - either get the page from swap or allocate a new one
@@ -2077,9 +2132,8 @@ static const struct export_operations shmem_export_ops = {
 	.fh_to_dentry	= shmem_fh_to_dentry,
 };
 
-static int shmem_parse_options(char *options, int *mode, uid_t *uid,
-	gid_t *gid, unsigned long *blocks, unsigned long *inodes,
-	int *policy, nodemask_t *policy_nodes)
+static int shmem_parse_options(char *options, struct shmem_sb_info *sbinfo,
+			       bool remount)
 {
 	char *this_char, *value, *rest;
 
@@ -2122,35 +2176,37 @@ static int shmem_parse_options(char *options, int *mode, uid_t *uid,
 			}
 			if (*rest)
 				goto bad_val;
-			*blocks = DIV_ROUND_UP(size, PAGE_CACHE_SIZE);
+			sbinfo->max_blocks =
+				DIV_ROUND_UP(size, PAGE_CACHE_SIZE);
 		} else if (!strcmp(this_char,"nr_blocks")) {
-			*blocks = memparse(value,&rest);
+			sbinfo->max_blocks = memparse(value, &rest);
 			if (*rest)
 				goto bad_val;
 		} else if (!strcmp(this_char,"nr_inodes")) {
-			*inodes = memparse(value,&rest);
+			sbinfo->max_inodes = memparse(value, &rest);
 			if (*rest)
 				goto bad_val;
 		} else if (!strcmp(this_char,"mode")) {
-			if (!mode)
+			if (remount)
 				continue;
-			*mode = simple_strtoul(value,&rest,8);
+			sbinfo->mode = simple_strtoul(value, &rest, 8) & 07777;
 			if (*rest)
 				goto bad_val;
 		} else if (!strcmp(this_char,"uid")) {
-			if (!uid)
+			if (remount)
 				continue;
-			*uid = simple_strtoul(value,&rest,0);
+			sbinfo->uid = simple_strtoul(value, &rest, 0);
 			if (*rest)
 				goto bad_val;
 		} else if (!strcmp(this_char,"gid")) {
-			if (!gid)
+			if (remount)
 				continue;
-			*gid = simple_strtoul(value,&rest,0);
+			sbinfo->gid = simple_strtoul(value, &rest, 0);
 			if (*rest)
 				goto bad_val;
 		} else if (!strcmp(this_char,"mpol")) {
-			if (shmem_parse_mpol(value,policy,policy_nodes))
+			if (shmem_parse_mpol(value, &sbinfo->policy,
+					     &sbinfo->policy_nodes))
 				goto bad_val;
 		} else {
 			printk(KERN_ERR "tmpfs: Bad mount option %s\n",
@@ -2170,24 +2226,20 @@ bad_val:
 static int shmem_remount_fs(struct super_block *sb, int *flags, char *data)
 {
 	struct shmem_sb_info *sbinfo = SHMEM_SB(sb);
-	unsigned long max_blocks = sbinfo->max_blocks;
-	unsigned long max_inodes = sbinfo->max_inodes;
-	int policy = sbinfo->policy;
-	nodemask_t policy_nodes = sbinfo->policy_nodes;
+	struct shmem_sb_info config = *sbinfo;
 	unsigned long blocks;
 	unsigned long inodes;
 	int error = -EINVAL;
 
-	if (shmem_parse_options(data, NULL, NULL, NULL, &max_blocks,
-				&max_inodes, &policy, &policy_nodes))
+	if (shmem_parse_options(data, &config, true))
 		return error;
 
 	spin_lock(&sbinfo->stat_lock);
 	blocks = sbinfo->max_blocks - sbinfo->free_blocks;
 	inodes = sbinfo->max_inodes - sbinfo->free_inodes;
-	if (max_blocks < blocks)
+	if (config.max_blocks < blocks)
 		goto out;
-	if (max_inodes < inodes)
+	if (config.max_inodes < inodes)
 		goto out;
 	/*
 	 * Those tests also disallow limited->unlimited while any are in
@@ -2195,23 +2247,42 @@ static int shmem_remount_fs(struct super_block *sb, int *flags, char *data)
 	 * but we must separately disallow unlimited->limited, because
 	 * in that case we have no record of how much is already in use.
 	 */
-	if (max_blocks && !sbinfo->max_blocks)
+	if (config.max_blocks && !sbinfo->max_blocks)
 		goto out;
-	if (max_inodes && !sbinfo->max_inodes)
+	if (config.max_inodes && !sbinfo->max_inodes)
 		goto out;
 
 	error = 0;
-	sbinfo->max_blocks  = max_blocks;
-	sbinfo->free_blocks = max_blocks - blocks;
-	sbinfo->max_inodes  = max_inodes;
-	sbinfo->free_inodes = max_inodes - inodes;
-	sbinfo->policy = policy;
-	sbinfo->policy_nodes = policy_nodes;
+	sbinfo->max_blocks  = config.max_blocks;
+	sbinfo->free_blocks = config.max_blocks - blocks;
+	sbinfo->max_inodes  = config.max_inodes;
+	sbinfo->free_inodes = config.max_inodes - inodes;
+	sbinfo->policy      = config.policy;
+	sbinfo->policy_nodes = config.policy_nodes;
 out:
 	spin_unlock(&sbinfo->stat_lock);
 	return error;
 }
-#endif
+
+static int shmem_show_options(struct seq_file *seq, struct vfsmount *vfs)
+{
+	struct shmem_sb_info *sbinfo = SHMEM_SB(vfs->mnt_sb);
+
+	if (sbinfo->max_blocks != shmem_default_max_blocks())
+		seq_printf(seq, ",size=%luk",
+			sbinfo->max_blocks << (PAGE_CACHE_SHIFT - 10));
+	if (sbinfo->max_inodes != shmem_default_max_inodes())
+		seq_printf(seq, ",nr_inodes=%lu", sbinfo->max_inodes);
+	if (sbinfo->mode != (S_IRWXUGO | S_ISVTX))
+		seq_printf(seq, ",mode=%03o", sbinfo->mode);
+	if (sbinfo->uid != 0)
+		seq_printf(seq, ",uid=%u", sbinfo->uid);
+	if (sbinfo->gid != 0)
+		seq_printf(seq, ",gid=%u", sbinfo->gid);
+	shmem_show_mpol(seq, sbinfo->policy, sbinfo->policy_nodes);
+	return 0;
+}
+#endif /* CONFIG_TMPFS */
 
 static void shmem_put_super(struct super_block *sb)
 {
@@ -2224,15 +2295,23 @@ static int shmem_fill_super(struct super_block *sb,
 {
 	struct inode *inode;
 	struct dentry *root;
-	int mode   = S_IRWXUGO | S_ISVTX;
-	uid_t uid = current->fsuid;
-	gid_t gid = current->fsgid;
-	int err = -ENOMEM;
 	struct shmem_sb_info *sbinfo;
-	unsigned long blocks = 0;
-	unsigned long inodes = 0;
-	int policy = MPOL_DEFAULT;
-	nodemask_t policy_nodes = node_states[N_HIGH_MEMORY];
+	int err = -ENOMEM;
+
+	/* Round up to L1_CACHE_BYTES to resist false sharing */
+	sbinfo = kmalloc(max((int)sizeof(struct shmem_sb_info),
+				L1_CACHE_BYTES), GFP_KERNEL);
+	if (!sbinfo)
+		return -ENOMEM;
+
+	sbinfo->max_blocks = 0;
+	sbinfo->max_inodes = 0;
+	sbinfo->mode = S_IRWXUGO | S_ISVTX;
+	sbinfo->uid = current->fsuid;
+	sbinfo->gid = current->fsgid;
+	sbinfo->policy = MPOL_DEFAULT;
+	sbinfo->policy_nodes = node_states[N_HIGH_MEMORY];
+	sb->s_fs_info = sbinfo;
 
 #ifdef CONFIG_TMPFS
 	/*
@@ -2241,34 +2320,22 @@ static int shmem_fill_super(struct super_block *sb,
 	 * but the internal instance is left unlimited.
 	 */
 	if (!(sb->s_flags & MS_NOUSER)) {
-		blocks = totalram_pages / 2;
-		inodes = totalram_pages - totalhigh_pages;
-		if (inodes > blocks)
-			inodes = blocks;
-		if (shmem_parse_options(data, &mode, &uid, &gid, &blocks,
-					&inodes, &policy, &policy_nodes))
-			return -EINVAL;
+		sbinfo->max_blocks = shmem_default_max_blocks();
+		sbinfo->max_inodes = shmem_default_max_inodes();
+		if (shmem_parse_options(data, sbinfo, false)) {
+			err = -EINVAL;
+			goto failed;
+		}
 	}
 	sb->s_export_op = &shmem_export_ops;
 #else
 	sb->s_flags |= MS_NOUSER;
 #endif
 
-	/* Round up to L1_CACHE_BYTES to resist false sharing */
-	sbinfo = kmalloc(max((int)sizeof(struct shmem_sb_info),
-				L1_CACHE_BYTES), GFP_KERNEL);
-	if (!sbinfo)
-		return -ENOMEM;
-
 	spin_lock_init(&sbinfo->stat_lock);
-	sbinfo->max_blocks = blocks;
-	sbinfo->free_blocks = blocks;
-	sbinfo->max_inodes = inodes;
-	sbinfo->free_inodes = inodes;
-	sbinfo->policy = policy;
-	sbinfo->policy_nodes = policy_nodes;
+	sbinfo->free_blocks = sbinfo->max_blocks;
+	sbinfo->free_inodes = sbinfo->max_inodes;
 
-	sb->s_fs_info = sbinfo;
 	sb->s_maxbytes = SHMEM_MAX_BYTES;
 	sb->s_blocksize = PAGE_CACHE_SIZE;
 	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
@@ -2280,11 +2347,11 @@ static int shmem_fill_super(struct super_block *sb,
 	sb->s_flags |= MS_POSIXACL;
 #endif
 
-	inode = shmem_get_inode(sb, S_IFDIR | mode, 0);
+	inode = shmem_get_inode(sb, S_IFDIR | sbinfo->mode, 0);
 	if (!inode)
 		goto failed;
-	inode->i_uid = uid;
-	inode->i_gid = gid;
+	inode->i_uid = sbinfo->uid;
+	inode->i_gid = sbinfo->gid;
 	root = d_alloc_root(inode);
 	if (!root)
 		goto failed_iput;
@@ -2420,6 +2487,7 @@ static const struct super_operations shmem_ops = {
 #ifdef CONFIG_TMPFS
 	.statfs		= shmem_statfs,
 	.remount_fs	= shmem_remount_fs,
+	.show_options	= shmem_show_options,
 #endif
 	.delete_inode	= shmem_delete_inode,
 	.drop_inode	= generic_delete_inode,
