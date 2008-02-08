@@ -28,17 +28,6 @@
 #define MESG_STR(x) x, sizeof(x)
 
 /*
- * per bio private data
- */
-struct dm_crypt_io {
-	struct dm_target *target;
-	struct bio *base_bio;
-	struct work_struct work;
-	atomic_t pending;
-	int error;
-};
-
-/*
  * context holding the current state of a multi-part conversion
  */
 struct convert_context {
@@ -50,6 +39,20 @@ struct convert_context {
 	unsigned int idx_out;
 	sector_t sector;
 	int write;
+};
+
+/*
+ * per bio private data
+ */
+struct dm_crypt_io {
+	struct dm_target *target;
+	struct bio *base_bio;
+	struct work_struct work;
+
+	struct convert_context ctx;
+
+	atomic_t pending;
+	int error;
 };
 
 struct crypt_config;
@@ -579,13 +582,12 @@ static void process_write(struct dm_crypt_io *io)
 	struct crypt_config *cc = io->target->private;
 	struct bio *base_bio = io->base_bio;
 	struct bio *clone;
-	struct convert_context ctx;
 	unsigned remaining = base_bio->bi_size;
 	sector_t sector = base_bio->bi_sector - io->target->begin;
 
 	atomic_inc(&io->pending);
 
-	crypt_convert_init(cc, &ctx, NULL, base_bio, sector, 1);
+	crypt_convert_init(cc, &io->ctx, NULL, base_bio, sector, 1);
 
 	/*
 	 * The allocated buffers can be smaller than the whole bio,
@@ -598,10 +600,10 @@ static void process_write(struct dm_crypt_io *io)
 			return;
 		}
 
-		ctx.bio_out = clone;
-		ctx.idx_out = 0;
+		io->ctx.bio_out = clone;
+		io->ctx.idx_out = 0;
 
-		if (unlikely(crypt_convert(cc, &ctx) < 0)) {
+		if (unlikely(crypt_convert(cc, &io->ctx) < 0)) {
 			crypt_free_buffer_pages(cc, clone);
 			bio_put(clone);
 			crypt_dec_pending(io, -EIO);
@@ -609,7 +611,7 @@ static void process_write(struct dm_crypt_io *io)
 		}
 
 		/* crypt_convert should have filled the clone bio */
-		BUG_ON(ctx.idx_out < clone->bi_vcnt);
+		BUG_ON(io->ctx.idx_out < clone->bi_vcnt);
 
 		clone->bi_sector = cc->start + sector;
 		remaining -= clone->bi_size;
@@ -634,12 +636,11 @@ static void process_write(struct dm_crypt_io *io)
 static void process_read_endio(struct dm_crypt_io *io)
 {
 	struct crypt_config *cc = io->target->private;
-	struct convert_context ctx;
 
-	crypt_convert_init(cc, &ctx, io->base_bio, io->base_bio,
+	crypt_convert_init(cc, &io->ctx, io->base_bio, io->base_bio,
 			   io->base_bio->bi_sector - io->target->begin, 0);
 
-	crypt_dec_pending(io, crypt_convert(cc, &ctx));
+	crypt_dec_pending(io, crypt_convert(cc, &io->ctx));
 }
 
 static void kcryptd_do_work(struct work_struct *work)
