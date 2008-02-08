@@ -119,7 +119,7 @@ void udf_clear_inode(struct inode *inode)
 		udf_discard_prealloc(inode);
 		udf_truncate_tail_extent(inode);
 		unlock_kernel();
-		write_inode_now(inode, 1);
+		write_inode_now(inode, 0);
 	}
 	iinfo = UDF_I(inode);
 	kfree(iinfo->i_ext.i_data);
