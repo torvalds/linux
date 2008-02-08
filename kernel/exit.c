@@ -1511,12 +1511,6 @@ static int wait_task_continued(struct task_struct *p, int noreap,
 	return retval;
 }
 
-
-static inline int my_ptrace_child(struct task_struct *p)
-{
-	return p->ptrace & PT_PTRACED;
-}
-
 static long do_wait(pid_t pid, int options, struct siginfo __user *infop,
 		    int __user *stat_addr, struct rusage __user *ru)
 {
@@ -1555,22 +1549,11 @@ repeat:
 				/*
 				 * It's stopped now, so it might later
 				 * continue, exit, or stop again.
-				 *
-				 * When we hit the race with PTRACE_ATTACH, we
-				 * will not report this child.  But the race
-				 * means it has not yet been moved to our
-				 * ptrace_children list, so we need to set the
-				 * flag here to avoid a spurious ECHILD when
-				 * the race happens with the only child.
 				 */
 				flag = 1;
-
-				if (!my_ptrace_child(p)) {
-					if (task_is_traced(p))
-						continue;
-					if (!(options & WUNTRACED))
-						continue;
-				}
+				if (!(p->ptrace & PT_PTRACED) &&
+				    !(options & WUNTRACED))
+					continue;
 
 				retval = wait_task_stopped(p, ret == 2,
 						(options & WNOWAIT), infop,
