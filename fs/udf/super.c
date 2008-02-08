@@ -52,6 +52,7 @@
 #include <linux/buffer_head.h>
 #include <linux/vfs.h>
 #include <linux/vmalloc.h>
+#include <linux/errno.h>
 #include <asm/byteorder.h>
 
 #include <linux/udf_fs.h>
@@ -225,6 +226,24 @@ static void __exit exit_udf_fs(void)
 
 module_init(init_udf_fs)
 module_exit(exit_udf_fs)
+
+static int udf_sb_alloc_partition_maps(struct super_block *sb, u32 count)
+{
+	struct udf_sb_info *sbi = UDF_SB(sb);
+
+	sbi->s_partmaps = kcalloc(count, sizeof(struct udf_part_map),
+				  GFP_KERNEL);
+	if (!sbi->s_partmaps) {
+		udf_error(sb, __FUNCTION__,
+			  "Unable to allocate space for %d partition maps",
+			  count);
+		sbi->s_partitions = 0;
+		return -ENOMEM;
+	}
+
+	sbi->s_partitions = count;
+	return 0;
+}
 
 /*
  * udf_parse_options
@@ -1037,7 +1056,9 @@ static int udf_load_logicalvol(struct super_block *sb, struct buffer_head *bh,
 
 	lvd = (struct logicalVolDesc *)bh->b_data;
 
-	UDF_SB_ALLOC_PARTMAPS(sb, le32_to_cpu(lvd->numPartitionMaps));
+	i = udf_sb_alloc_partition_maps(sb, le32_to_cpu(lvd->numPartitionMaps));
+	if (i != 0)
+		return i;
 
 	for (i = 0, offset = 0;
 	     i < sbi->s_partitions && offset < le32_to_cpu(lvd->mapTableLength);
@@ -1242,7 +1263,7 @@ static int udf_process_sequence(struct super_block *sb, long block,
 			if (i == VDS_POS_PRIMARY_VOL_DESC) {
 				udf_load_pvoldesc(sb, bh);
 			} else if (i == VDS_POS_LOGICAL_VOL_DESC) {
-				udf_load_logicalvol(sb, bh, fileset);
+				udf_load_logicalvol(sb, bh, fileset); /* TODO: check return value */
 			} else if (i == VDS_POS_PARTITION_DESC) {
 				struct buffer_head *bh2 = NULL;
 				if (udf_load_partdesc(sb, bh)) {
