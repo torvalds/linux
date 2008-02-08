@@ -18,6 +18,7 @@
 #include <linux/fs.h>
 #include <linux/kmod.h>
 #include <linux/ctype.h>
+#include <linux/genhd.h>
 
 #include "check.h"
 
@@ -215,9 +216,25 @@ static ssize_t part_stat_show(struct device *dev,
 {
 	struct hd_struct *p = dev_to_part(dev);
 
-	return sprintf(buf, "%8u %8llu %8u %8llu\n",
-		       p->ios[0], (unsigned long long)p->sectors[0],
-		       p->ios[1], (unsigned long long)p->sectors[1]);
+	preempt_disable();
+	part_round_stats(p);
+	preempt_enable();
+	return sprintf(buf,
+		"%8lu %8lu %8llu %8u "
+		"%8lu %8lu %8llu %8u "
+		"%8u %8u %8u"
+		"\n",
+		part_stat_read(p, ios[READ]),
+		part_stat_read(p, merges[READ]),
+		(unsigned long long)part_stat_read(p, sectors[READ]),
+		jiffies_to_msecs(part_stat_read(p, ticks[READ])),
+		part_stat_read(p, ios[WRITE]),
+		part_stat_read(p, merges[WRITE]),
+		(unsigned long long)part_stat_read(p, sectors[WRITE]),
+		jiffies_to_msecs(part_stat_read(p, ticks[WRITE])),
+		p->in_flight,
+		jiffies_to_msecs(part_stat_read(p, io_ticks)),
+		jiffies_to_msecs(part_stat_read(p, time_in_queue)));
 }
 
 #ifdef CONFIG_FAIL_MAKE_REQUEST
@@ -273,6 +290,7 @@ static struct attribute_group *part_attr_groups[] = {
 static void part_release(struct device *dev)
 {
 	struct hd_struct *p = dev_to_part(dev);
+	free_part_stats(p);
 	kfree(p);
 }
 
@@ -312,8 +330,7 @@ void delete_partition(struct gendisk *disk, int part)
 	disk->part[part-1] = NULL;
 	p->start_sect = 0;
 	p->nr_sects = 0;
-	p->ios[0] = p->ios[1] = 0;
-	p->sectors[0] = p->sectors[1] = 0;
+	part_stat_set_all(p, 0);
 	kobject_put(p->holder_dir);
 	device_del(&p->dev);
 	put_device(&p->dev);
@@ -336,6 +353,10 @@ void add_partition(struct gendisk *disk, int part, sector_t start, sector_t len,
 	if (!p)
 		return;
 
+	if (!init_part_stats(p)) {
+		kfree(p);
+		return;
+	}
 	p->start_sect = start;
 	p->nr_sects = len;
 	p->partno = part;

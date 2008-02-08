@@ -751,15 +751,15 @@ gettgt(struct aoedev *d, char *addr)
 }
 
 static inline void
-diskstats(struct gendisk *disk, struct bio *bio, ulong duration)
+diskstats(struct gendisk *disk, struct bio *bio, ulong duration, sector_t sector)
 {
 	unsigned long n_sect = bio->bi_size >> 9;
 	const int rw = bio_data_dir(bio);
 
-	disk_stat_inc(disk, ios[rw]);
-	disk_stat_add(disk, ticks[rw], duration);
-	disk_stat_add(disk, sectors[rw], n_sect);
-	disk_stat_add(disk, io_ticks, duration);
+	all_stat_inc(disk, ios[rw], sector);
+	all_stat_add(disk, ticks[rw], duration, sector);
+	all_stat_add(disk, sectors[rw], n_sect, sector);
+	all_stat_add(disk, io_ticks, duration, sector);
 }
 
 void
@@ -879,7 +879,7 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 	}
 
 	if (buf && --buf->nframesout == 0 && buf->resid == 0) {
-		diskstats(d->gd, buf->bio, jiffies - buf->stime);
+		diskstats(d->gd, buf->bio, jiffies - buf->stime, buf->sector);
 		n = (buf->flags & BUFFL_FAIL) ? -EIO : 0;
 		bio_endio(buf->bio, n);
 		mempool_free(buf, d->bufpool);
