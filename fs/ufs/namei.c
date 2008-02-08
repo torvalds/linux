@@ -29,8 +29,9 @@
 
 #include <linux/time.h>
 #include <linux/fs.h>
-#include <linux/ufs_fs.h>
 #include <linux/smp_lock.h>
+
+#include "ufs_fs.h"
 #include "ufs.h"
 #include "util.h"
 

@@ -76,7 +76,6 @@
 
 #include <linux/errno.h>
 #include <linux/fs.h>
-#include <linux/ufs_fs.h>
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/stat.h>
@@ -91,6 +90,7 @@
 #include <linux/mount.h>
 #include <linux/seq_file.h>
 
+#include "ufs_fs.h"
 #include "ufs.h"
 #include "swab.h"
 #include "util.h"

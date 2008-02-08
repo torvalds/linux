@@ -35,16 +35,10 @@
 #include <linux/stat.h>
 #include <linux/fs.h>
 
-#ifndef __KERNEL__
-typedef __u64 __fs64;
-typedef __u32 __fs32;
-typedef __u16 __fs16;
-#else
 #include <asm/div64.h>
 typedef __u64 __bitwise __fs64;
 typedef __u32 __bitwise __fs32;
 typedef __u16 __bitwise __fs16;
-#endif
 
 #define UFS_BBLOCK 0
 #define UFS_BBSIZE 8192
@@ -197,7 +191,7 @@ typedef __u16 __bitwise __fs16;
  */
 #define UFS_MINFREE         5
 #define UFS_DEFAULTOPT      UFS_OPTTIME
-            
+
 /*
  * Turn file system block numbers into disk block addresses.
  * This maps file system blocks to device size blocks.
@@ -714,7 +708,7 @@ struct ufs_cg_private_info {
 	__u32	c_clustersumoff;/* (u_int32) counts of avail clusters */
 	__u32	c_clusteroff;	/* (u_int8) free cluster map */
 	__u32	c_nclusterblks;	/* number of clusters this cg */
-};	
+};
 
 
 struct ufs_sb_private_info {

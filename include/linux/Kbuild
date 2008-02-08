@@ -338,7 +338,6 @@ unifdef-y += tty.h
 unifdef-y += types.h
 unifdef-y += udf_fs_i.h
 unifdef-y += udp.h
-unifdef-y += ufs_fs.h
 unifdef-y += uinput.h
 unifdef-y += uio.h
 unifdef-y += unistd.h
