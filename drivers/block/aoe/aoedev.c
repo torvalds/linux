@@ -16,7 +16,7 @@ static void freetgt(struct aoedev *d, struct aoetgt *t);
 static void skbpoolfree(struct aoedev *d);
 
 static struct aoedev *devlist;
-static spinlock_t devlist_lock;
+static DEFINE_SPINLOCK(devlist_lock);
 
 int
 aoedev_isbusy(struct aoedev *d)
@@ -291,7 +291,5 @@ aoedev_exit(void)
 int __init
 aoedev_init(void)
 {
-	spin_lock_init(&devlist_lock);
 	return 0;
 }
-
