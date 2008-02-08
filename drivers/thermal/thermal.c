@@ -267,7 +267,7 @@ thermal_cooling_device_cur_state_store(struct device *dev,
 }
 
 static struct device_attribute dev_attr_cdev_type =
-		__ATTR(type, 0444, thermal_cooling_device_type_show, NULL);
+__ATTR(type, 0444, thermal_cooling_device_type_show, NULL);
 static DEVICE_ATTR(max_state, 0444,
 		   thermal_cooling_device_max_state_show, NULL);
 static DEVICE_ATTR(cur_state, 0644,
@@ -276,7 +276,7 @@ static DEVICE_ATTR(cur_state, 0644,
 
 static ssize_t
 thermal_cooling_device_trip_point_show(struct device *dev,
-				    struct device_attribute *attr, char *buf)
+				       struct device_attribute *attr, char *buf)
 {
 	struct thermal_cooling_device_instance *instance;
 
@@ -293,11 +293,12 @@ thermal_cooling_device_trip_point_show(struct device *dev,
 
 /**
  * thermal_zone_bind_cooling_device - bind a cooling device to a thermal zone
- * this function is usually called in the thermal zone device .bind callback.
  * @tz:		thermal zone device
  * @trip:	indicates which trip point the cooling devices is
  *		associated with in this thermal zone.
  * @cdev:	thermal cooling device
+ *
+ * This function is usually called in the thermal zone device .bind callback.
  */
 int thermal_zone_bind_cooling_device(struct thermal_zone_device *tz,
 				     int trip,
@@ -307,8 +308,7 @@ int thermal_zone_bind_cooling_device(struct thermal_zone_device *tz,
 	struct thermal_cooling_device_instance *pos;
 	int result;
 
-	if (trip >= tz->trips ||
-	    (trip < 0 && trip != THERMAL_TRIPS_NONE))
+	if (trip >= tz->trips || (trip < 0 && trip != THERMAL_TRIPS_NONE))
 		return -EINVAL;
 
 	if (!tz || !cdev)
@@ -361,15 +361,17 @@ int thermal_zone_bind_cooling_device(struct thermal_zone_device *tz,
 	kfree(dev);
 	return result;
 }
+
 EXPORT_SYMBOL(thermal_zone_bind_cooling_device);
 
 /**
  * thermal_zone_unbind_cooling_device - unbind a cooling device from a thermal zone
- * this function is usually called in the thermal zone device .unbind callback.
  * @tz:		thermal zone device
  * @trip:	indicates which trip point the cooling devices is
  *		associated with in this thermal zone.
  * @cdev:	thermal cooling device
+ *
+ * This function is usually called in the thermal zone device .unbind callback.
  */
 int thermal_zone_unbind_cooling_device(struct thermal_zone_device *tz,
 				       int trip,
@@ -379,8 +381,7 @@ int thermal_zone_unbind_cooling_device(struct thermal_zone_device *tz,
 
 	mutex_lock(&tz->lock);
 	list_for_each_entry_safe(pos, next, &tz->cooling_devices, node) {
-		if (pos->tz == tz && pos->trip == trip
-		    && pos->cdev == cdev) {
+		if (pos->tz == tz && pos->trip == trip && pos->cdev == cdev) {
 			list_del(&pos->node);
 			mutex_unlock(&tz->lock);
 			goto unbind;
@@ -397,6 +398,7 @@ int thermal_zone_unbind_cooling_device(struct thermal_zone_device *tz,
 	kfree(pos);
 	return 0;
 }
+
 EXPORT_SYMBOL(thermal_zone_unbind_cooling_device);
 
 static void thermal_release(struct device *dev)
@@ -425,7 +427,10 @@ static struct class thermal_class = {
  * @ops:		standard thermal cooling devices callbacks.
  */
 struct thermal_cooling_device *thermal_cooling_device_register(char *type,
-		       void *devdata, struct thermal_cooling_device_ops *ops)
+							       void *devdata,
+							       struct
+							       thermal_cooling_device_ops
+							       *ops)
 {
 	struct thermal_cooling_device *cdev;
 	struct thermal_zone_device *pos;
@@ -435,7 +440,7 @@ struct thermal_cooling_device *thermal_cooling_device_register(char *type,
 		return NULL;
 
 	if (!ops || !ops->get_max_state || !ops->get_cur_state ||
-		!ops->set_cur_state)
+	    !ops->set_cur_state)
 		return NULL;
 
 	cdev = kzalloc(sizeof(struct thermal_cooling_device), GFP_KERNEL);
@@ -462,8 +467,7 @@ struct thermal_cooling_device *thermal_cooling_device_register(char *type,
 
 	/* sys I/F */
 	if (type) {
-		result = device_create_file(&cdev->device,
-					    &dev_attr_cdev_type);
+		result = device_create_file(&cdev->device, &dev_attr_cdev_type);
 		if (result)
 			goto unregister;
 	}
@@ -496,11 +500,11 @@ struct thermal_cooling_device *thermal_cooling_device_register(char *type,
 	device_unregister(&cdev->device);
 	return NULL;
 }
+
 EXPORT_SYMBOL(thermal_cooling_device_register);
 
 /**
  * thermal_cooling_device_unregister - removes the registered thermal cooling device
- *
  * @cdev:	the thermal cooling device to remove.
  *
  * thermal_cooling_device_unregister() must be called when the device is no
@@ -533,8 +537,7 @@ void thermal_cooling_device_unregister(struct
 	}
 	mutex_unlock(&thermal_list_lock);
 	if (cdev->type[0])
-		device_remove_file(&cdev->device,
-				   &dev_attr_cdev_type);
+		device_remove_file(&cdev->device, &dev_attr_cdev_type);
 	device_remove_file(&cdev->device, &dev_attr_max_state);
 	device_remove_file(&cdev->device, &dev_attr_cur_state);
 
@@ -542,6 +545,7 @@ void thermal_cooling_device_unregister(struct
 	device_unregister(&cdev->device);
 	return;
 }
+
 EXPORT_SYMBOL(thermal_cooling_device_unregister);
 
 /**
@@ -555,8 +559,10 @@ EXPORT_SYMBOL(thermal_cooling_device_unregister);
  * longer needed.
  */
 struct thermal_zone_device *thermal_zone_device_register(char *type,
-					int trips, void *devdata,
-					struct thermal_zone_device_ops *ops)
+							 int trips,
+							 void *devdata, struct
+							 thermal_zone_device_ops
+							 *ops)
 {
 	struct thermal_zone_device *tz;
 	struct thermal_cooling_device *pos;
@@ -625,9 +631,9 @@ struct thermal_zone_device *thermal_zone_device_register(char *type,
 	list_add_tail(&tz->node, &thermal_tz_list);
 	if (ops->bind)
 		list_for_each_entry(pos, &thermal_cdev_list, node) {
-			result = ops->bind(tz, pos);
-			if (result)
-				break;
+		result = ops->bind(tz, pos);
+		if (result)
+			break;
 		}
 	mutex_unlock(&thermal_list_lock);
 
@@ -639,11 +645,11 @@ struct thermal_zone_device *thermal_zone_device_register(char *type,
 	device_unregister(&tz->device);
 	return NULL;
 }
+
 EXPORT_SYMBOL(thermal_zone_device_register);
 
 /**
  * thermal_device_unregister - removes the registered thermal zone device
- *
  * @tz: the thermal zone device to remove
  */
 void thermal_zone_device_unregister(struct thermal_zone_device *tz)
@@ -685,6 +691,7 @@ void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 	device_unregister(&tz->device);
 	return;
 }
+
 EXPORT_SYMBOL(thermal_zone_device_unregister);
 
 static int __init thermal_init(void)

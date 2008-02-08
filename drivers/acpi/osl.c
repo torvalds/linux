@@ -343,7 +343,7 @@ struct acpi_table_header *acpi_find_dsdt_initrd(void)
 	struct kstat stat;
 	char *ramfs_dsdt_name = "/DSDT.aml";
 
-	printk(KERN_INFO PREFIX "Checking initramfs for custom DSDT");
+	printk(KERN_INFO PREFIX "Checking initramfs for custom DSDT\n");
 
 	/*
 	 * Never do this at home, only the user-space is allowed to open a file.

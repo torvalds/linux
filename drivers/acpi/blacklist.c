@@ -445,6 +445,8 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 	 * DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T61"),
 	 * _OSI(Linux) is a NOP:
 	 * DMI_MATCH(DMI_PRODUCT_VERSION, "3000 N100"),
+	 * _OSI(Linux) effect unknown
+	 * DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad X61"),
 	 */
 	{
 	.callback = dmi_enable_osi_linux,
@@ -460,6 +462,14 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 	.matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 		     DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T61"),
+		},
+	},
+	{
+	.callback = dmi_unknown_osi_linux,
+	.ident = "Lenovo ThinkPad X61",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		     DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad X61"),
 		},
 	},
 	{
@@ -503,6 +513,16 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 	.matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "NEC Computers SAS"),
 		     DMI_MATCH(DMI_PRODUCT_NAME, "NEC VERSA M360"),
+		},
+	},
+	/* Panasonic */
+	{
+	.callback = dmi_unknown_osi_linux,
+	.ident = "Panasonic",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Matsushita"),
+			/* Toughbook CF-52 */
+		     DMI_MATCH(DMI_PRODUCT_NAME, "CF-52CCABVBG"),
 		},
 	},
 	/*
