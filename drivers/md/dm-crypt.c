@@ -55,6 +55,11 @@ struct dm_crypt_io {
 	sector_t sector;
 };
 
+struct dm_crypt_request {
+	struct scatterlist sg_in;
+	struct scatterlist sg_out;
+};
+
 struct crypt_config;
 
 struct crypt_iv_operations {
@@ -339,6 +344,39 @@ static void crypt_convert_init(struct crypt_config *cc,
 	ctx->sector = sector + cc->iv_offset;
 }
 
+static int crypt_convert_block(struct crypt_config *cc,
+			       struct convert_context *ctx)
+{
+	struct bio_vec *bv_in = bio_iovec_idx(ctx->bio_in, ctx->idx_in);
+	struct bio_vec *bv_out = bio_iovec_idx(ctx->bio_out, ctx->idx_out);
+	struct dm_crypt_request dmreq;
+
+	sg_init_table(&dmreq.sg_in, 1);
+	sg_set_page(&dmreq.sg_in, bv_in->bv_page, 1 << SECTOR_SHIFT,
+		    bv_in->bv_offset + ctx->offset_in);
+
+	sg_init_table(&dmreq.sg_out, 1);
+	sg_set_page(&dmreq.sg_out, bv_out->bv_page, 1 << SECTOR_SHIFT,
+		    bv_out->bv_offset + ctx->offset_out);
+
+	ctx->offset_in += 1 << SECTOR_SHIFT;
+	if (ctx->offset_in >= bv_in->bv_len) {
+		ctx->offset_in = 0;
+		ctx->idx_in++;
+	}
+
+	ctx->offset_out += 1 << SECTOR_SHIFT;
+	if (ctx->offset_out >= bv_out->bv_len) {
+		ctx->offset_out = 0;
+		ctx->idx_out++;
+	}
+
+	return crypt_convert_scatterlist(cc, &dmreq.sg_out, &dmreq.sg_in,
+					 dmreq.sg_in.length,
+					 bio_data_dir(ctx->bio_in) == WRITE,
+					 ctx->sector);
+}
+
 /*
  * Encrypt / decrypt data from one bio to another one (can be the same one)
  */
@@ -349,30 +387,7 @@ static int crypt_convert(struct crypt_config *cc,
 
 	while(ctx->idx_in < ctx->bio_in->bi_vcnt &&
 	      ctx->idx_out < ctx->bio_out->bi_vcnt) {
-		struct bio_vec *bv_in = bio_iovec_idx(ctx->bio_in, ctx->idx_in);
-		struct bio_vec *bv_out = bio_iovec_idx(ctx->bio_out, ctx->idx_out);
-		struct scatterlist sg_in, sg_out;
-
-		sg_init_table(&sg_in, 1);
-		sg_set_page(&sg_in, bv_in->bv_page, 1 << SECTOR_SHIFT, bv_in->bv_offset + ctx->offset_in);
-
-		sg_init_table(&sg_out, 1);
-		sg_set_page(&sg_out, bv_out->bv_page, 1 << SECTOR_SHIFT, bv_out->bv_offset + ctx->offset_out);
-
-		ctx->offset_in += sg_in.length;
-		if (ctx->offset_in >= bv_in->bv_len) {
-			ctx->offset_in = 0;
-			ctx->idx_in++;
-		}
-
-		ctx->offset_out += sg_out.length;
-		if (ctx->offset_out >= bv_out->bv_len) {
-			ctx->offset_out = 0;
-			ctx->idx_out++;
-		}
-
-		r = crypt_convert_scatterlist(cc, &sg_out, &sg_in, sg_in.length,
-			bio_data_dir(ctx->bio_in) == WRITE, ctx->sector);
+		r = crypt_convert_block(cc, ctx);
 		if (r < 0)
 			break;
 
