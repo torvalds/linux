@@ -1402,7 +1402,7 @@ static int ctl_ioctl(uint command, struct dm_ioctl __user *user)
 {
 	int r = 0;
 	unsigned int cmd;
-	struct dm_ioctl *param;
+	struct dm_ioctl *uninitialized_var(param);
 	ioctl_fn fn = NULL;
 	size_t param_size;
 
