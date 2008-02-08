@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2003 Christophe Saout <christophe@saout.de>
  * Copyright (C) 2004 Clemens Fruhwirth <clemens@endorphin.org>
- * Copyright (C) 2006 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2006-2007 Red Hat, Inc. All rights reserved.
  *
  * This file is released under the GPL.
  */
@@ -481,14 +481,14 @@ static void crypt_dec_pending(struct dm_crypt_io *io)
  * starved by new requests which can block in the first stages due
  * to memory allocation.
  */
-static void kcryptd_do_work(struct work_struct *work);
-static void kcryptd_do_crypt(struct work_struct *work);
+static void kcryptd_io(struct work_struct *work);
+static void kcryptd_crypt(struct work_struct *work);
 
 static void kcryptd_queue_io(struct dm_crypt_io *io)
 {
 	struct crypt_config *cc = io->target->private;
 
-	INIT_WORK(&io->work, kcryptd_do_work);
+	INIT_WORK(&io->work, kcryptd_io);
 	queue_work(cc->io_queue, &io->work);
 }
 
@@ -496,7 +496,7 @@ static void kcryptd_queue_crypt(struct dm_crypt_io *io)
 {
 	struct crypt_config *cc = io->target->private;
 
-	INIT_WORK(&io->work, kcryptd_do_crypt);
+	INIT_WORK(&io->work, kcryptd_crypt);
 	queue_work(cc->crypt_queue, &io->work);
 }
 
@@ -539,7 +539,7 @@ static void clone_init(struct dm_crypt_io *io, struct bio *clone)
 	clone->bi_destructor = dm_crypt_bio_destructor;
 }
 
-static void process_read(struct dm_crypt_io *io)
+static void kcryptd_io_read(struct dm_crypt_io *io)
 {
 	struct crypt_config *cc = io->target->private;
 	struct bio *base_bio = io->base_bio;
@@ -571,7 +571,15 @@ static void process_read(struct dm_crypt_io *io)
 	generic_make_request(clone);
 }
 
-static void process_write(struct dm_crypt_io *io)
+static void kcryptd_io_write(struct dm_crypt_io *io)
+{
+}
+
+static void kcryptd_crypt_write_io_submit(struct dm_crypt_io *io, int error)
+{
+}
+
+static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 {
 	struct crypt_config *cc = io->target->private;
 	struct bio *base_bio = io->base_bio;
@@ -629,7 +637,7 @@ static void process_write(struct dm_crypt_io *io)
 	}
 }
 
-static void crypt_read_done(struct dm_crypt_io *io, int error)
+static void kcryptd_crypt_read_done(struct dm_crypt_io *io, int error)
 {
 	if (unlikely(error < 0))
 		io->error = -EIO;
@@ -637,7 +645,7 @@ static void crypt_read_done(struct dm_crypt_io *io, int error)
 	crypt_dec_pending(io);
 }
 
-static void process_read_endio(struct dm_crypt_io *io)
+static void kcryptd_crypt_read_convert(struct dm_crypt_io *io)
 {
 	struct crypt_config *cc = io->target->private;
 	int r = 0;
@@ -647,25 +655,27 @@ static void process_read_endio(struct dm_crypt_io *io)
 
 	r = crypt_convert(cc, &io->ctx);
 
-	crypt_read_done(io, r);
+	kcryptd_crypt_read_done(io, r);
 }
 
-static void kcryptd_do_work(struct work_struct *work)
+static void kcryptd_io(struct work_struct *work)
 {
 	struct dm_crypt_io *io = container_of(work, struct dm_crypt_io, work);
 
 	if (bio_data_dir(io->base_bio) == READ)
-		process_read(io);
-}
-
-static void kcryptd_do_crypt(struct work_struct *work)
-{
-	struct dm_crypt_io *io = container_of(work, struct dm_crypt_io, work);
-
-	if (bio_data_dir(io->base_bio) == READ)
-		process_read_endio(io);
+		kcryptd_io_read(io);
 	else
-		process_write(io);
+		kcryptd_io_write(io);
+}
+
+static void kcryptd_crypt(struct work_struct *work)
+{
+	struct dm_crypt_io *io = container_of(work, struct dm_crypt_io, work);
+
+	if (bio_data_dir(io->base_bio) == READ)
+		kcryptd_crypt_read_convert(io);
+	else
+		kcryptd_crypt_write_convert(io);
 }
 
 /*
