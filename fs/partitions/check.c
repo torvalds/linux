@@ -18,6 +18,7 @@
 #include <linux/fs.h>
 #include <linux/kmod.h>
 #include <linux/ctype.h>
+#include <linux/genhd.h>
 
 #include "check.h"
 
@@ -273,6 +274,7 @@ static struct attribute_group *part_attr_groups[] = {
 static void part_release(struct device *dev)
 {
 	struct hd_struct *p = dev_to_part(dev);
+	free_part_stats(p);
 	kfree(p);
 }
 
@@ -314,6 +316,7 @@ void delete_partition(struct gendisk *disk, int part)
 	p->nr_sects = 0;
 	p->ios[0] = p->ios[1] = 0;
 	p->sectors[0] = p->sectors[1] = 0;
+	part_stat_set_all(p, 0);
 	kobject_put(p->holder_dir);
 	device_del(&p->dev);
 	put_device(&p->dev);
@@ -336,6 +339,10 @@ void add_partition(struct gendisk *disk, int part, sector_t start, sector_t len,
 	if (!p)
 		return;
 
+	if (!init_part_stats(p)) {
+		kfree(p);
+		return;
+	}
 	p->start_sect = start;
 	p->nr_sects = len;
 	p->partno = part;
