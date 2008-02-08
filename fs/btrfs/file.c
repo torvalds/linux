@@ -175,6 +175,7 @@ static int noinline insert_inline_extent(struct btrfs_trans_handle *trans,
 			leaf = path->nodes[0];
 			ei = btrfs_item_ptr(leaf, path->slots[0],
 					    struct btrfs_file_extent_item);
+			inode->i_blocks += (offset + size - found_end) >> 9;
 		}
 		if (found_end < offset) {
 			ptr = btrfs_file_extent_inline_start(ei) + found_size;
@@ -184,6 +185,7 @@ static int noinline insert_inline_extent(struct btrfs_trans_handle *trans,
 insert:
 		btrfs_release_path(root, path);
 		datasize = offset + size - key.offset;
+		inode->i_blocks += datasize >> 9;
 		datasize = btrfs_file_extent_calc_inline_size(datasize);
 		ret = btrfs_insert_empty_item(trans, root, path, &key,
 					      datasize);
@@ -256,7 +258,6 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 		goto out_unlock;
 	}
 	btrfs_set_trans_block_group(trans, inode);
-	inode->i_blocks += num_bytes >> 9;
 	hint_byte = 0;
 
 	if ((end_of_last_block & 4095) == 0) {
@@ -410,7 +411,7 @@ int btrfs_check_file(struct btrfs_root *root, struct inode *inode)
 		if (found_key.type != BTRFS_EXTENT_DATA_KEY)
 			goto out;
 
-		if (found_key.offset != last_offset) {
+		if (found_key.offset < last_offset) {
 			WARN_ON(1);
 			btrfs_print_leaf(root, leaf);
 			printk("inode %lu found offset %Lu expected %Lu\n",
@@ -435,7 +436,7 @@ int btrfs_check_file(struct btrfs_root *root, struct inode *inode)
 		last_offset = extent_end;
 		path->slots[0]++;
 	}
-	if (last_offset < inode->i_size) {
+	if (0 && last_offset < inode->i_size) {
 		WARN_ON(1);
 		btrfs_print_leaf(root, leaf);
 		printk("inode %lu found offset %Lu size %Lu\n", inode->i_ino,
@@ -608,8 +609,7 @@ next_slot:
 								      extent);
 				if (btrfs_file_extent_disk_bytenr(leaf,
 								  extent)) {
-					inode->i_blocks -=
-						(old_num - new_num) >> 9;
+					dec_i_blocks(inode, old_num - new_num);
 				}
 				btrfs_set_file_extent_num_bytes(leaf, extent,
 								new_num);
@@ -620,6 +620,8 @@ next_slot:
 				u32 new_size;
 				new_size = btrfs_file_extent_calc_inline_size(
 						   inline_limit - key.offset);
+				dec_i_blocks(inode, (extent_end - key.offset) -
+					(inline_limit - key.offset));
 				btrfs_truncate_item(trans, root, path,
 						    new_size, 1);
 			}
@@ -653,7 +655,7 @@ next_slot:
 			btrfs_release_path(root, path);
 			extent = NULL;
 			if (found_extent && disk_bytenr != 0) {
-				inode->i_blocks -= extent_num_bytes >> 9;
+				dec_i_blocks(inode, extent_num_bytes);
 				ret = btrfs_free_extent(trans, root,
 						disk_bytenr,
 						disk_num_bytes,
@@ -674,6 +676,8 @@ next_slot:
 			u32 new_size;
 			new_size = btrfs_file_extent_calc_inline_size(
 						   extent_end - end);
+			dec_i_blocks(inode, (extent_end - key.offset) -
+					(extent_end - end));
 			btrfs_truncate_item(trans, root, path, new_size, 0);
 		}
 		/* create bookend, splitting the extent in two */
@@ -718,6 +722,7 @@ next_slot:
 	}
 out:
 	btrfs_free_path(path);
+	btrfs_check_file(root, inode);
 	return ret;
 }
 

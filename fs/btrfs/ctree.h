@@ -1161,6 +1161,15 @@ int btrfs_csum_truncate(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root, struct btrfs_path *path,
 			u64 isize);
 /* inode.c */
+static inline void dec_i_blocks(struct inode *inode, u64 dec)
+{
+	dec = dec >> 9;
+	if (dec <= inode->i_blocks)
+		inode->i_blocks -= dec;
+	else
+		inode->i_blocks = 0;
+}
+
 unsigned long btrfs_force_ra(struct address_space *mapping,
 			      struct file_ra_state *ra, struct file *file,
 			      pgoff_t offset, pgoff_t last_index);
