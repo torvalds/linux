@@ -87,9 +87,6 @@ config SH64_ID2815_WORKAROUND
 config CPU_HAS_INTEVT
 	bool
 
-config CPU_HAS_MASKREG_IRQ
-	bool
-
 config CPU_HAS_IPR_IRQ
 	bool
 
