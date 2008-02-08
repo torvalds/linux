@@ -3895,8 +3895,8 @@ L:	linux-scsi@vger.kernel.org
 S:	Maintained
 
 UDF FILESYSTEM
-P:	Ben Fennema
-M:	bfennema@falcon.csc.calpoly.edu
+P:	Jan Kara
+M:	jack@suse.cz
 W:	http://linux-udf.sourceforge.net
 S:	Maintained
 
