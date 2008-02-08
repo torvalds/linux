@@ -116,7 +116,7 @@ static void *nommu_vma_list_next(struct seq_file *m, void *v, loff_t *pos)
 	return rb_next((struct rb_node *) v);
 }
 
-static struct seq_operations proc_nommu_vma_list_seqop = {
+static const struct seq_operations proc_nommu_vma_list_seqop = {
 	.start	= nommu_vma_list_start,
 	.next	= nommu_vma_list_next,
 	.stop	= nommu_vma_list_stop,

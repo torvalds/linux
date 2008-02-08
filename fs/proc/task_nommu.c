@@ -198,7 +198,7 @@ static void *m_next(struct seq_file *m, void *_vml, loff_t *pos)
 	return vml ? vml->next : NULL;
 }
 
-static struct seq_operations proc_pid_maps_ops = {
+static const struct seq_operations proc_pid_maps_ops = {
 	.start	= m_start,
 	.next	= m_next,
 	.stop	= m_stop,

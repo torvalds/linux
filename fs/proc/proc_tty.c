@@ -117,7 +117,7 @@ static void t_stop(struct seq_file *m, void *v)
 	mutex_unlock(&tty_mutex);
 }
 
-static struct seq_operations tty_drivers_op = {
+static const struct seq_operations tty_drivers_op = {
 	.start	= t_start,
 	.next	= t_next,
 	.stop	= t_stop,

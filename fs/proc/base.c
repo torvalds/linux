@@ -506,7 +506,7 @@ static const struct inode_operations proc_def_inode_operations = {
 	.setattr	= proc_setattr,
 };
 
-extern struct seq_operations mounts_op;
+extern const struct seq_operations mounts_op;
 struct proc_mounts {
 	struct seq_file m;
 	int event;
@@ -585,7 +585,7 @@ static const struct file_operations proc_mounts_operations = {
 	.poll		= mounts_poll,
 };
 
-extern struct seq_operations mountstats_op;
+extern const struct seq_operations mountstats_op;
 static int mountstats_open(struct inode *inode, struct file *file)
 {
 	int ret = seq_open(file, &mountstats_op);
