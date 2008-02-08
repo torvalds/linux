@@ -1470,9 +1470,6 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (mpt_debug_level)
 		printk(KERN_INFO MYNAM ": mpt_debug_level=%xh\n", mpt_debug_level);
 
-	if (pci_enable_device(pdev))
-		return r;
-
 	ioc = kzalloc(sizeof(MPT_ADAPTER), GFP_ATOMIC);
 	if (ioc == NULL) {
 		printk(KERN_ERR MYNAM ": ERROR - Insufficient memory to add adapter!\n");
@@ -1481,6 +1478,20 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	ioc->debug_level = mpt_debug_level;
 	ioc->id = mpt_ids++;
 	sprintf(ioc->name, "ioc%d", ioc->id);
+
+	ioc->bars = pci_select_bars(pdev, IORESOURCE_MEM);
+	if (pci_enable_device_mem(pdev)) {
+		kfree(ioc);
+		printk(MYIOC_s_ERR_FMT "pci_enable_device_mem() "
+		       "failed\n", ioc->name);
+		return r;
+	}
+	if (pci_request_selected_regions(pdev, ioc->bars, "mpt")) {
+		kfree(ioc);
+		printk(MYIOC_s_ERR_FMT "pci_request_selected_regions() with "
+		       "MEM failed\n", ioc->name);
+		return r;
+	}
 
 	dinitprintk(ioc, printk(MYIOC_s_INFO_FMT ": mpt_adapter_install\n", ioc->name));
 
@@ -1794,6 +1805,7 @@ mpt_suspend(struct pci_dev *pdev, pm_message_t state)
 	CHIPREG_WRITE32(&ioc->chip->IntStatus, 0);
 
 	pci_disable_device(pdev);
+	pci_release_selected_regions(pdev, ioc->bars);
 	pci_set_power_state(pdev, device_state);
 
 	return 0;
@@ -1810,7 +1822,6 @@ mpt_resume(struct pci_dev *pdev)
 	MPT_ADAPTER *ioc = pci_get_drvdata(pdev);
 	u32 device_state = pdev->current_state;
 	int recovery_state;
-	int err;
 
 	printk(MYIOC_s_INFO_FMT
 	"pci-resume: pdev=0x%p, slot=%s, Previous operating state [D%d]\n",
@@ -1818,9 +1829,18 @@ mpt_resume(struct pci_dev *pdev)
 
 	pci_set_power_state(pdev, 0);
 	pci_restore_state(pdev);
-	err = pci_enable_device(pdev);
-	if (err)
-		return err;
+	if (ioc->facts.Flags & MPI_IOCFACTS_FLAGS_FW_DOWNLOAD_BOOT) {
+		ioc->bars = pci_select_bars(ioc->pcidev, IORESOURCE_MEM |
+			IORESOURCE_IO);
+		if (pci_enable_device(pdev))
+			return 0;
+	} else {
+		ioc->bars = pci_select_bars(pdev, IORESOURCE_MEM);
+		if (pci_enable_device_mem(pdev))
+			return 0;
+	}
+	if (pci_request_selected_regions(pdev, ioc->bars, "mpt"))
+		return 0;
 
 	/* enable interrupts */
 	CHIPREG_WRITE32(&ioc->chip->IntMask, MPI_HIM_DIM);
@@ -1881,6 +1901,7 @@ mpt_signal_reset(u8 index, MPT_ADAPTER *ioc, int reset_phase)
  *		-2 if READY but IOCFacts Failed
  *		-3 if READY but PrimeIOCFifos Failed
  *		-4 if READY but IOCInit Failed
+ *		-5 if failed to enable_device and/or request_selected_regions
  */
 static int
 mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
@@ -1977,6 +1998,18 @@ mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
 		} else if (reason == MPT_HOSTEVENT_IOC_BRINGUP) {
 			MptDisplayIocCapabilities(ioc->alt_ioc);
 		}
+	}
+
+	if ((ret == 0) && (reason == MPT_HOSTEVENT_IOC_BRINGUP) &&
+	    (ioc->facts.Flags & MPI_IOCFACTS_FLAGS_FW_DOWNLOAD_BOOT)) {
+		pci_release_selected_regions(ioc->pcidev, ioc->bars);
+		ioc->bars = pci_select_bars(ioc->pcidev, IORESOURCE_MEM |
+		    IORESOURCE_IO);
+		if (pci_enable_device(ioc->pcidev))
+			return -5;
+		if (pci_request_selected_regions(ioc->pcidev, ioc->bars,
+			"mpt"))
+			return -5;
 	}
 
 	/*
@@ -2382,6 +2415,9 @@ mpt_adapter_dispose(MPT_ADAPTER *ioc)
 		iounmap(ioc->memmap);
 		ioc->memmap = NULL;
 	}
+
+	pci_disable_device(ioc->pcidev);
+	pci_release_selected_regions(ioc->pcidev, ioc->bars);
 
 #if defined(CONFIG_MTRR) && 0
 	if (ioc->mtrr_reg > 0) {
