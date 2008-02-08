@@ -1018,7 +1018,7 @@ int group_send_sig_info(int sig, struct siginfo *info, struct task_struct *p)
 }
 
 /*
- * kill_pgrp_info() sends a signal to a process group: this is what the tty
+ * __kill_pgrp_info() sends a signal to a process group: this is what the tty
  * control characters do (^C, ^Z etc)
  */
 
@@ -1035,17 +1035,6 @@ int __kill_pgrp_info(int sig, struct siginfo *info, struct pid *pgrp)
 		retval = err;
 	} while_each_pid_task(pgrp, PIDTYPE_PGID, p);
 	return success ? 0 : retval;
-}
-
-int kill_pgrp_info(int sig, struct siginfo *info, struct pid *pgrp)
-{
-	int retval;
-
-	read_lock(&tasklist_lock);
-	retval = __kill_pgrp_info(sig, info, pgrp);
-	read_unlock(&tasklist_lock);
-
-	return retval;
 }
 
 int kill_pid_info(int sig, struct siginfo *info, struct pid *pid)
@@ -1236,7 +1225,13 @@ force_sigsegv(int sig, struct task_struct *p)
 
 int kill_pgrp(struct pid *pid, int sig, int priv)
 {
-	return kill_pgrp_info(sig, __si_special(priv), pid);
+	int ret;
+
+	read_lock(&tasklist_lock);
+	ret = __kill_pgrp_info(sig, __si_special(priv), pid);
+	read_unlock(&tasklist_lock);
+
+	return ret;
 }
 EXPORT_SYMBOL(kill_pgrp);
 
