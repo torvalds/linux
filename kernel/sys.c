@@ -1056,11 +1056,8 @@ asmlinkage long sys_setsid(void)
 
 	/* Fail if a process group id already exists that equals the
 	 * proposed session id.
-	 *
-	 * Don't check if session == 1, clone(CLONE_NEWPID) creates
-	 * this group/session beforehand.
 	 */
-	if (session != 1 && pid_task(sid, PIDTYPE_PGID))
+	if (pid_task(sid, PIDTYPE_PGID))
 		goto out;
 
 	group_leader->signal->leader = 1;
