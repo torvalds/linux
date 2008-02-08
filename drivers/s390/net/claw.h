@@ -278,8 +278,6 @@ struct claw_env {
         __u16                   write_size;     /* write buffer size */
         __u16                   dev_id;         /* device ident */
 	__u8			packing;	/* are we packing? */
-	volatile __u8		queme_switch;   /* gate for imed packing  */
-	volatile unsigned long	pk_delay;	/* Delay for adaptive packing */
         __u8                    in_use;         /* device active flag */
         struct net_device       *ndev;    	/* backward ptr to the net dev*/
 };
