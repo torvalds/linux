@@ -55,22 +55,3 @@ static inline unsigned long calc_npages(struct scatterlist *sglist, int nelems)
 
 	return npages;
 }
-
-/* You are _strongly_ advised to enable the following debugging code
- * any time you make changes to the sg code below, run it for a while
- * with filesystems mounted read-only before buying the farm... -DaveM
- */
-#undef VERIFY_SG
-
-#ifdef VERIFY_SG
-extern void verify_sglist(struct scatterlist *sg, int nents, iopte_t *iopte, int npages);
-#endif
-
-/* Two addresses are "virtually contiguous" if and only if:
- * 1) They are equal, or...
- * 2) They are both on a page boundary
- */
-#define VCONTIG(__X, __Y)	(((__X) == (__Y)) || \
-				 (((__X) | (__Y)) << (64UL - PAGE_SHIFT)) == 0UL)
-
-extern unsigned long prepare_sg(struct device *dev, struct scatterlist *sg, int nents);
