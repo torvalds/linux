@@ -72,13 +72,13 @@ static int virtual_gpio_ioctl(struct file *file, unsigned int cmd,
 			      unsigned long arg);
 #endif
 static int gpio_ioctl(struct inode *inode, struct file *file,
-		      unsigned int cmd, unsigned long arg);
-static ssize_t gpio_write(struct file *file, const char *buf, size_t count,
-			  loff_t *off);
+	unsigned int cmd, unsigned long arg);
+static ssize_t gpio_write(struct file *file, const char __user *buf,
+	size_t count, loff_t *off);
 static int gpio_open(struct inode *inode, struct file *filp);
 static int gpio_release(struct inode *inode, struct file *filp);
 static unsigned int gpio_poll(struct file *filp,
-			      struct poll_table_struct *wait);
+	struct poll_table_struct *wait);
 
 /* private data per open() of this driver */
 
@@ -96,6 +96,10 @@ struct gpio_private {
 };
 
 static void gpio_set_alarm(struct gpio_private *priv);
+static int gpio_leds_ioctl(unsigned int cmd, unsigned long arg);
+static int gpio_pwm_ioctl(struct gpio_private *priv, unsigned int cmd,
+	unsigned long arg);
+
 
 /* linked list of alarms to check for */
 
@@ -103,23 +107,23 @@ static struct gpio_private *alarmlist;
 
 static int wanted_interrupts;
 
-static DEFINE_SPINLOCK(alarm_lock);
+static DEFINE_SPINLOCK(gpio_lock);
 
 #define NUM_PORTS (GPIO_MINOR_LAST+1)
 #define GIO_REG_RD_ADDR(reg) \
-	(volatile unsigned long *)(regi_gio + REG_RD_ADDR_gio_##reg)
+	(unsigned long *)(regi_gio + REG_RD_ADDR_gio_##reg)
 #define GIO_REG_WR_ADDR(reg) \
-	(volatile unsigned long *)(regi_gio + REG_WR_ADDR_gio_##reg)
-unsigned long led_dummy;
-unsigned long port_d_dummy;	/* Only input on Artpec-3 */
-unsigned long port_e_dummy;	/* Non existent on Artpec-3 */
+	(unsigned long *)(regi_gio + REG_WR_ADDR_gio_##reg)
+static unsigned long led_dummy;
+static unsigned long port_d_dummy;	/* Only input on Artpec-3 */
 #ifdef CONFIG_ETRAX_VIRTUAL_GPIO
+static unsigned long port_e_dummy;	/* Non existent on Artpec-3 */
 static unsigned long virtual_dummy;
 static unsigned long virtual_rw_pv_oe = CONFIG_ETRAX_DEF_GIO_PV_OE;
 static unsigned short cached_virtual_gpio_read;
 #endif
 
-static volatile unsigned long *data_out[NUM_PORTS] = {
+static unsigned long *data_out[NUM_PORTS] = {
 	GIO_REG_WR_ADDR(rw_pa_dout),
 	GIO_REG_WR_ADDR(rw_pb_dout),
 	&led_dummy,
@@ -131,7 +135,7 @@ static volatile unsigned long *data_out[NUM_PORTS] = {
 #endif
 };
 
-static volatile unsigned long *data_in[NUM_PORTS] = {
+static unsigned long *data_in[NUM_PORTS] = {
 	GIO_REG_RD_ADDR(r_pa_din),
 	GIO_REG_RD_ADDR(r_pb_din),
 	&led_dummy,
@@ -167,7 +171,7 @@ static unsigned long changeable_bits[NUM_PORTS] = {
 #endif
 };
 
-static volatile unsigned long *dir_oe[NUM_PORTS] = {
+static unsigned long *dir_oe[NUM_PORTS] = {
 	GIO_REG_WR_ADDR(rw_pa_oe),
 	GIO_REG_WR_ADDR(rw_pb_oe),
 	&led_dummy,
@@ -179,8 +183,7 @@ static volatile unsigned long *dir_oe[NUM_PORTS] = {
 #endif
 };
 
-static void
-gpio_set_alarm(struct gpio_private *priv)
+static void gpio_set_alarm(struct gpio_private *priv)
 {
 	int bit;
 	int intr_cfg;
@@ -188,7 +191,7 @@ gpio_set_alarm(struct gpio_private *priv)
 	int pins;
 	unsigned long flags;
 
-	local_irq_save(flags);
+	spin_lock_irqsave(&gpio_lock, flags);
 	intr_cfg = REG_RD_INT(gio, regi_gio, rw_intr_cfg);
 	pins = REG_RD_INT(gio, regi_gio, rw_intr_pins);
 	mask = REG_RD_INT(gio, regi_gio, rw_intr_mask) & I2C_INTERRUPT_BITS;
@@ -218,14 +221,13 @@ gpio_set_alarm(struct gpio_private *priv)
 	REG_WR_INT(gio, regi_gio, rw_intr_pins, pins);
 	REG_WR_INT(gio, regi_gio, rw_intr_mask, mask);
 
-	local_irq_restore(flags);
+	spin_unlock_irqrestore(&gpio_lock, flags);
 }
 
-static unsigned int
-gpio_poll(struct file *file, struct poll_table_struct *wait)
+static unsigned int gpio_poll(struct file *file, struct poll_table_struct *wait)
 {
 	unsigned int mask = 0;
-	struct gpio_private *priv = (struct gpio_private *)file->private_data;
+	struct gpio_private *priv = file->private_data;
 	unsigned long data;
 	unsigned long tmp;
 
@@ -235,7 +237,7 @@ gpio_poll(struct file *file, struct poll_table_struct *wait)
 
 	poll_wait(file, &priv->alarm_wq, wait);
 	if (priv->minor <= GPIO_MINOR_D) {
-		data = *data_in[priv->minor];
+		data = readl(data_in[priv->minor]);
 		REG_WR_INT(gio, regi_gio, rw_ack_intr, wanted_interrupts);
 		tmp = REG_RD_INT(gio, regi_gio, rw_intr_mask);
 		tmp &= I2C_INTERRUPT_BITS;
@@ -251,12 +253,12 @@ gpio_poll(struct file *file, struct poll_table_struct *wait)
 	return mask;
 }
 
-static irqreturn_t
-gpio_interrupt(int irq, void *dev_id)
+static irqreturn_t gpio_interrupt(int irq, void *dev_id)
 {
 	reg_gio_rw_intr_mask intr_mask;
 	reg_gio_r_masked_intr masked_intr;
 	reg_gio_rw_ack_intr ack_intr;
+	unsigned long flags;
 	unsigned long tmp;
 	unsigned long tmp2;
 #ifdef CONFIG_ETRAX_VIRTUAL_GPIO
@@ -268,9 +270,9 @@ gpio_interrupt(int irq, void *dev_id)
 	tmp = REG_TYPE_CONV(unsigned long, reg_gio_r_masked_intr, masked_intr);
 
 	/* Find those that we have enabled */
-	spin_lock(&alarm_lock);
+	spin_lock_irqsave(&gpio_lock, flags);
 	tmp &= wanted_interrupts;
-	spin_unlock(&alarm_lock);
+	spin_unlock_irqrestore(&gpio_lock, flags);
 
 #ifdef CONFIG_ETRAX_VIRTUAL_GPIO
 	/* Something changed on virtual GPIO. Interrupt is acked by
@@ -304,15 +306,42 @@ gpio_interrupt(int irq, void *dev_id)
 	return IRQ_RETVAL(tmp);
 }
 
-
-static ssize_t gpio_write(struct file *file, const char *buf, size_t count,
-	loff_t *off)
+static void gpio_write_bit(unsigned long *port, unsigned char data, int bit,
+	unsigned char clk_mask, unsigned char data_mask)
 {
-	struct gpio_private *priv = (struct gpio_private *)file->private_data;
-	unsigned char data, clk_mask, data_mask, write_msb;
+	unsigned long shadow = readl(port) & ~clk_mask;
+	writel(shadow, port);
+	if (data & 1 << bit)
+		shadow |= data_mask;
+	else
+		shadow &= ~data_mask;
+	writel(shadow, port);
+	/* For FPGA: min 5.0ns (DCC) before CCLK high */
+	shadow |= clk_mask;
+	writel(shadow, port);
+}
+
+static void gpio_write_byte(struct gpio_private *priv, unsigned long *port,
+		unsigned char data)
+{
+	int i;
+
+	if (priv->write_msb)
+		for (i = 7; i >= 0; i--)
+			gpio_write_bit(port, data, i, priv->clk_mask,
+				priv->data_mask);
+	else
+		for (i = 0; i <= 7; i++)
+			gpio_write_bit(port, data, i, priv->clk_mask,
+				priv->data_mask);
+}
+
+
+static ssize_t gpio_write(struct file *file, const char __user *buf,
+	size_t count, loff_t *off)
+{
+	struct gpio_private *priv = file->private_data;
 	unsigned long flags;
-	unsigned long shadow;
-	volatile unsigned long *port;
 	ssize_t retval = count;
 	/* Only bits 0-7 may be used for write operations but allow all
 	   devices except leds... */
@@ -330,55 +359,25 @@ static ssize_t gpio_write(struct file *file, const char *buf, size_t count,
 	if (!access_ok(VERIFY_READ, buf, count))
 		return -EFAULT;
 
-	clk_mask = priv->clk_mask;
-	data_mask = priv->data_mask;
 	/* It must have been configured using the IO_CFG_WRITE_MODE */
 	/* Perhaps a better error code? */
-	if (clk_mask == 0 || data_mask == 0)
+	if (priv->clk_mask == 0 || priv->data_mask == 0)
 		return -EPERM;
 
-	write_msb = priv->write_msb;
 	D(printk(KERN_DEBUG "gpio_write: %lu to data 0x%02X clk 0x%02X "
 		"msb: %i\n",
-		count, data_mask, clk_mask, write_msb));
-	port = data_out[priv->minor];
+		count, priv->data_mask, priv->clk_mask, priv->write_msb));
 
-	while (count--) {
-		int i;
-		data = *buf++;
-		if (priv->write_msb) {
-			for (i = 7; i >= 0; i--) {
-				local_irq_save(flags);
-				shadow = *port;
-				*port = shadow &= ~clk_mask;
-				if (data & 1<<i)
-					*port = shadow |= data_mask;
-				else
-					*port = shadow &= ~data_mask;
-			/* For FPGA: min 5.0ns (DCC) before CCLK high */
-				*port = shadow |= clk_mask;
-				local_irq_restore(flags);
-			}
-		} else {
-			for (i = 0; i <= 7; i++) {
-				local_irq_save(flags);
-				shadow = *port;
-				*port = shadow &= ~clk_mask;
-				if (data & 1<<i)
-					*port = shadow |= data_mask;
-				else
-					*port = shadow &= ~data_mask;
-			/* For FPGA: min 5.0ns (DCC) before CCLK high */
-				*port = shadow |= clk_mask;
-				local_irq_restore(flags);
-			}
-		}
-	}
+	spin_lock_irqsave(&gpio_lock, flags);
+
+	while (count--)
+		gpio_write_byte(priv, data_out[priv->minor], *buf++);
+
+	spin_unlock_irqrestore(&gpio_lock, flags);
 	return retval;
 }
 
-static int
-gpio_open(struct inode *inode, struct file *filp)
+static int gpio_open(struct inode *inode, struct file *filp)
 {
 	struct gpio_private *priv;
 	int p = iminor(inode);
@@ -394,7 +393,7 @@ gpio_open(struct inode *inode, struct file *filp)
 	memset(priv, 0, sizeof(*priv));
 
 	priv->minor = p;
-	filp->private_data = (void *)priv;
+	filp->private_data = priv;
 
 	/* initialize the io/alarm struct, not for PWM ports though  */
 	if (p <= GPIO_MINOR_LAST) {
@@ -407,17 +406,16 @@ gpio_open(struct inode *inode, struct file *filp)
 		init_waitqueue_head(&priv->alarm_wq);
 
 		/* link it into our alarmlist */
-		spin_lock_irq(&alarm_lock);
+		spin_lock_irq(&gpio_lock);
 		priv->next = alarmlist;
 		alarmlist = priv;
-		spin_unlock_irq(&alarm_lock);
+		spin_unlock_irq(&gpio_lock);
 	}
 
 	return 0;
 }
 
-static int
-gpio_release(struct inode *inode, struct file *filp)
+static int gpio_release(struct inode *inode, struct file *filp)
 {
 	struct gpio_private *p;
 	struct gpio_private *todel;
@@ -425,11 +423,11 @@ gpio_release(struct inode *inode, struct file *filp)
 	unsigned long a_high, a_low;
 
 	/* prepare to free private structure */
-	todel = (struct gpio_private *)filp->private_data;
+	todel = filp->private_data;
 
 	/* unlink from alarmlist - only for non-PWM ports though */
 	if (todel->minor <= GPIO_MINOR_LAST) {
-		spin_lock_irq(&alarm_lock);
+		spin_lock_irq(&gpio_lock);
 		p = alarmlist;
 
 		if (p == todel)
@@ -463,7 +461,7 @@ gpio_release(struct inode *inode, struct file *filp)
 		a_low |= (1 << CONFIG_ETRAX_VIRTUAL_GPIO_INTERRUPT_PA_PIN);
 #endif
 
-		spin_unlock_irq(&alarm_lock);
+		spin_unlock_irq(&gpio_lock);
 	}
 	kfree(todel);
 
@@ -482,11 +480,13 @@ inline unsigned long setget_input(struct gpio_private *priv, unsigned long arg)
 	unsigned long flags;
 	unsigned long dir_shadow;
 
-	local_irq_save(flags);
-	dir_shadow = *dir_oe[priv->minor];
-	dir_shadow &= ~(arg & changeable_dir[priv->minor]);
-	*dir_oe[priv->minor] = dir_shadow;
-	local_irq_restore(flags);
+	spin_lock_irqsave(&gpio_lock, flags);
+
+	dir_shadow = readl(dir_oe[priv->minor]) &
+		~(arg & changeable_dir[priv->minor]);
+	writel(dir_shadow, dir_oe[priv->minor]);
+
+	spin_unlock_irqrestore(&gpio_lock, flags);
 
 	if (priv->minor == GPIO_MINOR_C)
 		dir_shadow ^= 0xFFFF;		/* Only 16 bits */
@@ -501,36 +501,32 @@ inline unsigned long setget_input(struct gpio_private *priv, unsigned long arg)
 
 } /* setget_input */
 
-inline unsigned long setget_output(struct gpio_private *priv, unsigned long arg)
+static inline unsigned long setget_output(struct gpio_private *priv,
+	unsigned long arg)
 {
 	unsigned long flags;
 	unsigned long dir_shadow;
 
-	local_irq_save(flags);
-	dir_shadow = *dir_oe[priv->minor];
-	dir_shadow |=  (arg & changeable_dir[priv->minor]);
-	*dir_oe[priv->minor] = dir_shadow;
-	local_irq_restore(flags);
+	spin_lock_irqsave(&gpio_lock, flags);
+
+	dir_shadow = readl(dir_oe[priv->minor]) |
+		(arg & changeable_dir[priv->minor]);
+	writel(dir_shadow, dir_oe[priv->minor]);
+
+	spin_unlock_irqrestore(&gpio_lock, flags);
 	return dir_shadow;
 } /* setget_output */
 
-static int
-gpio_leds_ioctl(unsigned int cmd, unsigned long arg);
-
-static int
-gpio_pwm_ioctl(struct gpio_private *priv, unsigned int cmd, unsigned long arg);
-
-static int
-gpio_ioctl(struct inode *inode, struct file *file,
-	   unsigned int cmd, unsigned long arg)
+static int gpio_ioctl(struct inode *inode, struct file *file,
+	unsigned int cmd, unsigned long arg)
 {
 	unsigned long flags;
 	unsigned long val;
 	unsigned long shadow;
-	struct gpio_private *priv = (struct gpio_private *)file->private_data;
+	struct gpio_private *priv = file->private_data;
 
 	if (_IOC_TYPE(cmd) != ETRAXGPIO_IOCTYPE)
-		return -EINVAL;
+		return -ENOTTY;
 
 	/* Check for special ioctl handlers first */
 
@@ -549,23 +545,22 @@ gpio_ioctl(struct inode *inode, struct file *file,
 	switch (_IOC_NR(cmd)) {
 	case IO_READBITS: /* Use IO_READ_INBITS and IO_READ_OUTBITS instead */
 		/* Read the port. */
-		return *data_in[priv->minor];
-		break;
+		return readl(data_in[priv->minor]);
 	case IO_SETBITS:
-		local_irq_save(flags);
+		spin_lock_irqsave(&gpio_lock, flags);
 		/* Set changeable bits with a 1 in arg. */
-		shadow = *data_out[priv->minor];
-		shadow |=  (arg & changeable_bits[priv->minor]);
-		*data_out[priv->minor] = shadow;
-		local_irq_restore(flags);
+		shadow = readl(data_out[priv->minor]) |
+			(arg & changeable_bits[priv->minor]);
+		writel(shadow, data_out[priv->minor]);
+		spin_unlock_irqrestore(&gpio_lock, flags);
 		break;
 	case IO_CLRBITS:
-		local_irq_save(flags);
+		spin_lock_irqsave(&gpio_lock, flags);
 		/* Clear changeable bits with a 1 in arg. */
-		shadow = *data_out[priv->minor];
-		shadow &=  ~(arg & changeable_bits[priv->minor]);
-		*data_out[priv->minor] = shadow;
-		local_irq_restore(flags);
+		shadow = readl(data_out[priv->minor]) &
+			~(arg & changeable_bits[priv->minor]);
+		writel(shadow, data_out[priv->minor]);
+		spin_unlock_irqrestore(&gpio_lock, flags);
 		break;
 	case IO_HIGHALARM:
 		/* Set alarm when bits with 1 in arg go high. */
@@ -585,13 +580,14 @@ gpio_ioctl(struct inode *inode, struct file *file,
 		break;
 	case IO_READDIR: /* Use IO_SETGET_INPUT/OUTPUT instead! */
 		/* Read direction 0=input 1=output */
-		return *dir_oe[priv->minor];
+		return readl(dir_oe[priv->minor]);
+
 	case IO_SETINPUT: /* Use IO_SETGET_INPUT instead! */
 		/* Set direction 0=unchanged 1=input,
 		 * return mask with 1=input
 		 */
 		return setget_input(priv, arg);
-		break;
+
 	case IO_SETOUTPUT: /* Use IO_SETGET_OUTPUT instead! */
 		/* Set direction 0=unchanged 1=output,
 		 * return mask with 1=output
@@ -600,56 +596,61 @@ gpio_ioctl(struct inode *inode, struct file *file,
 
 	case IO_CFG_WRITE_MODE:
 	{
-		unsigned long dir_shadow;
-		dir_shadow = *dir_oe[priv->minor];
+		int res = -EPERM;
+		unsigned long dir_shadow, clk_mask, data_mask, write_msb;
 
-		priv->clk_mask = arg & 0xFF;
-		priv->data_mask = (arg >> 8) & 0xFF;
-		priv->write_msb = (arg >> 16) & 0x01;
+		clk_mask = arg & 0xFF;
+		data_mask = (arg >> 8) & 0xFF;
+		write_msb = (arg >> 16) & 0x01;
+
 		/* Check if we're allowed to change the bits and
 		 * the direction is correct
 		 */
-		if (!((priv->clk_mask & changeable_bits[priv->minor]) &&
-		      (priv->data_mask & changeable_bits[priv->minor]) &&
-		      (priv->clk_mask & dir_shadow) &&
-		      (priv->data_mask & dir_shadow))) {
-			priv->clk_mask = 0;
-			priv->data_mask = 0;
-			return -EPERM;
+		spin_lock_irqsave(&gpio_lock, flags);
+		dir_shadow = readl(dir_oe[priv->minor]);
+		if ((clk_mask & changeable_bits[priv->minor]) &&
+		    (data_mask & changeable_bits[priv->minor]) &&
+		    (clk_mask & dir_shadow) &&
+		    (data_mask & dir_shadow)) {
+			priv->clk_mask = clk_mask;
+			priv->data_mask = data_mask;
+			priv->write_msb = write_msb;
+			res = 0;
 		}
-		break;
+		spin_unlock_irqrestore(&gpio_lock, flags);
+
+		return res;
 	}
 	case IO_READ_INBITS:
 		/* *arg is result of reading the input pins */
-		val = *data_in[priv->minor];
-		if (copy_to_user((unsigned long *)arg, &val, sizeof(val)))
+		val = readl(data_in[priv->minor]);
+		if (copy_to_user((void __user *)arg, &val, sizeof(val)))
 			return -EFAULT;
 		return 0;
-		break;
 	case IO_READ_OUTBITS:
 		 /* *arg is result of reading the output shadow */
 		val = *data_out[priv->minor];
-		if (copy_to_user((unsigned long *)arg, &val, sizeof(val)))
+		if (copy_to_user((void __user *)arg, &val, sizeof(val)))
 			return -EFAULT;
 		break;
 	case IO_SETGET_INPUT:
 		/* bits set in *arg is set to input,
 		 * *arg updated with current input pins.
 		 */
-		if (copy_from_user(&val, (unsigned long *)arg, sizeof(val)))
+		if (copy_from_user(&val, (void __user *)arg, sizeof(val)))
 			return -EFAULT;
 		val = setget_input(priv, val);
-		if (copy_to_user((unsigned long *)arg, &val, sizeof(val)))
+		if (copy_to_user((void __user *)arg, &val, sizeof(val)))
 			return -EFAULT;
 		break;
 	case IO_SETGET_OUTPUT:
 		/* bits set in *arg is set to output,
 		 * *arg updated with current output pins.
 		 */
-		if (copy_from_user(&val, (unsigned long *)arg, sizeof(val)))
+		if (copy_from_user(&val, (void __user *)arg, sizeof(val)))
 			return -EFAULT;
 		val = setget_output(priv, val);
-		if (copy_to_user((unsigned long *)arg, &val, sizeof(val)))
+		if (copy_to_user((void __user *)arg, &val, sizeof(val)))
 			return -EFAULT;
 		break;
 	default:
@@ -660,32 +661,32 @@ gpio_ioctl(struct inode *inode, struct file *file,
 }
 
 #ifdef CONFIG_ETRAX_VIRTUAL_GPIO
-static int
-virtual_gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static int virtual_gpio_ioctl(struct file *file, unsigned int cmd,
+	unsigned long arg)
 {
 	unsigned long flags;
 	unsigned short val;
 	unsigned short shadow;
-	struct gpio_private *priv = (struct gpio_private *)file->private_data;
+	struct gpio_private *priv = file->private_data;
 
 	switch (_IOC_NR(cmd)) {
 	case IO_SETBITS:
-		local_irq_save(flags);
+		spin_lock_irqsave(&gpio_lock, flags);
 		/* Set changeable bits with a 1 in arg. */
 		i2c_read(VIRT_I2C_ADDR, (void *)&shadow, sizeof(shadow));
-		shadow |= ~*dir_oe[priv->minor];
-		shadow |= (arg & changeable_bits[priv->minor]);
+		shadow |= ~readl(dir_oe[priv->minor]) |
+			(arg & changeable_bits[priv->minor]);
 		i2c_write(VIRT_I2C_ADDR, (void *)&shadow, sizeof(shadow));
-		local_irq_restore(flags);
+		spin_lock_irqrestore(&gpio_lock, flags);
 		break;
 	case IO_CLRBITS:
-		local_irq_save(flags);
+		spin_lock_irqsave(&gpio_lock, flags);
 		/* Clear changeable bits with a 1 in arg. */
 		i2c_read(VIRT_I2C_ADDR, (void *)&shadow, sizeof(shadow));
-		shadow |= ~*dir_oe[priv->minor];
-		shadow &= ~(arg & changeable_bits[priv->minor]);
+		shadow |= ~readl(dir_oe[priv->minor]) &
+			~(arg & changeable_bits[priv->minor]);
 		i2c_write(VIRT_I2C_ADDR, (void *)&shadow, sizeof(shadow));
-		local_irq_restore(flags);
+		spin_lock_irqrestore(&gpio_lock, flags);
 		break;
 	case IO_HIGHALARM:
 		/* Set alarm when bits with 1 in arg go high. */
@@ -703,7 +704,7 @@ virtual_gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case IO_CFG_WRITE_MODE:
 	{
 		unsigned long dir_shadow;
-		dir_shadow = *dir_oe[priv->minor];
+		dir_shadow = readl(dir_oe[priv->minor]);
 
 		priv->clk_mask = arg & 0xFF;
 		priv->data_mask = (arg >> 8) & 0xFF;
@@ -723,17 +724,16 @@ virtual_gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 	case IO_READ_INBITS:
 		/* *arg is result of reading the input pins */
-		val = cached_virtual_gpio_read;
-		val &= ~*dir_oe[priv->minor];
-		if (copy_to_user((unsigned long *)arg, &val, sizeof(val)))
+		val = cached_virtual_gpio_read & ~readl(dir_oe[priv->minor]);
+		if (copy_to_user((void __user *)arg, &val, sizeof(val)))
 			return -EFAULT;
 		return 0;
-		break;
+
 	case IO_READ_OUTBITS:
 		 /* *arg is result of reading the output shadow */
 		i2c_read(VIRT_I2C_ADDR, (void *)&val, sizeof(val));
-		val &= *dir_oe[priv->minor];
-		if (copy_to_user((unsigned long *)arg, &val, sizeof(val)))
+		val &= readl(dir_oe[priv->minor]);
+		if (copy_to_user((void __user *)arg, &val, sizeof(val)))
 			return -EFAULT;
 		break;
 	case IO_SETGET_INPUT:
@@ -741,11 +741,11 @@ virtual_gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		/* bits set in *arg is set to input,
 		 * *arg updated with current input pins.
 		 */
-		unsigned short input_mask = ~*dir_oe[priv->minor];
-		if (copy_from_user(&val, (unsigned long *)arg, sizeof(val)))
+		unsigned short input_mask = ~readl(dir_oe[priv->minor]);
+		if (copy_from_user(&val, (void __user *)arg, sizeof(val)))
 			return -EFAULT;
 		val = setget_input(priv, val);
-		if (copy_to_user((unsigned long *)arg, &val, sizeof(val)))
+		if (copy_to_user((void __user *)arg, &val, sizeof(val)))
 			return -EFAULT;
 		if ((input_mask & val) != input_mask) {
 			/* Input pins changed. All ports desired as input
@@ -765,10 +765,10 @@ virtual_gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		/* bits set in *arg is set to output,
 		 * *arg updated with current output pins.
 		 */
-		if (copy_from_user(&val, (unsigned long *)arg, sizeof(val)))
+		if (copy_from_user(&val, (void __user *)arg, sizeof(val)))
 			return -EFAULT;
 		val = setget_output(priv, val);
-		if (copy_to_user((unsigned long *)arg, &val, sizeof(val)))
+		if (copy_to_user((void __user *)arg, &val, sizeof(val)))
 			return -EFAULT;
 		break;
 	default:
@@ -778,8 +778,7 @@ virtual_gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 }
 #endif /* CONFIG_ETRAX_VIRTUAL_GPIO */
 
-static int
-gpio_leds_ioctl(unsigned int cmd, unsigned long arg)
+static int gpio_leds_ioctl(unsigned int cmd, unsigned long arg)
 {
 	unsigned char green;
 	unsigned char red;
@@ -829,8 +828,7 @@ static int gpio_pwm_set_period(unsigned long arg, int pwm_port)
 	struct io_pwm_set_period periods;
 	reg_gio_rw_pwm0_var rw_pwm_widths;
 
-	if (copy_from_user(&periods, (struct io_pwm_set_period *) arg,
-			sizeof(periods)))
+	if (copy_from_user(&periods, (void __user *)arg, sizeof(periods)))
 		return -EFAULT;
 	if (periods.lo > 8191 || periods.hi > 8191)
 		return -EINVAL;
@@ -856,8 +854,8 @@ static int gpio_pwm_set_duty(unsigned long arg, int pwm_port)
 	return 0;
 }
 
-static int
-gpio_pwm_ioctl(struct gpio_private *priv, unsigned int cmd, unsigned long arg)
+static int gpio_pwm_ioctl(struct gpio_private *priv, unsigned int cmd,
+	unsigned long arg)
 {
 	int pwm_port = priv->minor - GPIO_MINOR_PWM0;
 
@@ -874,7 +872,7 @@ gpio_pwm_ioctl(struct gpio_private *priv, unsigned int cmd, unsigned long arg)
 	return 0;
 }
 
-struct file_operations gpio_fops = {
+static const struct file_operations gpio_fops = {
 	.owner       = THIS_MODULE,
 	.poll        = gpio_poll,
 	.ioctl       = gpio_ioctl,
@@ -884,8 +882,7 @@ struct file_operations gpio_fops = {
 };
 
 #ifdef CONFIG_ETRAX_VIRTUAL_GPIO
-static void
-virtual_gpio_init(void)
+static void __init virtual_gpio_init(void)
 {
 	reg_gio_rw_intr_cfg intr_cfg;
 	reg_gio_rw_intr_mask intr_mask;
@@ -943,10 +940,12 @@ virtual_gpio_init(void)
 
 /* main driver initialization routine, called from mem.c */
 
-static __init int
-gpio_init(void)
+static int __init gpio_init(void)
 {
 	int res;
+
+	printk(KERN_INFO "ETRAX FS GPIO driver v2.7, (c) 2003-2008 "
+		"Axis Communications AB\n");
 
 	/* do the formalities */
 
@@ -963,11 +962,12 @@ gpio_init(void)
 	CRIS_LED_DISK_READ(0);
 	CRIS_LED_DISK_WRITE(0);
 
-	printk(KERN_INFO "ETRAX FS GPIO driver v2.6, (c) 2003-2007 "
-		"Axis Communications AB\n");
-	if (request_irq(GIO_INTR_VECT, gpio_interrupt,
-			IRQF_SHARED | IRQF_DISABLED, "gpio", &alarmlist))
+	int res2 = request_irq(GIO_INTR_VECT, gpio_interrupt,
+		IRQF_SHARED | IRQF_DISABLED, "gpio", &alarmlist);
+	if (res2) {
 		printk(KERN_ERR "err: irq for gpio\n");
+		return res2;
+	}
 
 	/* No IRQs by default. */
 	REG_WR_INT(gio, regi_gio, rw_intr_pins, 0);
