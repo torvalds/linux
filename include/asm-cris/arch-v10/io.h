@@ -23,7 +23,7 @@ extern volatile unsigned long *port_cse1_addr;
 extern volatile unsigned long *port_csp0_addr;
 extern volatile unsigned long *port_csp4_addr;
 
-/* macro for setting regs through a shadow - 
+/* macro for setting regs through a shadow -
  * r = register name (like R_PORT_PA_DATA)
  * s = shadow name (like port_pa_data_shadow)
  * b = bit number
@@ -38,83 +38,89 @@ extern volatile unsigned long *port_csp4_addr;
 #undef CONFIG_ETRAX_PA_LEDS
 #undef CONFIG_ETRAX_PB_LEDS
 #undef CONFIG_ETRAX_CSP0_LEDS
-#define LED_NETWORK_SET_G(x)
-#define LED_NETWORK_SET_R(x)
-#define LED_ACTIVE_SET_G(x)
-#define LED_ACTIVE_SET_R(x)
-#define LED_DISK_WRITE(x)
-#define LED_DISK_READ(x)
+#define CRIS_LED_NETWORK_SET_G(x)
+#define CRIS_LED_NETWORK_SET_R(x)
+#define CRIS_LED_ACTIVE_SET_G(x)
+#define CRIS_LED_ACTIVE_SET_R(x)
+#define CRIS_LED_DISK_WRITE(x)
+#define CRIS_LED_DISK_READ(x)
 #endif
 
 #if !defined(CONFIG_ETRAX_CSP0_LEDS)
-#define LED_BIT_SET(x)
-#define LED_BIT_CLR(x)
+#define CRIS_LED_BIT_SET(x)
+#define CRIS_LED_BIT_CLR(x)
 #endif
 
-#define LED_OFF    0x00
-#define LED_GREEN  0x01
-#define LED_RED    0x02
-#define LED_ORANGE (LED_GREEN | LED_RED)
+#define CRIS_LED_OFF    0x00
+#define CRIS_LED_GREEN  0x01
+#define CRIS_LED_RED    0x02
+#define CRIS_LED_ORANGE (CRIS_LED_GREEN | CRIS_LED_RED)
 
-#if CONFIG_ETRAX_LED1G == CONFIG_ETRAX_LED1R 
-#define LED_NETWORK_SET(x)                          \
+#if defined(CONFIG_ETRAX_NO_LEDS)
+#define CRIS_LED_NETWORK_SET(x)
+#else
+#if CONFIG_ETRAX_LED1G == CONFIG_ETRAX_LED1R
+#define CRIS_LED_NETWORK_SET(x)                          \
 	do {                                        \
-		LED_NETWORK_SET_G((x) & LED_GREEN); \
+		CRIS_LED_NETWORK_SET_G((x) & CRIS_LED_GREEN); \
 	} while (0)
 #else
-#define LED_NETWORK_SET(x)                          \
+#define CRIS_LED_NETWORK_SET(x)                          \
 	do {                                        \
-		LED_NETWORK_SET_G((x) & LED_GREEN); \
-		LED_NETWORK_SET_R((x) & LED_RED);   \
+		CRIS_LED_NETWORK_SET_G((x) & CRIS_LED_GREEN); \
+		CRIS_LED_NETWORK_SET_R((x) & CRIS_LED_RED);   \
 	} while (0)
 #endif
-#if CONFIG_ETRAX_LED2G == CONFIG_ETRAX_LED2R 
-#define LED_ACTIVE_SET(x)                           \
+#if CONFIG_ETRAX_LED2G == CONFIG_ETRAX_LED2R
+#define CRIS_LED_ACTIVE_SET(x)                           \
 	do {                                        \
-		LED_ACTIVE_SET_G((x) & LED_GREEN);  \
+		CRIS_LED_ACTIVE_SET_G((x) & CRIS_LED_GREEN);  \
 	} while (0)
 #else
-#define LED_ACTIVE_SET(x)                           \
+#define CRIS_LED_ACTIVE_SET(x)                           \
 	do {                                        \
-		LED_ACTIVE_SET_G((x) & LED_GREEN);  \
-		LED_ACTIVE_SET_R((x) & LED_RED);    \
+		CRIS_LED_ACTIVE_SET_G((x) & CRIS_LED_GREEN);  \
+		CRIS_LED_ACTIVE_SET_R((x) & CRIS_LED_RED);    \
 	} while (0)
+#endif
 #endif
 
 #ifdef CONFIG_ETRAX_PA_LEDS
-#define LED_NETWORK_SET_G(x) \
+#define CRIS_LED_NETWORK_SET_G(x) \
          REG_SHADOW_SET(R_PORT_PA_DATA, port_pa_data_shadow, CONFIG_ETRAX_LED1G, !(x))
-#define LED_NETWORK_SET_R(x) \
+#define CRIS_LED_NETWORK_SET_R(x) \
          REG_SHADOW_SET(R_PORT_PA_DATA, port_pa_data_shadow, CONFIG_ETRAX_LED1R, !(x))
-#define LED_ACTIVE_SET_G(x) \
+#define CRIS_LED_ACTIVE_SET_G(x) \
          REG_SHADOW_SET(R_PORT_PA_DATA, port_pa_data_shadow, CONFIG_ETRAX_LED2G, !(x))
-#define LED_ACTIVE_SET_R(x) \
+#define CRIS_LED_ACTIVE_SET_R(x) \
          REG_SHADOW_SET(R_PORT_PA_DATA, port_pa_data_shadow, CONFIG_ETRAX_LED2R, !(x))
-#define LED_DISK_WRITE(x) \
+#define CRIS_LED_DISK_WRITE(x) \
          do{\
                 REG_SHADOW_SET(R_PORT_PA_DATA, port_pa_data_shadow, CONFIG_ETRAX_LED3G, !(x));\
                 REG_SHADOW_SET(R_PORT_PA_DATA, port_pa_data_shadow, CONFIG_ETRAX_LED3R, !(x));\
         }while(0)
-#define LED_DISK_READ(x) \
-         REG_SHADOW_SET(R_PORT_PA_DATA, port_pa_data_shadow, CONFIG_ETRAX_LED3G, !(x)) 
+#define CRIS_LED_DISK_READ(x) \
+	REG_SHADOW_SET(R_PORT_PA_DATA, port_pa_data_shadow, \
+		CONFIG_ETRAX_LED3G, !(x))
 #endif
 
 #ifdef CONFIG_ETRAX_PB_LEDS
-#define LED_NETWORK_SET_G(x) \
+#define CRIS_LED_NETWORK_SET_G(x) \
          REG_SHADOW_SET(R_PORT_PB_DATA, port_pb_data_shadow, CONFIG_ETRAX_LED1G, !(x))
-#define LED_NETWORK_SET_R(x) \
+#define CRIS_LED_NETWORK_SET_R(x) \
          REG_SHADOW_SET(R_PORT_PB_DATA, port_pb_data_shadow, CONFIG_ETRAX_LED1R, !(x))
-#define LED_ACTIVE_SET_G(x) \
+#define CRIS_LED_ACTIVE_SET_G(x) \
          REG_SHADOW_SET(R_PORT_PB_DATA, port_pb_data_shadow, CONFIG_ETRAX_LED2G, !(x))
-#define LED_ACTIVE_SET_R(x) \
+#define CRIS_LED_ACTIVE_SET_R(x) \
          REG_SHADOW_SET(R_PORT_PB_DATA, port_pb_data_shadow, CONFIG_ETRAX_LED2R, !(x))
-#define LED_DISK_WRITE(x) \
+#define CRIS_LED_DISK_WRITE(x) \
         do{\
                 REG_SHADOW_SET(R_PORT_PB_DATA, port_pb_data_shadow, CONFIG_ETRAX_LED3G, !(x));\
                 REG_SHADOW_SET(R_PORT_PB_DATA, port_pb_data_shadow, CONFIG_ETRAX_LED3R, !(x));\
         }while(0)
-#define LED_DISK_READ(x) \
-         REG_SHADOW_SET(R_PORT_PB_DATA, port_pb_data_shadow, CONFIG_ETRAX_LED3G, !(x))     
+#define CRIS_LED_DISK_READ(x) \
+	REG_SHADOW_SET(R_PORT_PB_DATA, port_pb_data_shadow, \
+		CONFIG_ETRAX_LED3G, !(x))
 #endif
 
 #ifdef CONFIG_ETRAX_CSP0_LEDS
@@ -130,27 +136,27 @@ extern volatile unsigned long *port_csp4_addr;
          (1 << CONFIG_ETRAX_LED10Y ) |(1 << CONFIG_ETRAX_LED11Y )|\
          (1 << CONFIG_ETRAX_LED12R ))
 
-#define LED_NETWORK_SET_G(x) \
+#define CRIS_LED_NETWORK_SET_G(x) \
          REG_SHADOW_SET(port_csp0_addr, port_csp0_shadow, CONFIG_ETRAX_LED1G, !(x))
-#define LED_NETWORK_SET_R(x) \
+#define CRIS_LED_NETWORK_SET_R(x) \
          REG_SHADOW_SET(port_csp0_addr, port_csp0_shadow, CONFIG_ETRAX_LED1R, !(x))
-#define LED_ACTIVE_SET_G(x) \
+#define CRIS_LED_ACTIVE_SET_G(x) \
          REG_SHADOW_SET(port_csp0_addr, port_csp0_shadow, CONFIG_ETRAX_LED2G, !(x))
-#define LED_ACTIVE_SET_R(x) \
+#define CRIS_LED_ACTIVE_SET_R(x) \
          REG_SHADOW_SET(port_csp0_addr, port_csp0_shadow, CONFIG_ETRAX_LED2R, !(x))
-#define LED_DISK_WRITE(x) \
+#define CRIS_LED_DISK_WRITE(x) \
         do{\
                 REG_SHADOW_SET(port_csp0_addr, port_csp0_shadow, CONFIG_ETRAX_LED3G, !(x));\
                 REG_SHADOW_SET(port_csp0_addr, port_csp0_shadow, CONFIG_ETRAX_LED3R, !(x));\
         }while(0)
-#define LED_DISK_READ(x) \
+#define CRIS_LED_DISK_READ(x) \
          REG_SHADOW_SET(port_csp0_addr, port_csp0_shadow, CONFIG_ETRAX_LED3G, !(x))
-#define LED_BIT_SET(x)\
+#define CRIS_LED_BIT_SET(x)\
         do{\
                 if((( 1 << x) & CONFIGURABLE_LEDS)  != 0)\
                        REG_SHADOW_SET(port_csp0_addr, port_csp0_shadow, x, 1);\
         }while(0)
-#define LED_BIT_CLR(x)\
+#define CRIS_LED_BIT_CLR(x)\
         do{\
                 if((( 1 << x) & CONFIGURABLE_LEDS)  != 0)\
                        REG_SHADOW_SET(port_csp0_addr, port_csp0_shadow, x, 0);\

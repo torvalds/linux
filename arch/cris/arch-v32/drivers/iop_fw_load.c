@@ -1,5 +1,4 @@
-/* $Id: iop_fw_load.c,v 1.4 2005/04/07 09:27:46 larsv Exp $
- *
+/*
  * Firmware loader for ETRAX FS IO-Processor
  *
  * Copyright (C) 2004  Axis Communications AB
@@ -11,12 +10,13 @@
 #include <linux/device.h>
 #include <linux/firmware.h>
 
-#include <asm/arch/hwregs/reg_map.h>
-#include <asm/arch/hwregs/iop/iop_reg_space.h>
-#include <asm/arch/hwregs/iop/iop_mpu_macros.h>
-#include <asm/arch/hwregs/iop/iop_mpu_defs.h>
-#include <asm/arch/hwregs/iop/iop_spu_defs.h>
-#include <asm/arch/hwregs/iop/iop_sw_cpu_defs.h>
+#include <hwregs/reg_rdwr.h>
+#include <hwregs/reg_map.h>
+#include <hwregs/iop/iop_reg_space.h>
+#include <hwregs/iop/iop_mpu_macros.h>
+#include <hwregs/iop/iop_mpu_defs.h>
+#include <hwregs/iop/iop_spu_defs.h>
+#include <hwregs/iop/iop_sw_cpu_defs.h>
 
 #define IOP_TIMEOUT 100
 

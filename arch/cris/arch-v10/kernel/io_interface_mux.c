@@ -1,10 +1,9 @@
 /* IO interface mux allocator for ETRAX100LX.
- * Copyright 2004, Axis Communications AB
- * $Id: io_interface_mux.c,v 1.2 2004/12/21 12:08:38 starvik Exp $
+ * Copyright 2004-2007, Axis Communications AB
  */
 
 
-/* C.f. ETRAX100LX Designer's Reference 20.9 */
+/* C.f. ETRAX100LX Designer's Reference chapter 19.9 */
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -45,17 +44,39 @@ struct watcher
 struct if_group
 {
 	enum io_if_group        group;
-	unsigned char           used;
-	enum cris_io_interface  owner;
+	/* name	- the name of the group 'A' to 'F' */
+	char                   *name;
+	/* used	- a bit mask of all pins in the group in the order listed
+	 * in the tables in 19.9.1 to 19.9.6.  Note that no
+	 * distinction is made between in, out and in/out pins. */
+	unsigned int            used;
 };
 
 
 struct interface
 {
 	enum cris_io_interface   ioif;
+	/* name - the name of the interface */
+	char                    *name;
+	/* groups - OR'ed together io_if_group flags describing what pin groups
+	 * the interface uses pins in. */
 	unsigned char            groups;
+	/* used - set when the interface is allocated. */
 	unsigned char            used;
 	char                    *owner;
+	/* group_a through group_f - bit masks describing what pins in the
+	 * pin groups the interface uses. */
+	unsigned int             group_a;
+	unsigned int             group_b;
+	unsigned int             group_c;
+	unsigned int             group_d;
+	unsigned int             group_e;
+	unsigned int             group_f;
+
+	/* gpio_g_in, gpio_g_out, gpio_b - bit masks telling what pins in the
+	 * GPIO ports the interface uses.  This could be reconstucted using
+	 * the group_X masks and a table of what pins the GPIO ports use,
+	 * but that would be messy. */
 	unsigned int             gpio_g_in;
 	unsigned int             gpio_g_out;
 	unsigned char            gpio_b;
@@ -64,26 +85,32 @@ struct interface
 static struct if_group if_groups[6] = {
 	{
 		.group = group_a,
+		.name = "A",
 		.used = 0,
 	},
 	{
 		.group = group_b,
+		.name = "B",
 		.used = 0,
 	},
 	{
 		.group = group_c,
+		.name = "C",
 		.used = 0,
 	},
 	{
 		.group = group_d,
+		.name = "D",
 		.used = 0,
 	},
 	{
 		.group = group_e,
+		.name = "E",
 		.used = 0,
 	},
 	{
 		.group = group_f,
+		.name = "F",
 		.used = 0,
 	}
 };
@@ -94,14 +121,32 @@ static struct interface interfaces[] = {
 	/* Begin Non-multiplexed interfaces */
 	{
 		.ioif = if_eth,
+		.name = "ethernet",
 		.groups = 0,
+
+		.group_a = 0,
+		.group_b = 0,
+		.group_c = 0,
+		.group_d = 0,
+		.group_e = 0,
+		.group_f = 0,
+
 		.gpio_g_in = 0,
 		.gpio_g_out = 0,
 		.gpio_b = 0
 	},
 	{
 		.ioif = if_serial_0,
+		.name = "serial_0",
 		.groups = 0,
+
+		.group_a = 0,
+		.group_b = 0,
+		.group_c = 0,
+		.group_d = 0,
+		.group_e = 0,
+		.group_f = 0,
+
 		.gpio_g_in = 0,
 		.gpio_g_out = 0,
 		.gpio_b = 0
@@ -109,172 +154,385 @@ static struct interface interfaces[] = {
 	/* End Non-multiplexed interfaces */
 	{
 		.ioif = if_serial_1,
+		.name = "serial_1",
 		.groups = group_e,
+
+		.group_a = 0,
+		.group_b = 0,
+		.group_c = 0,
+		.group_d = 0,
+		.group_e = 0x0f,
+		.group_f = 0,
+
 		.gpio_g_in =  0x00000000,
 		.gpio_g_out = 0x00000000,
 		.gpio_b = 0x00
 	},
 	{
 		.ioif = if_serial_2,
+		.name = "serial_2",
 		.groups = group_b,
+
+		.group_a = 0,
+		.group_b = 0x0f,
+		.group_c = 0,
+		.group_d = 0,
+		.group_e = 0,
+		.group_f = 0,
+
 		.gpio_g_in =  0x000000c0,
 		.gpio_g_out = 0x000000c0,
 		.gpio_b = 0x00
 	},
 	{
 		.ioif = if_serial_3,
+		.name = "serial_3",
 		.groups = group_c,
+
+		.group_a = 0,
+		.group_b = 0,
+		.group_c = 0x0f,
+		.group_d = 0,
+		.group_e = 0,
+		.group_f = 0,
+
 		.gpio_g_in =  0xc0000000,
 		.gpio_g_out = 0xc0000000,
 		.gpio_b = 0x00
 	},
 	{
 		.ioif = if_sync_serial_1,
-		.groups = group_e | group_f, /* if_sync_serial_1 and if_sync_serial_3
-					       can be used simultaneously */
+		.name = "sync_serial_1",
+		.groups = group_e | group_f,
+
+		.group_a = 0,
+		.group_b = 0,
+		.group_c = 0,
+		.group_d = 0,
+		.group_e = 0x0f,
+		.group_f = 0x10,
+
 		.gpio_g_in =  0x00000000,
 		.gpio_g_out = 0x00000000,
 		.gpio_b = 0x10
 	},
 	{
 		.ioif = if_sync_serial_3,
+		.name = "sync_serial_3",
 		.groups = group_c | group_f,
+
+		.group_a = 0,
+		.group_b = 0,
+		.group_c = 0x0f,
+		.group_d = 0,
+		.group_e = 0,
+		.group_f = 0x80,
+
 		.gpio_g_in =  0xc0000000,
 		.gpio_g_out = 0xc0000000,
 		.gpio_b = 0x80
 	},
 	{
 		.ioif = if_shared_ram,
+		.name = "shared_ram",
 		.groups = group_a,
+
+		.group_a = 0x7f8ff,
+		.group_b = 0,
+		.group_c = 0,
+		.group_d = 0,
+		.group_e = 0,
+		.group_f = 0,
+
 		.gpio_g_in =  0x0000ff3e,
 		.gpio_g_out = 0x0000ff38,
 		.gpio_b = 0x00
 	},
 	{
 		.ioif = if_shared_ram_w,
+		.name = "shared_ram_w",
 		.groups = group_a | group_d,
+
+		.group_a = 0x7f8ff,
+		.group_b = 0,
+		.group_c = 0,
+		.group_d = 0xff,
+		.group_e = 0,
+		.group_f = 0,
+
 		.gpio_g_in =  0x00ffff3e,
 		.gpio_g_out = 0x00ffff38,
 		.gpio_b = 0x00
 	},
 	{
 		.ioif = if_par_0,
+		.name = "par_0",
 		.groups = group_a,
+
+		.group_a = 0x7fbff,
+		.group_b = 0,
+		.group_c = 0,
+		.group_d = 0,
+		.group_e = 0,
+		.group_f = 0,
+
 		.gpio_g_in =  0x0000ff3e,
 		.gpio_g_out = 0x0000ff3e,
 		.gpio_b = 0x00
 	},
 	{
 		.ioif = if_par_1,
+		.name = "par_1",
 		.groups = group_d,
+
+		.group_a = 0,
+		.group_b = 0,
+		.group_c = 0,
+		.group_d = 0x7feff,
+		.group_e = 0,
+		.group_f = 0,
+
 		.gpio_g_in =  0x3eff0000,
 		.gpio_g_out = 0x3eff0000,
 		.gpio_b = 0x00
 	},
 	{
 		.ioif = if_par_w,
+		.name = "par_w",
 		.groups = group_a | group_d,
+
+		.group_a = 0x7fbff,
+		.group_b = 0,
+		.group_c = 0,
+		.group_d = 0xff,
+		.group_e = 0,
+		.group_f = 0,
+
 		.gpio_g_in =  0x00ffff3e,
 		.gpio_g_out = 0x00ffff3e,
 		.gpio_b = 0x00
 	},
 	{
 		.ioif = if_scsi8_0,
-		.groups = group_a | group_b | group_f, /* if_scsi8_0 and if_scsi8_1
-							  can be used simultaneously */
+		.name = "scsi8_0",
+		.groups = group_a | group_b | group_f,
+
+		.group_a = 0x7ffff,
+		.group_b = 0x0f,
+		.group_c = 0,
+		.group_d = 0,
+		.group_e = 0,
+		.group_f = 0x10,
+
 		.gpio_g_in =  0x0000ffff,
 		.gpio_g_out = 0x0000ffff,
 		.gpio_b = 0x10
 	},
 	{
 		.ioif = if_scsi8_1,
-		.groups = group_c | group_d | group_f, /* if_scsi8_0 and if_scsi8_1
-							  can be used simultaneously */
+		.name = "scsi8_1",
+		.groups = group_c | group_d | group_f,
+
+		.group_a = 0,
+		.group_b = 0,
+		.group_c = 0x0f,
+		.group_d = 0x7ffff,
+		.group_e = 0,
+		.group_f = 0x80,
+
 		.gpio_g_in =  0xffff0000,
 		.gpio_g_out = 0xffff0000,
 		.gpio_b = 0x80
 	},
 	{
 		.ioif = if_scsi_w,
+		.name = "scsi_w",
 		.groups = group_a | group_b | group_d | group_f,
+
+		.group_a = 0x7ffff,
+		.group_b = 0x0f,
+		.group_c = 0,
+		.group_d = 0x601ff,
+		.group_e = 0,
+		.group_f = 0x90,
+
 		.gpio_g_in =  0x01ffffff,
 		.gpio_g_out = 0x07ffffff,
 		.gpio_b = 0x80
 	},
 	{
 		.ioif = if_ata,
+		.name = "ata",
 		.groups = group_a | group_b | group_c | group_d,
+
+		.group_a = 0x7ffff,
+		.group_b = 0x0f,
+		.group_c = 0x0f,
+		.group_d = 0x7cfff,
+		.group_e = 0,
+		.group_f = 0,
+
 		.gpio_g_in =  0xf9ffffff,
 		.gpio_g_out = 0xffffffff,
 		.gpio_b = 0x80
 	},
 	{
 		.ioif = if_csp,
-		.groups = group_f, /* if_csp and if_i2c can be used simultaneously */
+		.name = "csp",
+		.groups = group_f,
+
+		.group_a = 0,
+		.group_b = 0,
+		.group_c = 0,
+		.group_d = 0,
+		.group_e = 0,
+		.group_f = 0xfc,
+
 		.gpio_g_in =  0x00000000,
 		.gpio_g_out = 0x00000000,
 		.gpio_b = 0xfc
 	},
 	{
 		.ioif = if_i2c,
-		.groups = group_f, /* if_csp and if_i2c can be used simultaneously */
+		.name = "i2c",
+		.groups = group_f,
+
+		.group_a = 0,
+		.group_b = 0,
+		.group_c = 0,
+		.group_d = 0,
+		.group_e = 0,
+		.group_f = 0x03,
+
 		.gpio_g_in =  0x00000000,
 		.gpio_g_out = 0x00000000,
 		.gpio_b = 0x03
 	},
 	{
 		.ioif = if_usb_1,
+		.name = "usb_1",
 		.groups = group_e | group_f,
+
+		.group_a = 0,
+		.group_b = 0,
+		.group_c = 0,
+		.group_d = 0,
+		.group_e = 0x0f,
+		.group_f = 0x2c,
+
 		.gpio_g_in =  0x00000000,
 		.gpio_g_out = 0x00000000,
 		.gpio_b = 0x2c
 	},
 	{
 		.ioif = if_usb_2,
+		.name = "usb_2",
 		.groups = group_d,
-		.gpio_g_in =  0x0e000000,
-		.gpio_g_out = 0x3c000000,
+
+		.group_a = 0,
+		.group_b = 0,
+		.group_c = 0,
+		.group_d = 0,
+		.group_e = 0x33e00,
+		.group_f = 0,
+
+		.gpio_g_in =  0x3e000000,
+		.gpio_g_out = 0x0c000000,
 		.gpio_b = 0x00
 	},
 	/* GPIO pins */
 	{
 		.ioif = if_gpio_grp_a,
+		.name = "gpio_a",
 		.groups = group_a,
+
+		.group_a = 0,
+		.group_b = 0,
+		.group_c = 0,
+		.group_d = 0,
+		.group_e = 0,
+		.group_f = 0,
+
 		.gpio_g_in =  0x0000ff3f,
 		.gpio_g_out = 0x0000ff3f,
 		.gpio_b = 0x00
 	},
 	{
 		.ioif = if_gpio_grp_b,
+		.name = "gpio_b",
 		.groups = group_b,
+
+		.group_a = 0,
+		.group_b = 0,
+		.group_c = 0,
+		.group_d = 0,
+		.group_e = 0,
+		.group_f = 0,
+
 		.gpio_g_in =  0x000000c0,
 		.gpio_g_out = 0x000000c0,
 		.gpio_b = 0x00
 	},
 	{
 		.ioif = if_gpio_grp_c,
+		.name = "gpio_c",
 		.groups = group_c,
+
+		.group_a = 0,
+		.group_b = 0,
+		.group_c = 0,
+		.group_d = 0,
+		.group_e = 0,
+		.group_f = 0,
+
 		.gpio_g_in =  0xc0000000,
 		.gpio_g_out = 0xc0000000,
 		.gpio_b = 0x00
 	},
 	{
 		.ioif = if_gpio_grp_d,
+		.name = "gpio_d",
 		.groups = group_d,
+
+		.group_a = 0,
+		.group_b = 0,
+		.group_c = 0,
+		.group_d = 0,
+		.group_e = 0,
+		.group_f = 0,
+
 		.gpio_g_in =  0x3fff0000,
 		.gpio_g_out = 0x3fff0000,
 		.gpio_b = 0x00
 	},
 	{
 		.ioif = if_gpio_grp_e,
+		.name = "gpio_e",
 		.groups = group_e,
+
+		.group_a = 0,
+		.group_b = 0,
+		.group_c = 0,
+		.group_d = 0,
+		.group_e = 0,
+		.group_f = 0,
+
 		.gpio_g_in =  0x00000000,
 		.gpio_g_out = 0x00000000,
 		.gpio_b = 0x00
 	},
 	{
 		.ioif = if_gpio_grp_f,
+		.name = "gpio_f",
 		.groups = group_f,
+
+		.group_a = 0,
+		.group_b = 0,
+		.group_c = 0,
+		.group_d = 0,
+		.group_e = 0,
+		.group_f = 0,
+
 		.gpio_g_in =  0x00000000,
 		.gpio_g_out = 0x00000000,
 		.gpio_b = 0xff
@@ -284,11 +542,13 @@ static struct interface interfaces[] = {
 
 static struct watcher *watchers = NULL;
 
+/* The pins that are free to use in the GPIO ports. */
 static unsigned int gpio_in_pins =  0xffffffff;
 static unsigned int gpio_out_pins = 0xffffffff;
 static unsigned char gpio_pb_pins = 0xff;
 static unsigned char gpio_pa_pins = 0xff;
 
+/* Identifiers for the owners of the GPIO pins. */
 static enum cris_io_interface gpio_pa_owners[8];
 static enum cris_io_interface gpio_pb_owners[8];
 static enum cris_io_interface gpio_pg_owners[32];
@@ -338,13 +598,15 @@ int cris_request_io_interface(enum cris_io_interface ioif, const char *device_id
 	struct if_group *grp;
 	unsigned char group_set;
 	unsigned long flags;
+	int res = 0;
 
 	(void)cris_io_interface_init();
 
 	DBG(printk("cris_request_io_interface(%d, \"%s\")\n", ioif, device_id));
 
 	if ((ioif >= if_max_interfaces) || (ioif < 0)) {
-		printk(KERN_CRIT "cris_request_io_interface: Bad interface %u submitted for %s\n",
+		printk(KERN_CRIT "cris_request_io_interface: Bad interface "
+			"%u submitted for %s\n",
 		       ioif,
 		       device_id);
 		return -EINVAL;
@@ -353,59 +615,69 @@ int cris_request_io_interface(enum cris_io_interface ioif, const char *device_id
 	local_irq_save(flags);
 
 	if (interfaces[ioif].used) {
-		local_irq_restore(flags);
-		printk(KERN_CRIT "cris_io_interface: Cannot allocate interface for %s, in use by %s\n",
+		printk(KERN_CRIT "cris_io_interface: Cannot allocate interface "
+			"%s for %s, in use by %s\n",
+		       interfaces[ioif].name,
 		       device_id,
 		       interfaces[ioif].owner);
-		return -EBUSY;
+		res = -EBUSY;
+		goto exit;
 	}
 
-	/* Check that all required groups are free before allocating, */
+	/* Check that all required pins in the used groups are free
+	 * before allocating. */
 	group_set = interfaces[ioif].groups;
 	while (NULL != (grp = get_group(group_set))) {
-		if (grp->used) {
-			if (grp->group == group_f) {
-				if ((if_sync_serial_1 ==  ioif) ||
-				    (if_sync_serial_3 ==  ioif)) {
-					if ((grp->owner != if_sync_serial_1) &&
-					    (grp->owner != if_sync_serial_3)) {
-						local_irq_restore(flags);
-						return -EBUSY;
-					}
-				} else if ((if_scsi8_0 == ioif) ||
-					   (if_scsi8_1 == ioif)) {
-					if ((grp->owner != if_scsi8_0) &&
-					    (grp->owner != if_scsi8_1)) {
-						local_irq_restore(flags);
-						return -EBUSY;
-					}
-				}
-			} else {
-				local_irq_restore(flags);
-				return -EBUSY;
-			}
+		unsigned int if_group_use = 0;
+
+		switch (grp->group) {
+		case group_a:
+			if_group_use = interfaces[ioif].group_a;
+			break;
+		case group_b:
+			if_group_use = interfaces[ioif].group_b;
+			break;
+		case group_c:
+			if_group_use = interfaces[ioif].group_c;
+			break;
+		case group_d:
+			if_group_use = interfaces[ioif].group_d;
+			break;
+		case group_e:
+			if_group_use = interfaces[ioif].group_e;
+			break;
+		case group_f:
+			if_group_use = interfaces[ioif].group_f;
+			break;
+		default:
+			BUG_ON(1);
 		}
+
+		if (if_group_use & grp->used) {
+			printk(KERN_INFO "cris_request_io_interface: group "
+				"%s needed by %s not available\n",
+				grp->name, interfaces[ioif].name);
+			res = -EBUSY;
+			goto exit;
+		}
+
 		group_set = clear_group_from_set(group_set, grp);
 	}
 
 	/* Are the required GPIO pins available too? */
-	if (((interfaces[ioif].gpio_g_in & gpio_in_pins) != interfaces[ioif].gpio_g_in) ||
-	    ((interfaces[ioif].gpio_g_out & gpio_out_pins) != interfaces[ioif].gpio_g_out) ||
-	    ((interfaces[ioif].gpio_b & gpio_pb_pins) != interfaces[ioif].gpio_b)) {
-		local_irq_restore(flags);
-		printk(KERN_CRIT "cris_request_io_interface: Could not get required pins for interface %u\n",
-		       ioif);
-		return -EBUSY;
+	if (((interfaces[ioif].gpio_g_in & gpio_in_pins) !=
+			interfaces[ioif].gpio_g_in) ||
+		((interfaces[ioif].gpio_g_out & gpio_out_pins) !=
+			interfaces[ioif].gpio_g_out) ||
+		((interfaces[ioif].gpio_b & gpio_pb_pins) !=
+			interfaces[ioif].gpio_b)) {
+		printk(KERN_CRIT "cris_request_io_interface: Could not get "
+			"required pins for interface %u\n", ioif);
+		res = -EBUSY;
+		goto exit;
 	}
 
-	/* All needed I/O pins and pin groups are free, allocate. */
-	group_set = interfaces[ioif].groups;
-	while (NULL != (grp = get_group(group_set))) {
-		grp->used = 1;
-		grp->owner = ioif;
-		group_set = clear_group_from_set(group_set, grp);
-	}
-
+	/* Check which registers need to be reconfigured. */
 	gens = genconfig_shadow;
 	gens_ii = gen_config_ii_shadow;
 
@@ -495,9 +767,43 @@ int cris_request_io_interface(enum cris_io_interface ioif, const char *device_id
 		set_gen_config = 0;
 		break;
 	default:
-		panic("cris_request_io_interface: Bad interface %u submitted for %s\n",
-		      ioif,
-		      device_id);
+		printk(KERN_INFO "cris_request_io_interface: Bad interface "
+			"%u submitted for %s\n",
+			ioif, device_id);
+		res = -EBUSY;
+		goto exit;
+	}
+
+	/* All needed I/O pins and pin groups are free, allocate. */
+	group_set = interfaces[ioif].groups;
+	while (NULL != (grp = get_group(group_set))) {
+		unsigned int if_group_use = 0;
+
+		switch (grp->group) {
+		case group_a:
+			if_group_use = interfaces[ioif].group_a;
+			break;
+		case group_b:
+			if_group_use = interfaces[ioif].group_b;
+			break;
+		case group_c:
+			if_group_use = interfaces[ioif].group_c;
+			break;
+		case group_d:
+			if_group_use = interfaces[ioif].group_d;
+			break;
+		case group_e:
+			if_group_use = interfaces[ioif].group_e;
+			break;
+		case group_f:
+			if_group_use = interfaces[ioif].group_f;
+			break;
+		default:
+			BUG_ON(1);
+		}
+		grp->used |= if_group_use;
+
+		group_set = clear_group_from_set(group_set, grp);
 	}
 
 	interfaces[ioif].used = 1;
@@ -516,25 +822,28 @@ int cris_request_io_interface(enum cris_io_interface ioif, const char *device_id
 		*R_GEN_CONFIG_II = gen_config_ii_shadow;
 	}
 
-	DBG(printk("GPIO pins: available before: g_in=0x%08x g_out=0x%08x pb=0x%02x\n",
-		   gpio_in_pins, gpio_out_pins, gpio_pb_pins));
-	DBG(printk("grabbing pins: g_in=0x%08x g_out=0x%08x pb=0x%02x\n",
-		   interfaces[ioif].gpio_g_in,
-		   interfaces[ioif].gpio_g_out,
-		   interfaces[ioif].gpio_b));
+	DBG(printk(KERN_DEBUG "GPIO pins: available before: "
+		"g_in=0x%08x g_out=0x%08x pb=0x%02x\n",
+		gpio_in_pins, gpio_out_pins, gpio_pb_pins));
+	DBG(printk(KERN_DEBUG
+		"grabbing pins: g_in=0x%08x g_out=0x%08x pb=0x%02x\n",
+		interfaces[ioif].gpio_g_in,
+		interfaces[ioif].gpio_g_out,
+		interfaces[ioif].gpio_b));
 
 	gpio_in_pins &= ~interfaces[ioif].gpio_g_in;
 	gpio_out_pins &= ~interfaces[ioif].gpio_g_out;
 	gpio_pb_pins &= ~interfaces[ioif].gpio_b;
 
-	DBG(printk("GPIO pins: available after: g_in=0x%08x g_out=0x%08x pb=0x%02x\n",
-		   gpio_in_pins, gpio_out_pins, gpio_pb_pins));
+	DBG(printk(KERN_DEBUG "GPIO pins: available after: "
+		"g_in=0x%08x g_out=0x%08x pb=0x%02x\n",
+		gpio_in_pins, gpio_out_pins, gpio_pb_pins));
 
+exit:
 	local_irq_restore(flags);
-
-	notify_watchers();
-
-	return 0;
+	if (res == 0)
+		notify_watchers();
+	return res;
 }
 
 
@@ -560,43 +869,35 @@ void cris_free_io_interface(enum cris_io_interface ioif)
 	}
 	group_set = interfaces[ioif].groups;
 	while (NULL != (grp = get_group(group_set))) {
-		if (grp->group == group_f) {
-			switch (ioif)
-			{
-			case if_sync_serial_1:
-				if ((grp->owner == if_sync_serial_1) &&
-				    interfaces[if_sync_serial_3].used) {
-					grp->owner = if_sync_serial_3;
-				} else
-					grp->used = 0;
-				break;
-			case if_sync_serial_3:
-				if ((grp->owner == if_sync_serial_3) &&
-				    interfaces[if_sync_serial_1].used) {
-					grp->owner = if_sync_serial_1;
-				} else
-					grp->used = 0;
-				break;
-			case if_scsi8_0:
-				if ((grp->owner == if_scsi8_0) &&
-				    interfaces[if_scsi8_1].used) {
-					grp->owner = if_scsi8_1;
-				} else
-					grp->used = 0;
-				break;
-			case if_scsi8_1:
-				if ((grp->owner == if_scsi8_1) &&
-				    interfaces[if_scsi8_0].used) {
-					grp->owner = if_scsi8_0;
-				} else
-					grp->used = 0;
-				break;
-			default:
-				grp->used = 0;
-			}
-		} else {
-			grp->used = 0;
+		unsigned int if_group_use = 0;
+
+		switch (grp->group) {
+		case group_a:
+			if_group_use = interfaces[ioif].group_a;
+			break;
+		case group_b:
+			if_group_use = interfaces[ioif].group_b;
+			break;
+		case group_c:
+			if_group_use = interfaces[ioif].group_c;
+			break;
+		case group_d:
+			if_group_use = interfaces[ioif].group_d;
+			break;
+		case group_e:
+			if_group_use = interfaces[ioif].group_e;
+			break;
+		case group_f:
+			if_group_use = interfaces[ioif].group_f;
+			break;
+		default:
+			BUG_ON(1);
 		}
+
+		if ((grp->used & if_group_use) != if_group_use)
+			BUG_ON(1);
+		grp->used = grp->used & ~if_group_use;
+
 		group_set = clear_group_from_set(group_set, grp);
 	}
 	interfaces[ioif].used = 0;

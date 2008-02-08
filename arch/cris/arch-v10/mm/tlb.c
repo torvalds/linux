@@ -4,8 +4,8 @@
  *  Low level TLB handling
  *
  *
- *  Copyright (C) 2000-2002  Axis Communications AB
- *  
+ *  Copyright (C) 2000-2007  Axis Communications AB
+ *
  *  Authors:   Bjorn Wesen (bjornw@axis.com)
  *
  */
@@ -39,7 +39,7 @@ flush_tlb_all(void)
 	unsigned long flags;
 
 	/* the vpn of i & 0xf is so we dont write similar TLB entries
-	 * in the same 4-way entry group. details.. 
+	 * in the same 4-way entry group. details...
 	 */
 
 	local_irq_save(flags);
@@ -47,7 +47,7 @@ flush_tlb_all(void)
 		*R_TLB_SELECT = ( IO_FIELD(R_TLB_SELECT, index, i) );
 		*R_TLB_HI = ( IO_FIELD(R_TLB_HI, page_id, INVALID_PAGEID ) |
 			      IO_FIELD(R_TLB_HI, vpn,     i & 0xf ) );
-		
+
 		*R_TLB_LO = ( IO_STATE(R_TLB_LO, global,no       ) |
 			      IO_STATE(R_TLB_LO, valid, no       ) |
 			      IO_STATE(R_TLB_LO, kernel,no	 ) |
@@ -71,10 +71,10 @@ flush_tlb_mm(struct mm_struct *mm)
 
 	if(page_id == NO_CONTEXT)
 		return;
-	
+
 	/* mark the TLB entries that match the page_id as invalid.
 	 * here we could also check the _PAGE_GLOBAL bit and NOT flush
-	 * global pages. is it worth the extra I/O ? 
+	 * global pages. is it worth the extra I/O ?
 	 */
 
 	local_irq_save(flags);
@@ -83,7 +83,7 @@ flush_tlb_mm(struct mm_struct *mm)
 		if (IO_EXTRACT(R_TLB_HI, page_id, *R_TLB_HI) == page_id) {
 			*R_TLB_HI = ( IO_FIELD(R_TLB_HI, page_id, INVALID_PAGEID ) |
 				      IO_FIELD(R_TLB_HI, vpn,     i & 0xf ) );
-			
+
 			*R_TLB_LO = ( IO_STATE(R_TLB_LO, global,no  ) |
 				      IO_STATE(R_TLB_LO, valid, no  ) |
 				      IO_STATE(R_TLB_LO, kernel,no  ) |
@@ -96,9 +96,7 @@ flush_tlb_mm(struct mm_struct *mm)
 
 /* invalidate a single page */
 
-void
-flush_tlb_page(struct vm_area_struct *vma, 
-	       unsigned long addr)
+void flush_tlb_page(struct vm_area_struct *vma, unsigned long addr)
 {
 	struct mm_struct *mm = vma->vm_mm;
 	int page_id = mm->context.page_id;
@@ -113,7 +111,7 @@ flush_tlb_page(struct vm_area_struct *vma,
 	addr &= PAGE_MASK; /* perhaps not necessary */
 
 	/* invalidate those TLB entries that match both the mm context
-	 * and the virtual address requested 
+	 * and the virtual address requested
 	 */
 
 	local_irq_save(flags);
@@ -125,7 +123,7 @@ flush_tlb_page(struct vm_area_struct *vma,
 		    (tlb_hi & PAGE_MASK) == addr) {
 			*R_TLB_HI = IO_FIELD(R_TLB_HI, page_id, INVALID_PAGEID ) |
 				addr; /* same addr as before works. */
-			
+
 			*R_TLB_LO = ( IO_STATE(R_TLB_LO, global,no  ) |
 				      IO_STATE(R_TLB_LO, valid, no  ) |
 				      IO_STATE(R_TLB_LO, kernel,no  ) |
@@ -144,7 +142,7 @@ dump_tlb_all(void)
 {
 	int i;
 	unsigned long flags;
-	
+
 	printk("TLB dump. LO is: pfn | reserved | global | valid | kernel | we  |\n");
 
 	local_save_flags(flags);
@@ -172,27 +170,29 @@ init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 
 /* called in schedule() just before actually doing the switch_to */
 
-void 
-switch_mm(struct mm_struct *prev, struct mm_struct *next,
-	  struct task_struct *tsk)
+void switch_mm(struct mm_struct *prev, struct mm_struct *next,
+	struct task_struct *tsk)
 {
-	/* make sure we have a context */
+	if (prev != next) {
+		/* make sure we have a context */
+		get_mmu_context(next);
 
-	get_mmu_context(next);
+		/* remember the pgd for the fault handlers
+		 * this is similar to the pgd register in some other CPU's.
+		 * we need our own copy of it because current and active_mm
+		 * might be invalid at points where we still need to derefer
+		 * the pgd.
+		 */
 
-	/* remember the pgd for the fault handlers
-	 * this is similar to the pgd register in some other CPU's.
-	 * we need our own copy of it because current and active_mm
-	 * might be invalid at points where we still need to derefer
-	 * the pgd.
-	 */
+		per_cpu(current_pgd, smp_processor_id()) = next->pgd;
 
-	per_cpu(current_pgd, smp_processor_id()) = next->pgd;
+		/* switch context in the MMU */
 
-	/* switch context in the MMU */
-	
-	D(printk("switching mmu_context to %d (%p)\n", next->context, next));
+		D(printk(KERN_DEBUG "switching mmu_context to %d (%p)\n",
+			next->context, next));
 
-	*R_MMU_CONTEXT = IO_FIELD(R_MMU_CONTEXT, page_id, next->context.page_id);
+		*R_MMU_CONTEXT = IO_FIELD(R_MMU_CONTEXT,
+					  page_id, next->context.page_id);
+	}
 }
 

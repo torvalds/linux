@@ -1,9 +1,9 @@
 #ifndef _ASM_CRIS_ARCH_TIMEX_H
 #define _ASM_CRIS_ARCH_TIMEX_H
 
-#include <asm/arch/hwregs/reg_map.h>
-#include <asm/arch/hwregs/reg_rdwr.h>
-#include <asm/arch/hwregs/timer_defs.h>
+#include <hwregs/reg_map.h>
+#include <hwregs/reg_rdwr.h>
+#include <hwregs/timer_defs.h>
 
 /*
  * The clock runs at 100MHz, we divide it by 1000000. If you change anything
@@ -18,7 +18,7 @@
 
 /* Convert the value in step of 10 ns to 1us without overflow: */
 #define GET_JIFFIES_USEC() \
-  ( (TIMER0_DIV - REG_RD(timer, regi_timer, r_tmr0_data)) /100 )
+	((TIMER0_DIV - REG_RD(timer, regi_timer0, r_tmr0_data)) / 100)
 
 extern unsigned long get_ns_in_jiffie(void);
 

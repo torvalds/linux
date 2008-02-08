@@ -6,85 +6,9 @@
 *!              kernel modules (i2c_writereg/readreg) and from userspace using
 *!              ioctl()'s
 *!
-*! Nov 30 1998  Torbjorn Eliasson  Initial version.
-*!              Bjorn Wesen        Elinux kernel version.
-*! Jan 14 2000  Johan Adolfsson    Fixed PB shadow register stuff - 
-*!                                 don't use PB_I2C if DS1302 uses same bits,
-*!                                 use PB.
-*! $Log: i2c.c,v $
-*! Revision 1.13  2005/03/07 13:13:07  starvik
-*! Added spinlocks to protect states etc
-*!
-*! Revision 1.12  2005/01/05 06:11:22  starvik
-*! No need to do local_irq_disable after local_irq_save.
-*!
-*! Revision 1.11  2004/12/13 12:21:52  starvik
-*! Added I/O and DMA allocators from Linux 2.4
-*!
-*! Revision 1.9  2004/08/24 06:49:14  starvik
-*! Whitespace cleanup
-*!
-*! Revision 1.8  2004/06/08 08:48:26  starvik
-*! Removed unused code
-*!
-*! Revision 1.7  2004/05/28 09:26:59  starvik
-*! Modified I2C initialization to work in 2.6.
-*!
-*! Revision 1.6  2004/05/14 07:58:03  starvik
-*! Merge of changes from 2.4
-*!
-*! Revision 1.4  2002/12/11 13:13:57  starvik
-*! Added arch/ to v10 specific includes
-*! Added fix from Linux 2.4 in serial.c (flush_to_flip_buffer)
-*!
-*! Revision 1.3  2002/11/20 11:56:11  starvik
-*! Merge of Linux 2.5.48
-*!
-*! Revision 1.2  2002/11/18 13:16:06  starvik
-*! Linux 2.5 port of latest 2.4 drivers
-*!
-*! Revision 1.9  2002/10/31 15:32:26  starvik
-*! Update Port B register and shadow even when running with hardware support
-*!   to avoid glitches when reading bits
-*! Never set direction to out in i2c_inbyte
-*! Removed incorrect clock toggling at end of i2c_inbyte
-*!
-*! Revision 1.8  2002/08/13 06:31:53  starvik
-*! Made SDA and SCL line configurable
-*! Modified i2c_inbyte to work with PCF8563
-*!
-*! Revision 1.7  2001/04/04 13:11:36  markusl
-*! Updated according to review remarks
-*!
-*! Revision 1.6  2001/03/19 12:43:00  markusl
-*! Made some symbols unstatic (used by the eeprom driver)
-*!
-*! Revision 1.5  2001/02/27 13:52:48  bjornw
-*! malloc.h -> slab.h
-*!
-*! Revision 1.4  2001/02/15 07:17:40  starvik
-*! Corrected usage if port_pb_i2c_shadow
-*!
-*! Revision 1.3  2001/01/26 17:55:13  bjornw
-*! * Made I2C_USES_PB_NOT_PB_I2C a CONFIG option instead of assigning it
-*!   magically. Config.in needs to set it for the options that need it, like
-*!   Dallas 1302 support. Actually, it should be default since it screws up
-*!   the PB bits even if you don't use I2C..
-*! * Include linux/config.h to get the above
-*!
-*! Revision 1.2  2001/01/18 15:49:30  bjornw
-*! 2.4 port of I2C including some cleanups (untested of course)
-*!
-*! Revision 1.1  2001/01/18 15:35:25  bjornw
-*! Verbatim copy of the Etrax i2c driver, 2.0 elinux version
-*!
-*!
-*! ---------------------------------------------------------------------------
-*!
-*! (C) Copyright 1999-2002 Axis Communications AB, LUND, SWEDEN
+*! (C) Copyright 1999-2007 Axis Communications AB, LUND, SWEDEN
 *!
 *!***************************************************************************/
-/* $Id: i2c.c,v 1.13 2005/03/07 13:13:07 starvik Exp $ */
 
 /****************** INCLUDE FILES SECTION ***********************************/
 
@@ -622,7 +546,7 @@ i2c_readreg(unsigned char theSlave, unsigned char theReg)
 		 * last received byte needs to be nacked
 		 * instead of acked
 		 */
-		i2c_sendack();
+		i2c_sendnack();
 		/*
 		 * end sequence
 		 */
@@ -708,6 +632,7 @@ i2c_init(void)
 	if (!first) {
 		return res;
 	}
+	first = 0;
 
 	/* Setup and enable the Port B I2C interface */
 

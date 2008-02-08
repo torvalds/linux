@@ -1,8 +1,6 @@
 /*
  * misc.c
  *
- * $Id: misc.c,v 1.8 2005/04/24 18:34:29 starvik Exp $
- *
  * This is a collection of several routines from gzip-1.0.3
  * adapted for Linux.
  *
@@ -22,9 +20,13 @@
 
 
 #include <linux/types.h>
-#include <asm/arch/hwregs/reg_rdwr.h>
-#include <asm/arch/hwregs/reg_map.h>
-#include <asm/arch/hwregs/ser_defs.h>
+#include <hwregs/reg_rdwr.h>
+#include <hwregs/reg_map.h>
+#include <hwregs/ser_defs.h>
+#include <hwregs/pinmux_defs.h>
+#ifdef CONFIG_CRIS_MACH_ARTPEC3
+#include <hwregs/clkgen_defs.h>
+#endif
 
 /*
  * gzip declarations
@@ -85,7 +87,6 @@ static unsigned outcnt = 0;  /* bytes in output buffer */
 #  define Tracecv(c,x)
 #endif
 
-static int  fill_inbuf(void);
 static void flush_window(void);
 static void error(char *m);
 static void gzip_mark(void **);
@@ -186,6 +187,8 @@ memset(void* s, int c, size_t n)
 	char *ss = (char*)s;
 
 	for (i=0;i<n;i++) ss[i] = c;
+
+	return s;
 }
 
 void*
@@ -196,6 +199,8 @@ memcpy(void* __dest, __const void* __src,
 	char *d = (char *)__dest, *s = (char *)__src;
 
 	for (i=0;i<__n;i++) d[i] = s[i];
+
+	return __dest;
 }
 
 /* ===========================================================================
@@ -225,15 +230,15 @@ flush_window()
 static void
 error(char *x)
 {
-	puts("\n\n");
+	puts("\r\n\n");
 	puts(x);
-	puts("\n\n -- System halted\n");
+	puts("\r\n\n -- System halted\n");
 
 	while(1);	/* Halt */
 }
 
 void
-setup_normal_output_buffer()
+setup_normal_output_buffer(void)
 {
 	output_data = (char *)KERNEL_LOAD_ADR;
 }
@@ -262,15 +267,17 @@ serial_setup(reg_scope_instances regi_ser)
 	rec_baud = REG_RD(ser, regi_ser, rw_rec_baud_div);
 
 	tr_ctrl.stop_bits = 1;	/* 2 stop bits. */
+	tr_ctrl.en = 1; /* enable transmitter */
+	rec_ctrl.en = 1; /* enabler receiver */
 
 	/*
-	 * The baudrate setup is a bit fishy, but in the end the transceiver is
-	 * set to 4800 and the receiver to 115200. The magic value is
-	 * 29.493 MHz.
+	 * The baudrate setup used to be a bit fishy, but now transmitter and
+	 * receiver are both set to the intended baud rate, 115200.
+	 * The magic value is 29.493 MHz.
 	 */
 	tr_ctrl.base_freq = regk_ser_f29_493;
 	rec_ctrl.base_freq = regk_ser_f29_493;
-	tr_baud.div = (29493000 / 8) / 4800;
+	tr_baud.div = (29493000 / 8) / 115200;
 	rec_baud.div = (29493000 / 8) / 115200;
 
 	REG_WR(ser, regi_ser, rw_tr_ctrl, tr_ctrl);
@@ -280,25 +287,52 @@ serial_setup(reg_scope_instances regi_ser)
 }
 
 void
-decompress_kernel()
+decompress_kernel(void)
 {
 	char revision;
 
-	/* input_data is set in head.S */
-	inbuf = input_data;
+#if defined(CONFIG_ETRAX_DEBUG_PORT1) || \
+    defined(CONFIG_ETRAX_DEBUG_PORT2) || \
+    defined(CONFIG_ETRAX_DEBUG_PORT3)
+	reg_pinmux_rw_hwprot hwprot;
+
+#ifdef CONFIG_CRIS_MACH_ARTPEC3
+	reg_clkgen_rw_clk_ctrl clk_ctrl;
+
+	/* Enable corresponding clock region when serial 1..3 selected */
+
+	clk_ctrl = REG_RD(clkgen, regi_clkgen, rw_clk_ctrl);
+	clk_ctrl.sser_ser_dma6_7 = regk_clkgen_yes;
+	REG_WR(clkgen, regi_clkgen, rw_clk_ctrl, clk_ctrl);
+#endif
+
+	/* pinmux setup for ports 1..3 */
+	hwprot = REG_RD(pinmux, regi_pinmux, rw_hwprot);
+#endif
 
 #ifdef CONFIG_ETRAX_DEBUG_PORT0
 	serial_setup(regi_ser0);
 #endif
 #ifdef CONFIG_ETRAX_DEBUG_PORT1
+	hwprot.ser1 = regk_pinmux_yes;
 	serial_setup(regi_ser1);
 #endif
 #ifdef CONFIG_ETRAX_DEBUG_PORT2
+	hwprot.ser2 = regk_pinmux_yes;
 	serial_setup(regi_ser2);
 #endif
 #ifdef CONFIG_ETRAX_DEBUG_PORT3
+	hwprot.ser3 = regk_pinmux_yes;
 	serial_setup(regi_ser3);
 #endif
+#if defined(CONFIG_ETRAX_DEBUG_PORT1) || \
+    defined(CONFIG_ETRAX_DEBUG_PORT2) || \
+    defined(CONFIG_ETRAX_DEBUG_PORT3)
+	REG_WR(pinmux, regi_pinmux, rw_hwprot, hwprot);
+#endif
+
+	/* input_data is set in head.S */
+	inbuf = input_data;
 
 	setup_normal_output_buffer();
 
@@ -307,11 +341,11 @@ decompress_kernel()
 	__asm__ volatile ("move $vr,%0" : "=rm" (revision));
 	if (revision < 32)
 	{
-		puts("You need an ETRAX FS to run Linux 2.6/crisv32.\n");
+		puts("You need an ETRAX FS to run Linux 2.6/crisv32.\r\n");
 		while(1);
 	}
 
-	puts("Uncompressing Linux...\n");
+	puts("Uncompressing Linux...\r\n");
 	gunzip();
-	puts("Done. Now booting the kernel.\n");
+	puts("Done. Now booting the kernel.\r\n");
 }

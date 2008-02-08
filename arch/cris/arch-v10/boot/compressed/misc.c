@@ -1,15 +1,13 @@
 /*
  * misc.c
  *
- * $Id: misc.c,v 1.6 2003/10/27 08:04:31 starvik Exp $
- * 
- * This is a collection of several routines from gzip-1.0.3 
+ * This is a collection of several routines from gzip-1.0.3
  * adapted for Linux.
  *
  * malloc by Hannu Savolainen 1993 and Matthias Urlichs 1994
  * puts by Nick Holloway 1993, better puts by Martin Mares 1995
  * adaptation for Linux/CRIS Axis Communications AB, 1999
- * 
+ *
  */
 
 /* where the piggybacked kernel image expects itself to live.

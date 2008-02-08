@@ -1173,6 +1173,8 @@ S:	Orphan
 CRIS PORT
 P:	Mikael Starvik
 M:	starvik@axis.com
+P:	Jesper Nilsson
+M:	jesper.nilsson@axis.com
 L:	dev-etrax@axis.com
 W:	http://developer.axis.com
 S:	Maintained

@@ -381,7 +381,7 @@ static int read_register(char regno, unsigned int *valptr);
 /* Serial port, reads one character. ETRAX 100 specific. from debugport.c */
 int getDebugChar(void);
 
-#ifdef CONFIG_ETRAXFS_SIM
+#ifdef CONFIG_ETRAX_VCS_SIM
 int getDebugChar(void)
 {
   return socketread();
@@ -391,7 +391,7 @@ int getDebugChar(void)
 /* Serial port, writes one character. ETRAX 100 specific. from debugport.c */
 void putDebugChar(int val);
 
-#ifdef CONFIG_ETRAXFS_SIM
+#ifdef CONFIG_ETRAX_VCS_SIM
 void putDebugChar(int val)
 {
   socketwrite((char *)&val, 1);
@@ -1599,7 +1599,7 @@ kgdb_init(void)
 	REG_WR(intr_vect, regi_irq, rw_mask, intr_mask);
 
 	ser_intr_mask = REG_RD(ser, regi_ser0, rw_intr_mask);
-	ser_intr_mask.data_avail = regk_ser_yes;
+	ser_intr_mask.dav = regk_ser_yes;
 	REG_WR(ser, regi_ser0, rw_intr_mask, ser_intr_mask);
 #elif defined(CONFIG_ETRAX_KGDB_PORT1)
 	/* Note: no shortcut registered (not handled by multiple_interrupt).
@@ -1611,7 +1611,7 @@ kgdb_init(void)
 	REG_WR(intr_vect, regi_irq, rw_mask, intr_mask);
 
 	ser_intr_mask = REG_RD(ser, regi_ser1, rw_intr_mask);
-	ser_intr_mask.data_avail = regk_ser_yes;
+	ser_intr_mask.dav = regk_ser_yes;
 	REG_WR(ser, regi_ser1, rw_intr_mask, ser_intr_mask);
 #elif defined(CONFIG_ETRAX_KGDB_PORT2)
 	/* Note: no shortcut registered (not handled by multiple_interrupt).
@@ -1623,7 +1623,7 @@ kgdb_init(void)
 	REG_WR(intr_vect, regi_irq, rw_mask, intr_mask);
 
 	ser_intr_mask = REG_RD(ser, regi_ser2, rw_intr_mask);
-	ser_intr_mask.data_avail = regk_ser_yes;
+	ser_intr_mask.dav = regk_ser_yes;
 	REG_WR(ser, regi_ser2, rw_intr_mask, ser_intr_mask);
 #elif defined(CONFIG_ETRAX_KGDB_PORT3)
 	/* Note: no shortcut registered (not handled by multiple_interrupt).
@@ -1635,7 +1635,7 @@ kgdb_init(void)
 	REG_WR(intr_vect, regi_irq, rw_mask, intr_mask);
 
 	ser_intr_mask = REG_RD(ser, regi_ser3, rw_intr_mask);
-	ser_intr_mask.data_avail = regk_ser_yes;
+	ser_intr_mask.dav = regk_ser_yes;
 	REG_WR(ser, regi_ser3, rw_intr_mask, ser_intr_mask);
 #endif
 

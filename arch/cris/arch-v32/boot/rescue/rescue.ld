@@ -1,20 +1,43 @@
+/*#OUTPUT_FORMAT(elf32-us-cris) */
+OUTPUT_ARCH (crisv32)
+/* Now that NAND support has been stripped, this file could be simplified,
+ * but it doesn't do any harm on the other hand so why bother. */
+
 MEMORY
 	{
-	flash : ORIGIN = 0x00000000,
-	        LENGTH = 0x00100000
+	bootblk : ORIGIN = 0x38000000,
+	          LENGTH = 0x00004000
+	intmem  : ORIGIN = 0x38004000,
+		  LENGTH = 0x00005000
 	}
 
 SECTIONS
 {
 	.text :
 	{
-		stext = . ;
+		_stext = . ;
 		*(.text)
-		etext = . ;
-	} > flash
+		*(.init.text)
+		*(.rodata)
+		*(.rodata.*)
+		_etext = . ;
+	} > bootblk
 	.data :
 	{
 		*(.data)
-		edata = . ;
-	} > flash
+		_edata = . ;
+	} > bootblk
+	.bss :
+	{
+		_bss = . ;
+		*(.bss)
+		_end = ALIGN( 0x10 ) ;
+	} > intmem
+
+	/* Get rid of stuff from EXPORT_SYMBOL(foo). */
+	/DISCARD/ :
+	{
+	        *(__ksymtab_strings)
+	        *(__ksymtab)
+	}
 }

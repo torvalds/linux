@@ -1,5 +1,11 @@
 include include/asm-generic/Kbuild.asm
 
-header-y += arch-v10/ arch-v32/
+header-$(CONFIG_ETRAX_ARCH_V10) += arch-v10/
+header-$(CONFIG_ETRAX_ARCH_V32) += arch-v32/
 
+header-y += ethernet.h
+header-y += rtc.h
+header-y += sync_serial.h
+
+unifdef-y += etraxgpio.h
 unifdef-y += rs485.h

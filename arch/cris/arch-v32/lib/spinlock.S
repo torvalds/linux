@@ -12,11 +12,11 @@
 
 cris_spin_lock:
 	clearf	p
-1:	test.d	[$r10]
+1:	test.b	[$r10]
 	beq	1b
 	clearf	p
 	ax
-	clear.d [$r10]
+	clear.b [$r10]
 	bcs     1b
 	clearf	p
 	ret
@@ -24,10 +24,10 @@ cris_spin_lock:
 
 cris_spin_trylock:
 	clearf	p
-1:	move.d	[$r10], $r11
+1:	move.b	[$r10], $r11
 	ax
-	clear.d [$r10]
+	clear.b [$r10]
         bcs	1b
         clearf	p
 	ret
-	move.d	$r11,$r10
+	movu.b	$r11,$r10

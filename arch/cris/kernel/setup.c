@@ -18,7 +18,7 @@
 #include <linux/screen_info.h>
 #include <linux/utsname.h>
 #include <linux/pfn.h>
-
+#include <linux/cpu.h>
 #include <asm/setup.h>
 
 /*
@@ -36,6 +36,8 @@ extern unsigned long dram_start, dram_end;
 
 extern unsigned long romfs_start, romfs_length, romfs_in_flash; /* from head.S */
 
+static struct cpu cpu_devices[NR_CPUS];
+
 extern void show_etrax_copyright(void);		/* arch-vX/kernel/setup.c */
 
 /* This mainly sets up the memory area, and can be really confusing.
@@ -45,24 +47,23 @@ extern void show_etrax_copyright(void);		/* arch-vX/kernel/setup.c */
  * given by the macro __pa().
  *
  * In this DRAM, the kernel code and data is loaded, in the beginning.
- * It really starts at c0004000 to make room for some special pages - 
+ * It really starts at c0004000 to make room for some special pages -
  * the start address is text_start. The kernel data ends at _end. After
  * this the ROM filesystem is appended (if there is any).
- * 
+ *
  * Between this address and dram_end, we have RAM pages usable to the
  * boot code and the system.
  *
  */
 
-void __init 
-setup_arch(char **cmdline_p)
+void __init setup_arch(char **cmdline_p)
 {
 	extern void init_etrax_debug(void);
 	unsigned long bootmap_size;
 	unsigned long start_pfn, max_pfn;
 	unsigned long memory_start;
 
- 	/* register an initial console printing routine for printk's */
+	/* register an initial console printing routine for printk's */
 
 	init_etrax_debug();
 
@@ -121,7 +122,7 @@ setup_arch(char **cmdline_p)
 	min_low_pfn = PAGE_OFFSET >> PAGE_SHIFT;
 
 	bootmap_size = init_bootmem_node(NODE_DATA(0), start_pfn,
-					 min_low_pfn, 
+					 min_low_pfn,
 					 max_low_pfn);
 
 	/* And free all memory not belonging to the kernel (addr, size) */
@@ -187,4 +188,16 @@ const struct seq_operations cpuinfo_op = {
 	.show  = show_cpuinfo,
 };
 
+static int __init topology_init(void)
+{
+	int i;
+
+	for_each_possible_cpu(i) {
+		 return register_cpu(&cpu_devices[i], i);
+	}
+
+	return 0;
+}
+
+subsys_initcall(topology_init);
 

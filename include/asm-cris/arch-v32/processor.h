@@ -23,7 +23,7 @@ struct thread_struct {
  * User-space process size. This is hardcoded into a few places, so don't
  * changed it unless everything's clear!
  */
-#ifndef CONFIG_ETRAXFS_SIM
+#ifndef CONFIG_ETRAX_VCS_SIM
 #define TASK_SIZE	(0xB0000000UL)
 #else
 #define TASK_SIZE	(0xA0000000UL)
