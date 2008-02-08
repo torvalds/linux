@@ -965,7 +965,9 @@ static void ipoib_setup(struct net_device *dev)
 	dev->addr_len		 = INFINIBAND_ALEN;
 	dev->type		 = ARPHRD_INFINIBAND;
 	dev->tx_queue_len	 = ipoib_sendq_size * 2;
-	dev->features		 = NETIF_F_VLAN_CHALLENGED | NETIF_F_LLTX;
+	dev->features		 = (NETIF_F_VLAN_CHALLENGED	|
+				    NETIF_F_LLTX		|
+				    NETIF_F_HIGHDMA);
 
 	/* MTU will be reset when mcast join happens */
 	dev->mtu		 = IPOIB_PACKET_SIZE - IPOIB_ENCAP_LEN;

@@ -419,9 +419,9 @@ int mlx4_buf_write_mtt(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 
 	for (i = 0; i < buf->npages; ++i)
 		if (buf->nbufs == 1)
-			page_list[i] = buf->u.direct.map + (i << buf->page_shift);
+			page_list[i] = buf->direct.map + (i << buf->page_shift);
 		else
-			page_list[i] = buf->u.page_list[i].map;
+			page_list[i] = buf->page_list[i].map;
 
 	err = mlx4_write_mtt(dev, mtt, 0, buf->npages, page_list);
 

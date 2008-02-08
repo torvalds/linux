@@ -143,7 +143,7 @@ struct ipoib_rx_buf {
 
 struct ipoib_tx_buf {
 	struct sk_buff *skb;
-	u64		mapping;
+	u64		mapping[MAX_SKB_FRAGS + 1];
 };
 
 struct ib_cm_id;
@@ -296,7 +296,7 @@ struct ipoib_dev_priv {
 	struct ipoib_tx_buf *tx_ring;
 	unsigned	     tx_head;
 	unsigned	     tx_tail;
-	struct ib_sge	     tx_sge;
+	struct ib_sge	     tx_sge[MAX_SKB_FRAGS + 1];
 	struct ib_send_wr    tx_wr;
 	unsigned	     tx_outstanding;
 
