@@ -982,7 +982,7 @@ static struct mapped_device *alloc_dev(int minor)
 	}
 
 	if (!try_module_get(THIS_MODULE))
-		goto bad0;
+		goto bad_module_get;
 
 	/* get a minor number for the dev */
 	if (minor == DM_ANY_MINOR)
@@ -990,7 +990,7 @@ static struct mapped_device *alloc_dev(int minor)
 	else
 		r = specific_minor(md, minor);
 	if (r < 0)
-		goto bad1;
+		goto bad_minor;
 
 	memset(md, 0, sizeof(*md));
 	init_rwsem(&md->io_lock);
@@ -1006,7 +1006,7 @@ static struct mapped_device *alloc_dev(int minor)
 
 	md->queue = blk_alloc_queue(GFP_KERNEL);
 	if (!md->queue)
-		goto bad1_free_minor;
+		goto bad_queue;
 
 	md->queue->queuedata = md;
 	md->queue->backing_dev_info.congested_fn = dm_any_congested;
@@ -1017,11 +1017,11 @@ static struct mapped_device *alloc_dev(int minor)
 
 	md->io_pool = mempool_create_slab_pool(MIN_IOS, _io_cache);
 	if (!md->io_pool)
-		goto bad2;
+		goto bad_io_pool;
 
 	md->tio_pool = mempool_create_slab_pool(MIN_IOS, _tio_cache);
 	if (!md->tio_pool)
-		goto bad3;
+		goto bad_tio_pool;
 
 	md->bs = bioset_create(16, 16);
 	if (!md->bs)
@@ -1029,7 +1029,7 @@ static struct mapped_device *alloc_dev(int minor)
 
 	md->disk = alloc_disk(1);
 	if (!md->disk)
-		goto bad4;
+		goto bad_disk;
 
 	atomic_set(&md->pending, 0);
 	init_waitqueue_head(&md->wait);
@@ -1053,19 +1053,19 @@ static struct mapped_device *alloc_dev(int minor)
 
 	return md;
 
- bad4:
+bad_disk:
 	bioset_free(md->bs);
- bad_no_bioset:
+bad_no_bioset:
 	mempool_destroy(md->tio_pool);
- bad3:
+bad_tio_pool:
 	mempool_destroy(md->io_pool);
- bad2:
+bad_io_pool:
 	blk_cleanup_queue(md->queue);
- bad1_free_minor:
+bad_queue:
 	free_minor(minor);
- bad1:
+bad_minor:
 	module_put(THIS_MODULE);
- bad0:
+bad_module_get:
 	kfree(md);
 	return NULL;
 }
