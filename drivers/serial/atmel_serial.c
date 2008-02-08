@@ -934,8 +934,18 @@ static int __init atmel_late_console_init(void)
 
 core_initcall(atmel_late_console_init);
 
+static inline bool atmel_is_console_port(struct uart_port *port)
+{
+	return port->cons && port->cons->index == port->line;
+}
+
 #else
 #define ATMEL_CONSOLE_DEVICE	NULL
+
+static inline bool atmel_is_console_port(struct uart_port *port)
+{
+	return false;
+}
 #endif
 
 static struct uart_driver atmel_uart = {
@@ -993,9 +1003,19 @@ static int __devinit atmel_serial_probe(struct platform_device *pdev)
 	atmel_init_port(port, pdev);
 
 	ret = uart_add_one_port(&atmel_uart, &port->uart);
-	if (!ret) {
-		device_init_wakeup(&pdev->dev, 1);
-		platform_set_drvdata(pdev, port);
+	if (ret)
+		goto err_add_port;
+
+	device_init_wakeup(&pdev->dev, 1);
+	platform_set_drvdata(pdev, port);
+
+	return 0;
+
+err_add_port:
+	if (!atmel_is_console_port(&port->uart)) {
+		clk_disable(port->clk);
+		clk_put(port->clk);
+		port->clk = NULL;
 	}
 
 	return ret;
@@ -1007,16 +1027,15 @@ static int __devexit atmel_serial_remove(struct platform_device *pdev)
 	struct atmel_uart_port *atmel_port = (struct atmel_uart_port *)port;
 	int ret = 0;
 
-	clk_disable(atmel_port->clk);
-	clk_put(atmel_port->clk);
-
 	device_init_wakeup(&pdev->dev, 0);
 	platform_set_drvdata(pdev, NULL);
 
-	if (port) {
-		ret = uart_remove_one_port(&atmel_uart, port);
-		kfree(port);
-	}
+	ret = uart_remove_one_port(&atmel_uart, port);
+
+	/* "port" is allocated statically, so we shouldn't free it */
+
+	clk_disable(atmel_port->clk);
+	clk_put(atmel_port->clk);
 
 	return ret;
 }
