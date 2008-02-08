@@ -1179,6 +1179,9 @@ static int copy_from_user_mmap_sem(void *dst, const void __user *src, size_t n)
 {
 	int partial;
 
+	if (!access_ok(VERIFY_READ, src, n))
+		return -EFAULT;
+
 	pagefault_disable();
 	partial = __copy_from_user_inatomic(dst, src, n);
 	pagefault_enable();
@@ -1383,6 +1386,11 @@ static long vmsplice_to_user(struct file *file, const struct iovec __user *iov,
 		if (unlikely(!len))
 			break;
 		if (unlikely(!base)) {
+			error = -EFAULT;
+			break;
+		}
+
+		if (unlikely(!access_ok(VERIFY_WRITE, base, len))) {
 			error = -EFAULT;
 			break;
 		}
