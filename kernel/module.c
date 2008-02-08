@@ -46,6 +46,7 @@
 #include <asm/semaphore.h>
 #include <asm/cacheflush.h>
 #include <linux/license.h>
+#include <asm/sections.h>
 
 #if 0
 #define DEBUGP printk
@@ -342,9 +343,6 @@ static inline unsigned int block_size(int val)
 		return -val;
 	return val;
 }
-
-/* Created by linker magic */
-extern char __per_cpu_start[], __per_cpu_end[];
 
 static void *percpu_modalloc(unsigned long size, unsigned long align,
 			     const char *name)
