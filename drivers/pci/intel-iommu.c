@@ -745,7 +745,7 @@ static int iommu_disable_translation(struct intel_iommu *iommu)
 
 /* iommu interrupt handling. Most stuff are MSI-like. */
 
-static char *fault_reason_strings[] =
+static const char *fault_reason_strings[] =
 {
 	"Software",
 	"Present bit in root entry is clear",
@@ -760,14 +760,13 @@ static char *fault_reason_strings[] =
 	"non-zero reserved fields in RTP",
 	"non-zero reserved fields in CTP",
 	"non-zero reserved fields in PTE",
-	"Unknown"
 };
 #define MAX_FAULT_REASON_IDX 	(ARRAY_SIZE(fault_reason_strings) - 1)
 
-char *dmar_get_fault_reason(u8 fault_reason)
+const char *dmar_get_fault_reason(u8 fault_reason)
 {
-	if (fault_reason >= MAX_FAULT_REASON_IDX)
-		return fault_reason_strings[MAX_FAULT_REASON_IDX - 1];
+	if (fault_reason > MAX_FAULT_REASON_IDX)
+		return "Unknown";
 	else
 		return fault_reason_strings[fault_reason];
 }
@@ -825,7 +824,7 @@ void dmar_msi_read(int irq, struct msi_msg *msg)
 static int iommu_page_fault_do_one(struct intel_iommu *iommu, int type,
 		u8 fault_reason, u16 source_id, u64 addr)
 {
-	char *reason;
+	const char *reason;
 
 	reason = dmar_get_fault_reason(fault_reason);
 
