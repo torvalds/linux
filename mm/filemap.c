@@ -1332,7 +1332,7 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	struct file_ra_state *ra = &file->f_ra;
 	struct inode *inode = mapping->host;
 	struct page *page;
-	unsigned long size;
+	pgoff_t size;
 	int did_readaround = 0;
 	int ret = 0;
 
