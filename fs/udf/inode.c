@@ -219,8 +219,8 @@ struct buffer_head *udf_expand_dir_adinicb(struct inode *inode, int *block,
 	struct extent_position epos;
 
 	struct udf_fileident_bh sfibh, dfibh;
-	loff_t f_pos = udf_ext0_offset(inode) >> 2;
-	int size = (udf_ext0_offset(inode) + inode->i_size) >> 2;
+	loff_t f_pos = udf_ext0_offset(inode);
+	int size = udf_ext0_offset(inode) + inode->i_size;
 	struct fileIdentDesc cfi, *sfi, *dfi;
 	struct udf_inode_info *iinfo = UDF_I(inode);
 
@@ -256,11 +256,11 @@ struct buffer_head *udf_expand_dir_adinicb(struct inode *inode, int *block,
 	mark_buffer_dirty_inode(dbh, inode);
 
 	sfibh.soffset = sfibh.eoffset =
-			(f_pos & ((inode->i_sb->s_blocksize - 1) >> 2)) << 2;
+			f_pos & (inode->i_sb->s_blocksize - 1);
 	sfibh.sbh = sfibh.ebh = NULL;
 	dfibh.soffset = dfibh.eoffset = 0;
 	dfibh.sbh = dfibh.ebh = dbh;
-	while ((f_pos < size)) {
+	while (f_pos < size) {
 		iinfo->i_alloc_type = ICBTAG_FLAG_AD_IN_ICB;
 		sfi = udf_fileident_read(inode, &f_pos, &sfibh, &cfi, NULL,
 					 NULL, NULL, NULL);

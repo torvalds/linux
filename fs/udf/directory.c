@@ -95,7 +95,7 @@ struct fileIdentDesc *udf_fileident_read(struct inode *dir, loff_t *nf_pos,
 		if (!fi)
 			return NULL;
 
-		*nf_pos += ((fibh->eoffset - fibh->soffset) >> 2);
+		*nf_pos += fibh->eoffset - fibh->soffset;
 
 		memcpy((uint8_t *)cfi, (uint8_t *)fi,
 		       sizeof(struct fileIdentDesc));
@@ -157,7 +157,7 @@ struct fileIdentDesc *udf_fileident_read(struct inode *dir, loff_t *nf_pos,
 	if (!fi)
 		return NULL;
 
-	*nf_pos += ((fibh->eoffset - fibh->soffset) >> 2);
+	*nf_pos += fibh->eoffset - fibh->soffset;
 
 	if (fibh->eoffset <= dir->i_sb->s_blocksize) {
 		memcpy((uint8_t *)cfi, (uint8_t *)fi,
@@ -197,8 +197,7 @@ struct fileIdentDesc *udf_fileident_read(struct inode *dir, loff_t *nf_pos,
 				  cfi->lengthFileIdent +
 				  le16_to_cpu(cfi->lengthOfImpUse) + 3) & ~3;
 
-			*nf_pos += (fi_len - (fibh->eoffset - fibh->soffset))
-					>> 2;
+			*nf_pos += fi_len - (fibh->eoffset - fibh->soffset);
 			fibh->eoffset = fibh->soffset + fi_len;
 		} else {
 			memcpy((uint8_t *)cfi, (uint8_t *)fi,

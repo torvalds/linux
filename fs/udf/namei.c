@@ -160,14 +160,13 @@ static struct fileIdentDesc *udf_find_entry(struct inode *dir,
 	struct extent_position epos = {};
 	struct udf_inode_info *dinfo = UDF_I(dir);
 
-	size = (udf_ext0_offset(dir) + dir->i_size) >> 2;
-	f_pos = (udf_ext0_offset(dir) >> 2);
+	size = udf_ext0_offset(dir) + dir->i_size;
+	f_pos = udf_ext0_offset(dir);
 
-	fibh->soffset = fibh->eoffset =
-		(f_pos & ((dir->i_sb->s_blocksize - 1) >> 2)) << 2;
+	fibh->soffset = fibh->eoffset = f_pos & (dir->i_sb->s_blocksize - 1);
 	if (dinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB)
 		fibh->sbh = fibh->ebh = NULL;
-	else if (inode_bmap(dir, f_pos >> (dir->i_sb->s_blocksize_bits - 2),
+	else if (inode_bmap(dir, f_pos >> dir->i_sb->s_blocksize_bits,
 			      &epos, &eloc, &elen, &offset) ==
 					(EXT_RECORDED_ALLOCATED >> 30)) {
 		block = udf_get_lb_pblock(dir->i_sb, eloc, offset);
@@ -189,7 +188,7 @@ static struct fileIdentDesc *udf_find_entry(struct inode *dir,
 		return NULL;
 	}
 
-	while ((f_pos < size)) {
+	while (f_pos < size) {
 		fi = udf_fileident_read(dir, &f_pos, fibh, cfi, &epos, &eloc,
 					&elen, &offset);
 		if (!fi) {
@@ -342,7 +341,7 @@ static struct fileIdentDesc *udf_add_entry(struct inode *dir,
 	loff_t f_pos;
 	int flen;
 	char *nameptr;
-	loff_t size = (udf_ext0_offset(dir) + dir->i_size) >> 2;
+	loff_t size = udf_ext0_offset(dir) + dir->i_size;
 	int nfidlen;
 	uint8_t lfi;
 	uint16_t liu;
@@ -370,14 +369,13 @@ static struct fileIdentDesc *udf_add_entry(struct inode *dir,
 
 	nfidlen = (sizeof(struct fileIdentDesc) + namelen + 3) & ~3;
 
-	f_pos = (udf_ext0_offset(dir) >> 2);
+	f_pos = udf_ext0_offset(dir);
 
-	fibh->soffset = fibh->eoffset =
-			(f_pos & ((dir->i_sb->s_blocksize - 1) >> 2)) << 2;
+	fibh->soffset = fibh->eoffset = f_pos & (dir->i_sb->s_blocksize - 1);
 	dinfo = UDF_I(dir);
 	if (dinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB)
 		fibh->sbh = fibh->ebh = NULL;
-	else if (inode_bmap(dir, f_pos >> (dir->i_sb->s_blocksize_bits - 2),
+	else if (inode_bmap(dir, f_pos >> dir->i_sb->s_blocksize_bits,
 			      &epos, &eloc, &elen, &offset) ==
 					(EXT_RECORDED_ALLOCATED >> 30)) {
 		block = udf_get_lb_pblock(dir->i_sb, eloc, offset);
@@ -405,7 +403,7 @@ static struct fileIdentDesc *udf_add_entry(struct inode *dir,
 		goto add;
 	}
 
-	while ((f_pos < size)) {
+	while (f_pos < size) {
 		fi = udf_fileident_read(dir, &f_pos, fibh, cfi, &epos, &eloc,
 					&elen, &offset);
 
@@ -484,7 +482,7 @@ add:
 		epos.bh = NULL;
 		fibh->soffset -= udf_ext0_offset(dir);
 		fibh->eoffset -= udf_ext0_offset(dir);
-		f_pos -= (udf_ext0_offset(dir) >> 2);
+		f_pos -= udf_ext0_offset(dir);
 		if (fibh->sbh != fibh->ebh)
 			brelse(fibh->ebh);
 		brelse(fibh->sbh);
@@ -537,8 +535,7 @@ add:
 		block = eloc.logicalBlockNum + ((elen - 1) >>
 						dir->i_sb->s_blocksize_bits);
 		fibh->ebh = udf_bread(dir,
-				f_pos >> (dir->i_sb->s_blocksize_bits - 2),
-				1, err);
+				f_pos >> dir->i_sb->s_blocksize_bits, 1, err);
 		if (!fibh->ebh) {
 			brelse(epos.bh);
 			brelse(fibh->sbh);
@@ -775,7 +772,7 @@ static int empty_dir(struct inode *dir)
 	struct fileIdentDesc *fi, cfi;
 	struct udf_fileident_bh fibh;
 	loff_t f_pos;
-	loff_t size = (udf_ext0_offset(dir) + dir->i_size) >> 2;
+	loff_t size = udf_ext0_offset(dir) + dir->i_size;
 	int block;
 	kernel_lb_addr eloc;
 	uint32_t elen;
@@ -783,14 +780,12 @@ static int empty_dir(struct inode *dir)
 	struct extent_position epos = {};
 	struct udf_inode_info *dinfo = UDF_I(dir);
 
-	f_pos = (udf_ext0_offset(dir) >> 2);
-
-	fibh.soffset = fibh.eoffset =
-			(f_pos & ((dir->i_sb->s_blocksize - 1) >> 2)) << 2;
+	f_pos = udf_ext0_offset(dir);
+	fibh.soffset = fibh.eoffset = f_pos & (dir->i_sb->s_blocksize - 1);
 
 	if (dinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB)
 		fibh.sbh = fibh.ebh = NULL;
-	else if (inode_bmap(dir, f_pos >> (dir->i_sb->s_blocksize_bits - 2),
+	else if (inode_bmap(dir, f_pos >> dir->i_sb->s_blocksize_bits,
 			      &epos, &eloc, &elen, &offset) ==
 					(EXT_RECORDED_ALLOCATED >> 30)) {
 		block = udf_get_lb_pblock(dir->i_sb, eloc, offset);
@@ -812,7 +807,7 @@ static int empty_dir(struct inode *dir)
 		return 0;
 	}
 
-	while ((f_pos < size)) {
+	while (f_pos < size) {
 		fi = udf_fileident_read(dir, &f_pos, &fibh, &cfi, &epos, &eloc,
 					&elen, &offset);
 		if (!fi) {
