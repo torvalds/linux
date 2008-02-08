@@ -648,10 +648,10 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 			struct gendisk *disk = d->gd;
 			const int rw = bio_data_dir(buf->bio);
 
-			disk_stat_inc(disk, ios[rw]);
-			disk_stat_add(disk, ticks[rw], duration);
-			disk_stat_add(disk, sectors[rw], n_sect);
-			disk_stat_add(disk, io_ticks, duration);
+			all_stat_inc(disk, ios[rw], buf->sector);
+			all_stat_add(disk, ticks[rw], duration, buf->sector);
+			all_stat_add(disk, sectors[rw], n_sect, buf->sector);
+			all_stat_add(disk, io_ticks, duration, buf->sector);
 			n = (buf->flags & BUFFL_FAIL) ? -EIO : 0;
 			bio_endio(buf->bio, n);
 			mempool_free(buf, d->bufpool);
