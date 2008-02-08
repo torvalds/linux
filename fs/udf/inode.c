@@ -1103,7 +1103,7 @@ static void __udf_read_inode(struct inode *inode)
 
 	fe = (struct fileEntry *)bh->b_data;
 
-	if (le16_to_cpu(fe->icbTag.strategyType) == 4096) {
+	if (fe->icbTag.strategyType == cpu_to_le16(4096)) {
 		struct buffer_head *ibh = NULL, *nbh = NULL;
 		struct indirectEntry *ie;
 
@@ -1140,7 +1140,7 @@ static void __udf_read_inode(struct inode *inode)
 		} else {
 			brelse(ibh);
 		}
-	} else if (le16_to_cpu(fe->icbTag.strategyType) != 4) {
+	} else if (fe->icbTag.strategyType != cpu_to_le16(4)) {
 		printk(KERN_ERR "udf: unsupported strategy type: %d\n",
 		       le16_to_cpu(fe->icbTag.strategyType));
 		brelse(bh);
@@ -1164,9 +1164,9 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 	fe = (struct fileEntry *)bh->b_data;
 	efe = (struct extendedFileEntry *)bh->b_data;
 
-	if (le16_to_cpu(fe->icbTag.strategyType) == 4)
+	if (fe->icbTag.strategyType == cpu_to_le16(4))
 		UDF_I_STRAT4096(inode) = 0;
-	else /* if (le16_to_cpu(fe->icbTag.strategyType) == 4096) */
+	else /* if (fe->icbTag.strategyType == cpu_to_le16(4096)) */
 		UDF_I_STRAT4096(inode) = 1;
 
 	UDF_I_ALLOCTYPE(inode) = le16_to_cpu(fe->icbTag.flags) &
@@ -1177,7 +1177,7 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 	UDF_I_LENALLOC(inode) = 0;
 	UDF_I_NEXT_ALLOC_BLOCK(inode) = 0;
 	UDF_I_NEXT_ALLOC_GOAL(inode) = 0;
-	if (le16_to_cpu(fe->descTag.tagIdent) == TAG_IDENT_EFE) {
+	if (fe->descTag.tagIdent == cpu_to_le16(TAG_IDENT_EFE)) {
 		UDF_I_EFE(inode) = 1;
 		UDF_I_USE(inode) = 0;
 		if (udf_alloc_i_data(inode, inode->i_sb->s_blocksize -
@@ -1189,7 +1189,7 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 		       bh->b_data + sizeof(struct extendedFileEntry),
 		       inode->i_sb->s_blocksize -
 					sizeof(struct extendedFileEntry));
-	} else if (le16_to_cpu(fe->descTag.tagIdent) == TAG_IDENT_FE) {
+	} else if (fe->descTag.tagIdent == cpu_to_le16(TAG_IDENT_FE)) {
 		UDF_I_EFE(inode) = 0;
 		UDF_I_USE(inode) = 0;
 		if (udf_alloc_i_data(inode, inode->i_sb->s_blocksize -
@@ -1199,7 +1199,7 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 		}
 		memcpy(UDF_I_DATA(inode), bh->b_data + sizeof(struct fileEntry),
 		       inode->i_sb->s_blocksize - sizeof(struct fileEntry));
-	} else if (le16_to_cpu(fe->descTag.tagIdent) == TAG_IDENT_USE) {
+	} else if (fe->descTag.tagIdent == cpu_to_le16(TAG_IDENT_USE)) {
 		UDF_I_EFE(inode) = 0;
 		UDF_I_USE(inode) = 1;
 		UDF_I_LENALLOC(inode) = le32_to_cpu(
@@ -1458,7 +1458,7 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 	fe = (struct fileEntry *)bh->b_data;
 	efe = (struct extendedFileEntry *)bh->b_data;
 
-	if (le16_to_cpu(fe->descTag.tagIdent) == TAG_IDENT_USE) {
+	if (fe->descTag.tagIdent == cpu_to_le16(TAG_IDENT_USE)) {
 		struct unallocSpaceEntry *use =
 			(struct unallocSpaceEntry *)bh->b_data;
 

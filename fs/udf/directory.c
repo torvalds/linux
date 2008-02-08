@@ -225,7 +225,7 @@ struct fileIdentDesc *udf_get_fileident(void *buffer, int bufsize, int *offset)
 	if ((*offset > 0) && (*offset < bufsize))
 		ptr += *offset;
 	fi = (struct fileIdentDesc *)ptr;
-	if (le16_to_cpu(fi->descTag.tagIdent) != TAG_IDENT_FID) {
+	if (fi->descTag.tagIdent != cpu_to_le16(TAG_IDENT_FID)) {
 		udf_debug("0x%x != TAG_IDENT_FID\n",
 			  le16_to_cpu(fi->descTag.tagIdent));
 		udf_debug("offset: %u sizeof: %lu bufsize: %u\n",
@@ -262,7 +262,7 @@ static extent_ad *udf_get_fileextent(void *buffer, int bufsize, int *offset)
 
 	fe = (struct fileEntry *)buffer;
 
-	if (le16_to_cpu(fe->descTag.tagIdent) != TAG_IDENT_FE) {
+	if (fe->descTag.tagIdent != cpu_to_le16(TAG_IDENT_FE)) {
 		udf_debug("0x%x != TAG_IDENT_FE\n",
 			  le16_to_cpu(fe->descTag.tagIdent));
 		return NULL;

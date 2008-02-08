@@ -1014,20 +1014,20 @@ static int udf_load_partdesc(struct super_block *sb, struct buffer_head *bh)
 				le32_to_cpu(p->partitionLength); /* blocks */
 			map->s_partition_root =
 				le32_to_cpu(p->partitionStartingLocation);
-			if (le32_to_cpu(p->accessType) ==
-					PD_ACCESS_TYPE_READ_ONLY)
+			if (p->accessType ==
+					cpu_to_le32(PD_ACCESS_TYPE_READ_ONLY))
 				map->s_partition_flags |=
 						UDF_PART_FLAG_READ_ONLY;
-			if (le32_to_cpu(p->accessType) ==
-					PD_ACCESS_TYPE_WRITE_ONCE)
+			if (p->accessType ==
+					cpu_to_le32(PD_ACCESS_TYPE_WRITE_ONCE))
 				map->s_partition_flags |=
 						UDF_PART_FLAG_WRITE_ONCE;
-			if (le32_to_cpu(p->accessType) ==
-					PD_ACCESS_TYPE_REWRITABLE)
+			if (p->accessType ==
+					cpu_to_le32(PD_ACCESS_TYPE_REWRITABLE))
 				map->s_partition_flags |=
 						UDF_PART_FLAG_REWRITABLE;
-			if (le32_to_cpu(p->accessType) ==
-					PD_ACCESS_TYPE_OVERWRITABLE)
+			if (p->accessType ==
+				    cpu_to_le32(PD_ACCESS_TYPE_OVERWRITABLE))
 				map->s_partition_flags |=
 						UDF_PART_FLAG_OVERWRITABLE;
 
