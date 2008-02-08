@@ -36,68 +36,8 @@
 #include "udf_i.h"
 #include "udf_sb.h"
 
-/* Prototypes for file operations */
-static int udf_readdir(struct file *, void *, filldir_t);
-static int do_udf_readdir(struct inode *, struct file *, filldir_t, void *);
-
-/* readdir and lookup functions */
-
-const struct file_operations udf_dir_operations = {
-	.read			= generic_read_dir,
-	.readdir		= udf_readdir,
-	.ioctl			= udf_ioctl,
-	.fsync			= udf_fsync_file,
-};
-
-/*
- * udf_readdir
- *
- * PURPOSE
- *	Read a directory entry.
- *
- * DESCRIPTION
- *	Optional - sys_getdents() will return -ENOTDIR if this routine is not
- *	available.
- *
- *	Refer to sys_getdents() in fs/readdir.c
- *	sys_getdents() -> .
- *
- * PRE-CONDITIONS
- *	filp			Pointer to directory file.
- *	buf			Pointer to directory entry buffer.
- *	filldir			Pointer to filldir function.
- *
- * POST-CONDITIONS
- *	<return>		>=0 on success.
- *
- * HISTORY
- *	July 1, 1997 - Andrew E. Mileski
- *	Written, tested, and released.
- */
-
-int udf_readdir(struct file *filp, void *dirent, filldir_t filldir)
-{
-	struct inode *dir = filp->f_path.dentry->d_inode;
-	int result;
-
-	lock_kernel();
-
-	if (filp->f_pos == 0) {
-		if (filldir(dirent, ".", 1, filp->f_pos, dir->i_ino, DT_DIR) < 0) {
-			unlock_kernel();
-			return 0;
-		}
-		filp->f_pos++;
-	}
-
-	result = do_udf_readdir(dir, filp, filldir, dirent);
-	unlock_kernel();
- 	return result;
-}
-
-static int
-do_udf_readdir(struct inode *dir, struct file *filp, filldir_t filldir,
-	       void *dirent)
+static int do_udf_readdir(struct inode *dir, struct file *filp,
+			  filldir_t filldir, void *dirent)
 {
 	struct udf_fileident_bh fibh;
 	struct fileIdentDesc *fi = NULL;
@@ -247,3 +187,57 @@ do_udf_readdir(struct inode *dir, struct file *filp, filldir_t filldir,
 
 	return 0;
 }
+
+/*
+ * udf_readdir
+ *
+ * PURPOSE
+ *	Read a directory entry.
+ *
+ * DESCRIPTION
+ *	Optional - sys_getdents() will return -ENOTDIR if this routine is not
+ *	available.
+ *
+ *	Refer to sys_getdents() in fs/readdir.c
+ *	sys_getdents() -> .
+ *
+ * PRE-CONDITIONS
+ *	filp			Pointer to directory file.
+ *	buf			Pointer to directory entry buffer.
+ *	filldir			Pointer to filldir function.
+ *
+ * POST-CONDITIONS
+ *	<return>		>=0 on success.
+ *
+ * HISTORY
+ *	July 1, 1997 - Andrew E. Mileski
+ *	Written, tested, and released.
+ */
+
+static int udf_readdir(struct file *filp, void *dirent, filldir_t filldir)
+{
+	struct inode *dir = filp->f_path.dentry->d_inode;
+	int result;
+
+	lock_kernel();
+
+	if (filp->f_pos == 0) {
+		if (filldir(dirent, ".", 1, filp->f_pos, dir->i_ino, DT_DIR) < 0) {
+			unlock_kernel();
+			return 0;
+		}
+		filp->f_pos++;
+	}
+
+	result = do_udf_readdir(dir, filp, filldir, dirent);
+	unlock_kernel();
+ 	return result;
+}
+
+/* readdir and lookup functions */
+const struct file_operations udf_dir_operations = {
+	.read			= generic_read_dir,
+	.readdir		= udf_readdir,
+	.ioctl			= udf_ioctl,
+	.fsync			= udf_fsync_file,
+};
