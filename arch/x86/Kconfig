@@ -136,6 +136,9 @@ config AUDIT_ARCH
 	bool
 	default X86_64
 
+config ARCH_SUPPORTS_AOUT
+	def_bool y
+
 # Use the generic interrupt handling code in kernel/irq/:
 config GENERIC_HARDIRQS
 	bool
@@ -1577,7 +1580,7 @@ config IA32_EMULATION
 
 config IA32_AOUT
        tristate "IA32 a.out support"
-       depends on IA32_EMULATION
+       depends on IA32_EMULATION && ARCH_SUPPORTS_AOUT
        help
          Support old a.out binaries in the 32bit emulation.
 

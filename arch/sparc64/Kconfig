@@ -81,6 +81,9 @@ config GENERIC_HARDIRQS_NO__DO_IRQ
 	bool
 	def_bool y
 
+config ARCH_SUPPORTS_AOUT
+	def_bool y
+
 choice
 	prompt "Kernel page size"
 	default SPARC64_PAGE_SIZE_8KB
@@ -390,7 +393,7 @@ config BINFMT_ELF32
 
 config BINFMT_AOUT32
 	bool "Kernel support for 32-bit (ie. SunOS) a.out binaries"
-	depends on SPARC32_COMPAT
+	depends on SPARC32_COMPAT && ARCH_SUPPORTS_AOUT
 	help
 	  This allows you to run 32-bit a.out format binaries on your Ultra.
 	  If you want to run SunOS binaries (see SunOS binary emulation below)
