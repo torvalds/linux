@@ -1195,7 +1195,7 @@ static int udf_rename(struct inode *old_dir, struct dentry *old_dentry,
 		}
 	}
 	if (S_ISDIR(old_inode->i_mode)) {
-		uint32_t offset = udf_ext0_offset(old_inode);
+		int offset = udf_ext0_offset(old_inode);
 
 		if (new_inode) {
 			retval = -ENOTEMPTY;
