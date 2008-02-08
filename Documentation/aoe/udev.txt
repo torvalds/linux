@@ -1,6 +1,7 @@
 # These rules tell udev what device nodes to create for aoe support.
-# They may be installed along the following lines (adjusted to what
-# you see on your system).
+# They may be installed along the following lines.  Check the section
+# 8 udev manpage to see whether your udev supports SUBSYSTEM, and
+# whether it uses one or two equal signs for SUBSYSTEM and KERNEL.
 # 
 #   ecashin@makki ~$ su
 #   Password:
@@ -15,10 +16,10 @@
 #  
 
 # aoe char devices
-SUBSYSTEM="aoe", KERNEL="discover",	NAME="etherd/%k", GROUP="disk", MODE="0220"
-SUBSYSTEM="aoe", KERNEL="err",		NAME="etherd/%k", GROUP="disk", MODE="0440"
-SUBSYSTEM="aoe", KERNEL="interfaces",	NAME="etherd/%k", GROUP="disk", MODE="0220"
-SUBSYSTEM="aoe", KERNEL="revalidate",	NAME="etherd/%k", GROUP="disk", MODE="0220"
+SUBSYSTEM=="aoe", KERNEL=="discover",	NAME="etherd/%k", GROUP="disk", MODE="0220"
+SUBSYSTEM=="aoe", KERNEL=="err",	NAME="etherd/%k", GROUP="disk", MODE="0440"
+SUBSYSTEM=="aoe", KERNEL=="interfaces",	NAME="etherd/%k", GROUP="disk", MODE="0220"
+SUBSYSTEM=="aoe", KERNEL=="revalidate",	NAME="etherd/%k", GROUP="disk", MODE="0220"
 
 # aoe block devices     
-KERNEL="etherd*",       NAME="%k", GROUP="disk"
+KERNEL=="etherd*",       NAME="%k", GROUP="disk"
