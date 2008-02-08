@@ -91,7 +91,6 @@ static void clocksource_ratewd(struct clocksource *cs, int64_t delta)
 	       cs->name, delta);
 	cs->flags &= ~(CLOCK_SOURCE_VALID_FOR_HRES | CLOCK_SOURCE_WATCHDOG);
 	clocksource_change_rating(cs, 0);
-	cs->flags &= ~CLOCK_SOURCE_WATCHDOG;
 	list_del(&cs->wd_list);
 }
 
