@@ -123,7 +123,7 @@ struct crypt_config {
 
 	char cipher[CRYPTO_MAX_ALG_NAME];
 	char chainmode[CRYPTO_MAX_ALG_NAME];
-	struct crypto_blkcipher *tfm;
+	struct crypto_ablkcipher *tfm;
 	unsigned long flags;
 	unsigned int key_size;
 	u8 key[0];
@@ -217,7 +217,7 @@ static int crypt_iv_essiv_ctr(struct crypt_config *cc, struct dm_target *ti,
 		return PTR_ERR(essiv_tfm);
 	}
 	if (crypto_cipher_blocksize(essiv_tfm) !=
-	    crypto_blkcipher_ivsize(cc->tfm)) {
+	    crypto_ablkcipher_ivsize(cc->tfm)) {
 		ti->error = "Block size of ESSIV cipher does "
 			    "not match IV size of block cipher";
 		crypto_free_cipher(essiv_tfm);
@@ -254,7 +254,7 @@ static int crypt_iv_essiv_gen(struct crypt_config *cc, u8 *iv, sector_t sector)
 static int crypt_iv_benbi_ctr(struct crypt_config *cc, struct dm_target *ti,
 			      const char *opts)
 {
-	unsigned int bs = crypto_blkcipher_blocksize(cc->tfm);
+	unsigned bs = crypto_ablkcipher_blocksize(cc->tfm);
 	int log = ilog2(bs);
 
 	/* we need to calculate how far we must shift the sector count
@@ -318,38 +318,6 @@ static struct crypt_iv_operations crypt_iv_null_ops = {
 	.generator = crypt_iv_null_gen
 };
 
-static int
-crypt_convert_scatterlist(struct crypt_config *cc, struct scatterlist *out,
-                          struct scatterlist *in, unsigned int length,
-                          int write, sector_t sector)
-{
-	u8 iv[cc->iv_size] __attribute__ ((aligned(__alignof__(u64))));
-	struct blkcipher_desc desc = {
-		.tfm = cc->tfm,
-		.info = iv,
-		.flags = CRYPTO_TFM_REQ_MAY_SLEEP,
-	};
-	int r;
-
-	if (cc->iv_gen_ops) {
-		r = cc->iv_gen_ops->generator(cc, iv, sector);
-		if (r < 0)
-			return r;
-
-		if (write)
-			r = crypto_blkcipher_encrypt_iv(&desc, out, in, length);
-		else
-			r = crypto_blkcipher_decrypt_iv(&desc, out, in, length);
-	} else {
-		if (write)
-			r = crypto_blkcipher_encrypt(&desc, out, in, length);
-		else
-			r = crypto_blkcipher_decrypt(&desc, out, in, length);
-	}
-
-	return r;
-}
-
 static void crypt_convert_init(struct crypt_config *cc,
 			       struct convert_context *ctx,
 			       struct bio *bio_out, struct bio *bio_in,
@@ -374,18 +342,25 @@ static void crypt_convert_init(struct crypt_config *cc,
 }
 
 static int crypt_convert_block(struct crypt_config *cc,
-			       struct convert_context *ctx)
+			       struct convert_context *ctx,
+			       struct ablkcipher_request *req)
 {
 	struct bio_vec *bv_in = bio_iovec_idx(ctx->bio_in, ctx->idx_in);
 	struct bio_vec *bv_out = bio_iovec_idx(ctx->bio_out, ctx->idx_out);
-	struct dm_crypt_request dmreq;
+	struct dm_crypt_request *dmreq;
+	u8 *iv;
+	int r = 0;
 
-	sg_init_table(&dmreq.sg_in, 1);
-	sg_set_page(&dmreq.sg_in, bv_in->bv_page, 1 << SECTOR_SHIFT,
+	dmreq = (struct dm_crypt_request *)((char *)req + cc->dmreq_start);
+	iv = (u8 *)ALIGN((unsigned long)(dmreq + 1),
+			 crypto_ablkcipher_alignmask(cc->tfm) + 1);
+
+	sg_init_table(&dmreq->sg_in, 1);
+	sg_set_page(&dmreq->sg_in, bv_in->bv_page, 1 << SECTOR_SHIFT,
 		    bv_in->bv_offset + ctx->offset_in);
 
-	sg_init_table(&dmreq.sg_out, 1);
-	sg_set_page(&dmreq.sg_out, bv_out->bv_page, 1 << SECTOR_SHIFT,
+	sg_init_table(&dmreq->sg_out, 1);
+	sg_set_page(&dmreq->sg_out, bv_out->bv_page, 1 << SECTOR_SHIFT,
 		    bv_out->bv_offset + ctx->offset_out);
 
 	ctx->offset_in += 1 << SECTOR_SHIFT;
@@ -400,10 +375,21 @@ static int crypt_convert_block(struct crypt_config *cc,
 		ctx->idx_out++;
 	}
 
-	return crypt_convert_scatterlist(cc, &dmreq.sg_out, &dmreq.sg_in,
-					 dmreq.sg_in.length,
-					 bio_data_dir(ctx->bio_in) == WRITE,
-					 ctx->sector);
+	if (cc->iv_gen_ops) {
+		r = cc->iv_gen_ops->generator(cc, iv, ctx->sector);
+		if (r < 0)
+			return r;
+	}
+
+	ablkcipher_request_set_crypt(req, &dmreq->sg_in, &dmreq->sg_out,
+				     1 << SECTOR_SHIFT, iv);
+
+	if (bio_data_dir(ctx->bio_in) == WRITE)
+		r = crypto_ablkcipher_encrypt(req);
+	else
+		r = crypto_ablkcipher_decrypt(req);
+
+	return r;
 }
 
 static void kcryptd_async_done(struct crypto_async_request *async_req,
@@ -429,11 +415,27 @@ static int crypt_convert(struct crypt_config *cc,
 
 	while(ctx->idx_in < ctx->bio_in->bi_vcnt &&
 	      ctx->idx_out < ctx->bio_out->bi_vcnt) {
-		r = crypt_convert_block(cc, ctx);
-		if (r < 0)
-			break;
 
-		ctx->sector++;
+		crypt_alloc_req(cc, ctx);
+
+		r = crypt_convert_block(cc, ctx, cc->req);
+
+		switch (r) {
+		case -EBUSY:
+			wait_for_completion(&ctx->restart);
+			INIT_COMPLETION(ctx->restart);
+			/* fall through*/
+		case -EINPROGRESS:
+			atomic_inc(&ctx->pending);
+			cc->req = NULL;
+			r = 0;
+			/* fall through*/
+		case 0:
+			ctx->sector++;
+			continue;
+		}
+
+		break;
 	}
 
 	/*
@@ -696,9 +698,12 @@ static void kcryptd_crypt_write_convert_loop(struct dm_crypt_io *io)
 
 		r = crypt_convert(cc, &io->ctx);
 
-		kcryptd_crypt_write_io_submit(io, r, 0);
-		if (unlikely(r < 0))
-			return;
+		if (r != -EINPROGRESS) {
+			kcryptd_crypt_write_io_submit(io, r, 0);
+			if (unlikely(r < 0))
+				return;
+		} else
+			atomic_inc(&io->pending);
 
 		/* out of memory -> run queues */
 		if (unlikely(remaining))
@@ -734,12 +739,17 @@ static void kcryptd_crypt_read_convert(struct dm_crypt_io *io)
 	struct crypt_config *cc = io->target->private;
 	int r = 0;
 
+	atomic_inc(&io->pending);
+
 	crypt_convert_init(cc, &io->ctx, io->base_bio, io->base_bio,
 			   io->sector);
 
 	r = crypt_convert(cc, &io->ctx);
 
-	kcryptd_crypt_read_done(io, r);
+	if (r != -EINPROGRESS)
+		kcryptd_crypt_read_done(io, r);
+
+	crypt_dec_pending(io);
 }
 
 static void kcryptd_async_done(struct crypto_async_request *async_req,
@@ -856,7 +866,7 @@ static int crypt_wipe_key(struct crypt_config *cc)
 static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
 	struct crypt_config *cc;
-	struct crypto_blkcipher *tfm;
+	struct crypto_ablkcipher *tfm;
 	char *tmp;
 	char *cipher;
 	char *chainmode;
@@ -910,7 +920,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad_cipher;
 	}
 
-	tfm = crypto_alloc_blkcipher(cc->cipher, 0, CRYPTO_ALG_ASYNC);
+	tfm = crypto_alloc_ablkcipher(cc->cipher, 0, 0);
 	if (IS_ERR(tfm)) {
 		ti->error = "Error allocating crypto tfm";
 		goto bad_cipher;
@@ -944,7 +954,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	    cc->iv_gen_ops->ctr(cc, ti, ivopts) < 0)
 		goto bad_ivmode;
 
-	cc->iv_size = crypto_blkcipher_ivsize(tfm);
+	cc->iv_size = crypto_ablkcipher_ivsize(tfm);
 	if (cc->iv_size)
 		/* at least a 64 bit sector number should fit in our buffer */
 		cc->iv_size = max(cc->iv_size,
@@ -965,7 +975,10 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	cc->dmreq_start = sizeof(struct ablkcipher_request);
+	cc->dmreq_start += crypto_ablkcipher_reqsize(tfm);
 	cc->dmreq_start = ALIGN(cc->dmreq_start, crypto_tfm_ctx_alignment());
+	cc->dmreq_start += crypto_ablkcipher_alignmask(tfm) &
+			   ~(crypto_tfm_ctx_alignment() - 1);
 
 	cc->req_pool = mempool_create_kmalloc_pool(MIN_IOS, cc->dmreq_start +
 			sizeof(struct dm_crypt_request) + cc->iv_size);
@@ -987,7 +1000,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad_bs;
 	}
 
-	if (crypto_blkcipher_setkey(tfm, cc->key, key_size) < 0) {
+	if (crypto_ablkcipher_setkey(tfm, cc->key, key_size) < 0) {
 		ti->error = "Error setting key";
 		goto bad_device;
 	}
@@ -1055,7 +1068,7 @@ bad_slab_pool:
 	if (cc->iv_gen_ops && cc->iv_gen_ops->dtr)
 		cc->iv_gen_ops->dtr(cc);
 bad_ivmode:
-	crypto_free_blkcipher(tfm);
+	crypto_free_ablkcipher(tfm);
 bad_cipher:
 	/* Must zero key material before freeing */
 	memset(cc, 0, sizeof(*cc) + cc->key_size * sizeof(u8));
@@ -1081,7 +1094,7 @@ static void crypt_dtr(struct dm_target *ti)
 	kfree(cc->iv_mode);
 	if (cc->iv_gen_ops && cc->iv_gen_ops->dtr)
 		cc->iv_gen_ops->dtr(cc);
-	crypto_free_blkcipher(cc->tfm);
+	crypto_free_ablkcipher(cc->tfm);
 	dm_put_device(ti, cc->dev);
 
 	/* Must zero key material before freeing */
