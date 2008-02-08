@@ -6,6 +6,7 @@
  * This file is released under the GPL.
  */
 
+#include <linux/completion.h>
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -31,6 +32,7 @@
  * context holding the current state of a multi-part conversion
  */
 struct convert_context {
+	struct completion restart;
 	struct bio *bio_in;
 	struct bio *bio_out;
 	unsigned int offset_in;
@@ -38,6 +40,7 @@ struct convert_context {
 	unsigned int idx_in;
 	unsigned int idx_out;
 	sector_t sector;
+	atomic_t pending;
 };
 
 /*
@@ -359,6 +362,15 @@ static void crypt_convert_init(struct crypt_config *cc,
 	ctx->idx_in = bio_in ? bio_in->bi_idx : 0;
 	ctx->idx_out = bio_out ? bio_out->bi_idx : 0;
 	ctx->sector = sector + cc->iv_offset;
+	init_completion(&ctx->restart);
+	/*
+	 * Crypto operation can be asynchronous,
+	 * ctx->pending is increased after request submission.
+	 * We need to ensure that we don't call the crypt finish
+	 * operation before pending got incremented
+	 * (dependent on crypt submission return code).
+	 */
+	atomic_set(&ctx->pending, 2);
 }
 
 static int crypt_convert_block(struct crypt_config *cc,
@@ -417,6 +429,15 @@ static int crypt_convert(struct crypt_config *cc,
 
 		ctx->sector++;
 	}
+
+	/*
+	 * If there are pending crypto operation run async
+	 * code. Otherwise process return code synchronously.
+	 * The step of 2 ensures that async finish doesn't
+	 * call crypto finish too early.
+	 */
+	if (atomic_sub_return(2, &ctx->pending))
+		return -EINPROGRESS;
 
 	return r;
 }
