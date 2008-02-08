@@ -53,7 +53,7 @@ int spu_stopped(struct spu_context *ctx, u32 *stat)
 
 	stopped = SPU_STATUS_INVALID_INSTR | SPU_STATUS_SINGLE_STEP |
 		SPU_STATUS_STOPPED_BY_HALT | SPU_STATUS_STOPPED_BY_STOP;
-	if (*stat & stopped)
+	if (!(*stat & SPU_STATUS_RUNNING) && (*stat & stopped))
 		return 1;
 
 	dsisr = ctx->csa.dsisr;
