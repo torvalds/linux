@@ -57,11 +57,6 @@ static inline int in_own_cluster(u32 addr)
 	return !((addr ^ tipc_own_addr) >> 12);
 }
 
-static inline int in_own_zone(u32 addr)
-{
-	return !((addr ^ tipc_own_addr) >> 24);
-}
-
 static inline int is_slave(u32 addr)
 {
 	return addr & 0x800;

@@ -663,11 +663,6 @@ static inline void msg_set_remote_node(struct tipc_msg *m, u32 a)
 	msg_set_word(m, msg_hdr_sz(m)/4, a);
 }
 
-static inline int msg_dataoctet(struct tipc_msg *m, u32 pos)
-{
-	return(msg_data(m)[pos + 4] != 0);
-}
-
 static inline void msg_set_dataoctet(struct tipc_msg *m, u32 pos)
 {
 	msg_data(m)[pos + 4] = 1;
