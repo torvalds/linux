@@ -293,26 +293,27 @@ static void reparent_to_kthreadd(void)
 	switch_uid(INIT_USER);
 }
 
-void __set_special_pids(pid_t session, pid_t pgrp)
+void __set_special_pids(struct pid *pid)
 {
 	struct task_struct *curr = current->group_leader;
+	pid_t nr = pid_nr(pid);
 
-	if (task_session_nr(curr) != session) {
+	if (task_session(curr) != pid) {
 		detach_pid(curr, PIDTYPE_SID);
-		set_task_session(curr, session);
-		attach_pid(curr, PIDTYPE_SID, find_pid(session));
+		attach_pid(curr, PIDTYPE_SID, pid);
+		set_task_session(curr, nr);
 	}
-	if (task_pgrp_nr(curr) != pgrp) {
+	if (task_pgrp(curr) != pid) {
 		detach_pid(curr, PIDTYPE_PGID);
-		set_task_pgrp(curr, pgrp);
-		attach_pid(curr, PIDTYPE_PGID, find_pid(pgrp));
+		attach_pid(curr, PIDTYPE_PGID, pid);
+		set_task_pgrp(curr, nr);
 	}
 }
 
-static void set_special_pids(pid_t session, pid_t pgrp)
+static void set_special_pids(struct pid *pid)
 {
 	write_lock_irq(&tasklist_lock);
-	__set_special_pids(session, pgrp);
+	__set_special_pids(pid);
 	write_unlock_irq(&tasklist_lock);
 }
 
@@ -383,7 +384,11 @@ void daemonize(const char *name, ...)
 	 */
 	current->flags |= PF_NOFREEZE;
 
-	set_special_pids(1, 1);
+	if (current->nsproxy != &init_nsproxy) {
+		get_nsproxy(&init_nsproxy);
+		switch_task_namespaces(current, &init_nsproxy);
+	}
+	set_special_pids(find_pid(1));
 	proc_clear_tty(current);
 
 	/* Block and flush all signals */
@@ -397,11 +402,6 @@ void daemonize(const char *name, ...)
 	fs = init_task.fs;
 	current->fs = fs;
 	atomic_inc(&fs->count);
-
-	if (current->nsproxy != init_task.nsproxy) {
-		get_nsproxy(init_task.nsproxy);
-		switch_task_namespaces(current, init_task.nsproxy);
-	}
 
 	exit_files(current);
 	current->files = init_task.files;

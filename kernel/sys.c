@@ -1065,7 +1065,7 @@ asmlinkage long sys_setsid(void)
 		goto out;
 
 	group_leader->signal->leader = 1;
-	__set_special_pids(pid_nr(sid), pid_nr(sid));
+	__set_special_pids(sid);
 
 	spin_lock(&group_leader->sighand->siglock);
 	group_leader->signal->tty = NULL;

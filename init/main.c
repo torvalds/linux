@@ -833,7 +833,7 @@ static int __init kernel_init(void * unused)
 	 */
 	init_pid_ns.child_reaper = current;
 
-	__set_special_pids(1, 1);
+	__set_special_pids(task_pid(current));
 	cad_pid = task_pid(current);
 
 	smp_prepare_cpus(setup_max_cpus);
