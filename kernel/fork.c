@@ -1488,13 +1488,7 @@ long do_fork(unsigned long clone_flags,
 	if (!IS_ERR(p)) {
 		struct completion vfork;
 
-		/*
-		 * this is enough to call pid_nr_ns here, but this if
-		 * improves optimisation of regular fork()
-		 */
-		nr = (clone_flags & CLONE_NEWPID) ?
-			task_pid_nr_ns(p, current->nsproxy->pid_ns) :
-				task_pid_vnr(p);
+		nr = task_pid_vnr(p);
 
 		if (clone_flags & CLONE_PARENT_SETTID)
 			put_user(nr, parent_tidptr);

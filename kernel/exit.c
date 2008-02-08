@@ -1174,7 +1174,7 @@ static int wait_task_zombie(struct task_struct *p, int noreap,
 {
 	unsigned long state;
 	int retval, status, traced;
-	pid_t pid = task_pid_nr_ns(p, current->nsproxy->pid_ns);
+	pid_t pid = task_pid_vnr(p);
 
 	if (unlikely(noreap)) {
 		uid_t uid = p->uid;
@@ -1369,7 +1369,7 @@ unlock_sig:
 	 * possibly take page faults for user memory.
 	 */
 	get_task_struct(p);
-	pid = task_pid_nr_ns(p, current->nsproxy->pid_ns);
+	pid = task_pid_vnr(p);
 	why = (p->ptrace & PT_PTRACED) ? CLD_TRAPPED : CLD_STOPPED;
 	read_unlock(&tasklist_lock);
 
@@ -1428,7 +1428,7 @@ static int wait_task_continued(struct task_struct *p, int noreap,
 		p->signal->flags &= ~SIGNAL_STOP_CONTINUED;
 	spin_unlock_irq(&p->sighand->siglock);
 
-	pid = task_pid_nr_ns(p, current->nsproxy->pid_ns);
+	pid = task_pid_vnr(p);
 	uid = p->uid;
 	get_task_struct(p);
 	read_unlock(&tasklist_lock);

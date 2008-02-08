@@ -991,17 +991,14 @@ asmlinkage long sys_getpgid(pid_t pid)
 	else {
 		int retval;
 		struct task_struct *p;
-		struct pid_namespace *ns;
-
-		ns = current->nsproxy->pid_ns;
 
 		read_lock(&tasklist_lock);
-		p = find_task_by_pid_ns(pid, ns);
+		p = find_task_by_vpid(pid);
 		retval = -ESRCH;
 		if (p) {
 			retval = security_task_getpgid(p);
 			if (!retval)
-				retval = task_pgrp_nr_ns(p, ns);
+				retval = task_pgrp_vnr(p);
 		}
 		read_unlock(&tasklist_lock);
 		return retval;
