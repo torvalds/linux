@@ -544,7 +544,7 @@ config EXCPT_IRQ_SYSC_L1
 	default y
 	help
 	  If enabled, the entire ASM lowlevel exception and interrupt entry code
-	  (STORE/RESTORE CONTEXT) is linked into L1 instruction memory. 
+	  (STORE/RESTORE CONTEXT) is linked into L1 instruction memory.
 	  (less latency)
 
 config DO_IRQ_L1
@@ -904,29 +904,38 @@ config ARCH_SUSPEND_POSSIBLE
 	depends on !SMP
 
 choice
-	prompt "Select PM Wakeup Event Source"
-	default PM_WAKEUP_GPIO_BY_SIC_IWR
+	prompt "Default Power Saving Mode"
 	depends on PM
+	default PM_BFIN_SLEEP_DEEPER
+config  PM_BFIN_SLEEP_DEEPER
+	bool "Sleep Deeper"
 	help
-	  If you have a GPIO already configured as input with the corresponding PORTx_MASK
-	  bit set - "Specify Wakeup Event by SIC_IWR value"
+	  Sleep "Deeper" Mode (High Power Savings) - This mode reduces dynamic
+	  power dissipation by disabling the clock to the processor core (CCLK).
+	  Furthermore, Standby sets the internal power supply voltage (VDDINT)
+	  to 0.85 V to provide the greatest power savings, while preserving the
+	  processor state.
+	  The PLL and system clock (SCLK) continue to operate at a very low
+	  frequency of about 3.3 MHz. To preserve data integrity in the SDRAM,
+	  the SDRAM is put into Self Refresh Mode. Typically an external event
+	  such as GPIO interrupt or RTC activity wakes up the processor.
+	  Various Peripherals such as UART, SPORT, PPI may not function as
+	  normal during Sleep Deeper, due to the reduced SCLK frequency.
+	  When in the sleep mode, system DMA access to L1 memory is not supported.
 
-config PM_WAKEUP_GPIO_BY_SIC_IWR
-	bool "Specify Wakeup Event by SIC_IWR value"
-config PM_WAKEUP_BY_GPIO
-	bool "Cause Wakeup Event by GPIO"
-config PM_WAKEUP_GPIO_API
-	bool "Configure Wakeup Event by PM GPIO API"
-
+config  PM_BFIN_SLEEP
+	bool "Sleep"
+	help
+	  Sleep Mode (High Power Savings) - The sleep mode reduces power
+	  dissipation by disabling the clock to the processor core (CCLK).
+	  The PLL and system clock (SCLK), however, continue to operate in
+	  this mode. Typically an external event or RTC activity will wake
+	  up the processor. When in the sleep mode,
+	  system DMA access to L1 memory is not supported.
 endchoice
 
-config PM_WAKEUP_SIC_IWR
-	hex "Wakeup Events (SIC_IWR)"
-	depends on PM_WAKEUP_GPIO_BY_SIC_IWR
-	default 0x8 if (BF537 || BF536 || BF534)
-	default 0x80 if (BF533 || BF532 || BF531)
-	default 0x80 if (BF54x)
-	default 0x80 if (BF52x)
+config PM_WAKEUP_BY_GPIO
+	bool "Cause Wakeup Event by GPIO"
 
 config PM_WAKEUP_GPIO_NUMBER
 	int "Wakeup GPIO number"

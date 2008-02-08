@@ -191,6 +191,9 @@ ENTRY(_sleep_mode)
 	call _test_pll_locked;
 
 	R0 = IWR_ENABLE(0);
+	R1 = IWR_DISABLE_ALL;
+	R2 = IWR_DISABLE_ALL;
+
 	call _set_sic_iwr;
 
 	P0.H = hi(PLL_CTL);
@@ -237,6 +240,10 @@ ENTRY(_deep_sleep)
 
 	CLI R4;
 
+	R0 = IWR_ENABLE(0);
+	R1 = IWR_DISABLE_ALL;
+	R2 = IWR_DISABLE_ALL;
+
 	call _set_sic_iwr;
 
 	call _set_dram_srfs;
@@ -261,6 +268,9 @@ ENTRY(_deep_sleep)
 	call _test_pll_locked;
 
 	R0 = IWR_ENABLE(0);
+	R1 = IWR_DISABLE_ALL;
+	R2 = IWR_DISABLE_ALL;
+
 	call _set_sic_iwr;
 
 	P0.H = hi(PLL_CTL);
@@ -286,7 +296,13 @@ ENTRY(_sleep_deeper)
 	CLI R4;
 
 	P3 = R0;
+	P4 = R1;
+	P5 = R2;
+
 	R0 = IWR_ENABLE(0);
+	R1 = IWR_DISABLE_ALL;
+	R2 = IWR_DISABLE_ALL;
+
 	call _set_sic_iwr;
 	call _set_dram_srfs;	/* Set SDRAM Self Refresh */
 
@@ -327,6 +343,8 @@ ENTRY(_sleep_deeper)
 	call _test_pll_locked;
 
 	R0 = P3;
+	R1 = P4;
+	R3 = P5;
 	call _set_sic_iwr;	/* Set Awake from IDLE */
 
 	P0.H = hi(PLL_CTL);
@@ -340,6 +358,9 @@ ENTRY(_sleep_deeper)
 	call _test_pll_locked;
 
 	R0 = IWR_ENABLE(0);
+	R1 = IWR_DISABLE_ALL;
+	R2 = IWR_DISABLE_ALL;
+
 	call _set_sic_iwr;	/* Set Awake from IDLE PLL */
 
 	P0.H = hi(VR_CTL);
@@ -417,14 +438,23 @@ ENTRY(_unset_dram_srfs)
 	RTS;
 
 ENTRY(_set_sic_iwr)
-#if defined(CONFIG_BF54x) || defined(CONFIG_BF52x)
+#if defined(CONFIG_BF54x) || defined(CONFIG_BF52x)  || defined(CONFIG_BF561)
 	P0.H = hi(SIC_IWR0);
 	P0.L = lo(SIC_IWR0);
+	P1.H = hi(SIC_IWR1);
+	P1.L = lo(SIC_IWR1);
+	[P1] = R1;
+#if defined(CONFIG_BF54x)
+	P1.H = hi(SIC_IWR2);
+	P1.L = lo(SIC_IWR2);
+	[P1] = R2;
+#endif
 #else
 	P0.H = hi(SIC_IWR);
 	P0.L = lo(SIC_IWR);
 #endif
 	[P0] = R0;
+
 	SSYNC;
 	RTS;
 
