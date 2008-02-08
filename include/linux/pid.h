@@ -127,9 +127,8 @@ extern void FASTCALL(free_pid(struct pid *pid));
  * the helpers to get the pid's id seen from different namespaces
  *
  * pid_nr()    : global id, i.e. the id seen from the init namespace;
- * pid_vnr()   : virtual id, i.e. the id seen from the namespace this pid
- *               belongs to. this only makes sence when called in the
- *               context of the task that belongs to the same namespace;
+ * pid_vnr()   : virtual id, i.e. the id seen from the pid namespace of
+ *               current.
  * pid_nr_ns() : id seen from the ns specified.
  *
  * see also task_xid_nr() etc in include/linux/sched.h
@@ -144,14 +143,7 @@ static inline pid_t pid_nr(struct pid *pid)
 }
 
 pid_t pid_nr_ns(struct pid *pid, struct pid_namespace *ns);
-
-static inline pid_t pid_vnr(struct pid *pid)
-{
-	pid_t nr = 0;
-	if (pid)
-		nr = pid->numbers[pid->level].nr;
-	return nr;
-}
+pid_t pid_vnr(struct pid *pid);
 
 #define do_each_pid_task(pid, type, task)				\
 	do {								\
