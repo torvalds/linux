@@ -52,7 +52,7 @@ struct flow_percpu_info {
 	int hash_rnd_recalc;
 	u32 hash_rnd;
 	int count;
-} ____cacheline_aligned;
+};
 static DEFINE_PER_CPU(struct flow_percpu_info, flow_hash_info) = { 0 };
 
 #define flow_hash_rnd_recalc(cpu) \
