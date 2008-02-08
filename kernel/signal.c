@@ -1591,10 +1591,10 @@ static int sigkill_pending(struct task_struct *tsk)
  * That makes it a way to test a stopped process for
  * being ptrace-stopped vs being job-control-stopped.
  *
- * If we actually decide not to stop at all because the tracer is gone,
- * we leave nostop_code in current->exit_code.
+ * If we actually decide not to stop at all because the tracer
+ * is gone, we keep current->exit_code unless clear_code.
  */
-static void ptrace_stop(int exit_code, int nostop_code, siginfo_t *info)
+static void ptrace_stop(int exit_code, int clear_code, siginfo_t *info)
 {
 	int killed = 0;
 
@@ -1641,7 +1641,8 @@ static void ptrace_stop(int exit_code, int nostop_code, siginfo_t *info)
 		 * Don't drop the lock yet, another tracer may come.
 		 */
 		__set_current_state(TASK_RUNNING);
-		current->exit_code = nostop_code;
+		if (clear_code)
+			current->exit_code = 0;
 		read_unlock(&tasklist_lock);
 	}
 
@@ -1675,7 +1676,7 @@ void ptrace_notify(int exit_code)
 
 	/* Let the debugger run.  */
 	spin_lock_irq(&current->sighand->siglock);
-	ptrace_stop(exit_code, 0, &info);
+	ptrace_stop(exit_code, 1, &info);
 	spin_unlock_irq(&current->sighand->siglock);
 }
 
@@ -1782,7 +1783,7 @@ relock:
 			ptrace_signal_deliver(regs, cookie);
 
 			/* Let the debugger run.  */
-			ptrace_stop(signr, signr, info);
+			ptrace_stop(signr, 0, info);
 
 			/* We're back.  Did the debugger cancel the sig?  */
 			signr = current->exit_code;
