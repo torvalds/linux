@@ -106,45 +106,104 @@ ifrotate(struct aoetgt *t)
 	}
 }
 
+static void
+skb_pool_put(struct aoedev *d, struct sk_buff *skb)
+{
+	if (!d->skbpool_hd)
+		d->skbpool_hd = skb;
+	else
+		d->skbpool_tl->next = skb;
+	d->skbpool_tl = skb;
+}
+
+static struct sk_buff *
+skb_pool_get(struct aoedev *d)
+{
+	struct sk_buff *skb;
+
+	skb = d->skbpool_hd;
+	if (skb && atomic_read(&skb_shinfo(skb)->dataref) == 1) {
+		d->skbpool_hd = skb->next;
+		skb->next = NULL;
+		return skb;
+	}
+	if (d->nskbpool < NSKBPOOLMAX
+	&& (skb = new_skb(ETH_ZLEN))) {
+		d->nskbpool++;
+		return skb;
+	}
+	return NULL;
+}
+
+/* freeframe is where we do our load balancing so it's a little hairy. */
 static struct frame *
 freeframe(struct aoedev *d)
 {
-	struct frame *f, *e;
+	struct frame *f, *e, *rf;
 	struct aoetgt **t;
-	ulong n;
+	struct sk_buff *skb;
 
 	if (d->targets[0] == NULL) {	/* shouldn't happen, but I'm paranoid */
 		printk(KERN_ERR "aoe: NULL TARGETS!\n");
 		return NULL;
 	}
-	t = d->targets;
-	do {
-		if (t != d->htgt
-		&& (*t)->ifp->nd
-		&& (*t)->nout < (*t)->maxout) {
-			n = (*t)->nframes;
+	t = d->tgt;
+	t++;
+	if (t >= &d->targets[NTARGETS] || !*t)
+		t = d->targets;
+	for (;;) {
+		if ((*t)->nout < (*t)->maxout
+		&& t != d->htgt
+		&& (*t)->ifp->nd) {
+			rf = NULL;
 			f = (*t)->frames;
-			e = f + n;
+			e = f + (*t)->nframes;
 			for (; f < e; f++) {
 				if (f->tag != FREETAG)
 					continue;
-				if (atomic_read(&skb_shinfo(f->skb)->dataref)
+				skb = f->skb;
+				if (!skb
+				&& !(f->skb = skb = new_skb(ETH_ZLEN)))
+					continue;
+				if (atomic_read(&skb_shinfo(skb)->dataref)
 					!= 1) {
-					n--;
+					if (!rf)
+						rf = f;
 					continue;
 				}
-				skb_shinfo(f->skb)->nr_frags = 0;
-				f->skb->data_len = 0;
-				skb_trim(f->skb, 0);
+gotone:				skb_shinfo(skb)->nr_frags = skb->data_len = 0;
+				skb_trim(skb, 0);
 				d->tgt = t;
 				ifrotate(*t);
 				return f;
 			}
-			if (n == 0)	/* slow polling network card */
+			/* Work can be done, but the network layer is
+			   holding our precious packets.  Try to grab
+			   one from the pool. */
+			f = rf;
+			if (f == NULL) {	/* more paranoia */
+				printk(KERN_ERR
+					"aoe: freeframe: %s.\n",
+					"unexpected null rf");
+				d->flags |= DEVFL_KICKME;
+				return NULL;
+			}
+			skb = skb_pool_get(d);
+			if (skb) {
+				skb_pool_put(d, f->skb);
+				f->skb = skb;
+				goto gotone;
+			}
+			(*t)->dataref++;
+			if ((*t)->nout == 0)
 				d->flags |= DEVFL_KICKME;
 		}
+		if (t == d->tgt)	/* we've looped and found nada */
+			break;
 		t++;
-	} while (t < &d->targets[NTARGETS] && *t);
+		if (t >= &d->targets[NTARGETS] || !*t)
+			t = d->targets;
+	}
 	return NULL;
 }
 
@@ -894,33 +953,23 @@ addtgt(struct aoedev *d, char *addr, ulong nframes)
 		return NULL;
 
 	t = kcalloc(1, sizeof *t, GFP_ATOMIC);
+	if (!t)
+		return NULL;
 	f = kcalloc(nframes, sizeof *f, GFP_ATOMIC);
-	if (!t || !f)
-		goto bail;
+	if (!f) {
+		kfree(t);
+		return NULL;
+	}
+
 	t->nframes = nframes;
 	t->frames = f;
 	e = f + nframes;
-	for (; f < e; f++) {
+	for (; f < e; f++)
 		f->tag = FREETAG;
-		f->skb = new_skb(ETH_ZLEN);
-		if (!f->skb)
-			break;
-	}
-	if (f != e) {
-		while (f > t->frames) {
-			f--;
-			dev_kfree_skb(f->skb);
-		}
-		goto bail;
-	}
 	memcpy(t->addr, addr, sizeof t->addr);
 	t->ifp = t->ifs;
 	t->maxout = t->nframes;
 	return *tt = t;
-bail:
-	kfree(t);
-	kfree(f);
-	return NULL;
 }
 
 void

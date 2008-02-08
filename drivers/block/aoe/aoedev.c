@@ -7,11 +7,13 @@
 #include <linux/hdreg.h>
 #include <linux/blkdev.h>
 #include <linux/netdevice.h>
+#include <linux/delay.h>
 #include "aoe.h"
 
 static void dummy_timer(ulong);
 static void aoedev_freedev(struct aoedev *);
-static void freetgt(struct aoetgt *t);
+static void freetgt(struct aoedev *d, struct aoetgt *t);
+static void skbpoolfree(struct aoedev *d);
 
 static struct aoedev *devlist;
 static spinlock_t devlist_lock;
@@ -125,9 +127,10 @@ aoedev_freedev(struct aoedev *d)
 	t = d->targets;
 	e = t + NTARGETS;
 	for (; t < e && *t; t++)
-		freetgt(*t);
+		freetgt(d, *t);
 	if (d->bufpool)
 		mempool_destroy(d->bufpool);
+	skbpoolfree(d);
 	kfree(d);
 }
 
@@ -176,6 +179,43 @@ aoedev_flush(const char __user *str, size_t cnt)
 	return 0;
 }
 
+/* I'm not really sure that this is a realistic problem, but if the
+network driver goes gonzo let's just leak memory after complaining. */
+static void
+skbfree(struct sk_buff *skb)
+{
+	enum { Sms = 100, Tms = 3*1000};
+	int i = Tms / Sms;
+
+	if (skb == NULL)
+		return;
+	while (atomic_read(&skb_shinfo(skb)->dataref) != 1 && i-- > 0)
+		msleep(Sms);
+	if (i <= 0) {
+		printk(KERN_ERR
+			"aoe: %s holds ref: %s\n",
+			skb->dev ? skb->dev->name : "netif",
+			"cannot free skb -- memory leaked.");
+		return;
+	}
+	skb_shinfo(skb)->nr_frags = skb->data_len = 0;
+	skb_trim(skb, 0);
+	dev_kfree_skb(skb);
+}
+
+static void
+skbpoolfree(struct aoedev *d)
+{
+	struct sk_buff *skb;
+
+	while ((skb = d->skbpool_hd)) {
+		d->skbpool_hd = skb->next;
+		skb->next = NULL;
+		skbfree(skb);
+	}
+	d->skbpool_tl = NULL;
+}
+
 /* find it or malloc it */
 struct aoedev *
 aoedev_by_sysminor_m(ulong sysminor)
@@ -215,16 +255,14 @@ aoedev_by_sysminor_m(ulong sysminor)
 }
 
 static void
-freetgt(struct aoetgt *t)
+freetgt(struct aoedev *d, struct aoetgt *t)
 {
 	struct frame *f, *e;
 
 	f = t->frames;
 	e = f + t->nframes;
-	for (; f < e; f++) {
-		skb_shinfo(f->skb)->nr_frags = 0;
-		dev_kfree_skb(f->skb);
-	}
+	for (; f < e; f++)
+		skbfree(f->skb);
 	kfree(t->frames);
 	kfree(t);
 }

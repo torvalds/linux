@@ -89,6 +89,7 @@ enum {
 	MIN_BUFS = 16,
 	NTARGETS = 8,
 	NAOEIFS = 8,
+	NSKBPOOLMAX = 128,
 
 	TIMERTICK = HZ / 10,
 	MINTIMER = HZ >> 2,
@@ -138,6 +139,7 @@ struct aoetgt {
 	u16 useme;
 	ulong lastwadj;		/* last window adjustment */
 	int wpkts, rpkts;
+	int dataref;
 };
 
 struct aoedev {
@@ -159,6 +161,9 @@ struct aoedev {
 	spinlock_t lock;
 	struct sk_buff *sendq_hd; /* packets needing to be sent, list head */
 	struct sk_buff *sendq_tl;
+	struct sk_buff *skbpool_hd;
+	struct sk_buff *skbpool_tl;
+	int nskbpool;
 	mempool_t *bufpool;	/* for deadlock-free Buf allocation */
 	struct list_head bufq;	/* queue of bios to work on */
 	struct buf *inprocess;	/* the one we're currently working on */
