@@ -322,7 +322,7 @@ config BLK_DEV_UB
 	  If unsure, say N.
 
 config BLK_DEV_RAM
-	tristate "RAM disk support"
+	tristate "RAM block device support"
 	---help---
 	  Saying Y here will allow you to use a portion of your RAM memory as
 	  a block device, so that you can make file systems on it, read and
@@ -356,16 +356,6 @@ config BLK_DEV_RAM_SIZE
 	help
 	  The default value is 4096 kilobytes. Only change this if you know
 	  what you are doing.
-
-config BLK_DEV_RAM_BLOCKSIZE
-	int "Default RAM disk block size (bytes)"
-	depends on BLK_DEV_RAM
-	default "1024"
-	help
-	  The default value is 1024 bytes.  PAGE_SIZE is a much more
-	  efficient choice however.  The default is kept to ensure initrd
-	  setups function - apparently needed by the rd_load_image routine
-	  that supposes the filesystem in the image uses a 1024 blocksize.
 
 config CDROM_PKTCDVD
 	tristate "Packet writing on CD/DVD media"
