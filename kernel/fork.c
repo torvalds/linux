@@ -909,7 +909,6 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 	hrtimer_init(&sig->real_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	sig->it_real_incr.tv64 = 0;
 	sig->real_timer.function = it_real_fn;
-	sig->tsk = tsk;
 
 	sig->it_virt_expires = cputime_zero;
 	sig->it_virt_incr = cputime_zero;
@@ -1338,6 +1337,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 			if (clone_flags & CLONE_NEWPID)
 				p->nsproxy->pid_ns->child_reaper = p;
 
+			p->signal->leader_pid = pid;
 			p->signal->tty = current->signal->tty;
 			set_task_pgrp(p, task_pgrp_nr(current));
 			set_task_session(p, task_session_nr(current));

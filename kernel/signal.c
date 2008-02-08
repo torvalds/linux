@@ -1205,20 +1205,6 @@ send_sig(int sig, struct task_struct *p, int priv)
 	return send_sig_info(sig, __si_special(priv), p);
 }
 
-/*
- * This is the entry point for "process-wide" signals.
- * They will go to an appropriate thread in the thread group.
- */
-int
-send_group_sig_info(int sig, struct siginfo *info, struct task_struct *p)
-{
-	int ret;
-	read_lock(&tasklist_lock);
-	ret = group_send_sig_info(sig, info, p);
-	read_unlock(&tasklist_lock);
-	return ret;
-}
-
 void
 force_sig(int sig, struct task_struct *p)
 {
