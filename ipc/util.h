@@ -20,6 +20,8 @@ void sem_init (void);
 void msg_init (void);
 void shm_init (void);
 
+struct ipc_namespace;
+
 int sem_init_ns(struct ipc_namespace *ns);
 int msg_init_ns(struct ipc_namespace *ns);
 int shm_init_ns(struct ipc_namespace *ns);
