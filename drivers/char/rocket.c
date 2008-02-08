@@ -1399,6 +1399,9 @@ static int reset_rm2(struct r_port *info, void __user *arg)
 {
 	int reset;
 
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
 	if (copy_from_user(&reset, arg, sizeof (int)))
 		return -EFAULT;
 	if (reset)
