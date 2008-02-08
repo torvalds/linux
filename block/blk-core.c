@@ -102,27 +102,38 @@ struct backing_dev_info *blk_get_backing_dev_info(struct block_device *bdev)
 }
 EXPORT_SYMBOL(blk_get_backing_dev_info);
 
+/*
+ * We can't just memset() the structure, since the allocation path
+ * already stored some information in the request.
+ */
 void rq_init(struct request_queue *q, struct request *rq)
 {
 	INIT_LIST_HEAD(&rq->queuelist);
 	INIT_LIST_HEAD(&rq->donelist);
-
-	rq->errors = 0;
+	rq->q = q;
+	rq->sector = rq->hard_sector = (sector_t) -1;
+	rq->nr_sectors = rq->hard_nr_sectors = 0;
+	rq->current_nr_sectors = rq->hard_cur_sectors = 0;
 	rq->bio = rq->biotail = NULL;
 	INIT_HLIST_NODE(&rq->hash);
 	RB_CLEAR_NODE(&rq->rb_node);
-	rq->ioprio = 0;
-	rq->buffer = NULL;
-	rq->ref_count = 1;
-	rq->q = q;
-	rq->special = NULL;
-	rq->data_len = 0;
-	rq->data = NULL;
+	rq->rq_disk = NULL;
 	rq->nr_phys_segments = 0;
+	rq->nr_hw_segments = 0;
+	rq->ioprio = 0;
+	rq->special = NULL;
+	rq->buffer = NULL;
+	rq->tag = -1;
+	rq->errors = 0;
+	rq->ref_count = 1;
+	rq->cmd_len = 0;
+	memset(rq->cmd, 0, sizeof(rq->cmd));
+	rq->data_len = 0;
+	rq->sense_len = 0;
+	rq->data = NULL;
 	rq->sense = NULL;
 	rq->end_io = NULL;
 	rq->end_io_data = NULL;
-	rq->completion_data = NULL;
 	rq->next_rq = NULL;
 }
 

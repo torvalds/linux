@@ -137,7 +137,9 @@ enum rq_flag_bits {
 #define BLK_MAX_CDB	16
 
 /*
- * try to put the fields that are referenced together in the same cacheline
+ * try to put the fields that are referenced together in the same cacheline.
+ * if you modify this structure, be sure to check block/blk-core.c:rq_init()
+ * as well!
  */
 struct request {
 	struct list_head queuelist;
