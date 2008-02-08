@@ -444,7 +444,7 @@ static int r_show(struct seq_file *m, void *v)
 	return show(m, v);
 }
 
-static struct seq_operations r_ops = {
+static const struct seq_operations r_ops = {
 	.start = r_start,
 	.next = r_next,
 	.stop = r_stop,
