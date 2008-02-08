@@ -110,15 +110,15 @@ struct target_type {
 };
 
 struct io_restrictions {
-	unsigned int		max_sectors;
-	unsigned short		max_phys_segments;
-	unsigned short		max_hw_segments;
-	unsigned short		hardsect_size;
-	unsigned int		max_segment_size;
-	unsigned int		max_hw_sectors;
-	unsigned long		seg_boundary_mask;
-	unsigned long		bounce_pfn;
-	unsigned char		no_cluster; /* inverted so that 0 is default */
+	unsigned long bounce_pfn;
+	unsigned long seg_boundary_mask;
+	unsigned max_hw_sectors;
+	unsigned max_sectors;
+	unsigned max_segment_size;
+	unsigned short hardsect_size;
+	unsigned short max_hw_segments;
+	unsigned short max_phys_segments;
+	unsigned char no_cluster; /* inverted so that 0 is default */
 };
 
 struct dm_target {
