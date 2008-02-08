@@ -32,6 +32,13 @@ struct slabinfo {
 	int sanity_checks, slab_size, store_user, trace;
 	int order, poison, reclaim_account, red_zone;
 	unsigned long partial, objects, slabs;
+	unsigned long alloc_fastpath, alloc_slowpath;
+	unsigned long free_fastpath, free_slowpath;
+	unsigned long free_frozen, free_add_partial, free_remove_partial;
+	unsigned long alloc_from_partial, alloc_slab, free_slab, alloc_refill;
+	unsigned long cpuslab_flush, deactivate_full, deactivate_empty;
+	unsigned long deactivate_to_head, deactivate_to_tail;
+	unsigned long deactivate_remote_frees;
 	int numa[MAX_NODES];
 	int numa_partial[MAX_NODES];
 } slabinfo[MAX_SLABS];
@@ -64,8 +71,10 @@ int show_inverted = 0;
 int show_single_ref = 0;
 int show_totals = 0;
 int sort_size = 0;
+int sort_active = 0;
 int set_debug = 0;
 int show_ops = 0;
+int show_activity = 0;
 
 /* Debug options */
 int sanity = 0;
@@ -93,8 +102,10 @@ void usage(void)
 	printf("slabinfo 5/7/2007. (c) 2007 sgi. clameter@sgi.com\n\n"
 		"slabinfo [-ahnpvtsz] [-d debugopts] [slab-regexp]\n"
 		"-a|--aliases           Show aliases\n"
+		"-A|--activity          Most active slabs first\n"
 		"-d<options>|--debug=<options> Set/Clear Debug options\n"
-		"-e|--empty		Show empty slabs\n"
+		"-D|--display-active    Switch line format to activity\n"
+		"-e|--empty             Show empty slabs\n"
 		"-f|--first-alias       Show first alias\n"
 		"-h|--help              Show usage information\n"
 		"-i|--inverted          Inverted list\n"
@@ -281,8 +292,11 @@ int line = 0;
 
 void first_line(void)
 {
-	printf("Name                   Objects Objsize    Space "
-		"Slabs/Part/Cpu  O/S O %%Fr %%Ef Flg\n");
+	if (show_activity)
+		printf("Name                   Objects    Alloc     Free   %%Fast\n");
+	else
+		printf("Name                   Objects Objsize    Space "
+			"Slabs/Part/Cpu  O/S O %%Fr %%Ef Flg\n");
 }
 
 /*
@@ -307,6 +321,12 @@ struct aliasinfo *find_one_alias(struct slabinfo *find)
 unsigned long slab_size(struct slabinfo *s)
 {
 	return 	s->slabs * (page_size << s->order);
+}
+
+unsigned long slab_activity(struct slabinfo *s)
+{
+	return 	s->alloc_fastpath + s->free_fastpath +
+		s->alloc_slowpath + s->free_slowpath;
 }
 
 void slab_numa(struct slabinfo *s, int mode)
@@ -392,6 +412,71 @@ const char *onoff(int x)
 	return "Off";
 }
 
+void slab_stats(struct slabinfo *s)
+{
+	unsigned long total_alloc;
+	unsigned long total_free;
+	unsigned long total;
+
+	if (!s->alloc_slab)
+		return;
+
+	total_alloc = s->alloc_fastpath + s->alloc_slowpath;
+	total_free = s->free_fastpath + s->free_slowpath;
+
+	if (!total_alloc)
+		return;
+
+	printf("\n");
+	printf("Slab Perf Counter       Alloc     Free %%Al %%Fr\n");
+	printf("--------------------------------------------------\n");
+	printf("Fastpath             %8lu %8lu %3lu %3lu\n",
+		s->alloc_fastpath, s->free_fastpath,
+		s->alloc_fastpath * 100 / total_alloc,
+		s->free_fastpath * 100 / total_free);
+	printf("Slowpath             %8lu %8lu %3lu %3lu\n",
+		total_alloc - s->alloc_fastpath, s->free_slowpath,
+		(total_alloc - s->alloc_fastpath) * 100 / total_alloc,
+		s->free_slowpath * 100 / total_free);
+	printf("Page Alloc           %8lu %8lu %3lu %3lu\n",
+		s->alloc_slab, s->free_slab,
+		s->alloc_slab * 100 / total_alloc,
+		s->free_slab * 100 / total_free);
+	printf("Add partial          %8lu %8lu %3lu %3lu\n",
+		s->deactivate_to_head + s->deactivate_to_tail,
+		s->free_add_partial,
+		(s->deactivate_to_head + s->deactivate_to_tail) * 100 / total_alloc,
+		s->free_add_partial * 100 / total_free);
+	printf("Remove partial       %8lu %8lu %3lu %3lu\n",
+		s->alloc_from_partial, s->free_remove_partial,
+		s->alloc_from_partial * 100 / total_alloc,
+		s->free_remove_partial * 100 / total_free);
+
+	printf("RemoteObj/SlabFrozen %8lu %8lu %3lu %3lu\n",
+		s->deactivate_remote_frees, s->free_frozen,
+		s->deactivate_remote_frees * 100 / total_alloc,
+		s->free_frozen * 100 / total_free);
+
+	printf("Total                %8lu %8lu\n\n", total_alloc, total_free);
+
+	if (s->cpuslab_flush)
+		printf("Flushes %8lu\n", s->cpuslab_flush);
+
+	if (s->alloc_refill)
+		printf("Refill %8lu\n", s->alloc_refill);
+
+	total = s->deactivate_full + s->deactivate_empty +
+			s->deactivate_to_head + s->deactivate_to_tail;
+
+	if (total)
+		printf("Deactivate Full=%lu(%lu%%) Empty=%lu(%lu%%) "
+			"ToHead=%lu(%lu%%) ToTail=%lu(%lu%%)\n",
+			s->deactivate_full, (s->deactivate_full * 100) / total,
+			s->deactivate_empty, (s->deactivate_empty * 100) / total,
+			s->deactivate_to_head, (s->deactivate_to_head * 100) / total,
+			s->deactivate_to_tail, (s->deactivate_to_tail * 100) / total);
+}
+
 void report(struct slabinfo *s)
 {
 	if (strcmp(s->name, "*") == 0)
@@ -430,6 +515,7 @@ void report(struct slabinfo *s)
 	ops(s);
 	show_tracking(s);
 	slab_numa(s, 1);
+	slab_stats(s);
 }
 
 void slabcache(struct slabinfo *s)
@@ -479,13 +565,27 @@ void slabcache(struct slabinfo *s)
 		*p++ = 'T';
 
 	*p = 0;
-	printf("%-21s %8ld %7d %8s %14s %4d %1d %3ld %3ld %s\n",
-		s->name, s->objects, s->object_size, size_str, dist_str,
-		s->objs_per_slab, s->order,
-		s->slabs ? (s->partial * 100) / s->slabs : 100,
-		s->slabs ? (s->objects * s->object_size * 100) /
-			(s->slabs * (page_size << s->order)) : 100,
-		flags);
+	if (show_activity) {
+		unsigned long total_alloc;
+		unsigned long total_free;
+
+		total_alloc = s->alloc_fastpath + s->alloc_slowpath;
+		total_free = s->free_fastpath + s->free_slowpath;
+
+		printf("%-21s %8ld %8ld %8ld %3ld %3ld \n",
+			s->name, s->objects,
+			total_alloc, total_free,
+			total_alloc ? (s->alloc_fastpath * 100 / total_alloc) : 0,
+			total_free ? (s->free_fastpath * 100 / total_free) : 0);
+	}
+	else
+		printf("%-21s %8ld %7d %8s %14s %4d %1d %3ld %3ld %s\n",
+			s->name, s->objects, s->object_size, size_str, dist_str,
+			s->objs_per_slab, s->order,
+			s->slabs ? (s->partial * 100) / s->slabs : 100,
+			s->slabs ? (s->objects * s->object_size * 100) /
+				(s->slabs * (page_size << s->order)) : 100,
+			flags);
 }
 
 /*
@@ -892,6 +992,8 @@ void sort_slabs(void)
 
 			if (sort_size)
 				result = slab_size(s1) < slab_size(s2);
+			else if (sort_active)
+				result = slab_activity(s1) < slab_activity(s2);
 			else
 				result = strcasecmp(s1->name, s2->name);
 
@@ -1074,6 +1176,23 @@ void read_slab_dir(void)
 			free(t);
 			slab->store_user = get_obj("store_user");
 			slab->trace = get_obj("trace");
+			slab->alloc_fastpath = get_obj("alloc_fastpath");
+			slab->alloc_slowpath = get_obj("alloc_slowpath");
+			slab->free_fastpath = get_obj("free_fastpath");
+			slab->free_slowpath = get_obj("free_slowpath");
+			slab->free_frozen= get_obj("free_frozen");
+			slab->free_add_partial = get_obj("free_add_partial");
+			slab->free_remove_partial = get_obj("free_remove_partial");
+			slab->alloc_from_partial = get_obj("alloc_from_partial");
+			slab->alloc_slab = get_obj("alloc_slab");
+			slab->alloc_refill = get_obj("alloc_refill");
+			slab->free_slab = get_obj("free_slab");
+			slab->cpuslab_flush = get_obj("cpuslab_flush");
+			slab->deactivate_full = get_obj("deactivate_full");
+			slab->deactivate_empty = get_obj("deactivate_empty");
+			slab->deactivate_to_head = get_obj("deactivate_to_head");
+			slab->deactivate_to_tail = get_obj("deactivate_to_tail");
+			slab->deactivate_remote_frees = get_obj("deactivate_remote_frees");
 			chdir("..");
 			if (slab->name[0] == ':')
 				alias_targets++;
@@ -1124,7 +1243,9 @@ void output_slabs(void)
 
 struct option opts[] = {
 	{ "aliases", 0, NULL, 'a' },
+	{ "activity", 0, NULL, 'A' },
 	{ "debug", 2, NULL, 'd' },
+	{ "display-activity", 0, NULL, 'D' },
 	{ "empty", 0, NULL, 'e' },
 	{ "first-alias", 0, NULL, 'f' },
 	{ "help", 0, NULL, 'h' },
@@ -1149,7 +1270,7 @@ int main(int argc, char *argv[])
 
 	page_size = getpagesize();
 
-	while ((c = getopt_long(argc, argv, "ad::efhil1noprstvzTS",
+	while ((c = getopt_long(argc, argv, "aAd::Defhil1noprstvzTS",
 						opts, NULL)) != -1)
 		switch (c) {
 		case '1':
@@ -1158,10 +1279,16 @@ int main(int argc, char *argv[])
 		case 'a':
 			show_alias = 1;
 			break;
+		case 'A':
+			sort_active = 1;
+			break;
 		case 'd':
 			set_debug = 1;
 			if (!debug_opt_scan(optarg))
 				fatal("Invalid debug option '%s'\n", optarg);
+			break;
+		case 'D':
+			show_activity = 1;
 			break;
 		case 'e':
 			show_empty = 1;

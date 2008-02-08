@@ -250,6 +250,7 @@ enum track_item { TRACK_ALLOC, TRACK_FREE };
 static int sysfs_slab_add(struct kmem_cache *);
 static int sysfs_slab_alias(struct kmem_cache *, const char *);
 static void sysfs_slab_remove(struct kmem_cache *);
+
 #else
 static inline int sysfs_slab_add(struct kmem_cache *s) { return 0; }
 static inline int sysfs_slab_alias(struct kmem_cache *s, const char *p)
@@ -258,7 +259,15 @@ static inline void sysfs_slab_remove(struct kmem_cache *s)
 {
 	kfree(s);
 }
+
 #endif
+
+static inline void stat(struct kmem_cache_cpu *c, enum stat_item si)
+{
+#ifdef CONFIG_SLUB_STATS
+	c->stat[si]++;
+#endif
+}
 
 /********************************************************************
  * 			Core slab cache functions
@@ -1364,17 +1373,22 @@ static struct page *get_partial(struct kmem_cache *s, gfp_t flags, int node)
 static void unfreeze_slab(struct kmem_cache *s, struct page *page, int tail)
 {
 	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
+	struct kmem_cache_cpu *c = get_cpu_slab(s, smp_processor_id());
 
 	ClearSlabFrozen(page);
 	if (page->inuse) {
 
-		if (page->freelist != page->end)
+		if (page->freelist != page->end) {
 			add_partial(n, page, tail);
-		else if (SlabDebug(page) && (s->flags & SLAB_STORE_USER))
-			add_full(n, page);
+			stat(c, tail ? DEACTIVATE_TO_TAIL : DEACTIVATE_TO_HEAD);
+		} else {
+			stat(c, DEACTIVATE_FULL);
+			if (SlabDebug(page) && (s->flags & SLAB_STORE_USER))
+				add_full(n, page);
+		}
 		slab_unlock(page);
-
 	} else {
+		stat(c, DEACTIVATE_EMPTY);
 		if (n->nr_partial < MIN_PARTIAL) {
 			/*
 			 * Adding an empty slab to the partial slabs in order
@@ -1388,6 +1402,7 @@ static void unfreeze_slab(struct kmem_cache *s, struct page *page, int tail)
 			slab_unlock(page);
 		} else {
 			slab_unlock(page);
+			stat(get_cpu_slab(s, raw_smp_processor_id()), FREE_SLAB);
 			discard_slab(s, page);
 		}
 	}
@@ -1400,6 +1415,9 @@ static void deactivate_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
 {
 	struct page *page = c->page;
 	int tail = 1;
+
+	if (c->freelist)
+		stat(c, DEACTIVATE_REMOTE_FREES);
 	/*
 	 * Merge cpu freelist into freelist. Typically we get here
 	 * because both freelists are empty. So this is unlikely
@@ -1429,6 +1447,7 @@ static void deactivate_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
 
 static inline void flush_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
 {
+	stat(c, CPUSLAB_FLUSH);
 	slab_lock(c->page);
 	deactivate_slab(s, c);
 }
@@ -1511,6 +1530,7 @@ static void *__slab_alloc(struct kmem_cache *s,
 	slab_lock(c->page);
 	if (unlikely(!node_match(c, node)))
 		goto another_slab;
+	stat(c, ALLOC_REFILL);
 load_freelist:
 	object = c->page->freelist;
 	if (unlikely(object == c->page->end))
@@ -1525,6 +1545,7 @@ load_freelist:
 	c->node = page_to_nid(c->page);
 unlock_out:
 	slab_unlock(c->page);
+	stat(c, ALLOC_SLOWPATH);
 out:
 #ifdef SLUB_FASTPATH
 	local_irq_restore(flags);
@@ -1538,6 +1559,7 @@ new_slab:
 	new = get_partial(s, gfpflags, node);
 	if (new) {
 		c->page = new;
+		stat(c, ALLOC_FROM_PARTIAL);
 		goto load_freelist;
 	}
 
@@ -1551,6 +1573,7 @@ new_slab:
 
 	if (new) {
 		c = get_cpu_slab(s, smp_processor_id());
+		stat(c, ALLOC_SLAB);
 		if (c->page)
 			flush_slab(s, c);
 		slab_lock(new);
@@ -1610,6 +1633,7 @@ static __always_inline void *slab_alloc(struct kmem_cache *s,
 			object = __slab_alloc(s, gfpflags, node, addr, c);
 			break;
 		}
+		stat(c, ALLOC_FASTPATH);
 	} while (cmpxchg_local(&c->freelist, object, object[c->offset])
 								!= object);
 #else
@@ -1624,6 +1648,7 @@ static __always_inline void *slab_alloc(struct kmem_cache *s,
 	else {
 		object = c->freelist;
 		c->freelist = object[c->offset];
+		stat(c, ALLOC_FASTPATH);
 	}
 	local_irq_restore(flags);
 #endif
@@ -1661,12 +1686,15 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
 {
 	void *prior;
 	void **object = (void *)x;
+	struct kmem_cache_cpu *c;
 
 #ifdef SLUB_FASTPATH
 	unsigned long flags;
 
 	local_irq_save(flags);
 #endif
+	c = get_cpu_slab(s, raw_smp_processor_id());
+	stat(c, FREE_SLOWPATH);
 	slab_lock(page);
 
 	if (unlikely(SlabDebug(page)))
@@ -1676,8 +1704,10 @@ checks_ok:
 	page->freelist = object;
 	page->inuse--;
 
-	if (unlikely(SlabFrozen(page)))
+	if (unlikely(SlabFrozen(page))) {
+		stat(c, FREE_FROZEN);
 		goto out_unlock;
+	}
 
 	if (unlikely(!page->inuse))
 		goto slab_empty;
@@ -1687,8 +1717,10 @@ checks_ok:
 	 * was not on the partial list before
 	 * then add it.
 	 */
-	if (unlikely(prior == page->end))
+	if (unlikely(prior == page->end)) {
 		add_partial(get_node(s, page_to_nid(page)), page, 1);
+		stat(c, FREE_ADD_PARTIAL);
+	}
 
 out_unlock:
 	slab_unlock(page);
@@ -1698,13 +1730,15 @@ out_unlock:
 	return;
 
 slab_empty:
-	if (prior != page->end)
+	if (prior != page->end) {
 		/*
 		 * Slab still on the partial list.
 		 */
 		remove_partial(s, page);
-
+		stat(c, FREE_REMOVE_PARTIAL);
+	}
 	slab_unlock(page);
+	stat(c, FREE_SLAB);
 #ifdef SLUB_FASTPATH
 	local_irq_restore(flags);
 #endif
@@ -1758,6 +1792,7 @@ static __always_inline void slab_free(struct kmem_cache *s,
 			break;
 		}
 		object[c->offset] = freelist;
+		stat(c, FREE_FASTPATH);
 	} while (cmpxchg_local(&c->freelist, freelist, object) != freelist);
 #else
 	unsigned long flags;
@@ -1768,6 +1803,7 @@ static __always_inline void slab_free(struct kmem_cache *s,
 	if (likely(page == c->page && c->node >= 0)) {
 		object[c->offset] = c->freelist;
 		c->freelist = object;
+		stat(c, FREE_FASTPATH);
 	} else
 		__slab_free(s, page, x, addr, c->offset);
 
@@ -3980,6 +4016,62 @@ static ssize_t remote_node_defrag_ratio_store(struct kmem_cache *s,
 SLAB_ATTR(remote_node_defrag_ratio);
 #endif
 
+#ifdef CONFIG_SLUB_STATS
+
+static int show_stat(struct kmem_cache *s, char *buf, enum stat_item si)
+{
+	unsigned long sum  = 0;
+	int cpu;
+	int len;
+	int *data = kmalloc(nr_cpu_ids * sizeof(int), GFP_KERNEL);
+
+	if (!data)
+		return -ENOMEM;
+
+	for_each_online_cpu(cpu) {
+		unsigned x = get_cpu_slab(s, cpu)->stat[si];
+
+		data[cpu] = x;
+		sum += x;
+	}
+
+	len = sprintf(buf, "%lu", sum);
+
+	for_each_online_cpu(cpu) {
+		if (data[cpu] && len < PAGE_SIZE - 20)
+			len += sprintf(buf + len, " c%d=%u", cpu, data[cpu]);
+	}
+	kfree(data);
+	return len + sprintf(buf + len, "\n");
+}
+
+#define STAT_ATTR(si, text) 					\
+static ssize_t text##_show(struct kmem_cache *s, char *buf)	\
+{								\
+	return show_stat(s, buf, si);				\
+}								\
+SLAB_ATTR_RO(text);						\
+
+STAT_ATTR(ALLOC_FASTPATH, alloc_fastpath);
+STAT_ATTR(ALLOC_SLOWPATH, alloc_slowpath);
+STAT_ATTR(FREE_FASTPATH, free_fastpath);
+STAT_ATTR(FREE_SLOWPATH, free_slowpath);
+STAT_ATTR(FREE_FROZEN, free_frozen);
+STAT_ATTR(FREE_ADD_PARTIAL, free_add_partial);
+STAT_ATTR(FREE_REMOVE_PARTIAL, free_remove_partial);
+STAT_ATTR(ALLOC_FROM_PARTIAL, alloc_from_partial);
+STAT_ATTR(ALLOC_SLAB, alloc_slab);
+STAT_ATTR(ALLOC_REFILL, alloc_refill);
+STAT_ATTR(FREE_SLAB, free_slab);
+STAT_ATTR(CPUSLAB_FLUSH, cpuslab_flush);
+STAT_ATTR(DEACTIVATE_FULL, deactivate_full);
+STAT_ATTR(DEACTIVATE_EMPTY, deactivate_empty);
+STAT_ATTR(DEACTIVATE_TO_HEAD, deactivate_to_head);
+STAT_ATTR(DEACTIVATE_TO_TAIL, deactivate_to_tail);
+STAT_ATTR(DEACTIVATE_REMOTE_FREES, deactivate_remote_frees);
+
+#endif
+
 static struct attribute *slab_attrs[] = {
 	&slab_size_attr.attr,
 	&object_size_attr.attr,
@@ -4009,6 +4101,25 @@ static struct attribute *slab_attrs[] = {
 #endif
 #ifdef CONFIG_NUMA
 	&remote_node_defrag_ratio_attr.attr,
+#endif
+#ifdef CONFIG_SLUB_STATS
+	&alloc_fastpath_attr.attr,
+	&alloc_slowpath_attr.attr,
+	&free_fastpath_attr.attr,
+	&free_slowpath_attr.attr,
+	&free_frozen_attr.attr,
+	&free_add_partial_attr.attr,
+	&free_remove_partial_attr.attr,
+	&alloc_from_partial_attr.attr,
+	&alloc_slab_attr.attr,
+	&alloc_refill_attr.attr,
+	&free_slab_attr.attr,
+	&cpuslab_flush_attr.attr,
+	&deactivate_full_attr.attr,
+	&deactivate_empty_attr.attr,
+	&deactivate_to_head_attr.attr,
+	&deactivate_to_tail_attr.attr,
+	&deactivate_remote_frees_attr.attr,
 #endif
 	NULL
 };
