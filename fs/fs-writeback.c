@@ -655,7 +655,7 @@ int write_inode_now(struct inode *inode, int sync)
 	int ret;
 	struct writeback_control wbc = {
 		.nr_to_write = LONG_MAX,
-		.sync_mode = WB_SYNC_ALL,
+		.sync_mode = sync ? WB_SYNC_ALL : WB_SYNC_NONE,
 		.range_start = 0,
 		.range_end = LLONG_MAX,
 	};
