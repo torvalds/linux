@@ -330,15 +330,7 @@ enum {
 # undef assert
 #endif
 #ifdef CONFIG_B43LEGACY_DEBUG
-# define B43legacy_WARN_ON(expr)					\
-	do {								\
-		if (unlikely((expr))) {					\
-			printk(KERN_INFO PFX "Test (%s) failed at:"	\
-					      " %s:%d:%s()\n",		\
-					      #expr, __FILE__,		\
-					      __LINE__, __FUNCTION__);	\
-		}							\
-	} while (0)
+# define B43legacy_WARN_ON(x)	WARN_ON(x)
 # define B43legacy_BUG_ON(expr)						\
 	do {								\
 		if (unlikely((expr))) {					\
@@ -349,7 +341,9 @@ enum {
 	} while (0)
 # define B43legacy_DEBUG	1
 #else
-# define B43legacy_WARN_ON(x)	do { /* nothing */ } while (0)
+/* This will evaluate the argument even if debugging is disabled. */
+static inline bool __b43legacy_warn_on_dummy(bool x) { return x; }
+# define B43_WARN_ON(x)	__b43legacy_warn_on_dummy(unlikely(!!(x)))
 # define B43legacy_BUG_ON(x)	do { /* nothing */ } while (0)
 # define B43legacy_DEBUG	0
 #endif

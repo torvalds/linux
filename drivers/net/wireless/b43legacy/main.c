@@ -1068,10 +1068,8 @@ static const u8 *b43legacy_generate_probe_resp(struct b43legacy_wldev *dev,
 	B43legacy_WARN_ON(ie_start != offsetof(struct ieee80211_mgmt,
 					       u.beacon.variable));
 
-	if (src_size < ie_start) {
-		B43legacy_WARN_ON(1);
+	if (B43legacy_WARN_ON(src_size < ie_start))
 		return NULL;
-	}
 
 	dest_data = kmalloc(src_size, GFP_ATOMIC);
 	if (unlikely(!dest_data))
