@@ -97,12 +97,22 @@ MODULE_DESCRIPTION ("Linux for S/390 IUCV network driver");
 
 DECLARE_PER_CPU(char[256], iucv_dbf_txt_buf);
 
-#define IUCV_DBF_TEXT_(name,level,text...)				\
-	do {								\
-		char* iucv_dbf_txt_buf = get_cpu_var(iucv_dbf_txt_buf);	\
-		sprintf(iucv_dbf_txt_buf, text);			\
-		debug_text_event(iucv_dbf_##name,level,iucv_dbf_txt_buf); \
-		put_cpu_var(iucv_dbf_txt_buf);				\
+/* Allow to sort out low debug levels early to avoid wasted sprints */
+static inline int iucv_dbf_passes(debug_info_t *dbf_grp, int level)
+{
+	return (level <= dbf_grp->level);
+}
+
+#define IUCV_DBF_TEXT_(name, level, text...) \
+	do { \
+		if (iucv_dbf_passes(iucv_dbf_##name, level)) { \
+			char* iucv_dbf_txt_buf = \
+					get_cpu_var(iucv_dbf_txt_buf); \
+			sprintf(iucv_dbf_txt_buf, text); \
+			debug_text_event(iucv_dbf_##name, level, \
+						iucv_dbf_txt_buf); \
+			put_cpu_var(iucv_dbf_txt_buf); \
+		} \
 	} while (0)
 
 #define IUCV_DBF_SPRINTF(name,level,text...) \
