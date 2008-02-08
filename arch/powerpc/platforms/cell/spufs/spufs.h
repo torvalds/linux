@@ -268,6 +268,9 @@ extern char *isolated_loader;
  *	Same as wait_event_interruptible(), except that here
  *	we need to call spu_release(ctx) before sleeping, and
  *	then spu_acquire(ctx) when awoken.
+ *
+ * 	Returns with state_mutex re-acquired when successfull or
+ * 	with -ERESTARTSYS and the state_mutex dropped when interrupted.
  */
 
 #define spufs_wait(wq, condition)					\
@@ -278,11 +281,11 @@ extern char *isolated_loader;
 		prepare_to_wait(&(wq), &__wait, TASK_INTERRUPTIBLE);	\
 		if (condition)						\
 			break;						\
+		spu_release(ctx);					\
 		if (signal_pending(current)) {				\
 			__ret = -ERESTARTSYS;				\
 			break;						\
 		}							\
-		spu_release(ctx);					\
 		schedule();						\
 		__ret = spu_acquire(ctx);				\
 		if (__ret)						\

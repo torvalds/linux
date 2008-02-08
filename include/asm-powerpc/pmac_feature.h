@@ -392,6 +392,14 @@ extern u32 __iomem *uninorth_base;
 #define UN_BIS(r,v)	(UN_OUT((r), UN_IN(r) | (v)))
 #define UN_BIC(r,v)	(UN_OUT((r), UN_IN(r) & ~(v)))
 
+/* Uninorth variant:
+ *
+ * 0 = not uninorth
+ * 1 = U1.x or U2.x
+ * 3 = U3
+ * 4 = U4
+ */
+extern int pmac_get_uninorth_variant(void);
 
 #endif /* __ASM_POWERPC_PMAC_FEATURE_H */
 #endif /* __KERNEL__ */

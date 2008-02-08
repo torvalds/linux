@@ -53,7 +53,7 @@ int spu_stopped(struct spu_context *ctx, u32 *stat)
 
 	stopped = SPU_STATUS_INVALID_INSTR | SPU_STATUS_SINGLE_STEP |
 		SPU_STATUS_STOPPED_BY_HALT | SPU_STATUS_STOPPED_BY_STOP;
-	if (*stat & stopped)
+	if (!(*stat & SPU_STATUS_RUNNING) && (*stat & stopped))
 		return 1;
 
 	dsisr = ctx->csa.dsisr;
@@ -354,8 +354,15 @@ long spufs_run_spu(struct spu_context *ctx, u32 *npc, u32 *event)
 
 	do {
 		ret = spufs_wait(ctx->stop_wq, spu_stopped(ctx, &status));
-		if (unlikely(ret))
+		if (unlikely(ret)) {
+			/*
+			 * This is nasty: we need the state_mutex for all the
+			 * bookkeeping even if the syscall was interrupted by
+			 * a signal. ewww.
+			 */
+			mutex_lock(&ctx->state_mutex);
 			break;
+		}
 		spu = ctx->spu;
 		if (unlikely(test_and_clear_bit(SPU_SCHED_NOTIFY_ACTIVE,
 						&ctx->sched_flags))) {
@@ -388,15 +395,13 @@ long spufs_run_spu(struct spu_context *ctx, u32 *npc, u32 *event)
 				      SPU_STATUS_STOPPED_BY_HALT |
 				       SPU_STATUS_SINGLE_STEP)));
 
-	if ((status & SPU_STATUS_STOPPED_BY_STOP) &&
-	    (((status >> SPU_STOP_STATUS_SHIFT) & 0x3f00) == 0x2100) &&
-	    (ctx->state == SPU_STATE_RUNNABLE))
-		ctx->stats.libassist++;
-
-
 	spu_disable_spu(ctx);
 	ret = spu_run_fini(ctx, npc, &status);
 	spu_yield(ctx);
+
+	if ((status & SPU_STATUS_STOPPED_BY_STOP) &&
+	    (((status >> SPU_STOP_STATUS_SHIFT) & 0x3f00) == 0x2100))
+		ctx->stats.libassist++;
 
 	if ((ret == 0) ||
 	    ((ret == -ERESTARTSYS) &&

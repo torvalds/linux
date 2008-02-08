@@ -26,6 +26,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/notifier.h>
+#include <linux/of.h>
 #include <linux/of_platform.h>
 
 #include <asm/prom.h>
@@ -789,18 +790,16 @@ static int __init cell_iommu_init_disabled(void)
 static u64 cell_iommu_get_fixed_address(struct device *dev)
 {
 	u64 cpu_addr, size, best_size, pci_addr = OF_BAD_ADDR;
-	struct device_node *tmp, *np;
+	struct device_node *np;
 	const u32 *ranges = NULL;
 	int i, len, best;
 
-	np = dev->archdata.of_node;
-	of_node_get(np);
-	ranges = of_get_property(np, "dma-ranges", &len);
-	while (!ranges && np) {
-		tmp = of_get_parent(np);
-		of_node_put(np);
-		np = tmp;
+	np = of_node_get(dev->archdata.of_node);
+	while (np) {
 		ranges = of_get_property(np, "dma-ranges", &len);
+		if (ranges)
+			break;
+		np = of_get_next_parent(np);
 	}
 
 	if (!ranges) {
@@ -842,18 +841,17 @@ static int dma_set_mask_and_switch(struct device *dev, u64 dma_mask)
 	if (!dev->dma_mask || !dma_supported(dev, dma_mask))
 		return -EIO;
 
-	if (dma_mask == DMA_BIT_MASK(64)) {
-		if (cell_iommu_get_fixed_address(dev) == OF_BAD_ADDR)
-			dev_dbg(dev, "iommu: 64-bit OK, but bad addr\n");
-		else {
-			dev_dbg(dev, "iommu: 64-bit OK, using fixed ops\n");
-			set_dma_ops(dev, &dma_iommu_fixed_ops);
-			cell_dma_dev_setup(dev);
-		}
+	if (dma_mask == DMA_BIT_MASK(64) &&
+		cell_iommu_get_fixed_address(dev) != OF_BAD_ADDR)
+	{
+		dev_dbg(dev, "iommu: 64-bit OK, using fixed ops\n");
+		set_dma_ops(dev, &dma_iommu_fixed_ops);
 	} else {
 		dev_dbg(dev, "iommu: not 64-bit, using default ops\n");
 		set_dma_ops(dev, get_pci_dma_ops());
 	}
+
+	cell_dma_dev_setup(dev);
 
 	*dev->dma_mask = dma_mask;
 
@@ -915,6 +913,18 @@ static int __init cell_iommu_fixed_mapping_init(void)
 	np = of_find_node_by_name(NULL, "axon");
 	if (!np) {
 		pr_debug("iommu: fixed mapping disabled, no axons found\n");
+		return -1;
+	}
+
+	/* We must have dma-ranges properties for fixed mapping to work */
+	for (np = NULL; (np = of_find_all_nodes(np));) {
+		if (of_find_property(np, "dma-ranges", NULL))
+			break;
+	}
+	of_node_put(np);
+
+	if (!np) {
+		pr_debug("iommu: no dma-ranges found, no fixed mapping\n");
 		return -1;
 	}
 
@@ -981,8 +991,8 @@ static int __init cell_iommu_fixed_mapping_init(void)
 			dsize = htab_size_bytes;
 		}
 
-		pr_debug("iommu: setting up %d, dynamic window %lx-%lx " \
-			 "fixed window %lx-%lx\n", iommu->nid, dbase,
+		printk(KERN_DEBUG "iommu: node %d, dynamic window 0x%lx-0x%lx "
+			"fixed window 0x%lx-0x%lx\n", iommu->nid, dbase,
 			 dbase + dsize, fbase, fbase + fsize);
 
 		cell_iommu_setup_page_tables(iommu, dbase, dsize, fbase, fsize);
@@ -997,8 +1007,6 @@ static int __init cell_iommu_fixed_mapping_init(void)
 
 	dma_iommu_ops.set_dma_mask = dma_set_mask_and_switch;
 	set_pci_dma_ops(&dma_iommu_ops);
-
-	printk(KERN_DEBUG "IOMMU fixed mapping established.\n");
 
 	return 0;
 }
