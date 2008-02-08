@@ -917,6 +917,18 @@ static int __init cell_iommu_fixed_mapping_init(void)
 		return -1;
 	}
 
+	/* We must have dma-ranges properties for fixed mapping to work */
+	for (np = NULL; (np = of_find_all_nodes(np));) {
+		if (of_find_property(np, "dma-ranges", NULL))
+			break;
+	}
+	of_node_put(np);
+
+	if (!np) {
+		pr_debug("iommu: no dma-ranges found, no fixed mapping\n");
+		return -1;
+	}
+
 	/* The default setup is to have the fixed mapping sit after the
 	 * dynamic region, so find the top of the largest IOMMU window
 	 * on any axon, then add the size of RAM and that's our max value.
