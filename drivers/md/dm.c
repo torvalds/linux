@@ -1410,6 +1410,7 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 	while (1) {
 		set_current_state(TASK_INTERRUPTIBLE);
 
+		smp_mb();
 		if (!atomic_read(&md->pending) || signal_pending(current))
 			break;
 
