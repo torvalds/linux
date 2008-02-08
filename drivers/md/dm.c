@@ -1270,6 +1270,8 @@ static void __flush_deferred_io(struct mapped_device *md)
 		if (__split_bio(md, c))
 			bio_io_error(c);
 	}
+
+	clear_bit(DMF_BLOCK_IO, &md->flags);
 }
 
 static void __merge_pushback_list(struct mapped_device *md)
@@ -1355,14 +1357,16 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 {
 	struct dm_table *map = NULL;
 	DECLARE_WAITQUEUE(wait, current);
-	int r = -EINVAL;
+	int pending, r = 0;
 	int do_lockfs = suspend_flags & DM_SUSPEND_LOCKFS_FLAG ? 1 : 0;
 	int noflush = suspend_flags & DM_SUSPEND_NOFLUSH_FLAG ? 1 : 0;
 
 	mutex_lock(&md->suspend_lock);
 
-	if (dm_suspended(md))
+	if (dm_suspended(md)) {
+		r = -EINVAL;
 		goto out_unlock;
+	}
 
 	map = dm_get_table(md);
 
@@ -1417,7 +1421,8 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 		set_current_state(TASK_INTERRUPTIBLE);
 
 		smp_mb();
-		if (!atomic_read(&md->pending) || signal_pending(current))
+		pending = atomic_read(&md->pending);
+		if (!pending || signal_pending(current))
 			break;
 
 		io_schedule();
@@ -1431,12 +1436,12 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 		__merge_pushback_list(md);
 
 	/* were we interrupted ? */
-	r = -EINTR;
-	if (atomic_read(&md->pending)) {
-		clear_bit(DMF_BLOCK_IO, &md->flags);
+	if (pending) {
 		__flush_deferred_io(md);
 		up_write(&md->io_lock);
+
 		unlock_fs(md);
+		r = -EINTR;
 		goto out; /* pushback list is already flushed, so skip flush */
 	}
 	up_write(&md->io_lock);
@@ -1444,8 +1449,6 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 	dm_table_postsuspend_targets(map);
 
 	set_bit(DMF_SUSPENDED, &md->flags);
-
-	r = 0;
 
 flush_and_out:
 	if (r && noflush) {
@@ -1490,8 +1493,6 @@ int dm_resume(struct mapped_device *md)
 		goto out;
 
 	down_write(&md->io_lock);
-	clear_bit(DMF_BLOCK_IO, &md->flags);
-
 	__flush_deferred_io(md);
 	up_write(&md->io_lock);
 
