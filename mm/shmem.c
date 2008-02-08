@@ -85,6 +85,7 @@ enum sgp_type {
 	SGP_WRITE,	/* may exceed i_size, may allocate page */
 };
 
+#ifdef CONFIG_TMPFS
 static unsigned long shmem_default_max_blocks(void)
 {
 	return totalram_pages / 2;
@@ -94,6 +95,7 @@ static unsigned long shmem_default_max_inodes(void)
 {
 	return min(totalram_pages - totalhigh_pages, totalram_pages / 2);
 }
+#endif
 
 static int shmem_getpage(struct inode *inode, unsigned long idx,
 			 struct page **pagep, enum sgp_type sgp, int *type);
