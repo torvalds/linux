@@ -35,6 +35,11 @@
 #define ALE_BIT 11
 #define CE_BIT 12
 
+struct mtd_info_wrapper {
+	struct mtd_info info;
+	struct nand_chip chip;
+};
+
 /* Bitmask for control pins */
 #define PIN_BITMASK ((1 << CE_BIT) | (1 << CLE_BIT) | (1 << ALE_BIT))
 
@@ -88,7 +93,7 @@ static void crisv32_hwcontrol(struct mtd_info *mtd, int cmd,
 /*
 *	read device ready pin
 */
-int crisv32_device_ready(struct mtd_info *mtd)
+static int crisv32_device_ready(struct mtd_info *mtd)
 {
 	reg_pio_r_din din = REG_RD(pio, regi_pio, r_din);
 	return din.rdy;
@@ -102,6 +107,7 @@ struct mtd_info *__init crisv32_nand_flash_probe(void)
 	void __iomem *read_cs;
 	void __iomem *write_cs;
 
+	struct mtd_info_wrapper *wrapper;
 	struct nand_chip *this;
 	int err = 0;
 
@@ -129,9 +135,8 @@ struct mtd_info *__init crisv32_nand_flash_probe(void)
 	REG_WR(pio, regi_pio, rw_oe, oe);
 
 	/* Allocate memory for MTD device structure and private data */
-	crisv32_mtd = kmalloc(sizeof(struct mtd_info) +
-		sizeof(struct nand_chip), GFP_KERNEL);
-	if (!crisv32_mtd) {
+	wrapper = kzalloc(sizeof(struct mtd_info_wrapper), GFP_KERNEL);
+	if (!wrapper) {
 		printk(KERN_ERR "Unable to allocate CRISv32 NAND MTD "
 			"device structure.\n");
 		err = -ENOMEM;
@@ -142,11 +147,8 @@ struct mtd_info *__init crisv32_nand_flash_probe(void)
 		rw_io_access0);
 
 	/* Get pointer to private data */
-	this = (struct nand_chip *) (&crisv32_mtd[1]);
-
-	/* Initialize structures */
-	memset((char *) crisv32_mtd, 0, sizeof(struct mtd_info));
-	memset((char *) this, 0, sizeof(struct nand_chip));
+	this = &wrapper->chip;
+	crisv32_mtd = &wrapper->info;
 
 	/* Link the private data with the MTD structure */
 	crisv32_mtd->priv = this;
@@ -172,7 +174,7 @@ struct mtd_info *__init crisv32_nand_flash_probe(void)
 	return crisv32_mtd;
 
 out_mtd:
-	kfree(crisv32_mtd);
+	kfree(wrapper);
 	return NULL;
 }
 

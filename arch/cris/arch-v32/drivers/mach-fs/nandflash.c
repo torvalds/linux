@@ -30,6 +30,11 @@
 #define ALE_BIT 6
 #define BY_BIT 7
 
+struct mtd_info_wrapper {
+	struct mtd_info info;
+	struct nand_chip chip;
+};
+
 /* Bitmask for control pins */
 #define PIN_BITMASK ((1 << CE_BIT) | (1 << CLE_BIT) | (1 << ALE_BIT))
 
@@ -83,7 +88,7 @@ static void crisv32_hwcontrol(struct mtd_info *mtd, int cmd,
 /*
 *	read device ready pin
 */
-int crisv32_device_ready(struct mtd_info *mtd)
+static int crisv32_device_ready(struct mtd_info *mtd)
 {
 	reg_gio_r_pa_din din = REG_RD(gio, regi_gio, r_pa_din);
 	return ((din.data & (1 << BY_BIT)) >> BY_BIT);
@@ -100,13 +105,13 @@ struct mtd_info *__init crisv32_nand_flash_probe(void)
 	reg_bif_core_rw_grp3_cfg bif_cfg = REG_RD(bif_core, regi_bif_core,
 		rw_grp3_cfg);
 	reg_gio_rw_pa_oe pa_oe = REG_RD(gio, regi_gio, rw_pa_oe);
+	struct mtd_info_wrapper *wrapper;
 	struct nand_chip *this;
 	int err = 0;
 
 	/* Allocate memory for MTD device structure and private data */
-	crisv32_mtd = kmalloc(sizeof(struct mtd_info) +
-		sizeof(struct nand_chip), GFP_KERNEL);
-	if (!crisv32_mtd) {
+	wrapper = kzalloc(sizeof(struct mtd_info_wrapper), GFP_KERNEL);
+	if (!wrapper) {
 		printk(KERN_ERR "Unable to allocate CRISv32 NAND MTD "
 			"device structure.\n");
 		err = -ENOMEM;
@@ -123,7 +128,8 @@ struct mtd_info *__init crisv32_nand_flash_probe(void)
 	}
 
 	/* Get pointer to private data */
-	this = (struct nand_chip *) (&crisv32_mtd[1]);
+	this = &wrapper->chip;
+	crisv32_mtd = &wrapper->info;
 
 	pa_oe.oe |= 1 << CE_BIT;
 	pa_oe.oe |= 1 << ALE_BIT;
@@ -134,10 +140,6 @@ struct mtd_info *__init crisv32_nand_flash_probe(void)
 	bif_cfg.gated_csp0 = regk_bif_core_rd;
 	bif_cfg.gated_csp1 = regk_bif_core_wr;
 	REG_WR(bif_core, regi_bif_core, rw_grp3_cfg, bif_cfg);
-
-	/* Initialize structures */
-	memset((char *) crisv32_mtd, 0, sizeof(struct mtd_info));
-	memset((char *) this, 0, sizeof(struct nand_chip));
 
 	/* Link the private data with the MTD structure */
 	crisv32_mtd->priv = this;
@@ -166,7 +168,7 @@ out_ior:
 	iounmap((void *)read_cs);
 	iounmap((void *)write_cs);
 out_mtd:
-	kfree(crisv32_mtd);
+	kfree(wrapper);
 	return NULL;
 }
 
