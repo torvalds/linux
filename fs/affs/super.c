@@ -122,6 +122,7 @@ static const struct super_operations affs_sops = {
 	.write_super	= affs_write_super,
 	.statfs		= affs_statfs,
 	.remount_fs	= affs_remount,
+	.show_options	= generic_show_options,
 };
 
 enum {
@@ -271,6 +272,8 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 	int			 tmp_flags;	/* fix remount prototype... */
 	u8			 sig[4];
 	int			 ret = -EINVAL;
+
+	save_mount_options(sb, data);
 
 	pr_debug("AFFS: read_super(%s)\n",data ? (const char *)data : "no options");
 
@@ -487,14 +490,21 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 	int			 root_block;
 	unsigned long		 mount_flags;
 	int			 res = 0;
+	char			*new_opts = kstrdup(data, GFP_KERNEL);
 
 	pr_debug("AFFS: remount(flags=0x%x,opts=\"%s\")\n",*flags,data);
 
 	*flags |= MS_NODIRATIME;
 
-	if (!parse_options(data,&uid,&gid,&mode,&reserved,&root_block,
-	    &blocksize,&sbi->s_prefix,sbi->s_volume,&mount_flags))
+	if (!parse_options(data, &uid, &gid, &mode, &reserved, &root_block,
+			   &blocksize, &sbi->s_prefix, sbi->s_volume,
+			   &mount_flags)) {
+		kfree(new_opts);
 		return -EINVAL;
+	}
+	kfree(sb->s_options);
+	sb->s_options = new_opts;
+
 	sbi->s_flags = mount_flags;
 	sbi->s_mode  = mode;
 	sbi->s_uid   = uid;
