@@ -617,8 +617,8 @@ static unsigned long copy_semid_to_user(void __user *buf, struct semid64_ds *in,
 	}
 }
 
-static int semctl_nolock(struct ipc_namespace *ns, int semid, int semnum,
-		int cmd, int version, union semun arg)
+static int semctl_nolock(struct ipc_namespace *ns, int semid,
+			 int cmd, int version, union semun arg)
 {
 	int err = -EINVAL;
 	struct sem_array *sma;
@@ -657,14 +657,23 @@ static int semctl_nolock(struct ipc_namespace *ns, int semid, int semnum,
 			return -EFAULT;
 		return (max_id < 0) ? 0: max_id;
 	}
+	case IPC_STAT:
 	case SEM_STAT:
 	{
 		struct semid64_ds tbuf;
 		int id;
 
-		sma = sem_lock(ns, semid);
-		if (IS_ERR(sma))
-			return PTR_ERR(sma);
+		if (cmd == SEM_STAT) {
+			sma = sem_lock(ns, semid);
+			if (IS_ERR(sma))
+				return PTR_ERR(sma);
+			id = sma->sem_perm.id;
+		} else {
+			sma = sem_lock_check(ns, semid);
+			if (IS_ERR(sma))
+				return PTR_ERR(sma);
+			id = 0;
+		}
 
 		err = -EACCES;
 		if (ipcperms (&sma->sem_perm, S_IRUGO))
@@ -673,8 +682,6 @@ static int semctl_nolock(struct ipc_namespace *ns, int semid, int semnum,
 		err = security_sem_semctl(sma, cmd);
 		if (err)
 			goto out_unlock;
-
-		id = sma->sem_perm.id;
 
 		memset(&tbuf, 0, sizeof(tbuf));
 
@@ -809,19 +816,6 @@ static int semctl_main(struct ipc_namespace *ns, int semid, int semnum,
 		update_queue(sma);
 		err = 0;
 		goto out_unlock;
-	}
-	case IPC_STAT:
-	{
-		struct semid64_ds tbuf;
-		memset(&tbuf,0,sizeof(tbuf));
-		kernel_to_ipc64_perm(&sma->sem_perm, &tbuf.sem_perm);
-		tbuf.sem_otime  = sma->sem_otime;
-		tbuf.sem_ctime  = sma->sem_ctime;
-		tbuf.sem_nsems  = sma->sem_nsems;
-		sem_unlock(sma);
-		if (copy_semid_to_user (arg.buf, &tbuf, version))
-			return -EFAULT;
-		return 0;
 	}
 	/* GETVAL, GETPID, GETNCTN, GETZCNT, SETVAL: fall-through */
 	}
@@ -989,15 +983,15 @@ asmlinkage long sys_semctl (int semid, int semnum, int cmd, union semun arg)
 	switch(cmd) {
 	case IPC_INFO:
 	case SEM_INFO:
+	case IPC_STAT:
 	case SEM_STAT:
-		err = semctl_nolock(ns,semid,semnum,cmd,version,arg);
+		err = semctl_nolock(ns, semid, cmd, version, arg);
 		return err;
 	case GETALL:
 	case GETVAL:
 	case GETPID:
 	case GETNCNT:
 	case GETZCNT:
-	case IPC_STAT:
 	case SETVAL:
 	case SETALL:
 		err = semctl_main(ns,semid,semnum,cmd,version,arg);
