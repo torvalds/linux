@@ -504,7 +504,7 @@ static void crypt_endio(struct bio *clone, int error)
 {
 	struct dm_crypt_io *io = clone->bi_private;
 	struct crypt_config *cc = io->target->private;
-	unsigned read_io = bio_data_dir(clone) == READ;
+	unsigned rw = bio_data_dir(clone);
 
 	if (unlikely(!bio_flagged(clone, BIO_UPTODATE) && !error))
 		error = -EIO;
@@ -512,20 +512,15 @@ static void crypt_endio(struct bio *clone, int error)
 	/*
 	 * free the processed pages
 	 */
-	if (!read_io) {
+	if (rw == WRITE)
 		crypt_free_buffer_pages(cc, clone);
-		goto out;
+
+	bio_put(clone);
+
+	if (rw == READ && !error) {
+		kcryptd_queue_crypt(io);
+		return;
 	}
-
-	if (unlikely(error))
-		goto out;
-
-	bio_put(clone);
-	kcryptd_queue_crypt(io);
-	return;
-
-out:
-	bio_put(clone);
 
 	if (unlikely(error))
 		io->error = error;
