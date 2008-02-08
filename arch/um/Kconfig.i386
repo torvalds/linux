@@ -23,43 +23,6 @@ config SEMAPHORE_SLEEPERS
 	bool
 	default y
 
-choice
-	prompt "Host memory split"
-	default HOST_VMSPLIT_3G
-	help
-        This is needed when the host kernel on which you run has a non-default
-	(like 2G/2G) memory split, instead of the customary 3G/1G. If you did
-	not recompile your own kernel but use the default distro's one, you can
-	safely accept the "Default split" option.
-
-	It can be enabled on recent (>=2.6.16-rc2) vanilla kernels via
-	CONFIG_VM_SPLIT_*, or on previous kernels with special patches (-ck
-	patchset by Con Kolivas, or other ones) - option names match closely the
-	host CONFIG_VM_SPLIT_* ones.
-
-	A lower setting (where 1G/3G is lowest and 3G/1G is higher) will
-	tolerate even more "normal" host kernels, but an higher setting will be
-	stricter.
-
-	So, if you do not know what to do here, say 'Default split'.
-
-config HOST_VMSPLIT_3G
-	bool "Default split (3G/1G user/kernel host split)"
-config HOST_VMSPLIT_3G_OPT
-	bool "3G/1G user/kernel host split (for full 1G low memory)"
-config HOST_VMSPLIT_2G
-	bool "2G/2G user/kernel host split"
-config HOST_VMSPLIT_1G
-	bool "1G/3G user/kernel host split"
-endchoice
-
-config TOP_ADDR
-	hex
-	default 0xB0000000 if HOST_VMSPLIT_3G_OPT
-	default 0x78000000 if HOST_VMSPLIT_2G
-	default 0x40000000 if HOST_VMSPLIT_1G
-	default 0xC0000000
-
 config 3_LEVEL_PGTABLES
 	bool "Three-level pagetables (EXPERIMENTAL)"
 	default n

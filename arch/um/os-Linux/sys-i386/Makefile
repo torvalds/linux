@@ -3,7 +3,7 @@
 # Licensed under the GPL
 #
 
-obj-y = registers.o signal.o tls.o
+obj-y = registers.o signal.o task_size.o tls.o
 
 USER_OBJS := $(obj-y)
 

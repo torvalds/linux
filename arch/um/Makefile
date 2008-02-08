@@ -79,13 +79,6 @@ KERNEL_DEFINES = $(strip -Derrno=kernel_errno -Dsigprocmask=kernel_sigprocmask \
 KBUILD_CFLAGS += $(KERNEL_DEFINES)
 KBUILD_CFLAGS += $(call cc-option,-fno-unit-at-a-time,)
 
-# These are needed for clean and mrproper, since in that case .config is not
-# included; the values here are meaningless
-
-CONFIG_NEST_LEVEL ?= 0
-
-SIZE = ($(CONFIG_NEST_LEVEL) * 0x20000000)
-
 PHONY += linux
 
 all: linux
@@ -119,10 +112,6 @@ CFLAGS_NO_HARDENING := $(call cc-option, -fno-PIC,) $(call cc-option, -fno-pic,)
 
 CONFIG_KERNEL_STACK_ORDER ?= 2
 STACK_SIZE := $(shell echo $$[ 4096 * (1 << $(CONFIG_KERNEL_STACK_ORDER)) ] )
-
-ifndef START
-  START = $(shell echo $$[ $(TOP_ADDR) - $(SIZE) ] )
-endif
 
 CPPFLAGS_vmlinux.lds = -U$(SUBARCH) -DSTART=$(START) -DELF_ARCH=$(ELF_ARCH) \
 	-DELF_FORMAT="$(ELF_FORMAT)" -DKERNEL_STACK_SIZE=$(STACK_SIZE)

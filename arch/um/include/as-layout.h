@@ -57,6 +57,8 @@ extern unsigned long _stext, _etext, _sdata, _edata, __bss_start, _end;
 extern unsigned long _unprotected_end;
 extern unsigned long brk_start;
 
+extern unsigned long host_task_size;
+
 extern int linux_main(int argc, char **argv);
 
 extern void (*sig_info[])(int, struct uml_pt_regs *);

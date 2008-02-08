@@ -15,10 +15,6 @@ config SEMAPHORE_SLEEPERS
 	bool
 	default y
 
-config TOP_ADDR
- 	hex
-	default 0x7fc0000000
-
 config 3_LEVEL_PGTABLES
        bool
        default y

@@ -25,7 +25,7 @@ void flush_thread(void)
 
 	ret = unmap(&current->mm->context.id, 0, STUB_START, 0, &data);
 	ret = ret || unmap(&current->mm->context.id, STUB_END,
-			   TASK_SIZE - STUB_END, 1, &data);
+			   host_task_size - STUB_END, 1, &data);
 	if (ret) {
 		printk(KERN_ERR "flush_thread - clearing address space failed, "
 		       "err = %d\n", ret);
