@@ -1054,12 +1054,11 @@ asmlinkage long sys_setsid(void)
 	if (group_leader->signal->leader)
 		goto out;
 
-	/* Fail if a process group id already exists that equals the proposed
-	 * session id.
+	/* Fail if a process group id already exists that equals the
+	 * proposed session id.
 	 *
-	 * Don't check if session == 1 because kernel threads and CLONE_NEWPID
-	 * tasks use this session id and so the check will always fail and make
-	 * it so init cannot successfully call setsid.
+	 * Don't check if session == 1, clone(CLONE_NEWPID) creates
+	 * this group/session beforehand.
 	 */
 	if (session != 1 && pid_task(sid, PIDTYPE_PGID))
 		goto out;
