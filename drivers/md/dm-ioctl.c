@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/dm-ioctl.h>
 #include <linux/hdreg.h>
+#include <linux/compat.h>
 
 #include <asm/uaccess.h>
 
@@ -1350,10 +1351,10 @@ static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl **param)
 {
 	struct dm_ioctl tmp, *dmi;
 
-	if (copy_from_user(&tmp, user, sizeof(tmp)))
+	if (copy_from_user(&tmp, user, sizeof(tmp) - sizeof(tmp.data)))
 		return -EFAULT;
 
-	if (tmp.data_size < sizeof(tmp))
+	if (tmp.data_size < (sizeof(tmp) - sizeof(tmp.data)))
 		return -EINVAL;
 
 	dmi = vmalloc(tmp.data_size);
@@ -1474,8 +1475,18 @@ static long dm_ctl_ioctl(struct file *file, uint command, ulong u)
 	return (long)ctl_ioctl(command, (struct dm_ioctl __user *)u);
 }
 
+#ifdef CONFIG_COMPAT
+static long dm_compat_ctl_ioctl(struct file *file, uint command, ulong u)
+{
+	return (long)dm_ctl_ioctl(file, command, (ulong) compat_ptr(u));
+}
+#else
+#define dm_compat_ctl_ioctl NULL
+#endif
+
 static const struct file_operations _ctl_fops = {
 	.unlocked_ioctl	 = dm_ctl_ioctl,
+	.compat_ioctl = dm_compat_ctl_ioctl,
 	.owner	 = THIS_MODULE,
 };
 
