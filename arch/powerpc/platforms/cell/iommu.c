@@ -991,8 +991,8 @@ static int __init cell_iommu_fixed_mapping_init(void)
 			dsize = htab_size_bytes;
 		}
 
-		pr_debug("iommu: setting up %d, dynamic window %lx-%lx " \
-			 "fixed window %lx-%lx\n", iommu->nid, dbase,
+		printk(KERN_DEBUG "iommu: node %d, dynamic window 0x%lx-0x%lx "
+			"fixed window 0x%lx-0x%lx\n", iommu->nid, dbase,
 			 dbase + dsize, fbase, fbase + fsize);
 
 		cell_iommu_setup_page_tables(iommu, dbase, dsize, fbase, fsize);
@@ -1007,8 +1007,6 @@ static int __init cell_iommu_fixed_mapping_init(void)
 
 	dma_iommu_ops.set_dma_mask = dma_set_mask_and_switch;
 	set_pci_dma_ops(&dma_iommu_ops);
-
-	printk(KERN_DEBUG "IOMMU fixed mapping established.\n");
 
 	return 0;
 }
