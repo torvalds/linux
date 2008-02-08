@@ -89,6 +89,7 @@ static struct page *brd_insert_page(struct brd_device *brd, sector_t sector)
 {
 	pgoff_t idx;
 	struct page *page;
+	gfp_t gfp_flags;
 
 	page = brd_lookup_page(brd, sector);
 	if (page)
@@ -97,7 +98,16 @@ static struct page *brd_insert_page(struct brd_device *brd, sector_t sector)
 	/*
 	 * Must use NOIO because we don't want to recurse back into the
 	 * block or filesystem layers from page reclaim.
+	 *
+	 * Cannot support XIP and highmem, because our ->direct_access
+	 * routine for XIP must return memory that is always addressable.
+	 * If XIP was reworked to use pfns and kmap throughout, this
+	 * restriction might be able to be lifted.
 	 */
+	gfp_flags = GFP_NOIO | __GFP_ZERO;
+#ifndef CONFIG_BLK_DEV_XIP
+	gfp_flags |= __GFP_HIGHMEM;
+#endif
 	page = alloc_page(GFP_NOIO | __GFP_HIGHMEM | __GFP_ZERO);
 	if (!page)
 		return NULL;
@@ -307,6 +317,28 @@ out:
 	return 0;
 }
 
+#ifdef CONFIG_BLK_DEV_XIP
+static int brd_direct_access (struct block_device *bdev, sector_t sector,
+			unsigned long *data)
+{
+	struct brd_device *brd = bdev->bd_disk->private_data;
+	struct page *page;
+
+	if (!brd)
+		return -ENODEV;
+	if (sector & (PAGE_SECTORS-1))
+		return -EINVAL;
+	if (sector + PAGE_SECTORS > get_capacity(bdev->bd_disk))
+		return -ERANGE;
+	page = brd_insert_page(brd, sector);
+	if (!page)
+		return -ENOMEM;
+	*data = (unsigned long)page_address(page);
+
+	return 0;
+}
+#endif
+
 static int brd_ioctl(struct inode *inode, struct file *file,
 			unsigned int cmd, unsigned long arg)
 {
@@ -342,8 +374,11 @@ static int brd_ioctl(struct inode *inode, struct file *file,
 }
 
 static struct block_device_operations brd_fops = {
-	.owner =	THIS_MODULE,
-	.ioctl =	brd_ioctl,
+	.owner =		THIS_MODULE,
+	.ioctl =		brd_ioctl,
+#ifdef CONFIG_BLK_DEV_XIP
+	.direct_access =	brd_direct_access,
+#endif
 };
 
 /*
