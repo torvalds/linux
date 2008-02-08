@@ -456,18 +456,14 @@ static void crypt_free_buffer_pages(struct crypt_config *cc, struct bio *clone)
  * One of the bios was finished. Check for completion of
  * the whole request and correctly clean up the buffer.
  */
-static void crypt_dec_pending(struct dm_crypt_io *io, int error)
+static void crypt_dec_pending(struct dm_crypt_io *io)
 {
-	struct crypt_config *cc = (struct crypt_config *) io->target->private;
-
-	if (error < 0)
-		io->error = error;
+	struct crypt_config *cc = io->target->private;
 
 	if (!atomic_dec_and_test(&io->pending))
 		return;
 
 	bio_endio(io->base_bio, io->error);
-
 	mempool_free(io, cc->io_pool);
 }
 
@@ -530,7 +526,11 @@ static void crypt_endio(struct bio *clone, int error)
 
 out:
 	bio_put(clone);
-	crypt_dec_pending(io, error);
+
+	if (unlikely(error))
+		io->error = error;
+
+	crypt_dec_pending(io);
 }
 
 static void clone_init(struct dm_crypt_io *io, struct bio *clone)
@@ -560,7 +560,8 @@ static void process_read(struct dm_crypt_io *io)
 	 */
 	clone = bio_alloc_bioset(GFP_NOIO, bio_segments(base_bio), cc->bs);
 	if (unlikely(!clone)) {
-		crypt_dec_pending(io, -ENOMEM);
+		io->error = -ENOMEM;
+		crypt_dec_pending(io);
 		return;
 	}
 
@@ -594,7 +595,8 @@ static void process_write(struct dm_crypt_io *io)
 	while (remaining) {
 		clone = crypt_alloc_buffer(io, remaining);
 		if (unlikely(!clone)) {
-			crypt_dec_pending(io, -ENOMEM);
+			io->error = -ENOMEM;
+			crypt_dec_pending(io);
 			return;
 		}
 
@@ -604,7 +606,8 @@ static void process_write(struct dm_crypt_io *io)
 		if (unlikely(crypt_convert(cc, &io->ctx) < 0)) {
 			crypt_free_buffer_pages(cc, clone);
 			bio_put(clone);
-			crypt_dec_pending(io, -EIO);
+			io->error = -EIO;
+			crypt_dec_pending(io);
 			return;
 		}
 
@@ -631,14 +634,25 @@ static void process_write(struct dm_crypt_io *io)
 	}
 }
 
+static void crypt_read_done(struct dm_crypt_io *io, int error)
+{
+	if (unlikely(error < 0))
+		io->error = -EIO;
+
+	crypt_dec_pending(io);
+}
+
 static void process_read_endio(struct dm_crypt_io *io)
 {
 	struct crypt_config *cc = io->target->private;
+	int r = 0;
 
 	crypt_convert_init(cc, &io->ctx, io->base_bio, io->base_bio,
 			   io->base_bio->bi_sector - io->target->begin);
 
-	crypt_dec_pending(io, crypt_convert(cc, &io->ctx));
+	r = crypt_convert(cc, &io->ctx);
+
+	crypt_read_done(io, r);
 }
 
 static void kcryptd_do_work(struct work_struct *work)
