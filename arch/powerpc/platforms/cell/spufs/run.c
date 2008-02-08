@@ -354,8 +354,15 @@ long spufs_run_spu(struct spu_context *ctx, u32 *npc, u32 *event)
 
 	do {
 		ret = spufs_wait(ctx->stop_wq, spu_stopped(ctx, &status));
-		if (unlikely(ret))
+		if (unlikely(ret)) {
+			/*
+			 * This is nasty: we need the state_mutex for all the
+			 * bookkeeping even if the syscall was interrupted by
+			 * a signal. ewww.
+			 */
+			mutex_lock(&ctx->state_mutex);
 			break;
+		}
 		spu = ctx->spu;
 		if (unlikely(test_and_clear_bit(SPU_SCHED_NOTIFY_ACTIVE,
 						&ctx->sched_flags))) {

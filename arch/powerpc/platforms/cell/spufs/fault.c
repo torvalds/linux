@@ -108,7 +108,7 @@ int spufs_handle_class1(struct spu_context *ctx)
 	u64 ea, dsisr, access;
 	unsigned long flags;
 	unsigned flt = 0;
-	int ret, ret2;
+	int ret;
 
 	/*
 	 * dar and dsisr get passed from the registers
@@ -148,13 +148,10 @@ int spufs_handle_class1(struct spu_context *ctx)
 		ret = spu_handle_mm_fault(current->mm, ea, dsisr, &flt);
 
 	/*
-	 * If spu_acquire fails due to a pending signal we just want to return
-	 * EINTR to userspace even if that means missing the dma restart or
-	 * updating the page fault statistics.
+	 * This is nasty: we need the state_mutex for all the bookkeeping even
+	 * if the syscall was interrupted by a signal. ewww.
 	 */
-	ret2 = spu_acquire(ctx);
-	if (ret2)
-		goto out;
+	mutex_lock(&ctx->state_mutex);
 
 	/*
 	 * Clear dsisr under ctxt lock after handling the fault, so that
@@ -185,7 +182,6 @@ int spufs_handle_class1(struct spu_context *ctx)
 	} else
 		spufs_handle_event(ctx, ea, SPE_EVENT_SPE_DATA_STORAGE);
 
- out:
 	spuctx_switch_state(ctx, SPU_UTIL_SYSTEM);
 	return ret;
 }
