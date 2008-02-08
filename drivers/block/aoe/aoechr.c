@@ -194,52 +194,51 @@ aoechr_read(struct file *filp, char __user *buf, size_t cnt, loff_t *off)
 	ulong flags;
 
 	n = (unsigned long) filp->private_data;
-	switch (n) {
-	case MINOR_ERR:
-		spin_lock_irqsave(&emsgs_lock, flags);
-loop:
+	if (n != MINOR_ERR)
+		return -EFAULT;
+
+	spin_lock_irqsave(&emsgs_lock, flags);
+
+	for (;;) {
 		em = emsgs + emsgs_head_idx;
-		if ((em->flags & EMFL_VALID) == 0) {
-			if (filp->f_flags & O_NDELAY) {
-				spin_unlock_irqrestore(&emsgs_lock, flags);
-				return -EAGAIN;
-			}
-			nblocked_emsgs_readers++;
-
-			spin_unlock_irqrestore(&emsgs_lock, flags);
-
-			n = down_interruptible(&emsgs_sema);
-
-			spin_lock_irqsave(&emsgs_lock, flags);
-
-			nblocked_emsgs_readers--;
-
-			if (n) {
-				spin_unlock_irqrestore(&emsgs_lock, flags);
-				return -ERESTARTSYS;
-			}
-			goto loop;
-		}
-		if (em->len > cnt) {
+		if ((em->flags & EMFL_VALID) != 0)
+			break;
+		if (filp->f_flags & O_NDELAY) {
 			spin_unlock_irqrestore(&emsgs_lock, flags);
 			return -EAGAIN;
 		}
-		mp = em->msg;
-		len = em->len;
-		em->msg = NULL;
-		em->flags &= ~EMFL_VALID;
-
-		emsgs_head_idx++;
-		emsgs_head_idx %= ARRAY_SIZE(emsgs);
+		nblocked_emsgs_readers++;
 
 		spin_unlock_irqrestore(&emsgs_lock, flags);
 
-		n = copy_to_user(buf, mp, len);
-		kfree(mp);
-		return n == 0 ? len : -EFAULT;
-	default:
-		return -EFAULT;
+		n = down_interruptible(&emsgs_sema);
+
+		spin_lock_irqsave(&emsgs_lock, flags);
+
+		nblocked_emsgs_readers--;
+
+		if (n) {
+			spin_unlock_irqrestore(&emsgs_lock, flags);
+			return -ERESTARTSYS;
+		}
 	}
+	if (em->len > cnt) {
+		spin_unlock_irqrestore(&emsgs_lock, flags);
+		return -EAGAIN;
+	}
+	mp = em->msg;
+	len = em->len;
+	em->msg = NULL;
+	em->flags &= ~EMFL_VALID;
+
+	emsgs_head_idx++;
+	emsgs_head_idx %= ARRAY_SIZE(emsgs);
+
+	spin_unlock_irqrestore(&emsgs_lock, flags);
+
+	n = copy_to_user(buf, mp, len);
+	kfree(mp);
+	return n == 0 ? len : -EFAULT;
 }
 
 static const struct file_operations aoe_fops = {
