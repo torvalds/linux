@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2007 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2008 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -2404,9 +2404,7 @@ lpfc_do_config_port(struct lpfc_hba *phba, int sli_mode)
 	if ((pmb->mb.un.varCfgPort.sli_mode == 3) &&
 		(!pmb->mb.un.varCfgPort.cMA)) {
 		rc = -ENXIO;
-		goto do_prep_failed;
 	}
-	return rc;
 
 do_prep_failed:
 	mempool_free(pmb, phba->mbox_mem_pool);

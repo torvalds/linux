@@ -1946,11 +1946,13 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 		}
 
 		/* If HBA encountered an error attention, allow only DUMP
-		 * mailbox command until the HBA is restarted.
+		 * or RESTART mailbox commands until the HBA is restarted.
 		 */
 		if ((phba->pport->stopped) &&
-			(phba->sysfs_mbox.mbox->mb.mbxCommand
-				!= MBX_DUMP_MEMORY)) {
+			(phba->sysfs_mbox.mbox->mb.mbxCommand !=
+				MBX_DUMP_MEMORY &&
+			 phba->sysfs_mbox.mbox->mb.mbxCommand !=
+				MBX_RESTART)) {
 			sysfs_mbox_idle(phba);
 			spin_unlock_irq(&phba->hbalock);
 			return -EPERM;

@@ -645,13 +645,15 @@ lpfc_disc_set_adisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		return 0;
 	}
 
-	/* Check config parameter use-adisc or FCP-2 */
-	if ((vport->cfg_use_adisc && (vport->fc_flag & FC_RSCN_MODE)) ||
-	    ndlp->nlp_fcp_info & NLP_FCP_2_DEVICE) {
-		spin_lock_irq(shost->host_lock);
-		ndlp->nlp_flag |= NLP_NPR_ADISC;
-		spin_unlock_irq(shost->host_lock);
-		return 1;
+	if (!(vport->fc_flag & FC_PT2PT)) {
+		/* Check config parameter use-adisc or FCP-2 */
+		if ((vport->cfg_use_adisc && (vport->fc_flag & FC_RSCN_MODE)) ||
+		    ndlp->nlp_fcp_info & NLP_FCP_2_DEVICE) {
+			spin_lock_irq(shost->host_lock);
+			ndlp->nlp_flag |= NLP_NPR_ADISC;
+			spin_unlock_irq(shost->host_lock);
+			return 1;
+		}
 	}
 	ndlp->nlp_flag &= ~NLP_NPR_ADISC;
 	lpfc_unreg_rpi(vport, ndlp);

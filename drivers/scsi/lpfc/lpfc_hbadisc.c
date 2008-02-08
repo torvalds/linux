@@ -800,20 +800,8 @@ lpfc_mbx_cmpl_clear_la(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	writel(control, phba->HCregaddr);
 	readl(phba->HCregaddr); /* flush */
 	spin_unlock_irq(&phba->hbalock);
+	mempool_free(pmb, phba->mbox_mem_pool);
 	return;
-
-	vport->num_disc_nodes = 0;
-	/* go thru NPR nodes and issue ELS PLOGIs */
-	if (vport->fc_npr_cnt)
-		lpfc_els_disc_plogi(vport);
-
-	if (!vport->num_disc_nodes) {
-		spin_lock_irq(shost->host_lock);
-		vport->fc_flag &= ~FC_NDISC_ACTIVE;
-		spin_unlock_irq(shost->host_lock);
-	}
-
-	vport->port_state = LPFC_VPORT_READY;
 
 out:
 	/* Device Discovery completes */
@@ -2484,6 +2472,7 @@ lpfc_disc_start(struct lpfc_vport *vport)
 	 * continue discovery.
 	 */
 	if ((phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) &&
+	    !(vport->fc_flag & FC_PT2PT) &&
 	    !(vport->fc_flag & FC_RSCN_MODE)) {
 		lpfc_issue_reg_vpi(phba, vport);
 		return;

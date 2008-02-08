@@ -461,12 +461,21 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 int
 lpfc_hba_down_prep(struct lpfc_hba *phba)
 {
+	struct lpfc_vport **vports;
+	int i;
 	/* Disable interrupts */
 	writel(0, phba->HCregaddr);
 	readl(phba->HCregaddr); /* flush */
 
-	lpfc_cleanup_discovery_resources(phba->pport);
-	return 0;
+	if (phba->pport->load_flag & FC_UNLOADING)
+		lpfc_cleanup_discovery_resources(phba->pport);
+	else {
+		vports = lpfc_create_vport_work_array(phba);
+		if (vports != NULL)
+			for(i = 0; i <= phba->max_vpi && vports[i] != NULL; i++)
+				lpfc_cleanup_discovery_resources(vports[i]);
+		lpfc_destroy_vport_work_array(phba, vports);
+	}	return 0;
 }
 
 /************************************************************************/

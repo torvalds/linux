@@ -2046,7 +2046,8 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		retry = 1;
 
 	if ((cmd == ELS_CMD_FLOGI) &&
-	    (phba->fc_topology != TOPOLOGY_LOOP)) {
+	    (phba->fc_topology != TOPOLOGY_LOOP) &&
+	    !lpfc_error_lost_link(irsp)) {
 		/* FLOGI retry policy */
 		retry = 1;
 		maxretry = 48;
@@ -4091,8 +4092,15 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		ndlp = lpfc_plogi_confirm_nport(phba, payload, ndlp);
 
 		if (vport->port_state < LPFC_DISC_AUTH) {
-			rjt_err = LSRJT_UNABLE_TPC;
-			break;
+			if (!(phba->pport->fc_flag & FC_PT2PT) ||
+				(phba->pport->fc_flag & FC_PT2PT_PLOGI)) {
+				rjt_err = LSRJT_UNABLE_TPC;
+				break;
+			}
+			/* We get here, and drop thru, if we are PT2PT with
+			 * another NPort and the other side has initiated
+			 * the PLOGI before responding to our FLOGI.
+			 */
 		}
 
 		shost = lpfc_shost_from_vport(vport);
