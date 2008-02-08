@@ -1355,17 +1355,35 @@ static int wait_task_stopped(struct task_struct *p, int delayed_group_leader,
 			     int noreap, struct siginfo __user *infop,
 			     int __user *stat_addr, struct rusage __user *ru)
 {
-	int retval, exit_code;
+	int retval, exit_code, why;
+	uid_t uid = 0; /* unneeded, required by compiler */
 	pid_t pid;
 
-	if (!p->exit_code)
-		return 0;
+	exit_code = 0;
+	spin_lock_irq(&p->sighand->siglock);
+
+	if (unlikely(!task_is_stopped_or_traced(p)))
+		goto unlock_sig;
+
 	if (delayed_group_leader && !(p->ptrace & PT_PTRACED) &&
 	    p->signal->group_stop_count > 0)
 		/*
 		 * A group stop is in progress and this is the group leader.
 		 * We won't report until all threads have stopped.
 		 */
+		goto unlock_sig;
+
+	exit_code = p->exit_code;
+	if (!exit_code)
+		goto unlock_sig;
+
+	if (!noreap)
+		p->exit_code = 0;
+
+	uid = p->uid;
+unlock_sig:
+	spin_unlock_irq(&p->sighand->siglock);
+	if (!exit_code)
 		return 0;
 
 	/*
@@ -1375,65 +1393,15 @@ static int wait_task_stopped(struct task_struct *p, int delayed_group_leader,
 	 * keep holding onto the tasklist_lock while we call getrusage and
 	 * possibly take page faults for user memory.
 	 */
-	pid = task_pid_nr_ns(p, current->nsproxy->pid_ns);
 	get_task_struct(p);
+	pid = task_pid_nr_ns(p, current->nsproxy->pid_ns);
+	why = (p->ptrace & PT_PTRACED) ? CLD_TRAPPED : CLD_STOPPED;
 	read_unlock(&tasklist_lock);
 
-	if (unlikely(noreap)) {
-		uid_t uid = p->uid;
-		int why = (p->ptrace & PT_PTRACED) ? CLD_TRAPPED : CLD_STOPPED;
-
-		exit_code = p->exit_code;
-		if (unlikely(!exit_code) || unlikely(p->exit_state))
-			goto bail_ref;
+	if (unlikely(noreap))
 		return wait_noreap_copyout(p, pid, uid,
 					   why, exit_code,
 					   infop, ru);
-	}
-
-	write_lock_irq(&tasklist_lock);
-
-	/*
-	 * This uses xchg to be atomic with the thread resuming and setting
-	 * it.  It must also be done with the write lock held to prevent a
-	 * race with the EXIT_ZOMBIE case.
-	 */
-	exit_code = xchg(&p->exit_code, 0);
-	if (unlikely(p->exit_state)) {
-		/*
-		 * The task resumed and then died.  Let the next iteration
-		 * catch it in EXIT_ZOMBIE.  Note that exit_code might
-		 * already be zero here if it resumed and did _exit(0).
-		 * The task itself is dead and won't touch exit_code again;
-		 * other processors in this function are locked out.
-		 */
-		p->exit_code = exit_code;
-		exit_code = 0;
-	}
-	if (unlikely(exit_code == 0)) {
-		/*
-		 * Another thread in this function got to it first, or it
-		 * resumed, or it resumed and then died.
-		 */
-		write_unlock_irq(&tasklist_lock);
-bail_ref:
-		put_task_struct(p);
-		/*
-		 * We are returning to the wait loop without having successfully
-		 * removed the process and having released the lock. We cannot
-		 * continue, since the "p" task pointer is potentially stale.
-		 *
-		 * Return -EAGAIN, and do_wait() will restart the loop from the
-		 * beginning. Do _not_ re-acquire the lock.
-		 */
-		return -EAGAIN;
-	}
-
-	/* move to end of parent's list to avoid starvation */
-	remove_parent(p);
-	add_parent(p);
-
-	write_unlock_irq(&tasklist_lock);
 
 	retval = ru ? getrusage(p, RUSAGE_BOTH, ru) : 0;
 	if (!retval && stat_addr)
@@ -1443,15 +1411,13 @@ bail_ref:
 	if (!retval && infop)
 		retval = put_user(0, &infop->si_errno);
 	if (!retval && infop)
-		retval = put_user((short)((p->ptrace & PT_PTRACED)
-					  ? CLD_TRAPPED : CLD_STOPPED),
-				  &infop->si_code);
+		retval = put_user(why, &infop->si_code);
 	if (!retval && infop)
 		retval = put_user(exit_code, &infop->si_status);
 	if (!retval && infop)
 		retval = put_user(pid, &infop->si_pid);
 	if (!retval && infop)
-		retval = put_user(p->uid, &infop->si_uid);
+		retval = put_user(uid, &infop->si_uid);
 	if (!retval)
 		retval = pid;
 	put_task_struct(p);
@@ -1558,8 +1524,6 @@ repeat:
 				retval = wait_task_stopped(p, ret == 2,
 						(options & WNOWAIT), infop,
 						stat_addr, ru);
-				if (retval == -EAGAIN)
-					goto repeat;
 				if (retval != 0) /* He released the lock.  */
 					goto end;
 			} else if (p->exit_state == EXIT_ZOMBIE) {
