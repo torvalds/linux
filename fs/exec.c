@@ -119,7 +119,7 @@ asmlinkage long sys_uselib(const char __user * library)
 	if (error)
 		goto exit;
 
-	file = nameidata_to_filp(&nd, O_RDONLY);
+	file = nameidata_to_filp(&nd, O_RDONLY|O_LARGEFILE);
 	error = PTR_ERR(file);
 	if (IS_ERR(file))
 		goto out;
@@ -658,7 +658,8 @@ struct file *open_exec(const char *name)
 			int err = vfs_permission(&nd, MAY_EXEC);
 			file = ERR_PTR(err);
 			if (!err) {
-				file = nameidata_to_filp(&nd, O_RDONLY);
+				file = nameidata_to_filp(&nd,
+							O_RDONLY|O_LARGEFILE);
 				if (!IS_ERR(file)) {
 					err = deny_write_access(file);
 					if (err) {
