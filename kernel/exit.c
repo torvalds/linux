@@ -947,7 +947,7 @@ fastcall NORET_TYPE void do_exit(long code)
 		schedule();
 	}
 
-	tsk->flags |= PF_EXITING;
+	exit_signals(tsk);  /* sets PF_EXITING */
 	/*
 	 * tsk->flags are checked in the futex code to protect against
 	 * an exiting task cleaning up the robust pi futexes.

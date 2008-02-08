@@ -1739,7 +1739,7 @@ static int do_signal_stop(int signr)
 			 * stop is always done with the siglock held,
 			 * so this check has no races.
 			 */
-			if (!t->exit_state &&
+			if (!(t->flags & PF_EXITING) &&
 			    !task_is_stopped_or_traced(t)) {
 				stop_count++;
 				signal_wake_up(t, 0);
@@ -1898,6 +1898,31 @@ relock:
 	}
 	spin_unlock_irq(&current->sighand->siglock);
 	return signr;
+}
+
+void exit_signals(struct task_struct *tsk)
+{
+	int group_stop = 0;
+
+	spin_lock_irq(&tsk->sighand->siglock);
+	if (unlikely(tsk->signal->group_stop_count) &&
+			!--tsk->signal->group_stop_count) {
+		tsk->signal->flags = SIGNAL_STOP_STOPPED;
+		group_stop = 1;
+	}
+
+	/*
+	 * From now this task is not visible for group-wide signals,
+	 * see wants_signal(), do_signal_stop().
+	 */
+	tsk->flags |= PF_EXITING;
+	spin_unlock_irq(&tsk->sighand->siglock);
+
+	if (unlikely(group_stop)) {
+		read_lock(&tasklist_lock);
+		do_notify_parent_cldstop(tsk, CLD_STOPPED);
+		read_unlock(&tasklist_lock);
+	}
 }
 
 EXPORT_SYMBOL(recalc_sigpending);
