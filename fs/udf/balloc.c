@@ -183,46 +183,46 @@ static void udf_bitmap_free_blocks(struct super_block *sb,
 	block = bloc.logicalBlockNum + offset +
 		(sizeof(struct spaceBitmapDesc) << 3);
 
-do_more:
-	overflow = 0;
-	block_group = block >> (sb->s_blocksize_bits + 3);
-	bit = block % (sb->s_blocksize << 3);
+	do {
+		overflow = 0;
+		block_group = block >> (sb->s_blocksize_bits + 3);
+		bit = block % (sb->s_blocksize << 3);
 
-	/*
-	 * Check to see if we are freeing blocks across a group boundary.
-	 */
-	if (bit + count > (sb->s_blocksize << 3)) {
-		overflow = bit + count - (sb->s_blocksize << 3);
-		count -= overflow;
-	}
-	bitmap_nr = load_block_bitmap(sb, bitmap, block_group);
-	if (bitmap_nr < 0)
-		goto error_return;
-
-	bh = bitmap->s_block_bitmap[bitmap_nr];
-	for (i = 0; i < count; i++) {
-		if (udf_set_bit(bit + i, bh->b_data)) {
-			udf_debug("bit %ld already set\n", bit + i);
-			udf_debug("byte=%2x\n",
-				  ((char *)bh->b_data)[(bit + i) >> 3]);
-		} else {
-			if (inode)
-				DQUOT_FREE_BLOCK(inode, 1);
-			udf_add_free_space(sbi, sbi->s_partition, 1);
+		/*
+		* Check to see if we are freeing blocks across a group boundary.
+		*/
+		if (bit + count > (sb->s_blocksize << 3)) {
+			overflow = bit + count - (sb->s_blocksize << 3);
+			count -= overflow;
 		}
-	}
-	mark_buffer_dirty(bh);
-	if (overflow) {
-		block += count;
-		count = overflow;
-		goto do_more;
-	}
+		bitmap_nr = load_block_bitmap(sb, bitmap, block_group);
+		if (bitmap_nr < 0)
+			goto error_return;
+
+		bh = bitmap->s_block_bitmap[bitmap_nr];
+		for (i = 0; i < count; i++) {
+			if (udf_set_bit(bit + i, bh->b_data)) {
+				udf_debug("bit %ld already set\n", bit + i);
+				udf_debug("byte=%2x\n",
+					((char *)bh->b_data)[(bit + i) >> 3]);
+			} else {
+				if (inode)
+					DQUOT_FREE_BLOCK(inode, 1);
+				udf_add_free_space(sbi, sbi->s_partition, 1);
+			}
+		}
+		mark_buffer_dirty(bh);
+		if (overflow) {
+			block += count;
+			count = overflow;
+		}
+	} while (overflow);
+
 error_return:
 	sb->s_dirt = 1;
 	if (sbi->s_lvid_bh)
 		mark_buffer_dirty(sbi->s_lvid_bh);
 	mutex_unlock(&sbi->s_alloc_mutex);
-	return;
 }
 
 static int udf_bitmap_prealloc_blocks(struct super_block *sb,
@@ -246,37 +246,37 @@ static int udf_bitmap_prealloc_blocks(struct super_block *sb,
 	if (first_block + block_count > part_len)
 		block_count = part_len - first_block;
 
-repeat:
-	nr_groups = udf_compute_nr_groups(sb, partition);
-	block = first_block + (sizeof(struct spaceBitmapDesc) << 3);
-	block_group = block >> (sb->s_blocksize_bits + 3);
-	group_start = block_group ? 0 : sizeof(struct spaceBitmapDesc);
+	do {
+		nr_groups = udf_compute_nr_groups(sb, partition);
+		block = first_block + (sizeof(struct spaceBitmapDesc) << 3);
+		block_group = block >> (sb->s_blocksize_bits + 3);
+		group_start = block_group ? 0 : sizeof(struct spaceBitmapDesc);
 
-	bitmap_nr = load_block_bitmap(sb, bitmap, block_group);
-	if (bitmap_nr < 0)
-		goto out;
-	bh = bitmap->s_block_bitmap[bitmap_nr];
+		bitmap_nr = load_block_bitmap(sb, bitmap, block_group);
+		if (bitmap_nr < 0)
+			goto out;
+		bh = bitmap->s_block_bitmap[bitmap_nr];
 
-	bit = block % (sb->s_blocksize << 3);
+		bit = block % (sb->s_blocksize << 3);
 
-	while (bit < (sb->s_blocksize << 3) && block_count > 0) {
-		if (!udf_test_bit(bit, bh->b_data)) {
-			goto out;
-		} else if (DQUOT_PREALLOC_BLOCK(inode, 1)) {
-			goto out;
-		} else if (!udf_clear_bit(bit, bh->b_data)) {
-			udf_debug("bit already cleared for block %d\n", bit);
-			DQUOT_FREE_BLOCK(inode, 1);
-			goto out;
+		while (bit < (sb->s_blocksize << 3) && block_count > 0) {
+			if (!udf_test_bit(bit, bh->b_data))
+				goto out;
+			else if (DQUOT_PREALLOC_BLOCK(inode, 1))
+				goto out;
+			else if (!udf_clear_bit(bit, bh->b_data)) {
+				udf_debug("bit already cleared for block %d\n", bit);
+				DQUOT_FREE_BLOCK(inode, 1);
+				goto out;
+			}
+			block_count--;
+			alloc_count++;
+			bit++;
+			block++;
 		}
-		block_count--;
-		alloc_count++;
-		bit++;
-		block++;
-	}
-	mark_buffer_dirty(bh);
-	if (block_count > 0)
-		goto repeat;
+		mark_buffer_dirty(bh);
+	} while (block_count > 0);
+
 out:
 	if (udf_add_free_space(sbi, partition, -alloc_count))
 		mark_buffer_dirty(sbi->s_lvid_bh);
