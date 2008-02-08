@@ -52,6 +52,10 @@ config HAVE_LATENCYTOP_SUPPORT
 config SEMAPHORE_SLEEPERS
 	def_bool y
 
+config FAST_CMPXCHG_LOCAL
+	bool
+	default y
+
 config MMU
 	def_bool y
 
