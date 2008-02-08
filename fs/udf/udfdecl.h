@@ -188,8 +188,8 @@ extern struct fileIdentDesc *udf_fileident_read(struct inode *, loff_t *,
 						sector_t *);
 extern struct fileIdentDesc *udf_get_fileident(void *buffer, int bufsize,
 					       int *offset);
-extern long_ad *udf_get_filelongad(uint8_t *, int, int *, int);
-extern short_ad *udf_get_fileshortad(uint8_t *, int, int *, int);
+extern long_ad *udf_get_filelongad(uint8_t *, int, uint32_t *, int);
+extern short_ad *udf_get_fileshortad(uint8_t *, int, uint32_t *, int);
 
 /* crc.c */
 extern uint16_t udf_crc(uint8_t *, uint32_t, uint16_t);

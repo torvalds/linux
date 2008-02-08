@@ -282,7 +282,7 @@ static extent_ad *udf_get_fileextent(void *buffer, int bufsize, int *offset)
 }
 #endif
 
-short_ad *udf_get_fileshortad(uint8_t *ptr, int maxoffset, int *offset,
+short_ad *udf_get_fileshortad(uint8_t *ptr, int maxoffset, uint32_t *offset,
 			      int inc)
 {
 	short_ad *sa;
@@ -292,7 +292,7 @@ short_ad *udf_get_fileshortad(uint8_t *ptr, int maxoffset, int *offset,
 		return NULL;
 	}
 
-	if ((*offset < 0) || ((*offset + sizeof(short_ad)) > maxoffset))
+	if ((*offset + sizeof(short_ad)) > maxoffset)
 		return NULL;
 	else {
 		sa = (short_ad *)ptr;
@@ -305,7 +305,7 @@ short_ad *udf_get_fileshortad(uint8_t *ptr, int maxoffset, int *offset,
 	return sa;
 }
 
-long_ad *udf_get_filelongad(uint8_t *ptr, int maxoffset, int *offset, int inc)
+long_ad *udf_get_filelongad(uint8_t *ptr, int maxoffset, uint32_t *offset, int inc)
 {
 	long_ad *la;
 
@@ -314,7 +314,7 @@ long_ad *udf_get_filelongad(uint8_t *ptr, int maxoffset, int *offset, int inc)
 		return NULL;
 	}
 
-	if ((*offset < 0) || ((*offset + sizeof(long_ad)) > maxoffset))
+	if ((*offset + sizeof(long_ad)) > maxoffset)
 		return NULL;
 	else {
 		la = (long_ad *)ptr;
