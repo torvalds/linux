@@ -460,7 +460,7 @@ static int spufs_cntl_open(struct inode *inode, struct file *file)
 	if (!i->i_openers++)
 		ctx->cntl = inode->i_mapping;
 	mutex_unlock(&ctx->mapping_lock);
-	return spufs_attr_open(inode, file, spufs_cntl_get,
+	return simple_attr_open(inode, file, spufs_cntl_get,
 					spufs_cntl_set, "0x%08lx");
 }
 
@@ -470,7 +470,7 @@ spufs_cntl_release(struct inode *inode, struct file *file)
 	struct spufs_inode_info *i = SPUFS_I(inode);
 	struct spu_context *ctx = i->i_ctx;
 
-	spufs_attr_release(inode, file);
+	simple_attr_close(inode, file);
 
 	mutex_lock(&ctx->mapping_lock);
 	if (!--i->i_openers)
@@ -482,8 +482,8 @@ spufs_cntl_release(struct inode *inode, struct file *file)
 static const struct file_operations spufs_cntl_fops = {
 	.open = spufs_cntl_open,
 	.release = spufs_cntl_release,
-	.read = spufs_attr_read,
-	.write = spufs_attr_write,
+	.read = simple_attr_read,
+	.write = simple_attr_write,
 	.mmap = spufs_cntl_mmap,
 };
 

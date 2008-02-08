@@ -2068,7 +2068,7 @@ __simple_attr_check_format(const char *fmt, ...)
 }
 
 int simple_attr_open(struct inode *inode, struct file *file,
-		     u64 (*get)(void *), void (*set)(void *, u64),
+		     int (*get)(void *, u64 *), int (*set)(void *, u64),
 		     const char *fmt);
 int simple_attr_close(struct inode *inode, struct file *file);
 ssize_t simple_attr_read(struct file *file, char __user *buf,

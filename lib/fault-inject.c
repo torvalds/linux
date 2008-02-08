@@ -134,23 +134,26 @@ bool should_fail(struct fault_attr *attr, ssize_t size)
 
 #ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
 
-static void debugfs_ul_set(void *data, u64 val)
+static int debugfs_ul_set(void *data, u64 val)
 {
 	*(unsigned long *)data = val;
+	return 0;
 }
 
 #ifdef CONFIG_FAULT_INJECTION_STACKTRACE_FILTER
-static void debugfs_ul_set_MAX_STACK_TRACE_DEPTH(void *data, u64 val)
+static int debugfs_ul_set_MAX_STACK_TRACE_DEPTH(void *data, u64 val)
 {
 	*(unsigned long *)data =
 		val < MAX_STACK_TRACE_DEPTH ?
 		val : MAX_STACK_TRACE_DEPTH;
+	return 0;
 }
 #endif /* CONFIG_FAULT_INJECTION_STACKTRACE_FILTER */
 
-static u64 debugfs_ul_get(void *data)
+static int debugfs_ul_get(void *data, u64 *val)
 {
-	return *(unsigned long *)data;
+	*val = *(unsigned long *)data;
+	return 0;
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(fops_ul, debugfs_ul_get, debugfs_ul_set, "%llu\n");
@@ -174,14 +177,16 @@ static struct dentry *debugfs_create_ul_MAX_STACK_TRACE_DEPTH(
 }
 #endif /* CONFIG_FAULT_INJECTION_STACKTRACE_FILTER */
 
-static void debugfs_atomic_t_set(void *data, u64 val)
+static int debugfs_atomic_t_set(void *data, u64 val)
 {
 	atomic_set((atomic_t *)data, val);
+	return 0;
 }
 
-static u64 debugfs_atomic_t_get(void *data)
+static int debugfs_atomic_t_get(void *data, u64 *val)
 {
-	return atomic_read((atomic_t *)data);
+	*val = atomic_read((atomic_t *)data);
+	return 0;
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(fops_atomic_t, debugfs_atomic_t_get,

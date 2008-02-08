@@ -1186,38 +1186,38 @@ static struct notifier_block kvm_cpu_notifier = {
 	.priority = 20, /* must be > scheduler priority */
 };
 
-static u64 vm_stat_get(void *_offset)
+static int vm_stat_get(void *_offset, u64 *val)
 {
 	unsigned offset = (long)_offset;
-	u64 total = 0;
 	struct kvm *kvm;
 
+	*val = 0;
 	spin_lock(&kvm_lock);
 	list_for_each_entry(kvm, &vm_list, vm_list)
-		total += *(u32 *)((void *)kvm + offset);
+		*val += *(u32 *)((void *)kvm + offset);
 	spin_unlock(&kvm_lock);
-	return total;
+	return 0;
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(vm_stat_fops, vm_stat_get, NULL, "%llu\n");
 
-static u64 vcpu_stat_get(void *_offset)
+static int vcpu_stat_get(void *_offset, u64 *val)
 {
 	unsigned offset = (long)_offset;
-	u64 total = 0;
 	struct kvm *kvm;
 	struct kvm_vcpu *vcpu;
 	int i;
 
+	*val = 0;
 	spin_lock(&kvm_lock);
 	list_for_each_entry(kvm, &vm_list, vm_list)
 		for (i = 0; i < KVM_MAX_VCPUS; ++i) {
 			vcpu = kvm->vcpus[i];
 			if (vcpu)
-				total += *(u32 *)((void *)vcpu + offset);
+				*val += *(u32 *)((void *)vcpu + offset);
 		}
 	spin_unlock(&kvm_lock);
-	return total;
+	return 0;
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(vcpu_stat_fops, vcpu_stat_get, NULL, "%llu\n");
