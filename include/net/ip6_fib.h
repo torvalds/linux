@@ -150,19 +150,6 @@ struct rt6_statistics {
  *
  */
 
-#define RTPRI_FIREWALL	8		/* Firewall control information	*/
-#define RTPRI_FLOW	16		/* Flow based forwarding rules	*/
-#define RTPRI_KERN_CTL	32		/* Kernel control routes	*/
-
-#define RTPRI_USER_MIN	256		/* Mimimum user priority	*/
-#define RTPRI_USER_MAX	1024		/* Maximum user priority	*/
-
-#define RTPRI_KERN_DFLT	4096		/* Kernel default routes	*/
-
-#define	MAX_FLOW_BACKTRACE	32
-
-
-typedef void			(*f_pnode)(struct fib6_node *fn, void *);
 
 struct fib6_table {
 	struct hlist_node	tb6_hlist;
