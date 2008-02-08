@@ -422,6 +422,42 @@ static void release_metapath(struct metapath *mp)
 			brelse(mp->mp_bh[i]);
 }
 
+/**
+ * gfs2_extent_length - Returns length of an extent of blocks
+ * @start: Start of the buffer
+ * @len: Length of the buffer in bytes
+ * @ptr: Current position in the buffer
+ * @limit: Max extent length to return (0 = unlimited)
+ * @eob: Set to 1 if we hit "end of block"
+ *
+ * If the first block is zero (unallocated) it will return the number of
+ * unallocated blocks in the extent, otherwise it will return the number
+ * of contiguous blocks in the extent.
+ *
+ * Returns: The length of the extent (minimum of one block)
+ */
+
+static inline unsigned int gfs2_extent_length(void *start, unsigned int len, __be64 *ptr, unsigned limit, int *eob)
+{
+	const __be64 *end = (start + len);
+	const __be64 *first = ptr;
+	u64 d = be64_to_cpu(*ptr);
+
+	*eob = 0;
+	do {
+		ptr++;
+		if (ptr >= end)
+			break;
+		if (limit && --limit == 0)
+			break;
+		if (d)
+			d++;
+	} while(be64_to_cpu(*ptr) == d);
+	if (ptr >= end)
+		*eob = 1;
+	return (ptr - first);
+}
+
 static inline void bmap_lock(struct inode *inode, int create)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
@@ -499,26 +535,26 @@ int gfs2_block_map(struct inode *inode, sector_t lblock,
 		goto out_fail;
 	boundary = error;
 
-	if (dblock) {
+	if (new) {
 		map_bh(bh_map, inode->i_sb, dblock);
 		if (boundary)
 			set_buffer_boundary(bh_map);
-		if (new) {
-			gfs2_trans_add_bh(ip->i_gl, mp.mp_bh[0], 1);
-			gfs2_dinode_out(ip, mp.mp_bh[0]->b_data);
-			set_buffer_new(bh_map);
-			goto out_ok;
-		}
-		while(--maxlen && !buffer_boundary(bh_map)) {
-			u64 eblock;
-			mp.mp_list[ip->i_height - 1]++;
-			boundary = lookup_block(ip, ip->i_height - 1, &mp, 0, &new, &eblock);
-			if (eblock != ++dblock)
-				break;
-			bh_map->b_size += (1 << inode->i_blkbits);
-			if (boundary)
-				set_buffer_boundary(bh_map);
-		}
+		gfs2_trans_add_bh(ip->i_gl, mp.mp_bh[0], 1);
+		gfs2_dinode_out(ip, mp.mp_bh[0]->b_data);
+		set_buffer_new(bh_map);
+		goto out_ok;
+	}
+
+	if (dblock) {
+		unsigned int len;
+		struct buffer_head *bh = mp.mp_bh[ip->i_height - 1];
+		__be64 *ptr = metapointer(&boundary, ip->i_height - 1, &mp);
+		map_bh(bh_map, inode->i_sb, dblock);
+		len = gfs2_extent_length(bh->b_data, bh->b_size, ptr, maxlen,
+					 &boundary);
+		bh_map->b_size = (len << inode->i_blkbits);
+		if (boundary)
+			set_buffer_boundary(bh_map);
 	}
 out_ok:
 	error = 0;
