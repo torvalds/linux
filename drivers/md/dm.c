@@ -71,6 +71,19 @@ union map_info *dm_get_mapinfo(struct bio *bio)
 #define DMF_DELETING 4
 #define DMF_NOFLUSH_SUSPENDING 5
 
+/*
+ * Work processed by per-device workqueue.
+ */
+struct dm_wq_req {
+	enum {
+		DM_WQ_FLUSH_ALL,
+		DM_WQ_FLUSH_DEFERRED,
+	} type;
+	struct work_struct work;
+	struct mapped_device *md;
+	void *context;
+};
+
 struct mapped_device {
 	struct rw_semaphore io_lock;
 	struct mutex suspend_lock;
@@ -94,6 +107,11 @@ struct mapped_device {
 	wait_queue_head_t wait;
 	struct bio_list deferred;
 	struct bio_list pushback;
+
+	/*
+	 * Processing queue (flush/barriers)
+	 */
+	struct workqueue_struct *wq;
 
 	/*
 	 * The current mapping.
@@ -1044,6 +1062,10 @@ static struct mapped_device *alloc_dev(int minor)
 	add_disk(md->disk);
 	format_dev_t(md->name, MKDEV(_major, minor));
 
+	md->wq = create_singlethread_workqueue("kdmflush");
+	if (!md->wq)
+		goto bad_thread;
+
 	/* Populate the mapping, nobody knows we exist yet */
 	spin_lock(&_minor_lock);
 	old_md = idr_replace(&_minor_idr, md, minor);
@@ -1053,6 +1075,8 @@ static struct mapped_device *alloc_dev(int minor)
 
 	return md;
 
+bad_thread:
+	put_disk(md->disk);
 bad_disk:
 	bioset_free(md->bs);
 bad_no_bioset:
@@ -1080,6 +1104,7 @@ static void free_dev(struct mapped_device *md)
 		unlock_fs(md);
 		bdput(md->suspended_bdev);
 	}
+	destroy_workqueue(md->wq);
 	mempool_destroy(md->tio_pool);
 	mempool_destroy(md->io_pool);
 	bioset_free(md->bs);
@@ -1308,6 +1333,44 @@ static void __merge_pushback_list(struct mapped_device *md)
 	spin_unlock_irqrestore(&md->pushback_lock, flags);
 }
 
+static void dm_wq_work(struct work_struct *work)
+{
+	struct dm_wq_req *req = container_of(work, struct dm_wq_req, work);
+	struct mapped_device *md = req->md;
+
+	down_write(&md->io_lock);
+	switch (req->type) {
+	case DM_WQ_FLUSH_ALL:
+		__merge_pushback_list(md);
+		/* pass through */
+	case DM_WQ_FLUSH_DEFERRED:
+		__flush_deferred_io(md);
+		break;
+	default:
+		DMERR("dm_wq_work: unrecognised work type %d", req->type);
+		BUG();
+	}
+	up_write(&md->io_lock);
+}
+
+static void dm_wq_queue(struct mapped_device *md, int type, void *context,
+			struct dm_wq_req *req)
+{
+	req->type = type;
+	req->md = md;
+	req->context = context;
+	INIT_WORK(&req->work, dm_wq_work);
+	queue_work(md->wq, &req->work);
+}
+
+static void dm_queue_flush(struct mapped_device *md, int type, void *context)
+{
+	struct dm_wq_req req;
+
+	dm_wq_queue(md, type, context, &req);
+	flush_workqueue(md->wq);
+}
+
 /*
  * Swap in a new table (destroying old one).
  */
@@ -1450,9 +1513,7 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 
 	/* were we interrupted ? */
 	if (r < 0) {
-		down_write(&md->io_lock);
-		__flush_deferred_io(md);
-		up_write(&md->io_lock);
+		dm_queue_flush(md, DM_WQ_FLUSH_DEFERRED, NULL);
 
 		unlock_fs(md);
 		goto out; /* pushback list is already flushed, so skip flush */
@@ -1463,16 +1524,12 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 	set_bit(DMF_SUSPENDED, &md->flags);
 
 flush_and_out:
-	if (r && noflush) {
+	if (r && noflush)
 		/*
 		 * Because there may be already I/Os in the pushback list,
 		 * flush them before return.
 		 */
-		down_write(&md->io_lock);
-		__merge_pushback_list(md);
-		__flush_deferred_io(md);
-		up_write(&md->io_lock);
-	}
+		dm_queue_flush(md, DM_WQ_FLUSH_ALL, NULL);
 
 out:
 	if (r && md->suspended_bdev) {
@@ -1504,9 +1561,7 @@ int dm_resume(struct mapped_device *md)
 	if (r)
 		goto out;
 
-	down_write(&md->io_lock);
-	__flush_deferred_io(md);
-	up_write(&md->io_lock);
+	dm_queue_flush(md, DM_WQ_FLUSH_DEFERRED, NULL);
 
 	unlock_fs(md);
 
