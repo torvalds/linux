@@ -126,6 +126,129 @@ long long simple_strtoll(const char *cp,char **endp,unsigned int base)
 	return simple_strtoull(cp,endp,base);
 }
 
+
+/**
+ * strict_strtoul - convert a string to an unsigned long strictly
+ * @cp: The string to be converted
+ * @base: The number base to use
+ * @res: The converted result value
+ *
+ * strict_strtoul converts a string to an unsigned long only if the
+ * string is really an unsigned long string, any string containing
+ * any invalid char at the tail will be rejected and -EINVAL is returned,
+ * only a newline char at the tail is acceptible because people generally
+ * change a module parameter in the following way:
+ *
+ * 	echo 1024 > /sys/module/e1000/parameters/copybreak
+ *
+ * echo will append a newline to the tail.
+ *
+ * It returns 0 if conversion is successful and *res is set to the converted
+ * value, otherwise it returns -EINVAL and *res is set to 0.
+ *
+ * simple_strtoul just ignores the successive invalid characters and
+ * return the converted value of prefix part of the string.
+ */
+int strict_strtoul(const char *cp, unsigned int base, unsigned long *res);
+
+/**
+ * strict_strtol - convert a string to a long strictly
+ * @cp: The string to be converted
+ * @base: The number base to use
+ * @res: The converted result value
+ *
+ * strict_strtol is similiar to strict_strtoul, but it allows the first
+ * character of a string is '-'.
+ *
+ * It returns 0 if conversion is successful and *res is set to the converted
+ * value, otherwise it returns -EINVAL and *res is set to 0.
+ */
+int strict_strtol(const char *cp, unsigned int base, long *res);
+
+/**
+ * strict_strtoull - convert a string to an unsigned long long strictly
+ * @cp: The string to be converted
+ * @base: The number base to use
+ * @res: The converted result value
+ *
+ * strict_strtoull converts a string to an unsigned long long only if the
+ * string is really an unsigned long long string, any string containing
+ * any invalid char at the tail will be rejected and -EINVAL is returned,
+ * only a newline char at the tail is acceptible because people generally
+ * change a module parameter in the following way:
+ *
+ * 	echo 1024 > /sys/module/e1000/parameters/copybreak
+ *
+ * echo will append a newline to the tail of the string.
+ *
+ * It returns 0 if conversion is successful and *res is set to the converted
+ * value, otherwise it returns -EINVAL and *res is set to 0.
+ *
+ * simple_strtoull just ignores the successive invalid characters and
+ * return the converted value of prefix part of the string.
+ */
+int strict_strtoull(const char *cp, unsigned int base, unsigned long long *res);
+
+/**
+ * strict_strtoll - convert a string to a long long strictly
+ * @cp: The string to be converted
+ * @base: The number base to use
+ * @res: The converted result value
+ *
+ * strict_strtoll is similiar to strict_strtoull, but it allows the first
+ * character of a string is '-'.
+ *
+ * It returns 0 if conversion is successful and *res is set to the converted
+ * value, otherwise it returns -EINVAL and *res is set to 0.
+ */
+int strict_strtoll(const char *cp, unsigned int base, long long *res);
+
+#define define_strict_strtoux(type, valtype)				\
+int strict_strtou##type(const char *cp, unsigned int base, valtype *res)\
+{									\
+	char *tail;							\
+	valtype val;							\
+	size_t len;							\
+									\
+	*res = 0;							\
+	len = strlen(cp);						\
+	if (len == 0)							\
+		return -EINVAL;						\
+									\
+	val = simple_strtoul(cp, &tail, base);				\
+	if ((*tail == '\0') ||						\
+		((len == (size_t)(tail - cp) + 1) && (*tail == '\n'))) {\
+		*res = val;						\
+		return 0;						\
+	}								\
+									\
+	return -EINVAL;							\
+}									\
+
+#define define_strict_strtox(type, valtype)				\
+int strict_strto##type(const char *cp, unsigned int base, valtype *res)	\
+{									\
+	int ret;							\
+	if (*cp == '-') {						\
+		ret = strict_strtou##type(cp+1, base, res);		\
+		if (ret != 0)						\
+			*res = -(*res);					\
+	} else								\
+		ret = strict_strtou##type(cp, base, res);		\
+									\
+	return ret;							\
+}									\
+
+define_strict_strtoux(l, unsigned long)
+define_strict_strtox(l, long)
+define_strict_strtoux(ll, unsigned long long)
+define_strict_strtox(ll, long long)
+
+EXPORT_SYMBOL(strict_strtoul);
+EXPORT_SYMBOL(strict_strtol);
+EXPORT_SYMBOL(strict_strtoll);
+EXPORT_SYMBOL(strict_strtoull);
+
 static int skip_atoi(const char **s)
 {
 	int i=0;
