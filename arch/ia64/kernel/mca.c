@@ -17,7 +17,7 @@
  * Copyright (C) 2000 Intel
  * Copyright (C) Chuck Fleckenstein <cfleck@co.intel.com>
  *
- * Copyright (C) 1999, 2004 Silicon Graphics, Inc.
+ * Copyright (C) 1999, 2004-2008 Silicon Graphics, Inc.
  * Copyright (C) Vijay Chander <vijay@engr.sgi.com>
  *
  * Copyright (C) 2006 FUJITSU LIMITED
@@ -1762,11 +1762,8 @@ format_mca_init_stack(void *mca_data, unsigned long offset,
 /* Caller prevents this from being called after init */
 static void * __init_refok mca_bootmem(void)
 {
-	void *p;
-
-	p = alloc_bootmem(sizeof(struct ia64_mca_cpu) * NR_CPUS +
-	                  KERNEL_STACK_SIZE);
-	return (void *)ALIGN((unsigned long)p, KERNEL_STACK_SIZE);
+	return __alloc_bootmem(sizeof(struct ia64_mca_cpu),
+	                    KERNEL_STACK_SIZE, 0);
 }
 
 /* Do per-CPU MCA-related initialization.  */
@@ -1774,33 +1771,33 @@ void __cpuinit
 ia64_mca_cpu_init(void *cpu_data)
 {
 	void *pal_vaddr;
+	void *data;
+	long sz = sizeof(struct ia64_mca_cpu);
+	int cpu = smp_processor_id();
 	static int first_time = 1;
 
-	if (first_time) {
-		void *mca_data;
-		int cpu;
-
-		first_time = 0;
-		mca_data = mca_bootmem();
-		for (cpu = 0; cpu < NR_CPUS; cpu++) {
-			format_mca_init_stack(mca_data,
-					offsetof(struct ia64_mca_cpu, mca_stack),
-					"MCA", cpu);
-			format_mca_init_stack(mca_data,
-					offsetof(struct ia64_mca_cpu, init_stack),
-					"INIT", cpu);
-			__per_cpu_mca[cpu] = __pa(mca_data);
-			mca_data += sizeof(struct ia64_mca_cpu);
-		}
-	}
-
 	/*
-	 * The MCA info structure was allocated earlier and its
-	 * physical address saved in __per_cpu_mca[cpu].  Copy that
-	 * address * to ia64_mca_data so we can access it as a per-CPU
-	 * variable.
+	 * Structure will already be allocated if cpu has been online,
+	 * then offlined.
 	 */
-	__get_cpu_var(ia64_mca_data) = __per_cpu_mca[smp_processor_id()];
+	if (__per_cpu_mca[cpu]) {
+		data = __va(__per_cpu_mca[cpu]);
+	} else {
+		if (first_time) {
+			data = mca_bootmem();
+			first_time = 0;
+		} else
+			data = page_address(alloc_pages_node(numa_node_id(),
+					GFP_KERNEL, get_order(sz)));
+		if (!data)
+			panic("Could not allocate MCA memory for cpu %d\n",
+					cpu);
+	}
+	format_mca_init_stack(data, offsetof(struct ia64_mca_cpu, mca_stack),
+		"MCA", cpu);
+	format_mca_init_stack(data, offsetof(struct ia64_mca_cpu, init_stack),
+		"INIT", cpu);
+	__get_cpu_var(ia64_mca_data) = __per_cpu_mca[cpu] = __pa(data);
 
 	/*
 	 * Stash away a copy of the PTE needed to map the per-CPU page.

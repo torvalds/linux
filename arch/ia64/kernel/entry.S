@@ -1573,7 +1573,7 @@ sys_call_table:
 	data8 sys_fchmodat
 	data8 sys_faccessat
 	data8 sys_pselect6
-	data8 sys_ppoll
+	data8 sys_ppoll				// 1295
 	data8 sys_unshare
 	data8 sys_splice
 	data8 sys_set_robust_list
@@ -1588,5 +1588,8 @@ sys_call_table:
 	data8 sys_signalfd
 	data8 sys_ni_syscall
 	data8 sys_eventfd
+	data8 sys_timerfd_create		// 1310
+	data8 sys_timerfd_settime
+	data8 sys_timerfd_gettime
 
 	.org sys_call_table + 8*NR_syscalls	// guard against failures to increase NR_syscalls
