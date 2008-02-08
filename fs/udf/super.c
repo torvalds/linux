@@ -1447,44 +1447,45 @@ static int udf_load_partition(struct super_block *sb, kernel_lb_addr *fileset)
 	sbi = UDF_SB(sb);
 
 	for (i = 0; i < ARRAY_SIZE(sbi->s_anchor); i++) {
-		if (sbi->s_anchor[i] &&
-		    (bh = udf_read_tagged(sb, sbi->s_anchor[i],
-					  sbi->s_anchor[i], &ident))) {
-			anchor = (struct anchorVolDescPtr *)bh->b_data;
+		if (!sbi->s_anchor[i])
+			continue;
+		bh = udf_read_tagged(sb, sbi->s_anchor[i], sbi->s_anchor[i],
+				     &ident);
+		if (!bh)
+			continue;
 
-			/* Locate the main sequence */
-			main_s = le32_to_cpu(
-					anchor->mainVolDescSeqExt.extLocation);
-			main_e = le32_to_cpu(
-					anchor->mainVolDescSeqExt.extLength);
-			main_e = main_e >> sb->s_blocksize_bits;
-			main_e += main_s;
+		anchor = (struct anchorVolDescPtr *)bh->b_data;
 
-			/* Locate the reserve sequence */
-			reserve_s = le32_to_cpu(
+		/* Locate the main sequence */
+		main_s = le32_to_cpu(anchor->mainVolDescSeqExt.extLocation);
+		main_e = le32_to_cpu(anchor->mainVolDescSeqExt.extLength);
+		main_e = main_e >> sb->s_blocksize_bits;
+		main_e += main_s;
+
+		/* Locate the reserve sequence */
+		reserve_s = le32_to_cpu(
 				anchor->reserveVolDescSeqExt.extLocation);
-			reserve_e = le32_to_cpu(
+		reserve_e = le32_to_cpu(
 				anchor->reserveVolDescSeqExt.extLength);
-			reserve_e = reserve_e >> sb->s_blocksize_bits;
-			reserve_e += reserve_s;
+		reserve_e = reserve_e >> sb->s_blocksize_bits;
+		reserve_e += reserve_s;
 
-			brelse(bh);
+		brelse(bh);
 
-			/* Process the main & reserve sequences */
-			/* responsible for finding the PartitionDesc(s) */
-			if (!(udf_process_sequence(sb, main_s, main_e,
-						   fileset) &&
-			      udf_process_sequence(sb, reserve_s, reserve_e,
-						   fileset)))
-				break;
-		}
+		/* Process the main & reserve sequences */
+		/* responsible for finding the PartitionDesc(s) */
+		if (!(udf_process_sequence(sb, main_s, main_e,
+					   fileset) &&
+		      udf_process_sequence(sb, reserve_s, reserve_e,
+					   fileset)))
+			break;
 	}
 
 	if (i == ARRAY_SIZE(sbi->s_anchor)) {
 		udf_debug("No Anchor block found\n");
 		return 1;
-	} else
-		udf_debug("Using anchor in block %d\n", sbi->s_anchor[i]);
+	}
+	udf_debug("Using anchor in block %d\n", sbi->s_anchor[i]);
 
 	for (i = 0; i < sbi->s_partitions; i++) {
 		kernel_lb_addr uninitialized_var(ino);
