@@ -24,7 +24,7 @@ enum {
 
 #define MARB_CLIENTS(foo_cli, bar_cli) (((bar_cli) << 16) | (foo_cli))
 
-int crisv32_arbiter_allocate_bandwith(int client, int region,
+int crisv32_arbiter_allocate_bandwidth(int client, int region,
 		unsigned long bandwidth);
 int crisv32_arbiter_watch(unsigned long start, unsigned long size,
 		unsigned long clients, unsigned long accesses,

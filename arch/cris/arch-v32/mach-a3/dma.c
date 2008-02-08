@@ -24,7 +24,7 @@ int crisv32_request_dma(unsigned int dmanr, const char *device_id,
 	reg_clkgen_rw_clk_ctrl clk_ctrl;
 	reg_strmux_rw_cfg strmux_cfg;
 
-	if (crisv32_arbiter_allocate_bandwith(dmanr,
+	if (crisv32_arbiter_allocate_bandwidth(dmanr,
 			options & DMA_INT_MEM ? INT_REGION : EXT_REGION,
 			bandwidth))
 		return -ENOMEM;

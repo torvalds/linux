@@ -3,7 +3,7 @@
  * arbiter and sets up arbiter breakpoints.
  *
  * The algorithm first assigns slots to the clients that has specified
- * bandwith (e.g. ethernet) and then the remaining slots are divided
+ * bandwidth (e.g. ethernet) and then the remaining slots are divided
  * on all the active clients.
  *
  * Copyright (c) 2004-2007 Axis Communications AB.
@@ -282,7 +282,7 @@ static void crisv32_arbiter_init(void)
 	REG_WR_INT(marb_bar, regi_marb_bar, rw_l2cache_burst, 3);
 }
 
-int crisv32_arbiter_allocate_bandwith(int client, int region,
+int crisv32_arbiter_allocate_bandwidth(int client, int region,
 				      unsigned long bandwidth)
 {
 	int i;
@@ -324,7 +324,7 @@ int crisv32_arbiter_allocate_bandwith(int client, int region,
 
 	/* Propagate allocation from foo to bar */
 	if (arbiter == 0)
-		crisv32_arbiter_allocate_bandwith(8 << 16,
+		crisv32_arbiter_allocate_bandwidth(8 << 16,
 			EXT_REGION, bandwidth);
 	return 0;
 }
