@@ -2255,13 +2255,14 @@ const struct file_operations proc_cpuset_operations = {
 #endif /* CONFIG_PROC_PID_CPUSET */
 
 /* Display task cpus_allowed, mems_allowed in /proc/<pid>/status file. */
-char *cpuset_task_status_allowed(struct task_struct *task, char *buffer)
+void cpuset_task_status_allowed(struct seq_file *m, struct task_struct *task)
 {
-	buffer += sprintf(buffer, "Cpus_allowed:\t");
-	buffer += cpumask_scnprintf(buffer, PAGE_SIZE, task->cpus_allowed);
-	buffer += sprintf(buffer, "\n");
-	buffer += sprintf(buffer, "Mems_allowed:\t");
-	buffer += nodemask_scnprintf(buffer, PAGE_SIZE, task->mems_allowed);
-	buffer += sprintf(buffer, "\n");
-	return buffer;
+	seq_printf(m, "Cpus_allowed:\t");
+	m->count += cpumask_scnprintf(m->buf + m->count, m->size - m->count,
+					task->cpus_allowed);
+	seq_printf(m, "\n");
+	seq_printf(m, "Mems_allowed:\t");
+	m->count += nodemask_scnprintf(m->buf + m->count, m->size - m->count,
+					task->mems_allowed);
+	seq_printf(m, "\n");
 }

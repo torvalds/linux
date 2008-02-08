@@ -57,7 +57,9 @@ extern int cpuset_memory_pressure_enabled;
 extern void __cpuset_memory_pressure_bump(void);
 
 extern const struct file_operations proc_cpuset_operations;
-extern char *cpuset_task_status_allowed(struct task_struct *task, char *buffer);
+struct seq_file;
+extern void cpuset_task_status_allowed(struct seq_file *m,
+					struct task_struct *task);
 
 extern void cpuset_lock(void);
 extern void cpuset_unlock(void);
@@ -126,10 +128,9 @@ static inline int cpuset_mems_allowed_intersects(const struct task_struct *tsk1,
 
 static inline void cpuset_memory_pressure_bump(void) {}
 
-static inline char *cpuset_task_status_allowed(struct task_struct *task,
-							char *buffer)
+static inline void cpuset_task_status_allowed(struct seq_file *m,
+						struct task_struct *task)
 {
-	return buffer;
 }
 
 static inline void cpuset_lock(void) {}
