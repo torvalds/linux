@@ -94,6 +94,15 @@ static inline void mm_copy_segments(struct mm_struct *from_mm,
  */
 #define TASK_SIZE (CONFIG_TOP_ADDR & PGDIR_MASK)
 
+#undef STACK_TOP
+#undef STACK_TOP_MAX
+
+extern unsigned long stacksizelim;
+
+#define STACK_ROOM	(stacksizelim)
+#define STACK_TOP	(TASK_SIZE - 2 * PAGE_SIZE)
+#define STACK_TOP_MAX	STACK_TOP
+
 /* This decides where the kernel will search for a free chunk of vm
  * space during mmap's.
  */
