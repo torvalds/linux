@@ -1352,8 +1352,6 @@ static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
 	filp->private_data = fh;
 
 	if (dev->type == V4L2_BUF_TYPE_VIDEO_CAPTURE && dev->users == 0) {
-		em28xx_set_alternate(dev);
-
 		dev->width = norm_maxw(dev);
 		dev->height = norm_maxh(dev);
 		dev->frame_size = dev->width * dev->height * 2;
@@ -1362,6 +1360,7 @@ static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
 		dev->hscale = 0;
 		dev->vscale = 0;
 
+		em28xx_set_alternate(dev);
 		em28xx_capture_start(dev, 1);
 		em28xx_resolution_set(dev);
 
@@ -2129,6 +2128,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	snprintf(dev->name, 29, "em28xx #%d", nr);
 	dev->devno = nr;
 	dev->model = id->driver_info;
+	dev->alt   = -1;
 
 	/* Checks if audio is provided by some interface */
 	for (i = 0; i < udev->config->desc.bNumInterfaces; i++) {

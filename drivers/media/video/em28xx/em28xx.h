@@ -33,7 +33,7 @@
 #define UNSET -1
 
 /* maximum number of em28xx boards */
-#define EM28XX_MAXBOARDS 1 /*FIXME: should be bigger */
+#define EM28XX_MAXBOARDS 4 /*FIXME: should be bigger */
 
 /* maximum number of frames that can be queued */
 #define EM28XX_NUM_FRAMES 5

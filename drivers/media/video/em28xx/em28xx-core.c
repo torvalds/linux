@@ -72,7 +72,8 @@ u32 em28xx_request_buffers(struct em28xx *dev, u32 count)
 	const size_t imagesize = PAGE_ALIGN(dev->frame_size);	/*needs to be page aligned cause the buffers can be mapped individually! */
 	void *buff = NULL;
 	u32 i;
-	em28xx_coredbg("requested %i buffers with size %zi", count, imagesize);
+	em28xx_coredbg("requested %i buffers with size %zi\n",
+			count, imagesize);
 	if (count > EM28XX_NUM_FRAMES)
 		count = EM28XX_NUM_FRAMES;
 
@@ -676,7 +677,7 @@ static void em28xx_isocIrq(struct urb *urb)
 				continue;
 			}
 			if (urb->iso_frame_desc[i].actual_length >
-						 dev->max_pkt_size) {
+			    urb->iso_frame_desc[i].length) {
 				em28xx_isocdbg("packet bigger than packet size");
 				continue;
 			}
@@ -722,8 +723,11 @@ void em28xx_uninit_isoc(struct em28xx *dev)
 	for (i = 0; i < EM28XX_NUM_BUFS; i++) {
 		if (dev->urb[i]) {
 			usb_kill_urb(dev->urb[i]);
-			if (dev->transfer_buffer[i]){
-				usb_buffer_free(dev->udev,(EM28XX_NUM_PACKETS*dev->max_pkt_size),dev->transfer_buffer[i],dev->urb[i]->transfer_dma);
+			if (dev->transfer_buffer[i]) {
+				usb_buffer_free(dev->udev,
+						dev->urb[i]->transfer_buffer_length,
+						dev->transfer_buffer[i],
+						dev->urb[i]->transfer_dma);
 			}
 			usb_free_urb(dev->urb[i]);
 		}
@@ -741,7 +745,10 @@ int em28xx_init_isoc(struct em28xx *dev)
 {
 	/* change interface to 3 which allows the biggest packet sizes */
 	int i, errCode;
-	const int sb_size = EM28XX_NUM_PACKETS * dev->max_pkt_size;
+	int sb_size;
+
+	em28xx_set_alternate(dev);
+	sb_size = EM28XX_NUM_PACKETS * dev->max_pkt_size;
 
 	/* reset streaming vars */
 	dev->frame_current = NULL;
@@ -750,7 +757,7 @@ int em28xx_init_isoc(struct em28xx *dev)
 	/* allocate urbs */
 	for (i = 0; i < EM28XX_NUM_BUFS; i++) {
 		struct urb *urb;
-		int j, k;
+		int j;
 		/* allocate transfer buffer */
 		urb = usb_alloc_urb(EM28XX_NUM_PACKETS, GFP_KERNEL);
 		if (!urb){
@@ -758,7 +765,9 @@ int em28xx_init_isoc(struct em28xx *dev)
 			em28xx_uninit_isoc(dev);
 			return -ENOMEM;
 		}
-		dev->transfer_buffer[i] = usb_buffer_alloc(dev->udev, sb_size, GFP_KERNEL,&urb->transfer_dma);
+		dev->transfer_buffer[i] = usb_buffer_alloc(dev->udev, sb_size,
+							   GFP_KERNEL,
+							   &urb->transfer_dma);
 		if (!dev->transfer_buffer[i]) {
 			em28xx_errdev
 					("unable to allocate %i bytes for transfer buffer %i\n",
@@ -777,16 +786,16 @@ int em28xx_init_isoc(struct em28xx *dev)
 		urb->complete = em28xx_isocIrq;
 		urb->number_of_packets = EM28XX_NUM_PACKETS;
 		urb->transfer_buffer_length = sb_size;
-		for (j = k = 0; j < EM28XX_NUM_PACKETS;
-				j++, k += dev->max_pkt_size) {
-			urb->iso_frame_desc[j].offset = k;
-			urb->iso_frame_desc[j].length =
-				dev->max_pkt_size;
+		for (j = 0; j < EM28XX_NUM_PACKETS; j++) {
+			urb->iso_frame_desc[j].offset = j * dev->max_pkt_size;
+			urb->iso_frame_desc[j].length = dev->max_pkt_size;
 		}
 		dev->urb[i] = urb;
 	}
 
 	/* submit urbs */
+	em28xx_coredbg("Submitting %d urbs of %d packets (%d each)\n",
+		       EM28XX_NUM_BUFS, EM28XX_NUM_PACKETS, dev->max_pkt_size);
 	for (i = 0; i < EM28XX_NUM_BUFS; i++) {
 		errCode = usb_submit_urb(dev->urb[i], GFP_KERNEL);
 		if (errCode) {
@@ -803,22 +812,31 @@ int em28xx_init_isoc(struct em28xx *dev)
 int em28xx_set_alternate(struct em28xx *dev)
 {
 	int errCode, prev_alt = dev->alt;
-	dev->alt = alt;
-	if (dev->alt == 0) {
-		int i;
-		for(i=0;i< dev->num_alt; i++)
-			if(dev->alt_max_pkt_size[i]>dev->alt_max_pkt_size[dev->alt])
-				dev->alt=i;
-	}
+	int i;
+	unsigned int min_pkt_size = dev->bytesperline+4;
+
+	/* When image size is bigger than a ceirtain value,
+	   the frame size should be increased, otherwise, only
+	   green screen will be received.
+	 */
+	if (dev->frame_size > 720*240*2)
+		min_pkt_size *= 2;
+
+	for (i = 0; i < dev->num_alt; i++)
+		if (dev->alt_max_pkt_size[i] >= min_pkt_size)
+			break;
+	dev->alt = i;
 
 	if (dev->alt != prev_alt) {
+		em28xx_coredbg("minimum isoc packet size: %u (alt=%d)\n",
+				min_pkt_size, dev->alt);
 		dev->max_pkt_size = dev->alt_max_pkt_size[dev->alt];
-		em28xx_coredbg("setting alternate %d with wMaxPacketSize=%u\n", dev->alt,
-		       dev->max_pkt_size);
+		em28xx_coredbg("setting alternate %d with wMaxPacketSize=%u\n",
+			       dev->alt, dev->max_pkt_size);
 		errCode = usb_set_interface(dev->udev, 0, dev->alt);
 		if (errCode < 0) {
 			em28xx_errdev ("cannot change alternate number to %d (error=%i)\n",
-							dev->alt, errCode);
+					dev->alt, errCode);
 			return errCode;
 		}
 	}
