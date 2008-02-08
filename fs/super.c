@@ -604,6 +604,7 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 			mark_files_ro(sb);
 		else if (!fs_may_remount_ro(sb))
 			return -EBUSY;
+		DQUOT_OFF(sb);
 	}
 
 	if (sb->s_op->remount_fs) {
