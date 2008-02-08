@@ -449,7 +449,7 @@ static inline void __module_get(struct module *module)
 /* For kallsyms to ask for address resolution.  namebuf should be at
  * least KSYM_NAME_LEN long: a pointer to namebuf is returned if
  * found, otherwise NULL. */
-char *module_address_lookup(unsigned long addr,
+const char *module_address_lookup(unsigned long addr,
 			    unsigned long *symbolsize,
 			    unsigned long *offset,
 			    char **modname,
@@ -519,7 +519,7 @@ static inline void module_put(struct module *module)
 #define module_name(mod) "kernel"
 
 /* For kallsyms to ask for address resolution.  NULL means not found. */
-static inline char *module_address_lookup(unsigned long addr,
+static inline const char *module_address_lookup(unsigned long addr,
 					  unsigned long *symbolsize,
 					  unsigned long *offset,
 					  char **modname,

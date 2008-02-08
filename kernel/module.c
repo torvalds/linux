@@ -2253,7 +2253,7 @@ static const char *get_ksymbol(struct module *mod,
 
 /* For kallsyms to ask for address resolution.  NULL means not found.  Careful
  * not to lock to avoid deadlock on oopses, simply disable preemption. */
-char *module_address_lookup(unsigned long addr,
+const char *module_address_lookup(unsigned long addr,
 			    unsigned long *size,
 			    unsigned long *offset,
 			    char **modname,
@@ -2278,7 +2278,7 @@ char *module_address_lookup(unsigned long addr,
 		ret = namebuf;
 	}
 	preempt_enable();
-	return (char *)ret;
+	return ret;
 }
 
 int lookup_module_symbol_name(unsigned long addr, char *symname)
