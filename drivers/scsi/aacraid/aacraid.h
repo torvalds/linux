@@ -1026,6 +1026,7 @@ struct aac_dev
 	u8			raw_io_64;
 	u8			printf_enabled;
 	u8			in_reset;
+	u8			msi;
 };
 
 #define aac_adapter_interrupt(dev) \
@@ -1881,6 +1882,7 @@ extern int startup_timeout;
 extern int aif_timeout;
 extern int expose_physicals;
 extern int aac_reset_devices;
+extern int aac_msi;
 extern int aac_commit;
 extern int update_interval;
 extern int check_interval;
