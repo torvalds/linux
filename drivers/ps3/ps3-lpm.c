@@ -76,7 +76,6 @@
  *
  * @pm_control: Shadow of the processor's pm_control register.
  * @pm_start_stop: Shadow of the processor's pm_start_stop register.
- * @pm_interval: Shadow of the processor's pm_interval register.
  * @group_control: Shadow of the processor's group_control register.
  * @debug_bus_control: Shadow of the processor's debug_bus_control register.
  *
@@ -91,7 +90,6 @@
 struct ps3_lpm_shadow_regs {
 	u64 pm_control;
 	u64 pm_start_stop;
-	u64 pm_interval;
 	u64 group_control;
 	u64 debug_bus_control;
 };
@@ -408,7 +406,14 @@ u32 ps3_read_pm(u32 cpu, enum pm_reg_name reg)
 	case pm_start_stop:
 		return lpm_priv->shadow.pm_start_stop;
 	case pm_interval:
-		return lpm_priv->shadow.pm_interval;
+		result = lv1_set_lpm_interval(lpm_priv->lpm_id, 0, 0, &val);
+		if (result) {
+			val = 0;
+			dev_dbg(sbd_core(), "%s:%u: lv1 set_inteval failed: "
+				"reg %u, %s\n", __func__, __LINE__, reg,
+				ps3_result(result));
+		}
+		return (u32)val;
 	case group_control:
 		return lpm_priv->shadow.group_control;
 	case debug_bus_control:
@@ -475,10 +480,8 @@ void ps3_write_pm(u32 cpu, enum pm_reg_name reg, u32 val)
 		lpm_priv->shadow.pm_control = val;
 		break;
 	case pm_interval:
-		if (val != lpm_priv->shadow.pm_interval)
-			result = lv1_set_lpm_interval(lpm_priv->lpm_id, val,
-						   PS3_WRITE_PM_MASK, &dummy);
-		lpm_priv->shadow.pm_interval = val;
+		result = lv1_set_lpm_interval(lpm_priv->lpm_id, val,
+					      PS3_WRITE_PM_MASK, &dummy);
 		break;
 	case pm_start_stop:
 		if (val != lpm_priv->shadow.pm_start_stop)
@@ -1140,7 +1143,6 @@ int ps3_lpm_open(enum ps3_lpm_tb_type tb_type, void *tb_cache,
 
 	lpm_priv->shadow.pm_control = PS3_LPM_SHADOW_REG_INIT;
 	lpm_priv->shadow.pm_start_stop = PS3_LPM_SHADOW_REG_INIT;
-	lpm_priv->shadow.pm_interval = PS3_LPM_SHADOW_REG_INIT;
 	lpm_priv->shadow.group_control = PS3_LPM_SHADOW_REG_INIT;
 	lpm_priv->shadow.debug_bus_control = PS3_LPM_SHADOW_REG_INIT;
 
