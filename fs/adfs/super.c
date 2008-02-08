@@ -20,6 +20,8 @@
 #include <linux/vfs.h>
 #include <linux/parser.h>
 #include <linux/bitops.h>
+#include <linux/mount.h>
+#include <linux/seq_file.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -29,6 +31,9 @@
 #include "adfs.h"
 #include "dir_f.h"
 #include "dir_fplus.h"
+
+#define ADFS_DEFAULT_OWNER_MASK S_IRWXU
+#define ADFS_DEFAULT_OTHER_MASK (S_IRWXG | S_IRWXO)
 
 void __adfs_error(struct super_block *sb, const char *function, const char *fmt, ...)
 {
@@ -132,6 +137,22 @@ static void adfs_put_super(struct super_block *sb)
 	kfree(asb->s_map);
 	kfree(asb);
 	sb->s_fs_info = NULL;
+}
+
+static int adfs_show_options(struct seq_file *seq, struct vfsmount *mnt)
+{
+	struct adfs_sb_info *asb = ADFS_SB(mnt->mnt_sb);
+
+	if (asb->s_uid != 0)
+		seq_printf(seq, ",uid=%u", asb->s_uid);
+	if (asb->s_gid != 0)
+		seq_printf(seq, ",gid=%u", asb->s_gid);
+	if (asb->s_owner_mask != ADFS_DEFAULT_OWNER_MASK)
+		seq_printf(seq, ",ownmask=%o", asb->s_owner_mask);
+	if (asb->s_other_mask != ADFS_DEFAULT_OTHER_MASK)
+		seq_printf(seq, ",othmask=%o", asb->s_other_mask);
+
+	return 0;
 }
 
 enum {Opt_uid, Opt_gid, Opt_ownmask, Opt_othmask, Opt_err};
@@ -259,6 +280,7 @@ static const struct super_operations adfs_sops = {
 	.put_super	= adfs_put_super,
 	.statfs		= adfs_statfs,
 	.remount_fs	= adfs_remount,
+	.show_options	= adfs_show_options,
 };
 
 static struct adfs_discmap *adfs_read_map(struct super_block *sb, struct adfs_discrecord *dr)
@@ -344,8 +366,8 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	/* set default options */
 	asb->s_uid = 0;
 	asb->s_gid = 0;
-	asb->s_owner_mask = S_IRWXU;
-	asb->s_other_mask = S_IRWXG | S_IRWXO;
+	asb->s_owner_mask = ADFS_DEFAULT_OWNER_MASK;
+	asb->s_other_mask = ADFS_DEFAULT_OTHER_MASK;
 
 	if (parse_options(sb, data))
 		goto error;
