@@ -1434,9 +1434,11 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 
 	if (noflush)
 		__merge_pushback_list(md);
+	up_write(&md->io_lock);
 
 	/* were we interrupted ? */
 	if (pending) {
+		down_write(&md->io_lock);
 		__flush_deferred_io(md);
 		up_write(&md->io_lock);
 
@@ -1444,7 +1446,6 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 		r = -EINTR;
 		goto out; /* pushback list is already flushed, so skip flush */
 	}
-	up_write(&md->io_lock);
 
 	dm_table_postsuspend_targets(map);
 
