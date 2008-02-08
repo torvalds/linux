@@ -11,6 +11,7 @@
 #include <linux/mm.h>
 #include <linux/pagemap.h>
 #include <linux/statfs.h>
+#include <linux/seq_file.h>
 #include "hostfs.h"
 #include "init.h"
 #include "kern.h"
@@ -322,12 +323,25 @@ static void hostfs_destroy_inode(struct inode *inode)
 	kfree(HOSTFS_I(inode));
 }
 
+static int hostfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
+{
+	struct inode *root = vfs->mnt_sb->s_root->d_inode;
+	const char *root_path = HOSTFS_I(root)->host_filename;
+	size_t offset = strlen(root_ino) + 1;
+
+	if (strlen(root_path) > offset)
+		seq_printf(seq, ",%s", root_path + offset);
+
+	return 0;
+}
+
 static const struct super_operations hostfs_sbops = {
 	.alloc_inode	= hostfs_alloc_inode,
 	.drop_inode	= generic_delete_inode,
 	.delete_inode   = hostfs_delete_inode,
 	.destroy_inode	= hostfs_destroy_inode,
 	.statfs		= hostfs_statfs,
+	.show_options	= hostfs_show_options,
 };
 
 int hostfs_readdir(struct file *file, void *ent, filldir_t filldir)
