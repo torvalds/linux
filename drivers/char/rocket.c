@@ -715,11 +715,10 @@ static void configure_r_port(struct r_port *info,
 	unsigned rocketMode;
 	int bits, baud, divisor;
 	CHANNEL_t *cp;
+	struct ktermios *t = info->tty->termios;
 
-	if (!info->tty || !info->tty->termios)
-		return;
 	cp = &info->channel;
-	cflag = info->tty->termios->c_cflag;
+	cflag = t->c_cflag;
 
 	/* Byte size and parity */
 	if ((cflag & CSIZE) == CS8) {
@@ -754,10 +753,7 @@ static void configure_r_port(struct r_port *info,
 		baud = 9600;
 	divisor = ((rp_baud_base[info->board] + (baud >> 1)) / baud) - 1;
 	if ((divisor >= 8192 || divisor < 0) && old_termios) {
-		info->tty->termios->c_cflag &= ~CBAUD;
-		info->tty->termios->c_cflag |=
-		    (old_termios->c_cflag & CBAUD);
-		baud = tty_get_baud_rate(info->tty);
+		baud = tty_termios_baud_rate(old_termios);
 		if (!baud)
 			baud = 9600;
 		divisor = (rp_baud_base[info->board] / baud) - 1;
@@ -768,6 +764,9 @@ static void configure_r_port(struct r_port *info,
 	}
 	info->cps = baud / bits;
 	sSetBaud(cp, divisor);
+
+	/* FIXME: Should really back compute a baud rate from the divisor */
+	tty_encode_baud_rate(info->tty, baud, baud);
 
 	if (cflag & CRTSCTS) {
 		info->intmask |= DELTA_CTS;
@@ -1202,15 +1201,14 @@ static void rp_set_termios(struct tty_struct *tty,
 
 	cflag = tty->termios->c_cflag;
 
-	if (cflag == old_termios->c_cflag)
-		return;
-
 	/*
 	 * This driver doesn't support CS5 or CS6
 	 */
 	if (((cflag & CSIZE) == CS5) || ((cflag & CSIZE) == CS6))
 		tty->termios->c_cflag =
 		    ((cflag & ~CSIZE) | (old_termios->c_cflag & CSIZE));
+	/* Or CMSPAR */
+	tty->termios->c_cflag &= ~CMSPAR;
 
 	configure_r_port(info, old_termios);
 
