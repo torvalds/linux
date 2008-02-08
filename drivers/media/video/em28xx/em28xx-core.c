@@ -780,7 +780,7 @@ int em28xx_init_isoc(struct em28xx *dev)
 		urb->dev = dev->udev;
 		urb->context = dev;
 		urb->pipe = usb_rcvisocpipe(dev->udev, 0x82);
-		urb->transfer_flags = URB_ISO_ASAP;
+		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
 		urb->interval = 1;
 		urb->transfer_buffer = dev->transfer_buffer[i];
 		urb->complete = em28xx_isocIrq;
