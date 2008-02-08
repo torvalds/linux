@@ -467,4 +467,3 @@ out_no_root:
 	de_put(&proc_root);
 	return -ENOMEM;
 }
-MODULE_LICENSE("GPL");
