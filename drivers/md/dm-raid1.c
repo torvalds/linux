@@ -146,6 +146,7 @@ struct mirror_set {
 	region_t nr_regions;
 	int in_sync;
 	int log_failure;
+	atomic_t suspend;
 
 	atomic_t default_mirror;	/* Default mirror */
 
@@ -372,6 +373,16 @@ static void complete_resync_work(struct region *reg, int success)
 	struct region_hash *rh = reg->rh;
 
 	rh->log->type->set_region_sync(rh->log, reg->key, success);
+
+	/*
+	 * Dispatch the bios before we call 'wake_up_all'.
+	 * This is important because if we are suspending,
+	 * we want to know that recovery is complete and
+	 * the work queue is flushed.  If we wake_up_all
+	 * before we dispatch_bios (queue bios and call wake()),
+	 * then we risk suspending before the work queue
+	 * has been properly flushed.
+	 */
 	dispatch_bios(rh->ms, &reg->delayed_bios);
 	if (atomic_dec_and_test(&rh->recovery_in_flight))
 		wake_up_all(&_kmirrord_recovery_stopped);
@@ -1069,11 +1080,13 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 	/*
 	 * Dispatch io.
 	 */
-	if (unlikely(ms->log_failure))
+	if (unlikely(ms->log_failure)) {
+		spin_lock_irq(&ms->lock);
+		bio_list_merge(&ms->failures, &sync);
+		spin_unlock_irq(&ms->lock);
+	} else
 		while ((bio = bio_list_pop(&sync)))
-			bio_endio(bio, -EIO);
-	else while ((bio = bio_list_pop(&sync)))
-		do_write(ms, bio);
+			do_write(ms, bio);
 
 	while ((bio = bio_list_pop(&recover)))
 		rh_delay(&ms->rh, bio);
@@ -1091,8 +1104,46 @@ static void do_failures(struct mirror_set *ms, struct bio_list *failures)
 	if (!failures->head)
 		return;
 
-	while ((bio = bio_list_pop(failures)))
-		__bio_mark_nosync(ms, bio, bio->bi_size, 0);
+	if (!ms->log_failure) {
+		while ((bio = bio_list_pop(failures)))
+			__bio_mark_nosync(ms, bio, bio->bi_size, 0);
+		return;
+	}
+
+	/*
+	 * If the log has failed, unattempted writes are being
+	 * put on the failures list.  We can't issue those writes
+	 * until a log has been marked, so we must store them.
+	 *
+	 * If a 'noflush' suspend is in progress, we can requeue
+	 * the I/O's to the core.  This give userspace a chance
+	 * to reconfigure the mirror, at which point the core
+	 * will reissue the writes.  If the 'noflush' flag is
+	 * not set, we have no choice but to return errors.
+	 *
+	 * Some writes on the failures list may have been
+	 * submitted before the log failure and represent a
+	 * failure to write to one of the devices.  It is ok
+	 * for us to treat them the same and requeue them
+	 * as well.
+	 */
+	if (dm_noflush_suspending(ms->ti)) {
+		while ((bio = bio_list_pop(failures)))
+			bio_endio(bio, DM_ENDIO_REQUEUE);
+		return;
+	}
+
+	if (atomic_read(&ms->suspend)) {
+		while ((bio = bio_list_pop(failures)))
+			bio_endio(bio, -EIO);
+		return;
+	}
+
+	spin_lock_irq(&ms->lock);
+	bio_list_merge(&ms->failures, failures);
+	spin_unlock_irq(&ms->lock);
+
+	wake(ms);
 }
 
 static void trigger_event(struct work_struct *work)
@@ -1176,6 +1227,8 @@ static struct mirror_set *alloc_context(unsigned int nr_mirrors,
 	ms->nr_mirrors = nr_mirrors;
 	ms->nr_regions = dm_sector_div_up(ti->len, region_size);
 	ms->in_sync = 0;
+	ms->log_failure = 0;
+	atomic_set(&ms->suspend, 0);
 	atomic_set(&ms->default_mirror, DEFAULT_MIRROR);
 
 	ms->io_client = dm_io_client_create(DM_IO_PAGES);
@@ -1511,26 +1564,51 @@ static int mirror_end_io(struct dm_target *ti, struct bio *bio,
 	return 0;
 }
 
-static void mirror_postsuspend(struct dm_target *ti)
+static void mirror_presuspend(struct dm_target *ti)
 {
 	struct mirror_set *ms = (struct mirror_set *) ti->private;
 	struct dirty_log *log = ms->rh.log;
 
+	atomic_set(&ms->suspend, 1);
+
+	/*
+	 * We must finish up all the work that we've
+	 * generated (i.e. recovery work).
+	 */
 	rh_stop_recovery(&ms->rh);
 
-	/* Wait for all I/O we generated to complete */
 	wait_event(_kmirrord_recovery_stopped,
 		   !atomic_read(&ms->rh.recovery_in_flight));
 
+	if (log->type->presuspend && log->type->presuspend(log))
+		/* FIXME: need better error handling */
+		DMWARN("log presuspend failed");
+
+	/*
+	 * Now that recovery is complete/stopped and the
+	 * delayed bios are queued, we need to wait for
+	 * the worker thread to complete.  This way,
+	 * we know that all of our I/O has been pushed.
+	 */
+	flush_workqueue(ms->kmirrord_wq);
+}
+
+static void mirror_postsuspend(struct dm_target *ti)
+{
+	struct mirror_set *ms = ti->private;
+	struct dirty_log *log = ms->rh.log;
+
 	if (log->type->postsuspend && log->type->postsuspend(log))
 		/* FIXME: need better error handling */
-		DMWARN("log suspend failed");
+		DMWARN("log postsuspend failed");
 }
 
 static void mirror_resume(struct dm_target *ti)
 {
-	struct mirror_set *ms = (struct mirror_set *) ti->private;
+	struct mirror_set *ms = ti->private;
 	struct dirty_log *log = ms->rh.log;
+
+	atomic_set(&ms->suspend, 0);
 	if (log->type->resume && log->type->resume(log))
 		/* FIXME: need better error handling */
 		DMWARN("log resume failed");
@@ -1564,7 +1642,7 @@ static int mirror_status(struct dm_target *ti, status_type_t type,
 		DMEMIT("%d", ms->nr_mirrors);
 		for (m = 0; m < ms->nr_mirrors; m++)
 			DMEMIT(" %s %llu", ms->mirror[m].dev->name,
-				(unsigned long long)ms->mirror[m].offset);
+			       (unsigned long long)ms->mirror[m].offset);
 
 		if (ms->features & DM_RAID1_HANDLE_ERRORS)
 			DMEMIT(" 1 handle_errors");
@@ -1581,6 +1659,7 @@ static struct target_type mirror_target = {
 	.dtr	 = mirror_dtr,
 	.map	 = mirror_map,
 	.end_io	 = mirror_end_io,
+	.presuspend = mirror_presuspend,
 	.postsuspend = mirror_postsuspend,
 	.resume	 = mirror_resume,
 	.status	 = mirror_status,
