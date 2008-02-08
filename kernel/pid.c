@@ -111,7 +111,7 @@ EXPORT_SYMBOL(is_container_init);
 
 static  __cacheline_aligned_in_smp DEFINE_SPINLOCK(pidmap_lock);
 
-static fastcall void free_pidmap(struct pid_namespace *pid_ns, int pid)
+static void free_pidmap(struct pid_namespace *pid_ns, int pid)
 {
 	struct pidmap *map = pid_ns->pidmap + pid / BITS_PER_PAGE;
 	int offset = pid & BITS_PER_PAGE_MASK;
@@ -198,7 +198,7 @@ int next_pidmap(struct pid_namespace *pid_ns, int last)
 	return -1;
 }
 
-fastcall void put_pid(struct pid *pid)
+void put_pid(struct pid *pid)
 {
 	struct pid_namespace *ns;
 
@@ -220,7 +220,7 @@ static void delayed_put_pid(struct rcu_head *rhp)
 	put_pid(pid);
 }
 
-fastcall void free_pid(struct pid *pid)
+void free_pid(struct pid *pid)
 {
 	/* We can be called with write_lock_irq(&tasklist_lock) held */
 	int i;
@@ -286,7 +286,7 @@ out_free:
 	goto out;
 }
 
-struct pid * fastcall find_pid_ns(int nr, struct pid_namespace *ns)
+struct pid *find_pid_ns(int nr, struct pid_namespace *ns)
 {
 	struct hlist_node *elem;
 	struct upid *pnr;
@@ -316,7 +316,7 @@ EXPORT_SYMBOL_GPL(find_pid);
 /*
  * attach_pid() must be called with the tasklist_lock write-held.
  */
-int fastcall attach_pid(struct task_struct *task, enum pid_type type,
+int attach_pid(struct task_struct *task, enum pid_type type,
 		struct pid *pid)
 {
 	struct pid_link *link;
@@ -328,7 +328,7 @@ int fastcall attach_pid(struct task_struct *task, enum pid_type type,
 	return 0;
 }
 
-void fastcall detach_pid(struct task_struct *task, enum pid_type type)
+void detach_pid(struct task_struct *task, enum pid_type type)
 {
 	struct pid_link *link;
 	struct pid *pid;
@@ -348,7 +348,7 @@ void fastcall detach_pid(struct task_struct *task, enum pid_type type)
 }
 
 /* transfer_pid is an optimization of attach_pid(new), detach_pid(old) */
-void fastcall transfer_pid(struct task_struct *old, struct task_struct *new,
+void transfer_pid(struct task_struct *old, struct task_struct *new,
 			   enum pid_type type)
 {
 	new->pids[type].pid = old->pids[type].pid;
@@ -356,7 +356,7 @@ void fastcall transfer_pid(struct task_struct *old, struct task_struct *new,
 	old->pids[type].pid = NULL;
 }
 
-struct task_struct * fastcall pid_task(struct pid *pid, enum pid_type type)
+struct task_struct *pid_task(struct pid *pid, enum pid_type type)
 {
 	struct task_struct *result = NULL;
 	if (pid) {
@@ -408,7 +408,7 @@ struct pid *get_task_pid(struct task_struct *task, enum pid_type type)
 	return pid;
 }
 
-struct task_struct *fastcall get_pid_task(struct pid *pid, enum pid_type type)
+struct task_struct *get_pid_task(struct pid *pid, enum pid_type type)
 {
 	struct task_struct *result;
 	rcu_read_lock();

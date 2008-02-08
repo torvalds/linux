@@ -320,7 +320,7 @@ void irq_exit(void)
 /*
  * This function must run with irqs disabled!
  */
-inline fastcall void raise_softirq_irqoff(unsigned int nr)
+inline void raise_softirq_irqoff(unsigned int nr)
 {
 	__raise_softirq_irqoff(nr);
 
@@ -337,7 +337,7 @@ inline fastcall void raise_softirq_irqoff(unsigned int nr)
 		wakeup_softirqd();
 }
 
-void fastcall raise_softirq(unsigned int nr)
+void raise_softirq(unsigned int nr)
 {
 	unsigned long flags;
 
@@ -363,7 +363,7 @@ struct tasklet_head
 static DEFINE_PER_CPU(struct tasklet_head, tasklet_vec) = { NULL };
 static DEFINE_PER_CPU(struct tasklet_head, tasklet_hi_vec) = { NULL };
 
-void fastcall __tasklet_schedule(struct tasklet_struct *t)
+void __tasklet_schedule(struct tasklet_struct *t)
 {
 	unsigned long flags;
 
@@ -376,7 +376,7 @@ void fastcall __tasklet_schedule(struct tasklet_struct *t)
 
 EXPORT_SYMBOL(__tasklet_schedule);
 
-void fastcall __tasklet_hi_schedule(struct tasklet_struct *t)
+void __tasklet_hi_schedule(struct tasklet_struct *t)
 {
 	unsigned long flags;
 

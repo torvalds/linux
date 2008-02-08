@@ -161,7 +161,7 @@ static void __queue_work(struct cpu_workqueue_struct *cwq,
  * We queue the work to the CPU it was submitted, but there is no
  * guarantee that it will be processed by that CPU.
  */
-int fastcall queue_work(struct workqueue_struct *wq, struct work_struct *work)
+int queue_work(struct workqueue_struct *wq, struct work_struct *work)
 {
 	int ret = 0;
 
@@ -192,7 +192,7 @@ void delayed_work_timer_fn(unsigned long __data)
  *
  * Returns 0 if @work was already on a queue, non-zero otherwise.
  */
-int fastcall queue_delayed_work(struct workqueue_struct *wq,
+int queue_delayed_work(struct workqueue_struct *wq,
 			struct delayed_work *dwork, unsigned long delay)
 {
 	timer_stats_timer_set_start_info(&dwork->timer);
@@ -388,7 +388,7 @@ static int flush_cpu_workqueue(struct cpu_workqueue_struct *cwq)
  * This function used to run the workqueues itself.  Now we just wait for the
  * helper threads to do it.
  */
-void fastcall flush_workqueue(struct workqueue_struct *wq)
+void flush_workqueue(struct workqueue_struct *wq)
 {
 	const cpumask_t *cpu_map = wq_cpu_map(wq);
 	int cpu;
@@ -546,7 +546,7 @@ static struct workqueue_struct *keventd_wq __read_mostly;
  *
  * This puts a job in the kernel-global workqueue.
  */
-int fastcall schedule_work(struct work_struct *work)
+int schedule_work(struct work_struct *work)
 {
 	return queue_work(keventd_wq, work);
 }
@@ -560,7 +560,7 @@ EXPORT_SYMBOL(schedule_work);
  * After waiting for a given time this puts a job in the kernel-global
  * workqueue.
  */
-int fastcall schedule_delayed_work(struct delayed_work *dwork,
+int schedule_delayed_work(struct delayed_work *dwork,
 					unsigned long delay)
 {
 	timer_stats_timer_set_start_info(&dwork->timer);

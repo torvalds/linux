@@ -327,7 +327,7 @@ static void timer_stats_account_timer(struct timer_list *timer) {}
  * init_timer() must be done to a timer prior calling *any* of the
  * other timer functions.
  */
-void fastcall init_timer(struct timer_list *timer)
+void init_timer(struct timer_list *timer)
 {
 	timer->entry.next = NULL;
 	timer->base = __raw_get_cpu_var(tvec_bases);
@@ -339,7 +339,7 @@ void fastcall init_timer(struct timer_list *timer)
 }
 EXPORT_SYMBOL(init_timer);
 
-void fastcall init_timer_deferrable(struct timer_list *timer)
+void init_timer_deferrable(struct timer_list *timer)
 {
 	init_timer(timer);
 	timer_set_deferrable(timer);
@@ -1042,7 +1042,7 @@ static void process_timeout(unsigned long __data)
  *
  * In all cases the return value is guaranteed to be non-negative.
  */
-fastcall signed long __sched schedule_timeout(signed long timeout)
+signed long __sched schedule_timeout(signed long timeout)
 {
 	struct timer_list timer;
 	unsigned long expire;

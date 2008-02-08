@@ -58,7 +58,7 @@ EXPORT_SYMBOL(__mutex_init);
  * We also put the fastpath first in the kernel image, to make sure the
  * branch is predicted by the CPU as default-untaken.
  */
-static void fastcall noinline __sched
+static void noinline __sched
 __mutex_lock_slowpath(atomic_t *lock_count);
 
 /***
@@ -82,7 +82,7 @@ __mutex_lock_slowpath(atomic_t *lock_count);
  *
  * This function is similar to (but not equivalent to) down().
  */
-void inline fastcall __sched mutex_lock(struct mutex *lock)
+void inline __sched mutex_lock(struct mutex *lock)
 {
 	might_sleep();
 	/*
@@ -95,8 +95,7 @@ void inline fastcall __sched mutex_lock(struct mutex *lock)
 EXPORT_SYMBOL(mutex_lock);
 #endif
 
-static void fastcall noinline __sched
-__mutex_unlock_slowpath(atomic_t *lock_count);
+static noinline void __sched __mutex_unlock_slowpath(atomic_t *lock_count);
 
 /***
  * mutex_unlock - release the mutex
@@ -109,7 +108,7 @@ __mutex_unlock_slowpath(atomic_t *lock_count);
  *
  * This function is similar to (but not equivalent to) up().
  */
-void fastcall __sched mutex_unlock(struct mutex *lock)
+void __sched mutex_unlock(struct mutex *lock)
 {
 	/*
 	 * The unlocking fastpath is the 0->1 transition from 'locked'
@@ -234,7 +233,7 @@ EXPORT_SYMBOL_GPL(mutex_lock_interruptible_nested);
 /*
  * Release the lock, slowpath:
  */
-static fastcall inline void
+static inline void
 __mutex_unlock_common_slowpath(atomic_t *lock_count, int nested)
 {
 	struct mutex *lock = container_of(lock_count, struct mutex, count);
@@ -271,7 +270,7 @@ __mutex_unlock_common_slowpath(atomic_t *lock_count, int nested)
 /*
  * Release the lock, slowpath:
  */
-static fastcall noinline void
+static noinline void
 __mutex_unlock_slowpath(atomic_t *lock_count)
 {
 	__mutex_unlock_common_slowpath(lock_count, 1);
@@ -282,10 +281,10 @@ __mutex_unlock_slowpath(atomic_t *lock_count)
  * Here come the less common (and hence less performance-critical) APIs:
  * mutex_lock_interruptible() and mutex_trylock().
  */
-static int fastcall noinline __sched
+static noinline int __sched
 __mutex_lock_killable_slowpath(atomic_t *lock_count);
 
-static noinline int fastcall __sched
+static noinline int __sched
 __mutex_lock_interruptible_slowpath(atomic_t *lock_count);
 
 /***
@@ -299,7 +298,7 @@ __mutex_lock_interruptible_slowpath(atomic_t *lock_count);
  *
  * This function is similar to (but not equivalent to) down_interruptible().
  */
-int fastcall __sched mutex_lock_interruptible(struct mutex *lock)
+int __sched mutex_lock_interruptible(struct mutex *lock)
 {
 	might_sleep();
 	return __mutex_fastpath_lock_retval
@@ -308,7 +307,7 @@ int fastcall __sched mutex_lock_interruptible(struct mutex *lock)
 
 EXPORT_SYMBOL(mutex_lock_interruptible);
 
-int fastcall __sched mutex_lock_killable(struct mutex *lock)
+int __sched mutex_lock_killable(struct mutex *lock)
 {
 	might_sleep();
 	return __mutex_fastpath_lock_retval
@@ -316,7 +315,7 @@ int fastcall __sched mutex_lock_killable(struct mutex *lock)
 }
 EXPORT_SYMBOL(mutex_lock_killable);
 
-static void fastcall noinline __sched
+static noinline void __sched
 __mutex_lock_slowpath(atomic_t *lock_count)
 {
 	struct mutex *lock = container_of(lock_count, struct mutex, count);
@@ -324,7 +323,7 @@ __mutex_lock_slowpath(atomic_t *lock_count)
 	__mutex_lock_common(lock, TASK_UNINTERRUPTIBLE, 0, _RET_IP_);
 }
 
-static int fastcall noinline __sched
+static noinline int __sched
 __mutex_lock_killable_slowpath(atomic_t *lock_count)
 {
 	struct mutex *lock = container_of(lock_count, struct mutex, count);
@@ -332,7 +331,7 @@ __mutex_lock_killable_slowpath(atomic_t *lock_count)
 	return __mutex_lock_common(lock, TASK_KILLABLE, 0, _RET_IP_);
 }
 
-static noinline int fastcall __sched
+static noinline int __sched
 __mutex_lock_interruptible_slowpath(atomic_t *lock_count)
 {
 	struct mutex *lock = container_of(lock_count, struct mutex, count);
@@ -381,7 +380,7 @@ static inline int __mutex_trylock_slowpath(atomic_t *lock_count)
  * This function must not be used in interrupt context. The
  * mutex must be released by the same task that acquired it.
  */
-int fastcall __sched mutex_trylock(struct mutex *lock)
+int __sched mutex_trylock(struct mutex *lock)
 {
 	return __mutex_fastpath_trylock(&lock->count,
 					__mutex_trylock_slowpath);
