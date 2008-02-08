@@ -17,6 +17,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/mv643xx_eth.h>
 #include <linux/i2c.h>
+#include <linux/ata_platform.h>
 #include <asm/mach-types.h>
 #include <asm/gpio.h>
 #include <asm/mach/arch.h>
@@ -167,6 +168,13 @@ static struct i2c_board_info __initdata kurobox_pro_i2c_rtc = {
 };
 
 /*****************************************************************************
+ * SATA
+ ****************************************************************************/
+static struct mv_sata_platform_data kurobox_pro_sata_data = {
+	.n_ports        = 2,
+};
+
+/*****************************************************************************
  * General Setup
  ****************************************************************************/
 
@@ -220,6 +228,7 @@ static void __init kurobox_pro_init(void)
 	platform_add_devices(kurobox_pro_devices, ARRAY_SIZE(kurobox_pro_devices));
 	i2c_register_board_info(0, &kurobox_pro_i2c_rtc, 1);
 	orion_eth_init(&kurobox_pro_eth_data);
+	orion_sata_init(&kurobox_pro_sata_data);
 }
 
 MACHINE_START(KUROBOX_PRO, "Buffalo/Revogear Kurobox Pro")
