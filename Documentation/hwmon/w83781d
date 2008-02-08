@@ -4,20 +4,16 @@ Kernel driver w83781d
 Supported chips:
   * Winbond W83781D
     Prefix: 'w83781d'
-    Addresses scanned: I2C 0x20 - 0x2f, ISA 0x290 (8 I/O ports)
+    Addresses scanned: I2C 0x28 - 0x2f, ISA 0x290 (8 I/O ports)
     Datasheet: http://www.winbond-usa.com/products/winbond_products/pdfs/PCIC/w83781d.pdf
   * Winbond W83782D
     Prefix: 'w83782d'
-    Addresses scanned: I2C 0x20 - 0x2f, ISA 0x290 (8 I/O ports)
+    Addresses scanned: I2C 0x28 - 0x2f, ISA 0x290 (8 I/O ports)
     Datasheet: http://www.winbond.com/PDF/sheet/w83782d.pdf
   * Winbond W83783S
     Prefix: 'w83783s'
     Addresses scanned: I2C 0x2d
     Datasheet: http://www.winbond-usa.com/products/winbond_products/pdfs/PCIC/w83783s.pdf
-  * Winbond W83627HF
-    Prefix: 'w83627hf'
-    Addresses scanned: I2C 0x20 - 0x2f, ISA 0x290 (8 I/O ports)
-    Datasheet: http://www.winbond.com/PDF/sheet/w83627hf.pdf
   * Asus AS99127F
     Prefix: 'as99127f'
     Addresses scanned: I2C 0x28 - 0x2f
@@ -50,20 +46,18 @@ force_subclients=bus,caddr,saddr,saddr
 Description
 -----------
 
-This driver implements support for the Winbond W83781D, W83782D, W83783S,
-W83627HF chips, and the Asus AS99127F chips. We will refer to them
-collectively as W8378* chips.
+This driver implements support for the Winbond W83781D, W83782D, W83783S
+chips, and the Asus AS99127F chips. We will refer to them collectively as
+W8378* chips.
 
 There is quite some difference between these chips, but they are similar
 enough that it was sensible to put them together in one driver.
-The W83627HF chip is assumed to be identical to the ISA W83782D.
 The Asus chips are similar to an I2C-only W83782D.
 
 Chip        #vin    #fanin  #pwm    #temp   wchipid vendid  i2c     ISA
 as99127f    7       3       0       3       0x31    0x12c3  yes     no
 as99127f rev.2 (type_name = as99127f)       0x31    0x5ca3  yes     no
 w83781d     7       3       0       3       0x10-1  0x5ca3  yes     yes
-w83627hf    9       3       2       3       0x21    0x5ca3  yes     yes(LPC)
 w83782d     9       3       2-4     3       0x30    0x5ca3  yes     yes
 w83783s     5-6     3       2       1-2     0x40    0x5ca3  yes     no
 
@@ -143,9 +137,9 @@ Individual alarm and beep bits:
 0x000400: in6
 0x000800: fan3
 0x001000: chassis
-0x002000: temp3 (W83782D and W83627HF only)
-0x010000: in7 (W83782D and W83627HF only)
-0x020000: in8 (W83782D and W83627HF only)
+0x002000: temp3 (W83782D only)
+0x010000: in7 (W83782D only)
+0x020000: in8 (W83782D only)
 
 If an alarm triggers, it will remain triggered until the hardware register
 is read at least once. This means that the cause for the alarm may

@@ -1,0 +1,36 @@
+Kernel driver ads7828
+=====================
+
+Supported chips:
+  * Texas Instruments/Burr-Brown ADS7828
+    Prefix: 'ads7828'
+    Addresses scanned: I2C 0x48, 0x49, 0x4a, 0x4b
+    Datasheet: Publicly available at the Texas Instruments website :
+               http://focus.ti.com/lit/ds/symlink/ads7828.pdf
+
+Authors:
+        Steve Hardy <steve@linuxrealtime.co.uk>
+
+Module Parameters
+-----------------
+
+* se_input: bool (default Y)
+  Single ended operation - set to N for differential mode
+* int_vref: bool (default Y)
+  Operate with the internal 2.5V reference - set to N for external reference
+* vref_mv: int (default 2500)
+  If using an external reference, set this to the reference voltage in mV
+
+Description
+-----------
+
+This driver implements support for the Texas Instruments ADS7828.
+
+This device is a 12-bit 8-channel A-D converter.
+
+It can operate in single ended mode (8 +ve inputs) or in differential mode,
+where 4 differential pairs can be measured.
+
+The chip also has the facility to use an external voltage reference.  This
+may be required if your hardware supplies the ADS7828 from a 5V supply, see
+the datasheet for more details.

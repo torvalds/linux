@@ -39,6 +39,10 @@
 #include <linux/sysfs.h>
 #include <asm/io.h>
 
+static unsigned short force_id;
+module_param(force_id, ushort, 0);
+MODULE_PARM_DESC(force_id, "Override the detected device ID");
+
 static struct platform_device *pdev;
 
 #define DRVNAME "smsc47m1"
@@ -399,7 +403,7 @@ static int __init smsc47m1_find(unsigned short *addr,
 	u8 val;
 
 	superio_enter();
-	val = superio_inb(SUPERIO_REG_DEVID);
+	val = force_id ? force_id : superio_inb(SUPERIO_REG_DEVID);
 
 	/*
 	 * SMSC LPC47M10x/LPC47M112/LPC47M13x (device id 0x59), LPC47M14x

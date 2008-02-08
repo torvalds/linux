@@ -59,6 +59,10 @@ MODULE_PARM_DESC(init,
  " 2: Forcibly enable all voltage and temperature channels, except in9\n"
  " 3: Forcibly enable all voltage and temperature channels, including in9");
 
+static unsigned short force_id;
+module_param(force_id, ushort, 0);
+MODULE_PARM_DESC(force_id, "Override the detected device ID");
+
 /*
  * Super-I/O registers and operations
  */
@@ -826,7 +830,7 @@ static int __init pc87360_find(int sioaddr, u8 *devid, unsigned short *addresses
 	/* No superio_enter */
 
 	/* Identify device */
-	val = superio_inb(sioaddr, DEVID);
+	val = force_id ? force_id : superio_inb(sioaddr, DEVID);
 	switch (val) {
 	case 0xE1: /* PC87360 */
 	case 0xE8: /* PC87363 */

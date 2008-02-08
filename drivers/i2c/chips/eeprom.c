@@ -71,7 +71,6 @@ static struct i2c_driver eeprom_driver = {
 	.driver = {
 		.name	= "eeprom",
 	},
-	.id		= I2C_DRIVERID_EEPROM,
 	.attach_adapter	= eeprom_attach_adapter,
 	.detach_client	= eeprom_detach_client,
 };

@@ -433,12 +433,12 @@ config SENSORS_LM85
 	  will be called lm85.
 
 config SENSORS_LM87
-	tristate "National Semiconductor LM87"
+	tristate "National Semiconductor LM87 and compatibles"
 	depends on I2C
 	select HWMON_VID
 	help
 	  If you say yes here you get support for National Semiconductor LM87
-	  sensor chips.
+	  and Analog Devices ADM1024 sensor chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm87.
@@ -588,6 +588,16 @@ config SENSORS_SMSC47B397
 	  This driver can also be built as a module.  If so, the module
 	  will be called smsc47b397.
 
+config SENSORS_ADS7828
+	tristate "Texas Instruments ADS7828"
+	depends on I2C
+	help
+	  If you say yes here you get support for Texas Instruments ADS7828
+	  12-bit 8-channel ADC device.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called ads7828.
+
 config SENSORS_THMC50
 	tristate "Texas Instruments THMC50 / Analog Devices ADM1022"
 	depends on I2C && EXPERIMENTAL
@@ -631,13 +641,13 @@ config SENSORS_VT8231
 	  will be called vt8231.
 
 config SENSORS_W83781D
-	tristate "Winbond W83781D, W83782D, W83783S, W83627HF, Asus AS99127F"
+	tristate "Winbond W83781D, W83782D, W83783S, Asus AS99127F"
 	depends on I2C
 	select HWMON_VID
 	help
 	  If you say yes here you get support for the Winbond W8378x series
-	  of sensor chips: the W83781D, W83782D, W83783S and W83627HF,
-	  and the similar Asus AS99127F.
+	  of sensor chips: the W83781D, W83782D and W83783S, and the similar
+	  Asus AS99127F.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called w83781d.
@@ -682,6 +692,16 @@ config SENSORS_W83L785TS
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called w83l785ts.
+
+config SENSORS_W83L786NG
+	tristate "Winbond W83L786NG, W83L786NR"
+	depends on I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get support for the Winbond W83L786NG
+	  and W83L786NR sensor chips.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called w83l786ng.
 
 config SENSORS_W83627HF
 	tristate "Winbond W83627HF, W83627THF, W83637HF, W83687THF, W83697HF"

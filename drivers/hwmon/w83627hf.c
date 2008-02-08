@@ -75,6 +75,10 @@ static int init = 1;
 module_param(init, bool, 0);
 MODULE_PARM_DESC(init, "Set to zero to bypass chip initialization");
 
+static unsigned short force_id;
+module_param(force_id, ushort, 0);
+MODULE_PARM_DESC(force_id, "Override the detected device ID");
+
 /* modified from kernel/include/traps.c */
 static int REG;		/* The register to read/write */
 #define	DEV	0x07	/* Register: Logical device select */
@@ -319,10 +323,8 @@ static inline u8 pwm_freq_to_reg(unsigned long val)
 		return (0x80 | (180000UL / (val << 8)));
 }
 
-#define BEEP_MASK_FROM_REG(val)		 (val)
-#define BEEP_MASK_TO_REG(val)		((val) & 0xffffff)
-#define BEEP_ENABLE_TO_REG(val)		((val)?1:0)
-#define BEEP_ENABLE_FROM_REG(val)	((val)?1:0)
+#define BEEP_MASK_FROM_REG(val)		((val) & 0xff7fff)
+#define BEEP_MASK_TO_REG(val)		((val) & 0xff7fff)
 
 #define DIV_FROM_REG(val) (1 << (val))
 
@@ -363,7 +365,6 @@ struct w83627hf_data {
 	u8 vid;			/* Register encoding, combined */
 	u32 alarms;		/* Register encoding, combined */
 	u32 beep_mask;		/* Register encoding, combined */
-	u8 beep_enable;		/* Boolean */
 	u8 pwm[3];		/* Register value */
 	u8 pwm_freq[3];		/* Register value */
 	u16 sens[3];		/* 1 = pentium diode; 2 = 3904 diode;
@@ -713,65 +714,151 @@ show_alarms_reg(struct device *dev, struct device_attribute *attr, char *buf)
 }
 static DEVICE_ATTR(alarms, S_IRUGO, show_alarms_reg, NULL);
 
-#define show_beep_reg(REG, reg) \
-static ssize_t show_beep_##reg (struct device *dev, struct device_attribute *attr, char *buf) \
-{ \
-	struct w83627hf_data *data = w83627hf_update_device(dev); \
-	return sprintf(buf,"%ld\n", \
-		      (long)BEEP_##REG##_FROM_REG(data->beep_##reg)); \
+static ssize_t
+show_alarm(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct w83627hf_data *data = w83627hf_update_device(dev);
+	int bitnr = to_sensor_dev_attr(attr)->index;
+	return sprintf(buf, "%u\n", (data->alarms >> bitnr) & 1);
 }
-show_beep_reg(ENABLE, enable)
-show_beep_reg(MASK, mask)
-
-#define BEEP_ENABLE			0	/* Store beep_enable */
-#define BEEP_MASK			1	/* Store beep_mask */
+static SENSOR_DEVICE_ATTR(in0_alarm, S_IRUGO, show_alarm, NULL, 0);
+static SENSOR_DEVICE_ATTR(in1_alarm, S_IRUGO, show_alarm, NULL, 1);
+static SENSOR_DEVICE_ATTR(in2_alarm, S_IRUGO, show_alarm, NULL, 2);
+static SENSOR_DEVICE_ATTR(in3_alarm, S_IRUGO, show_alarm, NULL, 3);
+static SENSOR_DEVICE_ATTR(in4_alarm, S_IRUGO, show_alarm, NULL, 8);
+static SENSOR_DEVICE_ATTR(in5_alarm, S_IRUGO, show_alarm, NULL, 9);
+static SENSOR_DEVICE_ATTR(in6_alarm, S_IRUGO, show_alarm, NULL, 10);
+static SENSOR_DEVICE_ATTR(in7_alarm, S_IRUGO, show_alarm, NULL, 16);
+static SENSOR_DEVICE_ATTR(in8_alarm, S_IRUGO, show_alarm, NULL, 17);
+static SENSOR_DEVICE_ATTR(fan1_alarm, S_IRUGO, show_alarm, NULL, 6);
+static SENSOR_DEVICE_ATTR(fan2_alarm, S_IRUGO, show_alarm, NULL, 7);
+static SENSOR_DEVICE_ATTR(fan3_alarm, S_IRUGO, show_alarm, NULL, 11);
+static SENSOR_DEVICE_ATTR(temp1_alarm, S_IRUGO, show_alarm, NULL, 4);
+static SENSOR_DEVICE_ATTR(temp2_alarm, S_IRUGO, show_alarm, NULL, 5);
+static SENSOR_DEVICE_ATTR(temp3_alarm, S_IRUGO, show_alarm, NULL, 13);
 
 static ssize_t
-store_beep_reg(struct device *dev, const char *buf, size_t count,
-	       int update_mask)
+show_beep_mask(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct w83627hf_data *data = w83627hf_update_device(dev);
+	return sprintf(buf, "%ld\n",
+		      (long)BEEP_MASK_FROM_REG(data->beep_mask));
+}
+
+static ssize_t
+store_beep_mask(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
 {
 	struct w83627hf_data *data = dev_get_drvdata(dev);
-	u32 val, val2;
+	unsigned long val;
 
 	val = simple_strtoul(buf, NULL, 10);
 
 	mutex_lock(&data->update_lock);
 
-	if (update_mask == BEEP_MASK) {	/* We are storing beep_mask */
-		data->beep_mask = BEEP_MASK_TO_REG(val);
-		w83627hf_write_value(data, W83781D_REG_BEEP_INTS1,
-				    data->beep_mask & 0xff);
-		w83627hf_write_value(data, W83781D_REG_BEEP_INTS3,
-				    ((data->beep_mask) >> 16) & 0xff);
-		val2 = (data->beep_mask >> 8) & 0x7f;
-	} else {		/* We are storing beep_enable */
-		val2 =
-		    w83627hf_read_value(data, W83781D_REG_BEEP_INTS2) & 0x7f;
-		data->beep_enable = BEEP_ENABLE_TO_REG(val);
-	}
-
+	/* preserve beep enable */
+	data->beep_mask = (data->beep_mask & 0x8000)
+			| BEEP_MASK_TO_REG(val);
+	w83627hf_write_value(data, W83781D_REG_BEEP_INTS1,
+			    data->beep_mask & 0xff);
+	w83627hf_write_value(data, W83781D_REG_BEEP_INTS3,
+			    ((data->beep_mask) >> 16) & 0xff);
 	w83627hf_write_value(data, W83781D_REG_BEEP_INTS2,
-			    val2 | data->beep_enable << 7);
+			    (data->beep_mask >> 8) & 0xff);
 
 	mutex_unlock(&data->update_lock);
 	return count;
 }
 
-#define sysfs_beep(REG, reg) \
-static ssize_t show_regs_beep_##reg (struct device *dev, struct device_attribute *attr, char *buf) \
-{ \
-	return show_beep_##reg(dev, attr, buf); \
-} \
-static ssize_t \
-store_regs_beep_##reg (struct device *dev, struct device_attribute *attr, const char *buf, size_t count) \
-{ \
-	return store_beep_reg(dev, buf, count, BEEP_##REG); \
-} \
-static DEVICE_ATTR(beep_##reg, S_IRUGO | S_IWUSR, \
-		  show_regs_beep_##reg, store_regs_beep_##reg);
+static DEVICE_ATTR(beep_mask, S_IRUGO | S_IWUSR,
+		   show_beep_mask, store_beep_mask);
 
-sysfs_beep(ENABLE, enable);
-sysfs_beep(MASK, mask);
+static ssize_t
+show_beep(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct w83627hf_data *data = w83627hf_update_device(dev);
+	int bitnr = to_sensor_dev_attr(attr)->index;
+	return sprintf(buf, "%u\n", (data->beep_mask >> bitnr) & 1);
+}
+
+static ssize_t
+store_beep(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct w83627hf_data *data = dev_get_drvdata(dev);
+	int bitnr = to_sensor_dev_attr(attr)->index;
+	unsigned long bit;
+	u8 reg;
+
+	bit = simple_strtoul(buf, NULL, 10);
+	if (bit & ~1)
+		return -EINVAL;
+
+	mutex_lock(&data->update_lock);
+	if (bit)
+		data->beep_mask |= (1 << bitnr);
+	else
+		data->beep_mask &= ~(1 << bitnr);
+
+	if (bitnr < 8) {
+		reg = w83627hf_read_value(data, W83781D_REG_BEEP_INTS1);
+		if (bit)
+			reg |= (1 << bitnr);
+		else
+			reg &= ~(1 << bitnr);
+		w83627hf_write_value(data, W83781D_REG_BEEP_INTS1, reg);
+	} else if (bitnr < 16) {
+		reg = w83627hf_read_value(data, W83781D_REG_BEEP_INTS2);
+		if (bit)
+			reg |= (1 << (bitnr - 8));
+		else
+			reg &= ~(1 << (bitnr - 8));
+		w83627hf_write_value(data, W83781D_REG_BEEP_INTS2, reg);
+	} else {
+		reg = w83627hf_read_value(data, W83781D_REG_BEEP_INTS3);
+		if (bit)
+			reg |= (1 << (bitnr - 16));
+		else
+			reg &= ~(1 << (bitnr - 16));
+		w83627hf_write_value(data, W83781D_REG_BEEP_INTS3, reg);
+	}
+	mutex_unlock(&data->update_lock);
+
+	return count;
+}
+
+static SENSOR_DEVICE_ATTR(in0_beep, S_IRUGO | S_IWUSR,
+			show_beep, store_beep, 0);
+static SENSOR_DEVICE_ATTR(in1_beep, S_IRUGO | S_IWUSR,
+			show_beep, store_beep, 1);
+static SENSOR_DEVICE_ATTR(in2_beep, S_IRUGO | S_IWUSR,
+			show_beep, store_beep, 2);
+static SENSOR_DEVICE_ATTR(in3_beep, S_IRUGO | S_IWUSR,
+			show_beep, store_beep, 3);
+static SENSOR_DEVICE_ATTR(in4_beep, S_IRUGO | S_IWUSR,
+			show_beep, store_beep, 8);
+static SENSOR_DEVICE_ATTR(in5_beep, S_IRUGO | S_IWUSR,
+			show_beep, store_beep, 9);
+static SENSOR_DEVICE_ATTR(in6_beep, S_IRUGO | S_IWUSR,
+			show_beep, store_beep, 10);
+static SENSOR_DEVICE_ATTR(in7_beep, S_IRUGO | S_IWUSR,
+			show_beep, store_beep, 16);
+static SENSOR_DEVICE_ATTR(in8_beep, S_IRUGO | S_IWUSR,
+			show_beep, store_beep, 17);
+static SENSOR_DEVICE_ATTR(fan1_beep, S_IRUGO | S_IWUSR,
+			show_beep, store_beep, 6);
+static SENSOR_DEVICE_ATTR(fan2_beep, S_IRUGO | S_IWUSR,
+			show_beep, store_beep, 7);
+static SENSOR_DEVICE_ATTR(fan3_beep, S_IRUGO | S_IWUSR,
+			show_beep, store_beep, 11);
+static SENSOR_DEVICE_ATTR(temp1_beep, S_IRUGO | S_IWUSR,
+			show_beep, store_beep, 4);
+static SENSOR_DEVICE_ATTR(temp2_beep, S_IRUGO | S_IWUSR,
+			show_beep, store_beep, 5);
+static SENSOR_DEVICE_ATTR(temp3_beep, S_IRUGO | S_IWUSR,
+			show_beep, store_beep, 13);
+static SENSOR_DEVICE_ATTR(beep_enable, S_IRUGO | S_IWUSR,
+			show_beep, store_beep, 15);
 
 static ssize_t
 show_fan_div(struct device *dev, struct device_attribute *devattr, char *buf)
@@ -1014,7 +1101,7 @@ static int __init w83627hf_find(int sioaddr, unsigned short *addr,
 	VAL = sioaddr + 1;
 
 	superio_enter();
-	val= superio_inb(DEVID);
+	val = force_id ? force_id : superio_inb(DEVID);
 	switch (val) {
 	case W627_DEVID:
 		sio_data->type = w83627hf;
@@ -1073,23 +1160,31 @@ static int __init w83627hf_find(int sioaddr, unsigned short *addr,
 #define VIN_UNIT_ATTRS(_X_)	\
 	&sensor_dev_attr_in##_X_##_input.dev_attr.attr,		\
 	&sensor_dev_attr_in##_X_##_min.dev_attr.attr,		\
-	&sensor_dev_attr_in##_X_##_max.dev_attr.attr
+	&sensor_dev_attr_in##_X_##_max.dev_attr.attr,		\
+	&sensor_dev_attr_in##_X_##_alarm.dev_attr.attr,		\
+	&sensor_dev_attr_in##_X_##_beep.dev_attr.attr
 
 #define FAN_UNIT_ATTRS(_X_)	\
 	&sensor_dev_attr_fan##_X_##_input.dev_attr.attr,	\
 	&sensor_dev_attr_fan##_X_##_min.dev_attr.attr,		\
-	&sensor_dev_attr_fan##_X_##_div.dev_attr.attr
+	&sensor_dev_attr_fan##_X_##_div.dev_attr.attr,		\
+	&sensor_dev_attr_fan##_X_##_alarm.dev_attr.attr,	\
+	&sensor_dev_attr_fan##_X_##_beep.dev_attr.attr
 
 #define TEMP_UNIT_ATTRS(_X_)	\
 	&sensor_dev_attr_temp##_X_##_input.dev_attr.attr,	\
 	&sensor_dev_attr_temp##_X_##_max.dev_attr.attr,		\
 	&sensor_dev_attr_temp##_X_##_max_hyst.dev_attr.attr,	\
-	&sensor_dev_attr_temp##_X_##_type.dev_attr.attr
+	&sensor_dev_attr_temp##_X_##_type.dev_attr.attr,	\
+	&sensor_dev_attr_temp##_X_##_alarm.dev_attr.attr,	\
+	&sensor_dev_attr_temp##_X_##_beep.dev_attr.attr
 
 static struct attribute *w83627hf_attributes[] = {
 	&dev_attr_in0_input.attr,
 	&dev_attr_in0_min.attr,
 	&dev_attr_in0_max.attr,
+	&sensor_dev_attr_in0_alarm.dev_attr.attr,
+	&sensor_dev_attr_in0_beep.dev_attr.attr,
 	VIN_UNIT_ATTRS(2),
 	VIN_UNIT_ATTRS(3),
 	VIN_UNIT_ATTRS(4),
@@ -1103,7 +1198,7 @@ static struct attribute *w83627hf_attributes[] = {
 	TEMP_UNIT_ATTRS(2),
 
 	&dev_attr_alarms.attr,
-	&dev_attr_beep_enable.attr,
+	&sensor_dev_attr_beep_enable.dev_attr.attr,
 	&dev_attr_beep_mask.attr,
 
 	&sensor_dev_attr_pwm1.dev_attr.attr,
@@ -1193,11 +1288,19 @@ static int __devinit w83627hf_probe(struct platform_device *pdev)
 		 || (err = device_create_file(dev,
 				&sensor_dev_attr_in5_max.dev_attr))
 		 || (err = device_create_file(dev,
+				&sensor_dev_attr_in5_alarm.dev_attr))
+		 || (err = device_create_file(dev,
+				&sensor_dev_attr_in5_beep.dev_attr))
+		 || (err = device_create_file(dev,
 				&sensor_dev_attr_in6_input.dev_attr))
 		 || (err = device_create_file(dev,
 				&sensor_dev_attr_in6_min.dev_attr))
 		 || (err = device_create_file(dev,
 				&sensor_dev_attr_in6_max.dev_attr))
+		 || (err = device_create_file(dev,
+				&sensor_dev_attr_in6_alarm.dev_attr))
+		 || (err = device_create_file(dev,
+				&sensor_dev_attr_in6_beep.dev_attr))
 		 || (err = device_create_file(dev,
 				&sensor_dev_attr_pwm1_freq.dev_attr))
 		 || (err = device_create_file(dev,
@@ -1212,17 +1315,29 @@ static int __devinit w83627hf_probe(struct platform_device *pdev)
 		 || (err = device_create_file(dev,
 				&sensor_dev_attr_in1_max.dev_attr))
 		 || (err = device_create_file(dev,
+				&sensor_dev_attr_in1_alarm.dev_attr))
+		 || (err = device_create_file(dev,
+				&sensor_dev_attr_in1_beep.dev_attr))
+		 || (err = device_create_file(dev,
 				&sensor_dev_attr_fan3_input.dev_attr))
 		 || (err = device_create_file(dev,
 				&sensor_dev_attr_fan3_min.dev_attr))
 		 || (err = device_create_file(dev,
 				&sensor_dev_attr_fan3_div.dev_attr))
 		 || (err = device_create_file(dev,
+				&sensor_dev_attr_fan3_alarm.dev_attr))
+		 || (err = device_create_file(dev,
+				&sensor_dev_attr_fan3_beep.dev_attr))
+		 || (err = device_create_file(dev,
 				&sensor_dev_attr_temp3_input.dev_attr))
 		 || (err = device_create_file(dev,
 				&sensor_dev_attr_temp3_max.dev_attr))
 		 || (err = device_create_file(dev,
 				&sensor_dev_attr_temp3_max_hyst.dev_attr))
+		 || (err = device_create_file(dev,
+				&sensor_dev_attr_temp3_alarm.dev_attr))
+		 || (err = device_create_file(dev,
+				&sensor_dev_attr_temp3_beep.dev_attr))
 		 || (err = device_create_file(dev,
 				&sensor_dev_attr_temp3_type.dev_attr)))
 			goto ERROR4;
@@ -1511,6 +1626,11 @@ static void __devinit w83627hf_init_device(struct platform_device *pdev)
 			    (w83627hf_read_value(data,
 						W83781D_REG_CONFIG) & 0xf7)
 			    | 0x01);
+
+	/* Enable VBAT monitoring if needed */
+	tmp = w83627hf_read_value(data, W83781D_REG_VBAT);
+	if (!(tmp & 0x01))
+		w83627hf_write_value(data, W83781D_REG_VBAT, tmp | 0x01);
 }
 
 static void w83627hf_update_fan_div(struct w83627hf_data *data)
@@ -1603,8 +1723,7 @@ static struct w83627hf_data *w83627hf_update_device(struct device *dev)
 		    (w83627hf_read_value(data, W83781D_REG_ALARM2) << 8) |
 		    (w83627hf_read_value(data, W83781D_REG_ALARM3) << 16);
 		i = w83627hf_read_value(data, W83781D_REG_BEEP_INTS2);
-		data->beep_enable = i >> 7;
-		data->beep_mask = ((i & 0x7f) << 8) |
+		data->beep_mask = (i << 8) |
 		    w83627hf_read_value(data, W83781D_REG_BEEP_INTS1) |
 		    w83627hf_read_value(data, W83781D_REG_BEEP_INTS3) << 16;
 		data->last_updated = jiffies;

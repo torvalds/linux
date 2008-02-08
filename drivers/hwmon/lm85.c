@@ -367,7 +367,6 @@ static struct i2c_driver lm85_driver = {
 	.driver = {
 		.name   = "lm85",
 	},
-	.id             = I2C_DRIVERID_LM85,
 	.attach_adapter = lm85_attach_adapter,
 	.detach_client  = lm85_detach_client,
 };
@@ -444,12 +443,8 @@ static ssize_t show_vrm_reg(struct device *dev, struct device_attribute *attr, c
 
 static ssize_t store_vrm_reg(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct lm85_data *data = i2c_get_clientdata(client);
-	u32 val;
-
-	val = simple_strtoul(buf, NULL, 10);
-	data->vrm = val;
+	struct lm85_data *data = dev_get_drvdata(dev);
+	data->vrm = simple_strtoul(buf, NULL, 10);
 	return count;
 }
 
@@ -519,17 +514,64 @@ static ssize_t show_pwm_enable(struct device *dev, struct device_attribute
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = lm85_update_device(dev);
-	int	pwm_zone;
+	int pwm_zone, enable;
 
 	pwm_zone = ZONE_FROM_REG(data->autofan[nr].config);
-	return sprintf(buf,"%d\n", (pwm_zone != 0 && pwm_zone != -1) );
+	switch (pwm_zone) {
+	case -1:	/* PWM is always at 100% */
+		enable = 0;
+		break;
+	case 0:		/* PWM is always at 0% */
+	case -2:	/* PWM responds to manual control */
+		enable = 1;
+		break;
+	default:	/* PWM in automatic mode */
+		enable = 2;
+	}
+	return sprintf(buf, "%d\n", enable);
+}
+
+static ssize_t set_pwm_enable(struct device *dev, struct device_attribute
+		*attr, const char *buf, size_t count)
+{
+	int nr = to_sensor_dev_attr(attr)->index;
+	struct i2c_client *client = to_i2c_client(dev);
+	struct lm85_data *data = i2c_get_clientdata(client);
+	long val = simple_strtol(buf, NULL, 10);
+	u8 config;
+
+	switch (val) {
+	case 0:
+		config = 3;
+		break;
+	case 1:
+		config = 7;
+		break;
+	case 2:
+		/* Here we have to choose arbitrarily one of the 5 possible
+		   configurations; I go for the safest */
+		config = 6;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	mutex_lock(&data->update_lock);
+	data->autofan[nr].config = lm85_read_value(client,
+		LM85_REG_AFAN_CONFIG(nr));
+	data->autofan[nr].config = (data->autofan[nr].config & ~0xe0)
+		| (config << 5);
+	lm85_write_value(client, LM85_REG_AFAN_CONFIG(nr),
+		data->autofan[nr].config);
+	mutex_unlock(&data->update_lock);
+	return count;
 }
 
 #define show_pwm_reg(offset)						\
 static SENSOR_DEVICE_ATTR(pwm##offset, S_IRUGO | S_IWUSR,		\
 		show_pwm, set_pwm, offset - 1);				\
-static SENSOR_DEVICE_ATTR(pwm##offset##_enable, S_IRUGO,		\
-		show_pwm_enable, NULL, offset - 1)
+static SENSOR_DEVICE_ATTR(pwm##offset##_enable, S_IRUGO | S_IWUSR,	\
+		show_pwm_enable, set_pwm_enable, offset - 1)
 
 show_pwm_reg(1);
 show_pwm_reg(2);

@@ -4,8 +4,12 @@ Kernel driver lm87
 Supported chips:
   * National Semiconductor LM87
     Prefix: 'lm87'
-    Addresses scanned: I2C 0x2c - 0x2f
+    Addresses scanned: I2C 0x2c - 0x2e
     Datasheet: http://www.national.com/pf/LM/LM87.html
+  * Analog Devices ADM1024
+    Prefix: 'adm1024'
+    Addresses scanned: I2C 0x2c - 0x2e
+    Datasheet: http://www.analog.com/en/prod/0,2877,ADM1024,00.html
 
 Authors:
         Frodo Looijaard <frodol@dds.nl>,
@@ -19,11 +23,12 @@ Authors:
 Description
 -----------
 
-This driver implements support for the National Semiconductor LM87.
+This driver implements support for the National Semiconductor LM87
+and the Analog Devices ADM1024.
 
 The LM87 implements up to three temperature sensors, up to two fan
 rotation speed sensors, up to seven voltage sensors, alarms, and some
-miscellaneous stuff.
+miscellaneous stuff. The ADM1024 is fully compatible.
 
 Temperatures are measured in degrees Celsius. Each input has a high
 and low alarm settings. A high limit produces an alarm when the value
