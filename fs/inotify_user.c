@@ -283,7 +283,7 @@ static void inotify_dev_queue_event(struct inotify_watch *w, u32 wd, u32 mask,
 	/* we can safely put the watch as we don't reference it while
 	 * generating the event
 	 */
-	if (mask & IN_IGNORED || mask & IN_ONESHOT)
+	if (mask & IN_IGNORED || w->mask & IN_ONESHOT)
 		put_inotify_watch(w); /* final put */
 
 	/* coalescing: drop this event if it is a dupe of the previous */
