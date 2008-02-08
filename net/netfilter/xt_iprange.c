@@ -13,6 +13,7 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/netfilter/x_tables.h>
+#include <linux/netfilter/xt_iprange.h>
 #include <linux/netfilter_ipv4/ipt_iprange.h>
 
 static bool
