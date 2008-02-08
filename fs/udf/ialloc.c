@@ -82,7 +82,8 @@ struct inode *udf_new_inode(struct inode *dir, int mode, int *err)
 	UDF_I_NEXT_ALLOC_GOAL(inode) = 0;
 	UDF_I_STRAT4096(inode) = 0;
 
-	block = udf_new_block(dir->i_sb, NULL, UDF_I_LOCATION(dir).partitionReferenceNum,
+	block = udf_new_block(dir->i_sb, NULL,
+			      UDF_I_LOCATION(dir).partitionReferenceNum,
 			      start, err);
 	if (*err) {
 		iput(inode);
@@ -91,11 +92,15 @@ struct inode *udf_new_inode(struct inode *dir, int mode, int *err)
 
 	mutex_lock(&sbi->s_alloc_mutex);
 	if (sbi->s_lvid_bh) {
-		struct logicalVolIntegrityDesc *lvid = (struct logicalVolIntegrityDesc *)sbi->s_lvid_bh->b_data;
-		struct logicalVolIntegrityDescImpUse *lvidiu = udf_sb_lvidiu(sbi);
+		struct logicalVolIntegrityDesc *lvid =
+			(struct logicalVolIntegrityDesc *)
+			sbi->s_lvid_bh->b_data;
+		struct logicalVolIntegrityDescImpUse *lvidiu =
+							udf_sb_lvidiu(sbi);
 		struct logicalVolHeaderDesc *lvhd;
 		uint64_t uniqueID;
-		lvhd = (struct logicalVolHeaderDesc *)(lvid->logicalVolContentsUse);
+		lvhd = (struct logicalVolHeaderDesc *)
+				(lvid->logicalVolContentsUse);
 		if (S_ISDIR(mode))
 			lvidiu->numDirs =
 				cpu_to_le32(le32_to_cpu(lvidiu->numDirs) + 1);
@@ -119,7 +124,8 @@ struct inode *udf_new_inode(struct inode *dir, int mode, int *err)
 	}
 
 	UDF_I_LOCATION(inode).logicalBlockNum = block;
-	UDF_I_LOCATION(inode).partitionReferenceNum = UDF_I_LOCATION(dir).partitionReferenceNum;
+	UDF_I_LOCATION(inode).partitionReferenceNum =
+				UDF_I_LOCATION(dir).partitionReferenceNum;
 	inode->i_ino = udf_get_lb_pblock(sb, UDF_I_LOCATION(inode), 0);
 	inode->i_blocks = 0;
 	UDF_I_LENEATTR(inode) = 0;
@@ -129,10 +135,14 @@ struct inode *udf_new_inode(struct inode *dir, int mode, int *err)
 		UDF_I_EFE(inode) = 1;
 		if (UDF_VERS_USE_EXTENDED_FE > sbi->s_udfrev)
 			sbi->s_udfrev = UDF_VERS_USE_EXTENDED_FE;
-		UDF_I_DATA(inode) = kzalloc(inode->i_sb->s_blocksize - sizeof(struct extendedFileEntry), GFP_KERNEL);
+		UDF_I_DATA(inode) = kzalloc(inode->i_sb->s_blocksize -
+					    sizeof(struct extendedFileEntry),
+					    GFP_KERNEL);
 	} else {
 		UDF_I_EFE(inode) = 0;
-		UDF_I_DATA(inode) = kzalloc(inode->i_sb->s_blocksize - sizeof(struct fileEntry), GFP_KERNEL);
+		UDF_I_DATA(inode) = kzalloc(inode->i_sb->s_blocksize -
+					    sizeof(struct fileEntry),
+					    GFP_KERNEL);
 	}
 	if (!UDF_I_DATA(inode)) {
 		iput(inode);

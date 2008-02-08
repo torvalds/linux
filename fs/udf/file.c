@@ -59,7 +59,8 @@ static int udf_adinicb_readpage(struct file *file, struct page *page)
 	return 0;
 }
 
-static int udf_adinicb_writepage(struct page *page, struct writeback_control *wbc)
+static int udf_adinicb_writepage(struct page *page,
+				 struct writeback_control *wbc)
 {
 	struct inode *inode = page->mapping->host;
 	char *kaddr;
@@ -116,7 +117,8 @@ static ssize_t udf_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 		else
 			pos = ppos;
 
-		if (inode->i_sb->s_blocksize < (udf_file_entry_alloc_offset(inode) +
+		if (inode->i_sb->s_blocksize <
+				(udf_file_entry_alloc_offset(inode) +
 						pos + count)) {
 			udf_expand_file_adinicb(inode, pos + count, &err);
 			if (UDF_I_ALLOCTYPE(inode) == ICBTAG_FLAG_AD_IN_ICB) {
@@ -191,15 +193,19 @@ int udf_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 
 	switch (cmd) {
 	case UDF_GETVOLIDENT:
-		return copy_to_user((char __user *)arg,
-				    UDF_SB(inode->i_sb)->s_volume_ident, 32) ? -EFAULT : 0;
+		if (copy_to_user((char __user *)arg,
+				 UDF_SB(inode->i_sb)->s_volume_ident, 32))
+			return -EFAULT;
+		else
+			return 0;
 	case UDF_RELOCATE_BLOCKS:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EACCES;
 		if (get_user(old_block, (long __user *)arg))
 			return -EFAULT;
-		if ((result = udf_relocate_blocks(inode->i_sb,
-						  old_block, &new_block)) == 0)
+		result = udf_relocate_blocks(inode->i_sb,
+						old_block, &new_block);
+		if (result == 0)
 			result = put_user(new_block, (long __user *)arg);
 		return result;
 	case UDF_GETEASIZE:

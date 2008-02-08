@@ -154,7 +154,8 @@ void udf_discard_prealloc(struct inode *inode)
 		extent_trunc(inode, &epos, eloc, etype, elen, 0);
 		if (!epos.bh) {
 			UDF_I_LENALLOC(inode) =
-				epos.offset - udf_file_entry_alloc_offset(inode);
+				epos.offset -
+				udf_file_entry_alloc_offset(inode);
 			mark_inode_dirty(inode);
 		} else {
 			struct allocExtDesc *aed =
@@ -213,7 +214,8 @@ void udf_truncate_extents(struct inode *inode)
 		else
 			lenalloc -= sizeof(struct allocExtDesc);
 
-		while ((etype = udf_current_aext(inode, &epos, &eloc, &elen, 0)) != -1) {
+		while ((etype = udf_current_aext(inode, &epos, &eloc,
+						 &elen, 0)) != -1) {
 			if (etype == (EXT_NEXT_EXTENT_ALLOCDECS >> 30)) {
 				udf_write_aext(inode, &epos, neloc, nelen, 0);
 				if (indirect_ext_len) {
@@ -225,35 +227,43 @@ void udf_truncate_extents(struct inode *inode)
 							0, indirect_ext_len);
 				} else {
 					if (!epos.bh) {
-						UDF_I_LENALLOC(inode) = lenalloc;
+						UDF_I_LENALLOC(inode) =
+								lenalloc;
 						mark_inode_dirty(inode);
 					} else {
 						struct allocExtDesc *aed =
-							(struct allocExtDesc *)(epos.bh->b_data);
+							(struct allocExtDesc *)
+							(epos.bh->b_data);
+						int len =
+						    sizeof(struct allocExtDesc);
+
 						aed->lengthAllocDescs =
 						    cpu_to_le32(lenalloc);
-						if (!UDF_QUERY_FLAG(sb, UDF_FLAG_STRICT) ||
+						if (!UDF_QUERY_FLAG(sb,
+							UDF_FLAG_STRICT) ||
 						    sbi->s_udfrev >= 0x0201)
-							udf_update_tag(epos.bh->b_data,
-								       lenalloc +
-								       sizeof(struct allocExtDesc));
-						else
-							udf_update_tag(epos.bh->b_data,
-								       sizeof(struct allocExtDesc));
-						mark_buffer_dirty_inode(epos.bh, inode);
+							len += lenalloc;
+
+						udf_update_tag(epos.bh->b_data,
+								len);
+						mark_buffer_dirty_inode(
+								epos.bh, inode);
 					}
 				}
 				brelse(epos.bh);
 				epos.offset = sizeof(struct allocExtDesc);
 				epos.block = eloc;
-				epos.bh = udf_tread(sb, udf_get_lb_pblock(sb, eloc, 0));
+				epos.bh = udf_tread(sb,
+						udf_get_lb_pblock(sb, eloc, 0));
 				if (elen)
-					indirect_ext_len = (elen + sb->s_blocksize -1) >>
+					indirect_ext_len =
+						(elen + sb->s_blocksize - 1) >>
 						sb->s_blocksize_bits;
 				else
 					indirect_ext_len = 1;
 			} else {
-				extent_trunc(inode, &epos, eloc, etype, elen, 0);
+				extent_trunc(inode, &epos, eloc, etype,
+					     elen, 0);
 				epos.offset += adsize;
 			}
 		}
@@ -274,10 +284,11 @@ void udf_truncate_extents(struct inode *inode)
 				if (!UDF_QUERY_FLAG(sb, UDF_FLAG_STRICT) ||
 				    sbi->s_udfrev >= 0x0201)
 					udf_update_tag(epos.bh->b_data,
-						       lenalloc + sizeof(struct allocExtDesc));
+						lenalloc +
+						sizeof(struct allocExtDesc));
 				else
 					udf_update_tag(epos.bh->b_data,
-						       sizeof(struct allocExtDesc));
+						sizeof(struct allocExtDesc));
 				mark_buffer_dirty_inode(epos.bh, inode);
 			}
 		}
@@ -291,13 +302,16 @@ void udf_truncate_extents(struct inode *inode)
 			 *  extending the file by 'offset' blocks.
 			 */
 			if ((!epos.bh &&
-			     epos.offset == udf_file_entry_alloc_offset(inode)) ||
-			    (epos.bh && epos.offset == sizeof(struct allocExtDesc))) {
+			     epos.offset ==
+					udf_file_entry_alloc_offset(inode)) ||
+			    (epos.bh && epos.offset ==
+						sizeof(struct allocExtDesc))) {
 				/* File has no extents at all or has empty last
 				 * indirect extent! Create a fake extent... */
 				extent.extLocation.logicalBlockNum = 0;
 				extent.extLocation.partitionReferenceNum = 0;
-				extent.extLength = EXT_NOT_RECORDED_NOT_ALLOCATED;
+				extent.extLength =
+					EXT_NOT_RECORDED_NOT_ALLOCATED;
 			} else {
 				epos.offset -= adsize;
 				etype = udf_next_aext(inode, &epos,
@@ -306,7 +320,9 @@ void udf_truncate_extents(struct inode *inode)
 				extent.extLength |= etype << 30;
 			}
 			udf_extend_file(inode, &epos, &extent,
-					offset + ((inode->i_size & (sb->s_blocksize - 1)) != 0));
+					offset +
+					((inode->i_size &
+						(sb->s_blocksize - 1)) != 0));
 		}
 	}
 	UDF_I_LENEXTENTS(inode) = inode->i_size;

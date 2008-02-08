@@ -18,8 +18,10 @@
    Boston, MA 02111-1307, USA.  */
 
 /*
- * dgb 10/02/98: ripped this from glibc source to help convert timestamps to unix time
- *     10/04/98: added new table-based lookup after seeing how ugly the gnu code is
+ * dgb 10/02/98: ripped this from glibc source to help convert timestamps
+ *               to unix time
+ *     10/04/98: added new table-based lookup after seeing how ugly
+ *               the gnu code is
  * blf 09/27/99: ripped out all the old code and inserted new table from
  *		 John Brockmeyer (without leap second corrections)
  *		 rewrote udf_stamp_to_time and fixed timezone accounting in
@@ -55,27 +57,27 @@ static const unsigned short int __mon_yday[2][13] = {
 
 #define MAX_YEAR_SECONDS	69
 #define SPD			0x15180	/*3600*24 */
-#define SPY(y,l,s)		(SPD * (365*y+l)+s)
+#define SPY(y, l, s)		(SPD * (365 * y + l) + s)
 
-static time_t year_seconds[MAX_YEAR_SECONDS]= {
-/*1970*/ SPY( 0, 0,0), SPY( 1, 0,0), SPY( 2, 0,0), SPY( 3, 1,0),
-/*1974*/ SPY( 4, 1,0), SPY( 5, 1,0), SPY( 6, 1,0), SPY( 7, 2,0),
-/*1978*/ SPY( 8, 2,0), SPY( 9, 2,0), SPY(10, 2,0), SPY(11, 3,0),
-/*1982*/ SPY(12, 3,0), SPY(13, 3,0), SPY(14, 3,0), SPY(15, 4,0),
-/*1986*/ SPY(16, 4,0), SPY(17, 4,0), SPY(18, 4,0), SPY(19, 5,0),
-/*1990*/ SPY(20, 5,0), SPY(21, 5,0), SPY(22, 5,0), SPY(23, 6,0),
-/*1994*/ SPY(24, 6,0), SPY(25, 6,0), SPY(26, 6,0), SPY(27, 7,0),
-/*1998*/ SPY(28, 7,0), SPY(29, 7,0), SPY(30, 7,0), SPY(31, 8,0),
-/*2002*/ SPY(32, 8,0), SPY(33, 8,0), SPY(34, 8,0), SPY(35, 9,0),
-/*2006*/ SPY(36, 9,0), SPY(37, 9,0), SPY(38, 9,0), SPY(39,10,0),
-/*2010*/ SPY(40,10,0), SPY(41,10,0), SPY(42,10,0), SPY(43,11,0),
-/*2014*/ SPY(44,11,0), SPY(45,11,0), SPY(46,11,0), SPY(47,12,0),
-/*2018*/ SPY(48,12,0), SPY(49,12,0), SPY(50,12,0), SPY(51,13,0),
-/*2022*/ SPY(52,13,0), SPY(53,13,0), SPY(54,13,0), SPY(55,14,0),
-/*2026*/ SPY(56,14,0), SPY(57,14,0), SPY(58,14,0), SPY(59,15,0),
-/*2030*/ SPY(60,15,0), SPY(61,15,0), SPY(62,15,0), SPY(63,16,0),
-/*2034*/ SPY(64,16,0), SPY(65,16,0), SPY(66,16,0), SPY(67,17,0),
-/*2038*/ SPY(68,17,0)
+static time_t year_seconds[MAX_YEAR_SECONDS] = {
+/*1970*/ SPY(0,   0, 0), SPY(1,   0, 0), SPY(2,   0, 0), SPY(3,   1, 0),
+/*1974*/ SPY(4,   1, 0), SPY(5,   1, 0), SPY(6,   1, 0), SPY(7,   2, 0),
+/*1978*/ SPY(8,   2, 0), SPY(9,   2, 0), SPY(10,  2, 0), SPY(11,  3, 0),
+/*1982*/ SPY(12,  3, 0), SPY(13,  3, 0), SPY(14,  3, 0), SPY(15,  4, 0),
+/*1986*/ SPY(16,  4, 0), SPY(17,  4, 0), SPY(18,  4, 0), SPY(19,  5, 0),
+/*1990*/ SPY(20,  5, 0), SPY(21,  5, 0), SPY(22,  5, 0), SPY(23,  6, 0),
+/*1994*/ SPY(24,  6, 0), SPY(25,  6, 0), SPY(26,  6, 0), SPY(27,  7, 0),
+/*1998*/ SPY(28,  7, 0), SPY(29,  7, 0), SPY(30,  7, 0), SPY(31,  8, 0),
+/*2002*/ SPY(32,  8, 0), SPY(33,  8, 0), SPY(34,  8, 0), SPY(35,  9, 0),
+/*2006*/ SPY(36,  9, 0), SPY(37,  9, 0), SPY(38,  9, 0), SPY(39, 10, 0),
+/*2010*/ SPY(40, 10, 0), SPY(41, 10, 0), SPY(42, 10, 0), SPY(43, 11, 0),
+/*2014*/ SPY(44, 11, 0), SPY(45, 11, 0), SPY(46, 11, 0), SPY(47, 12, 0),
+/*2018*/ SPY(48, 12, 0), SPY(49, 12, 0), SPY(50, 12, 0), SPY(51, 13, 0),
+/*2022*/ SPY(52, 13, 0), SPY(53, 13, 0), SPY(54, 13, 0), SPY(55, 14, 0),
+/*2026*/ SPY(56, 14, 0), SPY(57, 14, 0), SPY(58, 14, 0), SPY(59, 15, 0),
+/*2030*/ SPY(60, 15, 0), SPY(61, 15, 0), SPY(62, 15, 0), SPY(63, 16, 0),
+/*2034*/ SPY(64, 16, 0), SPY(65, 16, 0), SPY(66, 16, 0), SPY(67, 17, 0),
+/*2038*/ SPY(68, 17, 0)
 };
 
 extern struct timezone sys_tz;
@@ -115,7 +117,7 @@ time_t *udf_stamp_to_time(time_t *dest, long *dest_usec, kernel_timestamp src)
 	return dest;
 }
 
-kernel_timestamp *udf_time_to_stamp(kernel_timestamp * dest, struct timespec ts)
+kernel_timestamp *udf_time_to_stamp(kernel_timestamp *dest, struct timespec ts)
 {
 	long int days, rem, y;
 	const unsigned short int *ip;
@@ -137,7 +139,7 @@ kernel_timestamp *udf_time_to_stamp(kernel_timestamp * dest, struct timespec ts)
 	dest->second = rem % 60;
 	y = 1970;
 
-#define DIV(a,b) ((a) / (b) - ((a) % (b) < 0))
+#define DIV(a, b) ((a) / (b) - ((a) % (b) < 0))
 #define LEAPS_THRU_END_OF(y) (DIV (y, 4) - DIV (y, 100) + DIV (y, 400))
 
 	while (days < 0 || days >= (__isleap(y) ? 366 : 365)) {
@@ -145,8 +147,8 @@ kernel_timestamp *udf_time_to_stamp(kernel_timestamp * dest, struct timespec ts)
 
 		/* Adjust DAYS and Y to match the guessed year.  */
 		days -= ((yg - y) * 365
-			 + LEAPS_THRU_END_OF (yg - 1)
-			 - LEAPS_THRU_END_OF (y - 1));
+			 + LEAPS_THRU_END_OF(yg - 1)
+			 - LEAPS_THRU_END_OF(y - 1));
 		y = yg;
 	}
 	dest->year = y;
@@ -158,7 +160,8 @@ kernel_timestamp *udf_time_to_stamp(kernel_timestamp * dest, struct timespec ts)
 	dest->day = days + 1;
 
 	dest->centiseconds = ts.tv_nsec / 10000000;
-	dest->hundredsOfMicroseconds = (ts.tv_nsec / 1000 - dest->centiseconds * 10000) / 100;
+	dest->hundredsOfMicroseconds = (ts.tv_nsec / 1000 -
+					dest->centiseconds * 10000) / 100;
 	dest->microseconds = (ts.tv_nsec / 1000 - dest->centiseconds * 10000 -
 			      dest->hundredsOfMicroseconds * 100);
 	return dest;
