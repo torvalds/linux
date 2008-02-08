@@ -164,7 +164,7 @@ config DUAL_CORE_TEST_MODULE
 config CPLB_INFO
 	bool "Display the CPLB information"
 	help
-	  Display the CPLB information.
+	  Display the CPLB information via /proc/cplbinfo.
 
 config ACCESS_CHECK
 	bool "Check the user pointer address"

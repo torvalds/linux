@@ -99,9 +99,13 @@ Events         (highest priority)  EMU         0
 #define IRQ_UART2_ERROR		BFIN_IRQ(31)	/* UART2 Status (Error) Interrupt */
 #define IRQ_CAN0_ERROR		BFIN_IRQ(32)	/* CAN0 Status (Error) Interrupt */
 #define IRQ_SPORT2_RX		BFIN_IRQ(33)	/* SPORT2 RX (DMA18) Interrupt */
+#define IRQ_UART2_RX		BFIN_IRQ(33)	/* UART2 RX (DMA18) Interrupt */
 #define IRQ_SPORT2_TX		BFIN_IRQ(34)	/* SPORT2 TX (DMA19) Interrupt */
+#define IRQ_UART2_TX		BFIN_IRQ(34)	/* UART2 TX (DMA19) Interrupt */
 #define IRQ_SPORT3_RX		BFIN_IRQ(35)	/* SPORT3 RX (DMA20) Interrupt */
+#define IRQ_UART3_RX		BFIN_IRQ(35)	/* UART3 RX (DMA20) Interrupt */
 #define IRQ_SPORT3_TX		BFIN_IRQ(36)	/* SPORT3 TX (DMA21) Interrupt */
+#define IRQ_UART3_TX		BFIN_IRQ(36)	/* UART3 TX (DMA21) Interrupt */
 #define IRQ_EPPI1		BFIN_IRQ(37)	/* EPP1 (DMA13) Interrupt */
 #define IRQ_EPPI2		BFIN_IRQ(38)	/* EPP2 (DMA14) Interrupt */
 #define IRQ_SPI1		BFIN_IRQ(39)	/* SPI1 (DMA5) Interrupt */
@@ -421,9 +425,13 @@ Events         (highest priority)  EMU         0
 /* IAR4 BIT FILEDS */
 #define IRQ_CAN0_ERR_POS	0
 #define IRQ_SPORT2_RX_POS	4
+#define IRQ_UART2_RX_POS	4
 #define IRQ_SPORT2_TX_POS	8
+#define IRQ_UART2_TX_POS	8
 #define IRQ_SPORT3_RX_POS	12
+#define IRQ_UART3_RX_POS	12
 #define IRQ_SPORT3_TX_POS	16
+#define IRQ_UART3_TX_POS	16
 #define IRQ_EPPI1_POS		20
 #define IRQ_EPPI2_POS		24
 #define IRQ_SPI1_POS		28

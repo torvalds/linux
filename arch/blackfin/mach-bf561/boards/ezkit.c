@@ -92,6 +92,68 @@ void __exit bfin_isp1761_exit(void)
 arch_initcall(bfin_isp1761_init);
 #endif
 
+#if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
+#include <linux/usb/isp1362.h>
+
+static struct resource isp1362_hcd_resources[] = {
+	{
+		.start = 0x2c060000,
+		.end = 0x2c060000,
+		.flags = IORESOURCE_MEM,
+	}, {
+		.start = 0x2c060004,
+		.end = 0x2c060004,
+		.flags = IORESOURCE_MEM,
+	}, {
+		.start = IRQ_PF8,
+		.end = IRQ_PF8,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct isp1362_platform_data isp1362_priv = {
+	.sel15Kres = 1,
+	.clknotstop = 0,
+	.oc_enable = 0,
+	.int_act_high = 0,
+	.int_edge_triggered = 0,
+	.remote_wakeup_connected = 0,
+	.no_power_switching = 1,
+	.power_switching_mode = 0,
+};
+
+static struct platform_device isp1362_hcd_device = {
+	.name = "isp1362-hcd",
+	.id = 0,
+	.dev = {
+		.platform_data = &isp1362_priv,
+	},
+	.num_resources = ARRAY_SIZE(isp1362_hcd_resources),
+	.resource = isp1362_hcd_resources,
+};
+#endif
+
+#if defined(CONFIG_USB_NET2272) || defined(CONFIG_USB_NET2272_MODULE)
+static struct resource net2272_bfin_resources[] = {
+	{
+		.start = 0x2C000000,
+		.end = 0x2C000000 + 0x7F,
+		.flags = IORESOURCE_MEM,
+	}, {
+		.start = IRQ_PF10,
+		.end = IRQ_PF10,
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
+	},
+};
+
+static struct platform_device net2272_bfin_device = {
+	.name = "net2272",
+	.id = -1,
+	.num_resources = ARRAY_SIZE(net2272_bfin_resources),
+	.resource = net2272_bfin_resources,
+};
+#endif
+
 /*
  *  USB-LAN EzExtender board
  *  Driver needs to know address, irq and flag pin.
@@ -204,6 +266,13 @@ static struct bfin5xx_spi_chip ad1836_spi_chip_info = {
 	.bits_per_word = 16,
 };
 #endif
+
+#if defined(CONFIG_SPI_SPIDEV) || defined(CONFIG_SPI_SPIDEV_MODULE)
+static struct bfin5xx_spi_chip spidev_chip_info = {
+	.enable_dma = 0,
+	.bits_per_word = 8,
+};
+#endif
 #endif
 
 /* SPI (0) */
@@ -246,6 +315,15 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.bus_num = 0,
 		.chip_select = CONFIG_SND_BLACKFIN_SPI_PFBIT,
 		.controller_data = &ad1836_spi_chip_info,
+	},
+#endif
+#if defined(CONFIG_SPI_SPIDEV) || defined(CONFIG_SPI_SPIDEV_MODULE)
+	{
+		.modalias = "spidev",
+		.max_speed_hz = 3125000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 1,
+		.controller_data = &spidev_chip_info,
 	},
 #endif
 };
@@ -340,6 +418,10 @@ static struct platform_device *ezkit_devices[] __initdata = {
 	&ax88180_device,
 #endif
 
+#if defined(CONFIG_USB_NET2272) || defined(CONFIG_USB_NET2272_MODULE)
+	&net2272_bfin_device,
+#endif
+
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 	&bfin_spi0_device,
 #endif
@@ -359,6 +441,11 @@ static struct platform_device *ezkit_devices[] __initdata = {
 #if defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE)
 	&i2c_gpio_device,
 #endif
+
+#if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
+	&isp1362_hcd_device,
+#endif
+
 	&ezkit_flash_device,
 };
 
