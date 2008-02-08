@@ -50,10 +50,12 @@ typedef unsigned long	phys_addr_t;
 typedef union { pteval_t pte, pte_low; } pte_t;
 typedef pte_t boot_pte_t;
 
-typedef struct page *pgtable_t;
-
 #endif	/* __ASSEMBLY__ */
 #endif	/* CONFIG_X86_PAE */
+
+#ifndef __ASSEMBLY__
+typedef struct page *pgtable_t;
+#endif
 
 #ifdef CONFIG_HUGETLB_PAGE
 #define HAVE_ARCH_HUGETLB_UNMAPPED_AREA
