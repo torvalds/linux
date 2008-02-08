@@ -130,13 +130,19 @@
 #define B43legacy_SHM_SH_HOSTFHI	0x0060 /* Hostflags ucode opts (high) */
 /* SHM_SHARED crypto engine */
 #define B43legacy_SHM_SH_KEYIDXBLOCK	0x05D4 /* Key index/algorithm block */
-/* SHM_SHARED beacon variables */
+/* SHM_SHARED beacon/AP variables */
+#define B43legacy_SHM_SH_DTIMP		0x0012 /* DTIM period */
+#define B43legacy_SHM_SH_BTL0		0x0018 /* Beacon template length 0 */
+#define B43legacy_SHM_SH_BTL1		0x001A /* Beacon template length 1 */
+#define B43legacy_SHM_SH_BTSFOFF	0x001C /* Beacon TSF offset */
+#define B43legacy_SHM_SH_TIMPOS		0x001E /* TIM position in beacon */
 #define B43legacy_SHM_SH_BEACPHYCTL	0x0054 /* Beacon PHY TX control word */
 /* SHM_SHARED ACK/CTS control */
 #define B43legacy_SHM_SH_ACKCTSPHYCTL	0x0022 /* ACK/CTS PHY control word */
 /* SHM_SHARED probe response variables */
-#define B43legacy_SHM_SH_PRPHYCTL	0x0188 /* Probe Resp PHY TX control */
+#define B43legacy_SHM_SH_PRTLEN		0x004A /* Probe Response template length */
 #define B43legacy_SHM_SH_PRMAXTIME	0x0074 /* Probe Response max time */
+#define B43legacy_SHM_SH_PRPHYCTL	0x0188 /* Probe Resp PHY TX control */
 /* SHM_SHARED rate tables */
 /* SHM_SHARED microcode soft registers */
 #define B43legacy_SHM_SH_UCODEREV	0x0000 /* Microcode revision */
@@ -601,6 +607,12 @@ struct b43legacy_wl {
 	u8 nr_devs;
 
 	bool radiotap_enabled;
+
+	/* The beacon we are currently using (AP or IBSS mode).
+	 * This beacon stuff is protected by the irq_lock. */
+	struct sk_buff *current_beacon;
+	bool beacon0_uploaded;
+	bool beacon1_uploaded;
 };
 
 /* Pointers to the firmware data and meta information about it. */
@@ -698,9 +710,6 @@ struct b43legacy_wldev {
 	u16 ktp; /* Key table pointer */
 	u8 max_nr_keys;
 	struct b43legacy_key key[58];
-
-	/* Cached beacon template while uploading the template. */
-	struct sk_buff *cached_beacon;
 
 	/* Firmware data */
 	struct b43legacy_firmware fw;
