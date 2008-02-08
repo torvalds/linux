@@ -99,9 +99,12 @@ int ptrace_check_attach(struct task_struct *child, int kill)
 	 * be changed by us so it's not changing right after this.
 	 */
 	read_lock(&tasklist_lock);
-	if ((child->ptrace & PT_PTRACED) && child->parent == current &&
-	     child->signal != NULL) {
+	if ((child->ptrace & PT_PTRACED) && child->parent == current) {
 		ret = 0;
+		/*
+		 * child->sighand can't be NULL, release_task()
+		 * does ptrace_unlink() before __exit_signal().
+		 */
 		spin_lock_irq(&child->sighand->siglock);
 		if (task_is_stopped(child))
 			child->state = TASK_TRACED;
