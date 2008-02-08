@@ -288,6 +288,12 @@ static void spu_backing_runcntl_write(struct spu_context *ctx, u32 val)
 	spin_lock(&ctx->csa.register_lock);
 	ctx->csa.prob.spu_runcntl_RW = val;
 	if (val & SPU_RUNCNTL_RUNNABLE) {
+		ctx->csa.prob.spu_status_R &=
+			~SPU_STATUS_STOPPED_BY_STOP &
+			~SPU_STATUS_STOPPED_BY_HALT &
+			~SPU_STATUS_SINGLE_STEP &
+			~SPU_STATUS_INVALID_INSTR &
+			~SPU_STATUS_INVALID_CH;
 		ctx->csa.prob.spu_status_R |= SPU_STATUS_RUNNING;
 	} else {
 		ctx->csa.prob.spu_status_R &= ~SPU_STATUS_RUNNING;
