@@ -15,6 +15,7 @@ enum {
 	MINOR_DISCOVER,
 	MINOR_INTERFACES,
 	MINOR_REVALIDATE,
+	MINOR_FLUSH,
 	MSGSZ = 2048,
 	NMSG = 100,		/* message backlog to retain */
 };
@@ -43,6 +44,7 @@ static struct aoe_chardev chardevs[] = {
 	{ MINOR_DISCOVER, "discover" },
 	{ MINOR_INTERFACES, "interfaces" },
 	{ MINOR_REVALIDATE, "revalidate" },
+	{ MINOR_FLUSH, "flush" },
 };
 
 static int
@@ -158,6 +160,9 @@ aoechr_write(struct file *filp, const char __user *buf, size_t cnt, loff_t *offp
 		break;
 	case MINOR_REVALIDATE:
 		ret = revalidate(buf, cnt);
+		break;
+	case MINOR_FLUSH:
+		ret = aoedev_flush(buf, cnt);
 	}
 	if (ret == 0)
 		ret = cnt;

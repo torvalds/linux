@@ -191,6 +191,7 @@ struct aoedev *aoedev_by_aoeaddr(int maj, int min);
 struct aoedev *aoedev_by_sysminor_m(ulong sysminor);
 void aoedev_downdev(struct aoedev *d);
 int aoedev_isbusy(struct aoedev *d);
+int aoedev_flush(const char __user *str, size_t size);
 
 int aoenet_init(void);
 void aoenet_exit(void);

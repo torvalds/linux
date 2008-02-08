@@ -9,6 +9,10 @@
 #include <linux/netdevice.h>
 #include "aoe.h"
 
+static void dummy_timer(ulong);
+static void aoedev_freedev(struct aoedev *);
+static void freetgt(struct aoetgt *t);
+
 static struct aoedev *devlist;
 static spinlock_t devlist_lock;
 
@@ -108,6 +112,70 @@ aoedev_downdev(struct aoedev *d)
 	d->flags &= ~DEVFL_UP;
 }
 
+static void
+aoedev_freedev(struct aoedev *d)
+{
+	struct aoetgt **t, **e;
+
+	if (d->gd) {
+		aoedisk_rm_sysfs(d);
+		del_gendisk(d->gd);
+		put_disk(d->gd);
+	}
+	t = d->targets;
+	e = t + NTARGETS;
+	for (; t < e && *t; t++)
+		freetgt(*t);
+	if (d->bufpool)
+		mempool_destroy(d->bufpool);
+	kfree(d);
+}
+
+int
+aoedev_flush(const char __user *str, size_t cnt)
+{
+	ulong flags;
+	struct aoedev *d, **dd;
+	struct aoedev *rmd = NULL;
+	char buf[16];
+	int all = 0;
+
+	if (cnt >= 3) {
+		if (cnt > sizeof buf)
+			cnt = sizeof buf;
+		if (copy_from_user(buf, str, cnt))
+			return -EFAULT;
+		all = !strncmp(buf, "all", 3);
+	}
+
+	flush_scheduled_work();
+	spin_lock_irqsave(&devlist_lock, flags);
+	dd = &devlist;
+	while ((d = *dd)) {
+		spin_lock(&d->lock);
+		if ((!all && (d->flags & DEVFL_UP))
+		|| (d->flags & (DEVFL_GDALLOC|DEVFL_NEWSIZE))
+		|| d->nopen) {
+			spin_unlock(&d->lock);
+			dd = &d->next;
+			continue;
+		}
+		*dd = d->next;
+		aoedev_downdev(d);
+		d->flags |= DEVFL_TKILL;
+		spin_unlock(&d->lock);
+		d->next = rmd;
+		rmd = d;
+	}
+	spin_unlock_irqrestore(&devlist_lock, flags);
+	while ((d = rmd)) {
+		rmd = d->next;
+		del_timer_sync(&d->timer);
+		aoedev_freedev(d);	/* must be able to sleep */
+	}
+	return 0;
+}
+
 /* find it or malloc it */
 struct aoedev *
 aoedev_by_sysminor_m(ulong sysminor)
@@ -159,25 +227,6 @@ freetgt(struct aoetgt *t)
 	}
 	kfree(t->frames);
 	kfree(t);
-}
-
-static void
-aoedev_freedev(struct aoedev *d)
-{
-	struct aoetgt **t, **e;
-
-	if (d->gd) {
-		aoedisk_rm_sysfs(d);
-		del_gendisk(d->gd);
-		put_disk(d->gd);
-	}
-	t = d->targets;
-	e = t + NTARGETS;
-	for (; t < e && *t; t++)
-		freetgt(*t);
-	if (d->bufpool)
-		mempool_destroy(d->bufpool);
-	kfree(d);
 }
 
 void
