@@ -28,10 +28,6 @@
 
 #include "vuart.h"
 
-MODULE_AUTHOR("Sony Corporation");
-MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("PS3 System Manager");
-
 /**
  * ps3_sys_manager - PS3 system manager driver.
  *
@@ -181,7 +177,9 @@ enum ps3_sys_manager_next_op {
  * @PS3_SM_WAKE_P_O_R: Power on reset.
  *
  * Additional wakeup sources when specifying PS3_SM_NEXT_OP_SYS_SHUTDOWN.
- * System will always wake from the PS3_SM_WAKE_DEFAULT sources.
+ * The system will always wake from the PS3_SM_WAKE_DEFAULT sources.
+ * Sources listed here are the only ones available to guests in the
+ * other-os lpar.
  */
 
 enum ps3_sys_manager_wake_source {
@@ -189,7 +187,7 @@ enum ps3_sys_manager_wake_source {
 	PS3_SM_WAKE_DEFAULT   = 0,
 	PS3_SM_WAKE_RTC       = 0x00000040,
 	PS3_SM_WAKE_RTC_ERROR = 0x00000080,
-	PS3_SM_WAKE_P_O_R     = 0x10000000,
+	PS3_SM_WAKE_P_O_R     = 0x80000000,
 };
 
 /**
@@ -699,4 +697,7 @@ static int __init ps3_sys_manager_init(void)
 module_init(ps3_sys_manager_init);
 /* Module remove not supported. */
 
+MODULE_AUTHOR("Sony Corporation");
+MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("PS3 System Manager");
 MODULE_ALIAS(PS3_MODULE_ALIAS_SYSTEM_MANAGER);
