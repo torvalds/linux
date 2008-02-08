@@ -1262,17 +1262,25 @@ EXPORT_SYMBOL_GPL(dm_put);
 /*
  * Process the deferred bios
  */
-static void __flush_deferred_io(struct mapped_device *md, struct bio *c)
+static void __flush_deferred_io(struct mapped_device *md)
 {
-	struct bio *n;
+	struct bio *c;
 
-	while (c) {
-		n = c->bi_next;
-		c->bi_next = NULL;
+	while ((c = bio_list_pop(&md->deferred))) {
 		if (__split_bio(md, c))
 			bio_io_error(c);
-		c = n;
 	}
+}
+
+static void __merge_pushback_list(struct mapped_device *md)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&md->pushback_lock, flags);
+	clear_bit(DMF_NOFLUSH_SUSPENDING, &md->flags);
+	bio_list_merge_head(&md->deferred, &md->pushback);
+	bio_list_init(&md->pushback);
+	spin_unlock_irqrestore(&md->pushback_lock, flags);
 }
 
 /*
@@ -1346,9 +1354,7 @@ static void unlock_fs(struct mapped_device *md)
 int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 {
 	struct dm_table *map = NULL;
-	unsigned long flags;
 	DECLARE_WAITQUEUE(wait, current);
-	struct bio *def;
 	int r = -EINVAL;
 	int do_lockfs = suspend_flags & DM_SUSPEND_LOCKFS_FLAG ? 1 : 0;
 	int noflush = suspend_flags & DM_SUSPEND_NOFLUSH_FLAG ? 1 : 0;
@@ -1378,16 +1384,16 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 			r = -ENOMEM;
 			goto flush_and_out;
 		}
-	}
 
-	/*
-	 * Flush I/O to the device.
-	 * noflush supersedes do_lockfs, because lock_fs() needs to flush I/Os.
-	 */
-	if (do_lockfs && !noflush) {
-		r = lock_fs(md);
-		if (r)
-			goto out;
+		/*
+		 * Flush I/O to the device. noflush supersedes do_lockfs,
+		 * because lock_fs() needs to flush I/Os.
+		 */
+		if (do_lockfs) {
+			r = lock_fs(md);
+			if (r)
+				goto out;
+		}
 	}
 
 	/*
@@ -1421,20 +1427,14 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 	down_write(&md->io_lock);
 	remove_wait_queue(&md->wait, &wait);
 
-	if (noflush) {
-		spin_lock_irqsave(&md->pushback_lock, flags);
-		clear_bit(DMF_NOFLUSH_SUSPENDING, &md->flags);
-		bio_list_merge_head(&md->deferred, &md->pushback);
-		bio_list_init(&md->pushback);
-		spin_unlock_irqrestore(&md->pushback_lock, flags);
-	}
+	if (noflush)
+		__merge_pushback_list(md);
 
 	/* were we interrupted ? */
 	r = -EINTR;
 	if (atomic_read(&md->pending)) {
 		clear_bit(DMF_BLOCK_IO, &md->flags);
-		def = bio_list_get(&md->deferred);
-		__flush_deferred_io(md, def);
+		__flush_deferred_io(md);
 		up_write(&md->io_lock);
 		unlock_fs(md);
 		goto out; /* pushback list is already flushed, so skip flush */
@@ -1454,15 +1454,8 @@ flush_and_out:
 		 * flush them before return.
 		 */
 		down_write(&md->io_lock);
-
-		spin_lock_irqsave(&md->pushback_lock, flags);
-		clear_bit(DMF_NOFLUSH_SUSPENDING, &md->flags);
-		bio_list_merge_head(&md->deferred, &md->pushback);
-		bio_list_init(&md->pushback);
-		spin_unlock_irqrestore(&md->pushback_lock, flags);
-
-		def = bio_list_get(&md->deferred);
-		__flush_deferred_io(md, def);
+		__merge_pushback_list(md);
+		__flush_deferred_io(md);
 		up_write(&md->io_lock);
 	}
 
@@ -1482,7 +1475,6 @@ out_unlock:
 int dm_resume(struct mapped_device *md)
 {
 	int r = -EINVAL;
-	struct bio *def;
 	struct dm_table *map = NULL;
 
 	mutex_lock(&md->suspend_lock);
@@ -1500,8 +1492,7 @@ int dm_resume(struct mapped_device *md)
 	down_write(&md->io_lock);
 	clear_bit(DMF_BLOCK_IO, &md->flags);
 
-	def = bio_list_get(&md->deferred);
-	__flush_deferred_io(md, def);
+	__flush_deferred_io(md);
 	up_write(&md->io_lock);
 
 	unlock_fs(md);
