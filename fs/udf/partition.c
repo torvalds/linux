@@ -55,6 +55,7 @@ uint32_t udf_get_pblock_virt15(struct super_block *sb, uint32_t block,
 	struct udf_sb_info *sbi = UDF_SB(sb);
 	struct udf_part_map *map;
 	struct udf_virtual_data *vdata;
+	struct udf_inode_info *iinfo;
 
 	map = &sbi->s_partmaps[partition];
 	vdata = &map->s_type_specific.s_virtual;
@@ -88,15 +89,14 @@ uint32_t udf_get_pblock_virt15(struct super_block *sb, uint32_t block,
 
 	brelse(bh);
 
-	if (UDF_I(sbi->s_vat_inode)->i_location.partitionReferenceNum ==
-								partition) {
+	iinfo = UDF_I(sbi->s_vat_inode);
+	if (iinfo->i_location.partitionReferenceNum == partition) {
 		udf_debug("recursive call to udf_get_pblock!\n");
 		return 0xFFFFFFFF;
 	}
 
 	return udf_get_pblock(sb, loc,
-			      UDF_I(sbi->s_vat_inode)->i_location.
-							partitionReferenceNum,
+			      iinfo->i_location.partitionReferenceNum,
 			      offset);
 }
 

@@ -81,12 +81,13 @@ struct fileIdentDesc *udf_fileident_read(struct inode *dir, loff_t *nf_pos,
 	struct fileIdentDesc *fi;
 	int i, num, block;
 	struct buffer_head *tmp, *bha[16];
+	struct udf_inode_info *iinfo = UDF_I(dir);
 
 	fibh->soffset = fibh->eoffset;
 
-	if (UDF_I(dir)->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
-		fi = udf_get_fileident(UDF_I(dir)->i_ext.i_data -
-				       (UDF_I(dir)->i_efe ?
+	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
+		fi = udf_get_fileident(iinfo->i_ext.i_data -
+				       (iinfo->i_efe ?
 					sizeof(struct extendedFileEntry) :
 					sizeof(struct fileEntry)),
 				       dir->i_sb->s_blocksize,

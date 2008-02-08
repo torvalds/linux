@@ -45,13 +45,13 @@ static int udf_adinicb_readpage(struct file *file, struct page *page)
 {
 	struct inode *inode = page->mapping->host;
 	char *kaddr;
+	struct udf_inode_info *iinfo = UDF_I(inode);
 
 	BUG_ON(!PageLocked(page));
 
 	kaddr = kmap(page);
 	memset(kaddr, 0, PAGE_CACHE_SIZE);
-	memcpy(kaddr, UDF_I(inode)->i_ext.i_data + UDF_I(inode)->i_lenEAttr,
-								inode->i_size);
+	memcpy(kaddr, iinfo->i_ext.i_data + iinfo->i_lenEAttr, inode->i_size);
 	flush_dcache_page(page);
 	SetPageUptodate(page);
 	kunmap(page);
@@ -65,12 +65,12 @@ static int udf_adinicb_writepage(struct page *page,
 {
 	struct inode *inode = page->mapping->host;
 	char *kaddr;
+	struct udf_inode_info *iinfo = UDF_I(inode);
 
 	BUG_ON(!PageLocked(page));
 
 	kaddr = kmap(page);
-	memcpy(UDF_I(inode)->i_ext.i_data + UDF_I(inode)->i_lenEAttr, kaddr,
-								inode->i_size);
+	memcpy(iinfo->i_ext.i_data + iinfo->i_lenEAttr, kaddr, inode->i_size);
 	mark_inode_dirty(inode);
 	SetPageUptodate(page);
 	kunmap(page);
@@ -87,9 +87,10 @@ static int udf_adinicb_write_end(struct file *file,
 	struct inode *inode = mapping->host;
 	unsigned offset = pos & (PAGE_CACHE_SIZE - 1);
 	char *kaddr;
+	struct udf_inode_info *iinfo = UDF_I(inode);
 
 	kaddr = kmap_atomic(page, KM_USER0);
-	memcpy(UDF_I(inode)->i_ext.i_data + UDF_I(inode)->i_lenEAttr + offset,
+	memcpy(iinfo->i_ext.i_data + iinfo->i_lenEAttr + offset,
 		kaddr + offset, copied);
 	kunmap_atomic(kaddr, KM_USER0);
 
@@ -112,8 +113,9 @@ static ssize_t udf_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	struct inode *inode = file->f_path.dentry->d_inode;
 	int err, pos;
 	size_t count = iocb->ki_left;
+	struct udf_inode_info *iinfo = UDF_I(inode);
 
-	if (UDF_I(inode)->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
+	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
 		if (file->f_flags & O_APPEND)
 			pos = inode->i_size;
 		else
@@ -123,16 +125,15 @@ static ssize_t udf_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 				(udf_file_entry_alloc_offset(inode) +
 						pos + count)) {
 			udf_expand_file_adinicb(inode, pos + count, &err);
-			if (UDF_I(inode)->i_alloc_type ==
-							ICBTAG_FLAG_AD_IN_ICB) {
+			if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
 				udf_debug("udf_expand_adinicb: err=%d\n", err);
 				return err;
 			}
 		} else {
 			if (pos + count > inode->i_size)
-				UDF_I(inode)->i_lenAlloc = pos + count;
+				iinfo->i_lenAlloc = pos + count;
 			else
-				UDF_I(inode)->i_lenAlloc = inode->i_size;
+				iinfo->i_lenAlloc = inode->i_size;
 		}
 	}
 

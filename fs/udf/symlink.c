@@ -79,10 +79,12 @@ static int udf_symlink_filler(struct file *file, struct page *page)
 	char *symlink;
 	int err = -EIO;
 	char *p = kmap(page);
+	struct udf_inode_info *iinfo;
 
 	lock_kernel();
-	if (UDF_I(inode)->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
-		symlink = UDF_I(inode)->i_ext.i_data + UDF_I(inode)->i_lenEAttr;
+	iinfo = UDF_I(inode);
+	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
+		symlink = iinfo->i_ext.i_data + iinfo->i_lenEAttr;
 	} else {
 		bh = sb_bread(inode->i_sb, udf_block_map(inode, 0));
 

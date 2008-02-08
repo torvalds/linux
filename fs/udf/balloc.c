@@ -436,6 +436,7 @@ static void udf_table_free_blocks(struct super_block *sb,
 	struct extent_position oepos, epos;
 	int8_t etype;
 	int i;
+	struct udf_inode_info *iinfo;
 
 	mutex_lock(&sbi->s_alloc_mutex);
 	if (bloc.logicalBlockNum < 0 ||
@@ -448,6 +449,7 @@ static void udf_table_free_blocks(struct super_block *sb,
 		goto error_return;
 	}
 
+	iinfo = UDF_I(table);
 	/* We do this up front - There are some error conditions that
 	   could occure, but.. oh well */
 	if (inode)
@@ -460,7 +462,7 @@ static void udf_table_free_blocks(struct super_block *sb,
 
 	epos.offset = oepos.offset = sizeof(struct unallocSpaceEntry);
 	elen = 0;
-	epos.block = oepos.block = UDF_I(table)->i_location;
+	epos.block = oepos.block = iinfo->i_location;
 	epos.bh = oepos.bh = NULL;
 
 	while (count &&
@@ -539,11 +541,11 @@ static void udf_table_free_blocks(struct super_block *sb,
 		elen = EXT_RECORDED_ALLOCATED |
 			(count << sb->s_blocksize_bits);
 
-		if (UDF_I(table)->i_alloc_type == ICBTAG_FLAG_AD_SHORT) {
+		if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_SHORT)
 			adsize = sizeof(short_ad);
-		} else if (UDF_I(table)->i_alloc_type == ICBTAG_FLAG_AD_LONG) {
+		else if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_LONG)
 			adsize = sizeof(long_ad);
-		} else {
+		else {
 			brelse(oepos.bh);
 			brelse(epos.bh);
 			goto error_return;
@@ -573,7 +575,7 @@ static void udf_table_free_blocks(struct super_block *sb,
 			if (epos.offset + adsize > sb->s_blocksize) {
 				loffset = epos.offset;
 				aed->lengthAllocDescs = cpu_to_le32(adsize);
-				sptr = UDF_I(table)->i_ext.i_data + epos.offset
+				sptr = iinfo->i_ext.i_data + epos.offset
 								- adsize;
 				dptr = epos.bh->b_data +
 					sizeof(struct allocExtDesc);
@@ -592,9 +594,9 @@ static void udf_table_free_blocks(struct super_block *sb,
 							aed->lengthAllocDescs) +
 								adsize);
 				} else {
-					sptr = UDF_I(table)->i_ext.i_data +
+					sptr = iinfo->i_ext.i_data +
 								epos.offset;
-					UDF_I(table)->i_lenAlloc += adsize;
+					iinfo->i_lenAlloc += adsize;
 					mark_inode_dirty(table);
 				}
 				epos.offset = sizeof(struct allocExtDesc);
@@ -608,7 +610,7 @@ static void udf_table_free_blocks(struct super_block *sb,
 					    2, 1, epos.block.logicalBlockNum,
 					    sizeof(tag));
 
-			switch (UDF_I(table)->i_alloc_type) {
+			switch (iinfo->i_alloc_type) {
 			case ICBTAG_FLAG_AD_SHORT:
 				sad = (short_ad *)sptr;
 				sad->extLength = cpu_to_le32(
@@ -639,7 +641,7 @@ static void udf_table_free_blocks(struct super_block *sb,
 			udf_write_aext(table, &epos, eloc, elen, 1);
 
 			if (!epos.bh) {
-				UDF_I(table)->i_lenAlloc += adsize;
+				iinfo->i_lenAlloc += adsize;
 				mark_inode_dirty(table);
 			} else {
 				aed = (struct allocExtDesc *)epos.bh->b_data;
@@ -672,21 +674,23 @@ static int udf_table_prealloc_blocks(struct super_block *sb,
 	kernel_lb_addr eloc;
 	struct extent_position epos;
 	int8_t etype = -1;
+	struct udf_inode_info *iinfo;
 
 	if (first_block < 0 ||
 		first_block >= sbi->s_partmaps[partition].s_partition_len)
 		return 0;
 
-	if (UDF_I(table)->i_alloc_type == ICBTAG_FLAG_AD_SHORT)
+	iinfo = UDF_I(table);
+	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_SHORT)
 		adsize = sizeof(short_ad);
-	else if (UDF_I(table)->i_alloc_type == ICBTAG_FLAG_AD_LONG)
+	else if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_LONG)
 		adsize = sizeof(long_ad);
 	else
 		return 0;
 
 	mutex_lock(&sbi->s_alloc_mutex);
 	epos.offset = sizeof(struct unallocSpaceEntry);
-	epos.block = UDF_I(table)->i_location;
+	epos.block = iinfo->i_location;
 	epos.bh = NULL;
 	eloc.logicalBlockNum = 0xFFFFFFFF;
 
@@ -739,12 +743,13 @@ static int udf_table_new_block(struct super_block *sb,
 	kernel_lb_addr eloc, uninitialized_var(goal_eloc);
 	struct extent_position epos, goal_epos;
 	int8_t etype;
+	struct udf_inode_info *iinfo = UDF_I(table);
 
 	*err = -ENOSPC;
 
-	if (UDF_I(table)->i_alloc_type == ICBTAG_FLAG_AD_SHORT)
+	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_SHORT)
 		adsize = sizeof(short_ad);
-	else if (UDF_I(table)->i_alloc_type == ICBTAG_FLAG_AD_LONG)
+	else if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_LONG)
 		adsize = sizeof(long_ad);
 	else
 		return newblock;
@@ -759,7 +764,7 @@ static int udf_table_new_block(struct super_block *sb,
 	   of the current closest match and use that when we are done.
 	 */
 	epos.offset = sizeof(struct unallocSpaceEntry);
-	epos.block = UDF_I(table)->i_location;
+	epos.block = iinfo->i_location;
 	epos.bh = goal_epos.bh = NULL;
 
 	while (spread &&

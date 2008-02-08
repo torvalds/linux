@@ -67,6 +67,8 @@ struct inode *udf_new_inode(struct inode *dir, int mode, int *err)
 	struct inode *inode;
 	int block;
 	uint32_t start = UDF_I(dir)->i_location.logicalBlockNum;
+	struct udf_inode_info *iinfo;
+	struct udf_inode_info *dinfo = UDF_I(dir);
 
 	inode = new_inode(sb);
 
@@ -76,14 +78,15 @@ struct inode *udf_new_inode(struct inode *dir, int mode, int *err)
 	}
 	*err = -ENOSPC;
 
-	UDF_I(inode)->i_unique = 0;
-	UDF_I(inode)->i_lenExtents = 0;
-	UDF_I(inode)->i_next_alloc_block = 0;
-	UDF_I(inode)->i_next_alloc_goal = 0;
-	UDF_I(inode)->i_strat4096 = 0;
+	iinfo = UDF_I(inode);
+	iinfo->i_unique = 0;
+	iinfo->i_lenExtents = 0;
+	iinfo->i_next_alloc_block = 0;
+	iinfo->i_next_alloc_goal = 0;
+	iinfo->i_strat4096 = 0;
 
 	block = udf_new_block(dir->i_sb, NULL,
-			      UDF_I(dir)->i_location.partitionReferenceNum,
+			      dinfo->i_location.partitionReferenceNum,
 			      start, err);
 	if (*err) {
 		iput(inode);
@@ -107,7 +110,7 @@ struct inode *udf_new_inode(struct inode *dir, int mode, int *err)
 		else
 			lvidiu->numFiles =
 				cpu_to_le32(le32_to_cpu(lvidiu->numFiles) + 1);
-		UDF_I(inode)->i_unique = uniqueID = le64_to_cpu(lvhd->uniqueID);
+		iinfo->i_unique = uniqueID = le64_to_cpu(lvhd->uniqueID);
 		if (!(++uniqueID & 0x00000000FFFFFFFFUL))
 			uniqueID += 16;
 		lvhd->uniqueID = cpu_to_le64(uniqueID);
@@ -123,41 +126,41 @@ struct inode *udf_new_inode(struct inode *dir, int mode, int *err)
 		inode->i_gid = current->fsgid;
 	}
 
-	UDF_I(inode)->i_location.logicalBlockNum = block;
-	UDF_I(inode)->i_location.partitionReferenceNum =
-				UDF_I(dir)->i_location.partitionReferenceNum;
-	inode->i_ino = udf_get_lb_pblock(sb, UDF_I(inode)->i_location, 0);
+	iinfo->i_location.logicalBlockNum = block;
+	iinfo->i_location.partitionReferenceNum =
+				dinfo->i_location.partitionReferenceNum;
+	inode->i_ino = udf_get_lb_pblock(sb, iinfo->i_location, 0);
 	inode->i_blocks = 0;
-	UDF_I(inode)->i_lenEAttr = 0;
-	UDF_I(inode)->i_lenAlloc = 0;
-	UDF_I(inode)->i_use = 0;
+	iinfo->i_lenEAttr = 0;
+	iinfo->i_lenAlloc = 0;
+	iinfo->i_use = 0;
 	if (UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_USE_EXTENDED_FE)) {
-		UDF_I(inode)->i_efe = 1;
+		iinfo->i_efe = 1;
 		if (UDF_VERS_USE_EXTENDED_FE > sbi->s_udfrev)
 			sbi->s_udfrev = UDF_VERS_USE_EXTENDED_FE;
-		UDF_I(inode)->i_ext.i_data = kzalloc(inode->i_sb->s_blocksize -
+		iinfo->i_ext.i_data = kzalloc(inode->i_sb->s_blocksize -
 					    sizeof(struct extendedFileEntry),
 					    GFP_KERNEL);
 	} else {
-		UDF_I(inode)->i_efe = 0;
-		UDF_I(inode)->i_ext.i_data = kzalloc(inode->i_sb->s_blocksize -
+		iinfo->i_efe = 0;
+		iinfo->i_ext.i_data = kzalloc(inode->i_sb->s_blocksize -
 					    sizeof(struct fileEntry),
 					    GFP_KERNEL);
 	}
-	if (!UDF_I(inode)->i_ext.i_data) {
+	if (!iinfo->i_ext.i_data) {
 		iput(inode);
 		*err = -ENOMEM;
 		mutex_unlock(&sbi->s_alloc_mutex);
 		return NULL;
 	}
 	if (UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_USE_AD_IN_ICB))
-		UDF_I(inode)->i_alloc_type = ICBTAG_FLAG_AD_IN_ICB;
+		iinfo->i_alloc_type = ICBTAG_FLAG_AD_IN_ICB;
 	else if (UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_USE_SHORT_AD))
-		UDF_I(inode)->i_alloc_type = ICBTAG_FLAG_AD_SHORT;
+		iinfo->i_alloc_type = ICBTAG_FLAG_AD_SHORT;
 	else
-		UDF_I(inode)->i_alloc_type = ICBTAG_FLAG_AD_LONG;
+		iinfo->i_alloc_type = ICBTAG_FLAG_AD_LONG;
 	inode->i_mtime = inode->i_atime = inode->i_ctime =
-		UDF_I(inode)->i_crtime = current_fs_time(inode->i_sb);
+		iinfo->i_crtime = current_fs_time(inode->i_sb);
 	insert_inode_hash(inode);
 	mark_inode_dirty(inode);
 	mutex_unlock(&sbi->s_alloc_mutex);
