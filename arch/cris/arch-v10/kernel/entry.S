@@ -924,9 +924,11 @@ sys_call_table:
 	.long sys_epoll_pwait
 	.long sys_utimensat		/* 320 */
 	.long sys_signalfd
-	.long sys_ni_syscall
+	.long sys_timerfd_create
 	.long sys_eventfd
 	.long sys_fallocate
+	.long sys_timerfd_settime	/* 325 */
+	.long sys_timerfd_gettime
 
         /*
          * NOTE!! This doesn't have to be exact - we just have
