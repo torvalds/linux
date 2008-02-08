@@ -15,9 +15,6 @@
 #include <linux/seq_file.h>
 #include <linux/bitops.h>
 
-static int tty_ldiscs_read_proc(char *page, char **start, off_t off,
-				int count, int *eof, void *data);
-
 /*
  * The /proc/tty directory inodes...
  */

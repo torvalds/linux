@@ -25,12 +25,6 @@
 
 #include "internal.h"
 
-static ssize_t proc_file_read(struct file *file, char __user *buf,
-			      size_t nbytes, loff_t *ppos);
-static ssize_t proc_file_write(struct file *file, const char __user *buffer,
-			       size_t count, loff_t *ppos);
-static loff_t proc_file_lseek(struct file *, loff_t, int);
-
 DEFINE_SPINLOCK(proc_subdir_lock);
 
 static int proc_match(int len, const char *name, struct proc_dir_entry *de)
@@ -39,12 +33,6 @@ static int proc_match(int len, const char *name, struct proc_dir_entry *de)
 		return 0;
 	return !memcmp(name, de->name, len);
 }
-
-static const struct file_operations proc_file_operations = {
-	.llseek		= proc_file_lseek,
-	.read		= proc_file_read,
-	.write		= proc_file_write,
-};
 
 /* buffer size is one page but our output routines use some slack for overruns */
 #define PROC_BLOCK_SIZE	(PAGE_SIZE - 1024)
@@ -232,6 +220,12 @@ proc_file_lseek(struct file *file, loff_t offset, int orig)
 	}
 	return retval;
 }
+
+static const struct file_operations proc_file_operations = {
+	.llseek		= proc_file_lseek,
+	.read		= proc_file_read,
+	.write		= proc_file_write,
+};
 
 static int proc_notify_change(struct dentry *dentry, struct iattr *iattr)
 {
