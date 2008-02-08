@@ -755,7 +755,10 @@ spufs_fill_super(struct super_block *sb, void *data, int silent)
 		.statfs = simple_statfs,
 		.delete_inode = spufs_delete_inode,
 		.drop_inode = generic_delete_inode,
+		.show_options = generic_show_options,
 	};
+
+	save_mount_options(sb, data);
 
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	sb->s_blocksize = PAGE_CACHE_SIZE;
