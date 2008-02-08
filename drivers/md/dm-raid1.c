@@ -1781,29 +1781,57 @@ static void mirror_resume(struct dm_target *ti)
 	rh_start_recovery(&ms->rh);
 }
 
+/*
+ * device_status_char
+ * @m: mirror device/leg we want the status of
+ *
+ * We return one character representing the most severe error
+ * we have encountered.
+ *    A => Alive - No failures
+ *    D => Dead - A write failure occurred leaving mirror out-of-sync
+ *    S => Sync - A sychronization failure occurred, mirror out-of-sync
+ *    R => Read - A read failure occurred, mirror data unaffected
+ *
+ * Returns: <char>
+ */
+static char device_status_char(struct mirror *m)
+{
+	if (!atomic_read(&(m->error_count)))
+		return 'A';
+
+	return (test_bit(DM_RAID1_WRITE_ERROR, &(m->error_type))) ? 'D' :
+		(test_bit(DM_RAID1_SYNC_ERROR, &(m->error_type))) ? 'S' :
+		(test_bit(DM_RAID1_READ_ERROR, &(m->error_type))) ? 'R' : 'U';
+}
+
+
 static int mirror_status(struct dm_target *ti, status_type_t type,
 			 char *result, unsigned int maxlen)
 {
 	unsigned int m, sz = 0;
 	struct mirror_set *ms = (struct mirror_set *) ti->private;
+	struct dirty_log *log = ms->rh.log;
+	char buffer[ms->nr_mirrors + 1];
 
 	switch (type) {
 	case STATUSTYPE_INFO:
 		DMEMIT("%d ", ms->nr_mirrors);
-		for (m = 0; m < ms->nr_mirrors; m++)
+		for (m = 0; m < ms->nr_mirrors; m++) {
 			DMEMIT("%s ", ms->mirror[m].dev->name);
+			buffer[m] = device_status_char(&(ms->mirror[m]));
+		}
+		buffer[m] = '\0';
 
-		DMEMIT("%llu/%llu 0 ",
-			(unsigned long long)ms->rh.log->type->
-				get_sync_count(ms->rh.log),
-			(unsigned long long)ms->nr_regions);
+		DMEMIT("%llu/%llu 1 %s ",
+		      (unsigned long long)log->type->get_sync_count(ms->rh.log),
+		      (unsigned long long)ms->nr_regions, buffer);
 
-		sz += ms->rh.log->type->status(ms->rh.log, type, result+sz, maxlen-sz);
+		sz += log->type->status(ms->rh.log, type, result+sz, maxlen-sz);
 
 		break;
 
 	case STATUSTYPE_TABLE:
-		sz = ms->rh.log->type->status(ms->rh.log, type, result, maxlen);
+		sz = log->type->status(ms->rh.log, type, result, maxlen);
 
 		DMEMIT("%d", ms->nr_mirrors);
 		for (m = 0; m < ms->nr_mirrors; m++)
@@ -1819,7 +1847,7 @@ static int mirror_status(struct dm_target *ti, status_type_t type,
 
 static struct target_type mirror_target = {
 	.name	 = "mirror",
-	.version = {1, 0, 3},
+	.version = {1, 0, 20},
 	.module	 = THIS_MODULE,
 	.ctr	 = mirror_ctr,
 	.dtr	 = mirror_dtr,
