@@ -131,10 +131,6 @@ int ipc_parse_version (int *cmd);
 extern void free_msg(struct msg_msg *msg);
 extern struct msg_msg *load_msg(const void __user *src, int len);
 extern int store_msg(void __user *dest, struct msg_msg *msg, int len);
-extern int ipcget_new(struct ipc_namespace *, struct ipc_ids *,
-			struct ipc_ops *, struct ipc_params *);
-extern int ipcget_public(struct ipc_namespace *, struct ipc_ids *,
-			struct ipc_ops *, struct ipc_params *);
 
 static inline int ipc_buildid(int id, int seq)
 {
@@ -163,57 +159,9 @@ static inline void ipc_unlock(struct kern_ipc_perm *perm)
 	rcu_read_unlock();
 }
 
-static inline struct kern_ipc_perm *ipc_lock_check_down(struct ipc_ids *ids,
-						int id)
-{
-	struct kern_ipc_perm *out;
-
-	out = ipc_lock_down(ids, id);
-	if (IS_ERR(out))
-		return out;
-
-	if (ipc_checkid(out, id)) {
-		ipc_unlock(out);
-		return ERR_PTR(-EIDRM);
-	}
-
-	return out;
-}
-
-static inline struct kern_ipc_perm *ipc_lock_check(struct ipc_ids *ids,
-						int id)
-{
-	struct kern_ipc_perm *out;
-
-	out = ipc_lock(ids, id);
-	if (IS_ERR(out))
-		return out;
-
-	if (ipc_checkid(out, id)) {
-		ipc_unlock(out);
-		return ERR_PTR(-EIDRM);
-	}
-
-	return out;
-}
-
-/**
- * ipcget - Common sys_*get() code
- * @ns : namsepace
- * @ids : IPC identifier set
- * @ops : operations to be called on ipc object creation, permission checks
- *        and further checks
- * @params : the parameters needed by the previous operations.
- *
- * Common routine called by sys_msgget(), sys_semget() and sys_shmget().
- */
-static inline int ipcget(struct ipc_namespace *ns, struct ipc_ids *ids,
-			struct ipc_ops *ops, struct ipc_params *params)
-{
-	if (params->key == IPC_PRIVATE)
-		return ipcget_new(ns, ids, ops, params);
-	else
-		return ipcget_public(ns, ids, ops, params);
-}
+struct kern_ipc_perm *ipc_lock_check_down(struct ipc_ids *ids, int id);
+struct kern_ipc_perm *ipc_lock_check(struct ipc_ids *ids, int id);
+int ipcget(struct ipc_namespace *ns, struct ipc_ids *ids,
+			struct ipc_ops *ops, struct ipc_params *params);
 
 #endif
