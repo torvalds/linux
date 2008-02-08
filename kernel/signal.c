@@ -1638,11 +1638,11 @@ static void ptrace_stop(int exit_code, int nostop_code, siginfo_t *info)
 	} else {
 		/*
 		 * By the time we got the lock, our tracer went away.
-		 * Don't stop here.
+		 * Don't drop the lock yet, another tracer may come.
 		 */
-		read_unlock(&tasklist_lock);
-		set_current_state(TASK_RUNNING);
+		__set_current_state(TASK_RUNNING);
 		current->exit_code = nostop_code;
+		read_unlock(&tasklist_lock);
 	}
 
 	/*
