@@ -584,12 +584,28 @@ static int diskstats_show(struct seq_file *s, void *v)
 	for (n = 0; n < gp->minors - 1; n++) {
 		struct hd_struct *hd = gp->part[n];
 
-		if (hd && hd->nr_sects)
-			seq_printf(s, "%4d %4d %s %u %u %u %u\n",
-				gp->major, n + gp->first_minor + 1,
-				disk_name(gp, n + 1, buf),
-				hd->ios[0], hd->sectors[0],
-				hd->ios[1], hd->sectors[1]);
+		if (!hd || !hd->nr_sects)
+			continue;
+
+		preempt_disable();
+		part_round_stats(hd);
+		preempt_enable();
+		seq_printf(s, "%4d %4d %s %lu %lu %llu "
+			   "%u %lu %lu %llu %u %u %u %u\n",
+			   gp->major, n + gp->first_minor + 1,
+			   disk_name(gp, n + 1, buf),
+			   part_stat_read(hd, ios[0]),
+			   part_stat_read(hd, merges[0]),
+			   (unsigned long long)part_stat_read(hd, sectors[0]),
+			   jiffies_to_msecs(part_stat_read(hd, ticks[0])),
+			   part_stat_read(hd, ios[1]),
+			   part_stat_read(hd, merges[1]),
+			   (unsigned long long)part_stat_read(hd, sectors[1]),
+			   jiffies_to_msecs(part_stat_read(hd, ticks[1])),
+			   hd->in_flight,
+			   jiffies_to_msecs(part_stat_read(hd, io_ticks)),
+			   jiffies_to_msecs(part_stat_read(hd, time_in_queue))
+			);
 	}
  
 	return 0;
