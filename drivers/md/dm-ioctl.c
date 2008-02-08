@@ -702,7 +702,7 @@ static int dev_rename(struct dm_ioctl *param, size_t param_size)
 	int r;
 	char *new_name = (char *) param + param->data_start;
 
-	if (new_name < (char *) param->data ||
+	if (new_name < param->data ||
 	    invalid_str(new_name, (void *) param + param_size)) {
 		DMWARN("Invalid new logical volume name supplied.");
 		return -EINVAL;
@@ -728,7 +728,7 @@ static int dev_set_geometry(struct dm_ioctl *param, size_t param_size)
 	if (!md)
 		return -ENXIO;
 
-	if (geostr < (char *) param->data ||
+	if (geostr < param->data ||
 	    invalid_str(geostr, (void *) param + param_size)) {
 		DMWARN("Invalid geometry supplied.");
 		goto out;
@@ -1397,13 +1397,11 @@ static int validate_params(uint cmd, struct dm_ioctl *param)
 	return 0;
 }
 
-static int ctl_ioctl(struct inode *inode, struct file *file,
-		     uint command, ulong u)
+static int ctl_ioctl(uint command, struct dm_ioctl __user *user)
 {
 	int r = 0;
 	unsigned int cmd;
 	struct dm_ioctl *param;
-	struct dm_ioctl __user *user = (struct dm_ioctl __user *) u;
 	ioctl_fn fn = NULL;
 	size_t param_size;
 
@@ -1471,8 +1469,13 @@ static int ctl_ioctl(struct inode *inode, struct file *file,
 	return r;
 }
 
+static long dm_ctl_ioctl(struct file *file, uint command, ulong u)
+{
+	return (long)ctl_ioctl(command, (struct dm_ioctl __user *)u);
+}
+
 static const struct file_operations _ctl_fops = {
-	.ioctl	 = ctl_ioctl,
+	.unlocked_ioctl	 = dm_ctl_ioctl,
 	.owner	 = THIS_MODULE,
 };
 
