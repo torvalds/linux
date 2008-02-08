@@ -14,6 +14,7 @@
 
 #include <linux/types.h>
 #include <linux/linkage.h>
+#include <linux/kernel.h>
 
 struct thread_struct;
 
@@ -276,7 +277,7 @@ static inline unsigned long __cmpxchg_local(volatile void *ptr,
 {
 	switch (size) {
 	case 4:
-		return cmpxchg(ptr, old, new);
+		return cmpxchg((unsigned long *)ptr, old, new);
 	default:
 		return __cmpxchg_local_generic(ptr, old, new, size);
 	}
