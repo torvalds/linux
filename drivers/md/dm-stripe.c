@@ -222,16 +222,37 @@ static int stripe_map(struct dm_target *ti, struct bio *bio,
 	return DM_MAPIO_REMAPPED;
 }
 
+/*
+ * Stripe status:
+ *
+ * INFO
+ * #stripes [stripe_name <stripe_name>] [group word count]
+ * [error count 'A|D' <error count 'A|D'>]
+ *
+ * TABLE
+ * #stripes [stripe chunk size]
+ * [stripe_name physical_start <stripe_name physical_start>]
+ *
+ */
+
 static int stripe_status(struct dm_target *ti,
 			 status_type_t type, char *result, unsigned int maxlen)
 {
 	struct stripe_c *sc = (struct stripe_c *) ti->private;
+	char buffer[sc->stripes + 1];
 	unsigned int sz = 0;
 	unsigned int i;
 
 	switch (type) {
 	case STATUSTYPE_INFO:
-		result[0] = '\0';
+		DMEMIT("%d ", sc->stripes);
+		for (i = 0; i < sc->stripes; i++)  {
+			DMEMIT("%s ", sc->stripe[i].dev->name);
+			buffer[i] = atomic_read(&(sc->stripe[i].error_count)) ?
+				'D' : 'A';
+		}
+		buffer[i] = '\0';
+		DMEMIT("1 %s", buffer);
 		break;
 
 	case STATUSTYPE_TABLE:
