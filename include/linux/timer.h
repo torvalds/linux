@@ -124,8 +124,6 @@ static inline void timer_stats_timer_clear_start_info(struct timer_list *timer)
 }
 #endif
 
-extern void delayed_work_timer_fn(unsigned long __data);
-
 /**
  * add_timer - start a timer
  * @timer: the timer to be added
