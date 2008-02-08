@@ -837,6 +837,8 @@ static int fat_show_options(struct seq_file *m, struct vfsmount *mnt)
 		if (!opts->numtail)
 			seq_puts(m, ",nonumtail");
 	}
+	if (sbi->options.flush)
+		seq_puts(m, ",flush");
 
 	return 0;
 }
