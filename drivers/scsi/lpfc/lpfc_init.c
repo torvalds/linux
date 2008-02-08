@@ -475,7 +475,8 @@ lpfc_hba_down_prep(struct lpfc_hba *phba)
 			for(i = 0; i <= phba->max_vpi && vports[i] != NULL; i++)
 				lpfc_cleanup_discovery_resources(vports[i]);
 		lpfc_destroy_vport_work_array(phba, vports);
-	}	return 0;
+	}
+	return 0;
 }
 
 /************************************************************************/
@@ -1740,9 +1741,9 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 
 	vport = (struct lpfc_vport *) shost->hostdata;
 	vport->phba = phba;
-
 	vport->load_flag |= FC_LOADING;
 	vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
+	vport->fc_rscn_flush = 0;
 
 	lpfc_get_vport_cfgparam(vport);
 	shost->unique_id = instance;

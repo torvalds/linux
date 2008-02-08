@@ -91,25 +91,26 @@ struct lpfc_nodelist {
 };
 
 /* Defines for nlp_flag (uint32) */
-#define NLP_PLOGI_SND      0x20		/* sent PLOGI request for this entry */
-#define NLP_PRLI_SND       0x40		/* sent PRLI request for this entry */
-#define NLP_ADISC_SND      0x80		/* sent ADISC request for this entry */
-#define NLP_LOGO_SND       0x100	/* sent LOGO request for this entry */
-#define NLP_RNID_SND       0x400	/* sent RNID request for this entry */
-#define NLP_ELS_SND_MASK   0x7e0	/* sent ELS request for this entry */
-#define NLP_DEFER_RM       0x10000	/* Remove this ndlp if no longer used */
-#define NLP_DELAY_TMO      0x20000	/* delay timeout is running for node */
-#define NLP_NPR_2B_DISC    0x40000	/* node is included in num_disc_nodes */
-#define NLP_RCV_PLOGI      0x80000	/* Rcv'ed PLOGI from remote system */
-#define NLP_LOGO_ACC       0x100000	/* Process LOGO after ACC completes */
-#define NLP_TGT_NO_SCSIID  0x200000	/* good PRLI but no binding for scsid */
-#define NLP_ACC_REGLOGIN   0x1000000	/* Issue Reg Login after successful
+#define NLP_PLOGI_SND      0x00000020	/* sent PLOGI request for this entry */
+#define NLP_PRLI_SND       0x00000040	/* sent PRLI request for this entry */
+#define NLP_ADISC_SND      0x00000080	/* sent ADISC request for this entry */
+#define NLP_LOGO_SND       0x00000100	/* sent LOGO request for this entry */
+#define NLP_RNID_SND       0x00000400	/* sent RNID request for this entry */
+#define NLP_ELS_SND_MASK   0x000007e0	/* sent ELS request for this entry */
+#define NLP_DEFER_RM       0x00010000	/* Remove this ndlp if no longer used */
+#define NLP_DELAY_TMO      0x00020000	/* delay timeout is running for node */
+#define NLP_NPR_2B_DISC    0x00040000	/* node is included in num_disc_nodes */
+#define NLP_RCV_PLOGI      0x00080000	/* Rcv'ed PLOGI from remote system */
+#define NLP_LOGO_ACC       0x00100000	/* Process LOGO after ACC completes */
+#define NLP_TGT_NO_SCSIID  0x00200000	/* good PRLI but no binding for scsid */
+#define NLP_ACC_REGLOGIN   0x01000000	/* Issue Reg Login after successful
 					   ACC */
-#define NLP_NPR_ADISC      0x2000000	/* Issue ADISC when dq'ed from
+#define NLP_NPR_ADISC      0x02000000	/* Issue ADISC when dq'ed from
 					   NPR list */
-#define NLP_RM_DFLT_RPI    0x4000000	/* need to remove leftover dflt RPI */
-#define NLP_NODEV_REMOVE   0x8000000	/* Defer removal till discovery ends */
+#define NLP_RM_DFLT_RPI    0x04000000	/* need to remove leftover dflt RPI */
+#define NLP_NODEV_REMOVE   0x08000000	/* Defer removal till discovery ends */
 #define NLP_TARGET_REMOVE  0x10000000   /* Target remove in process */
+#define NLP_SC_REQ         0x20000000	/* Target requires authentication */
 
 /* ndlp usage management macros */
 #define NLP_CHK_NODE_ACT(ndlp)		(((ndlp)->nlp_usg_map \

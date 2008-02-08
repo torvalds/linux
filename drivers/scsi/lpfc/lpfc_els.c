@@ -1920,18 +1920,15 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			break;
 
 		case IOERR_ILLEGAL_COMMAND:
-			if ((phba->sli3_options & LPFC_SLI3_VPORT_TEARDOWN) &&
-			    (cmd == ELS_CMD_FDISC)) {
-				lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
-						 "0124 FDISC failed (3/6) "
-						 "retrying...\n");
-				lpfc_mbx_unreg_vpi(vport);
-				retry = 1;
-				/* FDISC retry policy */
-				maxretry = 48;
-				if (cmdiocb->retry >= 32)
-					delay = 1000;
-			}
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+					 "0124 Retry illegal cmd x%x "
+					 "retry:x%x delay:x%x\n",
+					 cmd, cmdiocb->retry, delay);
+			retry = 1;
+			/* All command's retry policy */
+			maxretry = 8;
+			if (cmdiocb->retry > 2)
+				delay = 1000;
 			break;
 
 		case IOERR_NO_RESOURCES:
@@ -2017,6 +2014,17 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			break;
 
 		case LSRJT_LOGICAL_ERR:
+			/* There are some cases where switches return this
+			 * error when they are not ready and should be returning
+			 * Logical Busy. We should delay every time.
+			 */
+			if (cmd == ELS_CMD_FDISC &&
+			    stat.un.b.lsRjtRsnCodeExp == LSEXP_PORT_LOGIN_REQ) {
+				maxretry = 3;
+				delay = 1000;
+				retry = 1;
+				break;
+			}
 		case LSRJT_PROTOCOL_ERR:
 			if ((phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) &&
 			  (cmd == ELS_CMD_FDISC) &&
@@ -2931,6 +2939,16 @@ lpfc_els_flush_rscn(struct lpfc_vport *vport)
 	struct lpfc_hba  *phba = vport->phba;
 	int i;
 
+	spin_lock_irq(shost->host_lock);
+	if (vport->fc_rscn_flush) {
+		/* Another thread is walking fc_rscn_id_list on this vport */
+		spin_unlock_irq(shost->host_lock);
+		return;
+	}
+	/* Indicate we are walking lpfc_els_flush_rscn on this vport */
+	vport->fc_rscn_flush = 1;
+	spin_unlock_irq(shost->host_lock);
+
 	for (i = 0; i < vport->fc_rscn_id_cnt; i++) {
 		lpfc_in_buf_free(phba, vport->fc_rscn_id_list[i]);
 		vport->fc_rscn_id_list[i] = NULL;
@@ -2940,6 +2958,8 @@ lpfc_els_flush_rscn(struct lpfc_vport *vport)
 	vport->fc_flag &= ~(FC_RSCN_MODE | FC_RSCN_DISCOVERY);
 	spin_unlock_irq(shost->host_lock);
 	lpfc_can_disctmo(vport);
+	/* Indicate we are done walking this fc_rscn_id_list */
+	vport->fc_rscn_flush = 0;
 }
 
 int
@@ -2949,6 +2969,7 @@ lpfc_rscn_payload_check(struct lpfc_vport *vport, uint32_t did)
 	D_ID rscn_did;
 	uint32_t *lp;
 	uint32_t payload_len, i;
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
 	ns_did.un.word = did;
 
@@ -2960,6 +2981,15 @@ lpfc_rscn_payload_check(struct lpfc_vport *vport, uint32_t did)
 	if (vport->fc_flag & FC_RSCN_DISCOVERY)
 		return did;
 
+	spin_lock_irq(shost->host_lock);
+	if (vport->fc_rscn_flush) {
+		/* Another thread is walking fc_rscn_id_list on this vport */
+		spin_unlock_irq(shost->host_lock);
+		return 0;
+	}
+	/* Indicate we are walking fc_rscn_id_list on this vport */
+	vport->fc_rscn_flush = 1;
+	spin_unlock_irq(shost->host_lock);
 	for (i = 0; i < vport->fc_rscn_id_cnt; i++) {
 		lp = vport->fc_rscn_id_list[i]->virt;
 		payload_len = be32_to_cpu(*lp++ & ~ELS_CMD_MASK);
@@ -2970,16 +3000,16 @@ lpfc_rscn_payload_check(struct lpfc_vport *vport, uint32_t did)
 			switch (rscn_did.un.b.resv) {
 			case 0:	/* Single N_Port ID effected */
 				if (ns_did.un.word == rscn_did.un.word)
-					return did;
+					goto return_did_out;
 				break;
 			case 1:	/* Whole N_Port Area effected */
 				if ((ns_did.un.b.domain == rscn_did.un.b.domain)
 				    && (ns_did.un.b.area == rscn_did.un.b.area))
-					return did;
+					goto return_did_out;
 				break;
 			case 2:	/* Whole N_Port Domain effected */
 				if (ns_did.un.b.domain == rscn_did.un.b.domain)
-					return did;
+					goto return_did_out;
 				break;
 			default:
 				/* Unknown Identifier in RSCN node */
@@ -2988,11 +3018,17 @@ lpfc_rscn_payload_check(struct lpfc_vport *vport, uint32_t did)
 						 "RSCN payload Data: x%x\n",
 						 rscn_did.un.word);
 			case 3:	/* Whole Fabric effected */
-				return did;
+				goto return_did_out;
 			}
 		}
 	}
+	/* Indicate we are done with walking fc_rscn_id_list on this vport */
+	vport->fc_rscn_flush = 0;
 	return 0;
+return_did_out:
+	/* Indicate we are done with walking fc_rscn_id_list on this vport */
+	vport->fc_rscn_flush = 0;
+	return did;
 }
 
 static int
@@ -3034,7 +3070,7 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	uint32_t *lp, *datap;
 	IOCB_t *icmd;
 	uint32_t payload_len, length, nportid, *cmd;
-	int rscn_cnt = vport->fc_rscn_id_cnt;
+	int rscn_cnt;
 	int rscn_id = 0, hba_id = 0;
 	int i;
 
@@ -3047,7 +3083,8 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	/* RSCN received */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 			 "0214 RSCN received Data: x%x x%x x%x x%x\n",
-			 vport->fc_flag, payload_len, *lp, rscn_cnt);
+			 vport->fc_flag, payload_len, *lp,
+			 vport->fc_rscn_id_cnt);
 	for (i = 0; i < payload_len/sizeof(uint32_t); i++)
 		fc_host_post_event(shost, fc_get_event_number(),
 			FCH_EVT_RSCN, lp[i]);
@@ -3085,7 +3122,7 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 					 "0214 Ignore RSCN "
 					 "Data: x%x x%x x%x x%x\n",
 					 vport->fc_flag, payload_len,
-					 *lp, rscn_cnt);
+					 *lp, vport->fc_rscn_id_cnt);
 			lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
 				"RCV RSCN vport:  did:x%x/ste:x%x flg:x%x",
 				ndlp->nlp_DID, vport->port_state,
@@ -3097,6 +3134,18 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		}
 	}
 
+	spin_lock_irq(shost->host_lock);
+	if (vport->fc_rscn_flush) {
+		/* Another thread is walking fc_rscn_id_list on this vport */
+		spin_unlock_irq(shost->host_lock);
+		vport->fc_flag |= FC_RSCN_DISCOVERY;
+		return 0;
+	}
+	/* Indicate we are walking fc_rscn_id_list on this vport */
+	vport->fc_rscn_flush = 1;
+	spin_unlock_irq(shost->host_lock);
+	/* Get the array count after sucessfully have the token */
+	rscn_cnt = vport->fc_rscn_id_cnt;
 	/* If we are already processing an RSCN, save the received
 	 * RSCN payload buffer, cmdiocb->context2 to process later.
 	 */
@@ -3118,7 +3167,7 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 			if ((rscn_cnt) &&
 			    (payload_len + length <= LPFC_BPL_SIZE)) {
 				*cmd &= ELS_CMD_MASK;
-				*cmd |= be32_to_cpu(payload_len + length);
+				*cmd |= cpu_to_be32(payload_len + length);
 				memcpy(((uint8_t *)cmd) + length, lp,
 				       payload_len);
 			} else {
@@ -3129,7 +3178,6 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 				 */
 				cmdiocb->context2 = NULL;
 			}
-
 			/* Deferred RSCN */
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 					 "0235 Deferred RSCN "
@@ -3146,9 +3194,10 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 					 vport->fc_rscn_id_cnt, vport->fc_flag,
 					 vport->port_state);
 		}
+		/* Indicate we are done walking fc_rscn_id_list on this vport */
+		vport->fc_rscn_flush = 0;
 		/* Send back ACC */
 		lpfc_els_rsp_acc(vport, ELS_CMD_ACC, cmdiocb, ndlp, NULL);
-
 		/* send RECOVERY event for ALL nodes that match RSCN payload */
 		lpfc_rscn_recovery_check(vport);
 		spin_lock_irq(shost->host_lock);
@@ -3156,7 +3205,6 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		spin_unlock_irq(shost->host_lock);
 		return 0;
 	}
-
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
 		"RCV RSCN:        did:x%x/ste:x%x flg:x%x",
 		ndlp->nlp_DID, vport->port_state, ndlp->nlp_flag);
@@ -3165,20 +3213,18 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	vport->fc_flag |= FC_RSCN_MODE;
 	spin_unlock_irq(shost->host_lock);
 	vport->fc_rscn_id_list[vport->fc_rscn_id_cnt++] = pcmd;
+	/* Indicate we are done walking fc_rscn_id_list on this vport */
+	vport->fc_rscn_flush = 0;
 	/*
 	 * If we zero, cmdiocb->context2, the calling routine will
 	 * not try to free it.
 	 */
 	cmdiocb->context2 = NULL;
-
 	lpfc_set_disctmo(vport);
-
 	/* Send back ACC */
 	lpfc_els_rsp_acc(vport, ELS_CMD_ACC, cmdiocb, ndlp, NULL);
-
 	/* send RECOVERY event for ALL nodes that match RSCN payload */
 	lpfc_rscn_recovery_check(vport);
-
 	return lpfc_els_handle_rscn(vport);
 }
 
@@ -4343,15 +4389,15 @@ lpfc_els_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			vport = lpfc_find_vport_by_vpid(phba, vpi);
 		}
 	}
-				/* If there are no BDEs associated
-				 * with this IOCB, there is nothing to do.
-				 */
+	/* If there are no BDEs associated
+	 * with this IOCB, there is nothing to do.
+	 */
 	if (icmd->ulpBdeCount == 0)
 		return;
 
-				/* type of ELS cmd is first 32bit word
-				 * in packet
-				 */
+	/* type of ELS cmd is first 32bit word
+	 * in packet
+	 */
 	if (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED) {
 		elsiocb->context2 = bdeBuf1;
 	} else {
@@ -4464,6 +4510,7 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		switch (mb->mbxStatus) {
 		case 0x11:	/* unsupported feature */
 		case 0x9603:	/* max_vpi exceeded */
+		case 0x9602:	/* Link event since CLEAR_LA */
 			/* giving up on vport registration */
 			lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 			spin_lock_irq(shost->host_lock);
@@ -4477,7 +4524,10 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 			spin_lock_irq(shost->host_lock);
 			vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
 			spin_unlock_irq(shost->host_lock);
-			lpfc_initial_fdisc(vport);
+			if (vport->port_type == LPFC_PHYSICAL_PORT)
+				lpfc_initial_flogi(vport);
+			else
+				lpfc_initial_fdisc(vport);
 			break;
 		}
 
@@ -4795,11 +4845,12 @@ lpfc_resume_fabric_iocbs(struct lpfc_hba *phba)
 repeat:
 	iocb = NULL;
 	spin_lock_irqsave(&phba->hbalock, iflags);
-				/* Post any pending iocb to the SLI layer */
+	/* Post any pending iocb to the SLI layer */
 	if (atomic_read(&phba->fabric_iocb_count) == 0) {
 		list_remove_head(&phba->fabric_iocb_list, iocb, typeof(*iocb),
 				 list);
 		if (iocb)
+			/* Increment fabric iocb count to hold the position */
 			atomic_inc(&phba->fabric_iocb_count);
 	}
 	spin_unlock_irqrestore(&phba->hbalock, iflags);
@@ -4846,9 +4897,7 @@ lpfc_block_fabric_iocbs(struct lpfc_hba *phba)
 	int blocked;
 
 	blocked = test_and_set_bit(FABRIC_COMANDS_BLOCKED, &phba->bit_flags);
-				/* Start a timer to unblock fabric
-				 * iocbs after 100ms
-				 */
+	/* Start a timer to unblock fabric iocbs after 100ms */
 	if (!blocked)
 		mod_timer(&phba->fabric_block_timer, jiffies + HZ/10 );
 
@@ -4896,8 +4945,8 @@ lpfc_cmpl_fabric_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	atomic_dec(&phba->fabric_iocb_count);
 	if (!test_bit(FABRIC_COMANDS_BLOCKED, &phba->bit_flags)) {
-				/* Post any pending iocbs to HBA */
-		    lpfc_resume_fabric_iocbs(phba);
+		/* Post any pending iocbs to HBA */
+		lpfc_resume_fabric_iocbs(phba);
 	}
 }
 
@@ -4916,6 +4965,9 @@ lpfc_issue_fabric_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *iocb)
 	ready = atomic_read(&phba->fabric_iocb_count) == 0 &&
 		!test_bit(FABRIC_COMANDS_BLOCKED, &phba->bit_flags);
 
+	if (ready)
+		/* Increment fabric iocb count to hold the position */
+		atomic_inc(&phba->fabric_iocb_count);
 	spin_unlock_irqrestore(&phba->hbalock, iflags);
 	if (ready) {
 		iocb->fabric_iocb_cmpl = iocb->iocb_cmpl;
@@ -4926,7 +4978,6 @@ lpfc_issue_fabric_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *iocb)
 			"Fabric sched2:   ste:x%x",
 			iocb->vport->port_state, 0, 0);
 
-		atomic_inc(&phba->fabric_iocb_count);
 		ret = lpfc_sli_issue_iocb(phba, pring, iocb, 0);
 
 		if (ret == IOCB_ERROR) {

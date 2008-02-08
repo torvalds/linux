@@ -581,6 +581,7 @@ struct ls_rjt {	/* Structure is in Big Endian format */
 #define LSEXP_INVALID_O_SID     0x15
 #define LSEXP_INVALID_OX_RX     0x17
 #define LSEXP_CMD_IN_PROGRESS   0x19
+#define LSEXP_PORT_LOGIN_REQ    0x1E
 #define LSEXP_INVALID_NPORT_ID  0x1F
 #define LSEXP_INVALID_SEQ_ID    0x21
 #define LSEXP_INVALID_XCHG      0x23

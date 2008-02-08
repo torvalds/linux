@@ -2623,14 +2623,14 @@ lpfc_sli_issue_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox, uint32_t flag)
 		spin_unlock_irqrestore(&phba->hbalock, drvr_flag);
 
 		/* Mbox command <mbxCommand> cannot issue */
-		LOG_MBOX_CANNOT_ISSUE_DATA(phba, pmbox, psli, flag)
+		LOG_MBOX_CANNOT_ISSUE_DATA(phba, pmbox, psli, flag);
 		return MBX_NOT_FINISHED;
 	}
 
 	if (mb->mbxCommand != MBX_KILL_BOARD && flag & MBX_NOWAIT &&
 	    !(readl(phba->HCregaddr) & HC_MBINT_ENA)) {
 		spin_unlock_irqrestore(&phba->hbalock, drvr_flag);
-		LOG_MBOX_CANNOT_ISSUE_DATA(phba, pmbox, psli, flag)
+		LOG_MBOX_CANNOT_ISSUE_DATA(phba, pmbox, psli, flag);
 		return MBX_NOT_FINISHED;
 	}
 

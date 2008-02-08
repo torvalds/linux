@@ -265,6 +265,9 @@ lpfc_in_buf_free(struct lpfc_hba *phba, struct lpfc_dmabuf *mp)
 {
 	struct hbq_dmabuf *hbq_entry;
 
+	if (!mp)
+		return;
+
 	if (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED) {
 		hbq_entry = container_of(mp, struct hbq_dmabuf, dbuf);
 		if (hbq_entry->tag == -1) {
@@ -279,4 +282,3 @@ lpfc_in_buf_free(struct lpfc_hba *phba, struct lpfc_dmabuf *mp)
 	}
 	return;
 }
-
