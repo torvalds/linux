@@ -110,6 +110,7 @@ static const struct super_operations isofs_sops = {
 	.put_super	= isofs_put_super,
 	.statfs		= isofs_statfs,
 	.remount_fs	= isofs_remount,
+	.show_options	= generic_show_options,
 };
 
 
@@ -560,6 +561,8 @@ static int isofs_fill_super(struct super_block *s, void *data, int silent)
 	int orig_zonesize;
 	int table, error = -EINVAL;
 	unsigned int vol_desc_start;
+
+	save_mount_options(s, data);
 
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)
