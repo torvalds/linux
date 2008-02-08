@@ -181,7 +181,7 @@ static void local_exit(void)
 	DMINFO("cleaned up");
 }
 
-int (*_inits[])(void) __initdata = {
+static int (*_inits[])(void) __initdata = {
 	local_init,
 	dm_target_init,
 	dm_linear_init,
@@ -189,7 +189,7 @@ int (*_inits[])(void) __initdata = {
 	dm_interface_init,
 };
 
-void (*_exits[])(void) = {
+static void (*_exits[])(void) = {
 	local_exit,
 	dm_target_exit,
 	dm_linear_exit,
