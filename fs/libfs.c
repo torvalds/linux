@@ -634,7 +634,10 @@ ssize_t simple_attr_read(struct file *file, char __user *buf,
 	if (!attr->get)
 		return -EACCES;
 
-	mutex_lock(&attr->mutex);
+	ret = mutex_lock_interruptible(&attr->mutex);
+	if (ret)
+		return ret;
+
 	if (*ppos) {		/* continued read */
 		size = strlen(attr->get_buf);
 	} else {		/* first read */
@@ -666,7 +669,10 @@ ssize_t simple_attr_write(struct file *file, const char __user *buf,
 	if (!attr->set)
 		return -EACCES;
 
-	mutex_lock(&attr->mutex);
+	ret = mutex_lock_interruptible(&attr->mutex);
+	if (ret)
+		return ret;
+
 	ret = -EFAULT;
 	size = min(sizeof(attr->set_buf) - 1, len);
 	if (copy_from_user(attr->set_buf, buf, size))
