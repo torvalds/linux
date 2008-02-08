@@ -25,17 +25,17 @@
  * in the low address range. Architectures for which this is not
  * true can't use this generic implementation.
  */
-extern unsigned int fastcall ioread8(void __iomem *);
-extern unsigned int fastcall ioread16(void __iomem *);
-extern unsigned int fastcall ioread16be(void __iomem *);
-extern unsigned int fastcall ioread32(void __iomem *);
-extern unsigned int fastcall ioread32be(void __iomem *);
+extern unsigned int ioread8(void __iomem *);
+extern unsigned int ioread16(void __iomem *);
+extern unsigned int ioread16be(void __iomem *);
+extern unsigned int ioread32(void __iomem *);
+extern unsigned int ioread32be(void __iomem *);
 
-extern void fastcall iowrite8(u8, void __iomem *);
-extern void fastcall iowrite16(u16, void __iomem *);
-extern void fastcall iowrite16be(u16, void __iomem *);
-extern void fastcall iowrite32(u32, void __iomem *);
-extern void fastcall iowrite32be(u32, void __iomem *);
+extern void iowrite8(u8, void __iomem *);
+extern void iowrite16(u16, void __iomem *);
+extern void iowrite16be(u16, void __iomem *);
+extern void iowrite32(u32, void __iomem *);
+extern void iowrite32be(u32, void __iomem *);
 
 /*
  * "string" versions of the above. Note that they
@@ -48,13 +48,13 @@ extern void fastcall iowrite32be(u32, void __iomem *);
  * memory across multiple ports, use "memcpy_toio()"
  * and friends.
  */
-extern void fastcall ioread8_rep(void __iomem *port, void *buf, unsigned long count);
-extern void fastcall ioread16_rep(void __iomem *port, void *buf, unsigned long count);
-extern void fastcall ioread32_rep(void __iomem *port, void *buf, unsigned long count);
+extern void ioread8_rep(void __iomem *port, void *buf, unsigned long count);
+extern void ioread16_rep(void __iomem *port, void *buf, unsigned long count);
+extern void ioread32_rep(void __iomem *port, void *buf, unsigned long count);
 
-extern void fastcall iowrite8_rep(void __iomem *port, const void *buf, unsigned long count);
-extern void fastcall iowrite16_rep(void __iomem *port, const void *buf, unsigned long count);
-extern void fastcall iowrite32_rep(void __iomem *port, const void *buf, unsigned long count);
+extern void iowrite8_rep(void __iomem *port, const void *buf, unsigned long count);
+extern void iowrite16_rep(void __iomem *port, const void *buf, unsigned long count);
+extern void iowrite32_rep(void __iomem *port, const void *buf, unsigned long count);
 
 /* Create a virtual mapping cookie for an IO port range */
 extern void __iomem *ioport_map(unsigned long port, unsigned int nr);

@@ -23,7 +23,7 @@
  * even when the "1" assertion wasn't true.
  */
 static inline void
-__mutex_fastpath_lock(atomic_t *count, fastcall void (*fail_fn)(atomic_t *))
+__mutex_fastpath_lock(atomic_t *count, void (*fail_fn)(atomic_t *))
 {
 	if (unlikely(atomic_xchg(count, 0) != 1))
 		fail_fn(count);
@@ -42,7 +42,7 @@ __mutex_fastpath_lock(atomic_t *count, fastcall void (*fail_fn)(atomic_t *))
  * or anything the slow path function returns
  */
 static inline int
-__mutex_fastpath_lock_retval(atomic_t *count, fastcall int (*fail_fn)(atomic_t *))
+__mutex_fastpath_lock_retval(atomic_t *count, int (*fail_fn)(atomic_t *))
 {
 	if (unlikely(atomic_xchg(count, 0) != 1))
 		return fail_fn(count);
@@ -65,7 +65,7 @@ __mutex_fastpath_lock_retval(atomic_t *count, fastcall int (*fail_fn)(atomic_t *
  * to return 0 otherwise.
  */
 static inline void
-__mutex_fastpath_unlock(atomic_t *count, fastcall void (*fail_fn)(atomic_t *))
+__mutex_fastpath_unlock(atomic_t *count, void (*fail_fn)(atomic_t *))
 {
 	smp_mb();
 	if (unlikely(atomic_xchg(count, 1) != 0))
