@@ -28,7 +28,7 @@
 #include <asm/mce.h>
 #include "sigframe.h"
 
-/* #define DEBUG_SIG 1 */
+#define DEBUG_SIG 0
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
@@ -142,7 +142,7 @@ asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
 	if (restore_sigcontext(regs, &frame->uc.uc_mcontext, &ax))
 		goto badframe;
 
-#ifdef DEBUG_SIG
+#if DEBUG_SIG
 	printk("%d sigreturn ip:%lx sp:%lx frame:%p ax:%lx\n",current->pid,regs->ip,regs->sp,frame,ax);
 #endif
 
@@ -274,7 +274,7 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	if (err)
 		goto give_sigsegv;
 
-#ifdef DEBUG_SIG
+#if DEBUG_SIG
 	printk("%d old ip %lx old sp %lx old ax %lx\n", current->pid,regs->ip,regs->sp,regs->ax);
 #endif
 
@@ -302,7 +302,7 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->flags &= ~(X86_EFLAGS_TF | X86_EFLAGS_DF);
 	if (test_thread_flag(TIF_SINGLESTEP))
 		ptrace_notify(SIGTRAP);
-#ifdef DEBUG_SIG
+#if DEBUG_SIG
 	printk("SIG deliver (%s:%d): sp=%p pc=%lx ra=%p\n",
 		current->comm, current->pid, frame, regs->ip, frame->pretcode);
 #endif
@@ -353,7 +353,7 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 {
 	int ret;
 
-#ifdef DEBUG_SIG
+#if DEBUG_SIG
 	printk("handle_signal pid:%d sig:%lu ip:%lx sp:%lx regs=%p\n",
 		current->pid, sig,
 		regs->ip, regs->sp, regs);
@@ -491,7 +491,7 @@ static void do_signal(struct pt_regs *regs)
 void do_notify_resume(struct pt_regs *regs, void *unused,
 		      __u32 thread_info_flags)
 {
-#ifdef DEBUG_SIG
+#if DEBUG_SIG
 	printk("do_notify_resume flags:%x ip:%lx sp:%lx caller:%p pending:%x\n",
 	       thread_info_flags, regs->ip, regs->sp, __builtin_return_address(0),signal_pending(current));
 #endif
