@@ -26,6 +26,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/notifier.h>
+#include <linux/of.h>
 #include <linux/of_platform.h>
 
 #include <asm/prom.h>
@@ -789,18 +790,16 @@ static int __init cell_iommu_init_disabled(void)
 static u64 cell_iommu_get_fixed_address(struct device *dev)
 {
 	u64 cpu_addr, size, best_size, pci_addr = OF_BAD_ADDR;
-	struct device_node *tmp, *np;
+	struct device_node *np;
 	const u32 *ranges = NULL;
 	int i, len, best;
 
-	np = dev->archdata.of_node;
-	of_node_get(np);
-	ranges = of_get_property(np, "dma-ranges", &len);
-	while (!ranges && np) {
-		tmp = of_get_parent(np);
-		of_node_put(np);
-		np = tmp;
+	np = of_node_get(dev->archdata.of_node);
+	while (np) {
 		ranges = of_get_property(np, "dma-ranges", &len);
+		if (ranges)
+			break;
+		np = of_get_next_parent(np);
 	}
 
 	if (!ranges) {
