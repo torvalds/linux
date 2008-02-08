@@ -584,7 +584,6 @@ static void kcryptd_crypt_write_io_submit(struct dm_crypt_io *io, int error)
 		crypt_free_buffer_pages(cc, clone);
 		bio_put(clone);
 		io->error = -EIO;
-		crypt_dec_pending(io);
 		return;
 	}
 
@@ -593,6 +592,9 @@ static void kcryptd_crypt_write_io_submit(struct dm_crypt_io *io, int error)
 
 	clone->bi_sector = cc->start + io->sector;
 	io->sector += bio_sectors(clone);
+
+	atomic_inc(&io->pending);
+	generic_make_request(clone);
 }
 
 static void kcryptd_crypt_write_convert_loop(struct dm_crypt_io *io)
@@ -610,7 +612,6 @@ static void kcryptd_crypt_write_convert_loop(struct dm_crypt_io *io)
 		clone = crypt_alloc_buffer(io, remaining);
 		if (unlikely(!clone)) {
 			io->error = -ENOMEM;
-			crypt_dec_pending(io);
 			return;
 		}
 
@@ -625,16 +626,6 @@ static void kcryptd_crypt_write_convert_loop(struct dm_crypt_io *io)
 		if (unlikely(r < 0))
 			return;
 
-		/* Grab another reference to the io struct
-		 * before we kick off the request */
-		if (remaining)
-			atomic_inc(&io->pending);
-
-		generic_make_request(clone);
-
-		/* Do not reference clone after this - it
-		 * may be gone already. */
-
 		/* out of memory -> run queues */
 		if (unlikely(remaining))
 			congestion_wait(WRITE, HZ/100);
@@ -645,10 +636,15 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 {
 	struct crypt_config *cc = io->target->private;
 
+	/*
+	 * Prevent io from disappearing until this function completes.
+	 */
 	atomic_inc(&io->pending);
 
 	crypt_convert_init(cc, &io->ctx, NULL, io->base_bio, io->sector);
 	kcryptd_crypt_write_convert_loop(io);
+
+	crypt_dec_pending(io);
 }
 
 static void kcryptd_crypt_read_done(struct dm_crypt_io *io, int error)
