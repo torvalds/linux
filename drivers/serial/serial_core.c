@@ -1553,8 +1553,8 @@ static struct uart_state *uart_get(struct uart_driver *drv, int line)
 }
 
 /*
- * In 2.4.5, calls to uart_open are serialised by the BKL in
- *   linux/fs/devices.c:chrdev_open()
+ * calls to uart_open are serialised by the BKL in
+ *   fs/char_dev.c:chrdev_open()
  * Note that if this fails, then uart_close() _will_ be called.
  *
  * In time, we want to scrap the "opening nonpresent ports"

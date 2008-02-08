@@ -357,7 +357,7 @@ void cdev_put(struct cdev *p)
 /*
  * Called every time a character special file is opened
  */
-int chrdev_open(struct inode * inode, struct file * filp)
+static int chrdev_open(struct inode *inode, struct file *filp)
 {
 	struct cdev *p;
 	struct cdev *new = NULL;
