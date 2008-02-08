@@ -420,6 +420,13 @@ static const struct ad7877_platform_data bfin_ad7877_ts_info = {
 };
 #endif
 
+#if defined(CONFIG_SPI_SPIDEV) || defined(CONFIG_SPI_SPIDEV_MODULE)
+static struct bfin5xx_spi_chip spidev_chip_info = {
+	.enable_dma = 0,
+	.bits_per_word = 8,
+};
+#endif
+
 static struct spi_board_info bf54x_spi_board_info[] __initdata = {
 #if defined(CONFIG_MTD_M25P80) \
 	|| defined(CONFIG_MTD_M25P80_MODULE)
@@ -444,6 +451,15 @@ static struct spi_board_info bf54x_spi_board_info[] __initdata = {
 	.chip_select  		= 2,
 	.controller_data = &spi_ad7877_chip_info,
 },
+#endif
+#if defined(CONFIG_SPI_SPIDEV) || defined(CONFIG_SPI_SPIDEV_MODULE)
+	{
+		.modalias = "spidev",
+		.max_speed_hz = 3125000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 1,
+		.controller_data = &spidev_chip_info,
+	},
 #endif
 };
 
