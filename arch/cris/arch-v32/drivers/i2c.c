@@ -395,14 +395,10 @@ i2c_write(unsigned char theSlave, void *data, size_t nbytes)
 	unsigned char value;
 	unsigned long flags;
 
-	spin_lock(&i2c_lock);
+	spin_lock_irqsave(&i2c_lock, flags);
 
 	do {
 		error = 0;
-		/*
-		 * we don't like to be interrupted
-		 */
-		local_irq_save(flags);
 
 		i2c_start();
 		/*
@@ -430,16 +426,12 @@ i2c_write(unsigned char theSlave, void *data, size_t nbytes)
 		 * end byte stream
 		 */
 		i2c_stop();
-		/*
-		 * enable interrupt again
-		 */
-		local_irq_restore(flags);
 
 	} while (error && cntr--);
 
 	i2c_delay(CLOCK_LOW_TIME);
 
-	spin_unlock(&i2c_lock);
+	spin_unlock_irqrestore(&i2c_lock, flags);
 
 	return -error;
 }
@@ -459,15 +451,11 @@ i2c_read(unsigned char theSlave, void *data, size_t nbytes)
 	int error, cntr = 3;
 	unsigned long flags;
 
-	spin_lock(&i2c_lock);
+	spin_lock_irqsave(&i2c_lock, flags);
 
 	do {
 		error = 0;
 		memset(data, 0, nbytes);
-		/*
-		 * we don't like to be interrupted
-		 */
-		local_irq_save(flags);
 		/*
 		 * generate start condition
 		 */
@@ -500,13 +488,9 @@ i2c_read(unsigned char theSlave, void *data, size_t nbytes)
 		 * end sequence
 		 */
 		i2c_stop();
-		/*
-		 * enable interrupt again
-		 */
-		local_irq_restore(flags);
 	} while (error && cntr--);
 
-	spin_unlock(&i2c_lock);
+	spin_unlock_irqrestore(&i2c_lock, flags);
 
 	return -error;
 }
@@ -525,14 +509,10 @@ i2c_writereg(unsigned char theSlave, unsigned char theReg,
 	int error, cntr = 3;
 	unsigned long flags;
 
-	spin_lock(&i2c_lock);
+	spin_lock_irqsave(&i2c_lock, flags);
 
 	do {
 		error = 0;
-		/*
-		 * we don't like to be interrupted
-		 */
-                local_irq_save(flags);
 
 		i2c_start();
 		/*
@@ -567,15 +547,11 @@ i2c_writereg(unsigned char theSlave, unsigned char theReg,
 		 * end byte stream
 		 */
 		i2c_stop();
-		/*
-		 * enable interrupt again
-		 */
-		local_irq_restore(flags);
 	} while(error && cntr--);
 
 	i2c_delay(CLOCK_LOW_TIME);
 
-	spin_unlock(&i2c_lock);
+	spin_unlock_irqrestore(&i2c_lock, flags);
 
 	return -error;
 }
@@ -594,14 +570,10 @@ i2c_readreg(unsigned char theSlave, unsigned char theReg)
 	int error, cntr = 3;
 	unsigned long flags;
 
-	spin_lock(&i2c_lock);
+	spin_lock_irqsave(&i2c_lock, flags);
 
 	do {
 		error = 0;
-		/*
-		 * we don't like to be interrupted
-		 */
-                local_irq_save(flags);
 		/*
 		 * generate start condition
 		 */
@@ -653,14 +625,10 @@ i2c_readreg(unsigned char theSlave, unsigned char theReg)
 		 * end sequence
 		 */
 		i2c_stop();
-		/*
-		 * enable interrupt again
-		 */
-		local_irq_restore(flags);
 
 	} while(error && cntr--);
 
-	spin_unlock(&i2c_lock);
+	spin_unlock_irqrestore(&i2c_lock, flags);
 
 	return b;
 }
@@ -685,7 +653,7 @@ i2c_ioctl(struct inode *inode, struct file *file,
 	  unsigned int cmd, unsigned long arg)
 {
 	if(_IOC_TYPE(cmd) != ETRAXI2C_IOCTYPE) {
-		return -EINVAL;
+		return -ENOTTY;
 	}
 
 	switch (_IOC_NR(cmd)) {
@@ -725,8 +693,7 @@ static const struct file_operations i2c_fops = {
 	.release =  i2c_release,
 };
 
-int __init
-i2c_init(void)
+static int __init i2c_init(void)
 {
 	static int res;
 	static int first = 1;
@@ -750,10 +717,8 @@ i2c_init(void)
 }
 
 
-int __init
-i2c_register(void)
+static int __init i2c_register(void)
 {
-
 	int res;
 
 	res = i2c_init();
@@ -763,7 +728,7 @@ i2c_register(void)
 	/* register char device */
 
 	res = register_chrdev(I2C_MAJOR, i2c_name, &i2c_fops);
-	if(res < 0) {
+	if (res < 0) {
 		printk(KERN_ERR "i2c: couldn't get a major number.\n");
 		return res;
 	}
@@ -773,9 +738,7 @@ i2c_register(void)
 
 	return 0;
 }
-
 /* this makes sure that i2c_init is called during boot */
-
 module_init(i2c_register);
 
 /****************** END OF FILE i2c.c ********************************/
