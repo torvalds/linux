@@ -183,7 +183,7 @@ pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
 	return (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
 }
 
-struct page *pte_alloc_one(struct mm_struct *mm, unsigned long address)
+pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
 {
 	struct page *pte;
 
@@ -192,6 +192,8 @@ struct page *pte_alloc_one(struct mm_struct *mm, unsigned long address)
 #else
 	pte = alloc_pages(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO, 0);
 #endif
+	if (pte)
+		pgtable_page_ctor(pte);
 	return pte;
 }
 
@@ -365,6 +367,7 @@ void check_pgt_cache(void)
 
 void __pte_free_tlb(struct mmu_gather *tlb, struct page *pte)
 {
+	pgtable_page_dtor(pte);
 	paravirt_release_pt(page_to_pfn(pte));
 	tlb_remove_page(tlb, pte);
 }

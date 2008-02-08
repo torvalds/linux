@@ -25,6 +25,7 @@ typedef struct { unsigned long	ste[64];} pmd_t;
 typedef struct { pmd_t		pue[1]; } pud_t;
 typedef struct { pud_t		pge[1];	} pgd_t;
 typedef struct { unsigned long	pgprot;	} pgprot_t;
+typedef struct page *pgtable_t;
 
 #define pte_val(x)	((x).pte)
 #define pmd_val(x)	((x).ste[0])

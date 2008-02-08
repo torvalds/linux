@@ -190,6 +190,8 @@ extern int page_is_ram(unsigned long pfn);
 
 struct vm_area_struct;
 
+typedef struct page *pgtable_t;
+
 #include <asm-generic/memory_model.h>
 #endif /* __ASSEMBLY__ */
 

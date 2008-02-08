@@ -123,6 +123,8 @@ typedef unsigned long iopgprot_t;
 
 #endif
 
+typedef struct page *pgtable_t;
+
 extern unsigned long sparc_unmapped_base;
 
 BTFIXUPDEF_SETHI(sparc_unmapped_base)

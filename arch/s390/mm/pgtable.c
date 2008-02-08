@@ -78,6 +78,7 @@ unsigned long *page_table_alloc(int noexec)
 		clear_table(table, _PAGE_TYPE_EMPTY, PAGE_SIZE);
 		page->index = (addr_t) table;
 	}
+	pgtable_page_ctor(page);
 	table = (unsigned long *) page_to_phys(page);
 	clear_table(table, _PAGE_TYPE_EMPTY, PAGE_SIZE);
 	return table;
@@ -87,6 +88,7 @@ void page_table_free(unsigned long *table)
 {
 	unsigned long *shadow = get_shadow_pte(table);
 
+	pgtable_page_dtor(virt_to_page(table));
 	if (shadow)
 		free_page((unsigned long) shadow);
 	free_page((unsigned long) table);

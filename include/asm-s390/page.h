@@ -109,6 +109,8 @@ typedef struct { unsigned long pgd; } pgd_t;
 
 #endif /* __s390x__ */
 
+typedef struct page *pgtable_t;
+
 #define __pte(x)        ((pte_t) { (x) } )
 #define __pmd(x)        ((pmd_t) { (x) } )
 #define __pgd(x)        ((pgd_t) { (x) } )

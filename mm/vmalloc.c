@@ -820,7 +820,7 @@ void  __attribute__((weak)) vmalloc_sync_all(void)
 }
 
 
-static int f(pte_t *pte, struct page *pmd_page, unsigned long addr, void *data)
+static int f(pte_t *pte, pgtable_t table, unsigned long addr, void *data)
 {
 	/* apply_to_page_range() does all the hard work. */
 	return 0;

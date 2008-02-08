@@ -132,7 +132,7 @@ pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd, pte_t *pte)
 }
 
 static inline void
-pmd_populate(struct mm_struct *mm, pmd_t *pmd, struct page *page)
+pmd_populate(struct mm_struct *mm, pmd_t *pmd, pgtable_t page)
 {
 	pte_t *pte = (pte_t *)page_to_phys(page);
 	pmd_t *shadow_pmd = get_shadow_table(pmd);
@@ -142,6 +142,7 @@ pmd_populate(struct mm_struct *mm, pmd_t *pmd, struct page *page)
 	if (shadow_pmd && shadow_pte)
 		pmd_populate_kernel(mm, shadow_pmd, shadow_pte);
 }
+#define pmd_pgtable(pmd) pmd_page(pmd)
 
 /*
  * page table entry allocation/free routines.

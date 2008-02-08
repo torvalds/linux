@@ -90,6 +90,7 @@ typedef struct { unsigned long pte; } pte_t;
 #define pte_val(x)	((x).pte)
 #define __pte(x)	((pte_t) { (x) } )
 #endif
+typedef struct page *pgtable_t;
 
 /*
  * For 3-level pagetables we defines these ourselves, for 2-level the

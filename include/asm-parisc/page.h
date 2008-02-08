@@ -91,6 +91,7 @@ typedef unsigned long pgprot_t;
 
 #endif /* STRICT_MM_TYPECHECKS */
 
+typedef struct page *pgtable_t;
 
 typedef struct __physmem_range {
 	unsigned long start_pfn;

@@ -24,6 +24,7 @@
 	(pmd_val(*(pmdp)) = ((unsigned long)ptep))
 #define pmd_populate(mm, pmdp, page)					     \
 	(pmd_val(*(pmdp)) = ((unsigned long)page_to_virt(page)))
+#define pmd_pgtable(pmd) pmd_page(pmd)
 
 static inline pgd_t*
 pgd_alloc(struct mm_struct *mm)
@@ -46,10 +47,14 @@ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
 	return kmem_cache_alloc(pgtable_cache, GFP_KERNEL|__GFP_REPEAT);
 }
 
-static inline struct page *pte_alloc_one(struct mm_struct *mm, 
-					 unsigned long addr)
+static inline pte_token_t pte_alloc_one(struct mm_struct *mm,
+					unsigned long addr)
 {
-	return virt_to_page(pte_alloc_one_kernel(mm, addr));
+	struct page *page;
+
+	page = virt_to_page(pte_alloc_one_kernel(mm, addr));
+	pgtable_page_ctor(page);
+	return page;
 }
 
 static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
@@ -57,10 +62,12 @@ static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 	kmem_cache_free(pgtable_cache, pte);
 }
 
-static inline void pte_free(struct mm_struct *mm, struct page *page)
+static inline void pte_free(struct mm_struct *mm, pgtable_t pte)
 {
-	kmem_cache_free(pgtable_cache, page_address(page));
+	pgtable_page_dtor(pte);
+	kmem_cache_free(pgtable_cache, page_address(pte));
 }
+#define pmd_pgtable(pmd) pmd_page(pmd)
 
 #endif /* __KERNEL__ */
 #endif /* _XTENSA_PGALLOC_H */

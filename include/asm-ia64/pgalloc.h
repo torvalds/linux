@@ -70,10 +70,11 @@ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
 #define __pmd_free_tlb(tlb, pmd)	pmd_free((tlb)->mm, pmd)
 
 static inline void
-pmd_populate(struct mm_struct *mm, pmd_t * pmd_entry, struct page *pte)
+pmd_populate(struct mm_struct *mm, pmd_t * pmd_entry, pgtable_t pte)
 {
 	pmd_val(*pmd_entry) = page_to_phys(pte);
 }
+#define pmd_pgtable(pmd) pmd_page(pmd)
 
 static inline void
 pmd_populate_kernel(struct mm_struct *mm, pmd_t * pmd_entry, pte_t * pte)
@@ -81,11 +82,17 @@ pmd_populate_kernel(struct mm_struct *mm, pmd_t * pmd_entry, pte_t * pte)
 	pmd_val(*pmd_entry) = __pa(pte);
 }
 
-static inline struct page *pte_alloc_one(struct mm_struct *mm,
-					 unsigned long addr)
+static inline pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long addr)
 {
-	void *pg = quicklist_alloc(0, GFP_KERNEL, NULL);
-	return pg ? virt_to_page(pg) : NULL;
+	struct page *page;
+	void *pg;
+
+	pg = quicklist_alloc(0, GFP_KERNEL, NULL);
+	if (!pg)
+		return NULL;
+	page = virt_to_page(pg);
+	pgtable_page_ctor(page);
+	return page;
 }
 
 static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
@@ -94,8 +101,9 @@ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
 	return quicklist_alloc(0, GFP_KERNEL, NULL);
 }
 
-static inline void pte_free(struct mm_struct *mm, struct page *pte)
+static inline void pte_free(struct mm_struct *mm, pgtable_t pte)
 {
+	pgtable_page_dtor(pte);
 	quicklist_free_page(0, NULL, pte);
 }
 

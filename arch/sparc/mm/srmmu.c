@@ -489,14 +489,17 @@ srmmu_pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
 	return (pte_t *)srmmu_get_nocache(PTE_SIZE, PTE_SIZE);
 }
 
-static struct page *
+static pgtable_t
 srmmu_pte_alloc_one(struct mm_struct *mm, unsigned long address)
 {
 	unsigned long pte;
+	struct page *page;
 
 	if ((pte = (unsigned long)srmmu_pte_alloc_one_kernel(mm, address)) == 0)
 		return NULL;
-	return pfn_to_page( __nocache_pa(pte) >> PAGE_SHIFT );
+	page = pfn_to_page( __nocache_pa(pte) >> PAGE_SHIFT );
+	pgtable_page_ctor(page);
+	return page;
 }
 
 static void srmmu_free_pte_fast(pte_t *pte)
@@ -504,10 +507,11 @@ static void srmmu_free_pte_fast(pte_t *pte)
 	srmmu_free_nocache((unsigned long)pte, PTE_SIZE);
 }
 
-static void srmmu_pte_free(struct page *pte)
+static void srmmu_pte_free(pgtable_t pte)
 {
 	unsigned long p;
 
+	pgtable_page_dtor(pte);
 	p = (unsigned long)page_address(pte);	/* Cached address (for test) */
 	if (p == 0)
 		BUG();

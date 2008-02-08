@@ -6,6 +6,7 @@
 
 #define pmd_populate_kernel(mm, pmd, pte) pmd_set(pmd, pte)
 #define pmd_populate(mm, pmd, pte) pmd_set(pmd, page_address(pte))
+#define pmd_pgtable(pmd) pmd_page(pmd)
 
 /*
  * Allocate and free page tables.
@@ -27,10 +28,11 @@ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long ad
  	return pte;
 }
 
-static inline struct page *pte_alloc_one(struct mm_struct *mm, unsigned long address)
+static inline pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
 {
 	struct page *pte;
 	pte = alloc_pages(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO, 0);
+	pgtable_page_ctor(pte);
 	return pte;
 }
 
@@ -39,13 +41,17 @@ static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 	free_page((unsigned long)pte);
 }
 
-static inline void pte_free(struct mm_struct *mm, struct page *pte)
+static inline void pte_free(struct mm_struct *mm, pgtable_t pte)
 {
+	pgtable_page_dtor(pte);
 	__free_page(pte);
 }
 
-
-#define __pte_free_tlb(tlb,pte) tlb_remove_page((tlb),(pte))
+#define __pte_free_tlb(tlb,pte)				\
+do {							\
+	pgtable_page_dtor(pte);				\
+	tlb_remove_page((tlb), pte);			\
+} while (0)
 
 #define check_pgt_cache()          do { } while (0)
 

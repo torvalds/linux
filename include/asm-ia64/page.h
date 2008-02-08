@@ -185,6 +185,7 @@ get_order (unsigned long size)
 #endif
   typedef struct { unsigned long pgd; } pgd_t;
   typedef struct { unsigned long pgprot; } pgprot_t;
+  typedef struct page *pgtable_t;
 
 # define pte_val(x)	((x).pte)
 # define pmd_val(x)	((x).pmd)
@@ -206,6 +207,7 @@ get_order (unsigned long size)
     typedef unsigned long pmd_t;
     typedef unsigned long pgd_t;
     typedef unsigned long pgprot_t;
+    typedef struct page *pgtable_t;
 # endif
 
 # define pte_val(x)	(x)
