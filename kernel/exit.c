@@ -745,24 +745,6 @@ static void exit_notify(struct task_struct *tsk)
 	struct task_struct *t;
 	struct pid *pgrp;
 
-	if (signal_pending(tsk) && !(tsk->signal->flags & SIGNAL_GROUP_EXIT)
-	    && !thread_group_empty(tsk)) {
-		/*
-		 * This occurs when there was a race between our exit
-		 * syscall and a group signal choosing us as the one to
-		 * wake up.  It could be that we are the only thread
-		 * alerted to check for pending signals, but another thread
-		 * should be woken now to take the signal since we will not.
-		 * Now we'll wake all the threads in the group just to make
-		 * sure someone gets all the pending signals.
-		 */
-		spin_lock_irq(&tsk->sighand->siglock);
-		for (t = next_thread(tsk); t != tsk; t = next_thread(t))
-			if (!signal_pending(t) && !(t->flags & PF_EXITING))
-				recalc_sigpending_and_wake(t);
-		spin_unlock_irq(&tsk->sighand->siglock);
-	}
-
 	/*
 	 * This does two things:
 	 *
