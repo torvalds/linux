@@ -1351,7 +1351,7 @@ static int wait_task_zombie(struct task_struct *p, int noreap,
  * the lock and this task is uninteresting.  If we return nonzero, we have
  * released the lock and the system call should return.
  */
-static int wait_task_stopped(struct task_struct *p, int delayed_group_leader,
+static int wait_task_stopped(struct task_struct *p,
 			     int noreap, struct siginfo __user *infop,
 			     int __user *stat_addr, struct rusage __user *ru)
 {
@@ -1365,8 +1365,7 @@ static int wait_task_stopped(struct task_struct *p, int delayed_group_leader,
 	if (unlikely(!task_is_stopped_or_traced(p)))
 		goto unlock_sig;
 
-	if (delayed_group_leader && !(p->ptrace & PT_PTRACED) &&
-	    p->signal->group_stop_count > 0)
+	if (!(p->ptrace & PT_PTRACED) && p->signal->group_stop_count > 0)
 		/*
 		 * A group stop is in progress and this is the group leader.
 		 * We won't report until all threads have stopped.
@@ -1522,7 +1521,7 @@ repeat:
 				    !(options & WUNTRACED))
 					continue;
 
-				retval = wait_task_stopped(p, ret == 2,
+				retval = wait_task_stopped(p,
 						(options & WNOWAIT), infop,
 						stat_addr, ru);
 			} else if (p->exit_state == EXIT_ZOMBIE) {
