@@ -80,10 +80,11 @@ struct crypt_config {
 	sector_t start;
 
 	/*
-	 * pool for per bio private data and
-	 * for encryption buffer pages
+	 * pool for per bio private data, crypto requests and
+	 * encryption requeusts/buffer pages
 	 */
 	mempool_t *io_pool;
+	mempool_t *req_pool;
 	mempool_t *page_pool;
 	struct bio_set *bs;
 
@@ -100,6 +101,22 @@ struct crypt_config {
 	} iv_gen_private;
 	sector_t iv_offset;
 	unsigned int iv_size;
+
+	/*
+	 * Layout of each crypto request:
+	 *
+	 *   struct ablkcipher_request
+	 *      context
+	 *      padding
+	 *   struct dm_crypt_request
+	 *      padding
+	 *   IV
+	 *
+	 * The padding is added so that dm_crypt_request and the IV are
+	 * correctly aligned.
+	 */
+	unsigned int dmreq_start;
+	struct ablkcipher_request *req;
 
 	char cipher[CRYPTO_MAX_ALG_NAME];
 	char chainmode[CRYPTO_MAX_ALG_NAME];
@@ -375,6 +392,13 @@ static int crypt_convert_block(struct crypt_config *cc,
 					 dmreq.sg_in.length,
 					 bio_data_dir(ctx->bio_in) == WRITE,
 					 ctx->sector);
+}
+
+static void crypt_alloc_req(struct crypt_config *cc,
+			    struct convert_context *ctx)
+{
+	if (!cc->req)
+		cc->req = mempool_alloc(cc->req_pool, GFP_NOIO);
 }
 
 /*
@@ -882,6 +906,17 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad_slab_pool;
 	}
 
+	cc->dmreq_start = sizeof(struct ablkcipher_request);
+	cc->dmreq_start = ALIGN(cc->dmreq_start, crypto_tfm_ctx_alignment());
+
+	cc->req_pool = mempool_create_kmalloc_pool(MIN_IOS, cc->dmreq_start +
+			sizeof(struct dm_crypt_request) + cc->iv_size);
+	if (!cc->req_pool) {
+		ti->error = "Cannot allocate crypt request mempool";
+		goto bad_req_pool;
+	}
+	cc->req = NULL;
+
 	cc->page_pool = mempool_create_page_pool(MIN_POOL_PAGES, 0);
 	if (!cc->page_pool) {
 		ti->error = "Cannot allocate page mempool";
@@ -955,6 +990,8 @@ bad_device:
 bad_bs:
 	mempool_destroy(cc->page_pool);
 bad_page_pool:
+	mempool_destroy(cc->req_pool);
+bad_req_pool:
 	mempool_destroy(cc->io_pool);
 bad_slab_pool:
 	if (cc->iv_gen_ops && cc->iv_gen_ops->dtr)
@@ -975,8 +1012,12 @@ static void crypt_dtr(struct dm_target *ti)
 	destroy_workqueue(cc->io_queue);
 	destroy_workqueue(cc->crypt_queue);
 
+	if (cc->req)
+		mempool_free(cc->req, cc->req_pool);
+
 	bioset_free(cc->bs);
 	mempool_destroy(cc->page_pool);
+	mempool_destroy(cc->req_pool);
 	mempool_destroy(cc->io_pool);
 
 	kfree(cc->iv_mode);
