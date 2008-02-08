@@ -332,7 +332,7 @@ void __show_registers(struct pt_regs *regs, int all)
 			init_utsname()->version);
 
 	printk("EIP: %04x:[<%08lx>] EFLAGS: %08lx CPU: %d\n",
-			0xffff & regs->cs, regs->ip, regs->flags,
+			(u16)regs->cs, regs->ip, regs->flags,
 			smp_processor_id());
 	print_symbol("EIP is at %s\n", regs->ip);
 
@@ -341,8 +341,7 @@ void __show_registers(struct pt_regs *regs, int all)
 	printk("ESI: %08lx EDI: %08lx EBP: %08lx ESP: %08lx\n",
 		regs->si, regs->di, regs->bp, sp);
 	printk(" DS: %04x ES: %04x FS: %04x GS: %04x SS: %04x\n",
-	       regs->ds & 0xffff, regs->es & 0xffff,
-	       regs->fs & 0xffff, gs, ss);
+	       (u16)regs->ds, (u16)regs->es, (u16)regs->fs, gs, ss);
 
 	if (!all)
 		return;

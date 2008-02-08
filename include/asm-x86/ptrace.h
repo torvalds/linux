@@ -36,23 +36,23 @@ struct pt_regs {
 #else /* __KERNEL__ */
 
 struct pt_regs {
-	long bx;
-	long cx;
-	long dx;
-	long si;
-	long di;
-	long bp;
+	unsigned long bx;
+	unsigned long cx;
+	unsigned long dx;
+	unsigned long si;
+	unsigned long di;
+	unsigned long bp;
 	long ax;
-	int  ds;
-	int  es;
-	int  fs;
+	unsigned long ds;
+	unsigned long es;
+	unsigned long fs;
 	/* int  gs; */
 	long orig_ax;
-	long ip;
-	int  cs;
-	long flags;
-	long sp;
-	int  ss;
+	unsigned long ip;
+	unsigned long cs;
+	unsigned long flags;
+	unsigned long sp;
+	unsigned long ss;
 };
 
 #include <asm/vm86.h>

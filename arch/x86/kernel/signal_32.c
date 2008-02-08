@@ -393,8 +393,8 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 	regs->sp = (unsigned long) frame;
 	regs->ip = (unsigned long) ka->sa.sa_handler;
 	regs->ax = (unsigned long) sig;
-	regs->dx = (unsigned long) 0;
-	regs->cx = (unsigned long) 0;
+	regs->dx = 0;
+	regs->cx = 0;
 
 	regs->ds = __USER_DS;
 	regs->es = __USER_DS;
