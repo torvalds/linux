@@ -605,6 +605,16 @@ int hugetlb_treat_movable_handler(struct ctl_table *table, int write,
 	return 0;
 }
 
+int hugetlb_overcommit_handler(struct ctl_table *table, int write,
+			struct file *file, void __user *buffer,
+			size_t *length, loff_t *ppos)
+{
+	spin_lock(&hugetlb_lock);
+	proc_doulongvec_minmax(table, write, file, buffer, length, ppos);
+	spin_unlock(&hugetlb_lock);
+	return 0;
+}
+
 #endif /* CONFIG_SYSCTL */
 
 int hugetlb_report_meminfo(char *buf)

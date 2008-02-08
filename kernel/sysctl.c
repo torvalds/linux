@@ -982,7 +982,7 @@ static struct ctl_table vm_table[] = {
 		.data		= &nr_overcommit_huge_pages,
 		.maxlen		= sizeof(nr_overcommit_huge_pages),
 		.mode		= 0644,
-		.proc_handler	= &proc_doulongvec_minmax,
+		.proc_handler	= &hugetlb_overcommit_handler,
 	},
 #endif
 	{
