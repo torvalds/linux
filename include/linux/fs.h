@@ -2056,7 +2056,7 @@ static int __fops ## _open(struct inode *inode, struct file *file)	\
 static struct file_operations __fops = {				\
 	.owner	 = THIS_MODULE,						\
 	.open	 = __fops ## _open,					\
-	.release = simple_attr_close,					\
+	.release = simple_attr_release,					\
 	.read	 = simple_attr_read,					\
 	.write	 = simple_attr_write,					\
 };
@@ -2070,7 +2070,7 @@ __simple_attr_check_format(const char *fmt, ...)
 int simple_attr_open(struct inode *inode, struct file *file,
 		     int (*get)(void *, u64 *), int (*set)(void *, u64),
 		     const char *fmt);
-int simple_attr_close(struct inode *inode, struct file *file);
+int simple_attr_release(struct inode *inode, struct file *file);
 ssize_t simple_attr_read(struct file *file, char __user *buf,
 			 size_t len, loff_t *ppos);
 ssize_t simple_attr_write(struct file *file, const char __user *buf,

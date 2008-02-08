@@ -470,7 +470,7 @@ spufs_cntl_release(struct inode *inode, struct file *file)
 	struct spufs_inode_info *i = SPUFS_I(inode);
 	struct spu_context *ctx = i->i_ctx;
 
-	simple_attr_close(inode, file);
+	simple_attr_release(inode, file);
 
 	mutex_lock(&ctx->mapping_lock);
 	if (!--i->i_openers)
