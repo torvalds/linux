@@ -250,6 +250,28 @@ static void __init dmi_save_ipmi_device(const struct dmi_header *dm)
 	list_add(&dev->list, &dmi_devices);
 }
 
+static void __init dmi_save_extended_devices(const struct dmi_header *dm)
+{
+	const u8 *d = (u8*) dm + 5;
+	struct dmi_device *dev;
+
+	/* Skip disabled device */
+	if ((*d & 0x80) == 0)
+		return;
+
+	dev = dmi_alloc(sizeof(*dev));
+	if (!dev) {
+		printk(KERN_ERR "dmi_save_extended_devices: out of memory.\n");
+		return;
+	}
+
+	dev->type = *d-- & 0x7f;
+	dev->name = dmi_string(dm, *d);
+	dev->device_data = NULL;
+
+	list_add(&dev->list, &dmi_devices);
+}
+
 /*
  *	Process a DMI table entry. Right now all we care about are the BIOS
  *	and machine entries. For 2.5 we should pull the smbus controller info
@@ -292,6 +314,9 @@ static void __init dmi_decode(const struct dmi_header *dm)
 		break;
 	case 38:	/* IPMI Device Information */
 		dmi_save_ipmi_device(dm);
+		break;
+	case 41:	/* Onboard Devices Extended Information */
+		dmi_save_extended_devices(dm);
 	}
 }
 
