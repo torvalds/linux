@@ -395,7 +395,6 @@ static struct fileIdentDesc *udf_add_entry(struct inode *dir,
 		}
 
 		block = dinfo->i_location.logicalBlockNum;
-
 	} else {
 		block = udf_get_lb_pblock(dir->i_sb, dinfo->i_location, 0);
 		fibh->sbh = fibh->ebh = NULL;
@@ -474,6 +473,14 @@ static struct fileIdentDesc *udf_add_entry(struct inode *dir,
 	}
 
 add:
+	if (dinfo->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB) {
+		elen = (elen + sb->s_blocksize - 1) & ~(sb->s_blocksize - 1);
+		if (dinfo->i_alloc_type == ICBTAG_FLAG_AD_SHORT)
+			epos.offset -= sizeof(short_ad);
+		else if (dinfo->i_alloc_type == ICBTAG_FLAG_AD_LONG)
+			epos.offset -= sizeof(long_ad);
+		udf_write_aext(dir, &epos, eloc, elen, 1);
+	}
 	f_pos += nfidlen;
 
 	if (dinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB &&
@@ -491,15 +498,9 @@ add:
 		if (!fibh->sbh)
 			return NULL;
 		epos.block = dinfo->i_location;
-		eloc.logicalBlockNum = block;
-		eloc.partitionReferenceNum =
-				dinfo->i_location.partitionReferenceNum;
-		elen = dir->i_sb->s_blocksize;
 		epos.offset = udf_file_entry_alloc_offset(dir);
-		if (dinfo->i_alloc_type == ICBTAG_FLAG_AD_SHORT)
-			epos.offset += sizeof(short_ad);
-		else if (dinfo->i_alloc_type == ICBTAG_FLAG_AD_LONG)
-			epos.offset += sizeof(long_ad);
+		/* Load extent udf_expand_dir_adinicb() has created */
+		udf_current_aext(dir, &epos, &eloc, &elen, 1);
 	}
 
 	if (sb->s_blocksize - fibh->eoffset >= nfidlen) {

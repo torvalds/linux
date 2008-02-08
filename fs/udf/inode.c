@@ -289,7 +289,7 @@ struct buffer_head *udf_expand_dir_adinicb(struct inode *inode, int *block,
 	eloc.logicalBlockNum = *block;
 	eloc.partitionReferenceNum =
 				iinfo->i_location.partitionReferenceNum;
-	elen = inode->i_size;
+	elen = inode->i_sb->s_blocksize;
 	iinfo->i_lenExtents = elen;
 	epos.bh = NULL;
 	epos.block = iinfo->i_location;
