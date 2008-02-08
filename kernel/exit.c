@@ -1189,12 +1189,9 @@ static int wait_task_zombie(struct task_struct *p, int noreap,
 {
 	unsigned long state;
 	int retval, status, traced;
-	struct pid_namespace *ns;
-
-	ns = current->nsproxy->pid_ns;
+	pid_t pid = task_pid_nr_ns(p, current->nsproxy->pid_ns);
 
 	if (unlikely(noreap)) {
-		pid_t pid = task_pid_nr_ns(p, ns);
 		uid_t uid = p->uid;
 		int exit_code = p->exit_code;
 		int why, status;
@@ -1313,11 +1310,11 @@ static int wait_task_zombie(struct task_struct *p, int noreap,
 			retval = put_user(status, &infop->si_status);
 	}
 	if (!retval && infop)
-		retval = put_user(task_pid_nr_ns(p, ns), &infop->si_pid);
+		retval = put_user(pid, &infop->si_pid);
 	if (!retval && infop)
 		retval = put_user(p->uid, &infop->si_uid);
 	if (!retval)
-		retval = task_pid_nr_ns(p, ns);
+		retval = pid;
 
 	if (traced) {
 		write_lock_irq(&tasklist_lock);
@@ -1436,7 +1433,6 @@ static int wait_task_continued(struct task_struct *p, int noreap,
 	int retval;
 	pid_t pid;
 	uid_t uid;
-	struct pid_namespace *ns;
 
 	if (!(p->signal->flags & SIGNAL_STOP_CONTINUED))
 		return 0;
@@ -1451,8 +1447,7 @@ static int wait_task_continued(struct task_struct *p, int noreap,
 		p->signal->flags &= ~SIGNAL_STOP_CONTINUED;
 	spin_unlock_irq(&p->sighand->siglock);
 
-	ns = current->nsproxy->pid_ns;
-	pid = task_pid_nr_ns(p, ns);
+	pid = task_pid_nr_ns(p, current->nsproxy->pid_ns);
 	uid = p->uid;
 	get_task_struct(p);
 	read_unlock(&tasklist_lock);
@@ -1463,7 +1458,7 @@ static int wait_task_continued(struct task_struct *p, int noreap,
 		if (!retval && stat_addr)
 			retval = put_user(0xffff, stat_addr);
 		if (!retval)
-			retval = task_pid_nr_ns(p, ns);
+			retval = pid;
 	} else {
 		retval = wait_noreap_copyout(p, pid, uid,
 					     CLD_CONTINUED, SIGCONT,
