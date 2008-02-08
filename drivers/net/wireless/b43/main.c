@@ -4200,6 +4200,33 @@ static struct ssb_driver b43_ssb_driver = {
 	.resume		= b43_resume,
 };
 
+static void b43_print_driverinfo(void)
+{
+	const char *feat_pci = "", *feat_pcmcia = "", *feat_nphy = "",
+		   *feat_leds = "", *feat_rfkill = "";
+
+#ifdef CONFIG_B43_PCI_AUTOSELECT
+	feat_pci = "P";
+#endif
+#ifdef CONFIG_B43_PCMCIA
+	feat_pcmcia = "M";
+#endif
+#ifdef CONFIG_B43_NPHY
+	feat_nphy = "N";
+#endif
+#ifdef CONFIG_B43_LEDS
+	feat_leds = "L";
+#endif
+#ifdef CONFIG_B43_RFKILL
+	feat_rfkill = "R";
+#endif
+	printk(KERN_INFO "Broadcom 43xx driver loaded "
+	       "[ Features: %s%s%s%s%s, Firmware-ID: "
+	       B43_SUPPORTED_FIRMWARE_ID " ]\n",
+	       feat_pci, feat_pcmcia, feat_nphy,
+	       feat_leds, feat_rfkill);
+}
+
 static int __init b43_init(void)
 {
 	int err;
@@ -4211,6 +4238,7 @@ static int __init b43_init(void)
 	err = ssb_driver_register(&b43_ssb_driver);
 	if (err)
 		goto err_pcmcia_exit;
+	b43_print_driverinfo();
 
 	return err;
 
