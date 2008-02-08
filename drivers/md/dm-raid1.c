@@ -20,6 +20,7 @@
 #include <linux/vmalloc.h>
 #include <linux/workqueue.h>
 #include <linux/log2.h>
+#include <linux/hardirq.h>
 
 #define DM_MSG_PREFIX "raid1"
 #define DM_IO_PAGES 64
@@ -113,9 +114,16 @@ struct region {
 /*-----------------------------------------------------------------
  * Mirror set structures.
  *---------------------------------------------------------------*/
+enum dm_raid1_error {
+	DM_RAID1_WRITE_ERROR,
+	DM_RAID1_SYNC_ERROR,
+	DM_RAID1_READ_ERROR
+};
+
 struct mirror {
 	struct mirror_set *ms;
 	atomic_t error_count;
+	uint32_t error_type;
 	struct dm_dev *dev;
 	sector_t offset;
 };
@@ -127,9 +135,10 @@ struct mirror_set {
 	struct kcopyd_client *kcopyd_client;
 	uint64_t features;
 
-	spinlock_t lock;	/* protects the next two lists */
+	spinlock_t lock;	/* protects the lists */
 	struct bio_list reads;
 	struct bio_list writes;
+	struct bio_list failures;
 
 	struct dm_io_client *io_client;
 
@@ -138,10 +147,11 @@ struct mirror_set {
 	int in_sync;
 	int log_failure;
 
-	struct mirror *default_mirror;	/* Default mirror */
+	atomic_t default_mirror;	/* Default mirror */
 
 	struct workqueue_struct *kmirrord_wq;
 	struct work_struct kmirrord_work;
+	struct work_struct trigger_event;
 
 	unsigned int nr_mirrors;
 	struct mirror mirror[0];
@@ -646,6 +656,77 @@ static void bio_set_ms(struct bio *bio, struct mirror_set *ms)
 	bio->bi_next = (struct bio *) ms;
 }
 
+static struct mirror *get_default_mirror(struct mirror_set *ms)
+{
+	return &ms->mirror[atomic_read(&ms->default_mirror)];
+}
+
+static void set_default_mirror(struct mirror *m)
+{
+	struct mirror_set *ms = m->ms;
+	struct mirror *m0 = &(ms->mirror[0]);
+
+	atomic_set(&ms->default_mirror, m - m0);
+}
+
+/* fail_mirror
+ * @m: mirror device to fail
+ * @error_type: one of the enum's, DM_RAID1_*_ERROR
+ *
+ * If errors are being handled, record the type of
+ * error encountered for this device.  If this type
+ * of error has already been recorded, we can return;
+ * otherwise, we must signal userspace by triggering
+ * an event.  Additionally, if the device is the
+ * primary device, we must choose a new primary, but
+ * only if the mirror is in-sync.
+ *
+ * This function must not block.
+ */
+static void fail_mirror(struct mirror *m, enum dm_raid1_error error_type)
+{
+	struct mirror_set *ms = m->ms;
+	struct mirror *new;
+
+	if (!errors_handled(ms))
+		return;
+
+	/*
+	 * error_count is used for nothing more than a
+	 * simple way to tell if a device has encountered
+	 * errors.
+	 */
+	atomic_inc(&m->error_count);
+
+	if (test_and_set_bit(error_type, &m->error_type))
+		return;
+
+	if (m != get_default_mirror(ms))
+		goto out;
+
+	if (!ms->in_sync) {
+		/*
+		 * Better to issue requests to same failing device
+		 * than to risk returning corrupt data.
+		 */
+		DMERR("Primary mirror (%s) failed while out-of-sync: "
+		      "Reads may fail.", m->dev->name);
+		goto out;
+	}
+
+	for (new = ms->mirror; new < ms->mirror + ms->nr_mirrors; new++)
+		if (!atomic_read(&new->error_count)) {
+			set_default_mirror(new);
+			break;
+		}
+
+	if (unlikely(new == ms->mirror + ms->nr_mirrors))
+		DMWARN("All sides of mirror have failed.");
+
+out:
+	schedule_work(&ms->trigger_event);
+}
+
 /*-----------------------------------------------------------------
  * Recovery.
  *
@@ -678,7 +759,7 @@ static int recover(struct mirror_set *ms, struct region *reg)
 	unsigned long flags = 0;
 
 	/* fill in the source */
-	m = ms->default_mirror;
+	m = get_default_mirror(ms);
 	from.bdev = m->dev->bdev;
 	from.sector = m->offset + region_to_sector(reg->rh, reg->key);
 	if (reg->key == (ms->nr_regions - 1)) {
@@ -694,7 +775,7 @@ static int recover(struct mirror_set *ms, struct region *reg)
 
 	/* fill in the destinations */
 	for (i = 0, dest = to; i < ms->nr_mirrors; i++) {
-		if (&ms->mirror[i] == ms->default_mirror)
+		if (&ms->mirror[i] == get_default_mirror(ms))
 			continue;
 
 		m = ms->mirror + i;
@@ -749,7 +830,7 @@ static void do_recovery(struct mirror_set *ms)
 static struct mirror *choose_mirror(struct mirror_set *ms, sector_t sector)
 {
 	/* FIXME: add read balancing */
-	return ms->default_mirror;
+	return get_default_mirror(ms);
 }
 
 /*
@@ -776,7 +857,7 @@ static void do_reads(struct mirror_set *ms, struct bio_list *reads)
 		if (rh_in_sync(&ms->rh, region, 1))
 			m = choose_mirror(ms, bio->bi_sector);
 		else
-			m = ms->default_mirror;
+			m = get_default_mirror(ms);
 
 		map_bio(ms, m, bio);
 		generic_make_request(bio);
@@ -793,12 +874,67 @@ static void do_reads(struct mirror_set *ms, struct bio_list *reads)
  * RECOVERING:	delay the io until recovery completes
  * NOSYNC:	increment pending, just write to the default mirror
  *---------------------------------------------------------------*/
+
+/* __bio_mark_nosync
+ * @ms
+ * @bio
+ * @done
+ * @error
+ *
+ * The bio was written on some mirror(s) but failed on other mirror(s).
+ * We can successfully endio the bio but should avoid the region being
+ * marked clean by setting the state RH_NOSYNC.
+ *
+ * This function is _not_ safe in interrupt context!
+ */
+static void __bio_mark_nosync(struct mirror_set *ms,
+			      struct bio *bio, unsigned done, int error)
+{
+	unsigned long flags;
+	struct region_hash *rh = &ms->rh;
+	struct dirty_log *log = ms->rh.log;
+	struct region *reg;
+	region_t region = bio_to_region(rh, bio);
+	int recovering = 0;
+
+	/* We must inform the log that the sync count has changed. */
+	log->type->set_region_sync(log, region, 0);
+	ms->in_sync = 0;
+
+	read_lock(&rh->hash_lock);
+	reg = __rh_find(rh, region);
+	read_unlock(&rh->hash_lock);
+
+	/* region hash entry should exist because write was in-flight */
+	BUG_ON(!reg);
+	BUG_ON(!list_empty(&reg->list));
+
+	spin_lock_irqsave(&rh->region_lock, flags);
+	/*
+	 * Possible cases:
+	 *   1) RH_DIRTY
+	 *   2) RH_NOSYNC: was dirty, other preceeding writes failed
+	 *   3) RH_RECOVERING: flushing pending writes
+	 * Either case, the region should have not been connected to list.
+	 */
+	recovering = (reg->state == RH_RECOVERING);
+	reg->state = RH_NOSYNC;
+	BUG_ON(!list_empty(&reg->list));
+	spin_unlock_irqrestore(&rh->region_lock, flags);
+
+	bio_endio(bio, error);
+	if (recovering)
+		complete_resync_work(reg, 0);
+}
+
 static void write_callback(unsigned long error, void *context)
 {
-	unsigned int i;
-	int uptodate = 1;
+	unsigned i, ret = 0;
 	struct bio *bio = (struct bio *) context;
 	struct mirror_set *ms;
+	int uptodate = 0;
+	int should_wake = 0;
+	unsigned long flags;
 
 	ms = bio_get_ms(bio);
 	bio_set_ms(bio, NULL);
@@ -809,20 +945,36 @@ static void write_callback(unsigned long error, void *context)
 	 * This way we handle both writes to SYNC and NOSYNC
 	 * regions with the same code.
 	 */
+	if (likely(!error))
+		goto out;
 
-	if (error) {
+	for (i = 0; i < ms->nr_mirrors; i++)
+		if (test_bit(i, &error))
+			fail_mirror(ms->mirror + i, DM_RAID1_WRITE_ERROR);
+		else
+			uptodate = 1;
+
+	if (unlikely(!uptodate)) {
+		DMERR("All replicated volumes dead, failing I/O");
+		/* None of the writes succeeded, fail the I/O. */
+		ret = -EIO;
+	} else if (errors_handled(ms)) {
 		/*
-		 * only error the io if all mirrors failed.
-		 * FIXME: bogus
+		 * Need to raise event.  Since raising
+		 * events can block, we need to do it in
+		 * the main thread.
 		 */
-		uptodate = 0;
-		for (i = 0; i < ms->nr_mirrors; i++)
-			if (!test_bit(i, &error)) {
-				uptodate = 1;
-				break;
-			}
+		spin_lock_irqsave(&ms->lock, flags);
+		if (!ms->failures.head)
+			should_wake = 1;
+		bio_list_add(&ms->failures, bio);
+		spin_unlock_irqrestore(&ms->lock, flags);
+		if (should_wake)
+			wake(ms);
+		return;
 	}
-	bio_endio(bio, 0);
+out:
+	bio_endio(bio, ret);
 }
 
 static void do_write(struct mirror_set *ms, struct bio *bio)
@@ -910,32 +1062,74 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 		rh_delay(&ms->rh, bio);
 
 	while ((bio = bio_list_pop(&nosync))) {
-		map_bio(ms, ms->default_mirror, bio);
+		map_bio(ms, get_default_mirror(ms), bio);
 		generic_make_request(bio);
 	}
+}
+
+static void do_failures(struct mirror_set *ms, struct bio_list *failures)
+{
+	struct bio *bio;
+
+	if (!failures->head)
+		return;
+
+	while ((bio = bio_list_pop(failures)))
+		__bio_mark_nosync(ms, bio, bio->bi_size, 0);
+}
+
+static void trigger_event(struct work_struct *work)
+{
+	struct mirror_set *ms =
+		container_of(work, struct mirror_set, trigger_event);
+
+	dm_table_event(ms->ti->table);
 }
 
 /*-----------------------------------------------------------------
  * kmirrord
  *---------------------------------------------------------------*/
-static void do_mirror(struct work_struct *work)
+static int _do_mirror(struct work_struct *work)
 {
 	struct mirror_set *ms =container_of(work, struct mirror_set,
 					    kmirrord_work);
-	struct bio_list reads, writes;
+	struct bio_list reads, writes, failures;
+	unsigned long flags;
 
-	spin_lock(&ms->lock);
+	spin_lock_irqsave(&ms->lock, flags);
 	reads = ms->reads;
 	writes = ms->writes;
+	failures = ms->failures;
 	bio_list_init(&ms->reads);
 	bio_list_init(&ms->writes);
-	spin_unlock(&ms->lock);
+	bio_list_init(&ms->failures);
+	spin_unlock_irqrestore(&ms->lock, flags);
 
 	rh_update_states(&ms->rh);
 	do_recovery(ms);
 	do_reads(ms, &reads);
 	do_writes(ms, &writes);
+	do_failures(ms, &failures);
+
+	return (ms->failures.head) ? 1 : 0;
 }
+
+static void do_mirror(struct work_struct *work)
+{
+	/*
+	 * If _do_mirror returns 1, we give it
+	 * another shot.  This helps for cases like
+	 * 'suspend' where we call flush_workqueue
+	 * and expect all work to be finished.  If
+	 * a failure happens during a suspend, we
+	 * couldn't issue a 'wake' because it would
+	 * not be honored.  Therefore, we return '1'
+	 * from _do_mirror, and retry here.
+	 */
+	while (_do_mirror(work))
+		schedule();
+}
+
 
 /*-----------------------------------------------------------------
  * Target functions
@@ -965,7 +1159,7 @@ static struct mirror_set *alloc_context(unsigned int nr_mirrors,
 	ms->nr_mirrors = nr_mirrors;
 	ms->nr_regions = dm_sector_div_up(ti->len, region_size);
 	ms->in_sync = 0;
-	ms->default_mirror = &ms->mirror[DEFAULT_MIRROR];
+	atomic_set(&ms->default_mirror, DEFAULT_MIRROR);
 
 	ms->io_client = dm_io_client_create(DM_IO_PAGES);
 	if (IS_ERR(ms->io_client)) {
@@ -1019,6 +1213,8 @@ static int get_mirror(struct mirror_set *ms, struct dm_target *ti,
 	}
 
 	ms->mirror[mirror].ms = ms;
+	atomic_set(&(ms->mirror[mirror].error_count), 0);
+	ms->mirror[mirror].error_type = 0;
 	ms->mirror[mirror].offset = offset;
 
 	return 0;
@@ -1171,6 +1367,7 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto err_free_context;
 	}
 	INIT_WORK(&ms->kmirrord_work, do_mirror);
+	INIT_WORK(&ms->trigger_event, trigger_event);
 
 	r = parse_features(ms, argc, argv, &args_used);
 	if (r)
@@ -1220,14 +1417,15 @@ static void mirror_dtr(struct dm_target *ti)
 
 static void queue_bio(struct mirror_set *ms, struct bio *bio, int rw)
 {
+	unsigned long flags;
 	int should_wake = 0;
 	struct bio_list *bl;
 
 	bl = (rw == WRITE) ? &ms->writes : &ms->reads;
-	spin_lock(&ms->lock);
+	spin_lock_irqsave(&ms->lock, flags);
 	should_wake = !(bl->head);
 	bio_list_add(bl, bio);
-	spin_unlock(&ms->lock);
+	spin_unlock_irqrestore(&ms->lock, flags);
 
 	if (should_wake)
 		wake(ms);
