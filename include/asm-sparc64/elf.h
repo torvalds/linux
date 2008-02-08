@@ -75,7 +75,6 @@
 /*
  * These are used to set parameters in the core dumps.
  */
-#ifndef ELF_ARCH
 #define ELF_ARCH		EM_SPARCV9
 #define ELF_CLASS		ELFCLASS64
 #define ELF_DATA		ELFDATA2MSB
@@ -100,14 +99,59 @@ typedef struct {
 	unsigned long	pr_gsr;
 	unsigned long	pr_fprs;
 } elf_fpregset_t;
-#endif
+
+/* Format of 32-bit elf_gregset_t is:
+ * 	G0 --> G7
+ *	O0 --> O7
+ *	L0 --> L7
+ *	I0 --> I7
+ *	PSR, PC, nPC, Y, WIM, TBR
+ */
+typedef unsigned int compat_elf_greg_t;
+#define COMPAT_ELF_NGREG 38
+typedef compat_elf_greg_t compat_elf_gregset_t[COMPAT_ELF_NGREG];
+
+typedef struct {
+	union {
+		unsigned int	pr_regs[32];
+		unsigned long	pr_dregs[16];
+	} pr_fr;
+	unsigned int __unused;
+	unsigned int	pr_fsr;
+	unsigned char	pr_qcnt;
+	unsigned char	pr_q_entrysize;
+	unsigned char	pr_en;
+	unsigned int	pr_q[64];
+} compat_elf_fpregset_t;
+
+/* UltraSparc extensions.  Still unused, but will be eventually.  */
+typedef struct {
+	unsigned int pr_type;
+	unsigned int pr_align;
+	union {
+		struct {
+			union {
+				unsigned int	pr_regs[32];
+				unsigned long	pr_dregs[16];
+				long double	pr_qregs[8];
+			} pr_xfr;
+		} pr_v8p;
+		unsigned int	pr_xfsr;
+		unsigned int	pr_fprs;
+		unsigned int	pr_xg[8];
+		unsigned int	pr_xo[8];
+		unsigned long	pr_tstate;
+		unsigned int	pr_filler[8];
+	} pr_un;
+} elf_xregset_t;
 
 /*
  * This is used to ensure we don't load something for the wrong architecture.
  */
-#ifndef elf_check_arch
-#define elf_check_arch(x) ((x)->e_machine == ELF_ARCH)	/* Might be EM_SPARCV9 or EM_SPARC */
-#endif
+#define elf_check_arch(x)		((x)->e_machine == ELF_ARCH)
+#define compat_elf_check_arch(x)	((x)->e_machine == EM_SPARC || \
+					 (x)->e_machine == EM_SPARC32PLUS)
+#define compat_start_thread		start_thread32
 
 #define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE	PAGE_SIZE
@@ -117,9 +161,8 @@ typedef struct {
    the loader.  We need to make sure that it is out of the way of the program
    that it will "exec", and that there is sufficient room for the brk.  */
 
-#ifndef ELF_ET_DYN_BASE
-#define ELF_ET_DYN_BASE         0x0000010000000000UL
-#endif
+#define ELF_ET_DYN_BASE		0x0000010000000000UL
+#define COMPAT_ELF_ET_DYN_BASE	0x0000000070000000UL
 
 
 /* This yields a mask that user programs can use to figure out what

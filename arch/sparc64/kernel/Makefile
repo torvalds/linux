@@ -21,7 +21,6 @@ obj-$(CONFIG_PCI)	 += ebus.o isa.o pci_common.o \
 obj-$(CONFIG_PCI_MSI)	+= pci_msi.o
 obj-$(CONFIG_SMP)	 += smp.o trampoline.o hvtramp.o
 obj-$(CONFIG_SPARC32_COMPAT) += sys32.o sys_sparc32.o signal32.o
-obj-$(CONFIG_BINFMT_ELF32) += binfmt_elf32.o
 obj-$(CONFIG_BINFMT_AOUT32) += binfmt_aout32.o
 obj-$(CONFIG_MODULES) += module.o
 obj-$(CONFIG_US3_FREQ) += us3_cpufreq.o
