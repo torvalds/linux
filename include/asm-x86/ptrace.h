@@ -42,12 +42,12 @@ struct pt_regs {
 	unsigned long si;
 	unsigned long di;
 	unsigned long bp;
-	long ax;
+	unsigned long ax;
 	unsigned long ds;
 	unsigned long es;
 	unsigned long fs;
 	/* int  gs; */
-	long orig_ax;
+	unsigned long orig_ax;
 	unsigned long ip;
 	unsigned long cs;
 	unsigned long flags;
@@ -145,7 +145,10 @@ extern void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs, int erro
 void signal_fault(struct pt_regs *regs, void __user *frame, char *where);
 #endif
 
-#define regs_return_value(regs) ((regs)->ax)
+static inline unsigned long regs_return_value(struct pt_regs *regs)
+{
+	return regs->ax;
+}
 
 /*
  * user_mode_vm(regs) determines whether a register set came from user mode.
