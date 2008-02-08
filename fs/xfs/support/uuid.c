@@ -133,7 +133,7 @@ uuid_table_remove(uuid_t *uuid)
 	mutex_unlock(&uuid_monitor);
 }
 
-void
+void __init
 uuid_init(void)
 {
 	mutex_init(&uuid_monitor);

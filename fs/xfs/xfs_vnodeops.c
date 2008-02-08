@@ -88,7 +88,7 @@ xfs_getattr(
 	bhv_vnode_t	*vp = XFS_ITOV(ip);
 	xfs_mount_t	*mp = ip->i_mount;
 
-	vn_trace_entry(ip, __FUNCTION__, (inst_t *)__return_address);
+	xfs_itrace_entry(ip);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
@@ -136,7 +136,7 @@ xfs_getattr(
 	default:
 		vap->va_rdev = 0;
 
-		if (!(ip->i_d.di_flags & XFS_DIFLAG_REALTIME)) {
+		if (!(XFS_IS_REALTIME_INODE(ip))) {
 			vap->va_blocksize = xfs_preferred_iosize(mp);
 		} else {
 
@@ -228,7 +228,7 @@ xfs_setattr(
 	int			file_owner;
 	int			need_iolock = 1;
 
-	vn_trace_entry(ip, __FUNCTION__, (inst_t *)__return_address);
+	xfs_itrace_entry(ip);
 
 	if (mp->m_flags & XFS_MOUNT_RDONLY)
 		return XFS_ERROR(EROFS);
@@ -508,7 +508,7 @@ xfs_setattr(
 		 */
 		if ((ip->i_d.di_nextents || ip->i_delayed_blks) &&
 		    (mask & XFS_AT_XFLAGS) &&
-		    (ip->i_d.di_flags & XFS_DIFLAG_REALTIME) !=
+		    (XFS_IS_REALTIME_INODE(ip)) !=
 		    (vap->va_xflags & XFS_XFLAG_REALTIME)) {
 			code = XFS_ERROR(EINVAL);	/* EFBIG? */
 			goto error_return;
@@ -520,7 +520,7 @@ xfs_setattr(
 		if ((mask & XFS_AT_EXTSIZE) && vap->va_extsize != 0) {
 			xfs_extlen_t	size;
 
-			if ((ip->i_d.di_flags & XFS_DIFLAG_REALTIME) ||
+			if (XFS_IS_REALTIME_INODE(ip) ||
 			    ((mask & XFS_AT_XFLAGS) &&
 			    (vap->va_xflags & XFS_XFLAG_REALTIME))) {
 				size = mp->m_sb.sb_rextsize <<
@@ -804,12 +804,8 @@ xfs_setattr(
 				if (vap->va_xflags & XFS_XFLAG_EXTSZINHERIT)
 					di_flags |= XFS_DIFLAG_EXTSZINHERIT;
 			} else if ((ip->i_d.di_mode & S_IFMT) == S_IFREG) {
-				if (vap->va_xflags & XFS_XFLAG_REALTIME) {
+				if (vap->va_xflags & XFS_XFLAG_REALTIME)
 					di_flags |= XFS_DIFLAG_REALTIME;
-					ip->i_iocore.io_flags |= XFS_IOCORE_RT;
-				} else {
-					ip->i_iocore.io_flags &= ~XFS_IOCORE_RT;
-				}
 				if (vap->va_xflags & XFS_XFLAG_EXTSIZE)
 					di_flags |= XFS_DIFLAG_EXTSIZE;
 			}
@@ -902,28 +898,6 @@ xfs_setattr(
 	return code;
 }
 
-
-/*
- * xfs_access
- * Null conversion from vnode mode bits to inode mode bits, as in efs.
- */
-int
-xfs_access(
-	xfs_inode_t	*ip,
-	int		mode,
-	cred_t		*credp)
-{
-	int		error;
-
-	vn_trace_entry(ip, __FUNCTION__, (inst_t *)__return_address);
-
-	xfs_ilock(ip, XFS_ILOCK_SHARED);
-	error = xfs_iaccess(ip, mode, credp);
-	xfs_iunlock(ip, XFS_ILOCK_SHARED);
-	return error;
-}
-
-
 /*
  * The maximum pathlen is 1024 bytes. Since the minimum file system
  * blocksize is 512 bytes, we can get a max of 2 extents back from
@@ -987,7 +961,7 @@ xfs_readlink(
 	int		pathlen;
 	int		error = 0;
 
-	vn_trace_entry(ip, __FUNCTION__, (inst_t *)__return_address);
+	xfs_itrace_entry(ip);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
@@ -1033,7 +1007,7 @@ xfs_fsync(
 	int		error;
 	int		log_flushed = 0, changed = 1;
 
-	vn_trace_entry(ip, __FUNCTION__, (inst_t *)__return_address);
+	xfs_itrace_entry(ip);
 
 	ASSERT(start >= 0 && stop >= -1);
 
@@ -1149,7 +1123,7 @@ xfs_fsync(
 		 * If this inode is on the RT dev we need to flush that
 		 * cache as well.
 		 */
-		if (ip->i_d.di_flags & XFS_DIFLAG_REALTIME)
+		if (XFS_IS_REALTIME_INODE(ip))
 			xfs_blkdev_issue_flush(ip->i_mount->m_rtdev_targp);
 	}
 
@@ -1188,7 +1162,7 @@ xfs_free_eofblocks(
 
 	nimaps = 1;
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
-	error = XFS_BMAPI(mp, NULL, &ip->i_iocore, end_fsb, map_len, 0,
+	error = xfs_bmapi(NULL, ip, end_fsb, map_len, 0,
 			  NULL, 0, &imap, &nimaps, NULL, NULL);
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
 
@@ -1562,9 +1536,6 @@ xfs_release(
 			error = xfs_free_eofblocks(mp, ip, XFS_FREE_EOF_LOCK);
 			if (error)
 				return error;
-			/* Update linux inode block count after free above */
-			vn_to_inode(vp)->i_blocks = XFS_FSB_TO_BB(mp,
-				ip->i_d.di_nblocks + ip->i_delayed_blks);
 		}
 	}
 
@@ -1592,7 +1563,7 @@ xfs_inactive(
 	int		error;
 	int		truncate;
 
-	vn_trace_entry(ip, __FUNCTION__, (inst_t *)__return_address);
+	xfs_itrace_entry(ip);
 
 	/*
 	 * If the inode is already free, then there can be nothing
@@ -1638,9 +1609,6 @@ xfs_inactive(
 			error = xfs_free_eofblocks(mp, ip, XFS_FREE_EOF_LOCK);
 			if (error)
 				return VN_INACTIVE_CACHE;
-			/* Update linux inode block count after free above */
-			vn_to_inode(vp)->i_blocks = XFS_FSB_TO_BB(mp,
-				ip->i_d.di_nblocks + ip->i_delayed_blks);
 		}
 		goto out;
 	}
@@ -1805,7 +1773,7 @@ xfs_lookup(
 	int			error;
 	uint			lock_mode;
 
-	vn_trace_entry(dp, __FUNCTION__, (inst_t *)__return_address);
+	xfs_itrace_entry(dp);
 
 	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
 		return XFS_ERROR(EIO);
@@ -1814,7 +1782,7 @@ xfs_lookup(
 	error = xfs_dir_lookup_int(dp, lock_mode, dentry, &e_inum, &ip);
 	if (!error) {
 		*vpp = XFS_ITOV(ip);
-		ITRACE(ip);
+		xfs_itrace_ref(ip);
 	}
 	xfs_iunlock_map_shared(dp, lock_mode);
 	return error;
@@ -1848,7 +1816,7 @@ xfs_create(
 	int			namelen;
 
 	ASSERT(!*vpp);
-	vn_trace_entry(dp, __FUNCTION__, (inst_t *)__return_address);
+	xfs_itrace_entry(dp);
 
 	namelen = VNAMELEN(dentry);
 
@@ -1930,7 +1898,7 @@ xfs_create(
 			goto error_return;
 		goto abort_return;
 	}
-	ITRACE(ip);
+	xfs_itrace_ref(ip);
 
 	/*
 	 * At this point, we've gotten a newly allocated inode.
@@ -2098,7 +2066,7 @@ again:
 
 	e_inum = ip->i_ino;
 
-	ITRACE(ip);
+	xfs_itrace_ref(ip);
 
 	/*
 	 * We want to lock in increasing inum. Since we've already
@@ -2321,7 +2289,7 @@ xfs_remove(
 	uint			resblks;
 	int			namelen;
 
-	vn_trace_entry(dp, __FUNCTION__, (inst_t *)__return_address);
+	xfs_itrace_entry(dp);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
@@ -2364,9 +2332,8 @@ xfs_remove(
 
 	dm_di_mode = ip->i_d.di_mode;
 
-	vn_trace_entry(ip, __FUNCTION__, (inst_t *)__return_address);
-
-	ITRACE(ip);
+	xfs_itrace_entry(ip);
+	xfs_itrace_ref(ip);
 
 	error = XFS_QM_DQATTACH(mp, dp, 0);
 	if (!error && dp != ip)
@@ -2498,8 +2465,7 @@ xfs_remove(
 	if (link_zero && xfs_inode_is_filestream(ip))
 		xfs_filestream_deassociate(ip);
 
-	vn_trace_exit(ip, __FUNCTION__, (inst_t *)__return_address);
-
+	xfs_itrace_exit(ip);
 	IRELE(ip);
 
 /*	Fall through to std_return with error = 0 */
@@ -2562,8 +2528,8 @@ xfs_link(
 	char			*target_name = VNAME(dentry);
 	int			target_namelen;
 
-	vn_trace_entry(tdp, __FUNCTION__, (inst_t *)__return_address);
-	vn_trace_entry(xfs_vtoi(src_vp), __FUNCTION__, (inst_t *)__return_address);
+	xfs_itrace_entry(tdp);
+	xfs_itrace_entry(xfs_vtoi(src_vp));
 
 	target_namelen = VNAMELEN(dentry);
 	ASSERT(!VN_ISDIR(src_vp));
@@ -2744,7 +2710,7 @@ xfs_mkdir(
 
 	/* Return through std_return after this point. */
 
-	vn_trace_entry(dp, __FUNCTION__, (inst_t *)__return_address);
+	xfs_itrace_entry(dp);
 
 	mp = dp->i_mount;
 	udqp = gdqp = NULL;
@@ -2810,7 +2776,7 @@ xfs_mkdir(
 			goto error_return;
 		goto abort_return;
 	}
-	ITRACE(cdp);
+	xfs_itrace_ref(cdp);
 
 	/*
 	 * Now we add the directory inode to the transaction.
@@ -2936,7 +2902,7 @@ xfs_rmdir(
 	int			last_cdp_link;
 	uint			resblks;
 
-	vn_trace_entry(dp, __FUNCTION__, (inst_t *)__return_address);
+	xfs_itrace_entry(dp);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
@@ -3041,7 +3007,7 @@ xfs_rmdir(
 		VN_HOLD(dir_vp);
 	}
 
-	ITRACE(cdp);
+	xfs_itrace_ref(cdp);
 	xfs_trans_ijoin(tp, cdp, XFS_ILOCK_EXCL);
 
 	ASSERT(cdp->i_d.di_nlink >= 2);
@@ -3189,8 +3155,7 @@ xfs_symlink(
 	ip = NULL;
 	tp = NULL;
 
-	vn_trace_entry(dp, __FUNCTION__, (inst_t *)__return_address);
-
+	xfs_itrace_entry(dp);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
@@ -3317,7 +3282,7 @@ xfs_symlink(
 			goto error_return;
 		goto error1;
 	}
-	ITRACE(ip);
+	xfs_itrace_ref(ip);
 
 	/*
 	 * An error after we've joined dp to the transaction will result in the
@@ -3465,27 +3430,6 @@ std_return:
 	goto std_return;
 }
 
-
-int
-xfs_fid2(
-	xfs_inode_t	*ip,
-	xfs_fid_t	*xfid)
-{
-	vn_trace_entry(ip, __FUNCTION__, (inst_t *)__return_address);
-
-	xfid->fid_len = sizeof(xfs_fid_t) - sizeof(xfid->fid_len);
-	xfid->fid_pad = 0;
-	/*
-	 * use memcpy because the inode is a long long and there's no
-	 * assurance that xfid->fid_ino is properly aligned.
-	 */
-	memcpy(&xfid->fid_ino, &ip->i_ino, sizeof(xfid->fid_ino));
-	xfid->fid_gen = ip->i_d.di_gen;
-
-	return 0;
-}
-
-
 int
 xfs_rwlock(
 	xfs_inode_t	*ip,
@@ -3558,11 +3502,11 @@ xfs_inode_flush(
 		if (iip && iip->ili_last_lsn) {
 			xlog_t		*log = mp->m_log;
 			xfs_lsn_t	sync_lsn;
-			int		s, log_flags = XFS_LOG_FORCE;
+			int		log_flags = XFS_LOG_FORCE;
 
-			s = GRANT_LOCK(log);
+			spin_lock(&log->l_grant_lock);
 			sync_lsn = log->l_last_sync_lsn;
-			GRANT_UNLOCK(log, s);
+			spin_unlock(&log->l_grant_lock);
 
 			if ((XFS_LSN_CMP(iip->ili_last_lsn, sync_lsn) > 0)) {
 				if (flags & FLUSH_SYNC)
@@ -3637,8 +3581,8 @@ xfs_set_dmattrs(
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 
-	ip->i_iocore.io_dmevmask = ip->i_d.di_dmevmask = evmask;
-	ip->i_iocore.io_dmstate  = ip->i_d.di_dmstate  = state;
+	ip->i_d.di_dmevmask = evmask;
+	ip->i_d.di_dmstate  = state;
 
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 	IHOLD(ip);
@@ -3653,7 +3597,7 @@ xfs_reclaim(
 {
 	bhv_vnode_t	*vp = XFS_ITOV(ip);
 
-	vn_trace_entry(ip, __FUNCTION__, (inst_t *)__return_address);
+	xfs_itrace_entry(ip);
 
 	ASSERT(!VN_MAPPED(vp));
 
@@ -3871,7 +3815,7 @@ xfs_alloc_file_space(
 	int			committed;
 	int			error;
 
-	vn_trace_entry(ip, __FUNCTION__, (inst_t *)__return_address);
+	xfs_itrace_entry(ip);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
@@ -3976,7 +3920,7 @@ retry:
 		 * Issue the xfs_bmapi() call to allocate the blocks
 		 */
 		XFS_BMAP_INIT(&free_list, &firstfsb);
-		error = XFS_BMAPI(mp, tp, &ip->i_iocore, startoffset_fsb,
+		error = xfs_bmapi(tp, ip, startoffset_fsb,
 				  allocatesize_fsb, bmapi_flag,
 				  &firstfsb, 0, imapp, &nimaps,
 				  &free_list, NULL);
@@ -4052,13 +3996,13 @@ xfs_zero_remaining_bytes(
 	int			error = 0;
 
 	bp = xfs_buf_get_noaddr(mp->m_sb.sb_blocksize,
-				ip->i_d.di_flags & XFS_DIFLAG_REALTIME ?
+				XFS_IS_REALTIME_INODE(ip) ?
 				mp->m_rtdev_targp : mp->m_ddev_targp);
 
 	for (offset = startoff; offset <= endoff; offset = lastoffset + 1) {
 		offset_fsb = XFS_B_TO_FSBT(mp, offset);
 		nimap = 1;
-		error = XFS_BMAPI(mp, NULL, &ip->i_iocore, offset_fsb, 1, 0,
+		error = xfs_bmapi(NULL, ip, offset_fsb, 1, 0,
 			NULL, 0, &imap, &nimap, NULL, NULL);
 		if (error || nimap < 1)
 			break;
@@ -4141,7 +4085,7 @@ xfs_free_file_space(
 	vp = XFS_ITOV(ip);
 	mp = ip->i_mount;
 
-	vn_trace_entry(ip, __FUNCTION__, (inst_t *)__return_address);
+	xfs_itrace_entry(ip);
 
 	if ((error = XFS_QM_DQATTACH(mp, ip, 0)))
 		return error;
@@ -4149,7 +4093,7 @@ xfs_free_file_space(
 	error = 0;
 	if (len <= 0)	/* if nothing being freed */
 		return error;
-	rt = (ip->i_d.di_flags & XFS_DIFLAG_REALTIME);
+	rt = XFS_IS_REALTIME_INODE(ip);
 	startoffset_fsb	= XFS_B_TO_FSB(mp, offset);
 	end_dmi_offset = offset + len;
 	endoffset_fsb = XFS_B_TO_FSBT(mp, end_dmi_offset);
@@ -4172,15 +4116,12 @@ xfs_free_file_space(
 		vn_iowait(ip);	/* wait for the completion of any pending DIOs */
 	}
 
-	rounding = max_t(uint, 1 << mp->m_sb.sb_blocklog, NBPP);
+	rounding = max_t(uint, 1 << mp->m_sb.sb_blocklog, PAGE_CACHE_SIZE);
 	ioffset = offset & ~(rounding - 1);
 
 	if (VN_CACHED(vp) != 0) {
-		xfs_inval_cached_trace(&ip->i_iocore, ioffset, -1,
-				ctooff(offtoct(ioffset)), -1);
-		error = xfs_flushinval_pages(ip,
-				ctooff(offtoct(ioffset)),
-				-1, FI_REMAPF_LOCKED);
+		xfs_inval_cached_trace(ip, ioffset, -1, ioffset, -1);
+		error = xfs_flushinval_pages(ip, ioffset, -1, FI_REMAPF_LOCKED);
 		if (error)
 			goto out_unlock_iolock;
 	}
@@ -4193,7 +4134,7 @@ xfs_free_file_space(
 	 */
 	if (rt && !XFS_SB_VERSION_HASEXTFLGBIT(&mp->m_sb)) {
 		nimap = 1;
-		error = XFS_BMAPI(mp, NULL, &ip->i_iocore, startoffset_fsb,
+		error = xfs_bmapi(NULL, ip, startoffset_fsb,
 			1, 0, NULL, 0, &imap, &nimap, NULL, NULL);
 		if (error)
 			goto out_unlock_iolock;
@@ -4208,7 +4149,7 @@ xfs_free_file_space(
 				startoffset_fsb += mp->m_sb.sb_rextsize - mod;
 		}
 		nimap = 1;
-		error = XFS_BMAPI(mp, NULL, &ip->i_iocore, endoffset_fsb - 1,
+		error = xfs_bmapi(NULL, ip, endoffset_fsb - 1,
 			1, 0, NULL, 0, &imap, &nimap, NULL, NULL);
 		if (error)
 			goto out_unlock_iolock;
@@ -4284,7 +4225,7 @@ xfs_free_file_space(
 		 * issue the bunmapi() call to free the blocks
 		 */
 		XFS_BMAP_INIT(&free_list, &firstfsb);
-		error = XFS_BUNMAPI(mp, tp, &ip->i_iocore, startoffset_fsb,
+		error = xfs_bunmapi(tp, ip, startoffset_fsb,
 				  endoffset_fsb - startoffset_fsb,
 				  0, 2, &firstfsb, &free_list, NULL, &done);
 		if (error) {
@@ -4347,22 +4288,10 @@ xfs_change_file_space(
 	xfs_trans_t	*tp;
 	bhv_vattr_t	va;
 
-	vn_trace_entry(ip, __FUNCTION__, (inst_t *)__return_address);
+	xfs_itrace_entry(ip);
 
-	/*
-	 * must be a regular file and have write permission
-	 */
 	if (!S_ISREG(ip->i_d.di_mode))
 		return XFS_ERROR(EINVAL);
-
-	xfs_ilock(ip, XFS_ILOCK_SHARED);
-
-	if ((error = xfs_iaccess(ip, S_IWUSR, credp))) {
-		xfs_iunlock(ip, XFS_ILOCK_SHARED);
-		return error;
-	}
-
-	xfs_iunlock(ip, XFS_ILOCK_SHARED);
 
 	switch (bf->l_whence) {
 	case 0: /*SEEK_SET*/

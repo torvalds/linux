@@ -36,14 +36,12 @@ typedef enum {
 	BMAPI_READ = (1 << 0),		/* read extents */
 	BMAPI_WRITE = (1 << 1),		/* create extents */
 	BMAPI_ALLOCATE = (1 << 2),	/* delayed allocate to real extents */
-	BMAPI_UNWRITTEN  = (1 << 3),	/* unwritten extents to real extents */
 	/* modifiers */
 	BMAPI_IGNSTATE = (1 << 4),	/* ignore unwritten state on read */
 	BMAPI_DIRECT = (1 << 5),	/* direct instead of buffered write */
 	BMAPI_MMAP = (1 << 6),		/* allocate for mmap write */
 	BMAPI_SYNC = (1 << 7),		/* sync write to flush delalloc space */
 	BMAPI_TRYLOCK = (1 << 8),	/* non-blocking request */
-	BMAPI_DEVICE = (1 << 9),	/* we only want to know the device */
 } bmapi_flags_t;
 
 
@@ -73,11 +71,10 @@ typedef struct xfs_iomap {
 	iomap_flags_t		iomap_flags;
 } xfs_iomap_t;
 
-struct xfs_iocore;
 struct xfs_inode;
 struct xfs_bmbt_irec;
 
-extern int xfs_iomap(struct xfs_iocore *, xfs_off_t, ssize_t, int,
+extern int xfs_iomap(struct xfs_inode *, xfs_off_t, ssize_t, int,
 		     struct xfs_iomap *, int *);
 extern int xfs_iomap_write_direct(struct xfs_inode *, xfs_off_t, size_t,
 				  int, struct xfs_bmbt_irec *, int *, int);

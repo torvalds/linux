@@ -52,6 +52,7 @@
 #include <linux/xattr.h>
 #include <linux/namei.h>
 #include <linux/security.h>
+#include <linux/falloc.h>
 
 /*
  * Bring the atime in the XFS inode uptodate.
@@ -68,6 +69,22 @@ xfs_synchronize_atime(
 		ip->i_d.di_atime.t_sec = (__int32_t)vp->i_atime.tv_sec;
 		ip->i_d.di_atime.t_nsec = (__int32_t)vp->i_atime.tv_nsec;
 	}
+}
+
+/*
+ * If the linux inode exists, mark it dirty.
+ * Used when commiting a dirty inode into a transaction so that
+ * the inode will get written back by the linux code
+ */
+void
+xfs_mark_inode_dirty_sync(
+	xfs_inode_t	*ip)
+{
+	bhv_vnode_t	*vp;
+
+	vp = XFS_ITOV_NULL(ip);
+	if (vp)
+		mark_inode_dirty_sync(vn_to_inode(vp));
 }
 
 /*
@@ -184,10 +201,6 @@ xfs_validate_fields(
 	struct xfs_inode	*ip = XFS_I(inode);
 	loff_t size;
 
-	inode->i_nlink = ip->i_d.di_nlink;
-	inode->i_blocks =
-		XFS_FSB_TO_BB(ip->i_mount, ip->i_d.di_nblocks +
-					   ip->i_delayed_blks);
 	/* we're under i_sem so i_size can't change under us */
 	size = XFS_ISIZE(ip);
 	if (i_size_read(inode) != size)
@@ -542,12 +555,31 @@ xfs_vn_put_link(
 
 #ifdef CONFIG_XFS_POSIX_ACL
 STATIC int
-xfs_vn_permission(
-	struct inode	*inode,
-	int		mode,
-	struct nameidata *nd)
+xfs_check_acl(
+	struct inode		*inode,
+	int			mask)
 {
-	return -xfs_access(XFS_I(inode), mode << 6, NULL);
+	struct xfs_inode	*ip = XFS_I(inode);
+	int			error;
+
+	xfs_itrace_entry(ip);
+
+	if (XFS_IFORK_Q(ip)) {
+		error = xfs_acl_iaccess(ip, mask, NULL);
+		if (error != -1)
+			return -error;
+	}
+
+	return -EAGAIN;
+}
+
+STATIC int
+xfs_vn_permission(
+	struct inode		*inode,
+	int			mask,
+	struct nameidata	*nd)
+{
+	return generic_permission(inode, mask, xfs_check_acl);
 }
 #else
 #define xfs_vn_permission NULL
@@ -555,33 +587,61 @@ xfs_vn_permission(
 
 STATIC int
 xfs_vn_getattr(
-	struct vfsmount	*mnt,
-	struct dentry	*dentry,
-	struct kstat	*stat)
+	struct vfsmount		*mnt,
+	struct dentry		*dentry,
+	struct kstat		*stat)
 {
-	struct inode	*inode = dentry->d_inode;
-	bhv_vattr_t	vattr = { .va_mask = XFS_AT_STAT };
-	int		error;
+	struct inode		*inode = dentry->d_inode;
+	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_mount	*mp = ip->i_mount;
 
-	error = xfs_getattr(XFS_I(inode), &vattr, ATTR_LAZY);
-	if (likely(!error)) {
-		stat->size = i_size_read(inode);
-		stat->dev = inode->i_sb->s_dev;
-		stat->rdev = (vattr.va_rdev == 0) ? 0 :
-				MKDEV(sysv_major(vattr.va_rdev) & 0x1ff,
-				      sysv_minor(vattr.va_rdev));
-		stat->mode = vattr.va_mode;
-		stat->nlink = vattr.va_nlink;
-		stat->uid = vattr.va_uid;
-		stat->gid = vattr.va_gid;
-		stat->ino = vattr.va_nodeid;
-		stat->atime = vattr.va_atime;
-		stat->mtime = vattr.va_mtime;
-		stat->ctime = vattr.va_ctime;
-		stat->blocks = vattr.va_nblocks;
-		stat->blksize = vattr.va_blocksize;
+	xfs_itrace_entry(ip);
+
+	if (XFS_FORCED_SHUTDOWN(mp))
+		return XFS_ERROR(EIO);
+
+	stat->size = XFS_ISIZE(ip);
+	stat->dev = inode->i_sb->s_dev;
+	stat->mode = ip->i_d.di_mode;
+	stat->nlink = ip->i_d.di_nlink;
+	stat->uid = ip->i_d.di_uid;
+	stat->gid = ip->i_d.di_gid;
+	stat->ino = ip->i_ino;
+#if XFS_BIG_INUMS
+	stat->ino += mp->m_inoadd;
+#endif
+	stat->atime = inode->i_atime;
+	stat->mtime.tv_sec = ip->i_d.di_mtime.t_sec;
+	stat->mtime.tv_nsec = ip->i_d.di_mtime.t_nsec;
+	stat->ctime.tv_sec = ip->i_d.di_ctime.t_sec;
+	stat->ctime.tv_nsec = ip->i_d.di_ctime.t_nsec;
+	stat->blocks =
+		XFS_FSB_TO_BB(mp, ip->i_d.di_nblocks + ip->i_delayed_blks);
+
+
+	switch (inode->i_mode & S_IFMT) {
+	case S_IFBLK:
+	case S_IFCHR:
+		stat->blksize = BLKDEV_IOSIZE;
+		stat->rdev = MKDEV(sysv_major(ip->i_df.if_u2.if_rdev) & 0x1ff,
+				   sysv_minor(ip->i_df.if_u2.if_rdev));
+		break;
+	default:
+		if (XFS_IS_REALTIME_INODE(ip)) {
+			/*
+			 * If the file blocks are being allocated from a
+			 * realtime volume, then return the inode's realtime
+			 * extent size or the realtime volume's extent size.
+			 */
+			stat->blksize =
+				xfs_get_extsz_hint(ip) << mp->m_sb.sb_blocklog;
+		} else
+			stat->blksize = xfs_preferred_iosize(mp);
+		stat->rdev = 0;
+		break;
 	}
-	return -error;
+
+	return 0;
 }
 
 STATIC int
@@ -636,7 +696,7 @@ xfs_vn_setattr(
 
 	error = xfs_setattr(XFS_I(inode), &vattr, flags, NULL);
 	if (likely(!error))
-		__vn_revalidate(vn_from_inode(inode), &vattr);
+		vn_revalidate(vn_from_inode(inode));
 	return -error;
 }
 
@@ -750,6 +810,47 @@ xfs_vn_removexattr(
 	return namesp->attr_remove(vp, attr, xflags);
 }
 
+STATIC long
+xfs_vn_fallocate(
+	struct inode	*inode,
+	int		mode,
+	loff_t		offset,
+	loff_t		len)
+{
+	long		error;
+	loff_t		new_size = 0;
+	xfs_flock64_t	bf;
+	xfs_inode_t	*ip = XFS_I(inode);
+
+	/* preallocation on directories not yet supported */
+	error = -ENODEV;
+	if (S_ISDIR(inode->i_mode))
+		goto out_error;
+
+	bf.l_whence = 0;
+	bf.l_start = offset;
+	bf.l_len = len;
+
+	xfs_ilock(ip, XFS_IOLOCK_EXCL);
+	error = xfs_change_file_space(ip, XFS_IOC_RESVSP, &bf,
+						0, NULL, ATTR_NOLOCK);
+	if (!error && !(mode & FALLOC_FL_KEEP_SIZE) &&
+	    offset + len > i_size_read(inode))
+		new_size = offset + len;
+
+	/* Change file size if needed */
+	if (new_size) {
+		bhv_vattr_t	va;
+
+		va.va_mask = XFS_AT_SIZE;
+		va.va_size = new_size;
+		error = xfs_setattr(ip, &va, ATTR_NOLOCK, NULL);
+	}
+
+	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
+out_error:
+	return error;
+}
 
 const struct inode_operations xfs_inode_operations = {
 	.permission		= xfs_vn_permission,
@@ -760,6 +861,7 @@ const struct inode_operations xfs_inode_operations = {
 	.getxattr		= xfs_vn_getxattr,
 	.listxattr		= xfs_vn_listxattr,
 	.removexattr		= xfs_vn_removexattr,
+	.fallocate		= xfs_vn_fallocate,
 };
 
 const struct inode_operations xfs_dir_inode_operations = {

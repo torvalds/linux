@@ -55,32 +55,21 @@ struct xfs_mount;
 	BTOBB(XLOG_MAX_ICLOGS << (XFS_SB_VERSION_HASLOGV2(&log->l_mp->m_sb) ? \
 	 XLOG_MAX_RECORD_BSHIFT : XLOG_BIG_RECORD_BSHIFT))
 
-/*
- *  set lsns
- */
 
-#define ASSIGN_ANY_LSN_HOST(lsn,cycle,block)  \
-    { \
-	(lsn) = ((xfs_lsn_t)(cycle)<<32)|(block); \
-    }
-#define ASSIGN_ANY_LSN_DISK(lsn,cycle,block)  \
-    { \
-	INT_SET(((uint *)&(lsn))[0], ARCH_CONVERT, (cycle)); \
-	INT_SET(((uint *)&(lsn))[1], ARCH_CONVERT, (block)); \
-    }
-#define ASSIGN_LSN(lsn,log) \
-    ASSIGN_ANY_LSN_DISK(lsn,(log)->l_curr_cycle,(log)->l_curr_block);
+static inline xfs_lsn_t xlog_assign_lsn(uint cycle, uint block)
+{
+	return ((xfs_lsn_t)cycle << 32) | block;
+}
 
-#define XLOG_SET(f,b)		(((f) & (b)) == (b))
-
-#define GET_CYCLE(ptr, arch) \
-    (INT_GET(*(uint *)(ptr), arch) == XLOG_HEADER_MAGIC_NUM ? \
-	 INT_GET(*((uint *)(ptr)+1), arch) : \
-	 INT_GET(*(uint *)(ptr), arch) \
-    )
+static inline uint xlog_get_cycle(char *ptr)
+{
+	if (be32_to_cpu(*(__be32 *)ptr) == XLOG_HEADER_MAGIC_NUM)
+		return be32_to_cpu(*((__be32 *)ptr + 1));
+	else
+		return be32_to_cpu(*(__be32 *)ptr);
+}
 
 #define BLK_AVG(blk1, blk2)	((blk1+blk2) >> 1)
-
 
 #ifdef __KERNEL__
 
@@ -96,19 +85,10 @@ struct xfs_mount;
  *
  * this has endian issues, of course.
  */
-
-#ifndef XFS_NATIVE_HOST
-#define GET_CLIENT_ID(i,arch) \
-    ((i) & 0xff)
-#else
-#define GET_CLIENT_ID(i,arch) \
-    ((i) >> 24)
-#endif
-
-#define GRANT_LOCK(log)		mutex_spinlock(&(log)->l_grant_lock)
-#define GRANT_UNLOCK(log, s)	mutex_spinunlock(&(log)->l_grant_lock, s)
-#define LOG_LOCK(log)		mutex_spinlock(&(log)->l_icloglock)
-#define LOG_UNLOCK(log, s)	mutex_spinunlock(&(log)->l_icloglock, s)
+static inline uint xlog_get_client_id(__be32 i)
+{
+	return be32_to_cpu(i) >> 24;
+}
 
 #define xlog_panic(args...)	cmn_err(CE_PANIC, ## args)
 #define xlog_exit(args...)	cmn_err(CE_PANIC, ## args)
@@ -285,11 +265,11 @@ typedef struct xlog_ticket {
 
 
 typedef struct xlog_op_header {
-	xlog_tid_t oh_tid;	/* transaction id of operation	:  4 b */
-	int	   oh_len;	/* bytes in data region		:  4 b */
-	__uint8_t  oh_clientid;	/* who sent me this		:  1 b */
-	__uint8_t  oh_flags;	/*				:  1 b */
-	ushort	   oh_res2;	/* 32 bit align			:  2 b */
+	__be32	   oh_tid;	/* transaction id of operation	:  4 b */
+	__be32	   oh_len;	/* bytes in data region		:  4 b */
+	__u8	   oh_clientid;	/* who sent me this		:  1 b */
+	__u8	   oh_flags;	/*				:  1 b */
+	__u16	   oh_res2;	/* 32 bit align			:  2 b */
 } xlog_op_header_t;
 
 
@@ -307,25 +287,25 @@ typedef struct xlog_op_header {
 #endif
 
 typedef struct xlog_rec_header {
-	uint	  h_magicno;	/* log record (LR) identifier		:  4 */
-	uint	  h_cycle;	/* write cycle of log			:  4 */
-	int	  h_version;	/* LR version				:  4 */
-	int	  h_len;	/* len in bytes; should be 64-bit aligned: 4 */
-	xfs_lsn_t h_lsn;	/* lsn of this LR			:  8 */
-	xfs_lsn_t h_tail_lsn;	/* lsn of 1st LR w/ buffers not committed: 8 */
-	uint	  h_chksum;	/* may not be used; non-zero if used	:  4 */
-	int	  h_prev_block; /* block number to previous LR		:  4 */
-	int	  h_num_logops;	/* number of log operations in this LR	:  4 */
-	uint	  h_cycle_data[XLOG_HEADER_CYCLE_SIZE / BBSIZE];
+	__be32	  h_magicno;	/* log record (LR) identifier		:  4 */
+	__be32	  h_cycle;	/* write cycle of log			:  4 */
+	__be32	  h_version;	/* LR version				:  4 */
+	__be32	  h_len;	/* len in bytes; should be 64-bit aligned: 4 */
+	__be64	  h_lsn;	/* lsn of this LR			:  8 */
+	__be64	  h_tail_lsn;	/* lsn of 1st LR w/ buffers not committed: 8 */
+	__be32	  h_chksum;	/* may not be used; non-zero if used	:  4 */
+	__be32	  h_prev_block; /* block number to previous LR		:  4 */
+	__be32	  h_num_logops;	/* number of log operations in this LR	:  4 */
+	__be32	  h_cycle_data[XLOG_HEADER_CYCLE_SIZE / BBSIZE];
 	/* new fields */
-	int       h_fmt;        /* format of log record                 :  4 */
-	uuid_t    h_fs_uuid;    /* uuid of FS                           : 16 */
-	int       h_size;	/* iclog size				:  4 */
+	__be32    h_fmt;        /* format of log record                 :  4 */
+	uuid_t	  h_fs_uuid;    /* uuid of FS                           : 16 */
+	__be32	  h_size;	/* iclog size				:  4 */
 } xlog_rec_header_t;
 
 typedef struct xlog_rec_ext_header {
-	uint	  xh_cycle;	/* write cycle of log			: 4 */
-	uint	  xh_cycle_data[XLOG_HEADER_CYCLE_SIZE / BBSIZE]; /*	: 256 */
+	__be32	  xh_cycle;	/* write cycle of log			: 4 */
+	__be32	  xh_cycle_data[XLOG_HEADER_CYCLE_SIZE / BBSIZE]; /*	: 256 */
 } xlog_rec_ext_header_t;
 
 #ifdef __KERNEL__
@@ -415,7 +395,7 @@ typedef struct log {
 	xlog_ticket_t		*l_unmount_free;/* kmem_free these addresses */
 	xlog_ticket_t		*l_tail;        /* free list of tickets */
 	xlog_in_core_t		*l_iclog;       /* head log queue	*/
-	lock_t			l_icloglock;    /* grab to change iclog state */
+	spinlock_t		l_icloglock;    /* grab to change iclog state */
 	xfs_lsn_t		l_tail_lsn;     /* lsn of 1st LR with unflushed
 						 * buffers */
 	xfs_lsn_t		l_last_sync_lsn;/* lsn of last LR on disk */
@@ -439,7 +419,7 @@ typedef struct log {
 	char			*l_iclog_bak[XLOG_MAX_ICLOGS];
 
 	/* The following block of fields are changed while holding grant_lock */
-	lock_t			l_grant_lock;
+	spinlock_t		l_grant_lock;
 	xlog_ticket_t		*l_reserve_headq;
 	xlog_ticket_t		*l_write_headq;
 	int			l_grant_reserve_cycle;

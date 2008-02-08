@@ -40,7 +40,7 @@
 #define vptosync(v)             (&vsync[((unsigned long)v) % NVSYNC])
 static wait_queue_head_t vsync[NVSYNC];
 
-void
+void __init
 vn_init(void)
 {
 	int i;
@@ -82,84 +82,55 @@ vn_ioerror(
 		xfs_do_force_shutdown(ip->i_mount, SHUTDOWN_DEVICE_REQ, f, l);
 }
 
-bhv_vnode_t *
-vn_initialize(
-	struct inode	*inode)
-{
-	bhv_vnode_t	*vp = vn_from_inode(inode);
-
-	XFS_STATS_INC(vn_active);
-	XFS_STATS_INC(vn_alloc);
-
-	ASSERT(VN_CACHED(vp) == 0);
-
-	return vp;
-}
-
 /*
- * Revalidate the Linux inode from the vattr.
+ * Revalidate the Linux inode from the XFS inode.
  * Note: i_size _not_ updated; we must hold the inode
  * semaphore when doing that - callers responsibility.
  */
-void
-vn_revalidate_core(
-	bhv_vnode_t	*vp,
-	bhv_vattr_t	*vap)
+int
+vn_revalidate(
+	bhv_vnode_t		*vp)
 {
-	struct inode	*inode = vn_to_inode(vp);
+	struct inode		*inode = vn_to_inode(vp);
+	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_mount	*mp = ip->i_mount;
+	unsigned long		xflags;
 
-	inode->i_mode	    = vap->va_mode;
-	inode->i_nlink	    = vap->va_nlink;
-	inode->i_uid	    = vap->va_uid;
-	inode->i_gid	    = vap->va_gid;
-	inode->i_blocks	    = vap->va_nblocks;
-	inode->i_mtime	    = vap->va_mtime;
-	inode->i_ctime	    = vap->va_ctime;
-	if (vap->va_xflags & XFS_XFLAG_IMMUTABLE)
+	xfs_itrace_entry(ip);
+
+	if (XFS_FORCED_SHUTDOWN(mp))
+		return -EIO;
+
+	xfs_ilock(ip, XFS_ILOCK_SHARED);
+	inode->i_mode	    = ip->i_d.di_mode;
+	inode->i_uid	    = ip->i_d.di_uid;
+	inode->i_gid	    = ip->i_d.di_gid;
+	inode->i_mtime.tv_sec = ip->i_d.di_mtime.t_sec;
+	inode->i_mtime.tv_nsec = ip->i_d.di_mtime.t_nsec;
+	inode->i_ctime.tv_sec = ip->i_d.di_ctime.t_sec;
+	inode->i_ctime.tv_nsec = ip->i_d.di_ctime.t_nsec;
+
+	xflags = xfs_ip2xflags(ip);
+	if (xflags & XFS_XFLAG_IMMUTABLE)
 		inode->i_flags |= S_IMMUTABLE;
 	else
 		inode->i_flags &= ~S_IMMUTABLE;
-	if (vap->va_xflags & XFS_XFLAG_APPEND)
+	if (xflags & XFS_XFLAG_APPEND)
 		inode->i_flags |= S_APPEND;
 	else
 		inode->i_flags &= ~S_APPEND;
-	if (vap->va_xflags & XFS_XFLAG_SYNC)
+	if (xflags & XFS_XFLAG_SYNC)
 		inode->i_flags |= S_SYNC;
 	else
 		inode->i_flags &= ~S_SYNC;
-	if (vap->va_xflags & XFS_XFLAG_NOATIME)
+	if (xflags & XFS_XFLAG_NOATIME)
 		inode->i_flags |= S_NOATIME;
 	else
 		inode->i_flags &= ~S_NOATIME;
-}
+	xfs_iunlock(ip, XFS_ILOCK_SHARED);
 
-/*
- * Revalidate the Linux inode from the vnode.
- */
-int
-__vn_revalidate(
-	bhv_vnode_t	*vp,
-	bhv_vattr_t	*vattr)
-{
-	int		error;
-
-	vn_trace_entry(xfs_vtoi(vp), __FUNCTION__, (inst_t *)__return_address);
-	vattr->va_mask = XFS_AT_STAT | XFS_AT_XFLAGS;
-	error = xfs_getattr(xfs_vtoi(vp), vattr, 0);
-	if (likely(!error)) {
-		vn_revalidate_core(vp, vattr);
-		xfs_iflags_clear(xfs_vtoi(vp), XFS_IMODIFIED);
-	}
-	return -error;
-}
-
-int
-vn_revalidate(
-	bhv_vnode_t	*vp)
-{
-	bhv_vattr_t	vattr;
-
-	return __vn_revalidate(vp, &vattr);
+	xfs_iflags_clear(ip, XFS_IMODIFIED);
+	return 0;
 }
 
 /*
@@ -179,7 +150,7 @@ vn_hold(
 	return vp;
 }
 
-#ifdef	XFS_VNODE_TRACE
+#ifdef	XFS_INODE_TRACE
 
 /*
  * Reference count of Linux inode if present, -1 if the xfs_inode
@@ -211,32 +182,32 @@ static inline int xfs_icount(struct xfs_inode *ip)
  * Vnode tracing code.
  */
 void
-vn_trace_entry(xfs_inode_t *ip, const char *func, inst_t *ra)
+_xfs_itrace_entry(xfs_inode_t *ip, const char *func, inst_t *ra)
 {
-	KTRACE_ENTER(ip, VNODE_KTRACE_ENTRY, func, 0, ra);
+	KTRACE_ENTER(ip, INODE_KTRACE_ENTRY, func, 0, ra);
 }
 
 void
-vn_trace_exit(xfs_inode_t *ip, const char *func, inst_t *ra)
+_xfs_itrace_exit(xfs_inode_t *ip, const char *func, inst_t *ra)
 {
-	KTRACE_ENTER(ip, VNODE_KTRACE_EXIT, func, 0, ra);
+	KTRACE_ENTER(ip, INODE_KTRACE_EXIT, func, 0, ra);
 }
 
 void
-vn_trace_hold(xfs_inode_t *ip, char *file, int line, inst_t *ra)
+xfs_itrace_hold(xfs_inode_t *ip, char *file, int line, inst_t *ra)
 {
-	KTRACE_ENTER(ip, VNODE_KTRACE_HOLD, file, line, ra);
+	KTRACE_ENTER(ip, INODE_KTRACE_HOLD, file, line, ra);
 }
 
 void
-vn_trace_ref(xfs_inode_t *ip, char *file, int line, inst_t *ra)
+_xfs_itrace_ref(xfs_inode_t *ip, char *file, int line, inst_t *ra)
 {
-	KTRACE_ENTER(ip, VNODE_KTRACE_REF, file, line, ra);
+	KTRACE_ENTER(ip, INODE_KTRACE_REF, file, line, ra);
 }
 
 void
-vn_trace_rele(xfs_inode_t *ip, char *file, int line, inst_t *ra)
+xfs_itrace_rele(xfs_inode_t *ip, char *file, int line, inst_t *ra)
 {
-	KTRACE_ENTER(ip, VNODE_KTRACE_RELE, file, line, ra);
+	KTRACE_ENTER(ip, INODE_KTRACE_RELE, file, line, ra);
 }
-#endif	/* XFS_VNODE_TRACE */
+#endif	/* XFS_INODE_TRACE */

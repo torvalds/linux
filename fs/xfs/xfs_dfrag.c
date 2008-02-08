@@ -52,76 +52,72 @@ xfs_swapext(
 	xfs_swapext_t	__user *sxu)
 {
 	xfs_swapext_t	*sxp;
-	xfs_inode_t     *ip=NULL, *tip=NULL;
-	xfs_mount_t     *mp;
-	struct file	*fp = NULL, *tfp = NULL;
-	bhv_vnode_t	*vp, *tvp;
+	xfs_inode_t     *ip, *tip;
+	struct file	*file, *target_file;
 	int		error = 0;
 
 	sxp = kmem_alloc(sizeof(xfs_swapext_t), KM_MAYFAIL);
 	if (!sxp) {
 		error = XFS_ERROR(ENOMEM);
-		goto error0;
+		goto out;
 	}
 
 	if (copy_from_user(sxp, sxu, sizeof(xfs_swapext_t))) {
 		error = XFS_ERROR(EFAULT);
-		goto error0;
+		goto out_free_sxp;
 	}
 
 	/* Pull information for the target fd */
-	if (((fp = fget((int)sxp->sx_fdtarget)) == NULL) ||
-	    ((vp = vn_from_inode(fp->f_path.dentry->d_inode)) == NULL))  {
+	file = fget((int)sxp->sx_fdtarget);
+	if (!file) {
 		error = XFS_ERROR(EINVAL);
-		goto error0;
+		goto out_free_sxp;
 	}
 
-	ip = xfs_vtoi(vp);
-	if (ip == NULL) {
+	if (!(file->f_mode & FMODE_WRITE) || (file->f_flags & O_APPEND)) {
 		error = XFS_ERROR(EBADF);
-		goto error0;
+		goto out_put_file;
 	}
 
-	if (((tfp = fget((int)sxp->sx_fdtmp)) == NULL) ||
-	    ((tvp = vn_from_inode(tfp->f_path.dentry->d_inode)) == NULL)) {
+	target_file = fget((int)sxp->sx_fdtmp);
+	if (!target_file) {
 		error = XFS_ERROR(EINVAL);
-		goto error0;
+		goto out_put_file;
 	}
 
-	tip = xfs_vtoi(tvp);
-	if (tip == NULL) {
+	if (!(target_file->f_mode & FMODE_WRITE) ||
+	    (target_file->f_flags & O_APPEND)) {
 		error = XFS_ERROR(EBADF);
-		goto error0;
+		goto out_put_target_file;
 	}
+
+	ip = XFS_I(file->f_path.dentry->d_inode);
+	tip = XFS_I(target_file->f_path.dentry->d_inode);
 
 	if (ip->i_mount != tip->i_mount) {
-		error =  XFS_ERROR(EINVAL);
-		goto error0;
+		error = XFS_ERROR(EINVAL);
+		goto out_put_target_file;
 	}
 
 	if (ip->i_ino == tip->i_ino) {
-		error =  XFS_ERROR(EINVAL);
-		goto error0;
+		error = XFS_ERROR(EINVAL);
+		goto out_put_target_file;
 	}
 
-	mp = ip->i_mount;
-
-	if (XFS_FORCED_SHUTDOWN(mp)) {
-		error =  XFS_ERROR(EIO);
-		goto error0;
+	if (XFS_FORCED_SHUTDOWN(ip->i_mount)) {
+		error = XFS_ERROR(EIO);
+		goto out_put_target_file;
 	}
 
-	error = XFS_SWAP_EXTENTS(mp, &ip->i_iocore, &tip->i_iocore, sxp);
+	error = xfs_swap_extents(ip, tip, sxp);
 
- error0:
-	if (fp != NULL)
-		fput(fp);
-	if (tfp != NULL)
-		fput(tfp);
-
-	if (sxp != NULL)
-		kmem_free(sxp, sizeof(xfs_swapext_t));
-
+ out_put_target_file:
+	fput(target_file);
+ out_put_file:
+	fput(file);
+ out_free_sxp:
+	kmem_free(sxp, sizeof(xfs_swapext_t));
+ out:
 	return error;
 }
 
@@ -169,15 +165,6 @@ xfs_swap_extents(
 	xfs_lock_inodes(ips, 2, 0, lock_flags);
 	locked = 1;
 
-	/* Check permissions */
-	error = xfs_iaccess(ip, S_IWUSR, NULL);
-	if (error)
-		goto error0;
-
-	error = xfs_iaccess(tip, S_IWUSR, NULL);
-	if (error)
-		goto error0;
-
 	/* Verify that both files have the same format */
 	if ((ip->i_d.di_mode & S_IFMT) != (tip->i_d.di_mode & S_IFMT)) {
 		error = XFS_ERROR(EINVAL);
@@ -185,8 +172,7 @@ xfs_swap_extents(
 	}
 
 	/* Verify both files are either real-time or non-realtime */
-	if ((ip->i_d.di_flags & XFS_DIFLAG_REALTIME) !=
-	    (tip->i_d.di_flags & XFS_DIFLAG_REALTIME)) {
+	if (XFS_IS_REALTIME_INODE(ip) != XFS_IS_REALTIME_INODE(tip)) {
 		error = XFS_ERROR(EINVAL);
 		goto error0;
 	}
@@ -199,7 +185,7 @@ xfs_swap_extents(
 	}
 
 	if (VN_CACHED(tvp) != 0) {
-		xfs_inval_cached_trace(&tip->i_iocore, 0, -1, 0, -1);
+		xfs_inval_cached_trace(tip, 0, -1, 0, -1);
 		error = xfs_flushinval_pages(tip, 0, -1,
 				FI_REMAPF_LOCKED);
 		if (error)

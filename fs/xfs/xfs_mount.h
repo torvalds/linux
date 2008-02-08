@@ -56,19 +56,11 @@ struct cred;
 struct log;
 struct xfs_mount_args;
 struct xfs_inode;
-struct xfs_iocore;
 struct xfs_bmbt_irec;
 struct xfs_bmap_free;
 struct xfs_extdelta;
 struct xfs_swapext;
 struct xfs_mru_cache;
-
-#define	AIL_LOCK_T		lock_t
-#define	AIL_LOCKINIT(x,y)	spinlock_init(x,y)
-#define	AIL_LOCK_DESTROY(x)	spinlock_destroy(x)
-#define	AIL_LOCK(mp,s)		s=mutex_spinlock(&(mp)->m_ail_lock)
-#define	AIL_UNLOCK(mp,s)	mutex_spinunlock(&(mp)->m_ail_lock, s)
-
 
 /*
  * Prototypes and functions for the Data Migration subsystem.
@@ -196,105 +188,6 @@ typedef struct xfs_qmops {
 #define XFS_QM_QUOTACTL(mp, cmd, id, addr) \
 	(*(mp)->m_qm_ops->xfs_quotactl)(mp, cmd, id, addr)
 
-
-/*
- * Prototypes and functions for I/O core modularization.
- */
-
-typedef int		(*xfs_ioinit_t)(struct xfs_mount *,
-				struct xfs_mount_args *, int);
-typedef int		(*xfs_bmapi_t)(struct xfs_trans *, void *,
-				xfs_fileoff_t, xfs_filblks_t, int,
-				xfs_fsblock_t *, xfs_extlen_t,
-				struct xfs_bmbt_irec *, int *,
-				struct xfs_bmap_free *, struct xfs_extdelta *);
-typedef int		(*xfs_bunmapi_t)(struct xfs_trans *,
-				void *, xfs_fileoff_t,
-				xfs_filblks_t, int, xfs_extnum_t,
-				xfs_fsblock_t *, struct xfs_bmap_free *,
-				struct xfs_extdelta *, int *);
-typedef int		(*xfs_bmap_eof_t)(void *, xfs_fileoff_t, int, int *);
-typedef int		(*xfs_iomap_write_direct_t)(
-				void *, xfs_off_t, size_t, int,
-				struct xfs_bmbt_irec *, int *, int);
-typedef int		(*xfs_iomap_write_delay_t)(
-				void *, xfs_off_t, size_t, int,
-				struct xfs_bmbt_irec *, int *);
-typedef int		(*xfs_iomap_write_allocate_t)(
-				void *, xfs_off_t, size_t,
-				struct xfs_bmbt_irec *, int *);
-typedef int		(*xfs_iomap_write_unwritten_t)(
-				void *, xfs_off_t, size_t);
-typedef uint		(*xfs_lck_map_shared_t)(void *);
-typedef void		(*xfs_lock_t)(void *, uint);
-typedef void		(*xfs_lock_demote_t)(void *, uint);
-typedef int		(*xfs_lock_nowait_t)(void *, uint);
-typedef void		(*xfs_unlk_t)(void *, unsigned int);
-typedef xfs_fsize_t	(*xfs_size_t)(void *);
-typedef xfs_fsize_t	(*xfs_iodone_t)(struct xfs_mount *);
-typedef int		(*xfs_swap_extents_t)(void *, void *,
-				struct xfs_swapext*);
-
-typedef struct xfs_ioops {
-	xfs_ioinit_t			xfs_ioinit;
-	xfs_bmapi_t			xfs_bmapi_func;
-	xfs_bunmapi_t			xfs_bunmapi_func;
-	xfs_bmap_eof_t			xfs_bmap_eof_func;
-	xfs_iomap_write_direct_t	xfs_iomap_write_direct;
-	xfs_iomap_write_delay_t		xfs_iomap_write_delay;
-	xfs_iomap_write_allocate_t	xfs_iomap_write_allocate;
-	xfs_iomap_write_unwritten_t	xfs_iomap_write_unwritten;
-	xfs_lock_t			xfs_ilock;
-	xfs_lck_map_shared_t		xfs_lck_map_shared;
-	xfs_lock_demote_t		xfs_ilock_demote;
-	xfs_lock_nowait_t		xfs_ilock_nowait;
-	xfs_unlk_t			xfs_unlock;
-	xfs_size_t			xfs_size_func;
-	xfs_iodone_t			xfs_iodone;
-	xfs_swap_extents_t		xfs_swap_extents_func;
-} xfs_ioops_t;
-
-#define XFS_IOINIT(mp, args, flags) \
-	(*(mp)->m_io_ops.xfs_ioinit)(mp, args, flags)
-#define XFS_BMAPI(mp, trans,io,bno,len,f,first,tot,mval,nmap,flist,delta) \
-	(*(mp)->m_io_ops.xfs_bmapi_func) \
-		(trans,(io)->io_obj,bno,len,f,first,tot,mval,nmap,flist,delta)
-#define XFS_BUNMAPI(mp, trans,io,bno,len,f,nexts,first,flist,delta,done) \
-	(*(mp)->m_io_ops.xfs_bunmapi_func) \
-		(trans,(io)->io_obj,bno,len,f,nexts,first,flist,delta,done)
-#define XFS_BMAP_EOF(mp, io, endoff, whichfork, eof) \
-	(*(mp)->m_io_ops.xfs_bmap_eof_func) \
-		((io)->io_obj, endoff, whichfork, eof)
-#define XFS_IOMAP_WRITE_DIRECT(mp, io, offset, count, flags, mval, nmap, found)\
-	(*(mp)->m_io_ops.xfs_iomap_write_direct) \
-		((io)->io_obj, offset, count, flags, mval, nmap, found)
-#define XFS_IOMAP_WRITE_DELAY(mp, io, offset, count, flags, mval, nmap) \
-	(*(mp)->m_io_ops.xfs_iomap_write_delay) \
-		((io)->io_obj, offset, count, flags, mval, nmap)
-#define XFS_IOMAP_WRITE_ALLOCATE(mp, io, offset, count, mval, nmap) \
-	(*(mp)->m_io_ops.xfs_iomap_write_allocate) \
-		((io)->io_obj, offset, count, mval, nmap)
-#define XFS_IOMAP_WRITE_UNWRITTEN(mp, io, offset, count) \
-	(*(mp)->m_io_ops.xfs_iomap_write_unwritten) \
-		((io)->io_obj, offset, count)
-#define XFS_LCK_MAP_SHARED(mp, io) \
-	(*(mp)->m_io_ops.xfs_lck_map_shared)((io)->io_obj)
-#define XFS_ILOCK(mp, io, mode) \
-	(*(mp)->m_io_ops.xfs_ilock)((io)->io_obj, mode)
-#define XFS_ILOCK_NOWAIT(mp, io, mode) \
-	(*(mp)->m_io_ops.xfs_ilock_nowait)((io)->io_obj, mode)
-#define XFS_IUNLOCK(mp, io, mode) \
-	(*(mp)->m_io_ops.xfs_unlock)((io)->io_obj, mode)
-#define XFS_ILOCK_DEMOTE(mp, io, mode) \
-	(*(mp)->m_io_ops.xfs_ilock_demote)((io)->io_obj, mode)
-#define XFS_SIZE(mp, io) \
-	(*(mp)->m_io_ops.xfs_size_func)((io)->io_obj)
-#define XFS_IODONE(mp) \
-	(*(mp)->m_io_ops.xfs_iodone)(mp)
-#define XFS_SWAP_EXTENTS(mp, io, tio, sxp) \
-	(*(mp)->m_io_ops.xfs_swap_extents_func) \
-		((io)->io_obj, (tio)->io_obj, sxp)
-
 #ifdef HAVE_PERCPU_SB
 
 /*
@@ -326,14 +219,20 @@ extern void	xfs_icsb_sync_counters_flags(struct xfs_mount *, int);
 #define xfs_icsb_sync_counters_flags(mp, flags)	do { } while (0)
 #endif
 
+typedef struct xfs_ail {
+	xfs_ail_entry_t		xa_ail;
+	uint			xa_gen;
+	struct task_struct	*xa_task;
+	xfs_lsn_t		xa_target;
+} xfs_ail_t;
+
 typedef struct xfs_mount {
 	struct super_block	*m_super;
 	xfs_tid_t		m_tid;		/* next unused tid for fs */
-	AIL_LOCK_T		m_ail_lock;	/* fs AIL mutex */
-	xfs_ail_entry_t		m_ail;		/* fs active log item list */
-	uint			m_ail_gen;	/* fs AIL generation count */
+	spinlock_t		m_ail_lock;	/* fs AIL mutex */
+	xfs_ail_t		m_ail;		/* fs active log item list */
 	xfs_sb_t		m_sb;		/* copy of fs superblock */
-	lock_t			m_sb_lock;	/* sb counter mutex */
+	spinlock_t		m_sb_lock;	/* sb counter lock */
 	struct xfs_buf		*m_sb_bp;	/* buffer for superblock */
 	char			*m_fsname;	/* filesystem name */
 	int			m_fsname_len;	/* strlen of fs name */
@@ -342,7 +241,7 @@ typedef struct xfs_mount {
 	int			m_bsize;	/* fs logical block size */
 	xfs_agnumber_t		m_agfrotor;	/* last ag where space found */
 	xfs_agnumber_t		m_agirotor;	/* last ag dir inode alloced */
-	lock_t			m_agirotor_lock;/* .. and lock protecting it */
+	spinlock_t		m_agirotor_lock;/* .. and lock protecting it */
 	xfs_agnumber_t		m_maxagi;	/* highest inode alloc group */
 	struct xfs_inode	*m_inodes;	/* active inode list */
 	struct list_head	m_del_inodes;	/* inodes to reclaim */
@@ -423,7 +322,6 @@ typedef struct xfs_mount {
 						 * hash table */
 	struct xfs_dmops	*m_dm_ops;	/* vector of DMI ops */
 	struct xfs_qmops	*m_qm_ops;	/* vector of XQM ops */
-	struct xfs_ioops	m_io_ops;	/* vector of I/O ops */
 	atomic_t		m_active_trans;	/* number trans frozen */
 #ifdef HAVE_PERCPU_SB
 	xfs_icsb_cnts_t		*m_sb_cnts;	/* per-cpu superblock counters */
@@ -610,8 +508,6 @@ typedef struct xfs_mod_sb {
 
 #define	XFS_MOUNT_ILOCK(mp)	mutex_lock(&((mp)->m_ilock))
 #define	XFS_MOUNT_IUNLOCK(mp)	mutex_unlock(&((mp)->m_ilock))
-#define	XFS_SB_LOCK(mp)		mutex_spinlock(&(mp)->m_sb_lock)
-#define	XFS_SB_UNLOCK(mp,s)	mutex_spinunlock(&(mp)->m_sb_lock,(s))
 
 extern xfs_mount_t *xfs_mount_init(void);
 extern void	xfs_mod_sb(xfs_trans_t *, __int64_t);
@@ -646,7 +542,6 @@ extern int	xfs_qmops_get(struct xfs_mount *, struct xfs_mount_args *);
 extern void	xfs_qmops_put(struct xfs_mount *);
 
 extern struct xfs_dmops xfs_dmcore_xfs;
-extern struct xfs_ioops xfs_iocore_xfs;
 
 extern int	xfs_init(void);
 extern void	xfs_cleanup(void);

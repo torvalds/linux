@@ -1209,7 +1209,6 @@ xfs_qm_dqflush(
 	xfs_buf_t		*bp;
 	xfs_disk_dquot_t	*ddqp;
 	int			error;
-	SPLDECL(s);
 
 	ASSERT(XFS_DQ_IS_LOCKED(dqp));
 	ASSERT(XFS_DQ_IS_FLUSH_LOCKED(dqp));
@@ -1270,9 +1269,9 @@ xfs_qm_dqflush(
 	mp = dqp->q_mount;
 
 	/* lsn is 64 bits */
-	AIL_LOCK(mp, s);
+	spin_lock(&mp->m_ail_lock);
 	dqp->q_logitem.qli_flush_lsn = dqp->q_logitem.qli_item.li_lsn;
-	AIL_UNLOCK(mp, s);
+	spin_unlock(&mp->m_ail_lock);
 
 	/*
 	 * Attach an iodone routine so that we can remove this dquot from the
@@ -1318,7 +1317,6 @@ xfs_qm_dqflush_done(
 	xfs_dq_logitem_t	*qip)
 {
 	xfs_dquot_t		*dqp;
-	SPLDECL(s);
 
 	dqp = qip->qli_dquot;
 
@@ -1333,15 +1331,15 @@ xfs_qm_dqflush_done(
 	if ((qip->qli_item.li_flags & XFS_LI_IN_AIL) &&
 	    qip->qli_item.li_lsn == qip->qli_flush_lsn) {
 
-		AIL_LOCK(dqp->q_mount, s);
+		spin_lock(&dqp->q_mount->m_ail_lock);
 		/*
 		 * xfs_trans_delete_ail() drops the AIL lock.
 		 */
 		if (qip->qli_item.li_lsn == qip->qli_flush_lsn)
 			xfs_trans_delete_ail(dqp->q_mount,
-					     (xfs_log_item_t*)qip, s);
+					     (xfs_log_item_t*)qip);
 		else
-			AIL_UNLOCK(dqp->q_mount, s);
+			spin_unlock(&dqp->q_mount->m_ail_lock);
 	}
 
 	/*

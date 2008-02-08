@@ -310,7 +310,6 @@ xfs_qm_mount_quotas(
 	xfs_mount_t	*mp,
 	int		mfsi_flags)
 {
-	unsigned long	s;
 	int		error = 0;
 	uint		sbf;
 
@@ -367,13 +366,13 @@ xfs_qm_mount_quotas(
 
  write_changes:
 	/*
-	 * We actually don't have to acquire the SB_LOCK at all.
+	 * We actually don't have to acquire the m_sb_lock at all.
 	 * This can only be called from mount, and that's single threaded. XXX
 	 */
-	s = XFS_SB_LOCK(mp);
+	spin_lock(&mp->m_sb_lock);
 	sbf = mp->m_sb.sb_qflags;
 	mp->m_sb.sb_qflags = mp->m_qflags & XFS_MOUNT_QUOTA_ALL;
-	XFS_SB_UNLOCK(mp, s);
+	spin_unlock(&mp->m_sb_lock);
 
 	if (sbf != (mp->m_qflags & XFS_MOUNT_QUOTA_ALL)) {
 		if (xfs_qm_write_sb_changes(mp, XFS_SB_QFLAGS)) {
@@ -1139,7 +1138,7 @@ xfs_qm_init_quotainfo(
 		return error;
 	}
 
-	spinlock_init(&qinf->qi_pinlock, "xfs_qinf_pin");
+	spin_lock_init(&qinf->qi_pinlock);
 	xfs_qm_list_init(&qinf->qi_dqlist, "mpdqlist", 0);
 	qinf->qi_dqreclaims = 0;
 
@@ -1370,7 +1369,6 @@ xfs_qm_qino_alloc(
 {
 	xfs_trans_t	*tp;
 	int		error;
-	unsigned long	s;
 	int		committed;
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_QM_QINOCREATE);
@@ -1402,7 +1400,7 @@ xfs_qm_qino_alloc(
 	 * sbfields arg may contain fields other than *QUOTINO;
 	 * VERSIONNUM for example.
 	 */
-	s = XFS_SB_LOCK(mp);
+	spin_lock(&mp->m_sb_lock);
 	if (flags & XFS_QMOPT_SBVERSION) {
 #if defined(DEBUG) && defined(XFS_LOUD_RECOVERY)
 		unsigned oldv = mp->m_sb.sb_versionnum;
@@ -1429,7 +1427,7 @@ xfs_qm_qino_alloc(
 		mp->m_sb.sb_uquotino = (*ip)->i_ino;
 	else
 		mp->m_sb.sb_gquotino = (*ip)->i_ino;
-	XFS_SB_UNLOCK(mp, s);
+	spin_unlock(&mp->m_sb_lock);
 	xfs_mod_sb(tp, sbfields);
 
 	if ((error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES))) {

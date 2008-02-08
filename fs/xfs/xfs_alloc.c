@@ -2206,7 +2206,7 @@ xfs_alloc_read_agf(
 			be32_to_cpu(agf->agf_levels[XFS_BTNUM_BNOi]);
 		pag->pagf_levels[XFS_BTNUM_CNTi] =
 			be32_to_cpu(agf->agf_levels[XFS_BTNUM_CNTi]);
-		spinlock_init(&pag->pagb_lock, "xfspagb");
+		spin_lock_init(&pag->pagb_lock);
 		pag->pagb_list = kmem_zalloc(XFS_PAGB_NUM_SLOTS *
 					sizeof(xfs_perag_busy_t), KM_SLEEP);
 		pag->pagf_init = 1;
@@ -2500,10 +2500,9 @@ xfs_alloc_mark_busy(xfs_trans_t *tp,
 	xfs_mount_t		*mp;
 	xfs_perag_busy_t	*bsy;
 	int			n;
-	SPLDECL(s);
 
 	mp = tp->t_mountp;
-	s = mutex_spinlock(&mp->m_perag[agno].pagb_lock);
+	spin_lock(&mp->m_perag[agno].pagb_lock);
 
 	/* search pagb_list for an open slot */
 	for (bsy = mp->m_perag[agno].pagb_list, n = 0;
@@ -2533,7 +2532,7 @@ xfs_alloc_mark_busy(xfs_trans_t *tp,
 		xfs_trans_set_sync(tp);
 	}
 
-	mutex_spinunlock(&mp->m_perag[agno].pagb_lock, s);
+	spin_unlock(&mp->m_perag[agno].pagb_lock);
 }
 
 void
@@ -2543,11 +2542,10 @@ xfs_alloc_clear_busy(xfs_trans_t *tp,
 {
 	xfs_mount_t		*mp;
 	xfs_perag_busy_t	*list;
-	SPLDECL(s);
 
 	mp = tp->t_mountp;
 
-	s = mutex_spinlock(&mp->m_perag[agno].pagb_lock);
+	spin_lock(&mp->m_perag[agno].pagb_lock);
 	list = mp->m_perag[agno].pagb_list;
 
 	ASSERT(idx < XFS_PAGB_NUM_SLOTS);
@@ -2559,7 +2557,7 @@ xfs_alloc_clear_busy(xfs_trans_t *tp,
 		TRACE_UNBUSY("xfs_alloc_clear_busy", "missing", agno, idx, tp);
 	}
 
-	mutex_spinunlock(&mp->m_perag[agno].pagb_lock, s);
+	spin_unlock(&mp->m_perag[agno].pagb_lock);
 }
 
 
@@ -2578,11 +2576,10 @@ xfs_alloc_search_busy(xfs_trans_t *tp,
 	xfs_agblock_t		uend, bend;
 	xfs_lsn_t		lsn;
 	int			cnt;
-	SPLDECL(s);
 
 	mp = tp->t_mountp;
 
-	s = mutex_spinlock(&mp->m_perag[agno].pagb_lock);
+	spin_lock(&mp->m_perag[agno].pagb_lock);
 	cnt = mp->m_perag[agno].pagb_count;
 
 	uend = bno + len - 1;
@@ -2615,12 +2612,12 @@ xfs_alloc_search_busy(xfs_trans_t *tp,
 	if (cnt) {
 		TRACE_BUSYSEARCH("xfs_alloc_search_busy", "found", agno, bno, len, n, tp);
 		lsn = bsy->busy_tp->t_commit_lsn;
-		mutex_spinunlock(&mp->m_perag[agno].pagb_lock, s);
+		spin_unlock(&mp->m_perag[agno].pagb_lock);
 		xfs_log_force(mp, lsn, XFS_LOG_FORCE|XFS_LOG_SYNC);
 	} else {
 		TRACE_BUSYSEARCH("xfs_alloc_search_busy", "not-found", agno, bno, len, n, tp);
 		n = -1;
-		mutex_spinunlock(&mp->m_perag[agno].pagb_lock, s);
+		spin_unlock(&mp->m_perag[agno].pagb_lock);
 	}
 
 	return n;

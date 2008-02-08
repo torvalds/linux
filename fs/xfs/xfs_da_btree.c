@@ -2218,7 +2218,7 @@ xfs_da_state_free(xfs_da_state_t *state)
 
 #ifdef XFS_DABUF_DEBUG
 xfs_dabuf_t	*xfs_dabuf_global_list;
-lock_t		xfs_dabuf_global_lock;
+spinlock_t	xfs_dabuf_global_lock;
 #endif
 
 /*
@@ -2264,10 +2264,9 @@ xfs_da_buf_make(int nbuf, xfs_buf_t **bps, inst_t *ra)
 	}
 #ifdef XFS_DABUF_DEBUG
 	{
-		SPLDECL(s);
 		xfs_dabuf_t	*p;
 
-		s = mutex_spinlock(&xfs_dabuf_global_lock);
+		spin_lock(&xfs_dabuf_global_lock);
 		for (p = xfs_dabuf_global_list; p; p = p->next) {
 			ASSERT(p->blkno != dabuf->blkno ||
 			       p->target != dabuf->target);
@@ -2277,7 +2276,7 @@ xfs_da_buf_make(int nbuf, xfs_buf_t **bps, inst_t *ra)
 			xfs_dabuf_global_list->prev = dabuf;
 		dabuf->next = xfs_dabuf_global_list;
 		xfs_dabuf_global_list = dabuf;
-		mutex_spinunlock(&xfs_dabuf_global_lock, s);
+		spin_unlock(&xfs_dabuf_global_lock);
 	}
 #endif
 	return dabuf;
@@ -2319,16 +2318,14 @@ xfs_da_buf_done(xfs_dabuf_t *dabuf)
 		kmem_free(dabuf->data, BBTOB(dabuf->bbcount));
 #ifdef XFS_DABUF_DEBUG
 	{
-		SPLDECL(s);
-
-		s = mutex_spinlock(&xfs_dabuf_global_lock);
+		spin_lock(&xfs_dabuf_global_lock);
 		if (dabuf->prev)
 			dabuf->prev->next = dabuf->next;
 		else
 			xfs_dabuf_global_list = dabuf->next;
 		if (dabuf->next)
 			dabuf->next->prev = dabuf->prev;
-		mutex_spinunlock(&xfs_dabuf_global_lock, s);
+		spin_unlock(&xfs_dabuf_global_lock);
 	}
 	memset(dabuf, 0, XFS_DA_BUF_SIZE(dabuf->nbuf));
 #endif

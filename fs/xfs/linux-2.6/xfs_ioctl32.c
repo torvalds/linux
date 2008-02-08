@@ -44,6 +44,7 @@
 #include "xfs_error.h"
 #include "xfs_dfrag.h"
 #include "xfs_vnodeops.h"
+#include "xfs_ioctl32.h"
 
 #define  _NATIVE_IOC(cmd, type) \
 	  _IOC(_IOC_DIR(cmd), _IOC_TYPE(cmd), _IOC_NR(cmd), sizeof(type))
@@ -379,9 +380,6 @@ xfs_compat_ioctl(
 	switch (cmd) {
 	case XFS_IOC_DIOINFO:
 	case XFS_IOC_FSGEOMETRY:
-	case XFS_IOC_GETVERSION:
-	case XFS_IOC_GETXFLAGS:
-	case XFS_IOC_SETXFLAGS:
 	case XFS_IOC_FSGETXATTR:
 	case XFS_IOC_FSSETXATTR:
 	case XFS_IOC_FSGETXATTRA:
@@ -407,6 +405,11 @@ xfs_compat_ioctl(
 	case XFS_IOC_ERROR_CLEARALL:
 		break;
 
+	case XFS_IOC32_GETXFLAGS:
+	case XFS_IOC32_SETXFLAGS:
+	case XFS_IOC32_GETVERSION:
+		cmd = _NATIVE_IOC(cmd, long);
+		break;
 #ifdef BROKEN_X86_ALIGNMENT
 	/* xfs_flock_t has wrong u32 vs u64 alignment */
 	case XFS_IOC_ALLOCSP_32:

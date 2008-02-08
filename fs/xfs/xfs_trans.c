@@ -1322,7 +1322,6 @@ xfs_trans_chunk_committed(
 	xfs_lsn_t		item_lsn;
 	struct xfs_mount	*mp;
 	int			i;
-	SPLDECL(s);
 
 	lidp = licp->lic_descs;
 	for (i = 0; i < licp->lic_unused; i++, lidp++) {
@@ -1363,7 +1362,7 @@ xfs_trans_chunk_committed(
 		 * the test below.
 		 */
 		mp = lip->li_mountp;
-		AIL_LOCK(mp,s);
+		spin_lock(&mp->m_ail_lock);
 		if (XFS_LSN_CMP(item_lsn, lip->li_lsn) > 0) {
 			/*
 			 * This will set the item's lsn to item_lsn
@@ -1372,9 +1371,9 @@ xfs_trans_chunk_committed(
 			 *
 			 * xfs_trans_update_ail() drops the AIL lock.
 			 */
-			xfs_trans_update_ail(mp, lip, item_lsn, s);
+			xfs_trans_update_ail(mp, lip, item_lsn);
 		} else {
-			AIL_UNLOCK(mp, s);
+			spin_unlock(&mp->m_ail_lock);
 		}
 
 		/*

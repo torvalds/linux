@@ -21,7 +21,7 @@ static kmem_zone_t *ktrace_hdr_zone;
 static kmem_zone_t *ktrace_ent_zone;
 static int          ktrace_zentries;
 
-void
+void __init
 ktrace_init(int zentries)
 {
 	ktrace_zentries = zentries;
@@ -36,7 +36,7 @@ ktrace_init(int zentries)
 	ASSERT(ktrace_ent_zone);
 }
 
-void
+void __exit
 ktrace_uninit(void)
 {
 	kmem_zone_destroy(ktrace_hdr_zone);
@@ -90,8 +90,6 @@ ktrace_alloc(int nentries, unsigned int __nocast sleep)
 		return NULL;
 	}
 
-	spinlock_init(&(ktp->kt_lock), "kt_lock");
-
 	ktp->kt_entries  = ktep;
 	ktp->kt_nentries = nentries;
 	ktp->kt_index    = 0;
@@ -113,8 +111,6 @@ ktrace_free(ktrace_t *ktp)
 
 	if (ktp == (ktrace_t *)NULL)
 		return;
-
-	spinlock_destroy(&ktp->kt_lock);
 
 	/*
 	 * Special treatment for the Vnode trace buffer.

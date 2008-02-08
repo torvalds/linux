@@ -18,7 +18,6 @@ int xfs_open(struct xfs_inode *ip);
 int xfs_getattr(struct xfs_inode *ip, struct bhv_vattr *vap, int flags);
 int xfs_setattr(struct xfs_inode *ip, struct bhv_vattr *vap, int flags,
 		struct cred *credp);
-int xfs_access(struct xfs_inode *ip, int mode, struct cred *credp);
 int xfs_readlink(struct xfs_inode *ip, char *link);
 int xfs_fsync(struct xfs_inode *ip, int flag, xfs_off_t start,
 		xfs_off_t stop);
@@ -39,7 +38,6 @@ int xfs_readdir(struct xfs_inode	*dp, void *dirent, size_t bufsize,
 int xfs_symlink(struct xfs_inode *dp, bhv_vname_t *dentry,
 		char *target_path, mode_t mode, bhv_vnode_t **vpp,
 		struct cred *credp);
-int xfs_fid2(struct xfs_inode *ip, struct xfs_fid *xfid);
 int xfs_rwlock(struct xfs_inode *ip, bhv_vrwlock_t locktype);
 void xfs_rwunlock(struct xfs_inode *ip, bhv_vrwlock_t locktype);
 int xfs_inode_flush(struct xfs_inode *ip, int flags);

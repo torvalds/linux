@@ -170,7 +170,7 @@ xfs_bulkstat_one_dinode(
 	buf->bs_mtime.tv_nsec = be32_to_cpu(dic->di_mtime.t_nsec);
 	buf->bs_ctime.tv_sec = be32_to_cpu(dic->di_ctime.t_sec);
 	buf->bs_ctime.tv_nsec = be32_to_cpu(dic->di_ctime.t_nsec);
-	buf->bs_xflags = xfs_dic2xflags(dic);
+	buf->bs_xflags = xfs_dic2xflags(dip);
 	buf->bs_extsize = be32_to_cpu(dic->di_extsize) << mp->m_sb.sb_blocklog;
 	buf->bs_extents = be32_to_cpu(dic->di_nextents);
 	buf->bs_gen = be32_to_cpu(dic->di_gen);
@@ -291,7 +291,7 @@ xfs_bulkstat_use_dinode(
 	dip = (xfs_dinode_t *)
 			xfs_buf_offset(bp, clustidx << mp->m_sb.sb_inodelog);
 	/*
-	 * Check the buffer containing the on-disk inode for di_nlink == 0.
+	 * Check the buffer containing the on-disk inode for di_mode == 0.
 	 * This is to prevent xfs_bulkstat from picking up just reclaimed
 	 * inodes that have their in-core state initialized but not flushed
 	 * to disk yet. This is a temporary hack that would require a proper
@@ -299,7 +299,7 @@ xfs_bulkstat_use_dinode(
 	 */
 	if (be16_to_cpu(dip->di_core.di_magic) != XFS_DINODE_MAGIC ||
 	    !XFS_DINODE_GOOD_VERSION(dip->di_core.di_version) ||
-	    !dip->di_core.di_nlink)
+	    !dip->di_core.di_mode)
 		return 0;
 	if (flags & BULKSTAT_FG_QUICK) {
 		*dipp = dip;
@@ -307,7 +307,7 @@ xfs_bulkstat_use_dinode(
 	}
 	/* BULKSTAT_FG_INLINE: if attr fork is local, or not there, use it */
 	aformat = dip->di_core.di_aformat;
-	if ((XFS_CFORK_Q(&dip->di_core) == 0) ||
+	if ((XFS_DFORK_Q(dip) == 0) ||
 	    (aformat == XFS_DINODE_FMT_LOCAL) ||
 	    (aformat == XFS_DINODE_FMT_EXTENTS && !dip->di_core.di_anextents)) {
 		*dipp = dip;
@@ -399,7 +399,7 @@ xfs_bulkstat(
 		(XFS_INODE_CLUSTER_SIZE(mp) >> mp->m_sb.sb_inodelog);
 	nimask = ~(nicluster - 1);
 	nbcluster = nicluster >> mp->m_sb.sb_inopblog;
-	irbuf = kmem_zalloc_greedy(&irbsize, NBPC, NBPC * 4,
+	irbuf = kmem_zalloc_greedy(&irbsize, PAGE_SIZE, PAGE_SIZE * 4,
 				   KM_SLEEP | KM_MAYFAIL | KM_LARGE);
 	nirbuf = irbsize / sizeof(*irbuf);
 
@@ -830,7 +830,7 @@ xfs_inumbers(
 	agino = XFS_INO_TO_AGINO(mp, ino);
 	left = *count;
 	*count = 0;
-	bcount = MIN(left, (int)(NBPP / sizeof(*buffer)));
+	bcount = MIN(left, (int)(PAGE_SIZE / sizeof(*buffer)));
 	buffer = kmem_alloc(bcount * sizeof(*buffer), KM_SLEEP);
 	error = bufidx = 0;
 	cur = NULL;
