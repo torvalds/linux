@@ -57,6 +57,7 @@ static const struct super_operations befs_sops = {
 	.put_super	= befs_put_super,	/* uninit super */
 	.statfs		= befs_statfs,	/* statfs */
 	.remount_fs	= befs_remount,
+	.show_options	= generic_show_options,
 };
 
 /* slab cache for befs_inode_info objects */
@@ -759,9 +760,10 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 	befs_super_block *disk_sb;
 	struct inode *root;
 	long ret = -EINVAL;
-
 	const unsigned long sb_block = 0;
 	const off_t x86_sb_off = 512;
+
+	save_mount_options(sb, data);
 
 	sb->s_fs_info = kmalloc(sizeof (*befs_sb), GFP_KERNEL);
 	if (sb->s_fs_info == NULL) {
