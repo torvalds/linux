@@ -181,9 +181,9 @@ void ps3_set_bookmark(u64 bookmark)
 	 * includes cycles before the call.
 	 */
 
-	asm volatile("or 29, 29, 29;"); /* db10cyc */
+	asm volatile("nop;nop;nop;nop;nop;nop;nop;nop;nop;");
 	mtspr(SPRN_BKMK, bookmark);
-	asm volatile("or 29, 29, 29;"); /* db10cyc */
+	asm volatile("nop;nop;nop;nop;nop;nop;nop;nop;nop;");
 }
 EXPORT_SYMBOL_GPL(ps3_set_bookmark);
 
