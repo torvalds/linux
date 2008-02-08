@@ -133,13 +133,11 @@ asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
 	sigset_t set;
 	unsigned long ax;
 
-	frame = (struct rt_sigframe __user *)(regs->sp - 8);
-	if (!access_ok(VERIFY_READ, frame, sizeof(*frame))) {
+	frame = (struct rt_sigframe __user *)(regs->sp - sizeof(long));
+	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
-	} 
-	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set))) { 
+	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
 		goto badframe;
-	} 
 
 	sigdelsetmask(&set, ~_BLOCKABLE);
 	spin_lock_irq(&current->sighand->siglock);

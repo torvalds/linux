@@ -214,11 +214,12 @@ badframe:
 
 asmlinkage int sys_rt_sigreturn(unsigned long __unused)
 {
-	struct pt_regs *regs = (struct pt_regs *) &__unused;
-	struct rt_sigframe __user *frame = (struct rt_sigframe __user *)(regs->sp - 4);
+	struct pt_regs *regs = (struct pt_regs *)&__unused;
+	struct rt_sigframe __user *frame;
 	sigset_t set;
 	int ax;
 
+	frame = (struct rt_sigframe __user *)(regs->sp - sizeof(long));
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
