@@ -105,6 +105,7 @@ static inline void destroy_super(struct super_block *s)
 {
 	security_sb_free(s);
 	kfree(s->s_subtype);
+	kfree(s->s_options);
 	kfree(s);
 }
 
