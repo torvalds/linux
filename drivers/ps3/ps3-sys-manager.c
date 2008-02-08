@@ -138,9 +138,11 @@ enum ps3_sys_manager_attr {
 
 /**
  * enum ps3_sys_manager_event - External event type, reported by system manager.
- * @PS3_SM_EVENT_POWER_PRESSED: payload.value not used.
+ * @PS3_SM_EVENT_POWER_PRESSED: payload.value =
+ *  enum ps3_sys_manager_button_event.
  * @PS3_SM_EVENT_POWER_RELEASED: payload.value = time pressed in millisec.
- * @PS3_SM_EVENT_RESET_PRESSED: payload.value not used.
+ * @PS3_SM_EVENT_RESET_PRESSED: payload.value =
+ *  enum ps3_sys_manager_button_event.
  * @PS3_SM_EVENT_RESET_RELEASED: payload.value = time pressed in millisec.
  * @PS3_SM_EVENT_THERMAL_ALERT: payload.value = thermal zone id.
  * @PS3_SM_EVENT_THERMAL_CLEARED: payload.value = thermal zone id.
@@ -155,6 +157,17 @@ enum ps3_sys_manager_event {
 	PS3_SM_EVENT_THERMAL_ALERT = 7,
 	PS3_SM_EVENT_THERMAL_CLEARED = 8,
 	/* no info on controller events */
+};
+
+/**
+ * enum ps3_sys_manager_button_event - Button event payload values.
+ * @PS3_SM_BUTTON_EVENT_HARD: Hardware generated event.
+ * @PS3_SM_BUTTON_EVENT_SOFT: Software generated event.
+ */
+
+enum ps3_sys_manager_button_event {
+	PS3_SM_BUTTON_EVENT_HARD = 0,
+	PS3_SM_BUTTON_EVENT_SOFT = 1,
 };
 
 /**
@@ -416,8 +429,10 @@ static int ps3_sys_manager_handle_event(struct ps3_system_bus_device *dev)
 
 	switch (event.type) {
 	case PS3_SM_EVENT_POWER_PRESSED:
-		dev_dbg(&dev->core, "%s:%d: POWER_PRESSED\n",
-			__func__, __LINE__);
+		dev_dbg(&dev->core, "%s:%d: POWER_PRESSED (%s)\n",
+			__func__, __LINE__,
+			(event.value == PS3_SM_BUTTON_EVENT_SOFT ? "soft"
+			: "hard"));
 		ps3_sm_force_power_off = 1;
 		/*
 		 * A memory barrier is use here to sync memory since
@@ -432,8 +447,10 @@ static int ps3_sys_manager_handle_event(struct ps3_system_bus_device *dev)
 			__func__, __LINE__, event.value);
 		break;
 	case PS3_SM_EVENT_RESET_PRESSED:
-		dev_dbg(&dev->core, "%s:%d: RESET_PRESSED\n",
-			__func__, __LINE__);
+		dev_dbg(&dev->core, "%s:%d: RESET_PRESSED (%s)\n",
+			__func__, __LINE__,
+			(event.value == PS3_SM_BUTTON_EVENT_SOFT ? "soft"
+			: "hard"));
 		ps3_sm_force_power_off = 0;
 		/*
 		 * A memory barrier is use here to sync memory since
