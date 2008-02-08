@@ -1025,19 +1025,16 @@ asmlinkage long sys_getsid(pid_t pid)
 	else {
 		int retval;
 		struct task_struct *p;
-		struct pid_namespace *ns;
 
-		ns = current->nsproxy->pid_ns;
-
-		read_lock(&tasklist_lock);
-		p = find_task_by_pid_ns(pid, ns);
+		rcu_read_lock();
+		p = find_task_by_vpid(pid);
 		retval = -ESRCH;
 		if (p) {
 			retval = security_task_getsid(p);
 			if (!retval)
-				retval = task_session_nr_ns(p, ns);
+				retval = task_session_vnr(p);
 		}
-		read_unlock(&tasklist_lock);
+		rcu_read_unlock();
 		return retval;
 	}
 }
