@@ -875,9 +875,7 @@ static void shrink_readahead_size_eio(struct file *filp,
 }
 
 /**
- * do_generic_mapping_read - generic file read routine
- * @mapping:	address_space to be read
- * @ra:		file's readahead state
+ * do_generic_file_read - generic file read routine
  * @filp:	the file to read
  * @ppos:	current file position
  * @desc:	read_descriptor
@@ -888,18 +886,13 @@ static void shrink_readahead_size_eio(struct file *filp,
  *
  * This is really ugly. But the goto's actually try to clarify some
  * of the logic when it comes to error handling etc.
- *
- * Note the struct file* is only passed for the use of readpage.
- * It may be NULL.
  */
-void do_generic_mapping_read(struct address_space *mapping,
-			     struct file_ra_state *ra,
-			     struct file *filp,
-			     loff_t *ppos,
-			     read_descriptor_t *desc,
-			     read_actor_t actor)
+static void do_generic_file_read(struct file *filp, loff_t *ppos,
+		read_descriptor_t *desc, read_actor_t actor)
 {
+	struct address_space *mapping = filp->f_mapping;
 	struct inode *inode = mapping->host;
+	struct file_ra_state *ra = &filp->f_ra;
 	pgoff_t index;
 	pgoff_t last_index;
 	pgoff_t prev_index;
@@ -1091,7 +1084,6 @@ out:
 	if (filp)
 		file_accessed(filp);
 }
-EXPORT_SYMBOL(do_generic_mapping_read);
 
 int file_read_actor(read_descriptor_t *desc, struct page *page,
 			unsigned long offset, unsigned long size)
