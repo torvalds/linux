@@ -804,7 +804,7 @@ static int setup_indexes(struct dm_table *t)
 		return -ENOMEM;
 
 	/* set up internal nodes, bottom-up */
-	for (i = t->depth - 2, total = 0; i >= 0; i--) {
+	for (i = t->depth - 2; i >= 0; i--) {
 		t->index[i] = indexes;
 		indexes += (KEYS_PER_NODE * t->counts[i]);
 		setup_btree_index(i, t);
