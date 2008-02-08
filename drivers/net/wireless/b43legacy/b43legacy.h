@@ -199,6 +199,13 @@
 #define B43legacy_MACCTL_TBTTHOLD	0x10000000 /* TBTT Hold */
 #define B43legacy_MACCTL_GMODE		0x80000000 /* G Mode */
 
+/* MAC Command bitfield */
+#define B43legacy_MACCMD_BEACON0_VALID	0x00000001 /* Beacon 0 in template RAM is busy/valid */
+#define B43legacy_MACCMD_BEACON1_VALID	0x00000002 /* Beacon 1 in template RAM is busy/valid */
+#define B43legacy_MACCMD_DFQ_VALID	0x00000004 /* Directed frame queue valid (IBSS PS mode, ATIM) */
+#define B43legacy_MACCMD_CCA		0x00000008 /* Clear channel assessment */
+#define B43legacy_MACCMD_BGNOISE	0x00000010 /* Background noise */
+
 /* 802.11 core specific TM State Low flags */
 #define B43legacy_TMSLOW_GMODE		0x20000000 /* G Mode Enable */
 #define B43legacy_TMSLOW_PLLREFSEL	0x00200000 /* PLL Freq Ref Select */
@@ -645,7 +652,7 @@ struct b43legacy_wldev {
 
 	bool __using_pio;	/* Using pio rather than dma. */
 	bool bad_frames_preempt;/* Use "Bad Frames Preemption". */
-	bool reg124_set_0x4;	/* Variable to keep track of IRQ. */
+	bool dfq_valid;		/* Directed frame queue valid (IBSS PS mode, ATIM). */
 	bool short_preamble;	/* TRUE if using short preamble. */
 	bool short_slot;	/* TRUE if using short slot timing. */
 	bool radio_hw_enable;	/* State of radio hardware enable bit. */
