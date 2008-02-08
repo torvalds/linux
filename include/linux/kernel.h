@@ -222,6 +222,7 @@ extern int panic_on_unrecovered_nmi;
 extern int tainted;
 extern const char *print_tainted(void);
 extern void add_taint(unsigned);
+extern int root_mountflags;
 
 /* Values used for system_state */
 extern enum system_states {
