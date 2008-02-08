@@ -29,7 +29,6 @@
 #include <linux/personality.h>
 #include <linux/init.h>
 
-#include <asm/a.out.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 
