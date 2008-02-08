@@ -1778,8 +1778,8 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 		memset(dev->dev_addr, 0, sizeof(dev->dev_addr));
 
 	if (pcnet32_debug & NETIF_MSG_PROBE) {
-		for (i = 0; i < 6; i++)
-			printk(" %2.2x", dev->dev_addr[i]);
+		DECLARE_MAC_BUF(mac);
+		printk(" %s", print_mac(mac, dev->dev_addr));
 
 		/* Version 0x2623 and 0x2624 */
 		if (((chip_version + 1) & 0xfffe) == 0x2624) {
