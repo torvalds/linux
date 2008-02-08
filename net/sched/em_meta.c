@@ -735,11 +735,13 @@ static int em_meta_match(struct sk_buff *skb, struct tcf_ematch *m,
 
 static inline void meta_delete(struct meta_match *meta)
 {
-	struct meta_type_ops *ops = meta_type_ops(&meta->lvalue);
+	if (meta) {
+		struct meta_type_ops *ops = meta_type_ops(&meta->lvalue);
 
-	if (ops && ops->destroy) {
-		ops->destroy(&meta->lvalue);
-		ops->destroy(&meta->rvalue);
+		if (ops && ops->destroy) {
+			ops->destroy(&meta->lvalue);
+			ops->destroy(&meta->rvalue);
+		}
 	}
 
 	kfree(meta);

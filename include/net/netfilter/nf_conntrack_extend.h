@@ -67,7 +67,7 @@ struct nf_ct_ext_type
 	void (*destroy)(struct nf_conn *ct);
 	/* Called when realloacted (can be NULL).
 	   Contents has already been moved. */
-	void (*move)(struct nf_conn *ct, void *old);
+	void (*move)(void *new, void *old);
 
 	enum nf_ct_ext_id id;
 

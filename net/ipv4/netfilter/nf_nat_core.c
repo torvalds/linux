@@ -600,10 +600,10 @@ static void nf_nat_cleanup_conntrack(struct nf_conn *ct)
 	spin_unlock_bh(&nf_nat_lock);
 }
 
-static void nf_nat_move_storage(struct nf_conn *conntrack, void *old)
+static void nf_nat_move_storage(void *new, void *old)
 {
-	struct nf_conn_nat *new_nat = nf_ct_ext_find(conntrack, NF_CT_EXT_NAT);
-	struct nf_conn_nat *old_nat = (struct nf_conn_nat *)old;
+	struct nf_conn_nat *new_nat = new;
+	struct nf_conn_nat *old_nat = old;
 	struct nf_conn *ct = old_nat->ct;
 
 	if (!ct || !(ct->status & IPS_NAT_DONE_MASK))
