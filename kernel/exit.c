@@ -1140,12 +1140,6 @@ static int eligible_child(pid_t pid, int options, struct task_struct *p)
 	if (((p->exit_signal != SIGCHLD) ^ ((options & __WCLONE) != 0))
 	    && !(options & __WALL))
 		return 0;
-	/*
-	 * Do not consider thread group leaders that are
-	 * in a non-empty thread group:
-	 */
-	if (delay_group_leader(p))
-		return 2;
 
 	err = security_task_wait(p);
 	if (err)
@@ -1497,10 +1491,9 @@ repeat:
 	tsk = current;
 	do {
 		struct task_struct *p;
-		int ret;
 
 		list_for_each_entry(p, &tsk->children, sibling) {
-			ret = eligible_child(pid, options, p);
+			int ret = eligible_child(pid, options, p);
 			if (!ret)
 				continue;
 
@@ -1524,19 +1517,17 @@ repeat:
 				retval = wait_task_stopped(p,
 						(options & WNOWAIT), infop,
 						stat_addr, ru);
-			} else if (p->exit_state == EXIT_ZOMBIE) {
+			} else if (p->exit_state == EXIT_ZOMBIE &&
+					!delay_group_leader(p)) {
 				/*
-				 * Eligible but we cannot release it yet:
+				 * We don't reap group leaders with subthreads.
 				 */
-				if (ret == 2)
-					goto check_continued;
 				if (!likely(options & WEXITED))
 					continue;
 				retval = wait_task_zombie(p,
 						(options & WNOWAIT), infop,
 						stat_addr, ru);
 			} else if (p->exit_state != EXIT_DEAD) {
-check_continued:
 				/*
 				 * It's running now, so it might later
 				 * exit, stop, or stop and then continue.
