@@ -380,6 +380,21 @@ config SERIAL_ATMEL_CONSOLE
 	  console is the device which receives all kernel messages and
 	  warnings and which allows logins in single user mode).
 
+config SERIAL_ATMEL_PDC
+	bool "Support DMA transfers on AT91 / AT32 serial port"
+	depends on SERIAL_ATMEL
+	default y
+	help
+	  Say Y here if you wish to use the PDC to do DMA transfers to
+	  and from the Atmel AT91 / AT32 serial port. In order to
+	  actually use DMA transfers, make sure that the use_dma_tx
+	  and use_dma_rx members in the atmel_uart_data struct is set
+	  appropriately for each port.
+
+	  Note that break and error handling currently doesn't work
+	  properly when DMA is enabled. Make sure that ports where
+	  this matters don't use DMA.
+
 config SERIAL_ATMEL_TTYAT
 	bool "Install as device ttyATn instead of ttySn"
 	depends on SERIAL_ATMEL=y
