@@ -1469,7 +1469,8 @@ static int __devinit atmel_serial_probe(struct platform_device *pdev)
 
 	if (!atmel_use_dma_rx(&port->uart)) {
 		ret = -ENOMEM;
-		data = kmalloc(ATMEL_SERIAL_RINGSIZE, GFP_KERNEL);
+		data = kmalloc(sizeof(struct atmel_uart_char)
+				* ATMEL_SERIAL_RINGSIZE, GFP_KERNEL);
 		if (!data)
 			goto err_alloc_ring;
 		port->rx_ring.buf = data;
