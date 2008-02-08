@@ -81,8 +81,8 @@ static int udf_symlink_filler(struct file *file, struct page *page)
 	char *p = kmap(page);
 
 	lock_kernel();
-	if (UDF_I_ALLOCTYPE(inode) == ICBTAG_FLAG_AD_IN_ICB) {
-		symlink = UDF_I_DATA(inode) + UDF_I_LENEATTR(inode);
+	if (UDF_I(inode)->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
+		symlink = UDF_I(inode)->i_ext.i_data + UDF_I(inode)->i_lenEAttr;
 	} else {
 		bh = sb_bread(inode->i_sb, udf_block_map(inode, 0));
 

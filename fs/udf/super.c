@@ -2046,7 +2046,7 @@ static unsigned int udf_count_free_table(struct super_block *sb,
 
 	lock_kernel();
 
-	epos.block = UDF_I_LOCATION(table);
+	epos.block = UDF_I(table)->i_location;
 	epos.offset = sizeof(struct unallocSpaceEntry);
 	epos.bh = NULL;
 

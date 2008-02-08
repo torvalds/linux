@@ -125,15 +125,16 @@ do_udf_readdir(struct inode *dir, struct file *filp, filldir_t filldir,
 		nf_pos = (udf_ext0_offset(dir) >> 2);
 
 	fibh.soffset = fibh.eoffset = (nf_pos & ((dir->i_sb->s_blocksize - 1) >> 2)) << 2;
-	if (UDF_I_ALLOCTYPE(dir) == ICBTAG_FLAG_AD_IN_ICB) {
+	if (UDF_I(dir)->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
 		fibh.sbh = fibh.ebh = NULL;
 	} else if (inode_bmap(dir, nf_pos >> (dir->i_sb->s_blocksize_bits - 2),
 			      &epos, &eloc, &elen, &offset) == (EXT_RECORDED_ALLOCATED >> 30)) {
 		block = udf_get_lb_pblock(dir->i_sb, eloc, offset);
 		if ((++offset << dir->i_sb->s_blocksize_bits) < elen) {
-			if (UDF_I_ALLOCTYPE(dir) == ICBTAG_FLAG_AD_SHORT)
+			if (UDF_I(dir)->i_alloc_type == ICBTAG_FLAG_AD_SHORT)
 				epos.offset -= sizeof(short_ad);
-			else if (UDF_I_ALLOCTYPE(dir) == ICBTAG_FLAG_AD_LONG)
+			else if (UDF_I(dir)->i_alloc_type ==
+					ICBTAG_FLAG_AD_LONG)
 				epos.offset -= sizeof(long_ad);
 		} else {
 			offset = 0;

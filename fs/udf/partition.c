@@ -88,14 +88,14 @@ uint32_t udf_get_pblock_virt15(struct super_block *sb, uint32_t block,
 
 	brelse(bh);
 
-	if (UDF_I_LOCATION(sbi->s_vat_inode).partitionReferenceNum ==
+	if (UDF_I(sbi->s_vat_inode)->i_location.partitionReferenceNum ==
 								partition) {
 		udf_debug("recursive call to udf_get_pblock!\n");
 		return 0xFFFFFFFF;
 	}
 
 	return udf_get_pblock(sb, loc,
-			      UDF_I_LOCATION(sbi->s_vat_inode).
+			      UDF_I(sbi->s_vat_inode)->i_location.
 							partitionReferenceNum,
 			      offset);
 }

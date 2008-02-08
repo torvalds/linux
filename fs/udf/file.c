@@ -50,7 +50,8 @@ static int udf_adinicb_readpage(struct file *file, struct page *page)
 
 	kaddr = kmap(page);
 	memset(kaddr, 0, PAGE_CACHE_SIZE);
-	memcpy(kaddr, UDF_I_DATA(inode) + UDF_I_LENEATTR(inode), inode->i_size);
+	memcpy(kaddr, UDF_I(inode)->i_ext.i_data + UDF_I(inode)->i_lenEAttr,
+								inode->i_size);
 	flush_dcache_page(page);
 	SetPageUptodate(page);
 	kunmap(page);
@@ -68,7 +69,8 @@ static int udf_adinicb_writepage(struct page *page,
 	BUG_ON(!PageLocked(page));
 
 	kaddr = kmap(page);
-	memcpy(UDF_I_DATA(inode) + UDF_I_LENEATTR(inode), kaddr, inode->i_size);
+	memcpy(UDF_I(inode)->i_ext.i_data + UDF_I(inode)->i_lenEAttr, kaddr,
+								inode->i_size);
 	mark_inode_dirty(inode);
 	SetPageUptodate(page);
 	kunmap(page);
@@ -87,7 +89,7 @@ static int udf_adinicb_write_end(struct file *file,
 	char *kaddr;
 
 	kaddr = kmap_atomic(page, KM_USER0);
-	memcpy(UDF_I_DATA(inode) + UDF_I_LENEATTR(inode) + offset,
+	memcpy(UDF_I(inode)->i_ext.i_data + UDF_I(inode)->i_lenEAttr + offset,
 		kaddr + offset, copied);
 	kunmap_atomic(kaddr, KM_USER0);
 
@@ -111,7 +113,7 @@ static ssize_t udf_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	int err, pos;
 	size_t count = iocb->ki_left;
 
-	if (UDF_I_ALLOCTYPE(inode) == ICBTAG_FLAG_AD_IN_ICB) {
+	if (UDF_I(inode)->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
 		if (file->f_flags & O_APPEND)
 			pos = inode->i_size;
 		else
@@ -121,15 +123,16 @@ static ssize_t udf_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 				(udf_file_entry_alloc_offset(inode) +
 						pos + count)) {
 			udf_expand_file_adinicb(inode, pos + count, &err);
-			if (UDF_I_ALLOCTYPE(inode) == ICBTAG_FLAG_AD_IN_ICB) {
+			if (UDF_I(inode)->i_alloc_type ==
+							ICBTAG_FLAG_AD_IN_ICB) {
 				udf_debug("udf_expand_adinicb: err=%d\n", err);
 				return err;
 			}
 		} else {
 			if (pos + count > inode->i_size)
-				UDF_I_LENALLOC(inode) = pos + count;
+				UDF_I(inode)->i_lenAlloc = pos + count;
 			else
-				UDF_I_LENALLOC(inode) = inode->i_size;
+				UDF_I(inode)->i_lenAlloc = inode->i_size;
 		}
 	}
 
@@ -209,11 +212,12 @@ int udf_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 			result = put_user(new_block, (long __user *)arg);
 		return result;
 	case UDF_GETEASIZE:
-		result = put_user(UDF_I_LENEATTR(inode), (int __user *)arg);
+		result = put_user(UDF_I(inode)->i_lenEAttr, (int __user *)arg);
 		break;
 	case UDF_GETEABLOCK:
-		result = copy_to_user((char __user *)arg, UDF_I_DATA(inode),
-				      UDF_I_LENEATTR(inode)) ? -EFAULT : 0;
+		result = copy_to_user((char __user *)arg,
+				      UDF_I(inode)->i_ext.i_data,
+				      UDF_I(inode)->i_lenEAttr) ? -EFAULT : 0;
 		break;
 	}
 

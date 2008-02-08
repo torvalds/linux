@@ -52,16 +52,16 @@ struct genericFormat *udf_add_extendedattr(struct inode *inode, uint32_t size,
 	int offset;
 	uint16_t crclen;
 
-	ea = UDF_I_DATA(inode);
-	if (UDF_I_LENEATTR(inode)) {
-		ad = UDF_I_DATA(inode) + UDF_I_LENEATTR(inode);
+	ea = UDF_I(inode)->i_ext.i_data;
+	if (UDF_I(inode)->i_lenEAttr) {
+		ad = UDF_I(inode)->i_ext.i_data + UDF_I(inode)->i_lenEAttr;
 	} else {
 		ad = ea;
 		size += sizeof(struct extendedAttrHeaderDesc);
 	}
 
 	offset = inode->i_sb->s_blocksize - udf_file_entry_alloc_offset(inode) -
-		UDF_I_LENALLOC(inode);
+		UDF_I(inode)->i_lenAlloc;
 
 	/* TODO - Check for FreeEASpace */
 
@@ -69,21 +69,21 @@ struct genericFormat *udf_add_extendedattr(struct inode *inode, uint32_t size,
 		struct extendedAttrHeaderDesc *eahd;
 		eahd = (struct extendedAttrHeaderDesc *)ea;
 
-		if (UDF_I_LENALLOC(inode))
-			memmove(&ad[size], ad, UDF_I_LENALLOC(inode));
+		if (UDF_I(inode)->i_lenAlloc)
+			memmove(&ad[size], ad, UDF_I(inode)->i_lenAlloc);
 
-		if (UDF_I_LENEATTR(inode)) {
+		if (UDF_I(inode)->i_lenEAttr) {
 			/* check checksum/crc */
 			if (eahd->descTag.tagIdent !=
 					cpu_to_le16(TAG_IDENT_EAHD) ||
 			    le32_to_cpu(eahd->descTag.tagLocation) !=
-					UDF_I_LOCATION(inode).logicalBlockNum)
+					UDF_I(inode)->i_location.logicalBlockNum)
 				return NULL;
 		} else {
 			struct udf_sb_info *sbi = UDF_SB(inode->i_sb);
 
 			size -= sizeof(struct extendedAttrHeaderDesc);
-			UDF_I_LENEATTR(inode) +=
+			UDF_I(inode)->i_lenEAttr +=
 				sizeof(struct extendedAttrHeaderDesc);
 			eahd->descTag.tagIdent = cpu_to_le16(TAG_IDENT_EAHD);
 			if (sbi->s_udfrev >= 0x0200)
@@ -93,15 +93,15 @@ struct genericFormat *udf_add_extendedattr(struct inode *inode, uint32_t size,
 			eahd->descTag.tagSerialNum =
 					cpu_to_le16(sbi->s_serial_number);
 			eahd->descTag.tagLocation = cpu_to_le32(
-					UDF_I_LOCATION(inode).logicalBlockNum);
+				UDF_I(inode)->i_location.logicalBlockNum);
 			eahd->impAttrLocation = cpu_to_le32(0xFFFFFFFF);
 			eahd->appAttrLocation = cpu_to_le32(0xFFFFFFFF);
 		}
 
-		offset = UDF_I_LENEATTR(inode);
+		offset = UDF_I(inode)->i_lenEAttr;
 		if (type < 2048) {
 			if (le32_to_cpu(eahd->appAttrLocation) <
-					UDF_I_LENEATTR(inode)) {
+					UDF_I(inode)->i_lenEAttr) {
 				uint32_t aal =
 					le32_to_cpu(eahd->appAttrLocation);
 				memmove(&ea[offset - aal + size],
@@ -111,7 +111,7 @@ struct genericFormat *udf_add_extendedattr(struct inode *inode, uint32_t size,
 						cpu_to_le32(aal + size);
 			}
 			if (le32_to_cpu(eahd->impAttrLocation) <
-					UDF_I_LENEATTR(inode)) {
+					UDF_I(inode)->i_lenEAttr) {
 				uint32_t ial =
 					le32_to_cpu(eahd->impAttrLocation);
 				memmove(&ea[offset - ial + size],
@@ -122,7 +122,7 @@ struct genericFormat *udf_add_extendedattr(struct inode *inode, uint32_t size,
 			}
 		} else if (type < 65536) {
 			if (le32_to_cpu(eahd->appAttrLocation) <
-					UDF_I_LENEATTR(inode)) {
+					UDF_I(inode)->i_lenEAttr) {
 				uint32_t aal =
 					le32_to_cpu(eahd->appAttrLocation);
 				memmove(&ea[offset - aal + size],
@@ -138,7 +138,7 @@ struct genericFormat *udf_add_extendedattr(struct inode *inode, uint32_t size,
 		eahd->descTag.descCRC = cpu_to_le16(udf_crc((char *)eahd +
 						sizeof(tag), crclen, 0));
 		eahd->descTag.tagChecksum = udf_tag_checksum(&eahd->descTag);
-		UDF_I_LENEATTR(inode) += size;
+		UDF_I(inode)->i_lenEAttr += size;
 		return (struct genericFormat *)&ea[offset];
 	}
 	if (loc & 0x02)
@@ -154,9 +154,9 @@ struct genericFormat *udf_get_extendedattr(struct inode *inode, uint32_t type,
 	uint8_t *ea = NULL;
 	uint32_t offset;
 
-	ea = UDF_I_DATA(inode);
+	ea = UDF_I(inode)->i_ext.i_data;
 
-	if (UDF_I_LENEATTR(inode)) {
+	if (UDF_I(inode)->i_lenEAttr) {
 		struct extendedAttrHeaderDesc *eahd;
 		eahd = (struct extendedAttrHeaderDesc *)ea;
 
@@ -164,7 +164,7 @@ struct genericFormat *udf_get_extendedattr(struct inode *inode, uint32_t type,
 		if (eahd->descTag.tagIdent !=
 				cpu_to_le16(TAG_IDENT_EAHD) ||
 		    le32_to_cpu(eahd->descTag.tagLocation) !=
-				UDF_I_LOCATION(inode).logicalBlockNum)
+				UDF_I(inode)->i_location.logicalBlockNum)
 			return NULL;
 
 		if (type < 2048)
@@ -174,7 +174,7 @@ struct genericFormat *udf_get_extendedattr(struct inode *inode, uint32_t type,
 		else
 			offset = le32_to_cpu(eahd->appAttrLocation);
 
-		while (offset < UDF_I_LENEATTR(inode)) {
+		while (offset < UDF_I(inode)->i_lenEAttr) {
 			gaf = (struct genericFormat *)&ea[offset];
 			if (le32_to_cpu(gaf->attrType) == type &&
 					gaf->attrSubtype == subtype)
