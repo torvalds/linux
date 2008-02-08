@@ -204,13 +204,25 @@ config ACPI_NUMA
 
 config ACPI_WMI
 	tristate "WMI (EXPERIMENTAL)"
+	depends on X86
 	depends on EXPERIMENTAL
 	help
-	  This driver adds support for the ACPI-WMI mapper device (PNP0C14)
-	  found on some systems.
+	  This driver adds support for the ACPI-WMI (Windows Management
+	  Instrumentation) mapper device (PNP0C14) found on some systems.
 
-	  NOTE: You will need another driver or userspace application on top of
-	  this to actually use anything defined in the ACPI-WMI mapper.
+	  ACPI-WMI is a proprietary extension to ACPI to expose parts of the
+	  ACPI firmware to userspace - this is done through various vendor
+	  defined methods and data blocks in a PNP0C14 device, which are then
+	  made available for userspace to call.
+
+	  The implementation of this in Linux currently only exposes this to
+	  other kernel space drivers.
+
+	  This driver is a required dependency to build the firmware specific
+	  drivers needed on many machines, including Acer and HP laptops.
+
+	  It is safe to enable this driver even if your DSDT doesn't define
+	  any ACPI-WMI devices.
 
 config ACPI_ASUS
         tristate "ASUS/Medion Laptop Extras"

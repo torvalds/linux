@@ -14,7 +14,7 @@ The generic thermal sysfs provides a set of interfaces for thermal zone devices 
 and thermal cooling devices (fan, processor...) to register with the thermal management
 solution and to be a part of it.
 
-This how-to focusses on enabling new thermal zone and cooling devices to participate
+This how-to focuses on enabling new thermal zone and cooling devices to participate
 in thermal management.
 This solution is platform independent and any type of thermal zone devices and
 cooling devices should be able to make use of the infrastructure.
@@ -41,9 +41,9 @@ and throttle appropriate devices.
 	name: the thermal zone name.
 	trips: the total number of trip points this thermal zone supports.
 	devdata: device private data
-	ops: thermal zone device callbacks.
+	ops: thermal zone device call-backs.
 		.bind: bind the thermal zone device with a thermal cooling device.
-		.unbind: unbing the thermal zone device with a thermal cooling device.
+		.unbind: unbind the thermal zone device with a thermal cooling device.
 		.get_temp: get the current temperature of the thermal zone.
 		.get_mode: get the current mode (user/kernel) of the thermal zone.
 			   "kernel" means thermal management is done in kernel.
@@ -69,7 +69,7 @@ and throttle appropriate devices.
 	It tries to bind itself to all the thermal zone devices register at the same time.
 	name: the cooling device name.
 	devdata: device private data.
-	ops: thermal cooling devices callbacks.
+	ops: thermal cooling devices call-backs.
 		.get_max_state: get the Maximum throttle state of the cooling device.
 		.get_cur_state: get the Current throttle state of the cooling device.
 		.set_cur_state: set the Current throttle state of the cooling device.
@@ -109,7 +109,6 @@ RO	read only value
 RW	read/write value
 
 All thermal sysfs attributes will be represented under /sys/class/thermal
-/sys/class/thermal/
 
 Thermal zone device sys I/F, created once it's registered:
 |thermal_zone[0-*]:
@@ -129,7 +128,7 @@ Thermal cooling device sys I/F, created once it's registered:
 These two dynamic attributes are created/removed in pairs.
 They represent the relationship between a thermal zone and its associated cooling device.
 They are created/removed for each
-thermal_zone_bind_cooling_device/thermal_zone_unbind_cooling_device successful exection.
+thermal_zone_bind_cooling_device/thermal_zone_unbind_cooling_device successful execution.
 
 |thermal_zone[0-*]
 	|-----cdev[0-*]:		The [0-*]th cooling device in the current thermal zone
@@ -147,11 +146,11 @@ type				Strings which represent the thermal zone type.
 				Optional
 
 temp				Current temperature as reported by thermal zone (sensor)
-				Unit: degree celsius
+				Unit: degree Celsius
 				RO
 				Required
 
-mode				One of the predifned values in [kernel, user]
+mode				One of the predefined values in [kernel, user]
 				This file gives information about the algorithm
 				that is currently managing the thermal zone.
 				It can be either default kernel based algorithm
@@ -164,12 +163,12 @@ mode				One of the predifned values in [kernel, user]
 					  charge of the thermal management.
 
 trip_point_[0-*]_temp		The temperature above which trip point will be fired
-				Unit: degree celsius
+				Unit: degree Celsius
 				RO
 				Optional
 
 trip_point_[0-*]_type 		Strings which indicate the type of the trip point
-				Eg. it can be one of critical, hot, passive,
+				E.g. it can be one of critical, hot, passive,
 				    active[0-*] for ACPI thermal zone.
 				RO
 				Optional
@@ -179,7 +178,7 @@ cdev[0-*]			Sysfs link to the thermal cooling device node where the sys I/F
 				RO
 				Optional
 
-cdev[0-*]_trip_point		The trip point with which cdev[0-*] is assocated in this thermal zone
+cdev[0-*]_trip_point		The trip point with which cdev[0-*] is associated in this thermal zone
 				-1 means the cooling device is not associated with any trip point.
 				RO
 				Optional
@@ -211,7 +210,7 @@ cur_state			The current cooling state of this cooling device.
 
 ACPI thermal zone may support multiple trip points like critical/hot/passive/active.
 If an ACPI thermal zone supports critical, passive, active[0] and active[1] at the same time,
-it may register itself as a thermale_zone_device (thermal_zone1) with 4 trip points in all.
+it may register itself as a thermal_zone_device (thermal_zone1) with 4 trip points in all.
 It has one processor and one fan, which are both registered as thermal_cooling_device.
 If the processor is listed in _PSL method, and the fan is listed in _AL0 method,
 the sys I/F structure will be built like this:
