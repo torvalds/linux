@@ -18,6 +18,13 @@ config LEDS_CLASS
 
 comment "LED drivers"
 
+config LEDS_ATMEL_PWM
+	tristate "LED Support using Atmel PWM outputs"
+	depends on LEDS_CLASS && ATMEL_PWM
+	help
+	  This option enables support for LEDs driven using outputs
+	  of the dedicated PWM controller found on newer Atmel SOCs.
+
 config LEDS_CORGI
 	tristate "LED Support for the Sharp SL-C7x0 series"
 	depends on LEDS_CLASS && PXA_SHARP_C7xx
