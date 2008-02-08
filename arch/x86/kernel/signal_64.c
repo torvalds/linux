@@ -19,6 +19,7 @@
 #include <linux/stddef.h>
 #include <linux/personality.h>
 #include <linux/compiler.h>
+#include <asm/processor.h>
 #include <asm/ucontext.h>
 #include <asm/uaccess.h>
 #include <asm/i387.h>
@@ -29,6 +30,17 @@
 /* #define DEBUG_SIG 1 */
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
+
+#define __FIX_EFLAGS	(X86_EFLAGS_AC | X86_EFLAGS_OF | \
+			 X86_EFLAGS_DF | X86_EFLAGS_TF | X86_EFLAGS_SF | \
+			 X86_EFLAGS_ZF | X86_EFLAGS_AF | X86_EFLAGS_PF | \
+			 X86_EFLAGS_CF)
+
+#ifdef CONFIG_X86_32
+# define FIX_EFLAGS	(__FIX_EFLAGS | X86_EFLAGS_RF)
+#else
+# define FIX_EFLAGS	__FIX_EFLAGS
+#endif
 
 int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
                sigset_t *set, struct pt_regs * regs); 
@@ -87,7 +99,7 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, unsigned 
 	{
 		unsigned int tmpflags;
 		err |= __get_user(tmpflags, &sc->flags);
-		regs->flags = (regs->flags & ~0x40DD5) | (tmpflags & 0x40DD5);
+		regs->flags = (regs->flags & ~FIX_EFLAGS) | (tmpflags & FIX_EFLAGS);
 		regs->orig_ax = -1;		/* disable syscall checks */
 	}
 
