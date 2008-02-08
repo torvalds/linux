@@ -1514,18 +1514,7 @@ static int wait_task_continued(struct task_struct *p, int noreap,
 
 static inline int my_ptrace_child(struct task_struct *p)
 {
-	if (!(p->ptrace & PT_PTRACED))
-		return 0;
-	if (!(p->ptrace & PT_ATTACHED))
-		return 1;
-	/*
-	 * This child was PTRACE_ATTACH'd.  We should be seeing it only if
-	 * we are the attacher.  If we are the real parent, this is a race
-	 * inside ptrace_attach.  It is waiting for the tasklist_lock,
-	 * which we have to switch the parent links, but has already set
-	 * the flags in p->ptrace.
-	 */
-	return (p->parent != p->real_parent);
+	return p->ptrace & PT_PTRACED;
 }
 
 static long do_wait(pid_t pid, int options, struct siginfo __user *infop,
