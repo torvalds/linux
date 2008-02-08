@@ -54,6 +54,7 @@ out_kill_sb:
 
 static const struct super_operations autofs_sops = {
 	.statfs		= simple_statfs,
+	.show_options	= generic_show_options,
 };
 
 enum {Opt_err, Opt_fd, Opt_uid, Opt_gid, Opt_pgrp, Opt_minproto, Opt_maxproto};
@@ -139,6 +140,8 @@ int autofs_fill_super(struct super_block *s, void *data, int silent)
 	struct autofs_sb_info *sbi;
 	int minproto, maxproto;
 	pid_t pgid;
+
+	save_mount_options(s, data);
 
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)
