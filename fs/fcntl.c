@@ -24,7 +24,7 @@
 #include <asm/siginfo.h>
 #include <asm/uaccess.h>
 
-void fastcall set_close_on_exec(unsigned int fd, int flag)
+void set_close_on_exec(unsigned int fd, int flag)
 {
 	struct files_struct *files = current->files;
 	struct fdtable *fdt;

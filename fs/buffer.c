@@ -67,14 +67,14 @@ static int sync_buffer(void *word)
 	return 0;
 }
 
-void fastcall __lock_buffer(struct buffer_head *bh)
+void __lock_buffer(struct buffer_head *bh)
 {
 	wait_on_bit_lock(&bh->b_state, BH_Lock, sync_buffer,
 							TASK_UNINTERRUPTIBLE);
 }
 EXPORT_SYMBOL(__lock_buffer);
 
-void fastcall unlock_buffer(struct buffer_head *bh)
+void unlock_buffer(struct buffer_head *bh)
 {
 	smp_mb__before_clear_bit();
 	clear_buffer_locked(bh);
@@ -1164,7 +1164,7 @@ __getblk_slow(struct block_device *bdev, sector_t block, int size)
  * mark_buffer_dirty() is atomic.  It takes bh->b_page->mapping->private_lock,
  * mapping->tree_lock and the global inode_lock.
  */
-void fastcall mark_buffer_dirty(struct buffer_head *bh)
+void mark_buffer_dirty(struct buffer_head *bh)
 {
 	WARN_ON_ONCE(!buffer_uptodate(bh));
 	if (!buffer_dirty(bh) && !test_set_buffer_dirty(bh))

@@ -106,7 +106,7 @@
  * any extra contention...
  */
 
-static int fastcall link_path_walk(const char *name, struct nameidata *nd);
+static int link_path_walk(const char *name, struct nameidata *nd);
 
 /* In order to reduce some races, while at the same time doing additional
  * checking and hopefully speeding things up, we copy filenames to the
@@ -823,7 +823,7 @@ fail:
  * Returns 0 and nd will have valid dentry and mnt on success.
  * Returns error and drops reference to input namei data on failure.
  */
-static fastcall int __link_path_walk(const char * name, struct nameidata *nd)
+static int __link_path_walk(const char *name, struct nameidata *nd)
 {
 	struct path next;
 	struct inode *inode;
@@ -1015,7 +1015,7 @@ return_err:
  * Retry the whole path once, forcing real lookup requests
  * instead of relying on the dcache.
  */
-static int fastcall link_path_walk(const char *name, struct nameidata *nd)
+static int link_path_walk(const char *name, struct nameidata *nd)
 {
 	struct nameidata save = *nd;
 	int result;
@@ -1039,7 +1039,7 @@ static int fastcall link_path_walk(const char *name, struct nameidata *nd)
 	return result;
 }
 
-static int fastcall path_walk(const char * name, struct nameidata *nd)
+static int path_walk(const char *name, struct nameidata *nd)
 {
 	current->total_link_count = 0;
 	return link_path_walk(name, nd);
@@ -1116,7 +1116,7 @@ set_it:
 }
 
 /* Returns 0 and nd will be valid on success; Retuns error, otherwise. */
-static int fastcall do_path_lookup(int dfd, const char *name,
+static int do_path_lookup(int dfd, const char *name,
 				unsigned int flags, struct nameidata *nd)
 {
 	int retval = 0;
@@ -1183,7 +1183,7 @@ fput_fail:
 	goto out_fail;
 }
 
-int fastcall path_lookup(const char *name, unsigned int flags,
+int path_lookup(const char *name, unsigned int flags,
 			struct nameidata *nd)
 {
 	return do_path_lookup(AT_FDCWD, name, flags, nd);
@@ -1409,7 +1409,7 @@ struct dentry *lookup_one_noperm(const char *name, struct dentry *base)
 	return __lookup_hash(&this, base, NULL);
 }
 
-int fastcall __user_walk_fd(int dfd, const char __user *name, unsigned flags,
+int __user_walk_fd(int dfd, const char __user *name, unsigned flags,
 			    struct nameidata *nd)
 {
 	char *tmp = getname(name);
@@ -1422,7 +1422,7 @@ int fastcall __user_walk_fd(int dfd, const char __user *name, unsigned flags,
 	return err;
 }
 
-int fastcall __user_walk(const char __user *name, unsigned flags, struct nameidata *nd)
+int __user_walk(const char __user *name, unsigned flags, struct nameidata *nd)
 {
 	return __user_walk_fd(AT_FDCWD, name, flags, nd);
 }
