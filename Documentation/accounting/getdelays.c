@@ -168,7 +168,7 @@ int get_family_id(int sd)
 		char buf[256];
 	} ans;
 
-	int id, rc;
+	int id = 0, rc;
 	struct nlattr *na;
 	int rep_len;
 
@@ -209,7 +209,7 @@ void print_delayacct(struct taskstats *t)
 void task_context_switch_counts(struct taskstats *t)
 {
 	printf("\n\nTask   %15s%15s\n"
-	       "       %15lu%15lu\n",
+	       "       %15llu%15llu\n",
 	       "voluntary", "nonvoluntary",
 	       t->nvcsw, t->nivcsw);
 }
@@ -399,7 +399,7 @@ int main(int argc, char *argv[])
 			goto done;
 		}
 
-		PRINTF("nlmsghdr size=%d, nlmsg_len=%d, rep_len=%d\n",
+		PRINTF("nlmsghdr size=%zu, nlmsg_len=%d, rep_len=%d\n",
 		       sizeof(struct nlmsghdr), msg.n.nlmsg_len, rep_len);
 
 
