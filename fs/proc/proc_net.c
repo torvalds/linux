@@ -67,12 +67,7 @@ EXPORT_SYMBOL_GPL(seq_release_net);
 struct proc_dir_entry *proc_net_fops_create(struct net *net,
 	const char *name, mode_t mode, const struct file_operations *fops)
 {
-	struct proc_dir_entry *res;
-
-	res = create_proc_entry(name, mode, net->proc_net);
-	if (res)
-		res->proc_fops = fops;
-	return res;
+	return proc_create(name, mode, net->proc_net, fops);
 }
 EXPORT_SYMBOL_GPL(proc_net_fops_create);
 

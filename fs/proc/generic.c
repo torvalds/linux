@@ -562,7 +562,7 @@ static int proc_register(struct proc_dir_entry * dir, struct proc_dir_entry * dp
 	return 0;
 }
 
-static struct proc_dir_entry *proc_create(struct proc_dir_entry **parent,
+static struct proc_dir_entry *__proc_create(struct proc_dir_entry **parent,
 					  const char *name,
 					  mode_t mode,
 					  nlink_t nlink)
@@ -605,7 +605,7 @@ struct proc_dir_entry *proc_symlink(const char *name,
 {
 	struct proc_dir_entry *ent;
 
-	ent = proc_create(&parent,name,
+	ent = __proc_create(&parent, name,
 			  (S_IFLNK | S_IRUGO | S_IWUGO | S_IXUGO),1);
 
 	if (ent) {
@@ -630,7 +630,7 @@ struct proc_dir_entry *proc_mkdir_mode(const char *name, mode_t mode,
 {
 	struct proc_dir_entry *ent;
 
-	ent = proc_create(&parent, name, S_IFDIR | mode, 2);
+	ent = __proc_create(&parent, name, S_IFDIR | mode, 2);
 	if (ent) {
 		if (proc_register(parent, ent) < 0) {
 			kfree(ent);
@@ -664,7 +664,7 @@ struct proc_dir_entry *create_proc_entry(const char *name, mode_t mode,
 		nlink = 1;
 	}
 
-	ent = proc_create(&parent,name,mode,nlink);
+	ent = __proc_create(&parent, name, mode, nlink);
 	if (ent) {
 		if (proc_register(parent, ent) < 0) {
 			kfree(ent);
@@ -672,6 +672,38 @@ struct proc_dir_entry *create_proc_entry(const char *name, mode_t mode,
 		}
 	}
 	return ent;
+}
+
+struct proc_dir_entry *proc_create(const char *name, mode_t mode,
+				   struct proc_dir_entry *parent,
+				   const struct file_operations *proc_fops)
+{
+	struct proc_dir_entry *pde;
+	nlink_t nlink;
+
+	if (S_ISDIR(mode)) {
+		if ((mode & S_IALLUGO) == 0)
+			mode |= S_IRUGO | S_IXUGO;
+		nlink = 2;
+	} else {
+		if ((mode & S_IFMT) == 0)
+			mode |= S_IFREG;
+		if ((mode & S_IALLUGO) == 0)
+			mode |= S_IRUGO;
+		nlink = 1;
+	}
+
+	pde = __proc_create(&parent, name, mode, nlink);
+	if (!pde)
+		goto out;
+	pde->proc_fops = proc_fops;
+	if (proc_register(parent, pde) < 0)
+		goto out_free;
+	return pde;
+out_free:
+	kfree(pde);
+out:
+	return NULL;
 }
 
 void free_proc_entry(struct proc_dir_entry *de)
