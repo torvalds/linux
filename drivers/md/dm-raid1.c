@@ -737,15 +737,32 @@ out:
 static void recovery_complete(int read_err, unsigned int write_err,
 			      void *context)
 {
-	struct region *reg = (struct region *) context;
+	struct region *reg = (struct region *)context;
+	struct mirror_set *ms = reg->rh->ms;
+	int m, bit = 0;
 
-	if (read_err)
+	if (read_err) {
 		/* Read error means the failure of default mirror. */
 		DMERR_LIMIT("Unable to read primary mirror during recovery");
+		fail_mirror(get_default_mirror(ms), DM_RAID1_SYNC_ERROR);
+	}
 
-	if (write_err)
+	if (write_err) {
 		DMERR_LIMIT("Write error during recovery (error = 0x%x)",
 			    write_err);
+		/*
+		 * Bits correspond to devices (excluding default mirror).
+		 * The default mirror cannot change during recovery.
+		 */
+		for (m = 0; m < ms->nr_mirrors; m++) {
+			if (&ms->mirror[m] == get_default_mirror(ms))
+				continue;
+			if (test_bit(bit, &write_err))
+				fail_mirror(ms->mirror + m,
+					    DM_RAID1_SYNC_ERROR);
+			bit++;
+		}
+	}
 
 	rh_recovery_end(reg, !(read_err || write_err));
 }
