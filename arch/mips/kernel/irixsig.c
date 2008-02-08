@@ -578,10 +578,11 @@ out:
 
 #define W_MASK      (W_EXITED | W_TRAPPED | W_STOPPED | W_CONT | W_NOHANG)
 
-asmlinkage int irix_waitsys(int type, int pid,
+asmlinkage int irix_waitsys(int type, int upid,
 	struct irix5_siginfo __user *info, int options,
 	struct rusage __user *ru)
 {
+	struct pid *pid = NULL;
 	int flag, retval;
 	DECLARE_WAITQUEUE(wait, current);
 	struct task_struct *tsk;
@@ -604,6 +605,8 @@ asmlinkage int irix_waitsys(int type, int pid,
 	if (type != IRIX_P_PID && type != IRIX_P_PGID && type != IRIX_P_ALL)
 		return -EINVAL;
 
+	if (type != IRIX_P_ALL)
+		pid = find_get_pid(upid);
 	add_wait_queue(&current->signal->wait_chldexit, &wait);
 repeat:
 	flag = 0;
@@ -612,9 +615,9 @@ repeat:
 	tsk = current;
 	list_for_each(_p, &tsk->children) {
 		p = list_entry(_p, struct task_struct, sibling);
-		if ((type == IRIX_P_PID) && p->pid != pid)
+		if ((type == IRIX_P_PID) && task_pid(p) != pid)
 			continue;
-		if ((type == IRIX_P_PGID) && task_pgrp_nr(p) != pid)
+		if ((type == IRIX_P_PGID) && task_pgrp(p) != pid)
 			continue;
 		if ((p->exit_signal != SIGCHLD))
 			continue;
@@ -639,7 +642,7 @@ repeat:
 
 			retval = __put_user(SIGCHLD, &info->sig);
 			retval |= __put_user(0, &info->code);
-			retval |= __put_user(p->pid, &info->stuff.procinfo.pid);
+			retval |= __put_user(task_pid_vnr(p), &info->stuff.procinfo.pid);
 			retval |= __put_user((p->exit_code >> 8) & 0xff,
 			           &info->stuff.procinfo.procdata.child.status);
 			retval |= __put_user(p->utime, &info->stuff.procinfo.procdata.child.utime);
@@ -657,7 +660,7 @@ repeat:
 				getrusage(p, RUSAGE_BOTH, ru);
 			retval = __put_user(SIGCHLD, &info->sig);
 			retval |= __put_user(1, &info->code);      /* CLD_EXITED */
-			retval |= __put_user(p->pid, &info->stuff.procinfo.pid);
+			retval |= __put_user(task_pid_vnr(p), &info->stuff.procinfo.pid);
 			retval |= __put_user((p->exit_code >> 8) & 0xff,
 			           &info->stuff.procinfo.procdata.child.status);
 			retval |= __put_user(p->utime,
@@ -665,7 +668,7 @@ repeat:
 			retval |= __put_user(p->stime,
 			           &info->stuff.procinfo.procdata.child.stime);
 			if (retval)
-				return retval;
+				goto end_waitsys;
 
 			if (p->real_parent != p->parent) {
 				write_lock_irq(&tasklist_lock);
@@ -698,6 +701,7 @@ repeat:
 end_waitsys:
 	current->state = TASK_RUNNING;
 	remove_wait_queue(&current->signal->wait_chldexit, &wait);
+	put_pid(pid);
 
 	return retval;
 }
