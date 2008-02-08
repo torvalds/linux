@@ -1347,6 +1347,13 @@ static ssize_t aio_rw_vect_retry(struct kiocb *iocb)
 	if ((ret == 0) || (iocb->ki_left == 0))
 		ret = iocb->ki_nbytes - iocb->ki_left;
 
+	/* If we managed to write some out we return that, rather than
+	 * the eventual error. */
+	if (opcode == IOCB_CMD_PWRITEV
+	    && ret < 0 && ret != -EIOCBQUEUED && ret != -EIOCBRETRY
+	    && iocb->ki_nbytes - iocb->ki_left)
+		ret = iocb->ki_nbytes - iocb->ki_left;
+
 	return ret;
 }
 
