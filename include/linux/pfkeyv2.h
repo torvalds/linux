@@ -298,6 +298,7 @@ struct sadb_x_sec_ctx {
 #define SADB_X_EALG_BLOWFISHCBC		7
 #define SADB_EALG_NULL			11
 #define SADB_X_EALG_AESCBC		12
+#define SADB_X_EALG_AESCTR		13
 #define SADB_X_EALG_AES_CCM_ICV8	14
 #define SADB_X_EALG_AES_CCM_ICV12	15
 #define SADB_X_EALG_AES_CCM_ICV16	16
