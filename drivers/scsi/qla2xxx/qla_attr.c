@@ -428,6 +428,19 @@ qla2x00_sysfs_read_sfp(struct kobject *kobj,
 	if (!capable(CAP_SYS_ADMIN) || off != 0 || count != SFP_DEV_SIZE * 2)
 		return 0;
 
+	if (ha->sfp_data)
+		goto do_read;
+
+	ha->sfp_data = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL,
+	    &ha->sfp_data_dma);
+	if (!ha->sfp_data) {
+		qla_printk(KERN_WARNING, ha,
+		    "Unable to allocate memory for SFP read-data.\n");
+		return 0;
+	}
+
+do_read:
+	memset(ha->sfp_data, 0, SFP_BLOCK_SIZE);
 	addr = 0xa0;
 	for (iter = 0, offset = 0; iter < (SFP_DEV_SIZE * 2) / SFP_BLOCK_SIZE;
 	    iter++, offset += SFP_BLOCK_SIZE) {
@@ -835,7 +848,7 @@ qla2x00_get_host_port_id(struct Scsi_Host *shost)
 static void
 qla2x00_get_host_speed(struct Scsi_Host *shost)
 {
-	scsi_qla_host_t *ha = shost_priv(shost);
+	scsi_qla_host_t *ha = to_qla_parent(shost_priv(shost));
 	uint32_t speed = 0;
 
 	switch (ha->link_data_rate) {
@@ -848,6 +861,9 @@ qla2x00_get_host_speed(struct Scsi_Host *shost)
 	case PORT_SPEED_4GB:
 		speed = 4;
 		break;
+	case PORT_SPEED_8GB:
+		speed = 8;
+		break;
 	}
 	fc_host_speed(shost) = speed;
 }
@@ -855,7 +871,7 @@ qla2x00_get_host_speed(struct Scsi_Host *shost)
 static void
 qla2x00_get_host_port_type(struct Scsi_Host *shost)
 {
-	scsi_qla_host_t *ha = shost_priv(shost);
+	scsi_qla_host_t *ha = to_qla_parent(shost_priv(shost));
 	uint32_t port_type = FC_PORTTYPE_UNKNOWN;
 
 	switch (ha->current_topology) {
@@ -965,7 +981,7 @@ qla2x00_issue_lip(struct Scsi_Host *shost)
 static struct fc_host_statistics *
 qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 {
-	scsi_qla_host_t *ha = shost_priv(shost);
+	scsi_qla_host_t *ha = to_qla_parent(shost_priv(shost));
 	int rval;
 	struct link_statistics *stats;
 	dma_addr_t stats_dma;
@@ -1049,7 +1065,7 @@ qla2x00_get_host_fabric_name(struct Scsi_Host *shost)
 static void
 qla2x00_get_host_port_state(struct Scsi_Host *shost)
 {
-	scsi_qla_host_t *ha = shost_priv(shost);
+	scsi_qla_host_t *ha = to_qla_parent(shost_priv(shost));
 
 	if (!ha->flags.online)
 		fc_host_port_state(shost) = FC_PORTSTATE_OFFLINE;

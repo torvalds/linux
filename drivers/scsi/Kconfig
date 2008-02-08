@@ -179,7 +179,15 @@ config CHR_DEV_SCH
 	  say M here and read <file:Documentation/kbuild/modules.txt> and
 	  <file:Documentation/scsi/scsi.txt>. The module will be called ch.o.
 	  If unsure, say N.
-	
+
+config SCSI_ENCLOSURE
+	tristate "SCSI Enclosure Support"
+	depends on SCSI && ENCLOSURE_SERVICES
+	help
+	  Enclosures are devices sitting on or in SCSI backplanes that
+	  manage devices.  If you have a disk cage, the chances are that
+	  it has an enclosure device.  Selecting this option will just allow
+	  certain enclosure conditions to be reported and is not required.
 
 comment "Some SCSI devices (e.g. CD jukebox) support multiple LUNs"
 	depends on SCSI
@@ -349,17 +357,6 @@ config SGIWD93_SCSI
   	help
 	  If you have a Western Digital WD93 SCSI controller on
 	  an SGI MIPS system, say Y.  Otherwise, say N.
-
-config SCSI_DECNCR
-	tristate "DEC NCR53C94 Scsi Driver"
-	depends on MACH_DECSTATION && SCSI && TC
-	help
-	  Say Y here to support the NCR53C94 SCSI controller chips on IOASIC
-	  based TURBOchannel DECstations and TURBOchannel PMAZ-A cards.
-
-config SCSI_DECSII
-	tristate "DEC SII Scsi Driver"
-	depends on MACH_DECSTATION && SCSI && 32BIT
 
 config BLK_DEV_3W_XXXX_RAID
 	tristate "3ware 5/6/7/8xxx ATA-RAID support"
@@ -1263,17 +1260,6 @@ config SCSI_NCR53C8XX_NO_DISCONNECT
 	  not allow targets to disconnect is not reasonable if there is more
 	  than 1 device on a SCSI bus. The normal answer therefore is N.
 
-config SCSI_MCA_53C9X
-	tristate "NCR MCA 53C9x SCSI support"
-	depends on MCA_LEGACY && SCSI && BROKEN_ON_SMP
-	help
-	  Some MicroChannel machines, notably the NCR 35xx line, use a SCSI
-	  controller based on the NCR 53C94.  This driver will allow use of
-	  the controller on the 3550, and very possibly others.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called mca_53c9x.
-
 config SCSI_PAS16
 	tristate "PAS16 SCSI support"
 	depends on ISA && SCSI
@@ -1600,45 +1586,6 @@ config GVP11_SCSI
 	  To compile this driver as a module, choose M here: the
 	  module will be called gvp11.
 
-config CYBERSTORM_SCSI
-	tristate "CyberStorm SCSI support"
-	depends on ZORRO && SCSI
-	help
-	  If you have an Amiga with an original (MkI) Phase5 Cyberstorm
-	  accelerator board and the optional Cyberstorm SCSI controller,
-	  answer Y. Otherwise, say N.
-
-config CYBERSTORMII_SCSI
-	tristate "CyberStorm Mk II SCSI support"
-	depends on ZORRO && SCSI
-	help
-	  If you have an Amiga with a Phase5 Cyberstorm MkII accelerator board
-	  and the optional Cyberstorm SCSI controller, say Y. Otherwise,
-	  answer N.
-
-config BLZ2060_SCSI
-	tristate "Blizzard 2060 SCSI support"
-	depends on ZORRO && SCSI
-	help
-	  If you have an Amiga with a Phase5 Blizzard 2060 accelerator board
-	  and want to use the onboard SCSI controller, say Y. Otherwise,
-	  answer N.
-
-config BLZ1230_SCSI
-	tristate "Blizzard 1230IV/1260 SCSI support"
-	depends on ZORRO && SCSI
-	help
-	  If you have an Amiga 1200 with a Phase5 Blizzard 1230IV or Blizzard
-	  1260 accelerator, and the optional SCSI module, say Y. Otherwise,
-	  say N.
-
-config FASTLANE_SCSI
-	tristate "Fastlane SCSI support"
-	depends on ZORRO && SCSI
-	help
-	  If you have the Phase5 Fastlane Z3 SCSI controller, or plan to use
-	  one in the near future, say Y to this question. Otherwise, say N.
-
 config SCSI_A4000T
 	tristate "A4000T NCR53c710 SCSI support (EXPERIMENTAL)"
 	depends on AMIGA && SCSI && EXPERIMENTAL
@@ -1665,15 +1612,6 @@ config SCSI_ZORRO7XX
 	    - the SCSI controller on the Phase5 Blizzard PowerUP 603e+
 	      accelerator card for the Amiga 1200,
 	    - the SCSI controller on the GVP Turbo 040/060 accelerator.
-
-config OKTAGON_SCSI
-	tristate "BSC Oktagon SCSI support (EXPERIMENTAL)"
-	depends on ZORRO && SCSI && EXPERIMENTAL
-	help
-	  If you have the BSC Oktagon SCSI disk controller for the Amiga, say
-	  Y to this question.  If you're in doubt about whether you have one,
-	  see the picture at
-	  <http://amiga.resource.cx/exp/search.pl?product=oktagon>.
 
 config ATARI_SCSI
 	tristate "Atari native SCSI support"
@@ -1727,18 +1665,6 @@ config MAC_SCSI
 	  SCSI-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
 
-config SCSI_MAC_ESP
-	tristate "Macintosh NCR53c9[46] SCSI"
-	depends on MAC && SCSI
-	help
-	  This is the NCR 53c9x SCSI controller found on most of the 68040
-	  based Macintoshes.  If you have one of these say Y and read the
-	  SCSI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called mac_esp.
-
 config MVME147_SCSI
 	bool "WD33C93 SCSI driver for MVME147"
 	depends on MVME147 && SCSI=y
@@ -1779,6 +1705,7 @@ config SUN3_SCSI
 config SUN3X_ESP
 	bool "Sun3x ESP SCSI"
 	depends on SUN3X && SCSI=y
+	select SCSI_SPI_ATTRS
 	help
 	  The ESP was an on-board SCSI controller used on Sun 3/80
 	  machines.  Say Y here to compile in support for it.

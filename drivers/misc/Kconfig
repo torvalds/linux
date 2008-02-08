@@ -285,4 +285,13 @@ config INTEL_MENLOW
 
 	  If unsure, say N.
 
+config ENCLOSURE_SERVICES
+	tristate "Enclosure Services"
+	default n
+	help
+	  Provides support for intelligent enclosures (bays which
+	  contain storage devices).  You also need either a host
+	  driver (SCSI/ATA) which supports enclosures
+	  or a SCSI enclosure device (SES) to use these services.
+
 endif # MISC_DEVICES

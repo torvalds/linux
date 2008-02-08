@@ -35,7 +35,7 @@
 
 #define BOUNCE_SIZE			(64*1024)
 
-#define PS3ROM_MAX_SECTORS		(BOUNCE_SIZE / CD_FRAMESIZE)
+#define PS3ROM_MAX_SECTORS		(BOUNCE_SIZE >> 9)
 
 
 struct ps3rom_private {

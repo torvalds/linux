@@ -859,44 +859,31 @@ static int setinqserial(struct aac_dev *dev, void *data, int cid)
 			le32_to_cpu(dev->adapter_info.serial[0]), cid);
 }
 
-static void set_sense(u8 *sense_buf, u8 sense_key, u8 sense_code,
-		      u8 a_sense_code, u8 incorrect_length,
-		      u8 bit_pointer, u16 field_pointer,
-		      u32 residue)
+static inline void set_sense(struct sense_data *sense_data, u8 sense_key,
+	u8 sense_code, u8 a_sense_code, u8 bit_pointer, u16 field_pointer)
 {
-	sense_buf[0] = 0xF0;	/* Sense data valid, err code 70h (current error) */
+	u8 *sense_buf = (u8 *)sense_data;
+	/* Sense data valid, err code 70h */
+	sense_buf[0] = 0x70; /* No info field */
 	sense_buf[1] = 0;	/* Segment number, always zero */
 
-	if (incorrect_length) {
-		sense_buf[2] = sense_key | 0x20;/* Set ILI bit | sense key */
-		sense_buf[3] = BYTE3(residue);
-		sense_buf[4] = BYTE2(residue);
-		sense_buf[5] = BYTE1(residue);
-		sense_buf[6] = BYTE0(residue);
-	} else
-		sense_buf[2] = sense_key;	/* Sense key */
-
-	if (sense_key == ILLEGAL_REQUEST)
-		sense_buf[7] = 10;	/* Additional sense length */
-	else
-		sense_buf[7] = 6;	/* Additional sense length */
+	sense_buf[2] = sense_key;	/* Sense key */
 
 	sense_buf[12] = sense_code;	/* Additional sense code */
 	sense_buf[13] = a_sense_code;	/* Additional sense code qualifier */
+
 	if (sense_key == ILLEGAL_REQUEST) {
-		sense_buf[15] = 0;
+		sense_buf[7] = 10;	/* Additional sense length */
 
-		if (sense_code == SENCODE_INVALID_PARAM_FIELD)
-			sense_buf[15] = 0x80;/* Std sense key specific field */
+		sense_buf[15] = bit_pointer;
 		/* Illegal parameter is in the parameter block */
-
 		if (sense_code == SENCODE_INVALID_CDB_FIELD)
-			sense_buf[15] = 0xc0;/* Std sense key specific field */
+			sense_buf[15] |= 0xc0;/* Std sense key specific field */
 		/* Illegal parameter is in the CDB block */
-		sense_buf[15] |= bit_pointer;
 		sense_buf[16] = field_pointer >> 8;	/* MSB */
 		sense_buf[17] = field_pointer;		/* LSB */
-	}
+	} else
+		sense_buf[7] = 6;	/* Additional sense length */
 }
 
 static int aac_bounds_32(struct aac_dev * dev, struct scsi_cmnd * cmd, u64 lba)
@@ -906,11 +893,9 @@ static int aac_bounds_32(struct aac_dev * dev, struct scsi_cmnd * cmd, u64 lba)
 		dprintk((KERN_DEBUG "aacraid: Illegal lba\n"));
 		cmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 |
 			SAM_STAT_CHECK_CONDITION;
-		set_sense((u8 *) &dev->fsa_dev[cid].sense_data,
-			    HARDWARE_ERROR,
-			    SENCODE_INTERNAL_TARGET_FAILURE,
-			    ASENCODE_INTERNAL_TARGET_FAILURE, 0, 0,
-			    0, 0);
+		set_sense(&dev->fsa_dev[cid].sense_data,
+		  HARDWARE_ERROR, SENCODE_INTERNAL_TARGET_FAILURE,
+		  ASENCODE_INTERNAL_TARGET_FAILURE, 0, 0);
 		memcpy(cmd->sense_buffer, &dev->fsa_dev[cid].sense_data,
 		       min_t(size_t, sizeof(dev->fsa_dev[cid].sense_data),
 			     SCSI_SENSE_BUFFERSIZE));
@@ -1520,11 +1505,9 @@ static void io_callback(void *context, struct fib * fibptr)
 		  le32_to_cpu(readreply->status));
 #endif
 		scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 | SAM_STAT_CHECK_CONDITION;
-		set_sense((u8 *) &dev->fsa_dev[cid].sense_data,
-				    HARDWARE_ERROR,
-				    SENCODE_INTERNAL_TARGET_FAILURE,
-				    ASENCODE_INTERNAL_TARGET_FAILURE, 0, 0,
-				    0, 0);
+		set_sense(&dev->fsa_dev[cid].sense_data,
+		  HARDWARE_ERROR, SENCODE_INTERNAL_TARGET_FAILURE,
+		  ASENCODE_INTERNAL_TARGET_FAILURE, 0, 0);
 		memcpy(scsicmd->sense_buffer, &dev->fsa_dev[cid].sense_data,
 		       min_t(size_t, sizeof(dev->fsa_dev[cid].sense_data),
 			     SCSI_SENSE_BUFFERSIZE));
@@ -1733,11 +1716,9 @@ static void synchronize_callback(void *context, struct fib *fibptr)
 		     le32_to_cpu(synchronizereply->status));
 		cmd->result = DID_OK << 16 |
 			COMMAND_COMPLETE << 8 | SAM_STAT_CHECK_CONDITION;
-		set_sense((u8 *)&dev->fsa_dev[cid].sense_data,
-				    HARDWARE_ERROR,
-				    SENCODE_INTERNAL_TARGET_FAILURE,
-				    ASENCODE_INTERNAL_TARGET_FAILURE, 0, 0,
-				    0, 0);
+		set_sense(&dev->fsa_dev[cid].sense_data,
+		  HARDWARE_ERROR, SENCODE_INTERNAL_TARGET_FAILURE,
+		  ASENCODE_INTERNAL_TARGET_FAILURE, 0, 0);
 		memcpy(cmd->sense_buffer, &dev->fsa_dev[cid].sense_data,
 		       min_t(size_t, sizeof(dev->fsa_dev[cid].sense_data),
 			     SCSI_SENSE_BUFFERSIZE));
@@ -1945,10 +1926,9 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 	{
 		dprintk((KERN_WARNING "Only INQUIRY & TUR command supported for controller, rcvd = 0x%x.\n", scsicmd->cmnd[0]));
 		scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 | SAM_STAT_CHECK_CONDITION;
-		set_sense((u8 *) &dev->fsa_dev[cid].sense_data,
-			    ILLEGAL_REQUEST,
-			    SENCODE_INVALID_COMMAND,
-			    ASENCODE_INVALID_COMMAND, 0, 0, 0, 0);
+		set_sense(&dev->fsa_dev[cid].sense_data,
+		  ILLEGAL_REQUEST, SENCODE_INVALID_COMMAND,
+		  ASENCODE_INVALID_COMMAND, 0, 0);
 		memcpy(scsicmd->sense_buffer, &dev->fsa_dev[cid].sense_data,
 		       min_t(size_t, sizeof(dev->fsa_dev[cid].sense_data),
 			     SCSI_SENSE_BUFFERSIZE));
@@ -1995,10 +1975,9 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 				scsicmd->result = DID_OK << 16 |
 				  COMMAND_COMPLETE << 8 |
 				  SAM_STAT_CHECK_CONDITION;
-				set_sense((u8 *) &dev->fsa_dev[cid].sense_data,
-				  ILLEGAL_REQUEST,
-				  SENCODE_INVALID_CDB_FIELD,
-				  ASENCODE_NO_SENSE, 0, 7, 2, 0);
+				set_sense(&dev->fsa_dev[cid].sense_data,
+				  ILLEGAL_REQUEST, SENCODE_INVALID_CDB_FIELD,
+				  ASENCODE_NO_SENSE, 7, 2);
 				memcpy(scsicmd->sense_buffer,
 				  &dev->fsa_dev[cid].sense_data,
 				  min_t(size_t,
@@ -2254,9 +2233,9 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 			 */
 			dprintk((KERN_WARNING "Unhandled SCSI Command: 0x%x.\n", scsicmd->cmnd[0]));
 			scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 | SAM_STAT_CHECK_CONDITION;
-			set_sense((u8 *) &dev->fsa_dev[cid].sense_data,
-				ILLEGAL_REQUEST, SENCODE_INVALID_COMMAND,
-				ASENCODE_INVALID_COMMAND, 0, 0, 0, 0);
+			set_sense(&dev->fsa_dev[cid].sense_data,
+			  ILLEGAL_REQUEST, SENCODE_INVALID_COMMAND,
+			  ASENCODE_INVALID_COMMAND, 0, 0);
 			memcpy(scsicmd->sense_buffer, &dev->fsa_dev[cid].sense_data,
 				min_t(size_t,
 				      sizeof(dev->fsa_dev[cid].sense_data),

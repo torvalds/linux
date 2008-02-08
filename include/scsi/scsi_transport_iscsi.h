@@ -149,13 +149,6 @@ extern void iscsi_conn_error(struct iscsi_cls_conn *conn, enum iscsi_err error);
 extern int iscsi_recv_pdu(struct iscsi_cls_conn *conn, struct iscsi_hdr *hdr,
 			  char *data, uint32_t data_size);
 
-
-/* Connection's states */
-#define ISCSI_CONN_INITIAL_STAGE	0
-#define ISCSI_CONN_STARTED		1
-#define ISCSI_CONN_STOPPED		2
-#define ISCSI_CONN_CLEANUP_WAIT		3
-
 struct iscsi_cls_conn {
 	struct list_head conn_list;	/* item in connlist */
 	void *dd_data;			/* LLD private data */
@@ -169,27 +162,31 @@ struct iscsi_cls_conn {
 #define iscsi_dev_to_conn(_dev) \
 	container_of(_dev, struct iscsi_cls_conn, dev)
 
-/* Session's states */
-#define ISCSI_STATE_FREE		1
-#define ISCSI_STATE_LOGGED_IN		2
-#define ISCSI_STATE_FAILED		3
-#define ISCSI_STATE_TERMINATE		4
-#define ISCSI_STATE_IN_RECOVERY		5
-#define ISCSI_STATE_RECOVERY_FAILED	6
-#define ISCSI_STATE_LOGGING_OUT		7
+#define iscsi_conn_to_session(_conn) \
+	iscsi_dev_to_session(_conn->dev.parent)
+
+/* iscsi class session state */
+enum {
+	ISCSI_SESSION_LOGGED_IN,
+	ISCSI_SESSION_FAILED,
+	ISCSI_SESSION_FREE,
+};
 
 struct iscsi_cls_session {
 	struct list_head sess_list;		/* item in session_list */
 	struct list_head host_list;
 	struct iscsi_transport *transport;
+	spinlock_t lock;
+	struct work_struct scan_work;
+	struct work_struct unbind_work;
 
 	/* recovery fields */
 	int recovery_tmo;
 	struct delayed_work recovery_work;
-	struct work_struct unbind_work;
 
 	int target_id;
 
+	int state;
 	int sid;				/* session id */
 	void *dd_data;				/* LLD private data */
 	struct device dev;	/* sysfs transport/container device */
@@ -206,14 +203,22 @@ struct iscsi_cls_session {
 
 struct iscsi_host {
 	struct list_head sessions;
+	atomic_t nr_scans;
 	struct mutex mutex;
-	struct workqueue_struct *unbind_workq;
-	char unbind_workq_name[KOBJ_NAME_LEN];
+	struct workqueue_struct *scan_workq;
+	char scan_workq_name[KOBJ_NAME_LEN];
 };
 
 /*
  * session and connection functions that can be used by HW iSCSI LLDs
  */
+#define iscsi_cls_session_printk(prefix, _cls_session, fmt, a...) \
+	dev_printk(prefix, &(_cls_session)->dev, fmt, ##a)
+
+#define iscsi_cls_conn_printk(prefix, _cls_conn, fmt, a...) \
+	dev_printk(prefix, &(_cls_conn)->dev, fmt, ##a)
+
+extern int iscsi_session_chkready(struct iscsi_cls_session *session);
 extern struct iscsi_cls_session *iscsi_alloc_session(struct Scsi_Host *shost,
 					struct iscsi_transport *transport);
 extern int iscsi_add_session(struct iscsi_cls_session *session,
@@ -231,6 +236,6 @@ extern struct iscsi_cls_conn *iscsi_create_conn(struct iscsi_cls_session *sess,
 extern int iscsi_destroy_conn(struct iscsi_cls_conn *conn);
 extern void iscsi_unblock_session(struct iscsi_cls_session *session);
 extern void iscsi_block_session(struct iscsi_cls_session *session);
-
+extern int iscsi_scan_finished(struct Scsi_Host *shost, unsigned long time);
 
 #endif

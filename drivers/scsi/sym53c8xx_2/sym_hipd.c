@@ -3842,7 +3842,7 @@ int sym_compute_residual(struct sym_hcb *np, struct sym_ccb *cp)
 	if (cp->startp == cp->phys.head.lastp ||
 	    sym_evaluate_dp(np, cp, scr_to_cpu(cp->phys.head.lastp),
 			    &dp_ofs) < 0) {
-		return cp->data_len;
+		return cp->data_len - cp->odd_byte_adjustment;
 	}
 
 	/*
