@@ -162,11 +162,6 @@ found:
 	goto out;
 }
 
-/*
- * This proc still used in tt-mode
- * (file: kernel/tt/ptproxy/proxy.c, proc: start_debugger).
- * So it isn't 'static' yet.
- */
 static int __init make_tempfile(const char *template, char **out_tempname,
 				int do_unlink)
 {
@@ -175,10 +170,13 @@ static int __init make_tempfile(const char *template, char **out_tempname,
 
 	which_tmpdir();
 	tempname = malloc(MAXPATHLEN);
-	if (!tempname)
-		goto out;
+	if (tempname == NULL)
+		return -1;
 
 	find_tempdir();
+	if ((tempdir == NULL) || (strlen(tempdir) >= MAXPATHLEN))
+		return -1;
+
 	if (template[0] != '/')
 		strcpy(tempname, tempdir);
 	else
@@ -196,9 +194,8 @@ static int __init make_tempfile(const char *template, char **out_tempname,
 	}
 	if (out_tempname) {
 		*out_tempname = tempname;
-	} else {
+	} else
 		free(tempname);
-	}
 	return fd;
 out:
 	free(tempname);
