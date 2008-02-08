@@ -77,7 +77,7 @@ unsigned long __init native_calculate_cpu_khz(void)
 		reserve_evntsel_nmi(MSR_K7_EVNTSEL0 + i);
 	}
 	local_irq_save(flags);
-	/* start meauring cycles, incrementing from 0 */
+	/* start measuring cycles, incrementing from 0 */
 	wrmsrl(MSR_K7_PERFCTR0 + i, 0);
 	wrmsrl(MSR_K7_EVNTSEL0 + i, 1 << 22 | 3 << 16 | 0x76);
 	rdtscl(tsc_start);

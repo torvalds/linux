@@ -267,7 +267,7 @@ EXPORT_SYMBOL(jiffies_to_usecs);
  *
  * This function should be only used for timestamps returned by
  * current_kernel_time() or CURRENT_TIME, not with do_gettimeofday() because
- * it doesn't handle the better resolution of the later.
+ * it doesn't handle the better resolution of the latter.
  */
 struct timespec timespec_trunc(struct timespec t, unsigned gran)
 {
@@ -315,7 +315,7 @@ EXPORT_SYMBOL_GPL(getnstimeofday);
  * This algorithm was first published by Gauss (I think).
  *
  * WARNING: this function will overflow on 2106-02-07 06:28:16 on
- * machines were long is 32-bit! (However, as time_t is signed, we
+ * machines where long is 32-bit! (However, as time_t is signed, we
  * will already get problems at other places on 2038-01-19 03:14:08)
  */
 unsigned long

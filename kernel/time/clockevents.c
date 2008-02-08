@@ -133,7 +133,7 @@ static void clockevents_do_notify(unsigned long reason, void *dev)
 }
 
 /*
- * Called after a notify add to make devices availble which were
+ * Called after a notify add to make devices available which were
  * released from the notifier call.
  */
 static void clockevents_notify_released(void)

@@ -49,13 +49,13 @@ EXPORT_SYMBOL(last_cli_ip);
 #endif
 
 static struct clocksource clocksource_itc = {
-        .name           = "itc",
-        .rating         = 350,
-        .read           = itc_get_cycles,
-        .mask           = CLOCKSOURCE_MASK(64),
-        .mult           = 0, /*to be caluclated*/
-        .shift          = 16,
-        .flags          = CLOCK_SOURCE_IS_CONTINUOUS,
+	.name           = "itc",
+	.rating         = 350,
+	.read           = itc_get_cycles,
+	.mask           = CLOCKSOURCE_MASK(64),
+	.mult           = 0, /*to be calculated*/
+	.shift          = 16,
+	.flags          = CLOCK_SOURCE_IS_CONTINUOUS,
 };
 static struct clocksource *itc_clocksource;
 
