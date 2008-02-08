@@ -1142,10 +1142,14 @@ static int eligible_child(pid_t pid, int options, struct task_struct *p)
 		return 0;
 
 	err = security_task_wait(p);
-	if (err)
-		return err;
+	if (likely(!err))
+		return 1;
 
-	return 1;
+	if (pid <= 0)
+		return 0;
+	/* This child was explicitly requested, abort */
+	read_unlock(&tasklist_lock);
+	return err;
 }
 
 static int wait_noreap_copyout(struct task_struct *p, pid_t pid, uid_t uid,
@@ -1476,7 +1480,6 @@ static long do_wait(pid_t pid, int options, struct siginfo __user *infop,
 	DECLARE_WAITQUEUE(wait, current);
 	struct task_struct *tsk;
 	int flag, retval;
-	int allowed, denied;
 
 	add_wait_queue(&current->signal->wait_chldexit,&wait);
 repeat:
@@ -1484,8 +1487,7 @@ repeat:
 	 * We will set this flag if we see any child that might later
 	 * match our criteria, even if we are not able to reap it yet.
 	 */
-	flag = 0;
-	allowed = denied = 0;
+	flag = retval = 0;
 	current->state = TASK_INTERRUPTIBLE;
 	read_lock(&tasklist_lock);
 	tsk = current;
@@ -1498,13 +1500,8 @@ repeat:
 				continue;
 
 			if (unlikely(ret < 0)) {
-				denied = ret;
-				continue;
-			}
-			allowed = 1;
-
-			retval = 0;
-			if (task_is_stopped_or_traced(p)) {
+				retval = ret;
+			} else if (task_is_stopped_or_traced(p)) {
 				/*
 				 * It's stopped now, so it might later
 				 * continue, exit, or stop again.
@@ -1544,11 +1541,14 @@ repeat:
 		}
 		if (!flag) {
 			list_for_each_entry(p, &tsk->ptrace_children,
-					    ptrace_list) {
-				if (!eligible_child(pid, options, p))
+								ptrace_list) {
+				flag = eligible_child(pid, options, p);
+				if (!flag)
 					continue;
-				flag = 1;
-				break;
+				if (likely(flag > 0))
+					break;
+				retval = flag;
+				goto end;
 			}
 		}
 		if (options & __WNOTHREAD)
@@ -1556,10 +1556,9 @@ repeat:
 		tsk = next_thread(tsk);
 		BUG_ON(tsk->signal != current->signal);
 	} while (tsk != current);
-
 	read_unlock(&tasklist_lock);
+
 	if (flag) {
-		retval = 0;
 		if (options & WNOHANG)
 			goto end;
 		retval = -ERESTARTSYS;
@@ -1569,8 +1568,6 @@ repeat:
 		goto repeat;
 	}
 	retval = -ECHILD;
-	if (unlikely(denied) && !allowed)
-		retval = denied;
 end:
 	current->state = TASK_RUNNING;
 	remove_wait_queue(&current->signal->wait_chldexit,&wait);
