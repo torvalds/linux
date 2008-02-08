@@ -140,6 +140,10 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 #define DMA_TLB_IH_NONLEAF (((u64)1) << 6)
 #define DMA_TLB_MAX_SIZE (0x3f)
 
+/* PMEN_REG */
+#define DMA_PMEN_EPM (((u32)1)<<31)
+#define DMA_PMEN_PRS (((u32)1)<<0)
+
 /* GCMD_REG */
 #define DMA_GCMD_TE (((u32)1) << 31)
 #define DMA_GCMD_SRTP (((u32)1) << 30)

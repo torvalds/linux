@@ -692,6 +692,23 @@ static int iommu_flush_iotlb_psi(struct intel_iommu *iommu, u16 did,
 		DMA_TLB_PSI_FLUSH, non_present_entry_flush);
 }
 
+static void iommu_disable_protect_mem_regions(struct intel_iommu *iommu)
+{
+	u32 pmen;
+	unsigned long flags;
+
+	spin_lock_irqsave(&iommu->register_lock, flags);
+	pmen = readl(iommu->reg + DMAR_PMEN_REG);
+	pmen &= ~DMA_PMEN_EPM;
+	writel(pmen, iommu->reg + DMAR_PMEN_REG);
+
+	/* wait for the protected region status bit to clear */
+	IOMMU_WAIT_OP(iommu, DMAR_PMEN_REG,
+		readl, !(pmen & DMA_PMEN_PRS), pmen);
+
+	spin_unlock_irqrestore(&iommu->register_lock, flags);
+}
+
 static int iommu_enable_translation(struct intel_iommu *iommu)
 {
 	u32 sts;
@@ -745,7 +762,7 @@ static char *fault_reason_strings[] =
 	"non-zero reserved fields in PTE",
 	"Unknown"
 };
-#define MAX_FAULT_REASON_IDX 	ARRAY_SIZE(fault_reason_strings) - 1
+#define MAX_FAULT_REASON_IDX 	(ARRAY_SIZE(fault_reason_strings) - 1)
 
 char *dmar_get_fault_reason(u8 fault_reason)
 {
@@ -1729,6 +1746,8 @@ int __init init_dmars(void)
 
 		iommu_flush_context_global(iommu, 0);
 		iommu_flush_iotlb_global(iommu, 0);
+
+		iommu_disable_protect_mem_regions(iommu);
 
 		ret = iommu_enable_translation(iommu);
 		if (ret)
