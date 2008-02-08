@@ -152,8 +152,9 @@ config FUJITSU_LAPTOP
 	  If you have a Fujitsu laptop, say Y or M here.
 
 config TC1100_WMI
-	tristate "HP Compaq TC1100 Tablet WMI Extras"
+	tristate "HP Compaq TC1100 Tablet WMI Extras (EXPERIMENTAL)"
 	depends on X86 && !X86_64
+	depends on EXPERIMENTAL
 	depends on ACPI
 	select ACPI_WMI
 	---help---
