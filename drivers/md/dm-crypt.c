@@ -52,6 +52,7 @@ struct dm_crypt_io {
 
 	atomic_t pending;
 	int error;
+	sector_t sector;
 };
 
 struct crypt_config;
@@ -526,7 +527,6 @@ static void kcryptd_io_read(struct dm_crypt_io *io)
 	struct crypt_config *cc = io->target->private;
 	struct bio *base_bio = io->base_bio;
 	struct bio *clone;
-	sector_t sector = base_bio->bi_sector - io->target->begin;
 
 	atomic_inc(&io->pending);
 
@@ -546,7 +546,7 @@ static void kcryptd_io_read(struct dm_crypt_io *io)
 	clone->bi_idx = 0;
 	clone->bi_vcnt = bio_segments(base_bio);
 	clone->bi_size = base_bio->bi_size;
-	clone->bi_sector = cc->start + sector;
+	clone->bi_sector = cc->start + io->sector;
 	memcpy(clone->bi_io_vec, bio_iovec(base_bio),
 	       sizeof(struct bio_vec) * clone->bi_vcnt);
 
@@ -585,11 +585,10 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 	struct bio *base_bio = io->base_bio;
 	struct bio *clone;
 	unsigned remaining = base_bio->bi_size;
-	sector_t sector = base_bio->bi_sector - io->target->begin;
 
 	atomic_inc(&io->pending);
 
-	crypt_convert_init(cc, &io->ctx, NULL, base_bio, sector);
+	crypt_convert_init(cc, &io->ctx, NULL, base_bio, io->sector);
 
 	/*
 	 * The allocated buffers can be smaller than the whole bio,
@@ -617,9 +616,9 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 		/* crypt_convert should have filled the clone bio */
 		BUG_ON(io->ctx.idx_out < clone->bi_vcnt);
 
-		clone->bi_sector = cc->start + sector;
+		clone->bi_sector = cc->start + io->sector;
 		remaining -= clone->bi_size;
-		sector += bio_sectors(clone);
+		io->sector += bio_sectors(clone);
 
 		/* Grab another reference to the io struct
 		 * before we kick off the request */
@@ -651,7 +650,7 @@ static void kcryptd_crypt_read_convert(struct dm_crypt_io *io)
 	int r = 0;
 
 	crypt_convert_init(cc, &io->ctx, io->base_bio, io->base_bio,
-			   io->base_bio->bi_sector - io->target->begin);
+			   io->sector);
 
 	r = crypt_convert(cc, &io->ctx);
 
@@ -974,6 +973,7 @@ static int crypt_map(struct dm_target *ti, struct bio *bio,
 	io = mempool_alloc(cc->io_pool, GFP_NOIO);
 	io->target = ti;
 	io->base_bio = bio;
+	io->sector = bio->bi_sector - ti->begin;
 	io->error = 0;
 	atomic_set(&io->pending, 0);
 
