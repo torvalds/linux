@@ -21,6 +21,7 @@
 #include <linux/input.h>
 #include <linux/i2c.h>
 #include <linux/serial_reg.h>
+#include <linux/ata_platform.h>
 #include <asm/mach-types.h>
 #include <asm/gpio.h>
 #include <asm/mach/arch.h>
@@ -232,6 +233,14 @@ static struct platform_device qnap_ts209_button_device = {
 };
 
 /*****************************************************************************
+ * SATA
+ ****************************************************************************/
+static struct mv_sata_platform_data qnap_ts209_sata_data = {
+	.n_ports        = 2,
+};
+
+/*****************************************************************************
+
  * General Setup
  ****************************************************************************/
 
@@ -321,6 +330,7 @@ static void __init qnap_ts209_init(void)
 				ARRAY_SIZE(qnap_ts209_devices));
 	i2c_register_board_info(0, &qnap_ts209_i2c_rtc, 1);
 	orion_eth_init(&qnap_ts209_eth_data);
+	orion_sata_init(&qnap_ts209_sata_data);
 }
 
 MACHINE_START(TS209, "QNAP TS-109/TS-209")
