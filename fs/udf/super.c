@@ -1792,9 +1792,8 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	if (!silent) {
 		kernel_timestamp ts;
 		udf_time_to_stamp(&ts, sbi->s_record_time);
-		udf_info("UDF %s (%s) Mounting volume '%s', "
+		udf_info("UDF: Mounting volume '%s', "
 			 "timestamp %04u/%02u/%02u %02u:%02u (%x)\n",
-			 UDFFS_VERSION, UDFFS_DATE,
 			 sbi->s_volume_ident, ts.year, ts.month, ts.day,
 			 ts.hour, ts.minute, ts.typeAndTimezone);
 	}

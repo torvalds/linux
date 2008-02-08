@@ -32,9 +32,6 @@
 #define UDF_PREALLOCATE
 #define UDF_DEFAULT_PREALLOC_BLOCKS	8
 
-#define UDFFS_DATE			"2004/29/09"
-#define UDFFS_VERSION			"0.9.8.1"
-
 #undef UDFFS_DEBUG
 
 #ifdef UDFFS_DEBUG
