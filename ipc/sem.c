@@ -94,7 +94,7 @@
 #define sem_buildid(id, seq)	ipc_buildid(id, seq)
 
 static int newary(struct ipc_namespace *, struct ipc_params *);
-static void freeary(struct ipc_namespace *, struct sem_array *);
+static void freeary(struct ipc_namespace *, struct kern_ipc_perm *);
 #ifdef CONFIG_PROC_FS
 static int sysvipc_sem_proc_show(struct seq_file *s, void *it);
 #endif
@@ -129,25 +129,7 @@ void sem_init_ns(struct ipc_namespace *ns)
 #ifdef CONFIG_IPC_NS
 void sem_exit_ns(struct ipc_namespace *ns)
 {
-	struct sem_array *sma;
-	struct kern_ipc_perm *perm;
-	int next_id;
-	int total, in_use;
-
-	down_write(&sem_ids(ns).rw_mutex);
-
-	in_use = sem_ids(ns).in_use;
-
-	for (total = 0, next_id = 0; total < in_use; next_id++) {
-		perm = idr_find(&sem_ids(ns).ipcs_idr, next_id);
-		if (perm == NULL)
-			continue;
-		ipc_lock_by_ptr(perm);
-		sma = container_of(perm, struct sem_array, sem_perm);
-		freeary(ns, sma);
-		total++;
-	}
-	up_write(&sem_ids(ns).rw_mutex);
+	free_ipcs(ns, &sem_ids(ns), freeary);
 }
 #endif
 
@@ -542,10 +524,11 @@ static int count_semzcnt (struct sem_array * sma, ushort semnum)
  * as a writer and the spinlock for this semaphore set hold. sem_ids.rw_mutex
  * remains locked on exit.
  */
-static void freeary(struct ipc_namespace *ns, struct sem_array *sma)
+static void freeary(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp)
 {
 	struct sem_undo *un;
 	struct sem_queue *q;
+	struct sem_array *sma = container_of(ipcp, struct sem_array, sem_perm);
 
 	/* Invalidate the existing undo structures for this semaphore set.
 	 * (They will be freed without any further action in exit_sem()
@@ -926,7 +909,7 @@ static int semctl_down(struct ipc_namespace *ns, int semid, int semnum,
 
 	switch(cmd){
 	case IPC_RMID:
-		freeary(ns, sma);
+		freeary(ns, ipcp);
 		err = 0;
 		break;
 	case IPC_SET:

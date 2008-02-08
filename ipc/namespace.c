@@ -44,6 +44,36 @@ struct ipc_namespace *copy_ipcs(unsigned long flags, struct ipc_namespace *ns)
 	return new_ns;
 }
 
+/*
+ * free_ipcs - free all ipcs of one type
+ * @ns:   the namespace to remove the ipcs from
+ * @ids:  the table of ipcs to free
+ * @free: the function called to free each individual ipc
+ *
+ * Called for each kind of ipc when an ipc_namespace exits.
+ */
+void free_ipcs(struct ipc_namespace *ns, struct ipc_ids *ids,
+	       void (*free)(struct ipc_namespace *, struct kern_ipc_perm *))
+{
+	struct kern_ipc_perm *perm;
+	int next_id;
+	int total, in_use;
+
+	down_write(&ids->rw_mutex);
+
+	in_use = ids->in_use;
+
+	for (total = 0, next_id = 0; total < in_use; next_id++) {
+		perm = idr_find(&ids->ipcs_idr, next_id);
+		if (perm == NULL)
+			continue;
+		ipc_lock_by_ptr(perm);
+		free(ns, perm);
+		total++;
+	}
+	up_write(&ids->rw_mutex);
+}
+
 void free_ipc_ns(struct kref *kref)
 {
 	struct ipc_namespace *ns;

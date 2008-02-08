@@ -83,8 +83,11 @@ void shm_init_ns(struct ipc_namespace *ns)
  * Called with shm_ids.rw_mutex (writer) and the shp structure locked.
  * Only shm_ids.rw_mutex remains locked on exit.
  */
-static void do_shm_rmid(struct ipc_namespace *ns, struct shmid_kernel *shp)
+static void do_shm_rmid(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp)
 {
+	struct shmid_kernel *shp;
+	shp = container_of(ipcp, struct shmid_kernel, shm_perm);
+
 	if (shp->shm_nattch){
 		shp->shm_perm.mode |= SHM_DEST;
 		/* Do not find it any more */
@@ -97,25 +100,7 @@ static void do_shm_rmid(struct ipc_namespace *ns, struct shmid_kernel *shp)
 #ifdef CONFIG_IPC_NS
 void shm_exit_ns(struct ipc_namespace *ns)
 {
-	struct shmid_kernel *shp;
-	struct kern_ipc_perm *perm;
-	int next_id;
-	int total, in_use;
-
-	down_write(&shm_ids(ns).rw_mutex);
-
-	in_use = shm_ids(ns).in_use;
-
-	for (total = 0, next_id = 0; total < in_use; next_id++) {
-		perm = idr_find(&shm_ids(ns).ipcs_idr, next_id);
-		if (perm == NULL)
-			continue;
-		ipc_lock_by_ptr(perm);
-		shp = container_of(perm, struct shmid_kernel, shm_perm);
-		do_shm_rmid(ns, shp);
-		total++;
-	}
-	up_write(&shm_ids(ns).rw_mutex);
+	free_ipcs(ns, &shm_ids(ns), do_shm_rmid);
 }
 #endif
 
@@ -832,7 +817,7 @@ asmlinkage long sys_shmctl (int shmid, int cmd, struct shmid_ds __user *buf)
 		if (err)
 			goto out_unlock_up;
 
-		do_shm_rmid(ns, shp);
+		do_shm_rmid(ns, &shp->shm_perm);
 		up_write(&shm_ids(ns).rw_mutex);
 		goto out;
 	}

@@ -72,7 +72,7 @@ struct msg_sender {
 #define msg_unlock(msq)		ipc_unlock(&(msq)->q_perm)
 #define msg_buildid(id, seq)	ipc_buildid(id, seq)
 
-static void freeque(struct ipc_namespace *, struct msg_queue *);
+static void freeque(struct ipc_namespace *, struct kern_ipc_perm *);
 static int newque(struct ipc_namespace *, struct ipc_params *);
 #ifdef CONFIG_PROC_FS
 static int sysvipc_msg_proc_show(struct seq_file *s, void *it);
@@ -91,26 +91,7 @@ void msg_init_ns(struct ipc_namespace *ns)
 #ifdef CONFIG_IPC_NS
 void msg_exit_ns(struct ipc_namespace *ns)
 {
-	struct msg_queue *msq;
-	struct kern_ipc_perm *perm;
-	int next_id;
-	int total, in_use;
-
-	down_write(&msg_ids(ns).rw_mutex);
-
-	in_use = msg_ids(ns).in_use;
-
-	for (total = 0, next_id = 0; total < in_use; next_id++) {
-		perm = idr_find(&msg_ids(ns).ipcs_idr, next_id);
-		if (perm == NULL)
-			continue;
-		ipc_lock_by_ptr(perm);
-		msq = container_of(perm, struct msg_queue, q_perm);
-		freeque(ns, msq);
-		total++;
-	}
-
-	up_write(&msg_ids(ns).rw_mutex);
+	free_ipcs(ns, &msg_ids(ns), freeque);
 }
 #endif
 
@@ -274,9 +255,10 @@ static void expunge_all(struct msg_queue *msq, int res)
  * msg_ids.rw_mutex (writer) and the spinlock for this message queue are held
  * before freeque() is called. msg_ids.rw_mutex remains locked on exit.
  */
-static void freeque(struct ipc_namespace *ns, struct msg_queue *msq)
+static void freeque(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp)
 {
 	struct list_head *tmp;
+	struct msg_queue *msq = container_of(ipcp, struct msg_queue, q_perm);
 
 	expunge_all(msq, -EIDRM);
 	ss_wakeup(&msq->q_senders, 1);
@@ -582,7 +564,7 @@ asmlinkage long sys_msgctl(int msqid, int cmd, struct msqid_ds __user *buf)
 		break;
 	}
 	case IPC_RMID:
-		freeque(ns, msq);
+		freeque(ns, &msq->q_perm);
 		break;
 	}
 	err = 0;
