@@ -1,4 +1,6 @@
+ifeq ($(wildcard include/asm-$(SRCARCH)/a.out.h),include/asm-$(SRCARCH)/a.out.h)
 unifdef-y += a.out.h
+endif
 unifdef-y += auxvec.h
 unifdef-y += byteorder.h
 unifdef-y += errno.h

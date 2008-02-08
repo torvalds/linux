@@ -28,6 +28,7 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/cacheflush.h>
+#include <asm/a.out-core.h>
 
 static int load_aout_binary(struct linux_binprm *, struct pt_regs * regs);
 static int load_aout_library(struct file*);
@@ -118,7 +119,7 @@ static int aout_core_dump(long signr, struct pt_regs *regs, struct file *file, u
 	dump.u_ar0 = offsetof(struct user, regs);
 #endif
 	dump.signal = signr;
-	dump_thread(regs, &dump);
+	aout_dump_thread(regs, &dump);
 
 /* If the size of the dump file exceeds the rlimit, then see what would happen
    if we wrote the stack, but not the data area.  */

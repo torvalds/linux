@@ -1,6 +1,8 @@
 #ifndef __A_OUT_GNU_H__
 #define __A_OUT_GNU_H__
 
+#ifdef CONFIG_ARCH_SUPPORTS_AOUT
+
 #define __GNU_EXEC_MACROS__
 
 #ifndef __STRUCT_EXEC_OVERRIDE__
@@ -8,6 +10,8 @@
 #include <asm/a.out.h>
 
 #endif /* __STRUCT_EXEC_OVERRIDE__ */
+
+#ifndef __ASSEMBLY__
 
 /* these go in the N_MACHTYPE field */
 enum machine_type {
@@ -272,5 +276,11 @@ struct relocation_info
 };
 #endif /* no N_RELOCATION_INFO_DECLARED.  */
 
-
+#endif /*__ASSEMBLY__ */
+#else /* CONFIG_ARCH_SUPPORTS_AOUT */
+#ifndef __ASSEMBLY__
+struct exec {
+};
+#endif
+#endif /* CONFIG_ARCH_SUPPORTS_AOUT */
 #endif /* __A_OUT_GNU_H__ */

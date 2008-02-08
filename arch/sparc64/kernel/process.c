@@ -725,17 +725,6 @@ pid_t kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 	return retval;
 }
 
-/*
- * fill in the user structure for a core dump..
- */
-void dump_thread(struct pt_regs * regs, struct user * dump)
-{
-	/* Only should be used for SunOS and ancient a.out
-	 * SparcLinux binaries...  Not worth implementing.
-	 */
-	memset(dump, 0, sizeof(struct user));
-}
-
 typedef struct {
 	union {
 		unsigned int	pr_regs[32];
