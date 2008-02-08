@@ -573,9 +573,9 @@ static void netiucv_callback_connres(struct iucv_path *path, u8 ipuser[16])
 }
 
 /**
- * Dummy NOP action for all statemachines
+ * NOP action for statemachines
  */
-static void fsm_action_nop(fsm_instance *fi, int event, void *arg)
+static void netiucv_action_nop(fsm_instance *fi, int event, void *arg)
 {
 }
 
@@ -1111,7 +1111,7 @@ static const fsm_node dev_fsm[] = {
 
 	{ DEV_STATE_RUNNING,    DEV_EVENT_STOP,    dev_action_stop     },
 	{ DEV_STATE_RUNNING,    DEV_EVENT_CONDOWN, dev_action_conndown },
-	{ DEV_STATE_RUNNING,    DEV_EVENT_CONUP,   fsm_action_nop      },
+	{ DEV_STATE_RUNNING,    DEV_EVENT_CONUP,   netiucv_action_nop  },
 };
 
 static const int DEV_FSM_LEN = sizeof(dev_fsm) / sizeof(fsm_node);
