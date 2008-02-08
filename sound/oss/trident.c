@@ -2878,7 +2878,7 @@ trident_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static /*const */ struct file_operations trident_audio_fops = {
+static const struct file_operations trident_audio_fops = {
 	.owner = THIS_MODULE,
 	.llseek = no_llseek,
 	.read = trident_read,
@@ -4104,7 +4104,7 @@ trident_ioctl_mixdev(struct inode *inode, struct file *file, unsigned int cmd,
 	return codec->mixer_ioctl(codec, cmd, arg);
 }
 
-static /*const */ struct file_operations trident_mixer_fops = {
+static const struct file_operations trident_mixer_fops = {
 	.owner = THIS_MODULE,
 	.llseek = no_llseek,
 	.ioctl = trident_ioctl_mixdev,
