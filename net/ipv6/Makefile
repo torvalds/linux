@@ -16,6 +16,7 @@ ipv6-$(CONFIG_XFRM) += xfrm6_policy.o xfrm6_state.o xfrm6_input.o \
 ipv6-$(CONFIG_NETFILTER) += netfilter.o
 ipv6-$(CONFIG_IPV6_MULTIPLE_TABLES) += fib6_rules.o
 ipv6-$(CONFIG_PROC_FS) += proc.o
+ipv6-$(CONFIG_SYN_COOKIES) += syncookies.o
 
 ipv6-objs += $(ipv6-y)
 

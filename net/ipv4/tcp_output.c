@@ -2560,6 +2560,7 @@ void tcp_send_probe0(struct sock *sk)
 	}
 }
 
+EXPORT_SYMBOL(tcp_select_initial_window);
 EXPORT_SYMBOL(tcp_connect);
 EXPORT_SYMBOL(tcp_make_synack);
 EXPORT_SYMBOL(tcp_simple_retransmit);

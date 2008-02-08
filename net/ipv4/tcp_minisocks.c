@@ -35,6 +35,8 @@
 #endif
 
 int sysctl_tcp_syncookies __read_mostly = SYNC_INIT;
+EXPORT_SYMBOL(sysctl_tcp_syncookies);
+
 int sysctl_tcp_abort_on_overflow __read_mostly;
 
 struct inet_timewait_death_row tcp_death_row = {

@@ -10,8 +10,6 @@
  *      2 of the License, or (at your option) any later version.
  *
  *  $Id: syncookies.c,v 1.18 2002/02/01 22:01:04 davem Exp $
- *
- *  Missing: IPv6 support.
  */
 
 #include <linux/tcp.h>
@@ -23,14 +21,15 @@
 
 extern int sysctl_tcp_syncookies;
 
-static __u32 syncookie_secret[2][16-3+SHA_DIGEST_WORDS];
+__u32 syncookie_secret[2][16-3+SHA_DIGEST_WORDS];
+EXPORT_SYMBOL(syncookie_secret);
 
 static __init int init_syncookies(void)
 {
 	get_random_bytes(syncookie_secret, sizeof(syncookie_secret));
 	return 0;
 }
-module_init(init_syncookies);
+__initcall(init_syncookies);
 
 #define COOKIEBITS 24	/* Upper bits store count */
 #define COOKIEMASK (((__u32)1 << COOKIEBITS) - 1)
