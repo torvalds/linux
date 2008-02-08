@@ -595,16 +595,12 @@ static void kcryptd_crypt_write_io_submit(struct dm_crypt_io *io, int error)
 	io->sector += bio_sectors(clone);
 }
 
-static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
+static void kcryptd_crypt_write_convert_loop(struct dm_crypt_io *io)
 {
 	struct crypt_config *cc = io->target->private;
 	struct bio *clone;
 	unsigned remaining = io->base_bio->bi_size;
 	int r;
-
-	atomic_inc(&io->pending);
-
-	crypt_convert_init(cc, &io->ctx, NULL, io->base_bio, io->sector);
 
 	/*
 	 * The allocated buffers can be smaller than the whole bio,
@@ -643,6 +639,16 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 		if (unlikely(remaining))
 			congestion_wait(WRITE, HZ/100);
 	}
+}
+
+static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
+{
+	struct crypt_config *cc = io->target->private;
+
+	atomic_inc(&io->pending);
+
+	crypt_convert_init(cc, &io->ctx, NULL, io->base_bio, io->sector);
+	kcryptd_crypt_write_convert_loop(io);
 }
 
 static void kcryptd_crypt_read_done(struct dm_crypt_io *io, int error)
