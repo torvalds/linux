@@ -841,18 +841,17 @@ static int dma_set_mask_and_switch(struct device *dev, u64 dma_mask)
 	if (!dev->dma_mask || !dma_supported(dev, dma_mask))
 		return -EIO;
 
-	if (dma_mask == DMA_BIT_MASK(64)) {
-		if (cell_iommu_get_fixed_address(dev) == OF_BAD_ADDR)
-			dev_dbg(dev, "iommu: 64-bit OK, but bad addr\n");
-		else {
-			dev_dbg(dev, "iommu: 64-bit OK, using fixed ops\n");
-			set_dma_ops(dev, &dma_iommu_fixed_ops);
-			cell_dma_dev_setup(dev);
-		}
+	if (dma_mask == DMA_BIT_MASK(64) &&
+		cell_iommu_get_fixed_address(dev) != OF_BAD_ADDR)
+	{
+		dev_dbg(dev, "iommu: 64-bit OK, using fixed ops\n");
+		set_dma_ops(dev, &dma_iommu_fixed_ops);
 	} else {
 		dev_dbg(dev, "iommu: not 64-bit, using default ops\n");
 		set_dma_ops(dev, get_pci_dma_ops());
 	}
+
+	cell_dma_dev_setup(dev);
 
 	*dev->dma_mask = dma_mask;
 
