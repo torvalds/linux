@@ -1191,7 +1191,7 @@ lpfc_update_rport_devloss_tmo(struct lpfc_vport *vport)
 	shost = lpfc_shost_from_vport(vport);
 	spin_lock_irq(shost->host_lock);
 	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp)
-		if (ndlp->rport)
+		if (NLP_CHK_NODE_ACT(ndlp) && ndlp->rport)
 			ndlp->rport->dev_loss_tmo = vport->cfg_devloss_tmo;
 	spin_unlock_irq(shost->host_lock);
 }
@@ -2384,7 +2384,8 @@ lpfc_get_node_by_target(struct scsi_target *starget)
 	spin_lock_irq(shost->host_lock);
 	/* Search for this, mapped, target ID */
 	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
-		if (ndlp->nlp_state == NLP_STE_MAPPED_NODE &&
+		if (NLP_CHK_NODE_ACT(ndlp) &&
+		    ndlp->nlp_state == NLP_STE_MAPPED_NODE &&
 		    starget->id == ndlp->nlp_sid) {
 			spin_unlock_irq(shost->host_lock);
 			return ndlp;

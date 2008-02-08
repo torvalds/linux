@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2007 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2008 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -1422,9 +1422,32 @@ lpfc_cleanup(struct lpfc_vport *vport)
 		lpfc_port_link_failure(vport);
 
 	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
+		if (!NLP_CHK_NODE_ACT(ndlp)) {
+			ndlp = lpfc_enable_node(vport, ndlp,
+						NLP_STE_UNUSED_NODE);
+			if (!ndlp)
+				continue;
+			spin_lock_irq(&phba->ndlp_lock);
+			NLP_SET_FREE_REQ(ndlp);
+			spin_unlock_irq(&phba->ndlp_lock);
+			/* Trigger the release of the ndlp memory */
+			lpfc_nlp_put(ndlp);
+			continue;
+		}
+		spin_lock_irq(&phba->ndlp_lock);
+		if (NLP_CHK_FREE_REQ(ndlp)) {
+			/* The ndlp should not be in memory free mode already */
+			spin_unlock_irq(&phba->ndlp_lock);
+			continue;
+		} else
+			/* Indicate request for freeing ndlp memory */
+			NLP_SET_FREE_REQ(ndlp);
+		spin_unlock_irq(&phba->ndlp_lock);
+
 		if (ndlp->nlp_type & NLP_FABRIC)
 			lpfc_disc_state_machine(vport, ndlp, NULL,
 					NLP_EVT_DEVICE_RECOVERY);
+
 		lpfc_disc_state_machine(vport, ndlp, NULL,
 					     NLP_EVT_DEVICE_RM);
 	}
@@ -1438,6 +1461,17 @@ lpfc_cleanup(struct lpfc_vport *vport)
 		if (i++ > 3000) {
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
 				"0233 Nodelist not empty\n");
+			list_for_each_entry_safe(ndlp, next_ndlp,
+						&vport->fc_nodes, nlp_listp) {
+				lpfc_printf_vlog(ndlp->vport, KERN_ERR,
+						LOG_NODE,
+						"0282: did:x%x ndlp:x%p "
+						"usgmap:x%x refcnt:%d\n",
+						ndlp->nlp_DID, (void *)ndlp,
+						ndlp->nlp_usg_map,
+						atomic_read(
+							&ndlp->kref.refcount));
+			}
 			break;
 		}
 
@@ -1586,6 +1620,8 @@ lpfc_offline_prep(struct lpfc_hba * phba)
 			list_for_each_entry_safe(ndlp, next_ndlp,
 						 &vports[i]->fc_nodes,
 						 nlp_listp) {
+				if (!NLP_CHK_NODE_ACT(ndlp))
+					continue;
 				if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
 					continue;
 				if (ndlp->nlp_type & NLP_FABRIC) {
@@ -1904,6 +1940,9 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 		goto out_release_regions;
 
 	spin_lock_init(&phba->hbalock);
+
+	/* Initialize ndlp management spinlock */
+	spin_lock_init(&phba->ndlp_lock);
 
 	phba->pcidev = pdev;
 

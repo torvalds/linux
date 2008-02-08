@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2007 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2008 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -73,6 +73,12 @@ struct lpfc_nodelist {
 	uint8_t         nlp_fcp_info;	        /* class info, bits 0-3 */
 #define NLP_FCP_2_DEVICE   0x10			/* FCP-2 device */
 
+	uint16_t        nlp_usg_map;	/* ndlp management usage bitmap */
+#define NLP_USG_NODE_ACT_BIT	0x1	/* Indicate ndlp is actively used */
+#define NLP_USG_IACT_REQ_BIT	0x2	/* Request to inactivate ndlp */
+#define NLP_USG_FREE_REQ_BIT	0x4	/* Request to invoke ndlp memory free */
+#define NLP_USG_FREE_ACK_BIT	0x8	/* Indicate ndlp memory free invoked */
+
 	struct timer_list   nlp_delayfunc;	/* Used for delayed ELS cmds */
 	struct fc_rport *rport;			/* Corresponding FC transport
 						   port structure */
@@ -104,6 +110,31 @@ struct lpfc_nodelist {
 #define NLP_RM_DFLT_RPI    0x4000000	/* need to remove leftover dflt RPI */
 #define NLP_NODEV_REMOVE   0x8000000	/* Defer removal till discovery ends */
 #define NLP_TARGET_REMOVE  0x10000000   /* Target remove in process */
+
+/* ndlp usage management macros */
+#define NLP_CHK_NODE_ACT(ndlp)		(((ndlp)->nlp_usg_map \
+						& NLP_USG_NODE_ACT_BIT) \
+					&& \
+					!((ndlp)->nlp_usg_map \
+						& NLP_USG_FREE_ACK_BIT))
+#define NLP_SET_NODE_ACT(ndlp)		((ndlp)->nlp_usg_map \
+						|= NLP_USG_NODE_ACT_BIT)
+#define NLP_INT_NODE_ACT(ndlp)		((ndlp)->nlp_usg_map \
+						= NLP_USG_NODE_ACT_BIT)
+#define NLP_CLR_NODE_ACT(ndlp)		((ndlp)->nlp_usg_map \
+						&= ~NLP_USG_NODE_ACT_BIT)
+#define NLP_CHK_IACT_REQ(ndlp)          ((ndlp)->nlp_usg_map \
+						& NLP_USG_IACT_REQ_BIT)
+#define NLP_SET_IACT_REQ(ndlp)          ((ndlp)->nlp_usg_map \
+						|= NLP_USG_IACT_REQ_BIT)
+#define NLP_CHK_FREE_REQ(ndlp)		((ndlp)->nlp_usg_map \
+						& NLP_USG_FREE_REQ_BIT)
+#define NLP_SET_FREE_REQ(ndlp)		((ndlp)->nlp_usg_map \
+						|= NLP_USG_FREE_REQ_BIT)
+#define NLP_CHK_FREE_ACK(ndlp)		((ndlp)->nlp_usg_map \
+						& NLP_USG_FREE_ACK_BIT)
+#define NLP_SET_FREE_ACK(ndlp)		((ndlp)->nlp_usg_map \
+						|= NLP_USG_FREE_ACK_BIT)
 
 /* There are 4 different double linked lists nodelist entries can reside on.
  * The Port Login (PLOGI) list and Address Discovery (ADISC) list are used
