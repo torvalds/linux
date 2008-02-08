@@ -137,9 +137,12 @@ aoenet_rcv(struct sk_buff *skb, struct net_device *ifp, struct packet_type *pt, 
 		if (n > NECODES)
 			n = 0;
 		if (net_ratelimit())
-			printk(KERN_ERR "aoe: error packet from %d.%d; ecode=%d '%s'\n",
-			       be16_to_cpu(get_unaligned(&h->major)), h->minor,
-			       h->err, aoe_errlist[n]);
+			printk(KERN_ERR
+				"%s%d.%d@%s; ecode=%d '%s'\n",
+				"aoe: error packet from ",
+				be16_to_cpu(get_unaligned(&h->major)),
+				h->minor, skb->dev->name,
+				h->err, aoe_errlist[n]);
 		goto exit;
 	}
 

@@ -6,6 +6,7 @@
 
 #include <linux/hdreg.h>
 #include <linux/blkdev.h>
+#include <linux/delay.h>
 #include "aoe.h"
 
 enum {
@@ -68,6 +69,7 @@ revalidate(const char __user *str, size_t size)
 	int major, minor, n;
 	ulong flags;
 	struct aoedev *d;
+	struct sk_buff *skb;
 	char buf[16];
 
 	if (size >= sizeof buf)
@@ -85,13 +87,20 @@ revalidate(const char __user *str, size_t size)
 	d = aoedev_by_aoeaddr(major, minor);
 	if (!d)
 		return -EINVAL;
-
 	spin_lock_irqsave(&d->lock, flags);
-	d->flags &= ~DEVFL_MAXBCNT;
-	d->flags |= DEVFL_PAUSE;
+	aoecmd_cleanslate(d);
+loop:
+	skb = aoecmd_ata_id(d);
 	spin_unlock_irqrestore(&d->lock, flags);
+	/* try again if we are able to sleep a bit,
+	 * otherwise give up this revalidation
+	 */
+	if (!skb && !msleep_interruptible(200)) {
+		spin_lock_irqsave(&d->lock, flags);
+		goto loop;
+	}
+	aoenet_xmit(skb);
 	aoecmd_cfg(major, minor);
-
 	return 0;
 }
 

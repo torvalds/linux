@@ -24,7 +24,7 @@ static ssize_t aoedisk_show_state(struct device *dev,
 	return snprintf(page, PAGE_SIZE,
 			"%s%s\n",
 			(d->flags & DEVFL_UP) ? "up" : "down",
-			(d->flags & DEVFL_PAUSE) ? ",paused" :
+			(d->flags & DEVFL_KICKME) ? ",kickme" :
 			(d->nopen && !(d->flags & DEVFL_UP)) ? ",closewait" : "");
 	/* I'd rather see nopen exported so we can ditch closewait */
 }
@@ -33,17 +33,49 @@ static ssize_t aoedisk_show_mac(struct device *dev,
 {
 	struct gendisk *disk = dev_to_disk(dev);
 	struct aoedev *d = disk->private_data;
+	struct aoetgt *t = d->targets[0];
 
+	if (t == NULL)
+		return snprintf(page, PAGE_SIZE, "none\n");
 	return snprintf(page, PAGE_SIZE, "%012llx\n",
-			(unsigned long long)mac_addr(d->addr));
+			(unsigned long long)mac_addr(t->addr));
 }
 static ssize_t aoedisk_show_netif(struct device *dev,
 				  struct device_attribute *attr, char *page)
 {
 	struct gendisk *disk = dev_to_disk(dev);
 	struct aoedev *d = disk->private_data;
+	struct net_device *nds[8], **nd, **nnd, **ne;
+	struct aoetgt **t, **te;
+	struct aoeif *ifp, *e;
+	char *p;
 
-	return snprintf(page, PAGE_SIZE, "%s\n", d->ifp->name);
+	memset(nds, 0, sizeof nds);
+	nd = nds;
+	ne = nd + ARRAY_SIZE(nds);
+	t = d->targets;
+	te = t + NTARGETS;
+	for (; t < te && *t; t++) {
+		ifp = (*t)->ifs;
+		e = ifp + NAOEIFS;
+		for (; ifp < e && ifp->nd; ifp++) {
+			for (nnd = nds; nnd < nd; nnd++)
+				if (*nnd == ifp->nd)
+					break;
+			if (nnd == nd && nd != ne)
+				*nd++ = ifp->nd;
+		}
+	}
+
+	ne = nd;
+	nd = nds;
+	if (*nd == NULL)
+		return snprintf(page, PAGE_SIZE, "none\n");
+	for (p = page; nd < ne; nd++)
+		p += snprintf(p, PAGE_SIZE - (p-page), "%s%s",
+			p == page ? "" : ",", (*nd)->name);
+	p += snprintf(p, PAGE_SIZE - (p-page), "\n");
+	return p-page;
 }
 /* firmware version */
 static ssize_t aoedisk_show_fwver(struct device *dev,
@@ -134,7 +166,23 @@ aoeblk_make_request(struct request_queue *q, struct bio *bio)
 
 	blk_queue_bounce(q, &bio);
 
+	if (bio == NULL) {
+		printk(KERN_ERR "aoe: bio is NULL\n");
+		BUG();
+		return 0;
+	}
 	d = bio->bi_bdev->bd_disk->private_data;
+	if (d == NULL) {
+		printk(KERN_ERR "aoe: bd_disk->private_data is NULL\n");
+		BUG();
+		bio_endio(bio, -ENXIO);
+		return 0;
+	} else if (bio->bi_io_vec == NULL) {
+		printk(KERN_ERR "aoe: bi_io_vec is NULL\n");
+		BUG();
+		bio_endio(bio, -ENXIO);
+		return 0;
+	}
 	buf = mempool_alloc(d->bufpool, GFP_NOIO);
 	if (buf == NULL) {
 		printk(KERN_INFO "aoe: buf allocation failure\n");
@@ -143,14 +191,14 @@ aoeblk_make_request(struct request_queue *q, struct bio *bio)
 	}
 	memset(buf, 0, sizeof(*buf));
 	INIT_LIST_HEAD(&buf->bufs);
-	buf->start_time = jiffies;
+	buf->stime = jiffies;
 	buf->bio = bio;
 	buf->resid = bio->bi_size;
 	buf->sector = bio->bi_sector;
 	buf->bv = &bio->bi_io_vec[bio->bi_idx];
-	WARN_ON(buf->bv->bv_len == 0);
 	buf->bv_resid = buf->bv->bv_len;
-	buf->bufaddr = page_address(buf->bv->bv_page) + buf->bv->bv_offset;
+	WARN_ON(buf->bv_resid == 0);
+	buf->bv_off = buf->bv->bv_offset;
 
 	spin_lock_irqsave(&d->lock, flags);
 
@@ -229,7 +277,7 @@ aoeblk_gdalloc(void *vp)
 	gd->fops = &aoe_bdops;
 	gd->private_data = d;
 	gd->capacity = d->ssize;
-	snprintf(gd->disk_name, sizeof gd->disk_name, "etherd/e%ld.%ld",
+	snprintf(gd->disk_name, sizeof gd->disk_name, "etherd/e%ld.%d",
 		d->aoemajor, d->aoeminor);
 
 	gd->queue = &d->blkq;

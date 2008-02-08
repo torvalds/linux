@@ -76,10 +76,8 @@ enum {
 	DEVFL_EXT = (1<<2),	/* device accepts lba48 commands */
 	DEVFL_CLOSEWAIT = (1<<3), /* device is waiting for all closes to revalidate */
 	DEVFL_GDALLOC = (1<<4),	/* need to alloc gendisk */
-	DEVFL_PAUSE = (1<<5),
+	DEVFL_KICKME = (1<<5),	/* slow polling network card catch */
 	DEVFL_NEWSIZE = (1<<6),	/* need to update dev size in block layer */
-	DEVFL_MAXBCNT = (1<<7), /* d->maxbcnt is not changeable */
-	DEVFL_KICKME = (1<<8),
 
 	BUFFL_FAIL = 1,
 };
@@ -88,17 +86,24 @@ enum {
 	DEFAULTBCNT = 2 * 512,	/* 2 sectors */
 	NPERSHELF = 16,		/* number of slots per shelf address */
 	FREETAG = -1,
-	MIN_BUFS = 8,
+	MIN_BUFS = 16,
+	NTARGETS = 8,
+	NAOEIFS = 8,
+
+	TIMERTICK = HZ / 10,
+	MINTIMER = HZ >> 2,
+	MAXTIMER = HZ << 1,
+	HELPWAIT = 20,
 };
 
 struct buf {
 	struct list_head bufs;
-	ulong start_time;	/* for disk stats */
+	ulong stime;	/* for disk stats */
 	ulong flags;
 	ulong nframesout;
-	char *bufaddr;
 	ulong resid;
 	ulong bv_resid;
+	ulong bv_off;
 	sector_t sector;
 	struct bio *bio;
 	struct bio_vec *bv;
@@ -114,19 +119,37 @@ struct frame {
 	struct sk_buff *skb;
 };
 
+struct aoeif {
+	struct net_device *nd;
+	unsigned char lost;
+	unsigned char lostjumbo;
+	ushort maxbcnt;
+};
+
+struct aoetgt {
+	unsigned char addr[6];
+	ushort nframes;
+	struct frame *frames;
+	struct aoeif ifs[NAOEIFS];
+	struct aoeif *ifp;	/* current aoeif in use */
+	ushort nout;
+	ushort maxout;
+	u16 lasttag;		/* last tag sent */
+	u16 useme;
+	ulong lastwadj;		/* last window adjustment */
+	int wpkts, rpkts;
+};
+
 struct aoedev {
 	struct aoedev *next;
-	unsigned char addr[6];	/* remote mac addr */
-	ushort flags;
 	ulong sysminor;
 	ulong aoemajor;
-	ulong aoeminor;
+	u16 aoeminor;
+	u16 flags;
 	u16 nopen;		/* (bd_openers isn't available without sleeping) */
-	u16 lasttag;		/* last tag sent */
 	u16 rttavg;		/* round trip average of requests/responses */
 	u16 mintimer;
 	u16 fw_ver;		/* version of blade's firmware */
-	u16 maxbcnt;
 	struct work_struct work;/* disk create work struct */
 	struct gendisk *gd;
 	struct request_queue blkq;
@@ -134,15 +157,14 @@ struct aoedev {
 	sector_t ssize;
 	struct timer_list timer;
 	spinlock_t lock;
-	struct net_device *ifp;	/* interface ed is attached to */
 	struct sk_buff *sendq_hd; /* packets needing to be sent, list head */
 	struct sk_buff *sendq_tl;
 	mempool_t *bufpool;	/* for deadlock-free Buf allocation */
 	struct list_head bufq;	/* queue of bios to work on */
 	struct buf *inprocess;	/* the one we're currently working on */
-	ushort lostjumbo;
-	ushort nframes;		/* number of frames below */
-	struct frame *frames;
+	struct aoetgt *targets[NTARGETS];
+	struct aoetgt **tgt;	/* target in use when working */
+	struct aoetgt **htgt;	/* target needing rexmit assistance */
 };
 
 
@@ -160,12 +182,13 @@ void aoecmd_cfg(ushort aoemajor, unsigned char aoeminor);
 void aoecmd_ata_rsp(struct sk_buff *);
 void aoecmd_cfg_rsp(struct sk_buff *);
 void aoecmd_sleepwork(struct work_struct *);
-struct sk_buff *new_skb(ulong);
+void aoecmd_cleanslate(struct aoedev *);
+struct sk_buff *aoecmd_ata_id(struct aoedev *);
 
 int aoedev_init(void);
 void aoedev_exit(void);
 struct aoedev *aoedev_by_aoeaddr(int maj, int min);
-struct aoedev *aoedev_by_sysminor_m(ulong sysminor, ulong bufcnt);
+struct aoedev *aoedev_by_sysminor_m(ulong sysminor);
 void aoedev_downdev(struct aoedev *d);
 int aoedev_isbusy(struct aoedev *d);
 
