@@ -27,7 +27,6 @@ struct pvr2_dvb_adapter {
 
 	unsigned int		digital_up:1;
 	unsigned int		stream_run:1;
-	unsigned int		init:1;
 
 	wait_queue_head_t	buffer_wait_data;
 	char			*buffer_storage[PVR2_DVB_BUFFER_COUNT];
@@ -39,6 +38,5 @@ struct pvr2_dvb_props {
 };
 
 int pvr2_dvb_init(struct pvr2_context *pvr);
-int pvr2_dvb_exit(struct pvr2_context *pvr);
 
 #endif /* __PVRUSB2_DVB_H__ */

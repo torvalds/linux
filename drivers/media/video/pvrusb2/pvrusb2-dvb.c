@@ -386,30 +386,37 @@ static int pvr2_dvb_frontend_exit(struct pvr2_dvb_adapter *adap)
 	return 0;
 }
 
+static void pvr2_dvb_done(struct pvr2_dvb_adapter *adap)
+{
+	pvr2_dvb_stream_end(adap);
+	pvr2_dvb_frontend_exit(adap);
+	pvr2_dvb_adapter_exit(adap);
+	pvr2_channel_done(&adap->channel);
+}
+
+static void pvr2_dvb_internal_check(struct pvr2_channel *chp)
+{
+	struct pvr2_dvb_adapter *adap;
+	adap = container_of(chp, struct pvr2_dvb_adapter, channel);
+	if (!adap->channel.mc_head->disconnect_flag) return;
+	pvr2_dvb_done(adap);
+}
+
 int pvr2_dvb_init(struct pvr2_context *pvr)
 {
 	int ret = 0;
 	struct pvr2_dvb_adapter *adap;
 	adap = &pvr->hdw->dvb;
-	adap->init = !0;
 	pvr2_channel_init(&adap->channel, pvr);
+	adap->channel.check_func = pvr2_dvb_internal_check;
 	init_waitqueue_head(&adap->buffer_wait_data);
 	mutex_init(&pvr->hdw->dvb.lock);
 	ret = pvr2_dvb_adapter_init(&pvr->hdw->dvb);
 	if (ret < 0) goto fail;
 	ret = pvr2_dvb_frontend_init(&pvr->hdw->dvb);
+	return ret;
 fail:
+	pvr2_channel_done(&adap->channel);
 	return ret;
 }
 
-int pvr2_dvb_exit(struct pvr2_context *pvr)
-{
-	struct pvr2_dvb_adapter *adap;
-	adap = &pvr->hdw->dvb;
-	if (!adap->init) return 0;
-	pvr2_dvb_stream_end(adap);
-	pvr2_dvb_frontend_exit(adap);
-	pvr2_dvb_adapter_exit(adap);
-	pvr2_channel_done(&adap->channel);
-	return 0;
-}

@@ -99,9 +99,6 @@ static void pvr_disconnect(struct usb_interface *intf)
 
 	pvr2_trace(PVR2_TRACE_INIT,"pvr_disconnect(pvr=%p) BEGIN",pvr);
 
-#ifdef CONFIG_VIDEO_PVRUSB2_DVB
-	pvr2_dvb_exit(pvr);
-#endif
 	usb_set_intfdata (intf, NULL);
 	pvr2_context_disconnect(pvr);
 
