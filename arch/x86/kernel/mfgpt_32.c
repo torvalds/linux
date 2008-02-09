@@ -74,28 +74,37 @@ __setup("mfgptfix", mfgpt_fix);
  * In other cases (such as with VSAless OpenFirmware), the system firmware
  * leaves timers available for us to use.
  */
-int __init geode_mfgpt_detect(void)
+
+
+static int timers = -1;
+
+static void geode_mfgpt_detect(void)
 {
-	int count = 0, i;
+	int i;
 	u16 val;
 
+	timers = 0;
+
 	if (disable) {
-		printk(KERN_INFO "geode-mfgpt:  Skipping MFGPT setup\n");
-		return 0;
+		printk(KERN_INFO "geode-mfgpt:  MFGPT support is disabled\n");
+		goto done;
+	}
+
+	if (!geode_get_dev_base(GEODE_DEV_MFGPT)) {
+		printk(KERN_INFO "geode-mfgpt:  MFGPT LBAR is not set up\n");
+		goto done;
 	}
 
 	for (i = 0; i < MFGPT_MAX_TIMERS; i++) {
 		val = geode_mfgpt_read(i, MFGPT_REG_SETUP);
 		if (!(val & MFGPT_SETUP_SETUP)) {
 			mfgpt_timers[i].avail = 1;
-			count++;
+			timers++;
 		}
 	}
 
-	/* set up clock event device, if desired */
-	i = mfgpt_timer_setup();
-
-	return count;
+done:
+	printk(KERN_INFO "geode-mfgpt:  %d MFGPT timers available.\n", timers);
 }
 
 int geode_mfgpt_toggle_event(int timer, int cmp, int event, int enable)
@@ -183,10 +192,16 @@ int geode_mfgpt_alloc_timer(int timer, int domain)
 {
 	int i;
 
-	if (!geode_get_dev_base(GEODE_DEV_MFGPT))
-		return -ENODEV;
+	if (timers == -1) {
+		/* timers haven't been detected yet */
+		geode_mfgpt_detect();
+	}
+
+	if (!timers)
+		return -1;
+
 	if (timer >= MFGPT_MAX_TIMERS)
-		return -EIO;
+		return -1;
 
 	if (timer < 0) {
 		/* Try to find an available timer */
