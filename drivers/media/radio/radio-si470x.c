@@ -81,6 +81,10 @@
  *		- racy interruptible_sleep_on(),
  *		  replaced with wait_event_interruptible()
  *		- handle signals in read()
+ * 2008-02-08	Tobias Lorenz <tobias.lorenz@gmx.net>
+ *		Oliver Neukum <oliver@neukum.org>
+ *		Version 1.0.7
+ *		- usb autosuspend support
  *
  * ToDo:
  * - add seeking support
@@ -415,6 +419,7 @@ MODULE_PARM_DESC(rds_poll_time, "RDS poll time (ms): *40*");
 struct si470x_device {
 	/* reference to USB and video device */
 	struct usb_device *usbdev;
+	struct usb_interface *intf;
 	struct video_device *videodev;
 
 	/* driver management */
@@ -762,9 +767,17 @@ static int si470x_stop(struct si470x_device *radio)
  */
 static int si470x_rds_on(struct si470x_device *radio)
 {
+	int retval;
+
 	/* sysconfig 1 */
+	mutex_lock(&radio->lock);
 	radio->registers[SYSCONFIG1] |= SYSCONFIG1_RDS;
-	return si470x_set_register(radio, SYSCONFIG1);
+	retval = si470x_set_register(radio, SYSCONFIG1);
+	if (retval < 0)
+		radio->registers[SYSCONFIG1] &= ~SYSCONFIG1_RDS;
+	mutex_unlock(&radio->lock);
+
+	return retval;
 }
 
 
@@ -961,10 +974,22 @@ static unsigned int si470x_fops_poll(struct file *file,
 static int si470x_fops_open(struct inode *inode, struct file *file)
 {
 	struct si470x_device *radio = video_get_drvdata(video_devdata(file));
+	int retval;
 
 	radio->users++;
-	if (radio->users == 1)
-		return si470x_start(radio);
+
+	retval = usb_autopm_get_interface(radio->intf);
+	if (retval < 0) {
+		radio->users--;
+		return -EIO;
+	}
+
+	if (radio->users == 1) {
+		retval = si470x_start(radio);
+		if (retval < 0)
+			usb_autopm_put_interface(radio->intf);
+		return retval;
+	}
 
 	return 0;
 }
@@ -976,6 +1001,7 @@ static int si470x_fops_open(struct inode *inode, struct file *file)
 static int si470x_fops_release(struct inode *inode, struct file *file)
 {
 	struct si470x_device *radio = video_get_drvdata(video_devdata(file));
+	int retval;
 
 	if (!radio)
 		return -ENODEV;
@@ -988,7 +1014,9 @@ static int si470x_fops_release(struct inode *inode, struct file *file)
 		/* cancel read processes */
 		wake_up_interruptible(&radio->read_queue);
 
-		return si470x_stop(radio);
+		retval = si470x_stop(radio);
+		usb_autopm_put_interface(radio->intf);
+		return retval;
 	}
 
 	return 0;
@@ -1377,6 +1405,7 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 			sizeof(si470x_viddev_template));
 	radio->users = 0;
 	radio->usbdev = interface_to_usbdev(intf);
+	radio->intf = intf;
 	mutex_init(&radio->lock);
 	video_set_drvdata(radio->videodev, radio);
 
@@ -1440,6 +1469,41 @@ err_initial:
 
 
 /*
+ * si470x_usb_driver_suspend - suspend the device
+ */
+static int si470x_usb_driver_suspend(struct usb_interface *intf,
+		pm_message_t message)
+{
+	struct si470x_device *radio = usb_get_intfdata(intf);
+
+	printk(KERN_INFO DRIVER_NAME ": suspending now...\n");
+
+	cancel_delayed_work_sync(&radio->work);
+
+	return 0;
+}
+
+
+/*
+ * si470x_usb_driver_resume - resume the device
+ */
+static int si470x_usb_driver_resume(struct usb_interface *intf)
+{
+	struct si470x_device *radio = usb_get_intfdata(intf);
+
+	printk(KERN_INFO DRIVER_NAME ": resuming now...\n");
+
+	mutex_lock(&radio->lock);
+	if (radio->users && radio->registers[SYSCONFIG1] & SYSCONFIG1_RDS)
+		schedule_delayed_work(&radio->work,
+			msecs_to_jiffies(rds_poll_time));
+	mutex_unlock(&radio->lock);
+
+	return 0;
+}
+
+
+/*
  * si470x_usb_driver_disconnect - disconnect the device
  */
 static void si470x_usb_driver_disconnect(struct usb_interface *intf)
@@ -1458,10 +1522,13 @@ static void si470x_usb_driver_disconnect(struct usb_interface *intf)
  * si470x_usb_driver - usb driver interface
  */
 static struct usb_driver si470x_usb_driver = {
-	.name		= DRIVER_NAME,
-	.probe		= si470x_usb_driver_probe,
-	.disconnect	= si470x_usb_driver_disconnect,
-	.id_table	= si470x_usb_driver_id_table,
+	.name			= DRIVER_NAME,
+	.probe			= si470x_usb_driver_probe,
+	.disconnect		= si470x_usb_driver_disconnect,
+	.suspend		= si470x_usb_driver_suspend,
+	.resume			= si470x_usb_driver_resume,
+	.id_table		= si470x_usb_driver_id_table,
+	.supports_autosuspend	= 1,
 };
 
 
