@@ -81,11 +81,12 @@ extern int get_cpu_capability(unsigned int *);
 
 #ifndef __s390x__
 #define STACK_TOP		(1UL << 31)
+#define STACK_TOP_MAX		(1UL << 31)
 #else /* __s390x__ */
-#define STACK_TOP		(1UL << (test_thread_flag(TIF_31BIT) ? 31:53))
+#define STACK_TOP		(1UL << (test_thread_flag(TIF_31BIT) ? 31:42))
+#define STACK_TOP_MAX		(1UL << 42)
 #endif /* __s390x__ */
 
-#define STACK_TOP_MAX		STACK_TOP
 
 #endif
 
@@ -142,32 +143,12 @@ struct stack_frame {
 /*
  * Do necessary setup to start up a new thread.
  */
-#ifndef __s390x__
-
 #define start_thread(regs, new_psw, new_stackp) do {            \
 	set_fs(USER_DS);					\
 	regs->psw.mask	= psw_user_bits;			\
         regs->psw.addr  = new_psw | PSW_ADDR_AMODE;             \
         regs->gprs[15]  = new_stackp ;                          \
 } while (0)
-
-#else /* __s390x__ */
-
-#define start_thread(regs, new_psw, new_stackp) do {            \
-	set_fs(USER_DS);					\
-	regs->psw.mask	= psw_user_bits;			\
-        regs->psw.addr  = new_psw;                              \
-        regs->gprs[15]  = new_stackp;                           \
-} while (0)
-
-#define start_thread31(regs, new_psw, new_stackp) do {          \
-	set_fs(USER_DS);					\
-	regs->psw.mask	= psw_user32_bits;			\
-        regs->psw.addr  = new_psw;                              \
-        regs->gprs[15]  = new_stackp;                           \
-} while (0)
-
-#endif /* __s390x__ */
 
 /* Forward declaration, a strange C thing */
 struct task_struct;

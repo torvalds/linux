@@ -73,8 +73,15 @@ static inline unsigned long pgd_entry_type(struct mm_struct *mm)
 
 static inline unsigned long pgd_entry_type(struct mm_struct *mm)
 {
+	if (mm->context.asce_limit <= (1UL << 31))
+		return _SEGMENT_ENTRY_EMPTY;
+	if (mm->context.asce_limit <= (1UL << 42))
+		return _REGION3_ENTRY_EMPTY;
 	return _REGION2_ENTRY_EMPTY;
 }
+
+int crst_table_upgrade(struct mm_struct *, unsigned long limit);
+void crst_table_downgrade(struct mm_struct *, unsigned long limit);
 
 static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long address)
 {
@@ -102,12 +109,12 @@ static inline void pgd_populate_kernel(struct mm_struct *mm,
 
 static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pud_t *pud)
 {
-	pgd_t *shadow_pgd = get_shadow_table(pgd);
-	pud_t *shadow_pud = get_shadow_table(pud);
-
-	if (shadow_pgd && shadow_pud)
-		pgd_populate_kernel(mm, shadow_pgd, shadow_pud);
 	pgd_populate_kernel(mm, pgd, pud);
+	if (mm->context.noexec) {
+		pgd = get_shadow_table(pgd);
+		pud = get_shadow_table(pud);
+		pgd_populate_kernel(mm, pgd, pud);
+	}
 }
 
 static inline void pud_populate_kernel(struct mm_struct *mm,
@@ -130,14 +137,9 @@ static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
 
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {
-	unsigned long *crst;
-
 	INIT_LIST_HEAD(&mm->context.crst_list);
 	INIT_LIST_HEAD(&mm->context.pgtable_list);
-	crst = crst_table_alloc(mm, s390_noexec);
-	if (crst)
-		crst_table_init(crst, pgd_entry_type(mm));
-	return (pgd_t *) crst;
+	return (pgd_t *) crst_table_alloc(mm, s390_noexec);
 }
 #define pgd_free(mm, pgd) crst_table_free(mm, (unsigned long *) pgd)
 

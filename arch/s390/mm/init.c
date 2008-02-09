@@ -112,8 +112,9 @@ void __init paging_init(void)
 	init_mm.pgd = swapper_pg_dir;
 	S390_lowcore.kernel_asce = __pa(init_mm.pgd) & PAGE_MASK;
 #ifdef CONFIG_64BIT
-	S390_lowcore.kernel_asce |= _ASCE_TYPE_REGION2 | _ASCE_TABLE_LENGTH;
-	pgd_type = _REGION2_ENTRY_EMPTY;
+	/* A three level page table (4TB) is enough for the kernel space. */
+	S390_lowcore.kernel_asce |= _ASCE_TYPE_REGION3 | _ASCE_TABLE_LENGTH;
+	pgd_type = _REGION3_ENTRY_EMPTY;
 #else
 	S390_lowcore.kernel_asce |= _ASCE_TABLE_LENGTH;
 	pgd_type = _SEGMENT_ENTRY_EMPTY;

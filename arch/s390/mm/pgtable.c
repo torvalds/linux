@@ -23,6 +23,7 @@
 #include <asm/pgalloc.h>
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
+#include <asm/mmu_context.h>
 
 #ifndef CONFIG_64BIT
 #define ALLOC_ORDER	1
@@ -69,6 +70,79 @@ void crst_table_free(struct mm_struct *mm, unsigned long *table)
 		free_pages((unsigned long) shadow, ALLOC_ORDER);
 	free_pages((unsigned long) table, ALLOC_ORDER);
 }
+
+#ifdef CONFIG_64BIT
+int crst_table_upgrade(struct mm_struct *mm, unsigned long limit)
+{
+	unsigned long *table, *pgd;
+	unsigned long entry;
+
+	BUG_ON(limit > (1UL << 53));
+repeat:
+	table = crst_table_alloc(mm, mm->context.noexec);
+	if (!table)
+		return -ENOMEM;
+	spin_lock(&mm->page_table_lock);
+	if (mm->context.asce_limit < limit) {
+		pgd = (unsigned long *) mm->pgd;
+		if (mm->context.asce_limit <= (1UL << 31)) {
+			entry = _REGION3_ENTRY_EMPTY;
+			mm->context.asce_limit = 1UL << 42;
+			mm->context.asce_bits = _ASCE_TABLE_LENGTH |
+						_ASCE_USER_BITS |
+						_ASCE_TYPE_REGION3;
+		} else {
+			entry = _REGION2_ENTRY_EMPTY;
+			mm->context.asce_limit = 1UL << 53;
+			mm->context.asce_bits = _ASCE_TABLE_LENGTH |
+						_ASCE_USER_BITS |
+						_ASCE_TYPE_REGION2;
+		}
+		crst_table_init(table, entry);
+		pgd_populate(mm, (pgd_t *) table, (pud_t *) pgd);
+		mm->pgd = (pgd_t *) table;
+		table = NULL;
+	}
+	spin_unlock(&mm->page_table_lock);
+	if (table)
+		crst_table_free(mm, table);
+	if (mm->context.asce_limit < limit)
+		goto repeat;
+	update_mm(mm, current);
+	return 0;
+}
+
+void crst_table_downgrade(struct mm_struct *mm, unsigned long limit)
+{
+	pgd_t *pgd;
+
+	if (mm->context.asce_limit <= limit)
+		return;
+	__tlb_flush_mm(mm);
+	while (mm->context.asce_limit > limit) {
+		pgd = mm->pgd;
+		switch (pgd_val(*pgd) & _REGION_ENTRY_TYPE_MASK) {
+		case _REGION_ENTRY_TYPE_R2:
+			mm->context.asce_limit = 1UL << 42;
+			mm->context.asce_bits = _ASCE_TABLE_LENGTH |
+						_ASCE_USER_BITS |
+						_ASCE_TYPE_REGION3;
+			break;
+		case _REGION_ENTRY_TYPE_R3:
+			mm->context.asce_limit = 1UL << 31;
+			mm->context.asce_bits = _ASCE_TABLE_LENGTH |
+						_ASCE_USER_BITS |
+						_ASCE_TYPE_SEGMENT;
+			break;
+		default:
+			BUG();
+		}
+		mm->pgd = (pgd_t *) (pgd_val(*pgd) & _REGION_ENTRY_ORIGIN);
+		crst_table_free(mm, (unsigned long *) pgd);
+	}
+	update_mm(mm, current);
+}
+#endif
 
 /*
  * page table entry allocation/free routines.

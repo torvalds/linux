@@ -109,10 +109,15 @@ static inline void pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte)
 /*
  * pmd_free_tlb frees a pmd table and clears the CRSTE for the
  * segment table entry from the tlb.
+ * If the mm uses a two level page table the single pmd is freed
+ * as the pgd. pmd_free_tlb checks the asce_limit against 2GB
+ * to avoid the double free of the pmd in this case.
  */
 static inline void pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd)
 {
 #ifdef __s390x__
+	if (tlb->mm->context.asce_limit <= (1UL << 31))
+		return;
 	if (!tlb->fullmm) {
 		tlb->array[--tlb->nr_pxds] = pmd;
 		if (tlb->nr_ptes >= tlb->nr_pxds)
@@ -125,10 +130,15 @@ static inline void pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd)
 /*
  * pud_free_tlb frees a pud table and clears the CRSTE for the
  * region third table entry from the tlb.
+ * If the mm uses a three level page table the single pud is freed
+ * as the pgd. pud_free_tlb checks the asce_limit against 4TB
+ * to avoid the double free of the pud in this case.
  */
 static inline void pud_free_tlb(struct mmu_gather *tlb, pud_t *pud)
 {
 #ifdef __s390x__
+	if (tlb->mm->context.asce_limit <= (1UL << 42))
+		return;
 	if (!tlb->fullmm) {
 		tlb->array[--tlb->nr_pxds] = pud;
 		if (tlb->nr_ptes >= tlb->nr_pxds)

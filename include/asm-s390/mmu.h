@@ -5,6 +5,7 @@ typedef struct {
 	struct list_head crst_list;
 	struct list_head pgtable_list;
 	unsigned long asce_bits;
+	unsigned long asce_limit;
 	int noexec;
 } mm_context_t;
 

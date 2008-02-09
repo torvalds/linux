@@ -421,36 +421,54 @@ static inline int pud_bad(pud_t pud)	 { return 0; }
 
 static inline int pgd_present(pgd_t pgd)
 {
+	if ((pgd_val(pgd) & _REGION_ENTRY_TYPE_MASK) < _REGION_ENTRY_TYPE_R2)
+		return 1;
 	return (pgd_val(pgd) & _REGION_ENTRY_ORIGIN) != 0UL;
 }
 
 static inline int pgd_none(pgd_t pgd)
 {
+	if ((pgd_val(pgd) & _REGION_ENTRY_TYPE_MASK) < _REGION_ENTRY_TYPE_R2)
+		return 0;
 	return (pgd_val(pgd) & _REGION_ENTRY_INV) != 0UL;
 }
 
 static inline int pgd_bad(pgd_t pgd)
 {
+	/*
+	 * With dynamic page table levels the pgd can be a region table
+	 * entry or a segment table entry. Check for the bit that are
+	 * invalid for either table entry.
+	 */
 	unsigned long mask =
-		~_REGION_ENTRY_ORIGIN & ~_REGION_ENTRY_INV &
+		~_SEGMENT_ENTRY_ORIGIN & ~_REGION_ENTRY_INV &
 		~_REGION_ENTRY_TYPE_MASK & ~_REGION_ENTRY_LENGTH;
 	return (pgd_val(pgd) & mask) != 0;
 }
 
 static inline int pud_present(pud_t pud)
 {
+	if ((pud_val(pud) & _REGION_ENTRY_TYPE_MASK) < _REGION_ENTRY_TYPE_R3)
+		return 1;
 	return (pud_val(pud) & _REGION_ENTRY_ORIGIN) != 0UL;
 }
 
 static inline int pud_none(pud_t pud)
 {
+	if ((pud_val(pud) & _REGION_ENTRY_TYPE_MASK) < _REGION_ENTRY_TYPE_R3)
+		return 0;
 	return (pud_val(pud) & _REGION_ENTRY_INV) != 0UL;
 }
 
 static inline int pud_bad(pud_t pud)
 {
+	/*
+	 * With dynamic page table levels the pud can be a region table
+	 * entry or a segment table entry. Check for the bit that are
+	 * invalid for either table entry.
+	 */
 	unsigned long mask =
-		~_REGION_ENTRY_ORIGIN & ~_REGION_ENTRY_INV &
+		~_SEGMENT_ENTRY_ORIGIN & ~_REGION_ENTRY_INV &
 		~_REGION_ENTRY_TYPE_MASK & ~_REGION_ENTRY_LENGTH;
 	return (pud_val(pud) & mask) != 0;
 }
@@ -535,7 +553,8 @@ static inline int pte_young(pte_t pte)
 
 static inline void pgd_clear_kernel(pgd_t * pgd)
 {
-	pgd_val(*pgd) = _REGION2_ENTRY_EMPTY;
+	if ((pgd_val(*pgd) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R2)
+		pgd_val(*pgd) = _REGION2_ENTRY_EMPTY;
 }
 
 static inline void pgd_clear(pgd_t * pgd)
@@ -549,10 +568,11 @@ static inline void pgd_clear(pgd_t * pgd)
 
 static inline void pud_clear_kernel(pud_t *pud)
 {
-	pud_val(*pud) = _REGION3_ENTRY_EMPTY;
+	if ((pud_val(*pud) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R3)
+		pud_val(*pud) = _REGION3_ENTRY_EMPTY;
 }
 
-static inline void pud_clear(pud_t * pud)
+static inline void pud_clear(pud_t *pud)
 {
 	pud_t *shadow = get_shadow_table(pud);
 
@@ -841,13 +861,17 @@ static inline pte_t mk_pte(struct page *page, pgprot_t pgprot)
 
 static inline pud_t *pud_offset(pgd_t *pgd, unsigned long address)
 {
-	pud_t *pud = (pud_t *) pgd_deref(*pgd);
+	pud_t *pud = (pud_t *) pgd;
+	if ((pgd_val(*pgd) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R2)
+		pud = (pud_t *) pgd_deref(*pgd);
 	return pud  + pud_index(address);
 }
 
 static inline pmd_t *pmd_offset(pud_t *pud, unsigned long address)
 {
-	pmd_t *pmd = (pmd_t *) pud_deref(*pud);
+	pmd_t *pmd = (pmd_t *) pud;
+	if ((pud_val(*pud) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R3)
+		pmd = (pmd_t *) pud_deref(*pud);
 	return pmd + pmd_index(address);
 }
 

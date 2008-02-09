@@ -18,9 +18,11 @@ static inline int init_new_context(struct task_struct *tsk,
 {
 	mm->context.asce_bits = _ASCE_TABLE_LENGTH | _ASCE_USER_BITS;
 #ifdef CONFIG_64BIT
-	mm->context.asce_bits |= _ASCE_TYPE_REGION2;
+	mm->context.asce_bits |= _ASCE_TYPE_REGION3;
 #endif
 	mm->context.noexec = s390_noexec;
+	mm->context.asce_limit = STACK_TOP_MAX;
+	crst_table_init((unsigned long *) mm->pgd, pgd_entry_type(mm));
 	return 0;
 }
 
@@ -47,13 +49,12 @@ static inline void update_mm(struct mm_struct *mm, struct task_struct *tsk)
 		/* Load home space page table origin. */
 		asm volatile(LCTL_OPCODE" 13,13,%0"
 			     : : "m" (S390_lowcore.user_asce) );
+	set_fs(current->thread.mm_segment);
 }
 
 static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 			     struct task_struct *tsk)
 {
-	if (unlikely(prev == next))
-		return;
 	cpu_set(smp_processor_id(), next->cpu_vm_mask);
 	update_mm(next, tsk);
 }
@@ -65,7 +66,6 @@ static inline void activate_mm(struct mm_struct *prev,
                                struct mm_struct *next)
 {
         switch_mm(prev, next, current);
-	set_fs(current->thread.mm_segment);
 }
 
 #endif /* __S390_MMU_CONTEXT_H */
