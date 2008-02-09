@@ -191,7 +191,7 @@ static inline pgprot_t static_protections(pgprot_t prot, unsigned long address)
  * or when the present bit is not set. Otherwise we would return a
  * pointer to a nonexisting mapping.
  */
-pte_t *lookup_address(unsigned long address, int *level)
+pte_t *lookup_address(unsigned long address, unsigned int *level)
 {
 	pgd_t *pgd = pgd_offset_k(address);
 	pud_t *pud;
@@ -255,7 +255,8 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
 	unsigned long nextpage_addr, numpages, pmask, psize, flags;
 	pte_t new_pte, old_pte, *tmp;
 	pgprot_t old_prot, new_prot;
-	int level, do_split = 1;
+	int do_split = 1;
+	unsigned int level;
 
 	spin_lock_irqsave(&pgd_lock, flags);
 	/*
@@ -406,7 +407,8 @@ out_unlock:
 
 static int __change_page_attr(unsigned long address, struct cpa_data *cpa)
 {
-	int level, do_split, err;
+	int do_split, err;
+	unsigned int level;
 	struct page *kpte_page;
 	pte_t *kpte;
 
