@@ -18,6 +18,7 @@ config X86_64
 ### Arch settings
 config X86
 	def_bool y
+	select HAVE_IDE
 	select HAVE_OPROFILE
 	select HAVE_KPROBES
 

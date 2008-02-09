@@ -24,6 +24,7 @@ config RWSEM_XCHGADD_ALGORITHM
 config BLACKFIN
 	bool
 	default y
+	select HAVE_IDE
 	select HAVE_OPROFILE
 
 config ZONE_DMA

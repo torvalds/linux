@@ -14,6 +14,7 @@ config SPARC
 config SPARC64
 	bool
 	default y
+	select HAVE_IDE
 	help
 	  SPARC is a family of RISC microprocessors designed and marketed by
 	  Sun Microsystems, incorporated.  This port covers the newer 64-bit

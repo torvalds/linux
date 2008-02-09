@@ -78,6 +78,7 @@ config MCA
 config V850
 	bool
 	default y
+	select HAVE_IDE
 
 menu "Processor type and features"
 

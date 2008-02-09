@@ -10,6 +10,7 @@ config AVR32
 	# With EMBEDDED=n, we get lots of stuff automatically selected
 	# that we usually don't need on AVR32.
 	select EMBEDDED
+	select HAVE_IDE
 	select HAVE_OPROFILE
 	select HAVE_KPROBES
 	help
