@@ -18,12 +18,12 @@
 
 /**
  * vfs_ioctl - call filesystem specific ioctl methods
- * @filp: [in]     open file to invoke ioctl method on
- * @cmd:  [in]     ioctl command to execute
- * @arg:  [in/out] command-specific argument for ioctl
+ * @filp:	open file to invoke ioctl method on
+ * @cmd:	ioctl command to execute
+ * @arg:	command-specific argument for ioctl
  *
  * Invokes filesystem specific ->unlocked_ioctl, if one exists; otherwise
- * invokes * filesystem specific ->ioctl method.  If neither method exists,
+ * invokes filesystem specific ->ioctl method.  If neither method exists,
  * returns -ENOTTY.
  *
  * Returns 0 on success, -errno on error.
