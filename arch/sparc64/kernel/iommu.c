@@ -512,124 +512,209 @@ static void dma_4u_unmap_single(struct device *dev, dma_addr_t bus_addr,
 static int dma_4u_map_sg(struct device *dev, struct scatterlist *sglist,
 			 int nelems, enum dma_data_direction direction)
 {
-	unsigned long flags, ctx, i, npages, iopte_protection;
-	struct scatterlist *sg;
+	struct scatterlist *s, *outs, *segstart;
+	unsigned long flags, handle, prot, ctx;
+	dma_addr_t dma_next = 0, dma_addr;
+	unsigned int max_seg_size;
+	int outcount, incount, i;
 	struct strbuf *strbuf;
 	struct iommu *iommu;
-	iopte_t *base;
-	u32 dma_base;
 
-	/* Fast path single entry scatterlists. */
-	if (nelems == 1) {
-		sglist->dma_address =
-			dma_4u_map_single(dev, sg_virt(sglist),
-					  sglist->length, direction);
-		if (unlikely(sglist->dma_address == DMA_ERROR_CODE))
-			return 0;
-		sglist->dma_length = sglist->length;
-		return 1;
-	}
+	BUG_ON(direction == DMA_NONE);
 
 	iommu = dev->archdata.iommu;
 	strbuf = dev->archdata.stc;
-
-	if (unlikely(direction == DMA_NONE))
-		goto bad_no_ctx;
-
-	npages = calc_npages(sglist, nelems);
+	if (nelems == 0 || !iommu)
+		return 0;
 
 	spin_lock_irqsave(&iommu->lock, flags);
 
-	base = alloc_npages(dev, iommu, npages);
 	ctx = 0;
 	if (iommu->iommu_ctxflush)
 		ctx = iommu_alloc_ctx(iommu);
 
-	spin_unlock_irqrestore(&iommu->lock, flags);
-
-	if (base == NULL)
-		goto bad;
-
-	dma_base = iommu->page_table_map_base +
-		((base - iommu->page_table) << IO_PAGE_SHIFT);
-
 	if (strbuf->strbuf_enabled)
-		iopte_protection = IOPTE_STREAMING(ctx);
+		prot = IOPTE_STREAMING(ctx);
 	else
-		iopte_protection = IOPTE_CONSISTENT(ctx);
+		prot = IOPTE_CONSISTENT(ctx);
 	if (direction != DMA_TO_DEVICE)
-		iopte_protection |= IOPTE_WRITE;
+		prot |= IOPTE_WRITE;
 
-	for_each_sg(sglist, sg, nelems, i) {
-		unsigned long paddr = SG_ENT_PHYS_ADDRESS(sg);
-		unsigned long slen = sg->length;
-		unsigned long this_npages;
+	outs = s = segstart = &sglist[0];
+	outcount = 1;
+	incount = nelems;
+	handle = 0;
 
-		this_npages = iommu_num_pages(paddr, slen);
+	/* Init first segment length for backout at failure */
+	outs->dma_length = 0;
 
-		sg->dma_address = dma_base | (paddr & ~IO_PAGE_MASK);
-		sg->dma_length = slen;
+	max_seg_size = dma_get_max_seg_size(dev);
+	for_each_sg(sglist, s, nelems, i) {
+		unsigned long paddr, npages, entry, slen;
+		iopte_t *base;
 
+		slen = s->length;
+		/* Sanity check */
+		if (slen == 0) {
+			dma_next = 0;
+			continue;
+		}
+		/* Allocate iommu entries for that segment */
+		paddr = (unsigned long) SG_ENT_PHYS_ADDRESS(s);
+		npages = iommu_num_pages(paddr, slen);
+		entry = iommu_range_alloc(dev, iommu, npages, &handle);
+
+		/* Handle failure */
+		if (unlikely(entry == DMA_ERROR_CODE)) {
+			if (printk_ratelimit())
+				printk(KERN_INFO "iommu_alloc failed, iommu %p paddr %lx"
+				       " npages %lx\n", iommu, paddr, npages);
+			goto iommu_map_failed;
+		}
+
+		base = iommu->page_table + entry;
+
+		/* Convert entry to a dma_addr_t */
+		dma_addr = iommu->page_table_map_base +
+			(entry << IO_PAGE_SHIFT);
+		dma_addr |= (s->offset & ~IO_PAGE_MASK);
+
+		/* Insert into HW table */
 		paddr &= IO_PAGE_MASK;
-		while (this_npages--) {
-			iopte_val(*base) = iopte_protection | paddr;
-
+		while (npages--) {
+			iopte_val(*base) = prot | paddr;
 			base++;
 			paddr += IO_PAGE_SIZE;
-			dma_base += IO_PAGE_SIZE;
 		}
+
+		/* If we are in an open segment, try merging */
+		if (segstart != s) {
+			/* We cannot merge if:
+			 * - allocated dma_addr isn't contiguous to previous allocation
+			 */
+			if ((dma_addr != dma_next) ||
+			    (outs->dma_length + s->length > max_seg_size)) {
+				/* Can't merge: create a new segment */
+				segstart = s;
+				outcount++;
+				outs = sg_next(outs);
+			} else {
+				outs->dma_length += s->length;
+			}
+		}
+
+		if (segstart == s) {
+			/* This is a new segment, fill entries */
+			outs->dma_address = dma_addr;
+			outs->dma_length = slen;
+		}
+
+		/* Calculate next page pointer for contiguous check */
+		dma_next = dma_addr + slen;
 	}
 
-	return nelems;
+	spin_unlock_irqrestore(&iommu->lock, flags);
 
-bad:
-	iommu_free_ctx(iommu, ctx);
-bad_no_ctx:
-	if (printk_ratelimit())
-		WARN_ON(1);
+	if (outcount < incount) {
+		outs = sg_next(outs);
+		outs->dma_address = DMA_ERROR_CODE;
+		outs->dma_length = 0;
+	}
+
+	return outcount;
+
+iommu_map_failed:
+	for_each_sg(sglist, s, nelems, i) {
+		if (s->dma_length != 0) {
+			unsigned long vaddr, npages, entry, i;
+			iopte_t *base;
+
+			vaddr = s->dma_address & IO_PAGE_MASK;
+			npages = iommu_num_pages(s->dma_address, s->dma_length);
+			iommu_range_free(iommu, vaddr, npages);
+
+			entry = (vaddr - iommu->page_table_map_base)
+				>> IO_PAGE_SHIFT;
+			base = iommu->page_table + entry;
+
+			for (i = 0; i < npages; i++)
+				iopte_make_dummy(iommu, base + i);
+
+			s->dma_address = DMA_ERROR_CODE;
+			s->dma_length = 0;
+		}
+		if (s == outs)
+			break;
+	}
+	spin_unlock_irqrestore(&iommu->lock, flags);
+
 	return 0;
+}
+
+/* If contexts are being used, they are the same in all of the mappings
+ * we make for a particular SG.
+ */
+static unsigned long fetch_sg_ctx(struct iommu *iommu, struct scatterlist *sg)
+{
+	unsigned long ctx = 0;
+
+	if (iommu->iommu_ctxflush) {
+		iopte_t *base;
+		u32 bus_addr;
+
+		bus_addr = sg->dma_address & IO_PAGE_MASK;
+		base = iommu->page_table +
+			((bus_addr - iommu->page_table_map_base) >> IO_PAGE_SHIFT);
+
+		ctx = (iopte_val(*base) & IOPTE_CONTEXT) >> 47UL;
+	}
+	return ctx;
 }
 
 static void dma_4u_unmap_sg(struct device *dev, struct scatterlist *sglist,
 			    int nelems, enum dma_data_direction direction)
 {
-	unsigned long flags, ctx, i, npages;
+	unsigned long flags, ctx;
+	struct scatterlist *sg;
 	struct strbuf *strbuf;
 	struct iommu *iommu;
-	iopte_t *base;
-	u32 bus_addr;
 
-	if (unlikely(direction == DMA_NONE)) {
-		if (printk_ratelimit())
-			WARN_ON(1);
-	}
+	BUG_ON(direction == DMA_NONE);
 
 	iommu = dev->archdata.iommu;
 	strbuf = dev->archdata.stc;
 
-	bus_addr = sglist->dma_address & IO_PAGE_MASK;
-
-	npages = calc_npages(sglist, nelems);
-
-	base = iommu->page_table +
-		((bus_addr - iommu->page_table_map_base) >> IO_PAGE_SHIFT);
+	ctx = fetch_sg_ctx(iommu, sglist);
 
 	spin_lock_irqsave(&iommu->lock, flags);
 
-	/* Record the context, if any. */
-	ctx = 0;
-	if (iommu->iommu_ctxflush)
-		ctx = (iopte_val(*base) & IOPTE_CONTEXT) >> 47UL;
+	sg = sglist;
+	while (nelems--) {
+		dma_addr_t dma_handle = sg->dma_address;
+		unsigned int len = sg->dma_length;
+		unsigned long npages, entry;
+		iopte_t *base;
+		int i;
 
-	/* Step 1: Kick data out of streaming buffers if necessary. */
-	if (strbuf->strbuf_enabled)
-		strbuf_flush(strbuf, iommu, bus_addr, ctx, npages, direction);
+		if (!len)
+			break;
+		npages = iommu_num_pages(dma_handle, len);
+		iommu_range_free(iommu, dma_handle, npages);
 
-	/* Step 2: Clear out the TSB entries. */
-	for (i = 0; i < npages; i++)
-		iopte_make_dummy(iommu, base + i);
+		entry = ((dma_handle - iommu->page_table_map_base)
+			 >> IO_PAGE_SHIFT);
+		base = iommu->page_table + entry;
 
-	iommu_range_free(iommu, bus_addr, npages);
+		dma_handle &= IO_PAGE_MASK;
+		if (strbuf->strbuf_enabled)
+			strbuf_flush(strbuf, iommu, dma_handle, ctx,
+				     npages, direction);
+
+		for (i = 0; i < npages; i++)
+			iopte_make_dummy(iommu, base + i);
+
+		sg = sg_next(sg);
+	}
 
 	iommu_free_ctx(iommu, ctx);
 
