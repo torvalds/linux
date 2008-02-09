@@ -211,8 +211,9 @@ config THINKPAD_ACPI
 	  This is a driver for the IBM and Lenovo ThinkPad laptops. It adds
 	  support for Fn-Fx key combinations, Bluetooth control, video
 	  output switching, ThinkLight control, UltraBay eject and more.
-	  For more information about this driver see 
-	  <file:Documentation/thinkpad-acpi.txt> and <http://ibm-acpi.sf.net/> .
+	  For more information about this driver see
+	  <file:Documentation/laptops/thinkpad-acpi.txt> and
+	  <http://ibm-acpi.sf.net/> .
 
 	  This driver was formerly known as ibm-acpi.
 

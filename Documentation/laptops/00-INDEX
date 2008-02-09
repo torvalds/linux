@@ -1,2 +1,4 @@
 00-INDEX
 	- This file
+thinkpad-acpi.txt
+	- information on the (IBM and Lenovo) ThinkPad ACPI Extras driver.
