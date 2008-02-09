@@ -284,6 +284,13 @@ void tifm_eject(struct tifm_dev *sock)
 }
 EXPORT_SYMBOL(tifm_eject);
 
+int tifm_has_ms_pif(struct tifm_dev *sock)
+{
+	struct tifm_adapter *fm = dev_get_drvdata(sock->dev.parent);
+	return fm->has_ms_pif(fm, sock);
+}
+EXPORT_SYMBOL(tifm_has_ms_pif);
+
 int tifm_map_sg(struct tifm_dev *sock, struct scatterlist *sg, int nents,
 		int direction)
 {

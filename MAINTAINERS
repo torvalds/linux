@@ -3627,6 +3627,13 @@ L:	linux-acpi@vger.kernel.org
 W:	http://www.linux.it/~malattia/wiki/index.php/Sony_drivers
 S:	Maintained
 
+SONY MEMORYSTICK CARD SUPPORT
+P:	Alex Dubov
+M:	oakad@yahoo.com
+L:	linux-kernel@vger.kernel.org
+W:	http://tifmxx.berlios.de/
+S:	Maintained
+
 SOUND
 P:	Jaroslav Kysela
 M:	perex@perex.cz

@@ -80,6 +80,8 @@ source "drivers/usb/Kconfig"
 
 source "drivers/mmc/Kconfig"
 
+source "drivers/memstick/Kconfig"
+
 source "drivers/leds/Kconfig"
 
 source "drivers/infiniband/Kconfig"
