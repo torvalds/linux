@@ -33,8 +33,8 @@ static int skip_atoi(const char **s)
 #define PLUS	4		/* show plus */
 #define SPACE	8		/* space if plus */
 #define LEFT	16		/* left justified */
-#define SPECIAL	32		/* 0x */
-#define LARGE	64		/* use 'ABCDEF' instead of 'abcdef' */
+#define SMALL	32		/* Must be 32 == 0x20 */
+#define SPECIAL	64		/* 0x */
 
 #define do_div(n,base) ({ \
 int __res; \
@@ -45,12 +45,16 @@ __res; })
 static char *number(char *str, long num, int base, int size, int precision,
 		    int type)
 {
-	char c, sign, tmp[66];
-	const char *digits = "0123456789abcdefghijklmnopqrstuvwxyz";
+	/* we are called with base 8, 10 or 16, only, thus don't need "G..."  */
+	static const char digits[16] = "0123456789ABCDEF"; /* "GHIJKLMNOPQRSTUVWXYZ"; */
+
+	char tmp[66];
+	char c, sign, locase;
 	int i;
 
-	if (type & LARGE)
-		digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+	/* locase = 0 or 0x20. ORing digits or letters with 'locase'
+	 * produces same digits or (maybe lowercased) letters */
+	locase = (type & SMALL);
 	if (type & LEFT)
 		type &= ~ZEROPAD;
 	if (base < 2 || base > 36)
@@ -81,7 +85,7 @@ static char *number(char *str, long num, int base, int size, int precision,
 		tmp[i++] = '0';
 	else
 		while (num != 0)
-			tmp[i++] = digits[do_div(num, base)];
+			tmp[i++] = (digits[do_div(num, base)] | locase);
 	if (i > precision)
 		precision = i;
 	size -= precision;
@@ -95,7 +99,7 @@ static char *number(char *str, long num, int base, int size, int precision,
 			*str++ = '0';
 		else if (base == 16) {
 			*str++ = '0';
-			*str++ = digits[33];
+			*str++ = ('X' | locase);
 		}
 	}
 	if (!(type & LEFT))
@@ -244,9 +248,9 @@ int vsprintf(char *buf, const char *fmt, va_list args)
 			base = 8;
 			break;
 
-		case 'X':
-			flags |= LARGE;
 		case 'x':
+			flags |= SMALL;
+		case 'X':
 			base = 16;
 			break;
 
