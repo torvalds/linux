@@ -12,21 +12,20 @@
  */
 
 /*
- * We are using the 32Khz input clock - its the only one that has the
+ * We are using the 32.768kHz input clock - it's the only one that has the
  * ranges we find desirable.  The following table lists the suitable
- * divisors and the associated hz, minimum interval
- * and the maximum interval:
+ * divisors and the associated Hz, minimum interval and the maximum interval:
  *
- *  Divisor   Hz      Min Delta (S) Max Delta (S)
- *   1        32000     .0005          2.048
- *   2        16000      .001          4.096
- *   4         8000      .002          8.192
- *   8         4000      .004         16.384
- *   16        2000      .008         32.768
- *   32        1000      .016         65.536
- *   64         500      .032        131.072
- *  128         250      .064        262.144
- *  256         125      .128        524.288
+ *  Divisor   Hz      Min Delta (s)  Max Delta (s)
+ *   1        32768   .00048828125      2.000
+ *   2        16384   .0009765625       4.000
+ *   4         8192   .001953125        8.000
+ *   8         4096   .00390625        16.000
+ *   16        2048   .0078125         32.000
+ *   32        1024   .015625          64.000
+ *   64         512   .03125          128.000
+ *  128         256   .0625           256.000
+ *  256         128   .125            512.000
  */
 
 #include <linux/kernel.h>
@@ -45,7 +44,7 @@ static struct mfgpt_timer_t {
 
 #define MFGPT_DIVISOR 16
 #define MFGPT_SCALE  4     /* divisor = 2^(scale) */
-#define MFGPT_HZ  (32000 / MFGPT_DIVISOR)
+#define MFGPT_HZ  (32768 / MFGPT_DIVISOR)
 #define MFGPT_PERIODIC (MFGPT_HZ / HZ)
 
 #ifdef CONFIG_GEODE_MFGPT_TIMER
