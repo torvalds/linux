@@ -244,7 +244,7 @@ static int __init mfgpt_setup(char *str)
 }
 __setup("mfgpt_irq=", mfgpt_setup);
 
-static inline void mfgpt_disable_timer(u16 clock)
+static void mfgpt_disable_timer(u16 clock)
 {
 	u16 val = geode_mfgpt_read(clock, MFGPT_REG_SETUP);
 	geode_mfgpt_write(clock, MFGPT_REG_SETUP, val & ~MFGPT_SETUP_CNTEN);
@@ -263,7 +263,7 @@ static struct clock_event_device mfgpt_clockevent = {
 	.shift = 32
 };
 
-static inline void mfgpt_start_timer(u16 clock, u16 delta)
+static void mfgpt_start_timer(u16 delta)
 {
 	geode_mfgpt_write(mfgpt_event_clock, MFGPT_REG_CMP2, (u16) delta);
 	geode_mfgpt_write(mfgpt_event_clock, MFGPT_REG_COUNTER, 0);
@@ -278,14 +278,14 @@ static void mfgpt_set_mode(enum clock_event_mode mode,
 	mfgpt_disable_timer(mfgpt_event_clock);
 
 	if (mode == CLOCK_EVT_MODE_PERIODIC)
-		mfgpt_start_timer(mfgpt_event_clock, MFGPT_PERIODIC);
+		mfgpt_start_timer(MFGPT_PERIODIC);
 
 	mfgpt_tick_mode = mode;
 }
 
 static int mfgpt_next_event(unsigned long delta, struct clock_event_device *evt)
 {
-	mfgpt_start_timer(mfgpt_event_clock, delta);
+	mfgpt_start_timer(delta);
 	return 0;
 }
 
