@@ -115,6 +115,7 @@ typedef s390_regs elf_gregset_t;
 
 #include <linux/sched.h>	/* for task_struct */
 #include <asm/system.h>		/* for save_access_regs */
+#include <asm/mmu_context.h>
 
 /*
  * This is used to ensure we don't load something for the wrong architecture.
@@ -137,14 +138,7 @@ typedef s390_regs elf_gregset_t;
    use of this is to invoke "./ld.so someprog" to test out a new version of
    the loader.  We need to make sure that it is out of the way of the program
    that it will "exec", and that there is sufficient room for the brk.  */
-
-#ifndef __s390x__
-#define ELF_ET_DYN_BASE         ((TASK_SIZE & 0x80000000) \
-                                ? TASK_SIZE / 3 * 2 \
-                                : 2 * TASK_SIZE / 3)
-#else /* __s390x__ */
-#define ELF_ET_DYN_BASE         (TASK_SIZE / 3 * 2)
-#endif /* __s390x__ */
+#define ELF_ET_DYN_BASE		(STACK_TOP / 3 * 2)
 
 /* Wow, the "main" arch needs arch dependent functions too.. :) */
 
@@ -213,5 +207,17 @@ do {							\
 	clear_thread_flag(TIF_31BIT);			\
 } while (0)
 #endif /* __s390x__ */
+
+/*
+ * An executable for which elf_read_implies_exec() returns TRUE will
+ * have the READ_IMPLIES_EXEC personality flag set automatically.
+ */
+#define elf_read_implies_exec(ex, executable_stack)	\
+({							\
+	if (current->mm->context.noexec &&		\
+	    executable_stack != EXSTACK_DISABLE_X)	\
+		disable_noexec(current->mm, current);	\
+	current->mm->context.noexec == 0;		\
+})
 
 #endif

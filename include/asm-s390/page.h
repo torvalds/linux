@@ -74,42 +74,16 @@ static inline void copy_page(void *to, void *from)
 
 typedef struct { unsigned long pgprot; } pgprot_t;
 typedef struct { unsigned long pte; } pte_t;
-
-#define pte_val(x)      ((x).pte)
-#define pgprot_val(x)   ((x).pgprot)
-
-#ifndef __s390x__
-
 typedef struct { unsigned long pmd; } pmd_t;
 typedef struct { unsigned long pud; } pud_t;
-typedef struct {
-        unsigned long pgd0;
-        unsigned long pgd1;
-        unsigned long pgd2;
-        unsigned long pgd3;
-        } pgd_t;
-
-#define pmd_val(x)      ((x).pmd)
-#define pud_val(x)	((x).pud)
-#define pgd_val(x)      ((x).pgd0)
-
-#else /* __s390x__ */
-
-typedef struct { 
-        unsigned long pmd0;
-        unsigned long pmd1; 
-        } pmd_t;
-typedef struct { unsigned long pud; } pud_t;
 typedef struct { unsigned long pgd; } pgd_t;
+typedef pte_t *pgtable_t;
 
-#define pmd_val(x)      ((x).pmd0)
-#define pmd_val1(x)     ((x).pmd1)
+#define pgprot_val(x)	((x).pgprot)
+#define pte_val(x)	((x).pte)
+#define pmd_val(x)	((x).pmd)
 #define pud_val(x)	((x).pud)
 #define pgd_val(x)      ((x).pgd)
-
-#endif /* __s390x__ */
-
-typedef struct page *pgtable_t;
 
 #define __pte(x)        ((pte_t) { (x) } )
 #define __pmd(x)        ((pmd_t) { (x) } )
@@ -167,7 +141,7 @@ static inline int pfn_valid(unsigned long pfn)
 #define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
 #define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
 
-#define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
+#define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | \
 				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
 #include <asm-generic/memory_model.h>

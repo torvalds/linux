@@ -64,24 +64,29 @@ extern int get_cpu_capability(unsigned int *);
  */
 #ifndef __s390x__
 
-# define TASK_SIZE		(0x80000000UL)
-# define TASK_UNMAPPED_BASE	(TASK_SIZE / 2)
-# define DEFAULT_TASK_SIZE	(0x80000000UL)
+#define TASK_SIZE		(1UL << 31)
+#define TASK_UNMAPPED_BASE	(1UL << 30)
 
 #else /* __s390x__ */
 
-# define TASK_SIZE_OF(tsk)	(test_tsk_thread_flag(tsk, TIF_31BIT) ? \
-					(0x80000000UL) : (0x40000000000UL))
-# define TASK_SIZE		TASK_SIZE_OF(current)
-# define TASK_UNMAPPED_BASE	(TASK_SIZE / 2)
-# define DEFAULT_TASK_SIZE	(0x40000000000UL)
+#define TASK_SIZE_OF(tsk)	(test_tsk_thread_flag(tsk,TIF_31BIT) ? \
+					(1UL << 31) : (1UL << 53))
+#define TASK_UNMAPPED_BASE	(test_thread_flag(TIF_31BIT) ? \
+					(1UL << 30) : (1UL << 41))
+#define TASK_SIZE		TASK_SIZE_OF(current)
 
 #endif /* __s390x__ */
 
 #ifdef __KERNEL__
 
-#define STACK_TOP		TASK_SIZE
-#define STACK_TOP_MAX		DEFAULT_TASK_SIZE
+#ifndef __s390x__
+#define STACK_TOP		(1UL << 31)
+#define STACK_TOP_MAX		(1UL << 31)
+#else /* __s390x__ */
+#define STACK_TOP		(1UL << (test_thread_flag(TIF_31BIT) ? 31:42))
+#define STACK_TOP_MAX		(1UL << 42)
+#endif /* __s390x__ */
+
 
 #endif
 
@@ -138,32 +143,12 @@ struct stack_frame {
 /*
  * Do necessary setup to start up a new thread.
  */
-#ifndef __s390x__
-
 #define start_thread(regs, new_psw, new_stackp) do {            \
 	set_fs(USER_DS);					\
 	regs->psw.mask	= psw_user_bits;			\
         regs->psw.addr  = new_psw | PSW_ADDR_AMODE;             \
         regs->gprs[15]  = new_stackp ;                          \
 } while (0)
-
-#else /* __s390x__ */
-
-#define start_thread(regs, new_psw, new_stackp) do {            \
-	set_fs(USER_DS);					\
-	regs->psw.mask	= psw_user_bits;			\
-        regs->psw.addr  = new_psw;                              \
-        regs->gprs[15]  = new_stackp;                           \
-} while (0)
-
-#define start_thread31(regs, new_psw, new_stackp) do {          \
-	set_fs(USER_DS);					\
-	regs->psw.mask	= psw_user32_bits;			\
-        regs->psw.addr  = new_psw;                              \
-        regs->gprs[15]  = new_stackp;                           \
-} while (0)
-
-#endif /* __s390x__ */
 
 /* Forward declaration, a strange C thing */
 struct task_struct;

@@ -60,6 +60,7 @@ int sysctl_userprocess_debug = 0;
 extern pgm_check_handler_t do_protection_exception;
 extern pgm_check_handler_t do_dat_exception;
 extern pgm_check_handler_t do_monitor_call;
+extern pgm_check_handler_t do_asce_exception;
 
 #define stack_pointer ({ void **sp; asm("la %0,0(15)" : "=&d" (sp)); sp; })
 
@@ -730,7 +731,7 @@ void __init trap_init(void)
         pgm_check_table[0x12] = &translation_exception;
         pgm_check_table[0x13] = &special_op_exception;
 #ifdef CONFIG_64BIT
-        pgm_check_table[0x38] = &do_dat_exception;
+	pgm_check_table[0x38] = &do_asce_exception;
 	pgm_check_table[0x39] = &do_dat_exception;
 	pgm_check_table[0x3A] = &do_dat_exception;
         pgm_check_table[0x3B] = &do_dat_exception;

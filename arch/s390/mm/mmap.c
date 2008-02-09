@@ -27,6 +27,7 @@
 #include <linux/personality.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <asm/pgalloc.h>
 
 /*
  * Top of mmap area (just below the process stack).
@@ -62,6 +63,8 @@ static inline int mmap_is_legacy(void)
 	    current->signal->rlim[RLIMIT_STACK].rlim_cur == RLIM_INFINITY;
 }
 
+#ifndef CONFIG_64BIT
+
 /*
  * This function, called very early during the creation of a new
  * process VM image, sets up which VM layout function to use:
@@ -84,3 +87,65 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 }
 EXPORT_SYMBOL_GPL(arch_pick_mmap_layout);
 
+#else
+
+static unsigned long
+s390_get_unmapped_area(struct file *filp, unsigned long addr,
+		unsigned long len, unsigned long pgoff, unsigned long flags)
+{
+	struct mm_struct *mm = current->mm;
+	int rc;
+
+	addr = arch_get_unmapped_area(filp, addr, len, pgoff, flags);
+	if (addr & ~PAGE_MASK)
+		return addr;
+	if (unlikely(mm->context.asce_limit < addr + len)) {
+		rc = crst_table_upgrade(mm, addr + len);
+		if (rc)
+			return (unsigned long) rc;
+	}
+	return addr;
+}
+
+static unsigned long
+s390_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
+			  const unsigned long len, const unsigned long pgoff,
+			  const unsigned long flags)
+{
+	struct mm_struct *mm = current->mm;
+	unsigned long addr = addr0;
+	int rc;
+
+	addr = arch_get_unmapped_area_topdown(filp, addr, len, pgoff, flags);
+	if (addr & ~PAGE_MASK)
+		return addr;
+	if (unlikely(mm->context.asce_limit < addr + len)) {
+		rc = crst_table_upgrade(mm, addr + len);
+		if (rc)
+			return (unsigned long) rc;
+	}
+	return addr;
+}
+/*
+ * This function, called very early during the creation of a new
+ * process VM image, sets up which VM layout function to use:
+ */
+void arch_pick_mmap_layout(struct mm_struct *mm)
+{
+	/*
+	 * Fall back to the standard layout if the personality
+	 * bit is set, or if the expected stack growth is unlimited:
+	 */
+	if (mmap_is_legacy()) {
+		mm->mmap_base = TASK_UNMAPPED_BASE;
+		mm->get_unmapped_area = s390_get_unmapped_area;
+		mm->unmap_area = arch_unmap_area;
+	} else {
+		mm->mmap_base = mmap_base();
+		mm->get_unmapped_area = s390_get_unmapped_area_topdown;
+		mm->unmap_area = arch_unmap_area_topdown;
+	}
+}
+EXPORT_SYMBOL_GPL(arch_pick_mmap_layout);
+
+#endif

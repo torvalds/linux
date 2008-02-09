@@ -61,11 +61,12 @@ static inline void __tlb_flush_mm(struct mm_struct * mm)
 	 * only ran on the local cpu.
 	 */
 	if (MACHINE_HAS_IDTE) {
-		pgd_t *shadow = get_shadow_table(mm->pgd);
-
-		if (shadow)
-			__tlb_flush_idte((unsigned long) shadow | mm->context);
-		__tlb_flush_idte((unsigned long) mm->pgd | mm->context);
+		if (mm->context.noexec)
+			__tlb_flush_idte((unsigned long)
+					 get_shadow_table(mm->pgd) |
+					 mm->context.asce_bits);
+		__tlb_flush_idte((unsigned long) mm->pgd |
+				 mm->context.asce_bits);
 		return;
 	}
 	preempt_disable();

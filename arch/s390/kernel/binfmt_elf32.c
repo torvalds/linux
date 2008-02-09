@@ -134,6 +134,7 @@ static inline int dump_task_fpu(struct task_struct *tsk, elf_fpregset_t *fpregs)
 }
 
 #include <asm/processor.h>
+#include <asm/pgalloc.h>
 #include <linux/module.h>
 #include <linux/elfcore.h>
 #include <linux/binfmts.h>
@@ -182,6 +183,16 @@ struct elf_prpsinfo32
 
 #undef start_thread
 #define start_thread                    start_thread31 
+
+static inline void start_thread31(struct pt_regs *regs, unsigned long new_psw,
+				  unsigned long new_stackp)
+{
+	set_fs(USER_DS);
+	regs->psw.mask	= psw_user32_bits;
+	regs->psw.addr	= new_psw;
+	regs->gprs[15]	= new_stackp;
+	crst_table_downgrade(current->mm, 1UL << 31);
+}
 
 MODULE_DESCRIPTION("Binary format loader for compatibility with 32bit Linux for S390 binaries,"
                    " Copyright 2000 IBM Corporation"); 
