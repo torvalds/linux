@@ -286,7 +286,7 @@ void __init early_ioremap_init(void)
 
 	pmd = early_ioremap_pmd(fix_to_virt(FIX_BTMAP_BEGIN));
 	memset(bm_pte, 0, sizeof(bm_pte));
-	set_pmd(pmd, __pmd(__pa(bm_pte) | _PAGE_TABLE));
+	pmd_populate_kernel(&init_mm, pmd, bm_pte);
 
 	/*
 	 * The boot-ioremap range spans multiple pmds, for which
@@ -316,7 +316,7 @@ void __init early_ioremap_clear(void)
 
 	pmd = early_ioremap_pmd(fix_to_virt(FIX_BTMAP_BEGIN));
 	pmd_clear(pmd);
-	paravirt_release_pt(__pa(pmd) >> PAGE_SHIFT);
+	paravirt_release_pt(__pa(bm_pte) >> PAGE_SHIFT);
 	__flush_tlb_all();
 }
 
