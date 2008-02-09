@@ -3,7 +3,7 @@
  *    SCLP VT220 terminal driver.
  *
  *  S390 version
- *    Copyright (C) 2003 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright IBM Corp. 2003,2008
  *    Author(s): Peter Oberparleiter <Peter.Oberparleiter@de.ibm.com>
  */
 
@@ -632,6 +632,9 @@ static void __init __sclp_vt220_cleanup(void)
 		else
 			free_bootmem((unsigned long) page, PAGE_SIZE);
 	}
+	if (!list_empty(&sclp_vt220_register.list))
+		sclp_unregister(&sclp_vt220_register);
+	sclp_vt220_initialized = 0;
 }
 
 static int __init __sclp_vt220_init(void)
@@ -639,6 +642,7 @@ static int __init __sclp_vt220_init(void)
 	void *page;
 	int i;
 	int num_pages;
+	int rc;
 
 	if (sclp_vt220_initialized)
 		return 0;
@@ -667,7 +671,14 @@ static int __init __sclp_vt220_init(void)
 		}
 		list_add_tail((struct list_head *) page, &sclp_vt220_empty);
 	}
-	return 0;
+	rc = sclp_register(&sclp_vt220_register);
+	if (rc) {
+		printk(KERN_ERR SCLP_VT220_PRINT_HEADER
+		       "could not register vt220 - "
+		       "sclp_register returned %d\n", rc);
+		__sclp_vt220_cleanup();
+	}
+	return rc;
 }
 
 static const struct tty_operations sclp_vt220_ops = {
@@ -688,22 +699,17 @@ static int __init sclp_vt220_tty_init(void)
 {
 	struct tty_driver *driver;
 	int rc;
+	int cleanup;
 
 	/* Note: we're not testing for CONSOLE_IS_SCLP here to preserve
 	 * symmetry between VM and LPAR systems regarding ttyS1. */
 	driver = alloc_tty_driver(1);
 	if (!driver)
 		return -ENOMEM;
+	cleanup = !sclp_vt220_initialized;
 	rc = __sclp_vt220_init();
 	if (rc)
 		goto out_driver;
-	rc = sclp_register(&sclp_vt220_register);
-	if (rc) {
-		printk(KERN_ERR SCLP_VT220_PRINT_HEADER
-		       "could not register tty - "
-		       "sclp_register returned %d\n", rc);
-		goto out_init;
-	}
 
 	driver->owner = THIS_MODULE;
 	driver->driver_name = SCLP_VT220_DRIVER_NAME;
@@ -721,15 +727,14 @@ static int __init sclp_vt220_tty_init(void)
 		printk(KERN_ERR SCLP_VT220_PRINT_HEADER
 		       "could not register tty - "
 		       "tty_register_driver returned %d\n", rc);
-		goto out_sclp;
+		goto out_init;
 	}
 	sclp_vt220_driver = driver;
 	return 0;
 
-out_sclp:
-	sclp_unregister(&sclp_vt220_register);
 out_init:
-	__sclp_vt220_cleanup();
+	if (cleanup)
+		__sclp_vt220_cleanup();
 out_driver:
 	put_tty_driver(driver);
 	return rc;
