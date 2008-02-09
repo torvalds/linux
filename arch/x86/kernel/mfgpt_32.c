@@ -293,10 +293,14 @@ static int mfgpt_next_event(unsigned long delta, struct clock_event_device *evt)
 	return 0;
 }
 
-/* Assume (foolishly?), that this interrupt was due to our tick */
-
 static irqreturn_t mfgpt_tick(int irq, void *dev_id)
 {
+	u16 val = geode_mfgpt_read(mfgpt_event_clock, MFGPT_REG_SETUP);
+
+	/* See if the interrupt was for us */
+	if (!(val & (MFGPT_SETUP_SETUP  | MFGPT_SETUP_CMP2 | MFGPT_SETUP_CMP1)))
+		return IRQ_NONE;
+
 	/* Turn off the clock (and clear the event) */
 	mfgpt_disable_timer(mfgpt_event_clock);
 
