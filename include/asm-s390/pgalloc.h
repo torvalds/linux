@@ -73,11 +73,17 @@ static inline unsigned long pgd_entry_type(struct mm_struct *mm)
 
 static inline unsigned long pgd_entry_type(struct mm_struct *mm)
 {
-	return _REGION3_ENTRY_EMPTY;
+	return _REGION2_ENTRY_EMPTY;
 }
 
-#define pud_alloc_one(mm,address)		({ BUG(); ((pud_t *)2); })
-#define pud_free(mm, x)				do { } while (0)
+static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long address)
+{
+	unsigned long *table = crst_table_alloc(mm, mm->context.noexec);
+	if (table)
+		crst_table_init(table, _REGION3_ENTRY_EMPTY);
+	return (pud_t *) table;
+}
+#define pud_free(mm, pud) crst_table_free(mm, (unsigned long *) pud)
 
 static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long vmaddr)
 {
@@ -88,8 +94,21 @@ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long vmaddr)
 }
 #define pmd_free(mm, pmd) crst_table_free(mm, (unsigned long *) pmd)
 
-#define pgd_populate(mm, pgd, pud)		BUG()
-#define pgd_populate_kernel(mm, pgd, pud)	BUG()
+static inline void pgd_populate_kernel(struct mm_struct *mm,
+				       pgd_t *pgd, pud_t *pud)
+{
+	pgd_val(*pgd) = _REGION2_ENTRY | __pa(pud);
+}
+
+static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pud_t *pud)
+{
+	pgd_t *shadow_pgd = get_shadow_table(pgd);
+	pud_t *shadow_pud = get_shadow_table(pud);
+
+	if (shadow_pgd && shadow_pud)
+		pgd_populate_kernel(mm, shadow_pgd, shadow_pud);
+	pgd_populate_kernel(mm, pgd, pud);
+}
 
 static inline void pud_populate_kernel(struct mm_struct *mm,
 				       pud_t *pud, pmd_t *pmd)

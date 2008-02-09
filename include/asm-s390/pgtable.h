@@ -63,15 +63,15 @@ extern char empty_zero_page[PAGE_SIZE];
 #else /* __s390x__ */
 # define PMD_SHIFT	20
 # define PUD_SHIFT	31
-# define PGDIR_SHIFT	31
+# define PGDIR_SHIFT	42
 #endif /* __s390x__ */
 
 #define PMD_SIZE        (1UL << PMD_SHIFT)
 #define PMD_MASK        (~(PMD_SIZE-1))
 #define PUD_SIZE	(1UL << PUD_SHIFT)
 #define PUD_MASK	(~(PUD_SIZE-1))
-#define PGDIR_SIZE      (1UL << PGDIR_SHIFT)
-#define PGDIR_MASK      (~(PGDIR_SIZE-1))
+#define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
+#define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
 /*
  * entries per page directory level: the S390 is two-level, so
@@ -82,10 +82,11 @@ extern char empty_zero_page[PAGE_SIZE];
 #define PTRS_PER_PTE	256
 #ifndef __s390x__
 #define PTRS_PER_PMD	1
+#define PTRS_PER_PUD	1
 #else /* __s390x__ */
 #define PTRS_PER_PMD	2048
+#define PTRS_PER_PUD	2048
 #endif /* __s390x__ */
-#define PTRS_PER_PUD	1
 #define PTRS_PER_PGD	2048
 
 #define FIRST_USER_ADDRESS  0
@@ -418,9 +419,23 @@ static inline int pud_bad(pud_t pud)	 { return 0; }
 
 #else /* __s390x__ */
 
-static inline int pgd_present(pgd_t pgd) { return 1; }
-static inline int pgd_none(pgd_t pgd)	 { return 0; }
-static inline int pgd_bad(pgd_t pgd)	 { return 0; }
+static inline int pgd_present(pgd_t pgd)
+{
+	return (pgd_val(pgd) & _REGION_ENTRY_ORIGIN) != 0UL;
+}
+
+static inline int pgd_none(pgd_t pgd)
+{
+	return (pgd_val(pgd) & _REGION_ENTRY_INV) != 0UL;
+}
+
+static inline int pgd_bad(pgd_t pgd)
+{
+	unsigned long mask =
+		~_REGION_ENTRY_ORIGIN & ~_REGION_ENTRY_INV &
+		~_REGION_ENTRY_TYPE_MASK & ~_REGION_ENTRY_LENGTH;
+	return (pgd_val(pgd) & mask) != 0;
+}
 
 static inline int pud_present(pud_t pud)
 {
@@ -434,8 +449,10 @@ static inline int pud_none(pud_t pud)
 
 static inline int pud_bad(pud_t pud)
 {
-	unsigned long mask = ~_REGION_ENTRY_ORIGIN & ~_REGION_ENTRY_INV;
-	return (pud_val(pud) & mask) != _REGION3_ENTRY;
+	unsigned long mask =
+		~_REGION_ENTRY_ORIGIN & ~_REGION_ENTRY_INV &
+		~_REGION_ENTRY_TYPE_MASK & ~_REGION_ENTRY_LENGTH;
+	return (pud_val(pud) & mask) != 0;
 }
 
 #endif /* __s390x__ */
@@ -516,7 +533,19 @@ static inline int pte_young(pte_t pte)
 
 #else /* __s390x__ */
 
-#define pgd_clear(pgd)		do { } while (0)
+static inline void pgd_clear_kernel(pgd_t * pgd)
+{
+	pgd_val(*pgd) = _REGION2_ENTRY_EMPTY;
+}
+
+static inline void pgd_clear(pgd_t * pgd)
+{
+	pgd_t *shadow = get_shadow_table(pgd);
+
+	pgd_clear_kernel(pgd);
+	if (shadow)
+		pgd_clear_kernel(shadow);
+}
 
 static inline void pud_clear_kernel(pud_t *pud)
 {
@@ -808,9 +837,13 @@ static inline pte_t mk_pte(struct page *page, pgprot_t pgprot)
 
 #define pmd_deref(pmd) (pmd_val(pmd) & _SEGMENT_ENTRY_ORIGIN)
 #define pud_deref(pud) (pud_val(pud) & _REGION_ENTRY_ORIGIN)
-#define pgd_deref(pgd) ({ BUG(); 0UL; })
+#define pgd_deref(pgd) (pgd_val(pgd) & _REGION_ENTRY_ORIGIN)
 
-#define pud_offset(pgd, address) ((pud_t *) pgd)
+static inline pud_t *pud_offset(pgd_t *pgd, unsigned long address)
+{
+	pud_t *pud = (pud_t *) pgd_deref(*pgd);
+	return pud  + pud_index(address);
+}
 
 static inline pmd_t *pmd_offset(pud_t *pud, unsigned long address)
 {

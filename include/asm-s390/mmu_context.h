@@ -18,7 +18,7 @@ static inline int init_new_context(struct task_struct *tsk,
 {
 	mm->context.asce_bits = _ASCE_TABLE_LENGTH | _ASCE_USER_BITS;
 #ifdef CONFIG_64BIT
-	mm->context.asce_bits |= _ASCE_TYPE_REGION3;
+	mm->context.asce_bits |= _ASCE_TYPE_REGION2;
 #endif
 	mm->context.noexec = s390_noexec;
 	return 0;

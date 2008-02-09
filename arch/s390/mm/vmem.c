@@ -69,7 +69,19 @@ static void __ref *vmem_alloc_pages(unsigned int order)
 	return alloc_bootmem_pages((1 << order) * PAGE_SIZE);
 }
 
-#define vmem_pud_alloc()	({ BUG(); ((pud_t *) NULL); })
+static inline pud_t *vmem_pud_alloc(void)
+{
+	pud_t *pud = NULL;
+
+#ifdef CONFIG_64BIT
+	pud = vmem_alloc_pages(2);
+	if (!pud)
+		return NULL;
+	pud_val(*pud) = _REGION3_ENTRY_EMPTY;
+	memcpy(pud + 1, pud, (PTRS_PER_PUD - 1)*sizeof(pud_t));
+#endif
+	return pud;
+}
 
 static inline pmd_t *vmem_pmd_alloc(void)
 {

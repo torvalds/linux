@@ -138,14 +138,7 @@ typedef s390_regs elf_gregset_t;
    use of this is to invoke "./ld.so someprog" to test out a new version of
    the loader.  We need to make sure that it is out of the way of the program
    that it will "exec", and that there is sufficient room for the brk.  */
-
-#ifndef __s390x__
-#define ELF_ET_DYN_BASE         ((TASK_SIZE & 0x80000000) \
-                                ? TASK_SIZE / 3 * 2 \
-                                : 2 * TASK_SIZE / 3)
-#else /* __s390x__ */
-#define ELF_ET_DYN_BASE         (TASK_SIZE / 3 * 2)
-#endif /* __s390x__ */
+#define ELF_ET_DYN_BASE		(TASK_SIZE / 3 * 2)
 
 /* Wow, the "main" arch needs arch dependent functions too.. :) */
 
