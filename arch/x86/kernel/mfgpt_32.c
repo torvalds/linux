@@ -43,12 +43,6 @@ static struct mfgpt_timer_t {
 #define MFGPT_HZ  (32768 / MFGPT_DIVISOR)
 #define MFGPT_PERIODIC (MFGPT_HZ / HZ)
 
-#ifdef CONFIG_GEODE_MFGPT_TIMER
-static int __init mfgpt_timer_setup(void);
-#else
-#define mfgpt_timer_setup() (0)
-#endif
-
 /* Allow for disabling of MFGPTs */
 static int disable;
 static int __init mfgpt_disable(char *s)
@@ -314,7 +308,7 @@ static struct irqaction mfgptirq  = {
 	.name = "mfgpt-timer"
 };
 
-static int __init mfgpt_timer_setup(void)
+int __init mfgpt_timer_setup(void)
 {
 	int timer, ret;
 	u16 val;
