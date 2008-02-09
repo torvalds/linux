@@ -428,11 +428,9 @@ static acpi_status AMW0_set_u32(u32 value, u32 cap, struct wmi_interface *iface)
 		if (value > max_brightness)
 			return AE_BAD_PARAMETER;
 		switch (quirks->brightness) {
-		case 1:
-			return ec_write(0x83, value);
 		default:
-			return AE_BAD_ADDRESS;
-		break;
+			return ec_write(0x83, value);
+			break;
 		}
 	default:
 		return AE_BAD_ADDRESS;

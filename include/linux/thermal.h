@@ -79,7 +79,9 @@ struct thermal_zone_device {
 };
 
 struct thermal_zone_device *thermal_zone_device_register(char *, int, void *,
-					struct thermal_zone_device_ops *);
+							 struct
+							 thermal_zone_device_ops
+							 *);
 void thermal_zone_device_unregister(struct thermal_zone_device *);
 
 int thermal_zone_bind_cooling_device(struct thermal_zone_device *, int,
@@ -87,8 +89,23 @@ int thermal_zone_bind_cooling_device(struct thermal_zone_device *, int,
 int thermal_zone_unbind_cooling_device(struct thermal_zone_device *, int,
 				       struct thermal_cooling_device *);
 
+#ifdef	CONFIG_THERMAL
 struct thermal_cooling_device *thermal_cooling_device_register(char *, void *,
-					struct thermal_cooling_device_ops *);
+							       struct
+							       thermal_cooling_device_ops
+							       *);
 void thermal_cooling_device_unregister(struct thermal_cooling_device *);
+#else
+static inline struct thermal_cooling_device
+*thermal_cooling_device_register(char *c, void *v,
+				 struct thermal_cooling_device_ops *t)
+{
+	return NULL;
+}
+static inline
+    void thermal_cooling_device_unregister(struct thermal_cooling_device *t)
+{
+};
+#endif
 
-#endif				/* __THERMAL_H__ */
+#endif /* __THERMAL_H__ */

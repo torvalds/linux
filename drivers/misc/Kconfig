@@ -114,6 +114,9 @@ config ACER_WMI
 	  wireless radio and bluetooth control, and on some laptops,
 	  exposes the mail LED and LCD backlight.
 
+	  For more information about this driver see
+	  <file:Documentation/laptops/acer-wmi.txt>
+
 	  If you have an ACPI-WMI compatible Acer/ Wistron laptop, say Y or M
 	  here.
 
@@ -152,8 +155,9 @@ config FUJITSU_LAPTOP
 	  If you have a Fujitsu laptop, say Y or M here.
 
 config TC1100_WMI
-	tristate "HP Compaq TC1100 Tablet WMI Extras"
+	tristate "HP Compaq TC1100 Tablet WMI Extras (EXPERIMENTAL)"
 	depends on X86 && !X86_64
+	depends on EXPERIMENTAL
 	depends on ACPI
 	select ACPI_WMI
 	---help---
@@ -192,7 +196,7 @@ config SONY_LAPTOP
 	  screen brightness control, Fn keys and allows powering on/off some
 	  devices.
 
-	  Read <file:Documentation/sony-laptop.txt> for more information.
+	  Read <file:Documentation/laptops/sony-laptop.txt> for more information.
 
 config SONYPI_COMPAT
 	bool "Sonypi compatibility"
@@ -211,8 +215,9 @@ config THINKPAD_ACPI
 	  This is a driver for the IBM and Lenovo ThinkPad laptops. It adds
 	  support for Fn-Fx key combinations, Bluetooth control, video
 	  output switching, ThinkLight control, UltraBay eject and more.
-	  For more information about this driver see 
-	  <file:Documentation/thinkpad-acpi.txt> and <http://ibm-acpi.sf.net/> .
+	  For more information about this driver see
+	  <file:Documentation/laptops/thinkpad-acpi.txt> and
+	  <http://ibm-acpi.sf.net/> .
 
 	  This driver was formerly known as ibm-acpi.
 

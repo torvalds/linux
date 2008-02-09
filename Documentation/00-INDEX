@@ -227,6 +227,8 @@ kref.txt
 	- docs on adding reference counters (krefs) to kernel objects.
 laptop-mode.txt
 	- how to conserve battery power using laptop-mode.
+laptops/
+	- directory with laptop related info and laptop driver documentation.
 ldm.txt
 	- a brief description of LDM (Windows Dynamic Disks).
 leds-class.txt
@@ -351,10 +353,6 @@ sh/
 	- directory with info on porting Linux to a new architecture.
 smart-config.txt
 	- description of the Smart Config makefile feature.
-sony-laptop.txt
-	- Sony Notebook Control Driver (SNC) Readme.
-sonypi.txt
-	- info on Linux Sony Programmable I/O Device support.
 sound/
 	- directory with info on sound card support.
 sparc/
@@ -385,8 +383,6 @@ sysrq.txt
 	- info on the magic SysRq key.
 telephony/
 	- directory with info on telephony (e.g. voice over IP) support.
-thinkpad-acpi.txt
-	- information on the (IBM and Lenovo) ThinkPad ACPI Extras driver.
 time_interpolators.txt
 	- info on time interpolators.
 tipar.txt
