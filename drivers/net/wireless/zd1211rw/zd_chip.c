@@ -771,10 +771,10 @@ static int zd1211b_hw_init_hmac(struct zd_chip *chip)
 {
 	static const struct zd_ioreq32 ioreqs[] = {
 		{ CR_ZD1211B_RETRY_MAX,		0x02020202 },
-		{ CR_ZD1211B_TX_PWR_CTL4,	0x007f003f },
-		{ CR_ZD1211B_TX_PWR_CTL3,	0x007f003f },
-		{ CR_ZD1211B_TX_PWR_CTL2,       0x003f001f },
-		{ CR_ZD1211B_TX_PWR_CTL1,       0x001f000f },
+		{ CR_ZD1211B_CWIN_MAX_MIN_AC0,	0x007f003f },
+		{ CR_ZD1211B_CWIN_MAX_MIN_AC1,	0x007f003f },
+		{ CR_ZD1211B_CWIN_MAX_MIN_AC2,  0x003f001f },
+		{ CR_ZD1211B_CWIN_MAX_MIN_AC3,  0x001f000f },
 		{ CR_ZD1211B_AIFS_CTL1,		0x00280028 },
 		{ CR_ZD1211B_AIFS_CTL2,		0x008C003C },
 		{ CR_ZD1211B_TXOP,		0x01800824 },
