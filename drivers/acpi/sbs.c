@@ -827,7 +827,7 @@ static int acpi_battery_add(struct acpi_sbs *sbs, int id)
 #endif
 	printk(KERN_INFO PREFIX "%s [%s]: Battery Slot [%s] (battery %s)\n",
 	       ACPI_SBS_DEVICE_NAME, acpi_device_bid(sbs->device),
-	       battery->name, sbs->battery->present ? "present" : "absent");
+	       battery->name, battery->present ? "present" : "absent");
 	return result;
 }
 
