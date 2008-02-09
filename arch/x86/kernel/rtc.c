@@ -94,7 +94,7 @@ int mach_set_rtc_mmss(unsigned long nowtime)
 
 unsigned long mach_get_cmos_time(void)
 {
-	unsigned int year, mon, day, hour, min, sec, century = 0;
+	unsigned int status, year, mon, day, hour, min, sec, century = 0;
 
 	/*
 	 * If UIP is clear, then we have >= 244 microseconds before
@@ -119,7 +119,10 @@ unsigned long mach_get_cmos_time(void)
 		century = CMOS_READ(acpi_gbl_FADT.century);
 #endif
 
-	if (RTC_ALWAYS_BCD || !(CMOS_READ(RTC_CONTROL) & RTC_DM_BINARY)) {
+	status = CMOS_READ(RTC_CONTROL);
+	WARN_ON_ONCE((RTC_ALWAYS_BCD && (status & RTC_DM_BINARY));
+
+	if (RTC_ALWAYS_BCD || !(status & RTC_DM_BINARY)) {
 		BCD_TO_BIN(sec);
 		BCD_TO_BIN(min);
 		BCD_TO_BIN(hour);
