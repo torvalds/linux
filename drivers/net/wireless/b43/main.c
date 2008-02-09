@@ -1861,11 +1861,11 @@ static int b43_upload_microcode(struct b43_wldev *dev)
 		err = -EOPNOTSUPP;
 		goto error;
 	}
-	b43dbg(dev->wl, "Loading firmware version %u.%u "
-	       "(20%.2i-%.2i-%.2i %.2i:%.2i:%.2i)\n",
-	       fwrev, fwpatch,
-	       (fwdate >> 12) & 0xF, (fwdate >> 8) & 0xF, fwdate & 0xFF,
-	       (fwtime >> 11) & 0x1F, (fwtime >> 5) & 0x3F, fwtime & 0x1F);
+	b43info(dev->wl, "Loading firmware version %u.%u "
+		"(20%.2i-%.2i-%.2i %.2i:%.2i:%.2i)\n",
+		fwrev, fwpatch,
+		(fwdate >> 12) & 0xF, (fwdate >> 8) & 0xF, fwdate & 0xFF,
+		(fwtime >> 11) & 0x1F, (fwtime >> 5) & 0x3F, fwtime & 0x1F);
 
 	dev->fw.rev = fwrev;
 	dev->fw.patch = fwpatch;
