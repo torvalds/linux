@@ -253,10 +253,10 @@ static int
 try_preserve_large_page(pte_t *kpte, unsigned long address,
 			struct cpa_data *cpa)
 {
-	unsigned long nextpage_addr, numpages, pmask, psize, flags;
+	unsigned long nextpage_addr, numpages, pmask, psize, flags, addr;
 	pte_t new_pte, old_pte, *tmp;
 	pgprot_t old_prot, new_prot;
-	int do_split = 1;
+	int i, do_split = 1;
 	unsigned int level;
 
 	spin_lock_irqsave(&pgd_lock, flags);
@@ -302,6 +302,19 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
 	pgprot_val(new_prot) &= ~pgprot_val(cpa->mask_clr);
 	pgprot_val(new_prot) |= pgprot_val(cpa->mask_set);
 	new_prot = static_protections(new_prot, address);
+
+	/*
+	 * We need to check the full range, whether
+	 * static_protection() requires a different pgprot for one of
+	 * the pages in the range we try to preserve:
+	 */
+	addr = address + PAGE_SIZE;
+	for (i = 1; i < cpa->numpages; i++, addr += PAGE_SIZE) {
+		pgprot_t chk_prot = static_protections(new_prot, addr);
+
+		if (pgprot_val(chk_prot) != pgprot_val(new_prot))
+			goto out_unlock;
+	}
 
 	/*
 	 * If there are no changes, return. maxpages has been updated
