@@ -401,16 +401,25 @@ int pvr2_dvb_init(struct pvr2_context *pvr)
 {
 	int ret = 0;
 	struct pvr2_dvb_adapter *adap;
+	if (!pvr->hdw->hdw_desc->dvb_props) {
+		/* Device lacks a digital interface so don't set up
+		   the DVB side of the driver either.  For now. */
+		return 0;
+	}
 	adap = &pvr->hdw->dvb;
 	pvr2_channel_init(&adap->channel, pvr);
 	adap->channel.check_func = pvr2_dvb_internal_check;
 	init_waitqueue_head(&adap->buffer_wait_data);
 	mutex_init(&pvr->hdw->dvb.lock);
 	ret = pvr2_dvb_adapter_init(&pvr->hdw->dvb);
-	if (ret < 0) goto fail;
+	if (ret < 0) goto fail1;
 	ret = pvr2_dvb_frontend_init(&pvr->hdw->dvb);
-	return ret;
-fail:
+	if (ret < 0) goto fail2;
+	return 0;
+
+fail2:
+	pvr2_dvb_adapter_exit(adap);
+fail1:
 	pvr2_channel_done(&adap->channel);
 	return ret;
 }
