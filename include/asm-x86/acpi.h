@@ -89,6 +89,10 @@ extern int acpi_pci_disabled;
 extern int acpi_skip_timer_override;
 extern int acpi_use_timer_override;
 
+extern u8 acpi_sci_flags;
+extern int acpi_sci_override_gsi;
+void acpi_pic_sci_set_trigger(unsigned int, u16);
+
 static inline void disable_acpi(void)
 {
 	acpi_disabled = 1;
