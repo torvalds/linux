@@ -249,8 +249,9 @@ __setup("mfgpt_irq=", mfgpt_setup);
 
 static void mfgpt_disable_timer(u16 clock)
 {
-	u16 val = geode_mfgpt_read(clock, MFGPT_REG_SETUP);
-	geode_mfgpt_write(clock, MFGPT_REG_SETUP, val & ~MFGPT_SETUP_CNTEN);
+	/* avoid races by clearing CMP1 and CMP2 unconditionally */
+	geode_mfgpt_write(clock, MFGPT_REG_SETUP, (u16) ~MFGPT_SETUP_CNTEN |
+			MFGPT_SETUP_CMP1 | MFGPT_SETUP_CMP2);
 }
 
 static int mfgpt_next_event(unsigned long, struct clock_event_device *);
