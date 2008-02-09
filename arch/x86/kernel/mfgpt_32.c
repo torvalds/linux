@@ -32,10 +32,8 @@
 #include <linux/interrupt.h>
 #include <asm/geode.h>
 
-#define F_AVAIL    0x01
-
 static struct mfgpt_timer_t {
-	int flags;
+	unsigned int avail:1;
 } mfgpt_timers[MFGPT_MAX_TIMERS];
 
 /* Selected from the table above */
@@ -95,7 +93,7 @@ int __init geode_mfgpt_detect(void)
 	for (i = 0; i < MFGPT_MAX_TIMERS; i++) {
 		val = geode_mfgpt_read(i, MFGPT_REG_SETUP);
 		if (!(val & MFGPT_SETUP_SETUP)) {
-			mfgpt_timers[i].flags = F_AVAIL;
+			mfgpt_timers[i].avail = 1;
 			count++;
 		}
 	}
@@ -182,7 +180,7 @@ int geode_mfgpt_set_irq(int timer, int cmp, int irq, int enable)
 
 static int mfgpt_get(int timer)
 {
-	mfgpt_timers[timer].flags &= ~F_AVAIL;
+	mfgpt_timers[timer].avail = 0;
 	printk(KERN_INFO "geode-mfgpt:  Registered timer %d\n", timer);
 	return timer;
 }
@@ -199,7 +197,7 @@ int geode_mfgpt_alloc_timer(int timer, int domain)
 	if (timer < 0) {
 		/* Try to find an available timer */
 		for (i = 0; i < MFGPT_MAX_TIMERS; i++) {
-			if (mfgpt_timers[i].flags & F_AVAIL)
+			if (mfgpt_timers[i].avail)
 				return mfgpt_get(i);
 
 			if (i == 5 && domain == MFGPT_DOMAIN_WORKING)
@@ -207,7 +205,7 @@ int geode_mfgpt_alloc_timer(int timer, int domain)
 		}
 	} else {
 		/* If they requested a specific timer, try to honor that */
-		if (mfgpt_timers[timer].flags & F_AVAIL)
+		if (mfgpt_timers[timer].avail)
 			return mfgpt_get(timer);
 	}
 
