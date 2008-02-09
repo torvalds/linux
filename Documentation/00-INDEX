@@ -227,6 +227,8 @@ kref.txt
 	- docs on adding reference counters (krefs) to kernel objects.
 laptop-mode.txt
 	- how to conserve battery power using laptop-mode.
+laptops/
+	- directory with laptop related info and laptop driver documentation.
 ldm.txt
 	- a brief description of LDM (Windows Dynamic Disks).
 leds-class.txt
