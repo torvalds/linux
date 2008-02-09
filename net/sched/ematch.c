@@ -312,10 +312,9 @@ int tcf_em_tree_validate(struct tcf_proto *tp, struct nlattr *nla,
 	struct tcf_ematch_tree_hdr *tree_hdr;
 	struct tcf_ematch *em;
 
-	if (!nla) {
-		memset(tree, 0, sizeof(*tree));
+	memset(tree, 0, sizeof(*tree));
+	if (!nla)
 		return 0;
-	}
 
 	err = nla_parse_nested(tb, TCA_EMATCH_TREE_MAX, nla, em_policy);
 	if (err < 0)
