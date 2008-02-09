@@ -84,13 +84,18 @@ static inline pmd_t *vmem_pmd_alloc(void)
 	return pmd;
 }
 
-static inline pte_t *vmem_pte_alloc(void)
+static pte_t __init_refok *vmem_pte_alloc(void)
 {
-	pte_t *pte = vmem_alloc_pages(0);
+	pte_t *pte;
 
+	if (slab_is_available())
+		pte = (pte_t *) page_table_alloc(&init_mm);
+	else
+		pte = alloc_bootmem(PTRS_PER_PTE * sizeof(pte_t));
 	if (!pte)
 		return NULL;
-	clear_table((unsigned long *) pte, _PAGE_TYPE_EMPTY, PAGE_SIZE);
+	clear_table((unsigned long *) pte, _PAGE_TYPE_EMPTY,
+		    PTRS_PER_PTE * sizeof(pte_t));
 	return pte;
 }
 
@@ -360,6 +365,9 @@ void __init vmem_map_init(void)
 {
 	int i;
 
+	INIT_LIST_HEAD(&init_mm.context.crst_list);
+	INIT_LIST_HEAD(&init_mm.context.pgtable_list);
+	init_mm.context.noexec = 0;
 	NODE_DATA(0)->node_mem_map = VMEM_MAP;
 	for (i = 0; i < MEMORY_CHUNKS && memory_chunk[i].size > 0; i++)
 		vmem_add_mem(memory_chunk[i].addr, memory_chunk[i].size);

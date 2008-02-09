@@ -95,14 +95,14 @@ static inline void tlb_remove_page(struct mmu_gather *tlb, struct page *page)
  * pte_free_tlb frees a pte table and clears the CRSTE for the
  * page table from the tlb.
  */
-static inline void pte_free_tlb(struct mmu_gather *tlb, pgtable_t page)
+static inline void pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte)
 {
 	if (!tlb->fullmm) {
-		tlb->array[tlb->nr_ptes++] = page;
+		tlb->array[tlb->nr_ptes++] = pte;
 		if (tlb->nr_ptes >= tlb->nr_pmds)
 			tlb_flush_mmu(tlb, 0, 0);
 	} else
-		pte_free(tlb->mm, page);
+		pte_free(tlb->mm, pte);
 }
 
 /*

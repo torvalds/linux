@@ -57,11 +57,11 @@ extern char empty_zero_page[PAGE_SIZE];
  * PGDIR_SHIFT determines what a third-level page table entry can map
  */
 #ifndef __s390x__
-# define PMD_SHIFT	22
-# define PUD_SHIFT	22
-# define PGDIR_SHIFT	22
+# define PMD_SHIFT	20
+# define PUD_SHIFT	20
+# define PGDIR_SHIFT	20
 #else /* __s390x__ */
-# define PMD_SHIFT	21
+# define PMD_SHIFT	20
 # define PUD_SHIFT	31
 # define PGDIR_SHIFT	31
 #endif /* __s390x__ */
@@ -79,17 +79,14 @@ extern char empty_zero_page[PAGE_SIZE];
  * for S390 segment-table entries are combined to one PGD
  * that leads to 1024 pte per pgd
  */
+#define PTRS_PER_PTE	256
 #ifndef __s390x__
-# define PTRS_PER_PTE    1024
-# define PTRS_PER_PMD    1
-# define PTRS_PER_PUD	1
-# define PTRS_PER_PGD    512
+#define PTRS_PER_PMD	1
 #else /* __s390x__ */
-# define PTRS_PER_PTE    512
-# define PTRS_PER_PMD    1024
-# define PTRS_PER_PUD	1
-# define PTRS_PER_PGD    2048
+#define PTRS_PER_PMD	2048
 #endif /* __s390x__ */
+#define PTRS_PER_PUD	1
+#define PTRS_PER_PGD	2048
 
 #define FIRST_USER_ADDRESS  0
 
@@ -376,24 +373,6 @@ extern char empty_zero_page[PAGE_SIZE];
 # define PxD_SHADOW_SHIFT	2
 #endif /* __s390x__ */
 
-static inline struct page *get_shadow_page(struct page *page)
-{
-	if (s390_noexec && page->index)
-		return virt_to_page((void *)(addr_t) page->index);
-	return NULL;
-}
-
-static inline void *get_shadow_pte(void *table)
-{
-	unsigned long addr, offset;
-	struct page *page;
-
-	addr = (unsigned long) table;
-	offset = addr & (PAGE_SIZE - 1);
-	page = virt_to_page((void *)(addr ^ offset));
-	return (void *)(addr_t)(page->index ? (page->index | offset) : 0UL);
-}
-
 static inline void *get_shadow_table(void *table)
 {
 	unsigned long addr, offset;
@@ -411,17 +390,16 @@ static inline void *get_shadow_table(void *table)
  * hook is made available.
  */
 static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
-			      pte_t *pteptr, pte_t pteval)
+			      pte_t *ptep, pte_t entry)
 {
-	pte_t *shadow_pte = get_shadow_pte(pteptr);
-
-	*pteptr = pteval;
-	if (shadow_pte) {
-		if (!(pte_val(pteval) & _PAGE_INVALID) &&
-		    (pte_val(pteval) & _PAGE_SWX))
-			pte_val(*shadow_pte) = pte_val(pteval) | _PAGE_RO;
+	*ptep = entry;
+	if (mm->context.noexec) {
+		if (!(pte_val(entry) & _PAGE_INVALID) &&
+		    (pte_val(entry) & _PAGE_SWX))
+			pte_val(entry) |= _PAGE_RO;
 		else
-			pte_val(*shadow_pte) = _PAGE_TYPE_EMPTY;
+			pte_val(entry) = _PAGE_TYPE_EMPTY;
+		ptep[PTRS_PER_PTE] = entry;
 	}
 }
 
@@ -536,14 +514,6 @@ static inline int pte_young(pte_t pte)
 #define pgd_clear(pgd)		do { } while (0)
 #define pud_clear(pud)		do { } while (0)
 
-static inline void pmd_clear_kernel(pmd_t * pmdp)
-{
-	pmd_val(pmdp[0]) = _SEGMENT_ENTRY_EMPTY;
-	pmd_val(pmdp[1]) = _SEGMENT_ENTRY_EMPTY;
-	pmd_val(pmdp[2]) = _SEGMENT_ENTRY_EMPTY;
-	pmd_val(pmdp[3]) = _SEGMENT_ENTRY_EMPTY;
-}
-
 #else /* __s390x__ */
 
 #define pgd_clear(pgd)		do { } while (0)
@@ -562,30 +532,27 @@ static inline void pud_clear(pud_t * pud)
 		pud_clear_kernel(shadow);
 }
 
+#endif /* __s390x__ */
+
 static inline void pmd_clear_kernel(pmd_t * pmdp)
 {
 	pmd_val(*pmdp) = _SEGMENT_ENTRY_EMPTY;
-	pmd_val1(*pmdp) = _SEGMENT_ENTRY_EMPTY;
 }
 
-#endif /* __s390x__ */
-
-static inline void pmd_clear(pmd_t * pmdp)
+static inline void pmd_clear(pmd_t *pmd)
 {
-	pmd_t *shadow_pmd = get_shadow_table(pmdp);
+	pmd_t *shadow = get_shadow_table(pmd);
 
-	pmd_clear_kernel(pmdp);
-	if (shadow_pmd)
-		pmd_clear_kernel(shadow_pmd);
+	pmd_clear_kernel(pmd);
+	if (shadow)
+		pmd_clear_kernel(shadow);
 }
 
 static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
-	pte_t *shadow_pte = get_shadow_pte(ptep);
-
 	pte_val(*ptep) = _PAGE_TYPE_EMPTY;
-	if (shadow_pte)
-		pte_val(*shadow_pte) = _PAGE_TYPE_EMPTY;
+	if (mm->context.noexec)
+		pte_val(ptep[PTRS_PER_PTE]) = _PAGE_TYPE_EMPTY;
 }
 
 /*
@@ -666,7 +633,7 @@ static inline void __ptep_ipte(unsigned long address, pte_t *ptep)
 {
 	if (!(pte_val(*ptep) & _PAGE_INVALID)) {
 #ifndef __s390x__
-		/* S390 has 1mb segments, we are emulating 4MB segments */
+		/* pto must point to the start of the segment table */
 		pte_t *pto = (pte_t *) (((unsigned long) ptep) & 0x7ffffc00);
 #else
 		/* ipte in zarch mode can do the math */
@@ -680,12 +647,12 @@ static inline void __ptep_ipte(unsigned long address, pte_t *ptep)
 	pte_val(*ptep) = _PAGE_TYPE_EMPTY;
 }
 
-static inline void ptep_invalidate(unsigned long address, pte_t *ptep)
+static inline void ptep_invalidate(struct mm_struct *mm,
+				   unsigned long address, pte_t *ptep)
 {
 	__ptep_ipte(address, ptep);
-	ptep = get_shadow_pte(ptep);
-	if (ptep)
-		__ptep_ipte(address, ptep);
+	if (mm->context.noexec)
+		__ptep_ipte(address, ptep + PTRS_PER_PTE);
 }
 
 /*
@@ -707,7 +674,7 @@ static inline void ptep_invalidate(unsigned long address, pte_t *ptep)
 	pte_t __pte = *(__ptep);					\
 	if (atomic_read(&(__mm)->mm_users) > 1 ||			\
 	    (__mm) != current->active_mm)				\
-		ptep_invalidate(__address, __ptep);			\
+		ptep_invalidate(__mm, __address, __ptep);		\
 	else								\
 		pte_clear((__mm), (__address), (__ptep));		\
 	__pte;								\
@@ -718,7 +685,7 @@ static inline pte_t ptep_clear_flush(struct vm_area_struct *vma,
 				     unsigned long address, pte_t *ptep)
 {
 	pte_t pte = *ptep;
-	ptep_invalidate(address, ptep);
+	ptep_invalidate(vma->vm_mm, address, ptep);
 	return pte;
 }
 
@@ -739,7 +706,7 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
 	if (full)
 		pte_clear(mm, addr, ptep);
 	else
-		ptep_invalidate(addr, ptep);
+		ptep_invalidate(mm, addr, ptep);
 	return pte;
 }
 
@@ -750,7 +717,7 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
 	if (pte_write(__pte)) {						\
 		if (atomic_read(&(__mm)->mm_users) > 1 ||		\
 		    (__mm) != current->active_mm)			\
-			ptep_invalidate(__addr, __ptep);		\
+			ptep_invalidate(__mm, __addr, __ptep);		\
 		set_pte_at(__mm, __addr, __ptep, pte_wrprotect(__pte));	\
 	}								\
 })
@@ -760,7 +727,7 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
 ({									\
 	int __changed = !pte_same(*(__ptep), __entry);			\
 	if (__changed) {						\
-		ptep_invalidate(__addr, __ptep);			\
+		ptep_invalidate((__vma)->vm_mm, __addr, __ptep);	\
 		set_pte_at((__vma)->vm_mm, __addr, __ptep, __entry);	\
 	}								\
 	__changed;							\

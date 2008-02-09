@@ -184,7 +184,7 @@ void kernel_map_pages(struct page *page, int numpages, int enable)
 		pmd = pmd_offset(pud, address);
 		pte = pte_offset_kernel(pmd, address);
 		if (!enable) {
-			ptep_invalidate(address, pte);
+			ptep_invalidate(&init_mm, address, pte);
 			continue;
 		}
 		*pte = mk_pte_phys(address, __pgprot(_PAGE_TYPE_RW));
