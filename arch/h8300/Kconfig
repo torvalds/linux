@@ -8,6 +8,7 @@ mainmenu "uClinux/h8300 (w/o MMU) Kernel Configuration"
 config H8300
 	bool
 	default y
+	select HAVE_IDE
 
 config MMU
 	bool

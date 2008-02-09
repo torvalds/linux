@@ -13,6 +13,7 @@ set -e
 
 # Some variables and settings used throughout the script
 version=$KERNELRELEASE
+revision=`cat .version`
 tmpdir="$objtree/debian/tmp"
 packagename=linux-$version
 
@@ -65,7 +66,7 @@ done
 name="Kernel Compiler <$(id -nu)@$(hostname -f)>"
 # Generate a simple changelog template
 cat <<EOF > debian/changelog
-linux ($version) unstable; urgency=low
+linux ($version-$revision) unstable; urgency=low
 
   * A standard release
 

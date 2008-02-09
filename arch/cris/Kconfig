@@ -54,6 +54,7 @@ config FORCE_MAX_ZONEORDER
 config CRIS
 	bool
 	default y
+	select HAVE_IDE
 
 config HZ
 	int

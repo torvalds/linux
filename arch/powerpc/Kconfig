@@ -87,6 +87,7 @@ config ARCH_NO_VIRT_TO_BUS
 config PPC
 	bool
 	default y
+	select HAVE_IDE
 	select HAVE_OPROFILE
 	select HAVE_KPROBES
 

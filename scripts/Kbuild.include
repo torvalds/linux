@@ -39,15 +39,19 @@ escsq = $(subst $(squote),'\$(squote)',$1)
 # - If they are equal no change, and no timestamp update
 # - stdin is piped in from the first prerequisite ($<) so one has
 #   to specify a valid file as first prerequisite (often the kbuild file)
+ quiet_chk_filechk = echo '  CHK     $@'
+silent_chk_filechk = :
+ quiet_upd_filechk = echo '  UPD     $@'
+silent_upd_filechk = :
 define filechk
 	$(Q)set -e;				\
-	echo '  CHK     $@';			\
+	$($(quiet)chk_filechk);			\
 	mkdir -p $(dir $@);			\
 	$(filechk_$(1)) < $< > $@.tmp;		\
 	if [ -r $@ ] && cmp -s $@ $@.tmp; then	\
 		rm -f $@.tmp;			\
 	else					\
-		echo '  UPD     $@';		\
+		$($(quiet)upd_filechk);		\
 		mv -f $@.tmp $@;		\
 	fi
 endef

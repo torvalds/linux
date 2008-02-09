@@ -69,6 +69,7 @@ config NR_CPUS
 config SPARC
 	bool
 	default y
+	select HAVE_IDE
 	select HAVE_OPROFILE
 
 # Identify this as a Sparc32 build

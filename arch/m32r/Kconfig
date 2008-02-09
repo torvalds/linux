@@ -8,6 +8,7 @@ mainmenu "Linux/M32R Kernel Configuration"
 config M32R
 	bool
 	default y
+	select HAVE_IDE
 	select HAVE_OPROFILE
 
 config SBUS

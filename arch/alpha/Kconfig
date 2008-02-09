@@ -5,6 +5,7 @@
 config ALPHA
 	bool
 	default y
+	select HAVE_IDE
 	select HAVE_OPROFILE
 	help
 	  The Alpha is a 64-bit general-purpose processor designed and

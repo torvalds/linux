@@ -4,10 +4,14 @@
 # Andre Hedrick <andre@linux-ide.org>
 #
 
+# Select HAVE_IDE if IDE is supported
+config HAVE_IDE
+	def_bool n
+
 menuconfig IDE
 	tristate "ATA/ATAPI/MFM/RLL support"
+	depends on HAVE_IDE
 	depends on BLOCK
-	depends on HAS_IOMEM
 	---help---
 	  If you say Y here, your kernel will be able to manage low cost mass
 	  storage units such as ATA/(E)IDE and ATAPI units. The most common
