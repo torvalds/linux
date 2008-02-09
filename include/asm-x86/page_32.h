@@ -48,7 +48,6 @@ typedef unsigned long	pgprotval_t;
 typedef unsigned long	phys_addr_t;
 
 typedef union { pteval_t pte, pte_low; } pte_t;
-typedef pte_t boot_pte_t;
 
 #endif	/* __ASSEMBLY__ */
 #endif	/* CONFIG_X86_PAE */
