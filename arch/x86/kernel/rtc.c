@@ -9,7 +9,6 @@
 #include <asm/vsyscall.h>
 
 #ifdef CONFIG_X86_32
-# define CMOS_YEARS_OFFS 1900
 /*
  * This is a special lock that is owned by the CPU and holds the index
  * register we are working with.  It is required for NMI access to the
@@ -17,13 +16,10 @@
  */
 volatile unsigned long cmos_lock = 0;
 EXPORT_SYMBOL(cmos_lock);
-#else
-/*
- * x86-64 systems only exists since 2002.
- * This will work up to Dec 31, 2100
- */
-# define CMOS_YEARS_OFFS 2000
 #endif
+
+/* For two digit years assume time is always after that */
+#define CMOS_YEARS_OFFS 2000
 
 DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL(rtc_lock);
@@ -136,11 +132,8 @@ unsigned long mach_get_cmos_time(void)
 		BCD_TO_BIN(century);
 		year += century * 100;
 		printk(KERN_INFO "Extended CMOS year: %d\n", century * 100);
-	} else {
+	} else
 		year += CMOS_YEARS_OFFS;
-		if (year < 1970)
-			year += 100;
-	}
 
 	return mktime(year, mon, day, hour, min, sec);
 }
