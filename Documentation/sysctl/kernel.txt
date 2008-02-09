@@ -41,6 +41,7 @@ show up in /proc/sys/kernel:
 - pid_max
 - powersave-nap               [ PPC only ]
 - printk
+- randomize_va_space
 - real-root-dev               ==> Documentation/initrd.txt
 - reboot-cmd                  [ SPARC only ]
 - rtsig-max
@@ -277,6 +278,34 @@ While long term we enforce one message per printk_ratelimit
 seconds, we do allow a burst of messages to pass through.
 printk_ratelimit_burst specifies the number of messages we can
 send before ratelimiting kicks in.
+
+==============================================================
+
+randomize-va-space:
+
+This option can be used to select the type of process address
+space randomization that is used in the system, for architectures
+that support this feature.
+
+0 - Turn the process address space randomization off by default.
+
+1 - Make the addresses of mmap base, stack and VDSO page randomized.
+    This, among other things, implies that shared libraries will be
+    loaded to random addresses. Also for PIE-linked binaries, the location
+    of code start is randomized.
+
+    With heap randomization, the situation is a little bit more
+    complicated.
+    There a few legacy applications out there (such as some ancient
+    versions of libc.so.5 from 1996) that assume that brk area starts
+    just after the end of the code+bss. These applications break when
+    start of the brk area is randomized. There are however no known
+    non-legacy applications that would be broken this way, so for most
+    systems it is safe to choose full randomization. However there is
+    a CONFIG_COMPAT_BRK option for systems with ancient and/or broken
+    binaries, that makes heap non-randomized, but keeps all other
+    parts of process address space randomized if randomize_va_space
+    sysctl is turned on.
 
 ==============================================================
 
