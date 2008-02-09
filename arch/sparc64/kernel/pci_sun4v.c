@@ -1,6 +1,6 @@
 /* pci_sun4v.c: SUN4V specific PCI controller support.
  *
- * Copyright (C) 2006, 2007 David S. Miller (davem@davemloft.net)
+ * Copyright (C) 2006, 2007, 2008 David S. Miller (davem@davemloft.net)
  */
 
 #include <linux/kernel.h>
@@ -113,54 +113,6 @@ static inline long iommu_batch_end(void)
 	return iommu_batch_flush(p);
 }
 
-static long arena_alloc(struct iommu_arena *arena, unsigned long npages)
-{
-	unsigned long n, i, start, end, limit;
-	int pass;
-
-	limit = arena->limit;
-	start = arena->hint;
-	pass = 0;
-
-again:
-	n = find_next_zero_bit(arena->map, limit, start);
-	end = n + npages;
-	if (unlikely(end >= limit)) {
-		if (likely(pass < 1)) {
-			limit = start;
-			start = 0;
-			pass++;
-			goto again;
-		} else {
-			/* Scanned the whole thing, give up. */
-			return -1;
-		}
-	}
-
-	for (i = n; i < end; i++) {
-		if (test_bit(i, arena->map)) {
-			start = i + 1;
-			goto again;
-		}
-	}
-
-	for (i = n; i < end; i++)
-		__set_bit(i, arena->map);
-
-	arena->hint = end;
-
-	return n;
-}
-
-static void arena_free(struct iommu_arena *arena, unsigned long base,
-		       unsigned long npages)
-{
-	unsigned long i;
-
-	for (i = base; i < (base + npages); i++)
-		__clear_bit(i, arena->map);
-}
-
 static void *dma_4v_alloc_coherent(struct device *dev, size_t size,
 				   dma_addr_t *dma_addrp, gfp_t gfp)
 {
@@ -185,11 +137,11 @@ static void *dma_4v_alloc_coherent(struct device *dev, size_t size,
 	iommu = dev->archdata.iommu;
 
 	spin_lock_irqsave(&iommu->lock, flags);
-	entry = arena_alloc(&iommu->arena, npages);
+	entry = iommu_range_alloc(dev, iommu, npages, NULL);
 	spin_unlock_irqrestore(&iommu->lock, flags);
 
-	if (unlikely(entry < 0L))
-		goto arena_alloc_fail;
+	if (unlikely(entry == DMA_ERROR_CODE))
+		goto range_alloc_fail;
 
 	*dma_addrp = (iommu->page_table_map_base +
 		      (entry << IO_PAGE_SHIFT));
@@ -219,10 +171,10 @@ static void *dma_4v_alloc_coherent(struct device *dev, size_t size,
 iommu_map_fail:
 	/* Interrupts are disabled.  */
 	spin_lock(&iommu->lock);
-	arena_free(&iommu->arena, entry, npages);
+	iommu_range_free(iommu, *dma_addrp, npages);
 	spin_unlock_irqrestore(&iommu->lock, flags);
 
-arena_alloc_fail:
+range_alloc_fail:
 	free_pages(first_page, order);
 	return NULL;
 }
@@ -243,7 +195,7 @@ static void dma_4v_free_coherent(struct device *dev, size_t size, void *cpu,
 
 	spin_lock_irqsave(&iommu->lock, flags);
 
-	arena_free(&iommu->arena, entry, npages);
+	iommu_range_free(iommu, dvma, npages);
 
 	do {
 		unsigned long num;
@@ -281,10 +233,10 @@ static dma_addr_t dma_4v_map_single(struct device *dev, void *ptr, size_t sz,
 	npages >>= IO_PAGE_SHIFT;
 
 	spin_lock_irqsave(&iommu->lock, flags);
-	entry = arena_alloc(&iommu->arena, npages);
+	entry = iommu_range_alloc(dev, iommu, npages, NULL);
 	spin_unlock_irqrestore(&iommu->lock, flags);
 
-	if (unlikely(entry < 0L))
+	if (unlikely(entry == DMA_ERROR_CODE))
 		goto bad;
 
 	bus_addr = (iommu->page_table_map_base +
@@ -319,7 +271,7 @@ bad:
 iommu_map_fail:
 	/* Interrupts are disabled.  */
 	spin_lock(&iommu->lock);
-	arena_free(&iommu->arena, entry, npages);
+	iommu_range_free(iommu, bus_addr, npages);
 	spin_unlock_irqrestore(&iommu->lock, flags);
 
 	return DMA_ERROR_CODE;
@@ -350,9 +302,9 @@ static void dma_4v_unmap_single(struct device *dev, dma_addr_t bus_addr,
 
 	spin_lock_irqsave(&iommu->lock, flags);
 
-	entry = (bus_addr - iommu->page_table_map_base) >> IO_PAGE_SHIFT;
-	arena_free(&iommu->arena, entry, npages);
+	iommu_range_free(iommu, bus_addr, npages);
 
+	entry = (bus_addr - iommu->page_table_map_base) >> IO_PAGE_SHIFT;
 	do {
 		unsigned long num;
 
@@ -369,10 +321,10 @@ static int dma_4v_map_sg(struct device *dev, struct scatterlist *sglist,
 			 int nelems, enum dma_data_direction direction)
 {
 	unsigned long flags, npages, i, prot;
+	u32 dma_base, orig_dma_base;
 	struct scatterlist *sg;
 	struct iommu *iommu;
 	long entry, err;
-	u32 dma_base;
 
 	/* Fast path single entry scatterlists. */
 	if (nelems == 1) {
@@ -393,13 +345,13 @@ static int dma_4v_map_sg(struct device *dev, struct scatterlist *sglist,
 	npages = calc_npages(sglist, nelems);
 
 	spin_lock_irqsave(&iommu->lock, flags);
-	entry = arena_alloc(&iommu->arena, npages);
+	entry = iommu_range_alloc(dev, iommu, npages, NULL);
 	spin_unlock_irqrestore(&iommu->lock, flags);
 
-	if (unlikely(entry < 0L))
+	if (unlikely(entry == DMA_ERROR_CODE))
 		goto bad;
 
-	dma_base = iommu->page_table_map_base +
+	orig_dma_base = dma_base = iommu->page_table_map_base +
 		(entry << IO_PAGE_SHIFT);
 
 	prot = HV_PCI_MAP_ATTR_READ;
@@ -449,7 +401,7 @@ bad:
 
 iommu_map_failed:
 	spin_lock_irqsave(&iommu->lock, flags);
-	arena_free(&iommu->arena, entry, npages);
+	iommu_range_free(iommu, orig_dma_base, npages);
 	spin_unlock_irqrestore(&iommu->lock, flags);
 
 	return 0;
@@ -481,7 +433,7 @@ static void dma_4v_unmap_sg(struct device *dev, struct scatterlist *sglist,
 
 	spin_lock_irqsave(&iommu->lock, flags);
 
-	arena_free(&iommu->arena, entry, npages);
+	iommu_range_free(iommu, bus_addr, npages);
 
 	do {
 		unsigned long num;

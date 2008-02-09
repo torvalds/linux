@@ -1,6 +1,6 @@
 /* iommu.c: Generic sparc64 IOMMU support.
  *
- * Copyright (C) 1999, 2007 David S. Miller (davem@davemloft.net)
+ * Copyright (C) 1999, 2007, 2008 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1999, 2000 Jakub Jelinek (jakub@redhat.com)
  */
 
@@ -10,6 +10,7 @@
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/errno.h>
+#include <linux/iommu-helper.h>
 
 #ifdef CONFIG_PCI
 #include <linux/pci.h>
@@ -41,7 +42,7 @@
 			       "i" (ASI_PHYS_BYPASS_EC_E))
 
 /* Must be invoked under the IOMMU lock. */
-static void __iommu_flushall(struct iommu *iommu)
+static void iommu_flushall(struct iommu *iommu)
 {
 	if (iommu->iommu_flushinv) {
 		iommu_write(iommu->iommu_flushinv, ~(u64)0);
@@ -83,54 +84,91 @@ static inline void iopte_make_dummy(struct iommu *iommu, iopte_t *iopte)
 	iopte_val(*iopte) = val;
 }
 
-/* Based largely upon the ppc64 iommu allocator.  */
-static long arena_alloc(struct iommu *iommu, unsigned long npages)
+/* Based almost entirely upon the ppc64 iommu allocator.  If you use the 'handle'
+ * facility it must all be done in one pass while under the iommu lock.
+ *
+ * On sun4u platforms, we only flush the IOMMU once every time we've passed
+ * over the entire page table doing allocations.  Therefore we only ever advance
+ * the hint and cannot backtrack it.
+ */
+unsigned long iommu_range_alloc(struct device *dev,
+				struct iommu *iommu,
+				unsigned long npages,
+				unsigned long *handle)
 {
+	unsigned long n, end, start, limit, boundary_size;
 	struct iommu_arena *arena = &iommu->arena;
-	unsigned long n, i, start, end, limit;
-	int pass;
+	int pass = 0;
+
+	/* This allocator was derived from x86_64's bit string search */
+
+	/* Sanity check */
+	if (unlikely(npages == 0)) {
+		if (printk_ratelimit())
+			WARN_ON(1);
+		return DMA_ERROR_CODE;
+	}
+
+	if (handle && *handle)
+		start = *handle;
+	else
+		start = arena->hint;
 
 	limit = arena->limit;
-	start = arena->hint;
-	pass = 0;
 
-again:
-	n = find_next_zero_bit(arena->map, limit, start);
-	end = n + npages;
-	if (unlikely(end >= limit)) {
+	/* The case below can happen if we have a small segment appended
+	 * to a large, or when the previous alloc was at the very end of
+	 * the available space. If so, go back to the beginning and flush.
+	 */
+	if (start >= limit) {
+		start = 0;
+		if (iommu->flush_all)
+			iommu->flush_all(iommu);
+	}
+
+ again:
+
+	if (dev)
+		boundary_size = ALIGN(dma_get_seg_boundary(dev) + 1,
+				      1 << IO_PAGE_SHIFT);
+	else
+		boundary_size = ALIGN(1UL << 32, 1 << IO_PAGE_SHIFT);
+
+	n = iommu_area_alloc(arena->map, limit, start, npages, 0,
+			     boundary_size >> IO_PAGE_SHIFT, 0);
+	if (n == -1) {
 		if (likely(pass < 1)) {
-			limit = start;
+			/* First failure, rescan from the beginning.  */
 			start = 0;
-			__iommu_flushall(iommu);
+			if (iommu->flush_all)
+				iommu->flush_all(iommu);
 			pass++;
 			goto again;
 		} else {
-			/* Scanned the whole thing, give up. */
-			return -1;
+			/* Second failure, give up */
+			return DMA_ERROR_CODE;
 		}
 	}
 
-	for (i = n; i < end; i++) {
-		if (test_bit(i, arena->map)) {
-			start = i + 1;
-			goto again;
-		}
-	}
-
-	for (i = n; i < end; i++)
-		__set_bit(i, arena->map);
+	end = n + npages;
 
 	arena->hint = end;
+
+	/* Update handle for SG allocations */
+	if (handle)
+		*handle = end;
 
 	return n;
 }
 
-static void arena_free(struct iommu_arena *arena, unsigned long base, unsigned long npages)
+void iommu_range_free(struct iommu *iommu, dma_addr_t dma_addr, unsigned long npages)
 {
-	unsigned long i;
+	struct iommu_arena *arena = &iommu->arena;
+	unsigned long entry;
 
-	for (i = base; i < (base + npages); i++)
-		__clear_bit(i, arena->map);
+	entry = (dma_addr - iommu->page_table_map_base) >> IO_PAGE_SHIFT;
+
+	iommu_area_free(arena->map, entry, npages);
 }
 
 int iommu_table_init(struct iommu *iommu, int tsbsize,
@@ -155,6 +193,9 @@ int iommu_table_init(struct iommu *iommu, int tsbsize,
 		return -ENOMEM;
 	}
 	iommu->arena.limit = num_tsb_entries;
+
+	if (tlb_type != hypervisor)
+		iommu->flush_all = iommu_flushall;
 
 	/* Allocate and initialize the dummy page which we
 	 * set inactive IO PTEs to point to.
@@ -192,20 +233,16 @@ out_free_map:
 	return -ENOMEM;
 }
 
-static inline iopte_t *alloc_npages(struct iommu *iommu, unsigned long npages)
+static inline iopte_t *alloc_npages(struct device *dev, struct iommu *iommu,
+				    unsigned long npages)
 {
-	long entry;
+	unsigned long entry;
 
-	entry = arena_alloc(iommu, npages);
-	if (unlikely(entry < 0))
+	entry = iommu_range_alloc(dev, iommu, npages, NULL);
+	if (unlikely(entry == DMA_ERROR_CODE))
 		return NULL;
 
 	return iommu->page_table + entry;
-}
-
-static inline void free_npages(struct iommu *iommu, dma_addr_t base, unsigned long npages)
-{
-	arena_free(&iommu->arena, base >> IO_PAGE_SHIFT, npages);
 }
 
 static int iommu_alloc_ctx(struct iommu *iommu)
@@ -258,7 +295,7 @@ static void *dma_4u_alloc_coherent(struct device *dev, size_t size,
 	iommu = dev->archdata.iommu;
 
 	spin_lock_irqsave(&iommu->lock, flags);
-	iopte = alloc_npages(iommu, size >> IO_PAGE_SHIFT);
+	iopte = alloc_npages(dev, iommu, size >> IO_PAGE_SHIFT);
 	spin_unlock_irqrestore(&iommu->lock, flags);
 
 	if (unlikely(iopte == NULL)) {
@@ -296,7 +333,7 @@ static void dma_4u_free_coherent(struct device *dev, size_t size,
 
 	spin_lock_irqsave(&iommu->lock, flags);
 
-	free_npages(iommu, dvma - iommu->page_table_map_base, npages);
+	iommu_range_free(iommu, dvma, npages);
 
 	spin_unlock_irqrestore(&iommu->lock, flags);
 
@@ -327,7 +364,7 @@ static dma_addr_t dma_4u_map_single(struct device *dev, void *ptr, size_t sz,
 	npages >>= IO_PAGE_SHIFT;
 
 	spin_lock_irqsave(&iommu->lock, flags);
-	base = alloc_npages(iommu, npages);
+	base = alloc_npages(dev, iommu, npages);
 	ctx = 0;
 	if (iommu->iommu_ctxflush)
 		ctx = iommu_alloc_ctx(iommu);
@@ -465,7 +502,7 @@ static void dma_4u_unmap_single(struct device *dev, dma_addr_t bus_addr,
 	for (i = 0; i < npages; i++)
 		iopte_make_dummy(iommu, base + i);
 
-	free_npages(iommu, bus_addr - iommu->page_table_map_base, npages);
+	iommu_range_free(iommu, bus_addr, npages);
 
 	iommu_free_ctx(iommu, ctx);
 
@@ -503,7 +540,7 @@ static int dma_4u_map_sg(struct device *dev, struct scatterlist *sglist,
 
 	spin_lock_irqsave(&iommu->lock, flags);
 
-	base = alloc_npages(iommu, npages);
+	base = alloc_npages(dev, iommu, npages);
 	ctx = 0;
 	if (iommu->iommu_ctxflush)
 		ctx = iommu_alloc_ctx(iommu);
@@ -592,7 +629,7 @@ static void dma_4u_unmap_sg(struct device *dev, struct scatterlist *sglist,
 	for (i = 0; i < npages; i++)
 		iopte_make_dummy(iommu, base + i);
 
-	free_npages(iommu, bus_addr - iommu->page_table_map_base, npages);
+	iommu_range_free(iommu, bus_addr, npages);
 
 	iommu_free_ctx(iommu, ctx);
 

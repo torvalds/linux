@@ -58,4 +58,12 @@ static inline unsigned long calc_npages(struct scatterlist *sglist, int nelems)
 	return npages;
 }
 
+extern unsigned long iommu_range_alloc(struct device *dev,
+				       struct iommu *iommu,
+				       unsigned long npages,
+				       unsigned long *handle);
+extern void iommu_range_free(struct iommu *iommu,
+			     dma_addr_t dma_addr,
+			     unsigned long npages);
+
 #endif /* _IOMMU_COMMON_H */
