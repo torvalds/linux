@@ -472,7 +472,7 @@ static inline unsigned long __ffz_word_loop(const unsigned long *addr,
 		"	brct	%1,0b\n"
 		"1:\n"
 #endif
-		: "+a" (bytes), "+d" (size)
+		: "+&a" (bytes), "+&d" (size)
 		: "d" (-1UL), "a" (addr), "m" (*(addrtype *) addr)
 		: "cc" );
 	return bytes;
@@ -507,7 +507,7 @@ static inline unsigned long __ffs_word_loop(const unsigned long *addr,
 		"	brct	%1,0b\n"
 		"1:\n"
 #endif
-		: "+a" (bytes), "+a" (size)
+		: "+&a" (bytes), "+&a" (size)
 		: "d" (0UL), "a" (addr), "m" (*(addrtype *) addr)
 		: "cc" );
 	return bytes;
