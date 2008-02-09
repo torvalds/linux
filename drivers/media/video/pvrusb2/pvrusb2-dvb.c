@@ -293,8 +293,6 @@ static int pvr2_dvb_adapter_init(struct pvr2_dvb_adapter *adap)
 
 	dvb_net_init(&adap->dvb_adap, &adap->dvb_net, &adap->demux.dmx);
 
-	adap->digital_up = 1;
-
 	return 0;
 
 err_dmx_dev:
@@ -307,15 +305,12 @@ err:
 
 static int pvr2_dvb_adapter_exit(struct pvr2_dvb_adapter *adap)
 {
-	if (adap->digital_up) {
-		printk(KERN_DEBUG "unregistering DVB devices\n");
-		dvb_net_release(&adap->dvb_net);
-		adap->demux.dmx.close(&adap->demux.dmx);
-		dvb_dmxdev_release(&adap->dmxdev);
-		dvb_dmx_release(&adap->demux);
-		dvb_unregister_adapter(&adap->dvb_adap);
-		adap->digital_up = 0;
-	}
+	printk(KERN_DEBUG "unregistering DVB devices\n");
+	dvb_net_release(&adap->dvb_net);
+	adap->demux.dmx.close(&adap->demux.dmx);
+	dvb_dmxdev_release(&adap->dmxdev);
+	dvb_dmx_release(&adap->demux);
+	dvb_unregister_adapter(&adap->dvb_adap);
 	return 0;
 }
 
