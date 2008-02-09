@@ -1,8 +1,9 @@
 /*
- * Suspend support specific for i386.
+ * Suspend and hibernation support for x86-64
  *
  * Distribute under GPLv2
  *
+ * Copyright (c) 2007 Rafael J. Wysocki <rjw@sisk.pl>
  * Copyright (c) 2002 Pavel Machek <pavel@suse.cz>
  * Copyright (c) 2001 Patrick Mochel <mochel@osdl.org>
  */
@@ -63,7 +64,7 @@ static void __save_processor_state(struct saved_context *ctxt)
 	mtrr_save_fixed_ranges(NULL);
 
 	/*
-	 * control registers 
+	 * control registers
 	 */
 	rdmsrl(MSR_EFER, ctxt->efer);
 	ctxt->cr0 = read_cr0();
