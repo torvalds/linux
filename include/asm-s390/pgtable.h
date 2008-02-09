@@ -127,8 +127,9 @@ extern char empty_zero_page[PAGE_SIZE];
  * mapping. This needs to be calculated at compile time since the size of the
  * VMEM_MAP is static but the size of struct page can change.
  */
-#define VMEM_MAX_PHYS	min(VMALLOC_START, ((VMEM_MAP_END - VMALLOC_END) / \
-			  sizeof(struct page) * PAGE_SIZE) & ~((16 << 20) - 1))
+#define VMEM_MAX_PAGES	((VMEM_MAP_END - VMALLOC_END) / sizeof(struct page))
+#define VMEM_MAX_PFN	min(VMALLOC_START >> PAGE_SHIFT, VMEM_MAX_PAGES)
+#define VMEM_MAX_PHYS	((VMEM_MAX_PFN << PAGE_SHIFT) & ~((16 << 20) - 1))
 #define VMEM_MAP	((struct page *) VMALLOC_END)
 
 /*
