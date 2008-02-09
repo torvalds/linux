@@ -241,15 +241,16 @@ static ssize_t write(struct file *file, const char __user *in,
 		cpu = &lg->cpus[cpu_id];
 		if (!cpu)
 			return -EINVAL;
+
+		/* Once the Guest is dead, you can only read() why it died. */
+		if (lg->dead)
+			return -ENOENT;
+
+		/* If you're not the task which owns the Guest, all you can do
+		 * is break the Launcher out of running the Guest. */
+		if (current != cpu->tsk && req != LHREQ_BREAK)
+			return -EPERM;
 	}
-
-	/* Once the Guest is dead, all you can do is read() why it died. */
-	if (lg && lg->dead)
-		return -ENOENT;
-
-	/* If you're not the task which owns the Guest, you can only break */
-	if (lg && current != cpu->tsk && req != LHREQ_BREAK)
-		return -EPERM;
 
 	switch (req) {
 	case LHREQ_INITIALIZE:
