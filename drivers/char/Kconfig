@@ -875,7 +875,7 @@ config SONYPI
 	  Device which can be found in many (all ?) Sony Vaio laptops.
 
 	  If you have one of those laptops, read
-	  <file:Documentation/sonypi.txt>, and say Y or M here.
+	  <file:Documentation/laptops/sonypi.txt>, and say Y or M here.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called sonypi.

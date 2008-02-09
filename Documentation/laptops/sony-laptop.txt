@@ -114,4 +114,3 @@ Bugs/Limitations:
   sonypi driver (through /dev/sonypi) does not try to use the
   sony-laptop driver. In the future, spicctrl could try sonypi first,
   and if it isn't present, try sony-laptop instead.
-
