@@ -370,7 +370,7 @@ int __init mfgpt_timer_setup(void)
 			&mfgpt_clockevent);
 
 	printk(KERN_INFO
-	       "mfgpt-timer:  registering the MFGT timer as a clock event.\n");
+	       "mfgpt-timer:  registering the MFGPT timer as a clock event.\n");
 	clockevents_register_device(&mfgpt_clockevent);
 
 	return 0;
