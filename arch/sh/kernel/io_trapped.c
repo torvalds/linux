@@ -20,7 +20,6 @@
 #include <asm/io_trapped.h>
 
 #define TRAPPED_PAGES_MAX 16
-#define MAX(a, b) (((a) >= (b)) ? (a) : (b))
 
 #ifdef CONFIG_HAS_IOPORT
 LIST_HEAD(trapped_io);
@@ -211,7 +210,9 @@ static unsigned long from_device(void *dst, const void *src, unsigned long cnt)
 	if (!src_addr)
 		return cnt;
 
-	tmp = copy_word(src_addr, MAX(cnt, (tiop->minimum_bus_width / 8)),
+	tmp = copy_word(src_addr,
+			max_t(unsigned long, cnt,
+			      (tiop->minimum_bus_width / 8)),
 			(unsigned long)dst, cnt);
 
 	pr_debug("trapped io read 0x%08lx -> 0x%08llx\n", src_addr, tmp);
@@ -233,7 +234,8 @@ static unsigned long to_device(void *dst, const void *src, unsigned long cnt)
 		return cnt;
 
 	tmp = copy_word((unsigned long)src, cnt,
-			dst_addr, MAX(cnt, (tiop->minimum_bus_width / 8)));
+			dst_addr, max_t(unsigned long, cnt,
+					(tiop->minimum_bus_width / 8)));
 
 	pr_debug("trapped io write 0x%08lx -> 0x%08llx\n", dst_addr, tmp);
 	return 0;
