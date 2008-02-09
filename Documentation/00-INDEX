@@ -353,8 +353,6 @@ sh/
 	- directory with info on porting Linux to a new architecture.
 smart-config.txt
 	- description of the Smart Config makefile feature.
-sonypi.txt
-	- info on Linux Sony Programmable I/O Device support.
 sound/
 	- directory with info on sound card support.
 sparc/
