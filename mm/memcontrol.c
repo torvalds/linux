@@ -399,7 +399,7 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem)
 	int ret;
 
 	task_lock(task);
-	ret = task->mm && mm_cgroup(task->mm) == mem;
+	ret = task->mm && vm_match_cgroup(task->mm, mem);
 	task_unlock(task);
 	return ret;
 }
