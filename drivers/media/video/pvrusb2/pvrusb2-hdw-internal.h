@@ -41,7 +41,6 @@
 #include "pvrusb2-io.h"
 #include <media/cx2341x.h>
 #include "pvrusb2-devattr.h"
-#include "pvrusb2-dvb.h"
 
 /* Legal values for PVR2_CID_HSM */
 #define PVR2_CVAL_HSM_FAIL 0
@@ -374,8 +373,6 @@ struct pvr2_hdw {
 
 	struct pvr2_ctrl *controls;
 	unsigned int control_cnt;
-
-	struct pvr2_dvb_adapter dvb;
 };
 
 /* This function gets the current frequency */

@@ -36,6 +36,6 @@ struct pvr2_dvb_props {
 	int (*tuner_attach) (struct pvr2_dvb_adapter *);
 };
 
-int pvr2_dvb_init(struct pvr2_context *pvr);
+struct pvr2_dvb_adapter *pvr2_dvb_create(struct pvr2_context *pvr);
 
 #endif /* __PVRUSB2_DVB_H__ */

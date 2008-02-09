@@ -62,7 +62,7 @@ static void pvr_setup_attach(struct pvr2_context *pvr)
 	pvr2_v4l2_create(pvr);
 #ifdef CONFIG_VIDEO_PVRUSB2_DVB
 	/* Create association with dvb layer */
-	pvr2_dvb_init(pvr);
+	pvr2_dvb_create(pvr);
 #endif
 #ifdef CONFIG_VIDEO_PVRUSB2_SYSFS
 	pvr2_sysfs_create(pvr,class_ptr);

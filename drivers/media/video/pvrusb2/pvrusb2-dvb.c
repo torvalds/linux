@@ -381,12 +381,13 @@ static int pvr2_dvb_frontend_exit(struct pvr2_dvb_adapter *adap)
 	return 0;
 }
 
-static void pvr2_dvb_done(struct pvr2_dvb_adapter *adap)
+static void pvr2_dvb_destroy(struct pvr2_dvb_adapter *adap)
 {
 	pvr2_dvb_stream_end(adap);
 	pvr2_dvb_frontend_exit(adap);
 	pvr2_dvb_adapter_exit(adap);
 	pvr2_channel_done(&adap->channel);
+	kfree(adap);
 }
 
 static void pvr2_dvb_internal_check(struct pvr2_channel *chp)
@@ -394,10 +395,10 @@ static void pvr2_dvb_internal_check(struct pvr2_channel *chp)
 	struct pvr2_dvb_adapter *adap;
 	adap = container_of(chp, struct pvr2_dvb_adapter, channel);
 	if (!adap->channel.mc_head->disconnect_flag) return;
-	pvr2_dvb_done(adap);
+	pvr2_dvb_destroy(adap);
 }
 
-int pvr2_dvb_init(struct pvr2_context *pvr)
+struct pvr2_dvb_adapter *pvr2_dvb_create(struct pvr2_context *pvr)
 {
 	int ret = 0;
 	struct pvr2_dvb_adapter *adap;
@@ -406,21 +407,22 @@ int pvr2_dvb_init(struct pvr2_context *pvr)
 		   the DVB side of the driver either.  For now. */
 		return 0;
 	}
-	adap = &pvr->hdw->dvb;
+	adap = kzalloc(sizeof(*adap), GFP_KERNEL);
+	if (!adap) return adap;
 	pvr2_channel_init(&adap->channel, pvr);
 	adap->channel.check_func = pvr2_dvb_internal_check;
 	init_waitqueue_head(&adap->buffer_wait_data);
-	mutex_init(&pvr->hdw->dvb.lock);
-	ret = pvr2_dvb_adapter_init(&pvr->hdw->dvb);
+	mutex_init(&adap->lock);
+	ret = pvr2_dvb_adapter_init(adap);
 	if (ret < 0) goto fail1;
-	ret = pvr2_dvb_frontend_init(&pvr->hdw->dvb);
+	ret = pvr2_dvb_frontend_init(adap);
 	if (ret < 0) goto fail2;
-	return 0;
+	return adap;
 
 fail2:
 	pvr2_dvb_adapter_exit(adap);
 fail1:
 	pvr2_channel_done(&adap->channel);
-	return ret;
+	return NULL;
 }
 
