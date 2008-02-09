@@ -29,6 +29,8 @@
 #ifndef __ASM_ARCH_OMAP_APOLLON_H
 #define __ASM_ARCH_OMAP_APOLLON_H
 
+extern void apollon_mmc_init(void);
+
 /* Placeholder for APOLLON specific defines */
 #define APOLLON_ETHR_GPIO_IRQ		74
 

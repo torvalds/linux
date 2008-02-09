@@ -265,15 +265,15 @@ void __init orion_setup_cpu_wins(void)
 	}
 
 	/*
-	 * Setup windows for PCI+PCIE IO+MAM space
+	 * Setup windows for PCI+PCIe IO+MEM space.
 	 */
-	orion_setup_cpu_win(ORION_PCIE_IO, ORION_PCIE_IO_BASE,
-				ORION_PCIE_IO_SIZE, ORION_PCIE_IO_REMAP);
-	orion_setup_cpu_win(ORION_PCI_IO, ORION_PCI_IO_BASE,
-				ORION_PCI_IO_SIZE, ORION_PCI_IO_REMAP);
-	orion_setup_cpu_win(ORION_PCIE_MEM, ORION_PCIE_MEM_BASE,
+	orion_setup_cpu_win(ORION_PCIE_IO, ORION_PCIE_IO_PHYS_BASE,
+				ORION_PCIE_IO_SIZE, ORION_PCIE_IO_BUS_BASE);
+	orion_setup_cpu_win(ORION_PCI_IO, ORION_PCI_IO_PHYS_BASE,
+				ORION_PCI_IO_SIZE, ORION_PCI_IO_BUS_BASE);
+	orion_setup_cpu_win(ORION_PCIE_MEM, ORION_PCIE_MEM_PHYS_BASE,
 				ORION_PCIE_MEM_SIZE, -1);
-	orion_setup_cpu_win(ORION_PCI_MEM, ORION_PCI_MEM_BASE,
+	orion_setup_cpu_win(ORION_PCI_MEM, ORION_PCI_MEM_PHYS_BASE,
 				ORION_PCI_MEM_SIZE, -1);
 }
 

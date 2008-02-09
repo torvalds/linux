@@ -189,7 +189,7 @@ static struct omap_mmc_config nokia770_mmc_config __initdata = {
 	},
 };
 
-static struct omap_board_config_kernel nokia770_config[] = {
+static struct omap_board_config_kernel nokia770_config[] __initdata = {
 	{ OMAP_TAG_USB,		NULL },
 	{ OMAP_TAG_MMC,		&nokia770_mmc_config },
 };
@@ -330,6 +330,7 @@ static void __init omap_nokia770_init(void)
 	omap_board_config_size = ARRAY_SIZE(nokia770_config);
 	omap_gpio_init();
 	omap_serial_init();
+	omap_register_i2c_bus(1, 100, NULL, 0);
 	omap_dsp_init();
 	ads7846_dev_init();
 	mipid_dev_init();

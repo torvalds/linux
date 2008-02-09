@@ -17,6 +17,7 @@
 #include <linux/irq.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mv643xx_eth.h>
+#include <linux/ata_platform.h>
 #include <linux/i2c.h>
 #include <asm/mach-types.h>
 #include <asm/gpio.h>
@@ -230,6 +231,13 @@ static struct i2c_board_info __initdata rd88f5182_i2c_rtc = {
 };
 
 /*****************************************************************************
+ * Sata
+ ****************************************************************************/
+static struct mv_sata_platform_data rd88f5182_sata_data = {
+	.n_ports        = 2,
+};
+
+/*****************************************************************************
  * General Setup
  ****************************************************************************/
 
@@ -255,8 +263,8 @@ static void __init rd88f5182_init(void)
 	/*
 	 * Open a special address decode windows for the PCIE WA.
 	 */
-	orion_write(ORION_REGS_BASE | 0x20074, ORION_PCIE_WA_BASE);
-	orion_write(ORION_REGS_BASE | 0x20070, (0x7941 |
+	orion_write(ORION_REGS_VIRT_BASE | 0x20074, ORION_PCIE_WA_PHYS_BASE);
+	orion_write(ORION_REGS_VIRT_BASE | 0x20070, (0x7941 |
 		(((ORION_PCIE_WA_SIZE >> 16) - 1)) << 16));
 
 	/*
@@ -292,12 +300,13 @@ static void __init rd88f5182_init(void)
 	platform_add_devices(rd88f5182_devices, ARRAY_SIZE(rd88f5182_devices));
 	i2c_register_board_info(0, &rd88f5182_i2c_rtc, 1);
 	orion_eth_init(&rd88f5182_eth_data);
+	orion_sata_init(&rd88f5182_sata_data);
 }
 
 MACHINE_START(RD88F5182, "Marvell Orion-NAS Reference Design")
 	/* Maintainer: Ronen Shitrit <rshitrit@marvell.com> */
-	.phys_io	= ORION_REGS_BASE,
-	.io_pg_offst	= ((ORION_REGS_BASE) >> 18) & 0xFFFC,
+	.phys_io	= ORION_REGS_PHYS_BASE,
+	.io_pg_offst	= ((ORION_REGS_VIRT_BASE) >> 18) & 0xFFFC,
 	.boot_params	= 0x00000100,
 	.init_machine	= rd88f5182_init,
 	.map_io		= orion_map_io,
