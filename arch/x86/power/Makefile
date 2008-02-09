@@ -1,7 +1,2 @@
-ifeq ($(CONFIG_X86_64),y)
-        obj-$(CONFIG_PM)		+= suspend_64.o
-        obj-$(CONFIG_HIBERNATION)	+= hibernate_asm_64.o
-else
-	obj-$(CONFIG_PM)		+= cpu_32.o
-	obj-$(CONFIG_HIBERNATION)	+= hibernate_32.o hibernate_asm_32.o
-endif
+obj-$(CONFIG_PM_SLEEP)		+= cpu_$(BITS).o
+obj-$(CONFIG_HIBERNATION)	+= hibernate_$(BITS).o hibernate_asm_$(BITS).o
