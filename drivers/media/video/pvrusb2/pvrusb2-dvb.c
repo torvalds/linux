@@ -405,7 +405,7 @@ struct pvr2_dvb_adapter *pvr2_dvb_create(struct pvr2_context *pvr)
 	if (!pvr->hdw->hdw_desc->dvb_props) {
 		/* Device lacks a digital interface so don't set up
 		   the DVB side of the driver either.  For now. */
-		return 0;
+		return NULL;
 	}
 	adap = kzalloc(sizeof(*adap), GFP_KERNEL);
 	if (!adap) return adap;
