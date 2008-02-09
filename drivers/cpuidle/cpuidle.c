@@ -27,6 +27,17 @@ static void (*pm_idle_old)(void);
 
 static int enabled_devices;
 
+#if defined(CONFIG_ARCH_HAS_CPU_IDLE_WAIT)
+static void cpuidle_kick_cpus(void)
+{
+	cpu_idle_wait();
+}
+#elif defined(CONFIG_SMP)
+# error "Arch needs cpu_idle_wait() equivalent here"
+#else /* !CONFIG_ARCH_HAS_CPU_IDLE_WAIT && !CONFIG_SMP */
+static void cpuidle_kick_cpus(void) {}
+#endif
+
 /**
  * cpuidle_idle_call - the main idle loop
  *
@@ -83,7 +94,7 @@ void cpuidle_uninstall_idle_handler(void)
 {
 	if (enabled_devices && (pm_idle != pm_idle_old)) {
 		pm_idle = pm_idle_old;
-		cpu_idle_wait();
+		cpuidle_kick_cpus();
 	}
 }
 
