@@ -30,14 +30,12 @@
 
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
-#include <linux/module.h>
 #include <asm/geode.h>
 
 #define F_AVAIL    0x01
 
 static struct mfgpt_timer_t {
 	int flags;
-	struct module *owner;
 } mfgpt_timers[MFGPT_MAX_TIMERS];
 
 /* Selected from the table above */
@@ -182,15 +180,14 @@ int geode_mfgpt_set_irq(int timer, int cmp, int irq, int enable)
 	return 0;
 }
 
-static int mfgpt_get(int timer, struct module *owner)
+static int mfgpt_get(int timer)
 {
 	mfgpt_timers[timer].flags &= ~F_AVAIL;
-	mfgpt_timers[timer].owner = owner;
 	printk(KERN_INFO "geode-mfgpt:  Registered timer %d\n", timer);
 	return timer;
 }
 
-int geode_mfgpt_alloc_timer(int timer, int domain, struct module *owner)
+int geode_mfgpt_alloc_timer(int timer, int domain)
 {
 	int i;
 
@@ -203,7 +200,7 @@ int geode_mfgpt_alloc_timer(int timer, int domain, struct module *owner)
 		/* Try to find an available timer */
 		for (i = 0; i < MFGPT_MAX_TIMERS; i++) {
 			if (mfgpt_timers[i].flags & F_AVAIL)
-				return mfgpt_get(i, owner);
+				return mfgpt_get(i);
 
 			if (i == 5 && domain == MFGPT_DOMAIN_WORKING)
 				break;
@@ -211,7 +208,7 @@ int geode_mfgpt_alloc_timer(int timer, int domain, struct module *owner)
 	} else {
 		/* If they requested a specific timer, try to honor that */
 		if (mfgpt_timers[timer].flags & F_AVAIL)
-			return mfgpt_get(timer, owner);
+			return mfgpt_get(timer);
 	}
 
 	/* No timers available - too bad */
@@ -324,8 +321,7 @@ static int __init mfgpt_timer_setup(void)
 	int timer, ret;
 	u16 val;
 
-	timer = geode_mfgpt_alloc_timer(MFGPT_TIMER_ANY, MFGPT_DOMAIN_WORKING,
-			THIS_MODULE);
+	timer = geode_mfgpt_alloc_timer(MFGPT_TIMER_ANY, MFGPT_DOMAIN_WORKING);
 	if (timer < 0) {
 		printk(KERN_ERR
 		       "mfgpt-timer:  Could not allocate a MFPGT timer\n");
