@@ -12,6 +12,7 @@
 #include <linux/pagemap.h>
 #include <linux/statfs.h>
 #include <linux/seq_file.h>
+#include <linux/mount.h>
 #include "hostfs.h"
 #include "init.h"
 #include "kern.h"
