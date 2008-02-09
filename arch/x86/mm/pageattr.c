@@ -411,20 +411,29 @@ void __init cpa_init(void)
 static int split_large_page(pte_t *kpte, unsigned long address)
 {
 	unsigned long flags, pfn, pfninc = 1;
-	gfp_t gfp_flags = GFP_KERNEL;
 	unsigned int i, level;
 	pte_t *pbase, *tmp;
 	pgprot_t ref_prot;
 	struct page *base;
 
-#ifdef CONFIG_DEBUG_PAGEALLOC
-	gfp_flags = GFP_ATOMIC | __GFP_NOWARN;
-#endif
-	base = alloc_pages(gfp_flags, 0);
-	if (!base)
-		return -ENOMEM;
-
+	/*
+	 * Get a page from the pool. The pool list is protected by the
+	 * pgd_lock, which we have to take anyway for the split
+	 * operation:
+	 */
 	spin_lock_irqsave(&pgd_lock, flags);
+	if (list_empty(&page_pool)) {
+		spin_unlock_irqrestore(&pgd_lock, flags);
+		return -ENOMEM;
+	}
+
+	base = list_first_entry(&page_pool, struct page, lru);
+	list_del(&base->lru);
+	pool_pages--;
+
+	if (pool_pages < pool_low)
+		pool_low = pool_pages;
+
 	/*
 	 * Check for races, another CPU might have split this page
 	 * up for us already:
@@ -469,10 +478,16 @@ static int split_large_page(pte_t *kpte, unsigned long address)
 	base = NULL;
 
 out_unlock:
+	/*
+	 * If we dropped out via the lookup_address check under
+	 * pgd_lock then stick the page back into the pool:
+	 */
+	if (base) {
+		list_add(&base->lru, &page_pool);
+		pool_pages++;
+	} else
+		pool_used++;
 	spin_unlock_irqrestore(&pgd_lock, flags);
-
-	if (base)
-		__free_pages(base, 0);
 
 	return 0;
 }
