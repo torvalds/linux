@@ -458,14 +458,11 @@ struct b43_iv {
 } __attribute__((__packed__));
 
 
-#define B43_PHYMODE(phytype)		(1 << (phytype))
-#define B43_PHYMODE_A			B43_PHYMODE(B43_PHYTYPE_A)
-#define B43_PHYMODE_B			B43_PHYMODE(B43_PHYTYPE_B)
-#define B43_PHYMODE_G			B43_PHYMODE(B43_PHYTYPE_G)
-
 struct b43_phy {
-	/* Possible PHYMODEs on this PHY */
-	u8 possible_phymodes;
+	/* Band support flags. */
+	bool supports_2ghz;
+	bool supports_5ghz;
+
 	/* GMODE bit enabled? */
 	bool gmode;
 
