@@ -3,7 +3,7 @@
  *  Broadcom B43legacy wireless driver
  *
  *  Copyright (c) 2005 Martin Langer <martin-langer@gmx.de>
- *  Copyright (c) 2005-2007 Stefano Brivio <stefano.brivio@polimi.it>
+ *  Copyright (c) 2005-2008 Stefano Brivio <stefano.brivio@polimi.it>
  *  Copyright (c) 2005, 2006 Michael Buesch <mb@bu3sch.de>
  *  Copyright (c) 2005 Danny van Dyk <kugelfang@gentoo.org>
  *  Copyright (c) 2005 Andreas Jaggi <andreas.jaggi@waterwave.ch>
@@ -3809,6 +3809,32 @@ static struct ssb_driver b43legacy_ssb_driver = {
 	.resume		= b43legacy_resume,
 };
 
+static void b43legacy_print_driverinfo(void)
+{
+	const char *feat_pci = "", *feat_leds = "", *feat_rfkill = "",
+		   *feat_pio = "", *feat_dma = "";
+
+#ifdef CONFIG_B43LEGACY_PCI_AUTOSELECT
+	feat_pci = "P";
+#endif
+#ifdef CONFIG_B43LEGACY_LEDS
+	feat_leds = "L";
+#endif
+#ifdef CONFIG_B43LEGACY_RFKILL
+	feat_rfkill = "R";
+#endif
+#ifdef CONFIG_B43LEGACY_PIO
+	feat_pio = "I";
+#endif
+#ifdef CONFIG_B43LEGACY_DMA
+	feat_dma = "D";
+#endif
+	printk(KERN_INFO "Broadcom 43xx driver loaded "
+	       "[ Features: %s%s%s%s%s, Firmware-ID: "
+	       B43legacy_SUPPORTED_FIRMWARE_ID " ]\n",
+	       feat_pci, feat_leds, feat_rfkill, feat_pio, feat_dma);
+}
+
 static int __init b43legacy_init(void)
 {
 	int err;
@@ -3818,6 +3844,8 @@ static int __init b43legacy_init(void)
 	err = ssb_driver_register(&b43legacy_ssb_driver);
 	if (err)
 		goto err_dfs_exit;
+
+	b43legacy_print_driverinfo();
 
 	return err;
 
