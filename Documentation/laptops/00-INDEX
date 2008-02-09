@@ -1,4 +1,6 @@
 00-INDEX
 	- This file
+sony-laptop.txt
+	- Sony Notebook Control Driver (SNC) Readme.
 thinkpad-acpi.txt
 	- information on the (IBM and Lenovo) ThinkPad ACPI Extras driver.
