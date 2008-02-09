@@ -581,16 +581,24 @@ retint_restore_args:	/* return to kernel space */
 	 */
 	TRACE_IRQS_IRETQ
 restore_args:
-	RESTORE_ARGS 0,8,0						
-#ifdef CONFIG_PARAVIRT
+	RESTORE_ARGS 0,8,0
+
+ENTRY(irq_return)
 	INTERRUPT_RETURN
-#endif
+
+	.section __ex_table, "a"
+	.quad irq_return, bad_iret
+	.previous
+
+#ifdef CONFIG_PARAVIRT
 ENTRY(native_iret)
 	iretq
 
 	.section __ex_table,"a"
 	.quad native_iret, bad_iret
 	.previous
+#endif
+
 	.section .fixup,"ax"
 bad_iret:
 	/*
@@ -804,7 +812,7 @@ paranoid_swapgs\trace:
 	SWAPGS_UNSAFE_STACK
 paranoid_restore\trace:
 	RESTORE_ALL 8
-	INTERRUPT_RETURN
+	jmp irq_return
 paranoid_userspace\trace:
 	GET_THREAD_INFO(%rcx)
 	movl threadinfo_flags(%rcx),%ebx
@@ -919,7 +927,7 @@ error_kernelspace:
 	   iret run with kernel gs again, so don't set the user space flag.
 	   B stepping K8s sometimes report an truncated RIP for IRET 
 	   exceptions returning to compat mode. Check for these here too. */
-	leaq native_iret(%rip),%rbp
+	leaq irq_return(%rip),%rbp
 	cmpq %rbp,RIP(%rsp) 
 	je   error_swapgs
 	movl %ebp,%ebp	/* zero extend */

@@ -409,7 +409,8 @@ restore_nocheck_notrace:
 	RESTORE_REGS
 	addl $4, %esp			# skip orig_eax/error_code
 	CFI_ADJUST_CFA_OFFSET -4
-1:	INTERRUPT_RETURN
+ENTRY(irq_return)
+	INTERRUPT_RETURN
 .section .fixup,"ax"
 iret_exc:
 	pushl $0			# no error code
@@ -418,7 +419,7 @@ iret_exc:
 .previous
 .section __ex_table,"a"
 	.align 4
-	.long 1b,iret_exc
+	.long irq_return,iret_exc
 .previous
 
 	CFI_RESTORE_STATE
@@ -865,20 +866,16 @@ nmi_espfix_stack:
 	RESTORE_REGS
 	lss 12+4(%esp), %esp		# back to espfix stack
 	CFI_ADJUST_CFA_OFFSET -24
-1:	INTERRUPT_RETURN
+	jmp irq_return
 	CFI_ENDPROC
-.section __ex_table,"a"
-	.align 4
-	.long 1b,iret_exc
-.previous
 KPROBE_END(nmi)
 
 #ifdef CONFIG_PARAVIRT
 ENTRY(native_iret)
-1:	iret
+	iret
 .section __ex_table,"a"
 	.align 4
-	.long 1b,iret_exc
+	.long native_iret, iret_exc
 .previous
 END(native_iret)
 
