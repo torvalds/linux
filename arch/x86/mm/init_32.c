@@ -664,6 +664,8 @@ void __init mem_init(void)
 	if (boot_cpu_data.wp_works_ok < 0)
 		test_wp_bit();
 
+	cpa_init();
+
 	/*
 	 * Subtle. SMP is doing it's boot stuff late (because it has to
 	 * fork idle threads) - but it also needs low mappings for the

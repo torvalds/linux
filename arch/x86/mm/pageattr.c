@@ -8,6 +8,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
+#include <linux/interrupt.h>
 
 #include <asm/e820.h>
 #include <asm/processor.h>
@@ -336,6 +337,77 @@ out_unlock:
 	return do_split;
 }
 
+static LIST_HEAD(page_pool);
+static unsigned long pool_size, pool_pages, pool_low;
+static unsigned long pool_used, pool_failed, pool_refill;
+
+static void cpa_fill_pool(void)
+{
+	struct page *p;
+	gfp_t gfp = GFP_KERNEL;
+
+	/* Do not allocate from interrupt context */
+	if (in_irq() || irqs_disabled())
+		return;
+	/*
+	 * Check unlocked. I does not matter when we have one more
+	 * page in the pool. The bit lock avoids recursive pool
+	 * allocations:
+	 */
+	if (pool_pages >= pool_size || test_and_set_bit_lock(0, &pool_refill))
+		return;
+
+#ifdef CONFIG_DEBUG_PAGEALLOC
+	/*
+	 * We could do:
+	 * gfp = in_atomic() ? GFP_ATOMIC : GFP_KERNEL;
+	 * but this fails on !PREEMPT kernels
+	 */
+	gfp =  GFP_ATOMIC | __GFP_NORETRY | __GFP_NOWARN;
+#endif
+
+	while (pool_pages < pool_size) {
+		p = alloc_pages(gfp, 0);
+		if (!p) {
+			pool_failed++;
+			break;
+		}
+		spin_lock_irq(&pgd_lock);
+		list_add(&p->lru, &page_pool);
+		pool_pages++;
+		spin_unlock_irq(&pgd_lock);
+	}
+	clear_bit_unlock(0, &pool_refill);
+}
+
+#define SHIFT_MB		(20 - PAGE_SHIFT)
+#define ROUND_MB_GB		((1 << 10) - 1)
+#define SHIFT_MB_GB		10
+#define POOL_PAGES_PER_GB	16
+
+void __init cpa_init(void)
+{
+	struct sysinfo si;
+	unsigned long gb;
+
+	si_meminfo(&si);
+	/*
+	 * Calculate the number of pool pages:
+	 *
+	 * Convert totalram (nr of pages) to MiB and round to the next
+	 * GiB. Shift MiB to Gib and multiply the result by
+	 * POOL_PAGES_PER_GB:
+	 */
+	gb = ((si.totalram >> SHIFT_MB) + ROUND_MB_GB) >> SHIFT_MB_GB;
+	pool_size = POOL_PAGES_PER_GB * gb;
+	pool_low = pool_size;
+
+	cpa_fill_pool();
+	printk(KERN_DEBUG
+	       "CPA: page pool initialized %lu of %lu pages preallocated\n",
+	       pool_pages, pool_size);
+}
+
 static int split_large_page(pte_t *kpte, unsigned long address)
 {
 	unsigned long flags, pfn, pfninc = 1;
@@ -600,7 +672,7 @@ static int change_page_attr_set_clr(unsigned long addr, int numpages,
 	 * Check whether we really changed something:
 	 */
 	if (!cpa.flushtlb)
-		return ret;
+		goto out;
 
 	/*
 	 * No need to flush, when we did not set any of the caching
@@ -619,6 +691,8 @@ static int change_page_attr_set_clr(unsigned long addr, int numpages,
 	else
 		cpa_flush_all(cache);
 
+out:
+	cpa_fill_pool();
 	return ret;
 }
 
@@ -772,6 +846,12 @@ void kernel_map_pages(struct page *page, int numpages, int enable)
 	 * but that can deadlock->flush only current cpu:
 	 */
 	__flush_tlb_all();
+
+	/*
+	 * Try to refill the page pool here. We can do this only after
+	 * the tlb flush.
+	 */
+	cpa_fill_pool();
 }
 #endif
 
