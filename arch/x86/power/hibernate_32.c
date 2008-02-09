@@ -1,5 +1,5 @@
 /*
- * Suspend support specific for i386 - temporary page tables
+ * Hibernation support specific for i386 - temporary page tables
  *
  * Distribute under GPLv2
  *

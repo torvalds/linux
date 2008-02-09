@@ -40,7 +40,7 @@ static void __save_processor_state(struct saved_context *ctxt)
  	savesegment(ss, ctxt->ss);
 
 	/*
-	 * control registers 
+	 * control registers
 	 */
 	ctxt->cr0 = read_cr0();
 	ctxt->cr2 = read_cr2();

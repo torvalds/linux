@@ -1,7 +1,6 @@
 .text
 
-/* Originally gcc generated, modified by hand
- *
+/*
  * This may not use any stack, nor any variable that is not "NoSave":
  *
  * Its rewriting one kernel image with another. What is stack in "old"
