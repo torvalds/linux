@@ -18,7 +18,7 @@
 /* References to section boundaries */
 extern const void __nosave_begin, __nosave_end;
 
-/* Defined in arch/x86_64/kernel/suspend_asm.S */
+/* Defined in hibernate_asm_64.S */
 extern int restore_image(void);
 
 /*
