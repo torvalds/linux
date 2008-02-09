@@ -112,15 +112,14 @@ unsigned long mach_get_cmos_time(void)
 	mon = CMOS_READ(RTC_MONTH);
 	year = CMOS_READ(RTC_YEAR);
 
-#if defined(CONFIG_ACPI) && defined(CONFIG_X86_64)
-	/* CHECKME: Is this really 64bit only ??? */
+#ifdef CONFIG_ACPI
 	if (acpi_gbl_FADT.header.revision >= FADT2_REVISION_ID &&
 	    acpi_gbl_FADT.century)
 		century = CMOS_READ(acpi_gbl_FADT.century);
 #endif
 
 	status = CMOS_READ(RTC_CONTROL);
-	WARN_ON_ONCE((RTC_ALWAYS_BCD && (status & RTC_DM_BINARY));
+	WARN_ON_ONCE(RTC_ALWAYS_BCD && (status & RTC_DM_BINARY));
 
 	if (RTC_ALWAYS_BCD || !(status & RTC_DM_BINARY)) {
 		BCD_TO_BIN(sec);
