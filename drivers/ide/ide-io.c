@@ -388,7 +388,8 @@ void ide_end_drive_cmd (ide_drive_t *drive, u8 stat, u8 err)
 	spin_lock_irqsave(&ide_lock, flags);
 	HWGROUP(drive)->rq = NULL;
 	rq->errors = err;
-	if (__blk_end_request(rq, (rq->errors ? -EIO : 0), 0))
+	if (unlikely(__blk_end_request(rq, (rq->errors ? -EIO : 0),
+				       blk_rq_bytes(rq))))
 		BUG();
 	spin_unlock_irqrestore(&ide_lock, flags);
 }
