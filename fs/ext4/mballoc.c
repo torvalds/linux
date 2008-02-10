@@ -3069,7 +3069,7 @@ static int ext4_mb_mark_diskspace_used(struct ext4_allocation_context *ac,
 
 out_err:
 	sb->s_dirt = 1;
-	put_bh(bitmap_bh);
+	brelse(bitmap_bh);
 	return err;
 }
 
