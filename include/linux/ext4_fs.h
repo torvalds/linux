@@ -490,6 +490,13 @@ do {									       \
 #define	EXT4_ORPHAN_FS			0x0004	/* Orphans being recovered */
 
 /*
+ * Misc. filesystem flags
+ */
+#define EXT2_FLAGS_SIGNED_HASH		0x0001  /* Signed dirhash in use */
+#define EXT2_FLAGS_UNSIGNED_HASH	0x0002  /* Unsigned dirhash in use */
+#define EXT2_FLAGS_TEST_FILESYS		0x0004	/* to test development code */
+
+/*
  * Mount flags
  */
 #define EXT4_MOUNT_CHECK		0x00001	/* Do mount-time checks */
