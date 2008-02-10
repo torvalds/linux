@@ -876,11 +876,18 @@ static void page_header_update_slot(struct kvm *kvm, void *pte, gfn_t gfn)
 
 struct page *gva_to_page(struct kvm_vcpu *vcpu, gva_t gva)
 {
+	struct page *page;
+
 	gpa_t gpa = vcpu->arch.mmu.gva_to_gpa(vcpu, gva);
 
 	if (gpa == UNMAPPED_GVA)
 		return NULL;
-	return gfn_to_page(vcpu->kvm, gpa >> PAGE_SHIFT);
+
+	down_read(&current->mm->mmap_sem);
+	page = gfn_to_page(vcpu->kvm, gpa >> PAGE_SHIFT);
+	up_read(&current->mm->mmap_sem);
+
+	return page;
 }
 
 static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
@@ -1020,15 +1027,18 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, int write, gfn_t gfn)
 
 	struct page *page;
 
+	down_read(&vcpu->kvm->slots_lock);
+
 	down_read(&current->mm->mmap_sem);
 	page = gfn_to_page(vcpu->kvm, gfn);
+	up_read(&current->mm->mmap_sem);
 
 	spin_lock(&vcpu->kvm->mmu_lock);
 	kvm_mmu_free_some_pages(vcpu);
 	r = __nonpaging_map(vcpu, v, write, gfn, page);
 	spin_unlock(&vcpu->kvm->mmu_lock);
 
-	up_read(&current->mm->mmap_sem);
+	up_read(&vcpu->kvm->slots_lock);
 
 	return r;
 }
@@ -1362,6 +1372,7 @@ static void mmu_guess_page_from_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	gfn_t gfn;
 	int r;
 	u64 gpte = 0;
+	struct page *page;
 
 	if (bytes != 4 && bytes != 8)
 		return;
@@ -1389,6 +1400,11 @@ static void mmu_guess_page_from_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	if (!is_present_pte(gpte))
 		return;
 	gfn = (gpte & PT64_BASE_ADDR_MASK) >> PAGE_SHIFT;
+
+	down_read(&current->mm->mmap_sem);
+	page = gfn_to_page(vcpu->kvm, gfn);
+	up_read(&current->mm->mmap_sem);
+
 	vcpu->arch.update_pte.gfn = gfn;
 	vcpu->arch.update_pte.page = gfn_to_page(vcpu->kvm, gfn);
 }
@@ -1496,9 +1512,9 @@ int kvm_mmu_unprotect_page_virt(struct kvm_vcpu *vcpu, gva_t gva)
 	gpa_t gpa;
 	int r;
 
-	down_read(&current->mm->mmap_sem);
+	down_read(&vcpu->kvm->slots_lock);
 	gpa = vcpu->arch.mmu.gva_to_gpa(vcpu, gva);
-	up_read(&current->mm->mmap_sem);
+	up_read(&vcpu->kvm->slots_lock);
 
 	spin_lock(&vcpu->kvm->mmu_lock);
 	r = kvm_mmu_unprotect_page(vcpu->kvm, gpa >> PAGE_SHIFT);
