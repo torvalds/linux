@@ -943,8 +943,8 @@ static void udf_load_pvoldesc(struct super_block *sb, struct buffer_head *bh)
 
 	pvoldesc = (struct primaryVolDesc *)bh->b_data;
 
-	if (udf_stamp_to_time(&UDF_SB(sb)->s_record_time,
-			      lets_to_cpu(pvoldesc->recordingDateAndTime))) {
+	if (udf_disk_stamp_to_time(&UDF_SB(sb)->s_record_time,
+			      pvoldesc->recordingDateAndTime)) {
 		kernel_timestamp ts;
 		ts = lets_to_cpu(pvoldesc->recordingDateAndTime);
 		udf_debug("recording time %04u/%02u/%02u"
@@ -1589,7 +1589,6 @@ static void udf_open_lvid(struct super_block *sb)
 	struct udf_sb_info *sbi = UDF_SB(sb);
 	struct buffer_head *bh = sbi->s_lvid_bh;
 	if (bh) {
-		kernel_timestamp cpu_time;
 		struct logicalVolIntegrityDesc *lvid =
 				(struct logicalVolIntegrityDesc *)bh->b_data;
 		struct logicalVolIntegrityDescImpUse *lvidiu =
@@ -1597,8 +1596,8 @@ static void udf_open_lvid(struct super_block *sb)
 
 		lvidiu->impIdent.identSuffix[0] = UDF_OS_CLASS_UNIX;
 		lvidiu->impIdent.identSuffix[1] = UDF_OS_ID_LINUX;
-		if (udf_time_to_stamp(&cpu_time, CURRENT_TIME))
-			lvid->recordingDateAndTime = cpu_to_lets(cpu_time);
+		udf_time_to_disk_stamp(&lvid->recordingDateAndTime,
+					CURRENT_TIME);
 		lvid->integrityType = LVID_INTEGRITY_TYPE_OPEN;
 
 		lvid->descTag.descCRC = cpu_to_le16(
@@ -1613,7 +1612,6 @@ static void udf_open_lvid(struct super_block *sb)
 
 static void udf_close_lvid(struct super_block *sb)
 {
-	kernel_timestamp cpu_time;
 	struct udf_sb_info *sbi = UDF_SB(sb);
 	struct buffer_head *bh = sbi->s_lvid_bh;
 	struct logicalVolIntegrityDesc *lvid;
@@ -1628,8 +1626,8 @@ static void udf_close_lvid(struct super_block *sb)
 							udf_sb_lvidiu(sbi);
 		lvidiu->impIdent.identSuffix[0] = UDF_OS_CLASS_UNIX;
 		lvidiu->impIdent.identSuffix[1] = UDF_OS_ID_LINUX;
-		if (udf_time_to_stamp(&cpu_time, CURRENT_TIME))
-			lvid->recordingDateAndTime = cpu_to_lets(cpu_time);
+		udf_time_to_disk_stamp(&lvid->recordingDateAndTime,
+					CURRENT_TIME);
 		if (UDF_MAX_WRITE_VERSION > le16_to_cpu(lvidiu->maxUDFWriteRev))
 			lvidiu->maxUDFWriteRev =
 					cpu_to_le16(UDF_MAX_WRITE_VERSION);
@@ -1801,12 +1799,12 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	}
 
 	if (!silent) {
-		kernel_timestamp ts;
-		udf_time_to_stamp(&ts, sbi->s_record_time);
+		timestamp ts;
+		udf_time_to_disk_stamp(&ts, sbi->s_record_time);
 		udf_info("UDF: Mounting volume '%s', "
 			 "timestamp %04u/%02u/%02u %02u:%02u (%x)\n",
-			 sbi->s_volume_ident, ts.year, ts.month, ts.day,
-			 ts.hour, ts.minute, ts.typeAndTimezone);
+			 sbi->s_volume_ident, le16_to_cpu(ts.year), ts.month, ts.day,
+			 ts.hour, ts.minute, le16_to_cpu(ts.typeAndTimezone));
 	}
 	if (!(sb->s_flags & MS_RDONLY))
 		udf_open_lvid(sb);
