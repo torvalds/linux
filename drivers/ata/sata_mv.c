@@ -2881,6 +2881,26 @@ done:
 	return rc;
 }
 
+static int mv_create_dma_pools(struct mv_host_priv *hpriv, struct device *dev)
+{
+	hpriv->crqb_pool   = dmam_pool_create("crqb_q", dev, MV_CRQB_Q_SZ,
+							     MV_CRQB_Q_SZ, 0);
+	if (!hpriv->crqb_pool)
+		return -ENOMEM;
+
+	hpriv->crpb_pool   = dmam_pool_create("crpb_q", dev, MV_CRPB_Q_SZ,
+							     MV_CRPB_Q_SZ, 0);
+	if (!hpriv->crpb_pool)
+		return -ENOMEM;
+
+	hpriv->sg_tbl_pool = dmam_pool_create("sg_tbl", dev, MV_SG_TBL_SZ,
+							     MV_SG_TBL_SZ, 0);
+	if (!hpriv->sg_tbl_pool)
+		return -ENOMEM;
+
+	return 0;
+}
+
 /**
  *      mv_platform_probe - handle a positive probe of an soc Marvell
  *      host
@@ -2933,6 +2953,10 @@ static int mv_platform_probe(struct platform_device *pdev)
 	host->iomap = NULL;
 	hpriv->base = ioremap(res->start, res->end - res->start + 1);
 	hpriv->base -= MV_SATAHC0_REG_BASE;
+
+	rc = mv_create_dma_pools(hpriv, &pdev->dev);
+	if (rc)
+		return rc;
 
 	/* initialize adapter */
 	rc = mv_init_host(host, chip_soc);
@@ -3068,26 +3092,6 @@ static void mv_print_info(struct ata_host *host)
 	       "Gen-%s %u slots %u ports %s mode IRQ via %s\n",
 	       gen, (unsigned)MV_MAX_Q_DEPTH, host->n_ports,
 	       scc_s, (MV_HP_FLAG_MSI & hpriv->hp_flags) ? "MSI" : "INTx");
-}
-
-static int mv_create_dma_pools(struct mv_host_priv *hpriv, struct device *dev)
-{
-	hpriv->crqb_pool   = dmam_pool_create("crqb_q", dev, MV_CRQB_Q_SZ,
-							     MV_CRQB_Q_SZ, 0);
-	if (!hpriv->crqb_pool)
-		return -ENOMEM;
-
-	hpriv->crpb_pool   = dmam_pool_create("crpb_q", dev, MV_CRPB_Q_SZ,
-							     MV_CRPB_Q_SZ, 0);
-	if (!hpriv->crpb_pool)
-		return -ENOMEM;
-
-	hpriv->sg_tbl_pool = dmam_pool_create("sg_tbl", dev, MV_SG_TBL_SZ,
-							     MV_SG_TBL_SZ, 0);
-	if (!hpriv->sg_tbl_pool)
-		return -ENOMEM;
-
-	return 0;
 }
 
 /**
