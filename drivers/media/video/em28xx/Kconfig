@@ -13,7 +13,8 @@ config VIDEO_EM28XX
 	  module will be called em28xx
 
 config VIDEO_EM28XX_ALSA
-	depends on VIDEO_EM28XX
+	depends on VIDEO_EM28XX && SND
+	select SND_PCM
 	tristate "Empia EM28xx ALSA audio module"
 	---help---
 	  This is an ALSA driver for some Empia 28xx based TV cards.
