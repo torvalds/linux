@@ -1234,7 +1234,7 @@ static int get_iovec_page_array(const struct iovec __user *iov,
 		if (unlikely(!len))
 			break;
 		error = -EFAULT;
-		if (unlikely(!base))
+		if (!access_ok(VERIFY_READ, base, len))
 			break;
 
 		/*
