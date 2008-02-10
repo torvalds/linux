@@ -311,6 +311,28 @@ static void __devinit palm_bk3710_chipinit(void __iomem *base)
 	palm_bk3710_setpiomode(base, NULL, 0, 600, 0);
 	palm_bk3710_setpiomode(base, NULL, 1, 600, 0);
 }
+
+static u8 __devinit palm_bk3710_cable_detect(ide_hwif_t *hwif)
+{
+	return ATA_CBL_PATA80;
+}
+
+static void __devinit palm_bk3710_init_hwif(ide_hwif_t *hwif)
+{
+	hwif->set_pio_mode = palm_bk3710_set_pio_mode;
+	hwif->set_dma_mode = palm_bk3710_set_dma_mode;
+
+	hwif->cable_detect = palm_bk3710_cable_detect;
+}
+
+static const struct ide_port_info __devinitdata palm_bk3710_port_info = {
+	.init_hwif		= palm_bk3710_init_hwif,
+	.host_flags		= IDE_HFLAG_NO_DMA, /* hack (no PCI) */
+	.pio_mask		= ATA_PIO4,
+	.udma_mask		= ATA_UDMA4,	/* (input clk 99MHz) */
+	.mwdma_mask		= ATA_MWDMA2,
+};
+
 static int __devinit palm_bk3710_probe(struct platform_device *pdev)
 {
 	struct clk *clkp;
@@ -368,24 +390,15 @@ static int __devinit palm_bk3710_probe(struct platform_device *pdev)
 		ide_init_port_data(hwif, i);
 
 	ide_init_port_hw(hwif, &hw);
-	hwif->quirkproc = NULL;
 
-	hwif->set_pio_mode = &palm_bk3710_set_pio_mode;
-	hwif->set_dma_mode = &palm_bk3710_set_dma_mode;
 	hwif->mmio = 1;
 	default_hwif_mmiops(hwif);
-	hwif->cbl = ATA_CBL_PATA80;
-	hwif->ultra_mask = 0x1f;	/* Ultra DMA Mode 4 Max
-						(input clk 99MHz) */
-	hwif->mwdma_mask = 0x7;
-	hwif->drives[0].autotune = 1;
-	hwif->drives[1].autotune = 1;
 
 	ide_setup_dma(hwif, mem->start);
 
 	idx[0] = i;
 
-	ide_device_add(idx, NULL);
+	ide_device_add(idx, &palm_bk3710_port_info);
 
 	if (!hwif->present)
 		goto out;
