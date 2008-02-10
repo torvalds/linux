@@ -688,23 +688,6 @@ config BLK_DEV_PDC202XX_OLD
 
 	  If unsure, say N.
 
-config PDC202XX_BURST
-	bool "Special UDMA Feature"
-	depends on BLK_DEV_PDC202XX_OLD
-	help
-	  This option causes the pdc202xx driver to enable UDMA modes on the
-	  PDC202xx even when the PDC202xx BIOS has not done so.
-
-	  It was originally designed for the PDC20246/Ultra33, whose BIOS will
-	  only setup UDMA on the first two PDC20246 cards.  It has also been
-	  used successfully on a PDC20265/Ultra100, allowing use of UDMA modes
-	  when the PDC20265 BIOS has been disabled (for faster boot up).
-
-	  Please read the comments at the top of
-	  <file:drivers/ide/pci/pdc202xx_old.c>.
-
-	  If unsure, say N.
-
 config BLK_DEV_PDC202XX_NEW
 	tristate "PROMISE PDC202{68|69|70|71|75|76|77} support"
 	select BLK_DEV_IDEDMA_PCI
