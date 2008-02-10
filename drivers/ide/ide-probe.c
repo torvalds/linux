@@ -1051,7 +1051,7 @@ static int init_irq (ide_hwif_t *hwif)
 		int sa = 0;
 #if defined(__mc68000__)
 		sa = IRQF_SHARED;
-#endif /* __mc68000__ || CONFIG_APUS */
+#endif /* __mc68000__ */
 
 		if (IDE_CHIPSET_IS_PCI(hwif->chipset))
 			sa = IRQF_SHARED;
