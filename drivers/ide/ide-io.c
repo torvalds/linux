@@ -361,17 +361,21 @@ void ide_end_drive_cmd (ide_drive_t *drive, u8 stat, u8 err)
 	spin_unlock_irqrestore(&ide_lock, flags);
 
 	if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
-		ide_task_t *args = (ide_task_t *) rq->special;
+		ide_task_t *task = (ide_task_t *)rq->special;
+
 		if (rq->errors == 0)
-			rq->errors = !OK_STAT(stat,READY_STAT,BAD_STAT);
-			
-		if (args) {
-			struct ide_taskfile *tf = &args->tf;
+			rq->errors = !OK_STAT(stat, READY_STAT, BAD_STAT);
+
+		if (task) {
+			struct ide_taskfile *tf = &task->tf;
 
 			tf->error = err;
 			tf->status = stat;
 
-			ide_tf_read(drive, args);
+			ide_tf_read(drive, task);
+
+			if (task->tf_flags & IDE_TFLAG_DYN)
+				kfree(task);
 		}
 	} else if (blk_pm_request(rq)) {
 		struct request_pm_state *pm = rq->data;

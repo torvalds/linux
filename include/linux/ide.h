@@ -906,6 +906,8 @@ enum {
 					  IDE_TFLAG_IN_DEVICE,
 	/* force 16-bit I/O operations */
 	IDE_TFLAG_IO_16BIT		= (1 << 30),
+	/* ide_task_t was allocated using kmalloc() */
+	IDE_TFLAG_DYN			= (1 << 31),
 };
 
 struct ide_taskfile {
