@@ -350,9 +350,9 @@ static void rt2x00pci_free_reg(struct rt2x00_dev *rt2x00dev)
 	kfree(rt2x00dev->eeprom);
 	rt2x00dev->eeprom = NULL;
 
-	if (rt2x00dev->csr_addr) {
-		iounmap(rt2x00dev->csr_addr);
-		rt2x00dev->csr_addr = NULL;
+	if (rt2x00dev->csr.base) {
+		iounmap(rt2x00dev->csr.base);
+		rt2x00dev->csr.base = NULL;
 	}
 }
 
@@ -360,9 +360,9 @@ static int rt2x00pci_alloc_reg(struct rt2x00_dev *rt2x00dev)
 {
 	struct pci_dev *pci_dev = rt2x00dev_pci(rt2x00dev);
 
-	rt2x00dev->csr_addr = ioremap(pci_resource_start(pci_dev, 0),
+	rt2x00dev->csr.base = ioremap(pci_resource_start(pci_dev, 0),
 				      pci_resource_len(pci_dev, 0));
-	if (!rt2x00dev->csr_addr)
+	if (!rt2x00dev->csr.base)
 		goto exit;
 
 	rt2x00dev->eeprom = kzalloc(rt2x00dev->ops->eeprom_size, GFP_KERNEL);

@@ -707,11 +707,13 @@ struct rt2x00_dev {
 
 	/*
 	 * Register pointers
-	 * csr_addr: Base register address. (PCI)
-	 * csr_cache: CSR cache for usb_control_msg. (USB)
+	 * csr.base: CSR base register address. (PCI)
+	 * csr.cache: CSR cache for usb_control_msg. (USB)
 	 */
-	void __iomem *csr_addr;
-	void *csr_cache;
+	union csr {
+		void __iomem *base;
+		void *cache;
+	} csr;
 
 	/*
 	 * Mutex to protect register accesses on USB devices.

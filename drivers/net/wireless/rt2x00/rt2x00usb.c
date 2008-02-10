@@ -84,20 +84,20 @@ int rt2x00usb_vendor_req_buff_lock(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Check for Cache availability.
 	 */
-	if (unlikely(!rt2x00dev->csr_cache || buffer_length > CSR_CACHE_SIZE)) {
+	if (unlikely(!rt2x00dev->csr.cache || buffer_length > CSR_CACHE_SIZE)) {
 		ERROR(rt2x00dev, "CSR cache not available.\n");
 		return -ENOMEM;
 	}
 
 	if (requesttype == USB_VENDOR_REQUEST_OUT)
-		memcpy(rt2x00dev->csr_cache, buffer, buffer_length);
+		memcpy(rt2x00dev->csr.cache, buffer, buffer_length);
 
 	status = rt2x00usb_vendor_request(rt2x00dev, request, requesttype,
-					  offset, 0, rt2x00dev->csr_cache,
+					  offset, 0, rt2x00dev->csr.cache,
 					  buffer_length, timeout);
 
 	if (!status && requesttype == USB_VENDOR_REQUEST_IN)
-		memcpy(buffer, rt2x00dev->csr_cache, buffer_length);
+		memcpy(buffer, rt2x00dev->csr.cache, buffer_length);
 
 	return status;
 }
@@ -562,14 +562,14 @@ static void rt2x00usb_free_reg(struct rt2x00_dev *rt2x00dev)
 	kfree(rt2x00dev->eeprom);
 	rt2x00dev->eeprom = NULL;
 
-	kfree(rt2x00dev->csr_cache);
-	rt2x00dev->csr_cache = NULL;
+	kfree(rt2x00dev->csr.cache);
+	rt2x00dev->csr.cache = NULL;
 }
 
 static int rt2x00usb_alloc_reg(struct rt2x00_dev *rt2x00dev)
 {
-	rt2x00dev->csr_cache = kzalloc(CSR_CACHE_SIZE, GFP_KERNEL);
-	if (!rt2x00dev->csr_cache)
+	rt2x00dev->csr.cache = kzalloc(CSR_CACHE_SIZE, GFP_KERNEL);
+	if (!rt2x00dev->csr.cache)
 		goto exit;
 
 	rt2x00dev->eeprom = kzalloc(rt2x00dev->ops->eeprom_size, GFP_KERNEL);
