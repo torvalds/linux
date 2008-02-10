@@ -951,19 +951,15 @@ continue_csr_init:
 	rt2500pci_bbp_write(rt2x00dev, 61, 0x6d);
 	rt2500pci_bbp_write(rt2x00dev, 62, 0x10);
 
-	DEBUG(rt2x00dev, "Start initialization from EEPROM...\n");
 	for (i = 0; i < EEPROM_BBP_SIZE; i++) {
 		rt2x00_eeprom_read(rt2x00dev, EEPROM_BBP_START + i, &eeprom);
 
 		if (eeprom != 0xffff && eeprom != 0x0000) {
 			reg_id = rt2x00_get_field16(eeprom, EEPROM_BBP_REG_ID);
 			value = rt2x00_get_field16(eeprom, EEPROM_BBP_VALUE);
-			DEBUG(rt2x00dev, "BBP: 0x%02x, value: 0x%02x.\n",
-			      reg_id, value);
 			rt2500pci_bbp_write(rt2x00dev, reg_id, value);
 		}
 	}
-	DEBUG(rt2x00dev, "...End initialization from EEPROM.\n");
 
 	return 0;
 }
