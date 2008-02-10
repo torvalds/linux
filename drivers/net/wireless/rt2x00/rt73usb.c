@@ -1399,7 +1399,7 @@ static void rt73usb_fill_rxdone(struct queue_entry *entry,
 	 * Set descriptor and data pointer.
 	 */
 	skbdesc->data = entry->skb->data + entry->queue->desc_size;
-	skbdesc->data_len = entry->queue->data_size;
+	skbdesc->data_len = rxdesc->size;
 	skbdesc->desc = entry->skb->data;
 	skbdesc->desc_len = entry->queue->desc_size;
 

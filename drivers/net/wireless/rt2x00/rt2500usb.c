@@ -1149,7 +1149,7 @@ static void rt2500usb_fill_rxdone(struct queue_entry *entry,
 	 * Set descriptor pointer.
 	 */
 	skbdesc->data = entry->skb->data;
-	skbdesc->data_len = entry->queue->data_size;
+	skbdesc->data_len = rxdesc->size;
 	skbdesc->desc = entry->skb->data + rxdesc->size;
 	skbdesc->desc_len = entry->queue->desc_size;
 

@@ -254,7 +254,7 @@ int rt2x00usb_write_tx_data(struct rt2x00_dev *rt2x00dev,
 	skbdesc = get_skb_frame_desc(skb);
 	memset(skbdesc, 0, sizeof(*skbdesc));
 	skbdesc->data = skb->data + queue->desc_size;
-	skbdesc->data_len = queue->data_size;
+	skbdesc->data_len = skb->len - queue->desc_size;
 	skbdesc->desc = skb->data;
 	skbdesc->desc_len = queue->desc_size;
 	skbdesc->entry = entry;
