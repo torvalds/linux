@@ -370,13 +370,6 @@ static int __devinit palm_bk3710_probe(struct platform_device *pdev)
 	ide_init_port_hw(hwif, &hw);
 	hwif->quirkproc = NULL;
 
-	idx[0] = i;
-
-	ide_device_add(idx, NULL);
-
-	if (!hwif->present)
-		goto out;
-
 	hwif->set_pio_mode = &palm_bk3710_set_pio_mode;
 	hwif->set_dma_mode = &palm_bk3710_set_dma_mode;
 	hwif->mmio = 1;
@@ -389,6 +382,13 @@ static int __devinit palm_bk3710_probe(struct platform_device *pdev)
 	hwif->drives[1].autotune = 1;
 
 	ide_setup_dma(hwif, mem->start);
+
+	idx[0] = i;
+
+	ide_device_add(idx, NULL);
+
+	if (!hwif->present)
+		goto out;
 
 	return 0;
 out:
