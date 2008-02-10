@@ -198,7 +198,7 @@ int ide_build_sglist(ide_drive_t *drive, struct request *rq)
 
 EXPORT_SYMBOL_GPL(ide_build_sglist);
 
-#ifdef CONFIG_BLK_DEV_IDEDMA_PCI
+#ifdef CONFIG_BLK_DEV_IDEDMA_SFF
 /**
  *	ide_build_dmatable	-	build IDE DMA table
  *
@@ -316,7 +316,7 @@ void ide_destroy_dmatable (ide_drive_t *drive)
 
 EXPORT_SYMBOL_GPL(ide_destroy_dmatable);
 
-#ifdef CONFIG_BLK_DEV_IDEDMA_PCI
+#ifdef CONFIG_BLK_DEV_IDEDMA_SFF
 /**
  *	config_drive_for_dma	-	attempt to activate IDE DMA
  *	@drive: the drive to place in DMA mode
@@ -424,7 +424,7 @@ void ide_dma_host_set(ide_drive_t *drive, int on)
 }
 
 EXPORT_SYMBOL_GPL(ide_dma_host_set);
-#endif /* CONFIG_BLK_DEV_IDEDMA_PCI */
+#endif /* CONFIG_BLK_DEV_IDEDMA_SFF  */
 
 /**
  *	ide_dma_off_quietly	-	Generic DMA kill
@@ -474,7 +474,7 @@ void ide_dma_on(ide_drive_t *drive)
 	drive->hwif->dma_host_set(drive, 1);
 }
 
-#ifdef CONFIG_BLK_DEV_IDEDMA_PCI
+#ifdef CONFIG_BLK_DEV_IDEDMA_SFF
 /**
  *	ide_dma_setup	-	begin a DMA phase
  *	@drive: target device
@@ -591,7 +591,7 @@ static int __ide_dma_test_irq(ide_drive_t *drive)
 }
 #else
 static inline int config_drive_for_dma(ide_drive_t *drive) { return 0; }
-#endif /* CONFIG_BLK_DEV_IDEDMA_PCI */
+#endif /* CONFIG_BLK_DEV_IDEDMA_SFF */
 
 int __ide_dma_bad_drive (ide_drive_t *drive)
 {
@@ -840,7 +840,7 @@ void ide_check_dma_crc(ide_drive_t *drive)
 		ide_dma_on(drive);
 }
 
-#ifdef CONFIG_BLK_DEV_IDEDMA_PCI
+#ifdef CONFIG_BLK_DEV_IDEDMA_SFF
 void ide_dma_lost_irq (ide_drive_t *drive)
 {
 	printk("%s: DMA interrupt recovery\n", drive->name);
@@ -1002,4 +1002,4 @@ void ide_setup_dma(ide_hwif_t *hwif, unsigned long base)
 }
 
 EXPORT_SYMBOL_GPL(ide_setup_dma);
-#endif /* CONFIG_BLK_DEV_IDEDMA_PCI */
+#endif /* CONFIG_BLK_DEV_IDEDMA_SFF */
