@@ -334,9 +334,16 @@ int rt2x00mac_config_interface(struct ieee80211_hw *hw,
 	 */
 	if (conf->type != IEEE80211_IF_TYPE_AP)
 		memcpy(&intf->bssid, conf->bssid, ETH_ALEN);
-	rt2x00lib_config_intf(rt2x00dev, intf, conf->type, NULL, intf->bssid);
 
 	spin_unlock(&intf->lock);
+
+	/*
+	 * Call rt2x00_config_intf() outside of the spinlock context since
+	 * the call will sleep for USB drivers. By using the ieee80211_if_conf
+	 * values as arguments we make keep access to rt2x00_intf thread safe
+	 * even without the lock.
+	 */
+	rt2x00lib_config_intf(rt2x00dev, intf, conf->type, NULL, conf->bssid);
 
 	/*
 	 * We only need to initialize the beacon when master mode is enabled.
