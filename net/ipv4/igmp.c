@@ -922,13 +922,11 @@ int igmp_rcv(struct sk_buff *skb)
 	struct in_device *in_dev = in_dev_get(skb->dev);
 	int len = skb->len;
 
-	if (in_dev==NULL) {
-		kfree_skb(skb);
-		return 0;
-	}
+	if (in_dev == NULL)
+		goto drop;
 
 	if (!pskb_may_pull(skb, sizeof(struct igmphdr)))
-		goto drop;
+		goto drop_ref;
 
 	switch (skb->ip_summed) {
 	case CHECKSUM_COMPLETE:
@@ -938,7 +936,7 @@ int igmp_rcv(struct sk_buff *skb)
 	case CHECKSUM_NONE:
 		skb->csum = 0;
 		if (__skb_checksum_complete(skb))
-			goto drop;
+			goto drop_ref;
 	}
 
 	ih = igmp_hdr(skb);
@@ -972,8 +970,9 @@ int igmp_rcv(struct sk_buff *skb)
 		break;
 	}
 
-drop:
+drop_ref:
 	in_dev_put(in_dev);
+drop:
 	kfree_skb(skb);
 	return 0;
 }
