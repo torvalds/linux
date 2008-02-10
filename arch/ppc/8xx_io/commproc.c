@@ -43,7 +43,7 @@
 ({									\
 	u32 offset = offsetof(immap_t, member);				\
 	void *addr = ioremap (IMAP_ADDR + offset,			\
-			      sizeof( ((immap_t*)0)->member));		\
+			      FIELD_SIZEOF(immap_t, member));		\
 	addr;								\
 })
 
