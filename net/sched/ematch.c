@@ -410,7 +410,7 @@ void tcf_em_tree_destroy(struct tcf_proto *tp, struct tcf_ematch_tree *tree)
 			if (em->ops->destroy)
 				em->ops->destroy(tp, em);
 			else if (!tcf_em_is_simple(em))
-				kfree(em->data);
+				kfree((void *) em->data);
 			module_put(em->ops->owner);
 		}
 	}
