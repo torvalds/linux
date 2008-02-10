@@ -945,12 +945,13 @@ static void udf_load_pvoldesc(struct super_block *sb, struct buffer_head *bh)
 
 	if (udf_disk_stamp_to_time(&UDF_SB(sb)->s_record_time,
 			      pvoldesc->recordingDateAndTime)) {
-		kernel_timestamp ts;
-		ts = lets_to_cpu(pvoldesc->recordingDateAndTime);
+#ifdef UDFFS_DEBUG
+		timestamp *ts = &pvoldesc->recordingDateAndTime;
 		udf_debug("recording time %04u/%02u/%02u"
 			  " %02u:%02u (%x)\n",
-			  ts.year, ts.month, ts.day, ts.hour,
-			  ts.minute, ts.typeAndTimezone);
+			  le16_to_cpu(ts->year), ts->month, ts->day, ts->hour,
+			  ts->minute, le16_to_cpu(ts->typeAndTimezone));
+#endif
 	}
 
 	if (!udf_build_ustr(&instr, pvoldesc->volIdent, 32))

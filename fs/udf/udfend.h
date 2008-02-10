@@ -24,17 +24,6 @@ static inline lb_addr cpu_to_lelb(kernel_lb_addr in)
 	return out;
 }
 
-static inline kernel_timestamp lets_to_cpu(timestamp in)
-{
-	kernel_timestamp out;
-
-	memcpy(&out, &in, sizeof(timestamp));
-	out.typeAndTimezone = le16_to_cpu(in.typeAndTimezone);
-	out.year = le16_to_cpu(in.year);
-
-	return out;
-}
-
 static inline short_ad lesa_to_cpu(short_ad in)
 {
 	short_ad out;
@@ -81,17 +70,6 @@ static inline kernel_extent_ad leea_to_cpu(extent_ad in)
 
 	out.extLength = le32_to_cpu(in.extLength);
 	out.extLocation = le32_to_cpu(in.extLocation);
-
-	return out;
-}
-
-static inline timestamp cpu_to_lets(kernel_timestamp in)
-{
-	timestamp out;
-
-	memcpy(&out, &in, sizeof(timestamp));
-	out.typeAndTimezone = cpu_to_le16(in.typeAndTimezone);
-	out.year = cpu_to_le16(in.year);
 
 	return out;
 }
