@@ -40,7 +40,6 @@ struct split_state {
 static int print_split(struct split_state *s)
 {
 	long i, expected, missed = 0;
-	int printed = 0;
 	int err = 0;
 
 	s->lpg = s->gpg = s->spg = s->exec = 0;
@@ -53,12 +52,6 @@ static int print_split(struct split_state *s)
 
 		pte = lookup_address(addr, &level);
 		if (!pte) {
-			if (!printed) {
-				dump_pagetable(addr);
-				printk(KERN_INFO "CPA %lx no pte level %d\n",
-					addr, level);
-				printed = 1;
-			}
 			missed++;
 			i++;
 			continue;
