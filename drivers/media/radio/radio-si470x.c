@@ -558,7 +558,7 @@ static int si470x_get_rds_registers(struct si470x_device *radio)
 		(void *) &buf, sizeof(buf), &size, usb_timeout);
 	if (size != sizeof(buf))
 		printk(KERN_WARNING DRIVER_NAME ": si470x_get_rds_register: "
-		       "return size differs: %d != %ld\n", size, sizeof(buf));
+		       "return size differs: %d != %uld\n", size, sizeof(buf));
 	if (retval < 0)
 		printk(KERN_WARNING DRIVER_NAME ": si470x_get_rds_registers: "
 			"usb_interrupt_msg returned %d\n", retval);
