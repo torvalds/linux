@@ -847,7 +847,7 @@ static int init_card(struct IsdnCardState *cs)
 	return 3;
 }
 
-static int hisax_cs_setup_card(struct IsdnCard *card)
+static int __devinit hisax_cs_setup_card(struct IsdnCard *card)
 {
 	int ret;
 
@@ -1166,7 +1166,10 @@ outf_cs:
 	return 0;
 }
 
-static int checkcard(int cardnr, char *id, int *busy_flag, struct module *lockowner)
+/* Used from an exported function but calls __devinit functions.
+ * Tell modpost not to warn (__ref)
+ */
+static int __ref checkcard(int cardnr, char *id, int *busy_flag, struct module *lockowner)
 {
 	int ret;
 	struct IsdnCard *card = cards + cardnr;
