@@ -148,6 +148,8 @@ static int journal_submit_commit_record(journal_t *journal,
 		barrier_done = 1;
 	}
 	ret = submit_bh(WRITE, bh);
+	if (barrier_done)
+		clear_buffer_ordered(bh);
 
 	/* is it possible for another commit to fail at roughly
 	 * the same time as this one?  If so, we don't want to
@@ -166,7 +168,6 @@ static int journal_submit_commit_record(journal_t *journal,
 		spin_unlock(&journal->j_state_lock);
 
 		/* And try again, without the barrier */
-		clear_buffer_ordered(bh);
 		set_buffer_uptodate(bh);
 		set_buffer_dirty(bh);
 		ret = submit_bh(WRITE, bh);
