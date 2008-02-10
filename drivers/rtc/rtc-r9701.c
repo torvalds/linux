@@ -71,7 +71,6 @@ static int read_regs(struct device *dev, unsigned char *regs, int no_regs)
 
 static int r9701_get_datetime(struct device *dev, struct rtc_time *dt)
 {
-	unsigned long time;
 	int ret;
 	unsigned char buf[] = { RSECCNT, RMINCNT, RHRCNT,
 				RDAYCNT, RMONCNT, RYRCNT };
