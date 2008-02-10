@@ -774,7 +774,7 @@ static void set_rx_filter_handler(struct work_struct *work)
 
 #define SUPPORTED_FIF_FLAGS \
 	(FIF_PROMISC_IN_BSS | FIF_ALLMULTI | FIF_FCSFAIL | FIF_CONTROL | \
-	FIF_OTHER_BSS)
+	FIF_OTHER_BSS | FIF_BCN_PRBRESP_PROMISC)
 static void zd_op_configure_filter(struct ieee80211_hw *hw,
 			unsigned int changed_flags,
 			unsigned int *new_flags,
