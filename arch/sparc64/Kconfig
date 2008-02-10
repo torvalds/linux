@@ -41,6 +41,10 @@ config MMU
 	bool
 	default y
 
+config IOMMU_HELPER
+	bool
+	default y
+
 config QUICKLIST
 	bool
 	default y

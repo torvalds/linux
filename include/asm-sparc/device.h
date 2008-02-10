@@ -19,5 +19,3 @@ struct dev_archdata {
 };
 
 #endif /* _ASM_SPARC_DEVICE_H */
-
-

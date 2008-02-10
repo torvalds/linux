@@ -89,6 +89,10 @@ SECTIONS
 	.data.cacheline_aligned : {
 		*(.data.cacheline_aligned)
 	}
+	. = ALIGN(32);
+	.data.read_mostly : {
+		*(.data.read_mostly)
+	}
 
 	__bss_start = .;
 	.sbss : {

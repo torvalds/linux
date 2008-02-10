@@ -9,7 +9,7 @@
  * Copyright (C) 1996-2005 Paul Mackerras.
  *
  * Updates for PPC64 by Peter Bergner & David Engebretsen, IBM Corp.
- * Updates for SPARC32 by David S. Miller
+ * Updates for SPARC by David S. Miller
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -39,6 +39,7 @@ struct property {
 	unsigned int unique_id;
 };
 
+struct of_irq_controller;
 struct device_node {
 	const char	*name;
 	const char	*type;
@@ -58,11 +59,19 @@ struct device_node {
 	unsigned long _flags;
 	void	*data;
 	unsigned int unique_id;
+
+	struct of_irq_controller *irq_trans;
+};
+
+struct of_irq_controller {
+	unsigned int	(*irq_build)(struct device_node *, unsigned int, void *);
+	void		*data;
 };
 
 #define OF_IS_DYNAMIC(x) test_bit(OF_DYNAMIC, &x->_flags)
 #define OF_MARK_DYNAMIC(x) set_bit(OF_DYNAMIC, &x->_flags)
 
+extern struct device_node *of_find_node_by_cpuid(int cpuid);
 extern int of_set_property(struct device_node *node, const char *name, void *val, int len);
 extern int of_getintprop_default(struct device_node *np,
 				 const char *name,

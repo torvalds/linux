@@ -1,23 +1,26 @@
-/* $Id: a.out.h,v 1.13 2000/01/09 10:46:53 anton Exp $ */
 #ifndef __SPARC_A_OUT_H__
 #define __SPARC_A_OUT_H__
 
 #define SPARC_PGSIZE    0x2000        /* Thanks to the sun4 architecture... */
 #define SEGMENT_SIZE    SPARC_PGSIZE  /* whee... */
 
+#ifndef __ASSEMBLY__
+
 struct exec {
 	unsigned char a_dynamic:1;      /* A __DYNAMIC is in this image */
 	unsigned char a_toolversion:7;
 	unsigned char a_machtype;
 	unsigned short a_info;
-	unsigned long a_text;		/* length of text, in bytes */
-	unsigned long a_data;		/* length of data, in bytes */
-	unsigned long a_bss;		/* length of bss, in bytes */
-	unsigned long a_syms;		/* length of symbol table, in bytes */
-	unsigned long a_entry;		/* where program begins */
-	unsigned long a_trsize;
-	unsigned long a_drsize;
+	unsigned int a_text;		/* length of text, in bytes */
+	unsigned int a_data;		/* length of data, in bytes */
+	unsigned int a_bss;		/* length of bss, in bytes */
+	unsigned int a_syms;		/* length of symbol table, in bytes */
+	unsigned int a_entry;		/* where program begins */
+	unsigned int a_trsize;
+	unsigned int a_drsize;
 };
+
+#endif /* !__ASSEMBLY__ */
 
 /* Where in the file does the text information begin? */
 #define N_TXTOFF(x)     (N_MAGIC(x) == ZMAGIC ? 0 : sizeof (struct exec))
@@ -28,18 +31,20 @@ struct exec {
                          (x).a_drsize)
 
 /* Where does text segment go in memory after being loaded? */
-#define N_TXTADDR(x)    (((N_MAGIC(x) == ZMAGIC) &&        \
+#define N_TXTADDR(x)    (unsigned long)(((N_MAGIC(x) == ZMAGIC) && \
 	                 ((x).a_entry < SPARC_PGSIZE)) ?   \
                           0 : SPARC_PGSIZE)
 
 /* And same for the data segment.. */
 #define N_DATADDR(x) (N_MAGIC(x)==OMAGIC ?         \
                       (N_TXTADDR(x) + (x).a_text)  \
-                       : (_N_SEGMENT_ROUND (_N_TXTENDADDR(x))))
+		       : (unsigned long) (_N_SEGMENT_ROUND (_N_TXTENDADDR(x))))
 
 #define N_TRSIZE(a)	((a).a_trsize)
 #define N_DRSIZE(a)	((a).a_drsize)
 #define N_SYMSIZE(a)	((a).a_syms)
+
+#ifndef __ASSEMBLY__
 
 /*
  * Sparc relocation types
@@ -77,14 +82,16 @@ enum reloc_type
  */
 struct relocation_info /* used when header.a_machtype == M_SPARC */
 {
-        unsigned long   r_address;  /* relocation addr */
+        unsigned int    r_address;  /* relocation addr */
         unsigned int    r_index:24; /* segment index or symbol index */
         unsigned int    r_extern:1; /* if F, r_index==SEG#; if T, SYM idx */
         unsigned int    r_pad:2;    /* <unused> */
         enum reloc_type r_type:5;   /* type of relocation to perform */
-        long            r_addend;   /* addend for relocation value */
+        int             r_addend;   /* addend for relocation value */
 };
 
 #define N_RELOCATION_INFO_DECLARED 1
+
+#endif /* !(__ASSEMBLY__) */
 
 #endif /* __SPARC_A_OUT_H__ */

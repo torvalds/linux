@@ -304,3 +304,14 @@ Why:	The support code for the old firmware hurts code readability/maintainabilit
 	and slightly hurts runtime performance. Bugfixes for the old firmware
 	are not provided by Broadcom anymore.
 Who:	Michael Buesch <mb@bu3sch.de>
+
+---------------------------
+
+What:	Solaris/SunOS syscall and binary support on Sparc
+When:	2.6.26
+Why:	Largely unmaintained and almost entirely unused.  File system
+	layering used to divert library and dynamic linker searches to
+	/usr/gnemul is extremely buggy and unfixable.  Making it work
+	is largely pointless as without a lot of work only the most
+	trivial of Solaris binaries can work with the emulation code.
+Who:	David S. Miller <davem@davemloft.net>
