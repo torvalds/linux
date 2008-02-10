@@ -61,10 +61,9 @@ static int finish_range(handle_t *handle, struct inode *inode,
 		retval = ext4_journal_restart(handle, needed);
 		if (retval)
 			goto err_out;
-	}
-	if (needed) {
+	} else if (needed) {
 		retval = ext4_journal_extend(handle, needed);
-		if (retval != 0) {
+		if (retval) {
 			/*
 			 * IF not able to extend the journal restart the journal
 			 */
@@ -220,6 +219,26 @@ static int update_tind_extent_range(handle_t *handle, struct inode *inode,
 
 }
 
+static int extend_credit_for_blkdel(handle_t *handle, struct inode *inode)
+{
+	int retval = 0, needed;
+
+	if (handle->h_buffer_credits > EXT4_RESERVE_TRANS_BLOCKS)
+		return 0;
+	/*
+	 * We are freeing a blocks. During this we touch
+	 * superblock, group descriptor and block bitmap.
+	 * So allocate a credit of 3. We may update
+	 * quota (user and group).
+	 */
+	needed = 3 + 2*EXT4_QUOTA_TRANS_BLOCKS(inode->i_sb);
+
+	if (ext4_journal_extend(handle, needed) != 0)
+		retval = ext4_journal_restart(handle, needed);
+
+	return retval;
+}
+
 static int free_dind_blocks(handle_t *handle,
 				struct inode *inode, __le32 i_data)
 {
@@ -234,11 +253,14 @@ static int free_dind_blocks(handle_t *handle,
 
 	tmp_idata = (__le32 *)bh->b_data;
 	for (i = 0; i < max_entries; i++) {
-		if (tmp_idata[i])
+		if (tmp_idata[i]) {
+			extend_credit_for_blkdel(handle, inode);
 			ext4_free_blocks(handle, inode,
 					le32_to_cpu(tmp_idata[i]), 1, 1);
+		}
 	}
 	put_bh(bh);
+	extend_credit_for_blkdel(handle, inode);
 	ext4_free_blocks(handle, inode, le32_to_cpu(i_data), 1, 1);
 	return 0;
 }
@@ -267,29 +289,32 @@ static int free_tind_blocks(handle_t *handle,
 		}
 	}
 	put_bh(bh);
+	extend_credit_for_blkdel(handle, inode);
 	ext4_free_blocks(handle, inode, le32_to_cpu(i_data), 1, 1);
 	return 0;
 }
 
-static int free_ind_block(handle_t *handle, struct inode *inode)
+static int free_ind_block(handle_t *handle, struct inode *inode, __le32 *i_data)
 {
 	int retval;
-	struct ext4_inode_info *ei = EXT4_I(inode);
 
-	if (ei->i_data[EXT4_IND_BLOCK])
+	/* ei->i_data[EXT4_IND_BLOCK] */
+	if (i_data[0]) {
+		extend_credit_for_blkdel(handle, inode);
 		ext4_free_blocks(handle, inode,
-				le32_to_cpu(ei->i_data[EXT4_IND_BLOCK]), 1, 1);
+				le32_to_cpu(i_data[0]), 1, 1);
+	}
 
-	if (ei->i_data[EXT4_DIND_BLOCK]) {
-		retval = free_dind_blocks(handle, inode,
-						ei->i_data[EXT4_DIND_BLOCK]);
+	/* ei->i_data[EXT4_DIND_BLOCK] */
+	if (i_data[1]) {
+		retval = free_dind_blocks(handle, inode, i_data[1]);
 		if (retval)
 			return retval;
 	}
 
-	if (ei->i_data[EXT4_TIND_BLOCK]) {
-		retval = free_tind_blocks(handle, inode,
-						ei->i_data[EXT4_TIND_BLOCK]);
+	/* ei->i_data[EXT4_TIND_BLOCK] */
+	if (i_data[2]) {
+		retval = free_tind_blocks(handle, inode, i_data[2]);
 		if (retval)
 			return retval;
 	}
@@ -297,14 +322,12 @@ static int free_ind_block(handle_t *handle, struct inode *inode)
 }
 
 static int ext4_ext_swap_inode_data(handle_t *handle, struct inode *inode,
-				struct inode *tmp_inode, int retval)
+				struct inode *tmp_inode)
 {
+	int retval;
+	__le32	i_data[3];
 	struct ext4_inode_info *ei = EXT4_I(inode);
 	struct ext4_inode_info *tmp_ei = EXT4_I(tmp_inode);
-
-	retval = free_ind_block(handle, inode);
-	if (retval)
-		goto err_out;
 
 	/*
 	 * One credit accounted for writing the
@@ -317,6 +340,11 @@ static int ext4_ext_swap_inode_data(handle_t *handle, struct inode *inode,
 			goto err_out;
 	}
 
+	i_data[0] = ei->i_data[EXT4_IND_BLOCK];
+	i_data[1] = ei->i_data[EXT4_DIND_BLOCK];
+	i_data[2] = ei->i_data[EXT4_TIND_BLOCK];
+
+	down_write(&EXT4_I(inode)->i_data_sem);
 	/*
 	 * We have the extent map build with the tmp inode.
 	 * Now copy the i_data across
@@ -336,8 +364,15 @@ static int ext4_ext_swap_inode_data(handle_t *handle, struct inode *inode,
 	spin_lock(&inode->i_lock);
 	inode->i_blocks += tmp_inode->i_blocks;
 	spin_unlock(&inode->i_lock);
+	up_write(&EXT4_I(inode)->i_data_sem);
 
+	/*
+	 * We mark the inode dirty after, because we decrement the
+	 * i_blocks when freeing the indirect meta-data blocks
+	 */
+	retval = free_ind_block(handle, inode, i_data);
 	ext4_mark_inode_dirty(handle, inode);
+
 err_out:
 	return retval;
 }
@@ -365,6 +400,7 @@ static int free_ext_idx(handle_t *handle, struct inode *inode,
 		}
 	}
 	put_bh(bh);
+	extend_credit_for_blkdel(handle, inode);
 	ext4_free_blocks(handle, inode, block, 1, 1);
 	return retval;
 }
@@ -414,7 +450,12 @@ int ext4_ext_migrate(struct inode *inode, struct file *filp,
 	if ((EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL))
 		return -EINVAL;
 
-	down_write(&EXT4_I(inode)->i_data_sem);
+	if (S_ISLNK(inode->i_mode) && inode->i_blocks == 0)
+		/*
+		 * don't migrate fast symlink
+		 */
+		return retval;
+
 	handle = ext4_journal_start(inode,
 					EXT4_DATA_TRANS_BLOCKS(inode->i_sb) +
 					EXT4_INDEX_EXTRA_TRANS_BLOCKS + 3 +
@@ -448,13 +489,6 @@ int ext4_ext_migrate(struct inode *inode, struct file *filp,
 	ext4_orphan_add(handle, tmp_inode);
 	ext4_journal_stop(handle);
 
-	ei = EXT4_I(inode);
-	i_data = ei->i_data;
-	memset(&lb, 0, sizeof(lb));
-
-	/* 32 bit block address 4 bytes */
-	max_entries = inode->i_sb->s_blocksize >> 2;
-
 	/*
 	 * start with one credit accounted for
 	 * superblock modification.
@@ -463,7 +497,20 @@ int ext4_ext_migrate(struct inode *inode, struct file *filp,
 	 * trascation that created the inode. Later as and
 	 * when we add extents we extent the journal
 	 */
+	/*
+	 * inode_mutex prevent write and truncate on the file. Read still goes
+	 * through. We take i_data_sem in ext4_ext_swap_inode_data before we
+	 * switch the inode format to prevent read.
+	 */
+	mutex_lock(&(inode->i_mutex));
 	handle = ext4_journal_start(inode, 1);
+
+	ei = EXT4_I(inode);
+	i_data = ei->i_data;
+	memset(&lb, 0, sizeof(lb));
+
+	/* 32 bit block address 4 bytes */
+	max_entries = inode->i_sb->s_blocksize >> 2;
 	for (i = 0; i < EXT4_NDIR_BLOCKS; i++, blk_count++) {
 		if (i_data[i]) {
 			retval = update_extent_range(handle, tmp_inode,
@@ -501,19 +548,6 @@ int ext4_ext_migrate(struct inode *inode, struct file *filp,
 	 */
 	retval = finish_range(handle, tmp_inode, &lb);
 err_out:
-	/*
-	 * We are either freeing extent information or indirect
-	 * blocks. During this we touch superblock, group descriptor
-	 * and block bitmap. Later we mark the tmp_inode dirty
-	 * via ext4_ext_tree_init. So allocate a credit of 4
-	 * We may update quota (user and group).
-	 *
-	 * FIXME!! we may be touching bitmaps in different block groups.
-	 */
-	if (ext4_journal_extend(handle,
-			4 + 2*EXT4_QUOTA_TRANS_BLOCKS(inode->i_sb)) != 0)
-		ext4_journal_restart(handle,
-				4 + 2*EXT4_QUOTA_TRANS_BLOCKS(inode->i_sb));
 	if (retval)
 		/*
 		 * Failure case delete the extent information with the
@@ -522,7 +556,11 @@ err_out:
 		free_ext_block(handle, tmp_inode);
 	else
 		retval = ext4_ext_swap_inode_data(handle, inode,
-							tmp_inode, retval);
+							tmp_inode);
+
+	/* We mark the tmp_inode dirty via ext4_ext_tree_init. */
+	if (ext4_journal_extend(handle, 1) != 0)
+		ext4_journal_restart(handle, 1);
 
 	/*
 	 * Mark the tmp_inode as of size zero
@@ -550,8 +588,7 @@ err_out:
 	tmp_inode->i_nlink = 0;
 
 	ext4_journal_stop(handle);
-
-	up_write(&EXT4_I(inode)->i_data_sem);
+	mutex_unlock(&(inode->i_mutex));
 
 	if (tmp_inode)
 		iput(tmp_inode);

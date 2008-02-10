@@ -1919,6 +1919,17 @@ static int ext4_fill_super (struct super_block *sb, void *data, int silent)
 		printk(KERN_WARNING
 		       "EXT4-fs warning: feature flags set on rev 0 fs, "
 		       "running e2fsck is recommended\n");
+
+	/*
+	 * Since ext4 is still considered development code, we require
+	 * that the TEST_FILESYS flag in s->flags be set.
+	 */
+	if (!(le32_to_cpu(es->s_flags) & EXT2_FLAGS_TEST_FILESYS)) {
+		printk(KERN_WARNING "EXT4-fs: %s: not marked "
+		       "OK to use with test code.\n", sb->s_id);
+		goto failed_mount;
+	}
+
 	/*
 	 * Check feature flags regardless of the revision level, since we
 	 * previously didn't change the revision level when setting the flags,
