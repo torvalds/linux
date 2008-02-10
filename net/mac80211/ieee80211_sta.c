@@ -297,12 +297,13 @@ static void ieee80211_sta_wmm_params(struct net_device *dev,
 		params.aifs = pos[0] & 0x0f;
 		params.cw_max = ecw2cw((pos[1] & 0xf0) >> 4);
 		params.cw_min = ecw2cw(pos[1] & 0x0f);
-		/* TXOP is in units of 32 usec; burst_time in 0.1 ms */
-		params.burst_time = (pos[2] | (pos[3] << 8)) * 32 / 100;
+		params.txop = pos[2] | (pos[3] << 8);
+#ifdef CONFIG_MAC80211_DEBUG
 		printk(KERN_DEBUG "%s: WMM queue=%d aci=%d acm=%d aifs=%d "
-		       "cWmin=%d cWmax=%d burst=%d\n",
+		       "cWmin=%d cWmax=%d txop=%d\n",
 		       dev->name, queue, aci, acm, params.aifs, params.cw_min,
-		       params.cw_max, params.burst_time);
+		       params.cw_max, params.txop);
+#endif
 		/* TODO: handle ACM (block TX, fallback to next lowest allowed
 		 * AC for now) */
 		if (local->ops->conf_tx(local_to_hw(local), queue, &params)) {
@@ -3230,7 +3231,7 @@ int ieee80211_sta_set_ssid(struct net_device *dev, char *ssid, size_t len)
 			qparam.cw_min = 15;
 
 		qparam.cw_max = 1023;
-		qparam.burst_time = 0;
+		qparam.txop = 0;
 
 		for (i = IEEE80211_TX_QUEUE_DATA0; i < NUM_TX_DATA_QUEUES; i++)
 			local->ops->conf_tx(local_to_hw(local),

@@ -89,19 +89,19 @@ struct ieee80211_ht_bss_info {
  * struct ieee80211_tx_queue_params - transmit queue configuration
  *
  * The information provided in this structure is required for QoS
- * transmit queue configuration.
+ * transmit queue configuration. Cf. IEEE 802.11 7.3.2.29.
  *
  * @aifs: arbitration interface space [0..255, -1: use default]
  * @cw_min: minimum contention window [will be a value of the form
  *	2^n-1 in the range 1..1023; 0: use default]
  * @cw_max: maximum contention window [like @cw_min]
- * @burst_time: maximum burst time in units of 0.1ms, 0 meaning disabled
+ * @txop: maximum burst time in units of 32 usecs, 0 meaning disabled
  */
 struct ieee80211_tx_queue_params {
-	int aifs;
-	int cw_min;
-	int cw_max;
-	int burst_time;
+	s16 aifs;
+	u16 cw_min;
+	u16 cw_max;
+	u16 txop;
 };
 
 /**

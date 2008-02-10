@@ -759,13 +759,12 @@ static int p54_set_leds(struct ieee80211_hw *dev, int mode, int link, int act)
 	return 0;
 }
 
-#define P54_SET_QUEUE(queue, ai_fs, cw_min, cw_max, burst)	\
+#define P54_SET_QUEUE(queue, ai_fs, cw_min, cw_max, _txop)	\
 do {	 							\
 	queue.aifs = cpu_to_le16(ai_fs);			\
 	queue.cwmin = cpu_to_le16(cw_min);			\
 	queue.cwmax = cpu_to_le16(cw_max);			\
-	queue.txop = (burst == 0) ? 				\
-		0 : cpu_to_le16((burst * 100) / 32 + 1);	\
+	queue.txop = cpu_to_le16(_txop);			\
 } while(0)
 
 static void p54_init_vdcf(struct ieee80211_hw *dev)
@@ -783,10 +782,16 @@ static void p54_init_vdcf(struct ieee80211_hw *dev)
 
 	vdcf = (struct p54_tx_control_vdcf *) hdr->data;
 
-	P54_SET_QUEUE(vdcf->queue[0], 0x0002, 0x0003, 0x0007, 0x000f);
-	P54_SET_QUEUE(vdcf->queue[1], 0x0002, 0x0007, 0x000f, 0x001e);
-	P54_SET_QUEUE(vdcf->queue[2], 0x0002, 0x000f, 0x03ff, 0x0014);
-	P54_SET_QUEUE(vdcf->queue[3], 0x0007, 0x000f, 0x03ff, 0x0000);
+	/*
+	 * FIXME: The default values in the spec (IEEE 802.11
+	 *	  7.3.2.19 Table 37) are 47, 94, 0, 0, why use
+	 *	  47, 94, 63, 0 here? Also, the default AIFS
+	 *	  values (second parameter) are 2, 2, 3, 7...
+	 */
+	P54_SET_QUEUE(vdcf->queue[0], 0x0002, 0x0003, 0x0007, 47);
+	P54_SET_QUEUE(vdcf->queue[1], 0x0002, 0x0007, 0x000f, 94);
+	P54_SET_QUEUE(vdcf->queue[2], 0x0002, 0x000f, 0x03ff, 63);
+	P54_SET_QUEUE(vdcf->queue[3], 0x0007, 0x000f, 0x03ff, 0);
 }
 
 static void p54_set_vdcf(struct ieee80211_hw *dev)
@@ -939,7 +944,7 @@ static int p54_conf_tx(struct ieee80211_hw *dev, int queue,
 
 	if ((params) && !((queue < 0) || (queue > 4))) {
 		P54_SET_QUEUE(vdcf->queue[queue], params->aifs,
-			params->cw_min, params->cw_max, params->burst_time);
+			params->cw_min, params->cw_max, params->txop);
 	} else
 		return -EINVAL;
 

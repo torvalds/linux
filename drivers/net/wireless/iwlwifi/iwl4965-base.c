@@ -7916,7 +7916,7 @@ static int iwl4965_mac_conf_tx(struct ieee80211_hw *hw, int queue,
 	priv->qos_data.def_qos_parm.ac[q].cw_max = cpu_to_le16(params->cw_max);
 	priv->qos_data.def_qos_parm.ac[q].aifsn = params->aifs;
 	priv->qos_data.def_qos_parm.ac[q].edca_txop =
-			cpu_to_le16((params->burst_time * 100));
+			cpu_to_le16((params->txop * 32));
 
 	priv->qos_data.def_qos_parm.ac[q].reserved1 = 0;
 	priv->qos_data.qos_active = 1;
