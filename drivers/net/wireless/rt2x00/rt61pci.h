@@ -880,7 +880,7 @@ struct hw_pairwise_ta_entry {
 #define TX_CNTL_CSR_ABORT_TX_MGMT	FIELD32(0x00100000)
 
 /*
- * LOAD_TX_RING_CSR: Load RX de
+ * LOAD_TX_RING_CSR: Load RX desriptor
  */
 #define LOAD_TX_RING_CSR		0x3434
 #define LOAD_TX_RING_CSR_LOAD_TXD_AC0	FIELD32(0x00000001)

@@ -1070,7 +1070,6 @@ static int rt61pci_init_queues(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field32(&reg, TX_DMA_DST_CSR_DEST_AC1, 2);
 	rt2x00_set_field32(&reg, TX_DMA_DST_CSR_DEST_AC2, 2);
 	rt2x00_set_field32(&reg, TX_DMA_DST_CSR_DEST_AC3, 2);
-	rt2x00_set_field32(&reg, TX_DMA_DST_CSR_DEST_MGMT, 0);
 	rt2x00pci_register_write(rt2x00dev, TX_DMA_DST_CSR, reg);
 
 	rt2x00pci_register_read(rt2x00dev, LOAD_TX_RING_CSR, &reg);
@@ -1078,7 +1077,6 @@ static int rt61pci_init_queues(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field32(&reg, LOAD_TX_RING_CSR_LOAD_TXD_AC1, 1);
 	rt2x00_set_field32(&reg, LOAD_TX_RING_CSR_LOAD_TXD_AC2, 1);
 	rt2x00_set_field32(&reg, LOAD_TX_RING_CSR_LOAD_TXD_AC3, 1);
-	rt2x00_set_field32(&reg, LOAD_TX_RING_CSR_LOAD_TXD_MGMT, 0);
 	rt2x00pci_register_write(rt2x00dev, LOAD_TX_RING_CSR, reg);
 
 	rt2x00pci_register_read(rt2x00dev, RX_CNTL_CSR, &reg);
