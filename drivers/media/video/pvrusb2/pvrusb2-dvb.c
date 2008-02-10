@@ -346,12 +346,30 @@ static int pvr2_dvb_adapter_exit(struct pvr2_dvb_adapter *adap)
 
 static int pvr2_dvb_frontend_init(struct pvr2_dvb_adapter *adap)
 {
-	struct pvr2_dvb_props *dvb_props = adap->pvr->hdw->hdw_desc->dvb_props;
+	struct pvr2_hdw *hdw = adap->pvr->hdw;
+	struct pvr2_dvb_props *dvb_props = hdw->hdw_desc->dvb_props;
+	int ret;
 
 	if (dvb_props == NULL) {
 		err("fe_props not defined!");
 		return -EINVAL;
 	}
+
+	/* FIXME: This code should be moved into the core,
+	 * and should only be called if we don't already have
+	 * control of the bus.
+	 *
+	 * We can't call "pvr2_dvb_bus_ctrl(adap->fe, 1)" from here,
+	 * because adap->fe isn't defined yet.
+	 */
+	ret = pvr2_ctrl_set_value(pvr2_hdw_get_ctrl_by_id(hdw,
+							  PVR2_CID_INPUT),
+				  PVR2_CVAL_INPUT_DTV);
+	if (ret != 0)
+		return ret;
+
+	pvr2_hdw_commit_ctl(hdw);
+
 
 	if (dvb_props->frontend_attach == NULL) {
 		err("frontend_attach not defined!");
