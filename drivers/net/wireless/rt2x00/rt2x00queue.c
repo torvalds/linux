@@ -228,6 +228,18 @@ void rt2x00queue_uninitialize(struct rt2x00_dev *rt2x00dev)
 	}
 }
 
+static void rt2x00queue_init(struct rt2x00_dev *rt2x00dev,
+			     struct data_queue *queue, enum data_queue_qid qid)
+{
+	spin_lock_init(&queue->lock);
+
+	queue->rt2x00dev = rt2x00dev;
+	queue->qid = qid;
+	queue->aifs = 2;
+	queue->cw_min = 5;
+	queue->cw_max = 10;
+}
+
 int rt2x00queue_allocate(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue;
@@ -265,24 +277,15 @@ int rt2x00queue_allocate(struct rt2x00_dev *rt2x00dev)
 	 * TX: cw_max: 2^10 = 1024.
 	 * BCN & Atim: qid = QID_MGMT
 	 */
+	rt2x00queue_init(rt2x00dev, rt2x00dev->rx, QID_RX);
+
 	qid = QID_AC_BE;
-	queue_for_each(rt2x00dev, queue) {
-		spin_lock_init(&queue->lock);
+	tx_queue_for_each(rt2x00dev, queue)
+		rt2x00queue_init(rt2x00dev, queue, qid++);
 
-		queue->rt2x00dev = rt2x00dev;
-		queue->qid = qid++;
-		queue->aifs = 2;
-		queue->cw_min = 5;
-		queue->cw_max = 10;
-	}
-
-	/*
-	 * Fix non-TX data qid's
-	 */
-	rt2x00dev->rx->qid = QID_RX;
-	rt2x00dev->bcn[0].qid = QID_MGMT;
+	rt2x00queue_init(rt2x00dev, &rt2x00dev->bcn[0], QID_MGMT);
 	if (req_atim)
-		rt2x00dev->bcn[1].qid = QID_MGMT;
+		rt2x00queue_init(rt2x00dev, &rt2x00dev->bcn[1], QID_MGMT);
 
 	return 0;
 }
