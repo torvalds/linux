@@ -3734,21 +3734,15 @@ static struct net_proto_family pfkey_family_ops = {
 };
 
 #ifdef CONFIG_PROC_FS
-static int pfkey_read_proc(char *buffer, char **start, off_t offset,
-			   int length, int *eof, void *data)
+static int pfkey_seq_show(struct seq_file *f, void *v)
 {
-	off_t pos = 0;
-	off_t begin = 0;
-	int len = 0;
 	struct sock *s;
-	struct hlist_node *node;
 
-	len += sprintf(buffer,"sk       RefCnt Rmem   Wmem   User   Inode\n");
-
-	read_lock(&pfkey_table_lock);
-
-	sk_for_each(s, node, &pfkey_table) {
-		len += sprintf(buffer+len,"%p %-6d %-6u %-6u %-6u %-6lu",
+	s = (struct sock *)v;
+	if (v == SEQ_START_TOKEN)
+		seq_printf(f ,"sk       RefCnt Rmem   Wmem   User   Inode\n");
+	else
+		seq_printf(f ,"%p %-6d %-6u %-6u %-6u %-6lu\n",
 			       s,
 			       atomic_read(&s->sk_refcnt),
 			       atomic_read(&s->sk_rmem_alloc),
@@ -3756,31 +3750,82 @@ static int pfkey_read_proc(char *buffer, char **start, off_t offset,
 			       sock_i_uid(s),
 			       sock_i_ino(s)
 			       );
+	return 0;
+}
 
-		buffer[len++] = '\n';
+static void *pfkey_seq_start(struct seq_file *f, loff_t *ppos)
+{
+	struct sock *s;
+	struct hlist_node *node;
+	loff_t pos = *ppos;
 
-		pos = begin + len;
-		if (pos < offset) {
-			len = 0;
-			begin = pos;
-		}
-		if(pos > offset + length)
-			goto done;
-	}
-	*eof = 1;
+	read_lock(&pfkey_table_lock);
+	if (pos == 0)
+		return SEQ_START_TOKEN;
 
-done:
+	sk_for_each(s, node, &pfkey_table)
+		if (pos-- == 1)
+			return s;
+
+	return NULL;
+}
+
+static void *pfkey_seq_next(struct seq_file *f, void *v, loff_t *ppos)
+{
+	++*ppos;
+	return (v == SEQ_START_TOKEN) ?
+		sk_head(&pfkey_table) :
+			sk_next((struct sock *)v);
+}
+
+static void pfkey_seq_stop(struct seq_file *f, void *v)
+{
 	read_unlock(&pfkey_table_lock);
+}
 
-	*start = buffer + (offset - begin);
-	len -= (offset - begin);
+static struct seq_operations pfkey_seq_ops = {
+	.start	= pfkey_seq_start,
+	.next	= pfkey_seq_next,
+	.stop	= pfkey_seq_stop,
+	.show	= pfkey_seq_show,
+};
 
-	if (len > length)
-		len = length;
-	if (len < 0)
-		len = 0;
+static int pfkey_seq_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &pfkey_seq_ops);
+}
 
-	return len;
+static struct file_operations pfkey_proc_ops = {
+	.open	 = pfkey_seq_open,
+	.read	 = seq_read,
+	.llseek	 = seq_lseek,
+	.release = seq_release,
+};
+
+static int pfkey_init_proc(void)
+{
+	struct proc_dir_entry *e;
+
+	e = create_proc_entry("pfkey", 0, init_net.proc_net);
+	if (e == NULL)
+		return -ENOMEM;
+
+	e->proc_fops = &pfkey_proc_ops;
+	return 0;
+}
+
+static void pfkey_exit_proc(void)
+{
+	remove_proc_entry("net/pfkey", NULL);
+}
+#else
+static inline int pfkey_init_proc(void)
+{
+	return 0;
+}
+
+static inline void pfkey_exit_proc(void)
+{
 }
 #endif
 
@@ -3798,7 +3843,7 @@ static struct xfrm_mgr pfkeyv2_mgr =
 static void __exit ipsec_pfkey_exit(void)
 {
 	xfrm_unregister_km(&pfkeyv2_mgr);
-	remove_proc_entry("pfkey", init_net.proc_net);
+	pfkey_exit_proc();
 	sock_unregister(PF_KEY);
 	proto_unregister(&key_proto);
 }
@@ -3813,21 +3858,17 @@ static int __init ipsec_pfkey_init(void)
 	err = sock_register(&pfkey_family_ops);
 	if (err != 0)
 		goto out_unregister_key_proto;
-#ifdef CONFIG_PROC_FS
-	err = -ENOMEM;
-	if (create_proc_read_entry("pfkey", 0, init_net.proc_net, pfkey_read_proc, NULL) == NULL)
+	err = pfkey_init_proc();
+	if (err != 0)
 		goto out_sock_unregister;
-#endif
 	err = xfrm_register_km(&pfkeyv2_mgr);
 	if (err != 0)
 		goto out_remove_proc_entry;
 out:
 	return err;
 out_remove_proc_entry:
-#ifdef CONFIG_PROC_FS
-	remove_proc_entry("net/pfkey", NULL);
+	pfkey_exit_proc();
 out_sock_unregister:
-#endif
 	sock_unregister(PF_KEY);
 out_unregister_key_proto:
 	proto_unregister(&key_proto);

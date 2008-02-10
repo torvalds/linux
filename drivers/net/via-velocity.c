@@ -440,7 +440,7 @@ static void velocity_unregister_notifier(void)
  *	Internal board variants. At the moment we have only one
  */
 
-static const struct velocity_info_tbl chip_info_table[] __devinitdata = {
+static struct velocity_info_tbl chip_info_table[] = {
 	{CHIP_TYPE_VT6110, "VIA Networking Velocity Family Gigabit Ethernet Adapter", 1, 0x00FFFFFFUL},
 	{ }
 };

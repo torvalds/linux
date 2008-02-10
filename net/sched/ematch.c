@@ -312,10 +312,9 @@ int tcf_em_tree_validate(struct tcf_proto *tp, struct nlattr *nla,
 	struct tcf_ematch_tree_hdr *tree_hdr;
 	struct tcf_ematch *em;
 
-	if (!nla) {
-		memset(tree, 0, sizeof(*tree));
+	memset(tree, 0, sizeof(*tree));
+	if (!nla)
 		return 0;
-	}
 
 	err = nla_parse_nested(tb, TCA_EMATCH_TREE_MAX, nla, em_policy);
 	if (err < 0)
@@ -410,14 +409,15 @@ void tcf_em_tree_destroy(struct tcf_proto *tp, struct tcf_ematch_tree *tree)
 		if (em->ops) {
 			if (em->ops->destroy)
 				em->ops->destroy(tp, em);
-			else if (!tcf_em_is_simple(em) && em->data)
-				kfree((void *) em->data);
+			else if (!tcf_em_is_simple(em))
+				kfree(em->data);
 			module_put(em->ops->owner);
 		}
 	}
 
 	tree->hdr.nmatches = 0;
 	kfree(tree->matches);
+	tree->matches = NULL;
 }
 EXPORT_SYMBOL(tcf_em_tree_destroy);
 

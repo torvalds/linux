@@ -2289,10 +2289,12 @@ static void pppol2tp_seq_tunnel_show(struct seq_file *m, void *v)
 		   atomic_read(&tunnel->ref_count) - 1);
 	seq_printf(m, " %08x %llu/%llu/%llu %llu/%llu/%llu\n",
 		   tunnel->debug,
-		   tunnel->stats.tx_packets, tunnel->stats.tx_bytes,
-		   tunnel->stats.tx_errors,
-		   tunnel->stats.rx_packets, tunnel->stats.rx_bytes,
-		   tunnel->stats.rx_errors);
+		   (unsigned long long)tunnel->stats.tx_packets,
+		   (unsigned long long)tunnel->stats.tx_bytes,
+		   (unsigned long long)tunnel->stats.tx_errors,
+		   (unsigned long long)tunnel->stats.rx_packets,
+		   (unsigned long long)tunnel->stats.rx_bytes,
+		   (unsigned long long)tunnel->stats.rx_errors);
 }
 
 static void pppol2tp_seq_session_show(struct seq_file *m, void *v)
@@ -2320,12 +2322,12 @@ static void pppol2tp_seq_session_show(struct seq_file *m, void *v)
 		   jiffies_to_msecs(session->reorder_timeout));
 	seq_printf(m, "   %hu/%hu %llu/%llu/%llu %llu/%llu/%llu\n",
 		   session->nr, session->ns,
-		   session->stats.tx_packets,
-		   session->stats.tx_bytes,
-		   session->stats.tx_errors,
-		   session->stats.rx_packets,
-		   session->stats.rx_bytes,
-		   session->stats.rx_errors);
+		   (unsigned long long)session->stats.tx_packets,
+		   (unsigned long long)session->stats.tx_bytes,
+		   (unsigned long long)session->stats.tx_errors,
+		   (unsigned long long)session->stats.rx_packets,
+		   (unsigned long long)session->stats.rx_bytes,
+		   (unsigned long long)session->stats.rx_errors);
 }
 
 static int pppol2tp_seq_show(struct seq_file *m, void *v)
