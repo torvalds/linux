@@ -528,13 +528,15 @@ void __init mem_init(void)
 		reservedpages << (PAGE_SHIFT-10),
 		datasize >> 10,
 		initsize >> 10);
+
+	cpa_init();
 }
 
 void free_init_pages(char *what, unsigned long begin, unsigned long end)
 {
-	unsigned long addr;
+	unsigned long addr = begin;
 
-	if (begin >= end)
+	if (addr >= end)
 		return;
 
 	/*
@@ -549,7 +551,7 @@ void free_init_pages(char *what, unsigned long begin, unsigned long end)
 #else
 	printk(KERN_INFO "Freeing %s: %luk freed\n", what, (end - begin) >> 10);
 
-	for (addr = begin; addr < end; addr += PAGE_SIZE) {
+	for (; addr < end; addr += PAGE_SIZE) {
 		ClearPageReserved(virt_to_page(addr));
 		init_page_count(virt_to_page(addr));
 		memset((void *)(addr & ~(PAGE_SIZE-1)),

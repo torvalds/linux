@@ -1,5 +1,5 @@
 /*
- * Suspend support specific for i386 - temporary page tables
+ * Hibernation support specific for i386 - temporary page tables
  *
  * Distribute under GPLv2
  *
@@ -13,7 +13,7 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 
-/* Defined in arch/i386/power/swsusp.S */
+/* Defined in hibernate_asm_32.S */
 extern int restore_image(void);
 
 /* References to section boundaries */
@@ -23,7 +23,7 @@ extern const void __nosave_begin, __nosave_end;
 pgd_t *resume_pg_dir;
 
 /* The following three functions are based on the analogous code in
- * arch/i386/mm/init.c
+ * arch/x86/mm/init_32.c
  */
 
 /*

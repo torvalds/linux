@@ -558,7 +558,6 @@ asmlinkage void __init start_kernel(void)
 	preempt_disable();
 	build_all_zonelists();
 	page_alloc_init();
-	enable_debug_pagealloc();
 	printk(KERN_NOTICE "Kernel command line: %s\n", boot_command_line);
 	parse_early_param();
 	parse_args("Booting kernel", static_command_line, __start___param,
@@ -614,6 +613,7 @@ asmlinkage void __init start_kernel(void)
 	vfs_caches_init_early();
 	cpuset_init_early();
 	mem_init();
+	enable_debug_pagealloc();
 	cpu_hotplug_init();
 	kmem_cache_init();
 	setup_per_cpu_pageset();

@@ -34,13 +34,9 @@ config DEBUG_STACK_USAGE
 
 	  This option will slow down process creation somewhat.
 
-comment "Page alloc debug is incompatible with Software Suspend on i386"
-	depends on DEBUG_KERNEL && HIBERNATION
-	depends on X86_32
-
 config DEBUG_PAGEALLOC
 	bool "Debug page memory allocations"
-	depends on DEBUG_KERNEL && X86_32
+	depends on DEBUG_KERNEL
 	help
 	  Unmap pages from the kernel linear mapping after free_pages().
 	  This results in a large slowdown, but helps to find certain types

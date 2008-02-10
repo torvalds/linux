@@ -8,6 +8,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
+#include <linux/interrupt.h>
 
 #include <asm/e820.h>
 #include <asm/processor.h>
@@ -191,7 +192,7 @@ static inline pgprot_t static_protections(pgprot_t prot, unsigned long address)
  * or when the present bit is not set. Otherwise we would return a
  * pointer to a nonexisting mapping.
  */
-pte_t *lookup_address(unsigned long address, int *level)
+pte_t *lookup_address(unsigned long address, unsigned int *level)
 {
 	pgd_t *pgd = pgd_offset_k(address);
 	pud_t *pud;
@@ -252,10 +253,11 @@ static int
 try_preserve_large_page(pte_t *kpte, unsigned long address,
 			struct cpa_data *cpa)
 {
-	unsigned long nextpage_addr, numpages, pmask, psize, flags;
+	unsigned long nextpage_addr, numpages, pmask, psize, flags, addr;
 	pte_t new_pte, old_pte, *tmp;
 	pgprot_t old_prot, new_prot;
-	int level, do_split = 1;
+	int i, do_split = 1;
+	unsigned int level;
 
 	spin_lock_irqsave(&pgd_lock, flags);
 	/*
@@ -302,6 +304,19 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
 	new_prot = static_protections(new_prot, address);
 
 	/*
+	 * We need to check the full range, whether
+	 * static_protection() requires a different pgprot for one of
+	 * the pages in the range we try to preserve:
+	 */
+	addr = address + PAGE_SIZE;
+	for (i = 1; i < cpa->numpages; i++, addr += PAGE_SIZE) {
+		pgprot_t chk_prot = static_protections(new_prot, addr);
+
+		if (pgprot_val(chk_prot) != pgprot_val(new_prot))
+			goto out_unlock;
+	}
+
+	/*
 	 * If there are no changes, return. maxpages has been updated
 	 * above:
 	 */
@@ -335,23 +350,103 @@ out_unlock:
 	return do_split;
 }
 
+static LIST_HEAD(page_pool);
+static unsigned long pool_size, pool_pages, pool_low;
+static unsigned long pool_used, pool_failed, pool_refill;
+
+static void cpa_fill_pool(void)
+{
+	struct page *p;
+	gfp_t gfp = GFP_KERNEL;
+
+	/* Do not allocate from interrupt context */
+	if (in_irq() || irqs_disabled())
+		return;
+	/*
+	 * Check unlocked. I does not matter when we have one more
+	 * page in the pool. The bit lock avoids recursive pool
+	 * allocations:
+	 */
+	if (pool_pages >= pool_size || test_and_set_bit_lock(0, &pool_refill))
+		return;
+
+#ifdef CONFIG_DEBUG_PAGEALLOC
+	/*
+	 * We could do:
+	 * gfp = in_atomic() ? GFP_ATOMIC : GFP_KERNEL;
+	 * but this fails on !PREEMPT kernels
+	 */
+	gfp =  GFP_ATOMIC | __GFP_NORETRY | __GFP_NOWARN;
+#endif
+
+	while (pool_pages < pool_size) {
+		p = alloc_pages(gfp, 0);
+		if (!p) {
+			pool_failed++;
+			break;
+		}
+		spin_lock_irq(&pgd_lock);
+		list_add(&p->lru, &page_pool);
+		pool_pages++;
+		spin_unlock_irq(&pgd_lock);
+	}
+	clear_bit_unlock(0, &pool_refill);
+}
+
+#define SHIFT_MB		(20 - PAGE_SHIFT)
+#define ROUND_MB_GB		((1 << 10) - 1)
+#define SHIFT_MB_GB		10
+#define POOL_PAGES_PER_GB	16
+
+void __init cpa_init(void)
+{
+	struct sysinfo si;
+	unsigned long gb;
+
+	si_meminfo(&si);
+	/*
+	 * Calculate the number of pool pages:
+	 *
+	 * Convert totalram (nr of pages) to MiB and round to the next
+	 * GiB. Shift MiB to Gib and multiply the result by
+	 * POOL_PAGES_PER_GB:
+	 */
+	gb = ((si.totalram >> SHIFT_MB) + ROUND_MB_GB) >> SHIFT_MB_GB;
+	pool_size = POOL_PAGES_PER_GB * gb;
+	pool_low = pool_size;
+
+	cpa_fill_pool();
+	printk(KERN_DEBUG
+	       "CPA: page pool initialized %lu of %lu pages preallocated\n",
+	       pool_pages, pool_size);
+}
+
 static int split_large_page(pte_t *kpte, unsigned long address)
 {
 	unsigned long flags, pfn, pfninc = 1;
-	gfp_t gfp_flags = GFP_KERNEL;
 	unsigned int i, level;
 	pte_t *pbase, *tmp;
 	pgprot_t ref_prot;
 	struct page *base;
 
-#ifdef CONFIG_DEBUG_PAGEALLOC
-	gfp_flags = GFP_ATOMIC | __GFP_NOWARN;
-#endif
-	base = alloc_pages(gfp_flags, 0);
-	if (!base)
-		return -ENOMEM;
-
+	/*
+	 * Get a page from the pool. The pool list is protected by the
+	 * pgd_lock, which we have to take anyway for the split
+	 * operation:
+	 */
 	spin_lock_irqsave(&pgd_lock, flags);
+	if (list_empty(&page_pool)) {
+		spin_unlock_irqrestore(&pgd_lock, flags);
+		return -ENOMEM;
+	}
+
+	base = list_first_entry(&page_pool, struct page, lru);
+	list_del(&base->lru);
+	pool_pages--;
+
+	if (pool_pages < pool_low)
+		pool_low = pool_pages;
+
 	/*
 	 * Check for races, another CPU might have split this page
 	 * up for us already:
@@ -396,17 +491,24 @@ static int split_large_page(pte_t *kpte, unsigned long address)
 	base = NULL;
 
 out_unlock:
+	/*
+	 * If we dropped out via the lookup_address check under
+	 * pgd_lock then stick the page back into the pool:
+	 */
+	if (base) {
+		list_add(&base->lru, &page_pool);
+		pool_pages++;
+	} else
+		pool_used++;
 	spin_unlock_irqrestore(&pgd_lock, flags);
-
-	if (base)
-		__free_pages(base, 0);
 
 	return 0;
 }
 
 static int __change_page_attr(unsigned long address, struct cpa_data *cpa)
 {
-	int level, do_split, err;
+	int do_split, err;
+	unsigned int level;
 	struct page *kpte_page;
 	pte_t *kpte;
 
@@ -598,7 +700,7 @@ static int change_page_attr_set_clr(unsigned long addr, int numpages,
 	 * Check whether we really changed something:
 	 */
 	if (!cpa.flushtlb)
-		return ret;
+		goto out;
 
 	/*
 	 * No need to flush, when we did not set any of the caching
@@ -617,6 +719,8 @@ static int change_page_attr_set_clr(unsigned long addr, int numpages,
 	else
 		cpa_flush_all(cache);
 
+out:
+	cpa_fill_pool();
 	return ret;
 }
 
@@ -770,6 +874,12 @@ void kernel_map_pages(struct page *page, int numpages, int enable)
 	 * but that can deadlock->flush only current cpu:
 	 */
 	__flush_tlb_all();
+
+	/*
+	 * Try to refill the page pool here. We can do this only after
+	 * the tlb flush.
+	 */
+	cpa_fill_pool();
 }
 #endif
 

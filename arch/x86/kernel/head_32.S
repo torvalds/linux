@@ -19,6 +19,10 @@
 #include <asm/thread_info.h>
 #include <asm/asm-offsets.h>
 #include <asm/setup.h>
+#include <asm/processor-flags.h>
+
+/* Physical address */
+#define pa(X) ((X) - __PAGE_OFFSET)
 
 /*
  * References to members of the new_cpu_data structure.
@@ -80,10 +84,6 @@ INIT_MAP_BEYOND_END = BOOTBITMAP_SIZE + (PAGE_TABLE_SIZE + ALLOCATOR_SLOP)*PAGE_
  */
 .section .text.head,"ax",@progbits
 ENTRY(startup_32)
-	/* check to see if KEEP_SEGMENTS flag is meaningful */
-	cmpw $0x207, BP_version(%esi)
-	jb 1f
-
 	/* test KEEP_SEGMENTS flag to see if the bootloader is asking
 		us to not reload segments */
 	testb $(1<<6), BP_loadflags(%esi)
@@ -92,7 +92,7 @@ ENTRY(startup_32)
 /*
  * Set segments to known values.
  */
-1:	lgdt boot_gdt_descr - __PAGE_OFFSET
+	lgdt pa(boot_gdt_descr)
 	movl $(__BOOT_DS),%eax
 	movl %eax,%ds
 	movl %eax,%es
@@ -105,8 +105,8 @@ ENTRY(startup_32)
  */
 	cld
 	xorl %eax,%eax
-	movl $__bss_start - __PAGE_OFFSET,%edi
-	movl $__bss_stop - __PAGE_OFFSET,%ecx
+	movl $pa(__bss_start),%edi
+	movl $pa(__bss_stop),%ecx
 	subl %edi,%ecx
 	shrl $2,%ecx
 	rep ; stosl
@@ -118,31 +118,32 @@ ENTRY(startup_32)
  * (kexec on panic case). Hence copy out the parameters before initializing
  * page tables.
  */
-	movl $(boot_params - __PAGE_OFFSET),%edi
+	movl $pa(boot_params),%edi
 	movl $(PARAM_SIZE/4),%ecx
 	cld
 	rep
 	movsl
-	movl boot_params - __PAGE_OFFSET + NEW_CL_POINTER,%esi
+	movl pa(boot_params) + NEW_CL_POINTER,%esi
 	andl %esi,%esi
 	jz 1f			# No comand line
-	movl $(boot_command_line - __PAGE_OFFSET),%edi
+	movl $pa(boot_command_line),%edi
 	movl $(COMMAND_LINE_SIZE/4),%ecx
 	rep
 	movsl
 1:
 
 #ifdef CONFIG_PARAVIRT
-	cmpw $0x207, (boot_params + BP_version - __PAGE_OFFSET)
+	/* This is can only trip for a broken bootloader... */
+	cmpw $0x207, pa(boot_params + BP_version)
 	jb default_entry
 
 	/* Paravirt-compatible boot parameters.  Look to see what architecture
 		we're booting under. */
-	movl (boot_params + BP_hardware_subarch - __PAGE_OFFSET), %eax
+	movl pa(boot_params + BP_hardware_subarch), %eax
 	cmpl $num_subarch_entries, %eax
 	jae bad_subarch
 
-	movl subarch_entries - __PAGE_OFFSET(,%eax,4), %eax
+	movl pa(subarch_entries)(,%eax,4), %eax
 	subl $__PAGE_OFFSET, %eax
 	jmp *%eax
 
@@ -170,17 +171,68 @@ num_subarch_entries = (. - subarch_entries) / 4
  * Mappings are created both at virtual address 0 (identity mapping)
  * and PAGE_OFFSET for up to _end+sizeof(page tables)+INIT_MAP_BEYOND_END.
  *
- * Warning: don't use %esi or the stack in this code.  However, %esp
- * can be used as a GPR if you really need it...
+ * Note that the stack is not yet set up!
  */
-page_pde_offset = (__PAGE_OFFSET >> 20);
+#define PTE_ATTR	0x007		/* PRESENT+RW+USER */
+#define PDE_ATTR	0x067		/* PRESENT+RW+USER+DIRTY+ACCESSED */
+#define PGD_ATTR	0x001		/* PRESENT (no other attributes) */
 
 default_entry:
-	movl $(pg0 - __PAGE_OFFSET), %edi
-	movl $(swapper_pg_dir - __PAGE_OFFSET), %edx
-	movl $0x007, %eax			/* 0x007 = PRESENT+RW+USER */
+#ifdef CONFIG_X86_PAE
+
+	/*
+	 * In PAE mode swapper_pg_dir is statically defined to contain enough
+	 * entries to cover the VMSPLIT option (that is the top 1, 2 or 3
+	 * entries). The identity mapping is handled by pointing two PGD
+	 * entries to the first kernel PMD.
+	 *
+	 * Note the upper half of each PMD or PTE are always zero at
+	 * this stage.
+	 */
+
+#define KPMDS ((0x100000000-__PAGE_OFFSET) >> 30) /* Number of kernel PMDs */
+
+	xorl %ebx,%ebx				/* %ebx is kept at zero */
+
+	movl $pa(pg0), %edi
+	movl $pa(swapper_pg_pmd), %edx
+	movl $PTE_ATTR, %eax
 10:
-	leal 0x007(%edi),%ecx			/* Create PDE entry */
+	leal PDE_ATTR(%edi),%ecx		/* Create PMD entry */
+	movl %ecx,(%edx)			/* Store PMD entry */
+						/* Upper half already zero */
+	addl $8,%edx
+	movl $512,%ecx
+11:
+	stosl
+	xchgl %eax,%ebx
+	stosl
+	xchgl %eax,%ebx
+	addl $0x1000,%eax
+	loop 11b
+
+	/*
+	 * End condition: we must map up to and including INIT_MAP_BEYOND_END
+	 * bytes beyond the end of our own page tables.
+	 */
+	leal (INIT_MAP_BEYOND_END+PTE_ATTR)(%edi),%ebp
+	cmpl %ebp,%eax
+	jb 10b
+1:
+	movl %edi,pa(init_pg_tables_end)
+
+	/* Do early initialization of the fixmap area */
+	movl $pa(swapper_pg_fixmap)+PDE_ATTR,%eax
+	movl %eax,pa(swapper_pg_pmd+0x1000*KPMDS-8)
+#else	/* Not PAE */
+
+page_pde_offset = (__PAGE_OFFSET >> 20);
+
+	movl $pa(pg0), %edi
+	movl $pa(swapper_pg_dir), %edx
+	movl $PTE_ATTR, %eax
+10:
+	leal PDE_ATTR(%edi),%ecx		/* Create PDE entry */
 	movl %ecx,(%edx)			/* Store identity PDE entry */
 	movl %ecx,page_pde_offset(%edx)		/* Store kernel PDE entry */
 	addl $4,%edx
@@ -189,19 +241,20 @@ default_entry:
 	stosl
 	addl $0x1000,%eax
 	loop 11b
-	/* End condition: we must map up to and including INIT_MAP_BEYOND_END */
-	/* bytes beyond the end of our own page tables; the +0x007 is the attribute bits */
-	leal (INIT_MAP_BEYOND_END+0x007)(%edi),%ebp
+	/*
+	 * End condition: we must map up to and including INIT_MAP_BEYOND_END
+	 * bytes beyond the end of our own page tables; the +0x007 is
+	 * the attribute bits
+	 */
+	leal (INIT_MAP_BEYOND_END+PTE_ATTR)(%edi),%ebp
 	cmpl %ebp,%eax
 	jb 10b
-	movl %edi,(init_pg_tables_end - __PAGE_OFFSET)
+	movl %edi,pa(init_pg_tables_end)
 
-	/* Do an early initialization of the fixmap area */
-	movl $(swapper_pg_dir - __PAGE_OFFSET), %edx
-	movl $(swapper_pg_pmd - __PAGE_OFFSET), %eax
-	addl $0x67, %eax			/* 0x67 == _PAGE_TABLE */
-	movl %eax, 4092(%edx)
-
+	/* Do early initialization of the fixmap area */
+	movl $pa(swapper_pg_fixmap)+PDE_ATTR,%eax
+	movl %eax,pa(swapper_pg_dir+0xffc)
+#endif
 	jmp 3f
 /*
  * Non-boot CPU entry point; entered from trampoline.S
@@ -241,7 +294,7 @@ ENTRY(startup_32_smp)
  *	NOTE! We have to correct for the fact that we're
  *	not yet offset PAGE_OFFSET..
  */
-#define cr4_bits mmu_cr4_features-__PAGE_OFFSET
+#define cr4_bits pa(mmu_cr4_features)
 	movl cr4_bits,%edx
 	andl %edx,%edx
 	jz 6f
@@ -276,10 +329,10 @@ ENTRY(startup_32_smp)
 /*
  * Enable paging
  */
-	movl $swapper_pg_dir-__PAGE_OFFSET,%eax
+	movl $pa(swapper_pg_dir),%eax
 	movl %eax,%cr3		/* set the page table pointer.. */
 	movl %cr0,%eax
-	orl $0x80000000,%eax
+	orl  $X86_CR0_PG,%eax
 	movl %eax,%cr0		/* ..and set paging (PG) bit */
 	ljmp $__BOOT_CS,$1f	/* Clear prefetch and normalize %eip */
 1:
@@ -552,16 +605,44 @@ ENTRY(_stext)
  */
 .section ".bss.page_aligned","wa"
 	.align PAGE_SIZE_asm
+#ifdef CONFIG_X86_PAE
+ENTRY(swapper_pg_pmd)
+	.fill 1024*KPMDS,4,0
+#else
 ENTRY(swapper_pg_dir)
 	.fill 1024,4,0
-ENTRY(swapper_pg_pmd)
+#endif
+ENTRY(swapper_pg_fixmap)
 	.fill 1024,4,0
 ENTRY(empty_zero_page)
 	.fill 4096,1,0
-
 /*
  * This starts the data section.
  */
+#ifdef CONFIG_X86_PAE
+.section ".data.page_aligned","wa"
+	/* Page-aligned for the benefit of paravirt? */
+	.align PAGE_SIZE_asm
+ENTRY(swapper_pg_dir)
+	.long	pa(swapper_pg_pmd+PGD_ATTR),0		/* low identity map */
+# if KPMDS == 3
+	.long	pa(swapper_pg_pmd+PGD_ATTR),0
+	.long	pa(swapper_pg_pmd+PGD_ATTR+0x1000),0
+	.long	pa(swapper_pg_pmd+PGD_ATTR+0x2000),0
+# elif KPMDS == 2
+	.long	0,0
+	.long	pa(swapper_pg_pmd+PGD_ATTR),0
+	.long	pa(swapper_pg_pmd+PGD_ATTR+0x1000),0
+# elif KPMDS == 1
+	.long	0,0
+	.long	0,0
+	.long	pa(swapper_pg_pmd+PGD_ATTR),0
+# else
+#  error "Kernel PMDs should be 1, 2 or 3"
+# endif
+	.align PAGE_SIZE_asm		/* needs to be page-sized too */
+#endif
+
 .data
 ENTRY(stack_start)
 	.long init_thread_union+THREAD_SIZE

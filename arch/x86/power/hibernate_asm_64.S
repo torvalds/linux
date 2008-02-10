@@ -1,6 +1,11 @@
-/* Copyright 2004,2005 Pavel Machek <pavel@suse.cz>, Andi Kleen <ak@suse.de>, Rafael J. Wysocki <rjw@sisk.pl>
+/*
+ * Hibernation support for x86-64
  *
  * Distribute under GPLv2.
+ *
+ * Copyright 2007 Rafael J. Wysocki <rjw@sisk.pl>
+ * Copyright 2005 Andi Kleen <ak@suse.de>
+ * Copyright 2004 Pavel Machek <pavel@suse.cz>
  *
  * swsusp_arch_resume must not use any stack or any nonlocal variables while
  * copying pages:
@@ -9,7 +14,7 @@
  * image could very well be data page in "new" image, and overwriting
  * your own stack under you is bad idea.
  */
-	
+
 	.text
 #include <linux/linkage.h>
 #include <asm/segment.h>

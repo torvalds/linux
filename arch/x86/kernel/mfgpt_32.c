@@ -12,47 +12,36 @@
  */
 
 /*
- * We are using the 32Khz input clock - its the only one that has the
+ * We are using the 32.768kHz input clock - it's the only one that has the
  * ranges we find desirable.  The following table lists the suitable
- * divisors and the associated hz, minimum interval
- * and the maximum interval:
+ * divisors and the associated Hz, minimum interval and the maximum interval:
  *
- *  Divisor   Hz      Min Delta (S) Max Delta (S)
- *   1        32000     .0005          2.048
- *   2        16000      .001          4.096
- *   4         8000      .002          8.192
- *   8         4000      .004         16.384
- *   16        2000      .008         32.768
- *   32        1000      .016         65.536
- *   64         500      .032        131.072
- *  128         250      .064        262.144
- *  256         125      .128        524.288
+ *  Divisor   Hz      Min Delta (s)  Max Delta (s)
+ *   1        32768   .00048828125      2.000
+ *   2        16384   .0009765625       4.000
+ *   4         8192   .001953125        8.000
+ *   8         4096   .00390625        16.000
+ *   16        2048   .0078125         32.000
+ *   32        1024   .015625          64.000
+ *   64         512   .03125          128.000
+ *  128         256   .0625           256.000
+ *  256         128   .125            512.000
  */
 
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
-#include <linux/module.h>
 #include <asm/geode.h>
 
-#define F_AVAIL    0x01
-
 static struct mfgpt_timer_t {
-	int flags;
-	struct module *owner;
+	unsigned int avail:1;
 } mfgpt_timers[MFGPT_MAX_TIMERS];
 
 /* Selected from the table above */
 
 #define MFGPT_DIVISOR 16
 #define MFGPT_SCALE  4     /* divisor = 2^(scale) */
-#define MFGPT_HZ  (32000 / MFGPT_DIVISOR)
+#define MFGPT_HZ  (32768 / MFGPT_DIVISOR)
 #define MFGPT_PERIODIC (MFGPT_HZ / HZ)
-
-#ifdef CONFIG_GEODE_MFGPT_TIMER
-static int __init mfgpt_timer_setup(void);
-#else
-#define mfgpt_timer_setup() (0)
-#endif
 
 /* Allow for disabling of MFGPTs */
 static int disable;
@@ -85,28 +74,37 @@ __setup("mfgptfix", mfgpt_fix);
  * In other cases (such as with VSAless OpenFirmware), the system firmware
  * leaves timers available for us to use.
  */
-int __init geode_mfgpt_detect(void)
+
+
+static int timers = -1;
+
+static void geode_mfgpt_detect(void)
 {
-	int count = 0, i;
+	int i;
 	u16 val;
 
+	timers = 0;
+
 	if (disable) {
-		printk(KERN_INFO "geode-mfgpt:  Skipping MFGPT setup\n");
-		return 0;
+		printk(KERN_INFO "geode-mfgpt:  MFGPT support is disabled\n");
+		goto done;
+	}
+
+	if (!geode_get_dev_base(GEODE_DEV_MFGPT)) {
+		printk(KERN_INFO "geode-mfgpt:  MFGPT LBAR is not set up\n");
+		goto done;
 	}
 
 	for (i = 0; i < MFGPT_MAX_TIMERS; i++) {
 		val = geode_mfgpt_read(i, MFGPT_REG_SETUP);
 		if (!(val & MFGPT_SETUP_SETUP)) {
-			mfgpt_timers[i].flags = F_AVAIL;
-			count++;
+			mfgpt_timers[i].avail = 1;
+			timers++;
 		}
 	}
 
-	/* set up clock event device, if desired */
-	i = mfgpt_timer_setup();
-
-	return count;
+done:
+	printk(KERN_INFO "geode-mfgpt:  %d MFGPT timers available.\n", timers);
 }
 
 int geode_mfgpt_toggle_event(int timer, int cmp, int event, int enable)
@@ -183,36 +181,41 @@ int geode_mfgpt_set_irq(int timer, int cmp, int irq, int enable)
 	return 0;
 }
 
-static int mfgpt_get(int timer, struct module *owner)
+static int mfgpt_get(int timer)
 {
-	mfgpt_timers[timer].flags &= ~F_AVAIL;
-	mfgpt_timers[timer].owner = owner;
+	mfgpt_timers[timer].avail = 0;
 	printk(KERN_INFO "geode-mfgpt:  Registered timer %d\n", timer);
 	return timer;
 }
 
-int geode_mfgpt_alloc_timer(int timer, int domain, struct module *owner)
+int geode_mfgpt_alloc_timer(int timer, int domain)
 {
 	int i;
 
-	if (!geode_get_dev_base(GEODE_DEV_MFGPT))
-		return -ENODEV;
+	if (timers == -1) {
+		/* timers haven't been detected yet */
+		geode_mfgpt_detect();
+	}
+
+	if (!timers)
+		return -1;
+
 	if (timer >= MFGPT_MAX_TIMERS)
-		return -EIO;
+		return -1;
 
 	if (timer < 0) {
 		/* Try to find an available timer */
 		for (i = 0; i < MFGPT_MAX_TIMERS; i++) {
-			if (mfgpt_timers[i].flags & F_AVAIL)
-				return mfgpt_get(i, owner);
+			if (mfgpt_timers[i].avail)
+				return mfgpt_get(i);
 
 			if (i == 5 && domain == MFGPT_DOMAIN_WORKING)
 				break;
 		}
 	} else {
 		/* If they requested a specific timer, try to honor that */
-		if (mfgpt_timers[timer].flags & F_AVAIL)
-			return mfgpt_get(timer, owner);
+		if (mfgpt_timers[timer].avail)
+			return mfgpt_get(timer);
 	}
 
 	/* No timers available - too bad */
@@ -244,10 +247,11 @@ static int __init mfgpt_setup(char *str)
 }
 __setup("mfgpt_irq=", mfgpt_setup);
 
-static inline void mfgpt_disable_timer(u16 clock)
+static void mfgpt_disable_timer(u16 clock)
 {
-	u16 val = geode_mfgpt_read(clock, MFGPT_REG_SETUP);
-	geode_mfgpt_write(clock, MFGPT_REG_SETUP, val & ~MFGPT_SETUP_CNTEN);
+	/* avoid races by clearing CMP1 and CMP2 unconditionally */
+	geode_mfgpt_write(clock, MFGPT_REG_SETUP, (u16) ~MFGPT_SETUP_CNTEN |
+			MFGPT_SETUP_CMP1 | MFGPT_SETUP_CMP2);
 }
 
 static int mfgpt_next_event(unsigned long, struct clock_event_device *);
@@ -263,7 +267,7 @@ static struct clock_event_device mfgpt_clockevent = {
 	.shift = 32
 };
 
-static inline void mfgpt_start_timer(u16 clock, u16 delta)
+static void mfgpt_start_timer(u16 delta)
 {
 	geode_mfgpt_write(mfgpt_event_clock, MFGPT_REG_CMP2, (u16) delta);
 	geode_mfgpt_write(mfgpt_event_clock, MFGPT_REG_COUNTER, 0);
@@ -278,21 +282,25 @@ static void mfgpt_set_mode(enum clock_event_mode mode,
 	mfgpt_disable_timer(mfgpt_event_clock);
 
 	if (mode == CLOCK_EVT_MODE_PERIODIC)
-		mfgpt_start_timer(mfgpt_event_clock, MFGPT_PERIODIC);
+		mfgpt_start_timer(MFGPT_PERIODIC);
 
 	mfgpt_tick_mode = mode;
 }
 
 static int mfgpt_next_event(unsigned long delta, struct clock_event_device *evt)
 {
-	mfgpt_start_timer(mfgpt_event_clock, delta);
+	mfgpt_start_timer(delta);
 	return 0;
 }
 
-/* Assume (foolishly?), that this interrupt was due to our tick */
-
 static irqreturn_t mfgpt_tick(int irq, void *dev_id)
 {
+	u16 val = geode_mfgpt_read(mfgpt_event_clock, MFGPT_REG_SETUP);
+
+	/* See if the interrupt was for us */
+	if (!(val & (MFGPT_SETUP_SETUP  | MFGPT_SETUP_CMP2 | MFGPT_SETUP_CMP1)))
+		return IRQ_NONE;
+
 	/* Turn off the clock (and clear the event) */
 	mfgpt_disable_timer(mfgpt_event_clock);
 
@@ -320,13 +328,12 @@ static struct irqaction mfgptirq  = {
 	.name = "mfgpt-timer"
 };
 
-static int __init mfgpt_timer_setup(void)
+int __init mfgpt_timer_setup(void)
 {
 	int timer, ret;
 	u16 val;
 
-	timer = geode_mfgpt_alloc_timer(MFGPT_TIMER_ANY, MFGPT_DOMAIN_WORKING,
-			THIS_MODULE);
+	timer = geode_mfgpt_alloc_timer(MFGPT_TIMER_ANY, MFGPT_DOMAIN_WORKING);
 	if (timer < 0) {
 		printk(KERN_ERR
 		       "mfgpt-timer:  Could not allocate a MFPGT timer\n");
@@ -363,7 +370,7 @@ static int __init mfgpt_timer_setup(void)
 			&mfgpt_clockevent);
 
 	printk(KERN_INFO
-	       "mfgpt-timer:  registering the MFGT timer as a clock event.\n");
+	       "mfgpt-timer:  registering the MFGPT timer as a clock event.\n");
 	clockevents_register_device(&mfgpt_clockevent);
 
 	return 0;

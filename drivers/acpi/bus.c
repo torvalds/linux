@@ -31,6 +31,7 @@
 #include <linux/pm.h>
 #include <linux/device.h>
 #include <linux/proc_fs.h>
+#include <linux/acpi.h>
 #ifdef CONFIG_X86
 #include <asm/mpspec.h>
 #endif
@@ -39,9 +40,6 @@
 
 #define _COMPONENT		ACPI_BUS_COMPONENT
 ACPI_MODULE_NAME("bus");
-#ifdef	CONFIG_X86
-extern void __init acpi_pic_sci_set_trigger(unsigned int irq, u16 trigger);
-#endif
 
 struct acpi_device *acpi_root;
 struct proc_dir_entry *acpi_root_dir;
@@ -653,8 +651,6 @@ void __init acpi_early_init(void)
 
 #ifdef CONFIG_X86
 	if (!acpi_ioapic) {
-		extern u8 acpi_sci_flags;
-
 		/* compatible (0) means level (3) */
 		if (!(acpi_sci_flags & ACPI_MADT_TRIGGER_MASK)) {
 			acpi_sci_flags &= ~ACPI_MADT_TRIGGER_MASK;
@@ -664,7 +660,6 @@ void __init acpi_early_init(void)
 		acpi_pic_sci_set_trigger(acpi_gbl_FADT.sci_interrupt,
 					 (acpi_sci_flags & ACPI_MADT_TRIGGER_MASK) >> 2);
 	} else {
-		extern int acpi_sci_override_gsi;
 		/*
 		 * now that acpi_gbl_FADT is initialized,
 		 * update it with result from INT_SRC_OVR parsing

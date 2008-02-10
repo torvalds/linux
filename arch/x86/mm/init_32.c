@@ -46,6 +46,7 @@
 #include <asm/pgalloc.h>
 #include <asm/sections.h>
 #include <asm/paravirt.h>
+#include <asm/setup.h>
 
 unsigned int __VMALLOC_RESERVE = 128 << 20;
 
@@ -328,44 +329,38 @@ pteval_t __PAGE_KERNEL_EXEC = _PAGE_KERNEL_EXEC;
 
 void __init native_pagetable_setup_start(pgd_t *base)
 {
-#ifdef CONFIG_X86_PAE
-	int i;
+	unsigned long pfn, va;
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte;
 
 	/*
-	 * Init entries of the first-level page table to the
-	 * zero page, if they haven't already been set up.
-	 *
-	 * In a normal native boot, we'll be running on a
-	 * pagetable rooted in swapper_pg_dir, but not in PAE
-	 * mode, so this will end up clobbering the mappings
-	 * for the lower 24Mbytes of the address space,
-	 * without affecting the kernel address space.
+	 * Remove any mappings which extend past the end of physical
+	 * memory from the boot time page table:
 	 */
-	for (i = 0; i < USER_PTRS_PER_PGD; i++)
-		set_pgd(&base[i],
-			__pgd(__pa(empty_zero_page) | _PAGE_PRESENT));
+	for (pfn = max_low_pfn + 1; pfn < 1<<(32-PAGE_SHIFT); pfn++) {
+		va = PAGE_OFFSET + (pfn<<PAGE_SHIFT);
+		pgd = base + pgd_index(va);
+		if (!pgd_present(*pgd))
+			break;
 
-	/* Make sure kernel address space is empty so that a pagetable
-	   will be allocated for it. */
-	memset(&base[USER_PTRS_PER_PGD], 0,
-	       KERNEL_PGD_PTRS * sizeof(pgd_t));
-#else
+		pud = pud_offset(pgd, va);
+		pmd = pmd_offset(pud, va);
+		if (!pmd_present(*pmd))
+			break;
+
+		pte = pte_offset_kernel(pmd, va);
+		if (!pte_present(*pte))
+			break;
+
+		pte_clear(NULL, va, pte);
+	}
 	paravirt_alloc_pd(&init_mm, __pa(base) >> PAGE_SHIFT);
-#endif
 }
 
 void __init native_pagetable_setup_done(pgd_t *base)
 {
-#ifdef CONFIG_X86_PAE
-	/*
-	 * Add low memory identity-mappings - SMP needs it when
-	 * starting up on an AP from real-mode. In the non-PAE
-	 * case we already have these mappings through head.S.
-	 * All user-space mappings are explicitly cleared after
-	 * SMP startup.
-	 */
-	set_pgd(&base[0], base[USER_PTRS_PER_PGD]);
-#endif
 }
 
 /*
@@ -374,9 +369,8 @@ void __init native_pagetable_setup_done(pgd_t *base)
  * the boot process.
  *
  * If we're booting on native hardware, this will be a pagetable
- * constructed in arch/i386/kernel/head.S, and not running in PAE mode
- * (even if we'll end up running in PAE).  The root of the pagetable
- * will be swapper_pg_dir.
+ * constructed in arch/x86/kernel/head_32.S.  The root of the
+ * pagetable will be swapper_pg_dir.
  *
  * If we're booting paravirtualized under a hypervisor, then there are
  * more options: we may already be running PAE, and the pagetable may
@@ -537,14 +531,6 @@ void __init paging_init(void)
 
 	load_cr3(swapper_pg_dir);
 
-#ifdef CONFIG_X86_PAE
-	/*
-	 * We will bail out later - printk doesn't work right now so
-	 * the user would just see a hanging kernel.
-	 */
-	if (cpu_has_pae)
-		set_in_cr4(X86_CR4_PAE);
-#endif
 	__flush_tlb_all();
 
 	kmap_init();
@@ -675,12 +661,10 @@ void __init mem_init(void)
 	BUG_ON((unsigned long)high_memory		> VMALLOC_START);
 #endif /* double-sanity-check paranoia */
 
-#ifdef CONFIG_X86_PAE
-	if (!cpu_has_pae)
-		panic("cannot execute a PAE-enabled kernel on a PAE-less CPU!");
-#endif
 	if (boot_cpu_data.wp_works_ok < 0)
 		test_wp_bit();
+
+	cpa_init();
 
 	/*
 	 * Subtle. SMP is doing it's boot stuff late (because it has to

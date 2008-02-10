@@ -255,7 +255,7 @@ enum {
  * NOTE: the return type is pte_t but if the pmd is PSE then we return it
  * as a pte too.
  */
-extern pte_t *lookup_address(unsigned long address, int *level);
+extern pte_t *lookup_address(unsigned long address, unsigned int *level);
 
 /* local pte updates need not use xchg for locking */
 static inline pte_t native_local_ptep_get_and_clear(pte_t *ptep)

@@ -44,6 +44,8 @@ int set_memory_np(unsigned long addr, int numpages);
 
 void clflush_cache_range(void *addr, unsigned int size);
 
+void cpa_init(void);
+
 #ifdef CONFIG_DEBUG_RODATA
 void mark_rodata_ro(void);
 #endif

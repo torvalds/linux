@@ -26,6 +26,9 @@
 #include <asm/page.h>		/* for PAGE_SIZE */
 #include <asm/div64.h>
 
+/* Works only for digits and letters, but small and fast */
+#define TOLOWER(x) ((x) | 0x20)
+
 /**
  * simple_strtoul - convert a string to an unsigned long
  * @cp: The start of the string
@@ -41,17 +44,17 @@ unsigned long simple_strtoul(const char *cp,char **endp,unsigned int base)
 		if (*cp == '0') {
 			base = 8;
 			cp++;
-			if ((toupper(*cp) == 'X') && isxdigit(cp[1])) {
+			if ((TOLOWER(*cp) == 'x') && isxdigit(cp[1])) {
 				cp++;
 				base = 16;
 			}
 		}
 	} else if (base == 16) {
-		if (cp[0] == '0' && toupper(cp[1]) == 'X')
+		if (cp[0] == '0' && TOLOWER(cp[1]) == 'x')
 			cp += 2;
 	}
 	while (isxdigit(*cp) &&
-	       (value = isdigit(*cp) ? *cp-'0' : toupper(*cp)-'A'+10) < base) {
+	       (value = isdigit(*cp) ? *cp-'0' : TOLOWER(*cp)-'a'+10) < base) {
 		result = result*base + value;
 		cp++;
 	}
@@ -92,17 +95,17 @@ unsigned long long simple_strtoull(const char *cp,char **endp,unsigned int base)
 		if (*cp == '0') {
 			base = 8;
 			cp++;
-			if ((toupper(*cp) == 'X') && isxdigit(cp[1])) {
+			if ((TOLOWER(*cp) == 'x') && isxdigit(cp[1])) {
 				cp++;
 				base = 16;
 			}
 		}
 	} else if (base == 16) {
-		if (cp[0] == '0' && toupper(cp[1]) == 'X')
+		if (cp[0] == '0' && TOLOWER(cp[1]) == 'x')
 			cp += 2;
 	}
-	while (isxdigit(*cp) && (value = isdigit(*cp) ? *cp-'0' : (islower(*cp)
-	    ? toupper(*cp) : *cp)-'A'+10) < base) {
+	while (isxdigit(*cp)
+	 && (value = isdigit(*cp) ? *cp-'0' : TOLOWER(*cp)-'a'+10) < base) {
 		result = result*base + value;
 		cp++;
 	}
@@ -360,24 +363,25 @@ static noinline char* put_dec(char *buf, unsigned long long num)
 #define PLUS	4		/* show plus */
 #define SPACE	8		/* space if plus */
 #define LEFT	16		/* left justified */
-#define SPECIAL	32		/* 0x */
-#define LARGE	64		/* use 'ABCDEF' instead of 'abcdef' */
+#define SMALL	32		/* Must be 32 == 0x20 */
+#define SPECIAL	64		/* 0x */
 
 static char *number(char *buf, char *end, unsigned long long num, int base, int size, int precision, int type)
 {
-	char sign,tmp[66];
-	const char *digits;
-	/* we are called with base 8, 10 or 16, only, thus don't need "g..."  */
-	static const char small_digits[] = "0123456789abcdefx"; /* "ghijklmnopqrstuvwxyz"; */
-	static const char large_digits[] = "0123456789ABCDEFX"; /* "GHIJKLMNOPQRSTUVWXYZ"; */
+	/* we are called with base 8, 10 or 16, only, thus don't need "G..."  */
+	static const char digits[16] = "0123456789ABCDEF"; /* "GHIJKLMNOPQRSTUVWXYZ"; */
+
+	char tmp[66];
+	char sign;
+	char locase;
 	int need_pfx = ((type & SPECIAL) && base != 10);
 	int i;
 
-	digits = (type & LARGE) ? large_digits : small_digits;
+	/* locase = 0 or 0x20. ORing digits or letters with 'locase'
+	 * produces same digits or (maybe lowercased) letters */
+	locase = (type & SMALL);
 	if (type & LEFT)
 		type &= ~ZEROPAD;
-	if (base < 2 || base > 36)
-		return NULL;
 	sign = 0;
 	if (type & SIGN) {
 		if ((signed long long) num < 0) {
@@ -404,7 +408,7 @@ static char *number(char *buf, char *end, unsigned long long num, int base, int 
 		tmp[i++] = '0';
 	/* Generic code, for any base:
 	else do {
-		tmp[i++] = digits[do_div(num,base)];
+		tmp[i++] = (digits[do_div(num,base)] | locase);
 	} while (num != 0);
 	*/
 	else if (base != 10) { /* 8 or 16 */
@@ -412,7 +416,7 @@ static char *number(char *buf, char *end, unsigned long long num, int base, int 
 		int shift = 3;
 		if (base == 16) shift = 4;
 		do {
-			tmp[i++] = digits[((unsigned char)num) & mask];
+			tmp[i++] = (digits[((unsigned char)num) & mask] | locase);
 			num >>= shift;
 		} while (num);
 	} else { /* base 10 */
@@ -444,7 +448,7 @@ static char *number(char *buf, char *end, unsigned long long num, int base, int 
 		++buf;
 		if (base == 16) {
 			if (buf < end)
-				*buf = digits[16]; /* for arbitrary base: digits[33]; */
+				*buf = ('X' | locase);
 			++buf;
 		}
 	}
@@ -644,6 +648,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 				continue;
 
 			case 'p':
+				flags |= SMALL;
 				if (field_width == -1) {
 					field_width = 2*sizeof(void *);
 					flags |= ZEROPAD;
@@ -680,9 +685,9 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 				base = 8;
 				break;
 
-			case 'X':
-				flags |= LARGE;
 			case 'x':
+				flags |= SMALL;
+			case 'X':
 				base = 16;
 				break;
 
