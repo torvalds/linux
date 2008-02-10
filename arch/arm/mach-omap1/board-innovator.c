@@ -134,12 +134,12 @@ static struct omap_mcbsp_reg_cfg mcbsp_regs = {
 static struct omap_alsa_codec_config alsa_config = {
 	.name			= "OMAP Innovator AIC23",
 	.mcbsp_regs_alsa	= &mcbsp_regs,
-	.codec_configure_dev	= NULL, // aic23_configure,
-	.codec_set_samplerate	= NULL, // aic23_set_samplerate,
-	.codec_clock_setup	= NULL, // aic23_clock_setup,
-	.codec_clock_on		= NULL, // aic23_clock_on,
-	.codec_clock_off	= NULL, // aic23_clock_off,
-	.get_default_samplerate	= NULL, // aic23_get_default_samplerate,
+	.codec_configure_dev	= NULL, /* aic23_configure, */
+	.codec_set_samplerate	= NULL, /* aic23_set_samplerate, */
+	.codec_clock_setup	= NULL, /* aic23_clock_setup, */
+	.codec_clock_on		= NULL, /* aic23_clock_on, */
+	.codec_clock_off	= NULL, /* aic23_clock_off, */
+	.get_default_samplerate	= NULL, /* aic23_get_default_samplerate, */
 };
 
 static struct platform_device innovator_mcbsp1_device = {
@@ -345,11 +345,11 @@ static struct omap_usb_config h2_usb_config __initdata = {
 	.otg		= 2,
 
 #ifdef	CONFIG_USB_GADGET_OMAP
-	.hmc_mode	= 19,	// 0:host(off) 1:dev|otg 2:disabled
-	// .hmc_mode	= 21,	// 0:host(off) 1:dev(loopback) 2:host(loopback)
+	.hmc_mode	= 19,	/* 0:host(off) 1:dev|otg 2:disabled */
+	/* .hmc_mode	= 21,*/	/* 0:host(off) 1:dev(loopback) 2:host(loopback) */
 #elif	defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
 	/* NONSTANDARD CABLE NEEDED (B-to-Mini-B) */
-	.hmc_mode	= 20,	// 1:dev|otg(off) 1:host 2:disabled
+	.hmc_mode	= 20,	/* 1:dev|otg(off) 1:host 2:disabled */
 #endif
 
 	.pins[1]	= 3,
@@ -411,6 +411,7 @@ static void __init innovator_init(void)
 	omap_board_config = innovator_config;
 	omap_board_config_size = ARRAY_SIZE(innovator_config);
 	omap_serial_init();
+	omap_register_i2c_bus(1, 100, NULL, 0);
 }
 
 static void __init innovator_map_io(void)

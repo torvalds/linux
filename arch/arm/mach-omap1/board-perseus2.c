@@ -30,6 +30,7 @@
 #include <asm/arch/gpio.h>
 #include <asm/arch/mux.h>
 #include <asm/arch/fpga.h>
+#include <asm/arch/nand.h>
 #include <asm/arch/keypad.h>
 #include <asm/arch/common.h>
 #include <asm/arch/board.h>
@@ -133,7 +134,7 @@ static struct platform_device nor_device = {
 	.resource	= &nor_resource,
 };
 
-static struct nand_platform_data nand_data = {
+static struct omap_nand_platform_data nand_data = {
 	.options	= NAND_SAMSUNG_LP_OPTIONS,
 };
 
@@ -202,7 +203,7 @@ static struct platform_device *devices[] __initdata = {
 
 #define P2_NAND_RB_GPIO_PIN	62
 
-static int nand_dev_ready(struct nand_platform_data *data)
+static int nand_dev_ready(struct omap_nand_platform_data *data)
 {
 	return omap_get_gpio_datain(P2_NAND_RB_GPIO_PIN);
 }
@@ -215,7 +216,7 @@ static struct omap_lcd_config perseus2_lcd_config __initdata = {
 	.ctrl_name	= "internal",
 };
 
-static struct omap_board_config_kernel perseus2_config[] = {
+static struct omap_board_config_kernel perseus2_config[] __initdata = {
 	{ OMAP_TAG_UART,	&perseus2_uart_config },
 	{ OMAP_TAG_LCD,		&perseus2_lcd_config },
 };
@@ -233,6 +234,7 @@ static void __init omap_perseus2_init(void)
 	omap_board_config = perseus2_config;
 	omap_board_config_size = ARRAY_SIZE(perseus2_config);
 	omap_serial_init();
+	omap_register_i2c_bus(1, 100, NULL, 0);
 }
 
 static void __init perseus2_init_smc91x(void)

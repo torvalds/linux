@@ -156,7 +156,7 @@ static int orion_pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
 	orion_pcie_id(&dev, &rev);
 	if (dev == MV88F5181_DEV_ID || dev == MV88F5182_DEV_ID) {
 		/* extended register space */
-		pcie_addr = ORION_PCIE_WA_BASE;
+		pcie_addr = ORION_PCIE_WA_VIRT_BASE;
 		pcie_addr |= PCIE_CONF_BUS(bus->number) |
 			PCIE_CONF_DEV(PCI_SLOT(devfn)) |
 			PCIE_CONF_FUNC(PCI_FUNC(devfn)) |
@@ -241,7 +241,7 @@ static int orion_pcie_setup(struct pci_sys_data *sys)
 	 */
 	res[0].name = "PCI-EX I/O Space";
 	res[0].flags = IORESOURCE_IO;
-	res[0].start = ORION_PCIE_IO_REMAP;
+	res[0].start = ORION_PCIE_IO_BUS_BASE;
 	res[0].end = res[0].start + ORION_PCIE_IO_SIZE - 1;
 	if (request_resource(&ioport_resource, &res[0]))
 		panic("Request PCIE IO resource failed\n");
@@ -252,7 +252,7 @@ static int orion_pcie_setup(struct pci_sys_data *sys)
 	 */
 	res[1].name = "PCI-EX Memory Space";
 	res[1].flags = IORESOURCE_MEM;
-	res[1].start = ORION_PCIE_MEM_BASE;
+	res[1].start = ORION_PCIE_MEM_PHYS_BASE;
 	res[1].end = res[1].start + ORION_PCIE_MEM_SIZE - 1;
 	if (request_resource(&iomem_resource, &res[1]))
 		panic("Request PCIE Memory resource failed\n");
@@ -477,7 +477,7 @@ static int orion_pci_setup(struct pci_sys_data *sys)
 	 */
 	res[0].name = "PCI I/O Space";
 	res[0].flags = IORESOURCE_IO;
-	res[0].start = ORION_PCI_IO_REMAP;
+	res[0].start = ORION_PCI_IO_BUS_BASE;
 	res[0].end = res[0].start + ORION_PCI_IO_SIZE - 1;
 	if (request_resource(&ioport_resource, &res[0]))
 		panic("Request PCI IO resource failed\n");
@@ -488,7 +488,7 @@ static int orion_pci_setup(struct pci_sys_data *sys)
 	 */
 	res[1].name = "PCI Memory Space";
 	res[1].flags = IORESOURCE_MEM;
-	res[1].start = ORION_PCI_MEM_BASE;
+	res[1].start = ORION_PCI_MEM_PHYS_BASE;
 	res[1].end = res[1].start + ORION_PCI_MEM_SIZE - 1;
 	if (request_resource(&iomem_resource, &res[1]))
 		panic("Request PCI Memory resource failed\n");
