@@ -466,9 +466,6 @@ static void ide_tape_put(struct ide_tape_obj *tape)
 /* 0 = no tape is loaded, so we don't rewind after ejecting */
 #define IDETAPE_MEDIUM_PRESENT		9
 
-/* A define for the READ BUFFER command */
-#define IDETAPE_RETRIEVE_FAULTY_BLOCK	6
-
 /* Some defines for the SPACE command */
 #define IDETAPE_SPACE_OVER_FILEMARK	1
 #define IDETAPE_SPACE_TO_EOD		3
@@ -490,7 +487,6 @@ enum {
 	REQ_IDETAPE_PC2		= (1 << 1), /* packet command (second stage) */
 	REQ_IDETAPE_READ	= (1 << 2),
 	REQ_IDETAPE_WRITE	= (1 << 3),
-	REQ_IDETAPE_READ_BUFFER	= (1 << 4),
 };
 
 /* Error codes returned in rq->errors to the higher part of the driver. */
@@ -1523,29 +1519,6 @@ static void idetape_create_read_cmd(idetape_tape_t *tape, idetape_pc_t *pc,
 		set_bit(PC_DMA_RECOMMENDED, &pc->flags);
 }
 
-static void idetape_create_read_buffer_cmd(idetape_tape_t *tape,
-		idetape_pc_t *pc, struct idetape_bh *bh)
-{
-	int size = 32768;
-	struct idetape_bh *p = bh;
-
-	idetape_init_pc(pc);
-	pc->c[0] = READ_BUFFER;
-	pc->c[1] = IDETAPE_RETRIEVE_FAULTY_BLOCK;
-	pc->c[7] = size >> 8;
-	pc->c[8] = size & 0xff;
-	pc->callback = &idetape_pc_callback;
-	pc->bh = bh;
-	atomic_set(&bh->b_count, 0);
-	pc->buffer = NULL;
-	while (p) {
-		atomic_set(&p->b_count, 0);
-		p = p->b_reqnext;
-	}
-	pc->request_transfer = size;
-	pc->buffer_size = size;
-}
-
 static void idetape_create_write_cmd(idetape_tape_t *tape, idetape_pc_t *pc,
 		unsigned int length, struct idetape_bh *bh)
 {
@@ -1653,13 +1626,6 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 		pc = idetape_next_pc_storage(drive);
 		idetape_create_write_cmd(tape, pc, rq->current_nr_sectors,
 					 (struct idetape_bh *)rq->special);
-		goto out;
-	}
-	if (rq->cmd[0] & REQ_IDETAPE_READ_BUFFER) {
-		tape->postpone_cnt = 0;
-		pc = idetape_next_pc_storage(drive);
-		idetape_create_read_buffer_cmd(tape, pc,
-				(struct idetape_bh *)rq->special);
 		goto out;
 	}
 	if (rq->cmd[0] & REQ_IDETAPE_PC1) {
