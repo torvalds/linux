@@ -681,7 +681,6 @@ static void *mb_find_buddy(struct ext4_buddy *e4b, int order, int *max)
 {
 	char *bb;
 
-	/* FIXME!! is this needed */
 	BUG_ON(EXT4_MB_BITMAP(e4b) == EXT4_MB_BUDDY(e4b));
 	BUG_ON(max == NULL);
 
@@ -965,7 +964,7 @@ static void ext4_mb_generate_buddy(struct super_block *sb,
 	grp->bb_fragments = fragments;
 
 	if (free != grp->bb_free) {
-		printk(KERN_DEBUG
+		ext4_error(sb, __FUNCTION__,
 			"EXT4-fs: group %lu: %u blocks in bitmap, %u in gd\n",
 			group, free, grp->bb_free);
 		grp->bb_free = free;
@@ -1822,13 +1821,24 @@ static void ext4_mb_complex_scan_group(struct ext4_allocation_context *ac,
 		i = ext4_find_next_zero_bit(bitmap,
 						EXT4_BLOCKS_PER_GROUP(sb), i);
 		if (i >= EXT4_BLOCKS_PER_GROUP(sb)) {
-			BUG_ON(free != 0);
+			/*
+			 * IF we corrupt the bitmap  we won't find any
+			 * free blocks even though group info says we
+			 * we have free blocks
+			 */
+			ext4_error(sb, __FUNCTION__, "%d free blocks as per "
+					"group info. But bitmap says 0\n",
+					free);
 			break;
 		}
 
 		mb_find_extent(e4b, 0, i, ac->ac_g_ex.fe_len, &ex);
 		BUG_ON(ex.fe_len <= 0);
-		BUG_ON(free < ex.fe_len);
+		if (free < ex.fe_len) {
+			ext4_error(sb, __FUNCTION__, "%d free blocks as per "
+					"group info. But got %d blocks\n",
+					free, ex.fe_len);
+		}
 
 		ext4_mb_measure_extent(ac, &ex, e4b);
 
@@ -3363,13 +3373,10 @@ static void ext4_mb_use_group_pa(struct ext4_allocation_context *ac,
 	ac->ac_pa = pa;
 
 	/* we don't correct pa_pstart or pa_plen here to avoid
-	 * possible race when tte group is being loaded concurrently
+	 * possible race when the group is being loaded concurrently
 	 * instead we correct pa later, after blocks are marked
-	 * in on-disk bitmap -- see ext4_mb_release_context() */
-	/*
-	 * FIXME!! but the other CPUs can look at this particular
-	 * pa and think that it have enought free blocks if we
-	 * don't update pa_free here right ?
+	 * in on-disk bitmap -- see ext4_mb_release_context()
+	 * Other CPUs are prevented from allocating from this pa by lg_mutex
 	 */
 	mb_debug("use %u/%u from group pa %p\n", pa->pa_lstart-len, len, pa);
 }
@@ -3758,13 +3765,13 @@ static int ext4_mb_release_inode_pa(struct ext4_buddy *e4b,
 		bit = next + 1;
 	}
 	if (free != pa->pa_free) {
-		printk(KERN_ERR "pa %p: logic %lu, phys. %lu, len %lu\n",
+		printk(KERN_CRIT "pa %p: logic %lu, phys. %lu, len %lu\n",
 			pa, (unsigned long) pa->pa_lstart,
 			(unsigned long) pa->pa_pstart,
 			(unsigned long) pa->pa_len);
-		printk(KERN_ERR "free %u, pa_free %u\n", free, pa->pa_free);
+		ext4_error(sb, __FUNCTION__, "free %u, pa_free %u\n",
+						free, pa->pa_free);
 	}
-	BUG_ON(free != pa->pa_free);
 	atomic_add(free, &sbi->s_mb_discarded);
 	if (ac)
 		kmem_cache_free(ext4_ac_cachep, ac);
@@ -4435,7 +4442,7 @@ void ext4_mb_free_blocks(handle_t *handle, struct inode *inode,
 			unsigned long block, unsigned long count,
 			int metadata, unsigned long *freed)
 {
-	struct buffer_head *bitmap_bh = 0;
+	struct buffer_head *bitmap_bh = NULL;
 	struct super_block *sb = inode->i_sb;
 	struct ext4_allocation_context *ac = NULL;
 	struct ext4_group_desc *gdp;
