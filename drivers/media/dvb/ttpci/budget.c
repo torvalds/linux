@@ -351,6 +351,7 @@ static struct s5h1420_config s5h1420_config = {
 static struct tda10086_config tda10086_config = {
 	.demod_address = 0x0e,
 	.invert = 0,
+	.diseqc_tone = 1,
 };
 
 static u8 read_pwm(struct budget* budget)

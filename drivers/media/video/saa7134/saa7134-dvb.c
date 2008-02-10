@@ -841,6 +841,7 @@ static struct tda1004x_config ads_tech_duo_config = {
 static struct tda10086_config flydvbs = {
 	.demod_address = 0x0e,
 	.invert = 0,
+	.diseqc_tone = 0,
 };
 
 /* ==================================================================
@@ -955,9 +956,9 @@ static int dvb_init(struct saa7134_dev *dev)
 		configure_tda827x_fe(dev, &tda827x_lifeview_config);
 		break;
 	case SAA7134_BOARD_FLYDVB_TRIO:
-		if(! use_frontend) {	//terrestrial
+		if(! use_frontend) {	/* terrestrial */
 			configure_tda827x_fe(dev, &lifeview_trio_config);
-		} else {  	      //satellite
+		} else {  	        /* satellite */
 			dev->dvb.frontend = dvb_attach(tda10086_attach, &flydvbs, &dev->i2c_adap);
 			if (dev->dvb.frontend) {
 				if (dvb_attach(tda826x_attach, dev->dvb.frontend, 0x63,
