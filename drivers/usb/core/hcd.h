@@ -28,7 +28,7 @@
 /*
  * USB Packet IDs (PIDs)
  */
-#define USB_PID_UNDEF_0			0xf0
+#define USB_PID_EXT			0xf0	/* USB 2.0 LPM ECN */
 #define USB_PID_OUT			0xe1
 #define USB_PID_ACK			0xd2
 #define USB_PID_DATA0			0xc3

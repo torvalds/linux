@@ -66,8 +66,8 @@
 #define USB_RECIP_ENDPOINT		0x02
 #define USB_RECIP_OTHER			0x03
 /* From Wireless USB 1.0 */
-#define USB_RECIP_PORT 			0x04
-#define USB_RECIP_RPIPE 		0x05
+#define USB_RECIP_PORT			0x04
+#define USB_RECIP_RPIPE		0x05
 
 /*
  * Standard requests, for the bRequest field of a SETUP packet.
@@ -102,10 +102,16 @@
 #define USB_REQ_LOOPBACK_DATA_READ	0x16
 #define USB_REQ_SET_INTERFACE_DS	0x17
 
+/* The Link Power Mangement (LPM) ECN defines USB_REQ_TEST_AND_SET command,
+ * used by hubs to put ports into a new L1 suspend state, except that it
+ * forgot to define its number ...
+ */
+
 /*
  * USB feature flags are written using USB_REQ_{CLEAR,SET}_FEATURE, and
  * are read as a bit array returned by USB_REQ_GET_STATUS.  (So there
- * are at most sixteen features of each type.)
+ * are at most sixteen features of each type.)  Hubs may also support a
+ * new USB_REQ_TEST_AND_SET_FEATURE to put ports into L1 suspend.
  */
 #define USB_DEVICE_SELF_POWERED		0	/* (read only) */
 #define USB_DEVICE_REMOTE_WAKEUP	1	/* dev may initiate wakeup */
@@ -575,6 +581,8 @@ enum usb_device_state {
 	/* NOTE:  there are actually four different SUSPENDED
 	 * states, returning to POWERED, DEFAULT, ADDRESS, or
 	 * CONFIGURED respectively when SOF tokens flow again.
+	 * At this level there's no difference between L1 and L2
+	 * suspend states.  (L2 being original USB 1.1 suspend.)
 	 */
 };
 
