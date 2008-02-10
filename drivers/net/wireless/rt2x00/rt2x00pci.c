@@ -186,38 +186,44 @@ EXPORT_SYMBOL_GPL(rt2x00pci_txdone);
 /*
  * Device initialization handlers.
  */
-#define dma_size(__queue)				\
-({							\
-	(__queue)->limit *				\
-	    ((__queue)->desc_size + (__queue)->data_size);\
+#define desc_size(__queue)			\
+({						\
+	 ((__queue)->limit * (__queue)->desc_size);\
 })
 
-#define priv_offset(__queue, __base, __i)		\
-({							\
-	(__base) + ((__i) * (__queue)->desc_size);	\
+#define data_size(__queue)			\
+({						\
+	 ((__queue)->limit * (__queue)->data_size);\
 })
 
-#define data_addr_offset(__queue, __base, __i)		\
-({							\
-	(__base) +					\
-	    ((__queue)->limit * (__queue)->desc_size) +	\
-	    ((__i) * (__queue)->data_size);		\
+#define dma_size(__queue)			\
+({						\
+	data_size(__queue) + desc_size(__queue);\
 })
 
-#define data_dma_offset(__queue, __base, __i)		\
-({							\
-	(__base) +					\
-	    ((__queue)->limit * (__queue)->desc_size) +	\
-	    ((__i) * (__queue)->data_size);		\
+#define desc_offset(__queue, __base, __i)	\
+({						\
+	(__base) + data_size(__queue) + 	\
+	    ((__i) * (__queue)->desc_size);	\
+})
+
+#define data_offset(__queue, __base, __i)	\
+({						\
+	(__base) +				\
+	    ((__i) * (__queue)->data_size);	\
 })
 
 static int rt2x00pci_alloc_queue_dma(struct rt2x00_dev *rt2x00dev,
 				     struct data_queue *queue)
 {
 	struct pci_dev *pci_dev = rt2x00dev_pci(rt2x00dev);
+	struct queue_entry_priv_pci_rx *priv_rx;
 	struct queue_entry_priv_pci_tx *priv_tx;
+	void *desc;
 	void *data_addr;
+	void *data;
 	dma_addr_t data_dma;
+	dma_addr_t dma;
 	unsigned int i;
 
 	/*
@@ -227,14 +233,27 @@ static int rt2x00pci_alloc_queue_dma(struct rt2x00_dev *rt2x00dev,
 	if (!data_addr)
 		return -ENOMEM;
 
+	memset(data_addr, 0, dma_size(queue));
+
 	/*
 	 * Initialize all queue entries to contain valid addresses.
 	 */
 	for (i = 0; i < queue->limit; i++) {
-		priv_tx = queue->entries[i].priv_data;
-		priv_tx->desc = priv_offset(queue, data_addr, i);
-		priv_tx->data = data_addr_offset(queue, data_addr, i);
-		priv_tx->dma = data_dma_offset(queue, data_dma, i);
+		desc = desc_offset(queue, data_addr, i);
+		data = data_offset(queue, data_addr, i);
+		dma = data_offset(queue, data_dma, i);
+
+		if (queue->qid == QID_RX) {
+			priv_rx = queue->entries[i].priv_data;
+			priv_rx->desc = desc;
+			priv_rx->data = data;
+			priv_rx->dma = dma;
+		} else {
+			priv_tx = queue->entries[i].priv_data;
+			priv_tx->desc = desc;
+			priv_tx->data = data;
+			priv_tx->dma = dma;
+		}
 	}
 
 	return 0;
@@ -244,12 +263,28 @@ static void rt2x00pci_free_queue_dma(struct rt2x00_dev *rt2x00dev,
 				     struct data_queue *queue)
 {
 	struct pci_dev *pci_dev = rt2x00dev_pci(rt2x00dev);
-	struct queue_entry_priv_pci_tx *priv_tx = queue->entries[0].priv_data;
+	struct queue_entry_priv_pci_rx *priv_rx;
+	struct queue_entry_priv_pci_tx *priv_tx;
+	void *data_addr;
+	dma_addr_t data_dma;
 
-	if (priv_tx->data)
+	if (queue->qid == QID_RX) {
+		priv_rx = queue->entries[0].priv_data;
+		data_addr = priv_rx->data;
+		data_dma = priv_rx->dma;
+
+		priv_rx->data = NULL;
+	} else {
+		priv_tx = queue->entries[0].priv_data;
+		data_addr = priv_tx->data;
+		data_dma = priv_tx->dma;
+
+		priv_tx->data = NULL;
+	}
+
+	if (data_addr)
 		pci_free_consistent(pci_dev, dma_size(queue),
-				    priv_tx->data, priv_tx->dma);
-	priv_tx->data = NULL;
+				    data_addr, data_dma);
 }
 
 int rt2x00pci_initialize(struct rt2x00_dev *rt2x00dev)
