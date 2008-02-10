@@ -68,9 +68,6 @@ err:		*value = -1;
 		return -EINVAL;
 	}
 
-	if (reg < 256)
-		return pci_conf1_read(seg,bus,devfn,reg,len,value);
-
 	base = get_base_addr(seg, bus, devfn);
 	if (!base)
 		goto err;
@@ -104,9 +101,6 @@ static int pci_mmcfg_write(unsigned int seg, unsigned int bus,
 	if ((bus > 255) || (devfn > 255) || (reg > 4095))
 		return -EINVAL;
 
-	if (reg < 256)
-		return pci_conf1_write(seg,bus,devfn,reg,len,value);
-
 	base = get_base_addr(seg, bus, devfn);
 	if (!base)
 		return -EINVAL;
@@ -138,7 +132,7 @@ static struct pci_raw_ops pci_mmcfg = {
 
 int __init pci_mmcfg_arch_init(void)
 {
-	printk(KERN_INFO "PCI: Using MMCONFIG\n");
-	raw_pci_ops = &pci_mmcfg;
+	printk(KERN_INFO "PCI: Using MMCONFIG for extended config space\n");
+	raw_pci_ext_ops = &pci_mmcfg;
 	return 1;
 }
