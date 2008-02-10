@@ -3782,6 +3782,29 @@ done:
 
 	return len;
 }
+
+static int pfkey_init_proc(void)
+{
+	if (create_proc_read_entry("pfkey", 0, init_net.proc_net,
+				pfkey_read_proc, NULL) == NULL)
+		return -ENOMEM;
+	else
+		return 0;
+}
+
+static void pfkey_exit_proc(void)
+{
+	remove_proc_entry("net/pfkey", NULL);
+}
+#else
+static inline int pfkey_init_proc(void)
+{
+	return 0;
+}
+
+static inline void pfkey_exit_proc(void)
+{
+}
 #endif
 
 static struct xfrm_mgr pfkeyv2_mgr =
@@ -3798,7 +3821,7 @@ static struct xfrm_mgr pfkeyv2_mgr =
 static void __exit ipsec_pfkey_exit(void)
 {
 	xfrm_unregister_km(&pfkeyv2_mgr);
-	remove_proc_entry("pfkey", init_net.proc_net);
+	pfkey_exit_proc();
 	sock_unregister(PF_KEY);
 	proto_unregister(&key_proto);
 }
@@ -3813,21 +3836,17 @@ static int __init ipsec_pfkey_init(void)
 	err = sock_register(&pfkey_family_ops);
 	if (err != 0)
 		goto out_unregister_key_proto;
-#ifdef CONFIG_PROC_FS
-	err = -ENOMEM;
-	if (create_proc_read_entry("pfkey", 0, init_net.proc_net, pfkey_read_proc, NULL) == NULL)
+	err = pfkey_init_proc();
+	if (err != 0)
 		goto out_sock_unregister;
-#endif
 	err = xfrm_register_km(&pfkeyv2_mgr);
 	if (err != 0)
 		goto out_remove_proc_entry;
 out:
 	return err;
 out_remove_proc_entry:
-#ifdef CONFIG_PROC_FS
-	remove_proc_entry("net/pfkey", NULL);
+	pfkey_exit_proc();
 out_sock_unregister:
-#endif
 	sock_unregister(PF_KEY);
 out_unregister_key_proto:
 	proto_unregister(&key_proto);
