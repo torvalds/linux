@@ -378,6 +378,7 @@ void rt2x00usb_disable_radio(struct rt2x00_dev *rt2x00dev)
 {
 	struct queue_entry_priv_usb_rx *priv_rx;
 	struct queue_entry_priv_usb_tx *priv_tx;
+	struct queue_entry_priv_usb_bcn *priv_bcn;
 	struct data_queue *queue;
 	unsigned int i;
 
@@ -392,11 +393,27 @@ void rt2x00usb_disable_radio(struct rt2x00_dev *rt2x00dev)
 		usb_kill_urb(priv_rx->urb);
 	}
 
-	txall_queue_for_each(rt2x00dev, queue) {
+	tx_queue_for_each(rt2x00dev, queue) {
 		for (i = 0; i < queue->limit; i++) {
 			priv_tx = queue->entries[i].priv_data;
 			usb_kill_urb(priv_tx->urb);
 		}
+	}
+
+	for (i = 0; i < rt2x00dev->bcn->limit; i++) {
+		priv_bcn = rt2x00dev->bcn->entries[i].priv_data;
+		usb_kill_urb(priv_bcn->urb);
+
+		if (priv_bcn->guardian_urb)
+			usb_kill_urb(priv_bcn->guardian_urb);
+	}
+
+	if (!test_bit(DRIVER_REQUIRE_ATIM_QUEUE, &rt2x00dev->flags))
+		return;
+
+	for (i = 0; i < rt2x00dev->bcn[1].limit; i++) {
+		priv_tx = rt2x00dev->bcn[1].entries[i].priv_data;
+		usb_kill_urb(priv_tx->urb);
 	}
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_disable_radio);
