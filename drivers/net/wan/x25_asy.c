@@ -554,7 +554,6 @@ static void x25_asy_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 static int x25_asy_open_tty(struct tty_struct *tty)
 {
 	struct x25_asy *sl = (struct x25_asy *) tty->disc_data;
-	struct tty_ldisc *ld;
 	int err;
 
 	/* First make sure we're not already connected. */
