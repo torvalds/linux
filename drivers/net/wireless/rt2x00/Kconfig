@@ -40,6 +40,7 @@ config RT2X00_LIB_RFKILL
 config RT2X00_LIB_LEDS
 	boolean
 	depends on RT2X00_LIB
+	select NEW_LEDS
 	select LEDS_CLASS
 	select LEDS_TRIGGERS
 	select MAC80211_LEDS
