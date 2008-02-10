@@ -1319,13 +1319,26 @@ static int __sched do_nanosleep(struct hrtimer_sleeper *t, enum hrtimer_mode mod
 	return t->task == NULL;
 }
 
+static int update_rmtp(struct hrtimer *timer, struct timespec __user *rmtp)
+{
+	struct timespec rmt;
+	ktime_t rem;
+
+	rem = ktime_sub(timer->expires, timer->base->get_time());
+	if (rem.tv64 <= 0)
+		return 0;
+	rmt = ktime_to_timespec(rem);
+
+	if (copy_to_user(rmtp, &rmt, sizeof(*rmtp)))
+		return -EFAULT;
+
+	return 1;
+}
+
 long __sched hrtimer_nanosleep_restart(struct restart_block *restart)
 {
 	struct hrtimer_sleeper t;
-	struct timespec *rmtp;
-	ktime_t time;
-
-	restart->fn = do_no_restart_syscall;
+	struct timespec __user  *rmtp;
 
 	hrtimer_init(&t.timer, restart->arg0, HRTIMER_MODE_ABS);
 	t.timer.expires.tv64 = ((u64)restart->arg3 << 32) | (u64) restart->arg2;
@@ -1333,26 +1346,22 @@ long __sched hrtimer_nanosleep_restart(struct restart_block *restart)
 	if (do_nanosleep(&t, HRTIMER_MODE_ABS))
 		return 0;
 
-	rmtp = (struct timespec *)restart->arg1;
+	rmtp = (struct timespec __user *)restart->arg1;
 	if (rmtp) {
-		time = ktime_sub(t.timer.expires, t.timer.base->get_time());
-		if (time.tv64 <= 0)
-			return 0;
-		*rmtp = ktime_to_timespec(time);
+		int ret = update_rmtp(&t.timer, rmtp);
+		if (ret <= 0)
+			return ret;
 	}
-
-	restart->fn = hrtimer_nanosleep_restart;
 
 	/* The other values in restart are already filled in */
 	return -ERESTART_RESTARTBLOCK;
 }
 
-long hrtimer_nanosleep(struct timespec *rqtp, struct timespec *rmtp,
+long hrtimer_nanosleep(struct timespec *rqtp, struct timespec __user *rmtp,
 		       const enum hrtimer_mode mode, const clockid_t clockid)
 {
 	struct restart_block *restart;
 	struct hrtimer_sleeper t;
-	ktime_t rem;
 
 	hrtimer_init(&t.timer, clockid, mode);
 	t.timer.expires = timespec_to_ktime(*rqtp);
@@ -1364,10 +1373,9 @@ long hrtimer_nanosleep(struct timespec *rqtp, struct timespec *rmtp,
 		return -ERESTARTNOHAND;
 
 	if (rmtp) {
-		rem = ktime_sub(t.timer.expires, t.timer.base->get_time());
-		if (rem.tv64 <= 0)
-			return 0;
-		*rmtp = ktime_to_timespec(rem);
+		int ret = update_rmtp(&t.timer, rmtp);
+		if (ret <= 0)
+			return ret;
 	}
 
 	restart = &current_thread_info()->restart_block;
@@ -1383,8 +1391,7 @@ long hrtimer_nanosleep(struct timespec *rqtp, struct timespec *rmtp,
 asmlinkage long
 sys_nanosleep(struct timespec __user *rqtp, struct timespec __user *rmtp)
 {
-	struct timespec tu, rmt;
-	int ret;
+	struct timespec tu;
 
 	if (copy_from_user(&tu, rqtp, sizeof(tu)))
 		return -EFAULT;
@@ -1392,15 +1399,7 @@ sys_nanosleep(struct timespec __user *rqtp, struct timespec __user *rmtp)
 	if (!timespec_valid(&tu))
 		return -EINVAL;
 
-	ret = hrtimer_nanosleep(&tu, rmtp ? &rmt : NULL, HRTIMER_MODE_REL,
-				CLOCK_MONOTONIC);
-
-	if (ret && rmtp) {
-		if (copy_to_user(rmtp, &rmt, sizeof(*rmtp)))
-			return -EFAULT;
-	}
-
-	return ret;
+	return hrtimer_nanosleep(&tu, rmtp, HRTIMER_MODE_REL, CLOCK_MONOTONIC);
 }
 
 /*

@@ -982,20 +982,9 @@ sys_clock_getres(const clockid_t which_clock, struct timespec __user *tp)
 static int common_nsleep(const clockid_t which_clock, int flags,
 			 struct timespec *tsave, struct timespec __user *rmtp)
 {
-	struct timespec rmt;
-	int ret;
-
-	ret = hrtimer_nanosleep(tsave, rmtp ? &rmt : NULL,
-				flags & TIMER_ABSTIME ?
-				HRTIMER_MODE_ABS : HRTIMER_MODE_REL,
-				which_clock);
-
-	if (ret && rmtp) {
-		if (copy_to_user(rmtp, &rmt, sizeof(*rmtp)))
-			return -EFAULT;
-	}
-
-	return ret;
+	return hrtimer_nanosleep(tsave, rmtp, flags & TIMER_ABSTIME ?
+				 HRTIMER_MODE_ABS : HRTIMER_MODE_REL,
+				 which_clock);
 }
 
 asmlinkage long
