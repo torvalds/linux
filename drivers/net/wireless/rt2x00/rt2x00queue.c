@@ -160,7 +160,8 @@ static int rt2x00queue_alloc_entries(struct data_queue *queue,
 		return -ENOMEM;
 
 #define QUEUE_ENTRY_PRIV_OFFSET(__base, __index, __limit, __esize, __psize) \
-	( (__base) + ((__limit) * (__esize)) + ((__index) * (__psize)) )
+	( ((char *)(__base)) + ((__limit) * (__esize)) + \
+	    ((__index) * (__psize)) )
 
 	for (i = 0; i < queue->limit; i++) {
 		entries[i].flags = 0;
