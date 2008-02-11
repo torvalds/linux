@@ -232,7 +232,14 @@ config PGTABLE_4
 
 endchoice
 
+if IA64_HP_SIM
+config HZ
+	default 32
+endif
+
+if !IA64_HP_SIM
 source kernel/Kconfig.hz
+endif
 
 config IA64_BRL_EMU
 	bool
