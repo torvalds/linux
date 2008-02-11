@@ -290,7 +290,7 @@ static int cypress_serial_control (struct usb_serial_port *port, unsigned baud_m
 {
 	int new_baudrate = 0, retval = 0, tries = 0;
 	struct cypress_private *priv;
-	__u8 feature_buffer[8];
+	__u8 feature_buffer[5];
 	unsigned long flags;
 
 	dbg("%s", __FUNCTION__);
@@ -353,7 +353,7 @@ static int cypress_serial_control (struct usb_serial_port *port, unsigned baud_m
 			}
 			dbg("%s - baud rate is being sent as %d", __FUNCTION__, new_baudrate);
 			
-			memset(feature_buffer, 0, 8);
+			memset(feature_buffer, 0, sizeof(feature_buffer));
 			/* fill the feature_buffer with new configuration */
 			*((u_int32_t *)feature_buffer) = new_baudrate;
 
@@ -370,16 +370,20 @@ static int cypress_serial_control (struct usb_serial_port *port, unsigned baud_m
 		            feature_buffer[2], feature_buffer[3], feature_buffer[4]);
 			
 			do {
-			retval = usb_control_msg (port->serial->dev, usb_sndctrlpipe(port->serial->dev, 0),
-					  	  HID_REQ_SET_REPORT, USB_DIR_OUT | USB_RECIP_INTERFACE | USB_TYPE_CLASS,
-						  	  0x0300, 0, feature_buffer, 8, 500);
+				retval = usb_control_msg(port->serial->dev,
+						usb_sndctrlpipe(port->serial->dev, 0),
+						HID_REQ_SET_REPORT,
+						USB_DIR_OUT | USB_RECIP_INTERFACE | USB_TYPE_CLASS,
+						0x0300, 0, feature_buffer,
+						sizeof(feature_buffer), 500);
 
 				if (tries++ >= 3)
 					break;
 
-			} while (retval != 8 && retval != -ENODEV);
+			} while (retval != sizeof(feature_buffer) &&
+				 retval != -ENODEV);
 
-			if (retval != 8) {
+			if (retval != sizeof(feature_buffer)) {
 				err("%s - failed sending serial line settings - %d", __FUNCTION__, retval);
 				cypress_set_dead(port);
 			} else {
@@ -393,19 +397,23 @@ static int cypress_serial_control (struct usb_serial_port *port, unsigned baud_m
 		case CYPRESS_GET_CONFIG:
 			dbg("%s - retreiving serial line settings", __FUNCTION__);
 			/* set initial values in feature buffer */
-			memset(feature_buffer, 0, 8);
+			memset(feature_buffer, 0, sizeof(feature_buffer));
 
 			do {
-			retval = usb_control_msg (port->serial->dev, usb_rcvctrlpipe(port->serial->dev, 0),
-						  HID_REQ_GET_REPORT, USB_DIR_IN | USB_RECIP_INTERFACE | USB_TYPE_CLASS,
-							  0x0300, 0, feature_buffer, 8, 500);
-				
+				retval = usb_control_msg(port->serial->dev,
+						usb_rcvctrlpipe(port->serial->dev, 0),
+						HID_REQ_GET_REPORT,
+						USB_DIR_IN | USB_RECIP_INTERFACE | USB_TYPE_CLASS,
+						0x0300, 0, feature_buffer,
+						sizeof(feature_buffer), 500);
+
 				if (tries++ >= 3)
 					break;
 
-			} while (retval != 5 && retval != -ENODEV);
+			} while (retval != sizeof(feature_buffer) &&
+				 retval != -ENODEV);
 
-			if (retval != 5) {
+			if (retval != sizeof(feature_buffer)) {
 				err("%s - failed to retrieve serial line settings - %d", __FUNCTION__, retval);
 				cypress_set_dead(port);
 				return retval;
