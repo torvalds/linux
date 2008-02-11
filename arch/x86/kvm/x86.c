@@ -487,6 +487,10 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 		pr_unimpl(vcpu, "%s: MSR_IA32_MCG_STATUS 0x%llx, nop\n",
 			__FUNCTION__, data);
 		break;
+	case MSR_IA32_MCG_CTL:
+		pr_unimpl(vcpu, "%s: MSR_IA32_MCG_CTL 0x%llx, nop\n",
+			__FUNCTION__, data);
+		break;
 	case MSR_IA32_UCODE_REV:
 	case MSR_IA32_UCODE_WRITE:
 	case 0x200 ... 0x2ff: /* MTRRs */
@@ -529,6 +533,7 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 	case MSR_IA32_MC0_CTL:
 	case MSR_IA32_MCG_STATUS:
 	case MSR_IA32_MCG_CAP:
+	case MSR_IA32_MCG_CTL:
 	case MSR_IA32_MC0_MISC:
 	case MSR_IA32_MC0_MISC+4:
 	case MSR_IA32_MC0_MISC+8:
