@@ -1046,7 +1046,7 @@ pxafb_freq_policy(struct notifier_block *nb, unsigned long val, void *data)
 	switch (val) {
 	case CPUFREQ_ADJUST:
 	case CPUFREQ_INCOMPATIBLE:
-		printk(KERN_DEBUG "min dma period: %d ps, "
+		pr_debug("min dma period: %d ps, "
 			"new clock %d kHz\n", pxafb_display_dma_period(var),
 			policy->max);
 		// TODO: fill in min/max values
@@ -1361,7 +1361,7 @@ static int __init pxafb_parse_options(struct device *dev, char *options)
 }
 #endif
 
-int __init pxafb_probe(struct platform_device *dev)
+static int __init pxafb_probe(struct platform_device *dev)
 {
 	struct pxafb_info *fbi;
 	struct pxafb_mach_info *inf;
@@ -1486,7 +1486,7 @@ static struct platform_driver pxafb_driver = {
 };
 
 #ifndef MODULE
-int __devinit pxafb_setup(char *options)
+static int __devinit pxafb_setup(char *options)
 {
 # ifdef CONFIG_FB_PXA_PARAMETERS
 	if (options)
@@ -1501,7 +1501,7 @@ MODULE_PARM_DESC(options, "LCD parameters (see Documentation/fb/pxafb.txt)");
 # endif
 #endif
 
-int __devinit pxafb_init(void)
+static int __devinit pxafb_init(void)
 {
 #ifndef MODULE
 	char *option = NULL;
