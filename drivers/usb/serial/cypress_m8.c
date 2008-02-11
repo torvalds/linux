@@ -145,6 +145,7 @@ struct cypress_private {
 	__u8 current_config;	   	   /* stores the current configuration byte */
 	__u8 rx_flags;			   /* throttling - used from whiteheat/ftdi_sio */
 	enum packet_format pkt_fmt;	   /* format to use for packet send / receive */
+	int get_cfg_unsafe;		   /* If true, the CYPRESS_GET_CONFIG is unsafe */
 	int baud_rate;			   /* stores current baud rate in integer form */
 	int cbr_mask;			   /* stores current baud rate in masked form */
 	int isthrottled;		   /* if throttled, discard reads */
@@ -401,6 +402,12 @@ static int cypress_serial_control (struct usb_serial_port *port, unsigned baud_m
 			}
 		break;
 		case CYPRESS_GET_CONFIG:
+			if (priv->get_cfg_unsafe) {
+				/* Not implemented for this device,
+				   and if we try to do it we're likely
+				   to crash the hardware. */
+				return -ENOTTY;
+			}
 			dbg("%s - retreiving serial line settings", __FUNCTION__);
 			/* set initial values in feature buffer */
 			memset(feature_buffer, 0, sizeof(feature_buffer));
@@ -570,20 +577,30 @@ static int generic_startup (struct usb_serial *serial)
 static int cypress_earthmate_startup (struct usb_serial *serial)
 {
 	struct cypress_private *priv;
+	struct usb_serial_port *port = serial->port[0];
 
 	dbg("%s", __FUNCTION__);
 
 	if (generic_startup(serial)) {
 		dbg("%s - Failed setting up port %d", __FUNCTION__,
-				serial->port[0]->number);
+				port->number);
 		return 1;
 	}
 
-	priv = usb_get_serial_port_data(serial->port[0]);
+	priv = usb_get_serial_port_data(port);
 	priv->chiptype = CT_EARTHMATE;
 	/* All Earthmate devices use the separated-count packet
 	   format!  Idiotic. */
 	priv->pkt_fmt = packet_format_1;
+	if (serial->dev->descriptor.idProduct != PRODUCT_ID_EARTHMATEUSB) {
+		/* The old original USB Earthmate seemed able to
+		   handle GET_CONFIG requests; everything they've
+		   produced since that time crashes if this command is
+		   attempted :-( */
+		dbg("%s - Marking this device as unsafe for GET_CONFIG "
+		    "commands", __func__);
+		priv->get_cfg_unsafe = !0;
+	}
 
 	return 0;
 } /* cypress_earthmate_startup */
