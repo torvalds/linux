@@ -1,6 +1,7 @@
-Rusty's Remarkably Unreliable Guide to Lguest
-	- or, A Young Coder's Illustrated Hypervisor
-http://lguest.ozlabs.org
+      __
+ (___()'`;  Rusty's Remarkably Unreliable Guide to Lguest
+ /,    /`      - or, A Young Coder's Illustrated Hypervisor
+ \\"--\\    http://lguest.ozlabs.org
 
 Lguest is designed to be a minimal hypervisor for the Linux kernel, for
 Linux developers and users to experiment with virtualization with the
