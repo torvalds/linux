@@ -328,7 +328,8 @@ config X86_RDC321X
 config X86_VSMP
 	bool "Support for ScaleMP vSMP"
 	depends on X86_64 && PCI
-	 help
+	select PARAVIRT
+	help
 	  Support for ScaleMP vSMP systems.  Say 'Y' here if this kernel is
 	  supposed to run on these EM64T-based machines.  Only choose this option
 	  if you have one of these machines.

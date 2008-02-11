@@ -8,6 +8,8 @@
  *
  * Ravikiran Thirumalai <kiran@scalemp.com>,
  * Shai Fultheim <shai@scalemp.com>
+ * Paravirt ops integration: Glauber de Oliveira Costa <gcosta@redhat.com>,
+ *			     Ravikiran Thirumalai <kiran@scalemp.com>
  */
 
 #include <linux/init.h>
@@ -15,6 +17,60 @@
 #include <linux/pci_regs.h>
 #include <asm/pci-direct.h>
 #include <asm/io.h>
+#include <asm/paravirt.h>
+
+/*
+ * Interrupt control on vSMPowered systems:
+ * ~AC is a shadow of IF.  If IF is 'on' AC should be 'off'
+ * and vice versa.
+ */
+
+static unsigned long vsmp_save_fl(void)
+{
+	unsigned long flags = native_save_fl();
+
+	if (!(flags & X86_EFLAGS_IF) || (flags & X86_EFLAGS_AC))
+		flags &= ~X86_EFLAGS_IF;
+	return flags;
+}
+
+static void vsmp_restore_fl(unsigned long flags)
+{
+	if (flags & X86_EFLAGS_IF)
+		flags &= ~X86_EFLAGS_AC;
+	else
+		flags |= X86_EFLAGS_AC;
+	native_restore_fl(flags);
+}
+
+static void vsmp_irq_disable(void)
+{
+	unsigned long flags = native_save_fl();
+
+	native_restore_fl((flags & ~X86_EFLAGS_IF) | X86_EFLAGS_AC);
+}
+
+static void vsmp_irq_enable(void)
+{
+	unsigned long flags = native_save_fl();
+
+	native_restore_fl((flags | X86_EFLAGS_IF) & (~X86_EFLAGS_AC));
+}
+
+static unsigned __init vsmp_patch(u8 type, u16 clobbers, void *ibuf,
+				  unsigned long addr, unsigned len)
+{
+	switch (type) {
+	case PARAVIRT_PATCH(pv_irq_ops.irq_enable):
+	case PARAVIRT_PATCH(pv_irq_ops.irq_disable):
+	case PARAVIRT_PATCH(pv_irq_ops.save_fl):
+	case PARAVIRT_PATCH(pv_irq_ops.restore_fl):
+		return paravirt_patch_default(type, clobbers, ibuf, addr, len);
+	default:
+		return native_patch(type, clobbers, ibuf, addr, len);
+	}
+
+}
 
 void __init vsmp_init(void)
 {
