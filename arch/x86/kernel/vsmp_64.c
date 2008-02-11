@@ -16,20 +16,20 @@
 #include <asm/pci-direct.h>
 #include <asm/io.h>
 
-static int __init vsmp_init(void)
+static void __init vsmp_init(void)
 {
 	void *address;
 	unsigned int cap, ctl;
 
 	if (!early_pci_allowed())
-		return 0;
+		return;
 
 	/* Check if we are running on a ScaleMP vSMP box */
 	if ((read_pci_config_16(0, 0x1f, 0, PCI_VENDOR_ID) !=
 	     PCI_VENDOR_ID_SCALEMP) ||
 	    (read_pci_config_16(0, 0x1f, 0, PCI_DEVICE_ID) !=
 	     PCI_DEVICE_ID_SCALEMP_VSMP_CTL))
-		return 0;
+		return;
 
 	/* set vSMP magic bits to indicate vSMP capable kernel */
 	address = ioremap(read_pci_config(0, 0x1f, 0, PCI_BASE_ADDRESS_0), 8);
@@ -46,7 +46,7 @@ static int __init vsmp_init(void)
 	}
 
 	iounmap(address);
-	return 0;
+	return;
 }
 
 core_initcall(vsmp_init);
