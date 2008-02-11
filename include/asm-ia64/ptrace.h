@@ -312,6 +312,13 @@ struct switch_stack {
   #define arch_ptrace_attach(child) \
 	ptrace_attach_sync_user_rbs(child)
 
+  #define arch_has_single_step()  (1)
+  extern void user_enable_single_step(struct task_struct *);
+  extern void user_disable_single_step(struct task_struct *);
+
+  #define arch_has_block_step()   (1)
+  extern void user_enable_block_step(struct task_struct *);
+
 #endif /* !__KERNEL__ */
 
 /* pt_all_user_regs is used for PTRACE_GETREGS PTRACE_SETREGS */
