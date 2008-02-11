@@ -411,7 +411,7 @@ config JFS_STATISTICS
 	  to be made available to the user in the /proc/fs/jfs/ directory.
 
 config FS_POSIX_ACL
-# Posix ACL utility routines (for now, only ext2/ext3/jfs/reiserfs)
+# Posix ACL utility routines (for now, only ext2/ext3/jfs/reiserfs/nfs4)
 #
 # NOTE: you can implement Posix ACLs without these helpers (XFS does).
 # 	Never use this symbol for ifdefs.
@@ -1698,7 +1698,6 @@ config NFSD
 	select NFS_ACL_SUPPORT if NFSD_V2_ACL
 	select CRYPTO_MD5 if NFSD_V4
 	select CRYPTO if NFSD_V4
-	select FS_POSIX_ACL if NFSD_V4
 	select PROC_FS if NFSD_V4
 	select PROC_FS if SUNRPC_GSS
 	help
@@ -1761,6 +1760,7 @@ config NFSD_V3_ACL
 config NFSD_V4
 	bool "NFS server support for NFS version 4 (EXPERIMENTAL)"
 	depends on NFSD && NFSD_V3 && EXPERIMENTAL
+	select FS_POSIX_ACL
 	select RPCSEC_GSS_KRB5
 	help
 	  This option enables support in your system's NFS server for
