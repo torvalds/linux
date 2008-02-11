@@ -1195,6 +1195,14 @@ e1000_probe(struct pci_dev *pdev,
 
 	printk("%s\n", print_mac(mac, netdev->dev_addr));
 
+	if (adapter->hw.bus_type == e1000_bus_type_pci_express) {
+		DPRINTK(PROBE, WARNING, "This device (id %04x:%04x) will no "
+			"longer be supported by this driver in the future.\n",
+			pdev->vendor, pdev->device);
+		DPRINTK(PROBE, WARNING, "please use the \"e1000e\" "
+			"driver instead.\n");
+	}
+
 	/* reset the hardware with the new settings */
 	e1000_reset(adapter);
 
