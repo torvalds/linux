@@ -122,6 +122,11 @@ static struct usb_driver cypress_driver = {
 	.no_dynamic_id = 	1,
 };
 
+enum packet_format {
+	packet_format_1,  /* b0:status, b1:payload count */
+	packet_format_2   /* b0[7:3]:status, b0[2:0]:payload count */
+};
+
 struct cypress_private {
 	spinlock_t lock;		   /* private lock */
 	int chiptype;			   /* identifier of device, for quirks/etc */
@@ -139,6 +144,7 @@ struct cypress_private {
 	__u8 current_status;	   	   /* received from last read - info on dsr,cts,cd,ri,etc */
 	__u8 current_config;	   	   /* stores the current configuration byte */
 	__u8 rx_flags;			   /* throttling - used from whiteheat/ftdi_sio */
+	enum packet_format pkt_fmt;	   /* format to use for packet send / receive */
 	int baud_rate;			   /* stores current baud rate in integer form */
 	int cbr_mask;			   /* stores current baud rate in masked form */
 	int isthrottled;		   /* if throttled, discard reads */
@@ -532,6 +538,17 @@ static int generic_startup (struct usb_serial *serial)
 	priv->termios_initialized = 0;
 	priv->rx_flags = 0;
 	priv->cbr_mask = B300;
+	/* Default packet format setting is determined by packet size.
+	   Anything with a size larger then 9 must have a separate
+	   count field since the 3 bit count field is otherwise too
+	   small.  Otherwise we can use the slightly more compact
+	   format.  This is in accordance with the cypress_m8 serial
+	   converter app note. */
+	if (port->interrupt_out_size > 9) {
+		priv->pkt_fmt = packet_format_1;
+	} else {
+		priv->pkt_fmt = packet_format_2;
+	}
 	if (interval > 0) {
 		priv->write_urb_interval = interval;
 		priv->read_urb_interval = interval;
@@ -564,6 +581,9 @@ static int cypress_earthmate_startup (struct usb_serial *serial)
 
 	priv = usb_get_serial_port_data(serial->port[0]);
 	priv->chiptype = CT_EARTHMATE;
+	/* All Earthmate devices use the separated-count packet
+	   format!  Idiotic. */
+	priv->pkt_fmt = packet_format_1;
 
 	return 0;
 } /* cypress_earthmate_startup */
@@ -811,21 +831,18 @@ static void cypress_send(struct usb_serial_port *port)
 	memset(port->interrupt_out_urb->transfer_buffer, 0, port->interrupt_out_size);
 
 	spin_lock_irqsave(&priv->lock, flags);
-	switch (port->interrupt_out_size) {
-		case 32:
-			/* this is for the CY7C64013... */
-			offset = 2;
-			port->interrupt_out_buffer[0] = priv->line_control;
-			break;
-		case 8:
-			/* this is for the CY7C63743... */
-			offset = 1;
-			port->interrupt_out_buffer[0] = priv->line_control;
-			break;
-		default:
-			dbg("%s - wrong packet size", __FUNCTION__);
-			spin_unlock_irqrestore(&priv->lock, flags);
-			return;
+	switch (priv->pkt_fmt) {
+	default:
+	case packet_format_1:
+		/* this is for the CY7C64013... */
+		offset = 2;
+		port->interrupt_out_buffer[0] = priv->line_control;
+		break;
+	case packet_format_2:
+		/* this is for the CY7C63743... */
+		offset = 1;
+		port->interrupt_out_buffer[0] = priv->line_control;
+		break;
 	}
 
 	if (priv->line_control & CONTROL_RESET)
@@ -846,12 +863,13 @@ static void cypress_send(struct usb_serial_port *port)
 		return;
 	}
 
-	switch (port->interrupt_out_size) {
-		case 32:
-			port->interrupt_out_buffer[1] = count;
-			break;
-		case 8:
-			port->interrupt_out_buffer[0] |= count;
+	switch (priv->pkt_fmt) {
+	default:
+	case packet_format_1:
+		port->interrupt_out_buffer[1] = count;
+		break;
+	case packet_format_2:
+		port->interrupt_out_buffer[0] |= count;
 	}
 
 	dbg("%s - count is %d", __FUNCTION__, count);
@@ -864,8 +882,9 @@ send:
 	if (priv->cmd_ctrl)
 		actual_size = 1;
 	else
-		actual_size = count + (port->interrupt_out_size == 32 ? 2 : 1);
-	
+		actual_size = count +
+			      (priv->pkt_fmt == packet_format_1 ? 2 : 1);
+
 	usb_serial_debug_data(debug, &port->dev, __FUNCTION__, port->interrupt_out_size,
 			      port->interrupt_out_urb->transfer_buffer);
 
@@ -1331,30 +1350,32 @@ static void cypress_read_int_callback(struct urb *urb)
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
-	switch(urb->actual_length) {
-		case 32:
-			/* This is for the CY7C64013... */
-			priv->current_status = data[0] & 0xF8;
-			bytes = data[1] + 2;
-			i = 2;
-			if (bytes > 2)
-				havedata = 1;
-			break;
-		case 8:
-			/* This is for the CY7C63743... */
-			priv->current_status = data[0] & 0xF8;
-			bytes = (data[0] & 0x07) + 1;
-			i = 1;
-			if (bytes > 1)
-				havedata = 1;
-			break;
-		default:
-			dbg("%s - wrong packet size - received %d bytes",
-					__FUNCTION__, urb->actual_length);
-			spin_unlock_irqrestore(&priv->lock, flags);
-			goto continue_read;
+	result = urb->actual_length;
+	switch (priv->pkt_fmt) {
+	default:
+	case packet_format_1:
+		/* This is for the CY7C64013... */
+		priv->current_status = data[0] & 0xF8;
+		bytes = data[1] + 2;
+		i = 2;
+		if (bytes > 2)
+			havedata = 1;
+		break;
+	case packet_format_2:
+		/* This is for the CY7C63743... */
+		priv->current_status = data[0] & 0xF8;
+		bytes = (data[0] & 0x07) + 1;
+		i = 1;
+		if (bytes > 1)
+			havedata = 1;
+		break;
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
+	if (result < bytes) {
+		dbg("%s - wrong packet size - received %d bytes but packet "
+		    "said %d bytes", __func__, result, bytes);
+		goto continue_read;
+	}
 
 	usb_serial_debug_data (debug, &port->dev, __FUNCTION__,
 			urb->actual_length, data);
