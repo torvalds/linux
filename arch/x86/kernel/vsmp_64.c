@@ -87,6 +87,13 @@ void __init vsmp_init(void)
 	     PCI_DEVICE_ID_SCALEMP_VSMP_CTL))
 		return;
 
+	/* If we are, use the distinguished irq functions */
+	pv_irq_ops.irq_disable = vsmp_irq_disable;
+	pv_irq_ops.irq_enable  = vsmp_irq_enable;
+	pv_irq_ops.save_fl  = vsmp_save_fl;
+	pv_irq_ops.restore_fl  = vsmp_restore_fl;
+	pv_init_ops.patch = vsmp_patch;
+
 	/* set vSMP magic bits to indicate vSMP capable kernel */
 	cfg = read_pci_config(0, 0x1f, 0, PCI_BASE_ADDRESS_0);
 	address = early_ioremap(cfg, 8);
