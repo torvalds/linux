@@ -3953,6 +3953,44 @@ struct saa7134_board saa7134_boards[] = {
 			.gpio   = 0x0200000,
 		},
 	},
+	[SAA7134_BOARD_GENIUS_TVGO_A11MCE] = {
+		/* Adrian Pardini <pardo.bsso@gmail.com> */
+		.name		= "Genius TVGO AM11MCE",
+		.audio_clock	= 0x00200000,
+		.tuner_type	= TUNER_TNF_5335MF,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.gpiomask       = 0xf000,
+		.inputs         = {{
+			.name = name_tv_mono,
+			.vmux = 1,
+			.amux = LINE2,
+			.gpio = 0x0000,
+			.tv   = 1,
+		}, {
+			.name = name_comp1,
+			.vmux = 3,
+			.amux = LINE1,
+			.gpio = 0x2000,
+			.tv = 1
+		}, {
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE1,
+			.gpio = 0x2000,
+	} },
+		.radio = {
+			.name = name_radio,
+			.amux = LINE2,
+			.gpio = 0x1000,
+		},
+		.mute = {
+			.name = name_mute,
+			.amux = LINE2,
+			.gpio = 0x6000,
+		},
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -5054,6 +5092,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_BEHOLD_409:
 	case SAA7134_BOARD_BEHOLD_505FM:
 	case SAA7134_BOARD_BEHOLD_507_9FM:
+	case SAA7134_BOARD_GENIUS_TVGO_A11MCE:
 		dev->has_remote = SAA7134_REMOTE_GPIO;
 		break;
 	case SAA7134_BOARD_FLYDVBS_LR300:

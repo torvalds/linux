@@ -406,6 +406,12 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keyup   = 0x8000000;
 		polling      = 50; //ms
 		break;
+	case SAA7134_BOARD_GENIUS_TVGO_A11MCE:
+		ir_codes     = ir_codes_genius_tvgo_a11mce;
+		mask_keycode = 0xff;
+		mask_keydown = 0xf00000;
+		polling = 50; /* ms */
+		break;
 	}
 	if (NULL == ir_codes) {
 		printk("%s: Oops: IR config error [card=%d]\n",
