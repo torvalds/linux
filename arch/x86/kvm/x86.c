@@ -46,6 +46,9 @@
 #define VM_STAT(x) offsetof(struct kvm, stat.x), KVM_STAT_VM
 #define VCPU_STAT(x) offsetof(struct kvm_vcpu, stat.x), KVM_STAT_VCPU
 
+static int kvm_dev_ioctl_get_supported_cpuid(struct kvm_cpuid2 *cpuid,
+				    struct kvm_cpuid_entry2 __user *entries);
+
 struct kvm_x86_ops *kvm_x86_ops;
 
 struct kvm_stats_debugfs_item debugfs_entries[] = {
@@ -727,6 +730,24 @@ long kvm_arch_dev_ioctl(struct file *filp,
 		r = 0;
 		break;
 	}
+	case KVM_GET_SUPPORTED_CPUID: {
+		struct kvm_cpuid2 __user *cpuid_arg = argp;
+		struct kvm_cpuid2 cpuid;
+
+		r = -EFAULT;
+		if (copy_from_user(&cpuid, cpuid_arg, sizeof cpuid))
+			goto out;
+		r = kvm_dev_ioctl_get_supported_cpuid(&cpuid,
+			cpuid_arg->entries);
+		if (r)
+			goto out;
+
+		r = -EFAULT;
+		if (copy_to_user(cpuid_arg, &cpuid, sizeof cpuid))
+			goto out;
+		r = 0;
+		break;
+	}
 	default:
 		r = -EINVAL;
 	}
@@ -974,8 +995,7 @@ static void do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 	put_cpu();
 }
 
-static int kvm_vm_ioctl_get_supported_cpuid(struct kvm *kvm,
-				    struct kvm_cpuid2 *cpuid,
+static int kvm_dev_ioctl_get_supported_cpuid(struct kvm_cpuid2 *cpuid,
 				    struct kvm_cpuid_entry2 __user *entries)
 {
 	struct kvm_cpuid_entry2 *cpuid_entries;
@@ -1483,24 +1503,6 @@ long kvm_arch_vm_ioctl(struct file *filp,
 			goto out;
 		r = kvm_vm_ioctl_set_irqchip(kvm, &chip);
 		if (r)
-			goto out;
-		r = 0;
-		break;
-	}
-	case KVM_GET_SUPPORTED_CPUID: {
-		struct kvm_cpuid2 __user *cpuid_arg = argp;
-		struct kvm_cpuid2 cpuid;
-
-		r = -EFAULT;
-		if (copy_from_user(&cpuid, cpuid_arg, sizeof cpuid))
-			goto out;
-		r = kvm_vm_ioctl_get_supported_cpuid(kvm, &cpuid,
-			cpuid_arg->entries);
-		if (r)
-			goto out;
-
-		r = -EFAULT;
-		if (copy_to_user(cpuid_arg, &cpuid, sizeof cpuid))
 			goto out;
 		r = 0;
 		break;
