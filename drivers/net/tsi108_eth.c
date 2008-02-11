@@ -1629,6 +1629,7 @@ tsi108_init_one(struct platform_device *pdev)
 		goto register_fail;
 	}
 
+	platform_set_drvdata(pdev, dev);
 	printk(KERN_INFO "%s: Tsi108 Gigabit Ethernet, MAC: %s\n",
 	       dev->name, print_mac(mac, dev->dev_addr));
 #ifdef DEBUG
