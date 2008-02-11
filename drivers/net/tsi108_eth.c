@@ -1287,6 +1287,7 @@ static void tsi108_init_phy(struct net_device *dev)
 		spin_lock_irqsave(&phy_lock, flags);
 	}
 
+	data->mii_if.supports_gmii = mii_check_gmii_support(&data->mii_if);
 	printk(KERN_DEBUG "PHY_STAT reg contains %08x\n", phyval);
 	data->phy_ok = 1;
 	data->init_media = 1;
@@ -1584,7 +1585,6 @@ tsi108_init_one(struct platform_device *pdev)
 	data->mii_if.phy_id = einfo->phy;
 	data->mii_if.phy_id_mask = 0x1f;
 	data->mii_if.reg_num_mask = 0x1f;
-	data->mii_if.supports_gmii = mii_check_gmii_support(&data->mii_if);
 
 	data->phy = einfo->phy;
 	data->phy_type = einfo->phy_type;
