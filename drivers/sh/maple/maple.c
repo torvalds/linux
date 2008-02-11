@@ -659,7 +659,6 @@ static int __init maple_bus_init(void)
 		goto cleanup_device;
 
 	retval = driver_register(&maple_dummy_driver.drv);
-
 	if (retval)
 		goto cleanup_bus;
 
@@ -705,7 +704,7 @@ static int __init maple_bus_init(void)
 		mdev[i]->mq->length = 0;
 		maple_add_packet(mdev[i]->mq);
 		/* delay aids hardware detection */
-		udelay(20);
+		mdelay(5);
 		subdevice_map[i] = 0;
 	}
 
