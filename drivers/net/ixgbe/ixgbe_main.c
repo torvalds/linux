@@ -1942,6 +1942,10 @@ static int ixgbe_open(struct net_device *netdev)
 	int err;
 	u32 num_rx_queues = adapter->num_rx_queues;
 
+	/* disallow open during test */
+	if (test_bit(__IXGBE_TESTING, &adapter->state))
+		return -EBUSY;
+
 try_intr_reinit:
 	/* allocate transmit descriptors */
 	err = ixgbe_setup_all_tx_resources(adapter);
