@@ -16,10 +16,10 @@
 #include <asm/pci-direct.h>
 #include <asm/io.h>
 
-static void __init vsmp_init(void)
+void __init vsmp_init(void)
 {
 	void *address;
-	unsigned int cap, ctl;
+	unsigned int cap, ctl, cfg;
 
 	if (!early_pci_allowed())
 		return;
@@ -32,7 +32,8 @@ static void __init vsmp_init(void)
 		return;
 
 	/* set vSMP magic bits to indicate vSMP capable kernel */
-	address = ioremap(read_pci_config(0, 0x1f, 0, PCI_BASE_ADDRESS_0), 8);
+	cfg = read_pci_config(0, 0x1f, 0, PCI_BASE_ADDRESS_0);
+	address = early_ioremap(cfg, 8);
 	cap = readl(address);
 	ctl = readl(address + 4);
 	printk(KERN_INFO "vSMP CTL: capabilities:0x%08x  control:0x%08x\n",
@@ -45,8 +46,6 @@ static void __init vsmp_init(void)
 		printk(KERN_INFO "vSMP CTL: control set to:0x%08x\n", ctl);
 	}
 
-	iounmap(address);
+	early_iounmap(address, 8);
 	return;
 }
-
-core_initcall(vsmp_init);

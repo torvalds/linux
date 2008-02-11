@@ -4,6 +4,10 @@
 #define COMMAND_LINE_SIZE 2048
 
 #ifndef __ASSEMBLY__
+
+/* Interrupt control for vSMPowered x86_64 systems */
+void vsmp_init(void);
+
 char *machine_specific_memory_setup(void);
 #ifndef CONFIG_PARAVIRT
 #define paravirt_post_allocator_init()	do {} while (0)
