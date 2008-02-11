@@ -188,12 +188,16 @@ static __always_inline struct kmem_cache *kmalloc_slab(size_t size)
 void *kmem_cache_alloc(struct kmem_cache *, gfp_t);
 void *__kmalloc(size_t size, gfp_t flags);
 
+static __always_inline void *kmalloc_large(size_t size, gfp_t flags)
+{
+	return (void *)__get_free_pages(flags | __GFP_COMP, get_order(size));
+}
+
 static __always_inline void *kmalloc(size_t size, gfp_t flags)
 {
 	if (__builtin_constant_p(size)) {
 		if (size > PAGE_SIZE / 2)
-			return (void *)__get_free_pages(flags | __GFP_COMP,
-							get_order(size));
+			return kmalloc_large(size, flags);
 
 		if (!(flags & SLUB_DMA)) {
 			struct kmem_cache *s = kmalloc_slab(size);

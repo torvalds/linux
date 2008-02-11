@@ -2671,8 +2671,7 @@ void *__kmalloc(size_t size, gfp_t flags)
 	struct kmem_cache *s;
 
 	if (unlikely(size > PAGE_SIZE / 2))
-		return (void *)__get_free_pages(flags | __GFP_COMP,
-							get_order(size));
+		return kmalloc_large(size, flags);
 
 	s = get_slab(size, flags);
 
@@ -2689,8 +2688,7 @@ void *__kmalloc_node(size_t size, gfp_t flags, int node)
 	struct kmem_cache *s;
 
 	if (unlikely(size > PAGE_SIZE / 2))
-		return (void *)__get_free_pages(flags | __GFP_COMP,
-							get_order(size));
+		return kmalloc_large(size, flags);
 
 	s = get_slab(size, flags);
 
@@ -3219,8 +3217,8 @@ void *__kmalloc_track_caller(size_t size, gfp_t gfpflags, void *caller)
 	struct kmem_cache *s;
 
 	if (unlikely(size > PAGE_SIZE / 2))
-		return (void *)__get_free_pages(gfpflags | __GFP_COMP,
-							get_order(size));
+		return kmalloc_large(size, gfpflags);
+
 	s = get_slab(size, gfpflags);
 
 	if (unlikely(ZERO_OR_NULL_PTR(s)))
@@ -3235,8 +3233,8 @@ void *__kmalloc_node_track_caller(size_t size, gfp_t gfpflags,
 	struct kmem_cache *s;
 
 	if (unlikely(size > PAGE_SIZE / 2))
-		return (void *)__get_free_pages(gfpflags | __GFP_COMP,
-							get_order(size));
+		return kmalloc_large(size, gfpflags);
+
 	s = get_slab(size, gfpflags);
 
 	if (unlikely(ZERO_OR_NULL_PTR(s)))
