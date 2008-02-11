@@ -220,7 +220,6 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_adapter *adapter,
 			tx_ring->stats.bytes += tx_buffer_info->length;
 			if (cleaned) {
 				struct sk_buff *skb = tx_buffer_info->skb;
-#ifdef NETIF_F_TSO
 				unsigned int segs, bytecount;
 				segs = skb_shinfo(skb)->gso_segs ?: 1;
 				/* multiply data chunks by size of headers */
@@ -228,10 +227,6 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_adapter *adapter,
 					    skb->len;
 				total_tx_packets += segs;
 				total_tx_bytes += bytecount;
-#else
-				total_tx_packets++;
-				total_tx_bytes += skb->len;
-#endif
 			}
 			ixgbe_unmap_and_free_tx_resource(adapter,
 							 tx_buffer_info);
