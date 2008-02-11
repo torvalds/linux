@@ -39,10 +39,13 @@ escsq = $(subst $(squote),'\$(squote)',$1)
 # - If they are equal no change, and no timestamp update
 # - stdin is piped in from the first prerequisite ($<) so one has
 #   to specify a valid file as first prerequisite (often the kbuild file)
+       chk_filechk = :
  quiet_chk_filechk = echo '  CHK     $@'
 silent_chk_filechk = :
+       upd_filechk = :
  quiet_upd_filechk = echo '  UPD     $@'
 silent_upd_filechk = :
+
 define filechk
 	$(Q)set -e;				\
 	$($(quiet)chk_filechk);			\
