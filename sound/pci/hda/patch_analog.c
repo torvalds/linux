@@ -1366,7 +1366,10 @@ static int ad1981_hp_master_sw_put(struct snd_kcontrol *kcontrol,
 
 	if (! ad198x_eapd_put(kcontrol, ucontrol))
 		return 0;
-
+	/* change speaker pin appropriately */
+	snd_hda_codec_write(codec, 0x05, 0,
+			    AC_VERB_SET_PIN_WIDGET_CONTROL,
+			    spec->cur_eapd ? PIN_OUT : 0);
 	/* toggle HP mute appropriately */
 	snd_hda_codec_amp_stereo(codec, 0x06, HDA_OUTPUT, 0,
 				 HDA_AMP_MUTE,
