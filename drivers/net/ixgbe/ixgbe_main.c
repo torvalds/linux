@@ -2778,6 +2778,14 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 		 hw->mac.type, hw->phy.type,
 		 (part_num >> 8), (part_num & 0xff));
 
+	if (link_width <= IXGBE_PCI_LINK_WIDTH_4) {
+		dev_warn(&pdev->dev, "PCI-Express bandwidth available for "
+			 "this card is not sufficient for optimal "
+			 "performance.\n");
+		dev_warn(&pdev->dev, "For optimal performance a x8 "
+			 "PCI-Express slot is required.\n");
+	}
+
 	/* reset the hardware with the new settings */
 	ixgbe_start_hw(hw);
 
