@@ -7,7 +7,7 @@ VDSO32-$(CONFIG_X86_32)		:= y
 VDSO32-$(CONFIG_COMPAT)		:= y
 
 vdso-install-$(VDSO64-y)	+= vdso.so
-vdso-install-$(VDSO32-y)	+= $(vdso32-y:=.so)
+vdso-install-$(VDSO32-y)	+= $(vdso32-images)
 
 
 # files to link into the vdso
@@ -63,6 +63,8 @@ vdso32.so-$(CONFIG_X86_32)	+= int80
 vdso32.so-$(CONFIG_COMPAT)	+= syscall
 vdso32.so-$(VDSO32-y)		+= sysenter
 
+vdso32-images			= $(vdso32.so-y:%=vdso32-%.so)
+
 CPPFLAGS_vdso32.lds = $(CPPFLAGS_vdso.lds)
 VDSO_LDFLAGS_vdso32.lds = -m elf_i386 -Wl,-soname=linux-gate.so.1
 
@@ -71,21 +73,21 @@ VDSO_LDFLAGS_vdso32.lds = -m elf_i386 -Wl,-soname=linux-gate.so.1
 override obj-dirs = $(dir $(obj)) $(obj)/vdso32/
 
 targets += vdso32/vdso32.lds
-targets += $(vdso32.so-y:%=vdso32-%.so.dbg) $(vdso32.so-y:%=vdso32-%.so)
+targets += $(vdso32-images) $(vdso32-images:=.dbg)
 targets += vdso32/note.o $(vdso32.so-y:%=vdso32/%.o)
 
-extra-y	+= $(vdso32.so-y:%=vdso32-%.so)
+extra-y	+= $(vdso32-images)
 
-$(obj)/vdso32.o: $(vdso32.so-y:%=$(obj)/vdso32-%.so)
+$(obj)/vdso32.o: $(vdso32-images:%=$(obj)/%)
 
 KBUILD_AFLAGS_32 := $(filter-out -m64,$(KBUILD_AFLAGS))
-$(vdso32.so-y:%=$(obj)/vdso32-%.so.dbg): KBUILD_AFLAGS = $(KBUILD_AFLAGS_32)
-$(vdso32.so-y:%=$(obj)/vdso32-%.so.dbg): asflags-$(CONFIG_X86_64) += -m32
+$(vdso32-images:%=$(obj)/%.dbg): KBUILD_AFLAGS = $(KBUILD_AFLAGS_32)
+$(vdso32-images:%=$(obj)/%.dbg): asflags-$(CONFIG_X86_64) += -m32
 
-$(vdso32.so-y:%=$(obj)/vdso32-%.so.dbg): $(obj)/vdso32-%.so.dbg: FORCE \
-					 $(obj)/vdso32/vdso32.lds \
-					 $(obj)/vdso32/note.o \
-					 $(obj)/vdso32/%.o
+$(vdso32-images:%=$(obj)/%.dbg): $(obj)/vdso32-%.so.dbg: FORCE \
+				 $(obj)/vdso32/vdso32.lds \
+				 $(obj)/vdso32/note.o \
+				 $(obj)/vdso32/%.o
 	$(call if_changed,vdso)
 
 # Make vdso32-*-syms.lds from each image, and then make sure they match.
