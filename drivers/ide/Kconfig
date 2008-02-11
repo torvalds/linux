@@ -378,6 +378,9 @@ config BLK_DEV_IDEPNP
 	  would like the kernel to automatically detect and activate
 	  it, say Y here.
 
+config BLK_DEV_IDEDMA_SFF
+	bool
+
 if PCI
 
 comment "PCI IDE chipsets support"
@@ -459,6 +462,7 @@ config BLK_DEV_RZ1000
 config BLK_DEV_IDEDMA_PCI
 	bool
 	select BLK_DEV_IDEPCI
+	select BLK_DEV_IDEDMA_SFF
 
 config BLK_DEV_AEC62XX
 	tristate "AEC62XX chipset support"
@@ -682,23 +686,6 @@ config BLK_DEV_PDC202XX_OLD
 
 	  If you say Y here, you need to say Y to "Use DMA by default when
 	  available" as well.
-
-	  Please read the comments at the top of
-	  <file:drivers/ide/pci/pdc202xx_old.c>.
-
-	  If unsure, say N.
-
-config PDC202XX_BURST
-	bool "Special UDMA Feature"
-	depends on BLK_DEV_PDC202XX_OLD
-	help
-	  This option causes the pdc202xx driver to enable UDMA modes on the
-	  PDC202xx even when the PDC202xx BIOS has not done so.
-
-	  It was originally designed for the PDC20246/Ultra33, whose BIOS will
-	  only setup UDMA on the first two PDC20246 cards.  It has also been
-	  used successfully on a PDC20265/Ultra100, allowing use of UDMA modes
-	  when the PDC20265 BIOS has been disabled (for faster boot up).
 
 	  Please read the comments at the top of
 	  <file:drivers/ide/pci/pdc202xx_old.c>.
@@ -1016,7 +1003,7 @@ config BLK_DEV_Q40IDE
 config BLK_DEV_PALMCHIP_BK3710
 	tristate "Palmchip bk3710 IDE controller support"
 	depends on ARCH_DAVINCI
-	select BLK_DEV_IDEDMA_PCI
+	select BLK_DEV_IDEDMA_SFF
 	help
 	  Say Y here if you want to support the onchip IDE controller on the
 	  TI DaVinci SoC
@@ -1124,7 +1111,8 @@ config BLK_DEV_UMC8672
 endif
 
 config BLK_DEV_IDEDMA
-	def_bool BLK_DEV_IDEDMA_PCI || BLK_DEV_IDEDMA_PMAC || BLK_DEV_IDEDMA_ICS || BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
+	def_bool BLK_DEV_IDEDMA_SFF || BLK_DEV_IDEDMA_PMAC || \
+		 BLK_DEV_IDEDMA_ICS || BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
 
 config IDE_ARCH_OBSOLETE_INIT
 	def_bool ALPHA || (ARM && !ARCH_L7200) || BLACKFIN || X86 || IA64 || M32R || MIPS || PARISC || PPC || (SUPERH64 && BLK_DEV_IDEPCI) || SPARC

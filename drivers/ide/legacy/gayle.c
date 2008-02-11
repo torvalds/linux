@@ -94,7 +94,7 @@ static int gayle_ack_intr_a1200(ide_hwif_t *hwif)
 
 static void __init gayle_setup_ports(hw_regs_t *hw, unsigned long base,
 				     unsigned long ctl, unsigned long irq_port,
-				     ide_ack_intr_t *ack_intr);
+				     ide_ack_intr_t *ack_intr)
 {
 	int i;
 

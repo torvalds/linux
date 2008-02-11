@@ -1051,7 +1051,7 @@ static int init_irq (ide_hwif_t *hwif)
 		int sa = 0;
 #if defined(__mc68000__)
 		sa = IRQF_SHARED;
-#endif /* __mc68000__ || CONFIG_APUS */
+#endif /* __mc68000__ */
 
 		if (IDE_CHIPSET_IS_PCI(hwif->chipset))
 			sa = IRQF_SHARED;
@@ -1355,7 +1355,7 @@ static void ide_init_port(ide_hwif_t *hwif, unsigned int port,
 	hwif->ultra_mask = d->udma_mask;
 
 	/* reset DMA masks only for SFF-style DMA controllers */
-	if ((d->host_flags && IDE_HFLAG_NO_DMA) == 0 && hwif->dma_base == 0)
+	if ((d->host_flags & IDE_HFLAG_NO_DMA) == 0 && hwif->dma_base == 0)
 		hwif->swdma_mask = hwif->mwdma_mask = hwif->ultra_mask = 0;
 
 	if (d->host_flags & IDE_HFLAG_RQSIZE_256)

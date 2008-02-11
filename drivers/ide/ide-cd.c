@@ -1555,7 +1555,7 @@ int ide_cd_read_toc(ide_drive_t *drive, struct request_sense *sense)
 	if (stat)
 		return stat;
 
-	toc->hdr.toc_length = ntohs (toc->hdr.toc_length);
+	toc->hdr.toc_length = be16_to_cpu(toc->hdr.toc_length);
 
 	if (info->cd_flags & IDE_CD_FLAG_TOCTRACKS_AS_BCD) {
 		toc->hdr.first_track = BCD2BIN(toc->hdr.first_track);

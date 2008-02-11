@@ -311,15 +311,37 @@ static void __devinit palm_bk3710_chipinit(void __iomem *base)
 	palm_bk3710_setpiomode(base, NULL, 0, 600, 0);
 	palm_bk3710_setpiomode(base, NULL, 1, 600, 0);
 }
+
+static u8 __devinit palm_bk3710_cable_detect(ide_hwif_t *hwif)
+{
+	return ATA_CBL_PATA80;
+}
+
+static void __devinit palm_bk3710_init_hwif(ide_hwif_t *hwif)
+{
+	hwif->set_pio_mode = palm_bk3710_set_pio_mode;
+	hwif->set_dma_mode = palm_bk3710_set_dma_mode;
+
+	hwif->cable_detect = palm_bk3710_cable_detect;
+}
+
+static const struct ide_port_info __devinitdata palm_bk3710_port_info = {
+	.init_hwif		= palm_bk3710_init_hwif,
+	.host_flags		= IDE_HFLAG_NO_DMA, /* hack (no PCI) */
+	.pio_mask		= ATA_PIO4,
+	.udma_mask		= ATA_UDMA4,	/* (input clk 99MHz) */
+	.mwdma_mask		= ATA_MWDMA2,
+};
+
 static int __devinit palm_bk3710_probe(struct platform_device *pdev)
 {
-	hw_regs_t ide_ctlr_info;
-	int index = 0;
-	int pribase;
 	struct clk *clkp;
 	struct resource *mem, *irq;
 	ide_hwif_t *hwif;
 	void __iomem *base;
+	int pribase, i;
+	hw_regs_t hw;
+	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
 	clkp = clk_get(NULL, "IDECLK");
 	if (IS_ERR(clkp))
@@ -330,7 +352,7 @@ static int __devinit palm_bk3710_probe(struct platform_device *pdev)
 	ide_palm_clk = clk_get_rate(ideclkp)/100000;
 	ide_palm_clk = (10000/ide_palm_clk) + 1;
 	/* Register the IDE interface with Linux ATA Interface */
-	memset(&ide_ctlr_info, 0, sizeof(ide_ctlr_info));
+	memset(&hw, 0, sizeof(hw));
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (mem == NULL) {
@@ -349,32 +371,42 @@ static int __devinit palm_bk3710_probe(struct platform_device *pdev)
 	palm_bk3710_chipinit(base);
 
 	pribase = mem->start + IDE_PALM_ATA_PRI_REG_OFFSET;
-	for (index = 0; index < IDE_NR_PORTS - 2; index++)
-		ide_ctlr_info.io_ports[index] = pribase + index;
-	ide_ctlr_info.io_ports[IDE_CONTROL_OFFSET] = mem->start +
+	for (i = 0; i < IDE_NR_PORTS - 2; i++)
+		hw.io_ports[i] = pribase + i;
+	hw.io_ports[IDE_CONTROL_OFFSET] = mem->start +
 			IDE_PALM_ATA_PRI_CTL_OFFSET;
-	ide_ctlr_info.irq = irq->start;
-	ide_ctlr_info.chipset = ide_palm3710;
+	hw.irq = irq->start;
+	hw.chipset = ide_palm3710;
 
-	if (ide_register_hw(&ide_ctlr_info, NULL, &hwif) < 0) {
-		printk(KERN_WARNING "Palm Chip BK3710 IDE Register Fail\n");
-		return -ENODEV;
-	}
+	hwif = ide_deprecated_find_port(hw.io_ports[IDE_DATA_OFFSET]);
+	if (hwif == NULL)
+		goto out;
 
-	hwif->set_pio_mode = &palm_bk3710_set_pio_mode;
-	hwif->set_dma_mode = &palm_bk3710_set_dma_mode;
+	i = hwif->index;
+
+	if (hwif->present)
+		ide_unregister(i, 0, 0);
+	else if (!hwif->hold)
+		ide_init_port_data(hwif, i);
+
+	ide_init_port_hw(hwif, &hw);
+
 	hwif->mmio = 1;
 	default_hwif_mmiops(hwif);
-	hwif->cbl = ATA_CBL_PATA80;
-	hwif->ultra_mask = 0x1f;	/* Ultra DMA Mode 4 Max
-						(input clk 99MHz) */
-	hwif->mwdma_mask = 0x7;
-	hwif->drives[0].autotune = 1;
-	hwif->drives[1].autotune = 1;
 
 	ide_setup_dma(hwif, mem->start);
 
+	idx[0] = i;
+
+	ide_device_add(idx, &palm_bk3710_port_info);
+
+	if (!hwif->present)
+		goto out;
+
 	return 0;
+out:
+	printk(KERN_WARNING "Palm Chip BK3710 IDE Register Fail\n");
+	return -ENODEV;
 }
 
 static struct platform_driver platform_bk_driver = {

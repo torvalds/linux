@@ -44,8 +44,6 @@
  *  inspiration from lots of linux users, esp.  hamish@zot.apana.org.au
  */
 
-#define	REVISION	"Revision: 7.00alpha2"
-
 #define _IDE_C			/* Tell ide.h it's really us */
 
 #include <linux/module.h>
@@ -1618,7 +1616,7 @@ static int __init ide_init(void)
 {
 	int ret;
 
-	printk(KERN_INFO "Uniform Multi-Platform E-IDE driver " REVISION "\n");
+	printk(KERN_INFO "Uniform Multi-Platform E-IDE driver\n");
 	system_bus_speed = ide_system_bus_speed();
 
 	printk(KERN_INFO "ide: Assuming %dMHz system bus speed "
