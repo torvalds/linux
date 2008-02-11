@@ -1399,13 +1399,11 @@ static void cypress_read_int_callback(struct urb *urb)
 
 	spin_lock_irqsave(&priv->lock, flags);
 	/* check to see if status has changed */
-	if (priv != NULL) {
-		if (priv->current_status != priv->prev_status) {
-			priv->diff_status |= priv->current_status ^
-				priv->prev_status;
-			wake_up_interruptible(&priv->delta_msr_wait);
-			priv->prev_status = priv->current_status;
-		}
+	if (priv->current_status != priv->prev_status) {
+		priv->diff_status |= priv->current_status ^
+			priv->prev_status;
+		wake_up_interruptible(&priv->delta_msr_wait);
+		priv->prev_status = priv->current_status;
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
 
