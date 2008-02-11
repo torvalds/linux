@@ -513,7 +513,6 @@ static int __change_page_attr(struct cpa_data *cpa, int primary)
 	unsigned long address = cpa->vaddr;
 	int do_split, err;
 	unsigned int level;
-	struct page *kpte_page;
 	pte_t *kpte, old_pte;
 
 repeat:
@@ -531,10 +530,6 @@ repeat:
 		WARN_ON(1);
 		return -EINVAL;
 	}
-
-	kpte_page = virt_to_page(kpte);
-	BUG_ON(PageLRU(kpte_page));
-	BUG_ON(PageCompound(kpte_page));
 
 	if (level == PG_LEVEL_4K) {
 		pte_t new_pte;
