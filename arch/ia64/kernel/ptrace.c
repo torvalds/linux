@@ -1011,14 +1011,9 @@ access_uarea (struct task_struct *child, unsigned long addr,
 			 * the kernel was entered.
 			 *
 			 * Furthermore, when changing the contents of
-			 * PT_AR_BSP (or PT_CFM) we MUST copy any
-			 * users-level stacked registers that are
-			 * stored on the kernel stack back to
-			 * user-space because otherwise, we might end
-			 * up clobbering kernel stacked registers.
-			 * Also, if this happens while the task is
-			 * blocked in a system call, which convert the
-			 * state such that the non-system-call exit
+			 * PT_AR_BSP (or PT_CFM) while the task is
+			 * blocked in a system call, convert the state
+			 * so that the non-system-call exit
 			 * path is used.  This ensures that the proper
 			 * state will be picked up when resuming
 			 * execution.  However, it *also* means that
@@ -1035,10 +1030,6 @@ access_uarea (struct task_struct *child, unsigned long addr,
 			urbs_end = ia64_get_user_rbs_end(child, pt, &cfm);
 			if (write_access) {
 				if (*data != urbs_end) {
-					if (ia64_sync_user_rbs(child, sw,
-							       pt->ar_bspstore,
-							       urbs_end) < 0)
-						return -1;
 					if (in_syscall(pt))
 						convert_to_non_syscall(child,
 								       pt,
@@ -1058,10 +1049,6 @@ access_uarea (struct task_struct *child, unsigned long addr,
 			urbs_end = ia64_get_user_rbs_end(child, pt, &cfm);
 			if (write_access) {
 				if (((cfm ^ *data) & PFM_MASK) != 0) {
-					if (ia64_sync_user_rbs(child, sw,
-							       pt->ar_bspstore,
-							       urbs_end) < 0)
-						return -1;
 					if (in_syscall(pt))
 						convert_to_non_syscall(child,
 								       pt,
