@@ -1470,45 +1470,12 @@ ptrace_disable (struct task_struct *child)
 	child_psr->tb = 0;
 }
 
-asmlinkage long
-sys_ptrace (long request, pid_t pid, unsigned long addr, unsigned long data)
+long
+arch_ptrace (struct task_struct *child, long request, long addr, long data)
 {
 	struct pt_regs *pt;
-	struct task_struct *child;
 	struct switch_stack *sw;
 	long ret;
-
-	lock_kernel();
-	ret = -EPERM;
-	if (request == PTRACE_TRACEME) {
-		ret = ptrace_traceme();
-		goto out;
-	}
-
-	ret = -ESRCH;
-	read_lock(&tasklist_lock);
-	{
-		child = find_task_by_pid(pid);
-		if (child)
-			get_task_struct(child);
-	}
-	read_unlock(&tasklist_lock);
-	if (!child)
-		goto out;
-	ret = -EPERM;
-	if (pid == 1)		/* no messing around with init! */
-		goto out_tsk;
-
-	if (request == PTRACE_ATTACH) {
-		ret = ptrace_attach(child);
-		if (!ret)
-			arch_ptrace_attach(child);
-		goto out_tsk;
-	}
-
-	ret = ptrace_check_attach(child, request == PTRACE_KILL);
-	if (ret < 0)
-		goto out_tsk;
 
 	pt = task_pt_regs(child);
 	sw = (struct switch_stack *) (child->thread.ksp + 16);
@@ -1594,7 +1561,7 @@ sys_ptrace (long request, pid_t pid, unsigned long addr, unsigned long data)
 		 */
 		if (child->exit_state == EXIT_ZOMBIE)
 			/* already dead */
-			goto out_tsk;
+			return 0;
 		child->exit_code = SIGKILL;
 
 		ptrace_disable(child);
@@ -1643,9 +1610,6 @@ sys_ptrace (long request, pid_t pid, unsigned long addr, unsigned long data)
 		goto out_tsk;
 	}
   out_tsk:
-	put_task_struct(child);
-  out:
-	unlock_kernel();
 	return ret;
 }
 
