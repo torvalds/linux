@@ -1695,8 +1695,6 @@ config NFSD
 	select SUNRPC
 	select EXPORTFS
 	select NFS_ACL_SUPPORT if NFSD_V2_ACL
-	select CRYPTO_MD5 if NFSD_V4
-	select CRYPTO if NFSD_V4
 	select PROC_FS if NFSD_V4
 	select PROC_FS if SUNRPC_GSS
 	help
