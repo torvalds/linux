@@ -1696,7 +1696,6 @@ config NFSD
 	select EXPORTFS
 	select NFSD_V2_ACL if NFSD_V3_ACL
 	select NFS_ACL_SUPPORT if NFSD_V2_ACL
-	select NFSD_TCP if NFSD_V4
 	select CRYPTO_MD5 if NFSD_V4
 	select CRYPTO if NFSD_V4
 	select FS_POSIX_ACL if NFSD_V4
@@ -1754,15 +1753,6 @@ config NFSD_V4
 	  and NFSv3 servers, say Y here.  This feature is experimental, and
 	  should only be used if you are interested in helping to test NFSv4.
 	  If unsure, say N.
-
-config NFSD_TCP
-	bool "Provide NFS server over TCP support"
-	depends on NFSD
-	default y
-	help
-	  If you want your NFS server to support TCP connections, say Y here.
-	  TCP connections usually perform better than the default UDP when
-	  the network is lossy or congested.  If unsure, say Y.
 
 config ROOT_NFS
 	bool "Root file system on NFS"
