@@ -23,9 +23,8 @@
 
 		.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
 		ldr \tmp, [\base, #0x14]
-		mov \tmp, \tmp, lsr #2
+		movs \tmp, \tmp, lsr #2
 		sub \irqnr, \tmp, #1
-		cmp \tmp, #0
 		.endm
 
 		.macro	irq_prio_table
