@@ -297,17 +297,10 @@ static void tsi108_check_phy(struct net_device *dev)
 	u32 speed;
 	unsigned long flags;
 
-	/* Do a dummy read, as for some reason the first read
-	 * after a link becomes up returns link down, even if
-	 * it's been a while since the link came up.
-	 */
-
 	spin_lock_irqsave(&phy_lock, flags);
 
 	if (!data->phy_ok)
 		goto out;
-
-	tsi108_read_mii(data, MII_BMSR);
 
 	duplex = mii_check_media(&data->mii_if, netif_msg_link(data), data->init_media);
 	data->init_media = 0;
