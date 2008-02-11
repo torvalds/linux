@@ -632,7 +632,7 @@ static void vmx_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
 {
 	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
 		     nr | INTR_TYPE_EXCEPTION
-		     | (has_error_code ? INTR_INFO_DELIEVER_CODE_MASK : 0)
+		     | (has_error_code ? INTR_INFO_DELIVER_CODE_MASK : 0)
 		     | INTR_INFO_VALID_MASK);
 	if (has_error_code)
 		vmcs_write32(VM_ENTRY_EXCEPTION_ERROR_CODE, error_code);
@@ -1935,7 +1935,7 @@ static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	error_code = 0;
 	rip = vmcs_readl(GUEST_RIP);
-	if (intr_info & INTR_INFO_DELIEVER_CODE_MASK)
+	if (intr_info & INTR_INFO_DELIVER_CODE_MASK)
 		error_code = vmcs_read32(VM_EXIT_INTR_ERROR_CODE);
 	if (is_page_fault(intr_info)) {
 		cr2 = vmcs_readl(EXIT_QUALIFICATION);
@@ -2351,7 +2351,7 @@ static void vmx_intr_assist(struct kvm_vcpu *vcpu)
 		vmcs_write32(VM_ENTRY_INSTRUCTION_LEN,
 				vmcs_read32(VM_EXIT_INSTRUCTION_LEN));
 
-		if (unlikely(idtv_info_field & INTR_INFO_DELIEVER_CODE_MASK))
+		if (unlikely(idtv_info_field & INTR_INFO_DELIVER_CODE_MASK))
 			vmcs_write32(VM_ENTRY_EXCEPTION_ERROR_CODE,
 				vmcs_read32(IDT_VECTORING_ERROR_CODE));
 		if (unlikely(has_ext_irq))
