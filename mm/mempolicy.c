@@ -116,22 +116,51 @@ static void mpol_rebind_policy(struct mempolicy *pol,
 /* Do sanity checking on a policy */
 static int mpol_check_policy(int mode, nodemask_t *nodes)
 {
-	int empty = nodes_empty(*nodes);
+	int was_empty, is_empty;
+
+	if (!nodes)
+		return 0;
+
+	/*
+	 * "Contextualize" the in-coming nodemast for cpusets:
+	 * Remember whether in-coming nodemask was empty,  If not,
+	 * restrict the nodes to the allowed nodes in the cpuset.
+	 * This is guaranteed to be a subset of nodes with memory.
+	 */
+	cpuset_update_task_memory_state();
+	is_empty = was_empty = nodes_empty(*nodes);
+	if (!was_empty) {
+		nodes_and(*nodes, *nodes, cpuset_current_mems_allowed);
+		is_empty = nodes_empty(*nodes);	/* after "contextualization" */
+	}
 
 	switch (mode) {
 	case MPOL_DEFAULT:
-		if (!empty)
+		/*
+		 * require caller to specify an empty nodemask
+		 * before "contextualization"
+		 */
+		if (!was_empty)
 			return -EINVAL;
 		break;
 	case MPOL_BIND:
 	case MPOL_INTERLEAVE:
-		/* Preferred will only use the first bit, but allow
-		   more for now. */
-		if (empty)
+		/*
+		 * require at least 1 valid node after "contextualization"
+		 */
+		if (is_empty)
+			return -EINVAL;
+		break;
+	case MPOL_PREFERRED:
+		/*
+		 * Did caller specify invalid nodes?
+		 * Don't silently accept this as "local allocation".
+		 */
+		if (!was_empty && is_empty)
 			return -EINVAL;
 		break;
 	}
- 	return nodes_subset(*nodes, node_states[N_HIGH_MEMORY]) ? 0 : -EINVAL;
+	return 0;
 }
 
 /* Generate a custom zonelist for the BIND policy. */
@@ -188,8 +217,6 @@ static struct mempolicy *mpol_new(int mode, nodemask_t *nodes)
 	switch (mode) {
 	case MPOL_INTERLEAVE:
 		policy->v.nodes = *nodes;
-		nodes_and(policy->v.nodes, policy->v.nodes,
-					node_states[N_HIGH_MEMORY]);
 		if (nodes_weight(policy->v.nodes) == 0) {
 			kmem_cache_free(policy_cache, policy);
 			return ERR_PTR(-EINVAL);
@@ -421,18 +448,6 @@ static int mbind_range(struct vm_area_struct *vma, unsigned long start,
 	return err;
 }
 
-static int contextualize_policy(int mode, nodemask_t *nodes)
-{
-	if (!nodes)
-		return 0;
-
-	cpuset_update_task_memory_state();
-	if (!cpuset_nodes_subset_current_mems_allowed(*nodes))
-		return -EINVAL;
-	return mpol_check_policy(mode, nodes);
-}
-
-
 /*
  * Update task->flags PF_MEMPOLICY bit: set iff non-default
  * mempolicy.  Allows more rapid checking of this (combined perhaps
@@ -468,7 +483,7 @@ static long do_set_mempolicy(int mode, nodemask_t *nodes)
 {
 	struct mempolicy *new;
 
-	if (contextualize_policy(mode, nodes))
+	if (mpol_check_policy(mode, nodes))
 		return -EINVAL;
 	new = mpol_new(mode, nodes);
 	if (IS_ERR(new))
@@ -915,10 +930,6 @@ asmlinkage long sys_mbind(unsigned long start, unsigned long len,
 	err = get_nodes(&nodes, nmask, maxnode);
 	if (err)
 		return err;
-#ifdef CONFIG_CPUSETS
-	/* Restrict the nodes to the allowed nodes in the cpuset */
-	nodes_and(nodes, nodes, current->mems_allowed);
-#endif
 	return do_mbind(start, len, mode, &nodes, flags);
 }
 
