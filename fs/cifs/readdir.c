@@ -50,6 +50,10 @@ static void dump_cifs_file_struct(struct file *file, char *label)
 			cFYI(1, ("empty dir"));
 	}
 }
+#else
+static inline void dump_cifs_file_struct(struct file *file, char *label)
+{
+}
 #endif /* DEBUG2 */
 
 /* Returns one if new inode created (which therefore needs to be hashed) */
@@ -660,9 +664,7 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 	. and .. for the root of a drive and for those we need
 	to start two entries earlier */
 
-#ifdef CONFIG_CIFS_DEBUG2
 	dump_cifs_file_struct(file, "In fce ");
-#endif
 	if (((index_to_find < cifsFile->srch_inf.index_of_last_entry) &&
 	     is_dir_changed(file)) ||
 	   (index_to_find < first_entry_in_buffer)) {

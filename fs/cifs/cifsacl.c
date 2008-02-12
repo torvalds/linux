@@ -215,9 +215,7 @@ static void access_flags_to_mode(__le32 ace_flags, int type, umode_t *pmode,
 
 	if (flags & GENERIC_ALL) {
 		*pmode |= (S_IRWXUGO & (*pbits_to_set));
-#ifdef CONFIG_CIFS_DEBUG2
-		cFYI(1, ("all perms"));
-#endif
+		cFYI(DBG2, ("all perms"));
 		return;
 	}
 	if ((flags & GENERIC_WRITE) ||
@@ -230,9 +228,7 @@ static void access_flags_to_mode(__le32 ace_flags, int type, umode_t *pmode,
 			((flags & FILE_EXEC_RIGHTS) == FILE_EXEC_RIGHTS))
 		*pmode |= (S_IXUGO & (*pbits_to_set));
 
-#ifdef CONFIG_CIFS_DEBUG2
-	cFYI(1, ("access flags 0x%x mode now 0x%x", flags, *pmode));
-#endif
+	cFYI(DBG2, ("access flags 0x%x mode now 0x%x", flags, *pmode));
 	return;
 }
 
@@ -261,9 +257,7 @@ static void mode_to_access_flags(umode_t mode, umode_t bits_to_use,
 	if (mode & S_IXUGO)
 		*pace_flags |= SET_FILE_EXEC_RIGHTS;
 
-#ifdef CONFIG_CIFS_DEBUG2
-	cFYI(1, ("mode: 0x%x, access flags now 0x%x", mode, *pace_flags));
-#endif
+	cFYI(DBG2, ("mode: 0x%x, access flags now 0x%x", mode, *pace_flags));
 	return;
 }
 
@@ -357,11 +351,9 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 		return;
 	}
 
-#ifdef CONFIG_CIFS_DEBUG2
-	cFYI(1, ("DACL revision %d size %d num aces %d",
+	cFYI(DBG2, ("DACL revision %d size %d num aces %d",
 		le16_to_cpu(pdacl->revision), le16_to_cpu(pdacl->size),
 		le32_to_cpu(pdacl->num_aces)));
-#endif
 
 	/* reset rwx permissions for user/group/other.
 	   Also, if num_aces is 0 i.e. DACL has no ACEs,
@@ -494,13 +486,11 @@ static int parse_sec_desc(struct cifs_ntsd *pntsd, int acl_len,
 				le32_to_cpu(pntsd->gsidoffset));
 	dacloffset = le32_to_cpu(pntsd->dacloffset);
 	dacl_ptr = (struct cifs_acl *)((char *)pntsd + dacloffset);
-#ifdef CONFIG_CIFS_DEBUG2
-	cFYI(1, ("revision %d type 0x%x ooffset 0x%x goffset 0x%x "
+	cFYI(DBG2, ("revision %d type 0x%x ooffset 0x%x goffset 0x%x "
 		 "sacloffset 0x%x dacloffset 0x%x",
 		 pntsd->revision, pntsd->type, le32_to_cpu(pntsd->osidoffset),
 		 le32_to_cpu(pntsd->gsidoffset),
 		 le32_to_cpu(pntsd->sacloffset), dacloffset));
-#endif
 /*	cifs_dump_mem("owner_sid: ", owner_sid_ptr, 64); */
 	rc = parse_sid(owner_sid_ptr, end_of_acl);
 	if (rc)
@@ -635,9 +625,7 @@ static int set_cifs_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
 	struct super_block *sb;
 	struct cifs_sb_info *cifs_sb;
 
-#ifdef CONFIG_CIFS_DEBUG2
-	cFYI(1, ("set ACL for %s from mode 0x%x", path, inode->i_mode));
-#endif
+	cFYI(DBG2, ("set ACL for %s from mode 0x%x", path, inode->i_mode));
 
 	if (!inode)
 		return (rc);
@@ -668,9 +656,7 @@ static int set_cifs_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
 	}
 
 	rc = CIFSSMBSetCIFSACL(xid, cifs_sb->tcon, fid, pnntsd, acllen);
-#ifdef CONFIG_CIFS_DEBUG2
-	cFYI(1, ("SetCIFSACL rc = %d", rc));
-#endif
+	cFYI(DBG2, ("SetCIFSACL rc = %d", rc));
 	if (unlock_file == TRUE)
 		atomic_dec(&open_file->wrtPending);
 	else
@@ -688,9 +674,7 @@ void acl_to_uid_mode(struct inode *inode, const char *path)
 	u32 acllen = 0;
 	int rc = 0;
 
-#ifdef CONFIG_CIFS_DEBUG2
-	cFYI(1, ("converting ACL to mode for %s", path));
-#endif
+	cFYI(DBG2, ("converting ACL to mode for %s", path));
 	pntsd = get_cifs_acl(&acllen, inode, path);
 
 	/* if we can retrieve the ACL, now parse Access Control Entries, ACEs */
@@ -711,9 +695,7 @@ int mode_to_acl(struct inode *inode, const char *path, __u64 nmode)
 	struct cifs_ntsd *pntsd = NULL; /* acl obtained from server */
 	struct cifs_ntsd *pnntsd = NULL; /* modified acl to be sent to server */
 
-#ifdef CONFIG_CIFS_DEBUG2
-	cFYI(1, ("set ACL from mode for %s", path));
-#endif
+	cFYI(DBG2, ("set ACL from mode for %s", path));
 
 	/* Get the security descriptor */
 	pntsd = get_cifs_acl(&acllen, inode, path);
@@ -735,16 +717,12 @@ int mode_to_acl(struct inode *inode, const char *path, __u64 nmode)
 
 		rc = build_sec_desc(pntsd, pnntsd, acllen, inode, nmode);
 
-#ifdef CONFIG_CIFS_DEBUG2
-		cFYI(1, ("build_sec_desc rc: %d", rc));
-#endif
+		cFYI(DBG2, ("build_sec_desc rc: %d", rc));
 
 		if (!rc) {
 			/* Set the security descriptor */
 			rc = set_cifs_acl(pnntsd, acllen, inode, path);
-#ifdef CONFIG_CIFS_DEBUG2
-			cFYI(1, ("set_cifs_acl rc: %d", rc));
-#endif
+			cFYI(DBG2, ("set_cifs_acl rc: %d", rc));
 		}
 
 		kfree(pnntsd);

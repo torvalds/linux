@@ -437,9 +437,8 @@ SendReceiveNoRsp(const unsigned int xid, struct cifsSesInfo *ses,
 	iov[0].iov_len = in_buf->smb_buf_length + 4;
 	flags |= CIFS_NO_RESP;
 	rc = SendReceive2(xid, ses, iov, 1, &resp_buf_type, flags);
-#ifdef CONFIG_CIFS_DEBUG2
-	cFYI(1, ("SendRcvNoR flags %d rc %d", flags, rc));
-#endif
+	cFYI(DBG2, ("SendRcvNoRsp flags %d rc %d", flags, rc));
+
 	return rc;
 }
 

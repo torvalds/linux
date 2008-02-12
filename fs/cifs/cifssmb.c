@@ -602,7 +602,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 	server->maxBuf = min(le32_to_cpu(pSMBr->MaxBufferSize),
 			(__u32) CIFSMaxBufSize + MAX_CIFS_HDR_SIZE);
 	server->maxRw = le32_to_cpu(pSMBr->MaxRawSize);
-	cFYI(0, ("Max buf = %d", ses->server->maxBuf));
+	cFYI(DBG2, ("Max buf = %d", ses->server->maxBuf));
 	GETU32(ses->server->sessid) = le32_to_cpu(pSMBr->SessionKey);
 	server->capabilities = le32_to_cpu(pSMBr->Capabilities);
 	server->timeAdj = (int)(__s16)le16_to_cpu(pSMBr->ServerTimeZone);
@@ -1108,9 +1108,7 @@ PsxCreat:
 	/* check to make sure response data is there */
 	if (psx_rsp->ReturnedLevel != cpu_to_le16(SMB_QUERY_FILE_UNIX_BASIC)) {
 		pRetData->Type = cpu_to_le32(-1); /* unknown */
-#ifdef CONFIG_CIFS_DEBUG2
-		cFYI(1, ("unknown type"));
-#endif
+		cFYI(DBG2, ("unknown type"));
 	} else {
 		if (pSMBr->ByteCount < sizeof(OPEN_PSX_RSP)
 					+ sizeof(FILE_UNIX_BASIC_INFO)) {

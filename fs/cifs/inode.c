@@ -837,9 +837,7 @@ static void posix_fill_in_inode(struct inode *tmp_inode,
 		cFYI(1, ("unknown inode type %d", type));
 	}
 
-#ifdef CONFIG_CIFS_DEBUG2
-	cFYI(1, ("object type: %d", type));
-#endif
+	cFYI(DBG2, ("object type: %d", type));
 	tmp_inode->i_uid = le64_to_cpu(pData->Uid);
 	tmp_inode->i_gid = le64_to_cpu(pData->Gid);
 	tmp_inode->i_nlink = le64_to_cpu(pData->Nlinks);

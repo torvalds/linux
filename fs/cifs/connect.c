@@ -1753,9 +1753,8 @@ void reset_cifs_unix_caps(int xid, struct cifsTconInfo *tcon,
 		if (sb && (CIFS_SB(sb)->rsize > 127 * 1024)) {
 			if ((cap & CIFS_UNIX_LARGE_READ_CAP) == 0) {
 				CIFS_SB(sb)->rsize = 127 * 1024;
-#ifdef CONFIG_CIFS_DEBUG2
-				cFYI(1, ("larger reads not supported by srv"));
-#endif
+				cFYI(DBG2,
+					("larger reads not supported by srv"));
 			}
 		}
 
@@ -2227,9 +2226,8 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 
 		if ((tcon->unix_ext == 0) && (cifs_sb->rsize > (1024 * 127))) {
 			cifs_sb->rsize = 1024 * 127;
-#ifdef CONFIG_CIFS_DEBUG2
-			cFYI(1, ("no very large read support, rsize now 127K"));
-#endif
+			cFYI(DBG2,
+				("no very large read support, rsize now 127K"));
 		}
 		if (!(tcon->ses->capabilities & CAP_LARGE_WRITE_X))
 			cifs_sb->wsize = min(cifs_sb->wsize,

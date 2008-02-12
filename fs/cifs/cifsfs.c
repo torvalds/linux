@@ -470,9 +470,7 @@ static void cifs_umount_begin(struct vfsmount *vfsmnt, int flags)
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *tcon;
 
-#ifdef CONFIG_CIFS_DFS_UPCALL
 	dfs_shrink_umount_helper(vfsmnt);
-#endif /* CONFIG CIFS_DFS_UPCALL */
 
 	if (!(flags & MNT_FORCE))
 		return;
@@ -991,9 +989,7 @@ static int __init
 init_cifs(void)
 {
 	int rc = 0;
-#ifdef CONFIG_PROC_FS
 	cifs_proc_init();
-#endif
 /*	INIT_LIST_HEAD(&GlobalServerList);*/	/* BB not implemented yet */
 	INIT_LIST_HEAD(&GlobalSMBSessionList);
 	INIT_LIST_HEAD(&GlobalTreeConnectionList);
@@ -1094,19 +1090,15 @@ init_cifs(void)
  out_destroy_inodecache:
 	cifs_destroy_inodecache();
  out_clean_proc:
-#ifdef CONFIG_PROC_FS
 	cifs_proc_clean();
-#endif
 	return rc;
 }
 
 static void __exit
 exit_cifs(void)
 {
-	cFYI(0, ("exit_cifs"));
-#ifdef CONFIG_PROC_FS
+	cFYI(DBG2, ("exit_cifs"));
 	cifs_proc_clean();
-#endif
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	unregister_key_type(&key_type_dns_resolver);
 #endif

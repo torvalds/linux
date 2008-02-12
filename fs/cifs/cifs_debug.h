@@ -25,8 +25,11 @@
 
 void cifs_dump_mem(char *label, void *data, int length);
 #ifdef CONFIG_CIFS_DEBUG2
+#define DBG2 2
 void cifs_dump_detail(struct smb_hdr *);
 void cifs_dump_mids(struct TCP_Server_Info *);
+#else
+#define DBG2 0
 #endif
 extern int traceSMB;		/* flag which enables the function below */
 void dump_smb(struct smb_hdr *, int);

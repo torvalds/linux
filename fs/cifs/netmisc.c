@@ -150,9 +150,7 @@ static int canonicalize_unc(char *cp)
 		if (cp[i] == '\\')
 			break;
 		if (cp[i] == '/') {
-#ifdef CONFIG_CIFS_DEBUG2
-			cFYI(1, ("change slash to backslash in malformed UNC"));
-#endif
+			cFYI(DBG2, ("change slash to \\ in malformed UNC"));
 			cp[i] = '\\';
 			return 1;
 		}
@@ -178,9 +176,7 @@ cifs_inet_pton(int address_family, char *cp, void *dst)
 	} else if (address_family == AF_INET6) {
 		ret = in6_pton(cp, -1 /* len */, dst , '\\', NULL);
 	}
-#ifdef CONFIG_CIFS_DEBUG2
-	cFYI(1, ("address conversion returned %d for %s", ret, cp));
-#endif
+	cFYI(DBG2, ("address conversion returned %d for %s", ret, cp));
 	if (ret > 0)
 		ret = 1;
 	return ret;
