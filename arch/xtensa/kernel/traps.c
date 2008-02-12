@@ -349,9 +349,7 @@ void show_regs(struct pt_regs * regs)
 
 	wmask = regs->wmask & ~1;
 
-	for (i = 0; i < 32; i++) {
-		if (wmask & (1 << (i / 4)))
-			break;
+	for (i = 0; i < 16; i++) {
 		if ((i % 8) == 0)
 			printk ("\n" KERN_INFO "a%02d: ", i);
 		printk("%08lx ", regs->areg[i]);

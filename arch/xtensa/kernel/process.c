@@ -194,51 +194,18 @@ unsigned long get_wchan(struct task_struct *p)
 void do_copy_regs (xtensa_gregset_t *elfregs, struct pt_regs *regs,
 		   struct task_struct *tsk)
 {
-	int i, n, wb_offset;
-
-	elfregs->xchal_config_id0 = XCHAL_HW_CONFIGID0;
-	elfregs->xchal_config_id1 = XCHAL_HW_CONFIGID1;
-
-	__asm__ __volatile__ ("rsr  %0, 176\n" : "=a" (i));
- 	elfregs->cpux = i;
-	__asm__ __volatile__ ("rsr  %0, 208\n" : "=a" (i));
- 	elfregs->cpuy = i;
-
 	/* Note:  PS.EXCM is not set while user task is running; its
 	 * being set in regs->ps is for exception handling convenience.
 	 */
 
 	elfregs->pc		= regs->pc;
 	elfregs->ps		= (regs->ps & ~(1 << PS_EXCM_BIT));
-	elfregs->exccause	= regs->exccause;
-	elfregs->excvaddr	= regs->excvaddr;
-	elfregs->windowbase	= regs->windowbase;
-	elfregs->windowstart	= regs->windowstart;
 	elfregs->lbeg		= regs->lbeg;
 	elfregs->lend		= regs->lend;
 	elfregs->lcount		= regs->lcount;
 	elfregs->sar		= regs->sar;
-	elfregs->syscall	= regs->syscall;
 
-	/* Copy register file.
-	 * The layout looks like this:
-	 *
-	 * |  a0 ... a15  | Z ... Z |  arX ... arY  |
-	 *  current window  unused    saved frames
-	 */
-
-	memset (elfregs->ar, 0, sizeof(elfregs->ar));
-
-	wb_offset = regs->windowbase * 4;
-	n = (regs->wmask&1)? 4 : (regs->wmask&2)? 8 : (regs->wmask&4)? 12 : 16;
-
-	for (i = 0; i < n; i++)
-		elfregs->ar[(wb_offset + i) % XCHAL_NUM_AREGS] = regs->areg[i];
-
-	n = (regs->wmask >> 4) * 4;
-
-	for (i = XCHAL_NUM_AREGS - n; n > 0; i++, n--)
-		elfregs->ar[(wb_offset + i) % XCHAL_NUM_AREGS] = regs->areg[i];
+	memcpy (elfregs->a, regs->areg, sizeof(elfregs->a));
 }
 
 void xtensa_elf_core_copy_regs (xtensa_gregset_t *elfregs, struct pt_regs *regs)
@@ -252,40 +219,22 @@ void xtensa_elf_core_copy_regs (xtensa_gregset_t *elfregs, struct pt_regs *regs)
 void do_restore_regs (xtensa_gregset_t *elfregs, struct pt_regs *regs,
 		      struct task_struct *tsk)
 {
-	int i, n, wb_offset;
+	const unsigned long ps_mask = PS_CALLINC_MASK | PS_OWB_MASK;
+	unsigned long ps;
 
 	/* Note:  PS.EXCM is not set while user task is running; it
 	 * needs to be set in regs->ps is for exception handling convenience.
 	 */
 
+	ps = (regs->ps & ~ps_mask) | (elfregs->ps & ps_mask) | (1<<PS_EXCM_BIT);
+	regs->ps		= ps;
 	regs->pc		= elfregs->pc;
-	regs->ps		= (elfregs->ps | (1 << PS_EXCM_BIT));
-	regs->exccause		= elfregs->exccause;
-	regs->excvaddr		= elfregs->excvaddr;
-	regs->windowbase	= elfregs->windowbase;
-	regs->windowstart	= elfregs->windowstart;
 	regs->lbeg		= elfregs->lbeg;
 	regs->lend		= elfregs->lend;
 	regs->lcount		= elfregs->lcount;
 	regs->sar		= elfregs->sar;
-	regs->syscall	= elfregs->syscall;
 
-	/* Clear everything. */
-
-	memset (regs->areg, 0, sizeof(regs->areg));
-
-	/* Copy regs from live window frame. */
-
-	wb_offset = regs->windowbase * 4;
-	n = (regs->wmask&1)? 4 : (regs->wmask&2)? 8 : (regs->wmask&4)? 12 : 16;
-
-	for (i = 0; i < n; i++)
-		regs->areg[(wb_offset+i) % XCHAL_NUM_AREGS] = elfregs->ar[i];
-
-	n = (regs->wmask >> 4) * 4;
-
-	for (i = XCHAL_NUM_AREGS - n; n > 0; i++, n--)
-		regs->areg[(wb_offset+i) % XCHAL_NUM_AREGS] = elfregs->ar[i];
+	memcpy (regs->areg, elfregs->a, sizeof(regs->areg));
 }
 
 /*
