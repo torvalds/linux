@@ -38,9 +38,15 @@ cycle_t __weak read_cycle_count(void)
 	return (cycle_t)sysreg_read(COUNT);
 }
 
+/*
+ * The architectural cycle count registers are a fine clocksource unless
+ * the system idle loop use sleep states like "idle":  the CPU cycles
+ * measured by COUNT (and COMPARE) don't happen during sleep states.
+ * So we rate the clocksource using COUNT as very low quality.
+ */
 struct clocksource __weak clocksource_avr32 = {
 	.name		= "avr32",
-	.rating		= 350,
+	.rating		= 50,
 	.read		= read_cycle_count,
 	.mask		= CLOCKSOURCE_MASK(32),
 	.shift		= 16,
@@ -54,22 +60,6 @@ struct irqaction timer_irqaction = {
 	.flags		= IRQF_DISABLED,
 	.name		= "timer",
 };
-
-/*
- * By default we provide the null RTC ops
- */
-static unsigned long null_rtc_get_time(void)
-{
-	return mktime(2007, 1, 1, 0, 0, 0);
-}
-
-static int null_rtc_set_time(unsigned long sec)
-{
-	return 0;
-}
-
-static unsigned long (*rtc_get_time)(void) = null_rtc_get_time;
-static int (*rtc_set_time)(unsigned long) = null_rtc_set_time;
 
 static void avr32_timer_ack(void)
 {
@@ -190,7 +180,7 @@ void __init time_init(void)
 	 */
 	sysreg_write(COMPARE, 0);
 
-	xtime.tv_sec = rtc_get_time();
+	xtime.tv_sec = mktime(2007, 1, 1, 0, 0, 0);
 	xtime.tv_nsec = 0;
 
 	set_normalized_timespec(&wall_to_monotonic,
@@ -212,22 +202,3 @@ void __init time_init(void)
 		return;
 	}
 }
-
-static struct sysdev_class timer_class = {
-	.name = "timer",
-};
-
-static struct sys_device timer_device = {
-	.id	= 0,
-	.cls	= &timer_class,
-};
-
-static int __init init_timer_sysfs(void)
-{
-	int err = sysdev_class_register(&timer_class);
-	if (!err)
-		err = sysdev_register(&timer_device);
-	return err;
-}
-
-device_initcall(init_timer_sysfs);
