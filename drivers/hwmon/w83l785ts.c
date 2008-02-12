@@ -301,8 +301,8 @@ static u8 w83l785ts_read_value(struct i2c_client *client, u8 reg, u8 defval)
 		msleep(i);
 	}
 
-	dev_err(&client->dev, "Couldn't read value from register 0x%02x. "
-		"Please report.\n", reg);
+	dev_err(&client->dev, "Couldn't read value from register 0x%02x.\n",
+		reg);
 	return defval;
 }
 
