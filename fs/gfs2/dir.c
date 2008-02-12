@@ -1021,13 +1021,13 @@ static int dir_split_leaf(struct inode *inode, const struct qstr *name)
 
 			new->de_inum = dent->de_inum; /* No endian worries */
 			new->de_type = dent->de_type; /* No endian worries */
-			nleaf->lf_entries = cpu_to_be16(be16_to_cpu(nleaf->lf_entries)+1);
+			be16_add_cpu(&nleaf->lf_entries, 1);
 
 			dirent_del(dip, obh, prev, dent);
 
 			if (!oleaf->lf_entries)
 				gfs2_consist_inode(dip);
-			oleaf->lf_entries = cpu_to_be16(be16_to_cpu(oleaf->lf_entries)-1);
+			be16_add_cpu(&oleaf->lf_entries, -1);
 
 			if (!prev)
 				prev = dent;
@@ -1614,7 +1614,7 @@ int gfs2_dir_add(struct inode *inode, const struct qstr *name,
 			dent->de_type = cpu_to_be16(type);
 			if (ip->i_di.di_flags & GFS2_DIF_EXHASH) {
 				leaf = (struct gfs2_leaf *)bh->b_data;
-				leaf->lf_entries = cpu_to_be16(be16_to_cpu(leaf->lf_entries) + 1);
+				be16_add_cpu(&leaf->lf_entries, 1);
 			}
 			brelse(bh);
 			error = gfs2_meta_inode_buffer(ip, &bh);
