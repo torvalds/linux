@@ -416,6 +416,7 @@ extern void ax25_calculate_rtt(ax25_cb *);
 extern void ax25_disconnect(ax25_cb *, int);
 
 /* ax25_timer.c */
+extern void ax25_setup_timers(ax25_cb *);
 extern void ax25_start_heartbeat(ax25_cb *);
 extern void ax25_start_t1timer(ax25_cb *);
 extern void ax25_start_t2timer(ax25_cb *);

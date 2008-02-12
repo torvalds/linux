@@ -40,63 +40,45 @@ static void ax25_t2timer_expiry(unsigned long);
 static void ax25_t3timer_expiry(unsigned long);
 static void ax25_idletimer_expiry(unsigned long);
 
+void ax25_setup_timers(ax25_cb *ax25)
+{
+	setup_timer(&ax25->timer, ax25_heartbeat_expiry, (unsigned long)ax25);
+	setup_timer(&ax25->t1timer, ax25_t1timer_expiry, (unsigned long)ax25);
+	setup_timer(&ax25->t2timer, ax25_t2timer_expiry, (unsigned long)ax25);
+	setup_timer(&ax25->t3timer, ax25_t3timer_expiry, (unsigned long)ax25);
+	setup_timer(&ax25->idletimer, ax25_idletimer_expiry,
+		    (unsigned long)ax25);
+}
+
 void ax25_start_heartbeat(ax25_cb *ax25)
 {
-	del_timer(&ax25->timer);
-
-	ax25->timer.data     = (unsigned long)ax25;
-	ax25->timer.function = &ax25_heartbeat_expiry;
-	ax25->timer.expires  = jiffies + 5 * HZ;
-
-	add_timer(&ax25->timer);
+	mod_timer(&ax25->timer, jiffies + 5 * HZ);
 }
 
 void ax25_start_t1timer(ax25_cb *ax25)
 {
-	del_timer(&ax25->t1timer);
-
-	ax25->t1timer.data     = (unsigned long)ax25;
-	ax25->t1timer.function = &ax25_t1timer_expiry;
-	ax25->t1timer.expires  = jiffies + ax25->t1;
-
-	add_timer(&ax25->t1timer);
+	mod_timer(&ax25->t1timer, jiffies + ax25->t1);
 }
 
 void ax25_start_t2timer(ax25_cb *ax25)
 {
-	del_timer(&ax25->t2timer);
-
-	ax25->t2timer.data     = (unsigned long)ax25;
-	ax25->t2timer.function = &ax25_t2timer_expiry;
-	ax25->t2timer.expires  = jiffies + ax25->t2;
-
-	add_timer(&ax25->t2timer);
+	mod_timer(&ax25->t2timer, jiffies + ax25->t2);
 }
 
 void ax25_start_t3timer(ax25_cb *ax25)
 {
-	del_timer(&ax25->t3timer);
-
-	if (ax25->t3 > 0) {
-		ax25->t3timer.data     = (unsigned long)ax25;
-		ax25->t3timer.function = &ax25_t3timer_expiry;
-		ax25->t3timer.expires  = jiffies + ax25->t3;
-
-		add_timer(&ax25->t3timer);
-	}
+	if (ax25->t3 > 0)
+		mod_timer(&ax25->t3timer, jiffies + ax25->t3);
+	else
+		del_timer(&ax25->t3timer);
 }
 
 void ax25_start_idletimer(ax25_cb *ax25)
 {
-	del_timer(&ax25->idletimer);
-
-	if (ax25->idle > 0) {
-		ax25->idletimer.data     = (unsigned long)ax25;
-		ax25->idletimer.function = &ax25_idletimer_expiry;
-		ax25->idletimer.expires  = jiffies + ax25->idle;
-
-		add_timer(&ax25->idletimer);
-	}
+	if (ax25->idle > 0)
+		mod_timer(&ax25->idletimer, jiffies + ax25->idle);
+	else
+		del_timer(&ax25->idletimer);
 }
 
 void ax25_stop_heartbeat(ax25_cb *ax25)
