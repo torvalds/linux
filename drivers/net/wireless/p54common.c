@@ -782,15 +782,9 @@ static void p54_init_vdcf(struct ieee80211_hw *dev)
 
 	vdcf = (struct p54_tx_control_vdcf *) hdr->data;
 
-	/*
-	 * FIXME: The default values in the spec (IEEE 802.11
-	 *	  7.3.2.19 Table 37) are 47, 94, 0, 0, why use
-	 *	  47, 94, 63, 0 here? Also, the default AIFS
-	 *	  values (second parameter) are 2, 2, 3, 7...
-	 */
 	P54_SET_QUEUE(vdcf->queue[0], 0x0002, 0x0003, 0x0007, 47);
 	P54_SET_QUEUE(vdcf->queue[1], 0x0002, 0x0007, 0x000f, 94);
-	P54_SET_QUEUE(vdcf->queue[2], 0x0002, 0x000f, 0x03ff, 63);
+	P54_SET_QUEUE(vdcf->queue[2], 0x0003, 0x000f, 0x03ff, 0);
 	P54_SET_QUEUE(vdcf->queue[3], 0x0007, 0x000f, 0x03ff, 0);
 }
 
