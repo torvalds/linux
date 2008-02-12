@@ -1928,12 +1928,10 @@ static int ax25_info_show(struct seq_file *seq, void *v)
 		   ax25->paclen);
 
 	if (ax25->sk != NULL) {
-		bh_lock_sock(ax25->sk);
-		seq_printf(seq," %d %d %ld\n",
+		seq_printf(seq, " %d %d %lu\n",
 			   atomic_read(&ax25->sk->sk_wmem_alloc),
 			   atomic_read(&ax25->sk->sk_rmem_alloc),
-			   ax25->sk->sk_socket != NULL ? SOCK_INODE(ax25->sk->sk_socket)->i_ino : 0L);
-		bh_unlock_sock(ax25->sk);
+			   sock_i_ino(ax25->sk));
 	} else {
 		seq_puts(seq, " * * *\n");
 	}
