@@ -459,7 +459,7 @@ int cifs_xstate_get(struct super_block *sb, struct fs_quota_stat *qstats)
 
 static struct quotactl_ops cifs_quotactl_ops = {
 	.set_xquota	= cifs_xquota_set,
-	.get_xquota	= cifs_xquota_set,
+	.get_xquota	= cifs_xquota_get,
 	.set_xstate	= cifs_xstate_set,
 	.get_xstate	= cifs_xstate_get,
 };
