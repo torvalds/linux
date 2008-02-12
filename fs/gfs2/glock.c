@@ -765,7 +765,6 @@ static void drop_bh(struct gfs2_glock *gl, unsigned int ret)
 {
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 	const struct gfs2_glock_operations *glops = gl->gl_ops;
-	struct gfs2_holder *gh = gl->gl_req_gh;
 
 	gfs2_assert_warn(sdp, test_bit(GLF_LOCK, &gl->gl_flags));
 	gfs2_assert_warn(sdp, list_empty(&gl->gl_holders));
@@ -776,23 +775,11 @@ static void drop_bh(struct gfs2_glock *gl, unsigned int ret)
 	if (glops->go_inval)
 		glops->go_inval(gl, DIO_METADATA);
 
-	if (gh) {
-		spin_lock(&gl->gl_spin);
-		list_del_init(&gh->gh_list);
-		gh->gh_error = 0;
-		spin_unlock(&gl->gl_spin);
-	}
-
 	spin_lock(&gl->gl_spin);
 	gfs2_demote_wake(gl);
-	gl->gl_req_gh = NULL;
 	clear_bit(GLF_LOCK, &gl->gl_flags);
 	spin_unlock(&gl->gl_spin);
-
 	gfs2_glock_put(gl);
-
-	if (gh)
-		gfs2_holder_wake(gh);
 }
 
 /**
@@ -810,7 +797,7 @@ static void xmote_bh(struct gfs2_glock *gl, unsigned int ret)
 	int prev_state = gl->gl_state;
 	int op_done = 1;
 
-	if ((ret & LM_OUT_ST_MASK) == LM_ST_UNLOCKED) {
+	if (!gh && (ret & LM_OUT_ST_MASK) == LM_ST_UNLOCKED) {
 		drop_bh(gl, ret);
 		return;
 	}
