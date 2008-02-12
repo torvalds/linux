@@ -402,7 +402,7 @@ static int lookup_metapath(struct inode *inode, struct metapath *mp,
 
 	for (x = 0; x < end_of_metadata; x++) {
 		lookup_block(ip, x, mp, create, new, dblock);
-		if (!dblock)
+		if (!*dblock)
 			return 0;
 
 		ret = gfs2_meta_indirect_buffer(ip, x+1, *dblock, *new, &mp->mp_bh[x+1]);
