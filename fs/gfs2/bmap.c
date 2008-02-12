@@ -188,50 +188,45 @@ static int build_height(struct inode *inode, struct metapath *mp, unsigned heigh
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	unsigned new_height = height - ip->i_height;
-	struct buffer_head *dibh;
+	struct buffer_head *dibh = mp->mp_bh[0];
 	struct gfs2_dinode *di;
-	int error;
 	__be64 *bp;
 	u64 bn;
 	unsigned n, i = 0;
 
-	if (height <= ip->i_height)
-		return 0;
-
-	error = gfs2_meta_inode_buffer(ip, &dibh);
-	if (error)
-		return error;
+	BUG_ON(height <= ip->i_height);
 
 	do {
 		n = new_height - i;
 		bn = gfs2_alloc_block(ip, &n);
 		gfs2_trans_add_unrevoke(GFS2_SB(inode), bn, n);
 		do {
-			mp->mp_bh[i] = gfs2_meta_new(ip->i_gl, bn++);
-			gfs2_trans_add_bh(ip->i_gl, mp->mp_bh[i], 1);
+			mp->mp_bh[i + 1] = gfs2_meta_new(ip->i_gl, bn++);
+			gfs2_trans_add_bh(ip->i_gl, mp->mp_bh[i + 1], 1);
 			i++;
 		} while(i < n);
 	} while(i < new_height);
 
 	n = 0;
-	bn = mp->mp_bh[0]->b_blocknr;
+	bn = mp->mp_bh[1]->b_blocknr;
 	if (new_height > 1) {
 		for(; n < new_height-1; n++) {
-			gfs2_metatype_set(mp->mp_bh[n], GFS2_METATYPE_IN,
+			gfs2_metatype_set(mp->mp_bh[n + 1], GFS2_METATYPE_IN,
 					  GFS2_FORMAT_IN);
-			gfs2_buffer_clear_tail(mp->mp_bh[n],
+			gfs2_buffer_clear_tail(mp->mp_bh[n + 1],
 					       sizeof(struct gfs2_meta_header));
-			bp = (__be64 *)(mp->mp_bh[n]->b_data +
+			bp = (__be64 *)(mp->mp_bh[n + 1]->b_data +
 				     sizeof(struct gfs2_meta_header));
-			*bp = cpu_to_be64(mp->mp_bh[n+1]->b_blocknr);
-			brelse(mp->mp_bh[n]);
-			mp->mp_bh[n] = NULL;
+			*bp = cpu_to_be64(mp->mp_bh[n+2]->b_blocknr);
+			brelse(mp->mp_bh[n+1]);
+			mp->mp_bh[n+1] = NULL;
 		}
 	}
-	gfs2_metatype_set(mp->mp_bh[n], GFS2_METATYPE_IN, GFS2_FORMAT_IN);
-	gfs2_buffer_copy_tail(mp->mp_bh[n], sizeof(struct gfs2_meta_header),
+	gfs2_metatype_set(mp->mp_bh[n+1], GFS2_METATYPE_IN, GFS2_FORMAT_IN);
+	gfs2_buffer_copy_tail(mp->mp_bh[n+1], sizeof(struct gfs2_meta_header),
 			      dibh, sizeof(struct gfs2_dinode));
-	brelse(mp->mp_bh[n]);
+	brelse(mp->mp_bh[n+1]);
+	mp->mp_bh[n+1] = NULL;
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 	di = (struct gfs2_dinode *)dibh->b_data;
 	gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode));
@@ -240,8 +235,7 @@ static int build_height(struct inode *inode, struct metapath *mp, unsigned heigh
 	gfs2_add_inode_blocks(&ip->i_inode, new_height);
 	di->di_height = cpu_to_be16(ip->i_height);
 	di->di_blocks = cpu_to_be64(gfs2_get_inode_blocks(&ip->i_inode));
-	brelse(dibh);
-	return error;
+	return 0;
 }
 
 /**
@@ -391,11 +385,7 @@ static int lookup_metapath(struct inode *inode, struct metapath *mp,
 	struct gfs2_inode *ip = GFS2_I(inode);
 	unsigned int end_of_metadata = ip->i_height - 1;
 	unsigned int x;
-	int ret = gfs2_meta_inode_buffer(ip, &bh);
-	if (ret)
-		return ret;
-
-	mp->mp_bh[0] = bh;
+	int ret;
 
 	for (x = 0; x < end_of_metadata; x++) {
 		lookup_block(ip, x, mp, create, new, dblock);
@@ -514,6 +504,10 @@ int gfs2_block_map(struct inode *inode, sector_t lblock,
 		arr = sdp->sd_jheightsize;
 	}
 	size = (lblock + 1) * bsize;
+
+	error = gfs2_meta_inode_buffer(ip, &mp.mp_bh[0]);
+	if (error)
+		goto out_fail;
 
 	if (size > arr[ip->i_height]) {
 		u8 height = ip->i_height;
