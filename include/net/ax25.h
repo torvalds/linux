@@ -324,6 +324,7 @@ extern void ax25_dama_on(ax25_cb *);
 extern void ax25_dama_off(ax25_cb *);
 
 /* ax25_ds_timer.c */
+extern void ax25_ds_setup_timer(ax25_dev *);
 extern void ax25_ds_set_timer(ax25_dev *);
 extern void ax25_ds_del_timer(ax25_dev *);
 extern void ax25_ds_timer(ax25_cb *);
