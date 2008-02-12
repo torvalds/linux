@@ -3587,8 +3587,6 @@ static void cm_release_port_obj(struct kobject *obj)
 {
 	struct cm_port *cm_port;
 
-	printk(KERN_ERR "free cm port\n");
-
 	cm_port = container_of(obj, struct cm_port, port_obj);
 	kfree(cm_port);
 }
@@ -3600,8 +3598,6 @@ static struct kobj_type cm_port_obj_type = {
 static void cm_release_dev_obj(struct kobject *obj)
 {
 	struct cm_device *cm_dev;
-
-	printk(KERN_ERR "free cm dev\n");
 
 	cm_dev = container_of(obj, struct cm_device, dev_obj);
 	kfree(cm_dev);
