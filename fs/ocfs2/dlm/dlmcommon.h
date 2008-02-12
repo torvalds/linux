@@ -602,17 +602,19 @@ enum dlm_query_join_response_code {
 	JOIN_PROTOCOL_MISMATCH,
 };
 
+struct dlm_query_join_packet {
+	u8 code;	/* Response code.  dlm_minor and fs_minor
+			   are only valid if this is JOIN_OK */
+	u8 dlm_minor;	/* The minor version of the protocol the
+			   dlm is speaking. */
+	u8 fs_minor;	/* The minor version of the protocol the
+			   filesystem is speaking. */
+	u8 reserved;
+};
+
 union dlm_query_join_response {
 	u32 intval;
-	struct {
-		u8 code;	/* Response code.  dlm_minor and fs_minor
-				   are only valid if this is JOIN_OK */
-		u8 dlm_minor;	/* The minor version of the protocol the
-				   dlm is speaking. */
-		u8 fs_minor;	/* The minor version of the protocol the
-				   filesystem is speaking. */
-		u8 reserved;
-	} packet;
+	struct dlm_query_join_packet packet;
 };
 
 struct dlm_lock_request
