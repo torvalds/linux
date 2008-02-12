@@ -146,12 +146,15 @@ config IPW2100
           configure your card:
 
           <http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html>.
+
+          It is recommended that you compile this driver as a module (M)
+          rather than built-in (Y). This driver requires firmware at device
+          initialization time, and when built-in this typically happens
+          before the filesystem is accessible (hence firmware will be
+          unavailable and initialization will fail). If you do choose to build
+          this driver into your kernel image, you can avoid this problem by
+          including the firmware and a firmware loader in an initramfs.
  
-          If you want to compile the driver as a module ( = code which can be
-          inserted in and removed from the running kernel whenever you want),
-          say M here and read <file:Documentation/kbuild/modules.txt>.
-          The module will be called ipw2100.ko.
-	
 config IPW2100_MONITOR
         bool "Enable promiscuous mode"
         depends on IPW2100
@@ -201,11 +204,14 @@ config IPW2200
           configure your card:
 
           <http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html>.
- 
-          If you want to compile the driver as a module ( = code which can be
-          inserted in and removed from the running kernel whenever you want),
-          say M here and read <file:Documentation/kbuild/modules.txt>.
-          The module will be called ipw2200.ko.
+
+          It is recommended that you compile this driver as a module (M)
+          rather than built-in (Y). This driver requires firmware at device
+          initialization time, and when built-in this typically happens
+          before the filesystem is accessible (hence firmware will be
+          unavailable and initialization will fail). If you do choose to build
+          this driver into your kernel image, you can avoid this problem by
+          including the firmware and a firmware loader in an initramfs.
 
 config IPW2200_MONITOR
         bool "Enable promiscuous mode"
