@@ -428,9 +428,6 @@ void __init efi_enter_virtual_mode(void)
 		else
 			va = efi_ioremap(md->phys_addr, size);
 
-		if (md->attribute & EFI_MEMORY_WB)
-			set_memory_uc(md->virt_addr, size);
-
 		md->virt_addr = (u64) (unsigned long) va;
 
 		if (!va) {
@@ -438,6 +435,9 @@ void __init efi_enter_virtual_mode(void)
 			       (unsigned long long)md->phys_addr);
 			continue;
 		}
+
+		if (!(md->attribute & EFI_MEMORY_WB))
+			set_memory_uc(md->virt_addr, size);
 
 		systab = (u64) (unsigned long) efi_phys.systab;
 		if (md->phys_addr <= systab && systab < end) {
