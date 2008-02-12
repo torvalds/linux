@@ -12,6 +12,7 @@ config CPU_LITTLE_ENDIAN
 
 config CPU_BIG_ENDIAN
 	bool "Big Endian"
+	depends on !CPU_SH5
 
 endchoice
 
