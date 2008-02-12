@@ -906,8 +906,7 @@ static int dir_make_exhash(struct inode *inode)
 		*lp = cpu_to_be64(bn);
 
 	dip->i_di.di_size = sdp->sd_sb.sb_bsize / 2;
-	dip->i_di.di_blocks++;
-	gfs2_set_inode_blocks(&dip->i_inode);
+	gfs2_add_inode_blocks(&dip->i_inode, 1);
 	dip->i_di.di_flags |= GFS2_DIF_EXHASH;
 
 	for (x = sdp->sd_hash_ptrs, y = -1; x; x >>= 1, y++) ;
@@ -1045,8 +1044,7 @@ static int dir_split_leaf(struct inode *inode, const struct qstr *name)
 	error = gfs2_meta_inode_buffer(dip, &dibh);
 	if (!gfs2_assert_withdraw(GFS2_SB(&dip->i_inode), !error)) {
 		gfs2_trans_add_bh(dip->i_gl, dibh, 1);
-		dip->i_di.di_blocks++;
-		gfs2_set_inode_blocks(&dip->i_inode);
+		gfs2_add_inode_blocks(&dip->i_inode, 1);
 		gfs2_dinode_out(dip, dibh->b_data);
 		brelse(dibh);
 	}
@@ -1580,8 +1578,7 @@ static int dir_new_leaf(struct inode *inode, const struct qstr *name)
 	if (error)
 		return error;
 	gfs2_trans_add_bh(ip->i_gl, bh, 1);
-	ip->i_di.di_blocks++;
-	gfs2_set_inode_blocks(&ip->i_inode);
+	gfs2_add_inode_blocks(&ip->i_inode, 1);
 	gfs2_dinode_out(ip, bh->b_data);
 	brelse(bh);
 	return 0;
@@ -1922,11 +1919,7 @@ static int leaf_dealloc(struct gfs2_inode *dip, u32 index, u32 len,
 		brelse(bh);
 
 		gfs2_free_meta(dip, blk, 1);
-
-		if (!dip->i_di.di_blocks)
-			gfs2_consist_inode(dip);
-		dip->i_di.di_blocks--;
-		gfs2_set_inode_blocks(&dip->i_inode);
+		gfs2_add_inode_blocks(&dip->i_inode, -1);
 	}
 
 	error = gfs2_dir_write_data(dip, ht, index * sizeof(u64), size);

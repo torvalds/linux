@@ -161,9 +161,8 @@ int gfs2_unstuff_dinode(struct gfs2_inode *ip, struct page *page)
 
 	if (ip->i_di.di_size) {
 		*(__be64 *)(di + 1) = cpu_to_be64(block);
-		ip->i_di.di_blocks++;
-		gfs2_set_inode_blocks(&ip->i_inode);
-		di->di_blocks = cpu_to_be64(ip->i_di.di_blocks);
+		gfs2_add_inode_blocks(&ip->i_inode, 1);
+		di->di_blocks = cpu_to_be64(gfs2_get_inode_blocks(&ip->i_inode));
 	}
 
 	ip->i_height = 1;
@@ -238,10 +237,9 @@ static int build_height(struct inode *inode, struct metapath *mp, unsigned heigh
 	gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode));
 	*(__be64 *)(di + 1) = cpu_to_be64(bn);
 	ip->i_height += new_height;
-	ip->i_di.di_blocks += new_height;
-	gfs2_set_inode_blocks(&ip->i_inode);
+	gfs2_add_inode_blocks(&ip->i_inode, new_height);
 	di->di_height = cpu_to_be16(ip->i_height);
-	di->di_blocks = cpu_to_be64(ip->i_di.di_blocks);
+	di->di_blocks = cpu_to_be64(gfs2_get_inode_blocks(&ip->i_inode));
 	brelse(dibh);
 	return error;
 }
@@ -380,8 +378,7 @@ static int lookup_block(struct gfs2_inode *ip, unsigned int height,
 	gfs2_trans_add_bh(ip->i_gl, mp->mp_bh[height], 1);
 
 	*ptr = cpu_to_be64(*block);
-	ip->i_di.di_blocks++;
-	gfs2_set_inode_blocks(&ip->i_inode);
+	gfs2_add_inode_blocks(&ip->i_inode, 1);
 
 	*new = 1;
 	return 0;
@@ -779,10 +776,7 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 		}
 
 		*p = 0;
-		if (!ip->i_di.di_blocks)
-			gfs2_consist_inode(ip);
-		ip->i_di.di_blocks--;
-		gfs2_set_inode_blocks(&ip->i_inode);
+		gfs2_add_inode_blocks(&ip->i_inode, -1);
 	}
 	if (bstart) {
 		if (metadata)

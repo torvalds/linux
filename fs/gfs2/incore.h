@@ -239,7 +239,6 @@ enum {
 
 struct gfs2_dinode_host {
 	u64 di_size;		/* number of bytes in file */
-	u64 di_blocks;		/* number of blocks in file */
 	u64 di_generation;	/* generation number for NFS */
 	u32 di_flags;		/* GFS2_DIF_... */
 	/* These only apply to directories  */
