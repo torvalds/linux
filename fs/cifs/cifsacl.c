@@ -372,10 +372,6 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 		ppace = kmalloc(num_aces * sizeof(struct cifs_ace *),
 				GFP_KERNEL);
 
-/*		cifscred->cecount = pdacl->num_aces;
-		cifscred->aces = kmalloc(num_aces *
-			sizeof(struct cifs_ace *), GFP_KERNEL);*/
-
 		for (i = 0; i < num_aces; ++i) {
 			ppace[i] = (struct cifs_ace *) (acl_base + acl_size);
 #ifdef CONFIG_CIFS_DEBUG2
@@ -428,7 +424,7 @@ static int set_chmod_dacl(struct cifs_acl *pndacl, struct cifs_sid *pownersid,
 					 &sid_everyone, nmode, S_IRWXO);
 
 	pndacl->size = cpu_to_le16(size + sizeof(struct cifs_acl));
-	pndacl->num_aces = 3;
+	pndacl->num_aces = cpu_to_le32(3);
 
 	return (0);
 }
