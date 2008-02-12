@@ -1642,10 +1642,11 @@ static int b43legacy_upload_microcode(struct b43legacy_wldev *dev)
 		err = -EOPNOTSUPP;
 		goto error;
 	}
-	b43legacydbg(dev->wl, "Loading firmware version 0x%X, patch level %u "
-	       "(20%.2i-%.2i-%.2i %.2i:%.2i:%.2i)\n", fwrev, fwpatch,
-	       (fwdate >> 12) & 0xF, (fwdate >> 8) & 0xF, fwdate & 0xFF,
-	       (fwtime >> 11) & 0x1F, (fwtime >> 5) & 0x3F, fwtime & 0x1F);
+	b43legacyinfo(dev->wl, "Loading firmware version 0x%X, patch level %u "
+		      "(20%.2i-%.2i-%.2i %.2i:%.2i:%.2i)\n", fwrev, fwpatch,
+		      (fwdate >> 12) & 0xF, (fwdate >> 8) & 0xF, fwdate & 0xFF,
+		      (fwtime >> 11) & 0x1F, (fwtime >> 5) & 0x3F,
+		      fwtime & 0x1F);
 
 	dev->fw.rev = fwrev;
 	dev->fw.patch = fwpatch;
