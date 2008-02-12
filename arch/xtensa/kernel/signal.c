@@ -49,8 +49,6 @@ struct rt_sigframe
 /* 
  * Flush register windows stored in pt_regs to stack.
  * Returns 1 for errors.
- *
- * Note that windowbase, windowstart, and wmask are not updated!
  */
 
 int
@@ -116,6 +114,9 @@ flush_window_regs_user(struct pt_regs *regs)
 		base += inc;
 	}
 
+	regs->wmask = 1;
+	regs->windowstart = 1 << wb;
+
 	return 0;
 
 errout:
@@ -132,7 +133,7 @@ errout:
 
 static int
 setup_sigcontext(struct sigcontext __user *sc, cp_state_t *cpstate,
-		 struct pt_regs *regs, unsigned long mask)
+		 struct pt_regs *regs)
 {
 	int err = 0;
 
@@ -155,8 +156,6 @@ setup_sigcontext(struct sigcontext __user *sc, cp_state_t *cpstate,
 	err |= save_cpextra(cpstate);
 	err |= __put_user(err ? NULL : cpstate, &sc->sc_cpstate);
 #endif
-	/* non-iBCS2 extensions.. */
-	err |= __put_user(mask, &sc->oldmask);
 
 	return err;
 }
@@ -360,8 +359,7 @@ static void setup_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	err |= __put_user(sas_ss_flags(regs->areg[1]),
 			  &frame->uc.uc_stack.ss_flags);
 	err |= __put_user(current->sas_ss_size, &frame->uc.uc_stack.ss_size);
-	err |= setup_sigcontext(&frame->uc.uc_mcontext, &frame->cpstate,
-			        regs, set->sig[0]);
+	err |= setup_sigcontext(&frame->uc.uc_mcontext, &frame->cpstate, regs);
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
 
 	/* Create sys_rt_sigreturn syscall in stack frame */
