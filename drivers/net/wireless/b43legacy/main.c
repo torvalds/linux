@@ -60,6 +60,8 @@ MODULE_AUTHOR("Stefano Brivio");
 MODULE_AUTHOR("Michael Buesch");
 MODULE_LICENSE("GPL");
 
+MODULE_FIRMWARE(B43legacy_SUPPORTED_FIRMWARE_ID);
+
 #if defined(CONFIG_B43LEGACY_DMA) && defined(CONFIG_B43LEGACY_PIO)
 static int modparam_pio;
 module_param_named(pio, modparam_pio, int, 0444);
