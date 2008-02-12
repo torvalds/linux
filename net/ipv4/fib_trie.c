@@ -1762,11 +1762,9 @@ static struct leaf *trie_leafindex(struct trie *t, int index)
 {
 	struct leaf *l = trie_firstleaf(t);
 
-	while (index-- > 0) {
+	while (l && index-- > 0)
 		l = trie_nextleaf(l);
-		if (!l)
-			break;
-	}
+
 	return l;
 }
 
