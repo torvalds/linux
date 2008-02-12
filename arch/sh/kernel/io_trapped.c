@@ -13,6 +13,7 @@
 #include <linux/mm.h>
 #include <linux/bitops.h>
 #include <linux/vmalloc.h>
+#include <linux/module.h>
 #include <asm/system.h>
 #include <asm/mmu_context.h>
 #include <asm/uaccess.h>
@@ -23,9 +24,11 @@
 
 #ifdef CONFIG_HAS_IOPORT
 LIST_HEAD(trapped_io);
+EXPORT_SYMBOL_GPL(trapped_io);
 #endif
 #ifdef CONFIG_HAS_IOMEM
 LIST_HEAD(trapped_mem);
+EXPORT_SYMBOL_GPL(trapped_mem);
 #endif
 static DEFINE_SPINLOCK(trapped_lock);
 
@@ -86,6 +89,7 @@ int __init register_trapped_io(struct trapped_io *tiop)
 	pr_warning("unable to install trapped io filter\n");
 	return -1;
 }
+EXPORT_SYMBOL_GPL(register_trapped_io);
 
 void __iomem *match_trapped_io_handler(struct list_head *list,
 				       unsigned long offset,
@@ -113,6 +117,7 @@ void __iomem *match_trapped_io_handler(struct list_head *list,
 	spin_unlock_irq(&trapped_lock);
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(match_trapped_io_handler);
 
 static struct trapped_io *lookup_tiop(unsigned long address)
 {
