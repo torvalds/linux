@@ -14,12 +14,13 @@ OBJCOPY_ARGS    := -O elf32-xtensa-le
 endif
 
 export OBJCOPY_ARGS
+export CPPFLAGS_boot.lds += -P -C
 
 boot-y		:= bootstrap.o
 
 OBJS		:= $(addprefix $(obj)/,$(boot-y))
 
-Image:	vmlinux $(OBJS)
+Image:	vmlinux $(OBJS) arch/$(ARCH)/boot/boot-elf/boot.lds
 	$(OBJCOPY) --strip-all -R .comment -R .xt.insn -O binary \
 		vmlinux vmlinux.tmp
 	$(OBJCOPY) $(OBJCOPY_ARGS) -R .comment \
@@ -27,7 +28,7 @@ Image:	vmlinux $(OBJS)
 		--set-section-flags image=contents,alloc,load,load,data \
 		$(OBJS) $@.tmp
 	$(LD) $(LDFLAGS) $(LDFLAGS_vmlinux) \
-		-T $(srctree)/arch/$(ARCH)/boot/boot-elf/boot.ld \
+		-T arch/$(ARCH)/boot/boot-elf/boot.lds \
 		-o arch/$(ARCH)/boot/$@.elf $@.tmp
 	rm -f $@.tmp vmlinux.tmp
 
