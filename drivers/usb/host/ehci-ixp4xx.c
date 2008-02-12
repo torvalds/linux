@@ -140,13 +140,12 @@ static int ixp4xx_ehci_remove(struct platform_device *pdev)
 	return 0;
 }
 
-MODULE_ALIAS("ixp4xx-ehci");
+MODULE_ALIAS("platform:ixp4xx-ehci");
 
 static struct platform_driver ixp4xx_ehci_driver = {
 	.probe = ixp4xx_ehci_probe,
 	.remove = ixp4xx_ehci_remove,
 	.driver = {
 		.name = "ixp4xx-ehci",
-		.bus = &platform_bus_type
 	},
 };

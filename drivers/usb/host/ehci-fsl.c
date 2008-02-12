@@ -1,5 +1,4 @@
 /*
- * (C) Copyright David Brownell 2000-2002
  * Copyright (c) 2005 MontaVista Software
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -28,7 +27,6 @@
 /* FIXME: Power Management is un-ported so temporarily disable it */
 #undef CONFIG_PM
 
-/* PCI-based HCs are common, but plenty of non-PCI HCs are used too */
 
 /* configure so an HC device and id are always provided */
 /* always called with process context; sleeping is OK */
@@ -331,6 +329,7 @@ static int ehci_fsl_drv_probe(struct platform_device *pdev)
 	if (usb_disabled())
 		return -ENODEV;
 
+	/* FIXME we only want one one probe() not two */
 	return usb_hcd_fsl_probe(&ehci_fsl_hc_driver, pdev);
 }
 
@@ -338,12 +337,12 @@ static int ehci_fsl_drv_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
+	/* FIXME we only want one one remove() not two */
 	usb_hcd_fsl_remove(hcd, pdev);
-
 	return 0;
 }
 
-MODULE_ALIAS("fsl-ehci");
+MODULE_ALIAS("platform:fsl-ehci");
 
 static struct platform_driver ehci_fsl_driver = {
 	.probe = ehci_fsl_drv_probe,
@@ -351,5 +350,5 @@ static struct platform_driver ehci_fsl_driver = {
 	.shutdown = usb_hcd_platform_shutdown,
 	.driver = {
 		   .name = "fsl-ehci",
-		   },
+	},
 };
