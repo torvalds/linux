@@ -673,10 +673,10 @@ static int __init acpi_wmi_init(void)
 {
 	acpi_status result;
 
+	INIT_LIST_HEAD(&wmi_blocks.list);
+
 	if (acpi_disabled)
 		return -ENODEV;
-
-	INIT_LIST_HEAD(&wmi_blocks.list);
 
 	result = acpi_bus_register_driver(&acpi_wmi_driver);
 
