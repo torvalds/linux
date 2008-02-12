@@ -187,6 +187,11 @@ static __inline__ void pmd_set(pmd_t *pmdp,pte_t *ptep)
 				 _PAGE_WRITE | _PAGE_EXECUTE)
 #define PAGE_KERNEL	__pgprot(_KERNPG_TABLE)
 
+#define PAGE_KERNEL_NOCACHE \
+			__pgprot(_PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE | \
+				 _PAGE_EXECUTE | _PAGE_ACCESSED | \
+				 _PAGE_DIRTY | _PAGE_SHARED)
+
 /* Make it a device mapping for maximum safety (e.g. for mapping device
    registers into user-space via /dev/map).  */
 #define pgprot_noncached(x) __pgprot(((x).pgprot & ~(_PAGE_CACHABLE)) | _PAGE_DEVICE)
