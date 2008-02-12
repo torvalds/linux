@@ -1015,15 +1015,17 @@ void flush_icache_user_range(struct vm_area_struct *vma,
 			ARCH/SH64 PRIVATE CALLABLE API.
   ##########################################################################*/
 
-void flush_cache_sigtramp(unsigned long start, unsigned long end)
+void flush_cache_sigtramp(unsigned long vaddr)
 {
+	unsigned long end = vaddr + L1_CACHE_BYTES;
+
 	/* For the address range [start,end), write back the data from the
 	   D-cache and invalidate the corresponding region of the I-cache for
 	   the current process.  Used to flush signal trampolines on the stack
 	   to make them executable. */
 
-	sh64_dcache_wback_current_user_range(start, end);
+	sh64_dcache_wback_current_user_range(vaddr, end);
 	wmb();
-	sh64_icache_inv_current_user_range(start, end);
+	sh64_icache_inv_current_user_range(vaddr, end);
 }
 
