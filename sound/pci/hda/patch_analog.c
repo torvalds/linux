@@ -612,13 +612,19 @@ static struct hda_input_mux ad1986a_laptop_eapd_capture_source = {
 	},
 };
 
+static struct hda_input_mux ad1986a_automic_capture_source = {
+	.num_items = 2,
+	.items = {
+		{ "Mic", 0x0 },
+		{ "Mix", 0x5 },
+	},
+};
+
 static struct snd_kcontrol_new ad1986a_laptop_eapd_mixers[] = {
 	HDA_BIND_VOL("Master Playback Volume", &ad1986a_laptop_master_vol),
 	HDA_BIND_SW("Master Playback Switch", &ad1986a_laptop_master_sw),
 	HDA_CODEC_VOLUME("PCM Playback Volume", 0x03, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("PCM Playback Switch", 0x03, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Internal Mic Playback Volume", 0x17, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Internal Mic Playback Switch", 0x17, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Mic Playback Volume", 0x13, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Mic Playback Switch", 0x13, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Mic Boost", 0x0f, 0x0, HDA_OUTPUT),
@@ -641,6 +647,33 @@ static struct snd_kcontrol_new ad1986a_laptop_eapd_mixers[] = {
 	},
 	{ } /* end */
 };
+
+/* re-connect the mic boost input according to the jack sensing */
+static void ad1986a_automic(struct hda_codec *codec)
+{
+	unsigned int present;
+	present = snd_hda_codec_read(codec, 0x1f, 0, AC_VERB_GET_PIN_SENSE, 0);
+	/* 0 = 0x1f, 2 = 0x1d, 4 = mixed */
+	snd_hda_codec_write(codec, 0x0f, 0, AC_VERB_SET_CONNECT_SEL,
+			    (present & AC_PINSENSE_PRESENCE) ? 0 : 2);
+}
+
+#define AD1986A_MIC_EVENT		0x36
+
+static void ad1986a_automic_unsol_event(struct hda_codec *codec,
+					    unsigned int res)
+{
+	if ((res >> 26) != AD1986A_MIC_EVENT)
+		return;
+	ad1986a_automic(codec);
+}
+
+static int ad1986a_automic_init(struct hda_codec *codec)
+{
+	ad198x_init(codec);
+	ad1986a_automic(codec);
+	return 0;
+}
 
 /* laptop-automute - 2ch only */
 
@@ -845,6 +878,15 @@ static struct hda_verb ad1986a_eapd_init_verbs[] = {
 	{}
 };
 
+static struct hda_verb ad1986a_automic_verbs[] = {
+	{0x1d, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
+	{0x1f, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
+	/*{0x20, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},*/
+	{0x0f, AC_VERB_SET_CONNECT_SEL, 0x0},
+	{0x1f, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | AD1986A_MIC_EVENT},
+	{}
+};
+
 /* Ultra initialization */
 static struct hda_verb ad1986a_ultra_init[] = {
 	/* eapd initialization */
@@ -987,14 +1029,17 @@ static int patch_ad1986a(struct hda_codec *codec)
 		break;
 	case AD1986A_LAPTOP_EAPD:
 		spec->mixers[0] = ad1986a_laptop_eapd_mixers;
-		spec->num_init_verbs = 2;
+		spec->num_init_verbs = 3;
 		spec->init_verbs[1] = ad1986a_eapd_init_verbs;
+		spec->init_verbs[2] = ad1986a_automic_verbs;
 		spec->multiout.max_channels = 2;
 		spec->multiout.num_dacs = 1;
 		spec->multiout.dac_nids = ad1986a_laptop_dac_nids;
 		if (!is_jack_available(codec, 0x25))
 			spec->multiout.dig_out_nid = 0;
-		spec->input_mux = &ad1986a_laptop_eapd_capture_source;
+		spec->input_mux = &ad1986a_automic_capture_source;
+		codec->patch_ops.unsol_event = ad1986a_automic_unsol_event;
+		codec->patch_ops.init = ad1986a_automic_init;
 		break;
 	case AD1986A_LAPTOP_AUTOMUTE:
 		spec->mixers[0] = ad1986a_laptop_automute_mixers;
