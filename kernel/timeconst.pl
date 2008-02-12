@@ -339,7 +339,7 @@ sub output($@)
 	print "\n";
 
 	foreach $pfx ('HZ_TO_MSEC','MSEC_TO_HZ',
-		      'USEC_TO_HZ','HZ_TO_USEC') {
+		      'HZ_TO_USEC','USEC_TO_HZ') {
 		foreach $bit (32, 64) {
 			foreach $suf ('MUL', 'ADJ', 'SHR') {
 				printf "#define %-23s %s\n",
