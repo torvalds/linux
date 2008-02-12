@@ -28,7 +28,6 @@
 
 /* Unimplemented features. */
 
-#undef SIGNAL_HANDLING_IN_DOUBLE_EXCEPTION
 #undef KERNEL_STACK_OVERFLOW_CHECK
 #undef PREEMPTIBLE_KERNEL
 #undef ALLOCA_EXCEPTION_IN_IRAM
@@ -431,11 +430,8 @@ common_exception_return:
 	_bbsi.l	a4, TIF_NEED_RESCHED, 3f
 	_bbci.l	a4, TIF_SIGPENDING, 4f
 
-#ifndef SIGNAL_HANDLING_IN_DOUBLE_EXCEPTION
 	l32i	a4, a1, PT_DEPC
 	bgeui	a4, VALID_DOUBLE_EXCEPTION_ADDRESS, 4f
-#endif
-
 	/* Reenable interrupts and call do_signal() */
 
 	wsr	a3, PS
@@ -1247,16 +1243,6 @@ fast_syscall_spill_registers_fixup:
 	 * Note: This frame might be the same as above.
 	 */
 
-#ifdef SIGNAL_HANDLING_IN_DOUBLE_EXCEPTION
-	/* Restore registers we precautiously saved.
-	 * We have the value of the 'right' a3
-	 */
-
-	l32i	a7, a2, PT_AREG5
-	l32i	a11, a2, PT_AREG6
-	l32i	a15, a2, PT_AREG7
-#endif
-
 	/* Setup stack pointer. */
 
 	addi	a2, a2, -PT_USER_SIZE
@@ -1289,14 +1275,6 @@ fast_syscall_spill_registers_fixup_return:
 	rsr	a2, WINDOWBASE
 	s32i	a2, a3, EXC_TABLE_PARAM
 	l32i	a2, a3, EXC_TABLE_KSTK
-
-#ifdef SIGNAL_HANDLING_IN_DOUBLE_EXCEPTION
-	/* Save registers again that might be clobbered. */
-
-	s32i	a7, a2, PT_AREG5
-	s32i	a11, a2, PT_AREG6
-	s32i	a15, a2, PT_AREG7
-#endif
 
 	/* Load WB at the time the exception occurred. */
 
