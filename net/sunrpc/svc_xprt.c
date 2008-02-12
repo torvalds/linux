@@ -587,10 +587,12 @@ int svc_recv(struct svc_rqst *rqstp, long timeout)
 		while (rqstp->rq_pages[i] == NULL) {
 			struct page *p = alloc_page(GFP_KERNEL);
 			if (!p) {
-				int j = msecs_to_jiffies(500);
-				if (kthread_should_stop())
+				set_current_state(TASK_INTERRUPTIBLE);
+				if (signalled() || kthread_should_stop()) {
+					set_current_state(TASK_RUNNING);
 					return -EINTR;
-				schedule_timeout_uninterruptible(j);
+				}
+				schedule_timeout(msecs_to_jiffies(500));
 			}
 			rqstp->rq_pages[i] = p;
 		}
