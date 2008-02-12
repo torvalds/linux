@@ -138,6 +138,14 @@ static __inline__ void pmd_set(pmd_t *pmdp,pte_t *ptep)
 #endif
 
 /*
+ * Stub out _PAGE_SZHUGE if we don't have a good definition for it,
+ * to make pte_mkhuge() happy.
+ */
+#ifndef _PAGE_SZHUGE
+# define _PAGE_SZHUGE	(0)
+#endif
+
+/*
  * Default flags for a Kernel page.
  * This is fundametally also SHARED because the main use of this define
  * (other than for PGD/PMD entries) is for the VMALLOC pool which is
