@@ -950,8 +950,7 @@ static int __init ubi_init(void)
 	BUILD_BUG_ON(sizeof(struct ubi_vid_hdr) != 64);
 
 	if (mtd_devs > UBI_MAX_DEVICES) {
-		printk(KERN_ERR "UBI error: too many MTD devices, "
-		       "maximum is %d\n", UBI_MAX_DEVICES);
+		ubi_err("too many MTD devices, maximum is %d", UBI_MAX_DEVICES);
 		return -EINVAL;
 	}
 
@@ -959,25 +958,25 @@ static int __init ubi_init(void)
 	ubi_class = class_create(THIS_MODULE, UBI_NAME_STR);
 	if (IS_ERR(ubi_class)) {
 		err = PTR_ERR(ubi_class);
-		printk(KERN_ERR "UBI error: cannot create UBI class\n");
+		ubi_err("cannot create UBI class");
 		goto out;
 	}
 
 	err = class_create_file(ubi_class, &ubi_version);
 	if (err) {
-		printk(KERN_ERR "UBI error: cannot create sysfs file\n");
+		ubi_err("cannot create sysfs file");
 		goto out_class;
 	}
 
 	err = misc_register(&ubi_ctrl_cdev);
 	if (err) {
-		printk(KERN_ERR "UBI error: cannot register device\n");
+		ubi_err("cannot register device");
 		goto out_version;
 	}
 
 	ubi_wl_entry_slab = kmem_cache_create("ubi_wl_entry_slab",
-						sizeof(struct ubi_wl_entry),
-						0, 0, NULL);
+					      sizeof(struct ubi_wl_entry),
+					      0, 0, NULL);
 	if (!ubi_wl_entry_slab)
 		goto out_dev_unreg;
 
@@ -1000,8 +999,7 @@ static int __init ubi_init(void)
 		mutex_unlock(&ubi_devices_mutex);
 		if (err < 0) {
 			put_mtd_device(mtd);
-			printk(KERN_ERR "UBI error: cannot attach mtd%d\n",
-			       mtd->index);
+			ubi_err("cannot attach mtd%d", mtd->index);
 			goto out_detach;
 		}
 	}
@@ -1023,7 +1021,7 @@ out_version:
 out_class:
 	class_destroy(ubi_class);
 out:
-	printk(KERN_ERR "UBI error: cannot initialize UBI, error %d\n", err);
+	ubi_err("UBI error: cannot initialize UBI, error %d", err);
 	return err;
 }
 module_init(ubi_init);
