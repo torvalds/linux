@@ -746,7 +746,6 @@ static struct hda_verb alc_gpio3_init_verbs[] = {
 static void alc_sku_automute(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
-	unsigned int mute;
 	unsigned int present;
 	unsigned int hp_nid = spec->autocfg.hp_pins[0];
 	unsigned int sp_nid = spec->autocfg.speaker_pins[0];
@@ -756,16 +755,8 @@ static void alc_sku_automute(struct hda_codec *codec)
 	present = snd_hda_codec_read(codec, hp_nid, 0,
 				     AC_VERB_GET_PIN_SENSE, 0);
 	spec->jack_present = (present & 0x80000000) != 0;
-	if (spec->jack_present) {
-		/* mute internal speaker */
-		snd_hda_codec_amp_stereo(codec, sp_nid, HDA_OUTPUT, 0,
-					 HDA_AMP_MUTE, HDA_AMP_MUTE);
-	} else {
-		/* unmute internal speaker if necessary */
-		mute = snd_hda_codec_amp_read(codec, hp_nid, 0, HDA_OUTPUT, 0);
-		snd_hda_codec_amp_stereo(codec, sp_nid, HDA_OUTPUT, 0,
-					 HDA_AMP_MUTE, mute);
-	}
+	snd_hda_codec_write(codec, sp_nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
+			    spec->jack_present ? 0 : PIN_OUT);
 }
 
 /* unsolicited event for HP jack sensing */
@@ -3486,15 +3477,20 @@ static int alc880_auto_create_analog_input_ctls(struct alc_spec *spec,
 	return 0;
 }
 
+static void alc_set_pin_output(struct hda_codec *codec, hda_nid_t nid,
+			       unsigned int pin_type)
+{
+	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
+			    pin_type);
+	/* unmute pin */
+	snd_hda_codec_amp_stereo(codec, nid, HDA_OUTPUT, 0, 0xff, 0x00);
+}
+
 static void alc880_auto_set_output_and_unmute(struct hda_codec *codec,
 					      hda_nid_t nid, int pin_type,
 					      int dac_idx)
 {
-	/* set as output */
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
-			    pin_type);
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
-			    AMP_OUT_UNMUTE);
+	alc_set_pin_output(codec, nid, pin_type);
 	/* need the manual connection? */
 	if (alc880_is_multi_pin(nid)) {
 		struct alc_spec *spec = codec->spec;
@@ -3616,9 +3612,12 @@ static int alc880_parse_auto_config(struct hda_codec *codec)
 /* additional initialization for auto-configuration model */
 static void alc880_auto_init(struct hda_codec *codec)
 {
+	struct alc_spec *spec = codec->spec;
 	alc880_auto_init_multi_out(codec);
 	alc880_auto_init_extra_out(codec);
 	alc880_auto_init_analog_input(codec);
+	if (spec->unsol_event)
+		alc_sku_automute(codec);
 }
 
 /*
@@ -4814,11 +4813,7 @@ static void alc260_auto_set_output_and_unmute(struct hda_codec *codec,
 					      hda_nid_t nid, int pin_type,
 					      int sel_idx)
 {
-	/* set as output */
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
-			    pin_type);
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
-			    AMP_OUT_UNMUTE);
+	alc_set_pin_output(codec, nid, pin_type);
 	/* need the manual connection? */
 	if (nid >= 0x12) {
 		int idx = nid - 0x12;
@@ -4965,8 +4960,11 @@ static int alc260_parse_auto_config(struct hda_codec *codec)
 /* additional initialization for auto-configuration model */
 static void alc260_auto_init(struct hda_codec *codec)
 {
+	struct alc_spec *spec = codec->spec;
 	alc260_auto_init_multi_out(codec);
 	alc260_auto_init_analog_input(codec);
+	if (spec->unsol_event)
+		alc_sku_automute(codec);
 }
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
@@ -6201,15 +6199,11 @@ static void alc882_auto_set_output_and_unmute(struct hda_codec *codec,
 	struct alc_spec *spec = codec->spec;
 	int idx;
 
+	alc_set_pin_output(codec, nid, pin_type);
 	if (spec->multiout.dac_nids[dac_idx] == 0x25)
 		idx = 4;
 	else
 		idx = spec->multiout.dac_nids[dac_idx] - 2;
-
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
-			    pin_type);
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
-			    AMP_OUT_UNMUTE);
 	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_CONNECT_SEL, idx);
 
 }
@@ -6238,6 +6232,9 @@ static void alc882_auto_init_hp_out(struct hda_codec *codec)
 	if (pin) /* connect to front */
 		/* use dac 0 */
 		alc882_auto_set_output_and_unmute(codec, pin, PIN_HP, 0);
+	pin = spec->autocfg.speaker_pins[0];
+	if (pin)
+		alc882_auto_set_output_and_unmute(codec, pin, PIN_OUT, 0);
 }
 
 #define alc882_is_input_pin(nid)	alc880_is_input_pin(nid)
@@ -6313,9 +6310,12 @@ static int alc882_parse_auto_config(struct hda_codec *codec)
 /* additional initialization for auto-configuration model */
 static void alc882_auto_init(struct hda_codec *codec)
 {
+	struct alc_spec *spec = codec->spec;
 	alc882_auto_init_multi_out(codec);
 	alc882_auto_init_hp_out(codec);
 	alc882_auto_init_analog_input(codec);
+	if (spec->unsol_event)
+		alc_sku_automute(codec);
 }
 
 static int patch_alc882(struct hda_codec *codec)
@@ -7878,15 +7878,11 @@ static void alc883_auto_set_output_and_unmute(struct hda_codec *codec,
 	struct alc_spec *spec = codec->spec;
 	int idx;
 
+	alc_set_pin_output(codec, nid, pin_type);
 	if (spec->multiout.dac_nids[dac_idx] == 0x25)
 		idx = 4;
 	else
 		idx = spec->multiout.dac_nids[dac_idx] - 2;
-
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
-			    pin_type);
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
-			    AMP_OUT_UNMUTE);
 	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_CONNECT_SEL, idx);
 
 }
@@ -7915,6 +7911,9 @@ static void alc883_auto_init_hp_out(struct hda_codec *codec)
 	if (pin) /* connect to front */
 		/* use dac 0 */
 		alc883_auto_set_output_and_unmute(codec, pin, PIN_HP, 0);
+	pin = spec->autocfg.speaker_pins[0];
+	if (pin)
+		alc883_auto_set_output_and_unmute(codec, pin, PIN_OUT, 0);
 }
 
 #define alc883_is_input_pin(nid)	alc880_is_input_pin(nid)
@@ -7966,9 +7965,12 @@ static int alc883_parse_auto_config(struct hda_codec *codec)
 /* additional initialization for auto-configuration model */
 static void alc883_auto_init(struct hda_codec *codec)
 {
+	struct alc_spec *spec = codec->spec;
 	alc883_auto_init_multi_out(codec);
 	alc883_auto_init_hp_out(codec);
 	alc883_auto_init_analog_input(codec);
+	if (spec->unsol_event)
+		alc_sku_automute(codec);
 }
 
 static int patch_alc883(struct hda_codec *codec)
@@ -9144,9 +9146,12 @@ static int alc262_parse_auto_config(struct hda_codec *codec)
 /* init callback for auto-configuration model -- overriding the default init */
 static void alc262_auto_init(struct hda_codec *codec)
 {
+	struct alc_spec *spec = codec->spec;
 	alc262_auto_init_multi_out(codec);
 	alc262_auto_init_hp_out(codec);
 	alc262_auto_init_analog_input(codec);
+	if (spec->unsol_event)
+		alc_sku_automute(codec);
 }
 
 /*
@@ -10033,10 +10038,13 @@ static int alc268_parse_auto_config(struct hda_codec *codec)
 /* init callback for auto-configuration model -- overriding the default init */
 static void alc268_auto_init(struct hda_codec *codec)
 {
+	struct alc_spec *spec = codec->spec;
 	alc268_auto_init_multi_out(codec);
 	alc268_auto_init_hp_out(codec);
 	alc268_auto_init_mono_speaker_out(codec);
 	alc268_auto_init_analog_input(codec);
+	if (spec->unsol_event)
+		alc_sku_automute(codec);
 }
 
 /*
@@ -10505,9 +10513,12 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 /* init callback for auto-configuration model -- overriding the default init */
 static void alc269_auto_init(struct hda_codec *codec)
 {
+	struct alc_spec *spec = codec->spec;
 	alc269_auto_init_multi_out(codec);
 	alc269_auto_init_hp_out(codec);
 	alc269_auto_init_analog_input(codec);
+	if (spec->unsol_event)
+		alc_sku_automute(codec);
 }
 
 /*
@@ -11429,13 +11440,7 @@ static void alc861_auto_set_output_and_unmute(struct hda_codec *codec,
 					      hda_nid_t nid,
 					      int pin_type, int dac_idx)
 {
-	/* set as output */
-
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
-			    pin_type);
-	snd_hda_codec_write(codec, dac_idx, 0, AC_VERB_SET_AMP_GAIN_MUTE,
-			    AMP_OUT_UNMUTE);
-
+	alc_set_pin_output(codec, nid, pin_type);
 }
 
 static void alc861_auto_init_multi_out(struct hda_codec *codec)
@@ -11462,6 +11467,9 @@ static void alc861_auto_init_hp_out(struct hda_codec *codec)
 	if (pin) /* connect to front */
 		alc861_auto_set_output_and_unmute(codec, pin, PIN_HP,
 						  spec->multiout.dac_nids[0]);
+	pin = spec->autocfg.speaker_pins[0];
+	if (pin)
+		alc861_auto_set_output_and_unmute(codec, pin, PIN_OUT, 0);
 }
 
 static void alc861_auto_init_analog_input(struct hda_codec *codec)
@@ -11534,9 +11542,12 @@ static int alc861_parse_auto_config(struct hda_codec *codec)
 /* additional initialization for auto-configuration model */
 static void alc861_auto_init(struct hda_codec *codec)
 {
+	struct alc_spec *spec = codec->spec;
 	alc861_auto_init_multi_out(codec);
 	alc861_auto_init_hp_out(codec);
 	alc861_auto_init_analog_input(codec);
+	if (spec->unsol_event)
+		alc_sku_automute(codec);
 }
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
@@ -12397,11 +12408,7 @@ static struct alc_config_preset alc861vd_presets[] = {
 static void alc861vd_auto_set_output_and_unmute(struct hda_codec *codec,
 				hda_nid_t nid, int pin_type, int dac_idx)
 {
-	/* set as output */
-	snd_hda_codec_write(codec, nid, 0,
-				AC_VERB_SET_PIN_WIDGET_CONTROL, pin_type);
-	snd_hda_codec_write(codec, nid, 0,
-				AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE);
+	alc_set_pin_output(codec, nid, pin_type);
 }
 
 static void alc861vd_auto_init_multi_out(struct hda_codec *codec)
@@ -12428,6 +12435,9 @@ static void alc861vd_auto_init_hp_out(struct hda_codec *codec)
 	pin = spec->autocfg.hp_pins[0];
 	if (pin) /* connect to front and  use dac 0 */
 		alc861vd_auto_set_output_and_unmute(codec, pin, PIN_HP, 0);
+	pin = spec->autocfg.speaker_pins[0];
+	if (pin)
+		alc861vd_auto_set_output_and_unmute(codec, pin, PIN_OUT, 0);
 }
 
 #define alc861vd_is_input_pin(nid)	alc880_is_input_pin(nid)
@@ -12631,9 +12641,12 @@ static int alc861vd_parse_auto_config(struct hda_codec *codec)
 /* additional initialization for auto-configuration model */
 static void alc861vd_auto_init(struct hda_codec *codec)
 {
+	struct alc_spec *spec = codec->spec;
 	alc861vd_auto_init_multi_out(codec);
 	alc861vd_auto_init_hp_out(codec);
 	alc861vd_auto_init_analog_input(codec);
+	if (spec->unsol_event)
+		alc_sku_automute(codec);
 }
 
 static int patch_alc861vd(struct hda_codec *codec)
@@ -13453,11 +13466,7 @@ static void alc662_auto_set_output_and_unmute(struct hda_codec *codec,
 					      hda_nid_t nid, int pin_type,
 					      int dac_idx)
 {
-	/* set as output */
-	snd_hda_codec_write(codec, nid, 0,
-			    AC_VERB_SET_PIN_WIDGET_CONTROL, pin_type);
-	snd_hda_codec_write(codec, nid, 0,
-			    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE);
+	alc_set_pin_output(codec, nid, pin_type);
 	/* need the manual connection? */
 	if (alc880_is_multi_pin(nid)) {
 		struct alc_spec *spec = codec->spec;
@@ -13492,6 +13501,9 @@ static void alc662_auto_init_hp_out(struct hda_codec *codec)
 	if (pin) /* connect to front */
 		/* use dac 0 */
 		alc662_auto_set_output_and_unmute(codec, pin, PIN_HP, 0);
+	pin = spec->autocfg.speaker_pins[0];
+	if (pin)
+		alc662_auto_set_output_and_unmute(codec, pin, PIN_OUT, 0);
 }
 
 #define alc662_is_input_pin(nid)	alc880_is_input_pin(nid)
@@ -13569,9 +13581,12 @@ static int alc662_parse_auto_config(struct hda_codec *codec)
 /* additional initialization for auto-configuration model */
 static void alc662_auto_init(struct hda_codec *codec)
 {
+	struct alc_spec *spec = codec->spec;
 	alc662_auto_init_multi_out(codec);
 	alc662_auto_init_hp_out(codec);
 	alc662_auto_init_analog_input(codec);
+	if (spec->unsol_event)
+		alc_sku_automute(codec);
 }
 
 static int patch_alc662(struct hda_codec *codec)
