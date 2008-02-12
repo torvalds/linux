@@ -436,7 +436,18 @@ exit:
 	return dev;
 }
 
-const struct pci_device_id *pci_find_present(const struct pci_device_id *ids)
+/**
+ * pci_dev_present - Returns 1 if device matching the device list is present, 0 if not.
+ * @ids: A pointer to a null terminated list of struct pci_device_id structures
+ * that describe the type of PCI device the caller is trying to find.
+ *
+ * Obvious fact: You do not have a reference to any device that might be found
+ * by this function, so if that device is removed from the system right after
+ * this function is finished, the value will be stale.  Use this function to
+ * find devices that are usually built into a system, or for a general hint as
+ * to if another device happens to be present at this specific moment in time.
+ */
+int pci_dev_present(const struct pci_device_id *ids)
 {
 	struct pci_dev *dev;
 	const struct pci_device_id *found = NULL;
@@ -452,27 +463,11 @@ const struct pci_device_id *pci_find_present(const struct pci_device_id *ids)
 	}
 exit:
 	up_read(&pci_bus_sem);
-	return found;
+	if (found)
+		return 1;
+	return 0;
 }
-
-/**
- * pci_dev_present - Returns 1 if device matching the device list is present, 0 if not.
- * @ids: A pointer to a null terminated list of struct pci_device_id structures
- * that describe the type of PCI device the caller is trying to find.
- *
- * Obvious fact: You do not have a reference to any device that might be found
- * by this function, so if that device is removed from the system right after
- * this function is finished, the value will be stale.  Use this function to
- * find devices that are usually built into a system, or for a general hint as
- * to if another device happens to be present at this specific moment in time.
- */
-int pci_dev_present(const struct pci_device_id *ids)
-{
-	return pci_find_present(ids) == NULL ? 0 : 1;
-}
-
 EXPORT_SYMBOL(pci_dev_present);
-EXPORT_SYMBOL(pci_find_present);
 
 #ifdef CONFIG_PCI_LEGACY
 EXPORT_SYMBOL(pci_find_device);
