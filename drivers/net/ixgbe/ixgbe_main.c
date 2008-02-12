@@ -2277,11 +2277,29 @@ static bool ixgbe_tx_csum(struct ixgbe_adapter *adapter,
 				    IXGBE_ADVTXD_DTYP_CTXT);
 
 		if (skb->ip_summed == CHECKSUM_PARTIAL) {
-			if (skb->protocol == htons(ETH_P_IP))
+			switch (skb->protocol) {
+			case __constant_htons(ETH_P_IP):
 				type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_IPV4;
+				if (ip_hdr(skb)->protocol == IPPROTO_TCP)
+					type_tucmd_mlhl |=
+						IXGBE_ADVTXD_TUCMD_L4T_TCP;
+				break;
 
-			if (skb->sk->sk_protocol == IPPROTO_TCP)
-				type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_L4T_TCP;
+			case __constant_htons(ETH_P_IPV6):
+				/* XXX what about other V6 headers?? */
+				if (ipv6_hdr(skb)->nexthdr == IPPROTO_TCP)
+					type_tucmd_mlhl |=
+						IXGBE_ADVTXD_TUCMD_L4T_TCP;
+				break;
+
+			default:
+				if (unlikely(net_ratelimit())) {
+					DPRINTK(PROBE, WARNING,
+					 "partial checksum but proto=%x!\n",
+					 skb->protocol);
+				}
+				break;
+			}
 		}
 
 		context_desc->type_tucmd_mlhl = cpu_to_le32(type_tucmd_mlhl);
