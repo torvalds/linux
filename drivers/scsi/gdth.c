@@ -642,12 +642,15 @@ static void __init gdth_search_dev(gdth_pci_str *pcistr, ushort *cnt,
           *cnt, vendor, device));
 
     pdev = NULL;
-    while ((pdev = pci_find_device(vendor, device, pdev)) 
+    while ((pdev = pci_get_device(vendor, device, pdev))
            != NULL) {
         if (pci_enable_device(pdev))
             continue;
-        if (*cnt >= MAXHA)
+        if (*cnt >= MAXHA) {
+            pci_dev_put(pdev);
             return;
+        }
+
         /* GDT PCI controller found, resources are already in pdev */
         pcistr[*cnt].pdev = pdev;
         pcistr[*cnt].irq = pdev->irq;
