@@ -25,6 +25,7 @@
 #include <asm/page.h>
 #include <asm/signal.h>
 #include <asm/tlbflush.h>
+#include <asm/variant/tie-asm.h>
 
 /* Unimplemented features. */
 
@@ -213,19 +214,7 @@ _user_exception:
 
 	/* We are back to the original stack pointer (a1) */
 
-2:
-#if XCHAL_EXTRA_SA_SIZE
-
-	/* For user exceptions, save the extra state into the user's TCB.
-	 * Note: We must assume that xchal_extra_store_funcbody destroys a2..a15
-	 */
-
-	GET_CURRENT(a2,a1)
-	addi	a2, a2, THREAD_CP_SAVE
-	xchal_extra_store_funcbody
-#endif
-
-	/* Now, jump to the common exception handler. */
+2:	/* Now, jump to the common exception handler. */
 
 	j	common_exception
 
@@ -381,6 +370,10 @@ common_exception:
 	s32i	a2, a1, PT_LBEG
 	s32i	a3, a1, PT_LEND
 
+	/* Save optional registers. */
+
+	save_xtregs_opt a1 a2 a4 a5 a6 a7 PT_XTREGS_OPT
+	
 	/* Go to second-level dispatcher. Set up parameters to pass to the
 	 * exception handler and call the exception handler.
 	 */
@@ -451,22 +444,6 @@ common_exception_return:
 	/* Restore the state of the task and return from the exception. */
 
 4:	/* a2 holds GET_CURRENT(a2,a1)  */
-
-#if XCHAL_EXTRA_SA_SIZE
-
-	/* For user exceptions, restore the extra state from the user's TCB. */
-
-	/* Note: a2 still contains GET_CURRENT(a2,a1) */
-	addi	a2, a2, THREAD_CP_SAVE
-	xchal_extra_load_funcbody
-
-	/* We must assume that xchal_extra_store_funcbody destroys
-	 * registers a2..a15.  FIXME, this list can eventually be
-	 * reduced once real register requirements of the macro are
-	 * finalized. */
-
-#endif /* XCHAL_EXTRA_SA_SIZE */
-
 
 	/* Switch to the user thread WINDOWBASE. Save SP temporarily in DEPC */
 
@@ -613,6 +590,12 @@ kernel_exception_exit:
 	 */
 
 common_exception_exit:
+
+	/* Restore optional registers. */
+
+	load_xtregs_opt a1 a3 a4 a5 a6 a7 PT_XTREGS_OPT
+
+	/* Restore address registers. */
 
 	_bbsi.l	a2, 1, 1f
 	l32i	a4,  a1, PT_AREG4
@@ -1146,7 +1129,6 @@ CATCH
  *   excsave_1:	a3
  *
  * Note: We assume the stack pointer is EXC_TABLE_KSTK in the fixup handler.
- * Note: We don't need to save a2 in depc (return value)
  */
 
 ENTRY(fast_syscall_spill_registers)
@@ -1162,29 +1144,31 @@ ENTRY(fast_syscall_spill_registers)
 
 	rsr	a0, SAR
 	xsr	a3, EXCSAVE_1		# restore a3 and excsave_1
-	s32i	a0, a2, PT_AREG4	# store SAR to PT_AREG4
 	s32i	a3, a2, PT_AREG3
+	s32i	a4, a2, PT_AREG4
+	s32i	a0, a2, PT_AREG5	# store SAR to PT_AREG5
 
 	/* The spill routine might clobber a7, a11, and a15. */
 
-	s32i	a7, a2, PT_AREG5
-	s32i	a11, a2, PT_AREG6
-	s32i	a15, a2, PT_AREG7
+	s32i	a7, a2, PT_AREG7
+	s32i	a11, a2, PT_AREG11
+	s32i	a15, a2, PT_AREG15
 
-	call0	_spill_registers	# destroys a3, DEPC, and SAR
+	call0	_spill_registers	# destroys a3, a4, and SAR
 
 	/* Advance PC, restore registers and SAR, and return from exception. */
 
-	l32i	a3, a2, PT_AREG4
+	l32i	a3, a2, PT_AREG5
+	l32i	a4, a2, PT_AREG4
 	l32i	a0, a2, PT_AREG0
 	wsr	a3, SAR
 	l32i	a3, a2, PT_AREG3
 
 	/* Restore clobbered registers. */
 
-	l32i	a7, a2, PT_AREG5
-	l32i	a11, a2, PT_AREG6
-	l32i	a15, a2, PT_AREG7
+	l32i	a7, a2, PT_AREG7
+	l32i	a11, a2, PT_AREG11
+	l32i	a15, a2, PT_AREG15
 
 	movi	a2, 0
 	rfe
@@ -1257,9 +1241,9 @@ fast_syscall_spill_registers_fixup:
 
 	movi	a3, exc_table
 	rsr	a0, EXCCAUSE
-        addx4   a0, a0, a3              	# find entry in table
-        l32i    a0, a0, EXC_TABLE_FAST_USER     # load handler
-        jx      a0
+        addx4	a0, a0, a3              	# find entry in table
+        l32i	a0, a0, EXC_TABLE_FAST_USER     # load handler
+        jx	a0
 
 fast_syscall_spill_registers_fixup_return:
 
@@ -1297,7 +1281,7 @@ fast_syscall_spill_registers_fixup_return:
  * This is not a real function. The following conditions must be met:
  *
  *  - must be called with call0.
- *  - uses DEPC, a3 and SAR.
+ *  - uses a3, a4 and SAR.
  *  - the last 'valid' register of each frame are clobbered.
  *  - the caller must have registered a fixup handler
  *    (or be inside a critical section)
@@ -1309,41 +1293,39 @@ ENTRY(_spill_registers)
 	/*
 	 * Rotate ws so that the current windowbase is at bit 0.
 	 * Assume ws = xxxwww1yy (www1 current window frame).
-	 * Rotate ws right so that a2 = yyxxxwww1.
+	 * Rotate ws right so that a4 = yyxxxwww1.
 	 */
 
-	wsr	a2, DEPC		# preserve a2
-	rsr	a2, WINDOWBASE
+	rsr	a4, WINDOWBASE
 	rsr	a3, WINDOWSTART		# a3 = xxxwww1yy
-	ssr	a2			# holds WB
-	slli	a2, a3, WSBITS
-	or	a3, a3, a2		# a3 = xxxwww1yyxxxwww1yy
+	ssr	a4			# holds WB
+	slli	a4, a3, WSBITS
+	or	a3, a3, a4		# a3 = xxxwww1yyxxxwww1yy
 	srl	a3, a3			# a3 = 00xxxwww1yyxxxwww1
 
 	/* We are done if there are no more than the current register frame. */
 
 	extui	a3, a3, 1, WSBITS-1	# a3 = 0yyxxxwww
-	movi	a2, (1 << (WSBITS-1))
+	movi	a4, (1 << (WSBITS-1))
 	_beqz	a3, .Lnospill		# only one active frame? jump
 
 	/* We want 1 at the top, so that we return to the current windowbase */
 
-	or	a3, a3, a2		# 1yyxxxwww
+	or	a3, a3, a4		# 1yyxxxwww
 
 	/* Skip empty frames - get 'oldest' WINDOWSTART-bit. */
 
 	wsr	a3, WINDOWSTART		# save shifted windowstart
-	neg	a2, a3
-	and	a3, a2, a3		# first bit set from right: 000010000
+	neg	a4, a3
+	and	a3, a4, a3		# first bit set from right: 000010000
 
-	ffs_ws	a2, a3			# a2: shifts to skip empty frames
+	ffs_ws	a4, a3			# a4: shifts to skip empty frames
 	movi	a3, WSBITS
-	sub	a2, a3, a2		# WSBITS-a2:number of 0-bits from right
-	ssr	a2			# save in SAR for later.
+	sub	a4, a3, a4		# WSBITS-a4:number of 0-bits from right
+	ssr	a4			# save in SAR for later.
 
 	rsr	a3, WINDOWBASE
-	add	a3, a3, a2
-	rsr	a2, DEPC		# restore a2
+	add	a3, a3, a4
 	wsr	a3, WINDOWBASE
 	rsync
 
@@ -1373,7 +1355,6 @@ ENTRY(_spill_registers)
 	j	.Lc12c
 
 .Lnospill:
-	rsr	a2, DEPC
 	ret
 
 .Lloop: _bbsi.l	a3, 1, .Lc4
@@ -1810,154 +1791,6 @@ ENTRY(fast_store_prohibited)
 1:	j	_user_exception
 
 
-#if XCHAL_EXTRA_SA_SIZE
-
-#warning fast_coprocessor untested
-
-/*
- * Entry condition:
- *
- *   a0:	trashed, original value saved on stack (PT_AREG0)
- *   a1:	a1
- *   a2:	new stack pointer, original in DEPC
- *   a3:	dispatch table
- *   depc:	a2, original value saved on stack (PT_DEPC)
- *   excsave_1:	a3
- *
- *   PT_DEPC >= VALID_DOUBLE_EXCEPTION_ADDRESS: double exception, DEPC
- *	     <  VALID_DOUBLE_EXCEPTION_ADDRESS: regular exception
- */
-
-ENTRY(fast_coprocessor_double)
-	wsr	a0, EXCSAVE_1
-	movi	a0, unrecoverable_exception
-	callx0	a0
-
-ENTRY(fast_coprocessor)
-
-	/* Fatal if we are in a double exception. */
-
-	l32i	a0, a2, PT_DEPC
-	_bgeui	a0, VALID_DOUBLE_EXCEPTION_ADDRESS, fast_coprocessor_double
-
-	/* Save some registers a1, a3, a4, SAR */
-
-	xsr	a3, EXCSAVE_1
-	s32i	a3, a2, PT_AREG3
-	rsr	a3, SAR
-	s32i	a4, a2, PT_AREG4
-	s32i	a1, a2, PT_AREG1
-	s32i	a5, a1, PT_AREG5
-	s32i	a3, a2, PT_SAR
-	mov	a1, a2
-
-	/* Currently, the HAL macros only guarantee saving a0 and a1.
-	 * These can and will be refined in the future, but for now,
-	 * just save the remaining registers of a2...a15.
-	 */
-	s32i	a6, a1, PT_AREG6
-	s32i	a7, a1, PT_AREG7
-	s32i	a8, a1, PT_AREG8
-	s32i	a9, a1, PT_AREG9
-	s32i	a10, a1, PT_AREG10
-	s32i	a11, a1, PT_AREG11
-	s32i	a12, a1, PT_AREG12
-	s32i	a13, a1, PT_AREG13
-	s32i	a14, a1, PT_AREG14
-	s32i	a15, a1, PT_AREG15
-
-	/* Find coprocessor number. Subtract first CP EXCCAUSE from EXCCAUSE */
-
-	rsr	a0, EXCCAUSE
-	addi	a3, a0, -XCHAL_EXCCAUSE_COPROCESSOR0_DISABLED
-
-	/* Set corresponding CPENABLE bit */
-
-	movi	a4, 1
-	ssl	a3			# SAR: 32 - coprocessor_number
-	rsr	a5, CPENABLE
-	sll	a4, a4
-	or	a4, a5, a4
-	wsr	a4, CPENABLE
-	rsync
-	movi	a5, coprocessor_info	# list of owner and offset into cp_save
-	addx8	a0, a4, a5		# entry for CP
-
-	bne	a4, a5, .Lload		# bit wasn't set before, cp not in use
-
-	/* Now compare the current task with the owner of the coprocessor.
-	 * If they are the same, there is no reason to save or restore any
-	 * coprocessor state. Having already enabled the coprocessor,
-	 * branch ahead to return.
-	 */
-	GET_CURRENT(a5,a1)
-	l32i	a4, a0, COPROCESSOR_INFO_OWNER	# a4: current owner for this CP
-	beq	a4, a5, .Ldone
-
-	/* Find location to dump current coprocessor state:
-	 *  task_struct->task_cp_save_offset + coprocessor_offset[coprocessor]
-	 *
-	 * Note: a0 pointer to the entry in the coprocessor owner table,
-	 *	 a3 coprocessor number,
-         *	 a4 current owner of coprocessor.
-	 */
-	l32i	a5, a0, COPROCESSOR_INFO_OFFSET
-	addi	a2, a4, THREAD_CP_SAVE
-	add	a2, a2, a5
-
-	/* Store current coprocessor states. (a5 still has CP number) */
-
-	xchal_cpi_store_funcbody
-
-	/* The macro might have destroyed a3 (coprocessor number), but
-	 * SAR still has 32 - coprocessor_number!
-	 */
-	movi	a3, 32
-	rsr	a4, SAR
-	sub	a3, a3, a4
-
-.Lload:	/* A new task now owns the corpocessors. Save its TCB pointer into
-	 * the coprocessor owner table.
-	 *
-	 * Note: a0 pointer to the entry in the coprocessor owner table,
-	 *	 a3 coprocessor number.
-	 */
-	GET_CURRENT(a4,a1)
-	s32i	a4, a0, 0
-
-	/* Find location from where to restore the current coprocessor state.*/
-
-	l32i	a5, a0, COPROCESSOR_INFO_OFFSET
-	addi	a2, a4, THREAD_CP_SAVE
-	add	a2, a2, a4
-
-	xchal_cpi_load_funcbody
-
-	/* We must assume that the xchal_cpi_store_funcbody macro destroyed
-	 * registers a2..a15.
-	 */
-
-.Ldone:	l32i	a15, a1, PT_AREG15
-	l32i	a14, a1, PT_AREG14
-	l32i	a13, a1, PT_AREG13
-	l32i	a12, a1, PT_AREG12
-	l32i	a11, a1, PT_AREG11
-	l32i	a10, a1, PT_AREG10
-	l32i	a9, a1, PT_AREG9
-	l32i	a8, a1, PT_AREG8
-	l32i	a7, a1, PT_AREG7
-	l32i	a6, a1, PT_AREG6
-	l32i	a5, a1, PT_AREG5
-	l32i	a4, a1, PT_AREG4
-	l32i	a3, a1, PT_AREG3
-	l32i	a2, a1, PT_AREG2
-	l32i	a0, a1, PT_AREG0
-	l32i	a1, a1, PT_AREG1
-
-	rfe
-
-#endif /* XCHAL_EXTRA_SA_SIZE */
-
 /*
  * System Calls.
  *
@@ -2066,20 +1899,36 @@ ENTRY(_switch_to)
 
 	entry	a1, 16
 
-	mov	a4, a3			# preserve a3
+	mov	a12, a2			# preserve 'prev' (a2)
+	mov	a13, a3			# and 'next' (a3)
 
-	s32i	a0, a2, THREAD_RA	# save return address
-	s32i	a1, a2, THREAD_SP	# save stack pointer
+	l32i	a4, a2, TASK_THREAD_INFO
+	l32i	a5, a3, TASK_THREAD_INFO
 
-	/* Disable ints while we manipulate the stack pointer; spill regs. */
+	save_xtregs_user a4 a6 a8 a9 a10 a11 THREAD_XTREGS_USER
 
-	movi	a5, (1 << PS_EXCM_BIT) | LOCKLEVEL
-	xsr	a5, PS
+	s32i	a0, a12, THREAD_RA	# save return address
+	s32i	a1, a12, THREAD_SP	# save stack pointer
+
+	/* Disable ints while we manipulate the stack pointer. */
+
+	movi	a14, (1 << PS_EXCM_BIT) | LOCKLEVEL
+	xsr	a14, PS
 	rsr	a3, EXCSAVE_1
 	rsync
 	s32i	a3, a3, EXC_TABLE_FIXUP	/* enter critical section */
 
-	call0	_spill_registers
+	/* Switch CPENABLE */
+
+#if (XTENSA_HAVE_COPROCESSORS || XTENSA_HAVE_IO_PORTS)
+	l32i	a3, a5, THREAD_CPENABLE
+	xsr	a3, CPENABLE
+	s32i	a3, a4, THREAD_CPENABLE
+#endif
+
+	/* Flush register file. */
+
+	call0	_spill_registers	# destroys a3, a4, and SAR
 
 	/* Set kernel stack (and leave critical section)
 	 * Note: It's save to set it here. The stack will not be overwritten
@@ -2087,19 +1936,21 @@ ENTRY(_switch_to)
 	 *       we return from kernel space.
 	 */
 
-	l32i	a0, a4, TASK_THREAD_INFO
 	rsr	a3, EXCSAVE_1		# exc_table
-	movi	a1, 0
-	addi	a0, a0, PT_REGS_OFFSET
-	s32i	a1, a3, EXC_TABLE_FIXUP
-	s32i	a0, a3, EXC_TABLE_KSTK
+	movi	a6, 0
+	addi	a7, a5, PT_REGS_OFFSET
+	s32i	a6, a3, EXC_TABLE_FIXUP
+	s32i	a7, a3, EXC_TABLE_KSTK
 
 	/* restore context of the task that 'next' addresses */
 
-	l32i	a0, a4, THREAD_RA	/* restore return address */
-	l32i	a1, a4, THREAD_SP	/* restore stack pointer */
+	l32i	a0, a13, THREAD_RA	# restore return address
+	l32i	a1, a13, THREAD_SP	# restore stack pointer
 
-	wsr	a5, PS
+	load_xtregs_user a5 a6 a8 a9 a10 a11 THREAD_XTREGS_USER
+
+	wsr	a14, PS
+	mov	a2, a12			# return 'prev'
 	rsync
 
 	retw

@@ -173,6 +173,21 @@ extern void xtensa_elf_core_copy_regs (xtensa_gregset_t *, struct pt_regs *);
        _r->areg[12]=0; _r->areg[13]=0;   _r->areg[14]=0; _r->areg[15]=0; \
   } while (0)
 
+typedef struct {
+	xtregs_opt_t	opt;
+	xtregs_user_t	user;
+#if XTENSA_HAVE_COPROCESSORS
+	xtregs_cp0_t	cp0;
+	xtregs_cp1_t	cp1;
+	xtregs_cp2_t	cp2;
+	xtregs_cp3_t	cp3;
+	xtregs_cp4_t	cp4;
+	xtregs_cp5_t	cp5;
+	xtregs_cp6_t	cp6;
+	xtregs_cp7_t	cp7;
+#endif
+} elf_xtregs_t;
+
 #define SET_PERSONALITY(ex, ibcs2) set_personality(PER_LINUX_32BIT)
 
 struct task_struct;

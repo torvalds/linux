@@ -52,6 +52,55 @@ void (*pm_power_off)(void) = NULL;
 EXPORT_SYMBOL(pm_power_off);
 
 
+#if XTENSA_HAVE_COPROCESSORS
+
+void coprocessor_release_all(struct thread_info *ti)
+{
+	unsigned long cpenable;
+	int i;
+
+	/* Make sure we don't switch tasks during this operation. */
+
+	preempt_disable();
+
+	/* Walk through all cp owners and release it for the requested one. */
+
+	cpenable = ti->cpenable;
+
+	for (i = 0; i < XCHAL_CP_MAX; i++) {
+		if (coprocessor_owner[i] == ti) {
+			coprocessor_owner[i] = 0;
+			cpenable &= ~(1 << i);
+		}
+	}
+
+	ti->cpenable = cpenable;
+	coprocessor_clear_cpenable();
+
+	preempt_enable();
+}
+
+void coprocessor_flush_all(struct thread_info *ti)
+{
+	unsigned long cpenable;
+	int i;
+
+	preempt_disable();
+
+	cpenable = ti->cpenable;
+
+	for (i = 0; i < XCHAL_CP_MAX; i++) {
+		if ((cpenable & 1) != 0 && coprocessor_owner[i] == ti)
+			coprocessor_flush(ti, i);
+		cpenable >>= 1;
+	}
+
+	preempt_enable();
+}
+
+#endif
+
+
 /*
  * Powermanagement idle function, if any is provided by the platform.
  */
@@ -71,15 +120,36 @@ void cpu_idle(void)
 }
 
 /*
- * Free current thread data structures etc..
+ * This is called when the thread calls exit().
  */
-
 void exit_thread(void)
 {
+#if XTENSA_HAVE_COPROCESSORS
+	coprocessor_release_all(current_thread_info());
+#endif
 }
 
+/*
+ * Flush thread state. This is called when a thread does an execve()
+ * Note that we flush coprocessor registers for the case execve fails.
+ */
 void flush_thread(void)
 {
+#if XTENSA_HAVE_COPROCESSORS
+	struct thread_info *ti = current_thread_info();
+	coprocessor_flush_all(ti);
+	coprocessor_release_all(ti);
+#endif
+}
+
+/*
+ * This is called before the thread is copied. 
+ */
+void prepare_to_copy(struct task_struct *tsk)
+{
+#if XTENSA_HAVE_COPROCESSORS
+	coprocessor_flush_all(task_thread_info(tsk));
+#endif
 }
 
 /*
@@ -107,6 +177,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
                 struct task_struct * p, struct pt_regs * regs)
 {
 	struct pt_regs *childregs;
+	struct thread_info *ti;
 	unsigned long tos;
 	int user_mode = user_mode(regs);
 
@@ -128,13 +199,14 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	p->set_child_tid = p->clear_child_tid = NULL;
 	p->thread.ra = MAKE_RA_FOR_CALL((unsigned long)ret_from_fork, 0x1);
 	p->thread.sp = (unsigned long)childregs;
+
 	if (user_mode(regs)) {
 
 		int len = childregs->wmask & ~0xf;
 		childregs->areg[1] = usp;
 		memcpy(&childregs->areg[XCHAL_NUM_AREGS - len/4],
 		       &regs->areg[XCHAL_NUM_AREGS - len/4], len);
-
+// FIXME: we need to set THREADPTR in thread_info...
 		if (clone_flags & CLONE_SETTLS)
 			childregs->areg[2] = childregs->areg[6];
 
@@ -142,6 +214,12 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 		/* In kernel space, we start a new thread with a new stack. */
 		childregs->wmask = 1;
 	}
+
+#if (XTENSA_HAVE_COPROCESSORS || XTENSA_HAVE_IO_PORTS)
+	ti = task_thread_info(p);
+	ti->cpenable = 0;
+#endif
+
 	return 0;
 }
 
@@ -179,10 +257,6 @@ unsigned long get_wchan(struct task_struct *p)
 }
 
 /*
- * do_copy_regs() gathers information from 'struct pt_regs' and
- * 'current->thread.areg[]' to fill in the xtensa_gregset_t
- * structure.
- *
  * xtensa_gregset_t and 'struct pt_regs' are vastly different formats
  * of processor registers.  Besides different ordering,
  * xtensa_gregset_t contains non-live register information that
@@ -191,9 +265,20 @@ unsigned long get_wchan(struct task_struct *p)
  *
  */
 
-void do_copy_regs (xtensa_gregset_t *elfregs, struct pt_regs *regs,
-		   struct task_struct *tsk)
+void xtensa_elf_core_copy_regs (xtensa_gregset_t *elfregs, struct pt_regs *regs)
 {
+	unsigned long wb, ws, wm;
+	int live, last;
+
+	wb = regs->windowbase;
+	ws = regs->windowstart;
+	wm = regs->wmask;
+	ws = ((ws >> wb) | (ws << (WSBITS - wb))) & ((1 << WSBITS) - 1);
+
+	/* Don't leak any random bits. */
+
+	memset(elfregs, 0, sizeof (elfregs));
+
 	/* Note:  PS.EXCM is not set while user task is running; its
 	 * being set in regs->ps is for exception handling convenience.
 	 */
@@ -204,158 +289,17 @@ void do_copy_regs (xtensa_gregset_t *elfregs, struct pt_regs *regs,
 	elfregs->lend		= regs->lend;
 	elfregs->lcount		= regs->lcount;
 	elfregs->sar		= regs->sar;
+	elfregs->windowstart	= ws;
 
-	memcpy (elfregs->a, regs->areg, sizeof(elfregs->a));
+	live = (wm & 2) ? 4 : (wm & 4) ? 8 : (wm & 8) ? 12 : 16;
+	last = XCHAL_NUM_AREGS - (wm >> 4) * 4;
+	memcpy(elfregs->a, regs->areg, live * 4);
+	memcpy(elfregs->a + last, regs->areg + last, (wm >> 4) * 16);
 }
 
-void xtensa_elf_core_copy_regs (xtensa_gregset_t *elfregs, struct pt_regs *regs)
+int dump_fpu(void)
 {
-	do_copy_regs ((xtensa_gregset_t *)elfregs, regs, current);
-}
-
-
-/* The inverse of do_copy_regs().  No error or sanity checking. */
-
-void do_restore_regs (xtensa_gregset_t *elfregs, struct pt_regs *regs,
-		      struct task_struct *tsk)
-{
-	const unsigned long ps_mask = PS_CALLINC_MASK | PS_OWB_MASK;
-	unsigned long ps;
-
-	/* Note:  PS.EXCM is not set while user task is running; it
-	 * needs to be set in regs->ps is for exception handling convenience.
-	 */
-
-	ps = (regs->ps & ~ps_mask) | (elfregs->ps & ps_mask) | (1<<PS_EXCM_BIT);
-	regs->ps		= ps;
-	regs->pc		= elfregs->pc;
-	regs->lbeg		= elfregs->lbeg;
-	regs->lend		= elfregs->lend;
-	regs->lcount		= elfregs->lcount;
-	regs->sar		= elfregs->sar;
-
-	memcpy (regs->areg, elfregs->a, sizeof(regs->areg));
-}
-
-/*
- * do_save_fpregs() gathers information from 'struct pt_regs' and
- * 'current->thread' to fill in the elf_fpregset_t structure.
- *
- * Core files and ptrace use elf_fpregset_t.
- */
-
-void do_save_fpregs (elf_fpregset_t *fpregs, struct pt_regs *regs,
-		     struct task_struct *tsk)
-{
-#if XCHAL_HAVE_CP
-
-	extern unsigned char	_xtensa_reginfo_tables[];
-	extern unsigned		_xtensa_reginfo_table_size;
-	int i;
-	unsigned long flags;
-
-	/* Before dumping coprocessor state from memory,
-	 * ensure any live coprocessor contents for this
-	 * task are first saved to memory:
-	 */
-	local_irq_save(flags);
-
-	for (i = 0; i < XCHAL_CP_MAX; i++) {
-		if (tsk == coprocessor_info[i].owner) {
-			enable_coprocessor(i);
-			save_coprocessor_registers(
-			    tsk->thread.cp_save+coprocessor_info[i].offset,i);
-			disable_coprocessor(i);
-		}
-	}
-
-	local_irq_restore(flags);
-
-	/* Now dump coprocessor & extra state: */
-	memcpy((unsigned char*)fpregs,
-		_xtensa_reginfo_tables, _xtensa_reginfo_table_size);
-	memcpy((unsigned char*)fpregs + _xtensa_reginfo_table_size,
-		tsk->thread.cp_save, XTENSA_CP_EXTRA_SIZE);
-#endif
-}
-
-/*
- * The inverse of do_save_fpregs().
- * Copies coprocessor and extra state from fpregs into regs and tsk->thread.
- * Returns 0 on success, non-zero if layout doesn't match.
- */
-
-int  do_restore_fpregs (elf_fpregset_t *fpregs, struct pt_regs *regs,
-		        struct task_struct *tsk)
-{
-#if XCHAL_HAVE_CP
-
-	extern unsigned char	_xtensa_reginfo_tables[];
-	extern unsigned		_xtensa_reginfo_table_size;
-	int i;
-	unsigned long flags;
-
-	/* Make sure save area layouts match.
-	 * FIXME:  in the future we could allow restoring from
-	 * a different layout of the same registers, by comparing
-	 * fpregs' table with _xtensa_reginfo_tables and matching
-	 * entries and copying registers one at a time.
-	 * Not too sure yet whether that's very useful.
-	 */
-
-	if( memcmp((unsigned char*)fpregs,
-		_xtensa_reginfo_tables, _xtensa_reginfo_table_size) ) {
-	    return -1;
-	}
-
-	/* Before restoring coprocessor state from memory,
-	 * ensure any live coprocessor contents for this
-	 * task are first invalidated.
-	 */
-
-	local_irq_save(flags);
-
-	for (i = 0; i < XCHAL_CP_MAX; i++) {
-		if (tsk == coprocessor_info[i].owner) {
-			enable_coprocessor(i);
-			save_coprocessor_registers(
-			    tsk->thread.cp_save+coprocessor_info[i].offset,i);
-			coprocessor_info[i].owner = 0;
-			disable_coprocessor(i);
-		}
-	}
-
-	local_irq_restore(flags);
-
-	/*  Now restore coprocessor & extra state:  */
-
-	memcpy(tsk->thread.cp_save,
-		(unsigned char*)fpregs + _xtensa_reginfo_table_size,
-		XTENSA_CP_EXTRA_SIZE);
-#endif
 	return 0;
-}
-/*
- * Fill in the CP structure for a core dump for a particular task.
- */
-
-int
-dump_task_fpu(struct pt_regs *regs, struct task_struct *task, elf_fpregset_t *r)
-{
-	return 0;	/* no coprocessors active on this processor */
-}
-
-/*
- * Fill in the CP structure for a core dump.
- * This includes any FPU coprocessor.
- * Here, we dump all coprocessors, and other ("extra") custom state.
- *
- * This function is called by elf_core_dump() in fs/binfmt_elf.c
- * (in which case 'regs' comes from calls to do_coredump, see signals.c).
- */
-int  dump_fpu(struct pt_regs *regs, elf_fpregset_t *r)
-{
-	return dump_task_fpu(regs, current, r);
 }
 
 asmlinkage
@@ -370,8 +314,8 @@ long xtensa_clone(unsigned long clone_flags, unsigned long newsp,
 }
 
 /*
- *  * xtensa_execve() executes a new program.
- *   */
+ * xtensa_execve() executes a new program.
+ */
 
 asmlinkage
 long xtensa_execve(char __user *name, char __user * __user *argv,
@@ -386,7 +330,6 @@ long xtensa_execve(char __user *name, char __user * __user *argv,
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
-	// FIXME: release coprocessor??
 	error = do_execve(filename, argv, envp, regs);
 	if (error == 0) {
 		task_lock(current);
