@@ -1533,6 +1533,43 @@ int snd_hda_create_spdif_out_ctls(struct hda_codec *codec, hda_nid_t nid)
 }
 
 /*
+ * SPDIF sharing with analog output
+ */
+static int spdif_share_sw_get(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_multi_out *mout = snd_kcontrol_chip(kcontrol);
+	ucontrol->value.integer.value[0] = mout->share_spdif;
+	return 0;
+}
+
+static int spdif_share_sw_put(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_multi_out *mout = snd_kcontrol_chip(kcontrol);
+	mout->share_spdif = !!ucontrol->value.integer.value[0];
+	return 0;
+}
+
+static struct snd_kcontrol_new spdif_share_sw = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "IEC958 Default PCM Playback Switch",
+	.info = snd_ctl_boolean_mono_info,
+	.get = spdif_share_sw_get,
+	.put = spdif_share_sw_put,
+};
+
+int snd_hda_create_spdif_share_sw(struct hda_codec *codec,
+				  struct hda_multi_out *mout)
+{
+	if (!mout->dig_out_nid)
+		return 0;
+	/* ATTENTION: here mout is passed as private_data, instead of codec */
+	return snd_ctl_add(codec->bus->card,
+			   snd_ctl_new1(&spdif_share_sw, mout));
+}
+
+/*
  * SPDIF input
  */
 
@@ -2557,9 +2594,36 @@ int snd_hda_multi_out_dig_close(struct hda_codec *codec,
  */
 int snd_hda_multi_out_analog_open(struct hda_codec *codec,
 				  struct hda_multi_out *mout,
-				  struct snd_pcm_substream *substream)
+				  struct snd_pcm_substream *substream,
+				  struct hda_pcm_stream *hinfo)
 {
-	substream->runtime->hw.channels_max = mout->max_channels;
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	runtime->hw.channels_max = mout->max_channels;
+	if (mout->dig_out_nid) {
+		if (!mout->analog_rates) {
+			mout->analog_rates = hinfo->rates;
+			mout->analog_formats = hinfo->formats;
+			mout->analog_maxbps = hinfo->maxbps;
+		} else {
+			runtime->hw.rates = mout->analog_rates;
+			runtime->hw.formats = mout->analog_formats;
+			hinfo->maxbps = mout->analog_maxbps;
+		}
+		if (!mout->spdif_rates) {
+			snd_hda_query_supported_pcm(codec, mout->dig_out_nid,
+						    &mout->spdif_rates,
+						    &mout->spdif_formats,
+						    &mout->spdif_maxbps);
+		}
+		mutex_lock(&codec->spdif_mutex);
+		if (mout->share_spdif) {
+			runtime->hw.rates &= mout->spdif_rates;
+			runtime->hw.formats &= mout->spdif_formats;
+			if (mout->spdif_maxbps < hinfo->maxbps)
+				hinfo->maxbps = mout->spdif_maxbps;
+		}
+	}
+	mutex_unlock(&codec->spdif_mutex);
 	return snd_pcm_hw_constraint_step(substream->runtime, 0,
 					  SNDRV_PCM_HW_PARAM_CHANNELS, 2);
 }
@@ -2579,7 +2643,8 @@ int snd_hda_multi_out_analog_prepare(struct hda_codec *codec,
 	int i;
 
 	mutex_lock(&codec->spdif_mutex);
-	if (mout->dig_out_nid && mout->dig_out_used != HDA_DIG_EXCLUSIVE) {
+	if (mout->dig_out_nid && mout->share_spdif &&
+	    mout->dig_out_used != HDA_DIG_EXCLUSIVE) {
 		if (chs == 2 &&
 		    snd_hda_is_supported_format(codec, mout->dig_out_nid,
 						format) &&

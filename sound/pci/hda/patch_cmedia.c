@@ -329,6 +329,11 @@ static int cmi9880_build_controls(struct hda_codec *codec)
 		err = snd_hda_create_spdif_out_ctls(codec, spec->multiout.dig_out_nid);
 		if (err < 0)
 			return err;
+		err = snd_hda_create_spdif_share_sw(codec,
+						    &spec->multiout);
+		if (err < 0)
+			return err;
+		spec->multiout.share_spdif = 1;
 	}
 	if (spec->dig_in_nid) {
 		err = snd_hda_create_spdif_in_ctls(codec, spec->dig_in_nid);
@@ -432,7 +437,8 @@ static int cmi9880_playback_pcm_open(struct hda_pcm_stream *hinfo,
 				     struct snd_pcm_substream *substream)
 {
 	struct cmi_spec *spec = codec->spec;
-	return snd_hda_multi_out_analog_open(codec, &spec->multiout, substream);
+	return snd_hda_multi_out_analog_open(codec, &spec->multiout, substream,
+					     hinfo);
 }
 
 static int cmi9880_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
