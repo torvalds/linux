@@ -3561,6 +3561,8 @@ P:	Christoph Lameter
 M:	clameter@sgi.com
 P:	Pekka Enberg
 M:	penberg@cs.helsinki.fi
+P:	Matt Mackall
+M:	mpm@selenic.com
 L:	linux-mm@kvack.org
 S:	Maintained
 
