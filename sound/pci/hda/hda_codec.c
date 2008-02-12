@@ -2821,6 +2821,30 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 		}
 	}
 
+	/* FIX-UP:
+	 * If no line-out is defined but multiple HPs are found,
+	 * some of them might be the real line-outs.
+	 */
+	if (!cfg->line_outs && cfg->hp_outs > 1) {
+		int i = 0;
+		while (i < cfg->hp_outs) {
+			/* The real HPs should have the sequence 0x0f */
+			if ((sequences_hp[i] & 0x0f) == 0x0f) {
+				i++;
+				continue;
+			}
+			/* Move it to the line-out table */
+			cfg->line_out_pins[cfg->line_outs] = cfg->hp_pins[i];
+			sequences_line_out[cfg->line_outs] = sequences_hp[i];
+			cfg->line_outs++;
+			cfg->hp_outs--;
+			memmove(cfg->hp_pins + i, cfg->hp_pins + i + 1,
+				sizeof(cfg->hp_pins[0]) * (cfg->hp_outs - i));
+			memmove(sequences_hp + i - 1, sequences_hp + i,
+				sizeof(sequences_hp[0]) * (cfg->hp_outs - i));
+		}
+	}
+
 	/* sort by sequence */
 	sort_pins_by_sequence(cfg->line_out_pins, sequences_line_out,
 			      cfg->line_outs);
