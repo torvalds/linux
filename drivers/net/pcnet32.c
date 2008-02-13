@@ -174,7 +174,11 @@ static int homepna[MAX_UNITS];
 #define RX_RING_SIZE		(1 << (PCNET32_LOG_RX_BUFFERS))
 #define RX_MAX_RING_SIZE	(1 << (PCNET32_LOG_MAX_RX_BUFFERS))
 
-#define PKT_BUF_SZ		1544
+#define PKT_BUF_SKB		1544
+/* actual buffer length after being aligned */
+#define PKT_BUF_SIZE		(PKT_BUF_SKB - NET_IP_ALIGN)
+/* chip wants twos complement of the (aligned) buffer length */
+#define NEG_BUF_SIZE		(NET_IP_ALIGN - PKT_BUF_SKB)
 
 /* Offsets from base I/O address. */
 #define PCNET32_WIO_RDP		0x10
@@ -604,7 +608,7 @@ static void pcnet32_realloc_rx_ring(struct net_device *dev,
 	/* now allocate any new buffers needed */
 	for (; new < size; new++ ) {
 		struct sk_buff *rx_skbuff;
-		new_skb_list[new] = dev_alloc_skb(PKT_BUF_SZ);
+		new_skb_list[new] = dev_alloc_skb(PKT_BUF_SKB);
 		if (!(rx_skbuff = new_skb_list[new])) {
 			/* keep the original lists and buffers */
 			if (netif_msg_drv(lp))
@@ -613,20 +617,20 @@ static void pcnet32_realloc_rx_ring(struct net_device *dev,
 				       dev->name);
 			goto free_all_new;
 		}
-		skb_reserve(rx_skbuff, 2);
+		skb_reserve(rx_skbuff, NET_IP_ALIGN);
 
 		new_dma_addr_list[new] =
 			    pci_map_single(lp->pci_dev, rx_skbuff->data,
-					   PKT_BUF_SZ - 2, PCI_DMA_FROMDEVICE);
+					   PKT_BUF_SIZE, PCI_DMA_FROMDEVICE);
 		new_rx_ring[new].base = cpu_to_le32(new_dma_addr_list[new]);
-		new_rx_ring[new].buf_length = cpu_to_le16(2 - PKT_BUF_SZ);
+		new_rx_ring[new].buf_length = cpu_to_le16(NEG_BUF_SIZE);
 		new_rx_ring[new].status = cpu_to_le16(0x8000);
 	}
 	/* and free any unneeded buffers */
 	for (; new < lp->rx_ring_size; new++) {
 		if (lp->rx_skbuff[new]) {
 			pci_unmap_single(lp->pci_dev, lp->rx_dma_addr[new],
-					 PKT_BUF_SZ - 2, PCI_DMA_FROMDEVICE);
+					 PKT_BUF_SIZE, PCI_DMA_FROMDEVICE);
 			dev_kfree_skb(lp->rx_skbuff[new]);
 		}
 	}
@@ -651,7 +655,7 @@ static void pcnet32_realloc_rx_ring(struct net_device *dev,
 	for (; --new >= lp->rx_ring_size; ) {
 		if (new_skb_list[new]) {
 			pci_unmap_single(lp->pci_dev, new_dma_addr_list[new],
-					 PKT_BUF_SZ - 2, PCI_DMA_FROMDEVICE);
+					 PKT_BUF_SIZE, PCI_DMA_FROMDEVICE);
 			dev_kfree_skb(new_skb_list[new]);
 		}
 	}
@@ -678,7 +682,7 @@ static void pcnet32_purge_rx_ring(struct net_device *dev)
 		wmb();		/* Make sure adapter sees owner change */
 		if (lp->rx_skbuff[i]) {
 			pci_unmap_single(lp->pci_dev, lp->rx_dma_addr[i],
-					 PKT_BUF_SZ - 2, PCI_DMA_FROMDEVICE);
+					 PKT_BUF_SIZE, PCI_DMA_FROMDEVICE);
 			dev_kfree_skb_any(lp->rx_skbuff[i]);
 		}
 		lp->rx_skbuff[i] = NULL;
@@ -1201,7 +1205,7 @@ static void pcnet32_rx_entry(struct net_device *dev,
 	pkt_len = (le32_to_cpu(rxp->msg_length) & 0xfff) - 4;
 
 	/* Discard oversize frames. */
-	if (unlikely(pkt_len > PKT_BUF_SZ - 2)) {
+	if (unlikely(pkt_len > PKT_BUF_SIZE)) {
 		if (netif_msg_drv(lp))
 			printk(KERN_ERR "%s: Impossible packet size %d!\n",
 			       dev->name, pkt_len);
@@ -1218,26 +1222,26 @@ static void pcnet32_rx_entry(struct net_device *dev,
 	if (pkt_len > rx_copybreak) {
 		struct sk_buff *newskb;
 
-		if ((newskb = dev_alloc_skb(PKT_BUF_SZ))) {
-			skb_reserve(newskb, 2);
+		if ((newskb = dev_alloc_skb(PKT_BUF_SKB))) {
+			skb_reserve(newskb, NET_IP_ALIGN);
 			skb = lp->rx_skbuff[entry];
 			pci_unmap_single(lp->pci_dev,
 					 lp->rx_dma_addr[entry],
-					 PKT_BUF_SZ - 2,
+					 PKT_BUF_SIZE,
 					 PCI_DMA_FROMDEVICE);
 			skb_put(skb, pkt_len);
 			lp->rx_skbuff[entry] = newskb;
 			lp->rx_dma_addr[entry] =
 					    pci_map_single(lp->pci_dev,
 							   newskb->data,
-							   PKT_BUF_SZ - 2,
+							   PKT_BUF_SIZE,
 							   PCI_DMA_FROMDEVICE);
 			rxp->base = cpu_to_le32(lp->rx_dma_addr[entry]);
 			rx_in_place = 1;
 		} else
 			skb = NULL;
 	} else {
-		skb = dev_alloc_skb(pkt_len + 2);
+		skb = dev_alloc_skb(pkt_len + NET_IP_ALIGN);
 	}
 
 	if (skb == NULL) {
@@ -1250,7 +1254,7 @@ static void pcnet32_rx_entry(struct net_device *dev,
 	}
 	skb->dev = dev;
 	if (!rx_in_place) {
-		skb_reserve(skb, 2);	/* 16 byte align */
+		skb_reserve(skb, NET_IP_ALIGN);
 		skb_put(skb, pkt_len);	/* Make room */
 		pci_dma_sync_single_for_cpu(lp->pci_dev,
 					    lp->rx_dma_addr[entry],
@@ -1291,7 +1295,7 @@ static int pcnet32_rx(struct net_device *dev, int budget)
 		 * The docs say that the buffer length isn't touched, but Andrew
 		 * Boyd of QNX reports that some revs of the 79C965 clear it.
 		 */
-		rxp->buf_length = cpu_to_le16(2 - PKT_BUF_SZ);
+		rxp->buf_length = cpu_to_le16(NEG_BUF_SIZE);
 		wmb();	/* Make sure owner changes after others are visible */
 		rxp->status = cpu_to_le16(0x8000);
 		entry = (++lp->cur_rx) & lp->rx_mod_mask;
@@ -1774,8 +1778,8 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 		memset(dev->dev_addr, 0, sizeof(dev->dev_addr));
 
 	if (pcnet32_debug & NETIF_MSG_PROBE) {
-		for (i = 0; i < 6; i++)
-			printk(" %2.2x", dev->dev_addr[i]);
+		DECLARE_MAC_BUF(mac);
+		printk(" %s", print_mac(mac, dev->dev_addr));
 
 		/* Version 0x2623 and 0x2624 */
 		if (((chip_version + 1) & 0xfffe) == 0x2624) {
@@ -2396,7 +2400,7 @@ static int pcnet32_init_ring(struct net_device *dev)
 		if (rx_skbuff == NULL) {
 			if (!
 			    (rx_skbuff = lp->rx_skbuff[i] =
-			     dev_alloc_skb(PKT_BUF_SZ))) {
+			     dev_alloc_skb(PKT_BUF_SKB))) {
 				/* there is not much, we can do at this point */
 				if (netif_msg_drv(lp))
 					printk(KERN_ERR
@@ -2404,16 +2408,16 @@ static int pcnet32_init_ring(struct net_device *dev)
 					       dev->name);
 				return -1;
 			}
-			skb_reserve(rx_skbuff, 2);
+			skb_reserve(rx_skbuff, NET_IP_ALIGN);
 		}
 
 		rmb();
 		if (lp->rx_dma_addr[i] == 0)
 			lp->rx_dma_addr[i] =
 			    pci_map_single(lp->pci_dev, rx_skbuff->data,
-					   PKT_BUF_SZ - 2, PCI_DMA_FROMDEVICE);
+					   PKT_BUF_SIZE, PCI_DMA_FROMDEVICE);
 		lp->rx_ring[i].base = cpu_to_le32(lp->rx_dma_addr[i]);
-		lp->rx_ring[i].buf_length = cpu_to_le16(2 - PKT_BUF_SZ);
+		lp->rx_ring[i].buf_length = cpu_to_le16(NEG_BUF_SIZE);
 		wmb();		/* Make sure owner changes after all others are visible */
 		lp->rx_ring[i].status = cpu_to_le16(0x8000);
 	}
