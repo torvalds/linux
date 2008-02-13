@@ -1461,10 +1461,6 @@ and is between 256 and 4096 characters. It is defined in the file
 		nomsi		[MSI] If the PCI_MSI kernel config parameter is
 				enabled, this kernel boot option can be used to
 				disable the use of MSI interrupts system-wide.
-		nosort		[X86-32] Don't sort PCI devices according to
-				order given by the PCI BIOS. This sorting is
-				done to get a device order compatible with
-				older kernels.
 		biosirq		[X86-32] Use PCI BIOS calls to get the interrupt
 				routing table. These calls are known to be buggy
 				on several machines and they hang the machine

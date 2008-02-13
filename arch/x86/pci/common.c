@@ -427,10 +427,6 @@ static int __init pcibios_init(void)
 
 	if (pci_bf_sort >= pci_force_bf)
 		pci_sort_breadthfirst();
-#ifdef CONFIG_PCI_BIOS
-	if ((pci_probe & PCI_BIOS_SORT) && !(pci_probe & PCI_NO_SORT))
-		pcibios_sort();
-#endif
 	return 0;
 }
 
@@ -454,9 +450,6 @@ char * __devinit  pcibios_setup(char *str)
 		return NULL;
 	} else if (!strcmp(str, "nobios")) {
 		pci_probe &= ~PCI_PROBE_BIOS;
-		return NULL;
-	} else if (!strcmp(str, "nosort")) {
-		pci_probe |= PCI_NO_SORT;
 		return NULL;
 	} else if (!strcmp(str, "biosirq")) {
 		pci_probe |= PCI_BIOS_IRQ_SCAN;
