@@ -2,7 +2,7 @@
 	vt8231.c - Part of lm_sensors, Linux kernel modules
 				for hardware monitoring
 
-	Copyright (c) 2005 Roger Lucas <roger@planbit.co.uk>
+	Copyright (c) 2005 Roger Lucas <vt8231@hiddenengine.co.uk>
 	Copyright (c) 2002 Mark D. Studebaker <mdsxyz123@yahoo.com>
 			   Aaron M. Marsh <amarsh@sdf.lonestar.org>
 
@@ -999,7 +999,7 @@ static void __exit sm_vt8231_exit(void)
 	}
 }
 
-MODULE_AUTHOR("Roger Lucas <roger@planbit.co.uk>");
+MODULE_AUTHOR("Roger Lucas <vt8231@hiddenengine.co.uk>");
 MODULE_DESCRIPTION("VT8231 sensors");
 MODULE_LICENSE("GPL");
 
