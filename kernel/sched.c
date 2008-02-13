@@ -232,10 +232,10 @@ static struct cfs_rq *init_cfs_rq_p[NR_CPUS];
 static struct sched_rt_entity *init_sched_rt_entity_p[NR_CPUS];
 static struct rt_rq *init_rt_rq_p[NR_CPUS];
 
-/* task_group_mutex serializes add/remove of task groups and also changes to
+/* task_group_lock serializes add/remove of task groups and also changes to
  * a task group's cpu shares.
  */
-static DEFINE_MUTEX(task_group_mutex);
+static DEFINE_SPINLOCK(task_group_lock);
 
 /* doms_cur_mutex serializes access to doms_cur[] array */
 static DEFINE_MUTEX(doms_cur_mutex);
@@ -295,16 +295,6 @@ static inline void set_task_rq(struct task_struct *p, unsigned int cpu)
 	p->rt.parent = task_group(p)->rt_se[cpu];
 }
 
-static inline void lock_task_group_list(void)
-{
-	mutex_lock(&task_group_mutex);
-}
-
-static inline void unlock_task_group_list(void)
-{
-	mutex_unlock(&task_group_mutex);
-}
-
 static inline void lock_doms_cur(void)
 {
 	mutex_lock(&doms_cur_mutex);
@@ -318,8 +308,6 @@ static inline void unlock_doms_cur(void)
 #else
 
 static inline void set_task_rq(struct task_struct *p, unsigned int cpu) { }
-static inline void lock_task_group_list(void) { }
-static inline void unlock_task_group_list(void) { }
 static inline void lock_doms_cur(void) { }
 static inline void unlock_doms_cur(void) { }
 
@@ -7571,6 +7559,7 @@ struct task_group *sched_create_group(void)
 	struct rt_rq *rt_rq;
 	struct sched_rt_entity *rt_se;
 	struct rq *rq;
+	unsigned long flags;
 	int i;
 
 	tg = kzalloc(sizeof(*tg), GFP_KERNEL);
@@ -7620,7 +7609,7 @@ struct task_group *sched_create_group(void)
 		init_tg_rt_entry(rq, tg, rt_rq, rt_se, i, 0);
 	}
 
-	lock_task_group_list();
+	spin_lock_irqsave(&task_group_lock, flags);
 	for_each_possible_cpu(i) {
 		rq = cpu_rq(i);
 		cfs_rq = tg->cfs_rq[i];
@@ -7629,7 +7618,7 @@ struct task_group *sched_create_group(void)
 		list_add_rcu(&rt_rq->leaf_rt_rq_list, &rq->leaf_rt_rq_list);
 	}
 	list_add_rcu(&tg->list, &task_groups);
-	unlock_task_group_list();
+	spin_unlock_irqrestore(&task_group_lock, flags);
 
 	return tg;
 
@@ -7650,9 +7639,10 @@ void sched_destroy_group(struct task_group *tg)
 {
 	struct cfs_rq *cfs_rq = NULL;
 	struct rt_rq *rt_rq = NULL;
+	unsigned long flags;
 	int i;
 
-	lock_task_group_list();
+	spin_lock_irqsave(&task_group_lock, flags);
 	for_each_possible_cpu(i) {
 		cfs_rq = tg->cfs_rq[i];
 		list_del_rcu(&cfs_rq->leaf_cfs_rq_list);
@@ -7660,7 +7650,7 @@ void sched_destroy_group(struct task_group *tg)
 		list_del_rcu(&rt_rq->leaf_rt_rq_list);
 	}
 	list_del_rcu(&tg->list);
-	unlock_task_group_list();
+	spin_unlock_irqrestore(&task_group_lock, flags);
 
 	BUG_ON(!cfs_rq);
 
@@ -7728,13 +7718,16 @@ static void set_se_shares(struct sched_entity *se, unsigned long shares)
 	}
 }
 
+static DEFINE_MUTEX(shares_mutex);
+
 int sched_group_set_shares(struct task_group *tg, unsigned long shares)
 {
 	int i;
 	struct cfs_rq *cfs_rq;
 	struct rq *rq;
+	unsigned long flags;
 
-	lock_task_group_list();
+	mutex_lock(&shares_mutex);
 	if (tg->shares == shares)
 		goto done;
 
@@ -7746,10 +7739,12 @@ int sched_group_set_shares(struct task_group *tg, unsigned long shares)
 	 * load_balance_fair) from referring to this group first,
 	 * by taking it off the rq->leaf_cfs_rq_list on each cpu.
 	 */
+	spin_lock_irqsave(&task_group_lock, flags);
 	for_each_possible_cpu(i) {
 		cfs_rq = tg->cfs_rq[i];
 		list_del_rcu(&cfs_rq->leaf_cfs_rq_list);
 	}
+	spin_unlock_irqrestore(&task_group_lock, flags);
 
 	/* wait for any ongoing reference to this group to finish */
 	synchronize_sched();
@@ -7769,13 +7764,15 @@ int sched_group_set_shares(struct task_group *tg, unsigned long shares)
 	 * Enable load balance activity on this group, by inserting it back on
 	 * each cpu's rq->leaf_cfs_rq_list.
 	 */
+	spin_lock_irqsave(&task_group_lock, flags);
 	for_each_possible_cpu(i) {
 		rq = cpu_rq(i);
 		cfs_rq = tg->cfs_rq[i];
 		list_add_rcu(&cfs_rq->leaf_cfs_rq_list, &rq->leaf_cfs_rq_list);
 	}
+	spin_unlock_irqrestore(&task_group_lock, flags);
 done:
-	unlock_task_group_list();
+	mutex_unlock(&shares_mutex);
 	return 0;
 }
 
