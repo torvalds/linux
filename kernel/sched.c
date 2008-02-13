@@ -362,6 +362,8 @@ struct rt_rq {
 	u64 rt_time;
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
+	unsigned long rt_nr_boosted;
+
 	struct rq *rq;
 	struct list_head leaf_rt_rq_list;
 	struct task_group *tg;
@@ -7112,6 +7114,7 @@ static void init_rt_rq(struct rt_rq *rt_rq, struct rq *rq)
 	rt_rq->rt_throttled = 0;
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
+	rt_rq->rt_nr_boosted = 0;
 	rt_rq->rq = rq;
 #endif
 }
