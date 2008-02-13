@@ -180,6 +180,7 @@ static void netlbl_unlabel_audit_addr4(struct audit_buffer *audit_buf,
 	}
 }
 
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 /**
  * netlbl_unlabel_audit_addr6 - Audit an IPv6 address
  * @audit_buf: audit buffer
@@ -213,6 +214,7 @@ static void netlbl_unlabel_audit_addr6(struct audit_buffer *audit_buf,
 		audit_log_format(audit_buf, " src_prefixlen=%d", mask_len);
 	}
 }
+#endif /* IPv6 */
 
 /*
  * Unlabeled Connection Hash Table Functions
