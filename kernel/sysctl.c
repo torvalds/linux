@@ -978,8 +978,8 @@ static struct ctl_table vm_table[] = {
 	{
 		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "nr_overcommit_hugepages",
-		.data		= &nr_overcommit_huge_pages,
-		.maxlen		= sizeof(nr_overcommit_huge_pages),
+		.data		= &sysctl_overcommit_huge_pages,
+		.maxlen		= sizeof(sysctl_overcommit_huge_pages),
 		.mode		= 0644,
 		.proc_handler	= &hugetlb_overcommit_handler,
 	},
