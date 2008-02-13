@@ -1586,7 +1586,7 @@ static inline int iwl3945_eeprom_acquire_semaphore(struct iwl3945_priv *priv)
  */
 int iwl3945_eeprom_init(struct iwl3945_priv *priv)
 {
-	__le16 *e = (__le16 *)&priv->eeprom;
+	u16 *e = (u16 *)&priv->eeprom;
 	u32 gp = iwl3945_read32(priv, CSR_EEPROM_GP);
 	u32 r;
 	int sz = sizeof(priv->eeprom);
@@ -1629,7 +1629,7 @@ int iwl3945_eeprom_init(struct iwl3945_priv *priv)
 			IWL_ERROR("Time out reading EEPROM[%d]", addr);
 			return -ETIMEDOUT;
 		}
-		e[addr / 2] = cpu_to_le16(r >> 16);
+		e[addr / 2] = le16_to_cpu((__force __le16)(r >> 16));
 	}
 
 	return 0;
