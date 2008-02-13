@@ -1100,6 +1100,24 @@ static int svm_get_msr(struct kvm_vcpu *vcpu, unsigned ecx, u64 *data)
 	case MSR_IA32_SYSENTER_ESP:
 		*data = svm->vmcb->save.sysenter_esp;
 		break;
+	/* Nobody will change the following 5 values in the VMCB so
+	   we can safely return them on rdmsr. They will always be 0
+	   until LBRV is implemented. */
+	case MSR_IA32_DEBUGCTLMSR:
+		*data = svm->vmcb->save.dbgctl;
+		break;
+	case MSR_IA32_LASTBRANCHFROMIP:
+		*data = svm->vmcb->save.br_from;
+		break;
+	case MSR_IA32_LASTBRANCHTOIP:
+		*data = svm->vmcb->save.br_to;
+		break;
+	case MSR_IA32_LASTINTFROMIP:
+		*data = svm->vmcb->save.last_excp_from;
+		break;
+	case MSR_IA32_LASTINTTOIP:
+		*data = svm->vmcb->save.last_excp_to;
+		break;
 	default:
 		return kvm_get_msr_common(vcpu, ecx, data);
 	}
@@ -1159,6 +1177,10 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, unsigned ecx, u64 data)
 		break;
 	case MSR_IA32_SYSENTER_ESP:
 		svm->vmcb->save.sysenter_esp = data;
+		break;
+	case MSR_IA32_DEBUGCTLMSR:
+		pr_unimpl(vcpu, "%s: MSR_IA32_DEBUGCTLMSR 0x%llx, nop\n",
+				__FUNCTION__, data);
 		break;
 	case MSR_K7_EVNTSEL0:
 	case MSR_K7_EVNTSEL1:
