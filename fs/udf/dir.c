@@ -43,13 +43,13 @@ static int do_udf_readdir(struct inode *dir, struct file *filp,
 	struct fileIdentDesc *fi = NULL;
 	struct fileIdentDesc cfi;
 	int block, iblock;
-	loff_t nf_pos = filp->f_pos - 1;
+	loff_t nf_pos = (filp->f_pos - 1) << 2;
 	int flen;
 	char fname[UDF_NAME_LEN];
 	char *nameptr;
 	uint16_t liu;
 	uint8_t lfi;
-	loff_t size = (udf_ext0_offset(dir) + dir->i_size) >> 2;
+	loff_t size = udf_ext0_offset(dir) + dir->i_size;
 	struct buffer_head *tmp, *bha[16];
 	kernel_lb_addr eloc;
 	uint32_t elen;
@@ -63,13 +63,13 @@ static int do_udf_readdir(struct inode *dir, struct file *filp,
 		return 0;
 
 	if (nf_pos == 0)
-		nf_pos = (udf_ext0_offset(dir) >> 2);
+		nf_pos = udf_ext0_offset(dir);
 
-	fibh.soffset = fibh.eoffset = (nf_pos & ((dir->i_sb->s_blocksize - 1) >> 2)) << 2;
+	fibh.soffset = fibh.eoffset = nf_pos & (dir->i_sb->s_blocksize - 1);
 	iinfo = UDF_I(dir);
 	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
 		fibh.sbh = fibh.ebh = NULL;
-	} else if (inode_bmap(dir, nf_pos >> (dir->i_sb->s_blocksize_bits - 2),
+	} else if (inode_bmap(dir, nf_pos >> dir->i_sb->s_blocksize_bits,
 			      &epos, &eloc, &elen, &offset) == (EXT_RECORDED_ALLOCATED >> 30)) {
 		block = udf_get_lb_pblock(dir->i_sb, eloc, offset);
 		if ((++offset << dir->i_sb->s_blocksize_bits) < elen) {
@@ -111,7 +111,7 @@ static int do_udf_readdir(struct inode *dir, struct file *filp,
 	}
 
 	while (nf_pos < size) {
-		filp->f_pos = nf_pos + 1;
+		filp->f_pos = (nf_pos >> 2) + 1;
 
 		fi = udf_fileident_read(dir, &nf_pos, &fibh, &cfi, &epos, &eloc,
 					&elen, &offset);
@@ -178,7 +178,7 @@ static int do_udf_readdir(struct inode *dir, struct file *filp,
 		}
 	} /* end while */
 
-	filp->f_pos = nf_pos + 1;
+	filp->f_pos = (nf_pos >> 2) + 1;
 
 	if (fibh.sbh != fibh.ebh)
 		brelse(fibh.ebh);
