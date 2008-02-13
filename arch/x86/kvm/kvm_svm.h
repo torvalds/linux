@@ -39,6 +39,8 @@ struct vcpu_svm {
 	unsigned long host_db_regs[NUM_DB_REGS];
 	unsigned long host_dr6;
 	unsigned long host_dr7;
+
+	u32 *msrpm;
 };
 
 #endif
