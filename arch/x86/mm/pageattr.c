@@ -870,8 +870,12 @@ void kernel_map_pages(struct page *page, int numpages, int enable)
 		return;
 
 	/*
-	 * The return value is ignored - the calls cannot fail,
-	 * large pages are disabled at boot time:
+	 * The return value is ignored as the calls cannot fail.
+	 * Large pages are kept enabled at boot time, and are
+	 * split up quickly with DEBUG_PAGEALLOC. If a splitup
+	 * fails here (due to temporary memory shortage) no damage
+	 * is done because we just keep the largepage intact up
+	 * to the next attempt when it will likely be split up:
 	 */
 	if (enable)
 		__set_pages_p(page, numpages);
