@@ -2760,6 +2760,7 @@ static int bttv_overlay(struct file *file, void *f, unsigned int on)
 	if (on) {
 		fh->ov.tvnorm = btv->tvnorm;
 		new = videobuf_pci_alloc(sizeof(*new));
+		new->crop = btv->crop[!!fh->do_crop].rect;
 		bttv_overlay_risc(btv, &fh->ov, fh->ovfmt, new);
 	} else {
 		new = NULL;
