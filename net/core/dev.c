@@ -1071,8 +1071,6 @@ int dev_close(struct net_device *dev)
 	 */
 	call_netdevice_notifiers(NETDEV_GOING_DOWN, dev);
 
-	dev_deactivate(dev);
-
 	clear_bit(__LINK_STATE_START, &dev->state);
 
 	/* Synchronize to scheduled poll. We cannot touch poll list,
@@ -1082,6 +1080,8 @@ int dev_close(struct net_device *dev)
 	 * napi_struct instances on this device.
 	 */
 	smp_mb__after_clear_bit(); /* Commit netif_running(). */
+
+	dev_deactivate(dev);
 
 	/*
 	 *	Call the device specific close. This cannot fail.
