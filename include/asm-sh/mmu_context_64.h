@@ -66,6 +66,9 @@ static inline void set_asid(unsigned long asid)
 		      : "=r" (sr), "=r" (pc) : "0" (sr));
 }
 
+/* arch/sh/kernel/cpu/sh5/entry.S */
+extern unsigned long switch_and_save_asid(unsigned long new_asid);
+
 /* No spare register to twiddle, so use a software cache */
 extern pgd_t *mmu_pdtp_cache;
 
