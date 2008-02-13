@@ -165,7 +165,7 @@ void dlm_print_lkb(struct dlm_lkb *lkb)
 	       lkb->lkb_grmode, lkb->lkb_wait_type, lkb->lkb_ast_type);
 }
 
-void dlm_print_rsb(struct dlm_rsb *r)
+static void dlm_print_rsb(struct dlm_rsb *r)
 {
 	printk(KERN_ERR "rsb: nodeid %d flags %lx first %x rlc %d name %s\n",
 	       r->res_nodeid, r->res_flags, r->res_first_lkid,
