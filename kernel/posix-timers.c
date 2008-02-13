@@ -767,9 +767,11 @@ common_timer_set(struct k_itimer *timr, int flags,
 	/* SIGEV_NONE timers are not queued ! See common_timer_get */
 	if (((timr->it_sigev_notify & ~SIGEV_THREAD_ID) == SIGEV_NONE)) {
 		/* Setup correct expiry time for relative timers */
-		if (mode == HRTIMER_MODE_REL)
-			timer->expires = ktime_add(timer->expires,
-						   timer->base->get_time());
+		if (mode == HRTIMER_MODE_REL) {
+			timer->expires =
+				ktime_add_safe(timer->expires,
+					       timer->base->get_time());
+		}
 		return 0;
 	}
 
