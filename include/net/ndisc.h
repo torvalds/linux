@@ -103,7 +103,6 @@ extern void			ndisc_send_redirect(struct sk_buff *skb,
 extern int			ndisc_mc_map(struct in6_addr *addr, char *buf, struct net_device *dev, int dir);
 
 
-struct rt6_info *		dflt_rt_lookup(void);
 
 /*
  *	IGMP
