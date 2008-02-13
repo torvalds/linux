@@ -3038,8 +3038,7 @@ int dev_unicast_sync(struct net_device *to, struct net_device *from)
 EXPORT_SYMBOL(dev_unicast_sync);
 
 /**
- *	dev_unicast_unsync - Remove synchronized addresses from the destination
- *			     device
+ *	dev_unicast_unsync - Remove synchronized addresses from the destination device
  *	@to: destination device
  *	@from: source device
  *

@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN"
+	"http://www.oasis-open.org/docbook/xml/4.1.2/docbookx.dtd" []>
+
+<book id="LinuxNetworking">
+ <bookinfo>
+  <title>Linux Networking and Network Devices APIs</title>
+
+  <legalnotice>
+   <para>
+     This documentation is free software; you can redistribute
+     it and/or modify it under the terms of the GNU General Public
+     License as published by the Free Software Foundation; either
+     version 2 of the License, or (at your option) any later
+     version.
+   </para>
+
+   <para>
+     This program is distributed in the hope that it will be
+     useful, but WITHOUT ANY WARRANTY; without even the implied
+     warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+     See the GNU General Public License for more details.
+   </para>
+
+   <para>
+     You should have received a copy of the GNU General Public
+     License along with this program; if not, write to the Free
+     Software Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+     MA 02111-1307 USA
+   </para>
+
+   <para>
+     For more details see the file COPYING in the source
+     distribution of Linux.
+   </para>
+  </legalnotice>
+ </bookinfo>
+
+<toc></toc>
+
+  <chapter id="netcore">
+     <title>Linux Networking</title>
+     <sect1><title>Networking Base Types</title>
+!Iinclude/linux/net.h
+     </sect1>
+     <sect1><title>Socket Buffer Functions</title>
+!Iinclude/linux/skbuff.h
+!Iinclude/net/sock.h
+!Enet/socket.c
+!Enet/core/skbuff.c
+!Enet/core/sock.c
+!Enet/core/datagram.c
+!Enet/core/stream.c
+     </sect1>
+     <sect1><title>Socket Filter</title>
+!Enet/core/filter.c
+     </sect1>
+     <sect1><title>Generic Network Statistics</title>
+!Iinclude/linux/gen_stats.h
+!Enet/core/gen_stats.c
+!Enet/core/gen_estimator.c
+     </sect1>
+     <sect1><title>SUN RPC subsystem</title>
+<!-- The !D functionality is not perfect, garbage has to be protected by comments
+!Dnet/sunrpc/sunrpc_syms.c
+-->
+!Enet/sunrpc/xdr.c
+!Enet/sunrpc/svc_xprt.c
+!Enet/sunrpc/xprt.c
+!Enet/sunrpc/sched.c
+!Enet/sunrpc/socklib.c
+!Enet/sunrpc/stats.c
+!Enet/sunrpc/rpc_pipe.c
+!Enet/sunrpc/rpcb_clnt.c
+!Enet/sunrpc/clnt.c
+     </sect1>
+  </chapter>
+
+  <chapter id="netdev">
+     <title>Network device support</title>
+     <sect1><title>Driver Support</title>
+!Enet/core/dev.c
+!Enet/ethernet/eth.c
+!Enet/sched/sch_generic.c
+!Iinclude/linux/etherdevice.h
+!Iinclude/linux/netdevice.h
+     </sect1>
+     <sect1><title>PHY Support</title>
+!Edrivers/net/phy/phy.c
+!Idrivers/net/phy/phy.c
+!Edrivers/net/phy/phy_device.c
+!Idrivers/net/phy/phy_device.c
+!Edrivers/net/phy/mdio_bus.c
+!Idrivers/net/phy/mdio_bus.c
+     </sect1>
+<!-- FIXME: Removed for now since no structured comments in source
+     <sect1><title>Wireless</title>
+X!Enet/core/wireless.c
+     </sect1>
+-->
+     <sect1><title>Synchronous PPP</title>
+!Edrivers/net/wan/syncppp.c
+     </sect1>
+  </chapter>
+
+</book>
