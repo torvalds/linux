@@ -227,12 +227,7 @@ static void ieee802_11_parse_elems(u8 *start, size_t len,
 
 static int ecw2cw(int ecw)
 {
-	int cw = 1;
-	while (ecw > 0) {
-		cw <<= 1;
-		ecw--;
-	}
-	return cw - 1;
+	return (1 << ecw) - 1;
 }
 
 static void ieee80211_sta_wmm_params(struct net_device *dev,
