@@ -124,7 +124,7 @@ enum dm_raid1_error {
 struct mirror {
 	struct mirror_set *ms;
 	atomic_t error_count;
-	uint32_t error_type;
+	unsigned long error_type;
 	struct dm_dev *dev;
 	sector_t offset;
 };
