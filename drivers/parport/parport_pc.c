@@ -1768,7 +1768,7 @@ static int parport_PS2_supported(struct parport *pb)
 }
 
 #ifdef CONFIG_PARPORT_PC_FIFO
-static int __devinit parport_ECP_supported(struct parport *pb)
+static int parport_ECP_supported(struct parport *pb)
 {
 	int i;
 	int config, configb;
@@ -1992,7 +1992,7 @@ static int parport_ECPEPP_supported(struct parport *pb)
 /* Don't bother probing for modes we know we won't use. */
 static int __devinit parport_PS2_supported(struct parport *pb) { return 0; }
 #ifdef CONFIG_PARPORT_PC_FIFO
-static int __devinit parport_ECP_supported(struct parport *pb) { return 0; }
+static int parport_ECP_supported(struct parport *pb) { return 0; }
 #endif
 static int __devinit parport_EPP_supported(struct parport *pb) { return 0; }
 static int __devinit parport_ECPEPP_supported(struct parport *pb){return 0;}
