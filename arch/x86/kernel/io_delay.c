@@ -13,7 +13,6 @@
 #include <asm/io.h>
 
 int io_delay_type __read_mostly = CONFIG_DEFAULT_IO_DELAY_TYPE;
-EXPORT_SYMBOL_GPL(io_delay_type);
 
 static int __initdata io_delay_override;
 
