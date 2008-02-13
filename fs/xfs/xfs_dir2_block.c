@@ -271,7 +271,7 @@ xfs_dir2_block_addname(
 		}
 		lfloglow = toidx + 1 - (be32_to_cpu(btp->stale) - 1);
 		lfloghigh -= be32_to_cpu(btp->stale) - 1;
-		be32_add(&btp->count, -(be32_to_cpu(btp->stale) - 1));
+		be32_add_cpu(&btp->count, -(be32_to_cpu(btp->stale) - 1));
 		xfs_dir2_data_make_free(tp, bp,
 			(xfs_dir2_data_aoff_t)((char *)blp - (char *)block),
 			(xfs_dir2_data_aoff_t)((be32_to_cpu(btp->stale) - 1) * sizeof(*blp)),
@@ -326,7 +326,7 @@ xfs_dir2_block_addname(
 		/*
 		 * Update the tail (entry count).
 		 */
-		be32_add(&btp->count, 1);
+		be32_add_cpu(&btp->count, 1);
 		/*
 		 * If we now need to rebuild the bestfree map, do so.
 		 * This needs to happen before the next call to use_free.
@@ -387,7 +387,7 @@ xfs_dir2_block_addname(
 			lfloglow = MIN(mid, lfloglow);
 			lfloghigh = MAX(highstale, lfloghigh);
 		}
-		be32_add(&btp->stale, -1);
+		be32_add_cpu(&btp->stale, -1);
 	}
 	/*
 	 * Point to the new data entry.
@@ -767,7 +767,7 @@ xfs_dir2_block_removename(
 	/*
 	 * Fix up the block tail.
 	 */
-	be32_add(&btp->stale, 1);
+	be32_add_cpu(&btp->stale, 1);
 	xfs_dir2_block_log_tail(tp, bp);
 	/*
 	 * Remove the leaf entry by marking it stale.

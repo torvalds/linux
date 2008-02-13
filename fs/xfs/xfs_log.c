@@ -1509,9 +1509,9 @@ xlog_sync(xlog_t		*log,
 		 * case, though.
 		 */
 		for (i = 0; i < split; i += BBSIZE) {
-			be32_add((__be32 *)dptr, 1);
+			be32_add_cpu((__be32 *)dptr, 1);
 			if (be32_to_cpu(*(__be32 *)dptr) == XLOG_HEADER_MAGIC_NUM)
-				be32_add((__be32 *)dptr, 1);
+				be32_add_cpu((__be32 *)dptr, 1);
 			dptr += BBSIZE;
 		}
 
@@ -1600,7 +1600,7 @@ xlog_state_finish_copy(xlog_t		*log,
 {
 	spin_lock(&log->l_icloglock);
 
-	be32_add(&iclog->ic_header.h_num_logops, record_cnt);
+	be32_add_cpu(&iclog->ic_header.h_num_logops, record_cnt);
 	iclog->ic_offset += copy_bytes;
 
 	spin_unlock(&log->l_icloglock);

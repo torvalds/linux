@@ -317,7 +317,7 @@ xfs_attr_shortform_add(xfs_da_args_t *args, int forkoff)
 	memcpy(sfe->nameval, args->name, args->namelen);
 	memcpy(&sfe->nameval[args->namelen], args->value, args->valuelen);
 	sf->hdr.count++;
-	be16_add(&sf->hdr.totsize, size);
+	be16_add_cpu(&sf->hdr.totsize, size);
 	xfs_trans_log_inode(args->trans, dp, XFS_ILOG_CORE | XFS_ILOG_ADATA);
 
 	xfs_sbversion_add_attr2(mp, args->trans);
@@ -363,7 +363,7 @@ xfs_attr_shortform_remove(xfs_da_args_t *args)
 	if (end != totsize)
 		memmove(&((char *)sf)[base], &((char *)sf)[end], totsize - end);
 	sf->hdr.count--;
-	be16_add(&sf->hdr.totsize, -size);
+	be16_add_cpu(&sf->hdr.totsize, -size);
 
 	/*
 	 * Fix up the start offset of the attribute fork
@@ -1133,7 +1133,7 @@ xfs_attr_leaf_add_work(xfs_dabuf_t *bp, xfs_da_args_t *args, int mapindex)
 		xfs_da_log_buf(args->trans, bp,
 		    XFS_DA_LOGRANGE(leaf, entry, tmp + sizeof(*entry)));
 	}
-	be16_add(&hdr->count, 1);
+	be16_add_cpu(&hdr->count, 1);
 
 	/*
 	 * Allocate space for the new string (at the end of the run).
@@ -1147,7 +1147,7 @@ xfs_attr_leaf_add_work(xfs_dabuf_t *bp, xfs_da_args_t *args, int mapindex)
 					 mp->m_sb.sb_blocksize, NULL));
 	ASSERT(be16_to_cpu(map->size) < XFS_LBSIZE(mp));
 	ASSERT((be16_to_cpu(map->size) & 0x3) == 0);
-	be16_add(&map->size,
+	be16_add_cpu(&map->size,
 		-xfs_attr_leaf_newentsize(args->namelen, args->valuelen,
 					  mp->m_sb.sb_blocksize, &tmp));
 	entry->nameidx = cpu_to_be16(be16_to_cpu(map->base) +
@@ -1214,12 +1214,12 @@ xfs_attr_leaf_add_work(xfs_dabuf_t *bp, xfs_da_args_t *args, int mapindex)
 	map = &hdr->freemap[0];
 	for (i = 0; i < XFS_ATTR_LEAF_MAPSIZE; map++, i++) {
 		if (be16_to_cpu(map->base) == tmp) {
-			be16_add(&map->base, sizeof(xfs_attr_leaf_entry_t));
-			be16_add(&map->size,
+			be16_add_cpu(&map->base, sizeof(xfs_attr_leaf_entry_t));
+			be16_add_cpu(&map->size,
 				 -((int)sizeof(xfs_attr_leaf_entry_t)));
 		}
 	}
-	be16_add(&hdr->usedbytes, xfs_attr_leaf_entsize(leaf, args->index));
+	be16_add_cpu(&hdr->usedbytes, xfs_attr_leaf_entsize(leaf, args->index));
 	xfs_da_log_buf(args->trans, bp,
 		XFS_DA_LOGRANGE(leaf, hdr, sizeof(*hdr)));
 	return(0);
@@ -1727,9 +1727,9 @@ xfs_attr_leaf_remove(xfs_dabuf_t *bp, xfs_da_args_t *args)
 		ASSERT(be16_to_cpu(map->base) < XFS_LBSIZE(mp));
 		ASSERT(be16_to_cpu(map->size) < XFS_LBSIZE(mp));
 		if (be16_to_cpu(map->base) == tablesize) {
-			be16_add(&map->base,
+			be16_add_cpu(&map->base,
 				 -((int)sizeof(xfs_attr_leaf_entry_t)));
-			be16_add(&map->size, sizeof(xfs_attr_leaf_entry_t));
+			be16_add_cpu(&map->size, sizeof(xfs_attr_leaf_entry_t));
 		}
 
 		if ((be16_to_cpu(map->base) + be16_to_cpu(map->size))
@@ -1751,19 +1751,19 @@ xfs_attr_leaf_remove(xfs_dabuf_t *bp, xfs_da_args_t *args)
 	if ((before >= 0) || (after >= 0)) {
 		if ((before >= 0) && (after >= 0)) {
 			map = &hdr->freemap[before];
-			be16_add(&map->size, entsize);
-			be16_add(&map->size,
+			be16_add_cpu(&map->size, entsize);
+			be16_add_cpu(&map->size,
 				 be16_to_cpu(hdr->freemap[after].size));
 			hdr->freemap[after].base = 0;
 			hdr->freemap[after].size = 0;
 		} else if (before >= 0) {
 			map = &hdr->freemap[before];
-			be16_add(&map->size, entsize);
+			be16_add_cpu(&map->size, entsize);
 		} else {
 			map = &hdr->freemap[after];
 			/* both on-disk, don't endian flip twice */
 			map->base = entry->nameidx;
-			be16_add(&map->size, entsize);
+			be16_add_cpu(&map->size, entsize);
 		}
 	} else {
 		/*
@@ -1788,7 +1788,7 @@ xfs_attr_leaf_remove(xfs_dabuf_t *bp, xfs_da_args_t *args)
 	 * Compress the remaining entries and zero out the removed stuff.
 	 */
 	memset(XFS_ATTR_LEAF_NAME(leaf, args->index), 0, entsize);
-	be16_add(&hdr->usedbytes, -entsize);
+	be16_add_cpu(&hdr->usedbytes, -entsize);
 	xfs_da_log_buf(args->trans, bp,
 	     XFS_DA_LOGRANGE(leaf, XFS_ATTR_LEAF_NAME(leaf, args->index),
 				   entsize));
@@ -1796,7 +1796,7 @@ xfs_attr_leaf_remove(xfs_dabuf_t *bp, xfs_da_args_t *args)
 	tmp = (be16_to_cpu(hdr->count) - args->index)
 					* sizeof(xfs_attr_leaf_entry_t);
 	memmove((char *)entry, (char *)(entry+1), tmp);
-	be16_add(&hdr->count, -1);
+	be16_add_cpu(&hdr->count, -1);
 	xfs_da_log_buf(args->trans, bp,
 	    XFS_DA_LOGRANGE(leaf, entry, tmp + sizeof(*entry)));
 	entry = &leaf->entries[be16_to_cpu(hdr->count)];
@@ -2182,15 +2182,15 @@ xfs_attr_leaf_moveents(xfs_attr_leafblock_t *leaf_s, int start_s,
 		 */
 		if (entry_s->flags & XFS_ATTR_INCOMPLETE) { /* skip partials? */
 			memset(XFS_ATTR_LEAF_NAME(leaf_s, start_s + i), 0, tmp);
-			be16_add(&hdr_s->usedbytes, -tmp);
-			be16_add(&hdr_s->count, -1);
+			be16_add_cpu(&hdr_s->usedbytes, -tmp);
+			be16_add_cpu(&hdr_s->count, -1);
 			entry_d--;	/* to compensate for ++ in loop hdr */
 			desti--;
 			if ((start_s + i) < offset)
 				result++;	/* insertion index adjustment */
 		} else {
 #endif /* GROT */
-			be16_add(&hdr_d->firstused, -tmp);
+			be16_add_cpu(&hdr_d->firstused, -tmp);
 			/* both on-disk, don't endian flip twice */
 			entry_d->hashval = entry_s->hashval;
 			/* both on-disk, don't endian flip twice */
@@ -2203,10 +2203,10 @@ xfs_attr_leaf_moveents(xfs_attr_leafblock_t *leaf_s, int start_s,
 			ASSERT(be16_to_cpu(entry_s->nameidx) + tmp
 							<= XFS_LBSIZE(mp));
 			memset(XFS_ATTR_LEAF_NAME(leaf_s, start_s + i), 0, tmp);
-			be16_add(&hdr_s->usedbytes, -tmp);
-			be16_add(&hdr_d->usedbytes, tmp);
-			be16_add(&hdr_s->count, -1);
-			be16_add(&hdr_d->count, 1);
+			be16_add_cpu(&hdr_s->usedbytes, -tmp);
+			be16_add_cpu(&hdr_d->usedbytes, tmp);
+			be16_add_cpu(&hdr_s->count, -1);
+			be16_add_cpu(&hdr_d->count, 1);
 			tmp = be16_to_cpu(hdr_d->count)
 						* sizeof(xfs_attr_leaf_entry_t)
 						+ sizeof(xfs_attr_leaf_hdr_t);
@@ -2247,7 +2247,7 @@ xfs_attr_leaf_moveents(xfs_attr_leafblock_t *leaf_s, int start_s,
 	 * Fill in the freemap information
 	 */
 	hdr_d->freemap[0].base = cpu_to_be16(sizeof(xfs_attr_leaf_hdr_t));
-	be16_add(&hdr_d->freemap[0].base, be16_to_cpu(hdr_d->count) *
+	be16_add_cpu(&hdr_d->freemap[0].base, be16_to_cpu(hdr_d->count) *
 			sizeof(xfs_attr_leaf_entry_t));
 	hdr_d->freemap[0].size = cpu_to_be16(be16_to_cpu(hdr_d->firstused)
 			      - be16_to_cpu(hdr_d->freemap[0].base));
