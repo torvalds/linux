@@ -7291,7 +7291,7 @@ void normalize_rt_tasks(void)
 	unsigned long flags;
 	struct rq *rq;
 
-	read_lock_irq(&tasklist_lock);
+	read_lock_irqsave(&tasklist_lock, flags);
 	do_each_thread(g, p) {
 		/*
 		 * Only normalize user tasks:
@@ -7317,16 +7317,16 @@ void normalize_rt_tasks(void)
 			continue;
 		}
 
-		spin_lock_irqsave(&p->pi_lock, flags);
+		spin_lock(&p->pi_lock);
 		rq = __task_rq_lock(p);
 
 		normalize_task(rq, p);
 
 		__task_rq_unlock(rq);
-		spin_unlock_irqrestore(&p->pi_lock, flags);
+		spin_unlock(&p->pi_lock);
 	} while_each_thread(g, p);
 
-	read_unlock_irq(&tasklist_lock);
+	read_unlock_irqrestore(&tasklist_lock, flags);
 }
 
 #endif /* CONFIG_MAGIC_SYSRQ */
