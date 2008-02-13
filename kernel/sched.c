@@ -7559,57 +7559,29 @@ static int load_balance_monitor(void *unused)
 }
 #endif	/* CONFIG_SMP */
 
-static void free_sched_group(struct task_group *tg)
+#ifdef CONFIG_FAIR_GROUP_SCHED
+static void free_fair_sched_group(struct task_group *tg)
 {
 	int i;
 
 	for_each_possible_cpu(i) {
-#ifdef CONFIG_FAIR_GROUP_SCHED
 		if (tg->cfs_rq)
 			kfree(tg->cfs_rq[i]);
 		if (tg->se)
 			kfree(tg->se[i]);
-#endif
-#ifdef CONFIG_RT_GROUP_SCHED
-		if (tg->rt_rq)
-			kfree(tg->rt_rq[i]);
-		if (tg->rt_se)
-			kfree(tg->rt_se[i]);
-#endif
 	}
 
-#ifdef CONFIG_FAIR_GROUP_SCHED
 	kfree(tg->cfs_rq);
 	kfree(tg->se);
-#endif
-#ifdef CONFIG_RT_GROUP_SCHED
-	kfree(tg->rt_rq);
-	kfree(tg->rt_se);
-#endif
-	kfree(tg);
 }
 
-/* allocate runqueue etc for a new task group */
-struct task_group *sched_create_group(void)
+static int alloc_fair_sched_group(struct task_group *tg)
 {
-	struct task_group *tg;
-#ifdef CONFIG_FAIR_GROUP_SCHED
 	struct cfs_rq *cfs_rq;
 	struct sched_entity *se;
-#endif
-#ifdef CONFIG_RT_GROUP_SCHED
-	struct rt_rq *rt_rq;
-	struct sched_rt_entity *rt_se;
-#endif
 	struct rq *rq;
-	unsigned long flags;
 	int i;
 
-	tg = kzalloc(sizeof(*tg), GFP_KERNEL);
-	if (!tg)
-		return ERR_PTR(-ENOMEM);
-
-#ifdef CONFIG_FAIR_GROUP_SCHED
 	tg->cfs_rq = kzalloc(sizeof(cfs_rq) * NR_CPUS, GFP_KERNEL);
 	if (!tg->cfs_rq)
 		goto err;
@@ -7618,23 +7590,10 @@ struct task_group *sched_create_group(void)
 		goto err;
 
 	tg->shares = NICE_0_LOAD;
-#endif
-
-#ifdef CONFIG_RT_GROUP_SCHED
-	tg->rt_rq = kzalloc(sizeof(rt_rq) * NR_CPUS, GFP_KERNEL);
-	if (!tg->rt_rq)
-		goto err;
-	tg->rt_se = kzalloc(sizeof(rt_se) * NR_CPUS, GFP_KERNEL);
-	if (!tg->rt_se)
-		goto err;
-
-	tg->rt_runtime = 0;
-#endif
 
 	for_each_possible_cpu(i) {
 		rq = cpu_rq(i);
 
-#ifdef CONFIG_FAIR_GROUP_SCHED
 		cfs_rq = kmalloc_node(sizeof(struct cfs_rq),
 				GFP_KERNEL|__GFP_ZERO, cpu_to_node(i));
 		if (!cfs_rq)
@@ -7646,9 +7605,78 @@ struct task_group *sched_create_group(void)
 			goto err;
 
 		init_tg_cfs_entry(rq, tg, cfs_rq, se, i, 0);
+	}
+
+	return 1;
+
+ err:
+	return 0;
+}
+
+static inline void register_fair_sched_group(struct task_group *tg, int cpu)
+{
+	list_add_rcu(&tg->cfs_rq[cpu]->leaf_cfs_rq_list,
+			&cpu_rq(cpu)->leaf_cfs_rq_list);
+}
+
+static inline void unregister_fair_sched_group(struct task_group *tg, int cpu)
+{
+	list_del_rcu(&tg->cfs_rq[cpu]->leaf_cfs_rq_list);
+}
+#else
+static inline void free_fair_sched_group(struct task_group *tg)
+{
+}
+
+static inline int alloc_fair_sched_group(struct task_group *tg)
+{
+	return 1;
+}
+
+static inline void register_fair_sched_group(struct task_group *tg, int cpu)
+{
+}
+
+static inline void unregister_fair_sched_group(struct task_group *tg, int cpu)
+{
+}
 #endif
 
 #ifdef CONFIG_RT_GROUP_SCHED
+static void free_rt_sched_group(struct task_group *tg)
+{
+	int i;
+
+	for_each_possible_cpu(i) {
+		if (tg->rt_rq)
+			kfree(tg->rt_rq[i]);
+		if (tg->rt_se)
+			kfree(tg->rt_se[i]);
+	}
+
+	kfree(tg->rt_rq);
+	kfree(tg->rt_se);
+}
+
+static int alloc_rt_sched_group(struct task_group *tg)
+{
+	struct rt_rq *rt_rq;
+	struct sched_rt_entity *rt_se;
+	struct rq *rq;
+	int i;
+
+	tg->rt_rq = kzalloc(sizeof(rt_rq) * NR_CPUS, GFP_KERNEL);
+	if (!tg->rt_rq)
+		goto err;
+	tg->rt_se = kzalloc(sizeof(rt_se) * NR_CPUS, GFP_KERNEL);
+	if (!tg->rt_se)
+		goto err;
+
+	tg->rt_runtime = 0;
+
+	for_each_possible_cpu(i) {
+		rq = cpu_rq(i);
+
 		rt_rq = kmalloc_node(sizeof(struct rt_rq),
 				GFP_KERNEL|__GFP_ZERO, cpu_to_node(i));
 		if (!rt_rq)
@@ -7660,20 +7688,71 @@ struct task_group *sched_create_group(void)
 			goto err;
 
 		init_tg_rt_entry(rq, tg, rt_rq, rt_se, i, 0);
-#endif
 	}
+
+	return 1;
+
+ err:
+	return 0;
+}
+
+static inline void register_rt_sched_group(struct task_group *tg, int cpu)
+{
+	list_add_rcu(&tg->rt_rq[cpu]->leaf_rt_rq_list,
+			&cpu_rq(cpu)->leaf_rt_rq_list);
+}
+
+static inline void unregister_rt_sched_group(struct task_group *tg, int cpu)
+{
+	list_del_rcu(&tg->rt_rq[cpu]->leaf_rt_rq_list);
+}
+#else
+static inline void free_rt_sched_group(struct task_group *tg)
+{
+}
+
+static inline int alloc_rt_sched_group(struct task_group *tg)
+{
+	return 1;
+}
+
+static inline void register_rt_sched_group(struct task_group *tg, int cpu)
+{
+}
+
+static inline void unregister_rt_sched_group(struct task_group *tg, int cpu)
+{
+}
+#endif
+
+static void free_sched_group(struct task_group *tg)
+{
+	free_fair_sched_group(tg);
+	free_rt_sched_group(tg);
+	kfree(tg);
+}
+
+/* allocate runqueue etc for a new task group */
+struct task_group *sched_create_group(void)
+{
+	struct task_group *tg;
+	unsigned long flags;
+	int i;
+
+	tg = kzalloc(sizeof(*tg), GFP_KERNEL);
+	if (!tg)
+		return ERR_PTR(-ENOMEM);
+
+	if (!alloc_fair_sched_group(tg))
+		goto err;
+
+	if (!alloc_rt_sched_group(tg))
+		goto err;
 
 	spin_lock_irqsave(&task_group_lock, flags);
 	for_each_possible_cpu(i) {
-		rq = cpu_rq(i);
-#ifdef CONFIG_FAIR_GROUP_SCHED
-		cfs_rq = tg->cfs_rq[i];
-		list_add_rcu(&cfs_rq->leaf_cfs_rq_list, &rq->leaf_cfs_rq_list);
-#endif
-#ifdef CONFIG_RT_GROUP_SCHED
-		rt_rq = tg->rt_rq[i];
-		list_add_rcu(&rt_rq->leaf_rt_rq_list, &rq->leaf_rt_rq_list);
-#endif
+		register_fair_sched_group(tg, i);
+		register_rt_sched_group(tg, i);
 	}
 	list_add_rcu(&tg->list, &task_groups);
 	spin_unlock_irqrestore(&task_group_lock, flags);
@@ -7700,12 +7779,8 @@ void sched_destroy_group(struct task_group *tg)
 
 	spin_lock_irqsave(&task_group_lock, flags);
 	for_each_possible_cpu(i) {
-#ifdef CONFIG_FAIR_GROUP_SCHED
-		list_del_rcu(&tg->cfs_rq[i]->leaf_cfs_rq_list);
-#endif
-#ifdef CONFIG_RT_GROUP_SCHED
-		list_del_rcu(&tg->rt_rq[i]->leaf_rt_rq_list);
-#endif
+		unregister_fair_sched_group(tg, i);
+		unregister_rt_sched_group(tg, i);
 	}
 	list_del_rcu(&tg->list);
 	spin_unlock_irqrestore(&task_group_lock, flags);
@@ -7780,8 +7855,6 @@ static DEFINE_MUTEX(shares_mutex);
 int sched_group_set_shares(struct task_group *tg, unsigned long shares)
 {
 	int i;
-	struct cfs_rq *cfs_rq;
-	struct rq *rq;
 	unsigned long flags;
 
 	mutex_lock(&shares_mutex);
@@ -7797,10 +7870,8 @@ int sched_group_set_shares(struct task_group *tg, unsigned long shares)
 	 * by taking it off the rq->leaf_cfs_rq_list on each cpu.
 	 */
 	spin_lock_irqsave(&task_group_lock, flags);
-	for_each_possible_cpu(i) {
-		cfs_rq = tg->cfs_rq[i];
-		list_del_rcu(&cfs_rq->leaf_cfs_rq_list);
-	}
+	for_each_possible_cpu(i)
+		unregister_fair_sched_group(tg, i);
 	spin_unlock_irqrestore(&task_group_lock, flags);
 
 	/* wait for any ongoing reference to this group to finish */
@@ -7822,11 +7893,8 @@ int sched_group_set_shares(struct task_group *tg, unsigned long shares)
 	 * each cpu's rq->leaf_cfs_rq_list.
 	 */
 	spin_lock_irqsave(&task_group_lock, flags);
-	for_each_possible_cpu(i) {
-		rq = cpu_rq(i);
-		cfs_rq = tg->cfs_rq[i];
-		list_add_rcu(&cfs_rq->leaf_cfs_rq_list, &rq->leaf_cfs_rq_list);
-	}
+	for_each_possible_cpu(i)
+		register_fair_sched_group(tg, i);
 	spin_unlock_irqrestore(&task_group_lock, flags);
 done:
 	mutex_unlock(&shares_mutex);
