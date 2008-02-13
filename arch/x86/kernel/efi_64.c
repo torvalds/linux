@@ -35,6 +35,7 @@
 #include <asm/tlbflush.h>
 #include <asm/proto.h>
 #include <asm/efi.h>
+#include <asm/cacheflush.h>
 
 static pgd_t save_pgd __initdata;
 static unsigned long efi_flags __initdata;
@@ -43,22 +44,15 @@ static void __init early_mapping_set_exec(unsigned long start,
 					  unsigned long end,
 					  int executable)
 {
-	pte_t *kpte;
-	unsigned int level;
+	unsigned long num_pages;
 
-	while (start < end) {
-		kpte = lookup_address((unsigned long)__va(start), &level);
-		BUG_ON(!kpte);
-		if (executable)
-			set_pte(kpte, pte_mkexec(*kpte));
-		else
-			set_pte(kpte, __pte((pte_val(*kpte) | _PAGE_NX) & \
-					    __supported_pte_mask));
-		if (level == PG_LEVEL_4K)
-			start = (start + PAGE_SIZE) & PAGE_MASK;
-		else
-			start = (start + PMD_SIZE) & PMD_MASK;
-	}
+	start &= PMD_MASK;
+	end = (end + PMD_SIZE - 1) & PMD_MASK;
+	num_pages = (end - start) >> PAGE_SHIFT;
+	if (executable)
+		set_memory_x((unsigned long)__va(start), num_pages);
+	else
+		set_memory_nx((unsigned long)__va(start), num_pages);
 }
 
 static void __init early_runtime_code_mapping_set_exec(int executable)
@@ -74,7 +68,7 @@ static void __init early_runtime_code_mapping_set_exec(int executable)
 		md = p;
 		if (md->type == EFI_RUNTIME_SERVICES_CODE) {
 			unsigned long end;
-			end = md->phys_addr + (md->num_pages << PAGE_SHIFT);
+			end = md->phys_addr + (md->num_pages << EFI_PAGE_SHIFT);
 			early_mapping_set_exec(md->phys_addr, end, executable);
 		}
 	}
@@ -84,8 +78,8 @@ void __init efi_call_phys_prelog(void)
 {
 	unsigned long vaddress;
 
-	local_irq_save(efi_flags);
 	early_runtime_code_mapping_set_exec(1);
+	local_irq_save(efi_flags);
 	vaddress = (unsigned long)__va(0x0UL);
 	save_pgd = *pgd_offset_k(0x0UL);
 	set_pgd(pgd_offset_k(0x0UL), *pgd_offset_k(vaddress));
@@ -98,9 +92,9 @@ void __init efi_call_phys_epilog(void)
 	 * After the lock is released, the original page table is restored.
 	 */
 	set_pgd(pgd_offset_k(0x0UL), save_pgd);
-	early_runtime_code_mapping_set_exec(0);
 	__flush_tlb_all();
 	local_irq_restore(efi_flags);
+	early_runtime_code_mapping_set_exec(0);
 }
 
 void __init efi_reserve_bootmem(void)

@@ -384,9 +384,6 @@ static void __init runtime_code_page_mkexec(void)
 	efi_memory_desc_t *md;
 	void *p;
 
-	if (!(__supported_pte_mask & _PAGE_NX))
-		return;
-
 	/* Make EFI runtime service code area executable */
 	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
 		md = p;
@@ -476,7 +473,8 @@ void __init efi_enter_virtual_mode(void)
 	efi.get_next_high_mono_count = virt_efi_get_next_high_mono_count;
 	efi.reset_system = virt_efi_reset_system;
 	efi.set_virtual_address_map = virt_efi_set_virtual_address_map;
-	runtime_code_page_mkexec();
+	if (__supported_pte_mask & _PAGE_NX)
+		runtime_code_page_mkexec();
 	early_iounmap(memmap.map, memmap.nr_map * memmap.desc_size);
 	memmap.map = NULL;
 }
