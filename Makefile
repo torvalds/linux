@@ -811,7 +811,9 @@ endif
 	$(Q)rm -f .old_version
 
 # build vmlinux.o first to catch section mismatch errors early
-$(kallsyms.o): vmlinux.o
+ifdef CONFIG_KALLSYMS
+.tmp_vmlinux1: vmlinux.o
+endif
 vmlinux.o: $(vmlinux-lds) $(vmlinux-init) $(vmlinux-main) FORCE
 	$(call if_changed_rule,vmlinux-modpost)
 
