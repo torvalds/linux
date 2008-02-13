@@ -688,6 +688,15 @@ static int change_page_attr_set_clr(unsigned long addr, int numpages,
 	if (!pgprot_val(mask_set) && !pgprot_val(mask_clr))
 		return 0;
 
+	/* Ensure we are PAGE_SIZE aligned */
+	if (addr & ~PAGE_MASK) {
+		addr &= PAGE_MASK;
+		/*
+		 * People should not be passing in unaligned addresses:
+		 */
+		WARN_ON_ONCE(1);
+	}
+
 	cpa.vaddr = addr;
 	cpa.numpages = numpages;
 	cpa.mask_set = mask_set;
