@@ -2300,7 +2300,6 @@ int iwl3945_hw_set_hw_setting(struct iwl3945_priv *priv)
 		return -ENOMEM;
 	}
 
-	priv->hw_setting.ac_queue_count = AC_NUM;
 	priv->hw_setting.rx_buf_size = IWL_RX_BUF_SIZE;
 	priv->hw_setting.max_pkt_size = 2342;
 	priv->hw_setting.tx_cmd_len = sizeof(struct iwl3945_tx_cmd);
@@ -2308,6 +2307,8 @@ int iwl3945_hw_set_hw_setting(struct iwl3945_priv *priv)
 	priv->hw_setting.max_rxq_log = RX_QUEUE_SIZE_LOG;
 	priv->hw_setting.max_stations = IWL3945_STATION_COUNT;
 	priv->hw_setting.bcast_sta_id = IWL3945_BROADCAST_ID;
+
+	priv->hw_setting.tx_ant_num = 2;
 	return 0;
 }
 

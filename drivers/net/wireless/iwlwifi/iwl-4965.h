@@ -580,8 +580,8 @@ struct iwl4965_ibss_seq {
 /**
  * struct iwl4965_driver_hw_info
  * @max_txq_num: Max # Tx queues supported
- * @ac_queue_count: # Tx queues for EDCA Access Categories (AC)
  * @tx_cmd_len: Size of Tx command (but not including frame itself)
+ * @tx_ant_num: Number of TX antennas
  * @max_rxq_size: Max # Rx frames in Rx queue (must be power-of-2)
  * @rx_buffer_size:
  * @max_rxq_log: Log-base-2 of max_rxq_size
@@ -592,8 +592,8 @@ struct iwl4965_ibss_seq {
  */
 struct iwl4965_driver_hw_info {
 	u16 max_txq_num;
-	u16 ac_queue_count;
 	u16 tx_cmd_len;
+	u16 tx_ant_num;
 	u16 max_rxq_size;
 	u32 rx_buf_size;
 	u32 max_pkt_size;

@@ -1794,7 +1794,6 @@ int iwl4965_hw_set_hw_setting(struct iwl4965_priv *priv)
 	memset(priv->hw_setting.shared_virt, 0, sizeof(struct iwl4965_shared));
 
 	priv->hw_setting.max_txq_num = iwl4965_param_queues_num;
-	priv->hw_setting.ac_queue_count = AC_NUM;
 	priv->hw_setting.tx_cmd_len = sizeof(struct iwl4965_tx_cmd);
 	priv->hw_setting.max_rxq_size = RX_QUEUE_SIZE;
 	priv->hw_setting.max_rxq_log = RX_QUEUE_SIZE_LOG;
@@ -1805,6 +1804,9 @@ int iwl4965_hw_set_hw_setting(struct iwl4965_priv *priv)
 	priv->hw_setting.max_pkt_size = priv->hw_setting.rx_buf_size - 256;
 	priv->hw_setting.max_stations = IWL4965_STATION_COUNT;
 	priv->hw_setting.bcast_sta_id = IWL4965_BROADCAST_ID;
+
+	priv->hw_setting.tx_ant_num = 2;
+
 	return 0;
 }
 
