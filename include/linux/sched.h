@@ -590,7 +590,7 @@ struct user_struct {
 	struct hlist_node uidhash_node;
 	uid_t uid;
 
-#ifdef CONFIG_FAIR_USER_SCHED
+#ifdef CONFIG_USER_SCHED
 	struct task_group *tg;
 #ifdef CONFIG_SYSFS
 	struct kobject kobj;
@@ -973,7 +973,7 @@ struct sched_rt_entity {
 	unsigned long timeout;
 	int nr_cpus_allowed;
 
-#ifdef CONFIG_FAIR_GROUP_SCHED
+#ifdef CONFIG_RT_GROUP_SCHED
 	struct sched_rt_entity	*parent;
 	/* rq on which this entity is (to be) queued: */
 	struct rt_rq		*rt_rq;
@@ -2027,19 +2027,22 @@ extern int sched_mc_power_savings, sched_smt_power_savings;
 
 extern void normalize_rt_tasks(void);
 
-#ifdef CONFIG_FAIR_GROUP_SCHED
+#ifdef CONFIG_GROUP_SCHED
 
 extern struct task_group init_task_group;
 
 extern struct task_group *sched_create_group(void);
 extern void sched_destroy_group(struct task_group *tg);
 extern void sched_move_task(struct task_struct *tsk);
+#ifdef CONFIG_FAIR_GROUP_SCHED
 extern int sched_group_set_shares(struct task_group *tg, unsigned long shares);
 extern unsigned long sched_group_shares(struct task_group *tg);
+#endif
+#ifdef CONFIG_RT_GROUP_SCHED
 extern int sched_group_set_rt_runtime(struct task_group *tg,
 				      long rt_runtime_us);
 extern long sched_group_rt_runtime(struct task_group *tg);
-
+#endif
 #endif
 
 #ifdef CONFIG_TASK_XACCT

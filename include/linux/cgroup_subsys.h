@@ -25,7 +25,7 @@ SUBSYS(ns)
 
 /* */
 
-#ifdef CONFIG_FAIR_CGROUP_SCHED
+#ifdef CONFIG_CGROUP_SCHED
 SUBSYS(cpu_cgroup)
 #endif
 
