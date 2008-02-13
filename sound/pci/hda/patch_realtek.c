@@ -3489,7 +3489,8 @@ static void alc_set_pin_output(struct hda_codec *codec, hda_nid_t nid,
 	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
 			    pin_type);
 	/* unmute pin */
-	snd_hda_codec_amp_stereo(codec, nid, HDA_OUTPUT, 0, 0xff, 0x00);
+	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+			    AMP_OUT_UNMUTE);
 }
 
 static void alc880_auto_set_output_and_unmute(struct hda_codec *codec,
