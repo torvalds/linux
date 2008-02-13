@@ -612,7 +612,7 @@ ENTRY(swapper_pg_pmd)
 ENTRY(swapper_pg_dir)
 	.fill 1024,4,0
 #endif
-ENTRY(swapper_pg_fixmap)
+swapper_pg_fixmap:
 	.fill 1024,4,0
 ENTRY(empty_zero_page)
 	.fill 4096,1,0
