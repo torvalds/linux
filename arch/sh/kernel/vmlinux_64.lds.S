@@ -51,7 +51,7 @@ SECTIONS
 		KPROBES_TEXT
 		*(.fixup)
 		*(.gnu.warning)
-#ifdef CONFIG_LITTLE_ENDIAN
+#ifdef CONFIG_CPU_LITTLE_ENDIAN
 	} = 0x6ff0fff0
 #else
 	} = 0xf0fff06f
