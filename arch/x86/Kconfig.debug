@@ -102,6 +102,7 @@ config DIRECT_GBPAGES
 config DEBUG_RODATA_TEST
 	bool "Testcase for the DEBUG_RODATA feature"
 	depends on DEBUG_RODATA
+	default y
 	help
 	  This option enables a testcase for the DEBUG_RODATA
 	  feature as well as for the change_page_attr() infrastructure.
