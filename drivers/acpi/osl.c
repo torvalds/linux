@@ -623,7 +623,7 @@ acpi_os_write_memory(acpi_physical_address phys_addr, u32 value, u32 width)
 
 acpi_status
 acpi_os_read_pci_configuration(struct acpi_pci_id * pci_id, u32 reg,
-			       void *value, u32 width)
+			       u32 *value, u32 width)
 {
 	int result, size;
 
@@ -689,7 +689,6 @@ static void acpi_os_derive_pci_id_2(acpi_handle rhandle,	/* upper bound  */
 	acpi_status status;
 	unsigned long temp;
 	acpi_object_type type;
-	u8 tu8;
 
 	acpi_get_parent(chandle, &handle);
 	if (handle != rhandle) {
@@ -704,6 +703,7 @@ static void acpi_os_derive_pci_id_2(acpi_handle rhandle,	/* upper bound  */
 		    acpi_evaluate_integer(handle, METHOD_NAME__ADR, NULL,
 					  &temp);
 		if (ACPI_SUCCESS(status)) {
+			u32 val;
 			pci_id->device = ACPI_HIWORD(ACPI_LODWORD(temp));
 			pci_id->function = ACPI_LOWORD(ACPI_LODWORD(temp));
 
@@ -712,24 +712,24 @@ static void acpi_os_derive_pci_id_2(acpi_handle rhandle,	/* upper bound  */
 
 			/* any nicer way to get bus number of bridge ? */
 			status =
-			    acpi_os_read_pci_configuration(pci_id, 0x0e, &tu8,
+			    acpi_os_read_pci_configuration(pci_id, 0x0e, &val,
 							   8);
 			if (ACPI_SUCCESS(status)
-			    && ((tu8 & 0x7f) == 1 || (tu8 & 0x7f) == 2)) {
+			    && ((val & 0x7f) == 1 || (val & 0x7f) == 2)) {
 				status =
 				    acpi_os_read_pci_configuration(pci_id, 0x18,
-								   &tu8, 8);
+								   &val, 8);
 				if (!ACPI_SUCCESS(status)) {
 					/* Certainly broken...  FIX ME */
 					return;
 				}
 				*is_bridge = 1;
-				pci_id->bus = tu8;
+				pci_id->bus = val;
 				status =
 				    acpi_os_read_pci_configuration(pci_id, 0x19,
-								   &tu8, 8);
+								   &val, 8);
 				if (ACPI_SUCCESS(status)) {
-					*bus_number = tu8;
+					*bus_number = val;
 				}
 			} else
 				*is_bridge = 0;
