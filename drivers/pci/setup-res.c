@@ -171,7 +171,7 @@ int pci_assign_resource(struct pci_dev *dev, int resno)
 	return ret;
 }
 
-#ifdef CONFIG_EMBEDDED
+#if 0
 int pci_assign_resource_fixed(struct pci_dev *dev, int resno)
 {
 	struct pci_bus *bus = dev->bus;
