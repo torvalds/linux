@@ -87,6 +87,28 @@ static struct workqueue_struct *ata_wq;
 
 struct workqueue_struct *ata_aux_wq;
 
+struct ata_force_param {
+	const char	*name;
+	unsigned int	cbl;
+	int		spd_limit;
+	unsigned long	xfer_mask;
+	unsigned int	horkage_on;
+	unsigned int	horkage_off;
+};
+
+struct ata_force_ent {
+	int			port;
+	int			device;
+	struct ata_force_param	param;
+};
+
+static struct ata_force_ent *ata_force_tbl;
+static int ata_force_tbl_size;
+
+static char ata_force_param_buf[PAGE_SIZE] __initdata;
+module_param_string(force, ata_force_param_buf, sizeof(ata_force_param_buf), 0444);
+MODULE_PARM_DESC(force, "Force ATA configurations including cable type, link speed and transfer mode (see Documentation/kernel-parameters.txt for details)");
+
 int atapi_enabled = 1;
 module_param(atapi_enabled, int, 0444);
 MODULE_PARM_DESC(atapi_enabled, "Enable discovery of ATAPI devices (0=off, 1=on)");
@@ -128,6 +150,179 @@ MODULE_DESCRIPTION("Library module for ATA devices");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 
+
+/**
+ *	ata_force_cbl - force cable type according to libata.force
+ *	@link: ATA link of interest
+ *
+ *	Force cable type according to libata.force and whine about it.
+ *	The last entry which has matching port number is used, so it
+ *	can be specified as part of device force parameters.  For
+ *	example, both "a:40c,1.00:udma4" and "1.00:40c,udma4" have the
+ *	same effect.
+ *
+ *	LOCKING:
+ *	EH context.
+ */
+void ata_force_cbl(struct ata_port *ap)
+{
+	int i;
+
+	for (i = ata_force_tbl_size - 1; i >= 0; i--) {
+		const struct ata_force_ent *fe = &ata_force_tbl[i];
+
+		if (fe->port != -1 && fe->port != ap->print_id)
+			continue;
+
+		if (fe->param.cbl == ATA_CBL_NONE)
+			continue;
+
+		ap->cbl = fe->param.cbl;
+		ata_port_printk(ap, KERN_NOTICE,
+				"FORCE: cable set to %s\n", fe->param.name);
+		return;
+	}
+}
+
+/**
+ *	ata_force_spd_limit - force SATA spd limit according to libata.force
+ *	@link: ATA link of interest
+ *
+ *	Force SATA spd limit according to libata.force and whine about
+ *	it.  When only the port part is specified (e.g. 1:), the limit
+ *	applies to all links connected to both the host link and all
+ *	fan-out ports connected via PMP.  If the device part is
+ *	specified as 0 (e.g. 1.00:), it specifies the first fan-out
+ *	link not the host link.  Device number 15 always points to the
+ *	host link whether PMP is attached or not.
+ *
+ *	LOCKING:
+ *	EH context.
+ */
+static void ata_force_spd_limit(struct ata_link *link)
+{
+	int linkno, i;
+
+	if (ata_is_host_link(link))
+		linkno = 15;
+	else
+		linkno = link->pmp;
+
+	for (i = ata_force_tbl_size - 1; i >= 0; i--) {
+		const struct ata_force_ent *fe = &ata_force_tbl[i];
+
+		if (fe->port != -1 && fe->port != link->ap->print_id)
+			continue;
+
+		if (fe->device != -1 && fe->device != linkno)
+			continue;
+
+		if (!fe->param.spd_limit)
+			continue;
+
+		link->hw_sata_spd_limit = (1 << fe->param.spd_limit) - 1;
+		ata_link_printk(link, KERN_NOTICE,
+			"FORCE: PHY spd limit set to %s\n", fe->param.name);
+		return;
+	}
+}
+
+/**
+ *	ata_force_xfermask - force xfermask according to libata.force
+ *	@dev: ATA device of interest
+ *
+ *	Force xfer_mask according to libata.force and whine about it.
+ *	For consistency with link selection, device number 15 selects
+ *	the first device connected to the host link.
+ *
+ *	LOCKING:
+ *	EH context.
+ */
+static void ata_force_xfermask(struct ata_device *dev)
+{
+	int devno = dev->link->pmp + dev->devno;
+	int alt_devno = devno;
+	int i;
+
+	/* allow n.15 for the first device attached to host port */
+	if (ata_is_host_link(dev->link) && devno == 0)
+		alt_devno = 15;
+
+	for (i = ata_force_tbl_size - 1; i >= 0; i--) {
+		const struct ata_force_ent *fe = &ata_force_tbl[i];
+		unsigned long pio_mask, mwdma_mask, udma_mask;
+
+		if (fe->port != -1 && fe->port != dev->link->ap->print_id)
+			continue;
+
+		if (fe->device != -1 && fe->device != devno &&
+		    fe->device != alt_devno)
+			continue;
+
+		if (!fe->param.xfer_mask)
+			continue;
+
+		ata_unpack_xfermask(fe->param.xfer_mask,
+				    &pio_mask, &mwdma_mask, &udma_mask);
+		if (udma_mask)
+			dev->udma_mask = udma_mask;
+		else if (mwdma_mask) {
+			dev->udma_mask = 0;
+			dev->mwdma_mask = mwdma_mask;
+		} else {
+			dev->udma_mask = 0;
+			dev->mwdma_mask = 0;
+			dev->pio_mask = pio_mask;
+		}
+
+		ata_dev_printk(dev, KERN_NOTICE,
+			"FORCE: xfer_mask set to %s\n", fe->param.name);
+		return;
+	}
+}
+
+/**
+ *	ata_force_horkage - force horkage according to libata.force
+ *	@dev: ATA device of interest
+ *
+ *	Force horkage according to libata.force and whine about it.
+ *	For consistency with link selection, device number 15 selects
+ *	the first device connected to the host link.
+ *
+ *	LOCKING:
+ *	EH context.
+ */
+static void ata_force_horkage(struct ata_device *dev)
+{
+	int devno = dev->link->pmp + dev->devno;
+	int alt_devno = devno;
+	int i;
+
+	/* allow n.15 for the first device attached to host port */
+	if (ata_is_host_link(dev->link) && devno == 0)
+		alt_devno = 15;
+
+	for (i = 0; i < ata_force_tbl_size; i++) {
+		const struct ata_force_ent *fe = &ata_force_tbl[i];
+
+		if (fe->port != -1 && fe->port != dev->link->ap->print_id)
+			continue;
+
+		if (fe->device != -1 && fe->device != devno &&
+		    fe->device != alt_devno)
+			continue;
+
+		if (!(~dev->horkage & fe->param.horkage_on) &&
+		    !(dev->horkage & fe->param.horkage_off))
+			continue;
+
+		dev->horkage |= fe->param.horkage_on;
+		dev->horkage &= ~fe->param.horkage_off;
+
+		ata_dev_printk(dev, KERN_NOTICE,
+			"FORCE: horkage modified (%s)\n", fe->param.name);
+	}
+}
 
 /**
  *	ata_tf_to_fis - Convert ATA taskfile to SATA FIS structure
@@ -2067,6 +2262,7 @@ int ata_dev_configure(struct ata_device *dev)
 
 	/* set horkage */
 	dev->horkage |= ata_dev_blacklisted(dev);
+	ata_force_horkage(dev);
 
 	/* let ACPI work its magic */
 	rc = ata_acpi_on_devcfg(dev);
@@ -3150,6 +3346,7 @@ int ata_do_set_mode(struct ata_link *link, struct ata_device **r_failed_dev)
 			mode_mask = ATA_DMA_MASK_CFA;
 
 		ata_dev_xfermask(dev);
+		ata_force_xfermask(dev);
 
 		pio_mask = ata_pack_xfermask(dev->pio_mask, 0, 0);
 		dma_mask = ata_pack_xfermask(0, dev->mwdma_mask, dev->udma_mask);
@@ -6497,7 +6694,8 @@ void ata_link_init(struct ata_port *ap, struct ata_link *link, int pmp)
  */
 int sata_link_init_spd(struct ata_link *link)
 {
-	u32 scontrol, spd;
+	u32 scontrol;
+	u8 spd;
 	int rc;
 
 	rc = sata_scr_read(link, SCR_CONTROL, &scontrol);
@@ -6507,6 +6705,8 @@ int sata_link_init_spd(struct ata_link *link)
 	spd = (scontrol >> 4) & 0xf;
 	if (spd)
 		link->hw_sata_spd_limit &= (1 << spd) - 1;
+
+	ata_force_spd_limit(link);
 
 	link->sata_spd_limit = link->hw_sata_spd_limit;
 
@@ -7218,10 +7418,187 @@ int ata_pci_device_resume(struct pci_dev *pdev)
 
 #endif /* CONFIG_PCI */
 
+static int __init ata_parse_force_one(char **cur,
+				      struct ata_force_ent *force_ent,
+				      const char **reason)
+{
+	/* FIXME: Currently, there's no way to tag init const data and
+	 * using __initdata causes build failure on some versions of
+	 * gcc.  Once __initdataconst is implemented, add const to the
+	 * following structure.
+	 */
+	static struct ata_force_param force_tbl[] __initdata = {
+		{ "40c",	.cbl		= ATA_CBL_PATA40 },
+		{ "80c",	.cbl		= ATA_CBL_PATA80 },
+		{ "short40c",	.cbl		= ATA_CBL_PATA40_SHORT },
+		{ "unk",	.cbl		= ATA_CBL_PATA_UNK },
+		{ "ign",	.cbl		= ATA_CBL_PATA_IGN },
+		{ "sata",	.cbl		= ATA_CBL_SATA },
+		{ "1.5Gbps",	.spd_limit	= 1 },
+		{ "3.0Gbps",	.spd_limit	= 2 },
+		{ "noncq",	.horkage_on	= ATA_HORKAGE_NONCQ },
+		{ "ncq",	.horkage_off	= ATA_HORKAGE_NONCQ },
+		{ "pio0",	.xfer_mask	= 1 << (ATA_SHIFT_PIO + 0) },
+		{ "pio1",	.xfer_mask	= 1 << (ATA_SHIFT_PIO + 1) },
+		{ "pio2",	.xfer_mask	= 1 << (ATA_SHIFT_PIO + 2) },
+		{ "pio3",	.xfer_mask	= 1 << (ATA_SHIFT_PIO + 3) },
+		{ "pio4",	.xfer_mask	= 1 << (ATA_SHIFT_PIO + 4) },
+		{ "pio5",	.xfer_mask	= 1 << (ATA_SHIFT_PIO + 5) },
+		{ "pio6",	.xfer_mask	= 1 << (ATA_SHIFT_PIO + 6) },
+		{ "mwdma0",	.xfer_mask	= 1 << (ATA_SHIFT_MWDMA + 0) },
+		{ "mwdma1",	.xfer_mask	= 1 << (ATA_SHIFT_MWDMA + 1) },
+		{ "mwdma2",	.xfer_mask	= 1 << (ATA_SHIFT_MWDMA + 2) },
+		{ "mwdma3",	.xfer_mask	= 1 << (ATA_SHIFT_MWDMA + 3) },
+		{ "mwdma4",	.xfer_mask	= 1 << (ATA_SHIFT_MWDMA + 4) },
+		{ "udma0",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 0) },
+		{ "udma16",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 0) },
+		{ "udma/16",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 0) },
+		{ "udma1",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 1) },
+		{ "udma25",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 1) },
+		{ "udma/25",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 1) },
+		{ "udma2",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 2) },
+		{ "udma33",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 2) },
+		{ "udma/33",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 2) },
+		{ "udma3",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 3) },
+		{ "udma44",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 3) },
+		{ "udma/44",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 3) },
+		{ "udma4",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 4) },
+		{ "udma66",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 4) },
+		{ "udma/66",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 4) },
+		{ "udma5",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 5) },
+		{ "udma100",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 5) },
+		{ "udma/100",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 5) },
+		{ "udma6",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 6) },
+		{ "udma133",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 6) },
+		{ "udma/133",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 6) },
+		{ "udma7",	.xfer_mask	= 1 << (ATA_SHIFT_UDMA + 7) },
+	};
+	char *start = *cur, *p = *cur;
+	char *id, *val, *endp;
+	const struct ata_force_param *match_fp = NULL;
+	int nr_matches = 0, i;
+
+	/* find where this param ends and update *cur */
+	while (*p != '\0' && *p != ',')
+		p++;
+
+	if (*p == '\0')
+		*cur = p;
+	else
+		*cur = p + 1;
+
+	*p = '\0';
+
+	/* parse */
+	p = strchr(start, ':');
+	if (!p) {
+		val = strstrip(start);
+		goto parse_val;
+	}
+	*p = '\0';
+
+	id = strstrip(start);
+	val = strstrip(p + 1);
+
+	/* parse id */
+	p = strchr(id, '.');
+	if (p) {
+		*p++ = '\0';
+		force_ent->device = simple_strtoul(p, &endp, 10);
+		if (p == endp || *endp != '\0') {
+			*reason = "invalid device";
+			return -EINVAL;
+		}
+	}
+
+	force_ent->port = simple_strtoul(id, &endp, 10);
+	if (p == endp || *endp != '\0') {
+		*reason = "invalid port/link";
+		return -EINVAL;
+	}
+
+ parse_val:
+	/* parse val, allow shortcuts so that both 1.5 and 1.5Gbps work */
+	for (i = 0; i < ARRAY_SIZE(force_tbl); i++) {
+		const struct ata_force_param *fp = &force_tbl[i];
+
+		if (strncasecmp(val, fp->name, strlen(val)))
+			continue;
+
+		nr_matches++;
+		match_fp = fp;
+
+		if (strcasecmp(val, fp->name) == 0) {
+			nr_matches = 1;
+			break;
+		}
+	}
+
+	if (!nr_matches) {
+		*reason = "unknown value";
+		return -EINVAL;
+	}
+	if (nr_matches > 1) {
+		*reason = "ambigious value";
+		return -EINVAL;
+	}
+
+	force_ent->param = *match_fp;
+
+	return 0;
+}
+
+static void __init ata_parse_force_param(void)
+{
+	int idx = 0, size = 1;
+	int last_port = -1, last_device = -1;
+	char *p, *cur, *next;
+
+	/* calculate maximum number of params and allocate force_tbl */
+	for (p = ata_force_param_buf; *p; p++)
+		if (*p == ',')
+			size++;
+
+	ata_force_tbl = kzalloc(sizeof(ata_force_tbl[0]) * size, GFP_KERNEL);
+	if (!ata_force_tbl) {
+		printk(KERN_WARNING "ata: failed to extend force table, "
+		       "libata.force ignored\n");
+		return;
+	}
+
+	/* parse and populate the table */
+	for (cur = ata_force_param_buf; *cur != '\0'; cur = next) {
+		const char *reason = "";
+		struct ata_force_ent te = { .port = -1, .device = -1 };
+
+		next = cur;
+		if (ata_parse_force_one(&next, &te, &reason)) {
+			printk(KERN_WARNING "ata: failed to parse force "
+			       "parameter \"%s\" (%s)\n",
+			       cur, reason);
+			continue;
+		}
+
+		if (te.port == -1) {
+			te.port = last_port;
+			te.device = last_device;
+		}
+
+		ata_force_tbl[idx++] = te;
+
+		last_port = te.port;
+		last_device = te.device;
+	}
+
+	ata_force_tbl_size = idx;
+}
 
 static int __init ata_init(void)
 {
 	ata_probe_timeout *= HZ;
+
+	ata_parse_force_param();
+
 	ata_wq = create_workqueue("ata");
 	if (!ata_wq)
 		return -ENOMEM;
@@ -7238,6 +7615,7 @@ static int __init ata_init(void)
 
 static void __exit ata_exit(void)
 {
+	kfree(ata_force_tbl);
 	destroy_workqueue(ata_wq);
 	destroy_workqueue(ata_aux_wq);
 }

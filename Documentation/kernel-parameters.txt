@@ -950,6 +950,41 @@ and is between 256 and 4096 characters. It is defined in the file
 			when set.
 			Format: <int>
 
+	libata.force=	[LIBATA] Force configurations.  The format is comma
+			separated list of "[ID:]VAL" where ID is
+			PORT[:DEVICE].  PORT and DEVICE are decimal numbers
+			matching port, link or device.  Basically, it matches
+			the ATA ID string printed on console by libata.  If
+			the whole ID part is omitted, the last PORT and DEVICE
+			values are used.  If ID hasn't been specified yet, the
+			configuration applies to all ports, links and devices.
+
+			If only DEVICE is omitted, the parameter applies to
+			the port and all links and devices behind it.  DEVICE
+			number of 0 either selects the first device or the
+			first fan-out link behind PMP device.  It does not
+			select the host link.  DEVICE number of 15 selects the
+			host link and device attached to it.
+
+			The VAL specifies the configuration to force.  As long
+			as there's no ambiguity shortcut notation is allowed.
+			For example, both 1.5 and 1.5G would work for 1.5Gbps.
+			The following configurations can be forced.
+
+			* Cable type: 40c, 80c, short40c, unk, ign or sata.
+			  Any ID with matching PORT is used.
+
+			* SATA link speed limit: 1.5Gbps or 3.0Gbps.
+
+			* Transfer mode: pio[0-7], mwdma[0-4] and udma[0-7].
+			  udma[/][16,25,33,44,66,100,133] notation is also
+			  allowed.
+
+			* [no]ncq: Turn on or off NCQ.
+
+			If there are multiple matching configurations changing
+			the same attribute, the last one is used.
+
 	load_ramdisk=	[RAM] List of ramdisks to load from floppy
 			See Documentation/ramdisk.txt.
 
