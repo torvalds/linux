@@ -590,7 +590,7 @@ struct user_struct {
 	struct hlist_node uidhash_node;
 	uid_t uid;
 
-#ifdef CONFIG_FAIR_USER_SCHED
+#ifdef CONFIG_USER_SCHED
 	struct task_group *tg;
 #ifdef CONFIG_SYSFS
 	struct kobject kobj;
@@ -973,7 +973,7 @@ struct sched_rt_entity {
 	unsigned long timeout;
 	int nr_cpus_allowed;
 
-#ifdef CONFIG_FAIR_GROUP_SCHED
+#ifdef CONFIG_RT_GROUP_SCHED
 	struct sched_rt_entity	*parent;
 	/* rq on which this entity is (to be) queued: */
 	struct rt_rq		*rt_rq;
@@ -1541,8 +1541,6 @@ extern unsigned int sysctl_sched_child_runs_first;
 extern unsigned int sysctl_sched_features;
 extern unsigned int sysctl_sched_migration_cost;
 extern unsigned int sysctl_sched_nr_migrate;
-extern unsigned int sysctl_sched_rt_period;
-extern unsigned int sysctl_sched_rt_ratio;
 #if defined(CONFIG_FAIR_GROUP_SCHED) && defined(CONFIG_SMP)
 extern unsigned int sysctl_sched_min_bal_int_shares;
 extern unsigned int sysctl_sched_max_bal_int_shares;
@@ -1552,6 +1550,8 @@ int sched_nr_latency_handler(struct ctl_table *table, int write,
 		struct file *file, void __user *buffer, size_t *length,
 		loff_t *ppos);
 #endif
+extern unsigned int sysctl_sched_rt_period;
+extern int sysctl_sched_rt_runtime;
 
 extern unsigned int sysctl_sched_compat_yield;
 
@@ -2027,16 +2027,22 @@ extern int sched_mc_power_savings, sched_smt_power_savings;
 
 extern void normalize_rt_tasks(void);
 
-#ifdef CONFIG_FAIR_GROUP_SCHED
+#ifdef CONFIG_GROUP_SCHED
 
 extern struct task_group init_task_group;
 
 extern struct task_group *sched_create_group(void);
 extern void sched_destroy_group(struct task_group *tg);
 extern void sched_move_task(struct task_struct *tsk);
+#ifdef CONFIG_FAIR_GROUP_SCHED
 extern int sched_group_set_shares(struct task_group *tg, unsigned long shares);
 extern unsigned long sched_group_shares(struct task_group *tg);
-
+#endif
+#ifdef CONFIG_RT_GROUP_SCHED
+extern int sched_group_set_rt_runtime(struct task_group *tg,
+				      long rt_runtime_us);
+extern long sched_group_rt_runtime(struct task_group *tg);
+#endif
 #endif
 
 #ifdef CONFIG_TASK_XACCT
