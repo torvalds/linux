@@ -61,15 +61,12 @@ struct marker {
  */
 #define __trace_mark(name, call_private, format, args...)		\
 	do {								\
-		static const char __mstrtab_name_##name[]		\
+		static const char __mstrtab_##name[]			\
 		__attribute__((section("__markers_strings")))		\
-		= #name;						\
-		static const char __mstrtab_format_##name[]		\
-		__attribute__((section("__markers_strings")))		\
-		= format;						\
+		= #name "\0" format;					\
 		static struct marker __mark_##name			\
 		__attribute__((section("__markers"), aligned(8))) =	\
-		{ __mstrtab_name_##name, __mstrtab_format_##name,	\
+		{ __mstrtab_##name, &__mstrtab_##name[sizeof(#name)],	\
 		0, 0, marker_probe_cb,					\
 		{ __mark_empty_function, NULL}, NULL };			\
 		__mark_check_format(format, ## args);			\
