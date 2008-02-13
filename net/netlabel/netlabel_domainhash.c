@@ -150,11 +150,11 @@ static struct netlbl_dom_map *netlbl_domhsh_search_def(const char *domain)
 	entry = netlbl_domhsh_search(domain);
 	if (entry == NULL) {
 		entry = rcu_dereference(netlbl_domhsh_def);
-		if (entry != NULL && entry->valid)
-			return entry;
+		if (entry != NULL && !entry->valid)
+			entry = NULL;
 	}
 
-	return NULL;
+	return entry;
 }
 
 /*
