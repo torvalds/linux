@@ -63,7 +63,7 @@ config HOTPLUG_PCI_COMPAQ_NVRAM
 
 config HOTPLUG_PCI_IBM
 	tristate "IBM PCI Hotplug driver"
-	depends on X86_IO_APIC && X86 && PCI_BIOS && PCI_LEGACY
+	depends on X86_IO_APIC && X86 && PCI_BIOS
 	help
 	  Say Y here if you have a motherboard with a IBM PCI Hotplug
 	  controller.
