@@ -97,6 +97,7 @@ struct hidinput_key_translation {
 #define APPLE_FLAG_FKEY 0x01
 
 static struct hidinput_key_translation apple_fn_keys[] = {
+	{ KEY_BACKSPACE, KEY_DELETE },
 	{ KEY_F1,       KEY_BRIGHTNESSDOWN,     APPLE_FLAG_FKEY },
 	{ KEY_F2,       KEY_BRIGHTNESSUP,       APPLE_FLAG_FKEY },
 	{ KEY_F3,       KEY_CYCLEWINDOWS,       APPLE_FLAG_FKEY }, /* Exposé */
@@ -109,6 +110,10 @@ static struct hidinput_key_translation apple_fn_keys[] = {
 	{ KEY_F10,      KEY_MUTE,               APPLE_FLAG_FKEY },
 	{ KEY_F11,      KEY_VOLUMEDOWN,         APPLE_FLAG_FKEY },
 	{ KEY_F12,      KEY_VOLUMEUP,           APPLE_FLAG_FKEY },
+	{ KEY_UP,       KEY_PAGEUP },
+	{ KEY_DOWN,     KEY_PAGEDOWN },
+	{ KEY_LEFT,     KEY_HOME },
+	{ KEY_RIGHT,    KEY_END },
 	{ }
 };
 
