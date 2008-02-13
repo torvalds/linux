@@ -29,7 +29,7 @@ show up in /proc/sys/kernel:
 - java-interpreter            [ binfmt_java, obsolete ]
 - kstack_depth_to_print       [ X86 only ]
 - l2cr                        [ PPC only ]
-- modprobe                    ==> Documentation/kmod.txt
+- modprobe                    ==> Documentation/debugging-modules.txt
 - msgmax
 - msgmnb
 - msgmni
