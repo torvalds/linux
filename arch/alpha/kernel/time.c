@@ -119,13 +119,8 @@ irqreturn_t timer_interrupt(int irq, void *dev)
 	state.partial_tick = delta & ((1UL << FIX_SHIFT) - 1); 
 	nticks = delta >> FIX_SHIFT;
 
-	while (nticks > 0) {
-		do_timer(1);
-#ifndef CONFIG_SMP
-		update_process_times(user_mode(get_irq_regs()));
-#endif
-		nticks--;
-	}
+	if (nticks)
+		do_timer(nticks);
 
 	/*
 	 * If we have an externally synchronized Linux clock, then update
@@ -141,6 +136,12 @@ irqreturn_t timer_interrupt(int irq, void *dev)
 	}
 
 	write_sequnlock(&xtime_lock);
+
+#ifndef CONFIG_SMP
+	while (nticks--)
+		update_process_times(user_mode(get_irq_regs()));
+#endif
+
 	return IRQ_HANDLED;
 }
 

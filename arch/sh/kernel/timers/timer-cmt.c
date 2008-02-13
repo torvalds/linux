@@ -100,16 +100,7 @@ static irqreturn_t cmt_timer_interrupt(int irq, void *dev_id)
 	timer_status &= ~0x80;
 	ctrl_outw(timer_status, CMT_CMCSR_0);
 
-	/*
-	 * Here we are in the timer irq handler. We just have irqs locally
-	 * disabled but we don't know if the timer_bh is running on the other
-	 * CPU. We need to avoid to SMP race with it. NOTE: we don' t need
-	 * the irq version of write_lock because as just said we have irq
-	 * locally disabled. -arca
-	 */
-	write_seqlock(&xtime_lock);
 	handle_timer_tick();
-	write_sequnlock(&xtime_lock);
 
 	return IRQ_HANDLED;
 }

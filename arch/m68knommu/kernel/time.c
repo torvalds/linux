@@ -42,14 +42,12 @@ irqreturn_t arch_timer_interrupt(int irq, void *dummy)
 	/* last time the cmos clock got updated */
 	static long last_rtc_update=0;
 
+	if (current->pid)
+		profile_tick(CPU_PROFILING);
+
 	write_seqlock(&xtime_lock);
 
 	do_timer(1);
-#ifndef CONFIG_SMP
-	update_process_times(user_mode(get_irq_regs()));
-#endif
-	if (current->pid)
-		profile_tick(CPU_PROFILING);
 
 	/*
 	 * If we have an externally synchronized Linux clock, then update
@@ -67,6 +65,10 @@ irqreturn_t arch_timer_interrupt(int irq, void *dummy)
 	}
 
 	write_sequnlock(&xtime_lock);
+
+#ifndef CONFIG_SMP
+	update_process_times(user_mode(get_irq_regs()));
+#endif
 	return(IRQ_HANDLED);
 }
 
