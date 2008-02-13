@@ -176,7 +176,7 @@ struct task_group {
 	struct sched_rt_entity **rt_se;
 	struct rt_rq **rt_rq;
 
-	unsigned int rt_ratio;
+	u64 rt_runtime;
 
 	/*
 	 * shares assigned to a task group governs how much of cpu bandwidth
@@ -642,19 +642,21 @@ const_debug unsigned int sysctl_sched_features =
 const_debug unsigned int sysctl_sched_nr_migrate = 32;
 
 /*
- * period over which we measure -rt task cpu usage in ms.
+ * period over which we measure -rt task cpu usage in us.
  * default: 1s
  */
-const_debug unsigned int sysctl_sched_rt_period = 1000;
-
-#define SCHED_RT_FRAC_SHIFT	16
-#define SCHED_RT_FRAC		(1UL << SCHED_RT_FRAC_SHIFT)
+unsigned int sysctl_sched_rt_period = 1000000;
 
 /*
- * ratio of time -rt tasks may consume.
- * default: 95%
+ * part of the period that we allow rt tasks to run in us.
+ * default: 0.95s
  */
-const_debug unsigned int sysctl_sched_rt_ratio = 62259;
+int sysctl_sched_rt_runtime = 950000;
+
+/*
+ * single value that denotes runtime == period, ie unlimited time.
+ */
+#define RUNTIME_INF	((u64)~0ULL)
 
 /*
  * For kernel-internal use: high-speed (but slightly incorrect) per-cpu
@@ -7187,7 +7189,8 @@ void __init sched_init(void)
 				&per_cpu(init_cfs_rq, i),
 				&per_cpu(init_sched_entity, i), i, 1);
 
-		init_task_group.rt_ratio = sysctl_sched_rt_ratio; /* XXX */
+		init_task_group.rt_runtime =
+			sysctl_sched_rt_runtime * NSEC_PER_USEC;
 		INIT_LIST_HEAD(&rq->leaf_rt_rq_list);
 		init_tg_rt_entry(rq, &init_task_group,
 				&per_cpu(init_rt_rq, i),
@@ -7583,7 +7586,7 @@ struct task_group *sched_create_group(void)
 		goto err;
 
 	tg->shares = NICE_0_LOAD;
-	tg->rt_ratio = 0; /* XXX */
+	tg->rt_runtime = 0;
 
 	for_each_possible_cpu(i) {
 		rq = cpu_rq(i);
@@ -7785,30 +7788,76 @@ unsigned long sched_group_shares(struct task_group *tg)
 }
 
 /*
- * Ensure the total rt_ratio <= sysctl_sched_rt_ratio
+ * Ensure that the real time constraints are schedulable.
  */
-int sched_group_set_rt_ratio(struct task_group *tg, unsigned long rt_ratio)
+static DEFINE_MUTEX(rt_constraints_mutex);
+
+static unsigned long to_ratio(u64 period, u64 runtime)
+{
+	if (runtime == RUNTIME_INF)
+		return 1ULL << 16;
+
+	runtime *= (1ULL << 16);
+	div64_64(runtime, period);
+	return runtime;
+}
+
+static int __rt_schedulable(struct task_group *tg, u64 period, u64 runtime)
 {
 	struct task_group *tgi;
 	unsigned long total = 0;
+	unsigned long global_ratio =
+		to_ratio(sysctl_sched_rt_period,
+			 sysctl_sched_rt_runtime < 0 ?
+				RUNTIME_INF : sysctl_sched_rt_runtime);
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(tgi, &task_groups, list)
-		total += tgi->rt_ratio;
+	list_for_each_entry_rcu(tgi, &task_groups, list) {
+		if (tgi == tg)
+			continue;
+
+		total += to_ratio(period, tgi->rt_runtime);
+	}
 	rcu_read_unlock();
 
-	if (total + rt_ratio - tg->rt_ratio > sysctl_sched_rt_ratio)
-		return -EINVAL;
-
-	tg->rt_ratio = rt_ratio;
-	return 0;
+	return total + to_ratio(period, runtime) < global_ratio;
 }
 
-unsigned long sched_group_rt_ratio(struct task_group *tg)
+int sched_group_set_rt_runtime(struct task_group *tg, long rt_runtime_us)
 {
-	return tg->rt_ratio;
+	u64 rt_runtime, rt_period;
+	int err = 0;
+
+	rt_period = sysctl_sched_rt_period * NSEC_PER_USEC;
+	rt_runtime = (u64)rt_runtime_us * NSEC_PER_USEC;
+	if (rt_runtime_us == -1)
+		rt_runtime = rt_period;
+
+	mutex_lock(&rt_constraints_mutex);
+	if (!__rt_schedulable(tg, rt_period, rt_runtime)) {
+		err = -EINVAL;
+		goto unlock;
+	}
+	if (rt_runtime_us == -1)
+		rt_runtime = RUNTIME_INF;
+	tg->rt_runtime = rt_runtime;
+ unlock:
+	mutex_unlock(&rt_constraints_mutex);
+
+	return err;
 }
 
+long sched_group_rt_runtime(struct task_group *tg)
+{
+	u64 rt_runtime_us;
+
+	if (tg->rt_runtime == RUNTIME_INF)
+		return -1;
+
+	rt_runtime_us = tg->rt_runtime;
+	do_div(rt_runtime_us, NSEC_PER_USEC);
+	return rt_runtime_us;
+}
 #endif	/* CONFIG_FAIR_GROUP_SCHED */
 
 #ifdef CONFIG_FAIR_CGROUP_SCHED
@@ -7884,17 +7933,49 @@ static u64 cpu_shares_read_uint(struct cgroup *cgrp, struct cftype *cft)
 	return (u64) tg->shares;
 }
 
-static int cpu_rt_ratio_write_uint(struct cgroup *cgrp, struct cftype *cftype,
-		u64 rt_ratio_val)
+static int cpu_rt_runtime_write(struct cgroup *cgrp, struct cftype *cft,
+				struct file *file,
+				const char __user *userbuf,
+				size_t nbytes, loff_t *unused_ppos)
 {
-	return sched_group_set_rt_ratio(cgroup_tg(cgrp), rt_ratio_val);
+	char buffer[64];
+	int retval = 0;
+	s64 val;
+	char *end;
+
+	if (!nbytes)
+		return -EINVAL;
+	if (nbytes >= sizeof(buffer))
+		return -E2BIG;
+	if (copy_from_user(buffer, userbuf, nbytes))
+		return -EFAULT;
+
+	buffer[nbytes] = 0;     /* nul-terminate */
+
+	/* strip newline if necessary */
+	if (nbytes && (buffer[nbytes-1] == '\n'))
+		buffer[nbytes-1] = 0;
+	val = simple_strtoll(buffer, &end, 0);
+	if (*end)
+		return -EINVAL;
+
+	/* Pass to subsystem */
+	retval = sched_group_set_rt_runtime(cgroup_tg(cgrp), val);
+	if (!retval)
+		retval = nbytes;
+	return retval;
 }
 
-static u64 cpu_rt_ratio_read_uint(struct cgroup *cgrp, struct cftype *cft)
+static ssize_t cpu_rt_runtime_read(struct cgroup *cgrp, struct cftype *cft,
+				   struct file *file,
+				   char __user *buf, size_t nbytes,
+				   loff_t *ppos)
 {
-	struct task_group *tg = cgroup_tg(cgrp);
+	char tmp[64];
+	long val = sched_group_rt_runtime(cgroup_tg(cgrp));
+	int len = sprintf(tmp, "%ld\n", val);
 
-	return (u64) tg->rt_ratio;
+	return simple_read_from_buffer(buf, nbytes, ppos, tmp, len);
 }
 
 static struct cftype cpu_files[] = {
@@ -7904,9 +7985,9 @@ static struct cftype cpu_files[] = {
 		.write_uint = cpu_shares_write_uint,
 	},
 	{
-		.name = "rt_ratio",
-		.read_uint = cpu_rt_ratio_read_uint,
-		.write_uint = cpu_rt_ratio_write_uint,
+		.name = "rt_runtime_us",
+		.read = cpu_rt_runtime_read,
+		.write = cpu_rt_runtime_write,
 	},
 };
 

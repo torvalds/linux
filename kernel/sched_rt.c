@@ -57,12 +57,12 @@ static inline int on_rt_rq(struct sched_rt_entity *rt_se)
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 
-static inline unsigned int sched_rt_ratio(struct rt_rq *rt_rq)
+static inline u64 sched_rt_runtime(struct rt_rq *rt_rq)
 {
 	if (!rt_rq->tg)
-		return SCHED_RT_FRAC;
+		return RUNTIME_INF;
 
-	return rt_rq->tg->rt_ratio;
+	return rt_rq->tg->rt_runtime;
 }
 
 #define for_each_leaf_rt_rq(rt_rq, rq) \
@@ -89,7 +89,7 @@ static inline struct rt_rq *group_rt_rq(struct sched_rt_entity *rt_se)
 static void enqueue_rt_entity(struct sched_rt_entity *rt_se);
 static void dequeue_rt_entity(struct sched_rt_entity *rt_se);
 
-static void sched_rt_ratio_enqueue(struct rt_rq *rt_rq)
+static void sched_rt_rq_enqueue(struct rt_rq *rt_rq)
 {
 	struct sched_rt_entity *rt_se = rt_rq->rt_se;
 
@@ -102,7 +102,7 @@ static void sched_rt_ratio_enqueue(struct rt_rq *rt_rq)
 	}
 }
 
-static void sched_rt_ratio_dequeue(struct rt_rq *rt_rq)
+static void sched_rt_rq_dequeue(struct rt_rq *rt_rq)
 {
 	struct sched_rt_entity *rt_se = rt_rq->rt_se;
 
@@ -129,9 +129,12 @@ static int rt_se_boosted(struct sched_rt_entity *rt_se)
 
 #else
 
-static inline unsigned int sched_rt_ratio(struct rt_rq *rt_rq)
+static inline u64 sched_rt_runtime(struct rt_rq *rt_rq)
 {
-	return sysctl_sched_rt_ratio;
+	if (sysctl_sched_rt_runtime == -1)
+		return RUNTIME_INF;
+
+	return (u64)sysctl_sched_rt_runtime * NSEC_PER_USEC;
 }
 
 #define for_each_leaf_rt_rq(rt_rq, rq) \
@@ -158,11 +161,11 @@ static inline struct rt_rq *group_rt_rq(struct sched_rt_entity *rt_se)
 	return NULL;
 }
 
-static inline void sched_rt_ratio_enqueue(struct rt_rq *rt_rq)
+static inline void sched_rt_rq_enqueue(struct rt_rq *rt_rq)
 {
 }
 
-static inline void sched_rt_ratio_dequeue(struct rt_rq *rt_rq)
+static inline void sched_rt_rq_dequeue(struct rt_rq *rt_rq)
 {
 }
 
@@ -184,28 +187,24 @@ static inline int rt_se_prio(struct sched_rt_entity *rt_se)
 	return rt_task_of(rt_se)->prio;
 }
 
-static int sched_rt_ratio_exceeded(struct rt_rq *rt_rq)
+static int sched_rt_runtime_exceeded(struct rt_rq *rt_rq)
 {
-	unsigned int rt_ratio = sched_rt_ratio(rt_rq);
-	u64 period, ratio;
+	u64 runtime = sched_rt_runtime(rt_rq);
 
-	if (rt_ratio == SCHED_RT_FRAC)
+	if (runtime == RUNTIME_INF)
 		return 0;
 
 	if (rt_rq->rt_throttled)
 		return rt_rq_throttled(rt_rq);
 
-	period = (u64)sysctl_sched_rt_period * NSEC_PER_MSEC;
-	ratio = (period * rt_ratio) >> SCHED_RT_FRAC_SHIFT;
-
-	if (rt_rq->rt_time > ratio) {
+	if (rt_rq->rt_time > runtime) {
 		struct rq *rq = rq_of_rt_rq(rt_rq);
 
 		rq->rt_throttled = 1;
 		rt_rq->rt_throttled = 1;
 
 		if (rt_rq_throttled(rt_rq)) {
-			sched_rt_ratio_dequeue(rt_rq);
+			sched_rt_rq_dequeue(rt_rq);
 			return 1;
 		}
 	}
@@ -219,17 +218,16 @@ static void update_sched_rt_period(struct rq *rq)
 	u64 period;
 
 	while (rq->clock > rq->rt_period_expire) {
-		period = (u64)sysctl_sched_rt_period * NSEC_PER_MSEC;
+		period = (u64)sysctl_sched_rt_period * NSEC_PER_USEC;
 		rq->rt_period_expire += period;
 
 		for_each_leaf_rt_rq(rt_rq, rq) {
-			unsigned long rt_ratio = sched_rt_ratio(rt_rq);
-			u64 ratio = (period * rt_ratio) >> SCHED_RT_FRAC_SHIFT;
+			u64 runtime = sched_rt_runtime(rt_rq);
 
-			rt_rq->rt_time -= min(rt_rq->rt_time, ratio);
-			if (rt_rq->rt_throttled) {
+			rt_rq->rt_time -= min(rt_rq->rt_time, runtime);
+			if (rt_rq->rt_throttled && rt_rq->rt_time < runtime) {
 				rt_rq->rt_throttled = 0;
-				sched_rt_ratio_enqueue(rt_rq);
+				sched_rt_rq_enqueue(rt_rq);
 			}
 		}
 
@@ -262,12 +260,7 @@ static void update_curr_rt(struct rq *rq)
 	cpuacct_charge(curr, delta_exec);
 
 	rt_rq->rt_time += delta_exec;
-	/*
-	 * might make it a tad more accurate:
-	 *
-	 * update_sched_rt_period(rq);
-	 */
-	if (sched_rt_ratio_exceeded(rt_rq))
+	if (sched_rt_runtime_exceeded(rt_rq))
 		resched_task(curr);
 }
 

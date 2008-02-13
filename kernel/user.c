@@ -164,9 +164,37 @@ static ssize_t cpu_shares_store(struct kobject *kobj,
 static struct kobj_attribute cpu_share_attr =
 	__ATTR(cpu_share, 0644, cpu_shares_show, cpu_shares_store);
 
+static ssize_t cpu_rt_runtime_show(struct kobject *kobj,
+				   struct kobj_attribute *attr,
+				   char *buf)
+{
+	struct user_struct *up = container_of(kobj, struct user_struct, kobj);
+
+	return sprintf(buf, "%lu\n", sched_group_rt_runtime(up->tg));
+}
+
+static ssize_t cpu_rt_runtime_store(struct kobject *kobj,
+				    struct kobj_attribute *attr,
+				    const char *buf, size_t size)
+{
+	struct user_struct *up = container_of(kobj, struct user_struct, kobj);
+	unsigned long rt_runtime;
+	int rc;
+
+	sscanf(buf, "%lu", &rt_runtime);
+
+	rc = sched_group_set_rt_runtime(up->tg, rt_runtime);
+
+	return (rc ? rc : size);
+}
+
+static struct kobj_attribute cpu_rt_runtime_attr =
+	__ATTR(cpu_rt_runtime, 0644, cpu_rt_runtime_show, cpu_rt_runtime_store);
+
 /* default attributes per uid directory */
 static struct attribute *uids_attributes[] = {
 	&cpu_share_attr.attr,
+	&cpu_rt_runtime_attr.attr,
 	NULL
 };
 

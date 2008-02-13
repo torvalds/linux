@@ -1541,8 +1541,6 @@ extern unsigned int sysctl_sched_child_runs_first;
 extern unsigned int sysctl_sched_features;
 extern unsigned int sysctl_sched_migration_cost;
 extern unsigned int sysctl_sched_nr_migrate;
-extern unsigned int sysctl_sched_rt_period;
-extern unsigned int sysctl_sched_rt_ratio;
 #if defined(CONFIG_FAIR_GROUP_SCHED) && defined(CONFIG_SMP)
 extern unsigned int sysctl_sched_min_bal_int_shares;
 extern unsigned int sysctl_sched_max_bal_int_shares;
@@ -1552,6 +1550,8 @@ int sched_nr_latency_handler(struct ctl_table *table, int write,
 		struct file *file, void __user *buffer, size_t *length,
 		loff_t *ppos);
 #endif
+extern unsigned int sysctl_sched_rt_period;
+extern int sysctl_sched_rt_runtime;
 
 extern unsigned int sysctl_sched_compat_yield;
 
@@ -2036,6 +2036,9 @@ extern void sched_destroy_group(struct task_group *tg);
 extern void sched_move_task(struct task_struct *tsk);
 extern int sched_group_set_shares(struct task_group *tg, unsigned long shares);
 extern unsigned long sched_group_shares(struct task_group *tg);
+extern int sched_group_set_rt_runtime(struct task_group *tg,
+				      long rt_runtime_us);
+extern long sched_group_rt_runtime(struct task_group *tg);
 
 #endif
 
