@@ -2106,11 +2106,10 @@ int skb_append_datato_frags(struct sock *sk, struct sk_buff *skb,
 /**
  *	skb_pull_rcsum - pull skb and update receive checksum
  *	@skb: buffer to update
- *	@start: start of data before pull
  *	@len: length of data pulled
  *
  *	This function performs an skb_pull on the packet and updates
- *	update the CHECKSUM_COMPLETE checksum.  It should be used on
+ *	the CHECKSUM_COMPLETE checksum.  It should be used on
  *	receive path processing instead of skb_pull unless you know
  *	that the checksum difference is zero (e.g., a valid IP header)
  *	or you are setting ip_summed to CHECKSUM_NONE.
