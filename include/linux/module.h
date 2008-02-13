@@ -465,7 +465,7 @@ int unregister_module_notifier(struct notifier_block * nb);
 
 extern void print_modules(void);
 
-extern void module_update_markers(struct module *probe_module, int *refcount);
+extern void module_update_markers(void);
 
 #else /* !CONFIG_MODULES... */
 #define EXPORT_SYMBOL(sym)
