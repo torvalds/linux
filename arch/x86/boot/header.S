@@ -22,6 +22,7 @@
 #include <asm/page.h>
 #include <asm/setup.h>
 #include "boot.h"
+#include "offsets.h"
 
 SETUPSECTS	= 4			/* default nr of setup-sectors */
 BOOTSEG		= 0x07C0		/* original address of boot-sector */
@@ -222,6 +223,11 @@ hardware_subarch:	.long 0			# subarchitecture, added with 2.07
 						# default to 0 for normal x86 PC
 
 hardware_subarch_data:	.quad 0
+
+compressed_payload_offset:
+			.long input_data
+compressed_payload_length:
+			.long input_data_end-input_data
 
 # End of setup header #####################################################
 
