@@ -156,6 +156,21 @@ static const struct clkops clk_pxa3xx_hsio_ops = {
 	.getrate	= clk_pxa3xx_hsio_getrate,
 };
 
+static void clk_pout_enable(struct clk *clk)
+{
+	OSCC |= OSCC_PEN;
+}
+
+static void clk_pout_disable(struct clk *clk)
+{
+	OSCC &= ~OSCC_PEN;
+}
+
+static const struct clkops clk_pout_ops = {
+	.enable		= clk_pout_enable,
+	.disable	= clk_pout_disable,
+};
+
 #define PXA3xx_CKEN(_name, _cken, _rate, _delay, _dev)	\
 	{						\
 		.name	= _name,			\
@@ -175,6 +190,13 @@ static const struct clkops clk_pxa3xx_hsio_ops = {
 	}
 
 static struct clk pxa3xx_clks[] = {
+	{
+		.name           = "CLK_POUT",
+		.ops            = &clk_pout_ops,
+		.rate           = 13000000,
+		.delay          = 70,
+	},
+
 	PXA3xx_CK("LCDCLK", LCD,    &clk_pxa3xx_hsio_ops, &pxa_device_fb.dev),
 	PXA3xx_CK("CAMCLK", CAMERA, &clk_pxa3xx_hsio_ops, NULL),
 
