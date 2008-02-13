@@ -780,6 +780,7 @@ static void __ipoib_ib_dev_flush(struct ipoib_dev_priv *priv, int pkey_event)
 		if (ib_find_pkey(priv->ca, priv->port, priv->pkey, &new_index)) {
 			clear_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
 			ipoib_ib_dev_down(dev, 0);
+			ipoib_ib_dev_stop(dev, 0);
 			ipoib_pkey_dev_delay_open(dev);
 			return;
 		}
