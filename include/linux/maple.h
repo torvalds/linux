@@ -39,7 +39,7 @@ struct maple_devinfo {
 	unsigned long function;
 	unsigned long function_data[3];
 	unsigned char area_code;
-	unsigned char connector_directon;
+	unsigned char connector_direction;
 	char product_name[31];
 	char product_licence[61];
 	unsigned short standby_power;
