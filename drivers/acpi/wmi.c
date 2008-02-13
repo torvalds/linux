@@ -247,7 +247,7 @@ u32 method_id, const struct acpi_buffer *in, struct acpi_buffer *out)
 	block = &wblock->gblock;
 	handle = wblock->handle;
 
-	if (!block->flags & ACPI_WMI_METHOD)
+	if (!(block->flags & ACPI_WMI_METHOD))
 		return AE_BAD_DATA;
 
 	if (block->instance_count < instance)
