@@ -517,9 +517,6 @@ struct pci_bus *pci_find_next_bus(const struct pci_bus *from);
 
 struct pci_dev *pci_get_device(unsigned int vendor, unsigned int device,
 				struct pci_dev *from);
-struct pci_dev *pci_get_device_reverse(unsigned int vendor, unsigned int device,
-				struct pci_dev *from);
-
 struct pci_dev *pci_get_subsys(unsigned int vendor, unsigned int device,
 				unsigned int ss_vendor, unsigned int ss_device,
 				struct pci_dev *from);
@@ -787,13 +784,6 @@ static inline struct pci_dev *pci_find_slot(unsigned int bus,
 static inline struct pci_dev *pci_get_device(unsigned int vendor,
 					     unsigned int device,
 					     struct pci_dev *from)
-{
-	return NULL;
-}
-
-static inline struct pci_dev *pci_get_device_reverse(unsigned int vendor,
-						     unsigned int device,
-						     struct pci_dev *from)
 {
 	return NULL;
 }

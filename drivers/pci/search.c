@@ -360,46 +360,6 @@ pci_get_device(unsigned int vendor, unsigned int device, struct pci_dev *from)
 }
 
 /**
- * pci_get_device_reverse - begin or continue searching for a PCI device by vendor/device id
- * @vendor: PCI vendor id to match, or %PCI_ANY_ID to match all vendor ids
- * @device: PCI device id to match, or %PCI_ANY_ID to match all device ids
- * @from: Previous PCI device found in search, or %NULL for new search.
- *
- * Iterates through the list of known PCI devices in the reverse order of
- * pci_get_device.
- * If a PCI device is found with a matching @vendor and @device, the reference
- * count to the  device is incremented and a pointer to its device structure
- * is returned Otherwise, %NULL is returned.  A new search is initiated by
- * passing %NULL as the @from argument.  Otherwise if @from is not %NULL,
- * searches continue from next device on the global list.  The reference
- * count for @from is always decremented if it is not %NULL.
- */
-struct pci_dev *
-pci_get_device_reverse(unsigned int vendor, unsigned int device, struct pci_dev *from)
-{
-	struct list_head *n;
-	struct pci_dev *dev;
-
-	WARN_ON(in_interrupt());
-	down_read(&pci_bus_sem);
-	n = from ? from->global_list.prev : pci_devices.prev;
-
-	while (n && (n != &pci_devices)) {
-		dev = pci_dev_g(n);
-		if ((vendor == PCI_ANY_ID || dev->vendor == vendor) &&
-		    (device == PCI_ANY_ID || dev->device == device))
-			goto exit;
-		n = n->prev;
-	}
-	dev = NULL;
-exit:
-	dev = pci_dev_get(dev);
-	up_read(&pci_bus_sem);
-	pci_dev_put(from);
-	return dev;
-}
-
-/**
  * pci_get_class - begin or continue searching for a PCI device by class
  * @class: search for a PCI device with this class designation
  * @from: Previous PCI device found in search, or %NULL for new search.
@@ -479,7 +439,6 @@ EXPORT_SYMBOL(pci_find_bus);
 EXPORT_SYMBOL(pci_find_next_bus);
 /* For everyone */
 EXPORT_SYMBOL(pci_get_device);
-EXPORT_SYMBOL(pci_get_device_reverse);
 EXPORT_SYMBOL(pci_get_subsys);
 EXPORT_SYMBOL(pci_get_slot);
 EXPORT_SYMBOL(pci_get_bus_and_slot);
