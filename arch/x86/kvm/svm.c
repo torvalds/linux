@@ -471,10 +471,10 @@ static void init_sys_seg(struct vmcb_seg *seg, uint32_t type)
 	seg->base = 0;
 }
 
-static void init_vmcb(struct vmcb *vmcb)
+static void init_vmcb(struct vcpu_svm *svm)
 {
-	struct vmcb_control_area *control = &vmcb->control;
-	struct vmcb_save_area *save = &vmcb->save;
+	struct vmcb_control_area *control = &svm->vmcb->control;
+	struct vmcb_save_area *save = &svm->vmcb->save;
 
 	control->intercept_cr_read = 	INTERCEPT_CR0_MASK |
 					INTERCEPT_CR3_MASK |
@@ -600,7 +600,7 @@ static int svm_vcpu_reset(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	init_vmcb(svm->vmcb);
+	init_vmcb(svm);
 
 	if (vcpu->vcpu_id != 0) {
 		svm->vmcb->save.rip = 0;
@@ -638,7 +638,7 @@ static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
 	svm->vmcb_pa = page_to_pfn(page) << PAGE_SHIFT;
 	svm->asid_generation = 0;
 	memset(svm->db_regs, 0, sizeof(svm->db_regs));
-	init_vmcb(svm->vmcb);
+	init_vmcb(svm);
 
 	fx_init(&svm->vcpu);
 	svm->vcpu.fpu_active = 1;
@@ -1024,7 +1024,7 @@ static int shutdown_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 	 * so reinitialize it.
 	 */
 	clear_page(svm->vmcb);
-	init_vmcb(svm->vmcb);
+	init_vmcb(svm);
 
 	kvm_run->exit_reason = KVM_EXIT_SHUTDOWN;
 	return 0;
