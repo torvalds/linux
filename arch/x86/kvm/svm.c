@@ -47,6 +47,8 @@ MODULE_LICENSE("GPL");
 #define SVM_FEATURE_LBRV (1 << 1)
 #define SVM_DEATURE_SVML (1 << 2)
 
+#define DEBUGCTL_RESERVED_BITS (~(0x3fULL))
+
 /* enable NPT for AMD64 and X86 with PAE */
 #if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
 static bool npt_enabled = true;
@@ -385,6 +387,28 @@ static void svm_vcpu_init_msrpm(u32 *msrpm)
 	set_msr_interception(msrpm, MSR_IA32_SYSENTER_CS, 1, 1);
 	set_msr_interception(msrpm, MSR_IA32_SYSENTER_ESP, 1, 1);
 	set_msr_interception(msrpm, MSR_IA32_SYSENTER_EIP, 1, 1);
+}
+
+static void svm_enable_lbrv(struct vcpu_svm *svm)
+{
+	u32 *msrpm = svm->msrpm;
+
+	svm->vmcb->control.lbr_ctl = 1;
+	set_msr_interception(msrpm, MSR_IA32_LASTBRANCHFROMIP, 1, 1);
+	set_msr_interception(msrpm, MSR_IA32_LASTBRANCHTOIP, 1, 1);
+	set_msr_interception(msrpm, MSR_IA32_LASTINTFROMIP, 1, 1);
+	set_msr_interception(msrpm, MSR_IA32_LASTINTTOIP, 1, 1);
+}
+
+static void svm_disable_lbrv(struct vcpu_svm *svm)
+{
+	u32 *msrpm = svm->msrpm;
+
+	svm->vmcb->control.lbr_ctl = 0;
+	set_msr_interception(msrpm, MSR_IA32_LASTBRANCHFROMIP, 0, 0);
+	set_msr_interception(msrpm, MSR_IA32_LASTBRANCHTOIP, 0, 0);
+	set_msr_interception(msrpm, MSR_IA32_LASTINTFROMIP, 0, 0);
+	set_msr_interception(msrpm, MSR_IA32_LASTINTTOIP, 0, 0);
 }
 
 static __init int svm_hardware_setup(void)
@@ -1231,8 +1255,19 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, unsigned ecx, u64 data)
 		svm->vmcb->save.sysenter_esp = data;
 		break;
 	case MSR_IA32_DEBUGCTLMSR:
-		pr_unimpl(vcpu, "%s: MSR_IA32_DEBUGCTLMSR 0x%llx, nop\n",
-				__FUNCTION__, data);
+		if (!svm_has(SVM_FEATURE_LBRV)) {
+			pr_unimpl(vcpu, "%s: MSR_IA32_DEBUGCTL 0x%llx, nop\n",
+					__FUNCTION__, data);
+			break;
+		}
+		if (data & DEBUGCTL_RESERVED_BITS)
+			return 1;
+
+		svm->vmcb->save.dbgctl = data;
+		if (data & (1ULL<<0))
+			svm_enable_lbrv(svm);
+		else
+			svm_disable_lbrv(svm);
 		break;
 	case MSR_K7_EVNTSEL0:
 	case MSR_K7_EVNTSEL1:
