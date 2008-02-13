@@ -442,6 +442,8 @@ static int hrtimer_reprogram(struct hrtimer *timer,
 	ktime_t expires = ktime_sub(timer->expires, base->offset);
 	int res;
 
+	WARN_ON_ONCE(timer->expires.tv64 < 0);
+
 	/*
 	 * When the callback is running, we do not reprogram the clock event
 	 * device. The timer callback is either running on a different CPU or
@@ -451,6 +453,15 @@ static int hrtimer_reprogram(struct hrtimer *timer,
 	 */
 	if (hrtimer_callback_running(timer))
 		return 0;
+
+	/*
+	 * CLOCK_REALTIME timer might be requested with an absolute
+	 * expiry time which is less than base->offset. Nothing wrong
+	 * about that, just avoid to call into the tick code, which
+	 * has now objections against negative expiry values.
+	 */
+	if (expires.tv64 < 0)
+		return -ETIME;
 
 	if (expires.tv64 >= expires_next->tv64)
 		return 0;
