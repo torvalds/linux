@@ -282,7 +282,7 @@ static int tifm_ms_issue_cmd(struct tifm_ms *host)
 
 			writel(TIFM_MS_SYS_LATCH
 			       | readl(sock->addr + SOCK_MS_SYSTEM),
-			       sock + SOCK_MS_SYSTEM);
+			       sock->addr + SOCK_MS_SYSTEM);
 			writel(0, sock->addr + SOCK_MS_DATA);
 			dev_dbg(&sock->dev, "writing %x\n", 0);
 
