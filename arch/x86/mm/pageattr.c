@@ -275,8 +275,8 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
 		break;
 #ifdef CONFIG_X86_64
 	case PG_LEVEL_1G:
-		psize = PMD_PAGE_SIZE;
-		pmask = PMD_PAGE_MASK;
+		psize = PUD_PAGE_SIZE;
+		pmask = PUD_PAGE_MASK;
 		break;
 #endif
 	default:
