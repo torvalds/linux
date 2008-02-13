@@ -604,7 +604,7 @@ void __lock_page(struct page *page)
 }
 EXPORT_SYMBOL(__lock_page);
 
-int fastcall __lock_page_killable(struct page *page)
+int __lock_page_killable(struct page *page)
 {
 	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
 
