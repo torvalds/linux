@@ -515,14 +515,20 @@ struct iwl3945_qosparam_cmd {
 #define STA_CONTROL_MODIFY_MSK		0x01
 
 /* key flags __le16*/
-#define STA_KEY_FLG_ENCRYPT_MSK	__constant_cpu_to_le16(0x7)
-#define STA_KEY_FLG_NO_ENC	__constant_cpu_to_le16(0x0)
-#define STA_KEY_FLG_WEP		__constant_cpu_to_le16(0x1)
-#define STA_KEY_FLG_CCMP	__constant_cpu_to_le16(0x2)
-#define STA_KEY_FLG_TKIP	__constant_cpu_to_le16(0x3)
+#define STA_KEY_FLG_ENCRYPT_MSK	__constant_cpu_to_le16(0x0007)
+#define STA_KEY_FLG_NO_ENC	__constant_cpu_to_le16(0x0000)
+#define STA_KEY_FLG_WEP		__constant_cpu_to_le16(0x0001)
+#define STA_KEY_FLG_CCMP	__constant_cpu_to_le16(0x0002)
+#define STA_KEY_FLG_TKIP	__constant_cpu_to_le16(0x0003)
 
 #define STA_KEY_FLG_KEYID_POS	8
 #define STA_KEY_FLG_INVALID 	__constant_cpu_to_le16(0x0800)
+/* wep key is either from global key (0) or from station info array (1) */
+#define STA_KEY_FLG_WEP_KEY_MAP_MSK  __constant_cpu_to_le16(0x0008)
+
+/* wep key in STA: 5-bytes (0) or 13-bytes (1) */
+#define STA_KEY_FLG_KEY_SIZE_MSK     __constant_cpu_to_le16(0x1000)
+#define STA_KEY_MULTICAST_MSK        __constant_cpu_to_le16(0x4000)
 
 /* Flags indicate whether to modify vs. don't change various station params */
 #define	STA_MODIFY_KEY_MASK		0x01
@@ -546,7 +552,8 @@ struct iwl3945_keyinfo {
 	u8 tkip_rx_tsc_byte2;	/* TSC[2] for key mix ph1 detection */
 	u8 reserved1;
 	__le16 tkip_rx_ttak[5];	/* 10-byte unicast TKIP TTAK */
-	__le16 reserved2;
+	u8 key_offset;
+	u8 reserved2;
 	u8 key[16];		/* 16-byte unicast decryption key */
 } __attribute__ ((packed));
 
