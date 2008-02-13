@@ -905,8 +905,7 @@ int xtInsert(tid_t tid,		/* transaction id */
 	XT_PUTENTRY(xad, xflag, xoff, xlen, xaddr);
 
 	/* advance next available entry index */
-	p->header.nextindex =
-	    cpu_to_le16(le16_to_cpu(p->header.nextindex) + 1);
+	le16_add_cpu(&p->header.nextindex, 1);
 
 	/* Don't log it if there are no links to the file */
 	if (!test_cflag(COMMIT_Nolink, ip)) {
@@ -997,8 +996,7 @@ xtSplitUp(tid_t tid,
 			    split->addr);
 
 		/* advance next available entry index */
-		sp->header.nextindex =
-		    cpu_to_le16(le16_to_cpu(sp->header.nextindex) + 1);
+		le16_add_cpu(&sp->header.nextindex, 1);
 
 		/* Don't log it if there are no links to the file */
 		if (!test_cflag(COMMIT_Nolink, ip)) {
@@ -1167,9 +1165,7 @@ xtSplitUp(tid_t tid,
 				    JFS_SBI(ip->i_sb)->nbperpage, rcbn);
 
 			/* advance next available entry index. */
-			sp->header.nextindex =
-			    cpu_to_le16(le16_to_cpu(sp->header.nextindex) +
-					1);
+			le16_add_cpu(&sp->header.nextindex, 1);
 
 			/* Don't log it if there are no links to the file */
 			if (!test_cflag(COMMIT_Nolink, ip)) {
@@ -1738,8 +1734,7 @@ int xtExtend(tid_t tid,		/* transaction id */
 		XT_PUTENTRY(xad, XAD_NEW, xoff, len, xaddr);
 
 		/* advance next available entry index */
-		p->header.nextindex =
-		    cpu_to_le16(le16_to_cpu(p->header.nextindex) + 1);
+		le16_add_cpu(&p->header.nextindex, 1);
 	}
 
 	/* get back old entry */
@@ -1905,8 +1900,7 @@ printf("xtTailgate: xoff:0x%lx xlen:0x%x xaddr:0x%lx\n",
 		XT_PUTENTRY(xad, XAD_NEW, xoff, xlen, xaddr);
 
 		/* advance next available entry index */
-		p->header.nextindex =
-		    cpu_to_le16(le16_to_cpu(p->header.nextindex) + 1);
+		le16_add_cpu(&p->header.nextindex, 1);
 	}
 
 	/* get back old XAD */
@@ -2567,8 +2561,7 @@ int xtAppend(tid_t tid,		/* transaction id */
 	XT_PUTENTRY(xad, xflag, xoff, xlen, xaddr);
 
 	/* advance next available entry index */
-	p->header.nextindex =
-	    cpu_to_le16(le16_to_cpu(p->header.nextindex) + 1);
+	le16_add_cpu(&p->header.nextindex, 1);
 
 	xtlck->lwm.offset =
 	    (xtlck->lwm.offset) ? min(index,(int) xtlck->lwm.offset) : index;
@@ -2631,8 +2624,7 @@ int xtDelete(tid_t tid, struct inode *ip, s64 xoff, s32 xlen, int flag)
 	 * delete the entry from the leaf page
 	 */
 	nextindex = le16_to_cpu(p->header.nextindex);
-	p->header.nextindex =
-	    cpu_to_le16(le16_to_cpu(p->header.nextindex) - 1);
+	le16_add_cpu(&p->header.nextindex, -1);
 
 	/*
 	 * if the leaf page bocome empty, free the page
@@ -2795,9 +2787,7 @@ xtDeleteUp(tid_t tid, struct inode *ip,
 					(nextindex - index -
 					 1) << L2XTSLOTSIZE);
 
-			p->header.nextindex =
-			    cpu_to_le16(le16_to_cpu(p->header.nextindex) -
-					1);
+			le16_add_cpu(&p->header.nextindex, -1);
 			jfs_info("xtDeleteUp(entry): 0x%lx[%d]",
 				 (ulong) parent->bn, index);
 		}

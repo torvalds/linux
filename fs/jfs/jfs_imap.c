@@ -1019,8 +1019,7 @@ int diFree(struct inode *ip)
 		/* update the free inode counts at the iag, ag and
 		 * map level.
 		 */
-		iagp->nfreeinos =
-		    cpu_to_le32(le32_to_cpu(iagp->nfreeinos) + 1);
+		le32_add_cpu(&iagp->nfreeinos, 1);
 		imap->im_agctl[agno].numfree += 1;
 		atomic_inc(&imap->im_numfree);
 
@@ -1219,9 +1218,8 @@ int diFree(struct inode *ip)
 	/* update the number of free inodes and number of free extents
 	 * for the iag.
 	 */
-	iagp->nfreeinos = cpu_to_le32(le32_to_cpu(iagp->nfreeinos) -
-				      (INOSPEREXT - 1));
-	iagp->nfreeexts = cpu_to_le32(le32_to_cpu(iagp->nfreeexts) + 1);
+	le32_add_cpu(&iagp->nfreeinos, -(INOSPEREXT - 1));
+	le32_add_cpu(&iagp->nfreeexts, 1);
 
 	/* update the number of free inodes and backed inodes
 	 * at the ag and inode map level.
@@ -2124,7 +2122,7 @@ static int diAllocBit(struct inomap * imap, struct iag * iagp, int ino)
 	/* update the free inode count at the iag, ag, inode
 	 * map levels.
 	 */
-	iagp->nfreeinos = cpu_to_le32(le32_to_cpu(iagp->nfreeinos) - 1);
+	le32_add_cpu(&iagp->nfreeinos, -1);
 	imap->im_agctl[agno].numfree -= 1;
 	atomic_dec(&imap->im_numfree);
 
@@ -2378,9 +2376,8 @@ static int diNewExt(struct inomap * imap, struct iag * iagp, int extno)
 	/* update the free inode and free extent counts for the
 	 * iag.
 	 */
-	iagp->nfreeinos = cpu_to_le32(le32_to_cpu(iagp->nfreeinos) +
-				      (INOSPEREXT - 1));
-	iagp->nfreeexts = cpu_to_le32(le32_to_cpu(iagp->nfreeexts) - 1);
+	le32_add_cpu(&iagp->nfreeinos, (INOSPEREXT - 1));
+	le32_add_cpu(&iagp->nfreeexts, -1);
 
 	/* update the free and backed inode counts for the ag.
 	 */
