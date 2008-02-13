@@ -273,8 +273,8 @@ asmlinkage void do_softirq(void);
 extern void open_softirq(int nr, void (*action)(struct softirq_action*), void *data);
 extern void softirq_init(void);
 #define __raise_softirq_irqoff(nr) do { or_softirq_pending(1UL << (nr)); } while (0)
-extern void FASTCALL(raise_softirq_irqoff(unsigned int nr));
-extern void FASTCALL(raise_softirq(unsigned int nr));
+extern void raise_softirq_irqoff(unsigned int nr);
+extern void raise_softirq(unsigned int nr);
 
 
 /* Tasklets --- multithreaded analogue of BHs.
@@ -341,7 +341,7 @@ static inline void tasklet_unlock_wait(struct tasklet_struct *t)
 #define tasklet_unlock(t) do { } while (0)
 #endif
 
-extern void FASTCALL(__tasklet_schedule(struct tasklet_struct *t));
+extern void __tasklet_schedule(struct tasklet_struct *t);
 
 static inline void tasklet_schedule(struct tasklet_struct *t)
 {
@@ -349,7 +349,7 @@ static inline void tasklet_schedule(struct tasklet_struct *t)
 		__tasklet_schedule(t);
 }
 
-extern void FASTCALL(__tasklet_hi_schedule(struct tasklet_struct *t));
+extern void __tasklet_hi_schedule(struct tasklet_struct *t);
 
 static inline void tasklet_hi_schedule(struct tasklet_struct *t)
 {
