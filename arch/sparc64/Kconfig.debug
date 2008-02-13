@@ -23,10 +23,6 @@ config STACK_DEBUG
 	depends on DEBUG_KERNEL
 	bool "Stack Overflow Detection Support"
 
-config DEBUG_BOOTMEM
-	depends on DEBUG_KERNEL
-	bool "Debug BOOTMEM initialization"
-
 config DEBUG_PAGEALLOC
 	bool "Debug page memory allocations"
 	depends on DEBUG_KERNEL && !HIBERNATION
