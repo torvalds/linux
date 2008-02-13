@@ -308,7 +308,7 @@ static inline int is_end(void *addr)
 	return (unsigned long)addr & PAGE_MAPPING_ANON;
 }
 
-void *slab_address(struct page *page)
+static void *slab_address(struct page *page)
 {
 	return page->end - PAGE_MAPPING_ANON;
 }
