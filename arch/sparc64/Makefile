@@ -17,6 +17,7 @@ LDFLAGS		:= -m elf64_sparc
 KBUILD_CFLAGS += -m64 -pipe -mno-fpu -mcpu=ultrasparc -mcmodel=medlow \
 	-ffixed-g4 -ffixed-g5 -fcall-used-g7 -Wno-sign-compare \
 	-Wa,--undeclared-regs
+KBUILD_CFLAGS += $(call cc-option,-mtune=ultrasparc3)
 KBUILD_AFLAGS += -m64 -mcpu=ultrasparc -Wa,--undeclared-regs
 
 ifeq ($(CONFIG_MCOUNT),y)
