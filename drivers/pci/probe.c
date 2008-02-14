@@ -22,16 +22,27 @@ EXPORT_SYMBOL(pci_root_buses);
 
 LIST_HEAD(pci_devices);
 
+
+static int find_anything(struct device *dev, void *data)
+{
+	return 1;
+}
+
 /*
  * Some device drivers need know if pci is initiated.
  * Basically, we think pci is not initiated when there
- * is no device in list of pci_devices.
+ * is no device to be found on the pci_bus_type.
  */
 int no_pci_devices(void)
 {
-	return list_empty(&pci_devices);
-}
+	struct device *dev;
+	int no_devices;
 
+	dev = bus_find_device(&pci_bus_type, NULL, NULL, find_anything);
+	no_devices = (dev == NULL);
+	put_device(dev);
+	return no_devices;
+}
 EXPORT_SYMBOL(no_pci_devices);
 
 #ifdef HAVE_PCI_LEGACY
