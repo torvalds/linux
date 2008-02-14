@@ -147,7 +147,6 @@ void cpu_idle(void)
 {
 	current_thread_info()->status |= TS_POLLING;
 
-#ifdef CONFIG_CC_STACKPROTECTOR
 	/*
 	 * If we're the non-boot CPU, nothing set the PDA stack
 	 * canary up for us - and if we are the boot CPU we have
@@ -156,9 +155,8 @@ void cpu_idle(void)
 	 * invalid canaries already on the stack wont ever
 	 * trigger):
 	 */
-	current->stack_canary = get_random_int();
-	write_pda(stack_canary, current->stack_canary);
-#endif
+	boot_init_stack_canary();
+
 	/* endless idle loop with no priority at all */
 	while (1) {
 		tick_nohz_stop_sched_tick();
