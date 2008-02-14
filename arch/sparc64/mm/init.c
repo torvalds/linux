@@ -1214,6 +1214,8 @@ void __init paging_init(void)
 	 */
 	real_setup_per_cpu_areas();
 
+	prom_build_devicetree();
+
 	/* Setup bootmem... */
 	pages_avail = 0;
 	last_valid_pfn = end_pfn = bootmem_init(&pages_avail, phys_base);
@@ -1221,8 +1223,6 @@ void __init paging_init(void)
 	max_mapnr = last_valid_pfn;
 
 	kernel_physical_mapping_init();
-
-	prom_build_devicetree();
 
 	if (tlb_type == hypervisor)
 		sun4v_mdesc_init();
