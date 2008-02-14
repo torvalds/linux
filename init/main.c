@@ -546,6 +546,12 @@ asmlinkage void __init start_kernel(void)
 	unwind_init();
 	lockdep_init();
 	debug_objects_early_init();
+
+	/*
+	 * Set up the the initial canary ASAP:
+	 */
+	boot_init_stack_canary();
+
 	cgroup_init_early();
 
 	local_irq_disable();

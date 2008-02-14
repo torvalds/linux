@@ -1,6 +1,10 @@
 #ifndef _LINUX_STACKPROTECTOR_H
 #define _LINUX_STACKPROTECTOR_H 1
 
+#include <linux/compiler.h>
+#include <linux/sched.h>
+#include <linux/random.h>
+
 #ifdef CONFIG_CC_STACKPROTECTOR
 # include <asm/stackprotector.h>
 #else
