@@ -775,115 +775,6 @@ static unsigned long __init choose_bootmap_pfn(unsigned long start_pfn,
 	prom_halt();
 }
 
-static void __init trim_pavail(unsigned long *cur_size_p,
-			       unsigned long *end_of_phys_p)
-{
-	unsigned long to_trim = *cur_size_p - cmdline_memory_size;
-	unsigned long avoid_start, avoid_end;
-	int i;
-
-	to_trim = PAGE_ALIGN(to_trim);
-
-	avoid_start = avoid_end = 0;
-#ifdef CONFIG_BLK_DEV_INITRD
-	avoid_start = initrd_start;
-	avoid_end = PAGE_ALIGN(initrd_end);
-#endif
-
-	/* Trim some pavail[] entries in order to satisfy the
-	 * requested "mem=xxx" kernel command line specification.
-	 *
-	 * We must not trim off the kernel image area nor the
-	 * initial ramdisk range (if any).  Also, we must not trim
-	 * any pavail[] entry down to zero in order to preserve
-	 * the invariant that all pavail[] entries have a non-zero
-	 * size which is assumed by all of the code in here.
-	 */
-	for (i = 0; i < pavail_ents; i++) {
-		unsigned long start, end, kern_end;
-		unsigned long trim_low, trim_high, n;
-
-		kern_end = PAGE_ALIGN(kern_base + kern_size);
-
-		trim_low = start = pavail[i].phys_addr;
-		trim_high = end = start + pavail[i].reg_size;
-
-		if (kern_base >= start &&
-		    kern_base < end) {
-			trim_low = kern_base;
-			if (kern_end >= end)
-				continue;
-		}
-		if (kern_end >= start &&
-		    kern_end < end) {
-			trim_high = kern_end;
-		}
-		if (avoid_start &&
-		    avoid_start >= start &&
-		    avoid_start < end) {
-			if (trim_low > avoid_start)
-				trim_low = avoid_start;
-			if (avoid_end >= end)
-				continue;
-		}
-		if (avoid_end &&
-		    avoid_end >= start &&
-		    avoid_end < end) {
-			if (trim_high < avoid_end)
-				trim_high = avoid_end;
-		}
-
-		if (trim_high <= trim_low)
-			continue;
-
-		if (trim_low == start && trim_high == end) {
-			/* Whole chunk is available for trimming.
-			 * Trim all except one page, in order to keep
-			 * entry non-empty.
-			 */
-			n = (end - start) - PAGE_SIZE;
-			if (n > to_trim)
-				n = to_trim;
-
-			if (n) {
-				pavail[i].phys_addr += n;
-				pavail[i].reg_size -= n;
-				to_trim -= n;
-			}
-		} else {
-			n = (trim_low - start);
-			if (n > to_trim)
-				n = to_trim;
-
-			if (n) {
-				pavail[i].phys_addr += n;
-				pavail[i].reg_size -= n;
-				to_trim -= n;
-			}
-			if (to_trim) {
-				n = end - trim_high;
-				if (n > to_trim)
-					n = to_trim;
-				if (n) {
-					pavail[i].reg_size -= n;
-					to_trim -= n;
-				}
-			}
-		}
-
-		if (!to_trim)
-			break;
-	}
-
-	/* Recalculate.  */
-	*cur_size_p = 0UL;
-	for (i = 0; i < pavail_ents; i++) {
-		*end_of_phys_p = pavail[i].phys_addr +
-			pavail[i].reg_size;
-		*cur_size_p += pavail[i].reg_size;
-	}
-}
-
 static void __init find_ramdisk(unsigned long phys_base)
 {
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -935,25 +826,11 @@ static unsigned long __init bootmem_init(unsigned long *pages_avail,
 					 unsigned long phys_base)
 {
 	unsigned long bootmap_size, end_pfn;
-	unsigned long end_of_phys_memory = 0UL;
-	unsigned long bootmap_pfn, bytes_avail, size;
+	unsigned long bootmap_pfn, size;
 	int i;
 
-	bytes_avail = 0UL;
-	for (i = 0; i < pavail_ents; i++) {
-		end_of_phys_memory = pavail[i].phys_addr +
-			pavail[i].reg_size;
-		bytes_avail += pavail[i].reg_size;
-	}
-
-	if (cmdline_memory_size &&
-	    bytes_avail > cmdline_memory_size)
-		trim_pavail(&bytes_avail,
-			    &end_of_phys_memory);
-
-	*pages_avail = bytes_avail >> PAGE_SHIFT;
-
-	end_pfn = end_of_phys_memory >> PAGE_SHIFT;
+	*pages_avail = lmb_phys_mem_size() >> PAGE_SHIFT;
+	end_pfn = lmb_end_of_DRAM() >> PAGE_SHIFT;
 
 	/* Initialize the boot-time allocator. */
 	max_pfn = max_low_pfn = end_pfn;
@@ -1354,6 +1231,9 @@ void __init paging_init(void)
 	lmb_reserve(kern_base, kern_size);
 
 	find_ramdisk(phys_base);
+
+	if (cmdline_memory_size)
+		lmb_enforce_memory_limit(phys_base + cmdline_memory_size);
 
 	lmb_analyze();
 	lmb_dump_all();
