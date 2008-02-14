@@ -2291,6 +2291,7 @@ static int pfkey_spdadd(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	return 0;
 
 out:
+	xp->dead = 1;
 	xfrm_policy_destroy(xp);
 	return err;
 }
