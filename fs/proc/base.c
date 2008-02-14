@@ -350,6 +350,8 @@ static int lstats_open(struct inode *inode, struct file *file)
 	struct seq_file *m;
 	struct task_struct *task = get_proc_task(inode);
 
+	if (!task)
+		return -ENOENT;
 	ret = single_open(file, lstats_show_proc, NULL);
 	if (!ret) {
 		m = file->private_data;
