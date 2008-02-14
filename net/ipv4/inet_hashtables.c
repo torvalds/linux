@@ -120,8 +120,6 @@ void inet_listen_wlock(struct inet_hashinfo *hashinfo)
 	}
 }
 
-EXPORT_SYMBOL(inet_listen_wlock);
-
 /*
  * Don't inline this cruft. Here are some nice properties to exploit here. The
  * BSD API does not allow a listening sock to specify the remote port nor the
