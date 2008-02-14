@@ -114,7 +114,7 @@ struct cluster_attribute {
 };
 
 static ssize_t cluster_set(struct cluster *cl, unsigned int *cl_field,
-			   unsigned int *info_field, int check_zero,
+			   int *info_field, int check_zero,
 			   const char *buf, size_t len)
 {
 	unsigned int x;
