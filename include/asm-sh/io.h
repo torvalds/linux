@@ -182,13 +182,13 @@ __BUILD_MEMORY_STRING(w, u16)
 #define iowrite32(v,a)		writel((v),(a))
 #define iowrite32be(v,a)	__raw_writel(cpu_to_be32((v)),(a))
 
-#define ioread8_rep(a,d,c)	insb((a),(d),(c))
-#define ioread16_rep(a,d,c)	insw((a),(d),(c))
-#define ioread32_rep(a,d,c)	insl((a),(d),(c))
+#define ioread8_rep(a, d, c)	readsb((a), (d), (c))
+#define ioread16_rep(a, d, c)	readsw((a), (d), (c))
+#define ioread32_rep(a, d, c)	readsl((a), (d), (c))
 
-#define iowrite8_rep(a,s,c)	outsb((a),(s),(c))
-#define iowrite16_rep(a,s,c)	outsw((a),(s),(c))
-#define iowrite32_rep(a,s,c)	outsl((a),(s),(c))
+#define iowrite8_rep(a, s, c)	writesb((a), (s), (c))
+#define iowrite16_rep(a, s, c)	writesw((a), (s), (c))
+#define iowrite32_rep(a, s, c)	writesl((a), (s), (c))
 
 #define mmiowb()	wmb()	/* synco on SH-4A, otherwise a nop */
 
