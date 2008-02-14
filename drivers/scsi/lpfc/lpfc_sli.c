@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2007 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2008 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -203,7 +203,24 @@ lpfc_sli_iocb_cmd_type(uint8_t iocb_cmnd)
 	case CMD_IOCB_RCV_SEQ64_CX:
 	case CMD_IOCB_RCV_ELS64_CX:
 	case CMD_IOCB_RCV_CONT64_CX:
+	case CMD_IOCB_RET_XRI64_CX:
 		type = LPFC_UNSOL_IOCB;
+		break;
+	case CMD_IOCB_XMIT_MSEQ64_CR:
+	case CMD_IOCB_XMIT_MSEQ64_CX:
+	case CMD_IOCB_RCV_SEQ_LIST64_CX:
+	case CMD_IOCB_RCV_ELS_LIST64_CX:
+	case CMD_IOCB_CLOSE_EXTENDED_CN:
+	case CMD_IOCB_ABORT_EXTENDED_CN:
+	case CMD_IOCB_RET_HBQE64_CN:
+	case CMD_IOCB_FCP_IBIDIR64_CR:
+	case CMD_IOCB_FCP_IBIDIR64_CX:
+	case CMD_IOCB_FCP_ITASKMGT64_CX:
+	case CMD_IOCB_LOGENTRY_CN:
+	case CMD_IOCB_LOGENTRY_ASYNC_CN:
+		printk("%s - Unhandled SLI-3 Command x%x\n",
+				__FUNCTION__, iocb_cmnd);
+		type = LPFC_UNKNOWN_IOCB;
 		break;
 	default:
 		type = LPFC_UNKNOWN_IOCB;
@@ -529,10 +546,13 @@ lpfc_sli_hbqbuf_free_all(struct lpfc_hba *phba)
 {
 	struct lpfc_dmabuf *dmabuf, *next_dmabuf;
 	struct hbq_dmabuf *hbq_buf;
+	unsigned long flags;
 	int i, hbq_count;
+	uint32_t hbqno;
 
 	hbq_count = lpfc_sli_hbq_count();
 	/* Return all memory used by all HBQs */
+	spin_lock_irqsave(&phba->hbalock, flags);
 	for (i = 0; i < hbq_count; ++i) {
 		list_for_each_entry_safe(dmabuf, next_dmabuf,
 				&phba->hbqs[i].hbq_buffer_list, list) {
@@ -542,6 +562,28 @@ lpfc_sli_hbqbuf_free_all(struct lpfc_hba *phba)
 		}
 		phba->hbqs[i].buffer_count = 0;
 	}
+	/* Return all HBQ buffer that are in-fly */
+	list_for_each_entry_safe(dmabuf, next_dmabuf,
+			&phba->hbqbuf_in_list, list) {
+		hbq_buf = container_of(dmabuf, struct hbq_dmabuf, dbuf);
+		list_del(&hbq_buf->dbuf.list);
+		if (hbq_buf->tag == -1) {
+			(phba->hbqs[LPFC_ELS_HBQ].hbq_free_buffer)
+				(phba, hbq_buf);
+		} else {
+			hbqno = hbq_buf->tag >> 16;
+			if (hbqno >= LPFC_MAX_HBQS)
+				(phba->hbqs[LPFC_ELS_HBQ].hbq_free_buffer)
+					(phba, hbq_buf);
+			else
+				(phba->hbqs[hbqno].hbq_free_buffer)(phba,
+					hbq_buf);
+		}
+	}
+
+	/* Mark the HBQs not in use */
+	phba->hbq_in_use = 0;
+	spin_unlock_irqrestore(&phba->hbalock, flags);
 }
 
 static struct lpfc_hbq_entry *
@@ -603,6 +645,7 @@ static int
 lpfc_sli_hbqbuf_fill_hbqs(struct lpfc_hba *phba, uint32_t hbqno, uint32_t count)
 {
 	uint32_t i, start, end;
+	unsigned long flags;
 	struct hbq_dmabuf *hbq_buffer;
 
 	if (!phba->hbqs[hbqno].hbq_alloc_buffer) {
@@ -613,6 +656,13 @@ lpfc_sli_hbqbuf_fill_hbqs(struct lpfc_hba *phba, uint32_t hbqno, uint32_t count)
 	end = count + start;
 	if (end > lpfc_hbq_defs[hbqno]->entry_count) {
 		end = lpfc_hbq_defs[hbqno]->entry_count;
+	}
+
+	/* Check whether HBQ is still in use */
+	spin_lock_irqsave(&phba->hbalock, flags);
+	if (!phba->hbq_in_use) {
+		spin_unlock_irqrestore(&phba->hbalock, flags);
+		return 0;
 	}
 
 	/* Populate HBQ entries */
@@ -626,6 +676,8 @@ lpfc_sli_hbqbuf_fill_hbqs(struct lpfc_hba *phba, uint32_t hbqno, uint32_t count)
 		else
 			(phba->hbqs[hbqno].hbq_free_buffer)(phba, hbq_buffer);
 	}
+
+	spin_unlock_irqrestore(&phba->hbalock, flags);
 	return 0;
 }
 
@@ -910,16 +962,29 @@ lpfc_sli_replace_hbqbuff(struct lpfc_hba *phba, uint32_t tag)
 	uint32_t hbqno;
 	void *virt;		/* virtual address ptr */
 	dma_addr_t phys;	/* mapped address */
+	unsigned long flags;
+
+	/* Check whether HBQ is still in use */
+	spin_lock_irqsave(&phba->hbalock, flags);
+	if (!phba->hbq_in_use) {
+		spin_unlock_irqrestore(&phba->hbalock, flags);
+		return NULL;
+	}
 
 	hbq_entry = lpfc_sli_hbqbuf_find(phba, tag);
-	if (hbq_entry == NULL)
+	if (hbq_entry == NULL) {
+		spin_unlock_irqrestore(&phba->hbalock, flags);
 		return NULL;
+	}
 	list_del(&hbq_entry->dbuf.list);
 
 	hbqno = tag >> 16;
 	new_hbq_entry = (phba->hbqs[hbqno].hbq_alloc_buffer)(phba);
-	if (new_hbq_entry == NULL)
+	if (new_hbq_entry == NULL) {
+		list_add_tail(&hbq_entry->dbuf.list, &phba->hbqbuf_in_list);
+		spin_unlock_irqrestore(&phba->hbalock, flags);
 		return &hbq_entry->dbuf;
+	}
 	new_hbq_entry->tag = -1;
 	phys = new_hbq_entry->dbuf.phys;
 	virt = new_hbq_entry->dbuf.virt;
@@ -928,6 +993,9 @@ lpfc_sli_replace_hbqbuff(struct lpfc_hba *phba, uint32_t tag)
 	hbq_entry->dbuf.phys = phys;
 	hbq_entry->dbuf.virt = virt;
 	lpfc_sli_free_hbq(phba, hbq_entry);
+	list_add_tail(&new_hbq_entry->dbuf.list, &phba->hbqbuf_in_list);
+	spin_unlock_irqrestore(&phba->hbalock, flags);
+
 	return &new_hbq_entry->dbuf;
 }
 
@@ -951,6 +1019,7 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	uint32_t           Rctl, Type;
 	uint32_t           match, i;
 	struct lpfc_iocbq *iocbq;
+	struct lpfc_dmabuf *dmzbuf;
 
 	match = 0;
 	irsp = &(saveq->iocb);
@@ -969,6 +1038,29 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 					"0x%x\n",
 					pring->ringno,
 					irsp->un.asyncstat.evt_code);
+		return 1;
+	}
+
+	if ((irsp->ulpCommand == CMD_IOCB_RET_XRI64_CX) &&
+		(phba->sli3_options & LPFC_SLI3_HBQ_ENABLED)) {
+		if (irsp->ulpBdeCount > 0) {
+			dmzbuf = lpfc_sli_get_buff(phba, pring,
+					irsp->un.ulpWord[3]);
+			lpfc_in_buf_free(phba, dmzbuf);
+		}
+
+		if (irsp->ulpBdeCount > 1) {
+			dmzbuf = lpfc_sli_get_buff(phba, pring,
+					irsp->unsli3.sli3Words[3]);
+			lpfc_in_buf_free(phba, dmzbuf);
+		}
+
+		if (irsp->ulpBdeCount > 2) {
+			dmzbuf = lpfc_sli_get_buff(phba, pring,
+				irsp->unsli3.sli3Words[7]);
+			lpfc_in_buf_free(phba, dmzbuf);
+		}
+
 		return 1;
 	}
 
@@ -2293,6 +2385,7 @@ lpfc_sli_hbq_setup(struct lpfc_hba *phba)
 
 	/* Initialize the struct lpfc_sli_hbq structure for each hbq */
 	phba->link_state = LPFC_INIT_MBX_CMDS;
+	phba->hbq_in_use = 1;
 
 	hbq_entry_index = 0;
 	for (hbqno = 0; hbqno < hbq_count; ++hbqno) {
@@ -2404,9 +2497,7 @@ lpfc_do_config_port(struct lpfc_hba *phba, int sli_mode)
 	if ((pmb->mb.un.varCfgPort.sli_mode == 3) &&
 		(!pmb->mb.un.varCfgPort.cMA)) {
 		rc = -ENXIO;
-		goto do_prep_failed;
 	}
-	return rc;
 
 do_prep_failed:
 	mempool_free(pmb, phba->mbox_mem_pool);
@@ -2625,14 +2716,14 @@ lpfc_sli_issue_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox, uint32_t flag)
 		spin_unlock_irqrestore(&phba->hbalock, drvr_flag);
 
 		/* Mbox command <mbxCommand> cannot issue */
-		LOG_MBOX_CANNOT_ISSUE_DATA(phba, pmbox, psli, flag)
+		LOG_MBOX_CANNOT_ISSUE_DATA(phba, pmbox, psli, flag);
 		return MBX_NOT_FINISHED;
 	}
 
 	if (mb->mbxCommand != MBX_KILL_BOARD && flag & MBX_NOWAIT &&
 	    !(readl(phba->HCregaddr) & HC_MBINT_ENA)) {
 		spin_unlock_irqrestore(&phba->hbalock, drvr_flag);
-		LOG_MBOX_CANNOT_ISSUE_DATA(phba, pmbox, psli, flag)
+		LOG_MBOX_CANNOT_ISSUE_DATA(phba, pmbox, psli, flag);
 		return MBX_NOT_FINISHED;
 	}
 

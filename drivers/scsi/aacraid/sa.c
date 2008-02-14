@@ -31,6 +31,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/types.h>
+#include <linux/pci.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/blkdev.h>
@@ -385,7 +386,7 @@ int aac_sa_init(struct aac_dev *dev)
 
 	if(aac_init_adapter(dev) == NULL)
 		goto error_irq;
-	if (request_irq(dev->scsi_host_ptr->irq, dev->a_ops.adapter_intr,
+	if (request_irq(dev->pdev->irq, dev->a_ops.adapter_intr,
 			IRQF_SHARED|IRQF_DISABLED,
 			"aacraid", (void *)dev ) < 0) {
 		printk(KERN_WARNING "%s%d: Interrupt unavailable.\n",
@@ -403,7 +404,7 @@ int aac_sa_init(struct aac_dev *dev)
 
 error_irq:
 	aac_sa_disable_interrupt(dev);
-	free_irq(dev->scsi_host_ptr->irq, (void *)dev);
+	free_irq(dev->pdev->irq, (void *)dev);
 
 error_iounmap:
 

@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2007 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2008 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -307,6 +307,7 @@ struct lpfc_vport {
 
 	uint32_t fc_nlp_cnt;	/* outstanding NODELIST requests */
 	uint32_t fc_rscn_id_cnt;	/* count of RSCNs payloads in list */
+	uint32_t fc_rscn_flush;		/* flag use of fc_rscn_id_list */
 	struct lpfc_dmabuf *fc_rscn_id_list[FC_MAX_HOLD_RSCN];
 	struct lpfc_name fc_nodename;	/* fc nodename */
 	struct lpfc_name fc_portname;	/* fc portname */
@@ -392,6 +393,13 @@ enum hba_temp_state {
 	HBA_OVER_TEMP
 };
 
+enum intr_type_t {
+	NONE = 0,
+	INTx,
+	MSI,
+	MSIX,
+};
+
 struct lpfc_hba {
 	struct lpfc_sli sli;
 	uint32_t sli_rev;		/* SLI2 or SLI3 */
@@ -409,7 +417,7 @@ struct lpfc_hba {
 					/* This flag is set while issuing */
 					/* INIT_LINK mailbox command */
 #define LS_NPIV_FAB_SUPPORTED 0x2	/* Fabric supports NPIV */
-#define LS_IGNORE_ERATT       0x3	/* intr handler should ignore ERATT */
+#define LS_IGNORE_ERATT       0x4	/* intr handler should ignore ERATT */
 
 	struct lpfc_sli2_slim *slim2p;
 	struct lpfc_dmabuf hbqslimp;
@@ -487,6 +495,8 @@ struct lpfc_hba {
 	wait_queue_head_t    *work_wait;
 	struct task_struct   *worker_thread;
 
+	uint32_t hbq_in_use;		/* HBQs in use flag */
+	struct list_head hbqbuf_in_list;  /* in-fly hbq buffer list */
 	uint32_t hbq_count;	        /* Count of configured HBQs */
 	struct hbq_s hbqs[LPFC_MAX_HBQS]; /* local copy of hbq indicies  */
 
@@ -555,7 +565,8 @@ struct lpfc_hba {
 	mempool_t *nlp_mem_pool;
 
 	struct fc_host_statistics link_stats;
-	uint8_t using_msi;
+	enum intr_type_t intr_type;
+	struct msix_entry msix_entries[1];
 
 	struct list_head port_list;
 	struct lpfc_vport *pport;	/* physical lpfc_vport pointer */
@@ -595,6 +606,8 @@ struct lpfc_hba {
 	unsigned long last_completion_time;
 	struct timer_list hb_tmofunc;
 	uint8_t hb_outstanding;
+	/* ndlp reference management */
+	spinlock_t ndlp_lock;
 	/*
 	 * Following bit will be set for all buffer tags which are not
 	 * associated with any HBQ.

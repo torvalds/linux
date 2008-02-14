@@ -275,9 +275,9 @@ static const char *aac_info(struct Scsi_Host *shost)
 
 /**
  *	aac_get_driver_ident
- * 	@devtype: index into lookup table
+ *	@devtype: index into lookup table
  *
- * 	Returns a pointer to the entry in the driver lookup table.
+ *	Returns a pointer to the entry in the driver lookup table.
  */
 
 struct aac_driver_ident* aac_get_driver_ident(int devtype)
@@ -494,13 +494,14 @@ static int aac_change_queue_depth(struct scsi_device *sdev, int depth)
 
 static ssize_t aac_show_raid_level(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct scsi_device * sdev = to_scsi_device(dev);
+	struct scsi_device *sdev = to_scsi_device(dev);
+	struct aac_dev *aac = (struct aac_dev *)(sdev->host->hostdata);
 	if (sdev_channel(sdev) != CONTAINER_CHANNEL)
 		return snprintf(buf, PAGE_SIZE, sdev->no_uld_attach
-		  ? "Hidden\n" : "JBOD");
+		  ? "Hidden\n" :
+		  ((aac->jbod && (sdev->type == TYPE_DISK)) ? "JBOD\n" : ""));
 	return snprintf(buf, PAGE_SIZE, "%s\n",
-	  get_container_type(((struct aac_dev *)(sdev->host->hostdata))
-	    ->fsa_dev[sdev_id(sdev)].type));
+	  get_container_type(aac->fsa_dev[sdev_id(sdev)].type));
 }
 
 static struct device_attribute aac_raid_level_attr = {
@@ -641,7 +642,7 @@ static int aac_eh_reset(struct scsi_cmnd* cmd)
 	   AAC_OPTION_MU_RESET) &&
 	  aac_check_reset &&
 	  ((aac_check_reset != 1) ||
-	   (aac->supplement_adapter_info.SupportedOptions2 &
+	   !(aac->supplement_adapter_info.SupportedOptions2 &
 	    AAC_OPTION_IGNORE_RESET)))
 		aac_reset_adapter(aac, 2); /* Bypass wait for command quiesce */
 	return SUCCESS; /* Cause an immediate retry of the command with a ten second delay after successful tur */
@@ -860,8 +861,8 @@ ssize_t aac_show_serial_number(struct class_device *class_dev, char *buf)
 		  le32_to_cpu(dev->adapter_info.serial[0]));
 	if (len &&
 	  !memcmp(&dev->supplement_adapter_info.MfgPcbaSerialNo[
-	    sizeof(dev->supplement_adapter_info.MfgPcbaSerialNo)+2-len],
-	  buf, len))
+	    sizeof(dev->supplement_adapter_info.MfgPcbaSerialNo)-len],
+	  buf, len-1))
 		len = snprintf(buf, PAGE_SIZE, "%.*s\n",
 		  (int)sizeof(dev->supplement_adapter_info.MfgPcbaSerialNo),
 		  dev->supplement_adapter_info.MfgPcbaSerialNo);
@@ -1004,32 +1005,32 @@ static const struct file_operations aac_cfg_fops = {
 
 static struct scsi_host_template aac_driver_template = {
 	.module				= THIS_MODULE,
-	.name           		= "AAC",
+	.name				= "AAC",
 	.proc_name			= AAC_DRIVERNAME,
-	.info           		= aac_info,
-	.ioctl          		= aac_ioctl,
+	.info				= aac_info,
+	.ioctl				= aac_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl			= aac_compat_ioctl,
 #endif
-	.queuecommand   		= aac_queuecommand,
-	.bios_param     		= aac_biosparm,
+	.queuecommand			= aac_queuecommand,
+	.bios_param			= aac_biosparm,
 	.shost_attrs			= aac_attrs,
 	.slave_configure		= aac_slave_configure,
 	.change_queue_depth		= aac_change_queue_depth,
 	.sdev_attrs			= aac_dev_attrs,
 	.eh_abort_handler		= aac_eh_abort,
 	.eh_host_reset_handler		= aac_eh_reset,
-	.can_queue      		= AAC_NUM_IO_FIB,
-	.this_id        		= MAXIMUM_NUM_CONTAINERS,
-	.sg_tablesize   		= 16,
-	.max_sectors    		= 128,
+	.can_queue			= AAC_NUM_IO_FIB,
+	.this_id			= MAXIMUM_NUM_CONTAINERS,
+	.sg_tablesize			= 16,
+	.max_sectors			= 128,
 #if (AAC_NUM_IO_FIB > 256)
 	.cmd_per_lun			= 256,
 #else
-	.cmd_per_lun    		= AAC_NUM_IO_FIB,
+	.cmd_per_lun			= AAC_NUM_IO_FIB,
 #endif
 	.use_clustering			= ENABLE_CLUSTERING,
-	.emulated                       = 1,
+	.emulated			= 1,
 };
 
 static void __aac_shutdown(struct aac_dev * aac)
@@ -1039,6 +1040,8 @@ static void __aac_shutdown(struct aac_dev * aac)
 	aac_send_shutdown(aac);
 	aac_adapter_disable_int(aac);
 	free_irq(aac->pdev->irq, aac);
+	if (aac->msi)
+		pci_disable_msi(aac->pdev);
 }
 
 static int __devinit aac_probe_one(struct pci_dev *pdev,
@@ -1254,7 +1257,7 @@ static struct pci_driver aac_pci_driver = {
 	.id_table	= aac_pci_tbl,
 	.probe		= aac_probe_one,
 	.remove		= __devexit_p(aac_remove_one),
-	.shutdown 	= aac_shutdown,
+	.shutdown	= aac_shutdown,
 };
 
 static int __init aac_init(void)
@@ -1271,7 +1274,7 @@ static int __init aac_init(void)
 	aac_cfg_major = register_chrdev( 0, "aac", &aac_cfg_fops);
 	if (aac_cfg_major < 0) {
 		printk(KERN_WARNING
-		       "aacraid: unable to register \"aac\" device.\n");
+			"aacraid: unable to register \"aac\" device.\n");
 	}
 
 	return 0;

@@ -369,7 +369,7 @@ int asd_abort_task(struct sas_task *task)
 		return -ENOMEM;
 	scb = ascb->scb;
 
-	scb->header.opcode = ABORT_TASK;
+	scb->header.opcode = SCB_ABORT_TASK;
 
 	switch (task->task_proto) {
 	case SAS_PROTOCOL_SATA:

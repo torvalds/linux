@@ -187,10 +187,10 @@
 #define sym53c416_base_2 sym53c416_2
 #define sym53c416_base_3 sym53c416_3
 
-static unsigned int sym53c416_base[2] = {0,0};
-static unsigned int sym53c416_base_1[2] = {0,0};
-static unsigned int sym53c416_base_2[2] = {0,0};
-static unsigned int sym53c416_base_3[2] = {0,0};
+static unsigned int sym53c416_base[2];
+static unsigned int sym53c416_base_1[2];
+static unsigned int sym53c416_base_2[2];
+static unsigned int sym53c416_base_3[2];
 
 #endif
 
@@ -621,25 +621,25 @@ int __init sym53c416_detect(struct scsi_host_template *tpnt)
 	int ints[3];
 
 	ints[0] = 2;
-	if(sym53c416_base)
+	if(sym53c416_base[0])
 	{
 		ints[1] = sym53c416_base[0];
 		ints[2] = sym53c416_base[1];
 		sym53c416_setup(NULL, ints);
 	}
-	if(sym53c416_base_1)
+	if(sym53c416_base_1[0])
 	{
 		ints[1] = sym53c416_base_1[0];
 		ints[2] = sym53c416_base_1[1];
 		sym53c416_setup(NULL, ints);
 	}
-	if(sym53c416_base_2)
+	if(sym53c416_base_2[0])
 	{
 		ints[1] = sym53c416_base_2[0];
 		ints[2] = sym53c416_base_2[1];
 		sym53c416_setup(NULL, ints);
 	}
-	if(sym53c416_base_3)
+	if(sym53c416_base_3[0])
 	{
 		ints[1] = sym53c416_base_3[0];
 		ints[2] = sym53c416_base_3[1];

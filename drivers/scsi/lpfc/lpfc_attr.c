@@ -1191,7 +1191,7 @@ lpfc_update_rport_devloss_tmo(struct lpfc_vport *vport)
 	shost = lpfc_shost_from_vport(vport);
 	spin_lock_irq(shost->host_lock);
 	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp)
-		if (ndlp->rport)
+		if (NLP_CHK_NODE_ACT(ndlp) && ndlp->rport)
 			ndlp->rport->dev_loss_tmo = vport->cfg_devloss_tmo;
 	spin_unlock_irq(shost->host_lock);
 }
@@ -1592,9 +1592,11 @@ LPFC_ATTR_RW(poll_tmo, 10, 1, 255,
 #		support this feature
 #       0  = MSI disabled (default)
 #       1  = MSI enabled
-# Value range is [0,1]. Default value is 0.
+#	2  = MSI-X enabled
+# Value range is [0,2]. Default value is 0.
 */
-LPFC_ATTR_R(use_msi, 0, 0, 1, "Use Message Signaled Interrupts, if possible");
+LPFC_ATTR_R(use_msi, 0, 0, 2, "Use Message Signaled Interrupts (1) or "
+	    "MSI-X (2), if possible");
 
 /*
 # lpfc_enable_hba_reset: Allow or prevent HBA resets to the hardware.
@@ -1946,11 +1948,13 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 		}
 
 		/* If HBA encountered an error attention, allow only DUMP
-		 * mailbox command until the HBA is restarted.
+		 * or RESTART mailbox commands until the HBA is restarted.
 		 */
 		if ((phba->pport->stopped) &&
-			(phba->sysfs_mbox.mbox->mb.mbxCommand
-				!= MBX_DUMP_MEMORY)) {
+			(phba->sysfs_mbox.mbox->mb.mbxCommand !=
+				MBX_DUMP_MEMORY &&
+			 phba->sysfs_mbox.mbox->mb.mbxCommand !=
+				MBX_RESTART)) {
 			sysfs_mbox_idle(phba);
 			spin_unlock_irq(&phba->hbalock);
 			return -EPERM;
@@ -2384,7 +2388,8 @@ lpfc_get_node_by_target(struct scsi_target *starget)
 	spin_lock_irq(shost->host_lock);
 	/* Search for this, mapped, target ID */
 	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
-		if (ndlp->nlp_state == NLP_STE_MAPPED_NODE &&
+		if (NLP_CHK_NODE_ACT(ndlp) &&
+		    ndlp->nlp_state == NLP_STE_MAPPED_NODE &&
 		    starget->id == ndlp->nlp_sid) {
 			spin_unlock_irq(shost->host_lock);
 			return ndlp;

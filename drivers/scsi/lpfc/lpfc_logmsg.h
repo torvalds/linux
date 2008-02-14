@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2005 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2008 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -35,11 +35,15 @@
 #define LOG_ALL_MSG                   0xffff	/* LOG all messages */
 
 #define lpfc_printf_vlog(vport, level, mask, fmt, arg...) \
+	do { \
 	{ if (((mask) &(vport)->cfg_log_verbose) || (level[1] <= '3')) \
 		dev_printk(level, &((vport)->phba->pcidev)->dev, "%d:(%d):" \
-			   fmt, (vport)->phba->brd_no, vport->vpi, ##arg); }
+			   fmt, (vport)->phba->brd_no, vport->vpi, ##arg); } \
+	} while (0)
 
 #define lpfc_printf_log(phba, level, mask, fmt, arg...) \
+	do { \
 	{ if (((mask) &(phba)->pport->cfg_log_verbose) || (level[1] <= '3')) \
 		dev_printk(level, &((phba)->pcidev)->dev, "%d:" \
-			   fmt, phba->brd_no, ##arg); }
+			   fmt, phba->brd_no, ##arg); } \
+	} while (0)

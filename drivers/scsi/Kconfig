@@ -722,7 +722,7 @@ config SCSI_FD_MCS
 
 config SCSI_GDTH
 	tristate "Intel/ICP (former GDT SCSI Disk Array) RAID Controller support"
-	depends on (ISA || EISA || PCI) && SCSI && ISA_DMA_API && PCI_LEGACY
+	depends on (ISA || EISA || PCI) && SCSI && ISA_DMA_API
 	---help---
 	  Formerly called GDT SCSI Disk Array Controller Support.
 
