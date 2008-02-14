@@ -3,7 +3,7 @@
  *
  * Peter Bergner, IBM Corp.	June 2001.
  * Copyright (C) 2001 Peter Bergner.
- * 
+ *
  *      This program is free software; you can redistribute it and/or
  *      modify it under the terms of the GNU General Public License
  *      as published by the Free Software Foundation; either version
@@ -13,19 +13,12 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
-#include <asm/types.h>
-#include <asm/page.h>
-#include <asm/prom.h>
-#include <asm/lmb.h>
-#ifdef CONFIG_PPC32
-#include "mmu_decl.h"		/* for __max_low_memory */
-#endif
+#include <linux/lmb.h>
 
 #undef DEBUG
 
 #ifdef DEBUG
-#include <asm/udbg.h>
-#define DBG(fmt...) udbg_printf(fmt)
+#define DBG(fmt...) LMB_DBG(fmt)
 #else
 #define DBG(fmt...)
 #endif
@@ -247,6 +240,11 @@ unsigned long __init lmb_alloc_base(unsigned long size, unsigned long align,
 	return alloc;
 }
 
+static unsigned long lmb_align_down(unsigned long addr, unsigned long size)
+{
+	return addr & ~(size - 1);
+}
+
 unsigned long __init __lmb_alloc_base(unsigned long size, unsigned long align,
 				    unsigned long max_addr)
 {
@@ -255,27 +253,26 @@ unsigned long __init __lmb_alloc_base(unsigned long size, unsigned long align,
 
 	BUG_ON(0 == size);
 
-#ifdef CONFIG_PPC32
-	/* On 32-bit, make sure we allocate lowmem */
+	/* On some platforms, make sure we allocate lowmem */
 	if (max_addr == LMB_ALLOC_ANYWHERE)
-		max_addr = __max_low_memory;
-#endif
+		max_addr = LMB_REAL_LIMIT;
+
 	for (i = lmb.memory.cnt-1; i >= 0; i--) {
 		unsigned long lmbbase = lmb.memory.region[i].base;
 		unsigned long lmbsize = lmb.memory.region[i].size;
 
 		if (max_addr == LMB_ALLOC_ANYWHERE)
-			base = _ALIGN_DOWN(lmbbase + lmbsize - size, align);
+			base = lmb_align_down(lmbbase + lmbsize - size, align);
 		else if (lmbbase < max_addr) {
 			base = min(lmbbase + lmbsize, max_addr);
-			base = _ALIGN_DOWN(base - size, align);
+			base = lmb_align_down(base - size, align);
 		} else
 			continue;
 
 		while ((lmbbase <= base) &&
 		       ((j = lmb_overlaps_region(&lmb.reserved, base, size)) >= 0) )
-			base = _ALIGN_DOWN(lmb.reserved.region[j].base - size,
-					   align);
+			base = lmb_align_down(lmb.reserved.region[j].base - size,
+					      align);
 
 		if ((base != 0) && (lmbbase <= base))
 			break;

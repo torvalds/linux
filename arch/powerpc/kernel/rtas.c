@@ -22,6 +22,7 @@
 #include <linux/smp.h>
 #include <linux/completion.h>
 #include <linux/cpumask.h>
+#include <linux/lmb.h>
 
 #include <asm/prom.h>
 #include <asm/rtas.h>
@@ -34,7 +35,6 @@
 #include <asm/system.h>
 #include <asm/delay.h>
 #include <asm/uaccess.h>
-#include <asm/lmb.h>
 #include <asm/udbg.h>
 #include <asm/syscalls.h>
 #include <asm/smp.h>

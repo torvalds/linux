@@ -28,13 +28,13 @@
 #include <linux/notifier.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/lmb.h>
 
 #include <asm/prom.h>
 #include <asm/iommu.h>
 #include <asm/machdep.h>
 #include <asm/pci-bridge.h>
 #include <asm/udbg.h>
-#include <asm/lmb.h>
 #include <asm/firmware.h>
 #include <asm/cell-regs.h>
 
