@@ -136,7 +136,9 @@ SECTIONS
   __init_begin = .;
   .init.text : {
   	_sinittext = .;
-	*(.init.literal) INIT_TEXT
+	*(.init.literal) *(.cpuinit.literal) 
+	*(.devinit.literal) *(.meminit.literal)
+	INIT_TEXT
 	_einittext = .;
   }
 
