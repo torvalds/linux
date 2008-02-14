@@ -883,6 +883,37 @@ static void __init trim_pavail(unsigned long *cur_size_p,
 	}
 }
 
+static void __init find_ramdisk(unsigned long phys_base)
+{
+#ifdef CONFIG_BLK_DEV_INITRD
+	if (sparc_ramdisk_image || sparc_ramdisk_image64) {
+		unsigned long ramdisk_image;
+
+		/* Older versions of the bootloader only supported a
+		 * 32-bit physical address for the ramdisk image
+		 * location, stored at sparc_ramdisk_image.  Newer
+		 * SILO versions set sparc_ramdisk_image to zero and
+		 * provide a full 64-bit physical address at
+		 * sparc_ramdisk_image64.
+		 */
+		ramdisk_image = sparc_ramdisk_image;
+		if (!ramdisk_image)
+			ramdisk_image = sparc_ramdisk_image64;
+
+		/* Another bootloader quirk.  The bootloader normalizes
+		 * the physical address to KERNBASE, so we have to
+		 * factor that back out and add in the lowest valid
+		 * physical page address to get the true physical address.
+		 */
+		ramdisk_image -= KERNBASE;
+		ramdisk_image += phys_base;
+
+		initrd_start = ramdisk_image;
+		initrd_end = ramdisk_image + sparc_ramdisk_size;
+	}
+#endif
+}
+
 /* About pages_avail, this is the value we will use to calculate
  * the zholes_size[] argument given to free_area_init_node().  The
  * page allocator uses this to calculate nr_kernel_pages,
@@ -911,30 +942,6 @@ static unsigned long __init bootmem_init(unsigned long *pages_avail,
 			pavail[i].reg_size;
 		bytes_avail += pavail[i].reg_size;
 	}
-
-	/* Determine the location of the initial ramdisk before trying
-	 * to honor the "mem=xxx" command line argument.  We must know
-	 * where the kernel image and the ramdisk image are so that we
-	 * do not trim those two areas from the physical memory map.
-	 */
-
-#ifdef CONFIG_BLK_DEV_INITRD
-	/* Now have to check initial ramdisk, so that bootmap does not overwrite it */
-	if (sparc_ramdisk_image || sparc_ramdisk_image64) {
-		unsigned long ramdisk_image = sparc_ramdisk_image ?
-			sparc_ramdisk_image : sparc_ramdisk_image64;
-		ramdisk_image -= KERNBASE;
-		initrd_start = ramdisk_image + phys_base;
-		initrd_end = initrd_start + sparc_ramdisk_size;
-		if (initrd_end > end_of_phys_memory) {
-			printk(KERN_CRIT "initrd extends beyond end of memory "
-		                 	 "(0x%016lx > 0x%016lx)\ndisabling initrd\n",
-			       initrd_end, end_of_phys_memory);
-			initrd_start = 0;
-			initrd_end = 0;
-		}
-	}
-#endif	
 
 	if (cmdline_memory_size &&
 	    bytes_avail > cmdline_memory_size)
@@ -1336,6 +1343,8 @@ void __init paging_init(void)
 	phys_base = 0xffffffffffffffffUL;
 	for (i = 0; i < pavail_ents; i++)
 		phys_base = min(phys_base, pavail[i].phys_addr);
+
+	find_ramdisk(phys_base);
 
 	set_bit(0, mmu_context_bmap);
 
