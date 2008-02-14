@@ -986,10 +986,9 @@ static void udf_load_fileset(struct super_block *sb, struct buffer_head *bh,
 int udf_compute_nr_groups(struct super_block *sb, u32 partition)
 {
 	struct udf_part_map *map = &UDF_SB(sb)->s_partmaps[partition];
-	return (map->s_partition_len +
-		(sizeof(struct spaceBitmapDesc) << 3) +
-		(sb->s_blocksize * 8) - 1) /
-		(sb->s_blocksize * 8);
+	return DIV_ROUND_UP(map->s_partition_len +
+			    (sizeof(struct spaceBitmapDesc) << 3),
+			    sb->s_blocksize * 8);
 }
 
 static struct udf_bitmap *udf_sb_alloc_bitmap(struct super_block *sb, u32 index)
