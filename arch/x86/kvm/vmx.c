@@ -1605,9 +1605,6 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	vmcs_writel(CR0_GUEST_HOST_MASK, ~0UL);
 	vmcs_writel(CR4_GUEST_HOST_MASK, KVM_GUEST_CR4_MASK);
 
-	if (vm_need_virtualize_apic_accesses(vmx->vcpu.kvm))
-		if (alloc_apic_access_page(vmx->vcpu.kvm) != 0)
-			return -ENOMEM;
 
 	return 0;
 }
@@ -2537,6 +2534,9 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 	put_cpu();
 	if (err)
 		goto free_vmcs;
+	if (vm_need_virtualize_apic_accesses(kvm))
+		if (alloc_apic_access_page(kvm) != 0)
+			goto free_vmcs;
 
 	return &vmx->vcpu;
 
