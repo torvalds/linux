@@ -5253,7 +5253,8 @@ static int alc882_mux_enum_put(struct snd_kcontrol *kcontrol,
 	struct alc_spec *spec = codec->spec;
 	const struct hda_input_mux *imux = spec->input_mux;
 	unsigned int adc_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
-	hda_nid_t nid = spec->capsrc_nids[adc_idx];
+	hda_nid_t nid = spec->capsrc_nids ?
+		spec->capsrc_nids[adc_idx] : spec->adc_nids[adc_idx];
 	unsigned int *cur_val = &spec->cur_mux[adc_idx];
 	unsigned int i, idx;
 
@@ -8053,6 +8054,8 @@ static int patch_alc883(struct hda_codec *codec)
 #define alc262_dac_nids		alc260_dac_nids
 #define alc262_adc_nids		alc882_adc_nids
 #define alc262_adc_nids_alt	alc882_adc_nids_alt
+#define alc262_capsrc_nids	alc882_capsrc_nids
+#define alc262_capsrc_nids_alt	alc882_capsrc_nids_alt
 
 #define alc262_modes		alc260_modes
 #define alc262_capture_source	alc882_capture_source
@@ -9443,12 +9446,14 @@ static int patch_alc262(struct hda_codec *codec)
 		if (wcap != AC_WID_AUD_IN) {
 			spec->adc_nids = alc262_adc_nids_alt;
 			spec->num_adc_nids = ARRAY_SIZE(alc262_adc_nids_alt);
+			spec->capsrc_nids = alc262_capsrc_nids_alt;
 			spec->mixers[spec->num_mixers] =
 				alc262_capture_alt_mixer;
 			spec->num_mixers++;
 		} else {
 			spec->adc_nids = alc262_adc_nids;
 			spec->num_adc_nids = ARRAY_SIZE(alc262_adc_nids);
+			spec->capsrc_nids = alc262_capsrc_nids;
 			spec->mixers[spec->num_mixers] = alc262_capture_mixer;
 			spec->num_mixers++;
 		}
