@@ -71,6 +71,7 @@ struct kmem_cache {
 
 	/* Allocation and freeing of slabs */
 	int objects;		/* Number of objects in slab */
+	gfp_t allocflags;	/* gfp flags to use on each alloc */
 	int refcount;		/* Refcount for slab cache destroy */
 	void (*ctor)(struct kmem_cache *, void *);
 	int inuse;		/* Offset to metadata */
