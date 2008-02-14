@@ -211,6 +211,8 @@ static inline void ClearSlabDebug(struct page *page)
 /* Internal SLUB flags */
 #define __OBJECT_POISON		0x80000000 /* Poison object */
 #define __SYSFS_ADD_DEFERRED	0x40000000 /* Not yet visible via sysfs */
+#define __KMALLOC_CACHE		0x20000000 /* objects freed using kfree */
+#define __PAGE_ALLOC_FALLBACK	0x10000000 /* Allow fallback to page alloc */
 
 /* Not all arches define cache_line_size */
 #ifndef cache_line_size
@@ -1539,7 +1541,6 @@ load_freelist:
 unlock_out:
 	slab_unlock(c->page);
 	stat(c, ALLOC_SLOWPATH);
-out:
 #ifdef SLUB_FASTPATH
 	local_irq_restore(flags);
 #endif
@@ -1574,8 +1575,24 @@ new_slab:
 		c->page = new;
 		goto load_freelist;
 	}
-	object = NULL;
-	goto out;
+#ifdef SLUB_FASTPATH
+	local_irq_restore(flags);
+#endif
+	/*
+	 * No memory available.
+	 *
+	 * If the slab uses higher order allocs but the object is
+	 * smaller than a page size then we can fallback in emergencies
+	 * to the page allocator via kmalloc_large. The page allocator may
+	 * have failed to obtain a higher order page and we can try to
+	 * allocate a single page if the object fits into a single page.
+	 * That is only possible if certain conditions are met that are being
+	 * checked when a slab is created.
+	 */
+	if (!(gfpflags & __GFP_NORETRY) && (s->flags & __PAGE_ALLOC_FALLBACK))
+		return kmalloc_large(s->objsize, gfpflags);
+
+	return NULL;
 debug:
 	object = c->page->freelist;
 	if (!alloc_debug_processing(s, c->page, object, addr))
@@ -2322,7 +2339,20 @@ static int calculate_sizes(struct kmem_cache *s)
 	size = ALIGN(size, align);
 	s->size = size;
 
-	s->order = calculate_order(size);
+	if ((flags & __KMALLOC_CACHE) &&
+			PAGE_SIZE / size < slub_min_objects) {
+		/*
+		 * Kmalloc cache that would not have enough objects in
+		 * an order 0 page. Kmalloc slabs can fallback to
+		 * page allocator order 0 allocs so take a reasonably large
+		 * order that will allows us a good number of objects.
+		 */
+		s->order = max(slub_max_order, PAGE_ALLOC_COSTLY_ORDER);
+		s->flags |= __PAGE_ALLOC_FALLBACK;
+		s->allocflags |= __GFP_NOWARN;
+	} else
+		s->order = calculate_order(size);
+
 	if (s->order < 0)
 		return 0;
 
@@ -2539,7 +2569,7 @@ static struct kmem_cache *create_kmalloc_cache(struct kmem_cache *s,
 
 	down_write(&slub_lock);
 	if (!kmem_cache_open(s, gfp_flags, name, size, ARCH_KMALLOC_MINALIGN,
-			flags, NULL))
+			flags | __KMALLOC_CACHE, NULL))
 		goto panic;
 
 	list_add(&s->list, &slab_caches);
@@ -3056,6 +3086,9 @@ void __init kmem_cache_init(void)
 static int slab_unmergeable(struct kmem_cache *s)
 {
 	if (slub_nomerge || (s->flags & SLUB_NEVER_MERGE))
+		return 1;
+
+	if ((s->flags & __PAGE_ALLOC_FALLBACK)
 		return 1;
 
 	if (s->ctor)
