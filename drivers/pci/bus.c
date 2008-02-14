@@ -85,10 +85,6 @@ int pci_bus_add_device(struct pci_dev *dev)
 		return retval;
 
 	dev->is_added = 1;
-	down_write(&pci_bus_sem);
-	list_add_tail(&dev->global_list, &pci_devices);
-	up_write(&pci_bus_sem);
-
 	pci_proc_attach_device(dev);
 	pci_create_sysfs_dev_files(dev);
 	return 0;

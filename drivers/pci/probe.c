@@ -20,8 +20,6 @@
 LIST_HEAD(pci_root_buses);
 EXPORT_SYMBOL(pci_root_buses);
 
-LIST_HEAD(pci_devices);
-
 
 static int find_anything(struct device *dev, void *data)
 {
@@ -860,7 +858,6 @@ struct pci_dev *alloc_pci_dev(void)
 	if (!dev)
 		return NULL;
 
-	INIT_LIST_HEAD(&dev->global_list);
 	INIT_LIST_HEAD(&dev->bus_list);
 
 	pci_msi_init_pci_dev(dev);
@@ -957,7 +954,6 @@ void pci_device_add(struct pci_dev *dev, struct pci_bus *bus)
 	 * Add the device to our list of discovered devices
 	 * and the bus list for fixup functions, etc.
 	 */
-	INIT_LIST_HEAD(&dev->global_list);
 	down_write(&pci_bus_sem);
 	list_add_tail(&dev->bus_list, &bus->devices);
 	up_write(&pci_bus_sem);
@@ -1186,7 +1182,7 @@ static void __init pci_insertion_sort_klist(struct pci_dev *a, struct list_head 
 	list_move_tail(&a->dev.knode_bus.n_node, list);
 }
 
-static void __init pci_sort_breadthfirst_klist(void)
+void __init pci_sort_breadthfirst(void)
 {
 	LIST_HEAD(sorted_devices);
 	struct list_head *pos, *tmp;
@@ -1207,36 +1203,3 @@ static void __init pci_sort_breadthfirst_klist(void)
 	list_splice(&sorted_devices, &device_klist->k_list);
 	spin_unlock(&device_klist->k_lock);
 }
-
-static void __init pci_insertion_sort_devices(struct pci_dev *a, struct list_head *list)
-{
-	struct pci_dev *b;
-
-	list_for_each_entry(b, list, global_list) {
-		if (pci_sort_bf_cmp(a, b) <= 0) {
-			list_move_tail(&a->global_list, &b->global_list);
-			return;
-		}
-	}
-	list_move_tail(&a->global_list, list);
-}
-
-static void __init pci_sort_breadthfirst_devices(void)
-{
-	LIST_HEAD(sorted_devices);
-	struct pci_dev *dev, *tmp;
-
-	down_write(&pci_bus_sem);
-	list_for_each_entry_safe(dev, tmp, &pci_devices, global_list) {
-		pci_insertion_sort_devices(dev, &sorted_devices);
-	}
-	list_splice(&sorted_devices, &pci_devices);
-	up_write(&pci_bus_sem);
-}
-
-void __init pci_sort_breadthfirst(void)
-{
-	pci_sort_breadthfirst_devices();
-	pci_sort_breadthfirst_klist();
-}
-

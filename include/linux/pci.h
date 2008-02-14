@@ -132,7 +132,6 @@ struct pci_cap_saved_state {
  * The pci_dev structure is used to describe PCI devices.
  */
 struct pci_dev {
-	struct list_head global_list;	/* node in list of all PCI devices */
 	struct list_head bus_list;	/* node in per-bus list */
 	struct pci_bus	*bus;		/* bus this device is on */
 	struct pci_bus	*subordinate;	/* bus this device bridges to */
@@ -206,7 +205,6 @@ struct pci_dev {
 
 extern struct pci_dev *alloc_pci_dev(void);
 
-#define pci_dev_g(n) list_entry(n, struct pci_dev, global_list)
 #define pci_dev_b(n) list_entry(n, struct pci_dev, bus_list)
 #define	to_pci_dev(n) container_of(n, struct pci_dev, dev)
 #define for_each_pci_dev(d) while ((d = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, d)) != NULL)
@@ -450,7 +448,6 @@ extern struct bus_type pci_bus_type;
 /* Do NOT directly access these two variables, unless you are arch specific pci
  * code, or pci core code. */
 extern struct list_head pci_root_buses;	/* list of all known PCI buses */
-extern struct list_head pci_devices;	/* list of all devices */
 /* Some device drivers need know if pci is initiated */
 extern int no_pci_devices(void);
 

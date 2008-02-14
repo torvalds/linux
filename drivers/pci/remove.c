@@ -23,10 +23,6 @@ static void pci_stop_dev(struct pci_dev *dev)
 		pci_remove_sysfs_dev_files(dev);
 		device_unregister(&dev->dev);
 		dev->is_added = 0;
-		down_write(&pci_bus_sem);
-		list_del(&dev->global_list);
-		dev->global_list.next = dev->global_list.prev = NULL;
-		up_write(&pci_bus_sem);
 	}
 }
 
