@@ -63,9 +63,7 @@
 #define ASM_NOP6 K7_NOP6
 #define ASM_NOP7 K7_NOP7
 #define ASM_NOP8 K7_NOP8
-#elif defined(CONFIG_M686) || defined(CONFIG_MPENTIUMII) || \
-      defined(CONFIG_MPENTIUMIII) || defined(CONFIG_MPENTIUMM) || \
-      defined(CONFIG_MCORE2) || defined(CONFIG_PENTIUM4)
+#elif defined(CONFIG_X86_P6_NOP)
 #define ASM_NOP1 P6_NOP1
 #define ASM_NOP2 P6_NOP2
 #define ASM_NOP3 P6_NOP3
