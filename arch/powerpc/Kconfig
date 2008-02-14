@@ -442,10 +442,6 @@ config SECCOMP
 
 	  If unsure, say Y. Only embedded should say N here.
 
-config WANT_DEVICE_TREE
-	bool
-	default n
-
 endmenu
 
 config ISA_DMA_API
