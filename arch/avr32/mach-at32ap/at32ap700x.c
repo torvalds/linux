@@ -606,19 +606,32 @@ static inline void set_ebi_sfr_bits(u32 mask)
 }
 
 /* --------------------------------------------------------------------
- *  System Timer/Counter (TC)
+ *  Timer/Counter (TC)
  * -------------------------------------------------------------------- */
-static struct resource at32_systc0_resource[] = {
+
+static struct resource at32_tcb0_resource[] = {
 	PBMEM(0xfff00c00),
 	IRQ(22),
 };
-struct platform_device at32_systc0_device = {
-	.name		= "systc",
+static struct platform_device at32_tcb0_device = {
+	.name		= "atmel_tcb",
 	.id		= 0,
-	.resource	= at32_systc0_resource,
-	.num_resources	= ARRAY_SIZE(at32_systc0_resource),
+	.resource	= at32_tcb0_resource,
+	.num_resources	= ARRAY_SIZE(at32_tcb0_resource),
 };
-DEV_CLK(pclk, at32_systc0, pbb, 3);
+DEV_CLK(t0_clk, at32_tcb0, pbb, 3);
+
+static struct resource at32_tcb1_resource[] = {
+	PBMEM(0xfff01000),
+	IRQ(23),
+};
+static struct platform_device at32_tcb1_device = {
+	.name		= "atmel_tcb",
+	.id		= 1,
+	.resource	= at32_tcb1_resource,
+	.num_resources	= ARRAY_SIZE(at32_tcb1_resource),
+};
+DEV_CLK(t0_clk, at32_tcb1, pbb, 4);
 
 /* --------------------------------------------------------------------
  *  PIO
@@ -670,7 +683,8 @@ void __init at32_add_system_devices(void)
 	platform_device_register(&pdc_device);
 	platform_device_register(&dmaca0_device);
 
-	platform_device_register(&at32_systc0_device);
+	platform_device_register(&at32_tcb0_device);
+	platform_device_register(&at32_tcb1_device);
 
 	platform_device_register(&pio0_device);
 	platform_device_register(&pio1_device);
@@ -1737,7 +1751,8 @@ struct clk *at32_clock_list[] = {
 	&pio2_mck,
 	&pio3_mck,
 	&pio4_mck,
-	&at32_systc0_pclk,
+	&at32_tcb0_t0_clk,
+	&at32_tcb1_t0_clk,
 	&atmel_usart0_usart,
 	&atmel_usart1_usart,
 	&atmel_usart2_usart,
