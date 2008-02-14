@@ -1208,6 +1208,12 @@ void __init paging_init(void)
 	if (tlb_type == hypervisor)
 		sun4v_ktsb_register();
 
+	/* We must setup the per-cpu areas before we pull in the
+	 * PROM and the MDESC.  The code there fills in cpu and
+	 * other information into per-cpu data structures.
+	 */
+	real_setup_per_cpu_areas();
+
 	/* Setup bootmem... */
 	pages_avail = 0;
 	last_valid_pfn = end_pfn = bootmem_init(&pages_avail, phys_base);
@@ -1215,8 +1221,6 @@ void __init paging_init(void)
 	max_mapnr = last_valid_pfn;
 
 	kernel_physical_mapping_init();
-
-	real_setup_per_cpu_areas();
 
 	prom_build_devicetree();
 
