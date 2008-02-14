@@ -146,9 +146,8 @@ static int amd_pre_reset(struct ata_link *link, unsigned long deadline)
 
 static void amd_error_handler(struct ata_port *ap)
 {
-	return ata_bmdma_drive_eh(ap, amd_pre_reset,
-				      ata_std_softreset, NULL,
-				      ata_std_postreset);
+	ata_bmdma_drive_eh(ap, amd_pre_reset, ata_std_softreset, NULL,
+			   ata_std_postreset);
 }
 
 static int amd_cable_detect(struct ata_port *ap)
@@ -506,7 +505,6 @@ static struct ata_port_operations amd133_port_ops = {
 static struct ata_port_operations nv100_port_ops = {
 	.set_piomode	= nv100_set_piomode,
 	.set_dmamode	= nv100_set_dmamode,
-	.mode_filter	= ata_pci_default_filter,
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
 	.check_status 	= ata_check_status,
@@ -541,7 +539,6 @@ static struct ata_port_operations nv100_port_ops = {
 static struct ata_port_operations nv133_port_ops = {
 	.set_piomode	= nv133_set_piomode,
 	.set_dmamode	= nv133_set_dmamode,
-	.mode_filter	= ata_pci_default_filter,
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
 	.check_status 	= ata_check_status,
