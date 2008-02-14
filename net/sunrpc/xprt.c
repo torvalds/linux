@@ -124,7 +124,7 @@ EXPORT_SYMBOL_GPL(xprt_register_transport);
 
 /**
  * xprt_unregister_transport - unregister a transport implementation
- * transport: transport to unregister
+ * @transport: transport to unregister
  *
  * Returns:
  * 0:		transport successfully unregistered

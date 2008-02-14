@@ -587,7 +587,7 @@ xfs_dir2_data_make_free(
 		/*
 		 * Fix up the new big freespace.
 		 */
-		be16_add(&prevdup->length, len + be16_to_cpu(postdup->length));
+		be16_add_cpu(&prevdup->length, len + be16_to_cpu(postdup->length));
 		*xfs_dir2_data_unused_tag_p(prevdup) =
 			cpu_to_be16((char *)prevdup - (char *)d);
 		xfs_dir2_data_log_unused(tp, bp, prevdup);
@@ -621,7 +621,7 @@ xfs_dir2_data_make_free(
 	 */
 	else if (prevdup) {
 		dfp = xfs_dir2_data_freefind(d, prevdup);
-		be16_add(&prevdup->length, len);
+		be16_add_cpu(&prevdup->length, len);
 		*xfs_dir2_data_unused_tag_p(prevdup) =
 			cpu_to_be16((char *)prevdup - (char *)d);
 		xfs_dir2_data_log_unused(tp, bp, prevdup);

@@ -567,26 +567,26 @@ xfs_trans_apply_sb_deltas(
 	 */
 	if (!xfs_sb_version_haslazysbcount(&(tp->t_mountp->m_sb))) {
 		if (tp->t_icount_delta)
-			be64_add(&sbp->sb_icount, tp->t_icount_delta);
+			be64_add_cpu(&sbp->sb_icount, tp->t_icount_delta);
 		if (tp->t_ifree_delta)
-			be64_add(&sbp->sb_ifree, tp->t_ifree_delta);
+			be64_add_cpu(&sbp->sb_ifree, tp->t_ifree_delta);
 		if (tp->t_fdblocks_delta)
-			be64_add(&sbp->sb_fdblocks, tp->t_fdblocks_delta);
+			be64_add_cpu(&sbp->sb_fdblocks, tp->t_fdblocks_delta);
 		if (tp->t_res_fdblocks_delta)
-			be64_add(&sbp->sb_fdblocks, tp->t_res_fdblocks_delta);
+			be64_add_cpu(&sbp->sb_fdblocks, tp->t_res_fdblocks_delta);
 	}
 
 	if (tp->t_frextents_delta)
-		be64_add(&sbp->sb_frextents, tp->t_frextents_delta);
+		be64_add_cpu(&sbp->sb_frextents, tp->t_frextents_delta);
 	if (tp->t_res_frextents_delta)
-		be64_add(&sbp->sb_frextents, tp->t_res_frextents_delta);
+		be64_add_cpu(&sbp->sb_frextents, tp->t_res_frextents_delta);
 
 	if (tp->t_dblocks_delta) {
-		be64_add(&sbp->sb_dblocks, tp->t_dblocks_delta);
+		be64_add_cpu(&sbp->sb_dblocks, tp->t_dblocks_delta);
 		whole = 1;
 	}
 	if (tp->t_agcount_delta) {
-		be32_add(&sbp->sb_agcount, tp->t_agcount_delta);
+		be32_add_cpu(&sbp->sb_agcount, tp->t_agcount_delta);
 		whole = 1;
 	}
 	if (tp->t_imaxpct_delta) {
@@ -594,19 +594,19 @@ xfs_trans_apply_sb_deltas(
 		whole = 1;
 	}
 	if (tp->t_rextsize_delta) {
-		be32_add(&sbp->sb_rextsize, tp->t_rextsize_delta);
+		be32_add_cpu(&sbp->sb_rextsize, tp->t_rextsize_delta);
 		whole = 1;
 	}
 	if (tp->t_rbmblocks_delta) {
-		be32_add(&sbp->sb_rbmblocks, tp->t_rbmblocks_delta);
+		be32_add_cpu(&sbp->sb_rbmblocks, tp->t_rbmblocks_delta);
 		whole = 1;
 	}
 	if (tp->t_rblocks_delta) {
-		be64_add(&sbp->sb_rblocks, tp->t_rblocks_delta);
+		be64_add_cpu(&sbp->sb_rblocks, tp->t_rblocks_delta);
 		whole = 1;
 	}
 	if (tp->t_rextents_delta) {
-		be64_add(&sbp->sb_rextents, tp->t_rextents_delta);
+		be64_add_cpu(&sbp->sb_rextents, tp->t_rextents_delta);
 		whole = 1;
 	}
 	if (tp->t_rextslog_delta) {

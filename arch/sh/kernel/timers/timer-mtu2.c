@@ -100,9 +100,7 @@ static irqreturn_t mtu2_timer_interrupt(int irq, void *dev_id)
 	ctrl_outb(timer_status, MTU2_TSR_1);
 
 	/* Do timer tick */
-	write_seqlock(&xtime_lock);
 	handle_timer_tick();
-	write_sequnlock(&xtime_lock);
 
 	return IRQ_HANDLED;
 }

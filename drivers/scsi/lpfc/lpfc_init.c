@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2007 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2008 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -461,11 +461,21 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 int
 lpfc_hba_down_prep(struct lpfc_hba *phba)
 {
+	struct lpfc_vport **vports;
+	int i;
 	/* Disable interrupts */
 	writel(0, phba->HCregaddr);
 	readl(phba->HCregaddr); /* flush */
 
-	lpfc_cleanup_discovery_resources(phba->pport);
+	if (phba->pport->load_flag & FC_UNLOADING)
+		lpfc_cleanup_discovery_resources(phba->pport);
+	else {
+		vports = lpfc_create_vport_work_array(phba);
+		if (vports != NULL)
+			for(i = 0; i <= phba->max_vpi && vports[i] != NULL; i++)
+				lpfc_cleanup_discovery_resources(vports[i]);
+		lpfc_destroy_vport_work_array(phba, vports);
+	}
 	return 0;
 }
 
@@ -1422,9 +1432,32 @@ lpfc_cleanup(struct lpfc_vport *vport)
 		lpfc_port_link_failure(vport);
 
 	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
+		if (!NLP_CHK_NODE_ACT(ndlp)) {
+			ndlp = lpfc_enable_node(vport, ndlp,
+						NLP_STE_UNUSED_NODE);
+			if (!ndlp)
+				continue;
+			spin_lock_irq(&phba->ndlp_lock);
+			NLP_SET_FREE_REQ(ndlp);
+			spin_unlock_irq(&phba->ndlp_lock);
+			/* Trigger the release of the ndlp memory */
+			lpfc_nlp_put(ndlp);
+			continue;
+		}
+		spin_lock_irq(&phba->ndlp_lock);
+		if (NLP_CHK_FREE_REQ(ndlp)) {
+			/* The ndlp should not be in memory free mode already */
+			spin_unlock_irq(&phba->ndlp_lock);
+			continue;
+		} else
+			/* Indicate request for freeing ndlp memory */
+			NLP_SET_FREE_REQ(ndlp);
+		spin_unlock_irq(&phba->ndlp_lock);
+
 		if (ndlp->nlp_type & NLP_FABRIC)
 			lpfc_disc_state_machine(vport, ndlp, NULL,
 					NLP_EVT_DEVICE_RECOVERY);
+
 		lpfc_disc_state_machine(vport, ndlp, NULL,
 					     NLP_EVT_DEVICE_RM);
 	}
@@ -1438,6 +1471,17 @@ lpfc_cleanup(struct lpfc_vport *vport)
 		if (i++ > 3000) {
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
 				"0233 Nodelist not empty\n");
+			list_for_each_entry_safe(ndlp, next_ndlp,
+						&vport->fc_nodes, nlp_listp) {
+				lpfc_printf_vlog(ndlp->vport, KERN_ERR,
+						LOG_NODE,
+						"0282: did:x%x ndlp:x%p "
+						"usgmap:x%x refcnt:%d\n",
+						ndlp->nlp_DID, (void *)ndlp,
+						ndlp->nlp_usg_map,
+						atomic_read(
+							&ndlp->kref.refcount));
+			}
 			break;
 		}
 
@@ -1586,6 +1630,8 @@ lpfc_offline_prep(struct lpfc_hba * phba)
 			list_for_each_entry_safe(ndlp, next_ndlp,
 						 &vports[i]->fc_nodes,
 						 nlp_listp) {
+				if (!NLP_CHK_NODE_ACT(ndlp))
+					continue;
 				if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
 					continue;
 				if (ndlp->nlp_type & NLP_FABRIC) {
@@ -1695,9 +1741,9 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 
 	vport = (struct lpfc_vport *) shost->hostdata;
 	vport->phba = phba;
-
 	vport->load_flag |= FC_LOADING;
 	vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
+	vport->fc_rscn_flush = 0;
 
 	lpfc_get_vport_cfgparam(vport);
 	shost->unique_id = instance;
@@ -1879,6 +1925,42 @@ void lpfc_host_attrib_init(struct Scsi_Host *shost)
 	spin_unlock_irq(shost->host_lock);
 }
 
+static int
+lpfc_enable_msix(struct lpfc_hba *phba)
+{
+	int error;
+
+	phba->msix_entries[0].entry = 0;
+	phba->msix_entries[0].vector = 0;
+
+	error = pci_enable_msix(phba->pcidev, phba->msix_entries,
+				ARRAY_SIZE(phba->msix_entries));
+	if (error) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+				"0420 Enable MSI-X failed (%d), continuing "
+				"with MSI\n", error);
+		pci_disable_msix(phba->pcidev);
+		return error;
+	}
+
+	error =	request_irq(phba->msix_entries[0].vector, lpfc_intr_handler, 0,
+			    LPFC_DRIVER_NAME, phba);
+	if (error) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"0421 MSI-X request_irq failed (%d), "
+				"continuing with MSI\n", error);
+		pci_disable_msix(phba->pcidev);
+	}
+	return error;
+}
+
+static void
+lpfc_disable_msix(struct lpfc_hba *phba)
+{
+	free_irq(phba->msix_entries[0].vector, phba);
+	pci_disable_msix(phba->pcidev);
+}
+
 static int __devinit
 lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 {
@@ -1904,6 +1986,9 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 		goto out_release_regions;
 
 	spin_lock_init(&phba->hbalock);
+
+	/* Initialize ndlp management spinlock */
+	spin_lock_init(&phba->ndlp_lock);
 
 	phba->pcidev = pdev;
 
@@ -2002,6 +2087,8 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 
 	memset(phba->hbqslimp.virt, 0, lpfc_sli_hbq_size());
 
+	INIT_LIST_HEAD(&phba->hbqbuf_in_list);
+
 	/* Initialize the SLI Layer to run with lpfc HBAs. */
 	lpfc_sli_setup(phba);
 	lpfc_sli_queue_setup(phba);
@@ -2077,24 +2164,36 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	lpfc_debugfs_initialize(vport);
 
 	pci_set_drvdata(pdev, shost);
+	phba->intr_type = NONE;
 
-	if (phba->cfg_use_msi) {
+	if (phba->cfg_use_msi == 2) {
+		error = lpfc_enable_msix(phba);
+		if (!error)
+			phba->intr_type = MSIX;
+	}
+
+	/* Fallback to MSI if MSI-X initialization failed */
+	if (phba->cfg_use_msi >= 1 && phba->intr_type == NONE) {
 		retval = pci_enable_msi(phba->pcidev);
 		if (!retval)
-			phba->using_msi = 1;
+			phba->intr_type = MSI;
 		else
 			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 					"0452 Enable MSI failed, continuing "
 					"with IRQ\n");
 	}
 
-	retval = request_irq(phba->pcidev->irq, lpfc_intr_handler, IRQF_SHARED,
-			    LPFC_DRIVER_NAME, phba);
-	if (retval) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"0451 Enable interrupt handler failed\n");
-		error = retval;
-		goto out_disable_msi;
+	/* MSI-X is the only case the doesn't need to call request_irq */
+	if (phba->intr_type != MSIX) {
+		retval = request_irq(phba->pcidev->irq, lpfc_intr_handler,
+				     IRQF_SHARED, LPFC_DRIVER_NAME, phba);
+		if (retval) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT, "0451 Enable "
+					"interrupt handler failed\n");
+			error = retval;
+			goto out_disable_msi;
+		} else if (phba->intr_type != MSI)
+			phba->intr_type = INTx;
 	}
 
 	phba->MBslimaddr = phba->slim_memmap_p;
@@ -2139,9 +2238,14 @@ out_remove_device:
 out_free_irq:
 	lpfc_stop_phba_timers(phba);
 	phba->pport->work_port_events = 0;
-	free_irq(phba->pcidev->irq, phba);
+
+	if (phba->intr_type == MSIX)
+		lpfc_disable_msix(phba);
+	else
+		free_irq(phba->pcidev->irq, phba);
+
 out_disable_msi:
-	if (phba->using_msi)
+	if (phba->intr_type == MSI)
 		pci_disable_msi(phba->pcidev);
 	destroy_port(vport);
 out_kthread_stop:
@@ -2214,10 +2318,13 @@ lpfc_pci_remove_one(struct pci_dev *pdev)
 
 	lpfc_debugfs_terminate(vport);
 
-	/* Release the irq reservation */
-	free_irq(phba->pcidev->irq, phba);
-	if (phba->using_msi)
-		pci_disable_msi(phba->pcidev);
+	if (phba->intr_type == MSIX)
+		lpfc_disable_msix(phba);
+	else {
+		free_irq(phba->pcidev->irq, phba);
+		if (phba->intr_type == MSI)
+			pci_disable_msi(phba->pcidev);
+	}
 
 	pci_set_drvdata(pdev, NULL);
 	scsi_host_put(shost);
@@ -2276,10 +2383,13 @@ static pci_ers_result_t lpfc_io_error_detected(struct pci_dev *pdev,
 	pring = &psli->ring[psli->fcp_ring];
 	lpfc_sli_abort_iocb_ring(phba, pring);
 
-	/* Release the irq reservation */
-	free_irq(phba->pcidev->irq, phba);
-	if (phba->using_msi)
-		pci_disable_msi(phba->pcidev);
+	if (phba->intr_type == MSIX)
+		lpfc_disable_msix(phba);
+	else {
+		free_irq(phba->pcidev->irq, phba);
+		if (phba->intr_type == MSI)
+			pci_disable_msi(phba->pcidev);
+	}
 
 	/* Request a slot reset. */
 	return PCI_ERS_RESULT_NEED_RESET;

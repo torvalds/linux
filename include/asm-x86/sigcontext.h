@@ -58,6 +58,7 @@ struct _fpstate {
 
 #define X86_FXSR_MAGIC		0x0000
 
+#ifdef __KERNEL__
 struct sigcontext {
 	unsigned short gs, __gsh;
 	unsigned short fs, __fsh;
@@ -82,6 +83,35 @@ struct sigcontext {
 	unsigned long oldmask;
 	unsigned long cr2;
 };
+#else /* __KERNEL__ */
+/*
+ * User-space might still rely on the old definition:
+ */
+struct sigcontext {
+	unsigned short gs, __gsh;
+	unsigned short fs, __fsh;
+	unsigned short es, __esh;
+	unsigned short ds, __dsh;
+	unsigned long edi;
+	unsigned long esi;
+	unsigned long ebp;
+	unsigned long esp;
+	unsigned long ebx;
+	unsigned long edx;
+	unsigned long ecx;
+	unsigned long eax;
+	unsigned long trapno;
+	unsigned long err;
+	unsigned long eip;
+	unsigned short cs, __csh;
+	unsigned long eflags;
+	unsigned long esp_at_signal;
+	unsigned short ss, __ssh;
+	struct _fpstate __user * fpstate;
+	unsigned long oldmask;
+	unsigned long cr2;
+};
+#endif /* !__KERNEL__ */
 
 #else /* __i386__ */
 
@@ -102,6 +132,7 @@ struct _fpstate {
 	__u32	reserved2[24];
 };
 
+#ifdef __KERNEL__
 struct sigcontext {
 	unsigned long r8;
 	unsigned long r9;
@@ -132,6 +163,41 @@ struct sigcontext {
 	struct _fpstate __user *fpstate;	/* zero when no FPU context */
 	unsigned long reserved1[8];
 };
+#else /* __KERNEL__ */
+/*
+ * User-space might still rely on the old definition:
+ */
+struct sigcontext {
+	unsigned long r8;
+	unsigned long r9;
+	unsigned long r10;
+	unsigned long r11;
+	unsigned long r12;
+	unsigned long r13;
+	unsigned long r14;
+	unsigned long r15;
+	unsigned long rdi;
+	unsigned long rsi;
+	unsigned long rbp;
+	unsigned long rbx;
+	unsigned long rdx;
+	unsigned long rax;
+	unsigned long rcx;
+	unsigned long rsp;
+	unsigned long rip;
+	unsigned long eflags;		/* RFLAGS */
+	unsigned short cs;
+	unsigned short gs;
+	unsigned short fs;
+	unsigned short __pad0;
+	unsigned long err;
+	unsigned long trapno;
+	unsigned long oldmask;
+	unsigned long cr2;
+	struct _fpstate __user *fpstate;	/* zero when no FPU context */
+	unsigned long reserved1[8];
+};
+#endif /* !__KERNEL__ */
 
 #endif /* !__i386__ */
 

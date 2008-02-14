@@ -57,7 +57,7 @@ struct user_struct root_user = {
 	.uid_keyring	= &root_user_keyring,
 	.session_keyring = &root_session_keyring,
 #endif
-#ifdef CONFIG_FAIR_USER_SCHED
+#ifdef CONFIG_USER_SCHED
 	.tg		= &init_task_group,
 #endif
 };
@@ -90,7 +90,7 @@ static struct user_struct *uid_hash_find(uid_t uid, struct hlist_head *hashent)
 	return NULL;
 }
 
-#ifdef CONFIG_FAIR_USER_SCHED
+#ifdef CONFIG_USER_SCHED
 
 static void sched_destroy_user(struct user_struct *up)
 {
@@ -113,15 +113,15 @@ static void sched_switch_user(struct task_struct *p)
 	sched_move_task(p);
 }
 
-#else	/* CONFIG_FAIR_USER_SCHED */
+#else	/* CONFIG_USER_SCHED */
 
 static void sched_destroy_user(struct user_struct *up) { }
 static int sched_create_user(struct user_struct *up) { return 0; }
 static void sched_switch_user(struct task_struct *p) { }
 
-#endif	/* CONFIG_FAIR_USER_SCHED */
+#endif	/* CONFIG_USER_SCHED */
 
-#if defined(CONFIG_FAIR_USER_SCHED) && defined(CONFIG_SYSFS)
+#if defined(CONFIG_USER_SCHED) && defined(CONFIG_SYSFS)
 
 static struct kset *uids_kset; /* represents the /sys/kernel/uids/ directory */
 static DEFINE_MUTEX(uids_mutex);
@@ -137,6 +137,7 @@ static inline void uids_mutex_unlock(void)
 }
 
 /* uid directory attributes */
+#ifdef CONFIG_FAIR_GROUP_SCHED
 static ssize_t cpu_shares_show(struct kobject *kobj,
 			       struct kobj_attribute *attr,
 			       char *buf)
@@ -163,10 +164,45 @@ static ssize_t cpu_shares_store(struct kobject *kobj,
 
 static struct kobj_attribute cpu_share_attr =
 	__ATTR(cpu_share, 0644, cpu_shares_show, cpu_shares_store);
+#endif
+
+#ifdef CONFIG_RT_GROUP_SCHED
+static ssize_t cpu_rt_runtime_show(struct kobject *kobj,
+				   struct kobj_attribute *attr,
+				   char *buf)
+{
+	struct user_struct *up = container_of(kobj, struct user_struct, kobj);
+
+	return sprintf(buf, "%lu\n", sched_group_rt_runtime(up->tg));
+}
+
+static ssize_t cpu_rt_runtime_store(struct kobject *kobj,
+				    struct kobj_attribute *attr,
+				    const char *buf, size_t size)
+{
+	struct user_struct *up = container_of(kobj, struct user_struct, kobj);
+	unsigned long rt_runtime;
+	int rc;
+
+	sscanf(buf, "%lu", &rt_runtime);
+
+	rc = sched_group_set_rt_runtime(up->tg, rt_runtime);
+
+	return (rc ? rc : size);
+}
+
+static struct kobj_attribute cpu_rt_runtime_attr =
+	__ATTR(cpu_rt_runtime, 0644, cpu_rt_runtime_show, cpu_rt_runtime_store);
+#endif
 
 /* default attributes per uid directory */
 static struct attribute *uids_attributes[] = {
+#ifdef CONFIG_FAIR_GROUP_SCHED
 	&cpu_share_attr.attr,
+#endif
+#ifdef CONFIG_RT_GROUP_SCHED
+	&cpu_rt_runtime_attr.attr,
+#endif
 	NULL
 };
 
@@ -269,7 +305,7 @@ static inline void free_user(struct user_struct *up, unsigned long flags)
 	schedule_work(&up->work);
 }
 
-#else	/* CONFIG_FAIR_USER_SCHED && CONFIG_SYSFS */
+#else	/* CONFIG_USER_SCHED && CONFIG_SYSFS */
 
 int uids_sysfs_init(void) { return 0; }
 static inline int uids_user_create(struct user_struct *up) { return 0; }
@@ -373,7 +409,7 @@ struct user_struct * alloc_uid(struct user_namespace *ns, uid_t uid)
 		spin_lock_irq(&uidhash_lock);
 		up = uid_hash_find(uid, hashent);
 		if (up) {
-			/* This case is not possible when CONFIG_FAIR_USER_SCHED
+			/* This case is not possible when CONFIG_USER_SCHED
 			 * is defined, since we serialize alloc_uid() using
 			 * uids_mutex. Hence no need to call
 			 * sched_destroy_user() or remove_user_sysfs_dir().

@@ -592,7 +592,7 @@ xfs_alloc_ag_vextent(
 		if (!(args->wasfromfl)) {
 
 			agf = XFS_BUF_TO_AGF(args->agbp);
-			be32_add(&agf->agf_freeblks, -(args->len));
+			be32_add_cpu(&agf->agf_freeblks, -(args->len));
 			xfs_trans_agblocks_delta(args->tp,
 						 -((long)(args->len)));
 			args->pag->pagf_freeblks -= args->len;
@@ -1720,7 +1720,7 @@ xfs_free_ag_extent(
 
 		agf = XFS_BUF_TO_AGF(agbp);
 		pag = &mp->m_perag[agno];
-		be32_add(&agf->agf_freeblks, len);
+		be32_add_cpu(&agf->agf_freeblks, len);
 		xfs_trans_agblocks_delta(tp, len);
 		pag->pagf_freeblks += len;
 		XFS_WANT_CORRUPTED_GOTO(
@@ -2008,18 +2008,18 @@ xfs_alloc_get_freelist(
 	 * Get the block number and update the data structures.
 	 */
 	bno = be32_to_cpu(agfl->agfl_bno[be32_to_cpu(agf->agf_flfirst)]);
-	be32_add(&agf->agf_flfirst, 1);
+	be32_add_cpu(&agf->agf_flfirst, 1);
 	xfs_trans_brelse(tp, agflbp);
 	if (be32_to_cpu(agf->agf_flfirst) == XFS_AGFL_SIZE(mp))
 		agf->agf_flfirst = 0;
 	pag = &mp->m_perag[be32_to_cpu(agf->agf_seqno)];
-	be32_add(&agf->agf_flcount, -1);
+	be32_add_cpu(&agf->agf_flcount, -1);
 	xfs_trans_agflist_delta(tp, -1);
 	pag->pagf_flcount--;
 
 	logflags = XFS_AGF_FLFIRST | XFS_AGF_FLCOUNT;
 	if (btreeblk) {
-		be32_add(&agf->agf_btreeblks, 1);
+		be32_add_cpu(&agf->agf_btreeblks, 1);
 		pag->pagf_btreeblks++;
 		logflags |= XFS_AGF_BTREEBLKS;
 	}
@@ -2117,17 +2117,17 @@ xfs_alloc_put_freelist(
 			be32_to_cpu(agf->agf_seqno), &agflbp)))
 		return error;
 	agfl = XFS_BUF_TO_AGFL(agflbp);
-	be32_add(&agf->agf_fllast, 1);
+	be32_add_cpu(&agf->agf_fllast, 1);
 	if (be32_to_cpu(agf->agf_fllast) == XFS_AGFL_SIZE(mp))
 		agf->agf_fllast = 0;
 	pag = &mp->m_perag[be32_to_cpu(agf->agf_seqno)];
-	be32_add(&agf->agf_flcount, 1);
+	be32_add_cpu(&agf->agf_flcount, 1);
 	xfs_trans_agflist_delta(tp, 1);
 	pag->pagf_flcount++;
 
 	logflags = XFS_AGF_FLLAST | XFS_AGF_FLCOUNT;
 	if (btreeblk) {
-		be32_add(&agf->agf_btreeblks, -1);
+		be32_add_cpu(&agf->agf_btreeblks, -1);
 		pag->pagf_btreeblks--;
 		logflags |= XFS_AGF_BTREEBLKS;
 	}

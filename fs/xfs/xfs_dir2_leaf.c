@@ -359,7 +359,7 @@ xfs_dir2_leaf_addname(
 			bestsp--;
 			memmove(&bestsp[0], &bestsp[1],
 				be32_to_cpu(ltp->bestcount) * sizeof(bestsp[0]));
-			be32_add(&ltp->bestcount, 1);
+			be32_add_cpu(&ltp->bestcount, 1);
 			xfs_dir2_leaf_log_tail(tp, lbp);
 			xfs_dir2_leaf_log_bests(tp, lbp, 0, be32_to_cpu(ltp->bestcount) - 1);
 		}
@@ -445,7 +445,7 @@ xfs_dir2_leaf_addname(
 		 */
 		lfloglow = index;
 		lfloghigh = be16_to_cpu(leaf->hdr.count);
-		be16_add(&leaf->hdr.count, 1);
+		be16_add_cpu(&leaf->hdr.count, 1);
 	}
 	/*
 	 * There are stale entries.
@@ -523,7 +523,7 @@ xfs_dir2_leaf_addname(
 			lfloglow = MIN(index, lfloglow);
 			lfloghigh = MAX(highstale, lfloghigh);
 		}
-		be16_add(&leaf->hdr.stale, -1);
+		be16_add_cpu(&leaf->hdr.stale, -1);
 	}
 	/*
 	 * Fill in the new leaf entry.
@@ -626,7 +626,7 @@ xfs_dir2_leaf_compact(
 	 * Update and log the header, log the leaf entries.
 	 */
 	ASSERT(be16_to_cpu(leaf->hdr.stale) == from - to);
-	be16_add(&leaf->hdr.count, -(be16_to_cpu(leaf->hdr.stale)));
+	be16_add_cpu(&leaf->hdr.count, -(be16_to_cpu(leaf->hdr.stale)));
 	leaf->hdr.stale = 0;
 	xfs_dir2_leaf_log_header(args->trans, bp);
 	if (loglow != -1)
@@ -728,7 +728,7 @@ xfs_dir2_leaf_compact_x1(
 	/*
 	 * Adjust the leaf header values.
 	 */
-	be16_add(&leaf->hdr.count, -(from - to));
+	be16_add_cpu(&leaf->hdr.count, -(from - to));
 	leaf->hdr.stale = cpu_to_be16(1);
 	/*
 	 * Remember the low/high stale value only in the "right"
@@ -1470,7 +1470,7 @@ xfs_dir2_leaf_removename(
 	/*
 	 * We just mark the leaf entry stale by putting a null in it.
 	 */
-	be16_add(&leaf->hdr.stale, 1);
+	be16_add_cpu(&leaf->hdr.stale, 1);
 	xfs_dir2_leaf_log_header(tp, lbp);
 	lep->address = cpu_to_be32(XFS_DIR2_NULL_DATAPTR);
 	xfs_dir2_leaf_log_ents(tp, lbp, index, index);
@@ -1531,7 +1531,7 @@ xfs_dir2_leaf_removename(
 			 */
 			memmove(&bestsp[db - i], bestsp,
 				(be32_to_cpu(ltp->bestcount) - (db - i)) * sizeof(*bestsp));
-			be32_add(&ltp->bestcount, -(db - i));
+			be32_add_cpu(&ltp->bestcount, -(db - i));
 			xfs_dir2_leaf_log_tail(tp, lbp);
 			xfs_dir2_leaf_log_bests(tp, lbp, 0, be32_to_cpu(ltp->bestcount) - 1);
 		} else
@@ -1712,7 +1712,7 @@ xfs_dir2_leaf_trim_data(
 	 * Eliminate the last bests entry from the table.
 	 */
 	bestsp = xfs_dir2_leaf_bests_p(ltp);
-	be32_add(&ltp->bestcount, -1);
+	be32_add_cpu(&ltp->bestcount, -1);
 	memmove(&bestsp[1], &bestsp[0], be32_to_cpu(ltp->bestcount) * sizeof(*bestsp));
 	xfs_dir2_leaf_log_tail(tp, lbp);
 	xfs_dir2_leaf_log_bests(tp, lbp, 0, be32_to_cpu(ltp->bestcount) - 1);

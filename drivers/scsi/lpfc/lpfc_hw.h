@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2007 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2008 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -581,6 +581,7 @@ struct ls_rjt {	/* Structure is in Big Endian format */
 #define LSEXP_INVALID_O_SID     0x15
 #define LSEXP_INVALID_OX_RX     0x17
 #define LSEXP_CMD_IN_PROGRESS   0x19
+#define LSEXP_PORT_LOGIN_REQ    0x1E
 #define LSEXP_INVALID_NPORT_ID  0x1F
 #define LSEXP_INVALID_SEQ_ID    0x21
 #define LSEXP_INVALID_XCHG      0x23
@@ -1376,10 +1377,25 @@ typedef struct {		/* FireFly BIU registers */
 #define CMD_QUE_XRI64_CX	0xB3
 #define CMD_IOCB_RCV_SEQ64_CX	0xB5
 #define CMD_IOCB_RCV_ELS64_CX	0xB7
+#define CMD_IOCB_RET_XRI64_CX	0xB9
 #define CMD_IOCB_RCV_CONT64_CX	0xBB
 
 #define CMD_GEN_REQUEST64_CR    0xC2
 #define CMD_GEN_REQUEST64_CX    0xC3
+
+/* Unhandled SLI-3 Commands */
+#define CMD_IOCB_XMIT_MSEQ64_CR		0xB0
+#define CMD_IOCB_XMIT_MSEQ64_CX		0xB1
+#define CMD_IOCB_RCV_SEQ_LIST64_CX	0xC1
+#define CMD_IOCB_RCV_ELS_LIST64_CX	0xCD
+#define CMD_IOCB_CLOSE_EXTENDED_CN	0xB6
+#define CMD_IOCB_ABORT_EXTENDED_CN	0xBA
+#define CMD_IOCB_RET_HBQE64_CN		0xCA
+#define CMD_IOCB_FCP_IBIDIR64_CR	0xAC
+#define CMD_IOCB_FCP_IBIDIR64_CX	0xAD
+#define CMD_IOCB_FCP_ITASKMGT64_CX	0xAF
+#define CMD_IOCB_LOGENTRY_CN		0x94
+#define CMD_IOCB_LOGENTRY_ASYNC_CN	0x96
 
 #define CMD_MAX_IOCB_CMD        0xE6
 #define CMD_IOCB_MASK           0xff

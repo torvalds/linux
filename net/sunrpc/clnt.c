@@ -464,9 +464,9 @@ rpc_release_client(struct rpc_clnt *clnt)
 
 /**
  * rpc_bind_new_program - bind a new RPC program to an existing client
- * @old - old rpc_client
- * @program - rpc program to set
- * @vers - rpc program version
+ * @old: old rpc_client
+ * @program: rpc program to set
+ * @vers: rpc program version
  *
  * Clones the rpc client and sets up a new RPC program. This is mainly
  * of use for enabling different RPC programs to share the same transport.
@@ -575,7 +575,7 @@ EXPORT_SYMBOL_GPL(rpc_call_sync);
  * @clnt: pointer to RPC client
  * @msg: RPC call parameters
  * @flags: RPC call flags
- * @ops: RPC call ops
+ * @tk_ops: RPC call ops
  * @data: user call data
  */
 int
@@ -610,7 +610,7 @@ EXPORT_SYMBOL_GPL(rpc_call_start);
  * rpc_peeraddr - extract remote peer address from clnt's xprt
  * @clnt: RPC client structure
  * @buf: target buffer
- * @size: length of target buffer
+ * @bufsize: length of target buffer
  *
  * Returns the number of bytes that are actually in the stored address.
  */

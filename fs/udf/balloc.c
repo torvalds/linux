@@ -145,7 +145,7 @@ static bool udf_add_free_space(struct udf_sb_info *sbi,
 {
 	struct logicalVolIntegrityDesc *lvid;
 
-	if (sbi->s_lvid_bh)
+	if (sbi->s_lvid_bh == NULL)
 		return false;
 
 	lvid = (struct logicalVolIntegrityDesc *)sbi->s_lvid_bh->b_data;

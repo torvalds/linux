@@ -42,8 +42,8 @@ extern void __init kmap_init(void);
 #define PKMAP_NR(virt)  ((virt - PKMAP_BASE) >> PAGE_SHIFT)
 #define PKMAP_ADDR(nr)  (PKMAP_BASE + ((nr) << PAGE_SHIFT))
 
-extern unsigned long __fastcall kmap_high(struct page *page);
-extern void __fastcall kunmap_high(struct page *page);
+extern unsigned long kmap_high(struct page *page);
+extern void kunmap_high(struct page *page);
 
 static inline unsigned long kmap(struct page *page)
 {

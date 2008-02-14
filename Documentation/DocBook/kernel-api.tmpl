@@ -204,65 +204,6 @@ X!Ilib/string.c
      </sect1>
   </chapter>
 
-  <chapter id="netcore">
-     <title>Linux Networking</title>
-     <sect1><title>Networking Base Types</title>
-!Iinclude/linux/net.h
-     </sect1>
-     <sect1><title>Socket Buffer Functions</title>
-!Iinclude/linux/skbuff.h
-!Iinclude/net/sock.h
-!Enet/socket.c
-!Enet/core/skbuff.c
-!Enet/core/sock.c
-!Enet/core/datagram.c
-!Enet/core/stream.c
-     </sect1>
-     <sect1><title>Socket Filter</title>
-!Enet/core/filter.c
-     </sect1>
-     <sect1><title>Generic Network Statistics</title>
-!Iinclude/linux/gen_stats.h
-!Enet/core/gen_stats.c
-!Enet/core/gen_estimator.c
-     </sect1>
-     <sect1><title>SUN RPC subsystem</title>
-<!-- The !D functionality is not perfect, garbage has to be protected by comments
-!Dnet/sunrpc/sunrpc_syms.c
--->
-!Enet/sunrpc/xdr.c
-!Enet/sunrpc/svcsock.c
-!Enet/sunrpc/sched.c
-     </sect1>
-  </chapter>
-
-  <chapter id="netdev">
-     <title>Network device support</title>
-     <sect1><title>Driver Support</title>
-!Enet/core/dev.c
-!Enet/ethernet/eth.c
-!Enet/sched/sch_generic.c
-!Iinclude/linux/etherdevice.h
-!Iinclude/linux/netdevice.h
-     </sect1>
-     <sect1><title>PHY Support</title>
-!Edrivers/net/phy/phy.c
-!Idrivers/net/phy/phy.c
-!Edrivers/net/phy/phy_device.c
-!Idrivers/net/phy/phy_device.c
-!Edrivers/net/phy/mdio_bus.c
-!Idrivers/net/phy/mdio_bus.c
-     </sect1>
-<!-- FIXME: Removed for now since no structured comments in source
-     <sect1><title>Wireless</title>
-X!Enet/core/wireless.c
-     </sect1>
--->
-     <sect1><title>Synchronous PPP</title>
-!Edrivers/net/wan/syncppp.c
-     </sect1>
-  </chapter>
-
   <chapter id="modload">
      <title>Module Support</title>
      <sect1><title>Module Loading</title>
@@ -508,11 +449,6 @@ X!Isound/sound_firmware.c
 !Edrivers/serial/8250.c
   </chapter>
 
-  <chapter id="z85230">
-     <title>Z85230 Support Library</title>
-!Edrivers/net/wan/z85230.c
-  </chapter>
-
   <chapter id="fbdev">
      <title>Frame Buffer Library</title>
 
@@ -710,26 +646,6 @@ X!Idrivers/video/console/fonts.c
 !Iinclude/linux/i2c.h
 !Fdrivers/i2c/i2c-boardinfo.c i2c_register_board_info
 !Edrivers/i2c/i2c-core.c
-  </chapter>
-
-  <chapter id="splice">
-      <title>splice API</title>
-  <para>
-	splice is a method for moving blocks of data around inside the
-	kernel, without continually transferring them between the kernel
-	and user space.
-  </para>
-!Ffs/splice.c
-  </chapter>
-
-  <chapter id="pipes">
-      <title>pipes API</title>
-  <para>
-	Pipe interfaces are all for in-kernel (builtin image) use.
-	They are not exported for use by modules.
-  </para>
-!Iinclude/linux/pipe_fs_i.h
-!Ffs/pipe.c
   </chapter>
 
 </book>

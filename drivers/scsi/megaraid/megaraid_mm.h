@@ -22,6 +22,7 @@
 #include <linux/moduleparam.h>
 #include <linux/pci.h>
 #include <linux/list.h>
+#include <linux/miscdevice.h>
 
 #include "mbox_defs.h"
 #include "megaraid_ioctl.h"

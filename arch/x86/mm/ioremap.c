@@ -265,7 +265,9 @@ static __initdata pte_t bm_pte[PAGE_SIZE/sizeof(pte_t)]
 
 static inline pmd_t * __init early_ioremap_pmd(unsigned long addr)
 {
-	pgd_t *pgd = &swapper_pg_dir[pgd_index(addr)];
+	/* Don't assume we're using swapper_pg_dir at this point */
+	pgd_t *base = __va(read_cr3());
+	pgd_t *pgd = &base[pgd_index(addr)];
 	pud_t *pud = pud_offset(pgd, addr);
 	pmd_t *pmd = pmd_offset(pud, addr);
 

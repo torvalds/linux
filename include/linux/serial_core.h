@@ -149,6 +149,8 @@
 /* Freescale ColdFire */
 #define PORT_MCF	78
 
+#define PORT_SC26XX	79
+
 
 /* MN10300 on-chip UART numbers */
 #define PORT_MN10300		80

@@ -677,7 +677,7 @@ rpc_lookup_negative(char *path, struct nameidata *nd)
 /**
  * rpc_mkdir - Create a new directory in rpc_pipefs
  * @path: path from the rpc_pipefs root to the new directory
- * @rpc_clnt: rpc client to associate with this directory
+ * @rpc_client: rpc client to associate with this directory
  *
  * This creates a directory at the given @path associated with
  * @rpc_clnt, which will contain a file named "info" with some basic
@@ -748,6 +748,7 @@ rpc_rmdir(struct dentry *dentry)
  * @private: private data to associate with the pipe, for the caller's use
  * @ops: operations defining the behavior of the pipe: upcall, downcall,
  *	release_pipe, and destroy_msg.
+ * @flags: rpc_inode flags
  *
  * Data is made available for userspace to read by calls to
  * rpc_queue_upcall().  The actual reads will result in calls to

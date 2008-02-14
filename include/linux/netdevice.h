@@ -322,7 +322,7 @@ enum
 	NAPI_STATE_DISABLE,	/* Disable pending */
 };
 
-extern void FASTCALL(__napi_schedule(struct napi_struct *n));
+extern void __napi_schedule(struct napi_struct *n);
 
 static inline int napi_disable_pending(struct napi_struct *n)
 {

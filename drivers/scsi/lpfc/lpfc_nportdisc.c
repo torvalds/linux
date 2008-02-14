@@ -1,7 +1,7 @@
  /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2007 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2008 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -249,6 +249,7 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	struct Scsi_Host   *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_hba    *phba = vport->phba;
 	struct lpfc_dmabuf *pcmd;
+	struct lpfc_work_evt *evtp;
 	uint32_t *lp;
 	IOCB_t *icmd;
 	struct serv_parm *sp;
@@ -435,8 +436,14 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		del_timer_sync(&ndlp->nlp_delayfunc);
 		ndlp->nlp_last_elscmd = 0;
 
-		if (!list_empty(&ndlp->els_retry_evt.evt_listp))
+		if (!list_empty(&ndlp->els_retry_evt.evt_listp)) {
 			list_del_init(&ndlp->els_retry_evt.evt_listp);
+			/* Decrement ndlp reference count held for the
+			 * delayed retry
+			 */
+			evtp = &ndlp->els_retry_evt;
+			lpfc_nlp_put((struct lpfc_nodelist *)evtp->evt_arg1);
+		}
 
 		if (ndlp->nlp_flag & NLP_NPR_2B_DISC) {
 			spin_lock_irq(shost->host_lock);
@@ -638,13 +645,15 @@ lpfc_disc_set_adisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		return 0;
 	}
 
-	/* Check config parameter use-adisc or FCP-2 */
-	if ((vport->cfg_use_adisc && (vport->fc_flag & FC_RSCN_MODE)) ||
-	    ndlp->nlp_fcp_info & NLP_FCP_2_DEVICE) {
-		spin_lock_irq(shost->host_lock);
-		ndlp->nlp_flag |= NLP_NPR_ADISC;
-		spin_unlock_irq(shost->host_lock);
-		return 1;
+	if (!(vport->fc_flag & FC_PT2PT)) {
+		/* Check config parameter use-adisc or FCP-2 */
+		if ((vport->cfg_use_adisc && (vport->fc_flag & FC_RSCN_MODE)) ||
+		    ndlp->nlp_fcp_info & NLP_FCP_2_DEVICE) {
+			spin_lock_irq(shost->host_lock);
+			ndlp->nlp_flag |= NLP_NPR_ADISC;
+			spin_unlock_irq(shost->host_lock);
+			return 1;
+		}
 	}
 	ndlp->nlp_flag &= ~NLP_NPR_ADISC;
 	lpfc_unreg_rpi(vport, ndlp);
@@ -656,7 +665,7 @@ lpfc_disc_illegal(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		  void *arg, uint32_t evt)
 {
 	lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
-			 "0253 Illegal State Transition: node x%x "
+			 "0271 Illegal State Transition: node x%x "
 			 "event x%x, state x%x Data: x%x x%x\n",
 			 ndlp->nlp_DID, evt, ndlp->nlp_state, ndlp->nlp_rpi,
 			 ndlp->nlp_flag);
@@ -674,7 +683,7 @@ lpfc_cmpl_plogi_illegal(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	 */
 	if (!(ndlp->nlp_flag & NLP_RCV_PLOGI)) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
-			 "0253 Illegal State Transition: node x%x "
+			 "0272 Illegal State Transition: node x%x "
 			 "event x%x, state x%x Data: x%x x%x\n",
 			 ndlp->nlp_DID, evt, ndlp->nlp_state, ndlp->nlp_rpi,
 			 ndlp->nlp_flag);
@@ -2144,8 +2153,11 @@ lpfc_disc_state_machine(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	uint32_t cur_state, rc;
 	uint32_t(*func) (struct lpfc_vport *, struct lpfc_nodelist *, void *,
 			 uint32_t);
+	uint32_t got_ndlp = 0;
 
-	lpfc_nlp_get(ndlp);
+	if (lpfc_nlp_get(ndlp))
+		got_ndlp = 1;
+
 	cur_state = ndlp->nlp_state;
 
 	/* DSM in event <evt> on NPort <nlp_DID> in state <cur_state> */
@@ -2162,15 +2174,24 @@ lpfc_disc_state_machine(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	rc = (func) (vport, ndlp, arg, evt);
 
 	/* DSM out state <rc> on NPort <nlp_DID> */
-	lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+	if (got_ndlp) {
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 			 "0212 DSM out state %d on NPort x%x Data: x%x\n",
 			 rc, ndlp->nlp_DID, ndlp->nlp_flag);
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_DSM,
-		 "DSM out:         ste:%d did:x%x flg:x%x",
-		rc, ndlp->nlp_DID, ndlp->nlp_flag);
+		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_DSM,
+			"DSM out:         ste:%d did:x%x flg:x%x",
+			rc, ndlp->nlp_DID, ndlp->nlp_flag);
+		/* Decrement the ndlp reference count held for this function */
+		lpfc_nlp_put(ndlp);
+	} else {
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+			"0212 DSM out state %d on NPort free\n", rc);
 
-	lpfc_nlp_put(ndlp);
+		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_DSM,
+			"DSM out:         ste:%d did:x%x flg:x%x",
+			rc, 0, 0);
+	}
 
 	return rc;
 }
