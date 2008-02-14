@@ -1056,8 +1056,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			[SCSI] Maximum number of LUNs received.
 			Should be between 1 and 16384.
 
-	mca-pentium	[BUGS=X86-32]
-
 	mcatest=	[IA-64]
 
 	mce		[X86-32] Machine Check Exception

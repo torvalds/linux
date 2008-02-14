@@ -671,7 +671,6 @@ extern void init_gdt(int cpu);
 extern unsigned int machine_id;
 extern unsigned int machine_submodel_id;
 extern unsigned int BIOS_revision;
-extern unsigned int mca_pentium_flag;
 
 /* Boot loader type from the setup header */
 extern int bootloader_type;
