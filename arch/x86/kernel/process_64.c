@@ -150,9 +150,13 @@ void cpu_idle(void)
 #ifdef CONFIG_CC_STACKPROTECTOR
 	/*
 	 * If we're the non-boot CPU, nothing set the PDA stack
-	 * canary up for us. This is as good a place as any for
-	 * doing that.
+	 * canary up for us - and if we are the boot CPU we have
+	 * a 0 stack canary. This is a good place for updating
+	 * it, as we wont ever return from this function (so the
+	 * invalid canaries already on the stack wont ever
+	 * trigger):
 	 */
+	current->stack_canary = get_random_int();
 	write_pda(stack_canary, current->stack_canary);
 #endif
 	/* endless idle loop with no priority at all */
