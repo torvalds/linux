@@ -984,7 +984,7 @@ EXPORT_SYMBOL(pci_scan_single_device);
  *
  * Scan a PCI slot on the specified PCI bus for devices, adding
  * discovered devices to the @bus->devices list.  New devices
- * will have an empty dev->global_list head.
+ * will not have is_added set.
  */
 int pci_scan_slot(struct pci_bus *bus, int devfn)
 {
