@@ -1791,6 +1791,20 @@ void reset_cifs_unix_caps(int xid, struct cifsTconInfo *tcon,
 	}
 }
 
+static void
+convert_delimiter(char *path, char delim)
+{
+	int i;
+
+	if (path == NULL)
+		return;
+
+	for (i = 0; path[i] != '\0'; i++) {
+		if ((path[i] == '/') || (path[i] == '\\'))
+			path[i] = delim;
+	}
+}
+
 int
 cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 	   char *mount_data, const char *devname)
@@ -2056,7 +2070,11 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		cifs_sb->prepath = volume_info.prepath;
 		if (cifs_sb->prepath) {
 			cifs_sb->prepathlen = strlen(cifs_sb->prepath);
-			cifs_sb->prepath[0] = CIFS_DIR_SEP(cifs_sb);
+			/* we can not convert the / to \ in the path
+			separators in the prefixpath yet because we do not
+			know (until reset_cifs_unix_caps is called later)
+			whether POSIX PATH CAP is available. We normalize
+			the / to \ after reset_cifs_unix_caps is called */
 			volume_info.prepath = NULL;
 		} else
 			cifs_sb->prepathlen = 0;
@@ -2223,6 +2241,9 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			reset_cifs_unix_caps(xid, tcon, sb, &volume_info);
 		else
 			tcon->unix_ext = 0; /* server does not support them */
+
+		/* convert forward to back slashes in prepath here if needed */
+		convert_delimiter(cifs_sb->prepath, CIFS_DIR_SEP(cifs_sb));
 
 		if ((tcon->unix_ext == 0) && (cifs_sb->rsize > (1024 * 127))) {
 			cifs_sb->rsize = 1024 * 127;
