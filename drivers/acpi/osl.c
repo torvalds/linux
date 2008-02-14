@@ -325,7 +325,7 @@ acpi_os_predefined_override(const struct acpi_predefined_names *init_val,
 }
 
 #ifdef CONFIG_ACPI_CUSTOM_DSDT_INITRD
-struct acpi_table_header *acpi_find_dsdt_initrd(void)
+static struct acpi_table_header *acpi_find_dsdt_initrd(void)
 {
 	struct file *firmware_file;
 	mm_segment_t oldfs;
@@ -419,7 +419,7 @@ acpi_os_table_override(struct acpi_table_header * existing_table,
 }
 
 #ifdef CONFIG_ACPI_CUSTOM_DSDT_INITRD
-int __init acpi_no_initrd_override_setup(char *s)
+static int __init acpi_no_initrd_override_setup(char *s)
 {
 	acpi_no_initrd_override = 1;
 	return 1;

@@ -1689,7 +1689,7 @@ static ssize_t hotkey_wakeup_reason_show(struct device *dev,
 static struct device_attribute dev_attr_hotkey_wakeup_reason =
 	__ATTR(wakeup_reason, S_IRUGO, hotkey_wakeup_reason_show, NULL);
 
-void hotkey_wakeup_reason_notify_change(void)
+static void hotkey_wakeup_reason_notify_change(void)
 {
 	if (tp_features.hotkey_mask)
 		sysfs_notify(&tpacpi_pdev->dev.kobj, NULL,
@@ -1708,7 +1708,7 @@ static struct device_attribute dev_attr_hotkey_wakeup_hotunplug_complete =
 	__ATTR(wakeup_hotunplug_complete, S_IRUGO,
 	       hotkey_wakeup_hotunplug_complete_show, NULL);
 
-void hotkey_wakeup_hotunplug_complete_notify_change(void)
+static void hotkey_wakeup_hotunplug_complete_notify_change(void)
 {
 	if (tp_features.hotkey_mask)
 		sysfs_notify(&tpacpi_pdev->dev.kobj, NULL,

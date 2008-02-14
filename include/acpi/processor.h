@@ -32,9 +32,11 @@
 #define DOMAIN_COORD_TYPE_SW_ANY	0xfd
 #define DOMAIN_COORD_TYPE_HW_ALL	0xfe
 
-#define ACPI_CSTATE_SYSTEMIO	(0)
-#define ACPI_CSTATE_FFH		(1)
-#define ACPI_CSTATE_HALT	(2)
+#define ACPI_CSTATE_SYSTEMIO	0
+#define ACPI_CSTATE_FFH		1
+#define ACPI_CSTATE_HALT	2
+
+#define ACPI_CX_DESC_LEN	32
 
 /* Power Management */
 
@@ -74,6 +76,7 @@ struct acpi_processor_cx {
 	u64 time;
 	struct acpi_processor_cx_policy promotion;
 	struct acpi_processor_cx_policy demotion;
+	char desc[ACPI_CX_DESC_LEN];
 };
 
 struct acpi_processor_power {
