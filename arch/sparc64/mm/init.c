@@ -24,6 +24,7 @@
 #include <linux/cache.h>
 #include <linux/sort.h>
 #include <linux/percpu.h>
+#include <linux/lmb.h>
 
 #include <asm/head.h>
 #include <asm/system.h>
@@ -910,6 +911,8 @@ static void __init find_ramdisk(unsigned long phys_base)
 
 		initrd_start = ramdisk_image;
 		initrd_end = ramdisk_image + sparc_ramdisk_size;
+
+		lmb_reserve(initrd_start, initrd_end);
 	}
 #endif
 }
@@ -1337,14 +1340,23 @@ void __init paging_init(void)
 		sun4v_ktsb_init();
 	}
 
+	lmb_init();
+
 	/* Find available physical memory... */
 	read_obp_memory("available", &pavail[0], &pavail_ents);
 
 	phys_base = 0xffffffffffffffffUL;
-	for (i = 0; i < pavail_ents; i++)
+	for (i = 0; i < pavail_ents; i++) {
 		phys_base = min(phys_base, pavail[i].phys_addr);
+		lmb_add(pavail[i].phys_addr, pavail[i].reg_size);
+	}
+
+	lmb_reserve(kern_base, kern_size);
 
 	find_ramdisk(phys_base);
+
+	lmb_analyze();
+	lmb_dump_all();
 
 	set_bit(0, mmu_context_bmap);
 
