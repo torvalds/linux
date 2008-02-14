@@ -1182,7 +1182,7 @@ void kvm_mmu_flush_tlb(struct kvm_vcpu *vcpu)
 
 static void paging_new_cr3(struct kvm_vcpu *vcpu)
 {
-	pgprintk("%s: cr3 %lx\n", __FUNCTION__, vcpu->cr3);
+	pgprintk("%s: cr3 %lx\n", __FUNCTION__, vcpu->arch.cr3);
 	mmu_free_roots(vcpu);
 }
 
