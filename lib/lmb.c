@@ -245,6 +245,11 @@ static unsigned long lmb_align_down(unsigned long addr, unsigned long size)
 	return addr & ~(size - 1);
 }
 
+static unsigned long lmb_align_up(unsigned long addr, unsigned long size)
+{
+	return (addr + (size - 1)) & ~(size - 1);
+}
+
 unsigned long __init __lmb_alloc_base(unsigned long size, unsigned long align,
 				    unsigned long max_addr)
 {
@@ -281,7 +286,8 @@ unsigned long __init __lmb_alloc_base(unsigned long size, unsigned long align,
 	if (i < 0)
 		return 0;
 
-	lmb_add_region(&lmb.reserved, base, size);
+	if (lmb_add_region(&lmb.reserved, base, lmb_align_up(size, align)) < 0)
+		return 0;
 
 	return base;
 }
