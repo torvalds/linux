@@ -360,6 +360,15 @@ static int lstats_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
+static int lstats_release(struct inode *inode, struct file *file)
+{
+	struct seq_file *m = file->private_data;
+	struct task_struct *task = m->private;
+
+	put_task_struct(task);
+	return single_release(inode, file);
+}
+
 static ssize_t lstats_write(struct file *file, const char __user *buf,
 			    size_t count, loff_t *offs)
 {
@@ -378,7 +387,7 @@ static const struct file_operations proc_lstats_operations = {
 	.read		= seq_read,
 	.write		= lstats_write,
 	.llseek		= seq_lseek,
-	.release	= single_release,
+	.release	= lstats_release,
 };
 
 #endif
