@@ -578,13 +578,6 @@ int mlx4_fmr_alloc(struct mlx4_dev *dev, u32 pd, u32 access, int max_pages,
 		goto err_free;
 	}
 
-	fmr->mpt = mlx4_table_find(&priv->mr_table.dmpt_table,
-				    key_to_hw_index(fmr->mr.key), NULL);
-	if (!fmr->mpt) {
-		err = -ENOMEM;
-		goto err_free;
-	}
-
 	return 0;
 
 err_free:
@@ -595,7 +588,19 @@ EXPORT_SYMBOL_GPL(mlx4_fmr_alloc);
 
 int mlx4_fmr_enable(struct mlx4_dev *dev, struct mlx4_fmr *fmr)
 {
-	return mlx4_mr_enable(dev, &fmr->mr);
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	int err;
+
+	err = mlx4_mr_enable(dev, &fmr->mr);
+	if (err)
+		return err;
+
+	fmr->mpt = mlx4_table_find(&priv->mr_table.dmpt_table,
+				    key_to_hw_index(fmr->mr.key), NULL);
+	if (!fmr->mpt)
+		return -ENOMEM;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(mlx4_fmr_enable);
 
