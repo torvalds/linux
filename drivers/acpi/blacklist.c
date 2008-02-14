@@ -186,6 +186,12 @@ static int __init dmi_unknown_osi_linux(const struct dmi_system_id *d)
 	acpi_dmi_osi_linux(-1, d);	/* unknown */
 	return 0;
 }
+static int __init dmi_disable_osi_vista(const struct dmi_system_id *d)
+{
+	printk(KERN_NOTICE PREFIX "DMI detected: %s\n", d->ident);
+	acpi_osi_setup("!Windows 2006");
+	return 0;
+}
 
 /*
  * Most BIOS that invoke OSI(Linux) do nothing with it.
@@ -432,6 +438,14 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 	.ident = "Fujitsu Siemens",
 	.matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_vista,
+	.ident = "Fujitsu Siemens",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+	 	     DMI_MATCH(DMI_PRODUCT_NAME, "ESPRIMO Mobile V5505"),
 		},
 	},
 	/*
