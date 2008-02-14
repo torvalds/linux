@@ -722,57 +722,12 @@ out:
 static unsigned long __init choose_bootmap_pfn(unsigned long start_pfn,
 					       unsigned long end_pfn)
 {
-	unsigned long avoid_start, avoid_end, bootmap_size;
-	int i;
+	unsigned long bootmap_size;
 
 	bootmap_size = bootmem_bootmap_pages(end_pfn - start_pfn);
 	bootmap_size <<= PAGE_SHIFT;
 
-	avoid_start = avoid_end = 0;
-#ifdef CONFIG_BLK_DEV_INITRD
-	avoid_start = initrd_start;
-	avoid_end = PAGE_ALIGN(initrd_end);
-#endif
-
-	for (i = 0; i < pavail_ents; i++) {
-		unsigned long start, end;
-
-		start = pavail[i].phys_addr;
-		end = start + pavail[i].reg_size;
-
-		while (start < end) {
-			if (start >= kern_base &&
-			    start < PAGE_ALIGN(kern_base + kern_size)) {
-				start = PAGE_ALIGN(kern_base + kern_size);
-				continue;
-			}
-			if (start >= avoid_start && start < avoid_end) {
-				start = avoid_end;
-				continue;
-			}
-
-			if ((end - start) < bootmap_size)
-				break;
-
-			if (start < kern_base &&
-			    (start + bootmap_size) > kern_base) {
-				start = PAGE_ALIGN(kern_base + kern_size);
-				continue;
-			}
-
-			if (start < avoid_start &&
-			    (start + bootmap_size) > avoid_start) {
-				start = avoid_end;
-				continue;
-			}
-
-			/* OK, it doesn't overlap anything, use it.  */
-			return start >> PAGE_SHIFT;
-		}
-	}
-
-	prom_printf("Cannot find free area for bootmap, aborting.\n");
-	prom_halt();
+	return lmb_alloc(bootmap_size, PAGE_SIZE) >> PAGE_SHIFT;
 }
 
 static void __init find_ramdisk(unsigned long phys_base)
@@ -825,8 +780,7 @@ static void __init find_ramdisk(unsigned long phys_base)
 static unsigned long __init bootmem_init(unsigned long *pages_avail,
 					 unsigned long phys_base)
 {
-	unsigned long bootmap_size, end_pfn;
-	unsigned long bootmap_pfn, size;
+	unsigned long end_pfn;
 	int i;
 
 	*pages_avail = lmb_phys_mem_size() >> PAGE_SHIFT;
@@ -836,49 +790,31 @@ static unsigned long __init bootmem_init(unsigned long *pages_avail,
 	max_pfn = max_low_pfn = end_pfn;
 	min_low_pfn = (phys_base >> PAGE_SHIFT);
 
-	bootmap_pfn = choose_bootmap_pfn(min_low_pfn, end_pfn);
-
-	bootmap_size = init_bootmem_node(NODE_DATA(0), bootmap_pfn,
-					 min_low_pfn, end_pfn);
+	init_bootmem_node(NODE_DATA(0),
+			  choose_bootmap_pfn(min_low_pfn, end_pfn),
+			  min_low_pfn, end_pfn);
 
 	/* Now register the available physical memory with the
 	 * allocator.
 	 */
-	for (i = 0; i < pavail_ents; i++)
-		free_bootmem(pavail[i].phys_addr, pavail[i].reg_size);
+	for (i = 0; i < lmb.memory.cnt; i++)
+		free_bootmem(lmb.memory.region[i].base,
+			     lmb_size_bytes(&lmb.memory, i));
 
-#ifdef CONFIG_BLK_DEV_INITRD
-	if (initrd_start) {
-		size = initrd_end - initrd_start;
+	for (i = 0; i < lmb.reserved.cnt; i++)
+		reserve_bootmem(lmb.reserved.region[i].base,
+				lmb_size_bytes(&lmb.reserved, i),
+				BOOTMEM_DEFAULT);
 
-		/* Reserve the initrd image area. */
-		reserve_bootmem(initrd_start, size, BOOTMEM_DEFAULT);
-
-		initrd_start += PAGE_OFFSET;
-		initrd_end += PAGE_OFFSET;
-	}
-#endif
-	/* Reserve the kernel text/data/bss. */
-	reserve_bootmem(kern_base, kern_size, BOOTMEM_DEFAULT);
 	*pages_avail -= PAGE_ALIGN(kern_size) >> PAGE_SHIFT;
 
-	/* Add back in the initmem pages. */
-	size = ((unsigned long)(__init_end) & PAGE_MASK) -
-		PAGE_ALIGN((unsigned long)__init_begin);
-	*pages_avail += size >> PAGE_SHIFT;
+	for (i = 0; i < lmb.memory.cnt; ++i) {
+		unsigned long start_pfn, end_pfn, pages;
 
-	/* Reserve the bootmem map.   We do not account for it
-	 * in pages_avail because we will release that memory
-	 * in free_all_bootmem.
-	 */
-	size = bootmap_size;
-	reserve_bootmem((bootmap_pfn << PAGE_SHIFT), size, BOOTMEM_DEFAULT);
+		pages = lmb_size_pages(&lmb.memory, i);
+		start_pfn = lmb.memory.region[i].base >> PAGE_SHIFT;
+		end_pfn = start_pfn + pages;
 
-	for (i = 0; i < pavail_ents; i++) {
-		unsigned long start_pfn, end_pfn;
-
-		start_pfn = pavail[i].phys_addr >> PAGE_SHIFT;
-		end_pfn = (start_pfn + (pavail[i].reg_size >> PAGE_SHIFT));
 		memory_present(0, start_pfn, end_pfn);
 	}
 
