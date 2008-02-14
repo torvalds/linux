@@ -7,6 +7,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/jiffies.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/types.h>
@@ -175,7 +176,7 @@ static void rate_control_simple_tx_status(void *priv, struct net_device *dev,
 		rate_control_rate_dec(local, sta);
 	}
 
-	if (srctrl->avg_rate_update + 60 * HZ < jiffies) {
+	if (time_after(jiffies, srctrl->avg_rate_update + 60 * HZ)) {
 		srctrl->avg_rate_update = jiffies;
 		if (srctrl->tx_avg_rate_num > 0) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG

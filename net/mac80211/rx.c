@@ -9,6 +9,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
@@ -767,7 +768,7 @@ ieee80211_reassemble_find(struct ieee80211_sub_if_data *sdata,
 		    compare_ether_addr(hdr->addr2, f_hdr->addr2) != 0)
 			continue;
 
-		if (entry->first_frag_time + 2 * HZ < jiffies) {
+		if (time_after(jiffies, entry->first_frag_time + 2 * HZ)) {
 			__skb_queue_purge(&entry->skb_list);
 			continue;
 		}
