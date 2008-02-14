@@ -377,9 +377,18 @@ config X86_OOSTORE
 	def_bool y
 	depends on (MWINCHIP3D || MWINCHIP2 || MWINCHIPC6) && MTRR
 
+#
+# P6_NOPs are a relatively minor optimization that require a family >=
+# 6 processor, except that it is broken on certain VIA chips.
+# Furthermore, AMD chips prefer a totally different sequence of NOPs
+# (which work on all CPUs).  As a result, disallow these if we're
+# compiling X86_GENERIC but not X86_64 (these NOPs do work on all
+# x86-64 capable chips); the list of processors in the right-hand clause
+# are the cores that benefit from this optimization.
+#
 config X86_P6_NOP
 	def_bool y
-	depends on (M686 || MPENTIUMII || MPENTIUMIII || MPENTIUMM || MCORE2 || PENTIUM4)
+	depends on (X86_64 || !X86_GENERIC) && (M686 || MPENTIUMII || MPENTIUMIII || MPENTIUMM || MCORE2 || PENTIUM4)
 
 config X86_TSC
 	def_bool y
