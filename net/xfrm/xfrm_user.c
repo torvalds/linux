@@ -1105,6 +1105,7 @@ static struct xfrm_policy *xfrm_policy_construct(struct xfrm_userpolicy_info *p,
 	return xp;
  error:
 	*errp = err;
+	xp->dead = 1;
 	xfrm_policy_destroy(xp);
 	return NULL;
 }
