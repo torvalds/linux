@@ -6,7 +6,15 @@ extra-y                := head_$(BITS).o init_task.o vmlinux.lds
 extra-$(CONFIG_X86_64) += head64.o
 
 CPPFLAGS_vmlinux.lds += -U$(UTS_MACHINE)
-CFLAGS_vsyscall_64.o := $(PROFILING) -g0
+
+#
+# vsyscalls (which work on the user stack) should have
+# no stack-protector checks:
+#
+nostackp := $(call cc-option, -fno-stack-protector)
+CFLAGS_vsyscall_64.o	:= $(PROFILING) -g0 $(nostackp)
+CFLAGS_hpet.o		:= $(nostackp)
+CFLAGS_tsc_64.o		:= $(nostackp)
 
 obj-y			:= process_$(BITS).o signal_$(BITS).o entry_$(BITS).o
 obj-y			+= traps_$(BITS).o irq_$(BITS).o
