@@ -241,7 +241,7 @@ static int __init is_acpi_reserved(unsigned long start, unsigned long end)
 	return mcfg_res.flags;
 }
 
-static void __init pci_mmcfg_reject_broken(void)
+static void __init pci_mmcfg_reject_broken(int type, int early)
 {
 	typeof(pci_mmcfg_config[0]) *cfg;
 	int i;
@@ -266,34 +266,43 @@ static void __init pci_mmcfg_reject_broken(void)
 	}
 
 	for (i = 0; i < pci_mmcfg_config_num; i++) {
+		int valid = 0;
 		u32 size = (cfg->end_bus_number + 1) << 20;
 		cfg = &pci_mmcfg_config[i];
-		printk(KERN_NOTICE "PCI: MCFG configuration %d: base %lu "
+		printk(KERN_NOTICE "PCI: MCFG configuration %d: base %lx "
 		       "segment %hu buses %u - %u\n",
 		       i, (unsigned long)cfg->address, cfg->pci_segment,
 		       (unsigned int)cfg->start_bus_number,
 		       (unsigned int)cfg->end_bus_number);
-		if (is_acpi_reserved(cfg->address, cfg->address + size - 1)) {
+
+		if (!early &&
+		    is_acpi_reserved(cfg->address, cfg->address + size - 1)) {
 			printk(KERN_NOTICE "PCI: MCFG area at %Lx reserved "
 			       "in ACPI motherboard resources\n",
 			       cfg->address);
-		} else {
+			valid = 1;
+		}
+
+		if (valid)
+			continue;
+
+		if (!early)
 			printk(KERN_ERR "PCI: BIOS Bug: MCFG area at %Lx is not"
 			       " reserved in ACPI motherboard resources\n",
 			       cfg->address);
-			/* Don't try to do this check unless configuration
-			   type 1 is available. */
-			if ((pci_probe & PCI_PROBE_CONF1) &&
-			    e820_all_mapped(cfg->address,
-					    cfg->address + size - 1,
-					    E820_RESERVED))
-				printk(KERN_NOTICE
-				       "PCI: MCFG area at %Lx reserved in "
-				       "E820\n",
-				       cfg->address);
-			else
-				goto reject;
+		/* Don't try to do this check unless configuration
+		   type 1 is available. */
+		if (type == 1 && e820_all_mapped(cfg->address,
+						  cfg->address + size - 1,
+						  E820_RESERVED)) {
+			printk(KERN_NOTICE
+			       "PCI: MCFG area at %Lx reserved in E820\n",
+			       cfg->address);
+			valid = 1;
 		}
+
+		if (!valid)
+			goto reject;
 	}
 
 	return;
@@ -306,46 +315,31 @@ reject:
 	pci_mmcfg_config_num = 0;
 }
 
-void __init pci_mmcfg_early_init(int type)
+static int __initdata known_bridge;
+
+void __init __pci_mmcfg_init(int type, int early)
 {
-	if ((pci_probe & PCI_PROBE_MMCONF) == 0)
-		return;
-
-	/* If type 1 access is available, no need to enable MMCONFIG yet, we can
-	   defer until later when the ACPI interpreter is available to better
-	   validate things. */
-	if (type == 1)
-		return;
-
-	acpi_table_parse(ACPI_SIG_MCFG, acpi_parse_mcfg);
-
-	if ((pci_mmcfg_config_num == 0) ||
-	    (pci_mmcfg_config == NULL) ||
-	    (pci_mmcfg_config[0].address == 0))
-		return;
-
-	if (pci_mmcfg_arch_init())
-		pci_probe = (pci_probe & ~PCI_PROBE_MASK) | PCI_PROBE_MMCONF;
-}
-
-void __init pci_mmcfg_late_init(void)
-{
-	int known_bridge = 0;
-
 	/* MMCONFIG disabled */
 	if ((pci_probe & PCI_PROBE_MMCONF) == 0)
 		return;
 
 	/* MMCONFIG already enabled */
-	if (!(pci_probe & PCI_PROBE_MASK & ~PCI_PROBE_MMCONF))
+	if (!early && !(pci_probe & PCI_PROBE_MASK & ~PCI_PROBE_MMCONF))
 		return;
 
-	if ((pci_probe & PCI_PROBE_CONF1) && pci_mmcfg_check_hostbridge())
-		known_bridge = 1;
-	else
-		acpi_table_parse(ACPI_SIG_MCFG, acpi_parse_mcfg);
+	/* for late to exit */
+	if (known_bridge)
+		return;
 
-	pci_mmcfg_reject_broken();
+	if (early && type == 1) {
+		if (pci_mmcfg_check_hostbridge())
+			known_bridge = 1;
+	}
+
+	if (!known_bridge) {
+		acpi_table_parse(ACPI_SIG_MCFG, acpi_parse_mcfg);
+		pci_mmcfg_reject_broken(type, early);
+	}
 
 	if ((pci_mmcfg_config_num == 0) ||
 	    (pci_mmcfg_config == NULL) ||
@@ -363,6 +357,21 @@ void __init pci_mmcfg_late_init(void)
 		 */
 		pci_mmcfg_resources_inserted = 1;
 	}
+}
+
+void __init pci_mmcfg_early_init(int type)
+{
+	__pci_mmcfg_init(type, 1);
+}
+
+void __init pci_mmcfg_late_init(void)
+{
+	int type = 0;
+
+	if (pci_probe & PCI_PROBE_CONF1)
+		type = 1;
+
+	__pci_mmcfg_init(type, 0);
 }
 
 static int __init pci_mmcfg_late_insert_resources(void)
