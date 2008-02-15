@@ -567,12 +567,12 @@ asmlinkage long sys_fchmod(unsigned int fd, mode_t mode)
 
 	audit_inode(NULL, dentry);
 
-	err = -EROFS;
-	if (IS_RDONLY(inode))
+	err = mnt_want_write(file->f_path.mnt);
+	if (err)
 		goto out_putf;
 	err = -EPERM;
 	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
-		goto out_putf;
+		goto out_drop_write;
 	mutex_lock(&inode->i_mutex);
 	if (mode == (mode_t) -1)
 		mode = inode->i_mode;
@@ -581,6 +581,8 @@ asmlinkage long sys_fchmod(unsigned int fd, mode_t mode)
 	err = notify_change(dentry, &newattrs);
 	mutex_unlock(&inode->i_mutex);
 
+out_drop_write:
+	mnt_drop_write(file->f_path.mnt);
 out_putf:
 	fput(file);
 out:
@@ -600,13 +602,13 @@ asmlinkage long sys_fchmodat(int dfd, const char __user *filename,
 		goto out;
 	inode = nd.path.dentry->d_inode;
 
-	error = -EROFS;
-	if (IS_RDONLY(inode))
+	error = mnt_want_write(nd.path.mnt);
+	if (error)
 		goto dput_and_out;
 
 	error = -EPERM;
 	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
-		goto dput_and_out;
+		goto out_drop_write;
 
 	mutex_lock(&inode->i_mutex);
 	if (mode == (mode_t) -1)
@@ -616,6 +618,8 @@ asmlinkage long sys_fchmodat(int dfd, const char __user *filename,
 	error = notify_change(nd.path.dentry, &newattrs);
 	mutex_unlock(&inode->i_mutex);
 
+out_drop_write:
+	mnt_drop_write(nd.path.mnt);
 dput_and_out:
 	path_put(&nd.path);
 out:
@@ -638,9 +642,6 @@ static int chown_common(struct dentry * dentry, uid_t user, gid_t group)
 		printk(KERN_ERR "chown_common: NULL inode\n");
 		goto out;
 	}
-	error = -EROFS;
-	if (IS_RDONLY(inode))
-		goto out;
 	error = -EPERM;
 	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
 		goto out;
@@ -671,7 +672,12 @@ asmlinkage long sys_chown(const char __user * filename, uid_t user, gid_t group)
 	error = user_path_walk(filename, &nd);
 	if (error)
 		goto out;
+	error = mnt_want_write(nd.path.mnt);
+	if (error)
+		goto out_release;
 	error = chown_common(nd.path.dentry, user, group);
+	mnt_drop_write(nd.path.mnt);
+out_release:
 	path_put(&nd.path);
 out:
 	return error;
@@ -691,7 +697,12 @@ asmlinkage long sys_fchownat(int dfd, const char __user *filename, uid_t user,
 	error = __user_walk_fd(dfd, filename, follow, &nd);
 	if (error)
 		goto out;
+	error = mnt_want_write(nd.path.mnt);
+	if (error)
+		goto out_release;
 	error = chown_common(nd.path.dentry, user, group);
+	mnt_drop_write(nd.path.mnt);
+out_release:
 	path_put(&nd.path);
 out:
 	return error;
@@ -705,7 +716,12 @@ asmlinkage long sys_lchown(const char __user * filename, uid_t user, gid_t group
 	error = user_path_walk_link(filename, &nd);
 	if (error)
 		goto out;
+	error = mnt_want_write(nd.path.mnt);
+	if (error)
+		goto out_release;
 	error = chown_common(nd.path.dentry, user, group);
+	mnt_drop_write(nd.path.mnt);
+out_release:
 	path_put(&nd.path);
 out:
 	return error;
@@ -722,9 +738,14 @@ asmlinkage long sys_fchown(unsigned int fd, uid_t user, gid_t group)
 	if (!file)
 		goto out;
 
+	error = mnt_want_write(file->f_path.mnt);
+	if (error)
+		goto out_fput;
 	dentry = file->f_path.dentry;
 	audit_inode(NULL, dentry);
 	error = chown_common(dentry, user, group);
+	mnt_drop_write(file->f_path.mnt);
+out_fput:
 	fput(file);
 out:
 	return error;
