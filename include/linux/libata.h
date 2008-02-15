@@ -1197,7 +1197,7 @@ static inline struct ata_link *ata_port_next_link(struct ata_link *link)
 		return ap->pmp_link;
 	}
 
-	if (++link - ap->pmp_link < ap->nr_pmp_links)
+	if (++link < ap->nr_pmp_links + ap->pmp_link)
 		return link;
 	return NULL;
 }
