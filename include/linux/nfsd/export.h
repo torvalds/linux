@@ -106,8 +106,7 @@ struct svc_expkey {
 	int			ek_fsidtype;
 	u32			ek_fsid[6];
 
-	struct vfsmount *	ek_mnt;
-	struct dentry *		ek_dentry;
+	struct path		ek_path;
 };
 
 #define EX_SECURE(exp)		(!((exp)->ex_flags & NFSEXP_INSECURE_PORT))

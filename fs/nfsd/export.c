@@ -63,10 +63,8 @@ static void expkey_put(struct kref *ref)
 	struct svc_expkey *key = container_of(ref, struct svc_expkey, h.ref);
 
 	if (test_bit(CACHE_VALID, &key->h.flags) &&
-	    !test_bit(CACHE_NEGATIVE, &key->h.flags)) {
-		dput(key->ek_dentry);
-		mntput(key->ek_mnt);
-	}
+	    !test_bit(CACHE_NEGATIVE, &key->h.flags))
+		path_put(&key->ek_path);
 	auth_domain_put(key->ek_client);
 	kfree(key);
 }
@@ -169,9 +167,8 @@ static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
 			goto out;
 
 		dprintk("Found the path %s\n", buf);
-		key.ek_mnt = nd.path.mnt;
-		key.ek_dentry = nd.path.dentry;
-		
+		key.ek_path = nd.path;
+
 		ek = svc_expkey_update(&key, ek);
 		if (ek)
 			cache_put(&ek->h, &svc_expkey_cache);
@@ -206,7 +203,7 @@ static int expkey_show(struct seq_file *m,
 	if (test_bit(CACHE_VALID, &h->flags) && 
 	    !test_bit(CACHE_NEGATIVE, &h->flags)) {
 		seq_printf(m, " ");
-		seq_path(m, ek->ek_mnt, ek->ek_dentry, "\\ \t\n");
+		seq_path(m, ek->ek_path.mnt, ek->ek_path.dentry, "\\ \t\n");
 	}
 	seq_printf(m, "\n");
 	return 0;
@@ -243,8 +240,8 @@ static inline void expkey_update(struct cache_head *cnew,
 	struct svc_expkey *new = container_of(cnew, struct svc_expkey, h);
 	struct svc_expkey *item = container_of(citem, struct svc_expkey, h);
 
-	new->ek_mnt = mntget(item->ek_mnt);
-	new->ek_dentry = dget(item->ek_dentry);
+	new->ek_path = item->ek_path;
+	path_get(&item->ek_path);
 }
 
 static struct cache_head *expkey_alloc(void)
@@ -814,8 +811,7 @@ static int exp_set_key(svc_client *clp, int fsid_type, u32 *fsidv,
 	key.ek_client = clp;
 	key.ek_fsidtype = fsid_type;
 	memcpy(key.ek_fsid, fsidv, key_len(fsid_type));
-	key.ek_mnt = exp->ex_path.mnt;
-	key.ek_dentry = exp->ex_path.dentry;
+	key.ek_path = exp->ex_path;
 	key.h.expiry_time = NEVER;
 	key.h.flags = 0;
 
@@ -864,7 +860,7 @@ static svc_export *exp_get_by_name(svc_client *clp, struct vfsmount *mnt,
 {
 	struct svc_export *exp, key;
 	int err;
-	
+
 	if (!clp)
 		return ERR_PTR(-ENOENT);
 
@@ -1036,9 +1032,9 @@ exp_export(struct nfsctl_export *nxp)
 	/* must make sure there won't be an ex_fsid clash */
 	if ((nxp->ex_flags & NFSEXP_FSID) &&
 	    (!IS_ERR(fsid_key = exp_get_fsid_key(clp, nxp->ex_dev))) &&
-	    fsid_key->ek_mnt &&
-	    (fsid_key->ek_mnt != nd.path.mnt ||
-	     fsid_key->ek_dentry != nd.path.dentry))
+	    fsid_key->ek_path.mnt &&
+	    (fsid_key->ek_path.mnt != nd.path.mnt ||
+	     fsid_key->ek_path.dentry != nd.path.dentry))
 		goto finish;
 
 	if (!IS_ERR(exp)) {
@@ -1218,7 +1214,7 @@ static struct svc_export *exp_find(struct auth_domain *clp, int fsid_type,
 	if (IS_ERR(ek))
 		return ERR_CAST(ek);
 
-	exp = exp_get_by_name(clp, ek->ek_mnt, ek->ek_dentry, reqp);
+	exp = exp_get_by_name(clp, ek->ek_path.mnt, ek->ek_path.dentry, reqp);
 	cache_put(&ek->h, &svc_expkey_cache);
 
 	if (IS_ERR(exp))
