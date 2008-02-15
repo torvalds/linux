@@ -29,6 +29,46 @@
 #include "cifs_debug.h"
 #include "cifs_fs_sb.h"
 
+
+static void cifs_set_ops(struct inode *inode)
+{
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+
+	switch (inode->i_mode & S_IFMT) {
+	case S_IFREG:
+		inode->i_op = &cifs_file_inode_ops;
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DIRECT_IO) {
+			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
+				inode->i_fop = &cifs_file_direct_nobrl_ops;
+			else
+				inode->i_fop = &cifs_file_direct_ops;
+		} else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
+			inode->i_fop = &cifs_file_nobrl_ops;
+		else { /* not direct, send byte range locks */
+			inode->i_fop = &cifs_file_ops;
+		}
+
+
+		/* check if server can support readpages */
+		if (cifs_sb->tcon->ses->server->maxBuf <
+				PAGE_CACHE_SIZE + MAX_CIFS_HDR_SIZE)
+			inode->i_data.a_ops = &cifs_addr_ops_smallbuf;
+		else
+			inode->i_data.a_ops = &cifs_addr_ops;
+		break;
+	case S_IFDIR:
+		inode->i_op = &cifs_dir_inode_ops;
+		inode->i_fop = &cifs_dir_ops;
+		break;
+	case S_IFLNK:
+		inode->i_op = &cifs_symlink_inode_ops;
+		break;
+	default:
+		init_special_inode(inode, inode->i_mode, inode->i_rdev);
+		break;
+	}
+}
+
 int cifs_get_inode_info_unix(struct inode **pinode,
 	const unsigned char *search_path, struct super_block *sb, int xid)
 {
@@ -178,39 +218,8 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 		cFYI(1, ("Size %ld and blocks %llu",
 			(unsigned long) inode->i_size,
 			(unsigned long long)inode->i_blocks));
-		if (S_ISREG(inode->i_mode)) {
-			cFYI(1, ("File inode"));
-			inode->i_op = &cifs_file_inode_ops;
-			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DIRECT_IO) {
-				if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
-					inode->i_fop =
-						&cifs_file_direct_nobrl_ops;
-				else
-					inode->i_fop = &cifs_file_direct_ops;
-			} else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
-				inode->i_fop = &cifs_file_nobrl_ops;
-			else /* not direct, send byte range locks */
-				inode->i_fop = &cifs_file_ops;
 
-			/* check if server can support readpages */
-			if (pTcon->ses->server->maxBuf <
-			    PAGE_CACHE_SIZE + MAX_CIFS_HDR_SIZE)
-				inode->i_data.a_ops = &cifs_addr_ops_smallbuf;
-			else
-				inode->i_data.a_ops = &cifs_addr_ops;
-		} else if (S_ISDIR(inode->i_mode)) {
-			cFYI(1, ("Directory inode"));
-			inode->i_op = &cifs_dir_inode_ops;
-			inode->i_fop = &cifs_dir_ops;
-		} else if (S_ISLNK(inode->i_mode)) {
-			cFYI(1, ("Symbolic Link inode"));
-			inode->i_op = &cifs_symlink_inode_ops;
-		/* tmp_inode->i_fop = */ /* do not need to set to anything */
-		} else {
-			cFYI(1, ("Init special inode"));
-			init_special_inode(inode, inode->i_mode,
-					   inode->i_rdev);
-		}
+		cifs_set_ops(inode);
 	}
 	return rc;
 }
@@ -546,36 +555,7 @@ int cifs_get_inode_info(struct inode **pinode,
 			atomic_set(&cifsInfo->inUse, 1);
 		}
 
-		if (S_ISREG(inode->i_mode)) {
-			cFYI(1, ("File inode"));
-			inode->i_op = &cifs_file_inode_ops;
-			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DIRECT_IO) {
-				if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
-					inode->i_fop =
-						&cifs_file_direct_nobrl_ops;
-				else
-					inode->i_fop = &cifs_file_direct_ops;
-			} else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
-				inode->i_fop = &cifs_file_nobrl_ops;
-			else /* not direct, send byte range locks */
-				inode->i_fop = &cifs_file_ops;
-
-			if (pTcon->ses->server->maxBuf <
-			     PAGE_CACHE_SIZE + MAX_CIFS_HDR_SIZE)
-				inode->i_data.a_ops = &cifs_addr_ops_smallbuf;
-			else
-				inode->i_data.a_ops = &cifs_addr_ops;
-		} else if (S_ISDIR(inode->i_mode)) {
-			cFYI(1, ("Directory inode"));
-			inode->i_op = &cifs_dir_inode_ops;
-			inode->i_fop = &cifs_dir_ops;
-		} else if (S_ISLNK(inode->i_mode)) {
-			cFYI(1, ("Symbolic Link inode"));
-			inode->i_op = &cifs_symlink_inode_ops;
-		} else {
-			init_special_inode(inode, inode->i_mode,
-					   inode->i_rdev);
-		}
+		cifs_set_ops(inode);
 	}
 	kfree(buf);
 	return rc;
