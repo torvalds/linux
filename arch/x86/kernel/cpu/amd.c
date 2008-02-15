@@ -63,7 +63,7 @@ static __cpuinit int amd_apic_timer_broken(void)
 
 int force_mwait __cpuinitdata;
 
-void __cpuinit early_init_amd(struct cpuinfo_x86 *c)
+static void __cpuinit early_init_amd(struct cpuinfo_x86 *c)
 {
 	if (cpuid_eax(0x80000000) >= 0x80000007) {
 		c->x86_power = cpuid_edx(0x80000007);
@@ -336,6 +336,7 @@ static struct cpu_dev amd_cpu_dev __cpuinitdata = {
 		  }
 		},
 	},
+	.c_early_init   = early_init_amd,
 	.c_init		= init_amd,
 	.c_size_cache	= amd_size_cache,
 };
@@ -345,3 +346,5 @@ int __init amd_init_cpu(void)
 	cpu_devs[X86_VENDOR_AMD] = &amd_cpu_dev;
 	return 0;
 }
+
+cpu_vendor_dev_register(X86_VENDOR_AMD, &amd_cpu_dev);

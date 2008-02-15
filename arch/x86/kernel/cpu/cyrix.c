@@ -439,11 +439,7 @@ static struct cpu_dev cyrix_cpu_dev __cpuinitdata = {
 	.c_identify	= cyrix_identify,
 };
 
-int __init cyrix_init_cpu(void)
-{
-	cpu_devs[X86_VENDOR_CYRIX] = &cyrix_cpu_dev;
-	return 0;
-}
+cpu_vendor_dev_register(X86_VENDOR_CYRIX, &cyrix_cpu_dev);
 
 static struct cpu_dev nsc_cpu_dev __cpuinitdata = {
 	.c_vendor	= "NSC",
@@ -451,9 +447,4 @@ static struct cpu_dev nsc_cpu_dev __cpuinitdata = {
 	.c_init		= init_nsc,
 };
 
-int __init nsc_init_cpu(void)
-{
-	cpu_devs[X86_VENDOR_NSC] = &nsc_cpu_dev;
-	return 0;
-}
-
+cpu_vendor_dev_register(X86_VENDOR_NSC, &nsc_cpu_dev);

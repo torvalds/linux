@@ -149,6 +149,11 @@ SECTIONS
 	*(.con_initcall.init)
   	__con_initcall_end = .;
   }
+  .x86cpuvendor.init : AT(ADDR(.x86cpuvendor.init) - LOAD_OFFSET) {
+	__x86cpuvendor_start = .;
+	*(.x86cpuvendor.init)
+	__x86cpuvendor_end = .;
+  }
   SECURITY_INIT
   . = ALIGN(4);
   .altinstructions : AT(ADDR(.altinstructions) - LOAD_OFFSET) {

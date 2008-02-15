@@ -464,8 +464,4 @@ static struct cpu_dev centaur_cpu_dev __cpuinitdata = {
 	.c_size_cache	= centaur_size_cache,
 };
 
-int __init centaur_init_cpu(void)
-{
-	cpu_devs[X86_VENDOR_CENTAUR] = &centaur_cpu_dev;
-	return 0;
-}
+cpu_vendor_dev_register(X86_VENDOR_CENTAUR, &centaur_cpu_dev);

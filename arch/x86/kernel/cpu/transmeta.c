@@ -102,8 +102,4 @@ static struct cpu_dev transmeta_cpu_dev __cpuinitdata = {
 	.c_identify	= transmeta_identify,
 };
 
-int __init transmeta_init_cpu(void)
-{
-	cpu_devs[X86_VENDOR_TRANSMETA] = &transmeta_cpu_dev;
-	return 0;
-}
+cpu_vendor_dev_register(X86_VENDOR_TRANSMETA, &transmeta_cpu_dev);

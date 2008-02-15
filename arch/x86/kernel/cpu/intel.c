@@ -30,7 +30,7 @@
 struct movsl_mask movsl_mask __read_mostly;
 #endif
 
-void __cpuinit early_init_intel(struct cpuinfo_x86 *c)
+static void __cpuinit early_init_intel(struct cpuinfo_x86 *c)
 {
 	/* Netburst reports 64 bytes clflush size, but does IO in 128 bytes */
 	if (c->x86 == 15 && c->x86_cache_alignment == 64)
@@ -290,15 +290,12 @@ static struct cpu_dev intel_cpu_dev __cpuinitdata = {
 		  }
 		},
 	},
+	.c_early_init   = early_init_intel,
 	.c_init		= init_intel,
 	.c_size_cache	= intel_size_cache,
 };
 
-__init int intel_cpu_init(void)
-{
-	cpu_devs[X86_VENDOR_INTEL] = &intel_cpu_dev;
-	return 0;
-}
+cpu_vendor_dev_register(X86_VENDOR_INTEL, &intel_cpu_dev);
 
 #ifndef CONFIG_X86_CMPXCHG
 unsigned long cmpxchg_386_u8(volatile void *ptr, u8 old, u8 new)

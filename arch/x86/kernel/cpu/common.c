@@ -328,14 +328,9 @@ static void __init early_cpu_detect(void)
 
 	get_cpu_vendor(c, 1);
 
-	switch (c->x86_vendor) {
-	case X86_VENDOR_AMD:
-		early_init_amd(c);
-		break;
-	case X86_VENDOR_INTEL:
-		early_init_intel(c);
-		break;
-	}
+	if (c->x86_vendor != X86_VENDOR_UNKNOWN &&
+	    cpu_devs[c->x86_vendor]->c_early_init)
+		cpu_devs[c->x86_vendor]->c_early_init(c);
 
 	early_get_cap(c);
 }
@@ -616,23 +611,15 @@ __setup("clearcpuid=", setup_disablecpuid);
 
 cpumask_t cpu_initialized __cpuinitdata = CPU_MASK_NONE;
 
-/* This is hacky. :)
- * We're emulating future behavior.
- * In the future, the cpu-specific init functions will be called implicitly
- * via the magic of initcalls.
- * They will insert themselves into the cpu_devs structure.
- * Then, when cpu_init() is called, we can just iterate over that array.
- */
 void __init early_cpu_init(void)
 {
-	intel_cpu_init();
-	cyrix_init_cpu();
-	nsc_init_cpu();
-	amd_init_cpu();
-	centaur_init_cpu();
-	transmeta_init_cpu();
-	nexgen_init_cpu();
-	umc_init_cpu();
+	struct cpu_vendor_dev *cvdev;
+
+	for (cvdev = __x86cpuvendor_start ;
+	     cvdev < __x86cpuvendor_end   ;
+	     cvdev++)
+		cpu_devs[cvdev->vendor] = cvdev->cpu_dev;
+
 	early_cpu_detect();
 }
 
