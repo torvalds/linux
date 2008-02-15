@@ -198,14 +198,13 @@ out:
  * dcookie user still being registered (namely, the reader
  * of the event buffer).
  */
-static inline unsigned long fast_get_dcookie(struct dentry *dentry,
-					     struct vfsmount *vfsmnt)
+static inline unsigned long fast_get_dcookie(struct path *path)
 {
 	unsigned long cookie;
 
-	if (dentry->d_cookie)
-		return (unsigned long)dentry;
-	get_dcookie(dentry, vfsmnt, &cookie);
+	if (path->dentry->d_cookie)
+		return (unsigned long)path->dentry;
+	get_dcookie(path, &cookie);
 	return cookie;
 }
 
@@ -240,8 +239,7 @@ get_exec_dcookie_and_offset(struct spu *spu, unsigned int *offsetp,
 			continue;
 		if (!(vma->vm_flags & VM_EXECUTABLE))
 			continue;
-		app_cookie = fast_get_dcookie(vma->vm_file->f_dentry,
-					  vma->vm_file->f_vfsmnt);
+		app_cookie = fast_get_dcookie(&vma->vm_file->f_path);
 		pr_debug("got dcookie for %s\n",
 			 vma->vm_file->f_dentry->d_name.name);
 		app = vma->vm_file;
@@ -262,8 +260,7 @@ get_exec_dcookie_and_offset(struct spu *spu, unsigned int *offsetp,
 		break;
 	}
 
-	*spu_bin_dcookie = fast_get_dcookie(vma->vm_file->f_dentry,
-						 vma->vm_file->f_vfsmnt);
+	*spu_bin_dcookie = fast_get_dcookie(&vma->vm_file->f_path);
 	pr_debug("got dcookie for %s\n", vma->vm_file->f_dentry->d_name.name);
 
 	up_read(&mm->mmap_sem);
