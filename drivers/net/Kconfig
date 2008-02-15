@@ -931,6 +931,14 @@ config ENC28J60_WRITEVERIFY
 	  Enable the verify after the buffer write useful for debugging purpose.
 	  If unsure, say N.
 
+config DM9000_DEBUGLEVEL
+	int "DM9000 maximum debug level"
+	depends on DM9000
+	default 4
+	help
+	  The maximum level of debugging code compiled into the DM9000
+	  driver.
+
 config SMC911X
 	tristate "SMSC LAN911[5678] support"
 	select CRC32
@@ -2351,6 +2359,16 @@ config GELIC_NET
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ps3_gelic.
+
+config GELIC_WIRELESS
+       bool "PS3 Wireless support"
+       depends on GELIC_NET
+       help
+        This option adds the support for the wireless feature of PS3.
+        If you have the wireless-less model of PS3 or have no plan to
+        use wireless feature, disabling this option saves memory.  As
+        the driver automatically distinguishes the models, you can
+        safely enable this option even if you have a wireless-less model.
 
 config GIANFAR
 	tristate "Gianfar Ethernet"

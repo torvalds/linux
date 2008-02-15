@@ -945,7 +945,7 @@ static int tcp_packet(struct nf_conn *ct,
 
 	ct->proto.tcp.state = new_state;
 	if (old_state != new_state
-	    && new_state == TCP_CONNTRACK_CLOSE)
+	    && new_state == TCP_CONNTRACK_FIN_WAIT)
 		ct->proto.tcp.seen[dir].flags |= IP_CT_TCP_FLAG_CLOSE_INIT;
 	timeout = ct->proto.tcp.retrans >= nf_ct_tcp_max_retrans
 		  && tcp_timeouts[new_state] > nf_ct_tcp_timeout_max_retrans

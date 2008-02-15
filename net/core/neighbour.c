@@ -834,18 +834,12 @@ static void neigh_timer_handler(unsigned long arg)
 	}
 	if (neigh->nud_state & (NUD_INCOMPLETE | NUD_PROBE)) {
 		struct sk_buff *skb = skb_peek(&neigh->arp_queue);
-		/* keep skb alive even if arp_queue overflows */
-		if (skb)
-			skb_get(skb);
-		write_unlock(&neigh->lock);
+
 		neigh->ops->solicit(neigh, skb);
 		atomic_inc(&neigh->probes);
-		if (skb)
-			kfree_skb(skb);
-	} else {
-out:
-		write_unlock(&neigh->lock);
 	}
+out:
+	write_unlock(&neigh->lock);
 
 	if (notify)
 		neigh_update_notify(neigh);
