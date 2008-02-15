@@ -2623,7 +2623,7 @@ long ext4_fallocate(struct inode *inode, int mode, loff_t offset, loff_t len)
 	 * modify 1 super block, 1 block bitmap and 1 group descriptor.
 	 */
 	credits = EXT4_DATA_TRANS_BLOCKS(inode->i_sb) + 3;
-	down_write((&EXT4_I(inode)->i_data_sem));
+	mutex_lock(&inode->i_mutex);
 retry:
 	while (ret >= 0 && ret < max_blocks) {
 		block = block + ret;
@@ -2634,7 +2634,7 @@ retry:
 			break;
 		}
 
-		ret = ext4_ext_get_blocks(handle, inode, block,
+		ret = ext4_get_blocks_wrap(handle, inode, block,
 					  max_blocks, &map_bh,
 					  EXT4_CREATE_UNINITIALIZED_EXT, 0);
 		WARN_ON(ret <= 0);
@@ -2680,7 +2680,6 @@ retry:
 	if (ret == -ENOSPC && ext4_should_retry_alloc(inode->i_sb, &retries))
 		goto retry;
 
-	up_write((&EXT4_I(inode)->i_data_sem));
 	/*
 	 * Time to update the file size.
 	 * Update only when preallocation was requested beyond the file size.
@@ -2692,21 +2691,18 @@ retry:
 			 * if no error, we assume preallocation succeeded
 			 * completely
 			 */
-			mutex_lock(&inode->i_mutex);
 			i_size_write(inode, offset + len);
 			EXT4_I(inode)->i_disksize = i_size_read(inode);
-			mutex_unlock(&inode->i_mutex);
 		} else if (ret < 0 && nblocks) {
 			/* Handle partial allocation scenario */
 			loff_t newsize;
 
-			mutex_lock(&inode->i_mutex);
 			newsize  = (nblocks << blkbits) + i_size_read(inode);
 			i_size_write(inode, EXT4_BLOCK_ALIGN(newsize, blkbits));
 			EXT4_I(inode)->i_disksize = i_size_read(inode);
-			mutex_unlock(&inode->i_mutex);
 		}
 	}
 
+	mutex_unlock(&inode->i_mutex);
 	return ret > 0 ? ret2 : ret;
 }
