@@ -408,10 +408,11 @@ static int show_vfsmnt(struct seq_file *m, void *v)
 		{ 0, NULL }
 	};
 	struct proc_fs_info *fs_infop;
+	struct path mnt_path = { .dentry = mnt->mnt_root, .mnt = mnt };
 
 	mangle(m, mnt->mnt_devname ? mnt->mnt_devname : "none");
 	seq_putc(m, ' ');
-	seq_path(m, mnt, mnt->mnt_root, " \t\n\\");
+	seq_path(m, &mnt_path, " \t\n\\");
 	seq_putc(m, ' ');
 	mangle(m, mnt->mnt_sb->s_type->name);
 	if (mnt->mnt_sb->s_subtype && mnt->mnt_sb->s_subtype[0]) {
@@ -443,6 +444,7 @@ struct seq_operations mounts_op = {
 static int show_vfsstat(struct seq_file *m, void *v)
 {
 	struct vfsmount *mnt = list_entry(v, struct vfsmount, mnt_list);
+	struct path mnt_path = { .dentry = mnt->mnt_root, .mnt = mnt };
 	int err = 0;
 
 	/* device */
@@ -454,7 +456,7 @@ static int show_vfsstat(struct seq_file *m, void *v)
 
 	/* mount point */
 	seq_puts(m, " mounted on ");
-	seq_path(m, mnt, mnt->mnt_root, " \t\n\\");
+	seq_path(m, &mnt_path, " \t\n\\");
 	seq_putc(m, ' ');
 
 	/* file system type */

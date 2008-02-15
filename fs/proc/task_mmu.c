@@ -271,7 +271,7 @@ static int show_map(struct seq_file *m, void *v)
 	 */
 	if (file) {
 		pad_len_spaces(m, len);
-		seq_path(m, file->f_path.mnt, file->f_path.dentry, "\n");
+		seq_path(m, &file->f_path, "\n");
 	} else {
 		const char *name = arch_vma_name(vma);
 		if (!name) {

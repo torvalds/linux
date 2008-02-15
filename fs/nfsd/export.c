@@ -203,7 +203,7 @@ static int expkey_show(struct seq_file *m,
 	if (test_bit(CACHE_VALID, &h->flags) && 
 	    !test_bit(CACHE_NEGATIVE, &h->flags)) {
 		seq_printf(m, " ");
-		seq_path(m, ek->ek_path.mnt, ek->ek_path.dentry, "\\ \t\n");
+		seq_path(m, &ek->ek_path, "\\ \t\n");
 	}
 	seq_printf(m, "\n");
 	return 0;
@@ -649,7 +649,7 @@ static int svc_export_show(struct seq_file *m,
 		return 0;
 	}
 	exp = container_of(h, struct svc_export, h);
-	seq_path(m, exp->ex_path.mnt, exp->ex_path.dentry, " \t\n\\");
+	seq_path(m, &exp->ex_path, " \t\n\\");
 	seq_putc(m, '\t');
 	seq_escape(m, exp->ex_client->name, " \t\n\\");
 	seq_putc(m, '(');
