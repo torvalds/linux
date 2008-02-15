@@ -199,6 +199,17 @@ int init_file(struct file *file, struct vfsmount *mnt, struct dentry *dentry,
 	file->f_mapping = dentry->d_inode->i_mapping;
 	file->f_mode = mode;
 	file->f_op = fop;
+
+	/*
+	 * These mounts don't really matter in practice
+	 * for r/o bind mounts.  They aren't userspace-
+	 * visible.  We do this for consistency, and so
+	 * that we can do debugging checks at __fput()
+	 */
+	if ((mode & FMODE_WRITE) && !special_file(dentry->d_inode->i_mode)) {
+		error = mnt_want_write(mnt);
+		WARN_ON(error);
+	}
 	return error;
 }
 EXPORT_SYMBOL(init_file);
@@ -221,10 +232,13 @@ EXPORT_SYMBOL(fput);
  */
 void drop_file_write_access(struct file *file)
 {
+	struct vfsmount *mnt = file->f_path.mnt;
 	struct dentry *dentry = file->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
 
 	put_write_access(inode);
+	if (!special_file(inode->i_mode))
+		mnt_drop_write(mnt);
 }
 EXPORT_SYMBOL_GPL(drop_file_write_access);
 
