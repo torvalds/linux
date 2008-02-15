@@ -495,22 +495,17 @@ void btrfs_set_##name(struct extent_buffer *eb, type *s, u##bits val);
 #define BTRFS_SETGET_HEADER_FUNCS(name, type, member, bits)		\
 static inline u##bits btrfs_##name(struct extent_buffer *eb)		\
 {									\
-	char *kaddr = kmap_atomic(eb->first_page, KM_USER0);		\
-	unsigned long offset = offsetof(type, member);			\
-	u##bits res;							\
-	__le##bits *tmp = (__le##bits *)(kaddr + offset);		\
-	res = le##bits##_to_cpu(*tmp);					\
-	kunmap_atomic(kaddr, KM_USER0);					\
+	type *p = kmap_atomic(eb->first_page, KM_USER0);		\
+	u##bits res = le##bits##_to_cpu(p->member);			\
+	kunmap_atomic(p, KM_USER0);					\
 	return res;							\
 }									\
 static inline void btrfs_set_##name(struct extent_buffer *eb,		\
 				    u##bits val)			\
 {									\
-	char *kaddr = kmap_atomic(eb->first_page, KM_USER0);		\
-	unsigned long offset = offsetof(type, member);			\
-	__le##bits *tmp = (__le##bits *)(kaddr + offset);		\
-	*tmp = cpu_to_le##bits(val);					\
-	kunmap_atomic(kaddr, KM_USER0);					\
+	type *p = kmap_atomic(eb->first_page, KM_USER0);		\
+	p->member = cpu_to_le##bits(val);				\
+	kunmap_atomic(p, KM_USER0);					\
 }
 
 #define BTRFS_SETGET_STACK_FUNCS(name, type, member, bits)		\

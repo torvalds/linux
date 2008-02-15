@@ -71,8 +71,7 @@ int btrfs_insert_xattr_item(struct btrfs_trans_handle *trans,
 
 	key.objectid = dir;
 	btrfs_set_key_type(&key, BTRFS_XATTR_ITEM_KEY);
-	ret = btrfs_name_hash(name, name_len, &key.offset);
-	BUG_ON(ret);
+	key.offset = btrfs_name_hash(name, name_len);
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
@@ -125,8 +124,7 @@ int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
 
 	key.objectid = dir;
 	btrfs_set_key_type(&key, BTRFS_DIR_ITEM_KEY);
-	ret = btrfs_name_hash(name, name_len, &key.offset);
-	BUG_ON(ret);
+	key.offset = btrfs_name_hash(name, name_len);
 	path = btrfs_alloc_path();
 	data_size = sizeof(*dir_item) + name_len;
 	dir_item = insert_with_overflow(trans, root, path, &key, data_size,
@@ -199,8 +197,7 @@ struct btrfs_dir_item *btrfs_lookup_dir_item(struct btrfs_trans_handle *trans,
 	key.objectid = dir;
 	btrfs_set_key_type(&key, BTRFS_DIR_ITEM_KEY);
 
-	ret = btrfs_name_hash(name, name_len, &key.offset);
-	BUG_ON(ret);
+	key.offset = btrfs_name_hash(name, name_len);
 
 	ret = btrfs_search_slot(trans, root, &key, path, ins_len, cow);
 	if (ret < 0)
@@ -261,8 +258,7 @@ struct btrfs_dir_item *btrfs_lookup_xattr(struct btrfs_trans_handle *trans,
 
 	key.objectid = dir;
 	btrfs_set_key_type(&key, BTRFS_XATTR_ITEM_KEY);
-	ret = btrfs_name_hash(name, name_len, &key.offset);
-	BUG_ON(ret);
+	key.offset = btrfs_name_hash(name, name_len);
 	ret = btrfs_search_slot(trans, root, &key, path, ins_len, cow);
 	if (ret < 0)
 		return ERR_PTR(ret);

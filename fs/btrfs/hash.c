@@ -76,19 +76,18 @@ static void str2hashbuf(const char *msg, int len, __u32 *buf, int num)
 		*buf++ = pad;
 }
 
-int btrfs_name_hash(const char *name, int len, u64 *hash_result)
+u64 btrfs_name_hash(const char *name, int len)
 {
 	__u32	hash;
 	__u32	minor_hash = 0;
 	const char	*p;
 	__u32		in[8], buf[2];
+	u64		hash_result;
 
 	if (len == 1 && *name == '.') {
-		*hash_result = 1;
-		return 0;
+		return 1;
 	} else if (len == 2 && name[0] == '.' && name[1] == '.') {
-		*hash_result = 2;
-		return 0;
+		return 2;
 	}
 
 	/* Initialize the default seed for the hash checksum functions */
@@ -106,8 +105,8 @@ int btrfs_name_hash(const char *name, int len, u64 *hash_result)
 	}
 	hash = buf[0];
 	minor_hash = buf[1];
-	*hash_result = buf[0];
-	*hash_result <<= 32;
-	*hash_result |= buf[1];
-	return 0;
+	hash_result = buf[0];
+	hash_result <<= 32;
+	hash_result |= buf[1];
+	return hash_result;
 }
