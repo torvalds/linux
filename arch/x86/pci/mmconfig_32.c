@@ -136,3 +136,7 @@ int __init pci_mmcfg_arch_init(void)
 	raw_pci_ext_ops = &pci_mmcfg;
 	return 1;
 }
+
+void __init pci_mmcfg_arch_free(void)
+{
+}
