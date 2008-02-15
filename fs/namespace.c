@@ -17,6 +17,7 @@
 #include <linux/quotaops.h>
 #include <linux/acct.h>
 #include <linux/capability.h>
+#include <linux/cpumask.h>
 #include <linux/module.h>
 #include <linux/sysfs.h>
 #include <linux/seq_file.h>
@@ -55,6 +56,8 @@ static inline unsigned long hash(struct vfsmount *mnt, struct dentry *dentry)
 	return tmp & (HASH_SIZE - 1);
 }
 
+#define MNT_WRITER_UNDERFLOW_LIMIT -(1<<16)
+
 struct vfsmount *alloc_vfsmnt(const char *name)
 {
 	struct vfsmount *mnt = kmem_cache_zalloc(mnt_cache, GFP_KERNEL);
@@ -68,6 +71,7 @@ struct vfsmount *alloc_vfsmnt(const char *name)
 		INIT_LIST_HEAD(&mnt->mnt_share);
 		INIT_LIST_HEAD(&mnt->mnt_slave_list);
 		INIT_LIST_HEAD(&mnt->mnt_slave);
+		atomic_set(&mnt->__mnt_writers, 0);
 		if (name) {
 			int size = strlen(name) + 1;
 			char *newname = kmalloc(size, GFP_KERNEL);
@@ -78,6 +82,92 @@ struct vfsmount *alloc_vfsmnt(const char *name)
 		}
 	}
 	return mnt;
+}
+
+/*
+ * Most r/o checks on a fs are for operations that take
+ * discrete amounts of time, like a write() or unlink().
+ * We must keep track of when those operations start
+ * (for permission checks) and when they end, so that
+ * we can determine when writes are able to occur to
+ * a filesystem.
+ */
+/*
+ * __mnt_is_readonly: check whether a mount is read-only
+ * @mnt: the mount to check for its write status
+ *
+ * This shouldn't be used directly ouside of the VFS.
+ * It does not guarantee that the filesystem will stay
+ * r/w, just that it is right *now*.  This can not and
+ * should not be used in place of IS_RDONLY(inode).
+ * mnt_want/drop_write() will _keep_ the filesystem
+ * r/w.
+ */
+int __mnt_is_readonly(struct vfsmount *mnt)
+{
+	return (mnt->mnt_sb->s_flags & MS_RDONLY);
+}
+EXPORT_SYMBOL_GPL(__mnt_is_readonly);
+
+struct mnt_writer {
+	/*
+	 * If holding multiple instances of this lock, they
+	 * must be ordered by cpu number.
+	 */
+	spinlock_t lock;
+	struct lock_class_key lock_class; /* compiles out with !lockdep */
+	unsigned long count;
+	struct vfsmount *mnt;
+} ____cacheline_aligned_in_smp;
+static DEFINE_PER_CPU(struct mnt_writer, mnt_writers);
+
+static int __init init_mnt_writers(void)
+{
+	int cpu;
+	for_each_possible_cpu(cpu) {
+		struct mnt_writer *writer = &per_cpu(mnt_writers, cpu);
+		spin_lock_init(&writer->lock);
+		lockdep_set_class(&writer->lock, &writer->lock_class);
+		writer->count = 0;
+	}
+	return 0;
+}
+fs_initcall(init_mnt_writers);
+
+static void unlock_mnt_writers(void)
+{
+	int cpu;
+	struct mnt_writer *cpu_writer;
+
+	for_each_possible_cpu(cpu) {
+		cpu_writer = &per_cpu(mnt_writers, cpu);
+		spin_unlock(&cpu_writer->lock);
+	}
+}
+
+static inline void __clear_mnt_count(struct mnt_writer *cpu_writer)
+{
+	if (!cpu_writer->mnt)
+		return;
+	/*
+	 * This is in case anyone ever leaves an invalid,
+	 * old ->mnt and a count of 0.
+	 */
+	if (!cpu_writer->count)
+		return;
+	atomic_add(cpu_writer->count, &cpu_writer->mnt->__mnt_writers);
+	cpu_writer->count = 0;
+}
+ /*
+ * must hold cpu_writer->lock
+ */
+static inline void use_cpu_writer_for_mount(struct mnt_writer *cpu_writer,
+					  struct vfsmount *mnt)
+{
+	if (cpu_writer->mnt == mnt)
+		return;
+	__clear_mnt_count(cpu_writer);
+	cpu_writer->mnt = mnt;
 }
 
 /*
@@ -100,11 +190,76 @@ struct vfsmount *alloc_vfsmnt(const char *name)
  */
 int mnt_want_write(struct vfsmount *mnt)
 {
-	if (__mnt_is_readonly(mnt))
-		return -EROFS;
-	return 0;
+	int ret = 0;
+	struct mnt_writer *cpu_writer;
+
+	cpu_writer = &get_cpu_var(mnt_writers);
+	spin_lock(&cpu_writer->lock);
+	if (__mnt_is_readonly(mnt)) {
+		ret = -EROFS;
+		goto out;
+	}
+	use_cpu_writer_for_mount(cpu_writer, mnt);
+	cpu_writer->count++;
+out:
+	spin_unlock(&cpu_writer->lock);
+	put_cpu_var(mnt_writers);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(mnt_want_write);
+
+static void lock_mnt_writers(void)
+{
+	int cpu;
+	struct mnt_writer *cpu_writer;
+
+	for_each_possible_cpu(cpu) {
+		cpu_writer = &per_cpu(mnt_writers, cpu);
+		spin_lock(&cpu_writer->lock);
+		__clear_mnt_count(cpu_writer);
+		cpu_writer->mnt = NULL;
+	}
+}
+
+/*
+ * These per-cpu write counts are not guaranteed to have
+ * matched increments and decrements on any given cpu.
+ * A file open()ed for write on one cpu and close()d on
+ * another cpu will imbalance this count.  Make sure it
+ * does not get too far out of whack.
+ */
+static void handle_write_count_underflow(struct vfsmount *mnt)
+{
+	if (atomic_read(&mnt->__mnt_writers) >=
+	    MNT_WRITER_UNDERFLOW_LIMIT)
+		return;
+	/*
+	 * It isn't necessary to hold all of the locks
+	 * at the same time, but doing it this way makes
+	 * us share a lot more code.
+	 */
+	lock_mnt_writers();
+	/*
+	 * vfsmount_lock is for mnt_flags.
+	 */
+	spin_lock(&vfsmount_lock);
+	/*
+	 * If coalescing the per-cpu writer counts did not
+	 * get us back to a positive writer count, we have
+	 * a bug.
+	 */
+	if ((atomic_read(&mnt->__mnt_writers) < 0) &&
+	    !(mnt->mnt_flags & MNT_IMBALANCED_WRITE_COUNT)) {
+		printk(KERN_DEBUG "leak detected on mount(%p) writers "
+				"count: %d\n",
+			mnt, atomic_read(&mnt->__mnt_writers));
+		WARN_ON(1);
+		/* use the flag to keep the dmesg spam down */
+		mnt->mnt_flags |= MNT_IMBALANCED_WRITE_COUNT;
+	}
+	spin_unlock(&vfsmount_lock);
+	unlock_mnt_writers();
+}
 
 /**
  * mnt_drop_write - give up write access to a mount
@@ -116,23 +271,61 @@ EXPORT_SYMBOL_GPL(mnt_want_write);
  */
 void mnt_drop_write(struct vfsmount *mnt)
 {
+	int must_check_underflow = 0;
+	struct mnt_writer *cpu_writer;
+
+	cpu_writer = &get_cpu_var(mnt_writers);
+	spin_lock(&cpu_writer->lock);
+
+	use_cpu_writer_for_mount(cpu_writer, mnt);
+	if (cpu_writer->count > 0) {
+		cpu_writer->count--;
+	} else {
+		must_check_underflow = 1;
+		atomic_dec(&mnt->__mnt_writers);
+	}
+
+	spin_unlock(&cpu_writer->lock);
+	/*
+	 * Logically, we could call this each time,
+	 * but the __mnt_writers cacheline tends to
+	 * be cold, and makes this expensive.
+	 */
+	if (must_check_underflow)
+		handle_write_count_underflow(mnt);
+	/*
+	 * This could be done right after the spinlock
+	 * is taken because the spinlock keeps us on
+	 * the cpu, and disables preemption.  However,
+	 * putting it here bounds the amount that
+	 * __mnt_writers can underflow.  Without it,
+	 * we could theoretically wrap __mnt_writers.
+	 */
+	put_cpu_var(mnt_writers);
 }
 EXPORT_SYMBOL_GPL(mnt_drop_write);
 
-/*
- * __mnt_is_readonly: check whether a mount is read-only
- * @mnt: the mount to check for its write status
- *
- * This shouldn't be used directly ouside of the VFS.
- * It does not guarantee that the filesystem will stay
- * r/w, just that it is right *now*.  This can not and
- * should not be used in place of IS_RDONLY(inode).
- */
-int __mnt_is_readonly(struct vfsmount *mnt)
+int mnt_make_readonly(struct vfsmount *mnt)
 {
-	return (mnt->mnt_sb->s_flags & MS_RDONLY);
+	int ret = 0;
+
+	lock_mnt_writers();
+	/*
+	 * With all the locks held, this value is stable
+	 */
+	if (atomic_read(&mnt->__mnt_writers) > 0) {
+		ret = -EBUSY;
+		goto out;
+	}
+	/*
+	 * actually set mount's r/o flag here to make
+	 * __mnt_is_readonly() true, which keeps anyone
+	 * from doing a successful mnt_want_write().
+	 */
+out:
+	unlock_mnt_writers();
+	return ret;
 }
-EXPORT_SYMBOL_GPL(__mnt_is_readonly);
 
 int simple_set_mnt(struct vfsmount *mnt, struct super_block *sb)
 {
@@ -325,7 +518,36 @@ static struct vfsmount *clone_mnt(struct vfsmount *old, struct dentry *root,
 
 static inline void __mntput(struct vfsmount *mnt)
 {
+	int cpu;
 	struct super_block *sb = mnt->mnt_sb;
+	/*
+	 * We don't have to hold all of the locks at the
+	 * same time here because we know that we're the
+	 * last reference to mnt and that no new writers
+	 * can come in.
+	 */
+	for_each_possible_cpu(cpu) {
+		struct mnt_writer *cpu_writer = &per_cpu(mnt_writers, cpu);
+		if (cpu_writer->mnt != mnt)
+			continue;
+		spin_lock(&cpu_writer->lock);
+		atomic_add(cpu_writer->count, &mnt->__mnt_writers);
+		cpu_writer->count = 0;
+		/*
+		 * Might as well do this so that no one
+		 * ever sees the pointer and expects
+		 * it to be valid.
+		 */
+		cpu_writer->mnt = NULL;
+		spin_unlock(&cpu_writer->lock);
+	}
+	/*
+	 * This probably indicates that somebody messed
+	 * up a mnt_want/drop_write() pair.  If this
+	 * happens, the filesystem was probably unable
+	 * to make r/w->r/o transitions.
+	 */
+	WARN_ON(atomic_read(&mnt->__mnt_writers));
 	dput(mnt->mnt_root);
 	free_vfsmnt(mnt);
 	deactivate_super(sb);

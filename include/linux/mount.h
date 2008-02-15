@@ -14,6 +14,7 @@
 
 #include <linux/types.h>
 #include <linux/list.h>
+#include <linux/nodemask.h>
 #include <linux/spinlock.h>
 #include <asm/atomic.h>
 
@@ -30,6 +31,7 @@ struct mnt_namespace;
 #define MNT_RELATIME	0x20
 
 #define MNT_SHRINKABLE	0x100
+#define MNT_IMBALANCED_WRITE_COUNT	0x200 /* just for debugging */
 
 #define MNT_SHARED	0x1000	/* if the vfsmount is a shared mount */
 #define MNT_UNBINDABLE	0x2000	/* if the vfsmount is a unbindable mount */
@@ -62,6 +64,11 @@ struct vfsmount {
 	int mnt_expiry_mark;		/* true if marked for expiry */
 	int mnt_pinned;
 	int mnt_ghosts;
+	/*
+	 * This value is not stable unless all of the mnt_writers[] spinlocks
+	 * are held, and all mnt_writer[]s on this mount have 0 as their ->count
+	 */
+	atomic_t __mnt_writers;
 };
 
 static inline struct vfsmount *mntget(struct vfsmount *mnt)
