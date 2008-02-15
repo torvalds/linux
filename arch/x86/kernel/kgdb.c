@@ -41,6 +41,7 @@
 #include <linux/kgdb.h>
 #include <linux/init.h>
 #include <linux/smp.h>
+#include <linux/nmi.h>
 
 #include <asm/apicdef.h>
 #include <asm/system.h>
@@ -290,6 +291,8 @@ single_step_cont(struct pt_regs *regs, struct die_args *args)
 	return NOTIFY_STOP;
 }
 
+static int was_in_debug_nmi[NR_CPUS];
+
 static int __kgdb_notify(struct die_args *args, unsigned long cmd)
 {
 	struct pt_regs *regs = args->regs;
@@ -299,15 +302,24 @@ static int __kgdb_notify(struct die_args *args, unsigned long cmd)
 		if (atomic_read(&kgdb_active) != -1) {
 			/* KGDB CPU roundup */
 			kgdb_nmicallback(raw_smp_processor_id(), regs);
+			was_in_debug_nmi[raw_smp_processor_id()] = 1;
+			touch_nmi_watchdog();
 			return NOTIFY_STOP;
 		}
 		return NOTIFY_DONE;
 
 	case DIE_NMI_IPI:
 		if (atomic_read(&kgdb_active) != -1) {
-			/* KGDB CPU roundup: */
-			if (kgdb_nmicallback(raw_smp_processor_id(), regs))
-				return NOTIFY_DONE;
+			/* KGDB CPU roundup */
+			kgdb_nmicallback(raw_smp_processor_id(), regs);
+			was_in_debug_nmi[raw_smp_processor_id()] = 1;
+			touch_nmi_watchdog();
+		}
+		return NOTIFY_DONE;
+
+	case DIE_NMIUNKNOWN:
+		if (was_in_debug_nmi[raw_smp_processor_id()]) {
+			was_in_debug_nmi[raw_smp_processor_id()] = 0;
 			return NOTIFY_STOP;
 		}
 		return NOTIFY_DONE;

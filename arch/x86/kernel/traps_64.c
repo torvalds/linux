@@ -806,6 +806,8 @@ io_check_error(unsigned char reason, struct pt_regs * regs)
 static __kprobes void
 unknown_nmi_error(unsigned char reason, struct pt_regs * regs)
 {
+	if (notify_die(DIE_NMIUNKNOWN, "nmi", regs, reason, 2, SIGINT) == NOTIFY_STOP)
+		return;
 	printk(KERN_EMERG "Uhhuh. NMI received for unknown reason %02x.\n",
 		reason);
 	printk(KERN_EMERG "Do you have a strange power saving mode enabled?\n");
