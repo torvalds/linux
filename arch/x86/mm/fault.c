@@ -186,7 +186,7 @@ static int bad_address(void *p)
 }
 #endif
 
-void dump_pagetable(unsigned long address)
+static void dump_pagetable(unsigned long address)
 {
 #ifdef CONFIG_X86_32
 	__typeof__(pte_val(__pte(0))) page;

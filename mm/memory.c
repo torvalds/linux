@@ -2711,6 +2711,13 @@ void print_vma_addr(char *prefix, unsigned long ip)
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
 
+	/*
+	 * Do not print if we are in atomic
+	 * contexts (in exception stacks, etc.):
+	 */
+	if (preempt_count())
+		return;
+
 	down_read(&mm->mmap_sem);
 	vma = find_vma(mm, ip);
 	if (vma && vma->vm_file) {
