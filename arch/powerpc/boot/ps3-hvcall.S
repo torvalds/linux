@@ -145,7 +145,7 @@
 .macro STORE_REGS_5_2
 	lwz r11, 16(r1)
 	std r4, 0(r11)
-	lwz r11, 24(r1)
+	lwz r11, 20(r1)
 	std r5, 0(r11)
 .endm
 

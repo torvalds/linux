@@ -147,6 +147,8 @@ HOSTCFLAGS += -I$(src)/dtc-src/ -I$(src)/libfdt/
 targets += dtc-src/dtc-parser.tab.c
 targets += dtc-src/dtc-lexer.lex.c
 
+clean-files += dtc-src/dtc-parser.tab.h
+
 ifdef DTC_GENPARSER
 BISON = bison
 FLEX = flex
