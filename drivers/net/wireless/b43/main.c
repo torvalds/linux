@@ -58,6 +58,8 @@ MODULE_AUTHOR("Stefano Brivio");
 MODULE_AUTHOR("Michael Buesch");
 MODULE_LICENSE("GPL");
 
+MODULE_FIRMWARE(B43_SUPPORTED_FIRMWARE_ID);
+
 
 static int modparam_bad_frames_preempt;
 module_param_named(bad_frames_preempt, modparam_bad_frames_preempt, int, 0444);
@@ -1859,11 +1861,11 @@ static int b43_upload_microcode(struct b43_wldev *dev)
 		err = -EOPNOTSUPP;
 		goto error;
 	}
-	b43dbg(dev->wl, "Loading firmware version %u.%u "
-	       "(20%.2i-%.2i-%.2i %.2i:%.2i:%.2i)\n",
-	       fwrev, fwpatch,
-	       (fwdate >> 12) & 0xF, (fwdate >> 8) & 0xF, fwdate & 0xFF,
-	       (fwtime >> 11) & 0x1F, (fwtime >> 5) & 0x3F, fwtime & 0x1F);
+	b43info(dev->wl, "Loading firmware version %u.%u "
+		"(20%.2i-%.2i-%.2i %.2i:%.2i:%.2i)\n",
+		fwrev, fwpatch,
+		(fwdate >> 12) & 0xF, (fwdate >> 8) & 0xF, fwdate & 0xFF,
+		(fwtime >> 11) & 0x1F, (fwtime >> 5) & 0x3F, fwtime & 0x1F);
 
 	dev->fw.rev = fwrev;
 	dev->fw.patch = fwpatch;
@@ -4200,6 +4202,33 @@ static struct ssb_driver b43_ssb_driver = {
 	.resume		= b43_resume,
 };
 
+static void b43_print_driverinfo(void)
+{
+	const char *feat_pci = "", *feat_pcmcia = "", *feat_nphy = "",
+		   *feat_leds = "", *feat_rfkill = "";
+
+#ifdef CONFIG_B43_PCI_AUTOSELECT
+	feat_pci = "P";
+#endif
+#ifdef CONFIG_B43_PCMCIA
+	feat_pcmcia = "M";
+#endif
+#ifdef CONFIG_B43_NPHY
+	feat_nphy = "N";
+#endif
+#ifdef CONFIG_B43_LEDS
+	feat_leds = "L";
+#endif
+#ifdef CONFIG_B43_RFKILL
+	feat_rfkill = "R";
+#endif
+	printk(KERN_INFO "Broadcom 43xx driver loaded "
+	       "[ Features: %s%s%s%s%s, Firmware-ID: "
+	       B43_SUPPORTED_FIRMWARE_ID " ]\n",
+	       feat_pci, feat_pcmcia, feat_nphy,
+	       feat_leds, feat_rfkill);
+}
+
 static int __init b43_init(void)
 {
 	int err;
@@ -4211,6 +4240,7 @@ static int __init b43_init(void)
 	err = ssb_driver_register(&b43_ssb_driver);
 	if (err)
 		goto err_pcmcia_exit;
+	b43_print_driverinfo();
 
 	return err;
 
