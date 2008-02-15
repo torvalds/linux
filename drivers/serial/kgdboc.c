@@ -106,7 +106,9 @@ static void kgdboc_put_char(u8 chr)
 
 static int param_set_kgdboc_var(const char *kmessage, struct kernel_param *kp)
 {
-	if (strlen(kmessage) >= MAX_CONFIG_LEN) {
+	int len = strlen(kmessage);
+
+	if (len >= MAX_CONFIG_LEN) {
 		printk(KERN_ERR "kgdboc: config string too long\n");
 		return -ENOSPC;
 	}
@@ -125,6 +127,9 @@ static int param_set_kgdboc_var(const char *kmessage, struct kernel_param *kp)
 	}
 
 	strcpy(config, kmessage);
+	/* Chop out \n char as a result of echo */
+	if (config[len - 1] == '\n')
+		config[len - 1] = '\0';
 
 	if (configured == 1)
 		cleanup_kgdboc();
