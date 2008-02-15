@@ -842,10 +842,13 @@ static void set_pcie_port_type(struct pci_dev *pdev)
  * reading the dword at 0x100 which must either be 0 or a valid extended
  * capability header.
  */
-int pci_cfg_space_size(struct pci_dev *dev)
+int pci_cfg_space_size_ext(struct pci_dev *dev, unsigned check_exp_pcix)
 {
 	int pos;
 	u32 status;
+
+	if (!check_exp_pcix)
+		goto skip;
 
 	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
 	if (!pos) {
@@ -858,6 +861,7 @@ int pci_cfg_space_size(struct pci_dev *dev)
 			goto fail;
 	}
 
+ skip:
 	if (pci_read_config_dword(dev, 256, &status) != PCIBIOS_SUCCESSFUL)
 		goto fail;
 	if (status == 0xffffffff)
@@ -867,6 +871,11 @@ int pci_cfg_space_size(struct pci_dev *dev)
 
  fail:
 	return PCI_CFG_SPACE_SIZE;
+}
+
+int pci_cfg_space_size(struct pci_dev *dev)
+{
+	return pci_cfg_space_size_ext(dev, 1);
 }
 
 static void pci_release_bus_bridge_dev(struct device *dev)
