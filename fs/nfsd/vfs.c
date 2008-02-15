@@ -1542,6 +1542,10 @@ nfsd_symlink(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if (iap && (iap->ia_valid & ATTR_MODE))
 		mode = iap->ia_mode & S_IALLUGO;
 
+	host_err = mnt_want_write(fhp->fh_export->ex_path.mnt);
+	if (host_err)
+		goto out_nfserr;
+
 	if (unlikely(path[plen] != 0)) {
 		char *path_alloced = kmalloc(plen+1, GFP_KERNEL);
 		if (path_alloced == NULL)
@@ -1561,6 +1565,8 @@ nfsd_symlink(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	}
 	err = nfserrno(host_err);
 	fh_unlock(fhp);
+
+	mnt_drop_write(fhp->fh_export->ex_path.mnt);
 
 	cerr = fh_compose(resfhp, fhp->fh_export, dnew, fhp);
 	dput(dnew);
@@ -1612,6 +1618,11 @@ nfsd_link(struct svc_rqst *rqstp, struct svc_fh *ffhp,
 	dold = tfhp->fh_dentry;
 	dest = dold->d_inode;
 
+	host_err = mnt_want_write(tfhp->fh_export->ex_path.mnt);
+	if (host_err) {
+		err = nfserrno(host_err);
+		goto out_dput;
+	}
 	host_err = vfs_link(dold, dirp, dnew);
 	if (!host_err) {
 		if (EX_ISSYNC(ffhp->fh_export)) {
@@ -1625,7 +1636,8 @@ nfsd_link(struct svc_rqst *rqstp, struct svc_fh *ffhp,
 		else
 			err = nfserrno(host_err);
 	}
-
+	mnt_drop_write(tfhp->fh_export->ex_path.mnt);
+out_dput:
 	dput(dnew);
 out_unlock:
 	fh_unlock(ffhp);

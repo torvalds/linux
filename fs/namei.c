@@ -2387,7 +2387,12 @@ asmlinkage long sys_symlinkat(const char __user *oldname,
 	if (IS_ERR(dentry))
 		goto out_unlock;
 
+	error = mnt_want_write(nd.path.mnt);
+	if (error)
+		goto out_dput;
 	error = vfs_symlink(nd.path.dentry->d_inode, dentry, from, S_IALLUGO);
+	mnt_drop_write(nd.path.mnt);
+out_dput:
 	dput(dentry);
 out_unlock:
 	mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
@@ -2482,7 +2487,12 @@ asmlinkage long sys_linkat(int olddfd, const char __user *oldname,
 	error = PTR_ERR(new_dentry);
 	if (IS_ERR(new_dentry))
 		goto out_unlock;
+	error = mnt_want_write(nd.path.mnt);
+	if (error)
+		goto out_dput;
 	error = vfs_link(old_nd.path.dentry, nd.path.dentry->d_inode, new_dentry);
+	mnt_drop_write(nd.path.mnt);
+out_dput:
 	dput(new_dentry);
 out_unlock:
 	mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
