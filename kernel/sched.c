@@ -3889,7 +3889,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev)
 asmlinkage void __sched schedule(void)
 {
 	struct task_struct *prev, *next;
-	long *switch_count;
+	unsigned long *switch_count;
 	struct rq *rq;
 	int cpu;
 
