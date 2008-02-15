@@ -170,10 +170,13 @@ static int intel_menlow_memory_add(struct acpi_device *device)
 
 	cdev = thermal_cooling_device_register("Memory controller", device,
 					       &memory_cooling_ops);
-	acpi_driver_data(device) = cdev;
-	if (!cdev)
-		result = -ENODEV;
-	else {
+	if (IS_ERR(cdev)) {
+		result = PTR_ERR(cdev);
+		goto end;
+	}
+
+	if (cdev) {
+		acpi_driver_data(device) = cdev;
 		result = sysfs_create_link(&device->dev.kobj,
 					&cdev->device.kobj, "thermal_cooling");
 		if (result)
