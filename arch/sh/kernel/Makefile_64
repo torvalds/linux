@@ -18,5 +18,6 @@ obj-$(CONFIG_CRASH_DUMP)	+= crash_dump.o
 obj-$(CONFIG_PM)		+= pm.o
 obj-$(CONFIG_STACKTRACE)	+= stacktrace.o
 obj-$(CONFIG_BINFMT_ELF)	+= dump_task.o
+obj-$(CONFIG_IO_TRAPPED)	+= io_trapped.o
 
 EXTRA_CFLAGS += -Werror

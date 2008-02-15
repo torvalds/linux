@@ -15,7 +15,6 @@ config PPC_MULTIPLATFORM
 config PPC_82xx
 	bool "Freescale 82xx"
 	depends on 6xx
-	select WANT_DEVICE_TREE
 
 config PPC_83xx
 	bool "Freescale 83xx"
@@ -23,7 +22,6 @@ config PPC_83xx
 	select FSL_SOC
 	select MPC83xx
 	select IPIC
-	select WANT_DEVICE_TREE
 	select FSL_EMB_PERFMON
 
 config PPC_86xx

@@ -67,7 +67,4 @@
 void init_rts7751r2d_IRQ(void);
 int rts7751r2d_irq_demux(int);
 
-#define __IO_PREFIX rts7751r2d
-#include <asm/io_generic.h>
-
 #endif  /* __ASM_SH_RENESAS_RTS7751R2D */

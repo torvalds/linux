@@ -203,6 +203,7 @@ extern bool wmi_has_guid(const char *guid);
 extern int acpi_blacklisted(void);
 #ifdef CONFIG_DMI
 extern void acpi_dmi_osi_linux(int enable, const struct dmi_system_id *d);
+extern int acpi_osi_setup(char *str);
 #endif
 
 #ifdef CONFIG_ACPI_NUMA

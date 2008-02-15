@@ -138,6 +138,14 @@ static __inline__ void pmd_set(pmd_t *pmdp,pte_t *ptep)
 #endif
 
 /*
+ * Stub out _PAGE_SZHUGE if we don't have a good definition for it,
+ * to make pte_mkhuge() happy.
+ */
+#ifndef _PAGE_SZHUGE
+# define _PAGE_SZHUGE	(0)
+#endif
+
+/*
  * Default flags for a Kernel page.
  * This is fundametally also SHARED because the main use of this define
  * (other than for PGD/PMD entries) is for the VMALLOC pool which is
@@ -178,6 +186,11 @@ static __inline__ void pmd_set(pmd_t *pmdp,pte_t *ptep)
 #define PAGE_RWX	__pgprot(_PAGE_COMMON | _PAGE_READ | \
 				 _PAGE_WRITE | _PAGE_EXECUTE)
 #define PAGE_KERNEL	__pgprot(_KERNPG_TABLE)
+
+#define PAGE_KERNEL_NOCACHE \
+			__pgprot(_PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE | \
+				 _PAGE_EXECUTE | _PAGE_ACCESSED | \
+				 _PAGE_DIRTY | _PAGE_SHARED)
 
 /* Make it a device mapping for maximum safety (e.g. for mapping device
    registers into user-space via /dev/map).  */

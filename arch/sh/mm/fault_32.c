@@ -15,6 +15,7 @@
 #include <linux/mm.h>
 #include <linux/hardirq.h>
 #include <linux/kprobes.h>
+#include <asm/io_trapped.h>
 #include <asm/system.h>
 #include <asm/mmu_context.h>
 #include <asm/tlbflush.h>
@@ -163,6 +164,8 @@ no_context:
 	if (fixup_exception(regs))
 		return;
 
+	if (handle_trapped_io(regs, address))
+		return;
 /*
  * Oops. The kernel tried to access some bad page. We'll have to
  * terminate things with extreme prejudice.
@@ -295,6 +298,14 @@ asmlinkage int __kprobes __do_page_fault(struct pt_regs *regs,
 	if (writeaccess)
 		entry = pte_mkdirty(entry);
 	entry = pte_mkyoung(entry);
+
+#if defined(CONFIG_CPU_SH4) && !defined(CONFIG_SMP)
+	/*
+	 * ITLB is not affected by "ldtlb" instruction.
+	 * So, we need to flush the entry by ourselves.
+	 */
+	local_flush_tlb_one(get_asid(), address & PAGE_MASK);
+#endif
 
 	set_pte(pte, entry);
 	update_mmu_cache(NULL, address, entry);

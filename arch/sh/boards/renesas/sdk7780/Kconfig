@@ -4,13 +4,6 @@ choice
 	prompt "SDK7780 options"
 	default SH_SDK7780_BASE
 
-config SH_SDK7780_STANDALONE
-	bool "SDK7780 board support"
-	depends on CPU_SUBTYPE_SH7780
-	help
-	  Selecting this option will enable support for the
-	  standalone version of the SDK7780. If in doubt, say Y.
-
 config SH_SDK7780_BASE
 	bool "SDK7780 with base-board support"
 	depends on CPU_SUBTYPE_SH7780

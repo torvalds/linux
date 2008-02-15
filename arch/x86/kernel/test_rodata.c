@@ -10,8 +10,8 @@
  * of the License.
  */
 #include <linux/module.h>
+#include <asm/cacheflush.h>
 #include <asm/sections.h>
-extern int rodata_test_data;
 
 int rodata_test(void)
 {

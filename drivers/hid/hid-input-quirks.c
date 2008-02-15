@@ -352,7 +352,7 @@ int hidinput_mapping_quirks(struct hid_usage *usage,
 	return 0;
 }
 
-void hidinput_event_quirks(struct hid_device *hid, struct hid_field *field, struct hid_usage *usage, __s32 value)
+int hidinput_event_quirks(struct hid_device *hid, struct hid_field *field, struct hid_usage *usage, __s32 value)
 {
 	struct input_dev *input;
 
@@ -362,34 +362,34 @@ void hidinput_event_quirks(struct hid_device *hid, struct hid_field *field, stru
 		|| ((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_7) && (usage->hid == 0x00090007))) {
 		if (value) hid->quirks |=  HID_QUIRK_2WHEEL_MOUSE_HACK_ON;
 		else       hid->quirks &= ~HID_QUIRK_2WHEEL_MOUSE_HACK_ON;
-		return;
+		return 1;
 	}
 
 	if ((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_B8) &&
 			(usage->type == EV_REL) &&
 			(usage->code == REL_WHEEL)) {
 		hid->delayed_value = value;
-		return;
+		return 1;
 	}
 
 	if ((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_B8) &&
 			(usage->hid == 0x000100b8)) {
 		input_event(input, EV_REL, value ? REL_HWHEEL : REL_WHEEL, hid->delayed_value);
-		return;
+		return 1;
 	}
 
 	if ((hid->quirks & HID_QUIRK_INVERT_HWHEEL) && (usage->code == REL_HWHEEL)) {
 		input_event(input, usage->type, usage->code, -value);
-		return;
+		return 1;
 	}
 
 	if ((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_ON) && (usage->code == REL_WHEEL)) {
 		input_event(input, usage->type, REL_HWHEEL, value);
-		return;
+		return 1;
 	}
 
 	if ((hid->quirks & HID_QUIRK_APPLE_HAS_FN) && hidinput_apple_event(hid, input, usage, value))
-		return;
+		return 1;
 
 	/* Handling MS keyboards special buttons */
 	if (hid->quirks & HID_QUIRK_MICROSOFT_KEYS && 
@@ -416,8 +416,9 @@ void hidinput_event_quirks(struct hid_device *hid, struct hid_field *field, stru
 	if (hid->quirks & HID_QUIRK_HWHEEL_WHEEL_INVERT &&
 			usage->type == EV_REL && usage->code == REL_HWHEEL) {
 		input_event(input, usage->type, REL_WHEEL, -value);
-		return;
+		return 1;
 	}
+	return 0;
 }
 
 

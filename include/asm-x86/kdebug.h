@@ -31,7 +31,6 @@ extern void show_trace(struct task_struct *t, struct pt_regs *regs,
 			unsigned long *sp, unsigned long bp);
 extern void __show_regs(struct pt_regs *regs);
 extern void show_regs(struct pt_regs *regs);
-extern void dump_pagetable(unsigned long);
 extern unsigned long oops_begin(void);
 extern void oops_end(unsigned long, struct pt_regs *, int signr);
 

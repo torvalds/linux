@@ -41,9 +41,9 @@ static struct kmem_cache *event_cachep __read_mostly;
 static struct vfsmount *inotify_mnt __read_mostly;
 
 /* these are configurable via /proc/sys/fs/inotify/ */
-int inotify_max_user_instances __read_mostly;
-int inotify_max_user_watches __read_mostly;
-int inotify_max_queued_events __read_mostly;
+static int inotify_max_user_instances __read_mostly;
+static int inotify_max_user_watches __read_mostly;
+static int inotify_max_queued_events __read_mostly;
 
 /*
  * Lock ordering:
@@ -367,7 +367,7 @@ static int find_inode(const char __user *dirname, struct nameidata *nd,
 	/* you can only watch an inode if you have read permissions on it */
 	error = vfs_permission(nd, MAY_READ);
 	if (error)
-		path_release(nd);
+		path_put(&nd->path);
 	return error;
 }
 
@@ -667,7 +667,7 @@ asmlinkage long sys_inotify_add_watch(int fd, const char __user *path, u32 mask)
 		goto fput_and_out;
 
 	/* inode held in place by reference to nd; dev by fget on fd */
-	inode = nd.dentry->d_inode;
+	inode = nd.path.dentry->d_inode;
 	dev = filp->private_data;
 
 	mutex_lock(&dev->up_mutex);
@@ -676,7 +676,7 @@ asmlinkage long sys_inotify_add_watch(int fd, const char __user *path, u32 mask)
 		ret = create_watch(dev, inode, mask);
 	mutex_unlock(&dev->up_mutex);
 
-	path_release(&nd);
+	path_put(&nd.path);
 fput_and_out:
 	fput_light(filp, fput_needed);
 	return ret;

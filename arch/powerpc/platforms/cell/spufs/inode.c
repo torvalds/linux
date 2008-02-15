@@ -1,3 +1,4 @@
+
 /*
  * SPU file system
  *
@@ -592,7 +593,7 @@ long spufs_create(struct nameidata *nd, unsigned int flags, mode_t mode,
 
 	ret = -EINVAL;
 	/* check if we are on spufs */
-	if (nd->dentry->d_sb->s_type != &spufs_type)
+	if (nd->path.dentry->d_sb->s_type != &spufs_type)
 		goto out;
 
 	/* don't accept undefined flags */
@@ -600,9 +601,9 @@ long spufs_create(struct nameidata *nd, unsigned int flags, mode_t mode,
 		goto out;
 
 	/* only threads can be underneath a gang */
-	if (nd->dentry != nd->dentry->d_sb->s_root) {
+	if (nd->path.dentry != nd->path.dentry->d_sb->s_root) {
 		if ((flags & SPU_CREATE_GANG) ||
-		    !SPUFS_I(nd->dentry->d_inode)->i_gang)
+		    !SPUFS_I(nd->path.dentry->d_inode)->i_gang)
 			goto out;
 	}
 
@@ -618,16 +619,17 @@ long spufs_create(struct nameidata *nd, unsigned int flags, mode_t mode,
 	mode &= ~current->fs->umask;
 
 	if (flags & SPU_CREATE_GANG)
-		return spufs_create_gang(nd->dentry->d_inode,
-					dentry, nd->mnt, mode);
+		return spufs_create_gang(nd->path.dentry->d_inode,
+					 dentry, nd->path.mnt, mode);
 	else
-		return spufs_create_context(nd->dentry->d_inode,
-					dentry, nd->mnt, flags, mode, filp);
+		return spufs_create_context(nd->path.dentry->d_inode,
+					    dentry, nd->path.mnt, flags, mode,
+					    filp);
 
 out_dput:
 	dput(dentry);
 out_dir:
-	mutex_unlock(&nd->dentry->d_inode->i_mutex);
+	mutex_unlock(&nd->path.dentry->d_inode->i_mutex);
 out:
 	return ret;
 }
