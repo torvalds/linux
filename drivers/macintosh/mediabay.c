@@ -416,7 +416,6 @@ static void poll_media_bay(struct media_bay_info* bay)
 	}
 }
 
-#ifdef CONFIG_MAC_FLOPPY
 int check_media_bay(struct device_node *which_bay, int what)
 {
 	int	i;
@@ -431,7 +430,6 @@ int check_media_bay(struct device_node *which_bay, int what)
 	return -ENODEV;
 }
 EXPORT_SYMBOL(check_media_bay);
-#endif /* CONFIG_MAC_FLOPPY */
 
 #ifdef CONFIG_BLK_DEV_IDE_PMAC
 int check_media_bay_by_base(unsigned long base, int what)
