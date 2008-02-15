@@ -324,14 +324,82 @@ EXPORT_SYMBOL(warn_on_slowpath);
 #endif
 
 #ifdef CONFIG_CC_STACKPROTECTOR
+
+static unsigned long __stack_check_testing;
+/*
+ * Self test function for the stack-protector feature.
+ * This test requires that the local variable absolutely has
+ * a stack slot, hence the barrier()s.
+ */
+static noinline void __stack_chk_test_func(void)
+{
+	unsigned long foo;
+	barrier();
+	/*
+	 * we need to make sure we're not about to clobber the return address,
+	 * while real exploits do this, it's unhealthy on a running system.
+	 * Besides, if we would, the test is already failed anyway so
+	 * time to pull the emergency brake on it.
+	 */
+	if ((unsigned long)__builtin_return_address(0) == 
+					*(((unsigned long *)&foo)+1)) {
+		printk(KERN_ERR "No -fstack-protector-stack-frame!\n");
+		return;
+	}
+#ifdef CONFIG_FRAME_POINTER
+	/* We also don't want to clobber the frame pointer */
+	if ((unsigned long)__builtin_return_address(0) == 
+					*(((unsigned long *)&foo)+2)) {
+		printk(KERN_ERR "No -fstack-protector-stack-frame!\n");
+		return;
+	}
+#endif
+	barrier();
+	if (current->stack_canary == *(((unsigned long *)&foo)+1))
+		*(((unsigned long *)&foo)+1) = 0;
+	else
+		printk(KERN_ERR "No -fstack-protector canary found\n");
+	barrier();
+}
+
+static int __stack_chk_test(void)
+{
+	printk(KERN_INFO "Testing -fstack-protector-all feature\n");
+	__stack_check_testing = (unsigned long)&__stack_chk_test_func;
+	__stack_chk_test_func();
+	if (__stack_check_testing) {
+		printk(KERN_ERR "-fstack-protector-all test failed\n");
+		WARN_ON(1);
+	}
+	return 0;
+}
 /*
  * Called when gcc's -fstack-protector feature is used, and
  * gcc detects corruption of the on-stack canary value
  */
 void __stack_chk_fail(void)
 {
+	if (__stack_check_testing == (unsigned long)&__stack_chk_test_func) {
+		long delta;
+
+		delta = (unsigned long)__builtin_return_address(0) -
+				__stack_check_testing;
+		/*
+		 * The test needs to happen inside the test function, so
+		 * check if the return address is close to that function.
+		 * The function is only 2 dozen bytes long, but keep a wide
+		 * safety margin to avoid panic()s for normal users regardless
+		 * of the quality of the compiler.
+		 */
+		if (delta >= 0 && delta <= 400) {
+			__stack_check_testing = 0;
+			return;
+		}
+	}
 	panic("stack-protector: Kernel stack is corrupted in: %p\n",
 		__builtin_return_address(0));
 }
 EXPORT_SYMBOL(__stack_chk_fail);
+
+late_initcall(__stack_chk_test);
 #endif
