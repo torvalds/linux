@@ -967,6 +967,10 @@ static void ext4_mb_generate_buddy(struct super_block *sb,
 		ext4_error(sb, __FUNCTION__,
 			"EXT4-fs: group %lu: %u blocks in bitmap, %u in gd\n",
 			group, free, grp->bb_free);
+		/*
+		 * If we intent to continue, we consider group descritor
+		 * corrupt and update bb_free using bitmap value
+		 */
 		grp->bb_free = free;
 	}
 
@@ -1822,7 +1826,7 @@ static void ext4_mb_complex_scan_group(struct ext4_allocation_context *ac,
 						EXT4_BLOCKS_PER_GROUP(sb), i);
 		if (i >= EXT4_BLOCKS_PER_GROUP(sb)) {
 			/*
-			 * IF we corrupt the bitmap  we won't find any
+			 * IF we have corrupt bitmap, we won't find any
 			 * free blocks even though group info says we
 			 * we have free blocks
 			 */
@@ -1838,6 +1842,12 @@ static void ext4_mb_complex_scan_group(struct ext4_allocation_context *ac,
 			ext4_error(sb, __FUNCTION__, "%d free blocks as per "
 					"group info. But got %d blocks\n",
 					free, ex.fe_len);
+			/*
+			 * The number of free blocks differs. This mostly
+			 * indicate that the bitmap is corrupt. So exit
+			 * without claiming the space.
+			 */
+			break;
 		}
 
 		ext4_mb_measure_extent(ac, &ex, e4b);
@@ -3771,6 +3781,10 @@ static int ext4_mb_release_inode_pa(struct ext4_buddy *e4b,
 			(unsigned long) pa->pa_len);
 		ext4_error(sb, __FUNCTION__, "free %u, pa_free %u\n",
 						free, pa->pa_free);
+		/*
+		 * pa is already deleted so we use the value obtained
+		 * from the bitmap and continue.
+		 */
 	}
 	atomic_add(free, &sbi->s_mb_discarded);
 	if (ac)
