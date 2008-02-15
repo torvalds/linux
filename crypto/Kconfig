@@ -567,6 +567,7 @@ config CRYPTO_TEST
 	depends on m
 	select CRYPTO_ALGAPI
 	select CRYPTO_AEAD
+	select CRYPTO_BLKCIPHER
 	help
 	  Quick & dirty crypto test module.
 
