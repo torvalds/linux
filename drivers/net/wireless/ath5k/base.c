@@ -1715,6 +1715,7 @@ ath5k_tasklet_rx(unsigned long data)
 			break;
 		else if (unlikely(ret)) {
 			ATH5K_ERR(sc, "error in processing rx descriptor\n");
+			spin_unlock(&sc->rxbuflock);
 			return;
 		}
 
