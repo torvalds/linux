@@ -403,6 +403,7 @@ static ext4_fsblk_t ext4_find_near(struct inode *inode, Indirect *ind)
 	__le32 *start = ind->bh ? (__le32*) ind->bh->b_data : ei->i_data;
 	__le32 *p;
 	ext4_fsblk_t bg_start;
+	ext4_fsblk_t last_block;
 	ext4_grpblk_t colour;
 
 	/* Try to find previous block */
@@ -420,8 +421,13 @@ static ext4_fsblk_t ext4_find_near(struct inode *inode, Indirect *ind)
 	 * into the same cylinder group then.
 	 */
 	bg_start = ext4_group_first_block_no(inode->i_sb, ei->i_block_group);
-	colour = (current->pid % 16) *
+	last_block = ext4_blocks_count(EXT4_SB(inode->i_sb)->s_es) - 1;
+
+	if (bg_start + EXT4_BLOCKS_PER_GROUP(inode->i_sb) <= last_block)
+		colour = (current->pid % 16) *
 			(EXT4_BLOCKS_PER_GROUP(inode->i_sb) / 16);
+	else
+		colour = (current->pid % 16) * ((last_block - bg_start) / 16);
 	return bg_start + colour;
 }
 

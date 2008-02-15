@@ -148,6 +148,7 @@ static ext4_fsblk_t ext4_ext_find_goal(struct inode *inode,
 {
 	struct ext4_inode_info *ei = EXT4_I(inode);
 	ext4_fsblk_t bg_start;
+	ext4_fsblk_t last_block;
 	ext4_grpblk_t colour;
 	int depth;
 
@@ -169,8 +170,13 @@ static ext4_fsblk_t ext4_ext_find_goal(struct inode *inode,
 	/* OK. use inode's group */
 	bg_start = (ei->i_block_group * EXT4_BLOCKS_PER_GROUP(inode->i_sb)) +
 		le32_to_cpu(EXT4_SB(inode->i_sb)->s_es->s_first_data_block);
-	colour = (current->pid % 16) *
+	last_block = ext4_blocks_count(EXT4_SB(inode->i_sb)->s_es) - 1;
+
+	if (bg_start + EXT4_BLOCKS_PER_GROUP(inode->i_sb) <= last_block)
+		colour = (current->pid % 16) *
 			(EXT4_BLOCKS_PER_GROUP(inode->i_sb) / 16);
+	else
+		colour = (current->pid % 16) * ((last_block - bg_start) / 16);
 	return bg_start + colour + block;
 }
 
