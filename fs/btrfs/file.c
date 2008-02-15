@@ -357,10 +357,13 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end)
 {
 	struct extent_map *em;
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
+	u64 len = end - start + 1;
 
+	if (end == (u64)-1)
+		len = (u64)-1;
 	while(1) {
 		spin_lock(&em_tree->lock);
-		em = lookup_extent_mapping(em_tree, start, end);
+		em = lookup_extent_mapping(em_tree, start, len);
 		if (!em) {
 			spin_unlock(&em_tree->lock);
 			break;

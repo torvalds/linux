@@ -2417,12 +2417,13 @@ int try_release_extent_mapping(struct extent_map_tree *map,
 	u64 end = start + PAGE_CACHE_SIZE - 1;
 	u64 orig_start = start;
 	int ret = 1;
-
 	if ((mask & __GFP_WAIT) &&
 	    page->mapping->host->i_size > 16 * 1024 * 1024) {
+		u64 len;
 		while (start <= end) {
+			len = end - start + 1;
 			spin_lock(&map->lock);
-			em = lookup_extent_mapping(map, start, end);
+			em = lookup_extent_mapping(map, start, len);
 			if (!em || IS_ERR(em)) {
 				spin_unlock(&map->lock);
 				break;
