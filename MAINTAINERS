@@ -1616,6 +1616,7 @@ S:	Maintained
 FILESYSTEMS (VFS and infrastructure)
 P:	Alexander Viro
 M:	viro@zeniv.linux.org.uk
+L:	linux-fsdevel@vger.kernel.org
 S:	Maintained
 
 FIREWIRE SUBSYSTEM (drivers/firewire, <linux/firewire*.h>)
