@@ -906,7 +906,7 @@ static void ext4_mb_mark_free_simple(struct super_block *sb,
 	unsigned short chunk;
 	unsigned short border;
 
-	BUG_ON(len >= EXT4_BLOCKS_PER_GROUP(sb));
+	BUG_ON(len > EXT4_BLOCKS_PER_GROUP(sb));
 
 	border = 2 << sb->s_blocksize_bits;
 
