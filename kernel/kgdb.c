@@ -1139,10 +1139,10 @@ static void gdb_cmd_break(struct kgdb_state *ks)
 		error = kgdb_remove_sw_break(addr);
 	else if (remcom_in_buffer[0] == 'Z')
 		error = arch_kgdb_ops.set_hw_breakpoint(addr,
-			(int)length, *bpt_type);
+			(int)length, *bpt_type - '0');
 	else if (remcom_in_buffer[0] == 'z')
 		error = arch_kgdb_ops.remove_hw_breakpoint(addr,
-			(int) length, *bpt_type);
+			(int) length, *bpt_type - '0');
 
 	if (error == 0)
 		strcpy(remcom_out_buffer, "OK");
