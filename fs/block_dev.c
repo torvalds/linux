@@ -1409,7 +1409,7 @@ struct block_device *lookup_bdev(const char *path)
 	if (!bdev)
 		goto fail;
 out:
-	path_release(&nd);
+	path_put(&nd.path);
 	return bdev;
 fail:
 	bdev = ERR_PTR(error);

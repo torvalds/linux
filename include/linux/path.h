@@ -9,4 +9,6 @@ struct path {
 	struct dentry *dentry;
 };
 
+extern void path_put(struct path *);
+
 #endif  /* _LINUX_PATH_H */

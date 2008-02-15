@@ -550,7 +550,7 @@ void audit_trim_trees(void)
 			goto skip_it;
 
 		root_mnt = collect_mounts(nd.path.mnt, nd.path.dentry);
-		path_release(&nd);
+		path_put(&nd.path);
 		if (!root_mnt)
 			goto skip_it;
 
@@ -642,7 +642,7 @@ int audit_add_tree_rule(struct audit_krule *rule)
 	if (err)
 		goto Err;
 	mnt = collect_mounts(nd.path.mnt, nd.path.dentry);
-	path_release(&nd);
+	path_put(&nd.path);
 	if (!mnt) {
 		err = -ENOMEM;
 		goto Err;
@@ -702,7 +702,7 @@ int audit_tag_tree(char *old, char *new)
 	if (err)
 		return err;
 	tagged = collect_mounts(nd.path.mnt, nd.path.dentry);
-	path_release(&nd);
+	path_put(&nd.path);
 	if (!tagged)
 		return -ENOMEM;
 
@@ -713,7 +713,7 @@ int audit_tag_tree(char *old, char *new)
 	}
 	mnt = mntget(nd.path.mnt);
 	dentry = dget(nd.path.dentry);
-	path_release(&nd);
+	path_put(&nd.path);
 
 	if (dentry == tagged->mnt_root && dentry == mnt->mnt_root)
 		follow_up(&mnt, &dentry);
@@ -744,13 +744,13 @@ int audit_tag_tree(char *old, char *new)
 		spin_lock(&vfsmount_lock);
 		if (!is_under(mnt, dentry, &nd)) {
 			spin_unlock(&vfsmount_lock);
-			path_release(&nd);
+			path_put(&nd.path);
 			put_tree(tree);
 			mutex_lock(&audit_filter_mutex);
 			continue;
 		}
 		spin_unlock(&vfsmount_lock);
-		path_release(&nd);
+		path_put(&nd.path);
 
 		list_for_each_entry(p, &list, mnt_list) {
 			failed = tag_chunk(p->mnt_root->d_inode, tree);

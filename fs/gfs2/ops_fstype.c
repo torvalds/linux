@@ -900,7 +900,7 @@ static struct super_block* get_gfs2_sb(const char *dev_name)
 	       "mount point %s\n", dev_name);
 
 free_nd:
-	path_release(&nd);
+	path_put(&nd.path);
 out:
 	return sb;
 }

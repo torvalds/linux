@@ -368,7 +368,7 @@ out:
 	cFYI(1, ("leaving %s" , __FUNCTION__));
 	return ERR_PTR(rc);
 out_err:
-	path_release(nd);
+	path_put(&nd->path);
 	goto out;
 }
 

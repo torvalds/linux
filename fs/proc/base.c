@@ -1164,7 +1164,7 @@ static void *proc_pid_follow_link(struct dentry *dentry, struct nameidata *nd)
 	int error = -EACCES;
 
 	/* We don't need a base pointer in the /proc filesystem */
-	path_release(nd);
+	path_put(&nd->path);
 
 	/* Are we allowed to snoop on the tasks file descriptors? */
 	if (!proc_fd_access_allowed(inode))

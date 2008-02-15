@@ -495,7 +495,7 @@ rpc_lookup_parent(char *path, struct nameidata *nd)
 static void
 rpc_release_path(struct nameidata *nd)
 {
-	path_release(nd);
+	path_put(&nd->path);
 	rpc_put_mount();
 }
 

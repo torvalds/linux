@@ -63,7 +63,7 @@ int vfs_stat_fd(int dfd, char __user *name, struct kstat *stat)
 	error = __user_walk_fd(dfd, name, LOOKUP_FOLLOW, &nd);
 	if (!error) {
 		error = vfs_getattr(nd.path.mnt, nd.path.dentry, stat);
-		path_release(&nd);
+		path_put(&nd.path);
 	}
 	return error;
 }
@@ -83,7 +83,7 @@ int vfs_lstat_fd(int dfd, char __user *name, struct kstat *stat)
 	error = __user_walk_fd(dfd, name, 0, &nd);
 	if (!error) {
 		error = vfs_getattr(nd.path.mnt, nd.path.dentry, stat);
-		path_release(&nd);
+		path_put(&nd.path);
 	}
 	return error;
 }
@@ -313,7 +313,7 @@ asmlinkage long sys_readlinkat(int dfd, const char __user *path,
 							      buf, bufsiz);
 			}
 		}
-		path_release(&nd);
+		path_put(&nd.path);
 	}
 	return error;
 }

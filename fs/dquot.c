@@ -1643,7 +1643,7 @@ int vfs_quota_on(struct super_block *sb, int type, int format_id, char *path)
 		error = vfs_quota_on_inode(nd.path.dentry->d_inode, type,
 					   format_id);
 out_path:
-	path_release(&nd);
+	path_put(&nd.path);
 	return error;
 }
 

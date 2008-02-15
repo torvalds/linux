@@ -727,7 +727,7 @@ static struct sock *unix_find_other(struct net *net,
 		if (u->sk_type == type)
 			touch_atime(nd.path.mnt, nd.path.dentry);
 
-		path_release(&nd);
+		path_put(&nd.path);
 
 		err=-EPROTOTYPE;
 		if (u->sk_type != type) {
@@ -748,7 +748,7 @@ static struct sock *unix_find_other(struct net *net,
 	return u;
 
 put_fail:
-	path_release(&nd);
+	path_put(&nd.path);
 fail:
 	*error=err;
 	return NULL;
@@ -862,7 +862,7 @@ out_mknod_dput:
 	dput(dentry);
 out_mknod_unlock:
 	mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
-	path_release(&nd);
+	path_put(&nd.path);
 out_mknod_parent:
 	if (err==-EEXIST)
 		err=-EADDRINUSE;

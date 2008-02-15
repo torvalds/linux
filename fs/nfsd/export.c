@@ -177,7 +177,7 @@ static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
 			cache_put(&ek->h, &svc_expkey_cache);
 		else
 			err = -ENOMEM;
-		path_release(&nd);
+		path_put(&nd.path);
 	}
 	cache_flush();
  out:
@@ -630,7 +630,7 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 	kfree(exp.ex_uuid);
  	kfree(exp.ex_path);
 	if (nd.path.dentry)
-		path_release(&nd);
+		path_put(&nd.path);
  out_no_path:
 	if (dom)
 		auth_domain_put(dom);
@@ -1098,7 +1098,7 @@ finish:
 		cache_put(&fsid_key->h, &svc_expkey_cache);
 	if (clp)
 		auth_domain_put(clp);
-	path_release(&nd);
+	path_put(&nd.path);
 out_unlock:
 	exp_writeunlock();
 out:
@@ -1150,7 +1150,7 @@ exp_unexport(struct nfsctl_export *nxp)
 
 	err = -EINVAL;
 	exp = exp_get_by_name(dom, nd.path.mnt, nd.path.dentry, NULL);
-	path_release(&nd);
+	path_put(&nd.path);
 	if (IS_ERR(exp))
 		goto out_domain;
 
@@ -1209,7 +1209,7 @@ exp_rootfh(svc_client *clp, char *path, struct knfsd_fh *f, int maxsize)
 	fh_put(&fh);
 	exp_put(exp);
 out:
-	path_release(&nd);
+	path_put(&nd.path);
 	return err;
 }
 

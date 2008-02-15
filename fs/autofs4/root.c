@@ -383,7 +383,7 @@ done:
 	return NULL;
 
 out_error:
-	path_release(nd);
+	path_put(&nd->path);
 	return ERR_PTR(status);
 }
 

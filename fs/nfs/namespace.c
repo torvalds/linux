@@ -148,7 +148,7 @@ out:
 	dprintk("<-- nfs_follow_mountpoint() = %d\n", err);
 	return ERR_PTR(err);
 out_err:
-	path_release(nd);
+	path_put(&nd->path);
 	goto out;
 out_follow:
 	while (d_mountpoint(nd->path.dentry) &&

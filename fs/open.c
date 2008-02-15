@@ -130,7 +130,7 @@ asmlinkage long sys_statfs(const char __user * path, struct statfs __user * buf)
 		error = vfs_statfs_native(nd.path.dentry, &tmp);
 		if (!error && copy_to_user(buf, &tmp, sizeof(tmp)))
 			error = -EFAULT;
-		path_release(&nd);
+		path_put(&nd.path);
 	}
 	return error;
 }
@@ -149,7 +149,7 @@ asmlinkage long sys_statfs64(const char __user *path, size_t sz, struct statfs64
 		error = vfs_statfs64(nd.path.dentry, &tmp);
 		if (!error && copy_to_user(buf, &tmp, sizeof(tmp)))
 			error = -EFAULT;
-		path_release(&nd);
+		path_put(&nd.path);
 	}
 	return error;
 }
@@ -277,7 +277,7 @@ static long do_sys_truncate(const char __user * path, loff_t length)
 put_write_and_out:
 	put_write_access(inode);
 dput_and_out:
-	path_release(&nd);
+	path_put(&nd.path);
 out:
 	return error;
 }
@@ -462,7 +462,7 @@ asmlinkage long sys_faccessat(int dfd, const char __user *filename, int mode)
 		res = -EROFS;
 
 out_path_release:
-	path_release(&nd);
+	path_put(&nd.path);
 out:
 	current->fsuid = old_fsuid;
 	current->fsgid = old_fsgid;
@@ -493,7 +493,7 @@ asmlinkage long sys_chdir(const char __user * filename)
 	set_fs_pwd(current->fs, nd.path.mnt, nd.path.dentry);
 
 dput_and_out:
-	path_release(&nd);
+	path_put(&nd.path);
 out:
 	return error;
 }
@@ -549,7 +549,7 @@ asmlinkage long sys_chroot(const char __user * filename)
 	set_fs_altroot();
 	error = 0;
 dput_and_out:
-	path_release(&nd);
+	path_put(&nd.path);
 out:
 	return error;
 }
@@ -621,7 +621,7 @@ asmlinkage long sys_fchmodat(int dfd, const char __user *filename,
 	mutex_unlock(&inode->i_mutex);
 
 dput_and_out:
-	path_release(&nd);
+	path_put(&nd.path);
 out:
 	return error;
 }
@@ -676,7 +676,7 @@ asmlinkage long sys_chown(const char __user * filename, uid_t user, gid_t group)
 	if (error)
 		goto out;
 	error = chown_common(nd.path.dentry, user, group);
-	path_release(&nd);
+	path_put(&nd.path);
 out:
 	return error;
 }
@@ -696,7 +696,7 @@ asmlinkage long sys_fchownat(int dfd, const char __user *filename, uid_t user,
 	if (error)
 		goto out;
 	error = chown_common(nd.path.dentry, user, group);
-	path_release(&nd);
+	path_put(&nd.path);
 out:
 	return error;
 }
@@ -710,7 +710,7 @@ asmlinkage long sys_lchown(const char __user * filename, uid_t user, gid_t group
 	if (error)
 		goto out;
 	error = chown_common(nd.path.dentry, user, group);
-	path_release(&nd);
+	path_put(&nd.path);
 out:
 	return error;
 }
@@ -894,7 +894,7 @@ struct file *nameidata_to_filp(struct nameidata *nd, int flags)
 		filp = __dentry_open(nd->path.dentry, nd->path.mnt, flags, filp,
 				     NULL);
 	else
-		path_release(nd);
+		path_put(&nd->path);
 	return filp;
 }
 

@@ -227,7 +227,7 @@ static void *afs_mntpt_follow_link(struct dentry *dentry, struct nameidata *nd)
 
 	newmnt = afs_mntpt_do_automount(nd->path.dentry);
 	if (IS_ERR(newmnt)) {
-		path_release(nd);
+		path_put(&nd->path);
 		return (void *)newmnt;
 	}
 

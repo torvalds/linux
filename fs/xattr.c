@@ -263,7 +263,7 @@ sys_setxattr(char __user *path, char __user *name, void __user *value,
 	if (error)
 		return error;
 	error = setxattr(nd.path.dentry, name, value, size, flags);
-	path_release(&nd);
+	path_put(&nd.path);
 	return error;
 }
 
@@ -278,7 +278,7 @@ sys_lsetxattr(char __user *path, char __user *name, void __user *value,
 	if (error)
 		return error;
 	error = setxattr(nd.path.dentry, name, value, size, flags);
-	path_release(&nd);
+	path_put(&nd.path);
 	return error;
 }
 
@@ -348,7 +348,7 @@ sys_getxattr(char __user *path, char __user *name, void __user *value,
 	if (error)
 		return error;
 	error = getxattr(nd.path.dentry, name, value, size);
-	path_release(&nd);
+	path_put(&nd.path);
 	return error;
 }
 
@@ -363,7 +363,7 @@ sys_lgetxattr(char __user *path, char __user *name, void __user *value,
 	if (error)
 		return error;
 	error = getxattr(nd.path.dentry, name, value, size);
-	path_release(&nd);
+	path_put(&nd.path);
 	return error;
 }
 
@@ -422,7 +422,7 @@ sys_listxattr(char __user *path, char __user *list, size_t size)
 	if (error)
 		return error;
 	error = listxattr(nd.path.dentry, list, size);
-	path_release(&nd);
+	path_put(&nd.path);
 	return error;
 }
 
@@ -436,7 +436,7 @@ sys_llistxattr(char __user *path, char __user *list, size_t size)
 	if (error)
 		return error;
 	error = listxattr(nd.path.dentry, list, size);
-	path_release(&nd);
+	path_put(&nd.path);
 	return error;
 }
 
@@ -483,7 +483,7 @@ sys_removexattr(char __user *path, char __user *name)
 	if (error)
 		return error;
 	error = removexattr(nd.path.dentry, name);
-	path_release(&nd);
+	path_put(&nd.path);
 	return error;
 }
 
@@ -497,7 +497,7 @@ sys_lremovexattr(char __user *path, char __user *name)
 	if (error)
 		return error;
 	error = removexattr(nd.path.dentry, name);
-	path_release(&nd);
+	path_put(&nd.path);
 	return error;
 }
 

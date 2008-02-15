@@ -43,7 +43,7 @@ static struct file *do_open(char *name, int flags)
 	if (!error)
 		return dentry_open(nd.path.dentry, nd.path.mnt, flags);
 
-	path_release(&nd);
+	path_put(&nd.path);
 	return ERR_PTR(error);
 }
 

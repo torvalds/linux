@@ -526,7 +526,7 @@ static int ecryptfs_read_super(struct super_block *sb, const char *dev_name)
 	rc = 0;
 	goto out;
 out_free:
-	path_release(&nd);
+	path_put(&nd.path);
 out:
 	return rc;
 }

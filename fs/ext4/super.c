@@ -3159,7 +3159,7 @@ static int ext4_quota_on(struct super_block *sb, int type, int format_id,
 		return err;
 	/* Quotafile not on the same filesystem? */
 	if (nd.path.mnt->mnt_sb != sb) {
-		path_release(&nd);
+		path_put(&nd.path);
 		return -EXDEV;
 	}
 	/* Quotafile not of fs root? */
@@ -3167,7 +3167,7 @@ static int ext4_quota_on(struct super_block *sb, int type, int format_id,
 		printk(KERN_WARNING
 			"EXT4-fs: Quota file not on filesystem root. "
 			"Journalled quota will not work.\n");
-	path_release(&nd);
+	path_put(&nd.path);
 	return vfs_quota_on(sb, type, format_id, path);
 }
 
