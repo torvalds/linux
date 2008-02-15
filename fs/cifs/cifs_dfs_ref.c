@@ -286,7 +286,7 @@ static void dump_referral(const struct dfs_info3_param *ref)
 	cFYI(1, ("DFS: node path: %s", ref->node_name));
 	cFYI(1, ("DFS: fl: %hd, srv_type: %hd", ref->flags, ref->server_type));
 	cFYI(1, ("DFS: ref_flags: %hd, path_consumed: %hd", ref->ref_flag,
-				ref->PathConsumed));
+				ref->path_consumed));
 }
 
 
