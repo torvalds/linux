@@ -762,22 +762,43 @@ static void sbp2_login(struct work_struct *work)
 
 	sdev = __scsi_add_device(shost, 0, 0,
 				 scsilun_to_int(&eight_bytes_lun), lu);
-	if (IS_ERR(sdev)) {
-		smp_rmb(); /* generation may have changed */
-		generation = device->generation;
-		smp_rmb(); /* node_id must not be older than generation */
+	/*
+	 * FIXME:  We are unable to perform reconnects while in sbp2_login().
+	 * Therefore __scsi_add_device() will get into trouble if a bus reset
+	 * happens in parallel.  It will either fail or leave us with an
+	 * unusable sdev.  As a workaround we check for this and retry the
+	 * whole login and SCSI probing.
+	 */
 
-		sbp2_send_management_orb(lu, device->node_id, generation,
-				SBP2_LOGOUT_REQUEST, lu->login_id, NULL);
-		/*
-		 * Set this back to sbp2_login so we fall back and
-		 * retry login on bus reset.
-		 */
-		PREPARE_DELAYED_WORK(&lu->work, sbp2_login);
-	} else {
-		lu->sdev = sdev;
-		scsi_device_put(sdev);
+	/* Reported error during __scsi_add_device() */
+	if (IS_ERR(sdev))
+		goto out_logout_login;
+
+	scsi_device_put(sdev);
+
+	/* Unreported error during __scsi_add_device() */
+	smp_rmb(); /* get current card generation */
+	if (generation != device->card->generation) {
+		scsi_remove_device(sdev);
+		goto out_logout_login;
 	}
+
+	/* No error during __scsi_add_device() */
+	lu->sdev = sdev;
+	goto out;
+
+ out_logout_login:
+	smp_rmb(); /* generation may have changed */
+	generation = device->generation;
+	smp_rmb(); /* node_id must not be older than generation */
+
+	sbp2_send_management_orb(lu, device->node_id, generation,
+				 SBP2_LOGOUT_REQUEST, lu->login_id, NULL);
+	/*
+	 * If a bus reset happened, sbp2_update will have requeued
+	 * lu->work already.  Reset the work from reconnect to login.
+	 */
+	PREPARE_DELAYED_WORK(&lu->work, sbp2_login);
  out:
 	sbp2_target_put(tgt);
 }
