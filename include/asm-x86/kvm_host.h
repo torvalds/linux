@@ -262,6 +262,11 @@ struct kvm_vcpu_arch {
 	/* emulate context */
 
 	struct x86_emulate_ctxt emulate_ctxt;
+
+	gpa_t time;
+	struct kvm_vcpu_time_info hv_clock;
+	unsigned int time_offset;
+	struct page *time_page;
 };
 
 struct kvm_mem_alias {
@@ -288,6 +293,8 @@ struct kvm_arch{
 	int round_robin_prev_vcpu;
 	unsigned int tss_addr;
 	struct page *apic_access_page;
+
+	gpa_t wall_clock;
 };
 
 struct kvm_vm_stat {

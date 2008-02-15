@@ -233,6 +233,7 @@ struct kvm_vapic_addr {
 #define KVM_CAP_SET_TSS_ADDR 4
 #define KVM_CAP_VAPIC 6
 #define KVM_CAP_EXT_CPUID 7
+#define KVM_CAP_CLOCKSOURCE 8
 
 /*
  * ioctls for VM fds

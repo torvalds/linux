@@ -19,6 +19,7 @@
 #include "irq.h"
 #include "mmu.h"
 
+#include <linux/clocksource.h>
 #include <linux/kvm.h>
 #include <linux/fs.h>
 #include <linux/vmalloc.h>
@@ -424,7 +425,7 @@ static u32 msrs_to_save[] = {
 #ifdef CONFIG_X86_64
 	MSR_CSTAR, MSR_KERNEL_GS_BASE, MSR_SYSCALL_MASK, MSR_LSTAR,
 #endif
-	MSR_IA32_TIME_STAMP_COUNTER,
+	MSR_IA32_TIME_STAMP_COUNTER, MSR_KVM_SYSTEM_TIME, MSR_KVM_WALL_CLOCK,
 };
 
 static unsigned num_msrs_to_save;
@@ -482,6 +483,70 @@ static int do_set_msr(struct kvm_vcpu *vcpu, unsigned index, u64 *data)
 	return kvm_set_msr(vcpu, index, *data);
 }
 
+static void kvm_write_wall_clock(struct kvm *kvm, gpa_t wall_clock)
+{
+	static int version;
+	struct kvm_wall_clock wc;
+	struct timespec wc_ts;
+
+	if (!wall_clock)
+		return;
+
+	version++;
+
+	down_read(&kvm->slots_lock);
+	kvm_write_guest(kvm, wall_clock, &version, sizeof(version));
+
+	wc_ts = current_kernel_time();
+	wc.wc_sec = wc_ts.tv_sec;
+	wc.wc_nsec = wc_ts.tv_nsec;
+	wc.wc_version = version;
+
+	kvm_write_guest(kvm, wall_clock, &wc, sizeof(wc));
+
+	version++;
+	kvm_write_guest(kvm, wall_clock, &version, sizeof(version));
+	up_read(&kvm->slots_lock);
+}
+
+static void kvm_write_guest_time(struct kvm_vcpu *v)
+{
+	struct timespec ts;
+	unsigned long flags;
+	struct kvm_vcpu_arch *vcpu = &v->arch;
+	void *shared_kaddr;
+
+	if ((!vcpu->time_page))
+		return;
+
+	/* Keep irq disabled to prevent changes to the clock */
+	local_irq_save(flags);
+	kvm_get_msr(v, MSR_IA32_TIME_STAMP_COUNTER,
+			  &vcpu->hv_clock.tsc_timestamp);
+	ktime_get_ts(&ts);
+	local_irq_restore(flags);
+
+	/* With all the info we got, fill in the values */
+
+	vcpu->hv_clock.system_time = ts.tv_nsec +
+				     (NSEC_PER_SEC * (u64)ts.tv_sec);
+	/*
+	 * The interface expects us to write an even number signaling that the
+	 * update is finished. Since the guest won't see the intermediate
+	 * state, we just write "2" at the end
+	 */
+	vcpu->hv_clock.version = 2;
+
+	shared_kaddr = kmap_atomic(vcpu->time_page, KM_USER0);
+
+	memcpy(shared_kaddr + vcpu->time_offset, &vcpu->hv_clock,
+		sizeof(vcpu->hv_clock));
+
+	kunmap_atomic(shared_kaddr, KM_USER0);
+
+	mark_page_dirty(v->kvm, vcpu->time >> PAGE_SHIFT);
+}
+
 
 int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 {
@@ -511,6 +576,44 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 	case MSR_IA32_MISC_ENABLE:
 		vcpu->arch.ia32_misc_enable_msr = data;
 		break;
+	case MSR_KVM_WALL_CLOCK:
+		vcpu->kvm->arch.wall_clock = data;
+		kvm_write_wall_clock(vcpu->kvm, data);
+		break;
+	case MSR_KVM_SYSTEM_TIME: {
+		if (vcpu->arch.time_page) {
+			kvm_release_page_dirty(vcpu->arch.time_page);
+			vcpu->arch.time_page = NULL;
+		}
+
+		vcpu->arch.time = data;
+
+		/* we verify if the enable bit is set... */
+		if (!(data & 1))
+			break;
+
+		/* ...but clean it before doing the actual write */
+		vcpu->arch.time_offset = data & ~(PAGE_MASK | 1);
+
+		vcpu->arch.hv_clock.tsc_to_system_mul =
+					clocksource_khz2mult(tsc_khz, 22);
+		vcpu->arch.hv_clock.tsc_shift = 22;
+
+		down_read(&current->mm->mmap_sem);
+		down_read(&vcpu->kvm->slots_lock);
+		vcpu->arch.time_page =
+				gfn_to_page(vcpu->kvm, data >> PAGE_SHIFT);
+		up_read(&vcpu->kvm->slots_lock);
+		up_read(&current->mm->mmap_sem);
+
+		if (is_error_page(vcpu->arch.time_page)) {
+			kvm_release_page_clean(vcpu->arch.time_page);
+			vcpu->arch.time_page = NULL;
+		}
+
+		kvm_write_guest_time(vcpu);
+		break;
+	}
 	default:
 		pr_unimpl(vcpu, "unhandled wrmsr: 0x%x data %llx\n", msr, data);
 		return 1;
@@ -568,6 +671,12 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 		break;
 	case MSR_EFER:
 		data = vcpu->arch.shadow_efer;
+		break;
+	case MSR_KVM_WALL_CLOCK:
+		data = vcpu->kvm->arch.wall_clock;
+		break;
+	case MSR_KVM_SYSTEM_TIME:
+		data = vcpu->arch.time;
 		break;
 	default:
 		pr_unimpl(vcpu, "unhandled rdmsr: 0x%x\n", msr);
@@ -696,6 +805,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_USER_MEMORY:
 	case KVM_CAP_SET_TSS_ADDR:
 	case KVM_CAP_EXT_CPUID:
+	case KVM_CAP_CLOCKSOURCE:
 		r = 1;
 		break;
 	case KVM_CAP_VAPIC:
@@ -771,6 +881,7 @@ out:
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	kvm_x86_ops->vcpu_load(vcpu, cpu);
+	kvm_write_guest_time(vcpu);
 }
 
 void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
