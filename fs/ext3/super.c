@@ -2758,12 +2758,12 @@ static int ext3_quota_on(struct super_block *sb, int type, int format_id,
 	if (err)
 		return err;
 	/* Quotafile not on the same filesystem? */
-	if (nd.mnt->mnt_sb != sb) {
+	if (nd.path.mnt->mnt_sb != sb) {
 		path_release(&nd);
 		return -EXDEV;
 	}
 	/* Quotafile not of fs root? */
-	if (nd.dentry->d_parent->d_inode != sb->s_root->d_inode)
+	if (nd.path.dentry->d_parent->d_inode != sb->s_root->d_inode)
 		printk(KERN_WARNING
 			"EXT3-fs: Quota file not on filesystem root. "
 			"Journalled quota will not work.\n");

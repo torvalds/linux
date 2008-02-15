@@ -184,25 +184,25 @@ int get_sb_mtd(struct file_system_type *fs_type, int flags,
 	ret = path_lookup(dev_name, LOOKUP_FOLLOW, &nd);
 
 	DEBUG(1, "MTDSB: path_lookup() returned %d, inode %p\n",
-	      ret, nd.dentry ? nd.dentry->d_inode : NULL);
+	      ret, nd.path.dentry ? nd.path.dentry->d_inode : NULL);
 
 	if (ret)
 		return ret;
 
 	ret = -EINVAL;
 
-	if (!S_ISBLK(nd.dentry->d_inode->i_mode))
+	if (!S_ISBLK(nd.path.dentry->d_inode->i_mode))
 		goto out;
 
-	if (nd.mnt->mnt_flags & MNT_NODEV) {
+	if (nd.path.mnt->mnt_flags & MNT_NODEV) {
 		ret = -EACCES;
 		goto out;
 	}
 
-	if (imajor(nd.dentry->d_inode) != MTD_BLOCK_MAJOR)
+	if (imajor(nd.path.dentry->d_inode) != MTD_BLOCK_MAJOR)
 		goto not_an_MTD_device;
 
-	mtdnr = iminor(nd.dentry->d_inode);
+	mtdnr = iminor(nd.path.dentry->d_inode);
 	path_release(&nd);
 
 	return get_sb_mtd_nr(fs_type, flags, dev_name, data, mtdnr, fill_super,

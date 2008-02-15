@@ -99,8 +99,8 @@ static int get_target(const char *symname, struct nameidata *nd,
 
 	ret = path_lookup(symname, LOOKUP_FOLLOW|LOOKUP_DIRECTORY, nd);
 	if (!ret) {
-		if (nd->dentry->d_sb == configfs_sb) {
-			*target = configfs_get_config_item(nd->dentry);
+		if (nd->path.dentry->d_sb == configfs_sb) {
+			*target = configfs_get_config_item(nd->path.dentry);
 			if (!*target) {
 				ret = -ENOENT;
 				path_release(nd);

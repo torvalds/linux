@@ -513,8 +513,8 @@ static int ecryptfs_read_super(struct super_block *sb, const char *dev_name)
 		ecryptfs_printk(KERN_WARNING, "path_lookup() failed\n");
 		goto out;
 	}
-	lower_root = nd.dentry;
-	lower_mnt = nd.mnt;
+	lower_root = nd.path.dentry;
+	lower_mnt = nd.path.mnt;
 	ecryptfs_set_superblock_lower(sb, lower_root->d_sb);
 	sb->s_maxbytes = lower_root->d_sb->s_maxbytes;
 	sb->s_blocksize = lower_root->d_sb->s_blocksize;

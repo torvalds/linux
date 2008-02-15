@@ -16,8 +16,7 @@ struct open_intent {
 enum { MAX_NESTED_LINKS = 8 };
 
 struct nameidata {
-	struct dentry	*dentry;
-	struct vfsmount *mnt;
+	struct path	path;
 	struct qstr	last;
 	unsigned int	flags;
 	int		last_type;

@@ -62,7 +62,7 @@ int vfs_stat_fd(int dfd, char __user *name, struct kstat *stat)
 
 	error = __user_walk_fd(dfd, name, LOOKUP_FOLLOW, &nd);
 	if (!error) {
-		error = vfs_getattr(nd.mnt, nd.dentry, stat);
+		error = vfs_getattr(nd.path.mnt, nd.path.dentry, stat);
 		path_release(&nd);
 	}
 	return error;
@@ -82,7 +82,7 @@ int vfs_lstat_fd(int dfd, char __user *name, struct kstat *stat)
 
 	error = __user_walk_fd(dfd, name, 0, &nd);
 	if (!error) {
-		error = vfs_getattr(nd.mnt, nd.dentry, stat);
+		error = vfs_getattr(nd.path.mnt, nd.path.dentry, stat);
 		path_release(&nd);
 	}
 	return error;
@@ -302,14 +302,15 @@ asmlinkage long sys_readlinkat(int dfd, const char __user *path,
 
 	error = __user_walk_fd(dfd, path, 0, &nd);
 	if (!error) {
-		struct inode * inode = nd.dentry->d_inode;
+		struct inode *inode = nd.path.dentry->d_inode;
 
 		error = -EINVAL;
 		if (inode->i_op && inode->i_op->readlink) {
-			error = security_inode_readlink(nd.dentry);
+			error = security_inode_readlink(nd.path.dentry);
 			if (!error) {
-				touch_atime(nd.mnt, nd.dentry);
-				error = inode->i_op->readlink(nd.dentry, buf, bufsiz);
+				touch_atime(nd.path.mnt, nd.path.dentry);
+				error = inode->i_op->readlink(nd.path.dentry,
+							      buf, bufsiz);
 			}
 		}
 		path_release(&nd);

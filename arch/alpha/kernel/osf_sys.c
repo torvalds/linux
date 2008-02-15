@@ -259,7 +259,7 @@ osf_statfs(char __user *path, struct osf_statfs __user *buffer, unsigned long bu
 
 	retval = user_path_walk(path, &nd);
 	if (!retval) {
-		retval = do_osf_statfs(nd.dentry, buffer, bufsiz);
+		retval = do_osf_statfs(nd.path.dentry, buffer, bufsiz);
 		path_release(&nd);
 	}
 	return retval;

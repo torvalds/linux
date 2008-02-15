@@ -259,18 +259,18 @@ static int add_mount_helper(struct vfsmount *newmnt, struct nameidata *nd,
 	int err;
 
 	mntget(newmnt);
-	err = do_add_mount(newmnt, nd, nd->mnt->mnt_flags, mntlist);
+	err = do_add_mount(newmnt, nd, nd->path.mnt->mnt_flags, mntlist);
 	switch (err) {
 	case 0:
-		dput(nd->dentry);
-		mntput(nd->mnt);
-		nd->mnt = newmnt;
-		nd->dentry = dget(newmnt->mnt_root);
+		dput(nd->path.dentry);
+		mntput(nd->path.mnt);
+		nd->path.mnt = newmnt;
+		nd->path.dentry = dget(newmnt->mnt_root);
 		break;
 	case -EBUSY:
 		/* someone else made a mount here whilst we were busy */
-		while (d_mountpoint(nd->dentry) &&
-		       follow_down(&nd->mnt, &nd->dentry))
+		while (d_mountpoint(nd->path.dentry) &&
+		       follow_down(&nd->path.mnt, &nd->path.dentry))
 			;
 		err = 0;
 	default:
@@ -307,8 +307,8 @@ cifs_dfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
 
 	xid = GetXid();
 
-	dput(nd->dentry);
-	nd->dentry = dget(dentry);
+	dput(nd->path.dentry);
+	nd->path.dentry = dget(dentry);
 
 	cifs_sb = CIFS_SB(dentry->d_inode->i_sb);
 	ses = cifs_sb->tcon->ses;
@@ -340,7 +340,8 @@ cifs_dfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
 				rc = -EINVAL;
 				goto out_err;
 			}
-			mnt = cifs_dfs_do_refmount(nd->mnt, nd->dentry,
+			mnt = cifs_dfs_do_refmount(nd->path.mnt,
+						nd->path.dentry,
 						referrals[i].node_name);
 			cFYI(1, ("%s: cifs_dfs_do_refmount:%s , mnt:%p",
 					 __FUNCTION__,
@@ -357,7 +358,7 @@ cifs_dfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
 	if (IS_ERR(mnt))
 		goto out_err;
 
-	nd->mnt->mnt_flags |= MNT_SHRINKABLE;
+	nd->path.mnt->mnt_flags |= MNT_SHRINKABLE;
 	rc = add_mount_helper(mnt, nd, &cifs_dfs_automount_list);
 
 out:

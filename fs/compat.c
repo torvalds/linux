@@ -241,7 +241,7 @@ asmlinkage long compat_sys_statfs(const char __user *path, struct compat_statfs 
 	error = user_path_walk(path, &nd);
 	if (!error) {
 		struct kstatfs tmp;
-		error = vfs_statfs(nd.dentry, &tmp);
+		error = vfs_statfs(nd.path.dentry, &tmp);
 		if (!error)
 			error = put_compat_statfs(buf, &tmp);
 		path_release(&nd);
@@ -309,7 +309,7 @@ asmlinkage long compat_sys_statfs64(const char __user *path, compat_size_t sz, s
 	error = user_path_walk(path, &nd);
 	if (!error) {
 		struct kstatfs tmp;
-		error = vfs_statfs(nd.dentry, &tmp);
+		error = vfs_statfs(nd.path.dentry, &tmp);
 		if (!error)
 			error = put_compat_statfs64(buf, &tmp);
 		path_release(&nd);

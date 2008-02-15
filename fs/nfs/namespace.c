@@ -107,38 +107,40 @@ static void * nfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
 
 	BUG_ON(IS_ROOT(dentry));
 	dprintk("%s: enter\n", __FUNCTION__);
-	dput(nd->dentry);
-	nd->dentry = dget(dentry);
+	dput(nd->path.dentry);
+	nd->path.dentry = dget(dentry);
 
 	/* Look it up again */
-	parent = dget_parent(nd->dentry);
+	parent = dget_parent(nd->path.dentry);
 	err = server->nfs_client->rpc_ops->lookup(parent->d_inode,
-						  &nd->dentry->d_name,
+						  &nd->path.dentry->d_name,
 						  &fh, &fattr);
 	dput(parent);
 	if (err != 0)
 		goto out_err;
 
 	if (fattr.valid & NFS_ATTR_FATTR_V4_REFERRAL)
-		mnt = nfs_do_refmount(nd->mnt, nd->dentry);
+		mnt = nfs_do_refmount(nd->path.mnt, nd->path.dentry);
 	else
-		mnt = nfs_do_submount(nd->mnt, nd->dentry, &fh, &fattr);
+		mnt = nfs_do_submount(nd->path.mnt, nd->path.dentry, &fh,
+				      &fattr);
 	err = PTR_ERR(mnt);
 	if (IS_ERR(mnt))
 		goto out_err;
 
 	mntget(mnt);
-	err = do_add_mount(mnt, nd, nd->mnt->mnt_flags|MNT_SHRINKABLE, &nfs_automount_list);
+	err = do_add_mount(mnt, nd, nd->path.mnt->mnt_flags|MNT_SHRINKABLE,
+			   &nfs_automount_list);
 	if (err < 0) {
 		mntput(mnt);
 		if (err == -EBUSY)
 			goto out_follow;
 		goto out_err;
 	}
-	mntput(nd->mnt);
-	dput(nd->dentry);
-	nd->mnt = mnt;
-	nd->dentry = dget(mnt->mnt_root);
+	mntput(nd->path.mnt);
+	dput(nd->path.dentry);
+	nd->path.mnt = mnt;
+	nd->path.dentry = dget(mnt->mnt_root);
 	schedule_delayed_work(&nfs_automount_task, nfs_mountpoint_expiry_timeout);
 out:
 	dprintk("%s: done, returned %d\n", __FUNCTION__, err);
@@ -149,7 +151,8 @@ out_err:
 	path_release(nd);
 	goto out;
 out_follow:
-	while(d_mountpoint(nd->dentry) && follow_down(&nd->mnt, &nd->dentry))
+	while (d_mountpoint(nd->path.dentry) &&
+	       follow_down(&nd->path.mnt, &nd->path.dentry))
 		;
 	err = 0;
 	goto out;

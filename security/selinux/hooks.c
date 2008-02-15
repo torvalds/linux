@@ -2341,10 +2341,10 @@ static int selinux_mount(char * dev_name,
 		return rc;
 
 	if (flags & MS_REMOUNT)
-		return superblock_has_perm(current, nd->mnt->mnt_sb,
+		return superblock_has_perm(current, nd->path.mnt->mnt_sb,
 		                           FILESYSTEM__REMOUNT, NULL);
 	else
-		return dentry_has_perm(current, nd->mnt, nd->dentry,
+		return dentry_has_perm(current, nd->path.mnt, nd->path.dentry,
 		                       FILE__MOUNTON);
 }
 

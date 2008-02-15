@@ -668,7 +668,8 @@ rpc_lookup_negative(char *path, struct nameidata *nd)
 
 	if ((error = rpc_lookup_parent(path, nd)) != 0)
 		return ERR_PTR(error);
-	dentry = rpc_lookup_create(nd->dentry, nd->last.name, nd->last.len, 1);
+	dentry = rpc_lookup_create(nd->path.dentry, nd->last.name, nd->last.len,
+				   1);
 	if (IS_ERR(dentry))
 		rpc_release_path(nd);
 	return dentry;
@@ -695,7 +696,7 @@ rpc_mkdir(char *path, struct rpc_clnt *rpc_client)
 	dentry = rpc_lookup_negative(path, &nd);
 	if (IS_ERR(dentry))
 		return dentry;
-	dir = nd.dentry->d_inode;
+	dir = nd.path.dentry->d_inode;
 	if ((error = __rpc_mkdir(dir, dentry)) != 0)
 		goto err_dput;
 	RPC_I(dentry->d_inode)->private = rpc_client;

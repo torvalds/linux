@@ -884,12 +884,13 @@ static struct super_block* get_gfs2_sb(const char *dev_name)
 		       dev_name);
 		goto out;
 	}
-	error = vfs_getattr(nd.mnt, nd.dentry, &stat);
+	error = vfs_getattr(nd.path.mnt, nd.path.dentry, &stat);
 
 	fstype = get_fs_type("gfs2");
 	list_for_each_entry(s, &fstype->fs_supers, s_instances) {
 		if ((S_ISBLK(stat.mode) && s->s_dev == stat.rdev) ||
-		    (S_ISDIR(stat.mode) && s == nd.dentry->d_inode->i_sb)) {
+		    (S_ISDIR(stat.mode) &&
+		     s == nd.path.dentry->d_inode->i_sb)) {
 			sb = s;
 			goto free_nd;
 		}

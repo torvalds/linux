@@ -75,7 +75,7 @@ static int coda_pioctl(struct inode * inode, struct file * filp,
 	if ( error ) {
 		return error;
         } else {
-	        target_inode = nd.dentry->d_inode;
+		target_inode = nd.path.dentry->d_inode;
 	}
 	
 	/* return if it is not a Coda inode */

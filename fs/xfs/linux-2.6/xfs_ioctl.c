@@ -91,9 +91,9 @@ xfs_find_handle(
 		if (error)
 			return error;
 
-		ASSERT(nd.dentry);
-		ASSERT(nd.dentry->d_inode);
-		inode = igrab(nd.dentry->d_inode);
+		ASSERT(nd.path.dentry);
+		ASSERT(nd.path.dentry->d_inode);
+		inode = igrab(nd.path.dentry->d_inode);
 		path_release(&nd);
 		break;
 	}

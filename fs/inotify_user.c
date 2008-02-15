@@ -667,7 +667,7 @@ asmlinkage long sys_inotify_add_watch(int fd, const char __user *path, u32 mask)
 		goto fput_and_out;
 
 	/* inode held in place by reference to nd; dev by fget on fd */
-	inode = nd.dentry->d_inode;
+	inode = nd.path.dentry->d_inode;
 	dev = filp->private_data;
 
 	mutex_lock(&dev->up_mutex);

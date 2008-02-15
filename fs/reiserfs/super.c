@@ -2026,12 +2026,12 @@ static int reiserfs_quota_on(struct super_block *sb, int type, int format_id,
 	if (err)
 		return err;
 	/* Quotafile not on the same filesystem? */
-	if (nd.mnt->mnt_sb != sb) {
+	if (nd.path.mnt->mnt_sb != sb) {
 		path_release(&nd);
 		return -EXDEV;
 	}
 	/* We must not pack tails for quota files on reiserfs for quota IO to work */
-	if (!REISERFS_I(nd.dentry->d_inode)->i_flags & i_nopack_mask) {
+	if (!REISERFS_I(nd.path.dentry->d_inode)->i_flags & i_nopack_mask) {
 		reiserfs_warning(sb,
 				 "reiserfs: Quota file must have tail packing disabled.");
 		path_release(&nd);
@@ -2044,7 +2044,7 @@ static int reiserfs_quota_on(struct super_block *sb, int type, int format_id,
 		return vfs_quota_on(sb, type, format_id, path);
 	}
 	/* Quotafile not of fs root? */
-	if (nd.dentry->d_parent->d_inode != sb->s_root->d_inode)
+	if (nd.path.dentry->d_parent->d_inode != sb->s_root->d_inode)
 		reiserfs_warning(sb,
 				 "reiserfs: Quota file not on filesystem root. "
 				 "Journalled quota will not work.");

@@ -169,8 +169,8 @@ static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
 			goto out;
 
 		dprintk("Found the path %s\n", buf);
-		key.ek_mnt = nd.mnt;
-		key.ek_dentry = nd.dentry;
+		key.ek_mnt = nd.path.mnt;
+		key.ek_dentry = nd.path.dentry;
 		
 		ek = svc_expkey_update(&key, ek);
 		if (ek)
@@ -507,7 +507,7 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 	struct svc_export exp, *expp;
 	int an_int;
 
-	nd.dentry = NULL;
+	nd.path.dentry = NULL;
 	exp.ex_path = NULL;
 
 	/* fs locations */
@@ -547,8 +547,8 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 
 	exp.h.flags = 0;
 	exp.ex_client = dom;
-	exp.ex_mnt = nd.mnt;
-	exp.ex_dentry = nd.dentry;
+	exp.ex_mnt = nd.path.mnt;
+	exp.ex_dentry = nd.path.dentry;
 	exp.ex_path = kstrdup(buf, GFP_KERNEL);
 	err = -ENOMEM;
 	if (!exp.ex_path)
@@ -610,7 +610,7 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 				goto out;
 		}
 
-		err = check_export(nd.dentry->d_inode, exp.ex_flags,
+		err = check_export(nd.path.dentry->d_inode, exp.ex_flags,
 				   exp.ex_uuid);
 		if (err) goto out;
 	}
@@ -629,7 +629,7 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 	nfsd4_fslocs_free(&exp.ex_fslocs);
 	kfree(exp.ex_uuid);
  	kfree(exp.ex_path);
-	if (nd.dentry)
+	if (nd.path.dentry)
 		path_release(&nd);
  out_no_path:
 	if (dom)
@@ -1030,7 +1030,7 @@ exp_export(struct nfsctl_export *nxp)
 		goto out_unlock;
 	err = -EINVAL;
 
-	exp = exp_get_by_name(clp, nd.mnt, nd.dentry, NULL);
+	exp = exp_get_by_name(clp, nd.path.mnt, nd.path.dentry, NULL);
 
 	memset(&new, 0, sizeof(new));
 
@@ -1038,7 +1038,8 @@ exp_export(struct nfsctl_export *nxp)
 	if ((nxp->ex_flags & NFSEXP_FSID) &&
 	    (!IS_ERR(fsid_key = exp_get_fsid_key(clp, nxp->ex_dev))) &&
 	    fsid_key->ek_mnt &&
-	    (fsid_key->ek_mnt != nd.mnt || fsid_key->ek_dentry != nd.dentry) )
+	    (fsid_key->ek_mnt != nd.path.mnt ||
+	     fsid_key->ek_dentry != nd.path.dentry))
 		goto finish;
 
 	if (!IS_ERR(exp)) {
@@ -1054,7 +1055,7 @@ exp_export(struct nfsctl_export *nxp)
 		goto finish;
 	}
 
-	err = check_export(nd.dentry->d_inode, nxp->ex_flags, NULL);
+	err = check_export(nd.path.dentry->d_inode, nxp->ex_flags, NULL);
 	if (err) goto finish;
 
 	err = -ENOMEM;
@@ -1067,8 +1068,8 @@ exp_export(struct nfsctl_export *nxp)
 	if (!new.ex_path)
 		goto finish;
 	new.ex_client = clp;
-	new.ex_mnt = nd.mnt;
-	new.ex_dentry = nd.dentry;
+	new.ex_mnt = nd.path.mnt;
+	new.ex_dentry = nd.path.dentry;
 	new.ex_flags = nxp->ex_flags;
 	new.ex_anon_uid = nxp->ex_anon_uid;
 	new.ex_anon_gid = nxp->ex_anon_gid;
@@ -1148,7 +1149,7 @@ exp_unexport(struct nfsctl_export *nxp)
 		goto out_domain;
 
 	err = -EINVAL;
-	exp = exp_get_by_name(dom, nd.mnt, nd.dentry, NULL);
+	exp = exp_get_by_name(dom, nd.path.mnt, nd.path.dentry, NULL);
 	path_release(&nd);
 	if (IS_ERR(exp))
 		goto out_domain;
@@ -1185,12 +1186,12 @@ exp_rootfh(svc_client *clp, char *path, struct knfsd_fh *f, int maxsize)
 		printk("nfsd: exp_rootfh path not found %s", path);
 		return err;
 	}
-	inode = nd.dentry->d_inode;
+	inode = nd.path.dentry->d_inode;
 
 	dprintk("nfsd: exp_rootfh(%s [%p] %s:%s/%ld)\n",
-		 path, nd.dentry, clp->name,
+		 path, nd.path.dentry, clp->name,
 		 inode->i_sb->s_id, inode->i_ino);
-	exp = exp_parent(clp, nd.mnt, nd.dentry, NULL);
+	exp = exp_parent(clp, nd.path.mnt, nd.path.dentry, NULL);
 	if (IS_ERR(exp)) {
 		err = PTR_ERR(exp);
 		goto out;
@@ -1200,7 +1201,7 @@ exp_rootfh(svc_client *clp, char *path, struct knfsd_fh *f, int maxsize)
 	 * fh must be initialized before calling fh_compose
 	 */
 	fh_init(&fh, maxsize);
-	if (fh_compose(&fh, exp, nd.dentry, NULL))
+	if (fh_compose(&fh, exp, nd.path.dentry, NULL))
 		err = -EINVAL;
 	else
 		err = 0;

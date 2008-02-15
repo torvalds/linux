@@ -1170,7 +1170,8 @@ static void *proc_pid_follow_link(struct dentry *dentry, struct nameidata *nd)
 	if (!proc_fd_access_allowed(inode))
 		goto out;
 
-	error = PROC_I(inode)->op.proc_get_link(inode, &nd->dentry, &nd->mnt);
+	error = PROC_I(inode)->op.proc_get_link(inode, &nd->path.dentry,
+						&nd->path.mnt);
 	nd->last_type = LAST_BIND;
 out:
 	return ERR_PTR(error);

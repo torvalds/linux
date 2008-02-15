@@ -718,14 +718,14 @@ static struct sock *unix_find_other(struct net *net,
 			goto put_fail;
 
 		err = -ECONNREFUSED;
-		if (!S_ISSOCK(nd.dentry->d_inode->i_mode))
+		if (!S_ISSOCK(nd.path.dentry->d_inode->i_mode))
 			goto put_fail;
-		u=unix_find_socket_byinode(net, nd.dentry->d_inode);
+		u = unix_find_socket_byinode(net, nd.path.dentry->d_inode);
 		if (!u)
 			goto put_fail;
 
 		if (u->sk_type == type)
-			touch_atime(nd.mnt, nd.dentry);
+			touch_atime(nd.path.mnt, nd.path.dentry);
 
 		path_release(&nd);
 
@@ -819,12 +819,12 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		 */
 		mode = S_IFSOCK |
 		       (SOCK_INODE(sock)->i_mode & ~current->fs->umask);
-		err = vfs_mknod(nd.dentry->d_inode, dentry, mode, 0);
+		err = vfs_mknod(nd.path.dentry->d_inode, dentry, mode, 0);
 		if (err)
 			goto out_mknod_dput;
-		mutex_unlock(&nd.dentry->d_inode->i_mutex);
-		dput(nd.dentry);
-		nd.dentry = dentry;
+		mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
+		dput(nd.path.dentry);
+		nd.path.dentry = dentry;
 
 		addr->hash = UNIX_HASH_SIZE;
 	}
@@ -842,8 +842,8 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		list = &unix_socket_table[addr->hash];
 	} else {
 		list = &unix_socket_table[dentry->d_inode->i_ino & (UNIX_HASH_SIZE-1)];
-		u->dentry = nd.dentry;
-		u->mnt    = nd.mnt;
+		u->dentry = nd.path.dentry;
+		u->mnt    = nd.path.mnt;
 	}
 
 	err = 0;
@@ -861,7 +861,7 @@ out:
 out_mknod_dput:
 	dput(dentry);
 out_mknod_unlock:
-	mutex_unlock(&nd.dentry->d_inode->i_mutex);
+	mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
 	path_release(&nd);
 out_mknod_parent:
 	if (err==-EEXIST)

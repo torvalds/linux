@@ -368,7 +368,8 @@ static void *autofs4_follow_link(struct dentry *dentry, struct nameidata *nd)
 		 * so we don't need to follow the mount.
 		 */
 		if (d_mountpoint(dentry)) {
-			if (!autofs4_follow_mount(&nd->mnt, &nd->dentry)) {
+			if (!autofs4_follow_mount(&nd->path.mnt,
+						  &nd->path.dentry)) {
 				status = -ENOENT;
 				goto out_error;
 			}

@@ -1633,14 +1633,15 @@ int vfs_quota_on(struct super_block *sb, int type, int format_id, char *path)
 	error = path_lookup(path, LOOKUP_FOLLOW, &nd);
 	if (error < 0)
 		return error;
-	error = security_quota_on(nd.dentry);
+	error = security_quota_on(nd.path.dentry);
 	if (error)
 		goto out_path;
 	/* Quota file not on the same filesystem? */
-	if (nd.mnt->mnt_sb != sb)
+	if (nd.path.mnt->mnt_sb != sb)
 		error = -EXDEV;
 	else
-		error = vfs_quota_on_inode(nd.dentry->d_inode, type, format_id);
+		error = vfs_quota_on_inode(nd.path.dentry->d_inode, type,
+					   format_id);
 out_path:
 	path_release(&nd);
 	return error;

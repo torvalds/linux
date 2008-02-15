@@ -325,7 +325,7 @@ static int smack_sb_statfs(struct dentry *dentry)
 static int smack_sb_mount(char *dev_name, struct nameidata *nd,
 			  char *type, unsigned long flags, void *data)
 {
-	struct superblock_smack *sbp = nd->mnt->mnt_sb->s_security;
+	struct superblock_smack *sbp = nd->path.mnt->mnt_sb->s_security;
 
 	return smk_curacc(sbp->smk_floor, MAY_WRITE);
 }

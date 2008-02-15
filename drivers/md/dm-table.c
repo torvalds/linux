@@ -361,7 +361,7 @@ static int lookup_device(const char *path, dev_t *dev)
 	if ((r = path_lookup(path, LOOKUP_FOLLOW, &nd)))
 		return r;
 
-	inode = nd.dentry->d_inode;
+	inode = nd.path.dentry->d_inode;
 	if (!inode) {
 		r = -ENOENT;
 		goto out;
