@@ -179,6 +179,9 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 	if (root->ref_cows == 0 && !is_extent)
 		goto out;
 
+	if (btrfs_test_opt(root, SSD))
+		goto out;
+
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;

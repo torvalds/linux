@@ -1835,7 +1835,8 @@ struct extent_buffer *__btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 			buf->start, buf->start + buf->len - 1,
 			EXTENT_CSUM, GFP_NOFS);
 	buf->flags |= EXTENT_CSUM;
-	btrfs_set_buffer_defrag(buf);
+	if (!btrfs_test_opt(root, SSD))
+		btrfs_set_buffer_defrag(buf);
 	trans->blocks_used++;
 	return buf;
 }
