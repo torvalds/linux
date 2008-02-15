@@ -58,7 +58,7 @@ static int __init __area_sdram_check(unsigned int area)
 {
 	u32 word;
 
-	word = inl(SH7751_BCR1);
+	word = ctrl_inl(SH7751_BCR1);
 	/* check BCR for SDRAM in area */
 	if (((word >> area) & 1) == 0) {
 		printk("PCI: Area %d is not configured for SDRAM. BCR1=0x%x\n",
@@ -67,7 +67,7 @@ static int __init __area_sdram_check(unsigned int area)
 	}
 	pci_write_reg(word, SH4_PCIBCR1);
 
-	word = (u16)inw(SH7751_BCR2);
+	word = (u16)ctrl_inw(SH7751_BCR2);
 	/* check BCR2 for 32bit SDRAM interface*/
 	if (((word >> (area << 1)) & 0x3) != 0x3) {
 		printk("PCI: Area %d is not 32 bit SDRAM. BCR2=0x%x\n",
@@ -85,9 +85,9 @@ int __init sh7751_pcic_init(struct sh4_pci_address_map *map)
 	u32 word;
 
 	/* Set the BCR's to enable PCI access */
-	reg = inl(SH7751_BCR1);
+	reg = ctrl_inl(SH7751_BCR1);
 	reg |= 0x80000;
-	outl(reg, SH7751_BCR1);
+	ctrl_outl(reg, SH7751_BCR1);
 
 	/* Turn the clocks back on (not done in reset)*/
 	pci_write_reg(0, SH4_PCICLKR);
@@ -179,13 +179,13 @@ int __init sh7751_pcic_init(struct sh4_pci_address_map *map)
 		return 0;
 
 	/* configure the wait control registers */
-	word = inl(SH7751_WCR1);
+	word = ctrl_inl(SH7751_WCR1);
 	pci_write_reg(word, SH4_PCIWCR1);
-	word = inl(SH7751_WCR2);
+	word = ctrl_inl(SH7751_WCR2);
 	pci_write_reg(word, SH4_PCIWCR2);
-	word = inl(SH7751_WCR3);
+	word = ctrl_inl(SH7751_WCR3);
 	pci_write_reg(word, SH4_PCIWCR3);
-	word = inl(SH7751_MCR);
+	word = ctrl_inl(SH7751_MCR);
 	pci_write_reg(word, SH4_PCIMCR);
 
 	/* NOTE: I'm ignoring the PCI error IRQs for now..

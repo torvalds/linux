@@ -83,9 +83,9 @@ static int gapspci_read(struct pci_bus *bus, unsigned int devfn, int where, int 
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	switch (size) {
-		case 1: *val = inb(GAPSPCI_BBA_CONFIG+where); break;
-		case 2: *val = inw(GAPSPCI_BBA_CONFIG+where); break;
-		case 4: *val = inl(GAPSPCI_BBA_CONFIG+where); break;
+		case 1: *val = ctrl_inb(GAPSPCI_BBA_CONFIG+where); break;
+		case 2: *val = ctrl_inw(GAPSPCI_BBA_CONFIG+where); break;
+		case 4: *val = ctrl_inl(GAPSPCI_BBA_CONFIG+where); break;
 	}	
 
         return PCIBIOS_SUCCESSFUL;
@@ -97,9 +97,9 @@ static int gapspci_write(struct pci_bus *bus, unsigned int devfn, int where, int
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	switch (size) {
-		case 1: outb(( u8)val, GAPSPCI_BBA_CONFIG+where); break;
-		case 2: outw((u16)val, GAPSPCI_BBA_CONFIG+where); break;
-		case 4: outl((u32)val, GAPSPCI_BBA_CONFIG+where); break;
+		case 1: ctrl_outb(( u8)val, GAPSPCI_BBA_CONFIG+where); break;
+		case 2: ctrl_outw((u16)val, GAPSPCI_BBA_CONFIG+where); break;
+		case 4: ctrl_outl((u32)val, GAPSPCI_BBA_CONFIG+where); break;
 	}
 
         return PCIBIOS_SUCCESSFUL;
@@ -127,36 +127,36 @@ int __init gapspci_init(void)
 	 */
 
 	for (i=0; i<16; i++)
-		idbuf[i] = inb(GAPSPCI_REGS+i);
+		idbuf[i] = ctrl_inb(GAPSPCI_REGS+i);
 
 	if (strncmp(idbuf, "GAPSPCI_BRIDGE_2", 16))
 		return -ENODEV;
 
-	outl(0x5a14a501, GAPSPCI_REGS+0x18);
+	ctrl_outl(0x5a14a501, GAPSPCI_REGS+0x18);
 
 	for (i=0; i<1000000; i++)
 		;
 
-	if (inl(GAPSPCI_REGS+0x18) != 1)
+	if (ctrl_inl(GAPSPCI_REGS+0x18) != 1)
 		return -EINVAL;
 
-	outl(0x01000000, GAPSPCI_REGS+0x20);
-	outl(0x01000000, GAPSPCI_REGS+0x24);
+	ctrl_outl(0x01000000, GAPSPCI_REGS+0x20);
+	ctrl_outl(0x01000000, GAPSPCI_REGS+0x24);
 
-	outl(GAPSPCI_DMA_BASE, GAPSPCI_REGS+0x28);
-	outl(GAPSPCI_DMA_BASE+GAPSPCI_DMA_SIZE, GAPSPCI_REGS+0x2c);
+	ctrl_outl(GAPSPCI_DMA_BASE, GAPSPCI_REGS+0x28);
+	ctrl_outl(GAPSPCI_DMA_BASE+GAPSPCI_DMA_SIZE, GAPSPCI_REGS+0x2c);
 
-	outl(1, GAPSPCI_REGS+0x14);
-	outl(1, GAPSPCI_REGS+0x34);
+	ctrl_outl(1, GAPSPCI_REGS+0x14);
+	ctrl_outl(1, GAPSPCI_REGS+0x34);
 
 	/* Setting Broadband Adapter */
-	outw(0xf900, GAPSPCI_BBA_CONFIG+0x06);
-	outl(0x00000000, GAPSPCI_BBA_CONFIG+0x30);
-	outb(0x00, GAPSPCI_BBA_CONFIG+0x3c);
-	outb(0xf0, GAPSPCI_BBA_CONFIG+0x0d);
-	outw(0x0006, GAPSPCI_BBA_CONFIG+0x04);
-	outl(0x00002001, GAPSPCI_BBA_CONFIG+0x10);
-	outl(0x01000000, GAPSPCI_BBA_CONFIG+0x14);
+	ctrl_outw(0xf900, GAPSPCI_BBA_CONFIG+0x06);
+	ctrl_outl(0x00000000, GAPSPCI_BBA_CONFIG+0x30);
+	ctrl_outb(0x00, GAPSPCI_BBA_CONFIG+0x3c);
+	ctrl_outb(0xf0, GAPSPCI_BBA_CONFIG+0x0d);
+	ctrl_outw(0x0006, GAPSPCI_BBA_CONFIG+0x04);
+	ctrl_outl(0x00002001, GAPSPCI_BBA_CONFIG+0x10);
+	ctrl_outl(0x01000000, GAPSPCI_BBA_CONFIG+0x14);
 
 	return 0;
 }

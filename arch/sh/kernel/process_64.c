@@ -623,6 +623,7 @@ extern void interruptible_sleep_on(wait_queue_head_t *q);
 
 #define mid_sched	((unsigned long) interruptible_sleep_on)
 
+#ifdef CONFIG_FRAME_POINTER
 static int in_sh64_switch_to(unsigned long pc)
 {
 	extern char __sh64_switch_to_end;
@@ -631,12 +632,10 @@ static int in_sh64_switch_to(unsigned long pc)
 	return (pc >= (unsigned long) sh64_switch_to) &&
 	       (pc < (unsigned long) &__sh64_switch_to_end);
 }
+#endif
 
 unsigned long get_wchan(struct task_struct *p)
 {
-	unsigned long schedule_fp;
-	unsigned long sh64_switch_to_fp;
-	unsigned long schedule_caller_pc;
 	unsigned long pc;
 
 	if (!p || p == current || p->state == TASK_RUNNING)
@@ -649,6 +648,10 @@ unsigned long get_wchan(struct task_struct *p)
 
 #ifdef CONFIG_FRAME_POINTER
 	if (in_sh64_switch_to(pc)) {
+		unsigned long schedule_fp;
+		unsigned long sh64_switch_to_fp;
+		unsigned long schedule_caller_pc;
+
 		sh64_switch_to_fp = (long) p->thread.sp;
 		/* r14 is saved at offset 4 in the sh64_switch_to frame */
 		schedule_fp = *(unsigned long *) (long)(sh64_switch_to_fp + 4);

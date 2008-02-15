@@ -350,7 +350,7 @@ int register_dmac(struct dma_info *info)
 
 	BUG_ON((info->flags & DMAC_CHANNELS_CONFIGURED) && !info->channels);
 
-	info->pdev = platform_device_register_simple((char *)info->name, -1,
+	info->pdev = platform_device_register_simple(info->name, -1,
 						     NULL, 0);
 	if (IS_ERR(info->pdev))
 		return PTR_ERR(info->pdev);

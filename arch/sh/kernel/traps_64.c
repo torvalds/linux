@@ -630,7 +630,7 @@ static int misaligned_fpu_load(struct pt_regs *regs,
 				current->thread.fpu.hard.fp_regs[destreg] = buflo;
 				current->thread.fpu.hard.fp_regs[destreg+1] = bufhi;
 			} else {
-#if defined(CONFIG_LITTLE_ENDIAN)
+#if defined(CONFIG_CPU_LITTLE_ENDIAN)
 				current->thread.fpu.hard.fp_regs[destreg] = bufhi;
 				current->thread.fpu.hard.fp_regs[destreg+1] = buflo;
 #else
@@ -700,7 +700,7 @@ static int misaligned_fpu_store(struct pt_regs *regs,
 				buflo = current->thread.fpu.hard.fp_regs[srcreg];
 				bufhi = current->thread.fpu.hard.fp_regs[srcreg+1];
 			} else {
-#if defined(CONFIG_LITTLE_ENDIAN)
+#if defined(CONFIG_CPU_LITTLE_ENDIAN)
 				bufhi = current->thread.fpu.hard.fp_regs[srcreg];
 				buflo = current->thread.fpu.hard.fp_regs[srcreg+1];
 #else

@@ -220,7 +220,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		dp = ((unsigned long) child) + THREAD_SIZE -
 			 sizeof(struct pt_dspregs);
 		if (*((int *) (dp - 4)) == SR_FD) {
-			copy_to_user(addr, (void *) dp,
+			copy_to_user((void *)addr, (void *) dp,
 				sizeof(struct pt_dspregs));
 			ret = 0;
 		}
@@ -234,7 +234,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		dp = ((unsigned long) child) + THREAD_SIZE -
 			 sizeof(struct pt_dspregs);
 		if (*((int *) (dp - 4)) == SR_FD) {
-			copy_from_user((void *) dp, addr,
+			copy_from_user((void *) dp, (void *)addr,
 				sizeof(struct pt_dspregs));
 			ret = 0;
 		}

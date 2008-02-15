@@ -172,11 +172,11 @@ struct sh4_pci_address_map {
 
 static inline void pci_write_reg(unsigned long val, unsigned long reg)
 {
-	outl(val, PCI_REG(reg));
+	ctrl_outl(val, PCI_REG(reg));
 }
 
 static inline unsigned long pci_read_reg(unsigned long reg)
 {
-	return inl(PCI_REG(reg));
+	return ctrl_inl(PCI_REG(reg));
 }
 #endif /* __PCI_SH4_H */

@@ -10,8 +10,8 @@
  *              Copyright (C) 1996, 1997, 1998 by Ralf Baechle
  *     and i386 version.
  */
-#ifndef __ASM_SH_UACCESS_H
-#define __ASM_SH_UACCESS_H
+#ifndef __ASM_SH_UACCESS_32_H
+#define __ASM_SH_UACCESS_32_H
 
 #include <linux/errno.h>
 #include <linux/sched.h>
@@ -302,24 +302,6 @@ extern void __put_user_unknown(void);
 /* Return the number of bytes NOT copied */
 __kernel_size_t __copy_user(void *to, const void *from, __kernel_size_t n);
 
-#define copy_to_user(to,from,n) ({ \
-void *__copy_to = (void *) (to); \
-__kernel_size_t __copy_size = (__kernel_size_t) (n); \
-__kernel_size_t __copy_res; \
-if(__copy_size && __access_ok((unsigned long)__copy_to, __copy_size)) { \
-__copy_res = __copy_user(__copy_to, (void *) (from), __copy_size); \
-} else __copy_res = __copy_size; \
-__copy_res; })
-
-#define copy_from_user(to,from,n) ({ \
-void *__copy_to = (void *) (to); \
-void *__copy_from = (void *) (from); \
-__kernel_size_t __copy_size = (__kernel_size_t) (n); \
-__kernel_size_t __copy_res; \
-if(__copy_size && __access_ok((unsigned long)__copy_from, __copy_size)) { \
-__copy_res = __copy_user(__copy_to, __copy_from, __copy_size); \
-} else __copy_res = __copy_size; \
-__copy_res; })
 
 static __always_inline unsigned long
 __copy_from_user(void *to, const void __user *from, unsigned long n)
@@ -507,4 +489,4 @@ struct exception_table_entry
 
 extern int fixup_exception(struct pt_regs *regs);
 
-#endif /* __ASM_SH_UACCESS_H */
+#endif /* __ASM_SH_UACCESS_32_H */

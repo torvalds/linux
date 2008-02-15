@@ -50,4 +50,8 @@ extern void irq_ctx_exit(int cpu);
 # define irq_ctx_exit(cpu) do { } while (0)
 #endif
 
+#ifdef CONFIG_CPU_SH5
+#include <asm/cpu/irq.h>
+#endif
+
 #endif /* __ASM_SH_IRQ_H */
