@@ -1250,10 +1250,13 @@ void file_update_time(struct file *file)
 	struct inode *inode = file->f_path.dentry->d_inode;
 	struct timespec now;
 	int sync_it = 0;
+	int err;
 
 	if (IS_NOCMTIME(inode))
 		return;
-	if (IS_RDONLY(inode))
+
+	err = mnt_want_write(file->f_path.mnt);
+	if (err)
 		return;
 
 	now = current_fs_time(inode->i_sb);
@@ -1274,6 +1277,7 @@ void file_update_time(struct file *file)
 
 	if (sync_it)
 		mark_inode_dirty_sync(inode);
+	mnt_drop_write(file->f_path.mnt);
 }
 
 EXPORT_SYMBOL(file_update_time);
