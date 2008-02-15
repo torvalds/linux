@@ -3,6 +3,7 @@
 
 #include <linux/dcache.h>
 #include <linux/linkage.h>
+#include <linux/path.h>
 
 struct vfsmount;
 
@@ -27,11 +28,6 @@ struct nameidata {
 	union {
 		struct open_intent open;
 	} intent;
-};
-
-struct path {
-	struct vfsmount *mnt;
-	struct dentry *dentry;
 };
 
 /*
