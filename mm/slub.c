@@ -3567,7 +3567,7 @@ enum slab_stat_type {
 #define SO_CPU		(1 << SL_CPU)
 #define SO_OBJECTS	(1 << SL_OBJECTS)
 
-static unsigned long slab_objects(struct kmem_cache *s,
+static unsigned long show_slab_objects(struct kmem_cache *s,
 			char *buf, unsigned long flags)
 {
 	unsigned long total = 0;
@@ -3730,25 +3730,25 @@ SLAB_ATTR_RO(aliases);
 
 static ssize_t slabs_show(struct kmem_cache *s, char *buf)
 {
-	return slab_objects(s, buf, SO_FULL|SO_PARTIAL|SO_CPU);
+	return show_slab_objects(s, buf, SO_FULL|SO_PARTIAL|SO_CPU);
 }
 SLAB_ATTR_RO(slabs);
 
 static ssize_t partial_show(struct kmem_cache *s, char *buf)
 {
-	return slab_objects(s, buf, SO_PARTIAL);
+	return show_slab_objects(s, buf, SO_PARTIAL);
 }
 SLAB_ATTR_RO(partial);
 
 static ssize_t cpu_slabs_show(struct kmem_cache *s, char *buf)
 {
-	return slab_objects(s, buf, SO_CPU);
+	return show_slab_objects(s, buf, SO_CPU);
 }
 SLAB_ATTR_RO(cpu_slabs);
 
 static ssize_t objects_show(struct kmem_cache *s, char *buf)
 {
-	return slab_objects(s, buf, SO_FULL|SO_PARTIAL|SO_CPU|SO_OBJECTS);
+	return show_slab_objects(s, buf, SO_FULL|SO_PARTIAL|SO_CPU|SO_OBJECTS);
 }
 SLAB_ATTR_RO(objects);
 
