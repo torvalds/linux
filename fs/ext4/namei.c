@@ -2161,7 +2161,7 @@ static int ext4_unlink(struct inode * dir, struct dentry *dentry)
 	dir->i_ctime = dir->i_mtime = ext4_current_time(dir);
 	ext4_update_dx_flag(dir);
 	ext4_mark_inode_dirty(handle, dir);
-	ext4_dec_count(handle, inode);
+	drop_nlink(inode);
 	if (!inode->i_nlink)
 		ext4_orphan_add(handle, inode);
 	inode->i_ctime = ext4_current_time(inode);
@@ -2211,7 +2211,7 @@ retry:
 		err = __page_symlink(inode, symname, l,
 				mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS);
 		if (err) {
-			ext4_dec_count(handle, inode);
+			clear_nlink(inode);
 			ext4_mark_inode_dirty(handle, inode);
 			iput (inode);
 			goto out_stop;
@@ -2404,7 +2404,7 @@ static int ext4_rename (struct inode * old_dir, struct dentry *old_dentry,
 		ext4_dec_count(handle, old_dir);
 		if (new_inode) {
 			/* checked empty_dir above, can't have another parent,
-			 * ext3_dec_count() won't work for many-linked dirs */
+			 * ext4_dec_count() won't work for many-linked dirs */
 			new_inode->i_nlink = 0;
 		} else {
 			ext4_inc_count(handle, new_dir);
