@@ -702,9 +702,6 @@ static int do_nfs4_super_data_conv(void *raw_data)
 		real->flags = raw->flags;
 		real->version = raw->version;
 	}
-	else {
-		return -EINVAL;
-	}
 
 	return 0;
 }
