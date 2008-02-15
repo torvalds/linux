@@ -1278,8 +1278,6 @@ static __init int legacy_init_one(struct legacy_probe *probe)
 		}
 	}
 fail:
-	if (host)
-		ata_host_detach(host);
 	platform_device_unregister(pdev);
 	return ret;
 }

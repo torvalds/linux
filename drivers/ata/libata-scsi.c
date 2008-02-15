@@ -1862,7 +1862,7 @@ unsigned int ata_scsiop_inq_83(struct ata_scsi_args *args, u8 *rbuf,
  *	spin_lock_irqsave(host lock)
  */
 
-unsigned int ata_scsiop_inq_89(struct ata_scsi_args *args, u8 *rbuf,
+static unsigned int ata_scsiop_inq_89(struct ata_scsi_args *args, u8 *rbuf,
 			      unsigned int buflen)
 {
 	u8 pbuf[60];
