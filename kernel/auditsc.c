@@ -1697,8 +1697,8 @@ void __audit_getname(const char *name)
 	++context->name_count;
 	if (!context->pwd) {
 		read_lock(&current->fs->lock);
-		context->pwd = dget(current->fs->pwd);
-		context->pwdmnt = mntget(current->fs->pwdmnt);
+		context->pwd = dget(current->fs->pwd.dentry);
+		context->pwdmnt = mntget(current->fs->pwd.mnt);
 		read_unlock(&current->fs->lock);
 	}
 

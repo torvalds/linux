@@ -593,7 +593,7 @@ static int do_umount(struct vfsmount *mnt, int flags)
 	 *  (2) the usage count == 1 [parent vfsmount] + 1 [sys_umount]
 	 */
 	if (flags & MNT_EXPIRE) {
-		if (mnt == current->fs->rootmnt ||
+		if (mnt == current->fs->root.mnt ||
 		    flags & (MNT_FORCE | MNT_DETACH))
 			return -EINVAL;
 
@@ -628,7 +628,7 @@ static int do_umount(struct vfsmount *mnt, int flags)
 	 * /reboot - static binary that would close all descriptors and
 	 * call reboot(9). Then init(8) could umount root and exec /reboot.
 	 */
-	if (mnt == current->fs->rootmnt && !(flags & MNT_DETACH)) {
+	if (mnt == current->fs->root.mnt && !(flags & MNT_DETACH)) {
 		/*
 		 * Special case for "unmounting" root ...
 		 * we just try to remount it readonly.
@@ -1559,17 +1559,17 @@ static struct mnt_namespace *dup_mnt_ns(struct mnt_namespace *mnt_ns,
 	while (p) {
 		q->mnt_ns = new_ns;
 		if (fs) {
-			if (p == fs->rootmnt) {
+			if (p == fs->root.mnt) {
 				rootmnt = p;
-				fs->rootmnt = mntget(q);
+				fs->root.mnt = mntget(q);
 			}
-			if (p == fs->pwdmnt) {
+			if (p == fs->pwd.mnt) {
 				pwdmnt = p;
-				fs->pwdmnt = mntget(q);
+				fs->pwd.mnt = mntget(q);
 			}
-			if (p == fs->altrootmnt) {
+			if (p == fs->altroot.mnt) {
 				altrootmnt = p;
-				fs->altrootmnt = mntget(q);
+				fs->altroot.mnt = mntget(q);
 			}
 		}
 		p = next_mnt(p, mnt_ns->root);
@@ -1653,18 +1653,15 @@ out1:
 void set_fs_root(struct fs_struct *fs, struct vfsmount *mnt,
 		 struct dentry *dentry)
 {
-	struct dentry *old_root;
-	struct vfsmount *old_rootmnt;
+	struct path old_root;
+
 	write_lock(&fs->lock);
 	old_root = fs->root;
-	old_rootmnt = fs->rootmnt;
-	fs->rootmnt = mntget(mnt);
-	fs->root = dget(dentry);
+	fs->root.mnt = mntget(mnt);
+	fs->root.dentry = dget(dentry);
 	write_unlock(&fs->lock);
-	if (old_root) {
-		dput(old_root);
-		mntput(old_rootmnt);
-	}
+	if (old_root.dentry)
+		path_put(&old_root);
 }
 
 /*
@@ -1674,20 +1671,16 @@ void set_fs_root(struct fs_struct *fs, struct vfsmount *mnt,
 void set_fs_pwd(struct fs_struct *fs, struct vfsmount *mnt,
 		struct dentry *dentry)
 {
-	struct dentry *old_pwd;
-	struct vfsmount *old_pwdmnt;
+	struct path old_pwd;
 
 	write_lock(&fs->lock);
 	old_pwd = fs->pwd;
-	old_pwdmnt = fs->pwdmnt;
-	fs->pwdmnt = mntget(mnt);
-	fs->pwd = dget(dentry);
+	fs->pwd.mnt = mntget(mnt);
+	fs->pwd.dentry = dget(dentry);
 	write_unlock(&fs->lock);
 
-	if (old_pwd) {
-		dput(old_pwd);
-		mntput(old_pwdmnt);
-	}
+	if (old_pwd.dentry)
+		path_put(&old_pwd);
 }
 
 static void chroot_fs_refs(struct nameidata *old_nd, struct nameidata *new_nd)
@@ -1702,12 +1695,12 @@ static void chroot_fs_refs(struct nameidata *old_nd, struct nameidata *new_nd)
 		if (fs) {
 			atomic_inc(&fs->count);
 			task_unlock(p);
-			if (fs->root == old_nd->path.dentry
-			    && fs->rootmnt == old_nd->path.mnt)
+			if (fs->root.dentry == old_nd->path.dentry
+			    && fs->root.mnt == old_nd->path.mnt)
 				set_fs_root(fs, new_nd->path.mnt,
 					    new_nd->path.dentry);
-			if (fs->pwd == old_nd->path.dentry
-			    && fs->pwdmnt == old_nd->path.mnt)
+			if (fs->pwd.dentry == old_nd->path.dentry
+			    && fs->pwd.mnt == old_nd->path.mnt)
 				set_fs_pwd(fs, new_nd->path.mnt,
 					   new_nd->path.dentry);
 			put_fs_struct(fs);
@@ -1773,8 +1766,8 @@ asmlinkage long sys_pivot_root(const char __user * new_root,
 	}
 
 	read_lock(&current->fs->lock);
-	user_nd.path.mnt = mntget(current->fs->rootmnt);
-	user_nd.path.dentry = dget(current->fs->root);
+	user_nd.path = current->fs->root;
+	path_get(&current->fs->root);
 	read_unlock(&current->fs->lock);
 	down_write(&namespace_sem);
 	mutex_lock(&old_nd.path.dentry->d_inode->i_mutex);

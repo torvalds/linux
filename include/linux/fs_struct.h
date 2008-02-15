@@ -1,15 +1,13 @@
 #ifndef _LINUX_FS_STRUCT_H
 #define _LINUX_FS_STRUCT_H
 
-struct dentry;
-struct vfsmount;
+#include <linux/path.h>
 
 struct fs_struct {
 	atomic_t count;
 	rwlock_t lock;
 	int umask;
-	struct dentry * root, * pwd, * altroot;
-	struct vfsmount * rootmnt, * pwdmnt, * altrootmnt;
+	struct path root, pwd, altroot;
 };
 
 #define INIT_FS {				\

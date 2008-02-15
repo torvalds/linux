@@ -165,8 +165,8 @@ static int proc_cwd_link(struct inode *inode, struct dentry **dentry, struct vfs
 	}
 	if (fs) {
 		read_lock(&fs->lock);
-		*mnt = mntget(fs->pwdmnt);
-		*dentry = dget(fs->pwd);
+		*mnt = mntget(fs->pwd.mnt);
+		*dentry = dget(fs->pwd.dentry);
 		read_unlock(&fs->lock);
 		result = 0;
 		put_fs_struct(fs);
@@ -186,8 +186,8 @@ static int proc_root_link(struct inode *inode, struct dentry **dentry, struct vf
 	}
 	if (fs) {
 		read_lock(&fs->lock);
-		*mnt = mntget(fs->rootmnt);
-		*dentry = dget(fs->root);
+		*mnt = mntget(fs->root.mnt);
+		*dentry = dget(fs->root.dentry);
 		read_unlock(&fs->lock);
 		result = 0;
 		put_fs_struct(fs);

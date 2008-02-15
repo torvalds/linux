@@ -549,16 +549,16 @@ walk_init_root(const char *name, struct nameidata *nd)
 	struct fs_struct *fs = current->fs;
 
 	read_lock(&fs->lock);
-	if (fs->altroot && !(nd->flags & LOOKUP_NOALT)) {
-		nd->path.mnt = mntget(fs->altrootmnt);
-		nd->path.dentry = dget(fs->altroot);
+	if (fs->altroot.dentry && !(nd->flags & LOOKUP_NOALT)) {
+		nd->path = fs->altroot;
+		path_get(&fs->altroot);
 		read_unlock(&fs->lock);
 		if (__emul_lookup_dentry(name,nd))
 			return 0;
 		read_lock(&fs->lock);
 	}
-	nd->path.mnt = mntget(fs->rootmnt);
-	nd->path.dentry = dget(fs->root);
+	nd->path = fs->root;
+	path_get(&fs->root);
 	read_unlock(&fs->lock);
 	return 1;
 }
@@ -755,8 +755,8 @@ static __always_inline void follow_dotdot(struct nameidata *nd)
 		struct dentry *old = nd->path.dentry;
 
                 read_lock(&fs->lock);
-		if (nd->path.dentry == fs->root &&
-		    nd->path.mnt == fs->rootmnt) {
+		if (nd->path.dentry == fs->root.dentry &&
+		    nd->path.mnt == fs->root.mnt) {
                         read_unlock(&fs->lock);
 			break;
 		}
@@ -1078,8 +1078,8 @@ static int __emul_lookup_dentry(const char *name, struct nameidata *nd)
 		 */
 		nd->last_type = LAST_ROOT;
 		read_lock(&fs->lock);
-		nd->path.mnt = mntget(fs->rootmnt);
-		nd->path.dentry = dget(fs->root);
+		nd->path = fs->root;
+		path_get(&fs->root);
 		read_unlock(&fs->lock);
 		if (path_walk(name, nd) == 0) {
 			if (nd->path.dentry->d_inode) {
@@ -1099,29 +1099,22 @@ void set_fs_altroot(void)
 {
 	char *emul = __emul_prefix();
 	struct nameidata nd;
-	struct vfsmount *mnt = NULL, *oldmnt;
-	struct dentry *dentry = NULL, *olddentry;
+	struct path path = {}, old_path;
 	int err;
 	struct fs_struct *fs = current->fs;
 
 	if (!emul)
 		goto set_it;
 	err = path_lookup(emul, LOOKUP_FOLLOW|LOOKUP_DIRECTORY|LOOKUP_NOALT, &nd);
-	if (!err) {
-		mnt = nd.path.mnt;
-		dentry = nd.path.dentry;
-	}
+	if (!err)
+		path = nd.path;
 set_it:
 	write_lock(&fs->lock);
-	oldmnt = fs->altrootmnt;
-	olddentry = fs->altroot;
-	fs->altrootmnt = mnt;
-	fs->altroot = dentry;
+	old_path = fs->altroot;
+	fs->altroot = path;
 	write_unlock(&fs->lock);
-	if (olddentry) {
-		dput(olddentry);
-		mntput(oldmnt);
-	}
+	if (old_path.dentry)
+		path_put(&old_path);
 }
 
 /* Returns 0 and nd will be valid on success; Retuns error, otherwise. */
@@ -1139,21 +1132,21 @@ static int do_path_lookup(int dfd, const char *name,
 
 	if (*name=='/') {
 		read_lock(&fs->lock);
-		if (fs->altroot && !(nd->flags & LOOKUP_NOALT)) {
-			nd->path.mnt = mntget(fs->altrootmnt);
-			nd->path.dentry = dget(fs->altroot);
+		if (fs->altroot.dentry && !(nd->flags & LOOKUP_NOALT)) {
+			nd->path = fs->altroot;
+			path_get(&fs->altroot);
 			read_unlock(&fs->lock);
 			if (__emul_lookup_dentry(name,nd))
 				goto out; /* found in altroot */
 			read_lock(&fs->lock);
 		}
-		nd->path.mnt = mntget(fs->rootmnt);
-		nd->path.dentry = dget(fs->root);
+		nd->path = fs->root;
+		path_get(&fs->root);
 		read_unlock(&fs->lock);
 	} else if (dfd == AT_FDCWD) {
 		read_lock(&fs->lock);
-		nd->path.mnt = mntget(fs->pwdmnt);
-		nd->path.dentry = dget(fs->pwd);
+		nd->path = fs->pwd;
+		path_get(&fs->pwd);
 		read_unlock(&fs->lock);
 	} else {
 		struct dentry *dentry;
