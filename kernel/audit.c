@@ -1325,7 +1325,7 @@ void audit_log_d_path(struct audit_buffer *ab, const char *prefix,
 		audit_log_format(ab, "<no memory>");
 		return;
 	}
-	p = d_path(path->dentry, path->mnt, pathname, PATH_MAX+11);
+	p = d_path(path, pathname, PATH_MAX+11);
 	if (IS_ERR(p)) { /* Should never happen since we send PATH_MAX */
 		/* FIXME: can we save some information here? */
 		audit_log_format(ab, "<too long>");

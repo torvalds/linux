@@ -171,7 +171,7 @@ asmlinkage long sys_lookup_dcookie(u64 cookie64, char __user * buf, size_t len)
 		goto out;
 
 	/* FIXME: (deleted) ? */
-	path = d_path(dcs->path.dentry, dcs->path.mnt, kbuf, PAGE_SIZE);
+	path = d_path(&dcs->path, kbuf, PAGE_SIZE);
 
 	if (IS_ERR(path)) {
 		err = PTR_ERR(path);
