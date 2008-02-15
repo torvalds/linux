@@ -1251,9 +1251,8 @@ static void smack_to_secattr(char *smack, struct netlbl_lsm_secattr *nlsp)
 
 	switch (smack_net_nltype) {
 	case NETLBL_NLTYPE_CIPSOV4:
-		nlsp->domain = NULL;
-		nlsp->flags = NETLBL_SECATTR_DOMAIN;
-		nlsp->flags |= NETLBL_SECATTR_MLS_LVL;
+		nlsp->domain = kstrdup(smack, GFP_ATOMIC);
+		nlsp->flags = NETLBL_SECATTR_DOMAIN | NETLBL_SECATTR_MLS_LVL;
 
 		rc = smack_to_cipso(smack, &cipso);
 		if (rc == 0) {
@@ -1282,15 +1281,14 @@ static int smack_netlabel(struct sock *sk)
 {
 	struct socket_smack *ssp;
 	struct netlbl_lsm_secattr secattr;
-	int rc = 0;
+	int rc;
 
 	ssp = sk->sk_security;
 	netlbl_secattr_init(&secattr);
 	smack_to_secattr(ssp->smk_out, &secattr);
-	if (secattr.flags != NETLBL_SECATTR_NONE)
-		rc = netlbl_sock_setattr(sk, &secattr);
-
+	rc = netlbl_sock_setattr(sk, &secattr);
 	netlbl_secattr_destroy(&secattr);
+
 	return rc;
 }
 
@@ -1313,6 +1311,7 @@ static int smack_inode_setsecurity(struct inode *inode, const char *name,
 	struct inode_smack *nsp = inode->i_security;
 	struct socket_smack *ssp;
 	struct socket *sock;
+	int rc = 0;
 
 	if (value == NULL || size > SMK_LABELLEN)
 		return -EACCES;
@@ -1341,7 +1340,10 @@ static int smack_inode_setsecurity(struct inode *inode, const char *name,
 		ssp->smk_in = sp;
 	else if (strcmp(name, XATTR_SMACK_IPOUT) == 0) {
 		ssp->smk_out = sp;
-		return smack_netlabel(sock->sk);
+		rc = smack_netlabel(sock->sk);
+		if (rc != 0)
+			printk(KERN_WARNING "Smack: \"%s\" netlbl error %d.\n",
+			       __func__, -rc);
 	} else
 		return -EOPNOTSUPP;
 
@@ -2214,6 +2216,9 @@ static void smack_sock_graft(struct sock *sk, struct socket *parent)
 	ssp->smk_packet[0] = '\0';
 
 	rc = smack_netlabel(sk);
+	if (rc != 0)
+		printk(KERN_WARNING "Smack: \"%s\" netlbl error %d.\n",
+		       __func__, -rc);
 }
 
 /**
@@ -2342,6 +2347,20 @@ static int smack_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 
 	*secdata = sp;
 	*seclen = strlen(sp);
+	return 0;
+}
+
+/*
+ * smack_secctx_to_secid - return the secid for a smack label
+ * @secdata: smack label
+ * @seclen: how long result is
+ * @secid: outgoing integer
+ *
+ * Exists for audit and networking code.
+ */
+static int smack_secctx_to_secid(char *secdata, u32 seclen, u32 *secid)
+{
+	*secid = smack_to_secid(secdata);
 	return 0;
 }
 
@@ -2475,6 +2494,7 @@ static struct security_operations smack_ops = {
 	.key_permission = 		smack_key_permission,
 #endif /* CONFIG_KEYS */
 	.secid_to_secctx = 		smack_secid_to_secctx,
+	.secctx_to_secid = 		smack_secctx_to_secid,
 	.release_secctx = 		smack_release_secctx,
 };
 
