@@ -107,8 +107,13 @@ startup_64:
 	movq	%rdx, 0(%rbx, %rax, 8)
 ident_complete:
 
-	/* Fixup the kernel text+data virtual addresses
+	/*
+	 * Fixup the kernel text+data virtual addresses. Note that
+	 * we might write invalid pmds, when the kernel is relocated
+	 * cleanup_highmap() fixes this up along with the mappings
+	 * beyond _end.
 	 */
+
 	leaq	level2_kernel_pgt(%rip), %rdi
 	leaq	4096(%rdi), %r8
 	/* See if it is a valid page table entry */
