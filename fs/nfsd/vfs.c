@@ -2086,6 +2086,9 @@ nfsd_set_posix_acl(struct svc_fh *fhp, int type, struct posix_acl *acl)
 	} else
 		size = 0;
 
+	error = mnt_want_write(fhp->fh_export->ex_path.mnt);
+	if (error)
+		goto getout;
 	if (size)
 		error = vfs_setxattr(fhp->fh_dentry, name, value, size, 0);
 	else {
@@ -2097,6 +2100,7 @@ nfsd_set_posix_acl(struct svc_fh *fhp, int type, struct posix_acl *acl)
 				error = 0;
 		}
 	}
+	mnt_drop_write(fhp->fh_export->ex_path.mnt);
 
 getout:
 	kfree(value);

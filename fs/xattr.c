@@ -11,6 +11,7 @@
 #include <linux/slab.h>
 #include <linux/file.h>
 #include <linux/xattr.h>
+#include <linux/mount.h>
 #include <linux/namei.h>
 #include <linux/security.h>
 #include <linux/syscalls.h>
@@ -32,8 +33,6 @@ xattr_permission(struct inode *inode, const char *name, int mask)
 	 * filesystem  or on an immutable / append-only inode.
 	 */
 	if (mask & MAY_WRITE) {
-		if (IS_RDONLY(inode))
-			return -EROFS;
 		if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
 			return -EPERM;
 	}
@@ -262,7 +261,11 @@ sys_setxattr(char __user *path, char __user *name, void __user *value,
 	error = user_path_walk(path, &nd);
 	if (error)
 		return error;
-	error = setxattr(nd.path.dentry, name, value, size, flags);
+	error = mnt_want_write(nd.path.mnt);
+	if (!error) {
+		error = setxattr(nd.path.dentry, name, value, size, flags);
+		mnt_drop_write(nd.path.mnt);
+	}
 	path_put(&nd.path);
 	return error;
 }
@@ -277,7 +280,11 @@ sys_lsetxattr(char __user *path, char __user *name, void __user *value,
 	error = user_path_walk_link(path, &nd);
 	if (error)
 		return error;
-	error = setxattr(nd.path.dentry, name, value, size, flags);
+	error = mnt_want_write(nd.path.mnt);
+	if (!error) {
+		error = setxattr(nd.path.dentry, name, value, size, flags);
+		mnt_drop_write(nd.path.mnt);
+	}
 	path_put(&nd.path);
 	return error;
 }
@@ -295,7 +302,12 @@ sys_fsetxattr(int fd, char __user *name, void __user *value,
 		return error;
 	dentry = f->f_path.dentry;
 	audit_inode(NULL, dentry);
-	error = setxattr(dentry, name, value, size, flags);
+	error = mnt_want_write(f->f_path.mnt);
+	if (!error) {
+		error = setxattr(dentry, name, value, size, flags);
+		mnt_drop_write(f->f_path.mnt);
+	}
+out_fput:
 	fput(f);
 	return error;
 }
@@ -482,7 +494,11 @@ sys_removexattr(char __user *path, char __user *name)
 	error = user_path_walk(path, &nd);
 	if (error)
 		return error;
-	error = removexattr(nd.path.dentry, name);
+	error = mnt_want_write(nd.path.mnt);
+	if (!error) {
+		error = removexattr(nd.path.dentry, name);
+		mnt_drop_write(nd.path.mnt);
+	}
 	path_put(&nd.path);
 	return error;
 }
@@ -496,7 +512,11 @@ sys_lremovexattr(char __user *path, char __user *name)
 	error = user_path_walk_link(path, &nd);
 	if (error)
 		return error;
-	error = removexattr(nd.path.dentry, name);
+	error = mnt_want_write(nd.path.mnt);
+	if (!error) {
+		error = removexattr(nd.path.dentry, name);
+		mnt_drop_write(nd.path.mnt);
+	}
 	path_put(&nd.path);
 	return error;
 }
@@ -513,7 +533,11 @@ sys_fremovexattr(int fd, char __user *name)
 		return error;
 	dentry = f->f_path.dentry;
 	audit_inode(NULL, dentry);
-	error = removexattr(dentry, name);
+	error = mnt_want_write(f->f_path.mnt);
+	if (!error) {
+		error = removexattr(dentry, name);
+		mnt_drop_write(f->f_path.mnt);
+	}
 	fput(f);
 	return error;
 }
