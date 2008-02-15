@@ -1327,7 +1327,8 @@ static int kgdb_reenter_check(struct kgdb_state *ks)
 		exception_level = 0;
 		kgdb_skipexception(ks->ex_vector, ks->linux_regs);
 		kgdb_activate_sw_breakpoints();
-		printk(KERN_CRIT "KGDB: re-enter error: breakpoint removed\n");
+		printk(KERN_CRIT "KGDB: re-enter error: breakpoint removed %lx\n",
+			addr);
 		WARN_ON_ONCE(1);
 
 		return 1;
