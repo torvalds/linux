@@ -67,23 +67,26 @@ config QETH
 	  To compile this driver as a module, choose M.
 	  The module name is qeth.ko.
 
+config QETH_L2
+        tristate "qeth layer 2 device support"
+        depends on QETH
+        help
+          Select this option to be able to run qeth devices in layer 2 mode.
+          To compile as a module, choose M. The module name is qeth_l2.ko.
+          If unsure, choose y.
 
-comment "Gigabit Ethernet default settings"
-	depends on QETH
+config QETH_L3
+        tristate "qeth layer 3 device support"
+        depends on QETH
+        help
+          Select this option to be able to run qeth devices in layer 3 mode.
+          To compile as a module choose M. The module name is qeth_l3.ko.
+          If unsure, choose Y.
 
 config QETH_IPV6
-	bool "IPv6 support for gigabit ethernet"
-	depends on (QETH = IPV6) || (QETH && IPV6 = 'y')
-	help
-	  If CONFIG_QETH is switched on, this option will include IPv6
-	  support in the qeth device driver.
-	
-config QETH_VLAN
-	bool "VLAN support for gigabit ethernet"
-	depends on (QETH = VLAN_8021Q) || (QETH && VLAN_8021Q = 'y')
-	help
-	  If CONFIG_QETH is switched on, this option will include IEEE
-	  802.1q VLAN support in the qeth device driver.
+        bool
+        depends on (QETH_L3 = IPV6) || (QETH_L3 && IPV6 = 'y')
+        default y
 
 config CCWGROUP
 	tristate
