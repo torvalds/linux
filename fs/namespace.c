@@ -1650,15 +1650,14 @@ out1:
  * Replace the fs->{rootmnt,root} with {mnt,dentry}. Put the old values.
  * It can block. Requires the big lock held.
  */
-void set_fs_root(struct fs_struct *fs, struct vfsmount *mnt,
-		 struct dentry *dentry)
+void set_fs_root(struct fs_struct *fs, struct path *path)
 {
 	struct path old_root;
 
 	write_lock(&fs->lock);
 	old_root = fs->root;
-	fs->root.mnt = mntget(mnt);
-	fs->root.dentry = dget(dentry);
+	fs->root = *path;
+	path_get(path);
 	write_unlock(&fs->lock);
 	if (old_root.dentry)
 		path_put(&old_root);
@@ -1668,15 +1667,14 @@ void set_fs_root(struct fs_struct *fs, struct vfsmount *mnt,
  * Replace the fs->{pwdmnt,pwd} with {mnt,dentry}. Put the old values.
  * It can block. Requires the big lock held.
  */
-void set_fs_pwd(struct fs_struct *fs, struct vfsmount *mnt,
-		struct dentry *dentry)
+void set_fs_pwd(struct fs_struct *fs, struct path *path)
 {
 	struct path old_pwd;
 
 	write_lock(&fs->lock);
 	old_pwd = fs->pwd;
-	fs->pwd.mnt = mntget(mnt);
-	fs->pwd.dentry = dget(dentry);
+	fs->pwd = *path;
+	path_get(path);
 	write_unlock(&fs->lock);
 
 	if (old_pwd.dentry)
@@ -1697,12 +1695,10 @@ static void chroot_fs_refs(struct nameidata *old_nd, struct nameidata *new_nd)
 			task_unlock(p);
 			if (fs->root.dentry == old_nd->path.dentry
 			    && fs->root.mnt == old_nd->path.mnt)
-				set_fs_root(fs, new_nd->path.mnt,
-					    new_nd->path.dentry);
+				set_fs_root(fs, &new_nd->path);
 			if (fs->pwd.dentry == old_nd->path.dentry
 			    && fs->pwd.mnt == old_nd->path.mnt)
-				set_fs_pwd(fs, new_nd->path.mnt,
-					   new_nd->path.dentry);
+				set_fs_pwd(fs, &new_nd->path);
 			put_fs_struct(fs);
 		} else
 			task_unlock(p);
@@ -1845,6 +1841,7 @@ static void __init init_mount_tree(void)
 {
 	struct vfsmount *mnt;
 	struct mnt_namespace *ns;
+	struct path root;
 
 	mnt = do_kern_mount("rootfs", 0, "rootfs", NULL);
 	if (IS_ERR(mnt))
@@ -1863,8 +1860,11 @@ static void __init init_mount_tree(void)
 	init_task.nsproxy->mnt_ns = ns;
 	get_mnt_ns(ns);
 
-	set_fs_pwd(current->fs, ns->root, ns->root->mnt_root);
-	set_fs_root(current->fs, ns->root, ns->root->mnt_root);
+	root.mnt = ns->root;
+	root.dentry = ns->root->mnt_root;
+
+	set_fs_pwd(current->fs, &root);
+	set_fs_root(current->fs, &root);
 }
 
 void __init mnt_init(void)

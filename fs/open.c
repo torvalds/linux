@@ -490,7 +490,7 @@ asmlinkage long sys_chdir(const char __user * filename)
 	if (error)
 		goto dput_and_out;
 
-	set_fs_pwd(current->fs, nd.path.mnt, nd.path.dentry);
+	set_fs_pwd(current->fs, &nd.path);
 
 dput_and_out:
 	path_put(&nd.path);
@@ -501,9 +501,7 @@ out:
 asmlinkage long sys_fchdir(unsigned int fd)
 {
 	struct file *file;
-	struct dentry *dentry;
 	struct inode *inode;
-	struct vfsmount *mnt;
 	int error;
 
 	error = -EBADF;
@@ -511,9 +509,7 @@ asmlinkage long sys_fchdir(unsigned int fd)
 	if (!file)
 		goto out;
 
-	dentry = file->f_path.dentry;
-	mnt = file->f_path.mnt;
-	inode = dentry->d_inode;
+	inode = file->f_path.dentry->d_inode;
 
 	error = -ENOTDIR;
 	if (!S_ISDIR(inode->i_mode))
@@ -521,7 +517,7 @@ asmlinkage long sys_fchdir(unsigned int fd)
 
 	error = file_permission(file, MAY_EXEC);
 	if (!error)
-		set_fs_pwd(current->fs, mnt, dentry);
+		set_fs_pwd(current->fs, &file->f_path);
 out_putf:
 	fput(file);
 out:
@@ -545,7 +541,7 @@ asmlinkage long sys_chroot(const char __user * filename)
 	if (!capable(CAP_SYS_CHROOT))
 		goto dput_and_out;
 
-	set_fs_root(current->fs, nd.path.mnt, nd.path.dentry);
+	set_fs_root(current->fs, &nd.path);
 	set_fs_altroot();
 	error = 0;
 dput_and_out:
