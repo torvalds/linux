@@ -19,6 +19,7 @@
 
 #define CPUIDLE_STATE_MAX	8
 #define CPUIDLE_NAME_LEN	16
+#define CPUIDLE_DESC_LEN	32
 
 struct cpuidle_device;
 
@@ -29,6 +30,7 @@ struct cpuidle_device;
 
 struct cpuidle_state {
 	char		name[CPUIDLE_NAME_LEN];
+	char		desc[CPUIDLE_DESC_LEN];
 	void		*driver_data;
 
 	unsigned int	flags;
