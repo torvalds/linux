@@ -669,7 +669,7 @@ static int change_page_attr_set_clr(unsigned long addr, int numpages,
 				    pgprot_t mask_set, pgprot_t mask_clr)
 {
 	struct cpa_data cpa;
-	int ret, cache;
+	int ret, cache, checkalias;
 
 	/*
 	 * Check, if we are requested to change a not supported
@@ -695,7 +695,10 @@ static int change_page_attr_set_clr(unsigned long addr, int numpages,
 	cpa.mask_clr = mask_clr;
 	cpa.flushtlb = 0;
 
-	ret = __change_page_attr_set_clr(&cpa, 1);
+	/* No alias checking for _NX bit modifications */
+	checkalias = (pgprot_val(mask_set) | pgprot_val(mask_clr)) != _PAGE_NX;
+
+	ret = __change_page_attr_set_clr(&cpa, checkalias);
 
 	/*
 	 * Check whether we really changed something:
