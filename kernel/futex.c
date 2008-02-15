@@ -2116,7 +2116,7 @@ asmlinkage long sys_futex(u32 __user *uaddr, int op, u32 val,
 
 		t = timespec_to_ktime(ts);
 		if (cmd == FUTEX_WAIT)
-			t = ktime_add(ktime_get(), t);
+			t = ktime_add_safe(ktime_get(), t);
 		tp = &t;
 	}
 	/*
