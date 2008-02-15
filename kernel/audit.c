@@ -1312,26 +1312,26 @@ void audit_log_untrustedstring(struct audit_buffer *ab, const char *string)
 
 /* This is a helper-function to print the escaped d_path */
 void audit_log_d_path(struct audit_buffer *ab, const char *prefix,
-		      struct dentry *dentry, struct vfsmount *vfsmnt)
+		      struct path *path)
 {
-	char *p, *path;
+	char *p, *pathname;
 
 	if (prefix)
 		audit_log_format(ab, " %s", prefix);
 
 	/* We will allow 11 spaces for ' (deleted)' to be appended */
-	path = kmalloc(PATH_MAX+11, ab->gfp_mask);
-	if (!path) {
+	pathname = kmalloc(PATH_MAX+11, ab->gfp_mask);
+	if (!pathname) {
 		audit_log_format(ab, "<no memory>");
 		return;
 	}
-	p = d_path(dentry, vfsmnt, path, PATH_MAX+11);
+	p = d_path(path->dentry, path->mnt, pathname, PATH_MAX+11);
 	if (IS_ERR(p)) { /* Should never happen since we send PATH_MAX */
 		/* FIXME: can we save some information here? */
 		audit_log_format(ab, "<too long>");
 	} else
 		audit_log_untrustedstring(ab, p);
-	kfree(path);
+	kfree(pathname);
 }
 
 /**

@@ -208,8 +208,7 @@ struct audit_context {
 	int		    name_count;
 	struct audit_names  names[AUDIT_NAMES];
 	char *		    filterkey;	/* key for rule that triggered record */
-	struct dentry *	    pwd;
-	struct vfsmount *   pwdmnt;
+	struct path	    pwd;
 	struct audit_context *previous; /* For nested syscalls */
 	struct audit_aux_data *aux;
 	struct audit_aux_data *aux_pids;
@@ -786,12 +785,9 @@ static inline void audit_free_names(struct audit_context *context)
 			__putname(context->names[i].name);
 	}
 	context->name_count = 0;
-	if (context->pwd)
-		dput(context->pwd);
-	if (context->pwdmnt)
-		mntput(context->pwdmnt);
-	context->pwd = NULL;
-	context->pwdmnt = NULL;
+	path_put(&context->pwd);
+	context->pwd.dentry = NULL;
+	context->pwd.mnt = NULL;
 }
 
 static inline void audit_free_aux(struct audit_context *context)
@@ -930,8 +926,7 @@ static void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk
 			if ((vma->vm_flags & VM_EXECUTABLE) &&
 			    vma->vm_file) {
 				audit_log_d_path(ab, "exe=",
-						 vma->vm_file->f_path.dentry,
-						 vma->vm_file->f_path.mnt);
+						 &vma->vm_file->f_path);
 				break;
 			}
 			vma = vma->vm_next;
@@ -1341,10 +1336,10 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 				  context->target_sid, context->target_comm))
 			call_panic = 1;
 
-	if (context->pwd && context->pwdmnt) {
+	if (context->pwd.dentry && context->pwd.mnt) {
 		ab = audit_log_start(context, GFP_KERNEL, AUDIT_CWD);
 		if (ab) {
-			audit_log_d_path(ab, "cwd=", context->pwd, context->pwdmnt);
+			audit_log_d_path(ab, "cwd=", &context->pwd);
 			audit_log_end(ab);
 		}
 	}
@@ -1367,8 +1362,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 			case 0:
 				/* name was specified as a relative path and the
 				 * directory component is the cwd */
-				audit_log_d_path(ab, " name=", context->pwd,
-						 context->pwdmnt);
+				audit_log_d_path(ab, " name=", &context->pwd);
 				break;
 			default:
 				/* log the name's directory component */
@@ -1695,10 +1689,10 @@ void __audit_getname(const char *name)
 	context->names[context->name_count].ino  = (unsigned long)-1;
 	context->names[context->name_count].osid = 0;
 	++context->name_count;
-	if (!context->pwd) {
+	if (!context->pwd.dentry) {
 		read_lock(&current->fs->lock);
-		context->pwd = dget(current->fs->pwd.dentry);
-		context->pwdmnt = mntget(current->fs->pwd.mnt);
+		context->pwd = current->fs->pwd;
+		path_get(&current->fs->pwd);
 		read_unlock(&current->fs->lock);
 	}
 
