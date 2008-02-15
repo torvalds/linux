@@ -239,7 +239,7 @@ static struct rxrpc_transport *rxrpc_name_to_transport(struct socket *sock,
 	/* find a remote transport endpoint from the local one */
 	peer = rxrpc_get_peer(srx, gfp);
 	if (IS_ERR(peer))
-		return ERR_PTR(PTR_ERR(peer));
+		return ERR_CAST(peer);
 
 	/* find a transport */
 	trans = rxrpc_get_transport(rx->local, peer, gfp);
@@ -282,7 +282,7 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 		trans = rxrpc_name_to_transport(sock, (struct sockaddr *) srx,
 						sizeof(*srx), 0, gfp);
 		if (IS_ERR(trans)) {
-			call = ERR_PTR(PTR_ERR(trans));
+			call = ERR_CAST(trans);
 			trans = NULL;
 			goto out;
 		}
@@ -306,7 +306,7 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 
 	bundle = rxrpc_get_bundle(rx, trans, key, service_id, gfp);
 	if (IS_ERR(bundle)) {
-		call = ERR_PTR(PTR_ERR(bundle));
+		call = ERR_CAST(bundle);
 		goto out;
 	}
 

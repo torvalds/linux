@@ -95,7 +95,7 @@ static struct afs_vnode *afs_get_auth_inode(struct afs_vnode *vnode,
 		auth_inode = afs_iget(vnode->vfs_inode.i_sb, key,
 				      &vnode->status.parent, NULL, NULL);
 		if (IS_ERR(auth_inode))
-			return ERR_PTR(PTR_ERR(auth_inode));
+			return ERR_CAST(auth_inode);
 	}
 
 	auth_vnode = AFS_FS_I(auth_inode);
@@ -287,7 +287,7 @@ static int afs_check_permit(struct afs_vnode *vnode, struct key *key,
 int afs_permission(struct inode *inode, int mask, struct nameidata *nd)
 {
 	struct afs_vnode *vnode = AFS_FS_I(inode);
-	afs_access_t access;
+	afs_access_t uninitialized_var(access);
 	struct key *key;
 	int ret;
 

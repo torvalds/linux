@@ -11,10 +11,11 @@
  */
 
 static inline void
-pmd_populate(struct mm_struct *mm, pmd_t *pmd, struct page *pte)
+pmd_populate(struct mm_struct *mm, pmd_t *pmd, pgtable_t pte)
 {
 	pmd_set(pmd, (pte_t *)(page_to_pa(pte) + PAGE_OFFSET));
 }
+#define pmd_pgtable(pmd) pmd_page(pmd)
 
 static inline void
 pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd, pte_t *pte)
@@ -57,18 +58,23 @@ pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 	free_page((unsigned long)pte);
 }
 
-static inline struct page *
-pte_alloc_one(struct mm_struct *mm, unsigned long addr)
+static inline pgtable_t
+pte_alloc_one(struct mm_struct *mm, unsigned long address)
 {
-	pte_t *pte = pte_alloc_one_kernel(mm, addr);
-	if (pte)
-		return virt_to_page(pte);
-	return NULL;
+	pte_t *pte = pte_alloc_one_kernel(mm, address);
+	struct page *page;
+
+	if (!pte)
+		return NULL;
+	page = virt_to_page(pte);
+	pgtable_page_ctor(page);
+	return page;
 }
 
 static inline void
-pte_free(struct mm_struct *mm, struct page *page)
+pte_free(struct mm_struct *mm, pgtable_t page)
 {
+	pgtable_page_dtor(page);
 	__free_page(page);
 }
 

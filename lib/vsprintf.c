@@ -26,6 +26,9 @@
 #include <asm/page.h>		/* for PAGE_SIZE */
 #include <asm/div64.h>
 
+/* Works only for digits and letters, but small and fast */
+#define TOLOWER(x) ((x) | 0x20)
+
 /**
  * simple_strtoul - convert a string to an unsigned long
  * @cp: The start of the string
@@ -41,17 +44,17 @@ unsigned long simple_strtoul(const char *cp,char **endp,unsigned int base)
 		if (*cp == '0') {
 			base = 8;
 			cp++;
-			if ((toupper(*cp) == 'X') && isxdigit(cp[1])) {
+			if ((TOLOWER(*cp) == 'x') && isxdigit(cp[1])) {
 				cp++;
 				base = 16;
 			}
 		}
 	} else if (base == 16) {
-		if (cp[0] == '0' && toupper(cp[1]) == 'X')
+		if (cp[0] == '0' && TOLOWER(cp[1]) == 'x')
 			cp += 2;
 	}
 	while (isxdigit(*cp) &&
-	       (value = isdigit(*cp) ? *cp-'0' : toupper(*cp)-'A'+10) < base) {
+	       (value = isdigit(*cp) ? *cp-'0' : TOLOWER(*cp)-'a'+10) < base) {
 		result = result*base + value;
 		cp++;
 	}
@@ -92,17 +95,17 @@ unsigned long long simple_strtoull(const char *cp,char **endp,unsigned int base)
 		if (*cp == '0') {
 			base = 8;
 			cp++;
-			if ((toupper(*cp) == 'X') && isxdigit(cp[1])) {
+			if ((TOLOWER(*cp) == 'x') && isxdigit(cp[1])) {
 				cp++;
 				base = 16;
 			}
 		}
 	} else if (base == 16) {
-		if (cp[0] == '0' && toupper(cp[1]) == 'X')
+		if (cp[0] == '0' && TOLOWER(cp[1]) == 'x')
 			cp += 2;
 	}
-	while (isxdigit(*cp) && (value = isdigit(*cp) ? *cp-'0' : (islower(*cp)
-	    ? toupper(*cp) : *cp)-'A'+10) < base) {
+	while (isxdigit(*cp)
+	 && (value = isdigit(*cp) ? *cp-'0' : TOLOWER(*cp)-'a'+10) < base) {
 		result = result*base + value;
 		cp++;
 	}
@@ -125,6 +128,129 @@ long long simple_strtoll(const char *cp,char **endp,unsigned int base)
 		return -simple_strtoull(cp+1,endp,base);
 	return simple_strtoull(cp,endp,base);
 }
+
+
+/**
+ * strict_strtoul - convert a string to an unsigned long strictly
+ * @cp: The string to be converted
+ * @base: The number base to use
+ * @res: The converted result value
+ *
+ * strict_strtoul converts a string to an unsigned long only if the
+ * string is really an unsigned long string, any string containing
+ * any invalid char at the tail will be rejected and -EINVAL is returned,
+ * only a newline char at the tail is acceptible because people generally
+ * change a module parameter in the following way:
+ *
+ * 	echo 1024 > /sys/module/e1000/parameters/copybreak
+ *
+ * echo will append a newline to the tail.
+ *
+ * It returns 0 if conversion is successful and *res is set to the converted
+ * value, otherwise it returns -EINVAL and *res is set to 0.
+ *
+ * simple_strtoul just ignores the successive invalid characters and
+ * return the converted value of prefix part of the string.
+ */
+int strict_strtoul(const char *cp, unsigned int base, unsigned long *res);
+
+/**
+ * strict_strtol - convert a string to a long strictly
+ * @cp: The string to be converted
+ * @base: The number base to use
+ * @res: The converted result value
+ *
+ * strict_strtol is similiar to strict_strtoul, but it allows the first
+ * character of a string is '-'.
+ *
+ * It returns 0 if conversion is successful and *res is set to the converted
+ * value, otherwise it returns -EINVAL and *res is set to 0.
+ */
+int strict_strtol(const char *cp, unsigned int base, long *res);
+
+/**
+ * strict_strtoull - convert a string to an unsigned long long strictly
+ * @cp: The string to be converted
+ * @base: The number base to use
+ * @res: The converted result value
+ *
+ * strict_strtoull converts a string to an unsigned long long only if the
+ * string is really an unsigned long long string, any string containing
+ * any invalid char at the tail will be rejected and -EINVAL is returned,
+ * only a newline char at the tail is acceptible because people generally
+ * change a module parameter in the following way:
+ *
+ * 	echo 1024 > /sys/module/e1000/parameters/copybreak
+ *
+ * echo will append a newline to the tail of the string.
+ *
+ * It returns 0 if conversion is successful and *res is set to the converted
+ * value, otherwise it returns -EINVAL and *res is set to 0.
+ *
+ * simple_strtoull just ignores the successive invalid characters and
+ * return the converted value of prefix part of the string.
+ */
+int strict_strtoull(const char *cp, unsigned int base, unsigned long long *res);
+
+/**
+ * strict_strtoll - convert a string to a long long strictly
+ * @cp: The string to be converted
+ * @base: The number base to use
+ * @res: The converted result value
+ *
+ * strict_strtoll is similiar to strict_strtoull, but it allows the first
+ * character of a string is '-'.
+ *
+ * It returns 0 if conversion is successful and *res is set to the converted
+ * value, otherwise it returns -EINVAL and *res is set to 0.
+ */
+int strict_strtoll(const char *cp, unsigned int base, long long *res);
+
+#define define_strict_strtoux(type, valtype)				\
+int strict_strtou##type(const char *cp, unsigned int base, valtype *res)\
+{									\
+	char *tail;							\
+	valtype val;							\
+	size_t len;							\
+									\
+	*res = 0;							\
+	len = strlen(cp);						\
+	if (len == 0)							\
+		return -EINVAL;						\
+									\
+	val = simple_strtoul(cp, &tail, base);				\
+	if ((*tail == '\0') ||						\
+		((len == (size_t)(tail - cp) + 1) && (*tail == '\n'))) {\
+		*res = val;						\
+		return 0;						\
+	}								\
+									\
+	return -EINVAL;							\
+}									\
+
+#define define_strict_strtox(type, valtype)				\
+int strict_strto##type(const char *cp, unsigned int base, valtype *res)	\
+{									\
+	int ret;							\
+	if (*cp == '-') {						\
+		ret = strict_strtou##type(cp+1, base, res);		\
+		if (ret != 0)						\
+			*res = -(*res);					\
+	} else								\
+		ret = strict_strtou##type(cp, base, res);		\
+									\
+	return ret;							\
+}									\
+
+define_strict_strtoux(l, unsigned long)
+define_strict_strtox(l, long)
+define_strict_strtoux(ll, unsigned long long)
+define_strict_strtox(ll, long long)
+
+EXPORT_SYMBOL(strict_strtoul);
+EXPORT_SYMBOL(strict_strtol);
+EXPORT_SYMBOL(strict_strtoll);
+EXPORT_SYMBOL(strict_strtoull);
 
 static int skip_atoi(const char **s)
 {
@@ -237,24 +363,25 @@ static noinline char* put_dec(char *buf, unsigned long long num)
 #define PLUS	4		/* show plus */
 #define SPACE	8		/* space if plus */
 #define LEFT	16		/* left justified */
-#define SPECIAL	32		/* 0x */
-#define LARGE	64		/* use 'ABCDEF' instead of 'abcdef' */
+#define SMALL	32		/* Must be 32 == 0x20 */
+#define SPECIAL	64		/* 0x */
 
 static char *number(char *buf, char *end, unsigned long long num, int base, int size, int precision, int type)
 {
-	char sign,tmp[66];
-	const char *digits;
-	/* we are called with base 8, 10 or 16, only, thus don't need "g..."  */
-	static const char small_digits[] = "0123456789abcdefx"; /* "ghijklmnopqrstuvwxyz"; */
-	static const char large_digits[] = "0123456789ABCDEFX"; /* "GHIJKLMNOPQRSTUVWXYZ"; */
+	/* we are called with base 8, 10 or 16, only, thus don't need "G..."  */
+	static const char digits[16] = "0123456789ABCDEF"; /* "GHIJKLMNOPQRSTUVWXYZ"; */
+
+	char tmp[66];
+	char sign;
+	char locase;
 	int need_pfx = ((type & SPECIAL) && base != 10);
 	int i;
 
-	digits = (type & LARGE) ? large_digits : small_digits;
+	/* locase = 0 or 0x20. ORing digits or letters with 'locase'
+	 * produces same digits or (maybe lowercased) letters */
+	locase = (type & SMALL);
 	if (type & LEFT)
 		type &= ~ZEROPAD;
-	if (base < 2 || base > 36)
-		return NULL;
 	sign = 0;
 	if (type & SIGN) {
 		if ((signed long long) num < 0) {
@@ -281,7 +408,7 @@ static char *number(char *buf, char *end, unsigned long long num, int base, int 
 		tmp[i++] = '0';
 	/* Generic code, for any base:
 	else do {
-		tmp[i++] = digits[do_div(num,base)];
+		tmp[i++] = (digits[do_div(num,base)] | locase);
 	} while (num != 0);
 	*/
 	else if (base != 10) { /* 8 or 16 */
@@ -289,7 +416,7 @@ static char *number(char *buf, char *end, unsigned long long num, int base, int 
 		int shift = 3;
 		if (base == 16) shift = 4;
 		do {
-			tmp[i++] = digits[((unsigned char)num) & mask];
+			tmp[i++] = (digits[((unsigned char)num) & mask] | locase);
 			num >>= shift;
 		} while (num);
 	} else { /* base 10 */
@@ -321,7 +448,7 @@ static char *number(char *buf, char *end, unsigned long long num, int base, int 
 		++buf;
 		if (base == 16) {
 			if (buf < end)
-				*buf = digits[16]; /* for arbitrary base: digits[33]; */
+				*buf = ('X' | locase);
 			++buf;
 		}
 	}
@@ -521,6 +648,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 				continue;
 
 			case 'p':
+				flags |= SMALL;
 				if (field_width == -1) {
 					field_width = 2*sizeof(void *);
 					flags |= ZEROPAD;
@@ -557,9 +685,9 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 				base = 8;
 				break;
 
-			case 'X':
-				flags |= LARGE;
 			case 'x':
+				flags |= SMALL;
+			case 'X':
 				base = 16;
 				break;
 

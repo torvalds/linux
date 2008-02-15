@@ -13,6 +13,7 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/netfilter/x_tables.h>
+#include <linux/netfilter/xt_iprange.h>
 #include <linux/netfilter_ipv4/ipt_iprange.h>
 
 static bool
@@ -148,7 +149,7 @@ static struct xt_match iprange_mt_reg[] __read_mostly = {
 	{
 		.name      = "iprange",
 		.revision  = 1,
-		.family    = AF_INET6,
+		.family    = AF_INET,
 		.match     = iprange_mt4,
 		.matchsize = sizeof(struct xt_iprange_mtinfo),
 		.me        = THIS_MODULE,

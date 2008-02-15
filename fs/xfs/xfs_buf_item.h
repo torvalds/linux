@@ -18,6 +18,8 @@
 #ifndef	__XFS_BUF_ITEM_H__
 #define	__XFS_BUF_ITEM_H__
 
+extern kmem_zone_t	*xfs_buf_item_zone;
+
 /*
  * This is the structure used to lay out a buf log item in the
  * log.  The data map describes which 128 byte chunks of the buffer

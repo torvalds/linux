@@ -84,6 +84,8 @@ struct romfs_inode_info {
 	struct inode vfs_inode;
 };
 
+static struct inode *romfs_iget(struct super_block *, unsigned long);
+
 /* instead of private superblock data */
 static inline unsigned long romfs_maxsize(struct super_block *sb)
 {
@@ -117,7 +119,7 @@ static int romfs_fill_super(struct super_block *s, void *data, int silent)
 	struct buffer_head *bh;
 	struct romfs_super_block *rsb;
 	struct inode *root;
-	int sz;
+	int sz, ret = -EINVAL;
 
 	/* I would parse the options here, but there are none.. :) */
 
@@ -157,10 +159,13 @@ static int romfs_fill_super(struct super_block *s, void *data, int silent)
 	     & ROMFH_MASK;
 
 	s->s_op	= &romfs_ops;
-	root = iget(s, sz);
-	if (!root)
+	root = romfs_iget(s, sz);
+	if (IS_ERR(root)) {
+		ret = PTR_ERR(root);
 		goto out;
+	}
 
+	ret = -ENOMEM;
 	s->s_root = d_alloc_root(root);
 	if (!s->s_root)
 		goto outiput;
@@ -173,7 +178,7 @@ outiput:
 out:
 	brelse(bh);
 outnobh:
-	return -EINVAL;
+	return ret;
 }
 
 /* That's simple too. */
@@ -389,8 +394,11 @@ romfs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 	if ((be32_to_cpu(ri.next) & ROMFH_TYPE) == ROMFH_HRD)
 		offset = be32_to_cpu(ri.spec) & ROMFH_MASK;
 
-	if ((inode = iget(dir->i_sb, offset)))
-		goto outi;
+	inode = romfs_iget(dir->i_sb, offset);
+	if (IS_ERR(inode)) {
+		res = PTR_ERR(inode);
+		goto out;
+	}
 
 	/*
 	 * it's a bit funky, _lookup needs to return an error code
@@ -402,7 +410,7 @@ romfs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 	 */
 
 out0:	inode = NULL;
-outi:	res = 0;
+	res = 0;
 	d_add (dentry, inode);
 
 out:	unlock_kernel();
@@ -478,20 +486,29 @@ static mode_t romfs_modemap[] =
 	S_IFBLK+0600, S_IFCHR+0600, S_IFSOCK+0644, S_IFIFO+0644
 };
 
-static void
-romfs_read_inode(struct inode *i)
+static struct inode *
+romfs_iget(struct super_block *sb, unsigned long ino)
 {
-	int nextfh, ino;
+	int nextfh;
 	struct romfs_inode ri;
+	struct inode *i;
 
-	ino = i->i_ino & ROMFH_MASK;
+	ino &= ROMFH_MASK;
+	i = iget_locked(sb, ino);
+	if (!i)
+		return ERR_PTR(-ENOMEM);
+	if (!(i->i_state & I_NEW))
+		return i;
+
 	i->i_mode = 0;
 
 	/* Loop for finding the real hard link */
 	for(;;) {
 		if (romfs_copyfrom(i, &ri, ino, ROMFH_SIZE) <= 0) {
-			printk("romfs: read error for inode 0x%x\n", ino);
-			return;
+			printk(KERN_ERR "romfs: read error for inode 0x%lx\n",
+				ino);
+			iget_failed(i);
+			return ERR_PTR(-EIO);
 		}
 		/* XXX: do romfs_checksum here too (with name) */
 
@@ -548,6 +565,8 @@ romfs_read_inode(struct inode *i)
 			init_special_inode(i, ino,
 					MKDEV(nextfh>>16,nextfh&0xffff));
 	}
+	unlock_new_inode(i);
+	return i;
 }
 
 static struct kmem_cache * romfs_inode_cachep;
@@ -599,7 +618,6 @@ static int romfs_remount(struct super_block *sb, int *flags, char *data)
 static const struct super_operations romfs_ops = {
 	.alloc_inode	= romfs_alloc_inode,
 	.destroy_inode	= romfs_destroy_inode,
-	.read_inode	= romfs_read_inode,
 	.statfs		= romfs_statfs,
 	.remount_fs	= romfs_remount,
 };

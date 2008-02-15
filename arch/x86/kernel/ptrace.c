@@ -103,9 +103,26 @@ static int set_segment_reg(struct task_struct *task,
 	if (invalid_selector(value))
 		return -EIO;
 
-	if (offset != offsetof(struct user_regs_struct, gs))
+	/*
+	 * For %cs and %ss we cannot permit a null selector.
+	 * We can permit a bogus selector as long as it has USER_RPL.
+	 * Null selectors are fine for other segment registers, but
+	 * we will never get back to user mode with invalid %cs or %ss
+	 * and will take the trap in iret instead.  Much code relies
+	 * on user_mode() to distinguish a user trap frame (which can
+	 * safely use invalid selectors) from a kernel trap frame.
+	 */
+	switch (offset) {
+	case offsetof(struct user_regs_struct, cs):
+	case offsetof(struct user_regs_struct, ss):
+		if (unlikely(value == 0))
+			return -EIO;
+
+	default:
 		*pt_regs_access(task_pt_regs(task), offset) = value;
-	else {
+		break;
+
+	case offsetof(struct user_regs_struct, gs):
 		task->thread.gs = value;
 		if (task == current)
 			/*
@@ -227,12 +244,16 @@ static int set_segment_reg(struct task_struct *task,
 		 * Can't actually change these in 64-bit mode.
 		 */
 	case offsetof(struct user_regs_struct,cs):
+		if (unlikely(value == 0))
+			return -EIO;
 #ifdef CONFIG_IA32_EMULATION
 		if (test_tsk_thread_flag(task, TIF_IA32))
 			task_pt_regs(task)->cs = value;
 #endif
 		break;
 	case offsetof(struct user_regs_struct,ss):
+		if (unlikely(value == 0))
+			return -EIO;
 #ifdef CONFIG_IA32_EMULATION
 		if (test_tsk_thread_flag(task, TIF_IA32))
 			task_pt_regs(task)->ss = value;

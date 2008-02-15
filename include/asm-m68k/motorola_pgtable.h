@@ -191,7 +191,8 @@ static inline pte_t pte_mkcache(pte_t pte)
 #define pgd_index(address)     ((address) >> PGDIR_SHIFT)
 
 /* to find an entry in a page-table-directory */
-static inline pgd_t *pgd_offset(struct mm_struct *mm, unsigned long address)
+static inline pgd_t *pgd_offset(const struct mm_struct *mm,
+				unsigned long address)
 {
 	return mm->pgd + pgd_index(address);
 }

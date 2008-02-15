@@ -138,6 +138,14 @@
 			interrupts = <15 8>;
 		};
 
+		USB0: ehci@e0000300 {
+			compatible = "ibm,usb-ehci-440epx", "usb-ehci";
+			interrupt-parent = <&UIC0>;
+			interrupts = <1a 4>;
+			reg = <0 e0000300 90 0 e0000390 70>;
+			big-endian;
+		};
+
 		POB0: opb {
 		  	compatible = "ibm,opb-440epx", "ibm,opb";
 			#address-cells = <1>;

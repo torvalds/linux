@@ -27,8 +27,7 @@ static char *ISACVer[] __devinitdata =
 {"2086/2186 V1.1", "2085 B1", "2085 B2",
  "2085 V2.3"};
 
-void
-ISACVersion(struct IsdnCardState *cs, char *s)
+void __devinit ISACVersion(struct IsdnCardState *cs, char *s)
 {
 	int val;
 
@@ -616,8 +615,7 @@ dbusy_timer_handler(struct IsdnCardState *cs)
 	}
 }
 
-void __devinit
-initisac(struct IsdnCardState *cs)
+void initisac(struct IsdnCardState *cs)
 {
 	cs->setstack_d = setstack_isac;
 	cs->DC_Close = DC_Close_isac;
@@ -648,8 +646,7 @@ initisac(struct IsdnCardState *cs)
 	cs->writeisac(cs, ISAC_MASK, 0x0);
 }
 
-void __devinit
-clear_pending_isac_ints(struct IsdnCardState *cs)
+void clear_pending_isac_ints(struct IsdnCardState *cs)
 {
 	int val, eval;
 

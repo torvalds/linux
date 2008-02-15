@@ -48,12 +48,12 @@
  *    we cannot lose wakeup events.
  */
 
-fastcall void __up(struct semaphore *sem)
+void __up(struct semaphore *sem)
 {
 	wake_up(&sem->wait);
 }
 
-fastcall void __sched __down(struct semaphore * sem)
+void __sched __down(struct semaphore *sem)
 {
 	struct task_struct *tsk = current;
 	DECLARE_WAITQUEUE(wait, tsk);
@@ -90,7 +90,7 @@ fastcall void __sched __down(struct semaphore * sem)
 	tsk->state = TASK_RUNNING;
 }
 
-fastcall int __sched __down_interruptible(struct semaphore * sem)
+int __sched __down_interruptible(struct semaphore *sem)
 {
 	int retval = 0;
 	struct task_struct *tsk = current;
@@ -153,7 +153,7 @@ fastcall int __sched __down_interruptible(struct semaphore * sem)
  * single "cmpxchg" without failure cases,
  * but then it wouldn't work on a 386.
  */
-fastcall int __down_trylock(struct semaphore * sem)
+int __down_trylock(struct semaphore *sem)
 {
 	int sleepers;
 	unsigned long flags;

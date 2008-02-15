@@ -10,9 +10,12 @@
 #include <linux/errno.h>
 #include <linux/list.h>
 #include <linux/types.h>
+#include <linux/pnp.h>
 #include <linux/stat.h>
 #include <linux/ctype.h>
 #include <linux/slab.h>
+#include <linux/mutex.h>
+
 #include <asm/uaccess.h>
 
 #include "base.h"
@@ -315,8 +318,6 @@ static ssize_t pnp_show_current_resources(struct device *dmdev,
 	return ret;
 }
 
-extern struct semaphore pnp_res_mutex;
-
 static ssize_t
 pnp_set_current_resources(struct device *dmdev, struct device_attribute *attr,
 			  const char *ubuf, size_t count)
@@ -361,10 +362,10 @@ pnp_set_current_resources(struct device *dmdev, struct device_attribute *attr,
 		goto done;
 	}
 	if (!strnicmp(buf, "get", 3)) {
-		down(&pnp_res_mutex);
+		mutex_lock(&pnp_res_mutex);
 		if (pnp_can_read(dev))
 			dev->protocol->get(dev, &dev->res);
-		up(&pnp_res_mutex);
+		mutex_unlock(&pnp_res_mutex);
 		goto done;
 	}
 	if (!strnicmp(buf, "set", 3)) {
@@ -373,7 +374,7 @@ pnp_set_current_resources(struct device *dmdev, struct device_attribute *attr,
 			goto done;
 		buf += 3;
 		pnp_init_resource_table(&dev->res);
-		down(&pnp_res_mutex);
+		mutex_lock(&pnp_res_mutex);
 		while (1) {
 			while (isspace(*buf))
 				++buf;
@@ -455,7 +456,7 @@ pnp_set_current_resources(struct device *dmdev, struct device_attribute *attr,
 			}
 			break;
 		}
-		up(&pnp_res_mutex);
+		mutex_unlock(&pnp_res_mutex);
 		goto done;
 	}
 

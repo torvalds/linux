@@ -71,6 +71,8 @@ typedef unsigned long	pgdval_t;
 typedef unsigned long	pgprotval_t;
 typedef unsigned long	phys_addr_t;
 
+typedef struct page *pgtable_t;
+
 typedef struct { pteval_t pte; } pte_t;
 
 #define vmemmap ((struct page *)VMEMMAP_START)

@@ -125,6 +125,8 @@ extern __inline__ int get_order(unsigned long size)
 	return 32 - lz;
 }
 
+typedef struct page *pgtable_t;
+
 #endif /* __ASSEMBLY__ */
 
 #define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \

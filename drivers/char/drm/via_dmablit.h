@@ -1,5 +1,5 @@
 /* via_dmablit.h -- PCI DMA BitBlt support for the VIA Unichrome/Pro
- * 
+ *
  * Copyright 2005 Thomas Hellstrom.
  * All Rights Reserved.
  *
@@ -17,12 +17,12 @@
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
- * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, 
- * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR 
- * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE 
+ * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
+ * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+ * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: 
+ * Authors:
  *    Thomas Hellstrom.
  *    Register info from Digeo Inc.
  */
@@ -67,7 +67,7 @@ typedef struct _drm_via_blitq {
 	unsigned cur;
 	unsigned num_free;
 	unsigned num_outstanding;
-	unsigned long end;  
+	unsigned long end;
         int aborting;
 	int is_active;
 	drm_via_sg_info_t *blits[VIA_NUM_BLIT_SLOTS];
@@ -77,46 +77,46 @@ typedef struct _drm_via_blitq {
 	struct work_struct wq;
 	struct timer_list poll_timer;
 } drm_via_blitq_t;
-	
 
-/* 
+
+/*
  *  PCI DMA Registers
  *  Channels 2 & 3 don't seem to be implemented in hardware.
  */
- 
-#define VIA_PCI_DMA_MAR0            0xE40   /* Memory Address Register of Channel 0 */ 
-#define VIA_PCI_DMA_DAR0            0xE44   /* Device Address Register of Channel 0 */ 
-#define VIA_PCI_DMA_BCR0            0xE48   /* Byte Count Register of Channel 0 */ 
-#define VIA_PCI_DMA_DPR0            0xE4C   /* Descriptor Pointer Register of Channel 0 */ 
 
-#define VIA_PCI_DMA_MAR1            0xE50   /* Memory Address Register of Channel 1 */ 
-#define VIA_PCI_DMA_DAR1            0xE54   /* Device Address Register of Channel 1 */ 
-#define VIA_PCI_DMA_BCR1            0xE58   /* Byte Count Register of Channel 1 */ 
-#define VIA_PCI_DMA_DPR1            0xE5C   /* Descriptor Pointer Register of Channel 1 */ 
+#define VIA_PCI_DMA_MAR0            0xE40   /* Memory Address Register of Channel 0 */
+#define VIA_PCI_DMA_DAR0            0xE44   /* Device Address Register of Channel 0 */
+#define VIA_PCI_DMA_BCR0            0xE48   /* Byte Count Register of Channel 0 */
+#define VIA_PCI_DMA_DPR0            0xE4C   /* Descriptor Pointer Register of Channel 0 */
 
-#define VIA_PCI_DMA_MAR2            0xE60   /* Memory Address Register of Channel 2 */ 
-#define VIA_PCI_DMA_DAR2            0xE64   /* Device Address Register of Channel 2 */ 
-#define VIA_PCI_DMA_BCR2            0xE68   /* Byte Count Register of Channel 2 */ 
-#define VIA_PCI_DMA_DPR2            0xE6C   /* Descriptor Pointer Register of Channel 2 */ 
+#define VIA_PCI_DMA_MAR1            0xE50   /* Memory Address Register of Channel 1 */
+#define VIA_PCI_DMA_DAR1            0xE54   /* Device Address Register of Channel 1 */
+#define VIA_PCI_DMA_BCR1            0xE58   /* Byte Count Register of Channel 1 */
+#define VIA_PCI_DMA_DPR1            0xE5C   /* Descriptor Pointer Register of Channel 1 */
 
-#define VIA_PCI_DMA_MAR3            0xE70   /* Memory Address Register of Channel 3 */ 
-#define VIA_PCI_DMA_DAR3            0xE74   /* Device Address Register of Channel 3 */ 
-#define VIA_PCI_DMA_BCR3            0xE78   /* Byte Count Register of Channel 3 */ 
-#define VIA_PCI_DMA_DPR3            0xE7C   /* Descriptor Pointer Register of Channel 3 */ 
+#define VIA_PCI_DMA_MAR2            0xE60   /* Memory Address Register of Channel 2 */
+#define VIA_PCI_DMA_DAR2            0xE64   /* Device Address Register of Channel 2 */
+#define VIA_PCI_DMA_BCR2            0xE68   /* Byte Count Register of Channel 2 */
+#define VIA_PCI_DMA_DPR2            0xE6C   /* Descriptor Pointer Register of Channel 2 */
 
-#define VIA_PCI_DMA_MR0             0xE80   /* Mode Register of Channel 0 */ 
-#define VIA_PCI_DMA_MR1             0xE84   /* Mode Register of Channel 1 */ 
-#define VIA_PCI_DMA_MR2             0xE88   /* Mode Register of Channel 2 */ 
-#define VIA_PCI_DMA_MR3             0xE8C   /* Mode Register of Channel 3 */ 
+#define VIA_PCI_DMA_MAR3            0xE70   /* Memory Address Register of Channel 3 */
+#define VIA_PCI_DMA_DAR3            0xE74   /* Device Address Register of Channel 3 */
+#define VIA_PCI_DMA_BCR3            0xE78   /* Byte Count Register of Channel 3 */
+#define VIA_PCI_DMA_DPR3            0xE7C   /* Descriptor Pointer Register of Channel 3 */
 
-#define VIA_PCI_DMA_CSR0            0xE90   /* Command/Status Register of Channel 0 */ 
-#define VIA_PCI_DMA_CSR1            0xE94   /* Command/Status Register of Channel 1 */ 
-#define VIA_PCI_DMA_CSR2            0xE98   /* Command/Status Register of Channel 2 */ 
-#define VIA_PCI_DMA_CSR3            0xE9C   /* Command/Status Register of Channel 3 */ 
+#define VIA_PCI_DMA_MR0             0xE80   /* Mode Register of Channel 0 */
+#define VIA_PCI_DMA_MR1             0xE84   /* Mode Register of Channel 1 */
+#define VIA_PCI_DMA_MR2             0xE88   /* Mode Register of Channel 2 */
+#define VIA_PCI_DMA_MR3             0xE8C   /* Mode Register of Channel 3 */
 
-#define VIA_PCI_DMA_PTR             0xEA0   /* Priority Type Register */ 
+#define VIA_PCI_DMA_CSR0            0xE90   /* Command/Status Register of Channel 0 */
+#define VIA_PCI_DMA_CSR1            0xE94   /* Command/Status Register of Channel 1 */
+#define VIA_PCI_DMA_CSR2            0xE98   /* Command/Status Register of Channel 2 */
+#define VIA_PCI_DMA_CSR3            0xE9C   /* Command/Status Register of Channel 3 */
 
-/* Define for DMA engine */ 
+#define VIA_PCI_DMA_PTR             0xEA0   /* Priority Type Register */
+
+/* Define for DMA engine */
 /* DPR */
 #define VIA_DMA_DPR_EC		(1<<1)	/* end of chain */
 #define VIA_DMA_DPR_DDIE	(1<<2)	/* descriptor done interrupt enable */

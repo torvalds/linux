@@ -20,31 +20,27 @@ struct probe_data {
 	marker_probe_func *probe_func;
 };
 
-void probe_subsystem_event(const struct marker *mdata, void *private,
-	const char *format, ...)
+void probe_subsystem_event(void *probe_data, void *call_data,
+	const char *format, va_list *args)
 {
-	va_list ap;
 	/* Declare args */
 	unsigned int value;
 	const char *mystr;
 
 	/* Assign args */
-	va_start(ap, format);
-	value = va_arg(ap, typeof(value));
-	mystr = va_arg(ap, typeof(mystr));
+	value = va_arg(*args, typeof(value));
+	mystr = va_arg(*args, typeof(mystr));
 
 	/* Call printk */
-	printk(KERN_DEBUG "Value %u, string %s\n", value, mystr);
+	printk(KERN_INFO "Value %u, string %s\n", value, mystr);
 
 	/* or count, check rights, serialize data in a buffer */
-
-	va_end(ap);
 }
 
 atomic_t eventb_count = ATOMIC_INIT(0);
 
-void probe_subsystem_eventb(const struct marker *mdata, void *private,
-	const char *format, ...)
+void probe_subsystem_eventb(void *probe_data, void *call_data,
+	const char *format, va_list *args)
 {
 	/* Increment counter */
 	atomic_inc(&eventb_count);
@@ -72,10 +68,6 @@ static int __init probe_init(void)
 		if (result)
 			printk(KERN_INFO "Unable to register probe %s\n",
 				probe_array[i].name);
-		result = marker_arm(probe_array[i].name);
-		if (result)
-			printk(KERN_INFO "Unable to arm probe %s\n",
-				probe_array[i].name);
 	}
 	return 0;
 }
@@ -85,7 +77,8 @@ static void __exit probe_fini(void)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(probe_array); i++)
-		marker_probe_unregister(probe_array[i].name);
+		marker_probe_unregister(probe_array[i].name,
+			probe_array[i].probe_func, &probe_array[i]);
 	printk(KERN_INFO "Number of event b : %u\n",
 			atomic_read(&eventb_count));
 }

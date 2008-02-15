@@ -106,7 +106,7 @@ typedef int (*action_fn) (struct pgpath *pgpath);
 
 static struct kmem_cache *_mpio_cache;
 
-struct workqueue_struct *kmultipathd;
+static struct workqueue_struct *kmultipathd;
 static void process_queued_ios(struct work_struct *work);
 static void trigger_event(struct work_struct *work);
 

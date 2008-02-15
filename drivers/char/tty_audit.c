@@ -27,7 +27,7 @@ static struct tty_audit_buf *tty_audit_buf_alloc(int major, int minor,
 {
 	struct tty_audit_buf *buf;
 
-	buf = kmalloc(sizeof (*buf), GFP_KERNEL);
+	buf = kmalloc(sizeof(*buf), GFP_KERNEL);
 	if (!buf)
 		goto err;
 	if (PAGE_SIZE != N_TTY_BUF_SIZE)

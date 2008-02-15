@@ -60,10 +60,15 @@ static void drive_stat_acct(struct request *rq, int new_io)
 		return;
 
 	if (!new_io) {
-		__disk_stat_inc(rq->rq_disk, merges[rw]);
+		__all_stat_inc(rq->rq_disk, merges[rw], rq->sector);
 	} else {
+		struct hd_struct *part = get_part(rq->rq_disk, rq->sector);
 		disk_round_stats(rq->rq_disk);
 		rq->rq_disk->in_flight++;
+		if (part) {
+			part_round_stats(part);
+			part->in_flight++;
+		}
 	}
 }
 
@@ -102,27 +107,38 @@ struct backing_dev_info *blk_get_backing_dev_info(struct block_device *bdev)
 }
 EXPORT_SYMBOL(blk_get_backing_dev_info);
 
+/*
+ * We can't just memset() the structure, since the allocation path
+ * already stored some information in the request.
+ */
 void rq_init(struct request_queue *q, struct request *rq)
 {
 	INIT_LIST_HEAD(&rq->queuelist);
 	INIT_LIST_HEAD(&rq->donelist);
-
-	rq->errors = 0;
+	rq->q = q;
+	rq->sector = rq->hard_sector = (sector_t) -1;
+	rq->nr_sectors = rq->hard_nr_sectors = 0;
+	rq->current_nr_sectors = rq->hard_cur_sectors = 0;
 	rq->bio = rq->biotail = NULL;
 	INIT_HLIST_NODE(&rq->hash);
 	RB_CLEAR_NODE(&rq->rb_node);
-	rq->ioprio = 0;
-	rq->buffer = NULL;
-	rq->ref_count = 1;
-	rq->q = q;
-	rq->special = NULL;
-	rq->data_len = 0;
-	rq->data = NULL;
+	rq->rq_disk = NULL;
 	rq->nr_phys_segments = 0;
+	rq->nr_hw_segments = 0;
+	rq->ioprio = 0;
+	rq->special = NULL;
+	rq->buffer = NULL;
+	rq->tag = -1;
+	rq->errors = 0;
+	rq->ref_count = 1;
+	rq->cmd_len = 0;
+	memset(rq->cmd, 0, sizeof(rq->cmd));
+	rq->data_len = 0;
+	rq->sense_len = 0;
+	rq->data = NULL;
 	rq->sense = NULL;
 	rq->end_io = NULL;
 	rq->end_io_data = NULL;
-	rq->completion_data = NULL;
 	rq->next_rq = NULL;
 }
 
@@ -986,6 +1002,21 @@ void disk_round_stats(struct gendisk *disk)
 }
 EXPORT_SYMBOL_GPL(disk_round_stats);
 
+void part_round_stats(struct hd_struct *part)
+{
+	unsigned long now = jiffies;
+
+	if (now == part->stamp)
+		return;
+
+	if (part->in_flight) {
+		__part_stat_add(part, time_in_queue,
+				part->in_flight * (now - part->stamp));
+		__part_stat_add(part, io_ticks, (now - part->stamp));
+	}
+	part->stamp = now;
+}
+
 /*
  * queue lock must be held
  */
@@ -1188,10 +1219,6 @@ static inline void blk_partition_remap(struct bio *bio)
 
 	if (bio_sectors(bio) && bdev != bdev->bd_contains) {
 		struct hd_struct *p = bdev->bd_part;
-		const int rw = bio_data_dir(bio);
-
-		p->sectors[rw] += bio_sectors(bio);
-		p->ios[rw]++;
 
 		bio->bi_sector += p->start_sect;
 		bio->bi_bdev = bdev->bd_contains;
@@ -1519,7 +1546,8 @@ static int __end_that_request_first(struct request *req, int error,
 	if (blk_fs_request(req) && req->rq_disk) {
 		const int rw = rq_data_dir(req);
 
-		disk_stat_add(req->rq_disk, sectors[rw], nr_bytes >> 9);
+		all_stat_add(req->rq_disk, sectors[rw],
+			     nr_bytes >> 9, req->sector);
 	}
 
 	total_bytes = bio_nbytes = 0;
@@ -1704,11 +1732,16 @@ static void end_that_request_last(struct request *req, int error)
 	if (disk && blk_fs_request(req) && req != &req->q->bar_rq) {
 		unsigned long duration = jiffies - req->start_time;
 		const int rw = rq_data_dir(req);
+		struct hd_struct *part = get_part(disk, req->sector);
 
-		__disk_stat_inc(disk, ios[rw]);
-		__disk_stat_add(disk, ticks[rw], duration);
+		__all_stat_inc(disk, ios[rw], req->sector);
+		__all_stat_add(disk, ticks[rw], duration, req->sector);
 		disk_round_stats(disk);
 		disk->in_flight--;
+		if (part) {
+			part_round_stats(part);
+			part->in_flight--;
+		}
 	}
 
 	if (req->end_io)

@@ -2066,40 +2066,49 @@ static struct fb_info *__devinit neo_alloc_fb_info(struct pci_dev *dev, const st
 
 	switch (info->fix.accel) {
 	case FB_ACCEL_NEOMAGIC_NM2070:
-		sprintf(info->fix.id, "MagicGraph 128");
+		snprintf(info->fix.id, sizeof(info->fix.id),
+				"MagicGraph 128");
 		break;
 	case FB_ACCEL_NEOMAGIC_NM2090:
-		sprintf(info->fix.id, "MagicGraph 128V");
+		snprintf(info->fix.id, sizeof(info->fix.id),
+				"MagicGraph 128V");
 		break;
 	case FB_ACCEL_NEOMAGIC_NM2093:
-		sprintf(info->fix.id, "MagicGraph 128ZV");
+		snprintf(info->fix.id, sizeof(info->fix.id),
+				"MagicGraph 128ZV");
 		break;
 	case FB_ACCEL_NEOMAGIC_NM2097:
-		sprintf(info->fix.id, "MagicGraph 128ZV+");
+		snprintf(info->fix.id, sizeof(info->fix.id),
+				"MagicGraph 128ZV+");
 		break;
 	case FB_ACCEL_NEOMAGIC_NM2160:
-		sprintf(info->fix.id, "MagicGraph 128XD");
+		snprintf(info->fix.id, sizeof(info->fix.id),
+				"MagicGraph 128XD");
 		break;
 	case FB_ACCEL_NEOMAGIC_NM2200:
-		sprintf(info->fix.id, "MagicGraph 256AV");
+		snprintf(info->fix.id, sizeof(info->fix.id),
+				"MagicGraph 256AV");
 		info->flags |= FBINFO_HWACCEL_IMAGEBLIT |
 		               FBINFO_HWACCEL_COPYAREA |
                 	       FBINFO_HWACCEL_FILLRECT;
 		break;
 	case FB_ACCEL_NEOMAGIC_NM2230:
-		sprintf(info->fix.id, "MagicGraph 256AV+");
+		snprintf(info->fix.id, sizeof(info->fix.id),
+				"MagicGraph 256AV+");
 		info->flags |= FBINFO_HWACCEL_IMAGEBLIT |
 		               FBINFO_HWACCEL_COPYAREA |
                 	       FBINFO_HWACCEL_FILLRECT;
 		break;
 	case FB_ACCEL_NEOMAGIC_NM2360:
-		sprintf(info->fix.id, "MagicGraph 256ZX");
+		snprintf(info->fix.id, sizeof(info->fix.id),
+				"MagicGraph 256ZX");
 		info->flags |= FBINFO_HWACCEL_IMAGEBLIT |
 		               FBINFO_HWACCEL_COPYAREA |
                 	       FBINFO_HWACCEL_FILLRECT;
 		break;
 	case FB_ACCEL_NEOMAGIC_NM2380:
-		sprintf(info->fix.id, "MagicGraph 256XL+");
+		snprintf(info->fix.id, sizeof(info->fix.id),
+				"MagicGraph 256XL+");
 		info->flags |= FBINFO_HWACCEL_IMAGEBLIT |
 		               FBINFO_HWACCEL_COPYAREA |
                 	       FBINFO_HWACCEL_FILLRECT;

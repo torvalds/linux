@@ -34,5 +34,8 @@
 /* At OMAP1610 Innovator the Ethernet is directly connected to CS1 */
 #define OMAP1610_ETHR_START		0x04000300
 
+extern void h2_mmc_init(void);
+extern void h2_mmc_slot_cover_handler(void *arg, int state);
+
 #endif /*  __ASM_ARCH_OMAP_H2_H */
 

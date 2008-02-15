@@ -1684,6 +1684,7 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 	if (!go_faster && conf->nr_waiting)
 		msleep_interruptible(1000);
 
+	bitmap_cond_end_sync(mddev->bitmap, sector_nr);
 	raise_barrier(conf);
 
 	conf->next_resync = sector_nr;
@@ -1766,6 +1767,8 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 		return rv;
 	}
 
+	if (max_sector > mddev->resync_max)
+		max_sector = mddev->resync_max; /* Don't do IO beyond here */
 	nr_sectors = 0;
 	sync_blocks = 0;
 	do {
@@ -1884,7 +1887,7 @@ static int run(mddev_t *mddev)
 	if (!conf->r1bio_pool)
 		goto out_no_mem;
 
-	ITERATE_RDEV(mddev, rdev, tmp) {
+	rdev_for_each(rdev, tmp, mddev) {
 		disk_idx = rdev->raid_disk;
 		if (disk_idx >= mddev->raid_disks
 		    || disk_idx < 0)

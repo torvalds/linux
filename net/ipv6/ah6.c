@@ -283,7 +283,7 @@ static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	ah->reserved = 0;
 	ah->spi = x->id.spi;
-	ah->seq_no = htonl(XFRM_SKB_CB(skb)->seq);
+	ah->seq_no = htonl(XFRM_SKB_CB(skb)->seq.output);
 
 	spin_lock_bh(&x->lock);
 	err = ah_mac_digest(ahp, skb, ah->auth_data);

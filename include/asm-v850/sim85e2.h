@@ -66,10 +66,4 @@
 #define R0_RAM_ADDR		0xFFFFE000
 
 
-/* For <asm/param.h> */
-#ifndef HZ
-#define HZ			24	/* Minimum supported frequency.  */
-#endif
-
-
 #endif /* __V850_SIM85E2_H__ */

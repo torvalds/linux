@@ -47,7 +47,7 @@ struct lguest_device {
 /* Since the virtio infrastructure hands us a pointer to the virtio_device all
  * the time, it helps to have a curt macro to get a pointer to the struct
  * lguest_device it's enclosed in.  */
-#define to_lgdev(vdev) container_of(vdev, struct lguest_device, vdev)
+#define to_lgdev(vd) container_of(vd, struct lguest_device, vdev)
 
 /*D:130
  * Device configurations

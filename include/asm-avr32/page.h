@@ -8,8 +8,6 @@
 #ifndef __ASM_AVR32_PAGE_H
 #define __ASM_AVR32_PAGE_H
 
-#ifdef __KERNEL__
-
 /* PAGE_SHIFT determines the page size */
 #define PAGE_SHIFT	12
 #ifdef __ASSEMBLY__
@@ -36,6 +34,7 @@ extern void copy_page(void *to, void *from);
 typedef struct { unsigned long pte; } pte_t;
 typedef struct { unsigned long pgd; } pgd_t;
 typedef struct { unsigned long pgprot; } pgprot_t;
+typedef struct page *pgtable_t;
 
 #define pte_val(x)		((x).pte)
 #define pgd_val(x)		((x).pgd)
@@ -106,7 +105,5 @@ static inline int get_order(unsigned long size)
  * Memory above this physical address will be considered highmem.
  */
 #define HIGHMEM_START		0x20000000UL
-
-#endif /* __KERNEL__ */
 
 #endif /* __ASM_AVR32_PAGE_H */

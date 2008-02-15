@@ -1,5 +1,4 @@
-/* $Id: time.c,v 1.18 2005/03/04 08:16:17 starvik Exp $
- *
+/*
  *  linux/arch/cris/kernel/time.c
  *
  *  Copyright (C) 1991, 1992, 1995  Linus Torvalds
@@ -18,7 +17,7 @@
  * Linux/CRIS specific code:
  *
  * Authors:    Bjorn Wesen
- *             Johan Adolfsson  
+ *             Johan Adolfsson
  *
  */
 
@@ -208,8 +207,14 @@ cris_do_profile(struct pt_regs* regs)
 #endif
 
 #ifdef CONFIG_PROFILING
-        profile_tick(CPU_PROFILING);
+	profile_tick(CPU_PROFILING);
 #endif
+}
+
+unsigned long long sched_clock(void)
+{
+	return (unsigned long long)jiffies * (1000000000 / HZ) +
+		get_ns_in_jiffie();
 }
 
 static int

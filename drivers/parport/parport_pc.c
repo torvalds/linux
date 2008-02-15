@@ -1540,6 +1540,38 @@ static void __devinit detect_and_report_smsc (void)
 	smsc_check(0x3f0,0x44);
 	smsc_check(0x370,0x44);
 }
+
+static void __devinit detect_and_report_it87(void)
+{
+	u16 dev;
+	u8 r;
+	if (verbose_probing)
+		printk(KERN_DEBUG "IT8705 Super-IO detection, now testing port 2E ...\n");
+	if (!request_region(0x2e, 1, __FUNCTION__))
+		return;
+	outb(0x87, 0x2e);
+	outb(0x01, 0x2e);
+	outb(0x55, 0x2e);
+	outb(0x55, 0x2e);
+	outb(0x20, 0x2e);
+	dev = inb(0x2f) << 8;
+	outb(0x21, 0x2e);
+	dev |= inb(0x2f);
+	if (dev == 0x8712 || dev == 0x8705 || dev == 0x8715 ||
+	    dev == 0x8716 || dev == 0x8718 || dev == 0x8726) {
+		printk(KERN_INFO "IT%04X SuperIO detected.\n", dev);
+		outb(0x07, 0x2E);	/* Parallel Port */
+		outb(0x03, 0x2F);
+		outb(0xF0, 0x2E);	/* BOOT 0x80 off */
+		r = inb(0x2f);
+		outb(0xF0, 0x2E);
+		outb(r | 8, 0x2F);
+		outb(0x02, 0x2E);	/* Lock */
+		outb(0x02, 0x2F);
+
+		release_region(0x2e, 1);
+	}
+}
 #endif /* CONFIG_PARPORT_PC_SUPERIO */
 
 static int get_superio_dma (struct parport *p)
@@ -1736,7 +1768,7 @@ static int parport_PS2_supported(struct parport *pb)
 }
 
 #ifdef CONFIG_PARPORT_PC_FIFO
-static int __devinit parport_ECP_supported(struct parport *pb)
+static int parport_ECP_supported(struct parport *pb)
 {
 	int i;
 	int config, configb;
@@ -1960,7 +1992,7 @@ static int parport_ECPEPP_supported(struct parport *pb)
 /* Don't bother probing for modes we know we won't use. */
 static int __devinit parport_PS2_supported(struct parport *pb) { return 0; }
 #ifdef CONFIG_PARPORT_PC_FIFO
-static int __devinit parport_ECP_supported(struct parport *pb) { return 0; }
+static int parport_ECP_supported(struct parport *pb) { return 0; }
 #endif
 static int __devinit parport_EPP_supported(struct parport *pb) { return 0; }
 static int __devinit parport_ECPEPP_supported(struct parport *pb){return 0;}
@@ -2767,6 +2799,7 @@ enum parport_pc_pci_cards {
 	netmos_9755,
 	netmos_9805,
 	netmos_9815,
+	quatech_sppxp100,
 };
 
 
@@ -2843,6 +2876,7 @@ static struct parport_pc_pci {
         /* netmos_9755 */               { 2, { { 0, 1 }, { 2, 3 },} }, /* untested */
 	/* netmos_9805 */               { 1, { { 0, -1 }, } }, /* untested */
 	/* netmos_9815 */               { 2, { { 0, -1 }, { 2, -1 }, } }, /* untested */
+	/* quatech_sppxp100 */		{ 1, { { 0, 1 }, } },
 };
 
 static const struct pci_device_id parport_pc_pci_tbl[] = {
@@ -2926,6 +2960,9 @@ static const struct pci_device_id parport_pc_pci_tbl[] = {
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, netmos_9805 },
 	{ PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9815,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, netmos_9815 },
+	/* Quatech SPPXP-100 Parallel port PCI ExpressCard */
+	{ PCI_VENDOR_ID_QUATECH, PCI_DEVICE_ID_QUATECH_SPPXP_100,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, quatech_sppxp100 },
 	{ 0, } /* terminate list */
 };
 MODULE_DEVICE_TABLE(pci,parport_pc_pci_tbl);
@@ -3159,24 +3196,25 @@ static void __init parport_pc_find_ports (int autoirq, int autodma)
 	int count = 0, err;
 
 #ifdef CONFIG_PARPORT_PC_SUPERIO
-	detect_and_report_winbond ();
-	detect_and_report_smsc ();
+	detect_and_report_it87();
+	detect_and_report_winbond();
+	detect_and_report_smsc();
 #endif
 
 	/* Onboard SuperIO chipsets that show themselves on the PCI bus. */
-	count += parport_pc_init_superio (autoirq, autodma);
+	count += parport_pc_init_superio(autoirq, autodma);
 
 	/* PnP ports, skip detection if SuperIO already found them */
 	if (!count) {
-		err = pnp_register_driver (&parport_pc_pnp_driver);
+		err = pnp_register_driver(&parport_pc_pnp_driver);
 		if (!err)
 			pnp_registered_parport = 1;
 	}
 
 	/* ISA ports and whatever (see asm/parport.h). */
-	parport_pc_find_nonpci_ports (autoirq, autodma);
+	parport_pc_find_nonpci_ports(autoirq, autodma);
 
-	err = pci_register_driver (&parport_pc_pci_driver);
+	err = pci_register_driver(&parport_pc_pci_driver);
 	if (!err)
 		pci_registered_parport = 1;
 }

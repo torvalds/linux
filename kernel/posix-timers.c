@@ -404,7 +404,7 @@ static struct task_struct * good_sigevent(sigevent_t * event)
 	struct task_struct *rtn = current->group_leader;
 
 	if ((event->sigev_notify & SIGEV_THREAD_ID ) &&
-		(!(rtn = find_task_by_pid(event->sigev_notify_thread_id)) ||
+		(!(rtn = find_task_by_vpid(event->sigev_notify_thread_id)) ||
 		 !same_thread_group(rtn, current) ||
 		 (event->sigev_notify & ~SIGEV_THREAD_ID) != SIGEV_SIGNAL))
 		return NULL;
@@ -767,9 +767,11 @@ common_timer_set(struct k_itimer *timr, int flags,
 	/* SIGEV_NONE timers are not queued ! See common_timer_get */
 	if (((timr->it_sigev_notify & ~SIGEV_THREAD_ID) == SIGEV_NONE)) {
 		/* Setup correct expiry time for relative timers */
-		if (mode == HRTIMER_MODE_REL)
-			timer->expires = ktime_add(timer->expires,
-						   timer->base->get_time());
+		if (mode == HRTIMER_MODE_REL) {
+			timer->expires =
+				ktime_add_safe(timer->expires,
+					       timer->base->get_time());
+		}
 		return 0;
 	}
 
@@ -982,20 +984,9 @@ sys_clock_getres(const clockid_t which_clock, struct timespec __user *tp)
 static int common_nsleep(const clockid_t which_clock, int flags,
 			 struct timespec *tsave, struct timespec __user *rmtp)
 {
-	struct timespec rmt;
-	int ret;
-
-	ret = hrtimer_nanosleep(tsave, rmtp ? &rmt : NULL,
-				flags & TIMER_ABSTIME ?
-				HRTIMER_MODE_ABS : HRTIMER_MODE_REL,
-				which_clock);
-
-	if (ret && rmtp) {
-		if (copy_to_user(rmtp, &rmt, sizeof(*rmtp)))
-			return -EFAULT;
-	}
-
-	return ret;
+	return hrtimer_nanosleep(tsave, rmtp, flags & TIMER_ABSTIME ?
+				 HRTIMER_MODE_ABS : HRTIMER_MODE_REL,
+				 which_clock);
 }
 
 asmlinkage long

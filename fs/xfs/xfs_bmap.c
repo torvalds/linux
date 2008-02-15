@@ -2830,11 +2830,11 @@ xfs_bmap_btalloc(
 		args.prod = align;
 		if ((args.mod = (xfs_extlen_t)do_mod(ap->off, args.prod)))
 			args.mod = (xfs_extlen_t)(args.prod - args.mod);
-	} else if (mp->m_sb.sb_blocksize >= NBPP) {
+	} else if (mp->m_sb.sb_blocksize >= PAGE_CACHE_SIZE) {
 		args.prod = 1;
 		args.mod = 0;
 	} else {
-		args.prod = NBPP >> mp->m_sb.sb_blocklog;
+		args.prod = PAGE_CACHE_SIZE >> mp->m_sb.sb_blocklog;
 		if ((args.mod = (xfs_extlen_t)(do_mod(ap->off, args.prod))))
 			args.mod = (xfs_extlen_t)(args.prod - args.mod);
 	}
@@ -2969,7 +2969,7 @@ STATIC int
 xfs_bmap_alloc(
 	xfs_bmalloca_t	*ap)		/* bmap alloc argument struct */
 {
-	if ((ap->ip->i_d.di_flags & XFS_DIFLAG_REALTIME) && ap->userdata)
+	if (XFS_IS_REALTIME_INODE(ap->ip) && ap->userdata)
 		return xfs_bmap_rtalloc(ap);
 	return xfs_bmap_btalloc(ap);
 }
@@ -3096,8 +3096,7 @@ xfs_bmap_del_extent(
 		/*
 		 * Realtime allocation.  Free it and record di_nblocks update.
 		 */
-		if (whichfork == XFS_DATA_FORK &&
-		    (ip->i_d.di_flags & XFS_DIFLAG_REALTIME)) {
+		if (whichfork == XFS_DATA_FORK && XFS_IS_REALTIME_INODE(ip)) {
 			xfs_fsblock_t	bno;
 			xfs_filblks_t	len;
 
@@ -3956,7 +3955,6 @@ xfs_bmap_add_attrfork(
 	xfs_bmap_free_t		flist;		/* freed extent records */
 	xfs_mount_t		*mp;		/* mount structure */
 	xfs_trans_t		*tp;		/* transaction pointer */
-	unsigned long		s;		/* spinlock spl value */
 	int			blks;		/* space reservation */
 	int			version = 1;	/* superblock attr version */
 	int			committed;	/* xaction was committed */
@@ -4053,7 +4051,7 @@ xfs_bmap_add_attrfork(
 	   (!XFS_SB_VERSION_HASATTR2(&mp->m_sb) && version == 2)) {
 		__int64_t sbfields = 0;
 
-		s = XFS_SB_LOCK(mp);
+		spin_lock(&mp->m_sb_lock);
 		if (!XFS_SB_VERSION_HASATTR(&mp->m_sb)) {
 			XFS_SB_VERSION_ADDATTR(&mp->m_sb);
 			sbfields |= XFS_SB_VERSIONNUM;
@@ -4063,10 +4061,10 @@ xfs_bmap_add_attrfork(
 			sbfields |= (XFS_SB_VERSIONNUM | XFS_SB_FEATURES2);
 		}
 		if (sbfields) {
-			XFS_SB_UNLOCK(mp, s);
+			spin_unlock(&mp->m_sb_lock);
 			xfs_mod_sb(tp, sbfields);
 		} else
-			XFS_SB_UNLOCK(mp, s);
+			spin_unlock(&mp->m_sb_lock);
 	}
 	if ((error = xfs_bmap_finish(&tp, &flist, &committed)))
 		goto error2;
@@ -6394,7 +6392,7 @@ xfs_bmap_count_blocks(
  * Recursively walks each level of a btree
  * to count total fsblocks is use.
  */
-int                                     /* error */
+STATIC int                                     /* error */
 xfs_bmap_count_tree(
 	xfs_mount_t     *mp,            /* file system mount point */
 	xfs_trans_t     *tp,            /* transaction pointer */
@@ -6470,7 +6468,7 @@ xfs_bmap_count_tree(
 /*
  * Count leaf blocks given a range of extent records.
  */
-int
+STATIC int
 xfs_bmap_count_leaves(
 	xfs_ifork_t		*ifp,
 	xfs_extnum_t		idx,
@@ -6490,7 +6488,7 @@ xfs_bmap_count_leaves(
  * Count leaf blocks given a range of extent records originally
  * in btree format.
  */
-int
+STATIC int
 xfs_bmap_disk_count_leaves(
 	xfs_extnum_t		idx,
 	xfs_bmbt_block_t	*block,

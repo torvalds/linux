@@ -34,8 +34,6 @@
 #include <linux/scatterlist.h>
 #include "ecryptfs_kernel.h"
 
-struct kmem_cache *ecryptfs_lower_page_cache;
-
 /**
  * ecryptfs_get_locked_page
  *
@@ -102,13 +100,14 @@ static void set_header_info(char *page_virt,
 			    struct ecryptfs_crypt_stat *crypt_stat)
 {
 	size_t written;
-	int save_num_header_extents_at_front =
-		crypt_stat->num_header_extents_at_front;
+	size_t save_num_header_bytes_at_front =
+		crypt_stat->num_header_bytes_at_front;
 
-	crypt_stat->num_header_extents_at_front = 1;
+	crypt_stat->num_header_bytes_at_front =
+		ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE;
 	ecryptfs_write_header_metadata(page_virt + 20, crypt_stat, &written);
-	crypt_stat->num_header_extents_at_front =
-		save_num_header_extents_at_front;
+	crypt_stat->num_header_bytes_at_front =
+		save_num_header_bytes_at_front;
 }
 
 /**
@@ -134,8 +133,11 @@ ecryptfs_copy_up_encrypted_with_header(struct page *page,
 		loff_t view_extent_num = ((((loff_t)page->index)
 					   * num_extents_per_page)
 					  + extent_num_in_page);
+		size_t num_header_extents_at_front =
+			(crypt_stat->num_header_bytes_at_front
+			 / crypt_stat->extent_size);
 
-		if (view_extent_num < crypt_stat->num_header_extents_at_front) {
+		if (view_extent_num < num_header_extents_at_front) {
 			/* This is a header extent */
 			char *page_virt;
 
@@ -157,9 +159,8 @@ ecryptfs_copy_up_encrypted_with_header(struct page *page,
 		} else {
 			/* This is an encrypted data extent */
 			loff_t lower_offset =
-				((view_extent_num -
-				  crypt_stat->num_header_extents_at_front)
-				 * crypt_stat->extent_size);
+				((view_extent_num * crypt_stat->extent_size)
+				 - crypt_stat->num_header_bytes_at_front);
 
 			rc = ecryptfs_read_lower_page_segment(
 				page, (lower_offset >> PAGE_CACHE_SHIFT),

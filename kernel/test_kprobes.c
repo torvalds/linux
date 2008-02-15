@@ -135,6 +135,12 @@ static int test_jprobe(void)
 #ifdef CONFIG_KRETPROBES
 static u32 krph_val;
 
+static int entry_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
+{
+	krph_val = (rand1 / div_factor);
+	return 0;
+}
+
 static int return_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
 	unsigned long ret = regs_return_value(regs);
@@ -144,13 +150,19 @@ static int return_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
 		printk(KERN_ERR "Kprobe smoke test failed: "
 				"incorrect value in kretprobe handler\n");
 	}
+	if (krph_val == 0) {
+		handler_errors++;
+		printk(KERN_ERR "Kprobe smoke test failed: "
+				"call to kretprobe entry handler failed\n");
+	}
 
-	krph_val = (rand1 / div_factor);
+	krph_val = rand1;
 	return 0;
 }
 
 static struct kretprobe rp = {
 	.handler	= return_handler,
+	.entry_handler  = entry_handler,
 	.kp.symbol_name = "kprobe_target"
 };
 
@@ -167,7 +179,7 @@ static int test_kretprobe(void)
 
 	ret = kprobe_target(rand1);
 	unregister_kretprobe(&rp);
-	if (krph_val == 0) {
+	if (krph_val != rand1) {
 		printk(KERN_ERR "Kprobe smoke test failed: "
 				"kretprobe handler not called\n");
 		handler_errors++;

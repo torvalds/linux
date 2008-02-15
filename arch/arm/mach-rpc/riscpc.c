@@ -17,7 +17,7 @@
 #include <linux/sched.h>
 #include <linux/device.h>
 #include <linux/serial_8250.h>
-#include <linux/pata_platform.h>
+#include <linux/ata_platform.h>
 
 #include <asm/elf.h>
 #include <asm/io.h>

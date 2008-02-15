@@ -129,7 +129,7 @@ fail:
  * Description:
  *  Search the for inode number @ino in the filesystem
  *  described by @sbp.  Use the specified inode table (@ilistp).
- *  Returns the matching VxFS inode on success, else a NULL pointer.
+ *  Returns the matching VxFS inode on success, else an error code.
  */
 static struct vxfs_inode_info *
 __vxfs_iget(ino_t ino, struct inode *ilistp)
@@ -157,12 +157,12 @@ __vxfs_iget(ino_t ino, struct inode *ilistp)
 	}
 
 	printk(KERN_WARNING "vxfs: error on page %p\n", pp);
-	return NULL;
+	return ERR_CAST(pp);
 
 fail:
 	printk(KERN_WARNING "vxfs: unable to read inode %ld\n", (unsigned long)ino);
 	vxfs_put_page(pp);
-	return NULL;
+	return ERR_PTR(-ENOMEM);
 }
 
 /**
@@ -178,7 +178,10 @@ fail:
 struct vxfs_inode_info *
 vxfs_stiget(struct super_block *sbp, ino_t ino)
 {
-        return __vxfs_iget(ino, VXFS_SBI(sbp)->vsi_stilist);
+	struct vxfs_inode_info *vip;
+
+	vip = __vxfs_iget(ino, VXFS_SBI(sbp)->vsi_stilist);
+	return IS_ERR(vip) ? NULL : vip;
 }
 
 /**
@@ -282,23 +285,32 @@ vxfs_put_fake_inode(struct inode *ip)
 }
 
 /**
- * vxfs_read_inode - fill in inode information
- * @ip:		inode pointer to fill
+ * vxfs_iget - get an inode
+ * @sbp:	the superblock to get the inode for
+ * @ino:	the number of the inode to get
  *
  * Description:
- *  vxfs_read_inode reads the disk inode for @ip and fills
- *  in all relevant fields in @ip.
+ *  vxfs_read_inode creates an inode, reads the disk inode for @ino and fills
+ *  in all relevant fields in the new inode.
  */
-void
-vxfs_read_inode(struct inode *ip)
+struct inode *
+vxfs_iget(struct super_block *sbp, ino_t ino)
 {
-	struct super_block		*sbp = ip->i_sb;
 	struct vxfs_inode_info		*vip;
 	const struct address_space_operations	*aops;
-	ino_t				ino = ip->i_ino;
+	struct inode *ip;
 
-	if (!(vip = __vxfs_iget(ino, VXFS_SBI(sbp)->vsi_ilist)))
-		return;
+	ip = iget_locked(sbp, ino);
+	if (!ip)
+		return ERR_PTR(-ENOMEM);
+	if (!(ip->i_state & I_NEW))
+		return ip;
+
+	vip = __vxfs_iget(ino, VXFS_SBI(sbp)->vsi_ilist);
+	if (IS_ERR(vip)) {
+		iget_failed(ip);
+		return ERR_CAST(vip);
+	}
 
 	vxfs_iinit(ip, vip);
 
@@ -323,7 +335,8 @@ vxfs_read_inode(struct inode *ip)
 	} else
 		init_special_inode(ip, ip->i_mode, old_decode_dev(vip->vii_rdev));
 
-	return;
+	unlock_new_inode(ip);
+	return ip;
 }
 
 /**

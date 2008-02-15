@@ -10,7 +10,7 @@
  * after a timer-interrupt and after each system call.
  *
  * Stack layout in 'ret_from_system_call':
- * 	ptrace needs to have all regs on the stack.
+ *	ptrace needs to have all regs on the stack.
  *	if the order here is changed, it needs to be
  *	updated in fork.c:copy_process, signal.c:do_signal,
  *	ptrace.c and ptrace.h
@@ -281,12 +281,10 @@ _work_notifysig:
 	;; Deal with pending signals and notify-resume requests.
 
 	addoq	+TI_flags, $r0, $acr
-	move.d	[$acr], $r13		; The thread_info_flags parameter.
-	move.d	$r9, $r10		; do_notify_resume syscall/irq param.
-	moveq	0, $r11			; oldset param - 0 in this case.
-	move.d	$sp, $r12		; The regs param.
+	move.d	[$acr], $r12		; The thread_info_flags parameter.
+	move.d	$sp, $r11		; The regs param.
 	jsr	do_notify_resume
-	nop
+	move.d	$r9, $r10		; do_notify_resume syscall/irq param.
 
 	ba _Rexit
 	nop
@@ -396,7 +394,7 @@ nmi_interrupt:
 	btstq	REG_BIT(intr_vect, r_nmi, watchdog), $r0
 	bpl     1f
 	nop
-	jsr 	handle_watchdog_bite	; In time.c.
+	jsr	handle_watchdog_bite	; In time.c.
         move.d	$sp, $r10		; Pointer to registers
 1:	btstq	REG_BIT(intr_vect, r_nmi, ext), $r0
 	bpl     1f
@@ -514,6 +512,13 @@ gdb_handle_exception:
 _ugdb_handle_exception:
 	ba	do_sigtrap		; SIGTRAP the offending process.
 	move.d	[$sp+], $r0		; Restore R0 in delay slot.
+
+	.global kernel_execve
+kernel_execve:
+	move.d __NR_execve, $r9
+	break 13
+	ret
+	nop
 
 	.data
 
@@ -778,21 +783,21 @@ sys_call_table:
 	.long sys_epoll_ctl	/* 255 */
 	.long sys_epoll_wait
 	.long sys_remap_file_pages
- 	.long sys_set_tid_address
- 	.long sys_timer_create
- 	.long sys_timer_settime		/* 260 */
- 	.long sys_timer_gettime
- 	.long sys_timer_getoverrun
- 	.long sys_timer_delete
- 	.long sys_clock_settime
- 	.long sys_clock_gettime		/* 265 */
- 	.long sys_clock_getres
- 	.long sys_clock_nanosleep
+	.long sys_set_tid_address
+	.long sys_timer_create
+	.long sys_timer_settime		/* 260 */
+	.long sys_timer_gettime
+	.long sys_timer_getoverrun
+	.long sys_timer_delete
+	.long sys_clock_settime
+	.long sys_clock_gettime		/* 265 */
+	.long sys_clock_getres
+	.long sys_clock_nanosleep
 	.long sys_statfs64
 	.long sys_fstatfs64
 	.long sys_tgkill	/* 270 */
 	.long sys_utimes
- 	.long sys_fadvise64_64
+	.long sys_fadvise64_64
 	.long sys_ni_syscall	/* sys_vserver */
 	.long sys_ni_syscall	/* sys_mbind */
 	.long sys_ni_syscall	/* 275 sys_get_mempolicy */
@@ -805,6 +810,48 @@ sys_call_table:
 	.long sys_mq_getsetattr
 	.long sys_ni_syscall		/* reserved for kexec */
 	.long sys_waitid
+	.long sys_ni_syscall		/* 285 */ /* available */
+	.long sys_add_key
+	.long sys_request_key
+	.long sys_keyctl
+	.long sys_ioprio_set
+	.long sys_ioprio_get		/* 290 */
+	.long sys_inotify_init
+	.long sys_inotify_add_watch
+	.long sys_inotify_rm_watch
+	.long sys_migrate_pages
+	.long sys_openat		/* 295 */
+	.long sys_mkdirat
+	.long sys_mknodat
+	.long sys_fchownat
+	.long sys_futimesat
+	.long sys_fstatat64		/* 300 */
+	.long sys_unlinkat
+	.long sys_renameat
+	.long sys_linkat
+	.long sys_symlinkat
+	.long sys_readlinkat		/* 305 */
+	.long sys_fchmodat
+	.long sys_faccessat
+	.long sys_pselect6
+	.long sys_ppoll
+	.long sys_unshare		/* 310 */
+	.long sys_set_robust_list
+	.long sys_get_robust_list
+	.long sys_splice
+	.long sys_sync_file_range
+	.long sys_tee			/* 315 */
+	.long sys_vmsplice
+	.long sys_move_pages
+	.long sys_getcpu
+	.long sys_epoll_pwait
+	.long sys_utimensat		/* 320 */
+	.long sys_signalfd
+	.long sys_timerfd_create
+	.long sys_eventfd
+	.long sys_fallocate
+	.long sys_timerfd_settime       /* 325 */
+	.long sys_timerfd_gettime
 
         /*
          * NOTE!! This doesn't have to be exact - we just have

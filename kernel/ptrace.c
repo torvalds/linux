@@ -20,6 +20,7 @@
 #include <linux/signal.h>
 #include <linux/audit.h>
 #include <linux/pid_namespace.h>
+#include <linux/syscalls.h>
 
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
@@ -53,7 +54,7 @@ void ptrace_untrace(struct task_struct *child)
 	spin_lock(&child->sighand->siglock);
 	if (task_is_traced(child)) {
 		if (child->signal->flags & SIGNAL_STOP_STOPPED) {
-			child->state = TASK_STOPPED;
+			__set_task_state(child, TASK_STOPPED);
 		} else {
 			signal_wake_up(child, 1);
 		}
@@ -98,23 +99,23 @@ int ptrace_check_attach(struct task_struct *child, int kill)
 	 * be changed by us so it's not changing right after this.
 	 */
 	read_lock(&tasklist_lock);
-	if ((child->ptrace & PT_PTRACED) && child->parent == current &&
-	    (!(child->ptrace & PT_ATTACHED) || child->real_parent != current)
-	    && child->signal != NULL) {
+	if ((child->ptrace & PT_PTRACED) && child->parent == current) {
 		ret = 0;
+		/*
+		 * child->sighand can't be NULL, release_task()
+		 * does ptrace_unlink() before __exit_signal().
+		 */
 		spin_lock_irq(&child->sighand->siglock);
-		if (task_is_stopped(child)) {
+		if (task_is_stopped(child))
 			child->state = TASK_TRACED;
-		} else if (!task_is_traced(child) && !kill) {
+		else if (!task_is_traced(child) && !kill)
 			ret = -ESRCH;
-		}
 		spin_unlock_irq(&child->sighand->siglock);
 	}
 	read_unlock(&tasklist_lock);
 
-	if (!ret && !kill) {
+	if (!ret && !kill)
 		wait_task_inactive(child);
-	}
 
 	/* All systems go.. */
 	return ret;
@@ -201,8 +202,7 @@ repeat:
 		goto bad;
 
 	/* Go */
-	task->ptrace |= PT_PTRACED | ((task->real_parent != current)
-				      ? PT_ATTACHED : 0);
+	task->ptrace |= PT_PTRACED;
 	if (capable(CAP_SYS_PTRACE))
 		task->ptrace |= PT_PTRACE_CAP;
 

@@ -17,65 +17,7 @@
 *! Jun 17 1999  Hendrik Ruijter Added gdb 4.18 support. 'X', 'qC' and 'qL'.
 *! Jul 21 1999  Bjorn Wesen     eLinux port
 *!
-*! $Log: kgdb.c,v $
-*! Revision 1.6  2005/01/14 10:12:17  starvik
-*! KGDB on separate port.
-*! Console fixes from 2.4.
-*!
-*! Revision 1.5  2004/10/07 13:59:08  starvik
-*! Corrected call to set_int_vector
-*!
-*! Revision 1.4  2003/04/09 05:20:44  starvik
-*! Merge of Linux 2.5.67
-*!
-*! Revision 1.3  2003/01/21 19:11:08  starvik
-*! Modified include path for new dir layout
-*!
-*! Revision 1.2  2002/11/19 14:35:24  starvik
-*! Changes from linux 2.4
-*! Changed struct initializer syntax to the currently preferred notation
-*!
-*! Revision 1.1  2001/12/17 13:59:27  bjornw
-*! Initial revision
-*!
-*! Revision 1.6  2001/10/09 13:10:03  matsfg
-*! Added $ on registers and removed some underscores
-*!
-*! Revision 1.5  2001/04/17 13:58:39  orjanf
-*! * Renamed CONFIG_KGDB to CONFIG_ETRAX_KGDB.
-*!
-*! Revision 1.4  2001/02/23 13:45:19  bjornw
-*! config.h check
-*!
-*! Revision 1.3  2001/01/31 18:08:23  orjanf
-*! Removed kgdb_handle_breakpoint from being the break 8 handler.
-*!
-*! Revision 1.2  2001/01/12 14:22:25  orjanf
-*! Updated kernel debugging support to work with ETRAX 100LX.
-*!
-*! Revision 1.1  2000/07/10 16:25:21  bjornw
-*! Initial revision
-*!
-*! Revision 1.1.1.1  1999/12/03 14:57:31  bjornw
-*! * Initial version of arch/cris, the latest CRIS architecture with an MMU.
-*!   Mostly copied from arch/etrax100 with appropriate renames of files.
-*!   The mm/ subdir is copied from arch/i386.
-*!   This does not compile yet at all.
-*!
-*!
-*! Revision 1.4  1999/07/22 17:25:25  bjornw
-*! Dont wait for + in putpacket if we havent hit the initial breakpoint yet. Added a kgdb_init function which sets up the break and irq vectors.
-*!
-*! Revision 1.3  1999/07/21 19:51:18  bjornw
-*! Check if the interrupting char is a ctrl-C, ignore otherwise.
-*!
-*! Revision 1.2  1999/07/21 18:09:39  bjornw
-*! Ported to eLinux architecture, and added some kgdb documentation.
-*!
-*!
 *!---------------------------------------------------------------------------
-*!
-*! $Id: kgdb.c,v 1.6 2005/01/14 10:12:17 starvik Exp $
 *!
 *! (C) Copyright 1999, Axis Communications AB, LUND, SWEDEN
 *!

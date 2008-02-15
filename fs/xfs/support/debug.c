@@ -17,7 +17,6 @@
  */
 #include <xfs.h>
 #include "debug.h"
-#include "spin.h"
 
 static char		message[1024];	/* keep it off the stack */
 static DEFINE_SPINLOCK(xfs_err_lock);
@@ -80,4 +79,10 @@ assfail(char *expr, char *file, int line)
 {
 	printk("Assertion failed: %s, file: %s, line: %d\n", expr, file, line);
 	BUG();
+}
+
+void
+xfs_hex_dump(void *p, int length)
+{
+	print_hex_dump(KERN_ALERT, "", DUMP_PREFIX_OFFSET, 16, 1, p, length, 1);
 }

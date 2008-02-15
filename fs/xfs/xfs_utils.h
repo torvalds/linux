@@ -20,8 +20,6 @@
 
 #define IRELE(ip)	VN_RELE(XFS_ITOV(ip))
 #define IHOLD(ip)	VN_HOLD(XFS_ITOV(ip))
-#define	ITRACE(ip)	vn_trace_ref(ip, __FILE__, __LINE__, \
-				(inst_t *)__return_address)
 
 extern int xfs_get_dir_entry (bhv_vname_t *, xfs_inode_t **);
 extern int xfs_dir_lookup_int (xfs_inode_t *, uint, bhv_vname_t *, xfs_ino_t *,

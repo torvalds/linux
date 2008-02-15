@@ -42,5 +42,15 @@ config W1_MASTER_DS1WM
 	  in HP iPAQ devices like h5xxx, h2200, and ASIC3-based like
 	  hx4700.
 
+config W1_MASTER_GPIO
+	tristate "GPIO 1-wire busmaster"
+	depends on GENERIC_GPIO
+	help
+	  Say Y here if you want to communicate with your 1-wire devices using
+	  GPIO pins. This driver uses the GPIO API to control the wire.
+
+	  This support is also available as a module.  If so, the module
+	  will be called w1-gpio.ko.
+
 endmenu
 

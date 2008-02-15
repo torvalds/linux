@@ -10,7 +10,6 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#ifdef __KERNEL__
 #include <asm/asm-compat.h>
 #include <asm/kdump.h>
 
@@ -191,9 +190,9 @@ extern int page_is_ram(unsigned long pfn);
 
 struct vm_area_struct;
 
+typedef struct page *pgtable_t;
+
 #include <asm-generic/memory_model.h>
 #endif /* __ASSEMBLY__ */
-
-#endif /* __KERNEL__ */
 
 #endif /* _ASM_POWERPC_PAGE_H */

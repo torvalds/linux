@@ -51,9 +51,7 @@ static struct acpi_prt_entry *acpi_pci_irq_find_prt_entry(int segment,
 							  int bus,
 							  int device, int pin)
 {
-	struct list_head *node = NULL;
 	struct acpi_prt_entry *entry = NULL;
-
 
 	if (!acpi_prt.count)
 		return NULL;
@@ -64,8 +62,7 @@ static struct acpi_prt_entry *acpi_pci_irq_find_prt_entry(int segment,
 	 *
 	 */
 	spin_lock(&acpi_prt_lock);
-	list_for_each(node, &acpi_prt.entries) {
-		entry = list_entry(node, struct acpi_prt_entry, node);
+	list_for_each_entry(entry, &acpi_prt.entries, node) {
 		if ((segment == entry->id.segment)
 		    && (bus == entry->id.bus)
 		    && (device == entry->id.device)
@@ -477,8 +474,6 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 
 	return 0;
 }
-
-EXPORT_SYMBOL(acpi_pci_irq_enable);
 
 /* FIXME: implement x86/x86_64 version */
 void __attribute__ ((weak)) acpi_unregister_gsi(u32 i)

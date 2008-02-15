@@ -972,7 +972,7 @@ void zap_other_threads(struct task_struct *p)
 	}
 }
 
-int fastcall __fatal_signal_pending(struct task_struct *tsk)
+int __fatal_signal_pending(struct task_struct *tsk)
 {
 	return sigismember(&tsk->pending.signal, SIGKILL);
 }
@@ -1018,7 +1018,7 @@ int group_send_sig_info(int sig, struct siginfo *info, struct task_struct *p)
 }
 
 /*
- * kill_pgrp_info() sends a signal to a process group: this is what the tty
+ * __kill_pgrp_info() sends a signal to a process group: this is what the tty
  * control characters do (^C, ^Z etc)
  */
 
@@ -1037,30 +1037,28 @@ int __kill_pgrp_info(int sig, struct siginfo *info, struct pid *pgrp)
 	return success ? 0 : retval;
 }
 
-int kill_pgrp_info(int sig, struct siginfo *info, struct pid *pgrp)
-{
-	int retval;
-
-	read_lock(&tasklist_lock);
-	retval = __kill_pgrp_info(sig, info, pgrp);
-	read_unlock(&tasklist_lock);
-
-	return retval;
-}
-
 int kill_pid_info(int sig, struct siginfo *info, struct pid *pid)
 {
-	int error;
+	int error = -ESRCH;
 	struct task_struct *p;
 
 	rcu_read_lock();
 	if (unlikely(sig_needs_tasklist(sig)))
 		read_lock(&tasklist_lock);
 
+retry:
 	p = pid_task(pid, PIDTYPE_PID);
-	error = -ESRCH;
-	if (p)
+	if (p) {
 		error = group_send_sig_info(sig, info, p);
+		if (unlikely(error == -ESRCH))
+			/*
+			 * The task was unhashed in between, try again.
+			 * If it is dead, pid_task() will return NULL,
+			 * if we race with de_thread() it will find the
+			 * new leader.
+			 */
+			goto retry;
+	}
 
 	if (unlikely(sig_needs_tasklist(sig)))
 		read_unlock(&tasklist_lock);
@@ -1125,14 +1123,22 @@ EXPORT_SYMBOL_GPL(kill_pid_info_as_uid);
 static int kill_something_info(int sig, struct siginfo *info, int pid)
 {
 	int ret;
-	rcu_read_lock();
-	if (!pid) {
-		ret = kill_pgrp_info(sig, info, task_pgrp(current));
-	} else if (pid == -1) {
+
+	if (pid > 0) {
+		rcu_read_lock();
+		ret = kill_pid_info(sig, info, find_vpid(pid));
+		rcu_read_unlock();
+		return ret;
+	}
+
+	read_lock(&tasklist_lock);
+	if (pid != -1) {
+		ret = __kill_pgrp_info(sig, info,
+				pid ? find_vpid(-pid) : task_pgrp(current));
+	} else {
 		int retval = 0, count = 0;
 		struct task_struct * p;
 
-		read_lock(&tasklist_lock);
 		for_each_process(p) {
 			if (p->pid > 1 && !same_thread_group(p, current)) {
 				int err = group_send_sig_info(sig, info, p);
@@ -1141,14 +1147,10 @@ static int kill_something_info(int sig, struct siginfo *info, int pid)
 					retval = err;
 			}
 		}
-		read_unlock(&tasklist_lock);
 		ret = count ? retval : -ESRCH;
-	} else if (pid < 0) {
-		ret = kill_pgrp_info(sig, info, find_vpid(-pid));
-	} else {
-		ret = kill_pid_info(sig, info, find_vpid(pid));
 	}
-	rcu_read_unlock();
+	read_unlock(&tasklist_lock);
+
 	return ret;
 }
 
@@ -1196,20 +1198,6 @@ send_sig(int sig, struct task_struct *p, int priv)
 	return send_sig_info(sig, __si_special(priv), p);
 }
 
-/*
- * This is the entry point for "process-wide" signals.
- * They will go to an appropriate thread in the thread group.
- */
-int
-send_group_sig_info(int sig, struct siginfo *info, struct task_struct *p)
-{
-	int ret;
-	read_lock(&tasklist_lock);
-	ret = group_send_sig_info(sig, info, p);
-	read_unlock(&tasklist_lock);
-	return ret;
-}
-
 void
 force_sig(int sig, struct task_struct *p)
 {
@@ -1237,7 +1225,13 @@ force_sigsegv(int sig, struct task_struct *p)
 
 int kill_pgrp(struct pid *pid, int sig, int priv)
 {
-	return kill_pgrp_info(sig, __si_special(priv), pid);
+	int ret;
+
+	read_lock(&tasklist_lock);
+	ret = __kill_pgrp_info(sig, __si_special(priv), pid);
+	read_unlock(&tasklist_lock);
+
+	return ret;
 }
 EXPORT_SYMBOL(kill_pgrp);
 
@@ -1556,11 +1550,6 @@ static inline int may_ptrace_stop(void)
 {
 	if (!likely(current->ptrace & PT_PTRACED))
 		return 0;
-
-	if (unlikely(current->parent == current->real_parent &&
-		    (current->ptrace & PT_ATTACHED)))
-		return 0;
-
 	/*
 	 * Are we in the middle of do_coredump?
 	 * If so and our tracer is also part of the coredump stopping
@@ -1578,6 +1567,17 @@ static inline int may_ptrace_stop(void)
 }
 
 /*
+ * Return nonzero if there is a SIGKILL that should be waking us up.
+ * Called with the siglock held.
+ */
+static int sigkill_pending(struct task_struct *tsk)
+{
+	return ((sigismember(&tsk->pending.signal, SIGKILL) ||
+		 sigismember(&tsk->signal->shared_pending.signal, SIGKILL)) &&
+		!unlikely(sigismember(&tsk->blocked, SIGKILL)));
+}
+
+/*
  * This must be called with current->sighand->siglock held.
  *
  * This should be the path for all ptrace stops.
@@ -1585,11 +1585,31 @@ static inline int may_ptrace_stop(void)
  * That makes it a way to test a stopped process for
  * being ptrace-stopped vs being job-control-stopped.
  *
- * If we actually decide not to stop at all because the tracer is gone,
- * we leave nostop_code in current->exit_code.
+ * If we actually decide not to stop at all because the tracer
+ * is gone, we keep current->exit_code unless clear_code.
  */
-static void ptrace_stop(int exit_code, int nostop_code, siginfo_t *info)
+static void ptrace_stop(int exit_code, int clear_code, siginfo_t *info)
 {
+	int killed = 0;
+
+	if (arch_ptrace_stop_needed(exit_code, info)) {
+		/*
+		 * The arch code has something special to do before a
+		 * ptrace stop.  This is allowed to block, e.g. for faults
+		 * on user stack pages.  We can't keep the siglock while
+		 * calling arch_ptrace_stop, so we must release it now.
+		 * To preserve proper semantics, we must do this before
+		 * any signal bookkeeping like checking group_stop_count.
+		 * Meanwhile, a SIGKILL could come in before we retake the
+		 * siglock.  That must prevent us from sleeping in TASK_TRACED.
+		 * So after regaining the lock, we must check for SIGKILL.
+		 */
+		spin_unlock_irq(&current->sighand->siglock);
+		arch_ptrace_stop(exit_code, info);
+		spin_lock_irq(&current->sighand->siglock);
+		killed = sigkill_pending(current);
+	}
+
 	/*
 	 * If there is a group stop in progress,
 	 * we must participate in the bookkeeping.
@@ -1601,22 +1621,23 @@ static void ptrace_stop(int exit_code, int nostop_code, siginfo_t *info)
 	current->exit_code = exit_code;
 
 	/* Let the debugger run.  */
-	set_current_state(TASK_TRACED);
+	__set_current_state(TASK_TRACED);
 	spin_unlock_irq(&current->sighand->siglock);
 	try_to_freeze();
 	read_lock(&tasklist_lock);
-	if (may_ptrace_stop()) {
+	if (!unlikely(killed) && may_ptrace_stop()) {
 		do_notify_parent_cldstop(current, CLD_TRAPPED);
 		read_unlock(&tasklist_lock);
 		schedule();
 	} else {
 		/*
 		 * By the time we got the lock, our tracer went away.
-		 * Don't stop here.
+		 * Don't drop the lock yet, another tracer may come.
 		 */
+		__set_current_state(TASK_RUNNING);
+		if (clear_code)
+			current->exit_code = 0;
 		read_unlock(&tasklist_lock);
-		set_current_state(TASK_RUNNING);
-		current->exit_code = nostop_code;
 	}
 
 	/*
@@ -1649,7 +1670,7 @@ void ptrace_notify(int exit_code)
 
 	/* Let the debugger run.  */
 	spin_lock_irq(&current->sighand->siglock);
-	ptrace_stop(exit_code, 0, &info);
+	ptrace_stop(exit_code, 1, &info);
 	spin_unlock_irq(&current->sighand->siglock);
 }
 
@@ -1712,7 +1733,7 @@ static int do_signal_stop(int signr)
 			 * stop is always done with the siglock held,
 			 * so this check has no races.
 			 */
-			if (!t->exit_state &&
+			if (!(t->flags & PF_EXITING) &&
 			    !task_is_stopped_or_traced(t)) {
 				stop_count++;
 				signal_wake_up(t, 0);
@@ -1756,7 +1777,7 @@ relock:
 			ptrace_signal_deliver(regs, cookie);
 
 			/* Let the debugger run.  */
-			ptrace_stop(signr, signr, info);
+			ptrace_stop(signr, 0, info);
 
 			/* We're back.  Did the debugger cancel the sig?  */
 			signr = current->exit_code;
@@ -1871,6 +1892,48 @@ relock:
 	}
 	spin_unlock_irq(&current->sighand->siglock);
 	return signr;
+}
+
+void exit_signals(struct task_struct *tsk)
+{
+	int group_stop = 0;
+	struct task_struct *t;
+
+	if (thread_group_empty(tsk) || signal_group_exit(tsk->signal)) {
+		tsk->flags |= PF_EXITING;
+		return;
+	}
+
+	spin_lock_irq(&tsk->sighand->siglock);
+	/*
+	 * From now this task is not visible for group-wide signals,
+	 * see wants_signal(), do_signal_stop().
+	 */
+	tsk->flags |= PF_EXITING;
+	if (!signal_pending(tsk))
+		goto out;
+
+	/* It could be that __group_complete_signal() choose us to
+	 * notify about group-wide signal. Another thread should be
+	 * woken now to take the signal since we will not.
+	 */
+	for (t = tsk; (t = next_thread(t)) != tsk; )
+		if (!signal_pending(t) && !(t->flags & PF_EXITING))
+			recalc_sigpending_and_wake(t);
+
+	if (unlikely(tsk->signal->group_stop_count) &&
+			!--tsk->signal->group_stop_count) {
+		tsk->signal->flags = SIGNAL_STOP_STOPPED;
+		group_stop = 1;
+	}
+out:
+	spin_unlock_irq(&tsk->sighand->siglock);
+
+	if (unlikely(group_stop)) {
+		read_lock(&tasklist_lock);
+		do_notify_parent_cldstop(tsk, CLD_STOPPED);
+		read_unlock(&tasklist_lock);
+	}
 }
 
 EXPORT_SYMBOL(recalc_sigpending);

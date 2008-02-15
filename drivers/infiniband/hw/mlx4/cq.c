@@ -64,13 +64,7 @@ static void mlx4_ib_cq_event(struct mlx4_cq *cq, enum mlx4_event type)
 
 static void *get_cqe_from_buf(struct mlx4_ib_cq_buf *buf, int n)
 {
-	int offset = n * sizeof (struct mlx4_cqe);
-
-	if (buf->buf.nbufs == 1)
-		return buf->buf.u.direct.buf + offset;
-	else
-		return buf->buf.u.page_list[offset >> PAGE_SHIFT].buf +
-			(offset & (PAGE_SIZE - 1));
+	return mlx4_buf_offset(&buf->buf, n * sizeof (struct mlx4_cqe));
 }
 
 static void *get_cqe(struct mlx4_ib_cq *cq, int n)
@@ -332,6 +326,12 @@ static int mlx4_ib_poll_one(struct mlx4_ib_cq *cq,
 	is_error = (cqe->owner_sr_opcode & MLX4_CQE_OPCODE_MASK) ==
 		MLX4_CQE_OPCODE_ERROR;
 
+	if (unlikely((cqe->owner_sr_opcode & MLX4_CQE_OPCODE_MASK) == MLX4_OPCODE_NOP &&
+		     is_send)) {
+		printk(KERN_WARNING "Completion for NOP opcode detected!\n");
+		return -EINVAL;
+	}
+
 	if (!*cur_qp ||
 	    (be32_to_cpu(cqe->my_qpn) & 0xffffff) != (*cur_qp)->mqp.qpn) {
 		/*
@@ -354,8 +354,10 @@ static int mlx4_ib_poll_one(struct mlx4_ib_cq *cq,
 
 	if (is_send) {
 		wq = &(*cur_qp)->sq;
-		wqe_ctr = be16_to_cpu(cqe->wqe_index);
-		wq->tail += (u16) (wqe_ctr - (u16) wq->tail);
+		if (!(*cur_qp)->sq_signal_bits) {
+			wqe_ctr = be16_to_cpu(cqe->wqe_index);
+			wq->tail += (u16) (wqe_ctr - (u16) wq->tail);
+		}
 		wc->wr_id = wq->wrid[wq->tail & (wq->wqe_cnt - 1)];
 		++wq->tail;
 	} else if ((*cur_qp)->ibqp.srq) {

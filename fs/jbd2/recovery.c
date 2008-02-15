@@ -397,7 +397,7 @@ static int do_one_pass(journal_t *journal,
 		struct buffer_head *	obh;
 		struct buffer_head *	nbh;
 
-		cond_resched();		/* We're under lock_kernel() */
+		cond_resched();
 
 		/* If we already know where to stop the log traversal,
 		 * check right now that we haven't gone past the end of
@@ -641,7 +641,7 @@ static int do_one_pass(journal_t *journal,
 				if (chksum_err) {
 					info->end_transaction = next_commit_ID;
 
-					if (!JBD2_HAS_COMPAT_FEATURE(journal,
+					if (!JBD2_HAS_INCOMPAT_FEATURE(journal,
 					   JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT)){
 						printk(KERN_ERR
 						       "JBD: Transaction %u "

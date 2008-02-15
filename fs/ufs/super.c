@@ -76,7 +76,6 @@
 
 #include <linux/errno.h>
 #include <linux/fs.h>
-#include <linux/ufs_fs.h>
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/stat.h>
@@ -91,6 +90,7 @@
 #include <linux/mount.h>
 #include <linux/seq_file.h>
 
+#include "ufs_fs.h"
 #include "ufs.h"
 #include "swab.h"
 #include "util.h"
@@ -131,6 +131,8 @@ static void ufs_print_super_stuff(struct super_block *sb,
 		printk(KERN_INFO"  cs_nffree(Num of free frags): %llu\n",
 		       (unsigned long long)
 		       fs64_to_cpu(sb, usb3->fs_un1.fs_u2.cs_nffree));
+		printk(KERN_INFO"  fs_maxsymlinklen: %u\n",
+		       fs32_to_cpu(sb, usb3->fs_un2.fs_44.fs_maxsymlinklen));
 	} else {
 		printk(" sblkno:      %u\n", fs32_to_cpu(sb, usb1->fs_sblkno));
 		printk(" cblkno:      %u\n", fs32_to_cpu(sb, usb1->fs_cblkno));
@@ -633,6 +635,7 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 	unsigned block_size, super_block_size;
 	unsigned flags;
 	unsigned super_block_offset;
+	int ret = -EINVAL;
 
 	uspi = NULL;
 	ubh = NULL;
@@ -1060,17 +1063,21 @@ magic_found:
 	uspi->s_bpf = uspi->s_fsize << 3;
 	uspi->s_bpfshift = uspi->s_fshift + 3;
 	uspi->s_bpfmask = uspi->s_bpf - 1;
-	if ((sbi->s_mount_opt & UFS_MOUNT_UFSTYPE) ==
-	    UFS_MOUNT_UFSTYPE_44BSD)
+	if ((sbi->s_mount_opt & UFS_MOUNT_UFSTYPE) == UFS_MOUNT_UFSTYPE_44BSD ||
+	    (sbi->s_mount_opt & UFS_MOUNT_UFSTYPE) == UFS_MOUNT_UFSTYPE_UFS2)
 		uspi->s_maxsymlinklen =
 		    fs32_to_cpu(sb, usb3->fs_un2.fs_44.fs_maxsymlinklen);
 
-	inode = iget(sb, UFS_ROOTINO);
-	if (!inode || is_bad_inode(inode))
+	inode = ufs_iget(sb, UFS_ROOTINO);
+	if (IS_ERR(inode)) {
+		ret = PTR_ERR(inode);
 		goto failed;
+	}
 	sb->s_root = d_alloc_root(inode);
-	if (!sb->s_root)
+	if (!sb->s_root) {
+		ret = -ENOMEM;
 		goto dalloc_failed;
+	}
 
 	ufs_setup_cstotal(sb);
 	/*
@@ -1092,7 +1099,7 @@ failed:
 	kfree(sbi);
 	sb->s_fs_info = NULL;
 	UFSD("EXIT (FAILED)\n");
-	return -EINVAL;
+	return ret;
 
 failed_nomem:
 	UFSD("EXIT (NOMEM)\n");
@@ -1326,7 +1333,6 @@ static ssize_t ufs_quota_write(struct super_block *, int, const char *, size_t, 
 static const struct super_operations ufs_super_ops = {
 	.alloc_inode	= ufs_alloc_inode,
 	.destroy_inode	= ufs_destroy_inode,
-	.read_inode	= ufs_read_inode,
 	.write_inode	= ufs_write_inode,
 	.delete_inode	= ufs_delete_inode,
 	.put_super	= ufs_put_super,

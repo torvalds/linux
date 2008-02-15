@@ -18,7 +18,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/autoconf.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/init.h>
@@ -77,39 +76,33 @@ static int spi_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 #ifdef	CONFIG_PM
 
-/*
- * NOTE:  the suspend() method for an spi_master controller driver
- * should verify that all its child devices are marked as suspended;
- * suspend requests delivered through sysfs power/state files don't
- * enforce such constraints.
- */
 static int spi_suspend(struct device *dev, pm_message_t message)
 {
-	int			value;
+	int			value = 0;
 	struct spi_driver	*drv = to_spi_driver(dev->driver);
 
-	if (!drv || !drv->suspend)
-		return 0;
-
 	/* suspend will stop irqs and dma; no more i/o */
-	value = drv->suspend(to_spi_device(dev), message);
-	if (value == 0)
-		dev->power.power_state = message;
+	if (drv) {
+		if (drv->suspend)
+			value = drv->suspend(to_spi_device(dev), message);
+		else
+			dev_dbg(dev, "... can't suspend\n");
+	}
 	return value;
 }
 
 static int spi_resume(struct device *dev)
 {
-	int			value;
+	int			value = 0;
 	struct spi_driver	*drv = to_spi_driver(dev->driver);
 
-	if (!drv || !drv->resume)
-		return 0;
-
 	/* resume may restart the i/o queue */
-	value = drv->resume(to_spi_device(dev));
-	if (value == 0)
-		dev->power.power_state = PMSG_ON;
+	if (drv) {
+		if (drv->resume)
+			value = drv->resume(to_spi_device(dev));
+		else
+			dev_dbg(dev, "... can't resume\n");
+	}
 	return value;
 }
 

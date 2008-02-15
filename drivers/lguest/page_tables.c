@@ -178,8 +178,8 @@ static void release_pte(pte_t pte)
 
 static void check_gpte(struct lg_cpu *cpu, pte_t gpte)
 {
-	if ((pte_flags(gpte) & (_PAGE_PWT|_PAGE_PSE))
-	    || pte_pfn(gpte) >= cpu->lg->pfn_limit)
+	if ((pte_flags(gpte) & _PAGE_PSE) ||
+	    pte_pfn(gpte) >= cpu->lg->pfn_limit)
 		kill_guest(cpu, "bad page table entry");
 }
 

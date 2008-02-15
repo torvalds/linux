@@ -241,15 +241,18 @@ init_bootmem_alloc (unsigned long ram_start, unsigned long ram_len)
 	if (kram_end > kram_start)
 		/* Reserve the RAM part of the kernel's address space, so it
 		   doesn't get allocated.  */
-		reserve_bootmem (kram_start, kram_end - kram_start);
+		reserve_bootmem(kram_start, kram_end - kram_start,
+				BOOTMEM_DEFAULT);
 	
 	if (intv_in_ram && !intv_in_kram)
 		/* Reserve the interrupt vector space.  */
-		reserve_bootmem (intv_start, intv_end - intv_start);
+		reserve_bootmem(intv_start, intv_end - intv_start,
+				BOOTMEM_DEFAULT);
 
 	if (bootmap >= ram_start && bootmap < ram_end)
 		/* Reserve the bootmap space.  */
-		reserve_bootmem (bootmap, bootmap_len);
+		reserve_bootmem(bootmap, bootmap_len,
+				BOOTMEM_DEFAULT);
 
 	/* Reserve the memory used by the root filesystem image if it's
 	   in RAM.  */
@@ -257,7 +260,8 @@ init_bootmem_alloc (unsigned long ram_start, unsigned long ram_len)
 	    && (unsigned long)&_root_fs_image_start >= ram_start
 	    && (unsigned long)&_root_fs_image_start < ram_end)
 		reserve_bootmem ((unsigned long)&_root_fs_image_start,
-				 &_root_fs_image_end - &_root_fs_image_start);
+				 &_root_fs_image_end - &_root_fs_image_start,
+				 BOOTMEM_DEFAULT);
 
 	/* Let the platform-dependent code reserve some too.  */
 	if (mrb)

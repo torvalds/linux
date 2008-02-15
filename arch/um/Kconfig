@@ -203,17 +203,6 @@ config NR_CPUS
 	depends on SMP
 	default "32"
 
-config NEST_LEVEL
-	int "Nesting level"
-	default "0"
-	help
-          This is set to the number of layers of UMLs that this UML will be run
-          in.  Normally, this is zero, meaning that it will run directly on the
-          host.  Setting it to one will build a UML that can run inside a UML
-          that is running on the host.  Generally, if you intend this UML to run
-          inside another UML, set CONFIG_NEST_LEVEL to one more than the host
-          UML.
-
 config HIGHMEM
 	bool "Highmem support (EXPERIMENTAL)"
 	depends on !64BIT && EXPERIMENTAL

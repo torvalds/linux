@@ -23,18 +23,18 @@
 	}
 
 static struct plat_serial8250_port hub6_data[] = {
-	HUB6(0,0),
-	HUB6(0,1),
-	HUB6(0,2),
-	HUB6(0,3),
-	HUB6(0,4),
-	HUB6(0,5),
-	HUB6(1,0),
-	HUB6(1,1),
-	HUB6(1,2),
-	HUB6(1,3),
-	HUB6(1,4),
-	HUB6(1,5),
+	HUB6(0, 0),
+	HUB6(0, 1),
+	HUB6(0, 2),
+	HUB6(0, 3),
+	HUB6(0, 4),
+	HUB6(0, 5),
+	HUB6(1, 0),
+	HUB6(1, 1),
+	HUB6(1, 2),
+	HUB6(1, 3),
+	HUB6(1, 4),
+	HUB6(1, 5),
 	{ },
 };
 

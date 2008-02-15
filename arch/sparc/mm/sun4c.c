@@ -1947,12 +1947,17 @@ static pte_t *sun4c_pte_alloc_one_kernel(struct mm_struct *mm, unsigned long add
 	return pte;
 }
 
-static struct page *sun4c_pte_alloc_one(struct mm_struct *mm, unsigned long address)
+static pgtable_t sun4c_pte_alloc_one(struct mm_struct *mm, unsigned long address)
 {
-	pte_t *pte = sun4c_pte_alloc_one_kernel(mm, address);
+	pte_t *pte;
+	struct page *page;
+
+	pte = sun4c_pte_alloc_one_kernel(mm, address);
 	if (pte == NULL)
 		return NULL;
-	return virt_to_page(pte);
+	page = virt_to_page(pte);
+	pgtable_page_ctor(page);
+	return page;
 }
 
 static inline void sun4c_free_pte_fast(pte_t *pte)
@@ -1962,8 +1967,9 @@ static inline void sun4c_free_pte_fast(pte_t *pte)
 	pgtable_cache_size++;
 }
 
-static void sun4c_pte_free(struct page *pte)
+static void sun4c_pte_free(pgtable_t pte)
 {
+	pgtable_page_dtor(pte);
 	sun4c_free_pte_fast(page_address(pte));
 }
 

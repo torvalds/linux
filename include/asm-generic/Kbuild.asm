@@ -1,4 +1,6 @@
+ifeq ($(wildcard include/asm-$(SRCARCH)/a.out.h),include/asm-$(SRCARCH)/a.out.h)
 unifdef-y += a.out.h
+endif
 unifdef-y += auxvec.h
 unifdef-y += byteorder.h
 unifdef-y += errno.h
@@ -27,8 +29,3 @@ unifdef-y += termbits.h
 unifdef-y += termios.h
 unifdef-y += types.h
 unifdef-y += unistd.h
-unifdef-y += user.h
-
-# These probably shouldn't be exported
-unifdef-y += elf.h
-unifdef-y += page.h

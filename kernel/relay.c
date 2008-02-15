@@ -37,37 +37,31 @@ static void relay_file_mmap_close(struct vm_area_struct *vma)
 }
 
 /*
- * nopage() vm_op implementation for relay file mapping.
+ * fault() vm_op implementation for relay file mapping.
  */
-static struct page *relay_buf_nopage(struct vm_area_struct *vma,
-				     unsigned long address,
-				     int *type)
+static int relay_buf_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct page *page;
 	struct rchan_buf *buf = vma->vm_private_data;
-	unsigned long offset = address - vma->vm_start;
+	pgoff_t pgoff = vmf->pgoff;
 
-	if (address > vma->vm_end)
-		return NOPAGE_SIGBUS; /* Disallow mremap */
 	if (!buf)
-		return NOPAGE_OOM;
+		return VM_FAULT_OOM;
 
-	page = vmalloc_to_page(buf->start + offset);
+	page = vmalloc_to_page(buf->start + (pgoff << PAGE_SHIFT));
 	if (!page)
-		return NOPAGE_OOM;
+		return VM_FAULT_SIGBUS;
 	get_page(page);
+	vmf->page = page;
 
-	if (type)
-		*type = VM_FAULT_MINOR;
-
-	return page;
+	return 0;
 }
 
 /*
  * vm_ops for relay file mappings.
  */
 static struct vm_operations_struct relay_file_mmap_ops = {
-	.nopage = relay_buf_nopage,
+	.fault = relay_buf_fault,
 	.close = relay_file_mmap_close,
 };
 

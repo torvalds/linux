@@ -29,7 +29,7 @@ config X86_ACPI_CPUFREQ
 config ELAN_CPUFREQ
 	tristate "AMD Elan SC400 and SC410"
 	select CPU_FREQ_TABLE
-	depends on X86_32 && X86_ELAN
+	depends on X86_ELAN
 	---help---
 	  This adds the CPUFreq driver for AMD Elan SC400 and SC410
 	  processors.
@@ -45,7 +45,7 @@ config ELAN_CPUFREQ
 config SC520_CPUFREQ
 	tristate "AMD Elan SC520"
 	select CPU_FREQ_TABLE
-	depends on X86_32 && X86_ELAN
+	depends on X86_ELAN
 	---help---
 	  This adds the CPUFreq driver for AMD Elan SC520 processor.
 

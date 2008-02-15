@@ -260,6 +260,7 @@ void xfs_da_binval(struct xfs_trans *tp, xfs_dabuf_t *dabuf);
 xfs_daddr_t xfs_da_blkno(xfs_dabuf_t *dabuf);
 
 extern struct kmem_zone *xfs_da_state_zone;
+extern struct kmem_zone *xfs_dabuf_zone;
 #endif	/* __KERNEL__ */
 
 #endif	/* __XFS_DA_BTREE_H__ */

@@ -159,7 +159,7 @@ int drm_getsareactx(struct drm_device *dev, void *data,
 	request->handle = NULL;
 	list_for_each_entry(_entry, &dev->maplist, head) {
 		if (_entry->map == map) {
-			request->handle = 
+			request->handle =
 			    (void *)(unsigned long)_entry->user_token;
 			break;
 		}

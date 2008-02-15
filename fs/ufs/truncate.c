@@ -36,7 +36,6 @@
 
 #include <linux/errno.h>
 #include <linux/fs.h>
-#include <linux/ufs_fs.h>
 #include <linux/fcntl.h>
 #include <linux/time.h>
 #include <linux/stat.h>
@@ -46,6 +45,7 @@
 #include <linux/blkdev.h>
 #include <linux/sched.h>
 
+#include "ufs_fs.h"
 #include "ufs.h"
 #include "swab.h"
 #include "util.h"

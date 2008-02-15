@@ -258,10 +258,6 @@ void cpu_idle(void)
 	default_idle();
 }
 
-void dump_thread(struct pt_regs *regs, struct user *u)
-{
-}
-
 int __cant_sleep(void) {
 	return in_atomic() || irqs_disabled() || in_interrupt();
 	/* Is in_interrupt() really needed? */

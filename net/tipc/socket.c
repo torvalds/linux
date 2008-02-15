@@ -71,9 +71,9 @@ struct tipc_sock {
 static u32 dispatch(struct tipc_port *tport, struct sk_buff *buf);
 static void wakeupdispatch(struct tipc_port *tport);
 
-static struct proto_ops packet_ops;
-static struct proto_ops stream_ops;
-static struct proto_ops msg_ops;
+static const struct proto_ops packet_ops;
+static const struct proto_ops stream_ops;
+static const struct proto_ops msg_ops;
 
 static struct proto tipc_proto;
 
@@ -1615,7 +1615,7 @@ static int getsockopt(struct socket *sock,
  * Protocol switches for the various types of TIPC sockets
  */
 
-static struct proto_ops msg_ops = {
+static const struct proto_ops msg_ops = {
 	.owner 		= THIS_MODULE,
 	.family		= AF_TIPC,
 	.release	= release,
@@ -1636,7 +1636,7 @@ static struct proto_ops msg_ops = {
 	.sendpage	= sock_no_sendpage
 };
 
-static struct proto_ops packet_ops = {
+static const struct proto_ops packet_ops = {
 	.owner 		= THIS_MODULE,
 	.family		= AF_TIPC,
 	.release	= release,
@@ -1657,7 +1657,7 @@ static struct proto_ops packet_ops = {
 	.sendpage	= sock_no_sendpage
 };
 
-static struct proto_ops stream_ops = {
+static const struct proto_ops stream_ops = {
 	.owner 		= THIS_MODULE,
 	.family		= AF_TIPC,
 	.release	= release,
@@ -1678,7 +1678,7 @@ static struct proto_ops stream_ops = {
 	.sendpage	= sock_no_sendpage
 };
 
-static struct net_proto_family tipc_family_ops = {
+static const struct net_proto_family tipc_family_ops = {
 	.owner 		= THIS_MODULE,
 	.family		= AF_TIPC,
 	.create		= tipc_create

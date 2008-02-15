@@ -132,33 +132,18 @@ static void __init storcenter_init_IRQ(void)
 
 	paddr = (phys_addr_t)of_translate_address(dnp, prop);
 	mpic = mpic_alloc(dnp, paddr, MPIC_PRIMARY | MPIC_WANTS_RESET,
-			4, 32, " EPIC     ");
+			16, 32, " OpenPIC  ");
 
 	of_node_put(dnp);
 
 	BUG_ON(mpic == NULL);
 
-	/* PCI IRQs */
 	/*
-	 * 2.6.12 patch:
-	 *         openpic_set_sources(0, 5, OpenPIC_Addr + 0x10200);
-	 *         openpic_set_sources(5, 2, OpenPIC_Addr + 0x11120);
-	 *         first_irq, num_irqs, __iomem first_ISR
-	 *         o_ss: i, src: 0, fdf50200
-	 *         o_ss: i, src: 1, fdf50220
-	 *         o_ss: i, src: 2, fdf50240
-	 *         o_ss: i, src: 3, fdf50260
-	 *         o_ss: i, src: 4, fdf50280
-	 *         o_ss: i, src: 5, fdf51120
-	 *         o_ss: i, src: 6, fdf51140
+	 * 16 Serial Interrupts followed by 16 Internal Interrupts.
+	 * I2C is the second internal, so it is at 17, 0x11020.
 	 */
 	mpic_assign_isu(mpic, 0, paddr + 0x10200);
-	mpic_assign_isu(mpic, 1, paddr + 0x10220);
-	mpic_assign_isu(mpic, 2, paddr + 0x10240);
-	mpic_assign_isu(mpic, 3, paddr + 0x10260);
-	mpic_assign_isu(mpic, 4, paddr + 0x10280);
-	mpic_assign_isu(mpic, 5, paddr + 0x11120);
-	mpic_assign_isu(mpic, 6, paddr + 0x11140);
+	mpic_assign_isu(mpic, 1, paddr + 0x11000);
 
 	mpic_init(mpic);
 }
@@ -178,7 +163,7 @@ static int __init storcenter_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
 
-	return of_flat_dt_is_compatible(root, "storcenter");
+	return of_flat_dt_is_compatible(root, "iomega,storcenter");
 }
 
 define_machine(storcenter){

@@ -186,7 +186,7 @@ static struct str_ident {
 	char name[RESOURCE_LABEL_SIZE];
 } str_ident[MAX_RESOURCES];
 
-#ifdef CONFIG_PM
+#if defined(CONFIG_PM) && !defined(CONFIG_BF54x)
 static unsigned short wakeup_map[gpio_bank(MAX_BLACKFIN_GPIOS)];
 static unsigned char wakeup_flags_map[MAX_BLACKFIN_GPIOS];
 static struct gpio_port_s gpio_bank_saved[gpio_bank(MAX_BLACKFIN_GPIOS)];
@@ -696,9 +696,8 @@ static int bfin_gpio_wakeup_type(unsigned gpio, unsigned char type)
 	return 0;
 }
 
-u32 gpio_pm_setup(void)
+u32 bfin_pm_setup(void)
 {
-	u32 sic_iwr = 0;
 	u16 bank, mask, i, gpio;
 
 	for (i = 0; i < MAX_BLACKFIN_GPIOS; i += GPIO_BANKSIZE) {
@@ -723,7 +722,8 @@ u32 gpio_pm_setup(void)
 			gpio = i;
 
 			while (mask) {
-				if (mask & 1) {
+				if ((mask & 1) && (wakeup_flags_map[gpio] !=
+					PM_WAKE_IGNORE)) {
 					reserved_gpio_map[gpio_bank(gpio)] |=
 							gpio_bit(gpio);
 					bfin_gpio_wakeup_type(gpio,
@@ -734,21 +734,17 @@ u32 gpio_pm_setup(void)
 				mask >>= 1;
 			}
 
-			sic_iwr |= 1 <<
-				(sic_iwr_irqs[bank] - (IRQ_CORETMR + 1));
+			bfin_internal_set_wake(sic_iwr_irqs[bank], 1);
 			gpio_bankb[bank]->maskb_set = wakeup_map[gpio_bank(i)];
 		}
 	}
 
 	AWA_DUMMY_READ(maskb_set);
 
-	if (sic_iwr)
-		return sic_iwr;
-	else
-		return IWR_ENABLE_ALL;
+	return 0;
 }
 
-void gpio_pm_restore(void)
+void bfin_pm_restore(void)
 {
 	u16 bank, mask, i;
 
@@ -768,7 +764,7 @@ void gpio_pm_restore(void)
 
 			reserved_gpio_map[bank] =
 					gpio_bank_saved[bank].reserved;
-
+			bfin_internal_set_wake(sic_iwr_irqs[bank], 0);
 		}
 
 		gpio_bankb[bank]->maskb = gpio_bank_saved[bank].maskb;

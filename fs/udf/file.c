@@ -45,12 +45,13 @@ static int udf_adinicb_readpage(struct file *file, struct page *page)
 {
 	struct inode *inode = page->mapping->host;
 	char *kaddr;
+	struct udf_inode_info *iinfo = UDF_I(inode);
 
 	BUG_ON(!PageLocked(page));
 
 	kaddr = kmap(page);
 	memset(kaddr, 0, PAGE_CACHE_SIZE);
-	memcpy(kaddr, UDF_I_DATA(inode) + UDF_I_LENEATTR(inode), inode->i_size);
+	memcpy(kaddr, iinfo->i_ext.i_data + iinfo->i_lenEAttr, inode->i_size);
 	flush_dcache_page(page);
 	SetPageUptodate(page);
 	kunmap(page);
@@ -59,15 +60,17 @@ static int udf_adinicb_readpage(struct file *file, struct page *page)
 	return 0;
 }
 
-static int udf_adinicb_writepage(struct page *page, struct writeback_control *wbc)
+static int udf_adinicb_writepage(struct page *page,
+				 struct writeback_control *wbc)
 {
 	struct inode *inode = page->mapping->host;
 	char *kaddr;
+	struct udf_inode_info *iinfo = UDF_I(inode);
 
 	BUG_ON(!PageLocked(page));
 
 	kaddr = kmap(page);
-	memcpy(UDF_I_DATA(inode) + UDF_I_LENEATTR(inode), kaddr, inode->i_size);
+	memcpy(iinfo->i_ext.i_data + iinfo->i_lenEAttr, kaddr, inode->i_size);
 	mark_inode_dirty(inode);
 	SetPageUptodate(page);
 	kunmap(page);
@@ -84,9 +87,10 @@ static int udf_adinicb_write_end(struct file *file,
 	struct inode *inode = mapping->host;
 	unsigned offset = pos & (PAGE_CACHE_SIZE - 1);
 	char *kaddr;
+	struct udf_inode_info *iinfo = UDF_I(inode);
 
 	kaddr = kmap_atomic(page, KM_USER0);
-	memcpy(UDF_I_DATA(inode) + UDF_I_LENEATTR(inode) + offset,
+	memcpy(iinfo->i_ext.i_data + iinfo->i_lenEAttr + offset,
 		kaddr + offset, copied);
 	kunmap_atomic(kaddr, KM_USER0);
 
@@ -109,25 +113,27 @@ static ssize_t udf_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	struct inode *inode = file->f_path.dentry->d_inode;
 	int err, pos;
 	size_t count = iocb->ki_left;
+	struct udf_inode_info *iinfo = UDF_I(inode);
 
-	if (UDF_I_ALLOCTYPE(inode) == ICBTAG_FLAG_AD_IN_ICB) {
+	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
 		if (file->f_flags & O_APPEND)
 			pos = inode->i_size;
 		else
 			pos = ppos;
 
-		if (inode->i_sb->s_blocksize < (udf_file_entry_alloc_offset(inode) +
+		if (inode->i_sb->s_blocksize <
+				(udf_file_entry_alloc_offset(inode) +
 						pos + count)) {
 			udf_expand_file_adinicb(inode, pos + count, &err);
-			if (UDF_I_ALLOCTYPE(inode) == ICBTAG_FLAG_AD_IN_ICB) {
+			if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
 				udf_debug("udf_expand_adinicb: err=%d\n", err);
 				return err;
 			}
 		} else {
 			if (pos + count > inode->i_size)
-				UDF_I_LENALLOC(inode) = pos + count;
+				iinfo->i_lenAlloc = pos + count;
 			else
-				UDF_I_LENALLOC(inode) = inode->i_size;
+				iinfo->i_lenAlloc = inode->i_size;
 		}
 	}
 
@@ -191,23 +197,28 @@ int udf_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 
 	switch (cmd) {
 	case UDF_GETVOLIDENT:
-		return copy_to_user((char __user *)arg,
-				    UDF_SB_VOLIDENT(inode->i_sb), 32) ? -EFAULT : 0;
+		if (copy_to_user((char __user *)arg,
+				 UDF_SB(inode->i_sb)->s_volume_ident, 32))
+			return -EFAULT;
+		else
+			return 0;
 	case UDF_RELOCATE_BLOCKS:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EACCES;
 		if (get_user(old_block, (long __user *)arg))
 			return -EFAULT;
-		if ((result = udf_relocate_blocks(inode->i_sb,
-						  old_block, &new_block)) == 0)
+		result = udf_relocate_blocks(inode->i_sb,
+						old_block, &new_block);
+		if (result == 0)
 			result = put_user(new_block, (long __user *)arg);
 		return result;
 	case UDF_GETEASIZE:
-		result = put_user(UDF_I_LENEATTR(inode), (int __user *)arg);
+		result = put_user(UDF_I(inode)->i_lenEAttr, (int __user *)arg);
 		break;
 	case UDF_GETEABLOCK:
-		result = copy_to_user((char __user *)arg, UDF_I_DATA(inode),
-				      UDF_I_LENEATTR(inode)) ? -EFAULT : 0;
+		result = copy_to_user((char __user *)arg,
+				      UDF_I(inode)->i_ext.i_data,
+				      UDF_I(inode)->i_lenEAttr) ? -EFAULT : 0;
 		break;
 	}
 

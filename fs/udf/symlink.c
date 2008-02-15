@@ -33,7 +33,8 @@
 #include <linux/buffer_head.h>
 #include "udf_i.h"
 
-static void udf_pc_to_char(struct super_block *sb, char *from, int fromlen, char *to)
+static void udf_pc_to_char(struct super_block *sb, char *from, int fromlen,
+			   char *to)
 {
 	struct pathComponent *pc;
 	int elen = 0;
@@ -78,10 +79,12 @@ static int udf_symlink_filler(struct file *file, struct page *page)
 	char *symlink;
 	int err = -EIO;
 	char *p = kmap(page);
+	struct udf_inode_info *iinfo;
 
 	lock_kernel();
-	if (UDF_I_ALLOCTYPE(inode) == ICBTAG_FLAG_AD_IN_ICB) {
-		symlink = UDF_I_DATA(inode) + UDF_I_LENEATTR(inode);
+	iinfo = UDF_I(inode);
+	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
+		symlink = iinfo->i_ext.i_data + iinfo->i_lenEAttr;
 	} else {
 		bh = sb_bread(inode->i_sb, udf_block_map(inode, 0));
 

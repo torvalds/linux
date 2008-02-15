@@ -46,13 +46,15 @@ void __init mach_reserve_bootmem ()
 {
 #ifdef CONFIG_RTE_CB_MULTI
 	/* Prevent the kernel from touching the monitor's scratch RAM.  */
-	reserve_bootmem (MON_SCRATCH_ADDR, MON_SCRATCH_SIZE);
+	reserve_bootmem(MON_SCRATCH_ADDR, MON_SCRATCH_SIZE,
+			BOOTMEM_DEFAULT);
 #endif
 
 	/* The space between SRAM and SDRAM is filled with duplicate
 	   images of SRAM.  Prevent the kernel from using them.  */
 	reserve_bootmem (SRAM_ADDR + SRAM_SIZE,
-			 SDRAM_ADDR - (SRAM_ADDR + SRAM_SIZE));
+			 SDRAM_ADDR - (SRAM_ADDR + SRAM_SIZE),
+			 BOOTMEM_DEFAULT);
 }
 
 void mach_gettimeofday (struct timespec *tv)

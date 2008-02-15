@@ -24,7 +24,6 @@
 #include <linux/ptrace.h>
 #include <linux/slab.h>
 #include <linux/user.h>
-#include <linux/a.out.h>
 #include <linux/reboot.h>
 #include <linux/delay.h>
 #include <linux/compat.h>
@@ -723,17 +722,6 @@ pid_t kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 			     "i" (__NR_exit),  "r" (fn), "r" (arg) :
 			     "g1", "g2", "g3", "o0", "o1", "memory", "cc");
 	return retval;
-}
-
-/*
- * fill in the user structure for a core dump..
- */
-void dump_thread(struct pt_regs * regs, struct user * dump)
-{
-	/* Only should be used for SunOS and ancient a.out
-	 * SparcLinux binaries...  Not worth implementing.
-	 */
-	memset(dump, 0, sizeof(struct user));
 }
 
 typedef struct {

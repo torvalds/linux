@@ -49,18 +49,17 @@ xfs_mount_reset_sbqflags(xfs_mount_t *mp)
 {
 	int			error;
 	xfs_trans_t		*tp;
-	unsigned long		s;
 
 	mp->m_qflags = 0;
 	/*
 	 * It is OK to look at sb_qflags here in mount path,
-	 * without SB_LOCK.
+	 * without m_sb_lock.
 	 */
 	if (mp->m_sb.sb_qflags == 0)
 		return 0;
-	s = XFS_SB_LOCK(mp);
+	spin_lock(&mp->m_sb_lock);
 	mp->m_sb.sb_qflags = 0;
-	XFS_SB_UNLOCK(mp, s);
+	spin_unlock(&mp->m_sb_lock);
 
 	/*
 	 * if the fs is readonly, let the incore superblock run

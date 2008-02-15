@@ -549,8 +549,8 @@ void audit_trim_trees(void)
 		if (err)
 			goto skip_it;
 
-		root_mnt = collect_mounts(nd.mnt, nd.dentry);
-		path_release(&nd);
+		root_mnt = collect_mounts(nd.path.mnt, nd.path.dentry);
+		path_put(&nd.path);
 		if (!root_mnt)
 			goto skip_it;
 
@@ -583,17 +583,17 @@ skip_it:
 static int is_under(struct vfsmount *mnt, struct dentry *dentry,
 		    struct nameidata *nd)
 {
-	if (mnt != nd->mnt) {
+	if (mnt != nd->path.mnt) {
 		for (;;) {
 			if (mnt->mnt_parent == mnt)
 				return 0;
-			if (mnt->mnt_parent == nd->mnt)
+			if (mnt->mnt_parent == nd->path.mnt)
 					break;
 			mnt = mnt->mnt_parent;
 		}
 		dentry = mnt->mnt_mountpoint;
 	}
-	return is_subdir(dentry, nd->dentry);
+	return is_subdir(dentry, nd->path.dentry);
 }
 
 int audit_make_tree(struct audit_krule *rule, char *pathname, u32 op)
@@ -641,8 +641,8 @@ int audit_add_tree_rule(struct audit_krule *rule)
 	err = path_lookup(tree->pathname, 0, &nd);
 	if (err)
 		goto Err;
-	mnt = collect_mounts(nd.mnt, nd.dentry);
-	path_release(&nd);
+	mnt = collect_mounts(nd.path.mnt, nd.path.dentry);
+	path_put(&nd.path);
 	if (!mnt) {
 		err = -ENOMEM;
 		goto Err;
@@ -701,8 +701,8 @@ int audit_tag_tree(char *old, char *new)
 	err = path_lookup(new, 0, &nd);
 	if (err)
 		return err;
-	tagged = collect_mounts(nd.mnt, nd.dentry);
-	path_release(&nd);
+	tagged = collect_mounts(nd.path.mnt, nd.path.dentry);
+	path_put(&nd.path);
 	if (!tagged)
 		return -ENOMEM;
 
@@ -711,9 +711,9 @@ int audit_tag_tree(char *old, char *new)
 		drop_collected_mounts(tagged);
 		return err;
 	}
-	mnt = mntget(nd.mnt);
-	dentry = dget(nd.dentry);
-	path_release(&nd);
+	mnt = mntget(nd.path.mnt);
+	dentry = dget(nd.path.dentry);
+	path_put(&nd.path);
 
 	if (dentry == tagged->mnt_root && dentry == mnt->mnt_root)
 		follow_up(&mnt, &dentry);
@@ -744,13 +744,13 @@ int audit_tag_tree(char *old, char *new)
 		spin_lock(&vfsmount_lock);
 		if (!is_under(mnt, dentry, &nd)) {
 			spin_unlock(&vfsmount_lock);
-			path_release(&nd);
+			path_put(&nd.path);
 			put_tree(tree);
 			mutex_lock(&audit_filter_mutex);
 			continue;
 		}
 		spin_unlock(&vfsmount_lock);
-		path_release(&nd);
+		path_put(&nd.path);
 
 		list_for_each_entry(p, &list, mnt_list) {
 			failed = tag_chunk(p->mnt_root->d_inode, tree);

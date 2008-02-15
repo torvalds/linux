@@ -26,12 +26,17 @@ static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
         free_page((unsigned long) pte);
 }
 
-static inline void pte_free(struct mm_struct *mm, struct page *page)
+static inline void pte_free(struct mm_struct *mm, pgtable_t page)
 {
+	pgtable_page_dtor(page);
         __free_page(page);
 }
 
-#define __pte_free_tlb(tlb,pte) tlb_remove_page((tlb),(pte))
+#define __pte_free_tlb(tlb,pte)				\
+do {							\
+	pgtable_page_dtor(pte);				\
+	tlb_remove_page((tlb), pte);			\
+} while (0)
 
 static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
 					  unsigned long address)
@@ -45,8 +50,8 @@ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
 	return (pte_t *) (page);
 }
 
-static inline struct page *pte_alloc_one(struct mm_struct *mm,
-					 unsigned long address)
+static inline pgtable_t pte_alloc_one(struct mm_struct *mm,
+					unsigned long address)
 {
         struct page *page = alloc_pages(GFP_KERNEL|__GFP_REPEAT, 0);
 
@@ -54,6 +59,7 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm,
 		return NULL;
 
 	clear_highpage(page);
+	pgtable_page_ctor(page);
 	return page;
 
 }
@@ -63,10 +69,11 @@ static inline void pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd, pte_t *
 	pmd_val(*pmd) = __pa((unsigned long)pte);
 }
 
-static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd, struct page *page)
+static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd, pgtable_t page)
 {
 	pmd_val(*pmd) = __pa((unsigned long)page_address(page));
 }
+#define pmd_pgtable(pmd) pmd_page(pmd)
 
 /*
  * allocating and freeing a pmd is trivial: the 1-entry pmd is

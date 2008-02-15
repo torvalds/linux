@@ -38,7 +38,7 @@ config DRM_RADEON
 	  Choose this option if you have an ATI Radeon graphics card.  There
 	  are both PCI and AGP versions.  You don't need to choose this to
 	  run the Radeon in plain VGA mode.
-	  
+
 	  If M is selected, the module will be called radeon.
 
 config DRM_I810
@@ -71,9 +71,9 @@ config DRM_I915
 	  852GM, 855GM 865G or 915G integrated graphics.  If M is selected, the
 	  module will be called i915.  AGP support is required for this driver
 	  to work. This driver is used by the Intel driver in X.org 6.8 and
-	  XFree86 4.4 and above. If unsure, build this and i830 as modules and 
+	  XFree86 4.4 and above. If unsure, build this and i830 as modules and
 	  the X server will load the correct one.
-	
+
 endchoice
 
 config DRM_MGA
@@ -88,7 +88,7 @@ config DRM_SIS
 	tristate "SiS video cards"
 	depends on DRM && AGP
 	help
-	  Choose this option if you have a SiS 630 or compatible video 
+	  Choose this option if you have a SiS 630 or compatible video
           chipset. If M is selected the module will be called sis. AGP
           support is required for this driver to work.
 
@@ -105,4 +105,3 @@ config DRM_SAVAGE
 	help
 	  Choose this option if you have a Savage3D/4/SuperSavage/Pro/Twister
 	  chipset. If M is selected the module will be called savage.
-

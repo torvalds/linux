@@ -37,7 +37,7 @@
 #define XFS_LOG_TRACE 1
 #define XFS_RW_TRACE 1
 #define XFS_BUF_TRACE 1
-#define XFS_VNODE_TRACE 1
+#define XFS_INODE_TRACE 1
 #define XFS_FILESTREAMS_TRACE 1
 #endif
 

@@ -109,7 +109,8 @@ void *__nf_ct_ext_add(struct nf_conn *ct, enum nf_ct_ext_id id, gfp_t gfp)
 			rcu_read_lock();
 			t = rcu_dereference(nf_ct_ext_types[i]);
 			if (t && t->move)
-				t->move(ct, ct->ext + ct->ext->offset[i]);
+				t->move((void *)new + new->offset[i],
+					(void *)ct->ext + ct->ext->offset[i]);
 			rcu_read_unlock();
 		}
 		kfree(ct->ext);

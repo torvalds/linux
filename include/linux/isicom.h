@@ -37,8 +37,6 @@
 #define		BOARD_COUNT	4
 #define		PORT_COUNT	(BOARD_COUNT*16)
 
-#define		SERIAL_TYPE_NORMAL	1
-
 /*   character sizes  */
 
 #define		ISICOM_CS5		0x0000

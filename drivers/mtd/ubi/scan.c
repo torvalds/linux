@@ -286,8 +286,13 @@ static int compare_lebs(struct ubi_device *ubi, const struct ubi_scan_leb *seb,
 		 * FIXME: but this is anyway obsolete and will be removed at
 		 * some point.
 		 */
-
 		dbg_bld("using old crappy leb_ver stuff");
+
+		if (v1 == v2) {
+			ubi_err("PEB %d and PEB %d have the same version %lld",
+				seb->pnum, pnum, v1);
+			return -EINVAL;
+		}
 
 		abs = v1 - v2;
 		if (abs < 0)
@@ -390,7 +395,6 @@ out_free_buf:
 	vfree(buf);
 out_free_vidh:
 	ubi_free_vid_hdr(ubi, vh);
-	ubi_assert(err < 0);
 	return err;
 }
 
@@ -769,7 +773,7 @@ struct ubi_scan_leb *ubi_scan_get_free_peb(struct ubi_device *ubi,
  */
 static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si, int pnum)
 {
-	long long ec;
+	long long uninitialized_var(ec);
 	int err, bitflips = 0, vol_id, ec_corr = 0;
 
 	dbg_bld("scan PEB %d", pnum);
@@ -854,7 +858,7 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si, int pnum
 	}
 
 	vol_id = be32_to_cpu(vidh->vol_id);
-	if (vol_id > UBI_MAX_VOLUMES && vol_id != UBI_LAYOUT_VOL_ID) {
+	if (vol_id > UBI_MAX_VOLUMES && vol_id != UBI_LAYOUT_VOLUME_ID) {
 		int lnum = be32_to_cpu(vidh->lnum);
 
 		/* Unsupported internal volume */

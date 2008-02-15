@@ -365,12 +365,12 @@ static struct device_driver ipmidriver = {
 };
 static DEFINE_MUTEX(ipmidriver_mutex);
 
-static struct list_head ipmi_interfaces = LIST_HEAD_INIT(ipmi_interfaces);
+static LIST_HEAD(ipmi_interfaces);
 static DEFINE_MUTEX(ipmi_interfaces_mutex);
 
 /* List of watchers that want to know when smi's are added and
    deleted. */
-static struct list_head smi_watchers = LIST_HEAD_INIT(smi_watchers);
+static LIST_HEAD(smi_watchers);
 static DEFINE_MUTEX(smi_watchers_mutex);
 
 
@@ -441,7 +441,7 @@ struct watcher_entry {
 int ipmi_smi_watcher_register(struct ipmi_smi_watcher *watcher)
 {
 	ipmi_smi_t intf;
-	struct list_head to_deliver = LIST_HEAD_INIT(to_deliver);
+	LIST_HEAD(to_deliver);
 	struct watcher_entry *e, *e2;
 
 	mutex_lock(&smi_watchers_mutex);

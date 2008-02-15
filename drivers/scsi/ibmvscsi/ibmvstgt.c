@@ -539,9 +539,9 @@ out:
 		srp_iu_put(iue);
 }
 
-static irqreturn_t ibmvstgt_interrupt(int irq, void *data)
+static irqreturn_t ibmvstgt_interrupt(int dummy, void *data)
 {
-	struct srp_target *target = (struct srp_target *) data;
+	struct srp_target *target = data;
 	struct vio_port *vport = target_to_port(target);
 
 	vio_disable_interrupts(vport->dma_dev);

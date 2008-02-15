@@ -52,9 +52,9 @@ int __hfs_brec_find(struct hfs_bnode *bnode, struct hfs_find_data *fd)
 		rec = (e + b) / 2;
 		len = hfs_brec_lenoff(bnode, rec, &off);
 		keylen = hfs_brec_keylen(bnode, rec);
-		if (keylen == HFS_BAD_KEYLEN) {
+		if (keylen == 0) {
 			res = -EINVAL;
-			goto done;
+			goto fail;
 		}
 		hfs_bnode_read(bnode, fd->key, off, keylen);
 		cmpval = bnode->tree->keycmp(fd->key, fd->search_key);
@@ -71,9 +71,9 @@ int __hfs_brec_find(struct hfs_bnode *bnode, struct hfs_find_data *fd)
 	if (rec != e && e >= 0) {
 		len = hfs_brec_lenoff(bnode, e, &off);
 		keylen = hfs_brec_keylen(bnode, e);
-		if (keylen == HFS_BAD_KEYLEN) {
+		if (keylen == 0) {
 			res = -EINVAL;
-			goto done;
+			goto fail;
 		}
 		hfs_bnode_read(bnode, fd->key, off, keylen);
 	}
@@ -83,6 +83,7 @@ done:
 	fd->keylength = keylen;
 	fd->entryoffset = off + keylen;
 	fd->entrylength = len - keylen;
+fail:
 	return res;
 }
 
@@ -206,7 +207,7 @@ int hfs_brec_goto(struct hfs_find_data *fd, int cnt)
 
 	len = hfs_brec_lenoff(bnode, fd->record, &off);
 	keylen = hfs_brec_keylen(bnode, fd->record);
-	if (keylen == HFS_BAD_KEYLEN) {
+	if (keylen == 0) {
 		res = -EINVAL;
 		goto out;
 	}

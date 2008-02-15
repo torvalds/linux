@@ -295,6 +295,9 @@ extern void maybe_sigio_broken(int fd, int read);
 extern int os_arch_prctl(int pid, int code, unsigned long *addr);
 
 /* tty.c */
-int get_pty(void);
+extern int get_pty(void);
+
+/* sys-$ARCH/task_size.c */
+extern unsigned long os_get_task_size(void);
 
 #endif

@@ -1,6 +1,4 @@
 /*
- * $Id: analog.c,v 1.68 2002/01/22 20:18:32 vojtech Exp $
- *
  *  Copyright (c) 1996-2001 Vojtech Pavlik
  */
 
@@ -31,7 +29,6 @@
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/slab.h>
 #include <linux/bitops.h>
 #include <linux/init.h>
@@ -165,6 +162,10 @@ static unsigned int get_time_pit(void)
 #define GET_TIME(x)	do { x = get_cycles(); } while (0)
 #define DELTA(x,y)	((y)-(x))
 #define TIME_NAME	"PCC"
+#elif defined(CONFIG_MN10300)
+#define GET_TIME(x)	do { x = get_cycles(); } while (0)
+#define DELTA(x, y)	((x) - (y))
+#define TIME_NAME	"TSC"
 #else
 #define FAKE_TIME
 static unsigned long analog_faketime = 0;

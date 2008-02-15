@@ -126,15 +126,13 @@ static void decode_address(char *buf, unsigned long address)
 			struct vm_area_struct *vma = vml->vma;
 
 			if (address >= vma->vm_start && address < vma->vm_end) {
+				char _tmpbuf[256];
 				char *name = p->comm;
 				struct file *file = vma->vm_file;
-				if (file) {
-					char _tmpbuf[256];
-					name = d_path(file->f_dentry,
-					              file->f_vfsmnt,
-					              _tmpbuf,
-					              sizeof(_tmpbuf));
-				}
+
+				if (file)
+					name = d_path(&file->f_path, _tmpbuf,
+						      sizeof(_tmpbuf));
 
 				/* FLAT does not have its text aligned to the start of
 				 * the map while FDPIC ELF does ...
@@ -649,7 +647,7 @@ void dump_bfin_process(struct pt_regs *fp)
 	if (context & 0x0020 && (fp->seqstat & SEQSTAT_EXCAUSE) == VEC_HWERR)
 		printk(KERN_NOTICE "HW Error context\n");
 	else if (context & 0x0020)
-		printk(KERN_NOTICE "Defered Exception context\n");
+		printk(KERN_NOTICE "Deferred Exception context\n");
 	else if (context & 0x3FC0)
 		printk(KERN_NOTICE "Interrupt context\n");
 	else if (context & 0x4000)

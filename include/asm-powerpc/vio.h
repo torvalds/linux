@@ -66,7 +66,7 @@ extern void __devinit vio_unregister_device(struct vio_dev *dev);
 
 struct device_node;
 
-extern struct vio_dev * __devinit vio_register_device_node(
+extern struct vio_dev *vio_register_device_node(
 		struct device_node *node_vdev);
 extern const void *vio_get_attribute(struct vio_dev *vdev, char *which,
 		int *length);

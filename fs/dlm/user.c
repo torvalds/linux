@@ -82,7 +82,7 @@ struct dlm_lock_result32 {
 
 static void compat_input(struct dlm_write_request *kb,
 			 struct dlm_write_request32 *kb32,
-			 int max_namelen)
+			 size_t count)
 {
 	kb->version[0] = kb32->version[0];
 	kb->version[1] = kb32->version[1];
@@ -94,7 +94,8 @@ static void compat_input(struct dlm_write_request *kb,
 	    kb->cmd == DLM_USER_REMOVE_LOCKSPACE) {
 		kb->i.lspace.flags = kb32->i.lspace.flags;
 		kb->i.lspace.minor = kb32->i.lspace.minor;
-		strcpy(kb->i.lspace.name, kb32->i.lspace.name);
+		memcpy(kb->i.lspace.name, kb32->i.lspace.name, count -
+			offsetof(struct dlm_write_request32, i.lspace.name));
 	} else if (kb->cmd == DLM_USER_PURGE) {
 		kb->i.purge.nodeid = kb32->i.purge.nodeid;
 		kb->i.purge.pid = kb32->i.purge.pid;
@@ -112,11 +113,8 @@ static void compat_input(struct dlm_write_request *kb,
 		kb->i.lock.bastaddr = (void *)(long)kb32->i.lock.bastaddr;
 		kb->i.lock.lksb = (void *)(long)kb32->i.lock.lksb;
 		memcpy(kb->i.lock.lvb, kb32->i.lock.lvb, DLM_USER_LVB_LEN);
-		if (kb->i.lock.namelen <= max_namelen)
-			memcpy(kb->i.lock.name, kb32->i.lock.name,
-			       kb->i.lock.namelen);
-		else
-			kb->i.lock.namelen = max_namelen;
+		memcpy(kb->i.lock.name, kb32->i.lock.name, count -
+			offsetof(struct dlm_write_request32, i.lock.name));
 	}
 }
 
@@ -197,8 +195,8 @@ void dlm_user_add_ast(struct dlm_lkb *lkb, int type)
 	if (lkb->lkb_flags & (DLM_IFL_ORPHAN | DLM_IFL_DEAD))
 		goto out;
 
-	DLM_ASSERT(lkb->lkb_astparam, dlm_print_lkb(lkb););
-	ua = (struct dlm_user_args *)lkb->lkb_astparam;
+	DLM_ASSERT(lkb->lkb_ua, dlm_print_lkb(lkb););
+	ua = lkb->lkb_ua;
 	proc = ua->proc;
 
 	if (type == AST_BAST && ua->bastaddr == NULL)
@@ -508,7 +506,7 @@ static ssize_t device_write(struct file *file, const char __user *buf,
 #endif
 		return -EINVAL;
 
-	kbuf = kmalloc(count, GFP_KERNEL);
+	kbuf = kzalloc(count + 1, GFP_KERNEL);
 	if (!kbuf)
 		return -ENOMEM;
 
@@ -526,15 +524,14 @@ static ssize_t device_write(struct file *file, const char __user *buf,
 	if (!kbuf->is64bit) {
 		struct dlm_write_request32 *k32buf;
 		k32buf = (struct dlm_write_request32 *)kbuf;
-		kbuf = kmalloc(count + (sizeof(struct dlm_write_request) -
+		kbuf = kmalloc(count + 1 + (sizeof(struct dlm_write_request) -
 			       sizeof(struct dlm_write_request32)), GFP_KERNEL);
 		if (!kbuf)
 			return -ENOMEM;
 
 		if (proc)
 			set_bit(DLM_PROC_FLAGS_COMPAT, &proc->flags);
-		compat_input(kbuf, k32buf,
-			     count - sizeof(struct dlm_write_request32));
+		compat_input(kbuf, k32buf, count + 1);
 		kfree(k32buf);
 	}
 #endif
@@ -774,7 +771,6 @@ static ssize_t device_read(struct file *file, char __user *buf, size_t count,
 {
 	struct dlm_user_proc *proc = file->private_data;
 	struct dlm_lkb *lkb;
-	struct dlm_user_args *ua;
 	DECLARE_WAITQUEUE(wait, current);
 	int error, type=0, bmode=0, removed = 0;
 
@@ -845,8 +841,7 @@ static ssize_t device_read(struct file *file, char __user *buf, size_t count,
 	}
 	spin_unlock(&proc->asts_spin);
 
-	ua = (struct dlm_user_args *)lkb->lkb_astparam;
-	error = copy_result_to_user(ua,
+	error = copy_result_to_user(lkb->lkb_ua,
 			 	test_bit(DLM_PROC_FLAGS_COMPAT, &proc->flags),
 				type, bmode, buf, count);
 
@@ -907,7 +902,7 @@ static struct miscdevice ctl_device = {
 	.minor = MISC_DYNAMIC_MINOR,
 };
 
-int dlm_user_init(void)
+int __init dlm_user_init(void)
 {
 	int error;
 

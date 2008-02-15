@@ -73,6 +73,7 @@
 #include <linux/bitops.h>
 #include <linux/workqueue.h>
 #include <linux/hdlc.h>
+#include <linux/synclink.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -80,8 +81,6 @@
 #include <asm/dma.h>
 #include <asm/types.h>
 #include <asm/uaccess.h>
-
-#include "linux/synclink.h"
 
 #if defined(CONFIG_HDLC) || (defined(CONFIG_HDLC_MODULE) && defined(CONFIG_SYNCLINK_GT_MODULE))
 #define SYNCLINK_GENERIC_HDLC 1
@@ -2040,37 +2039,41 @@ static void bh_transmit(struct slgt_info *info)
 		tty_wakeup(tty);
 }
 
-static void dsr_change(struct slgt_info *info)
+static void dsr_change(struct slgt_info *info, unsigned short status)
 {
-	get_signals(info);
+	if (status & BIT3) {
+		info->signals |= SerialSignal_DSR;
+		info->input_signal_events.dsr_up++;
+	} else {
+		info->signals &= ~SerialSignal_DSR;
+		info->input_signal_events.dsr_down++;
+	}
 	DBGISR(("dsr_change %s signals=%04X\n", info->device_name, info->signals));
 	if ((info->dsr_chkcount)++ == IO_PIN_SHUTDOWN_LIMIT) {
 		slgt_irq_off(info, IRQ_DSR);
 		return;
 	}
 	info->icount.dsr++;
-	if (info->signals & SerialSignal_DSR)
-		info->input_signal_events.dsr_up++;
-	else
-		info->input_signal_events.dsr_down++;
 	wake_up_interruptible(&info->status_event_wait_q);
 	wake_up_interruptible(&info->event_wait_q);
 	info->pending_bh |= BH_STATUS;
 }
 
-static void cts_change(struct slgt_info *info)
+static void cts_change(struct slgt_info *info, unsigned short status)
 {
-	get_signals(info);
+	if (status & BIT2) {
+		info->signals |= SerialSignal_CTS;
+		info->input_signal_events.cts_up++;
+	} else {
+		info->signals &= ~SerialSignal_CTS;
+		info->input_signal_events.cts_down++;
+	}
 	DBGISR(("cts_change %s signals=%04X\n", info->device_name, info->signals));
 	if ((info->cts_chkcount)++ == IO_PIN_SHUTDOWN_LIMIT) {
 		slgt_irq_off(info, IRQ_CTS);
 		return;
 	}
 	info->icount.cts++;
-	if (info->signals & SerialSignal_CTS)
-		info->input_signal_events.cts_up++;
-	else
-		info->input_signal_events.cts_down++;
 	wake_up_interruptible(&info->status_event_wait_q);
 	wake_up_interruptible(&info->event_wait_q);
 	info->pending_bh |= BH_STATUS;
@@ -2091,20 +2094,21 @@ static void cts_change(struct slgt_info *info)
 	}
 }
 
-static void dcd_change(struct slgt_info *info)
+static void dcd_change(struct slgt_info *info, unsigned short status)
 {
-	get_signals(info);
+	if (status & BIT1) {
+		info->signals |= SerialSignal_DCD;
+		info->input_signal_events.dcd_up++;
+	} else {
+		info->signals &= ~SerialSignal_DCD;
+		info->input_signal_events.dcd_down++;
+	}
 	DBGISR(("dcd_change %s signals=%04X\n", info->device_name, info->signals));
 	if ((info->dcd_chkcount)++ == IO_PIN_SHUTDOWN_LIMIT) {
 		slgt_irq_off(info, IRQ_DCD);
 		return;
 	}
 	info->icount.dcd++;
-	if (info->signals & SerialSignal_DCD) {
-		info->input_signal_events.dcd_up++;
-	} else {
-		info->input_signal_events.dcd_down++;
-	}
 #if SYNCLINK_GENERIC_HDLC
 	if (info->netcount) {
 		if (info->signals & SerialSignal_DCD)
@@ -2127,20 +2131,21 @@ static void dcd_change(struct slgt_info *info)
 	}
 }
 
-static void ri_change(struct slgt_info *info)
+static void ri_change(struct slgt_info *info, unsigned short status)
 {
-	get_signals(info);
+	if (status & BIT0) {
+		info->signals |= SerialSignal_RI;
+		info->input_signal_events.ri_up++;
+	} else {
+		info->signals &= ~SerialSignal_RI;
+		info->input_signal_events.ri_down++;
+	}
 	DBGISR(("ri_change %s signals=%04X\n", info->device_name, info->signals));
 	if ((info->ri_chkcount)++ == IO_PIN_SHUTDOWN_LIMIT) {
 		slgt_irq_off(info, IRQ_RI);
 		return;
 	}
-	info->icount.dcd++;
-	if (info->signals & SerialSignal_RI) {
-		info->input_signal_events.ri_up++;
-	} else {
-		info->input_signal_events.ri_down++;
-	}
+	info->icount.rng++;
 	wake_up_interruptible(&info->status_event_wait_q);
 	wake_up_interruptible(&info->event_wait_q);
 	info->pending_bh |= BH_STATUS;
@@ -2191,13 +2196,13 @@ static void isr_serial(struct slgt_info *info)
 	}
 
 	if (status & IRQ_DSR)
-		dsr_change(info);
+		dsr_change(info, status);
 	if (status & IRQ_CTS)
-		cts_change(info);
+		cts_change(info, status);
 	if (status & IRQ_DCD)
-		dcd_change(info);
+		dcd_change(info, status);
 	if (status & IRQ_RI)
-		ri_change(info);
+		ri_change(info, status);
 }
 
 static void isr_rdma(struct slgt_info *info)

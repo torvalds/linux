@@ -57,6 +57,7 @@
 #include <linux/device.h>
 #include <linux/kthread.h>
 #include <linux/sched.h>
+#include <linux/signal.h>
 
 #include <asm/io.h>
 #include <asm/bugs.h>
@@ -83,7 +84,6 @@ extern void init_IRQ(void);
 extern void fork_init(unsigned long);
 extern void mca_init(void);
 extern void sbus_init(void);
-extern void signals_init(void);
 extern void pidhash_init(void);
 extern void pidmap_init(void);
 extern void prio_tree_init(void);
@@ -100,6 +100,12 @@ static inline void mark_rodata_ro(void) { }
 
 #ifdef CONFIG_TC
 extern void tc_init(void);
+#endif
+
+#ifdef CONFIG_ACPI_CUSTOM_DSDT_INITRD
+extern int populate_rootfs(void);
+#else
+static inline void populate_rootfs(void) {}
 #endif
 
 enum system_states system_state;
@@ -232,22 +238,18 @@ EXPORT_SYMBOL(loops_per_jiffy);
 
 static int __init debug_kernel(char *str)
 {
-	if (*str)
-		return 0;
 	console_loglevel = 10;
-	return 1;
+	return 0;
 }
 
 static int __init quiet_kernel(char *str)
 {
-	if (*str)
-		return 0;
 	console_loglevel = 4;
-	return 1;
+	return 0;
 }
 
-__setup("debug", debug_kernel);
-__setup("quiet", quiet_kernel);
+early_param("debug", debug_kernel);
+early_param("quiet", quiet_kernel);
 
 static int __init loglevel(char *str)
 {
@@ -255,7 +257,7 @@ static int __init loglevel(char *str)
 	return 1;
 }
 
-__setup("loglevel=", loglevel);
+early_param("loglevel", loglevel);
 
 /*
  * Unknown boot options get handed to init, unless they look like
@@ -556,7 +558,6 @@ asmlinkage void __init start_kernel(void)
 	preempt_disable();
 	build_all_zonelists();
 	page_alloc_init();
-	enable_debug_pagealloc();
 	printk(KERN_NOTICE "Kernel command line: %s\n", boot_command_line);
 	parse_early_param();
 	parse_args("Booting kernel", static_command_line, __start___param,
@@ -612,6 +613,7 @@ asmlinkage void __init start_kernel(void)
 	vfs_caches_init_early();
 	cpuset_init_early();
 	mem_init();
+	enable_debug_pagealloc();
 	cpu_hotplug_init();
 	kmem_cache_init();
 	setup_per_cpu_pageset();
@@ -648,6 +650,7 @@ asmlinkage void __init start_kernel(void)
 
 	check_bugs();
 
+	populate_rootfs(); /* For DSDT override from initramfs */
 	acpi_early_init(); /* before LAPIC and SMP init */
 
 	/* Do the rest non-__init'ed, we're now alive */
@@ -826,7 +829,6 @@ static int __init kernel_init(void * unused)
 	 */
 	init_pid_ns.child_reaper = current;
 
-	__set_special_pids(1, 1);
 	cad_pid = task_pid(current);
 
 	smp_prepare_cpus(setup_max_cpus);

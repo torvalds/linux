@@ -36,6 +36,7 @@
 #include <linux/seq_file.h>
 #include <linux/rwsem.h>
 #include <linux/nsproxy.h>
+#include <linux/ipc_namespace.h>
 
 #include <asm/current.h>
 #include <asm/uaccess.h>
@@ -66,70 +67,37 @@ struct msg_sender {
 #define SEARCH_NOTEQUAL		3
 #define SEARCH_LESSEQUAL	4
 
-static struct ipc_ids init_msg_ids;
-
-#define msg_ids(ns)	(*((ns)->ids[IPC_MSG_IDS]))
+#define msg_ids(ns)	((ns)->ids[IPC_MSG_IDS])
 
 #define msg_unlock(msq)		ipc_unlock(&(msq)->q_perm)
 #define msg_buildid(id, seq)	ipc_buildid(id, seq)
 
-static void freeque(struct ipc_namespace *, struct msg_queue *);
+static void freeque(struct ipc_namespace *, struct kern_ipc_perm *);
 static int newque(struct ipc_namespace *, struct ipc_params *);
 #ifdef CONFIG_PROC_FS
 static int sysvipc_msg_proc_show(struct seq_file *s, void *it);
 #endif
 
-static void __msg_init_ns(struct ipc_namespace *ns, struct ipc_ids *ids)
+void msg_init_ns(struct ipc_namespace *ns)
 {
-	ns->ids[IPC_MSG_IDS] = ids;
 	ns->msg_ctlmax = MSGMAX;
 	ns->msg_ctlmnb = MSGMNB;
 	ns->msg_ctlmni = MSGMNI;
 	atomic_set(&ns->msg_bytes, 0);
 	atomic_set(&ns->msg_hdrs, 0);
-	ipc_init_ids(ids);
+	ipc_init_ids(&ns->ids[IPC_MSG_IDS]);
 }
 
-int msg_init_ns(struct ipc_namespace *ns)
-{
-	struct ipc_ids *ids;
-
-	ids = kmalloc(sizeof(struct ipc_ids), GFP_KERNEL);
-	if (ids == NULL)
-		return -ENOMEM;
-
-	__msg_init_ns(ns, ids);
-	return 0;
-}
-
+#ifdef CONFIG_IPC_NS
 void msg_exit_ns(struct ipc_namespace *ns)
 {
-	struct msg_queue *msq;
-	int next_id;
-	int total, in_use;
-
-	down_write(&msg_ids(ns).rw_mutex);
-
-	in_use = msg_ids(ns).in_use;
-
-	for (total = 0, next_id = 0; total < in_use; next_id++) {
-		msq = idr_find(&msg_ids(ns).ipcs_idr, next_id);
-		if (msq == NULL)
-			continue;
-		ipc_lock_by_ptr(&msq->q_perm);
-		freeque(ns, msq);
-		total++;
-	}
-
-	up_write(&msg_ids(ns).rw_mutex);
-
-	kfree(ns->ids[IPC_MSG_IDS]);
-	ns->ids[IPC_MSG_IDS] = NULL;
+	free_ipcs(ns, &msg_ids(ns), freeque);
 }
+#endif
 
 void __init msg_init(void)
 {
-	__msg_init_ns(&init_ipc_ns, &init_msg_ids);
+	msg_init_ns(&init_ipc_ns);
 	ipc_init_proc_interface("sysvipc/msg",
 				"       key      msqid perms      cbytes       qnum lspid lrpid   uid   gid  cuid  cgid      stime      rtime      ctime\n",
 				IPC_MSG_IDS, sysvipc_msg_proc_show);
@@ -144,6 +112,9 @@ static inline struct msg_queue *msg_lock_check_down(struct ipc_namespace *ns,
 {
 	struct kern_ipc_perm *ipcp = ipc_lock_check_down(&msg_ids(ns), id);
 
+	if (IS_ERR(ipcp))
+		return (struct msg_queue *)ipcp;
+
 	return container_of(ipcp, struct msg_queue, q_perm);
 }
 
@@ -155,6 +126,9 @@ static inline struct msg_queue *msg_lock(struct ipc_namespace *ns, int id)
 {
 	struct kern_ipc_perm *ipcp = ipc_lock(&msg_ids(ns), id);
 
+	if (IS_ERR(ipcp))
+		return (struct msg_queue *)ipcp;
+
 	return container_of(ipcp, struct msg_queue, q_perm);
 }
 
@@ -162,6 +136,9 @@ static inline struct msg_queue *msg_lock_check(struct ipc_namespace *ns,
 						int id)
 {
 	struct kern_ipc_perm *ipcp = ipc_lock_check(&msg_ids(ns), id);
+
+	if (IS_ERR(ipcp))
+		return (struct msg_queue *)ipcp;
 
 	return container_of(ipcp, struct msg_queue, q_perm);
 }
@@ -278,9 +255,10 @@ static void expunge_all(struct msg_queue *msq, int res)
  * msg_ids.rw_mutex (writer) and the spinlock for this message queue are held
  * before freeque() is called. msg_ids.rw_mutex remains locked on exit.
  */
-static void freeque(struct ipc_namespace *ns, struct msg_queue *msq)
+static void freeque(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp)
 {
 	struct list_head *tmp;
+	struct msg_queue *msq = container_of(ipcp, struct msg_queue, q_perm);
 
 	expunge_all(msq, -EIDRM);
 	ss_wakeup(&msq->q_senders, 1);
@@ -586,7 +564,7 @@ asmlinkage long sys_msgctl(int msqid, int cmd, struct msqid_ds __user *buf)
 		break;
 	}
 	case IPC_RMID:
-		freeque(ns, msq);
+		freeque(ns, &msq->q_perm);
 		break;
 	}
 	err = 0;

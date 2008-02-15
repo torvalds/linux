@@ -1,8 +1,6 @@
 #ifndef _CRIS_PAGE_H
 #define _CRIS_PAGE_H
 
-#ifdef __KERNEL__
-
 #include <asm/arch/page.h>
 #include <linux/const.h>
 
@@ -28,6 +26,7 @@
 typedef struct { unsigned long pte; } pte_t;
 typedef struct { unsigned long pgd; } pgd_t;
 typedef struct { unsigned long pgprot; } pgprot_t;
+typedef struct page *pgtable_t;
 #endif
 
 #define pte_val(x)	((x).pte)
@@ -73,8 +72,6 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
-
-#endif /* __KERNEL__ */
 
 #endif /* _CRIS_PAGE_H */
 

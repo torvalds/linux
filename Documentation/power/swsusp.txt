@@ -386,6 +386,11 @@ before suspending; then remount them after resuming.
 There is a work-around for this problem.  For more information, see
 Documentation/usb/persist.txt.
 
+Q: Can I suspend-to-disk using a swap partition under LVM?
+
+A: No. You can suspend successfully, but you'll not be able to
+resume. uswsusp should be able to work with LVM. See suspend.sf.net.
+
 Q: I upgraded the kernel from 2.6.15 to 2.6.16. Both kernels were
 compiled with the similar configuration files. Anyway I found that
 suspend to disk (and resume) is much slower on 2.6.16 compared to

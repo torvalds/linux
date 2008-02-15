@@ -51,7 +51,7 @@ struct rt_mutex_waiter {
 	struct rt_mutex		*lock;
 #ifdef CONFIG_DEBUG_RT_MUTEXES
 	unsigned long		ip;
-	pid_t			deadlock_task_pid;
+	struct pid		*deadlock_task_pid;
 	struct rt_mutex		*deadlock_lock;
 #endif
 };

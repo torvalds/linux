@@ -26,6 +26,7 @@ struct iommu_arena {
 struct iommu {
 	spinlock_t		lock;
 	struct iommu_arena	arena;
+	void			(*flush_all)(struct iommu *);
 	iopte_t			*page_table;
 	u32			page_table_map_base;
 	unsigned long		iommu_control;

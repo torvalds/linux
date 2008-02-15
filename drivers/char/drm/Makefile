@@ -38,5 +38,3 @@ obj-$(CONFIG_DRM_I915)  += i915.o
 obj-$(CONFIG_DRM_SIS)   += sis.o
 obj-$(CONFIG_DRM_SAVAGE)+= savage.o
 obj-$(CONFIG_DRM_VIA)	+=via.o
-
-

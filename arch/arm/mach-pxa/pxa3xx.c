@@ -266,8 +266,6 @@ static void pxa3xx_cpu_standby(unsigned int pwrmode)
 
 	AD2D0ER = 0;
 	AD2D1ER = 0;
-
-	printk("PM: AD2D0SR=%08x ASCR=%08x\n", AD2D0SR, ASCR);
 }
 
 /*
@@ -515,6 +513,14 @@ static int __init pxa3xx_init(void)
 	int i, ret = 0;
 
 	if (cpu_is_pxa3xx()) {
+		/*
+		 * clear RDH bit every time after reset
+		 *
+		 * Note: the last 3 bits DxS are write-1-to-clear so carefully
+		 * preserve them here in case they will be referenced later
+		 */
+		ASCR &= ~(ASCR_RDH | ASCR_D1S | ASCR_D2S | ASCR_D3S);
+
 		clks_register(pxa3xx_clks, ARRAY_SIZE(pxa3xx_clks));
 
 		if ((ret = pxa_init_dma(32)))

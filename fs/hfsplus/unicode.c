@@ -325,7 +325,7 @@ int hfsplus_hash_dentry(struct dentry *dentry, struct qstr *str)
 	struct super_block *sb = dentry->d_sb;
 	const char *astr;
 	const u16 *dstr;
-	int casefold, decompose, size, dsize, len;
+	int casefold, decompose, size, len;
 	unsigned long hash;
 	wchar_t c;
 	u16 c2;
@@ -336,6 +336,7 @@ int hfsplus_hash_dentry(struct dentry *dentry, struct qstr *str)
 	astr = str->name;
 	len = str->len;
 	while (len > 0) {
+		int uninitialized_var(dsize);
 		size = asc2unichar(sb, astr, len, &c);
 		astr += size;
 		len -= size;

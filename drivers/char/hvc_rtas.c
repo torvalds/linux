@@ -76,7 +76,7 @@ static struct hv_ops hvc_rtas_get_put_ops = {
 	.put_chars = hvc_rtas_write_console,
 };
 
-static int hvc_rtas_init(void)
+static int __init hvc_rtas_init(void)
 {
 	struct hvc_struct *hp;
 

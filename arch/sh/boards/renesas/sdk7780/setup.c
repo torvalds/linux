@@ -11,7 +11,7 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/platform_device.h>
-#include <linux/pata_platform.h>
+#include <linux/ata_platform.h>
 #include <asm/machvec.h>
 #include <asm/sdk7780.h>
 #include <asm/heartbeat.h>

@@ -31,7 +31,6 @@ MODULE_PARM_DESC(debug, "debug level");
 /* driver state flags */
 #define VALID_MINOR	0x01
 #define VALID_ID	0x02
-#define ASSIGNED	0x04
 
 void gigaset_dbg_buffer(enum debuglevel level, const unsigned char *msg,
 			size_t len, const unsigned char *buf)
@@ -178,7 +177,7 @@ int gigaset_get_channel(struct bc_state *bcs)
 	unsigned long flags;
 
 	spin_lock_irqsave(&bcs->cs->lock, flags);
-	if (bcs->use_count) {
+	if (bcs->use_count || !try_module_get(bcs->cs->driver->owner)) {
 		gig_dbg(DEBUG_ANY, "could not allocate channel %d",
 			bcs->channel);
 		spin_unlock_irqrestore(&bcs->cs->lock, flags);
@@ -203,6 +202,7 @@ void gigaset_free_channel(struct bc_state *bcs)
 	}
 	--bcs->use_count;
 	bcs->busy = 0;
+	module_put(bcs->cs->driver->owner);
 	gig_dbg(DEBUG_ANY, "freed channel %d", bcs->channel);
 	spin_unlock_irqrestore(&bcs->cs->lock, flags);
 }
@@ -356,31 +356,28 @@ static struct cardstate *alloc_cs(struct gigaset_driver *drv)
 {
 	unsigned long flags;
 	unsigned i;
+	struct cardstate *cs;
 	struct cardstate *ret = NULL;
 
 	spin_lock_irqsave(&drv->lock, flags);
+	if (drv->blocked)
+		goto exit;
 	for (i = 0; i < drv->minors; ++i) {
-		if (!(drv->flags[i] & VALID_MINOR)) {
-			if (try_module_get(drv->owner)) {
-				drv->flags[i] = VALID_MINOR;
-				ret = drv->cs + i;
-			}
+		cs = drv->cs + i;
+		if (!(cs->flags & VALID_MINOR)) {
+			cs->flags = VALID_MINOR;
+			ret = cs;
 			break;
 		}
 	}
+exit:
 	spin_unlock_irqrestore(&drv->lock, flags);
 	return ret;
 }
 
 static void free_cs(struct cardstate *cs)
 {
-	unsigned long flags;
-	struct gigaset_driver *drv = cs->driver;
-	spin_lock_irqsave(&drv->lock, flags);
-	if (drv->flags[cs->minor_index] & VALID_MINOR)
-		module_put(drv->owner);
-	drv->flags[cs->minor_index] = 0;
-	spin_unlock_irqrestore(&drv->lock, flags);
+	cs->flags = 0;
 }
 
 static void make_valid(struct cardstate *cs, unsigned mask)
@@ -388,7 +385,7 @@ static void make_valid(struct cardstate *cs, unsigned mask)
 	unsigned long flags;
 	struct gigaset_driver *drv = cs->driver;
 	spin_lock_irqsave(&drv->lock, flags);
-	drv->flags[cs->minor_index] |= mask;
+	cs->flags |= mask;
 	spin_unlock_irqrestore(&drv->lock, flags);
 }
 
@@ -397,7 +394,7 @@ static void make_invalid(struct cardstate *cs, unsigned mask)
 	unsigned long flags;
 	struct gigaset_driver *drv = cs->driver;
 	spin_lock_irqsave(&drv->lock, flags);
-	drv->flags[cs->minor_index] &= ~mask;
+	cs->flags &= ~mask;
 	spin_unlock_irqrestore(&drv->lock, flags);
 }
 
@@ -501,11 +498,11 @@ static void gigaset_inbuf_init(struct inbuf_t *inbuf, struct bc_state *bcs,
 			       struct cardstate *cs, int inputstate)
 /* inbuf->read must be allocated before! */
 {
-	atomic_set(&inbuf->head, 0);
-	atomic_set(&inbuf->tail, 0);
+	inbuf->head = 0;
+	inbuf->tail = 0;
 	inbuf->cs = cs;
 	inbuf->bcs = bcs; /*base driver: NULL*/
-	inbuf->rcvbuf = NULL; //FIXME
+	inbuf->rcvbuf = NULL;
 	inbuf->inputstate = inputstate;
 }
 
@@ -521,8 +518,8 @@ int gigaset_fill_inbuf(struct inbuf_t *inbuf, const unsigned char *src,
 		return 0;
 
 	bytesleft = numbytes;
-	tail = atomic_read(&inbuf->tail);
-	head = atomic_read(&inbuf->head);
+	tail = inbuf->tail;
+	head = inbuf->head;
 	gig_dbg(DEBUG_INTR, "buffer state: %u -> %u", head, tail);
 
 	while (bytesleft) {
@@ -546,7 +543,7 @@ int gigaset_fill_inbuf(struct inbuf_t *inbuf, const unsigned char *src,
 		src += n;
 	}
 	gig_dbg(DEBUG_INTR, "setting tail to %u", tail);
-	atomic_set(&inbuf->tail, tail);
+	inbuf->tail = tail;
 	return numbytes != bytesleft;
 }
 EXPORT_SYMBOL_GPL(gigaset_fill_inbuf);
@@ -668,7 +665,7 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 
 	tasklet_init(&cs->event_tasklet, &gigaset_handle_event,
 		     (unsigned long) cs);
-	atomic_set(&cs->commands_pending, 0);
+	cs->commands_pending = 0;
 	cs->cur_at_seq = 0;
 	cs->gotfwver = -1;
 	cs->open_count = 0;
@@ -688,8 +685,8 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	init_waitqueue_head(&cs->waitqueue);
 	cs->waiting = 0;
 
-	atomic_set(&cs->mode, M_UNKNOWN);
-	atomic_set(&cs->mstate, MS_UNINITIALIZED);
+	cs->mode = M_UNKNOWN;
+	cs->mstate = MS_UNINITIALIZED;
 
 	for (i = 0; i < channels; ++i) {
 		gig_dbg(DEBUG_INIT, "setting up bcs[%d].read", i);
@@ -806,8 +803,8 @@ static void cleanup_cs(struct cardstate *cs)
 
 	spin_lock_irqsave(&cs->lock, flags);
 
-	atomic_set(&cs->mode, M_UNKNOWN);
-	atomic_set(&cs->mstate, MS_UNINITIALIZED);
+	cs->mode = M_UNKNOWN;
+	cs->mstate = MS_UNINITIALIZED;
 
 	clear_at_state(&cs->at_state);
 	dealloc_at_states(cs);
@@ -817,8 +814,8 @@ static void cleanup_cs(struct cardstate *cs)
 	kfree(cs->inbuf->rcvbuf);
 	cs->inbuf->rcvbuf = NULL;
 	cs->inbuf->inputstate = INS_command;
-	atomic_set(&cs->inbuf->head, 0);
-	atomic_set(&cs->inbuf->tail, 0);
+	cs->inbuf->head = 0;
+	cs->inbuf->tail = 0;
 
 	cb = cs->cmdbuf;
 	while (cb) {
@@ -832,7 +829,7 @@ static void cleanup_cs(struct cardstate *cs)
 	cs->gotfwver = -1;
 	cs->dle = 0;
 	cs->cur_at_seq = 0;
-	atomic_set(&cs->commands_pending, 0);
+	cs->commands_pending = 0;
 	cs->cbytes = 0;
 
 	spin_unlock_irqrestore(&cs->lock, flags);
@@ -862,7 +859,7 @@ int gigaset_start(struct cardstate *cs)
 	cs->connected = 1;
 	spin_unlock_irqrestore(&cs->lock, flags);
 
-	if (atomic_read(&cs->mstate) != MS_LOCKED) {
+	if (cs->mstate != MS_LOCKED) {
 		cs->ops->set_modem_ctrl(cs, 0, TIOCM_DTR|TIOCM_RTS);
 		cs->ops->baud_rate(cs, B115200);
 		cs->ops->set_line_ctrl(cs, CS8);
@@ -893,9 +890,16 @@ error:
 }
 EXPORT_SYMBOL_GPL(gigaset_start);
 
-void gigaset_shutdown(struct cardstate *cs)
+/* gigaset_shutdown
+ * check if a device is associated to the cardstate structure and stop it
+ * return value: 0 if ok, -1 if no device was associated
+ */
+int gigaset_shutdown(struct cardstate *cs)
 {
 	mutex_lock(&cs->mutex);
+
+	if (!(cs->flags & VALID_MINOR))
+		return -1;
 
 	cs->waiting = 1;
 
@@ -913,6 +917,7 @@ void gigaset_shutdown(struct cardstate *cs)
 
 exit:
 	mutex_unlock(&cs->mutex);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(gigaset_shutdown);
 
@@ -954,13 +959,11 @@ struct cardstate *gigaset_get_cs_by_id(int id)
 	list_for_each_entry(drv, &drivers, list) {
 		spin_lock(&drv->lock);
 		for (i = 0; i < drv->minors; ++i) {
-			if (drv->flags[i] & VALID_ID) {
-				cs = drv->cs + i;
-				if (cs->myid == id)
-					ret = cs;
-			}
-			if (ret)
+			cs = drv->cs + i;
+			if ((cs->flags & VALID_ID) && cs->myid == id) {
+				ret = cs;
 				break;
+			}
 		}
 		spin_unlock(&drv->lock);
 		if (ret)
@@ -983,10 +986,9 @@ void gigaset_debugdrivers(void)
 		spin_lock(&drv->lock);
 		for (i = 0; i < drv->minors; ++i) {
 			gig_dbg(DEBUG_DRIVER, "  index %u", i);
-			gig_dbg(DEBUG_DRIVER, "    flags 0x%02x",
-				drv->flags[i]);
 			cs = drv->cs + i;
 			gig_dbg(DEBUG_DRIVER, "    cardstate %p", cs);
+			gig_dbg(DEBUG_DRIVER, "    flags 0x%02x", cs->flags);
 			gig_dbg(DEBUG_DRIVER, "    minor_index %u",
 				cs->minor_index);
 			gig_dbg(DEBUG_DRIVER, "    driver %p", cs->driver);
@@ -1010,7 +1012,7 @@ static struct cardstate *gigaset_get_cs_by_minor(unsigned minor)
 			continue;
 		index = minor - drv->minor;
 		spin_lock(&drv->lock);
-		if (drv->flags[index] & VALID_MINOR)
+		if (drv->cs[index].flags & VALID_MINOR)
 			ret = drv->cs + index;
 		spin_unlock(&drv->lock);
 		if (ret)
@@ -1038,7 +1040,6 @@ void gigaset_freedriver(struct gigaset_driver *drv)
 	gigaset_if_freedriver(drv);
 
 	kfree(drv->cs);
-	kfree(drv->flags);
 	kfree(drv);
 }
 EXPORT_SYMBOL_GPL(gigaset_freedriver);
@@ -1080,12 +1081,8 @@ struct gigaset_driver *gigaset_initdriver(unsigned minor, unsigned minors,
 	if (!drv->cs)
 		goto error;
 
-	drv->flags = kmalloc(minors * sizeof *drv->flags, GFP_KERNEL);
-	if (!drv->flags)
-		goto error;
-
 	for (i = 0; i < minors; ++i) {
-		drv->flags[i] = 0;
+		drv->cs[i].flags = 0;
 		drv->cs[i].driver = drv;
 		drv->cs[i].ops = drv->ops;
 		drv->cs[i].minor_index = i;
@@ -1106,53 +1103,9 @@ error:
 }
 EXPORT_SYMBOL_GPL(gigaset_initdriver);
 
-/* For drivers without fixed assignment device<->cardstate (usb) */
-struct cardstate *gigaset_getunassignedcs(struct gigaset_driver *drv)
-{
-	unsigned long flags;
-	struct cardstate *cs = NULL;
-	unsigned i;
-
-	spin_lock_irqsave(&drv->lock, flags);
-	if (drv->blocked)
-		goto exit;
-	for (i = 0; i < drv->minors; ++i) {
-		if ((drv->flags[i] & VALID_MINOR) &&
-		    !(drv->flags[i] & ASSIGNED)) {
-			drv->flags[i] |= ASSIGNED;
-			cs = drv->cs + i;
-			break;
-		}
-	}
-exit:
-	spin_unlock_irqrestore(&drv->lock, flags);
-	return cs;
-}
-EXPORT_SYMBOL_GPL(gigaset_getunassignedcs);
-
-void gigaset_unassign(struct cardstate *cs)
-{
-	unsigned long flags;
-	unsigned *minor_flags;
-	struct gigaset_driver *drv;
-
-	if (!cs)
-		return;
-	drv = cs->driver;
-	spin_lock_irqsave(&drv->lock, flags);
-	minor_flags = drv->flags + cs->minor_index;
-	if (*minor_flags & VALID_MINOR)
-		*minor_flags &= ~ASSIGNED;
-	spin_unlock_irqrestore(&drv->lock, flags);
-}
-EXPORT_SYMBOL_GPL(gigaset_unassign);
-
 void gigaset_blockdriver(struct gigaset_driver *drv)
 {
-	unsigned long flags;
-	spin_lock_irqsave(&drv->lock, flags);
 	drv->blocked = 1;
-	spin_unlock_irqrestore(&drv->lock, flags);
 }
 EXPORT_SYMBOL_GPL(gigaset_blockdriver);
 

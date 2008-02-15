@@ -105,7 +105,7 @@ static void nfs_callback_svc(struct svc_rqst *rqstp)
  */
 int nfs_callback_up(void)
 {
-	struct svc_serv *serv;
+	struct svc_serv *serv = NULL;
 	int ret = 0;
 
 	lock_kernel();
@@ -122,24 +122,30 @@ int nfs_callback_up(void)
 	ret = svc_create_xprt(serv, "tcp", nfs_callback_set_tcpport,
 			      SVC_SOCK_ANONYMOUS);
 	if (ret <= 0)
-		goto out_destroy;
+		goto out_err;
 	nfs_callback_tcpport = ret;
 	dprintk("Callback port = 0x%x\n", nfs_callback_tcpport);
 
 	ret = svc_create_thread(nfs_callback_svc, serv);
 	if (ret < 0)
-		goto out_destroy;
+		goto out_err;
 	nfs_callback_info.serv = serv;
 	wait_for_completion(&nfs_callback_info.started);
 out:
+	/*
+	 * svc_create creates the svc_serv with sv_nrthreads == 1, and then
+	 * svc_create_thread increments that. So we need to call svc_destroy
+	 * on both success and failure so that the refcount is 1 when the
+	 * thread exits.
+	 */
+	if (serv)
+		svc_destroy(serv);
 	mutex_unlock(&nfs_callback_mutex);
 	unlock_kernel();
 	return ret;
-out_destroy:
+out_err:
 	dprintk("Couldn't create callback socket or server thread; err = %d\n",
 		ret);
-	svc_destroy(serv);
-out_err:
 	nfs_callback_info.users--;
 	goto out;
 }

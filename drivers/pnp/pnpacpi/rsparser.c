@@ -391,8 +391,8 @@ acpi_status pnpacpi_parse_allocated_resource(acpi_handle handle,
 				   pnpacpi_allocated_resource, res);
 }
 
-static void pnpacpi_parse_dma_option(struct pnp_option *option,
-				     struct acpi_resource_dma *p)
+static __init void pnpacpi_parse_dma_option(struct pnp_option *option,
+					    struct acpi_resource_dma *p)
 {
 	int i;
 	struct pnp_dma *dma;
@@ -411,8 +411,8 @@ static void pnpacpi_parse_dma_option(struct pnp_option *option,
 	pnp_register_dma_resource(option, dma);
 }
 
-static void pnpacpi_parse_irq_option(struct pnp_option *option,
-				     struct acpi_resource_irq *p)
+static __init void pnpacpi_parse_irq_option(struct pnp_option *option,
+					    struct acpi_resource_irq *p)
 {
 	int i;
 	struct pnp_irq *irq;
@@ -431,8 +431,8 @@ static void pnpacpi_parse_irq_option(struct pnp_option *option,
 	pnp_register_irq_resource(option, irq);
 }
 
-static void pnpacpi_parse_ext_irq_option(struct pnp_option *option,
-					 struct acpi_resource_extended_irq *p)
+static __init void pnpacpi_parse_ext_irq_option(struct pnp_option *option,
+					struct acpi_resource_extended_irq *p)
 {
 	int i;
 	struct pnp_irq *irq;
@@ -451,8 +451,8 @@ static void pnpacpi_parse_ext_irq_option(struct pnp_option *option,
 	pnp_register_irq_resource(option, irq);
 }
 
-static void pnpacpi_parse_port_option(struct pnp_option *option,
-				      struct acpi_resource_io *io)
+static __init void pnpacpi_parse_port_option(struct pnp_option *option,
+					     struct acpi_resource_io *io)
 {
 	struct pnp_port *port;
 
@@ -470,8 +470,8 @@ static void pnpacpi_parse_port_option(struct pnp_option *option,
 	pnp_register_port_resource(option, port);
 }
 
-static void pnpacpi_parse_fixed_port_option(struct pnp_option *option,
-					    struct acpi_resource_fixed_io *io)
+static __init void pnpacpi_parse_fixed_port_option(struct pnp_option *option,
+					struct acpi_resource_fixed_io *io)
 {
 	struct pnp_port *port;
 
@@ -487,8 +487,8 @@ static void pnpacpi_parse_fixed_port_option(struct pnp_option *option,
 	pnp_register_port_resource(option, port);
 }
 
-static void pnpacpi_parse_mem24_option(struct pnp_option *option,
-				       struct acpi_resource_memory24 *p)
+static __init void pnpacpi_parse_mem24_option(struct pnp_option *option,
+					      struct acpi_resource_memory24 *p)
 {
 	struct pnp_mem *mem;
 
@@ -508,8 +508,8 @@ static void pnpacpi_parse_mem24_option(struct pnp_option *option,
 	pnp_register_mem_resource(option, mem);
 }
 
-static void pnpacpi_parse_mem32_option(struct pnp_option *option,
-				       struct acpi_resource_memory32 *p)
+static __init void pnpacpi_parse_mem32_option(struct pnp_option *option,
+					      struct acpi_resource_memory32 *p)
 {
 	struct pnp_mem *mem;
 
@@ -529,8 +529,8 @@ static void pnpacpi_parse_mem32_option(struct pnp_option *option,
 	pnp_register_mem_resource(option, mem);
 }
 
-static void pnpacpi_parse_fixed_mem32_option(struct pnp_option *option,
-					 struct acpi_resource_fixed_memory32 *p)
+static __init void pnpacpi_parse_fixed_mem32_option(struct pnp_option *option,
+					struct acpi_resource_fixed_memory32 *p)
 {
 	struct pnp_mem *mem;
 
@@ -549,8 +549,8 @@ static void pnpacpi_parse_fixed_mem32_option(struct pnp_option *option,
 	pnp_register_mem_resource(option, mem);
 }
 
-static void pnpacpi_parse_address_option(struct pnp_option *option,
-					 struct acpi_resource *r)
+static __init void pnpacpi_parse_address_option(struct pnp_option *option,
+						struct acpi_resource *r)
 {
 	struct acpi_resource_address64 addr, *p = &addr;
 	acpi_status status;
@@ -596,8 +596,8 @@ struct acpipnp_parse_option_s {
 	struct pnp_dev *dev;
 };
 
-static acpi_status pnpacpi_option_resource(struct acpi_resource *res,
-					   void *data)
+static __init acpi_status pnpacpi_option_resource(struct acpi_resource *res,
+						  void *data)
 {
 	int priority = 0;
 	struct acpipnp_parse_option_s *parse_data = data;
@@ -696,8 +696,8 @@ static acpi_status pnpacpi_option_resource(struct acpi_resource *res,
 	return AE_OK;
 }
 
-acpi_status pnpacpi_parse_resource_option_data(acpi_handle handle,
-					       struct pnp_dev * dev)
+acpi_status __init pnpacpi_parse_resource_option_data(acpi_handle handle,
+						      struct pnp_dev *dev)
 {
 	acpi_status status;
 	struct acpipnp_parse_option_s parse_data;

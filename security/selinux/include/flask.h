@@ -51,6 +51,7 @@
 #define SECCLASS_DCCP_SOCKET                             60
 #define SECCLASS_MEMPROTECT                              61
 #define SECCLASS_PEER                                    68
+#define SECCLASS_CAPABILITY2                             69
 
 /*
  * Security identifier indices for initial entities

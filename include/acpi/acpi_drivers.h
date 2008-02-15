@@ -48,6 +48,7 @@
 #define ACPI_BUTTON_HID_SLEEPF		"LNXSLPBN"
 #define ACPI_VIDEO_HID			"LNXVIDEO"
 #define ACPI_BAY_HID			"LNXIOBAY"
+#define ACPI_DOCK_HID			"LNXDOCK"
 
 /* --------------------------------------------------------------------------
                                        PCI
@@ -73,7 +74,6 @@ struct pci_bus;
 
 acpi_status acpi_get_pci_id(acpi_handle handle, struct acpi_pci_id *id);
 int acpi_pci_bind(struct acpi_device *device);
-int acpi_pci_unbind(struct acpi_device *device);
 int acpi_pci_bind_root(struct acpi_device *device, struct acpi_pci_id *id,
 		       struct pci_bus *bus);
 

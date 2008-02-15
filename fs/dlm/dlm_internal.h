@@ -92,8 +92,6 @@ do { \
   } \
 }
 
-#define DLM_FAKE_USER_AST ERR_PTR(-EINVAL)
-
 
 struct dlm_direntry {
 	struct list_head	list;
@@ -146,9 +144,9 @@ struct dlm_recover {
 
 struct dlm_args {
 	uint32_t		flags;
-	void			*astaddr;
-	long			astparam;
-	void			*bastaddr;
+	void			(*astfn) (void *astparam);
+	void			*astparam;
+	void			(*bastfn) (void *astparam, int mode);
 	int			mode;
 	struct dlm_lksb		*lksb;
 	unsigned long		timeout;
@@ -253,9 +251,12 @@ struct dlm_lkb {
 
 	char			*lkb_lvbptr;
 	struct dlm_lksb		*lkb_lksb;      /* caller's status block */
-	void			*lkb_astaddr;	/* caller's ast function */
-	void			*lkb_bastaddr;	/* caller's bast function */
-	long			lkb_astparam;	/* caller's ast arg */
+	void			(*lkb_astfn) (void *astparam);
+	void			(*lkb_bastfn) (void *astparam, int mode);
+	union {
+		void			*lkb_astparam;	/* caller's ast arg */
+		struct dlm_user_args	*lkb_ua;
+	};
 };
 
 
@@ -403,28 +404,34 @@ struct dlm_rcom {
 	char			rc_buf[0];
 };
 
+union dlm_packet {
+	struct dlm_header	header;		/* common to other two */
+	struct dlm_message	message;
+	struct dlm_rcom		rcom;
+};
+
 struct rcom_config {
-	uint32_t		rf_lvblen;
-	uint32_t		rf_lsflags;
-	uint64_t		rf_unused;
+	__le32			rf_lvblen;
+	__le32			rf_lsflags;
+	__le64			rf_unused;
 };
 
 struct rcom_lock {
-	uint32_t		rl_ownpid;
-	uint32_t		rl_lkid;
-	uint32_t		rl_remid;
-	uint32_t		rl_parent_lkid;
-	uint32_t		rl_parent_remid;
-	uint32_t		rl_exflags;
-	uint32_t		rl_flags;
-	uint32_t		rl_lvbseq;
-	int			rl_result;
+	__le32			rl_ownpid;
+	__le32			rl_lkid;
+	__le32			rl_remid;
+	__le32			rl_parent_lkid;
+	__le32			rl_parent_remid;
+	__le32			rl_exflags;
+	__le32			rl_flags;
+	__le32			rl_lvbseq;
+	__le32			rl_result;
 	int8_t			rl_rqmode;
 	int8_t			rl_grmode;
 	int8_t			rl_status;
 	int8_t			rl_asts;
-	uint16_t		rl_wait_type;
-	uint16_t		rl_namelen;
+	__le16			rl_wait_type;
+	__le16			rl_namelen;
 	char			rl_name[DLM_RESNAME_MAXLEN];
 	char			rl_lvb[0];
 };
@@ -494,7 +501,7 @@ struct dlm_ls {
 	struct rw_semaphore	ls_recv_active;	/* block dlm_recv */
 	struct list_head	ls_requestqueue;/* queue remote requests */
 	struct mutex		ls_requestqueue_mutex;
-	char			*ls_recover_buf;
+	struct dlm_rcom		*ls_recover_buf;
 	int			ls_recover_nodeid; /* for debugging */
 	uint64_t		ls_rcom_seq;
 	spinlock_t		ls_rcom_spin;

@@ -85,7 +85,8 @@ void __init mach_reserve_bootmem ()
 	/* The space between SRAM and SDRAM is filled with duplicate
 	   images of SRAM.  Prevent the kernel from using them.  */
 	reserve_bootmem (SRAM_ADDR + SRAM_SIZE,
-			 SDRAM_ADDR - (SRAM_ADDR + SRAM_SIZE));
+			 SDRAM_ADDR - (SRAM_ADDR + SRAM_SIZE),
+			 BOOTMEM_DEFAULT);
 }
 
 void mach_gettimeofday (struct timespec *tv)

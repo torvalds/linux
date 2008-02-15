@@ -39,6 +39,7 @@
 #include "xfs_refcache.h"
 #include "xfs_utils.h"
 #include "xfs_trans_space.h"
+#include "xfs_vnodeops.h"
 
 
 /*
@@ -118,7 +119,7 @@ xfs_lock_for_rename(
 	inum1 = ip1->i_ino;
 
 	ASSERT(ip1);
-	ITRACE(ip1);
+	xfs_itrace_ref(ip1);
 
 	/*
 	 * Unlock dp1 and lock dp2 if they are different.
@@ -141,7 +142,7 @@ xfs_lock_for_rename(
 		IRELE (ip1);
 		return error;
 	} else {
-		ITRACE(ip2);
+		xfs_itrace_ref(ip2);
 	}
 
 	/*
@@ -247,8 +248,8 @@ xfs_rename(
 	int		src_namelen = VNAMELEN(src_vname);
 	int		target_namelen = VNAMELEN(target_vname);
 
-	vn_trace_entry(src_dp, "xfs_rename", (inst_t *)__return_address);
-	vn_trace_entry(xfs_vtoi(target_dir_vp), "xfs_rename", (inst_t *)__return_address);
+	xfs_itrace_entry(src_dp);
+	xfs_itrace_entry(xfs_vtoi(target_dir_vp));
 
 	/*
 	 * Find the XFS behavior descriptor for the target directory

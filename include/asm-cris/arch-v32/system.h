@@ -66,13 +66,4 @@ struct __xchg_dummy { unsigned long a[100]; };
 #define local_irq_save(x) \
 	__asm__ __volatile__ ("move $ccs, %0\n\tdi" : "=rm" (x) : : "memory");
 
-#ifdef CONFIG_SMP
-typedef struct {
-	volatile unsigned int lock __attribute__ ((aligned(4)));
-#ifdef CONFIG_PREEMPT
-	unsigned int break_lock;
-#endif
-} spinlock_t;
-#endif
-
 #endif /* _ASM_CRIS_ARCH_SYSTEM_H */

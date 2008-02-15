@@ -23,8 +23,7 @@
 #define MAXHOSTNAMELEN	64	/* max length of hostname */
 
 #ifdef __KERNEL__
-#include <asm/machdep.h>	/* For HZ */
-
+# define HZ		CONFIG_HZ
 # define USER_HZ	100
 # define CLOCKS_PER_SEC	USER_HZ
 #endif

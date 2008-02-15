@@ -166,6 +166,7 @@
 				compatible = "fsl,mpc885-brg",
 				             "fsl,cpm1-brg",
 				             "fsl,cpm-brg";
+				clock-frequency = <0>;
 				reg = <9f0 10>;
 			};
 

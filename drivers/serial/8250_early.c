@@ -82,7 +82,8 @@ static void __init serial_putc(struct uart_port *port, int c)
 	serial_out(port, UART_TX, c);
 }
 
-static void __init early_serial8250_write(struct console *console, const char *s, unsigned int count)
+static void __init early_serial8250_write(struct console *console,
+					const char *s, unsigned int count)
 {
 	struct uart_port *port = &early_device.port;
 	unsigned int ier;
@@ -132,7 +133,8 @@ static void __init init_port(struct early_serial8250_device *device)
 	serial_out(port, UART_LCR, c & ~UART_LCR_DLAB);
 }
 
-static int __init parse_options(struct early_serial8250_device *device, char *options)
+static int __init parse_options(struct early_serial8250_device *device,
+								char *options)
 {
 	struct uart_port *port = &device->port;
 	int mmio, length;
@@ -145,8 +147,10 @@ static int __init parse_options(struct early_serial8250_device *device, char *op
 		port->iotype = UPIO_MEM;
 		port->mapbase = simple_strtoul(options + 5, &options, 0);
 #ifdef CONFIG_FIX_EARLYCON_MEM
-		set_fixmap_nocache(FIX_EARLYCON_MEM_BASE, port->mapbase & PAGE_MASK);
-		port->membase = (void __iomem *)__fix_to_virt(FIX_EARLYCON_MEM_BASE);
+		set_fixmap_nocache(FIX_EARLYCON_MEM_BASE,
+					port->mapbase & PAGE_MASK);
+		port->membase =
+			(void __iomem *)__fix_to_virt(FIX_EARLYCON_MEM_BASE);
 		port->membase += port->mapbase & ~PAGE_MASK;
 #else
 		port->membase = ioremap(port->mapbase, 64);
@@ -165,7 +169,8 @@ static int __init parse_options(struct early_serial8250_device *device, char *op
 	} else
 		return -EINVAL;
 
-	if ((options = strchr(options, ','))) {
+	options = strchr(options, ',');
+	if (options) {
 		options++;
 		device->baud = simple_strtoul(options, NULL, 0);
 		length = min(strcspn(options, " "), sizeof(device->options));
@@ -179,7 +184,7 @@ static int __init parse_options(struct early_serial8250_device *device, char *op
 	printk(KERN_INFO "Early serial console at %s 0x%llx (options '%s')\n",
 		mmio ? "MMIO" : "I/O port",
 		mmio ? (unsigned long long) port->mapbase
-	             : (unsigned long long) port->iobase,
+		     : (unsigned long long) port->iobase,
 		device->options);
 	return 0;
 }
@@ -199,7 +204,8 @@ static int __init early_serial8250_setup(char *options)
 	if (device->port.membase || device->port.iobase)
 		return 0;
 
-	if ((err = parse_options(device, options)) < 0)
+	err = parse_options(device, options);
+	if (err < 0)
 		return err;
 
 	init_port(device);
@@ -219,7 +225,8 @@ int __init setup_early_serial8250_console(char *cmdline)
 	}
 
 	options = strchr(cmdline, ',') + 1;
-	if ((err = early_serial8250_setup(options)) < 0)
+	err = early_serial8250_setup(options);
+	if (err < 0)
 		return err;
 
 	register_console(&early_serial8250_console);

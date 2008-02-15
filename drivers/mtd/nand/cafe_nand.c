@@ -11,6 +11,7 @@
 #undef DEBUG
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
+#include <linux/mtd/partitions.h>
 #include <linux/rslib.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
@@ -52,6 +53,7 @@
 
 struct cafe_priv {
 	struct nand_chip nand;
+	struct mtd_partition *parts;
 	struct pci_dev *pdev;
 	void __iomem *mmio;
 	struct rs_control *rs;
@@ -83,6 +85,10 @@ module_param(checkecc, int, 0644);
 static unsigned int numtimings;
 static int timing[3];
 module_param_array(timing, int, &numtimings, 0644);
+
+#ifdef CONFIG_MTD_PARTITIONS
+static const char *part_probes[] = { "RedBoot", NULL };
+#endif
 
 /* Hrm. Why isn't this already conditional on something in the struct device? */
 #define cafe_dev_dbg(dev, args...) do { if (debug) dev_dbg(dev, ##args); } while(0)
@@ -620,7 +626,9 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 {
 	struct mtd_info *mtd;
 	struct cafe_priv *cafe;
+	struct mtd_partition *parts;
 	uint32_t ctrl;
+	int nr_parts;
 	int err = 0;
 
 	/* Very old versions shared the same PCI ident for all three
@@ -787,7 +795,18 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 		goto out_irq;
 
 	pci_set_drvdata(pdev, mtd);
+
+	/* We register the whole device first, separate from the partitions */
 	add_mtd_device(mtd);
+
+#ifdef CONFIG_MTD_PARTITIONS
+	nr_parts = parse_mtd_partitions(mtd, part_probes, &parts, 0);
+	if (nr_parts > 0) {
+		cafe->parts = parts;
+		dev_info(&cafe->pdev->dev, "%d RedBoot partitions found\n", nr_parts);
+		add_mtd_partitions(mtd, parts, nr_parts);
+	}
+#endif
 	goto out;
 
  out_irq:

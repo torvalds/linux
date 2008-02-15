@@ -25,6 +25,8 @@ struct xfs_inode;
 struct xfs_mount;
 struct xfs_trans;
 
+extern kmem_zone_t	*xfs_bmap_free_item_zone;
+
 /*
  * DELTA: describe a change to the in-core extent list.
  *

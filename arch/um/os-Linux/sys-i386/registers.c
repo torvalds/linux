@@ -62,10 +62,10 @@ void arch_init_registers(int pid)
 	int err;
 
 	err = ptrace(PTRACE_GETFPXREGS, pid, 0, fpx_regs);
-	if(!err)
+	if (!err)
 		return;
 
-	if(errno != EIO)
+	if (errno != EIO)
 		panic("check_ptrace : PTRACE_GETFPXREGS failed, errno = %d",
 		      errno);
 

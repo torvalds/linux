@@ -83,6 +83,9 @@ extern struct sh_cpuinfo cpu_data[];
  */
 #define TASK_SIZE	0x7ffff000UL
 
+#define STACK_TOP	TASK_SIZE
+#define STACK_TOP_MAX	STACK_TOP
+
 /* This decides where the kernel will search for a free chunk of vm
  * space during mmap's.
  */

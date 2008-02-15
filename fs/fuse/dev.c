@@ -201,6 +201,55 @@ void fuse_put_request(struct fuse_conn *fc, struct fuse_req *req)
 	}
 }
 
+static unsigned len_args(unsigned numargs, struct fuse_arg *args)
+{
+	unsigned nbytes = 0;
+	unsigned i;
+
+	for (i = 0; i < numargs; i++)
+		nbytes += args[i].size;
+
+	return nbytes;
+}
+
+static u64 fuse_get_unique(struct fuse_conn *fc)
+{
+	fc->reqctr++;
+	/* zero is special */
+	if (fc->reqctr == 0)
+		fc->reqctr = 1;
+
+	return fc->reqctr;
+}
+
+static void queue_request(struct fuse_conn *fc, struct fuse_req *req)
+{
+	req->in.h.unique = fuse_get_unique(fc);
+	req->in.h.len = sizeof(struct fuse_in_header) +
+		len_args(req->in.numargs, (struct fuse_arg *) req->in.args);
+	list_add_tail(&req->list, &fc->pending);
+	req->state = FUSE_REQ_PENDING;
+	if (!req->waiting) {
+		req->waiting = 1;
+		atomic_inc(&fc->num_waiting);
+	}
+	wake_up(&fc->waitq);
+	kill_fasync(&fc->fasync, SIGIO, POLL_IN);
+}
+
+static void flush_bg_queue(struct fuse_conn *fc)
+{
+	while (fc->active_background < FUSE_MAX_BACKGROUND &&
+	       !list_empty(&fc->bg_queue)) {
+		struct fuse_req *req;
+
+		req = list_entry(fc->bg_queue.next, struct fuse_req, list);
+		list_del(&req->list);
+		fc->active_background++;
+		queue_request(fc, req);
+	}
+}
+
 /*
  * This function is called when a request is finished.  Either a reply
  * has arrived or it was aborted (and not yet sent) or some error
@@ -229,6 +278,8 @@ static void request_end(struct fuse_conn *fc, struct fuse_req *req)
 			clear_bdi_congested(&fc->bdi, WRITE);
 		}
 		fc->num_background--;
+		fc->active_background--;
+		flush_bg_queue(fc);
 	}
 	spin_unlock(&fc->lock);
 	wake_up(&req->waitq);
@@ -320,42 +371,6 @@ static void request_wait_answer(struct fuse_conn *fc, struct fuse_req *req)
 	}
 }
 
-static unsigned len_args(unsigned numargs, struct fuse_arg *args)
-{
-	unsigned nbytes = 0;
-	unsigned i;
-
-	for (i = 0; i < numargs; i++)
-		nbytes += args[i].size;
-
-	return nbytes;
-}
-
-static u64 fuse_get_unique(struct fuse_conn *fc)
- {
- 	fc->reqctr++;
- 	/* zero is special */
- 	if (fc->reqctr == 0)
- 		fc->reqctr = 1;
-
-	return fc->reqctr;
-}
-
-static void queue_request(struct fuse_conn *fc, struct fuse_req *req)
-{
-	req->in.h.unique = fuse_get_unique(fc);
-	req->in.h.len = sizeof(struct fuse_in_header) +
-		len_args(req->in.numargs, (struct fuse_arg *) req->in.args);
-	list_add_tail(&req->list, &fc->pending);
-	req->state = FUSE_REQ_PENDING;
-	if (!req->waiting) {
-		req->waiting = 1;
-		atomic_inc(&fc->num_waiting);
-	}
-	wake_up(&fc->waitq);
-	kill_fasync(&fc->fasync, SIGIO, POLL_IN);
-}
-
 void request_send(struct fuse_conn *fc, struct fuse_req *req)
 {
 	req->isreply = 1;
@@ -375,20 +390,26 @@ void request_send(struct fuse_conn *fc, struct fuse_req *req)
 	spin_unlock(&fc->lock);
 }
 
+static void request_send_nowait_locked(struct fuse_conn *fc,
+				       struct fuse_req *req)
+{
+	req->background = 1;
+	fc->num_background++;
+	if (fc->num_background == FUSE_MAX_BACKGROUND)
+		fc->blocked = 1;
+	if (fc->num_background == FUSE_CONGESTION_THRESHOLD) {
+		set_bdi_congested(&fc->bdi, READ);
+		set_bdi_congested(&fc->bdi, WRITE);
+	}
+	list_add_tail(&req->list, &fc->bg_queue);
+	flush_bg_queue(fc);
+}
+
 static void request_send_nowait(struct fuse_conn *fc, struct fuse_req *req)
 {
 	spin_lock(&fc->lock);
 	if (fc->connected) {
-		req->background = 1;
-		fc->num_background++;
-		if (fc->num_background == FUSE_MAX_BACKGROUND)
-			fc->blocked = 1;
-		if (fc->num_background == FUSE_CONGESTION_THRESHOLD) {
-			set_bdi_congested(&fc->bdi, READ);
-			set_bdi_congested(&fc->bdi, WRITE);
-		}
-
-		queue_request(fc, req);
+		request_send_nowait_locked(fc, req);
 		spin_unlock(&fc->lock);
 	} else {
 		req->out.h.error = -ENOTCONN;

@@ -658,8 +658,7 @@ posix_test_lock(struct file *filp, struct file_lock *fl)
 	if (cfl) {
 		__locks_copy_lock(fl, cfl);
 		if (cfl->fl_nspid)
-			fl->fl_pid = pid_nr_ns(cfl->fl_nspid,
-						task_active_pid_ns(current));
+			fl->fl_pid = pid_vnr(cfl->fl_nspid);
 	} else
 		fl->fl_type = F_UNLCK;
 	unlock_kernel();
@@ -2084,7 +2083,7 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 	unsigned int fl_pid;
 
 	if (fl->fl_nspid)
-		fl_pid = pid_nr_ns(fl->fl_nspid, task_active_pid_ns(current));
+		fl_pid = pid_vnr(fl->fl_nspid);
 	else
 		fl_pid = fl->fl_pid;
 

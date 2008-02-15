@@ -1407,7 +1407,7 @@ Credits
 =======
 The following people have contributed to this document:
         Mike Anderson <andmike at us dot ibm dot com>
-        James Bottomley <James dot Bottomley at steeleye dot com> 
+        James Bottomley <James dot Bottomley at hansenpartnership dot com>
         Patrick Mansfield <patmans at us dot ibm dot com> 
         Christoph Hellwig <hch at infradead dot org>
         Doug Ledford <dledford at redhat dot com>

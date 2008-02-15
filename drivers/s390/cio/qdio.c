@@ -3189,13 +3189,11 @@ qdio_establish(struct qdio_initialize *init_data)
 	spin_lock_irqsave(get_ccwdev_lock(cdev),saveflags);
 
 	ccw_device_set_options_mask(cdev, 0);
-	result=ccw_device_start_timeout(cdev,&irq_ptr->ccw,
-					QDIO_DOING_ESTABLISH,0, 0,
-					QDIO_ESTABLISH_TIMEOUT);
+	result = ccw_device_start(cdev, &irq_ptr->ccw,
+				QDIO_DOING_ESTABLISH, 0, 0);
 	if (result) {
-		result2=ccw_device_start_timeout(cdev,&irq_ptr->ccw,
-						 QDIO_DOING_ESTABLISH,0,0,
-						 QDIO_ESTABLISH_TIMEOUT);
+		result2 = ccw_device_start(cdev, &irq_ptr->ccw,
+					QDIO_DOING_ESTABLISH, 0, 0);
 		sprintf(dbf_text,"eq:io%4x",result);
 		QDIO_DBF_TEXT2(1,setup,dbf_text);
 		if (result2) {
@@ -3219,10 +3217,10 @@ qdio_establish(struct qdio_initialize *init_data)
 		return result;
 	}
 	
-	/* Timeout is cared for already by using ccw_device_start_timeout(). */
-	wait_event_interruptible(cdev->private->wait_q,
-		 irq_ptr->state == QDIO_IRQ_STATE_ESTABLISHED ||
-		 irq_ptr->state == QDIO_IRQ_STATE_ERR);
+	wait_event_interruptible_timeout(cdev->private->wait_q,
+		irq_ptr->state == QDIO_IRQ_STATE_ESTABLISHED ||
+		irq_ptr->state == QDIO_IRQ_STATE_ERR,
+		QDIO_ESTABLISH_TIMEOUT);
 
 	if (irq_ptr->state == QDIO_IRQ_STATE_ESTABLISHED)
 		result = 0;

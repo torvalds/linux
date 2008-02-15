@@ -19,7 +19,7 @@
 #include <asm/page.h>
 #include <asm/timex.h>
 #include <asm/mach/map.h>
-#include <asm/arch/orion.h>
+#include <asm/arch/hardware.h>
 #include "common.h"
 
 /*****************************************************************************
@@ -27,26 +27,26 @@
  ****************************************************************************/
 static struct map_desc orion_io_desc[] __initdata = {
 	{
-		.virtual	= ORION_REGS_BASE,
-		.pfn		= __phys_to_pfn(ORION_REGS_BASE),
+		.virtual	= ORION_REGS_VIRT_BASE,
+		.pfn		= __phys_to_pfn(ORION_REGS_PHYS_BASE),
 		.length		= ORION_REGS_SIZE,
 		.type		= MT_DEVICE
 	},
 	{
-		.virtual	= ORION_PCIE_IO_BASE,
-		.pfn		= __phys_to_pfn(ORION_PCIE_IO_BASE),
+		.virtual	= ORION_PCIE_IO_VIRT_BASE,
+		.pfn		= __phys_to_pfn(ORION_PCIE_IO_PHYS_BASE),
 		.length		= ORION_PCIE_IO_SIZE,
 		.type		= MT_DEVICE
 	},
 	{
-		.virtual	= ORION_PCI_IO_BASE,
-		.pfn		= __phys_to_pfn(ORION_PCI_IO_BASE),
+		.virtual	= ORION_PCI_IO_VIRT_BASE,
+		.pfn		= __phys_to_pfn(ORION_PCI_IO_PHYS_BASE),
 		.length		= ORION_PCI_IO_SIZE,
 		.type		= MT_DEVICE
 	},
 	{
-		.virtual	= ORION_PCIE_WA_BASE,
-		.pfn		= __phys_to_pfn(ORION_PCIE_WA_BASE),
+		.virtual	= ORION_PCIE_WA_VIRT_BASE,
+		.pfn		= __phys_to_pfn(ORION_PCIE_WA_PHYS_BASE),
 		.length		= ORION_PCIE_WA_SIZE,
 		.type		= MT_DEVICE
 	},
@@ -63,8 +63,8 @@ void __init orion_map_io(void)
 
 static struct resource orion_uart_resources[] = {
 	{
-		.start		= UART0_BASE,
-		.end		= UART0_BASE + 0xff,
+		.start		= UART0_PHYS_BASE,
+		.end		= UART0_PHYS_BASE + 0xff,
 		.flags		= IORESOURCE_MEM,
 	},
 	{
@@ -73,8 +73,8 @@ static struct resource orion_uart_resources[] = {
 		.flags		= IORESOURCE_IRQ,
 	},
 	{
-		.start		= UART1_BASE,
-		.end		= UART1_BASE + 0xff,
+		.start		= UART1_PHYS_BASE,
+		.end		= UART1_PHYS_BASE + 0xff,
 		.flags		= IORESOURCE_MEM,
 	},
 	{
@@ -86,8 +86,8 @@ static struct resource orion_uart_resources[] = {
 
 static struct plat_serial8250_port orion_uart_data[] = {
 	{
-		.mapbase	= UART0_BASE,
-		.membase	= (char *)UART0_BASE,
+		.mapbase	= UART0_PHYS_BASE,
+		.membase	= (char *)UART0_VIRT_BASE,
 		.irq		= IRQ_ORION_UART0,
 		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
 		.iotype		= UPIO_MEM,
@@ -95,8 +95,8 @@ static struct plat_serial8250_port orion_uart_data[] = {
 		.uartclk	= ORION_TCLK,
 	},
 	{
-		.mapbase	= UART1_BASE,
-		.membase	= (char *)UART1_BASE,
+		.mapbase	= UART1_PHYS_BASE,
+		.membase	= (char *)UART1_VIRT_BASE,
 		.irq		= IRQ_ORION_UART1,
 		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
 		.iotype		= UPIO_MEM,
@@ -122,8 +122,8 @@ static struct platform_device orion_uart = {
 
 static struct resource orion_ehci0_resources[] = {
 	{
-		.start	= ORION_USB0_REG_BASE,
-		.end	= ORION_USB0_REG_BASE + SZ_4K,
+		.start	= ORION_USB0_PHYS_BASE,
+		.end	= ORION_USB0_PHYS_BASE + SZ_4K,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
@@ -135,8 +135,8 @@ static struct resource orion_ehci0_resources[] = {
 
 static struct resource orion_ehci1_resources[] = {
 	{
-		.start	= ORION_USB1_REG_BASE,
-		.end	= ORION_USB1_REG_BASE + SZ_4K,
+		.start	= ORION_USB1_PHYS_BASE,
+		.end	= ORION_USB1_PHYS_BASE + SZ_4K,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
@@ -177,8 +177,8 @@ static struct platform_device orion_ehci1 = {
 
 static struct resource orion_eth_shared_resources[] = {
 	{
-		.start	= ORION_ETH_REG_BASE,
-		.end	= ORION_ETH_REG_BASE + 0xffff,
+		.start	= ORION_ETH_PHYS_BASE,
+		.end	= ORION_ETH_PHYS_BASE + 0xffff,
 		.flags	= IORESOURCE_MEM,
 	},
 };
@@ -227,8 +227,8 @@ static struct mv64xxx_i2c_pdata orion_i2c_pdata = {
 static struct resource orion_i2c_resources[] = {
 	{
 		.name   = "i2c base",
-		.start  = I2C_BASE,
-		.end    = I2C_BASE + 0x20 -1,
+		.start  = I2C_PHYS_BASE,
+		.end    = I2C_PHYS_BASE + 0x20 -1,
 		.flags  = IORESOURCE_MEM,
 	},
 	{
@@ -248,6 +248,40 @@ static struct platform_device orion_i2c = {
 		.platform_data = &orion_i2c_pdata,
 	},
 };
+
+/*****************************************************************************
+ * Sata port
+ ****************************************************************************/
+static struct resource orion_sata_resources[] = {
+        {
+                .name   = "sata base",
+                .start  = ORION_SATA_PHYS_BASE,
+                .end    = ORION_SATA_PHYS_BASE + 0x5000 - 1,
+                .flags  = IORESOURCE_MEM,
+        },
+	{
+                .name   = "sata irq",
+                .start  = IRQ_ORION_SATA,
+                .end    = IRQ_ORION_SATA,
+                .flags  = IORESOURCE_IRQ,
+        },
+};
+
+static struct platform_device orion_sata = {
+	.name           = "sata_mv",
+	.id             = 0,
+	.dev		= {
+		.coherent_dma_mask	= 0xffffffff,
+	},
+	.num_resources  = ARRAY_SIZE(orion_sata_resources),
+	.resource       = orion_sata_resources,
+};
+
+void __init orion_sata_init(struct mv_sata_platform_data *sata_data)
+{
+	orion_sata.dev.platform_data = sata_data;
+	platform_device_register(&orion_sata);
+}
 
 /*****************************************************************************
  * General

@@ -389,7 +389,7 @@ struct key *request_key_and_link(struct key_type *type,
 	if (!IS_ERR(key_ref)) {
 		key = key_ref_to_ptr(key_ref);
 	} else if (PTR_ERR(key_ref) != -EAGAIN) {
-		key = ERR_PTR(PTR_ERR(key_ref));
+		key = ERR_CAST(key_ref);
 	} else  {
 		/* the search failed, but the keyrings were searchable, so we
 		 * should consult userspace if we can */

@@ -348,7 +348,7 @@ _xfs_filestream_update_ag(
 }
 
 /* xfs_fstrm_free_func(): callback for freeing cached stream items. */
-void
+STATIC void
 xfs_fstrm_free_func(
 	unsigned long	ino,
 	void		*data)

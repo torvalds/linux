@@ -604,7 +604,7 @@ static struct clusters clusters_root = {
 	},
 };
 
-int dlm_config_init(void)
+int __init dlm_config_init(void)
 {
 	config_group_init(&clusters_root.subsys.su_group);
 	mutex_init(&clusters_root.subsys.su_mutex);

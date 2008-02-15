@@ -52,6 +52,7 @@ static int capifs_remount(struct super_block *s, int *flags, char *data)
 	gid_t gid = 0;
 	umode_t mode = 0600;
 	char *this_char;
+	char *new_opt = kstrdup(data, GFP_KERNEL);
 
 	this_char = NULL;
 	while ((this_char = strsep(&data, ",")) != NULL) {
@@ -72,11 +73,16 @@ static int capifs_remount(struct super_block *s, int *flags, char *data)
 			return -EINVAL;
 		}
 	}
+
+	kfree(s->s_options);
+	s->s_options = new_opt;
+
 	config.setuid  = setuid;
 	config.setgid  = setgid;
 	config.uid     = uid;
 	config.gid     = gid;
 	config.mode    = mode;
+
 	return 0;
 }
 
@@ -84,6 +90,7 @@ static struct super_operations capifs_sops =
 {
 	.statfs		= simple_statfs,
 	.remount_fs	= capifs_remount,
+	.show_options	= generic_show_options,
 };
 
 

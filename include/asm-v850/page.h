@@ -14,8 +14,6 @@
 #ifndef __V850_PAGE_H__
 #define __V850_PAGE_H__
 
-#ifdef __KERNEL__
-
 #include <asm/machdep.h>
 
 
@@ -59,6 +57,7 @@ typedef struct { unsigned long pte; } pte_t;
 typedef struct { unsigned long pmd; } pmd_t;
 typedef struct { unsigned long pgd; } pgd_t;
 typedef struct { unsigned long pgprot; } pgprot_t;
+typedef struct page *pgtable_t;
 
 #define pte_val(x)      ((x).pte)
 #define pmd_val(x)      ((x).pmd)
@@ -125,7 +124,5 @@ typedef unsigned long pgprot_t;
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
-
-#endif /* KERNEL */
 
 #endif /* __V850_PAGE_H__ */

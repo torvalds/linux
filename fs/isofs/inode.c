@@ -54,7 +54,7 @@ static void isofs_put_super(struct super_block *sb)
 	return;
 }
 
-static void isofs_read_inode(struct inode *);
+static int isofs_read_inode(struct inode *);
 static int isofs_statfs (struct dentry *, struct kstatfs *);
 
 static struct kmem_cache *isofs_inode_cachep;
@@ -107,10 +107,10 @@ static int isofs_remount(struct super_block *sb, int *flags, char *data)
 static const struct super_operations isofs_sops = {
 	.alloc_inode	= isofs_alloc_inode,
 	.destroy_inode	= isofs_destroy_inode,
-	.read_inode	= isofs_read_inode,
 	.put_super	= isofs_put_super,
 	.statfs		= isofs_statfs,
 	.remount_fs	= isofs_remount,
+	.show_options	= generic_show_options,
 };
 
 
@@ -145,7 +145,8 @@ struct iso9660_options{
 	char nocompress;
 	unsigned char check;
 	unsigned int blocksize;
-	mode_t mode;
+	mode_t fmode;
+	mode_t dmode;
 	gid_t gid;
 	uid_t uid;
 	char *iocharset;
@@ -306,7 +307,7 @@ enum {
 	Opt_block, Opt_check_r, Opt_check_s, Opt_cruft, Opt_gid, Opt_ignore,
 	Opt_iocharset, Opt_map_a, Opt_map_n, Opt_map_o, Opt_mode, Opt_nojoliet,
 	Opt_norock, Opt_sb, Opt_session, Opt_uid, Opt_unhide, Opt_utf8, Opt_err,
-	Opt_nocompress, Opt_hide, Opt_showassoc,
+	Opt_nocompress, Opt_hide, Opt_showassoc, Opt_dmode,
 };
 
 static match_table_t tokens = {
@@ -333,6 +334,7 @@ static match_table_t tokens = {
 	{Opt_uid, "uid=%u"},
 	{Opt_gid, "gid=%u"},
 	{Opt_mode, "mode=%u"},
+	{Opt_dmode, "dmode=%u"},
 	{Opt_block, "block=%u"},
 	{Opt_ignore, "conv=binary"},
 	{Opt_ignore, "conv=b"},
@@ -360,7 +362,7 @@ static int parse_options(char *options, struct iso9660_options *popt)
 	popt->check = 'u';		/* unset */
 	popt->nocompress = 0;
 	popt->blocksize = 1024;
-	popt->mode = S_IRUGO | S_IXUGO; /*
+	popt->fmode = popt->dmode = S_IRUGO | S_IXUGO; /*
 					 * r-x for all.  The disc could
 					 * be shared with DOS machines so
 					 * virtually anything could be
@@ -452,7 +454,12 @@ static int parse_options(char *options, struct iso9660_options *popt)
 		case Opt_mode:
 			if (match_int(&args[0], &option))
 				return 0;
-			popt->mode = option;
+			popt->fmode = option;
+			break;
+		case Opt_dmode:
+			if (match_int(&args[0], &option))
+				return 0;
+			popt->dmode = option;
 			break;
 		case Opt_block:
 			if (match_int(&args[0], &option))
@@ -552,8 +559,10 @@ static int isofs_fill_super(struct super_block *s, void *data, int silent)
 	int joliet_level = 0;
 	int iso_blknum, block;
 	int orig_zonesize;
-	int table;
+	int table, error = -EINVAL;
 	unsigned int vol_desc_start;
+
+	save_mount_options(s, data);
 
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)
@@ -802,7 +811,8 @@ root_found:
 	 * on the disk as suid, so we merely allow them to set the default
 	 * permissions.
 	 */
-	sbi->s_mode = opt.mode & 0777;
+	sbi->s_fmode = opt.fmode & 0777;
+	sbi->s_dmode = opt.dmode & 0777;
 
 	/*
 	 * Read the root inode, which _may_ result in changing
@@ -810,6 +820,8 @@ root_found:
 	 * we then decide whether to use the Joliet descriptor.
 	 */
 	inode = isofs_iget(s, sbi->s_firstdatazone, 0);
+	if (IS_ERR(inode))
+		goto out_no_root;
 
 	/*
 	 * If this disk has both Rock Ridge and Joliet on it, then we
@@ -829,6 +841,8 @@ root_found:
 				"ISOFS: changing to secondary root\n");
 			iput(inode);
 			inode = isofs_iget(s, sbi->s_firstdatazone, 0);
+			if (IS_ERR(inode))
+				goto out_no_root;
 		}
 	}
 
@@ -842,8 +856,6 @@ root_found:
 	sbi->s_joliet_level = joliet_level;
 
 	/* check the root inode */
-	if (!inode)
-		goto out_no_root;
 	if (!inode->i_op)
 		goto out_bad_root;
 
@@ -876,11 +888,14 @@ root_found:
 	 */
 out_bad_root:
 	printk(KERN_WARNING "%s: root inode not initialized\n", __func__);
-	goto out_iput;
-out_no_root:
-	printk(KERN_WARNING "%s: get root inode failed\n", __func__);
 out_iput:
 	iput(inode);
+	goto out_no_inode;
+out_no_root:
+	error = PTR_ERR(inode);
+	if (error != -ENOMEM)
+		printk(KERN_WARNING "%s: get root inode failed\n", __func__);
+out_no_inode:
 #ifdef CONFIG_JOLIET
 	if (sbi->s_nls_iocharset)
 		unload_nls(sbi->s_nls_iocharset);
@@ -908,7 +923,7 @@ out_freesbi:
 	kfree(opt.iocharset);
 	kfree(sbi);
 	s->s_fs_info = NULL;
-	return -EINVAL;
+	return error;
 }
 
 static int isofs_statfs (struct dentry *dentry, struct kstatfs *buf)
@@ -930,7 +945,7 @@ static int isofs_statfs (struct dentry *dentry, struct kstatfs *buf)
 /*
  * Get a set of blocks; filling in buffer_heads if already allocated
  * or getblk() if they are not.  Returns the number of blocks inserted
- * (0 == error.)
+ * (-ve == error.)
  */
 int isofs_get_blocks(struct inode *inode, sector_t iblock_s,
 		     struct buffer_head **bh, unsigned long nblocks)
@@ -940,11 +955,12 @@ int isofs_get_blocks(struct inode *inode, sector_t iblock_s,
 	unsigned int firstext;
 	unsigned long nextblk, nextoff;
 	long iblock = (long)iblock_s;
-	int section, rv;
+	int section, rv, error;
 	struct iso_inode_info *ei = ISOFS_I(inode);
 
 	lock_kernel();
 
+	error = -EIO;
 	rv = 0;
 	if (iblock < 0 || iblock != iblock_s) {
 		printk(KERN_DEBUG "%s: block number too large\n", __func__);
@@ -983,8 +999,10 @@ int isofs_get_blocks(struct inode *inode, sector_t iblock_s,
 
 			offset += sect_size;
 			ninode = isofs_iget(inode->i_sb, nextblk, nextoff);
-			if (!ninode)
+			if (IS_ERR(ninode)) {
+				error = PTR_ERR(ninode);
 				goto abort;
+			}
 			firstext  = ISOFS_I(ninode)->i_first_extent;
 			sect_size = ISOFS_I(ninode)->i_section_size >> ISOFS_BUFFER_BITS(ninode);
 			nextblk   = ISOFS_I(ninode)->i_next_section_block;
@@ -1015,9 +1033,10 @@ int isofs_get_blocks(struct inode *inode, sector_t iblock_s,
 		rv++;
 	}
 
+	error = 0;
 abort:
 	unlock_kernel();
-	return rv;
+	return rv != 0 ? rv : error;
 }
 
 /*
@@ -1026,12 +1045,15 @@ abort:
 static int isofs_get_block(struct inode *inode, sector_t iblock,
 		    struct buffer_head *bh_result, int create)
 {
+	int ret;
+
 	if (create) {
 		printk(KERN_DEBUG "%s: Kernel tries to allocate a block\n", __func__);
 		return -EROFS;
 	}
 
-	return isofs_get_blocks(inode, iblock, &bh_result, 1) ? 0 : -EIO;
+	ret = isofs_get_blocks(inode, iblock, &bh_result, 1);
+	return ret < 0 ? ret : 0;
 }
 
 static int isofs_bmap(struct inode *inode, sector_t block)
@@ -1186,7 +1208,7 @@ out_toomany:
 	goto out;
 }
 
-static void isofs_read_inode(struct inode *inode)
+static int isofs_read_inode(struct inode *inode)
 {
 	struct super_block *sb = inode->i_sb;
 	struct isofs_sb_info *sbi = ISOFS_SB(sb);
@@ -1199,6 +1221,7 @@ static void isofs_read_inode(struct inode *inode)
 	unsigned int de_len;
 	unsigned long offset;
 	struct iso_inode_info *ei = ISOFS_I(inode);
+	int ret = -EIO;
 
 	block = ei->i_iget5_block;
 	bh = sb_bread(inode->i_sb, block);
@@ -1216,6 +1239,7 @@ static void isofs_read_inode(struct inode *inode)
 		tmpde = kmalloc(de_len, GFP_KERNEL);
 		if (tmpde == NULL) {
 			printk(KERN_INFO "%s: out of memory\n", __func__);
+			ret = -ENOMEM;
 			goto fail;
 		}
 		memcpy(tmpde, bh->b_data + offset, frag1);
@@ -1235,7 +1259,7 @@ static void isofs_read_inode(struct inode *inode)
 	ei->i_file_format = isofs_file_normal;
 
 	if (de->flags[-high_sierra] & 2) {
-		inode->i_mode = S_IRUGO | S_IXUGO | S_IFDIR;
+		inode->i_mode = sbi->s_dmode | S_IFDIR;
 		inode->i_nlink = 1;	/*
 					 * Set to 1.  We know there are 2, but
 					 * the find utility tries to optimize
@@ -1245,9 +1269,8 @@ static void isofs_read_inode(struct inode *inode)
 					 */
 	} else {
 		/* Everybody gets to read the file. */
-		inode->i_mode = sbi->s_mode;
+		inode->i_mode = sbi->s_fmode | S_IFREG;
 		inode->i_nlink = 1;
-		inode->i_mode |= S_IFREG;
 	}
 	inode->i_uid = sbi->s_uid;
 	inode->i_gid = sbi->s_gid;
@@ -1259,8 +1282,10 @@ static void isofs_read_inode(struct inode *inode)
 
 	ei->i_section_size = isonum_733(de->size);
 	if (de->flags[-high_sierra] & 0x80) {
-		if(isofs_read_level3_size(inode))
+		ret = isofs_read_level3_size(inode);
+		if (ret < 0)
 			goto fail;
+		ret = -EIO;
 	} else {
 		ei->i_next_section_block = 0;
 		ei->i_next_section_offset = 0;
@@ -1346,16 +1371,16 @@ static void isofs_read_inode(struct inode *inode)
 		/* XXX - parse_rock_ridge_inode() had already set i_rdev. */
 		init_special_inode(inode, inode->i_mode, inode->i_rdev);
 
+	ret = 0;
 out:
 	kfree(tmpde);
 	if (bh)
 		brelse(bh);
-	return;
+	return ret;
 
 out_badread:
 	printk(KERN_WARNING "ISOFS: unable to read i-node block\n");
 fail:
-	make_bad_inode(inode);
 	goto out;
 }
 
@@ -1394,9 +1419,10 @@ struct inode *isofs_iget(struct super_block *sb,
 	unsigned long hashval;
 	struct inode *inode;
 	struct isofs_iget5_callback_data data;
+	long ret;
 
 	if (offset >= 1ul << sb->s_blocksize_bits)
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	data.block = block;
 	data.offset = offset;
@@ -1406,9 +1432,17 @@ struct inode *isofs_iget(struct super_block *sb,
 	inode = iget5_locked(sb, hashval, &isofs_iget5_test,
 				&isofs_iget5_set, &data);
 
-	if (inode && (inode->i_state & I_NEW)) {
-		sb->s_op->read_inode(inode);
-		unlock_new_inode(inode);
+	if (!inode)
+		return ERR_PTR(-ENOMEM);
+
+	if (inode->i_state & I_NEW) {
+		ret = isofs_read_inode(inode);
+		if (ret < 0) {
+			iget_failed(inode);
+			inode = ERR_PTR(ret);
+		} else {
+			unlock_new_inode(inode);
+		}
 	}
 
 	return inode;

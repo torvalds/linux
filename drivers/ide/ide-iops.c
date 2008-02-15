@@ -786,15 +786,11 @@ static void __ide_set_handler (ide_drive_t *drive, ide_handler_t *handler,
 {
 	ide_hwgroup_t *hwgroup = HWGROUP(drive);
 
-	if (hwgroup->handler != NULL) {
-		printk(KERN_CRIT "%s: ide_set_handler: handler not null; "
-			"old=%p, new=%p\n",
-			drive->name, hwgroup->handler, handler);
-	}
+	BUG_ON(hwgroup->handler);
 	hwgroup->handler	= handler;
 	hwgroup->expiry		= expiry;
 	hwgroup->timer.expires	= jiffies + timeout;
-	hwgroup->req_gen_timer = hwgroup->req_gen;
+	hwgroup->req_gen_timer	= hwgroup->req_gen;
 	add_timer(&hwgroup->timer);
 }
 
@@ -827,11 +823,9 @@ void ide_execute_command(ide_drive_t *drive, u8 cmd, ide_handler_t *handler,
 			 unsigned timeout, ide_expiry_t *expiry)
 {
 	unsigned long flags;
-	ide_hwgroup_t *hwgroup = HWGROUP(drive);
 	ide_hwif_t *hwif = HWIF(drive);
 
 	spin_lock_irqsave(&ide_lock, flags);
-	BUG_ON(hwgroup->handler);
 	__ide_set_handler(drive, handler, timeout, expiry);
 	hwif->OUTBSYNC(drive, cmd, IDE_COMMAND_REG);
 	/*

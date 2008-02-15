@@ -21,8 +21,6 @@
 struct xfs_mount;
 struct xfs_trans;
 
-#define XFS_IS_REALTIME_INODE(ip) ((ip)->i_d.di_flags & XFS_DIFLAG_REALTIME)
-
 /* Min and max rt extent sizes, specified in bytes */
 #define	XFS_MAX_RTEXTSIZE	(1024 * 1024 * 1024)	/* 1GB */
 #define	XFS_DFL_RTEXTSIZE	(64 * 1024)	        /* 64KB */

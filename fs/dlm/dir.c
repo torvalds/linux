@@ -220,6 +220,7 @@ int dlm_recover_directory(struct dlm_ls *ls)
 		last_len = 0;
 
 		for (;;) {
+			int left;
 			error = dlm_recovery_stopped(ls);
 			if (error)
 				goto out_free;
@@ -235,12 +236,21 @@ int dlm_recover_directory(struct dlm_ls *ls)
 			 * pick namelen/name pairs out of received buffer
 			 */
 
-			b = ls->ls_recover_buf + sizeof(struct dlm_rcom);
+			b = ls->ls_recover_buf->rc_buf;
+			left = ls->ls_recover_buf->rc_header.h_length;
+			left -= sizeof(struct dlm_rcom);
 
 			for (;;) {
-				memcpy(&namelen, b, sizeof(uint16_t));
-				namelen = be16_to_cpu(namelen);
-				b += sizeof(uint16_t);
+				__be16 v;
+
+				error = -EINVAL;
+				if (left < sizeof(__be16))
+					goto out_free;
+
+				memcpy(&v, b, sizeof(__be16));
+				namelen = be16_to_cpu(v);
+				b += sizeof(__be16);
+				left -= sizeof(__be16);
 
 				/* namelen of 0xFFFFF marks end of names for
 				   this node; namelen of 0 marks end of the
@@ -250,6 +260,12 @@ int dlm_recover_directory(struct dlm_ls *ls)
 					goto done;
 				if (!namelen)
 					break;
+
+				if (namelen > left)
+					goto out_free;
+
+				if (namelen > DLM_RESNAME_MAXLEN)
+					goto out_free;
 
 				error = -ENOMEM;
 				de = get_free_de(ls, namelen);
@@ -262,6 +278,7 @@ int dlm_recover_directory(struct dlm_ls *ls)
 				memcpy(de->name, b, namelen);
 				memcpy(last_name, b, namelen);
 				b += namelen;
+				left -= namelen;
 
 				add_entry_to_hash(ls, de);
 				count++;
@@ -301,6 +318,9 @@ static int get_entry(struct dlm_ls *ls, int nodeid, char *name,
 	}
 
 	write_unlock(&ls->ls_dirtbl[bucket].lock);
+
+	if (namelen > DLM_RESNAME_MAXLEN)
+		return -EINVAL;
 
 	de = kzalloc(sizeof(struct dlm_direntry) + namelen, GFP_KERNEL);
 	if (!de)

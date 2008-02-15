@@ -1,8 +1,7 @@
-/* $Id: cryptocop.c,v 1.13 2005/04/21 17:27:55 henriken Exp $
- *
+/*
  * Stream co-processor driver for the ETRAX FS
  *
- *    Copyright (C) 2003-2005  Axis Communications AB
+ *    Copyright (C) 2003-2007  Axis Communications AB
  */
 
 #include <linux/init.h>
@@ -25,17 +24,29 @@
 #include <asm/signal.h>
 #include <asm/irq.h>
 
-#include <asm/arch/dma.h>
-#include <asm/arch/hwregs/dma.h>
-#include <asm/arch/hwregs/reg_map.h>
-#include <asm/arch/hwregs/reg_rdwr.h>
-#include <asm/arch/hwregs/intr_vect_defs.h>
+#include <dma.h>
+#include <hwregs/dma.h>
+#include <hwregs/reg_map.h>
+#include <hwregs/reg_rdwr.h>
+#include <hwregs/intr_vect_defs.h>
 
-#include <asm/arch/hwregs/strcop.h>
-#include <asm/arch/hwregs/strcop_defs.h>
-#include <asm/arch/cryptocop.h>
+#include <hwregs/strcop.h>
+#include <hwregs/strcop_defs.h>
+#include <cryptocop.h>
 
-
+#ifdef CONFIG_ETRAXFS
+#define IN_DMA 9
+#define OUT_DMA 8
+#define IN_DMA_INST regi_dma9
+#define OUT_DMA_INST regi_dma8
+#define DMA_IRQ DMA9_INTR_VECT
+#else
+#define IN_DMA 3
+#define OUT_DMA 2
+#define IN_DMA_INST regi_dma3
+#define OUT_DMA_INST regi_dma2
+#define DMA_IRQ DMA3_INTR_VECT
+#endif
 
 #define DESCR_ALLOC_PAD  (31)
 
@@ -1886,14 +1897,14 @@ static void cryptocop_do_tasklet(unsigned long unused)
 }
 
 static irqreturn_t
-dma_done_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+dma_done_interrupt(int irq, void *dev_id)
 {
 	struct cryptocop_prio_job *done_job;
 	reg_dma_rw_ack_intr ack_intr = {
 		.data = 1,
 	};
 
-	REG_WR (dma, regi_dma9, rw_ack_intr, ack_intr);
+	REG_WR(dma, IN_DMA_INST, rw_ack_intr, ack_intr);
 
 	DEBUG(printk("cryptocop DMA done\n"));
 
@@ -1937,7 +1948,6 @@ dma_done_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 static int init_cryptocop(void)
 {
 	unsigned long          flags;
-	reg_intr_vect_rw_mask  intr_mask;
 	reg_dma_rw_cfg         dma_cfg = {.en = 1};
 	reg_dma_rw_intr_mask   intr_mask_in = {.data = regk_dma_yes}; /* Only want descriptor interrupts from the DMA in channel. */
 	reg_dma_rw_ack_intr    ack_intr = {.data = 1,.in_eop = 1 };
@@ -1950,10 +1960,14 @@ static int init_cryptocop(void)
 		.en = 1
 	};
 
-	if (request_irq(DMA9_INTR_VECT, dma_done_interrupt, 0, "stream co-processor DMA", NULL)) panic("request_irq stream co-processor irq dma9");
+	if (request_irq(DMA_IRQ, dma_done_interrupt, 0,
+			"stream co-processor DMA", NULL))
+		panic("request_irq stream co-processor irq dma9");
 
-	(void)crisv32_request_dma(8, "strcop", DMA_PANIC_ON_ERROR, 0, dma_strp);
-	(void)crisv32_request_dma(9, "strcop", DMA_PANIC_ON_ERROR, 0, dma_strp);
+	(void)crisv32_request_dma(OUT_DMA, "strcop", DMA_PANIC_ON_ERROR,
+		0, dma_strp);
+	(void)crisv32_request_dma(IN_DMA, "strcop", DMA_PANIC_ON_ERROR,
+		0, dma_strp);
 
 	local_irq_save(flags);
 
@@ -1963,24 +1977,19 @@ static int init_cryptocop(void)
 	strcop_cfg.en = 1;
 	REG_WR(strcop, regi_strcop, rw_cfg, strcop_cfg);
 
-	/* Enable DMA9 interrupt */
-	intr_mask = REG_RD(intr_vect, regi_irq, rw_mask);
-	intr_mask.dma9 = 1;
-	REG_WR(intr_vect, regi_irq, rw_mask, intr_mask);
-
 	/* Enable DMAs. */
-	REG_WR(dma, regi_dma9, rw_cfg, dma_cfg); /* input DMA */
-	REG_WR(dma, regi_dma8, rw_cfg, dma_cfg); /* output DMA */
+	REG_WR(dma, IN_DMA_INST, rw_cfg, dma_cfg); /* input DMA */
+	REG_WR(dma, OUT_DMA_INST, rw_cfg, dma_cfg); /* output DMA */
 
 	/* Set up wordsize = 4 for DMAs. */
-	DMA_WR_CMD (regi_dma8, regk_dma_set_w_size4);
-	DMA_WR_CMD (regi_dma9, regk_dma_set_w_size4);
+	DMA_WR_CMD(OUT_DMA_INST, regk_dma_set_w_size4);
+	DMA_WR_CMD(IN_DMA_INST, regk_dma_set_w_size4);
 
 	/* Enable interrupts. */
-	REG_WR(dma, regi_dma9, rw_intr_mask, intr_mask_in);
+	REG_WR(dma, IN_DMA_INST, rw_intr_mask, intr_mask_in);
 
 	/* Clear intr ack. */
-	REG_WR(dma, regi_dma9, rw_ack_intr, ack_intr);
+	REG_WR(dma, IN_DMA_INST, rw_ack_intr, ack_intr);
 
 	local_irq_restore(flags);
 
@@ -1991,7 +2000,6 @@ static int init_cryptocop(void)
 static void release_cryptocop(void)
 {
 	unsigned long          flags;
-	reg_intr_vect_rw_mask  intr_mask;
 	reg_dma_rw_cfg         dma_cfg = {.en = 0};
 	reg_dma_rw_intr_mask   intr_mask_in = {0};
 	reg_dma_rw_ack_intr    ack_intr = {.data = 1,.in_eop = 1 };
@@ -1999,26 +2007,21 @@ static void release_cryptocop(void)
 	local_irq_save(flags);
 
 	/* Clear intr ack. */
-	REG_WR(dma, regi_dma9, rw_ack_intr, ack_intr);
-
-	/* Disable DMA9 interrupt */
-	intr_mask = REG_RD(intr_vect, regi_irq, rw_mask);
-	intr_mask.dma9 = 0;
-	REG_WR(intr_vect, regi_irq, rw_mask, intr_mask);
+	REG_WR(dma, IN_DMA_INST, rw_ack_intr, ack_intr);
 
 	/* Disable DMAs. */
-	REG_WR(dma, regi_dma9, rw_cfg, dma_cfg); /* input DMA */
-	REG_WR(dma, regi_dma8, rw_cfg, dma_cfg); /* output DMA */
+	REG_WR(dma, IN_DMA_INST, rw_cfg, dma_cfg); /* input DMA */
+	REG_WR(dma, OUT_DMA_INST, rw_cfg, dma_cfg); /* output DMA */
 
 	/* Disable interrupts. */
-	REG_WR(dma, regi_dma9, rw_intr_mask, intr_mask_in);
+	REG_WR(dma, IN_DMA_INST, rw_intr_mask, intr_mask_in);
 
 	local_irq_restore(flags);
 
-	free_irq(DMA9_INTR_VECT, NULL);
+	free_irq(DMA_IRQ, NULL);
 
-	(void)crisv32_free_dma(8);
-	(void)crisv32_free_dma(9);
+	(void)crisv32_free_dma(OUT_DMA);
+	(void)crisv32_free_dma(IN_DMA);
 }
 
 
@@ -2076,13 +2079,13 @@ static void cryptocop_job_queue_close(void)
 		reg_dma_rw_cfg    dma_out_cfg, dma_in_cfg;
 
 		/* Stop DMA. */
-		dma_out_cfg = REG_RD(dma, regi_dma8, rw_cfg);
+		dma_out_cfg = REG_RD(dma, OUT_DMA_INST, rw_cfg);
 		dma_out_cfg.en = regk_dma_no;
-		REG_WR(dma, regi_dma8, rw_cfg, dma_out_cfg);
+		REG_WR(dma, OUT_DMA_INST, rw_cfg, dma_out_cfg);
 
-		dma_in_cfg = REG_RD(dma, regi_dma9, rw_cfg);
+		dma_in_cfg = REG_RD(dma, IN_DMA_INST, rw_cfg);
 		dma_in_cfg.en = regk_dma_no;
-		REG_WR(dma, regi_dma9, rw_cfg, dma_in_cfg);
+		REG_WR(dma, IN_DMA_INST, rw_cfg, dma_in_cfg);
 
 		/* Disble the cryptocop. */
 		rw_cfg = REG_RD(strcop, regi_strcop, rw_cfg);
@@ -2226,10 +2229,11 @@ static void cryptocop_start_job(void)
 		     &pj->iop->ctx_out, (char*)virt_to_phys(&pj->iop->ctx_out)));
 
 	/* Start input DMA. */
-	DMA_START_CONTEXT(regi_dma9, virt_to_phys(&pj->iop->ctx_in));
+	flush_dma_context(&pj->iop->ctx_in);
+	DMA_START_CONTEXT(IN_DMA_INST, virt_to_phys(&pj->iop->ctx_in));
 
 	/* Start output DMA. */
-	DMA_START_CONTEXT(regi_dma8, virt_to_phys(&pj->iop->ctx_out));
+	DMA_START_CONTEXT(OUT_DMA_INST, virt_to_phys(&pj->iop->ctx_out));
 
 	spin_unlock_irqrestore(&running_job_lock, running_job_flags);
 	DEBUG(printk("cryptocop_start_job: exiting\n"));

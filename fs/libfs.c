@@ -583,8 +583,8 @@ int simple_transaction_release(struct inode *inode, struct file *file)
 /* Simple attribute files */
 
 struct simple_attr {
-	u64 (*get)(void *);
-	void (*set)(void *, u64);
+	int (*get)(void *, u64 *);
+	int (*set)(void *, u64);
 	char get_buf[24];	/* enough to store a u64 and "\n\0" */
 	char set_buf[24];
 	void *data;
@@ -595,7 +595,7 @@ struct simple_attr {
 /* simple_attr_open is called by an actual attribute open file operation
  * to set the attribute specific access operations. */
 int simple_attr_open(struct inode *inode, struct file *file,
-		     u64 (*get)(void *), void (*set)(void *, u64),
+		     int (*get)(void *, u64 *), int (*set)(void *, u64),
 		     const char *fmt)
 {
 	struct simple_attr *attr;
@@ -615,7 +615,7 @@ int simple_attr_open(struct inode *inode, struct file *file,
 	return nonseekable_open(inode, file);
 }
 
-int simple_attr_close(struct inode *inode, struct file *file)
+int simple_attr_release(struct inode *inode, struct file *file)
 {
 	kfree(file->private_data);
 	return 0;
@@ -634,15 +634,24 @@ ssize_t simple_attr_read(struct file *file, char __user *buf,
 	if (!attr->get)
 		return -EACCES;
 
-	mutex_lock(&attr->mutex);
-	if (*ppos) /* continued read */
+	ret = mutex_lock_interruptible(&attr->mutex);
+	if (ret)
+		return ret;
+
+	if (*ppos) {		/* continued read */
 		size = strlen(attr->get_buf);
-	else	  /* first read */
+	} else {		/* first read */
+		u64 val;
+		ret = attr->get(attr->data, &val);
+		if (ret)
+			goto out;
+
 		size = scnprintf(attr->get_buf, sizeof(attr->get_buf),
-				 attr->fmt,
-				 (unsigned long long)attr->get(attr->data));
+				 attr->fmt, (unsigned long long)val);
+	}
 
 	ret = simple_read_from_buffer(buf, len, ppos, attr->get_buf, size);
+out:
 	mutex_unlock(&attr->mutex);
 	return ret;
 }
@@ -657,11 +666,13 @@ ssize_t simple_attr_write(struct file *file, const char __user *buf,
 	ssize_t ret;
 
 	attr = file->private_data;
-
 	if (!attr->set)
 		return -EACCES;
 
-	mutex_lock(&attr->mutex);
+	ret = mutex_lock_interruptible(&attr->mutex);
+	if (ret)
+		return ret;
+
 	ret = -EFAULT;
 	size = min(sizeof(attr->set_buf) - 1, len);
 	if (copy_from_user(attr->set_buf, buf, size))
@@ -793,6 +804,6 @@ EXPORT_SYMBOL(simple_transaction_get);
 EXPORT_SYMBOL(simple_transaction_read);
 EXPORT_SYMBOL(simple_transaction_release);
 EXPORT_SYMBOL_GPL(simple_attr_open);
-EXPORT_SYMBOL_GPL(simple_attr_close);
+EXPORT_SYMBOL_GPL(simple_attr_release);
 EXPORT_SYMBOL_GPL(simple_attr_read);
 EXPORT_SYMBOL_GPL(simple_attr_write);

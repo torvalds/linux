@@ -392,32 +392,6 @@ xfs_acl_allow_set(
 }
 
 /*
- * The access control process to determine the access permission:
- *	if uid == file owner id, use the file owner bits.
- *	if gid == file owner group id, use the file group bits.
- *	scan ACL for a matching user or group, and use matched entry
- *	permission. Use total permissions of all matching group entries,
- *	until all acl entries are exhausted. The final permission produced
- *	by matching acl entry or entries needs to be & with group permission.
- *	if not owner, owning group, or matching entry in ACL, use file
- *	other bits.  
- */
-STATIC int
-xfs_acl_capability_check(
-	mode_t		mode,
-	cred_t		*cr)
-{
-	if ((mode & ACL_READ) && !capable_cred(cr, CAP_DAC_READ_SEARCH))
-		return EACCES;
-	if ((mode & ACL_WRITE) && !capable_cred(cr, CAP_DAC_OVERRIDE))
-		return EACCES;
-	if ((mode & ACL_EXECUTE) && !capable_cred(cr, CAP_DAC_OVERRIDE))
-		return EACCES;
-
-	return 0;
-}
-
-/*
  * Note: cr is only used here for the capability check if the ACL test fails.
  *       It is not used to find out the credentials uid or groups etc, as was
  *       done in IRIX. It is assumed that the uid and groups for the current
@@ -438,7 +412,6 @@ xfs_acl_access(
 
 	matched.ae_tag = 0;	/* Invalid type */
 	matched.ae_perm = 0;
-	md >>= 6;	/* Normalize the bits for comparison */
 
 	for (i = 0; i < fap->acl_cnt; i++) {
 		/*
@@ -520,7 +493,8 @@ xfs_acl_access(
 		break;
 	}
 
-	return xfs_acl_capability_check(md, cr);
+	/* EACCES tells generic_permission to check for capability overrides */
+	return EACCES;
 }
 
 /*

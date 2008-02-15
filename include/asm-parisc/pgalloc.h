@@ -115,11 +115,14 @@ pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd, pte_t *pte)
 
 #define pmd_populate(mm, pmd, pte_page) \
 	pmd_populate_kernel(mm, pmd, page_address(pte_page))
+#define pmd_pgtable(pmd) pmd_page(pmd)
 
-static inline struct page *
+static inline pgtable_t
 pte_alloc_one(struct mm_struct *mm, unsigned long address)
 {
 	struct page *page = alloc_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
+	if (page)
+		pgtable_page_ctor(page);
 	return page;
 }
 
@@ -135,7 +138,11 @@ static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 	free_page((unsigned long)pte);
 }
 
-#define pte_free(mm, page) pte_free_kernel(page_address(page))
+static inline void pte_free_kernel(struct mm_struct *mm, struct page *pte)
+{
+	pgtable_page_dtor(pte);
+	pte_free_kernel(page_address((pte));
+}
 
 #define check_pgt_cache()	do { } while (0)
 

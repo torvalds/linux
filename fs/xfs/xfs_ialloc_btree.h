@@ -81,8 +81,6 @@ typedef	struct xfs_btree_sblock xfs_inobt_block_t;
 #define	XFS_INOBT_MASK(i)		((xfs_inofree_t)1 << (i))
 #define	XFS_INOBT_IS_FREE(rp,i)		\
 		(((rp)->ir_free & XFS_INOBT_MASK(i)) != 0)
-#define	XFS_INOBT_IS_FREE_DISK(rp,i)	\
-		((be64_to_cpu((rp)->ir_free) & XFS_INOBT_MASK(i)) != 0)
 #define	XFS_INOBT_SET_FREE(rp,i)	((rp)->ir_free |= XFS_INOBT_MASK(i))
 #define	XFS_INOBT_CLR_FREE(rp,i)	((rp)->ir_free &= ~XFS_INOBT_MASK(i))
 

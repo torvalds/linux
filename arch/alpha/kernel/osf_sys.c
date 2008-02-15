@@ -22,7 +22,6 @@
 #include <linux/ptrace.h>
 #include <linux/slab.h>
 #include <linux/user.h>
-#include <linux/a.out.h>
 #include <linux/utsname.h>
 #include <linux/time.h>
 #include <linux/timex.h>
@@ -260,8 +259,8 @@ osf_statfs(char __user *path, struct osf_statfs __user *buffer, unsigned long bu
 
 	retval = user_path_walk(path, &nd);
 	if (!retval) {
-		retval = do_osf_statfs(nd.dentry, buffer, bufsiz);
-		path_release(&nd);
+		retval = do_osf_statfs(nd.path.dentry, buffer, bufsiz);
+		path_put(&nd.path);
 	}
 	return retval;
 }
@@ -430,7 +429,7 @@ sys_getpagesize(void)
 asmlinkage unsigned long
 sys_getdtablesize(void)
 {
-	return NR_OPEN;
+	return sysctl_nr_open;
 }
 
 /*

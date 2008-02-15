@@ -26,7 +26,7 @@ struct dma_coherent_mem {
 void *dma_alloc_coherent(struct device *dev, size_t size,
 			   dma_addr_t *dma_handle, gfp_t gfp)
 {
-	void *ret;
+	void *ret, *ret_nocache;
 	struct dma_coherent_mem *mem = dev ? dev->dma_mem : NULL;
 	int order = get_order(size);
 
@@ -44,17 +44,24 @@ void *dma_alloc_coherent(struct device *dev, size_t size,
 	}
 
 	ret = (void *)__get_free_pages(gfp, order);
+	if (!ret)
+		return NULL;
 
-	if (ret != NULL) {
-		memset(ret, 0, size);
-		/*
-		 * Pages from the page allocator may have data present in
-		 * cache. So flush the cache before using uncached memory.
-		 */
-		dma_cache_sync(NULL, ret, size, DMA_BIDIRECTIONAL);
-		*dma_handle = virt_to_phys(ret);
+	memset(ret, 0, size);
+	/*
+	 * Pages from the page allocator may have data present in
+	 * cache. So flush the cache before using uncached memory.
+	 */
+	dma_cache_sync(dev, ret, size, DMA_BIDIRECTIONAL);
+
+	ret_nocache = ioremap_nocache(virt_to_phys(ret), size);
+	if (!ret_nocache) {
+		free_pages((unsigned long)ret, order);
+		return NULL;
 	}
-	return ret;
+
+	*dma_handle = virt_to_phys(ret);
+	return ret_nocache;
 }
 EXPORT_SYMBOL(dma_alloc_coherent);
 
@@ -71,7 +78,8 @@ void dma_free_coherent(struct device *dev, size_t size,
 	} else {
 		WARN_ON(irqs_disabled());	/* for portability */
 		BUG_ON(mem && mem->flags & DMA_MEMORY_EXCLUSIVE);
-		free_pages((unsigned long)vaddr, order);
+		free_pages((unsigned long)phys_to_virt(dma_handle), order);
+		iounmap(vaddr);
 	}
 }
 EXPORT_SYMBOL(dma_free_coherent);

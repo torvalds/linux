@@ -136,12 +136,18 @@ int udf_CS0toUTF8(struct ustr *utf_o, struct ustr *ocu_i)
 		if (c < 0x80U) {
 			utf_o->u_name[utf_o->u_len++] = (uint8_t)c;
 		} else if (c < 0x800U) {
-			utf_o->u_name[utf_o->u_len++] = (uint8_t)(0xc0 | (c >> 6));
-			utf_o->u_name[utf_o->u_len++] = (uint8_t)(0x80 | (c & 0x3f));
+			utf_o->u_name[utf_o->u_len++] =
+						(uint8_t)(0xc0 | (c >> 6));
+			utf_o->u_name[utf_o->u_len++] =
+						(uint8_t)(0x80 | (c & 0x3f));
 		} else {
-			utf_o->u_name[utf_o->u_len++] = (uint8_t)(0xe0 | (c >> 12));
-			utf_o->u_name[utf_o->u_len++] = (uint8_t)(0x80 | ((c >> 6) & 0x3f));
-			utf_o->u_name[utf_o->u_len++] = (uint8_t)(0x80 | (c & 0x3f));
+			utf_o->u_name[utf_o->u_len++] =
+						(uint8_t)(0xe0 | (c >> 12));
+			utf_o->u_name[utf_o->u_len++] =
+						(uint8_t)(0x80 |
+							  ((c >> 6) & 0x3f));
+			utf_o->u_name[utf_o->u_len++] =
+						(uint8_t)(0x80 | (c & 0x3f));
 		}
 	}
 	utf_o->u_cmpID = 8;
@@ -232,9 +238,8 @@ try_again:
 			goto error_out;
 		}
 
-		if (max_val == 0xffffU) {
+		if (max_val == 0xffffU)
 			ocu[++u_len] = (uint8_t)(utf_char >> 8);
-		}
 		ocu[++u_len] = (uint8_t)(utf_char & 0xffU);
 	}
 
@@ -330,29 +335,29 @@ int udf_get_filename(struct super_block *sb, uint8_t *sname, uint8_t *dname,
 	struct ustr filename, unifilename;
 	int len;
 
-	if (udf_build_ustr_exact(&unifilename, sname, flen)) {
+	if (udf_build_ustr_exact(&unifilename, sname, flen))
 		return 0;
-	}
 
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_UTF8)) {
 		if (!udf_CS0toUTF8(&filename, &unifilename)) {
-			udf_debug("Failed in udf_get_filename: sname = %s\n", sname);
+			udf_debug("Failed in udf_get_filename: sname = %s\n",
+				  sname);
 			return 0;
 		}
 	} else if (UDF_QUERY_FLAG(sb, UDF_FLAG_NLS_MAP)) {
-		if (!udf_CS0toNLS(UDF_SB(sb)->s_nls_map, &filename, &unifilename)) {
-			udf_debug("Failed in udf_get_filename: sname = %s\n", sname);
+		if (!udf_CS0toNLS(UDF_SB(sb)->s_nls_map, &filename,
+				  &unifilename)) {
+			udf_debug("Failed in udf_get_filename: sname = %s\n",
+				  sname);
 			return 0;
 		}
-	} else {
+	} else
 		return 0;
-	}
 
 	len = udf_translate_to_linux(dname, filename.u_name, filename.u_len,
 				     unifilename.u_name, unifilename.u_len);
-	if (len) {
+	if (len)
 		return len;
-	}
 
 	return 0;
 }
@@ -363,23 +368,20 @@ int udf_put_filename(struct super_block *sb, const uint8_t *sname,
 	struct ustr unifilename;
 	int namelen;
 
-	if (!(udf_char_to_ustr(&unifilename, sname, flen))) {
+	if (!udf_char_to_ustr(&unifilename, sname, flen))
 		return 0;
-	}
 
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_UTF8)) {
 		namelen = udf_UTF8toCS0(dname, &unifilename, UDF_NAME_LEN);
-		if (!namelen) {
+		if (!namelen)
 			return 0;
-		}
 	} else if (UDF_QUERY_FLAG(sb, UDF_FLAG_NLS_MAP)) {
-		namelen = udf_NLStoCS0(UDF_SB(sb)->s_nls_map, dname, &unifilename, UDF_NAME_LEN);
-		if (!namelen) {
+		namelen = udf_NLStoCS0(UDF_SB(sb)->s_nls_map, dname,
+					&unifilename, UDF_NAME_LEN);
+		if (!namelen)
 			return 0;
-		}
-	} else {
+	} else
 		return 0;
-	}
 
 	return namelen;
 }
@@ -389,8 +391,9 @@ int udf_put_filename(struct super_block *sb, const uint8_t *sname,
 #define CRC_MARK		'#'
 #define EXT_SIZE 		5
 
-static int udf_translate_to_linux(uint8_t *newName, uint8_t *udfName, int udfLen,
-				  uint8_t *fidName, int fidNameLen)
+static int udf_translate_to_linux(uint8_t *newName, uint8_t *udfName,
+				  int udfLen, uint8_t *fidName,
+				  int fidNameLen)
 {
 	int index, newIndex = 0, needsCRC = 0;
 	int extIndex = 0, newExtIndex = 0, hasExt = 0;
@@ -409,13 +412,16 @@ static int udf_translate_to_linux(uint8_t *newName, uint8_t *udfName, int udfLen
 			if (curr == '/' || curr == 0) {
 				needsCRC = 1;
 				curr = ILLEGAL_CHAR_MARK;
-				while (index + 1 < udfLen && (udfName[index + 1] == '/' ||
-							      udfName[index + 1] == 0))
+				while (index + 1 < udfLen &&
+						(udfName[index + 1] == '/' ||
+						 udfName[index + 1] == 0))
 					index++;
-			} if (curr == EXT_MARK && (udfLen - index - 1) <= EXT_SIZE) {
-				if (udfLen == index + 1) {
+			}
+			if (curr == EXT_MARK &&
+					(udfLen - index - 1) <= EXT_SIZE) {
+				if (udfLen == index + 1)
 					hasExt = 0;
-				} else {
+				else {
 					hasExt = 1;
 					extIndex = index;
 					newExtIndex = newIndex;
@@ -433,16 +439,18 @@ static int udf_translate_to_linux(uint8_t *newName, uint8_t *udfName, int udfLen
 
 		if (hasExt) {
 			int maxFilenameLen;
-			for(index = 0; index < EXT_SIZE && extIndex + index + 1 < udfLen; index++) {
+			for (index = 0;
+			     index < EXT_SIZE && extIndex + index + 1 < udfLen;
+			     index++) {
 				curr = udfName[extIndex + index + 1];
 
 				if (curr == '/' || curr == 0) {
 					needsCRC = 1;
 					curr = ILLEGAL_CHAR_MARK;
-					while(extIndex + index + 2 < udfLen &&
-					      (index + 1 < EXT_SIZE
-					       && (udfName[extIndex + index + 2] == '/' ||
-						   udfName[extIndex + index + 2] == 0)))
+					while (extIndex + index + 2 < udfLen &&
+					      (index + 1 < EXT_SIZE &&
+						(udfName[extIndex + index + 2] == '/' ||
+						 udfName[extIndex + index + 2] == 0)))
 						index++;
 				}
 				ext[localExtIndex++] = curr;
@@ -452,9 +460,8 @@ static int udf_translate_to_linux(uint8_t *newName, uint8_t *udfName, int udfLen
 				newIndex = maxFilenameLen;
 			else
 				newIndex = newExtIndex;
-		} else if (newIndex > 250) {
+		} else if (newIndex > 250)
 			newIndex = 250;
-		}
 		newName[newIndex++] = CRC_MARK;
 		valueCRC = udf_crc(fidName, fidNameLen, 0);
 		newName[newIndex++] = hexChar[(valueCRC & 0xf000) >> 12];

@@ -4,3 +4,5 @@ ds2482
 	- The Maxim/Dallas Semiconductor DS2482 provides 1-wire busses.
 ds2490
 	- The Maxim/Dallas Semiconductor DS2490 builds USB <-> W1 bridges.
+w1-gpio
+	- GPIO 1-wire bus master driver.

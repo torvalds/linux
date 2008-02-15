@@ -202,9 +202,9 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 			model = &op_model_7450;
 			break;
 #endif
-#ifdef CONFIG_FSL_BOOKE
-		case PPC_OPROFILE_BOOKE:
-			model = &op_model_fsl_booke;
+#if defined(CONFIG_FSL_EMB_PERFMON)
+		case PPC_OPROFILE_FSL_EMB:
+			model = &op_model_fsl_emb;
 			break;
 #endif
 		default:

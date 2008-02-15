@@ -112,14 +112,14 @@ asmlinkage long sys_uselib(const char __user * library)
 		goto out;
 
 	error = -EINVAL;
-	if (!S_ISREG(nd.dentry->d_inode->i_mode))
+	if (!S_ISREG(nd.path.dentry->d_inode->i_mode))
 		goto exit;
 
 	error = vfs_permission(&nd, MAY_READ | MAY_EXEC);
 	if (error)
 		goto exit;
 
-	file = nameidata_to_filp(&nd, O_RDONLY);
+	file = nameidata_to_filp(&nd, O_RDONLY|O_LARGEFILE);
 	error = PTR_ERR(file);
 	if (IS_ERR(file))
 		goto out;
@@ -148,7 +148,7 @@ out:
   	return error;
 exit:
 	release_open_intent(&nd);
-	path_release(&nd);
+	path_put(&nd.path);
 	goto out;
 }
 
@@ -652,13 +652,14 @@ struct file *open_exec(const char *name)
 	file = ERR_PTR(err);
 
 	if (!err) {
-		struct inode *inode = nd.dentry->d_inode;
+		struct inode *inode = nd.path.dentry->d_inode;
 		file = ERR_PTR(-EACCES);
 		if (S_ISREG(inode->i_mode)) {
 			int err = vfs_permission(&nd, MAY_EXEC);
 			file = ERR_PTR(err);
 			if (!err) {
-				file = nameidata_to_filp(&nd, O_RDONLY);
+				file = nameidata_to_filp(&nd,
+							O_RDONLY|O_LARGEFILE);
 				if (!IS_ERR(file)) {
 					err = deny_write_access(file);
 					if (err) {
@@ -671,7 +672,7 @@ out:
 			}
 		}
 		release_open_intent(&nd);
-		path_release(&nd);
+		path_put(&nd.path);
 	}
 	goto out;
 }
@@ -782,26 +783,8 @@ static int de_thread(struct task_struct *tsk)
 	zap_other_threads(tsk);
 	read_unlock(&tasklist_lock);
 
-	/*
-	 * Account for the thread group leader hanging around:
-	 */
-	count = 1;
-	if (!thread_group_leader(tsk)) {
-		count = 2;
-		/*
-		 * The SIGALRM timer survives the exec, but needs to point
-		 * at us as the new group leader now.  We have a race with
-		 * a timer firing now getting the old leader, so we need to
-		 * synchronize with any firing (by calling del_timer_sync)
-		 * before we can safely let the old group leader die.
-		 */
-		sig->tsk = tsk;
-		spin_unlock_irq(lock);
-		if (hrtimer_cancel(&sig->real_timer))
-			hrtimer_restart(&sig->real_timer);
-		spin_lock_irq(lock);
-	}
-
+	/* Account for the thread group leader hanging around: */
+	count = thread_group_leader(tsk) ? 1 : 2;
 	sig->notify_count = count;
 	while (atomic_read(&sig->count) > count) {
 		__set_current_state(TASK_UNINTERRUPTIBLE);
@@ -1184,7 +1167,7 @@ int search_binary_handler(struct linux_binprm *bprm,struct pt_regs *regs)
 {
 	int try,retval;
 	struct linux_binfmt *fmt;
-#ifdef __alpha__
+#if defined(__alpha__) && defined(CONFIG_ARCH_SUPPORTS_AOUT)
 	/* handle /sbin/loader.. */
 	{
 	    struct exec * eh = (struct exec *) bprm->buf;

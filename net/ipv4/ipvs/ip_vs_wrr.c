@@ -22,6 +22,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/net.h>
 
 #include <net/ip_vs.h>
 
@@ -169,7 +170,7 @@ ip_vs_wrr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 				 */
 				if (mark->cw == 0) {
 					mark->cl = &svc->destinations;
-					IP_VS_INFO("ip_vs_wrr_schedule(): "
+					IP_VS_ERR_RL("ip_vs_wrr_schedule(): "
 						   "no available servers\n");
 					dest = NULL;
 					goto out;

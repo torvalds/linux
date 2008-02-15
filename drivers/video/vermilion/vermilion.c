@@ -651,7 +651,7 @@ static int vmlfb_check_var_locked(struct fb_var_screeninfo *var,
 		return -EINVAL;
 	}
 
-	pitch = __ALIGN_MASK((var->xres * var->bits_per_pixel) >> 3, 0x3F);
+	pitch = ALIGN((var->xres * var->bits_per_pixel) >> 3, 0x40);
 	mem = pitch * var->yres_virtual;
 	if (mem > vinfo->vram_contig_size) {
 		return -ENOMEM;
@@ -785,8 +785,7 @@ static int vmlfb_set_par_locked(struct vml_info *vinfo)
 	int clock;
 
 	vinfo->bytes_per_pixel = var->bits_per_pixel >> 3;
-	vinfo->stride =
-	    __ALIGN_MASK(var->xres_virtual * vinfo->bytes_per_pixel, 0x3F);
+	vinfo->stride = ALIGN(var->xres_virtual * vinfo->bytes_per_pixel, 0x40);
 	info->fix.line_length = vinfo->stride;
 
 	if (!subsys)

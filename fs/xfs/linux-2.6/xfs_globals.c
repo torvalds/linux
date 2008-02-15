@@ -47,5 +47,6 @@ xfs_param_t xfs_params = {
 /*
  * Global system credential structure.
  */
-cred_t sys_cred_val, *sys_cred = &sys_cred_val;
+static cred_t sys_cred_val;
+cred_t *sys_cred = &sys_cred_val;
 

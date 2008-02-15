@@ -1,14 +1,21 @@
 #
 # arch/cris/arch-v32/boot/Makefile
 #
-target = $(target_boot_dir)
-src    = $(src_boot_dir)
 
-zImage: compressed/vmlinuz
+OBJCOPY = objcopy-cris
+OBJCOPYFLAGS = -O binary -R .note -R .comment
 
-compressed/vmlinuz: $(objtree)/vmlinux
-	@$(MAKE) -f $(src)/compressed/Makefile $(objtree)/vmlinuz
+subdir- := compressed rescue
+targets := Image
 
-clean:
-	rm -f zImage tools/build compressed/vmlinux.out
-	@$(MAKE) -f $(src)/compressed/Makefile clean
+$(obj)/Image: vmlinux FORCE
+	$(call if_changed,objcopy)
+	@echo '  Kernel: $@ is ready'
+
+$(obj)/compressed/vmlinux: $(obj)/Image FORCE
+	$(Q)$(MAKE) $(build)=$(obj)/compressed $@
+	$(Q)$(MAKE) $(build)=$(obj)/rescue $(obj)/rescue/rescue.bin
+
+$(obj)/zImage:  $(obj)/compressed/vmlinux
+	@cp $< $@
+	@echo '  Kernel: $@ is ready'

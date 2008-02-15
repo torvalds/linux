@@ -165,8 +165,10 @@ typedef elf_vrreg_t elf_vrregset_t32[ELF_NVRREG32];
  * This is used to ensure we don't load something for the wrong architecture.
  */
 #define elf_check_arch(x) ((x)->e_machine == ELF_ARCH)
+#define compat_elf_check_arch(x)	((x)->e_machine == EM_PPC)
 
 #define USE_ELF_CORE_DUMP
+#define CORE_DUMP_USE_REGSET
 #define ELF_EXEC_PAGESIZE	PAGE_SIZE
 
 /* This is the location that an ET_DYN program is loaded if exec'ed.  Typical

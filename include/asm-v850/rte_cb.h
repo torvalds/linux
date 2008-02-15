@@ -69,12 +69,6 @@
 #endif /* CONFIG_RTE_MB_A_PCI */
 
 
-/* For <asm/param.h> */
-#ifndef HZ
-#define HZ	100
-#endif
-
-
 #ifndef __ASSEMBLY__
 extern void rte_cb_early_init (void);
 extern void rte_cb_init_irqs (void);

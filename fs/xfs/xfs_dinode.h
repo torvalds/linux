@@ -171,69 +171,35 @@ typedef enum xfs_dinode_fmt
 /*
  * Inode data & attribute fork sizes, per inode.
  */
-#define XFS_CFORK_Q(dcp)                    ((dcp)->di_forkoff != 0)
-#define	XFS_CFORK_Q_DISK(dcp)		    ((dcp)->di_forkoff != 0)
-
-#define XFS_CFORK_BOFF(dcp)                 ((int)((dcp)->di_forkoff << 3))
-#define	XFS_CFORK_BOFF_DISK(dcp)	    ((int)((dcp)->di_forkoff << 3))
-
-#define	XFS_CFORK_DSIZE_DISK(dcp,mp) \
-	(XFS_CFORK_Q_DISK(dcp) ? XFS_CFORK_BOFF_DISK(dcp) : XFS_LITINO(mp))
-#define XFS_CFORK_DSIZE(dcp,mp) \
-	(XFS_CFORK_Q(dcp) ? XFS_CFORK_BOFF(dcp) : XFS_LITINO(mp))
-
-#define	XFS_CFORK_ASIZE_DISK(dcp,mp) \
-	(XFS_CFORK_Q_DISK(dcp) ? XFS_LITINO(mp) - XFS_CFORK_BOFF_DISK(dcp) : 0)
-#define XFS_CFORK_ASIZE(dcp,mp) \
-	(XFS_CFORK_Q(dcp) ? XFS_LITINO(mp) - XFS_CFORK_BOFF(dcp) : 0)
-
-#define	XFS_CFORK_SIZE_DISK(dcp,mp,w) \
-	((w) == XFS_DATA_FORK ? \
-		XFS_CFORK_DSIZE_DISK(dcp, mp) : \
-	 	XFS_CFORK_ASIZE_DISK(dcp, mp))
-#define XFS_CFORK_SIZE(dcp,mp,w) \
-	((w) == XFS_DATA_FORK ? \
-		XFS_CFORK_DSIZE(dcp, mp) : XFS_CFORK_ASIZE(dcp, mp))
+#define XFS_DFORK_Q(dip)		((dip)->di_core.di_forkoff != 0)
+#define XFS_DFORK_BOFF(dip)		((int)((dip)->di_core.di_forkoff << 3))
 
 #define XFS_DFORK_DSIZE(dip,mp) \
-	XFS_CFORK_DSIZE_DISK(&(dip)->di_core, mp)
-#define XFS_DFORK_DSIZE_HOST(dip,mp) \
-	XFS_CFORK_DSIZE(&(dip)->di_core, mp)
+	(XFS_DFORK_Q(dip) ? \
+		XFS_DFORK_BOFF(dip) : \
+		XFS_LITINO(mp))
 #define XFS_DFORK_ASIZE(dip,mp) \
-	XFS_CFORK_ASIZE_DISK(&(dip)->di_core, mp)
-#define XFS_DFORK_ASIZE_HOST(dip,mp) \
-	XFS_CFORK_ASIZE(&(dip)->di_core, mp)
-#define	XFS_DFORK_SIZE(dip,mp,w) \
-	XFS_CFORK_SIZE_DISK(&(dip)->di_core, mp, w)
-#define	XFS_DFORK_SIZE_HOST(dip,mp,w) \
-	XFS_CFORK_SIZE(&(dip)->di_core, mp, w)
+	(XFS_DFORK_Q(dip) ? \
+		XFS_LITINO(mp) - XFS_DFORK_BOFF(dip) : \
+		0)
+#define XFS_DFORK_SIZE(dip,mp,w) \
+	((w) == XFS_DATA_FORK ? \
+		XFS_DFORK_DSIZE(dip, mp) : \
+		XFS_DFORK_ASIZE(dip, mp))
 
-#define	XFS_DFORK_Q(dip)                    XFS_CFORK_Q_DISK(&(dip)->di_core)
-#define	XFS_DFORK_BOFF(dip)		    XFS_CFORK_BOFF_DISK(&(dip)->di_core)
-#define	XFS_DFORK_DPTR(dip)		    ((dip)->di_u.di_c)
-#define	XFS_DFORK_APTR(dip)	\
+#define XFS_DFORK_DPTR(dip)		    ((dip)->di_u.di_c)
+#define XFS_DFORK_APTR(dip)	\
 	((dip)->di_u.di_c + XFS_DFORK_BOFF(dip))
-#define	XFS_DFORK_PTR(dip,w)	\
+#define XFS_DFORK_PTR(dip,w)	\
 	((w) == XFS_DATA_FORK ? XFS_DFORK_DPTR(dip) : XFS_DFORK_APTR(dip))
-#define	XFS_CFORK_FORMAT(dcp,w)	\
-	((w) == XFS_DATA_FORK ? (dcp)->di_format : (dcp)->di_aformat)
-#define	XFS_CFORK_FMT_SET(dcp,w,n) \
+#define XFS_DFORK_FORMAT(dip,w) \
 	((w) == XFS_DATA_FORK ? \
-		((dcp)->di_format = (n)) : ((dcp)->di_aformat = (n)))
-#define	XFS_DFORK_FORMAT(dip,w) XFS_CFORK_FORMAT(&(dip)->di_core, w)
-
-#define	XFS_CFORK_NEXTENTS_DISK(dcp,w) \
+		(dip)->di_core.di_format : \
+		(dip)->di_core.di_aformat)
+#define XFS_DFORK_NEXTENTS(dip,w) \
 	((w) == XFS_DATA_FORK ? \
-	 	be32_to_cpu((dcp)->di_nextents) : \
-	 	be16_to_cpu((dcp)->di_anextents))
-#define XFS_CFORK_NEXTENTS(dcp,w) \
-	((w) == XFS_DATA_FORK ? (dcp)->di_nextents : (dcp)->di_anextents)
-#define	XFS_DFORK_NEXTENTS(dip,w) XFS_CFORK_NEXTENTS_DISK(&(dip)->di_core, w)
-#define	XFS_DFORK_NEXTENTS_HOST(dip,w) XFS_CFORK_NEXTENTS(&(dip)->di_core, w)
-
-#define	XFS_CFORK_NEXT_SET(dcp,w,n) \
-	((w) == XFS_DATA_FORK ? \
-		((dcp)->di_nextents = (n)) : ((dcp)->di_anextents = (n)))
+	 	be32_to_cpu((dip)->di_core.di_nextents) : \
+	 	be16_to_cpu((dip)->di_core.di_anextents))
 
 #define	XFS_BUF_TO_DINODE(bp)	((xfs_dinode_t *)XFS_BUF_PTR(bp))
 
@@ -272,6 +238,12 @@ typedef enum xfs_dinode_fmt
 #define XFS_DIFLAG_EXTSZINHERIT  (1 << XFS_DIFLAG_EXTSZINHERIT_BIT)
 #define XFS_DIFLAG_NODEFRAG      (1 << XFS_DIFLAG_NODEFRAG_BIT)
 #define XFS_DIFLAG_FILESTREAM    (1 << XFS_DIFLAG_FILESTREAM_BIT)
+
+#ifdef CONFIG_XFS_RT
+#define XFS_IS_REALTIME_INODE(ip) ((ip)->i_d.di_flags & XFS_DIFLAG_REALTIME)
+#else
+#define XFS_IS_REALTIME_INODE(ip) (0)
+#endif
 
 #define XFS_DIFLAG_ANY \
 	(XFS_DIFLAG_REALTIME | XFS_DIFLAG_PREALLOC | XFS_DIFLAG_NEWRTBM | \

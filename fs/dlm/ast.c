@@ -39,7 +39,6 @@ void dlm_add_ast(struct dlm_lkb *lkb, int type)
 		dlm_user_add_ast(lkb, type);
 		return;
 	}
-	DLM_ASSERT(lkb->lkb_astaddr != DLM_FAKE_USER_AST, dlm_print_lkb(lkb););
 
 	spin_lock(&ast_queue_lock);
 	if (!(lkb->lkb_ast_type & (AST_COMP | AST_BAST))) {
@@ -58,8 +57,8 @@ static void process_asts(void)
 	struct dlm_ls *ls = NULL;
 	struct dlm_rsb *r = NULL;
 	struct dlm_lkb *lkb;
-	void (*cast) (long param);
-	void (*bast) (long param, int mode);
+	void (*cast) (void *astparam);
+	void (*bast) (void *astparam, int mode);
 	int type = 0, found, bmode;
 
 	for (;;) {
@@ -83,8 +82,8 @@ static void process_asts(void)
 		if (!found)
 			break;
 
-		cast = lkb->lkb_astaddr;
-		bast = lkb->lkb_bastaddr;
+		cast = lkb->lkb_astfn;
+		bast = lkb->lkb_bastfn;
 		bmode = lkb->lkb_bastmode;
 
 		if ((type & AST_COMP) && cast)

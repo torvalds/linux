@@ -52,10 +52,24 @@ typedef u64 cputime64_t;
  * Convert cputime <-> jiffies
  */
 extern u64 __cputime_jiffies_factor;
+DECLARE_PER_CPU(unsigned long, cputime_last_delta);
+DECLARE_PER_CPU(unsigned long, cputime_scaled_last_delta);
 
 static inline unsigned long cputime_to_jiffies(const cputime_t ct)
 {
 	return mulhdu(ct, __cputime_jiffies_factor);
+}
+
+/* Estimate the scaled cputime by scaling the real cputime based on
+ * the last scaled to real ratio */
+static inline cputime_t cputime_to_scaled(const cputime_t ct)
+{
+	if (cpu_has_feature(CPU_FTR_SPURR) &&
+	    per_cpu(cputime_last_delta, smp_processor_id()))
+		return ct *
+			per_cpu(cputime_scaled_last_delta, smp_processor_id())/
+			per_cpu(cputime_last_delta, smp_processor_id());
+	return ct;
 }
 
 static inline cputime_t jiffies_to_cputime(const unsigned long jif)

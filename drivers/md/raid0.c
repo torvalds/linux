@@ -72,11 +72,11 @@ static int create_strip_zones (mddev_t *mddev)
 	 */
 	conf->nr_strip_zones = 0;
  
-	ITERATE_RDEV(mddev,rdev1,tmp1) {
+	rdev_for_each(rdev1, tmp1, mddev) {
 		printk("raid0: looking at %s\n",
 			bdevname(rdev1->bdev,b));
 		c = 0;
-		ITERATE_RDEV(mddev,rdev2,tmp2) {
+		rdev_for_each(rdev2, tmp2, mddev) {
 			printk("raid0:   comparing %s(%llu)",
 			       bdevname(rdev1->bdev,b),
 			       (unsigned long long)rdev1->size);
@@ -124,7 +124,7 @@ static int create_strip_zones (mddev_t *mddev)
 	cnt = 0;
 	smallest = NULL;
 	zone->dev = conf->devlist;
-	ITERATE_RDEV(mddev, rdev1, tmp1) {
+	rdev_for_each(rdev1, tmp1, mddev) {
 		int j = rdev1->raid_disk;
 
 		if (j < 0 || j >= mddev->raid_disks) {
@@ -293,7 +293,7 @@ static int raid0_run (mddev_t *mddev)
 
 	/* calculate array device size */
 	mddev->array_size = 0;
-	ITERATE_RDEV(mddev,rdev,tmp)
+	rdev_for_each(rdev, tmp, mddev)
 		mddev->array_size += rdev->size;
 
 	printk("raid0 : md_size is %llu blocks.\n", 

@@ -237,7 +237,7 @@ void unblock_signals(void)
 	 * interrupts may have arrived and we need to re-enable them and
 	 * recheck signals_pending.
 	 */
-	while(1) {
+	while (1) {
 		/*
 		 * Save and reset save_pending after enabling signals.  This
 		 * way, signals_pending won't be changed while we're reading it.

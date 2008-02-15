@@ -207,7 +207,7 @@ encode_fattr(struct svc_rqst *rqstp, __be32 *p, struct svc_fh *fhp,
 __be32 *nfs2svc_encode_fattr(struct svc_rqst *rqstp, __be32 *p, struct svc_fh *fhp)
 {
 	struct kstat stat;
-	vfs_getattr(fhp->fh_export->ex_mnt, fhp->fh_dentry, &stat);
+	vfs_getattr(fhp->fh_export->ex_path.mnt, fhp->fh_dentry, &stat);
 	return encode_fattr(rqstp, p, fhp, &stat);
 }
 

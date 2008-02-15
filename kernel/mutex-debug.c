@@ -107,7 +107,7 @@ void debug_mutex_init(struct mutex *lock, const char *name,
  * use of the mutex is forbidden. The mutex must not be locked when
  * this function is called.
  */
-void fastcall mutex_destroy(struct mutex *lock)
+void mutex_destroy(struct mutex *lock)
 {
 	DEBUG_LOCKS_WARN_ON(mutex_is_locked(lock));
 	lock->magic = NULL;

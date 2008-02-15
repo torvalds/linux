@@ -820,7 +820,7 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 	key = key_alloc(ktype, description, current->fsuid, current->fsgid,
 			current, perm, flags);
 	if (IS_ERR(key)) {
-		key_ref = ERR_PTR(PTR_ERR(key));
+		key_ref = ERR_CAST(key);
 		goto error_3;
 	}
 

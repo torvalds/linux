@@ -9,7 +9,7 @@
 
 static struct dentry_operations proc_sys_dentry_operations;
 static const struct file_operations proc_sys_file_operations;
-static struct inode_operations proc_sys_inode_operations;
+static const struct inode_operations proc_sys_inode_operations;
 
 static void proc_sys_refresh_inode(struct inode *inode, struct ctl_table *table)
 {
@@ -407,7 +407,7 @@ static int proc_sys_permission(struct inode *inode, int mask, struct nameidata *
 	if (!nd || !depth)
 		goto out;
 
-	dentry = nd->dentry;
+	dentry = nd->path.dentry;
 	table = do_proc_sys_lookup(dentry->d_parent, &dentry->d_name, &head);
 
 	/* If the entry does not exist deny permission */
@@ -446,7 +446,7 @@ static const struct file_operations proc_sys_file_operations = {
 	.readdir	= proc_sys_readdir,
 };
 
-static struct inode_operations proc_sys_inode_operations = {
+static const struct inode_operations proc_sys_inode_operations = {
 	.lookup		= proc_sys_lookup,
 	.permission	= proc_sys_permission,
 	.setattr	= proc_sys_setattr,

@@ -19,7 +19,7 @@
 #include <linux/ata.h>
 #include <linux/libata.h>
 #include <linux/platform_device.h>
-#include <linux/pata_platform.h>
+#include <linux/ata_platform.h>
 
 #define DRV_NAME "pata_platform"
 #define DRV_VERSION "1.2"

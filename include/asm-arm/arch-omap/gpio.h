@@ -62,6 +62,8 @@
 #define OMAP_MPUIO_LATCH		0x34
 #endif
 
+#define OMAP34XX_NR_GPIOS		6
+
 #define OMAP_MPUIO(nr)		(OMAP_MAX_GPIO_LINES + (nr))
 #define OMAP_GPIO_IS_MPUIO(nr)	((nr) >= OMAP_MAX_GPIO_LINES)
 
@@ -75,6 +77,8 @@ extern void omap_free_gpio(int gpio);
 extern void omap_set_gpio_direction(int gpio, int is_input);
 extern void omap_set_gpio_dataout(int gpio, int enable);
 extern int omap_get_gpio_datain(int gpio);
+extern void omap_set_gpio_debounce(int gpio, int enable);
+extern void omap_set_gpio_debounce_time(int gpio, int enable);
 
 /*-------------------------------------------------------------------------*/
 

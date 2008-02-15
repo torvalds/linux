@@ -9,13 +9,14 @@
 #include <linux/mempolicy.h>
 #include <linux/swap.h>
 #include <linux/swapops.h>
+#include <linux/seq_file.h>
 
 #include <asm/elf.h>
 #include <asm/uaccess.h>
 #include <asm/tlbflush.h>
 #include "internal.h"
 
-char *task_mem(struct mm_struct *mm, char *buffer)
+void task_mem(struct seq_file *m, struct mm_struct *mm)
 {
 	unsigned long data, text, lib;
 	unsigned long hiwater_vm, total_vm, hiwater_rss, total_rss;
@@ -37,7 +38,7 @@ char *task_mem(struct mm_struct *mm, char *buffer)
 	data = mm->total_vm - mm->shared_vm - mm->stack_vm;
 	text = (PAGE_ALIGN(mm->end_code) - (mm->start_code & PAGE_MASK)) >> 10;
 	lib = (mm->exec_vm << (PAGE_SHIFT-10)) - text;
-	buffer += sprintf(buffer,
+	seq_printf(m,
 		"VmPeak:\t%8lu kB\n"
 		"VmSize:\t%8lu kB\n"
 		"VmLck:\t%8lu kB\n"
@@ -56,7 +57,6 @@ char *task_mem(struct mm_struct *mm, char *buffer)
 		data << (PAGE_SHIFT-10),
 		mm->stack_vm << (PAGE_SHIFT-10), text, lib,
 		(PTRS_PER_PTE*sizeof(pte_t)*mm->nr_ptes) >> 10);
-	return buffer;
 }
 
 unsigned long task_vsize(struct mm_struct *mm)
@@ -75,7 +75,7 @@ int task_statm(struct mm_struct *mm, int *shared, int *text,
 	return mm->total_vm;
 }
 
-int proc_exe_link(struct inode *inode, struct dentry **dentry, struct vfsmount **mnt)
+int proc_exe_link(struct inode *inode, struct path *path)
 {
 	struct vm_area_struct * vma;
 	int result = -ENOENT;
@@ -98,8 +98,8 @@ int proc_exe_link(struct inode *inode, struct dentry **dentry, struct vfsmount *
 	}
 
 	if (vma) {
-		*mnt = mntget(vma->vm_file->f_path.mnt);
-		*dentry = dget(vma->vm_file->f_path.dentry);
+		*path = vma->vm_file->f_path;
+		path_get(&vma->vm_file->f_path);
 		result = 0;
 	}
 
@@ -216,7 +216,7 @@ static void m_stop(struct seq_file *m, void *v)
 }
 
 static int do_maps_open(struct inode *inode, struct file *file,
-			struct seq_operations *ops)
+			const struct seq_operations *ops)
 {
 	struct proc_maps_private *priv;
 	int ret = -ENOMEM;
@@ -271,7 +271,7 @@ static int show_map(struct seq_file *m, void *v)
 	 */
 	if (file) {
 		pad_len_spaces(m, len);
-		seq_path(m, file->f_path.mnt, file->f_path.dentry, "\n");
+		seq_path(m, &file->f_path, "\n");
 	} else {
 		const char *name = arch_vma_name(vma);
 		if (!name) {
@@ -299,7 +299,7 @@ static int show_map(struct seq_file *m, void *v)
 	return 0;
 }
 
-static struct seq_operations proc_pid_maps_op = {
+static const struct seq_operations proc_pid_maps_op = {
 	.start	= m_start,
 	.next	= m_next,
 	.stop	= m_stop,
@@ -434,7 +434,7 @@ static int show_smap(struct seq_file *m, void *v)
 	return ret;
 }
 
-static struct seq_operations proc_pid_smaps_op = {
+static const struct seq_operations proc_pid_smaps_op = {
 	.start	= m_start,
 	.next	= m_next,
 	.stop	= m_stop,
@@ -734,7 +734,7 @@ static int show_numa_map_checked(struct seq_file *m, void *v)
 	return show_numa_map(m, v);
 }
 
-static struct seq_operations proc_pid_numa_maps_op = {
+static const struct seq_operations proc_pid_numa_maps_op = {
         .start  = m_start,
         .next   = m_next,
         .stop   = m_stop,

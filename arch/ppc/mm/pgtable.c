@@ -95,7 +95,7 @@ __init_refok pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long add
 	return pte;
 }
 
-struct page *pte_alloc_one(struct mm_struct *mm, unsigned long address)
+pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
 {
 	struct page *ptepage;
 
@@ -106,8 +106,10 @@ struct page *pte_alloc_one(struct mm_struct *mm, unsigned long address)
 #endif
 
 	ptepage = alloc_pages(flags, 0);
-	if (ptepage)
+	if (ptepage) {
 		clear_highpage(ptepage);
+		pgtable_page_ctor(ptepage);
+	}
 	return ptepage;
 }
 
@@ -119,11 +121,12 @@ void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 	free_page((unsigned long)pte);
 }
 
-void pte_free(struct mm_struct *mm, struct page *ptepage)
+void pte_free(struct mm_struct *mm, pgtable_t ptepage)
 {
 #ifdef CONFIG_SMP
 	hash_page_sync();
 #endif
+	pgtable_page_dtor(ptepage);
 	__free_page(ptepage);
 }
 

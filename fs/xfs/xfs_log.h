@@ -22,8 +22,9 @@
 
 #define CYCLE_LSN(lsn) ((uint)((lsn)>>32))
 #define BLOCK_LSN(lsn) ((uint)(lsn))
+
 /* this is used in a spot where we might otherwise double-endian-flip */
-#define CYCLE_LSN_DISK(lsn) (((uint *)&(lsn))[0])
+#define CYCLE_LSN_DISK(lsn) (((__be32 *)&(lsn))[0])
 
 #ifdef __KERNEL__
 /*

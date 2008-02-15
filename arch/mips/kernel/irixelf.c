@@ -591,9 +591,9 @@ static void irix_map_prda_page(void)
 		return;
 
 	pp = (struct prda *) v;
-	pp->prda_sys.t_pid  = current->pid;
+	pp->prda_sys.t_pid  = task_pid_vnr(current);
 	pp->prda_sys.t_prid = read_c0_prid();
-	pp->prda_sys.t_rpid = current->pid;
+	pp->prda_sys.t_rpid = task_pid_vnr(current);
 
 	/* We leave the rest set to zero */
 }
@@ -1170,11 +1170,11 @@ static int irix_core_dump(long signr, struct pt_regs *regs, struct file *file, u
 	prstatus.pr_info.si_signo = prstatus.pr_cursig = signr;
 	prstatus.pr_sigpend = current->pending.signal.sig[0];
 	prstatus.pr_sighold = current->blocked.sig[0];
-	psinfo.pr_pid = prstatus.pr_pid = current->pid;
-	psinfo.pr_ppid = prstatus.pr_ppid = current->parent->pid;
-	psinfo.pr_pgrp = prstatus.pr_pgrp = task_pgrp_nr(current);
-	psinfo.pr_sid = prstatus.pr_sid = task_session_nr(current);
-	if (current->pid == current->tgid) {
+	psinfo.pr_pid = prstatus.pr_pid = task_pid_vnr(current);
+	psinfo.pr_ppid = prstatus.pr_ppid = task_pid_vnr(current->parent);
+	psinfo.pr_pgrp = prstatus.pr_pgrp = task_pgrp_vnr(current);
+	psinfo.pr_sid = prstatus.pr_sid = task_session_vnr(current);
+	if (thread_group_leader(current)) {
 		/*
 		 * This is the record for the group leader.  Add in the
 		 * cumulative times of previous dead threads.  This total

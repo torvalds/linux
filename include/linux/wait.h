@@ -117,9 +117,9 @@ static inline int waitqueue_active(wait_queue_head_t *q)
  */
 #define is_sync_wait(wait)	(!(wait) || ((wait)->private))
 
-extern void FASTCALL(add_wait_queue(wait_queue_head_t *q, wait_queue_t * wait));
-extern void FASTCALL(add_wait_queue_exclusive(wait_queue_head_t *q, wait_queue_t * wait));
-extern void FASTCALL(remove_wait_queue(wait_queue_head_t *q, wait_queue_t * wait));
+extern void add_wait_queue(wait_queue_head_t *q, wait_queue_t *wait);
+extern void add_wait_queue_exclusive(wait_queue_head_t *q, wait_queue_t *wait);
+extern void remove_wait_queue(wait_queue_head_t *q, wait_queue_t *wait);
 
 static inline void __add_wait_queue(wait_queue_head_t *head, wait_queue_t *new)
 {
@@ -141,16 +141,16 @@ static inline void __remove_wait_queue(wait_queue_head_t *head,
 	list_del(&old->task_list);
 }
 
-void FASTCALL(__wake_up(wait_queue_head_t *q, unsigned int mode, int nr, void *key));
-extern void FASTCALL(__wake_up_locked(wait_queue_head_t *q, unsigned int mode));
-extern void FASTCALL(__wake_up_sync(wait_queue_head_t *q, unsigned int mode, int nr));
-void FASTCALL(__wake_up_bit(wait_queue_head_t *, void *, int));
-int FASTCALL(__wait_on_bit(wait_queue_head_t *, struct wait_bit_queue *, int (*)(void *), unsigned));
-int FASTCALL(__wait_on_bit_lock(wait_queue_head_t *, struct wait_bit_queue *, int (*)(void *), unsigned));
-void FASTCALL(wake_up_bit(void *, int));
-int FASTCALL(out_of_line_wait_on_bit(void *, int, int (*)(void *), unsigned));
-int FASTCALL(out_of_line_wait_on_bit_lock(void *, int, int (*)(void *), unsigned));
-wait_queue_head_t *FASTCALL(bit_waitqueue(void *, int));
+void __wake_up(wait_queue_head_t *q, unsigned int mode, int nr, void *key);
+extern void __wake_up_locked(wait_queue_head_t *q, unsigned int mode);
+extern void __wake_up_sync(wait_queue_head_t *q, unsigned int mode, int nr);
+void __wake_up_bit(wait_queue_head_t *, void *, int);
+int __wait_on_bit(wait_queue_head_t *, struct wait_bit_queue *, int (*)(void *), unsigned);
+int __wait_on_bit_lock(wait_queue_head_t *, struct wait_bit_queue *, int (*)(void *), unsigned);
+void wake_up_bit(void *, int);
+int out_of_line_wait_on_bit(void *, int, int (*)(void *), unsigned);
+int out_of_line_wait_on_bit_lock(void *, int, int (*)(void *), unsigned);
+wait_queue_head_t *bit_waitqueue(void *, int);
 
 #define wake_up(x)			__wake_up(x, TASK_NORMAL, 1, NULL)
 #define wake_up_nr(x, nr)		__wake_up(x, TASK_NORMAL, nr, NULL)
@@ -437,11 +437,9 @@ extern long interruptible_sleep_on_timeout(wait_queue_head_t *q,
 /*
  * Waitqueues which are removed from the waitqueue_head at wakeup time
  */
-void FASTCALL(prepare_to_wait(wait_queue_head_t *q,
-				wait_queue_t *wait, int state));
-void FASTCALL(prepare_to_wait_exclusive(wait_queue_head_t *q,
-				wait_queue_t *wait, int state));
-void FASTCALL(finish_wait(wait_queue_head_t *q, wait_queue_t *wait));
+void prepare_to_wait(wait_queue_head_t *q, wait_queue_t *wait, int state);
+void prepare_to_wait_exclusive(wait_queue_head_t *q, wait_queue_t *wait, int state);
+void finish_wait(wait_queue_head_t *q, wait_queue_t *wait);
 int autoremove_wake_function(wait_queue_t *wait, unsigned mode, int sync, void *key);
 int wake_bit_function(wait_queue_t *wait, unsigned mode, int sync, void *key);
 

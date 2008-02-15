@@ -176,7 +176,7 @@ META_COLLECTOR(var_dev)
 
 META_COLLECTOR(int_vlan_tag)
 {
-	unsigned short tag;
+	unsigned short uninitialized_var(tag);
 	if (vlan_get_tag(skb, &tag) < 0)
 		*err = -1;
 	else
@@ -687,8 +687,8 @@ static inline struct meta_type_ops * meta_type_ops(struct meta_value *v)
  * Core
  **************************************************************************/
 
-static inline int meta_get(struct sk_buff *skb, struct tcf_pkt_info *info,
-			   struct meta_value *v, struct meta_obj *dst)
+static int meta_get(struct sk_buff *skb, struct tcf_pkt_info *info,
+		    struct meta_value *v, struct meta_obj *dst)
 {
 	int err = 0;
 
@@ -733,13 +733,15 @@ static int em_meta_match(struct sk_buff *skb, struct tcf_ematch *m,
 	return 0;
 }
 
-static inline void meta_delete(struct meta_match *meta)
+static void meta_delete(struct meta_match *meta)
 {
-	struct meta_type_ops *ops = meta_type_ops(&meta->lvalue);
+	if (meta) {
+		struct meta_type_ops *ops = meta_type_ops(&meta->lvalue);
 
-	if (ops && ops->destroy) {
-		ops->destroy(&meta->lvalue);
-		ops->destroy(&meta->rvalue);
+		if (ops && ops->destroy) {
+			ops->destroy(&meta->lvalue);
+			ops->destroy(&meta->rvalue);
+		}
 	}
 
 	kfree(meta);

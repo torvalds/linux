@@ -409,16 +409,13 @@ char *		   svc_print_addr(struct svc_rqst *, char *, size_t);
  * for all cases without actually generating the checksum, so we just use a
  * static value.
  */
-static inline void
-svc_reserve_auth(struct svc_rqst *rqstp, int space)
+static inline void svc_reserve_auth(struct svc_rqst *rqstp, int space)
 {
-	int			added_space = 0;
+	int added_space = 0;
 
-	switch(rqstp->rq_authop->flavour) {
-		case RPC_AUTH_GSS:
-			added_space = RPC_MAX_AUTH_SIZE;
-	}
-	return svc_reserve(rqstp, space + added_space);
+	if (rqstp->rq_authop->flavour)
+		added_space = RPC_MAX_AUTH_SIZE;
+	svc_reserve(rqstp, space + added_space);
 }
 
 #endif /* SUNRPC_SVC_H */

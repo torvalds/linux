@@ -1536,7 +1536,7 @@ static struct dentry *reiserfs_get_dentry(struct super_block *sb,
 	if (!inode)
 		inode = ERR_PTR(-ESTALE);
 	if (IS_ERR(inode))
-		return ERR_PTR(PTR_ERR(inode));
+		return ERR_CAST(inode);
 	result = d_alloc_anon(inode);
 	if (!result) {
 		iput(inode);

@@ -4,8 +4,8 @@
 #include <linux/cpumask.h>
 
 extern cpumask_t phys_cpu_present_map;
-#define cpu_possible_map phys_cpu_present_map
+extern cpumask_t cpu_possible_map;
 
-#define __smp_processor_id() (current_thread_info()->cpu)
+#define raw_smp_processor_id() (current_thread_info()->cpu)
 
 #endif

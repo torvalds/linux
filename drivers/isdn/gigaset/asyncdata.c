@@ -350,8 +350,8 @@ void gigaset_m10x_input(struct inbuf_t *inbuf)
 	unsigned char *src, c;
 	int procbytes;
 
-	head = atomic_read(&inbuf->head);
-	tail = atomic_read(&inbuf->tail);
+	head = inbuf->head;
+	tail = inbuf->tail;
 	gig_dbg(DEBUG_INTR, "buffer state: %u -> %u", head, tail);
 
 	if (head != tail) {
@@ -361,7 +361,7 @@ void gigaset_m10x_input(struct inbuf_t *inbuf)
 		gig_dbg(DEBUG_INTR, "processing %u bytes", numbytes);
 
 		while (numbytes) {
-			if (atomic_read(&cs->mstate) == MS_LOCKED) {
+			if (cs->mstate == MS_LOCKED) {
 				procbytes = lock_loop(src, numbytes, inbuf);
 				src += procbytes;
 				numbytes -= procbytes;
@@ -436,7 +436,7 @@ nextbyte:
 		}
 
 		gig_dbg(DEBUG_INTR, "setting head to %u", head);
-		atomic_set(&inbuf->head, head);
+		inbuf->head = head;
 	}
 }
 EXPORT_SYMBOL_GPL(gigaset_m10x_input);

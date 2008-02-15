@@ -658,4 +658,5 @@ MODULE_DESCRIPTION(DRIVER_DESCRIPTION " (version " DRIVER_VERSION ")");
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_AUTHOR("Dell Inc.");
 MODULE_LICENSE("GPL");
-
+/* Any System or BIOS claiming to be by Dell */
+MODULE_ALIAS("dmi:*:[bs]vnD[Ee][Ll][Ll]*:*");

@@ -47,15 +47,22 @@ xfs_log_busy_slot_t		*xfs_trans_add_busy(xfs_trans_t *tp,
  * From xfs_trans_ail.c
  */
 void			xfs_trans_update_ail(struct xfs_mount *mp,
-				     struct xfs_log_item *lip, xfs_lsn_t lsn,
-				     unsigned long s)
+				     struct xfs_log_item *lip, xfs_lsn_t lsn)
 				     __releases(mp->m_ail_lock);
 void			xfs_trans_delete_ail(struct xfs_mount *mp,
-				     struct xfs_log_item *lip, unsigned long s)
+				     struct xfs_log_item *lip)
 				     __releases(mp->m_ail_lock);
 struct xfs_log_item	*xfs_trans_first_ail(struct xfs_mount *, int *);
 struct xfs_log_item	*xfs_trans_next_ail(struct xfs_mount *,
 				     struct xfs_log_item *, int *, int *);
 
+
+/*
+ * AIL push thread support
+ */
+long	xfsaild_push(struct xfs_mount *, xfs_lsn_t *);
+void	xfsaild_wakeup(struct xfs_mount *, xfs_lsn_t);
+int	xfsaild_start(struct xfs_mount *);
+void	xfsaild_stop(struct xfs_mount *);
 
 #endif	/* __XFS_TRANS_PRIV_H__ */

@@ -1020,7 +1020,6 @@ struct ff_effect {
  * @going_away: marks devices that are in a middle of unregistering and
  *	causes input_open_device*() fail with -ENODEV.
  * @dev: driver model's view of this device
- * @cdev: union for struct device pointer
  * @h_list: list of input handles associated with the device. When
  *	accessing the list dev->mutex must be held
  * @node: used to place the device onto input_dev_list
@@ -1085,9 +1084,6 @@ struct input_dev {
 	int going_away;
 
 	struct device dev;
-	union {			/* temporarily so while we switching to struct device */
-		struct device *dev;
-	} cdev;
 
 	struct list_head	h_list;
 	struct list_head	node;
@@ -1310,6 +1306,9 @@ static inline void input_set_abs_params(struct input_dev *dev, int axis, int min
 
 	dev->absbit[BIT_WORD(axis)] |= BIT_MASK(axis);
 }
+
+int input_get_keycode(struct input_dev *dev, int scancode, int *keycode);
+int input_set_keycode(struct input_dev *dev, int scancode, int keycode);
 
 extern struct class input_class;
 

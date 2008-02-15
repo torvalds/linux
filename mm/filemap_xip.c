@@ -56,7 +56,8 @@ do_xip_mapping_read(struct address_space *mapping,
 		    read_actor_t actor)
 {
 	struct inode *inode = mapping->host;
-	unsigned long index, end_index, offset;
+	pgoff_t index, end_index;
+	unsigned long offset;
 	loff_t isize;
 
 	BUG_ON(!mapping->a_ops->get_xip_page);

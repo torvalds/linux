@@ -13,6 +13,15 @@ menuconfig MISC_DEVICES
 
 if MISC_DEVICES
 
+config ATMEL_PWM
+	tristate "Atmel AT32/AT91 PWM support"
+	depends on AVR32 || ARCH_AT91
+	help
+	  This option enables device driver support for the PWM channels
+	  on certain Atmel prcoessors.  Pulse Width Modulation is used for
+	  purposes including software controlled power-efficent backlights
+	  on LCD displays, motor control, and waveform generation.
+
 config IBM_ASM
 	tristate "Device driver for IBM RSA service processor"
 	depends on X86 && PCI && INPUT && EXPERIMENTAL
@@ -92,6 +101,25 @@ config TIFM_7XX1
           To compile this driver as a module, choose M here: the module will
 	  be called tifm_7xx1.
 
+config ACER_WMI
+        tristate "Acer WMI Laptop Extras (EXPERIMENTAL)"
+	depends on X86
+	depends on EXPERIMENTAL
+	depends on ACPI
+	depends on LEDS_CLASS
+	depends on BACKLIGHT_CLASS_DEVICE
+	select ACPI_WMI
+	---help---
+	  This is a driver for newer Acer (and Wistron) laptops. It adds
+	  wireless radio and bluetooth control, and on some laptops,
+	  exposes the mail LED and LCD backlight.
+
+	  For more information about this driver see
+	  <file:Documentation/laptops/acer-wmi.txt>
+
+	  If you have an ACPI-WMI compatible Acer/ Wistron laptop, say Y or M
+	  here.
+
 config ASUS_LAPTOP
         tristate "Asus Laptop Extras (EXPERIMENTAL)"
         depends on X86
@@ -126,6 +154,16 @@ config FUJITSU_LAPTOP
 
 	  If you have a Fujitsu laptop, say Y or M here.
 
+config TC1100_WMI
+	tristate "HP Compaq TC1100 Tablet WMI Extras (EXPERIMENTAL)"
+	depends on X86 && !X86_64
+	depends on EXPERIMENTAL
+	depends on ACPI
+	select ACPI_WMI
+	---help---
+	  This is a driver for the WMI extensions (wireless and bluetooth power
+	  control) of the HP Compaq TC1100 tablet.
+
 config MSI_LAPTOP
         tristate "MSI Laptop Extras"
         depends on X86
@@ -158,7 +196,7 @@ config SONY_LAPTOP
 	  screen brightness control, Fn keys and allows powering on/off some
 	  devices.
 
-	  Read <file:Documentation/sony-laptop.txt> for more information.
+	  Read <file:Documentation/laptops/sony-laptop.txt> for more information.
 
 config SONYPI_COMPAT
 	bool "Sonypi compatibility"
@@ -177,8 +215,9 @@ config THINKPAD_ACPI
 	  This is a driver for the IBM and Lenovo ThinkPad laptops. It adds
 	  support for Fn-Fx key combinations, Bluetooth control, video
 	  output switching, ThinkLight control, UltraBay eject and more.
-	  For more information about this driver see 
-	  <file:Documentation/thinkpad-acpi.txt> and <http://ibm-acpi.sf.net/> .
+	  For more information about this driver see
+	  <file:Documentation/laptops/thinkpad-acpi.txt> and
+	  <http://ibm-acpi.sf.net/> .
 
 	  This driver was formerly known as ibm-acpi.
 
@@ -219,6 +258,25 @@ config THINKPAD_ACPI_BAY
 
 	  If you are not sure, say Y here.
 
+config THINKPAD_ACPI_HOTKEY_POLL
+	bool "Suport NVRAM polling for hot keys"
+	depends on THINKPAD_ACPI
+	default y
+	---help---
+	  Some thinkpad models benefit from NVRAM polling to detect a few of
+	  the hot key press events.  If you know your ThinkPad model does not
+	  need to do NVRAM polling to support any of the hot keys you use,
+	  unselecting this option will save about 1kB of memory.
+
+	  ThinkPads T40 and newer, R52 and newer, and X31 and newer are
+	  unlikely to need NVRAM polling in their latest BIOS versions.
+
+	  NVRAM polling can detect at most the following keys: ThinkPad/Access
+	  IBM, Zoom, Switch Display (fn+F7), ThinkLight, Volume up/down/mute,
+	  Brightness up/down, Display Expand (fn+F8), Hibernate (fn+F12).
+
+	  If you are not sure, say Y here.  The driver enables polling only if
+	  it is strictly necessary to do so.
 
 config ATMEL_SSC
 	tristate "Device driver for Atmel SSC peripheral"
@@ -231,5 +289,24 @@ config ATMEL_SSC
 	  communications, i.e. I2S, SPI, etc.
 
 	  If unsure, say N.
+
+config INTEL_MENLOW
+	tristate "Thermal Management driver for Intel menlow platform"
+	depends on ACPI_THERMAL
+	depends on X86
+	---help---
+	  ACPI thermal management enhancement driver on
+	  Intel Menlow platform.
+
+	  If unsure, say N.
+
+config ENCLOSURE_SERVICES
+	tristate "Enclosure Services"
+	default n
+	help
+	  Provides support for intelligent enclosures (bays which
+	  contain storage devices).  You also need either a host
+	  driver (SCSI/ATA) which supports enclosures
+	  or a SCSI enclosure device (SES) to use these services.
 
 endif # MISC_DEVICES

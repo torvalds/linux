@@ -230,10 +230,8 @@ static void genl_unregister_mc_groups(struct genl_family *family)
 {
 	struct genl_multicast_group *grp, *tmp;
 
-	genl_lock();
 	list_for_each_entry_safe(grp, tmp, &family->mcast_groups, list)
 		__genl_unregister_mc_group(family, grp);
-	genl_unlock();
 }
 
 /**
@@ -396,9 +394,9 @@ int genl_unregister_family(struct genl_family *family)
 {
 	struct genl_family *rc;
 
-	genl_unregister_mc_groups(family);
-
 	genl_lock();
+
+	genl_unregister_mc_groups(family);
 
 	list_for_each_entry(rc, genl_family_chain(family->id), family_list) {
 		if (family->id != rc->id || strcmp(rc->name, family->name))

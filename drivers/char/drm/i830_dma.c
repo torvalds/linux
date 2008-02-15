@@ -36,13 +36,13 @@
 #include "i830_drm.h"
 #include "i830_drv.h"
 #include <linux/interrupt.h>	/* For task queue support */
-#include <linux/pagemap.h>	/* For FASTCALL on unlock_page() */
+#include <linux/pagemap.h>
 #include <linux/delay.h>
 #include <asm/uaccess.h>
 
 #define I830_BUF_FREE		2
 #define I830_BUF_CLIENT		1
-#define I830_BUF_HARDWARE      	0
+#define I830_BUF_HARDWARE	0
 
 #define I830_BUF_UNMAPPED 0
 #define I830_BUF_MAPPED   1

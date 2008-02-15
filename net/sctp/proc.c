@@ -1,15 +1,15 @@
-/* SCTP kernel reference Implementation
+/* SCTP kernel implementation
  * Copyright (c) 2003 International Business Machines, Corp.
  *
- * This file is part of the SCTP kernel reference Implementation
+ * This file is part of the SCTP kernel implementation
  *
- * The SCTP reference implementation is free software;
+ * This SCTP implementation is free software;
  * you can redistribute it and/or modify it under the terms of
  * the GNU General Public License as published by
  * the Free Software Foundation; either version 2, or (at your option)
  * any later version.
  *
- * The SCTP reference implementation is distributed in the hope that it
+ * This SCTP implementation is distributed in the hope that it
  * will be useful, but WITHOUT ANY WARRANTY; without even the implied
  *                 ************************
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
@@ -38,6 +38,7 @@
 #include <linux/seq_file.h>
 #include <linux/init.h>
 #include <net/sctp/sctp.h>
+#include <net/ip.h> /* for snmp_fold_field */
 
 static struct snmp_mib sctp_snmp_list[] = {
 	SNMP_MIB_ITEM("SctpCurrEstab", SCTP_MIB_CURRESTAB),
@@ -75,26 +76,6 @@ static struct snmp_mib sctp_snmp_list[] = {
 	SNMP_MIB_SENTINEL
 };
 
-/* Return the current value of a particular entry in the mib by adding its
- * per cpu counters.
- */
-static unsigned long
-fold_field(void *mib[], int nr)
-{
-	unsigned long res = 0;
-	int i;
-
-	for_each_possible_cpu(i) {
-		res +=
-		    *((unsigned long *) (((void *) per_cpu_ptr(mib[0], i)) +
-					 sizeof (unsigned long) * nr));
-		res +=
-		    *((unsigned long *) (((void *) per_cpu_ptr(mib[1], i)) +
-					 sizeof (unsigned long) * nr));
-	}
-	return res;
-}
-
 /* Display sctp snmp mib statistics(/proc/net/sctp/snmp). */
 static int sctp_snmp_seq_show(struct seq_file *seq, void *v)
 {
@@ -102,7 +83,7 @@ static int sctp_snmp_seq_show(struct seq_file *seq, void *v)
 
 	for (i = 0; sctp_snmp_list[i].name != NULL; i++)
 		seq_printf(seq, "%-32s\t%ld\n", sctp_snmp_list[i].name,
-			   fold_field((void **)sctp_statistics,
+			   snmp_fold_field((void **)sctp_statistics,
 				      sctp_snmp_list[i].entry));
 
 	return 0;

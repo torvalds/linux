@@ -19,7 +19,6 @@
 #define __XFS_LRW_H__
 
 struct xfs_mount;
-struct xfs_iocore;
 struct xfs_inode;
 struct xfs_bmbt_irec;
 struct xfs_buf;
@@ -60,20 +59,19 @@ struct xfs_iomap;
 #define	XFS_IOMAP_UNWRITTEN	27
 #define XFS_SPLICE_READ_ENTER	28
 #define XFS_SPLICE_WRITE_ENTER	29
-extern void xfs_rw_enter_trace(int, struct xfs_iocore *,
-				void *, size_t, loff_t, int);
-extern void xfs_inval_cached_trace(struct xfs_iocore *,
-				xfs_off_t, xfs_off_t, xfs_off_t, xfs_off_t);
+extern void xfs_rw_enter_trace(int, struct xfs_inode *,
+		void *, size_t, loff_t, int);
+extern void xfs_inval_cached_trace(struct xfs_inode *,
+		xfs_off_t, xfs_off_t, xfs_off_t, xfs_off_t);
 #else
-#define xfs_rw_enter_trace(tag, io, data, size, offset, ioflags)
-#define xfs_inval_cached_trace(io, offset, len, first, last)
+#define xfs_rw_enter_trace(tag, ip, data, size, offset, ioflags)
+#define xfs_inval_cached_trace(ip, offset, len, first, last)
 #endif
 
 extern int xfsbdstrat(struct xfs_mount *, struct xfs_buf *);
 extern int xfs_bdstrat_cb(struct xfs_buf *);
 extern int xfs_dev_is_read_only(struct xfs_mount *, char *);
 
-extern int xfs_zero_eof(struct inode *, struct xfs_iocore *, xfs_off_t,
-				xfs_fsize_t);
+extern int xfs_zero_eof(struct xfs_inode *, xfs_off_t, xfs_fsize_t);
 
 #endif	/* __XFS_LRW_H__ */

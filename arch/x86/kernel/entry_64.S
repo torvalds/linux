@@ -581,25 +581,41 @@ retint_restore_args:	/* return to kernel space */
 	 */
 	TRACE_IRQS_IRETQ
 restore_args:
-	RESTORE_ARGS 0,8,0						
-iret_label:	
-#ifdef CONFIG_PARAVIRT
+	RESTORE_ARGS 0,8,0
+
+ENTRY(irq_return)
 	INTERRUPT_RETURN
-#endif
+
+	.section __ex_table, "a"
+	.quad irq_return, bad_iret
+	.previous
+
+#ifdef CONFIG_PARAVIRT
 ENTRY(native_iret)
 	iretq
 
 	.section __ex_table,"a"
 	.quad native_iret, bad_iret
 	.previous
+#endif
+
 	.section .fixup,"ax"
-	/* force a signal here? this matches i386 behaviour */
-	/* running with kernel gs */
 bad_iret:
-	movq $11,%rdi	/* SIGSEGV */
-	TRACE_IRQS_ON
-	ENABLE_INTERRUPTS(CLBR_ANY | ~(CLBR_RDI))
-	jmp do_exit
+	/*
+	 * The iret traps when the %cs or %ss being restored is bogus.
+	 * We've lost the original trap vector and error code.
+	 * #GPF is the most likely one to get for an invalid selector.
+	 * So pretend we completed the iret and took the #GPF in user mode.
+	 *
+	 * We are now running with the kernel GS after exception recovery.
+	 * But error_entry expects us to have user GS to match the user %cs,
+	 * so swap back.
+	 */
+	pushq $0
+
+	SWAPGS
+	jmp general_protection
+
 	.previous
 
 	/* edi: workmask, edx: work */
@@ -796,7 +812,7 @@ paranoid_swapgs\trace:
 	SWAPGS_UNSAFE_STACK
 paranoid_restore\trace:
 	RESTORE_ALL 8
-	INTERRUPT_RETURN
+	jmp irq_return
 paranoid_userspace\trace:
 	GET_THREAD_INFO(%rcx)
 	movl threadinfo_flags(%rcx),%ebx
@@ -911,7 +927,7 @@ error_kernelspace:
 	   iret run with kernel gs again, so don't set the user space flag.
 	   B stepping K8s sometimes report an truncated RIP for IRET 
 	   exceptions returning to compat mode. Check for these here too. */
-	leaq iret_label(%rip),%rbp
+	leaq irq_return(%rip),%rbp
 	cmpq %rbp,RIP(%rsp) 
 	je   error_swapgs
 	movl %ebp,%ebp	/* zero extend */

@@ -41,6 +41,10 @@
 #include <linux/ioport.h>
 #include <asm/io.h>
 
+static unsigned short force_id;
+module_param(force_id, ushort, 0);
+MODULE_PARM_DESC(force_id, "Override the detected device ID");
+
 static struct platform_device *pdev;
 
 #define DRVNAME "f71805f"
@@ -1497,7 +1501,7 @@ static int __init f71805f_find(int sioaddr, unsigned short *address,
 	if (devid != SIO_FINTEK_ID)
 		goto exit;
 
-	devid = superio_inw(sioaddr, SIO_REG_DEVID);
+	devid = force_id ? force_id : superio_inw(sioaddr, SIO_REG_DEVID);
 	switch (devid) {
 	case SIO_F71805F_ID:
 		sio_data->kind = f71805f;

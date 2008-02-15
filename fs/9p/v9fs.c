@@ -3,7 +3,7 @@
  *
  *  This file contains functions assisting in mapping VFS to 9P2000
  *
- *  Copyright (C) 2004 by Eric Van Hensbergen <ericvh@gmail.com>
+ *  Copyright (C) 2004-2008 by Eric Van Hensbergen <ericvh@gmail.com>
  *  Copyright (C) 2002 by Ron Minnich <rminnich@lanl.gov>
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -31,7 +31,6 @@
 #include <linux/idr.h>
 #include <net/9p/9p.h>
 #include <net/9p/transport.h>
-#include <net/9p/conn.h>
 #include <net/9p/client.h>
 #include "v9fs.h"
 #include "v9fs_vfs.h"
@@ -43,11 +42,11 @@
 
 enum {
 	/* Options that take integer arguments */
-	Opt_debug, Opt_msize, Opt_dfltuid, Opt_dfltgid, Opt_afid,
+	Opt_debug, Opt_dfltuid, Opt_dfltgid, Opt_afid,
 	/* String options */
 	Opt_uname, Opt_remotename, Opt_trans,
 	/* Options that take no arguments */
-	Opt_legacy, Opt_nodevmap,
+	Opt_nodevmap,
 	/* Cache options */
 	Opt_cache_loose,
 	/* Access options */
@@ -58,14 +57,11 @@ enum {
 
 static match_table_t tokens = {
 	{Opt_debug, "debug=%x"},
-	{Opt_msize, "msize=%u"},
 	{Opt_dfltuid, "dfltuid=%u"},
 	{Opt_dfltgid, "dfltgid=%u"},
 	{Opt_afid, "afid=%u"},
 	{Opt_uname, "uname=%s"},
 	{Opt_remotename, "aname=%s"},
-	{Opt_trans, "trans=%s"},
-	{Opt_legacy, "noextend"},
 	{Opt_nodevmap, "nodevmap"},
 	{Opt_cache_loose, "cache=loose"},
 	{Opt_cache_loose, "loose"},
@@ -85,16 +81,14 @@ static void v9fs_parse_options(struct v9fs_session_info *v9ses)
 	char *options;
 	substring_t args[MAX_OPT_ARGS];
 	char *p;
-	int option;
-	int ret;
+	int option = 0;
 	char *s, *e;
+	int ret;
 
 	/* setup defaults */
-	v9ses->maxdata = 8192;
 	v9ses->afid = ~0;
 	v9ses->debug = 0;
 	v9ses->cache = 0;
-	v9ses->trans = v9fs_default_trans();
 
 	if (!v9ses->options)
 		return;
@@ -106,7 +100,8 @@ static void v9fs_parse_options(struct v9fs_session_info *v9ses)
 			continue;
 		token = match_token(p, tokens, args);
 		if (token < Opt_uname) {
-			if ((ret = match_int(&args[0], &option)) < 0) {
+			ret = match_int(&args[0], &option);
+			if (ret < 0) {
 				P9_DPRINTK(P9_DEBUG_ERROR,
 					"integer field, but no integer?\n");
 				continue;
@@ -119,9 +114,7 @@ static void v9fs_parse_options(struct v9fs_session_info *v9ses)
 			p9_debug_level = option;
 #endif
 			break;
-		case Opt_msize:
-			v9ses->maxdata = option;
-			break;
+
 		case Opt_dfltuid:
 			v9ses->dfltuid = option;
 			break;
@@ -131,17 +124,11 @@ static void v9fs_parse_options(struct v9fs_session_info *v9ses)
 		case Opt_afid:
 			v9ses->afid = option;
 			break;
-		case Opt_trans:
-			v9ses->trans = v9fs_match_trans(&args[0]);
-			break;
 		case Opt_uname:
 			match_strcpy(v9ses->uname, &args[0]);
 			break;
 		case Opt_remotename:
 			match_strcpy(v9ses->aname, &args[0]);
-			break;
-		case Opt_legacy:
-			v9ses->flags &= ~V9FS_EXTENDED;
 			break;
 		case Opt_nodevmap:
 			v9ses->nodev = 1;
@@ -185,7 +172,6 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 		  const char *dev_name, char *data)
 {
 	int retval = -EINVAL;
-	struct p9_trans *trans = NULL;
 	struct p9_fid *fid;
 
 	v9ses->uname = __getname();
@@ -207,24 +193,7 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 	v9ses->options = kstrdup(data, GFP_KERNEL);
 	v9fs_parse_options(v9ses);
 
-	if (v9ses->trans == NULL) {
-		retval = -EPROTONOSUPPORT;
-		P9_DPRINTK(P9_DEBUG_ERROR,
-				"No transport defined or default transport\n");
-		goto error;
-	}
-
-	trans = v9ses->trans->create(dev_name, v9ses->options);
-	if (IS_ERR(trans)) {
-		retval = PTR_ERR(trans);
-		trans = NULL;
-		goto error;
-	}
-	if ((v9ses->maxdata+P9_IOHDRSZ) > v9ses->trans->maxsize)
-		v9ses->maxdata = v9ses->trans->maxsize-P9_IOHDRSZ;
-
-	v9ses->clnt = p9_client_create(trans, v9ses->maxdata+P9_IOHDRSZ,
-		v9fs_extended(v9ses));
+	v9ses->clnt = p9_client_create(dev_name, v9ses->options);
 
 	if (IS_ERR(v9ses->clnt)) {
 		retval = PTR_ERR(v9ses->clnt);
@@ -235,6 +204,8 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 
 	if (!v9ses->clnt->dotu)
 		v9ses->flags &= ~V9FS_EXTENDED;
+
+	v9ses->maxdata = v9ses->clnt->msize;
 
 	/* for legacy mode, fall back to V9FS_ACCESS_ANY */
 	if (!v9fs_extended(v9ses) &&

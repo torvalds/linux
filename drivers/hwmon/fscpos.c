@@ -105,7 +105,6 @@ static struct i2c_driver fscpos_driver = {
 	.driver = {
 		.name	= "fscpos",
 	},
-	.id		= I2C_DRIVERID_FSCPOS,
 	.attach_adapter	= fscpos_attach_adapter,
 	.detach_client	= fscpos_detach_client,
 };

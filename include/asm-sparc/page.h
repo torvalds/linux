@@ -8,8 +8,6 @@
 #ifndef _SPARC_PAGE_H
 #define _SPARC_PAGE_H
 
-#ifdef __KERNEL__
-
 #ifdef CONFIG_SUN4
 #define PAGE_SHIFT   13
 #else
@@ -125,6 +123,8 @@ typedef unsigned long iopgprot_t;
 
 #endif
 
+typedef struct page *pgtable_t;
+
 extern unsigned long sparc_unmapped_base;
 
 BTFIXUPDEF_SETHI(sparc_unmapped_base)
@@ -162,7 +162,5 @@ extern unsigned long pfn_base;
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
-
-#endif /* __KERNEL__ */
 
 #endif /* _SPARC_PAGE_H */

@@ -28,7 +28,6 @@ struct jffs2_acl_header {
 
 #define JFFS2_ACL_NOT_CACHED ((void *)-1)
 
-extern struct posix_acl *jffs2_get_acl(struct inode *inode, int type);
 extern int jffs2_permission(struct inode *, int, struct nameidata *);
 extern int jffs2_acl_chmod(struct inode *);
 extern int jffs2_init_acl_pre(struct inode *, struct inode *, int *);
@@ -40,7 +39,6 @@ extern struct xattr_handler jffs2_acl_default_xattr_handler;
 
 #else
 
-#define jffs2_get_acl(inode, type)		(NULL)
 #define jffs2_permission			(NULL)
 #define jffs2_acl_chmod(inode)			(0)
 #define jffs2_init_acl_pre(dir_i,inode,mode)	(0)

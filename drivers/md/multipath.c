@@ -436,7 +436,7 @@ static int multipath_run (mddev_t *mddev)
 	}
 
 	conf->working_disks = 0;
-	ITERATE_RDEV(mddev,rdev,tmp) {
+	rdev_for_each(rdev, tmp, mddev) {
 		disk_idx = rdev->raid_disk;
 		if (disk_idx < 0 ||
 		    disk_idx >= mddev->raid_disks)

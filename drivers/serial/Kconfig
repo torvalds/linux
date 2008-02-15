@@ -380,6 +380,21 @@ config SERIAL_ATMEL_CONSOLE
 	  console is the device which receives all kernel messages and
 	  warnings and which allows logins in single user mode).
 
+config SERIAL_ATMEL_PDC
+	bool "Support DMA transfers on AT91 / AT32 serial port"
+	depends on SERIAL_ATMEL
+	default y
+	help
+	  Say Y here if you wish to use the PDC to do DMA transfers to
+	  and from the Atmel AT91 / AT32 serial port. In order to
+	  actually use DMA transfers, make sure that the use_dma_tx
+	  and use_dma_rx members in the atmel_uart_data struct is set
+	  appropriately for each port.
+
+	  Note that break and error handling currently doesn't work
+	  properly when DMA is enabled. Make sure that ports where
+	  this matters don't use DMA.
+
 config SERIAL_ATMEL_TTYAT
 	bool "Install as device ttyATn instead of ttySn"
 	depends on SERIAL_ATMEL=y
@@ -465,20 +480,24 @@ config SERIAL_DZ
 	bool "DECstation DZ serial driver"
 	depends on MACH_DECSTATION && 32BIT
 	select SERIAL_CORE
-	help
-	  DZ11-family serial controllers for VAXstations, including the
-	  DC7085, M7814, and M7819.
+	default y
+	---help---
+	  DZ11-family serial controllers for DECstations and VAXstations,
+	  including the DC7085, M7814, and M7819.
 
 config SERIAL_DZ_CONSOLE
 	bool "Support console on DECstation DZ serial driver"
 	depends on SERIAL_DZ=y
 	select SERIAL_CORE_CONSOLE
-	help
+	default y
+	---help---
 	  If you say Y here, it will be possible to use a serial port as the
 	  system console (the system console is the device which receives all
 	  kernel messages and warnings and which allows logins in single user
-	  mode).  Note that the firmware uses ttyS0 as the serial console on
-	  the Maxine and ttyS2 on the others.
+	  mode).
+
+	  Note that the firmware uses ttyS3 as the serial console on
+	  DECstations that use this driver.
 
 	  If unsure, say Y.
 
@@ -877,15 +896,15 @@ config SERIAL_SUNHV
 	  systems.  Say Y if you want to be able to use this device.
 
 config SERIAL_IP22_ZILOG
-	tristate "IP22 Zilog8530 serial support"
-	depends on SGI_IP22
+	tristate "SGI Zilog8530 serial support"
+	depends on SGI_HAS_ZILOG
 	select SERIAL_CORE
 	help
-	  This driver supports the Zilog8530 serial ports found on SGI IP22
+	  This driver supports the Zilog8530 serial ports found on SGI
 	  systems.  Say Y or M if you want to be able to these serial ports.
 
 config SERIAL_IP22_ZILOG_CONSOLE
-	bool "Console on IP22 Zilog8530 serial port"
+	bool "Console on SGI Zilog8530 serial port"
 	depends on SERIAL_IP22_ZILOG=y
 	select SERIAL_CORE_CONSOLE
 
@@ -1138,17 +1157,17 @@ config SERIAL_SGI_L1_CONSOLE
 		say Y.  Otherwise, say N.
 
 config SERIAL_MPC52xx
-	tristate "Freescale MPC52xx family PSC serial support"
-	depends on PPC_MPC52xx
+	tristate "Freescale MPC52xx/MPC512x family PSC serial support"
+	depends on PPC_MPC52xx || PPC_MPC512x
 	select SERIAL_CORE
 	help
-	  This drivers support the MPC52xx PSC serial ports. If you would
-	  like to use them, you must answer Y or M to this option. Not that
+	  This driver supports MPC52xx and MPC512x PSC serial ports. If you would
+	  like to use them, you must answer Y or M to this option. Note that
 	  for use as console, it must be included in kernel and not as a
 	  module.
 
 config SERIAL_MPC52xx_CONSOLE
-	bool "Console on a Freescale MPC52xx family PSC serial port"
+	bool "Console on a Freescale MPC52xx/MPC512x family PSC serial port"
 	depends on SERIAL_MPC52xx=y
 	select SERIAL_CORE_CONSOLE
 	help
@@ -1156,7 +1175,7 @@ config SERIAL_MPC52xx_CONSOLE
 	  of the Freescale MPC52xx family as a console.
 
 config SERIAL_MPC52xx_CONSOLE_BAUD
-	int "Freescale MPC52xx family PSC serial port baud"
+	int "Freescale MPC52xx/MPC512x family PSC serial port baud"
 	depends on SERIAL_MPC52xx_CONSOLE=y
 	default "9600"
 	help
@@ -1317,5 +1336,20 @@ config SERIAL_QE
 	help
 	  This driver supports the QE serial ports on Freescale embedded
 	  PowerPC that contain a QUICC Engine.
+
+config SERIAL_SC26XX
+	tristate "SC2681/SC2692 serial port support"
+	depends on SNI_RM
+	select SERIAL_CORE
+	help
+	  This is a driver for the onboard serial ports of
+	  older RM400 machines.
+
+config SERIAL_SC26XX_CONSOLE
+	bool "Console on SC2681/SC2692 serial port"
+	depends on SERIAL_SC26XX
+	select SERIAL_CORE_CONSOLE
+	help
+	  Support for Console on SC2681/SC2692 serial ports.
 
 endmenu

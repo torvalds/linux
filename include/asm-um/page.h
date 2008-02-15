@@ -79,6 +79,8 @@ typedef unsigned long phys_t;
 
 typedef struct { unsigned long pgprot; } pgprot_t;
 
+typedef struct page *pgtable_t;
+
 #define pgd_val(x)	((x).pgd)
 #define pgprot_val(x)	((x).pgprot)
 

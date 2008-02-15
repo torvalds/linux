@@ -26,13 +26,6 @@
 #include <linux/netdevice.h>
 #include <linux/hdlc/ioctl.h>
 
-
-/* Used by all network devices here, pointed to by netdev_priv(dev) */
-struct hdlc_device_desc {
-	int (*netif_rx)(struct sk_buff *skb);
-	struct net_device_stats stats;
-};
-
 /* This structure is a private property of HDLC protocols.
    Hardware drivers have no interest here */
 
@@ -44,12 +37,15 @@ struct hdlc_proto {
 	void (*detach)(struct net_device *dev);
 	int (*ioctl)(struct net_device *dev, struct ifreq *ifr);
 	__be16 (*type_trans)(struct sk_buff *skb, struct net_device *dev);
+	int (*netif_rx)(struct sk_buff *skb);
 	struct module *module;
 	struct hdlc_proto *next; /* next protocol in the list */
 };
 
 
+/* Pointed to by dev->priv */
 typedef struct hdlc_device {
+	struct net_device_stats stats;
 	/* used by HDLC layer to take control over HDLC device from hw driver*/
 	int (*attach)(struct net_device *dev,
 		      unsigned short encoding, unsigned short parity);
@@ -83,17 +79,10 @@ void unregister_hdlc_protocol(struct hdlc_proto *proto);
 
 struct net_device *alloc_hdlcdev(void *priv);
 
-
-static __inline__ struct hdlc_device_desc* dev_to_desc(struct net_device *dev)
+static inline struct hdlc_device* dev_to_hdlc(struct net_device *dev)
 {
-	return netdev_priv(dev);
+	return dev->priv;
 }
-
-static __inline__ hdlc_device* dev_to_hdlc(struct net_device *dev)
-{
-	return netdev_priv(dev) + sizeof(struct hdlc_device_desc);
-}
-
 
 static __inline__ void debug_frame(const struct sk_buff *skb)
 {
@@ -116,13 +105,13 @@ int hdlc_open(struct net_device *dev);
 void hdlc_close(struct net_device *dev);
 
 int attach_hdlc_protocol(struct net_device *dev, struct hdlc_proto *proto,
-			 int (*rx)(struct sk_buff *skb), size_t size);
+			 size_t size);
 /* May be used by hardware driver to gain control over HDLC device */
 void detach_hdlc_protocol(struct net_device *dev);
 
 static __inline__ struct net_device_stats *hdlc_stats(struct net_device *dev)
 {
-	return &dev_to_desc(dev)->stats;
+	return &dev_to_hdlc(dev)->stats;
 }
 
 

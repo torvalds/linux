@@ -137,5 +137,6 @@ void dcr_unmap(dcr_host_t host, unsigned int dcr_c)
 	h.token = NULL;
 }
 EXPORT_SYMBOL_GPL(dcr_unmap);
-
-#endif /* !defined(CONFIG_PPC_DCR_NATIVE) */
+#else	/* defined(CONFIG_PPC_DCR_NATIVE) */
+DEFINE_SPINLOCK(dcr_ind_lock);
+#endif	/* !defined(CONFIG_PPC_DCR_NATIVE) */

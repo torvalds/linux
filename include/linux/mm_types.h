@@ -64,7 +64,10 @@ struct page {
 #if NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS
 	    spinlock_t ptl;
 #endif
-	    struct kmem_cache *slab;	/* SLUB: Pointer to slab */
+	    struct {
+		   struct kmem_cache *slab;	/* SLUB: Pointer to slab */
+		   void *end;			/* SLUB: end marker */
+	    };
 	    struct page *first_page;	/* Compound tail pages */
 	};
 	union {
@@ -88,6 +91,9 @@ struct page {
 	void *virtual;			/* Kernel virtual address (NULL if
 					   not kmapped, ie. highmem) */
 #endif /* WANT_PAGE_VIRTUAL */
+#ifdef CONFIG_CGROUP_MEM_CONT
+	unsigned long page_cgroup;
+#endif
 };
 
 /*
@@ -219,6 +225,9 @@ struct mm_struct {
 	/* aio bits */
 	rwlock_t		ioctx_list_lock;
 	struct kioctx		*ioctx_list;
+#ifdef CONFIG_CGROUP_MEM_CONT
+	struct mem_cgroup *mem_cgroup;
+#endif
 };
 
 #endif /* _LINUX_MM_TYPES_H */

@@ -22,7 +22,7 @@
 #ifndef __ATMEL_LCDC_H__
 #define __ATMEL_LCDC_H__
 
- /* LCD Controller info data structure */
+ /* LCD Controller info data structure, stored in device platform_data */
 struct atmel_lcdfb_info {
 	spinlock_t		lock;
 	struct fb_info		*info;
@@ -33,7 +33,14 @@ struct atmel_lcdfb_info {
 	struct platform_device	*pdev;
 	struct clk		*bus_clk;
 	struct clk		*lcdc_clk;
-	unsigned int		default_bpp;
+
+#ifdef CONFIG_BACKLIGHT_ATMEL_LCDC
+	struct backlight_device	*backlight;
+	u8			bl_power;
+#endif
+	bool			lcdcon_is_backlight;
+
+	u8			default_bpp;
 	unsigned int		default_lcdcon2;
 	unsigned int		default_dmacon;
 	void (*atmel_lcdfb_power_control)(int on);
@@ -115,20 +122,20 @@ struct atmel_lcdfb_info {
 #define		ATMEL_LCDC_MEMOR_LITTLE		(1 << 31)
 
 #define ATMEL_LCDC_TIM1		0x0808
-#define	ATMEL_LCDC_VFP		(0xff <<  0)
+#define	ATMEL_LCDC_VFP		(0xffU <<  0)
 #define	ATMEL_LCDC_VBP_OFFSET		8
-#define	ATMEL_LCDC_VBP		(0xff <<  ATMEL_LCDC_VBP_OFFSET)
+#define	ATMEL_LCDC_VBP		(0xffU <<  ATMEL_LCDC_VBP_OFFSET)
 #define	ATMEL_LCDC_VPW_OFFSET		16
-#define	ATMEL_LCDC_VPW		(0x3f << ATMEL_LCDC_VPW_OFFSET)
+#define	ATMEL_LCDC_VPW		(0x3fU << ATMEL_LCDC_VPW_OFFSET)
 #define	ATMEL_LCDC_VHDLY_OFFSET		24
-#define	ATMEL_LCDC_VHDLY	(0xf  << ATMEL_LCDC_VHDLY_OFFSET)
+#define	ATMEL_LCDC_VHDLY	(0xfU  << ATMEL_LCDC_VHDLY_OFFSET)
 
 #define ATMEL_LCDC_TIM2		0x080c
-#define	ATMEL_LCDC_HBP		(0xff  <<  0)
+#define	ATMEL_LCDC_HBP		(0xffU  <<  0)
 #define	ATMEL_LCDC_HPW_OFFSET		8
-#define	ATMEL_LCDC_HPW		(0x3f  <<  ATMEL_LCDC_HPW_OFFSET)
+#define	ATMEL_LCDC_HPW		(0x3fU  <<  ATMEL_LCDC_HPW_OFFSET)
 #define	ATMEL_LCDC_HFP_OFFSET		21
-#define	ATMEL_LCDC_HFP		(0x7ff << ATMEL_LCDC_HFP_OFFSET)
+#define	ATMEL_LCDC_HFP		(0x7ffU << ATMEL_LCDC_HFP_OFFSET)
 
 #define ATMEL_LCDC_LCDFRMCFG	0x0810
 #define	ATMEL_LCDC_LINEVAL	(0x7ff <<  0)

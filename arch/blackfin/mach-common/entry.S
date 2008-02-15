@@ -121,6 +121,7 @@ ENTRY(_ex_icplb_miss)
 	(R7:6,P5:4) = [sp++];
 	ASTAT = [sp++];
 	SAVE_ALL_SYS
+	DEBUG_HWTRACE_SAVE(p5, r7)
 #ifdef CONFIG_MPU
 	R0 = SEQSTAT;
 	R1 = SP;
@@ -132,14 +133,13 @@ ENTRY(_ex_icplb_miss)
 #else
 	call __cplb_hdr;
 #endif
-	DEBUG_START_HWTRACE(p5, r7)
+	DEBUG_HWTRACE_RESTORE(p5, r7)
 	RESTORE_ALL_SYS
 	SP = EX_SCRATCH_REG;
 	rtx;
 ENDPROC(_ex_icplb_miss)
 
 ENTRY(_ex_syscall)
-	DEBUG_START_HWTRACE(p5, r7)
 	(R7:6,P5:4) = [sp++];
 	ASTAT = [sp++];
 	raise 15;		/* invoked by TRAP #0, for sys call */
@@ -178,7 +178,6 @@ ENTRY(_ex_single_step)
 ENDPROC(_ex_single_step)
 
 ENTRY(_bfin_return_from_exception)
-	DEBUG_START_HWTRACE(p5, r7)
 #if ANOMALY_05000257
 	R7=LC0;
 	LC0=R7;
@@ -200,10 +199,9 @@ ENTRY(_handle_bad_cplb)
 	 * need to make a CPLB exception look like a normal exception
 	 */
 
-	DEBUG_START_HWTRACE(p5, r7)
 	RESTORE_ALL_SYS
 	[--sp] = ASTAT;
-	[--sp] = (R7:6, P5:4);
+	[--sp] = (R7:6,P5:4);
 
 ENTRY(_ex_replaceable)
 	nop;
@@ -253,7 +251,6 @@ ENTRY(_ex_trap_c)
 	R6 = SEQSTAT;
 	[P5] = R6;
 
-	DEBUG_START_HWTRACE(p5, r7)
 	(R7:6,P5:4) = [sp++];
 	ASTAT = [sp++];
 	SP = EX_SCRATCH_REG;
@@ -382,8 +379,7 @@ ENTRY(_trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	sp.h = _exception_stack_top;
 	/* Try to deal with syscalls quickly.  */
 	[--sp] = ASTAT;
-	[--sp] = (R7:6, P5:4);
-	DEBUG_STOP_HWTRACE(p5, r7)
+	[--sp] = (R7:6,P5:4);
 	r7 = SEQSTAT;		/* reason code is in bit 5:0 */
 	r6.l = lo(SEQSTAT_EXCAUSE);
 	r6.h = hi(SEQSTAT_EXCAUSE);

@@ -1712,3 +1712,23 @@ sys_fallocate_wrapper:
 	sllg	%r5,%r6,32		# get high word of 64bit loff_t
 	l	%r5,164(%r15)		# get low word of 64bit loff_t
 	jg	sys_fallocate
+
+	.globl	sys_timerfd_create_wrapper
+sys_timerfd_create_wrapper:
+	lgfr	%r2,%r2			# int
+	lgfr	%r3,%r3			# int
+	jg	sys_timerfd_create
+
+	.globl	compat_sys_timerfd_settime_wrapper
+compat_sys_timerfd_settime_wrapper:
+	lgfr	%r2,%r2			# int
+	lgfr	%r3,%r3			# int
+	llgtr	%r4,%r4			# struct compat_itimerspec *
+	llgtr	%r5,%r5			# struct compat_itimerspec *
+	jg	compat_sys_timerfd_settime
+
+	.globl	compat_sys_timerfd_gettime_wrapper
+compat_sys_timerfd_gettime_wrapper:
+	lgfr	%r2,%r2			# int
+	llgtr	%r3,%r3			# struct compat_itimerspec *
+	jg	compat_sys_timerfd_gettime

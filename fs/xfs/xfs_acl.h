@@ -75,7 +75,6 @@ extern int xfs_acl_vremove(bhv_vnode_t *, int);
 #define _ACL_GET_DEFAULT(pv,pd)	(xfs_acl_vtoacl(pv,NULL,pd) == 0)
 #define _ACL_ACCESS_EXISTS	xfs_acl_vhasacl_access
 #define _ACL_DEFAULT_EXISTS	xfs_acl_vhasacl_default
-#define _ACL_XFS_IACCESS(i,m,c) (XFS_IFORK_Q(i) ? xfs_acl_iaccess(i,m,c) : -1)
 
 #define _ACL_ALLOC(a)		((a) = kmem_zone_alloc(xfs_acl_zone, KM_SLEEP))
 #define _ACL_FREE(a)		((a)? kmem_zone_free(xfs_acl_zone, (a)):(void)0)
@@ -95,7 +94,6 @@ extern int xfs_acl_vremove(bhv_vnode_t *, int);
 #define _ACL_GET_DEFAULT(pv,pd)	(0)
 #define _ACL_ACCESS_EXISTS	(NULL)
 #define _ACL_DEFAULT_EXISTS	(NULL)
-#define _ACL_XFS_IACCESS(i,m,c) (-1)
 #endif
 
 #endif	/* __XFS_ACL_H__ */

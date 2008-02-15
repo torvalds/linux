@@ -83,6 +83,8 @@ void change_mnt_propagation(struct vfsmount *mnt, int type)
 		mnt->mnt_master = NULL;
 		if (type == MS_UNBINDABLE)
 			mnt->mnt_flags |= MNT_UNBINDABLE;
+		else
+			mnt->mnt_flags &= ~MNT_UNBINDABLE;
 	}
 }
 

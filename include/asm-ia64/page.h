@@ -7,8 +7,6 @@
  *	David Mosberger-Tang <davidm@hpl.hp.com>
  */
 
-# ifdef __KERNEL__
-
 #include <asm/intrinsics.h>
 #include <asm/types.h>
 
@@ -187,6 +185,7 @@ get_order (unsigned long size)
 #endif
   typedef struct { unsigned long pgd; } pgd_t;
   typedef struct { unsigned long pgprot; } pgprot_t;
+  typedef struct page *pgtable_t;
 
 # define pte_val(x)	((x).pte)
 # define pmd_val(x)	((x).pmd)
@@ -208,6 +207,7 @@ get_order (unsigned long size)
     typedef unsigned long pmd_t;
     typedef unsigned long pgd_t;
     typedef unsigned long pgprot_t;
+    typedef struct page *pgtable_t;
 # endif
 
 # define pte_val(x)	(x)
@@ -227,5 +227,4 @@ get_order (unsigned long size)
 					 (((current->personality & READ_IMPLIES_EXEC) != 0)	\
 					  ? VM_EXEC : 0))
 
-# endif /* __KERNEL__ */
 #endif /* _ASM_IA64_PAGE_H */

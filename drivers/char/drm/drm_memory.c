@@ -179,4 +179,3 @@ void drm_core_ioremapfree(struct drm_map *map, struct drm_device *dev)
 		iounmap(map->handle);
 }
 EXPORT_SYMBOL(drm_core_ioremapfree);
-

@@ -378,7 +378,6 @@ xfs_buf_item_unpin(
 	xfs_mount_t	*mp;
 	xfs_buf_t	*bp;
 	int		freed;
-	SPLDECL(s);
 
 	bp = bip->bli_buf;
 	ASSERT(bp != NULL);
@@ -409,8 +408,8 @@ xfs_buf_item_unpin(
 			XFS_BUF_SET_FSPRIVATE(bp, NULL);
 			XFS_BUF_CLR_IODONE_FUNC(bp);
 		} else {
-			AIL_LOCK(mp,s);
-			xfs_trans_delete_ail(mp, (xfs_log_item_t *)bip, s);
+			spin_lock(&mp->m_ail_lock);
+			xfs_trans_delete_ail(mp, (xfs_log_item_t *)bip);
 			xfs_buf_item_relse(bp);
 			ASSERT(XFS_BUF_FSPRIVATE(bp, void *) == NULL);
 		}
@@ -1113,7 +1112,6 @@ xfs_buf_iodone(
 	xfs_buf_log_item_t	*bip)
 {
 	struct xfs_mount	*mp;
-	SPLDECL(s);
 
 	ASSERT(bip->bli_buf == bp);
 
@@ -1128,11 +1126,11 @@ xfs_buf_iodone(
 	 *
 	 * Either way, AIL is useless if we're forcing a shutdown.
 	 */
-	AIL_LOCK(mp,s);
+	spin_lock(&mp->m_ail_lock);
 	/*
 	 * xfs_trans_delete_ail() drops the AIL lock.
 	 */
-	xfs_trans_delete_ail(mp, (xfs_log_item_t *)bip, s);
+	xfs_trans_delete_ail(mp, (xfs_log_item_t *)bip);
 
 #ifdef XFS_TRANS_DEBUG
 	kmem_free(bip->bli_orig, XFS_BUF_COUNT(bp));

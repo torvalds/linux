@@ -19,6 +19,45 @@
 #include "drm_core.h"
 #include "drmP.h"
 
+#define to_drm_device(d) container_of(d, struct drm_device, dev)
+
+/**
+ * drm_sysfs_suspend - DRM class suspend hook
+ * @dev: Linux device to suspend
+ * @state: power state to enter
+ *
+ * Just figures out what the actual struct drm_device associated with
+ * @dev is and calls its suspend hook, if present.
+ */
+static int drm_sysfs_suspend(struct device *dev, pm_message_t state)
+{
+	struct drm_device *drm_dev = to_drm_device(dev);
+
+	printk(KERN_ERR "%s\n", __FUNCTION__);
+
+	if (drm_dev->driver->suspend)
+		return drm_dev->driver->suspend(drm_dev);
+
+	return 0;
+}
+
+/**
+ * drm_sysfs_resume - DRM class resume hook
+ * @dev: Linux device to resume
+ *
+ * Just figures out what the actual struct drm_device associated with
+ * @dev is and calls its resume hook, if present.
+ */
+static int drm_sysfs_resume(struct device *dev)
+{
+	struct drm_device *drm_dev = to_drm_device(dev);
+
+	if (drm_dev->driver->resume)
+		return drm_dev->driver->resume(drm_dev);
+
+	return 0;
+}
+
 /* Display the version of drm_core. This doesn't work right in current design */
 static ssize_t version_show(struct class *dev, char *buf)
 {
@@ -33,7 +72,7 @@ static CLASS_ATTR(version, S_IRUGO, version_show, NULL);
  * @owner: pointer to the module that is to "own" this struct drm_sysfs_class
  * @name: pointer to a string for the name of this class.
  *
- * This is used to create a struct drm_sysfs_class pointer that can then be used
+ * This is used to create DRM class pointer that can then be used
  * in calls to drm_sysfs_device_add().
  *
  * Note, the pointer created here is to be destroyed when finished by making a
@@ -50,6 +89,9 @@ struct class *drm_sysfs_create(struct module *owner, char *name)
 		goto err_out;
 	}
 
+	class->suspend = drm_sysfs_suspend;
+	class->resume = drm_sysfs_resume;
+
 	err = class_create_file(class, &class_attr_version);
 	if (err)
 		goto err_out_class;
@@ -63,94 +105,100 @@ err_out:
 }
 
 /**
- * drm_sysfs_destroy - destroys a struct drm_sysfs_class structure
- * @cs: pointer to the struct drm_sysfs_class that is to be destroyed
+ * drm_sysfs_destroy - destroys DRM class
  *
- * Note, the pointer to be destroyed must have been created with a call to
- * drm_sysfs_create().
+ * Destroy the DRM device class.
  */
-void drm_sysfs_destroy(struct class *class)
+void drm_sysfs_destroy(void)
 {
-	if ((class == NULL) || (IS_ERR(class)))
+	if ((drm_class == NULL) || (IS_ERR(drm_class)))
 		return;
-
-	class_remove_file(class, &class_attr_version);
-	class_destroy(class);
+	class_remove_file(drm_class, &class_attr_version);
+	class_destroy(drm_class);
 }
 
-static ssize_t show_dri(struct class_device *class_device, char *buf)
+static ssize_t show_dri(struct device *device, struct device_attribute *attr,
+			char *buf)
 {
-	struct drm_device * dev = ((struct drm_head *)class_get_devdata(class_device))->dev;
+	struct drm_device *dev = to_drm_device(device);
 	if (dev->driver->dri_library_name)
 		return dev->driver->dri_library_name(dev, buf);
 	return snprintf(buf, PAGE_SIZE, "%s\n", dev->driver->pci_driver.name);
 }
 
-static struct class_device_attribute class_device_attrs[] = {
+static struct device_attribute device_attrs[] = {
 	__ATTR(dri_library_name, S_IRUGO, show_dri, NULL),
 };
 
 /**
- * drm_sysfs_device_add - adds a class device to sysfs for a character driver
- * @cs: pointer to the struct class that this device should be registered to.
- * @dev: the dev_t for the device to be added.
- * @device: a pointer to a struct device that is assiociated with this class device.
- * @fmt: string for the class device's name
+ * drm_sysfs_device_release - do nothing
+ * @dev: Linux device
  *
- * A struct class_device will be created in sysfs, registered to the specified
- * class.  A "dev" file will be created, showing the dev_t for the device.  The
- * pointer to the struct class_device will be returned from the call.  Any further
- * sysfs files that might be required can be created using this pointer.
- * Note: the struct class passed to this function must have previously been
- * created with a call to drm_sysfs_create().
+ * Normally, this would free the DRM device associated with @dev, along
+ * with cleaning up any other stuff.  But we do that in the DRM core, so
+ * this function can just return and hope that the core does its job.
  */
-struct class_device *drm_sysfs_device_add(struct class *cs, struct drm_head *head)
+static void drm_sysfs_device_release(struct device *dev)
 {
-	struct class_device *class_dev;
-	int i, j, err;
+	return;
+}
 
-	class_dev = class_device_create(cs, NULL,
-					MKDEV(DRM_MAJOR, head->minor),
-					&(head->dev->pdev)->dev,
-					"card%d", head->minor);
-	if (IS_ERR(class_dev)) {
-		err = PTR_ERR(class_dev);
+/**
+ * drm_sysfs_device_add - adds a class device to sysfs for a character driver
+ * @dev: DRM device to be added
+ * @head: DRM head in question
+ *
+ * Add a DRM device to the DRM's device model class.  We use @dev's PCI device
+ * as the parent for the Linux device, and make sure it has a file containing
+ * the driver we're using (for userspace compatibility).
+ */
+int drm_sysfs_device_add(struct drm_device *dev, struct drm_head *head)
+{
+	int err;
+	int i, j;
+
+	dev->dev.parent = &dev->pdev->dev;
+	dev->dev.class = drm_class;
+	dev->dev.release = drm_sysfs_device_release;
+	dev->dev.devt = head->device;
+	snprintf(dev->dev.bus_id, BUS_ID_SIZE, "card%d", head->minor);
+
+	err = device_register(&dev->dev);
+	if (err) {
+		DRM_ERROR("device add failed: %d\n", err);
 		goto err_out;
 	}
 
-	class_set_devdata(class_dev, head);
-
-	for (i = 0; i < ARRAY_SIZE(class_device_attrs); i++) {
-		err = class_device_create_file(class_dev,
-					       &class_device_attrs[i]);
+	for (i = 0; i < ARRAY_SIZE(device_attrs); i++) {
+		err = device_create_file(&dev->dev, &device_attrs[i]);
 		if (err)
 			goto err_out_files;
 	}
 
-	return class_dev;
+	return 0;
 
 err_out_files:
 	if (i > 0)
 		for (j = 0; j < i; j++)
-			class_device_remove_file(class_dev,
-						 &class_device_attrs[i]);
-	class_device_unregister(class_dev);
+			device_remove_file(&dev->dev, &device_attrs[i]);
+	device_unregister(&dev->dev);
 err_out:
-	return ERR_PTR(err);
+
+	return err;
 }
 
 /**
- * drm_sysfs_device_remove - removes a class device that was created with drm_sysfs_device_add()
- * @dev: the dev_t of the device that was previously registered.
+ * drm_sysfs_device_remove - remove DRM device
+ * @dev: DRM device to remove
  *
  * This call unregisters and cleans up a class device that was created with a
  * call to drm_sysfs_device_add()
  */
-void drm_sysfs_device_remove(struct class_device *class_dev)
+void drm_sysfs_device_remove(struct drm_device *dev)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(class_device_attrs); i++)
-		class_device_remove_file(class_dev, &class_device_attrs[i]);
-	class_device_unregister(class_dev);
+	for (i = 0; i < ARRAY_SIZE(device_attrs); i++)
+		device_remove_file(&dev->dev, &device_attrs[i]);
+	device_unregister(&dev->dev);
 }

@@ -929,7 +929,7 @@ xfs_attr_shortform_addname(xfs_da_args_t *args)
  * This leaf block cannot have a "remote" value, we only call this routine
  * if bmap_one_block() says there is only one block (ie: no remote blks).
  */
-int
+STATIC int
 xfs_attr_leaf_addname(xfs_da_args_t *args)
 {
 	xfs_inode_t *dp;

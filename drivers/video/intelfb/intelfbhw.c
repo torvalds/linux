@@ -1971,7 +1971,7 @@ void intelfbhw_cursor_reset(struct intelfb_info *dinfo)
 static irqreturn_t intelfbhw_irq(int irq, void *dev_id)
 {
 	u16 tmp;
-	struct intelfb_info *dinfo = (struct intelfb_info *)dev_id;
+	struct intelfb_info *dinfo = dev_id;
 
 	spin_lock(&dinfo->int_lock);
 

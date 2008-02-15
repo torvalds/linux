@@ -67,7 +67,6 @@ static struct i2c_driver pcf8574_driver = {
 	.driver = {
 		.name	= "pcf8574",
 	},
-	.id		= I2C_DRIVERID_PCF8574,
 	.attach_adapter	= pcf8574_attach_adapter,
 	.detach_client	= pcf8574_detach_client,
 };

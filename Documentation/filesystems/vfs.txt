@@ -151,7 +151,7 @@ The get_sb() method has the following arguments:
   const char *dev_name: the device name we are mounting.
 
   void *data: arbitrary mount options, usually comes as an ASCII
-	string
+	string (see "Mount Options" section)
 
   struct vfsmount *mnt: a vfs-internal representation of a mount point
 
@@ -182,7 +182,7 @@ A fill_super() method implementation has the following arguments:
   	must initialize this properly.
 
   void *data: arbitrary mount options, usually comes as an ASCII
-	string
+	string (see "Mount Options" section)
 
   int silent: whether or not to be silent on error
 
@@ -202,8 +202,6 @@ filesystem. As of kernel 2.6.22, the following members are defined:
 struct super_operations {
         struct inode *(*alloc_inode)(struct super_block *sb);
         void (*destroy_inode)(struct inode *);
-
-        void (*read_inode) (struct inode *);
 
         void (*dirty_inode) (struct inode *);
         int (*write_inode) (struct inode *, int);
@@ -241,15 +239,6 @@ or bottom half).
   	resources allocated for struct inode.  It is only required if
   	->alloc_inode was defined and simply undoes anything done by
 	->alloc_inode.
-
-  read_inode: this method is called to read a specific inode from the
-        mounted filesystem.  The i_ino member in the struct inode is
-	initialized by the VFS to indicate which inode to read. Other
-	members are filled in by this method.
-
-	You can set this to NULL and use iget5_locked() instead of iget()
-	to read inodes.  This is necessary for filesystems for which the
-	inode number is not sufficient to identify an inode.
 
   dirty_inode: this method is called by the VFS to mark an inode dirty.
 
@@ -302,15 +291,16 @@ or bottom half).
 
   umount_begin: called when the VFS is unmounting a filesystem.
 
-  show_options: called by the VFS to show mount options for /proc/<pid>/mounts.
+  show_options: called by the VFS to show mount options for
+	/proc/<pid>/mounts.  (see "Mount Options" section)
 
   quota_read: called by the VFS to read from filesystem quota file.
 
   quota_write: called by the VFS to write to filesystem quota file.
 
-The read_inode() method is responsible for filling in the "i_op"
-field. This is a pointer to a "struct inode_operations" which
-describes the methods that can be performed on individual inodes.
+Whoever sets up the inode is responsible for filling in the "i_op" field. This
+is a pointer to a "struct inode_operations" which describes the methods that
+can be performed on individual inodes.
 
 
 The Inode Object
@@ -980,6 +970,49 @@ manipulate dentries:
 For further information on dentry locking, please refer to the document
 Documentation/filesystems/dentry-locking.txt.
 
+Mount Options
+=============
+
+Parsing options
+---------------
+
+On mount and remount the filesystem is passed a string containing a
+comma separated list of mount options.  The options can have either of
+these forms:
+
+  option
+  option=value
+
+The <linux/parser.h> header defines an API that helps parse these
+options.  There are plenty of examples on how to use it in existing
+filesystems.
+
+Showing options
+---------------
+
+If a filesystem accepts mount options, it must define show_options()
+to show all the currently active options.  The rules are:
+
+  - options MUST be shown which are not default or their values differ
+    from the default
+
+  - options MAY be shown which are enabled by default or have their
+    default value
+
+Options used only internally between a mount helper and the kernel
+(such as file descriptors), or which only have an effect during the
+mounting (such as ones controlling the creation of a journal) are exempt
+from the above rules.
+
+The underlying reason for the above rules is to make sure, that a
+mount can be accurately replicated (e.g. umounting and mounting again)
+based on the information found in /proc/mounts.
+
+A simple method of saving options at mount/remount time and showing
+them is provided with the save_mount_options() and
+generic_show_options() helper functions.  Please note, that using
+these may have drawbacks.  For more info see header comments for these
+functions in fs/namespace.c.
 
 Resources
 =========

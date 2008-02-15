@@ -28,7 +28,7 @@
 #ifdef CONFIG_DMAR
 struct intel_iommu;
 
-extern char *dmar_get_fault_reason(u8 fault_reason);
+extern const char *dmar_get_fault_reason(u8 fault_reason);
 
 /* Can't use the common MSI interrupt functions
  * since DMAR is not a pci device

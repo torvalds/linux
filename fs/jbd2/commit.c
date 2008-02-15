@@ -136,18 +136,20 @@ static int journal_submit_commit_record(journal_t *journal,
 
 	JBUFFER_TRACE(descriptor, "submit commit block");
 	lock_buffer(bh);
-
+	get_bh(bh);
 	set_buffer_dirty(bh);
 	set_buffer_uptodate(bh);
 	bh->b_end_io = journal_end_buffer_io_sync;
 
 	if (journal->j_flags & JBD2_BARRIER &&
-		!JBD2_HAS_COMPAT_FEATURE(journal,
+		!JBD2_HAS_INCOMPAT_FEATURE(journal,
 					 JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT)) {
 		set_buffer_ordered(bh);
 		barrier_done = 1;
 	}
 	ret = submit_bh(WRITE, bh);
+	if (barrier_done)
+		clear_buffer_ordered(bh);
 
 	/* is it possible for another commit to fail at roughly
 	 * the same time as this one?  If so, we don't want to
@@ -166,7 +168,6 @@ static int journal_submit_commit_record(journal_t *journal,
 		spin_unlock(&journal->j_state_lock);
 
 		/* And try again, without the barrier */
-		clear_buffer_ordered(bh);
 		set_buffer_uptodate(bh);
 		set_buffer_dirty(bh);
 		ret = submit_bh(WRITE, bh);
@@ -872,7 +873,8 @@ wait_for_iobuf:
 		if (err)
 			__jbd2_journal_abort_hard(journal);
 	}
-	err = journal_wait_on_commit_record(cbh);
+	if (!err && !is_journal_aborted(journal))
+		err = journal_wait_on_commit_record(cbh);
 
 	if (err)
 		jbd2_journal_abort(journal, err);

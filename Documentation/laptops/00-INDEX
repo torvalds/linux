@@ -1,0 +1,10 @@
+00-INDEX
+	- This file
+acer-wmi.txt
+	- information on the Acer Laptop WMI Extras driver.
+sony-laptop.txt
+	- Sony Notebook Control Driver (SNC) Readme.
+sonypi.txt
+	- info on Linux Sony Programmable I/O Device support.
+thinkpad-acpi.txt
+	- information on the (IBM and Lenovo) ThinkPad ACPI Extras driver.

@@ -6,7 +6,6 @@
 # Each configuration option enables a list of files.
 
 obj-$(CONFIG_SOUND_OSS)		+= sound.o
-obj-$(CONFIG_SOUND_CS4232)	+= cs4232.o ad1848.o 
 
 # Please leave it as is, cause the link order is significant !
 
@@ -16,7 +15,6 @@ obj-$(CONFIG_SOUND_AEDSP16)	+= aedsp16.o
 obj-$(CONFIG_SOUND_PSS)		+= pss.o ad1848.o mpu401.o
 obj-$(CONFIG_SOUND_TRIX)	+= trix.o ad1848.o sb_lib.o uart401.o
 obj-$(CONFIG_SOUND_SSCAPE)	+= sscape.o ad1848.o mpu401.o
-obj-$(CONFIG_SOUND_CS4232)	+= cs4232.o uart401.o
 obj-$(CONFIG_SOUND_MSS)		+= ad1848.o
 obj-$(CONFIG_SOUND_PAS)		+= pas2.o sb.o sb_lib.o uart401.o
 obj-$(CONFIG_SOUND_SB)		+= sb.o sb_lib.o uart401.o
@@ -27,19 +25,12 @@ obj-$(CONFIG_SOUND_YM3812)	+= opl3.o
 obj-$(CONFIG_SOUND_VMIDI)	+= v_midi.o
 obj-$(CONFIG_SOUND_VIDC)	+= vidc_mod.o
 obj-$(CONFIG_SOUND_WAVEARTIST)	+= waveartist.o
-
-obj-$(CONFIG_SOUND_VIA82CXXX)	+= via82cxxx_audio.o ac97_codec.o
-ifeq ($(CONFIG_MIDI_VIA82CXXX),y)
-  obj-$(CONFIG_SOUND_VIA82CXXX) += sound.o uart401.o
-endif
 obj-$(CONFIG_SOUND_MSNDCLAS)	+= msnd.o msnd_classic.o
 obj-$(CONFIG_SOUND_MSNDPIN)	+= msnd.o msnd_pinnacle.o
 obj-$(CONFIG_SOUND_VWSND)	+= vwsnd.o
-obj-$(CONFIG_SOUND_ICH)		+= i810_audio.o ac97_codec.o
 obj-$(CONFIG_SOUND_AU1550_AC97)	+= au1550_ac97.o ac97_codec.o
 obj-$(CONFIG_SOUND_TRIDENT)	+= trident.o ac97_codec.o
 obj-$(CONFIG_SOUND_BCM_CS4297A)	+= swarm_cs4297a.o
-obj-$(CONFIG_SOUND_BT878)	+= btaudio.o
 
 obj-$(CONFIG_SOUND_WM97XX)	+= ac97_plugin_wm97xx.o
 

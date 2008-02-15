@@ -609,14 +609,14 @@ static int htb_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 /* TODO: requeuing packet charges it to policers again !! */
 static int htb_requeue(struct sk_buff *skb, struct Qdisc *sch)
 {
+	int ret;
 	struct htb_sched *q = qdisc_priv(sch);
-	int ret = NET_XMIT_SUCCESS;
 	struct htb_class *cl = htb_classify(skb, sch, &ret);
 	struct sk_buff *tskb;
 
-	if (cl == HTB_DIRECT || !cl) {
+	if (cl == HTB_DIRECT) {
 		/* enqueue to helper queue */
-		if (q->direct_queue.qlen < q->direct_qlen && cl) {
+		if (q->direct_queue.qlen < q->direct_qlen) {
 			__skb_queue_head(&q->direct_queue, skb);
 		} else {
 			__skb_queue_head(&q->direct_queue, skb);
@@ -625,6 +625,13 @@ static int htb_requeue(struct sk_buff *skb, struct Qdisc *sch)
 			sch->qstats.drops++;
 			return NET_XMIT_CN;
 		}
+#ifdef CONFIG_NET_CLS_ACT
+	} else if (!cl) {
+		if (ret == NET_XMIT_BYPASS)
+			sch->qstats.drops++;
+		kfree_skb(skb);
+		return ret;
+#endif
 	} else if (cl->un.leaf.q->ops->requeue(skb, cl->un.leaf.q) !=
 		   NET_XMIT_SUCCESS) {
 		sch->qstats.drops++;

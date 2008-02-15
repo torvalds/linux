@@ -27,6 +27,13 @@ config ARCH_NO_VIRT_TO_BUS
 config OF
 	def_bool y
 
+config ARCH_SUPPORTS_AOUT
+	def_bool y
+
+config HZ
+	int
+	default 100
+
 source "init/Kconfig"
 
 menu "General machine setup"
@@ -62,6 +69,7 @@ config NR_CPUS
 config SPARC
 	bool
 	default y
+	select HAVE_IDE
 	select HAVE_OPROFILE
 
 # Identify this as a Sparc32 build

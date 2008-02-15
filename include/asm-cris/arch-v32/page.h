@@ -7,11 +7,11 @@
 #define PAGE_OFFSET KSEG_C	/* kseg_c is mapped to physical ram. */
 
 /*
- * Macros to convert between physical and virtual addresses. By stripiing a
+ * Macros to convert between physical and virtual addresses. By stripping a
  * selected bit it's possible to convert between KSEG_x and 0x40000000 where the
  * DRAM really resides. DRAM is virtually at 0xc.
  */
-#ifndef CONFIG_ETRAXFS_SIM
+#ifndef CONFIG_ETRAX_VCS_SIM
 #define __pa(x) ((unsigned long)(x) & 0x7fffffff)
 #define __va(x) ((void *)((unsigned long)(x) | 0x80000000))
 #else

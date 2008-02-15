@@ -201,9 +201,9 @@ static inline s64 __get_nsec_offset(void) { return 0; }
 #endif
 
 /**
- * timekeeping_is_continuous - check to see if timekeeping is free running
+ * timekeeping_valid_for_hres - Check if timekeeping is suitable for hres
  */
-int timekeeping_is_continuous(void)
+int timekeeping_valid_for_hres(void)
 {
 	unsigned long seq;
 	int ret;
@@ -364,7 +364,7 @@ static __always_inline int clocksource_bigadjust(s64 error, s64 *interval,
 	 * with losing too many ticks, otherwise we would overadjust and
 	 * produce an even larger error.  The smaller the adjustment the
 	 * faster we try to adjust for it, as lost ticks can do less harm
-	 * here.  This is tuned so that an error of about 1 msec is adusted
+	 * here.  This is tuned so that an error of about 1 msec is adjusted
 	 * within about 1 sec (or 2^20 nsec in 2^SHIFT_HZ ticks).
 	 */
 	error2 = clock->error >> (TICK_LENGTH_SHIFT + 22 - 2 * SHIFT_HZ);

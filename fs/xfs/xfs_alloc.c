@@ -592,7 +592,7 @@ xfs_alloc_ag_vextent(
 		if (!(args->wasfromfl)) {
 
 			agf = XFS_BUF_TO_AGF(args->agbp);
-			be32_add(&agf->agf_freeblks, -(args->len));
+			be32_add_cpu(&agf->agf_freeblks, -(args->len));
 			xfs_trans_agblocks_delta(args->tp,
 						 -((long)(args->len)));
 			args->pag->pagf_freeblks -= args->len;
@@ -1720,7 +1720,7 @@ xfs_free_ag_extent(
 
 		agf = XFS_BUF_TO_AGF(agbp);
 		pag = &mp->m_perag[agno];
-		be32_add(&agf->agf_freeblks, len);
+		be32_add_cpu(&agf->agf_freeblks, len);
 		xfs_trans_agblocks_delta(tp, len);
 		pag->pagf_freeblks += len;
 		XFS_WANT_CORRUPTED_GOTO(
@@ -2008,18 +2008,18 @@ xfs_alloc_get_freelist(
 	 * Get the block number and update the data structures.
 	 */
 	bno = be32_to_cpu(agfl->agfl_bno[be32_to_cpu(agf->agf_flfirst)]);
-	be32_add(&agf->agf_flfirst, 1);
+	be32_add_cpu(&agf->agf_flfirst, 1);
 	xfs_trans_brelse(tp, agflbp);
 	if (be32_to_cpu(agf->agf_flfirst) == XFS_AGFL_SIZE(mp))
 		agf->agf_flfirst = 0;
 	pag = &mp->m_perag[be32_to_cpu(agf->agf_seqno)];
-	be32_add(&agf->agf_flcount, -1);
+	be32_add_cpu(&agf->agf_flcount, -1);
 	xfs_trans_agflist_delta(tp, -1);
 	pag->pagf_flcount--;
 
 	logflags = XFS_AGF_FLFIRST | XFS_AGF_FLCOUNT;
 	if (btreeblk) {
-		be32_add(&agf->agf_btreeblks, 1);
+		be32_add_cpu(&agf->agf_btreeblks, 1);
 		pag->pagf_btreeblks++;
 		logflags |= XFS_AGF_BTREEBLKS;
 	}
@@ -2117,17 +2117,17 @@ xfs_alloc_put_freelist(
 			be32_to_cpu(agf->agf_seqno), &agflbp)))
 		return error;
 	agfl = XFS_BUF_TO_AGFL(agflbp);
-	be32_add(&agf->agf_fllast, 1);
+	be32_add_cpu(&agf->agf_fllast, 1);
 	if (be32_to_cpu(agf->agf_fllast) == XFS_AGFL_SIZE(mp))
 		agf->agf_fllast = 0;
 	pag = &mp->m_perag[be32_to_cpu(agf->agf_seqno)];
-	be32_add(&agf->agf_flcount, 1);
+	be32_add_cpu(&agf->agf_flcount, 1);
 	xfs_trans_agflist_delta(tp, 1);
 	pag->pagf_flcount++;
 
 	logflags = XFS_AGF_FLLAST | XFS_AGF_FLCOUNT;
 	if (btreeblk) {
-		be32_add(&agf->agf_btreeblks, -1);
+		be32_add_cpu(&agf->agf_btreeblks, -1);
 		pag->pagf_btreeblks--;
 		logflags |= XFS_AGF_BTREEBLKS;
 	}
@@ -2206,7 +2206,7 @@ xfs_alloc_read_agf(
 			be32_to_cpu(agf->agf_levels[XFS_BTNUM_BNOi]);
 		pag->pagf_levels[XFS_BTNUM_CNTi] =
 			be32_to_cpu(agf->agf_levels[XFS_BTNUM_CNTi]);
-		spinlock_init(&pag->pagb_lock, "xfspagb");
+		spin_lock_init(&pag->pagb_lock);
 		pag->pagb_list = kmem_zalloc(XFS_PAGB_NUM_SLOTS *
 					sizeof(xfs_perag_busy_t), KM_SLEEP);
 		pag->pagf_init = 1;
@@ -2500,10 +2500,9 @@ xfs_alloc_mark_busy(xfs_trans_t *tp,
 	xfs_mount_t		*mp;
 	xfs_perag_busy_t	*bsy;
 	int			n;
-	SPLDECL(s);
 
 	mp = tp->t_mountp;
-	s = mutex_spinlock(&mp->m_perag[agno].pagb_lock);
+	spin_lock(&mp->m_perag[agno].pagb_lock);
 
 	/* search pagb_list for an open slot */
 	for (bsy = mp->m_perag[agno].pagb_list, n = 0;
@@ -2533,7 +2532,7 @@ xfs_alloc_mark_busy(xfs_trans_t *tp,
 		xfs_trans_set_sync(tp);
 	}
 
-	mutex_spinunlock(&mp->m_perag[agno].pagb_lock, s);
+	spin_unlock(&mp->m_perag[agno].pagb_lock);
 }
 
 void
@@ -2543,11 +2542,10 @@ xfs_alloc_clear_busy(xfs_trans_t *tp,
 {
 	xfs_mount_t		*mp;
 	xfs_perag_busy_t	*list;
-	SPLDECL(s);
 
 	mp = tp->t_mountp;
 
-	s = mutex_spinlock(&mp->m_perag[agno].pagb_lock);
+	spin_lock(&mp->m_perag[agno].pagb_lock);
 	list = mp->m_perag[agno].pagb_list;
 
 	ASSERT(idx < XFS_PAGB_NUM_SLOTS);
@@ -2559,7 +2557,7 @@ xfs_alloc_clear_busy(xfs_trans_t *tp,
 		TRACE_UNBUSY("xfs_alloc_clear_busy", "missing", agno, idx, tp);
 	}
 
-	mutex_spinunlock(&mp->m_perag[agno].pagb_lock, s);
+	spin_unlock(&mp->m_perag[agno].pagb_lock);
 }
 
 
@@ -2578,11 +2576,10 @@ xfs_alloc_search_busy(xfs_trans_t *tp,
 	xfs_agblock_t		uend, bend;
 	xfs_lsn_t		lsn;
 	int			cnt;
-	SPLDECL(s);
 
 	mp = tp->t_mountp;
 
-	s = mutex_spinlock(&mp->m_perag[agno].pagb_lock);
+	spin_lock(&mp->m_perag[agno].pagb_lock);
 	cnt = mp->m_perag[agno].pagb_count;
 
 	uend = bno + len - 1;
@@ -2615,12 +2612,12 @@ xfs_alloc_search_busy(xfs_trans_t *tp,
 	if (cnt) {
 		TRACE_BUSYSEARCH("xfs_alloc_search_busy", "found", agno, bno, len, n, tp);
 		lsn = bsy->busy_tp->t_commit_lsn;
-		mutex_spinunlock(&mp->m_perag[agno].pagb_lock, s);
+		spin_unlock(&mp->m_perag[agno].pagb_lock);
 		xfs_log_force(mp, lsn, XFS_LOG_FORCE|XFS_LOG_SYNC);
 	} else {
 		TRACE_BUSYSEARCH("xfs_alloc_search_busy", "not-found", agno, bno, len, n, tp);
 		n = -1;
-		mutex_spinunlock(&mp->m_perag[agno].pagb_lock, s);
+		spin_unlock(&mp->m_perag[agno].pagb_lock);
 	}
 
 	return n;

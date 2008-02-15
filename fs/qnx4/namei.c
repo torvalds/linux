@@ -128,10 +128,12 @@ struct dentry * qnx4_lookup(struct inode *dir, struct dentry *dentry, struct nam
 	}
 	brelse(bh);
 
-	if ((foundinode = iget(dir->i_sb, ino)) == NULL) {
+	foundinode = qnx4_iget(dir->i_sb, ino);
+	if (IS_ERR(foundinode)) {
 		unlock_kernel();
-		QNX4DEBUG(("qnx4: lookup->iget -> NULL\n"));
-		return ERR_PTR(-EACCES);
+		QNX4DEBUG(("qnx4: lookup->iget -> error %ld\n",
+			   PTR_ERR(foundinode)));
+		return ERR_CAST(foundinode);
 	}
 out:
 	unlock_kernel();

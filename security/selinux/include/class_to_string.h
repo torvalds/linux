@@ -71,3 +71,4 @@
     S_(NULL)
     S_(NULL)
     S_("peer")
+    S_("capability2")

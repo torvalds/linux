@@ -197,7 +197,7 @@ int init_file(struct file *file, struct vfsmount *mnt, struct dentry *dentry,
 }
 EXPORT_SYMBOL(init_file);
 
-void fastcall fput(struct file *file)
+void fput(struct file *file)
 {
 	if (atomic_dec_and_test(&file->f_count))
 		__fput(file);
@@ -208,7 +208,7 @@ EXPORT_SYMBOL(fput);
 /* __fput is called from task context when aio completion releases the last
  * last use of a struct file *.  Do not use otherwise.
  */
-void fastcall __fput(struct file *file)
+void __fput(struct file *file)
 {
 	struct dentry *dentry = file->f_path.dentry;
 	struct vfsmount *mnt = file->f_path.mnt;
@@ -241,7 +241,7 @@ void fastcall __fput(struct file *file)
 	mntput(mnt);
 }
 
-struct file fastcall *fget(unsigned int fd)
+struct file *fget(unsigned int fd)
 {
 	struct file *file;
 	struct files_struct *files = current->files;
@@ -269,7 +269,7 @@ EXPORT_SYMBOL(fget);
  * and a flag is returned to be passed to the corresponding fput_light().
  * There must not be a cloning between an fget_light/fput_light pair.
  */
-struct file fastcall *fget_light(unsigned int fd, int *fput_needed)
+struct file *fget_light(unsigned int fd, int *fput_needed)
 {
 	struct file *file;
 	struct files_struct *files = current->files;

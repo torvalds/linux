@@ -18,6 +18,6 @@ do {									\
 	__mutex_init((mutex), #mutex, &__key);				\
 } while (0)
 
-extern void FASTCALL(mutex_destroy(struct mutex *lock));
+extern void mutex_destroy(struct mutex *lock);
 
 #endif

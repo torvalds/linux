@@ -53,7 +53,6 @@
 #include <asm/ebus.h>
 #include <asm/isa.h>
 #endif
-#include <asm/a.out.h>
 #include <asm/ns87303.h>
 #include <asm/timer.h>
 #include <asm/cpudata.h>
@@ -277,6 +276,7 @@ EXPORT_SYMBOL(sys_getpid);
 EXPORT_SYMBOL(sys_geteuid);
 EXPORT_SYMBOL(sys_getuid);
 EXPORT_SYMBOL(sys_getegid);
+EXPORT_SYMBOL(sysctl_nr_open);
 EXPORT_SYMBOL(sys_getgid);
 EXPORT_SYMBOL(svr4_getcontext);
 EXPORT_SYMBOL(svr4_setcontext);

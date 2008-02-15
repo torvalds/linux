@@ -34,8 +34,8 @@ FOO_I(inode) (see in-tree filesystems for examples).
 
 Make them ->alloc_inode and ->destroy_inode in your super_operations.
 
-Keep in mind that now you need explicit initialization of private data -
-typically in ->read_inode() and after getting an inode from new_inode().
+Keep in mind that now you need explicit initialization of private data
+typically between calling iget_locked() and unlocking the inode.
 
 At some point that will become mandatory.
 
@@ -173,10 +173,10 @@ should be a non-blocking function that initializes those parts of a
 newly created inode to allow the test function to succeed. 'data' is
 passed as an opaque value to both test and set functions.
 
-When the inode has been created by iget5_locked(), it will be returned with
-the I_NEW flag set and will still be locked. read_inode has not been
-called so the file system still has to finalize the initialization. Once
-the inode is initialized it must be unlocked by calling unlock_new_inode().
+When the inode has been created by iget5_locked(), it will be returned with the
+I_NEW flag set and will still be locked.  The filesystem then needs to finalize
+the initialization. Once the inode is initialized it must be unlocked by
+calling unlock_new_inode().
 
 The filesystem is responsible for setting (and possibly testing) i_ino
 when appropriate. There is also a simpler iget_locked function that
@@ -184,11 +184,19 @@ just takes the superblock and inode number as arguments and does the
 test and set for you.
 
 e.g.
-       inode = iget_locked(sb, ino);
-       if (inode->i_state & I_NEW) {
-               read_inode_from_disk(inode);
-               unlock_new_inode(inode);
-       }
+	inode = iget_locked(sb, ino);
+	if (inode->i_state & I_NEW) {
+		err = read_inode_from_disk(inode);
+		if (err < 0) {
+			iget_failed(inode);
+			return err;
+		}
+		unlock_new_inode(inode);
+	}
+
+Note that if the process of setting up a new inode fails, then iget_failed()
+should be called on the inode to render it dead, and an appropriate error
+should be passed back to the caller.
 
 ---
 [recommended]

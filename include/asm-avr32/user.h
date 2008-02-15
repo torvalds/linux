@@ -51,7 +51,7 @@ struct user {
 	unsigned long	start_data;		/* data starting address */
 	unsigned long	start_stack;		/* stack starting address */
 	long int	signal;			/* signal causing core dump */
-	struct regs *	u_ar0;			/* help gdb find registers */
+	unsigned long	u_ar0;			/* help gdb find registers */
 	unsigned long	magic;			/* identifies a core file */
 	char		u_comm[32];		/* user command name */
 };

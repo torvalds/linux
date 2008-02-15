@@ -386,6 +386,7 @@ static int hpfs_remount_fs(struct super_block *s, int *flags, char *data)
 	int lowercase, conv, eas, chk, errs, chkdsk, timeshift;
 	int o;
 	struct hpfs_sb_info *sbi = hpfs_sb(s);
+	char *new_opts = kstrdup(data, GFP_KERNEL);
 	
 	*flags |= MS_NOATIME;
 	
@@ -398,15 +399,15 @@ static int hpfs_remount_fs(struct super_block *s, int *flags, char *data)
 	if (!(o = parse_opts(data, &uid, &gid, &umask, &lowercase, &conv,
 	    &eas, &chk, &errs, &chkdsk, &timeshift))) {
 		printk("HPFS: bad mount options.\n");
-	    	return 1;
+		goto out_err;
 	}
 	if (o == 2) {
 		hpfs_help();
-		return 1;
+		goto out_err;
 	}
 	if (timeshift != sbi->sb_timeshift) {
 		printk("HPFS: timeshift can't be changed using remount.\n");
-		return 1;
+		goto out_err;
 	}
 
 	unmark_dirty(s);
@@ -419,7 +420,14 @@ static int hpfs_remount_fs(struct super_block *s, int *flags, char *data)
 
 	if (!(*flags & MS_RDONLY)) mark_dirty(s);
 
+	kfree(s->s_options);
+	s->s_options = new_opts;
+
 	return 0;
+
+out_err:
+	kfree(new_opts);
+	return -EINVAL;
 }
 
 /* Super operations */
@@ -432,6 +440,7 @@ static const struct super_operations hpfs_sops =
 	.put_super	= hpfs_put_super,
 	.statfs		= hpfs_statfs,
 	.remount_fs	= hpfs_remount_fs,
+	.show_options	= generic_show_options,
 };
 
 static int hpfs_fill_super(struct super_block *s, void *options, int silent)
@@ -453,6 +462,8 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 	struct quad_buffer_head qbh;
 
 	int o;
+
+	save_mount_options(s, options);
 
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)

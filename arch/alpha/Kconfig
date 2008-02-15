@@ -5,6 +5,7 @@
 config ALPHA
 	bool
 	default y
+	select HAVE_IDE
 	select HAVE_OPROFILE
 	help
 	  The Alpha is a 64-bit general-purpose processor designed and
@@ -66,6 +67,9 @@ config AUTO_IRQ_AFFINITY
 	bool
 	depends on SMP
 	default y
+
+config ARCH_SUPPORTS_AOUT
+	def_bool y
 
 source "init/Kconfig"
 
@@ -611,6 +615,11 @@ config VERBOSE_MCHECK_ON
 	  the maximum information available.
 
 	  Take the default (1) unless you want more control or more info.
+
+config HZ
+	int
+	default 1200 if ALPHA_RAWHIDE
+	default 1024
 
 source "drivers/pci/Kconfig"
 source "drivers/eisa/Kconfig"

@@ -48,7 +48,7 @@
 #define OMAP_TIMER_COUNTER_REG		0x28
 #define OMAP_TIMER_LOAD_REG		0x2c
 #define OMAP_TIMER_TRIGGER_REG		0x30
-#define OMAP_TIMER_WRITE_PEND_REG 	0x34
+#define OMAP_TIMER_WRITE_PEND_REG	0x34
 #define OMAP_TIMER_MATCH_REG		0x38
 #define OMAP_TIMER_CAPTURE_REG		0x3c
 #define OMAP_TIMER_IF_CTRL_REG		0x40
@@ -70,7 +70,7 @@
 struct omap_dm_timer {
 	unsigned long phys_base;
 	int irq;
-#ifdef CONFIG_ARCH_OMAP2
+#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 	struct clk *iclk, *fclk;
 #endif
 	void __iomem *io_base;
@@ -82,8 +82,14 @@ struct omap_dm_timer {
 
 #define omap_dm_clk_enable(x)
 #define omap_dm_clk_disable(x)
+#define omap2_dm_timers			NULL
+#define omap2_dm_source_names		NULL
+#define omap2_dm_source_clocks		NULL
+#define omap3_dm_timers			NULL
+#define omap3_dm_source_names		NULL
+#define omap3_dm_source_clocks		NULL
 
-static struct omap_dm_timer dm_timers[] = {
+static struct omap_dm_timer omap1_dm_timers[] = {
 	{ .phys_base = 0xfffb1400, .irq = INT_1610_GPTIMER1 },
 	{ .phys_base = 0xfffb1c00, .irq = INT_1610_GPTIMER2 },
 	{ .phys_base = 0xfffb2400, .irq = INT_1610_GPTIMER3 },
@@ -94,12 +100,18 @@ static struct omap_dm_timer dm_timers[] = {
 	{ .phys_base = 0xfffbd400, .irq = INT_1610_GPTIMER8 },
 };
 
+static const int dm_timer_count = ARRAY_SIZE(omap1_dm_timers);
+
 #elif defined(CONFIG_ARCH_OMAP2)
 
-#define omap_dm_clk_enable(x) clk_enable(x)
-#define omap_dm_clk_disable(x) clk_disable(x)
+#define omap_dm_clk_enable(x)		clk_enable(x)
+#define omap_dm_clk_disable(x)		clk_disable(x)
+#define omap1_dm_timers			NULL
+#define omap3_dm_timers			NULL
+#define omap3_dm_source_names		NULL
+#define omap3_dm_source_clocks		NULL
 
-static struct omap_dm_timer dm_timers[] = {
+static struct omap_dm_timer omap2_dm_timers[] = {
 	{ .phys_base = 0x48028000, .irq = INT_24XX_GPTIMER1 },
 	{ .phys_base = 0x4802a000, .irq = INT_24XX_GPTIMER2 },
 	{ .phys_base = 0x48078000, .irq = INT_24XX_GPTIMER3 },
@@ -114,13 +126,48 @@ static struct omap_dm_timer dm_timers[] = {
 	{ .phys_base = 0x4808a000, .irq = INT_24XX_GPTIMER12 },
 };
 
-static const char *dm_source_names[] = {
+static const char *omap2_dm_source_names[] __initdata = {
 	"sys_ck",
 	"func_32k_ck",
-	"alt_ck"
+	"alt_ck",
+	NULL
 };
 
-static struct clk *dm_source_clocks[3];
+static struct clk **omap2_dm_source_clocks[3];
+static const int dm_timer_count = ARRAY_SIZE(omap2_dm_timers);
+
+#elif defined(CONFIG_ARCH_OMAP3)
+
+#define omap_dm_clk_enable(x)		clk_enable(x)
+#define omap_dm_clk_disable(x)		clk_disable(x)
+#define omap1_dm_timers			NULL
+#define omap2_dm_timers			NULL
+#define omap2_dm_source_names		NULL
+#define omap2_dm_source_clocks		NULL
+
+static struct omap_dm_timer omap3_dm_timers[] = {
+	{ .phys_base = 0x48318000, .irq = INT_24XX_GPTIMER1 },
+	{ .phys_base = 0x49032000, .irq = INT_24XX_GPTIMER2 },
+	{ .phys_base = 0x49034000, .irq = INT_24XX_GPTIMER3 },
+	{ .phys_base = 0x49036000, .irq = INT_24XX_GPTIMER4 },
+	{ .phys_base = 0x49038000, .irq = INT_24XX_GPTIMER5 },
+	{ .phys_base = 0x4903A000, .irq = INT_24XX_GPTIMER6 },
+	{ .phys_base = 0x4903C000, .irq = INT_24XX_GPTIMER7 },
+	{ .phys_base = 0x4903E000, .irq = INT_24XX_GPTIMER8 },
+	{ .phys_base = 0x49040000, .irq = INT_24XX_GPTIMER9 },
+	{ .phys_base = 0x48086000, .irq = INT_24XX_GPTIMER10 },
+	{ .phys_base = 0x48088000, .irq = INT_24XX_GPTIMER11 },
+	{ .phys_base = 0x48304000, .irq = INT_24XX_GPTIMER12 },
+};
+
+static const char *omap3_dm_source_names[] __initdata = {
+	"sys_ck",
+	"omap_32k_fck",
+	NULL
+};
+
+static struct clk **omap3_dm_source_clocks[2];
+static const int dm_timer_count = ARRAY_SIZE(omap3_dm_timers);
 
 #else
 
@@ -128,7 +175,10 @@ static struct clk *dm_source_clocks[3];
 
 #endif
 
-static const int dm_timer_count = ARRAY_SIZE(dm_timers);
+static struct omap_dm_timer *dm_timers;
+static char **dm_source_names;
+static struct clk **dm_source_clocks;
+
 static spinlock_t dm_timer_lock;
 
 static inline u32 omap_dm_timer_read_reg(struct omap_dm_timer *timer, int reg)
@@ -299,7 +349,7 @@ __u32 omap_dm_timer_modify_idlect_mask(__u32 inputmask)
 	return inputmask;
 }
 
-#elif defined(CONFIG_ARCH_OMAP2)
+#elif defined(CONFIG_ARCH_OMAP2) || defined (CONFIG_ARCH_OMAP3)
 
 struct clk *omap_dm_timer_get_fclk(struct omap_dm_timer *timer)
 {
@@ -486,36 +536,46 @@ int omap_dm_timers_active(void)
 	return 0;
 }
 
-int omap_dm_timer_init(void)
+int __init omap_dm_timer_init(void)
 {
 	struct omap_dm_timer *timer;
 	int i;
 
-	if (!(cpu_is_omap16xx() || cpu_is_omap24xx()))
+	if (!(cpu_is_omap16xx() || cpu_class_is_omap2()))
 		return -ENODEV;
 
 	spin_lock_init(&dm_timer_lock);
-#ifdef CONFIG_ARCH_OMAP2
-	for (i = 0; i < ARRAY_SIZE(dm_source_names); i++) {
-		dm_source_clocks[i] = clk_get(NULL, dm_source_names[i]);
-		BUG_ON(dm_source_clocks[i] == NULL);
+
+	if (cpu_class_is_omap1())
+		dm_timers = omap1_dm_timers;
+	else if (cpu_is_omap24xx()) {
+		dm_timers = omap2_dm_timers;
+		dm_source_names = (char **)omap2_dm_source_names;
+		dm_source_clocks = (struct clk **)omap2_dm_source_clocks;
+	} else if (cpu_is_omap34xx()) {
+		dm_timers = omap3_dm_timers;
+		dm_source_names = (char **)omap3_dm_source_names;
+		dm_source_clocks = (struct clk **)omap3_dm_source_clocks;
 	}
-#endif
+
+	if (cpu_class_is_omap2())
+		for (i = 0; dm_source_names[i] != NULL; i++)
+			dm_source_clocks[i] = clk_get(NULL, dm_source_names[i]);
+
 	if (cpu_is_omap243x())
 		dm_timers[0].phys_base = 0x49018000;
 
 	for (i = 0; i < dm_timer_count; i++) {
-#ifdef CONFIG_ARCH_OMAP2
-		char clk_name[16];
-#endif
-
 		timer = &dm_timers[i];
-		timer->io_base = (void __iomem *) io_p2v(timer->phys_base);
-#ifdef CONFIG_ARCH_OMAP2
-		sprintf(clk_name, "gpt%d_ick", i + 1);
-		timer->iclk = clk_get(NULL, clk_name);
-		sprintf(clk_name, "gpt%d_fck", i + 1);
-		timer->fclk = clk_get(NULL, clk_name);
+		timer->io_base = (void __iomem *)io_p2v(timer->phys_base);
+#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
+		if (cpu_class_is_omap2()) {
+			char clk_name[16];
+			sprintf(clk_name, "gpt%d_ick", i + 1);
+			timer->iclk = clk_get(NULL, clk_name);
+			sprintf(clk_name, "gpt%d_fck", i + 1);
+			timer->fclk = clk_get(NULL, clk_name);
+		}
 #endif
 	}
 

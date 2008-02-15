@@ -68,11 +68,6 @@ static char *serial_version = "$Revision: 1.25 $";
 
 struct tty_driver *serial_driver;
 
-/* serial subtype definitions */
-#ifndef SERIAL_TYPE_NORMAL
-#define SERIAL_TYPE_NORMAL	1
-#endif
-
 /* number of characters left in xmit buffer before we ask for more */
 #define WAKEUP_CHARS 256
 

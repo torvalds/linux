@@ -29,8 +29,9 @@
 
 #include <linux/time.h>
 #include <linux/fs.h>
-#include <linux/ufs_fs.h>
 #include <linux/smp_lock.h>
+
+#include "ufs_fs.h"
 #include "ufs.h"
 #include "util.h"
 
@@ -57,10 +58,10 @@ static struct dentry *ufs_lookup(struct inode * dir, struct dentry *dentry, stru
 	lock_kernel();
 	ino = ufs_inode_by_name(dir, dentry);
 	if (ino) {
-		inode = iget(dir->i_sb, ino);
-		if (!inode) {
+		inode = ufs_iget(dir->i_sb, ino);
+		if (IS_ERR(inode)) {
 			unlock_kernel();
-			return ERR_PTR(-EACCES);
+			return ERR_CAST(inode);
 		}
 	}
 	unlock_kernel();

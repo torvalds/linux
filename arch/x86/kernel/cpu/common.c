@@ -637,7 +637,7 @@ void __init early_cpu_init(void)
 }
 
 /* Make sure %fs is initialized properly in idle threads */
-struct pt_regs * __devinit idle_regs(struct pt_regs *regs)
+struct pt_regs * __cpuinit idle_regs(struct pt_regs *regs)
 {
 	memset(regs, 0, sizeof(struct pt_regs));
 	regs->fs = __KERNEL_PERCPU;

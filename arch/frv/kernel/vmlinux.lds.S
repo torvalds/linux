@@ -105,11 +105,9 @@ SECTIONS
 	SCHED_TEXT
 	LOCK_TEXT
 #ifdef CONFIG_DEBUG_INFO
-	*(
 	INIT_TEXT
 	EXIT_TEXT
-	.exitcall.exit
-	)
+	*(.exitcall.exit)
 #endif
 	*(.fixup)
 	*(.gnu.warning)

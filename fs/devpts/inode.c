@@ -20,8 +20,11 @@
 #include <linux/devpts_fs.h>
 #include <linux/parser.h>
 #include <linux/fsnotify.h>
+#include <linux/seq_file.h>
 
 #define DEVPTS_SUPER_MAGIC 0x1cd1
+
+#define DEVPTS_DEFAULT_MODE 0600
 
 static struct vfsmount *devpts_mnt;
 static struct dentry *devpts_root;
@@ -32,7 +35,7 @@ static struct {
 	uid_t   uid;
 	gid_t   gid;
 	umode_t mode;
-} config = {.mode = 0600};
+} config = {.mode = DEVPTS_DEFAULT_MODE};
 
 enum {
 	Opt_uid, Opt_gid, Opt_mode,
@@ -54,7 +57,7 @@ static int devpts_remount(struct super_block *sb, int *flags, char *data)
 	config.setgid  = 0;
 	config.uid     = 0;
 	config.gid     = 0;
-	config.mode    = 0600;
+	config.mode    = DEVPTS_DEFAULT_MODE;
 
 	while ((p = strsep(&data, ",")) != NULL) {
 		substring_t args[MAX_OPT_ARGS];
@@ -81,7 +84,7 @@ static int devpts_remount(struct super_block *sb, int *flags, char *data)
 		case Opt_mode:
 			if (match_octal(&args[0], &option))
 				return -EINVAL;
-			config.mode = option & ~S_IFMT;
+			config.mode = option & S_IALLUGO;
 			break;
 		default:
 			printk(KERN_ERR "devpts: called with bogus options\n");
@@ -92,9 +95,21 @@ static int devpts_remount(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
+static int devpts_show_options(struct seq_file *seq, struct vfsmount *vfs)
+{
+	if (config.setuid)
+		seq_printf(seq, ",uid=%u", config.uid);
+	if (config.setgid)
+		seq_printf(seq, ",gid=%u", config.gid);
+	seq_printf(seq, ",mode=%03o", config.mode);
+
+	return 0;
+}
+
 static const struct super_operations devpts_sops = {
 	.statfs		= simple_statfs,
 	.remount_fs	= devpts_remount,
+	.show_options	= devpts_show_options,
 };
 
 static int

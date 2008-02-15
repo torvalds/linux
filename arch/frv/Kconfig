@@ -5,6 +5,7 @@
 config FRV
 	bool
 	default y
+	select HAVE_IDE
 
 config ZONE_DMA
 	bool
@@ -56,6 +57,10 @@ config ARCH_HAS_ILOG2_U32
 config ARCH_HAS_ILOG2_U64
 	bool
 	default y
+
+config HZ
+	int
+	default 1000
 
 mainmenu "Fujitsu FR-V Kernel Configuration"
 

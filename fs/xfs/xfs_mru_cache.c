@@ -225,10 +225,14 @@ _xfs_mru_cache_list_insert(
  * list need to be deleted.  For each element this involves removing it from the
  * data store, removing it from the reap list, calling the client's free
  * function and deleting the element from the element zone.
+ *
+ * We get called holding the mru->lock, which we drop and then reacquire.
+ * Sparse need special help with this to tell it we know what we are doing.
  */
 STATIC void
 _xfs_mru_cache_clear_reap_list(
-	xfs_mru_cache_t		*mru)
+	xfs_mru_cache_t		*mru) __releases(mru->lock) __acquires(mru->lock)
+
 {
 	xfs_mru_cache_elem_t	*elem, *next;
 	struct list_head	tmp;
@@ -245,7 +249,7 @@ _xfs_mru_cache_clear_reap_list(
 		 */
 		list_move(&elem->list_node, &tmp);
 	}
-	mutex_spinunlock(&mru->lock, 0);
+	spin_unlock(&mru->lock);
 
 	list_for_each_entry_safe(elem, next, &tmp, list_node) {
 
@@ -259,7 +263,7 @@ _xfs_mru_cache_clear_reap_list(
 		kmem_zone_free(xfs_mru_elem_zone, elem);
 	}
 
-	mutex_spinlock(&mru->lock);
+	spin_lock(&mru->lock);
 }
 
 /*
@@ -280,7 +284,7 @@ _xfs_mru_cache_reap(
 	if (!mru || !mru->lists)
 		return;
 
-	mutex_spinlock(&mru->lock);
+	spin_lock(&mru->lock);
 	next = _xfs_mru_cache_migrate(mru, jiffies);
 	_xfs_mru_cache_clear_reap_list(mru);
 
@@ -294,7 +298,7 @@ _xfs_mru_cache_reap(
 		queue_delayed_work(xfs_mru_reap_wq, &mru->work, next);
 	}
 
-	mutex_spinunlock(&mru->lock, 0);
+	spin_unlock(&mru->lock);
 }
 
 int
@@ -368,7 +372,7 @@ xfs_mru_cache_create(
 	 */
 	INIT_RADIX_TREE(&mru->store, GFP_ATOMIC);
 	INIT_LIST_HEAD(&mru->reap_list);
-	spinlock_init(&mru->lock, "xfs_mru_cache");
+	spin_lock_init(&mru->lock);
 	INIT_DELAYED_WORK(&mru->work, _xfs_mru_cache_reap);
 
 	mru->grp_time  = grp_time;
@@ -398,17 +402,17 @@ xfs_mru_cache_flush(
 	if (!mru || !mru->lists)
 		return;
 
-	mutex_spinlock(&mru->lock);
+	spin_lock(&mru->lock);
 	if (mru->queued) {
-		mutex_spinunlock(&mru->lock, 0);
+		spin_unlock(&mru->lock);
 		cancel_rearming_delayed_workqueue(xfs_mru_reap_wq, &mru->work);
-		mutex_spinlock(&mru->lock);
+		spin_lock(&mru->lock);
 	}
 
 	_xfs_mru_cache_migrate(mru, jiffies + mru->grp_count * mru->grp_time);
 	_xfs_mru_cache_clear_reap_list(mru);
 
-	mutex_spinunlock(&mru->lock, 0);
+	spin_unlock(&mru->lock);
 }
 
 void
@@ -454,13 +458,13 @@ xfs_mru_cache_insert(
 	elem->key = key;
 	elem->value = value;
 
-	mutex_spinlock(&mru->lock);
+	spin_lock(&mru->lock);
 
 	radix_tree_insert(&mru->store, key, elem);
 	radix_tree_preload_end();
 	_xfs_mru_cache_list_insert(mru, elem);
 
-	mutex_spinunlock(&mru->lock, 0);
+	spin_unlock(&mru->lock);
 
 	return 0;
 }
@@ -483,14 +487,14 @@ xfs_mru_cache_remove(
 	if (!mru || !mru->lists)
 		return NULL;
 
-	mutex_spinlock(&mru->lock);
+	spin_lock(&mru->lock);
 	elem = radix_tree_delete(&mru->store, key);
 	if (elem) {
 		value = elem->value;
 		list_del(&elem->list_node);
 	}
 
-	mutex_spinunlock(&mru->lock, 0);
+	spin_unlock(&mru->lock);
 
 	if (elem)
 		kmem_zone_free(xfs_mru_elem_zone, elem);
@@ -528,6 +532,10 @@ xfs_mru_cache_delete(
  *
  * If the element isn't found, this function returns NULL and the spinlock is
  * released.  xfs_mru_cache_done() should NOT be called when this occurs.
+ *
+ * Because sparse isn't smart enough to know about conditional lock return
+ * status, we need to help it get it right by annotating the path that does
+ * not release the lock.
  */
 void *
 xfs_mru_cache_lookup(
@@ -540,14 +548,14 @@ xfs_mru_cache_lookup(
 	if (!mru || !mru->lists)
 		return NULL;
 
-	mutex_spinlock(&mru->lock);
+	spin_lock(&mru->lock);
 	elem = radix_tree_lookup(&mru->store, key);
 	if (elem) {
 		list_del(&elem->list_node);
 		_xfs_mru_cache_list_insert(mru, elem);
-	}
-	else
-		mutex_spinunlock(&mru->lock, 0);
+		__release(mru_lock); /* help sparse not be stupid */
+	} else
+		spin_unlock(&mru->lock);
 
 	return elem ? elem->value : NULL;
 }
@@ -571,10 +579,12 @@ xfs_mru_cache_peek(
 	if (!mru || !mru->lists)
 		return NULL;
 
-	mutex_spinlock(&mru->lock);
+	spin_lock(&mru->lock);
 	elem = radix_tree_lookup(&mru->store, key);
 	if (!elem)
-		mutex_spinunlock(&mru->lock, 0);
+		spin_unlock(&mru->lock);
+	else
+		__release(mru_lock); /* help sparse not be stupid */
 
 	return elem ? elem->value : NULL;
 }
@@ -586,7 +596,7 @@ xfs_mru_cache_peek(
  */
 void
 xfs_mru_cache_done(
-	xfs_mru_cache_t	*mru)
+	xfs_mru_cache_t	*mru) __releases(mru->lock)
 {
-	mutex_spinunlock(&mru->lock, 0);
+	spin_unlock(&mru->lock);
 }

@@ -120,6 +120,8 @@ struct s3c2410_nand_info {
 	int				sel_bit;
 	int				mtd_count;
 
+	unsigned long			save_nfconf;
+
 	enum s3c_cpu_type		cpu_type;
 };
 
@@ -364,23 +366,21 @@ static int s3c2410_nand_correct_data(struct mtd_info *mtd, u_char *dat,
 	    ((diff2 ^ (diff2 >> 1)) & 0x55) == 0x55) {
 		/* calculate the bit position of the error */
 
-		bit  = (diff2 >> 2) & 1;
-		bit |= (diff2 >> 3) & 2;
-		bit |= (diff2 >> 4) & 4;
+		bit  = ((diff2 >> 3) & 1) |
+		       ((diff2 >> 4) & 2) |
+		       ((diff2 >> 5) & 4);
 
 		/* calculate the byte position of the error */
 
-		byte  = (diff1 << 1) & 0x80;
-		byte |= (diff1 << 2) & 0x40;
-		byte |= (diff1 << 3) & 0x20;
-		byte |= (diff1 << 4) & 0x10;
-
-		byte |= (diff0 >> 3) & 0x08;
-		byte |= (diff0 >> 2) & 0x04;
-		byte |= (diff0 >> 1) & 0x02;
-		byte |= (diff0 >> 0) & 0x01;
-
-		byte |= (diff2 << 8) & 0x100;
+		byte = ((diff2 << 7) & 0x100) |
+		       ((diff1 << 0) & 0x80)  |
+		       ((diff1 << 1) & 0x40)  |
+		       ((diff1 << 2) & 0x20)  |
+		       ((diff1 << 3) & 0x10)  |
+		       ((diff0 >> 4) & 0x08)  |
+		       ((diff0 >> 3) & 0x04)  |
+		       ((diff0 >> 2) & 0x02)  |
+		       ((diff0 >> 1) & 0x01);
 
 		dev_dbg(info->device, "correcting error bit %d, byte %d\n",
 			bit, byte);
@@ -399,7 +399,7 @@ static int s3c2410_nand_correct_data(struct mtd_info *mtd, u_char *dat,
 	if ((diff0 & ~(1<<fls(diff0))) == 0)
 		return 1;
 
-	return 0;
+	return -1;
 }
 
 /* ECC functions
@@ -810,6 +810,16 @@ static int s3c24xx_nand_suspend(struct platform_device *dev, pm_message_t pm)
 	struct s3c2410_nand_info *info = platform_get_drvdata(dev);
 
 	if (info) {
+		info->save_nfconf = readl(info->regs + S3C2410_NFCONF);
+
+		/* For the moment, we must ensure nFCE is high during
+		 * the time we are suspended. This really should be
+		 * handled by suspending the MTDs we are using, but
+		 * that is currently not the case. */
+
+		writel(info->save_nfconf | info->sel_bit,
+		       info->regs + S3C2410_NFCONF);
+
 		if (!allow_clk_stop(info))
 			clk_disable(info->clk);
 	}
@@ -820,10 +830,18 @@ static int s3c24xx_nand_suspend(struct platform_device *dev, pm_message_t pm)
 static int s3c24xx_nand_resume(struct platform_device *dev)
 {
 	struct s3c2410_nand_info *info = platform_get_drvdata(dev);
+	unsigned long nfconf;
 
 	if (info) {
 		clk_enable(info->clk);
 		s3c2410_nand_inithw(info, dev);
+
+		/* Restore the state of the nFCE line. */
+
+		nfconf = readl(info->regs + S3C2410_NFCONF);
+		nfconf &= ~info->sel_bit;
+		nfconf |= info->save_nfconf & info->sel_bit;
+		writel(nfconf, info->regs + S3C2410_NFCONF);
 
 		if (allow_clk_stop(info))
 			clk_disable(info->clk);

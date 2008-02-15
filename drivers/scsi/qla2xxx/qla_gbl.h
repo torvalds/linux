@@ -66,6 +66,7 @@ extern int ql2xqfullrampup;
 extern int num_hosts;
 
 extern int qla2x00_loop_reset(scsi_qla_host_t *);
+extern void qla2x00_abort_all_cmds(scsi_qla_host_t *, int);
 
 /*
  * Global Functions in qla_mid.c source file.

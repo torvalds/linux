@@ -28,12 +28,11 @@ static int if_lock(struct cardstate *cs, int *arg)
 		return -EINVAL;
 
 	if (cmd < 0) {
-		*arg = atomic_read(&cs->mstate) == MS_LOCKED; //FIXME remove?
+		*arg = cs->mstate == MS_LOCKED;
 		return 0;
 	}
 
-	if (!cmd && atomic_read(&cs->mstate) == MS_LOCKED
-	    && cs->connected) {
+	if (!cmd && cs->mstate == MS_LOCKED && cs->connected) {
 		cs->ops->set_modem_ctrl(cs, 0, TIOCM_DTR|TIOCM_RTS);
 		cs->ops->baud_rate(cs, B115200);
 		cs->ops->set_line_ctrl(cs, CS8);
@@ -104,7 +103,7 @@ static int if_config(struct cardstate *cs, int *arg)
 	if (*arg != 1)
 		return -EINVAL;
 
-	if (atomic_read(&cs->mstate) != MS_LOCKED)
+	if (cs->mstate != MS_LOCKED)
 		return -EBUSY;
 
 	if (!cs->connected) {
@@ -162,7 +161,7 @@ static int if_open(struct tty_struct *tty, struct file *filp)
 	tty->driver_data = NULL;
 
 	cs = gigaset_get_cs_by_tty(tty);
-	if (!cs)
+	if (!cs || !try_module_get(cs->driver->owner))
 		return -ENODEV;
 
 	if (mutex_lock_interruptible(&cs->mutex))
@@ -208,6 +207,8 @@ static void if_close(struct tty_struct *tty, struct file *filp)
 	}
 
 	mutex_unlock(&cs->mutex);
+
+	module_put(cs->driver->owner);
 }
 
 static int if_ioctl(struct tty_struct *tty, struct file *file,
@@ -364,7 +365,7 @@ static int if_write(struct tty_struct *tty, const unsigned char *buf, int count)
 
 	if (!cs->open_count)
 		warn("%s: device not opened", __func__);
-	else if (atomic_read(&cs->mstate) != MS_LOCKED) {
+	else if (cs->mstate != MS_LOCKED) {
 		warn("can't write to unlocked device");
 		retval = -EBUSY;
 	} else if (!cs->connected) {
@@ -398,9 +399,9 @@ static int if_write_room(struct tty_struct *tty)
 
 	if (!cs->open_count)
 		warn("%s: device not opened", __func__);
-	else if (atomic_read(&cs->mstate) != MS_LOCKED) {
+	else if (cs->mstate != MS_LOCKED) {
 		warn("can't write to unlocked device");
-		retval = -EBUSY; //FIXME
+		retval = -EBUSY;
 	} else if (!cs->connected) {
 		gig_dbg(DEBUG_ANY, "can't write to unplugged device");
 		retval = -EBUSY; //FIXME
@@ -430,7 +431,7 @@ static int if_chars_in_buffer(struct tty_struct *tty)
 
 	if (!cs->open_count)
 		warn("%s: device not opened", __func__);
-	else if (atomic_read(&cs->mstate) != MS_LOCKED) {
+	else if (cs->mstate != MS_LOCKED) {
 		warn("can't write to unlocked device");
 		retval = -EBUSY;
 	} else if (!cs->connected) {

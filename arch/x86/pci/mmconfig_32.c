@@ -30,10 +30,6 @@ static u32 get_base_addr(unsigned int seg, int bus, unsigned devfn)
 	struct acpi_mcfg_allocation *cfg;
 	int cfg_num;
 
-	if (seg == 0 && bus < PCI_MMCFG_MAX_CHECK_BUS &&
-	    test_bit(PCI_SLOT(devfn) + 32*bus, pci_mmcfg_fallback_slots))
-		return 0;
-
 	for (cfg_num = 0; cfg_num < pci_mmcfg_config_num; cfg_num++) {
 		cfg = &pci_mmcfg_config[cfg_num];
 		if (cfg->pci_segment == seg &&
@@ -68,13 +64,13 @@ static int pci_mmcfg_read(unsigned int seg, unsigned int bus,
 	u32 base;
 
 	if ((bus > 255) || (devfn > 255) || (reg > 4095)) {
-		*value = -1;
+err:		*value = -1;
 		return -EINVAL;
 	}
 
 	base = get_base_addr(seg, bus, devfn);
 	if (!base)
-		return pci_conf1_read(seg,bus,devfn,reg,len,value);
+		goto err;
 
 	spin_lock_irqsave(&pci_config_lock, flags);
 
@@ -107,7 +103,7 @@ static int pci_mmcfg_write(unsigned int seg, unsigned int bus,
 
 	base = get_base_addr(seg, bus, devfn);
 	if (!base)
-		return pci_conf1_write(seg,bus,devfn,reg,len,value);
+		return -EINVAL;
 
 	spin_lock_irqsave(&pci_config_lock, flags);
 
@@ -134,15 +130,9 @@ static struct pci_raw_ops pci_mmcfg = {
 	.write =	pci_mmcfg_write,
 };
 
-int __init pci_mmcfg_arch_reachable(unsigned int seg, unsigned int bus,
-				    unsigned int devfn)
-{
-	return get_base_addr(seg, bus, devfn) != 0;
-}
-
 int __init pci_mmcfg_arch_init(void)
 {
-	printk(KERN_INFO "PCI: Using MMCONFIG\n");
-	raw_pci_ops = &pci_mmcfg;
+	printk(KERN_INFO "PCI: Using MMCONFIG for extended config space\n");
+	raw_pci_ext_ops = &pci_mmcfg;
 	return 1;
 }

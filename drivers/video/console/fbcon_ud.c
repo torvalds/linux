@@ -71,7 +71,7 @@ static void ud_clear(struct vc_data *vc, struct fb_info *info, int sy,
 	u32 vyres = GETVYRES(ops->p->scrollmode, info);
 	u32 vxres = GETVXRES(ops->p->scrollmode, info);
 
-	region.color = attr_bgcol_ec(bgshift,vc);
+	region.color = attr_bgcol_ec(bgshift,vc,info);
 	region.dy = vyres - ((sy + height) * vc->vc_font.height);
 	region.dx = vxres - ((sx + width) *  vc->vc_font.width);
 	region.width = width * vc->vc_font.width;
@@ -228,7 +228,7 @@ static void ud_clear_margins(struct vc_data *vc, struct fb_info *info,
 	struct fb_fillrect region;
 	int bgshift = (vc->vc_hi_font_mask) ? 13 : 12;
 
-	region.color = attr_bgcol_ec(bgshift,vc);
+	region.color = attr_bgcol_ec(bgshift,vc,info);
 	region.rop = ROP_COPY;
 
 	if (rw && !bottom_only) {

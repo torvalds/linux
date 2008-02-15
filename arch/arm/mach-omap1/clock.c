@@ -1,4 +1,3 @@
-//kernel/linux-omap-fsample/arch/arm/mach-omap1/clock.c#2 - edit change 3808 (text)
 /*
  *  linux/arch/arm/mach-omap1/clock.c
  *
@@ -650,9 +649,9 @@ static void __init omap1_clk_disable_unused(struct clk *clk)
 
 	/* FIXME: This clock seems to be necessary but no-one
 	 * has asked for its activation. */
-	if (clk == &tc2_ck		// FIX: pm.c (SRAM), CCP, Camera
-	    || clk == &ck_dpll1out.clk	// FIX: SoSSI, SSR
-	    || clk == &arm_gpio_ck	// FIX: GPIO code for 1510
+	if (clk == &tc2_ck		/* FIX: pm.c (SRAM), CCP, Camera */
+	    || clk == &ck_dpll1out.clk	/* FIX: SoSSI, SSR */
+	    || clk == &arm_gpio_ck	/* FIX: GPIO code for 1510 */
 		) {
 		printk(KERN_INFO "FIXME: Clock \"%s\" seems unused\n",
 		       clk->name);

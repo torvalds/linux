@@ -137,6 +137,18 @@ config INPUT_EVBUG
 	  To compile this driver as a module, choose M here: the
 	  module will be called evbug.
 
+config INPUT_APMPOWER
+	tristate "Input Power Event -> APM Bridge" if EMBEDDED
+	depends on INPUT && APM_EMULATION
+	---help---
+	  Say Y here if you want suspend key events to trigger a user
+	  requested suspend through APM. This is useful on embedded
+	  systems where such behviour is desired without userspace
+	  interaction. If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called apm-power.
+
 comment "Input Device Drivers"
 
 source "drivers/input/keyboard/Kconfig"

@@ -39,12 +39,33 @@ LED Device Naming
 
 Is currently of the form:
 
-"devicename:colour"
+"devicename:colour:function"
 
 There have been calls for LED properties such as colour to be exported as
 individual led class attributes. As a solution which doesn't incur as much
 overhead, I suggest these become part of the device name. The naming scheme
-above leaves scope for further attributes should they be needed.
+above leaves scope for further attributes should they be needed. If sections
+of the name don't apply, just leave that section blank.
+
+
+Hardware accelerated blink of LEDs
+==================================
+
+Some LEDs can be programmed to blink without any CPU interaction. To
+support this feature, a LED driver can optionally implement the
+blink_set() function (see <linux/leds.h>). If implemeted, triggers can
+attempt to use it before falling back to software timers. The blink_set()
+function should return 0 if the blink setting is supported, or -EINVAL
+otherwise, which means that LED blinking will be handled by software.
+
+The blink_set() function should choose a user friendly blinking
+value if it is called with *delay_on==0 && *delay_off==0 parameters. In
+this case the driver should give back the chosen value through delay_on
+and delay_off parameters to the leds subsystem.
+
+Any call to the brightness_set() callback function should cancel the
+previously programmed hardware blinking function so setting the brightness
+to 0 can also cancel the blinking of the LED.
 
 
 Known Issues
@@ -54,10 +75,6 @@ The LED Trigger core cannot be a module as the simple trigger functions
 would cause nightmare dependency issues. I see this as a minor issue
 compared to the benefits the simple trigger functionality brings. The
 rest of the LED subsystem can be modular.
-
-Some leds can be programmed to flash in hardware. As this isn't a generic
-LED device property, this should be exported as a device specific sysfs
-attribute rather than part of the class if this functionality is required.
 
 
 Future Development

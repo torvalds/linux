@@ -206,12 +206,17 @@ static inline u16 geode_mfgpt_read(int timer, u16 reg)
 	return inw(base + reg + (timer * 8));
 }
 
-extern int __init geode_mfgpt_detect(void);
 extern int geode_mfgpt_toggle_event(int timer, int cmp, int event, int enable);
 extern int geode_mfgpt_set_irq(int timer, int cmp, int irq, int enable);
-extern int geode_mfgpt_alloc_timer(int timer, int domain, struct module *owner);
+extern int geode_mfgpt_alloc_timer(int timer, int domain);
 
 #define geode_mfgpt_setup_irq(t, c, i) geode_mfgpt_set_irq((t), (c), (i), 1)
 #define geode_mfgpt_release_irq(t, c, i) geode_mfgpt_set_irq((t), (c), (i), 0)
+
+#ifdef CONFIG_GEODE_MFGPT_TIMER
+extern int __init mfgpt_timer_setup(void);
+#else
+static inline int mfgpt_timer_setup(void) { return 0; }
+#endif
 
 #endif

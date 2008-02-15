@@ -38,6 +38,10 @@
 #include <linux/mutex.h>
 #include <asm/io.h>
 
+static unsigned short force_id;
+module_param(force_id, ushort, 0);
+MODULE_PARM_DESC(force_id, "Override the detected device ID");
+
 static struct platform_device *pdev;
 
 #define DRVNAME "smsc47b397"
@@ -333,7 +337,7 @@ static int __init smsc47b397_find(unsigned short *addr)
 	u8 id, rev;
 
 	superio_enter();
-	id = superio_inb(SUPERIO_REG_DEVID);
+	id = force_id ? force_id : superio_inb(SUPERIO_REG_DEVID);
 
 	if ((id != 0x6f) && (id != 0x81) && (id != 0x85)) {
 		superio_exit();

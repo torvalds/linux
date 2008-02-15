@@ -19,77 +19,6 @@
 *!  Sep  03 1999  Edgar Iglesias    Added bail-out stuff if we get interrupted
 *!                                  in the spin-lock.
 *!
-*!  $Log: eeprom.c,v $
-*!  Revision 1.12  2005/06/19 17:06:46  starvik
-*!  Merge of Linux 2.6.12.
-*!
-*!  Revision 1.11  2005/01/26 07:14:46  starvik
-*!  Applied diff from kernel janitors (Nish Aravamudan).
-*!
-*!  Revision 1.10  2003/09/11 07:29:48  starvik
-*!  Merge of Linux 2.6.0-test5
-*!
-*!  Revision 1.9  2003/07/04 08:27:37  starvik
-*!  Merge of Linux 2.5.74
-*!
-*!  Revision 1.8  2003/04/09 05:20:47  starvik
-*!  Merge of Linux 2.5.67
-*!
-*!  Revision 1.6  2003/02/10 07:19:28  starvik
-*!  Removed misplaced ;
-*!
-*!  Revision 1.5  2002/12/11 13:13:57  starvik
-*!  Added arch/ to v10 specific includes
-*!  Added fix from Linux 2.4 in serial.c (flush_to_flip_buffer)
-*!
-*!  Revision 1.4  2002/11/20 11:56:10  starvik
-*!  Merge of Linux 2.5.48
-*!
-*!  Revision 1.3  2002/11/18 13:16:06  starvik
-*!  Linux 2.5 port of latest 2.4 drivers
-*!
-*!  Revision 1.8  2001/06/15 13:24:29  jonashg
-*!  * Added verification of pointers from userspace in read and write.
-*!  * Made busy counter volatile.
-*!  * Added define for initial write delay.
-*!  * Removed warnings by using loff_t instead of unsigned long.
-*!
-*!  Revision 1.7  2001/06/14 15:26:54  jonashg
-*!  Removed test because condition is always true.
-*!
-*!  Revision 1.6  2001/06/14 15:18:20  jonashg
-*!  Kb -> kB (makes quite a difference if you don't know if you have 2k or 16k).
-*!
-*!  Revision 1.5  2001/06/14 14:39:51  jonashg
-*!  Forgot to use name when registering the driver.
-*!
-*!  Revision 1.4  2001/06/14 14:35:47  jonashg
-*!  * Gave driver a name and used it in printk's.
-*!  * Cleanup.
-*!
-*!  Revision 1.3  2001/03/19 16:04:46  markusl
-*!  Fixed init of fops struct
-*!
-*!  Revision 1.2  2001/03/19 10:35:07  markusl
-*!  2.4 port of eeprom driver
-*!
-*!  Revision 1.8  2000/05/18 10:42:25  edgar
-*!  Make sure to end write cycle on _every_ write
-*!
-*!  Revision 1.7  2000/01/17 17:41:01  johana
-*!  Adjusted probing and return -ENOSPC when writing outside EEPROM
-*!
-*!  Revision 1.6  2000/01/17 15:50:36  johana
-*!  Added adaptive timing adjustments and fixed autoprobing for 2k and 16k(?)
-*!  EEPROMs
-*!
-*!  Revision 1.5  1999/09/03 15:07:37  edgar
-*!  Added bail-out check to the spinlock
-*!
-*!  Revision 1.4  1999/09/03 12:11:17  bjornw
-*!  Proper atomicity (need to use spinlocks, not if's). users -> busy.
-*!
-*!
 *!        (c) 1999 Axis Communications AB, Lund, Sweden
 *!*****************************************************************************/
 
@@ -103,10 +32,10 @@
 #include <asm/uaccess.h>
 #include "i2c.h"
 
-#define D(x) 
+#define D(x)
 
 /* If we should use adaptive timing or not: */
-//#define EEPROM_ADAPTIVE_TIMING      
+/* #define EEPROM_ADAPTIVE_TIMING */
 
 #define EEPROM_MAJOR_NR 122  /* use a LOCAL/EXPERIMENTAL major for now */
 #define EEPROM_MINOR_NR 0

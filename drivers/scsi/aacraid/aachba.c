@@ -144,51 +144,77 @@ static char *aac_get_status_string(u32 status);
  */
 
 static int nondasd = -1;
-static int aac_cache = 0;
+static int aac_cache;
 static int dacmode = -1;
-
+int aac_msi;
 int aac_commit = -1;
 int startup_timeout = 180;
 int aif_timeout = 120;
 
 module_param(nondasd, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(nondasd, "Control scanning of hba for nondasd devices. 0=off, 1=on");
+MODULE_PARM_DESC(nondasd, "Control scanning of hba for nondasd devices."
+	" 0=off, 1=on");
 module_param_named(cache, aac_cache, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(cache, "Disable Queue Flush commands:\n\tbit 0 - Disable FUA in WRITE SCSI commands\n\tbit 1 - Disable SYNCHRONIZE_CACHE SCSI command\n\tbit 2 - Disable only if Battery not protecting Cache");
+MODULE_PARM_DESC(cache, "Disable Queue Flush commands:\n"
+	"\tbit 0 - Disable FUA in WRITE SCSI commands\n"
+	"\tbit 1 - Disable SYNCHRONIZE_CACHE SCSI command\n"
+	"\tbit 2 - Disable only if Battery not protecting Cache");
 module_param(dacmode, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(dacmode, "Control whether dma addressing is using 64 bit DAC. 0=off, 1=on");
+MODULE_PARM_DESC(dacmode, "Control whether dma addressing is using 64 bit DAC."
+	" 0=off, 1=on");
 module_param_named(commit, aac_commit, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(commit, "Control whether a COMMIT_CONFIG is issued to the adapter for foreign arrays.\nThis is typically needed in systems that do not have a BIOS. 0=off, 1=on");
+MODULE_PARM_DESC(commit, "Control whether a COMMIT_CONFIG is issued to the"
+	" adapter for foreign arrays.\n"
+	"This is typically needed in systems that do not have a BIOS."
+	" 0=off, 1=on");
+module_param_named(msi, aac_msi, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(msi, "IRQ handling."
+	" 0=PIC(default), 1=MSI, 2=MSI-X(unsupported, uses MSI)");
 module_param(startup_timeout, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(startup_timeout, "The duration of time in seconds to wait for adapter to have it's kernel up and\nrunning. This is typically adjusted for large systems that do not have a BIOS.");
+MODULE_PARM_DESC(startup_timeout, "The duration of time in seconds to wait for"
+	" adapter to have it's kernel up and\n"
+	"running. This is typically adjusted for large systems that do not"
+	" have a BIOS.");
 module_param(aif_timeout, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(aif_timeout, "The duration of time in seconds to wait for applications to pick up AIFs before\nderegistering them. This is typically adjusted for heavily burdened systems.");
+MODULE_PARM_DESC(aif_timeout, "The duration of time in seconds to wait for"
+	" applications to pick up AIFs before\n"
+	"deregistering them. This is typically adjusted for heavily burdened"
+	" systems.");
 
 int numacb = -1;
 module_param(numacb, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(numacb, "Request a limit to the number of adapter control blocks (FIB) allocated. Valid values are 512 and down. Default is to use suggestion from Firmware.");
+MODULE_PARM_DESC(numacb, "Request a limit to the number of adapter control"
+	" blocks (FIB) allocated. Valid values are 512 and down. Default is"
+	" to use suggestion from Firmware.");
 
 int acbsize = -1;
 module_param(acbsize, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(acbsize, "Request a specific adapter control block (FIB) size. Valid values are 512, 2048, 4096 and 8192. Default is to use suggestion from Firmware.");
+MODULE_PARM_DESC(acbsize, "Request a specific adapter control block (FIB)"
+	" size. Valid values are 512, 2048, 4096 and 8192. Default is to use"
+	" suggestion from Firmware.");
 
 int update_interval = 30 * 60;
 module_param(update_interval, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(update_interval, "Interval in seconds between time sync updates issued to adapter.");
+MODULE_PARM_DESC(update_interval, "Interval in seconds between time sync"
+	" updates issued to adapter.");
 
 int check_interval = 24 * 60 * 60;
 module_param(check_interval, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(check_interval, "Interval in seconds between adapter health checks.");
+MODULE_PARM_DESC(check_interval, "Interval in seconds between adapter health"
+	" checks.");
 
 int aac_check_reset = 1;
 module_param_named(check_reset, aac_check_reset, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(aac_check_reset, "If adapter fails health check, reset the adapter. a value of -1 forces the reset to adapters programmed to ignore it.");
+MODULE_PARM_DESC(aac_check_reset, "If adapter fails health check, reset the"
+	" adapter. a value of -1 forces the reset to adapters programmed to"
+	" ignore it.");
 
 int expose_physicals = -1;
 module_param(expose_physicals, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(expose_physicals, "Expose physical components of the arrays. -1=protect 0=off, 1=on");
+MODULE_PARM_DESC(expose_physicals, "Expose physical components of the arrays."
+	" -1=protect 0=off, 1=on");
 
-int aac_reset_devices = 0;
+int aac_reset_devices;
 module_param_named(reset_devices, aac_reset_devices, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(reset_devices, "Force an adapter reset at initialization.");
 
@@ -859,44 +885,31 @@ static int setinqserial(struct aac_dev *dev, void *data, int cid)
 			le32_to_cpu(dev->adapter_info.serial[0]), cid);
 }
 
-static void set_sense(u8 *sense_buf, u8 sense_key, u8 sense_code,
-		      u8 a_sense_code, u8 incorrect_length,
-		      u8 bit_pointer, u16 field_pointer,
-		      u32 residue)
+static inline void set_sense(struct sense_data *sense_data, u8 sense_key,
+	u8 sense_code, u8 a_sense_code, u8 bit_pointer, u16 field_pointer)
 {
-	sense_buf[0] = 0xF0;	/* Sense data valid, err code 70h (current error) */
+	u8 *sense_buf = (u8 *)sense_data;
+	/* Sense data valid, err code 70h */
+	sense_buf[0] = 0x70; /* No info field */
 	sense_buf[1] = 0;	/* Segment number, always zero */
 
-	if (incorrect_length) {
-		sense_buf[2] = sense_key | 0x20;/* Set ILI bit | sense key */
-		sense_buf[3] = BYTE3(residue);
-		sense_buf[4] = BYTE2(residue);
-		sense_buf[5] = BYTE1(residue);
-		sense_buf[6] = BYTE0(residue);
-	} else
-		sense_buf[2] = sense_key;	/* Sense key */
-
-	if (sense_key == ILLEGAL_REQUEST)
-		sense_buf[7] = 10;	/* Additional sense length */
-	else
-		sense_buf[7] = 6;	/* Additional sense length */
+	sense_buf[2] = sense_key;	/* Sense key */
 
 	sense_buf[12] = sense_code;	/* Additional sense code */
 	sense_buf[13] = a_sense_code;	/* Additional sense code qualifier */
+
 	if (sense_key == ILLEGAL_REQUEST) {
-		sense_buf[15] = 0;
+		sense_buf[7] = 10;	/* Additional sense length */
 
-		if (sense_code == SENCODE_INVALID_PARAM_FIELD)
-			sense_buf[15] = 0x80;/* Std sense key specific field */
+		sense_buf[15] = bit_pointer;
 		/* Illegal parameter is in the parameter block */
-
 		if (sense_code == SENCODE_INVALID_CDB_FIELD)
-			sense_buf[15] = 0xc0;/* Std sense key specific field */
+			sense_buf[15] |= 0xc0;/* Std sense key specific field */
 		/* Illegal parameter is in the CDB block */
-		sense_buf[15] |= bit_pointer;
 		sense_buf[16] = field_pointer >> 8;	/* MSB */
 		sense_buf[17] = field_pointer;		/* LSB */
-	}
+	} else
+		sense_buf[7] = 6;	/* Additional sense length */
 }
 
 static int aac_bounds_32(struct aac_dev * dev, struct scsi_cmnd * cmd, u64 lba)
@@ -906,11 +919,9 @@ static int aac_bounds_32(struct aac_dev * dev, struct scsi_cmnd * cmd, u64 lba)
 		dprintk((KERN_DEBUG "aacraid: Illegal lba\n"));
 		cmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 |
 			SAM_STAT_CHECK_CONDITION;
-		set_sense((u8 *) &dev->fsa_dev[cid].sense_data,
-			    HARDWARE_ERROR,
-			    SENCODE_INTERNAL_TARGET_FAILURE,
-			    ASENCODE_INTERNAL_TARGET_FAILURE, 0, 0,
-			    0, 0);
+		set_sense(&dev->fsa_dev[cid].sense_data,
+		  HARDWARE_ERROR, SENCODE_INTERNAL_TARGET_FAILURE,
+		  ASENCODE_INTERNAL_TARGET_FAILURE, 0, 0);
 		memcpy(cmd->sense_buffer, &dev->fsa_dev[cid].sense_data,
 		       min_t(size_t, sizeof(dev->fsa_dev[cid].sense_data),
 			     SCSI_SENSE_BUFFERSIZE));
@@ -1330,7 +1341,7 @@ int aac_get_adapter_info(struct aac_dev* dev)
 			  (int)sizeof(dev->supplement_adapter_info.VpdInfo.Tsid),
 			  dev->supplement_adapter_info.VpdInfo.Tsid);
 		}
-		if (!aac_check_reset || ((aac_check_reset != 1) &&
+		if (!aac_check_reset || ((aac_check_reset == 1) &&
 		  (dev->supplement_adapter_info.SupportedOptions2 &
 		  AAC_OPTION_IGNORE_RESET))) {
 			printk(KERN_INFO "%s%d: Reset Adapter Ignored\n",
@@ -1368,13 +1379,14 @@ int aac_get_adapter_info(struct aac_dev* dev)
 
 	if (nondasd != -1)
 		dev->nondasd_support = (nondasd!=0);
-	if(dev->nondasd_support != 0) {
+	if (dev->nondasd_support && !dev->in_reset)
 		printk(KERN_INFO "%s%d: Non-DASD support enabled.\n",dev->name, dev->id);
-	}
 
 	dev->dac_support = 0;
 	if( (sizeof(dma_addr_t) > 4) && (dev->adapter_info.options & AAC_OPT_SGMAP_HOST64)){
-		printk(KERN_INFO "%s%d: 64bit support enabled.\n", dev->name, dev->id);
+		if (!dev->in_reset)
+			printk(KERN_INFO "%s%d: 64bit support enabled.\n",
+				dev->name, dev->id);
 		dev->dac_support = 1;
 	}
 
@@ -1384,8 +1396,9 @@ int aac_get_adapter_info(struct aac_dev* dev)
 	if(dev->dac_support != 0) {
 		if (!pci_set_dma_mask(dev->pdev, DMA_64BIT_MASK) &&
 			!pci_set_consistent_dma_mask(dev->pdev, DMA_64BIT_MASK)) {
-			printk(KERN_INFO"%s%d: 64 Bit DAC enabled\n",
-				dev->name, dev->id);
+			if (!dev->in_reset)
+				printk(KERN_INFO"%s%d: 64 Bit DAC enabled\n",
+					dev->name, dev->id);
 		} else if (!pci_set_dma_mask(dev->pdev, DMA_32BIT_MASK) &&
 			!pci_set_consistent_dma_mask(dev->pdev, DMA_32BIT_MASK)) {
 			printk(KERN_INFO"%s%d: DMA mask set failed, 64 Bit DAC disabled\n",
@@ -1520,11 +1533,9 @@ static void io_callback(void *context, struct fib * fibptr)
 		  le32_to_cpu(readreply->status));
 #endif
 		scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 | SAM_STAT_CHECK_CONDITION;
-		set_sense((u8 *) &dev->fsa_dev[cid].sense_data,
-				    HARDWARE_ERROR,
-				    SENCODE_INTERNAL_TARGET_FAILURE,
-				    ASENCODE_INTERNAL_TARGET_FAILURE, 0, 0,
-				    0, 0);
+		set_sense(&dev->fsa_dev[cid].sense_data,
+		  HARDWARE_ERROR, SENCODE_INTERNAL_TARGET_FAILURE,
+		  ASENCODE_INTERNAL_TARGET_FAILURE, 0, 0);
 		memcpy(scsicmd->sense_buffer, &dev->fsa_dev[cid].sense_data,
 		       min_t(size_t, sizeof(dev->fsa_dev[cid].sense_data),
 			     SCSI_SENSE_BUFFERSIZE));
@@ -1733,11 +1744,9 @@ static void synchronize_callback(void *context, struct fib *fibptr)
 		     le32_to_cpu(synchronizereply->status));
 		cmd->result = DID_OK << 16 |
 			COMMAND_COMPLETE << 8 | SAM_STAT_CHECK_CONDITION;
-		set_sense((u8 *)&dev->fsa_dev[cid].sense_data,
-				    HARDWARE_ERROR,
-				    SENCODE_INTERNAL_TARGET_FAILURE,
-				    ASENCODE_INTERNAL_TARGET_FAILURE, 0, 0,
-				    0, 0);
+		set_sense(&dev->fsa_dev[cid].sense_data,
+		  HARDWARE_ERROR, SENCODE_INTERNAL_TARGET_FAILURE,
+		  ASENCODE_INTERNAL_TARGET_FAILURE, 0, 0);
 		memcpy(cmd->sense_buffer, &dev->fsa_dev[cid].sense_data,
 		       min_t(size_t, sizeof(dev->fsa_dev[cid].sense_data),
 			     SCSI_SENSE_BUFFERSIZE));
@@ -1945,10 +1954,9 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 	{
 		dprintk((KERN_WARNING "Only INQUIRY & TUR command supported for controller, rcvd = 0x%x.\n", scsicmd->cmnd[0]));
 		scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 | SAM_STAT_CHECK_CONDITION;
-		set_sense((u8 *) &dev->fsa_dev[cid].sense_data,
-			    ILLEGAL_REQUEST,
-			    SENCODE_INVALID_COMMAND,
-			    ASENCODE_INVALID_COMMAND, 0, 0, 0, 0);
+		set_sense(&dev->fsa_dev[cid].sense_data,
+		  ILLEGAL_REQUEST, SENCODE_INVALID_COMMAND,
+		  ASENCODE_INVALID_COMMAND, 0, 0);
 		memcpy(scsicmd->sense_buffer, &dev->fsa_dev[cid].sense_data,
 		       min_t(size_t, sizeof(dev->fsa_dev[cid].sense_data),
 			     SCSI_SENSE_BUFFERSIZE));
@@ -1995,10 +2003,9 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 				scsicmd->result = DID_OK << 16 |
 				  COMMAND_COMPLETE << 8 |
 				  SAM_STAT_CHECK_CONDITION;
-				set_sense((u8 *) &dev->fsa_dev[cid].sense_data,
-				  ILLEGAL_REQUEST,
-				  SENCODE_INVALID_CDB_FIELD,
-				  ASENCODE_NO_SENSE, 0, 7, 2, 0);
+				set_sense(&dev->fsa_dev[cid].sense_data,
+				  ILLEGAL_REQUEST, SENCODE_INVALID_CDB_FIELD,
+				  ASENCODE_NO_SENSE, 7, 2);
 				memcpy(scsicmd->sense_buffer,
 				  &dev->fsa_dev[cid].sense_data,
 				  min_t(size_t,
@@ -2254,9 +2261,9 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 			 */
 			dprintk((KERN_WARNING "Unhandled SCSI Command: 0x%x.\n", scsicmd->cmnd[0]));
 			scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 | SAM_STAT_CHECK_CONDITION;
-			set_sense((u8 *) &dev->fsa_dev[cid].sense_data,
-				ILLEGAL_REQUEST, SENCODE_INVALID_COMMAND,
-				ASENCODE_INVALID_COMMAND, 0, 0, 0, 0);
+			set_sense(&dev->fsa_dev[cid].sense_data,
+			  ILLEGAL_REQUEST, SENCODE_INVALID_COMMAND,
+			  ASENCODE_INVALID_COMMAND, 0, 0);
 			memcpy(scsicmd->sense_buffer, &dev->fsa_dev[cid].sense_data,
 				min_t(size_t,
 				      sizeof(dev->fsa_dev[cid].sense_data),

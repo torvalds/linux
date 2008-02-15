@@ -58,7 +58,7 @@ they should not wrap twice before you notice them.
 Each set of stats only applies to the indicated device; if you want
 system-wide stats you'll have to find all the devices and sum them all up.
 
-Field  1 -- # of reads issued
+Field  1 -- # of reads completed
     This is the total number of reads completed successfully.
 Field  2 -- # of reads merged, field 6 -- # of writes merged
     Reads and writes which are adjacent to each other may be merged for
@@ -131,6 +131,19 @@ or failure of the read cannot be attributed to the partition.  In other
 words, the number of reads for partitions is counted slightly before time
 of queuing for partitions, and at completion for whole disks.  This is
 a subtle distinction that is probably uninteresting for most cases.
+
+More significant is the error induced by counting the numbers of
+reads/writes before merges for partitions and after for disks. Since a
+typical workload usually contains a lot of successive and adjacent requests,
+the number of reads/writes issued can be several times higher than the
+number of reads/writes completed.
+
+In 2.6.25, the full statistic set is again available for partitions and
+disk and partition statistics are consistent again. Since we still don't
+keep record of the partition-relative address, an operation is attributed to
+the partition which contains the first sector of the request after the
+eventual merges. As requests can be merged across partition, this could lead
+to some (probably insignificant) innacuracy.
 
 Additional notes
 ----------------

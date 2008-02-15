@@ -130,11 +130,6 @@ static inline u32 msg_type(struct tipc_msg *m)
 	return msg_bits(m, 1, 29, 0x7);
 }
 
-static inline u32 msg_direct(struct tipc_msg *m)
-{
-	return (msg_type(m) == TIPC_DIRECT_MSG);
-}
-
 static inline u32 msg_named(struct tipc_msg *m)
 {
 	return (msg_type(m) == TIPC_NAMED_MSG);
@@ -205,17 +200,6 @@ static inline u32 msg_namelower(struct tipc_msg *m)
 static inline u32 msg_nameupper(struct tipc_msg *m)
 {
 	return msg_word(m, 10);
-}
-
-static inline char *msg_options(struct tipc_msg *m, u32 *len)
-{
-	u32 pos = msg_bits(m, 1, 16, 0x7);
-
-	if (!pos)
-		return 0;
-	pos = (pos * 4) + 28;
-	*len = msg_hdr_sz(m) - pos;
-	return (char *)&m->hdr[pos/4];
 }
 
 #endif

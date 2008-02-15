@@ -1,8 +1,6 @@
 #ifndef _H8300_PAGE_H
 #define _H8300_PAGE_H
 
-#ifdef __KERNEL__
-
 /* PAGE_SHIFT determines the page size */
 
 #define PAGE_SHIFT	(12)
@@ -33,6 +31,7 @@ typedef struct { unsigned long pte; } pte_t;
 typedef struct { unsigned long pmd[16]; } pmd_t;
 typedef struct { unsigned long pgd; } pgd_t;
 typedef struct { unsigned long pgprot; } pgprot_t;
+typedef struct page *pgtable_t;
 
 #define pte_val(x)	((x).pte)
 #define pmd_val(x)	((&x)->pmd[0])
@@ -78,7 +77,5 @@ extern unsigned long memory_end;
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
-
-#endif /* __KERNEL__ */
 
 #endif /* _H8300_PAGE_H */

@@ -1657,6 +1657,9 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 		return (max_sector - sector_nr) + sectors_skipped;
 	}
 
+	if (max_sector > mddev->resync_max)
+		max_sector = mddev->resync_max; /* Don't do IO beyond here */
+
 	/* make sure whole request will fit in a chunk - if chunks
 	 * are meaningful
 	 */
@@ -1669,6 +1672,8 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 	 */
 	if (!go_faster && conf->nr_waiting)
 		msleep_interruptible(1000);
+
+	bitmap_cond_end_sync(mddev->bitmap, sector_nr);
 
 	/* Again, very different code for resync and recovery.
 	 * Both must result in an r10bio with a list of bios that
@@ -2021,7 +2026,7 @@ static int run(mddev_t *mddev)
 		goto out_free_conf;
 	}
 
-	ITERATE_RDEV(mddev, rdev, tmp) {
+	rdev_for_each(rdev, tmp, mddev) {
 		disk_idx = rdev->raid_disk;
 		if (disk_idx >= mddev->raid_disks
 		    || disk_idx < 0)

@@ -25,7 +25,7 @@ the NMI handler to take the default machine-specific action.
 This nmi_callback variable is a global function pointer to the current
 NMI handler.
 
-	fastcall void do_nmi(struct pt_regs * regs, long error_code)
+	void do_nmi(struct pt_regs * regs, long error_code)
 	{
 		int cpu;
 

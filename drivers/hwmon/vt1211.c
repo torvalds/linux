@@ -42,6 +42,10 @@ static int int_mode = -1;
 module_param(int_mode, int, 0);
 MODULE_PARM_DESC(int_mode, "Force the temperature interrupt mode");
 
+static unsigned short force_id;
+module_param(force_id, ushort, 0);
+MODULE_PARM_DESC(force_id, "Override the detected device ID");
+
 static struct platform_device *pdev;
 
 #define DRVNAME "vt1211"
@@ -1280,10 +1284,12 @@ EXIT:
 static int __init vt1211_find(int sio_cip, unsigned short *address)
 {
 	int err = -ENODEV;
+	int devid;
 
 	superio_enter(sio_cip);
 
-	if (superio_inb(sio_cip, SIO_VT1211_DEVID) != SIO_VT1211_ID) {
+	devid = force_id ? force_id : superio_inb(sio_cip, SIO_VT1211_DEVID);
+	if (devid != SIO_VT1211_ID) {
 		goto EXIT;
 	}
 

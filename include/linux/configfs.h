@@ -37,6 +37,7 @@
 
 #ifdef __KERNEL__
 
+#include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/kref.h>

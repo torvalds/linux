@@ -456,7 +456,7 @@ methods are create/destroy. Any others that are null are presumed to
 be successful no-ops.
 
 struct cgroup_subsys_state *create(struct cgroup *cont)
-LL=cgroup_mutex
+(cgroup_mutex held by caller)
 
 Called to create a subsystem state object for a cgroup. The
 subsystem should allocate its subsystem state object for the passed
@@ -471,14 +471,19 @@ it's the root of the hierarchy) and may be an appropriate place for
 initialization code.
 
 void destroy(struct cgroup *cont)
-LL=cgroup_mutex
+(cgroup_mutex held by caller)
 
-The cgroup system is about to destroy the passed cgroup; the
-subsystem should do any necessary cleanup
+The cgroup system is about to destroy the passed cgroup; the subsystem
+should do any necessary cleanup and free its subsystem state
+object. By the time this method is called, the cgroup has already been
+unlinked from the file system and from the child list of its parent;
+cgroup->parent is still valid. (Note - can also be called for a
+newly-created cgroup if an error occurs after this subsystem's
+create() method has been called for the new cgroup).
 
 int can_attach(struct cgroup_subsys *ss, struct cgroup *cont,
 	       struct task_struct *task)
-LL=cgroup_mutex
+(cgroup_mutex held by caller)
 
 Called prior to moving a task into a cgroup; if the subsystem
 returns an error, this will abort the attach operation.  If a NULL
@@ -489,25 +494,20 @@ remain valid while the caller holds cgroup_mutex.
 
 void attach(struct cgroup_subsys *ss, struct cgroup *cont,
 	    struct cgroup *old_cont, struct task_struct *task)
-LL=cgroup_mutex
-
 
 Called after the task has been attached to the cgroup, to allow any
 post-attachment activity that requires memory allocations or blocking.
 
 void fork(struct cgroup_subsy *ss, struct task_struct *task)
-LL=callback_mutex, maybe read_lock(tasklist_lock)
 
 Called when a task is forked into a cgroup. Also called during
 registration for all existing tasks.
 
 void exit(struct cgroup_subsys *ss, struct task_struct *task)
-LL=callback_mutex
 
 Called during task exit
 
 int populate(struct cgroup_subsys *ss, struct cgroup *cont)
-LL=none
 
 Called after creation of a cgroup to allow a subsystem to populate
 the cgroup directory with file entries.  The subsystem should make
@@ -524,7 +524,7 @@ example in cpusets, no task may attach before 'cpus' and 'mems' are set
 up.
 
 void bind(struct cgroup_subsys *ss, struct cgroup *root)
-LL=callback_mutex
+(cgroup_mutex held by caller)
 
 Called when a cgroup subsystem is rebound to a different hierarchy
 and root cgroup. Currently this will only involve movement between

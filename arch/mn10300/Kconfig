@@ -1,0 +1,381 @@
+#
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/kconfig-language.txt.
+#
+
+mainmenu "Linux Kernel Configuration"
+
+config MN10300
+	def_bool y
+
+config AM33
+	def_bool y
+
+config MMU
+	def_bool y
+
+config HIGHMEM
+	def_bool n
+
+config NUMA
+	def_bool n
+
+config UID16
+	def_bool y
+
+config RWSEM_GENERIC_SPINLOCK
+	def_bool y
+
+config RWSEM_XCHGADD_ALGORITHM
+	bool
+
+config GENERIC_HARDIRQS_NO__DO_IRQ
+	def_bool y
+
+config GENERIC_CALIBRATE_DELAY
+	def_bool y
+
+config GENERIC_FIND_NEXT_BIT
+	def_bool y
+
+config GENERIC_HWEIGHT
+	def_bool y
+
+config GENERIC_TIME
+	def_bool y
+
+config GENERIC_BUG
+	def_bool y
+
+config QUICKLIST
+	def_bool y
+
+config ARCH_HAS_ILOG2_U32
+	def_bool y
+
+config ARCH_SUPPORTS_AOUT
+	def_bool n
+
+# Use the generic interrupt handling code in kernel/irq/
+config GENERIC_HARDIRQS
+	def_bool y
+
+config HOTPLUG_CPU
+	def_bool n
+
+mainmenu "Matsushita MN10300/AM33 Kernel Configuration"
+
+source "init/Kconfig"
+
+
+menu "Matsushita MN10300 system setup"
+
+choice
+	prompt "Unit type"
+	default MN10300_UNIT_ASB2303
+	help
+	  This option specifies board for which the kernel will be
+	  compiled. It affects the external peripherals catered for.
+
+config MN10300_UNIT_ASB2303
+	bool "ASB2303"
+
+config MN10300_UNIT_ASB2305
+	bool "ASB2305"
+
+endchoice
+
+choice
+	prompt "Processor support"
+	default MN10300_PROC_MN103E010
+	help
+	  This option specifies the processor for which the kernel will be
+	  compiled. It affects the on-chip peripherals catered for.
+
+config MN10300_PROC_MN103E010
+	bool "MN103E010"
+	depends on MN10300_UNIT_ASB2303 || MN10300_UNIT_ASB2305
+	select MN10300_PROC_HAS_TTYSM0
+	select MN10300_PROC_HAS_TTYSM1
+	select MN10300_PROC_HAS_TTYSM2
+
+endchoice
+
+choice
+	prompt "Processor core support"
+	default MN10300_CPU_AM33V2
+	help
+	  This option specifies the processor core for which the kernel will be
+	  compiled. It affects the instruction set used.
+
+config MN10300_CPU_AM33V2
+	bool "AM33v2"
+
+endchoice
+
+config FPU
+	bool "FPU present"
+	default y
+	depends on MN10300_PROC_MN103E010
+
+choice
+	prompt "CPU Caching mode"
+	default MN10300_CACHE_WBACK
+	help
+	  This option determines the caching mode for the kernel.
+
+	  Write-Back caching mode involves the all reads and writes causing
+	  the affected cacheline to be read into the cache first before being
+	  operated upon. Memory is not then updated by a write until the cache
+	  is filled and a cacheline needs to be displaced from the cache to
+	  make room. Only at that point is it written back.
+
+	  Write-Through caching only fetches cachelines from memory on a
+	  read. Writes always get written directly to memory. If the affected
+	  cacheline is also in cache, it will be updated too.
+
+	  The final option is to turn of caching entirely.
+
+config MN10300_CACHE_WBACK
+	bool "Write-Back"
+
+config MN10300_CACHE_WTHRU
+	bool "Write-Through"
+
+config MN10300_CACHE_DISABLED
+	bool "Disabled"
+
+endchoice
+
+menu "Memory layout options"
+
+config KERNEL_RAM_BASE_ADDRESS
+	hex "Base address of kernel RAM"
+	default "0x90000000"
+
+config INTERRUPT_VECTOR_BASE
+	hex "Base address of vector table"
+	default "0x90000000"
+	help
+	  The base address of the vector table will be programmed into
+          the TBR register. It must be on 16MiB address boundary.
+
+config KERNEL_TEXT_ADDRESS
+	hex "Base address of kernel"
+	default "0x90001000"
+
+config KERNEL_ZIMAGE_BASE_ADDRESS
+	hex "Base address of compressed vmlinux image"
+	default "0x90700000"
+
+endmenu
+
+config PREEMPT
+	bool "Preemptible Kernel"
+	help
+	  This option reduces the latency of the kernel when reacting to
+	  real-time or interactive events by allowing a low priority process to
+	  be preempted even if it is in kernel mode executing a system call.
+	  This allows applications to run more reliably even when the system is
+	  under load.
+
+	  Say Y here if you are building a kernel for a desktop, embedded
+	  or real-time system.  Say N if you are unsure.
+
+config PREEMPT_BKL
+	bool "Preempt The Big Kernel Lock"
+	depends on PREEMPT
+	default y
+	help
+	  This option reduces the latency of the kernel by making the
+	  big kernel lock preemptible.
+
+	  Say Y here if you are building a kernel for a desktop system.
+	  Say N if you are unsure.
+
+config MN10300_CURRENT_IN_E2
+	bool "Hold current task address in E2 register"
+	default y
+	help
+	  This option removes the E2/R2 register from the set available to gcc
+	  for normal use and instead uses it to store the address of the
+	  current process's task_struct whilst in the kernel.
+
+	  This means the kernel doesn't need to calculate the address each time
+	  "current" is used (take SP, AND with mask and dereference pointer
+	  just to get the address), and instead can just use E2+offset
+	  addressing each time.
+
+	  This has no effect on userspace.
+
+config MN10300_USING_JTAG
+	bool "Using JTAG to debug kernel"
+	default y
+	help
+	  This options indicates that JTAG will be used to debug the kernel. It
+	  suppresses the use of certain hardware debugging features, such as
+	  single-stepping, which are taken over completely by the JTAG unit.
+
+config MN10300_RTC
+	bool "Using MN10300 RTC"
+	depends on MN10300_PROC_MN103E010
+	default n
+	help
+
+	  This option enables support for the RTC, thus enabling time to be
+	  tracked, even when system is powered down. This is available on-chip
+	  on the MN103E010.
+
+config MN10300_WD_TIMER
+	bool "Using MN10300 watchdog timer"
+	default y
+	help
+	  This options indicates that the watchdog timer will be used.
+
+config PCI
+	bool "Use PCI"
+	depends on MN10300_UNIT_ASB2305
+	default y
+	help
+	  Some systems (such as the ASB2305) have PCI onboard. If you have one
+	  of these boards and you wish to use the PCI facilities, say Y here.
+
+	  The PCI-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>, contains valuable
+	  information about which PCI hardware does work under Linux and which
+	  doesn't.
+
+source "drivers/pci/Kconfig"
+
+source "drivers/pcmcia/Kconfig"
+
+menu "MN10300 internal serial options"
+
+config MN10300_PROC_HAS_TTYSM0
+	bool
+	default n
+
+config MN10300_PROC_HAS_TTYSM1
+	bool
+	default n
+
+config MN10300_PROC_HAS_TTYSM2
+	bool
+	default n
+
+config MN10300_TTYSM
+	bool "Support for ttySM serial ports"
+	depends on MN10300
+	default y
+	select SERIAL_CORE
+	help
+	  This option enables support for the on-chip serial ports that the
+	  MN10300 has available.
+
+config MN10300_TTYSM_CONSOLE
+	bool "Support for console on ttySM serial ports"
+	depends on MN10300_TTYSM
+	select SERIAL_CORE_CONSOLE
+	help
+	  This option enables support for a console on the on-chip serial ports
+	  that the MN10300 has available.
+
+#
+# /dev/ttySM0
+#
+config MN10300_TTYSM0
+	bool "Enable SIF0 (/dev/ttySM0)"
+	depends on MN10300_TTYSM && MN10300_PROC_HAS_TTYSM0
+	help
+	  Enable access to SIF0 through /dev/ttySM0 or gdb-stub
+
+choice
+	prompt "Select the timer to supply the clock for SIF0"
+	default MN10300_TTYSM0_TIMER8
+	depends on MN10300_TTYSM0
+
+config MN10300_TTYSM0_TIMER8
+	bool "Use timer 8 (16-bit)"
+
+config MN10300_TTYSM0_TIMER2
+	bool "Use timer 2 (8-bit)"
+
+endchoice
+
+#
+# /dev/ttySM1
+#
+config MN10300_TTYSM1
+	bool "Enable SIF1 (/dev/ttySM1)"
+	depends on MN10300_TTYSM && MN10300_PROC_HAS_TTYSM1
+	help
+	  Enable access to SIF1 through /dev/ttySM1 or gdb-stub
+
+choice
+	prompt "Select the timer to supply the clock for SIF1"
+	default MN10300_TTYSM0_TIMER9
+	depends on MN10300_TTYSM1
+
+config MN10300_TTYSM1_TIMER9
+	bool "Use timer 9 (16-bit)"
+
+config MN10300_TTYSM1_TIMER3
+	bool "Use timer 3 (8-bit)"
+
+endchoice
+
+#
+# /dev/ttySM2
+#
+config MN10300_TTYSM2
+	bool "Enable SIF2 (/dev/ttySM2)"
+	depends on MN10300_TTYSM && MN10300_PROC_HAS_TTYSM2
+	help
+	  Enable access to SIF2 through /dev/ttySM2 or gdb-stub
+
+choice
+	prompt "Select the timer to supply the clock for SIF2"
+	default MN10300_TTYSM0_TIMER10
+	depends on MN10300_TTYSM2
+
+config MN10300_TTYSM2_TIMER10
+	bool "Use timer 10 (16-bit)"
+
+endchoice
+
+config MN10300_TTYSM2_CTS
+	bool "Enable the use of the CTS line /dev/ttySM2"
+	depends on MN10300_TTYSM2
+
+endmenu
+
+source "mm/Kconfig"
+
+menu "Power management options"
+source kernel/power/Kconfig
+endmenu
+
+endmenu
+
+
+menu "Executable formats"
+
+source "fs/Kconfig.binfmt"
+
+endmenu
+
+source "net/Kconfig"
+
+source "drivers/Kconfig"
+
+source "fs/Kconfig"
+
+source "arch/mn10300/Kconfig.debug"
+
+source "security/Kconfig"
+
+source "crypto/Kconfig"
+
+source "lib/Kconfig"
+
+source "arch/mn10300/oprofile/Kconfig"

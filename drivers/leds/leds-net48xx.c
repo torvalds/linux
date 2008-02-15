@@ -31,7 +31,7 @@ static void net48xx_error_led_set(struct led_classdev *led_cdev,
 }
 
 static struct led_classdev net48xx_error_led = {
-	.name		= "net48xx:error",
+	.name		= "net48xx::error",
 	.brightness_set	= net48xx_error_led_set,
 };
 

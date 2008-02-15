@@ -14,31 +14,39 @@
 #ifndef __ASM_ARCH_ORION_H__
 #define __ASM_ARCH_ORION_H__
 
-/*******************************************************************************
+/*****************************************************************************
  * Orion Address Map
- * Use the same mapping (1:1 virtual:physical) of internal registers and
- * PCI system (PCI+PCIE) for all machines.
- * Each machine defines the rest of its mapping (e.g. device bus flashes)
- ******************************************************************************/
-#define ORION_REGS_BASE		0xf1000000
+ *
+ * virt		phys		size
+ * fdd00000	f1000000	1M	on-chip peripheral registers
+ * fde00000	f2000000	1M	PCIe I/O space
+ * fdf00000	f2100000	1M	PCI I/O space
+ * fe000000	f0000000	16M	PCIe WA space (Orion-NAS only)
+ ****************************************************************************/
+#define ORION_REGS_PHYS_BASE	0xf1000000
+#define ORION_REGS_VIRT_BASE	0xfdd00000
 #define ORION_REGS_SIZE		SZ_1M
 
-#define ORION_PCI_SYS_MEM_BASE	0xe0000000
-#define ORION_PCIE_MEM_BASE	ORION_PCI_SYS_MEM_BASE
-#define ORION_PCIE_MEM_SIZE	SZ_128M
-#define ORION_PCI_MEM_BASE	(ORION_PCIE_MEM_BASE + ORION_PCIE_MEM_SIZE)
-#define ORION_PCI_MEM_SIZE	SZ_128M
-
-#define ORION_PCI_SYS_IO_BASE	0xf2000000
-#define ORION_PCIE_IO_BASE	ORION_PCI_SYS_IO_BASE
+#define ORION_PCIE_IO_PHYS_BASE	0xf2000000
+#define ORION_PCIE_IO_VIRT_BASE	0xfde00000
+#define ORION_PCIE_IO_BUS_BASE	0x00000000
 #define ORION_PCIE_IO_SIZE	SZ_1M
-#define ORION_PCIE_IO_REMAP	(ORION_PCIE_IO_BASE - ORION_PCI_SYS_IO_BASE)
-#define ORION_PCI_IO_BASE	(ORION_PCIE_IO_BASE + ORION_PCIE_IO_SIZE)
+
+#define ORION_PCI_IO_PHYS_BASE	0xf2100000
+#define ORION_PCI_IO_VIRT_BASE	0xfdf00000
+#define ORION_PCI_IO_BUS_BASE	0x00100000
 #define ORION_PCI_IO_SIZE	SZ_1M
-#define ORION_PCI_IO_REMAP	(ORION_PCI_IO_BASE - ORION_PCI_SYS_IO_BASE)
+
 /* Relevant only for Orion-NAS */
-#define ORION_PCIE_WA_BASE	0xf0000000
+#define ORION_PCIE_WA_PHYS_BASE	0xf0000000
+#define ORION_PCIE_WA_VIRT_BASE	0xfe000000
 #define ORION_PCIE_WA_SIZE	SZ_16M
+
+#define ORION_PCIE_MEM_PHYS_BASE	0xe0000000
+#define ORION_PCIE_MEM_SIZE		SZ_128M
+
+#define ORION_PCI_MEM_PHYS_BASE		0xe8000000
+#define ORION_PCI_MEM_SIZE		SZ_128M
 
 /*******************************************************************************
  * Supported Devices & Revisions
@@ -57,25 +65,42 @@
 /*******************************************************************************
  * Orion Registers Map
  ******************************************************************************/
-#define ORION_DDR_REG_BASE	(ORION_REGS_BASE | 0x00000)
-#define ORION_DEV_BUS_REG_BASE	(ORION_REGS_BASE | 0x10000)
-#define ORION_BRIDGE_REG_BASE	(ORION_REGS_BASE | 0x20000)
-#define ORION_PCI_REG_BASE	(ORION_REGS_BASE | 0x30000)
-#define ORION_PCIE_REG_BASE	(ORION_REGS_BASE | 0x40000)
-#define ORION_USB0_REG_BASE	(ORION_REGS_BASE | 0x50000)
-#define ORION_ETH_REG_BASE	(ORION_REGS_BASE | 0x70000)
-#define ORION_SATA_REG_BASE	(ORION_REGS_BASE | 0x80000)
-#define ORION_USB1_REG_BASE	(ORION_REGS_BASE | 0xa0000)
+#define ORION_DDR_VIRT_BASE		(ORION_REGS_VIRT_BASE | 0x00000)
+#define ORION_DDR_REG(x)		(ORION_DDR_VIRT_BASE | (x))
 
-#define ORION_DDR_REG(x)	(ORION_DDR_REG_BASE | (x))
-#define ORION_DEV_BUS_REG(x)	(ORION_DEV_BUS_REG_BASE | (x))
-#define ORION_BRIDGE_REG(x)	(ORION_BRIDGE_REG_BASE | (x))
-#define ORION_PCI_REG(x)	(ORION_PCI_REG_BASE | (x))
-#define ORION_PCIE_REG(x)	(ORION_PCIE_REG_BASE | (x))
-#define ORION_USB0_REG(x)	(ORION_USB0_REG_BASE | (x))
-#define ORION_USB1_REG(x)	(ORION_USB1_REG_BASE | (x))
-#define ORION_ETH_REG(x)	(ORION_ETH_REG_BASE | (x))
-#define ORION_SATA_REG(x)	(ORION_SATA_REG_BASE | (x))
+#define ORION_DEV_BUS_PHYS_BASE		(ORION_REGS_PHYS_BASE | 0x10000)
+#define ORION_DEV_BUS_VIRT_BASE		(ORION_REGS_VIRT_BASE | 0x10000)
+#define ORION_DEV_BUS_REG(x)		(ORION_DEV_BUS_VIRT_BASE | (x))
+#define  I2C_PHYS_BASE			(ORION_DEV_BUS_PHYS_BASE | 0x1000)
+#define  UART0_PHYS_BASE		(ORION_DEV_BUS_PHYS_BASE | 0x2000)
+#define  UART0_VIRT_BASE		(ORION_DEV_BUS_VIRT_BASE | 0x2000)
+#define  UART1_PHYS_BASE		(ORION_DEV_BUS_PHYS_BASE | 0x2100)
+#define  UART1_VIRT_BASE		(ORION_DEV_BUS_VIRT_BASE | 0x2100)
+
+#define ORION_BRIDGE_VIRT_BASE		(ORION_REGS_VIRT_BASE | 0x20000)
+#define ORION_BRIDGE_REG(x)		(ORION_BRIDGE_VIRT_BASE | (x))
+
+#define ORION_PCI_VIRT_BASE		(ORION_REGS_VIRT_BASE | 0x30000)
+#define ORION_PCI_REG(x)		(ORION_PCI_VIRT_BASE | (x))
+
+#define ORION_PCIE_VIRT_BASE		(ORION_REGS_VIRT_BASE | 0x40000)
+#define ORION_PCIE_REG(x)		(ORION_PCIE_VIRT_BASE | (x))
+
+#define ORION_USB0_PHYS_BASE		(ORION_REGS_PHYS_BASE | 0x50000)
+#define ORION_USB0_VIRT_BASE		(ORION_REGS_VIRT_BASE | 0x50000)
+#define ORION_USB0_REG(x)		(ORION_USB0_VIRT_BASE | (x))
+
+#define ORION_ETH_PHYS_BASE		(ORION_REGS_PHYS_BASE | 0x70000)
+#define ORION_ETH_VIRT_BASE		(ORION_REGS_VIRT_BASE | 0x70000)
+#define ORION_ETH_REG(x)		(ORION_ETH_VIRT_BASE | (x))
+
+#define ORION_SATA_PHYS_BASE		(ORION_REGS_PHYS_BASE | 0x80000)
+#define ORION_SATA_VIRT_BASE		(ORION_REGS_VIRT_BASE | 0x80000)
+#define ORION_SATA_REG(x)		(ORION_SATA_VIRT_BASE | (x))
+
+#define ORION_USB1_PHYS_BASE		(ORION_REGS_PHYS_BASE | 0xa0000)
+#define ORION_USB1_VIRT_BASE		(ORION_REGS_VIRT_BASE | 0xa0000)
+#define ORION_USB1_REG(x)		(ORION_USB1_VIRT_BASE | (x))
 
 /*******************************************************************************
  * Device Bus Registers
@@ -100,9 +125,6 @@
 #define DEV_BUS_CTRL		ORION_DEV_BUS_REG(0x4c0)
 #define DEV_BUS_INT_CAUSE	ORION_DEV_BUS_REG(0x4d0)
 #define DEV_BUS_INT_MASK	ORION_DEV_BUS_REG(0x4d4)
-#define I2C_BASE		ORION_DEV_BUS_REG(0x1000)
-#define UART0_BASE		ORION_DEV_BUS_REG(0x2000)
-#define UART1_BASE		ORION_DEV_BUS_REG(0x2100)
 #define GPIO_MAX		32
 
 /***************************************************************************

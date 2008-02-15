@@ -1,6 +1,7 @@
 #ifndef __UM_FIXMAP_H
 #define __UM_FIXMAP_H
 
+#include <asm/processor.h>
 #include <asm/system.h>
 #include <asm/kmap_types.h>
 #include <asm/archparam.h>
@@ -57,7 +58,7 @@ extern void __set_fixmap (enum fixed_addresses idx,
  * at the top of mem..
  */
 
-#define FIXADDR_TOP	(CONFIG_TOP_ADDR - 2 * PAGE_SIZE)
+#define FIXADDR_TOP	(TASK_SIZE - 2 * PAGE_SIZE)
 #define FIXADDR_SIZE	(__end_of_fixed_addresses << PAGE_SHIFT)
 #define FIXADDR_START	(FIXADDR_TOP - FIXADDR_SIZE)
 

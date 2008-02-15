@@ -1186,6 +1186,59 @@ err_dup_modedb:
 #endif
 
 /* --------------------------------------------------------------------
+ *  PWM
+ * -------------------------------------------------------------------- */
+static struct resource atmel_pwm0_resource[] __initdata = {
+	PBMEM(0xfff01400),
+	IRQ(24),
+};
+static struct clk atmel_pwm0_mck = {
+	.name		= "mck",
+	.parent		= &pbb_clk,
+	.mode		= pbb_clk_mode,
+	.get_rate	= pbb_clk_get_rate,
+	.index		= 5,
+};
+
+struct platform_device *__init at32_add_device_pwm(u32 mask)
+{
+	struct platform_device *pdev;
+
+	if (!mask)
+		return NULL;
+
+	pdev = platform_device_alloc("atmel_pwm", 0);
+	if (!pdev)
+		return NULL;
+
+	if (platform_device_add_resources(pdev, atmel_pwm0_resource,
+				ARRAY_SIZE(atmel_pwm0_resource)))
+		goto out_free_pdev;
+
+	if (platform_device_add_data(pdev, &mask, sizeof(mask)))
+		goto out_free_pdev;
+
+	if (mask & (1 << 0))
+		select_peripheral(PA(28), PERIPH_A, 0);
+	if (mask & (1 << 1))
+		select_peripheral(PA(29), PERIPH_A, 0);
+	if (mask & (1 << 2))
+		select_peripheral(PA(21), PERIPH_B, 0);
+	if (mask & (1 << 3))
+		select_peripheral(PA(22), PERIPH_B, 0);
+
+	atmel_pwm0_mck.dev = &pdev->dev;
+
+	platform_device_add(pdev);
+
+	return pdev;
+
+out_free_pdev:
+	platform_device_put(pdev);
+	return NULL;
+}
+
+/* --------------------------------------------------------------------
  *  SSC
  * -------------------------------------------------------------------- */
 static struct resource ssc0_resource[] = {
@@ -1646,6 +1699,7 @@ struct clk *at32_clock_list[] = {
 	&atmel_usart1_usart,
 	&atmel_usart2_usart,
 	&atmel_usart3_usart,
+	&atmel_pwm0_mck,
 #if defined(CONFIG_CPU_AT32AP7000)
 	&macb0_hclk,
 	&macb0_pclk,

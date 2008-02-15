@@ -97,7 +97,7 @@ config EDAC_I82975X
 
 config EDAC_I3000
 	tristate "Intel 3000/3010"
-	depends on EDAC_MM_EDAC && PCI && X86_32
+	depends on EDAC_MM_EDAC && PCI && X86
 	help
 	  Support for error detection and correction on the Intel
 	  3000 and 3010 server chipsets.
@@ -123,6 +123,20 @@ config EDAC_I5000
 	  Support for error detection and correction the Intel
 	  Greekcreek/Blackford chipsets.
 
+config EDAC_MPC85XX
+	tristate "Freescale MPC85xx"
+	depends on EDAC_MM_EDAC && FSL_SOC && MPC85xx
+	help
+	  Support for error detection and correction on the Freescale
+	  MPC8560, MPC8540, MPC8548
+
+config EDAC_MV64X60
+	tristate "Marvell MV64x60"
+	depends on EDAC_MM_EDAC && MV64X60
+	help
+	  Support for error detection and correction on the Marvell
+	  MV64360 and MV64460 chipsets.
+
 config EDAC_PASEMI
 	tristate "PA Semi PWRficient"
 	depends on EDAC_MM_EDAC && PCI
@@ -131,5 +145,12 @@ config EDAC_PASEMI
 	  Support for error detection and correction on PA Semi
 	  PWRficient.
 
+config EDAC_CELL
+	tristate "Cell Broadband Engine memory controller"
+	depends on EDAC_MM_EDAC && PPC_CELL_NATIVE
+	help
+	  Support for error detection and correction on the
+	  Cell Broadband Engine internal memory controller
+	  on platform without a hypervisor
 
 endif # EDAC

@@ -8,6 +8,7 @@ mainmenu "Linux/M32R Kernel Configuration"
 config M32R
 	bool
 	default y
+	select HAVE_IDE
 	select HAVE_OPROFILE
 
 config SBUS
@@ -34,6 +35,13 @@ config NO_IOPORT
 
 config NO_DMA
 	def_bool y
+
+config ARCH_SUPPORTS_AOUT
+	def_bool y
+
+config HZ
+	int
+	default 100
 
 source "init/Kconfig"
 

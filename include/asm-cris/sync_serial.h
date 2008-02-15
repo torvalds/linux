@@ -67,6 +67,7 @@
 /* Values for SSP_FRAME_SYNC */
 #define NORMAL_SYNC                1
 #define EARLY_SYNC                 2
+#define SECOND_WORD_SYNC     0x40000
 
 #define BIT_SYNC                   4
 #define WORD_SYNC                  8

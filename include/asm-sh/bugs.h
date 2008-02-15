@@ -39,7 +39,7 @@ static void __init check_bugs(void)
 		*p++ = '4';
 		*p++ = 'a';
 		break;
-	case CPU_SH7343 ... CPU_SH7722:
+	case CPU_SH7343 ... CPU_SH7366:
 		*p++ = '4';
 		*p++ = 'a';
 		*p++ = 'l';

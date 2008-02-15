@@ -184,7 +184,7 @@ static int drm_addmap_core(struct drm_device * dev, unsigned int offset,
 				return -ENOMEM;
 			}
 		}
-				
+
 		break;
 	case _DRM_SHM:
 		list = drm_find_matching_map(dev, map);
@@ -229,11 +229,17 @@ static int drm_addmap_core(struct drm_device * dev, unsigned int offset,
 #ifdef __alpha__
 		map->offset += dev->hose->mem_space->start;
 #endif
-		/* Note: dev->agp->base may actually be 0 when the DRM
-		 * is not in control of AGP space. But if user space is
-		 * it should already have added the AGP base itself.
+		/* In some cases (i810 driver), user space may have already
+		 * added the AGP base itself, because dev->agp->base previously
+		 * only got set during AGP enable.  So, only add the base
+		 * address if the map's offset isn't already within the
+		 * aperture.
 		 */
-		map->offset += dev->agp->base;
+		if (map->offset < dev->agp->base ||
+		    map->offset > dev->agp->base +
+		    dev->agp->agp_info.aper_size * 1024 * 1024 - 1) {
+			map->offset += dev->agp->base;
+		}
 		map->mtrr = dev->agp->agp_mtrr;	/* for getmap */
 
 		/* This assumes the DRM is in total control of AGP space.
@@ -429,6 +435,7 @@ int drm_rmmap(struct drm_device *dev, drm_local_map_t *map)
 
 	return ret;
 }
+EXPORT_SYMBOL(drm_rmmap);
 
 /* The rmmap ioctl appears to be unnecessary.  All mappings are torn down on
  * the last close of the device, and this is necessary for cleanup when things
@@ -814,9 +821,9 @@ int drm_addbufs_pci(struct drm_device * dev, struct drm_buf_desc * request)
 	page_count = 0;
 
 	while (entry->buf_count < count) {
-		
+
 		dmah = drm_pci_alloc(dev, PAGE_SIZE << page_order, 0x1000, 0xfffffffful);
-		
+
 		if (!dmah) {
 			/* Set count correctly so we free the proper amount. */
 			entry->buf_count = count;
@@ -1592,5 +1599,3 @@ int drm_order(unsigned long size)
 	return order;
 }
 EXPORT_SYMBOL(drm_order);
-
-

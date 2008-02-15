@@ -144,8 +144,6 @@ extern int dump_elf_task_fp(elf_fpreg_t *dest, struct task_struct *task);
 	: amask (AMASK_CIX) ? "ev6" : "ev67");	\
 })
 
-#ifdef __KERNEL__
-
 #define SET_PERSONALITY(EX, IBCS2)				\
 	set_personality(((EX).e_flags & EF_ALPHA_32BIT)		\
 	   ? PER_LINUX_32BIT : (IBCS2) ? PER_SVR4 : PER_LINUX)
@@ -164,5 +162,4 @@ extern int alpha_l3_cacheshape;
     NEW_AUX_ENT(AT_L3_CACHESHAPE, alpha_l3_cacheshape);		\
   } while (0)
 
-#endif /* __KERNEL__ */
 #endif /* __ASM_ALPHA_ELF_H */

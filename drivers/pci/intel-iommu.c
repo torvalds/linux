@@ -692,6 +692,23 @@ static int iommu_flush_iotlb_psi(struct intel_iommu *iommu, u16 did,
 		DMA_TLB_PSI_FLUSH, non_present_entry_flush);
 }
 
+static void iommu_disable_protect_mem_regions(struct intel_iommu *iommu)
+{
+	u32 pmen;
+	unsigned long flags;
+
+	spin_lock_irqsave(&iommu->register_lock, flags);
+	pmen = readl(iommu->reg + DMAR_PMEN_REG);
+	pmen &= ~DMA_PMEN_EPM;
+	writel(pmen, iommu->reg + DMAR_PMEN_REG);
+
+	/* wait for the protected region status bit to clear */
+	IOMMU_WAIT_OP(iommu, DMAR_PMEN_REG,
+		readl, !(pmen & DMA_PMEN_PRS), pmen);
+
+	spin_unlock_irqrestore(&iommu->register_lock, flags);
+}
+
 static int iommu_enable_translation(struct intel_iommu *iommu)
 {
 	u32 sts;
@@ -728,7 +745,7 @@ static int iommu_disable_translation(struct intel_iommu *iommu)
 
 /* iommu interrupt handling. Most stuff are MSI-like. */
 
-static char *fault_reason_strings[] =
+static const char *fault_reason_strings[] =
 {
 	"Software",
 	"Present bit in root entry is clear",
@@ -743,14 +760,13 @@ static char *fault_reason_strings[] =
 	"non-zero reserved fields in RTP",
 	"non-zero reserved fields in CTP",
 	"non-zero reserved fields in PTE",
-	"Unknown"
 };
-#define MAX_FAULT_REASON_IDX 	ARRAY_SIZE(fault_reason_strings) - 1
+#define MAX_FAULT_REASON_IDX 	(ARRAY_SIZE(fault_reason_strings) - 1)
 
-char *dmar_get_fault_reason(u8 fault_reason)
+const char *dmar_get_fault_reason(u8 fault_reason)
 {
-	if (fault_reason >= MAX_FAULT_REASON_IDX)
-		return fault_reason_strings[MAX_FAULT_REASON_IDX - 1];
+	if (fault_reason > MAX_FAULT_REASON_IDX)
+		return "Unknown";
 	else
 		return fault_reason_strings[fault_reason];
 }
@@ -808,7 +824,7 @@ void dmar_msi_read(int irq, struct msi_msg *msg)
 static int iommu_page_fault_do_one(struct intel_iommu *iommu, int type,
 		u8 fault_reason, u16 source_id, u64 addr)
 {
-	char *reason;
+	const char *reason;
 
 	reason = dmar_get_fault_reason(fault_reason);
 
@@ -1088,7 +1104,7 @@ static void dmar_init_reserved_ranges(void)
 	int i;
 	u64 addr, size;
 
-	init_iova_domain(&reserved_iova_list);
+	init_iova_domain(&reserved_iova_list, DMA_32BIT_PFN);
 
 	/* IOAPIC ranges shouldn't be accessed by DMA */
 	iova = reserve_iova(&reserved_iova_list, IOVA_PFN(IOAPIC_RANGE_START),
@@ -1142,7 +1158,7 @@ static int domain_init(struct dmar_domain *domain, int guest_width)
 	int adjust_width, agaw;
 	unsigned long sagaw;
 
-	init_iova_domain(&domain->iovad);
+	init_iova_domain(&domain->iovad, DMA_32BIT_PFN);
 	spin_lock_init(&domain->mapping_lock);
 
 	domain_reserve_special_ranges(domain);
@@ -1729,6 +1745,8 @@ int __init init_dmars(void)
 
 		iommu_flush_context_global(iommu, 0);
 		iommu_flush_iotlb_global(iommu, 0);
+
+		iommu_disable_protect_mem_regions(iommu);
 
 		ret = iommu_enable_translation(iommu);
 		if (ret)

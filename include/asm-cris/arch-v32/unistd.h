@@ -16,7 +16,8 @@ type name(void) \
 			".endif\n\t" \
 			"break 13" \
 			: "=r" (__a) \
-			: "r" (__n_)); \
+			: "r" (__n_) \
+			: "memory"); \
   if (__a >= 0) \
      return (type) __a; \
   errno = -__a; \
@@ -33,7 +34,8 @@ type name(type1 arg1) \
 			".endif\n\t" \
 			"break 13" \
 			: "=r" (__a) \
-			: "r" (__n_), "0" (__a)); \
+			: "r" (__n_), "0" (__a) \
+			: "memory"); \
   if (__a >= 0) \
      return (type) __a; \
   errno = -__a; \
@@ -51,7 +53,8 @@ type name(type1 arg1,type2 arg2) \
 			".endif\n\t" \
 			"break 13" \
 			: "=r" (__a) \
-			: "r" (__n_), "0" (__a), "r" (__b)); \
+			: "r" (__n_), "0" (__a), "r" (__b) \
+			: "memory"); \
   if (__a >= 0) \
      return (type) __a; \
   errno = -__a; \
@@ -70,7 +73,8 @@ type name(type1 arg1,type2 arg2,type3 arg3) \
 			".endif\n\t" \
 			"break 13" \
 			: "=r" (__a) \
-			: "r" (__n_), "0" (__a), "r" (__b), "r" (__c)); \
+			: "r" (__n_), "0" (__a), "r" (__b), "r" (__c) \
+			: "memory"); \
   if (__a >= 0) \
      return (type) __a; \
   errno = -__a; \
@@ -91,7 +95,8 @@ type name (type1 arg1, type2 arg2, type3 arg3, type4 arg4) \
 			"break 13" \
 			: "=r" (__a) \
 			: "r" (__n_), "0" (__a), "r" (__b), \
-			  "r" (__c), "r" (__d)); \
+			  "r" (__c), "r" (__d)\
+			: "memory"); \
   if (__a >= 0) \
      return (type) __a; \
   errno = -__a; \
@@ -114,7 +119,8 @@ type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5) \
 			"break 13" \
 			: "=r" (__a) \
 			: "r" (__n_), "0" (__a), "r" (__b), \
-			  "r" (__c), "r" (__d), "h" (__e)); \
+			  "r" (__c), "r" (__d), "h" (__e) \
+			: "memory"); \
   if (__a >= 0) \
      return (type) __a; \
   errno = -__a; \
@@ -138,7 +144,8 @@ type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,type6 arg6) \
 			"break 13" \
 			: "=r" (__a) \
 			: "r" (__n_), "0" (__a), "r" (__b), \
-			  "r" (__c), "r" (__d), "h" (__e), "x" (__f)); \
+			  "r" (__c), "r" (__d), "h" (__e), "x" (__f) \
+			: "memory"); \
   if (__a >= 0) \
      return (type) __a; \
   errno = -__a; \

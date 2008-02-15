@@ -12,7 +12,7 @@
 #define _XTENSA_PARAM_H
 
 #ifdef __KERNEL__
-# define HZ		100		/* internal timer frequency */
+# define HZ		CONFIG_HZ	/* internal timer frequency */
 # define USER_HZ	100		/* for user interfaces in "ticks" */
 # define CLOCKS_PER_SEC (USER_HZ)	/* frequnzy at which times() counts */
 #endif

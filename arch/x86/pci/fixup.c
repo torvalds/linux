@@ -215,7 +215,8 @@ static int quirk_aspm_offset[MAX_PCIEROOT << 3];
 
 static int quirk_pcie_aspm_read(struct pci_bus *bus, unsigned int devfn, int where, int size, u32 *value)
 {
-	return raw_pci_ops->read(0, bus->number, devfn, where, size, value);
+	return raw_pci_read(pci_domain_nr(bus), bus->number,
+						devfn, where, size, value);
 }
 
 /*
@@ -231,7 +232,8 @@ static int quirk_pcie_aspm_write(struct pci_bus *bus, unsigned int devfn, int wh
 	if ((offset) && (where == offset))
 		value = value & 0xfffffffc;
 
-	return raw_pci_ops->write(0, bus->number, devfn, where, size, value);
+	return raw_pci_write(pci_domain_nr(bus), bus->number,
+						devfn, where, size, value);
 }
 
 static struct pci_ops quirk_pcie_aspm_ops = {

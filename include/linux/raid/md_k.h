@@ -81,6 +81,8 @@ struct mdk_rdev_s
 #define	In_sync		2		/* device is in_sync with rest of array */
 #define	WriteMostly	4		/* Avoid reading if at all possible */
 #define	BarriersNotsupp	5		/* BIO_RW_BARRIER is not supported */
+#define	AllReserved	6		/* If whole device is reserved for
+					 * one array */
 
 	int desc_nr;			/* descriptor index in the superblock */
 	int raid_disk;			/* role of device in array */
@@ -130,6 +132,9 @@ struct mddev_s
 					minor_version,
 					patch_version;
 	int				persistent;
+	int 				external;	/* metadata is
+							 * managed externally */
+	char				metadata_type[17]; /* externally set*/
 	int				chunk_size;
 	time_t				ctime, utime;
 	int				level, layout;
@@ -216,6 +221,8 @@ struct mddev_s
 	atomic_t			recovery_active; /* blocks scheduled, but not written */
 	wait_queue_head_t		recovery_wait;
 	sector_t			recovery_cp;
+	sector_t			resync_max;	/* resync should pause
+							 * when it gets here */
 
 	spinlock_t			write_lock;
 	wait_queue_head_t		sb_wait;	/* for waiting on superblock updates */
@@ -306,23 +313,17 @@ static inline char * mdname (mddev_t * mddev)
  * iterates through some rdev ringlist. It's safe to remove the
  * current 'rdev'. Dont touch 'tmp' though.
  */
-#define ITERATE_RDEV_GENERIC(head,rdev,tmp)				\
+#define rdev_for_each_list(rdev, tmp, list)				\
 									\
-	for ((tmp) = (head).next;					\
+	for ((tmp) = (list).next;					\
 		(rdev) = (list_entry((tmp), mdk_rdev_t, same_set)),	\
-			(tmp) = (tmp)->next, (tmp)->prev != &(head)	\
+			(tmp) = (tmp)->next, (tmp)->prev != &(list)	\
 		; )
 /*
  * iterates through the 'same array disks' ringlist
  */
-#define ITERATE_RDEV(mddev,rdev,tmp)					\
-	ITERATE_RDEV_GENERIC((mddev)->disks,rdev,tmp)
-
-/*
- * Iterates through 'pending RAID disks'
- */
-#define ITERATE_RDEV_PENDING(rdev,tmp)					\
-	ITERATE_RDEV_GENERIC(pending_raid_disks,rdev,tmp)
+#define rdev_for_each(rdev, tmp, mddev)				\
+	rdev_for_each_list(rdev, tmp, (mddev)->disks)
 
 typedef struct mdk_thread_s {
 	void			(*run) (mddev_t *mddev);

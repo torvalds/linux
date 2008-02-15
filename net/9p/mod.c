@@ -106,15 +106,10 @@ EXPORT_SYMBOL(v9fs_default_trans);
  */
 static int __init init_p9(void)
 {
-	int ret;
+	int ret = 0;
 
 	p9_error_init();
 	printk(KERN_INFO "Installing 9P2000 support\n");
-	ret = p9_mux_global_init();
-	if (ret) {
-		printk(KERN_WARNING "9p: starting mux failed\n");
-		return ret;
-	}
 
 	return ret;
 }
@@ -126,7 +121,7 @@ static int __init init_p9(void)
 
 static void __exit exit_p9(void)
 {
-	p9_mux_global_exit();
+	printk(KERN_INFO "Unloading 9P2000 support\n");
 }
 
 module_init(init_p9)

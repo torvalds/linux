@@ -35,7 +35,7 @@
 #include "via_drmclient.h"
 #endif
 
-#define VIA_NR_SAREA_CLIPRECTS 		8
+#define VIA_NR_SAREA_CLIPRECTS		8
 #define VIA_NR_XVMC_PORTS               10
 #define VIA_NR_XVMC_LOCKS               5
 #define VIA_MAX_CACHELINE_SIZE          64
@@ -259,7 +259,7 @@ typedef struct drm_via_blitsync {
 typedef struct drm_via_dmablit {
 	uint32_t num_lines;
 	uint32_t line_length;
-	
+
 	uint32_t fb_addr;
 	uint32_t fb_stride;
 

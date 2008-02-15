@@ -142,7 +142,7 @@ static int do_not_aio(struct aio_thread_req *req)
 	if (actual != req->offset)
 		return -errno;
 
-	switch(req->type) {
+	switch (req->type) {
 	case AIO_READ:
 		n = read(req->io_fd, req->buf, req->len);
 		break;

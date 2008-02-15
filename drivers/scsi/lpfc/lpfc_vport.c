@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2006 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2008 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -327,7 +327,8 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 	 * up and ready to FDISC.
 	 */
 	ndlp = lpfc_findnode_did(phba->pport, Fabric_DID);
-	if (ndlp && ndlp->nlp_state == NLP_STE_UNMAPPED_NODE) {
+	if (ndlp && NLP_CHK_NODE_ACT(ndlp) &&
+	    ndlp->nlp_state == NLP_STE_UNMAPPED_NODE) {
 		if (phba->link_flag & LS_NPIV_FAB_SUPPORTED) {
 			lpfc_set_disctmo(vport);
 			lpfc_initial_fdisc(vport);
@@ -358,7 +359,8 @@ disable_vport(struct fc_vport *fc_vport)
 	long timeout;
 
 	ndlp = lpfc_findnode_did(vport, Fabric_DID);
-	if (ndlp && phba->link_state >= LPFC_LINK_UP) {
+	if (ndlp && NLP_CHK_NODE_ACT(ndlp)
+	    && phba->link_state >= LPFC_LINK_UP) {
 		vport->unreg_vpi_cmpl = VPORT_INVAL;
 		timeout = msecs_to_jiffies(phba->fc_ratov * 2000);
 		if (!lpfc_issue_els_npiv_logo(vport, ndlp))
@@ -372,6 +374,8 @@ disable_vport(struct fc_vport *fc_vport)
 	 * calling lpfc_cleanup_rpis(vport, 1)
 	 */
 	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
+		if (!NLP_CHK_NODE_ACT(ndlp))
+			continue;
 		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
 			continue;
 		lpfc_disc_state_machine(vport, ndlp, NULL,
@@ -414,7 +418,8 @@ enable_vport(struct fc_vport *fc_vport)
 	 * up and ready to FDISC.
 	 */
 	ndlp = lpfc_findnode_did(phba->pport, Fabric_DID);
-	if (ndlp && ndlp->nlp_state == NLP_STE_UNMAPPED_NODE) {
+	if (ndlp && NLP_CHK_NODE_ACT(ndlp)
+	    && ndlp->nlp_state == NLP_STE_UNMAPPED_NODE) {
 		if (phba->link_flag & LS_NPIV_FAB_SUPPORTED) {
 			lpfc_set_disctmo(vport);
 			lpfc_initial_fdisc(vport);
@@ -498,7 +503,41 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 	scsi_remove_host(lpfc_shost_from_vport(vport));
 
 	ndlp = lpfc_findnode_did(phba->pport, Fabric_DID);
-	if (ndlp && ndlp->nlp_state == NLP_STE_UNMAPPED_NODE &&
+
+	/* In case of driver unload, we shall not perform fabric logo as the
+	 * worker thread already stopped at this stage and, in this case, we
+	 * can safely skip the fabric logo.
+	 */
+	if (phba->pport->load_flag & FC_UNLOADING) {
+		if (ndlp && NLP_CHK_NODE_ACT(ndlp) &&
+		    ndlp->nlp_state == NLP_STE_UNMAPPED_NODE &&
+		    phba->link_state >= LPFC_LINK_UP) {
+			/* First look for the Fabric ndlp */
+			ndlp = lpfc_findnode_did(vport, Fabric_DID);
+			if (!ndlp)
+				goto skip_logo;
+			else if (!NLP_CHK_NODE_ACT(ndlp)) {
+				ndlp = lpfc_enable_node(vport, ndlp,
+							NLP_STE_UNUSED_NODE);
+				if (!ndlp)
+					goto skip_logo;
+			}
+			/* Remove ndlp from vport npld list */
+			lpfc_dequeue_node(vport, ndlp);
+
+			/* Indicate free memory when release */
+			spin_lock_irq(&phba->ndlp_lock);
+			NLP_SET_FREE_REQ(ndlp);
+			spin_unlock_irq(&phba->ndlp_lock);
+			/* Kick off release ndlp when it can be safely done */
+			lpfc_nlp_put(ndlp);
+		}
+		goto skip_logo;
+	}
+
+	/* Otherwise, we will perform fabric logo as needed */
+	if (ndlp && NLP_CHK_NODE_ACT(ndlp) &&
+	    ndlp->nlp_state == NLP_STE_UNMAPPED_NODE &&
 	    phba->link_state >= LPFC_LINK_UP) {
 		if (vport->cfg_enable_da_id) {
 			timeout = msecs_to_jiffies(phba->fc_ratov * 2000);
@@ -519,8 +558,27 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 			if (!ndlp)
 				goto skip_logo;
 			lpfc_nlp_init(vport, ndlp, Fabric_DID);
+			/* Indicate free memory when release */
+			NLP_SET_FREE_REQ(ndlp);
 		} else {
+			if (!NLP_CHK_NODE_ACT(ndlp))
+				ndlp = lpfc_enable_node(vport, ndlp,
+						NLP_STE_UNUSED_NODE);
+				if (!ndlp)
+					goto skip_logo;
+
+			/* Remove ndlp from vport npld list */
 			lpfc_dequeue_node(vport, ndlp);
+			spin_lock_irq(&phba->ndlp_lock);
+			if (!NLP_CHK_FREE_REQ(ndlp))
+				/* Indicate free memory when release */
+				NLP_SET_FREE_REQ(ndlp);
+			else {
+				/* Skip this if ndlp is already in free mode */
+				spin_unlock_irq(&phba->ndlp_lock);
+				goto skip_logo;
+			}
+			spin_unlock_irq(&phba->ndlp_lock);
 		}
 		vport->unreg_vpi_cmpl = VPORT_INVAL;
 		timeout = msecs_to_jiffies(phba->fc_ratov * 2000);
@@ -534,9 +592,9 @@ skip_logo:
 	lpfc_sli_host_down(vport);
 
 	lpfc_stop_vport_timers(vport);
-	lpfc_unreg_all_rpis(vport);
 
 	if (!(phba->pport->load_flag & FC_UNLOADING)) {
+		lpfc_unreg_all_rpis(vport);
 		lpfc_unreg_default_rpis(vport);
 		/*
 		 * Completion of unreg_vpi (lpfc_mbx_cmpl_unreg_vpi)

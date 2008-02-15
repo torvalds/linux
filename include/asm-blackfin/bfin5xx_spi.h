@@ -1,6 +1,6 @@
 /************************************************************
-*
-* Copyright (C) 2004, Analog Devices. All Rights Reserved
+
+* Copyright (C) 2006-2008, Analog Devices. All Rights Reserved
 *
 * FILE bfin5xx_spi.h
 * PROGRAMMER(S): Luke Yang (Analog Devices Inc.)
@@ -32,42 +32,6 @@
 #define SPI_BAUD_OFF            0x14
 #define SPI_SHAW_OFF            0x18
 
-#define CMD_SPI_OUT_ENABLE    1
-#define CMD_SPI_SET_BAUDRATE  2
-#define CMD_SPI_SET_POLAR     3
-#define CMD_SPI_SET_PHASE     4
-#define CMD_SPI_SET_MASTER    5
-#define CMD_SPI_SET_SENDOPT   6
-#define CMD_SPI_SET_RECVOPT   7
-#define CMD_SPI_SET_ORDER     8
-#define CMD_SPI_SET_LENGTH16  9
-#define CMD_SPI_GET_STAT      11
-#define CMD_SPI_GET_CFG       12
-#define CMD_SPI_SET_CSAVAIL   13
-#define CMD_SPI_SET_CSHIGH    14	/* CS unavail */
-#define CMD_SPI_SET_CSLOW     15	/* CS avail */
-#define CMD_SPI_MISO_ENABLE   16
-#define CMD_SPI_SET_CSENABLE  17
-#define CMD_SPI_SET_CSDISABLE 18
-
-#define CMD_SPI_SET_TRIGGER_MODE  19
-#define CMD_SPI_SET_TRIGGER_SENSE 20
-#define CMD_SPI_SET_TRIGGER_EDGE  21
-#define CMD_SPI_SET_TRIGGER_LEVEL 22
-
-#define CMD_SPI_SET_TIME_SPS 	  23
-#define CMD_SPI_SET_TIME_SAMPLES  24
-#define CMD_SPI_GET_SYSTEMCLOCK   25
-
-#define CMD_SPI_SET_WRITECONTINUOUS     26
-#define CMD_SPI_SET_SKFS    		27
-
-#define CMD_SPI_GET_ALLCONFIG 32	/* For debug */
-
-#define SPI_DEFAULT_BARD    0x0100
-
-#define SPI0_IRQ_NUM        IRQ_SPI
-#define SPI_ERR_TRIG	   -1
 
 #define BIT_CTL_ENABLE      0x4000
 #define BIT_CTL_OPENDRAIN   0x2000
@@ -147,6 +111,10 @@
 #define CFG_SPI_CS5VALUE    5
 #define CFG_SPI_CS6VALUE    6
 #define CFG_SPI_CS7VALUE    7
+
+#define CMD_SPI_SET_BAUDRATE  2
+#define CMD_SPI_GET_SYSTEMCLOCK   25
+#define CMD_SPI_SET_WRITECONTINUOUS     26
 
 /* device.platform_data for SSP controller devices */
 struct bfin5xx_spi_master {

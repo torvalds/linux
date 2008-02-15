@@ -590,20 +590,24 @@ static ide_proc_entry_t idedisk_proc[] = {
 static void idedisk_prepare_flush(struct request_queue *q, struct request *rq)
 {
 	ide_drive_t *drive = q->queuedata;
-	ide_task_t task;
+	ide_task_t *task = kmalloc(sizeof(*task), GFP_ATOMIC);
 
-	memset(&task, 0, sizeof(task));
+	/* FIXME: map struct ide_taskfile on rq->cmd[] */
+	BUG_ON(task == NULL);
+
+	memset(task, 0, sizeof(*task));
 	if (ide_id_has_flush_cache_ext(drive->id) &&
 	    (drive->capacity64 >= (1UL << 28)))
-		task.tf.command = WIN_FLUSH_CACHE_EXT;
+		task->tf.command = WIN_FLUSH_CACHE_EXT;
 	else
-		task.tf.command = WIN_FLUSH_CACHE;
-	task.tf_flags	= IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
-	task.data_phase	= TASKFILE_NO_DATA;
+		task->tf.command = WIN_FLUSH_CACHE;
+	task->tf_flags	 = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE |
+			   IDE_TFLAG_DYN;
+	task->data_phase = TASKFILE_NO_DATA;
 
 	rq->cmd_type = REQ_TYPE_ATA_TASKFILE;
 	rq->cmd_flags |= REQ_SOFTBARRIER;
-	rq->special = &task;
+	rq->special = task;
 }
 
 /*

@@ -168,20 +168,14 @@ static void set_dentry_child_flags(struct inode *inode, int watched)
 		struct dentry *child;
 
 		list_for_each_entry(child, &alias->d_subdirs, d_u.d_child) {
-			if (!child->d_inode) {
-				WARN_ON(child->d_flags & DCACHE_INOTIFY_PARENT_WATCHED);
+			if (!child->d_inode)
 				continue;
-			}
+
 			spin_lock(&child->d_lock);
-			if (watched) {
-				WARN_ON(child->d_flags &
-						DCACHE_INOTIFY_PARENT_WATCHED);
+			if (watched)
 				child->d_flags |= DCACHE_INOTIFY_PARENT_WATCHED;
-			} else {
-				WARN_ON(!(child->d_flags &
-					DCACHE_INOTIFY_PARENT_WATCHED));
-				child->d_flags&=~DCACHE_INOTIFY_PARENT_WATCHED;
-			}
+			else
+				child->d_flags &=~DCACHE_INOTIFY_PARENT_WATCHED;
 			spin_unlock(&child->d_lock);
 		}
 	}
@@ -253,7 +247,6 @@ void inotify_d_instantiate(struct dentry *entry, struct inode *inode)
 	if (!inode)
 		return;
 
-	WARN_ON(entry->d_flags & DCACHE_INOTIFY_PARENT_WATCHED);
 	spin_lock(&entry->d_lock);
 	parent = entry->d_parent;
 	if (parent->d_inode && inotify_inode_watched(parent->d_inode))
@@ -627,6 +620,7 @@ s32 inotify_add_watch(struct inotify_handle *ih, struct inotify_watch *watch,
 		      struct inode *inode, u32 mask)
 {
 	int ret = 0;
+	int newly_watched;
 
 	/* don't allow invalid bits: we don't want flags set */
 	mask &= IN_ALL_EVENTS | IN_ONESHOT;
@@ -653,12 +647,18 @@ s32 inotify_add_watch(struct inotify_handle *ih, struct inotify_watch *watch,
 	 */
 	watch->inode = igrab(inode);
 
-	if (!inotify_inode_watched(inode))
-		set_dentry_child_flags(inode, 1);
-
 	/* Add the watch to the handle's and the inode's list */
+	newly_watched = !inotify_inode_watched(inode);
 	list_add(&watch->h_list, &ih->watches);
 	list_add(&watch->i_list, &inode->inotify_watches);
+	/*
+	 * Set child flags _after_ adding the watch, so there is no race
+	 * windows where newly instantiated children could miss their parent's
+	 * watched flag.
+	 */
+	if (newly_watched)
+		set_dentry_child_flags(inode, 1);
+
 out:
 	mutex_unlock(&ih->mutex);
 	mutex_unlock(&inode->inotify_mutex);

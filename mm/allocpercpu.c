@@ -98,7 +98,7 @@ EXPORT_SYMBOL_GPL(__percpu_populate_mask);
  */
 void *__percpu_alloc_mask(size_t size, gfp_t gfp, cpumask_t *mask)
 {
-	void *pdata = kzalloc(sizeof(struct percpu_data), gfp);
+	void *pdata = kzalloc(nr_cpu_ids * sizeof(void *), gfp);
 	void *__pdata = __percpu_disguise(pdata);
 
 	if (unlikely(!pdata))

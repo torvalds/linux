@@ -50,6 +50,7 @@
 #include <linux/delayacct.h>
 #include <linux/init.h>
 #include <linux/writeback.h>
+#include <linux/memcontrol.h>
 
 #include <asm/pgalloc.h>
 #include <asm/uaccess.h>
@@ -82,7 +83,18 @@ void * high_memory;
 EXPORT_SYMBOL(num_physpages);
 EXPORT_SYMBOL(high_memory);
 
-int randomize_va_space __read_mostly = 1;
+/*
+ * Randomize the address space (stacks, mmaps, brk, etc.).
+ *
+ * ( When CONFIG_COMPAT_BRK=y we exclude brk from randomization,
+ *   as ancient (libc5 based) binaries can segfault. )
+ */
+int randomize_va_space __read_mostly =
+#ifdef CONFIG_COMPAT_BRK
+					1;
+#else
+					2;
+#endif
 
 static int __init disable_randmaps(char *s)
 {
@@ -122,11 +134,9 @@ void pmd_clear_bad(pmd_t *pmd)
  */
 static void free_pte_range(struct mmu_gather *tlb, pmd_t *pmd)
 {
-	struct page *page = pmd_page(*pmd);
+	pgtable_t token = pmd_pgtable(*pmd);
 	pmd_clear(pmd);
-	pte_lock_deinit(page);
-	pte_free_tlb(tlb, page);
-	dec_zone_page_state(page, NR_PAGETABLE);
+	pte_free_tlb(tlb, token);
 	tlb->mm->nr_ptes--;
 }
 
@@ -297,21 +307,19 @@ void free_pgtables(struct mmu_gather **tlb, struct vm_area_struct *vma,
 
 int __pte_alloc(struct mm_struct *mm, pmd_t *pmd, unsigned long address)
 {
-	struct page *new = pte_alloc_one(mm, address);
+	pgtable_t new = pte_alloc_one(mm, address);
 	if (!new)
 		return -ENOMEM;
 
-	pte_lock_init(new);
 	spin_lock(&mm->page_table_lock);
-	if (pmd_present(*pmd)) {	/* Another has populated it */
-		pte_lock_deinit(new);
-		pte_free(mm, new);
-	} else {
+	if (!pmd_present(*pmd)) {	/* Has another populated it ? */
 		mm->nr_ptes++;
-		inc_zone_page_state(new, NR_PAGETABLE);
 		pmd_populate(mm, pmd, new);
+		new = NULL;
 	}
 	spin_unlock(&mm->page_table_lock);
+	if (new)
+		pte_free(mm, new);
 	return 0;
 }
 
@@ -322,11 +330,13 @@ int __pte_alloc_kernel(pmd_t *pmd, unsigned long address)
 		return -ENOMEM;
 
 	spin_lock(&init_mm.page_table_lock);
-	if (pmd_present(*pmd))		/* Another has populated it */
-		pte_free_kernel(&init_mm, new);
-	else
+	if (!pmd_present(*pmd)) {	/* Has another populated it ? */
 		pmd_populate_kernel(&init_mm, pmd, new);
+		new = NULL;
+	}
 	spin_unlock(&init_mm.page_table_lock);
+	if (new)
+		pte_free_kernel(&init_mm, new);
 	return 0;
 }
 
@@ -979,6 +989,8 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 	int i;
 	unsigned int vm_flags;
 
+	if (len <= 0)
+		return 0;
 	/* 
 	 * Require read or write permissions.
 	 * If 'force' is set, we only require the "MAY" flags.
@@ -1133,16 +1145,20 @@ static int insert_page(struct mm_struct *mm, unsigned long addr, struct page *pa
 {
 	int retval;
 	pte_t *pte;
-	spinlock_t *ptl;  
+	spinlock_t *ptl;
+
+	retval = mem_cgroup_charge(page, mm, GFP_KERNEL);
+	if (retval)
+		goto out;
 
 	retval = -EINVAL;
 	if (PageAnon(page))
-		goto out;
+		goto out_uncharge;
 	retval = -ENOMEM;
 	flush_dcache_page(page);
 	pte = get_locked_pte(mm, addr, &ptl);
 	if (!pte)
-		goto out;
+		goto out_uncharge;
 	retval = -EBUSY;
 	if (!pte_none(*pte))
 		goto out_unlock;
@@ -1154,8 +1170,12 @@ static int insert_page(struct mm_struct *mm, unsigned long addr, struct page *pa
 	set_pte_at(mm, addr, pte, mk_pte(page, prot));
 
 	retval = 0;
+	pte_unmap_unlock(pte, ptl);
+	return retval;
 out_unlock:
 	pte_unmap_unlock(pte, ptl);
+out_uncharge:
+	mem_cgroup_uncharge_page(page);
 out:
 	return retval;
 }
@@ -1370,7 +1390,7 @@ static int apply_to_pte_range(struct mm_struct *mm, pmd_t *pmd,
 {
 	pte_t *pte;
 	int err;
-	struct page *pmd_page;
+	pgtable_t token;
 	spinlock_t *uninitialized_var(ptl);
 
 	pte = (mm == &init_mm) ?
@@ -1381,10 +1401,10 @@ static int apply_to_pte_range(struct mm_struct *mm, pmd_t *pmd,
 
 	BUG_ON(pmd_huge(*pmd));
 
-	pmd_page = pmd_page(*pmd);
+	token = pmd_pgtable(*pmd);
 
 	do {
-		err = fn(pte, pmd_page, addr, data);
+		err = fn(pte, token, addr, data);
 		if (err)
 			break;
 	} while (pte++, addr += PAGE_SIZE, addr != end);
@@ -1630,6 +1650,9 @@ gotten:
 	cow_user_page(new_page, old_page, address, vma);
 	__SetPageUptodate(new_page);
 
+	if (mem_cgroup_charge(new_page, mm, GFP_KERNEL))
+		goto oom_free_new;
+
 	/*
 	 * Re-check the pte - we dropped the lock
 	 */
@@ -1661,7 +1684,9 @@ gotten:
 		/* Free the old page.. */
 		new_page = old_page;
 		ret |= VM_FAULT_WRITE;
-	}
+	} else
+		mem_cgroup_uncharge_page(new_page);
+
 	if (new_page)
 		page_cache_release(new_page);
 	if (old_page)
@@ -1685,6 +1710,8 @@ unlock:
 		put_page(dirty_page);
 	}
 	return ret;
+oom_free_new:
+	__free_page(new_page);
 oom:
 	if (old_page)
 		page_cache_release(old_page);
@@ -2025,6 +2052,12 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		count_vm_event(PGMAJFAULT);
 	}
 
+	if (mem_cgroup_charge(page, mm, GFP_KERNEL)) {
+		delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
+		ret = VM_FAULT_OOM;
+		goto out;
+	}
+
 	mark_page_accessed(page);
 	lock_page(page);
 	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
@@ -2062,8 +2095,10 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	if (write_access) {
 		/* XXX: We could OR the do_wp_page code with this one? */
 		if (do_wp_page(mm, vma, address,
-				page_table, pmd, ptl, pte) & VM_FAULT_OOM)
+				page_table, pmd, ptl, pte) & VM_FAULT_OOM) {
+			mem_cgroup_uncharge_page(page);
 			ret = VM_FAULT_OOM;
+		}
 		goto out;
 	}
 
@@ -2074,6 +2109,7 @@ unlock:
 out:
 	return ret;
 out_nomap:
+	mem_cgroup_uncharge_page(page);
 	pte_unmap_unlock(page_table, ptl);
 	unlock_page(page);
 	page_cache_release(page);
@@ -2103,6 +2139,9 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		goto oom;
 	__SetPageUptodate(page);
 
+	if (mem_cgroup_charge(page, mm, GFP_KERNEL))
+		goto oom_free_page;
+
 	entry = mk_pte(page, vma->vm_page_prot);
 	entry = maybe_mkwrite(pte_mkdirty(entry), vma);
 
@@ -2120,8 +2159,11 @@ unlock:
 	pte_unmap_unlock(page_table, ptl);
 	return 0;
 release:
+	mem_cgroup_uncharge_page(page);
 	page_cache_release(page);
 	goto unlock;
+oom_free_page:
+	__free_page(page);
 oom:
 	return VM_FAULT_OOM;
 }
@@ -2235,6 +2277,11 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 
 	}
 
+	if (mem_cgroup_charge(page, mm, GFP_KERNEL)) {
+		ret = VM_FAULT_OOM;
+		goto out;
+	}
+
 	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
 
 	/*
@@ -2270,6 +2317,7 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		/* no need to invalidate: a not-present page won't be cached */
 		update_mmu_cache(vma, address, entry);
 	} else {
+		mem_cgroup_uncharge_page(page);
 		if (anon)
 			page_cache_release(page);
 		else
@@ -2663,6 +2711,13 @@ void print_vma_addr(char *prefix, unsigned long ip)
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
 
+	/*
+	 * Do not print if we are in atomic
+	 * contexts (in exception stacks, etc.):
+	 */
+	if (preempt_count())
+		return;
+
 	down_read(&mm->mmap_sem);
 	vma = find_vma(mm, ip);
 	if (vma && vma->vm_file) {
@@ -2671,7 +2726,7 @@ void print_vma_addr(char *prefix, unsigned long ip)
 		if (buf) {
 			char *p, *s;
 
-			p = d_path(f->f_dentry, f->f_vfsmnt, buf, PAGE_SIZE);
+			p = d_path(&f->f_path, buf, PAGE_SIZE);
 			if (IS_ERR(p))
 				p = "?";
 			s = strrchr(p, '/');

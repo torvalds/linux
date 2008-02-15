@@ -154,7 +154,11 @@ struct mlx4_qp_context {
 	u32			reserved5[10];
 };
 
+/* Which firmware version adds support for NEC (NoErrorCompletion) bit */
+#define MLX4_FW_VER_WQE_CTRL_NEC mlx4_fw_ver(2, 2, 232)
+
 enum {
+	MLX4_WQE_CTRL_NEC	= 1 << 29,
 	MLX4_WQE_CTRL_FENCE	= 1 << 6,
 	MLX4_WQE_CTRL_CQ_UPDATE	= 3 << 2,
 	MLX4_WQE_CTRL_SOLICITED	= 1 << 1,

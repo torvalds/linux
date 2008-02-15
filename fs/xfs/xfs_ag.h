@@ -193,7 +193,7 @@ typedef struct xfs_perag
 	xfs_agino_t	pagi_count;	/* number of allocated inodes */
 	int		pagb_count;	/* pagb slots in use */
 #ifdef __KERNEL__
-	lock_t		pagb_lock;	/* lock for pagb_list */
+	spinlock_t	pagb_lock;	/* lock for pagb_list */
 #endif
 	xfs_perag_busy_t *pagb_list;	/* unstable blocks */
 	atomic_t        pagf_fstrms;    /* # of filestreams active in this AG */

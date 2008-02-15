@@ -8,15 +8,4 @@
 
 #include "asm/arch/a.out.h"
 
-#undef STACK_TOP
-#undef STACK_TOP_MAX
-
-extern unsigned long stacksizelim;
-
-#define STACK_ROOM (stacksizelim)
-
-#define STACK_TOP (TASK_SIZE - 2 * PAGE_SIZE)
-
-#define STACK_TOP_MAX STACK_TOP
-
 #endif

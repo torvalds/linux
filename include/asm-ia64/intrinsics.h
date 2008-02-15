@@ -153,11 +153,17 @@ extern long ia64_cmpxchg_called_with_bad_pointer (void);
 	(__typeof__(old)) _r_;								\
 })
 
-#define cmpxchg_acq(ptr,o,n)	ia64_cmpxchg(acq, (ptr), (o), (n), sizeof(*(ptr)))
-#define cmpxchg_rel(ptr,o,n)	ia64_cmpxchg(rel, (ptr), (o), (n), sizeof(*(ptr)))
+#define cmpxchg_acq(ptr, o, n)	\
+	ia64_cmpxchg(acq, (ptr), (o), (n), sizeof(*(ptr)))
+#define cmpxchg_rel(ptr, o, n)	\
+	ia64_cmpxchg(rel, (ptr), (o), (n), sizeof(*(ptr)))
 
 /* for compatibility with other platforms: */
-#define cmpxchg(ptr,o,n)	cmpxchg_acq(ptr,o,n)
+#define cmpxchg(ptr, o, n)	cmpxchg_acq((ptr), (o), (n))
+#define cmpxchg64(ptr, o, n)	cmpxchg_acq((ptr), (o), (n))
+
+#define cmpxchg_local		cmpxchg
+#define cmpxchg64_local		cmpxchg64
 
 #ifdef CONFIG_IA64_DEBUG_CMPXCHG
 # define CMPXCHG_BUGCHECK_DECL	int _cmpxchg_bugcheck_count = 128;

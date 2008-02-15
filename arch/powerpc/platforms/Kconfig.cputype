@@ -14,7 +14,7 @@ choice
 	  There are five families of 32 bit PowerPC chips supported.
 	  The most common ones are the desktop and server CPUs (601, 603,
 	  604, 740, 750, 74xx) CPUs from Freescale and IBM, with their
-	  embedded 52xx/82xx/83xx/86xx counterparts.
+	  embedded 512x/52xx/82xx/83xx/86xx counterparts.
 	  The other embeeded parts, namely 4xx, 8xx, e200 (55xx) and e500
 	  (85xx) each form a family of their own that is not compatible
 	  with the others.
@@ -22,33 +22,29 @@ choice
 	  If unsure, select 52xx/6xx/7xx/74xx/82xx/83xx/86xx.
 
 config 6xx
-	bool "52xx/6xx/7xx/74xx/82xx/83xx/86xx"
+	bool "512x/52xx/6xx/7xx/74xx/82xx/83xx/86xx"
 	select PPC_FPU
 
 config PPC_85xx
 	bool "Freescale 85xx"
 	select E500
 	select FSL_SOC
-	select WANT_DEVICE_TREE
 	select MPC85xx
 
 config PPC_8xx
 	bool "Freescale 8xx"
 	select FSL_SOC
 	select 8xx
-	select WANT_DEVICE_TREE
 	select PPC_LIB_RHEAP
 
 config 40x
 	bool "AMCC 40x"
 	select PPC_DCR_NATIVE
-	select WANT_DEVICE_TREE
 	select PPC_UDBG_16550
 
 config 44x
 	bool "AMCC 44x"
 	select PPC_DCR_NATIVE
-	select WANT_DEVICE_TREE
 	select PPC_UDBG_16550
 
 config E200
@@ -94,6 +90,7 @@ config 8xx
 	bool
 
 config E500
+	select FSL_EMB_PERFMON
 	bool
 
 config PPC_FPU
@@ -114,6 +111,9 @@ config FSL_BOOKE
 	bool
 	depends on E200 || E500
 	default y
+
+config FSL_EMB_PERFMON
+	bool
 
 config PTE_64BIT
 	bool
@@ -221,7 +221,7 @@ config NR_CPUS
 
 config NOT_COHERENT_CACHE
 	bool
-	depends on 4xx || 8xx || E200
+	depends on 4xx || 8xx || E200 || PPC_MPC512x
 	default y
 
 config CHECK_CACHE_COHERENCY

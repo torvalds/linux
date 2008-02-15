@@ -322,7 +322,7 @@ enum
 	NAPI_STATE_DISABLE,	/* Disable pending */
 };
 
-extern void FASTCALL(__napi_schedule(struct napi_struct *n));
+extern void __napi_schedule(struct napi_struct *n);
 
 static inline int napi_disable_pending(struct napi_struct *n)
 {
@@ -604,6 +604,10 @@ struct net_device
 
 	unsigned char		broadcast[MAX_ADDR_LEN];	/* hw bcast add	*/
 
+	/* ingress path synchronizer */
+	spinlock_t		ingress_lock;
+	struct Qdisc		*qdisc_ingress;
+
 /*
  * Cache line mostly used on queue transmit path (qdisc)
  */
@@ -616,10 +620,6 @@ struct net_device
 
 	/* Partially transmitted GSO packet. */
 	struct sk_buff		*gso_skb;
-
-	/* ingress path synchronizer */
-	spinlock_t		ingress_lock;
-	struct Qdisc		*qdisc_ingress;
 
 /*
  * One part is mostly used on xmit path (device)

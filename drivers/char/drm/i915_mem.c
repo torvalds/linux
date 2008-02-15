@@ -276,7 +276,7 @@ int i915_mem_alloc(struct drm_device *dev, void *data,
 	struct mem_block *block, **heap;
 
 	if (!dev_priv) {
-		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
+		DRM_ERROR("called with no initialization\n");
 		return -EINVAL;
 	}
 
@@ -314,7 +314,7 @@ int i915_mem_free(struct drm_device *dev, void *data,
 	struct mem_block *block, **heap;
 
 	if (!dev_priv) {
-		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
+		DRM_ERROR("called with no initialization\n");
 		return -EINVAL;
 	}
 
@@ -342,7 +342,7 @@ int i915_mem_init_heap(struct drm_device *dev, void *data,
 	struct mem_block **heap;
 
 	if (!dev_priv) {
-		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
+		DRM_ERROR("called with no initialization\n");
 		return -EINVAL;
 	}
 
@@ -366,7 +366,7 @@ int i915_mem_destroy_heap( struct drm_device *dev, void *data,
 	struct mem_block **heap;
 
 	if ( !dev_priv ) {
-		DRM_ERROR( "%s called with no initialization\n", __FUNCTION__ );
+		DRM_ERROR( "called with no initialization\n" );
 		return -EINVAL;
 	}
 
@@ -375,7 +375,7 @@ int i915_mem_destroy_heap( struct drm_device *dev, void *data,
 		DRM_ERROR("get_heap failed");
 		return -EFAULT;
 	}
-	
+
 	if (!*heap) {
 		DRM_ERROR("heap not initialized?");
 		return -EFAULT;
@@ -384,4 +384,3 @@ int i915_mem_destroy_heap( struct drm_device *dev, void *data,
 	i915_mem_takedown( heap );
 	return 0;
 }
-

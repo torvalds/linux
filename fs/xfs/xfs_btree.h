@@ -24,6 +24,8 @@ struct xfs_inode;
 struct xfs_mount;
 struct xfs_trans;
 
+extern kmem_zone_t	*xfs_btree_cur_zone;
+
 /*
  * This nonsense is to make -wlint happy.
  */

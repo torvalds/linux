@@ -29,10 +29,10 @@ static void tuntap_init(struct net_device *dev, void *data)
 	tpri->fd = -1;
 	tpri->dev = dev;
 
-	printk("TUN/TAP backend - ");
+	printk(KERN_INFO "TUN/TAP backend - ");
 	if (tpri->gate_addr != NULL)
-		printk("IP = %s", tpri->gate_addr);
-	printk("\n");
+		printk(KERN_CONT "IP = %s", tpri->gate_addr);
+	printk(KERN_CONT "\n");
 }
 
 static int tuntap_read(int fd, struct sk_buff *skb, struct uml_net_private *lp)

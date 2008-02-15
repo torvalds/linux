@@ -326,11 +326,7 @@ struct ac97_ops
 #define AC97_DEFAULT_POWER_OFF 4 /* Needs warm reset to power up */
 };
 
-extern int ac97_read_proc (char *page_out, char **start, off_t off,
-			   int count, int *eof, void *data);
 extern int ac97_probe_codec(struct ac97_codec *);
-extern unsigned int ac97_set_adc_rate(struct ac97_codec *codec, unsigned int rate);
-extern unsigned int ac97_set_dac_rate(struct ac97_codec *codec, unsigned int rate);
 
 extern struct ac97_codec *ac97_alloc_codec(void);
 extern void ac97_release_codec(struct ac97_codec *codec);
@@ -362,8 +358,5 @@ struct ac97_quirk {
 	const char *name;       /* name shown as info */
 	int type;               /* quirk type above */
 };
-
-struct pci_dev;
-extern int ac97_tune_hardware(struct pci_dev *pdev, struct ac97_quirk *quirk, int override);
 
 #endif /* _AC97_CODEC_H_ */

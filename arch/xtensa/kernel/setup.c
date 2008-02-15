@@ -469,7 +469,7 @@ c_stop(struct seq_file *f, void *v)
 {
 }
 
-struct seq_operations cpuinfo_op =
+const struct seq_operations cpuinfo_op =
 {
 	start:  c_start,
 	next:   c_next,

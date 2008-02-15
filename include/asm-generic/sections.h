@@ -8,8 +8,6 @@ extern char _data[], _sdata[], _edata[];
 extern char __bss_start[], __bss_stop[];
 extern char __init_begin[], __init_end[];
 extern char _sinittext[], _einittext[];
-extern char _sextratext[] __attribute__((weak));
-extern char _eextratext[] __attribute__((weak));
 extern char _end[];
 extern char __per_cpu_start[], __per_cpu_end[];
 extern char __kprobes_text_start[], __kprobes_text_end[];

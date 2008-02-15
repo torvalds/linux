@@ -12,9 +12,10 @@
 #include <linux/pnp.h>
 #include <linux/slab.h>
 #include <linux/bitmap.h>
+#include <linux/mutex.h>
 #include "base.h"
 
-DECLARE_MUTEX(pnp_res_mutex);
+DEFINE_MUTEX(pnp_res_mutex);
 
 static int pnp_assign_port(struct pnp_dev *dev, struct pnp_port *rule, int idx)
 {
@@ -297,7 +298,7 @@ static int pnp_assign_resources(struct pnp_dev *dev, int depnum)
 	if (!pnp_can_configure(dev))
 		return -ENODEV;
 
-	down(&pnp_res_mutex);
+	mutex_lock(&pnp_res_mutex);
 	pnp_clean_resource_table(&dev->res);	/* start with a fresh slate */
 	if (dev->independent) {
 		port = dev->independent->port;
@@ -366,12 +367,12 @@ static int pnp_assign_resources(struct pnp_dev *dev, int depnum)
 	} else if (dev->dependent)
 		goto fail;
 
-	up(&pnp_res_mutex);
+	mutex_unlock(&pnp_res_mutex);
 	return 1;
 
 fail:
 	pnp_clean_resource_table(&dev->res);
-	up(&pnp_res_mutex);
+	mutex_unlock(&pnp_res_mutex);
 	return 0;
 }
 
@@ -396,7 +397,7 @@ int pnp_manual_config_dev(struct pnp_dev *dev, struct pnp_resource_table *res,
 		return -ENOMEM;
 	*bak = dev->res;
 
-	down(&pnp_res_mutex);
+	mutex_lock(&pnp_res_mutex);
 	dev->res = *res;
 	if (!(mode & PNP_CONFIG_FORCE)) {
 		for (i = 0; i < PNP_MAX_PORT; i++) {
@@ -416,14 +417,14 @@ int pnp_manual_config_dev(struct pnp_dev *dev, struct pnp_resource_table *res,
 				goto fail;
 		}
 	}
-	up(&pnp_res_mutex);
+	mutex_unlock(&pnp_res_mutex);
 
 	kfree(bak);
 	return 0;
 
 fail:
 	dev->res = *bak;
-	up(&pnp_res_mutex);
+	mutex_unlock(&pnp_res_mutex);
 	kfree(bak);
 	return -EINVAL;
 }
@@ -513,7 +514,7 @@ int pnp_activate_dev(struct pnp_dev *dev)
 	int error;
 
 	if (dev->active)
-		return 0;	/* the device is already active */
+		return 0;
 
 	/* ensure resources are allocated */
 	if (pnp_auto_config_dev(dev))
@@ -524,7 +525,7 @@ int pnp_activate_dev(struct pnp_dev *dev)
 		return error;
 
 	dev->active = 1;
-	return 1;
+	return 0;
 }
 
 /**
@@ -538,7 +539,7 @@ int pnp_disable_dev(struct pnp_dev *dev)
 	int error;
 
 	if (!dev->active)
-		return 0;	/* the device is already disabled */
+		return 0;
 
 	error = pnp_stop_dev(dev);
 	if (error)
@@ -547,11 +548,11 @@ int pnp_disable_dev(struct pnp_dev *dev)
 	dev->active = 0;
 
 	/* release the resources so that other devices can use them */
-	down(&pnp_res_mutex);
+	mutex_lock(&pnp_res_mutex);
 	pnp_clean_resource_table(&dev->res);
-	up(&pnp_res_mutex);
+	mutex_unlock(&pnp_res_mutex);
 
-	return 1;
+	return 0;
 }
 
 /**

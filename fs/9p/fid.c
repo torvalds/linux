@@ -175,7 +175,7 @@ struct p9_fid *v9fs_fid_lookup(struct dentry *dentry)
 	if (!wnames)
 		return ERR_PTR(-ENOMEM);
 
-	for (d = dentry, i = n; i >= 0; i--, d = d->d_parent)
+	for (d = dentry, i = (n-1); i >= 0; i--, d = d->d_parent)
 		wnames[i] = (char *) d->d_name.name;
 
 	clone = 1;
@@ -183,7 +183,7 @@ struct p9_fid *v9fs_fid_lookup(struct dentry *dentry)
 	while (i < n) {
 		l = min(n - i, P9_MAXWELEM);
 		fid = p9_client_walk(fid, l, &wnames[i], clone);
-		if (!fid) {
+		if (IS_ERR(fid)) {
 			kfree(wnames);
 			return fid;
 		}

@@ -70,7 +70,7 @@
 /* Time in jiffies before concluding the transmitter is hung. */
 #define TX_TIMEOUT      	(5*HZ)
 
-static const char version[] __devinitdata =
+static char version[] __devinitdata =
 	"Broadcom NetXtreme II 577xx 10Gigabit Ethernet Driver "
 	DRV_MODULE_NAME " " DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
 
@@ -107,7 +107,7 @@ enum bnx2x_board_type {
 };
 
 /* indexed by board_t, above */
-static const struct {
+static struct {
 	char *name;
 } board_info[] __devinitdata = {
 	{ "Broadcom NetXtreme II BCM57710 XGb" }

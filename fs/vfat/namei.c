@@ -705,7 +705,7 @@ static struct dentry *vfat_lookup(struct inode *dir, struct dentry *dentry,
 	brelse(sinfo.bh);
 	if (IS_ERR(inode)) {
 		unlock_kernel();
-		return ERR_PTR(PTR_ERR(inode));
+		return ERR_CAST(inode);
 	}
 	alias = d_find_alias(inode);
 	if (alias) {

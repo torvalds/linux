@@ -22,17 +22,19 @@ extern void pgd_free(struct mm_struct *mm, pgd_t *pgd);
 		(pmd_val(*(pmd)) = __pa(pte) | _PMD_PRESENT)
 #define pmd_populate(mm, pmd, pte)	\
 		(pmd_val(*(pmd)) = (page_to_pfn(pte) << PAGE_SHIFT) | _PMD_PRESENT)
+#define pmd_pgtable(pmd) pmd_page(pmd)
 #else
 #define pmd_populate_kernel(mm, pmd, pte)	\
 		(pmd_val(*(pmd)) = (unsigned long)pte | _PMD_PRESENT)
 #define pmd_populate(mm, pmd, pte)	\
 		(pmd_val(*(pmd)) = (unsigned long)lowmem_page_address(pte) | _PMD_PRESENT)
+#define pmd_pgtable(pmd) pmd_page(pmd)
 #endif
 
 extern pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long addr);
-extern struct page *pte_alloc_one(struct mm_struct *mm, unsigned long addr);
+extern pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long addr);
 extern void pte_free_kernel(struct mm_struct *mm, pte_t *pte);
-extern void pte_free(struct mm_struct *mm, struct page *pte);
+extern void pte_free(struct mm_struct *mm, pgtable_t pte);
 
 #define __pte_free_tlb(tlb, pte)	pte_free((tlb)->mm, (pte))
 

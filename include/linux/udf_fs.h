@@ -32,18 +32,15 @@
 #define UDF_PREALLOCATE
 #define UDF_DEFAULT_PREALLOC_BLOCKS	8
 
-#define UDFFS_DATE			"2004/29/09"
-#define UDFFS_VERSION			"0.9.8.1"
-
 #undef UDFFS_DEBUG
 
 #ifdef UDFFS_DEBUG
 #define udf_debug(f, a...) \
-	{ \
+	do { \
 		printk (KERN_DEBUG "UDF-fs DEBUG %s:%d:%s: ", \
 			__FILE__, __LINE__, __FUNCTION__); \
 		printk (f, ##a); \
-	}
+	} while (0)
 #else
 #define udf_debug(f, a...) /**/
 #endif

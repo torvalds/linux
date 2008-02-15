@@ -151,6 +151,20 @@ static int part_write (struct mtd_info *mtd, loff_t to, size_t len,
 				    len, retlen, buf);
 }
 
+static int part_panic_write (struct mtd_info *mtd, loff_t to, size_t len,
+			size_t *retlen, const u_char *buf)
+{
+	struct mtd_part *part = PART(mtd);
+	if (!(mtd->flags & MTD_WRITEABLE))
+		return -EROFS;
+	if (to >= mtd->size)
+		len = 0;
+	else if (to + len > mtd->size)
+		len = mtd->size - to;
+	return part->master->panic_write (part->master, to + part->offset,
+				    len, retlen, buf);
+}
+
 static int part_write_oob(struct mtd_info *mtd, loff_t to,
 			 struct mtd_oob_ops *ops)
 {
@@ -351,6 +365,9 @@ int add_mtd_partitions(struct mtd_info *master,
 
 		slave->mtd.read = part_read;
 		slave->mtd.write = part_write;
+
+		if (master->panic_write)
+			slave->mtd.panic_write = part_panic_write;
 
 		if(master->point && master->unpoint){
 			slave->mtd.point = part_point;

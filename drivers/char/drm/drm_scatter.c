@@ -67,7 +67,7 @@ int drm_sg_alloc(struct drm_device *dev, struct drm_scatter_gather * request)
 	struct drm_sg_mem *entry;
 	unsigned long pages, i, j;
 
-	DRM_DEBUG("%s\n", __FUNCTION__);
+	DRM_DEBUG("\n");
 
 	if (!drm_core_check_feature(dev, DRIVER_SG))
 		return -EINVAL;
@@ -81,7 +81,7 @@ int drm_sg_alloc(struct drm_device *dev, struct drm_scatter_gather * request)
 
 	memset(entry, 0, sizeof(*entry));
 	pages = (request->size + PAGE_SIZE - 1) / PAGE_SIZE;
-	DRM_DEBUG("sg size=%ld pages=%ld\n", request->size, pages);
+	DRM_DEBUG("size=%ld pages=%ld\n", request->size, pages);
 
 	entry->pages = pages;
 	entry->pagelist = drm_alloc(pages * sizeof(*entry->pagelist),
@@ -122,8 +122,8 @@ int drm_sg_alloc(struct drm_device *dev, struct drm_scatter_gather * request)
 
 	entry->handle = ScatterHandle((unsigned long)entry->virtual);
 
-	DRM_DEBUG("sg alloc handle  = %08lx\n", entry->handle);
-	DRM_DEBUG("sg alloc virtual = %p\n", entry->virtual);
+	DRM_DEBUG("handle  = %08lx\n", entry->handle);
+	DRM_DEBUG("virtual = %p\n", entry->virtual);
 
 	for (i = (unsigned long)entry->virtual, j = 0; j < pages;
 	     i += PAGE_SIZE, j++) {
@@ -210,7 +210,7 @@ int drm_sg_free(struct drm_device *dev, void *data,
 	if (!entry || entry->handle != request->handle)
 		return -EINVAL;
 
-	DRM_DEBUG("sg free virtual  = %p\n", entry->virtual);
+	DRM_DEBUG("virtual  = %p\n", entry->virtual);
 
 	drm_sg_cleanup(entry);
 

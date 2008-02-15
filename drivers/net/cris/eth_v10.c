@@ -1,220 +1,9 @@
-/* $Id: ethernet.c,v 1.31 2004/10/18 14:49:03 starvik Exp $
- *
+/*
  * e100net.c: A network driver for the ETRAX 100LX network controller.
  *
  * Copyright (c) 1998-2002 Axis Communications AB.
  *
  * The outline of this driver comes from skeleton.c.
- *
- * $Log: ethernet.c,v $
- * Revision 1.31  2004/10/18 14:49:03  starvik
- * Use RX interrupt as random source
- *
- * Revision 1.30  2004/09/29 10:44:04  starvik
- * Enabed MAC-address output again
- *
- * Revision 1.29  2004/08/24 07:14:05  starvik
- * Make use of generic MDIO interface and constants.
- *
- * Revision 1.28  2004/08/20 09:37:11  starvik
- * Added support for Intel LXT972A. Creds to Randy Scarborough.
- *
- * Revision 1.27  2004/08/16 12:37:22  starvik
- * Merge of Linux 2.6.8
- *
- * Revision 1.25  2004/06/21 10:29:57  starvik
- * Merge of Linux 2.6.7
- *
- * Revision 1.23  2004/06/09 05:29:22  starvik
- * Avoid any race where R_DMA_CH1_FIRST is NULL (may trigger cache bug).
- *
- * Revision 1.22  2004/05/14 07:58:03  starvik
- * Merge of changes from 2.4
- *
- * Revision 1.20  2004/03/11 11:38:40  starvik
- * Merge of Linux 2.6.4
- *
- * Revision 1.18  2003/12/03 13:45:46  starvik
- * Use hardware pad for short packets to prevent information leakage.
- *
- * Revision 1.17  2003/07/04 08:27:37  starvik
- * Merge of Linux 2.5.74
- *
- * Revision 1.16  2003/04/24 08:28:22  starvik
- * New LED behaviour: LED off when no link
- *
- * Revision 1.15  2003/04/09 05:20:47  starvik
- * Merge of Linux 2.5.67
- *
- * Revision 1.13  2003/03/06 16:11:01  henriken
- * Off by one error in group address register setting.
- *
- * Revision 1.12  2003/02/27 17:24:19  starvik
- * Corrected Rev to Revision
- *
- * Revision 1.11  2003/01/24 09:53:21  starvik
- * Oops. Initialize GA to 0, not to 1
- *
- * Revision 1.10  2003/01/24 09:50:55  starvik
- * Initialize GA_0 and GA_1 to 0 to avoid matching of unwanted packets
- *
- * Revision 1.9  2002/12/13 07:40:58  starvik
- * Added basic ethtool interface
- * Handled out of memory when allocating new buffers
- *
- * Revision 1.8  2002/12/11 13:13:57  starvik
- * Added arch/ to v10 specific includes
- * Added fix from Linux 2.4 in serial.c (flush_to_flip_buffer)
- *
- * Revision 1.7  2002/11/26 09:41:42  starvik
- * Added e100_set_config (standard interface to set media type)
- * Added protection against preemptive scheduling
- * Added standard MII ioctls
- *
- * Revision 1.6  2002/11/21 07:18:18  starvik
- * Timers must be initialized in 2.5.48
- *
- * Revision 1.5  2002/11/20 11:56:11  starvik
- * Merge of Linux 2.5.48
- *
- * Revision 1.4  2002/11/18 07:26:46  starvik
- * Linux 2.5 port of latest Linux 2.4 ethernet driver
- *
- * Revision 1.33  2002/10/02 20:16:17  hp
- * SETF, SETS: Use underscored IO_x_ macros rather than incorrect token concatenation
- *
- * Revision 1.32  2002/09/16 06:05:58  starvik
- * Align memory returned by dev_alloc_skb
- * Moved handling of sent packets to interrupt to avoid reference counting problem
- *
- * Revision 1.31  2002/09/10 13:28:23  larsv
- * Return -EINVAL for unknown ioctls to avoid confusing tools that tests
- * for supported functionality by issuing special ioctls, i.e. wireless
- * extensions.
- *
- * Revision 1.30  2002/05/07 18:50:08  johana
- * Correct spelling in comments.
- *
- * Revision 1.29  2002/05/06 05:38:49  starvik
- * Performance improvements:
- *    Large packets are not copied (breakpoint set to 256 bytes)
- *    The cache bug workaround is delayed until half of the receive list
- *      has been used
- *    Added transmit list
- *    Transmit interrupts are only enabled when transmit queue is full
- *
- * Revision 1.28.2.1  2002/04/30 08:15:51  starvik
- * Performance improvements:
- *   Large packets are not copied (breakpoint set to 256 bytes)
- *   The cache bug workaround is delayed until half of the receive list
- *     has been used.
- *   Added transmit list
- *   Transmit interrupts are only enabled when transmit queue is full
- *
- * Revision 1.28  2002/04/22 11:47:21  johana
- * Fix according to 2.4.19-pre7. time_after/time_before and
- * missing end of comment.
- * The patch has a typo for ethernet.c in e100_clear_network_leds(),
- *  that is fixed here.
- *
- * Revision 1.27  2002/04/12 11:55:11  bjornw
- * Added TODO
- *
- * Revision 1.26  2002/03/15 17:11:02  bjornw
- * Use prepare_rx_descriptor after the CPU has touched the receiving descs
- *
- * Revision 1.25  2002/03/08 13:07:53  bjornw
- * Unnecessary spinlock removed
- *
- * Revision 1.24  2002/02/20 12:57:43  fredriks
- * Replaced MIN() with min().
- *
- * Revision 1.23  2002/02/20 10:58:14  fredriks
- * Strip the Ethernet checksum (4 bytes) before forwarding a frame to upper layers.
- *
- * Revision 1.22  2002/01/30 07:48:22  matsfg
- * Initiate R_NETWORK_TR_CTRL
- *
- * Revision 1.21  2001/11/23 11:54:49  starvik
- * Added IFF_PROMISC and IFF_ALLMULTI handling in set_multicast_list
- * Removed compiler warnings
- *
- * Revision 1.20  2001/11/12 19:26:00  pkj
- * * Corrected e100_negotiate() to not assign half to current_duplex when
- *   it was supposed to compare them...
- * * Cleaned up failure handling in e100_open().
- * * Fixed compiler warnings.
- *
- * Revision 1.19  2001/11/09 07:43:09  starvik
- * Added full duplex support
- * Added ioctl to set speed and duplex
- * Clear LED timer only runs when LED is lit
- *
- * Revision 1.18  2001/10/03 14:40:43  jonashg
- * Update rx_bytes counter.
- *
- * Revision 1.17  2001/06/11 12:43:46  olof
- * Modified defines for network LED behavior
- *
- * Revision 1.16  2001/05/30 06:12:46  markusl
- * TxDesc.next should not be set to NULL
- *
- * Revision 1.15  2001/05/29 10:27:04  markusl
- * Updated after review remarks:
- * +Use IO_EXTRACT
- * +Handle underrun
- *
- * Revision 1.14  2001/05/29 09:20:14  jonashg
- * Use driver name on printk output so one can tell which driver that complains.
- *
- * Revision 1.13  2001/05/09 12:35:59  johana
- * Use DMA_NBR and IRQ_NBR defines from dma.h and irq.h
- *
- * Revision 1.12  2001/04/05 11:43:11  tobiasa
- * Check dev before panic.
- *
- * Revision 1.11  2001/04/04 11:21:05  markusl
- * Updated according to review remarks
- *
- * Revision 1.10  2001/03/26 16:03:06  bjornw
- * Needs linux/config.h
- *
- * Revision 1.9  2001/03/19 14:47:48  pkj
- * * Make sure there is always a pause after the network LEDs are
- *   changed so they will not look constantly lit during heavy traffic.
- * * Always use HZ when setting times relative to jiffies.
- * * Use LED_NETWORK_SET() when setting the network LEDs.
- *
- * Revision 1.8  2001/02/27 13:52:48  bjornw
- * malloc.h -> slab.h
- *
- * Revision 1.7  2001/02/23 13:46:38  bjornw
- * Spellling check
- *
- * Revision 1.6  2001/01/26 15:21:04  starvik
- * Don't disable interrupts while reading MDIO registers (MDIO is slow)
- * Corrected promiscuous mode
- * Improved deallocation of IRQs ("ifconfig eth0 down" now works)
- *
- * Revision 1.5  2000/11/29 17:22:22  bjornw
- * Get rid of the udword types legacy stuff
- *
- * Revision 1.4  2000/11/22 16:36:09  bjornw
- * Please marketing by using the correct case when spelling Etrax.
- *
- * Revision 1.3  2000/11/21 16:43:04  bjornw
- * Minor short->int change
- *
- * Revision 1.2  2000/11/08 14:27:57  bjornw
- * 2.4 port
- *
- * Revision 1.1  2000/11/06 13:56:00  bjornw
- * Verbatim copy of the 1.24 version of e100net.c from elinux
- *
- * Revision 1.24  2000/10/04 15:55:23  bjornw
- * * Use virt_to_phys etc. for DMA addresses
- * * Removed bogus CHECKSUM_UNNECESSARY
- *
  *
  */
 
@@ -244,7 +33,7 @@
 #include <linux/ethtool.h>
 
 #include <asm/arch/svinto.h>/* DMA and register descriptions */
-#include <asm/io.h>         /* LED_* I/O functions */
+#include <asm/io.h>         /* CRIS_LED_* I/O functions */
 #include <asm/irq.h>
 #include <asm/dma.h>
 #include <asm/system.h>
@@ -1899,18 +1688,18 @@ e100_set_network_leds(int active)
 	if (!current_speed) {
 		/* Make LED red, link is down */
 #if defined(CONFIG_ETRAX_NETWORK_RED_ON_NO_CONNECTION)
-		LED_NETWORK_SET(LED_RED);
+		CRIS_LED_NETWORK_SET(CRIS_LED_RED);
 #else
-		LED_NETWORK_SET(LED_OFF);
+		CRIS_LED_NETWORK_SET(CRIS_LED_OFF);
 #endif
 	} else if (light_leds) {
 		if (current_speed == 10) {
-			LED_NETWORK_SET(LED_ORANGE);
+			CRIS_LED_NETWORK_SET(CRIS_LED_ORANGE);
 		} else {
-			LED_NETWORK_SET(LED_GREEN);
+			CRIS_LED_NETWORK_SET(CRIS_LED_GREEN);
 		}
 	} else {
-		LED_NETWORK_SET(LED_OFF);
+		CRIS_LED_NETWORK_SET(CRIS_LED_OFF);
 	}
 }
 

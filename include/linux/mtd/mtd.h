@@ -152,6 +152,15 @@ struct mtd_info {
 	int (*read) (struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf);
 	int (*write) (struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen, const u_char *buf);
 
+	/* In blackbox flight recorder like scenarios we want to make successful
+	   writes in interrupt context. panic_write() is only intended to be
+	   called when its known the kernel is about to panic and we need the
+	   write to succeed. Since the kernel is not going to be running for much
+	   longer, this function can break locks and delay to ensure the write
+	   succeeds (but not sleep). */
+
+	int (*panic_write) (struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen, const u_char *buf);
+
 	int (*read_oob) (struct mtd_info *mtd, loff_t from,
 			 struct mtd_oob_ops *ops);
 	int (*write_oob) (struct mtd_info *mtd, loff_t to,

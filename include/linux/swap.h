@@ -5,6 +5,7 @@
 #include <linux/linkage.h>
 #include <linux/mmzone.h>
 #include <linux/list.h>
+#include <linux/memcontrol.h>
 #include <linux/sched.h>
 
 #include <asm/atomic.h>
@@ -170,10 +171,10 @@ extern unsigned int nr_free_pagecache_pages(void);
 
 
 /* linux/mm/swap.c */
-extern void FASTCALL(lru_cache_add(struct page *));
-extern void FASTCALL(lru_cache_add_active(struct page *));
-extern void FASTCALL(activate_page(struct page *));
-extern void FASTCALL(mark_page_accessed(struct page *));
+extern void lru_cache_add(struct page *);
+extern void lru_cache_add_active(struct page *);
+extern void activate_page(struct page *);
+extern void mark_page_accessed(struct page *);
 extern void lru_add_drain(void);
 extern int lru_add_drain_all(void);
 extern int rotate_reclaimable_page(struct page *page);
@@ -182,6 +183,9 @@ extern void swap_setup(void);
 /* linux/mm/vmscan.c */
 extern unsigned long try_to_free_pages(struct zone **zones, int order,
 					gfp_t gfp_mask);
+extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem,
+							gfp_t gfp_mask);
+extern int __isolate_lru_page(struct page *page, int mode);
 extern unsigned long shrink_all_memory(unsigned long nr_pages);
 extern int vm_swappiness;
 extern int remove_mapping(struct address_space *mapping, struct page *page);

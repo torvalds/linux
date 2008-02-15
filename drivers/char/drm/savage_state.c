@@ -512,7 +512,7 @@ static int savage_dispatch_vb_prim(drm_savage_private_t * dev_priv,
 			DMA_DRAW_PRIMITIVE(count, prim, skip);
 
 			if (vb_stride == vtx_size) {
-				DMA_COPY(&vtxbuf[vb_stride * start], 
+				DMA_COPY(&vtxbuf[vb_stride * start],
 					 vtx_size * count);
 			} else {
 				for (i = start; i < start + count; ++i) {
@@ -742,7 +742,7 @@ static int savage_dispatch_vb_idx(drm_savage_private_t * dev_priv,
 	while (n != 0) {
 		/* Can emit up to 255 vertices (85 triangles) at once. */
 		unsigned int count = n > 255 ? 255 : n;
-		
+
 		/* Check indices */
 		for (i = 0; i < count; ++i) {
 			if (idx[i] > vb_size / (vb_stride * 4)) {
@@ -933,7 +933,7 @@ static int savage_dispatch_draw(drm_savage_private_t * dev_priv,
 				/* j was check in savage_bci_cmdbuf */
 				ret = savage_dispatch_vb_idx(dev_priv,
 					&cmd_header, (const uint16_t *)cmdbuf,
-					(const uint32_t *)vtxbuf, vb_size, 
+					(const uint32_t *)vtxbuf, vb_size,
 					vb_stride);
 				cmdbuf += j;
 				break;

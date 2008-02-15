@@ -293,6 +293,7 @@ int ecryptfs_read_lower_page_segment(struct page *page_for_ecryptfs,
 	return rc;
 }
 
+#if 0
 /**
  * ecryptfs_read
  * @data: The virtual address into which to write the data read (and
@@ -371,3 +372,4 @@ int ecryptfs_read(char *data, loff_t offset, size_t size,
 out:
 	return rc;
 }
+#endif  /*  0  */

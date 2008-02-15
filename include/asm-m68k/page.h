@@ -1,9 +1,6 @@
 #ifndef _M68K_PAGE_H
 #define _M68K_PAGE_H
 
-
-#ifdef __KERNEL__
-
 #include <linux/const.h>
 
 /* PAGE_SHIFT determines the page size */
@@ -94,6 +91,7 @@ typedef struct { unsigned long pte; } pte_t;
 typedef struct { unsigned long pmd[16]; } pmd_t;
 typedef struct { unsigned long pgd; } pgd_t;
 typedef struct { unsigned long pgprot; } pgprot_t;
+typedef struct page *pgtable_t;
 
 #define pte_val(x)	((x).pte)
 #define pmd_val(x)	((&x)->pmd[0])
@@ -229,7 +227,5 @@ static inline __attribute_const__ int __virt_to_node_shift(void)
 				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
 #include <asm-generic/page.h>
-
-#endif /* __KERNEL__ */
 
 #endif /* _M68K_PAGE_H */

@@ -77,6 +77,8 @@ static int unixmode2p9mode(struct v9fs_session_info *v9ses, int mode)
 			res |= P9_DMSETUID;
 		if ((mode & S_ISGID) == S_ISGID)
 			res |= P9_DMSETGID;
+		if ((mode & S_ISVTX) == S_ISVTX)
+			res |= P9_DMSETVTX;
 		if ((mode & P9_DMLINK))
 			res |= P9_DMLINK;
 	}
@@ -119,6 +121,9 @@ static int p9mode2unixmode(struct v9fs_session_info *v9ses, int mode)
 
 		if ((mode & P9_DMSETGID) == P9_DMSETGID)
 			res |= S_ISGID;
+
+		if ((mode & P9_DMSETVTX) == P9_DMSETVTX)
+			res |= S_ISVTX;
 	}
 
 	return res;
@@ -568,7 +573,7 @@ static struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 	v9ses = v9fs_inode2v9ses(dir);
 	dfid = v9fs_fid_lookup(dentry->d_parent);
 	if (IS_ERR(dfid))
-		return ERR_PTR(PTR_ERR(dfid));
+		return ERR_CAST(dfid);
 
 	name = (char *) dentry->d_name.name;
 	fid = p9_client_walk(dfid, 1, &name, 1);

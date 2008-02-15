@@ -95,7 +95,15 @@ enum ib_device_cap_flags {
 	IB_DEVICE_N_NOTIFY_CQ		= (1<<14),
 	IB_DEVICE_ZERO_STAG		= (1<<15),
 	IB_DEVICE_SEND_W_INV		= (1<<16),
-	IB_DEVICE_MEM_WINDOW		= (1<<17)
+	IB_DEVICE_MEM_WINDOW		= (1<<17),
+	/*
+	 * Devices should set IB_DEVICE_UD_IP_SUM if they support
+	 * insertion of UDP and TCP checksum on outgoing UD IPoIB
+	 * messages and can verify the validity of checksum for
+	 * incoming messages.  Setting this flag implies that the
+	 * IPoIB driver may set NETIF_F_IP_CSUM for datagram mode.
+	 */
+	IB_DEVICE_UD_IP_CSUM		= (1<<18),
 };
 
 enum ib_atomic_cap {
@@ -431,6 +439,7 @@ struct ib_wc {
 	u8			sl;
 	u8			dlid_path_bits;
 	u8			port_num;	/* valid only for DR SMPs on switches */
+	int			csum_ok;
 };
 
 enum ib_cq_notify_flags {
@@ -615,7 +624,8 @@ enum ib_send_flags {
 	IB_SEND_FENCE		= 1,
 	IB_SEND_SIGNALED	= (1<<1),
 	IB_SEND_SOLICITED	= (1<<2),
-	IB_SEND_INLINE		= (1<<3)
+	IB_SEND_INLINE		= (1<<3),
+	IB_SEND_IP_CSUM		= (1<<4)
 };
 
 struct ib_sge {
@@ -889,8 +899,6 @@ struct ib_device {
 	struct ib_cache               cache;
 	int                          *pkey_tbl_len;
 	int                          *gid_tbl_len;
-
-	u32                           flags;
 
 	int			      num_comp_vectors;
 

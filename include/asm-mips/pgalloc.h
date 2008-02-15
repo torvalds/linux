@@ -20,10 +20,11 @@ static inline void pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd,
 }
 
 static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd,
-	struct page *pte)
+	pgtable_t pte)
 {
 	set_pmd(pmd, __pmd((unsigned long)page_address(pte)));
 }
+#define pmd_pgtable(pmd) pmd_page(pmd)
 
 /*
  * Initialize a new pmd table with invalid pointers.
@@ -79,9 +80,10 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm,
 	struct page *pte;
 
 	pte = alloc_pages(GFP_KERNEL | __GFP_REPEAT, PTE_ORDER);
-	if (pte)
+	if (pte) {
 		clear_highpage(pte);
-
+		pgtable_page_ctor(pte);
+	}
 	return pte;
 }
 
@@ -90,12 +92,17 @@ static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 	free_pages((unsigned long)pte, PTE_ORDER);
 }
 
-static inline void pte_free(struct mm_struct *mm, struct page *pte)
+static inline void pte_free(struct mm_struct *mm, pgtable_t pte)
 {
+	pgtable_page_dtor(pte);
 	__free_pages(pte, PTE_ORDER);
 }
 
-#define __pte_free_tlb(tlb, pte)	tlb_remove_page((tlb), (pte))
+#define __pte_free_tlb(tlb,pte)				\
+do {							\
+	pgtable_page_dtor(pte);				\
+	tlb_remove_page((tlb), pte);			\
+} while (0)
 
 #ifdef CONFIG_32BIT
 

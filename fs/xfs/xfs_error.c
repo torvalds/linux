@@ -230,37 +230,6 @@ xfs_error_report(
 	}
 }
 
-STATIC void
-xfs_hex_dump(void *p, int length)
-{
-	__uint8_t *uip = (__uint8_t*)p;
-	int	i;
-	char	sbuf[128], *s;
-
-	s = sbuf;
-	*s = '\0';
-	for (i=0; i<length; i++, uip++) {
-		if ((i % 16) == 0) {
-			if (*s != '\0')
-				cmn_err(CE_ALERT, "%s\n", sbuf);
-			s = sbuf;
-			sprintf(s, "0x%x: ", i);
-			while( *s != '\0')
-				s++;
-		}
-		sprintf(s, "%02x ", *uip);
-
-		/*
-		 * the kernel sprintf is a void; user sprintf returns
-		 * the sprintf'ed string's length.  Find the new end-
-		 * of-string
-		 */
-		while( *s != '\0')
-			s++;
-	}
-	cmn_err(CE_ALERT, "%s\n", sbuf);
-}
-
 void
 xfs_corruption_error(
 	char		*tag,

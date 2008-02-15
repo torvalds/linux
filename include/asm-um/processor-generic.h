@@ -11,7 +11,6 @@ struct pt_regs;
 struct task_struct;
 
 #include "asm/ptrace.h"
-#include "asm/pgtable.h"
 #include "registers.h"
 #include "sysdep/archsetjmp.h"
 
@@ -92,7 +91,18 @@ static inline void mm_copy_segments(struct mm_struct *from_mm,
 /*
  * User space process size: 3GB (default).
  */
-#define TASK_SIZE (CONFIG_TOP_ADDR & PGDIR_MASK)
+extern unsigned long task_size;
+
+#define TASK_SIZE (task_size)
+
+#undef STACK_TOP
+#undef STACK_TOP_MAX
+
+extern unsigned long stacksizelim;
+
+#define STACK_ROOM	(stacksizelim)
+#define STACK_TOP	(TASK_SIZE - 2 * PAGE_SIZE)
+#define STACK_TOP_MAX	STACK_TOP
 
 /* This decides where the kernel will search for a free chunk of vm
  * space during mmap's.

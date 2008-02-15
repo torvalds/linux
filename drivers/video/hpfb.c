@@ -207,7 +207,8 @@ static struct fb_ops hpfb_ops = {
 #define HPFB_FBOMSB	0x5d	/* Frame buffer offset		*/
 #define HPFB_FBOLSB	0x5f
 
-static int __init hpfb_init_one(unsigned long phys_base, unsigned long virt_base)
+static int __devinit hpfb_init_one(unsigned long phys_base,
+				   unsigned long virt_base)
 {
 	unsigned long fboff, fb_width, fb_height, fb_start;
 

@@ -143,7 +143,6 @@ typedef struct xfs_buf {
 	void			*b_fspriv2;
 	void			*b_fspriv3;
 	unsigned short		b_error;	/* error code on I/O */
-	unsigned short		b_locked;	/* page array is locked */
 	unsigned int		b_page_count;	/* size of page array */
 	unsigned int		b_offset;	/* page offset in first page */
 	struct page		**b_pages;	/* array of page pointers */

@@ -93,7 +93,7 @@ config MTD_NAND_AU1550
 
 config MTD_NAND_BF5XX
 	tristate "Blackfin on-chip NAND Flash Controller driver"
-	depends on BF54x && MTD_NAND
+	depends on (BF54x || BF52x) && MTD_NAND
 	help
 	  This enables the Blackfin on-chip NAND flash controller
 
@@ -283,6 +283,12 @@ config MTD_NAND_CM_X270
 	tristate "Support for NAND Flash on CM-X270 modules"
 	depends on MTD_NAND && MACH_ARMCORE
 
+config MTD_NAND_PASEMI
+	tristate "NAND support for PA Semi PWRficient"
+	depends on MTD_NAND && PPC_PASEMI
+	help
+	  Enables support for NAND Flash interface on PA Semi PWRficient
+	  based boards
 
 config MTD_NAND_NANDSIM
 	tristate "Support for NAND Flash Simulator"
@@ -305,5 +311,23 @@ config MTD_ALAUDA
 	help
 	  These two (and possibly other) Alauda-based cardreaders for
 	  SmartMedia and xD allow raw flash access.
+
+config MTD_NAND_ORION
+	tristate "NAND Flash support for Marvell Orion SoC"
+	depends on ARCH_ORION && MTD_NAND
+	help
+	  This enables the NAND flash controller on Orion machines.
+
+	  No board specific support is done by this driver, each board
+	  must advertise a platform_device for the driver to attach.
+
+config MTD_NAND_FSL_ELBC
+	tristate "NAND support for Freescale eLBC controllers"
+	depends on MTD_NAND && PPC_OF
+	help
+	  Various Freescale chips, including the 8313, include a NAND Flash
+	  Controller Module with built-in hardware ECC capabilities.
+	  Enabling this option will enable you to use this to control
+	  external NAND devices.
 
 endif # MTD_NAND

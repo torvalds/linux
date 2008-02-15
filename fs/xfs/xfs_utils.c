@@ -73,7 +73,7 @@ xfs_dir_lookup_int(
 {
 	int		error;
 
-	vn_trace_entry(dp, __FUNCTION__, (inst_t *)__return_address);
+	xfs_itrace_entry(dp);
 
 	error = xfs_dir_lookup(NULL, dp, VNAME(dentry), VNAMELEN(dentry), inum);
 	if (!error) {
@@ -302,6 +302,7 @@ xfs_droplink(
 
 	ASSERT (ip->i_d.di_nlink > 0);
 	ip->i_d.di_nlink--;
+	drop_nlink(ip->i_vnode);
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
 	error = 0;
@@ -330,7 +331,6 @@ xfs_bump_ino_vers2(
 	xfs_inode_t	*ip)
 {
 	xfs_mount_t	*mp;
-	unsigned long		s;
 
 	ASSERT(ismrlocked (&ip->i_lock, MR_UPDATE));
 	ASSERT(ip->i_d.di_version == XFS_DINODE_VERSION_1);
@@ -340,13 +340,13 @@ xfs_bump_ino_vers2(
 	memset(&(ip->i_d.di_pad[0]), 0, sizeof(ip->i_d.di_pad));
 	mp = tp->t_mountp;
 	if (!XFS_SB_VERSION_HASNLINK(&mp->m_sb)) {
-		s = XFS_SB_LOCK(mp);
+		spin_lock(&mp->m_sb_lock);
 		if (!XFS_SB_VERSION_HASNLINK(&mp->m_sb)) {
 			XFS_SB_VERSION_ADDNLINK(&mp->m_sb);
-			XFS_SB_UNLOCK(mp, s);
+			spin_unlock(&mp->m_sb_lock);
 			xfs_mod_sb(tp, XFS_SB_VERSIONNUM);
 		} else {
-			XFS_SB_UNLOCK(mp, s);
+			spin_unlock(&mp->m_sb_lock);
 		}
 	}
 	/* Caller must log the inode */
@@ -366,6 +366,7 @@ xfs_bumplink(
 
 	ASSERT(ip->i_d.di_nlink > 0);
 	ip->i_d.di_nlink++;
+	inc_nlink(ip->i_vnode);
 	if ((ip->i_d.di_version == XFS_DINODE_VERSION_1) &&
 	    (ip->i_d.di_nlink > XFS_MAXLINK_1)) {
 		/*

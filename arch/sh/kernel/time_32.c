@@ -120,10 +120,6 @@ static long last_rtc_update;
  */
 void handle_timer_tick(void)
 {
-	do_timer(1);
-#ifndef CONFIG_SMP
-	update_process_times(user_mode(get_irq_regs()));
-#endif
 	if (current->pid)
 		profile_tick(CPU_PROFILING);
 
@@ -131,6 +127,16 @@ void handle_timer_tick(void)
 	if (sh_mv.mv_heartbeat != NULL)
 		sh_mv.mv_heartbeat();
 #endif
+
+	/*
+	 * Here we are in the timer irq handler. We just have irqs locally
+	 * disabled but we don't know if the timer_bh is running on the other
+	 * CPU. We need to avoid to SMP race with it. NOTE: we don' t need
+	 * the irq version of write_lock because as just said we have irq
+	 * locally disabled. -arca
+	 */
+	write_seqlock(&xtime_lock);
+	do_timer(1);
 
 	/*
 	 * If we have an externally synchronized Linux clock, then update
@@ -147,6 +153,11 @@ void handle_timer_tick(void)
 			/* do it again in 60s */
 			last_rtc_update = xtime.tv_sec - 600;
 	}
+	write_sequnlock(&xtime_lock);
+
+#ifndef CONFIG_SMP
+	update_process_times(user_mode(get_irq_regs()));
+#endif
 }
 #endif /* !CONFIG_GENERIC_CLOCKEVENTS */
 

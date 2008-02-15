@@ -91,7 +91,8 @@ unsigned long __init setup_memory(void)
 			PFN_PHYS(mp->pages));
 
 		reserve_bootmem_node(NODE_DATA(nid), PFN_PHYS(mp->start_pfn),
-			PFN_PHYS(mp->free_pfn - mp->start_pfn) + bootmap_size);
+			PFN_PHYS(mp->free_pfn - mp->start_pfn) + bootmap_size,
+			BOOTMEM_DEFAULT);
 
 		if (max_low_pfn < max_pfn)
 			max_low_pfn = max_pfn;
@@ -104,7 +105,7 @@ unsigned long __init setup_memory(void)
 	if (LOADER_TYPE && INITRD_START) {
 		if (INITRD_START + INITRD_SIZE <= PFN_PHYS(max_low_pfn)) {
 			reserve_bootmem_node(NODE_DATA(0), INITRD_START,
-				INITRD_SIZE);
+				INITRD_SIZE, BOOTMEM_DEFAULT);
 			initrd_start = INITRD_START + PAGE_OFFSET;
 			initrd_end = initrd_start + INITRD_SIZE;
 			printk("initrd:start[%08lx],size[%08lx]\n",

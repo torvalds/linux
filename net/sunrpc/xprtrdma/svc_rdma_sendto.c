@@ -159,7 +159,8 @@ static int send_write(struct svcxprt_rdma *xprt, struct svc_rqst *rqstp,
 	BUG_ON(sge_count >= 32);
 	dprintk("svcrdma: RDMA_WRITE rmr=%x, to=%llx, xdr_off=%d, "
 		"write_len=%d, xdr_sge=%p, sge_count=%d\n",
-		rmr, to, xdr_off, write_len, xdr_sge, sge_count);
+		rmr, (unsigned long long)to, xdr_off,
+		write_len, xdr_sge, sge_count);
 
 	ctxt = svc_rdma_get_context(xprt);
 	ctxt->count = 0;

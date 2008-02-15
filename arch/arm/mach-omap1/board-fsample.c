@@ -30,6 +30,7 @@
 #include <asm/arch/gpio.h>
 #include <asm/arch/mux.h>
 #include <asm/arch/fpga.h>
+#include <asm/arch/nand.h>
 #include <asm/arch/keypad.h>
 #include <asm/arch/common.h>
 #include <asm/arch/board.h>
@@ -134,7 +135,7 @@ static struct platform_device nor_device = {
 	.resource	= &nor_resource,
 };
 
-static struct nand_platform_data nand_data = {
+static struct omap_nand_platform_data nand_data = {
 	.options	= NAND_SAMSUNG_LP_OPTIONS,
 };
 
@@ -202,7 +203,7 @@ static struct platform_device *devices[] __initdata = {
 
 #define P2_NAND_RB_GPIO_PIN	62
 
-static int nand_dev_ready(struct nand_platform_data *data)
+static int nand_dev_ready(struct omap_nand_platform_data *data)
 {
 	return omap_get_gpio_datain(P2_NAND_RB_GPIO_PIN);
 }
@@ -233,6 +234,7 @@ static void __init omap_fsample_init(void)
 	omap_board_config = fsample_config;
 	omap_board_config_size = ARRAY_SIZE(fsample_config);
 	omap_serial_init();
+	omap_register_i2c_bus(1, 100, NULL, 0);
 }
 
 static void __init fsample_init_smc91x(void)

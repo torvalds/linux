@@ -3159,7 +3159,8 @@ static void raid5_activate_delayed(raid5_conf_t *conf)
 				atomic_inc(&conf->preread_active_stripes);
 			list_add_tail(&sh->lru, &conf->handle_list);
 		}
-	}
+	} else
+		blk_plug_device(conf->mddev->queue);
 }
 
 static void activate_bit_delay(raid5_conf_t *conf)
@@ -3549,7 +3550,8 @@ static int make_request(struct request_queue *q, struct bio * bi)
 				goto retry;
 			}
 			finish_wait(&conf->wait_for_overlap, &w);
-			handle_stripe(sh, NULL);
+			set_bit(STRIPE_HANDLE, &sh->state);
+			clear_bit(STRIPE_DELAYED, &sh->state);
 			release_stripe(sh);
 		} else {
 			/* cannot get stripe for read-ahead, just give-up */
@@ -3698,6 +3700,25 @@ static sector_t reshape_request(mddev_t *mddev, sector_t sector_nr, int *skipped
 		release_stripe(sh);
 		first_sector += STRIPE_SECTORS;
 	}
+	/* If this takes us to the resync_max point where we have to pause,
+	 * then we need to write out the superblock.
+	 */
+	sector_nr += conf->chunk_size>>9;
+	if (sector_nr >= mddev->resync_max) {
+		/* Cannot proceed until we've updated the superblock... */
+		wait_event(conf->wait_for_overlap,
+			   atomic_read(&conf->reshape_stripes) == 0);
+		mddev->reshape_position = conf->expand_progress;
+		set_bit(MD_CHANGE_DEVS, &mddev->flags);
+		md_wakeup_thread(mddev->thread);
+		wait_event(mddev->sb_wait,
+			   !test_bit(MD_CHANGE_DEVS, &mddev->flags)
+			   || kthread_should_stop());
+		spin_lock_irq(&conf->device_lock);
+		conf->expand_lo = mddev->reshape_position;
+		spin_unlock_irq(&conf->device_lock);
+		wake_up(&conf->wait_for_overlap);
+	}
 	return conf->chunk_size>>9;
 }
 
@@ -3734,6 +3755,12 @@ static inline sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *ski
 	if (test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery))
 		return reshape_request(mddev, sector_nr, skipped);
 
+	/* No need to check resync_max as we never do more than one
+	 * stripe, and as resync_max will always be on a chunk boundary,
+	 * if the check in md_do_sync didn't fire, there is no chance
+	 * of overstepping resync_max here
+	 */
+
 	/* if there is too many failed drives and we are trying
 	 * to resync, then assert that we are finished, because there is
 	 * nothing we can do.
@@ -3752,6 +3779,9 @@ static inline sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *ski
 		*skipped = 1;
 		return sync_blocks * STRIPE_SECTORS; /* keep things rounded to whole stripes */
 	}
+
+
+	bitmap_cond_end_sync(mddev->bitmap, sector_nr);
 
 	pd_idx = stripe_to_pdidx(sector_nr, conf, raid_disks);
 	sh = get_active_stripe(conf, sector_nr, raid_disks, pd_idx, 1);
@@ -3864,7 +3894,7 @@ static int  retry_aligned_read(raid5_conf_t *conf, struct bio *raid_bio)
  * During the scan, completed stripes are saved for us by the interrupt
  * handler, so that they will not have to wait for our next wakeup.
  */
-static void raid5d (mddev_t *mddev)
+static void raid5d(mddev_t *mddev)
 {
 	struct stripe_head *sh;
 	raid5_conf_t *conf = mddev_to_conf(mddev);
@@ -3888,12 +3918,6 @@ static void raid5d (mddev_t *mddev)
 			conf->seq_write = seq;
 			activate_bit_delay(conf);
 		}
-
-		if (list_empty(&conf->handle_list) &&
-		    atomic_read(&conf->preread_active_stripes) < IO_THRESHOLD &&
-		    !blk_queue_plugged(mddev->queue) &&
-		    !list_empty(&conf->delayed_list))
-			raid5_activate_delayed(conf);
 
 		while ((bio = remove_bio_from_retry(conf))) {
 			int ok;
@@ -4108,7 +4132,7 @@ static int run(mddev_t *mddev)
 
 	pr_debug("raid5: run(%s) called.\n", mdname(mddev));
 
-	ITERATE_RDEV(mddev,rdev,tmp) {
+	rdev_for_each(rdev, tmp, mddev) {
 		raid_disk = rdev->raid_disk;
 		if (raid_disk >= conf->raid_disks
 		    || raid_disk < 0)
@@ -4521,7 +4545,7 @@ static int raid5_start_reshape(mddev_t *mddev)
 	if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
 		return -EBUSY;
 
-	ITERATE_RDEV(mddev, rdev, rtmp)
+	rdev_for_each(rdev, rtmp, mddev)
 		if (rdev->raid_disk < 0 &&
 		    !test_bit(Faulty, &rdev->flags))
 			spares++;
@@ -4543,7 +4567,7 @@ static int raid5_start_reshape(mddev_t *mddev)
 	/* Add some new drives, as many as will fit.
 	 * We know there are enough to make the newly sized array work.
 	 */
-	ITERATE_RDEV(mddev, rdev, rtmp)
+	rdev_for_each(rdev, rtmp, mddev)
 		if (rdev->raid_disk < 0 &&
 		    !test_bit(Faulty, &rdev->flags)) {
 			if (raid5_add_disk(mddev, rdev)) {

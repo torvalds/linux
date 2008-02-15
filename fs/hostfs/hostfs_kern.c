@@ -11,6 +11,8 @@
 #include <linux/mm.h>
 #include <linux/pagemap.h>
 #include <linux/statfs.h>
+#include <linux/seq_file.h>
+#include <linux/mount.h>
 #include "hostfs.h"
 #include "init.h"
 #include "kern.h"
@@ -202,7 +204,7 @@ static char *follow_link(char *link)
 	return ERR_PTR(n);
 }
 
-static int read_inode(struct inode *ino)
+static int hostfs_read_inode(struct inode *ino)
 {
 	char *name;
 	int err = 0;
@@ -231,6 +233,25 @@ static int read_inode(struct inode *ino)
 	kfree(name);
  out:
 	return err;
+}
+
+static struct inode *hostfs_iget(struct super_block *sb)
+{
+	struct inode *inode;
+	long ret;
+
+	inode = iget_locked(sb, 0);
+	if (!inode)
+		return ERR_PTR(-ENOMEM);
+	if (inode->i_state & I_NEW) {
+		ret = hostfs_read_inode(inode);
+		if (ret < 0) {
+			iget_failed(inode);
+			return ERR_PTR(ret);
+		}
+		unlock_new_inode(inode);
+	}
+	return inode;
 }
 
 int hostfs_statfs(struct dentry *dentry, struct kstatfs *sf)
@@ -303,9 +324,16 @@ static void hostfs_destroy_inode(struct inode *inode)
 	kfree(HOSTFS_I(inode));
 }
 
-static void hostfs_read_inode(struct inode *inode)
+static int hostfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 {
-	read_inode(inode);
+	struct inode *root = vfs->mnt_sb->s_root->d_inode;
+	const char *root_path = HOSTFS_I(root)->host_filename;
+	size_t offset = strlen(root_ino) + 1;
+
+	if (strlen(root_path) > offset)
+		seq_printf(seq, ",%s", root_path + offset);
+
+	return 0;
 }
 
 static const struct super_operations hostfs_sbops = {
@@ -313,8 +341,8 @@ static const struct super_operations hostfs_sbops = {
 	.drop_inode	= generic_delete_inode,
 	.delete_inode   = hostfs_delete_inode,
 	.destroy_inode	= hostfs_destroy_inode,
-	.read_inode	= hostfs_read_inode,
 	.statfs		= hostfs_statfs,
+	.show_options	= hostfs_show_options,
 };
 
 int hostfs_readdir(struct file *file, void *ent, filldir_t filldir)
@@ -571,10 +599,11 @@ int hostfs_create(struct inode *dir, struct dentry *dentry, int mode,
 	char *name;
 	int error, fd;
 
-	error = -ENOMEM;
-	inode = iget(dir->i_sb, 0);
-	if (inode == NULL)
+	inode = hostfs_iget(dir->i_sb);
+	if (IS_ERR(inode)) {
+		error = PTR_ERR(inode);
 		goto out;
+	}
 
 	error = init_inode(inode, dentry);
 	if (error)
@@ -615,10 +644,11 @@ struct dentry *hostfs_lookup(struct inode *ino, struct dentry *dentry,
 	char *name;
 	int err;
 
-	err = -ENOMEM;
-	inode = iget(ino->i_sb, 0);
-	if (inode == NULL)
+	inode = hostfs_iget(ino->i_sb);
+	if (IS_ERR(inode)) {
+		err = PTR_ERR(inode);
 		goto out;
+	}
 
 	err = init_inode(inode, dentry);
 	if (err)
@@ -736,11 +766,13 @@ int hostfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
 {
 	struct inode *inode;
 	char *name;
-	int err = -ENOMEM;
+	int err;
 
-	inode = iget(dir->i_sb, 0);
-	if (inode == NULL)
+	inode = hostfs_iget(dir->i_sb);
+	if (IS_ERR(inode)) {
+		err = PTR_ERR(inode);
 		goto out;
+	}
 
 	err = init_inode(inode, dentry);
 	if (err)
@@ -952,9 +984,11 @@ static int hostfs_fill_sb_common(struct super_block *sb, void *d, int silent)
 
 	sprintf(host_root_path, "%s/%s", root_ino, req_root);
 
-	root_inode = iget(sb, 0);
-	if (root_inode == NULL)
+	root_inode = hostfs_iget(sb);
+	if (IS_ERR(root_inode)) {
+		err = PTR_ERR(root_inode);
 		goto out_free;
+	}
 
 	err = init_inode(root_inode, NULL);
 	if (err)
@@ -972,7 +1006,7 @@ static int hostfs_fill_sb_common(struct super_block *sb, void *d, int silent)
 	if (sb->s_root == NULL)
 		goto out_put;
 
-	err = read_inode(root_inode);
+	err = hostfs_read_inode(root_inode);
 	if (err) {
 		/* No iput in this case because the dput does that for us */
 		dput(sb->s_root);

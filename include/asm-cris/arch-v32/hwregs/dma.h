@@ -1,5 +1,4 @@
-/* $Id: dma.h,v 1.7 2005/04/24 18:30:58 starvik Exp $
- *
+/*
  * DMA C definitions and help macros
  *
  */
@@ -98,11 +97,11 @@ typedef struct dma_descr_data {
 
 // give stream command
 #define DMA_WR_CMD( inst, cmd_par ) \
-   do { reg_dma_rw_stream_cmd r = {0}; \
-        do { r = REG_RD( dma, inst, rw_stream_cmd ); } while( r.busy ); \
-        r.cmd = (cmd_par); \
-        REG_WR( dma, inst, rw_stream_cmd, r ); \
-      } while( 0 )
+   do { reg_dma_rw_stream_cmd __x = {0}; \
+	do { __x = REG_RD(dma, inst, rw_stream_cmd); } while (__x.busy); \
+	__x.cmd = (cmd_par); \
+	REG_WR(dma, inst, rw_stream_cmd, __x); \
+   } while (0)
 
 // load: g,c,d:burst
 #define DMA_START_GROUP( inst, group_descr ) \

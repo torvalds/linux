@@ -634,8 +634,8 @@ static inline int post_send(struct ipoib_dev_priv *priv,
 {
 	struct ib_send_wr *bad_wr;
 
-	priv->tx_sge.addr	= addr;
-	priv->tx_sge.length	= len;
+	priv->tx_sge[0].addr          = addr;
+	priv->tx_sge[0].length        = len;
 
 	priv->tx_wr.wr_id	= wr_id | IPOIB_OP_CM;
 
@@ -676,7 +676,7 @@ void ipoib_cm_send(struct net_device *dev, struct sk_buff *skb, struct ipoib_cm_
 		return;
 	}
 
-	tx_req->mapping = addr;
+	tx_req->mapping[0] = addr;
 
 	if (unlikely(post_send(priv, tx, tx->tx_head & (ipoib_sendq_size - 1),
 			       addr, skb->len))) {
@@ -715,7 +715,7 @@ void ipoib_cm_handle_tx_wc(struct net_device *dev, struct ib_wc *wc)
 
 	tx_req = &tx->tx_ring[wr_id];
 
-	ib_dma_unmap_single(priv->ca, tx_req->mapping, tx_req->skb->len, DMA_TO_DEVICE);
+	ib_dma_unmap_single(priv->ca, tx_req->mapping[0], tx_req->skb->len, DMA_TO_DEVICE);
 
 	/* FIXME: is this right? Shouldn't we only increment on success? */
 	++dev->stats.tx_packets;
@@ -1110,7 +1110,7 @@ timeout:
 
 	while ((int) p->tx_tail - (int) p->tx_head < 0) {
 		tx_req = &p->tx_ring[p->tx_tail & (ipoib_sendq_size - 1)];
-		ib_dma_unmap_single(priv->ca, tx_req->mapping, tx_req->skb->len,
+		ib_dma_unmap_single(priv->ca, tx_req->mapping[0], tx_req->skb->len,
 				    DMA_TO_DEVICE);
 		dev_kfree_skb_any(tx_req->skb);
 		++p->tx_tail;

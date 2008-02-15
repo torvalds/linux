@@ -13,6 +13,7 @@
 typedef struct mm_context {
 	struct mm_id id;
 	struct uml_ldt ldt;
+	struct page **stub_pages;
 } mm_context_t;
 
 extern void __switch_mm(struct mm_id * mm_idp);

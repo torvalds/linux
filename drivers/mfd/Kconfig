@@ -15,6 +15,13 @@ config MFD_SM501
 	  interface. The device may be connected by PCI or local bus with
 	  varying functions enabled.
 
+config MFD_ASIC3
+	bool "Support for Compaq ASIC3"
+	depends on GENERIC_HARDIRQS && ARM
+	 ---help---
+	  This driver supports the ASIC3 multifunction chip found on many
+	  PDAs (mainly iPAQ and HTC based ones)
+
 endmenu
 
 menu "Multimedia Capabilities Port drivers"

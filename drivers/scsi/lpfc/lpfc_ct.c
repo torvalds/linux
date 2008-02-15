@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2007 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2008 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -294,7 +294,7 @@ lpfc_gen_req(struct lpfc_vport *vport, struct lpfc_dmabuf *bmp,
 	/* Save for completion so we can release these resources */
 	geniocb->context1 = (uint8_t *) inp;
 	geniocb->context2 = (uint8_t *) outp;
-	geniocb->context_un.ndlp = ndlp;
+	geniocb->context_un.ndlp = lpfc_nlp_get(ndlp);
 
 	/* Fill in payload, bp points to frame payload */
 	icmd->ulpCommand = CMD_GEN_REQUEST64_CR;
@@ -489,8 +489,10 @@ lpfc_ns_rsp(struct lpfc_vport *vport, struct lpfc_dmabuf *mp, uint32_t Size)
 						 */
 						ndlp = lpfc_findnode_did(vport,
 							Did);
-						if (ndlp && (ndlp->nlp_type &
-							NLP_FCP_TARGET))
+						if (ndlp &&
+						    NLP_CHK_NODE_ACT(ndlp)
+						    && (ndlp->nlp_type &
+						     NLP_FCP_TARGET))
 							lpfc_setup_disc_node
 								(vport, Did);
 						else if (lpfc_ns_cmd(vport,
@@ -773,7 +775,7 @@ lpfc_cmpl_ct_cmd_gff_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				 "0267 NameServer GFF Rsp "
 				 "x%x Error (%d %d) Data: x%x x%x\n",
 				 did, irsp->ulpStatus, irsp->un.ulpWord[4],
-				 vport->fc_flag, vport->fc_rscn_id_cnt)
+				 vport->fc_flag, vport->fc_rscn_id_cnt);
 	}
 
 	/* This is a target port, unregistered port, or the GFF_ID failed */
@@ -1064,7 +1066,8 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 	int rc = 0;
 
 	ndlp = lpfc_findnode_did(vport, NameServer_DID);
-	if (ndlp == NULL || ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) {
+	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp)
+	    || ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) {
 		rc=1;
 		goto ns_cmd_exit;
 	}
@@ -1213,8 +1216,9 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 		cmpl = lpfc_cmpl_ct_cmd_rff_id;
 		break;
 	}
-	lpfc_nlp_get(ndlp);
-
+	/* The lpfc_ct_cmd/lpfc_get_req shall increment ndlp reference count
+	 * to hold ndlp reference for the corresponding callback function.
+	 */
 	if (!lpfc_ct_cmd(vport, mp, bmp, ndlp, cmpl, rsp_size, retry)) {
 		/* On success, The cmpl function will free the buffers */
 		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
@@ -1222,9 +1226,13 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 			cmdcode, ndlp->nlp_DID, 0);
 		return 0;
 	}
-
 	rc=6;
+
+	/* Decrement ndlp reference count to release ndlp reference held
+	 * for the failed command's callback function.
+	 */
 	lpfc_nlp_put(ndlp);
+
 	lpfc_mbuf_free(phba, bmp->virt, bmp->phys);
 ns_cmd_free_bmp:
 	kfree(bmp);
@@ -1271,6 +1279,9 @@ lpfc_cmpl_ct_cmd_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	}
 
 	ndlp = lpfc_findnode_did(vport, FDMI_DID);
+	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp))
+		goto fail_out;
+
 	if (fdmi_rsp == be16_to_cpu(SLI_CT_RESPONSE_FS_RJT)) {
 		/* FDMI rsp failed */
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
@@ -1294,6 +1305,8 @@ lpfc_cmpl_ct_cmd_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_RHBA);
 		break;
 	}
+
+fail_out:
 	lpfc_ct_free_iocb(phba, cmdiocb);
 	return;
 }
@@ -1650,12 +1663,18 @@ lpfc_fdmi_cmd(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp, int cmdcode)
 	bpl->tus.w = le32_to_cpu(bpl->tus.w);
 
 	cmpl = lpfc_cmpl_ct_cmd_fdmi;
-	lpfc_nlp_get(ndlp);
 
+	/* The lpfc_ct_cmd/lpfc_get_req shall increment ndlp reference count
+	 * to hold ndlp reference for the corresponding callback function.
+	 */
 	if (!lpfc_ct_cmd(vport, mp, bmp, ndlp, cmpl, FC_MAX_NS_RSP, 0))
 		return 0;
 
+	/* Decrement ndlp reference count to release ndlp reference held
+	 * for the failed command's callback function.
+	 */
 	lpfc_nlp_put(ndlp);
+
 	lpfc_mbuf_free(phba, bmp->virt, bmp->phys);
 fdmi_cmd_free_bmp:
 	kfree(bmp);
@@ -1698,7 +1717,7 @@ lpfc_fdmi_timeout_handler(struct lpfc_vport *vport)
 	struct lpfc_nodelist *ndlp;
 
 	ndlp = lpfc_findnode_did(vport, FDMI_DID);
-	if (ndlp) {
+	if (ndlp && NLP_CHK_NODE_ACT(ndlp)) {
 		if (init_utsname()->nodename[0] != '\0')
 			lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_DHBA);
 		else

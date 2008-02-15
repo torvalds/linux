@@ -241,6 +241,11 @@ static struct notifier_block panic_exit_notifier = {
 };
 
 /* Set during early boot */
+unsigned long task_size;
+EXPORT_SYMBOL(task_size);
+
+unsigned long host_task_size;
+
 unsigned long brk_start;
 unsigned long end_iomem;
 EXPORT_SYMBOL(end_iomem);
@@ -266,6 +271,13 @@ int __init linux_main(int argc, char **argv)
 	}
 	if (have_root == 0)
 		add_arg(DEFAULT_COMMAND_LINE);
+
+	host_task_size = os_get_task_size();
+	/*
+	 * TASK_SIZE needs to be PGDIR_SIZE aligned or else exit_mmap craps
+	 * out
+	 */
+	task_size = host_task_size & PGDIR_MASK;
 
 	/* OS sanity checks that need to happen before the kernel runs */
 	os_early_checks();
@@ -303,7 +315,7 @@ int __init linux_main(int argc, char **argv)
 
 	highmem = 0;
 	iomem_size = (iomem_size + PAGE_SIZE - 1) & PAGE_MASK;
-	max_physmem = CONFIG_TOP_ADDR - uml_physmem - iomem_size - MIN_VMALLOC;
+	max_physmem = TASK_SIZE - uml_physmem - iomem_size - MIN_VMALLOC;
 
 	/*
 	 * Zones have to begin on a 1 << MAX_ORDER page boundary,
@@ -335,7 +347,7 @@ int __init linux_main(int argc, char **argv)
 	}
 
 	virtmem_size = physmem_size;
-	avail = CONFIG_TOP_ADDR - start_vm;
+	avail = TASK_SIZE - start_vm;
 	if (physmem_size > avail)
 		virtmem_size = avail;
 	end_vm = start_vm + virtmem_size;

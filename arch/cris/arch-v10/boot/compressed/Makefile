@@ -1,45 +1,35 @@
 #
-# create a compressed vmlinuz image from the binary vmlinux.bin file
+# arch/cris/arch-v10/boot/compressed/Makefile
 #
-target = $(target_compressed_dir)
-src    = $(src_compressed_dir)
 
 CC = gcc-cris -melf $(LINUXINCLUDE)
-CFLAGS = -O2
+ccflags-y += -O2
 LD = ld-cris
+ldflags-y += -T $(obj)/decompress.ld
+OBJECTS = $(obj)/head.o $(obj)/misc.o
 OBJCOPY = objcopy-cris
 OBJCOPYFLAGS = -O binary --remove-section=.bss
-OBJECTS = $(target)/head.o $(target)/misc.o
 
-# files to compress
-SYSTEM = $(objtree)/vmlinux.bin
+quiet_cmd_image = BUILD   $@
+cmd_image = cat $(obj)/decompress.bin $(obj)/piggy.gz > $@
 
-all: $(target_compressed_dir)/vmlinuz
+targets := vmlinux piggy.gz decompress.o decompress.bin
 
-$(target)/decompress.bin: $(OBJECTS)
-	$(LD) -T $(src)/decompress.ld -o $(target)/decompress.o $(OBJECTS)
-	$(OBJCOPY) $(OBJCOPYFLAGS) $(target)/decompress.o $(target)/decompress.bin
+$(obj)/decompress.o: $(OBJECTS) FORCE
+	$(call if_changed,ld)
 
-# Create vmlinuz image in top-level build directory
-$(target_compressed_dir)/vmlinuz: $(target) piggy.img $(target)/decompress.bin
-	@echo "  COMPR   vmlinux.bin --> vmlinuz"
-	@cat $(target)/decompress.bin piggy.img > $(target_compressed_dir)/vmlinuz
-	@rm -f piggy.img
+$(obj)/decompress.bin: $(obj)/decompress.o FORCE
+	$(call if_changed,objcopy)
 
-$(target)/head.o: $(src)/head.S
-	$(CC) -D__ASSEMBLY__ -traditional -c $< -o $@
+$(obj)/head.o: $(obj)/head.S .config
+	@$(CC) -D__ASSEMBLY__ -traditional -c $< -o $@
 
-$(target)/misc.o: $(src)/misc.c
-	$(CC) -D__KERNEL__ -c $< -o $@
+$(obj)/misc.o: $(obj)/misc.c .config
+	@$(CC) -D__KERNEL__ -c $< -o $@
 
-# gzip the kernel image
+$(obj)/vmlinux: $(obj)/piggy.gz $(obj)/decompress.bin FORCE
+	$(call if_changed,image)
 
-piggy.img: $(SYSTEM)
-	@cat $(SYSTEM) | gzip -f -9 > piggy.img
-
-$(target):
-	mkdir -p $(target)
-
-clean:
-	rm -f piggy.img $(objtree)/vmlinuz
+$(obj)/piggy.gz: $(obj)/../Image FORCE
+	$(call if_changed,gzip)
 
