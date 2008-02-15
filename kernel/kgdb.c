@@ -28,6 +28,7 @@
  * kind, whether express or implied.
  */
 #include <linux/pid_namespace.h>
+#include <linux/clocksource.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/console.h>
@@ -574,6 +575,7 @@ static void kgdb_wait(struct pt_regs *regs)
 
 	/* Signal the primary CPU that we are done: */
 	atomic_set(&cpu_in_kgdb[cpu], 0);
+	clocksource_touch_watchdog();
 	local_irq_restore(flags);
 }
 #endif
@@ -1396,6 +1398,7 @@ acquirelock:
 	    atomic_read(&kgdb_cpu_doing_single_step) != cpu) {
 
 		atomic_set(&kgdb_active, -1);
+		clocksource_touch_watchdog();
 		local_irq_restore(flags);
 
 		goto acquirelock;
@@ -1487,6 +1490,7 @@ acquirelock:
 kgdb_restore:
 	/* Free kgdb_active */
 	atomic_set(&kgdb_active, -1);
+	clocksource_touch_watchdog();
 	local_irq_restore(flags);
 
 	return error;

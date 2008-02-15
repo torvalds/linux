@@ -222,6 +222,18 @@ void clocksource_resume(void)
 }
 
 /**
+ * clocksource_touch_watchdog - Update watchdog
+ *
+ * Update the watchdog after exception contexts such as kgdb so as not
+ * to incorrectly trip the watchdog.
+ *
+ */
+void clocksource_touch_watchdog(void)
+{
+	clocksource_resume_watchdog();
+}
+
+/**
  * clocksource_get_next - Returns the selected clocksource
  *
  */
