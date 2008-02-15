@@ -946,16 +946,11 @@ static int fs_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
 	struct mii_ioctl_data *mii = (struct mii_ioctl_data *)&rq->ifr_data;
-	unsigned long flags;
-	int rc;
 
 	if (!netif_running(dev))
 		return -EINVAL;
 
-	spin_lock_irqsave(&fep->lock, flags);
-	rc = phy_mii_ioctl(fep->phydev, mii, cmd);
-	spin_unlock_irqrestore(&fep->lock, flags);
-	return rc;
+	return phy_mii_ioctl(fep->phydev, mii, cmd);
 }
 
 extern int fs_mii_connect(struct net_device *dev);
