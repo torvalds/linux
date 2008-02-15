@@ -1397,19 +1397,19 @@ struct block_device *lookup_bdev(const char *path)
 	if (error)
 		return ERR_PTR(error);
 
-	inode = nd.dentry->d_inode;
+	inode = nd.path.dentry->d_inode;
 	error = -ENOTBLK;
 	if (!S_ISBLK(inode->i_mode))
 		goto fail;
 	error = -EACCES;
-	if (nd.mnt->mnt_flags & MNT_NODEV)
+	if (nd.path.mnt->mnt_flags & MNT_NODEV)
 		goto fail;
 	error = -ENOMEM;
 	bdev = bd_acquire(inode);
 	if (!bdev)
 		goto fail;
 out:
-	path_release(&nd);
+	path_put(&nd.path);
 	return bdev;
 fail:
 	bdev = ERR_PTR(error);

@@ -13,7 +13,6 @@ config MPC5121_ADS
 	bool "Freescale MPC5121E ADS"
 	depends on PPC_MULTIPLATFORM && PPC32
 	select DEFAULT_UIMAGE
-	select WANT_DEVICE_TREE
 	select PPC_MPC5121
 	help
 	  This option enables support for the MPC5121E ADS board.

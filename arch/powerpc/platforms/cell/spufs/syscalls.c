@@ -73,7 +73,7 @@ static long do_spu_create(const char __user *pathname, unsigned int flags,
 				LOOKUP_OPEN|LOOKUP_CREATE, &nd);
 		if (!ret) {
 			ret = spufs_create(&nd, flags, mode, neighbor);
-			path_release(&nd);
+			path_put(&nd.path);
 		}
 		putname(tmp);
 	}

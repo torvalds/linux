@@ -21,6 +21,7 @@
 #include <asm/machvec.h>
 #include <asm/rts7751r2d.h>
 #include <asm/io.h>
+#include <asm/io_trapped.h>
 #include <asm/spi.h>
 
 static struct resource cf_ide_resources[] = {
@@ -214,13 +215,25 @@ static struct platform_device *rts7751r2d_devices[] __initdata = {
 	&uart_device,
 	&sm501_device,
 #endif
-	&cf_ide_device,
 	&heartbeat_device,
 	&spi_sh_sci_device,
 };
 
+/*
+ * The CF is connected with a 16-bit bus where 8-bit operations are
+ * unsupported. The linux ata driver is however using 8-bit operations, so
+ * insert a trapped io filter to convert 8-bit operations into 16-bit.
+ */
+static struct trapped_io cf_trapped_io = {
+	.resource		= cf_ide_resources,
+	.num_resources		= 2,
+	.minimum_bus_width	= 16,
+};
+
 static int __init rts7751r2d_devices_setup(void)
 {
+	if (register_trapped_io(&cf_trapped_io) == 0)
+		platform_device_register(&cf_ide_device);
 	spi_register_board_info(spi_bus, ARRAY_SIZE(spi_bus));
 	return platform_add_devices(rts7751r2d_devices,
 				    ARRAY_SIZE(rts7751r2d_devices));
@@ -230,34 +243,6 @@ __initcall(rts7751r2d_devices_setup);
 static void rts7751r2d_power_off(void)
 {
 	ctrl_outw(0x0001, PA_POWOFF);
-}
-
-static inline unsigned char is_ide_ioaddr(unsigned long addr)
-{
-	return ((cf_ide_resources[0].start <= addr &&
-		 addr <= cf_ide_resources[0].end) ||
-		(cf_ide_resources[1].start <= addr &&
-		 addr <= cf_ide_resources[1].end));
-}
-
-void rts7751r2d_writeb(u8 b, void __iomem *addr)
-{
-	unsigned long tmp = (unsigned long __force)addr;
-
-	if (is_ide_ioaddr(tmp))
-		ctrl_outw((u16)b, tmp);
-	else
-		ctrl_outb(b, tmp);
-}
-
-u8 rts7751r2d_readb(void __iomem *addr)
-{
-	unsigned long tmp = (unsigned long __force)addr;
-
-	if (is_ide_ioaddr(tmp))
-		return ctrl_inw(tmp) & 0xff;
-	else
-		return ctrl_inb(tmp);
 }
 
 /*
@@ -310,6 +295,4 @@ static struct sh_machine_vector mv_rts7751r2d __initmv = {
 	.mv_setup		= rts7751r2d_setup,
 	.mv_init_irq		= init_rts7751r2d_IRQ,
 	.mv_irq_demux		= rts7751r2d_irq_demux,
-	.mv_writeb		= rts7751r2d_writeb,
-	.mv_readb		= rts7751r2d_readb,
 };

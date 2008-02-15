@@ -209,7 +209,6 @@ struct ipoib_cm_tx {
 	unsigned	     tx_tail;
 	unsigned long	     flags;
 	u32		     mtu;
-	struct ib_wc	     ibwc[IPOIB_NUM_WC];
 };
 
 struct ipoib_cm_rx_buf {

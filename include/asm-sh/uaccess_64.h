@@ -202,15 +202,6 @@ extern void __put_user_unknown(void);
 /* XXX: should be such that: 4byte and the rest. */
 extern __kernel_size_t __copy_user(void *__to, const void *__from, __kernel_size_t __n);
 
-#define copy_to_user(to,from,n) ({ \
-void *__copy_to = (void *) (to); \
-__kernel_size_t __copy_size = (__kernel_size_t) (n); \
-__kernel_size_t __copy_res; \
-if(__copy_size && __access_ok((unsigned long)__copy_to, __copy_size)) { \
-__copy_res = __copy_user(__copy_to, (void *) (from), __copy_size); \
-} else __copy_res = __copy_size; \
-__copy_res; })
-
 #define copy_to_user_ret(to,from,n,retval) ({ \
 if (copy_to_user(to,from,n)) \
 	return retval; \
@@ -224,16 +215,6 @@ if (copy_to_user(to,from,n)) \
 if (__copy_to_user(to,from,n)) \
 	return retval; \
 })
-
-#define copy_from_user(to,from,n) ({ \
-void *__copy_to = (void *) (to); \
-void *__copy_from = (void *) (from); \
-__kernel_size_t __copy_size = (__kernel_size_t) (n); \
-__kernel_size_t __copy_res; \
-if(__copy_size && __access_ok((unsigned long)__copy_from, __copy_size)) { \
-__copy_res = __copy_user(__copy_to, __copy_from, __copy_size); \
-} else __copy_res = __copy_size; \
-__copy_res; })
 
 #define copy_from_user_ret(to,from,n,retval) ({ \
 if (copy_from_user(to,from,n)) \

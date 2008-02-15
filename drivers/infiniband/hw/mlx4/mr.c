@@ -199,7 +199,7 @@ struct ib_fmr *mlx4_ib_fmr_alloc(struct ib_pd *pd, int acc,
 	if (err)
 		goto err_free;
 
-	err = mlx4_mr_enable(to_mdev(pd->device)->dev, &fmr->mfmr.mr);
+	err = mlx4_fmr_enable(to_mdev(pd->device)->dev, &fmr->mfmr);
 	if (err)
 		goto err_mr;
 

@@ -55,11 +55,14 @@ extern void clear_page(void *to);
 extern void copy_page(void *to, void *from);
 
 #if !defined(CONFIG_CACHE_OFF) && defined(CONFIG_MMU) && \
-	(defined(CONFIG_CPU_SH4) || defined(CONFIG_SH7705_CACHE_32KB))
+	(defined(CONFIG_CPU_SH5) || defined(CONFIG_CPU_SH4) || \
+	 defined(CONFIG_SH7705_CACHE_32KB))
 struct page;
 struct vm_area_struct;
 extern void clear_user_page(void *to, unsigned long address, struct page *page);
-#ifdef CONFIG_CPU_SH4
+extern void copy_user_page(void *to, void *from, unsigned long address,
+			   struct page *page);
+#if defined(CONFIG_CPU_SH4)
 extern void copy_user_highpage(struct page *to, struct page *from,
 			       unsigned long vaddr, struct vm_area_struct *vma);
 #define __HAVE_ARCH_COPY_USER_HIGHPAGE

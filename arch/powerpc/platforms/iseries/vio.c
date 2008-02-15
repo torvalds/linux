@@ -75,7 +75,7 @@ static struct property *new_property(const char *name, int length,
 	return np;
 }
 
-static void __init free_property(struct property *np)
+static void free_property(struct property *np)
 {
 	kfree(np);
 }

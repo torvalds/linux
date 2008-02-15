@@ -542,6 +542,7 @@ struct mthca_user_db_table *mthca_init_user_db_tab(struct mthca_dev *dev)
 	for (i = 0; i < npages; ++i) {
 		db_tab->page[i].refcount = 0;
 		db_tab->page[i].uvirt    = 0;
+		sg_init_table(&db_tab->page[i].mem, 1);
 	}
 
 	return db_tab;

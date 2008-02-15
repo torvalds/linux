@@ -21,6 +21,8 @@ config X86
 	select HAVE_IDE
 	select HAVE_OPROFILE
 	select HAVE_KPROBES
+	select HAVE_KVM
+
 
 config GENERIC_LOCKBREAK
 	def_bool n
@@ -118,8 +120,6 @@ config ARCH_HAS_CPU_RELAX
 
 config HAVE_SETUP_PER_CPU_AREA
 	def_bool X86_64
-
-select HAVE_KVM
 
 config ARCH_HIBERNATION_POSSIBLE
 	def_bool y

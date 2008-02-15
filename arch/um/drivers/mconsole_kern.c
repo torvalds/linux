@@ -145,8 +145,8 @@ void mconsole_proc(struct mc_request *req)
 	}
 	up_write(&super->s_umount);
 
-	nd.dentry = super->s_root;
-	nd.mnt = NULL;
+	nd.path.dentry = super->s_root;
+	nd.path.mnt = NULL;
 	nd.flags = O_RDONLY + 1;
 	nd.last_type = LAST_ROOT;
 
@@ -159,7 +159,7 @@ void mconsole_proc(struct mc_request *req)
 		goto out_kill;
 	}
 
-	file = dentry_open(nd.dentry, nd.mnt, O_RDONLY);
+	file = dentry_open(nd.path.dentry, nd.path.mnt, O_RDONLY);
 	if (IS_ERR(file)) {
 		mconsole_reply(req, "Failed to open file", 1, 0);
 		goto out_kill;

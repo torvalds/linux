@@ -84,7 +84,7 @@ static inline void conditional_sti(struct pt_regs *regs)
 
 static inline void preempt_conditional_sti(struct pt_regs *regs)
 {
-	preempt_disable();
+	inc_preempt_count();
 	if (regs->flags & X86_EFLAGS_IF)
 		local_irq_enable();
 }
@@ -95,7 +95,7 @@ static inline void preempt_conditional_cli(struct pt_regs *regs)
 		local_irq_disable();
 	/* Make sure to not schedule here because we could be running
 	   on an exception stack. */
-	preempt_enable_no_resched();
+	dec_preempt_count();
 }
 
 int kstack_depth_to_print = 12;

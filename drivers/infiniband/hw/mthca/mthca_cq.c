@@ -473,7 +473,7 @@ static void handle_error_cqe(struct mthca_dev *dev, struct mthca_cq *cq,
 	if (!(new_wqe & cpu_to_be32(0x3f)) || (!cqe->db_cnt && dbd))
 		return;
 
-	cqe->db_cnt   = cpu_to_be16(be16_to_cpu(cqe->db_cnt) - dbd);
+	be16_add_cpu(&cqe->db_cnt, -dbd);
 	cqe->wqe      = new_wqe;
 	cqe->syndrome = SYNDROME_WR_FLUSH_ERR;
 

@@ -16,12 +16,6 @@
 /* This has to be a common function because the next location to fill
  * information is shared. */
 extern void __do_tlb_refill(unsigned long address, unsigned long long is_text_not_data, pte_t *pte);
-
-/* Profiling counter. */
-#ifdef CONFIG_SH64_PROC_TLB
-extern unsigned long long calls_to_do_fast_page_fault;
-#endif
-
 #endif /* __ASSEMBLY__ */
 
 #endif /* __ASM_SH_CPU_SH5_MMU_CONTEXT_H */

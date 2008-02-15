@@ -512,14 +512,10 @@ static void __put_fs_struct(struct fs_struct *fs)
 {
 	/* No need to hold fs->lock if we are killing it */
 	if (atomic_dec_and_test(&fs->count)) {
-		dput(fs->root);
-		mntput(fs->rootmnt);
-		dput(fs->pwd);
-		mntput(fs->pwdmnt);
-		if (fs->altroot) {
-			dput(fs->altroot);
-			mntput(fs->altrootmnt);
-		}
+		path_put(&fs->root);
+		path_put(&fs->pwd);
+		if (fs->altroot.dentry)
+			path_put(&fs->altroot);
 		kmem_cache_free(fs_cachep, fs);
 	}
 }

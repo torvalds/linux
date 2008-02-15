@@ -38,6 +38,7 @@
  */
 #define __IO_PREFIX	generic
 #include <asm/io_generic.h>
+#include <asm/io_trapped.h>
 
 #define maybebadio(port) \
   printk(KERN_ERR "bad PC-like io %s:%u for port 0x%lx at 0x%08x\n", \
@@ -181,13 +182,13 @@ __BUILD_MEMORY_STRING(w, u16)
 #define iowrite32(v,a)		writel((v),(a))
 #define iowrite32be(v,a)	__raw_writel(cpu_to_be32((v)),(a))
 
-#define ioread8_rep(a,d,c)	insb((a),(d),(c))
-#define ioread16_rep(a,d,c)	insw((a),(d),(c))
-#define ioread32_rep(a,d,c)	insl((a),(d),(c))
+#define ioread8_rep(a, d, c)	readsb((a), (d), (c))
+#define ioread16_rep(a, d, c)	readsw((a), (d), (c))
+#define ioread32_rep(a, d, c)	readsl((a), (d), (c))
 
-#define iowrite8_rep(a,s,c)	outsb((a),(s),(c))
-#define iowrite16_rep(a,s,c)	outsw((a),(s),(c))
-#define iowrite32_rep(a,s,c)	outsl((a),(s),(c))
+#define iowrite8_rep(a, s, c)	writesb((a), (s), (c))
+#define iowrite16_rep(a, s, c)	writesw((a), (s), (c))
+#define iowrite32_rep(a, s, c)	writesl((a), (s), (c))
 
 #define mmiowb()	wmb()	/* synco on SH-4A, otherwise a nop */
 
@@ -206,6 +207,8 @@ static inline void __set_io_port_base(unsigned long pbase)
 
 	generic_io_base = pbase;
 }
+
+#define __ioport_map(p, n) sh_mv.mv_ioport_map((p), (n))
 
 /* We really want to try and get these to memcpy etc */
 extern void memcpy_fromio(void *, volatile void __iomem *, unsigned long);
@@ -309,7 +312,14 @@ __ioremap_mode(unsigned long offset, unsigned long size, unsigned long flags)
 {
 #ifdef CONFIG_SUPERH32
 	unsigned long last_addr = offset + size - 1;
+#endif
+	void __iomem *ret;
 
+	ret = __ioremap_trapped(offset, size);
+	if (ret)
+		return ret;
+
+#ifdef CONFIG_SUPERH32
 	/*
 	 * For P1 and P2 space this is trivial, as everything is already
 	 * mapped. Uncached access for P1 addresses are done through P2.

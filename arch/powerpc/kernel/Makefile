@@ -104,3 +104,5 @@ quiet_cmd_systbl_chk = CALL    $<
 PHONY += systbl_chk
 systbl_chk: $(src)/systbl_chk.sh $(obj)/systbl_chk.i
 	$(call cmd,systbl_chk)
+
+clean-files := vmlinux.lds

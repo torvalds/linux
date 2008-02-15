@@ -193,10 +193,10 @@ static int __init do_mount_root(char *name, char *fs, int flags, void *data)
 		return err;
 
 	sys_chdir("/root");
-	ROOT_DEV = current->fs->pwdmnt->mnt_sb->s_dev;
+	ROOT_DEV = current->fs->pwd.mnt->mnt_sb->s_dev;
 	printk("VFS: Mounted root (%s filesystem)%s.\n",
-	       current->fs->pwdmnt->mnt_sb->s_type->name,
-	       current->fs->pwdmnt->mnt_sb->s_flags & MS_RDONLY ? 
+	       current->fs->pwd.mnt->mnt_sb->s_type->name,
+	       current->fs->pwd.mnt->mnt_sb->s_flags & MS_RDONLY ?
 	       " readonly" : "");
 	return 0;
 }

@@ -33,17 +33,17 @@ static inline void delay(void)
 
 u8 generic_inb(unsigned long port)
 {
-	return ctrl_inb((unsigned long __force)ioport_map(port, 1));
+	return ctrl_inb((unsigned long __force)__ioport_map(port, 1));
 }
 
 u16 generic_inw(unsigned long port)
 {
-	return ctrl_inw((unsigned long __force)ioport_map(port, 2));
+	return ctrl_inw((unsigned long __force)__ioport_map(port, 2));
 }
 
 u32 generic_inl(unsigned long port)
 {
-	return ctrl_inl((unsigned long __force)ioport_map(port, 4));
+	return ctrl_inl((unsigned long __force)__ioport_map(port, 4));
 }
 
 u8 generic_inb_p(unsigned long port)
@@ -81,7 +81,7 @@ void generic_insb(unsigned long port, void *dst, unsigned long count)
 	volatile u8 *port_addr;
 	u8 *buf = dst;
 
-	port_addr = (volatile u8 *)ioport_map(port, 1);
+	port_addr = (volatile u8 *)__ioport_map(port, 1);
 	while (count--)
 		*buf++ = *port_addr;
 }
@@ -91,7 +91,7 @@ void generic_insw(unsigned long port, void *dst, unsigned long count)
 	volatile u16 *port_addr;
 	u16 *buf = dst;
 
-	port_addr = (volatile u16 *)ioport_map(port, 2);
+	port_addr = (volatile u16 *)__ioport_map(port, 2);
 	while (count--)
 		*buf++ = *port_addr;
 
@@ -103,7 +103,7 @@ void generic_insl(unsigned long port, void *dst, unsigned long count)
 	volatile u32 *port_addr;
 	u32 *buf = dst;
 
-	port_addr = (volatile u32 *)ioport_map(port, 4);
+	port_addr = (volatile u32 *)__ioport_map(port, 4);
 	while (count--)
 		*buf++ = *port_addr;
 
@@ -112,17 +112,17 @@ void generic_insl(unsigned long port, void *dst, unsigned long count)
 
 void generic_outb(u8 b, unsigned long port)
 {
-	ctrl_outb(b, (unsigned long __force)ioport_map(port, 1));
+	ctrl_outb(b, (unsigned long __force)__ioport_map(port, 1));
 }
 
 void generic_outw(u16 b, unsigned long port)
 {
-	ctrl_outw(b, (unsigned long __force)ioport_map(port, 2));
+	ctrl_outw(b, (unsigned long __force)__ioport_map(port, 2));
 }
 
 void generic_outl(u32 b, unsigned long port)
 {
-	ctrl_outl(b, (unsigned long __force)ioport_map(port, 4));
+	ctrl_outl(b, (unsigned long __force)__ioport_map(port, 4));
 }
 
 void generic_outb_p(u8 b, unsigned long port)
@@ -153,7 +153,7 @@ void generic_outsb(unsigned long port, const void *src, unsigned long count)
 	volatile u8 *port_addr;
 	const u8 *buf = src;
 
-	port_addr = (volatile u8 __force *)ioport_map(port, 1);
+	port_addr = (volatile u8 __force *)__ioport_map(port, 1);
 
 	while (count--)
 		*port_addr = *buf++;
@@ -164,7 +164,7 @@ void generic_outsw(unsigned long port, const void *src, unsigned long count)
 	volatile u16 *port_addr;
 	const u16 *buf = src;
 
-	port_addr = (volatile u16 __force *)ioport_map(port, 2);
+	port_addr = (volatile u16 __force *)__ioport_map(port, 2);
 
 	while (count--)
 		*port_addr = *buf++;
@@ -177,7 +177,7 @@ void generic_outsl(unsigned long port, const void *src, unsigned long count)
 	volatile u32 *port_addr;
 	const u32 *buf = src;
 
-	port_addr = (volatile u32 __force *)ioport_map(port, 4);
+	port_addr = (volatile u32 __force *)__ioport_map(port, 4);
 	while (count--)
 		*port_addr = *buf++;
 

@@ -567,8 +567,7 @@ static inline void print_modules(void)
 {
 }
 
-static inline void module_update_markers(struct module *probe_module,
-		int *refcount)
+static inline void module_update_markers(void)
 {
 }
 

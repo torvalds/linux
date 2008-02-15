@@ -28,10 +28,6 @@
 
 #include "vuart.h"
 
-MODULE_AUTHOR("Sony Corporation");
-MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("PS3 System Manager");
-
 /**
  * ps3_sys_manager - PS3 system manager driver.
  *
@@ -142,9 +138,11 @@ enum ps3_sys_manager_attr {
 
 /**
  * enum ps3_sys_manager_event - External event type, reported by system manager.
- * @PS3_SM_EVENT_POWER_PRESSED: payload.value not used.
+ * @PS3_SM_EVENT_POWER_PRESSED: payload.value =
+ *  enum ps3_sys_manager_button_event.
  * @PS3_SM_EVENT_POWER_RELEASED: payload.value = time pressed in millisec.
- * @PS3_SM_EVENT_RESET_PRESSED: payload.value not used.
+ * @PS3_SM_EVENT_RESET_PRESSED: payload.value =
+ *  enum ps3_sys_manager_button_event.
  * @PS3_SM_EVENT_RESET_RELEASED: payload.value = time pressed in millisec.
  * @PS3_SM_EVENT_THERMAL_ALERT: payload.value = thermal zone id.
  * @PS3_SM_EVENT_THERMAL_CLEARED: payload.value = thermal zone id.
@@ -159,6 +157,17 @@ enum ps3_sys_manager_event {
 	PS3_SM_EVENT_THERMAL_ALERT = 7,
 	PS3_SM_EVENT_THERMAL_CLEARED = 8,
 	/* no info on controller events */
+};
+
+/**
+ * enum ps3_sys_manager_button_event - Button event payload values.
+ * @PS3_SM_BUTTON_EVENT_HARD: Hardware generated event.
+ * @PS3_SM_BUTTON_EVENT_SOFT: Software generated event.
+ */
+
+enum ps3_sys_manager_button_event {
+	PS3_SM_BUTTON_EVENT_HARD = 0,
+	PS3_SM_BUTTON_EVENT_SOFT = 1,
 };
 
 /**
@@ -181,7 +190,9 @@ enum ps3_sys_manager_next_op {
  * @PS3_SM_WAKE_P_O_R: Power on reset.
  *
  * Additional wakeup sources when specifying PS3_SM_NEXT_OP_SYS_SHUTDOWN.
- * System will always wake from the PS3_SM_WAKE_DEFAULT sources.
+ * The system will always wake from the PS3_SM_WAKE_DEFAULT sources.
+ * Sources listed here are the only ones available to guests in the
+ * other-os lpar.
  */
 
 enum ps3_sys_manager_wake_source {
@@ -189,7 +200,7 @@ enum ps3_sys_manager_wake_source {
 	PS3_SM_WAKE_DEFAULT   = 0,
 	PS3_SM_WAKE_RTC       = 0x00000040,
 	PS3_SM_WAKE_RTC_ERROR = 0x00000080,
-	PS3_SM_WAKE_P_O_R     = 0x10000000,
+	PS3_SM_WAKE_P_O_R     = 0x80000000,
 };
 
 /**
@@ -418,8 +429,10 @@ static int ps3_sys_manager_handle_event(struct ps3_system_bus_device *dev)
 
 	switch (event.type) {
 	case PS3_SM_EVENT_POWER_PRESSED:
-		dev_dbg(&dev->core, "%s:%d: POWER_PRESSED\n",
-			__func__, __LINE__);
+		dev_dbg(&dev->core, "%s:%d: POWER_PRESSED (%s)\n",
+			__func__, __LINE__,
+			(event.value == PS3_SM_BUTTON_EVENT_SOFT ? "soft"
+			: "hard"));
 		ps3_sm_force_power_off = 1;
 		/*
 		 * A memory barrier is use here to sync memory since
@@ -434,8 +447,10 @@ static int ps3_sys_manager_handle_event(struct ps3_system_bus_device *dev)
 			__func__, __LINE__, event.value);
 		break;
 	case PS3_SM_EVENT_RESET_PRESSED:
-		dev_dbg(&dev->core, "%s:%d: RESET_PRESSED\n",
-			__func__, __LINE__);
+		dev_dbg(&dev->core, "%s:%d: RESET_PRESSED (%s)\n",
+			__func__, __LINE__,
+			(event.value == PS3_SM_BUTTON_EVENT_SOFT ? "soft"
+			: "hard"));
 		ps3_sm_force_power_off = 0;
 		/*
 		 * A memory barrier is use here to sync memory since
@@ -622,7 +637,7 @@ static void ps3_sys_manager_final_restart(struct ps3_system_bus_device *dev)
 	ps3_vuart_cancel_async(dev);
 
 	ps3_sys_manager_send_attr(dev, 0);
-	ps3_sys_manager_send_next_op(dev, PS3_SM_NEXT_OP_LPAR_REBOOT,
+	ps3_sys_manager_send_next_op(dev, PS3_SM_NEXT_OP_SYS_REBOOT,
 		PS3_SM_WAKE_DEFAULT);
 	ps3_sys_manager_send_request_shutdown(dev);
 
@@ -699,4 +714,7 @@ static int __init ps3_sys_manager_init(void)
 module_init(ps3_sys_manager_init);
 /* Module remove not supported. */
 
+MODULE_AUTHOR("Sony Corporation");
+MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("PS3 System Manager");
 MODULE_ALIAS(PS3_MODULE_ALIAS_SYSTEM_MANAGER);

@@ -251,10 +251,6 @@ static int floppy_release(struct inode *inode, struct file *filp);
 static int floppy_check_change(struct gendisk *disk);
 static int floppy_revalidate(struct gendisk *disk);
 
-#ifndef CONFIG_PMAC_MEDIABAY
-#define check_media_bay(which, what)	1
-#endif
-
 static void swim3_select(struct floppy_state *fs, int sel)
 {
 	struct swim3 __iomem *sw = fs->swim3;
