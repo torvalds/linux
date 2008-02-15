@@ -1255,23 +1255,35 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	err = 0;
 	switch (type) {
 	case S_IFREG:
+		host_err = mnt_want_write(fhp->fh_export->ex_path.mnt);
+		if (host_err)
+			goto out_nfserr;
 		host_err = vfs_create(dirp, dchild, iap->ia_mode, NULL);
 		break;
 	case S_IFDIR:
+		host_err = mnt_want_write(fhp->fh_export->ex_path.mnt);
+		if (host_err)
+			goto out_nfserr;
 		host_err = vfs_mkdir(dirp, dchild, iap->ia_mode);
 		break;
 	case S_IFCHR:
 	case S_IFBLK:
 	case S_IFIFO:
 	case S_IFSOCK:
+		host_err = mnt_want_write(fhp->fh_export->ex_path.mnt);
+		if (host_err)
+			goto out_nfserr;
 		host_err = vfs_mknod(dirp, dchild, iap->ia_mode, rdev);
 		break;
 	default:
 	        printk("nfsd: bad file type %o in nfsd_create\n", type);
 		host_err = -EINVAL;
-	}
-	if (host_err < 0)
 		goto out_nfserr;
+	}
+	if (host_err < 0) {
+		mnt_drop_write(fhp->fh_export->ex_path.mnt);
+		goto out_nfserr;
+	}
 
 	if (EX_ISSYNC(fhp->fh_export)) {
 		err = nfserrno(nfsd_sync_dir(dentry));
@@ -1282,6 +1294,7 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	err2 = nfsd_create_setattr(rqstp, resfhp, iap);
 	if (err2)
 		err = err2;
+	mnt_drop_write(fhp->fh_export->ex_path.mnt);
 	/*
 	 * Update the file handle to get the new inode info.
 	 */
@@ -1359,6 +1372,9 @@ nfsd_create_v3(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		v_atime = verifier[1]&0x7fffffff;
 	}
 	
+	host_err = mnt_want_write(fhp->fh_export->ex_path.mnt);
+	if (host_err)
+		goto out_nfserr;
 	if (dchild->d_inode) {
 		err = 0;
 
@@ -1390,12 +1406,15 @@ nfsd_create_v3(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		case NFS3_CREATE_GUARDED:
 			err = nfserr_exist;
 		}
+		mnt_drop_write(fhp->fh_export->ex_path.mnt);
 		goto out;
 	}
 
 	host_err = vfs_create(dirp, dchild, iap->ia_mode, NULL);
-	if (host_err < 0)
+	if (host_err < 0) {
+		mnt_drop_write(fhp->fh_export->ex_path.mnt);
 		goto out_nfserr;
+	}
 	if (created)
 		*created = 1;
 
@@ -1420,6 +1439,7 @@ nfsd_create_v3(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if (err2)
 		err = err2;
 
+	mnt_drop_write(fhp->fh_export->ex_path.mnt);
 	/*
 	 * Update the filehandle to get the new inode info.
 	 */
