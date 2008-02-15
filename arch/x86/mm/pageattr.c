@@ -594,19 +594,34 @@ static int __change_page_attr_set_clr(struct cpa_data *cpa, int checkalias);
 static int cpa_process_alias(struct cpa_data *cpa)
 {
 	struct cpa_data alias_cpa;
-	int ret;
+	int ret = 0;
 
 	if (cpa->pfn > max_pfn_mapped)
 		return 0;
 
-	alias_cpa = *cpa;
-	alias_cpa.vaddr = (unsigned long) __va(cpa->pfn << PAGE_SHIFT);
+	/*
+	 * No need to redo, when the primary call touched the direct
+	 * mapping already:
+	 */
+	if (!within(cpa->vaddr, PAGE_OFFSET,
+		    PAGE_OFFSET + (max_pfn_mapped << PAGE_SHIFT))) {
 
-	ret = __change_page_attr_set_clr(&alias_cpa, 0);
+		alias_cpa = *cpa;
+		alias_cpa.vaddr = (unsigned long) __va(cpa->pfn << PAGE_SHIFT);
+
+		ret = __change_page_attr_set_clr(&alias_cpa, 0);
+	}
 
 #ifdef CONFIG_X86_64
 	if (ret)
 		return ret;
+	/*
+	 * No need to redo, when the primary call touched the high
+	 * mapping already:
+	 */
+	if (within(cpa->vaddr, (unsigned long) _text, (unsigned long) _end))
+		return 0;
+
 	/*
 	 * If the physical address is inside the kernel map, we need
 	 * to touch the high mapped kernel as well:
