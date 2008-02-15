@@ -11,9 +11,7 @@ static __init int pci_access_init(void)
 #ifdef CONFIG_PCI_DIRECT
 	type = pci_direct_probe();
 #endif
-#ifdef CONFIG_PCI_MMCONFIG
-	pci_mmcfg_init(type);
-#endif
+	pci_mmcfg_early_init(type);
 	if (raw_pci_ops)
 		return 0;
 #ifdef CONFIG_PCI_BIOS
