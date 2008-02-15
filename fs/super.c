@@ -579,6 +579,9 @@ retry:
 		if (!(f->f_mode & FMODE_WRITE))
 			continue;
 		f->f_mode &= ~FMODE_WRITE;
+		if (file_check_writeable(f) != 0)
+			continue;
+		file_release_write(f);
 		mnt = mntget(f->f_path.mnt);
 		file_list_unlock();
 		/*

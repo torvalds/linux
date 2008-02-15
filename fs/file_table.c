@@ -42,6 +42,7 @@ static inline void file_free_rcu(struct rcu_head *head)
 static inline void file_free(struct file *f)
 {
 	percpu_counter_dec(&nr_files);
+	file_check_state(f);
 	call_rcu(&f->f_u.fu_rcuhead, file_free_rcu);
 }
 
@@ -207,6 +208,7 @@ int init_file(struct file *file, struct vfsmount *mnt, struct dentry *dentry,
 	 * that we can do debugging checks at __fput()
 	 */
 	if ((mode & FMODE_WRITE) && !special_file(dentry->d_inode->i_mode)) {
+		file_take_write(file);
 		error = mnt_want_write(mnt);
 		WARN_ON(error);
 	}
@@ -237,8 +239,13 @@ void drop_file_write_access(struct file *file)
 	struct inode *inode = dentry->d_inode;
 
 	put_write_access(inode);
-	if (!special_file(inode->i_mode))
-		mnt_drop_write(mnt);
+
+	if (special_file(inode->i_mode))
+		return;
+	if (file_check_writeable(file) != 0)
+		return;
+	mnt_drop_write(mnt);
+	file_release_write(file);
 }
 EXPORT_SYMBOL_GPL(drop_file_write_access);
 
