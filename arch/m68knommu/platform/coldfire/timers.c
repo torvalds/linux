@@ -148,25 +148,32 @@ irqreturn_t coldfire_profile_tick(int irq, void *dummy)
 	/* Reset ColdFire timer2 */
 	__raw_writeb(MCFTIMER_TER_CAP | MCFTIMER_TER_REF, PA(MCFTIMER_TER));
 	if (current->pid)
-		profile_tick(CPU_PROFILING, regs);
+		profile_tick(CPU_PROFILING);
 	return IRQ_HANDLED;
 }
 
 /***************************************************************************/
 
+static struct irqaction coldfire_profile_irq = {
+	.name	 = "profile timer",
+	.flags	 = IRQF_DISABLED | IRQF_TIMER,
+	.handler = coldfire_profile_tick,
+};
+
 void coldfire_profile_init(void)
 {
-	printk(KERN_INFO "PROFILE: lodging TIMER2 @ %dHz as profile timer\n", PROFILEHZ);
+	printk(KERN_INFO "PROFILE: lodging TIMER2 @ %dHz as profile timer\n",
+	       PROFILEHZ);
+
+	setup_irq(mcf_profilevector, &coldfire_profile_irq);
 
 	/* Set up TIMER 2 as high speed profile clock */
 	__raw_writew(MCFTIMER_TMR_DISABLE, PA(MCFTIMER_TMR));
 
-	__raw_writetrr(((MCF_CLK / 16) / PROFILEHZ), PA(MCFTIMER_TRR));
+	__raw_writetrr(((MCF_BUSCLK / 16) / PROFILEHZ), PA(MCFTIMER_TRR));
 	__raw_writew(MCFTIMER_TMR_ENORI | MCFTIMER_TMR_CLK16 |
 		MCFTIMER_TMR_RESTART | MCFTIMER_TMR_ENABLE, PA(MCFTIMER_TMR));
 
-	request_irq(mcf_profilevector, coldfire_profile_tick,
-		(IRQF_DISABLED | IRQ_FLG_FAST), "profile timer", NULL);
 	mcf_settimericr(2, 7);
 }
 
