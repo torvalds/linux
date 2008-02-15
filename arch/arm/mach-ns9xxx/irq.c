@@ -12,7 +12,7 @@
 #include <asm/io.h>
 #include <asm/mach/irq.h>
 #include <asm/mach-types.h>
-#include <asm/arch-ns9xxx/regs-sys.h>
+#include <asm/arch-ns9xxx/regs-sys-common.h>
 #include <asm/arch-ns9xxx/irqs.h>
 #include <asm/arch-ns9xxx/board.h>
 
@@ -67,7 +67,7 @@ void __init ns9xxx_init_irq(void)
 	for (i = 0; i < 32; ++i)
 		__raw_writel(i, SYS_IVA(i));
 
-	for (i = IRQ_WATCHDOG; i <= IRQ_EXT3; ++i) {
+	for (i = 0; i <= 31; ++i) {
 		set_irq_chip(i, &ns9xxx_chip);
 		set_irq_handler(i, handle_level_irq);
 		set_irq_flags(i, IRQF_VALID);

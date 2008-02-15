@@ -1,7 +1,7 @@
 /*
  * arch/arm/mach-ns9xxx/gpio.c
  *
- * Copyright (C) 2006 by Digi International Inc.
+ * Copyright (C) 2006,2007 by Digi International Inc.
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -15,11 +15,12 @@
 
 #include <asm/arch-ns9xxx/gpio.h>
 #include <asm/arch-ns9xxx/processor.h>
-#include <asm/arch-ns9xxx/regs-bbu.h>
-#include <asm/io.h>
+#include <asm/arch-ns9xxx/processor-ns9360.h>
 #include <asm/bug.h>
 #include <asm/types.h>
 #include <asm/bitops.h>
+
+#include "gpio-ns9360.h"
 
 #if defined(CONFIG_PROCESSOR_NS9360)
 #define GPIO_MAX 72
@@ -45,41 +46,10 @@ static inline int ns9xxx_valid_gpio(unsigned gpio)
 		return gpio <= 49;
 	else
 #endif
+	{
 		BUG();
-}
-
-static inline void __iomem *ns9xxx_gpio_get_gconfaddr(unsigned gpio)
-{
-	if (gpio < 56)
-		return BBU_GCONFb1(gpio / 8);
-	else
-		/*
-		 * this could be optimised away on
-		 * ns9750 only builds, but it isn't ...
-		 */
-		return BBU_GCONFb2((gpio - 56) / 8);
-}
-
-static inline void __iomem *ns9xxx_gpio_get_gctrladdr(unsigned gpio)
-{
-	if (gpio < 32)
-		return BBU_GCTRL1;
-	else if (gpio < 64)
-		return BBU_GCTRL2;
-	else
-		/* this could be optimised away on ns9750 only builds */
-		return BBU_GCTRL3;
-}
-
-static inline void __iomem *ns9xxx_gpio_get_gstataddr(unsigned gpio)
-{
-	if (gpio < 32)
-		return BBU_GSTAT1;
-	else if (gpio < 64)
-		return BBU_GSTAT2;
-	else
-		/* this could be optimised away on ns9750 only builds */
-		return BBU_GSTAT3;
+		return 0;
+	}
 }
 
 int gpio_request(unsigned gpio, const char *label)
@@ -98,49 +68,24 @@ void gpio_free(unsigned gpio)
 }
 EXPORT_SYMBOL(gpio_free);
 
-/*
- * each gpio can serve for 4 different purposes [0..3].  These are called
- * "functions" and passed in the parameter func.  Functions 0-2 are always some
- * special things, function 3 is GPIO.  If func == 3 dir specifies input or
- * output, and with inv you can enable an inverter (independent of func).
- */
-static int __ns9xxx_gpio_configure(unsigned gpio, int dir, int inv, int func)
-{
-	void __iomem *conf = ns9xxx_gpio_get_gconfaddr(gpio);
-	u32 confval;
-	unsigned long flags;
-
-	spin_lock_irqsave(&gpio_lock, flags);
-
-	confval = __raw_readl(conf);
-	REGSETIM_IDX(confval, BBU_GCONFx, DIR, gpio & 7, dir);
-	REGSETIM_IDX(confval, BBU_GCONFx, INV, gpio & 7, inv);
-	REGSETIM_IDX(confval, BBU_GCONFx, FUNC, gpio & 7, func);
-	__raw_writel(confval, conf);
-
-	spin_unlock_irqrestore(&gpio_lock, flags);
-
-	return 0;
-}
-
-int ns9xxx_gpio_configure(unsigned gpio, int inv, int func)
-{
-	if (likely(ns9xxx_valid_gpio(gpio))) {
-		if (func == 3) {
-			printk(KERN_WARNING "use gpio_direction_input "
-					"or gpio_direction_output\n");
-			return -EINVAL;
-		} else
-			return __ns9xxx_gpio_configure(gpio, 0, inv, func);
-	} else
-		return -EINVAL;
-}
-EXPORT_SYMBOL(ns9xxx_gpio_configure);
-
 int gpio_direction_input(unsigned gpio)
 {
 	if (likely(ns9xxx_valid_gpio(gpio))) {
-		return __ns9xxx_gpio_configure(gpio, 0, 0, 3);
+		int ret = -EINVAL;
+		unsigned long flags;
+
+		spin_lock_irqsave(&gpio_lock, flags);
+#if defined(CONFIG_PROCESSOR_NS9360)
+		if (processor_is_ns9360())
+			ret = __ns9360_gpio_configure(gpio, 0, 0, 3);
+		else
+#endif
+			BUG();
+
+		spin_unlock_irqrestore(&gpio_lock, flags);
+
+		return ret;
+
 	} else
 		return -EINVAL;
 }
@@ -149,9 +94,22 @@ EXPORT_SYMBOL(gpio_direction_input);
 int gpio_direction_output(unsigned gpio, int value)
 {
 	if (likely(ns9xxx_valid_gpio(gpio))) {
+		int ret = -EINVAL;
+		unsigned long flags;
+
 		gpio_set_value(gpio, value);
 
-		return __ns9xxx_gpio_configure(gpio, 1, 0, 3);
+		spin_lock_irqsave(&gpio_lock, flags);
+#if defined(CONFIG_PROCESSOR_NS9360)
+		if (processor_is_ns9360())
+			ret = __ns9360_gpio_configure(gpio, 1, 0, 3);
+		else
+#endif
+			BUG();
+
+		spin_unlock_irqrestore(&gpio_lock, flags);
+
+		return ret;
 	} else
 		return -EINVAL;
 }
@@ -159,31 +117,28 @@ EXPORT_SYMBOL(gpio_direction_output);
 
 int gpio_get_value(unsigned gpio)
 {
-	void __iomem *stat = ns9xxx_gpio_get_gstataddr(gpio);
-	int ret;
-
-	ret = 1 & (__raw_readl(stat) >> (gpio & 31));
-
-	return ret;
+#if defined(CONFIG_PROCESSOR_NS9360)
+	if (processor_is_ns9360())
+		return ns9360_gpio_get_value(gpio);
+	else
+#endif
+	{
+		BUG();
+		return -EINVAL;
+	}
 }
 EXPORT_SYMBOL(gpio_get_value);
 
 void gpio_set_value(unsigned gpio, int value)
 {
-	void __iomem *ctrl = ns9xxx_gpio_get_gctrladdr(gpio);
-	u32 ctrlval;
 	unsigned long flags;
-
 	spin_lock_irqsave(&gpio_lock, flags);
-
-	ctrlval = __raw_readl(ctrl);
-
-	if (value)
-		ctrlval |= 1 << (gpio & 31);
+#if defined(CONFIG_PROCESSOR_NS9360)
+	if (processor_is_ns9360())
+		ns9360_gpio_set_value(gpio, value);
 	else
-		ctrlval &= ~(1 << (gpio & 31));
-
-	__raw_writel(ctrlval, ctrl);
+#endif
+		BUG();
 
 	spin_unlock_irqrestore(&gpio_lock, flags);
 }

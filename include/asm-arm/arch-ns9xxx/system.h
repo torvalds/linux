@@ -1,7 +1,7 @@
 /*
  * include/asm-arm/arch-ns9xxx/system.h
  *
- * Copyright (C) 2006 by Digi International Inc.
+ * Copyright (C) 2006,2007 by Digi International Inc.
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -12,8 +12,8 @@
 #define __ASM_ARCH_SYSTEM_H
 
 #include <asm/proc-fns.h>
-#include <asm/arch-ns9xxx/regs-sys.h>
-#include <asm/mach-types.h>
+#include <asm/arch-ns9xxx/processor.h>
+#include <asm/arch-ns9xxx/processor-ns9360.h>
 
 static inline void arch_idle(void)
 {
@@ -22,11 +22,12 @@ static inline void arch_idle(void)
 
 static inline void arch_reset(char mode)
 {
-	u32 reg;
-
-	reg = __raw_readl(SYS_PLL) >> 16;
-	REGSET(reg, SYS_PLL, SWC, YES);
-	__raw_writel(reg, SYS_PLL);
+#ifdef CONFIG_PROCESSOR_NS9360
+	if (processor_is_ns9360())
+		ns9360_reset(mode);
+	else
+#endif
+		BUG();
 
 	BUG();
 }

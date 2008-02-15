@@ -1,15 +1,15 @@
 /*
- * include/asm-arm/arch-ns9xxx/regs-sys.h
+ * include/asm-arm/arch-ns9xxx/regs-sys-ns9360.h
  *
- * Copyright (C) 2006 by Digi International Inc.
+ * Copyright (C) 2006,2007 by Digi International Inc.
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published by
  * the Free Software Foundation.
  */
-#ifndef __ASM_ARCH_REGSSYS_H
-#define __ASM_ARCH_REGSSYS_H
+#ifndef __ASM_ARCH_REGSSYSNS9360_H
+#define __ASM_ARCH_REGSSYSNS9360_H
 
 #include <asm/hardware.h>
 
@@ -26,21 +26,6 @@
 
 /* Timer x Read register */
 #define SYS_TR(x)	__REG2(0xa0900084, (x))
-
-/* Interrupt Vector Address Register Level x */
-#define SYS_IVA(x)	__REG2(0xa09000c4, (x))
-
-/* Interrupt Configuration registers */
-#define SYS_IC(x)	__REG2(0xa0900144, (x))
-
-/* ISRADDR */
-#define SYS_ISRADDR	__REG(0xa0900164)
-
-/* Interrupt Status Active */
-#define SYS_ISA		__REG(0xa0900168)
-
-/* Interrupt Status Raw */
-#define SYS_ISR		__REG(0xa090016c)
 
 /* Timer Interrupt Status register */
 #define SYS_TIS		__REG(0xa0900170)
@@ -160,4 +145,4 @@
 #define SYS_EIC_LVEDG_LEVEL		__REGVAL(SYS_EIC_LVEDG, 0)
 #define SYS_EIC_LVEDG_EDGE		__REGVAL(SYS_EIC_LVEDG, 1)
 
-#endif /* ifndef __ASM_ARCH_REGSSYS_H */
+#endif /* ifndef __ASM_ARCH_REGSSYSNS9360_H */

@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-ns9xxx/generic.c
+ * arch/arm/mach-ns9xxx/gpio-ns9360.h
  *
  * Copyright (C) 2006,2007 by Digi International Inc.
  * All rights reserved.
@@ -8,12 +8,6 @@
  * under the terms of the GNU General Public License version 2 as published by
  * the Free Software Foundation.
  */
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <asm/memory.h>
-
-#include "generic.h"
-
-void __init ns9xxx_init_machine(void)
-{
-}
+int __ns9360_gpio_configure(unsigned gpio, int dir, int inv, int func);
+int ns9360_gpio_get_value(unsigned gpio);
+void ns9360_gpio_set_value(unsigned gpio, int value);
