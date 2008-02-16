@@ -1336,7 +1336,7 @@ static int onenand_panic_write(struct mtd_info *mtd, loff_t to, size_t len,
 	}
 
 	/* Reject writes, which are not page aligned */
-        if (unlikely(NOTALIGNED(to)) || unlikely(NOTALIGNED(len))) {
+        if (unlikely(NOTALIGNED(to) || NOTALIGNED(len))) {
                 printk(KERN_ERR "onenand_panic_write: Attempt to write not page aligned data\n");
                 return -EINVAL;
         }
@@ -1466,7 +1466,7 @@ static int onenand_write_ops_nolock(struct mtd_info *mtd, loff_t to,
 	}
 
 	/* Reject writes, which are not page aligned */
-        if (unlikely(NOTALIGNED(to)) || unlikely(NOTALIGNED(len))) {
+        if (unlikely(NOTALIGNED(to) || NOTALIGNED(len))) {
                 printk(KERN_ERR "onenand_write_ops_nolock: Attempt to write not page aligned data\n");
                 return -EINVAL;
         }
