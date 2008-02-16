@@ -313,6 +313,13 @@ sysfs notes:
 
 		This attribute has poll()/select() support.
 
+	hotkey_tablet_mode:
+		If the ThinkPad has tablet capabilities, this attribute
+		will read 0 if the ThinkPad is in normal mode, and
+		1 if the ThinkPad is in tablet mode.
+
+		This attribute has poll()/select() support.
+
 	hotkey_report_mode:
 		Returns the state of the procfs ACPI event report mode
 		filter for hot keys.  If it is set to 1 (the default),
