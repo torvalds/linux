@@ -64,7 +64,6 @@ struct maple_driver {
 	int (*connect) (struct maple_device * dev);
 	void (*disconnect) (struct maple_device * dev);
 	struct device_driver drv;
-	int registered;
 };
 
 void maple_getcond_callback(struct maple_device *dev,
