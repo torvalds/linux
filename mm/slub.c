@@ -291,6 +291,7 @@ static inline struct kmem_cache_cpu *get_cpu_slab(struct kmem_cache *s, int cpu)
 #endif
 }
 
+/* Verify that a pointer has an address that is valid within a slab page */
 static inline int check_valid_pointer(struct kmem_cache *s,
 				struct page *page, const void *object)
 {
@@ -619,7 +620,7 @@ static int check_bytes_and_report(struct kmem_cache *s, struct page *page,
  * 	A. Free pointer (if we cannot overwrite object on free)
  * 	B. Tracking data for SLAB_STORE_USER
  * 	C. Padding to reach required alignment boundary or at mininum
- * 		one word if debuggin is on to be able to detect writes
+ * 		one word if debugging is on to be able to detect writes
  * 		before the word boundary.
  *
  *	Padding is done using 0x5a (POISON_INUSE)
@@ -1268,7 +1269,7 @@ static struct page *get_any_partial(struct kmem_cache *s, gfp_t flags)
 	 * may return off node objects because partial slabs are obtained
 	 * from other nodes and filled up.
 	 *
-	 * If /sys/slab/xx/defrag_ratio is set to 100 (which makes
+	 * If /sys/kernel/slab/xx/defrag_ratio is set to 100 (which makes
 	 * defrag_ratio = 1000) then every (well almost) allocation will
 	 * first attempt to defrag slab caches on other nodes. This means
 	 * scanning over all nodes to look for partial slabs which may be
@@ -1343,9 +1344,11 @@ static void unfreeze_slab(struct kmem_cache *s, struct page *page, int tail)
 			 * Adding an empty slab to the partial slabs in order
 			 * to avoid page allocator overhead. This slab needs
 			 * to come after the other slabs with objects in
-			 * order to fill them up. That way the size of the
-			 * partial list stays small. kmem_cache_shrink can
-			 * reclaim empty slabs from the partial list.
+			 * so that the others get filled first. That way the
+			 * size of the partial list stays small.
+			 *
+			 * kmem_cache_shrink can reclaim any empty slabs from the
+			 * partial list.
 			 */
 			add_partial(n, page, 1);
 			slab_unlock(page);
@@ -1368,7 +1371,7 @@ static void deactivate_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
 	if (c->freelist)
 		stat(c, DEACTIVATE_REMOTE_FREES);
 	/*
-	 * Merge cpu freelist into freelist. Typically we get here
+	 * Merge cpu freelist into slab freelist. Typically we get here
 	 * because both freelists are empty. So this is unlikely
 	 * to occur.
 	 */
@@ -1399,6 +1402,7 @@ static inline void flush_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
 
 /*
  * Flush cpu slab.
+ *
  * Called from IPI handler with interrupts disabled.
  */
 static inline void __flush_cpu_slab(struct kmem_cache *s, int cpu)
@@ -1457,7 +1461,8 @@ static inline int node_match(struct kmem_cache_cpu *c, int node)
  * rest of the freelist to the lockless freelist.
  *
  * And if we were unable to get a new slab from the partial slab lists then
- * we need to allocate a new slab. This is slowest path since we may sleep.
+ * we need to allocate a new slab. This is the slowest path since it involves
+ * a call to the page allocator and the setup of a new slab.
  */
 static void *__slab_alloc(struct kmem_cache *s,
 		gfp_t gfpflags, int node, void *addr, struct kmem_cache_cpu *c)
@@ -1471,7 +1476,9 @@ static void *__slab_alloc(struct kmem_cache *s,
 	slab_lock(c->page);
 	if (unlikely(!node_match(c, node)))
 		goto another_slab;
+
 	stat(c, ALLOC_REFILL);
+
 load_freelist:
 	object = c->page->freelist;
 	if (unlikely(!object))
@@ -1616,6 +1623,7 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
 
 	if (unlikely(SlabDebug(page)))
 		goto debug;
+
 checks_ok:
 	prior = object[offset] = page->freelist;
 	page->freelist = object;
@@ -1630,8 +1638,7 @@ checks_ok:
 		goto slab_empty;
 
 	/*
-	 * Objects left in the slab. If it
-	 * was not on the partial list before
+	 * Objects left in the slab. If it was not on the partial list before
 	 * then add it.
 	 */
 	if (unlikely(!prior)) {
@@ -1845,13 +1852,11 @@ static unsigned long calculate_alignment(unsigned long flags,
 		unsigned long align, unsigned long size)
 {
 	/*
-	 * If the user wants hardware cache aligned objects then
-	 * follow that suggestion if the object is sufficiently
-	 * large.
+	 * If the user wants hardware cache aligned objects then follow that
+	 * suggestion if the object is sufficiently large.
 	 *
-	 * The hardware cache alignment cannot override the
-	 * specified alignment though. If that is greater
-	 * then use it.
+	 * The hardware cache alignment cannot override the specified
+	 * alignment though. If that is greater then use it.
 	 */
 	if ((flags & SLAB_HWCACHE_ALIGN) &&
 			size > cache_line_size() / 2)
@@ -2049,6 +2054,7 @@ static struct kmem_cache_node *early_kmem_cache_node_alloc(gfp_t gfpflags,
 #endif
 	init_kmem_cache_node(n);
 	atomic_long_inc(&n->nr_slabs);
+
 	/*
 	 * lockdep requires consistent irq usage for each lock
 	 * so even though there cannot be a race this early in
@@ -2301,7 +2307,7 @@ int kmem_ptr_validate(struct kmem_cache *s, const void *object)
 	/*
 	 * We could also check if the object is on the slabs freelist.
 	 * But this would be too expensive and it seems that the main
-	 * purpose of kmem_ptr_valid is to check if the object belongs
+	 * purpose of kmem_ptr_valid() is to check if the object belongs
 	 * to a certain slab.
 	 */
 	return 1;
@@ -2913,7 +2919,7 @@ void __init kmem_cache_init(void)
 	/*
 	 * Patch up the size_index table if we have strange large alignment
 	 * requirements for the kmalloc array. This is only the case for
-	 * mips it seems. The standard arches will not generate any code here.
+	 * MIPS it seems. The standard arches will not generate any code here.
 	 *
 	 * Largest permitted alignment is 256 bytes due to the way we
 	 * handle the index determination for the smaller caches.
@@ -2941,7 +2947,6 @@ void __init kmem_cache_init(void)
 #else
 	kmem_size = sizeof(struct kmem_cache);
 #endif
-
 
 	printk(KERN_INFO
 		"SLUB: Genslabs=%d, HWalign=%d, Order=%d-%d, MinObjects=%d,"
@@ -3039,12 +3044,15 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
 		 */
 		for_each_online_cpu(cpu)
 			get_cpu_slab(s, cpu)->objsize = s->objsize;
+
 		s->inuse = max_t(int, s->inuse, ALIGN(size, sizeof(void *)));
 		up_write(&slub_lock);
+
 		if (sysfs_slab_alias(s, name))
 			goto err;
 		return s;
 	}
+
 	s = kmalloc(kmem_size, GFP_KERNEL);
 	if (s) {
 		if (kmem_cache_open(s, GFP_KERNEL, name,
@@ -3927,7 +3935,6 @@ SLAB_ATTR(remote_node_defrag_ratio);
 #endif
 
 #ifdef CONFIG_SLUB_STATS
-
 static int show_stat(struct kmem_cache *s, char *buf, enum stat_item si)
 {
 	unsigned long sum  = 0;
@@ -4111,8 +4118,8 @@ static struct kset *slab_kset;
 #define ID_STR_LENGTH 64
 
 /* Create a unique string id for a slab cache:
- * format
- * :[flags-]size:[memory address of kmemcache]
+ *
+ * Format	:[flags-]size
  */
 static char *create_unique_id(struct kmem_cache *s)
 {
