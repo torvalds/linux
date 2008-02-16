@@ -118,9 +118,11 @@ static void handle_update(struct work_struct *work);
 static BLOCKING_NOTIFIER_HEAD(cpufreq_policy_notifier_list);
 static struct srcu_notifier_head cpufreq_transition_notifier_list;
 
+static bool init_cpufreq_transition_notifier_list_called;
 static int __init init_cpufreq_transition_notifier_list(void)
 {
 	srcu_init_notifier_head(&cpufreq_transition_notifier_list);
+	init_cpufreq_transition_notifier_list_called = true;
 	return 0;
 }
 pure_initcall(init_cpufreq_transition_notifier_list);
@@ -1366,6 +1368,8 @@ static struct sysdev_driver cpufreq_sysdev_driver = {
 int cpufreq_register_notifier(struct notifier_block *nb, unsigned int list)
 {
 	int ret;
+
+	WARN_ON(!init_cpufreq_transition_notifier_list_called);
 
 	switch (list) {
 	case CPUFREQ_TRANSITION_NOTIFIER:
