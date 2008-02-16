@@ -932,7 +932,7 @@ static int nes_netdev_change_mtu(struct	net_device *netdev,	int	new_mtu)
 		return -EINVAL;
 
 	netdev->mtu	= new_mtu;
-	nesvnic->max_frame_size	= new_mtu+ETH_HLEN;
+	nesvnic->max_frame_size	= new_mtu + VLAN_ETH_HLEN;
 
 	if (netdev->mtu	> 1500)	{
 		jumbomode=1;
@@ -1494,9 +1494,14 @@ static void nes_netdev_vlan_rx_register(struct net_device *netdev, struct vlan_g
 {
 	struct nes_vnic *nesvnic = netdev_priv(netdev);
 	struct nes_device *nesdev = nesvnic->nesdev;
+	struct nes_adapter *nesadapter = nesdev->nesadapter;
 	u32 u32temp;
+	unsigned long flags;
 
+	spin_lock_irqsave(&nesadapter->phy_lock, flags);
 	nesvnic->vlan_grp = grp;
+
+	nes_debug(NES_DBG_NETDEV, "%s: %s\n", __func__, netdev->name);
 
 	/* Enable/Disable VLAN Stripping */
 	u32temp = nes_read_indexed(nesdev, NES_IDX_PCIX_DIAG);
@@ -1506,6 +1511,7 @@ static void nes_netdev_vlan_rx_register(struct net_device *netdev, struct vlan_g
 		u32temp	|= 0x02000000;
 
 	nes_write_indexed(nesdev, NES_IDX_PCIX_DIAG, u32temp);
+	spin_unlock_irqrestore(&nesadapter->phy_lock, flags);
 }
 
 
@@ -1564,7 +1570,7 @@ struct net_device *nes_netdev_init(struct nes_device *nesdev,
 	nesvnic->msg_enable = netif_msg_init(debug, default_msg);
 	nesvnic->netdev_index = nesdev->netdev_count;
 	nesvnic->perfect_filter_index = nesdev->nesadapter->netdev_count;
-	nesvnic->max_frame_size = netdev->mtu+netdev->hard_header_len;
+	nesvnic->max_frame_size = netdev->mtu + netdev->hard_header_len + VLAN_HLEN;
 
 	curr_qp_map = nic_qp_mapping_per_function[PCI_FUNC(nesdev->pcidev->devfn)];
 	nesvnic->nic.qp_id = curr_qp_map[nesdev->netdev_count].qpid;
