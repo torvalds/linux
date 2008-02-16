@@ -997,30 +997,11 @@ static unsigned long kmem_cache_flags(unsigned long objsize,
 	void (*ctor)(struct kmem_cache *, void *))
 {
 	/*
-	 * The page->offset field is only 16 bit wide. This is an offset
-	 * in units of words from the beginning of an object. If the slab
-	 * size is bigger then we cannot move the free pointer behind the
-	 * object anymore.
-	 *
-	 * On 32 bit platforms the limit is 256k. On 64bit platforms
-	 * the limit is 512k.
-	 *
-	 * Debugging or ctor may create a need to move the free
-	 * pointer. Fail if this happens.
+	 * Enable debugging if selected on the kernel commandline.
 	 */
-	if (objsize >= 65535 * sizeof(void *)) {
-		BUG_ON(flags & (SLAB_RED_ZONE | SLAB_POISON |
-				SLAB_STORE_USER | SLAB_DESTROY_BY_RCU));
-		BUG_ON(ctor);
-	} else {
-		/*
-		 * Enable debugging if selected on the kernel commandline.
-		 */
-		if (slub_debug && (!slub_debug_slabs ||
-		    strncmp(slub_debug_slabs, name,
-			strlen(slub_debug_slabs)) == 0))
-				flags |= slub_debug;
-	}
+	if (slub_debug && (!slub_debug_slabs ||
+	    strncmp(slub_debug_slabs, name, strlen(slub_debug_slabs)) == 0))
+			flags |= slub_debug;
 
 	return flags;
 }
