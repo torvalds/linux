@@ -1417,6 +1417,14 @@ static void hotkey_poll_setup_safe(int may_warn)
 	mutex_unlock(&hotkey_mutex);
 }
 
+#else /* CONFIG_THINKPAD_ACPI_HOTKEY_POLL */
+
+static void hotkey_poll_setup_safe(int __unused)
+{
+}
+
+#endif /* CONFIG_THINKPAD_ACPI_HOTKEY_POLL */
+
 static int hotkey_inputdev_open(struct input_dev *dev)
 {
 	switch (tpacpi_lifecycle) {
@@ -1444,7 +1452,6 @@ static void hotkey_inputdev_close(struct input_dev *dev)
 	if (tpacpi_lifecycle == TPACPI_LIFE_RUNNING)
 		hotkey_poll_setup_safe(0);
 }
-#endif /* CONFIG_THINKPAD_ACPI_HOTKEY_POLL */
 
 /* sysfs hotkey enable ------------------------------------------------- */
 static ssize_t hotkey_enable_show(struct device *dev,
@@ -2023,12 +2030,10 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 				(hotkey_report_mode < 2) ?
 					"enabled" : "disabled");
 
-#ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
 		tpacpi_inputdev->open = &hotkey_inputdev_open;
 		tpacpi_inputdev->close = &hotkey_inputdev_close;
 
 		hotkey_poll_setup_safe(1);
-#endif
 	}
 
 	return (tp_features.hotkey)? 0 : 1;
@@ -2221,9 +2226,7 @@ static void hotkey_resume(void)
 	hotkey_radio_sw_notify_change();
 	hotkey_wakeup_reason_notify_change();
 	hotkey_wakeup_hotunplug_complete_notify_change();
-#ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
 	hotkey_poll_setup_safe(0);
-#endif
 }
 
 /* procfs -------------------------------------------------------------- */
