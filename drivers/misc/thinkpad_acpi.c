@@ -1172,6 +1172,17 @@ static void tpacpi_input_send_radiosw(void)
 	mutex_unlock(&tpacpi_inputdev_send_mutex);
 }
 
+static void tpacpi_input_send_tabletsw(unsigned int state)
+{
+	mutex_lock(&tpacpi_inputdev_send_mutex);
+
+	input_report_switch(tpacpi_inputdev,
+			    SW_TABLET_MODE, !!state);
+	input_sync(tpacpi_inputdev);
+
+	mutex_unlock(&tpacpi_inputdev_send_mutex);
+}
+
 static void tpacpi_input_send_key(unsigned int scancode)
 {
 	unsigned int keycode;
@@ -2020,6 +2031,10 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 			set_bit(EV_SW, tpacpi_inputdev->evbit);
 			set_bit(SW_RADIO, tpacpi_inputdev->swbit);
 		}
+		if (thinkpad_id.vendor == PCI_VENDOR_ID_LENOVO) {
+			set_bit(EV_SW, tpacpi_inputdev->evbit);
+			set_bit(SW_TABLET_MODE, tpacpi_inputdev->swbit);
+		}
 
 		dbg_printk(TPACPI_DBG_INIT,
 				"enabling hot key handling\n");
@@ -2169,10 +2184,13 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 			/* 0x5000-0x5FFF: human interface helpers */
 			switch (hkey) {
 			case 0x5010: /* Lenovo new BIOS: brightness changed */
-			case 0x5009: /* X61t: swivel up (tablet mode) */
-			case 0x500a: /* X61t: swivel down (normal mode) */
 			case 0x500b: /* X61t: tablet pen inserted into bay */
 			case 0x500c: /* X61t: tablet pen removed from bay */
+				break;
+			case 0x5009: /* X61t: swivel up (tablet mode) */
+			case 0x500a: /* X61t: swivel down (normal mode) */
+				tpacpi_input_send_tabletsw((hkey == 0x5009));
+				send_acpi_ev = 0;
 				break;
 			case 0x5001:
 			case 0x5002:
