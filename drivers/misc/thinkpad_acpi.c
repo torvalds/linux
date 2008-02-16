@@ -2034,6 +2034,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		tpacpi_inputdev->close = &hotkey_inputdev_close;
 
 		hotkey_poll_setup_safe(1);
+		tpacpi_input_send_radiosw();
 	}
 
 	return (tp_features.hotkey)? 0 : 1;
