@@ -5918,7 +5918,7 @@ MODULE_PARM_DESC(hotkey_report_mode,
 
 #define TPACPI_PARAM(feature) \
 	module_param_call(feature, set_ibm_param, NULL, NULL, 0); \
-	MODULE_PARM_DESC(feature, "Simulates thinkpad-aci procfs command " \
+	MODULE_PARM_DESC(feature, "Simulates thinkpad-acpi procfs command " \
 			 "at module load, see documentation")
 
 TPACPI_PARAM(hotkey);
