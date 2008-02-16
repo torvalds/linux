@@ -1161,15 +1161,15 @@ static void tpacpi_input_send_radiosw(void)
 {
 	int wlsw;
 
-	mutex_lock(&tpacpi_inputdev_send_mutex);
-
 	if (tp_features.hotkey_wlsw && !hotkey_get_wlsw(&wlsw)) {
+		mutex_lock(&tpacpi_inputdev_send_mutex);
+
 		input_report_switch(tpacpi_inputdev,
 				    SW_RADIO, !!wlsw);
 		input_sync(tpacpi_inputdev);
-	}
 
-	mutex_unlock(&tpacpi_inputdev_send_mutex);
+		mutex_unlock(&tpacpi_inputdev_send_mutex);
+	}
 }
 
 static void tpacpi_input_send_tabletsw(unsigned int state)

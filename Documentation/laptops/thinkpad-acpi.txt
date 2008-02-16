@@ -306,7 +306,7 @@ sysfs notes:
 		The recommended polling frequency is 10Hz.
 
 	hotkey_radio_sw:
-		if the ThinkPad has a hardware radio switch, this
+		If the ThinkPad has a hardware radio switch, this
 		attribute will read 0 if the switch is in the "radios
 		disabled" position, and 1 if the switch is in the
 		"radios enabled" position.
