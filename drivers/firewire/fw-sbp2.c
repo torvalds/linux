@@ -139,6 +139,7 @@ struct sbp2_logical_unit {
 	int generation;
 	int retries;
 	struct delayed_work work;
+	bool blocked;
 };
 
 /*
@@ -157,6 +158,9 @@ struct sbp2_target {
 	int address_high;
 	unsigned int workarounds;
 	unsigned int mgt_orb_timeout;
+
+	int dont_block;	/* counter for each logical unit */
+	int blocked;	/* ditto */
 };
 
 /*
@@ -646,12 +650,116 @@ static void sbp2_agent_reset_no_wait(struct sbp2_logical_unit *lu)
 			&z, sizeof(z), complete_agent_reset_write_no_wait, t);
 }
 
+static void sbp2_set_generation(struct sbp2_logical_unit *lu, int generation)
+{
+	struct fw_card *card = fw_device(lu->tgt->unit->device.parent)->card;
+	unsigned long flags;
+
+	/* serialize with comparisons of lu->generation and card->generation */
+	spin_lock_irqsave(&card->lock, flags);
+	lu->generation = generation;
+	spin_unlock_irqrestore(&card->lock, flags);
+}
+
+static inline void sbp2_allow_block(struct sbp2_logical_unit *lu)
+{
+	/*
+	 * We may access dont_block without taking card->lock here:
+	 * All callers of sbp2_allow_block() and all callers of sbp2_unblock()
+	 * are currently serialized against each other.
+	 * And a wrong result in sbp2_conditionally_block()'s access of
+	 * dont_block is rather harmless, it simply misses its first chance.
+	 */
+	--lu->tgt->dont_block;
+}
+
+/*
+ * Blocks lu->tgt if all of the following conditions are met:
+ *   - Login, INQUIRY, and high-level SCSI setup of all of the target's
+ *     logical units have been finished (indicated by dont_block == 0).
+ *   - lu->generation is stale.
+ *
+ * Note, scsi_block_requests() must be called while holding card->lock,
+ * otherwise it might foil sbp2_[conditionally_]unblock()'s attempt to
+ * unblock the target.
+ */
+static void sbp2_conditionally_block(struct sbp2_logical_unit *lu)
+{
+	struct sbp2_target *tgt = lu->tgt;
+	struct fw_card *card = fw_device(tgt->unit->device.parent)->card;
+	struct Scsi_Host *shost =
+		container_of((void *)tgt, struct Scsi_Host, hostdata[0]);
+	unsigned long flags;
+
+	spin_lock_irqsave(&card->lock, flags);
+	if (!tgt->dont_block && !lu->blocked &&
+	    lu->generation != card->generation) {
+		lu->blocked = true;
+		if (++tgt->blocked == 1) {
+			scsi_block_requests(shost);
+			fw_notify("blocked %s\n", lu->tgt->bus_id);
+		}
+	}
+	spin_unlock_irqrestore(&card->lock, flags);
+}
+
+/*
+ * Unblocks lu->tgt as soon as all its logical units can be unblocked.
+ * Note, it is harmless to run scsi_unblock_requests() outside the
+ * card->lock protected section.  On the other hand, running it inside
+ * the section might clash with shost->host_lock.
+ */
+static void sbp2_conditionally_unblock(struct sbp2_logical_unit *lu)
+{
+	struct sbp2_target *tgt = lu->tgt;
+	struct fw_card *card = fw_device(tgt->unit->device.parent)->card;
+	struct Scsi_Host *shost =
+		container_of((void *)tgt, struct Scsi_Host, hostdata[0]);
+	unsigned long flags;
+	bool unblock = false;
+
+	spin_lock_irqsave(&card->lock, flags);
+	if (lu->blocked && lu->generation == card->generation) {
+		lu->blocked = false;
+		unblock = --tgt->blocked == 0;
+	}
+	spin_unlock_irqrestore(&card->lock, flags);
+
+	if (unblock) {
+		scsi_unblock_requests(shost);
+		fw_notify("unblocked %s\n", lu->tgt->bus_id);
+	}
+}
+
+/*
+ * Prevents future blocking of tgt and unblocks it.
+ * Note, it is harmless to run scsi_unblock_requests() outside the
+ * card->lock protected section.  On the other hand, running it inside
+ * the section might clash with shost->host_lock.
+ */
+static void sbp2_unblock(struct sbp2_target *tgt)
+{
+	struct fw_card *card = fw_device(tgt->unit->device.parent)->card;
+	struct Scsi_Host *shost =
+		container_of((void *)tgt, struct Scsi_Host, hostdata[0]);
+	unsigned long flags;
+
+	spin_lock_irqsave(&card->lock, flags);
+	++tgt->dont_block;
+	spin_unlock_irqrestore(&card->lock, flags);
+
+	scsi_unblock_requests(shost);
+}
+
 static void sbp2_release_target(struct kref *kref)
 {
 	struct sbp2_target *tgt = container_of(kref, struct sbp2_target, kref);
 	struct sbp2_logical_unit *lu, *next;
 	struct Scsi_Host *shost =
 		container_of((void *)tgt, struct Scsi_Host, hostdata[0]);
+
+	/* prevent deadlocks */
+	sbp2_unblock(tgt);
 
 	list_for_each_entry_safe(lu, next, &tgt->lu_list, link) {
 		if (lu->sdev)
@@ -717,17 +825,20 @@ static void sbp2_login(struct work_struct *work)
 
 	if (sbp2_send_management_orb(lu, node_id, generation,
 				SBP2_LOGIN_REQUEST, lu->lun, &response) < 0) {
-		if (lu->retries++ < 5)
+		if (lu->retries++ < 5) {
 			sbp2_queue_work(lu, DIV_ROUND_UP(HZ, 5));
-		else
+		} else {
 			fw_error("%s: failed to login to LUN %04x\n",
 				 tgt->bus_id, lu->lun);
+			/* Let any waiting I/O fail from now on. */
+			sbp2_unblock(lu->tgt);
+		}
 		goto out;
 	}
 
-	lu->generation    = generation;
 	tgt->node_id	  = node_id;
 	tgt->address_high = local_node_id << 16;
+	sbp2_set_generation(lu, generation);
 
 	/* Get command block agent offset and login id. */
 	lu->command_block_agent_address =
@@ -749,6 +860,7 @@ static void sbp2_login(struct work_struct *work)
 	/* This was a re-login. */
 	if (lu->sdev) {
 		sbp2_cancel_orbs(lu);
+		sbp2_conditionally_unblock(lu);
 		goto out;
 	}
 
@@ -785,6 +897,7 @@ static void sbp2_login(struct work_struct *work)
 
 	/* No error during __scsi_add_device() */
 	lu->sdev = sdev;
+	sbp2_allow_block(lu);
 	goto out;
 
  out_logout_login:
@@ -825,6 +938,8 @@ static int sbp2_add_logical_unit(struct sbp2_target *tgt, int lun_entry)
 	lu->sdev = NULL;
 	lu->lun  = lun_entry & 0xffff;
 	lu->retries = 0;
+	lu->blocked = false;
+	++tgt->dont_block;
 	INIT_LIST_HEAD(&lu->orb_list);
 	INIT_DELAYED_WORK(&lu->work, sbp2_login);
 
@@ -1041,15 +1156,16 @@ static void sbp2_reconnect(struct work_struct *work)
 		goto out;
 	}
 
-	lu->generation    = generation;
 	tgt->node_id      = node_id;
 	tgt->address_high = local_node_id << 16;
+	sbp2_set_generation(lu, generation);
 
 	fw_notify("%s: reconnected to LUN %04x (%d retries)\n",
 		  tgt->bus_id, lu->lun, lu->retries);
 
 	sbp2_agent_reset(lu);
 	sbp2_cancel_orbs(lu);
+	sbp2_conditionally_unblock(lu);
  out:
 	sbp2_target_put(tgt);
 }
@@ -1066,6 +1182,7 @@ static void sbp2_update(struct fw_unit *unit)
 	 * Iteration over tgt->lu_list is therefore safe here.
 	 */
 	list_for_each_entry(lu, &tgt->lu_list, link) {
+		sbp2_conditionally_block(lu);
 		lu->retries = 0;
 		sbp2_queue_work(lu, 0);
 	}
@@ -1169,6 +1286,7 @@ complete_command_orb(struct sbp2_orb *base_orb, struct sbp2_status *status)
 		 * or when sending the write (less likely).
 		 */
 		result = DID_BUS_BUSY << 16;
+		sbp2_conditionally_block(orb->lu);
 	}
 
 	dma_unmap_single(device->card->device, orb->base.request_bus,
