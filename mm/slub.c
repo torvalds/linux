@@ -852,7 +852,7 @@ static int alloc_debug_processing(struct kmem_cache *s, struct page *page,
 	if (!check_slab(s, page))
 		goto bad;
 
-	if (object && !on_freelist(s, page, object)) {
+	if (!on_freelist(s, page, object)) {
 		object_err(s, page, object, "Object already allocated");
 		goto bad;
 	}
@@ -862,7 +862,7 @@ static int alloc_debug_processing(struct kmem_cache *s, struct page *page,
 		goto bad;
 	}
 
-	if (object && !check_object(s, page, object, 0))
+	if (!check_object(s, page, object, 0))
 		goto bad;
 
 	/* Success perform special debug activities for allocs */
