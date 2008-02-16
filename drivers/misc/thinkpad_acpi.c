@@ -301,6 +301,13 @@ TPACPI_HANDLE(hkey, ec, "\\_SB.HKEY",	/* 600e/x, 770e, 770x */
 	   "HKEY",		/* all others */
 	   );			/* 570 */
 
+TPACPI_HANDLE(vid, root, "\\_SB.PCI.AGP.VGA",	/* 570 */
+	   "\\_SB.PCI0.AGP0.VID0",	/* 600e/x, 770x */
+	   "\\_SB.PCI0.VID0",	/* 770e */
+	   "\\_SB.PCI0.VID",	/* A21e, G4x, R50e, X30, X40 */
+	   "\\_SB.PCI0.AGP.VID",	/* all others */
+	   );				/* R30, R31 */
+
 
 /*************************************************************************
  * ACPI helpers
@@ -2680,6 +2687,8 @@ static struct ibm_struct wan_driver_data = {
  * Video subdriver
  */
 
+#ifdef CONFIG_THINKPAD_ACPI_VIDEO
+
 enum video_access_mode {
 	TPACPI_VIDEO_NONE = 0,
 	TPACPI_VIDEO_570,	/* 570 */
@@ -2706,13 +2715,6 @@ static int video_orig_autosw;
 
 static int video_autosw_get(void);
 static int video_autosw_set(int enable);
-
-TPACPI_HANDLE(vid, root, "\\_SB.PCI.AGP.VGA",	/* 570 */
-	   "\\_SB.PCI0.AGP0.VID0",	/* 600e/x, 770x */
-	   "\\_SB.PCI0.VID0",	/* 770e */
-	   "\\_SB.PCI0.VID",	/* A21e, G4x, R50e, X30, X40 */
-	   "\\_SB.PCI0.AGP.VID",	/* all others */
-	   );				/* R30, R31 */
 
 TPACPI_HANDLE(vid2, root, "\\_SB.PCI0.AGPB.VID");	/* G41 */
 
@@ -3022,6 +3024,8 @@ static struct ibm_struct video_driver_data = {
 	.write = video_write,
 	.exit = video_exit,
 };
+
+#endif /* CONFIG_THINKPAD_ACPI_VIDEO */
 
 /*************************************************************************
  * Light (thinklight) subdriver
@@ -5807,10 +5811,12 @@ static struct ibm_init_struct ibms_init[] __initdata = {
 		.init = wan_init,
 		.data = &wan_driver_data,
 	},
+#ifdef CONFIG_THINKPAD_ACPI_VIDEO
 	{
 		.init = video_init,
 		.data = &video_driver_data,
 	},
+#endif
 	{
 		.init = light_init,
 		.data = &light_driver_data,
