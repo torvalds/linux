@@ -1,0 +1,25 @@
+config VIDEO_GO7007
+	tristate "Go 7007 support"
+	depends on VIDEO_DEV && PCI && I2C && INPUT
+	select VIDEOBUF_DMA_SG
+	select VIDEO_IR
+	select VIDEO_TUNER
+	select VIDEO_TVEEPROM
+	select CRC32
+	default N
+	---help---
+	  This is a video4linux driver for some wierd device...
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called go7007
+
+config VIDEO_GO7007_USB
+	tristate "Go 7007 USB support"
+	depends on VIDEO_GO7007 && USB
+	default N
+	---help---
+	  This is a video4linux driver for some wierd device...
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called go7007-usb
+
