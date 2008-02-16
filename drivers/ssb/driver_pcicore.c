@@ -79,6 +79,7 @@ int pcibios_plat_dev_init(struct pci_dev *d)
 			base = &ssb_pcicore_pcibus_iobase;
 		else
 			base = &ssb_pcicore_pcibus_membase;
+		res->flags |= IORESOURCE_PCI_FIXED;
 		if (res->end) {
 			size = res->end - res->start + 1;
 			if (*base & (size - 1))
@@ -101,10 +102,12 @@ int pcibios_plat_dev_init(struct pci_dev *d)
 
 static void __init ssb_fixup_pcibridge(struct pci_dev *dev)
 {
+	u8 lat;
+
 	if (dev->bus->number != 0 || PCI_SLOT(dev->devfn) != 0)
 		return;
 
-	ssb_printk(KERN_INFO "PCI: fixing up bridge\n");
+	ssb_printk(KERN_INFO "PCI: Fixing up bridge %s\n", pci_name(dev));
 
 	/* Enable PCI bridge bus mastering and memory space */
 	pci_set_master(dev);
@@ -114,7 +117,10 @@ static void __init ssb_fixup_pcibridge(struct pci_dev *dev)
 	pci_write_config_dword(dev, SSB_BAR1_CONTROL, 3);
 
 	/* Make sure our latency is high enough to handle the devices behind us */
-	pci_write_config_byte(dev, PCI_LATENCY_TIMER, 0xa8);
+	lat = 168;
+	ssb_printk(KERN_INFO "PCI: Fixing latency timer of device %s to %u\n",
+		   pci_name(dev), lat);
+	pci_write_config_byte(dev, PCI_LATENCY_TIMER, lat);
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_ANY_ID, PCI_ANY_ID, ssb_fixup_pcibridge);
 
@@ -294,14 +300,14 @@ static struct resource ssb_pcicore_mem_resource = {
 	.name	= "SSB PCIcore external memory",
 	.start	= SSB_PCI_DMA,
 	.end	= SSB_PCI_DMA + SSB_PCI_DMA_SZ - 1,
-	.flags	= IORESOURCE_MEM,
+	.flags	= IORESOURCE_MEM | IORESOURCE_PCI_FIXED,
 };
 
 static struct resource ssb_pcicore_io_resource = {
 	.name	= "SSB PCIcore external I/O",
 	.start	= 0x100,
 	.end	= 0x7FF,
-	.flags	= IORESOURCE_IO,
+	.flags	= IORESOURCE_IO | IORESOURCE_PCI_FIXED,
 };
 
 static struct pci_controller ssb_pcicore_controller = {
@@ -368,7 +374,8 @@ static void ssb_pcicore_init_hostmode(struct ssb_pcicore *pc)
 	/* Ok, ready to run, register it to the system.
 	 * The following needs change, if we want to port hostmode
 	 * to non-MIPS platform. */
-	set_io_port_base((unsigned long)ioremap_nocache(SSB_PCI_MEM, 0x04000000));
+	ssb_pcicore_controller.io_map_base = (unsigned long)ioremap_nocache(SSB_PCI_MEM, 0x04000000);
+	set_io_port_base(ssb_pcicore_controller.io_map_base);
 	/* Give some time to the PCI controller to configure itself with the new
 	 * values. Not waiting at this point causes crashes of the machine. */
 	mdelay(10);
