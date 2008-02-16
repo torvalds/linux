@@ -3623,6 +3623,36 @@ static struct snd_kcontrol_new ad1884a_laptop_mixers[] = {
 	{ } /* end */
 };
 
+static struct hda_input_mux ad1884a_mobile_capture_source = {
+	.num_items = 2,
+	.items = {
+		{ "Mic", 0x1 }, /* port-C */
+		{ "Mix", 0x3 },
+	},
+};
+
+static struct snd_kcontrol_new ad1884a_mobile_mixers[] = {
+	HDA_CODEC_VOLUME("Master Playback Volume", 0x21, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Master Playback Switch", 0x21, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("PCM Playback Volume", 0x20, 0x5, HDA_INPUT),
+	HDA_CODEC_MUTE("PCM Playback Switch", 0x20, 0x5, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x20, 0x01, HDA_INPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0x20, 0x01, HDA_INPUT),
+	HDA_CODEC_VOLUME("Beep Playback Volume", 0x20, 0x03, HDA_INPUT),
+	HDA_CODEC_MUTE("Beep Playback Switch", 0x20, 0x03, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Boost", 0x15, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Capture Volume", 0x0c, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x0c, 0x0, HDA_OUTPUT),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Capture Source",
+		.info = ad198x_mux_enum_info,
+		.get = ad198x_mux_enum_get,
+		.put = ad198x_mux_enum_put,
+	},
+	{ } /* end */
+};
+
 /* mute internal speaker if HP is plugged */
 static void ad1884a_hp_automute(struct hda_codec *codec)
 {
@@ -3677,12 +3707,19 @@ static struct hda_verb ad1884a_laptop_verbs[] = {
 enum {
 	AD1884A_DESKTOP,
 	AD1884A_LAPTOP,
+	AD1884A_MOBILE,
 	AD1884A_MODELS
 };
 
 static const char *ad1884a_models[AD1884A_MODELS] = {
 	[AD1884A_DESKTOP]	= "desktop",
 	[AD1884A_LAPTOP]	= "laptop",
+	[AD1884A_MOBILE]	= "mobile",
+};
+
+static struct snd_pci_quirk ad1884a_cfg_tbl[] = {
+	SND_PCI_QUIRK(0x103c, 0x3030, "HP", AD1884A_MOBILE),
+	{}
 };
 
 static int patch_ad1884a(struct hda_codec *codec)
@@ -3717,13 +3754,22 @@ static int patch_ad1884a(struct hda_codec *codec)
 
 	/* override some parameters */
 	board_config = snd_hda_check_board_config(codec, AD1884A_MODELS,
-						  ad1884a_models, NULL);
+						  ad1884a_models,
+						  ad1884a_cfg_tbl);
 	switch (board_config) {
 	case AD1884A_LAPTOP:
 		spec->mixers[0] = ad1884a_laptop_mixers;
 		spec->init_verbs[spec->num_init_verbs++] = ad1884a_laptop_verbs;
 		spec->multiout.dig_out_nid = 0;
 		spec->input_mux = &ad1884a_laptop_capture_source;
+		codec->patch_ops.unsol_event = ad1884a_hp_unsol_event;
+		codec->patch_ops.init = ad1884a_hp_init;
+		break;
+	case AD1884A_MOBILE:
+		spec->mixers[0] = ad1884a_mobile_mixers;
+		spec->init_verbs[spec->num_init_verbs++] = ad1884a_laptop_verbs;
+		spec->multiout.dig_out_nid = 0;
+		spec->input_mux = &ad1884a_mobile_capture_source;
 		codec->patch_ops.unsol_event = ad1884a_hp_unsol_event;
 		codec->patch_ops.init = ad1884a_hp_init;
 		break;

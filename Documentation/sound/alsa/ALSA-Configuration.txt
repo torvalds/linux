@@ -915,6 +915,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	AD1884A / AD1883 / AD1984A / AD1984B
 	  desktop	3-stack desktop (default)
 	  laptop	laptop with HP jack sensing
+	  mobile	mobile devices with HP jack sensing
 
 	AD1884
 	  N/A
