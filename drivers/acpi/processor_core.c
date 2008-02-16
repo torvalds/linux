@@ -826,8 +826,6 @@ static int acpi_processor_remove(struct acpi_device *device, int type)
  * 	Acpi processor hotplug support 				       	    *
  ****************************************************************************/
 
-static int is_processor_present(acpi_handle handle);
-
 static int is_processor_present(acpi_handle handle)
 {
 	acpi_status status;
