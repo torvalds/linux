@@ -531,6 +531,14 @@ Protocol:	2.08+
 
   The length of the compressed payload.
 
+**** THE IMAGE CHECKSUM
+
+From boot protocol version 2.08 onwards the CRC-32 is calculated over
+the entire file using the characteristic polynomial 0x04C11DB7 and an
+initial remainder of 0xffffffff.  The checksum is appended to the
+file; therefore the CRC of the file up to the limit specified in the
+syssize field of the header is always 0.
+
 **** THE KERNEL COMMAND LINE
 
 The kernel command line has become an important way for the boot
