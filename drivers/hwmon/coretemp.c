@@ -356,7 +356,7 @@ static void coretemp_device_remove(unsigned int cpu)
 	mutex_unlock(&pdev_list_mutex);
 }
 
-static int coretemp_cpu_callback(struct notifier_block *nfb,
+static int __cpuinit coretemp_cpu_callback(struct notifier_block *nfb,
 				 unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long) hcpu;
@@ -373,7 +373,7 @@ static int coretemp_cpu_callback(struct notifier_block *nfb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block coretemp_cpu_notifier = {
+static struct notifier_block coretemp_cpu_notifier __refdata = {
 	.notifier_call = coretemp_cpu_callback,
 };
 #endif				/* !CONFIG_HOTPLUG_CPU */
