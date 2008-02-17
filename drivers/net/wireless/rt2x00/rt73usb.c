@@ -1972,14 +1972,6 @@ static u64 rt73usb_get_tsf(struct ieee80211_hw *hw)
 #define rt73usb_get_tsf	NULL
 #endif
 
-static void rt73usb_reset_tsf(struct ieee80211_hw *hw)
-{
-	struct rt2x00_dev *rt2x00dev = hw->priv;
-
-	rt73usb_register_write(rt2x00dev, TXRX_CSR12, 0);
-	rt73usb_register_write(rt2x00dev, TXRX_CSR13, 0);
-}
-
 static int rt73usb_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 				 struct ieee80211_tx_control *control)
 {
@@ -2047,7 +2039,6 @@ static const struct ieee80211_ops rt73usb_mac80211_ops = {
 	.conf_tx		= rt2x00mac_conf_tx,
 	.get_tx_stats		= rt2x00mac_get_tx_stats,
 	.get_tsf		= rt73usb_get_tsf,
-	.reset_tsf		= rt73usb_reset_tsf,
 	.beacon_update		= rt73usb_beacon_update,
 };
 

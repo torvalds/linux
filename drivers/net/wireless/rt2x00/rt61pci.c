@@ -2366,14 +2366,6 @@ static u64 rt61pci_get_tsf(struct ieee80211_hw *hw)
 	return tsf;
 }
 
-static void rt61pci_reset_tsf(struct ieee80211_hw *hw)
-{
-	struct rt2x00_dev *rt2x00dev = hw->priv;
-
-	rt2x00pci_register_write(rt2x00dev, TXRX_CSR12, 0);
-	rt2x00pci_register_write(rt2x00dev, TXRX_CSR13, 0);
-}
-
 static int rt61pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 			  struct ieee80211_tx_control *control)
 {
@@ -2450,7 +2442,6 @@ static const struct ieee80211_ops rt61pci_mac80211_ops = {
 	.conf_tx		= rt2x00mac_conf_tx,
 	.get_tx_stats		= rt2x00mac_get_tx_stats,
 	.get_tsf		= rt61pci_get_tsf,
-	.reset_tsf		= rt61pci_reset_tsf,
 	.beacon_update		= rt61pci_beacon_update,
 };
 
