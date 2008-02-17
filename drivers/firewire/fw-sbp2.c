@@ -1473,6 +1473,10 @@ static int sbp2_scsi_slave_alloc(struct scsi_device *sdev)
 {
 	struct sbp2_logical_unit *lu = sdev->hostdata;
 
+	/* (Re-)Adding logical units via the SCSI stack is not supported. */
+	if (!lu)
+		return -ENOSYS;
+
 	sdev->allow_restart = 1;
 
 	/*
