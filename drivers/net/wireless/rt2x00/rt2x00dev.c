@@ -919,7 +919,7 @@ static int rt2x00lib_probe_hw_modes(struct rt2x00_dev *rt2x00dev,
 	 * Rates: CCK, OFDM.
 	 * Channels: 2.4 GHz
 	 */
-	if (spec->supported_bands > SUPPORT_BAND_2GHZ) {
+	if (spec->supported_bands & SUPPORT_BAND_2GHZ) {
 		rt2x00dev->bands[IEEE80211_BAND_2GHZ].n_channels = 14;
 		rt2x00dev->bands[IEEE80211_BAND_2GHZ].n_bitrates = num_rates;
 		rt2x00dev->bands[IEEE80211_BAND_2GHZ].channels = channels;
@@ -933,7 +933,7 @@ static int rt2x00lib_probe_hw_modes(struct rt2x00_dev *rt2x00dev,
 	 * Rates: OFDM.
 	 * Channels: OFDM, UNII, HiperLAN2.
 	 */
-	if (spec->supported_bands > SUPPORT_BAND_5GHZ) {
+	if (spec->supported_bands & SUPPORT_BAND_5GHZ) {
 		rt2x00dev->bands[IEEE80211_BAND_5GHZ].n_channels =
 		    spec->num_channels - 14;
 		rt2x00dev->bands[IEEE80211_BAND_5GHZ].n_bitrates =
