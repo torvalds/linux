@@ -923,13 +923,13 @@
 #define RXD_W7_RESERVED			FIELD32(0xffffffff)
 
 /*
- * Macro's for converting txpower from EEPROM to dscape value
- * and from dscape value to register value.
+ * Macro's for converting txpower from EEPROM to mac80211 value
+ * and from mac80211 value to register value.
  * NOTE: Logics in rt2400pci for txpower are reversed
  * compared to the other rt2x00 drivers. A higher txpower
  * value means that the txpower must be lowered. This is
  * important when converting the value coming from the
- * dscape stack to the rt2400 acceptable value.
+ * mac80211 stack to the rt2400 acceptable value.
  */
 #define MIN_TXPOWER	31
 #define MAX_TXPOWER	62

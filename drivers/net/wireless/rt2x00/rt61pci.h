@@ -1455,8 +1455,8 @@ struct hw_pairwise_ta_entry {
 #define RXD_W15_RESERVED		FIELD32(0xffffffff)
 
 /*
- * Macro's for converting txpower from EEPROM to dscape value
- * and from dscape value to register value.
+ * Macro's for converting txpower from EEPROM to mac80211 value
+ * and from mac80211 value to register value.
  */
 #define MIN_TXPOWER	0
 #define MAX_TXPOWER	31

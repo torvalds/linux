@@ -5,7 +5,7 @@ config RT2X00
 	  This will enable the experimental support for the Ralink drivers,
 	  developed in the rt2x00 project <http://rt2x00.serialmonkey.com>.
 
-	  These drivers will make use of the Devicescape ieee80211 stack.
+	  These drivers will make use of the mac80211 stack.
 
 	  When building one of the individual drivers, the rt2x00 library
 	  will also be created. That library (when the driver is built as
