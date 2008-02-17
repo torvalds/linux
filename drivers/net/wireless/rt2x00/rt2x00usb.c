@@ -122,58 +122,6 @@ int rt2x00usb_vendor_request_buff(struct rt2x00_dev *rt2x00dev,
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_vendor_request_buff);
 
-static void rt2x00usb_vendor_request_async_complete(struct urb *urb)
-{
-	/*
-	 * We're done with it, descrease usage count and let the
-	 * usb layer delete it as soon as it is done with it.
-	 */
-	usb_put_urb(urb);
-}
-
-int rt2x00usb_vendor_request_async(struct rt2x00_dev *rt2x00dev,
-				   const u8 request, const u16 offset,
-				   const u16 value)
-{
-	struct usb_device *usb_dev = rt2x00dev_usb_dev(rt2x00dev);
-	struct usb_ctrlrequest *ctrl;
-	struct urb *urb;
-	int status;
-
-	urb = usb_alloc_urb(0, GFP_NOIO);
-	if (!urb)
-		return -ENOMEM;
-
-	ctrl = kmalloc(sizeof(struct usb_ctrlrequest), GFP_NOIO);
-	if (!ctrl) {
-		status = -ENOMEM;
-		goto exit;
-	}
-
-	ctrl->bRequestType= USB_VENDOR_REQUEST_OUT;
-	ctrl->bRequest = request;
-	ctrl->wValue = cpu_to_le16p(&value);
-	ctrl->wIndex = cpu_to_le16p(&offset);
-	ctrl->wLength = 0;
-
-	usb_fill_control_urb(urb, usb_dev, usb_sndctrlpipe(usb_dev, 0),
-			     (unsigned char *)ctrl, NULL, 0,
-			     rt2x00usb_vendor_request_async_complete, NULL);
-
-	status = usb_submit_urb(urb, GFP_ATOMIC);
-	if (!status)
-		goto exit;
-
-	return 0;
-
-exit:
-	usb_put_urb(urb);
-	kfree(ctrl);
-
-	return status;
-}
-EXPORT_SYMBOL_GPL(rt2x00usb_vendor_request_async);
-
 /*
  * TX data handlers.
  */

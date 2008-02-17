@@ -292,6 +292,12 @@ static void rt2500usb_led_brightness(struct led_classdev *led_cdev,
 	unsigned int activity =
 	    led->rt2x00dev->led_flags & LED_SUPPORT_ACTIVITY;
 
+	if (in_atomic()) {
+		NOTICE(led->rt2x00dev,
+		       "Ignoring LED brightness command for led %d", led->type);
+		return;
+	}
+
 	if (led->type == LED_TYPE_RADIO || led->type == LED_TYPE_ASSOC) {
 		rt2x00_set_field16(&led->rt2x00dev->led_mcu_reg,
 				   MAC_CSR20_LINK, enabled);
@@ -299,8 +305,8 @@ static void rt2500usb_led_brightness(struct led_classdev *led_cdev,
 				   MAC_CSR20_ACTIVITY, enabled && activity);
 	}
 
-	rt2x00usb_vendor_request_async(led->rt2x00dev, USB_SINGLE_WRITE,
-				       MAC_CSR20, led->rt2x00dev->led_mcu_reg);
+	rt2500usb_register_write(led->rt2x00dev, MAC_CSR20,
+				 led->rt2x00dev->led_mcu_reg);
 }
 #else
 #define rt2500usb_led_brightness	NULL

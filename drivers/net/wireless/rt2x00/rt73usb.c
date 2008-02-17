@@ -290,29 +290,38 @@ static void rt73usb_led_brightness(struct led_classdev *led_cdev,
 	unsigned int bg_mode =
 	    (enabled && led->rt2x00dev->curr_band == IEEE80211_BAND_2GHZ);
 
+	if (in_atomic()) {
+		NOTICE(led->rt2x00dev,
+		       "Ignoring LED brightness command for led %d", led->type);
+		return;
+	}
+
 	if (led->type == LED_TYPE_RADIO) {
 		rt2x00_set_field16(&led->rt2x00dev->led_mcu_reg,
 				   MCU_LEDCS_RADIO_STATUS, enabled);
 
-		rt2x00usb_vendor_request_async(led->rt2x00dev, USB_LED_CONTROL,
-					       0, led->rt2x00dev->led_mcu_reg);
+		rt2x00usb_vendor_request_sw(led->rt2x00dev, USB_LED_CONTROL,
+					    0, led->rt2x00dev->led_mcu_reg,
+					    REGISTER_TIMEOUT);
 	} else if (led->type == LED_TYPE_ASSOC) {
 		rt2x00_set_field16(&led->rt2x00dev->led_mcu_reg,
 				   MCU_LEDCS_LINK_BG_STATUS, bg_mode);
 		rt2x00_set_field16(&led->rt2x00dev->led_mcu_reg,
 				   MCU_LEDCS_LINK_A_STATUS, a_mode);
 
-		rt2x00usb_vendor_request_async(led->rt2x00dev, USB_LED_CONTROL,
-					       0, led->rt2x00dev->led_mcu_reg);
+		rt2x00usb_vendor_request_sw(led->rt2x00dev, USB_LED_CONTROL,
+					    0, led->rt2x00dev->led_mcu_reg,
+					    REGISTER_TIMEOUT);
 	} else if (led->type == LED_TYPE_QUALITY) {
 		/*
 		 * The brightness is divided into 6 levels (0 - 5),
 		 * this means we need to convert the brightness
 		 * argument into the matching level within that range.
 		 */
-		rt2x00usb_vendor_request_async(led->rt2x00dev, USB_LED_CONTROL,
-					       brightness / (LED_FULL / 6),
-					       led->rt2x00dev->led_mcu_reg);
+		rt2x00usb_vendor_request_sw(led->rt2x00dev, USB_LED_CONTROL,
+					    brightness / (LED_FULL / 6),
+					    led->rt2x00dev->led_mcu_reg,
+					    REGISTER_TIMEOUT);
 	}
 }
 #else

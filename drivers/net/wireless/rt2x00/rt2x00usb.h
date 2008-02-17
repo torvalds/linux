@@ -194,24 +194,6 @@ static inline int rt2x00usb_eeprom_read(struct rt2x00_dev *rt2x00dev,
 					eeprom, lenght, timeout);
 }
 
-/**
- * rt2x00usb_vendor_request_async - Send register command to device (async)
- * @rt2x00dev: Pointer to &struct rt2x00_dev
- * @request: USB vendor command (See &enum rt2x00usb_vendor_request)
- * @offset: Register offset to perform action on
- * @value: Value to write to device
- *
- * Asynchroneous version of &rt2x00usb_vendor_request this is required
- * for some routines where the driver cannot sleep because it is in
- * irq context. Note that with this function the driver will not be
- * notified on failure or timeout of the command. It will only be notified
- * if the start of the command succeeded or not. This means it should not be
- * used when the command must succeed.
- */
-int rt2x00usb_vendor_request_async(struct rt2x00_dev *rt2x00dev,
-				   const u8 request, const u16 offset,
-				   const u16 value);
-
 /*
  * Radio handlers
  */
