@@ -99,6 +99,8 @@ static void udf_close_lvid(struct super_block *);
 static unsigned int udf_count_free(struct super_block *);
 static int udf_statfs(struct dentry *, struct kstatfs *);
 static int udf_show_options(struct seq_file *, struct vfsmount *);
+static void udf_error(struct super_block *sb, const char *function,
+		      const char *fmt, ...);
 
 struct logicalVolIntegrityDescImpUse *udf_sb_lvidiu(struct udf_sb_info *sbi)
 {
@@ -1867,8 +1869,8 @@ error_out:
 	return -EINVAL;
 }
 
-void udf_error(struct super_block *sb, const char *function,
-	       const char *fmt, ...)
+static void udf_error(struct super_block *sb, const char *function,
+		      const char *fmt, ...)
 {
 	va_list args;
 

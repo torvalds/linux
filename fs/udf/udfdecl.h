@@ -102,7 +102,6 @@ struct extent_position {
 };
 
 /* super.c */
-extern void udf_error(struct super_block *, const char *, const char *, ...);
 extern void udf_warning(struct super_block *, const char *, const char *, ...);
 
 /* namei.c */
