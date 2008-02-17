@@ -132,7 +132,6 @@ acpi_numa_processor_affinity_init(struct acpi_srat_cpu_affinity *pa)
 	int pxm, node;
 	int apic_id;
 
-	apic_id = pa->apic_id;
 	if (srat_disabled())
 		return;
 	if (pa->header.length != sizeof(struct acpi_srat_cpu_affinity)) {
@@ -148,6 +147,8 @@ acpi_numa_processor_affinity_init(struct acpi_srat_cpu_affinity *pa)
 		bad_srat();
 		return;
 	}
+
+	apic_id = pa->apic_id;
 	apicid_to_node[apic_id] = node;
 	acpi_numa = 1;
 	printk(KERN_INFO "SRAT: PXM %u -> APIC %u -> Node %u\n",
