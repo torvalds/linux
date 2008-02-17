@@ -548,8 +548,6 @@ void __cpuinit numa_set_node(int cpu, int node)
 {
 	int *cpu_to_node_map = x86_cpu_to_node_map_early_ptr;
 
-	cpu_pda(cpu)->nodenumber = node;
-
 	if(cpu_to_node_map)
 		cpu_to_node_map[cpu] = node;
 	else if(per_cpu_offset(cpu))
