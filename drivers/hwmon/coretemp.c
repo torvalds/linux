@@ -152,6 +152,56 @@ static struct coretemp_data *coretemp_update_device(struct device *dev)
 	return data;
 }
 
+static int __devinit adjust_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
+{
+	/* The 100C is default for both mobile and non mobile CPUs */
+
+	int tjmax = 100000;
+	int ismobile = 1;
+	int err;
+	u32 eax, edx;
+
+	/* Early chips have no MSR for TjMax */
+
+	if ((c->x86_model == 0xf) && (c->x86_mask < 4)) {
+		ismobile = 0;
+	}
+
+	if ((c->x86_model > 0xe) && (ismobile)) {
+
+		/* Now we can detect the mobile CPU using Intel provided table
+		   http://softwarecommunity.intel.com/Wiki/Mobility/720.htm
+		   For Core2 cores, check MSR 0x17, bit 28 1 = Mobile CPU
+		*/
+
+		err = rdmsr_safe_on_cpu(id, 0x17, &eax, &edx);
+		if (err) {
+			dev_warn(dev,
+				 "Unable to access MSR 0x17, assuming desktop"
+				 " CPU\n");
+			ismobile = 0;
+		} else if (!(eax & 0x10000000)) {
+			ismobile = 0;
+		}
+	}
+
+	if (ismobile) {
+
+		err = rdmsr_safe_on_cpu(id, 0xee, &eax, &edx);
+		if (err) {
+			dev_warn(dev,
+				 "Unable to access MSR 0xEE, for Tjmax, left"
+				 " at default");
+		} else if (eax & 0x40000000) {
+			tjmax = 85000;
+		}
+	} else {
+		dev_warn(dev, "Using relative temperature scale!\n");
+	}
+
+	return tjmax;
+}
+
 static int __devinit coretemp_probe(struct platform_device *pdev)
 {
 	struct coretemp_data *data;
@@ -168,8 +218,6 @@ static int __devinit coretemp_probe(struct platform_device *pdev)
 	data->id = pdev->id;
 	data->name = "coretemp";
 	mutex_init(&data->update_lock);
-	/* Tjmax default is 100 degrees C */
-	data->tjmax = 100000;
 
 	/* test if we can access the THERM_STATUS MSR */
 	err = rdmsr_safe_on_cpu(data->id, MSR_IA32_THERM_STATUS, &eax, &edx);
@@ -196,36 +244,7 @@ static int __devinit coretemp_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* Some processors have Tjmax 85 following magic should detect it
-	   Intel won't disclose the information without signed NDA, but
-	   individuals cannot sign it. Catch(ed) 22.
-	*/
-
-	if (((c->x86_model == 0xf) && (c->x86_mask > 3)) ||
-		(c->x86_model == 0xe))  {
-		err = rdmsr_safe_on_cpu(data->id, 0xee, &eax, &edx);
-		if (err) {
-			dev_warn(&pdev->dev,
-				 "Unable to access MSR 0xEE, Tjmax left at %d "
-				 "degrees C\n", data->tjmax/1000);
-		} else if (eax & 0x40000000) {
-			data->tjmax = 85000;
-		}
-	}
-
-	/* Intel says that above should not work for desktop Core2 processors,
-	   but it seems to work. There is no other way how get the absolute
-	   readings. Warn the user about this. First check if are desktop,
-	   bit 50 of MSR_IA32_PLATFORM_ID should be 0.
-	*/
-
-	rdmsr_safe_on_cpu(data->id, MSR_IA32_PLATFORM_ID, &eax, &edx);
-
-	if ((c->x86_model == 0xf) && (!(edx & 0x00040000))) {
-		dev_warn(&pdev->dev, "Using undocumented features, absolute "
-			 "temperature might be wrong!\n");
-	}
-
+	data->tjmax = adjust_tjmax(c, data->id, &pdev->dev);
 	platform_set_drvdata(pdev, data);
 
 	/* read the still undocumented IA32_TEMPERATURE_TARGET it exists
