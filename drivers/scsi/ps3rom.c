@@ -427,7 +427,7 @@ static struct scsi_host_template ps3rom_host_template = {
 	.cmd_per_lun =		1,
 	.emulated =             1,		/* only sg driver uses this */
 	.max_sectors =		PS3ROM_MAX_SECTORS,
-	.use_clustering =	ENABLE_CLUSTERING,
+	.use_clustering =	DISABLE_CLUSTERING,
 	.module =		THIS_MODULE,
 };
 
