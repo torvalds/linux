@@ -518,7 +518,7 @@ static void __cpuinit display_cacheinfo(struct cpuinfo_x86 *c)
 }
 
 #ifdef CONFIG_NUMA
-static int nearby_node(int apicid)
+static int __cpuinit nearby_node(int apicid)
 {
 	int i, node;
 
