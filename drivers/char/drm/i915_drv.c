@@ -342,6 +342,15 @@ static int i915_suspend(struct drm_device *dev)
 	dev_priv->saveVCLK_POST_DIV = I915_READ(VCLK_POST_DIV);
 	dev_priv->saveVGACNTRL = I915_READ(VGACNTRL);
 
+	/* Clock gating state */
+	dev_priv->saveDSPCLK_GATE_D = I915_READ(DSPCLK_GATE_D);
+
+	/* Cache mode state */
+	dev_priv->saveCACHE_MODE_0 = I915_READ(CACHE_MODE_0);
+
+	/* Memory Arbitration state */
+	dev_priv->saveMI_ARB_STATE = I915_READ(MI_ARB_STATE);
+
 	/* Scratch space */
 	for (i = 0; i < 16; i++) {
 		dev_priv->saveSWF0[i] = I915_READ(SWF0 + (i << 2));
@@ -488,6 +497,15 @@ static int i915_resume(struct drm_device *dev)
 	I915_WRITE(VCLK_DIVISOR_VGA1, dev_priv->saveVCLK_DIVISOR_VGA1);
 	I915_WRITE(VCLK_POST_DIV, dev_priv->saveVCLK_POST_DIV);
 	udelay(150);
+
+	/* Clock gating state */
+	I915_WRITE (DSPCLK_GATE_D, dev_priv->saveDSPCLK_GATE_D);
+
+	/* Cache mode state */
+	I915_WRITE (CACHE_MODE_0, dev_priv->saveCACHE_MODE_0 | 0xffff0000);
+
+	/* Memory arbitration state */
+	I915_WRITE (MI_ARB_STATE, dev_priv->saveMI_ARB_STATE | 0xffff0000);
 
 	for (i = 0; i < 16; i++) {
 		I915_WRITE(SWF0 + (i << 2), dev_priv->saveSWF0[i]);
