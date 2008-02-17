@@ -103,9 +103,10 @@ int rt2x00pci_write_tx_data(struct rt2x00_dev *rt2x00dev,
  */
 struct queue_entry_priv_pci_rx {
 	__le32 *desc;
+	dma_addr_t desc_dma;
 
 	void *data;
-	dma_addr_t dma;
+	dma_addr_t data_dma;
 };
 
 /**
@@ -118,9 +119,10 @@ struct queue_entry_priv_pci_rx {
  */
 struct queue_entry_priv_pci_tx {
 	__le32 *desc;
+	dma_addr_t desc_dma;
 
 	void *data;
-	dma_addr_t dma;
+	dma_addr_t data_dma;
 
 	struct ieee80211_tx_control control;
 };

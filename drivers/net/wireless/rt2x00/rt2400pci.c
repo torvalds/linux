@@ -597,11 +597,12 @@ static void rt2400pci_init_rxentry(struct rt2x00_dev *rt2x00dev,
 	u32 word;
 
 	rt2x00_desc_read(priv_rx->desc, 2, &word);
-	rt2x00_set_field32(&word, RXD_W2_BUFFER_LENGTH, entry->queue->data_size);
+	rt2x00_set_field32(&word, RXD_W2_BUFFER_LENGTH,
+			   entry->queue->data_size);
 	rt2x00_desc_write(priv_rx->desc, 2, word);
 
 	rt2x00_desc_read(priv_rx->desc, 1, &word);
-	rt2x00_set_field32(&word, RXD_W1_BUFFER_ADDRESS, priv_rx->dma);
+	rt2x00_set_field32(&word, RXD_W1_BUFFER_ADDRESS, priv_rx->data_dma);
 	rt2x00_desc_write(priv_rx->desc, 1, word);
 
 	rt2x00_desc_read(priv_rx->desc, 0, &word);
@@ -616,7 +617,7 @@ static void rt2400pci_init_txentry(struct rt2x00_dev *rt2x00dev,
 	u32 word;
 
 	rt2x00_desc_read(priv_tx->desc, 1, &word);
-	rt2x00_set_field32(&word, TXD_W1_BUFFER_ADDRESS, priv_tx->dma);
+	rt2x00_set_field32(&word, TXD_W1_BUFFER_ADDRESS, priv_tx->data_dma);
 	rt2x00_desc_write(priv_tx->desc, 1, word);
 
 	rt2x00_desc_read(priv_tx->desc, 2, &word);
@@ -648,22 +649,26 @@ static int rt2400pci_init_queues(struct rt2x00_dev *rt2x00dev)
 
 	priv_tx = rt2x00dev->tx[1].entries[0].priv_data;
 	rt2x00pci_register_read(rt2x00dev, TXCSR3, &reg);
-	rt2x00_set_field32(&reg, TXCSR3_TX_RING_REGISTER, priv_tx->dma);
+	rt2x00_set_field32(&reg, TXCSR3_TX_RING_REGISTER,
+			   priv_tx->desc_dma);
 	rt2x00pci_register_write(rt2x00dev, TXCSR3, reg);
 
 	priv_tx = rt2x00dev->tx[0].entries[0].priv_data;
 	rt2x00pci_register_read(rt2x00dev, TXCSR5, &reg);
-	rt2x00_set_field32(&reg, TXCSR5_PRIO_RING_REGISTER, priv_tx->dma);
+	rt2x00_set_field32(&reg, TXCSR5_PRIO_RING_REGISTER,
+			   priv_tx->desc_dma);
 	rt2x00pci_register_write(rt2x00dev, TXCSR5, reg);
 
 	priv_tx = rt2x00dev->bcn[1].entries[0].priv_data;
 	rt2x00pci_register_read(rt2x00dev, TXCSR4, &reg);
-	rt2x00_set_field32(&reg, TXCSR4_ATIM_RING_REGISTER, priv_tx->dma);
+	rt2x00_set_field32(&reg, TXCSR4_ATIM_RING_REGISTER,
+			   priv_tx->desc_dma);
 	rt2x00pci_register_write(rt2x00dev, TXCSR4, reg);
 
 	priv_tx = rt2x00dev->bcn[0].entries[0].priv_data;
 	rt2x00pci_register_read(rt2x00dev, TXCSR6, &reg);
-	rt2x00_set_field32(&reg, TXCSR6_BEACON_RING_REGISTER, priv_tx->dma);
+	rt2x00_set_field32(&reg, TXCSR6_BEACON_RING_REGISTER,
+			   priv_tx->desc_dma);
 	rt2x00pci_register_write(rt2x00dev, TXCSR6, reg);
 
 	rt2x00pci_register_read(rt2x00dev, RXCSR1, &reg);
@@ -673,7 +678,7 @@ static int rt2400pci_init_queues(struct rt2x00_dev *rt2x00dev)
 
 	priv_rx = rt2x00dev->rx->entries[0].priv_data;
 	rt2x00pci_register_read(rt2x00dev, RXCSR2, &reg);
-	rt2x00_set_field32(&reg, RXCSR2_RX_RING_REGISTER, priv_tx->dma);
+	rt2x00_set_field32(&reg, RXCSR2_RX_RING_REGISTER, priv_tx->desc_dma);
 	rt2x00pci_register_write(rt2x00dev, RXCSR2, reg);
 
 	return 0;

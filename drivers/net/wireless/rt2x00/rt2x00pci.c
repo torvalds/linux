@@ -218,40 +218,44 @@ static int rt2x00pci_alloc_queue_dma(struct rt2x00_dev *rt2x00dev,
 	struct pci_dev *pci_dev = rt2x00dev_pci(rt2x00dev);
 	struct queue_entry_priv_pci_rx *priv_rx;
 	struct queue_entry_priv_pci_tx *priv_tx;
-	void *desc;
-	void *data_addr;
-	void *data;
-	dma_addr_t data_dma;
+	void *addr;
 	dma_addr_t dma;
+	void *desc_addr;
+	dma_addr_t desc_dma;
+	void *data_addr;
+	dma_addr_t data_dma;
 	unsigned int i;
 
 	/*
 	 * Allocate DMA memory for descriptor and buffer.
 	 */
-	data_addr = pci_alloc_consistent(pci_dev, dma_size(queue), &data_dma);
-	if (!data_addr)
+	addr = pci_alloc_consistent(pci_dev, dma_size(queue), &dma);
+	if (!addr)
 		return -ENOMEM;
 
-	memset(data_addr, 0, dma_size(queue));
+	memset(addr, 0, dma_size(queue));
 
 	/*
 	 * Initialize all queue entries to contain valid addresses.
 	 */
 	for (i = 0; i < queue->limit; i++) {
-		desc = desc_offset(queue, data_addr, i);
-		data = data_offset(queue, data_addr, i);
-		dma = data_offset(queue, data_dma, i);
+		desc_addr = desc_offset(queue, addr, i);
+		desc_dma = desc_offset(queue, dma, i);
+		data_addr = data_offset(queue, addr, i);
+		data_dma = data_offset(queue, dma, i);
 
 		if (queue->qid == QID_RX) {
 			priv_rx = queue->entries[i].priv_data;
-			priv_rx->desc = desc;
-			priv_rx->data = data;
-			priv_rx->dma = dma;
+			priv_rx->desc = desc_addr;
+			priv_rx->desc_dma = desc_dma;
+			priv_rx->data = data_addr;
+			priv_rx->data_dma = data_dma;
 		} else {
 			priv_tx = queue->entries[i].priv_data;
-			priv_tx->desc = desc;
-			priv_tx->data = data;
-			priv_tx->dma = dma;
+			priv_tx->desc = desc_addr;
+			priv_tx->desc_dma = desc_dma;
+			priv_tx->data = data_addr;
+			priv_tx->data_dma = data_dma;
 		}
 	}
 
@@ -270,13 +274,13 @@ static void rt2x00pci_free_queue_dma(struct rt2x00_dev *rt2x00dev,
 	if (queue->qid == QID_RX) {
 		priv_rx = queue->entries[0].priv_data;
 		data_addr = priv_rx->data;
-		data_dma = priv_rx->dma;
+		data_dma = priv_rx->data_dma;
 
 		priv_rx->data = NULL;
 	} else {
 		priv_tx = queue->entries[0].priv_data;
 		data_addr = priv_tx->data;
-		data_dma = priv_tx->dma;
+		data_dma = priv_tx->data_dma;
 
 		priv_tx->data = NULL;
 	}
