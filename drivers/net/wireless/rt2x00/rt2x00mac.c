@@ -34,6 +34,7 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 				struct sk_buff *frag_skb,
 				struct ieee80211_tx_control *control)
 {
+	struct skb_frame_desc *skbdesc;
 	struct sk_buff *skb;
 	int size;
 
@@ -60,6 +61,13 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 				  frag_skb->data, frag_skb->len, control,
 				  (struct ieee80211_rts *)(skb->data));
 
+	/*
+	 * Initialize skb descriptor
+	 */
+	skbdesc = get_skb_frame_desc(skb);
+	memset(skbdesc, 0, sizeof(*skbdesc));
+	skbdesc->flags |= FRAME_DESC_DRIVER_GENERATED;
+
 	if (rt2x00dev->ops->lib->write_tx_data(rt2x00dev, queue, skb, control)) {
 		WARNING(rt2x00dev, "Failed to send RTS/CTS frame.\n");
 		return NETDEV_TX_BUSY;
@@ -74,6 +82,7 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct ieee80211_hdr *ieee80211hdr = (struct ieee80211_hdr *)skb->data;
 	struct data_queue *queue;
+	struct skb_frame_desc *skbdesc;
 	u16 frame_control;
 
 	/*
@@ -120,6 +129,12 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
 			return NETDEV_TX_BUSY;
 		}
 	}
+
+	/*
+	 * Initialize skb descriptor
+	 */
+	skbdesc = get_skb_frame_desc(skb);
+	memset(skbdesc, 0, sizeof(*skbdesc));
 
 	if (rt2x00dev->ops->lib->write_tx_data(rt2x00dev, queue, skb, control)) {
 		ieee80211_stop_queue(rt2x00dev->hw, control->queue);

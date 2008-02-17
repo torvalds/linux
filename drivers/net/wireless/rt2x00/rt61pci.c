@@ -2400,6 +2400,7 @@ static int rt61pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 	 */
 	skbdesc = get_skb_frame_desc(skb);
 	memset(skbdesc, 0, sizeof(*skbdesc));
+	skbdesc->flags |= FRAME_DESC_DRIVER_GENERATED;
 	skbdesc->data = skb->data + intf->beacon->queue->desc_size;
 	skbdesc->data_len = skb->len - intf->beacon->queue->desc_size;
 	skbdesc->desc = skb->data;

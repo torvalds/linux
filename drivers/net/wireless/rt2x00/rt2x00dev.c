@@ -500,6 +500,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 		      struct txdone_entry_desc *txdesc)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+	struct skb_frame_desc *skbdesc;
 	struct ieee80211_tx_status tx_status;
 	int success = !!(txdesc->status == TX_SUCCESS ||
 			 txdesc->status == TX_SUCCESS_RETRY);
@@ -540,12 +541,23 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	}
 
 	/*
-	 * Send the tx_status to mac80211 & debugfs.
-	 * mac80211 will clean up the skb structure.
+	 * Send the tx_status to debugfs. Only send the status report
+	 * to mac80211 when the frame originated from there. If this was
+	 * a extra frame coming through a mac80211 library call (RTS/CTS)
+	 * then we should not send the status report back.
+	 * If send to mac80211, mac80211 will clean up the skb structure,
+	 * otherwise we have to do it ourself.
 	 */
-	get_skb_frame_desc(entry->skb)->frame_type = DUMP_FRAME_TXDONE;
+	skbdesc = get_skb_frame_desc(entry->skb);
+	skbdesc->frame_type = DUMP_FRAME_TXDONE;
+
 	rt2x00debug_dump_frame(rt2x00dev, entry->skb);
-	ieee80211_tx_status_irqsafe(rt2x00dev->hw, entry->skb, &tx_status);
+
+	if (!(skbdesc->flags & FRAME_DESC_DRIVER_GENERATED))
+		ieee80211_tx_status_irqsafe(rt2x00dev->hw,
+					    entry->skb, &tx_status);
+	else
+		dev_kfree_skb(entry->skb);
 	entry->skb = NULL;
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_txdone);

@@ -82,12 +82,22 @@ enum rt2x00_bcn_queue {
 };
 
 /**
+ * enum skb_frame_desc_flags: Flags for &struct skb_frame_desc
+ *
+ * @FRAME_DESC_DRIVER_GENERATED: Frame was generated inside driver
+ *	and should not be reported back to mac80211 during txdone.
+ */
+enum skb_frame_desc_flags {
+	FRAME_DESC_DRIVER_GENERATED = 1 << 0,
+};
+
+/**
  * struct skb_frame_desc: Descriptor information for the skb buffer
  *
  * This structure is placed over the skb->cb array, this means that
  * this structure should not exceed the size of that array (48 bytes).
  *
- * @flags: Frame flags.
+ * @flags: Frame flags, see &enum skb_frame_desc_flags.
  * @frame_type: Frame type, see &enum rt2x00_dump_type.
  * @data: Pointer to data part of frame (Start of ieee80211 header).
  * @desc: Pointer to descriptor part of the frame.
