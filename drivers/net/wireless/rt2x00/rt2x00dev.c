@@ -767,25 +767,25 @@ EXPORT_SYMBOL_GPL(rt2x00lib_write_tx_desc);
  */
 const struct rt2x00_rate rt2x00_supported_rates[12] = {
 	{
-		.flags = 0,
+		.flags = DEV_RATE_CCK,
 		.bitrate = 10,
 		.ratemask = DEV_RATEMASK_1MB,
 		.plcp = 0x00,
 	},
 	{
-		.flags = DEV_RATE_SHORT_PREAMBLE,
+		.flags = DEV_RATE_CCK | DEV_RATE_SHORT_PREAMBLE,
 		.bitrate = 20,
 		.ratemask = DEV_RATEMASK_2MB,
 		.plcp = 0x01,
 	},
 	{
-		.flags = DEV_RATE_SHORT_PREAMBLE,
+		.flags = DEV_RATE_CCK | DEV_RATE_SHORT_PREAMBLE,
 		.bitrate = 55,
 		.ratemask = DEV_RATEMASK_5_5MB,
 		.plcp = 0x02,
 	},
 	{
-		.flags = DEV_RATE_SHORT_PREAMBLE,
+		.flags = DEV_RATE_CCK | DEV_RATE_SHORT_PREAMBLE,
 		.bitrate = 110,
 		.ratemask = DEV_RATEMASK_11MB,
 		.plcp = 0x03,
@@ -868,67 +868,64 @@ static int rt2x00lib_probe_hw_modes(struct rt2x00_dev *rt2x00dev,
 				    struct hw_mode_spec *spec)
 {
 	struct ieee80211_hw *hw = rt2x00dev->hw;
-	struct ieee80211_supported_band *sbands;
 	struct ieee80211_channel *channels;
 	struct ieee80211_rate *rates;
+	unsigned int num_rates;
 	unsigned int i;
 	unsigned char tx_power;
 
-	sbands = &rt2x00dev->bands[0];
+	num_rates = 0;
+	if (spec->supported_rates & SUPPORT_RATE_CCK)
+		num_rates += 4;
+	if (spec->supported_rates & SUPPORT_RATE_OFDM)
+		num_rates += 8;
 
 	channels = kzalloc(sizeof(*channels) * spec->num_channels, GFP_KERNEL);
 	if (!channels)
 		return -ENOMEM;
 
-	rates = kzalloc(sizeof(*rates) * spec->num_rates, GFP_KERNEL);
+	rates = kzalloc(sizeof(*rates) * num_rates, GFP_KERNEL);
 	if (!rates)
 		goto exit_free_channels;
 
 	/*
 	 * Initialize Rate list.
 	 */
-	for (i = 0; i < spec->num_rates; i++)
+	for (i = 0; i < num_rates; i++)
 		rt2x00lib_rate(&rates[i], i, rt2x00_get_rate(i));
 
 	/*
 	 * Initialize Channel list.
 	 */
 	for (i = 0; i < spec->num_channels; i++) {
-		if (spec->channels[i].channel <= 14)
-			tx_power = spec->tx_power_bg[i];
-		else if (spec->tx_power_a)
-			tx_power = spec->tx_power_a[i];
-		else
-			tx_power = spec->tx_power_default;
+		if (spec->channels[i].channel <= 14) {
+			if (spec->tx_power_bg)
+				tx_power = spec->tx_power_bg[i];
+			else
+				tx_power = spec->tx_power_default;
+		} else {
+			if (spec->tx_power_a)
+				tx_power = spec->tx_power_a[i];
+			else
+				tx_power = spec->tx_power_default;
+		}
 
 		rt2x00lib_channel(&channels[i],
 				  spec->channels[i].channel, tx_power, i);
 	}
 
 	/*
-	 * Intitialize 802.11b
-	 * Rates: CCK.
-	 * Channels: 2.4 GHz
-	 */
-	if (spec->num_modes > 0) {
-		sbands[IEEE80211_BAND_2GHZ].n_channels = 14;
-		sbands[IEEE80211_BAND_2GHZ].n_bitrates = 4;
-		sbands[IEEE80211_BAND_2GHZ].channels = channels;
-		sbands[IEEE80211_BAND_2GHZ].bitrates = rates;
-		hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &rt2x00dev->bands[IEEE80211_BAND_2GHZ];
-	}
-
-	/*
-	 * Intitialize 802.11g
+	 * Intitialize 802.11b, 802.11g
 	 * Rates: CCK, OFDM.
 	 * Channels: 2.4 GHz
 	 */
-	if (spec->num_modes > 1) {
-		sbands[IEEE80211_BAND_2GHZ].n_channels = 14;
-		sbands[IEEE80211_BAND_2GHZ].n_bitrates = spec->num_rates;
-		sbands[IEEE80211_BAND_2GHZ].channels = channels;
-		sbands[IEEE80211_BAND_2GHZ].bitrates = rates;
-		hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &rt2x00dev->bands[IEEE80211_BAND_2GHZ];
+	if (spec->supported_bands > SUPPORT_BAND_2GHZ) {
+		rt2x00dev->bands[IEEE80211_BAND_2GHZ].n_channels = 14;
+		rt2x00dev->bands[IEEE80211_BAND_2GHZ].n_bitrates = num_rates;
+		rt2x00dev->bands[IEEE80211_BAND_2GHZ].channels = channels;
+		rt2x00dev->bands[IEEE80211_BAND_2GHZ].bitrates = rates;
+		hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
+		    &rt2x00dev->bands[IEEE80211_BAND_2GHZ];
 	}
 
 	/*
@@ -936,12 +933,15 @@ static int rt2x00lib_probe_hw_modes(struct rt2x00_dev *rt2x00dev,
 	 * Rates: OFDM.
 	 * Channels: OFDM, UNII, HiperLAN2.
 	 */
-	if (spec->num_modes > 2) {
-		sbands[IEEE80211_BAND_5GHZ].n_channels = spec->num_channels - 14;
-		sbands[IEEE80211_BAND_5GHZ].n_bitrates = spec->num_rates - 4;
-		sbands[IEEE80211_BAND_5GHZ].channels = &channels[14];
-		sbands[IEEE80211_BAND_5GHZ].bitrates = &rates[4];
-		hw->wiphy->bands[IEEE80211_BAND_5GHZ] = &rt2x00dev->bands[IEEE80211_BAND_5GHZ];
+	if (spec->supported_bands > SUPPORT_BAND_5GHZ) {
+		rt2x00dev->bands[IEEE80211_BAND_5GHZ].n_channels =
+		    spec->num_channels - 14;
+		rt2x00dev->bands[IEEE80211_BAND_5GHZ].n_bitrates =
+		    num_rates - 4;
+		rt2x00dev->bands[IEEE80211_BAND_5GHZ].channels = &channels[14];
+		rt2x00dev->bands[IEEE80211_BAND_5GHZ].bitrates = &rates[4];
+		hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
+		    &rt2x00dev->bands[IEEE80211_BAND_5GHZ];
 	}
 
 	return 0;

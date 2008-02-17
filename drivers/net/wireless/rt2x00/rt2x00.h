@@ -392,30 +392,38 @@ static inline struct rt2x00_intf* vif_to_intf(struct ieee80211_vif *vif)
 	return (struct rt2x00_intf *)vif->drv_priv;
 }
 
-/*
+/**
+ * struct hw_mode_spec: Hardware specifications structure
+ *
  * Details about the supported modes, rates and channels
  * of a particular chipset. This is used by rt2x00lib
  * to build the ieee80211_hw_mode array for mac80211.
+ *
+ * @supported_bands: Bitmask contained the supported bands (2.4GHz, 5.2GHz).
+ * @supported_rates: Rate types which are supported (CCK, OFDM).
+ * @num_channels: Number of supported channels. This is used as array size
+ *	for @tx_power_a, @tx_power_bg and @channels.
+ * channels: Device/chipset specific channel values (See &struct rf_channel).
+ * @tx_power_a: TX power values for all 5.2GHz channels (may be NULL).
+ * @tx_power_bg: TX power values for all 2.4GHz channels (may be NULL).
+ * @tx_power_default: Default TX power value to use when either
+ *	@tx_power_a or @tx_power_bg is missing.
  */
 struct hw_mode_spec {
-	/*
-	 * Number of modes, rates and channels.
-	 */
-	int num_modes;
-	int num_rates;
-	int num_channels;
+	unsigned int supported_bands;
+#define SUPPORT_BAND_2GHZ	0x00000001
+#define SUPPORT_BAND_5GHZ	0x00000002
 
-	/*
-	 * txpower values.
-	 */
+	unsigned int supported_rates;
+#define SUPPORT_RATE_CCK	0x00000001
+#define SUPPORT_RATE_OFDM	0x00000002
+
+	unsigned int num_channels;
+	const struct rf_channel *channels;
+
 	const u8 *tx_power_a;
 	const u8 *tx_power_bg;
 	u8 tx_power_default;
-
-	/*
-	 * Device/chipset specific value.
-	 */
-	const struct rf_channel *channels;
 };
 
 /*

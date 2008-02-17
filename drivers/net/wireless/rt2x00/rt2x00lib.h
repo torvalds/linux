@@ -38,8 +38,9 @@
  */
 struct rt2x00_rate {
 	unsigned short flags;
-#define DEV_RATE_OFDM			0x0001
-#define DEV_RATE_SHORT_PREAMBLE		0x0002
+#define DEV_RATE_CCK			0x0001
+#define DEV_RATE_OFDM			0x0002
+#define DEV_RATE_SHORT_PREAMBLE		0x0004
 
 	unsigned short bitrate; /* In 100kbit/s */
 
