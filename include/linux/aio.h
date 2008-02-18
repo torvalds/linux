@@ -105,7 +105,6 @@ struct kiocb {
 	wait_queue_t		ki_wait;
 	loff_t			ki_pos;
 
-	atomic_t		ki_bio_count;	/* num bio used for this iocb */
 	void			*private;
 	/* State that we remember to be able to restart/retry  */
 	unsigned short		ki_opcode;
