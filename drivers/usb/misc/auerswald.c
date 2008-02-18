@@ -259,7 +259,7 @@ typedef struct
         auerbufctl_t bufctl;            /* controls the buffer chain */
         auerscon_t scontext;            /* service context */
 	wait_queue_head_t readwait;     /* for synchronous reading */
-	struct semaphore readmutex;     /* protection against multiple reads */
+	struct mutex readmutex;		/* protection against multiple reads */
 	pauerbuf_t readbuf;		/* buffer held for partial reading */
 	unsigned int readoffset;	/* current offset in readbuf */
 	unsigned int removed;		/* is != 0 if device is removed */
@@ -1391,7 +1391,7 @@ static int auerchar_open (struct inode *inode, struct file *file)
 
 	/* Initialize device descriptor */
 	init_MUTEX( &ccp->mutex);
-	init_MUTEX( &ccp->readmutex);
+	mutex_init(&ccp->readmutex);
         auerbuf_init (&ccp->bufctl);
         ccp->scontext.id = AUH_UNASSIGNED;
         ccp->scontext.dispatch = auerchar_ctrlread_dispatch;
@@ -1585,7 +1585,7 @@ static ssize_t auerchar_read (struct file *file, char __user *buf, size_t count,
 	}
 
 	/* only one reader per device allowed */
-	if (down_interruptible (&ccp->readmutex)) {
+	if (mutex_lock_interruptible(&ccp->readmutex)) {
 		up (&ccp->mutex);
 		return -ERESTARTSYS;
 	}
@@ -1603,7 +1603,7 @@ doreadbuf:
 		if (count) {
 			if (copy_to_user (buf, bp->bufp+ccp->readoffset, count)) {
 				dbg ("auerswald_read: copy_to_user failed");
-				up (&ccp->readmutex);
+				mutex_unlock(&ccp->readmutex);
 				up (&ccp->mutex);
 				return -EFAULT;
 			}
@@ -1618,7 +1618,7 @@ doreadbuf:
 		}
 		/* return with number of bytes read */
 		if (count) {
-			up (&ccp->readmutex);
+			mutex_unlock(&ccp->readmutex);
 			up (&ccp->mutex);
 			return count;
 		}
@@ -1655,7 +1655,7 @@ doreadlist:
                 dbg ("No read buffer available, returning -EAGAIN");
 		set_current_state (TASK_RUNNING);
 		remove_wait_queue (&ccp->readwait, &wait);
-		up (&ccp->readmutex);
+		mutex_unlock(&ccp->readmutex);
 		up (&ccp->mutex);
 		return -EAGAIN;  /* nonblocking, no data available */
         }
@@ -1666,18 +1666,18 @@ doreadlist:
 	remove_wait_queue (&ccp->readwait, &wait);
 	if (signal_pending (current)) {
 		/* waked up by a signal */
-		up (&ccp->readmutex);
+		mutex_unlock(&ccp->readmutex);
 		return -ERESTARTSYS;
 	}
 
 	/* Anything left to read? */
 	if ((ccp->scontext.id == AUH_UNASSIGNED) || ccp->removed) {
-		up (&ccp->readmutex);
+		mutex_unlock(&ccp->readmutex);
 		return -EIO;
 	}
 
 	if (down_interruptible (&ccp->mutex)) {
-		up (&ccp->readmutex);
+		mutex_unlock(&ccp->readmutex);
 		return -ERESTARTSYS;
 	}
 
