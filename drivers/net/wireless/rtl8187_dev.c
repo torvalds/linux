@@ -178,17 +178,23 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb,
 
 	flags = skb->len;
 	flags |= RTL8187_TX_FLAG_NO_ENCRYPT;
-	flags |= control->rts_cts_rate->hw_value << 19;
+
+	BUG_ON(!control->tx_rate);
+
 	flags |= control->tx_rate->hw_value << 24;
 	if (ieee80211_get_morefrag((struct ieee80211_hdr *)skb->data))
 		flags |= RTL8187_TX_FLAG_MORE_FRAG;
 	if (control->flags & IEEE80211_TXCTL_USE_RTS_CTS) {
+		BUG_ON(!control->rts_cts_rate);
 		flags |= RTL8187_TX_FLAG_RTS;
+		flags |= control->rts_cts_rate->hw_value << 19;
 		rts_dur = ieee80211_rts_duration(dev, priv->vif,
 						 skb->len, control);
-	}
-	if (control->flags & IEEE80211_TXCTL_USE_CTS_PROTECT)
+	} else if (control->flags & IEEE80211_TXCTL_USE_CTS_PROTECT) {
+		BUG_ON(!control->rts_cts_rate);
 		flags |= RTL8187_TX_FLAG_CTS;
+		flags |= control->rts_cts_rate->hw_value << 19;
+	}
 
 	hdr = (struct rtl8187_tx_hdr *)skb_push(skb, sizeof(*hdr));
 	hdr->flags = cpu_to_le32(flags);

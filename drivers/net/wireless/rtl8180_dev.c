@@ -257,19 +257,25 @@ static int rtl8180_tx(struct ieee80211_hw *dev, struct sk_buff *skb,
 	mapping = pci_map_single(priv->pdev, skb->data,
 				 skb->len, PCI_DMA_TODEVICE);
 
+	BUG_ON(!control->tx_rate);
+
 	tx_flags = RTL8180_TX_DESC_FLAG_OWN | RTL8180_TX_DESC_FLAG_FS |
 		   RTL8180_TX_DESC_FLAG_LS |
-		   (control->tx_rate->hw_value << 24) |
-		   (control->rts_cts_rate->hw_value << 19) | skb->len;
+		   (control->tx_rate->hw_value << 24) | skb->len;
 
 	if (priv->r8185)
 		tx_flags |= RTL8180_TX_DESC_FLAG_DMA |
 			    RTL8180_TX_DESC_FLAG_NO_ENC;
 
-	if (control->flags & IEEE80211_TXCTL_USE_RTS_CTS)
+	if (control->flags & IEEE80211_TXCTL_USE_RTS_CTS) {
+		BUG_ON(!control->rts_cts_rate);
 		tx_flags |= RTL8180_TX_DESC_FLAG_RTS;
-	else if (control->flags & IEEE80211_TXCTL_USE_CTS_PROTECT)
+		tx_flags |= control->rts_cts_rate->hw_value << 19;
+	} else if (control->flags & IEEE80211_TXCTL_USE_CTS_PROTECT) {
+		BUG_ON(!control->rts_cts_rate);
 		tx_flags |= RTL8180_TX_DESC_FLAG_CTS;
+		tx_flags |= control->rts_cts_rate->hw_value << 19;
+	}
 
 	*((struct ieee80211_tx_control **) skb->cb) =
 		kmemdup(control, sizeof(*control), GFP_ATOMIC);
