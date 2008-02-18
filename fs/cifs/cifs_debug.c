@@ -918,11 +918,11 @@ security_flags_write(struct file *file, const char __user *buffer,
 	return count;
 }
 #else
-static inline void cifs_proc_init(void)
+inline void cifs_proc_init(void)
 {
 }
 
-static inline void cifs_proc_clean(void)
+inline void cifs_proc_clean(void)
 {
 }
 #endif /* PROC_FS */
