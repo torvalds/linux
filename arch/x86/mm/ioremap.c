@@ -42,6 +42,15 @@ int page_is_ram(unsigned long pagenr)
 	unsigned long addr, end;
 	int i;
 
+	/*
+	 * A special case is the first 4Kb of memory;
+	 * This is a BIOS owned area, not kernel ram, but generally
+	 * not listed as such in the E820 table.
+	 */
+	if (pagenr == 0)
+		return 0;
+
+
 	for (i = 0; i < e820.nr_map; i++) {
 		/*
 		 * Not usable memory:
