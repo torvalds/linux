@@ -658,9 +658,10 @@ int bus_add_driver(struct device_driver *drv)
 	pr_debug("bus: '%s': add driver %s\n", bus->name, drv->name);
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-
+	if (!priv) {
+		error = -ENOMEM;
+		goto out_put_bus;
+	}
 	klist_init(&priv->klist_devices, NULL, NULL);
 	priv->driver = drv;
 	drv->p = priv;
@@ -668,7 +669,7 @@ int bus_add_driver(struct device_driver *drv)
 	error = kobject_init_and_add(&priv->kobj, &driver_ktype, NULL,
 				     "%s", drv->name);
 	if (error)
-		goto out_put_bus;
+		goto out_unregister;
 
 	if (drv->bus->p->drivers_autoprobe) {
 		error = driver_attach(drv);
