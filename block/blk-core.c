@@ -38,7 +38,7 @@ static int __make_request(struct request_queue *q, struct bio *bio);
 /*
  * For the allocated request tables
  */
-struct kmem_cache *request_cachep;
+static struct kmem_cache *request_cachep;
 
 /*
  * For queue allocation
