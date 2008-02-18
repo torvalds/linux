@@ -701,7 +701,11 @@ static int nodemgr_bus_match(struct device * dev, struct device_driver * drv)
 		return 0;
 
 	driver = container_of(drv, struct hpsb_protocol_driver, driver);
-	for (id = driver->id_table; id->match_flags != 0; id++) {
+	id = driver->id_table;
+	if (!id)
+		return 0;
+
+	for (; id->match_flags != 0; id++) {
 		if ((id->match_flags & IEEE1394_MATCH_VENDOR_ID) &&
 		    id->vendor_id != ud->vendor_id)
 			continue;
