@@ -523,6 +523,7 @@ static void lock_all_devices(void)
 
 /**
  *	device_suspend - Save state and stop all devices in system.
+ *	@state: new power management state
  *
  *	Prevent new devices from being registered, then lock all devices
  *	and suspend them.
