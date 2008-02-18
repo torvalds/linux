@@ -189,7 +189,7 @@ xfs_inobt_delrec(
 			 */
 			bno = be32_to_cpu(agi->agi_root);
 			agi->agi_root = *pp;
-			be32_add(&agi->agi_level, -1);
+			be32_add_cpu(&agi->agi_level, -1);
 			/*
 			 * Free the block.
 			 */
@@ -1132,7 +1132,7 @@ xfs_inobt_lshift(
 	/*
 	 * Bump and log left's numrecs, decrement and log right's numrecs.
 	 */
-	be16_add(&left->bb_numrecs, 1);
+	be16_add_cpu(&left->bb_numrecs, 1);
 	xfs_inobt_log_block(cur->bc_tp, lbp, XFS_BB_NUMRECS);
 #ifdef DEBUG
 	if (level > 0)
@@ -1140,7 +1140,7 @@ xfs_inobt_lshift(
 	else
 		xfs_btree_check_rec(cur->bc_btnum, lrp - 1, lrp);
 #endif
-	be16_add(&right->bb_numrecs, -1);
+	be16_add_cpu(&right->bb_numrecs, -1);
 	xfs_inobt_log_block(cur->bc_tp, rbp, XFS_BB_NUMRECS);
 	/*
 	 * Slide the contents of right down one entry.
@@ -1232,7 +1232,7 @@ xfs_inobt_newroot(
 	 * Set the root data in the a.g. inode structure.
 	 */
 	agi->agi_root = cpu_to_be32(args.agbno);
-	be32_add(&agi->agi_level, 1);
+	be32_add_cpu(&agi->agi_level, 1);
 	xfs_ialloc_log_agi(args.tp, cur->bc_private.i.agbp,
 		XFS_AGI_ROOT | XFS_AGI_LEVEL);
 	/*
@@ -1426,9 +1426,9 @@ xfs_inobt_rshift(
 	/*
 	 * Decrement and log left's numrecs, bump and log right's numrecs.
 	 */
-	be16_add(&left->bb_numrecs, -1);
+	be16_add_cpu(&left->bb_numrecs, -1);
 	xfs_inobt_log_block(cur->bc_tp, lbp, XFS_BB_NUMRECS);
-	be16_add(&right->bb_numrecs, 1);
+	be16_add_cpu(&right->bb_numrecs, 1);
 #ifdef DEBUG
 	if (level > 0)
 		xfs_btree_check_key(cur->bc_btnum, rkp, rkp + 1);
@@ -1529,7 +1529,7 @@ xfs_inobt_split(
 	 */
 	if ((be16_to_cpu(left->bb_numrecs) & 1) &&
 	    cur->bc_ptrs[level] <= be16_to_cpu(right->bb_numrecs) + 1)
-		be16_add(&right->bb_numrecs, 1);
+		be16_add_cpu(&right->bb_numrecs, 1);
 	i = be16_to_cpu(left->bb_numrecs) - be16_to_cpu(right->bb_numrecs) + 1;
 	/*
 	 * For non-leaf blocks, copy keys and addresses over to the new block.
@@ -1565,7 +1565,7 @@ xfs_inobt_split(
 	 * Find the left block number by looking in the buffer.
 	 * Adjust numrecs, sibling pointers.
 	 */
-	be16_add(&left->bb_numrecs, -(be16_to_cpu(right->bb_numrecs)));
+	be16_add_cpu(&left->bb_numrecs, -(be16_to_cpu(right->bb_numrecs)));
 	right->bb_rightsib = left->bb_rightsib;
 	left->bb_rightsib = cpu_to_be32(args.agbno);
 	right->bb_leftsib = cpu_to_be32(lbno);

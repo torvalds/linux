@@ -16,7 +16,8 @@
 
 extern void xics_init_IRQ(void);
 extern void xics_setup_cpu(void);
-extern void xics_teardown_cpu(int secondary);
+extern void xics_teardown_cpu(void);
+extern void xics_kexec_teardown_cpu(int secondary);
 extern void xics_cause_IPI(int cpu);
 extern  void xics_request_IPIs(void);
 extern void xics_migrate_irqs_away(void);

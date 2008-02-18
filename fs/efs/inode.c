@@ -45,17 +45,26 @@ static inline void extent_copy(efs_extent *src, efs_extent *dst) {
 	return;
 }
 
-void efs_read_inode(struct inode *inode)
+struct inode *efs_iget(struct super_block *super, unsigned long ino)
 {
 	int i, inode_index;
 	dev_t device;
 	u32 rdev;
 	struct buffer_head *bh;
-	struct efs_sb_info    *sb = SUPER_INFO(inode->i_sb);
-	struct efs_inode_info *in = INODE_INFO(inode);
+	struct efs_sb_info    *sb = SUPER_INFO(super);
+	struct efs_inode_info *in;
 	efs_block_t block, offset;
 	struct efs_dinode *efs_inode;
-  
+	struct inode *inode;
+
+	inode = iget_locked(super, ino);
+	if (IS_ERR(inode))
+		return ERR_PTR(-ENOMEM);
+	if (!(inode->i_state & I_NEW))
+		return inode;
+
+	in = INODE_INFO(inode);
+
 	/*
 	** EFS layout:
 	**
@@ -159,13 +168,13 @@ void efs_read_inode(struct inode *inode)
 			break;
 	}
 
-	return;
+	unlock_new_inode(inode);
+	return inode;
         
 read_inode_error:
 	printk(KERN_WARNING "EFS: failed to read inode %lu\n", inode->i_ino);
-	make_bad_inode(inode);
-
-	return;
+	iget_failed(inode);
+	return ERR_PTR(-EIO);
 }
 
 static inline efs_block_t

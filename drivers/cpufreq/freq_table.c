@@ -171,7 +171,7 @@ EXPORT_SYMBOL_GPL(cpufreq_frequency_table_target);
 
 static struct cpufreq_frequency_table *show_table[NR_CPUS];
 /**
- * show_scaling_governor - show the current policy for the specified CPU
+ * show_available_freqs - show available frequencies for the specified CPU
  */
 static ssize_t show_available_freqs (struct cpufreq_policy *policy, char *buf)
 {

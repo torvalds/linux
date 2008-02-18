@@ -1071,8 +1071,6 @@ int dev_close(struct net_device *dev)
 	 */
 	call_netdevice_notifiers(NETDEV_GOING_DOWN, dev);
 
-	dev_deactivate(dev);
-
 	clear_bit(__LINK_STATE_START, &dev->state);
 
 	/* Synchronize to scheduled poll. We cannot touch poll list,
@@ -1082,6 +1080,8 @@ int dev_close(struct net_device *dev)
 	 * napi_struct instances on this device.
 	 */
 	smp_mb__after_clear_bit(); /* Commit netif_running(). */
+
+	dev_deactivate(dev);
 
 	/*
 	 *	Call the device specific close. This cannot fail.
@@ -2143,7 +2143,7 @@ static int process_backlog(struct napi_struct *napi, int quota)
  *
  * The entry's receive function will be scheduled to run
  */
-void fastcall __napi_schedule(struct napi_struct *n)
+void __napi_schedule(struct napi_struct *n)
 {
 	unsigned long flags;
 
@@ -3038,8 +3038,7 @@ int dev_unicast_sync(struct net_device *to, struct net_device *from)
 EXPORT_SYMBOL(dev_unicast_sync);
 
 /**
- *	dev_unicast_unsync - Remove synchronized addresses from the destination
- *			     device
+ *	dev_unicast_unsync - Remove synchronized addresses from the destination device
  *	@to: destination device
  *	@from: source device
  *

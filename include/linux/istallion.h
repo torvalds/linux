@@ -71,7 +71,6 @@ struct stliport {
 	wait_queue_head_t	open_wait;
 	wait_queue_head_t	close_wait;
 	wait_queue_head_t	raw_wait;
-	struct work_struct	tqhangup;
 	struct asysigs		asig;
 	unsigned long		addr;
 	unsigned long		rxoffset;

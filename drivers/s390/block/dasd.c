@@ -1057,12 +1057,11 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 		if (device->features & DASD_FEATURE_ERPLOG) {
 			dasd_log_sense(cqr, irb);
 		}
-		/* If we have no sense data, or we just don't want complex ERP
-		 * for this request, but if we have retries left, then just
-		 * reset this request and retry it in the fastpath
+		/*
+		 * If we don't want complex ERP for this request, then just
+		 * reset this and retry it in the fastpath
 		 */
-		if (!(cqr->irb.esw.esw0.erw.cons &&
-		      test_bit(DASD_CQR_FLAGS_USE_ERP, &cqr->flags)) &&
+		if (!test_bit(DASD_CQR_FLAGS_USE_ERP, &cqr->flags) &&
 		    cqr->retries > 0) {
 			DEV_MESSAGE(KERN_DEBUG, device,
 				    "default ERP in fastpath (%i retries left)",
@@ -1707,7 +1706,7 @@ static void __dasd_cleanup_cqr(struct dasd_ccw_req *cqr)
 
 	req = (struct request *) cqr->callback_data;
 	dasd_profile_end(cqr->block, cqr, req);
-	status = cqr->memdev->discipline->free_cp(cqr, req);
+	status = cqr->block->base->discipline->free_cp(cqr, req);
 	if (status <= 0)
 		error = status ? status : -EIO;
 	dasd_end_request(req, error);
@@ -1742,12 +1741,8 @@ restart:
 
 		/*  Process requests that may be recovered */
 		if (cqr->status == DASD_CQR_NEED_ERP) {
-			if (cqr->irb.esw.esw0.erw.cons &&
-			    test_bit(DASD_CQR_FLAGS_USE_ERP,
-				     &cqr->flags)) {
-				erp_fn = base->discipline->erp_action(cqr);
-				erp_fn(cqr);
-			}
+			erp_fn = base->discipline->erp_action(cqr);
+			erp_fn(cqr);
 			goto restart;
 		}
 

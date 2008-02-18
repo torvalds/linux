@@ -12,10 +12,10 @@ static spinlock_t dca_idr_lock;
 
 int dca_sysfs_add_req(struct dca_provider *dca, struct device *dev, int slot)
 {
-	struct class_device *cd;
+	struct device *cd;
 
-	cd = class_device_create(dca_class, dca->cd, MKDEV(0, slot + 1),
-				 dev, "requester%d", slot);
+	cd = device_create(dca_class, dca->cd, MKDEV(0, slot + 1),
+			   "requester%d", slot);
 	if (IS_ERR(cd))
 		return PTR_ERR(cd);
 	return 0;
@@ -23,12 +23,12 @@ int dca_sysfs_add_req(struct dca_provider *dca, struct device *dev, int slot)
 
 void dca_sysfs_remove_req(struct dca_provider *dca, int slot)
 {
-	class_device_destroy(dca_class, MKDEV(0, slot + 1));
+	device_destroy(dca_class, MKDEV(0, slot + 1));
 }
 
 int dca_sysfs_add_provider(struct dca_provider *dca, struct device *dev)
 {
-	struct class_device *cd;
+	struct device *cd;
 	int err = 0;
 
 idr_try_again:
@@ -46,8 +46,7 @@ idr_try_again:
 		return err;
 	}
 
-	cd = class_device_create(dca_class, NULL, MKDEV(0, 0),
-				 dev, "dca%d", dca->id);
+	cd = device_create(dca_class, dev, MKDEV(0, 0), "dca%d", dca->id);
 	if (IS_ERR(cd)) {
 		spin_lock(&dca_idr_lock);
 		idr_remove(&dca_idr, dca->id);
@@ -60,7 +59,7 @@ idr_try_again:
 
 void dca_sysfs_remove_provider(struct dca_provider *dca)
 {
-	class_device_unregister(dca->cd);
+	device_unregister(dca->cd);
 	dca->cd = NULL;
 	spin_lock(&dca_idr_lock);
 	idr_remove(&dca_idr, dca->id);

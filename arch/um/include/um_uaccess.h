@@ -6,7 +6,9 @@
 #ifndef __ARCH_UM_UACCESS_H
 #define __ARCH_UM_UACCESS_H
 
-#include "asm/fixmap.h"
+#include <asm/elf.h>
+#include <asm/fixmap.h>
+#include "sysdep/archsetjmp.h"
 
 #define __under_task_size(addr, size) \
 	(((unsigned long) (addr) < TASK_SIZE) && \

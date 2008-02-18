@@ -64,9 +64,6 @@ void (*mach_power_off)(void);
 #ifdef CONFIG_M68VZ328
 	#define CPU "MC68VZ328"
 #endif
-#ifdef CONFIG_M68332
-	#define CPU "MC68332"
-#endif
 #ifdef CONFIG_M68360
 	#define CPU "MC68360"
 #endif
@@ -206,7 +203,7 @@ void __init setup_arch(char **cmdline_p)
 	 * the bootmem bitmap so we then reserve it after freeing it :-)
 	 */
 	free_bootmem(memory_start, memory_end - memory_start);
-	reserve_bootmem(memory_start, bootmap_size);
+	reserve_bootmem(memory_start, bootmap_size, BOOTMEM_DEFAULT);
 
 	/*
 	 * Get kmalloc into gear.
@@ -263,7 +260,7 @@ static void c_stop(struct seq_file *m, void *v)
 {
 }
 
-struct seq_operations cpuinfo_op = {
+const struct seq_operations cpuinfo_op = {
 	.start	= c_start,
 	.next	= c_next,
 	.stop	= c_stop,

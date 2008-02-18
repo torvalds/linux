@@ -189,12 +189,11 @@ EXPORT_SYMBOL_GPL(do_rw_taskfile);
  */
 static ide_startstop_t set_multmode_intr(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = HWIF(drive);
-	u8 stat;
+	u8 stat = ide_read_status(drive);
 
-	if (OK_STAT(stat = hwif->INB(IDE_STATUS_REG),READY_STAT,BAD_STAT)) {
+	if (OK_STAT(stat, READY_STAT, BAD_STAT))
 		drive->mult_count = drive->mult_req;
-	} else {
+	else {
 		drive->mult_req = drive->mult_count = 0;
 		drive->special.b.recalibrate = 1;
 		(void) ide_dump_status(drive, "set_multmode", stat);
@@ -207,11 +206,10 @@ static ide_startstop_t set_multmode_intr(ide_drive_t *drive)
  */
 static ide_startstop_t set_geometry_intr(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = HWIF(drive);
 	int retries = 5;
 	u8 stat;
 
-	while (((stat = hwif->INB(IDE_STATUS_REG)) & BUSY_STAT) && retries--)
+	while (((stat = ide_read_status(drive)) & BUSY_STAT) && retries--)
 		udelay(10);
 
 	if (OK_STAT(stat, READY_STAT, BAD_STAT))
@@ -230,10 +228,9 @@ static ide_startstop_t set_geometry_intr(ide_drive_t *drive)
  */
 static ide_startstop_t recal_intr(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = HWIF(drive);
-	u8 stat;
+	u8 stat = ide_read_status(drive);
 
-	if (!OK_STAT(stat = hwif->INB(IDE_STATUS_REG), READY_STAT, BAD_STAT))
+	if (!OK_STAT(stat, READY_STAT, BAD_STAT))
 		return ide_error(drive, "recal_intr", stat);
 	return ide_stopped;
 }
@@ -244,23 +241,23 @@ static ide_startstop_t recal_intr(ide_drive_t *drive)
 static ide_startstop_t task_no_data_intr(ide_drive_t *drive)
 {
 	ide_task_t *args	= HWGROUP(drive)->rq->special;
-	ide_hwif_t *hwif	= HWIF(drive);
 	u8 stat;
 
 	local_irq_enable_in_hardirq();
-	if (!OK_STAT(stat = hwif->INB(IDE_STATUS_REG),READY_STAT,BAD_STAT)) {
+	stat = ide_read_status(drive);
+
+	if (!OK_STAT(stat, READY_STAT, BAD_STAT))
 		return ide_error(drive, "task_no_data_intr", stat);
 		/* calls ide_end_drive_cmd */
-	}
+
 	if (args)
-		ide_end_drive_cmd(drive, stat, hwif->INB(IDE_ERROR_REG));
+		ide_end_drive_cmd(drive, stat, ide_read_error(drive));
 
 	return ide_stopped;
 }
 
 static u8 wait_drive_not_busy(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = HWIF(drive);
 	int retries;
 	u8 stat;
 
@@ -269,7 +266,9 @@ static u8 wait_drive_not_busy(ide_drive_t *drive)
 	 * This can take up to 10 usec, but we will wait max 1 ms.
 	 */
 	for (retries = 0; retries < 100; retries++) {
-		if ((stat = hwif->INB(IDE_STATUS_REG)) & BUSY_STAT)
+		stat = ide_read_status(drive);
+
+		if (stat & BUSY_STAT)
 			udelay(10);
 		else
 			break;
@@ -408,7 +407,7 @@ static ide_startstop_t task_error(ide_drive_t *drive, struct request *rq,
 void task_end_request(ide_drive_t *drive, struct request *rq, u8 stat)
 {
 	if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
-		u8 err = drive->hwif->INB(IDE_ERROR_REG);
+		u8 err = ide_read_error(drive);
 
 		ide_end_drive_cmd(drive, stat, err);
 		return;
@@ -430,7 +429,7 @@ static ide_startstop_t task_in_intr(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct request *rq = HWGROUP(drive)->rq;
-	u8 stat = hwif->INB(IDE_STATUS_REG);
+	u8 stat = ide_read_status(drive);
 
 	/* new way for dealing with premature shared PCI interrupts */
 	if (!OK_STAT(stat, DRQ_STAT, BAD_R_STAT)) {
@@ -465,7 +464,7 @@ static ide_startstop_t task_out_intr (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct request *rq = HWGROUP(drive)->rq;
-	u8 stat = hwif->INB(IDE_STATUS_REG);
+	u8 stat = ide_read_status(drive);
 
 	if (!OK_STAT(stat, DRIVE_READY, drive->bad_wstat))
 		return task_error(drive, rq, __FUNCTION__, stat);

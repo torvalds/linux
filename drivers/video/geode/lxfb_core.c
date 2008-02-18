@@ -34,7 +34,7 @@ static int fbsize;
  * we try to make it something sane - 640x480-60 is sane
  */
 
-const struct fb_videomode geode_modedb[] __initdata = {
+static const struct fb_videomode geode_modedb[] __initdata = {
 	/* 640x480-60 */
 	{ NULL, 60, 640, 480, 39682, 48, 8, 25, 2, 88, 2,
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,

@@ -110,13 +110,6 @@ config MTD_SUN_UFLASH
 	  Sun Microsystems boardsets.  This driver will require CFI support
 	  in the kernel, so if you did not enable CFI previously, do that now.
 
-config MTD_PNC2000
-	tristate "CFI Flash device mapped on Photron PNC-2000"
-	depends on X86 && MTD_CFI && MTD_PARTITIONS
-	help
-	  PNC-2000 is the name of Network Camera product from PHOTRON
-	  Ltd. in Japan. It uses CFI-compliant flash.
-
 config MTD_SC520CDP
 	tristate "CFI Flash device mapped on AMD SC520 CDP"
 	depends on X86 && MTD_CFI && MTD_CONCAT
@@ -576,7 +569,7 @@ config MTD_BAST_MAXSIZE
 	default "4"
 
 config MTD_SHARP_SL
-	bool "ROM mapped on Sharp SL Series"
+	tristate "ROM mapped on Sharp SL Series"
 	depends on ARCH_PXA
 	help
 	  This enables access to the flash chip on the Sharp SL Series of PDAs.

@@ -605,9 +605,11 @@ void __init reserve_node_zero(pg_data_t *pgdat)
 	 * Note that this can only be in node 0.
 	 */
 #ifdef CONFIG_XIP_KERNEL
-	reserve_bootmem_node(pgdat, __pa(&__data_start), &_end - &__data_start);
+	reserve_bootmem_node(pgdat, __pa(&__data_start), &_end - &__data_start,
+			BOOTMEM_DEFAULT);
 #else
-	reserve_bootmem_node(pgdat, __pa(&_stext), &_end - &_stext);
+	reserve_bootmem_node(pgdat, __pa(&_stext), &_end - &_stext,
+			BOOTMEM_DEFAULT);
 #endif
 
 	/*
@@ -615,7 +617,7 @@ void __init reserve_node_zero(pg_data_t *pgdat)
 	 * and can only be in node 0.
 	 */
 	reserve_bootmem_node(pgdat, __pa(swapper_pg_dir),
-			     PTRS_PER_PGD * sizeof(pgd_t));
+			     PTRS_PER_PGD * sizeof(pgd_t), BOOTMEM_DEFAULT);
 
 	/*
 	 * Hmm... This should go elsewhere, but we really really need to
@@ -638,8 +640,10 @@ void __init reserve_node_zero(pg_data_t *pgdat)
 	/* H1940 and RX3715 need to reserve this for suspend */
 
 	if (machine_is_h1940() || machine_is_rx3715()) {
-		reserve_bootmem_node(pgdat, 0x30003000, 0x1000);
-		reserve_bootmem_node(pgdat, 0x30081000, 0x1000);
+		reserve_bootmem_node(pgdat, 0x30003000, 0x1000,
+				BOOTMEM_DEFAULT);
+		reserve_bootmem_node(pgdat, 0x30081000, 0x1000,
+				BOOTMEM_DEFAULT);
 	}
 
 #ifdef CONFIG_SA1111
@@ -650,7 +654,8 @@ void __init reserve_node_zero(pg_data_t *pgdat)
 	res_size = __pa(swapper_pg_dir) - PHYS_OFFSET;
 #endif
 	if (res_size)
-		reserve_bootmem_node(pgdat, PHYS_OFFSET, res_size);
+		reserve_bootmem_node(pgdat, PHYS_OFFSET, res_size,
+				BOOTMEM_DEFAULT);
 }
 
 /*

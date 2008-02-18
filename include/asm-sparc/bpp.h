@@ -17,7 +17,7 @@
  * with compliant or compatible devices. It will use whatever features
  * the device supports, prefering those that are typically faster.
  *
- * When the device is opened, it is left in COMPATABILITY mode, and
+ * When the device is opened, it is left in COMPATIBILITY mode, and
  * writes work like any printer device. The driver only attempt to
  * negotiate 1284 modes when needed so that plugs can be pulled,
  * switch boxes switched, etc., without disrupting things. It will

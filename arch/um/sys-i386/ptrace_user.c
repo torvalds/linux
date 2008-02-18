@@ -19,17 +19,3 @@ int ptrace_setregs(long pid, unsigned long *regs)
 		return -errno;
 	return 0;
 }
-
-int ptrace_getfpregs(long pid, unsigned long *regs)
-{
-	if (ptrace(PTRACE_GETFPREGS, pid, 0, regs) < 0)
-		return -errno;
-	return 0;
-}
-
-int ptrace_setfpregs(long pid, unsigned long *regs)
-{
-	if (ptrace(PTRACE_SETFPREGS, pid, 0, regs) < 0)
-		return -errno;
-	return 0;
-}

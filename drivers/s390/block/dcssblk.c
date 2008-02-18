@@ -415,6 +415,8 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 	dev_info->gd->queue = dev_info->dcssblk_queue;
 	dev_info->gd->private_data = dev_info;
 	dev_info->gd->driverfs_dev = &dev_info->dev;
+	blk_queue_make_request(dev_info->dcssblk_queue, dcssblk_make_request);
+	blk_queue_hardsect_size(dev_info->dcssblk_queue, 4096);
 	/*
 	 * load the segment
 	 */
@@ -471,9 +473,6 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 	rc = device_create_file(&dev_info->dev, &dev_attr_save);
 	if (rc)
 		goto unregister_dev;
-
-	blk_queue_make_request(dev_info->dcssblk_queue, dcssblk_make_request);
-	blk_queue_hardsect_size(dev_info->dcssblk_queue, 4096);
 
 	add_disk(dev_info->gd);
 

@@ -20,6 +20,7 @@
 #include <linux/bootmem.h>
 #include <linux/mount.h>
 #include <linux/blkdev.h>
+#include <linux/module.h>
 
 #include <asm/setup.h>
 #include <asm/machdep.h>
@@ -153,7 +154,7 @@ void __init atari_stram_reserve_pages(void *start_mem)
 	/* always reserve first page of ST-RAM, the first 2 kB are
 	 * supervisor-only! */
 	if (!kernel_in_stram)
-		reserve_bootmem (0, PAGE_SIZE);
+		reserve_bootmem(0, PAGE_SIZE, BOOTMEM_DEFAULT);
 
 }
 
@@ -208,6 +209,7 @@ void *atari_stram_alloc(long size, const char *owner)
 	}
 	return( addr );
 }
+EXPORT_SYMBOL(atari_stram_alloc);
 
 void atari_stram_free( void *addr )
 
@@ -237,6 +239,7 @@ void atari_stram_free( void *addr )
 	printk( KERN_ERR "atari_stram_free: cannot free block at %p "
 			"(called from %p)\n", addr, __builtin_return_address(0) );
 }
+EXPORT_SYMBOL(atari_stram_free);
 
 
 /* ------------------------------------------------------------------------ */

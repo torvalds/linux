@@ -170,21 +170,6 @@
     } \
 }
 
-static inline void be16_add(__be16 *a, __s16 b)
-{
-	*a = cpu_to_be16(be16_to_cpu(*a) + b);
-}
-
-static inline void be32_add(__be32 *a, __s32 b)
-{
-	*a = cpu_to_be32(be32_to_cpu(*a) + b);
-}
-
-static inline void be64_add(__be64 *a, __s64 b)
-{
-	*a = cpu_to_be64(be64_to_cpu(*a) + b);
-}
-
 /*
  * In directories inode numbers are stored as unaligned arrays of unsigned
  * 8bit integers on disk.

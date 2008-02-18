@@ -21,6 +21,7 @@
 #include <linux/input.h>
 #include <linux/i2c.h>
 #include <linux/serial_reg.h>
+#include <linux/ata_platform.h>
 #include <asm/mach-types.h>
 #include <asm/gpio.h>
 #include <asm/mach/arch.h>
@@ -232,6 +233,14 @@ static struct platform_device qnap_ts209_button_device = {
 };
 
 /*****************************************************************************
+ * SATA
+ ****************************************************************************/
+static struct mv_sata_platform_data qnap_ts209_sata_data = {
+	.n_ports        = 2,
+};
+
+/*****************************************************************************
+
  * General Setup
  ****************************************************************************/
 
@@ -244,7 +253,7 @@ static struct platform_device *qnap_ts209_devices[] __initdata = {
  * QNAP TS-[12]09 specific power off method via UART1-attached PIC
  */
 
-#define UART1_REG(x)  (UART1_BASE + ((UART_##x) << 2))
+#define UART1_REG(x)  (UART1_VIRT_BASE + ((UART_##x) << 2))
 
 static void qnap_ts209_power_off(void)
 {
@@ -282,8 +291,8 @@ static void __init qnap_ts209_init(void)
 	/*
 	 * Open a special address decode windows for the PCIE WA.
 	 */
-	orion_write(ORION_REGS_BASE | 0x20074, ORION_PCIE_WA_BASE);
-	orion_write(ORION_REGS_BASE | 0x20070, (0x7941 |
+	orion_write(ORION_REGS_VIRT_BASE | 0x20074, ORION_PCIE_WA_PHYS_BASE);
+	orion_write(ORION_REGS_VIRT_BASE | 0x20070, (0x7941 |
 		(((ORION_PCIE_WA_SIZE >> 16) - 1)) << 16));
 
 	/*
@@ -321,12 +330,13 @@ static void __init qnap_ts209_init(void)
 				ARRAY_SIZE(qnap_ts209_devices));
 	i2c_register_board_info(0, &qnap_ts209_i2c_rtc, 1);
 	orion_eth_init(&qnap_ts209_eth_data);
+	orion_sata_init(&qnap_ts209_sata_data);
 }
 
 MACHINE_START(TS209, "QNAP TS-109/TS-209")
 	/* Maintainer:  Byron Bradley <byron.bbradley@gmail.com> */
-	.phys_io	= ORION_REGS_BASE,
-	.io_pg_offst	= ((ORION_REGS_BASE) >> 18) & 0xFFFC,
+	.phys_io	= ORION_REGS_PHYS_BASE,
+	.io_pg_offst	= ((ORION_REGS_VIRT_BASE) >> 18) & 0xFFFC,
 	.boot_params	= 0x00000100,
 	.init_machine	= qnap_ts209_init,
 	.map_io		= orion_map_io,

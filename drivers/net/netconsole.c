@@ -309,8 +309,8 @@ static ssize_t show_local_mac(struct netconsole_target *nt, char *buf)
 	struct net_device *dev = nt->np.dev;
 
 	DECLARE_MAC_BUF(mac);
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			print_mac(mac, dev->dev_addr));
+	return snprintf(buf, PAGE_SIZE, "%s\n", dev ?
+			print_mac(mac, dev->dev_addr) : "ff:ff:ff:ff:ff:ff");
 }
 
 static ssize_t show_remote_mac(struct netconsole_target *nt, char *buf)

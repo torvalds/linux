@@ -14,6 +14,7 @@ config ZONE_DMA
 config XTENSA
 	bool
 	default y
+	select HAVE_IDE
 	help
 	  Xtensa processors are 32-bit RISC machines designed by Tensilica
 	  primarily for embedded systems.  These processors are both
@@ -48,6 +49,10 @@ config ARCH_HAS_ILOG2_U64
 
 config NO_IOPORT
 	def_bool y
+
+config HZ
+	int
+	default 100
 
 source "init/Kconfig"
 

@@ -23,7 +23,10 @@ fi
 # /etc/udev/rules.d
 #
 rules_d="`sed -n '/^udev_rules=/{ s!udev_rules=!!; s!\"!!g; p; }' $conf`"
-if test -z "$rules_d" || test ! -d "$rules_d"; then
+if test -z "$rules_d" ; then
+	rules_d=/etc/udev/rules.d
+fi
+if test ! -d "$rules_d"; then
 	echo "$me Error: cannot find udev rules directory" 1>&2
 	exit 1
 fi

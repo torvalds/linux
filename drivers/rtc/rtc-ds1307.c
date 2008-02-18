@@ -256,7 +256,7 @@ ds1307_nvram_read(struct kobject *kobj, struct bin_attribute *attr,
 	struct i2c_msg		msg[2];
 	int			result;
 
-	client = to_i2c_client(container_of(kobj, struct device, kobj));
+	client = kobj_to_i2c_client(kobj);
 	ds1307 = i2c_get_clientdata(client);
 
 	if (unlikely(off >= NVRAM_SIZE))
@@ -294,7 +294,7 @@ ds1307_nvram_write(struct kobject *kobj, struct bin_attribute *attr,
 	u8			buffer[NVRAM_SIZE + 1];
 	int			ret;
 
-	client = to_i2c_client(container_of(kobj, struct device, kobj));
+	client = kobj_to_i2c_client(kobj);
 
 	if (unlikely(off >= NVRAM_SIZE))
 		return -EFBIG;
@@ -412,11 +412,6 @@ read_rtc:
 	 */
 	tmp = ds1307->regs[DS1307_REG_SECS];
 	switch (ds1307->type) {
-	case ds_1340:
-		/* FIXME read register with DS1340_BIT_OSF, use that to
-		 * trigger the "set time" warning (*after* restarting the
-		 * oscillator!) instead of this weaker ds1307/m41t00 test.
-		 */
 	case ds_1307:
 	case m41t00:
 		/* clock halted?  turn it on, so clock can tick. */
@@ -438,6 +433,24 @@ read_rtc:
 					& ~DS1338_BIT_OSF);
 			dev_warn(&client->dev, "SET TIME!\n");
 			goto read_rtc;
+		}
+		break;
+	case ds_1340:
+		/* clock halted?  turn it on, so clock can tick. */
+		if (tmp & DS1340_BIT_nEOSC)
+			i2c_smbus_write_byte_data(client, DS1307_REG_SECS, 0);
+
+		tmp = i2c_smbus_read_byte_data(client, DS1340_REG_FLAG);
+		if (tmp < 0) {
+			pr_debug("read error %d\n", tmp);
+			err = -EIO;
+			goto exit_free;
+		}
+
+		/* oscillator fault?  clear flag, and warn */
+		if (tmp & DS1340_BIT_OSF) {
+			i2c_smbus_write_byte_data(client, DS1340_REG_FLAG, 0);
+			dev_warn(&client->dev, "SET TIME!\n");
 		}
 		break;
 	case ds_1337:

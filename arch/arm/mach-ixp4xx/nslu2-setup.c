@@ -63,20 +63,20 @@ static struct i2c_board_info __initdata nslu2_i2c_board_info [] = {
 
 static struct gpio_led nslu2_led_pins[] = {
 	{
-		.name		= "ready",  /* green led */
+		.name		= "nslu2:green:ready",
 		.gpio		= NSLU2_LED_GRN_GPIO,
 	},
 	{
-		.name		= "status", /* red led */
+		.name		= "nslu2:red:status",
 		.gpio		= NSLU2_LED_RED_GPIO,
 	},
 	{
-		.name		= "disk-1",
+		.name		= "nslu2:green:disk-1",
 		.gpio		= NSLU2_LED_DISK1_GPIO,
 		.active_low	= true,
 	},
 	{
-		.name		= "disk-2",
+		.name		= "nslu2:green:disk-2",
 		.gpio		= NSLU2_LED_DISK2_GPIO,
 		.active_low	= true,
 	},

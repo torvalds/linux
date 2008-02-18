@@ -16,6 +16,7 @@
 #include <fcntl.h>
 #include <fnmatch.h>
 #include <string.h>
+#include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -65,7 +66,7 @@ int scan_tree(char *path, char *file, off_t offset, size_t length, int touch)
 {
 	struct dirent **namelist;
 	char *name, *path2;
-	int i, n, r, rc, result = 0;
+	int i, n, r, rc = 0, result = 0;
 	struct stat buf;
 
 	n = scandir(path, &namelist, 0, alphasort);
@@ -113,7 +114,7 @@ skip:
 		free(namelist[i]);
 	}
 	free(namelist);
-	return rc;
+	return result;
 }
 
 char buf[1024];
@@ -149,7 +150,7 @@ int scan_rom(char *path, char *file)
 {
 	struct dirent **namelist;
 	char *name, *path2;
-	int i, n, r, rc, result = 0;
+	int i, n, r, rc = 0, result = 0;
 	struct stat buf;
 
 	n = scandir(path, &namelist, 0, alphasort);
@@ -180,7 +181,7 @@ int scan_rom(char *path, char *file)
 			 * important thing is that no MCA happened.
 			 */
 			if (rc > 0)
-				fprintf(stderr, "PASS: %s read %ld bytes\n", path2, rc);
+				fprintf(stderr, "PASS: %s read %d bytes\n", path2, rc);
 			else {
 				fprintf(stderr, "PASS: %s not readable\n", path2);
 				return rc;
@@ -201,10 +202,10 @@ skip:
 		free(namelist[i]);
 	}
 	free(namelist);
-	return rc;
+	return result;
 }
 
-int main()
+int main(void)
 {
 	int rc;
 
@@ -256,4 +257,6 @@ int main()
 	scan_tree("/proc/bus/pci", "??.?", 0xA0000, 0x20000, 0);
 	scan_tree("/proc/bus/pci", "??.?", 0xC0000, 0x40000, 1);
 	scan_tree("/proc/bus/pci", "??.?", 0, 1024*1024, 0);
+
+	return rc;
 }

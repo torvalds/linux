@@ -18,9 +18,9 @@
 
 #include <linux/time.h>
 #include <linux/fs.h>
-#include <linux/ufs_fs.h>
 #include <linux/swap.h>
 
+#include "ufs_fs.h"
 #include "ufs.h"
 #include "swab.h"
 #include "util.h"

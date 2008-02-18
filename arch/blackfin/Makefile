@@ -119,6 +119,7 @@ archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 
 
+INSTALL_PATH ?= /tftpboot
 boot := arch/$(ARCH)/boot
 BOOT_TARGETS = vmImage
 PHONY += $(BOOT_TARGETS) install

@@ -10,9 +10,6 @@
 #ifndef _ASMARM_PAGE_H
 #define _ASMARM_PAGE_H
 
-
-#ifdef __KERNEL__
-
 /* PAGE_SHIFT determines the page size */
 #define PAGE_SHIFT		12
 #define PAGE_SIZE		(1UL << PAGE_SHIFT)
@@ -174,6 +171,8 @@ typedef unsigned long pgprot_t;
 
 #endif /* STRICT_MM_TYPECHECKS */
 
+typedef struct page *pgtable_t;
+
 #endif /* CONFIG_MMU */
 
 #include <asm/memory.h>
@@ -191,7 +190,5 @@ typedef unsigned long pgprot_t;
 #endif
 
 #include <asm-generic/page.h>
-
-#endif /* __KERNEL__ */
 
 #endif

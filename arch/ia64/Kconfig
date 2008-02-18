@@ -15,6 +15,7 @@ config IA64
 	select ACPI if (!IA64_HP_SIM)
 	select PM if (!IA64_HP_SIM)
 	select ARCH_SUPPORTS_MSI
+	select HAVE_IDE
 	select HAVE_OPROFILE
 	select HAVE_KPROBES
 	default y
@@ -231,7 +232,14 @@ config PGTABLE_4
 
 endchoice
 
+if IA64_HP_SIM
+config HZ
+	default 32
+endif
+
+if !IA64_HP_SIM
 source kernel/Kconfig.hz
+endif
 
 config IA64_BRL_EMU
 	bool

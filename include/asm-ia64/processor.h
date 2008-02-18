@@ -31,7 +31,8 @@
  * each (assuming 8KB page size), for a total of 8TB of user virtual
  * address space.
  */
-#define TASK_SIZE		(current->thread.task_size)
+#define TASK_SIZE_OF(tsk)	((tsk)->thread.task_size)
+#define TASK_SIZE       	TASK_SIZE_OF(current)
 
 /*
  * This decides where the kernel will search for a free chunk of vm
@@ -472,7 +473,7 @@ ia64_set_psr (__u64 psr)
 {
 	ia64_stop();
 	ia64_setreg(_IA64_REG_PSR_L, psr);
-	ia64_srlz_d();
+	ia64_srlz_i();
 }
 
 /*

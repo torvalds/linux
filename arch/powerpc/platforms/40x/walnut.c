@@ -18,6 +18,7 @@
 
 #include <linux/init.h>
 #include <linux/of_platform.h>
+#include <linux/rtc.h>
 
 #include <asm/machdep.h>
 #include <asm/prom.h>

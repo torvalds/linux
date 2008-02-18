@@ -46,19 +46,10 @@ extern unsigned long software_trace_buff[];
 
 #ifdef CONFIG_DEBUG_BFIN_HWTRACE_ON
 
-#define TRACE_BUFFER_START(preg, dreg) trace_buffer_start(preg, dreg)
-#define TRACE_BUFFER_STOP(preg, dreg)  trace_buffer_stop(preg, dreg)
-
 #define trace_buffer_stop(preg, dreg)	\
 	preg.L = LO(TBUFCTL);		\
 	preg.H = HI(TBUFCTL);		\
 	dreg = 0x1;			\
-	[preg] = dreg;
-
-#define trace_buffer_start(preg, dreg)	\
-	preg.L = LO(TBUFCTL);		\
-	preg.H = HI(TBUFCTL);		\
-	dreg = BFIN_TRACE_ON;		\
 	[preg] = dreg;
 
 #define trace_buffer_init(preg, dreg) \
@@ -67,21 +58,35 @@ extern unsigned long software_trace_buff[];
 	dreg = BFIN_TRACE_INIT;       \
 	[preg] = dreg;
 
+#define trace_buffer_save(preg, dreg) \
+	preg.L = LO(TBUFCTL); \
+	preg.H = HI(TBUFCTL); \
+	dreg = [preg]; \
+	[sp++] = dreg; \
+	dreg = 0x1; \
+	[preg] = dreg;
+
+#define trace_buffer_restore(preg, dreg) \
+	preg.L = LO(TBUFCTL); \
+	preg.H = HI(TBUFCTL); \
+	dreg = [sp--]; \
+	[preg] = dreg;
+
 #else /* CONFIG_DEBUG_BFIN_HWTRACE_ON */
 
 #define trace_buffer_stop(preg, dreg)
-#define trace_buffer_start(preg, dreg)
 #define trace_buffer_init(preg, dreg)
+#define trace_buffer_save(preg, dreg)
+#define trace_buffer_restore(preg, dreg)
 
 #endif /* CONFIG_DEBUG_BFIN_HWTRACE_ON */
 
 #ifdef CONFIG_DEBUG_BFIN_NO_KERN_HWTRACE
-# define DEBUG_START_HWTRACE(preg, dreg) trace_buffer_start(preg, dreg)
-# define DEBUG_STOP_HWTRACE(preg, dreg) trace_buffer_stop(preg, dreg)
-
+# define DEBUG_HWTRACE_SAVE(preg, dreg)    trace_buffer_save(preg, dreg)
+# define DEBUG_HWTRACE_RESTORE(preg, dreg) trace_buffer_restore(preg, dreg)
 #else
-# define DEBUG_START_HWTRACE(preg, dreg)
-# define DEBUG_STOP_HWTRACE(preg, dreg)
+# define DEBUG_HWTRACE_SAVE(preg, dreg)
+# define DEBUG_HWTRACE_RESTORE(preg, dreg)
 #endif
 
 #endif /* __ASSEMBLY__ */

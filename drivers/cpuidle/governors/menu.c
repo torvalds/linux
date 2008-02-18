@@ -8,7 +8,7 @@
 
 #include <linux/kernel.h>
 #include <linux/cpuidle.h>
-#include <linux/latency.h>
+#include <linux/pm_qos_params.h>
 #include <linux/time.h>
 #include <linux/ktime.h>
 #include <linux/hrtimer.h>
@@ -48,7 +48,7 @@ static int menu_select(struct cpuidle_device *dev)
 			break;
 		if (s->target_residency > data->predicted_us)
 			break;
-		if (s->exit_latency > system_latency_constraint())
+		if (s->exit_latency > pm_qos_requirement(PM_QOS_CPU_DMA_LATENCY))
 			break;
 	}
 

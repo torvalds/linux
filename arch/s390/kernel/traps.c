@@ -24,6 +24,7 @@
 #include <linux/smp.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/seq_file.h>
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/kdebug.h>
@@ -59,6 +60,7 @@ int sysctl_userprocess_debug = 0;
 extern pgm_check_handler_t do_protection_exception;
 extern pgm_check_handler_t do_dat_exception;
 extern pgm_check_handler_t do_monitor_call;
+extern pgm_check_handler_t do_asce_exception;
 
 #define stack_pointer ({ void **sp; asm("la %0,0(15)" : "=&d" (sp)); sp; })
 
@@ -218,41 +220,40 @@ void show_registers(struct pt_regs *regs)
 }	
 
 /* This is called from fs/proc/array.c */
-char *task_show_regs(struct task_struct *task, char *buffer)
+void task_show_regs(struct seq_file *m, struct task_struct *task)
 {
 	struct pt_regs *regs;
 
 	regs = task_pt_regs(task);
-	buffer += sprintf(buffer, "task: %p, ksp: %p\n",
+	seq_printf(m, "task: %p, ksp: %p\n",
 		       task, (void *)task->thread.ksp);
-	buffer += sprintf(buffer, "User PSW : %p %p\n",
+	seq_printf(m, "User PSW : %p %p\n",
 		       (void *) regs->psw.mask, (void *)regs->psw.addr);
 
-	buffer += sprintf(buffer, "User GPRS: " FOURLONG,
+	seq_printf(m, "User GPRS: " FOURLONG,
 			  regs->gprs[0], regs->gprs[1],
 			  regs->gprs[2], regs->gprs[3]);
-	buffer += sprintf(buffer, "           " FOURLONG,
+	seq_printf(m, "           " FOURLONG,
 			  regs->gprs[4], regs->gprs[5],
 			  regs->gprs[6], regs->gprs[7]);
-	buffer += sprintf(buffer, "           " FOURLONG,
+	seq_printf(m, "           " FOURLONG,
 			  regs->gprs[8], regs->gprs[9],
 			  regs->gprs[10], regs->gprs[11]);
-	buffer += sprintf(buffer, "           " FOURLONG,
+	seq_printf(m, "           " FOURLONG,
 			  regs->gprs[12], regs->gprs[13],
 			  regs->gprs[14], regs->gprs[15]);
-	buffer += sprintf(buffer, "User ACRS: %08x %08x %08x %08x\n",
+	seq_printf(m, "User ACRS: %08x %08x %08x %08x\n",
 			  task->thread.acrs[0], task->thread.acrs[1],
 			  task->thread.acrs[2], task->thread.acrs[3]);
-	buffer += sprintf(buffer, "           %08x %08x %08x %08x\n",
+	seq_printf(m, "           %08x %08x %08x %08x\n",
 			  task->thread.acrs[4], task->thread.acrs[5],
 			  task->thread.acrs[6], task->thread.acrs[7]);
-	buffer += sprintf(buffer, "           %08x %08x %08x %08x\n",
+	seq_printf(m, "           %08x %08x %08x %08x\n",
 			  task->thread.acrs[8], task->thread.acrs[9],
 			  task->thread.acrs[10], task->thread.acrs[11]);
-	buffer += sprintf(buffer, "           %08x %08x %08x %08x\n",
+	seq_printf(m, "           %08x %08x %08x %08x\n",
 			  task->thread.acrs[12], task->thread.acrs[13],
 			  task->thread.acrs[14], task->thread.acrs[15]);
-	return buffer;
 }
 
 static DEFINE_SPINLOCK(die_lock);
@@ -271,7 +272,10 @@ void die(const char * str, struct pt_regs * regs, long err)
 	printk("PREEMPT ");
 #endif
 #ifdef CONFIG_SMP
-	printk("SMP");
+	printk("SMP ");
+#endif
+#ifdef CONFIG_DEBUG_PAGEALLOC
+	printk("DEBUG_PAGEALLOC");
 #endif
 	printk("\n");
 	notify_die(DIE_OOPS, str, regs, err, current->thread.trap_no, SIGSEGV);
@@ -727,7 +731,7 @@ void __init trap_init(void)
         pgm_check_table[0x12] = &translation_exception;
         pgm_check_table[0x13] = &special_op_exception;
 #ifdef CONFIG_64BIT
-        pgm_check_table[0x38] = &do_dat_exception;
+	pgm_check_table[0x38] = &do_asce_exception;
 	pgm_check_table[0x39] = &do_dat_exception;
 	pgm_check_table[0x3A] = &do_dat_exception;
         pgm_check_table[0x3B] = &do_dat_exception;

@@ -6,14 +6,6 @@ be removed from this file.
 
 ---------------------------
 
-What:	MXSER
-When:	December 2007
-Why:	Old mxser driver is obsoleted by the mxser_new. Give it some time yet
-	and remove it.
-Who:	Jiri Slaby <jirislaby@gmail.com>
-
----------------------------
-
 What:	dev->power.power_state
 When:	July 2007
 Why:	Broken design for runtime control over driver power states, confusing
@@ -107,17 +99,6 @@ Who:	Eric Biederman <ebiederm@xmission.com>
 
 ---------------------------
 
-What:  a.out interpreter support for ELF executables
-When:  2.6.25
-Files: fs/binfmt_elf.c
-Why:   Using a.out interpreters for ELF executables was a feature for
-       transition from a.out to ELF. But now it is unlikely to be still
-       needed anymore and removing it would simplify the hairy ELF
-       loader code.
-Who:   Andi Kleen <ak@suse.de>
-
----------------------------
-
 What:	remove EXPORT_SYMBOL(kernel_thread)
 When:	August 2006
 Files:	arch/*/kernel/*_ksyms.c
@@ -127,15 +108,6 @@ Why:	kernel_thread is a low-level implementation detail.  Drivers should
 	implementation details and provides a higherlevel interface that
 	prevents bugs and code duplication
 Who:	Christoph Hellwig <hch@lst.de>
-
----------------------------
-
-What:	CONFIG_FORCED_INLINING
-When:	June 2006
-Why:	Config option is there to see if gcc is good enough. (in january
-        2006). If it is, the behavior should just be the default. If it's not,
-	the option should just go away entirely.
-Who:    Arjan van de Ven
 
 ---------------------------
 
@@ -197,21 +169,6 @@ When:	February 2008
 Why:	/proc/acpi/event has been replaced by events via the input layer
 	and netlink since 2.6.23.
 Who:	Len Brown <len.brown@intel.com>
-
----------------------------
-
-What:	'time' kernel boot parameter
-When:	January 2008
-Why:	replaced by 'printk.time=<value>' so that printk timestamps can be
-	enabled or disabled as needed
-Who:	Randy Dunlap <randy.dunlap@oracle.com>
-
----------------------------
-
-What:  drivers depending on OSS_OBSOLETE
-When:  options in 2.6.23, code in 2.6.25
-Why:   obsolete OSS drivers
-Who:   Adrian Bunk <bunk@stusta.de>
 
 ---------------------------
 
@@ -338,3 +295,14 @@ Why:	The support code for the old firmware hurts code readability/maintainabilit
 	and slightly hurts runtime performance. Bugfixes for the old firmware
 	are not provided by Broadcom anymore.
 Who:	Michael Buesch <mb@bu3sch.de>
+
+---------------------------
+
+What:	Solaris/SunOS syscall and binary support on Sparc
+When:	2.6.26
+Why:	Largely unmaintained and almost entirely unused.  File system
+	layering used to divert library and dynamic linker searches to
+	/usr/gnemul is extremely buggy and unfixable.  Making it work
+	is largely pointless as without a lot of work only the most
+	trivial of Solaris binaries can work with the emulation code.
+Who:	David S. Miller <davem@davemloft.net>

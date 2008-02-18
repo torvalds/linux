@@ -28,43 +28,35 @@
 #include <asm/irq.h>
 #include <asm/hardware.h>
 
-static inline int gpio_request(unsigned gpio, const char *label)
+#include <asm-generic/gpio.h>
+
+
+/* NOTE: some PXAs have fewer on-chip GPIOs (like PXA255, with 85).
+ * Those cases currently cause holes in the GPIO number space.
+ */
+#define NR_BUILTIN_GPIO 128
+
+static inline int gpio_get_value(unsigned gpio)
 {
-	return 0;
-}
-
-static inline void gpio_free(unsigned gpio)
-{
-	return;
-}
-
-extern int gpio_direction_input(unsigned gpio);
-extern int gpio_direction_output(unsigned gpio, int value);
-
-static inline int __gpio_get_value(unsigned gpio)
-{
-	return GPLR(gpio) & GPIO_bit(gpio);
-}
-
-#define gpio_get_value(gpio)			\
-	(__builtin_constant_p(gpio) ?		\
-	 __gpio_get_value(gpio) :		\
-	 pxa_gpio_get_value(gpio))
-
-static inline void __gpio_set_value(unsigned gpio, int value)
-{
-	if (value)
-		GPSR(gpio) = GPIO_bit(gpio);
+	if (__builtin_constant_p(gpio) && (gpio < NR_BUILTIN_GPIO))
+		return GPLR(gpio) & GPIO_bit(gpio);
 	else
-		GPCR(gpio) = GPIO_bit(gpio);
+		return __gpio_get_value(gpio);
 }
 
-#define gpio_set_value(gpio,value)		\
-	(__builtin_constant_p(gpio) ?		\
-	 __gpio_set_value(gpio, value) :	\
-	 pxa_gpio_set_value(gpio, value))
+static inline void gpio_set_value(unsigned gpio, int value)
+{
+	if (__builtin_constant_p(gpio) && (gpio < NR_BUILTIN_GPIO)) {
+		if (value)
+			GPSR(gpio) = GPIO_bit(gpio);
+		else
+			GPCR(gpio) = GPIO_bit(gpio);
+	} else {
+		__gpio_set_value(gpio, value);
+	}
+}
 
-#include <asm-generic/gpio.h>			/* cansleep wrappers */
+#define gpio_cansleep __gpio_cansleep
 
 #define gpio_to_irq(gpio)	IRQ_GPIO(gpio)
 #define irq_to_gpio(irq)	IRQ_TO_GPIO(irq)

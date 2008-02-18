@@ -16,7 +16,7 @@
 /*
  *	Get address specific defines for this ColdFire member.
  */
-#if defined(CONFIG_M5204) || defined(CONFIG_M5206) || defined(CONFIG_M5206e)
+#if defined(CONFIG_M5206) || defined(CONFIG_M5206e)
 #define	MCFTIMER_BASE1		0x100		/* Base address of TIMER1 */
 #define	MCFTIMER_BASE2		0x120		/* Base address of TIMER2 */
 #elif defined(CONFIG_M5272)

@@ -154,7 +154,7 @@ static int radeon_driver_vblank_do_wait(struct drm_device * dev,
 	int ack = 0;
 	atomic_t *counter;
 	if (!dev_priv) {
-		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
+		DRM_ERROR("called with no initialization\n");
 		return -EINVAL;
 	}
 
@@ -205,7 +205,7 @@ int radeon_irq_emit(struct drm_device *dev, void *data, struct drm_file *file_pr
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	if (!dev_priv) {
-		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
+		DRM_ERROR("called with no initialization\n");
 		return -EINVAL;
 	}
 
@@ -227,7 +227,7 @@ int radeon_irq_wait(struct drm_device *dev, void *data, struct drm_file *file_pr
 	drm_radeon_irq_wait_t *irqwait = data;
 
 	if (!dev_priv) {
-		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
+		DRM_ERROR("called with no initialization\n");
 		return -EINVAL;
 	}
 

@@ -21,15 +21,6 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
-/*
- *	IDE library routines. These are plug in code that most 
- *	drivers can use but occasionally may be weird enough
- *	to want to do their own thing with
- *
- *	Add common non I/O op stuff here. Make sure it has proper
- *	kernel-doc function headers or your patch will be rejected
- */
-
 static const char *udma_str[] =
 	 { "UDMA/16", "UDMA/25",  "UDMA/33",  "UDMA/44",
 	   "UDMA/66", "UDMA/100", "UDMA/133", "UDMA7" };
@@ -578,7 +569,7 @@ u8 ide_dump_status(ide_drive_t *drive, const char *msg, u8 stat)
 	}
 	printk("}\n");
 	if ((stat & (BUSY_STAT|ERR_STAT)) == ERR_STAT) {
-		err = drive->hwif->INB(IDE_ERROR_REG);
+		err = ide_read_error(drive);
 		printk("%s: %s: error=0x%02x ", drive->name, msg, err);
 		if (drive->media == ide_disk)
 			ide_dump_ata_error(drive, err);

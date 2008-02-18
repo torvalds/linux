@@ -380,7 +380,7 @@ static void cpm_uart_int_rx(struct uart_port *port)
 static irqreturn_t cpm_uart_int(int irq, void *data)
 {
 	u8 events;
-	struct uart_port *port = (struct uart_port *)data;
+	struct uart_port *port = data;
 	struct uart_cpm_port *pinfo = (struct uart_cpm_port *)port;
 	smc_t __iomem *smcp = pinfo->smcp;
 	scc_t __iomem *sccp = pinfo->sccp;

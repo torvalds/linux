@@ -204,7 +204,6 @@ static struct i2c_driver lm90_driver = {
 	.driver = {
 		.name	= "lm90",
 	},
-	.id		= I2C_DRIVERID_LM90,
 	.attach_adapter	= lm90_attach_adapter,
 	.detach_client	= lm90_detach_client,
 };
@@ -531,24 +530,24 @@ static int lm90_detect(struct i2c_adapter *adapter, int address, int kind)
 		kind = lm90;
 
 	if (kind < 0) { /* detection and identification */
-		u8 man_id, chip_id, reg_config1, reg_convrate;
+		int man_id, chip_id, reg_config1, reg_convrate;
 
-		if (lm90_read_reg(new_client, LM90_REG_R_MAN_ID,
-				  &man_id) < 0
-		 || lm90_read_reg(new_client, LM90_REG_R_CHIP_ID,
-		 		  &chip_id) < 0
-		 || lm90_read_reg(new_client, LM90_REG_R_CONFIG1,
-		 		  &reg_config1) < 0
-		 || lm90_read_reg(new_client, LM90_REG_R_CONVRATE,
-		 		  &reg_convrate) < 0)
+		if ((man_id = i2c_smbus_read_byte_data(new_client,
+						LM90_REG_R_MAN_ID)) < 0
+		 || (chip_id = i2c_smbus_read_byte_data(new_client,
+						LM90_REG_R_CHIP_ID)) < 0
+		 || (reg_config1 = i2c_smbus_read_byte_data(new_client,
+						LM90_REG_R_CONFIG1)) < 0
+		 || (reg_convrate = i2c_smbus_read_byte_data(new_client,
+						LM90_REG_R_CONVRATE)) < 0)
 			goto exit_free;
 		
 		if ((address == 0x4C || address == 0x4D)
 		 && man_id == 0x01) { /* National Semiconductor */
-			u8 reg_config2;
+			int reg_config2;
 
-			if (lm90_read_reg(new_client, LM90_REG_R_CONFIG2,
-					  &reg_config2) < 0)
+			if ((reg_config2 = i2c_smbus_read_byte_data(new_client,
+						LM90_REG_R_CONFIG2)) < 0)
 				goto exit_free;
 
 			if ((reg_config1 & 0x2A) == 0x00

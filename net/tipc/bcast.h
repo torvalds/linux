@@ -74,19 +74,6 @@ extern char tipc_bclink_name[];
 
 
 /**
- * nmap_get - determine if node exists in a node map
- */
-
-static inline int tipc_nmap_get(struct node_map *nm_ptr, u32 node)
-{
-	int n = tipc_node(node);
-	int w = n / WSIZE;
-	int b = n % WSIZE;
-
-	return nm_ptr->map[w] & (1 << b);
-}
-
-/**
  * nmap_add - add a node to a node map
  */
 

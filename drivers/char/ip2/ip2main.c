@@ -153,9 +153,6 @@ static char *pcVersion = "1.2.14";
 static char *pcDriver_name   = "ip2";
 static char *pcIpl    		 = "ip2ipl";
 
-/* Serial subtype definitions */
-#define SERIAL_TYPE_NORMAL    1
-
 // cheezy kludge or genius - you decide?
 int ip2_loadmain(int *, int *, unsigned char *, int);
 static unsigned char *Fip_firmware;

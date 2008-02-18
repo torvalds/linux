@@ -1203,7 +1203,7 @@ asmlinkage int swsusp_save(void)
 
 	printk(KERN_INFO "PM: Creating hibernation image: \n");
 
-	drain_local_pages();
+	drain_local_pages(NULL);
 	nr_pages = count_data_pages();
 	nr_highmem = count_highmem_pages();
 	printk(KERN_INFO "PM: Need to copy %u pages\n", nr_pages + nr_highmem);
@@ -1221,7 +1221,7 @@ asmlinkage int swsusp_save(void)
 	/* During allocating of suspend pagedir, new cold pages may appear.
 	 * Kill them.
 	 */
-	drain_local_pages();
+	drain_local_pages(NULL);
 	copy_data_pages(&copy_bm, &orig_bm);
 
 	/*

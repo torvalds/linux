@@ -17,9 +17,7 @@
  *	Include 5204, 5206/e, 5235, 5249, 5270/5271, 5272, 5280/5282,
  *	5307 or 5407 specific addresses.
  */
-#if defined(CONFIG_M5204)
-#include <asm/m5204sim.h>
-#elif defined(CONFIG_M5206) || defined(CONFIG_M5206e)
+#if defined(CONFIG_M5206) || defined(CONFIG_M5206e)
 #include <asm/m5206sim.h>
 #elif defined(CONFIG_M520x)
 #include <asm/m520xsim.h>

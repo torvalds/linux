@@ -107,7 +107,7 @@ static int drm_irq_install(struct drm_device * dev)
 	dev->irq_enabled = 1;
 	mutex_unlock(&dev->struct_mutex);
 
-	DRM_DEBUG("%s: irq=%d\n", __FUNCTION__, dev->irq);
+	DRM_DEBUG("irq=%d\n", dev->irq);
 
 	if (drm_core_check_feature(dev, DRIVER_IRQ_VBL)) {
 		init_waitqueue_head(&dev->vbl_queue);
@@ -164,7 +164,7 @@ int drm_irq_uninstall(struct drm_device * dev)
 	if (!irq_enabled)
 		return -EINVAL;
 
-	DRM_DEBUG("%s: irq=%d\n", __FUNCTION__, dev->irq);
+	DRM_DEBUG("irq=%d\n", dev->irq);
 
 	dev->driver->irq_uninstall(dev);
 

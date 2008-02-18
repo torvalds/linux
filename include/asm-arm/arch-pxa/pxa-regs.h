@@ -1131,6 +1131,19 @@
  * General Purpose I/O
  */
 
+#define GPIO0_BASE	((void __iomem *)io_p2v(0x40E00000))
+#define GPIO1_BASE	((void __iomem *)io_p2v(0x40E00004))
+#define GPIO2_BASE	((void __iomem *)io_p2v(0x40E00008))
+#define GPIO3_BASE	((void __iomem *)io_p2v(0x40E00100))
+
+#define GPLR_OFFSET	0x00
+#define GPDR_OFFSET	0x0C
+#define GPSR_OFFSET	0x18
+#define GPCR_OFFSET	0x24
+#define GRER_OFFSET	0x30
+#define GFER_OFFSET	0x3C
+#define GEDR_OFFSET	0x48
+
 #define GPLR0		__REG(0x40E00000)  /* GPIO Pin-Level Register GPIO<31:0> */
 #define GPLR1		__REG(0x40E00004)  /* GPIO Pin-Level Register GPIO<63:32> */
 #define GPLR2		__REG(0x40E00008)  /* GPIO Pin-Level Register GPIO<80:64> */

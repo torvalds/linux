@@ -1,7 +1,7 @@
 /*
  * V9FS definitions.
  *
- *  Copyright (C) 2004 by Eric Van Hensbergen <ericvh@gmail.com>
+ *  Copyright (C) 2004-2008 by Eric Van Hensbergen <ericvh@gmail.com>
  *  Copyright (C) 2002 by Ron Minnich <rminnich@lanl.gov>
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -28,7 +28,6 @@
 
 struct v9fs_session_info {
 	/* options */
-	unsigned int maxdata;
 	unsigned char flags;	/* session flags */
 	unsigned char nodev;	/* set to 1 if no disable device mapping */
 	unsigned short debug;	/* debug level */
@@ -38,10 +37,10 @@ struct v9fs_session_info {
 	char *options;		/* copy of mount options */
 	char *uname;		/* user name to mount as */
 	char *aname;		/* name of remote hierarchy being mounted */
+	unsigned int maxdata;	/* max data for client interface */
 	unsigned int dfltuid;	/* default uid/muid for legacy support */
 	unsigned int dfltgid;	/* default gid for legacy support */
 	u32 uid;		/* if ACCESS_SINGLE, the uid that has access */
-	struct p9_trans_module *trans; /* 9p transport */
 	struct p9_client *clnt;	/* 9p client */
 	struct dentry *debugfs_dir;
 };

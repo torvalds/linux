@@ -15,7 +15,7 @@
 
 / {
 	model = "StorCenter";
-	compatible = "storcenter";
+	compatible = "iomega,storcenter";
 	#address-cells = <1>;
 	#size-cells = <1>;
 
@@ -62,12 +62,12 @@
 			#size-cells = <0>;
 			compatible = "fsl-i2c";
 			reg = <0x3000 0x100>;
-			interrupts = <5 2>;
+			interrupts = <17 2>;
 			interrupt-parent = <&mpic>;
 
 			rtc@68 {
 				compatible = "dallas,ds1337";
-				reg = <68>;
+				reg = <0x68>;
 			};
 		};
 
@@ -78,7 +78,7 @@
 			reg = <0x4500 0x20>;
 			clock-frequency = <97553800>; /* Hz */
 			current-speed = <115200>;
-			interrupts = <9 2>;
+			interrupts = <25 2>;
 			interrupt-parent = <&mpic>;
 		};
 
@@ -89,7 +89,7 @@
 			reg = <0x4600 0x20>;
 			clock-frequency = <97553800>; /* Hz */
 			current-speed = <9600>;
-			interrupts = <10 2>;
+			interrupts = <26 2>;
 			interrupt-parent = <&mpic>;
 		};
 
@@ -136,6 +136,6 @@
 	};
 
 	chosen {
-		linux,stdout-path = "/soc/serial@4500";
+		linux,stdout-path = &serial0;
 	};
 };

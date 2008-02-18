@@ -29,7 +29,6 @@ enum stopmachine_state {
 static enum stopmachine_state stopmachine_state;
 static unsigned int stopmachine_num_threads;
 static atomic_t stopmachine_thread_ack;
-static DECLARE_MUTEX(stopmachine_mutex);
 
 static int stopmachine(void *cpu)
 {
@@ -170,6 +169,7 @@ static int do_stop(void *_smdata)
 struct task_struct *__stop_machine_run(int (*fn)(void *), void *data,
 				       unsigned int cpu)
 {
+	static DEFINE_MUTEX(stopmachine_mutex);
 	struct stop_machine_data smdata;
 	struct task_struct *p;
 
@@ -177,7 +177,7 @@ struct task_struct *__stop_machine_run(int (*fn)(void *), void *data,
 	smdata.data = data;
 	init_completion(&smdata.done);
 
-	down(&stopmachine_mutex);
+	mutex_lock(&stopmachine_mutex);
 
 	/* If they don't care which CPU fn runs on, bind to any online one. */
 	if (cpu == NR_CPUS)
@@ -193,7 +193,7 @@ struct task_struct *__stop_machine_run(int (*fn)(void *), void *data,
 		wake_up_process(p);
 		wait_for_completion(&smdata.done);
 	}
-	up(&stopmachine_mutex);
+	mutex_unlock(&stopmachine_mutex);
 	return p;
 }
 

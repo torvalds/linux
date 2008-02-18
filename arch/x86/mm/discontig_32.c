@@ -391,7 +391,8 @@ unsigned long __init setup_memory(void)
 void __init numa_kva_reserve(void)
 {
 	if (kva_pages)
-		reserve_bootmem(PFN_PHYS(kva_start_pfn), PFN_PHYS(kva_pages));
+		reserve_bootmem(PFN_PHYS(kva_start_pfn), PFN_PHYS(kva_pages),
+				BOOTMEM_DEFAULT);
 }
 
 void __init zone_sizes_init(void)

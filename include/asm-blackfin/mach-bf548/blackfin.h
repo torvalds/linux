@@ -46,6 +46,10 @@
 #include "defBF544.h"
 #endif
 
+#ifdef CONFIG_BF547
+#include "defBF547.h"
+#endif
+
 #ifdef CONFIG_BF548
 #include "defBF548.h"
 #endif
@@ -58,9 +62,11 @@
 #ifdef CONFIG_BF542
 #include "cdefBF542.h"
 #endif
-
 #ifdef CONFIG_BF544
 #include "cdefBF544.h"
+#endif
+#ifdef CONFIG_BF547
+#include "cdefBF547.h"
 #endif
 #ifdef CONFIG_BF548
 #include "cdefBF548.h"

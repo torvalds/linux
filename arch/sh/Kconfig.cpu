@@ -12,6 +12,7 @@ config CPU_LITTLE_ENDIAN
 
 config CPU_BIG_ENDIAN
 	bool "Big Endian"
+	depends on !CPU_SH5
 
 endchoice
 
@@ -85,9 +86,6 @@ config SH64_ID2815_WORKAROUND
 	depends on CPU_SUBTYPE_SH5_101
 
 config CPU_HAS_INTEVT
-	bool
-
-config CPU_HAS_MASKREG_IRQ
 	bool
 
 config CPU_HAS_IPR_IRQ

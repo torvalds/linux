@@ -753,6 +753,25 @@ static void cris_set_dma_mode(ide_drive_t *drive, const u8 speed)
 		cris_ide_set_speed(TYPE_DMA, 0, strobe, hold);
 }
 
+static void __init cris_setup_ports(hw_regs_t *hw, unsigned long base)
+{
+	int i;
+
+	memset(hw, 0, sizeof(*hw));
+
+	for (i = 0; i <= 7; i++)
+		hw->io_ports[i] = base + cris_ide_reg_addr(i, 0, 1);
+
+	/*
+	 * the IDE control register is at ATA address 6,
+	 * with CS1 active instead of CS0
+	 */
+	hw->io_ports[IDE_CONTROL_OFFSET] = base + cris_ide_reg_addr(6, 1, 0);
+
+	hw->irq = ide_default_irq(0);
+	hw->ack_intr = cris_ide_ack_intr;
+}
+
 static const struct ide_port_info cris_port_info __initdata = {
 	.chipset		= ide_etrax100,
 	.host_flags		= IDE_HFLAG_NO_ATAPI_DMA |
@@ -765,24 +784,16 @@ static const struct ide_port_info cris_port_info __initdata = {
 static int __init init_e100_ide(void)
 {
 	hw_regs_t hw;
-	int ide_offsets[IDE_NR_PORTS], h, i;
+	int h;
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
 	printk("ide: ETRAX FS built-in ATA DMA controller\n");
 
-	for (i = IDE_DATA_OFFSET; i <= IDE_STATUS_OFFSET; i++)
-		ide_offsets[i] = cris_ide_reg_addr(i, 0, 1);
-
-	/* the IDE control register is at ATA address 6, with CS1 active instead of CS0 */
-	ide_offsets[IDE_CONTROL_OFFSET] = cris_ide_reg_addr(6, 1, 0);
-
 	for (h = 0; h < 4; h++) {
 		ide_hwif_t *hwif = NULL;
 
-		ide_setup_ports(&hw, cris_ide_base_address(h),
-		                ide_offsets,
-		                0, 0, cris_ide_ack_intr,
-		                ide_default_irq(0));
+		cris_setup_ports(&hw, cris_ide_base_address(h));
+
 		hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
 		if (hwif == NULL)
 			continue;

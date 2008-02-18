@@ -45,8 +45,8 @@
 /* initiator tags; opaque for target */
 typedef uint32_t __bitwise__ itt_t;
 /* below makes sense only for initiator that created this tag */
-#define build_itt(itt, id, age) ((__force itt_t)\
-	((itt) | ((id) << ISCSI_CID_SHIFT) | ((age) << ISCSI_AGE_SHIFT)))
+#define build_itt(itt, age) ((__force itt_t)\
+	((itt) | ((age) << ISCSI_AGE_SHIFT)))
 #define get_itt(itt) ((__force uint32_t)(itt_t)(itt) & ISCSI_ITT_MASK)
 #define RESERVED_ITT ((__force itt_t)0xffffffff)
 

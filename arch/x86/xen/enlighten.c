@@ -798,6 +798,10 @@ static __init void xen_pagetable_setup_start(pgd_t *base)
 	 * added to the table can be prepared properly for Xen.
 	 */
 	xen_write_cr3(__pa(base));
+
+	/* Unpin initial Xen pagetable */
+	pin_pagetable_pfn(MMUEXT_UNPIN_TABLE,
+			  PFN_DOWN(__pa(xen_start_info->pt_base)));
 }
 
 static __init void xen_pagetable_setup_done(pgd_t *base)

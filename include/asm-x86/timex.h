@@ -14,7 +14,6 @@
 #endif
 #define CLOCK_TICK_RATE	PIT_TICK_RATE
 
-extern int read_current_timer(unsigned long *timer_value);
-#define ARCH_HAS_READ_CURRENT_TIMER	1
+#define ARCH_HAS_READ_CURRENT_TIMER
 
 #endif

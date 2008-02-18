@@ -11,6 +11,8 @@
  * Usage: modpost vmlinux module1.o module2.o ...
  */
 
+#define _GNU_SOURCE
+#include <stdio.h>
 #include <ctype.h>
 #include "modpost.h"
 #include "../../include/linux/license.h"
@@ -435,6 +437,8 @@ static int parse_elf(struct elf_info *info, const char *filename)
 			info->export_unused_gpl_sec = i;
 		else if (strcmp(secname, "__ksymtab_gpl_future") == 0)
 			info->export_gpl_future_sec = i;
+		else if (strcmp(secname, "__markers_strings") == 0)
+			info->markers_strings_sec = i;
 
 		if (sechdrs[i].sh_type != SHT_SYMTAB)
 			continue;
@@ -613,7 +617,7 @@ static const char *sym_name(struct elf_info *elf, Elf_Sym *sym)
 	if (sym)
 		return elf->strtab + sym->st_name;
 	else
-		return "";
+		return "(unknown)";
 }
 
 static const char *sec_name(struct elf_info *elf, int shndx)
@@ -1102,7 +1106,7 @@ static int is_function(Elf_Sym *sym)
 	if (sym)
 		return ELF_ST_TYPE(sym->st_info) == STT_FUNC;
 	else
-		return 0;
+		return -1;
 }
 
 /*
@@ -1120,24 +1124,31 @@ static void report_sec_mismatch(const char *modname, enum mismatch mismatch,
 {
 	const char *from, *from_p;
 	const char *to, *to_p;
-	from = from_is_func ? "function" : "variable";
-	from_p = from_is_func ? "()" : "";
-	to = to_is_func ? "function" : "variable";
-	to_p = to_is_func ? "()" : "";
+
+	switch (from_is_func) {
+	case 0: from = "variable"; from_p = "";   break;
+	case 1: from = "function"; from_p = "()"; break;
+	default: from = "(unknown reference)"; from_p = ""; break;
+	}
+	switch (to_is_func) {
+	case 0: to = "variable"; to_p = "";   break;
+	case 1: to = "function"; to_p = "()"; break;
+	default: to = "(unknown reference)"; to_p = ""; break;
+	}
 
 	sec_mismatch_count++;
 	if (!sec_mismatch_verbose)
 		return;
 
-	fprintf(stderr, "WARNING: %s(%s+0x%llx): Section mismatch in"
-	                " reference from the %s %s%s to the %s %s:%s%s\n",
-                        modname, fromsec, fromaddr, from, fromsym, from_p,
-	                to, tosec, tosym, to_p);
+	warn("%s(%s+0x%llx): Section mismatch in reference from the %s %s%s "
+	     "to the %s %s:%s%s\n",
+	     modname, fromsec, fromaddr, from, fromsym, from_p, to, tosec,
+	     tosym, to_p);
 
 	switch (mismatch) {
 	case TEXT_TO_INIT:
 		fprintf(stderr,
-		"The function %s %s() references\n"
+		"The function %s%s() references\n"
 		"the %s %s%s%s.\n"
 		"This is often because %s lacks a %s\n"
 		"annotation or the annotation of %s is wrong.\n",
@@ -1463,6 +1474,62 @@ static void check_sec_ref(struct module *mod, const char *modname,
 	}
 }
 
+static void get_markers(struct elf_info *info, struct module *mod)
+{
+	const Elf_Shdr *sh = &info->sechdrs[info->markers_strings_sec];
+	const char *strings = (const char *) info->hdr + sh->sh_offset;
+	const Elf_Sym *sym, *first_sym, *last_sym;
+	size_t n;
+
+	if (!info->markers_strings_sec)
+		return;
+
+	/*
+	 * First count the strings.  We look for all the symbols defined
+	 * in the __markers_strings section named __mstrtab_*.  For
+	 * these local names, the compiler puts a random .NNN suffix on,
+	 * so the names don't correspond exactly.
+	 */
+	first_sym = last_sym = NULL;
+	n = 0;
+	for (sym = info->symtab_start; sym < info->symtab_stop; sym++)
+		if (ELF_ST_TYPE(sym->st_info) == STT_OBJECT &&
+		    sym->st_shndx == info->markers_strings_sec &&
+		    !strncmp(info->strtab + sym->st_name,
+			     "__mstrtab_", sizeof "__mstrtab_" - 1)) {
+			if (first_sym == NULL)
+				first_sym = sym;
+			last_sym = sym;
+			++n;
+		}
+
+	if (n == 0)
+		return;
+
+	/*
+	 * Now collect each name and format into a line for the output.
+	 * Lines look like:
+	 *	marker_name	vmlinux	marker %s format %d
+	 * The format string after the second \t can use whitespace.
+	 */
+	mod->markers = NOFAIL(malloc(sizeof mod->markers[0] * n));
+	mod->nmarkers = n;
+
+	n = 0;
+	for (sym = first_sym; sym <= last_sym; sym++)
+		if (ELF_ST_TYPE(sym->st_info) == STT_OBJECT &&
+		    sym->st_shndx == info->markers_strings_sec &&
+		    !strncmp(info->strtab + sym->st_name,
+			     "__mstrtab_", sizeof "__mstrtab_" - 1)) {
+			const char *name = strings + sym->st_value;
+			const char *fmt = strchr(name, '\0') + 1;
+			char *line = NULL;
+			asprintf(&line, "%s\t%s\t%s\n", name, mod->name, fmt);
+			NOFAIL(line);
+			mod->markers[n++] = line;
+		}
+}
+
 static void read_symbols(char *modname)
 {
 	const char *symname;
@@ -1513,6 +1580,8 @@ static void read_symbols(char *modname)
 	if (version || (all_versions && !is_vmlinux(modname)))
 		get_src_version(modname, mod->srcversion,
 				sizeof(mod->srcversion)-1);
+
+	get_markers(&info, mod);
 
 	parse_elf_finish(&info);
 
@@ -1860,16 +1929,104 @@ static void write_dump(const char *fname)
 	write_if_changed(&buf, fname);
 }
 
+static void add_marker(struct module *mod, const char *name, const char *fmt)
+{
+	char *line = NULL;
+	asprintf(&line, "%s\t%s\t%s\n", name, mod->name, fmt);
+	NOFAIL(line);
+
+	mod->markers = NOFAIL(realloc(mod->markers, ((mod->nmarkers + 1) *
+						     sizeof mod->markers[0])));
+	mod->markers[mod->nmarkers++] = line;
+}
+
+static void read_markers(const char *fname)
+{
+	unsigned long size, pos = 0;
+	void *file = grab_file(fname, &size);
+	char *line;
+
+	if (!file)		/* No old markers, silently ignore */
+		return;
+
+	while ((line = get_next_line(&pos, file, size))) {
+		char *marker, *modname, *fmt;
+		struct module *mod;
+
+		marker = line;
+		modname = strchr(marker, '\t');
+		if (!modname)
+			goto fail;
+		*modname++ = '\0';
+		fmt = strchr(modname, '\t');
+		if (!fmt)
+			goto fail;
+		*fmt++ = '\0';
+		if (*marker == '\0' || *modname == '\0')
+			goto fail;
+
+		mod = find_module(modname);
+		if (!mod) {
+			if (is_vmlinux(modname))
+				have_vmlinux = 1;
+			mod = new_module(NOFAIL(strdup(modname)));
+			mod->skip = 1;
+		}
+
+		add_marker(mod, marker, fmt);
+	}
+	return;
+fail:
+	fatal("parse error in markers list file\n");
+}
+
+static int compare_strings(const void *a, const void *b)
+{
+	return strcmp(*(const char **) a, *(const char **) b);
+}
+
+static void write_markers(const char *fname)
+{
+	struct buffer buf = { };
+	struct module *mod;
+	size_t i;
+
+	for (mod = modules; mod; mod = mod->next)
+		if ((!external_module || !mod->skip) && mod->markers != NULL) {
+			/*
+			 * Sort the strings so we can skip duplicates when
+			 * we write them out.
+			 */
+			qsort(mod->markers, mod->nmarkers,
+			      sizeof mod->markers[0], &compare_strings);
+			for (i = 0; i < mod->nmarkers; ++i) {
+				char *line = mod->markers[i];
+				buf_write(&buf, line, strlen(line));
+				while (i + 1 < mod->nmarkers &&
+				       !strcmp(mod->markers[i],
+					       mod->markers[i + 1]))
+					free(mod->markers[i++]);
+				free(mod->markers[i]);
+			}
+			free(mod->markers);
+			mod->markers = NULL;
+		}
+
+	write_if_changed(&buf, fname);
+}
+
 int main(int argc, char **argv)
 {
 	struct module *mod;
 	struct buffer buf = { };
 	char *kernel_read = NULL, *module_read = NULL;
 	char *dump_write = NULL;
+	char *markers_read = NULL;
+	char *markers_write = NULL;
 	int opt;
 	int err;
 
-	while ((opt = getopt(argc, argv, "i:I:msSo:aw")) != -1) {
+	while ((opt = getopt(argc, argv, "i:I:msSo:awM:K:")) != -1) {
 		switch (opt) {
 		case 'i':
 			kernel_read = optarg;
@@ -1896,6 +2053,12 @@ int main(int argc, char **argv)
 		case 'w':
 			warn_unresolved = 1;
 			break;
+			case 'M':
+				markers_write = optarg;
+				break;
+			case 'K':
+				markers_read = optarg;
+				break;
 		default:
 			exit(1);
 		}
@@ -1938,10 +2101,16 @@ int main(int argc, char **argv)
 	if (dump_write)
 		write_dump(dump_write);
 	if (sec_mismatch_count && !sec_mismatch_verbose)
-		fprintf(stderr, "modpost: Found %d section mismatch(es).\n"
-		        "To see full details build your kernel with:\n"
-		        "'make CONFIG_DEBUG_SECTION_MISMATCH=y'\n",
-		        sec_mismatch_count);
+		warn("modpost: Found %d section mismatch(es).\n"
+		     "To see full details build your kernel with:\n"
+		     "'make CONFIG_DEBUG_SECTION_MISMATCH=y'\n",
+		     sec_mismatch_count);
+
+	if (markers_read)
+		read_markers(markers_read);
+
+	if (markers_write)
+		write_markers(markers_write);
 
 	return err;
 }

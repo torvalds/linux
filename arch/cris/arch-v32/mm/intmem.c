@@ -7,10 +7,16 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <asm/io.h>
-#include <asm/arch/memmap.h>
+#include <memmap.h>
 
 #define STATUS_FREE 0
 #define STATUS_ALLOCATED 1
+
+#ifdef CONFIG_ETRAX_L2CACHE
+#define RESERVED_SIZE 66*1024
+#else
+#define RESERVED_SIZE 0
+#endif
 
 struct intmem_allocation {
 	struct list_head entry;
@@ -30,9 +36,10 @@ static void crisv32_intmem_init(void)
 		struct intmem_allocation* alloc =
 		  (struct intmem_allocation*)kmalloc(sizeof *alloc, GFP_KERNEL);
 		INIT_LIST_HEAD(&intmem_allocations);
-		intmem_virtual = ioremap(MEM_INTMEM_START, MEM_INTMEM_SIZE);
+		intmem_virtual = ioremap(MEM_INTMEM_START + RESERVED_SIZE,
+					 MEM_INTMEM_SIZE - RESERVED_SIZE);
 		initiated = 1;
-		alloc->size = MEM_INTMEM_SIZE;
+		alloc->size = MEM_INTMEM_SIZE - RESERVED_SIZE;
 		alloc->offset = 0;
 		alloc->status = STATUS_FREE;
 		list_add_tail(&alloc->entry, &intmem_allocations);
@@ -59,19 +66,23 @@ void* crisv32_intmem_alloc(unsigned size, unsigned align)
 					(struct intmem_allocation*)
 					kmalloc(sizeof *alloc, GFP_ATOMIC);
 				alloc->status = STATUS_FREE;
-				alloc->size = allocation->size - size - alignment;
-				alloc->offset = allocation->offset + size;
+				alloc->size = allocation->size - size -
+					alignment;
+				alloc->offset = allocation->offset + size +
+					alignment;
 				list_add(&alloc->entry, &allocation->entry);
 
 				if (alignment) {
-					struct intmem_allocation* tmp;
-					tmp = (struct intmem_allocation*)
-						kmalloc(sizeof *tmp, GFP_ATOMIC);
+					struct intmem_allocation *tmp;
+					tmp = (struct intmem_allocation *)
+						kmalloc(sizeof *tmp,
+							GFP_ATOMIC);
 					tmp->offset = allocation->offset;
 					tmp->size = alignment;
 					tmp->status = STATUS_FREE;
 					allocation->offset += alignment;
-					list_add_tail(&tmp->entry, &allocation->entry);
+					list_add_tail(&tmp->entry,
+						&allocation->entry);
 				}
 			}
 			allocation->status = STATUS_ALLOCATED;
@@ -96,22 +107,24 @@ void crisv32_intmem_free(void* addr)
 
 	list_for_each_entry_safe(allocation, tmp, &intmem_allocations, entry) {
 		if (allocation->offset == (int)(addr - intmem_virtual)) {
-			struct intmem_allocation* prev =
+			struct intmem_allocation *prev =
 			  list_entry(allocation->entry.prev,
 			             struct intmem_allocation, entry);
-			struct intmem_allocation* next =
+			struct intmem_allocation *next =
 			  list_entry(allocation->entry.next,
 				     struct intmem_allocation, entry);
 
 			allocation->status = STATUS_FREE;
 			/* Join with prev and/or next if also free */
-			if (prev->status == STATUS_FREE) {
+			if ((prev != &intmem_allocations) &&
+					(prev->status == STATUS_FREE)) {
 				prev->size += allocation->size;
 				list_del(&allocation->entry);
 				kfree(allocation);
 				allocation = prev;
 			}
-			if (next->status == STATUS_FREE) {
+			if ((next != &intmem_allocations) &&
+					(next->status == STATUS_FREE)) {
 				allocation->size += next->size;
 				list_del(&next->entry);
 				kfree(next);
@@ -125,15 +138,16 @@ void crisv32_intmem_free(void* addr)
 
 void* crisv32_intmem_phys_to_virt(unsigned long addr)
 {
-	return (void*)(addr - MEM_INTMEM_START+
-	               (unsigned long)intmem_virtual);
+	return (void *)(addr - (MEM_INTMEM_START + RESERVED_SIZE) +
+		(unsigned long)intmem_virtual);
 }
 
 unsigned long crisv32_intmem_virt_to_phys(void* addr)
 {
 	return (unsigned long)((unsigned long )addr -
-	  (unsigned long)intmem_virtual + MEM_INTMEM_START);
+		(unsigned long)intmem_virtual + MEM_INTMEM_START +
+		RESERVED_SIZE);
 }
 
-
+module_init(crisv32_intmem_init);
 

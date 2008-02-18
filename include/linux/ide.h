@@ -115,10 +115,6 @@ typedef unsigned char	byte;	/* used everywhere */
 #define SATA_ERROR_OFFSET	(1)
 #define SATA_CONTROL_OFFSET	(2)
 
-#define SATA_MISC_OFFSET	(0)
-#define SATA_PHY_OFFSET		(1)
-#define SATA_IEN_OFFSET		(2)
-
 /*
  * Our Physical Region Descriptor (PRD) table should be large enough
  * to handle the biggest I/O request we are likely to see.  Since requests
@@ -173,7 +169,7 @@ enum {		ide_unknown,	ide_generic,	ide_pci,
 		ide_rz1000,	ide_trm290,
 		ide_cmd646,	ide_cy82c693,	ide_4drives,
 		ide_pmac,	ide_etrax100,	ide_acorn,
-		ide_au1xxx, ide_forced
+		ide_au1xxx,	ide_palm3710,	ide_forced
 };
 
 typedef u8 hwif_chipset_t;
@@ -197,17 +193,6 @@ void ide_init_port_hw(struct hwif_s *, hw_regs_t *);
 struct ide_drive_s;
 int ide_register_hw(hw_regs_t *, void (*)(struct ide_drive_s *),
 		    struct hwif_s **);
-
-void ide_setup_ports(	hw_regs_t *hw,
-			unsigned long base,
-			int *offsets,
-			unsigned long ctrl,
-			unsigned long intr,
-			ide_ack_intr_t *ack_intr,
-#if 0
-			ide_io_ops_t *iops,
-#endif
-			int irq);
 
 static inline void ide_std_init_ports(hw_regs_t *hw,
 				      unsigned long io_addr,
@@ -473,7 +458,6 @@ typedef struct hwif_s {
 		/* task file registers for pata and sata */
 	unsigned long	io_ports[IDE_NR_PORTS];
 	unsigned long	sata_scr[SATA_NR_PORTS];
-	unsigned long	sata_misc[SATA_NR_PORTS];
 
 	ide_drive_t	drives[MAX_DRIVES];	/* drive info */
 
@@ -922,6 +906,8 @@ enum {
 					  IDE_TFLAG_IN_DEVICE,
 	/* force 16-bit I/O operations */
 	IDE_TFLAG_IO_16BIT		= (1 << 30),
+	/* ide_task_t was allocated using kmalloc() */
+	IDE_TFLAG_DYN			= (1 << 31),
 };
 
 struct ide_taskfile {
@@ -1161,7 +1147,7 @@ ide_startstop_t ide_dma_intr(ide_drive_t *);
 int ide_build_sglist(ide_drive_t *, struct request *);
 void ide_destroy_dmatable(ide_drive_t *);
 
-#ifdef CONFIG_BLK_DEV_IDEDMA_PCI
+#ifdef CONFIG_BLK_DEV_IDEDMA_SFF
 extern int ide_build_dmatable(ide_drive_t *, struct request *);
 extern int ide_release_dma(ide_hwif_t *);
 extern void ide_setup_dma(ide_hwif_t *, unsigned long);
@@ -1172,7 +1158,7 @@ extern void ide_dma_start(ide_drive_t *);
 extern int __ide_dma_end(ide_drive_t *);
 extern void ide_dma_lost_irq(ide_drive_t *);
 extern void ide_dma_timeout(ide_drive_t *);
-#endif /* CONFIG_BLK_DEV_IDEDMA_PCI */
+#endif /* CONFIG_BLK_DEV_IDEDMA_SFF */
 
 #else
 static inline int ide_id_dma_bug(ide_drive_t *drive) { return 0; }
@@ -1186,7 +1172,7 @@ static inline int ide_set_dma(ide_drive_t *drive) { return 1; }
 static inline void ide_check_dma_crc(ide_drive_t *drive) { ; }
 #endif /* CONFIG_BLK_DEV_IDEDMA */
 
-#ifndef CONFIG_BLK_DEV_IDEDMA_PCI
+#ifndef CONFIG_BLK_DEV_IDEDMA_SFF
 static inline void ide_release_dma(ide_hwif_t *drive) {;}
 #endif
 
@@ -1309,7 +1295,7 @@ static inline void ide_dump_identify(u8 *id)
 static inline int hwif_to_node(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
-	return dev ? pcibus_to_node(dev->bus) : -1;
+	return hwif->dev ? pcibus_to_node(dev->bus) : -1;
 }
 
 static inline ide_drive_t *ide_get_paired_drive(ide_drive_t *drive)
@@ -1322,6 +1308,27 @@ static inline ide_drive_t *ide_get_paired_drive(ide_drive_t *drive)
 static inline void ide_set_irq(ide_drive_t *drive, int on)
 {
 	drive->hwif->OUTB(drive->ctl | (on ? 0 : 2), IDE_CONTROL_REG);
+}
+
+static inline u8 ide_read_status(ide_drive_t *drive)
+{
+	ide_hwif_t *hwif = drive->hwif;
+
+	return hwif->INB(hwif->io_ports[IDE_STATUS_OFFSET]);
+}
+
+static inline u8 ide_read_altstatus(ide_drive_t *drive)
+{
+	ide_hwif_t *hwif = drive->hwif;
+
+	return hwif->INB(hwif->io_ports[IDE_CONTROL_OFFSET]);
+}
+
+static inline u8 ide_read_error(ide_drive_t *drive)
+{
+	ide_hwif_t *hwif = drive->hwif;
+
+	return hwif->INB(hwif->io_ports[IDE_ERROR_OFFSET]);
 }
 
 #endif /* _IDE_H */

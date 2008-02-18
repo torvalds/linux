@@ -1188,7 +1188,7 @@ int SuperTraceASSIGN (void* AdapterHandle, byte* data) {
 
     if ((features[0] & DIVA_XDI_EXTENDED_FEATURES_VALID) &&
         (features[0] & DIVA_XDI_EXTENDED_FEATURE_MANAGEMENT_DMA)) {
-      dword rx_dma_magic;
+      dword uninitialized_var(rx_dma_magic);
       if ((pC->dma_handle = diva_get_dma_descriptor (pC->request, &rx_dma_magic)) >= 0) {
         pC->xbuffer[0] = LLI;
         pC->xbuffer[1] = 8;

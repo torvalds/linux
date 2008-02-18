@@ -93,7 +93,7 @@ int dma_declare_coherent_memory(struct device *dev, dma_addr_t bus_addr,
 
 	dev->dma_mem = kzalloc(sizeof(struct dma_coherent_mem), GFP_KERNEL);
 	if (!dev->dma_mem)
-		goto out;
+		goto iounmap_out;
 	dev->dma_mem->bitmap = kzalloc(bitmap_size, GFP_KERNEL);
 	if (!dev->dma_mem->bitmap)
 		goto free1_out;
@@ -110,6 +110,8 @@ int dma_declare_coherent_memory(struct device *dev, dma_addr_t bus_addr,
 
  free1_out:
 	kfree(dev->dma_mem);
+ iounmap_out:
+	iounmap(mem_base);
  out:
 	return 0;
 }

@@ -584,30 +584,3 @@ static int __init of_debug(char *str)
 }
 
 __setup("of_debug=", of_debug);
-
-struct of_device* of_platform_device_create(struct device_node *np,
-					    const char *bus_id,
-					    struct device *parent,
-					    struct bus_type *bus)
-{
-	struct of_device *dev;
-
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev)
-		return NULL;
-
-	dev->dev.parent = parent;
-	dev->dev.bus = bus;
-	dev->dev.release = of_release_dev;
-
-	strlcpy(dev->dev.bus_id, bus_id, BUS_ID_SIZE);
-
-	if (of_device_register(dev) != 0) {
-		kfree(dev);
-		return NULL;
-	}
-
-	return dev;
-}
-
-EXPORT_SYMBOL(of_platform_device_create);

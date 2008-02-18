@@ -135,8 +135,8 @@ static void __hidp_copy_session(struct hidp_session *session, struct hidp_connin
 	}
 }
 
-static inline int hidp_queue_event(struct hidp_session *session, struct input_dev *dev,
-					unsigned int type, unsigned int code, int value)
+static int hidp_queue_event(struct hidp_session *session, struct input_dev *dev,
+				unsigned int type, unsigned int code, int value)
 {
 	unsigned char newleds;
 	struct sk_buff *skb;
@@ -243,7 +243,8 @@ static void hidp_input_report(struct hidp_session *session, struct sk_buff *skb)
 	input_sync(dev);
 }
 
-static inline int hidp_queue_report(struct hidp_session *session, unsigned char *data, int size)
+static int hidp_queue_report(struct hidp_session *session,
+				unsigned char *data, int size)
 {
 	struct sk_buff *skb;
 
@@ -287,7 +288,7 @@ static void hidp_idle_timeout(unsigned long arg)
 	hidp_schedule(session);
 }
 
-static inline void hidp_set_timer(struct hidp_session *session)
+static void hidp_set_timer(struct hidp_session *session)
 {
 	if (session->idle_to > 0)
 		mod_timer(&session->timer, jiffies + HZ * session->idle_to);
@@ -332,7 +333,8 @@ static inline int hidp_send_ctrl_message(struct hidp_session *session,
 	return err;
 }
 
-static inline void hidp_process_handshake(struct hidp_session *session, unsigned char param)
+static void hidp_process_handshake(struct hidp_session *session,
+					unsigned char param)
 {
 	BT_DBG("session %p param 0x%02x", session, param);
 
@@ -365,38 +367,23 @@ static inline void hidp_process_handshake(struct hidp_session *session, unsigned
 	}
 }
 
-static inline void hidp_process_hid_control(struct hidp_session *session, unsigned char param)
+static void hidp_process_hid_control(struct hidp_session *session,
+					unsigned char param)
 {
 	BT_DBG("session %p param 0x%02x", session, param);
 
-	switch (param) {
-	case HIDP_CTRL_NOP:
-		break;
-
-	case HIDP_CTRL_VIRTUAL_CABLE_UNPLUG:
+	if (param == HIDP_CTRL_VIRTUAL_CABLE_UNPLUG) {
 		/* Flush the transmit queues */
 		skb_queue_purge(&session->ctrl_transmit);
 		skb_queue_purge(&session->intr_transmit);
 
 		/* Kill session thread */
 		atomic_inc(&session->terminate);
-		break;
-
-	case HIDP_CTRL_HARD_RESET:
-	case HIDP_CTRL_SOFT_RESET:
-	case HIDP_CTRL_SUSPEND:
-	case HIDP_CTRL_EXIT_SUSPEND:
-		/* FIXME: We have to parse these and return no error */
-		break;
-
-	default:
-		__hidp_send_ctrl_message(session,
-			HIDP_TRANS_HANDSHAKE | HIDP_HSHK_ERR_INVALID_PARAMETER, NULL, 0);
-		break;
 	}
 }
 
-static inline void hidp_process_data(struct hidp_session *session, struct sk_buff *skb, unsigned char param)
+static void hidp_process_data(struct hidp_session *session, struct sk_buff *skb,
+				unsigned char param)
 {
 	BT_DBG("session %p skb %p len %d param 0x%02x", session, skb, skb->len, param);
 
@@ -423,7 +410,8 @@ static inline void hidp_process_data(struct hidp_session *session, struct sk_buf
 	}
 }
 
-static inline void hidp_recv_ctrl_frame(struct hidp_session *session, struct sk_buff *skb)
+static void hidp_recv_ctrl_frame(struct hidp_session *session,
+					struct sk_buff *skb)
 {
 	unsigned char hdr, type, param;
 
@@ -457,7 +445,8 @@ static inline void hidp_recv_ctrl_frame(struct hidp_session *session, struct sk_
 	kfree_skb(skb);
 }
 
-static inline void hidp_recv_intr_frame(struct hidp_session *session, struct sk_buff *skb)
+static void hidp_recv_intr_frame(struct hidp_session *session,
+				struct sk_buff *skb)
 {
 	unsigned char hdr;
 
@@ -625,7 +614,8 @@ static struct device *hidp_get_device(struct hidp_session *session)
 	return conn ? &conn->dev : NULL;
 }
 
-static inline int hidp_setup_input(struct hidp_session *session, struct hidp_connadd_req *req)
+static int hidp_setup_input(struct hidp_session *session,
+				struct hidp_connadd_req *req)
 {
 	struct input_dev *input = session->input;
 	int i;
@@ -702,7 +692,8 @@ static void hidp_setup_quirks(struct hid_device *hid)
 			hid->quirks = hidp_blacklist[n].quirks;
 }
 
-static inline void hidp_setup_hid(struct hidp_session *session, struct hidp_connadd_req *req)
+static void hidp_setup_hid(struct hidp_session *session,
+				struct hidp_connadd_req *req)
 {
 	struct hid_device *hid = session->hid;
 	struct hid_report *report;

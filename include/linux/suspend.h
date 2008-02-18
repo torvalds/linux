@@ -130,7 +130,6 @@ struct pbe {
 };
 
 /* mm/page_alloc.c */
-extern void drain_local_pages(void);
 extern void mark_free_pages(struct zone *zone);
 
 /**

@@ -17,6 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/tty.h>
 #include <linux/poll.h>
+#include <linux/completion.h>
 
 /* Version Information */
 #define DRIVER_AUTHOR "Tilman Schmidt"
@@ -48,7 +49,7 @@ struct ser_cardstate {
 	struct platform_device	dev;
 	struct tty_struct	*tty;
 	atomic_t		refcnt;
-	struct mutex		dead_mutex;
+	struct completion	dead_cmp;
 };
 
 static struct platform_driver device_driver = {
@@ -240,7 +241,7 @@ static int gigaset_write_cmd(struct cardstate *cs, const unsigned char *buf,
 	struct cmdbuf_t *cb;
 	unsigned long flags;
 
-	gigaset_dbg_buffer(atomic_read(&cs->mstate) != MS_LOCKED ?
+	gigaset_dbg_buffer(cs->mstate != MS_LOCKED ?
 	                     DEBUG_TRANSCMD : DEBUG_LOCKCMD,
 	                   "CMD Transmit", len, buf);
 
@@ -498,7 +499,7 @@ static struct cardstate *cs_get(struct tty_struct *tty)
 static void cs_put(struct cardstate *cs)
 {
 	if (atomic_dec_and_test(&cs->hw.ser->refcnt))
-		mutex_unlock(&cs->hw.ser->dead_mutex);
+		complete(&cs->hw.ser->dead_cmp);
 }
 
 /*
@@ -527,8 +528,8 @@ gigaset_tty_open(struct tty_struct *tty)
 
 	cs->dev = &cs->hw.ser->dev.dev;
 	cs->hw.ser->tty = tty;
-	mutex_init(&cs->hw.ser->dead_mutex);
 	atomic_set(&cs->hw.ser->refcnt, 1);
+	init_completion(&cs->hw.ser->dead_cmp);
 
 	tty->disc_data = cs;
 
@@ -536,14 +537,13 @@ gigaset_tty_open(struct tty_struct *tty)
 	 * startup system and notify the LL that we are ready to run
 	 */
 	if (startmode == SM_LOCKED)
-		atomic_set(&cs->mstate, MS_LOCKED);
+		cs->mstate = MS_LOCKED;
 	if (!gigaset_start(cs)) {
 		tasklet_kill(&cs->write_tasklet);
 		goto error;
 	}
 
 	gig_dbg(DEBUG_INIT, "Startup of HLL done");
-	mutex_lock(&cs->hw.ser->dead_mutex);
 	return 0;
 
 error:
@@ -577,7 +577,7 @@ gigaset_tty_close(struct tty_struct *tty)
 	else {
 		/* wait for running methods to finish */
 		if (!atomic_dec_and_test(&cs->hw.ser->refcnt))
-			mutex_lock(&cs->hw.ser->dead_mutex);
+			wait_for_completion(&cs->hw.ser->dead_cmp);
 	}
 
 	/* stop operations */
@@ -714,8 +714,8 @@ gigaset_tty_receive(struct tty_struct *tty, const unsigned char *buf,
 		return;
 	}
 
-	tail = atomic_read(&inbuf->tail);
-	head = atomic_read(&inbuf->head);
+	tail = inbuf->tail;
+	head = inbuf->head;
 	gig_dbg(DEBUG_INTR, "buffer state: %u -> %u, receive %u bytes",
 		head, tail, count);
 
@@ -742,7 +742,7 @@ gigaset_tty_receive(struct tty_struct *tty, const unsigned char *buf,
 	}
 
 	gig_dbg(DEBUG_INTR, "setting tail to %u", tail);
-	atomic_set(&inbuf->tail, tail);
+	inbuf->tail = tail;
 
 	/* Everything was received .. Push data into handler */
 	gig_dbg(DEBUG_INTR, "%s-->BH", __func__);

@@ -1,8 +1,8 @@
 VERSION = 2
 PATCHLEVEL = 6
-SUBLEVEL = 24
-EXTRAVERSION =
-NAME = Arr Matey! A Hairy Bilge Rat!
+SUBLEVEL = 25
+EXTRAVERSION = -rc2
+NAME = Funky Weasel is Jiggy wit it
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"

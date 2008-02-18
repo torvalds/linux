@@ -105,6 +105,33 @@ out:
 EXPORT_SYMBOL_GPL(vfs_setxattr);
 
 ssize_t
+xattr_getsecurity(struct inode *inode, const char *name, void *value,
+			size_t size)
+{
+	void *buffer = NULL;
+	ssize_t len;
+
+	if (!value || !size) {
+		len = security_inode_getsecurity(inode, name, &buffer, false);
+		goto out_noalloc;
+	}
+
+	len = security_inode_getsecurity(inode, name, &buffer, true);
+	if (len < 0)
+		return len;
+	if (size < len) {
+		len = -ERANGE;
+		goto out;
+	}
+	memcpy(value, buffer, len);
+out:
+	security_release_secctx(buffer, len);
+out_noalloc:
+	return len;
+}
+EXPORT_SYMBOL_GPL(xattr_getsecurity);
+
+ssize_t
 vfs_getxattr(struct dentry *dentry, char *name, void *value, size_t size)
 {
 	struct inode *inode = dentry->d_inode;
@@ -118,23 +145,23 @@ vfs_getxattr(struct dentry *dentry, char *name, void *value, size_t size)
 	if (error)
 		return error;
 
-	if (inode->i_op->getxattr)
-		error = inode->i_op->getxattr(dentry, name, value, size);
-	else
-		error = -EOPNOTSUPP;
-
 	if (!strncmp(name, XATTR_SECURITY_PREFIX,
 				XATTR_SECURITY_PREFIX_LEN)) {
 		const char *suffix = name + XATTR_SECURITY_PREFIX_LEN;
-		int ret = security_inode_getsecurity(inode, suffix, value,
-						     size, error);
+		int ret = xattr_getsecurity(inode, suffix, value, size);
 		/*
 		 * Only overwrite the return value if a security module
 		 * is actually active.
 		 */
-		if (ret != -EOPNOTSUPP)
-			error = ret;
+		if (ret == -EOPNOTSUPP)
+			goto nolsm;
+		return ret;
 	}
+nolsm:
+	if (inode->i_op->getxattr)
+		error = inode->i_op->getxattr(dentry, name, value, size);
+	else
+		error = -EOPNOTSUPP;
 
 	return error;
 }
@@ -235,8 +262,8 @@ sys_setxattr(char __user *path, char __user *name, void __user *value,
 	error = user_path_walk(path, &nd);
 	if (error)
 		return error;
-	error = setxattr(nd.dentry, name, value, size, flags);
-	path_release(&nd);
+	error = setxattr(nd.path.dentry, name, value, size, flags);
+	path_put(&nd.path);
 	return error;
 }
 
@@ -250,8 +277,8 @@ sys_lsetxattr(char __user *path, char __user *name, void __user *value,
 	error = user_path_walk_link(path, &nd);
 	if (error)
 		return error;
-	error = setxattr(nd.dentry, name, value, size, flags);
-	path_release(&nd);
+	error = setxattr(nd.path.dentry, name, value, size, flags);
+	path_put(&nd.path);
 	return error;
 }
 
@@ -320,8 +347,8 @@ sys_getxattr(char __user *path, char __user *name, void __user *value,
 	error = user_path_walk(path, &nd);
 	if (error)
 		return error;
-	error = getxattr(nd.dentry, name, value, size);
-	path_release(&nd);
+	error = getxattr(nd.path.dentry, name, value, size);
+	path_put(&nd.path);
 	return error;
 }
 
@@ -335,8 +362,8 @@ sys_lgetxattr(char __user *path, char __user *name, void __user *value,
 	error = user_path_walk_link(path, &nd);
 	if (error)
 		return error;
-	error = getxattr(nd.dentry, name, value, size);
-	path_release(&nd);
+	error = getxattr(nd.path.dentry, name, value, size);
+	path_put(&nd.path);
 	return error;
 }
 
@@ -394,8 +421,8 @@ sys_listxattr(char __user *path, char __user *list, size_t size)
 	error = user_path_walk(path, &nd);
 	if (error)
 		return error;
-	error = listxattr(nd.dentry, list, size);
-	path_release(&nd);
+	error = listxattr(nd.path.dentry, list, size);
+	path_put(&nd.path);
 	return error;
 }
 
@@ -408,8 +435,8 @@ sys_llistxattr(char __user *path, char __user *list, size_t size)
 	error = user_path_walk_link(path, &nd);
 	if (error)
 		return error;
-	error = listxattr(nd.dentry, list, size);
-	path_release(&nd);
+	error = listxattr(nd.path.dentry, list, size);
+	path_put(&nd.path);
 	return error;
 }
 
@@ -455,8 +482,8 @@ sys_removexattr(char __user *path, char __user *name)
 	error = user_path_walk(path, &nd);
 	if (error)
 		return error;
-	error = removexattr(nd.dentry, name);
-	path_release(&nd);
+	error = removexattr(nd.path.dentry, name);
+	path_put(&nd.path);
 	return error;
 }
 
@@ -469,8 +496,8 @@ sys_lremovexattr(char __user *path, char __user *name)
 	error = user_path_walk_link(path, &nd);
 	if (error)
 		return error;
-	error = removexattr(nd.dentry, name);
-	path_release(&nd);
+	error = removexattr(nd.path.dentry, name);
+	path_put(&nd.path);
 	return error;
 }
 

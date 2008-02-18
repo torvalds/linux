@@ -120,6 +120,8 @@ struct mlx4_ib_qp {
 
 	u32			doorbell_qpn;
 	__be32			sq_signal_bits;
+	unsigned		sq_next_wqe;
+	int			sq_max_wqes_per_wr;
 	int			sq_spare_wqes;
 	struct mlx4_ib_wq	sq;
 

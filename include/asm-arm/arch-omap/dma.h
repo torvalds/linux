@@ -45,22 +45,28 @@
 #define OMAP_DMA_PCHD_SR		(OMAP_DMA_BASE + 0x4c0)
 
 /* Hardware registers for omap2 */
-#define OMAP24XX_DMA_BASE		(L4_24XX_BASE + 0x56000)
-#define OMAP_DMA4_REVISION		(OMAP24XX_DMA_BASE + 0x00)
-#define OMAP_DMA4_GCR_REG		(OMAP24XX_DMA_BASE + 0x78)
-#define OMAP_DMA4_IRQSTATUS_L0		(OMAP24XX_DMA_BASE + 0x08)
-#define OMAP_DMA4_IRQSTATUS_L1		(OMAP24XX_DMA_BASE + 0x0c)
-#define OMAP_DMA4_IRQSTATUS_L2		(OMAP24XX_DMA_BASE + 0x10)
-#define OMAP_DMA4_IRQSTATUS_L3		(OMAP24XX_DMA_BASE + 0x14)
-#define OMAP_DMA4_IRQENABLE_L0		(OMAP24XX_DMA_BASE + 0x18)
-#define OMAP_DMA4_IRQENABLE_L1		(OMAP24XX_DMA_BASE + 0x1c)
-#define OMAP_DMA4_IRQENABLE_L2		(OMAP24XX_DMA_BASE + 0x20)
-#define OMAP_DMA4_IRQENABLE_L3		(OMAP24XX_DMA_BASE + 0x24)
-#define OMAP_DMA4_SYSSTATUS		(OMAP24XX_DMA_BASE + 0x28)
-#define OMAP_DMA4_CAPS_0		(OMAP24XX_DMA_BASE + 0x64)
-#define OMAP_DMA4_CAPS_2		(OMAP24XX_DMA_BASE + 0x6c)
-#define OMAP_DMA4_CAPS_3		(OMAP24XX_DMA_BASE + 0x70)
-#define OMAP_DMA4_CAPS_4		(OMAP24XX_DMA_BASE + 0x74)
+#if defined(CONFIG_ARCH_OMAP3)
+#define OMAP_DMA4_BASE			(L4_34XX_BASE + 0x56000)
+#else	/* CONFIG_ARCH_OMAP2 */
+#define OMAP_DMA4_BASE			(L4_24XX_BASE + 0x56000)
+#endif
+
+#define OMAP_DMA4_REVISION		(OMAP_DMA4_BASE + 0x00)
+#define OMAP_DMA4_GCR_REG		(OMAP_DMA4_BASE + 0x78)
+#define OMAP_DMA4_IRQSTATUS_L0		(OMAP_DMA4_BASE + 0x08)
+#define OMAP_DMA4_IRQSTATUS_L1		(OMAP_DMA4_BASE + 0x0c)
+#define OMAP_DMA4_IRQSTATUS_L2		(OMAP_DMA4_BASE + 0x10)
+#define OMAP_DMA4_IRQSTATUS_L3		(OMAP_DMA4_BASE + 0x14)
+#define OMAP_DMA4_IRQENABLE_L0		(OMAP_DMA4_BASE + 0x18)
+#define OMAP_DMA4_IRQENABLE_L1		(OMAP_DMA4_BASE + 0x1c)
+#define OMAP_DMA4_IRQENABLE_L2		(OMAP_DMA4_BASE + 0x20)
+#define OMAP_DMA4_IRQENABLE_L3		(OMAP_DMA4_BASE + 0x24)
+#define OMAP_DMA4_SYSSTATUS		(OMAP_DMA4_BASE + 0x28)
+#define OMAP_DMA4_OCP_SYSCONFIG		(OMAP_DMA4_BASE + 0x2c)
+#define OMAP_DMA4_CAPS_0		(OMAP_DMA4_BASE + 0x64)
+#define OMAP_DMA4_CAPS_2		(OMAP_DMA4_BASE + 0x6c)
+#define OMAP_DMA4_CAPS_3		(OMAP_DMA4_BASE + 0x70)
+#define OMAP_DMA4_CAPS_4		(OMAP_DMA4_BASE + 0x74)
 
 #ifdef CONFIG_ARCH_OMAP1
 
@@ -86,19 +92,19 @@
 #define OMAP_LOGICAL_DMA_CH_COUNT	32	/* REVISIT: Is this 32 + 2? */
 
 /* Common channel specific registers for omap2 */
-#define OMAP_DMA_CCR_REG(n)		__REG32(OMAP24XX_DMA_BASE + 0x60 * (n) + 0x80)
-#define OMAP_DMA_CLNK_CTRL_REG(n)	__REG32(OMAP24XX_DMA_BASE + 0x60 * (n) + 0x84)
-#define OMAP_DMA_CICR_REG(n)		__REG32(OMAP24XX_DMA_BASE + 0x60 * (n) + 0x88)
-#define OMAP_DMA_CSR_REG(n)		__REG32(OMAP24XX_DMA_BASE + 0x60 * (n) + 0x8c)
-#define OMAP_DMA_CSDP_REG(n)		__REG32(OMAP24XX_DMA_BASE + 0x60 * (n) + 0x90)
-#define OMAP_DMA_CEN_REG(n)		__REG32(OMAP24XX_DMA_BASE + 0x60 * (n) + 0x94)
-#define OMAP_DMA_CFN_REG(n)		__REG32(OMAP24XX_DMA_BASE + 0x60 * (n) + 0x98)
-#define OMAP_DMA_CSEI_REG(n)		__REG32(OMAP24XX_DMA_BASE + 0x60 * (n) + 0xa4)
-#define OMAP_DMA_CSFI_REG(n)		__REG32(OMAP24XX_DMA_BASE + 0x60 * (n) + 0xa8)
-#define OMAP_DMA_CDEI_REG(n)		__REG32(OMAP24XX_DMA_BASE + 0x60 * (n) + 0xac)
-#define OMAP_DMA_CDFI_REG(n)		__REG32(OMAP24XX_DMA_BASE + 0x60 * (n) + 0xb0)
-#define OMAP_DMA_CSAC_REG(n)		__REG32(OMAP24XX_DMA_BASE + 0x60 * (n) + 0xb4)
-#define OMAP_DMA_CDAC_REG(n)		__REG32(OMAP24XX_DMA_BASE + 0x60 * (n) + 0xb8)
+#define OMAP_DMA_CCR_REG(n)		__REG32(OMAP_DMA4_BASE + 0x60 * (n) + 0x80)
+#define OMAP_DMA_CLNK_CTRL_REG(n)	__REG32(OMAP_DMA4_BASE + 0x60 * (n) + 0x84)
+#define OMAP_DMA_CICR_REG(n)		__REG32(OMAP_DMA4_BASE + 0x60 * (n) + 0x88)
+#define OMAP_DMA_CSR_REG(n)		__REG32(OMAP_DMA4_BASE + 0x60 * (n) + 0x8c)
+#define OMAP_DMA_CSDP_REG(n)		__REG32(OMAP_DMA4_BASE + 0x60 * (n) + 0x90)
+#define OMAP_DMA_CEN_REG(n)		__REG32(OMAP_DMA4_BASE + 0x60 * (n) + 0x94)
+#define OMAP_DMA_CFN_REG(n)		__REG32(OMAP_DMA4_BASE + 0x60 * (n) + 0x98)
+#define OMAP_DMA_CSEI_REG(n)		__REG32(OMAP_DMA4_BASE + 0x60 * (n) + 0xa4)
+#define OMAP_DMA_CSFI_REG(n)		__REG32(OMAP_DMA4_BASE + 0x60 * (n) + 0xa8)
+#define OMAP_DMA_CDEI_REG(n)		__REG32(OMAP_DMA4_BASE + 0x60 * (n) + 0xac)
+#define OMAP_DMA_CDFI_REG(n)		__REG32(OMAP_DMA4_BASE + 0x60 * (n) + 0xb0)
+#define OMAP_DMA_CSAC_REG(n)		__REG32(OMAP_DMA4_BASE + 0x60 * (n) + 0xb4)
+#define OMAP_DMA_CDAC_REG(n)		__REG32(OMAP_DMA4_BASE + 0x60 * (n) + 0xb8)
 
 #endif
 
@@ -113,11 +119,11 @@
 #define OMAP1_DMA_LCH_CTRL_REG(n)	__REG16(OMAP_DMA_BASE + 0x40 * (n) + 0x2a)
 
 /* Channel specific registers only on omap2 */
-#define OMAP2_DMA_CSSA_REG(n)		__REG32(OMAP24XX_DMA_BASE + 0x60 * (n) + 0x9c)
-#define OMAP2_DMA_CDSA_REG(n)		__REG32(OMAP24XX_DMA_BASE + 0x60 * (n) + 0xa0)
-#define OMAP2_DMA_CCEN_REG(n)		__REG32(OMAP24XX_DMA_BASE + 0x60 * (n) + 0xbc)
-#define OMAP2_DMA_CCFN_REG(n)		__REG32(OMAP24XX_DMA_BASE + 0x60 * (n) + 0xc0)
-#define OMAP2_DMA_COLOR_REG(n)		__REG32(OMAP24XX_DMA_BASE + 0x60 * (n) + 0xc4)
+#define OMAP2_DMA_CSSA_REG(n)		__REG32(OMAP_DMA4_BASE + 0x60 * (n) + 0x9c)
+#define OMAP2_DMA_CDSA_REG(n)		__REG32(OMAP_DMA4_BASE + 0x60 * (n) + 0xa0)
+#define OMAP2_DMA_CCEN_REG(n)		__REG32(OMAP_DMA4_BASE + 0x60 * (n) + 0xbc)
+#define OMAP2_DMA_CCFN_REG(n)		__REG32(OMAP_DMA4_BASE + 0x60 * (n) + 0xc0)
+#define OMAP2_DMA_COLOR_REG(n)		__REG32(OMAP_DMA4_BASE + 0x60 * (n) + 0xc4)
 
 /*----------------------------------------------------------------------------*/
 
@@ -297,6 +303,10 @@
 #define OMAP_DMA_SYNC_ELEMENT		0x00
 #define OMAP_DMA_SYNC_FRAME		0x01
 #define OMAP_DMA_SYNC_BLOCK		0x02
+#define OMAP_DMA_SYNC_PACKET		0x03
+
+#define OMAP_DMA_SRC_SYNC		0x01
+#define OMAP_DMA_DST_SYNC		0x00
 
 #define OMAP_DMA_PORT_EMIFF		0x00
 #define OMAP_DMA_PORT_EMIFS		0x01
@@ -309,6 +319,29 @@
 #define OMAP_DMA_AMODE_POST_INC		0x01
 #define OMAP_DMA_AMODE_SINGLE_IDX	0x02
 #define OMAP_DMA_AMODE_DOUBLE_IDX	0x03
+
+#define DMA_DEFAULT_FIFO_DEPTH		0x10
+#define DMA_DEFAULT_ARB_RATE		0x01
+/* Pass THREAD_RESERVE ORed with THREAD_FIFO for tparams */
+#define DMA_THREAD_RESERVE_NORM		(0x00 << 12) /* Def */
+#define DMA_THREAD_RESERVE_ONET		(0x01 << 12)
+#define DMA_THREAD_RESERVE_TWOT		(0x02 << 12)
+#define DMA_THREAD_RESERVE_THREET	(0x03 << 12)
+#define DMA_THREAD_FIFO_NONE		(0x00 << 14) /* Def */
+#define DMA_THREAD_FIFO_75		(0x01 << 14)
+#define DMA_THREAD_FIFO_25		(0x02 << 14)
+#define DMA_THREAD_FIFO_50		(0x03 << 14)
+
+/* Chaining modes*/
+#ifndef CONFIG_ARCH_OMAP1
+#define OMAP_DMA_STATIC_CHAIN		0x1
+#define OMAP_DMA_DYNAMIC_CHAIN		0x2
+#define OMAP_DMA_CHAIN_ACTIVE		0x1
+#define OMAP_DMA_CHAIN_INACTIVE		0x0
+#endif
+
+#define DMA_CH_PRIO_HIGH		0x1
+#define DMA_CH_PRIO_LOW			0x0 /* Def */
 
 /* LCD DMA block numbers */
 enum {
@@ -359,6 +392,13 @@ struct omap_dma_channel_params {
 	int src_or_dst_synch;	/* source synch(1) or destination synch(0) */
 
 	int ie;			/* interrupt enabled */
+
+	unsigned char read_prio;/* read priority */
+	unsigned char write_prio;/* write priority */
+
+#ifndef CONFIG_ARCH_OMAP1
+	enum omap_dma_burst_mode burst_mode; /* Burst mode 4/8/16 words */
+#endif
 };
 
 
@@ -409,6 +449,33 @@ extern dma_addr_t omap_get_dma_dst_pos(int lch);
 extern int omap_get_dma_src_addr_counter(int lch);
 extern void omap_clear_dma(int lch);
 extern int omap_dma_running(void);
+extern void omap_dma_set_global_params(int arb_rate, int max_fifo_depth,
+				       int tparams);
+extern int omap_dma_set_prio_lch(int lch, unsigned char read_prio,
+				 unsigned char write_prio);
+
+/* Chaining APIs */
+#ifndef CONFIG_ARCH_OMAP1
+extern int omap_request_dma_chain(int dev_id, const char *dev_name,
+				  void (*callback) (int chain_id, u16 ch_status,
+						    void *data),
+				  int *chain_id, int no_of_chans,
+				  int chain_mode,
+				  struct omap_dma_channel_params params);
+extern int omap_free_dma_chain(int chain_id);
+extern int omap_dma_chain_a_transfer(int chain_id, int src_start,
+				     int dest_start, int elem_count,
+				     int frame_count, void *callbk_data);
+extern int omap_start_dma_chain_transfers(int chain_id);
+extern int omap_stop_dma_chain_transfers(int chain_id);
+extern int omap_get_dma_chain_index(int chain_id, int *ei, int *fi);
+extern int omap_get_dma_chain_dst_pos(int chain_id);
+extern int omap_get_dma_chain_src_pos(int chain_id);
+
+extern int omap_modify_dma_chain_params(int chain_id,
+					struct omap_dma_channel_params params);
+extern int omap_dma_chain_status(int chain_id);
+#endif
 
 /* LCD DMA functions */
 extern int omap_request_lcd_dma(void (* callback)(u16 status, void *data),

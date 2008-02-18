@@ -481,6 +481,7 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 	{
 		struct mtd_oob_buf buf;
 		struct mtd_oob_ops ops;
+	        uint32_t retlen;
 
 		if(!(file->f_mode & 2))
 			return -EPERM;
@@ -520,8 +521,11 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		buf.start &= ~(mtd->oobsize - 1);
 		ret = mtd->write_oob(mtd, buf.start, &ops);
 
-		if (copy_to_user(argp + sizeof(uint32_t), &ops.oobretlen,
-				 sizeof(uint32_t)))
+		if (ops.oobretlen > 0xFFFFFFFFU)
+			ret = -EOVERFLOW;
+		retlen = ops.oobretlen;
+		if (copy_to_user(&((struct mtd_oob_buf *)argp)->length,
+				 &retlen, sizeof(buf.length)))
 			ret = -EFAULT;
 
 		kfree(ops.oobbuf);

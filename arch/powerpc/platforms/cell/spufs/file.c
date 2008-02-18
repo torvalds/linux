@@ -29,6 +29,7 @@
 #include <linux/poll.h>
 #include <linux/ptrace.h>
 #include <linux/seq_file.h>
+#include <linux/marker.h>
 
 #include <asm/io.h>
 #include <asm/semaphore.h>
@@ -357,6 +358,9 @@ static unsigned long spufs_ps_nopfn(struct vm_area_struct *vma,
 {
 	struct spu_context *ctx = vma->vm_file->private_data;
 	unsigned long area, offset = address - vma->vm_start;
+	int ret = 0;
+
+	spu_context_nospu_trace(spufs_ps_nopfn__enter, ctx);
 
 	offset += vma->vm_pgoff << PAGE_SHIFT;
 	if (offset >= ps_size)
@@ -375,14 +379,18 @@ static unsigned long spufs_ps_nopfn(struct vm_area_struct *vma,
 
 	if (ctx->state == SPU_STATE_SAVED) {
 		up_read(&current->mm->mmap_sem);
-		spufs_wait(ctx->run_wq, ctx->state == SPU_STATE_RUNNABLE);
+		spu_context_nospu_trace(spufs_ps_nopfn__sleep, ctx);
+		ret = spufs_wait(ctx->run_wq, ctx->state == SPU_STATE_RUNNABLE);
+		spu_context_trace(spufs_ps_nopfn__wake, ctx, ctx->spu);
 		down_read(&current->mm->mmap_sem);
 	} else {
 		area = ctx->spu->problem_phys + ps_offs;
 		vm_insert_pfn(vma, address, (area + offset) >> PAGE_SHIFT);
+		spu_context_trace(spufs_ps_nopfn__insert, ctx, ctx->spu);
 	}
 
-	spu_release(ctx);
+	if (!ret)
+		spu_release(ctx);
 	return NOPFN_REFAULT;
 }
 
@@ -454,7 +462,7 @@ static int spufs_cntl_open(struct inode *inode, struct file *file)
 	if (!i->i_openers++)
 		ctx->cntl = inode->i_mapping;
 	mutex_unlock(&ctx->mapping_lock);
-	return spufs_attr_open(inode, file, spufs_cntl_get,
+	return simple_attr_open(inode, file, spufs_cntl_get,
 					spufs_cntl_set, "0x%08lx");
 }
 
@@ -464,7 +472,7 @@ spufs_cntl_release(struct inode *inode, struct file *file)
 	struct spufs_inode_info *i = SPUFS_I(inode);
 	struct spu_context *ctx = i->i_ctx;
 
-	spufs_attr_release(inode, file);
+	simple_attr_release(inode, file);
 
 	mutex_lock(&ctx->mapping_lock);
 	if (!--i->i_openers)
@@ -476,8 +484,8 @@ spufs_cntl_release(struct inode *inode, struct file *file)
 static const struct file_operations spufs_cntl_fops = {
 	.open = spufs_cntl_open,
 	.release = spufs_cntl_release,
-	.read = spufs_attr_read,
-	.write = spufs_attr_write,
+	.read = simple_attr_read,
+	.write = simple_attr_write,
 	.mmap = spufs_cntl_mmap,
 };
 
@@ -749,23 +757,25 @@ static ssize_t spufs_ibox_read(struct file *file, char __user *buf,
 
 	count = spu_acquire(ctx);
 	if (count)
-		return count;
+		goto out;
 
 	/* wait only for the first element */
 	count = 0;
 	if (file->f_flags & O_NONBLOCK) {
-		if (!spu_ibox_read(ctx, &ibox_data))
+		if (!spu_ibox_read(ctx, &ibox_data)) {
 			count = -EAGAIN;
+			goto out_unlock;
+		}
 	} else {
 		count = spufs_wait(ctx->ibox_wq, spu_ibox_read(ctx, &ibox_data));
+		if (count)
+			goto out;
 	}
-	if (count)
-		goto out;
 
 	/* if we can't write at all, return -EFAULT */
 	count = __put_user(ibox_data, udata);
 	if (count)
-		goto out;
+		goto out_unlock;
 
 	for (count = 4, udata++; (count + 4) <= len; count += 4, udata++) {
 		int ret;
@@ -782,9 +792,9 @@ static ssize_t spufs_ibox_read(struct file *file, char __user *buf,
 			break;
 	}
 
-out:
+out_unlock:
 	spu_release(ctx);
-
+out:
 	return count;
 }
 
@@ -899,7 +909,7 @@ static ssize_t spufs_wbox_write(struct file *file, const char __user *buf,
 
 	count = spu_acquire(ctx);
 	if (count)
-		return count;
+		goto out;
 
 	/*
 	 * make sure we can at least write one element, by waiting
@@ -907,14 +917,16 @@ static ssize_t spufs_wbox_write(struct file *file, const char __user *buf,
 	 */
 	count = 0;
 	if (file->f_flags & O_NONBLOCK) {
-		if (!spu_wbox_write(ctx, wbox_data))
+		if (!spu_wbox_write(ctx, wbox_data)) {
 			count = -EAGAIN;
+			goto out_unlock;
+		}
 	} else {
 		count = spufs_wait(ctx->wbox_wq, spu_wbox_write(ctx, wbox_data));
+		if (count)
+			goto out;
 	}
 
-	if (count)
-		goto out;
 
 	/* write as much as possible */
 	for (count = 4, udata++; (count + 4) <= len; count += 4, udata++) {
@@ -928,8 +940,9 @@ static ssize_t spufs_wbox_write(struct file *file, const char __user *buf,
 			break;
 	}
 
-out:
+out_unlock:
 	spu_release(ctx);
+out:
 	return count;
 }
 
@@ -1592,11 +1605,10 @@ static ssize_t spufs_mfc_read(struct file *file, char __user *buffer,
 	} else {
 		ret = spufs_wait(ctx->mfc_wq,
 			   spufs_read_mfc_tagstatus(ctx, &status));
+		if (ret)
+			goto out;
 	}
 	spu_release(ctx);
-
-	if (ret)
-		goto out;
 
 	ret = 4;
 	if (copy_to_user(buffer, &status, 4))
@@ -1726,6 +1738,8 @@ static ssize_t spufs_mfc_write(struct file *file, const char __user *buffer,
 		int status;
 		ret = spufs_wait(ctx->mfc_wq,
 				 spu_send_mfc_command(ctx, cmd, &status));
+		if (ret)
+			goto out;
 		if (status)
 			ret = status;
 	}
@@ -1779,7 +1793,7 @@ static int spufs_mfc_flush(struct file *file, fl_owner_t id)
 
 	ret = spu_acquire(ctx);
 	if (ret)
-		return ret;
+		goto out;
 #if 0
 /* this currently hangs */
 	ret = spufs_wait(ctx->mfc_wq,
@@ -1788,12 +1802,13 @@ static int spufs_mfc_flush(struct file *file, fl_owner_t id)
 		goto out;
 	ret = spufs_wait(ctx->mfc_wq,
 			 ctx->ops->read_mfc_tagstatus(ctx) == ctx->tagwait);
-out:
+	if (ret)
+		goto out;
 #else
 	ret = 0;
 #endif
 	spu_release(ctx);
-
+out:
 	return ret;
 }
 

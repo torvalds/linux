@@ -423,6 +423,7 @@ static int bpa10x_send_frame(struct sk_buff *skb)
 		break;
 
 	default:
+		usb_free_urb(urb);
 		return -EILSEQ;
 	}
 

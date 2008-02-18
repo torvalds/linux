@@ -176,7 +176,7 @@ static void __devinit vio_dev_release(struct device *dev)
  * Returns a pointer to the created vio_dev or NULL if node has
  * NULL device_type or compatible fields.
  */
-struct vio_dev * __devinit vio_register_device_node(struct device_node *of_node)
+struct vio_dev *vio_register_device_node(struct device_node *of_node)
 {
 	struct vio_dev *viodev;
 	const unsigned int *unit_address;

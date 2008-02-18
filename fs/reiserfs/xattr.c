@@ -155,7 +155,7 @@ static struct dentry *get_xa_file_dentry(const struct inode *inode,
 
 	xadir = open_xa_dir(inode, flags);
 	if (IS_ERR(xadir)) {
-		return ERR_PTR(PTR_ERR(xadir));
+		return ERR_CAST(xadir);
 	} else if (xadir && !xadir->d_inode) {
 		dput(xadir);
 		return ERR_PTR(-ENODATA);
@@ -164,7 +164,7 @@ static struct dentry *get_xa_file_dentry(const struct inode *inode,
 	xafile = lookup_one_len(name, xadir, strlen(name));
 	if (IS_ERR(xafile)) {
 		dput(xadir);
-		return ERR_PTR(PTR_ERR(xafile));
+		return ERR_CAST(xafile);
 	}
 
 	if (xafile->d_inode) {	/* file exists */
@@ -1084,7 +1084,7 @@ ssize_t reiserfs_listxattr(struct dentry * dentry, char *buffer, size_t size)
 }
 
 /* This is the implementation for the xattr plugin infrastructure */
-static struct list_head xattr_handlers = LIST_HEAD_INIT(xattr_handlers);
+static LIST_HEAD(xattr_handlers);
 static DEFINE_RWLOCK(handler_lock);
 
 static struct reiserfs_xattr_handler *find_xattr_handler_prefix(const char

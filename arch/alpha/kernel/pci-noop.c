@@ -165,7 +165,7 @@ dma_alloc_coherent(struct device *dev, size_t size,
 	ret = (void *)__get_free_pages(gfp, get_order(size));
 	if (ret) {
 		memset(ret, 0, size);
-		*dma_handle = virt_to_bus(ret);
+		*dma_handle = virt_to_phys(ret);
 	}
 	return ret;
 }
@@ -184,7 +184,7 @@ dma_map_sg(struct device *dev, struct scatterlist *sgl, int nents,
 
 		BUG_ON(!sg_page(sg));
 		va = sg_virt(sg);
-		sg_dma_address(sg) = (dma_addr_t)virt_to_bus(va);
+		sg_dma_address(sg) = (dma_addr_t)virt_to_phys(va);
 		sg_dma_len(sg) = sg->length;
 	}
 

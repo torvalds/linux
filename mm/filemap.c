@@ -33,6 +33,7 @@
 #include <linux/syscalls.h>
 #include <linux/cpuset.h>
 #include <linux/hardirq.h> /* for BUG_ON(!in_atomic()) only */
+#include <linux/memcontrol.h>
 #include "internal.h"
 
 /*
@@ -65,7 +66,6 @@ generic_file_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
  *    ->private_lock		(__free_pte->__set_page_dirty_buffers)
  *      ->swap_lock		(exclusive_swap_page, others)
  *        ->mapping->tree_lock
- *          ->zone.lock
  *
  *  ->i_mutex
  *    ->i_mmap_lock		(truncate->unmap_mapping_range)
@@ -119,6 +119,7 @@ void __remove_from_page_cache(struct page *page)
 {
 	struct address_space *mapping = page->mapping;
 
+	mem_cgroup_uncharge_page(page);
 	radix_tree_delete(&mapping->page_tree, page->index);
 	page->mapping = NULL;
 	mapping->nrpages--;
@@ -459,8 +460,12 @@ int filemap_write_and_wait_range(struct address_space *mapping,
 int add_to_page_cache(struct page *page, struct address_space *mapping,
 		pgoff_t offset, gfp_t gfp_mask)
 {
-	int error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
+	int error = mem_cgroup_cache_charge(page, current->mm,
+					gfp_mask & ~__GFP_HIGHMEM);
+	if (error)
+		goto out;
 
+	error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
 	if (error == 0) {
 		write_lock_irq(&mapping->tree_lock);
 		error = radix_tree_insert(&mapping->page_tree, offset, page);
@@ -471,10 +476,14 @@ int add_to_page_cache(struct page *page, struct address_space *mapping,
 			page->index = offset;
 			mapping->nrpages++;
 			__inc_zone_page_state(page, NR_FILE_PAGES);
-		}
+		} else
+			mem_cgroup_uncharge_page(page);
+
 		write_unlock_irq(&mapping->tree_lock);
 		radix_tree_preload_end();
-	}
+	} else
+		mem_cgroup_uncharge_page(page);
+out:
 	return error;
 }
 EXPORT_SYMBOL(add_to_page_cache);
@@ -528,7 +537,7 @@ static inline void wake_up_page(struct page *page, int bit)
 	__wake_up_bit(page_waitqueue(page), &page->flags, bit);
 }
 
-void fastcall wait_on_page_bit(struct page *page, int bit_nr)
+void wait_on_page_bit(struct page *page, int bit_nr)
 {
 	DEFINE_WAIT_BIT(wait, &page->flags, bit_nr);
 
@@ -552,7 +561,7 @@ EXPORT_SYMBOL(wait_on_page_bit);
  * the clear_bit and the read of the waitqueue (to avoid SMP races with a
  * parallel wait_on_page_locked()).
  */
-void fastcall unlock_page(struct page *page)
+void unlock_page(struct page *page)
 {
 	smp_mb__before_clear_bit();
 	if (!TestClearPageLocked(page))
@@ -586,7 +595,7 @@ EXPORT_SYMBOL(end_page_writeback);
  * chances are that on the second loop, the block layer's plug list is empty,
  * so sync_page() will then return in state TASK_UNINTERRUPTIBLE.
  */
-void fastcall __lock_page(struct page *page)
+void __lock_page(struct page *page)
 {
 	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
 
@@ -595,7 +604,7 @@ void fastcall __lock_page(struct page *page)
 }
 EXPORT_SYMBOL(__lock_page);
 
-int fastcall __lock_page_killable(struct page *page)
+int __lock_page_killable(struct page *page)
 {
 	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
 
@@ -607,7 +616,7 @@ int fastcall __lock_page_killable(struct page *page)
  * Variant of lock_page that does not require the caller to hold a reference
  * on the page's mapping.
  */
-void fastcall __lock_page_nosync(struct page *page)
+void __lock_page_nosync(struct page *page)
 {
 	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
 	__wait_on_bit_lock(page_waitqueue(page), &wait, __sleep_on_page_lock,
@@ -866,9 +875,7 @@ static void shrink_readahead_size_eio(struct file *filp,
 }
 
 /**
- * do_generic_mapping_read - generic file read routine
- * @mapping:	address_space to be read
- * @ra:		file's readahead state
+ * do_generic_file_read - generic file read routine
  * @filp:	the file to read
  * @ppos:	current file position
  * @desc:	read_descriptor
@@ -879,18 +886,13 @@ static void shrink_readahead_size_eio(struct file *filp,
  *
  * This is really ugly. But the goto's actually try to clarify some
  * of the logic when it comes to error handling etc.
- *
- * Note the struct file* is only passed for the use of readpage.
- * It may be NULL.
  */
-void do_generic_mapping_read(struct address_space *mapping,
-			     struct file_ra_state *ra,
-			     struct file *filp,
-			     loff_t *ppos,
-			     read_descriptor_t *desc,
-			     read_actor_t actor)
+static void do_generic_file_read(struct file *filp, loff_t *ppos,
+		read_descriptor_t *desc, read_actor_t actor)
 {
+	struct address_space *mapping = filp->f_mapping;
 	struct inode *inode = mapping->host;
+	struct file_ra_state *ra = &filp->f_ra;
 	pgoff_t index;
 	pgoff_t last_index;
 	pgoff_t prev_index;
@@ -1082,7 +1084,6 @@ out:
 	if (filp)
 		file_accessed(filp);
 }
-EXPORT_SYMBOL(do_generic_mapping_read);
 
 int file_read_actor(read_descriptor_t *desc, struct page *page,
 			unsigned long offset, unsigned long size)
@@ -1277,7 +1278,7 @@ asmlinkage ssize_t sys_readahead(int fd, loff_t offset, size_t count)
  * This adds the requested page to the page cache if it isn't already there,
  * and schedules an I/O to read in its contents from disk.
  */
-static int fastcall page_cache_read(struct file * file, pgoff_t offset)
+static int page_cache_read(struct file *file, pgoff_t offset)
 {
 	struct address_space *mapping = file->f_mapping;
 	struct page *page; 
@@ -1323,7 +1324,7 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	struct file_ra_state *ra = &file->f_ra;
 	struct inode *inode = mapping->host;
 	struct page *page;
-	unsigned long size;
+	pgoff_t size;
 	int did_readaround = 0;
 	int ret = 0;
 

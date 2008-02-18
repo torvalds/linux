@@ -242,7 +242,8 @@ setup_memory_node(int nid, void *kernel_end)
 	}
 
 	/* Reserve the bootmap memory.  */
-	reserve_bootmem_node(NODE_DATA(nid), PFN_PHYS(bootmap_start), bootmap_size);
+	reserve_bootmem_node(NODE_DATA(nid), PFN_PHYS(bootmap_start),
+			bootmap_size, BOOTMEM_DEFAULT);
 	printk(" reserving pages %ld:%ld\n", bootmap_start, bootmap_start+PFN_UP(bootmap_size));
 
 	node_set_online(nid);
@@ -281,7 +282,7 @@ setup_memory(void *kernel_end)
 			nid = kvaddr_to_nid(initrd_start);
 			reserve_bootmem_node(NODE_DATA(nid),
 					     virt_to_phys((void *)initrd_start),
-					     INITRD_SIZE);
+					     INITRD_SIZE, BOOTMEM_DEFAULT);
 		}
 	}
 #endif /* CONFIG_BLK_DEV_INITRD */

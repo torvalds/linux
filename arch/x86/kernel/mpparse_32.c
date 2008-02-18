@@ -736,7 +736,8 @@ static int __init smp_scan_config (unsigned long base, unsigned long length)
 			smp_found_config = 1;
 			printk(KERN_INFO "found SMP MP-table at [%p] %08lx\n",
 				mpf, virt_to_phys(mpf));
-			reserve_bootmem(virt_to_phys(mpf), PAGE_SIZE);
+			reserve_bootmem(virt_to_phys(mpf), PAGE_SIZE,
+					BOOTMEM_DEFAULT);
 			if (mpf->mpf_physptr) {
 				/*
 				 * We cannot access to MPC table to compute
@@ -751,7 +752,8 @@ static int __init smp_scan_config (unsigned long base, unsigned long length)
 				unsigned long end = max_low_pfn * PAGE_SIZE;
 				if (mpf->mpf_physptr + size > end)
 					size = end - mpf->mpf_physptr;
-				reserve_bootmem(mpf->mpf_physptr, size);
+				reserve_bootmem(mpf->mpf_physptr, size,
+						BOOTMEM_DEFAULT);
 			}
 
 			mpf_found = mpf;

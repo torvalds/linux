@@ -389,7 +389,7 @@ int disable_nonboot_cpus(void)
 	return error;
 }
 
-void enable_nonboot_cpus(void)
+void __ref enable_nonboot_cpus(void)
 {
 	int cpu, error;
 

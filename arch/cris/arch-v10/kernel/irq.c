@@ -1,5 +1,4 @@
-/* $Id: irq.c,v 1.4 2005/01/04 12:22:28 starvik Exp $
- *
+/*
  *	linux/arch/cris/kernel/irq.c
  *
  *      Copyright (c) 2000-2002 Axis Communications AB
@@ -17,10 +16,6 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-
-/* From kgdb.c. */
-extern void kgdb_init(void);
-extern void breakpoint(void);
 
 #define mask_irq(irq_nr) (*R_VECT_MASK_CLR = 1 << (irq_nr));
 #define unmask_irq(irq_nr) (*R_VECT_MASK_SET = 1 << (irq_nr));

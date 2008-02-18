@@ -6,7 +6,7 @@
  * Licensed under the GPL.
  */
 
-#include "linux/init.h"
+#include <linux/init.h>
 #include <linux/netdevice.h>
 #include "etap.h"
 #include "net_kern.h"
@@ -30,10 +30,10 @@ static void etap_init(struct net_device *dev, void *data)
 	epri->control_fd = -1;
 	epri->dev = dev;
 
-	printk("ethertap backend - %s", epri->dev_name);
+	printk(KERN_INFO "ethertap backend - %s", epri->dev_name);
 	if (epri->gate_addr != NULL)
-		printk(", IP = %s", epri->gate_addr);
-	printk("\n");
+		printk(KERN_CONT ", IP = %s", epri->gate_addr);
+	printk(KERN_CONT "\n");
 }
 
 static int etap_read(int fd, struct sk_buff *skb, struct uml_net_private *lp)

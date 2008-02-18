@@ -629,8 +629,9 @@ iscsi_r2t_rsp(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 	int rc;
 
 	if (tcp_conn->in.datalen) {
-		printk(KERN_ERR "iscsi_tcp: invalid R2t with datalen %d\n",
-		       tcp_conn->in.datalen);
+		iscsi_conn_printk(KERN_ERR, conn,
+				  "invalid R2t with datalen %d\n",
+				  tcp_conn->in.datalen);
 		return ISCSI_ERR_DATALEN;
 	}
 
@@ -644,8 +645,9 @@ iscsi_r2t_rsp(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 	iscsi_update_cmdsn(session, (struct iscsi_nopin*)rhdr);
 
 	if (!ctask->sc || session->state != ISCSI_STATE_LOGGED_IN) {
-		printk(KERN_INFO "iscsi_tcp: dropping R2T itt %d in "
-		       "recovery...\n", ctask->itt);
+		iscsi_conn_printk(KERN_INFO, conn,
+				  "dropping R2T itt %d in recovery.\n",
+				  ctask->itt);
 		return 0;
 	}
 
@@ -655,7 +657,8 @@ iscsi_r2t_rsp(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 	r2t->exp_statsn = rhdr->statsn;
 	r2t->data_length = be32_to_cpu(rhdr->data_length);
 	if (r2t->data_length == 0) {
-		printk(KERN_ERR "iscsi_tcp: invalid R2T with zero data len\n");
+		iscsi_conn_printk(KERN_ERR, conn,
+				  "invalid R2T with zero data len\n");
 		__kfifo_put(tcp_ctask->r2tpool.queue, (void*)&r2t,
 			    sizeof(void*));
 		return ISCSI_ERR_DATALEN;
@@ -668,9 +671,10 @@ iscsi_r2t_rsp(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 
 	r2t->data_offset = be32_to_cpu(rhdr->data_offset);
 	if (r2t->data_offset + r2t->data_length > scsi_bufflen(ctask->sc)) {
-		printk(KERN_ERR "iscsi_tcp: invalid R2T with data len %u at "
-		       "offset %u and total length %d\n", r2t->data_length,
-		       r2t->data_offset, scsi_bufflen(ctask->sc));
+		iscsi_conn_printk(KERN_ERR, conn,
+				  "invalid R2T with data len %u at offset %u "
+				  "and total length %d\n", r2t->data_length,
+				  r2t->data_offset, scsi_bufflen(ctask->sc));
 		__kfifo_put(tcp_ctask->r2tpool.queue, (void*)&r2t,
 			    sizeof(void*));
 		return ISCSI_ERR_DATALEN;
@@ -736,8 +740,9 @@ iscsi_tcp_hdr_dissect(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
 	/* verify PDU length */
 	tcp_conn->in.datalen = ntoh24(hdr->dlength);
 	if (tcp_conn->in.datalen > conn->max_recv_dlength) {
-		printk(KERN_ERR "iscsi_tcp: datalen %d > %d\n",
-		       tcp_conn->in.datalen, conn->max_recv_dlength);
+		iscsi_conn_printk(KERN_ERR, conn,
+				  "iscsi_tcp: datalen %d > %d\n",
+				  tcp_conn->in.datalen, conn->max_recv_dlength);
 		return ISCSI_ERR_DATALEN;
 	}
 
@@ -819,10 +824,12 @@ iscsi_tcp_hdr_dissect(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
 		 * For now we fail until we find a vendor that needs it
 		 */
 		if (ISCSI_DEF_MAX_RECV_SEG_LEN < tcp_conn->in.datalen) {
-			printk(KERN_ERR "iscsi_tcp: received buffer of len %u "
-			      "but conn buffer is only %u (opcode %0x)\n",
-			      tcp_conn->in.datalen,
-			      ISCSI_DEF_MAX_RECV_SEG_LEN, opcode);
+			iscsi_conn_printk(KERN_ERR, conn,
+					  "iscsi_tcp: received buffer of "
+					  "len %u but conn buffer is only %u "
+					  "(opcode %0x)\n",
+					  tcp_conn->in.datalen,
+					  ISCSI_DEF_MAX_RECV_SEG_LEN, opcode);
 			rc = ISCSI_ERR_PROTO;
 			break;
 		}
@@ -1496,30 +1503,25 @@ iscsi_tcp_conn_create(struct iscsi_cls_session *cls_session, uint32_t conn_idx)
 	tcp_conn->tx_hash.tfm = crypto_alloc_hash("crc32c", 0,
 						  CRYPTO_ALG_ASYNC);
 	tcp_conn->tx_hash.flags = 0;
-	if (IS_ERR(tcp_conn->tx_hash.tfm)) {
-		printk(KERN_ERR "Could not create connection due to crc32c "
-		       "loading error %ld. Make sure the crc32c module is "
-		       "built as a module or into the kernel\n",
-			PTR_ERR(tcp_conn->tx_hash.tfm));
+	if (IS_ERR(tcp_conn->tx_hash.tfm))
 		goto free_tcp_conn;
-	}
 
 	tcp_conn->rx_hash.tfm = crypto_alloc_hash("crc32c", 0,
 						  CRYPTO_ALG_ASYNC);
 	tcp_conn->rx_hash.flags = 0;
-	if (IS_ERR(tcp_conn->rx_hash.tfm)) {
-		printk(KERN_ERR "Could not create connection due to crc32c "
-		       "loading error %ld. Make sure the crc32c module is "
-		       "built as a module or into the kernel\n",
-			PTR_ERR(tcp_conn->rx_hash.tfm));
+	if (IS_ERR(tcp_conn->rx_hash.tfm))
 		goto free_tx_tfm;
-	}
 
 	return cls_conn;
 
 free_tx_tfm:
 	crypto_free_hash(tcp_conn->tx_hash.tfm);
 free_tcp_conn:
+	iscsi_conn_printk(KERN_ERR, conn,
+			  "Could not create connection due to crc32c "
+			  "loading error. Make sure the crc32c "
+			  "module is built as a module or into the "
+			  "kernel\n");
 	kfree(tcp_conn);
 tcp_conn_alloc_fail:
 	iscsi_conn_teardown(cls_conn);
@@ -1627,7 +1629,8 @@ iscsi_tcp_conn_bind(struct iscsi_cls_session *cls_session,
 	/* lookup for existing socket */
 	sock = sockfd_lookup((int)transport_eph, &err);
 	if (!sock) {
-		printk(KERN_ERR "iscsi_tcp: sockfd_lookup failed %d\n", err);
+		iscsi_conn_printk(KERN_ERR, conn,
+				  "sockfd_lookup failed %d\n", err);
 		return -EEXIST;
 	}
 	/*

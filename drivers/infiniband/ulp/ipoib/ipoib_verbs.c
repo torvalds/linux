@@ -157,6 +157,7 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 	};
 
 	int ret, size;
+	int i;
 
 	priv->pd = ib_alloc_pd(priv->ca);
 	if (IS_ERR(priv->pd)) {
@@ -191,6 +192,9 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 	init_attr.send_cq = priv->cq;
 	init_attr.recv_cq = priv->cq;
 
+	if (dev->features & NETIF_F_SG)
+		init_attr.cap.max_send_sge = MAX_SKB_FRAGS + 1;
+
 	priv->qp = ib_create_qp(priv->pd, &init_attr);
 	if (IS_ERR(priv->qp)) {
 		printk(KERN_WARNING "%s: failed to create QP\n", ca->name);
@@ -201,11 +205,11 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 	priv->dev->dev_addr[2] = (priv->qp->qp_num >>  8) & 0xff;
 	priv->dev->dev_addr[3] = (priv->qp->qp_num      ) & 0xff;
 
-	priv->tx_sge.lkey	= priv->mr->lkey;
+	for (i = 0; i < MAX_SKB_FRAGS + 1; ++i)
+		priv->tx_sge[i].lkey = priv->mr->lkey;
 
 	priv->tx_wr.opcode	= IB_WR_SEND;
-	priv->tx_wr.sg_list	= &priv->tx_sge;
-	priv->tx_wr.num_sge	= 1;
+	priv->tx_wr.sg_list	= priv->tx_sge;
 	priv->tx_wr.send_flags	= IB_SEND_SIGNALED;
 
 	return 0;

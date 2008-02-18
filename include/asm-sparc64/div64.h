@@ -1,1 +1,1 @@
-#include <asm-generic/div64.h>
+#include <asm-sparc/div64.h>

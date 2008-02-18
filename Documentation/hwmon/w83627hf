@@ -73,5 +73,4 @@ doesn't help, you may just ignore the bogus VID reading with no harm done.
 
 For further information on this driver see the w83781d driver documentation.
 
-[1] http://www2.lm-sensors.nu/~lm78/cvs/browse.cgi/lm_sensors2/doc/vid
-
+[1] http://www.lm-sensors.org/browser/lm-sensors/trunk/doc/vid

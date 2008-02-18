@@ -232,7 +232,7 @@ static void __init finalize_initrd(void)
 		goto disable;
 	}
 
-	reserve_bootmem(__pa(initrd_start), size);
+	reserve_bootmem(__pa(initrd_start), size, BOOTMEM_DEFAULT);
 	initrd_below_start_ok = 1;
 
 	printk(KERN_INFO "Initial ramdisk at: 0x%lx (%lu bytes)\n",
@@ -413,7 +413,7 @@ static void __init bootmem_init(void)
 	/*
 	 * Reserve the bootmap memory.
 	 */
-	reserve_bootmem(PFN_PHYS(mapstart), bootmap_size);
+	reserve_bootmem(PFN_PHYS(mapstart), bootmap_size, BOOTMEM_DEFAULT);
 
 	/*
 	 * Reserve initrd memory if needed.

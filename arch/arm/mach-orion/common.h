@@ -75,4 +75,12 @@ struct mv643xx_eth_platform_data;
 
 void __init orion_eth_init(struct mv643xx_eth_platform_data *eth_data);
 
+/*
+ * Orion Sata platform_data, used by machine-setup
+ */
+
+struct mv_sata_platform_data;
+
+void __init orion_sata_init(struct mv_sata_platform_data *sata_data);
+
 #endif /* __ARCH_ORION_COMMON_H__ */

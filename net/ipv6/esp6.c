@@ -188,7 +188,7 @@ static int esp6_output(struct xfrm_state *x, struct sk_buff *skb)
 	*skb_mac_header(skb) = IPPROTO_ESP;
 
 	esph->spi = x->id.spi;
-	esph->seq_no = htonl(XFRM_SKB_CB(skb)->seq);
+	esph->seq_no = htonl(XFRM_SKB_CB(skb)->seq.output);
 
 	sg_init_table(sg, nfrags);
 	skb_to_sgvec(skb, sg,
@@ -199,7 +199,8 @@ static int esp6_output(struct xfrm_state *x, struct sk_buff *skb)
 	aead_givcrypt_set_callback(req, 0, esp_output_done, skb);
 	aead_givcrypt_set_crypt(req, sg, sg, clen, iv);
 	aead_givcrypt_set_assoc(req, asg, sizeof(*esph));
-	aead_givcrypt_set_giv(req, esph->enc_data, XFRM_SKB_CB(skb)->seq);
+	aead_givcrypt_set_giv(req, esph->enc_data,
+			      XFRM_SKB_CB(skb)->seq.output);
 
 	ESP_SKB_CB(skb)->tmp = tmp;
 	err = crypto_aead_givencrypt(req);

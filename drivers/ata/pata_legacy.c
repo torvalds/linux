@@ -127,7 +127,7 @@ static int opti82c611a;		/* Opti82c611A on primary 1, sec 2, both 3 */
 static int opti82c46x;		/* Opti 82c465MV present(pri/sec autodetect) */
 static int qdi;			/* Set to probe QDI controllers */
 static int winbond;		/* Set to probe Winbond controllers,
-					give I/O port if non stdanard */
+					give I/O port if non standard */
 static int autospeed;		/* Chip present which snoops speed changes */
 static int pio_mask = 0x1F;	/* PIO range for autospeed devices */
 static int iordy_mask = 0xFFFFFFFF;	/* Use iordy if available */
@@ -1278,8 +1278,6 @@ static __init int legacy_init_one(struct legacy_probe *probe)
 		}
 	}
 fail:
-	if (host)
-		ata_host_detach(host);
 	platform_device_unregister(pdev);
 	return ret;
 }

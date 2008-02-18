@@ -2003,12 +2003,12 @@ static void __devexit uvesafb_exit(void)
 
 module_exit(uvesafb_exit);
 
-static inline int param_get_scroll(char *buffer, struct kernel_param *kp)
+static int param_get_scroll(char *buffer, struct kernel_param *kp)
 {
 	return 0;
 }
 
-static inline int param_set_scroll(const char *val, struct kernel_param *kp)
+static int param_set_scroll(const char *val, struct kernel_param *kp)
 {
 	ypan = 0;
 
@@ -2022,11 +2022,11 @@ static inline int param_set_scroll(const char *val, struct kernel_param *kp)
 	return 0;
 }
 
-#define param_check_scroll(name, p) __param_check(name, p, void);
+#define param_check_scroll(name, p) __param_check(name, p, void)
 
 module_param_named(scroll, ypan, scroll, 0);
 MODULE_PARM_DESC(scroll,
-	"Scrolling mode, set to 'redraw', ''ypan' or 'ywrap'");
+	"Scrolling mode, set to 'redraw', 'ypan', or 'ywrap'");
 module_param_named(vgapal, pmi_setpal, invbool, 0);
 MODULE_PARM_DESC(vgapal, "Set palette using VGA registers");
 module_param_named(pmipal, pmi_setpal, bool, 0);

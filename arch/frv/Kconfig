@@ -5,6 +5,7 @@
 config FRV
 	bool
 	default y
+	select HAVE_IDE
 
 config ZONE_DMA
 	bool
@@ -56,6 +57,10 @@ config ARCH_HAS_ILOG2_U32
 config ARCH_HAS_ILOG2_U64
 	bool
 	default y
+
+config HZ
+	int
+	default 1000
 
 mainmenu "Fujitsu FR-V Kernel Configuration"
 
@@ -137,6 +142,15 @@ config UCPAGE_OFFSET_C0000000
        bool "0xC0000000 (Recommended)"
 
 endchoice
+
+config PAGE_OFFSET
+	hex
+	default 0x20000000 if UCPAGE_OFFSET_20000000
+	default 0x40000000 if UCPAGE_OFFSET_40000000
+	default 0x60000000 if UCPAGE_OFFSET_60000000
+	default 0x80000000 if UCPAGE_OFFSET_80000000
+	default 0xA0000000 if UCPAGE_OFFSET_A0000000
+	default 0xC0000000
 
 config PROTECT_KERNEL
 	bool "Protect core kernel against userspace"

@@ -137,7 +137,7 @@ static int __init pika_dtm_start(void)
 	}
 	of_node_put(np);
 
-	fpga = ioremap(res.start + 0x20, 4);
+	fpga = ioremap(res.start, 0x24);
 	if (fpga == NULL)
 		return -ENOENT;
 

@@ -12,7 +12,7 @@
  */
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/pata_platform.h>
+#include <linux/ata_platform.h>
 #include <asm/machvec.h>
 #include <asm/se7722.h>
 #include <asm/io.h>

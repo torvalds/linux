@@ -182,8 +182,8 @@ driver returns ENOIOCTLCMD.  Some common examples:
 	since the frequency is stored in the irq_freq member of the rtc_device
 	structure.  Your driver needs to initialize the irq_freq member during
 	init.  Make sure you check the requested frequency is in range of your
-	hardware in the irq_set_freq function.  If you cannot actually change
-	the frequency, just return -ENOTTY.
+	hardware in the irq_set_freq function.  If it isn't, return -EINVAL.  If
+	you cannot actually change the frequency, do not define irq_set_freq.
 
 If all else fails, check out the rtc-test.c driver!
 
@@ -268,8 +268,8 @@ int main(int argc, char **argv)
 		/* This read will block */
 		retval = read(fd, &data, sizeof(unsigned long));
 		if (retval == -1) {
-		        perror("read");
-		        exit(errno);
+			perror("read");
+			exit(errno);
 		}
 		fprintf(stderr, " %d",i);
 		fflush(stderr);
@@ -326,11 +326,11 @@ test_READ:
 		rtc_tm.tm_sec %= 60;
 		rtc_tm.tm_min++;
 	}
-	if  (rtc_tm.tm_min == 60) {
+	if (rtc_tm.tm_min == 60) {
 		rtc_tm.tm_min = 0;
 		rtc_tm.tm_hour++;
 	}
-	if  (rtc_tm.tm_hour == 24)
+	if (rtc_tm.tm_hour == 24)
 		rtc_tm.tm_hour = 0;
 
 	retval = ioctl(fd, RTC_ALM_SET, &rtc_tm);
@@ -407,8 +407,8 @@ test_PIE:
 					"\n...Periodic IRQ rate is fixed\n");
 				goto done;
 			}
-		        perror("RTC_IRQP_SET ioctl");
-		        exit(errno);
+			perror("RTC_IRQP_SET ioctl");
+			exit(errno);
 		}
 
 		fprintf(stderr, "\n%ldHz:\t", tmp);
@@ -417,27 +417,27 @@ test_PIE:
 		/* Enable periodic interrupts */
 		retval = ioctl(fd, RTC_PIE_ON, 0);
 		if (retval == -1) {
-		        perror("RTC_PIE_ON ioctl");
-		        exit(errno);
+			perror("RTC_PIE_ON ioctl");
+			exit(errno);
 		}
 
 		for (i=1; i<21; i++) {
-		        /* This blocks */
-		        retval = read(fd, &data, sizeof(unsigned long));
-		        if (retval == -1) {
-				       perror("read");
-				       exit(errno);
-		        }
-		        fprintf(stderr, " %d",i);
-		        fflush(stderr);
-		        irqcount++;
+			/* This blocks */
+			retval = read(fd, &data, sizeof(unsigned long));
+			if (retval == -1) {
+				perror("read");
+				exit(errno);
+			}
+			fprintf(stderr, " %d",i);
+			fflush(stderr);
+			irqcount++;
 		}
 
 		/* Disable periodic interrupts */
 		retval = ioctl(fd, RTC_PIE_OFF, 0);
 		if (retval == -1) {
-		        perror("RTC_PIE_OFF ioctl");
-		        exit(errno);
+			perror("RTC_PIE_OFF ioctl");
+			exit(errno);
 		}
 	}
 

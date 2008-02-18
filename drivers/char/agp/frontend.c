@@ -689,7 +689,7 @@ static int agp_open(struct inode *inode, struct file *file)
 	set_bit(AGP_FF_ALLOW_CLIENT, &priv->access_flags);
 	priv->my_pid = current->pid;
 
-	if ((current->uid == 0) || (current->suid == 0)) {
+	if (capable(CAP_SYS_RAWIO)) {
 		/* Root priv, can be controller */
 		set_bit(AGP_FF_ALLOW_CONTROLLER, &priv->access_flags);
 	}
@@ -960,6 +960,13 @@ static int agpioc_unbind_wrap(struct agp_file_private *priv, void __user *arg)
 	return agp_unbind_memory(memory);
 }
 
+int agpioc_chipset_flush_wrap(struct agp_file_private *priv)
+{
+	DBG("");
+	agp_flush_chipset(agp_bridge);
+	return 0;
+}
+
 static int agp_ioctl(struct inode *inode, struct file *file,
 		     unsigned int cmd, unsigned long arg)
 {
@@ -1032,6 +1039,10 @@ static int agp_ioctl(struct inode *inode, struct file *file,
 
 	case AGPIOC_UNBIND:
 		ret_val = agpioc_unbind_wrap(curr_priv, (void __user *) arg);
+		break;
+	       
+	case AGPIOC_CHIPSET_FLUSH:
+		ret_val = agpioc_chipset_flush_wrap(curr_priv);
 		break;
 	}
 

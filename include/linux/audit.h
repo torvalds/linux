@@ -534,8 +534,7 @@ extern void		    audit_log_n_untrustedstring(struct audit_buffer *ab,
 							const char *string);
 extern void		    audit_log_d_path(struct audit_buffer *ab,
 					     const char *prefix,
-					     struct dentry *dentry,
-					     struct vfsmount *vfsmnt);
+					     struct path *path);
 extern void		    audit_log_lost(const char *message);
 				/* Private API (for audit.c only) */
 extern int audit_filter_user(struct netlink_skb_parms *cb, int type);
@@ -552,7 +551,7 @@ extern int audit_enabled;
 #define audit_log_hex(a,b,l) do { ; } while (0)
 #define audit_log_untrustedstring(a,s) do { ; } while (0)
 #define audit_log_n_untrustedstring(a,n,s) do { ; } while (0)
-#define audit_log_d_path(b,p,d,v) do { ; } while (0)
+#define audit_log_d_path(b, p, d) do { ; } while (0)
 #define audit_enabled 0
 #endif
 #endif

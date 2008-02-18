@@ -29,7 +29,7 @@ static int via_do_init_map(struct drm_device * dev, drm_via_init_t * init)
 {
 	drm_via_private_t *dev_priv = dev->dev_private;
 
-	DRM_DEBUG("%s\n", __FUNCTION__);
+	DRM_DEBUG("\n");
 
 	dev_priv->sarea = drm_getsarea(dev);
 	if (!dev_priv->sarea) {
@@ -79,7 +79,7 @@ int via_map_init(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	drm_via_init_t *init = data;
 
-	DRM_DEBUG("%s\n", __FUNCTION__);
+	DRM_DEBUG("\n");
 
 	switch (init->func) {
 	case VIA_INIT_MAP:
@@ -121,4 +121,3 @@ int via_driver_unload(struct drm_device *dev)
 
 	return 0;
 }
-

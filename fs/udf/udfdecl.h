@@ -24,17 +24,20 @@
 #define UDF_PATH_LEN		1023
 
 #define udf_file_entry_alloc_offset(inode)\
-	(UDF_I_USE(inode) ?\
+	(UDF_I(inode)->i_use ?\
 		sizeof(struct unallocSpaceEntry) :\
-		((UDF_I_EFE(inode) ?\
+		((UDF_I(inode)->i_efe ?\
 			sizeof(struct extendedFileEntry) :\
-			sizeof(struct fileEntry)) + UDF_I_LENEATTR(inode)))
+			sizeof(struct fileEntry)) + UDF_I(inode)->i_lenEAttr))
 
 #define udf_ext0_offset(inode)\
-	(UDF_I_ALLOCTYPE(inode) == ICBTAG_FLAG_AD_IN_ICB ?\
+	(UDF_I(inode)->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB ?\
 		udf_file_entry_alloc_offset(inode) : 0)
 
 #define udf_get_lb_pblock(sb,loc,offset) udf_get_pblock((sb), (loc).logicalBlockNum, (loc).partitionReferenceNum, (offset))
+
+/* computes tag checksum */
+u8 udf_tag_checksum(const tag *t);
 
 struct dentry;
 struct inode;
@@ -185,8 +188,8 @@ extern struct fileIdentDesc *udf_fileident_read(struct inode *, loff_t *,
 						sector_t *);
 extern struct fileIdentDesc *udf_get_fileident(void *buffer, int bufsize,
 					       int *offset);
-extern long_ad *udf_get_filelongad(uint8_t *, int, int *, int);
-extern short_ad *udf_get_fileshortad(uint8_t *, int, int *, int);
+extern long_ad *udf_get_filelongad(uint8_t *, int, uint32_t *, int);
+extern short_ad *udf_get_fileshortad(uint8_t *, int, uint32_t *, int);
 
 /* crc.c */
 extern uint16_t udf_crc(uint8_t *, uint32_t, uint16_t);

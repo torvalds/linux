@@ -12,13 +12,15 @@
 
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <linux/timex.h>
 #include <linux/param.h>
 #include <linux/types.h>
+#include <linux/init.h>
 
 #include <asm/processor.h>
 #include <asm/sysreg.h>
 
-int read_current_timer(unsigned long *timer_value)
+int __devinit read_current_timer(unsigned long *timer_value)
 {
 	*timer_value = sysreg_read(COUNT);
 	return 0;

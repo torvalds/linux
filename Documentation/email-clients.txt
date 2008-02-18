@@ -170,7 +170,6 @@ Sylpheed (GUI)
 
 - Works well for inlining text (or using attachments).
 - Allows use of an external editor.
-- Not good for IMAP.
 - Is slow on large folders.
 - Won't do TLS SMTP auth over a non-SSL connection.
 - Has a helpful ruler bar in the compose window.

@@ -116,7 +116,8 @@ void __init mach_reserve_bootmem ()
 	if (SDRAM_ADDR < RAM_END && SDRAM_ADDR > RAM_START)
 		/* We can't use the space between SRAM and SDRAM, so
 		   prevent the kernel from trying.  */
-		reserve_bootmem (SRAM_END, SDRAM_ADDR - SRAM_END);
+		reserve_bootmem(SRAM_END, SDRAM_ADDR - SRAM_END,
+				BOOTMEM_DEFAULT);
 }
 
 void mach_gettimeofday (struct timespec *tv)

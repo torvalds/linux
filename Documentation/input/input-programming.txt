@@ -22,7 +22,7 @@ static struct input_dev *button_dev;
 
 static void button_interrupt(int irq, void *dummy, struct pt_regs *fp)
 {
-	input_report_key(button_dev, BTN_1, inb(BUTTON_PORT) & 1);
+	input_report_key(button_dev, BTN_0, inb(BUTTON_PORT) & 1);
 	input_sync(button_dev);
 }
 

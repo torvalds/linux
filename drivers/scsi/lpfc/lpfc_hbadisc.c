@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2007 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2008 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -272,9 +272,8 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 	if (!(vport->load_flag & FC_UNLOADING) &&
 	    !(ndlp->nlp_flag & NLP_DELAY_TMO) &&
 	    !(ndlp->nlp_flag & NLP_NPR_2B_DISC) &&
-	    (ndlp->nlp_state != NLP_STE_UNMAPPED_NODE)) {
+	    (ndlp->nlp_state != NLP_STE_UNMAPPED_NODE))
 		lpfc_disc_state_machine(vport, ndlp, NULL, NLP_EVT_DEVICE_RM);
-	}
 }
 
 
@@ -566,9 +565,10 @@ lpfc_cleanup_rpis(struct lpfc_vport *vport, int remove)
 	int  rc;
 
 	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
+		if (!NLP_CHK_NODE_ACT(ndlp))
+			continue;
 		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
 			continue;
-
 		if ((phba->sli3_options & LPFC_SLI3_VPORT_TEARDOWN) ||
 			((vport->port_type == LPFC_NPIV_PORT) &&
 			(ndlp->nlp_DID == NameServer_DID)))
@@ -629,9 +629,8 @@ lpfc_linkdown(struct lpfc_hba *phba)
 	LPFC_MBOXQ_t          *mb;
 	int i;
 
-	if (phba->link_state == LPFC_LINK_DOWN) {
+	if (phba->link_state == LPFC_LINK_DOWN)
 		return 0;
-	}
 	spin_lock_irq(&phba->hbalock);
 	if (phba->link_state > LPFC_LINK_DOWN) {
 		phba->link_state = LPFC_LINK_DOWN;
@@ -684,20 +683,21 @@ lpfc_linkup_cleanup_nodes(struct lpfc_vport *vport)
 	struct lpfc_nodelist *ndlp;
 
 	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
+		if (!NLP_CHK_NODE_ACT(ndlp))
+			continue;
 		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
 			continue;
-
 		if (ndlp->nlp_type & NLP_FABRIC) {
-				/* On Linkup its safe to clean up the ndlp
-				 * from Fabric connections.
-				 */
+			/* On Linkup its safe to clean up the ndlp
+			 * from Fabric connections.
+			 */
 			if (ndlp->nlp_DID != Fabric_DID)
 				lpfc_unreg_rpi(vport, ndlp);
 			lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
 		} else if (!(ndlp->nlp_flag & NLP_NPR_ADISC)) {
-				/* Fail outstanding IO now since device is
-				 * marked for PLOGI.
-				 */
+			/* Fail outstanding IO now since device is
+			 * marked for PLOGI.
+			 */
 			lpfc_unreg_rpi(vport, ndlp);
 		}
 	}
@@ -799,20 +799,8 @@ lpfc_mbx_cmpl_clear_la(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	writel(control, phba->HCregaddr);
 	readl(phba->HCregaddr); /* flush */
 	spin_unlock_irq(&phba->hbalock);
+	mempool_free(pmb, phba->mbox_mem_pool);
 	return;
-
-	vport->num_disc_nodes = 0;
-	/* go thru NPR nodes and issue ELS PLOGIs */
-	if (vport->fc_npr_cnt)
-		lpfc_els_disc_plogi(vport);
-
-	if (!vport->num_disc_nodes) {
-		spin_lock_irq(shost->host_lock);
-		vport->fc_flag &= ~FC_NDISC_ACTIVE;
-		spin_unlock_irq(shost->host_lock);
-	}
-
-	vport->port_state = LPFC_VPORT_READY;
 
 out:
 	/* Device Discovery completes */
@@ -1133,7 +1121,7 @@ lpfc_mbx_cmpl_read_la(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	if (la->attType == AT_LINK_UP) {
 		phba->fc_stat.LinkUp++;
 		if (phba->link_flag & LS_LOOPBACK_MODE) {
-			lpfc_printf_log(phba, KERN_INFO, LOG_LINK_EVENT,
+			lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
 					"1306 Link Up Event in loop back mode "
 					"x%x received Data: x%x x%x x%x x%x\n",
 					la->eventTag, phba->fc_eventTag,
@@ -1150,11 +1138,21 @@ lpfc_mbx_cmpl_read_la(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		lpfc_mbx_process_link_up(phba, la);
 	} else {
 		phba->fc_stat.LinkDown++;
-		lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
+		if (phba->link_flag & LS_LOOPBACK_MODE) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
+				"1308 Link Down Event in loop back mode "
+				"x%x received "
+				"Data: x%x x%x x%x\n",
+				la->eventTag, phba->fc_eventTag,
+				phba->pport->port_state, vport->fc_flag);
+		}
+		else {
+			lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
 				"1305 Link Down Event x%x received "
 				"Data: x%x x%x x%x\n",
 				la->eventTag, phba->fc_eventTag,
 				phba->pport->port_state, vport->fc_flag);
+		}
 		lpfc_mbx_issue_link_down(phba);
 	}
 
@@ -1305,7 +1303,6 @@ lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		lpfc_mbuf_free(phba, mp->virt, mp->phys);
 		kfree(mp);
 		mempool_free(pmb, phba->mbox_mem_pool);
-		lpfc_nlp_put(ndlp);
 
 		if (phba->fc_topology == TOPOLOGY_LOOP) {
 			/* FLOGI failed, use loop map to make discovery list */
@@ -1313,6 +1310,10 @@ lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 			/* Start discovery */
 			lpfc_disc_start(vport);
+			/* Decrement the reference count to ndlp after the
+			 * reference to the ndlp are done.
+			 */
+			lpfc_nlp_put(ndlp);
 			return;
 		}
 
@@ -1320,14 +1321,16 @@ lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX,
 				 "0258 Register Fabric login error: 0x%x\n",
 				 mb->mbxStatus);
+		/* Decrement the reference count to ndlp after the reference
+		 * to the ndlp are done.
+		 */
+		lpfc_nlp_put(ndlp);
 		return;
 	}
 
 	ndlp->nlp_rpi = mb->un.varWords[0];
 	ndlp->nlp_type |= NLP_FABRIC;
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
-
-	lpfc_nlp_put(ndlp);	/* Drop the reference from the mbox */
 
 	if (vport->port_state == LPFC_FABRIC_CFG_LINK) {
 		vports = lpfc_create_vport_work_array(phba);
@@ -1356,6 +1359,11 @@ lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	lpfc_mbuf_free(phba, mp->virt, mp->phys);
 	kfree(mp);
 	mempool_free(pmb, phba->mbox_mem_pool);
+
+	/* Drop the reference count from the mbox at the end after
+	 * all the current reference to the ndlp have been done.
+	 */
+	lpfc_nlp_put(ndlp);
 	return;
 }
 
@@ -1463,9 +1471,8 @@ lpfc_register_remote_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	 * registered the port.
 	 */
 	if (ndlp->rport && ndlp->rport->dd_data &&
-	    ((struct lpfc_rport_data *) ndlp->rport->dd_data)->pnode == ndlp) {
+	    ((struct lpfc_rport_data *) ndlp->rport->dd_data)->pnode == ndlp)
 		lpfc_nlp_put(ndlp);
-	}
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_RPORT,
 		"rport add:       did:x%x flg:x%x type x%x",
@@ -1660,6 +1667,18 @@ lpfc_nlp_set_state(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 }
 
 void
+lpfc_enqueue_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
+{
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
+
+	if (list_empty(&ndlp->nlp_listp)) {
+		spin_lock_irq(shost->host_lock);
+		list_add_tail(&ndlp->nlp_listp, &vport->fc_nodes);
+		spin_unlock_irq(shost->host_lock);
+	}
+}
+
+void
 lpfc_dequeue_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
@@ -1672,7 +1691,80 @@ lpfc_dequeue_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	list_del_init(&ndlp->nlp_listp);
 	spin_unlock_irq(shost->host_lock);
 	lpfc_nlp_state_cleanup(vport, ndlp, ndlp->nlp_state,
-			       NLP_STE_UNUSED_NODE);
+				NLP_STE_UNUSED_NODE);
+}
+
+void
+lpfc_disable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
+{
+	if ((ndlp->nlp_flag & NLP_DELAY_TMO) != 0)
+		lpfc_cancel_retry_delay_tmo(vport, ndlp);
+	if (ndlp->nlp_state && !list_empty(&ndlp->nlp_listp))
+		lpfc_nlp_counters(vport, ndlp->nlp_state, -1);
+	lpfc_nlp_state_cleanup(vport, ndlp, ndlp->nlp_state,
+				NLP_STE_UNUSED_NODE);
+}
+
+struct lpfc_nodelist *
+lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
+		 int state)
+{
+	struct lpfc_hba *phba = vport->phba;
+	uint32_t did;
+	unsigned long flags;
+
+	if (!ndlp)
+		return NULL;
+
+	spin_lock_irqsave(&phba->ndlp_lock, flags);
+	/* The ndlp should not be in memory free mode */
+	if (NLP_CHK_FREE_REQ(ndlp)) {
+		spin_unlock_irqrestore(&phba->ndlp_lock, flags);
+		lpfc_printf_vlog(vport, KERN_WARNING, LOG_NODE,
+				"0277 lpfc_enable_node: ndlp:x%p "
+				"usgmap:x%x refcnt:%d\n",
+				(void *)ndlp, ndlp->nlp_usg_map,
+				atomic_read(&ndlp->kref.refcount));
+		return NULL;
+	}
+	/* The ndlp should not already be in active mode */
+	if (NLP_CHK_NODE_ACT(ndlp)) {
+		spin_unlock_irqrestore(&phba->ndlp_lock, flags);
+		lpfc_printf_vlog(vport, KERN_WARNING, LOG_NODE,
+				"0278 lpfc_enable_node: ndlp:x%p "
+				"usgmap:x%x refcnt:%d\n",
+				(void *)ndlp, ndlp->nlp_usg_map,
+				atomic_read(&ndlp->kref.refcount));
+		return NULL;
+	}
+
+	/* Keep the original DID */
+	did = ndlp->nlp_DID;
+
+	/* re-initialize ndlp except of ndlp linked list pointer */
+	memset((((char *)ndlp) + sizeof (struct list_head)), 0,
+		sizeof (struct lpfc_nodelist) - sizeof (struct list_head));
+	INIT_LIST_HEAD(&ndlp->els_retry_evt.evt_listp);
+	INIT_LIST_HEAD(&ndlp->dev_loss_evt.evt_listp);
+	init_timer(&ndlp->nlp_delayfunc);
+	ndlp->nlp_delayfunc.function = lpfc_els_retry_delay;
+	ndlp->nlp_delayfunc.data = (unsigned long)ndlp;
+	ndlp->nlp_DID = did;
+	ndlp->vport = vport;
+	ndlp->nlp_sid = NLP_NO_SID;
+	/* ndlp management re-initialize */
+	kref_init(&ndlp->kref);
+	NLP_INT_NODE_ACT(ndlp);
+
+	spin_unlock_irqrestore(&phba->ndlp_lock, flags);
+
+	if (state != NLP_STE_UNUSED_NODE)
+		lpfc_nlp_set_state(vport, ndlp, state);
+
+	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_NODE,
+		"node enable:       did:x%x",
+		ndlp->nlp_DID, 0, 0);
+	return ndlp;
 }
 
 void
@@ -1972,7 +2064,21 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 			 "Data: x%x x%x x%x\n",
 			 ndlp->nlp_DID, ndlp->nlp_flag,
 			 ndlp->nlp_state, ndlp->nlp_rpi);
-	lpfc_dequeue_node(vport, ndlp);
+	if (NLP_CHK_FREE_REQ(ndlp)) {
+		lpfc_printf_vlog(vport, KERN_WARNING, LOG_NODE,
+				"0280 lpfc_cleanup_node: ndlp:x%p "
+				"usgmap:x%x refcnt:%d\n",
+				(void *)ndlp, ndlp->nlp_usg_map,
+				atomic_read(&ndlp->kref.refcount));
+		lpfc_dequeue_node(vport, ndlp);
+	} else {
+		lpfc_printf_vlog(vport, KERN_WARNING, LOG_NODE,
+				"0281 lpfc_cleanup_node: ndlp:x%p "
+				"usgmap:x%x refcnt:%d\n",
+				(void *)ndlp, ndlp->nlp_usg_map,
+				atomic_read(&ndlp->kref.refcount));
+		lpfc_disable_node(vport, ndlp);
+	}
 
 	/* cleanup any ndlp on mbox q waiting for reglogin cmpl */
 	if ((mb = phba->sli.mbox_active)) {
@@ -1994,12 +2100,16 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 			}
 			list_del(&mb->list);
 			mempool_free(mb, phba->mbox_mem_pool);
-			lpfc_nlp_put(ndlp);
+			/* We shall not invoke the lpfc_nlp_put to decrement
+			 * the ndlp reference count as we are in the process
+			 * of lpfc_nlp_release.
+			 */
 		}
 	}
 	spin_unlock_irq(&phba->hbalock);
 
-	lpfc_els_abort(phba,ndlp);
+	lpfc_els_abort(phba, ndlp);
+
 	spin_lock_irq(shost->host_lock);
 	ndlp->nlp_flag &= ~NLP_DELAY_TMO;
 	spin_unlock_irq(shost->host_lock);
@@ -2057,7 +2167,6 @@ lpfc_nlp_remove(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 			}
 		}
 	}
-
 	lpfc_cleanup_node(vport, ndlp);
 
 	/*
@@ -2182,7 +2291,16 @@ lpfc_setup_disc_node(struct lpfc_vport *vport, uint32_t did)
 		ndlp->nlp_flag |= NLP_NPR_2B_DISC;
 		spin_unlock_irq(shost->host_lock);
 		return ndlp;
+	} else if (!NLP_CHK_NODE_ACT(ndlp)) {
+		ndlp = lpfc_enable_node(vport, ndlp, NLP_STE_NPR_NODE);
+		if (!ndlp)
+			return NULL;
+		spin_lock_irq(shost->host_lock);
+		ndlp->nlp_flag |= NLP_NPR_2B_DISC;
+		spin_unlock_irq(shost->host_lock);
+		return ndlp;
 	}
+
 	if (vport->fc_flag & FC_RSCN_MODE) {
 		if (lpfc_rscn_payload_check(vport, did)) {
 			/* If we've already recieved a PLOGI from this NPort
@@ -2363,6 +2481,7 @@ lpfc_disc_start(struct lpfc_vport *vport)
 	 * continue discovery.
 	 */
 	if ((phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) &&
+	    !(vport->fc_flag & FC_PT2PT) &&
 	    !(vport->fc_flag & FC_RSCN_MODE)) {
 		lpfc_issue_reg_vpi(phba, vport);
 		return;
@@ -2485,6 +2604,8 @@ lpfc_disc_flush_list(struct lpfc_vport *vport)
 	if (vport->fc_plogi_cnt || vport->fc_adisc_cnt) {
 		list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes,
 					 nlp_listp) {
+			if (!NLP_CHK_NODE_ACT(ndlp))
+				continue;
 			if (ndlp->nlp_state == NLP_STE_PLOGI_ISSUE ||
 			    ndlp->nlp_state == NLP_STE_ADISC_ISSUE) {
 				lpfc_free_tx(phba, ndlp);
@@ -2572,6 +2693,8 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 		/* Start discovery by sending FLOGI, clean up old rpis */
 		list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes,
 					 nlp_listp) {
+			if (!NLP_CHK_NODE_ACT(ndlp))
+				continue;
 			if (ndlp->nlp_state != NLP_STE_NPR_NODE)
 				continue;
 			if (ndlp->nlp_type & NLP_FABRIC) {
@@ -2618,7 +2741,7 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 				 "NameServer login\n");
 		/* Next look for NameServer ndlp */
 		ndlp = lpfc_findnode_did(vport, NameServer_DID);
-		if (ndlp)
+		if (ndlp && NLP_CHK_NODE_ACT(ndlp))
 			lpfc_els_abort(phba, ndlp);
 
 		/* ReStart discovery */
@@ -2897,6 +3020,7 @@ lpfc_nlp_init(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	ndlp->nlp_sid = NLP_NO_SID;
 	INIT_LIST_HEAD(&ndlp->nlp_listp);
 	kref_init(&ndlp->kref);
+	NLP_INT_NODE_ACT(ndlp);
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_NODE,
 		"node init:       did:x%x",
@@ -2911,6 +3035,8 @@ lpfc_nlp_init(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 static void
 lpfc_nlp_release(struct kref *kref)
 {
+	struct lpfc_hba *phba;
+	unsigned long flags;
 	struct lpfc_nodelist *ndlp = container_of(kref, struct lpfc_nodelist,
 						  kref);
 
@@ -2918,8 +3044,24 @@ lpfc_nlp_release(struct kref *kref)
 		"node release:    did:x%x flg:x%x type:x%x",
 		ndlp->nlp_DID, ndlp->nlp_flag, ndlp->nlp_type);
 
+	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
+			"0279 lpfc_nlp_release: ndlp:x%p "
+			"usgmap:x%x refcnt:%d\n",
+			(void *)ndlp, ndlp->nlp_usg_map,
+			atomic_read(&ndlp->kref.refcount));
+
+	/* remove ndlp from action. */
 	lpfc_nlp_remove(ndlp->vport, ndlp);
-	mempool_free(ndlp, ndlp->vport->phba->nlp_mem_pool);
+
+	/* clear the ndlp active flag for all release cases */
+	phba = ndlp->vport->phba;
+	spin_lock_irqsave(&phba->ndlp_lock, flags);
+	NLP_CLR_NODE_ACT(ndlp);
+	spin_unlock_irqrestore(&phba->ndlp_lock, flags);
+
+	/* free ndlp memory for final ndlp release */
+	if (NLP_CHK_FREE_REQ(ndlp))
+		mempool_free(ndlp, ndlp->vport->phba->nlp_mem_pool);
 }
 
 /* This routine bumps the reference count for a ndlp structure to ensure
@@ -2929,37 +3071,108 @@ lpfc_nlp_release(struct kref *kref)
 struct lpfc_nodelist *
 lpfc_nlp_get(struct lpfc_nodelist *ndlp)
 {
+	struct lpfc_hba *phba;
+	unsigned long flags;
+
 	if (ndlp) {
 		lpfc_debugfs_disc_trc(ndlp->vport, LPFC_DISC_TRC_NODE,
 			"node get:        did:x%x flg:x%x refcnt:x%x",
 			ndlp->nlp_DID, ndlp->nlp_flag,
 			atomic_read(&ndlp->kref.refcount));
-		kref_get(&ndlp->kref);
+		/* The check of ndlp usage to prevent incrementing the
+		 * ndlp reference count that is in the process of being
+		 * released.
+		 */
+		phba = ndlp->vport->phba;
+		spin_lock_irqsave(&phba->ndlp_lock, flags);
+		if (!NLP_CHK_NODE_ACT(ndlp) || NLP_CHK_FREE_ACK(ndlp)) {
+			spin_unlock_irqrestore(&phba->ndlp_lock, flags);
+			lpfc_printf_vlog(ndlp->vport, KERN_WARNING, LOG_NODE,
+				"0276 lpfc_nlp_get: ndlp:x%p "
+				"usgmap:x%x refcnt:%d\n",
+				(void *)ndlp, ndlp->nlp_usg_map,
+				atomic_read(&ndlp->kref.refcount));
+			return NULL;
+		} else
+			kref_get(&ndlp->kref);
+		spin_unlock_irqrestore(&phba->ndlp_lock, flags);
 	}
 	return ndlp;
 }
 
-
 /* This routine decrements the reference count for a ndlp structure. If the
- * count goes to 0, this indicates the the associated nodelist should be freed.
+ * count goes to 0, this indicates the the associated nodelist should be
+ * freed. Returning 1 indicates the ndlp resource has been released; on the
+ * other hand, returning 0 indicates the ndlp resource has not been released
+ * yet.
  */
 int
 lpfc_nlp_put(struct lpfc_nodelist *ndlp)
 {
-	if (ndlp) {
-		lpfc_debugfs_disc_trc(ndlp->vport, LPFC_DISC_TRC_NODE,
-		"node put:        did:x%x flg:x%x refcnt:x%x",
-			ndlp->nlp_DID, ndlp->nlp_flag,
-			atomic_read(&ndlp->kref.refcount));
+	struct lpfc_hba *phba;
+	unsigned long flags;
+
+	if (!ndlp)
+		return 1;
+
+	lpfc_debugfs_disc_trc(ndlp->vport, LPFC_DISC_TRC_NODE,
+	"node put:        did:x%x flg:x%x refcnt:x%x",
+		ndlp->nlp_DID, ndlp->nlp_flag,
+		atomic_read(&ndlp->kref.refcount));
+	phba = ndlp->vport->phba;
+	spin_lock_irqsave(&phba->ndlp_lock, flags);
+	/* Check the ndlp memory free acknowledge flag to avoid the
+	 * possible race condition that kref_put got invoked again
+	 * after previous one has done ndlp memory free.
+	 */
+	if (NLP_CHK_FREE_ACK(ndlp)) {
+		spin_unlock_irqrestore(&phba->ndlp_lock, flags);
+		lpfc_printf_vlog(ndlp->vport, KERN_WARNING, LOG_NODE,
+				"0274 lpfc_nlp_put: ndlp:x%p "
+				"usgmap:x%x refcnt:%d\n",
+				(void *)ndlp, ndlp->nlp_usg_map,
+				atomic_read(&ndlp->kref.refcount));
+		return 1;
 	}
-	return ndlp ? kref_put(&ndlp->kref, lpfc_nlp_release) : 0;
+	/* Check the ndlp inactivate log flag to avoid the possible
+	 * race condition that kref_put got invoked again after ndlp
+	 * is already in inactivating state.
+	 */
+	if (NLP_CHK_IACT_REQ(ndlp)) {
+		spin_unlock_irqrestore(&phba->ndlp_lock, flags);
+		lpfc_printf_vlog(ndlp->vport, KERN_WARNING, LOG_NODE,
+				"0275 lpfc_nlp_put: ndlp:x%p "
+				"usgmap:x%x refcnt:%d\n",
+				(void *)ndlp, ndlp->nlp_usg_map,
+				atomic_read(&ndlp->kref.refcount));
+		return 1;
+	}
+	/* For last put, mark the ndlp usage flags to make sure no
+	 * other kref_get and kref_put on the same ndlp shall get
+	 * in between the process when the final kref_put has been
+	 * invoked on this ndlp.
+	 */
+	if (atomic_read(&ndlp->kref.refcount) == 1) {
+		/* Indicate ndlp is put to inactive state. */
+		NLP_SET_IACT_REQ(ndlp);
+		/* Acknowledge ndlp memory free has been seen. */
+		if (NLP_CHK_FREE_REQ(ndlp))
+			NLP_SET_FREE_ACK(ndlp);
+	}
+	spin_unlock_irqrestore(&phba->ndlp_lock, flags);
+	/* Note, the kref_put returns 1 when decrementing a reference
+	 * count that was 1, it invokes the release callback function,
+	 * but it still left the reference count as 1 (not actually
+	 * performs the last decrementation). Otherwise, it actually
+	 * decrements the reference count and returns 0.
+	 */
+	return kref_put(&ndlp->kref, lpfc_nlp_release);
 }
 
 /* This routine free's the specified nodelist if it is not in use
- * by any other discovery thread. This routine returns 1 if the ndlp
- * is not being used by anyone and has been freed. A return value of
- * 0 indicates it is being used by another discovery thread and the
- * refcount is left unchanged.
+ * by any other discovery thread. This routine returns 1 if the
+ * ndlp has been freed. A return value of 0 indicates the ndlp is
+ * not yet been released.
  */
 int
 lpfc_nlp_not_used(struct lpfc_nodelist *ndlp)
@@ -2968,11 +3181,8 @@ lpfc_nlp_not_used(struct lpfc_nodelist *ndlp)
 		"node not used:   did:x%x flg:x%x refcnt:x%x",
 		ndlp->nlp_DID, ndlp->nlp_flag,
 		atomic_read(&ndlp->kref.refcount));
-
-	if (atomic_read(&ndlp->kref.refcount) == 1) {
-		lpfc_nlp_put(ndlp);
-		return 1;
-	}
+	if (atomic_read(&ndlp->kref.refcount) == 1)
+		if (lpfc_nlp_put(ndlp))
+			return 1;
 	return 0;
 }
-

@@ -323,7 +323,7 @@ static int flash_probe (void)
    /* put the flash back into command mode */
    write32 (DATA_TO_FLASH (READ_ARRAY),0x00000000);
 
-   return (manufacturer == FLASH_MANUFACTURER && (devtype == FLASH_DEVICE_16mbit_TOP || FLASH_DEVICE_16mbit_BOTTOM));
+   return (manufacturer == FLASH_MANUFACTURER && (devtype == FLASH_DEVICE_16mbit_TOP || devtype == FLASH_DEVICE_16mbit_BOTTOM));
 }
 
 /*

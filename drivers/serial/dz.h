@@ -33,6 +33,8 @@
 #define DZ_FERR        0x2000                 /* Frame error indicator */
 #define DZ_PERR        0x1000                 /* Parity error indicator */
 
+#define DZ_BREAK       0x0800                 /* BREAK event software flag */
+
 #define LINE(x) ((x & DZ_LINE_MASK) >> 8)     /* Get the line number
                                                  from the input buffer */
 #define UCHAR(x) ((unsigned char)(x & DZ_RBUF_MASK))
@@ -107,8 +109,8 @@
 #define DZ_B7200         0x0D00
 #define DZ_B9600         0x0E00
 
-#define DZ_CREAD         0x1000               /* Enable receiver */
-#define DZ_RXENAB        0x1000               /* enable receive char */
+#define DZ_RXENAB        0x1000               /* Receiver Enable */
+
 /*
  * Addresses for the DZ registers
  */
@@ -123,10 +125,5 @@
 
 #define DZ_XMIT_SIZE   4096                 /* buffer size */
 #define DZ_WAKEUP_CHARS   DZ_XMIT_SIZE/4
-
-#ifdef MODULE
-int init_module (void)
-void cleanup_module (void)
-#endif
 
 #endif /* DZ_SERIAL_H */

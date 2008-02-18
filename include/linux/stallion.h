@@ -95,7 +95,6 @@ struct stlport {
 	struct tty_struct	*tty;
 	wait_queue_head_t	open_wait;
 	wait_queue_head_t	close_wait;
-	struct work_struct	tqueue;
 	comstats_t		stats;
 	struct stlrq		tx;
 };

@@ -180,6 +180,7 @@ static void netlbl_unlabel_audit_addr4(struct audit_buffer *audit_buf,
 	}
 }
 
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 /**
  * netlbl_unlabel_audit_addr6 - Audit an IPv6 address
  * @audit_buf: audit buffer
@@ -213,6 +214,7 @@ static void netlbl_unlabel_audit_addr6(struct audit_buffer *audit_buf,
 		audit_log_format(audit_buf, " src_prefixlen=%d", mask_len);
 	}
 }
+#endif /* IPv6 */
 
 /*
  * Unlabeled Connection Hash Table Functions
@@ -617,8 +619,6 @@ static int netlbl_unlhsh_add(struct net *net,
 	int ifindex;
 	struct net_device *dev;
 	struct netlbl_unlhsh_iface *iface;
-	struct in_addr *addr4, *mask4;
-	struct in6_addr *addr6, *mask6;
 	struct audit_buffer *audit_buf = NULL;
 	char *secctx = NULL;
 	u32 secctx_len;
@@ -651,7 +651,9 @@ static int netlbl_unlhsh_add(struct net *net,
 	audit_buf = netlbl_audit_start_common(AUDIT_MAC_UNLBL_STCADD,
 					      audit_info);
 	switch (addr_len) {
-	case sizeof(struct in_addr):
+	case sizeof(struct in_addr): {
+		struct in_addr *addr4, *mask4;
+
 		addr4 = (struct in_addr *)addr;
 		mask4 = (struct in_addr *)mask;
 		ret_val = netlbl_unlhsh_add_addr4(iface, addr4, mask4, secid);
@@ -661,8 +663,11 @@ static int netlbl_unlhsh_add(struct net *net,
 						   addr4->s_addr,
 						   mask4->s_addr);
 		break;
+	}
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-	case sizeof(struct in6_addr):
+	case sizeof(struct in6_addr): {
+		struct in6_addr *addr6, *mask6;
+
 		addr6 = (struct in6_addr *)addr;
 		mask6 = (struct in6_addr *)mask;
 		ret_val = netlbl_unlhsh_add_addr6(iface, addr6, mask6, secid);
@@ -671,6 +676,7 @@ static int netlbl_unlhsh_add(struct net *net,
 						   dev_name,
 						   addr6, mask6);
 		break;
+	}
 #endif /* IPv6 */
 	default:
 		ret_val = -EINVAL;
@@ -1741,10 +1747,6 @@ int netlbl_unlabel_getattr(const struct sk_buff *skb,
 			   u16 family,
 			   struct netlbl_lsm_secattr *secattr)
 {
-	struct iphdr *hdr4;
-	struct ipv6hdr *hdr6;
-	struct netlbl_unlhsh_addr4 *addr4;
-	struct netlbl_unlhsh_addr6 *addr6;
 	struct netlbl_unlhsh_iface *iface;
 
 	rcu_read_lock();
@@ -1752,21 +1754,29 @@ int netlbl_unlabel_getattr(const struct sk_buff *skb,
 	if (iface == NULL)
 		goto unlabel_getattr_nolabel;
 	switch (family) {
-	case PF_INET:
+	case PF_INET: {
+		struct iphdr *hdr4;
+		struct netlbl_unlhsh_addr4 *addr4;
+
 		hdr4 = ip_hdr(skb);
 		addr4 = netlbl_unlhsh_search_addr4(hdr4->saddr, iface);
 		if (addr4 == NULL)
 			goto unlabel_getattr_nolabel;
 		secattr->attr.secid = addr4->secid;
 		break;
+	}
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-	case PF_INET6:
+	case PF_INET6: {
+		struct ipv6hdr *hdr6;
+		struct netlbl_unlhsh_addr6 *addr6;
+
 		hdr6 = ipv6_hdr(skb);
 		addr6 = netlbl_unlhsh_search_addr6(&hdr6->saddr, iface);
 		if (addr6 == NULL)
 			goto unlabel_getattr_nolabel;
 		secattr->attr.secid = addr6->secid;
 		break;
+	}
 #endif /* IPv6 */
 	default:
 		goto unlabel_getattr_nolabel;

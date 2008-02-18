@@ -230,7 +230,7 @@ static struct crypto_instance *cryptd_alloc_blkcipher(
 	alg = crypto_get_attr_alg(tb, CRYPTO_ALG_TYPE_BLKCIPHER,
 				  CRYPTO_ALG_TYPE_MASK);
 	if (IS_ERR(alg))
-		return ERR_PTR(PTR_ERR(alg));
+		return ERR_CAST(alg);
 
 	inst = cryptd_alloc_instance(alg, state);
 	if (IS_ERR(inst))
@@ -267,7 +267,7 @@ static struct crypto_instance *cryptd_alloc(struct rtattr **tb)
 
 	algt = crypto_get_attr_type(tb);
 	if (IS_ERR(algt))
-		return ERR_PTR(PTR_ERR(algt));
+		return ERR_CAST(algt);
 
 	switch (algt->type & algt->mask & CRYPTO_ALG_TYPE_MASK) {
 	case CRYPTO_ALG_TYPE_BLKCIPHER:

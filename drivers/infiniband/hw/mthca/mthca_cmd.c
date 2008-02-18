@@ -1255,9 +1255,14 @@ int mthca_QUERY_ADAPTER(struct mthca_dev *dev,
 	if (err)
 		goto out;
 
-	MTHCA_GET(adapter->vendor_id, outbox,   QUERY_ADAPTER_VENDOR_ID_OFFSET);
-	MTHCA_GET(adapter->device_id, outbox,   QUERY_ADAPTER_DEVICE_ID_OFFSET);
-	MTHCA_GET(adapter->revision_id, outbox, QUERY_ADAPTER_REVISION_ID_OFFSET);
+	if (!mthca_is_memfree(dev)) {
+		MTHCA_GET(adapter->vendor_id, outbox,
+			  QUERY_ADAPTER_VENDOR_ID_OFFSET);
+		MTHCA_GET(adapter->device_id, outbox,
+			  QUERY_ADAPTER_DEVICE_ID_OFFSET);
+		MTHCA_GET(adapter->revision_id, outbox,
+			  QUERY_ADAPTER_REVISION_ID_OFFSET);
+	}
 	MTHCA_GET(adapter->inta_pin, outbox,    QUERY_ADAPTER_INTA_PIN_OFFSET);
 
 	get_board_id(outbox + QUERY_ADAPTER_VSD_OFFSET / 4,

@@ -44,7 +44,7 @@
 #include <asm/arch/keypad.h>
 
 /* Write to I2C device */
-int i2c_write_byte(u8 devaddr, u8 regoffset, u8 value)
+int sx1_i2c_write_byte(u8 devaddr, u8 regoffset, u8 value)
 {
 	struct i2c_adapter *adap;
 	int err;
@@ -67,7 +67,7 @@ int i2c_write_byte(u8 devaddr, u8 regoffset, u8 value)
 }
 
 /* Read from I2C device */
-int i2c_read_byte(u8 devaddr, u8 regoffset, u8 * value)
+int sx1_i2c_read_byte(u8 devaddr, u8 regoffset, u8 *value)
 {
 	struct i2c_adapter *adap;
 	int err;
@@ -101,66 +101,55 @@ int sx1_setkeylight(u8 keylight)
 {
 	if (keylight > SOFIA_MAX_LIGHT_VAL)
 		keylight = SOFIA_MAX_LIGHT_VAL;
-	return i2c_write_byte(SOFIA_I2C_ADDR, SOFIA_KEYLIGHT_REG, keylight);
+	return sx1_i2c_write_byte(SOFIA_I2C_ADDR, SOFIA_KEYLIGHT_REG, keylight);
 }
 /* get current keylight intensity */
 int sx1_getkeylight(u8 * keylight)
 {
-	return i2c_read_byte(SOFIA_I2C_ADDR, SOFIA_KEYLIGHT_REG, keylight);
+	return sx1_i2c_read_byte(SOFIA_I2C_ADDR, SOFIA_KEYLIGHT_REG, keylight);
 }
 /* set LCD backlight intensity */
 int sx1_setbacklight(u8 backlight)
 {
 	if (backlight > SOFIA_MAX_LIGHT_VAL)
 		backlight = SOFIA_MAX_LIGHT_VAL;
-	return i2c_write_byte(SOFIA_I2C_ADDR, SOFIA_BACKLIGHT_REG, backlight);
+	return sx1_i2c_write_byte(SOFIA_I2C_ADDR, SOFIA_BACKLIGHT_REG,
+				  backlight);
 }
 /* get current LCD backlight intensity */
 int sx1_getbacklight (u8 * backlight)
 {
-	return i2c_read_byte(SOFIA_I2C_ADDR, SOFIA_BACKLIGHT_REG, backlight);
+	return sx1_i2c_read_byte(SOFIA_I2C_ADDR, SOFIA_BACKLIGHT_REG,
+				 backlight);
 }
 /* set LCD backlight power on/off */
 int sx1_setmmipower(u8 onoff)
 {
 	int err;
 	u8 dat = 0;
-	err = i2c_read_byte(SOFIA_I2C_ADDR, SOFIA_POWER1_REG, &dat);
+	err = sx1_i2c_read_byte(SOFIA_I2C_ADDR, SOFIA_POWER1_REG, &dat);
 	if (err < 0)
 		return err;
 	if (onoff)
 		dat |= SOFIA_MMILIGHT_POWER;
 	else
 		dat &= ~SOFIA_MMILIGHT_POWER;
-	return i2c_write_byte(SOFIA_I2C_ADDR, SOFIA_POWER1_REG, dat);
+	return sx1_i2c_write_byte(SOFIA_I2C_ADDR, SOFIA_POWER1_REG, dat);
 }
-/* set MMC power on/off */
-int sx1_setmmcpower(u8 onoff)
-{
-	int err;
-	u8 dat = 0;
-	err = i2c_read_byte(SOFIA_I2C_ADDR, SOFIA_POWER1_REG, &dat);
-	if (err < 0)
-		return err;
-	if (onoff)
-		dat |= SOFIA_MMC_POWER;
-	else
-		dat &= ~SOFIA_MMC_POWER;
-	return i2c_write_byte(SOFIA_I2C_ADDR, SOFIA_POWER1_REG, dat);
-}
+
 /* set USB power on/off */
 int sx1_setusbpower(u8 onoff)
 {
 	int err;
 	u8 dat = 0;
-	err = i2c_read_byte(SOFIA_I2C_ADDR, SOFIA_POWER1_REG, &dat);
+	err = sx1_i2c_read_byte(SOFIA_I2C_ADDR, SOFIA_POWER1_REG, &dat);
 	if (err < 0)
 		return err;
 	if (onoff)
 		dat |= SOFIA_USB_POWER;
 	else
 		dat &= ~SOFIA_USB_POWER;
-	return i2c_write_byte(SOFIA_I2C_ADDR, SOFIA_POWER1_REG, dat);
+	return sx1_i2c_write_byte(SOFIA_I2C_ADDR, SOFIA_POWER1_REG, dat);
 }
 
 EXPORT_SYMBOL(sx1_setkeylight);
@@ -168,7 +157,6 @@ EXPORT_SYMBOL(sx1_getkeylight);
 EXPORT_SYMBOL(sx1_setbacklight);
 EXPORT_SYMBOL(sx1_getbacklight);
 EXPORT_SYMBOL(sx1_setmmipower);
-EXPORT_SYMBOL(sx1_setmmcpower);
 EXPORT_SYMBOL(sx1_setusbpower);
 
 /*----------- Keypad -------------------------*/
@@ -278,21 +266,6 @@ static struct omap_mcbsp_reg_cfg mcbsp1_regs = {
 	.srgr2	= FSGM | FPER(31),	/* SRGR2=101f */
 	.pcr0	= FSXM | FSRM | CLKXM | CLKRM | FSXP | FSRP | CLKXP | CLKRP,
 						/* PCR0 =0f0f */
-};
-
-/* TODO: PCM interface - McBSP2 */
-static struct omap_mcbsp_reg_cfg mcbsp2_regs = {
-	.spcr2	= FRST | GRST | XRST | XINTM(3),	/* SPCR2=F1 */
-	.spcr1	= RINTM(3) | RRST,	/* SPCR1=30 */
-	.rcr2	= 0,	/* RCR2 =00 */
-	.rcr1	= RFRLEN1(1) | RWDLEN1(OMAP_MCBSP_WORD_16), /* RCR1 = 140 */
-	.xcr2	= 0,	/* XCR2 = 0 */
-	.xcr1	= XFRLEN1(1) | XWDLEN1(OMAP_MCBSP_WORD_16), /* XCR1 = 140 */
-	.srgr1	= FWID(15) | CLKGDV(12),	/* SRGR1=0f0c */
-	.srgr2	= FSGM | FPER(31),	/* SRGR2=101f */
-	.pcr0	= FSXM | FSRM | CLKXM | CLKRM | FSXP | FSRP | CLKXP | CLKRP,
-						/* PCR0=0f0f */
-	/* mcbsp: slave */
 };
 
 static struct omap_alsa_codec_config sx1_alsa_config = {
@@ -407,11 +380,8 @@ static struct omap_usb_config sx1_usb_config __initdata = {
 
 static struct omap_mmc_config sx1_mmc_config __initdata = {
 	.mmc [0] = {
-		.enabled 	= 1,
+		.enabled	= 1,
 		.wire4		= 0,
-		.wp_pin		= -1,
-		.power_pin	= -1, /* power is in Sofia */
-		.switch_pin	= OMAP_MPUIO(3),
 	},
 };
 
@@ -440,13 +410,15 @@ static struct omap_uart_config sx1_uart_config __initdata = {
 	.enabled_uarts = ((1 << 0) | (1 << 1) | (1 << 2)),
 };
 
-static struct omap_board_config_kernel sx1_config[] = {
+static struct omap_board_config_kernel sx1_config[] __initdata = {
 	{ OMAP_TAG_USB,	&sx1_usb_config },
 	{ OMAP_TAG_MMC,	&sx1_mmc_config },
 	{ OMAP_TAG_LCD,	&sx1_lcd_config },
 	{ OMAP_TAG_UART,	&sx1_uart_config },
 };
+
 /*-----------------------------------------*/
+
 static void __init omap_sx1_init(void)
 {
 	platform_add_devices(sx1_devices, ARRAY_SIZE(sx1_devices));
@@ -454,6 +426,8 @@ static void __init omap_sx1_init(void)
 	omap_board_config = sx1_config;
 	omap_board_config_size = ARRAY_SIZE(sx1_config);
 	omap_serial_init();
+	omap_register_i2c_bus(1, 100, NULL, 0);
+	sx1_mmc_init();
 
 	/* turn on USB power */
 	/* sx1_setusbpower(1); cant do it here because i2c is not ready */

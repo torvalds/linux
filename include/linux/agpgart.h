@@ -38,6 +38,7 @@
 #define AGPIOC_DEALLOCATE _IOW (AGPIOC_BASE, 7, int)
 #define AGPIOC_BIND       _IOW (AGPIOC_BASE, 8, struct agp_bind*)
 #define AGPIOC_UNBIND     _IOW (AGPIOC_BASE, 9, struct agp_unbind*)
+#define AGPIOC_CHIPSET_FLUSH _IO (AGPIOC_BASE, 10)
 
 #define AGP_DEVICE      "/dev/agpgart"
 

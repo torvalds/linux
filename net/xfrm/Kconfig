@@ -38,7 +38,7 @@ config XFRM_MIGRATE
 
 config XFRM_STATISTICS
 	bool "Transformation statistics (EXPERIMENTAL)"
-	depends on XFRM && PROC_FS && EXPERIMENTAL
+	depends on INET && XFRM && PROC_FS && EXPERIMENTAL
 	---help---
 	  This statistics is not a SNMP/MIB specification but shows
 	  statistics about transformation error (or almost error) factor

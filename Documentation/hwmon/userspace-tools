@@ -14,7 +14,7 @@ Lm-sensors
 
 Core set of utilities that will allow you to obtain health information,
 setup monitoring limits etc. You can get them on their homepage
-http://www.lm-sensors.nu/ or as a package from your Linux distribution.
+http://www.lm-sensors.org/ or as a package from your Linux distribution.
 
 If from website:
 Get lm-sensors from project web site. Please note, you need only userspace

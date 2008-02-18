@@ -65,4 +65,3 @@ extern void drm_ht_remove(struct drm_open_hash *ht);
 
 
 #endif
-

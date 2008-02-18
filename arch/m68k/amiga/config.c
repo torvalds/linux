@@ -23,6 +23,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/zorro.h>
+#include <linux/module.h>
 
 #include <asm/bootinfo.h>
 #include <asm/setup.h>
@@ -36,13 +37,24 @@
 #include <asm/io.h>
 
 unsigned long amiga_model;
+EXPORT_SYMBOL(amiga_model);
+
 unsigned long amiga_eclock;
+EXPORT_SYMBOL(amiga_eclock);
+
 unsigned long amiga_masterclock;
+
 unsigned long amiga_colorclock;
+EXPORT_SYMBOL(amiga_colorclock);
+
 unsigned long amiga_chipset;
+EXPORT_SYMBOL(amiga_chipset);
+
 unsigned char amiga_vblank;
 unsigned char amiga_psfreq;
+
 struct amiga_hw_present amiga_hw_present;
+EXPORT_SYMBOL(amiga_hw_present);
 
 static char s_a500[] __initdata = "A500";
 static char s_a500p[] __initdata = "A500+";

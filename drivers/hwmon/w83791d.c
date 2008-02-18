@@ -840,14 +840,12 @@ static ssize_t store_vrm_reg(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct w83791d_data *data = i2c_get_clientdata(client);
-	unsigned long val = simple_strtoul(buf, NULL, 10);
+	struct w83791d_data *data = dev_get_drvdata(dev);
 
 	/* No lock needed as vrm is internal to the driver
 	   (not read from a chip register) and so is not
 	   updated in w83791d_update_device() */
-	data->vrm = val;
+	data->vrm = simple_strtoul(buf, NULL, 10);
 
 	return count;
 }

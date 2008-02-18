@@ -974,6 +974,9 @@ static void cm_format_req(struct cm_req_msg *req_msg,
 			  struct cm_id_private *cm_id_priv,
 			  struct ib_cm_req_param *param)
 {
+	struct ib_sa_path_rec *pri_path = param->primary_path;
+	struct ib_sa_path_rec *alt_path = param->alternate_path;
+
 	cm_format_mad_hdr(&req_msg->hdr, CM_REQ_ATTR_ID,
 			  cm_form_tid(cm_id_priv, CM_MSG_SEQUENCE_REQ));
 
@@ -997,35 +1000,46 @@ static void cm_format_req(struct cm_req_msg *req_msg,
 	cm_req_set_max_cm_retries(req_msg, param->max_cm_retries);
 	cm_req_set_srq(req_msg, param->srq);
 
-	req_msg->primary_local_lid = param->primary_path->slid;
-	req_msg->primary_remote_lid = param->primary_path->dlid;
-	req_msg->primary_local_gid = param->primary_path->sgid;
-	req_msg->primary_remote_gid = param->primary_path->dgid;
-	cm_req_set_primary_flow_label(req_msg, param->primary_path->flow_label);
-	cm_req_set_primary_packet_rate(req_msg, param->primary_path->rate);
-	req_msg->primary_traffic_class = param->primary_path->traffic_class;
-	req_msg->primary_hop_limit = param->primary_path->hop_limit;
-	cm_req_set_primary_sl(req_msg, param->primary_path->sl);
-	cm_req_set_primary_subnet_local(req_msg, 1); /* local only... */
+	if (pri_path->hop_limit <= 1) {
+		req_msg->primary_local_lid = pri_path->slid;
+		req_msg->primary_remote_lid = pri_path->dlid;
+	} else {
+		/* Work-around until there's a way to obtain remote LID info */
+		req_msg->primary_local_lid = IB_LID_PERMISSIVE;
+		req_msg->primary_remote_lid = IB_LID_PERMISSIVE;
+	}
+	req_msg->primary_local_gid = pri_path->sgid;
+	req_msg->primary_remote_gid = pri_path->dgid;
+	cm_req_set_primary_flow_label(req_msg, pri_path->flow_label);
+	cm_req_set_primary_packet_rate(req_msg, pri_path->rate);
+	req_msg->primary_traffic_class = pri_path->traffic_class;
+	req_msg->primary_hop_limit = pri_path->hop_limit;
+	cm_req_set_primary_sl(req_msg, pri_path->sl);
+	cm_req_set_primary_subnet_local(req_msg, (pri_path->hop_limit <= 1));
 	cm_req_set_primary_local_ack_timeout(req_msg,
 		cm_ack_timeout(cm_id_priv->av.port->cm_dev->ack_delay,
-			       param->primary_path->packet_life_time));
+			       pri_path->packet_life_time));
 
-	if (param->alternate_path) {
-		req_msg->alt_local_lid = param->alternate_path->slid;
-		req_msg->alt_remote_lid = param->alternate_path->dlid;
-		req_msg->alt_local_gid = param->alternate_path->sgid;
-		req_msg->alt_remote_gid = param->alternate_path->dgid;
+	if (alt_path) {
+		if (alt_path->hop_limit <= 1) {
+			req_msg->alt_local_lid = alt_path->slid;
+			req_msg->alt_remote_lid = alt_path->dlid;
+		} else {
+			req_msg->alt_local_lid = IB_LID_PERMISSIVE;
+			req_msg->alt_remote_lid = IB_LID_PERMISSIVE;
+		}
+		req_msg->alt_local_gid = alt_path->sgid;
+		req_msg->alt_remote_gid = alt_path->dgid;
 		cm_req_set_alt_flow_label(req_msg,
-					  param->alternate_path->flow_label);
-		cm_req_set_alt_packet_rate(req_msg, param->alternate_path->rate);
-		req_msg->alt_traffic_class = param->alternate_path->traffic_class;
-		req_msg->alt_hop_limit = param->alternate_path->hop_limit;
-		cm_req_set_alt_sl(req_msg, param->alternate_path->sl);
-		cm_req_set_alt_subnet_local(req_msg, 1); /* local only... */
+					  alt_path->flow_label);
+		cm_req_set_alt_packet_rate(req_msg, alt_path->rate);
+		req_msg->alt_traffic_class = alt_path->traffic_class;
+		req_msg->alt_hop_limit = alt_path->hop_limit;
+		cm_req_set_alt_sl(req_msg, alt_path->sl);
+		cm_req_set_alt_subnet_local(req_msg, (alt_path->hop_limit <= 1));
 		cm_req_set_alt_local_ack_timeout(req_msg,
 			cm_ack_timeout(cm_id_priv->av.port->cm_dev->ack_delay,
-				       param->alternate_path->packet_life_time));
+				       alt_path->packet_life_time));
 	}
 
 	if (param->private_data && param->private_data_len)
@@ -1441,6 +1455,34 @@ out:
 	return listen_cm_id_priv;
 }
 
+/*
+ * Work-around for inter-subnet connections.  If the LIDs are permissive,
+ * we need to override the LID/SL data in the REQ with the LID information
+ * in the work completion.
+ */
+static void cm_process_routed_req(struct cm_req_msg *req_msg, struct ib_wc *wc)
+{
+	if (!cm_req_get_primary_subnet_local(req_msg)) {
+		if (req_msg->primary_local_lid == IB_LID_PERMISSIVE) {
+			req_msg->primary_local_lid = cpu_to_be16(wc->slid);
+			cm_req_set_primary_sl(req_msg, wc->sl);
+		}
+
+		if (req_msg->primary_remote_lid == IB_LID_PERMISSIVE)
+			req_msg->primary_remote_lid = cpu_to_be16(wc->dlid_path_bits);
+	}
+
+	if (!cm_req_get_alt_subnet_local(req_msg)) {
+		if (req_msg->alt_local_lid == IB_LID_PERMISSIVE) {
+			req_msg->alt_local_lid = cpu_to_be16(wc->slid);
+			cm_req_set_alt_sl(req_msg, wc->sl);
+		}
+
+		if (req_msg->alt_remote_lid == IB_LID_PERMISSIVE)
+			req_msg->alt_remote_lid = cpu_to_be16(wc->dlid_path_bits);
+	}
+}
+
 static int cm_req_handler(struct cm_work *work)
 {
 	struct ib_cm_id *cm_id;
@@ -1481,6 +1523,7 @@ static int cm_req_handler(struct cm_work *work)
 	cm_id_priv->id.service_id = req_msg->service_id;
 	cm_id_priv->id.service_mask = __constant_cpu_to_be64(~0ULL);
 
+	cm_process_routed_req(req_msg, work->mad_recv_wc->wc);
 	cm_format_paths_from_req(req_msg, &work->path[0], &work->path[1]);
 	ret = cm_init_av_by_path(&work->path[0], &cm_id_priv->av);
 	if (ret) {
@@ -3544,8 +3587,6 @@ static void cm_release_port_obj(struct kobject *obj)
 {
 	struct cm_port *cm_port;
 
-	printk(KERN_ERR "free cm port\n");
-
 	cm_port = container_of(obj, struct cm_port, port_obj);
 	kfree(cm_port);
 }
@@ -3557,8 +3598,6 @@ static struct kobj_type cm_port_obj_type = {
 static void cm_release_dev_obj(struct kobject *obj)
 {
 	struct cm_device *cm_dev;
-
-	printk(KERN_ERR "free cm dev\n");
 
 	cm_dev = container_of(obj, struct cm_device, dev_obj);
 	kfree(cm_dev);
@@ -3573,18 +3612,12 @@ struct class cm_class = {
 };
 EXPORT_SYMBOL(cm_class);
 
-static void cm_remove_fs_obj(struct kobject *obj)
-{
-	kobject_put(obj->parent);
-	kobject_put(obj);
-}
-
 static int cm_create_port_fs(struct cm_port *port)
 {
 	int i, ret;
 
 	ret = kobject_init_and_add(&port->port_obj, &cm_port_obj_type,
-				   kobject_get(&port->cm_dev->dev_obj),
+				   &port->cm_dev->dev_obj,
 				   "%d", port->port_num);
 	if (ret) {
 		kfree(port);
@@ -3594,7 +3627,7 @@ static int cm_create_port_fs(struct cm_port *port)
 	for (i = 0; i < CM_COUNTER_GROUPS; i++) {
 		ret = kobject_init_and_add(&port->counter_group[i].obj,
 					   &cm_counter_obj_type,
-					   kobject_get(&port->port_obj),
+					   &port->port_obj,
 					   "%s", counter_group_names[i]);
 		if (ret)
 			goto error;
@@ -3604,8 +3637,8 @@ static int cm_create_port_fs(struct cm_port *port)
 
 error:
 	while (i--)
-		cm_remove_fs_obj(&port->counter_group[i].obj);
-	cm_remove_fs_obj(&port->port_obj);
+		kobject_put(&port->counter_group[i].obj);
+	kobject_put(&port->port_obj);
 	return ret;
 
 }
@@ -3615,9 +3648,9 @@ static void cm_remove_port_fs(struct cm_port *port)
 	int i;
 
 	for (i = 0; i < CM_COUNTER_GROUPS; i++)
-		cm_remove_fs_obj(&port->counter_group[i].obj);
+		kobject_put(&port->counter_group[i].obj);
 
-	cm_remove_fs_obj(&port->port_obj);
+	kobject_put(&port->port_obj);
 }
 
 static void cm_add_one(struct ib_device *device)
@@ -3701,7 +3734,7 @@ error1:
 		ib_unregister_mad_agent(port->mad_agent);
 		cm_remove_port_fs(port);
 	}
-	cm_remove_fs_obj(&cm_dev->dev_obj);
+	kobject_put(&cm_dev->dev_obj);
 }
 
 static void cm_remove_one(struct ib_device *device)
@@ -3728,7 +3761,7 @@ static void cm_remove_one(struct ib_device *device)
 		ib_unregister_mad_agent(port->mad_agent);
 		cm_remove_port_fs(port);
 	}
-	cm_remove_fs_obj(&cm_dev->dev_obj);
+	kobject_put(&cm_dev->dev_obj);
 }
 
 static int __init ib_cm_init(void)

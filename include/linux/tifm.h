@@ -72,6 +72,7 @@ enum {
 #define TIFM_FIFO_READY           0x00000001
 #define TIFM_FIFO_INT_SETALL      0x0000ffff
 #define TIFM_FIFO_INTMASK         0x00000005
+#define TIFM_FIFO_SIZE            0x00000200
 
 #define TIFM_DMA_RESET            0x00000002
 #define TIFM_DMA_TX               0x00008000
@@ -124,6 +125,8 @@ struct tifm_adapter {
 
 	void                (*eject)(struct tifm_adapter *fm,
 				     struct tifm_dev *sock);
+	int                 (*has_ms_pif)(struct tifm_adapter *fm,
+					  struct tifm_dev *sock);
 
 	struct tifm_dev     *sockets[0];
 };
@@ -141,6 +144,7 @@ struct tifm_dev *tifm_alloc_device(struct tifm_adapter *fm, unsigned int id,
 int tifm_register_driver(struct tifm_driver *drv);
 void tifm_unregister_driver(struct tifm_driver *drv);
 void tifm_eject(struct tifm_dev *sock);
+int tifm_has_ms_pif(struct tifm_dev *sock);
 int tifm_map_sg(struct tifm_dev *sock, struct scatterlist *sg, int nents,
 		int direction);
 void tifm_unmap_sg(struct tifm_dev *sock, struct scatterlist *sg, int nents,

@@ -8,9 +8,14 @@
  * published by the Free Software Foundation.
 */
 
+#include <asm/arch/orion.h>
+
 	.macro  addruart,rx
-	mov   \rx, #0xf1000000
-	orr   \rx, \rx, #0x00012000
+	mrc	p15, 0, \rx, c1, c0
+	tst	\rx, #1					@ MMU enabled?
+	ldreq	\rx, =ORION_REGS_PHYS_BASE
+	ldrne	\rx, =ORION_REGS_VIRT_BASE
+	orr	\rx, \rx, #0x00012000
 	.endm
 
 #define UART_SHIFT	2

@@ -361,17 +361,21 @@ void ide_end_drive_cmd (ide_drive_t *drive, u8 stat, u8 err)
 	spin_unlock_irqrestore(&ide_lock, flags);
 
 	if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
-		ide_task_t *args = (ide_task_t *) rq->special;
+		ide_task_t *task = (ide_task_t *)rq->special;
+
 		if (rq->errors == 0)
-			rq->errors = !OK_STAT(stat,READY_STAT,BAD_STAT);
-			
-		if (args) {
-			struct ide_taskfile *tf = &args->tf;
+			rq->errors = !OK_STAT(stat, READY_STAT, BAD_STAT);
+
+		if (task) {
+			struct ide_taskfile *tf = &task->tf;
 
 			tf->error = err;
 			tf->status = stat;
 
-			ide_tf_read(drive, args);
+			ide_tf_read(drive, task);
+
+			if (task->tf_flags & IDE_TFLAG_DYN)
+				kfree(task);
 		}
 	} else if (blk_pm_request(rq)) {
 		struct request_pm_state *pm = rq->data;
@@ -388,7 +392,8 @@ void ide_end_drive_cmd (ide_drive_t *drive, u8 stat, u8 err)
 	spin_lock_irqsave(&ide_lock, flags);
 	HWGROUP(drive)->rq = NULL;
 	rq->errors = err;
-	if (__blk_end_request(rq, (rq->errors ? -EIO : 0), 0))
+	if (unlikely(__blk_end_request(rq, (rq->errors ? -EIO : 0),
+				       blk_rq_bytes(rq))))
 		BUG();
 	spin_unlock_irqrestore(&ide_lock, flags);
 }
@@ -466,7 +471,7 @@ static ide_startstop_t ide_ata_error(ide_drive_t *drive, struct request *rq, u8 
 		return ide_stopped;
 	}
 
-	if (hwif->INB(IDE_STATUS_REG) & (BUSY_STAT|DRQ_STAT))
+	if (ide_read_status(drive) & (BUSY_STAT | DRQ_STAT))
 		rq->errors |= ERROR_RESET;
 
 	if ((rq->errors & ERROR_RESET) == ERROR_RESET) {
@@ -493,7 +498,7 @@ static ide_startstop_t ide_atapi_error(ide_drive_t *drive, struct request *rq, u
 		/* add decoding error stuff */
 	}
 
-	if (hwif->INB(IDE_STATUS_REG) & (BUSY_STAT|DRQ_STAT))
+	if (ide_read_status(drive) & (BUSY_STAT | DRQ_STAT))
 		/* force an abort */
 		hwif->OUTB(WIN_IDLEIMMEDIATE, IDE_COMMAND_REG);
 
@@ -821,9 +826,8 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 #ifdef DEBUG
  	printk("%s: DRIVE_CMD (null)\n", drive->name);
 #endif
- 	ide_end_drive_cmd(drive,
-			hwif->INB(IDE_STATUS_REG),
-			hwif->INB(IDE_ERROR_REG));
+	ide_end_drive_cmd(drive, ide_read_status(drive), ide_read_error(drive));
+
  	return ide_stopped;
 }
 
@@ -1231,7 +1235,7 @@ static ide_startstop_t ide_dma_timeout_retry(ide_drive_t *drive, int error)
 		printk(KERN_WARNING "%s: DMA timeout error\n", drive->name);
 		(void)HWIF(drive)->ide_dma_end(drive);
 		ret = ide_error(drive, "dma timeout error",
-						hwif->INB(IDE_STATUS_REG));
+				ide_read_status(drive));
 	} else {
 		printk(KERN_WARNING "%s: DMA timeout retry\n", drive->name);
 		hwif->dma_timeout(drive);
@@ -1355,7 +1359,8 @@ void ide_timer_expiry (unsigned long data)
 					startstop = ide_dma_timeout_retry(drive, wait);
 				} else
 					startstop =
-					ide_error(drive, "irq timeout", hwif->INB(IDE_STATUS_REG));
+					ide_error(drive, "irq timeout",
+						  ide_read_status(drive));
 			}
 			drive->service_time = jiffies - drive->service_start;
 			spin_lock_irq(&ide_lock);

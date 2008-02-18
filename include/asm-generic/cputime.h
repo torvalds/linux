@@ -18,6 +18,7 @@ typedef unsigned long cputime_t;
 #define cputime_lt(__a, __b)		((__a) <  (__b))
 #define cputime_le(__a, __b)		((__a) <= (__b))
 #define cputime_to_jiffies(__ct)	(__ct)
+#define cputime_to_scaled(__ct)		(__ct)
 #define jiffies_to_cputime(__hz)	(__hz)
 
 typedef u64 cputime64_t;

@@ -1498,7 +1498,7 @@ struct inode *gfs2_dir_search(struct inode *dir, const struct qstr *name)
 	dent = gfs2_dirent_search(dir, name, gfs2_dirent_find, &bh);
 	if (dent) {
 		if (IS_ERR(dent))
-			return ERR_PTR(PTR_ERR(dent));
+			return ERR_CAST(dent);
 		inode = gfs2_inode_lookup(dir->i_sb, 
 				be16_to_cpu(dent->de_type),
 				be64_to_cpu(dent->de_inum.no_addr),

@@ -45,6 +45,7 @@
 #include <asm/sections.h>
 #include <asm/kdebug.h>
 #include <asm/numa.h>
+#include <asm/cacheflush.h>
 
 const struct dma_mapping_ops *dma_ops;
 EXPORT_SYMBOL(dma_ops);
@@ -528,13 +529,15 @@ void __init mem_init(void)
 		reservedpages << (PAGE_SHIFT-10),
 		datasize >> 10,
 		initsize >> 10);
+
+	cpa_init();
 }
 
 void free_init_pages(char *what, unsigned long begin, unsigned long end)
 {
-	unsigned long addr;
+	unsigned long addr = begin;
 
-	if (begin >= end)
+	if (addr >= end)
 		return;
 
 	/*
@@ -549,7 +552,7 @@ void free_init_pages(char *what, unsigned long begin, unsigned long end)
 #else
 	printk(KERN_INFO "Freeing %s: %luk freed\n", what, (end - begin) >> 10);
 
-	for (addr = begin; addr < end; addr += PAGE_SIZE) {
+	for (; addr < end; addr += PAGE_SIZE) {
 		ClearPageReserved(virt_to_page(addr));
 		init_page_count(virt_to_page(addr));
 		memset((void *)(addr & ~(PAGE_SIZE-1)),
@@ -591,10 +594,17 @@ void mark_rodata_ro(void)
 	if (end <= start)
 		return;
 
-	set_memory_ro(start, (end - start) >> PAGE_SHIFT);
 
 	printk(KERN_INFO "Write protecting the kernel read-only data: %luk\n",
 	       (end - start) >> 10);
+	set_memory_ro(start, (end - start) >> PAGE_SHIFT);
+
+	/*
+	 * The rodata section (but not the kernel text!) should also be
+	 * not-executable.
+	 */
+	start = ((unsigned long)__start_rodata + PAGE_SIZE - 1) & PAGE_MASK;
+	set_memory_nx(start, (end - start) >> PAGE_SHIFT);
 
 	rodata_test();
 
@@ -637,9 +647,9 @@ void __init reserve_bootmem_generic(unsigned long phys, unsigned len)
 
 	/* Should check here against the e820 map to avoid double free */
 #ifdef CONFIG_NUMA
-	reserve_bootmem_node(NODE_DATA(nid), phys, len);
+	reserve_bootmem_node(NODE_DATA(nid), phys, len, BOOTMEM_DEFAULT);
 #else
-	reserve_bootmem(phys, len);
+	reserve_bootmem(phys, len, BOOTMEM_DEFAULT);
 #endif
 	if (phys+len <= MAX_DMA_PFN*PAGE_SIZE) {
 		dma_reserve += len / PAGE_SIZE;

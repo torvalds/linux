@@ -147,11 +147,11 @@ typedef struct config_req_t {
 
 /* For RequestIO and ReleaseIO */
 typedef struct io_req_t {
-    ioaddr_t	BasePort1;
-    ioaddr_t	NumPorts1;
+    u_int	BasePort1;
+    u_int	NumPorts1;
     u_int	Attributes1;
-    ioaddr_t	BasePort2;
-    ioaddr_t	NumPorts2;
+    u_int	BasePort2;
+    u_int	NumPorts2;
     u_int	Attributes2;
     u_int	IOAddrLines;
 } io_req_t;

@@ -1216,7 +1216,7 @@ static void scsi_to_dev_dir(unsigned int i, unsigned int j) {
       cpp->xdir = DTD_IN;
       return;
       }
-   else if (SCpnt->sc_data_direction == DMA_FROM_DEVICE) {
+   else if (SCpnt->sc_data_direction == DMA_TO_DEVICE) {
       cpp->xdir = DTD_OUT;
       return;
       }

@@ -80,7 +80,7 @@ void drm_ht_verbose_list(struct drm_open_hash *ht, unsigned long key)
 	}
 }
 
-static struct hlist_node *drm_ht_find_key(struct drm_open_hash *ht, 
+static struct hlist_node *drm_ht_find_key(struct drm_open_hash *ht,
 					  unsigned long key)
 {
 	struct drm_hash_item *entry;
@@ -129,7 +129,7 @@ int drm_ht_insert_item(struct drm_open_hash *ht, struct drm_hash_item *item)
 }
 
 /*
- * Just insert an item and return any "bits" bit key that hasn't been 
+ * Just insert an item and return any "bits" bit key that hasn't been
  * used before.
  */
 int drm_ht_just_insert_please(struct drm_open_hash *ht, struct drm_hash_item *item,
@@ -200,4 +200,3 @@ void drm_ht_remove(struct drm_open_hash *ht)
 		ht->table = NULL;
 	}
 }
-

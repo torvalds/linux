@@ -734,6 +734,7 @@ static const struct super_operations hugetlbfs_ops = {
 	.delete_inode	= hugetlbfs_delete_inode,
 	.drop_inode	= hugetlbfs_drop_inode,
 	.put_super	= hugetlbfs_put_super,
+	.show_options	= generic_show_options,
 };
 
 static int
@@ -768,7 +769,7 @@ hugetlbfs_parse_options(char *options, struct hugetlbfs_config *pconfig)
 		case Opt_mode:
 			if (match_octal(&args[0], &option))
  				goto bad_val;
-			pconfig->mode = option & 0777U;
+			pconfig->mode = option & 01777U;
 			break;
 
 		case Opt_size: {
@@ -816,6 +817,8 @@ hugetlbfs_fill_super(struct super_block *sb, void *data, int silent)
 	int ret;
 	struct hugetlbfs_config config;
 	struct hugetlbfs_sb_info *sbinfo;
+
+	save_mount_options(sb, data);
 
 	config.nr_blocks = -1; /* No limit on size by default */
 	config.nr_inodes = -1; /* No limit on number of inodes by default */

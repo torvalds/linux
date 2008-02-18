@@ -14,7 +14,6 @@ struct irq_fd {
 	int fd;
 	int type;
 	int irq;
-	int pid;
 	int events;
 	int current_events;
 };

@@ -26,7 +26,6 @@ struct thread_struct {
 	 * as of 2.6.11).
 	 */
 	int forking;
-	int nsyscalls;
 	struct pt_regs regs;
 	int singlestep_syscall;
 	void *fault_addr;
@@ -58,7 +57,6 @@ struct thread_struct {
 #define INIT_THREAD \
 { \
 	.forking		= 0, \
-	.nsyscalls		= 0, \
 	.regs		   	= EMPTY_REGS,	\
 	.fault_addr		= NULL, \
 	.prev_sched		= NULL, \
@@ -67,10 +65,6 @@ struct thread_struct {
 	.arch			= INIT_ARCH_THREAD, \
 	.request		= { 0 } \
 }
-
-typedef struct {
-	unsigned long seg;
-} mm_segment_t;
 
 extern struct task_struct *alloc_task_struct(void);
 
@@ -99,7 +93,16 @@ static inline void mm_copy_segments(struct mm_struct *from_mm,
  */
 extern unsigned long task_size;
 
-#define TASK_SIZE	(task_size)
+#define TASK_SIZE (task_size)
+
+#undef STACK_TOP
+#undef STACK_TOP_MAX
+
+extern unsigned long stacksizelim;
+
+#define STACK_ROOM	(stacksizelim)
+#define STACK_TOP	(TASK_SIZE - 2 * PAGE_SIZE)
+#define STACK_TOP_MAX	STACK_TOP
 
 /* This decides where the kernel will search for a free chunk of vm
  * space during mmap's.
@@ -128,6 +131,6 @@ extern struct cpuinfo_um cpu_data[];
 
 
 #define KSTK_REG(tsk, reg) get_thread_reg(reg, &tsk->thread.switch_buf)
-#define get_wchan(p) (0)
+extern unsigned long get_wchan(struct task_struct *p);
 
 #endif

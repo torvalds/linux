@@ -16,6 +16,7 @@
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/backlight.h>
 
 #include <asm/arch/board.h>
 #include <asm/arch/cpu.h>
@@ -68,6 +69,107 @@ static void atmel_lcdfb_update_dma2d(struct atmel_lcdfb_info *sinfo,
 		    | ATMEL_LCDC_DMAUPDT);
 }
 #endif
+
+static const u32 contrast_ctr = ATMEL_LCDC_PS_DIV8
+		| ATMEL_LCDC_POL_POSITIVE
+		| ATMEL_LCDC_ENA_PWMENABLE;
+
+#ifdef CONFIG_BACKLIGHT_ATMEL_LCDC
+
+/* some bl->props field just changed */
+static int atmel_bl_update_status(struct backlight_device *bl)
+{
+	struct atmel_lcdfb_info *sinfo = bl_get_data(bl);
+	int			power = sinfo->bl_power;
+	int			brightness = bl->props.brightness;
+
+	/* REVISIT there may be a meaningful difference between
+	 * fb_blank and power ... there seem to be some cases
+	 * this doesn't handle correctly.
+	 */
+	if (bl->props.fb_blank != sinfo->bl_power)
+		power = bl->props.fb_blank;
+	else if (bl->props.power != sinfo->bl_power)
+		power = bl->props.power;
+
+	if (brightness < 0 && power == FB_BLANK_UNBLANK)
+		brightness = lcdc_readl(sinfo, ATMEL_LCDC_CONTRAST_VAL);
+	else if (power != FB_BLANK_UNBLANK)
+		brightness = 0;
+
+	lcdc_writel(sinfo, ATMEL_LCDC_CONTRAST_VAL, brightness);
+	lcdc_writel(sinfo, ATMEL_LCDC_CONTRAST_CTR,
+			brightness ? contrast_ctr : 0);
+
+	bl->props.fb_blank = bl->props.power = sinfo->bl_power = power;
+
+	return 0;
+}
+
+static int atmel_bl_get_brightness(struct backlight_device *bl)
+{
+	struct atmel_lcdfb_info *sinfo = bl_get_data(bl);
+
+	return lcdc_readl(sinfo, ATMEL_LCDC_CONTRAST_VAL);
+}
+
+static struct backlight_ops atmel_lcdc_bl_ops = {
+	.update_status = atmel_bl_update_status,
+	.get_brightness = atmel_bl_get_brightness,
+};
+
+static void init_backlight(struct atmel_lcdfb_info *sinfo)
+{
+	struct backlight_device	*bl;
+
+	sinfo->bl_power = FB_BLANK_UNBLANK;
+
+	if (sinfo->backlight)
+		return;
+
+	bl = backlight_device_register("backlight", &sinfo->pdev->dev,
+			sinfo, &atmel_lcdc_bl_ops);
+	if (IS_ERR(sinfo->backlight)) {
+		dev_err(&sinfo->pdev->dev, "error %ld on backlight register\n",
+				PTR_ERR(bl));
+		return;
+	}
+	sinfo->backlight = bl;
+
+	bl->props.power = FB_BLANK_UNBLANK;
+	bl->props.fb_blank = FB_BLANK_UNBLANK;
+	bl->props.max_brightness = 0xff;
+	bl->props.brightness = atmel_bl_get_brightness(bl);
+}
+
+static void exit_backlight(struct atmel_lcdfb_info *sinfo)
+{
+	if (sinfo->backlight)
+		backlight_device_unregister(sinfo->backlight);
+}
+
+#else
+
+static void init_backlight(struct atmel_lcdfb_info *sinfo)
+{
+	dev_warn(&sinfo->pdev->dev, "backlight control is not available\n");
+}
+
+static void exit_backlight(struct atmel_lcdfb_info *sinfo)
+{
+}
+
+#endif
+
+static void init_contrast(struct atmel_lcdfb_info *sinfo)
+{
+	/* have some default contrast/backlight settings */
+	lcdc_writel(sinfo, ATMEL_LCDC_CONTRAST_CTR, contrast_ctr);
+	lcdc_writel(sinfo, ATMEL_LCDC_CONTRAST_VAL, ATMEL_LCDC_CVAL_DEFAULT);
+
+	if (sinfo->lcdcon_is_backlight)
+		init_backlight(sinfo);
+}
 
 
 static struct fb_fix_screeninfo atmel_lcdfb_fix __initdata = {
@@ -202,6 +304,26 @@ static int atmel_lcdfb_check_var(struct fb_var_screeninfo *var,
 	var->transp.msb_right = 0;
 	var->transp.offset = var->transp.length = 0;
 	var->xoffset = var->yoffset = 0;
+
+	/* Saturate vertical and horizontal timings at maximum values */
+	var->vsync_len = min_t(u32, var->vsync_len,
+			(ATMEL_LCDC_VPW >> ATMEL_LCDC_VPW_OFFSET) + 1);
+	var->upper_margin = min_t(u32, var->upper_margin,
+			ATMEL_LCDC_VBP >> ATMEL_LCDC_VBP_OFFSET);
+	var->lower_margin = min_t(u32, var->lower_margin,
+			ATMEL_LCDC_VFP);
+	var->right_margin = min_t(u32, var->right_margin,
+			(ATMEL_LCDC_HFP >> ATMEL_LCDC_HFP_OFFSET) + 1);
+	var->hsync_len = min_t(u32, var->hsync_len,
+			(ATMEL_LCDC_HPW >> ATMEL_LCDC_HPW_OFFSET) + 1);
+	var->left_margin = min_t(u32, var->left_margin,
+			ATMEL_LCDC_HBP + 1);
+
+	/* Some parameters can't be zero */
+	var->vsync_len = max_t(u32, var->vsync_len, 1);
+	var->right_margin = max_t(u32, var->right_margin, 1);
+	var->hsync_len = max_t(u32, var->hsync_len, 1);
+	var->left_margin = max_t(u32, var->left_margin, 1);
 
 	switch (var->bits_per_pixel) {
 	case 1:
@@ -370,10 +492,6 @@ static int atmel_lcdfb_set_par(struct fb_info *info)
 	/* Disable all interrupts */
 	lcdc_writel(sinfo, ATMEL_LCDC_IDR, ~0UL);
 
-	/* Set contrast */
-	value = ATMEL_LCDC_PS_DIV8 | ATMEL_LCDC_POL_POSITIVE | ATMEL_LCDC_ENA_PWMENABLE;
-	lcdc_writel(sinfo, ATMEL_LCDC_CONTRAST_CTR, value);
-	lcdc_writel(sinfo, ATMEL_LCDC_CONTRAST_VAL, ATMEL_LCDC_CVAL_DEFAULT);
 	/* ...wait for DMA engine to become idle... */
 	while (lcdc_readl(sinfo, ATMEL_LCDC_DMACON) & ATMEL_LCDC_DMABUSY)
 		msleep(10);
@@ -577,6 +695,7 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 		sinfo->default_monspecs = pdata_sinfo->default_monspecs;
 		sinfo->atmel_lcdfb_power_control = pdata_sinfo->atmel_lcdfb_power_control;
 		sinfo->guard_time = pdata_sinfo->guard_time;
+		sinfo->lcdcon_is_backlight = pdata_sinfo->lcdcon_is_backlight;
 	} else {
 		dev_err(dev, "cannot get default configuration\n");
 		goto free_info;
@@ -670,6 +789,9 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 		goto release_mem;
 	}
 
+	/* Initialize PWM for contrast or backlight ("off") */
+	init_contrast(sinfo);
+
 	/* interrupt */
 	ret = request_irq(sinfo->irq_base, atmel_lcdfb_interrupt, 0, pdev->name, info);
 	if (ret) {
@@ -721,6 +843,7 @@ free_cmap:
 unregister_irqs:
 	free_irq(sinfo->irq_base, info);
 unmap_mmio:
+	exit_backlight(sinfo);
 	iounmap(sinfo->mmio);
 release_mem:
  	release_mem_region(info->fix.mmio_start, info->fix.mmio_len);
@@ -755,6 +878,7 @@ static int __exit atmel_lcdfb_remove(struct platform_device *pdev)
 	if (!sinfo)
 		return 0;
 
+	exit_backlight(sinfo);
 	if (sinfo->atmel_lcdfb_power_control)
 		sinfo->atmel_lcdfb_power_control(0);
 	unregister_framebuffer(info);
@@ -781,6 +905,9 @@ static int __exit atmel_lcdfb_remove(struct platform_device *pdev)
 
 static struct platform_driver atmel_lcdfb_driver = {
 	.remove		= __exit_p(atmel_lcdfb_remove),
+
+// FIXME need suspend, resume
+
 	.driver		= {
 		.name	= "atmel_lcdfb",
 		.owner	= THIS_MODULE,

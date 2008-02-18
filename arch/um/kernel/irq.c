@@ -107,10 +107,9 @@ int activate_fd(int irq, int fd, int type, void *dev_id)
 	struct pollfd *tmp_pfd;
 	struct irq_fd *new_fd, *irq_fd;
 	unsigned long flags;
-	int pid, events, err, n;
+	int events, err, n;
 
-	pid = os_getpid();
-	err = os_set_fd_async(fd, pid);
+	err = os_set_fd_async(fd);
 	if (err < 0)
 		goto out;
 
@@ -127,7 +126,6 @@ int activate_fd(int irq, int fd, int type, void *dev_id)
 				     .fd 		= fd,
 				     .type 		= type,
 				     .irq 		= irq,
-				     .pid  		= pid,
 				     .events 		= events,
 				     .current_events 	= 0 } );
 

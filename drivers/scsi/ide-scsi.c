@@ -287,7 +287,7 @@ static int idescsi_end_request(ide_drive_t *, int, int);
 static ide_startstop_t
 idescsi_atapi_error(ide_drive_t *drive, struct request *rq, u8 stat, u8 err)
 {
-	if (HWIF(drive)->INB(IDE_STATUS_REG) & (BUSY_STAT|DRQ_STAT))
+	if (ide_read_status(drive) & (BUSY_STAT | DRQ_STAT))
 		/* force an abort */
 		HWIF(drive)->OUTB(WIN_IDLEIMMEDIATE,IDE_COMMAND_REG);
 
@@ -423,7 +423,7 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 	}
 
 	/* Clear the interrupt */
-	stat = drive->hwif->INB(IDE_STATUS_REG);
+	stat = ide_read_status(drive);
 
 	if ((stat & DRQ_STAT) == 0) {
 		/* No more interrupts */

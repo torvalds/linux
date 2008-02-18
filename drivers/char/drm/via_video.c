@@ -33,7 +33,7 @@ void via_init_futex(drm_via_private_t * dev_priv)
 {
 	unsigned int i;
 
-	DRM_DEBUG("%s\n", __FUNCTION__);
+	DRM_DEBUG("\n");
 
 	for (i = 0; i < VIA_NR_XVMC_LOCKS; ++i) {
 		DRM_INIT_WAITQUEUE(&(dev_priv->decoder_queue[i]));
@@ -73,7 +73,7 @@ int via_decoder_futex(struct drm_device *dev, void *data, struct drm_file *file_
 	drm_via_sarea_t *sAPriv = dev_priv->sarea_priv;
 	int ret = 0;
 
-	DRM_DEBUG("%s\n", __FUNCTION__);
+	DRM_DEBUG("\n");
 
 	if (fx->lock > VIA_NR_XVMC_LOCKS)
 		return -EFAULT;

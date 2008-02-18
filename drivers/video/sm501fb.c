@@ -641,6 +641,7 @@ static void sm501fb_panel_power(struct sm501fb_info *fbi, int to)
 {
 	unsigned long control;
 	void __iomem *ctrl_reg = fbi->regs + SM501_DC_PANEL_CONTROL;
+	struct sm501_platdata_fbsub *pd = fbi->pdata->fb_pnl;
 
 	control = readl(ctrl_reg);
 
@@ -657,26 +658,34 @@ static void sm501fb_panel_power(struct sm501fb_info *fbi, int to)
 		sm501fb_sync_regs(fbi);
 		mdelay(10);
 
-		control |= SM501_DC_PANEL_CONTROL_BIAS;	/* VBIASEN */
-		writel(control, ctrl_reg);
-		sm501fb_sync_regs(fbi);
-		mdelay(10);
+		if (pd->flags & SM501FB_FLAG_PANEL_USE_VBIASEN) {
+			control |= SM501_DC_PANEL_CONTROL_BIAS;	/* VBIASEN */
+			writel(control, ctrl_reg);
+			sm501fb_sync_regs(fbi);
+			mdelay(10);
+		}
 
-		control |= SM501_DC_PANEL_CONTROL_FPEN;
-		writel(control, ctrl_reg);
-
+		if (pd->flags & SM501FB_FLAG_PANEL_USE_FPEN) {
+			control |= SM501_DC_PANEL_CONTROL_FPEN;
+			writel(control, ctrl_reg);
+			sm501fb_sync_regs(fbi);
+			mdelay(10);
+		}
 	} else if (!to && (control & SM501_DC_PANEL_CONTROL_VDD) != 0) {
 		/* disable panel power */
+		if (pd->flags & SM501FB_FLAG_PANEL_USE_FPEN) {
+			control &= ~SM501_DC_PANEL_CONTROL_FPEN;
+			writel(control, ctrl_reg);
+			sm501fb_sync_regs(fbi);
+			mdelay(10);
+		}
 
-		control &= ~SM501_DC_PANEL_CONTROL_FPEN;
-		writel(control, ctrl_reg);
-		sm501fb_sync_regs(fbi);
-		mdelay(10);
-
-		control &= ~SM501_DC_PANEL_CONTROL_BIAS;
-		writel(control, ctrl_reg);
-		sm501fb_sync_regs(fbi);
-		mdelay(10);
+		if (pd->flags & SM501FB_FLAG_PANEL_USE_VBIASEN) {
+			control &= ~SM501_DC_PANEL_CONTROL_BIAS;
+			writel(control, ctrl_reg);
+			sm501fb_sync_regs(fbi);
+			mdelay(10);
+		}
 
 		control &= ~SM501_DC_PANEL_CONTROL_DATA;
 		writel(control, ctrl_reg);
@@ -1267,6 +1276,7 @@ static int sm501fb_start(struct sm501fb_info *info,
 {
 	struct resource	*res;
 	struct device *dev;
+	int k;
 	int ret;
 
 	info->dev = dev = &pdev->dev;
@@ -1327,6 +1337,13 @@ static int sm501fb_start(struct sm501fb_info *info,
 	}
 
 	info->fbmem_len = (res->end - res->start)+1;
+
+	/* clear framebuffer memory - avoids garbage data on unused fb */
+	memset(info->fbmem, 0, info->fbmem_len);
+
+	/* clear palette ram - undefined at power on */
+	for (k = 0; k < (256 * 3); k++)
+		writel(0, info->regs + SM501_DC_PANEL_PALETTE + (k * 4));
 
 	/* enable display controller */
 	sm501_unit_power(dev->parent, SM501_GATE_DISPLAY, 1);
@@ -1681,6 +1698,15 @@ static int sm501fb_suspend_fb(struct sm501fb_info *info,
 	if (par->screen.size == 0)
 		return 0;
 
+	/* blank the relevant interface to ensure unit power minimised */
+	(par->ops.fb_blank)(FB_BLANK_POWERDOWN, fbi);
+
+	/* tell console/fb driver we are suspending */
+
+	acquire_console_sem();
+	fb_set_suspend(fbi, 1);
+	release_console_sem();
+
 	/* backup copies in case chip is powered down over suspend */
 
 	par->store_fb = vmalloc(par->screen.size);
@@ -1700,12 +1726,6 @@ static int sm501fb_suspend_fb(struct sm501fb_info *info,
 
 	memcpy_fromio(par->store_fb, par->screen.k_addr, par->screen.size);
 	memcpy_fromio(par->store_cursor, par->cursor.k_addr, par->cursor.size);
-	/* blank the relevant interface to ensure unit power minimised */
-	(par->ops.fb_blank)(FB_BLANK_POWERDOWN, fbi);
-
-	acquire_console_sem();
-	fb_set_suspend(fbi, 1);
-	release_console_sem();
 
 	return 0;
 

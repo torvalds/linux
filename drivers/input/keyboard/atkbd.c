@@ -19,7 +19,6 @@
 
 #include <linux/delay.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
@@ -28,6 +27,7 @@
 #include <linux/workqueue.h>
 #include <linux/libps2.h>
 #include <linux/mutex.h>
+#include <linux/dmi.h>
 
 #define DRIVER_DESC	"AT and PS/2 keyboard driver"
 
@@ -201,6 +201,7 @@ struct atkbd {
 
 	unsigned short id;
 	unsigned char keycode[512];
+	DECLARE_BITMAP(force_release_mask, 512);
 	unsigned char set;
 	unsigned char translated;
 	unsigned char extra;
@@ -224,6 +225,11 @@ struct atkbd {
 	struct mutex event_mutex;
 	unsigned long event_mask;
 };
+
+/*
+ * System-specific ketymap fixup routine
+ */
+static void (*atkbd_platform_fixup)(struct atkbd *);
 
 static ssize_t atkbd_attr_show_helper(struct device *dev, char *buf,
 				ssize_t (*handler)(struct atkbd *, char *));
@@ -349,7 +355,7 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 	struct atkbd *atkbd = serio_get_drvdata(serio);
 	struct input_dev *dev = atkbd->dev;
 	unsigned int code = data;
-	int scroll = 0, hscroll = 0, click = -1, add_release_event = 0;
+	int scroll = 0, hscroll = 0, click = -1;
 	int value;
 	unsigned char keycode;
 
@@ -414,14 +420,6 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 				       "Some program might be trying access hardware directly.\n",
 				       data == ATKBD_RET_ACK ? "ACK" : "NAK", serio->phys);
 			goto out;
-		case ATKBD_RET_HANGEUL:
-		case ATKBD_RET_HANJA:
-			/*
-			 * These keys do not report release and thus need to be
-			 * flagged properly
-			 */
-			add_release_event = 1;
-			break;
 		case ATKBD_RET_ERR:
 			atkbd->err_count++;
 #ifdef ATKBD_DEBUG
@@ -491,7 +489,7 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 			input_event(dev, EV_KEY, keycode, value);
 			input_sync(dev);
 
-			if (value && add_release_event) {
+			if (value && test_bit(code, atkbd->force_release_mask)) {
 				input_report_key(dev, keycode, 0);
 				input_sync(dev);
 			}
@@ -824,7 +822,6 @@ static void atkbd_disconnect(struct serio *serio)
 	atkbd_disable(atkbd);
 
 	/* make sure we don't have a command in flight */
-	synchronize_sched();  /* Allow atkbd_interrupt()s to complete. */
 	flush_scheduled_work();
 
 	sysfs_remove_group(&serio->dev.kobj, &atkbd_attribute_group);
@@ -834,6 +831,22 @@ static void atkbd_disconnect(struct serio *serio)
 	kfree(atkbd);
 }
 
+/*
+ * Most special keys (Fn+F?) on Dell Latitudes do not generate release
+ * events so we have to do it ourselves.
+ */
+static void atkbd_latitude_keymap_fixup(struct atkbd *atkbd)
+{
+	const unsigned int forced_release_keys[] = {
+		0x85, 0x86, 0x87, 0x88, 0x89, 0x8a, 0x8b, 0x8f, 0x93,
+	};
+	int i;
+
+	if (atkbd->set == 2)
+		for (i = 0; i < ARRAY_SIZE(forced_release_keys); i++)
+			__set_bit(forced_release_keys[i],
+				  atkbd->force_release_mask);
+}
 
 /*
  * atkbd_set_keycode_table() initializes keyboard's keycode table
@@ -842,17 +855,20 @@ static void atkbd_disconnect(struct serio *serio)
 
 static void atkbd_set_keycode_table(struct atkbd *atkbd)
 {
+	unsigned int scancode;
 	int i, j;
 
 	memset(atkbd->keycode, 0, sizeof(atkbd->keycode));
+	bitmap_zero(atkbd->force_release_mask, 512);
 
 	if (atkbd->translated) {
 		for (i = 0; i < 128; i++) {
-			atkbd->keycode[i] = atkbd_set2_keycode[atkbd_unxlate_table[i]];
-			atkbd->keycode[i | 0x80] = atkbd_set2_keycode[atkbd_unxlate_table[i] | 0x80];
+			scancode = atkbd_unxlate_table[i];
+			atkbd->keycode[i] = atkbd_set2_keycode[scancode];
+			atkbd->keycode[i | 0x80] = atkbd_set2_keycode[scancode | 0x80];
 			if (atkbd->scroll)
 				for (j = 0; j < ARRAY_SIZE(atkbd_scroll_keys); j++)
-					if ((atkbd_unxlate_table[i] | 0x80) == atkbd_scroll_keys[j].set2)
+					if ((scancode | 0x80) == atkbd_scroll_keys[j].set2)
 						atkbd->keycode[i | 0x80] = atkbd_scroll_keys[j].keycode;
 		}
 	} else if (atkbd->set == 3) {
@@ -861,12 +877,29 @@ static void atkbd_set_keycode_table(struct atkbd *atkbd)
 		memcpy(atkbd->keycode, atkbd_set2_keycode, sizeof(atkbd->keycode));
 
 		if (atkbd->scroll)
-			for (i = 0; i < ARRAY_SIZE(atkbd_scroll_keys); i++)
-				atkbd->keycode[atkbd_scroll_keys[i].set2] = atkbd_scroll_keys[i].keycode;
+			for (i = 0; i < ARRAY_SIZE(atkbd_scroll_keys); i++) {
+				scancode = atkbd_scroll_keys[i].set2;
+				atkbd->keycode[scancode] = atkbd_scroll_keys[i].keycode;
+		}
 	}
 
-	atkbd->keycode[atkbd_compat_scancode(atkbd, ATKBD_RET_HANGEUL)] = KEY_HANGUEL;
-	atkbd->keycode[atkbd_compat_scancode(atkbd, ATKBD_RET_HANJA)] = KEY_HANJA;
+/*
+ * HANGEUL and HANJA keys do not send release events so we need to
+ * generate such events ourselves
+ */
+	scancode = atkbd_compat_scancode(atkbd, ATKBD_RET_HANGEUL);
+	atkbd->keycode[scancode] = KEY_HANGEUL;
+	__set_bit(scancode, atkbd->force_release_mask);
+
+	scancode = atkbd_compat_scancode(atkbd, ATKBD_RET_HANJA);
+	atkbd->keycode[scancode] = KEY_HANJA;
+	__set_bit(scancode, atkbd->force_release_mask);
+
+/*
+ * Perform additional fixups
+ */
+	if (atkbd_platform_fixup)
+		atkbd_platform_fixup(atkbd);
 }
 
 /*
@@ -1401,9 +1434,29 @@ static ssize_t atkbd_show_err_count(struct atkbd *atkbd, char *buf)
 	return sprintf(buf, "%lu\n", atkbd->err_count);
 }
 
+static int __init atkbd_setup_fixup(const struct dmi_system_id *id)
+{
+	atkbd_platform_fixup = id->driver_data;
+	return 0;
+}
+
+static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
+	{
+		.ident = "Dell Latitude series",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Latitude"),
+		},
+		.callback = atkbd_setup_fixup,
+		.driver_data = atkbd_latitude_keymap_fixup,
+	},
+	{ }
+};
 
 static int __init atkbd_init(void)
 {
+	dmi_check_system(atkbd_dmi_quirk_table);
+
 	return serio_register_driver(&atkbd_drv);
 }
 

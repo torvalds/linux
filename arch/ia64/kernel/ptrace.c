@@ -547,6 +547,129 @@ ia64_sync_user_rbs (struct task_struct *child, struct switch_stack *sw,
 	return 0;
 }
 
+static long
+ia64_sync_kernel_rbs (struct task_struct *child, struct switch_stack *sw,
+		unsigned long user_rbs_start, unsigned long user_rbs_end)
+{
+	unsigned long addr, val;
+	long ret;
+
+	/* now copy word for word from user rbs to kernel rbs: */
+	for (addr = user_rbs_start; addr < user_rbs_end; addr += 8) {
+		if (access_process_vm(child, addr, &val, sizeof(val), 0)
+				!= sizeof(val))
+			return -EIO;
+
+		ret = ia64_poke(child, sw, user_rbs_end, addr, val);
+		if (ret < 0)
+			return ret;
+	}
+	return 0;
+}
+
+typedef long (*syncfunc_t)(struct task_struct *, struct switch_stack *,
+			    unsigned long, unsigned long);
+
+static void do_sync_rbs(struct unw_frame_info *info, void *arg)
+{
+	struct pt_regs *pt;
+	unsigned long urbs_end;
+	syncfunc_t fn = arg;
+
+	if (unw_unwind_to_user(info) < 0)
+		return;
+	pt = task_pt_regs(info->task);
+	urbs_end = ia64_get_user_rbs_end(info->task, pt, NULL);
+
+	fn(info->task, info->sw, pt->ar_bspstore, urbs_end);
+}
+
+/*
+ * when a thread is stopped (ptraced), debugger might change thread's user
+ * stack (change memory directly), and we must avoid the RSE stored in kernel
+ * to override user stack (user space's RSE is newer than kernel's in the
+ * case). To workaround the issue, we copy kernel RSE to user RSE before the
+ * task is stopped, so user RSE has updated data.  we then copy user RSE to
+ * kernel after the task is resummed from traced stop and kernel will use the
+ * newer RSE to return to user. TIF_RESTORE_RSE is the flag to indicate we need
+ * synchronize user RSE to kernel.
+ */
+void ia64_ptrace_stop(void)
+{
+	if (test_and_set_tsk_thread_flag(current, TIF_RESTORE_RSE))
+		return;
+	tsk_set_notify_resume(current);
+	unw_init_running(do_sync_rbs, ia64_sync_user_rbs);
+}
+
+/*
+ * This is called to read back the register backing store.
+ */
+void ia64_sync_krbs(void)
+{
+	clear_tsk_thread_flag(current, TIF_RESTORE_RSE);
+	tsk_clear_notify_resume(current);
+
+	unw_init_running(do_sync_rbs, ia64_sync_kernel_rbs);
+}
+
+/*
+ * After PTRACE_ATTACH, a thread's register backing store area in user
+ * space is assumed to contain correct data whenever the thread is
+ * stopped.  arch_ptrace_stop takes care of this on tracing stops.
+ * But if the child was already stopped for job control when we attach
+ * to it, then it might not ever get into ptrace_stop by the time we
+ * want to examine the user memory containing the RBS.
+ */
+void
+ptrace_attach_sync_user_rbs (struct task_struct *child)
+{
+	int stopped = 0;
+	struct unw_frame_info info;
+
+	/*
+	 * If the child is in TASK_STOPPED, we need to change that to
+	 * TASK_TRACED momentarily while we operate on it.  This ensures
+	 * that the child won't be woken up and return to user mode while
+	 * we are doing the sync.  (It can only be woken up for SIGKILL.)
+	 */
+
+	read_lock(&tasklist_lock);
+	if (child->signal) {
+		spin_lock_irq(&child->sighand->siglock);
+		if (child->state == TASK_STOPPED &&
+		    !test_and_set_tsk_thread_flag(child, TIF_RESTORE_RSE)) {
+			tsk_set_notify_resume(child);
+
+			child->state = TASK_TRACED;
+			stopped = 1;
+		}
+		spin_unlock_irq(&child->sighand->siglock);
+	}
+	read_unlock(&tasklist_lock);
+
+	if (!stopped)
+		return;
+
+	unw_init_from_blocked_task(&info, child);
+	do_sync_rbs(&info, ia64_sync_user_rbs);
+
+	/*
+	 * Now move the child back into TASK_STOPPED if it should be in a
+	 * job control stop, so that SIGCONT can be used to wake it up.
+	 */
+	read_lock(&tasklist_lock);
+	if (child->signal) {
+		spin_lock_irq(&child->sighand->siglock);
+		if (child->state == TASK_TRACED &&
+		    (child->signal->flags & SIGNAL_STOP_STOPPED)) {
+			child->state = TASK_STOPPED;
+		}
+		spin_unlock_irq(&child->sighand->siglock);
+	}
+	read_unlock(&tasklist_lock);
+}
+
 static inline int
 thread_matches (struct task_struct *thread, unsigned long addr)
 {
@@ -1422,6 +1545,7 @@ sys_ptrace (long request, pid_t pid, unsigned long addr, unsigned long data)
 	struct task_struct *child;
 	struct switch_stack *sw;
 	long ret;
+	struct unw_frame_info info;
 
 	lock_kernel();
 	ret = -EPERM;
@@ -1453,6 +1577,8 @@ sys_ptrace (long request, pid_t pid, unsigned long addr, unsigned long data)
 
 	if (request == PTRACE_ATTACH) {
 		ret = ptrace_attach(child);
+		if (!ret)
+			arch_ptrace_attach(child);
 		goto out_tsk;
 	}
 
@@ -1481,6 +1607,11 @@ sys_ptrace (long request, pid_t pid, unsigned long addr, unsigned long data)
 		/* write the word at location addr */
 		urbs_end = ia64_get_user_rbs_end(child, pt, NULL);
 		ret = ia64_poke(child, sw, urbs_end, addr, data);
+
+		/* Make sure user RBS has the latest data */
+		unw_init_from_blocked_task(&info, child);
+		do_sync_rbs(&info, ia64_sync_user_rbs);
+
 		goto out_tsk;
 
 	      case PTRACE_PEEKUSR:
@@ -1634,6 +1765,10 @@ syscall_trace_enter (long arg0, long arg1, long arg2, long arg3,
 	    && (current->ptrace & PT_PTRACED))
 		syscall_trace();
 
+	/* copy user rbs to kernel rbs */
+	if (test_thread_flag(TIF_RESTORE_RSE))
+		ia64_sync_krbs();
+
 	if (unlikely(current->audit_context)) {
 		long syscall;
 		int arch;
@@ -1671,4 +1806,8 @@ syscall_trace_leave (long arg0, long arg1, long arg2, long arg3,
 	    || test_thread_flag(TIF_SINGLESTEP))
 	    && (current->ptrace & PT_PTRACED))
 		syscall_trace();
+
+	/* copy user rbs to kernel rbs */
+	if (test_thread_flag(TIF_RESTORE_RSE))
+		ia64_sync_krbs();
 }

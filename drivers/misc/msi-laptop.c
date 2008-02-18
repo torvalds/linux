@@ -58,7 +58,6 @@
 #include <linux/dmi.h>
 #include <linux/backlight.h>
 #include <linux/platform_device.h>
-#include <linux/autoconf.h>
 
 #define MSI_DRIVER_VERSION "0.5"
 

@@ -200,8 +200,10 @@ int drm_lastclose(struct drm_device * dev)
 	}
 
 	list_for_each_entry_safe(r_list, list_t, &dev->maplist, head) {
-		drm_rmmap_locked(dev, r_list->map);
-		r_list = NULL;
+		if (!(r_list->map->flags & _DRM_DRIVER)) {
+			drm_rmmap_locked(dev, r_list->map);
+			r_list = NULL;
+		}
 	}
 
 	if (drm_core_check_feature(dev, DRIVER_DMA_QUEUE) && dev->queuelist) {
@@ -255,8 +257,6 @@ int drm_init(struct drm_driver *driver)
 
 	DRM_DEBUG("\n");
 
-	drm_mem_init();
-
 	for (i = 0; driver->pci_driver.id_table[i].vendor != 0; i++) {
 		pid = (struct pci_device_id *)&driver->pci_driver.id_table[i];
 
@@ -293,10 +293,6 @@ static void drm_cleanup(struct drm_device * dev)
 
 	drm_lastclose(dev);
 
-	drm_ht_remove(&dev->map_hash);
-
-	drm_ctxbitmap_cleanup(dev);
-
 	if (drm_core_has_MTRR(dev) && drm_core_has_AGP(dev) &&
 	    dev->agp && dev->agp->agp_mtrr >= 0) {
 		int retval;
@@ -313,6 +309,9 @@ static void drm_cleanup(struct drm_device * dev)
 
 	if (dev->driver->unload)
 		dev->driver->unload(dev);
+
+	drm_ht_remove(&dev->map_hash);
+	drm_ctxbitmap_cleanup(dev);
 
 	drm_put_head(&dev->primary);
 	if (drm_put_dev(dev))
@@ -383,22 +382,24 @@ static int __init drm_core_init(void)
 		goto err_p3;
 	}
 
+	drm_mem_init();
+
 	DRM_INFO("Initialized %s %d.%d.%d %s\n",
 		 CORE_NAME, CORE_MAJOR, CORE_MINOR, CORE_PATCHLEVEL, CORE_DATE);
 	return 0;
-      err_p3:
-	drm_sysfs_destroy(drm_class);
-      err_p2:
+err_p3:
+	drm_sysfs_destroy();
+err_p2:
 	unregister_chrdev(DRM_MAJOR, "drm");
 	drm_free(drm_heads, sizeof(*drm_heads) * drm_cards_limit, DRM_MEM_STUB);
-      err_p1:
+err_p1:
 	return ret;
 }
 
 static void __exit drm_core_exit(void)
 {
 	remove_proc_entry("dri", NULL);
-	drm_sysfs_destroy(drm_class);
+	drm_sysfs_destroy();
 
 	unregister_chrdev(DRM_MAJOR, "drm");
 
@@ -494,23 +495,25 @@ int drm_ioctl(struct inode *inode, struct file *filp,
 	} else {
 		if (cmd & (IOC_IN | IOC_OUT)) {
 			kdata = kmalloc(_IOC_SIZE(cmd), GFP_KERNEL);
-			if (!kdata)
-				return -ENOMEM;
+			if (!kdata) {
+				retcode = -ENOMEM;
+				goto err_i1;
+			}
 		}
 
 		if (cmd & IOC_IN) {
 			if (copy_from_user(kdata, (void __user *)arg,
 					   _IOC_SIZE(cmd)) != 0) {
-				retcode = -EACCES;
+				retcode = -EFAULT;
 				goto err_i1;
 			}
 		}
 		retcode = func(dev, kdata, file_priv);
 
-		if (cmd & IOC_OUT) {
+		if ((retcode == 0) && (cmd & IOC_OUT)) {
 			if (copy_to_user((void __user *)arg, kdata,
 					 _IOC_SIZE(cmd)) != 0)
-				retcode = -EACCES;
+				retcode = -EFAULT;
 		}
 	}
 

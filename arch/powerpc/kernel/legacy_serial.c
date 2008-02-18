@@ -36,7 +36,8 @@ static struct legacy_serial_info {
 static struct __initdata of_device_id parents[] = {
 	{.type = "soc",},
 	{.type = "tsi-bridge",},
-	{.type = "opb", .compatible = "ibm,opb",},
+	{.type = "opb", },
+	{.compatible = "ibm,opb",},
 	{.compatible = "simple-bus",},
 	{.compatible = "wrs,epld-localbus",},
 };

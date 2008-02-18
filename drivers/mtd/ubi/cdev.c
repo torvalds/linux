@@ -28,6 +28,11 @@
  *
  * Major and minor numbers are assigned dynamically to both UBI and volume
  * character devices.
+ *
+ * Well, there is the third kind of character devices - the UBI control
+ * character device, which allows to manipulate by UBI devices - create and
+ * delete them. In other words, it is used for attaching and detaching MTD
+ * devices.
  */
 
 #include <linux/module.h>
@@ -38,34 +43,6 @@
 #include <asm/uaccess.h>
 #include <asm/div64.h>
 #include "ubi.h"
-
-/*
- * Maximum sequence numbers of UBI and volume character device IOCTLs (direct
- * logical eraseblock erase is a debug-only feature).
- */
-#define UBI_CDEV_IOC_MAX_SEQ 2
-#ifndef CONFIG_MTD_UBI_DEBUG_USERSPACE_IO
-#define VOL_CDEV_IOC_MAX_SEQ 1
-#else
-#define VOL_CDEV_IOC_MAX_SEQ 2
-#endif
-
-/**
- * major_to_device - get UBI device object by character device major number.
- * @major: major number
- *
- * This function returns a pointer to the UBI device object.
- */
-static struct ubi_device *major_to_device(int major)
-{
-	int i;
-
-	for (i = 0; i < ubi_devices_cnt; i++)
-		if (ubi_devices[i] && ubi_devices[i]->major == major)
-			return ubi_devices[i];
-	BUG();
-	return NULL;
-}
 
 /**
  * get_exclusive - get exclusive access to an UBI volume.
@@ -124,9 +101,11 @@ static void revoke_exclusive(struct ubi_volume_desc *desc, int mode)
 static int vol_cdev_open(struct inode *inode, struct file *file)
 {
 	struct ubi_volume_desc *desc;
-	const struct ubi_device *ubi = major_to_device(imajor(inode));
-	int vol_id = iminor(inode) - 1;
-	int mode;
+	int vol_id = iminor(inode) - 1, mode, ubi_num;
+
+	ubi_num = ubi_major2num(imajor(inode));
+	if (ubi_num < 0)
+		return ubi_num;
 
 	if (file->f_mode & FMODE_WRITE)
 		mode = UBI_READWRITE;
@@ -135,7 +114,7 @@ static int vol_cdev_open(struct inode *inode, struct file *file)
 
 	dbg_msg("open volume %d, mode %d", vol_id, mode);
 
-	desc = ubi_open_volume(ubi->ubi_num, vol_id, mode);
+	desc = ubi_open_volume(ubi_num, vol_id, mode);
 	if (IS_ERR(desc))
 		return PTR_ERR(desc);
 
@@ -153,7 +132,14 @@ static int vol_cdev_release(struct inode *inode, struct file *file)
 	if (vol->updating) {
 		ubi_warn("update of volume %d not finished, volume is damaged",
 			 vol->vol_id);
+		ubi_assert(!vol->changing_leb);
 		vol->updating = 0;
+		vfree(vol->upd_buf);
+	} else if (vol->changing_leb) {
+		dbg_msg("only %lld of %lld bytes received for atomic LEB change"
+			" for volume %d:%d, cancel", vol->upd_received,
+			vol->upd_bytes, vol->ubi->ubi_num, vol->vol_id);
+		vol->changing_leb = 0;
 		vfree(vol->upd_buf);
 	}
 
@@ -205,13 +191,13 @@ static ssize_t vol_cdev_read(struct file *file, __user char *buf, size_t count,
 	struct ubi_volume_desc *desc = file->private_data;
 	struct ubi_volume *vol = desc->vol;
 	struct ubi_device *ubi = vol->ubi;
-	int err, lnum, off, len,  vol_id = desc->vol->vol_id, tbuf_size;
+	int err, lnum, off, len,  tbuf_size;
 	size_t count_save = count;
 	void *tbuf;
 	uint64_t tmp;
 
 	dbg_msg("read %zd bytes from offset %lld of volume %d",
-		count, *offp, vol_id);
+		count, *offp, vol->vol_id);
 
 	if (vol->updating) {
 		dbg_err("updating");
@@ -225,7 +211,7 @@ static ssize_t vol_cdev_read(struct file *file, __user char *buf, size_t count,
 		return 0;
 
 	if (vol->corrupted)
-		dbg_msg("read from corrupted volume %d", vol_id);
+		dbg_msg("read from corrupted volume %d", vol->vol_id);
 
 	if (*offp + count > vol->used_bytes)
 		count_save = count = vol->used_bytes - *offp;
@@ -249,7 +235,7 @@ static ssize_t vol_cdev_read(struct file *file, __user char *buf, size_t count,
 		if (off + len >= vol->usable_leb_size)
 			len = vol->usable_leb_size - off;
 
-		err = ubi_eba_read_leb(ubi, vol_id, lnum, tbuf, off, len, 0);
+		err = ubi_eba_read_leb(ubi, vol, lnum, tbuf, off, len, 0);
 		if (err)
 			break;
 
@@ -289,13 +275,13 @@ static ssize_t vol_cdev_direct_write(struct file *file, const char __user *buf,
 	struct ubi_volume_desc *desc = file->private_data;
 	struct ubi_volume *vol = desc->vol;
 	struct ubi_device *ubi = vol->ubi;
-	int lnum, off, len, tbuf_size, vol_id = vol->vol_id, err = 0;
+	int lnum, off, len, tbuf_size, err = 0;
 	size_t count_save = count;
 	char *tbuf;
 	uint64_t tmp;
 
 	dbg_msg("requested: write %zd bytes to offset %lld of volume %u",
-		count, *offp, desc->vol->vol_id);
+		count, *offp, vol->vol_id);
 
 	if (vol->vol_type == UBI_STATIC_VOLUME)
 		return -EROFS;
@@ -339,7 +325,7 @@ static ssize_t vol_cdev_direct_write(struct file *file, const char __user *buf,
 			break;
 		}
 
-		err = ubi_eba_write_leb(ubi, vol_id, lnum, tbuf, off, len,
+		err = ubi_eba_write_leb(ubi, vol, lnum, tbuf, off, len,
 					UBI_UNKNOWN);
 		if (err)
 			break;
@@ -372,21 +358,31 @@ static ssize_t vol_cdev_write(struct file *file, const char __user *buf,
 	struct ubi_volume *vol = desc->vol;
 	struct ubi_device *ubi = vol->ubi;
 
-	if (!vol->updating)
+	if (!vol->updating && !vol->changing_leb)
 		return vol_cdev_direct_write(file, buf, count, offp);
 
-	err = ubi_more_update_data(ubi, vol->vol_id, buf, count);
+	if (vol->updating)
+		err = ubi_more_update_data(ubi, vol, buf, count);
+	else
+		err = ubi_more_leb_change_data(ubi, vol, buf, count);
+
 	if (err < 0) {
-		ubi_err("cannot write %zd bytes of update data", count);
+		ubi_err("cannot accept more %zd bytes of data, error %d",
+			count, err);
 		return err;
 	}
 
 	if (err) {
 		/*
-		 * Update is finished, @err contains number of actually written
-		 * bytes now.
+		 * The operation is finished, @err contains number of actually
+		 * written bytes.
 		 */
 		count = err;
+
+		if (vol->changing_leb) {
+			revoke_exclusive(desc, UBI_READWRITE);
+			return count;
+		}
 
 		err = ubi_check_volume(ubi, vol->vol_id);
 		if (err < 0)
@@ -402,7 +398,6 @@ static ssize_t vol_cdev_write(struct file *file, const char __user *buf,
 		revoke_exclusive(desc, UBI_READWRITE);
 	}
 
-	*offp += count;
 	return count;
 }
 
@@ -447,11 +442,46 @@ static int vol_cdev_ioctl(struct inode *inode, struct file *file,
 		if (err < 0)
 			break;
 
-		err = ubi_start_update(ubi, vol->vol_id, bytes);
+		err = ubi_start_update(ubi, vol, bytes);
 		if (bytes == 0)
 			revoke_exclusive(desc, UBI_READWRITE);
+		break;
+	}
 
-		file->f_pos = 0;
+	/* Atomic logical eraseblock change command */
+	case UBI_IOCEBCH:
+	{
+		struct ubi_leb_change_req req;
+
+		err = copy_from_user(&req, argp,
+				     sizeof(struct ubi_leb_change_req));
+		if (err) {
+			err = -EFAULT;
+			break;
+		}
+
+		if (desc->mode == UBI_READONLY ||
+		    vol->vol_type == UBI_STATIC_VOLUME) {
+			err = -EROFS;
+			break;
+		}
+
+		/* Validate the request */
+		err = -EINVAL;
+		if (req.lnum < 0 || req.lnum >= vol->reserved_pebs ||
+		    req.bytes < 0 || req.lnum >= vol->usable_leb_size)
+			break;
+		if (req.dtype != UBI_LONGTERM && req.dtype != UBI_SHORTTERM &&
+		    req.dtype != UBI_UNKNOWN)
+			break;
+
+		err = get_exclusive(desc);
+		if (err < 0)
+			break;
+
+		err = ubi_start_leb_change(ubi, vol, &req);
+		if (req.bytes == 0)
+			revoke_exclusive(desc, UBI_READWRITE);
 		break;
 	}
 
@@ -467,7 +497,8 @@ static int vol_cdev_ioctl(struct inode *inode, struct file *file,
 			break;
 		}
 
-		if (desc->mode == UBI_READONLY) {
+		if (desc->mode == UBI_READONLY ||
+		    vol->vol_type == UBI_STATIC_VOLUME) {
 			err = -EROFS;
 			break;
 		}
@@ -477,13 +508,8 @@ static int vol_cdev_ioctl(struct inode *inode, struct file *file,
 			break;
 		}
 
-		if (vol->vol_type != UBI_DYNAMIC_VOLUME) {
-			err = -EROFS;
-			break;
-		}
-
 		dbg_msg("erase LEB %d:%d", vol->vol_id, lnum);
-		err = ubi_eba_unmap_leb(ubi, vol->vol_id, lnum);
+		err = ubi_eba_unmap_leb(ubi, vol, lnum);
 		if (err)
 			break;
 
@@ -580,9 +606,9 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 	if (!capable(CAP_SYS_RESOURCE))
 		return -EPERM;
 
-	ubi = major_to_device(imajor(inode));
-	if (IS_ERR(ubi))
-		return PTR_ERR(ubi);
+	ubi = ubi_get_by_major(imajor(inode));
+	if (!ubi)
+		return -ENODEV;
 
 	switch (cmd) {
 	/* Create volume command */
@@ -591,8 +617,7 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 		struct ubi_mkvol_req req;
 
 		dbg_msg("create volume");
-		err = copy_from_user(&req, argp,
-				       sizeof(struct ubi_mkvol_req));
+		err = copy_from_user(&req, argp, sizeof(struct ubi_mkvol_req));
 		if (err) {
 			err = -EFAULT;
 			break;
@@ -604,7 +629,9 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 
 		req.name[req.name_len] = '\0';
 
+		mutex_lock(&ubi->volumes_mutex);
 		err = ubi_create_volume(ubi, &req);
+		mutex_unlock(&ubi->volumes_mutex);
 		if (err)
 			break;
 
@@ -633,10 +660,16 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 			break;
 		}
 
+		mutex_lock(&ubi->volumes_mutex);
 		err = ubi_remove_volume(desc);
-		if (err)
-			ubi_close_volume(desc);
+		mutex_unlock(&ubi->volumes_mutex);
 
+		/*
+		 * The volume is deleted (unless an error occurred), and the
+		 * 'struct ubi_volume' object will be freed when
+		 * 'ubi_close_volume()' will call 'put_device()'.
+		 */
+		ubi_close_volume(desc);
 		break;
 	}
 
@@ -648,8 +681,7 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 		struct ubi_rsvol_req req;
 
 		dbg_msg("re-size volume");
-		err = copy_from_user(&req, argp,
-				       sizeof(struct ubi_rsvol_req));
+		err = copy_from_user(&req, argp, sizeof(struct ubi_rsvol_req));
 		if (err) {
 			err = -EFAULT;
 			break;
@@ -669,8 +701,88 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 		pebs = !!do_div(tmp, desc->vol->usable_leb_size);
 		pebs += tmp;
 
+		mutex_lock(&ubi->volumes_mutex);
 		err = ubi_resize_volume(desc, pebs);
+		mutex_unlock(&ubi->volumes_mutex);
 		ubi_close_volume(desc);
+		break;
+	}
+
+	default:
+		err = -ENOTTY;
+		break;
+	}
+
+	ubi_put_device(ubi);
+	return err;
+}
+
+static int ctrl_cdev_ioctl(struct inode *inode, struct file *file,
+			   unsigned int cmd, unsigned long arg)
+{
+	int err = 0;
+	void __user *argp = (void __user *)arg;
+
+	if (!capable(CAP_SYS_RESOURCE))
+		return -EPERM;
+
+	switch (cmd) {
+	/* Attach an MTD device command */
+	case UBI_IOCATT:
+	{
+		struct ubi_attach_req req;
+		struct mtd_info *mtd;
+
+		dbg_msg("attach MTD device");
+		err = copy_from_user(&req, argp, sizeof(struct ubi_attach_req));
+		if (err) {
+			err = -EFAULT;
+			break;
+		}
+
+		if (req.mtd_num < 0 ||
+		    (req.ubi_num < 0 && req.ubi_num != UBI_DEV_NUM_AUTO)) {
+			err = -EINVAL;
+			break;
+		}
+
+		mtd = get_mtd_device(NULL, req.mtd_num);
+		if (IS_ERR(mtd)) {
+			err = PTR_ERR(mtd);
+			break;
+		}
+
+		/*
+		 * Note, further request verification is done by
+		 * 'ubi_attach_mtd_dev()'.
+		 */
+		mutex_lock(&ubi_devices_mutex);
+		err = ubi_attach_mtd_dev(mtd, req.ubi_num, req.vid_hdr_offset);
+		mutex_unlock(&ubi_devices_mutex);
+		if (err < 0)
+			put_mtd_device(mtd);
+		else
+			/* @err contains UBI device number */
+			err = put_user(err, (__user int32_t *)argp);
+
+		break;
+	}
+
+	/* Detach an MTD device command */
+	case UBI_IOCDET:
+	{
+		int ubi_num;
+
+		dbg_msg("dettach MTD device");
+		err = get_user(ubi_num, (__user int32_t *)argp);
+		if (err) {
+			err = -EFAULT;
+			break;
+		}
+
+		mutex_lock(&ubi_devices_mutex);
+		err = ubi_detach_mtd_dev(ubi_num, 0);
+		mutex_unlock(&ubi_devices_mutex);
 		break;
 	}
 
@@ -681,6 +793,12 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 
 	return err;
 }
+
+/* UBI control character device operations */
+struct file_operations ubi_ctrl_cdev_operations = {
+	.ioctl = ctrl_cdev_ioctl,
+	.owner = THIS_MODULE,
+};
 
 /* UBI character device operations */
 struct file_operations ubi_cdev_operations = {

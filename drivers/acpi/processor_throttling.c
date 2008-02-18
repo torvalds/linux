@@ -45,8 +45,228 @@
 #define _COMPONENT              ACPI_PROCESSOR_COMPONENT
 ACPI_MODULE_NAME("processor_throttling");
 
+struct throttling_tstate {
+	unsigned int cpu;		/* cpu nr */
+	int target_state;		/* target T-state */
+};
+
+#define THROTTLING_PRECHANGE       (1)
+#define THROTTLING_POSTCHANGE      (2)
+
 static int acpi_processor_get_throttling(struct acpi_processor *pr);
 int acpi_processor_set_throttling(struct acpi_processor *pr, int state);
+
+static int acpi_processor_update_tsd_coord(void)
+{
+	int count, count_target;
+	int retval = 0;
+	unsigned int i, j;
+	cpumask_t covered_cpus;
+	struct acpi_processor *pr, *match_pr;
+	struct acpi_tsd_package *pdomain, *match_pdomain;
+	struct acpi_processor_throttling *pthrottling, *match_pthrottling;
+
+	/*
+	 * Now that we have _TSD data from all CPUs, lets setup T-state
+	 * coordination between all CPUs.
+	 */
+	for_each_possible_cpu(i) {
+		pr = processors[i];
+		if (!pr)
+			continue;
+
+		/* Basic validity check for domain info */
+		pthrottling = &(pr->throttling);
+
+		/*
+		 * If tsd package for one cpu is invalid, the coordination
+		 * among all CPUs is thought as invalid.
+		 * Maybe it is ugly.
+		 */
+		if (!pthrottling->tsd_valid_flag) {
+			retval = -EINVAL;
+			break;
+		}
+	}
+	if (retval)
+		goto err_ret;
+
+	cpus_clear(covered_cpus);
+	for_each_possible_cpu(i) {
+		pr = processors[i];
+		if (!pr)
+			continue;
+
+		if (cpu_isset(i, covered_cpus))
+			continue;
+		pthrottling = &pr->throttling;
+
+		pdomain = &(pthrottling->domain_info);
+		cpu_set(i, pthrottling->shared_cpu_map);
+		cpu_set(i, covered_cpus);
+		/*
+		 * If the number of processor in the TSD domain is 1, it is
+		 * unnecessary to parse the coordination for this CPU.
+		 */
+		if (pdomain->num_processors <= 1)
+			continue;
+
+		/* Validate the Domain info */
+		count_target = pdomain->num_processors;
+		count = 1;
+
+		for_each_possible_cpu(j) {
+			if (i == j)
+				continue;
+
+			match_pr = processors[j];
+			if (!match_pr)
+				continue;
+
+			match_pthrottling = &(match_pr->throttling);
+			match_pdomain = &(match_pthrottling->domain_info);
+			if (match_pdomain->domain != pdomain->domain)
+				continue;
+
+			/* Here i and j are in the same domain.
+			 * If two TSD packages have the same domain, they
+			 * should have the same num_porcessors and
+			 * coordination type. Otherwise it will be regarded
+			 * as illegal.
+			 */
+			if (match_pdomain->num_processors != count_target) {
+				retval = -EINVAL;
+				goto err_ret;
+			}
+
+			if (pdomain->coord_type != match_pdomain->coord_type) {
+				retval = -EINVAL;
+				goto err_ret;
+			}
+
+			cpu_set(j, covered_cpus);
+			cpu_set(j, pthrottling->shared_cpu_map);
+			count++;
+		}
+		for_each_possible_cpu(j) {
+			if (i == j)
+				continue;
+
+			match_pr = processors[j];
+			if (!match_pr)
+				continue;
+
+			match_pthrottling = &(match_pr->throttling);
+			match_pdomain = &(match_pthrottling->domain_info);
+			if (match_pdomain->domain != pdomain->domain)
+				continue;
+
+			/*
+			 * If some CPUS have the same domain, they
+			 * will have the same shared_cpu_map.
+			 */
+			match_pthrottling->shared_cpu_map =
+				pthrottling->shared_cpu_map;
+		}
+	}
+
+err_ret:
+	for_each_possible_cpu(i) {
+		pr = processors[i];
+		if (!pr)
+			continue;
+
+		/*
+		 * Assume no coordination on any error parsing domain info.
+		 * The coordination type will be forced as SW_ALL.
+		 */
+		if (retval) {
+			pthrottling = &(pr->throttling);
+			cpus_clear(pthrottling->shared_cpu_map);
+			cpu_set(i, pthrottling->shared_cpu_map);
+			pthrottling->shared_type = DOMAIN_COORD_TYPE_SW_ALL;
+		}
+	}
+
+	return retval;
+}
+
+/*
+ * Update the T-state coordination after the _TSD
+ * data for all cpus is obtained.
+ */
+void acpi_processor_throttling_init(void)
+{
+	if (acpi_processor_update_tsd_coord())
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+			"Assume no T-state coordination\n"));
+
+	return;
+}
+
+static int acpi_processor_throttling_notifier(unsigned long event, void *data)
+{
+	struct throttling_tstate *p_tstate = data;
+	struct acpi_processor *pr;
+	unsigned int cpu ;
+	int target_state;
+	struct acpi_processor_limit *p_limit;
+	struct acpi_processor_throttling *p_throttling;
+
+	cpu = p_tstate->cpu;
+	pr = processors[cpu];
+	if (!pr) {
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Invalid pr pointer\n"));
+		return 0;
+	}
+	if (!pr->flags.throttling) {
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Throttling control is "
+				"unsupported on CPU %d\n", cpu));
+		return 0;
+	}
+	target_state = p_tstate->target_state;
+	p_throttling = &(pr->throttling);
+	switch (event) {
+	case THROTTLING_PRECHANGE:
+		/*
+		 * Prechange event is used to choose one proper t-state,
+		 * which meets the limits of thermal, user and _TPC.
+		 */
+		p_limit = &pr->limit;
+		if (p_limit->thermal.tx > target_state)
+			target_state = p_limit->thermal.tx;
+		if (p_limit->user.tx > target_state)
+			target_state = p_limit->user.tx;
+		if (pr->throttling_platform_limit > target_state)
+			target_state = pr->throttling_platform_limit;
+		if (target_state >= p_throttling->state_count) {
+			printk(KERN_WARNING
+				"Exceed the limit of T-state \n");
+			target_state = p_throttling->state_count - 1;
+		}
+		p_tstate->target_state = target_state;
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "PreChange Event:"
+				"target T-state of CPU %d is T%d\n",
+				cpu, target_state));
+		break;
+	case THROTTLING_POSTCHANGE:
+		/*
+		 * Postchange event is only used to update the
+		 * T-state flag of acpi_processor_throttling.
+		 */
+		p_throttling->state = target_state;
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "PostChange Event:"
+				"CPU %d is switched to T%d\n",
+				cpu, target_state));
+		break;
+	default:
+		printk(KERN_WARNING
+			"Unsupported Throttling notifier event\n");
+		break;
+	}
+
+	return 0;
+}
 
 /*
  * _TPC - Throttling Present Capabilities
@@ -293,6 +513,10 @@ static int acpi_processor_get_tsd(struct acpi_processor *pr)
 	struct acpi_buffer state = { 0, NULL };
 	union acpi_object *tsd = NULL;
 	struct acpi_tsd_package *pdomain;
+	struct acpi_processor_throttling *pthrottling;
+
+	pthrottling = &pr->throttling;
+	pthrottling->tsd_valid_flag = 0;
 
 	status = acpi_evaluate_object(pr->handle, "_TSD", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
@@ -338,6 +562,22 @@ static int acpi_processor_get_tsd(struct acpi_processor *pr)
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Unknown _TSD:revision\n"));
 		result = -EFAULT;
 		goto end;
+	}
+
+	pthrottling = &pr->throttling;
+	pthrottling->tsd_valid_flag = 1;
+	pthrottling->shared_type = pdomain->coord_type;
+	cpu_set(pr->id, pthrottling->shared_cpu_map);
+	/*
+	 * If the coordination type is not defined in ACPI spec,
+	 * the tsd_valid_flag will be clear and coordination type
+	 * will be forecd as DOMAIN_COORD_TYPE_SW_ALL.
+	 */
+	if (pdomain->coord_type != DOMAIN_COORD_TYPE_SW_ALL &&
+		pdomain->coord_type != DOMAIN_COORD_TYPE_SW_ANY &&
+		pdomain->coord_type != DOMAIN_COORD_TYPE_HW_ALL) {
+		pthrottling->tsd_valid_flag = 0;
+		pthrottling->shared_type = DOMAIN_COORD_TYPE_SW_ALL;
 	}
 
       end:
@@ -589,6 +829,11 @@ static int acpi_processor_get_throttling(struct acpi_processor *pr)
 	cpumask_t saved_mask;
 	int ret;
 
+	if (!pr)
+		return -EINVAL;
+
+	if (!pr->flags.throttling)
+		return -ENODEV;
 	/*
 	 * Migrate task to the cpu pointed by pr.
 	 */
@@ -742,13 +987,92 @@ static int acpi_processor_set_throttling_ptc(struct acpi_processor *pr,
 int acpi_processor_set_throttling(struct acpi_processor *pr, int state)
 {
 	cpumask_t saved_mask;
-	int ret;
-	/*
-	 * Migrate task to the cpu pointed by pr.
-	 */
+	int ret = 0;
+	unsigned int i;
+	struct acpi_processor *match_pr;
+	struct acpi_processor_throttling *p_throttling;
+	struct throttling_tstate t_state;
+	cpumask_t online_throttling_cpus;
+
+	if (!pr)
+		return -EINVAL;
+
+	if (!pr->flags.throttling)
+		return -ENODEV;
+
+	if ((state < 0) || (state > (pr->throttling.state_count - 1)))
+		return -EINVAL;
+
 	saved_mask = current->cpus_allowed;
-	set_cpus_allowed(current, cpumask_of_cpu(pr->id));
-	ret = pr->throttling.acpi_processor_set_throttling(pr, state);
+	t_state.target_state = state;
+	p_throttling = &(pr->throttling);
+	cpus_and(online_throttling_cpus, cpu_online_map,
+			p_throttling->shared_cpu_map);
+	/*
+	 * The throttling notifier will be called for every
+	 * affected cpu in order to get one proper T-state.
+	 * The notifier event is THROTTLING_PRECHANGE.
+	 */
+	for_each_cpu_mask(i, online_throttling_cpus) {
+		t_state.cpu = i;
+		acpi_processor_throttling_notifier(THROTTLING_PRECHANGE,
+							&t_state);
+	}
+	/*
+	 * The function of acpi_processor_set_throttling will be called
+	 * to switch T-state. If the coordination type is SW_ALL or HW_ALL,
+	 * it is necessary to call it for every affected cpu. Otherwise
+	 * it can be called only for the cpu pointed by pr.
+	 */
+	if (p_throttling->shared_type == DOMAIN_COORD_TYPE_SW_ANY) {
+		set_cpus_allowed(current, cpumask_of_cpu(pr->id));
+		ret = p_throttling->acpi_processor_set_throttling(pr,
+						t_state.target_state);
+	} else {
+		/*
+		 * When the T-state coordination is SW_ALL or HW_ALL,
+		 * it is necessary to set T-state for every affected
+		 * cpus.
+		 */
+		for_each_cpu_mask(i, online_throttling_cpus) {
+			match_pr = processors[i];
+			/*
+			 * If the pointer is invalid, we will report the
+			 * error message and continue.
+			 */
+			if (!match_pr) {
+				ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+					"Invalid Pointer for CPU %d\n", i));
+				continue;
+			}
+			/*
+			 * If the throttling control is unsupported on CPU i,
+			 * we will report the error message and continue.
+			 */
+			if (!match_pr->flags.throttling) {
+				ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+					"Throttling Controll is unsupported "
+					"on CPU %d\n", i));
+				continue;
+			}
+			t_state.cpu = i;
+			set_cpus_allowed(current, cpumask_of_cpu(i));
+			ret = match_pr->throttling.
+				acpi_processor_set_throttling(
+				match_pr, t_state.target_state);
+		}
+	}
+	/*
+	 * After the set_throttling is called, the
+	 * throttling notifier is called for every
+	 * affected cpu to update the T-states.
+	 * The notifier event is THROTTLING_POSTCHANGE
+	 */
+	for_each_cpu_mask(i, online_throttling_cpus) {
+		t_state.cpu = i;
+		acpi_processor_throttling_notifier(THROTTLING_POSTCHANGE,
+							&t_state);
+	}
 	/* restore the previous state */
 	set_cpus_allowed(current, saved_mask);
 	return ret;
@@ -757,6 +1081,7 @@ int acpi_processor_set_throttling(struct acpi_processor *pr, int state)
 int acpi_processor_get_throttling_info(struct acpi_processor *pr)
 {
 	int result = 0;
+	struct acpi_processor_throttling *pthrottling;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 			  "pblk_address[0x%08x] duty_offset[%d] duty_width[%d]\n",
@@ -788,7 +1113,16 @@ int acpi_processor_get_throttling_info(struct acpi_processor *pr)
 		    &acpi_processor_set_throttling_ptc;
 	}
 
-	acpi_processor_get_tsd(pr);
+	/*
+	 * If TSD package for one CPU can't be parsed successfully, it means
+	 * that this CPU will have no coordination with other CPUs.
+	 */
+	if (acpi_processor_get_tsd(pr)) {
+		pthrottling = &pr->throttling;
+		pthrottling->tsd_valid_flag = 0;
+		cpu_set(pr->id, pthrottling->shared_cpu_map);
+		pthrottling->shared_type = DOMAIN_COORD_TYPE_SW_ALL;
+	}
 
 	/*
 	 * PIIX4 Errata: We don't support throttling on the original PIIX4.

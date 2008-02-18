@@ -28,7 +28,6 @@
     as99127f	7	3	0	3	0x31	0x12c3	yes	no
     as99127f rev.2 (type_name = as99127f)	0x31	0x5ca3	yes	no
     w83781d	7	3	0	3	0x10-1	0x5ca3	yes	yes
-    w83627hf	9	3	2	3	0x21	0x5ca3	yes	yes(LPC)
     w83782d	9	3	2-4	3	0x30	0x5ca3	yes	yes
     w83783s	5-6	3	2	1-2	0x40	0x5ca3	yes	no
 
@@ -54,13 +53,12 @@
 static struct platform_device *pdev;
 
 /* Addresses to scan */
-static unsigned short normal_i2c[] = { 0x20, 0x21, 0x22, 0x23, 0x24, 0x25,
-					0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b,
-					0x2c, 0x2d, 0x2e, 0x2f, I2C_CLIENT_END };
+static unsigned short normal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
+				       0x2e, 0x2f, I2C_CLIENT_END };
 static unsigned short isa_address = 0x290;
 
 /* Insmod parameters */
-I2C_CLIENT_INSMOD_5(w83781d, w83782d, w83783s, w83627hf, as99127f);
+I2C_CLIENT_INSMOD_4(w83781d, w83782d, w83783s, as99127f);
 I2C_CLIENT_MODULE_PARM(force_subclients, "List of subclient addresses: "
 		    "{bus, clientaddr, subclientaddr1, subclientaddr2}");
 
@@ -114,7 +112,7 @@ MODULE_PARM_DESC(init, "Set to zero to bypass chip initialization");
 #define W83781D_REG_ALARM1		0x41
 #define W83781D_REG_ALARM2		0x42
 
-/* Real-time status (W83782D, W83783S, W83627HF) */
+/* Real-time status (W83782D, W83783S) */
 #define W83782D_REG_ALARM1		0x459
 #define W83782D_REG_ALARM2		0x45A
 #define W83782D_REG_ALARM3		0x45B
@@ -152,10 +150,6 @@ static const u8 BIT_SCFG1[] = { 0x02, 0x04, 0x08 };
 static const u8 BIT_SCFG2[] = { 0x10, 0x20, 0x40 };
 
 #define W83781D_DEFAULT_BETA		3435
-
-/* RT Table registers */
-#define W83781D_REG_RT_IDX		0x50
-#define W83781D_REG_RT_VAL		0x51
 
 /* Conversions */
 #define IN_TO_REG(val)			SENSORS_LIMIT(((val) + 8) / 16, 0, 255)
@@ -271,7 +265,6 @@ static struct i2c_driver w83781d_driver = {
 	.driver = {
 		.name = "w83781d",
 	},
-	.id = I2C_DRIVERID_W83781D,
 	.attach_adapter = w83781d_attach_adapter,
 	.detach_client = w83781d_detach_client,
 };
@@ -696,7 +689,7 @@ store_fan_div(struct device *dev, struct device_attribute *da,
 	unsigned long val = simple_strtoul(buf, NULL, 10);
 
 	mutex_lock(&data->update_lock);
-	
+
 	/* Save fan_min */
 	min = FAN_FROM_REG(data->fan_min[nr],
 			   DIV_FROM_REG(data->fan_div[nr]));
@@ -963,8 +956,6 @@ w83781d_detect_subclients(struct i2c_adapter *adapter, int address, int kind,
 		client_name = "w83782d subclient";
 	else if (kind == w83783s)
 		client_name = "w83783s subclient";
-	else if (kind == w83627hf)
-		client_name = "w83627hf subclient";
 	else if (kind == as99127f)
 		client_name = "as99127f subclient";
 
@@ -1004,7 +995,7 @@ ERROR_SC_0:
 #define IN_UNIT_ATTRS(X)					\
 	&sensor_dev_attr_in##X##_input.dev_attr.attr,		\
 	&sensor_dev_attr_in##X##_min.dev_attr.attr,		\
-	&sensor_dev_attr_in##X##_max.dev_attr.attr, 		\
+	&sensor_dev_attr_in##X##_max.dev_attr.attr,		\
 	&sensor_dev_attr_in##X##_alarm.dev_attr.attr,		\
 	&sensor_dev_attr_in##X##_beep.dev_attr.attr
 
@@ -1268,9 +1259,7 @@ w83781d_detect(struct i2c_adapter *adapter, int address, int kind)
 			kind = w83782d;
 		else if (val1 == 0x40 && vendid == winbond && address == 0x2d)
 			kind = w83783s;
-		else if (val1 == 0x21 && vendid == winbond)
-			kind = w83627hf;
-		else if (val1 == 0x31 && address >= 0x28)
+		else if (val1 == 0x31)
 			kind = as99127f;
 		else {
 			if (kind == 0)
@@ -1288,8 +1277,6 @@ w83781d_detect(struct i2c_adapter *adapter, int address, int kind)
 		client_name = "w83782d";
 	} else if (kind == w83783s) {
 		client_name = "w83783s";
-	} else if (kind == w83627hf) {
-		client_name = "w83627hf";
 	} else if (kind == as99127f) {
 		client_name = "as99127f";
 	}
@@ -1396,10 +1383,6 @@ w83781d_isa_probe(struct platform_device *pdev)
 
 	reg = w83781d_read_value(data, W83781D_REG_WCHIPID);
 	switch (reg) {
-	case 0x21:
-		data->type = w83627hf;
-		name = "w83627hf";
-		break;
 	case 0x30:
 		data->type = w83782d;
 		name = "w83782d";
@@ -1453,9 +1436,9 @@ w83781d_isa_remove(struct platform_device *pdev)
 }
 
 /* The SMBus locks itself, usually, but nothing may access the Winbond between
-   bank switches. ISA access must always be locked explicitly! 
+   bank switches. ISA access must always be locked explicitly!
    We ignore the W83781D BUSY flag at this moment - it could lead to deadlocks,
-   would slow down the W83781D access and should not be necessary. 
+   would slow down the W83781D access and should not be necessary.
    There are some ugly typecasts here, but the good news is - they should
    nowhere else be necessary! */
 static int
@@ -1599,11 +1582,6 @@ w83781d_init_device(struct device *dev)
 	int type = data->type;
 	u8 tmp;
 
-	if (type == w83627hf)
-		dev_info(dev, "The W83627HF chip is better supported by the "
-			 "w83627hf driver, support will be dropped from the "
-			 "w83781d driver soon\n");
-
 	if (reset && type != as99127f) { /* this resets registers we don't have
 					   documentation for on the as99127f */
 		/* Resetting the chip has been the default for a long time,
@@ -1717,8 +1695,7 @@ static struct w83781d_data *w83781d_update_device(struct device *dev)
 			    w83781d_read_value(data, W83781D_REG_IN_MIN(i));
 			data->in_max[i] =
 			    w83781d_read_value(data, W83781D_REG_IN_MAX(i));
-			if ((data->type != w83782d)
-			    && (data->type != w83627hf) && (i == 6))
+			if ((data->type != w83782d) && (i == 6))
 				break;
 		}
 		for (i = 0; i < 3; i++) {
@@ -1776,7 +1753,7 @@ static struct w83781d_data *w83781d_update_device(struct device *dev)
 			data->fan_div[1] |= (i >> 4) & 0x04;
 			data->fan_div[2] |= (i >> 5) & 0x04;
 		}
-		if ((data->type == w83782d) || (data->type == w83627hf)) {
+		if (data->type == w83782d) {
 			data->alarms = w83781d_read_value(data,
 						W83782D_REG_ALARM1)
 				     | (w83781d_read_value(data,
@@ -1886,13 +1863,11 @@ w83781d_isa_found(unsigned short address)
 	outb_p(W83781D_REG_WCHIPID, address + W83781D_ADDR_REG_OFFSET);
 	val = inb_p(address + W83781D_DATA_REG_OFFSET);
 	if ((val & 0xfe) == 0x10	/* W83781D */
-	 || val == 0x30			/* W83782D */
-	 || val == 0x21)		/* W83627HF */
+	 || val == 0x30)		/* W83782D */
 		found = 1;
 
 	if (found)
 		pr_info("w83781d: Found a %s chip at %#x\n",
-			val == 0x21 ? "W83627HF" :
 			val == 0x30 ? "W83782D" : "W83781D", (int)address);
 
  release:

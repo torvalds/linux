@@ -204,7 +204,7 @@ config BLK_DEV_DM
 
 config DM_DEBUG
 	boolean "Device mapper debugging support"
-	depends on BLK_DEV_DM && EXPERIMENTAL
+	depends on BLK_DEV_DM
 	---help---
 	  Enable this for messages that may help debug device-mapper problems.
 
@@ -212,7 +212,7 @@ config DM_DEBUG
 
 config DM_CRYPT
 	tristate "Crypt target support"
-	depends on BLK_DEV_DM && EXPERIMENTAL
+	depends on BLK_DEV_DM
 	select CRYPTO
 	select CRYPTO_CBC
 	---help---
@@ -230,34 +230,34 @@ config DM_CRYPT
 	  If unsure, say N.
 
 config DM_SNAPSHOT
-       tristate "Snapshot target (EXPERIMENTAL)"
-       depends on BLK_DEV_DM && EXPERIMENTAL
+       tristate "Snapshot target"
+       depends on BLK_DEV_DM
        ---help---
          Allow volume managers to take writable snapshots of a device.
 
 config DM_MIRROR
-       tristate "Mirror target (EXPERIMENTAL)"
-       depends on BLK_DEV_DM && EXPERIMENTAL
+       tristate "Mirror target"
+       depends on BLK_DEV_DM
        ---help---
          Allow volume managers to mirror logical volumes, also
          needed for live data migration tools such as 'pvmove'.
 
 config DM_ZERO
-	tristate "Zero target (EXPERIMENTAL)"
-	depends on BLK_DEV_DM && EXPERIMENTAL
+	tristate "Zero target"
+	depends on BLK_DEV_DM
 	---help---
 	  A target that discards writes, and returns all zeroes for
 	  reads.  Useful in some recovery situations.
 
 config DM_MULTIPATH
-	tristate "Multipath target (EXPERIMENTAL)"
-	depends on BLK_DEV_DM && EXPERIMENTAL
+	tristate "Multipath target"
+	depends on BLK_DEV_DM
 	---help---
 	  Allow volume managers to support multipath hardware.
 
 config DM_MULTIPATH_EMC
-	tristate "EMC CX/AX multipath support (EXPERIMENTAL)"
-	depends on DM_MULTIPATH && BLK_DEV_DM && EXPERIMENTAL
+	tristate "EMC CX/AX multipath support"
+	depends on DM_MULTIPATH && BLK_DEV_DM
 	---help---
 	  Multipath support for EMC CX/AX series hardware.
 

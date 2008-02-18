@@ -46,8 +46,8 @@
 #define rcu_bh_qsctr_inc(cpu)
 #define call_rcu_bh(head, rcu) call_rcu(head, rcu)
 
-extern void __rcu_read_lock(void);
-extern void __rcu_read_unlock(void);
+extern void __rcu_read_lock(void)	__acquires(RCU);
+extern void __rcu_read_unlock(void)	__releases(RCU);
 extern int rcu_pending(int cpu);
 extern int rcu_needs_cpu(int cpu);
 

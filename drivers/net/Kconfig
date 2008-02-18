@@ -879,7 +879,8 @@ config SMC91X
 	tristate "SMC 91C9x/91C1xxx support"
 	select CRC32
 	select MII
-	depends on ARM || REDWOOD_5 || REDWOOD_6 || M32R || SUPERH || SOC_AU1X00 || BLACKFIN
+	depends on ARM || REDWOOD_5 || REDWOOD_6 || M32R || SUPERH || \
+		SOC_AU1X00 || BLACKFIN || MN10300
 	help
 	  This is a driver for SMC's 91x series of Ethernet chipsets,
 	  including the SMC91C94 and the SMC91C111. Say Y if you want it
@@ -920,8 +921,7 @@ config ENC28J60
 	---help---
 	  Support for the Microchip EN28J60 ethernet chip.
 
-	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/networking/net-modules.txt>.  The module will be
+	  To compile this driver as a module, choose M here. The module will be
 	  called enc28j60.
 
 config ENC28J60_WRITEVERIFY
@@ -930,6 +930,14 @@ config ENC28J60_WRITEVERIFY
 	---help---
 	  Enable the verify after the buffer write useful for debugging purpose.
 	  If unsure, say N.
+
+config DM9000_DEBUGLEVEL
+	int "DM9000 maximum debug level"
+	depends on DM9000
+	default 4
+	help
+	  The maximum level of debugging code compiled into the DM9000
+	  driver.
 
 config SMC911X
 	tristate "SMSC LAN911[5678] support"
@@ -1738,10 +1746,8 @@ config SC92031
 
 config CPMAC
 	tristate "TI AR7 CPMAC Ethernet support (EXPERIMENTAL)"
-	depends on NET_ETHERNET && EXPERIMENTAL && AR7
+	depends on NET_ETHERNET && EXPERIMENTAL && AR7 && BROKEN
 	select PHYLIB
-	select FIXED_PHY
-	select FIXED_MII_100_FDX
 	help
 	  TI AR7 CPMAC Ethernet support
 
@@ -2041,8 +2047,7 @@ config IGB
          More specific information on configuring the driver is in
          <file:Documentation/networking/e1000.txt>.
 
-         To compile this driver as a module, choose M here and read
-         <file:Documentation/networking/net-modules.txt>.  The module
+         To compile this driver as a module, choose M here. The module
          will be called igb.
 
 source "drivers/net/ixp2000/Kconfig"
@@ -2354,6 +2359,16 @@ config GELIC_NET
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ps3_gelic.
+
+config GELIC_WIRELESS
+       bool "PS3 Wireless support"
+       depends on GELIC_NET
+       help
+        This option adds the support for the wireless feature of PS3.
+        If you have the wireless-less model of PS3 or have no plan to
+        use wireless feature, disabling this option saves memory.  As
+        the driver automatically distinguishes the models, you can
+        safely enable this option even if you have a wireless-less model.
 
 config GIANFAR
 	tristate "Gianfar Ethernet"

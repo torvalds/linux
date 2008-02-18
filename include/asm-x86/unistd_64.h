@@ -629,12 +629,17 @@ __SYSCALL(__NR_utimensat, sys_utimensat)
 __SYSCALL(__NR_epoll_pwait, sys_epoll_pwait)
 #define __NR_signalfd				282
 __SYSCALL(__NR_signalfd, sys_signalfd)
-#define __NR_timerfd				283
-__SYSCALL(__NR_timerfd, sys_timerfd)
+#define __NR_timerfd_create			283
+__SYSCALL(__NR_timerfd_create, sys_timerfd_create)
 #define __NR_eventfd				284
 __SYSCALL(__NR_eventfd, sys_eventfd)
 #define __NR_fallocate				285
 __SYSCALL(__NR_fallocate, sys_fallocate)
+#define __NR_timerfd_settime			286
+__SYSCALL(__NR_timerfd_settime, sys_timerfd_settime)
+#define __NR_timerfd_gettime			287
+__SYSCALL(__NR_timerfd_gettime, sys_timerfd_gettime)
+
 
 #ifndef __NO_STUBS
 #define __ARCH_WANT_OLD_READDIR

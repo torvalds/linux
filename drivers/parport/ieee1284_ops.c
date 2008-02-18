@@ -888,7 +888,7 @@ size_t parport_ieee1284_epp_read_addr (struct parport *port,
 
 		/* Event 59: set nSelectIn (nAStrb) high */
 		parport_frob_control (port, PARPORT_CONTROL_SELECT,
-				      PARPORT_CONTROL_SELECT);
+				      0);
 
 		/* Event 60: wait for Busy to go low */
 		if (parport_poll_peripheral (port, PARPORT_STATUS_BUSY, 

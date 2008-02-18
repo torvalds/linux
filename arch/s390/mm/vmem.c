@@ -62,14 +62,26 @@ void __meminit memmap_init(unsigned long size, int nid, unsigned long zone,
 	}
 }
 
-static void __init_refok *vmem_alloc_pages(unsigned int order)
+static void __ref *vmem_alloc_pages(unsigned int order)
 {
 	if (slab_is_available())
 		return (void *)__get_free_pages(GFP_KERNEL, order);
 	return alloc_bootmem_pages((1 << order) * PAGE_SIZE);
 }
 
-#define vmem_pud_alloc()	({ BUG(); ((pud_t *) NULL); })
+static inline pud_t *vmem_pud_alloc(void)
+{
+	pud_t *pud = NULL;
+
+#ifdef CONFIG_64BIT
+	pud = vmem_alloc_pages(2);
+	if (!pud)
+		return NULL;
+	pud_val(*pud) = _REGION3_ENTRY_EMPTY;
+	memcpy(pud + 1, pud, (PTRS_PER_PUD - 1)*sizeof(pud_t));
+#endif
+	return pud;
+}
 
 static inline pmd_t *vmem_pmd_alloc(void)
 {
@@ -84,13 +96,18 @@ static inline pmd_t *vmem_pmd_alloc(void)
 	return pmd;
 }
 
-static inline pte_t *vmem_pte_alloc(void)
+static pte_t __init_refok *vmem_pte_alloc(void)
 {
-	pte_t *pte = vmem_alloc_pages(0);
+	pte_t *pte;
 
+	if (slab_is_available())
+		pte = (pte_t *) page_table_alloc(&init_mm);
+	else
+		pte = alloc_bootmem(PTRS_PER_PTE * sizeof(pte_t));
 	if (!pte)
 		return NULL;
-	clear_table((unsigned long *) pte, _PAGE_TYPE_EMPTY, PAGE_SIZE);
+	clear_table((unsigned long *) pte, _PAGE_TYPE_EMPTY,
+		    PTRS_PER_PTE * sizeof(pte_t));
 	return pte;
 }
 
@@ -250,7 +267,7 @@ static int insert_memory_segment(struct memory_segment *seg)
 {
 	struct memory_segment *tmp;
 
-	if (seg->start + seg->size >= VMALLOC_START ||
+	if (seg->start + seg->size >= VMEM_MAX_PHYS ||
 	    seg->start + seg->size < seg->start)
 		return -ERANGE;
 
@@ -360,7 +377,9 @@ void __init vmem_map_init(void)
 {
 	int i;
 
-	BUILD_BUG_ON((unsigned long)VMEM_MAP + VMEM_MAP_SIZE > VMEM_MAP_MAX);
+	INIT_LIST_HEAD(&init_mm.context.crst_list);
+	INIT_LIST_HEAD(&init_mm.context.pgtable_list);
+	init_mm.context.noexec = 0;
 	NODE_DATA(0)->node_mem_map = VMEM_MAP;
 	for (i = 0; i < MEMORY_CHUNKS && memory_chunk[i].size > 0; i++)
 		vmem_add_mem(memory_chunk[i].addr, memory_chunk[i].size);

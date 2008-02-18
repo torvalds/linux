@@ -24,9 +24,9 @@
  */
 
 #include <linux/fs.h>
-#include <linux/ufs_fs.h>
 #include <linux/buffer_head.h>	/* for sync_mapping_buffers() */
 
+#include "ufs_fs.h"
 #include "ufs.h"
 
 

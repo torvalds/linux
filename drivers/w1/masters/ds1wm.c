@@ -361,11 +361,12 @@ static int ds1wm_probe(struct platform_device *pdev)
 		goto err1;
 	}
 	ds1wm_data->irq = res->start;
-	ds1wm_data->active_high = (res->flags & IORESOURCE_IRQ_HIGHEDGE) ?
-		1 : 0;
+	ds1wm_data->active_high = plat->active_high;
 
-	set_irq_type(ds1wm_data->irq, ds1wm_data->active_high ?
-			IRQ_TYPE_EDGE_RISING : IRQ_TYPE_EDGE_FALLING);
+	if (res->flags & IORESOURCE_IRQ_HIGHEDGE)
+		set_irq_type(ds1wm_data->irq, IRQ_TYPE_EDGE_RISING);
+	if (res->flags & IORESOURCE_IRQ_LOWEDGE)
+		set_irq_type(ds1wm_data->irq, IRQ_TYPE_EDGE_FALLING);
 
 	ret = request_irq(ds1wm_data->irq, ds1wm_isr, IRQF_DISABLED,
 			  "ds1wm", ds1wm_data);

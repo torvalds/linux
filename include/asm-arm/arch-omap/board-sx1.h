@@ -41,6 +41,12 @@ int sx1_getkeylight(u8 *keylight);
 
 int sx1_setmmipower(u8 onoff);
 int sx1_setusbpower(u8 onoff);
-int sx1_setmmcpower(u8 onoff);
+int sx1_i2c_read_byte(u8 devaddr, u8 regoffset, u8 *value);
+int sx1_i2c_write_byte(u8 devaddr, u8 regoffset, u8 value);
+
+/* MMC prototypes */
+
+extern void sx1_mmc_init(void);
+extern void sx1_mmc_slot_cover_handler(void *arg, int state);
 
 #endif /* __ASM_ARCH_SX1_I2C_CHIPS_H */

@@ -137,9 +137,6 @@ irqreturn_t timer_interrupt(int irq, void *dummy)
 
 	do_timer(1);
 
-#ifndef CONFIG_SMP
-	update_process_times(user_mode(get_irq_regs()));
-#endif
 	profile_tick(CPU_PROFILING);
 
 	/*
@@ -161,6 +158,11 @@ irqreturn_t timer_interrupt(int irq, void *dummy)
 			last_rtc_update = xtime.tv_sec - 600;
 	}
 	write_sequnlock(&xtime_lock);
+
+#ifndef CONFIG_SMP
+	update_process_times(user_mode(get_irq_regs()));
+#endif
+
 	return IRQ_HANDLED;
 }
 

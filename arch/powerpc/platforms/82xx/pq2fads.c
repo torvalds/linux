@@ -130,12 +130,11 @@ static void __init pq2fads_setup_arch(void)
 	}
 
 	bcsr = of_iomap(np, 0);
+	of_node_put(np);
 	if (!bcsr) {
 		printk(KERN_ERR "Cannot map BCSR registers\n");
 		return;
 	}
-
-	of_node_put(np);
 
 	/* Enable the serial and ethernet ports */
 

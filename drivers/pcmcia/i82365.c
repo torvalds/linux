@@ -164,7 +164,7 @@ struct i82365_socket {
     u_short		type, flags;
     struct pcmcia_socket	socket;
     unsigned int	number;
-    kio_addr_t		ioaddr;
+    unsigned int	ioaddr;
     u_short		psock;
     u_char		cs_irq, intr;
     union {
@@ -238,7 +238,7 @@ static u_char i365_get(u_short sock, u_short reg)
     unsigned long flags;
     spin_lock_irqsave(&bus_lock,flags);
     {
-	kio_addr_t port = socket[sock].ioaddr;
+	unsigned int port = socket[sock].ioaddr;
 	u_char val;
 	reg = I365_REG(socket[sock].psock, reg);
 	outb(reg, port); val = inb(port+1);
@@ -252,7 +252,7 @@ static void i365_set(u_short sock, u_short reg, u_char data)
     unsigned long flags;
     spin_lock_irqsave(&bus_lock,flags);
     {
-	kio_addr_t port = socket[sock].ioaddr;
+	unsigned int port = socket[sock].ioaddr;
 	u_char val = I365_REG(socket[sock].psock, reg);
 	outb(val, port); outb(data, port+1);
 	spin_unlock_irqrestore(&bus_lock,flags);
@@ -588,7 +588,7 @@ static int to_cycles(int ns)
 
 /*====================================================================*/
 
-static int __init identify(kio_addr_t port, u_short sock)
+static int __init identify(unsigned int port, u_short sock)
 {
     u_char val;
     int type = -1;
@@ -659,7 +659,7 @@ static int __init identify(kio_addr_t port, u_short sock)
 static int __init is_alive(u_short sock)
 {
     u_char stat;
-    kio_addr_t start, stop;
+    unsigned int start, stop;
     
     stat = i365_get(sock, I365_STATUS);
     start = i365_get_pair(sock, I365_IO(0)+I365_W_START);
@@ -678,7 +678,7 @@ static int __init is_alive(u_short sock)
 
 /*====================================================================*/
 
-static void __init add_socket(kio_addr_t port, int psock, int type)
+static void __init add_socket(unsigned int port, int psock, int type)
 {
     socket[sockets].ioaddr = port;
     socket[sockets].psock = psock;
@@ -698,7 +698,7 @@ static void __init add_pcic(int ns, int type)
     base = sockets-ns;
     if (base == 0) printk("\n");
     printk(KERN_INFO "  %s", pcic[type].name);
-    printk(" ISA-to-PCMCIA at port %#lx ofs 0x%02x",
+    printk(" ISA-to-PCMCIA at port %#x ofs 0x%02x",
 	       t->ioaddr, t->psock*0x40);
     printk(", %d socket%s\n", ns, ((ns > 1) ? "s" : ""));
 
@@ -772,7 +772,7 @@ static struct pnp_dev *i82365_pnpdev;
 static void __init isa_probe(void)
 {
     int i, j, sock, k, ns, id;
-    kio_addr_t port;
+    unsigned int port;
 #ifdef CONFIG_PNP
     struct isapnp_device_id *devid;
     struct pnp_dev *dev;
@@ -1053,7 +1053,7 @@ static int i365_set_io_map(u_short sock, struct pccard_io_map *io)
     u_char map, ioctl;
     
     debug(1, "SetIOMap(%d, %d, %#2.2x, %d ns, "
-	  "%#lx-%#lx)\n", sock, io->map, io->flags,
+	  "%#x-%#x)\n", sock, io->map, io->flags,
 	  io->speed, io->start, io->stop);
     map = io->map;
     if ((map > 1) || (io->start > 0xffff) || (io->stop > 0xffff) ||

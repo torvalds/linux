@@ -4,7 +4,6 @@
  */
 
 #include <linux/sched.h>
-#include <linux/init.h>
 #include <asm/semaphore-helper.h>
 
 /*

@@ -677,8 +677,8 @@ __SYSCALL(303, sys_ni_syscall, 0)
 
 #define __NR_signalfd				304
 __SYSCALL(304, sys_signalfd, 3)
-#define __NR_timerfd				305
-__SYSCALL(305, sys_timerfd, 4)
+/*  305 was __NR_timerfd  */
+__SYSCALL(305, sys_ni_syscall, 0)
 #define __NR_eventfd				306
 __SYSCALL(306, sys_eventfd, 1)
 

@@ -6,6 +6,7 @@
 #include "linux/completion.h"
 #include "linux/interrupt.h"
 #include "linux/list.h"
+#include "linux/mutex.h"
 #include "asm/atomic.h"
 #include "init.h"
 #include "irq_kern.h"
@@ -120,7 +121,7 @@ static int port_accept(struct port_list *port)
 	return 0;
 }
 
-static DECLARE_MUTEX(ports_sem);
+static DEFINE_MUTEX(ports_mutex);
 static LIST_HEAD(ports);
 
 static void port_work_proc(struct work_struct *unused)
@@ -161,7 +162,7 @@ void *port_data(int port_num)
 	struct port_dev *dev = NULL;
 	int fd;
 
-	down(&ports_sem);
+	mutex_lock(&ports_mutex);
 	list_for_each(ele, &ports) {
 		port = list_entry(ele, struct port_list, list);
 		if (port->port == port_num)
@@ -216,7 +217,7 @@ void *port_data(int port_num)
  out_free:
 	kfree(port);
  out:
-	up(&ports_sem);
+	mutex_unlock(&ports_mutex);
 	return dev;
 }
 

@@ -533,6 +533,9 @@
 #define CAPABILITY__LEASE                         0x10000000UL
 #define CAPABILITY__AUDIT_WRITE                   0x20000000UL
 #define CAPABILITY__AUDIT_CONTROL                 0x40000000UL
+#define CAPABILITY__SETFCAP                       0x80000000UL
+#define CAPABILITY2__MAC_OVERRIDE                 0x00000001UL
+#define CAPABILITY2__MAC_ADMIN                    0x00000002UL
 #define NETLINK_ROUTE_SOCKET__IOCTL               0x00000001UL
 #define NETLINK_ROUTE_SOCKET__READ                0x00000002UL
 #define NETLINK_ROUTE_SOCKET__WRITE               0x00000004UL

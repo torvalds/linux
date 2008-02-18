@@ -612,6 +612,7 @@ static void mpsc_hw_init(struct mpsc_port_info *pi)
 
 	/* No preamble, 16x divider, low-latency, */
 	writel(0x04400400, pi->mpsc_base + MPSC_MMCRH);
+	mpsc_set_baudrate(pi, pi->default_baud);
 
 	if (pi->mirror_regs) {
 		pi->MPSC_CHR_1_m = 0;

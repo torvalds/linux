@@ -60,14 +60,14 @@ do {								\
 	__init_rwsem((sem), #sem, &__key);			\
 } while (0)
 
-extern void FASTCALL(__down_read(struct rw_semaphore *sem));
-extern int FASTCALL(__down_read_trylock(struct rw_semaphore *sem));
-extern void FASTCALL(__down_write(struct rw_semaphore *sem));
-extern void FASTCALL(__down_write_nested(struct rw_semaphore *sem, int subclass));
-extern int FASTCALL(__down_write_trylock(struct rw_semaphore *sem));
-extern void FASTCALL(__up_read(struct rw_semaphore *sem));
-extern void FASTCALL(__up_write(struct rw_semaphore *sem));
-extern void FASTCALL(__downgrade_write(struct rw_semaphore *sem));
+extern void __down_read(struct rw_semaphore *sem);
+extern int __down_read_trylock(struct rw_semaphore *sem);
+extern void __down_write(struct rw_semaphore *sem);
+extern void __down_write_nested(struct rw_semaphore *sem, int subclass);
+extern int __down_write_trylock(struct rw_semaphore *sem);
+extern void __up_read(struct rw_semaphore *sem);
+extern void __up_write(struct rw_semaphore *sem);
+extern void __downgrade_write(struct rw_semaphore *sem);
 
 static inline int rwsem_is_locked(struct rw_semaphore *sem)
 {

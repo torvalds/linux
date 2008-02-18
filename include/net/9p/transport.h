@@ -4,7 +4,7 @@
  * Transport Definition
  *
  *  Copyright (C) 2005 by Latchesar Ionkov <lucho@ionkov.net>
- *  Copyright (C) 2004 by Eric Van Hensbergen <ericvh@gmail.com>
+ *  Copyright (C) 2004-2008 by Eric Van Hensbergen <ericvh@gmail.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -34,11 +34,12 @@ enum p9_trans_status {
 
 struct p9_trans {
 	enum p9_trans_status status;
+	int msize;
+	unsigned char extended;
 	void *priv;
-	int (*write) (struct p9_trans *, void *, int);
-	int (*read) (struct p9_trans *, void *, int);
 	void (*close) (struct p9_trans *);
-	unsigned int (*poll)(struct p9_trans *, struct poll_table_struct *);
+	int (*rpc) (struct p9_trans *t, struct p9_fcall *tc,
+							struct p9_fcall **rc);
 };
 
 struct p9_trans_module {
@@ -46,7 +47,7 @@ struct p9_trans_module {
 	char *name;		/* name of transport */
 	int maxsize;		/* max message size of transport */
 	int def;		/* this transport should be default */
-	struct p9_trans * (*create)(const char *devname, char *options);
+	struct p9_trans * (*create)(const char *, char *, int, unsigned char);
 };
 
 void v9fs_register_trans(struct p9_trans_module *m);

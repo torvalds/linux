@@ -1,21 +1,21 @@
-/* SCTP kernel reference Implementation
+/* SCTP kernel implementation
  * (C) Copyright IBM Corp. 2001, 2004
  * Copyright (c) 1999-2000 Cisco, Inc.
  * Copyright (c) 1999-2001 Motorola, Inc.
  * Copyright (c) 2001 Intel Corp.
  * Copyright (c) 2001 La Monte H.P. Yarroll
  *
- * This file is part of the SCTP kernel reference Implementation
+ * This file is part of the SCTP kernel implementation
  *
  * This module provides the abstraction for an SCTP association.
  *
- * The SCTP reference implementation is free software;
+ * This SCTP implementation is free software;
  * you can redistribute it and/or modify it under the terms of
  * the GNU General Public License as published by
  * the Free Software Foundation; either version 2, or (at your option)
  * any later version.
  *
- * The SCTP reference implementation is distributed in the hope that it
+ * This SCTP implementation is distributed in the hope that it
  * will be useful, but WITHOUT ANY WARRANTY; without even the implied
  *                 ************************
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
@@ -1525,7 +1525,7 @@ struct sctp_chunk *sctp_assoc_lookup_asconf_ack(
 					const struct sctp_association *asoc,
 					__be32 serial)
 {
-	struct sctp_chunk *ack = NULL;
+	struct sctp_chunk *ack;
 
 	/* Walk through the list of cached ASCONF-ACKs and find the
 	 * ack chunk whose serial number matches that of the request.
@@ -1533,9 +1533,9 @@ struct sctp_chunk *sctp_assoc_lookup_asconf_ack(
 	list_for_each_entry(ack, &asoc->asconf_ack_list, transmitted_list) {
 		if (ack->subh.addip_hdr->serial == serial) {
 			sctp_chunk_hold(ack);
-			break;
+			return ack;
 		}
 	}
 
-	return ack;
+	return NULL;
 }

@@ -182,6 +182,11 @@ BUILD_TRAP_HANDLER(fpu_state_restore);
 
 #define arch_align_stack(x) (x)
 
+struct mem_access {
+	unsigned long (*from)(void *dst, const void *src, unsigned long cnt);
+	unsigned long (*to)(void *dst, const void *src, unsigned long cnt);
+};
+
 #ifdef CONFIG_SUPERH32
 # include "system_32.h"
 #else

@@ -5,7 +5,7 @@
  *                          Philip Edelbrock <phil@netroedge.com>
  *                          Stephen Rousset <stephen.rousset@rocketlogix.com>
  *                          Dan Eaton <dan.eaton@rocketlogix.com>
- * Copyright (C) 2004       Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2004,2007  Jean Delvare <khali@linux-fr.org>
  *
  * Original port to Linux 2.6 by Jeff Oliver.
  *
@@ -36,6 +36,11 @@
  * control the speed of a fan. All new chips use pulse width modulation
  * instead. The LM87 is the only hardware monitoring chipset I know of
  * which uses amplitude modulation. Be careful when using this feature.
+ *
+ * This driver also supports the ADM1024, a sensor chip made by Analog
+ * Devices. That chip is fully compatible with the LM87. Complete
+ * datasheet can be obtained from Analog's website at:
+ *   http://www.analog.com/en/prod/0,2877,ADM1024,00.html
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -74,7 +79,7 @@ static unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
  * Insmod parameters
  */
 
-I2C_CLIENT_INSMOD_1(lm87);
+I2C_CLIENT_INSMOD_2(lm87, adm1024);
 
 /*
  * The LM87 registers
@@ -166,7 +171,6 @@ static struct i2c_driver lm87_driver = {
 	.driver = {
 		.name	= "lm87",
 	},
-	.id		= I2C_DRIVERID_LM87,
 	.attach_adapter	= lm87_attach_adapter,
 	.detach_client	= lm87_detach_client,
 };
@@ -506,8 +510,7 @@ static ssize_t show_vrm(struct device *dev, struct device_attribute *attr, char 
 }
 static ssize_t set_vrm(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct lm87_data *data = i2c_get_clientdata(client);
+	struct lm87_data *data = dev_get_drvdata(dev);
 	data->vrm = simple_strtoul(buf, NULL, 10);
 	return count;
 }
@@ -662,6 +665,7 @@ static int lm87_detect(struct i2c_adapter *adapter, int address, int kind)
 	struct i2c_client *new_client;
 	struct lm87_data *data;
 	int err = 0;
+	static const char *names[] = { "lm87", "adm1024" };
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		goto exit;
@@ -686,11 +690,18 @@ static int lm87_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	/* Now, we do the remaining detection. */
 	if (kind < 0) {
+		u8 cid = lm87_read_value(new_client, LM87_REG_COMPANY_ID);
 		u8 rev = lm87_read_value(new_client, LM87_REG_REVISION);
 
-		if (rev < 0x01 || rev > 0x08
-		 || (lm87_read_value(new_client, LM87_REG_CONFIG) & 0x80)
-		 || lm87_read_value(new_client, LM87_REG_COMPANY_ID) != 0x02) {
+		if (cid == 0x02			/* National Semiconductor */
+		 && (rev >= 0x01 && rev <= 0x08))
+			kind = lm87;
+		else if (cid == 0x41		/* Analog Devices */
+		      && (rev & 0xf0) == 0x10)
+			kind = adm1024;
+
+		if (kind < 0
+		 || (lm87_read_value(new_client, LM87_REG_CONFIG) & 0x80)) {
 			dev_dbg(&adapter->dev,
 				"LM87 detection failed at 0x%02x.\n",
 				address);
@@ -699,7 +710,7 @@ static int lm87_detect(struct i2c_adapter *adapter, int address, int kind)
 	}
 
 	/* We can fill in the remaining client fields */
-	strlcpy(new_client->name, "lm87", I2C_NAME_SIZE);
+	strlcpy(new_client->name, names[kind - 1], I2C_NAME_SIZE);
 	data->valid = 0;
 	mutex_init(&data->update_lock);
 

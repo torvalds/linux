@@ -284,6 +284,7 @@ ia64_sal_cache_flush (u64 cache_type)
 	SAL_CALL(isrv, SAL_CACHE_FLUSH, cache_type, 0, 0, 0, 0, 0, 0);
 	return isrv.status;
 }
+EXPORT_SYMBOL_GPL(ia64_sal_cache_flush);
 
 void __init
 ia64_sal_init (struct ia64_sal_systab *systab)
@@ -372,3 +373,16 @@ ia64_sal_oemcall_reentrant(struct ia64_sal_retval *isrvp, u64 oemfunc,
 	return 0;
 }
 EXPORT_SYMBOL(ia64_sal_oemcall_reentrant);
+
+long
+ia64_sal_freq_base (unsigned long which, unsigned long *ticks_per_second,
+		    unsigned long *drift_info)
+{
+	struct ia64_sal_retval isrv;
+
+	SAL_CALL(isrv, SAL_FREQ_BASE, which, 0, 0, 0, 0, 0, 0);
+	*ticks_per_second = isrv.v0;
+	*drift_info = isrv.v1;
+	return isrv.status;
+}
+EXPORT_SYMBOL_GPL(ia64_sal_freq_base);

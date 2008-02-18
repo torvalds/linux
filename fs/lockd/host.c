@@ -243,9 +243,17 @@ nlm_bind_host(struct nlm_host *host)
 			.program	= &nlm_program,
 			.version	= host->h_version,
 			.authflavor	= RPC_AUTH_UNIX,
-			.flags		= (RPC_CLNT_CREATE_HARDRTRY |
+			.flags		= (RPC_CLNT_CREATE_NOPING |
 					   RPC_CLNT_CREATE_AUTOBIND),
 		};
+
+		/*
+		 * lockd retries server side blocks automatically so we want
+		 * those to be soft RPC calls. Client side calls need to be
+		 * hard RPC tasks.
+		 */
+		if (!host->h_server)
+			args.flags |= RPC_CLNT_CREATE_HARDRTRY;
 
 		clnt = rpc_create(&args);
 		if (!IS_ERR(clnt))

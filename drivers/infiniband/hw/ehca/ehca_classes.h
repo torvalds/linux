@@ -101,6 +101,7 @@ struct ehca_sport {
 	spinlock_t mod_sqp_lock;
 	enum ib_port_state port_state;
 	struct ehca_sma_attr saved_attr;
+	u32 pma_qp_nr;
 };
 
 #define HCA_CAP_MR_PGSIZE_4K  0x80000000

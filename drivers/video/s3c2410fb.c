@@ -110,6 +110,11 @@ static int debug	= 0;
 
 /* useful functions */
 
+static int is_s3c2412(struct s3c2410fb_info *fbi)
+{
+	return (fbi->drv_type == DRV_S3C2412);
+}
+
 /* s3c2410fb_set_lcdaddr
  *
  * initialise lcd controller address pointers
@@ -501,7 +506,7 @@ static void schedule_palette_update(struct s3c2410fb_info *fbi,
 {
 	unsigned long flags;
 	unsigned long irqen;
-	void __iomem *regs = fbi->io;
+	void __iomem *irq_base = fbi->irq_base;
 
 	local_irq_save(flags);
 
@@ -511,9 +516,9 @@ static void schedule_palette_update(struct s3c2410fb_info *fbi,
 		fbi->palette_ready = 1;
 
 		/* enable IRQ */
-		irqen = readl(regs + S3C2410_LCDINTMSK);
+		irqen = readl(irq_base + S3C24XX_LCDINTMSK);
 		irqen &= ~S3C2410_LCDINT_FRSYNC;
-		writel(irqen, regs + S3C2410_LCDINTMSK);
+		writel(irqen, irq_base + S3C24XX_LCDINTMSK);
 	}
 
 	local_irq_restore(flags);
@@ -594,15 +599,17 @@ static int s3c2410fb_setcolreg(unsigned regno,
 static int s3c2410fb_blank(int blank_mode, struct fb_info *info)
 {
 	struct s3c2410fb_info *fbi = info->par;
-	void __iomem *regs = fbi->io;
+	void __iomem *tpal_reg = fbi->io;
 
 	dprintk("blank(mode=%d, info=%p)\n", blank_mode, info);
 
+	tpal_reg += is_s3c2412(fbi) ? S3C2412_TPAL : S3C2410_TPAL;
+
 	if (blank_mode == FB_BLANK_UNBLANK)
-		writel(0x0, regs + S3C2410_TPAL);
+		writel(0x0, tpal_reg);
 	else {
 		dprintk("setting TPAL to output 0x000000\n");
-		writel(S3C2410_TPAL_EN, regs + S3C2410_TPAL);
+		writel(S3C2410_TPAL_EN, tpal_reg);
 	}
 
 	return 0;
@@ -663,7 +670,7 @@ static int __init s3c2410fb_map_video_memory(struct fb_info *info)
 	dma_addr_t map_dma;
 	unsigned map_size = PAGE_ALIGN(info->fix.smem_len);
 
-	dprintk("map_video_memory(fbi=%p)\n", fbi);
+	dprintk("map_video_memory(fbi=%p) map_size %u\n", fbi, map_size);
 
 	info->screen_base = dma_alloc_writecombine(fbi->dev, map_size,
 						   &map_dma, GFP_KERNEL);
@@ -672,7 +679,7 @@ static int __init s3c2410fb_map_video_memory(struct fb_info *info)
 		/* prevent initial garbage on screen */
 		dprintk("map_video_memory: clear %p:%08x\n",
 			info->screen_base, map_size);
-		memset(info->screen_base, 0xf0, map_size);
+		memset(info->screen_base, 0x00, map_size);
 
 		info->fix.smem_start = map_dma;
 
@@ -709,6 +716,16 @@ static int s3c2410fb_init_registers(struct fb_info *info)
 	struct s3c2410fb_mach_info *mach_info = fbi->dev->platform_data;
 	unsigned long flags;
 	void __iomem *regs = fbi->io;
+	void __iomem *tpal;
+	void __iomem *lpcsel;
+
+	if (is_s3c2412(fbi)) {
+		tpal = regs + S3C2412_TPAL;
+		lpcsel = regs + S3C2412_TCONSEL;
+	} else {
+		tpal = regs + S3C2410_TPAL;
+		lpcsel = regs + S3C2410_LPCSEL;
+	}
 
 	/* Initialise LCD with values from haret */
 
@@ -724,12 +741,12 @@ static int s3c2410fb_init_registers(struct fb_info *info)
 	local_irq_restore(flags);
 
 	dprintk("LPCSEL    = 0x%08lx\n", mach_info->lpcsel);
-	writel(mach_info->lpcsel, regs + S3C2410_LPCSEL);
+	writel(mach_info->lpcsel, lpcsel);
 
-	dprintk("replacing TPAL %08x\n", readl(regs + S3C2410_TPAL));
+	dprintk("replacing TPAL %08x\n", readl(tpal));
 
 	/* ensure temporary palette disabled */
-	writel(0x00, regs + S3C2410_TPAL);
+	writel(0x00, tpal);
 
 	return 0;
 }
@@ -763,15 +780,15 @@ static void s3c2410fb_write_palette(struct s3c2410fb_info *fbi)
 static irqreturn_t s3c2410fb_irq(int irq, void *dev_id)
 {
 	struct s3c2410fb_info *fbi = dev_id;
-	void __iomem *regs = fbi->io;
-	unsigned long lcdirq = readl(regs + S3C2410_LCDINTPND);
+	void __iomem *irq_base = fbi->irq_base;
+	unsigned long lcdirq = readl(irq_base + S3C24XX_LCDINTPND);
 
 	if (lcdirq & S3C2410_LCDINT_FRSYNC) {
 		if (fbi->palette_ready)
 			s3c2410fb_write_palette(fbi);
 
-		writel(S3C2410_LCDINT_FRSYNC, regs + S3C2410_LCDINTPND);
-		writel(S3C2410_LCDINT_FRSYNC, regs + S3C2410_LCDSRCPND);
+		writel(S3C2410_LCDINT_FRSYNC, irq_base + S3C24XX_LCDINTPND);
+		writel(S3C2410_LCDINT_FRSYNC, irq_base + S3C24XX_LCDSRCPND);
 	}
 
 	return IRQ_HANDLED;
@@ -779,7 +796,8 @@ static irqreturn_t s3c2410fb_irq(int irq, void *dev_id)
 
 static char driver_name[] = "s3c2410fb";
 
-static int __init s3c2410fb_probe(struct platform_device *pdev)
+static int __init s3c24xxfb_probe(struct platform_device *pdev,
+				  enum s3c_drv_type drv_type)
 {
 	struct s3c2410fb_info *info;
 	struct s3c2410fb_display *display;
@@ -799,6 +817,12 @@ static int __init s3c2410fb_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	if (mach_info->default_display >= mach_info->num_displays) {
+		dev_err(&pdev->dev, "default is %d but only %d displays\n",
+			mach_info->default_display, mach_info->num_displays);
+		return -EINVAL;
+	}
+
 	display = mach_info->displays + mach_info->default_display;
 
 	irq = platform_get_irq(pdev, 0);
@@ -815,6 +839,7 @@ static int __init s3c2410fb_probe(struct platform_device *pdev)
 
 	info = fbinfo->par;
 	info->dev = &pdev->dev;
+	info->drv_type = drv_type;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
@@ -837,6 +862,8 @@ static int __init s3c2410fb_probe(struct platform_device *pdev)
 		ret = -ENXIO;
 		goto release_mem;
 	}
+
+	info->irq_base = info->io + ((drv_type == DRV_S3C2412) ? S3C2412_LCDINTBASE : S3C2410_LCDINTBASE);
 
 	dprintk("devinit\n");
 
@@ -946,6 +973,16 @@ dealloc_fb:
 	return ret;
 }
 
+static int __init s3c2410fb_probe(struct platform_device *pdev)
+{
+	return s3c24xxfb_probe(pdev, DRV_S3C2410);
+}
+
+static int __init s3c2412fb_probe(struct platform_device *pdev)
+{
+	return s3c24xxfb_probe(pdev, DRV_S3C2412);
+}
+
 /* s3c2410fb_stop_lcd
  *
  * shutdown the lcd controller
@@ -1047,14 +1084,31 @@ static struct platform_driver s3c2410fb_driver = {
 	},
 };
 
+static struct platform_driver s3c2412fb_driver = {
+	.probe		= s3c2412fb_probe,
+	.remove		= s3c2410fb_remove,
+	.suspend	= s3c2410fb_suspend,
+	.resume		= s3c2410fb_resume,
+	.driver		= {
+		.name	= "s3c2412-lcd",
+		.owner	= THIS_MODULE,
+	},
+};
+
 int __init s3c2410fb_init(void)
 {
-	return platform_driver_register(&s3c2410fb_driver);
+	int ret = platform_driver_register(&s3c2410fb_driver);
+
+	if (ret == 0)
+		ret = platform_driver_register(&s3c2412fb_driver);;
+
+	return ret;
 }
 
 static void __exit s3c2410fb_cleanup(void)
 {
 	platform_driver_unregister(&s3c2410fb_driver);
+	platform_driver_unregister(&s3c2412fb_driver);
 }
 
 module_init(s3c2410fb_init);

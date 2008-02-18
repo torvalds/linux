@@ -50,7 +50,7 @@ struct rt_signal_frame {
 	unsigned char retcode[8];	/* Trampoline code. */
 };
 
-int do_signal(int restart, sigset_t *oldset, struct pt_regs *regs);
+void do_signal(int restart, struct pt_regs *regs);
 void keep_debug_flags(unsigned long oldccs, unsigned long oldspc,
 		      struct pt_regs *regs);
 /*
@@ -61,74 +61,16 @@ int
 sys_sigsuspend(old_sigset_t mask, long r11, long r12, long r13, long mof,
 	       long srp, struct pt_regs *regs)
 {
-	sigset_t saveset;
-
 	mask &= _BLOCKABLE;
-
 	spin_lock_irq(&current->sighand->siglock);
-
-	saveset = current->blocked;
-
+	current->saved_sigmask = current->blocked;
 	siginitset(&current->blocked, mask);
-
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
-
-	regs->r10 = -EINTR;
-
-	while (1) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule();
-
-		if (do_signal(0, &saveset, regs)) {
-			/*
-			 * This point is reached twice: once to call
-			 * the signal handler, then again to return
-			 * from the sigsuspend system call. When
-			 * calling the signal handler, R10 hold the
-			 * signal number as set by do_signal(). The
-			 * sigsuspend  call will always return with
-			 * the restored value above; -EINTR.
-			 */
-			return regs->r10;
-		}
-	}
-}
-
-/* Define some dummy arguments to be able to reach the regs argument. */
-int
-sys_rt_sigsuspend(sigset_t *unewset, size_t sigsetsize, long r12, long r13,
-		  long mof, long srp, struct pt_regs *regs)
-{
-	sigset_t saveset;
-	sigset_t newset;
-
-	if (sigsetsize != sizeof(sigset_t))
-		return -EINVAL;
-
-	if (copy_from_user(&newset, unewset, sizeof(newset)))
-		return -EFAULT;
-
-	sigdelsetmask(&newset, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock);
-
-	saveset = current->blocked;
-	current->blocked = newset;
-
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-
-	regs->r10 = -EINTR;
-
-	while (1) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule();
-
-		if (do_signal(0, &saveset, regs)) {
-			/* See comment in function above. */
-			return regs->r10;
-		}
-	}
+	current->state = TASK_INTERRUPTIBLE;
+	schedule();
+	set_thread_flag(TIF_RESTORE_SIGMASK);
+	return -ERESTARTNOHAND;
 }
 
 int
@@ -290,7 +232,7 @@ sys_rt_sigreturn(long r10, long r11, long r12, long r13, long mof, long srp,
 		goto badframe;
 
 	if (do_sigaltstack(&frame->uc.uc_stack, NULL, rdusp()) == -EFAULT)
- 		goto badframe;
+		goto badframe;
 
 	keep_debug_flags(oldccs, oldspc, regs);
 
@@ -347,11 +289,11 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs * regs, size_t frame_size)
 /* Grab and setup a signal frame.
  *
  * Basically a lot of state-info is stacked, and arranged for the
- * user-mode program to return to the kernel using either a trampoline
+ * user-mode program to return to the kernel using either a trampiline
  * which performs the syscall sigreturn(), or a provided user-mode
  * trampoline.
   */
-static void
+static int
 setup_frame(int sig, struct k_sigaction *ka,  sigset_t *set,
 	    struct pt_regs * regs)
 {
@@ -417,16 +359,17 @@ setup_frame(int sig, struct k_sigaction *ka,  sigset_t *set,
 	/* Actually move the USP to reflect the stacked frame. */
 	wrusp((unsigned long)frame);
 
-	return;
+	return 0;
 
 give_sigsegv:
 	if (sig == SIGSEGV)
 		ka->sa.sa_handler = SIG_DFL;
 
 	force_sig(SIGSEGV, current);
+	return -EFAULT;
 }
 
-static void
+static int
 setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	       sigset_t *set, struct pt_regs * regs)
 {
@@ -503,21 +446,24 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	/* Actually move the usp to reflect the stacked frame. */
 	wrusp((unsigned long)frame);
 
-	return;
+	return 0;
 
 give_sigsegv:
 	if (sig == SIGSEGV)
 		ka->sa.sa_handler = SIG_DFL;
 
 	force_sig(SIGSEGV, current);
+	return -EFAULT;
 }
 
 /* Invoke a singal handler to, well, handle the signal. */
-static inline void
+static inline int
 handle_signal(int canrestart, unsigned long sig,
 	      siginfo_t *info, struct k_sigaction *ka,
               sigset_t *oldset, struct pt_regs * regs)
 {
+	int ret;
+
 	/* Check if this got called from a system call. */
 	if (canrestart) {
 		/* If so, check system call restarting. */
@@ -561,19 +507,24 @@ handle_signal(int canrestart, unsigned long sig,
 
 	/* Set up the stack frame. */
 	if (ka->sa.sa_flags & SA_SIGINFO)
-		setup_rt_frame(sig, ka, info, oldset, regs);
+		ret = setup_rt_frame(sig, ka, info, oldset, regs);
 	else
-		setup_frame(sig, ka, oldset, regs);
+		ret = setup_frame(sig, ka, oldset, regs);
 
 	if (ka->sa.sa_flags & SA_ONESHOT)
 		ka->sa.sa_handler = SIG_DFL;
 
-	spin_lock_irq(&current->sighand->siglock);
-	sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
-	if (!(ka->sa.sa_flags & SA_NODEFER))
-		sigaddset(&current->blocked,sig);
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
+	if (ret == 0) {
+		spin_lock_irq(&current->sighand->siglock);
+		sigorsets(&current->blocked, &current->blocked,
+			&ka->sa.sa_mask);
+		if (!(ka->sa.sa_flags & SA_NODEFER))
+			sigaddset(&current->blocked, sig);
+		recalc_sigpending();
+		spin_unlock_irq(&current->sighand->siglock);
+	}
+
+	return ret;
 }
 
 /*
@@ -587,12 +538,13 @@ handle_signal(int canrestart, unsigned long sig,
  * we can use user_mode(regs) to see if we came directly from kernel or user
  * mode below.
  */
-int
-do_signal(int canrestart, sigset_t *oldset, struct pt_regs *regs)
+void
+do_signal(int canrestart, struct pt_regs *regs)
 {
 	int signr;
 	siginfo_t info;
         struct k_sigaction ka;
+	sigset_t *oldset;
 
 	/*
 	 * The common case should go fast, which is why this point is
@@ -600,17 +552,28 @@ do_signal(int canrestart, sigset_t *oldset, struct pt_regs *regs)
 	 * without doing anything.
 	 */
 	if (!user_mode(regs))
-		return 1;
+		return;
 
-	if (!oldset)
+	if (test_thread_flag(TIF_RESTORE_SIGMASK))
+		oldset = &current->saved_sigmask;
+	else
 		oldset = &current->blocked;
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 
 	if (signr > 0) {
-		/* Deliver the signal. */
-		handle_signal(canrestart, signr, &info, &ka, oldset, regs);
-		return 1;
+		/* Whee!  Actually deliver the signal.  */
+		if (handle_signal(canrestart, signr, &info, &ka,
+				oldset, regs)) {
+			/* a signal was successfully delivered; the saved
+			 * sigmask will have been stored in the signal frame,
+			 * and will be restored by sigreturn, so we can simply
+			 * clear the TIF_RESTORE_SIGMASK flag */
+			if (test_thread_flag(TIF_RESTORE_SIGMASK))
+				clear_thread_flag(TIF_RESTORE_SIGMASK);
+		}
+
+		return;
 	}
 
 	/* Got here from a system call? */
@@ -628,7 +591,12 @@ do_signal(int canrestart, sigset_t *oldset, struct pt_regs *regs)
 		}
 	}
 
-	return 0;
+	/* if there's no signal to deliver, we just put the saved sigmask
+	 * back */
+	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
+		clear_thread_flag(TIF_RESTORE_SIGMASK);
+		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
+	}
 }
 
 asmlinkage void
@@ -641,7 +609,7 @@ ugdb_trap_user(struct thread_info *ti, int sig)
 		user_regs(ti)->spc = 0;
 	}
 	/* FIXME: Filter out false h/w breakpoint hits (i.e. EDA
-	   not within any configured h/w breakpoint range). Synchronize with
+	   not withing any configured h/w breakpoint range). Synchronize with
 	   what already exists for kernel debugging.  */
 	if (((user_regs(ti)->exs & 0xff00) >> 8) == BREAK_8_INTR_VECT) {
 		/* Break 8: subtract 2 from ERP unless in a delay slot. */

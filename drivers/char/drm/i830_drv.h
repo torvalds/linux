@@ -25,7 +25,7 @@
  * DEALINGS IN THE SOFTWARE.
  *
  * Authors: Rickard E. (Rik) Faith <faith@valinux.com>
- * 	    Jeff Hartmann <jhartmann@valinux.com>
+ *	    Jeff Hartmann <jhartmann@valinux.com>
  *
  */
 
@@ -156,8 +156,7 @@ extern int i830_driver_device_is_agp(struct drm_device * dev);
 
 #define BEGIN_LP_RING(n) do {				\
 	if (I830_VERBOSE)				\
-		printk("BEGIN_LP_RING(%d) in %s\n",	\
-			  n, __FUNCTION__);		\
+		printk("BEGIN_LP_RING(%d)\n", (n));	\
 	if (dev_priv->ring.space < n*4)			\
 		i830_wait_ring(dev, n*4, __FUNCTION__);		\
 	outcount = 0;					\
@@ -183,7 +182,7 @@ extern int i830_driver_device_is_agp(struct drm_device * dev);
 
 extern int i830_wait_ring(struct drm_device * dev, int n, const char *caller);
 
-#define GFX_OP_USER_INTERRUPT 		((0<<29)|(2<<23))
+#define GFX_OP_USER_INTERRUPT		((0<<29)|(2<<23))
 #define GFX_OP_BREAKPOINT_INTERRUPT	((0<<29)|(1<<23))
 #define CMD_REPORT_HEAD			(7<<23)
 #define CMD_STORE_DWORD_IDX		((0x21<<23) | 0x1)
@@ -203,30 +202,30 @@ extern int i830_wait_ring(struct drm_device * dev, int n, const char *caller);
 
 #define I830REG_HWSTAM		0x02098
 #define I830REG_INT_IDENTITY_R	0x020a4
-#define I830REG_INT_MASK_R 	0x020a8
+#define I830REG_INT_MASK_R	0x020a8
 #define I830REG_INT_ENABLE_R	0x020a0
 
 #define I830_IRQ_RESERVED ((1<<13)|(3<<2))
 
-#define LP_RING     		0x2030
-#define HP_RING     		0x2040
-#define RING_TAIL      		0x00
+#define LP_RING			0x2030
+#define HP_RING			0x2040
+#define RING_TAIL		0x00
 #define TAIL_ADDR		0x001FFFF8
-#define RING_HEAD      		0x04
-#define HEAD_WRAP_COUNT     	0xFFE00000
-#define HEAD_WRAP_ONE       	0x00200000
-#define HEAD_ADDR           	0x001FFFFC
-#define RING_START     		0x08
-#define START_ADDR          	0x0xFFFFF000
-#define RING_LEN       		0x0C
-#define RING_NR_PAGES       	0x001FF000
-#define RING_REPORT_MASK    	0x00000006
-#define RING_REPORT_64K     	0x00000002
-#define RING_REPORT_128K    	0x00000004
-#define RING_NO_REPORT      	0x00000000
-#define RING_VALID_MASK     	0x00000001
-#define RING_VALID          	0x00000001
-#define RING_INVALID        	0x00000000
+#define RING_HEAD		0x04
+#define HEAD_WRAP_COUNT		0xFFE00000
+#define HEAD_WRAP_ONE		0x00200000
+#define HEAD_ADDR		0x001FFFFC
+#define RING_START		0x08
+#define START_ADDR		0x0xFFFFF000
+#define RING_LEN		0x0C
+#define RING_NR_PAGES		0x001FF000
+#define RING_REPORT_MASK	0x00000006
+#define RING_REPORT_64K		0x00000002
+#define RING_REPORT_128K	0x00000004
+#define RING_NO_REPORT		0x00000000
+#define RING_VALID_MASK		0x00000001
+#define RING_VALID		0x00000001
+#define RING_INVALID		0x00000000
 
 #define GFX_OP_SCISSOR         ((0x3<<29)|(0x1c<<24)|(0x10<<19))
 #define SC_UPDATE_SCISSOR       (0x1<<1)
@@ -279,9 +278,9 @@ extern int i830_wait_ring(struct drm_device * dev, int n, const char *caller);
 #define XY_SRC_COPY_BLT_WRITE_ALPHA     (1<<21)
 #define XY_SRC_COPY_BLT_WRITE_RGB       (1<<20)
 
-#define MI_BATCH_BUFFER 	((0x30<<23)|1)
-#define MI_BATCH_BUFFER_START 	(0x31<<23)
-#define MI_BATCH_BUFFER_END 	(0xA<<23)
+#define MI_BATCH_BUFFER		((0x30<<23)|1)
+#define MI_BATCH_BUFFER_START	(0x31<<23)
+#define MI_BATCH_BUFFER_END	(0xA<<23)
 #define MI_BATCH_NON_SECURE	(1)
 
 #define MI_WAIT_FOR_EVENT       ((0x3<<23))

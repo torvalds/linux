@@ -162,7 +162,7 @@ that only one external action is invoked at a time.
 #include <linux/firmware.h>
 #include <linux/acpi.h>
 #include <linux/ctype.h>
-#include <linux/latency.h>
+#include <linux/pm_qos_params.h>
 
 #include "ipw2100.h"
 
@@ -1701,7 +1701,7 @@ static int ipw2100_up(struct ipw2100_priv *priv, int deferred)
 	/* the ipw2100 hardware really doesn't want power management delays
 	 * longer than 175usec
 	 */
-	modify_acceptable_latency("ipw2100", 175);
+	pm_qos_update_requirement(PM_QOS_CPU_DMA_LATENCY, "ipw2100", 175);
 
 	/* If the interrupt is enabled, turn it off... */
 	spin_lock_irqsave(&priv->low_lock, flags);
@@ -1856,7 +1856,8 @@ static void ipw2100_down(struct ipw2100_priv *priv)
 	ipw2100_disable_interrupts(priv);
 	spin_unlock_irqrestore(&priv->low_lock, flags);
 
-	modify_acceptable_latency("ipw2100", INFINITE_LATENCY);
+	pm_qos_update_requirement(PM_QOS_CPU_DMA_LATENCY, "ipw2100",
+			PM_QOS_DEFAULT_VALUE);
 
 	/* We have to signal any supplicant if we are disassociating */
 	if (associated)
@@ -6554,7 +6555,8 @@ static int __init ipw2100_init(void)
 	if (ret)
 		goto out;
 
-	set_acceptable_latency("ipw2100", INFINITE_LATENCY);
+	pm_qos_add_requirement(PM_QOS_CPU_DMA_LATENCY, "ipw2100",
+			PM_QOS_DEFAULT_VALUE);
 #ifdef CONFIG_IPW2100_DEBUG
 	ipw2100_debug_level = debug;
 	ret = driver_create_file(&ipw2100_pci_driver.driver,
@@ -6576,7 +6578,7 @@ static void __exit ipw2100_exit(void)
 			   &driver_attr_debug_level);
 #endif
 	pci_unregister_driver(&ipw2100_pci_driver);
-	remove_acceptable_latency("ipw2100");
+	pm_qos_remove_requirement(PM_QOS_CPU_DMA_LATENCY, "ipw2100");
 }
 
 module_init(ipw2100_init);

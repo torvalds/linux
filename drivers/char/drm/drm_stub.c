@@ -98,10 +98,6 @@ static int drm_fill_in_dev(struct drm_device * dev, struct pci_dev *pdev,
 
 	dev->driver = driver;
 
-	if (dev->driver->load)
-		if ((retcode = dev->driver->load(dev, ent->driver_data)))
-			goto error_out_unreg;
-
 	if (drm_core_has_AGP(dev)) {
 		if (drm_device_is_agp(dev))
 			dev->agp = drm_agp_init(dev);
@@ -119,6 +115,10 @@ static int drm_fill_in_dev(struct drm_device * dev, struct pci_dev *pdev,
 					     1024 * 1024, MTRR_TYPE_WRCOMB, 1);
 		}
 	}
+
+	if (dev->driver->load)
+		if ((retcode = dev->driver->load(dev, ent->driver_data)))
+			goto error_out_unreg;
 
 	retcode = drm_ctxbitmap_init(dev);
 	if (retcode) {
@@ -168,11 +168,10 @@ static int drm_get_head(struct drm_device * dev, struct drm_head * head)
 				goto err_g1;
 			}
 
-			head->dev_class = drm_sysfs_device_add(drm_class, head);
-			if (IS_ERR(head->dev_class)) {
+			ret = drm_sysfs_device_add(dev, head);
+			if (ret) {
 				printk(KERN_ERR
 				       "DRM: Error sysfs_device_add.\n");
-				ret = PTR_ERR(head->dev_class);
 				goto err_g2;
 			}
 			*heads = head;
@@ -218,13 +217,14 @@ int drm_get_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 	if (ret)
 		goto err_g1;
 
+	pci_set_master(pdev);
 	if ((ret = drm_fill_in_dev(dev, pdev, ent, driver))) {
 		printk(KERN_ERR "DRM: Fill_in_dev failed.\n");
 		goto err_g2;
 	}
 	if ((ret = drm_get_head(dev, &dev->primary)))
 		goto err_g2;
-	
+
 	DRM_INFO("Initialized %s %d.%d.%d %s on minor %d\n",
 		 driver->name, driver->major, driver->minor, driver->patchlevel,
 		 driver->date, dev->primary.minor);
@@ -283,7 +283,7 @@ int drm_put_head(struct drm_head * head)
 	DRM_DEBUG("release secondary minor %d\n", minor);
 
 	drm_proc_cleanup(minor, drm_proc_root, head->dev_root);
-	drm_sysfs_device_remove(head->dev_class);
+	drm_sysfs_device_remove(head->dev);
 
 	*head = (struct drm_head) {.dev = NULL};
 

@@ -11,29 +11,28 @@
 
 #include "agp.h"
 
-static struct page *alpha_core_agp_vm_nopage(struct vm_area_struct *vma,
-					     unsigned long address,
-					     int *type)
+static int alpha_core_agp_vm_fault(struct vm_area_struct *vma,
+					struct vm_fault *vmf)
 {
 	alpha_agp_info *agp = agp_bridge->dev_private_data;
 	dma_addr_t dma_addr;
 	unsigned long pa;
 	struct page *page;
 
-	dma_addr = address - vma->vm_start + agp->aperture.bus_base;
+	dma_addr = (unsigned long)vmf->virtual_address - vma->vm_start
+						+ agp->aperture.bus_base;
 	pa = agp->ops->translate(agp, dma_addr);
 
 	if (pa == (unsigned long)-EINVAL)
-		return NULL;	/* no translation */
+		return VM_FAULT_SIGBUS;	/* no translation */
 
 	/*
 	 * Get the page, inc the use count, and return it
 	 */
 	page = virt_to_page(__va(pa));
 	get_page(page);
-	if (type)
-		*type = VM_FAULT_MINOR;
-	return page;
+	vmf->page = page;
+	return 0;
 }
 
 static struct aper_size_info_fixed alpha_core_agp_sizes[] =
@@ -42,7 +41,7 @@ static struct aper_size_info_fixed alpha_core_agp_sizes[] =
 };
 
 struct vm_operations_struct alpha_core_agp_vm_ops = {
-	.nopage = alpha_core_agp_vm_nopage,
+	.fault = alpha_core_agp_vm_fault,
 };
 
 

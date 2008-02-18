@@ -3,12 +3,12 @@
  * Licensed under the GPL
  */
 
-#include "linux/module.h"
-#include "linux/ptrace.h"
-#include "linux/sched.h"
-#include "asm/siginfo.h"
-#include "asm/signal.h"
-#include "asm/unistd.h"
+#include <linux/module.h>
+#include <linux/ptrace.h>
+#include <linux/sched.h>
+#include <asm/siginfo.h>
+#include <asm/signal.h>
+#include <asm/unistd.h>
 #include "frame_kern.h"
 #include "kern_util.h"
 #include "sigcontext.h"
@@ -36,7 +36,7 @@ static int handle_signal(struct pt_regs *regs, unsigned long signr,
 	/* Did we come from a system call? */
 	if (PT_REGS_SYSCALL_NR(regs) >= 0) {
 		/* If so, check system call restarting.. */
-		switch(PT_REGS_SYSCALL_RET(regs)) {
+		switch (PT_REGS_SYSCALL_RET(regs)) {
 		case -ERESTART_RESTARTBLOCK:
 		case -ERESTARTNOHAND:
 			PT_REGS_SYSCALL_RET(regs) = -EINTR;
@@ -116,7 +116,7 @@ static int kern_do_signal(struct pt_regs *regs)
 	/* Did we come from a system call? */
 	if (!handled_sig && (PT_REGS_SYSCALL_NR(regs) >= 0)) {
 		/* Restart the system call - no handlers present */
-		switch(PT_REGS_SYSCALL_RET(regs)) {
+		switch (PT_REGS_SYSCALL_RET(regs)) {
 		case -ERESTARTNOHAND:
 		case -ERESTARTSYS:
 		case -ERESTARTNOINTR:

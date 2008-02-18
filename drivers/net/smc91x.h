@@ -450,7 +450,19 @@ static inline void LPD7_SMC_outsw (unsigned char* a, int r,
 #define SMC_outsl(a, r, p, l)	writesl((a) + (r), p, l)
 #define SMC_IRQ_FLAGS		(-1)	/* from resource */
 
+#elif defined(CONFIG_MN10300)
+
+/*
+ * MN10300/AM33 configuration
+ */
+
+#include <asm/unit/smc91111.h>
+
 #else
+
+/*
+ * Default configuration
+ */
 
 #define SMC_CAN_USE_8BIT	1
 #define SMC_CAN_USE_16BIT	1

@@ -10,7 +10,6 @@
 #include "asm/host_ldt.h"
 #include "asm/segment.h"
 
-extern int host_has_xmm;
 extern int host_has_cmov;
 
 /* include faultinfo structure */

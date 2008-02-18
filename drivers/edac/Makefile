@@ -28,4 +28,7 @@ obj-$(CONFIG_EDAC_I3000)		+= i3000_edac.o
 obj-$(CONFIG_EDAC_I82860)		+= i82860_edac.o
 obj-$(CONFIG_EDAC_R82600)		+= r82600_edac.o
 obj-$(CONFIG_EDAC_PASEMI)		+= pasemi_edac.o
+obj-$(CONFIG_EDAC_MPC85XX)		+= mpc85xx_edac.o
+obj-$(CONFIG_EDAC_MV64X60)		+= mv64x60_edac.o
+obj-$(CONFIG_EDAC_CELL)			+= cell_edac.o
 

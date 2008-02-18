@@ -969,9 +969,10 @@ void starget_for_each_device(struct scsi_target *starget, void *data,
 EXPORT_SYMBOL(starget_for_each_device);
 
 /**
- * __starget_for_each_device  -  helper to walk all devices of a target
- *				 (UNLOCKED)
+ * __starget_for_each_device - helper to walk all devices of a target (UNLOCKED)
  * @starget:	target whose devices we want to iterate over.
+ * @data:	parameter for callback @fn()
+ * @fn:		callback function that is invoked for each device
  *
  * This traverses over each device of @starget.  It does _not_
  * take a reference on the scsi_device, so the whole loop must be

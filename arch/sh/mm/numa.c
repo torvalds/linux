@@ -80,9 +80,9 @@ void __init setup_bootmem_node(int nid, unsigned long start, unsigned long end)
 
 	/* Reserve the pgdat and bootmap space with the bootmem allocator */
 	reserve_bootmem_node(NODE_DATA(nid), start_pfn << PAGE_SHIFT,
-			     sizeof(struct pglist_data));
+			     sizeof(struct pglist_data), BOOTMEM_DEFAULT);
 	reserve_bootmem_node(NODE_DATA(nid), free_pfn << PAGE_SHIFT,
-			     bootmap_pages << PAGE_SHIFT);
+			     bootmap_pages << PAGE_SHIFT, BOOTMEM_DEFAULT);
 
 	/* It's up */
 	node_set_online(nid);

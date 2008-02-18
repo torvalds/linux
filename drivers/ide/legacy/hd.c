@@ -421,11 +421,14 @@ static void bad_rw_intr(void)
 
 static inline int wait_DRQ(void)
 {
-	int retries = 100000, stat;
+	int retries;
+	int stat;
 
-	while (--retries > 0)
-		if ((stat = inb_p(HD_STATUS)) & DRQ_STAT)
+	for (retries = 0; retries < 100000; retries++) {
+		stat = inb_p(HD_STATUS);
+		if (stat & DRQ_STAT)
 			return 0;
+	}
 	dump_status("wait_DRQ", stat);
 	return -1;
 }

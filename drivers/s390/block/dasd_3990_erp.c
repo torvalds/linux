@@ -164,7 +164,7 @@ dasd_3990_erp_alternate_path(struct dasd_ccw_req * erp)
 
 		/* reset status to submit the request again... */
 		erp->status = DASD_CQR_FILLED;
-		erp->retries = 1;
+		erp->retries = 10;
 	} else {
 		DEV_MESSAGE(KERN_ERR, device,
 			    "No alternate channel path left (lpum=%x / "
@@ -301,8 +301,7 @@ dasd_3990_erp_action_4(struct dasd_ccw_req * erp, char *sense)
 		erp->function = dasd_3990_erp_action_4;
 
 	} else {
-
-		if (sense[25] == 0x1D) {	/* state change pending */
+		if (sense && (sense[25] == 0x1D)) { /* state change pending */
 
 			DEV_MESSAGE(KERN_INFO, device,
 				    "waiting for state change pending "
@@ -311,7 +310,7 @@ dasd_3990_erp_action_4(struct dasd_ccw_req * erp, char *sense)
 
 			dasd_3990_erp_block_queue(erp, 30*HZ);
 
-                } else if (sense[25] == 0x1E) {	/* busy */
+		} else if (sense && (sense[25] == 0x1E)) {	/* busy */
 			DEV_MESSAGE(KERN_INFO, device,
 				    "busy - redriving request later, "
 				    "%d retries left",
@@ -2120,6 +2119,34 @@ dasd_3990_erp_inspect_32(struct dasd_ccw_req * erp, char *sense)
  */
 
 /*
+ * DASD_3990_ERP_CONTROL_CHECK
+ *
+ * DESCRIPTION
+ *   Does a generic inspection if a control check occured and sets up
+ *   the related error recovery procedure
+ *
+ * PARAMETER
+ *   erp		pointer to the currently created default ERP
+ *
+ * RETURN VALUES
+ *   erp_filled		pointer to the erp
+ */
+
+static struct dasd_ccw_req *
+dasd_3990_erp_control_check(struct dasd_ccw_req *erp)
+{
+	struct dasd_device *device = erp->startdev;
+
+	if (erp->refers->irb.scsw.cstat & (SCHN_STAT_INTF_CTRL_CHK
+					   | SCHN_STAT_CHN_CTRL_CHK)) {
+		DEV_MESSAGE(KERN_DEBUG, device, "%s",
+			    "channel or interface control check");
+		erp = dasd_3990_erp_action_4(erp, NULL);
+	}
+	return erp;
+}
+
+/*
  * DASD_3990_ERP_INSPECT
  *
  * DESCRIPTION
@@ -2145,8 +2172,11 @@ dasd_3990_erp_inspect(struct dasd_ccw_req * erp)
 	if (erp_new)
 		return erp_new;
 
+	/* check if no concurrent sens is available */
+	if (!erp->refers->irb.esw.esw0.erw.cons)
+		erp_new = dasd_3990_erp_control_check(erp);
 	/* distinguish between 24 and 32 byte sense data */
-	if (sense[27] & DASD_SENSE_BIT_0) {
+	else if (sense[27] & DASD_SENSE_BIT_0) {
 
 		/* inspect the 24 byte sense data */
 		erp_new = dasd_3990_erp_inspect_24(erp, sense);
@@ -2285,6 +2315,17 @@ dasd_3990_erp_error_match(struct dasd_ccw_req *cqr1, struct dasd_ccw_req *cqr2)
 		//	return 0;	/* CCW doesn't match */
 	}
 
+	if (cqr1->irb.esw.esw0.erw.cons != cqr2->irb.esw.esw0.erw.cons)
+		return 0;
+
+	if ((cqr1->irb.esw.esw0.erw.cons == 0) &&
+	    (cqr2->irb.esw.esw0.erw.cons == 0))	{
+		if ((cqr1->irb.scsw.cstat & (SCHN_STAT_INTF_CTRL_CHK |
+					     SCHN_STAT_CHN_CTRL_CHK)) ==
+		    (cqr2->irb.scsw.cstat & (SCHN_STAT_INTF_CTRL_CHK |
+					     SCHN_STAT_CHN_CTRL_CHK)))
+			return 1; /* match with ifcc*/
+	}
 	/* check sense data; byte 0-2,25,27 */
 	if (!((memcmp (cqr1->irb.ecw, cqr2->irb.ecw, 3) == 0) &&
 	      (cqr1->irb.ecw[27] == cqr2->irb.ecw[27]) &&
@@ -2559,17 +2600,6 @@ dasd_3990_erp_action(struct dasd_ccw_req * cqr)
 		cqr->status = DASD_CQR_DONE;
 
 		return cqr;
-	}
-	/* check if sense data are available */
-	if (!cqr->irb.ecw) {
-		DEV_MESSAGE(KERN_DEBUG, device,
-			    "ERP called witout sense data avail ..."
-			    "request %p - NO ERP possible", cqr);
-
-		cqr->status = DASD_CQR_FAILED;
-
-		return cqr;
-
 	}
 
 	/* check if error happened before */

@@ -51,7 +51,6 @@
 #ifdef CONFIG_PCI
 #include <asm/ebus.h>
 #endif
-#include <asm/a.out.h>
 #include <asm/io-unit.h>
 #include <asm/bug.h>
 
@@ -213,8 +212,6 @@ EXPORT_SYMBOL(kunmap_atomic);
 /* Solaris/SunOS binary compatibility */
 EXPORT_SYMBOL(svr4_setcontext);
 EXPORT_SYMBOL(svr4_getcontext);
-
-EXPORT_SYMBOL(dump_thread);
 
 /* prom symbols */
 EXPORT_SYMBOL(idprom);

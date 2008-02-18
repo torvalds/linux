@@ -22,6 +22,37 @@
 static DEFINE_SPINLOCK(task_capability_lock);
 
 /*
+ * Leveraged for setting/resetting capabilities
+ */
+
+const kernel_cap_t __cap_empty_set = CAP_EMPTY_SET;
+const kernel_cap_t __cap_full_set = CAP_FULL_SET;
+const kernel_cap_t __cap_init_eff_set = CAP_INIT_EFF_SET;
+
+EXPORT_SYMBOL(__cap_empty_set);
+EXPORT_SYMBOL(__cap_full_set);
+EXPORT_SYMBOL(__cap_init_eff_set);
+
+/*
+ * More recent versions of libcap are available from:
+ *
+ *   http://www.kernel.org/pub/linux/libs/security/linux-privs/
+ */
+
+static void warn_legacy_capability_use(void)
+{
+	static int warned;
+	if (!warned) {
+		char name[sizeof(current->comm)];
+
+		printk(KERN_INFO "warning: `%s' uses 32-bit capabilities"
+		       " (legacy support in use)\n",
+		       get_task_comm(name, current));
+		warned = 1;
+	}
+}
+
+/*
  * For sys_getproccap() and sys_setproccap(), any of the three
  * capability set pointers may be NULL -- indicating that that set is
  * uninteresting and/or not to be changed.
@@ -42,12 +73,21 @@ asmlinkage long sys_capget(cap_user_header_t header, cap_user_data_t dataptr)
 	pid_t pid;
 	__u32 version;
 	struct task_struct *target;
-	struct __user_cap_data_struct data;
+	unsigned tocopy;
+	kernel_cap_t pE, pI, pP;
 
 	if (get_user(version, &header->version))
 		return -EFAULT;
 
-	if (version != _LINUX_CAPABILITY_VERSION) {
+	switch (version) {
+	case _LINUX_CAPABILITY_VERSION_1:
+		warn_legacy_capability_use();
+		tocopy = _LINUX_CAPABILITY_U32S_1;
+		break;
+	case _LINUX_CAPABILITY_VERSION_2:
+		tocopy = _LINUX_CAPABILITY_U32S_2;
+		break;
+	default:
 		if (put_user(_LINUX_CAPABILITY_VERSION, &header->version))
 			return -EFAULT;
 		return -EINVAL;
@@ -71,14 +111,47 @@ asmlinkage long sys_capget(cap_user_header_t header, cap_user_data_t dataptr)
 	} else
 		target = current;
 
-	ret = security_capget(target, &data.effective, &data.inheritable, &data.permitted);
+	ret = security_capget(target, &pE, &pI, &pP);
 
 out:
 	read_unlock(&tasklist_lock);
 	spin_unlock(&task_capability_lock);
 
-	if (!ret && copy_to_user(dataptr, &data, sizeof data))
-		return -EFAULT;
+	if (!ret) {
+		struct __user_cap_data_struct kdata[_LINUX_CAPABILITY_U32S];
+		unsigned i;
+
+		for (i = 0; i < tocopy; i++) {
+			kdata[i].effective = pE.cap[i];
+			kdata[i].permitted = pP.cap[i];
+			kdata[i].inheritable = pI.cap[i];
+		}
+
+		/*
+		 * Note, in the case, tocopy < _LINUX_CAPABILITY_U32S,
+		 * we silently drop the upper capabilities here. This
+		 * has the effect of making older libcap
+		 * implementations implicitly drop upper capability
+		 * bits when they perform a: capget/modify/capset
+		 * sequence.
+		 *
+		 * This behavior is considered fail-safe
+		 * behavior. Upgrading the application to a newer
+		 * version of libcap will enable access to the newer
+		 * capabilities.
+		 *
+		 * An alternative would be to return an error here
+		 * (-ERANGE), but that causes legacy applications to
+		 * unexpectidly fail; the capget/modify/capset aborts
+		 * before modification is attempted and the application
+		 * fails.
+		 */
+
+		if (copy_to_user(dataptr, kdata, tocopy
+				 * sizeof(struct __user_cap_data_struct))) {
+			return -EFAULT;
+		}
+	}
 
 	return ret;
 }
@@ -167,6 +240,8 @@ static inline int cap_set_all(kernel_cap_t *effective,
  */
 asmlinkage long sys_capset(cap_user_header_t header, const cap_user_data_t data)
 {
+	struct __user_cap_data_struct kdata[_LINUX_CAPABILITY_U32S];
+	unsigned i, tocopy;
 	kernel_cap_t inheritable, permitted, effective;
 	__u32 version;
 	struct task_struct *target;
@@ -176,7 +251,15 @@ asmlinkage long sys_capset(cap_user_header_t header, const cap_user_data_t data)
 	if (get_user(version, &header->version))
 		return -EFAULT;
 
-	if (version != _LINUX_CAPABILITY_VERSION) {
+	switch (version) {
+	case _LINUX_CAPABILITY_VERSION_1:
+		warn_legacy_capability_use();
+		tocopy = _LINUX_CAPABILITY_U32S_1;
+		break;
+	case _LINUX_CAPABILITY_VERSION_2:
+		tocopy = _LINUX_CAPABILITY_U32S_2;
+		break;
+	default:
 		if (put_user(_LINUX_CAPABILITY_VERSION, &header->version))
 			return -EFAULT;
 		return -EINVAL;
@@ -188,10 +271,22 @@ asmlinkage long sys_capset(cap_user_header_t header, const cap_user_data_t data)
 	if (pid && pid != task_pid_vnr(current) && !capable(CAP_SETPCAP))
 		return -EPERM;
 
-	if (copy_from_user(&effective, &data->effective, sizeof(effective)) ||
-	    copy_from_user(&inheritable, &data->inheritable, sizeof(inheritable)) ||
-	    copy_from_user(&permitted, &data->permitted, sizeof(permitted)))
+	if (copy_from_user(&kdata, data, tocopy
+			   * sizeof(struct __user_cap_data_struct))) {
 		return -EFAULT;
+	}
+
+	for (i = 0; i < tocopy; i++) {
+		effective.cap[i] = kdata[i].effective;
+		permitted.cap[i] = kdata[i].permitted;
+		inheritable.cap[i] = kdata[i].inheritable;
+	}
+	while (i < _LINUX_CAPABILITY_U32S) {
+		effective.cap[i] = 0;
+		permitted.cap[i] = 0;
+		inheritable.cap[i] = 0;
+		i++;
+	}
 
 	spin_lock(&task_capability_lock);
 	read_lock(&tasklist_lock);

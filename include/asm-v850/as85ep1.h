@@ -149,10 +149,4 @@ extern void as85ep1_uart_pre_configure (unsigned chan,
 #define V850E_TIMER_D_TMCD_CS_MIN	2 /* min 2^2 divider */
 
 
-/* For <asm/param.h> */
-#ifndef HZ
-#define HZ	100
-#endif
-
-
 #endif /* __V850_AS85EP1_H__ */

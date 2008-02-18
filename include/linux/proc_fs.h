@@ -19,6 +19,8 @@ struct completion;
  */
 #define FIRST_PROCESS_ENTRY 256
 
+/* Worst case buffer size needed for holding an integer. */
+#define PROC_NUMBUF 13
 
 /*
  * We always define these enumerators
@@ -116,7 +118,7 @@ struct dentry *proc_pid_lookup(struct inode *dir, struct dentry * dentry, struct
 int proc_pid_readdir(struct file * filp, void * dirent, filldir_t filldir);
 unsigned long task_vsize(struct mm_struct *);
 int task_statm(struct mm_struct *, int *, int *, int *, int *);
-char *task_mem(struct mm_struct *, char *);
+void task_mem(struct seq_file *, struct mm_struct *);
 void clear_refs_smap(struct mm_struct *mm);
 
 struct proc_dir_entry *de_get(struct proc_dir_entry *de);
@@ -124,6 +126,9 @@ void de_put(struct proc_dir_entry *de);
 
 extern struct proc_dir_entry *create_proc_entry(const char *name, mode_t mode,
 						struct proc_dir_entry *parent);
+struct proc_dir_entry *proc_create(const char *name, mode_t mode,
+				struct proc_dir_entry *parent,
+				const struct file_operations *proc_fops);
 extern void remove_proc_entry(const char *name, struct proc_dir_entry *parent);
 
 extern struct vfsmount *proc_mnt;
@@ -218,7 +223,12 @@ static inline void proc_flush_task(struct task_struct *task)
 
 static inline struct proc_dir_entry *create_proc_entry(const char *name,
 	mode_t mode, struct proc_dir_entry *parent) { return NULL; }
-
+static inline struct proc_dir_entry *proc_create(const char *name,
+	mode_t mode, struct proc_dir_entry *parent,
+	const struct file_operations *proc_fops)
+{
+	return NULL;
+}
 #define remove_proc_entry(name, parent) do {} while (0)
 
 static inline struct proc_dir_entry *proc_symlink(const char *name,
@@ -259,8 +269,11 @@ extern void kclist_add(struct kcore_list *, void *, size_t);
 #endif
 
 union proc_op {
-	int (*proc_get_link)(struct inode *, struct dentry **, struct vfsmount **);
+	int (*proc_get_link)(struct inode *, struct path *);
 	int (*proc_read)(struct task_struct *task, char *page);
+	int (*proc_show)(struct seq_file *m,
+		struct pid_namespace *ns, struct pid *pid,
+		struct task_struct *task);
 };
 
 struct proc_inode {

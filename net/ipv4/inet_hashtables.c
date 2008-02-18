@@ -120,8 +120,6 @@ void inet_listen_wlock(struct inet_hashinfo *hashinfo)
 	}
 }
 
-EXPORT_SYMBOL(inet_listen_wlock);
-
 /*
  * Don't inline this cruft. Here are some nice properties to exploit here. The
  * BSD API does not allow a listening sock to specify the remote port nor the
@@ -398,7 +396,7 @@ out:
 EXPORT_SYMBOL_GPL(inet_unhash);
 
 int __inet_hash_connect(struct inet_timewait_death_row *death_row,
-		struct sock *sk,
+		struct sock *sk, u32 port_offset,
 		int (*check_established)(struct inet_timewait_death_row *,
 			struct sock *, __u16, struct inet_timewait_sock **),
 		void (*hash)(struct sock *sk))
@@ -413,7 +411,7 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 	if (!snum) {
 		int i, remaining, low, high, port;
 		static u32 hint;
-		u32 offset = hint + inet_sk_port_offset(sk);
+		u32 offset = hint + port_offset;
 		struct hlist_node *node;
 		struct inet_timewait_sock *tw = NULL;
 
@@ -494,7 +492,6 @@ out:
 		return ret;
 	}
 }
-EXPORT_SYMBOL_GPL(__inet_hash_connect);
 
 /*
  * Bind a port for a connect operation and hash it.
@@ -502,7 +499,7 @@ EXPORT_SYMBOL_GPL(__inet_hash_connect);
 int inet_hash_connect(struct inet_timewait_death_row *death_row,
 		      struct sock *sk)
 {
-	return __inet_hash_connect(death_row, sk,
+	return __inet_hash_connect(death_row, sk, inet_sk_port_offset(sk),
 			__inet_check_established, __inet_hash_nolisten);
 }
 

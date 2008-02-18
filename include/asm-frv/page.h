@@ -1,8 +1,6 @@
 #ifndef _ASM_PAGE_H
 #define _ASM_PAGE_H
 
-#ifdef __KERNEL__
-
 #include <asm/virtconvert.h>
 #include <asm/mem-layout.h>
 #include <asm/sections.h>
@@ -27,6 +25,7 @@ typedef struct { unsigned long	ste[64];} pmd_t;
 typedef struct { pmd_t		pue[1]; } pud_t;
 typedef struct { pud_t		pge[1];	} pgd_t;
 typedef struct { unsigned long	pgprot;	} pgprot_t;
+typedef struct page *pgtable_t;
 
 #define pte_val(x)	((x).pte)
 #define pmd_val(x)	((x).ste[0])
@@ -76,13 +75,7 @@ extern unsigned long max_pfn;
 
 #endif /* __ASSEMBLY__ */
 
-#ifdef CONFIG_CONTIGUOUS_PAGE_ALLOC
-#define WANT_PAGE_VIRTUAL	1
-#endif
-
 #include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
-
-#endif /* __KERNEL__ */
 
 #endif /* _ASM_PAGE_H */

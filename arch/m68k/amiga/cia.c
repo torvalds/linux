@@ -84,7 +84,7 @@ unsigned char cia_able_irq(struct ciabase *base, unsigned char mask)
 
 static irqreturn_t cia_handler(int irq, void *dev_id)
 {
-	struct ciabase *base = (struct ciabase *)dev_id;
+	struct ciabase *base = dev_id;
 	int mach_irq;
 	unsigned char ints;
 

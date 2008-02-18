@@ -1,4 +1,4 @@
-/* Copyright (c) 2006 Coraid, Inc.  See COPYING for GPL terms. */
+/* Copyright (c) 2007 Coraid, Inc.  See COPYING for GPL terms. */
 /*
  * aoenet.c
  * Ethernet portion of AoE driver
@@ -83,7 +83,7 @@ set_aoe_iflist(const char __user *user_str, size_t size)
 	return 0;
 }
 
-u64
+unsigned long long
 mac_addr(char addr[6])
 {
 	__be64 n = 0;
@@ -91,7 +91,7 @@ mac_addr(char addr[6])
 
 	memcpy(p + 2, addr, 6);	/* (sizeof addr != 6) */
 
-	return __be64_to_cpu(n);
+	return (unsigned long long) __be64_to_cpu(n);
 }
 
 void
@@ -137,9 +137,12 @@ aoenet_rcv(struct sk_buff *skb, struct net_device *ifp, struct packet_type *pt, 
 		if (n > NECODES)
 			n = 0;
 		if (net_ratelimit())
-			printk(KERN_ERR "aoe: error packet from %d.%d; ecode=%d '%s'\n",
-			       be16_to_cpu(get_unaligned(&h->major)), h->minor,
-			       h->err, aoe_errlist[n]);
+			printk(KERN_ERR
+				"%s%d.%d@%s; ecode=%d '%s'\n",
+				"aoe: error packet from ",
+				be16_to_cpu(get_unaligned(&h->major)),
+				h->minor, skb->dev->name,
+				h->err, aoe_errlist[n]);
 		goto exit;
 	}
 

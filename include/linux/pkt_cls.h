@@ -348,6 +348,7 @@ enum
 	FLOW_KEY_RTCLASSID,
 	FLOW_KEY_SKUID,
 	FLOW_KEY_SKGID,
+	FLOW_KEY_VLAN_TAG,
 	__FLOW_KEY_MAX,
 };
 
@@ -459,7 +460,8 @@ enum
 #define	TCF_EM_U32		3
 #define	TCF_EM_META		4
 #define	TCF_EM_TEXT		5
-#define	TCF_EM_MAX		5
+#define        TCF_EM_VLAN		6
+#define	TCF_EM_MAX		6
 
 enum
 {

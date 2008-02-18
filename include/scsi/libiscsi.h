@@ -70,8 +70,6 @@ enum {
 #define ISCSI_SUSPEND_BIT		1
 
 #define ISCSI_ITT_MASK			(0xfff)
-#define ISCSI_CID_SHIFT			12
-#define ISCSI_CID_MASK			(0xffff << ISCSI_CID_SHIFT)
 #define ISCSI_AGE_SHIFT			28
 #define ISCSI_AGE_MASK			(0xf << ISCSI_AGE_SHIFT)
 
@@ -134,6 +132,14 @@ static inline void* iscsi_next_hdr(struct iscsi_cmd_task *ctask)
 {
 	return (void*)ctask->hdr + ctask->hdr_len;
 }
+
+/* Connection's states */
+enum {
+	ISCSI_CONN_INITIAL_STAGE,
+	ISCSI_CONN_STARTED,
+	ISCSI_CONN_STOPPED,
+	ISCSI_CONN_CLEANUP_WAIT,
+};
 
 struct iscsi_conn {
 	struct iscsi_cls_conn	*cls_conn;	/* ptr to class connection */
@@ -225,6 +231,17 @@ struct iscsi_pool {
 	struct kfifo		*queue;		/* FIFO Queue */
 	void			**pool;		/* Pool of elements */
 	int			max;		/* Max number of elements */
+};
+
+/* Session's states */
+enum {
+	ISCSI_STATE_FREE = 1,
+	ISCSI_STATE_LOGGED_IN,
+	ISCSI_STATE_FAILED,
+	ISCSI_STATE_TERMINATE,
+	ISCSI_STATE_IN_RECOVERY,
+	ISCSI_STATE_RECOVERY_FAILED,
+	ISCSI_STATE_LOGGING_OUT,
 };
 
 struct iscsi_session {
@@ -325,6 +342,10 @@ extern int iscsi_session_get_param(struct iscsi_cls_session *cls_session,
 #define session_to_cls(_sess) \
 	hostdata_session(_sess->host->hostdata)
 
+#define iscsi_session_printk(prefix, _sess, fmt, a...)	\
+	iscsi_cls_session_printk(prefix,		\
+		(struct iscsi_cls_session *)session_to_cls(_sess), fmt, ##a)
+
 /*
  * connection management
  */
@@ -339,6 +360,9 @@ extern void iscsi_conn_failure(struct iscsi_conn *conn, enum iscsi_err err);
 extern int iscsi_conn_get_param(struct iscsi_cls_conn *cls_conn,
 				enum iscsi_param param, char *buf);
 
+#define iscsi_conn_printk(prefix, _c, fmt, a...) \
+	iscsi_cls_conn_printk(prefix, _c->cls_conn, fmt, ##a)
+
 /*
  * pdu and task processing
  */
@@ -349,8 +373,6 @@ extern int iscsi_conn_send_pdu(struct iscsi_cls_conn *, struct iscsi_hdr *,
 				char *, uint32_t);
 extern int iscsi_complete_pdu(struct iscsi_conn *, struct iscsi_hdr *,
 			      char *, int);
-extern int __iscsi_complete_pdu(struct iscsi_conn *, struct iscsi_hdr *,
-				char *, int);
 extern int iscsi_verify_itt(struct iscsi_conn *, struct iscsi_hdr *,
 			    uint32_t *);
 extern void iscsi_requeue_ctask(struct iscsi_cmd_task *ctask);

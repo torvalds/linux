@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/pnp.h>
 #include <linux/io.h>
+#include <linux/dmi.h>
 #include <linux/kallsyms.h>
 #include "base.h"
 
@@ -108,6 +109,46 @@ static void quirk_sb16audio_resources(struct pnp_dev *dev)
 		       "pnp: SB audio device quirk - increasing port range\n");
 }
 
+static void quirk_supermicro_h8dce_system(struct pnp_dev *dev)
+{
+	int i;
+	static struct dmi_system_id supermicro_h8dce[] = {
+		{
+			.ident = "Supermicro H8DCE",
+			.matches = {
+				DMI_MATCH(DMI_SYS_VENDOR, "Supermicro"),
+				DMI_MATCH(DMI_PRODUCT_NAME, "H8DCE"),
+			},
+		},
+		{ }
+	};
+
+	if (!dmi_check_system(supermicro_h8dce))
+		return;
+
+	/*
+	 * On the Supermicro H8DCE, there's a system device with resources
+	 * that overlap BAR 6 of the built-in SATA PCI adapter.  If the PNP
+	 * system device claims them, the sata_nv driver won't be able to.
+	 * More details at:
+	 *     https://bugzilla.redhat.com/show_bug.cgi?id=280641
+	 *     https://bugzilla.redhat.com/show_bug.cgi?id=313491
+	 *     http://lkml.org/lkml/2008/1/9/449
+	 *     http://thread.gmane.org/gmane.linux.acpi.devel/27312
+	 */
+	for (i = 0; i < PNP_MAX_MEM; i++) {
+		if (pnp_mem_valid(dev, i) && pnp_mem_len(dev, i) &&
+		    (pnp_mem_start(dev, i) & 0xdfef0000) == 0xdfef0000) {
+			dev_warn(&dev->dev, "disabling 0x%llx-0x%llx to prevent"
+				" conflict with sata_nv PCI device\n",
+				(unsigned long long) pnp_mem_start(dev, i),
+				(unsigned long long) (pnp_mem_start(dev, i) +
+					pnp_mem_len(dev, i) - 1));
+			pnp_mem_flags(dev, i) = 0;
+		}
+	}
+}
+
 /*
  *  PnP Quirks
  *  Cards or devices that need some tweaking due to incomplete resource info
@@ -128,6 +169,8 @@ static struct pnp_fixup pnp_fixups[] = {
 	{"CTL0043", quirk_sb16audio_resources},
 	{"CTL0044", quirk_sb16audio_resources},
 	{"CTL0045", quirk_sb16audio_resources},
+	{"PNP0c01", quirk_supermicro_h8dce_system},
+	{"PNP0c02", quirk_supermicro_h8dce_system},
 	{""}
 };
 

@@ -8,9 +8,9 @@
  
 #include <linux/string.h>
 #include <linux/slab.h>
-#include <linux/ufs_fs.h>
 #include <linux/buffer_head.h>
 
+#include "ufs_fs.h"
 #include "ufs.h"
 #include "swab.h"
 #include "util.h"

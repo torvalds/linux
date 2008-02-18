@@ -1,6 +1,7 @@
 config MIPS
 	bool
 	default y
+	select HAVE_IDE
 	select HAVE_OPROFILE
 	# Horrible source of confusion.  Die, die, die ...
 	select EMBEDDED

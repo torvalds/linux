@@ -144,10 +144,10 @@ config SPI_OMAP_UWIRE
 	  This hooks up to the MicroWire controller on OMAP1 chips.
 
 config SPI_OMAP24XX
-	tristate "McSPI driver for OMAP24xx"
-	depends on SPI_MASTER && ARCH_OMAP24XX
+	tristate "McSPI driver for OMAP24xx/OMAP34xx"
+	depends on SPI_MASTER && (ARCH_OMAP24XX || ARCH_OMAP34XX)
 	help
-	  SPI master controller for OMAP24xx Multichannel SPI
+	  SPI master controller for OMAP24xx/OMAP34xx Multichannel SPI
 	  (McSPI) modules.
 
 config SPI_PXA2XX
@@ -175,6 +175,13 @@ config SPI_S3C24XX_GPIO
 	  GPIO lines to provide the SPI bus. This can be used where
 	  the inbuilt hardware cannot provide the transfer mode, or
 	  where the board is using non hardware connected pins.
+
+config SPI_SH_SCI
+	tristate "SuperH SCI SPI controller"
+	depends on SPI_MASTER && SUPERH
+	select SPI_BITBANG
+	help
+	  SPI driver for SuperH SCI blocks.
 
 config SPI_TXX9
 	tristate "Toshiba TXx9 SPI controller"

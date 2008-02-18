@@ -14,6 +14,7 @@ config SPARC
 config SPARC64
 	bool
 	default y
+	select HAVE_IDE
 	help
 	  SPARC is a family of RISC microprocessors designed and marketed by
 	  Sun Microsystems, incorporated.  This port covers the newer 64-bit
@@ -37,6 +38,10 @@ config 64BIT
 	def_bool y
 
 config MMU
+	bool
+	default y
+
+config IOMMU_HELPER
 	bool
 	default y
 
@@ -79,6 +84,9 @@ config OF
 
 config GENERIC_HARDIRQS_NO__DO_IRQ
 	bool
+	def_bool y
+
+config ARCH_SUPPORTS_AOUT
 	def_bool y
 
 choice
@@ -380,17 +388,11 @@ config COMPAT
 	bool
 	depends on SPARC32_COMPAT
 	default y
-
-config BINFMT_ELF32
-	bool "Kernel support for 32-bit ELF binaries"
-	depends on SPARC32_COMPAT
-	help
-	  This allows you to run 32-bit Linux/ELF binaries on your Ultra.
-	  Everybody wants this; say Y.
+	select COMPAT_BINFMT_ELF
 
 config BINFMT_AOUT32
 	bool "Kernel support for 32-bit (ie. SunOS) a.out binaries"
-	depends on SPARC32_COMPAT
+	depends on SPARC32_COMPAT && ARCH_SUPPORTS_AOUT
 	help
 	  This allows you to run 32-bit a.out format binaries on your Ultra.
 	  If you want to run SunOS binaries (see SunOS binary emulation below)

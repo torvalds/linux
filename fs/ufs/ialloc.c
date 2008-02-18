@@ -24,7 +24,6 @@
  */
 
 #include <linux/fs.h>
-#include <linux/ufs_fs.h>
 #include <linux/time.h>
 #include <linux/stat.h>
 #include <linux/string.h>
@@ -34,6 +33,7 @@
 #include <linux/bitops.h>
 #include <asm/byteorder.h>
 
+#include "ufs_fs.h"
 #include "ufs.h"
 #include "swab.h"
 #include "util.h"

@@ -168,7 +168,7 @@ static int debug = -1;
  * Warning: 64K ring has hardware issues and may lock up.
  */
 #if defined(CONFIG_SH_DREAMCAST)
-#define RX_BUF_IDX	1	/* 16K ring */
+#define RX_BUF_IDX 0	/* 8K ring */
 #else
 #define RX_BUF_IDX	2	/* 32K ring */
 #endif

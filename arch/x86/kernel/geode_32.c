@@ -163,14 +163,11 @@ EXPORT_SYMBOL_GPL(geode_gpio_setup_event);
 
 static int __init geode_southbridge_init(void)
 {
-	int timers;
-
 	if (!is_geode())
 		return -ENODEV;
 
 	init_lbars();
-	timers = geode_mfgpt_detect();
-	printk(KERN_INFO "geode:  %d MFGPT timers available.\n", timers);
+	(void) mfgpt_timer_setup();
 	return 0;
 }
 

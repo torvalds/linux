@@ -327,7 +327,7 @@ static void timer_stats_account_timer(struct timer_list *timer) {}
  * init_timer() must be done to a timer prior calling *any* of the
  * other timer functions.
  */
-void fastcall init_timer(struct timer_list *timer)
+void init_timer(struct timer_list *timer)
 {
 	timer->entry.next = NULL;
 	timer->base = __raw_get_cpu_var(tvec_bases);
@@ -339,7 +339,7 @@ void fastcall init_timer(struct timer_list *timer)
 }
 EXPORT_SYMBOL(init_timer);
 
-void fastcall init_timer_deferrable(struct timer_list *timer)
+void init_timer_deferrable(struct timer_list *timer)
 {
 	init_timer(timer);
 	timer_set_deferrable(timer);
@@ -818,12 +818,14 @@ unsigned long next_timer_interrupt(void)
 #ifndef CONFIG_VIRT_CPU_ACCOUNTING
 void account_process_tick(struct task_struct *p, int user_tick)
 {
+	cputime_t one_jiffy = jiffies_to_cputime(1);
+
 	if (user_tick) {
-		account_user_time(p, jiffies_to_cputime(1));
-		account_user_time_scaled(p, jiffies_to_cputime(1));
+		account_user_time(p, one_jiffy);
+		account_user_time_scaled(p, cputime_to_scaled(one_jiffy));
 	} else {
-		account_system_time(p, HARDIRQ_OFFSET, jiffies_to_cputime(1));
-		account_system_time_scaled(p, jiffies_to_cputime(1));
+		account_system_time(p, HARDIRQ_OFFSET, one_jiffy);
+		account_system_time_scaled(p, cputime_to_scaled(one_jiffy));
 	}
 }
 #endif
@@ -977,7 +979,7 @@ asmlinkage long sys_getppid(void)
 	int pid;
 
 	rcu_read_lock();
-	pid = task_tgid_nr_ns(current->real_parent, current->nsproxy->pid_ns);
+	pid = task_tgid_vnr(current->real_parent);
 	rcu_read_unlock();
 
 	return pid;
@@ -1040,7 +1042,7 @@ static void process_timeout(unsigned long __data)
  *
  * In all cases the return value is guaranteed to be non-negative.
  */
-fastcall signed long __sched schedule_timeout(signed long timeout)
+signed long __sched schedule_timeout(signed long timeout)
 {
 	struct timer_list timer;
 	unsigned long expire;

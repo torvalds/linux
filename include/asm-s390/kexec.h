@@ -10,7 +10,9 @@
 #ifndef _S390_KEXEC_H
 #define _S390_KEXEC_H
 
+#ifdef __KERNEL__
 #include <asm/page.h>
+#endif
 #include <asm/processor.h>
 /*
  * KEXEC_SOURCE_MEMORY_LIMIT maximum page get_free_page can return.

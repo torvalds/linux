@@ -163,4 +163,7 @@ enum {
 /* NetLabel protocol functions */
 int netlbl_cipsov4_genl_init(void);
 
+/* Free the memory associated with a CIPSOv4 DOI definition */
+void netlbl_cipsov4_doi_free(struct rcu_head *entry);
+
 #endif

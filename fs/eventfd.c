@@ -15,6 +15,7 @@
 #include <linux/spinlock.h>
 #include <linux/anon_inodes.h>
 #include <linux/eventfd.h>
+#include <linux/syscalls.h>
 
 struct eventfd_ctx {
 	wait_queue_head_t wqh;

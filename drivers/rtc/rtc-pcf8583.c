@@ -163,27 +163,17 @@ static int pcf8583_read_mem(struct i2c_client *client, struct rtc_mem *mem)
 
 static int pcf8583_write_mem(struct i2c_client *client, struct rtc_mem *mem)
 {
-	unsigned char addr[1];
-	struct i2c_msg msgs[2] = {
-		{
-			.addr = client->addr,
-			.flags = 0,
-			.len = 1,
-			.buf = addr,
-		}, {
-			.addr = client->addr,
-			.flags = I2C_M_NOSTART,
-			.len = mem->nr,
-			.buf = mem->data,
-		}
-	};
+	unsigned char buf[9];
+	int ret;
 
-	if (mem->loc < 8)
+	if (mem->loc < 8 || mem->nr > 8)
 		return -EINVAL;
 
-	addr[0] = mem->loc;
+	buf[0] = mem->loc;
+	memcpy(buf + 1, mem->data, mem->nr);
 
-	return i2c_transfer(client->adapter, msgs, 2) == 2 ? 0 : -EIO;
+	ret = i2c_master_send(client, buf, mem->nr + 1);
+	return ret == mem->nr + 1 ? 0 : -EIO;
 }
 
 static int pcf8583_rtc_read_time(struct device *dev, struct rtc_time *tm)

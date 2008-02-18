@@ -197,14 +197,13 @@ ENTRY(fasthandler)
 	RESTORE_LOCAL
 
 ENTRY(ret_from_interrupt)
-	jeq	2f
-1:
-	RESTORE_ALL
-2:
 	moveb	%sp@(PT_SR),%d0
 	andl	#0x7,%d0
-	jhi	1b
+	jeq	1f
 
+	RESTORE_ALL
+
+1:
 	/* check if we need to do software interrupts */
 	movel	irq_stat+CPUSTAT_SOFTIRQ_PENDING,%d0
 	jeq	ret_from_exception

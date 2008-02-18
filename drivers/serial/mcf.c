@@ -434,7 +434,7 @@ static struct uart_ops mcf_uart_ops = {
 
 static struct mcf_uart mcf_ports[3];
 
-#define	MCF_MAXPORTS	(sizeof(mcf_ports) / sizeof(struct mcf_uart))
+#define	MCF_MAXPORTS	ARRAY_SIZE(mcf_ports)
 
 /****************************************************************************/
 #if defined(CONFIG_SERIAL_MCF_CONSOLE)

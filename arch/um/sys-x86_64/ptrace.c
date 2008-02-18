@@ -5,13 +5,12 @@
  * Licensed under the GPL
  */
 
-#define __FRAME_OFFSETS
-#include <asm/ptrace.h>
+#include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/errno.h>
-#include <linux/mm.h>
+#define __FRAME_OFFSETS
+#include <asm/ptrace.h>
 #include <asm/uaccess.h>
-#include <asm/elf.h>
 
 /*
  * determines which flags the user has access to.
@@ -24,12 +23,14 @@ int putreg(struct task_struct *child, int regno, unsigned long value)
 	unsigned long tmp;
 
 #ifdef TIF_IA32
-	/* Some code in the 64bit emulation may not be 64bit clean.
-	   Don't take any chances. */
+	/*
+	 * Some code in the 64bit emulation may not be 64bit clean.
+	 * Don't take any chances.
+	 */
 	if (test_tsk_thread_flag(child, TIF_IA32))
 		value &= 0xffffffff;
 #endif
-	switch (regno){
+	switch (regno) {
 	case FS:
 	case GS:
 	case DS:
@@ -66,7 +67,7 @@ int poke_user(struct task_struct *child, long addr, long data)
 	if (addr < MAX_REG_OFFSET)
 		return putreg(child, addr, data);
 	else if ((addr >= offsetof(struct user, u_debugreg[0])) &&
-		(addr <= offsetof(struct user, u_debugreg[7]))){
+		(addr <= offsetof(struct user, u_debugreg[7]))) {
 		addr -= offsetof(struct user, u_debugreg[0]);
 		addr = addr >> 2;
 		if ((addr == 4) || (addr == 5))
@@ -108,11 +109,10 @@ int peek_user(struct task_struct *child, long addr, long data)
 		return -EIO;
 
 	tmp = 0;  /* Default return condition */
-	if (addr < MAX_REG_OFFSET){
+	if (addr < MAX_REG_OFFSET)
 		tmp = getreg(child, addr);
-	}
 	else if ((addr >= offsetof(struct user, u_debugreg[0])) &&
-		(addr <= offsetof(struct user, u_debugreg[7]))){
+		(addr <= offsetof(struct user, u_debugreg[7]))) {
 		addr -= offsetof(struct user, u_debugreg[0]);
 		addr = addr >> 2;
 		tmp = child->thread.arch.debugregs[addr];
@@ -127,8 +127,9 @@ int is_syscall(unsigned long addr)
 	int n;
 
 	n = copy_from_user(&instr, (void __user *) addr, sizeof(instr));
-	if (n){
-		/* access_process_vm() grants access to vsyscall and stub,
+	if (n) {
+		/*
+		 * access_process_vm() grants access to vsyscall and stub,
 		 * while copy_from_user doesn't. Maybe access_process_vm is
 		 * slow, but that doesn't matter, since it will be called only
 		 * in case of singlestepping, if copy_from_user failed.
@@ -155,7 +156,7 @@ int get_fpregs(struct user_i387_struct __user *buf, struct task_struct *child)
 		return err;
 
 	n = copy_to_user(buf, fpregs, sizeof(fpregs));
-	if(n > 0)
+	if (n > 0)
 		return -EFAULT;
 
 	return n;

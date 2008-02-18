@@ -302,6 +302,21 @@ static int tifm_7xx1_resume(struct pci_dev *dev)
 
 #endif /* CONFIG_PM */
 
+static int tifm_7xx1_dummy_has_ms_pif(struct tifm_adapter *fm,
+				      struct tifm_dev *sock)
+{
+	return 0;
+}
+
+static int tifm_7xx1_has_ms_pif(struct tifm_adapter *fm, struct tifm_dev *sock)
+{
+	if (((fm->num_sockets == 4) && (sock->socket_id == 2))
+	    || ((fm->num_sockets == 2) && (sock->socket_id == 0)))
+		return 1;
+
+	return 0;
+}
+
 static int tifm_7xx1_probe(struct pci_dev *dev,
 			   const struct pci_device_id *dev_id)
 {
@@ -336,6 +351,7 @@ static int tifm_7xx1_probe(struct pci_dev *dev,
 
 	INIT_WORK(&fm->media_switcher, tifm_7xx1_switch_media);
 	fm->eject = tifm_7xx1_eject;
+	fm->has_ms_pif = tifm_7xx1_has_ms_pif;
 	pci_set_drvdata(dev, fm);
 
 	fm->addr = ioremap(pci_resource_start(dev, 0),
@@ -377,6 +393,7 @@ static void tifm_7xx1_remove(struct pci_dev *dev)
 	int cnt;
 
 	fm->eject = tifm_7xx1_dummy_eject;
+	fm->has_ms_pif = tifm_7xx1_dummy_has_ms_pif;
 	writel(TIFM_IRQ_SETALL, fm->addr + FM_CLEAR_INTERRUPT_ENABLE);
 	mmiowb();
 	free_irq(dev->irq, fm);

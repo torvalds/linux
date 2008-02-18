@@ -30,9 +30,12 @@ struct shmem_sb_info {
 	unsigned long free_blocks;  /* How many are left for allocation */
 	unsigned long max_inodes;   /* How many inodes are allowed */
 	unsigned long free_inodes;  /* How many are left for allocation */
+	spinlock_t stat_lock;	    /* Serialize shmem_sb_info changes */
+	uid_t uid;		    /* Mount uid for root directory */
+	gid_t gid;		    /* Mount gid for root directory */
+	mode_t mode;		    /* Mount mode for root directory */
 	int policy;		    /* Default NUMA memory alloc policy */
 	nodemask_t policy_nodes;    /* nodemask for preferred and bind */
-	spinlock_t    stat_lock;
 };
 
 static inline struct shmem_inode_info *SHMEM_I(struct inode *inode)

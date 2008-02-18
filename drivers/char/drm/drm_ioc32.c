@@ -1051,8 +1051,12 @@ long drm_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	drm_ioctl_compat_t *fn;
 	int ret;
 
+	/* Assume that ioctls without an explicit compat routine will just
+	 * work.  This may not always be a good assumption, but it's better
+	 * than always failing.
+	 */
 	if (nr >= ARRAY_SIZE(drm_compat_ioctls))
-		return -ENOTTY;
+		return drm_ioctl(filp->f_dentry->d_inode, filp, cmd, arg);
 
 	fn = drm_compat_ioctls[nr];
 

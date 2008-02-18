@@ -60,17 +60,21 @@ static void input_polled_device_work(struct work_struct *work)
 {
 	struct input_polled_dev *dev =
 		container_of(work, struct input_polled_dev, work.work);
+	unsigned long delay;
 
 	dev->poll(dev);
-	queue_delayed_work(polldev_wq, &dev->work,
-			   msecs_to_jiffies(dev->poll_interval));
+
+	delay = msecs_to_jiffies(dev->poll_interval);
+	if (delay >= HZ)
+		delay = round_jiffies_relative(delay);
+
+	queue_delayed_work(polldev_wq, &dev->work, delay);
 }
 
 static int input_open_polled_device(struct input_dev *input)
 {
 	struct input_polled_dev *dev = input->private;
 	int error;
-	unsigned long ticks;
 
 	error = input_polldev_start_workqueue();
 	if (error)
@@ -79,10 +83,8 @@ static int input_open_polled_device(struct input_dev *input)
 	if (dev->flush)
 		dev->flush(dev);
 
-	ticks = msecs_to_jiffies(dev->poll_interval);
-	if (ticks >= HZ)
-		ticks = round_jiffies(ticks);
-	queue_delayed_work(polldev_wq, &dev->work, ticks);
+	queue_delayed_work(polldev_wq, &dev->work,
+			   msecs_to_jiffies(dev->poll_interval));
 
 	return 0;
 }
@@ -91,7 +93,7 @@ static void input_close_polled_device(struct input_dev *input)
 {
 	struct input_polled_dev *dev = input->private;
 
-	cancel_rearming_delayed_workqueue(polldev_wq, &dev->work);
+	cancel_delayed_work_sync(&dev->work);
 	input_polldev_stop_workqueue();
 }
 

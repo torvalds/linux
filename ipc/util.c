@@ -33,6 +33,7 @@
 #include <linux/audit.h>
 #include <linux/nsproxy.h>
 #include <linux/rwsem.h>
+#include <linux/ipc_namespace.h>
 
 #include <asm/unistd.h>
 
@@ -50,66 +51,6 @@ struct ipc_namespace init_ipc_ns = {
 		.refcount	= ATOMIC_INIT(2),
 	},
 };
-
-static struct ipc_namespace *clone_ipc_ns(struct ipc_namespace *old_ns)
-{
-	int err;
-	struct ipc_namespace *ns;
-
-	err = -ENOMEM;
-	ns = kmalloc(sizeof(struct ipc_namespace), GFP_KERNEL);
-	if (ns == NULL)
-		goto err_mem;
-
-	err = sem_init_ns(ns);
-	if (err)
-		goto err_sem;
-	err = msg_init_ns(ns);
-	if (err)
-		goto err_msg;
-	err = shm_init_ns(ns);
-	if (err)
-		goto err_shm;
-
-	kref_init(&ns->kref);
-	return ns;
-
-err_shm:
-	msg_exit_ns(ns);
-err_msg:
-	sem_exit_ns(ns);
-err_sem:
-	kfree(ns);
-err_mem:
-	return ERR_PTR(err);
-}
-
-struct ipc_namespace *copy_ipcs(unsigned long flags, struct ipc_namespace *ns)
-{
-	struct ipc_namespace *new_ns;
-
-	BUG_ON(!ns);
-	get_ipc_ns(ns);
-
-	if (!(flags & CLONE_NEWIPC))
-		return ns;
-
-	new_ns = clone_ipc_ns(ns);
-
-	put_ipc_ns(ns);
-	return new_ns;
-}
-
-void free_ipc_ns(struct kref *kref)
-{
-	struct ipc_namespace *ns;
-
-	ns = container_of(kref, struct ipc_namespace, kref);
-	sem_exit_ns(ns);
-	msg_exit_ns(ns);
-	shm_exit_ns(ns);
-	kfree(ns);
-}
 
 /**
  *	ipc_init	-	initialise IPC subsystem
@@ -307,7 +248,7 @@ int ipc_addid(struct ipc_ids* ids, struct kern_ipc_perm* new, int size)
  *	This routine is called by sys_msgget, sys_semget() and sys_shmget()
  *	when the key is IPC_PRIVATE.
  */
-int ipcget_new(struct ipc_namespace *ns, struct ipc_ids *ids,
+static int ipcget_new(struct ipc_namespace *ns, struct ipc_ids *ids,
 		struct ipc_ops *ops, struct ipc_params *params)
 {
 	int err;
@@ -371,7 +312,7 @@ static int ipc_check_perms(struct kern_ipc_perm *ipcp, struct ipc_ops *ops,
  *
  *	On success, the ipc id is returned.
  */
-int ipcget_public(struct ipc_namespace *ns, struct ipc_ids *ids,
+static int ipcget_public(struct ipc_namespace *ns, struct ipc_ids *ids,
 		struct ipc_ops *ops, struct ipc_params *params)
 {
 	struct kern_ipc_perm *ipcp;
@@ -769,6 +710,57 @@ struct kern_ipc_perm *ipc_lock_down(struct ipc_ids *ids, int id)
 	return out;
 }
 
+struct kern_ipc_perm *ipc_lock_check_down(struct ipc_ids *ids, int id)
+{
+	struct kern_ipc_perm *out;
+
+	out = ipc_lock_down(ids, id);
+	if (IS_ERR(out))
+		return out;
+
+	if (ipc_checkid(out, id)) {
+		ipc_unlock(out);
+		return ERR_PTR(-EIDRM);
+	}
+
+	return out;
+}
+
+struct kern_ipc_perm *ipc_lock_check(struct ipc_ids *ids, int id)
+{
+	struct kern_ipc_perm *out;
+
+	out = ipc_lock(ids, id);
+	if (IS_ERR(out))
+		return out;
+
+	if (ipc_checkid(out, id)) {
+		ipc_unlock(out);
+		return ERR_PTR(-EIDRM);
+	}
+
+	return out;
+}
+
+/**
+ * ipcget - Common sys_*get() code
+ * @ns : namsepace
+ * @ids : IPC identifier set
+ * @ops : operations to be called on ipc object creation, permission checks
+ *        and further checks
+ * @params : the parameters needed by the previous operations.
+ *
+ * Common routine called by sys_msgget(), sys_semget() and sys_shmget().
+ */
+int ipcget(struct ipc_namespace *ns, struct ipc_ids *ids,
+			struct ipc_ops *ops, struct ipc_params *params)
+{
+	if (params->key == IPC_PRIVATE)
+		return ipcget_new(ns, ids, ops, params);
+	else
+		return ipcget_public(ns, ids, ops, params);
+}
+
 #ifdef __ARCH_WANT_IPC_PARSE_VERSION
 
 
@@ -802,8 +794,8 @@ struct ipc_proc_iter {
 /*
  * This routine locks the ipc structure found at least at position pos.
  */
-struct kern_ipc_perm *sysvipc_find_ipc(struct ipc_ids *ids, loff_t pos,
-					loff_t *new_pos)
+static struct kern_ipc_perm *sysvipc_find_ipc(struct ipc_ids *ids, loff_t pos,
+					      loff_t *new_pos)
 {
 	struct kern_ipc_perm *ipc;
 	int total, id;
@@ -841,7 +833,7 @@ static void *sysvipc_proc_next(struct seq_file *s, void *it, loff_t *pos)
 	if (ipc && ipc != SEQ_START_TOKEN)
 		ipc_unlock(ipc);
 
-	return sysvipc_find_ipc(iter->ns->ids[iface->ids], *pos, pos);
+	return sysvipc_find_ipc(&iter->ns->ids[iface->ids], *pos, pos);
 }
 
 /*
@@ -854,7 +846,7 @@ static void *sysvipc_proc_start(struct seq_file *s, loff_t *pos)
 	struct ipc_proc_iface *iface = iter->iface;
 	struct ipc_ids *ids;
 
-	ids = iter->ns->ids[iface->ids];
+	ids = &iter->ns->ids[iface->ids];
 
 	/*
 	 * Take the lock - this will be released by the corresponding
@@ -885,7 +877,7 @@ static void sysvipc_proc_stop(struct seq_file *s, void *it)
 	if (ipc && ipc != SEQ_START_TOKEN)
 		ipc_unlock(ipc);
 
-	ids = iter->ns->ids[iface->ids];
+	ids = &iter->ns->ids[iface->ids];
 	/* Release the lock we took in start() */
 	up_read(&ids->rw_mutex);
 }

@@ -15,17 +15,23 @@
 #include <linux/console.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 
 #include <asm/atarihw.h>
 #include <asm/atariints.h>
 
 /* Flag that Modem1 port is already initialized and used */
 int atari_MFP_init_done;
+EXPORT_SYMBOL(atari_MFP_init_done);
+
 /* Flag that Modem1 port is already initialized and used */
 int atari_SCC_init_done;
+EXPORT_SYMBOL(atari_SCC_init_done);
+
 /* Can be set somewhere, if a SCC master reset has already be done and should
  * not be repeated; used by kgdb */
 int atari_SCC_reset_done;
+EXPORT_SYMBOL(atari_SCC_reset_done);
 
 static struct console atari_console_driver = {
 	.name	= "debug",

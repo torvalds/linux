@@ -59,8 +59,8 @@ struct files_struct {
 
 extern struct kmem_cache *filp_cachep;
 
-extern void FASTCALL(__fput(struct file *));
-extern void FASTCALL(fput(struct file *));
+extern void __fput(struct file *);
+extern void fput(struct file *);
 
 struct file_operations;
 struct vfsmount;
@@ -77,13 +77,13 @@ static inline void fput_light(struct file *file, int fput_needed)
 		fput(file);
 }
 
-extern struct file * FASTCALL(fget(unsigned int fd));
-extern struct file * FASTCALL(fget_light(unsigned int fd, int *fput_needed));
-extern void FASTCALL(set_close_on_exec(unsigned int fd, int flag));
+extern struct file *fget(unsigned int fd);
+extern struct file *fget_light(unsigned int fd, int *fput_needed);
+extern void set_close_on_exec(unsigned int fd, int flag);
 extern void put_filp(struct file *);
 extern int get_unused_fd(void);
 extern int get_unused_fd_flags(int flags);
-extern void FASTCALL(put_unused_fd(unsigned int fd));
+extern void put_unused_fd(unsigned int fd);
 struct kmem_cache;
 
 extern int expand_files(struct files_struct *, int nr);
@@ -110,12 +110,12 @@ static inline struct file * fcheck_files(struct files_struct *files, unsigned in
  */
 #define fcheck(fd)	fcheck_files(current->files, fd)
 
-extern void FASTCALL(fd_install(unsigned int fd, struct file * file));
+extern void fd_install(unsigned int fd, struct file *file);
 
 struct task_struct;
 
 struct files_struct *get_files_struct(struct task_struct *);
-void FASTCALL(put_files_struct(struct files_struct *fs));
+void put_files_struct(struct files_struct *fs);
 void reset_files_struct(struct task_struct *, struct files_struct *);
 
 extern struct kmem_cache *files_cachep;

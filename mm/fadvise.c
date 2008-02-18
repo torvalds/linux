@@ -49,9 +49,21 @@ asmlinkage long sys_fadvise64_64(int fd, loff_t offset, loff_t len, int advice)
 		goto out;
 	}
 
-	if (mapping->a_ops->get_xip_page)
-		/* no bad return value, but ignore advice */
+	if (mapping->a_ops->get_xip_page) {
+		switch (advice) {
+		case POSIX_FADV_NORMAL:
+		case POSIX_FADV_RANDOM:
+		case POSIX_FADV_SEQUENTIAL:
+		case POSIX_FADV_WILLNEED:
+		case POSIX_FADV_NOREUSE:
+		case POSIX_FADV_DONTNEED:
+			/* no bad return value, but ignore advice */
+			break;
+		default:
+			ret = -EINVAL;
+		}
 		goto out;
+	}
 
 	/* Careful about overflows. Len == 0 means "as much as possible" */
 	endbyte = offset + len;

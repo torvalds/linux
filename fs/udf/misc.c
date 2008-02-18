@@ -51,18 +51,18 @@ struct genericFormat *udf_add_extendedattr(struct inode *inode, uint32_t size,
 	uint8_t *ea = NULL, *ad = NULL;
 	int offset;
 	uint16_t crclen;
-	int i;
+	struct udf_inode_info *iinfo = UDF_I(inode);
 
-	ea = UDF_I_DATA(inode);
-	if (UDF_I_LENEATTR(inode)) {
-		ad = UDF_I_DATA(inode) + UDF_I_LENEATTR(inode);
+	ea = iinfo->i_ext.i_data;
+	if (iinfo->i_lenEAttr) {
+		ad = iinfo->i_ext.i_data + iinfo->i_lenEAttr;
 	} else {
 		ad = ea;
 		size += sizeof(struct extendedAttrHeaderDesc);
 	}
 
 	offset = inode->i_sb->s_blocksize - udf_file_entry_alloc_offset(inode) -
-		UDF_I_LENALLOC(inode);
+		iinfo->i_lenAlloc;
 
 	/* TODO - Check for FreeEASpace */
 
@@ -70,69 +70,80 @@ struct genericFormat *udf_add_extendedattr(struct inode *inode, uint32_t size,
 		struct extendedAttrHeaderDesc *eahd;
 		eahd = (struct extendedAttrHeaderDesc *)ea;
 
-		if (UDF_I_LENALLOC(inode)) {
-			memmove(&ad[size], ad, UDF_I_LENALLOC(inode));
-		}
+		if (iinfo->i_lenAlloc)
+			memmove(&ad[size], ad, iinfo->i_lenAlloc);
 
-		if (UDF_I_LENEATTR(inode)) {
+		if (iinfo->i_lenEAttr) {
 			/* check checksum/crc */
-			if (le16_to_cpu(eahd->descTag.tagIdent) != TAG_IDENT_EAHD ||
-			    le32_to_cpu(eahd->descTag.tagLocation) != UDF_I_LOCATION(inode).logicalBlockNum) {
+			if (eahd->descTag.tagIdent !=
+					cpu_to_le16(TAG_IDENT_EAHD) ||
+			    le32_to_cpu(eahd->descTag.tagLocation) !=
+					iinfo->i_location.logicalBlockNum)
 				return NULL;
-			}
 		} else {
+			struct udf_sb_info *sbi = UDF_SB(inode->i_sb);
+
 			size -= sizeof(struct extendedAttrHeaderDesc);
-			UDF_I_LENEATTR(inode) += sizeof(struct extendedAttrHeaderDesc);
+			iinfo->i_lenEAttr +=
+				sizeof(struct extendedAttrHeaderDesc);
 			eahd->descTag.tagIdent = cpu_to_le16(TAG_IDENT_EAHD);
-			if (UDF_SB_UDFREV(inode->i_sb) >= 0x0200)
+			if (sbi->s_udfrev >= 0x0200)
 				eahd->descTag.descVersion = cpu_to_le16(3);
 			else
 				eahd->descTag.descVersion = cpu_to_le16(2);
-			eahd->descTag.tagSerialNum = cpu_to_le16(UDF_SB_SERIALNUM(inode->i_sb));
-			eahd->descTag.tagLocation = cpu_to_le32(UDF_I_LOCATION(inode).logicalBlockNum);
+			eahd->descTag.tagSerialNum =
+					cpu_to_le16(sbi->s_serial_number);
+			eahd->descTag.tagLocation = cpu_to_le32(
+					iinfo->i_location.logicalBlockNum);
 			eahd->impAttrLocation = cpu_to_le32(0xFFFFFFFF);
 			eahd->appAttrLocation = cpu_to_le32(0xFFFFFFFF);
 		}
 
-		offset = UDF_I_LENEATTR(inode);
+		offset = iinfo->i_lenEAttr;
 		if (type < 2048) {
-			if (le32_to_cpu(eahd->appAttrLocation) < UDF_I_LENEATTR(inode)) {
-				uint32_t aal = le32_to_cpu(eahd->appAttrLocation);
+			if (le32_to_cpu(eahd->appAttrLocation) <
+					iinfo->i_lenEAttr) {
+				uint32_t aal =
+					le32_to_cpu(eahd->appAttrLocation);
 				memmove(&ea[offset - aal + size],
 					&ea[aal], offset - aal);
 				offset -= aal;
-				eahd->appAttrLocation = cpu_to_le32(aal + size);
+				eahd->appAttrLocation =
+						cpu_to_le32(aal + size);
 			}
-			if (le32_to_cpu(eahd->impAttrLocation) < UDF_I_LENEATTR(inode)) {
-				uint32_t ial = le32_to_cpu(eahd->impAttrLocation);
+			if (le32_to_cpu(eahd->impAttrLocation) <
+					iinfo->i_lenEAttr) {
+				uint32_t ial =
+					le32_to_cpu(eahd->impAttrLocation);
 				memmove(&ea[offset - ial + size],
 					&ea[ial], offset - ial);
 				offset -= ial;
-				eahd->impAttrLocation = cpu_to_le32(ial + size);
+				eahd->impAttrLocation =
+						cpu_to_le32(ial + size);
 			}
 		} else if (type < 65536) {
-			if (le32_to_cpu(eahd->appAttrLocation) < UDF_I_LENEATTR(inode)) {
-				uint32_t aal = le32_to_cpu(eahd->appAttrLocation);
+			if (le32_to_cpu(eahd->appAttrLocation) <
+					iinfo->i_lenEAttr) {
+				uint32_t aal =
+					le32_to_cpu(eahd->appAttrLocation);
 				memmove(&ea[offset - aal + size],
 					&ea[aal], offset - aal);
 				offset -= aal;
-				eahd->appAttrLocation = cpu_to_le32(aal + size);
+				eahd->appAttrLocation =
+						cpu_to_le32(aal + size);
 			}
 		}
 		/* rewrite CRC + checksum of eahd */
 		crclen = sizeof(struct extendedAttrHeaderDesc) - sizeof(tag);
 		eahd->descTag.descCRCLength = cpu_to_le16(crclen);
 		eahd->descTag.descCRC = cpu_to_le16(udf_crc((char *)eahd +
-							    sizeof(tag), crclen, 0));
-		eahd->descTag.tagChecksum = 0;
-		for (i = 0; i < 16; i++)
-			if (i != 4)
-				eahd->descTag.tagChecksum += ((uint8_t *)&(eahd->descTag))[i];
-		UDF_I_LENEATTR(inode) += size;
+						sizeof(tag), crclen, 0));
+		eahd->descTag.tagChecksum = udf_tag_checksum(&eahd->descTag);
+		iinfo->i_lenEAttr += size;
 		return (struct genericFormat *)&ea[offset];
 	}
-	if (loc & 0x02) {
-	}
+	if (loc & 0x02)
+		;
 
 	return NULL;
 }
@@ -143,18 +154,20 @@ struct genericFormat *udf_get_extendedattr(struct inode *inode, uint32_t type,
 	struct genericFormat *gaf;
 	uint8_t *ea = NULL;
 	uint32_t offset;
+	struct udf_inode_info *iinfo = UDF_I(inode);
 
-	ea = UDF_I_DATA(inode);
+	ea = iinfo->i_ext.i_data;
 
-	if (UDF_I_LENEATTR(inode)) {
+	if (iinfo->i_lenEAttr) {
 		struct extendedAttrHeaderDesc *eahd;
 		eahd = (struct extendedAttrHeaderDesc *)ea;
 
 		/* check checksum/crc */
-		if (le16_to_cpu(eahd->descTag.tagIdent) != TAG_IDENT_EAHD ||
-		    le32_to_cpu(eahd->descTag.tagLocation) != UDF_I_LOCATION(inode).logicalBlockNum) {
+		if (eahd->descTag.tagIdent !=
+				cpu_to_le16(TAG_IDENT_EAHD) ||
+		    le32_to_cpu(eahd->descTag.tagLocation) !=
+				iinfo->i_location.logicalBlockNum)
 			return NULL;
-		}
 
 		if (type < 2048)
 			offset = sizeof(struct extendedAttrHeaderDesc);
@@ -163,9 +176,10 @@ struct genericFormat *udf_get_extendedattr(struct inode *inode, uint32_t type,
 		else
 			offset = le32_to_cpu(eahd->appAttrLocation);
 
-		while (offset < UDF_I_LENEATTR(inode)) {
+		while (offset < iinfo->i_lenEAttr) {
 			gaf = (struct genericFormat *)&ea[offset];
-			if (le32_to_cpu(gaf->attrType) == type && gaf->attrSubtype == subtype)
+			if (le32_to_cpu(gaf->attrType) == type &&
+					gaf->attrSubtype == subtype)
 				return gaf;
 			else
 				offset += le32_to_cpu(gaf->attrLength);
@@ -186,21 +200,20 @@ struct genericFormat *udf_get_extendedattr(struct inode *inode, uint32_t type,
  *	Written, tested, and released.
  */
 struct buffer_head *udf_read_tagged(struct super_block *sb, uint32_t block,
-				    uint32_t location, uint16_t * ident)
+				    uint32_t location, uint16_t *ident)
 {
 	tag *tag_p;
 	struct buffer_head *bh = NULL;
-	register uint8_t checksum;
-	register int i;
+	struct udf_sb_info *sbi = UDF_SB(sb);
 
 	/* Read the block */
 	if (block == 0xFFFFFFFF)
 		return NULL;
 
-	bh = udf_tread(sb, block + UDF_SB_SESSION(sb));
+	bh = udf_tread(sb, block + sbi->s_session);
 	if (!bh) {
 		udf_debug("block=%d, location=%d: read failed\n",
-			  block + UDF_SB_SESSION(sb), location);
+			  block + sbi->s_session, location);
 		return NULL;
 	}
 
@@ -210,24 +223,20 @@ struct buffer_head *udf_read_tagged(struct super_block *sb, uint32_t block,
 
 	if (location != le32_to_cpu(tag_p->tagLocation)) {
 		udf_debug("location mismatch block %u, tag %u != %u\n",
-			  block + UDF_SB_SESSION(sb), le32_to_cpu(tag_p->tagLocation), location);
+			  block + sbi->s_session,
+			  le32_to_cpu(tag_p->tagLocation), location);
 		goto error_out;
 	}
 
 	/* Verify the tag checksum */
-	checksum = 0U;
-	for (i = 0; i < 4; i++)
-		checksum += (uint8_t)(bh->b_data[i]);
-	for (i = 5; i < 16; i++)
-		checksum += (uint8_t)(bh->b_data[i]);
-	if (checksum != tag_p->tagChecksum) {
+	if (udf_tag_checksum(tag_p) != tag_p->tagChecksum) {
 		printk(KERN_ERR "udf: tag checksum failed block %d\n", block);
 		goto error_out;
 	}
 
 	/* Verify the tag version */
-	if (le16_to_cpu(tag_p->descVersion) != 0x0002U &&
-	    le16_to_cpu(tag_p->descVersion) != 0x0003U) {
+	if (tag_p->descVersion != cpu_to_le16(0x0002U) &&
+	    tag_p->descVersion != cpu_to_le16(0x0003U)) {
 		udf_debug("tag version 0x%04x != 0x0002 || 0x0003 block %d\n",
 			  le16_to_cpu(tag_p->descVersion), block);
 		goto error_out;
@@ -236,11 +245,11 @@ struct buffer_head *udf_read_tagged(struct super_block *sb, uint32_t block,
 	/* Verify the descriptor CRC */
 	if (le16_to_cpu(tag_p->descCRCLength) + sizeof(tag) > sb->s_blocksize ||
 	    le16_to_cpu(tag_p->descCRC) == udf_crc(bh->b_data + sizeof(tag),
-						   le16_to_cpu(tag_p->descCRCLength), 0)) {
+					le16_to_cpu(tag_p->descCRCLength), 0))
 		return bh;
-	}
+
 	udf_debug("Crc failure block %d: crc = %d, crclen = %d\n",
-		  block + UDF_SB_SESSION(sb), le16_to_cpu(tag_p->descCRC),
+		  block + sbi->s_session, le16_to_cpu(tag_p->descCRC),
 		  le16_to_cpu(tag_p->descCRCLength));
 
 error_out:
@@ -249,7 +258,7 @@ error_out:
 }
 
 struct buffer_head *udf_read_ptagged(struct super_block *sb, kernel_lb_addr loc,
-				     uint32_t offset, uint16_t * ident)
+				     uint32_t offset, uint16_t *ident)
 {
 	return udf_read_tagged(sb, udf_get_lb_pblock(sb, loc, offset),
 			       loc.logicalBlockNum + offset, ident);
@@ -258,17 +267,11 @@ struct buffer_head *udf_read_ptagged(struct super_block *sb, kernel_lb_addr loc,
 void udf_update_tag(char *data, int length)
 {
 	tag *tptr = (tag *)data;
-	int i;
-
 	length -= sizeof(tag);
 
-	tptr->tagChecksum = 0;
 	tptr->descCRCLength = cpu_to_le16(length);
 	tptr->descCRC = cpu_to_le16(udf_crc(data + sizeof(tag), length, 0));
-
-	for (i = 0; i < 16; i++)
-		if (i != 4)
-			tptr->tagChecksum += (uint8_t)(data[i]);
+	tptr->tagChecksum = udf_tag_checksum(tptr);
 }
 
 void udf_new_tag(char *data, uint16_t ident, uint16_t version, uint16_t snum,
@@ -280,4 +283,15 @@ void udf_new_tag(char *data, uint16_t ident, uint16_t version, uint16_t snum,
 	tptr->tagSerialNum = cpu_to_le16(snum);
 	tptr->tagLocation = cpu_to_le32(loc);
 	udf_update_tag(data, length);
+}
+
+u8 udf_tag_checksum(const tag *t)
+{
+	u8 *data = (u8 *)t;
+	u8 checksum = 0;
+	int i;
+	for (i = 0; i < sizeof(tag); ++i)
+		if (i != 4) /* position of checksum */
+			checksum += data[i];
+	return checksum;
 }

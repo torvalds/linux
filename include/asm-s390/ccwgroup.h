@@ -37,6 +37,7 @@ struct ccwgroup_device {
  * @remove: function called on remove
  * @set_online: function called when device is set online
  * @set_offline: function called when device is set offline
+ * @shutdown: function called when device is shut down
  * @driver: embedded driver structure
  */
 struct ccwgroup_driver {
@@ -49,6 +50,7 @@ struct ccwgroup_driver {
 	void (*remove) (struct ccwgroup_device *);
 	int (*set_online) (struct ccwgroup_device *);
 	int (*set_offline) (struct ccwgroup_device *);
+	void (*shutdown)(struct ccwgroup_device *);
 
 	struct device_driver driver;
 };

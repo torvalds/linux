@@ -1,5 +1,4 @@
-/* $Id: shadows.c,v 1.2 2004/12/13 12:21:51 starvik Exp $
- * 
+/*
  * Various shadow registers. Defines for these are in include/asm-etrax100/io.h
  */
 

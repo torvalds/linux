@@ -27,7 +27,6 @@ typedef u_int   ioaddr_t;
 #else
 typedef u_short	ioaddr_t;
 #endif
-typedef unsigned long kio_addr_t;
 
 typedef u_short	socket_t;
 typedef u_int	event_t;

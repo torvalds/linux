@@ -163,7 +163,7 @@ start:
 	return vaddr;
 }
 
-void fastcall *kmap_high(struct page *page)
+void *kmap_high(struct page *page)
 {
 	unsigned long vaddr;
 
@@ -185,7 +185,7 @@ void fastcall *kmap_high(struct page *page)
 
 EXPORT_SYMBOL(kmap_high);
 
-void fastcall kunmap_high(struct page *page)
+void kunmap_high(struct page *page)
 {
 	unsigned long vaddr;
 	unsigned long nr;

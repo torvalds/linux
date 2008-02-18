@@ -27,14 +27,14 @@
  * Since we have only two-level page tables, these are trivial
  */
 #define pmd_alloc_one(mm,addr)		({ BUG(); ((pmd_t *)2); })
-#define pmd_free(pmd)			do { } while (0)
+#define pmd_free(mm, pmd)		do { } while (0)
 #define pgd_populate(mm,pmd,pte)	BUG()
 
 extern pgd_t *get_pgd_slow(struct mm_struct *mm);
-extern void free_pgd_slow(pgd_t *pgd);
+extern void free_pgd_slow(struct mm_struct *mm, pgd_t *pgd);
 
 #define pgd_alloc(mm)			get_pgd_slow(mm)
-#define pgd_free(pgd)			free_pgd_slow(pgd)
+#define pgd_free(mm, pgd)		free_pgd_slow(mm, pgd)
 
 /*
  * Allocate one PTE table.
@@ -66,7 +66,7 @@ pte_alloc_one_kernel(struct mm_struct *mm, unsigned long addr)
 	return pte;
 }
 
-static inline struct page *
+static inline pgtable_t
 pte_alloc_one(struct mm_struct *mm, unsigned long addr)
 {
 	struct page *pte;
@@ -75,6 +75,7 @@ pte_alloc_one(struct mm_struct *mm, unsigned long addr)
 	if (pte) {
 		void *page = page_address(pte);
 		clean_dcache_area(page, sizeof(pte_t) * PTRS_PER_PTE);
+		pgtable_page_ctor(pte);
 	}
 
 	return pte;
@@ -83,7 +84,7 @@ pte_alloc_one(struct mm_struct *mm, unsigned long addr)
 /*
  * Free one PTE table.
  */
-static inline void pte_free_kernel(pte_t *pte)
+static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 {
 	if (pte) {
 		pte -= PTRS_PER_PTE;
@@ -91,8 +92,9 @@ static inline void pte_free_kernel(pte_t *pte)
 	}
 }
 
-static inline void pte_free(struct page *pte)
+static inline void pte_free(struct mm_struct *mm, pgtable_t pte)
 {
+	pgtable_page_dtor(pte);
 	__free_page(pte);
 }
 
@@ -123,10 +125,11 @@ pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmdp, pte_t *ptep)
 }
 
 static inline void
-pmd_populate(struct mm_struct *mm, pmd_t *pmdp, struct page *ptep)
+pmd_populate(struct mm_struct *mm, pmd_t *pmdp, pgtable_t ptep)
 {
 	__pmd_populate(pmdp, page_to_pfn(ptep) << PAGE_SHIFT | _PAGE_USER_TABLE);
 }
+#define pmd_pgtable(pmd) pmd_page(pmd)
 
 #endif /* CONFIG_MMU */
 

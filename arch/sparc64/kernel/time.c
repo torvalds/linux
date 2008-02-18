@@ -1707,6 +1707,11 @@ static void __exit rtc_mini_exit(void)
 	misc_deregister(&rtc_mini_dev);
 }
 
+int __devinit read_current_timer(unsigned long *timer_val)
+{
+	*timer_val = tick_ops->get_tick();
+	return 0;
+}
 
 module_init(rtc_mini_init);
 module_exit(rtc_mini_exit);

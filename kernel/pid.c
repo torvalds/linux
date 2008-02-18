@@ -41,7 +41,6 @@
 static struct hlist_head *pid_hash;
 static int pidhash_shift;
 struct pid init_struct_pid = INIT_STRUCT_PID;
-static struct kmem_cache *pid_ns_cachep;
 
 int pid_max = PID_MAX_DEFAULT;
 
@@ -112,7 +111,7 @@ EXPORT_SYMBOL(is_container_init);
 
 static  __cacheline_aligned_in_smp DEFINE_SPINLOCK(pidmap_lock);
 
-static fastcall void free_pidmap(struct pid_namespace *pid_ns, int pid)
+static void free_pidmap(struct pid_namespace *pid_ns, int pid)
 {
 	struct pidmap *map = pid_ns->pidmap + pid / BITS_PER_PAGE;
 	int offset = pid & BITS_PER_PAGE_MASK;
@@ -181,7 +180,7 @@ static int alloc_pidmap(struct pid_namespace *pid_ns)
 	return -1;
 }
 
-static int next_pidmap(struct pid_namespace *pid_ns, int last)
+int next_pidmap(struct pid_namespace *pid_ns, int last)
 {
 	int offset;
 	struct pidmap *map, *end;
@@ -199,7 +198,7 @@ static int next_pidmap(struct pid_namespace *pid_ns, int last)
 	return -1;
 }
 
-fastcall void put_pid(struct pid *pid)
+void put_pid(struct pid *pid)
 {
 	struct pid_namespace *ns;
 
@@ -221,7 +220,7 @@ static void delayed_put_pid(struct rcu_head *rhp)
 	put_pid(pid);
 }
 
-fastcall void free_pid(struct pid *pid)
+void free_pid(struct pid *pid)
 {
 	/* We can be called with write_lock_irq(&tasklist_lock) held */
 	int i;
@@ -287,7 +286,7 @@ out_free:
 	goto out;
 }
 
-struct pid * fastcall find_pid_ns(int nr, struct pid_namespace *ns)
+struct pid *find_pid_ns(int nr, struct pid_namespace *ns)
 {
 	struct hlist_node *elem;
 	struct upid *pnr;
@@ -317,7 +316,7 @@ EXPORT_SYMBOL_GPL(find_pid);
 /*
  * attach_pid() must be called with the tasklist_lock write-held.
  */
-int fastcall attach_pid(struct task_struct *task, enum pid_type type,
+int attach_pid(struct task_struct *task, enum pid_type type,
 		struct pid *pid)
 {
 	struct pid_link *link;
@@ -329,7 +328,7 @@ int fastcall attach_pid(struct task_struct *task, enum pid_type type,
 	return 0;
 }
 
-void fastcall detach_pid(struct task_struct *task, enum pid_type type)
+void detach_pid(struct task_struct *task, enum pid_type type)
 {
 	struct pid_link *link;
 	struct pid *pid;
@@ -349,7 +348,7 @@ void fastcall detach_pid(struct task_struct *task, enum pid_type type)
 }
 
 /* transfer_pid is an optimization of attach_pid(new), detach_pid(old) */
-void fastcall transfer_pid(struct task_struct *old, struct task_struct *new,
+void transfer_pid(struct task_struct *old, struct task_struct *new,
 			   enum pid_type type)
 {
 	new->pids[type].pid = old->pids[type].pid;
@@ -357,7 +356,7 @@ void fastcall transfer_pid(struct task_struct *old, struct task_struct *new,
 	old->pids[type].pid = NULL;
 }
 
-struct task_struct * fastcall pid_task(struct pid *pid, enum pid_type type)
+struct task_struct *pid_task(struct pid *pid, enum pid_type type)
 {
 	struct task_struct *result = NULL;
 	if (pid) {
@@ -368,6 +367,7 @@ struct task_struct * fastcall pid_task(struct pid *pid, enum pid_type type)
 	}
 	return result;
 }
+EXPORT_SYMBOL(pid_task);
 
 /*
  * Must be called under rcu_read_lock() or with tasklist_lock read-held.
@@ -408,7 +408,7 @@ struct pid *get_task_pid(struct task_struct *task, enum pid_type type)
 	return pid;
 }
 
-struct task_struct *fastcall get_pid_task(struct pid *pid, enum pid_type type)
+struct task_struct *get_pid_task(struct pid *pid, enum pid_type type)
 {
 	struct task_struct *result;
 	rcu_read_lock();
@@ -442,6 +442,12 @@ pid_t pid_nr_ns(struct pid *pid, struct pid_namespace *ns)
 	}
 	return nr;
 }
+
+pid_t pid_vnr(struct pid *pid)
+{
+	return pid_nr_ns(pid, current->nsproxy->pid_ns);
+}
+EXPORT_SYMBOL_GPL(pid_vnr);
 
 pid_t task_pid_nr_ns(struct task_struct *tsk, struct pid_namespace *ns)
 {
@@ -487,180 +493,6 @@ struct pid *find_ge_pid(int nr, struct pid_namespace *ns)
 }
 EXPORT_SYMBOL_GPL(find_get_pid);
 
-struct pid_cache {
-	int nr_ids;
-	char name[16];
-	struct kmem_cache *cachep;
-	struct list_head list;
-};
-
-static LIST_HEAD(pid_caches_lh);
-static DEFINE_MUTEX(pid_caches_mutex);
-
-/*
- * creates the kmem cache to allocate pids from.
- * @nr_ids: the number of numerical ids this pid will have to carry
- */
-
-static struct kmem_cache *create_pid_cachep(int nr_ids)
-{
-	struct pid_cache *pcache;
-	struct kmem_cache *cachep;
-
-	mutex_lock(&pid_caches_mutex);
-	list_for_each_entry (pcache, &pid_caches_lh, list)
-		if (pcache->nr_ids == nr_ids)
-			goto out;
-
-	pcache = kmalloc(sizeof(struct pid_cache), GFP_KERNEL);
-	if (pcache == NULL)
-		goto err_alloc;
-
-	snprintf(pcache->name, sizeof(pcache->name), "pid_%d", nr_ids);
-	cachep = kmem_cache_create(pcache->name,
-			sizeof(struct pid) + (nr_ids - 1) * sizeof(struct upid),
-			0, SLAB_HWCACHE_ALIGN, NULL);
-	if (cachep == NULL)
-		goto err_cachep;
-
-	pcache->nr_ids = nr_ids;
-	pcache->cachep = cachep;
-	list_add(&pcache->list, &pid_caches_lh);
-out:
-	mutex_unlock(&pid_caches_mutex);
-	return pcache->cachep;
-
-err_cachep:
-	kfree(pcache);
-err_alloc:
-	mutex_unlock(&pid_caches_mutex);
-	return NULL;
-}
-
-#ifdef CONFIG_PID_NS
-static struct pid_namespace *create_pid_namespace(int level)
-{
-	struct pid_namespace *ns;
-	int i;
-
-	ns = kmem_cache_alloc(pid_ns_cachep, GFP_KERNEL);
-	if (ns == NULL)
-		goto out;
-
-	ns->pidmap[0].page = kzalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!ns->pidmap[0].page)
-		goto out_free;
-
-	ns->pid_cachep = create_pid_cachep(level + 1);
-	if (ns->pid_cachep == NULL)
-		goto out_free_map;
-
-	kref_init(&ns->kref);
-	ns->last_pid = 0;
-	ns->child_reaper = NULL;
-	ns->level = level;
-
-	set_bit(0, ns->pidmap[0].page);
-	atomic_set(&ns->pidmap[0].nr_free, BITS_PER_PAGE - 1);
-
-	for (i = 1; i < PIDMAP_ENTRIES; i++) {
-		ns->pidmap[i].page = 0;
-		atomic_set(&ns->pidmap[i].nr_free, BITS_PER_PAGE);
-	}
-
-	return ns;
-
-out_free_map:
-	kfree(ns->pidmap[0].page);
-out_free:
-	kmem_cache_free(pid_ns_cachep, ns);
-out:
-	return ERR_PTR(-ENOMEM);
-}
-
-static void destroy_pid_namespace(struct pid_namespace *ns)
-{
-	int i;
-
-	for (i = 0; i < PIDMAP_ENTRIES; i++)
-		kfree(ns->pidmap[i].page);
-	kmem_cache_free(pid_ns_cachep, ns);
-}
-
-struct pid_namespace *copy_pid_ns(unsigned long flags, struct pid_namespace *old_ns)
-{
-	struct pid_namespace *new_ns;
-
-	BUG_ON(!old_ns);
-	new_ns = get_pid_ns(old_ns);
-	if (!(flags & CLONE_NEWPID))
-		goto out;
-
-	new_ns = ERR_PTR(-EINVAL);
-	if (flags & CLONE_THREAD)
-		goto out_put;
-
-	new_ns = create_pid_namespace(old_ns->level + 1);
-	if (!IS_ERR(new_ns))
-		new_ns->parent = get_pid_ns(old_ns);
-
-out_put:
-	put_pid_ns(old_ns);
-out:
-	return new_ns;
-}
-
-void free_pid_ns(struct kref *kref)
-{
-	struct pid_namespace *ns, *parent;
-
-	ns = container_of(kref, struct pid_namespace, kref);
-
-	parent = ns->parent;
-	destroy_pid_namespace(ns);
-
-	if (parent != NULL)
-		put_pid_ns(parent);
-}
-#endif /* CONFIG_PID_NS */
-
-void zap_pid_ns_processes(struct pid_namespace *pid_ns)
-{
-	int nr;
-	int rc;
-
-	/*
-	 * The last thread in the cgroup-init thread group is terminating.
-	 * Find remaining pid_ts in the namespace, signal and wait for them
-	 * to exit.
-	 *
-	 * Note:  This signals each threads in the namespace - even those that
-	 * 	  belong to the same thread group, To avoid this, we would have
-	 * 	  to walk the entire tasklist looking a processes in this
-	 * 	  namespace, but that could be unnecessarily expensive if the
-	 * 	  pid namespace has just a few processes. Or we need to
-	 * 	  maintain a tasklist for each pid namespace.
-	 *
-	 */
-	read_lock(&tasklist_lock);
-	nr = next_pidmap(pid_ns, 1);
-	while (nr > 0) {
-		kill_proc_info(SIGKILL, SEND_SIG_PRIV, nr);
-		nr = next_pidmap(pid_ns, nr);
-	}
-	read_unlock(&tasklist_lock);
-
-	do {
-		clear_thread_flag(TIF_SIGPENDING);
-		rc = sys_wait4(-1, NULL, __WALL, NULL);
-	} while (rc != -ECHILD);
-
-
-	/* Child reaper for the pid namespace is going away */
-	pid_ns->child_reaper = NULL;
-	return;
-}
-
 /*
  * The pid hash table is scaled according to the amount of memory in the
  * machine.  From a minimum of 16 slots up to 4096 slots at one gigabyte or
@@ -693,9 +525,6 @@ void __init pidmap_init(void)
 	set_bit(0, init_pid_ns.pidmap[0].page);
 	atomic_dec(&init_pid_ns.pidmap[0].nr_free);
 
-	init_pid_ns.pid_cachep = create_pid_cachep(1);
-	if (init_pid_ns.pid_cachep == NULL)
-		panic("Can't create pid_1 cachep\n");
-
-	pid_ns_cachep = KMEM_CACHE(pid_namespace, SLAB_PANIC);
+	init_pid_ns.pid_cachep = KMEM_CACHE(pid,
+			SLAB_HWCACHE_ALIGN | SLAB_PANIC);
 }

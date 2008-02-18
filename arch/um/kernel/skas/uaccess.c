@@ -3,128 +3,130 @@
  * Licensed under the GPL
  */
 
-#include "linux/err.h"
-#include "linux/highmem.h"
-#include "linux/mm.h"
-#include "asm/current.h"
-#include "asm/page.h"
-#include "asm/pgtable.h"
+#include <linux/err.h>
+#include <linux/highmem.h>
+#include <linux/mm.h>
+#include <linux/sched.h>
+#include <asm/current.h>
+#include <asm/page.h>
+#include <asm/pgtable.h>
 #include "kern_util.h"
 #include "os.h"
 
-extern void *um_virt_to_phys(struct task_struct *task, unsigned long addr,
-			     pte_t *pte_out);
-
-static unsigned long maybe_map(unsigned long virt, int is_write)
+pte_t *virt_to_pte(struct mm_struct *mm, unsigned long addr)
 {
-	pte_t pte;
-	int err;
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
 
-	void *phys = um_virt_to_phys(current, virt, &pte);
-	int dummy_code;
+	if (mm == NULL)
+		return NULL;
 
-	if (IS_ERR(phys) || (is_write && !pte_write(pte))) {
+	pgd = pgd_offset(mm, addr);
+	if (!pgd_present(*pgd))
+		return NULL;
+
+	pud = pud_offset(pgd, addr);
+	if (!pud_present(*pud))
+		return NULL;
+
+	pmd = pmd_offset(pud, addr);
+	if (!pmd_present(*pmd))
+		return NULL;
+
+	return pte_offset_kernel(pmd, addr);
+}
+
+static pte_t *maybe_map(unsigned long virt, int is_write)
+{
+	pte_t *pte = virt_to_pte(current->mm, virt);
+	int err, dummy_code;
+
+	if ((pte == NULL) || !pte_present(*pte) ||
+	    (is_write && !pte_write(*pte))) {
 		err = handle_page_fault(virt, 0, is_write, 1, &dummy_code);
 		if (err)
-			return -1UL;
-		phys = um_virt_to_phys(current, virt, NULL);
+			return NULL;
+		pte = virt_to_pte(current->mm, virt);
 	}
-	if (IS_ERR(phys))
-		phys = (void *) -1;
+	if (!pte_present(*pte))
+		pte = NULL;
 
-	return (unsigned long) phys;
+	return pte;
 }
 
 static int do_op_one_page(unsigned long addr, int len, int is_write,
 		 int (*op)(unsigned long addr, int len, void *arg), void *arg)
 {
+	jmp_buf buf;
 	struct page *page;
-	int n;
+	pte_t *pte;
+	int n, faulted;
 
-	addr = maybe_map(addr, is_write);
-	if (addr == -1UL)
+	pte = maybe_map(addr, is_write);
+	if (pte == NULL)
 		return -1;
 
-	page = phys_to_page(addr);
+	page = pte_page(*pte);
 	addr = (unsigned long) kmap_atomic(page, KM_UML_USERCOPY) +
 		(addr & ~PAGE_MASK);
 
-	n = (*op)(addr, len, arg);
+	current->thread.fault_catcher = &buf;
+
+	faulted = UML_SETJMP(&buf);
+	if (faulted == 0)
+		n = (*op)(addr, len, arg);
+	else
+		n = -1;
+
+	current->thread.fault_catcher = NULL;
 
 	kunmap_atomic(page, KM_UML_USERCOPY);
 
 	return n;
 }
 
-static void do_buffer_op(void *jmpbuf, void *arg_ptr)
+static int buffer_op(unsigned long addr, int len, int is_write,
+		     int (*op)(unsigned long, int, void *), void *arg)
 {
-	va_list args;
-	unsigned long addr;
-	int len, is_write, size, remain, n;
-	int (*op)(unsigned long, int, void *);
-	void *arg;
-	int *res;
+	int size, remain, n;
 
-	va_copy(args, *(va_list *)arg_ptr);
-	addr = va_arg(args, unsigned long);
-	len = va_arg(args, int);
-	is_write = va_arg(args, int);
-	op = va_arg(args, void *);
-	arg = va_arg(args, void *);
-	res = va_arg(args, int *);
-	va_end(args);
 	size = min(PAGE_ALIGN(addr) - addr, (unsigned long) len);
 	remain = len;
 
-	current->thread.fault_catcher = jmpbuf;
 	n = do_op_one_page(addr, size, is_write, op, arg);
 	if (n != 0) {
-		*res = (n < 0 ? remain : 0);
+		remain = (n < 0 ? remain : 0);
 		goto out;
 	}
 
 	addr += size;
 	remain -= size;
-	if (remain == 0) {
-		*res = 0;
+	if (remain == 0)
 		goto out;
-	}
 
-	while(addr < ((addr + remain) & PAGE_MASK)) {
+	while (addr < ((addr + remain) & PAGE_MASK)) {
 		n = do_op_one_page(addr, PAGE_SIZE, is_write, op, arg);
 		if (n != 0) {
-			*res = (n < 0 ? remain : 0);
+			remain = (n < 0 ? remain : 0);
 			goto out;
 		}
 
 		addr += PAGE_SIZE;
 		remain -= PAGE_SIZE;
 	}
-	if (remain == 0) {
-		*res = 0;
+	if (remain == 0)
+		goto out;
+
+	n = do_op_one_page(addr, remain, is_write, op, arg);
+	if (n != 0) {
+		remain = (n < 0 ? remain : 0);
 		goto out;
 	}
 
-	n = do_op_one_page(addr, remain, is_write, op, arg);
-	if (n != 0)
-		*res = (n < 0 ? remain : 0);
-	else *res = 0;
+	return 0;
  out:
-	current->thread.fault_catcher = NULL;
-}
-
-static int buffer_op(unsigned long addr, int len, int is_write,
-		     int (*op)(unsigned long addr, int len, void *arg),
-		     void *arg)
-{
-	int faulted, res;
-
-	faulted = setjmp_wrapper(do_buffer_op, addr, len, is_write, op, arg,
-				 &res);
-	if (!faulted)
-		return res;
-
-	return addr + len - (unsigned long) current->thread.fault_addr;
+	return remain;
 }
 
 static int copy_chunk_from_user(unsigned long from, int len, void *arg)

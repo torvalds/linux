@@ -64,8 +64,7 @@ typedef struct {
 
 #else /* __GNUC__ */
 
-#if defined(__KERNEL__) || !defined(__GLIBC__) || (__GLIBC__ < 2) \
-    || (__GLIBC__ == 2 && __GLIBC_MINOR__ == 0)
+#if defined(__KERNEL__)
 /* With GNU C, use inline functions instead so args are evaluated only once: */
 
 #undef __FD_SET
@@ -118,6 +117,6 @@ static __inline__ void __FD_ZERO(__kernel_fd_set *p)
 	}
 }
 
-#endif /* defined(__KERNEL__) || !defined(__GLIBC__) || (__GLIBC__ < 2) */
+#endif /* defined(__KERNEL__) */
 #endif /* __GNUC__ */
 #endif /* _XTENSA_POSIX_TYPES_H */

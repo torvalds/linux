@@ -71,11 +71,11 @@ static struct i2c_board_info __initdata dsmg600_i2c_board_info [] = {
 
 static struct gpio_led dsmg600_led_pins[] = {
 	{
-		.name		= "power",
+		.name		= "dsmg600:green:power",
 		.gpio		= DSMG600_LED_PWR_GPIO,
 	},
 	{
-		.name		= "wlan",
+		.name		= "dsmg600:green:wlan",
 		.gpio		= DSMG600_LED_WLAN_GPIO,
 		.active_low	= true,
 	},

@@ -47,6 +47,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/tty_flip.h>
+#include <linux/spinlock.h>
 
 #include <asm/uaccess.h>
 
@@ -77,9 +78,9 @@
 	 ASYNC_SPD_HI       | ASYNC_SPEED_VHI    | ASYNC_SESSION_LOCKOUT | \
 	 ASYNC_PGRP_LOCKOUT | ASYNC_CALLOUT_NOHUP)
 
-#define RS_EVENT_WRITE_WAKEUP	0
-
 static struct tty_driver *riscom_driver;
+
+static DEFINE_SPINLOCK(riscom_lock);
 
 static struct riscom_board rc_board[RC_NBOARD] =  {
 	{
@@ -217,13 +218,14 @@ static void __init rc_init_CD180(struct riscom_board const * bp)
 {
 	unsigned long flags;
 	
-	save_flags(flags); cli();
+	spin_lock_irqsave(&riscom_lock, flags);
+
 	rc_out(bp, RC_CTOUT, 0);     	           /* Clear timeout             */
 	rc_wait_CCR(bp);			   /* Wait for CCR ready        */
 	rc_out(bp, CD180_CCR, CCR_HARDRESET);      /* Reset CD180 chip          */
-	sti();
+	spin_unlock_irqrestore(&riscom_lock, flags);
 	msleep(50);				   /* Delay 0.05 sec            */
-	cli();
+	spin_lock_irqsave(&riscom_lock, flags);
 	rc_out(bp, CD180_GIVR, RC_ID);             /* Set ID for this chip      */
 	rc_out(bp, CD180_GICR, 0);                 /* Clear all bits            */
 	rc_out(bp, CD180_PILR1, RC_ACK_MINT);      /* Prio for modem intr       */
@@ -234,7 +236,7 @@ static void __init rc_init_CD180(struct riscom_board const * bp)
 	rc_out(bp, CD180_PPRH, (RC_OSCFREQ/(1000000/RISCOM_TPS)) >> 8);
 	rc_out(bp, CD180_PPRL, (RC_OSCFREQ/(1000000/RISCOM_TPS)) & 0xff);
 	
-	restore_flags(flags);
+	spin_unlock_irqrestore(&riscom_lock, flags);
 }
 
 /* Main probing routine, also sets irq. */
@@ -309,12 +311,6 @@ out_release:
  *  Interrupt processing routines.
  * 
  */
-
-static inline void rc_mark_event(struct riscom_port * port, int event)
-{
-	set_bit(event, &port->event);
-	schedule_work(&port->tqueue);
-}
 
 static inline struct riscom_port * rc_get_port(struct riscom_board const * bp,
 					       unsigned char const * what)
@@ -482,7 +478,7 @@ static inline void rc_transmit(struct riscom_board const * bp)
 		rc_out(bp, CD180_IER, port->IER);
 	}
 	if (port->xmit_cnt <= port->wakeup_chars)
-		rc_mark_event(port, RS_EVENT_WRITE_WAKEUP);
+		tty_wakeup(tty);
 }
 
 static inline void rc_check_modem(struct riscom_board const * bp)
@@ -501,7 +497,7 @@ static inline void rc_check_modem(struct riscom_board const * bp)
 		if (rc_in(bp, CD180_MSVR) & MSVR_CD) 
 			wake_up_interruptible(&port->open_wait);
 		else
-			schedule_work(&port->tqueue_hangup);
+			tty_hangup(tty);
 	}
 	
 #ifdef RISCOM_BRAIN_DAMAGED_CTS
@@ -510,7 +506,7 @@ static inline void rc_check_modem(struct riscom_board const * bp)
 			tty->hw_stopped = 0;
 			port->IER |= IER_TXRDY;
 			if (port->xmit_cnt <= port->wakeup_chars)
-				rc_mark_event(port, RS_EVENT_WRITE_WAKEUP);
+				tty_wakeup(tty);
 		} else  {
 			tty->hw_stopped = 1;
 			port->IER &= ~IER_TXRDY;
@@ -522,7 +518,7 @@ static inline void rc_check_modem(struct riscom_board const * bp)
 			tty->hw_stopped = 0;
 			port->IER |= IER_TXRDY;
 			if (port->xmit_cnt <= port->wakeup_chars)
-				rc_mark_event(port, RS_EVENT_WRITE_WAKEUP);
+				tty_wakeup(tty);
 		} else  {
 			tty->hw_stopped = 1;
 			port->IER &= ~IER_TXRDY;
@@ -812,9 +808,9 @@ static int rc_setup_port(struct riscom_board *bp, struct riscom_port *port)
 		}
 		port->xmit_buf = (unsigned char *) tmp;
 	}
-		
-	save_flags(flags); cli();
-		
+
+	spin_lock_irqsave(&riscom_lock, flags);
+
 	if (port->tty) 
 		clear_bit(TTY_IO_ERROR, &port->tty->flags);
 		
@@ -825,7 +821,7 @@ static int rc_setup_port(struct riscom_board *bp, struct riscom_port *port)
 	rc_change_speed(bp, port);
 	port->flags |= ASYNC_INITIALIZED;
 		
-	restore_flags(flags);
+	spin_unlock_irqrestore(&riscom_lock, flags);
 	return 0;
 }
 
@@ -901,6 +897,7 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 	int    retval;
 	int    do_clocal = 0;
 	int    CD;
+	unsigned long flags;
 
 	/*
 	 * If the device is in the middle of being closed, then block
@@ -936,19 +933,26 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 	 */
 	retval = 0;
 	add_wait_queue(&port->open_wait, &wait);
-	cli();
+
+	spin_lock_irqsave(&riscom_lock, flags);
+
 	if (!tty_hung_up_p(filp))
 		port->count--;
-	sti();
+
+	spin_unlock_irqrestore(&riscom_lock, flags);
+
 	port->blocked_open++;
 	while (1) {
-		cli();
+		spin_lock_irqsave(&riscom_lock, flags);
+
 		rc_out(bp, CD180_CAR, port_No(port));
 		CD = rc_in(bp, CD180_MSVR) & MSVR_CD;
 		rc_out(bp, CD180_MSVR, MSVR_RTS);
 		bp->DTR &= ~(1u << port_No(port));
 		rc_out(bp, RC_DTR, bp->DTR);
-		sti();
+
+		spin_unlock_irqrestore(&riscom_lock, flags);
+
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (tty_hung_up_p(filp) ||
 		    !(port->flags & ASYNC_INITIALIZED)) {
@@ -1020,8 +1024,9 @@ static void rc_close(struct tty_struct * tty, struct file * filp)
 	
 	if (!port || rc_paranoia_check(port, tty->name, "close"))
 		return;
-	
-	save_flags(flags); cli();
+
+	spin_lock_irqsave(&riscom_lock, flags);
+
 	if (tty_hung_up_p(filp))
 		goto out;
 	
@@ -1078,7 +1083,6 @@ static void rc_close(struct tty_struct * tty, struct file * filp)
 	tty_ldisc_flush(tty);
 
 	tty->closing = 0;
-	port->event = 0;
 	port->tty = NULL;
 	if (port->blocked_open) {
 		if (port->close_delay) {
@@ -1088,7 +1092,9 @@ static void rc_close(struct tty_struct * tty, struct file * filp)
 	}
 	port->flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
 	wake_up_interruptible(&port->close_wait);
-out:	restore_flags(flags);
+
+out:
+	spin_unlock_irqrestore(&riscom_lock, flags);
 }
 
 static int rc_write(struct tty_struct * tty, 
@@ -1107,34 +1113,33 @@ static int rc_write(struct tty_struct * tty,
 	if (!tty || !port->xmit_buf)
 		return 0;
 
-	save_flags(flags);
 	while (1) {
-		cli();		
+		spin_lock_irqsave(&riscom_lock, flags);
+
 		c = min_t(int, count, min(SERIAL_XMIT_SIZE - port->xmit_cnt - 1,
 					  SERIAL_XMIT_SIZE - port->xmit_head));
-		if (c <= 0) {
-			restore_flags(flags);
-			break;
-		}
+		if (c <= 0)
+			break;	/* lock continues to be held */
 
 		memcpy(port->xmit_buf + port->xmit_head, buf, c);
 		port->xmit_head = (port->xmit_head + c) & (SERIAL_XMIT_SIZE-1);
 		port->xmit_cnt += c;
-		restore_flags(flags);
+
+		spin_unlock_irqrestore(&riscom_lock, flags);
 
 		buf += c;
 		count -= c;
 		total += c;
 	}
 
-	cli();
 	if (port->xmit_cnt && !tty->stopped && !tty->hw_stopped &&
 	    !(port->IER & IER_TXRDY)) {
 		port->IER |= IER_TXRDY;
 		rc_out(bp, CD180_CAR, port_No(port));
 		rc_out(bp, CD180_IER, port->IER);
 	}
-	restore_flags(flags);
+
+	spin_unlock_irqrestore(&riscom_lock, flags);
 
 	return total;
 }
@@ -1150,7 +1155,7 @@ static void rc_put_char(struct tty_struct * tty, unsigned char ch)
 	if (!tty || !port->xmit_buf)
 		return;
 
-	save_flags(flags); cli();
+	spin_lock_irqsave(&riscom_lock, flags);
 	
 	if (port->xmit_cnt >= SERIAL_XMIT_SIZE - 1)
 		goto out;
@@ -1158,7 +1163,9 @@ static void rc_put_char(struct tty_struct * tty, unsigned char ch)
 	port->xmit_buf[port->xmit_head++] = ch;
 	port->xmit_head &= SERIAL_XMIT_SIZE - 1;
 	port->xmit_cnt++;
-out:	restore_flags(flags);
+
+out:
+	spin_unlock_irqrestore(&riscom_lock, flags);
 }
 
 static void rc_flush_chars(struct tty_struct * tty)
@@ -1173,11 +1180,13 @@ static void rc_flush_chars(struct tty_struct * tty)
 	    !port->xmit_buf)
 		return;
 
-	save_flags(flags); cli();
+	spin_lock_irqsave(&riscom_lock, flags);
+
 	port->IER |= IER_TXRDY;
 	rc_out(port_Board(port), CD180_CAR, port_No(port));
 	rc_out(port_Board(port), CD180_IER, port->IER);
-	restore_flags(flags);
+
+	spin_unlock_irqrestore(&riscom_lock, flags);
 }
 
 static int rc_write_room(struct tty_struct * tty)
@@ -1212,9 +1221,11 @@ static void rc_flush_buffer(struct tty_struct *tty)
 	if (rc_paranoia_check(port, tty->name, "rc_flush_buffer"))
 		return;
 
-	save_flags(flags); cli();
+	spin_lock_irqsave(&riscom_lock, flags);
+
 	port->xmit_cnt = port->xmit_head = port->xmit_tail = 0;
-	restore_flags(flags);
+
+	spin_unlock_irqrestore(&riscom_lock, flags);
 	
 	tty_wakeup(tty);
 }
@@ -1231,11 +1242,15 @@ static int rc_tiocmget(struct tty_struct *tty, struct file *file)
 		return -ENODEV;
 
 	bp = port_Board(port);
-	save_flags(flags); cli();
+
+	spin_lock_irqsave(&riscom_lock, flags);
+
 	rc_out(bp, CD180_CAR, port_No(port));
 	status = rc_in(bp, CD180_MSVR);
 	result = rc_in(bp, RC_RI) & (1u << port_No(port)) ? 0 : TIOCM_RNG;
-	restore_flags(flags);
+
+	spin_unlock_irqrestore(&riscom_lock, flags);
+
 	result |= ((status & MSVR_RTS) ? TIOCM_RTS : 0)
 		| ((status & MSVR_DTR) ? TIOCM_DTR : 0)
 		| ((status & MSVR_CD)  ? TIOCM_CAR : 0)
@@ -1256,7 +1271,8 @@ static int rc_tiocmset(struct tty_struct *tty, struct file *file,
 
 	bp = port_Board(port);
 
-	save_flags(flags); cli();
+	spin_lock_irqsave(&riscom_lock, flags);
+
 	if (set & TIOCM_RTS)
 		port->MSVR |= MSVR_RTS;
 	if (set & TIOCM_DTR)
@@ -1270,7 +1286,9 @@ static int rc_tiocmset(struct tty_struct *tty, struct file *file,
 	rc_out(bp, CD180_CAR, port_No(port));
 	rc_out(bp, CD180_MSVR, port->MSVR);
 	rc_out(bp, RC_DTR, bp->DTR);
-	restore_flags(flags);
+
+	spin_unlock_irqrestore(&riscom_lock, flags);
+
 	return 0;
 }
 
@@ -1279,7 +1297,8 @@ static inline void rc_send_break(struct riscom_port * port, unsigned long length
 	struct riscom_board *bp = port_Board(port);
 	unsigned long flags;
 	
-	save_flags(flags); cli();
+	spin_lock_irqsave(&riscom_lock, flags);
+
 	port->break_length = RISCOM_TPS / HZ * length;
 	port->COR2 |= COR2_ETC;
 	port->IER  |= IER_TXRDY;
@@ -1289,7 +1308,8 @@ static inline void rc_send_break(struct riscom_port * port, unsigned long length
 	rc_wait_CCR(bp);
 	rc_out(bp, CD180_CCR, CCR_CORCHG2);
 	rc_wait_CCR(bp);
-	restore_flags(flags);
+
+	spin_unlock_irqrestore(&riscom_lock, flags);
 }
 
 static inline int rc_set_serial_info(struct riscom_port * port,
@@ -1298,7 +1318,6 @@ static inline int rc_set_serial_info(struct riscom_port * port,
 	struct serial_struct tmp;
 	struct riscom_board *bp = port_Board(port);
 	int change_speed;
-	unsigned long flags;
 	
 	if (copy_from_user(&tmp, newinfo, sizeof(tmp)))
 		return -EFAULT;
@@ -1332,9 +1351,11 @@ static inline int rc_set_serial_info(struct riscom_port * port,
 		port->closing_wait = tmp.closing_wait;
 	}
 	if (change_speed)  {
-		save_flags(flags); cli();
+		unsigned long flags;
+
+		spin_lock_irqsave(&riscom_lock, flags);
 		rc_change_speed(bp, port);
-		restore_flags(flags);
+		spin_unlock_irqrestore(&riscom_lock, flags);
 	}
 	return 0;
 }
@@ -1414,17 +1435,19 @@ static void rc_throttle(struct tty_struct * tty)
 		return;
 	
 	bp = port_Board(port);
-	
-	save_flags(flags); cli();
+
+	spin_lock_irqsave(&riscom_lock, flags);
+
 	port->MSVR &= ~MSVR_RTS;
 	rc_out(bp, CD180_CAR, port_No(port));
-	if (I_IXOFF(tty))  {
+	if (I_IXOFF(tty)) {
 		rc_wait_CCR(bp);
 		rc_out(bp, CD180_CCR, CCR_SSCH2);
 		rc_wait_CCR(bp);
 	}
 	rc_out(bp, CD180_MSVR, port->MSVR);
-	restore_flags(flags);
+
+	spin_unlock_irqrestore(&riscom_lock, flags);
 }
 
 static void rc_unthrottle(struct tty_struct * tty)
@@ -1438,7 +1461,8 @@ static void rc_unthrottle(struct tty_struct * tty)
 	
 	bp = port_Board(port);
 	
-	save_flags(flags); cli();
+	spin_lock_irqsave(&riscom_lock, flags);
+
 	port->MSVR |= MSVR_RTS;
 	rc_out(bp, CD180_CAR, port_No(port));
 	if (I_IXOFF(tty))  {
@@ -1447,7 +1471,8 @@ static void rc_unthrottle(struct tty_struct * tty)
 		rc_wait_CCR(bp);
 	}
 	rc_out(bp, CD180_MSVR, port->MSVR);
-	restore_flags(flags);
+
+	spin_unlock_irqrestore(&riscom_lock, flags);
 }
 
 static void rc_stop(struct tty_struct * tty)
@@ -1461,11 +1486,13 @@ static void rc_stop(struct tty_struct * tty)
 	
 	bp = port_Board(port);
 	
-	save_flags(flags); cli();
+	spin_lock_irqsave(&riscom_lock, flags);
+
 	port->IER &= ~IER_TXRDY;
 	rc_out(bp, CD180_CAR, port_No(port));
 	rc_out(bp, CD180_IER, port->IER);
-	restore_flags(flags);
+
+	spin_unlock_irqrestore(&riscom_lock, flags);
 }
 
 static void rc_start(struct tty_struct * tty)
@@ -1479,32 +1506,15 @@ static void rc_start(struct tty_struct * tty)
 	
 	bp = port_Board(port);
 	
-	save_flags(flags); cli();
+	spin_lock_irqsave(&riscom_lock, flags);
+
 	if (port->xmit_cnt && port->xmit_buf && !(port->IER & IER_TXRDY))  {
 		port->IER |= IER_TXRDY;
 		rc_out(bp, CD180_CAR, port_No(port));
 		rc_out(bp, CD180_IER, port->IER);
 	}
-	restore_flags(flags);
-}
 
-/*
- * This routine is called from the work queue when the interrupt
- * routine has signalled that a hangup has occurred.  The path of
- * hangup processing is:
- *
- * 	serial interrupt routine -> (workqueue) ->
- * 	do_rc_hangup() -> tty->hangup() -> rc_hangup()
- * 
- */
-static void do_rc_hangup(struct work_struct *ugly_api)
-{
-	struct riscom_port	*port = container_of(ugly_api, struct riscom_port, tqueue_hangup);
-	struct tty_struct	*tty;
-	
-	tty = port->tty;
-	if (tty)
-		tty_hangup(tty);	/* FIXME: module removal race still here */
+	spin_unlock_irqrestore(&riscom_lock, flags);
 }
 
 static void rc_hangup(struct tty_struct * tty)
@@ -1518,7 +1528,6 @@ static void rc_hangup(struct tty_struct * tty)
 	bp = port_Board(port);
 	
 	rc_shutdown_port(bp, port);
-	port->event = 0;
 	port->count = 0;
 	port->flags &= ~ASYNC_NORMAL_ACTIVE;
 	port->tty = NULL;
@@ -1537,27 +1546,15 @@ static void rc_set_termios(struct tty_struct * tty, struct ktermios * old_termio
 	    tty->termios->c_iflag == old_termios->c_iflag)
 		return;
 
-	save_flags(flags); cli();
+	spin_lock_irqsave(&riscom_lock, flags);
 	rc_change_speed(port_Board(port), port);
-	restore_flags(flags);
+	spin_unlock_irqrestore(&riscom_lock, flags);
 
 	if ((old_termios->c_cflag & CRTSCTS) &&
 	    !(tty->termios->c_cflag & CRTSCTS)) {
 		tty->hw_stopped = 0;
 		rc_start(tty);
 	}
-}
-
-static void do_softint(struct work_struct *ugly_api)
-{
-	struct riscom_port	*port = container_of(ugly_api, struct riscom_port, tqueue);
-	struct tty_struct	*tty;
-	
-	if(!(tty = port->tty)) 
-		return;
-
-	if (test_and_clear_bit(RS_EVENT_WRITE_WAKEUP, &port->event))
-		tty_wakeup(tty);
 }
 
 static const struct tty_operations riscom_ops = {
@@ -1580,7 +1577,7 @@ static const struct tty_operations riscom_ops = {
 	.tiocmset = rc_tiocmset,
 };
 
-static inline int rc_init_drivers(void)
+static int __init rc_init_drivers(void)
 {
 	int error;
 	int i;
@@ -1612,8 +1609,6 @@ static inline int rc_init_drivers(void)
 	memset(rc_port, 0, sizeof(rc_port));
 	for (i = 0; i < RC_NPORT * RC_NBOARD; i++)  {
 		rc_port[i].magic = RISCOM8_MAGIC;
-		INIT_WORK(&rc_port[i].tqueue, do_softint);
-		INIT_WORK(&rc_port[i].tqueue_hangup, do_rc_hangup);
 		rc_port[i].close_delay = 50 * HZ/100;
 		rc_port[i].closing_wait = 3000 * HZ/100;
 		init_waitqueue_head(&rc_port[i].open_wait);
@@ -1627,11 +1622,12 @@ static void rc_release_drivers(void)
 {
 	unsigned long flags;
 
-	save_flags(flags);
-	cli();
+	spin_lock_irqsave(&riscom_lock, flags);
+
 	tty_unregister_driver(riscom_driver);
 	put_tty_driver(riscom_driver);
-	restore_flags(flags);
+
+	spin_unlock_irqrestore(&riscom_lock, flags);
 }
 
 #ifndef MODULE

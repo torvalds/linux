@@ -287,7 +287,7 @@ static inline struct reiserfs_sb_info *REISERFS_SB(const struct super_block *sb)
 
 /* Don't trust REISERFS_SB(sb)->s_bmap_nr, it's a u16
  * which overflows on large file systems. */
-static inline u32 reiserfs_bmap_count(struct super_block *sb)
+static inline __u32 reiserfs_bmap_count(struct super_block *sb)
 {
 	return (SB_BLOCK_COUNT(sb) - 1) / (sb->s_blocksize * 8) + 1;
 }

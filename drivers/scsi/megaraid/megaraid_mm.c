@@ -59,7 +59,6 @@ EXPORT_SYMBOL(mraid_mm_register_adp);
 EXPORT_SYMBOL(mraid_mm_unregister_adp);
 EXPORT_SYMBOL(mraid_mm_adapter_app_handle);
 
-static int majorno;
 static uint32_t drvr_ver	= 0x02200207;
 
 static int adapters_count_g;
@@ -74,6 +73,12 @@ static const struct file_operations lsi_fops = {
 	.compat_ioctl = mraid_mm_compat_ioctl,
 #endif
 	.owner	= THIS_MODULE,
+};
+
+static struct miscdevice megaraid_mm_dev = {
+	.minor	= MISC_DYNAMIC_MINOR,
+	.name   = "megadev0",
+	.fops   = &lsi_fops,
 };
 
 /**
@@ -1184,15 +1189,16 @@ mraid_mm_teardown_dma_pools(mraid_mmadp_t *adp)
 static int __init
 mraid_mm_init(void)
 {
+	int err;
+
 	// Announce the driver version
 	con_log(CL_ANN, (KERN_INFO "megaraid cmm: %s %s\n",
 		LSI_COMMON_MOD_VERSION, LSI_COMMON_MOD_EXT_VERSION));
 
-	majorno = register_chrdev(0, "megadev", &lsi_fops);
-
-	if (majorno < 0) {
-		con_log(CL_ANN, ("megaraid cmm: cannot get major\n"));
-		return majorno;
+	err = misc_register(&megaraid_mm_dev);
+	if (err < 0) {
+		con_log(CL_ANN, ("megaraid cmm: cannot register misc device\n"));
+		return err;
 	}
 
 	init_waitqueue_head(&wait_q);
@@ -1230,7 +1236,7 @@ mraid_mm_exit(void)
 {
 	con_log(CL_DLEVEL1 , ("exiting common mod\n"));
 
-	unregister_chrdev(majorno, "megadev");
+	misc_deregister(&megaraid_mm_dev);
 }
 
 module_init(mraid_mm_init);

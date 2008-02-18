@@ -46,6 +46,12 @@ static void init_intel_pdc(struct acpi_processor *pr, struct cpuinfo_x86 *c)
 	buf[1] = 1;
 	buf[2] = ACPI_PDC_C_CAPABILITY_SMP;
 
+	/*
+	 * The default of PDC_SMP_T_SWCOORD bit is set for intel x86 cpu so
+	 * that OSPM is capable of native ACPI throttling software
+	 * coordination using BIOS supplied _TSD info.
+	 */
+	buf[2] |= ACPI_PDC_SMP_T_SWCOORD;
 	if (cpu_has(c, X86_FEATURE_EST))
 		buf[2] |= ACPI_PDC_EST_CAPABILITY_SWSMP;
 

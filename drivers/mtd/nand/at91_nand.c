@@ -156,14 +156,14 @@ static int __init at91_nand_probe(struct platform_device *pdev)
 	}
 
 #ifdef CONFIG_MTD_PARTITIONS
-	if (host->board->partition_info)
-		partitions = host->board->partition_info(mtd->size, &num_partitions);
 #ifdef CONFIG_MTD_CMDLINE_PARTS
-	else {
-		mtd->name = "at91_nand";
-		num_partitions = parse_mtd_partitions(mtd, part_probes, &partitions, 0);
-	}
+	mtd->name = "at91_nand";
+	num_partitions = parse_mtd_partitions(mtd, part_probes,
+					      &partitions, 0);
 #endif
+	if (num_partitions <= 0 && host->board->partition_info)
+		partitions = host->board->partition_info(mtd->size,
+							 &num_partitions);
 
 	if ((!partitions) || (num_partitions == 0)) {
 		printk(KERN_ERR "at91_nand: No parititions defined, or unsupported device.\n");

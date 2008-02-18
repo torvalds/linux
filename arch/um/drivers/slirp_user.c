@@ -98,7 +98,7 @@ static void slirp_close(int fd, void *data)
 		       "(%d)\n", pri->pid, errno);
 	}
 #endif
-	err = helper_wait(pri->pid, 1, "slirp_close");
+	err = helper_wait(pri->pid);
 	if (err < 0)
 		return;
 

@@ -5,20 +5,36 @@
 #include <asm/irq.h>
 
 
-/* Arch-neutral GPIO API */
-int __must_check gpio_request(unsigned int gpio, const char *label);
-void gpio_free(unsigned int gpio);
+/* Some GPIO chips can manage IRQs; some can't.  The exact numbers can
+ * be changed if needed, but for the moment they're not configurable.
+ */
+#define ARCH_NR_GPIOS	(NR_GPIO_IRQS + 2 * 32)
 
-int gpio_direction_input(unsigned int gpio);
-int gpio_direction_output(unsigned int gpio, int value);
-int gpio_get_value(unsigned int gpio);
-void gpio_set_value(unsigned int gpio, int value);
 
-#include <asm-generic/gpio.h>		/* cansleep wrappers */
+/* Arch-neutral GPIO API, supporting both "native" and external GPIOs. */
+#include <asm-generic/gpio.h>
+
+static inline int gpio_get_value(unsigned int gpio)
+{
+	return __gpio_get_value(gpio);
+}
+
+static inline void gpio_set_value(unsigned int gpio, int value)
+{
+	__gpio_set_value(gpio, value);
+}
+
+static inline int gpio_cansleep(unsigned int gpio)
+{
+	return __gpio_cansleep(gpio);
+}
+
 
 static inline int gpio_to_irq(unsigned int gpio)
 {
-	return gpio + GPIO_IRQ_BASE;
+	if (gpio < NR_GPIO_IRQS)
+		return gpio + GPIO_IRQ_BASE;
+	return -EINVAL;
 }
 
 static inline int irq_to_gpio(unsigned int irq)

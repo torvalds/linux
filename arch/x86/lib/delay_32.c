@@ -12,8 +12,10 @@
 
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/timex.h>
 #include <linux/preempt.h>
 #include <linux/delay.h>
+#include <linux/init.h>
 
 #include <asm/processor.h>
 #include <asm/delay.h>
@@ -63,7 +65,7 @@ void use_tsc_delay(void)
 	delay_fn = delay_tsc;
 }
 
-int read_current_timer(unsigned long *timer_val)
+int __devinit read_current_timer(unsigned long *timer_val)
 {
 	if (delay_fn == delay_tsc) {
 		rdtscl(*timer_val);

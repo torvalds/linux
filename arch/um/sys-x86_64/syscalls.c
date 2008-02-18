@@ -48,7 +48,9 @@ long arch_prctl(struct task_struct *task, int code, unsigned long __user *addr)
 	switch (code) {
 	case ARCH_SET_FS:
 	case ARCH_SET_GS:
-		restore_registers(pid, &current->thread.regs.regs);
+		ret = restore_registers(pid, &current->thread.regs.regs);
+		if (ret)
+			return ret;
 		break;
 	case ARCH_GET_FS:
 	case ARCH_GET_GS:
@@ -70,10 +72,10 @@ long arch_prctl(struct task_struct *task, int code, unsigned long __user *addr)
 	switch (code) {
 	case ARCH_SET_FS:
 		current->thread.arch.fs = (unsigned long) ptr;
-		save_registers(pid, &current->thread.regs.regs);
+		ret = save_registers(pid, &current->thread.regs.regs);
 		break;
 	case ARCH_SET_GS:
-		save_registers(pid, &current->thread.regs.regs);
+		ret = save_registers(pid, &current->thread.regs.regs);
 		break;
 	case ARCH_GET_FS:
 		ret = put_user(tmp, addr);
@@ -105,7 +107,7 @@ long sys_clone(unsigned long clone_flags, unsigned long newsp,
 	return ret;
 }
 
-void arch_switch_to(struct task_struct *from, struct task_struct *to)
+void arch_switch_to(struct task_struct *to)
 {
 	if ((to->thread.arch.fs == 0) || (to->mm == NULL))
 		return;

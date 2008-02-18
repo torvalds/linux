@@ -33,7 +33,6 @@
 #include <linux/lockdep.h>
 
 #include <asm/semaphore.h>
-#endif
 
 #define journal_oom_retry 1
 
@@ -84,7 +83,6 @@ static inline void jbd_free(void *ptr, size_t size)
 
 #define JFS_MIN_JOURNAL_BLOCKS 1024
 
-#ifdef __KERNEL__
 
 /**
  * typedef handle_t - The handle_t type represents a single atomic update being performed by some process.
@@ -924,7 +922,6 @@ extern int	   journal_recover    (journal_t *journal);
 extern int	   journal_wipe       (journal_t *, int);
 extern int	   journal_skip_recovery	(journal_t *);
 extern void	   journal_update_superblock	(journal_t *, int);
-extern void	   __journal_abort_hard	(journal_t *);
 extern void	   journal_abort      (journal_t *, int);
 extern int	   journal_errno      (journal_t *);
 extern void	   journal_ack_err    (journal_t *);

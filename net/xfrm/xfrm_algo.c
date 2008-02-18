@@ -399,6 +399,23 @@ static struct xfrm_algo_desc ealg_list[] = {
 		.sadb_alg_maxbits = 256
 	}
 },
+{
+	.name = "rfc3686(ctr(aes))",
+
+	.uinfo = {
+		.encr = {
+			.blockbits = 128,
+			.defkeybits = 160, /* 128-bit key + 32-bit nonce */
+		}
+	},
+
+	.desc = {
+		.sadb_alg_id = SADB_X_EALG_AESCTR,
+		.sadb_alg_ivlen	= 8,
+		.sadb_alg_minbits = 128,
+		.sadb_alg_maxbits = 256
+	}
+},
 };
 
 static struct xfrm_algo_desc calg_list[] = {

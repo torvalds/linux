@@ -54,6 +54,7 @@ __div(unsigned long long n, unsigned int base)
 #define cputime_lt(__a, __b)		((__a) <  (__b))
 #define cputime_le(__a, __b)		((__a) <= (__b))
 #define cputime_to_jiffies(__ct)	(__div((__ct), 1000000 / HZ))
+#define cputime_to_scaled(__ct)		(__ct)
 #define jiffies_to_cputime(__hz)	((cputime_t)(__hz) * (1000000 / HZ))
 
 #define cputime64_zero			(0ULL)

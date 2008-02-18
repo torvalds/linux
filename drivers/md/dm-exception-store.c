@@ -449,7 +449,7 @@ static void persistent_destroy(struct exception_store *store)
 
 static int persistent_read_metadata(struct exception_store *store)
 {
-	int r, new_snapshot;
+	int r, uninitialized_var(new_snapshot);
 	struct pstore *ps = get_info(store);
 
 	/*

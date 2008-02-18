@@ -415,7 +415,7 @@ asmlinkage int solaris_procids(int cmd, s32 pid, s32 pgid)
 	
 	switch (cmd) {
 	case 0: /* getpgrp */
-		return task_pgrp_nr(current);
+		return task_pgrp_vnr(current);
 	case 1: /* setpgrp */
 		{
 			int (*sys_setpgid)(pid_t,pid_t) =
@@ -426,7 +426,7 @@ asmlinkage int solaris_procids(int cmd, s32 pid, s32 pgid)
 			ret = sys_setpgid(0, 0);
 			if (ret) return ret;
 			proc_clear_tty(current);
-			return task_pgrp_nr(current);
+			return task_pgrp_vnr(current);
 		}
 	case 2: /* getsid */
 		{

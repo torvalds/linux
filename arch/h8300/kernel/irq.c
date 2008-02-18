@@ -14,6 +14,7 @@
 #include <linux/random.h>
 #include <linux/bootmem.h>
 #include <linux/irq.h>
+#include <linux/interrupt.h>
 
 #include <asm/system.h>
 #include <asm/traps.h>

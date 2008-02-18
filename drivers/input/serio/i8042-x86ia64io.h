@@ -63,7 +63,7 @@ static inline void i8042_write_command(int val)
 	outb(val, I8042_COMMAND_REG);
 }
 
-#if defined(__i386__)
+#if defined(__i386__) || defined(__x86_64__)
 
 #include <linux/dmi.h>
 
@@ -186,6 +186,13 @@ static struct dmi_system_id __initdata i8042_dmi_nomux_table[] = {
 		},
 	},
 	{
+		.ident = "Fujitsu-Siemens Amilo Pro 2010",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Pro V2010"),
+		},
+	},
+	{
 		/*
 		 * No data is coming from the touchscreen unless KBC
 		 * is in legacy mode.
@@ -276,6 +283,57 @@ static struct dmi_system_id __initdata i8042_dmi_nomux_table[] = {
 
 
 #endif
+
+#ifdef CONFIG_X86
+
+#include <linux/dmi.h>
+
+/*
+ * Some Wistron based laptops need us to explicitly enable the 'Dritek
+ * keyboard extension' to make their extra keys start generating scancodes.
+ * Originally, this was just confined to older laptops, but a few Acer laptops
+ * have turned up in 2007 that also need this again.
+ */
+static struct dmi_system_id __initdata i8042_dmi_dritek_table[] = {
+	{
+		.ident = "Acer Aspire 5630",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 5630"),
+		},
+	},
+	{
+		.ident = "Acer Aspire 5650",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 5650"),
+		},
+	},
+	{
+		.ident = "Acer Aspire 5680",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 5680"),
+		},
+	},
+	{
+		.ident = "Acer Aspire 9110",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 9110"),
+		},
+	},
+	{
+		.ident = "Acer TravelMate 2490",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 2490"),
+		},
+	},
+	{ }
+};
+
+#endif /* CONFIG_X86 */
 
 
 #ifdef CONFIG_PNP
@@ -512,13 +570,18 @@ static int __init i8042_platform_init(void)
         i8042_reset = 1;
 #endif
 
-#if defined(__i386__)
+#if defined(__i386__) || defined(__x86_64__)
 	if (dmi_check_system(i8042_dmi_noloop_table))
 		i8042_noloop = 1;
 
 	if (dmi_check_system(i8042_dmi_nomux_table))
 		i8042_nomux = 1;
 #endif
+
+#ifdef CONFIG_X86
+	if (dmi_check_system(i8042_dmi_dritek_table))
+		i8042_dritek = 1;
+#endif /* CONFIG_X86 */
 
 	return retval;
 }

@@ -60,17 +60,6 @@
 #define	NE2000_BYTE		volatile unsigned char
 #endif
 
-#if defined(CONFIG_CFV240)
-#define NE2000_ADDR             0x40010000
-#define NE2000_ADDR1            0x40010001
-#define NE2000_ODDOFFSET        0x00000000
-#define NE2000_IRQ              1
-#define NE2000_IRQ_VECTOR       0x19
-#define NE2000_IRQ_PRIORITY     2
-#define NE2000_IRQ_LEVEL        1
-#define	NE2000_BYTE		volatile unsigned char
-#endif
-
 #if defined(CONFIG_M5307C3)
 #define NE2000_ADDR		0x40000300
 #define NE2000_ODDOFFSET	0x00010000
@@ -173,13 +162,8 @@ void ne2000_outsw(unsigned int addr, void *vbuf, unsigned long len);
  *	On most NE2000 implementations on ColdFire boards the chip is
  *	mapped in kinda funny, due to its ISA heritage.
  */
-#ifdef CONFIG_CFV240
-#define NE2000_PTR(addr)	(NE2000_ADDR + ((addr & 0x3f) << 1) + 1)
-#define NE2000_DATA_PTR(addr)	(NE2000_ADDR + ((addr & 0x3f) << 1))
-#else
 #define	NE2000_PTR(addr)	((addr&0x1)?(NE2000_ODDOFFSET+addr-1):(addr))
 #define	NE2000_DATA_PTR(addr)	(addr)
-#endif
 
 
 void ne2000_outb(unsigned int val, unsigned int addr)
@@ -282,17 +266,6 @@ void ne2000_irqsetup(int irq)
 	icrp = (volatile unsigned char *) (MCF_MBAR + MCFSIM_ICR4);
 	*icrp = MCFSIM_ICR_LEVEL4 | MCFSIM_ICR_PRI2 | MCFSIM_ICR_AUTOVEC;
 	mcf_setimr(mcf_getimr() & ~MCFSIM_IMR_EINT4);
-}
-#endif
-
-#if defined(CONFIG_CFV240)
-void ne2000_irqsetup(int irq)
-{
-	volatile unsigned char  *icrp;
-
-	icrp = (volatile unsigned char *) (MCF_MBAR + MCFSIM_ICR1);
-	*icrp = MCFSIM_ICR_LEVEL1 | MCFSIM_ICR_PRI2 | MCFSIM_ICR_AUTOVEC;
-	mcf_setimr(mcf_getimr() & ~MCFSIM_IMR_EINT1);
 }
 #endif
 

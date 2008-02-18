@@ -668,6 +668,24 @@ static int __cpuinit acpi_processor_start(struct acpi_device *device)
 
 	acpi_processor_power_init(pr, device);
 
+	pr->cdev = thermal_cooling_device_register("Processor", device,
+						&processor_cooling_ops);
+	if (pr->cdev)
+		printk(KERN_INFO PREFIX
+			"%s is registered as cooling_device%d\n",
+			device->dev.bus_id, pr->cdev->id);
+	else
+		goto end;
+
+	result = sysfs_create_link(&device->dev.kobj, &pr->cdev->device.kobj,
+					"thermal_cooling");
+	if (result)
+		return result;
+	result = sysfs_create_link(&pr->cdev->device.kobj, &device->dev.kobj,
+					"device");
+	if (result)
+		return result;
+
 	if (pr->flags.throttling) {
 		printk(KERN_INFO PREFIX "%s [%s] (supports",
 		       acpi_device_name(device), acpi_device_bid(device));
@@ -791,6 +809,11 @@ static int acpi_processor_remove(struct acpi_device *device, int type)
 
 	acpi_processor_remove_fs(device);
 
+	sysfs_remove_link(&device->dev.kobj, "thermal_cooling");
+	sysfs_remove_link(&pr->cdev->device.kobj, "device");
+	thermal_cooling_device_unregister(pr->cdev);
+	pr->cdev = NULL;
+
 	processors[pr->id] = NULL;
 
 	kfree(pr);
@@ -812,11 +835,18 @@ static int is_processor_present(acpi_handle handle)
 
 
 	status = acpi_evaluate_integer(handle, "_STA", NULL, &sta);
-	if (ACPI_FAILURE(status) || !(sta & ACPI_STA_DEVICE_PRESENT)) {
-		ACPI_EXCEPTION((AE_INFO, status, "Processor Device is not present"));
-		return 0;
-	}
-	return 1;
+	/*
+	 * if a processor object does not have an _STA object,
+	 * OSPM assumes that the processor is present.
+	 */
+	if (status == AE_NOT_FOUND)
+		return 1;
+
+	if (ACPI_SUCCESS(status) && (sta & ACPI_STA_DEVICE_PRESENT))
+		return 1;
+
+	ACPI_EXCEPTION((AE_INFO, status, "Processor Device is not present"));
+	return 0;
 }
 
 static
@@ -1060,6 +1090,8 @@ static int __init acpi_processor_init(void)
 	acpi_thermal_cpufreq_init();
 
 	acpi_processor_ppc_init();
+
+	acpi_processor_throttling_init();
 
 	return 0;
 

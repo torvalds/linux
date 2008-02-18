@@ -38,13 +38,7 @@
 
 static void *get_wqe(struct mlx4_ib_srq *srq, int n)
 {
-	int offset = n << srq->msrq.wqe_shift;
-
-	if (srq->buf.nbufs == 1)
-		return srq->buf.u.direct.buf + offset;
-	else
-		return srq->buf.u.page_list[offset >> PAGE_SHIFT].buf +
-			(offset & (PAGE_SIZE - 1));
+	return mlx4_buf_offset(&srq->buf, n << srq->msrq.wqe_shift);
 }
 
 static void mlx4_ib_srq_event(struct mlx4_srq *srq, enum mlx4_event type)

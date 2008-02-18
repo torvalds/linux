@@ -1477,10 +1477,6 @@ sys32_rt_sigreturn:
 		 add		%o7, 1f-.-4, %o7
 		nop
 #endif
-sys_ptrace:	add		%sp, PTREGS_OFF, %o0
-		call		do_ptrace
-		 add		%o7, 1f-.-4, %o7
-		nop
 		.align		32
 1:		ldx		[%curptr + TI_FLAGS], %l5
 		andcc		%l5, (_TIF_SYSCALL_TRACE|_TIF_SECCOMP|_TIF_SYSCALL_AUDIT), %g0

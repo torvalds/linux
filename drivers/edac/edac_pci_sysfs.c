@@ -558,8 +558,10 @@ static void edac_pci_dev_parity_test(struct pci_dev *dev)
 
 	debugf4("PCI STATUS= 0x%04x %s\n", status, dev->dev.bus_id);
 
-	/* check the status reg for errors */
-	if (status) {
+	/* check the status reg for errors on boards NOT marked as broken
+	 * if broken, we cannot trust any of the status bits
+	 */
+	if (status && !dev->broken_parity_status) {
 		if (status & (PCI_STATUS_SIG_SYSTEM_ERROR)) {
 			edac_printk(KERN_CRIT, EDAC_PCI,
 				"Signaled System Error on %s\n",
@@ -593,8 +595,10 @@ static void edac_pci_dev_parity_test(struct pci_dev *dev)
 
 		debugf4("PCI SEC_STATUS= 0x%04x %s\n", status, dev->dev.bus_id);
 
-		/* check the secondary status reg for errors */
-		if (status) {
+		/* check the secondary status reg for errors,
+		 * on NOT broken boards
+		 */
+		if (status && !dev->broken_parity_status) {
 			if (status & (PCI_STATUS_SIG_SYSTEM_ERROR)) {
 				edac_printk(KERN_CRIT, EDAC_PCI, "Bridge "
 					"Signaled System Error on %s\n",

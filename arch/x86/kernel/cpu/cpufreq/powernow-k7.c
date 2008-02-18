@@ -460,7 +460,7 @@ static int powernow_decode_bios (int maxfid, int startvid)
 
 			latency = psb->settlingtime;
 			if (latency < 100) {
-				printk (KERN_INFO PFX "BIOS set settling time to %d microseconds."
+				printk(KERN_INFO PFX "BIOS set settling time to %d microseconds. "
 						"Should be at least 100. Correcting.\n", latency);
 				latency = 100;
 			}

@@ -28,7 +28,7 @@ pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
 	return pte;
 }
 
-struct page *pte_alloc_one(struct mm_struct *mm, unsigned long address)
+pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
 {
 	struct page *page;
 
@@ -37,9 +37,11 @@ struct page *pte_alloc_one(struct mm_struct *mm, unsigned long address)
 #else
 	page = alloc_pages(GFP_KERNEL|__GFP_REPEAT, 0);
 #endif
-	if (page)
+	if (page) {
 		clear_highpage(page);
-	flush_dcache_page(page);
+		pgtable_page_ctor(page);
+		flush_dcache_page(page);
+	}
 	return page;
 }
 
@@ -140,7 +142,7 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 	return pgd;
 }
 
-void pgd_free(pgd_t *pgd)
+void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
 	/* in the non-PAE case, clear_page_tables() clears user pgd entries */
  	quicklist_free(0, pgd_dtor, pgd);

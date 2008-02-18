@@ -131,7 +131,7 @@ static int etap_tramp(char *dev, char *gate, int control_me,
 	}
 	if (c != 1) {
 		printk(UM_KERN_ERR "etap_tramp : uml_net failed\n");
-		err = helper_wait(pid, 0, "uml_net");
+		err = helper_wait(pid);
 	}
 	return err;
 }

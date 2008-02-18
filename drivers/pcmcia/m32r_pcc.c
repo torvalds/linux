@@ -65,7 +65,7 @@ typedef struct pcc_socket {
 	u_short			type, flags;
 	struct pcmcia_socket	socket;
 	unsigned int		number;
- 	kio_addr_t		ioaddr;
+	unsigned int		ioaddr;
 	u_long			mapaddr;
 	u_long			base;	/* PCC register base */
 	u_char			cs_irq, intr;
@@ -310,7 +310,8 @@ static int __init is_alive(u_short sock)
 	return 0;
 }
 
-static void add_pcc_socket(ulong base, int irq, ulong mapaddr, kio_addr_t ioaddr)
+static void add_pcc_socket(ulong base, int irq, ulong mapaddr,
+			   unsigned int ioaddr)
 {
   	pcc_socket_t *t = &socket[pcc_sockets];
 
@@ -491,7 +492,7 @@ static int _pcc_set_io_map(u_short sock, struct pccard_io_map *io)
 	u_char map;
 
 	debug(3, "m32r-pcc: SetIOMap(%d, %d, %#2.2x, %d ns, "
-		  "%#lx-%#lx)\n", sock, io->map, io->flags,
+		  "%#x-%#x)\n", sock, io->map, io->flags,
 		  io->speed, io->start, io->stop);
 	map = io->map;
 

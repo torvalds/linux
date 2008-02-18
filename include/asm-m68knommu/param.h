@@ -1,13 +1,7 @@
 #ifndef _M68KNOMMU_PARAM_H
 #define _M68KNOMMU_PARAM_H
 
-
-#if defined(CONFIG_CLEOPATRA)
-#define	HZ 1000
-#endif
-#ifndef HZ
-#define	HZ 100
-#endif
+#define HZ CONFIG_HZ
 
 #ifdef __KERNEL__
 #define	USER_HZ		HZ

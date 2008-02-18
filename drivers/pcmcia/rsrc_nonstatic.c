@@ -186,15 +186,16 @@ static int sub_interval(struct resource_map *map, u_long base, u_long num)
 ======================================================================*/
 
 #ifdef CONFIG_PCMCIA_PROBE
-static void do_io_probe(struct pcmcia_socket *s, kio_addr_t base, kio_addr_t num)
+static void do_io_probe(struct pcmcia_socket *s, unsigned int base,
+			unsigned int num)
 {
     struct resource *res;
     struct socket_data *s_data = s->resource_data;
-    kio_addr_t i, j, bad;
+    unsigned int i, j, bad;
     int any;
     u_char *b, hole, most;
 
-    printk(KERN_INFO "cs: IO port probe %#lx-%#lx:",
+    printk(KERN_INFO "cs: IO port probe %#x-%#x:",
 	   base, base+num-1);
 
     /* First, what does a floating port look like? */
@@ -233,7 +234,7 @@ static void do_io_probe(struct pcmcia_socket *s, kio_addr_t base, kio_addr_t num
 	} else {
 	    if (bad) {
 		sub_interval(&s_data->io_db, bad, i-bad);
-		printk(" %#lx-%#lx", bad, i-1);
+		printk(" %#x-%#x", bad, i-1);
 		bad = 0;
 	    }
 	}
@@ -244,7 +245,7 @@ static void do_io_probe(struct pcmcia_socket *s, kio_addr_t base, kio_addr_t num
 	    return;
 	} else {
 	    sub_interval(&s_data->io_db, bad, i-bad);
-	    printk(" %#lx-%#lx", bad, i-1);
+	    printk(" %#x-%#x", bad, i-1);
 	}
     }
 

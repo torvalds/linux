@@ -11,7 +11,7 @@
 static void __devinit quirk_intel_irqbalance(struct pci_dev *dev)
 {
 	u8 config, rev;
-	u32 word;
+	u16 word;
 
 	/* BIOS may enable hardware IRQ balancing for
 	 * E7520/E7320/E7525(revision ID 0x9 and below)
@@ -26,8 +26,11 @@ static void __devinit quirk_intel_irqbalance(struct pci_dev *dev)
 	pci_read_config_byte(dev, 0xf4, &config);
 	pci_write_config_byte(dev, 0xf4, config|0x2);
 
-	/* read xTPR register */
-	raw_pci_ops->read(0, 0, 0x40, 0x4c, 2, &word);
+	/*
+	 * read xTPR register.  We may not have a pci_dev for device 8
+	 * because it might be hidden until the above write.
+	 */
+	pci_bus_read_config_word(dev->bus, PCI_DEVFN(8, 0), 0x4c, &word);
 
 	if (!(word & (1 << 13))) {
 		dev_info(&dev->dev, "Intel E7520/7320/7525 detected; "
@@ -380,19 +383,19 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NVIDIA, 0x0367,
 void force_hpet_resume(void)
 {
 	switch (force_hpet_resume_type) {
-	    case ICH_FORCE_HPET_RESUME:
-		return ich_force_hpet_resume();
-
-	    case OLD_ICH_FORCE_HPET_RESUME:
-		return old_ich_force_hpet_resume();
-
-	    case VT8237_FORCE_HPET_RESUME:
-		return vt8237_force_hpet_resume();
-
-	    case NVIDIA_FORCE_HPET_RESUME:
-		return nvidia_force_hpet_resume();
-
-	    default:
+	case ICH_FORCE_HPET_RESUME:
+		ich_force_hpet_resume();
+		return;
+	case OLD_ICH_FORCE_HPET_RESUME:
+		old_ich_force_hpet_resume();
+		return;
+	case VT8237_FORCE_HPET_RESUME:
+		vt8237_force_hpet_resume();
+		return;
+	case NVIDIA_FORCE_HPET_RESUME:
+		nvidia_force_hpet_resume();
+		return;
+	default:
 		break;
 	}
 }

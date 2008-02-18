@@ -1,110 +1,10 @@
-/* $Id: process.c,v 1.21 2005/03/04 08:16:17 starvik Exp $
- * 
+/*
  *  linux/arch/cris/kernel/process.c
  *
  *  Copyright (C) 1995  Linus Torvalds
  *  Copyright (C) 2000-2002  Axis Communications AB
  *
  *  Authors:   Bjorn Wesen (bjornw@axis.com)
- *
- *  $Log: process.c,v $
- *  Revision 1.21  2005/03/04 08:16:17  starvik
- *  Merge of Linux 2.6.11.
- *
- *  Revision 1.20  2005/01/18 05:57:22  starvik
- *  Renamed hlt_counter to cris_hlt_counter and made it global.
- *
- *  Revision 1.19  2004/10/19 13:07:43  starvik
- *  Merge of Linux 2.6.9
- *
- *  Revision 1.18  2004/08/16 12:37:23  starvik
- *  Merge of Linux 2.6.8
- *
- *  Revision 1.17  2004/04/05 13:53:48  starvik
- *  Merge of Linux 2.6.5
- *
- *  Revision 1.16  2003/10/27 08:04:33  starvik
- *  Merge of Linux 2.6.0-test9
- *
- *  Revision 1.15  2003/09/11 07:29:52  starvik
- *  Merge of Linux 2.6.0-test5
- *
- *  Revision 1.14  2003/06/10 10:21:12  johana
- *  Moved thread_saved_pc() from arch/cris/kernel/process.c to
- *  subarch specific process.c. arch-v32 has an erp, no irp.
- *
- *  Revision 1.13  2003/04/09 05:20:47  starvik
- *  Merge of Linux 2.5.67
- *
- *  Revision 1.12  2002/12/11 15:41:11  starvik
- *  Extracted v10 (ETRAX 100LX) specific stuff to arch/cris/arch-v10/kernel
- *
- *  Revision 1.11  2002/12/10 09:00:10  starvik
- *  Merge of Linux 2.5.51
- *
- *  Revision 1.10  2002/11/27 08:42:34  starvik
- *  Argument to user_regs() is thread_info*
- *
- *  Revision 1.9  2002/11/26 09:44:21  starvik
- *  New threads exits through ret_from_fork (necessary for preemptive scheduling)
- *
- *  Revision 1.8  2002/11/19 14:35:24  starvik
- *  Changes from linux 2.4
- *  Changed struct initializer syntax to the currently prefered notation
- *
- *  Revision 1.7  2002/11/18 07:39:42  starvik
- *  thread_saved_pc moved here from processor.h
- *
- *  Revision 1.6  2002/11/14 06:51:27  starvik
- *  Made cpu_idle more similar with other archs
- *  init_task_union -> init_thread_union
- *  Updated for new interrupt macros
- *  sys_clone and do_fork have a new argument, user_tid
- *
- *  Revision 1.5  2002/11/05 06:45:11  starvik
- *  Merge of Linux 2.5.45
- *
- *  Revision 1.4  2002/02/05 15:37:44  bjornw
- *  Need init_task.h
- *
- *  Revision 1.3  2002/01/21 15:22:49  bjornw
- *  current->counter is gone
- *
- *  Revision 1.22  2001/11/13 09:40:43  orjanf
- *  Added dump_fpu (needed for core dumps).
- *
- *  Revision 1.21  2001/11/12 18:26:21  pkj
- *  Fixed compiler warnings.
- *
- *  Revision 1.20  2001/10/03 08:21:39  jonashg
- *  cause_of_death does not exist if CONFIG_SVINTO_SIM is defined.
- *
- *  Revision 1.19  2001/09/26 11:52:54  bjornw
- *  INIT_MMAP is gone in 2.4.10
- *
- *  Revision 1.18  2001/08/21 21:43:51  hp
- *  Move last watchdog fix inside #ifdef CONFIG_ETRAX_WATCHDOG
- *
- *  Revision 1.17  2001/08/21 13:48:01  jonashg
- *  Added fix by HP to avoid oops when doing a hard_reset_now.
- *
- *  Revision 1.16  2001/06/21 02:00:40  hp
- *  	* entry.S: Include asm/unistd.h.
- *  	(_sys_call_table): Use section .rodata, not .data.
- *  	(_kernel_thread): Move from...
- *  	* process.c: ... here.
- *  	* entryoffsets.c (VAL): Break out from...
- *  	(OF): Use VAL.
- *  	(LCLONE_VM): New asmified value from CLONE_VM.
- *
- *  Revision 1.15  2001/06/20 16:31:57  hp
- *  Add comments to describe empty functions according to review.
- *
- *  Revision 1.14  2001/05/29 11:27:59  markusl
- *  Fixed so that hard_reset_now will do reset even if watchdog wasn't enabled
- *
- *  Revision 1.13  2001/03/20 19:44:06  bjornw
- *  Use the 7th syscall argument for regs instead of current_regs
  *
  */
 
@@ -206,6 +106,7 @@ EXPORT_SYMBOL(pm_power_off);
  * low exit latency (ie sit in a loop waiting for
  * somebody to say that they'd like to reschedule)
  */
+
 void cpu_idle (void)
 {
 	/* endless idle loop with no priority at all */

@@ -391,12 +391,24 @@ ccwgroup_remove (struct device *dev)
 	return 0;
 }
 
+static void ccwgroup_shutdown(struct device *dev)
+{
+	struct ccwgroup_device *gdev;
+	struct ccwgroup_driver *gdrv;
+
+	gdev = to_ccwgroupdev(dev);
+	gdrv = to_ccwgroupdrv(dev->driver);
+	if (gdrv && gdrv->shutdown)
+		gdrv->shutdown(gdev);
+}
+
 static struct bus_type ccwgroup_bus_type = {
 	.name   = "ccwgroup",
 	.match  = ccwgroup_bus_match,
 	.uevent = ccwgroup_uevent,
 	.probe  = ccwgroup_probe,
 	.remove = ccwgroup_remove,
+	.shutdown = ccwgroup_shutdown,
 };
 
 /**

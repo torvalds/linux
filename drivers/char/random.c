@@ -1039,6 +1039,7 @@ write_pool(struct entropy_store *r, const char __user *buffer, size_t count)
 		p += bytes;
 
 		add_entropy_words(r, buf, (bytes + 3) / 4);
+		cond_resched();
 	}
 
 	return 0;

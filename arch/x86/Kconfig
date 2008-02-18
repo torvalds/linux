@@ -18,8 +18,11 @@ config X86_64
 ### Arch settings
 config X86
 	def_bool y
+	select HAVE_IDE
 	select HAVE_OPROFILE
 	select HAVE_KPROBES
+	select HAVE_KVM
+
 
 config GENERIC_LOCKBREAK
 	def_bool n
@@ -51,6 +54,10 @@ config HAVE_LATENCYTOP_SUPPORT
 
 config SEMAPHORE_SLEEPERS
 	def_bool y
+
+config FAST_CMPXCHG_LOCAL
+	bool
+	default y
 
 config MMU
 	def_bool y
@@ -98,6 +105,9 @@ config ARCH_HAS_ILOG2_U32
 config ARCH_HAS_ILOG2_U64
 	def_bool n
 
+config ARCH_HAS_CPU_IDLE_WAIT
+	def_bool y
+
 config GENERIC_CALIBRATE_DELAY
 	def_bool y
 
@@ -105,10 +115,11 @@ config GENERIC_TIME_VSYSCALL
 	bool
 	default X86_64
 
+config ARCH_HAS_CPU_RELAX
+	def_bool y
+
 config HAVE_SETUP_PER_CPU_AREA
 	def_bool X86_64
-
-select HAVE_KVM
 
 config ARCH_HIBERNATION_POSSIBLE
 	def_bool y
@@ -128,6 +139,9 @@ config ARCH_POPULATES_NODE_MAP
 config AUDIT_ARCH
 	bool
 	default X86_64
+
+config ARCH_SUPPORTS_AOUT
+	def_bool y
 
 # Use the generic interrupt handling code in kernel/irq/:
 config GENERIC_HARDIRQS
@@ -415,7 +429,7 @@ config HPET_TIMER
 
 config HPET_EMULATE_RTC
 	def_bool y
-	depends on HPET_TIMER && (RTC=y || RTC=m)
+	depends on HPET_TIMER && (RTC=y || RTC=m || RTC_DRV_CMOS=m || RTC_DRV_CMOS=y)
 
 # Mark as embedded because too many people got it wrong.
 # The code disables itself when not needed.
@@ -464,6 +478,9 @@ config CALGARY_IOMMU_ENABLED_BY_DEFAULT
 	  used even if it exists. If you choose 'n' and would like to use
 	  Calgary anyway, pass 'iommu=calgary' on the kernel command line.
 	  If unsure, say Y.
+
+config IOMMU_HELPER
+	def_bool (CALGARY_IOMMU || GART_IOMMU)
 
 # need this always selected by IOMMU for the VIA workaround
 config SWIOTLB
@@ -628,7 +645,6 @@ config TOSHIBA
 
 config I8K
 	tristate "Dell laptop support"
-	depends on X86_32
 	---help---
 	  This adds a driver to safely access the System Management Mode
 	  of the CPU on the Dell Inspiron 8000. The System Management Mode
@@ -1568,7 +1584,7 @@ config IA32_EMULATION
 
 config IA32_AOUT
        tristate "IA32 a.out support"
-       depends on IA32_EMULATION
+       depends on IA32_EMULATION && ARCH_SUPPORTS_AOUT
        help
          Support old a.out binaries in the 32bit emulation.
 

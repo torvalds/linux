@@ -6,7 +6,15 @@
 #ifndef __UM_UACCESS_H
 #define __UM_UACCESS_H
 
-#include "linux/sched.h"
+#include <asm/errno.h>
+#include <asm/processor.h>
+
+/* thread_info has a mm_segment_t in it, so put the definition up here */
+typedef struct {
+	unsigned long seg;
+} mm_segment_t;
+
+#include "linux/thread_info.h"
 
 #define VERIFY_READ 0
 #define VERIFY_WRITE 1

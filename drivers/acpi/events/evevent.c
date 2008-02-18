@@ -259,7 +259,7 @@ u32 acpi_ev_fixed_event_detect(void)
 			enable_bit_mask)) {
 
 			/* Found an active (signalled) event */
-
+			acpi_os_fixed_event_count(i);
 			int_status |= acpi_ev_fixed_event_dispatch((u32) i);
 		}
 	}

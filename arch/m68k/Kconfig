@@ -5,6 +5,7 @@
 config M68K
 	bool
 	default y
+	select HAVE_IDE
 
 config MMU
 	bool
@@ -51,6 +52,13 @@ config NO_IOPORT
 
 config NO_DMA
 	def_bool SUN3
+
+config ARCH_SUPPORTS_AOUT
+	def_bool y
+
+config HZ
+	int
+	default 100
 
 mainmenu "Linux/68k Kernel Configuration"
 
@@ -576,20 +584,6 @@ config MAC_HID
 	bool
 	depends on INPUT_ADBHID
 	default y
-
-config MAC_ADBKEYCODES
-	bool "Support for ADB raw keycodes"
-	depends on INPUT_ADBHID
-	help
-	  This provides support for sending raw ADB keycodes to console
-	  devices.  This is the default up to 2.4.0, but in future this may be
-	  phased out in favor of generic Linux keycodes.  If you say Y here,
-	  you can dynamically switch via the
-	  /proc/sys/dev/mac_hid/keyboard_sends_linux_keycodes
-	  sysctl and with the "keyboard_sends_linux_keycodes=" kernel
-	  argument.
-
-	  If unsure, say Y here.
 
 config ADB_KEYBOARD
 	bool "Support for ADB keyboard (old driver)"

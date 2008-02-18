@@ -3,7 +3,7 @@
 # Licensed under the GPL
 #
 
-obj-y = registers.o prctl.o signal.o
+obj-y = registers.o prctl.o signal.o task_size.o
 
 USER_OBJS := $(obj-y)
 

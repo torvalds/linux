@@ -12,6 +12,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/string.h>
+#include <linux/module.h>
 
 #include <asm/system.h>
 #include <asm/amigahw.h>
@@ -21,7 +22,7 @@ static const signed char sine_data[] = {
 	0,  39,  75,  103,  121,  127,  121,  103,  75,  39,
 	0, -39, -75, -103, -121, -127, -121, -103, -75, -39
 };
-#define DATA_SIZE	(sizeof(sine_data)/sizeof(sine_data[0]))
+#define DATA_SIZE	ARRAY_SIZE(sine_data)
 
 #define custom amiga_custom
 
@@ -31,6 +32,7 @@ static const signed char sine_data[] = {
      */
 
 volatile unsigned short amiga_audio_min_period = 124; /* Default for pre-OCS */
+EXPORT_SYMBOL(amiga_audio_min_period);
 
 #define MAX_PERIOD	(65535)
 
@@ -40,6 +42,7 @@ volatile unsigned short amiga_audio_min_period = 124; /* Default for pre-OCS */
      */
 
 unsigned short amiga_audio_period = MAX_PERIOD;
+EXPORT_SYMBOL(amiga_audio_period);
 
 static unsigned long clock_constant;
 

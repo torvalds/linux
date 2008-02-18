@@ -1,186 +1,10 @@
-/* $Id: head.S,v 1.10 2005/06/20 05:12:54 starvik Exp $
- * 
+/*
  * Head of the kernel - alter with care
  *
  * Copyright (C) 2000, 2001 Axis Communications AB
  *
  * Authors:	Bjorn Wesen (bjornw@axis.com)
  * 
- * $Log: head.S,v $
- * Revision 1.10  2005/06/20 05:12:54  starvik
- * Remove unnecessary diff to kernel.org tree
- *
- * Revision 1.9  2004/12/13 12:21:51  starvik
- * Added I/O and DMA allocators from Linux 2.4
- *
- * Revision 1.8  2004/11/22 11:41:14  starvik
- * Kernel command line may be supplied to kernel. Not used by Axis but may
- * be used by customers.
- *
- * Revision 1.7  2004/05/14 07:58:01  starvik
- * Merge of changes from 2.4
- *
- * Revision 1.6  2003/04/28 05:31:46  starvik
- * Added section attributes
- *
- * Revision 1.5  2002/12/11 15:42:02  starvik
- * Extracted v10 (ETRAX 100LX) specific stuff from arch/cris/kernel/*.c
- *
- * Revision 1.4  2002/11/07 09:00:44  starvik
- * Names changed for init sections
- * init_task_union -> init_thread_union
- *
- * Revision 1.3  2002/02/05 15:38:23  bjornw
- * Oops.. non-CRAMFS_MAGIC should jump over the copying, not into it...
- *
- * Revision 1.2  2001/12/18 13:35:19  bjornw
- * Applied the 2.4.13->2.4.16 CRIS patch to 2.5.1 (is a copy of 2.4.15).
- *
- * Revision 1.43  2001/11/08 15:09:43  starvik
- * Only start MII clock if Ethernet is configured
- *
- * Revision 1.42  2001/11/08 14:37:34  starvik
- * Start MII clock early to make sure that it is running at tranceiver reset
- *
- * Revision 1.41  2001/10/29 14:55:58  pkj
- * Corrected pa$r0 to par0.
- *
- * Revision 1.40  2001/10/03 14:59:57  pkj
- * Added support for resetting the Bluetooth hardware.
- *
- * Revision 1.39  2001/10/01 14:45:03  bjornw
- * Removed underscores and added register prefixes
- *
- * Revision 1.38  2001/09/21 07:14:11  jonashg
- * Made root filesystem (cramfs) use mtdblock driver when booting from flash.
- *
- * Revision 1.37  2001/09/11 13:44:29  orjanf
- * Decouple usage of serial ports for debug and kgdb.
- *
- * Revision 1.36  2001/06/29 12:39:31  pkj
- * Added support for mirroring the first flash to just below the
- * second one, to make them look consecutive to cramfs.
- *
- * Revision 1.35  2001/06/25 14:07:00  hp
- * 	Fix review comment.
- * 	* head.S: Use IO_STATE, IO_FIELD and IO_MASK constructs instead of
- * 	magic numbers.  Add comment that -traditional must not be used.
- * 	* entry.S (SYMBOL_NAME): Change redefinition to use ## concatenation.
- * 	Correct and update comment.
- * 	* Makefile (.S.o): Don't use -traditional.  Add comment why the
- * 	toplevel rule can't be used (now that there's a reason).
- *
- * Revision 1.34  2001/05/15 07:08:14  hp
- * Tweak "notice" to reflect that both r8 r9 are used
- *
- * Revision 1.33  2001/05/15 06:40:05  hp
- * Put bulk of code in .text.init, data in .data.init
- *
- * Revision 1.32  2001/05/15 06:18:56  hp
- * Execute review comment: s/bcc/bhs/g; s/bcs/blo/g
- *
- * Revision 1.31  2001/05/15 06:08:40  hp
- * Add sentence about autodetecting the bit31-MMU-bug
- *
- * Revision 1.30  2001/05/15 06:00:05  hp
- * Update comment: LOW_MAP is not forced on xsim anymore.
- *
- * Revision 1.29  2001/04/18 12:51:59  orjanf
- * * Reverted review change regarding the use of bcs/bcc.
- * * Removed non-working LED-clearing code.
- *
- * Revision 1.28  2001/04/17 13:58:39  orjanf
- * * Renamed CONFIG_KGDB to CONFIG_ETRAX_KGDB.
- *
- * Revision 1.27  2001/04/17 11:42:35  orjanf
- * Changed according to review:
- * * Added comment explaining memory map bug.
- * * Changed bcs and bcc to blo and bhs, respectively.
- * * Removed mentioning of Stallone and Olga boards.
- *
- * Revision 1.26  2001/04/06 12:31:07  jonashg
- * Check for cramfs in flash before RAM instead of RAM before flash.
- *
- * Revision 1.25  2001/04/04 06:23:53  starvik
- * Initialize DRAM if not already initialized
- *
- * Revision 1.24  2001/04/03 11:12:00  starvik
- * Removed dram init (done by rescue or etrax100boot
- * Corrected include
- *
- * Revision 1.23  2001/04/03 09:53:03  starvik
- * Include hw_settings.S
- *
- * Revision 1.22  2001/03/26 14:23:26  bjornw
- * Namechange of some config options
- *
- * Revision 1.21  2001/03/08 12:14:41  bjornw
- * * Config name for ETRAX IDE was renamed
- * * Removed G27 auto-setting when JULIETTE is chosen (need to make this
- *   a new config option later)
- *
- * Revision 1.20  2001/02/23 12:47:56  bjornw
- * MMU regs during LOW_MAP updated to reflect a newer reality
- *
- * Revision 1.19  2001/02/19 11:12:07  bjornw
- * Changed comment header format
- *
- * Revision 1.18  2001/02/15 07:25:38  starvik
- * Added support for synchronous serial ports
- *
- * Revision 1.17  2001/02/08 15:53:13  starvik
- * Last commit removed some important ifdefs
- *
- * Revision 1.16  2001/02/08 15:20:38  starvik
- * Include dram_init.S as inline
- *
- * Revision 1.15  2001/01/29 18:12:01  bjornw
- * Corrected some comments
- *
- * Revision 1.14  2001/01/29 13:11:29  starvik
- * Include dram_init.S (with DRAM/SDRAM initialization)
- *
- * Revision 1.13  2001/01/23 14:54:57  markusl
- * Updated for USB
- * i.e. added r_gen_config settings
- *
- * Revision 1.12  2001/01/19 16:16:29  perf
- * Added temporary mapping of 0x0c->0x0c to avoid flash loading confusion.
- * Renamed serial options from ETRAX100 to ETRAX.
- *
- * Revision 1.11  2001/01/16 16:31:38  bjornw
- * * Changed name and semantics of running_from_flash to romfs_in_flash,
- *   set by head.S to indicate to setup.c whether there is a cramfs image
- *   after the kernels BSS or not. Should work for all three boot-cases
- *   (DRAM with cramfs in DRAM, DRAM with cramfs in flash (compressed boot),
- *    and flash with cramfs in flash)
- *
- * Revision 1.10  2001/01/16 14:12:21  bjornw
- * * Check for cramfs start passed in r9 from the decompressor, if all other
- *   cramfs options fail (if we boot from DRAM but don't find a cramfs image
- *   after the kernel in DRAM, it is probably still in the flash)
- * * Check magic in cramfs detection when booting from flash directly
- *
- * Revision 1.9  2001/01/15 17:17:02  bjornw
- * * Corrected the code that detects the cramfs lengths
- * * Added a comment saying that the above does not work due to other
- *   reasons..
- *
- * Revision 1.8  2001/01/15 16:27:51  jonashg
- * Made boot after flashing work.
- * * end destination is __vmlinux_end in RAM.
- * * _romfs_start moved because of virtual memory.
- *
- * Revision 1.7  2000/11/21 13:55:29  bjornw
- * Use CONFIG_CRIS_LOW_MAP for the low VM map instead of explicit CPU type
- *
- * Revision 1.6  2000/10/06 12:36:55  bjornw
- * Forgot swapper_pg_dir when changing memory map..
- *
- * Revision 1.5  2000/10/04 16:49:30  bjornw
- * * Fixed memory mapping in LX
- * * Check for cramfs instead of romfs
- *
  */
 	
 #define ASSEMBLER_MACROS_ONLY
@@ -595,11 +419,17 @@ no_command_line:
 
 	moveq	0,$r0
 
+	;; Select or disable serial port 2
+#ifdef CONFIG_ETRAX_SERIAL_PORT2
+	or.d	  IO_STATE (R_GEN_CONFIG, ser2, select),$r0
+#else
+	or.d	  IO_STATE (R_GEN_CONFIG, ser2, disable),$r0
+#endif
+
 	;; Init interfaces (disable them).
 	or.d	  IO_STATE (R_GEN_CONFIG, scsi0, disable) \
 		| IO_STATE (R_GEN_CONFIG, ata, disable) \
 		| IO_STATE (R_GEN_CONFIG, par0, disable) \
-		| IO_STATE (R_GEN_CONFIG, ser2, disable) \
 		| IO_STATE (R_GEN_CONFIG, mio, disable) \
 		| IO_STATE (R_GEN_CONFIG, scsi1, disable) \
 		| IO_STATE (R_GEN_CONFIG, scsi0w, disable) \
@@ -801,6 +631,41 @@ no_command_line:
 		| IO_STATE (R_SERIAL1_TR_CTRL, tr_bitnr, tr_8bit),$r0
 	move.b	$r0,[R_SERIAL1_TR_CTRL]
 
+#ifdef CONFIG_ETRAX_SERIAL_PORT2
+	;; setup the serial port 2 at 115200 baud for debug purposes
+
+	moveq	  IO_STATE (R_SERIAL2_XOFF, tx_stop, enable)		\
+		| IO_STATE (R_SERIAL2_XOFF, auto_xoff, disable)		\
+		| IO_FIELD (R_SERIAL2_XOFF, xoff_char, 0),$r0
+	move.d	$r0,[R_SERIAL2_XOFF]
+
+	; 115.2kbaud for both transmit and receive
+	move.b	  IO_STATE (R_SERIAL2_BAUD, tr_baud, c115k2Hz)		\
+		| IO_STATE (R_SERIAL2_BAUD, rec_baud, c115k2Hz),$r0
+	move.b	$r0,[R_SERIAL2_BAUD]
+
+	; Set up and enable the serial2 receiver.
+	move.b	  IO_STATE (R_SERIAL2_REC_CTRL, dma_err, stop)		\
+		| IO_STATE (R_SERIAL2_REC_CTRL, rec_enable, enable)	\
+		| IO_STATE (R_SERIAL2_REC_CTRL, rts_, active)		\
+		| IO_STATE (R_SERIAL2_REC_CTRL, sampling, middle)	\
+		| IO_STATE (R_SERIAL2_REC_CTRL, rec_stick_par, normal)	\
+		| IO_STATE (R_SERIAL2_REC_CTRL, rec_par, even)		\
+		| IO_STATE (R_SERIAL2_REC_CTRL, rec_par_en, disable)	\
+		| IO_STATE (R_SERIAL2_REC_CTRL, rec_bitnr, rec_8bit),$r0
+	move.b	$r0,[R_SERIAL2_REC_CTRL]
+
+	; Set up and enable the serial2 transmitter.
+	move.b	  IO_FIELD (R_SERIAL2_TR_CTRL, txd, 0)			\
+		| IO_STATE (R_SERIAL2_TR_CTRL, tr_enable, enable)	\
+		| IO_STATE (R_SERIAL2_TR_CTRL, auto_cts, disabled)	\
+		| IO_STATE (R_SERIAL2_TR_CTRL, stop_bits, one_bit)	\
+		| IO_STATE (R_SERIAL2_TR_CTRL, tr_stick_par, normal)	\
+		| IO_STATE (R_SERIAL2_TR_CTRL, tr_par, even)		\
+		| IO_STATE (R_SERIAL2_TR_CTRL, tr_par_en, disable)	\
+		| IO_STATE (R_SERIAL2_TR_CTRL, tr_bitnr, tr_8bit),$r0
+	move.b	$r0,[R_SERIAL2_TR_CTRL]
+#endif
 	
 #ifdef CONFIG_ETRAX_SERIAL_PORT3	
 	;; setup the serial port 3 at 115200 baud for debug purposes

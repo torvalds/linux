@@ -44,15 +44,11 @@ typedef __kernel_uid_t __kernel_old_uid_t;
 typedef unsigned int	__kernel_old_dev_t;
 
 typedef struct {
-#if defined(__KERNEL__) || defined(__USE_ALL)
 	int	val[2];
-#else /* !defined(__KERNEL__) && !defined(__USE_ALL) */
-	int	__val[2];
-#endif /* !defined(__KERNEL__) && !defined(__USE_ALL) */
 } __kernel_fsid_t;
 
 
-#if defined(__KERNEL__) || !defined(__GLIBC__) || (__GLIBC__ < 2)
+#if defined(__KERNEL__)
 
 /* We used to include <asm/bitops.h> here, which seems the right thing, but
    it caused nasty include-file definition order problems.  Removing the
@@ -71,6 +67,6 @@ typedef struct {
 #define __FD_ZERO(fd_set) \
   memset (fd_set, 0, sizeof (*(fd_set *)fd_set))
 
-#endif /* defined(__KERNEL__) || !defined(__GLIBC__) || (__GLIBC__ < 2) */
+#endif /* defined(__KERNEL__) */
 
 #endif /* __V850_POSIX_TYPES_H__ */

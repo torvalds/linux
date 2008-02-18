@@ -12,8 +12,8 @@
 #endif
 
 /* macros to convert between really physical and virtual addresses
- * by stripping a selected bit, we can convert between KSEG_x and 0x40000000 where
- * the DRAM really resides
+ * by stripping a selected bit, we can convert between KSEG_x and
+ * 0x40000000 where the DRAM really resides
  */
 
 #ifdef CONFIG_CRIS_LOW_MAP

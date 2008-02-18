@@ -119,6 +119,13 @@ static __inline__ void qla2x00_check_fabric_devices(scsi_qla_host_t *ha)
 	qla2x00_get_firmware_state(ha, &fw_state);
 }
 
+static __inline__ scsi_qla_host_t * to_qla_parent(scsi_qla_host_t *);
+static __inline__ scsi_qla_host_t *
+to_qla_parent(scsi_qla_host_t *ha)
+{
+	return ha->parent ? ha->parent : ha;
+}
+
 /**
  * qla2x00_issue_marker() - Issue a Marker IOCB if necessary.
  * @ha: HA context

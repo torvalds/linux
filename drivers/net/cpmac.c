@@ -845,15 +845,6 @@ static void cpmac_adjust_link(struct net_device *dev)
 	spin_unlock(&priv->lock);
 }
 
-static int cpmac_link_update(struct net_device *dev,
-			     struct fixed_phy_status *status)
-{
-	status->link = 1;
-	status->speed = 100;
-	status->duplex = 1;
-	return 0;
-}
-
 static int cpmac_open(struct net_device *dev)
 {
 	int i, size, res;
@@ -996,11 +987,11 @@ static int external_switch;
 static int __devinit cpmac_probe(struct platform_device *pdev)
 {
 	int rc, phy_id, i;
+	int mdio_bus_id = cpmac_mii.id;
 	struct resource *mem;
 	struct cpmac_priv *priv;
 	struct net_device *dev;
 	struct plat_cpmac_data *pdata;
-	struct fixed_info *fixed_phy;
 	DECLARE_MAC_BUF(mac);
 
 	pdata = pdev->dev.platform_data;
@@ -1014,9 +1005,23 @@ static int __devinit cpmac_probe(struct platform_device *pdev)
 	}
 
 	if (phy_id == PHY_MAX_ADDR) {
-		if (external_switch || dumb_switch)
+		if (external_switch || dumb_switch) {
+			struct fixed_phy_status status = {};
+
+			mdio_bus_id = 0;
+
+			/*
+			 * FIXME: this should be in the platform code!
+			 * Since there is not platform code at all (that is,
+			 * no mainline users of that driver), place it here
+			 * for now.
+			 */
 			phy_id = 0;
-		else {
+			status.link = 1;
+			status.duplex = 1;
+			status.speed = 100;
+			fixed_phy_add(PHY_POLL, phy_id, &status);
+		} else {
 			printk(KERN_ERR "cpmac: no PHY present\n");
 			return -ENODEV;
 		}
@@ -1060,32 +1065,8 @@ static int __devinit cpmac_probe(struct platform_device *pdev)
 	priv->msg_enable = netif_msg_init(debug_level, 0xff);
 	memcpy(dev->dev_addr, pdata->dev_addr, sizeof(dev->dev_addr));
 
-	if (phy_id == 31) {
-		snprintf(priv->phy_name, BUS_ID_SIZE, PHY_ID_FMT, cpmac_mii.id,
-			 phy_id);
-	} else {
-		/* Let's try to get a free fixed phy... */
-		for (i = 0; i < MAX_PHY_AMNT; i++) {
-			fixed_phy = fixed_mdio_get_phydev(i);
-			if (!fixed_phy)
-				continue;
-			if (!fixed_phy->phydev->attached_dev) {
-				strncpy(priv->phy_name,
-					fixed_phy->phydev->dev.bus_id,
-					BUS_ID_SIZE);
-				fixed_mdio_set_link_update(fixed_phy->phydev,
-							   &cpmac_link_update);
-				goto phy_found;
-			}
-		}
-		if (netif_msg_drv(priv))
-			printk(KERN_ERR "%s: Could not find fixed PHY\n",
-			       dev->name);
-		rc = -ENODEV;
-		goto fail;
-	}
+	snprintf(priv->phy_name, BUS_ID_SIZE, PHY_ID_FMT, mdio_bus_id, phy_id);
 
-phy_found:
 	priv->phy = phy_connect(dev, priv->phy_name, &cpmac_adjust_link, 0,
 				PHY_INTERFACE_MODE_MII);
 	if (IS_ERR(priv->phy)) {

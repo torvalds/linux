@@ -72,7 +72,6 @@ typedef struct user_fxsr_struct elf_fpxregset_t;
 
 #endif
 
-#ifdef __KERNEL__
 #include <asm/vdso.h>
 
 extern unsigned int vdso_enabled;
@@ -320,7 +319,5 @@ extern int syscall32_setup_pages(struct linux_binprm *, int exstack);
 
 extern unsigned long arch_randomize_brk(struct mm_struct *mm);
 #define arch_randomize_brk arch_randomize_brk
-
-#endif /* __KERNEL__ */
 
 #endif

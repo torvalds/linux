@@ -311,6 +311,8 @@ void __init pxa_init_irq_gpio(int gpio_nr)
 	/* Install handler for GPIO>=2 edge detect interrupts */
 	set_irq_chip(IRQ_GPIO_2_x, &pxa_internal_chip_low);
 	set_irq_chained_handler(IRQ_GPIO_2_x, pxa_gpio_demux_handler);
+
+	pxa_init_gpio(gpio_nr);
 }
 
 void __init pxa_init_irq_set_wake(int (*set_wake)(unsigned int, unsigned int))

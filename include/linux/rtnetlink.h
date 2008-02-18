@@ -602,23 +602,11 @@ struct tcamsg
 
 #include <linux/mutex.h>
 
-extern size_t rtattr_strlcpy(char *dest, const struct rtattr *rta, size_t size);
 static __inline__ int rtattr_strcmp(const struct rtattr *rta, const char *str)
 {
 	int len = strlen(str) + 1;
 	return len > rta->rta_len || memcmp(RTA_DATA(rta), str, len);
 }
-
-extern int rtattr_parse(struct rtattr *tb[], int maxattr, struct rtattr *rta, int len);
-extern int __rtattr_parse_nested_compat(struct rtattr *tb[], int maxattr,
-				        struct rtattr *rta, int len);
-
-#define rtattr_parse_nested(tb, max, rta) \
-	rtattr_parse((tb), (max), RTA_DATA((rta)), RTA_PAYLOAD((rta)))
-
-#define rtattr_parse_nested_compat(tb, max, rta, data, len) \
-({	data = RTA_PAYLOAD(rta) >= len ? RTA_DATA(rta) : NULL; \
-	__rtattr_parse_nested_compat(tb, max, rta, len); })
 
 extern int rtnetlink_send(struct sk_buff *skb, struct net *net, u32 pid, u32 group, int echo);
 extern int rtnl_unicast(struct sk_buff *skb, struct net *net, u32 pid);

@@ -1,19 +1,19 @@
-/* SCTP kernel reference Implementation
+/* SCTP kernel implementation
  * (C) Copyright IBM Corp. 2001, 2004
  *
- * This file is part of the SCTP kernel reference Implementation
+ * This file is part of the SCTP kernel implementation
  *
  * Support for memory object debugging.  This allows one to monitor the
  * object allocations/deallocations for types instrumented for this
  * via the proc fs.
  *
- * The SCTP reference implementation is free software;
+ * This SCTP implementation is free software;
  * you can redistribute it and/or modify it under the terms of
  * the GNU General Public License as published by
  * the Free Software Foundation; either version 2, or (at your option)
  * any later version.
  *
- * The SCTP reference implementation is distributed in the hope that it
+ * This SCTP implementation is distributed in the hope that it
  * will be useful, but WITHOUT ANY WARRANTY; without even the implied
  *                 ************************
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
@@ -80,61 +80,64 @@ static sctp_dbg_objcnt_entry_t sctp_dbg_objcnt[] = {
 /* Callback from procfs to read out objcount information.
  * Walk through the entries in the sctp_dbg_objcnt array, dumping
  * the raw object counts for each monitored type.
- *
- * This code was modified from similar code in route.c
  */
-static int sctp_dbg_objcnt_read(char *buffer, char **start, off_t offset,
-				int length, int *eof, void *data)
+static int sctp_objcnt_seq_show(struct seq_file *seq, void *v)
 {
-	int len = 0;
-	off_t pos = 0;
-	int entries;
 	int i;
 	char temp[128];
 
-	/* How many entries? */
-	entries = ARRAY_SIZE(sctp_dbg_objcnt);
-
-	/* Walk the entries and print out the debug information
-	 * for proc fs.
-	 */
-	for (i = 0; i < entries; i++) {
-		pos += 128;
-
-		/* Skip ahead. */
-		if (pos <= offset) {
-			len = 0;
-			continue;
-		}
-		/* Print out each entry. */
-		sprintf(temp, "%s: %d",
-			sctp_dbg_objcnt[i].label,
-			atomic_read(sctp_dbg_objcnt[i].counter));
-
-		sprintf(buffer + len, "%-127s\n", temp);
-		len += 128;
-		if (pos >= offset+length)
-			goto done;
-	}
-
-done:
-	*start = buffer + len - (pos - offset);
-	len = pos - offset;
-	if (len > length)
-		len = length;
-
-	return len;
+	i = (int)*(loff_t *)v;
+	sprintf(temp, "%s: %d", sctp_dbg_objcnt[i].label,
+				atomic_read(sctp_dbg_objcnt[i].counter));
+	seq_printf(seq, "%-127s\n", temp);
+	return 0;
 }
+
+static void *sctp_objcnt_seq_start(struct seq_file *seq, loff_t *pos)
+{
+	return (*pos >= ARRAY_SIZE(sctp_dbg_objcnt)) ? NULL : (void *)pos;
+}
+
+static void sctp_objcnt_seq_stop(struct seq_file *seq, void *v)
+{
+}
+
+static void * sctp_objcnt_seq_next(struct seq_file *seq, void *v, loff_t *pos)
+{
+	++*pos;
+	return (*pos >= ARRAY_SIZE(sctp_dbg_objcnt)) ? NULL : (void *)pos;
+}
+
+static const struct seq_operations sctp_objcnt_seq_ops = {
+	.start = sctp_objcnt_seq_start,
+	.next  = sctp_objcnt_seq_next,
+	.stop  = sctp_objcnt_seq_stop,
+	.show  = sctp_objcnt_seq_show,
+};
+
+static int sctp_objcnt_seq_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &sctp_objcnt_seq_ops);
+}
+
+static const struct file_operations sctp_objcnt_ops = {
+	.open	 = sctp_objcnt_seq_open,
+	.read	 = seq_read,
+	.llseek	 = seq_lseek,
+	.release = seq_release,
+};
 
 /* Initialize the objcount in the proc filesystem.  */
 void sctp_dbg_objcnt_init(void)
 {
 	struct proc_dir_entry *ent;
-	ent = create_proc_read_entry("sctp_dbg_objcnt", 0, proc_net_sctp,
-			       sctp_dbg_objcnt_read, NULL);
+
+	ent = create_proc_entry("sctp_dbg_objcnt", 0, proc_net_sctp);
 	if (!ent)
 		printk(KERN_WARNING
 			"sctp_dbg_objcnt: Unable to create /proc entry.\n");
+	else
+		ent->proc_fops = &sctp_objcnt_ops;
 }
 
 /* Cleanup the objcount entry in the proc filesystem.  */

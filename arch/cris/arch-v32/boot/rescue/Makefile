@@ -1,36 +1,27 @@
 #
-# Makefile for rescue code
+# Makefile for rescue (bootstrap) code
 #
-target = $(target_rescue_dir)
-src    = $(src_rescue_dir)
 
 CC = gcc-cris -mlinux -march=v32 $(LINUXINCLUDE)
-CFLAGS = -O2
+ccflags-y += -O2 -I $(srctree)/include/asm/arch/mach/ \
+		-I $(srctree)/include/asm/arch
+asflags-y += -I $(srctree)/include/asm/arch/mach/ -I $(srctree)/include/asm/arch
 LD = gcc-cris -mlinux -march=v32 -nostdlib
+ldflags-y += -T $(obj)/rescue.ld
+LDPOSTFLAGS = -lgcc
 OBJCOPY = objcopy-cris
 OBJCOPYFLAGS = -O binary --remove-section=.bss
+obj-$(CONFIG_ETRAX_AXISFLASHMAP) = head.o
+OBJECT := $(obj)/head.o
 
-all: $(target)/rescue.bin
+targets := rescue.o rescue.bin
 
-rescue: rescue.bin
-	# do nothing
+quiet_cmd_ldlibgcc = LD      $@
+cmd_ldlibgcc = $(LD) $(LDFLAGS) $(filter-out FORCE,$^) $(LDPOSTFLAGS) -o $@
 
-$(target)/rescue.bin: $(target) $(target)/head.o
-	$(LD) -T $(src)/rescue.ld -o $(target)/rescue.o $(target)/head.o
-	$(OBJCOPY) $(OBJCOPYFLAGS) $(target)/rescue.o $(target)/rescue.bin
-	cp -p $(target)/rescue.bin $(objtree)
+$(obj)/rescue.o: $(OBJECTS) FORCE
+	$(call if_changed,ldlibgcc)
 
-$(target):
-	mkdir -p $(target)
-
-$(target)/head.o: $(src)/head.S
-	$(CC) -D__ASSEMBLY__ -c $< -o $*.o
-
-clean:
-	rm -f $(target)/*.o $(target)/*.bin
-
-fastdep:
-
-modules:
-
-modules-install:
+$(obj)/rescue.bin: $(obj)/rescue.o FORCE
+	$(call if_changed,objcopy)
+	cp -p $(obj)/rescue.bin $(objtree)

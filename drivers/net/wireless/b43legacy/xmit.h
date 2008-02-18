@@ -76,7 +76,7 @@ struct b43legacy_txhdr_fw3 {
 
 
 
-void b43legacy_generate_txhdr(struct b43legacy_wldev *dev,
+int b43legacy_generate_txhdr(struct b43legacy_wldev *dev,
 			      u8 *txhdr,
 			      const unsigned char *fragment_data,
 			      unsigned int fragment_len,

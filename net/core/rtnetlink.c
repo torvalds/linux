@@ -82,32 +82,6 @@ int rtnl_trylock(void)
 	return mutex_trylock(&rtnl_mutex);
 }
 
-int rtattr_parse(struct rtattr *tb[], int maxattr, struct rtattr *rta, int len)
-{
-	memset(tb, 0, sizeof(struct rtattr*)*maxattr);
-
-	while (RTA_OK(rta, len)) {
-		unsigned flavor = rta->rta_type;
-		if (flavor && flavor <= maxattr)
-			tb[flavor-1] = rta;
-		rta = RTA_NEXT(rta, len);
-	}
-	return 0;
-}
-
-int __rtattr_parse_nested_compat(struct rtattr *tb[], int maxattr,
-				 struct rtattr *rta, int len)
-{
-	if (RTA_PAYLOAD(rta) < len)
-		return -1;
-	if (RTA_PAYLOAD(rta) >= RTA_ALIGN(len) + sizeof(struct rtattr)) {
-		rta = RTA_DATA(rta) + RTA_ALIGN(len);
-		return rtattr_parse_nested(tb, maxattr, rta);
-	}
-	memset(tb, 0, sizeof(struct rtattr *) * maxattr);
-	return 0;
-}
-
 static struct rtnl_link *rtnl_msg_handlers[NPROTO];
 
 static inline int rtm_msgindex(int msgtype)
@@ -442,21 +416,6 @@ void __rta_fill(struct sk_buff *skb, int attrtype, int attrlen, const void *data
 	memset(RTA_DATA(rta) + attrlen, 0, RTA_ALIGN(size) - size);
 }
 
-size_t rtattr_strlcpy(char *dest, const struct rtattr *rta, size_t size)
-{
-	size_t ret = RTA_PAYLOAD(rta);
-	char *src = RTA_DATA(rta);
-
-	if (ret > 0 && src[ret - 1] == '\0')
-		ret--;
-	if (size > 0) {
-		size_t len = (ret >= size) ? size - 1 : ret;
-		memset(dest, 0, size);
-		memcpy(dest, src, len);
-	}
-	return ret;
-}
-
 int rtnetlink_send(struct sk_buff *skb, struct net *net, u32 pid, unsigned group, int echo)
 {
 	struct sock *rtnl = net->rtnl;
@@ -545,7 +504,7 @@ int rtnl_put_cacheinfo(struct sk_buff *skb, struct dst_entry *dst, u32 id,
 
 EXPORT_SYMBOL_GPL(rtnl_put_cacheinfo);
 
-static void set_operstate(struct net_device *dev, unsigned char transition)
+static int set_operstate(struct net_device *dev, unsigned char transition, bool send_notification)
 {
 	unsigned char operstate = dev->operstate;
 
@@ -568,8 +527,12 @@ static void set_operstate(struct net_device *dev, unsigned char transition)
 		write_lock_bh(&dev_base_lock);
 		dev->operstate = operstate;
 		write_unlock_bh(&dev_base_lock);
-		netdev_state_change(dev);
-	}
+
+		if (send_notification)
+			netdev_state_change(dev);
+		return 1;
+	} else
+		return 0;
 }
 
 static void copy_rtnl_link_stats(struct rtnl_link_stats *a,
@@ -863,6 +826,7 @@ static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
 	if (tb[IFLA_BROADCAST]) {
 		nla_memcpy(dev->broadcast, tb[IFLA_BROADCAST], dev->addr_len);
 		send_addr_notify = 1;
+		modified = 1;
 	}
 
 	if (ifm->ifi_flags || ifm->ifi_change) {
@@ -875,16 +839,23 @@ static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
 		dev_change_flags(dev, flags);
 	}
 
-	if (tb[IFLA_TXQLEN])
-		dev->tx_queue_len = nla_get_u32(tb[IFLA_TXQLEN]);
+	if (tb[IFLA_TXQLEN]) {
+		if (dev->tx_queue_len != nla_get_u32(tb[IFLA_TXQLEN])) {
+			dev->tx_queue_len = nla_get_u32(tb[IFLA_TXQLEN]);
+			modified = 1;
+		}
+	}
 
 	if (tb[IFLA_OPERSTATE])
-		set_operstate(dev, nla_get_u8(tb[IFLA_OPERSTATE]));
+		modified |= set_operstate(dev, nla_get_u8(tb[IFLA_OPERSTATE]), false);
 
 	if (tb[IFLA_LINKMODE]) {
-		write_lock_bh(&dev_base_lock);
-		dev->link_mode = nla_get_u8(tb[IFLA_LINKMODE]);
-		write_unlock_bh(&dev_base_lock);
+		if (dev->link_mode != nla_get_u8(tb[IFLA_LINKMODE])) {
+			write_lock_bh(&dev_base_lock);
+			dev->link_mode = nla_get_u8(tb[IFLA_LINKMODE]);
+			write_lock_bh(&dev_base_lock);
+			modified = 1;
+		}
 	}
 
 	err = 0;
@@ -898,6 +869,10 @@ errout:
 
 	if (send_addr_notify)
 		call_netdevice_notifiers(NETDEV_CHANGEADDR, dev);
+
+	if (modified)
+		netdev_state_change(dev);
+
 	return err;
 }
 
@@ -1015,7 +990,7 @@ struct net_device *rtnl_create_link(struct net *net, char *ifname,
 	if (tb[IFLA_TXQLEN])
 		dev->tx_queue_len = nla_get_u32(tb[IFLA_TXQLEN]);
 	if (tb[IFLA_OPERSTATE])
-		set_operstate(dev, nla_get_u8(tb[IFLA_OPERSTATE]));
+		set_operstate(dev, nla_get_u8(tb[IFLA_OPERSTATE]), true);
 	if (tb[IFLA_LINKMODE])
 		dev->link_mode = nla_get_u8(tb[IFLA_LINKMODE]);
 
@@ -1411,9 +1386,6 @@ void __init rtnetlink_init(void)
 }
 
 EXPORT_SYMBOL(__rta_fill);
-EXPORT_SYMBOL(rtattr_strlcpy);
-EXPORT_SYMBOL(rtattr_parse);
-EXPORT_SYMBOL(__rtattr_parse_nested_compat);
 EXPORT_SYMBOL(rtnetlink_put_metrics);
 EXPORT_SYMBOL(rtnl_lock);
 EXPORT_SYMBOL(rtnl_trylock);

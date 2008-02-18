@@ -53,13 +53,6 @@
  */
 #define __DISABLED_CHAR '\0'
 
-/*
- * This is the flip buffer used for the tty driver.  The buffer is
- * located in the tty structure, and is used as a high speed interface
- * between the tty driver and the tty line discipline.
- */
-#define TTY_FLIPBUF_SIZE 512
-
 struct tty_buffer {
 	struct tty_buffer *next;
 	char *char_buf_ptr;
@@ -74,7 +67,6 @@ struct tty_buffer {
 
 struct tty_bufhead {
 	struct delayed_work work;
-	struct semaphore pty_sem;
 	spinlock_t lock;
 	struct tty_buffer *head;	/* Queue head */
 	struct tty_buffer *tail;	/* Active buffer */

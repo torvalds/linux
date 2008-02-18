@@ -1,0 +1,5 @@
+include include/asm-generic/Kbuild.asm
+
+unifdef-y += termios.h
+unifdef-y += ptrace.h
+unifdef-y += page.h

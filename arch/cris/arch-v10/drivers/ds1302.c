@@ -333,7 +333,7 @@ rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 			ds1302_writereg(RTC_TRICKLECHARGER, tcs_val);
 			return 0;
 		}
-		case RTC_VLOW_RD:
+		case RTC_VL_READ:
 		{
 			/* TODO:
 			 * Implement voltage low detection support
@@ -342,7 +342,7 @@ rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 			       " is not supported\n");
 			return 0;
 		}
-		case RTC_VLOW_SET:
+		case RTC_VL_CLR:
 		{
 			/* TODO:
 			 * Nothing to do since Voltage Low detection is not supported

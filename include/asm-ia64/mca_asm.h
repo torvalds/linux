@@ -1,8 +1,9 @@
 /*
  * File:	mca_asm.h
+ * Purpose:	Machine check handling specific defines
  *
  * Copyright (C) 1999 Silicon Graphics, Inc.
- * Copyright (C) Vijay Chander (vijay@engr.sgi.com)
+ * Copyright (C) Vijay Chander <vijay@engr.sgi.com>
  * Copyright (C) Srinivasa Thirumalachar <sprasad@engr.sgi.com>
  * Copyright (C) 2000 Hewlett-Packard Co.
  * Copyright (C) 2000 David Mosberger-Tang <davidm@hpl.hp.com>

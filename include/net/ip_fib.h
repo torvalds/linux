@@ -266,6 +266,14 @@ static inline void fib_res_put(struct fib_result *res)
 #ifdef CONFIG_PROC_FS
 extern int __net_init  fib_proc_init(struct net *net);
 extern void __net_exit fib_proc_exit(struct net *net);
+#else
+static inline int fib_proc_init(struct net *net)
+{
+	return 0;
+}
+static inline void fib_proc_exit(struct net *net)
+{
+}
 #endif
 
 #endif  /* _NET_FIB_H */

@@ -24,7 +24,7 @@
  * reattempted until it succeeds.
  */
 static inline void
-__mutex_fastpath_lock(atomic_t *count, fastcall void (*fail_fn)(atomic_t *))
+__mutex_fastpath_lock(atomic_t *count, void (*fail_fn)(atomic_t *))
 {
 	int __ex_flag, __res;
 
@@ -44,7 +44,7 @@ __mutex_fastpath_lock(atomic_t *count, fastcall void (*fail_fn)(atomic_t *))
 }
 
 static inline int
-__mutex_fastpath_lock_retval(atomic_t *count, fastcall int (*fail_fn)(atomic_t *))
+__mutex_fastpath_lock_retval(atomic_t *count, int (*fail_fn)(atomic_t *))
 {
 	int __ex_flag, __res;
 
@@ -70,7 +70,7 @@ __mutex_fastpath_lock_retval(atomic_t *count, fastcall int (*fail_fn)(atomic_t *
  * better generated assembly.
  */
 static inline void
-__mutex_fastpath_unlock(atomic_t *count, fastcall void (*fail_fn)(atomic_t *))
+__mutex_fastpath_unlock(atomic_t *count, void (*fail_fn)(atomic_t *))
 {
 	int __ex_flag, __res, __orig;
 

@@ -122,7 +122,7 @@ static void mlx4_buddy_free(struct mlx4_buddy *buddy, u32 seg, int order)
 	spin_unlock(&buddy->lock);
 }
 
-static int __devinit mlx4_buddy_init(struct mlx4_buddy *buddy, int max_order)
+static int mlx4_buddy_init(struct mlx4_buddy *buddy, int max_order)
 {
 	int i, s;
 
@@ -419,9 +419,9 @@ int mlx4_buf_write_mtt(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 
 	for (i = 0; i < buf->npages; ++i)
 		if (buf->nbufs == 1)
-			page_list[i] = buf->u.direct.map + (i << buf->page_shift);
+			page_list[i] = buf->direct.map + (i << buf->page_shift);
 		else
-			page_list[i] = buf->u.page_list[i].map;
+			page_list[i] = buf->page_list[i].map;
 
 	err = mlx4_write_mtt(dev, mtt, 0, buf->npages, page_list);
 
@@ -578,13 +578,6 @@ int mlx4_fmr_alloc(struct mlx4_dev *dev, u32 pd, u32 access, int max_pages,
 		goto err_free;
 	}
 
-	fmr->mpt = mlx4_table_find(&priv->mr_table.dmpt_table,
-				    key_to_hw_index(fmr->mr.key), NULL);
-	if (!fmr->mpt) {
-		err = -ENOMEM;
-		goto err_free;
-	}
-
 	return 0;
 
 err_free:
@@ -595,7 +588,19 @@ EXPORT_SYMBOL_GPL(mlx4_fmr_alloc);
 
 int mlx4_fmr_enable(struct mlx4_dev *dev, struct mlx4_fmr *fmr)
 {
-	return mlx4_mr_enable(dev, &fmr->mr);
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	int err;
+
+	err = mlx4_mr_enable(dev, &fmr->mr);
+	if (err)
+		return err;
+
+	fmr->mpt = mlx4_table_find(&priv->mr_table.dmpt_table,
+				    key_to_hw_index(fmr->mr.key), NULL);
+	if (!fmr->mpt)
+		return -ENOMEM;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(mlx4_fmr_enable);
 

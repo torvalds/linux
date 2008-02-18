@@ -7,11 +7,9 @@
  */
 
 #include <asm/ptrace.h>
-#ifdef __KERNEL__
 #include <asm/processor.h>
 #include <asm/uaccess.h>
 #include <asm/spitfire.h>
-#endif
 
 /*
  * Sparc section types
@@ -72,18 +70,15 @@
 #define HWCAP_SPARC_BLKINIT	64
 #define HWCAP_SPARC_N2		128
 
+#define CORE_DUMP_USE_REGSET
+
 /*
  * These are used to set parameters in the core dumps.
  */
-#ifndef ELF_ARCH
 #define ELF_ARCH		EM_SPARCV9
 #define ELF_CLASS		ELFCLASS64
 #define ELF_DATA		ELFDATA2MSB
 
-typedef unsigned long elf_greg_t;
-
-#define ELF_NGREG 36
-typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 /* Format of 64-bit elf_gregset_t is:
  * 	G0 --> G7
  * 	O0 --> O7
@@ -94,24 +89,9 @@ typedef elf_greg_t elf_gregset_t[ELF_NGREG];
  *	TNPC
  *	Y
  */
-#define ELF_CORE_COPY_REGS(__elf_regs, __pt_regs)	\
-do {	unsigned long *dest = &(__elf_regs[0]);		\
-	struct pt_regs *src = (__pt_regs);		\
-	unsigned long __user *sp;			\
-	int i;						\
-	for(i = 0; i < 16; i++)				\
-		dest[i] = src->u_regs[i];		\
-	/* Don't try this at home kids... */		\
-	sp = (unsigned long __user *)			\
-	 ((src->u_regs[14] + STACK_BIAS)		\
-	  & 0xfffffffffffffff8UL);			\
-	for(i = 0; i < 16; i++)				\
-		__get_user(dest[i+16], &sp[i]);		\
-	dest[32] = src->tstate;				\
-	dest[33] = src->tpc;				\
-	dest[34] = src->tnpc;				\
-	dest[35] = src->y;				\
-} while (0);
+typedef unsigned long elf_greg_t;
+#define ELF_NGREG 36
+typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 
 typedef struct {
 	unsigned long	pr_regs[32];
@@ -119,17 +99,59 @@ typedef struct {
 	unsigned long	pr_gsr;
 	unsigned long	pr_fprs;
 } elf_fpregset_t;
-#endif
 
-#define ELF_CORE_COPY_TASK_REGS(__tsk, __elf_regs)	\
-	({ ELF_CORE_COPY_REGS((*(__elf_regs)), task_pt_regs(__tsk)); 1; })
+/* Format of 32-bit elf_gregset_t is:
+ * 	G0 --> G7
+ *	O0 --> O7
+ *	L0 --> L7
+ *	I0 --> I7
+ *	PSR, PC, nPC, Y, WIM, TBR
+ */
+typedef unsigned int compat_elf_greg_t;
+#define COMPAT_ELF_NGREG 38
+typedef compat_elf_greg_t compat_elf_gregset_t[COMPAT_ELF_NGREG];
+
+typedef struct {
+	union {
+		unsigned int	pr_regs[32];
+		unsigned long	pr_dregs[16];
+	} pr_fr;
+	unsigned int __unused;
+	unsigned int	pr_fsr;
+	unsigned char	pr_qcnt;
+	unsigned char	pr_q_entrysize;
+	unsigned char	pr_en;
+	unsigned int	pr_q[64];
+} compat_elf_fpregset_t;
+
+/* UltraSparc extensions.  Still unused, but will be eventually.  */
+typedef struct {
+	unsigned int pr_type;
+	unsigned int pr_align;
+	union {
+		struct {
+			union {
+				unsigned int	pr_regs[32];
+				unsigned long	pr_dregs[16];
+				long double	pr_qregs[8];
+			} pr_xfr;
+		} pr_v8p;
+		unsigned int	pr_xfsr;
+		unsigned int	pr_fprs;
+		unsigned int	pr_xg[8];
+		unsigned int	pr_xo[8];
+		unsigned long	pr_tstate;
+		unsigned int	pr_filler[8];
+	} pr_un;
+} elf_xregset_t;
 
 /*
  * This is used to ensure we don't load something for the wrong architecture.
  */
-#ifndef elf_check_arch
-#define elf_check_arch(x) ((x)->e_machine == ELF_ARCH)	/* Might be EM_SPARCV9 or EM_SPARC */
-#endif
+#define elf_check_arch(x)		((x)->e_machine == ELF_ARCH)
+#define compat_elf_check_arch(x)	((x)->e_machine == EM_SPARC || \
+					 (x)->e_machine == EM_SPARC32PLUS)
+#define compat_start_thread		start_thread32
 
 #define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE	PAGE_SIZE
@@ -139,9 +161,8 @@ typedef struct {
    the loader.  We need to make sure that it is out of the way of the program
    that it will "exec", and that there is sufficient room for the brk.  */
 
-#ifndef ELF_ET_DYN_BASE
-#define ELF_ET_DYN_BASE         0x0000010000000000UL
-#endif
+#define ELF_ET_DYN_BASE		0x0000010000000000UL
+#define COMPAT_ELF_ET_DYN_BASE	0x0000000070000000UL
 
 
 /* This yields a mask that user programs can use to figure out what
@@ -175,7 +196,6 @@ static inline unsigned int sparc64_elf_hwcap(void)
 
 #define ELF_PLATFORM	(NULL)
 
-#ifdef __KERNEL__
 #define SET_PERSONALITY(ex, ibcs2)			\
 do {	unsigned long new_flags = current_thread_info()->flags; \
 	new_flags &= _TIF_32BIT;			\
@@ -194,6 +214,5 @@ do {	unsigned long new_flags = current_thread_info()->flags; \
 	else if (current->personality != PER_LINUX32)	\
 		set_personality(PER_LINUX);		\
 } while (0)
-#endif
 
 #endif /* !(__ASM_SPARC64_ELF_H) */

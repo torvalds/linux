@@ -144,7 +144,7 @@ int i830_irq_wait(struct drm_device *dev, void *data,
 		  struct drm_file *file_priv)
 {
 	drm_i830_private_t *dev_priv = dev->dev_private;
-	drm_i830_irq_wait_t *irqwait = data; 
+	drm_i830_irq_wait_t *irqwait = data;
 
 	if (!dev_priv) {
 		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);

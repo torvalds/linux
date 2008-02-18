@@ -139,7 +139,6 @@ static int test_NX(void)
 	 * Until then, don't run them to avoid too many people getting scared
 	 * by the error message
 	 */
-#if 0
 
 #ifdef CONFIG_DEBUG_RODATA
 	/* Test 3: Check if the .rodata section is executable */
@@ -152,6 +151,7 @@ static int test_NX(void)
 	}
 #endif
 
+#if 0
 	/* Test 4: Check if the .data section of a module is executable */
 	if (test_address(&test_data)) {
 		printk(KERN_ERR "test_nx: .data section is executable\n");

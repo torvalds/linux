@@ -925,6 +925,16 @@ qla2x00_setup_chip(scsi_qla_host_t *ha)
 {
 	int rval;
 	uint32_t srisc_address = 0;
+	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
+	unsigned long flags;
+
+	if (!IS_FWI2_CAPABLE(ha) && !IS_QLA2100(ha) && !IS_QLA2200(ha)) {
+		/* Disable SRAM, Instruction RAM and GP RAM parity.  */
+		spin_lock_irqsave(&ha->hardware_lock, flags);
+		WRT_REG_WORD(&reg->hccr, (HCCR_ENABLE_PARITY + 0x0));
+		RD_REG_WORD(&reg->hccr);
+		spin_unlock_irqrestore(&ha->hardware_lock, flags);
+	}
 
 	/* Load firmware sequences */
 	rval = ha->isp_ops->load_risc(ha, &srisc_address);
@@ -966,6 +976,19 @@ qla2x00_setup_chip(scsi_qla_host_t *ha)
 			    "scsi(%ld): ISP Firmware failed checksum.\n",
 			    ha->host_no));
 		}
+	}
+
+	if (!IS_FWI2_CAPABLE(ha) && !IS_QLA2100(ha) && !IS_QLA2200(ha)) {
+		/* Enable proper parity. */
+		spin_lock_irqsave(&ha->hardware_lock, flags);
+		if (IS_QLA2300(ha))
+			/* SRAM parity */
+			WRT_REG_WORD(&reg->hccr, HCCR_ENABLE_PARITY + 0x1);
+		else
+			/* SRAM, Instruction RAM and GP RAM parity */
+			WRT_REG_WORD(&reg->hccr, HCCR_ENABLE_PARITY + 0x7);
+		RD_REG_WORD(&reg->hccr);
+		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	}
 
 	if (rval) {
@@ -3213,9 +3236,6 @@ int
 qla2x00_abort_isp(scsi_qla_host_t *ha)
 {
 	int rval;
-	unsigned long flags = 0;
-	uint16_t       cnt;
-	srb_t          *sp;
 	uint8_t        status = 0;
 
 	if (ha->flags.online) {
@@ -3236,19 +3256,8 @@ qla2x00_abort_isp(scsi_qla_host_t *ha)
 				    LOOP_DOWN_TIME);
 		}
 
-		spin_lock_irqsave(&ha->hardware_lock, flags);
 		/* Requeue all commands in outstanding command list. */
-		for (cnt = 1; cnt < MAX_OUTSTANDING_COMMANDS; cnt++) {
-			sp = ha->outstanding_cmds[cnt];
-			if (sp) {
-				ha->outstanding_cmds[cnt] = NULL;
-				sp->flags = 0;
-				sp->cmd->result = DID_RESET << 16;
-				sp->cmd->host_scribble = (unsigned char *)NULL;
-				qla2x00_sp_compl(ha, sp);
-			}
-		}
-		spin_unlock_irqrestore(&ha->hardware_lock, flags);
+		qla2x00_abort_all_cmds(ha, DID_RESET << 16);
 
 		ha->isp_ops->get_flash_version(ha, ha->request_ring);
 
@@ -3273,6 +3282,7 @@ qla2x00_abort_isp(scsi_qla_host_t *ha)
 			clear_bit(ISP_ABORT_RETRY, &ha->dpc_flags);
 
 			if (ha->eft) {
+				memset(ha->eft, 0, EFT_SIZE);
 				rval = qla2x00_enable_eft_trace(ha,
 				    ha->eft_dma, EFT_NUM_BUFFERS);
 				if (rval) {
@@ -3357,60 +3367,15 @@ static int
 qla2x00_restart_isp(scsi_qla_host_t *ha)
 {
 	uint8_t		status = 0;
-	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
-	unsigned long	flags = 0;
 	uint32_t wait_time;
 
 	/* If firmware needs to be loaded */
 	if (qla2x00_isp_firmware(ha)) {
 		ha->flags.online = 0;
-		if (!(status = ha->isp_ops->chip_diag(ha))) {
-			if (IS_QLA2100(ha) || IS_QLA2200(ha)) {
-				status = qla2x00_setup_chip(ha);
-				goto done;
-			}
-
-			spin_lock_irqsave(&ha->hardware_lock, flags);
-
-			if (!IS_QLA24XX(ha) && !IS_QLA54XX(ha) &&
-			    !IS_QLA25XX(ha)) {
-				/*
-				 * Disable SRAM, Instruction RAM and GP RAM
-				 * parity.
-				 */
-				WRT_REG_WORD(&reg->hccr,
-				    (HCCR_ENABLE_PARITY + 0x0));
-				RD_REG_WORD(&reg->hccr);
-			}
-
-			spin_unlock_irqrestore(&ha->hardware_lock, flags);
-
+		if (!(status = ha->isp_ops->chip_diag(ha)))
 			status = qla2x00_setup_chip(ha);
-
-			spin_lock_irqsave(&ha->hardware_lock, flags);
-
-			if (!IS_QLA24XX(ha) && !IS_QLA54XX(ha) &&
-			    !IS_QLA25XX(ha)) {
-				/* Enable proper parity */
-				if (IS_QLA2300(ha))
-					/* SRAM parity */
-					WRT_REG_WORD(&reg->hccr,
-					    (HCCR_ENABLE_PARITY + 0x1));
-				else
-					/*
-					 * SRAM, Instruction RAM and GP RAM
-					 * parity.
-					 */
-					WRT_REG_WORD(&reg->hccr,
-					    (HCCR_ENABLE_PARITY + 0x7));
-				RD_REG_WORD(&reg->hccr);
-			}
-
-			spin_unlock_irqrestore(&ha->hardware_lock, flags);
-		}
 	}
 
- done:
 	if (!status && !(status = qla2x00_init_rings(ha))) {
 		clear_bit(RESET_MARKER_NEEDED, &ha->dpc_flags);
 		if (!(status = qla2x00_fw_ready(ha))) {

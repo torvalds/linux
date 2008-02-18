@@ -150,6 +150,7 @@ extern const struct file_operations autofs_root_operations;
 
 int autofs_fill_super(struct super_block *, void *, int);
 void autofs_kill_sb(struct super_block *sb);
+struct inode *autofs_iget(struct super_block *, unsigned long);
 
 /* Queue management functions */
 

@@ -1,6 +1,9 @@
 Kernel driver pca9539
 =====================
 
+NOTE: this driver is deprecated and will be dropped soon, use
+drivers/gpio/pca9539.c instead.
+
 Supported chips:
   * Philips PCA9539
     Prefix: 'pca9539'

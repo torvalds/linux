@@ -543,7 +543,7 @@ static void pdc_fill_sg(struct ata_queued_cmd *qc)
 	idx = 0;
 	for_each_sg(qc->sg, sg, qc->n_elem, si) {
 		u32 addr, offset;
-		u32 sg_len, len;
+		u32 sg_len;
 
 		/* determine if physical DMA addr spans 64K boundary.
 		 * Note h/w doesn't support 64-bit, so we unconditionally

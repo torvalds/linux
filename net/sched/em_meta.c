@@ -65,6 +65,7 @@
 #include <linux/string.h>
 #include <linux/skbuff.h>
 #include <linux/random.h>
+#include <linux/if_vlan.h>
 #include <linux/tc_ematch/tc_em_meta.h>
 #include <net/dst.h>
 #include <net/route.h>
@@ -168,6 +169,21 @@ META_COLLECTOR(var_dev)
 {
 	*err = var_dev(skb->dev, dst);
 }
+
+/**************************************************************************
+ * vlan tag
+ **************************************************************************/
+
+META_COLLECTOR(int_vlan_tag)
+{
+	unsigned short uninitialized_var(tag);
+	if (vlan_get_tag(skb, &tag) < 0)
+		*err = -1;
+	else
+		dst->value = tag;
+}
+
+
 
 /**************************************************************************
  * skb attributes
@@ -520,6 +536,7 @@ static struct meta_ops __meta_ops[TCF_META_TYPE_MAX+1][TCF_META_ID_MAX+1] = {
 		[META_ID(SK_SNDTIMEO)]		= META_FUNC(int_sk_sndtimeo),
 		[META_ID(SK_SENDMSG_OFF)]	= META_FUNC(int_sk_sendmsg_off),
 		[META_ID(SK_WRITE_PENDING)]	= META_FUNC(int_sk_write_pend),
+		[META_ID(VLAN_TAG)]		= META_FUNC(int_vlan_tag),
 	}
 };
 
@@ -670,8 +687,8 @@ static inline struct meta_type_ops * meta_type_ops(struct meta_value *v)
  * Core
  **************************************************************************/
 
-static inline int meta_get(struct sk_buff *skb, struct tcf_pkt_info *info,
-			   struct meta_value *v, struct meta_obj *dst)
+static int meta_get(struct sk_buff *skb, struct tcf_pkt_info *info,
+		    struct meta_value *v, struct meta_obj *dst)
 {
 	int err = 0;
 
@@ -716,13 +733,15 @@ static int em_meta_match(struct sk_buff *skb, struct tcf_ematch *m,
 	return 0;
 }
 
-static inline void meta_delete(struct meta_match *meta)
+static void meta_delete(struct meta_match *meta)
 {
-	struct meta_type_ops *ops = meta_type_ops(&meta->lvalue);
+	if (meta) {
+		struct meta_type_ops *ops = meta_type_ops(&meta->lvalue);
 
-	if (ops && ops->destroy) {
-		ops->destroy(&meta->lvalue);
-		ops->destroy(&meta->rvalue);
+		if (ops && ops->destroy) {
+			ops->destroy(&meta->lvalue);
+			ops->destroy(&meta->rvalue);
+		}
 	}
 
 	kfree(meta);

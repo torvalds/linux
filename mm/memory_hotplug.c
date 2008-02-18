@@ -481,8 +481,6 @@ check_pages_isolated(unsigned long start_pfn, unsigned long end_pfn)
 	return offlined;
 }
 
-extern void drain_all_local_pages(void);
-
 int offline_pages(unsigned long start_pfn,
 		  unsigned long end_pfn, unsigned long timeout)
 {
@@ -540,7 +538,7 @@ repeat:
 		lru_add_drain_all();
 		flush_scheduled_work();
 		cond_resched();
-		drain_all_local_pages();
+		drain_all_pages();
 	}
 
 	pfn = scan_lru_pages(start_pfn, end_pfn);
@@ -563,7 +561,7 @@ repeat:
 	flush_scheduled_work();
 	yield();
 	/* drain pcp pages , this is synchrouns. */
-	drain_all_local_pages();
+	drain_all_pages();
 	/* check again */
 	offlined_pages = check_pages_isolated(start_pfn, end_pfn);
 	if (offlined_pages < 0) {

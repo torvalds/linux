@@ -10,8 +10,8 @@
 
 #include <asm/arch/orion.h>
 
-#define MV_UART_LSR 	((volatile unsigned char *)(UART0_BASE + 0x14))
-#define MV_UART_THR	((volatile unsigned char *)(UART0_BASE + 0x0))
+#define MV_UART_THR	((volatile unsigned char *)(UART0_PHYS_BASE + 0x0))
+#define MV_UART_LSR 	((volatile unsigned char *)(UART0_PHYS_BASE + 0x14))
 
 #define LSR_THRE	0x20
 
@@ -25,16 +25,6 @@ static void putc(const char c)
 
 static void flush(void)
 {
-}
-
-static void orion_early_putstr(const char *ptr)
-{
-	char c;
-	while ((c = *ptr++) != '\0') {
-		if (c == '\n')
-			putc('\r');
-		putc(c);
-	}
 }
 
 /*

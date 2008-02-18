@@ -90,25 +90,29 @@ static struct dentry *ocd_debugfs_DC;
 static struct dentry *ocd_debugfs_DS;
 static struct dentry *ocd_debugfs_count;
 
-static u64 ocd_DC_get(void *data)
+static int ocd_DC_get(void *data, u64 *val)
 {
-	return ocd_read(DC);
+	*val = ocd_read(DC);
+	return 0;
 }
-static void ocd_DC_set(void *data, u64 val)
+static int ocd_DC_set(void *data, u64 val)
 {
 	ocd_write(DC, val);
+	return 0;
 }
 DEFINE_SIMPLE_ATTRIBUTE(fops_DC, ocd_DC_get, ocd_DC_set, "0x%08llx\n");
 
-static u64 ocd_DS_get(void *data)
+static int ocd_DS_get(void *data, u64 *val)
 {
-	return ocd_read(DS);
+	*val = ocd_read(DS);
+	return 0;
 }
 DEFINE_SIMPLE_ATTRIBUTE(fops_DS, ocd_DS_get, NULL, "0x%08llx\n");
 
-static u64 ocd_count_get(void *data)
+static int ocd_count_get(void *data, u64 *val)
 {
-	return ocd_count;
+	*val = ocd_count;
+	return 0;
 }
 DEFINE_SIMPLE_ATTRIBUTE(fops_count, ocd_count_get, NULL, "%lld\n");
 

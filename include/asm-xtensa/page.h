@@ -11,8 +11,6 @@
 #ifndef _XTENSA_PAGE_H
 #define _XTENSA_PAGE_H
 
-#ifdef __KERNEL__
-
 #include <asm/processor.h>
 #include <asm/types.h>
 #include <asm/cache.h>
@@ -100,6 +98,7 @@
 typedef struct { unsigned long pte; } pte_t;		/* page table entry */
 typedef struct { unsigned long pgd; } pgd_t;		/* PGD table entry */
 typedef struct { unsigned long pgprot; } pgprot_t;
+typedef struct page *pgtable_t;
 
 #define pte_val(x)	((x).pte)
 #define pgd_val(x)	((x).pgd)
@@ -174,5 +173,4 @@ extern void copy_user_page(void*, void*, unsigned long, struct page*);
 				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
 #include <asm-generic/memory_model.h>
-#endif /* __KERNEL__ */
 #endif /* _XTENSA_PAGE_H */

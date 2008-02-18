@@ -32,7 +32,6 @@
 #include <asm/mach/map.h>
 
 #include <asm/arch/pxa-regs.h>
-#include <asm/arch/gpio.h>
 
 #include "generic.h"
 
@@ -67,97 +66,6 @@ unsigned int get_memclk_frequency_10khz(void)
 EXPORT_SYMBOL(get_memclk_frequency_10khz);
 
 /*
- * Handy function to set GPIO alternate functions
- */
-int pxa_last_gpio;
-
-int pxa_gpio_mode(int gpio_mode)
-{
-	unsigned long flags;
-	int gpio = gpio_mode & GPIO_MD_MASK_NR;
-	int fn = (gpio_mode & GPIO_MD_MASK_FN) >> 8;
-	int gafr;
-
-	if (gpio > pxa_last_gpio)
-		return -EINVAL;
-
-	local_irq_save(flags);
-	if (gpio_mode & GPIO_DFLT_LOW)
-		GPCR(gpio) = GPIO_bit(gpio);
-	else if (gpio_mode & GPIO_DFLT_HIGH)
-		GPSR(gpio) = GPIO_bit(gpio);
-	if (gpio_mode & GPIO_MD_MASK_DIR)
-		GPDR(gpio) |= GPIO_bit(gpio);
-	else
-		GPDR(gpio) &= ~GPIO_bit(gpio);
-	gafr = GAFR(gpio) & ~(0x3 << (((gpio) & 0xf)*2));
-	GAFR(gpio) = gafr |  (fn  << (((gpio) & 0xf)*2));
-	local_irq_restore(flags);
-
-	return 0;
-}
-
-EXPORT_SYMBOL(pxa_gpio_mode);
-
-int gpio_direction_input(unsigned gpio)
-{
-	unsigned long flags;
-	u32 mask;
-
-	if (gpio > pxa_last_gpio)
-		return -EINVAL;
-
-	mask = GPIO_bit(gpio);
-	local_irq_save(flags);
-	GPDR(gpio) &= ~mask;
-	local_irq_restore(flags);
-
-	return 0;
-}
-EXPORT_SYMBOL(gpio_direction_input);
-
-int gpio_direction_output(unsigned gpio, int value)
-{
-	unsigned long flags;
-	u32 mask;
-
-	if (gpio > pxa_last_gpio)
-		return -EINVAL;
-
-	mask = GPIO_bit(gpio);
-	local_irq_save(flags);
-	if (value)
-		GPSR(gpio) = mask;
-	else
-		GPCR(gpio) = mask;
-	GPDR(gpio) |= mask;
-	local_irq_restore(flags);
-
-	return 0;
-}
-EXPORT_SYMBOL(gpio_direction_output);
-
-/*
- * Return GPIO level
- */
-int pxa_gpio_get_value(unsigned gpio)
-{
-	return __gpio_get_value(gpio);
-}
-
-EXPORT_SYMBOL(pxa_gpio_get_value);
-
-/*
- * Set output GPIO level
- */
-void pxa_gpio_set_value(unsigned gpio, int value)
-{
-	__gpio_set_value(gpio, value);
-}
-
-EXPORT_SYMBOL(pxa_gpio_set_value);
-
-/*
  * Routine to safely enable or disable a clock in the CKEN
  */
 void __pxa_set_cken(int clock, int enable)
@@ -172,7 +80,6 @@ void __pxa_set_cken(int clock, int enable)
 
 	local_irq_restore(flags);
 }
-
 EXPORT_SYMBOL(__pxa_set_cken);
 
 /*

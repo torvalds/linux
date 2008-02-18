@@ -31,6 +31,7 @@
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
 #include <linux/hwmon.h>
+#include <linux/hwmon-sysfs.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
 
@@ -113,7 +114,6 @@ show(temp_input);
 show(temp_crit);
 show(temp_min);
 show(temp_max);
-show(alarms);
 
 /* read routines for hysteresis values */
 static ssize_t show_temp_crit_hyst(struct device *dev, struct device_attribute *attr, char *buf)
@@ -186,6 +186,14 @@ static ssize_t set_temp_crit(struct device *dev, struct device_attribute *attr, 
 	return count;
 }
 
+static ssize_t show_alarm(struct device *dev, struct device_attribute *attr,
+			  char *buf)
+{
+	int bitnr = to_sensor_dev_attr(attr)->index;
+	struct lm77_data *data = lm77_update_device(dev);
+	return sprintf(buf, "%u\n", (data->alarms >> bitnr) & 1);
+}
+
 static DEVICE_ATTR(temp1_input, S_IRUGO,
 		   show_temp_input, NULL);
 static DEVICE_ATTR(temp1_crit, S_IWUSR | S_IRUGO,
@@ -202,8 +210,9 @@ static DEVICE_ATTR(temp1_min_hyst, S_IRUGO,
 static DEVICE_ATTR(temp1_max_hyst, S_IRUGO,
 		   show_temp_max_hyst, NULL);
 
-static DEVICE_ATTR(alarms, S_IRUGO,
-		   show_alarms, NULL);
+static SENSOR_DEVICE_ATTR(temp1_crit_alarm, S_IRUGO, show_alarm, NULL, 2);
+static SENSOR_DEVICE_ATTR(temp1_min_alarm, S_IRUGO, show_alarm, NULL, 0);
+static SENSOR_DEVICE_ATTR(temp1_max_alarm, S_IRUGO, show_alarm, NULL, 1);
 
 static int lm77_attach_adapter(struct i2c_adapter *adapter)
 {
@@ -220,8 +229,9 @@ static struct attribute *lm77_attributes[] = {
 	&dev_attr_temp1_crit_hyst.attr,
 	&dev_attr_temp1_min_hyst.attr,
 	&dev_attr_temp1_max_hyst.attr,
-	&dev_attr_alarms.attr,
-
+	&sensor_dev_attr_temp1_crit_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp1_min_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp1_max_alarm.dev_attr.attr,
 	NULL
 };
 

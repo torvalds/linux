@@ -122,38 +122,40 @@ clear_bit_unlock (int nr, volatile void *addr)
 }
 
 /**
- * __clear_bit_unlock - Non-atomically clear a bit with release
+ * __clear_bit_unlock - Non-atomically clears a bit in memory with release
+ * @nr: Bit to clear
+ * @addr: Address to start counting from
  *
- * This is like clear_bit_unlock, but the implementation uses a store
+ * Similarly to clear_bit_unlock, the implementation uses a store
  * with release semantics. See also __raw_spin_unlock().
  */
 static __inline__ void
-__clear_bit_unlock(int nr, volatile void *addr)
+__clear_bit_unlock(int nr, void *addr)
 {
-	__u32 mask, new;
-	volatile __u32 *m;
+	__u32 * const m = (__u32 *) addr + (nr >> 5);
+	__u32 const new = *m & ~(1 << (nr & 31));
 
-	m = (volatile __u32 *)addr + (nr >> 5);
-	mask = ~(1 << (nr & 31));
-	new = *m & mask;
-	barrier();
 	ia64_st4_rel_nta(m, new);
 }
 
 /**
  * __clear_bit - Clears a bit in memory (non-atomic version)
+ * @nr: the bit to clear
+ * @addr: the address to start counting from
+ *
+ * Unlike clear_bit(), this function is non-atomic and may be reordered.
+ * If it's called on the same region of memory simultaneously, the effect
+ * may be that only one operation succeeds.
  */
 static __inline__ void
 __clear_bit (int nr, volatile void *addr)
 {
-	volatile __u32 *p = (__u32 *) addr + (nr >> 5);
-	__u32 m = 1 << (nr & 31);
-	*p &= ~m;
+	*((__u32 *) addr + (nr >> 5)) &= ~(1 << (nr & 31));
 }
 
 /**
  * change_bit - Toggle a bit in memory
- * @nr: Bit to clear
+ * @nr: Bit to toggle
  * @addr: Address to start counting from
  *
  * change_bit() is atomic and may not be reordered.
@@ -178,7 +180,7 @@ change_bit (int nr, volatile void *addr)
 
 /**
  * __change_bit - Toggle a bit in memory
- * @nr: the bit to set
+ * @nr: the bit to toggle
  * @addr: the address to start counting from
  *
  * Unlike change_bit(), this function is non-atomic and may be reordered.
@@ -197,7 +199,7 @@ __change_bit (int nr, volatile void *addr)
  * @addr: Address to count from
  *
  * This operation is atomic and cannot be reordered.  
- * It also implies a memory barrier.
+ * It also implies the acquisition side of the memory barrier.
  */
 static __inline__ int
 test_and_set_bit (int nr, volatile void *addr)
@@ -247,11 +249,11 @@ __test_and_set_bit (int nr, volatile void *addr)
 
 /**
  * test_and_clear_bit - Clear a bit and return its old value
- * @nr: Bit to set
+ * @nr: Bit to clear
  * @addr: Address to count from
  *
  * This operation is atomic and cannot be reordered.  
- * It also implies a memory barrier.
+ * It also implies the acquisition side of the memory barrier.
  */
 static __inline__ int
 test_and_clear_bit (int nr, volatile void *addr)
@@ -272,7 +274,7 @@ test_and_clear_bit (int nr, volatile void *addr)
 
 /**
  * __test_and_clear_bit - Clear a bit and return its old value
- * @nr: Bit to set
+ * @nr: Bit to clear
  * @addr: Address to count from
  *
  * This operation is non-atomic and can be reordered.  
@@ -292,11 +294,11 @@ __test_and_clear_bit(int nr, volatile void * addr)
 
 /**
  * test_and_change_bit - Change a bit and return its old value
- * @nr: Bit to set
+ * @nr: Bit to change
  * @addr: Address to count from
  *
  * This operation is atomic and cannot be reordered.  
- * It also implies a memory barrier.
+ * It also implies the acquisition side of the memory barrier.
  */
 static __inline__ int
 test_and_change_bit (int nr, volatile void *addr)
@@ -315,8 +317,12 @@ test_and_change_bit (int nr, volatile void *addr)
 	return (old & bit) != 0;
 }
 
-/*
- * WARNING: non atomic version.
+/**
+ * __test_and_change_bit - Change a bit and return its old value
+ * @nr: Bit to change
+ * @addr: Address to count from
+ *
+ * This operation is non-atomic and can be reordered.
  */
 static __inline__ int
 __test_and_change_bit (int nr, void *addr)

@@ -72,6 +72,7 @@ config WALNUT
 	default y
 	select 405GP
 	select PCI
+	select OF_RTC
 	help
 	  This option enables support for the IBM PPC405GP evaluation board.
 

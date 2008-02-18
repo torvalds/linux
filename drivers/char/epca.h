@@ -77,7 +77,6 @@ static char *board_desc[] =
 #define ON         1
 
 #define FEPTIMEOUT 200000  
-#define SERIAL_TYPE_NORMAL  1
 #define SERIAL_TYPE_INFO    3
 #define EPCA_EVENT_HANGUP   1
 #define EPCA_MAGIC          0x5c6df104L

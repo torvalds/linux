@@ -40,11 +40,6 @@
 #define R0_RAM_ADDR		0xFFFFF000
 
 
-/* For <asm/param.h> */
-#ifndef HZ
-#define HZ			24	/* Minimum supported frequency.  */
-#endif
-
 /* For <asm/irq.h> */
 #define NUM_CPU_IRQS		6
 

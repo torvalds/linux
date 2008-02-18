@@ -2041,7 +2041,7 @@ int ip_route_input(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	int iif = dev->ifindex;
 	struct net *net;
 
-	net = skb->dev->nd_net;
+	net = dev->nd_net;
 	tos &= IPTOS_RT_MASK;
 	hash = rt_hash(daddr, saddr, iif);
 

@@ -14,7 +14,6 @@
 #define _LINUX_CAPABILITY_H
 
 #include <linux/types.h>
-#include <linux/compiler.h>
 
 struct task_struct;
 
@@ -23,13 +22,20 @@ struct task_struct;
    kernel might be somewhat backwards compatible, but don't bet on
    it. */
 
-/* XXX - Note, cap_t, is defined by POSIX to be an "opaque" pointer to
+/* Note, cap_t, is defined by POSIX (draft) to be an "opaque" pointer to
    a set of three capability sets.  The transposition of 3*the
    following structure to such a composite is better handled in a user
    library since the draft standard requires the use of malloc/free
    etc.. */
 
-#define _LINUX_CAPABILITY_VERSION  0x19980330
+#define _LINUX_CAPABILITY_VERSION_1  0x19980330
+#define _LINUX_CAPABILITY_U32S_1     1
+
+#define _LINUX_CAPABILITY_VERSION_2  0x20071026
+#define _LINUX_CAPABILITY_U32S_2     2
+
+#define _LINUX_CAPABILITY_VERSION    _LINUX_CAPABILITY_VERSION_2
+#define _LINUX_CAPABILITY_U32S       _LINUX_CAPABILITY_U32S_2
 
 typedef struct __user_cap_header_struct {
 	__u32 version;
@@ -42,41 +48,42 @@ typedef struct __user_cap_data_struct {
         __u32 inheritable;
 } __user *cap_user_data_t;
 
+
 #define XATTR_CAPS_SUFFIX "capability"
 #define XATTR_NAME_CAPS XATTR_SECURITY_PREFIX XATTR_CAPS_SUFFIX
 
-#define XATTR_CAPS_SZ (3*sizeof(__le32))
 #define VFS_CAP_REVISION_MASK	0xFF000000
-#define VFS_CAP_REVISION_1	0x01000000
-
-#define VFS_CAP_REVISION	VFS_CAP_REVISION_1
-
 #define VFS_CAP_FLAGS_MASK	~VFS_CAP_REVISION_MASK
 #define VFS_CAP_FLAGS_EFFECTIVE	0x000001
 
+#define VFS_CAP_REVISION_1	0x01000000
+#define VFS_CAP_U32_1           1
+#define XATTR_CAPS_SZ_1         (sizeof(__le32)*(1 + 2*VFS_CAP_U32_1))
+
+#define VFS_CAP_REVISION_2	0x02000000
+#define VFS_CAP_U32_2           2
+#define XATTR_CAPS_SZ_2         (sizeof(__le32)*(1 + 2*VFS_CAP_U32_2))
+
+#define XATTR_CAPS_SZ           XATTR_CAPS_SZ_2
+#define VFS_CAP_U32             VFS_CAP_U32_2
+#define VFS_CAP_REVISION	VFS_CAP_REVISION_2
+
+
 struct vfs_cap_data {
-	__u32 magic_etc;  /* Little endian */
-	__u32 permitted;    /* Little endian */
-	__u32 inheritable;  /* Little endian */
+	__le32 magic_etc;            /* Little endian */
+	struct {
+		__le32 permitted;    /* Little endian */
+		__le32 inheritable;  /* Little endian */
+	} data[VFS_CAP_U32];
 };
 
 #ifdef __KERNEL__
 
-/* #define STRICT_CAP_T_TYPECHECKS */
-
-#ifdef STRICT_CAP_T_TYPECHECKS
-
 typedef struct kernel_cap_struct {
-	__u32 cap;
+	__u32 cap[_LINUX_CAPABILITY_U32S];
 } kernel_cap_t;
 
-#else
-
-typedef __u32 kernel_cap_t;
-
-#endif
-
-#define _USER_CAP_HEADER_SIZE  (2*sizeof(__u32))
+#define _USER_CAP_HEADER_SIZE  (sizeof(struct __user_cap_header_struct))
 #define _KERNEL_CAP_T_SIZE     (sizeof(kernel_cap_t))
 
 #endif
@@ -119,10 +126,6 @@ typedef __u32 kernel_cap_t;
 
 #define CAP_FSETID           4
 
-/* Used to decide between falling back on the old suser() or fsuser(). */
-
-#define CAP_FS_MASK          0x1f
-
 /* Overrides the restriction that the real or effective user ID of a
    process sending a signal must match the real or effective user ID
    of the process receiving the signal. */
@@ -145,8 +148,14 @@ typedef __u32 kernel_cap_t;
  ** Linux-specific capabilities
  **/
 
-/* Transfer any capability in your permitted set to any pid,
-   remove any capability in your permitted set from any pid */
+/* Without VFS support for capabilities:
+ *   Transfer any capability in your permitted set to any pid,
+ *   remove any capability in your permitted set from any pid
+ * With VFS support for capabilities (neither of above, but)
+ *   Add any capability from current's capability bounding set
+ *       to the current process' inheritable set
+ *   Allow taking bits out of capability bounding set
+ */
 
 #define CAP_SETPCAP          8
 
@@ -195,7 +204,6 @@ typedef __u32 kernel_cap_t;
 #define CAP_IPC_OWNER        15
 
 /* Insert and remove kernel modules - modify kernel without limit */
-/* Modify cap_bset */
 #define CAP_SYS_MODULE       16
 
 /* Allow ioperm/iopl access */
@@ -307,73 +315,182 @@ typedef __u32 kernel_cap_t;
 
 #define CAP_SETFCAP	     31
 
+/* Override MAC access.
+   The base kernel enforces no MAC policy.
+   An LSM may enforce a MAC policy, and if it does and it chooses
+   to implement capability based overrides of that policy, this is
+   the capability it should use to do so. */
+
+#define CAP_MAC_OVERRIDE     32
+
+/* Allow MAC configuration or state changes.
+   The base kernel requires no MAC configuration.
+   An LSM may enforce a MAC policy, and if it does and it chooses
+   to implement capability based checks on modifications to that
+   policy or the data required to maintain it, this is the
+   capability it should use to do so. */
+
+#define CAP_MAC_ADMIN        33
+
+#define CAP_LAST_CAP         CAP_MAC_ADMIN
+
+#define cap_valid(x) ((x) >= 0 && (x) <= CAP_LAST_CAP)
+
+/*
+ * Bit location of each capability (used by user-space library and kernel)
+ */
+
+#define CAP_TO_INDEX(x)     ((x) >> 5)        /* 1 << 5 == bits in __u32 */
+#define CAP_TO_MASK(x)      (1 << ((x) & 31)) /* mask for indexed __u32 */
+
 #ifdef __KERNEL__
 
 /*
  * Internal kernel functions only
  */
 
-#ifdef STRICT_CAP_T_TYPECHECKS
+#define CAP_FOR_EACH_U32(__capi)  \
+	for (__capi = 0; __capi < _LINUX_CAPABILITY_U32S; ++__capi)
 
-#define to_cap_t(x) { x }
-#define cap_t(x) (x).cap
+# define CAP_FS_MASK_B0     (CAP_TO_MASK(CAP_CHOWN)		\
+			    | CAP_TO_MASK(CAP_DAC_OVERRIDE)	\
+			    | CAP_TO_MASK(CAP_DAC_READ_SEARCH)	\
+			    | CAP_TO_MASK(CAP_FOWNER)		\
+			    | CAP_TO_MASK(CAP_FSETID))
 
-#else
+# define CAP_FS_MASK_B1     (CAP_TO_MASK(CAP_MAC_OVERRIDE))
 
-#define to_cap_t(x) (x)
-#define cap_t(x) (x)
+#if _LINUX_CAPABILITY_U32S != 2
+# error Fix up hand-coded capability macro initializers
+#else /* HAND-CODED capability initializers */
 
-#endif
+# define CAP_EMPTY_SET    {{ 0, 0 }}
+# define CAP_FULL_SET     {{ ~0, ~0 }}
+# define CAP_INIT_EFF_SET {{ ~CAP_TO_MASK(CAP_SETPCAP), ~0 }}
+# define CAP_FS_SET       {{ CAP_FS_MASK_B0, CAP_FS_MASK_B1 } }
+# define CAP_NFSD_SET     {{ CAP_FS_MASK_B0|CAP_TO_MASK(CAP_SYS_RESOURCE), \
+			     CAP_FS_MASK_B1 } }
 
-#define CAP_EMPTY_SET       to_cap_t(0)
-#define CAP_FULL_SET        to_cap_t(~0)
-#define CAP_INIT_EFF_SET    to_cap_t(~0 & ~CAP_TO_MASK(CAP_SETPCAP))
-#define CAP_INIT_INH_SET    to_cap_t(0)
+#endif /* _LINUX_CAPABILITY_U32S != 2 */
 
-#define CAP_TO_MASK(x) (1 << (x))
-#define cap_raise(c, flag)   (cap_t(c) |=  CAP_TO_MASK(flag))
-#define cap_lower(c, flag)   (cap_t(c) &= ~CAP_TO_MASK(flag))
-#define cap_raised(c, flag)  (cap_t(c) & CAP_TO_MASK(flag))
+#define CAP_INIT_INH_SET    CAP_EMPTY_SET
 
-static inline kernel_cap_t cap_combine(kernel_cap_t a, kernel_cap_t b)
+# define cap_clear(c)         do { (c) = __cap_empty_set; } while (0)
+# define cap_set_full(c)      do { (c) = __cap_full_set; } while (0)
+# define cap_set_init_eff(c)  do { (c) = __cap_init_eff_set; } while (0)
+
+#define cap_raise(c, flag)  ((c).cap[CAP_TO_INDEX(flag)] |= CAP_TO_MASK(flag))
+#define cap_lower(c, flag)  ((c).cap[CAP_TO_INDEX(flag)] &= ~CAP_TO_MASK(flag))
+#define cap_raised(c, flag) ((c).cap[CAP_TO_INDEX(flag)] & CAP_TO_MASK(flag))
+
+#define CAP_BOP_ALL(c, a, b, OP)                                    \
+do {                                                                \
+	unsigned __capi;                                            \
+	CAP_FOR_EACH_U32(__capi) {                                  \
+		c.cap[__capi] = a.cap[__capi] OP b.cap[__capi];     \
+	}                                                           \
+} while (0)
+
+#define CAP_UOP_ALL(c, a, OP)                                       \
+do {                                                                \
+	unsigned __capi;                                            \
+	CAP_FOR_EACH_U32(__capi) {                                  \
+		c.cap[__capi] = OP a.cap[__capi];                   \
+	}                                                           \
+} while (0)
+
+static inline kernel_cap_t cap_combine(const kernel_cap_t a,
+				       const kernel_cap_t b)
 {
-     kernel_cap_t dest;
-     cap_t(dest) = cap_t(a) | cap_t(b);
-     return dest;
+	kernel_cap_t dest;
+	CAP_BOP_ALL(dest, a, b, |);
+	return dest;
 }
 
-static inline kernel_cap_t cap_intersect(kernel_cap_t a, kernel_cap_t b)
+static inline kernel_cap_t cap_intersect(const kernel_cap_t a,
+					 const kernel_cap_t b)
 {
-     kernel_cap_t dest;
-     cap_t(dest) = cap_t(a) & cap_t(b);
-     return dest;
+	kernel_cap_t dest;
+	CAP_BOP_ALL(dest, a, b, &);
+	return dest;
 }
 
-static inline kernel_cap_t cap_drop(kernel_cap_t a, kernel_cap_t drop)
+static inline kernel_cap_t cap_drop(const kernel_cap_t a,
+				    const kernel_cap_t drop)
 {
-     kernel_cap_t dest;
-     cap_t(dest) = cap_t(a) & ~cap_t(drop);
-     return dest;
+	kernel_cap_t dest;
+	CAP_BOP_ALL(dest, a, drop, &~);
+	return dest;
 }
 
-static inline kernel_cap_t cap_invert(kernel_cap_t c)
+static inline kernel_cap_t cap_invert(const kernel_cap_t c)
 {
-     kernel_cap_t dest;
-     cap_t(dest) = ~cap_t(c);
-     return dest;
+	kernel_cap_t dest;
+	CAP_UOP_ALL(dest, c, ~);
+	return dest;
 }
 
-#define cap_isclear(c)       (!cap_t(c))
-#define cap_issubset(a,set)  (!(cap_t(a) & ~cap_t(set)))
+static inline int cap_isclear(const kernel_cap_t a)
+{
+	unsigned __capi;
+	CAP_FOR_EACH_U32(__capi) {
+		if (a.cap[__capi] != 0)
+			return 0;
+	}
+	return 1;
+}
 
-#define cap_clear(c)         do { cap_t(c) =  0; } while(0)
-#define cap_set_full(c)      do { cap_t(c) = ~0; } while(0)
-#define cap_mask(c,mask)     do { cap_t(c) &= cap_t(mask); } while(0)
+static inline int cap_issubset(const kernel_cap_t a, const kernel_cap_t set)
+{
+	kernel_cap_t dest;
+	dest = cap_drop(a, set);
+	return cap_isclear(dest);
+}
 
-#define cap_is_fs_cap(c)     (CAP_TO_MASK(c) & CAP_FS_MASK)
+/* Used to decide between falling back on the old suser() or fsuser(). */
+
+static inline int cap_is_fs_cap(int cap)
+{
+	const kernel_cap_t __cap_fs_set = CAP_FS_SET;
+	return !!(CAP_TO_MASK(cap) & __cap_fs_set.cap[CAP_TO_INDEX(cap)]);
+}
+
+static inline kernel_cap_t cap_drop_fs_set(const kernel_cap_t a)
+{
+	const kernel_cap_t __cap_fs_set = CAP_FS_SET;
+	return cap_drop(a, __cap_fs_set);
+}
+
+static inline kernel_cap_t cap_raise_fs_set(const kernel_cap_t a,
+					    const kernel_cap_t permitted)
+{
+	const kernel_cap_t __cap_fs_set = CAP_FS_SET;
+	return cap_combine(a,
+			   cap_intersect(permitted, __cap_fs_set));
+}
+
+static inline kernel_cap_t cap_drop_nfsd_set(const kernel_cap_t a)
+{
+	const kernel_cap_t __cap_fs_set = CAP_NFSD_SET;
+	return cap_drop(a, __cap_fs_set);
+}
+
+static inline kernel_cap_t cap_raise_nfsd_set(const kernel_cap_t a,
+					      const kernel_cap_t permitted)
+{
+	const kernel_cap_t __cap_nfsd_set = CAP_NFSD_SET;
+	return cap_combine(a,
+			   cap_intersect(permitted, __cap_nfsd_set));
+}
+
+extern const kernel_cap_t __cap_empty_set;
+extern const kernel_cap_t __cap_full_set;
+extern const kernel_cap_t __cap_init_eff_set;
 
 int capable(int cap);
 int __capable(struct task_struct *t, int cap);
+
+extern long cap_prctl_drop(unsigned long cap);
 
 #endif /* __KERNEL__ */
 

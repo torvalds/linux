@@ -15,9 +15,6 @@
 #include <linux/seq_file.h>
 #include <linux/bitops.h>
 
-static int tty_ldiscs_read_proc(char *page, char **start, off_t off,
-				int count, int *eof, void *data);
-
 /*
  * The /proc/tty directory inodes...
  */
@@ -120,7 +117,7 @@ static void t_stop(struct seq_file *m, void *v)
 	mutex_unlock(&tty_mutex);
 }
 
-static struct seq_operations tty_drivers_op = {
+static const struct seq_operations tty_drivers_op = {
 	.start	= t_start,
 	.next	= t_next,
 	.stop	= t_stop,

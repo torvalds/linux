@@ -254,7 +254,7 @@ xfs_dir2_leafn_add(
 				(be16_to_cpu(leaf->hdr.count) - index) * sizeof(*lep));
 		lfloglow = index;
 		lfloghigh = be16_to_cpu(leaf->hdr.count);
-		be16_add(&leaf->hdr.count, 1);
+		be16_add_cpu(&leaf->hdr.count, 1);
 	}
 	/*
 	 * There are stale entries.  We'll use one for the new entry.
@@ -322,7 +322,7 @@ xfs_dir2_leafn_add(
 			lfloglow = MIN(index, lfloglow);
 			lfloghigh = MAX(highstale, lfloghigh);
 		}
-		be16_add(&leaf->hdr.stale, -1);
+		be16_add_cpu(&leaf->hdr.stale, -1);
 	}
 	/*
 	 * Insert the new entry, log everything.
@@ -697,10 +697,10 @@ xfs_dir2_leafn_moveents(
 	/*
 	 * Update the headers and log them.
 	 */
-	be16_add(&leaf_s->hdr.count, -(count));
-	be16_add(&leaf_s->hdr.stale, -(stale));
-	be16_add(&leaf_d->hdr.count, count);
-	be16_add(&leaf_d->hdr.stale, stale);
+	be16_add_cpu(&leaf_s->hdr.count, -(count));
+	be16_add_cpu(&leaf_s->hdr.stale, -(stale));
+	be16_add_cpu(&leaf_d->hdr.count, count);
+	be16_add_cpu(&leaf_d->hdr.stale, stale);
 	xfs_dir2_leaf_log_header(tp, bp_s);
 	xfs_dir2_leaf_log_header(tp, bp_d);
 	xfs_dir2_leafn_check(args->dp, bp_s);
@@ -885,7 +885,7 @@ xfs_dir2_leafn_remove(
 	 * Kill the leaf entry by marking it stale.
 	 * Log the leaf block changes.
 	 */
-	be16_add(&leaf->hdr.stale, 1);
+	be16_add_cpu(&leaf->hdr.stale, 1);
 	xfs_dir2_leaf_log_header(tp, bp);
 	lep->address = cpu_to_be32(XFS_DIR2_NULL_DATAPTR);
 	xfs_dir2_leaf_log_ents(tp, bp, index, index);
@@ -971,7 +971,7 @@ xfs_dir2_leafn_remove(
 			/*
 			 * One less used entry in the free table.
 			 */
-			be32_add(&free->hdr.nused, -1);
+			be32_add_cpu(&free->hdr.nused, -1);
 			xfs_dir2_free_log_header(tp, fbp);
 			/*
 			 * If this was the last entry in the table, we can
@@ -1642,7 +1642,7 @@ xfs_dir2_node_addname_int(
 		 * (this should always be true) then update the header.
 		 */
 		if (be16_to_cpu(free->bests[findex]) == NULLDATAOFF) {
-			be32_add(&free->hdr.nused, 1);
+			be32_add_cpu(&free->hdr.nused, 1);
 			xfs_dir2_free_log_header(tp, fbp);
 		}
 		/*

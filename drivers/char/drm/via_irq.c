@@ -169,9 +169,9 @@ int via_driver_vblank_wait(struct drm_device * dev, unsigned int *sequence)
 	unsigned int cur_vblank;
 	int ret = 0;
 
-	DRM_DEBUG("viadrv_vblank_wait\n");
+	DRM_DEBUG("\n");
 	if (!dev_priv) {
-		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
+		DRM_ERROR("called with no initialization\n");
 		return -EINVAL;
 	}
 
@@ -201,24 +201,23 @@ via_driver_irq_wait(struct drm_device * dev, unsigned int irq, int force_sequenc
 	maskarray_t *masks;
 	int real_irq;
 
-	DRM_DEBUG("%s\n", __FUNCTION__);
+	DRM_DEBUG("\n");
 
 	if (!dev_priv) {
-		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
+		DRM_ERROR("called with no initialization\n");
 		return -EINVAL;
 	}
 
 	if (irq >= drm_via_irq_num) {
-		DRM_ERROR("%s Trying to wait on unknown irq %d\n", __FUNCTION__,
-			  irq);
+		DRM_ERROR("Trying to wait on unknown irq %d\n", irq);
 		return -EINVAL;
 	}
 
 	real_irq = dev_priv->irq_map[irq];
 
 	if (real_irq < 0) {
-		DRM_ERROR("%s Video IRQ %d not available on this hardware.\n",
-			  __FUNCTION__, irq);
+		DRM_ERROR("Video IRQ %d not available on this hardware.\n",
+			  irq);
 		return -EINVAL;
 	}
 
@@ -251,7 +250,7 @@ void via_driver_irq_preinstall(struct drm_device * dev)
 	drm_via_irq_t *cur_irq;
 	int i;
 
-	DRM_DEBUG("driver_irq_preinstall: dev_priv: %p\n", dev_priv);
+	DRM_DEBUG("dev_priv: %p\n", dev_priv);
 	if (dev_priv) {
 		cur_irq = dev_priv->via_irqs;
 
@@ -298,7 +297,7 @@ void via_driver_irq_postinstall(struct drm_device * dev)
 	drm_via_private_t *dev_priv = (drm_via_private_t *) dev->dev_private;
 	u32 status;
 
-	DRM_DEBUG("via_driver_irq_postinstall\n");
+	DRM_DEBUG("\n");
 	if (dev_priv) {
 		status = VIA_READ(VIA_REG_INTERRUPT);
 		VIA_WRITE(VIA_REG_INTERRUPT, status | VIA_IRQ_GLOBAL
@@ -317,7 +316,7 @@ void via_driver_irq_uninstall(struct drm_device * dev)
 	drm_via_private_t *dev_priv = (drm_via_private_t *) dev->dev_private;
 	u32 status;
 
-	DRM_DEBUG("driver_irq_uninstall)\n");
+	DRM_DEBUG("\n");
 	if (dev_priv) {
 
 		/* Some more magic, oh for some data sheets ! */
@@ -344,7 +343,7 @@ int via_wait_irq(struct drm_device *dev, void *data, struct drm_file *file_priv)
 		return -EINVAL;
 
 	if (irqwait->request.irq >= dev_priv->num_irqs) {
-		DRM_ERROR("%s Trying to wait on unknown irq %d\n", __FUNCTION__,
+		DRM_ERROR("Trying to wait on unknown irq %d\n",
 			  irqwait->request.irq);
 		return -EINVAL;
 	}
@@ -362,8 +361,7 @@ int via_wait_irq(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	}
 
 	if (irqwait->request.type & VIA_IRQ_SIGNAL) {
-		DRM_ERROR("%s Signals on Via IRQs not implemented yet.\n",
-			  __FUNCTION__);
+		DRM_ERROR("Signals on Via IRQs not implemented yet.\n");
 		return -EINVAL;
 	}
 

@@ -204,10 +204,8 @@ static int qla2x00_do_dpc(void *data);
 
 static void qla2x00_rst_aen(scsi_qla_host_t *);
 
-static uint8_t qla2x00_mem_alloc(scsi_qla_host_t *);
+static int qla2x00_mem_alloc(scsi_qla_host_t *);
 static void qla2x00_mem_free(scsi_qla_host_t *ha);
-static int qla2x00_allocate_sp_pool( scsi_qla_host_t *ha);
-static void qla2x00_free_sp_pool(scsi_qla_host_t *ha);
 static void qla2x00_sp_free_dma(scsi_qla_host_t *, srb_t *);
 
 /* -------------------------------------------------------------------------- */
@@ -1117,6 +1115,27 @@ qla2x00_device_reset(scsi_qla_host_t *ha, fc_port_t *reset_fcport)
 	return ha->isp_ops->abort_target(reset_fcport);
 }
 
+void
+qla2x00_abort_all_cmds(scsi_qla_host_t *ha, int res)
+{
+	int cnt;
+	unsigned long flags;
+	srb_t *sp;
+
+	spin_lock_irqsave(&ha->hardware_lock, flags);
+	for (cnt = 1; cnt < MAX_OUTSTANDING_COMMANDS; cnt++) {
+		sp = ha->outstanding_cmds[cnt];
+		if (sp) {
+			ha->outstanding_cmds[cnt] = NULL;
+			sp->flags = 0;
+			sp->cmd->result = res;
+			sp->cmd->host_scribble = (unsigned char *)NULL;
+			qla2x00_sp_compl(ha, sp);
+		}
+	}
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+}
+
 static int
 qla2xxx_slave_alloc(struct scsi_device *sdev)
 {
@@ -1557,10 +1576,8 @@ static int __devinit
 qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	int	ret = -ENODEV;
-	device_reg_t __iomem *reg;
 	struct Scsi_Host *host;
 	scsi_qla_host_t *ha;
-	unsigned long	flags = 0;
 	char pci_info[30];
 	char fw_str[30];
 	struct scsi_host_template *sht;
@@ -1608,6 +1625,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	ha->parent = NULL;
 	ha->bars = bars;
 	ha->mem_only = mem_only;
+	spin_lock_init(&ha->hardware_lock);
 
 	/* Set ISP-type information. */
 	qla2x00_set_isp_flags(ha);
@@ -1620,8 +1638,6 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	qla_printk(KERN_INFO, ha,
 	    "Found an ISP%04X, irq %d, iobase 0x%p\n", pdev->device, pdev->irq,
 	    ha->iobase);
-
-	spin_lock_init(&ha->hardware_lock);
 
 	ha->prev_topology = 0;
 	ha->init_cb_size = sizeof(init_cb_t);
@@ -1751,34 +1767,6 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	DEBUG2(printk("DEBUG: detect hba %ld at address = %p\n",
 	    ha->host_no, ha));
 
-	ha->isp_ops->disable_intrs(ha);
-
-	spin_lock_irqsave(&ha->hardware_lock, flags);
-	reg = ha->iobase;
-	if (IS_FWI2_CAPABLE(ha)) {
-		WRT_REG_DWORD(&reg->isp24.hccr, HCCRX_CLR_HOST_INT);
-		WRT_REG_DWORD(&reg->isp24.hccr, HCCRX_CLR_RISC_INT);
-	} else {
-		WRT_REG_WORD(&reg->isp.semaphore, 0);
-		WRT_REG_WORD(&reg->isp.hccr, HCCR_CLR_RISC_INT);
-		WRT_REG_WORD(&reg->isp.hccr, HCCR_CLR_HOST_INT);
-
-		/* Enable proper parity */
-		if (!IS_QLA2100(ha) && !IS_QLA2200(ha)) {
-			if (IS_QLA2300(ha))
-				/* SRAM parity */
-				WRT_REG_WORD(&reg->isp.hccr,
-				    (HCCR_ENABLE_PARITY + 0x1));
-			else
-				/* SRAM, Instruction RAM and GP RAM parity */
-				WRT_REG_WORD(&reg->isp.hccr,
-				    (HCCR_ENABLE_PARITY + 0x7));
-		}
-	}
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-
-	ha->isp_ops->enable_intrs(ha);
-
 	pci_set_drvdata(pdev, ha);
 
 	ha->flags.init_done = 1;
@@ -1848,9 +1836,13 @@ qla2x00_remove_one(struct pci_dev *pdev)
 static void
 qla2x00_free_device(scsi_qla_host_t *ha)
 {
+	qla2x00_abort_all_cmds(ha, DID_NO_CONNECT << 16);
+
 	/* Disable timer */
 	if (ha->timer_active)
 		qla2x00_stop_timer(ha);
+
+	ha->flags.online = 0;
 
 	/* Kill the kernel thread for this host */
 	if (ha->dpc_thread) {
@@ -1869,8 +1861,6 @@ qla2x00_free_device(scsi_qla_host_t *ha)
 
 	if (ha->eft)
 		qla2x00_disable_eft_trace(ha);
-
-	ha->flags.online = 0;
 
 	/* Stop currently executing firmware. */
 	qla2x00_try_to_stop_firmware(ha);
@@ -2010,196 +2000,109 @@ qla2x00_mark_all_devices_lost(scsi_qla_host_t *ha, int defer)
 *
 * Returns:
 *      0  = success.
-*      1  = failure.
+*      !0  = failure.
 */
-static uint8_t
+static int
 qla2x00_mem_alloc(scsi_qla_host_t *ha)
 {
 	char	name[16];
-	uint8_t   status = 1;
-	int	retry= 10;
 
-	do {
-		/*
-		 * This will loop only once if everything goes well, else some
-		 * number of retries will be performed to get around a kernel
-		 * bug where available mem is not allocated until after a
-		 * little delay and a retry.
-		 */
-		ha->request_ring = dma_alloc_coherent(&ha->pdev->dev,
-		    (ha->request_q_length + 1) * sizeof(request_t),
-		    &ha->request_dma, GFP_KERNEL);
-		if (ha->request_ring == NULL) {
-			qla_printk(KERN_WARNING, ha,
-			    "Memory Allocation failed - request_ring\n");
+	ha->request_ring = dma_alloc_coherent(&ha->pdev->dev,
+	    (ha->request_q_length + 1) * sizeof(request_t), &ha->request_dma,
+	    GFP_KERNEL);
+	if (!ha->request_ring)
+		goto fail;
 
-			qla2x00_mem_free(ha);
-			msleep(100);
+	ha->response_ring = dma_alloc_coherent(&ha->pdev->dev,
+	    (ha->response_q_length + 1) * sizeof(response_t),
+	    &ha->response_dma, GFP_KERNEL);
+	if (!ha->response_ring)
+		goto fail_free_request_ring;
 
-			continue;
-		}
+	ha->gid_list = dma_alloc_coherent(&ha->pdev->dev, GID_LIST_SIZE,
+	    &ha->gid_list_dma, GFP_KERNEL);
+	if (!ha->gid_list)
+		goto fail_free_response_ring;
 
-		ha->response_ring = dma_alloc_coherent(&ha->pdev->dev,
-		    (ha->response_q_length + 1) * sizeof(response_t),
-		    &ha->response_dma, GFP_KERNEL);
-		if (ha->response_ring == NULL) {
-			qla_printk(KERN_WARNING, ha,
-			    "Memory Allocation failed - response_ring\n");
+	ha->init_cb = dma_alloc_coherent(&ha->pdev->dev, ha->init_cb_size,
+	    &ha->init_cb_dma, GFP_KERNEL);
+	if (!ha->init_cb)
+		goto fail_free_gid_list;
 
-			qla2x00_mem_free(ha);
-			msleep(100);
+	snprintf(name, sizeof(name), "%s_%ld", QLA2XXX_DRIVER_NAME,
+	    ha->host_no);
+	ha->s_dma_pool = dma_pool_create(name, &ha->pdev->dev,
+	    DMA_POOL_SIZE, 8, 0);
+	if (!ha->s_dma_pool)
+		goto fail_free_init_cb;
 
-			continue;
-		}
+	ha->srb_mempool = mempool_create_slab_pool(SRB_MIN_REQ, srb_cachep);
+	if (!ha->srb_mempool)
+		goto fail_free_s_dma_pool;
 
-		ha->gid_list = dma_alloc_coherent(&ha->pdev->dev, GID_LIST_SIZE,
-		    &ha->gid_list_dma, GFP_KERNEL);
-		if (ha->gid_list == NULL) {
-			qla_printk(KERN_WARNING, ha,
-			    "Memory Allocation failed - gid_list\n");
+	/* Get memory for cached NVRAM */
+	ha->nvram = kzalloc(MAX_NVRAM_SIZE, GFP_KERNEL);
+	if (!ha->nvram)
+		goto fail_free_srb_mempool;
 
-			qla2x00_mem_free(ha);
-			msleep(100);
+	/* Allocate memory for SNS commands */
+	if (IS_QLA2100(ha) || IS_QLA2200(ha)) {
+		/* Get consistent memory allocated for SNS commands */
+		ha->sns_cmd = dma_alloc_coherent(&ha->pdev->dev,
+		    sizeof(struct sns_cmd_pkt), &ha->sns_cmd_dma, GFP_KERNEL);
+		if (!ha->sns_cmd)
+			goto fail_free_nvram;
+	} else {
+		/* Get consistent memory allocated for MS IOCB */
+		ha->ms_iocb = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL,
+		    &ha->ms_iocb_dma);
+		if (!ha->ms_iocb)
+			goto fail_free_nvram;
 
-			continue;
-		}
-
-		/* get consistent memory allocated for init control block */
-		ha->init_cb = dma_alloc_coherent(&ha->pdev->dev,
-		    ha->init_cb_size, &ha->init_cb_dma, GFP_KERNEL);
-		if (ha->init_cb == NULL) {
-			qla_printk(KERN_WARNING, ha,
-			    "Memory Allocation failed - init_cb\n");
-
-			qla2x00_mem_free(ha);
-			msleep(100);
-
-			continue;
-		}
-		memset(ha->init_cb, 0, ha->init_cb_size);
-
-		snprintf(name, sizeof(name), "%s_%ld", QLA2XXX_DRIVER_NAME,
-		    ha->host_no);
-		ha->s_dma_pool = dma_pool_create(name, &ha->pdev->dev,
-		    DMA_POOL_SIZE, 8, 0);
-		if (ha->s_dma_pool == NULL) {
-			qla_printk(KERN_WARNING, ha,
-			    "Memory Allocation failed - s_dma_pool\n");
-
-			qla2x00_mem_free(ha);
-			msleep(100);
-
-			continue;
-		}
-
-		if (qla2x00_allocate_sp_pool(ha)) {
-			qla_printk(KERN_WARNING, ha,
-			    "Memory Allocation failed - "
-			    "qla2x00_allocate_sp_pool()\n");
-
-			qla2x00_mem_free(ha);
-			msleep(100);
-
-			continue;
-		}
-
-		/* Allocate memory for SNS commands */
-		if (IS_QLA2100(ha) || IS_QLA2200(ha)) {
-			/* Get consistent memory allocated for SNS commands */
-			ha->sns_cmd = dma_alloc_coherent(&ha->pdev->dev,
-			    sizeof(struct sns_cmd_pkt), &ha->sns_cmd_dma,
-			    GFP_KERNEL);
-			if (ha->sns_cmd == NULL) {
-				/* error */
-				qla_printk(KERN_WARNING, ha,
-				    "Memory Allocation failed - sns_cmd\n");
-
-				qla2x00_mem_free(ha);
-				msleep(100);
-
-				continue;
-			}
-			memset(ha->sns_cmd, 0, sizeof(struct sns_cmd_pkt));
-		} else {
-			/* Get consistent memory allocated for MS IOCB */
-			ha->ms_iocb = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL,
-			    &ha->ms_iocb_dma);
-			if (ha->ms_iocb == NULL) {
-				/* error */
-				qla_printk(KERN_WARNING, ha,
-				    "Memory Allocation failed - ms_iocb\n");
-
-				qla2x00_mem_free(ha);
-				msleep(100);
-
-				continue;
-			}
-			memset(ha->ms_iocb, 0, sizeof(ms_iocb_entry_t));
-
-			/*
-			 * Get consistent memory allocated for CT SNS
-			 * commands
-			 */
-			ha->ct_sns = dma_alloc_coherent(&ha->pdev->dev,
-			    sizeof(struct ct_sns_pkt), &ha->ct_sns_dma,
-			    GFP_KERNEL);
-			if (ha->ct_sns == NULL) {
-				/* error */
-				qla_printk(KERN_WARNING, ha,
-				    "Memory Allocation failed - ct_sns\n");
-
-				qla2x00_mem_free(ha);
-				msleep(100);
-
-				continue;
-			}
-			memset(ha->ct_sns, 0, sizeof(struct ct_sns_pkt));
-
-			if (IS_FWI2_CAPABLE(ha)) {
-				/*
-				 * Get consistent memory allocated for SFP
-				 * block.
-				 */
-				ha->sfp_data = dma_pool_alloc(ha->s_dma_pool,
-				    GFP_KERNEL, &ha->sfp_data_dma);
-				if (ha->sfp_data == NULL) {
-					qla_printk(KERN_WARNING, ha,
-					    "Memory Allocation failed - "
-					    "sfp_data\n");
-
-					qla2x00_mem_free(ha);
-					msleep(100);
-
-					continue;
-				}
-				memset(ha->sfp_data, 0, SFP_BLOCK_SIZE);
-			}
-		}
-
-		/* Get memory for cached NVRAM */
-		ha->nvram = kzalloc(MAX_NVRAM_SIZE, GFP_KERNEL);
-		if (ha->nvram == NULL) {
-			/* error */
-			qla_printk(KERN_WARNING, ha,
-			    "Memory Allocation failed - nvram cache\n");
-
-			qla2x00_mem_free(ha);
-			msleep(100);
-
-			continue;
-		}
-
-		/* Done all allocations without any error. */
-		status = 0;
-
-	} while (retry-- && status != 0);
-
-	if (status) {
-		printk(KERN_WARNING
-			"%s(): **** FAILED ****\n", __func__);
+		/* Get consistent memory allocated for CT SNS commands */
+		ha->ct_sns = dma_alloc_coherent(&ha->pdev->dev,
+		    sizeof(struct ct_sns_pkt), &ha->ct_sns_dma, GFP_KERNEL);
+		if (!ha->ct_sns)
+			goto fail_free_ms_iocb;
 	}
 
-	return(status);
+	return 0;
+
+fail_free_ms_iocb:
+	dma_pool_free(ha->s_dma_pool, ha->ms_iocb, ha->ms_iocb_dma);
+	ha->ms_iocb = NULL;
+	ha->ms_iocb_dma = 0;
+fail_free_nvram:
+	kfree(ha->nvram);
+	ha->nvram = NULL;
+fail_free_srb_mempool:
+	mempool_destroy(ha->srb_mempool);
+	ha->srb_mempool = NULL;
+fail_free_s_dma_pool:
+	dma_pool_destroy(ha->s_dma_pool);
+	ha->s_dma_pool = NULL;
+fail_free_init_cb:
+	dma_free_coherent(&ha->pdev->dev, ha->init_cb_size, ha->init_cb,
+	    ha->init_cb_dma);
+	ha->init_cb = NULL;
+	ha->init_cb_dma = 0;
+fail_free_gid_list:
+	dma_free_coherent(&ha->pdev->dev, GID_LIST_SIZE, ha->gid_list,
+	    ha->gid_list_dma);
+	ha->gid_list = NULL;
+	ha->gid_list_dma = 0;
+fail_free_response_ring:
+	dma_free_coherent(&ha->pdev->dev, (ha->response_q_length + 1) *
+	    sizeof(response_t), ha->response_ring, ha->response_dma);
+	ha->response_ring = NULL;
+	ha->response_dma = 0;
+fail_free_request_ring:
+	dma_free_coherent(&ha->pdev->dev, (ha->request_q_length + 1) *
+	    sizeof(request_t), ha->request_ring, ha->request_dma);
+	ha->request_ring = NULL;
+	ha->request_dma = 0;
+fail:
+	return -ENOMEM;
 }
 
 /*
@@ -2215,14 +2118,8 @@ qla2x00_mem_free(scsi_qla_host_t *ha)
 	struct list_head	*fcpl, *fcptemp;
 	fc_port_t	*fcport;
 
-	if (ha == NULL) {
-		/* error */
-		DEBUG2(printk("%s(): ERROR invalid ha pointer.\n", __func__));
-		return;
-	}
-
-	/* free sp pool */
-	qla2x00_free_sp_pool(ha);
+	if (ha->srb_mempool)
+		mempool_destroy(ha->srb_mempool);
 
 	if (ha->fce)
 		dma_free_coherent(&ha->pdev->dev, FCE_SIZE, ha->fce,
@@ -2270,6 +2167,7 @@ qla2x00_mem_free(scsi_qla_host_t *ha)
 		    (ha->request_q_length + 1) * sizeof(request_t),
 		    ha->request_ring, ha->request_dma);
 
+	ha->srb_mempool = NULL;
 	ha->eft = NULL;
 	ha->eft_dma = 0;
 	ha->sns_cmd = NULL;
@@ -2308,44 +2206,6 @@ qla2x00_mem_free(scsi_qla_host_t *ha)
 	kfree(ha->nvram);
 }
 
-/*
- * qla2x00_allocate_sp_pool
- * 	 This routine is called during initialization to allocate
- *  	 memory for local srb_t.
- *
- * Input:
- *	 ha   = adapter block pointer.
- *
- * Context:
- *      Kernel context.
- */
-static int
-qla2x00_allocate_sp_pool(scsi_qla_host_t *ha)
-{
-	int      rval;
-
-	rval = QLA_SUCCESS;
-	ha->srb_mempool = mempool_create_slab_pool(SRB_MIN_REQ, srb_cachep);
-	if (ha->srb_mempool == NULL) {
-		qla_printk(KERN_INFO, ha, "Unable to allocate SRB mempool.\n");
-		rval = QLA_FUNCTION_FAILED;
-	}
-	return (rval);
-}
-
-/*
- *  This routine frees all adapter allocated memory.
- *
- */
-static void
-qla2x00_free_sp_pool( scsi_qla_host_t *ha)
-{
-	if (ha->srb_mempool) {
-		mempool_destroy(ha->srb_mempool);
-		ha->srb_mempool = NULL;
-	}
-}
-
 /**************************************************************************
 * qla2x00_do_dpc
 *   This kernel thread is a task that is schedule by the interrupt handler
@@ -2367,6 +2227,9 @@ qla2x00_do_dpc(void *data)
 	fc_port_t	*fcport;
 	uint8_t		status;
 	uint16_t	next_loopid;
+	struct scsi_qla_host *vha;
+	int             i;
+
 
 	ha = (scsi_qla_host_t *)data;
 
@@ -2409,6 +2272,18 @@ qla2x00_do_dpc(void *data)
 				}
 				clear_bit(ABORT_ISP_ACTIVE, &ha->dpc_flags);
 			}
+
+			for_each_mapped_vp_idx(ha, i) {
+				list_for_each_entry(vha, &ha->vp_list,
+				    vp_list) {
+					if (i == vha->vp_idx) {
+						set_bit(ISP_ABORT_NEEDED,
+						    &vha->dpc_flags);
+						break;
+					}
+				}
+			}
+
 			DEBUG(printk("scsi(%ld): dpc: qla2x00_abort_isp end\n",
 			    ha->host_no));
 		}
@@ -3029,3 +2904,4 @@ MODULE_FIRMWARE(FW_FILE_ISP22XX);
 MODULE_FIRMWARE(FW_FILE_ISP2300);
 MODULE_FIRMWARE(FW_FILE_ISP2322);
 MODULE_FIRMWARE(FW_FILE_ISP24XX);
+MODULE_FIRMWARE(FW_FILE_ISP25XX);

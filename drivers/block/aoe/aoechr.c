@@ -1,4 +1,4 @@
-/* Copyright (c) 2006 Coraid, Inc.  See COPYING for GPL terms. */
+/* Copyright (c) 2007 Coraid, Inc.  See COPYING for GPL terms. */
 /*
  * aoechr.c
  * AoE character device driver
@@ -6,6 +6,7 @@
 
 #include <linux/hdreg.h>
 #include <linux/blkdev.h>
+#include <linux/delay.h>
 #include "aoe.h"
 
 enum {
@@ -14,6 +15,7 @@ enum {
 	MINOR_DISCOVER,
 	MINOR_INTERFACES,
 	MINOR_REVALIDATE,
+	MINOR_FLUSH,
 	MSGSZ = 2048,
 	NMSG = 100,		/* message backlog to retain */
 };
@@ -42,6 +44,7 @@ static struct aoe_chardev chardevs[] = {
 	{ MINOR_DISCOVER, "discover" },
 	{ MINOR_INTERFACES, "interfaces" },
 	{ MINOR_REVALIDATE, "revalidate" },
+	{ MINOR_FLUSH, "flush" },
 };
 
 static int
@@ -68,6 +71,7 @@ revalidate(const char __user *str, size_t size)
 	int major, minor, n;
 	ulong flags;
 	struct aoedev *d;
+	struct sk_buff *skb;
 	char buf[16];
 
 	if (size >= sizeof buf)
@@ -85,13 +89,20 @@ revalidate(const char __user *str, size_t size)
 	d = aoedev_by_aoeaddr(major, minor);
 	if (!d)
 		return -EINVAL;
-
 	spin_lock_irqsave(&d->lock, flags);
-	d->flags &= ~DEVFL_MAXBCNT;
-	d->flags |= DEVFL_PAUSE;
+	aoecmd_cleanslate(d);
+loop:
+	skb = aoecmd_ata_id(d);
 	spin_unlock_irqrestore(&d->lock, flags);
+	/* try again if we are able to sleep a bit,
+	 * otherwise give up this revalidation
+	 */
+	if (!skb && !msleep_interruptible(200)) {
+		spin_lock_irqsave(&d->lock, flags);
+		goto loop;
+	}
+	aoenet_xmit(skb);
 	aoecmd_cfg(major, minor);
-
 	return 0;
 }
 
@@ -149,6 +160,9 @@ aoechr_write(struct file *filp, const char __user *buf, size_t cnt, loff_t *offp
 		break;
 	case MINOR_REVALIDATE:
 		ret = revalidate(buf, cnt);
+		break;
+	case MINOR_FLUSH:
+		ret = aoedev_flush(buf, cnt);
 	}
 	if (ret == 0)
 		ret = cnt;
@@ -185,52 +199,51 @@ aoechr_read(struct file *filp, char __user *buf, size_t cnt, loff_t *off)
 	ulong flags;
 
 	n = (unsigned long) filp->private_data;
-	switch (n) {
-	case MINOR_ERR:
-		spin_lock_irqsave(&emsgs_lock, flags);
-loop:
+	if (n != MINOR_ERR)
+		return -EFAULT;
+
+	spin_lock_irqsave(&emsgs_lock, flags);
+
+	for (;;) {
 		em = emsgs + emsgs_head_idx;
-		if ((em->flags & EMFL_VALID) == 0) {
-			if (filp->f_flags & O_NDELAY) {
-				spin_unlock_irqrestore(&emsgs_lock, flags);
-				return -EAGAIN;
-			}
-			nblocked_emsgs_readers++;
-
-			spin_unlock_irqrestore(&emsgs_lock, flags);
-
-			n = down_interruptible(&emsgs_sema);
-
-			spin_lock_irqsave(&emsgs_lock, flags);
-
-			nblocked_emsgs_readers--;
-
-			if (n) {
-				spin_unlock_irqrestore(&emsgs_lock, flags);
-				return -ERESTARTSYS;
-			}
-			goto loop;
-		}
-		if (em->len > cnt) {
+		if ((em->flags & EMFL_VALID) != 0)
+			break;
+		if (filp->f_flags & O_NDELAY) {
 			spin_unlock_irqrestore(&emsgs_lock, flags);
 			return -EAGAIN;
 		}
-		mp = em->msg;
-		len = em->len;
-		em->msg = NULL;
-		em->flags &= ~EMFL_VALID;
-
-		emsgs_head_idx++;
-		emsgs_head_idx %= ARRAY_SIZE(emsgs);
+		nblocked_emsgs_readers++;
 
 		spin_unlock_irqrestore(&emsgs_lock, flags);
 
-		n = copy_to_user(buf, mp, len);
-		kfree(mp);
-		return n == 0 ? len : -EFAULT;
-	default:
-		return -EFAULT;
+		n = down_interruptible(&emsgs_sema);
+
+		spin_lock_irqsave(&emsgs_lock, flags);
+
+		nblocked_emsgs_readers--;
+
+		if (n) {
+			spin_unlock_irqrestore(&emsgs_lock, flags);
+			return -ERESTARTSYS;
+		}
 	}
+	if (em->len > cnt) {
+		spin_unlock_irqrestore(&emsgs_lock, flags);
+		return -EAGAIN;
+	}
+	mp = em->msg;
+	len = em->len;
+	em->msg = NULL;
+	em->flags &= ~EMFL_VALID;
+
+	emsgs_head_idx++;
+	emsgs_head_idx %= ARRAY_SIZE(emsgs);
+
+	spin_unlock_irqrestore(&emsgs_lock, flags);
+
+	n = copy_to_user(buf, mp, len);
+	kfree(mp);
+	return n == 0 ? len : -EFAULT;
 }
 
 static const struct file_operations aoe_fops = {

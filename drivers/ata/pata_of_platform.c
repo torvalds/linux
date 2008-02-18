@@ -12,7 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
-#include <linux/pata_platform.h>
+#include <linux/ata_platform.h>
 
 static int __devinit pata_of_platform_probe(struct of_device *ofdev,
 					    const struct of_device_id *match)

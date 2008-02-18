@@ -65,8 +65,14 @@
 #define HWCAP_SPARC_V9		16
 #define HWCAP_SPARC_ULTRA3	32
 
-/* For the most part we present code dumps in the format
- * Solaris does.
+#define CORE_DUMP_USE_REGSET
+
+/* Format is:
+ * 	G0 --> G7
+ *	O0 --> O7
+ *	L0 --> L7
+ *	I0 --> I7
+ *	PSR, PC, nPC, Y, WIM, TBR
  */
 typedef unsigned long elf_greg_t;
 #define ELF_NGREG 38
@@ -85,36 +91,7 @@ typedef struct {
 	unsigned int	pr_q[64];
 } elf_fpregset_t;
 
-#ifdef __KERNEL__
 #include <asm/mbus.h>
-#include <asm/uaccess.h>
-
-/* Format is:
- * 	G0 --> G7
- *	O0 --> O7
- *	L0 --> L7
- *	I0 --> I7
- *	PSR, PC, nPC, Y, WIM, TBR
- */
-#define ELF_CORE_COPY_REGS(__elf_regs, __pt_regs)	\
-do {	unsigned long *dest = &(__elf_regs[0]);		\
-	struct pt_regs *src = (__pt_regs);		\
-	unsigned long __user *sp;			\
-	memcpy(&dest[0], &src->u_regs[0],		\
-	       sizeof(unsigned long) * 16);		\
-	/* Don't try this at home kids... */		\
-	sp = (unsigned long __user *) src->u_regs[14];	\
-	copy_from_user(&dest[16], sp,			\
-		       sizeof(unsigned long) * 16);	\
-	dest[32] = src->psr;				\
-	dest[33] = src->pc;				\
-	dest[34] = src->npc;				\
-	dest[35] = src->y;				\
-	dest[36] = dest[37] = 0; /* XXX */		\
-} while(0); /* Janitors: Don't touch this semicolon. */
-
-#define ELF_CORE_COPY_TASK_REGS(__tsk, __elf_regs)	\
-	({ ELF_CORE_COPY_REGS((*(__elf_regs)), (__tsk)->thread.kregs); 1; })
 
 /*
  * This is used to ensure we don't load something for the wrong architecture.
@@ -165,7 +142,5 @@ do {	unsigned long *dest = &(__elf_regs[0]);		\
 #define ELF_PLATFORM	(NULL)
 
 #define SET_PERSONALITY(ex, ibcs2) set_personality((ibcs2)?PER_SVR4:PER_LINUX)
-
-#endif /* __KERNEL__ */
 
 #endif /* !(__ASMSPARC_ELF_H) */

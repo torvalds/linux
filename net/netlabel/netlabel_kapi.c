@@ -30,6 +30,7 @@
 
 #include <linux/init.h>
 #include <linux/types.h>
+#include <linux/audit.h>
 #include <net/ip.h>
 #include <net/netlabel.h>
 #include <net/cipso_ipv4.h>
@@ -38,8 +39,184 @@
 
 #include "netlabel_domainhash.h"
 #include "netlabel_unlabeled.h"
+#include "netlabel_cipso_v4.h"
 #include "netlabel_user.h"
 #include "netlabel_mgmt.h"
+
+/*
+ * Configuration Functions
+ */
+
+/**
+ * netlbl_cfg_map_del - Remove a NetLabel/LSM domain mapping
+ * @domain: the domain mapping to remove
+ * @audit_info: NetLabel audit information
+ *
+ * Description:
+ * Removes a NetLabel/LSM domain mapping.  A @domain value of NULL causes the
+ * default domain mapping to be removed.  Returns zero on success, negative
+ * values on failure.
+ *
+ */
+int netlbl_cfg_map_del(const char *domain, struct netlbl_audit *audit_info)
+{
+	return netlbl_domhsh_remove(domain, audit_info);
+}
+
+/**
+ * netlbl_cfg_unlbl_add_map - Add an unlabeled NetLabel/LSM domain mapping
+ * @domain: the domain mapping to add
+ * @audit_info: NetLabel audit information
+ *
+ * Description:
+ * Adds a new unlabeled NetLabel/LSM domain mapping.  A @domain value of NULL
+ * causes a new default domain mapping to be added.  Returns zero on success,
+ * negative values on failure.
+ *
+ */
+int netlbl_cfg_unlbl_add_map(const char *domain,
+			     struct netlbl_audit *audit_info)
+{
+	int ret_val = -ENOMEM;
+	struct netlbl_dom_map *entry;
+
+	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
+	if (entry == NULL)
+		goto cfg_unlbl_add_map_failure;
+	if (domain != NULL) {
+		entry->domain = kstrdup(domain, GFP_ATOMIC);
+		if (entry->domain == NULL)
+			goto cfg_unlbl_add_map_failure;
+	}
+	entry->type = NETLBL_NLTYPE_UNLABELED;
+
+	ret_val = netlbl_domhsh_add(entry, audit_info);
+	if (ret_val != 0)
+		goto cfg_unlbl_add_map_failure;
+
+	return 0;
+
+cfg_unlbl_add_map_failure:
+	if (entry != NULL)
+		kfree(entry->domain);
+	kfree(entry);
+	return ret_val;
+}
+
+/**
+ * netlbl_cfg_cipsov4_add - Add a new CIPSOv4 DOI definition
+ * @doi_def: the DOI definition
+ * @audit_info: NetLabel audit information
+ *
+ * Description:
+ * Add a new CIPSOv4 DOI definition to the NetLabel subsystem.  Returns zero on
+ * success, negative values on failure.
+ *
+ */
+int netlbl_cfg_cipsov4_add(struct cipso_v4_doi *doi_def,
+			   struct netlbl_audit *audit_info)
+{
+	int ret_val;
+	const char *type_str;
+	struct audit_buffer *audit_buf;
+
+	ret_val = cipso_v4_doi_add(doi_def);
+
+	audit_buf = netlbl_audit_start_common(AUDIT_MAC_CIPSOV4_ADD,
+					      audit_info);
+	if (audit_buf != NULL) {
+		switch (doi_def->type) {
+		case CIPSO_V4_MAP_STD:
+			type_str = "std";
+			break;
+		case CIPSO_V4_MAP_PASS:
+			type_str = "pass";
+			break;
+		default:
+			type_str = "(unknown)";
+		}
+		audit_log_format(audit_buf,
+				 " cipso_doi=%u cipso_type=%s res=%u",
+				 doi_def->doi,
+				 type_str,
+				 ret_val == 0 ? 1 : 0);
+		audit_log_end(audit_buf);
+	}
+
+	return ret_val;
+}
+
+/**
+ * netlbl_cfg_cipsov4_add_map - Add a new CIPSOv4 DOI definition and mapping
+ * @doi_def: the DOI definition
+ * @domain: the domain mapping to add
+ * @audit_info: NetLabel audit information
+ *
+ * Description:
+ * Add a new CIPSOv4 DOI definition and NetLabel/LSM domain mapping for this
+ * new DOI definition to the NetLabel subsystem.  A @domain value of NULL adds
+ * a new default domain mapping.  Returns zero on success, negative values on
+ * failure.
+ *
+ */
+int netlbl_cfg_cipsov4_add_map(struct cipso_v4_doi *doi_def,
+			       const char *domain,
+			       struct netlbl_audit *audit_info)
+{
+	int ret_val = -ENOMEM;
+	struct netlbl_dom_map *entry;
+
+	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
+	if (entry == NULL)
+		goto cfg_cipsov4_add_map_failure;
+	if (domain != NULL) {
+		entry->domain = kstrdup(domain, GFP_ATOMIC);
+		if (entry->domain == NULL)
+			goto cfg_cipsov4_add_map_failure;
+	}
+	entry->type = NETLBL_NLTYPE_CIPSOV4;
+	entry->type_def.cipsov4 = doi_def;
+
+	/* Grab a RCU read lock here so nothing happens to the doi_def variable
+	 * between adding it to the CIPSOv4 protocol engine and adding a
+	 * domain mapping for it. */
+
+	rcu_read_lock();
+	ret_val = netlbl_cfg_cipsov4_add(doi_def, audit_info);
+	if (ret_val != 0)
+		goto cfg_cipsov4_add_map_failure_unlock;
+	ret_val = netlbl_domhsh_add(entry, audit_info);
+	if (ret_val != 0)
+		goto cfg_cipsov4_add_map_failure_remove_doi;
+	rcu_read_unlock();
+
+	return 0;
+
+cfg_cipsov4_add_map_failure_remove_doi:
+	cipso_v4_doi_remove(doi_def->doi, audit_info, netlbl_cipsov4_doi_free);
+cfg_cipsov4_add_map_failure_unlock:
+	rcu_read_unlock();
+cfg_cipsov4_add_map_failure:
+	if (entry != NULL)
+		kfree(entry->domain);
+	kfree(entry);
+	return ret_val;
+}
+
+/**
+ * netlbl_cfg_cipsov4_del - Removean existing CIPSOv4 DOI definition
+ * @doi: the CIPSO DOI value
+ * @audit_info: NetLabel audit information
+ *
+ * Description:
+ * Removes an existing CIPSOv4 DOI definition from the NetLabel subsystem.
+ * Returns zero on success, negative values on failure.
+ *
+ */
+int netlbl_cfg_cipsov4_del(u32 doi, struct netlbl_audit *audit_info)
+{
+	return cipso_v4_doi_remove(doi, audit_info, netlbl_cipsov4_doi_free);
+}
 
 /*
  * Security Attribute Functions

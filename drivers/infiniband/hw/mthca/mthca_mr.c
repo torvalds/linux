@@ -613,8 +613,10 @@ int mthca_fmr_alloc(struct mthca_dev *dev, u32 pd,
 			sizeof *(mr->mem.tavor.mpt) * idx;
 
 	mr->mtt = __mthca_alloc_mtt(dev, list_len, dev->mr_table.fmr_mtt_buddy);
-	if (IS_ERR(mr->mtt))
+	if (IS_ERR(mr->mtt)) {
+		err = PTR_ERR(mr->mtt);
 		goto err_out_table;
+	}
 
 	mtt_seg = mr->mtt->first_seg * MTHCA_MTT_SEG_SIZE;
 
@@ -627,8 +629,10 @@ int mthca_fmr_alloc(struct mthca_dev *dev, u32 pd,
 		mr->mem.tavor.mtts = dev->mr_table.tavor_fmr.mtt_base + mtt_seg;
 
 	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
-	if (IS_ERR(mailbox))
+	if (IS_ERR(mailbox)) {
+		err = PTR_ERR(mailbox);
 		goto err_out_free_mtt;
+	}
 
 	mpt_entry = mailbox->buf;
 

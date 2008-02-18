@@ -2,61 +2,69 @@
  * File:	mca.c
  * Purpose:	Generic MCA handling layer
  *
- * Updated for latest kernel
  * Copyright (C) 2003 Hewlett-Packard Co
  *	David Mosberger-Tang <davidm@hpl.hp.com>
  *
  * Copyright (C) 2002 Dell Inc.
- * Copyright (C) Matt Domsch (Matt_Domsch@dell.com)
+ * Copyright (C) Matt Domsch <Matt_Domsch@dell.com>
  *
  * Copyright (C) 2002 Intel
- * Copyright (C) Jenna Hall (jenna.s.hall@intel.com)
+ * Copyright (C) Jenna Hall <jenna.s.hall@intel.com>
  *
  * Copyright (C) 2001 Intel
- * Copyright (C) Fred Lewis (frederick.v.lewis@intel.com)
+ * Copyright (C) Fred Lewis <frederick.v.lewis@intel.com>
  *
  * Copyright (C) 2000 Intel
- * Copyright (C) Chuck Fleckenstein (cfleck@co.intel.com)
+ * Copyright (C) Chuck Fleckenstein <cfleck@co.intel.com>
  *
- * Copyright (C) 1999, 2004 Silicon Graphics, Inc.
- * Copyright (C) Vijay Chander(vijay@engr.sgi.com)
+ * Copyright (C) 1999, 2004-2008 Silicon Graphics, Inc.
+ * Copyright (C) Vijay Chander <vijay@engr.sgi.com>
  *
- * 03/04/15 D. Mosberger Added INIT backtrace support.
- * 02/03/25 M. Domsch	GUID cleanups
+ * Copyright (C) 2006 FUJITSU LIMITED
+ * Copyright (C) Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>
  *
- * 02/01/04 J. Hall	Aligned MCA stack to 16 bytes, added platform vs. CPU
- *			error flag, set SAL default return values, changed
- *			error record structure to linked list, added init call
- *			to sal_get_state_info_size().
+ * 2000-03-29 Chuck Fleckenstein <cfleck@co.intel.com>
+ *	      Fixed PAL/SAL update issues, began MCA bug fixes, logging issues,
+ *	      added min save state dump, added INIT handler.
  *
- * 01/01/03 F. Lewis    Added setup of CMCI and CPEI IRQs, logging of corrected
- *                      platform errors, completed code for logging of
- *                      corrected & uncorrected machine check errors, and
- *                      updated for conformance with Nov. 2000 revision of the
- *                      SAL 3.0 spec.
- * 00/03/29 C. Fleckenstein  Fixed PAL/SAL update issues, began MCA bug fixes, logging issues,
- *                           added min save state dump, added INIT handler.
+ * 2001-01-03 Fred Lewis <frederick.v.lewis@intel.com>
+ *	      Added setup of CMCI and CPEI IRQs, logging of corrected platform
+ *	      errors, completed code for logging of corrected & uncorrected
+ *	      machine check errors, and updated for conformance with Nov. 2000
+ *	      revision of the SAL 3.0 spec.
+ *
+ * 2002-01-04 Jenna Hall <jenna.s.hall@intel.com>
+ *	      Aligned MCA stack to 16 bytes, added platform vs. CPU error flag,
+ *	      set SAL default return values, changed error record structure to
+ *	      linked list, added init call to sal_get_state_info_size().
+ *
+ * 2002-03-25 Matt Domsch <Matt_Domsch@dell.com>
+ *	      GUID cleanups.
+ *
+ * 2003-04-15 David Mosberger-Tang <davidm@hpl.hp.com>
+ *	      Added INIT backtrace support.
  *
  * 2003-12-08 Keith Owens <kaos@sgi.com>
- *            smp_call_function() must not be called from interrupt context (can
- *            deadlock on tasklist_lock).  Use keventd to call smp_call_function().
+ *	      smp_call_function() must not be called from interrupt context
+ *	      (can deadlock on tasklist_lock).
+ *	      Use keventd to call smp_call_function().
  *
  * 2004-02-01 Keith Owens <kaos@sgi.com>
- *            Avoid deadlock when using printk() for MCA and INIT records.
- *            Delete all record printing code, moved to salinfo_decode in user space.
- *            Mark variables and functions static where possible.
- *            Delete dead variables and functions.
- *            Reorder to remove the need for forward declarations and to consolidate
- *            related code.
+ *	      Avoid deadlock when using printk() for MCA and INIT records.
+ *	      Delete all record printing code, moved to salinfo_decode in user
+ *	      space.  Mark variables and functions static where possible.
+ *	      Delete dead variables and functions.  Reorder to remove the need
+ *	      for forward declarations and to consolidate related code.
  *
  * 2005-08-12 Keith Owens <kaos@sgi.com>
- *	      Convert MCA/INIT handlers to use per event stacks and SAL/OS state.
+ *	      Convert MCA/INIT handlers to use per event stacks and SAL/OS
+ *	      state.
  *
  * 2005-10-07 Keith Owens <kaos@sgi.com>
  *	      Add notify_die() hooks.
  *
  * 2006-09-15 Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>
- * 	      Add printing support for MCA/INIT.
+ *	      Add printing support for MCA/INIT.
  *
  * 2007-04-27 Russ Anderson <rja@sgi.com>
  *	      Support multiple cpus going through OS_MCA in the same event.
@@ -1754,11 +1762,8 @@ format_mca_init_stack(void *mca_data, unsigned long offset,
 /* Caller prevents this from being called after init */
 static void * __init_refok mca_bootmem(void)
 {
-	void *p;
-
-	p = alloc_bootmem(sizeof(struct ia64_mca_cpu) * NR_CPUS +
-	                  KERNEL_STACK_SIZE);
-	return (void *)ALIGN((unsigned long)p, KERNEL_STACK_SIZE);
+	return __alloc_bootmem(sizeof(struct ia64_mca_cpu),
+	                    KERNEL_STACK_SIZE, 0);
 }
 
 /* Do per-CPU MCA-related initialization.  */
@@ -1766,33 +1771,33 @@ void __cpuinit
 ia64_mca_cpu_init(void *cpu_data)
 {
 	void *pal_vaddr;
+	void *data;
+	long sz = sizeof(struct ia64_mca_cpu);
+	int cpu = smp_processor_id();
 	static int first_time = 1;
 
-	if (first_time) {
-		void *mca_data;
-		int cpu;
-
-		first_time = 0;
-		mca_data = mca_bootmem();
-		for (cpu = 0; cpu < NR_CPUS; cpu++) {
-			format_mca_init_stack(mca_data,
-					offsetof(struct ia64_mca_cpu, mca_stack),
-					"MCA", cpu);
-			format_mca_init_stack(mca_data,
-					offsetof(struct ia64_mca_cpu, init_stack),
-					"INIT", cpu);
-			__per_cpu_mca[cpu] = __pa(mca_data);
-			mca_data += sizeof(struct ia64_mca_cpu);
-		}
-	}
-
 	/*
-	 * The MCA info structure was allocated earlier and its
-	 * physical address saved in __per_cpu_mca[cpu].  Copy that
-	 * address * to ia64_mca_data so we can access it as a per-CPU
-	 * variable.
+	 * Structure will already be allocated if cpu has been online,
+	 * then offlined.
 	 */
-	__get_cpu_var(ia64_mca_data) = __per_cpu_mca[smp_processor_id()];
+	if (__per_cpu_mca[cpu]) {
+		data = __va(__per_cpu_mca[cpu]);
+	} else {
+		if (first_time) {
+			data = mca_bootmem();
+			first_time = 0;
+		} else
+			data = page_address(alloc_pages_node(numa_node_id(),
+					GFP_KERNEL, get_order(sz)));
+		if (!data)
+			panic("Could not allocate MCA memory for cpu %d\n",
+					cpu);
+	}
+	format_mca_init_stack(data, offsetof(struct ia64_mca_cpu, mca_stack),
+		"MCA", cpu);
+	format_mca_init_stack(data, offsetof(struct ia64_mca_cpu, init_stack),
+		"INIT", cpu);
+	__get_cpu_var(ia64_mca_data) = __per_cpu_mca[cpu] = __pa(data);
 
 	/*
 	 * Stash away a copy of the PTE needed to map the per-CPU page.

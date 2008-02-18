@@ -81,15 +81,23 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id, btree_keycmp ke
 		goto fail_page;
 	if (!tree->node_count)
 		goto fail_page;
-	if ((id == HFS_EXT_CNID) && (tree->max_key_len != HFS_MAX_EXT_KEYLEN)) {
-		printk(KERN_ERR "hfs: invalid extent max_key_len %d\n",
-			tree->max_key_len);
-		goto fail_page;
-	}
-	if ((id == HFS_CAT_CNID) && (tree->max_key_len != HFS_MAX_CAT_KEYLEN)) {
-		printk(KERN_ERR "hfs: invalid catalog max_key_len %d\n",
-			tree->max_key_len);
-		goto fail_page;
+	switch (id) {
+	case HFS_EXT_CNID:
+		if (tree->max_key_len != HFS_MAX_EXT_KEYLEN) {
+			printk(KERN_ERR "hfs: invalid extent max_key_len %d\n",
+				tree->max_key_len);
+			goto fail_page;
+		}
+		break;
+	case HFS_CAT_CNID:
+		if (tree->max_key_len != HFS_MAX_CAT_KEYLEN) {
+			printk(KERN_ERR "hfs: invalid catalog max_key_len %d\n",
+				tree->max_key_len);
+			goto fail_page;
+		}
+		break;
+	default:
+		BUG();
 	}
 
 	tree->node_size_shift = ffs(size) - 1;

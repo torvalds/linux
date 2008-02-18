@@ -112,6 +112,7 @@ void __init paging_init(void)
 	init_mm.pgd = swapper_pg_dir;
 	S390_lowcore.kernel_asce = __pa(init_mm.pgd) & PAGE_MASK;
 #ifdef CONFIG_64BIT
+	/* A three level page table (4TB) is enough for the kernel space. */
 	S390_lowcore.kernel_asce |= _ASCE_TYPE_REGION3 | _ASCE_TABLE_LENGTH;
 	pgd_type = _REGION3_ENTRY_EMPTY;
 #else
@@ -166,6 +167,33 @@ void __init mem_init(void)
 	       (unsigned long)&_stext,
 	       PFN_ALIGN((unsigned long)&_eshared) - 1);
 }
+
+#ifdef CONFIG_DEBUG_PAGEALLOC
+void kernel_map_pages(struct page *page, int numpages, int enable)
+{
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte;
+	unsigned long address;
+	int i;
+
+	for (i = 0; i < numpages; i++) {
+		address = page_to_phys(page + i);
+		pgd = pgd_offset_k(address);
+		pud = pud_offset(pgd, address);
+		pmd = pmd_offset(pud, address);
+		pte = pte_offset_kernel(pmd, address);
+		if (!enable) {
+			ptep_invalidate(&init_mm, address, pte);
+			continue;
+		}
+		*pte = mk_pte_phys(address, __pgprot(_PAGE_TYPE_RW));
+		/* Flush cpu write queue. */
+		mb();
+	}
+}
+#endif
 
 void free_initmem(void)
 {

@@ -6,15 +6,10 @@
 
 #include "sysdep/ptrace.h"
 
-void arch_init_thread(void)
-{
-}
-
 void arch_check_bugs(void)
 {
 }
 
-int arch_handle_signal(int sig, struct uml_pt_regs *regs)
+void arch_examine_signal(int sig, struct uml_pt_regs *regs)
 {
-	return 0;
 }

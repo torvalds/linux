@@ -735,7 +735,7 @@ static void disconnect(struct at_state_t **at_state_p)
 	/* revert to selected idle mode */
 	if (!cs->cidmode) {
 		cs->at_state.pending_commands |= PC_UMMODE;
-		atomic_set(&cs->commands_pending, 1); //FIXME
+		cs->commands_pending = 1;
 		gig_dbg(DEBUG_CMD, "Scheduling PC_UMMODE");
 	}
 	spin_unlock_irqrestore(&cs->lock, flags);
@@ -793,15 +793,15 @@ static void init_failed(struct cardstate *cs, int mode)
 	struct at_state_t *at_state;
 
 	cs->at_state.pending_commands &= ~PC_INIT;
-	atomic_set(&cs->mode, mode);
-	atomic_set(&cs->mstate, MS_UNINITIALIZED);
+	cs->mode = mode;
+	cs->mstate = MS_UNINITIALIZED;
 	gigaset_free_channels(cs);
 	for (i = 0; i < cs->channels; ++i) {
 		at_state = &cs->bcs[i].at_state;
 		if (at_state->pending_commands & PC_CID) {
 			at_state->pending_commands &= ~PC_CID;
 			at_state->pending_commands |= PC_NOCID;
-			atomic_set(&cs->commands_pending, 1);
+			cs->commands_pending = 1;
 		}
 	}
 }
@@ -812,11 +812,11 @@ static void schedule_init(struct cardstate *cs, int state)
 		gig_dbg(DEBUG_CMD, "not scheduling PC_INIT again");
 		return;
 	}
-	atomic_set(&cs->mstate, state);
-	atomic_set(&cs->mode, M_UNKNOWN);
+	cs->mstate = state;
+	cs->mode = M_UNKNOWN;
 	gigaset_block_channels(cs);
 	cs->at_state.pending_commands |= PC_INIT;
-	atomic_set(&cs->commands_pending, 1);
+	cs->commands_pending = 1;
 	gig_dbg(DEBUG_CMD, "Scheduling PC_INIT");
 }
 
@@ -953,13 +953,13 @@ static void start_dial(struct at_state_t *at_state, void *data, unsigned seq_ind
 
 	at_state->pending_commands |= PC_CID;
 	gig_dbg(DEBUG_CMD, "Scheduling PC_CID");
-	atomic_set(&cs->commands_pending, 1);
+	cs->commands_pending = 1;
 	return;
 
 error:
 	at_state->pending_commands |= PC_NOCID;
 	gig_dbg(DEBUG_CMD, "Scheduling PC_NOCID");
-	atomic_set(&cs->commands_pending, 1);
+	cs->commands_pending = 1;
 	return;
 }
 
@@ -973,12 +973,12 @@ static void start_accept(struct at_state_t *at_state)
 	if (retval == 0) {
 		at_state->pending_commands |= PC_ACCEPT;
 		gig_dbg(DEBUG_CMD, "Scheduling PC_ACCEPT");
-		atomic_set(&cs->commands_pending, 1);
+		cs->commands_pending = 1;
 	} else {
-		//FIXME
+		/* error reset */
 		at_state->pending_commands |= PC_HUP;
 		gig_dbg(DEBUG_CMD, "Scheduling PC_HUP");
-		atomic_set(&cs->commands_pending, 1);
+		cs->commands_pending = 1;
 	}
 }
 
@@ -986,7 +986,7 @@ static void do_start(struct cardstate *cs)
 {
 	gigaset_free_channels(cs);
 
-	if (atomic_read(&cs->mstate) != MS_LOCKED)
+	if (cs->mstate != MS_LOCKED)
 		schedule_init(cs, MS_INIT);
 
 	cs->isdn_up = 1;
@@ -1000,9 +1000,9 @@ static void do_start(struct cardstate *cs)
 
 static void finish_shutdown(struct cardstate *cs)
 {
-	if (atomic_read(&cs->mstate) != MS_LOCKED) {
-		atomic_set(&cs->mstate, MS_UNINITIALIZED);
-		atomic_set(&cs->mode, M_UNKNOWN);
+	if (cs->mstate != MS_LOCKED) {
+		cs->mstate = MS_UNINITIALIZED;
+		cs->mode = M_UNKNOWN;
 	}
 
 	/* Tell the LL that the device is not available .. */
@@ -1022,10 +1022,10 @@ static void do_shutdown(struct cardstate *cs)
 {
 	gigaset_block_channels(cs);
 
-	if (atomic_read(&cs->mstate) == MS_READY) {
-		atomic_set(&cs->mstate, MS_SHUTDOWN);
+	if (cs->mstate == MS_READY) {
+		cs->mstate = MS_SHUTDOWN;
 		cs->at_state.pending_commands |= PC_SHUTDOWN;
-		atomic_set(&cs->commands_pending, 1);
+		cs->commands_pending = 1;
 		gig_dbg(DEBUG_CMD, "Scheduling PC_SHUTDOWN");
 	} else
 		finish_shutdown(cs);
@@ -1120,7 +1120,7 @@ static void handle_icall(struct cardstate *cs, struct bc_state *bcs,
 		 * In fact it doesn't.
 		 */
 		at_state->pending_commands |= PC_HUP;
-		atomic_set(&cs->commands_pending, 1);
+		cs->commands_pending = 1;
 		break;
 	}
 }
@@ -1130,7 +1130,7 @@ static int do_lock(struct cardstate *cs)
 	int mode;
 	int i;
 
-	switch (atomic_read(&cs->mstate)) {
+	switch (cs->mstate) {
 	case MS_UNINITIALIZED:
 	case MS_READY:
 		if (cs->cur_at_seq || !list_empty(&cs->temp_at_states) ||
@@ -1152,20 +1152,20 @@ static int do_lock(struct cardstate *cs)
 		return -EBUSY;
 	}
 
-	mode = atomic_read(&cs->mode);
-	atomic_set(&cs->mstate, MS_LOCKED);
-	atomic_set(&cs->mode, M_UNKNOWN);
+	mode = cs->mode;
+	cs->mstate = MS_LOCKED;
+	cs->mode = M_UNKNOWN;
 
 	return mode;
 }
 
 static int do_unlock(struct cardstate *cs)
 {
-	if (atomic_read(&cs->mstate) != MS_LOCKED)
+	if (cs->mstate != MS_LOCKED)
 		return -EINVAL;
 
-	atomic_set(&cs->mstate, MS_UNINITIALIZED);
-	atomic_set(&cs->mode, M_UNKNOWN);
+	cs->mstate = MS_UNINITIALIZED;
+	cs->mode = M_UNKNOWN;
 	gigaset_free_channels(cs);
 	if (cs->connected)
 		schedule_init(cs, MS_INIT);
@@ -1198,17 +1198,17 @@ static void do_action(int action, struct cardstate *cs,
 	case ACT_INIT:
 		cs->at_state.pending_commands &= ~PC_INIT;
 		cs->cur_at_seq = SEQ_NONE;
-		atomic_set(&cs->mode, M_UNIMODEM);
+		cs->mode = M_UNIMODEM;
 		spin_lock_irqsave(&cs->lock, flags);
 		if (!cs->cidmode) {
 			spin_unlock_irqrestore(&cs->lock, flags);
 			gigaset_free_channels(cs);
-			atomic_set(&cs->mstate, MS_READY);
+			cs->mstate = MS_READY;
 			break;
 		}
 		spin_unlock_irqrestore(&cs->lock, flags);
 		cs->at_state.pending_commands |= PC_CIDMODE;
-		atomic_set(&cs->commands_pending, 1);
+		cs->commands_pending = 1;
 		gig_dbg(DEBUG_CMD, "Scheduling PC_CIDMODE");
 		break;
 	case ACT_FAILINIT:
@@ -1234,22 +1234,20 @@ static void do_action(int action, struct cardstate *cs,
 			| INS_command;
 		break;
 	case ACT_CMODESET:
-		if (atomic_read(&cs->mstate) == MS_INIT ||
-		    atomic_read(&cs->mstate) == MS_RECOVER) {
+		if (cs->mstate == MS_INIT || cs->mstate == MS_RECOVER) {
 			gigaset_free_channels(cs);
-			atomic_set(&cs->mstate, MS_READY);
+			cs->mstate = MS_READY;
 		}
-		atomic_set(&cs->mode, M_CID);
+		cs->mode = M_CID;
 		cs->cur_at_seq = SEQ_NONE;
 		break;
 	case ACT_UMODESET:
-		atomic_set(&cs->mode, M_UNIMODEM);
+		cs->mode = M_UNIMODEM;
 		cs->cur_at_seq = SEQ_NONE;
 		break;
 	case ACT_FAILCMODE:
 		cs->cur_at_seq = SEQ_NONE;
-		if (atomic_read(&cs->mstate) == MS_INIT ||
-		    atomic_read(&cs->mstate) == MS_RECOVER) {
+		if (cs->mstate == MS_INIT || cs->mstate == MS_RECOVER) {
 			init_failed(cs, M_UNKNOWN);
 			break;
 		}
@@ -1307,7 +1305,7 @@ static void do_action(int action, struct cardstate *cs,
 	case ACT_CONNECT:
 		if (cs->onechannel) {
 			at_state->pending_commands |= PC_DLE1;
-			atomic_set(&cs->commands_pending, 1);
+			cs->commands_pending = 1;
 			break;
 		}
 		bcs->chstate |= CHS_D_UP;
@@ -1333,7 +1331,7 @@ static void do_action(int action, struct cardstate *cs,
 			 * DLE only used for M10x with one B channel.
 			 */
 			at_state->pending_commands |= PC_DLE0;
-			atomic_set(&cs->commands_pending, 1);
+			cs->commands_pending = 1;
 		} else
 			disconnect(p_at_state);
 		break;
@@ -1369,7 +1367,7 @@ static void do_action(int action, struct cardstate *cs,
 			 "Could not enter DLE mode. Trying to hang up.\n");
 		channel = cs->curchannel;
 		cs->bcs[channel].at_state.pending_commands |= PC_HUP;
-		atomic_set(&cs->commands_pending, 1);
+		cs->commands_pending = 1;
 		break;
 
 	case ACT_CID: /* got cid; start dialing */
@@ -1379,7 +1377,7 @@ static void do_action(int action, struct cardstate *cs,
 			cs->bcs[channel].at_state.cid = ev->parameter;
 			cs->bcs[channel].at_state.pending_commands |=
 				PC_DIAL;
-			atomic_set(&cs->commands_pending, 1);
+			cs->commands_pending = 1;
 			break;
 		}
 		/* fall through */
@@ -1411,14 +1409,14 @@ static void do_action(int action, struct cardstate *cs,
 	case ACT_ABORTDIAL:	/* error/timeout during dial preparation */
 		cs->cur_at_seq = SEQ_NONE;
 		at_state->pending_commands |= PC_HUP;
-		atomic_set(&cs->commands_pending, 1);
+		cs->commands_pending = 1;
 		break;
 
 	case ACT_REMOTEREJECT:	/* DISCONNECT_IND after dialling */
 	case ACT_CONNTIMEOUT:	/* timeout waiting for ZSAU=ACTIVE */
 	case ACT_REMOTEHUP:	/* DISCONNECT_IND with established connection */
 		at_state->pending_commands |= PC_HUP;
-		atomic_set(&cs->commands_pending, 1);
+		cs->commands_pending = 1;
 		break;
 	case ACT_GETSTRING: /* warning: RING, ZDLE, ...
 			       are not handled properly anymore */
@@ -1515,7 +1513,7 @@ static void do_action(int action, struct cardstate *cs,
 		break;
 	case ACT_HUP:
 		at_state->pending_commands |= PC_HUP;
-		atomic_set(&cs->commands_pending, 1);
+		cs->commands_pending = 1;
 		gig_dbg(DEBUG_CMD, "Scheduling PC_HUP");
 		break;
 
@@ -1558,7 +1556,7 @@ static void do_action(int action, struct cardstate *cs,
 				cs->at_state.pending_commands |= PC_UMMODE;
 				gig_dbg(DEBUG_CMD, "Scheduling PC_UMMODE");
 			}
-			atomic_set(&cs->commands_pending, 1);
+			cs->commands_pending = 1;
 		}
 		spin_unlock_irqrestore(&cs->lock, flags);
 		cs->waiting = 0;
@@ -1741,7 +1739,7 @@ static void process_command_flags(struct cardstate *cs)
 	int sequence;
 	unsigned long flags;
 
-	atomic_set(&cs->commands_pending, 0);
+	cs->commands_pending = 0;
 
 	if (cs->cur_at_seq) {
 		gig_dbg(DEBUG_CMD, "not searching scheduled commands: busy");
@@ -1779,7 +1777,7 @@ static void process_command_flags(struct cardstate *cs)
 				~(PC_DLE1 | PC_ACCEPT | PC_DIAL);
 			if (at_state->cid > 0)
 				at_state->pending_commands |= PC_HUP;
-			if (atomic_read(&cs->mstate) == MS_RECOVER) {
+			if (cs->mstate == MS_RECOVER) {
 				if (at_state->pending_commands & PC_CID) {
 					at_state->pending_commands |= PC_NOCID;
 					at_state->pending_commands &= ~PC_CID;
@@ -1793,7 +1791,7 @@ static void process_command_flags(struct cardstate *cs)
 	if (cs->at_state.pending_commands == PC_UMMODE
 	    && !cs->cidmode
 	    && list_empty(&cs->temp_at_states)
-	    && atomic_read(&cs->mode) == M_CID) {
+	    && cs->mode == M_CID) {
 		sequence = SEQ_UMMODE;
 		at_state = &cs->at_state;
 		for (i = 0; i < cs->channels; ++i) {
@@ -1860,7 +1858,7 @@ static void process_command_flags(struct cardstate *cs)
 	}
 	if (cs->at_state.pending_commands & PC_CIDMODE) {
 		cs->at_state.pending_commands &= ~PC_CIDMODE;
-		if (atomic_read(&cs->mode) == M_UNIMODEM) {
+		if (cs->mode == M_UNIMODEM) {
 			cs->retry_count = 1;
 			schedule_sequence(cs, &cs->at_state, SEQ_CIDMODE);
 			return;
@@ -1886,11 +1884,11 @@ static void process_command_flags(struct cardstate *cs)
 			return;
 		}
 		if (bcs->at_state.pending_commands & PC_CID) {
-			switch (atomic_read(&cs->mode)) {
+			switch (cs->mode) {
 			case M_UNIMODEM:
 				cs->at_state.pending_commands |= PC_CIDMODE;
 				gig_dbg(DEBUG_CMD, "Scheduling PC_CIDMODE");
-				atomic_set(&cs->commands_pending, 1);
+				cs->commands_pending = 1;
 				return;
 #ifdef GIG_MAYINITONDIAL
 			case M_UNKNOWN:
@@ -1926,7 +1924,7 @@ static void process_events(struct cardstate *cs)
 	for (i = 0; i < 2 * MAX_EVENTS; ++i) {
 		tail = cs->ev_tail;
 		if (tail == head) {
-			if (!check_flags && !atomic_read(&cs->commands_pending))
+			if (!check_flags && !cs->commands_pending)
 				break;
 			check_flags = 0;
 			spin_unlock_irqrestore(&cs->ev_lock, flags);
@@ -1934,7 +1932,7 @@ static void process_events(struct cardstate *cs)
 			spin_lock_irqsave(&cs->ev_lock, flags);
 			tail = cs->ev_tail;
 			if (tail == head) {
-				if (!atomic_read(&cs->commands_pending))
+				if (!cs->commands_pending)
 					break;
 				continue;
 			}
@@ -1971,7 +1969,7 @@ void gigaset_handle_event(unsigned long data)
 	struct cardstate *cs = (struct cardstate *) data;
 
 	/* handle incoming data on control/common channel */
-	if (atomic_read(&cs->inbuf->head) != atomic_read(&cs->inbuf->tail)) {
+	if (cs->inbuf->head != cs->inbuf->tail) {
 		gig_dbg(DEBUG_INTR, "processing new data");
 		cs->ops->handle_input(cs->inbuf);
 	}

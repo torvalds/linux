@@ -1,4 +1,4 @@
-/* Common capabilities, needed by capability.o and root_plug.o 
+/* Common capabilities, needed by capability.o and root_plug.o
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -24,20 +24,6 @@
 #include <linux/hugetlb.h>
 #include <linux/mount.h>
 #include <linux/sched.h>
-
-#ifdef CONFIG_SECURITY_FILE_CAPABILITIES
-/*
- * Because of the reduced scope of CAP_SETPCAP when filesystem
- * capabilities are in effect, it is safe to allow this capability to
- * be available in the default configuration.
- */
-# define CAP_INIT_BSET  CAP_FULL_SET
-#else /* ie. ndef CONFIG_SECURITY_FILE_CAPABILITIES */
-# define CAP_INIT_BSET  CAP_INIT_EFF_SET
-#endif /* def CONFIG_SECURITY_FILE_CAPABILITIES */
-
-kernel_cap_t cap_bset = CAP_INIT_BSET;    /* systemwide capability bound */
-EXPORT_SYMBOL(cap_bset);
 
 /* Global security state */
 
@@ -93,9 +79,9 @@ int cap_capget (struct task_struct *target, kernel_cap_t *effective,
 		kernel_cap_t *inheritable, kernel_cap_t *permitted)
 {
 	/* Derived from kernel/capability.c:sys_capget. */
-	*effective = cap_t (target->cap_effective);
-	*inheritable = cap_t (target->cap_inheritable);
-	*permitted = cap_t (target->cap_permitted);
+	*effective = target->cap_effective;
+	*inheritable = target->cap_inheritable;
+	*permitted = target->cap_permitted;
 	return 0;
 }
 
@@ -138,6 +124,12 @@ int cap_capset_check (struct task_struct *target, kernel_cap_t *effective,
 			     cap_combine(target->cap_inheritable,
 					 current->cap_permitted))) {
 		/* incapable of using this inheritable set */
+		return -EPERM;
+	}
+	if (!cap_issubset(*inheritable,
+			   cap_combine(target->cap_inheritable,
+				       current->cap_bset))) {
+		/* no new pI capabilities outside bounding set */
 		return -EPERM;
 	}
 
@@ -198,28 +190,50 @@ int cap_inode_killpriv(struct dentry *dentry)
 }
 
 static inline int cap_from_disk(struct vfs_cap_data *caps,
-				struct linux_binprm *bprm,
-				int size)
+				struct linux_binprm *bprm, unsigned size)
 {
 	__u32 magic_etc;
+	unsigned tocopy, i;
 
-	if (size != XATTR_CAPS_SZ)
+	if (size < sizeof(magic_etc))
 		return -EINVAL;
 
 	magic_etc = le32_to_cpu(caps->magic_etc);
 
 	switch ((magic_etc & VFS_CAP_REVISION_MASK)) {
-	case VFS_CAP_REVISION:
-		if (magic_etc & VFS_CAP_FLAGS_EFFECTIVE)
-			bprm->cap_effective = true;
-		else
-			bprm->cap_effective = false;
-		bprm->cap_permitted = to_cap_t(le32_to_cpu(caps->permitted));
-		bprm->cap_inheritable = to_cap_t(le32_to_cpu(caps->inheritable));
-		return 0;
+	case VFS_CAP_REVISION_1:
+		if (size != XATTR_CAPS_SZ_1)
+			return -EINVAL;
+		tocopy = VFS_CAP_U32_1;
+		break;
+	case VFS_CAP_REVISION_2:
+		if (size != XATTR_CAPS_SZ_2)
+			return -EINVAL;
+		tocopy = VFS_CAP_U32_2;
+		break;
 	default:
 		return -EINVAL;
 	}
+
+	if (magic_etc & VFS_CAP_FLAGS_EFFECTIVE) {
+		bprm->cap_effective = true;
+	} else {
+		bprm->cap_effective = false;
+	}
+
+	for (i = 0; i < tocopy; ++i) {
+		bprm->cap_permitted.cap[i] =
+			le32_to_cpu(caps->data[i].permitted);
+		bprm->cap_inheritable.cap[i] =
+			le32_to_cpu(caps->data[i].inheritable);
+	}
+	while (i < VFS_CAP_U32) {
+		bprm->cap_permitted.cap[i] = 0;
+		bprm->cap_inheritable.cap[i] = 0;
+		i++;
+	}
+
+	return 0;
 }
 
 /* Locate any VFS capabilities: */
@@ -227,7 +241,7 @@ static int get_file_caps(struct linux_binprm *bprm)
 {
 	struct dentry *dentry;
 	int rc = 0;
-	struct vfs_cap_data incaps;
+	struct vfs_cap_data vcaps;
 	struct inode *inode;
 
 	if (bprm->file->f_vfsmnt->mnt_flags & MNT_NOSUID) {
@@ -240,14 +254,8 @@ static int get_file_caps(struct linux_binprm *bprm)
 	if (!inode->i_op || !inode->i_op->getxattr)
 		goto out;
 
-	rc = inode->i_op->getxattr(dentry, XATTR_NAME_CAPS, NULL, 0);
-	if (rc > 0) {
-		if (rc == XATTR_CAPS_SZ)
-			rc = inode->i_op->getxattr(dentry, XATTR_NAME_CAPS,
-						&incaps, XATTR_CAPS_SZ);
-		else
-			rc = -EINVAL;
-	}
+	rc = inode->i_op->getxattr(dentry, XATTR_NAME_CAPS, &vcaps,
+				   XATTR_CAPS_SZ);
 	if (rc == -ENODATA || rc == -EOPNOTSUPP) {
 		/* no data, that's ok */
 		rc = 0;
@@ -256,7 +264,7 @@ static int get_file_caps(struct linux_binprm *bprm)
 	if (rc < 0)
 		goto out;
 
-	rc = cap_from_disk(&incaps, bprm, rc);
+	rc = cap_from_disk(&vcaps, bprm, rc);
 	if (rc)
 		printk(KERN_NOTICE "%s: cap_from_disk returned %d for %s\n",
 			__FUNCTION__, rc, bprm->filename);
@@ -321,10 +329,11 @@ void cap_bprm_apply_creds (struct linux_binprm *bprm, int unsafe)
 	/* Derived from fs/exec.c:compute_creds. */
 	kernel_cap_t new_permitted, working;
 
-	new_permitted = cap_intersect (bprm->cap_permitted, cap_bset);
-	working = cap_intersect (bprm->cap_inheritable,
+	new_permitted = cap_intersect(bprm->cap_permitted,
+				 current->cap_bset);
+	working = cap_intersect(bprm->cap_inheritable,
 				 current->cap_inheritable);
-	new_permitted = cap_combine (new_permitted, working);
+	new_permitted = cap_combine(new_permitted, working);
 
 	if (bprm->e_uid != current->uid || bprm->e_gid != current->gid ||
 	    !cap_issubset (new_permitted, current->cap_permitted)) {
@@ -351,8 +360,10 @@ void cap_bprm_apply_creds (struct linux_binprm *bprm, int unsafe)
 	 * capability rules */
 	if (!is_global_init(current)) {
 		current->cap_permitted = new_permitted;
-		current->cap_effective = bprm->cap_effective ?
-				new_permitted : 0;
+		if (bprm->cap_effective)
+			current->cap_effective = new_permitted;
+		else
+			cap_clear(current->cap_effective);
 	}
 
 	/* AUD: Audit candidate if current->cap_effective is set */
@@ -474,13 +485,15 @@ int cap_task_post_setuid (uid_t old_ruid, uid_t old_euid, uid_t old_suid,
 
 			if (!issecure (SECURE_NO_SETUID_FIXUP)) {
 				if (old_fsuid == 0 && current->fsuid != 0) {
-					cap_t (current->cap_effective) &=
-					    ~CAP_FS_MASK;
+					current->cap_effective =
+						cap_drop_fs_set(
+						    current->cap_effective);
 				}
 				if (old_fsuid != 0 && current->fsuid == 0) {
-					cap_t (current->cap_effective) |=
-					    (cap_t (current->cap_permitted) &
-					     CAP_FS_MASK);
+					current->cap_effective =
+						cap_raise_fs_set(
+						    current->cap_effective,
+						    current->cap_permitted);
 				}
 			}
 			break;
@@ -561,6 +574,23 @@ int cap_task_kill(struct task_struct *p, struct siginfo *info,
 
 	return -EPERM;
 }
+
+/*
+ * called from kernel/sys.c for prctl(PR_CABSET_DROP)
+ * done without task_capability_lock() because it introduces
+ * no new races - i.e. only another task doing capget() on
+ * this task could get inconsistent info.  There can be no
+ * racing writer bc a task can only change its own caps.
+ */
+long cap_prctl_drop(unsigned long cap)
+{
+	if (!capable(CAP_SETPCAP))
+		return -EPERM;
+	if (!cap_valid(cap))
+		return -EINVAL;
+	cap_lower(current->cap_bset, cap);
+	return 0;
+}
 #else
 int cap_task_setscheduler (struct task_struct *p, int policy,
 			   struct sched_param *lp)
@@ -584,9 +614,9 @@ int cap_task_kill(struct task_struct *p, struct siginfo *info,
 
 void cap_task_reparent_to_init (struct task_struct *p)
 {
-	p->cap_effective = CAP_INIT_EFF_SET;
-	p->cap_inheritable = CAP_INIT_INH_SET;
-	p->cap_permitted = CAP_FULL_SET;
+	cap_set_init_eff(p->cap_effective);
+	cap_clear(p->cap_inheritable);
+	cap_set_full(p->cap_permitted);
 	p->keep_capabilities = 0;
 	return;
 }

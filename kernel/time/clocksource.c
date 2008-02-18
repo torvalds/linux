@@ -91,7 +91,6 @@ static void clocksource_ratewd(struct clocksource *cs, int64_t delta)
 	       cs->name, delta);
 	cs->flags &= ~(CLOCK_SOURCE_VALID_FOR_HRES | CLOCK_SOURCE_WATCHDOG);
 	clocksource_change_rating(cs, 0);
-	cs->flags &= ~CLOCK_SOURCE_WATCHDOG;
 	list_del(&cs->wd_list);
 }
 
@@ -363,15 +362,13 @@ void clocksource_unregister(struct clocksource *cs)
 static ssize_t
 sysfs_show_current_clocksources(struct sys_device *dev, char *buf)
 {
-	char *curr = buf;
+	ssize_t count = 0;
 
 	spin_lock_irq(&clocksource_lock);
-	curr += sprintf(curr, "%s ", curr_clocksource->name);
+	count = snprintf(buf, PAGE_SIZE, "%s\n", curr_clocksource->name);
 	spin_unlock_irq(&clocksource_lock);
 
-	curr += sprintf(curr, "\n");
-
-	return curr - buf;
+	return count;
 }
 
 /**
@@ -439,17 +436,20 @@ static ssize_t
 sysfs_show_available_clocksources(struct sys_device *dev, char *buf)
 {
 	struct clocksource *src;
-	char *curr = buf;
+	ssize_t count = 0;
 
 	spin_lock_irq(&clocksource_lock);
 	list_for_each_entry(src, &clocksource_list, list) {
-		curr += sprintf(curr, "%s ", src->name);
+		count += snprintf(buf + count,
+				  max((ssize_t)PAGE_SIZE - count, (ssize_t)0),
+				  "%s ", src->name);
 	}
 	spin_unlock_irq(&clocksource_lock);
 
-	curr += sprintf(curr, "\n");
+	count += snprintf(buf + count,
+			  max((ssize_t)PAGE_SIZE - count, (ssize_t)0), "\n");
 
-	return curr - buf;
+	return count;
 }
 
 /*

@@ -25,7 +25,7 @@
  * DEALINGS IN THE SOFTWARE.
  *
  * Authors: Rickard E. (Rik) Faith <faith@valinux.com>
- * 	    Jeff Hartmann <jhartmann@valinux.com>
+ *	    Jeff Hartmann <jhartmann@valinux.com>
  *
  */
 
@@ -134,7 +134,7 @@ extern int i810_max_ioctl;
 #define I810_ADDR(reg)		(I810_BASE(reg) + reg)
 #define I810_DEREF(reg)		*(__volatile__ int *)I810_ADDR(reg)
 #define I810_READ(reg)		I810_DEREF(reg)
-#define I810_WRITE(reg,val) 	do { I810_DEREF(reg) = val; } while (0)
+#define I810_WRITE(reg,val)	do { I810_DEREF(reg) = val; } while (0)
 #define I810_DEREF16(reg)	*(__volatile__ u16 *)I810_ADDR(reg)
 #define I810_READ16(reg)	I810_DEREF16(reg)
 #define I810_WRITE16(reg,val)	do { I810_DEREF16(reg) = val; } while (0)
@@ -145,7 +145,7 @@ extern int i810_max_ioctl;
 
 #define BEGIN_LP_RING(n) do {						\
 	if (I810_VERBOSE)                                               \
-           DRM_DEBUG("BEGIN_LP_RING(%d) in %s\n", n, __FUNCTION__);	\
+		DRM_DEBUG("BEGIN_LP_RING(%d)\n", n);			\
 	if (dev_priv->ring.space < n*4)					\
 		i810_wait_ring(dev, n*4);				\
 	dev_priv->ring.space -= n*4;					\
@@ -155,19 +155,19 @@ extern int i810_max_ioctl;
 } while (0)
 
 #define ADVANCE_LP_RING() do {				        \
-	if (I810_VERBOSE) DRM_DEBUG("ADVANCE_LP_RING\n");    	\
-	dev_priv->ring.tail = outring;		        	\
+	if (I810_VERBOSE) DRM_DEBUG("ADVANCE_LP_RING\n");	\
+	dev_priv->ring.tail = outring;				\
 	I810_WRITE(LP_RING + RING_TAIL, outring);	        \
 } while(0)
 
-#define OUT_RING(n) do {  				                \
+#define OUT_RING(n) do {				                \
 	if (I810_VERBOSE) DRM_DEBUG("   OUT_RING %x\n", (int)(n));	\
 	*(volatile unsigned int *)(virt + outring) = n;	                \
 	outring += 4;					                \
 	outring &= ringmask;			                        \
 } while (0)
 
-#define GFX_OP_USER_INTERRUPT 		((0<<29)|(2<<23))
+#define GFX_OP_USER_INTERRUPT		((0<<29)|(2<<23))
 #define GFX_OP_BREAKPOINT_INTERRUPT	((0<<29)|(1<<23))
 #define CMD_REPORT_HEAD			(7<<23)
 #define CMD_STORE_DWORD_IDX		((0x21<<23) | 0x1)
@@ -184,28 +184,28 @@ extern int i810_max_ioctl;
 
 #define I810REG_HWSTAM		0x02098
 #define I810REG_INT_IDENTITY_R	0x020a4
-#define I810REG_INT_MASK_R 	0x020a8
+#define I810REG_INT_MASK_R	0x020a8
 #define I810REG_INT_ENABLE_R	0x020a0
 
-#define LP_RING     		0x2030
-#define HP_RING     		0x2040
-#define RING_TAIL      		0x00
+#define LP_RING			0x2030
+#define HP_RING			0x2040
+#define RING_TAIL		0x00
 #define TAIL_ADDR		0x000FFFF8
-#define RING_HEAD      		0x04
-#define HEAD_WRAP_COUNT     	0xFFE00000
-#define HEAD_WRAP_ONE       	0x00200000
-#define HEAD_ADDR           	0x001FFFFC
-#define RING_START     		0x08
-#define START_ADDR          	0x00FFFFF8
-#define RING_LEN       		0x0C
-#define RING_NR_PAGES       	0x000FF000
-#define RING_REPORT_MASK    	0x00000006
-#define RING_REPORT_64K     	0x00000002
-#define RING_REPORT_128K    	0x00000004
-#define RING_NO_REPORT      	0x00000000
-#define RING_VALID_MASK     	0x00000001
-#define RING_VALID          	0x00000001
-#define RING_INVALID        	0x00000000
+#define RING_HEAD		0x04
+#define HEAD_WRAP_COUNT		0xFFE00000
+#define HEAD_WRAP_ONE		0x00200000
+#define HEAD_ADDR		0x001FFFFC
+#define RING_START		0x08
+#define START_ADDR		0x00FFFFF8
+#define RING_LEN		0x0C
+#define RING_NR_PAGES		0x000FF000
+#define RING_REPORT_MASK	0x00000006
+#define RING_REPORT_64K		0x00000002
+#define RING_REPORT_128K	0x00000004
+#define RING_NO_REPORT		0x00000000
+#define RING_VALID_MASK		0x00000001
+#define RING_VALID		0x00000001
+#define RING_INVALID		0x00000000
 
 #define GFX_OP_SCISSOR         ((0x3<<29)|(0x1c<<24)|(0x10<<19))
 #define SC_UPDATE_SCISSOR       (0x1<<1)

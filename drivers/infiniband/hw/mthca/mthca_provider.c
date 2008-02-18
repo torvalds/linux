@@ -923,17 +923,13 @@ static struct ib_mr *mthca_reg_phys_mr(struct ib_pd       *pd,
 	struct mthca_mr *mr;
 	u64 *page_list;
 	u64 total_size;
-	u64 mask;
+	unsigned long mask;
 	int shift;
 	int npages;
 	int err;
 	int i, j, n;
 
-	/* First check that we have enough alignment */
-	if ((*iova_start & ~PAGE_MASK) != (buffer_list[0].addr & ~PAGE_MASK))
-		return ERR_PTR(-EINVAL);
-
-	mask = 0;
+	mask = buffer_list[0].addr ^ *iova_start;
 	total_size = 0;
 	for (i = 0; i < num_phys_buf; ++i) {
 		if (i != 0)
@@ -947,17 +943,7 @@ static struct ib_mr *mthca_reg_phys_mr(struct ib_pd       *pd,
 	if (mask & ~PAGE_MASK)
 		return ERR_PTR(-EINVAL);
 
-	/* Find largest page shift we can use to cover buffers */
-	for (shift = PAGE_SHIFT; shift < 31; ++shift)
-		if (num_phys_buf > 1) {
-			if ((1ULL << shift) & mask)
-				break;
-		} else {
-			if (1ULL << shift >=
-			    buffer_list[0].size +
-			    (buffer_list[0].addr & ((1ULL << shift) - 1)))
-				break;
-		}
+	shift = __ffs(mask | 1 << 31);
 
 	buffer_list[0].size += buffer_list[0].addr & ((1ULL << shift) - 1);
 	buffer_list[0].addr &= ~0ull << shift;
@@ -1270,6 +1256,8 @@ static int mthca_init_node_data(struct mthca_dev *dev)
 		goto out;
 	}
 
+	if (mthca_is_memfree(dev))
+		dev->rev_id = be32_to_cpup((__be32 *) (out_mad->data + 32));
 	memcpy(&dev->ib_dev.node_guid, out_mad->data + 12, 8);
 
 out:

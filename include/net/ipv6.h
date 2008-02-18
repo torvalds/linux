@@ -110,7 +110,6 @@ struct frag_hdr {
 
 /* sysctls */
 extern int sysctl_mld_max_msf;
-
 extern struct ctl_path net_ipv6_ctl_path[];
 
 #define _DEVINC(statname, modifier, idev, field)			\
@@ -586,9 +585,6 @@ extern int ip6_mc_msfget(struct sock *sk, struct group_filter *gsf,
 			 int __user *optlen);
 
 #ifdef CONFIG_PROC_FS
-extern struct ctl_table *ipv6_icmp_sysctl_init(struct net *net);
-extern struct ctl_table *ipv6_route_sysctl_init(struct net *net);
-
 extern int  ac6_proc_init(void);
 extern void ac6_proc_exit(void);
 extern int  raw6_proc_init(void);
@@ -621,6 +617,8 @@ static inline int snmp6_unregister_dev(struct inet6_dev *idev)
 extern ctl_table ipv6_route_table_template[];
 extern ctl_table ipv6_icmp_table_template[];
 
+extern struct ctl_table *ipv6_icmp_sysctl_init(struct net *net);
+extern struct ctl_table *ipv6_route_sysctl_init(struct net *net);
 extern int ipv6_sysctl_register(void);
 extern void ipv6_sysctl_unregister(void);
 #endif

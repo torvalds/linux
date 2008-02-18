@@ -365,7 +365,7 @@ static void icside_dma_timeout(ide_drive_t *drive)
 	if (icside_dma_test_irq(drive))
 		return;
 
-	ide_dump_status(drive, "DMA timeout", HWIF(drive)->INB(IDE_STATUS_REG));
+	ide_dump_status(drive, "DMA timeout", ide_read_status(drive));
 
 	icside_dma_end(drive);
 }

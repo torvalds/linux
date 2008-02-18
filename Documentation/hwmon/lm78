@@ -4,12 +4,12 @@ Kernel driver lm78
 Supported chips:
   * National Semiconductor LM78 / LM78-J
     Prefix: 'lm78'
-    Addresses scanned: I2C 0x20 - 0x2f, ISA 0x290 (8 I/O ports)
+    Addresses scanned: I2C 0x28 - 0x2f, ISA 0x290 (8 I/O ports)
     Datasheet: Publicly available at the National Semiconductor website
                http://www.national.com/
   * National Semiconductor LM79
     Prefix: 'lm79'
-    Addresses scanned: I2C 0x20 - 0x2f, ISA 0x290 (8 I/O ports)
+    Addresses scanned: I2C 0x28 - 0x2f, ISA 0x290 (8 I/O ports)
     Datasheet: Publicly available at the National Semiconductor website
                http://www.national.com/
 

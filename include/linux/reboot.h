@@ -59,8 +59,6 @@ extern void machine_crash_shutdown(struct pt_regs *);
  * Architecture independent implemenations of sys_reboot commands.
  */
 
-extern void kernel_shutdown_prepare(enum system_states state);
-
 extern void kernel_restart(char *cmd);
 extern void kernel_halt(void);
 extern void kernel_power_off(void);

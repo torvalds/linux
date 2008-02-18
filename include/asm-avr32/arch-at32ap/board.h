@@ -51,6 +51,9 @@ struct platform_device *
 at32_add_device_ide(unsigned int id, unsigned int extint,
 		    struct ide_platform_data *data);
 
+/* mask says which PWM channels to mux */
+struct platform_device *at32_add_device_pwm(u32 mask);
+
 /* depending on what's hooked up, not all SSC pins will be used */
 #define	ATMEL_SSC_TK		0x01
 #define	ATMEL_SSC_TF		0x02

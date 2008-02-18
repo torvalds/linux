@@ -56,13 +56,15 @@ const struct inode_operations debugfs_link_operations = {
 	.follow_link    = debugfs_follow_link,
 };
 
-static void debugfs_u8_set(void *data, u64 val)
+static int debugfs_u8_set(void *data, u64 val)
 {
 	*(u8 *)data = val;
+	return 0;
 }
-static u64 debugfs_u8_get(void *data)
+static int debugfs_u8_get(void *data, u64 *val)
 {
-	return *(u8 *)data;
+	*val = *(u8 *)data;
+	return 0;
 }
 DEFINE_SIMPLE_ATTRIBUTE(fops_u8, debugfs_u8_get, debugfs_u8_set, "%llu\n");
 
@@ -97,13 +99,15 @@ struct dentry *debugfs_create_u8(const char *name, mode_t mode,
 }
 EXPORT_SYMBOL_GPL(debugfs_create_u8);
 
-static void debugfs_u16_set(void *data, u64 val)
+static int debugfs_u16_set(void *data, u64 val)
 {
 	*(u16 *)data = val;
+	return 0;
 }
-static u64 debugfs_u16_get(void *data)
+static int debugfs_u16_get(void *data, u64 *val)
 {
-	return *(u16 *)data;
+	*val = *(u16 *)data;
+	return 0;
 }
 DEFINE_SIMPLE_ATTRIBUTE(fops_u16, debugfs_u16_get, debugfs_u16_set, "%llu\n");
 
@@ -138,13 +142,15 @@ struct dentry *debugfs_create_u16(const char *name, mode_t mode,
 }
 EXPORT_SYMBOL_GPL(debugfs_create_u16);
 
-static void debugfs_u32_set(void *data, u64 val)
+static int debugfs_u32_set(void *data, u64 val)
 {
 	*(u32 *)data = val;
+	return 0;
 }
-static u64 debugfs_u32_get(void *data)
+static int debugfs_u32_get(void *data, u64 *val)
 {
-	return *(u32 *)data;
+	*val = *(u32 *)data;
+	return 0;
 }
 DEFINE_SIMPLE_ATTRIBUTE(fops_u32, debugfs_u32_get, debugfs_u32_set, "%llu\n");
 
@@ -179,14 +185,16 @@ struct dentry *debugfs_create_u32(const char *name, mode_t mode,
 }
 EXPORT_SYMBOL_GPL(debugfs_create_u32);
 
-static void debugfs_u64_set(void *data, u64 val)
+static int debugfs_u64_set(void *data, u64 val)
 {
 	*(u64 *)data = val;
+	return 0;
 }
 
-static u64 debugfs_u64_get(void *data)
+static int debugfs_u64_get(void *data, u64 *val)
 {
-	return *(u64 *)data;
+	*val = *(u64 *)data;
+	return 0;
 }
 DEFINE_SIMPLE_ATTRIBUTE(fops_u64, debugfs_u64_get, debugfs_u64_set, "%llu\n");
 

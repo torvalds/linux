@@ -462,7 +462,7 @@ void show_regs(struct pt_regs * regs)
 	       current, task_pid_nr(current), current->comm, task_thread_info(current));
 
 #ifdef CONFIG_SMP
-	printk(" CPU: %d", smp_processor_id());
+	printk(" CPU: %d", raw_smp_processor_id());
 #endif /* CONFIG_SMP */
 
 	for (i = 0;  i < 32;  i++) {

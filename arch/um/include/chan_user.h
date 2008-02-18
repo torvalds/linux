@@ -48,7 +48,7 @@ extern void register_winch_irq(int fd, int tty_fd, int pid,
 #define __channel_help(fn, prefix) \
 __uml_help(fn, prefix "[0-9]*=<channel description>\n" \
 "    Attach a console or serial line to a host channel.  See\n" \
-"    http://user-mode-linux.sourceforge.net/input.html for a complete\n" \
+"    http://user-mode-linux.sourceforge.net/old/input.html for a complete\n" \
 "    description of this switch.\n\n" \
 );
 

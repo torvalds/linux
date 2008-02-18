@@ -93,10 +93,6 @@ struct fbcon_ops {
 	(((s) >> (fgshift)) & 0x0f)
 #define attr_bgcol(bgshift,s)    \
 	(((s) >> (bgshift)) & 0x0f)
-#define	attr_bgcol_ec(bgshift,vc) \
-	((vc) ? (((vc)->vc_video_erase_char >> (bgshift)) & 0x0f) : 0)
-#define attr_fgcol_ec(fgshift,vc) \
-	((vc) ? (((vc)->vc_video_erase_char >> (fgshift)) & 0x0f) : 0)
 
 /* Monochrome */
 #define attr_bold(s) \
@@ -108,6 +104,49 @@ struct fbcon_ops {
 #define attr_blink(s) \
 	((s) & 0x8000)
 	
+#define mono_col(info)							\
+	(~(0xfff << (max((info)->var.green.length,			\
+			 max((info)->var.red.length,			\
+			     (info)->var.blue.length)))) & 0xff)
+
+static inline int attr_col_ec(int shift, struct vc_data *vc,
+			      struct fb_info *info, int is_fg)
+{
+	int is_mono01;
+	int col;
+	int fg;
+	int bg;
+
+	if (!vc)
+		return 0;
+
+	if (vc->vc_can_do_color)
+		return is_fg ? attr_fgcol(shift,vc->vc_video_erase_char)
+			: attr_bgcol(shift,vc->vc_video_erase_char);
+
+	if (!info)
+		return 0;
+
+	col = mono_col(info);
+	is_mono01 = info->fix.visual == FB_VISUAL_MONO01;
+
+	if (attr_reverse(vc->vc_video_erase_char)) {
+		fg = is_mono01 ? col : 0;
+		bg = is_mono01 ? 0 : col;
+	}
+	else {
+		fg = is_mono01 ? 0 : col;
+		bg = is_mono01 ? col : 0;
+	}
+
+	return is_fg ? fg : bg;
+}
+
+#define attr_bgcol_ec(bgshift,vc,info)		\
+	attr_col_ec(bgshift,vc,info,0);
+#define attr_fgcol_ec(fgshift,vc,info)		\
+	attr_col_ec(fgshift,vc,info,1);
+
 /* Font */
 #define REFCOUNT(fd)	(((int *)(fd))[-1])
 #define FNTSIZE(fd)	(((int *)(fd))[-2])

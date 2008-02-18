@@ -297,7 +297,7 @@
 
 #define __NR_utimensat		278
 #define __NR_signalfd		279
-#define __NR_timerfd		280
+/* 280 was __NR_timerfd */
 #define __NR_eventfd		281
 
 #ifdef __KERNEL__

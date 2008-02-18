@@ -1620,7 +1620,7 @@ static struct rt6_info *rt6_add_route_info(struct in6_addr *prefix, int prefixle
 {
 	struct fib6_config cfg = {
 		.fc_table	= RT6_TABLE_INFO,
-		.fc_metric	= 1024,
+		.fc_metric	= IP6_RT_PRIO_USER,
 		.fc_ifindex	= ifindex,
 		.fc_dst_len	= prefixlen,
 		.fc_flags	= RTF_GATEWAY | RTF_ADDRCONF | RTF_ROUTEINFO |
@@ -1670,7 +1670,7 @@ struct rt6_info *rt6_add_dflt_router(struct in6_addr *gwaddr,
 {
 	struct fib6_config cfg = {
 		.fc_table	= RT6_TABLE_DFLT,
-		.fc_metric	= 1024,
+		.fc_metric	= IP6_RT_PRIO_USER,
 		.fc_ifindex	= dev->ifindex,
 		.fc_flags	= RTF_GATEWAY | RTF_ADDRCONF | RTF_DEFAULT |
 				  RTF_UP | RTF_EXPIRES | RTF_PREF(pref),

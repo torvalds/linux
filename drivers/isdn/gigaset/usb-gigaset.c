@@ -104,12 +104,17 @@ MODULE_DEVICE_TABLE(usb, gigaset_table);
  * flags per packet.
  */
 
+/* functions called if a device of this driver is connected/disconnected */
 static int gigaset_probe(struct usb_interface *interface,
 			 const struct usb_device_id *id);
 static void gigaset_disconnect(struct usb_interface *interface);
 
+/* functions called before/after suspend */
+static int gigaset_suspend(struct usb_interface *intf, pm_message_t message);
+static int gigaset_resume(struct usb_interface *intf);
+static int gigaset_pre_reset(struct usb_interface *intf);
+
 static struct gigaset_driver *driver = NULL;
-static struct cardstate *cardstate = NULL;
 
 /* usb specific object needed to register this driver with the usb subsystem */
 static struct usb_driver gigaset_usb_driver = {
@@ -117,12 +122,17 @@ static struct usb_driver gigaset_usb_driver = {
 	.probe =	gigaset_probe,
 	.disconnect =	gigaset_disconnect,
 	.id_table =	gigaset_table,
+	.suspend =	gigaset_suspend,
+	.resume =	gigaset_resume,
+	.reset_resume =	gigaset_resume,
+	.pre_reset =	gigaset_pre_reset,
+	.post_reset =	gigaset_resume,
 };
 
 struct usb_cardstate {
 	struct usb_device	*udev;		/* usb device pointer */
 	struct usb_interface	*interface;	/* interface for this device */
-	atomic_t		busy;		/* bulk output in progress */
+	int			busy;		/* bulk output in progress */
 
 	/* Output buffer */
 	unsigned char		*bulk_out_buffer;
@@ -314,7 +324,7 @@ static void gigaset_modem_fill(unsigned long data)
 
 	gig_dbg(DEBUG_OUTPUT, "modem_fill");
 
-	if (atomic_read(&cs->hw.usb->busy)) {
+	if (cs->hw.usb->busy) {
 		gig_dbg(DEBUG_OUTPUT, "modem_fill: busy");
 		return;
 	}
@@ -361,18 +371,13 @@ static void gigaset_read_int_callback(struct urb *urb)
 {
 	struct inbuf_t *inbuf = urb->context;
 	struct cardstate *cs = inbuf->cs;
-	int resubmit = 0;
+	int status = urb->status;
 	int r;
 	unsigned numbytes;
 	unsigned char *src;
 	unsigned long flags;
 
-	if (!urb->status) {
-		if (!cs->connected) {
-			err("%s: disconnected", __func__); /* should never happen */
-			return;
-		}
-
+	if (!status) {
 		numbytes = urb->actual_length;
 
 		if (numbytes) {
@@ -389,28 +394,26 @@ static void gigaset_read_int_callback(struct urb *urb)
 			}
 		} else
 			gig_dbg(DEBUG_INTR, "Received zero block length");
-		resubmit = 1;
 	} else {
 		/* The urb might have been killed. */
-		gig_dbg(DEBUG_ANY, "%s - nonzero read bulk status received: %d",
-			__func__, urb->status);
-		if (urb->status != -ENOENT) { /* not killed */
-			if (!cs->connected) {
-				err("%s: disconnected", __func__); /* should never happen */
-				return;
-			}
-			resubmit = 1;
-		}
+		gig_dbg(DEBUG_ANY, "%s - nonzero status received: %d",
+			__func__, status);
+		if (status == -ENOENT || status == -ESHUTDOWN)
+			/* killed or endpoint shutdown: don't resubmit */
+			return;
 	}
 
-	if (resubmit) {
-		spin_lock_irqsave(&cs->lock, flags);
-		r = cs->connected ? usb_submit_urb(urb, GFP_ATOMIC) : -ENODEV;
+	/* resubmit URB */
+	spin_lock_irqsave(&cs->lock, flags);
+	if (!cs->connected) {
 		spin_unlock_irqrestore(&cs->lock, flags);
-		if (r)
-			dev_err(cs->dev, "error %d when resubmitting urb.\n",
-				-r);
+		err("%s: disconnected", __func__);
+		return;
 	}
+	r = usb_submit_urb(urb, GFP_ATOMIC);
+	spin_unlock_irqrestore(&cs->lock, flags);
+	if (r)
+		dev_err(cs->dev, "error %d resubmitting URB\n", -r);
 }
 
 
@@ -418,19 +421,28 @@ static void gigaset_read_int_callback(struct urb *urb)
 static void gigaset_write_bulk_callback(struct urb *urb)
 {
 	struct cardstate *cs = urb->context;
+	int status = urb->status;
 	unsigned long flags;
 
-	if (urb->status)
+	switch (status) {
+	case 0:			/* normal completion */
+		break;
+	case -ENOENT:		/* killed */
+		gig_dbg(DEBUG_ANY, "%s: killed", __func__);
+		cs->hw.usb->busy = 0;
+		return;
+	default:
 		dev_err(cs->dev, "bulk transfer failed (status %d)\n",
-			-urb->status);
+			-status);
 		/* That's all we can do. Communication problems
 		   are handled by timeouts or network protocols. */
+	}
 
 	spin_lock_irqsave(&cs->lock, flags);
 	if (!cs->connected) {
 		err("%s: not connected", __func__);
 	} else {
-		atomic_set(&cs->hw.usb->busy, 0);
+		cs->hw.usb->busy = 0;
 		tasklet_schedule(&cs->write_tasklet);
 	}
 	spin_unlock_irqrestore(&cs->lock, flags);
@@ -478,14 +490,14 @@ static int send_cb(struct cardstate *cs, struct cmdbuf_t *cb)
 
 			cb->offset += count;
 			cb->len -= count;
-			atomic_set(&ucs->busy, 1);
+			ucs->busy = 1;
 
 			spin_lock_irqsave(&cs->lock, flags);
 			status = cs->connected ? usb_submit_urb(ucs->bulk_out_urb, GFP_ATOMIC) : -ENODEV;
 			spin_unlock_irqrestore(&cs->lock, flags);
 
 			if (status) {
-				atomic_set(&ucs->busy, 0);
+				ucs->busy = 0;
 				err("could not submit urb (error %d)\n",
 				    -status);
 				cb->len = 0; /* skip urb => remove cb+wakeup
@@ -504,7 +516,7 @@ static int gigaset_write_cmd(struct cardstate *cs, const unsigned char *buf,
 	struct cmdbuf_t *cb;
 	unsigned long flags;
 
-	gigaset_dbg_buffer(atomic_read(&cs->mstate) != MS_LOCKED ?
+	gigaset_dbg_buffer(cs->mstate != MS_LOCKED ?
 			     DEBUG_TRANSCMD : DEBUG_LOCKCMD,
 			   "CMD Transmit", len, buf);
 
@@ -641,7 +653,7 @@ static int write_modem(struct cardstate *cs)
 	count = min(bcs->tx_skb->len, (unsigned) ucs->bulk_out_size);
 	skb_copy_from_linear_data(bcs->tx_skb, ucs->bulk_out_buffer, count);
 	skb_pull(bcs->tx_skb, count);
-	atomic_set(&ucs->busy, 1);
+	ucs->busy = 1;
 	gig_dbg(DEBUG_OUTPUT, "write_modem: send %d bytes", count);
 
 	spin_lock_irqsave(&cs->lock, flags);
@@ -659,7 +671,7 @@ static int write_modem(struct cardstate *cs)
 
 	if (ret) {
 		err("could not submit urb (error %d)\n", -ret);
-		atomic_set(&ucs->busy, 0);
+		ucs->busy = 0;
 	}
 
 	if (!bcs->tx_skb->len) {
@@ -680,53 +692,44 @@ static int gigaset_probe(struct usb_interface *interface,
 {
 	int retval;
 	struct usb_device *udev = interface_to_usbdev(interface);
-	unsigned int ifnum;
-	struct usb_host_interface *hostif;
+	struct usb_host_interface *hostif = interface->cur_altsetting;
 	struct cardstate *cs = NULL;
 	struct usb_cardstate *ucs = NULL;
 	struct usb_endpoint_descriptor *endpoint;
 	int buffer_size;
-	int alt;
 
-	gig_dbg(DEBUG_ANY,
-		"%s: Check if device matches .. (Vendor: 0x%x, Product: 0x%x)",
-		__func__, le16_to_cpu(udev->descriptor.idVendor),
-		le16_to_cpu(udev->descriptor.idProduct));
-
-	retval = -ENODEV; //FIXME
+	gig_dbg(DEBUG_ANY, "%s: Check if device matches ...", __func__);
 
 	/* See if the device offered us matches what we can accept */
 	if ((le16_to_cpu(udev->descriptor.idVendor)  != USB_M105_VENDOR_ID) ||
-	    (le16_to_cpu(udev->descriptor.idProduct) != USB_M105_PRODUCT_ID))
-		return -ENODEV;
-
-	/* this starts to become ascii art... */
-	hostif = interface->cur_altsetting;
-	alt = hostif->desc.bAlternateSetting;
-	ifnum = hostif->desc.bInterfaceNumber; // FIXME ?
-
-	if (alt != 0 || ifnum != 0) {
-		dev_warn(&udev->dev, "ifnum %d, alt %d\n", ifnum, alt);
+	    (le16_to_cpu(udev->descriptor.idProduct) != USB_M105_PRODUCT_ID)) {
+		gig_dbg(DEBUG_ANY, "device ID (0x%x, 0x%x) not for me - skip",
+			le16_to_cpu(udev->descriptor.idVendor),
+			le16_to_cpu(udev->descriptor.idProduct));
 		return -ENODEV;
 	}
-
-	/* Reject application specific intefaces
-	 *
-	 */
+	if (hostif->desc.bInterfaceNumber != 0) {
+		gig_dbg(DEBUG_ANY, "interface %d not for me - skip",
+			hostif->desc.bInterfaceNumber);
+		return -ENODEV;
+	}
+	if (hostif->desc.bAlternateSetting != 0) {
+		dev_notice(&udev->dev, "unsupported altsetting %d - skip",
+			   hostif->desc.bAlternateSetting);
+		return -ENODEV;
+	}
 	if (hostif->desc.bInterfaceClass != 255) {
-		dev_info(&udev->dev,
-		"%s: Device matched but iface_desc[%d]->bInterfaceClass==%d!\n",
-			 __func__, ifnum, hostif->desc.bInterfaceClass);
+		dev_notice(&udev->dev, "unsupported interface class %d - skip",
+			   hostif->desc.bInterfaceClass);
 		return -ENODEV;
 	}
 
 	dev_info(&udev->dev, "%s: Device matched ... !\n", __func__);
 
-	cs = gigaset_getunassignedcs(driver);
-	if (!cs) {
-		dev_warn(&udev->dev, "no free cardstate\n");
+	/* allocate memory for our device state and intialize it */
+	cs = gigaset_initcs(driver, 1, 1, 0, cidmode, GIGASET_MODULENAME);
+	if (!cs)
 		return -ENODEV;
-	}
 	ucs = cs->hw.usb;
 
 	/* save off device structure ptrs for later use */
@@ -759,7 +762,7 @@ static int gigaset_probe(struct usb_interface *interface,
 
 	endpoint = &hostif->endpoint[1].desc;
 
-	atomic_set(&ucs->busy, 0);
+	ucs->busy = 0;
 
 	ucs->read_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!ucs->read_urb) {
@@ -792,7 +795,7 @@ static int gigaset_probe(struct usb_interface *interface,
 
 	/* tell common part that the device is ready */
 	if (startmode == SM_LOCKED)
-		atomic_set(&cs->mstate, MS_LOCKED);
+		cs->mstate = MS_LOCKED;
 
 	if (!gigaset_start(cs)) {
 		tasklet_kill(&cs->write_tasklet);
@@ -813,7 +816,7 @@ error:
 	usb_put_dev(ucs->udev);
 	ucs->udev = NULL;
 	ucs->interface = NULL;
-	gigaset_unassign(cs);
+	gigaset_freecs(cs);
 	return retval;
 }
 
@@ -824,6 +827,9 @@ static void gigaset_disconnect(struct usb_interface *interface)
 
 	cs = usb_get_intfdata(interface);
 	ucs = cs->hw.usb;
+
+	dev_info(cs->dev, "disconnecting Gigaset USB adapter\n");
+
 	usb_kill_urb(ucs->read_urb);
 
 	gigaset_stop(cs);
@@ -831,7 +837,7 @@ static void gigaset_disconnect(struct usb_interface *interface)
 	usb_set_intfdata(interface, NULL);
 	tasklet_kill(&cs->write_tasklet);
 
-	usb_kill_urb(ucs->bulk_out_urb);	/* FIXME: only if active? */
+	usb_kill_urb(ucs->bulk_out_urb);
 
 	kfree(ucs->bulk_out_buffer);
 	usb_free_urb(ucs->bulk_out_urb);
@@ -844,7 +850,53 @@ static void gigaset_disconnect(struct usb_interface *interface)
 	ucs->interface = NULL;
 	ucs->udev = NULL;
 	cs->dev = NULL;
-	gigaset_unassign(cs);
+	gigaset_freecs(cs);
+}
+
+/* gigaset_suspend
+ * This function is called before the USB connection is suspended or reset.
+ */
+static int gigaset_suspend(struct usb_interface *intf, pm_message_t message)
+{
+	struct cardstate *cs = usb_get_intfdata(intf);
+
+	/* stop activity */
+	cs->connected = 0;	/* prevent rescheduling */
+	usb_kill_urb(cs->hw.usb->read_urb);
+	tasklet_kill(&cs->write_tasklet);
+	usb_kill_urb(cs->hw.usb->bulk_out_urb);
+
+	gig_dbg(DEBUG_SUSPEND, "suspend complete");
+	return 0;
+}
+
+/* gigaset_resume
+ * This function is called after the USB connection has been resumed or reset.
+ */
+static int gigaset_resume(struct usb_interface *intf)
+{
+	struct cardstate *cs = usb_get_intfdata(intf);
+	int rc;
+
+	/* resubmit interrupt URB */
+	cs->connected = 1;
+	rc = usb_submit_urb(cs->hw.usb->read_urb, GFP_KERNEL);
+	if (rc) {
+		dev_err(cs->dev, "Could not submit read URB (error %d)\n", -rc);
+		return rc;
+	}
+
+	gig_dbg(DEBUG_SUSPEND, "resume complete");
+	return 0;
+}
+
+/* gigaset_pre_reset
+ * This function is called before the USB connection is reset.
+ */
+static int gigaset_pre_reset(struct usb_interface *intf)
+{
+	/* same as suspend */
+	return gigaset_suspend(intf, PMSG_ON);
 }
 
 static const struct gigaset_ops ops = {
@@ -880,11 +932,6 @@ static int __init usb_gigaset_init(void)
 				       &ops, THIS_MODULE)) == NULL)
 		goto error;
 
-	/* allocate memory for our device state and intialize it */
-	cardstate = gigaset_initcs(driver, 1, 1, 0, cidmode, GIGASET_MODULENAME);
-	if (!cardstate)
-		goto error;
-
 	/* register this driver with the USB subsystem */
 	result = usb_register(&gigaset_usb_driver);
 	if (result < 0) {
@@ -897,9 +944,7 @@ static int __init usb_gigaset_init(void)
 	info(DRIVER_DESC);
 	return 0;
 
-error:	if (cardstate)
-		gigaset_freecs(cardstate);
-	cardstate = NULL;
+error:
 	if (driver)
 		gigaset_freedriver(driver);
 	driver = NULL;
@@ -913,11 +958,16 @@ error:	if (cardstate)
  */
 static void __exit usb_gigaset_exit(void)
 {
+	int i;
+
 	gigaset_blockdriver(driver); /* => probe will fail
 				      * => no gigaset_start any more
 				      */
 
-	gigaset_shutdown(cardstate);
+	/* stop all connected devices */
+	for (i = 0; i < driver->minors; i++)
+		gigaset_shutdown(driver->cs + i);
+
 	/* from now on, no isdn callback should be possible */
 
 	/* deregister this driver with the USB subsystem */
@@ -925,8 +975,6 @@ static void __exit usb_gigaset_exit(void)
 	/* this will call the disconnect-callback */
 	/* from now on, no disconnect/probe callback should be running */
 
-	gigaset_freecs(cardstate);
-	cardstate = NULL;
 	gigaset_freedriver(driver);
 	driver = NULL;
 }

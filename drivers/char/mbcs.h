@@ -537,9 +537,9 @@ struct mbcs_soft {
 	atomic_t dmawrite_done;
 	atomic_t dmaread_done;
 	atomic_t algo_done;
-	struct semaphore dmawritelock;
-	struct semaphore dmareadlock;
-	struct semaphore algolock;
+	struct mutex dmawritelock;
+	struct mutex dmareadlock;
+	struct mutex algolock;
 };
 
 static int mbcs_open(struct inode *ip, struct file *fp);

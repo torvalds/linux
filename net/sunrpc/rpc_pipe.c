@@ -495,7 +495,7 @@ rpc_lookup_parent(char *path, struct nameidata *nd)
 static void
 rpc_release_path(struct nameidata *nd)
 {
-	path_release(nd);
+	path_put(&nd->path);
 	rpc_put_mount();
 }
 
@@ -668,7 +668,8 @@ rpc_lookup_negative(char *path, struct nameidata *nd)
 
 	if ((error = rpc_lookup_parent(path, nd)) != 0)
 		return ERR_PTR(error);
-	dentry = rpc_lookup_create(nd->dentry, nd->last.name, nd->last.len, 1);
+	dentry = rpc_lookup_create(nd->path.dentry, nd->last.name, nd->last.len,
+				   1);
 	if (IS_ERR(dentry))
 		rpc_release_path(nd);
 	return dentry;
@@ -677,7 +678,7 @@ rpc_lookup_negative(char *path, struct nameidata *nd)
 /**
  * rpc_mkdir - Create a new directory in rpc_pipefs
  * @path: path from the rpc_pipefs root to the new directory
- * @rpc_clnt: rpc client to associate with this directory
+ * @rpc_client: rpc client to associate with this directory
  *
  * This creates a directory at the given @path associated with
  * @rpc_clnt, which will contain a file named "info" with some basic
@@ -695,7 +696,7 @@ rpc_mkdir(char *path, struct rpc_clnt *rpc_client)
 	dentry = rpc_lookup_negative(path, &nd);
 	if (IS_ERR(dentry))
 		return dentry;
-	dir = nd.dentry->d_inode;
+	dir = nd.path.dentry->d_inode;
 	if ((error = __rpc_mkdir(dir, dentry)) != 0)
 		goto err_dput;
 	RPC_I(dentry->d_inode)->private = rpc_client;
@@ -748,6 +749,7 @@ rpc_rmdir(struct dentry *dentry)
  * @private: private data to associate with the pipe, for the caller's use
  * @ops: operations defining the behavior of the pipe: upcall, downcall,
  *	release_pipe, and destroy_msg.
+ * @flags: rpc_inode flags
  *
  * Data is made available for userspace to read by calls to
  * rpc_queue_upcall().  The actual reads will result in calls to

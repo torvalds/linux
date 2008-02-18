@@ -528,6 +528,7 @@ static const struct abituguru3_motherboard_info abituguru3_motherboards[] = {
 		{ "AUX1 Fan",		33, 2, 60, 1, 0 },
 		{ "AUX2 Fan",		35, 2, 60, 1, 0 },
 		{ "AUX3 Fan",		36, 2, 60, 1, 0 },
+		{ "AUX4 Fan",		37, 2, 60, 1, 0 },
 		{ NULL, 0, 0, 0, 0, 0 } }
 	},
 	{ 0x001B, "unknown", {

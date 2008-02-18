@@ -195,7 +195,4 @@ unsigned char *highlander_init_irq_r7780mp(void);
 unsigned char *highlander_init_irq_r7780rp(void);
 unsigned char *highlander_init_irq_r7785rp(void);
 
-#define __IO_PREFIX	r7780rp
-#include <asm/io_generic.h>
-
 #endif  /* __ASM_SH_RENESAS_R7780RP */

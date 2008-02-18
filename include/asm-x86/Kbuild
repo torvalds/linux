@@ -22,7 +22,5 @@ unifdef-y += posix_types_64.h
 unifdef-y += ptrace.h
 unifdef-y += unistd_32.h
 unifdef-y += unistd_64.h
-unifdef-y += user_32.h
-unifdef-y += user_64.h
 unifdef-y += vm86.h
 unifdef-y += vsyscall.h

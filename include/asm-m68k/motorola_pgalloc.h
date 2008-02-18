@@ -7,7 +7,6 @@
 extern pmd_t *get_pointer_table(void);
 extern int free_pointer_table(pmd_t *);
 
-
 static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
 {
 	pte_t *pte;
@@ -22,13 +21,13 @@ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long ad
 	return pte;
 }
 
-static inline void pte_free_kernel(pte_t *pte)
+static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 {
 	cache_page(pte);
 	free_page((unsigned long) pte);
 }
 
-static inline struct page *pte_alloc_one(struct mm_struct *mm, unsigned long address)
+static inline pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
 {
 	struct page *page = alloc_pages(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO, 0);
 	pte_t *pte;
@@ -43,19 +42,21 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm, unsigned long add
 		nocache_page(pte);
 	}
 	kunmap(pte);
-
+	pgtable_page_ctor(page);
 	return page;
 }
 
-static inline void pte_free(struct page *page)
+static inline void pte_free(struct mm_struct *mm, pgtable_t page)
 {
+	pgtable_page_dtor(page);
 	cache_page(kmap(page));
 	kunmap(page);
 	__free_page(page);
 }
 
-static inline void __pte_free_tlb(struct mmu_gather *tlb, struct page *page)
+static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t page)
 {
+	pgtable_page_dtor(page);
 	cache_page(kmap(page));
 	kunmap(page);
 	__free_page(page);
@@ -67,7 +68,7 @@ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
 	return get_pointer_table();
 }
 
-static inline int pmd_free(pmd_t *pmd)
+static inline int pmd_free(struct mm_struct *mm, pmd_t *pmd)
 {
 	return free_pointer_table(pmd);
 }
@@ -78,9 +79,9 @@ static inline int __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd)
 }
 
 
-static inline void pgd_free(pgd_t *pgd)
+static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
-	pmd_free((pmd_t *)pgd);
+	pmd_free(mm, (pmd_t *)pgd);
 }
 
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
@@ -94,10 +95,11 @@ static inline void pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd, pte_t *
 	pmd_set(pmd, pte);
 }
 
-static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd, struct page *page)
+static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd, pgtable_t page)
 {
 	pmd_set(pmd, page_address(page));
 }
+#define pmd_pgtable(pmd) pmd_page(pmd)
 
 static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pmd_t *pmd)
 {
