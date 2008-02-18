@@ -1337,7 +1337,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 								   NES_MAX_USER_WQ_REGIONS, nes_ucontext->first_free_wq);
 					/* nes_debug(NES_DBG_QP, "find_first_zero_biton wqs returned %u\n",
 							nespd->mmap_db_index); */
-					if (nesqp->mmap_sq_db_index > NES_MAX_USER_WQ_REGIONS) {
+					if (nesqp->mmap_sq_db_index >= NES_MAX_USER_WQ_REGIONS) {
 						nes_debug(NES_DBG_QP,
 							  "db index > max user regions, failing create QP\n");
 						nes_free_resource(nesadapter, nesadapter->allocated_qps, qp_num);
