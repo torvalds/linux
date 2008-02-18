@@ -802,7 +802,7 @@
 #define __NR_timerfd_settime	(__NR_Linux + 307)
 #define __NR_timerfd_gettime	(__NR_Linux + 308)
 
-#define __NR_Linux_syscalls	(__NR_fallocate + 1)
+#define __NR_Linux_syscalls	(__NR_timerfd_gettime + 1)
 
 
 #define __IGNORE_select		/* newselect */
