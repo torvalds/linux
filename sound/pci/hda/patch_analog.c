@@ -80,7 +80,6 @@ struct ad198x_spec {
 #endif
 	/* for virtual master */
 	hda_nid_t vmaster_nid;
-	u32 vmaster_tlv[4];
 	const char **slave_vols;
 	const char **slave_sws;
 };
@@ -185,10 +184,11 @@ static int ad198x_build_controls(struct hda_codec *codec)
 
 	/* if we have no master control, let's create it */
 	if (!snd_hda_find_mixer_ctl(codec, "Master Playback Volume")) {
+		unsigned int vmaster_tlv[4];
 		snd_hda_set_vmaster_tlv(codec, spec->vmaster_nid,
-					HDA_OUTPUT, spec->vmaster_tlv);
+					HDA_OUTPUT, vmaster_tlv);
 		err = snd_hda_add_vmaster(codec, "Master Playback Volume",
-					  spec->vmaster_tlv,
+					  vmaster_tlv,
 					  (spec->slave_vols ?
 					   spec->slave_vols : ad_slave_vols));
 		if (err < 0)

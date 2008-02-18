@@ -186,9 +186,6 @@ struct sigmatel_spec {
 	struct hda_input_mux private_dimux;
 	struct hda_input_mux private_imux;
 	struct hda_input_mux private_mono_mux;
-
-	/* virtual master */
-	unsigned int vmaster_tlv[4];
 };
 
 static hda_nid_t stac9200_adc_nids[1] = {
@@ -930,10 +927,11 @@ static int stac92xx_build_controls(struct hda_codec *codec)
 
 	/* if we have no master control, let's create it */
 	if (!snd_hda_find_mixer_ctl(codec, "Master Playback Volume")) {
+		unsigned int vmaster_tlv[4];
 		snd_hda_set_vmaster_tlv(codec, spec->multiout.dac_nids[0],
-					HDA_OUTPUT, spec->vmaster_tlv);
+					HDA_OUTPUT, vmaster_tlv);
 		err = snd_hda_add_vmaster(codec, "Master Playback Volume",
-					  spec->vmaster_tlv, slave_vols);
+					  vmaster_tlv, slave_vols);
 		if (err < 0)
 			return err;
 	}
