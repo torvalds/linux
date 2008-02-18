@@ -295,7 +295,8 @@ enum mac80211_rx_flags {
  * The low-level driver should provide this information (the subset
  * supported by hardware) to the 802.11 code with each received
  * frame.
- * @mactime: MAC timestamp as defined by 802.11
+ * @mactime: value in microseconds of the 64-bit Time Synchronization Function
+ * 	(TSF) timer when the first data symbol (MPDU) arrived at the hardware.
  * @band: the active band when this frame was received
  * @freq: frequency the radio was tuned to when receiving this frame, in MHz
  * @ssi: signal strength when receiving this frame
