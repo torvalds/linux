@@ -618,9 +618,9 @@ static void __init inherit_prom_mappings(void)
 	read_obp_translations();
 
 	/* Now fixup OBP's idea about where we really are mapped. */
-	prom_printf("Remapping the kernel... ");
+	printk("Remapping the kernel... ");
 	remap_kernel();
-	prom_printf("done.\n");
+	printk("done.\n");
 }
 
 void prom_world(int enter)
@@ -1414,7 +1414,7 @@ void __init paging_init(void)
 				    zholes_size);
 	}
 
-	prom_printf("Booting Linux...\n");
+	printk("Booting Linux...\n");
 
 	central_probe();
 	cpu_probe();

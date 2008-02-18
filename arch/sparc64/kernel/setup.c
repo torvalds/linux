@@ -83,10 +83,10 @@ unsigned int boot_flags = 0;
 /* Exported for mm/init.c:paging_init. */
 unsigned long cmdline_memory_size = 0;
 
-static struct console prom_debug_console = {
-	.name =		"debug",
+static struct console prom_early_console = {
+	.name =		"earlyprom",
 	.write =	prom_console_write,
-	.flags =	CON_PRINTBUFFER,
+	.flags =	CON_PRINTBUFFER | CON_BOOT,
 	.index =	-1,
 };
 
@@ -112,8 +112,7 @@ static void __init process_switch(char c)
 		prom_halt();
 		break;
 	case 'p':
-		/* Use PROM debug console. */
-		register_console(&prom_debug_console);
+		/* Just ignore, this behavior is now the default.  */
 		break;
 	case 'P':
 		/* Force UltraSPARC-III P-Cache on. */
@@ -296,6 +295,9 @@ void __init setup_arch(char **cmdline_p)
 	*cmdline_p = prom_getbootargs();
 	strcpy(boot_command_line, *cmdline_p);
 
+	boot_flags_init(*cmdline_p);
+	register_console(&prom_early_console);
+
 	if (tlb_type == hypervisor)
 		printk("ARCH: SUN4V\n");
 	else
@@ -306,8 +308,6 @@ void __init setup_arch(char **cmdline_p)
 #elif defined(CONFIG_PROM_CONSOLE)
 	conswitchp = &prom_con;
 #endif
-
-	boot_flags_init(*cmdline_p);
 
 	idprom_init();
 
