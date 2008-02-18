@@ -904,7 +904,7 @@ static void yield_task_fair(struct rq *rq)
 	/*
 	 * Already in the rightmost position?
 	 */
-	if (unlikely(rightmost->vruntime < se->vruntime))
+	if (unlikely(!rightmost || rightmost->vruntime < se->vruntime))
 		return;
 
 	/*
