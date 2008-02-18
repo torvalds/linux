@@ -75,7 +75,11 @@ EXPORT_SYMBOL(bt878);
 #if defined(dprintk)
 #undef dprintk
 #endif
-#define dprintk if(bt878_debug) printk
+#define dprintk(fmt, arg...) \
+	do { \
+		if (bt878_debug) \
+			printk(KERN_DEBUG fmt, ##arg); \
+	} while (0)
 
 static void bt878_mem_free(struct bt878 *bt)
 {
@@ -154,7 +158,7 @@ static int bt878_make_risc(struct bt878 *bt)
 	}
 
 	if (bt->line_count > 255) {
-		printk("bt878: buffer size error!\n");
+		printk(KERN_ERR "bt878: buffer size error!\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -285,7 +289,8 @@ static irqreturn_t bt878_irq(int irq, void *dev_id)
 
 		if (astat & (BT878_ASCERR | BT878_AOCERR)) {
 			if (bt878_verbose) {
-				printk("bt878(%d): irq%s%s risc_pc=%08x\n",
+				printk(KERN_INFO
+				       "bt878(%d): irq%s%s risc_pc=%08x\n",
 				       bt->nr,
 				       (astat & BT878_ASCERR) ? " SCERR" :
 				       "",
@@ -295,8 +300,8 @@ static irqreturn_t bt878_irq(int irq, void *dev_id)
 		}
 		if (astat & (BT878_APABORT | BT878_ARIPERR | BT878_APPERR)) {
 			if (bt878_verbose) {
-				printk
-				    ("bt878(%d): irq%s%s%s risc_pc=%08x\n",
+				printk(KERN_INFO
+				     "bt878(%d): irq%s%s%s risc_pc=%08x\n",
 				     bt->nr,
 				     (astat & BT878_APABORT) ? " PABORT" :
 				     "",
@@ -308,8 +313,8 @@ static irqreturn_t bt878_irq(int irq, void *dev_id)
 		}
 		if (astat & (BT878_AFDSR | BT878_AFTRGT | BT878_AFBUS)) {
 			if (bt878_verbose) {
-				printk
-				    ("bt878(%d): irq%s%s%s risc_pc=%08x\n",
+				printk(KERN_INFO
+				     "bt878(%d): irq%s%s%s risc_pc=%08x\n",
 				     bt->nr,
 				     (astat & BT878_AFDSR) ? " FDSR" : "",
 				     (astat & BT878_AFTRGT) ? " FTRGT" :
@@ -510,7 +515,7 @@ static int __devinit bt878_probe(struct pci_dev *dev,
 */
 
 	if ((result = bt878_mem_alloc(bt))) {
-		printk("bt878: failed to allocate memory!\n");
+		printk(KERN_ERR "bt878: failed to allocate memory!\n");
 		goto fail2;
 	}
 
@@ -536,7 +541,7 @@ static void __devexit bt878_remove(struct pci_dev *pci_dev)
 	struct bt878 *bt = pci_get_drvdata(pci_dev);
 
 	if (bt878_verbose)
-		printk("bt878(%d): unloading\n", bt->nr);
+		printk(KERN_INFO "bt878(%d): unloading\n", bt->nr);
 
 	/* turn off all capturing, DMA and IRQs */
 	btand(~0x13, BT878_AGPIO_DMA_CTL);

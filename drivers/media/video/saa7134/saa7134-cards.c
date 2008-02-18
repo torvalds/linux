@@ -928,27 +928,38 @@ struct saa7134_board saa7134_boards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
+		.gpiomask	= 0x03,
 		.inputs         = {{
 			.name = name_tv,
 			.vmux = 1,
 			.amux = TV,
 			.tv   = 1,
-		},{
+			.gpio = 0x00,
+		}, {
 			.name = name_comp1,
-			.vmux = 0,
-			.amux = LINE2,
-		},{
-			.name = name_comp2,
 			.vmux = 3,
-			.amux = LINE2,
-		},{
+			.amux = LINE1,
+			.gpio = 0x02,
+		}, {
+			.name = name_comp2,
+			.vmux = 0,
+			.amux = LINE1,
+			.gpio = 0x02,
+		}, {
 			.name = name_svideo,
 			.vmux = 8,
-			.amux = LINE2,
-		}},
+			.amux = LINE1,
+			.gpio = 0x02,
+		} },
 		.radio = {
 			.name = name_radio,
-			.amux = LINE2,
+			.amux = LINE1,
+			.gpio = 0x01,
+		},
+		.mute  = {
+			.name = name_mute,
+			.amux = TV,
+			.gpio = 0x00,
 		},
 	},
 	[SAA7134_BOARD_BMK_MPEX_TUNER] = {
@@ -3912,6 +3923,74 @@ struct saa7134_board saa7134_boards[] = {
 		},
 		.mpeg  = SAA7134_MPEG_EMPRESS,
 	},
+	[SAA7134_BOARD_TWINHAN_DTV_DVB_3056] = {
+		.name           = "Twinhan Hybrid DTV-DVB 3056 PCI",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.tuner_config   = 2,
+		.mpeg           = SAA7134_MPEG_DVB,
+		.gpiomask       = 0x0200000,
+		.inputs = {{
+			.name   = name_tv,
+			.vmux   = 1,
+			.amux   = TV,
+			.tv     = 1,
+		}, {
+			.name   = name_comp1,
+			.vmux   = 3,
+			.amux   = LINE1,
+		}, {
+			.name   = name_svideo,
+			.vmux   = 8,		/* untested */
+			.amux   = LINE1,
+		} },
+		.radio = {
+			.name   = name_radio,
+			.amux   = TV,
+			.gpio   = 0x0200000,
+		},
+	},
+	[SAA7134_BOARD_GENIUS_TVGO_A11MCE] = {
+		/* Adrian Pardini <pardo.bsso@gmail.com> */
+		.name		= "Genius TVGO AM11MCE",
+		.audio_clock	= 0x00200000,
+		.tuner_type	= TUNER_TNF_5335MF,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.gpiomask       = 0xf000,
+		.inputs         = {{
+			.name = name_tv_mono,
+			.vmux = 1,
+			.amux = LINE2,
+			.gpio = 0x0000,
+			.tv   = 1,
+		}, {
+			.name = name_comp1,
+			.vmux = 3,
+			.amux = LINE1,
+			.gpio = 0x2000,
+			.tv = 1
+		}, {
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE1,
+			.gpio = 0x2000,
+	} },
+		.radio = {
+			.name = name_radio,
+			.amux = LINE2,
+			.gpio = 0x1000,
+		},
+		.mute = {
+			.name = name_mute,
+			.amux = LINE2,
+			.gpio = 0x6000,
+		},
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -4511,6 +4590,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x5168,
+		.subdevice    = 0x3307, /* FlyDVB-T Hybrid Mini PCI */
+		.driver_data  = SAA7134_BOARD_FLYDVBT_HYBRID_CARDBUS,
+	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
 		.subvendor    = 0x16be,
 		.subdevice    = 0x0007,
 		.driver_data  = SAA7134_BOARD_MEDION_MD8800_QUADRO,
@@ -4521,6 +4606,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0x0008,
 		.driver_data  = SAA7134_BOARD_MEDION_MD8800_QUADRO,
 	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x16be,
+		.subdevice    = 0x000d, /* triple CTX948_V1.1.1 */
+		.driver_data  = SAA7134_BOARD_MEDION_MD8800_QUADRO,
+	}, {
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
 		.subvendor    = 0x1461,
@@ -4843,7 +4934,13 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
 		.subvendor    = 0x4e42,
 		.subdevice    = 0x3502,
-		.driver_data  = SAA7134_BOARD_FLYDVBT_HYBRID_CARDBUS
+		.driver_data  = SAA7134_BOARD_FLYDVBT_HYBRID_CARDBUS,
+	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1822, /*Twinhan Technology Co. Ltd*/
+		.subdevice    = 0x0022,
+		.driver_data  = SAA7134_BOARD_TWINHAN_DTV_DVB_3056,
 	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
@@ -4995,6 +5092,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_BEHOLD_409:
 	case SAA7134_BOARD_BEHOLD_505FM:
 	case SAA7134_BOARD_BEHOLD_507_9FM:
+	case SAA7134_BOARD_GENIUS_TVGO_A11MCE:
 		dev->has_remote = SAA7134_REMOTE_GPIO;
 		break;
 	case SAA7134_BOARD_FLYDVBS_LR300:
@@ -5232,7 +5330,8 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 	case SAA7134_BOARD_ASUSTeK_P7131_DUAL:
 	case SAA7134_BOARD_ASUSTeK_P7131_HYBRID_LNA:
 	case SAA7134_BOARD_MEDION_MD8800_QUADRO:
-       case SAA7134_BOARD_AVERMEDIA_SUPER_007:
+	case SAA7134_BOARD_AVERMEDIA_SUPER_007:
+	case SAA7134_BOARD_TWINHAN_DTV_DVB_3056:
 		/* this is a hybrid board, initialize to analog mode
 		 * and configure firmware eeprom address
 		 */

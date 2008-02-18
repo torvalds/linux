@@ -779,6 +779,21 @@ static struct tda1004x_config avermedia_super_007_config = {
 	.request_firmware = philips_tda1004x_request_firmware
 };
 
+static struct tda1004x_config twinhan_dtv_dvb_3056_config = {
+	.demod_address = 0x08,
+	.invert        = 1,
+	.invert_oclk   = 0,
+	.xtal_freq     = TDA10046_XTAL_16M,
+	.agc_config    = TDA10046_AGC_TDA827X,
+	.gpio_config   = TDA10046_GP01_I,
+	.if_freq       = TDA10046_FREQ_045,
+	.i2c_gate      = 0x42,
+	.tuner_address = 0x61,
+	.tuner_config  = 2,
+	.antenna_switch = 1,
+	.request_firmware = philips_tda1004x_request_firmware
+};
+
 /* ------------------------------------------------------------------
  * special case: this card uses saa713x GPIO22 for the mode switch
  */
@@ -826,6 +841,7 @@ static struct tda1004x_config ads_tech_duo_config = {
 static struct tda10086_config flydvbs = {
 	.demod_address = 0x0e,
 	.invert = 0,
+	.diseqc_tone = 0,
 };
 
 /* ==================================================================
@@ -940,9 +956,9 @@ static int dvb_init(struct saa7134_dev *dev)
 		configure_tda827x_fe(dev, &tda827x_lifeview_config);
 		break;
 	case SAA7134_BOARD_FLYDVB_TRIO:
-		if(! use_frontend) {	//terrestrial
+		if(! use_frontend) {	/* terrestrial */
 			configure_tda827x_fe(dev, &lifeview_trio_config);
-		} else {  	      //satellite
+		} else {  	        /* satellite */
 			dev->dvb.frontend = dvb_attach(tda10086_attach, &flydvbs, &dev->i2c_adap);
 			if (dev->dvb.frontend) {
 				if (dvb_attach(tda826x_attach, dev->dvb.frontend, 0x63,
@@ -1007,8 +1023,9 @@ static int dvb_init(struct saa7134_dev *dev)
 		}
 		break;
 	case SAA7134_BOARD_ASUS_EUROPA2_HYBRID:
-		dev->dvb.frontend = tda10046_attach(&medion_cardbus,
-						    &dev->i2c_adap);
+		dev->dvb.frontend = dvb_attach(tda10046_attach,
+					       &medion_cardbus,
+					       &dev->i2c_adap);
 		if (dev->dvb.frontend) {
 			dev->original_demod_sleep = dev->dvb.frontend->ops.sleep;
 			dev->dvb.frontend->ops.sleep = philips_europa_demod_sleep;
@@ -1043,6 +1060,9 @@ static int dvb_init(struct saa7134_dev *dev)
 		break;
 	case SAA7134_BOARD_AVERMEDIA_SUPER_007:
 		configure_tda827x_fe(dev, &avermedia_super_007_config);
+		break;
+	case SAA7134_BOARD_TWINHAN_DTV_DVB_3056:
+		configure_tda827x_fe(dev, &twinhan_dtv_dvb_3056_config);
 		break;
 	default:
 		wprintk("Huh? unknown DVB card?\n");
