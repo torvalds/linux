@@ -480,10 +480,15 @@ static u16 group2_table[] = {
 	(_type)_x;							\
 })
 
+static inline unsigned long ad_mask(struct decode_cache *c)
+{
+	return (1UL << (c->ad_bytes << 3)) - 1;
+}
+
 /* Access/update address held in a register, based on addressing mode. */
 #define address_mask(reg)						\
 	((c->ad_bytes == sizeof(unsigned long)) ? 			\
-		(reg) :	((reg) & ((1UL << (c->ad_bytes << 3)) - 1)))
+		(reg) :	((reg) & ad_mask(c)))
 #define register_address(base, reg)                                     \
 	((base) + address_mask(reg))
 #define register_address_increment(reg, inc)                            \
@@ -494,9 +499,9 @@ static u16 group2_table[] = {
 			(reg) += _inc;					\
 		else							\
 			(reg) = ((reg) & 				\
-				 ~((1UL << (c->ad_bytes << 3)) - 1)) |	\
+				 ~ad_mask(c)) |	\
 				(((reg) + _inc) &			\
-				 ((1UL << (c->ad_bytes << 3)) - 1));	\
+				 ad_mask(c));	\
 	} while (0)
 
 #define JMP_REL(rel) 							\
