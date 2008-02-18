@@ -69,7 +69,6 @@ struct screen_info screen_info = {
 };
 
 void (*prom_palette)(int);
-void (*prom_keyboard)(void);
 
 static void
 prom_console_write(struct console *con, const char *s, unsigned n)
