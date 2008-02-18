@@ -143,6 +143,7 @@ int blk_rq_map_user(struct request_queue *q, struct request *rq,
 	return 0;
 unmap_rq:
 	blk_rq_unmap_user(bio);
+	rq->bio = NULL;
 	return ret;
 }
 EXPORT_SYMBOL(blk_rq_map_user);
