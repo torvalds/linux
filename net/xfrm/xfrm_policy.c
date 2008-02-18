@@ -331,15 +331,31 @@ static void xfrm_dst_hash_transfer(struct hlist_head *list,
 				   struct hlist_head *ndsttable,
 				   unsigned int nhashmask)
 {
-	struct hlist_node *entry, *tmp;
+	struct hlist_node *entry, *tmp, *entry0 = NULL;
 	struct xfrm_policy *pol;
+	unsigned int h0 = 0;
 
+redo:
 	hlist_for_each_entry_safe(pol, entry, tmp, list, bydst) {
 		unsigned int h;
 
 		h = __addr_hash(&pol->selector.daddr, &pol->selector.saddr,
 				pol->family, nhashmask);
-		hlist_add_head(&pol->bydst, ndsttable+h);
+		if (!entry0) {
+			hlist_del(entry);
+			hlist_add_head(&pol->bydst, ndsttable+h);
+			h0 = h;
+		} else {
+			if (h != h0)
+				continue;
+			hlist_del(entry);
+			hlist_add_after(entry0, &pol->bydst);
+		}
+		entry0 = entry;
+	}
+	if (!hlist_empty(list)) {
+		entry0 = NULL;
+		goto redo;
 	}
 }
 
