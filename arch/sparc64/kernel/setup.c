@@ -157,8 +157,6 @@ static void __init boot_flags_init(char *commands)
 	}
 }
 
-extern void panic_setup(char *, int *);
-
 extern unsigned short root_flags;
 extern unsigned short root_dev;
 extern unsigned short ram_flags;

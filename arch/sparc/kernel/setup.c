@@ -191,7 +191,6 @@ extern int prom_probe_memory(void);
 extern void sun4c_probe_vac(void);
 extern char cputypval;
 extern unsigned long start, end;
-extern void panic_setup(char *, int *);
 
 extern unsigned short root_flags;
 extern unsigned short root_dev;
