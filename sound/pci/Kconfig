@@ -517,6 +517,7 @@ config SND_HDA_INTEL
 	tristate "Intel HD Audio"
 	depends on SND
 	select SND_PCM
+	select SND_VMASTER
 	help
 	  Say Y here to include support for Intel "High Definition
 	  Audio" (Azalia) motherboard devices.

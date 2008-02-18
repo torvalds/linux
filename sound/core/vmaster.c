@@ -253,6 +253,8 @@ int snd_ctl_add_slave(struct snd_kcontrol *master, struct snd_kcontrol *slave)
 	return 0;
 }
 
+EXPORT_SYMBOL(snd_ctl_add_slave);
+
 /*
  * ctl callbacks for master controls
  */
@@ -362,3 +364,5 @@ struct snd_kcontrol *snd_ctl_make_virtual_master(char *name,
 	}
 	return kctl;
 }
+
+EXPORT_SYMBOL(snd_ctl_make_virtual_master);
