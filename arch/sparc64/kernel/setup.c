@@ -90,11 +90,6 @@ static struct console prom_early_console = {
 	.index =	-1,
 };
 
-/* XXX Implement this at some point... */
-void kernel_enter_debugger(void)
-{
-}
-
 /* 
  * Process kernel command line switches that are specific to the
  * SPARC or that require special low-level processing.
