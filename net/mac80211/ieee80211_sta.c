@@ -2199,7 +2199,7 @@ static void ieee80211_rx_bss_info(struct net_device *dev,
 	struct ieee80211_sta_bss *bss;
 	struct sta_info *sta;
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	u64 timestamp;
+	u64 beacon_timestamp, rx_timestamp;
 	DECLARE_MAC_BUF(mac);
 	DECLARE_MAC_BUF(mac2);
 
@@ -2216,31 +2216,7 @@ static void ieee80211_rx_bss_info(struct net_device *dev,
 	if (baselen > len)
 		return;
 
-	timestamp = le64_to_cpu(mgmt->u.beacon.timestamp);
-
-	if (sdata->vif.type == IEEE80211_IF_TYPE_IBSS && beacon &&
-	    memcmp(mgmt->bssid, sdata->u.sta.bssid, ETH_ALEN) == 0) {
-#ifdef CONFIG_MAC80211_IBSS_DEBUG
-		static unsigned long last_tsf_debug = 0;
-		u64 tsf;
-		if (local->ops->get_tsf)
-			tsf = local->ops->get_tsf(local_to_hw(local));
-		else
-			tsf = -1LLU;
-		if (time_after(jiffies, last_tsf_debug + 5 * HZ)) {
-			printk(KERN_DEBUG "RX beacon SA=%s BSSID="
-			       "%s TSF=0x%llx BCN=0x%llx diff=%lld "
-			       "@%lu\n",
-			       print_mac(mac, mgmt->sa), print_mac(mac2, mgmt->bssid),
-			       (unsigned long long)tsf,
-			       (unsigned long long)timestamp,
-			       (unsigned long long)(tsf - timestamp),
-			       jiffies);
-			last_tsf_debug = jiffies;
-		}
-#endif /* CONFIG_MAC80211_IBSS_DEBUG */
-	}
-
+	beacon_timestamp = le64_to_cpu(mgmt->u.beacon.timestamp);
 	ieee802_11_parse_elems(mgmt->u.beacon.variable, len - baselen, &elems);
 
 	if (sdata->vif.type == IEEE80211_IF_TYPE_IBSS && elems.supp_rates &&
@@ -2326,8 +2302,10 @@ static void ieee80211_rx_bss_info(struct net_device *dev,
 
 	bss->band = rx_status->band;
 
-	if (bss->probe_resp && beacon) {
-		/* Do not allow beacon to override data from Probe Response. */
+	if (sdata->vif.type != IEEE80211_IF_TYPE_IBSS &&
+	    bss->probe_resp && beacon) {
+		/* STA mode:
+		 * Do not allow beacon to override data from Probe Response. */
 		ieee80211_rx_bss_put(dev, bss);
 		return;
 	}
@@ -2424,13 +2402,67 @@ static void ieee80211_rx_bss_info(struct net_device *dev,
 		bss->ht_ie_len = 0;
 	}
 
-	bss->timestamp = timestamp;
+	bss->timestamp = beacon_timestamp;
 	bss->last_update = jiffies;
 	bss->rssi = rx_status->ssi;
 	bss->signal = rx_status->signal;
 	bss->noise = rx_status->noise;
 	if (!beacon)
 		bss->probe_resp++;
+
+	/* check if we need to merge IBSS */
+	if (sdata->vif.type == IEEE80211_IF_TYPE_IBSS && beacon &&
+	    !local->sta_sw_scanning && !local->sta_hw_scanning &&
+	    mgmt->u.beacon.capab_info & WLAN_CAPABILITY_IBSS &&
+	    bss->freq == local->oper_channel->center_freq &&
+	    elems.ssid_len == sdata->u.sta.ssid_len &&
+	    memcmp(elems.ssid, sdata->u.sta.ssid, sdata->u.sta.ssid_len) == 0) {
+		if (rx_status->flag & RX_FLAG_TSFT) {
+			/* in order for correct IBSS merging we need mactime
+			 *
+			 * since mactime is defined as the time the first data
+			 * symbol of the frame hits the PHY, and the timestamp
+			 * of the beacon is defined as "the time that the data
+			 * symbol containing the first bit of the timestamp is
+			 * transmitted to the PHY plus the transmitting STA’s
+			 * delays through its local PHY from the MAC-PHY
+			 * interface to its interface with the WM"
+			 * (802.11 11.1.2) - equals the time this bit arrives at
+			 * the receiver - we have to take into account the
+			 * offset between the two.
+			 * e.g: at 1 MBit that means mactime is 192 usec earlier
+			 * (=24 bytes * 8 usecs/byte) than the beacon timestamp.
+			 */
+			int rate = local->hw.wiphy->bands[rx_status->band]->
+					bitrates[rx_status->rate_idx].bitrate;
+			rx_timestamp = rx_status->mactime + (24 * 8 * 10 / rate);
+		} else if (local && local->ops && local->ops->get_tsf)
+			/* second best option: get current TSF */
+			rx_timestamp = local->ops->get_tsf(local_to_hw(local));
+		else
+			/* can't merge without knowing the TSF */
+			rx_timestamp = -1LLU;
+#ifdef CONFIG_MAC80211_IBSS_DEBUG
+		printk(KERN_DEBUG "RX beacon SA=%s BSSID="
+		       "%s TSF=0x%llx BCN=0x%llx diff=%lld @%lu\n",
+		       print_mac(mac, mgmt->sa),
+		       print_mac(mac2, mgmt->bssid),
+		       (unsigned long long)rx_timestamp,
+		       (unsigned long long)beacon_timestamp,
+		       (unsigned long long)(rx_timestamp - beacon_timestamp),
+		       jiffies);
+#endif /* CONFIG_MAC80211_IBSS_DEBUG */
+		if (beacon_timestamp > rx_timestamp) {
+			if (CONFIG_MAC80211_IBSS_DEBUG || net_ratelimit())
+				printk(KERN_DEBUG "%s: beacon TSF higher than "
+				       "local TSF - IBSS merge with BSSID %s\n",
+				       dev->name, print_mac(mac, mgmt->bssid));
+			ieee80211_sta_join_ibss(dev, &sdata->u.sta, bss);
+			ieee80211_ibss_add_sta(dev, NULL,
+					       mgmt->bssid, mgmt->sa);
+		}
+	}
+
 	ieee80211_rx_bss_put(dev, bss);
 }
 

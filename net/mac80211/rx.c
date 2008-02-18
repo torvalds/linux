@@ -1695,7 +1695,10 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 	case IEEE80211_IF_TYPE_IBSS:
 		if (!bssid)
 			return 0;
-		if (!ieee80211_bssid_match(bssid, sdata->u.sta.bssid)) {
+		if ((rx->fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_MGMT &&
+		    (rx->fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_BEACON)
+			return 1;
+		else if (!ieee80211_bssid_match(bssid, sdata->u.sta.bssid)) {
 			if (!(rx->flags & IEEE80211_TXRXD_RXIN_SCAN))
 				return 0;
 			rx->flags &= ~IEEE80211_TXRXD_RXRA_MATCH;
