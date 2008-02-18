@@ -176,7 +176,7 @@ void copy_io_context(struct io_context **pdst, struct io_context **psrc)
 }
 EXPORT_SYMBOL(copy_io_context);
 
-int __init blk_ioc_init(void)
+static int __init blk_ioc_init(void)
 {
 	iocontext_cachep = kmem_cache_create("blkdev_ioc",
 			sizeof(struct io_context), 0, SLAB_PANIC, NULL);
