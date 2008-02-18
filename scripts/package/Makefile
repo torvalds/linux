@@ -1,10 +1,6 @@
 # Makefile for the different targets used to generate full packages of a kernel
 # It uses the generic clean infrastructure of kbuild
 
-# Ignore the following files/directories during tar operation
-TAR_IGNORE := --exclude SCCS --exclude BitKeeper --exclude .svn --exclude CVS
-
-
 # RPM target
 # ---------------------------------------------------------------------------
 # The rpm target generates two rpm files:
