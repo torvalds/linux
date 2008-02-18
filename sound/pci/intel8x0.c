@@ -155,7 +155,8 @@ DEFINE_REGSET(SP, 0x60);	/* SPDIF out */
 #define   ICH_PCM_SPDIF_69	0x80000000	/* s/pdif pcm on slots 6&9 */
 #define   ICH_PCM_SPDIF_1011	0xc0000000	/* s/pdif pcm on slots 10&11 */
 #define   ICH_PCM_20BIT		0x00400000	/* 20-bit samples (ICH4) */
-#define   ICH_PCM_246_MASK	0x00300000	/* 6 channels (not all chips) */
+#define   ICH_PCM_246_MASK	0x00300000	/* chan mask (not all chips) */
+#define   ICH_PCM_8		0x00300000      /* 8 channels (not all chips) */
 #define   ICH_PCM_6		0x00200000	/* 6 channels (not all chips) */
 #define   ICH_PCM_4		0x00100000	/* 4 channels (not all chips) */
 #define   ICH_PCM_2		0x00000000	/* 2 channels (stereo) */
@@ -382,6 +383,7 @@ struct intel8x0 {
 
 	unsigned multi4: 1,
 		 multi6: 1,
+		 multi8 :1,
 		 dra: 1,
 		 smp20bit: 1;
 	unsigned in_ac97_init: 1,
@@ -997,6 +999,8 @@ static void snd_intel8x0_setup_pcm_out(struct intel8x0 *chip,
 			cnt |= ICH_PCM_4;
 		else if (runtime->channels == 6)
 			cnt |= ICH_PCM_6;
+		else if (runtime->channels == 8)
+			cnt |= ICH_PCM_8;
 		if (chip->device_type == DEVICE_NFORCE) {
 			/* reset to 2ch once to keep the 6 channel data in alignment,
 			 * to start from Front Left always
@@ -1106,6 +1110,16 @@ static struct snd_pcm_hw_constraint_list hw_constraints_channels6 = {
 	.mask = 0,
 };
 
+static unsigned int channels8[] = {
+	2, 4, 6, 8,
+};
+
+static struct snd_pcm_hw_constraint_list hw_constraints_channels8 = {
+	.count = ARRAY_SIZE(channels8),
+	.list = channels8,
+	.mask = 0,
+};
+
 static int snd_intel8x0_pcm_open(struct snd_pcm_substream *substream, struct ichdev *ichdev)
 {
 	struct intel8x0 *chip = snd_pcm_substream_chip(substream);
@@ -1136,7 +1150,12 @@ static int snd_intel8x0_playback_open(struct snd_pcm_substream *substream)
 	if (err < 0)
 		return err;
 
-	if (chip->multi6) {
+	if (chip->multi8) {
+		runtime->hw.channels_max = 8;
+		snd_pcm_hw_constraint_list(runtime, 0,
+						SNDRV_PCM_HW_PARAM_CHANNELS,
+						&hw_constraints_channels8);
+	} else if (chip->multi6) {
 		runtime->hw.channels_max = 6;
 		snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
 					   &hw_constraints_channels6);
@@ -2203,8 +2222,11 @@ static int __devinit snd_intel8x0_mixer(struct intel8x0 *chip, int ac97_clock,
 	}
 	if (pbus->pcms[0].r[0].slots & (1 << AC97_SLOT_PCM_SLEFT)) {
 		chip->multi4 = 1;
-		if (pbus->pcms[0].r[0].slots & (1 << AC97_SLOT_LFE))
+		if (pbus->pcms[0].r[0].slots & (1 << AC97_SLOT_LFE)) {
 			chip->multi6 = 1;
+			if (chip->ac97[0]->flags & AC97_HAS_8CH)
+				chip->multi8 = 1;
+		}
 	}
 	if (pbus->pcms[0].r[1].rslots[0]) {
 		chip->dra = 1;

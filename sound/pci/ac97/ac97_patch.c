@@ -114,10 +114,9 @@ static int ac97_surround_jack_mode_put(struct snd_kcontrol *kcontrol, struct snd
 
 static int ac97_channel_mode_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	static const char *texts[] = { "2ch", "4ch", "6ch" };
-	if (kcontrol->private_value)
-		return ac97_enum_text_info(kcontrol, uinfo, texts, 2); /* 4ch only */
-	return ac97_enum_text_info(kcontrol, uinfo, texts, 3);
+	static const char *texts[] = { "2ch", "4ch", "6ch", "8ch" };
+	return ac97_enum_text_info(kcontrol, uinfo, texts,
+		kcontrol->private_value);
 }
 
 static int ac97_channel_mode_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
@@ -133,13 +132,8 @@ static int ac97_channel_mode_put(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	struct snd_ac97 *ac97 = snd_kcontrol_chip(kcontrol);
 	unsigned char mode = ucontrol->value.enumerated.item[0];
 
-	if (kcontrol->private_value) {
-		if (mode >= 2)
-			return -EINVAL;
-	} else {
-		if (mode >= 3)
-			return -EINVAL;
-	}
+	if (mode >= kcontrol->private_value)
+		return -EINVAL;
 
 	if (mode != ac97->channel_mode) {
 		ac97->channel_mode = mode;
@@ -158,6 +152,7 @@ static int ac97_channel_mode_put(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 		.get = ac97_surround_jack_mode_get, \
 		.put = ac97_surround_jack_mode_put, \
 	}
+/* 6ch */
 #define AC97_CHANNEL_MODE_CTL \
 	{ \
 		.iface	= SNDRV_CTL_ELEM_IFACE_MIXER, \
@@ -165,7 +160,9 @@ static int ac97_channel_mode_put(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 		.info = ac97_channel_mode_info, \
 		.get = ac97_channel_mode_get, \
 		.put = ac97_channel_mode_put, \
+		.private_value = 3, \
 	}
+/* 4ch */
 #define AC97_CHANNEL_MODE_4CH_CTL \
 	{ \
 		.iface	= SNDRV_CTL_ELEM_IFACE_MIXER, \
@@ -173,7 +170,17 @@ static int ac97_channel_mode_put(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 		.info = ac97_channel_mode_info, \
 		.get = ac97_channel_mode_get, \
 		.put = ac97_channel_mode_put, \
-		.private_value = 1, \
+		.private_value = 2, \
+	}
+/* 8ch */
+#define AC97_CHANNEL_MODE_8CH_CTL \
+	{ \
+		.iface  = SNDRV_CTL_ELEM_IFACE_MIXER, \
+		.name   = "Channel Mode", \
+		.info = ac97_channel_mode_info, \
+		.get = ac97_channel_mode_get, \
+		.put = ac97_channel_mode_put, \
+		.private_value = 4, \
 	}
 
 static inline int is_surround_on(struct snd_ac97 *ac97)
@@ -210,6 +217,10 @@ static inline int is_shared_micin(struct snd_ac97 *ac97)
 	return !ac97->indep_surround && !is_clfe_on(ac97);
 }
 
+static inline int alc850_is_aux_back_surround(struct snd_ac97 *ac97)
+{
+	return is_surround_on(ac97);
+}
 
 /* The following snd_ac97_ymf753_... items added by David Shust (dshust@shustring.com) */
 /* Modified for YMF743 by Keita Maehara <maehara@debian.org> */
@@ -2816,10 +2827,12 @@ static int patch_alc655(struct snd_ac97 * ac97)
 
 #define AC97_ALC850_JACK_SELECT	0x76
 #define AC97_ALC850_MISC1	0x7a
+#define AC97_ALC850_MULTICH    0x6a
 
 static void alc850_update_jacks(struct snd_ac97 *ac97)
 {
 	int shared;
+	int aux_is_back_surround;
 	
 	/* shared Line-In / Surround Out */
 	shared = is_shared_surrout(ac97);
@@ -2837,13 +2850,18 @@ static void alc850_update_jacks(struct snd_ac97 *ac97)
 	/* MIC-IN = 1, CENTER-LFE = 5 */
 	snd_ac97_update_bits(ac97, AC97_ALC850_JACK_SELECT, 7 << 4,
 			     shared ? (5<<4) : (1<<4));
+
+	aux_is_back_surround = alc850_is_aux_back_surround(ac97);
+	/* Aux is Back Surround */
+	snd_ac97_update_bits(ac97, AC97_ALC850_MULTICH, 1 << 10,
+				 aux_is_back_surround ? (1<<10) : (0<<10));
 }
 
 static const struct snd_kcontrol_new snd_ac97_controls_alc850[] = {
 	AC97_PAGE_SINGLE("Duplicate Front", AC97_ALC650_MULTICH, 0, 1, 0, 0),
 	AC97_SINGLE("Mic Front Input Switch", AC97_ALC850_JACK_SELECT, 15, 1, 1),
 	AC97_SURROUND_JACK_MODE_CTL,
-	AC97_CHANNEL_MODE_CTL,
+	AC97_CHANNEL_MODE_8CH_CTL,
 };
 
 static int patch_alc850_specific(struct snd_ac97 *ac97)
@@ -2869,6 +2887,7 @@ static int patch_alc850(struct snd_ac97 *ac97)
 	ac97->build_ops = &patch_alc850_ops;
 
 	ac97->spec.dev_flags = 0; /* for IEC958 playback route - ALC655 compatible */
+	ac97->flags |= AC97_HAS_8CH;
 
 	/* assume only page 0 for writing cache */
 	snd_ac97_update_bits(ac97, AC97_INT_PAGING, AC97_PAGE_MASK, AC97_PAGE_VENDOR);
@@ -2878,6 +2897,7 @@ static int patch_alc850(struct snd_ac97 *ac97)
 	   spdif-in monitor off, spdif-in PCM off
 	   center on mic off, surround on line-in off
 	   duplicate front off
+	   NB default bit 10=0 = Aux is Capture, not Back Surround
 	*/
 	snd_ac97_write_cache(ac97, AC97_ALC650_MULTICH, 1<<15);
 	/* SURR_OUT: on, Surr 1kOhm: on, Surr Amp: off, Front 1kOhm: off
