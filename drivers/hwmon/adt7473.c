@@ -30,7 +30,7 @@
 #include <linux/log2.h>
 
 /* Addresses to scan */
-static unsigned short normal_i2c[] = { 0x2C, 0x2D, 0x2E, I2C_CLIENT_END };
+static const unsigned short normal_i2c[] = { 0x2C, 0x2D, 0x2E, I2C_CLIENT_END };
 
 /* Insmod parameters */
 I2C_CLIENT_INSMOD_1(adt7473);

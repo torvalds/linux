@@ -51,8 +51,8 @@
 
 /* The LM92 and MAX6635 have 2 two-state pins for address selection,
    resulting in 4 possible addresses. */
-static unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b,
-				       I2C_CLIENT_END };
+static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b,
+						I2C_CLIENT_END };
 
 /* Insmod parameters */
 I2C_CLIENT_INSMOD_1(lm92);
