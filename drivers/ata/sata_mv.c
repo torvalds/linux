@@ -2947,7 +2947,8 @@ static int mv_platform_probe(struct platform_device *pdev)
 	hpriv->n_ports = n_ports;
 
 	host->iomap = NULL;
-	hpriv->base = ioremap(res->start, res->end - res->start + 1);
+	hpriv->base = devm_ioremap(&pdev->dev, res->start,
+				   res->end - res->start + 1);
 	hpriv->base -= MV_SATAHC0_REG_BASE;
 
 	rc = mv_create_dma_pools(hpriv, &pdev->dev);
@@ -2979,11 +2980,8 @@ static int __devexit mv_platform_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ata_host *host = dev_get_drvdata(dev);
-	struct mv_host_priv *hpriv = host->private_data;
-	void __iomem *base = hpriv->base;
 
 	ata_host_detach(host);
-	iounmap(base);
 	return 0;
 }
 
