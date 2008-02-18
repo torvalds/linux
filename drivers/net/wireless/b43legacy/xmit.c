@@ -546,12 +546,16 @@ void b43legacy_rx(struct b43legacy_wldev *dev,
 	status.antenna = !!(phystat0 & B43legacy_RX_PHYST0_ANT);
 
 	/*
-	 * If monitors are present get full 64-bit timestamp. This
-	 * code assumes we get to process the packet within 16 bits
-	 * of timestamp, i.e. about 65 milliseconds after the PHY
-	 * received the first symbol.
+	 * All frames on monitor interfaces and beacons always need a full
+	 * 64-bit timestamp. Monitor interfaces need it for diagnostic
+	 * purposes and beacons for IBSS merging.
+	 * This code assumes we get to process the packet within 16 bits
+	 * of timestamp, i.e. about 65 milliseconds after the PHY received
+	 * the first symbol.
 	 */
-	if (dev->wl->radiotap_enabled) {
+	if (((fctl & (IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE))
+	    == (IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_BEACON)) ||
+	    dev->wl->radiotap_enabled) {
 		u16 low_mactime_now;
 
 		b43legacy_tsf_read(dev, &status.mactime);
