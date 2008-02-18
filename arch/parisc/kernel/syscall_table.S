@@ -401,7 +401,7 @@
 	ENTRY_COMP(kexec_load)		/* 300 */
 	ENTRY_COMP(utimensat)
 	ENTRY_COMP(signalfd)
-	ENTRY_COMP(timerfd)
+	ENTRY_SAME(ni_syscall)		/* was timerfd */
 	ENTRY_SAME(eventfd)
 	ENTRY_COMP(fallocate)		/* 305 */
 
