@@ -737,7 +737,7 @@ cleanup:
 /*
  * Device functions
  */
-static int snd_at73c213_ssc_init(struct snd_at73c213 *chip)
+static int __devinit snd_at73c213_ssc_init(struct snd_at73c213 *chip)
 {
 	/*
 	 * Continuous clock output.
@@ -767,7 +767,7 @@ static int snd_at73c213_ssc_init(struct snd_at73c213 *chip)
 	return 0;
 }
 
-static int snd_at73c213_chip_init(struct snd_at73c213 *chip)
+static int __devinit snd_at73c213_chip_init(struct snd_at73c213 *chip)
 {
 	int retval;
 	unsigned char dac_ctrl = 0;
@@ -933,7 +933,7 @@ out:
 	return retval;
 }
 
-static int snd_at73c213_probe(struct spi_device *spi)
+static int __devinit snd_at73c213_probe(struct spi_device *spi)
 {
 	struct snd_card			*card;
 	struct snd_at73c213		*chip;
