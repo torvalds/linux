@@ -333,10 +333,14 @@ static int __match_tty(struct device *dev, void *data)
 
 static void del_conn(struct work_struct *work)
 {
-	struct device *dev;
 	struct hci_conn *conn = container_of(work, struct hci_conn, work);
 
-	while (dev = device_find_child(&conn->dev, NULL, __match_tty)) {
+	while (1) {
+		struct device *dev;
+
+		dev = device_find_child(&conn->dev, NULL, __match_tty);
+		if (!dev)
+			break;
 		device_move(dev, NULL);
 		put_device(dev);
 	}
