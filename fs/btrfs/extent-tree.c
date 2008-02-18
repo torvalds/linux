@@ -1251,6 +1251,9 @@ static int __free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 	struct btrfs_root *extent_root = info->extent_root;
 	struct extent_buffer *leaf;
 	int ret;
+	int extent_slot = 0;
+	int found_extent = 0;
+	int num_to_del = 1;
 	struct btrfs_extent_item *ei;
 	u32 refs;
 
@@ -1267,7 +1270,24 @@ static int __free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 				    ref_generation,
 				    owner_objectid, owner_offset, 1);
 	if (ret == 0) {
-		ret = btrfs_del_item(trans, extent_root, path);
+		struct btrfs_key found_key;
+		extent_slot = path->slots[0];
+		while(extent_slot > 0) {
+			extent_slot--;
+			btrfs_item_key_to_cpu(path->nodes[0], &found_key,
+					      extent_slot);
+			if (found_key.objectid != bytenr)
+				break;
+			if (found_key.type == BTRFS_EXTENT_ITEM_KEY &&
+			    found_key.offset == num_bytes) {
+				found_extent = 1;
+				break;
+			}
+			if (path->slots[0] - extent_slot > 5)
+				break;
+		}
+		if (!found_extent)
+			ret = btrfs_del_item(trans, extent_root, path);
 	} else {
 		btrfs_print_leaf(extent_root, path->nodes[0]);
 		WARN_ON(1);
@@ -1276,20 +1296,45 @@ static int __free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 		       root_objectid, ref_generation, owner_objectid,
 		       owner_offset);
 	}
-	btrfs_release_path(extent_root, path);
-	ret = btrfs_search_slot(trans, extent_root, &key, path, -1, 1);
-	if (ret < 0)
-		return ret;
-	BUG_ON(ret);
+	if (!found_extent) {
+		btrfs_release_path(extent_root, path);
+		ret = btrfs_search_slot(trans, extent_root, &key, path, -1, 1);
+		if (ret < 0)
+			return ret;
+		BUG_ON(ret);
+		extent_slot = path->slots[0];
+	}
 
 	leaf = path->nodes[0];
-	ei = btrfs_item_ptr(leaf, path->slots[0],
+	ei = btrfs_item_ptr(leaf, extent_slot,
 			    struct btrfs_extent_item);
 	refs = btrfs_extent_refs(leaf, ei);
 	BUG_ON(refs == 0);
 	refs -= 1;
 	btrfs_set_extent_refs(leaf, ei, refs);
+
 	btrfs_mark_buffer_dirty(leaf);
+
+	if (refs == 0 && found_extent && path->slots[0] == extent_slot + 1) {
+		/* if the back ref and the extent are next to each other
+		 * they get deleted below in one shot
+		 */
+		path->slots[0] = extent_slot;
+		num_to_del = 2;
+	} else if (found_extent) {
+		/* otherwise delete the extent back ref */
+		ret = btrfs_del_item(trans, extent_root, path);
+		BUG_ON(ret);
+		/* if refs are 0, we need to setup the path for deletion */
+		if (refs == 0) {
+			btrfs_release_path(extent_root, path);
+			ret = btrfs_search_slot(trans, extent_root, &key, path,
+						-1, 1);
+			if (ret < 0)
+				return ret;
+			BUG_ON(ret);
+		}
+	}
 
 	if (refs == 0) {
 		u64 super_used;
@@ -1311,8 +1356,8 @@ static int __free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 		root_used = btrfs_root_used(&root->root_item);
 		btrfs_set_root_used(&root->root_item,
 					   root_used - num_bytes);
-
-		ret = btrfs_del_item(trans, extent_root, path);
+		ret = btrfs_del_items(trans, extent_root, path, path->slots[0],
+				      num_to_del);
 		if (ret) {
 			return ret;
 		}
