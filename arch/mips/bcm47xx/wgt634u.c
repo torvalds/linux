@@ -106,7 +106,7 @@ static int __init wgt634u_init(void)
 	 * been allocated ranges 00:09:5b:xx:xx:xx and 00:0f:b5:xx:xx:xx.
 	 */
 
-	u8 *et0mac = ssb_bcm47xx.sprom.r1.et0mac;
+	u8 *et0mac = ssb_bcm47xx.sprom.et0mac;
 
 	if (et0mac[0] == 0x00 &&
 	    ((et0mac[1] == 0x09 && et0mac[2] == 0x5b) ||
