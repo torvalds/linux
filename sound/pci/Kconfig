@@ -162,6 +162,7 @@ config SND_CA0106
 	depends on SND
 	select SND_AC97_CODEC
 	select SND_RAWMIDI
+	select SND_VMASTER
 	help
 	  Say Y here to include support for the Sound Blaster Audigy LS
 	  and Live 24bit.
