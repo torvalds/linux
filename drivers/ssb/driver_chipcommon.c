@@ -376,6 +376,7 @@ int ssb_chipco_serial_init(struct ssb_chipcommon *cc,
 	unsigned int irq;
 	u32 baud_base, div;
 	u32 i, n;
+	unsigned int ccrev = cc->dev->id.revision;
 
 	plltype = (cc->capabilities & SSB_CHIPCO_CAP_PLLT);
 	irq = ssb_mips_irq(cc->dev);
@@ -387,14 +388,39 @@ int ssb_chipco_serial_init(struct ssb_chipcommon *cc,
 						chipco_read32(cc, SSB_CHIPCO_CLOCK_M2));
 		div = 1;
 	} else {
-		if (cc->dev->id.revision >= 11) {
-			/* Fixed ALP clock */
-			baud_base = 20000000;
-			div = 1;
+		if (ccrev == 20) {
+			/* BCM5354 uses constant 25MHz clock */
+			baud_base = 25000000;
+			div = 48;
 			/* Set the override bit so we don't divide it */
 			chipco_write32(cc, SSB_CHIPCO_CORECTL,
-				       SSB_CHIPCO_CORECTL_UARTCLK0);
-		} else if (cc->dev->id.revision >= 3) {
+				       chipco_read32(cc, SSB_CHIPCO_CORECTL)
+				       | SSB_CHIPCO_CORECTL_UARTCLK0);
+		} else if ((ccrev >= 11) && (ccrev != 15)) {
+			/* Fixed ALP clock */
+			baud_base = 20000000;
+			if (cc->capabilities & SSB_CHIPCO_CAP_PMU) {
+				/* FIXME: baud_base is different for devices with a PMU */
+				SSB_WARN_ON(1);
+			}
+			div = 1;
+			if (ccrev >= 21) {
+				/* Turn off UART clock before switching clocksource. */
+				chipco_write32(cc, SSB_CHIPCO_CORECTL,
+					       chipco_read32(cc, SSB_CHIPCO_CORECTL)
+					       & ~SSB_CHIPCO_CORECTL_UARTCLKEN);
+			}
+			/* Set the override bit so we don't divide it */
+			chipco_write32(cc, SSB_CHIPCO_CORECTL,
+				       chipco_read32(cc, SSB_CHIPCO_CORECTL)
+				       | SSB_CHIPCO_CORECTL_UARTCLK0);
+			if (ccrev >= 21) {
+				/* Re-enable the UART clock. */
+				chipco_write32(cc, SSB_CHIPCO_CORECTL,
+					       chipco_read32(cc, SSB_CHIPCO_CORECTL)
+					       | SSB_CHIPCO_CORECTL_UARTCLKEN);
+			}
+		} else if (ccrev >= 3) {
 			/* Internal backplane clock */
 			baud_base = ssb_clockspeed(bus);
 			div = chipco_read32(cc, SSB_CHIPCO_CLKDIV)
@@ -406,7 +432,7 @@ int ssb_chipco_serial_init(struct ssb_chipcommon *cc,
 		}
 
 		/* Clock source depends on strapping if UartClkOverride is unset */
-		if ((cc->dev->id.revision > 0) &&
+		if ((ccrev > 0) &&
 		    !(chipco_read32(cc, SSB_CHIPCO_CORECTL) & SSB_CHIPCO_CORECTL_UARTCLK0)) {
 			if ((cc->capabilities & SSB_CHIPCO_CAP_UARTCLK) ==
 			    SSB_CHIPCO_CAP_UARTCLK_INT) {
@@ -428,7 +454,7 @@ int ssb_chipco_serial_init(struct ssb_chipcommon *cc,
 		cc_mmio = cc->dev->bus->mmio + (cc->dev->core_index * SSB_CORE_SIZE);
 		uart_regs = cc_mmio + SSB_CHIPCO_UART0_DATA;
 		/* Offset changed at after rev 0 */
-		if (cc->dev->id.revision == 0)
+		if (ccrev == 0)
 			uart_regs += (i * 8);
 		else
 			uart_regs += (i * 256);

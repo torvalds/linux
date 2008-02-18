@@ -51,9 +51,12 @@
 #define  SSB_CHIPCO_CAP_JTAGM		0x00400000	/* JTAG master present */
 #define  SSB_CHIPCO_CAP_BROM		0x00800000	/* Internal boot ROM active */
 #define  SSB_CHIPCO_CAP_64BIT		0x08000000	/* 64-bit Backplane */
+#define  SSB_CHIPCO_CAP_PMU		0x10000000	/* PMU available (rev >= 20) */
+#define  SSB_CHIPCO_CAP_ECI		0x20000000	/* ECI available (rev >= 20) */
 #define SSB_CHIPCO_CORECTL		0x0008
 #define  SSB_CHIPCO_CORECTL_UARTCLK0	0x00000001	/* Drive UART with internal clock */
 #define	 SSB_CHIPCO_CORECTL_SE		0x00000002	/* sync clk out enable (corerev >= 3) */
+#define  SSB_CHIPCO_CORECTL_UARTCLKEN	0x00000008	/* UART clock enable (rev >= 21) */
 #define SSB_CHIPCO_BIST			0x000C
 #define SSB_CHIPCO_OTPS			0x0010		/* OTP status */
 #define	 SSB_CHIPCO_OTPS_PROGFAIL	0x80000000
