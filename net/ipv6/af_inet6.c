@@ -752,14 +752,6 @@ static int __init inet6_init(void)
 
 	BUILD_BUG_ON(sizeof(struct inet6_skb_parm) > sizeof(dummy_skb->cb));
 
-#ifdef MODULE
-#if 0 /* FIXME --RR */
-	if (!mod_member_present(&__this_module, can_unload))
-	  return -EINVAL;
-
-	__this_module.can_unload = &ipv6_unload;
-#endif
-#endif
 	err = proto_register(&tcpv6_prot, 1);
 	if (err)
 		goto out;
