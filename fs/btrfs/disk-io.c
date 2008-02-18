@@ -951,7 +951,7 @@ void btrfs_throttle(struct btrfs_root *root)
 void btrfs_btree_balance_dirty(struct btrfs_root *root, unsigned long nr)
 {
 	balance_dirty_pages_ratelimited_nr(
-			root->fs_info->btree_inode->i_mapping, 1);
+				   root->fs_info->btree_inode->i_mapping, 1);
 }
 
 void btrfs_set_buffer_defrag(struct extent_buffer *buf)

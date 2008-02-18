@@ -255,7 +255,7 @@ static int merge_state(struct extent_io_tree *tree,
 			state->start = other->start;
 			other->tree = NULL;
 			if (tree->last == other)
-				tree->last = NULL;
+				tree->last = state;
 			rb_erase(&other->rb_node, &tree->state);
 			free_extent_state(other);
 		}
@@ -268,7 +268,7 @@ static int merge_state(struct extent_io_tree *tree,
 			other->start = state->start;
 			state->tree = NULL;
 			if (tree->last == state)
-				tree->last = NULL;
+				tree->last = other;
 			rb_erase(&state->rb_node, &tree->state);
 			free_extent_state(state);
 		}
@@ -397,8 +397,9 @@ static int clear_state_bit(struct extent_io_tree *tree,
 	if (delete || state->state == 0) {
 		if (state->tree) {
 			clear_state_cb(tree, state, state->state);
-			if (tree->last == state)
-				tree->last = NULL;
+			if (tree->last == state) {
+				tree->last = extent_state_next(state);
+			}
 			rb_erase(&state->rb_node, &tree->state);
 			state->tree = NULL;
 			free_extent_state(state);
@@ -961,6 +962,35 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL(find_first_extent_bit);
+
+struct extent_state *find_first_extent_bit_state(struct extent_io_tree *tree,
+						 u64 start, int bits)
+{
+	struct rb_node *node;
+	struct extent_state *state;
+
+	/*
+	 * this search will find all the extents that end after
+	 * our range starts.
+	 */
+	node = tree_search(tree, start);
+	if (!node || IS_ERR(node)) {
+		goto out;
+	}
+
+	while(1) {
+		state = rb_entry(node, struct extent_state, rb_node);
+		if (state->end >= start && (state->state & bits)) {
+			return state;
+		}
+		node = rb_next(node);
+		if (!node)
+			break;
+	}
+out:
+	return NULL;
+}
+EXPORT_SYMBOL(find_first_extent_bit_state);
 
 u64 find_lock_delalloc_range(struct extent_io_tree *tree,
 			     u64 *start, u64 *end, u64 max_bytes)

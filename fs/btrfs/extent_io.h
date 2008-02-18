@@ -81,6 +81,15 @@ struct extent_buffer {
 
 struct extent_map_tree;
 
+static inline struct extent_state *extent_state_next(struct extent_state *state)
+{
+	struct rb_node *node;
+	node = rb_next(&state->rb_node);
+	if (!node)
+		return NULL;
+	return rb_entry(node, struct extent_state, rb_node);
+}
+
 typedef struct extent_map *(get_extent_t)(struct inode *inode,
 					  struct page *page,
 					  size_t page_offset,
@@ -122,6 +131,8 @@ int set_extent_delalloc(struct extent_io_tree *tree, u64 start, u64 end,
 		     gfp_t mask);
 int find_first_extent_bit(struct extent_io_tree *tree, u64 start,
 			  u64 *start_ret, u64 *end_ret, int bits);
+struct extent_state *find_first_extent_bit_state(struct extent_io_tree *tree,
+						 u64 start, int bits);
 int extent_invalidatepage(struct extent_io_tree *tree,
 			  struct page *page, unsigned long offset);
 int extent_write_full_page(struct extent_io_tree *tree, struct page *page,

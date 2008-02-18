@@ -188,9 +188,10 @@ static u64 noinline find_search_start(struct btrfs_root *root,
 {
 	int ret;
 	struct btrfs_block_group_cache *cache = *cache_ret;
+	struct extent_io_tree *free_space_cache;
+	struct extent_state *state;
 	u64 last;
 	u64 start = 0;
-	u64 end = 0;
 	u64 cache_miss = 0;
 	u64 total_fs_bytes;
 	int wrapped = 0;
@@ -199,6 +200,8 @@ static u64 noinline find_search_start(struct btrfs_root *root,
 		goto out;
 	}
 	total_fs_bytes = btrfs_super_total_bytes(&root->fs_info->super_copy);
+	free_space_cache = &root->fs_info->free_space_cache;
+
 again:
 	ret = cache_block_group(root, cache);
 	if (ret)
@@ -206,22 +209,27 @@ again:
 
 	last = max(search_start, cache->key.objectid);
 
+	spin_lock_irq(&free_space_cache->lock);
+	state = find_first_extent_bit_state(free_space_cache, last, EXTENT_DIRTY);
 	while(1) {
-		ret = find_first_extent_bit(&root->fs_info->free_space_cache,
-					    last, &start, &end, EXTENT_DIRTY);
-		if (ret) {
+		if (!state) {
 			if (!cache_miss)
 				cache_miss = last;
+			spin_unlock_irq(&free_space_cache->lock);
 			goto new_group;
 		}
 
-		start = max(last, start);
-		last = end + 1;
+		start = max(last, state->start);
+		last = state->end + 1;
 		if (last - start < num) {
 			if (last == cache->key.objectid + cache->key.offset)
 				cache_miss = start;
+			do {
+				state = extent_state_next(state);
+			} while(state && !(state->state & EXTENT_DIRTY));
 			continue;
 		}
+		spin_unlock_irq(&free_space_cache->lock);
 		if (data != BTRFS_BLOCK_GROUP_MIXED &&
 		    start + num > cache->key.objectid + cache->key.offset)
 			goto new_group;
@@ -1420,6 +1428,7 @@ static int noinline find_free_extent(struct btrfs_trans_handle *trans,
 	struct btrfs_block_group_cache *block_group;
 	int full_scan = 0;
 	int wrapped = 0;
+	int empty_cluster;
 	u64 cached_start;
 
 	WARN_ON(num_bytes < root->sectorsize);
@@ -1431,11 +1440,15 @@ static int noinline find_free_extent(struct btrfs_trans_handle *trans,
 		data = BTRFS_BLOCK_GROUP_MIXED;
 	}
 
-	if (!data)
+	if (!data) {
 		last_ptr = &root->fs_info->last_alloc;
+		empty_cluster = 128 * 1024;
+	}
 
-	if (data && btrfs_test_opt(root, SSD))
+	if (data && btrfs_test_opt(root, SSD)) {
 		last_ptr = &root->fs_info->last_data_alloc;
+		empty_cluster = 2 * 1024 * 1024;
+	}
 
 	if (last_ptr) {
 		if (*last_ptr)
@@ -1443,8 +1456,9 @@ static int noinline find_free_extent(struct btrfs_trans_handle *trans,
 		else {
 			hint_byte = hint_byte &
 				~((u64)BTRFS_BLOCK_GROUP_SIZE - 1);
-			empty_size += 2 * 1024 * 1024;
+			empty_size += empty_cluster;
 		}
+		search_start = max(search_start, hint_byte);
 	}
 
 	search_end = min(search_end,
@@ -1476,7 +1490,7 @@ check_failed:
 	if (last_ptr && *last_ptr && search_start != *last_ptr) {
 		*last_ptr = 0;
 		if (!empty_size) {
-			empty_size += 2 * 1024 * 1024;
+			empty_size += empty_cluster;
 			total_needed += empty_size;
 		}
 		search_start = find_search_start(root, &block_group,
