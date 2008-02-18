@@ -278,8 +278,7 @@ static int __init pci_acpi_init(void)
 		printk(KERN_INFO "PCI: Routing PCI interrupts for all devices because \"pci=routeirq\" specified\n");
 		for_each_pci_dev(dev)
 			acpi_pci_irq_enable(dev);
-	} else
-		printk(KERN_INFO "PCI: If a device doesn't work, try \"pci=routeirq\".  If it helps, post a report\n");
+	}
 
 #ifdef CONFIG_X86_IO_APIC
 	if (acpi_ioapic)
