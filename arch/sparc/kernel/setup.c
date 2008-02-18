@@ -65,7 +65,6 @@ struct screen_info screen_info = {
  */
 
 extern unsigned long trapbase;
-void (*prom_palette)(int);
 
 /* Pretty sick eh? */
 void prom_sync_me(void)
@@ -80,8 +79,6 @@ void prom_sync_me(void)
 			     "nop\n\t"
 			     "nop\n\t" : : "r" (&trapbase));
 
-	if (prom_palette)
-		prom_palette(1);
 	prom_printf("PROM SYNC COMMAND...\n");
 	show_free_areas();
 	if(current->pid != 0) {

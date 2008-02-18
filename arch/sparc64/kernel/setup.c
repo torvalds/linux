@@ -68,8 +68,6 @@ struct screen_info screen_info = {
 	16                      /* orig-video-points */
 };
 
-void (*prom_palette)(int);
-
 static void
 prom_console_write(struct console *con, const char *s, unsigned n)
 {
