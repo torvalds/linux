@@ -31,6 +31,8 @@ struct bdev_inode {
 	struct inode vfs_inode;
 };
 
+static const struct address_space_operations def_blk_aops;
+
 static inline struct bdev_inode *BDEV_I(struct inode *inode)
 {
 	return container_of(inode, struct bdev_inode, vfs_inode);
@@ -1334,7 +1336,7 @@ static long block_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	return blkdev_ioctl(file->f_mapping->host, file, cmd, arg);
 }
 
-const struct address_space_operations def_blk_aops = {
+static const struct address_space_operations def_blk_aops = {
 	.readpage	= blkdev_readpage,
 	.writepage	= blkdev_writepage,
 	.sync_page	= block_sync_page,
