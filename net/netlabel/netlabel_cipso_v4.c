@@ -761,7 +761,7 @@ static struct genl_ops netlbl_cipsov4_ops[] = {
  * mechanism.  Returns zero on success, negative values on failure.
  *
  */
-int netlbl_cipsov4_genl_init(void)
+int __init netlbl_cipsov4_genl_init(void)
 {
 	int ret_val, i;
 

@@ -588,7 +588,7 @@ static struct genl_ops netlbl_mgmt_genl_ops[] = {
  * mechanism.  Returns zero on success, negative values on failure.
  *
  */
-int netlbl_mgmt_genl_init(void)
+int __init netlbl_mgmt_genl_init(void)
 {
 	int ret_val, i;
 

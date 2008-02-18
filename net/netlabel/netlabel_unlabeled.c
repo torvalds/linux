@@ -1624,7 +1624,7 @@ static struct genl_ops netlbl_unlabel_genl_ops[] = {
  * mechanism.  Returns zero on success, negative values on failure.
  *
  */
-int netlbl_unlabel_genl_init(void)
+int __init netlbl_unlabel_genl_init(void)
 {
 	int ret_val, i;
 
@@ -1661,7 +1661,7 @@ static struct notifier_block netlbl_unlhsh_netdev_notifier = {
  * non-zero values on error.
  *
  */
-int netlbl_unlabel_init(u32 size)
+int __init netlbl_unlabel_init(u32 size)
 {
 	u32 iter;
 	struct netlbl_unlhsh_tbl *hsh_tbl;
@@ -1765,7 +1765,7 @@ unlabel_getattr_nolabel:
  * and to send unlabeled network traffic by default.
  *
  */
-int netlbl_unlabel_defconf(void)
+int __init netlbl_unlabel_defconf(void)
 {
 	int ret_val;
 	struct netlbl_dom_map *entry;
