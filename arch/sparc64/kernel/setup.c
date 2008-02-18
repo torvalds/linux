@@ -77,9 +77,6 @@ prom_console_write(struct console *con, const char *s, unsigned n)
 	prom_write(s, n);
 }
 
-unsigned int boot_flags = 0;
-#define BOOTME_DEBUG  0x1
-
 /* Exported for mm/init.c:paging_init. */
 unsigned long cmdline_memory_size = 0;
 
@@ -98,8 +95,6 @@ static void __init process_switch(char c)
 {
 	switch (c) {
 	case 'd':
-		boot_flags |= BOOTME_DEBUG;
-		break;
 	case 's':
 		break;
 	case 'h':
