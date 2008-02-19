@@ -12,15 +12,18 @@
  * RED-PEN empty cpus get reported wrong
  */
 
-#define NODE_ID_REGISTER 0x60
-#define NODE_ID(dword) (dword & 0x07)
-#define LDT_BUS_NUMBER_REGISTER_0 0x94
-#define LDT_BUS_NUMBER_REGISTER_1 0xB4
-#define LDT_BUS_NUMBER_REGISTER_2 0xD4
-#define NR_LDT_BUS_NUMBER_REGISTERS 3
-#define SECONDARY_LDT_BUS_NUMBER(dword) ((dword >> 8) & 0xFF)
-#define SUBORDINATE_LDT_BUS_NUMBER(dword) ((dword >> 16) & 0xFF)
+#define NODE_ID(dword) ((dword>>4) & 0x07)
+#define LDT_BUS_NUMBER_REGISTER_0 0xE0
+#define LDT_BUS_NUMBER_REGISTER_1 0xE4
+#define LDT_BUS_NUMBER_REGISTER_2 0xE8
+#define LDT_BUS_NUMBER_REGISTER_3 0xEC
+#define NR_LDT_BUS_NUMBER_REGISTERS 4
+#define SECONDARY_LDT_BUS_NUMBER(dword) ((dword >> 16) & 0xFF)
+#define SUBORDINATE_LDT_BUS_NUMBER(dword) ((dword >> 24) & 0xFF)
+
 #define PCI_DEVICE_ID_K8HTCONFIG 0x1100
+#define PCI_DEVICE_ID_K8_10H_HTCONFIG 0x1200
+#define PCI_DEVICE_ID_K8_11H_HTCONFIG 0x1300
 
 #ifdef CONFIG_NUMA
 
@@ -67,12 +70,19 @@ early_fill_mp_bus_to_node(void)
 #ifdef CONFIG_NUMA
 	int i, j;
 	unsigned slot;
-	u32 ldtbus, nid;
+	u32 ldtbus;
 	u32 id;
-	static int lbnr[3] = {
+	int node;
+	u16 deviceid;
+	u16 vendorid;
+	int min_bus;
+	int max_bus;
+
+	static int lbnr[NR_LDT_BUS_NUMBER_REGISTERS] = {
 		LDT_BUS_NUMBER_REGISTER_0,
 		LDT_BUS_NUMBER_REGISTER_1,
-		LDT_BUS_NUMBER_REGISTER_2
+		LDT_BUS_NUMBER_REGISTER_2,
+		LDT_BUS_NUMBER_REGISTER_3
 	};
 
 	for (i = 0; i < BUS_NR; i++)
@@ -81,38 +91,36 @@ early_fill_mp_bus_to_node(void)
 	if (!early_pci_allowed())
 		return -1;
 
-	for (slot = 0x18; slot < 0x20; slot++) {
-		id = read_pci_config(0, slot, 0, PCI_VENDOR_ID);
-		if (id != (PCI_VENDOR_ID_AMD | (PCI_DEVICE_ID_K8HTCONFIG<<16)))
-			break;
-		nid = read_pci_config(0, slot, 0, NODE_ID_REGISTER);
+	slot = 0x18;
+	id = read_pci_config(0, slot, 0, PCI_VENDOR_ID);
 
-		for (i = 0; i < NR_LDT_BUS_NUMBER_REGISTERS; i++) {
-			ldtbus = read_pci_config(0, slot, 0, lbnr[i]);
-			/*
-			 * if there are no busses hanging off of the current
-			 * ldt link then both the secondary and subordinate
-			 * bus number fields are set to 0.
-			 *
-			 * RED-PEN
-			 * This is slightly broken because it assumes
-			 * HT node IDs == Linux node ids, which is not always
-			 * true. However it is probably mostly true.
-			 */
-			if (!(SECONDARY_LDT_BUS_NUMBER(ldtbus) == 0
-				&& SUBORDINATE_LDT_BUS_NUMBER(ldtbus) == 0)) {
-				for (j = SECONDARY_LDT_BUS_NUMBER(ldtbus);
-				     j <= SUBORDINATE_LDT_BUS_NUMBER(ldtbus);
-				     j++) {
-					int node = NODE_ID(nid);
-					mp_bus_to_node[j] = (unsigned char)node;
-				}
-			}
-		}
+	vendorid = id & 0xffff;
+	if (vendorid != PCI_VENDOR_ID_AMD)
+		goto out;
+
+	deviceid = (id>>16) & 0xffff;
+	if ((deviceid != PCI_DEVICE_ID_K8HTCONFIG) &&
+	    (deviceid != PCI_DEVICE_ID_K8_10H_HTCONFIG) &&
+	    (deviceid != PCI_DEVICE_ID_K8_11H_HTCONFIG))
+		goto out;
+
+	for (i = 0; i < NR_LDT_BUS_NUMBER_REGISTERS; i++) {
+		ldtbus = read_pci_config(0, slot, 1, lbnr[i]);
+
+		/* Check if that register is enabled for bus range */
+		if ((ldtbus & 7) != 3)
+			continue;
+
+		min_bus = SECONDARY_LDT_BUS_NUMBER(ldtbus);
+		max_bus = SUBORDINATE_LDT_BUS_NUMBER(ldtbus);
+		node = NODE_ID(ldtbus);
+		for (j = min_bus; j <= max_bus; j++)
+			mp_bus_to_node[j] = (unsigned char) node;
 	}
 
+out:
 	for (i = 0; i < BUS_NR; i++) {
-		int node = mp_bus_to_node[i];
+		node = mp_bus_to_node[i];
 		if (node >= 0)
 			printk(KERN_DEBUG "bus: %02x to node: %02x\n", i, node);
 	}
