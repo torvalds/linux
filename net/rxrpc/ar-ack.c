@@ -814,8 +814,7 @@ static int rxrpc_post_message(struct rxrpc_call *call, u32 mark, u32 error,
 		spin_lock_bh(&call->lock);
 		ret = rxrpc_queue_rcv_skb(call, skb, true, fatal);
 		spin_unlock_bh(&call->lock);
-		if (ret < 0)
-			BUG();
+		BUG_ON(ret < 0);
 	}
 
 	return 0;

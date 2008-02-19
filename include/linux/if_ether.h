@@ -129,8 +129,7 @@ extern ssize_t sysfs_format_mac(char *buf, const unsigned char *addr, int len);
 /*
  *	Display a 6 byte device address (MAC) in a readable format.
  */
-extern char *print_mac(char *buf, const unsigned char *addr);
-#define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
+extern __pure char *print_mac(char *buf, const unsigned char *addr);
 #define MAC_BUF_SIZE	18
 #define DECLARE_MAC_BUF(var) char var[MAC_BUF_SIZE] __maybe_unused
 

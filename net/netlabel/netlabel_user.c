@@ -59,7 +59,7 @@
  * non-zero on failure.
  *
  */
-int netlbl_netlink_init(void)
+int __init netlbl_netlink_init(void)
 {
 	int ret_val;
 

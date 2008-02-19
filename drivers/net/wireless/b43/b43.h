@@ -14,6 +14,12 @@
 #include "lo.h"
 #include "phy.h"
 
+
+/* The unique identifier of the firmware that's officially supported by
+ * this driver version. */
+#define B43_SUPPORTED_FIRMWARE_ID	"FW13"
+
+
 #ifdef CONFIG_B43_DEBUG
 # define B43_DEBUG	1
 #else

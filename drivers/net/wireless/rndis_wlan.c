@@ -2300,7 +2300,7 @@ static void rndis_update_wireless_stats(struct work_struct *work)
 	struct usbnet *usbdev = priv->usbdev;
 	struct iw_statistics iwstats;
 	__le32 rssi, tmp;
-	int len, ret, bitrate, j;
+	int len, ret, j;
 	unsigned long flags;
 	int update_jiffies = STATS_UPDATE_JIFFIES;
 	void *buf;
@@ -2352,14 +2352,10 @@ static void rndis_update_wireless_stats(struct work_struct *work)
 	if (ret == 0)
 		iwstats.discard.misc += le32_to_cpu(tmp);
 
-	/* Workaround transfer stalls on poor quality links. */
-	len = sizeof(tmp);
-	ret = rndis_query_oid(usbdev, OID_GEN_LINK_SPEED, &tmp, &len);
-	if (ret == 0) {
-		bitrate = le32_to_cpu(tmp) * 100;
-		if (bitrate > 11000000)
-			goto end;
-
+	/* Workaround transfer stalls on poor quality links.
+	 * TODO: find right way to fix these stalls (as stalls do not happen
+	 * with ndiswrapper/windows driver). */
+	if (iwstats.qual.qual <= 25) {
 		/* Decrease stats worker interval to catch stalls.
 		 * faster. Faster than 400-500ms causes packet loss,
 		 * Slower doesn't catch stalls fast enough.

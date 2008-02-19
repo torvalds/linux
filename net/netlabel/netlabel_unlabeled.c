@@ -1553,68 +1553,63 @@ unlabel_staticlistdef_return:
  * NetLabel Generic NETLINK Command Definitions
  */
 
-static struct genl_ops netlbl_unlabel_genl_c_staticadd = {
+static struct genl_ops netlbl_unlabel_genl_ops[] = {
+	{
 	.cmd = NLBL_UNLABEL_C_STATICADD,
 	.flags = GENL_ADMIN_PERM,
 	.policy = netlbl_unlabel_genl_policy,
 	.doit = netlbl_unlabel_staticadd,
 	.dumpit = NULL,
-};
-
-static struct genl_ops netlbl_unlabel_genl_c_staticremove = {
+	},
+	{
 	.cmd = NLBL_UNLABEL_C_STATICREMOVE,
 	.flags = GENL_ADMIN_PERM,
 	.policy = netlbl_unlabel_genl_policy,
 	.doit = netlbl_unlabel_staticremove,
 	.dumpit = NULL,
-};
-
-static struct genl_ops netlbl_unlabel_genl_c_staticlist = {
+	},
+	{
 	.cmd = NLBL_UNLABEL_C_STATICLIST,
 	.flags = 0,
 	.policy = netlbl_unlabel_genl_policy,
 	.doit = NULL,
 	.dumpit = netlbl_unlabel_staticlist,
-};
-
-static struct genl_ops netlbl_unlabel_genl_c_staticadddef = {
+	},
+	{
 	.cmd = NLBL_UNLABEL_C_STATICADDDEF,
 	.flags = GENL_ADMIN_PERM,
 	.policy = netlbl_unlabel_genl_policy,
 	.doit = netlbl_unlabel_staticadddef,
 	.dumpit = NULL,
-};
-
-static struct genl_ops netlbl_unlabel_genl_c_staticremovedef = {
+	},
+	{
 	.cmd = NLBL_UNLABEL_C_STATICREMOVEDEF,
 	.flags = GENL_ADMIN_PERM,
 	.policy = netlbl_unlabel_genl_policy,
 	.doit = netlbl_unlabel_staticremovedef,
 	.dumpit = NULL,
-};
-
-static struct genl_ops netlbl_unlabel_genl_c_staticlistdef = {
+	},
+	{
 	.cmd = NLBL_UNLABEL_C_STATICLISTDEF,
 	.flags = 0,
 	.policy = netlbl_unlabel_genl_policy,
 	.doit = NULL,
 	.dumpit = netlbl_unlabel_staticlistdef,
-};
-
-static struct genl_ops netlbl_unlabel_genl_c_accept = {
+	},
+	{
 	.cmd = NLBL_UNLABEL_C_ACCEPT,
 	.flags = GENL_ADMIN_PERM,
 	.policy = netlbl_unlabel_genl_policy,
 	.doit = netlbl_unlabel_accept,
 	.dumpit = NULL,
-};
-
-static struct genl_ops netlbl_unlabel_genl_c_list = {
+	},
+	{
 	.cmd = NLBL_UNLABEL_C_LIST,
 	.flags = 0,
 	.policy = netlbl_unlabel_genl_policy,
 	.doit = netlbl_unlabel_list,
 	.dumpit = NULL,
+	},
 };
 
 /*
@@ -1629,53 +1624,20 @@ static struct genl_ops netlbl_unlabel_genl_c_list = {
  * mechanism.  Returns zero on success, negative values on failure.
  *
  */
-int netlbl_unlabel_genl_init(void)
+int __init netlbl_unlabel_genl_init(void)
 {
-	int ret_val;
+	int ret_val, i;
 
 	ret_val = genl_register_family(&netlbl_unlabel_gnl_family);
 	if (ret_val != 0)
 		return ret_val;
 
-	ret_val = genl_register_ops(&netlbl_unlabel_gnl_family,
-				    &netlbl_unlabel_genl_c_staticadd);
-	if (ret_val != 0)
-		return ret_val;
-
-	ret_val = genl_register_ops(&netlbl_unlabel_gnl_family,
-				    &netlbl_unlabel_genl_c_staticremove);
-	if (ret_val != 0)
-		return ret_val;
-
-	ret_val = genl_register_ops(&netlbl_unlabel_gnl_family,
-				    &netlbl_unlabel_genl_c_staticlist);
-	if (ret_val != 0)
-		return ret_val;
-
-	ret_val = genl_register_ops(&netlbl_unlabel_gnl_family,
-				    &netlbl_unlabel_genl_c_staticadddef);
-	if (ret_val != 0)
-		return ret_val;
-
-	ret_val = genl_register_ops(&netlbl_unlabel_gnl_family,
-				    &netlbl_unlabel_genl_c_staticremovedef);
-	if (ret_val != 0)
-		return ret_val;
-
-	ret_val = genl_register_ops(&netlbl_unlabel_gnl_family,
-				    &netlbl_unlabel_genl_c_staticlistdef);
-	if (ret_val != 0)
-		return ret_val;
-
-	ret_val = genl_register_ops(&netlbl_unlabel_gnl_family,
-				    &netlbl_unlabel_genl_c_accept);
-	if (ret_val != 0)
-		return ret_val;
-
-	ret_val = genl_register_ops(&netlbl_unlabel_gnl_family,
-				    &netlbl_unlabel_genl_c_list);
-	if (ret_val != 0)
-		return ret_val;
+	for (i = 0; i < ARRAY_SIZE(netlbl_unlabel_genl_ops); i++) {
+		ret_val = genl_register_ops(&netlbl_unlabel_gnl_family,
+				&netlbl_unlabel_genl_ops[i]);
+		if (ret_val != 0)
+			return ret_val;
+	}
 
 	return 0;
 }
@@ -1699,7 +1661,7 @@ static struct notifier_block netlbl_unlhsh_netdev_notifier = {
  * non-zero values on error.
  *
  */
-int netlbl_unlabel_init(u32 size)
+int __init netlbl_unlabel_init(u32 size)
 {
 	u32 iter;
 	struct netlbl_unlhsh_tbl *hsh_tbl;
@@ -1803,7 +1765,7 @@ unlabel_getattr_nolabel:
  * and to send unlabeled network traffic by default.
  *
  */
-int netlbl_unlabel_defconf(void)
+int __init netlbl_unlabel_defconf(void)
 {
 	int ret_val;
 	struct netlbl_dom_map *entry;

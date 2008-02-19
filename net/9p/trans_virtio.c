@@ -183,8 +183,7 @@ pack_sg_list(struct scatterlist *sg, int start, int limit, char *data,
 		sg_set_buf(&sg[index++], data, s);
 		count -= s;
 		data += s;
-		if (index > limit)
-			BUG();
+		BUG_ON(index > limit);
 	}
 
 	return index-start;
