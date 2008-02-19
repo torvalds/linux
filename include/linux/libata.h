@@ -278,7 +278,6 @@ enum {
 
 	/* size of buffer to pad xfers ending on unaligned boundaries */
 	ATA_DMA_PAD_SZ		= 4,
-	ATA_DMA_PAD_BUF_SZ	= ATA_DMA_PAD_SZ * ATA_MAX_QUEUE,
 
 	/* ering size */
 	ATA_ERING_SIZE		= 32,
@@ -457,24 +456,18 @@ struct ata_queued_cmd {
 	unsigned long		flags;		/* ATA_QCFLAG_xxx */
 	unsigned int		tag;
 	unsigned int		n_elem;
-	unsigned int		mapped_n_elem;
 
 	int			dma_dir;
 
-	unsigned int		pad_len;
 	unsigned int		sect_size;
 
 	unsigned int		nbytes;
-	unsigned int		raw_nbytes;
 	unsigned int		curbytes;
 
 	struct scatterlist	*cursg;
 	unsigned int		cursg_ofs;
 
-	struct scatterlist	*last_sg;
-	struct scatterlist	saved_last_sg;
 	struct scatterlist	sgent;
-	struct scatterlist	extra_sg[2];
 
 	struct scatterlist	*sg;
 
@@ -618,9 +611,6 @@ struct ata_port {
 
 	struct ata_prd		*prd;	 /* our SG list */
 	dma_addr_t		prd_dma; /* and its DMA mapping */
-
-	void			*pad;	/* array of DMA pad buffers */
-	dma_addr_t		pad_dma;
 
 	struct ata_ioports	ioaddr;	/* ATA cmd/ctl/dma register blocks */
 
@@ -1363,12 +1353,9 @@ static inline void ata_qc_reinit(struct ata_queued_cmd *qc)
 	qc->flags = 0;
 	qc->cursg = NULL;
 	qc->cursg_ofs = 0;
-	qc->nbytes = qc->raw_nbytes = qc->curbytes = 0;
+	qc->nbytes = qc->curbytes = 0;
 	qc->n_elem = 0;
-	qc->mapped_n_elem = 0;
 	qc->err_mask = 0;
-	qc->pad_len = 0;
-	qc->last_sg = NULL;
 	qc->sect_size = ATA_SECT_SIZE;
 
 	ata_tf_init(qc->dev, &qc->tf);
@@ -1421,19 +1408,6 @@ static inline unsigned int __ac_err_mask(u8 status)
 	if (mask == 0)
 		return AC_ERR_OTHER;
 	return mask;
-}
-
-static inline int ata_pad_alloc(struct ata_port *ap, struct device *dev)
-{
-	ap->pad_dma = 0;
-	ap->pad = dmam_alloc_coherent(dev, ATA_DMA_PAD_BUF_SZ,
-				      &ap->pad_dma, GFP_KERNEL);
-	return (ap->pad == NULL) ? -ENOMEM : 0;
-}
-
-static inline void ata_pad_free(struct ata_port *ap, struct device *dev)
-{
-	dmam_free_coherent(dev, ATA_DMA_PAD_BUF_SZ, ap->pad, ap->pad_dma);
 }
 
 static inline struct ata_port *ata_shost_to_port(struct Scsi_Host *host)

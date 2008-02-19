@@ -832,24 +832,16 @@ static void ata_scsi_dev_config(struct scsi_device *sdev,
 	/* configure max sectors */
 	blk_queue_max_sectors(sdev->request_queue, dev->max_sectors);
 
-	/* SATA DMA transfers must be multiples of 4 byte, so
-	 * we need to pad ATAPI transfers using an extra sg.
-	 * Decrement max hw segments accordingly.
-	 */
-	if (dev->class == ATA_DEV_ATAPI) {
-		struct request_queue *q = sdev->request_queue;
-		blk_queue_max_hw_segments(q, q->max_hw_segments - 1);
-
+	if (dev->class == ATA_DEV_ATAPI)
 		/* set the min alignment */
 		blk_queue_update_dma_alignment(sdev->request_queue,
 					       ATA_DMA_PAD_SZ - 1);
-	} else
+	else {
 		/* ATA devices must be sector aligned */
 		blk_queue_update_dma_alignment(sdev->request_queue,
 					       ATA_SECT_SIZE - 1);
-
-	if (dev->class == ATA_DEV_ATA)
 		sdev->manage_start_stop = 1;
+	}
 
 	if (dev->flags & ATA_DFLAG_AN)
 		set_bit(SDEV_EVT_MEDIA_CHANGE, sdev->supported_events);
@@ -2500,7 +2492,7 @@ static unsigned int atapi_xlat(struct ata_queued_cmd *qc)
 	 * want to set it properly, and for DMA where it is
 	 * effectively meaningless.
 	 */
-	nbytes = min(qc->nbytes, (unsigned int)63 * 1024);
+	nbytes = min(scmd->request->raw_data_len, (unsigned int)63 * 1024);
 
 	/* Most ATAPI devices which honor transfer chunk size don't
 	 * behave according to the spec when odd chunk size which
@@ -3555,7 +3547,7 @@ EXPORT_SYMBOL_GPL(ata_sas_port_alloc);
  *	@ap: Port to initialize
  *
  *	Called just after data structures for each port are
- *	initialized.  Allocates DMA pad.
+ *	initialized.
  *
  *	May be used as the port_start() entry in ata_port_operations.
  *
@@ -3564,15 +3556,13 @@ EXPORT_SYMBOL_GPL(ata_sas_port_alloc);
  */
 int ata_sas_port_start(struct ata_port *ap)
 {
-	return ata_pad_alloc(ap, ap->dev);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(ata_sas_port_start);
 
 /**
  *	ata_port_stop - Undo ata_sas_port_start()
  *	@ap: Port to shut down
- *
- *	Frees the DMA pad.
  *
  *	May be used as the port_stop() entry in ata_port_operations.
  *
@@ -3582,7 +3572,6 @@ EXPORT_SYMBOL_GPL(ata_sas_port_start);
 
 void ata_sas_port_stop(struct ata_port *ap)
 {
-	ata_pad_free(ap, ap->dev);
 }
 EXPORT_SYMBOL_GPL(ata_sas_port_stop);
 
