@@ -93,6 +93,7 @@ static void nfs_callback_svc(struct svc_rqst *rqstp)
 		svc_process(rqstp);
 	}
 
+	flush_signals(current);
 	svc_exit_thread(rqstp);
 	nfs_callback_info.pid = 0;
 	complete(&nfs_callback_info.stopped);
