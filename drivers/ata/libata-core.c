@@ -4493,30 +4493,13 @@ void ata_sg_clean(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	struct scatterlist *sg = qc->sg;
 	int dir = qc->dma_dir;
-	void *pad_buf = NULL;
 
 	WARN_ON(sg == NULL);
 
-	VPRINTK("unmapping %u sg elements\n", qc->mapped_n_elem);
+	VPRINTK("unmapping %u sg elements\n", qc->n_elem);
 
-	/* if we padded the buffer out to 32-bit bound, and data
-	 * xfer direction is from-device, we must copy from the
-	 * pad buffer back into the supplied buffer
-	 */
-	if (qc->pad_len && !(qc->tf.flags & ATA_TFLAG_WRITE))
-		pad_buf = ap->pad + (qc->tag * ATA_DMA_PAD_SZ);
-
-	if (qc->mapped_n_elem)
-		dma_unmap_sg(ap->dev, sg, qc->mapped_n_elem, dir);
-	/* restore last sg */
-	if (qc->last_sg)
-		*qc->last_sg = qc->saved_last_sg;
-	if (pad_buf) {
-		struct scatterlist *psg = &qc->extra_sg[1];
-		void *addr = kmap_atomic(sg_page(psg), KM_IRQ0);
-		memcpy(addr + psg->offset, pad_buf, qc->pad_len);
-		kunmap_atomic(addr, KM_IRQ0);
-	}
+	if (qc->n_elem)
+		dma_unmap_sg(ap->dev, sg, qc->n_elem, dir);
 
 	qc->flags &= ~ATA_QCFLAG_DMAMAP;
 	qc->sg = NULL;
@@ -4659,43 +4642,6 @@ int ata_check_atapi_dma(struct ata_queued_cmd *qc)
 }
 
 /**
- *	atapi_qc_may_overflow - Check whether data transfer may overflow
- *	@qc: ATA command in question
- *
- *	ATAPI commands which transfer variable length data to host
- *	might overflow due to application error or hardare bug.  This
- *	function checks whether overflow should be drained and ignored
- *	for @qc.
- *
- *	LOCKING:
- *	None.
- *
- *	RETURNS:
- *	1 if @qc may overflow; otherwise, 0.
- */
-static int atapi_qc_may_overflow(struct ata_queued_cmd *qc)
-{
-	if (qc->tf.protocol != ATAPI_PROT_PIO &&
-	    qc->tf.protocol != ATAPI_PROT_DMA)
-		return 0;
-
-	if (qc->tf.flags & ATA_TFLAG_WRITE)
-		return 0;
-
-	switch (qc->cdb[0]) {
-	case READ_10:
-	case READ_12:
-	case WRITE_10:
-	case WRITE_12:
-	case GPCMD_READ_CD:
-	case GPCMD_READ_CD_MSF:
-		return 0;
-	}
-
-	return 1;
-}
-
-/**
  *	ata_std_qc_defer - Check whether a qc needs to be deferred
  *	@qc: ATA command in question
  *
@@ -4782,97 +4728,6 @@ void ata_sg_init(struct ata_queued_cmd *qc, struct scatterlist *sg,
 	qc->cursg = qc->sg;
 }
 
-static unsigned int ata_sg_setup_extra(struct ata_queued_cmd *qc,
-				       unsigned int *n_elem_extra,
-				       unsigned int *nbytes_extra)
-{
-	struct ata_port *ap = qc->ap;
-	unsigned int n_elem = qc->n_elem;
-	struct scatterlist *lsg, *copy_lsg = NULL, *tsg = NULL, *esg = NULL;
-
-	*n_elem_extra = 0;
-	*nbytes_extra = 0;
-
-	/* needs padding? */
-	qc->pad_len = qc->nbytes & 3;
-
-	if (likely(!qc->pad_len))
-		return n_elem;
-
-	/* locate last sg and save it */
-	lsg = sg_last(qc->sg, n_elem);
-	qc->last_sg = lsg;
-	qc->saved_last_sg = *lsg;
-
-	sg_init_table(qc->extra_sg, ARRAY_SIZE(qc->extra_sg));
-
-	if (qc->pad_len) {
-		struct scatterlist *psg = &qc->extra_sg[1];
-		void *pad_buf = ap->pad + (qc->tag * ATA_DMA_PAD_SZ);
-		unsigned int offset;
-
-		WARN_ON(qc->dev->class != ATA_DEV_ATAPI);
-
-		memset(pad_buf, 0, ATA_DMA_PAD_SZ);
-
-		/* psg->page/offset are used to copy to-be-written
-		 * data in this function or read data in ata_sg_clean.
-		 */
-		offset = lsg->offset + lsg->length - qc->pad_len;
-		sg_set_page(psg, nth_page(sg_page(lsg), offset >> PAGE_SHIFT),
-			    qc->pad_len, offset_in_page(offset));
-
-		if (qc->tf.flags & ATA_TFLAG_WRITE) {
-			void *addr = kmap_atomic(sg_page(psg), KM_IRQ0);
-			memcpy(pad_buf, addr + psg->offset, qc->pad_len);
-			kunmap_atomic(addr, KM_IRQ0);
-		}
-
-		sg_dma_address(psg) = ap->pad_dma + (qc->tag * ATA_DMA_PAD_SZ);
-		sg_dma_len(psg) = ATA_DMA_PAD_SZ;
-
-		/* Trim the last sg entry and chain the original and
-		 * padding sg lists.
-		 *
-		 * Because chaining consumes one sg entry, one extra
-		 * sg entry is allocated and the last sg entry is
-		 * copied to it if the length isn't zero after padded
-		 * amount is removed.
-		 *
-		 * If the last sg entry is completely replaced by
-		 * padding sg entry, the first sg entry is skipped
-		 * while chaining.
-		 */
-		lsg->length -= qc->pad_len;
-		if (lsg->length) {
-			copy_lsg = &qc->extra_sg[0];
-			tsg = &qc->extra_sg[0];
-		} else {
-			n_elem--;
-			tsg = &qc->extra_sg[1];
-		}
-
-		esg = &qc->extra_sg[1];
-
-		(*n_elem_extra)++;
-		(*nbytes_extra) += 4 - qc->pad_len;
-	}
-
-	if (copy_lsg)
-		sg_set_page(copy_lsg, sg_page(lsg), lsg->length, lsg->offset);
-
-	sg_chain(lsg, 1, tsg);
-	sg_mark_end(esg);
-
-	/* sglist can't start with chaining sg entry, fast forward */
-	if (qc->sg == lsg) {
-		qc->sg = tsg;
-		qc->cursg = tsg;
-	}
-
-	return n_elem;
-}
-
 /**
  *	ata_sg_setup - DMA-map the scatter-gather table associated with a command.
  *	@qc: Command with scatter-gather table to be mapped.
@@ -4889,26 +4744,17 @@ static unsigned int ata_sg_setup_extra(struct ata_queued_cmd *qc,
 static int ata_sg_setup(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
-	unsigned int n_elem, n_elem_extra, nbytes_extra;
+	unsigned int n_elem;
 
 	VPRINTK("ENTER, ata%u\n", ap->print_id);
 
-	n_elem = ata_sg_setup_extra(qc, &n_elem_extra, &nbytes_extra);
+	n_elem = dma_map_sg(ap->dev, qc->sg, qc->n_elem, qc->dma_dir);
+	if (n_elem < 1)
+		return -1;
 
-	if (n_elem) {
-		n_elem = dma_map_sg(ap->dev, qc->sg, n_elem, qc->dma_dir);
-		if (n_elem < 1) {
-			/* restore last sg */
-			if (qc->last_sg)
-				*qc->last_sg = qc->saved_last_sg;
-			return -1;
-		}
-		DPRINTK("%d sg elements mapped\n", n_elem);
-	}
+	DPRINTK("%d sg elements mapped\n", n_elem);
 
-	qc->n_elem = qc->mapped_n_elem = n_elem;
-	qc->n_elem += n_elem_extra;
-	qc->nbytes += nbytes_extra;
+	qc->n_elem = n_elem;
 	qc->flags |= ATA_QCFLAG_DMAMAP;
 
 	return 0;
@@ -5146,46 +4992,22 @@ static void atapi_send_cdb(struct ata_port *ap, struct ata_queued_cmd *qc)
  */
 static int __atapi_pio_bytes(struct ata_queued_cmd *qc, unsigned int bytes)
 {
-	int do_write = (qc->tf.flags & ATA_TFLAG_WRITE);
+	int rw = (qc->tf.flags & ATA_TFLAG_WRITE) ? WRITE : READ;
 	struct ata_port *ap = qc->ap;
-	struct ata_eh_info *ehi = &qc->dev->link->eh_info;
+	struct ata_device *dev = qc->dev;
+	struct ata_eh_info *ehi = &dev->link->eh_info;
 	struct scatterlist *sg;
 	struct page *page;
 	unsigned char *buf;
-	unsigned int offset, count;
+	unsigned int offset, count, consumed;
 
 next_sg:
 	sg = qc->cursg;
 	if (unlikely(!sg)) {
-		/*
-		 * The end of qc->sg is reached and the device expects
-		 * more data to transfer. In order not to overrun qc->sg
-		 * and fulfill length specified in the byte count register,
-		 *    - for read case, discard trailing data from the device
-		 *    - for write case, padding zero data to the device
-		 */
-		u16 pad_buf[1] = { 0 };
-		unsigned int i;
-
-		if (bytes > qc->curbytes - qc->nbytes + ATAPI_MAX_DRAIN) {
-			ata_ehi_push_desc(ehi, "too much trailing data "
-					  "buf=%u cur=%u bytes=%u",
-					  qc->nbytes, qc->curbytes, bytes);
-			return -1;
-		}
-
-		 /* overflow is exptected for misc ATAPI commands */
-		if (bytes && !atapi_qc_may_overflow(qc))
-			ata_dev_printk(qc->dev, KERN_WARNING, "ATAPI %u bytes "
-				       "trailing data (cdb=%02x nbytes=%u)\n",
-				       bytes, qc->cdb[0], qc->nbytes);
-
-		for (i = 0; i < (bytes + 1) / 2; i++)
-			ap->ops->data_xfer(qc->dev, (unsigned char *)pad_buf, 2, do_write);
-
-		qc->curbytes += bytes;
-
-		return 0;
+		ata_ehi_push_desc(ehi, "unexpected or too much trailing data "
+				  "buf=%u cur=%u bytes=%u",
+				  qc->nbytes, qc->curbytes, bytes);
+		return -1;
 	}
 
 	page = sg_page(sg);
@@ -5211,18 +5033,16 @@ next_sg:
 		buf = kmap_atomic(page, KM_IRQ0);
 
 		/* do the actual data transfer */
-		ap->ops->data_xfer(qc->dev,  buf + offset, count, do_write);
+		consumed = ap->ops->data_xfer(dev,  buf + offset, count, rw);
 
 		kunmap_atomic(buf, KM_IRQ0);
 		local_irq_restore(flags);
 	} else {
 		buf = page_address(page);
-		ap->ops->data_xfer(qc->dev,  buf + offset, count, do_write);
+		consumed = ap->ops->data_xfer(dev,  buf + offset, count, rw);
 	}
 
-	bytes -= count;
-	if ((count & 1) && bytes)
-		bytes--;
+	bytes -= min(bytes, consumed);
 	qc->curbytes += count;
 	qc->cursg_ofs += count;
 
@@ -5231,9 +5051,11 @@ next_sg:
 		qc->cursg_ofs = 0;
 	}
 
+	/* consumed can be larger than count only for the last transfer */
+	WARN_ON(qc->cursg && count != consumed);
+
 	if (bytes)
 		goto next_sg;
-
 	return 0;
 }
 
@@ -5251,6 +5073,7 @@ static void atapi_pio_bytes(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct ata_device *dev = qc->dev;
+	struct ata_eh_info *ehi = &dev->link->eh_info;
 	unsigned int ireason, bc_lo, bc_hi, bytes;
 	int i_write, do_write = (qc->tf.flags & ATA_TFLAG_WRITE) ? 1 : 0;
 
@@ -5268,26 +5091,28 @@ static void atapi_pio_bytes(struct ata_queued_cmd *qc)
 
 	/* shall be cleared to zero, indicating xfer of data */
 	if (unlikely(ireason & (1 << 0)))
-		goto err_out;
+		goto atapi_check;
 
 	/* make sure transfer direction matches expected */
 	i_write = ((ireason & (1 << 1)) == 0) ? 1 : 0;
 	if (unlikely(do_write != i_write))
-		goto err_out;
+		goto atapi_check;
 
 	if (unlikely(!bytes))
-		goto err_out;
+		goto atapi_check;
 
 	VPRINTK("ata%u: xfering %d bytes\n", ap->print_id, bytes);
 
-	if (__atapi_pio_bytes(qc, bytes))
+	if (unlikely(__atapi_pio_bytes(qc, bytes)))
 		goto err_out;
 	ata_altstatus(ap); /* flush */
 
 	return;
 
-err_out:
-	ata_dev_printk(dev, KERN_INFO, "ATAPI check failed\n");
+ atapi_check:
+	ata_ehi_push_desc(ehi, "ATAPI check failed (ireason=0x%x bytes=%u)",
+			  ireason, bytes);
+ err_out:
 	qc->err_mask |= AC_ERR_HSM;
 	ap->hsm_task_state = HSM_ST_ERR;
 }
@@ -5972,9 +5797,6 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 	 */
 	BUG_ON(ata_is_data(prot) && (!qc->sg || !qc->n_elem || !qc->nbytes));
 
-	/* ata_sg_setup() may update nbytes */
-	qc->raw_nbytes = qc->nbytes;
-
 	if (ata_is_dma(prot) || (ata_is_pio(prot) &&
 				 (ap->flags & ATA_FLAG_PIO_DMA)))
 		if (ata_sg_setup(qc))
@@ -6583,19 +6405,12 @@ void ata_host_resume(struct ata_host *host)
 int ata_port_start(struct ata_port *ap)
 {
 	struct device *dev = ap->dev;
-	int rc;
 
 	ap->prd = dmam_alloc_coherent(dev, ATA_PRD_TBL_SZ, &ap->prd_dma,
 				      GFP_KERNEL);
 	if (!ap->prd)
 		return -ENOMEM;
 
-	rc = ata_pad_alloc(ap, dev);
-	if (rc)
-		return rc;
-
-	DPRINTK("prd alloc, virt %p, dma %llx\n", ap->prd,
-		(unsigned long long)ap->prd_dma);
 	return 0;
 }
 

@@ -38,7 +38,7 @@ static int __make_request(struct request_queue *q, struct bio *bio);
 /*
  * For the allocated request tables
  */
-struct kmem_cache *request_cachep;
+static struct kmem_cache *request_cachep;
 
 /*
  * For queue allocation
@@ -127,6 +127,7 @@ void rq_init(struct request_queue *q, struct request *rq)
 	rq->nr_hw_segments = 0;
 	rq->ioprio = 0;
 	rq->special = NULL;
+	rq->raw_data_len = 0;
 	rq->buffer = NULL;
 	rq->tag = -1;
 	rq->errors = 0;
@@ -2015,6 +2016,7 @@ void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 	rq->hard_cur_sectors = rq->current_nr_sectors;
 	rq->hard_nr_sectors = rq->nr_sectors = bio_sectors(bio);
 	rq->buffer = bio_data(bio);
+	rq->raw_data_len = bio->bi_size;
 	rq->data_len = bio->bi_size;
 
 	rq->bio = rq->biotail = bio;
