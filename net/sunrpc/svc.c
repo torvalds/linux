@@ -921,8 +921,7 @@ svc_process(struct svc_rqst *rqstp)
 	case SVC_OK:
 		break;
 	case SVC_GARBAGE:
-		rpc_stat = rpc_garbage_args;
-		goto err_bad;
+		goto err_garbage;
 	case SVC_SYSERR:
 		rpc_stat = rpc_system_err;
 		goto err_bad;
