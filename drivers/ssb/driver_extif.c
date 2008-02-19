@@ -110,6 +110,12 @@ void ssb_extif_get_clockcontrol(struct ssb_extif *extif,
 	*m = extif_read32(extif, SSB_EXTIF_CLOCK_SB);
 }
 
+void ssb_extif_watchdog_timer_set(struct ssb_extif *extif,
+				  u32 ticks)
+{
+	extif_write32(extif, SSB_EXTIF_WATCHDOG, ticks);
+}
+
 u32 ssb_extif_gpio_in(struct ssb_extif *extif, u32 mask)
 {
 	return extif_read32(extif, SSB_EXTIF_GPIO_IN) & mask;

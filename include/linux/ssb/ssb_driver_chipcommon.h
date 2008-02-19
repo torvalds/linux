@@ -360,6 +360,11 @@ struct ssb_chipcommon {
 	u16 fast_pwrup_delay;
 };
 
+static inline bool ssb_chipco_available(struct ssb_chipcommon *cc)
+{
+	return (cc->dev != NULL);
+}
+
 extern void ssb_chipcommon_init(struct ssb_chipcommon *cc);
 
 #include <linux/pm.h>
