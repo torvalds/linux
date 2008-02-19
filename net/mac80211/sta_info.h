@@ -32,6 +32,7 @@
  * @WLAN_STA_ASSOC_AP: We're associated to that station, it is an AP.
  * @WLAN_STA_WME: Station is a QoS-STA.
  * @WLAN_STA_WDS: Station is one of our WDS peers.
+ * @WLAN_STA_PSPOLL: Station has just PS-polled us.
  */
 enum ieee80211_sta_info_flags {
 	WLAN_STA_AUTH		= 1<<0,
@@ -43,6 +44,7 @@ enum ieee80211_sta_info_flags {
 	WLAN_STA_ASSOC_AP	= 1<<6,
 	WLAN_STA_WME		= 1<<7,
 	WLAN_STA_WDS		= 1<<8,
+	WLAN_STA_PSPOLL		= 1<<9,
 };
 
 #define STA_TID_NUM 16
@@ -133,7 +135,6 @@ struct sta_info {
 
 	struct sk_buff_head ps_tx_buf; /* buffer of TX frames for station in
 					* power saving state */
-	int pspoll; /* whether STA has send a PS Poll frame */
 	struct sk_buff_head tx_filtered; /* buffer of TX frames that were
 					  * already given to low-level driver,
 					  * but were filtered */

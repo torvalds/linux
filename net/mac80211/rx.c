@@ -579,7 +579,7 @@ static void ap_sta_ps_start(struct net_device *dev, struct sta_info *sta)
 	if (sdata->bss)
 		atomic_inc(&sdata->bss->num_sta_ps);
 	sta->flags |= WLAN_STA_PS;
-	sta->pspoll = 0;
+	sta->flags &= ~WLAN_STA_PSPOLL;
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 	printk(KERN_DEBUG "%s: STA %s aid %d enters power save mode\n",
 	       dev->name, print_mac(mac, sta->addr), sta->aid);
@@ -598,8 +598,7 @@ static int ap_sta_ps_end(struct net_device *dev, struct sta_info *sta)
 	sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
 	if (sdata->bss)
 		atomic_dec(&sdata->bss->num_sta_ps);
-	sta->flags &= ~(WLAN_STA_PS | WLAN_STA_TIM);
-	sta->pspoll = 0;
+	sta->flags &= ~(WLAN_STA_PS | WLAN_STA_TIM | WLAN_STA_PSPOLL);
 	if (!skb_queue_empty(&sta->ps_tx_buf)) {
 		if (local->ops->set_tim)
 			local->ops->set_tim(local_to_hw(local), sta->aid, 0);
@@ -925,9 +924,11 @@ ieee80211_rx_h_ps_poll(struct ieee80211_txrx_data *rx)
 		struct ieee80211_hdr *hdr =
 			(struct ieee80211_hdr *) skb->data;
 
-		/* tell TX path to send one frame even though the STA may
-		 * still remain is PS mode after this frame exchange */
-		rx->sta->pspoll = 1;
+		/*
+		 * Tell TX path to send one frame even though the STA may
+		 * still remain is PS mode after this frame exchange.
+		 */
+		rx->sta->flags |= WLAN_STA_PSPOLL;
 
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 		printk(KERN_DEBUG "STA %s aid %d: PS Poll (entries after %d)\n",

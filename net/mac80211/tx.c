@@ -395,7 +395,8 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_txrx_data *tx)
 		      (tx->fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_PROBE_RESP)))
 		return TX_CONTINUE;
 
-	if (unlikely((sta->flags & WLAN_STA_PS) && !sta->pspoll)) {
+	if (unlikely((sta->flags & WLAN_STA_PS) &&
+		     !(sta->flags & WLAN_STA_PSPOLL))) {
 		struct ieee80211_tx_packet_data *pkt_data;
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 		printk(KERN_DEBUG "STA %s aid %d: PS buffer (entries "
@@ -436,7 +437,7 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_txrx_data *tx)
 		       print_mac(mac, sta->addr));
 	}
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
-	sta->pspoll = 0;
+	sta->flags &= ~WLAN_STA_PSPOLL;
 
 	return TX_CONTINUE;
 }
