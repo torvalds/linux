@@ -123,15 +123,15 @@ static struct resource rtc_resources[] = {
 		.flags  = IORESOURCE_IO,
 	},
 	[1] =	{
-		.start  = 20,
+		.start  = 21,
 		.flags	= IORESOURCE_IRQ,
 	},
 	[2] =	{
-		.start	= 21,
+		.start	= 22,
 		.flags	= IORESOURCE_IRQ,
 	},
 	[3] =	{
-		.start	= 22,
+		.start	= 20,
 		.flags  = IORESOURCE_IRQ,
 	},
 };
