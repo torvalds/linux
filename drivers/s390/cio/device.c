@@ -32,7 +32,7 @@
 #include "io_sch.h"
 
 static struct timer_list recovery_timer;
-static spinlock_t recovery_lock;
+static DEFINE_SPINLOCK(recovery_lock);
 static int recovery_phase;
 static const unsigned long recovery_delay[] = { 3, 30, 300 };
 
