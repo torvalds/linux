@@ -371,7 +371,7 @@ static u16 group2_table[] = {
 
 #define __emulate_2op(_op,_src,_dst,_eflags,_bx,_by,_wx,_wy,_lx,_ly,_qx,_qy) \
 	do {								     \
-		unsigned long _tmp;					     \
+		unsigned long __tmp;					     \
 		switch ((_dst).bytes) {				             \
 		case 1:							     \
 			__asm__ __volatile__ (				     \
@@ -379,7 +379,7 @@ static u16 group2_table[] = {
 				_op"b %"_bx"3,%1; "			     \
 				_POST_EFLAGS("0", "4", "2")		     \
 				: "=m" (_eflags), "=m" ((_dst).val),	     \
-				  "=&r" (_tmp)				     \
+				  "=&r" (__tmp)				     \
 				: _by ((_src).val), "i" (EFLAGS_MASK));      \
 			break;						     \
 		default:						     \
