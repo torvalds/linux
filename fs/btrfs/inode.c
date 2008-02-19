@@ -1465,7 +1465,10 @@ read_dir_items:
 			di = (struct btrfs_dir_item *)((char *)di + di_len);
 		}
 	}
-	filp->f_pos = INT_LIMIT(typeof(filp->f_pos));
+	if (key_type == BTRFS_DIR_INDEX_KEY)
+		filp->f_pos = INT_LIMIT(typeof(filp->f_pos));
+	else
+		filp->f_pos++;
 nopos:
 	ret = 0;
 err:
