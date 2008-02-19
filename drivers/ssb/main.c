@@ -569,6 +569,9 @@ static int ssb_bus_register(struct ssb_bus *bus,
 
 	spin_lock_init(&bus->bar_lock);
 	INIT_LIST_HEAD(&bus->list);
+#ifdef CONFIG_SSB_EMBEDDED
+	spin_lock_init(&bus->gpio_lock);
+#endif
 
 	/* Powerup the bus */
 	err = ssb_pci_xtal(bus, SSB_GPIO_XTAL | SSB_GPIO_PLL, 1);

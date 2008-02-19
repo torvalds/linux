@@ -122,30 +122,25 @@ u32 ssb_extif_gpio_in(struct ssb_extif *extif, u32 mask)
 {
 	return extif_read32(extif, SSB_EXTIF_GPIO_IN) & mask;
 }
-EXPORT_SYMBOL(ssb_extif_gpio_in);
 
 u32 ssb_extif_gpio_out(struct ssb_extif *extif, u32 mask, u32 value)
 {
 	return extif_write32_masked(extif, SSB_EXTIF_GPIO_OUT(0),
 				   mask, value);
 }
-EXPORT_SYMBOL(ssb_extif_gpio_out);
 
 u32 ssb_extif_gpio_outen(struct ssb_extif *extif, u32 mask, u32 value)
 {
 	return extif_write32_masked(extif, SSB_EXTIF_GPIO_OUTEN(0),
 				   mask, value);
 }
-EXPORT_SYMBOL(ssb_extif_gpio_outen);
 
 u32 ssb_extif_gpio_polarity(struct ssb_extif *extif, u32 mask, u32 value)
 {
 	return extif_write32_masked(extif, SSB_EXTIF_GPIO_INTPOL, mask, value);
 }
-EXPORT_SYMBOL(ssb_extif_gpio_polarity);
 
 u32 ssb_extif_gpio_intmask(struct ssb_extif *extif, u32 mask, u32 value)
 {
 	return extif_write32_masked(extif, SSB_EXTIF_GPIO_INTMASK, mask, value);
 }
-EXPORT_SYMBOL(ssb_extif_gpio_intmask);

@@ -357,37 +357,31 @@ u32 ssb_chipco_gpio_in(struct ssb_chipcommon *cc, u32 mask)
 {
 	return chipco_read32(cc, SSB_CHIPCO_GPIOIN) & mask;
 }
-EXPORT_SYMBOL(ssb_chipco_gpio_in);
 
 u32 ssb_chipco_gpio_out(struct ssb_chipcommon *cc, u32 mask, u32 value)
 {
 	return chipco_write32_masked(cc, SSB_CHIPCO_GPIOOUT, mask, value);
 }
-EXPORT_SYMBOL(ssb_chipco_gpio_out);
 
 u32 ssb_chipco_gpio_outen(struct ssb_chipcommon *cc, u32 mask, u32 value)
 {
 	return chipco_write32_masked(cc, SSB_CHIPCO_GPIOOUTEN, mask, value);
 }
-EXPORT_SYMBOL(ssb_chipco_gpio_outen);
 
 u32 ssb_chipco_gpio_control(struct ssb_chipcommon *cc, u32 mask, u32 value)
 {
 	return chipco_write32_masked(cc, SSB_CHIPCO_GPIOCTL, mask, value);
 }
-EXPORT_SYMBOL(ssb_chipco_gpio_control);
 
 u32 ssb_chipco_gpio_intmask(struct ssb_chipcommon *cc, u32 mask, u32 value)
 {
 	return chipco_write32_masked(cc, SSB_CHIPCO_GPIOIRQ, mask, value);
 }
-EXPORT_SYMBOL(ssb_chipco_gpio_intmask);
 
 u32 ssb_chipco_gpio_polarity(struct ssb_chipcommon *cc, u32 mask, u32 value)
 {
 	return chipco_write32_masked(cc, SSB_CHIPCO_GPIOPOL, mask, value);
 }
-EXPORT_SYMBOL(ssb_chipco_gpio_polarity);
 
 #ifdef CONFIG_SSB_SERIAL
 int ssb_chipco_serial_init(struct ssb_chipcommon *cc,
