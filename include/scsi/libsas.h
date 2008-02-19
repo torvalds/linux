@@ -677,4 +677,6 @@ extern void sas_ssp_task_response(struct device *dev, struct sas_task *task,
 				  struct ssp_response_iu *iu);
 struct sas_phy *sas_find_local_phy(struct domain_device *dev);
 
+int sas_request_addr(struct Scsi_Host *shost, u8 *addr);
+
 #endif /* _SASLIB_H_ */
