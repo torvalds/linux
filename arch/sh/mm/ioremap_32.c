@@ -56,7 +56,7 @@ void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 	 * P1/P2 space, ioremap() will already do the right thing,
 	 * and we'll never get this far.
 	 */
-	if (is_pci_memaddr(phys_addr) && is_pci_memaddr(last_addr))
+	if (__is_pci_memory(phys_addr, size))
 		return (void __iomem *)phys_addr;
 
 #if !defined(CONFIG_PMB_FIXED)
@@ -121,7 +121,7 @@ void __iounmap(void __iomem *addr)
 	unsigned long seg = PXSEG(vaddr);
 	struct vm_struct *p;
 
-	if (seg < P3SEG || vaddr >= P3_ADDR_MAX || is_pci_memaddr(vaddr))
+	if (seg < P3SEG || vaddr >= P3_ADDR_MAX || __is_pci_memory(vaddr, 0))
 		return;
 
 #ifdef CONFIG_PMB

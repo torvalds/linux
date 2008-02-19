@@ -61,12 +61,8 @@ extern unsigned long PCI_IO_AREA;
 #define is_pci_ioaddr(port)		\
 	(((port) >= PCIBIOS_MIN_IO) &&	\
 	 ((port) < (PCIBIOS_MIN_IO + PCI_IO_SIZE)))
-#define is_pci_memaddr(port)		\
-	(((port) >= PCIBIOS_MIN_MEM) &&	\
-	 ((port) < (PCIBIOS_MIN_MEM + PCI_MEM_SIZE)))
 #else
 #define is_pci_ioaddr(port)	(0)
-#define is_pci_memaddr(port)	(0)
 #endif
 
 struct pci_dev;
@@ -126,6 +122,25 @@ static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 {
 	*strat = PCI_DMA_BURST_INFINITY;
 	*strategy_parameter = ~0UL;
+}
+
+static inline int __is_pci_memory(unsigned long phys_addr, unsigned long size)
+{
+	struct pci_channel *p;
+	struct resource *res;
+
+	for (p = board_pci_channels; p->init; p++) {
+		res = p->mem_resource;
+		if (p->enabled && (phys_addr >= res->start) &&
+		    (phys_addr + size) <= (res->end + 1))
+			return 1;
+	}
+	return 0;
+}
+#else
+static inline int __is_pci_memory(unsigned long phys_addr, unsigned long size)
+{
+	return 0;
 }
 #endif
 

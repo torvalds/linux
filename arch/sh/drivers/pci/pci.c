@@ -167,9 +167,8 @@ void __iomem *pci_iomap(struct pci_dev *dev, int bar, unsigned long maxlen)
 	/*
 	 * Presently the IORESOURCE_MEM case is a bit special, most
 	 * SH7751 style PCI controllers have PCI memory at a fixed
-	 * location in the address space where no remapping is desired
-	 * (typically at 0xfd000000, but is_pci_memaddr() will know
-	 * best). With the IORESOURCE_MEM case more care has to be taken
+	 * location in the address space where no remapping is desired.
+	 * With the IORESOURCE_MEM case more care has to be taken
 	 * to inhibit page table mapping for legacy cores, but this is
 	 * punted off to __ioremap().
 	 *					-- PFM.

@@ -117,7 +117,7 @@ void titan_outsl(unsigned long port, const void *src, unsigned long count)
 
 void __iomem *titan_ioport_map(unsigned long port, unsigned int size)
 {
-	if (PXSEG(port) || is_pci_memaddr(port))
+	if (PXSEG(port))
 		return (void __iomem *)port;
 	else if (is_pci_ioaddr(port))
 		return (void __iomem *)pci_ioaddr(port);
