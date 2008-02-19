@@ -66,7 +66,7 @@ static inline struct vcpu_svm *to_svm(struct kvm_vcpu *vcpu)
 	return container_of(vcpu, struct vcpu_svm, vcpu);
 }
 
-unsigned long iopm_base;
+static unsigned long iopm_base;
 
 struct kvm_ldttss_desc {
 	u16 limit0;
