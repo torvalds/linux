@@ -762,9 +762,10 @@ static void sbp2_release_target(struct kref *kref)
 	sbp2_unblock(tgt);
 
 	list_for_each_entry_safe(lu, next, &tgt->lu_list, link) {
-		if (lu->sdev)
+		if (lu->sdev) {
 			scsi_remove_device(lu->sdev);
-
+			scsi_device_put(lu->sdev);
+		}
 		sbp2_send_management_orb(lu, tgt->node_id, lu->generation,
 				SBP2_LOGOUT_REQUEST, lu->login_id, NULL);
 
@@ -886,12 +887,11 @@ static void sbp2_login(struct work_struct *work)
 	if (IS_ERR(sdev))
 		goto out_logout_login;
 
-	scsi_device_put(sdev);
-
 	/* Unreported error during __scsi_add_device() */
 	smp_rmb(); /* get current card generation */
 	if (generation != device->card->generation) {
 		scsi_remove_device(sdev);
+		scsi_device_put(sdev);
 		goto out_logout_login;
 	}
 
