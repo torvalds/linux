@@ -4642,28 +4642,6 @@ int ata_check_atapi_dma(struct ata_queued_cmd *qc)
 }
 
 /**
- *	atapi_qc_may_overflow - Check whether data transfer may overflow
- *	@qc: ATA command in question
- *
- *	ATAPI commands which transfer variable length data to host
- *	might overflow due to application error or hardare bug.  This
- *	function checks whether overflow should be drained and ignored
- *	for @qc.
- *
- *	LOCKING:
- *	None.
- *
- *	RETURNS:
- *	1 if @qc may overflow; otherwise, 0.
- */
-static int atapi_qc_may_overflow(struct ata_queued_cmd *qc)
-{
-	return ata_is_atapi(qc->tf.protocol) && ata_is_data(qc->tf.protocol) &&
-		atapi_cmd_type(qc->cdb[0]) == ATAPI_MISC &&
-		!(qc->tf.flags & ATA_TFLAG_WRITE);
-}
-
-/**
  *	ata_std_qc_defer - Check whether a qc needs to be deferred
  *	@qc: ATA command in question
  *
@@ -5026,36 +5004,10 @@ static int __atapi_pio_bytes(struct ata_queued_cmd *qc, unsigned int bytes)
 next_sg:
 	sg = qc->cursg;
 	if (unlikely(!sg)) {
-		/*
-		 * The end of qc->sg is reached and the device expects
-		 * more data to transfer. In order not to overrun qc->sg
-		 * and fulfill length specified in the byte count register,
-		 *    - for read case, discard trailing data from the device
-		 *    - for write case, padding zero data to the device
-		 */
-		u16 pad_buf[1] = { 0 };
-
-		if (qc->curbytes + bytes > qc->nbytes + ATAPI_MAX_DRAIN) {
-			ata_ehi_push_desc(ehi, "too much trailing data "
-					  "buf=%u cur=%u bytes=%u",
-					  qc->nbytes, qc->curbytes, bytes);
-			return -1;
-		}
-
-		/* allow overflow only for misc ATAPI commands */
-		if (!atapi_qc_may_overflow(qc)) {
-			ata_ehi_push_desc(ehi, "unexpected trailing data "
-					  "%u bytes", bytes);
-			return -1;
-		}
-
-		consumed = 0;
-		while (consumed < bytes)
-			consumed += ap->ops->data_xfer(dev,
-					(unsigned char *)pad_buf, 2, rw);
-
-		qc->curbytes += bytes;
-		return 0;
+		ata_ehi_push_desc(ehi, "unexpected or too much trailing data "
+				  "buf=%u cur=%u bytes=%u",
+				  qc->nbytes, qc->curbytes, bytes);
+		return -1;
 	}
 
 	page = sg_page(sg);
