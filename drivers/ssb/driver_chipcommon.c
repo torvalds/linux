@@ -39,12 +39,14 @@ static inline void chipco_write32(struct ssb_chipcommon *cc,
 	ssb_write32(cc->dev, offset, value);
 }
 
-static inline void chipco_write32_masked(struct ssb_chipcommon *cc, u16 offset,
-					 u32 mask, u32 value)
+static inline u32 chipco_write32_masked(struct ssb_chipcommon *cc, u16 offset,
+					u32 mask, u32 value)
 {
 	value &= mask;
 	value |= chipco_read32(cc, offset) & ~mask;
 	chipco_write32(cc, offset, value);
+
+	return value;
 }
 
 void ssb_chipco_set_clockmode(struct ssb_chipcommon *cc,
@@ -355,16 +357,37 @@ u32 ssb_chipco_gpio_in(struct ssb_chipcommon *cc, u32 mask)
 {
 	return chipco_read32(cc, SSB_CHIPCO_GPIOIN) & mask;
 }
+EXPORT_SYMBOL(ssb_chipco_gpio_in);
 
-void ssb_chipco_gpio_out(struct ssb_chipcommon *cc, u32 mask, u32 value)
+u32 ssb_chipco_gpio_out(struct ssb_chipcommon *cc, u32 mask, u32 value)
 {
-	chipco_write32_masked(cc, SSB_CHIPCO_GPIOOUT, mask, value);
+	return chipco_write32_masked(cc, SSB_CHIPCO_GPIOOUT, mask, value);
 }
+EXPORT_SYMBOL(ssb_chipco_gpio_out);
 
-void ssb_chipco_gpio_outen(struct ssb_chipcommon *cc, u32 mask, u32 value)
+u32 ssb_chipco_gpio_outen(struct ssb_chipcommon *cc, u32 mask, u32 value)
 {
-	chipco_write32_masked(cc, SSB_CHIPCO_GPIOOUTEN, mask, value);
+	return chipco_write32_masked(cc, SSB_CHIPCO_GPIOOUTEN, mask, value);
 }
+EXPORT_SYMBOL(ssb_chipco_gpio_outen);
+
+u32 ssb_chipco_gpio_control(struct ssb_chipcommon *cc, u32 mask, u32 value)
+{
+	return chipco_write32_masked(cc, SSB_CHIPCO_GPIOCTL, mask, value);
+}
+EXPORT_SYMBOL(ssb_chipco_gpio_control);
+
+u32 ssb_chipco_gpio_intmask(struct ssb_chipcommon *cc, u32 mask, u32 value)
+{
+	return chipco_write32_masked(cc, SSB_CHIPCO_GPIOIRQ, mask, value);
+}
+EXPORT_SYMBOL(ssb_chipco_gpio_intmask);
+
+u32 ssb_chipco_gpio_polarity(struct ssb_chipcommon *cc, u32 mask, u32 value)
+{
+	return chipco_write32_masked(cc, SSB_CHIPCO_GPIOPOL, mask, value);
+}
+EXPORT_SYMBOL(ssb_chipco_gpio_polarity);
 
 #ifdef CONFIG_SSB_SERIAL
 int ssb_chipco_serial_init(struct ssb_chipcommon *cc,

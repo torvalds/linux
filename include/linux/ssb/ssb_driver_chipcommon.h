@@ -390,11 +390,13 @@ extern void ssb_chipco_set_clockmode(struct ssb_chipcommon *cc,
 extern void ssb_chipco_watchdog_timer_set(struct ssb_chipcommon *cc,
 					  u32 ticks);
 
+/* Chipcommon GPIO pin access. */
 u32 ssb_chipco_gpio_in(struct ssb_chipcommon *cc, u32 mask);
-
-void ssb_chipco_gpio_out(struct ssb_chipcommon *cc, u32 mask, u32 value);
-
-void ssb_chipco_gpio_outen(struct ssb_chipcommon *cc, u32 mask, u32 value);
+u32 ssb_chipco_gpio_out(struct ssb_chipcommon *cc, u32 mask, u32 value);
+u32 ssb_chipco_gpio_outen(struct ssb_chipcommon *cc, u32 mask, u32 value);
+u32 ssb_chipco_gpio_control(struct ssb_chipcommon *cc, u32 mask, u32 value);
+u32 ssb_chipco_gpio_intmask(struct ssb_chipcommon *cc, u32 mask, u32 value);
+u32 ssb_chipco_gpio_polarity(struct ssb_chipcommon *cc, u32 mask, u32 value);
 
 #ifdef CONFIG_SSB_SERIAL
 extern int ssb_chipco_serial_init(struct ssb_chipcommon *cc,
