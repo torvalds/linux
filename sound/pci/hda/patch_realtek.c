@@ -4950,7 +4950,7 @@ static int alc260_parse_auto_config(struct hda_codec *codec)
 	/* check whether NID 0x04 is valid */
 	wcap = get_wcaps(codec, 0x04);
 	wcap = (wcap & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT; /* get type */
-	if (wcap != AC_WID_AUD_IN) {
+	if (wcap != AC_WID_AUD_IN || spec->input_mux->num_items == 1) {
 		spec->adc_nids = alc260_adc_nids_alt;
 		spec->num_adc_nids = ARRAY_SIZE(alc260_adc_nids_alt);
 		spec->mixers[spec->num_mixers] = alc260_capture_alt_mixer;
@@ -10276,7 +10276,7 @@ static int patch_alc268(struct hda_codec *codec)
 
 		/* get type */
 		wcap = (wcap & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
-		if (wcap != AC_WID_AUD_IN) {
+		if (wcap != AC_WID_AUD_IN || spec->input_mux->num_items == 1) {
 			spec->adc_nids = alc268_adc_nids_alt;
 			spec->num_adc_nids = ARRAY_SIZE(alc268_adc_nids_alt);
 			spec->mixers[spec->num_mixers] =
