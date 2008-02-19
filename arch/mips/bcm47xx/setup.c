@@ -92,17 +92,17 @@ static int bcm47xx_get_invariants(struct ssb_bus *bus,
 	iv->sprom.revision = 3;
 
 	if (cfe_getenv("et0macaddr", buf, sizeof(buf)) >= 0)
-		str2eaddr(buf, iv->sprom.r1.et0mac);
+		str2eaddr(buf, iv->sprom.et0mac);
 	if (cfe_getenv("et1macaddr", buf, sizeof(buf)) >= 0)
-		str2eaddr(buf, iv->sprom.r1.et1mac);
+		str2eaddr(buf, iv->sprom.et1mac);
 	if (cfe_getenv("et0phyaddr", buf, sizeof(buf)) >= 0)
-		iv->sprom.r1.et0phyaddr = simple_strtoul(buf, NULL, 10);
+		iv->sprom.et0phyaddr = simple_strtoul(buf, NULL, 10);
 	if (cfe_getenv("et1phyaddr", buf, sizeof(buf)) >= 0)
-		iv->sprom.r1.et1phyaddr = simple_strtoul(buf, NULL, 10);
+		iv->sprom.et1phyaddr = simple_strtoul(buf, NULL, 10);
 	if (cfe_getenv("et0mdcport", buf, sizeof(buf)) >= 0)
-		iv->sprom.r1.et0mdcport = simple_strtoul(buf, NULL, 10);
+		iv->sprom.et0mdcport = simple_strtoul(buf, NULL, 10);
 	if (cfe_getenv("et1mdcport", buf, sizeof(buf)) >= 0)
-		iv->sprom.r1.et1mdcport = simple_strtoul(buf, NULL, 10);
+		iv->sprom.et1mdcport = simple_strtoul(buf, NULL, 10);
 
 	return 0;
 }

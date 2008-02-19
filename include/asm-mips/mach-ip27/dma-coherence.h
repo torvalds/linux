@@ -35,7 +35,7 @@ static dma_addr_t plat_map_dma_mem_page(struct device *dev, struct page *page)
 
 static unsigned long plat_dma_addr_to_phys(dma_addr_t dma_addr)
 {
-	return dma_addr & (0xffUL << 56);
+	return dma_addr & ~(0xffUL << 56);
 }
 
 static inline void plat_unmap_dma_mem(dma_addr_t dma_addr)

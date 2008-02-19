@@ -404,4 +404,7 @@ EXPORT(sysn32_call_table)
 	PTR	sys_ni_syscall
 	PTR	sys_eventfd
 	PTR	sys_fallocate
+	PTR	sys_timerfd_create
+	PTR	sys_timerfd_gettime		/* 5285 */
+	PTR	sys_timerfd_settime
 	.size	sysn32_call_table,.-sysn32_call_table
