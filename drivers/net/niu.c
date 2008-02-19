@@ -5147,7 +5147,12 @@ static void niu_set_rx_mode(struct net_device *dev)
 			index++;
 		}
 	} else {
-		for (i = 0; i < niu_num_alt_addr(np); i++) {
+		int alt_start;
+		if (np->flags & NIU_FLAGS_XMAC)
+			alt_start = 0;
+		else
+			alt_start = 1;
+		for (i = alt_start; i < niu_num_alt_addr(np); i++) {
 			err = niu_enable_alt_mac(np, i, 0);
 			if (err)
 				printk(KERN_WARNING PFX "%s: Error %d "
