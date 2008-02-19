@@ -4675,24 +4675,9 @@ int ata_check_atapi_dma(struct ata_queued_cmd *qc)
  */
 static int atapi_qc_may_overflow(struct ata_queued_cmd *qc)
 {
-	if (qc->tf.protocol != ATAPI_PROT_PIO &&
-	    qc->tf.protocol != ATAPI_PROT_DMA)
-		return 0;
-
-	if (qc->tf.flags & ATA_TFLAG_WRITE)
-		return 0;
-
-	switch (qc->cdb[0]) {
-	case READ_10:
-	case READ_12:
-	case WRITE_10:
-	case WRITE_12:
-	case GPCMD_READ_CD:
-	case GPCMD_READ_CD_MSF:
-		return 0;
-	}
-
-	return 1;
+	return ata_is_atapi(qc->tf.protocol) && ata_is_data(qc->tf.protocol) &&
+		atapi_cmd_type(qc->cdb[0]) == ATAPI_MISC &&
+		!(qc->tf.flags & ATA_TFLAG_WRITE);
 }
 
 /**
@@ -5146,13 +5131,14 @@ static void atapi_send_cdb(struct ata_port *ap, struct ata_queued_cmd *qc)
  */
 static int __atapi_pio_bytes(struct ata_queued_cmd *qc, unsigned int bytes)
 {
-	int do_write = (qc->tf.flags & ATA_TFLAG_WRITE);
+	int rw = (qc->tf.flags & ATA_TFLAG_WRITE) ? WRITE : READ;
 	struct ata_port *ap = qc->ap;
-	struct ata_eh_info *ehi = &qc->dev->link->eh_info;
+	struct ata_device *dev = qc->dev;
+	struct ata_eh_info *ehi = &dev->link->eh_info;
 	struct scatterlist *sg;
 	struct page *page;
 	unsigned char *buf;
-	unsigned int offset, count;
+	unsigned int offset, count, consumed;
 
 next_sg:
 	sg = qc->cursg;
@@ -5165,26 +5151,27 @@ next_sg:
 		 *    - for write case, padding zero data to the device
 		 */
 		u16 pad_buf[1] = { 0 };
-		unsigned int i;
 
-		if (bytes > qc->curbytes - qc->nbytes + ATAPI_MAX_DRAIN) {
+		if (qc->curbytes + bytes > qc->nbytes + ATAPI_MAX_DRAIN) {
 			ata_ehi_push_desc(ehi, "too much trailing data "
 					  "buf=%u cur=%u bytes=%u",
 					  qc->nbytes, qc->curbytes, bytes);
 			return -1;
 		}
 
-		 /* overflow is exptected for misc ATAPI commands */
-		if (bytes && !atapi_qc_may_overflow(qc))
-			ata_dev_printk(qc->dev, KERN_WARNING, "ATAPI %u bytes "
-				       "trailing data (cdb=%02x nbytes=%u)\n",
-				       bytes, qc->cdb[0], qc->nbytes);
+		/* allow overflow only for misc ATAPI commands */
+		if (!atapi_qc_may_overflow(qc)) {
+			ata_ehi_push_desc(ehi, "unexpected trailing data "
+					  "%u bytes", bytes);
+			return -1;
+		}
 
-		for (i = 0; i < (bytes + 1) / 2; i++)
-			ap->ops->data_xfer(qc->dev, (unsigned char *)pad_buf, 2, do_write);
+		consumed = 0;
+		while (consumed < bytes)
+			consumed += ap->ops->data_xfer(dev,
+					(unsigned char *)pad_buf, 2, rw);
 
 		qc->curbytes += bytes;
-
 		return 0;
 	}
 
@@ -5211,18 +5198,16 @@ next_sg:
 		buf = kmap_atomic(page, KM_IRQ0);
 
 		/* do the actual data transfer */
-		ap->ops->data_xfer(qc->dev,  buf + offset, count, do_write);
+		consumed = ap->ops->data_xfer(dev,  buf + offset, count, rw);
 
 		kunmap_atomic(buf, KM_IRQ0);
 		local_irq_restore(flags);
 	} else {
 		buf = page_address(page);
-		ap->ops->data_xfer(qc->dev,  buf + offset, count, do_write);
+		consumed = ap->ops->data_xfer(dev,  buf + offset, count, rw);
 	}
 
-	bytes -= count;
-	if ((count & 1) && bytes)
-		bytes--;
+	bytes -= min(bytes, consumed);
 	qc->curbytes += count;
 	qc->cursg_ofs += count;
 
@@ -5231,9 +5216,11 @@ next_sg:
 		qc->cursg_ofs = 0;
 	}
 
+	/* consumed can be larger than count only for the last transfer */
+	WARN_ON(qc->cursg && count != consumed);
+
 	if (bytes)
 		goto next_sg;
-
 	return 0;
 }
 
@@ -5251,6 +5238,7 @@ static void atapi_pio_bytes(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct ata_device *dev = qc->dev;
+	struct ata_eh_info *ehi = &dev->link->eh_info;
 	unsigned int ireason, bc_lo, bc_hi, bytes;
 	int i_write, do_write = (qc->tf.flags & ATA_TFLAG_WRITE) ? 1 : 0;
 
@@ -5268,26 +5256,28 @@ static void atapi_pio_bytes(struct ata_queued_cmd *qc)
 
 	/* shall be cleared to zero, indicating xfer of data */
 	if (unlikely(ireason & (1 << 0)))
-		goto err_out;
+		goto atapi_check;
 
 	/* make sure transfer direction matches expected */
 	i_write = ((ireason & (1 << 1)) == 0) ? 1 : 0;
 	if (unlikely(do_write != i_write))
-		goto err_out;
+		goto atapi_check;
 
 	if (unlikely(!bytes))
-		goto err_out;
+		goto atapi_check;
 
 	VPRINTK("ata%u: xfering %d bytes\n", ap->print_id, bytes);
 
-	if (__atapi_pio_bytes(qc, bytes))
+	if (unlikely(__atapi_pio_bytes(qc, bytes)))
 		goto err_out;
 	ata_altstatus(ap); /* flush */
 
 	return;
 
-err_out:
-	ata_dev_printk(dev, KERN_INFO, "ATAPI check failed\n");
+ atapi_check:
+	ata_ehi_push_desc(ehi, "ATAPI check failed (ireason=0x%x bytes=%u)",
+			  ireason, bytes);
+ err_out:
 	qc->err_mask |= AC_ERR_HSM;
 	ap->hsm_task_state = HSM_ST_ERR;
 }
