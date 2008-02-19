@@ -293,10 +293,10 @@ int futex_atomic_cmpxchg_std(int __user *uaddr, int oldval, int newval)
 
 	asm volatile(
 		"   sacf 256\n"
-		"   cs   %1,%4,0(%5)\n"
-		"0: lr   %0,%1\n"
-		"1: sacf 0\n"
-		EX_TABLE(0b,1b)
+		"0: cs   %1,%4,0(%5)\n"
+		"1: lr   %0,%1\n"
+		"2: sacf 0\n"
+		EX_TABLE(0b,2b) EX_TABLE(1b,2b)
 		: "=d" (ret), "+d" (oldval), "=m" (*uaddr)
 		: "0" (-EFAULT), "d" (newval), "a" (uaddr), "m" (*uaddr)
 		: "cc", "memory" );
