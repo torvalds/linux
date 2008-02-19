@@ -323,7 +323,7 @@ static const struct ide_port_info ht6560b_port_info __initdata = {
 				  IDE_HFLAG_NO_DMA |
 				  IDE_HFLAG_NO_AUTOTUNE |
 				  IDE_HFLAG_ABUSE_PREFETCH,
-	.pio_mask		= ATA_PIO5,
+	.pio_mask		= ATA_PIO4,
 };
 
 static int __init ht6560b_init(void)
