@@ -56,8 +56,6 @@ MODULE_PARM_DESC(collector, "\n"
 	"\tThe aic94xx SAS LLDD supports both modes.\n"
 	"\tDefault: 0 (Direct Mode).\n");
 
-char sas_addr_str[2*SAS_ADDR_SIZE + 1] = "";
-
 static struct scsi_transport_template *aic94xx_transport_template;
 static int asd_scan_finished(struct Scsi_Host *, unsigned long);
 static void asd_scan_start(struct Scsi_Host *);

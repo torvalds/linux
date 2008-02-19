@@ -27,6 +27,7 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <linux/firmware.h>
 
 #include "aic94xx.h"
 #include "aic94xx_reg.h"
@@ -38,16 +39,14 @@ u32 MBAR0_SWB_SIZE;
 
 /* ---------- Initialization ---------- */
 
-static void asd_get_user_sas_addr(struct asd_ha_struct *asd_ha)
+static int asd_get_user_sas_addr(struct asd_ha_struct *asd_ha)
 {
-	extern char sas_addr_str[];
-	/* If the user has specified a WWN it overrides other settings
-	 */
-	if (sas_addr_str[0] != '\0')
-		asd_destringify_sas_addr(asd_ha->hw_prof.sas_addr,
-					 sas_addr_str);
-	else if (asd_ha->hw_prof.sas_addr[0] != 0)
-		asd_stringify_sas_addr(sas_addr_str, asd_ha->hw_prof.sas_addr);
+	/* adapter came with a sas address */
+	if (asd_ha->hw_prof.sas_addr[0])
+		return 0;
+
+	return sas_request_addr(asd_ha->sas_ha.core.shost,
+				asd_ha->hw_prof.sas_addr);
 }
 
 static void asd_propagate_sas_addr(struct asd_ha_struct *asd_ha)
@@ -657,8 +656,7 @@ int asd_init_hw(struct asd_ha_struct *asd_ha)
 
 	asd_init_ctxmem(asd_ha);
 
-	asd_get_user_sas_addr(asd_ha);
-	if (!asd_ha->hw_prof.sas_addr[0]) {
+	if (asd_get_user_sas_addr(asd_ha)) {
 		asd_printk("No SAS Address provided for %s\n",
 			   pci_name(asd_ha->pcidev));
 		err = -ENODEV;
