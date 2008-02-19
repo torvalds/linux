@@ -61,7 +61,6 @@ struct pci_channel board_pci_channels[] = {
 	{ sh7780_pci_init, &sh4_pci_ops, &se7780_io_resource, &se7780_mem_resource, 0, 0xff },
 	{ NULL, NULL, NULL, 0, 0 },
 };
-EXPORT_SYMBOL(board_pci_channels);
 
 static struct sh4_pci_address_map se7780_pci_map = {
 	.window0	= {

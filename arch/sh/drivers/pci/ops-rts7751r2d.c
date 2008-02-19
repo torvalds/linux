@@ -50,7 +50,6 @@ struct pci_channel board_pci_channels[] = {
 	{ sh7751_pci_init, &sh4_pci_ops, &sh7751_io_resource, &sh7751_mem_resource, 0, 0xff },
 	{ NULL, NULL, NULL, 0, 0 },
 };
-EXPORT_SYMBOL(board_pci_channels);
 
 static struct sh4_pci_address_map sh7751_pci_map = {
 	.window0	= {

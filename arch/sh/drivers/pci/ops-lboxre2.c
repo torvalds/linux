@@ -43,8 +43,6 @@ struct pci_channel board_pci_channels[] = {
 	{ NULL, NULL, NULL, 0, 0 },
 };
 
-EXPORT_SYMBOL(board_pci_channels);
-
 static struct sh4_pci_address_map sh7751_pci_map = {
 	.window0	= {
 		.base	= SH7751_CS3_BASE_ADDR,
