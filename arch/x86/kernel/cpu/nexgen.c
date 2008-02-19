@@ -9,11 +9,11 @@
  *	Detect a NexGen CPU running without BIOS hypercode new enough
  *	to have CPUID. (Thanks to Herbert Oppmann)
  */
- 
+
 static int __cpuinit deep_magic_nexgen_probe(void)
 {
 	int ret;
-	
+
 	__asm__ __volatile__ (
 		"	movw	$0x5555, %%ax\n"
 		"	xorw	%%dx,%%dx\n"
@@ -22,22 +22,21 @@ static int __cpuinit deep_magic_nexgen_probe(void)
 		"	movl	$0, %%eax\n"
 		"	jnz	1f\n"
 		"	movl	$1, %%eax\n"
-		"1:\n" 
-		: "=a" (ret) : : "cx", "dx" );
+		"1:\n"
+		: "=a" (ret) : : "cx", "dx");
 	return  ret;
 }
 
-static void __cpuinit init_nexgen(struct cpuinfo_x86 * c)
+static void __cpuinit init_nexgen(struct cpuinfo_x86 *c)
 {
 	c->x86_cache_size = 256; /* A few had 1 MB... */
 }
 
-static void __cpuinit nexgen_identify(struct cpuinfo_x86 * c)
+static void __cpuinit nexgen_identify(struct cpuinfo_x86 *c)
 {
 	/* Detect NexGen with old hypercode */
-	if ( deep_magic_nexgen_probe() ) {
+	if (deep_magic_nexgen_probe())
 		strcpy(c->x86_vendor_id, "NexGenDriven");
-	}
 }
 
 static struct cpu_dev nexgen_cpu_dev __cpuinitdata = {
