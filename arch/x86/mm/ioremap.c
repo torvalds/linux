@@ -42,6 +42,22 @@ int page_is_ram(unsigned long pagenr)
 	unsigned long addr, end;
 	int i;
 
+	/*
+	 * A special case is the first 4Kb of memory;
+	 * This is a BIOS owned area, not kernel ram, but generally
+	 * not listed as such in the E820 table.
+	 */
+	if (pagenr == 0)
+		return 0;
+
+	/*
+	 * Second special case: Some BIOSen report the PC BIOS
+	 * area (640->1Mb) as ram even though it is not.
+	 */
+	if (pagenr >= (BIOS_BEGIN >> PAGE_SHIFT) &&
+		    pagenr < (BIOS_END >> PAGE_SHIFT))
+		return 0;
+
 	for (i = 0; i < e820.nr_map; i++) {
 		/*
 		 * Not usable memory:
@@ -51,14 +67,6 @@ int page_is_ram(unsigned long pagenr)
 		addr = (e820.map[i].addr + PAGE_SIZE-1) >> PAGE_SHIFT;
 		end = (e820.map[i].addr + e820.map[i].size) >> PAGE_SHIFT;
 
-		/*
-		 * Sanity check: Some BIOSen report areas as RAM that
-		 * are not. Notably the 640->1Mb area, which is the
-		 * PCI BIOS area.
-		 */
-		if (addr >= (BIOS_BEGIN >> PAGE_SHIFT) &&
-		    end < (BIOS_END >> PAGE_SHIFT))
-			continue;
 
 		if ((pagenr >= addr) && (pagenr < end))
 			return 1;

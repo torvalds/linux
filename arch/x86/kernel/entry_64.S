@@ -583,7 +583,7 @@ retint_restore_args:	/* return to kernel space */
 restore_args:
 	RESTORE_ARGS 0,8,0
 
-ENTRY(irq_return)
+irq_return:
 	INTERRUPT_RETURN
 
 	.section __ex_table, "a"

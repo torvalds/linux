@@ -255,7 +255,7 @@ ENTRY(secondary_startup_64)
 	lretq
 
 	/* SMP bootup changes these two */
-	__CPUINITDATA
+	__REFDATA
 	.align	8
 	ENTRY(initial_code)
 	.quad	x86_64_start_kernel

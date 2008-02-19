@@ -188,6 +188,7 @@ static inline unsigned long pmd_bad(pmd_t pmd)
 #define pgd_offset(mm, addr) ((mm)->pgd + pgd_index(addr))
 #define pgd_offset_k(address) (init_level4_pgt + pgd_index(address))
 #define pgd_present(pgd) (pgd_val(pgd) & _PAGE_PRESENT)
+static inline int pgd_large(pgd_t pgd) { return 0; }
 #define mk_kernel_pgd(address) ((pgd_t){ (address) | _KERNPG_TABLE })
 
 /* PUD - Level3 access */

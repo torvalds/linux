@@ -38,7 +38,7 @@ SECTIONS
 
   /* read-only */
   .text : AT(ADDR(.text) - LOAD_OFFSET) {
-	. = ALIGN(4096); /* not really needed, already page aligned */
+	. = ALIGN(PAGE_SIZE); /* not really needed, already page aligned */
 	*(.text.page_aligned)
 	TEXT_TEXT
 	SCHED_TEXT
@@ -70,21 +70,21 @@ SECTIONS
   RODATA
 
   /* writeable */
-  . = ALIGN(4096);
+  . = ALIGN(PAGE_SIZE);
   .data : AT(ADDR(.data) - LOAD_OFFSET) {	/* Data */
 	DATA_DATA
 	CONSTRUCTORS
 	} :data
 
-  . = ALIGN(4096);
+  . = ALIGN(PAGE_SIZE);
   .data_nosave : AT(ADDR(.data_nosave) - LOAD_OFFSET) {
   	__nosave_begin = .;
 	*(.data.nosave)
-  	. = ALIGN(4096);
+  	. = ALIGN(PAGE_SIZE);
   	__nosave_end = .;
   }
 
-  . = ALIGN(4096);
+  . = ALIGN(PAGE_SIZE);
   .data.page_aligned : AT(ADDR(.data.page_aligned) - LOAD_OFFSET) {
 	*(.data.page_aligned)
 	*(.data.idt)
@@ -108,7 +108,7 @@ SECTIONS
   }
 
   /* might get freed after init */
-  . = ALIGN(4096);
+  . = ALIGN(PAGE_SIZE);
   .smp_locks : AT(ADDR(.smp_locks) - LOAD_OFFSET) {
   	__smp_locks = .;
 	*(.smp_locks)
@@ -120,10 +120,10 @@ SECTIONS
    * after boot. Always make sure that ALIGN() directive is present after
    * the section which contains __smp_alt_end.
    */
-  . = ALIGN(4096);
+  . = ALIGN(PAGE_SIZE);
 
   /* will be freed after init */
-  . = ALIGN(4096);		/* Init code and data */
+  . = ALIGN(PAGE_SIZE);		/* Init code and data */
   .init.text : AT(ADDR(.init.text) - LOAD_OFFSET) {
   	__init_begin = .;
 	_sinittext = .;
@@ -174,23 +174,23 @@ SECTIONS
 	EXIT_DATA
   }
 #if defined(CONFIG_BLK_DEV_INITRD)
-  . = ALIGN(4096);
+  . = ALIGN(PAGE_SIZE);
   .init.ramfs : AT(ADDR(.init.ramfs) - LOAD_OFFSET) {
 	__initramfs_start = .;
 	*(.init.ramfs)
 	__initramfs_end = .;
   }
 #endif
-  . = ALIGN(4096);
+  . = ALIGN(PAGE_SIZE);
   .data.percpu  : AT(ADDR(.data.percpu) - LOAD_OFFSET) {
 	__per_cpu_start = .;
 	*(.data.percpu)
 	*(.data.percpu.shared_aligned)
 	__per_cpu_end = .;
   }
-  . = ALIGN(4096);
+  . = ALIGN(PAGE_SIZE);
   /* freed after init ends here */
-	
+
   .bss : AT(ADDR(.bss) - LOAD_OFFSET) {
 	__init_end = .;
 	__bss_start = .;		/* BSS */
@@ -200,7 +200,7 @@ SECTIONS
 	__bss_stop = .;
   	_end = . ;
 	/* This is where the kernel creates the early boot page tables */
-	. = ALIGN(4096);
+	. = ALIGN(PAGE_SIZE);
 	pg0 = . ;
   }
 
