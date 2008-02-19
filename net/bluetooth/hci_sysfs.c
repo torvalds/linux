@@ -334,6 +334,7 @@ static int __match_tty(struct device *dev, void *data)
 static void del_conn(struct work_struct *work)
 {
 	struct hci_conn *conn = container_of(work, struct hci_conn, work);
+	struct hci_dev *hdev = conn->hdev;
 
 	while (1) {
 		struct device *dev;
@@ -344,8 +345,10 @@ static void del_conn(struct work_struct *work)
 		device_move(dev, NULL);
 		put_device(dev);
 	}
+
 	device_del(&conn->dev);
 	put_device(&conn->dev);
+	hci_dev_put(hdev);
 }
 
 void hci_conn_del_sysfs(struct hci_conn *conn)
