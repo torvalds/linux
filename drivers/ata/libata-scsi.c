@@ -828,7 +828,7 @@ static void ata_scsi_sdev_config(struct scsi_device *sdev)
 
 /**
  *	atapi_drain_needed - Check whether data transfer may overflow
- *	@request: request to be checked
+ *	@rq: request to be checked
  *
  *	ATAPI commands which transfer variable length data to host
  *	might overflow due to application error or hardare bug.  This
