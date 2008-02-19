@@ -1535,7 +1535,7 @@ static int recovery_check(struct device *dev, void *data)
 	return 0;
 }
 
-static void recovery_func(unsigned long data)
+static void recovery_work_func(struct work_struct *unused)
 {
 	int redo = 0;
 
@@ -1551,6 +1551,17 @@ static void recovery_func(unsigned long data)
 		spin_unlock_irq(&recovery_lock);
 	} else
 		CIO_MSG_EVENT(2, "recovery: end\n");
+}
+
+static DECLARE_WORK(recovery_work, recovery_work_func);
+
+static void recovery_func(unsigned long data)
+{
+	/*
+	 * We can't do our recovery in softirq context and it's not
+	 * performance critical, so we schedule it.
+	 */
+	schedule_work(&recovery_work);
 }
 
 void ccw_device_schedule_recovery(void)
