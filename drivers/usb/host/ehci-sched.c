@@ -1181,21 +1181,18 @@ itd_urb_transaction (
 					struct ehci_itd, itd_list);
 			list_del (&itd->itd_list);
 			itd_dma = itd->itd_dma;
-		} else
-			itd = NULL;
-
-		if (!itd) {
+		} else {
 			spin_unlock_irqrestore (&ehci->lock, flags);
 			itd = dma_pool_alloc (ehci->itd_pool, mem_flags,
 					&itd_dma);
 			spin_lock_irqsave (&ehci->lock, flags);
+			if (!itd) {
+				iso_sched_free(stream, sched);
+				spin_unlock_irqrestore(&ehci->lock, flags);
+				return -ENOMEM;
+			}
 		}
 
-		if (unlikely (NULL == itd)) {
-			iso_sched_free (stream, sched);
-			spin_unlock_irqrestore (&ehci->lock, flags);
-			return -ENOMEM;
-		}
 		memset (itd, 0, sizeof *itd);
 		itd->itd_dma = itd_dma;
 		list_add (&itd->itd_list, &sched->td_list);
@@ -1814,21 +1811,18 @@ sitd_urb_transaction (
 					 struct ehci_sitd, sitd_list);
 			list_del (&sitd->sitd_list);
 			sitd_dma = sitd->sitd_dma;
-		} else
-			sitd = NULL;
-
-		if (!sitd) {
+		} else {
 			spin_unlock_irqrestore (&ehci->lock, flags);
 			sitd = dma_pool_alloc (ehci->sitd_pool, mem_flags,
 					&sitd_dma);
 			spin_lock_irqsave (&ehci->lock, flags);
+			if (!sitd) {
+				iso_sched_free(stream, iso_sched);
+				spin_unlock_irqrestore(&ehci->lock, flags);
+				return -ENOMEM;
+			}
 		}
 
-		if (!sitd) {
-			iso_sched_free (stream, iso_sched);
-			spin_unlock_irqrestore (&ehci->lock, flags);
-			return -ENOMEM;
-		}
 		memset (sitd, 0, sizeof *sitd);
 		sitd->sitd_dma = sitd_dma;
 		list_add (&sitd->sitd_list, &iso_sched->td_list);
