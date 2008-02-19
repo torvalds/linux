@@ -1576,7 +1576,7 @@ ips_make_passthru(ips_ha_t *ha, struct scsi_cmnd *SC, ips_scb_t *scb, int intr)
 	METHOD_TRACE("ips_make_passthru", 1);
 
         scsi_for_each_sg(SC, sg, scsi_sg_count(SC), i)
-                length += sg[i].length;
+		length += sg->length;
 
 	if (length < sizeof (ips_passthru_t)) {
 		/* wrong size */
