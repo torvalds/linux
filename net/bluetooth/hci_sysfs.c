@@ -320,15 +320,14 @@ void hci_conn_add_sysfs(struct hci_conn *conn)
 	queue_work(btaddconn, &conn->work);
 }
 
+/*
+ * The rfcomm tty device will possibly retain even when conn
+ * is down, and sysfs doesn't support move zombie device,
+ * so we should move the device before conn device is destroyed.
+ */
 static int __match_tty(struct device *dev, void *data)
 {
-	/* The rfcomm tty device will possibly retain even when conn
-	 * is down, and sysfs doesn't support move zombie device,
-	 * so we should move the device before conn device is destroyed.
-	 * Due to the only child device of hci_conn dev is rfcomm
-	 * tty_dev, here just return 1
-	 */
-	return 1;
+	return !strncmp(dev->bus_id, "rfcomm", 6);
 }
 
 static void del_conn(struct work_struct *work)
