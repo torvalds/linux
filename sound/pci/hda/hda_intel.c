@@ -185,21 +185,15 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 
 /* max number of SDs */
 /* ICH, ATI and VIA have 4 playback and 4 capture */
-#define ICH6_CAPTURE_INDEX	0
 #define ICH6_NUM_CAPTURE	4
-#define ICH6_PLAYBACK_INDEX	4
 #define ICH6_NUM_PLAYBACK	4
 
 /* ULI has 6 playback and 5 capture */
-#define ULI_CAPTURE_INDEX	0
 #define ULI_NUM_CAPTURE		5
-#define ULI_PLAYBACK_INDEX	5
 #define ULI_NUM_PLAYBACK	6
 
 /* ATI HDMI has 1 playback and 0 capture */
-#define ATIHDMI_CAPTURE_INDEX	0
 #define ATIHDMI_NUM_CAPTURE	0
-#define ATIHDMI_PLAYBACK_INDEX	0
 #define ATIHDMI_NUM_PLAYBACK	1
 
 /* this number is statically defined for simplicity */
@@ -1846,38 +1840,31 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 	if ((gcap & 0x01) && !pci_set_dma_mask(pci, DMA_64BIT_MASK))
 		pci_set_consistent_dma_mask(pci, DMA_64BIT_MASK);
 
-	if (gcap) {
-		/* read number of streams from GCAP register instead of using
-		 * hardcoded value
-		 */
-		chip->playback_streams = (gcap & (0xF << 12)) >> 12;
-		chip->capture_streams = (gcap & (0xF << 8)) >> 8;
-		chip->playback_index_offset = chip->capture_streams;
-		chip->capture_index_offset = 0;
-	} else {
+	/* read number of streams from GCAP register instead of using
+	 * hardcoded value
+	 */
+	chip->capture_streams = (gcap >> 8) & 0x0f;
+	chip->playback_streams = (gcap >> 12) & 0x0f;
+	if (!chip->playback_streams && !chip->capture_streams) {
 		/* gcap didn't give any info, switching to old method */
 
 		switch (chip->driver_type) {
 		case AZX_DRIVER_ULI:
 			chip->playback_streams = ULI_NUM_PLAYBACK;
 			chip->capture_streams = ULI_NUM_CAPTURE;
-			chip->playback_index_offset = ULI_PLAYBACK_INDEX;
-			chip->capture_index_offset = ULI_CAPTURE_INDEX;
 			break;
 		case AZX_DRIVER_ATIHDMI:
 			chip->playback_streams = ATIHDMI_NUM_PLAYBACK;
 			chip->capture_streams = ATIHDMI_NUM_CAPTURE;
-			chip->playback_index_offset = ATIHDMI_PLAYBACK_INDEX;
-			chip->capture_index_offset = ATIHDMI_CAPTURE_INDEX;
 			break;
 		default:
 			chip->playback_streams = ICH6_NUM_PLAYBACK;
 			chip->capture_streams = ICH6_NUM_CAPTURE;
-			chip->playback_index_offset = ICH6_PLAYBACK_INDEX;
-			chip->capture_index_offset = ICH6_CAPTURE_INDEX;
 			break;
 		}
 	}
+	chip->capture_index_offset = 0;
+	chip->playback_index_offset = chip->capture_streams;
 	chip->num_streams = chip->playback_streams + chip->capture_streams;
 	chip->azx_dev = kcalloc(chip->num_streams, sizeof(*chip->azx_dev),
 				GFP_KERNEL);
