@@ -1101,6 +1101,8 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 #define IS_MOBILE(dev) (IS_I830(dev) || IS_I85X(dev) || IS_I915GM(dev) || \
 			IS_I945GM(dev) || IS_I965GM(dev) || IS_IGD_GM(dev))
 
+#define I915_NEED_GFX_HWS(dev) (IS_G33(dev) || IS_IGD_GM(dev))
+
 #define PRIMARY_RINGBUFFER_SIZE         (128*1024)
 
 #endif
