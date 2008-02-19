@@ -413,7 +413,6 @@ struct iwl4965_eeprom {
 /*=== CSR (control and status registers) ===*/
 #define CSR_BASE    (0x000)
 
-#define CSR_SW_VER              (CSR_BASE+0x000)
 #define CSR_HW_IF_CONFIG_REG    (CSR_BASE+0x000) /* hardware interface config */
 #define CSR_INT_COALESCING      (CSR_BASE+0x004) /* accum ints, 32-usec units */
 #define CSR_INT                 (CSR_BASE+0x008) /* host interrupt status/ack */
