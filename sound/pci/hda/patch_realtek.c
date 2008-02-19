@@ -10272,6 +10272,7 @@ static int patch_alc268(struct hda_codec *codec)
 	if (!spec->adc_nids && spec->input_mux) {
 		/* check whether NID 0x07 is valid */
 		unsigned int wcap = get_wcaps(codec, 0x07);
+		int i;
 
 		/* get type */
 		wcap = (wcap & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
@@ -10289,6 +10290,11 @@ static int patch_alc268(struct hda_codec *codec)
 			spec->num_mixers++;
 		}
 		spec->capsrc_nids = alc268_capsrc_nids;
+		/* set default input source */
+		for (i = 0; i < spec->num_adc_nids; i++)
+			snd_hda_codec_write_cache(codec, alc268_capsrc_nids[i],
+				0, AC_VERB_SET_CONNECT_SEL,
+				spec->input_mux->items[0].index);
 	}
 
 	spec->vmaster_nid = 0x02;
