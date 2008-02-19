@@ -50,6 +50,7 @@ struct cfq_io_context {
 	sector_t seek_mean;
 
 	struct list_head queue_list;
+	struct hlist_node cic_list;
 
 	void (*dtor)(struct io_context *); /* destructor */
 	void (*exit)(struct io_context *); /* called on task exit */
@@ -77,6 +78,7 @@ struct io_context {
 
 	struct as_io_context *aic;
 	struct radix_tree_root radix_root;
+	struct hlist_head cic_list;
 	void *ioc_data;
 };
 
