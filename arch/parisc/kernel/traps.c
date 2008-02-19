@@ -148,6 +148,8 @@ void show_regs(struct pt_regs *regs)
 	print_symbol(" IAOQ[1]: %s\n", regs->iaoq[1]);
 	printk(level);
 	print_symbol(" RP(r2): %s\n", regs->gr[2]);
+
+	dump_stack();
 }
 
 
