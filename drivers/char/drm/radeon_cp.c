@@ -825,11 +825,19 @@ static u32 RADEON_READ_MCIND(drm_radeon_private_t *dev_priv, int addr)
 	return ret;
 }
 
+static u32 RS690_READ_MCIND(drm_radeon_private_t *dev_priv, int addr)
+{
+	RADEON_WRITE(RS690_MC_INDEX, (addr & RS690_MC_INDEX_MASK));
+	return RADEON_READ(RS690_MC_DATA);
+}
+
 u32 radeon_read_fb_location(drm_radeon_private_t *dev_priv)
 {
 
 	if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV515)
 		return RADEON_READ_MCIND(dev_priv, RV515_MC_FB_LOCATION);
+	else if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690)
+		return RS690_READ_MCIND(dev_priv, RS690_MC_FB_LOCATION);
 	else if ((dev_priv->flags & RADEON_FAMILY_MASK) > CHIP_RV515)
 		return RADEON_READ_MCIND(dev_priv, R520_MC_FB_LOCATION);
 	else
@@ -840,6 +848,8 @@ static void radeon_write_fb_location(drm_radeon_private_t *dev_priv, u32 fb_loc)
 {
 	if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV515)
 		RADEON_WRITE_MCIND(RV515_MC_FB_LOCATION, fb_loc);
+	else if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690)
+		RS690_WRITE_MCIND(RS690_MC_FB_LOCATION, fb_loc);
 	else if ((dev_priv->flags & RADEON_FAMILY_MASK) > CHIP_RV515)
 		RADEON_WRITE_MCIND(R520_MC_FB_LOCATION, fb_loc);
 	else
@@ -850,6 +860,8 @@ static void radeon_write_agp_location(drm_radeon_private_t *dev_priv, u32 agp_lo
 {
 	if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV515)
 		RADEON_WRITE_MCIND(RV515_MC_AGP_LOCATION, agp_loc);
+	else if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690)
+		RS690_WRITE_MCIND(RS690_MC_AGP_LOCATION, agp_loc);
 	else if ((dev_priv->flags & RADEON_FAMILY_MASK) > CHIP_RV515)
 		RADEON_WRITE_MCIND(R520_MC_AGP_LOCATION, agp_loc);
 	else
@@ -1362,6 +1374,70 @@ static void radeon_set_igpgart(drm_radeon_private_t * dev_priv, int on)
        }
 }
 
+/* Enable or disable RS690 GART on the chip */
+static void radeon_set_rs690gart(drm_radeon_private_t *dev_priv, int on)
+{
+	u32 temp;
+
+	if (on) {
+		DRM_DEBUG("programming rs690 gart %08X %08lX %08X\n",
+			  dev_priv->gart_vm_start,
+			  (long)dev_priv->gart_info.bus_addr,
+			  dev_priv->gart_size);
+
+		temp = RS690_READ_MCIND(dev_priv, RS690_MC_MISC_CNTL);
+		RS690_WRITE_MCIND(RS690_MC_MISC_CNTL, 0x5000);
+
+		RS690_WRITE_MCIND(RS690_MC_AGP_SIZE,
+				  RS690_MC_GART_EN | RS690_MC_AGP_SIZE_32MB);
+
+		temp = RS690_READ_MCIND(dev_priv, RS690_MC_GART_FEATURE_ID);
+		RS690_WRITE_MCIND(RS690_MC_GART_FEATURE_ID, 0x42040800);
+
+		RS690_WRITE_MCIND(RS690_MC_GART_BASE,
+				  dev_priv->gart_info.bus_addr);
+
+		temp = RS690_READ_MCIND(dev_priv, RS690_MC_AGP_MODE_CONTROL);
+		RS690_WRITE_MCIND(RS690_MC_AGP_MODE_CONTROL, 0x01400000);
+
+		RS690_WRITE_MCIND(RS690_MC_AGP_BASE,
+				  (unsigned int)dev_priv->gart_vm_start);
+
+		dev_priv->gart_size = 32*1024*1024;
+		temp = (((dev_priv->gart_vm_start - 1 + dev_priv->gart_size) &
+			 0xffff0000) | (dev_priv->gart_vm_start >> 16));
+
+		RS690_WRITE_MCIND(RS690_MC_AGP_LOCATION, temp);
+
+		temp = RS690_READ_MCIND(dev_priv, RS690_MC_AGP_SIZE);
+		RS690_WRITE_MCIND(RS690_MC_AGP_SIZE,
+				  RS690_MC_GART_EN | RS690_MC_AGP_SIZE_32MB);
+
+		do {
+			temp = RS690_READ_MCIND(dev_priv, RS690_MC_GART_CACHE_CNTL);
+			if ((temp & RS690_MC_GART_CLEAR_STATUS) ==
+			    RS690_MC_GART_CLEAR_DONE)
+				break;
+			DRM_UDELAY(1);
+		} while (1);
+
+		RS690_WRITE_MCIND(RS690_MC_GART_CACHE_CNTL,
+				  RS690_MC_GART_CC_CLEAR);
+		do {
+			temp = RS690_READ_MCIND(dev_priv, RS690_MC_GART_CACHE_CNTL);
+			if ((temp & RS690_MC_GART_CLEAR_STATUS) ==
+				   RS690_MC_GART_CLEAR_DONE)
+				break;
+			DRM_UDELAY(1);
+		} while (1);
+
+		RS690_WRITE_MCIND(RS690_MC_GART_CACHE_CNTL,
+				  RS690_MC_GART_CC_NO_CHANGE);
+	} else {
+		RS690_WRITE_MCIND(RS690_MC_AGP_SIZE, RS690_MC_GART_DIS);
+	}
+}
+
 static void radeon_set_pciegart(drm_radeon_private_t * dev_priv, int on)
 {
 	u32 tmp = RADEON_READ_PCIE(dev_priv, RADEON_PCIE_TX_GART_CNTL);
@@ -1395,6 +1471,11 @@ static void radeon_set_pciegart(drm_radeon_private_t * dev_priv, int on)
 static void radeon_set_pcigart(drm_radeon_private_t * dev_priv, int on)
 {
 	u32 tmp;
+
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690) {
+		radeon_set_rs690gart(dev_priv, on);
+		return;
+	}
 
 	if (dev_priv->flags & RADEON_IS_IGPGART) {
 		radeon_set_igpgart(dev_priv, on);
