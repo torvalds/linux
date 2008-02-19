@@ -224,10 +224,8 @@ hardware_subarch:	.long 0			# subarchitecture, added with 2.07
 
 hardware_subarch_data:	.quad 0
 
-compressed_payload_offset:
-			.long input_data
-compressed_payload_length:
-			.long input_data_end-input_data
+payload_offset:		.long input_data
+payload_length:		.long input_data_end-input_data
 
 # End of setup header #####################################################
 
