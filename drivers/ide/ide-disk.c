@@ -397,6 +397,7 @@ static inline int idedisk_supports_lba48(const struct hd_driveid *id)
 static const struct drive_list_entry hpa_list[] = {
 	{ "ST340823A",	NULL },
 	{ "ST320413A",	NULL },
+	{ "ST310211A",	NULL },
 	{ NULL,		NULL }
 };
 
