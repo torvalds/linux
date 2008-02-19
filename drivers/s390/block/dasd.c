@@ -1149,12 +1149,14 @@ static void __dasd_device_process_final_queue(struct dasd_device *device,
 {
 	struct list_head *l, *n;
 	struct dasd_ccw_req *cqr;
+	struct dasd_block *block;
 
 	list_for_each_safe(l, n, final_queue) {
 		cqr = list_entry(l, struct dasd_ccw_req, devlist);
 		list_del_init(&cqr->devlist);
-		if (cqr->block)
-			spin_lock_bh(&cqr->block->queue_lock);
+		block = cqr->block;
+		if (block)
+			spin_lock_bh(&block->queue_lock);
 		switch (cqr->status) {
 		case DASD_CQR_SUCCESS:
 			cqr->status = DASD_CQR_DONE;
@@ -1172,14 +1174,12 @@ static void __dasd_device_process_final_queue(struct dasd_device *device,
 				    cqr, cqr->status);
 			BUG();
 		}
-		if (cqr->block)
-			spin_unlock_bh(&cqr->block->queue_lock);
 		if (cqr->callback != NULL)
 			(cqr->callback)(cqr, cqr->callback_data);
+		if (block)
+			spin_unlock_bh(&block->queue_lock);
 	}
 }
-
-
 
 /*
  * Take a look at the first request on the ccw queue and check

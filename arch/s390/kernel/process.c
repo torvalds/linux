@@ -114,24 +114,27 @@ extern void s390_handle_mcck(void);
 static void default_idle(void)
 {
 	int cpu, rc;
+	int nr_calls = 0;
+	void *hcpu;
 #ifdef CONFIG_SMP
 	struct s390_idle_data *idle;
 #endif
 
 	/* CPU is going idle. */
 	cpu = smp_processor_id();
-
+	hcpu = (void *)(long)cpu;
 	local_irq_disable();
 	if (need_resched()) {
 		local_irq_enable();
 		return;
 	}
 
-	rc = atomic_notifier_call_chain(&idle_chain,
-					S390_CPU_IDLE, (void *)(long) cpu);
-	if (rc != NOTIFY_OK && rc != NOTIFY_DONE)
-		BUG();
-	if (rc != NOTIFY_OK) {
+	rc = __atomic_notifier_call_chain(&idle_chain, S390_CPU_IDLE, hcpu, -1,
+					  &nr_calls);
+	if (rc == NOTIFY_BAD) {
+		nr_calls--;
+		__atomic_notifier_call_chain(&idle_chain, S390_CPU_NOT_IDLE,
+					     hcpu, nr_calls, NULL);
 		local_irq_enable();
 		return;
 	}

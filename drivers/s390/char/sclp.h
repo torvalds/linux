@@ -122,11 +122,13 @@ struct sclp_req {
 /* of some routines it wants to be called from the low level driver */
 struct sclp_register {
 	struct list_head list;
-	/* event masks this user is registered for */
+	/* User wants to receive: */
 	sccb_mask_t receive_mask;
+	/* User wants to send: */
 	sccb_mask_t send_mask;
-	/* actually present events */
+	/* H/W can receive: */
 	sccb_mask_t sclp_receive_mask;
+	/* H/W can send: */
 	sccb_mask_t sclp_send_mask;
 	/* called if event type availability changes */
 	void (*state_change_fn)(struct sclp_register *);
