@@ -861,6 +861,30 @@ static int __init detect_init_APIC(void)
 	return 0;
 }
 
+void __init early_init_lapic_mapping(void)
+{
+	unsigned long apic_phys;
+
+	/*
+	 * If no local APIC can be found then go out
+	 * : it means there is no mpatable and MADT
+	 */
+	if (!smp_found_config)
+		return;
+
+	apic_phys = mp_lapic_addr;
+
+	set_fixmap_nocache(FIX_APIC_BASE, apic_phys);
+	apic_printk(APIC_VERBOSE, "mapped APIC to %16lx (%16lx)\n",
+				 APIC_BASE, apic_phys);
+
+	/*
+	 * Fetch the APIC ID of the BSP in case we have a
+	 * default configuration (or the MP table is broken).
+	 */
+	boot_cpu_id = GET_APIC_ID(apic_read(APIC_ID));
+}
+
 /**
  * init_apic_mappings - initialize APIC mappings
  */

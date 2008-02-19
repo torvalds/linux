@@ -224,8 +224,7 @@ static void __init MP_lintsrc_info (struct mpc_config_lintsrc *m)
 /*
  * Read/parse the MPC
  */
-
-static int __init smp_read_mpc(struct mp_config_table *mpc)
+static int __init smp_read_mpc(struct mp_config_table *mpc, unsigned early)
 {
 	char str[16];
 	int count=sizeof(*mpc);
@@ -265,6 +264,9 @@ static int __init smp_read_mpc(struct mp_config_table *mpc)
 	/* save the local APIC address, it might be non-default */
 	if (!acpi_lapic)
 		mp_lapic_addr = mpc->mpc_lapic;
+
+	if (early)
+		return 1;
 
 	/*
 	 *	Now process the configuration blocks.
@@ -477,27 +479,38 @@ static struct intel_mp_floating *mpf_found;
 /*
  * Scan the memory blocks for an SMP configuration block.
  */
-void __init get_smp_config (void)
+static void __init __get_smp_config(unsigned early)
 {
 	struct intel_mp_floating *mpf = mpf_found;
 
+	if (acpi_lapic && early)
+		return;
 	/*
- 	 * ACPI supports both logical (e.g. Hyper-Threading) and physical 
- 	 * processors, where MPS only supports physical.
- 	 */
- 	if (acpi_lapic && acpi_ioapic) {
- 		printk(KERN_INFO "Using ACPI (MADT) for SMP configuration information\n");
- 		return;
-	}
- 	else if (acpi_lapic)
- 		printk(KERN_INFO "Using ACPI for processor (LAPIC) configuration information\n");
+	 * ACPI supports both logical (e.g. Hyper-Threading) and physical
+	 * processors, where MPS only supports physical.
+	 */
+	if (acpi_lapic && acpi_ioapic) {
+		printk(KERN_INFO "Using ACPI (MADT) for SMP configuration "
+			"information\n");
+		return;
+	} else if (acpi_lapic)
+		printk(KERN_INFO "Using ACPI for processor (LAPIC) "
+			"configuration information\n");
 
-	printk("Intel MultiProcessor Specification v1.%d\n", mpf->mpf_specification);
+	printk(KERN_INFO "Intel MultiProcessor Specification v1.%d\n",
+		mpf->mpf_specification);
 
 	/*
 	 * Now see if we need to read further.
 	 */
 	if (mpf->mpf_feature1 != 0) {
+		if (early) {
+			/*
+			 * local APIC has default address
+			 */
+			mp_lapic_addr = APIC_DEFAULT_PHYS_BASE;
+			return;
+		}
 
 		printk(KERN_INFO "Default MP configuration #%d\n", mpf->mpf_feature1);
 		construct_default_ISA_mptable(mpf->mpf_feature1);
@@ -508,12 +521,15 @@ void __init get_smp_config (void)
 		 * Read the physical hardware table.  Anything here will
 		 * override the defaults.
 		 */
-		if (!smp_read_mpc(phys_to_virt(mpf->mpf_physptr))) {
+		if (!smp_read_mpc(phys_to_virt(mpf->mpf_physptr), early)) {
 			smp_found_config = 0;
 			printk(KERN_ERR "BIOS bug, MP table errors detected!...\n");
 			printk(KERN_ERR "... disabling SMP support. (tell your hw vendor)\n");
 			return;
 		}
+
+		if (early)
+			return;
 		/*
 		 * If there are no explicit MP IRQ entries, then we are
 		 * broken.  We set up most of the low 16 IO-APIC pins to
@@ -535,13 +551,25 @@ void __init get_smp_config (void)
 	} else
 		BUG();
 
-	printk(KERN_INFO "Processors: %d\n", num_processors);
+	if (!early)
+		printk(KERN_INFO "Processors: %d\n", num_processors);
 	/*
 	 * Only use the first configuration found.
 	 */
 }
 
-static int __init smp_scan_config (unsigned long base, unsigned long length)
+void __init early_get_smp_config(void)
+{
+	__get_smp_config(1);
+}
+
+void __init get_smp_config(void)
+{
+	__get_smp_config(0);
+}
+
+static int __init smp_scan_config(unsigned long base, unsigned long length,
+				  unsigned reserve)
 {
 	extern void __bad_mpf_size(void); 
 	unsigned int *bp = phys_to_virt(base);
@@ -560,10 +588,15 @@ static int __init smp_scan_config (unsigned long base, unsigned long length)
 				|| (mpf->mpf_specification == 4)) ) {
 
 			smp_found_config = 1;
+			mpf_found = mpf;
+
+			if (!reserve)
+				return 1;
+
 			reserve_bootmem_generic(virt_to_phys(mpf), PAGE_SIZE);
 			if (mpf->mpf_physptr)
-				reserve_bootmem_generic(mpf->mpf_physptr, PAGE_SIZE);
-			mpf_found = mpf;
+				reserve_bootmem_generic(mpf->mpf_physptr,
+							PAGE_SIZE);
 			return 1;
 		}
 		bp += 4;
@@ -572,7 +605,7 @@ static int __init smp_scan_config (unsigned long base, unsigned long length)
 	return 0;
 }
 
-void __init find_smp_config(void)
+static void __init __find_smp_config(unsigned reserve)
 {
 	unsigned int address;
 
@@ -584,9 +617,9 @@ void __init find_smp_config(void)
 	 * 2) Scan the top 1K of base RAM
 	 * 3) Scan the 64K of bios
 	 */
-	if (smp_scan_config(0x0,0x400) ||
-		smp_scan_config(639*0x400,0x400) ||
-			smp_scan_config(0xF0000,0x10000))
+	if (smp_scan_config(0x0, 0x400, reserve) ||
+		smp_scan_config(639*0x400, 0x400, reserve) ||
+			smp_scan_config(0xF0000, 0x10000, reserve))
 		return;
 	/*
 	 * If it is an SMP machine we should know now.
@@ -603,11 +636,21 @@ void __init find_smp_config(void)
 
 	address = *(unsigned short *)phys_to_virt(0x40E);
 	address <<= 4;
-	if (smp_scan_config(address, 0x1000))
+	if (smp_scan_config(address, 0x1000, reserve))
 		return;
 
 	/* If we have come this far, we did not find an MP table  */
 	 printk(KERN_INFO "No mptable found.\n");
+}
+
+void __init early_find_smp_config(void)
+{
+	__find_smp_config(0);
+}
+
+void __init find_smp_config(void)
+{
+	__find_smp_config(1);
 }
 
 /* --------------------------------------------------------------------------

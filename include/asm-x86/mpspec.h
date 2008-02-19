@@ -25,6 +25,9 @@ extern int pic_mode;
 
 extern DECLARE_BITMAP(mp_bus_not_pci, MAX_MP_BUSSES);
 
+extern void early_find_smp_config(void);
+extern void early_get_smp_config(void);
+
 #endif
 
 extern int mp_bus_id_to_pci_bus[MAX_MP_BUSSES];

@@ -129,6 +129,7 @@ extern void enable_NMI_through_LVT0(void);
  */
 #ifdef CONFIG_X86_64
 extern void setup_apic_routing(void);
+extern void early_init_lapic_mapping(void);
 #endif
 
 extern u8 setup_APIC_eilvt_mce(u8 vector, u8 msg_type, u8 mask);
