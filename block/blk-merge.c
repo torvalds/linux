@@ -220,7 +220,7 @@ new_segment:
 		bvprv = bvec;
 	} /* segments in rq */
 
-	if (q->dma_drain_size) {
+	if (q->dma_drain_size && q->dma_drain_needed(rq)) {
 		sg->page_link &= ~0x02;
 		sg = sg_next(sg);
 		sg_set_page(sg, virt_to_page(q->dma_drain_buffer),
