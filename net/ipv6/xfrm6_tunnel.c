@@ -140,12 +140,26 @@ __be32 xfrm6_tunnel_spi_lookup(xfrm_address_t *saddr)
 
 EXPORT_SYMBOL(xfrm6_tunnel_spi_lookup);
 
+static int __xfrm6_tunnel_spi_check(u32 spi)
+{
+	struct xfrm6_tunnel_spi *x6spi;
+	int index = xfrm6_tunnel_spi_hash_byspi(spi);
+	struct hlist_node *pos;
+
+	hlist_for_each_entry(x6spi, pos,
+			     &xfrm6_tunnel_spi_byspi[index],
+			     list_byspi) {
+		if (x6spi->spi == spi)
+			return -1;
+	}
+	return index;
+}
+
 static u32 __xfrm6_tunnel_alloc_spi(xfrm_address_t *saddr)
 {
 	u32 spi;
 	struct xfrm6_tunnel_spi *x6spi;
-	struct hlist_node *pos;
-	unsigned index;
+	int index;
 
 	if (xfrm6_tunnel_spi < XFRM6_TUNNEL_SPI_MIN ||
 	    xfrm6_tunnel_spi >= XFRM6_TUNNEL_SPI_MAX)
@@ -154,32 +168,19 @@ static u32 __xfrm6_tunnel_alloc_spi(xfrm_address_t *saddr)
 		xfrm6_tunnel_spi++;
 
 	for (spi = xfrm6_tunnel_spi; spi <= XFRM6_TUNNEL_SPI_MAX; spi++) {
-		index = xfrm6_tunnel_spi_hash_byspi(spi);
-		hlist_for_each_entry(x6spi, pos,
-				     &xfrm6_tunnel_spi_byspi[index],
-				     list_byspi) {
-			if (x6spi->spi == spi)
-				goto try_next_1;
-		}
-		xfrm6_tunnel_spi = spi;
-		goto alloc_spi;
-try_next_1:;
+		index = __xfrm6_tunnel_spi_check(spi);
+		if (index >= 0)
+			goto alloc_spi;
 	}
 	for (spi = XFRM6_TUNNEL_SPI_MIN; spi < xfrm6_tunnel_spi; spi++) {
-		index = xfrm6_tunnel_spi_hash_byspi(spi);
-		hlist_for_each_entry(x6spi, pos,
-				     &xfrm6_tunnel_spi_byspi[index],
-				     list_byspi) {
-			if (x6spi->spi == spi)
-				goto try_next_2;
-		}
-		xfrm6_tunnel_spi = spi;
-		goto alloc_spi;
-try_next_2:;
+		index = __xfrm6_tunnel_spi_check(spi);
+		if (index >= 0)
+			goto alloc_spi;
 	}
 	spi = 0;
 	goto out;
 alloc_spi:
+	xfrm6_tunnel_spi = spi;
 	x6spi = kmem_cache_alloc(xfrm6_tunnel_spi_kmem, GFP_ATOMIC);
 	if (!x6spi)
 		goto out;
