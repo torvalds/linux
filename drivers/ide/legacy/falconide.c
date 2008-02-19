@@ -54,7 +54,7 @@ static void __init falconide_setup_ports(hw_regs_t *hw)
 	for (i = 1; i < 8; i++)
 		hw->io_ports[i] = ATA_HD_BASE + 1 + i * 4;
 
-	hw->io_ports[IDE_CONTROL_OFFSET] = ATA_HD_CONTROL;
+	hw->io_ports[IDE_CONTROL_OFFSET] = ATA_HD_BASE + ATA_HD_CONTROL;
 
 	hw->irq = IRQ_MFP_IDE;
 	hw->ack_intr = NULL;
