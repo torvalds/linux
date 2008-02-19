@@ -113,6 +113,9 @@ static int  option_send_setup(struct usb_serial_port *port);
 #define NOVATELWIRELESS_VENDOR_ID		0x1410
 #define DELL_VENDOR_ID				0x413C
 
+#define KYOCERA_VENDOR_ID			0x0c88
+#define KYOCERA_PRODUCT_KPC680			0x180a
+
 #define ANYDATA_VENDOR_ID			0x16d5
 #define ANYDATA_PRODUCT_ADU_E100A		0x6501
 #define ANYDATA_PRODUCT_ADU_500A		0x6502
@@ -187,6 +190,7 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(ANYDATA_VENDOR_ID, ANYDATA_PRODUCT_ADU_500A) },
 	{ USB_DEVICE(BANDRICH_VENDOR_ID, BANDRICH_PRODUCT_C100_1) },
 	{ USB_DEVICE(BANDRICH_VENDOR_ID, BANDRICH_PRODUCT_C100_2) },
+	{ USB_DEVICE(KYOCERA_VENDOR_ID, KYOCERA_PRODUCT_KPC680) },
 	{ } /* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, option_ids);
