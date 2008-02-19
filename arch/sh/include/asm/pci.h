@@ -38,33 +38,6 @@ extern struct pci_channel board_pci_channels[];
 #define PCIBIOS_MIN_IO		__PCI_CHAN(bus)->io_resource->start
 #define PCIBIOS_MIN_MEM		__PCI_CHAN(bus)->mem_resource->start
 
-/*
- * I/O routine helpers
- */
-#if defined(CONFIG_CPU_SUBTYPE_SH7780) || defined(CONFIG_CPU_SUBTYPE_SH7785)
-#define PCI_IO_AREA		0xFE400000
-#define PCI_IO_SIZE		0x00400000
-#elif defined(CONFIG_CPU_SH5)
-extern unsigned long PCI_IO_AREA;
-#define PCI_IO_SIZE		0x00010000
-#else
-#define PCI_IO_AREA		0xFE240000
-#define PCI_IO_SIZE		0x00040000
-#endif
-
-#define PCI_MEM_SIZE		0x01000000
-
-#define SH4_PCIIOBR_MASK	0xFFFC0000
-#define pci_ioaddr(addr)	(PCI_IO_AREA + (addr & ~SH4_PCIIOBR_MASK))
-
-#if defined(CONFIG_PCI)
-#define is_pci_ioaddr(port)		\
-	(((port) >= PCIBIOS_MIN_IO) &&	\
-	 ((port) < (PCIBIOS_MIN_IO + PCI_IO_SIZE)))
-#else
-#define is_pci_ioaddr(port)	(0)
-#endif
-
 struct pci_dev;
 
 extern void pcibios_set_master(struct pci_dev *dev);
@@ -137,10 +110,30 @@ static inline int __is_pci_memory(unsigned long phys_addr, unsigned long size)
 	}
 	return 0;
 }
+
+static inline void __iomem *__get_pci_io_base(unsigned long port,
+					      unsigned long size)
+{
+	struct pci_channel *p;
+	struct resource *res;
+
+	for (p = board_pci_channels; p->init; p++) {
+		res = p->io_resource;
+		if (p->enabled && (port >= res->start) &&
+		    (port + size) <= (res->end + 1))
+			return (void __iomem *)(p->io_base + port);
+	}
+	return NULL;
+}
 #else
 static inline int __is_pci_memory(unsigned long phys_addr, unsigned long size)
 {
 	return 0;
+}
+static inline void __iomem *__get_pci_io_base(unsigned long port,
+					      unsigned long size)
+{
+	return NULL;
 }
 #endif
 

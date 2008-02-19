@@ -68,7 +68,6 @@ static struct sh4_pci_address_map sh7751_pci_map = {
 
 int __init pcibios_init_platform(void)
 {
-	__set_io_port_base(SH7751_PCI_IO_BASE);
 	return sh7751_pcic_init(&board_pci_channels[0], &sh7751_pci_map);
 }
 

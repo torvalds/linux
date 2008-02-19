@@ -12,6 +12,7 @@
  * for more details.
  */
 #include <linux/module.h>
+#include <linux/pci.h>
 #include <asm/machvec.h>
 #include <asm/io.h>
 
@@ -66,6 +67,10 @@ void __iomem *ioport_map(unsigned long port, unsigned int nr)
 	void __iomem *ret;
 
 	ret = __ioport_map_trapped(port, nr);
+	if (ret)
+		return ret;
+
+	ret = __get_pci_io_base(port, nr);
 	if (ret)
 		return ret;
 
