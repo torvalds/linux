@@ -3510,15 +3510,16 @@ ips_scmd_buf_write(struct scsi_cmnd *scmd, void *data, unsigned int count)
         struct scatterlist *sg = scsi_sglist(scmd);
 
         for (i = 0, xfer_cnt = 0;
-             (i < scsi_sg_count(scmd)) && (xfer_cnt < count); i++) {
-                min_cnt = min(count - xfer_cnt, sg[i].length);
+	(i < scsi_sg_count(scmd)) && (xfer_cnt < count);
+             i++, sg = sg_next(sg)) {
+                min_cnt = min(count - xfer_cnt, sg->length);
 
                 /* kmap_atomic() ensures addressability of the data buffer.*/
                 /* local_irq_save() protects the KM_IRQ0 address slot.     */
                 local_irq_save(flags);
-                buffer = kmap_atomic(sg_page(&sg[i]), KM_IRQ0) + sg[i].offset;
+		buffer = kmap_atomic(sg_page(sg), KM_IRQ0) + sg->offset;
                 memcpy(buffer, &cdata[xfer_cnt], min_cnt);
-                kunmap_atomic(buffer - sg[i].offset, KM_IRQ0);
+		kunmap_atomic(buffer - sg->offset, KM_IRQ0);
                 local_irq_restore(flags);
 
                 xfer_cnt += min_cnt;
@@ -3543,15 +3544,16 @@ ips_scmd_buf_read(struct scsi_cmnd *scmd, void *data, unsigned int count)
         struct scatterlist *sg = scsi_sglist(scmd);
 
         for (i = 0, xfer_cnt = 0;
-             (i < scsi_sg_count(scmd)) && (xfer_cnt < count); i++) {
-                min_cnt = min(count - xfer_cnt, sg[i].length);
+             (i < scsi_sg_count(scmd)) && (xfer_cnt < count);
+             i++, sg = sg_next(sg)) {
+		min_cnt = min(count - xfer_cnt, sg->length);
 
                 /* kmap_atomic() ensures addressability of the data buffer.*/
                 /* local_irq_save() protects the KM_IRQ0 address slot.     */
                 local_irq_save(flags);
-                buffer = kmap_atomic(sg_page(&sg[i]), KM_IRQ0) + sg[i].offset;
+		buffer = kmap_atomic(sg_page(sg), KM_IRQ0) + sg->offset;
                 memcpy(&cdata[xfer_cnt], buffer, min_cnt);
-                kunmap_atomic(buffer - sg[i].offset, KM_IRQ0);
+		kunmap_atomic(buffer - sg->offset, KM_IRQ0);
                 local_irq_restore(flags);
 
                 xfer_cnt += min_cnt;
