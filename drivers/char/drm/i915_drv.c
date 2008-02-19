@@ -276,6 +276,7 @@ static int i915_suspend(struct drm_device *dev)
 		dev_priv->saveDSPATILEOFF = I915_READ(DSPATILEOFF);
 	}
 	i915_save_palette(dev, PIPE_A);
+	dev_priv->savePIPEASTAT = I915_READ(I915REG_PIPEASTAT);
 
 	/* Pipe & plane B info */
 	dev_priv->savePIPEBCONF = I915_READ(PIPEBCONF);
@@ -303,6 +304,7 @@ static int i915_suspend(struct drm_device *dev)
 		dev_priv->saveDSPBTILEOFF = I915_READ(DSPBTILEOFF);
 	}
 	i915_save_palette(dev, PIPE_B);
+	dev_priv->savePIPEBSTAT = I915_READ(I915REG_PIPEBSTAT);
 
 	/* CRT state */
 	dev_priv->saveADPA = I915_READ(ADPA);
@@ -328,6 +330,11 @@ static int i915_suspend(struct drm_device *dev)
 	dev_priv->saveFBC_LL_BASE = I915_READ(FBC_LL_BASE);
 	dev_priv->saveFBC_CONTROL2 = I915_READ(FBC_CONTROL2);
 	dev_priv->saveFBC_CONTROL = I915_READ(FBC_CONTROL);
+
+	/* Interrupt state */
+	dev_priv->saveIIR = I915_READ(I915REG_INT_IDENTITY_R);
+	dev_priv->saveIER = I915_READ(I915REG_INT_ENABLE_R);
+	dev_priv->saveIMR = I915_READ(I915REG_INT_MASK_R);
 
 	/* VGA state */
 	dev_priv->saveVCLK_DIVISOR_VGA0 = I915_READ(VCLK_DIVISOR_VGA0);
