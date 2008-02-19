@@ -40,6 +40,7 @@ int __init sh7751_pci_init(struct pci_channel *chan)
 	pr_debug("PCI: Starting intialization.\n");
 
 	chan->reg_base = 0xfe200000;
+	chan->io_base = 0xfe240000;
 
 	/* check for SH7751/SH7751R hardware */
 	id = pci_read_reg(chan, SH7751_PCICONF0);
@@ -153,9 +154,9 @@ int __init sh7751_pcic_init(struct pci_channel *chan,
 	/* Map IO space into PCI IO window:
 	 * IO addresses will be translated to the PCI IO window base address
 	 */
-	pr_debug("PCI: Mapping IO address 0x%x - 0x%x to base 0x%x\n",
+	pr_debug("PCI: Mapping IO address 0x%x - 0x%x to base 0x%lx\n",
 		 chan->io_resource->start, chan->io_resource->end,
-		 SH7751_PCI_IO_BASE + chan->io_resource->start);
+		 chan->io_base + chan->io_resource->start);
 
 	/* Make sure the MSB's of IO window are set to access PCI space
 	 * correctly */

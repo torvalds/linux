@@ -53,6 +53,7 @@ int __init sh7780_pci_init(struct pci_channel *chan)
 	pr_debug("PCI: Starting intialization.\n");
 
 	chan->reg_base = 0xfe040000;
+	chan->io_base = 0xfe200000;
 
 	ctrl_outl(0x00000001, SH7780_PCI_VCR2); /* Enable PCIC */
 
@@ -135,9 +136,9 @@ int __init sh7780_pcic_init(struct pci_channel *chan,
 	/* Map IO space into PCI IO window:
 	 * IO addresses will be translated to the PCI IO window base address
 	 */
-	pr_debug("PCI: Mapping IO address 0x%x - 0x%x to base 0x%x\n",
+	pr_debug("PCI: Mapping IO address 0x%x - 0x%x to base 0x%lx\n",
 		 chan->io_resource->start, chan->io_resource->end,
-		 SH7780_PCI_IO_BASE + chan->io_resource->start);
+		 chan->io_base + chan->io_resource->start);
 
 	/* NOTE: I'm ignoring the PCI error IRQs for now..
 	 * TODO: add support for the internal error interrupts and
