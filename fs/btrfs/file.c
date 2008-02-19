@@ -764,7 +764,7 @@ static int prepare_pages(struct btrfs_root *root, struct file *file,
 	}
 	if (start_pos < inode->i_size) {
 		u64 last_pos;
-		last_pos = (index + num_pages) << PAGE_CACHE_SHIFT;
+		last_pos = ((u64)index + num_pages) << PAGE_CACHE_SHIFT;
 		lock_extent(&BTRFS_I(inode)->io_tree,
 			    start_pos, last_pos - 1, GFP_NOFS);
 		clear_extent_bits(&BTRFS_I(inode)->io_tree, start_pos,
