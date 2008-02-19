@@ -12752,7 +12752,7 @@ static hda_nid_t alc662_adc_nids[1] = {
 	0x09,
 };
 
-static hda_nid_t alc662_capsrc_nids[1] = { 0x23 };
+static hda_nid_t alc662_capsrc_nids[1] = { 0x22 };
 
 /* input MUX */
 /* FIXME: should be a matrix-type input source selection */
