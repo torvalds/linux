@@ -762,6 +762,13 @@ static int prepare_pages(struct btrfs_root *root, struct file *file,
 		set_page_extent_mapped(pages[i]);
 		WARN_ON(!PageLocked(pages[i]));
 	}
+	if (start_pos < inode->i_size) {
+		u64 last_pos;
+		last_pos = (index + num_pages) << PAGE_CACHE_SHIFT;
+		clear_extent_bits(&BTRFS_I(inode)->io_tree, start_pos,
+				  last_pos - 1, EXTENT_DIRTY | EXTENT_DELALLOC,
+				  GFP_NOFS);
+	}
 	return 0;
 }
 
