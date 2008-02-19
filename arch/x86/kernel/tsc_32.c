@@ -221,9 +221,9 @@ EXPORT_SYMBOL(recalibrate_cpu_khz);
  * if the CPU frequency is scaled, TSC-based delays will need a different
  * loops_per_jiffy value to function properly.
  */
-static unsigned int ref_freq = 0;
-static unsigned long loops_per_jiffy_ref = 0;
-static unsigned long cpu_khz_ref = 0;
+static unsigned int ref_freq;
+static unsigned long loops_per_jiffy_ref;
+static unsigned long cpu_khz_ref;
 
 static int
 time_cpufreq_notifier(struct notifier_block *nb, unsigned long val, void *data)
@@ -283,7 +283,7 @@ core_initcall(cpufreq_tsc);
 
 /* clock source code */
 
-static unsigned long current_tsc_khz = 0;
+static unsigned long current_tsc_khz;
 
 static cycle_t read_tsc(void)
 {
