@@ -28,7 +28,7 @@ void *module_alloc(unsigned long size)
 {
 	if (size == 0)
 		return NULL;
-	return vmalloc(size);
+	return vmalloc_exec(size);
 }
 
 void module_free(struct module *mod, void *module_region)

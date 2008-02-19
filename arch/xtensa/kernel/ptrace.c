@@ -4,7 +4,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2001 - 2005  Tensilica Inc.
+ * Copyright (C) 2001 - 2007  Tensilica Inc.
  *
  * Joe Taylor	<joe@tensilica.com, joetylr@yahoo.com>
  * Chris Zankel <chris@zankel.net>
@@ -28,14 +28,10 @@
 #include <asm/uaccess.h>
 #include <asm/ptrace.h>
 #include <asm/elf.h>
-
-#define TEST_KERNEL	// verify kernel operations FIXME: remove
-
+#include <asm/coprocessor.h>
 
 /*
- * Called by kernel/ptrace.c when detaching..
- *
- * Make sure single step bits etc are not set.
+ * Called by kernel/ptrace.c when detaching to disable single stepping.
  */
 
 void ptrace_disable(struct task_struct *child)
@@ -43,136 +39,237 @@ void ptrace_disable(struct task_struct *child)
 	/* Nothing to do.. */
 }
 
-long arch_ptrace(struct task_struct *child, long request, long addr, long data)
+int ptrace_getregs(struct task_struct *child, void __user *uregs)
 {
-	int ret = -EPERM;
+	struct pt_regs *regs = task_pt_regs(child);
+	xtensa_gregset_t __user *gregset = uregs;
+	unsigned long wm = regs->wmask;
+	unsigned long wb = regs->windowbase;
+	int live, i;
 
-	switch (request) {
-	case PTRACE_PEEKTEXT: /* read word at location addr. */
-	case PTRACE_PEEKDATA:
-		ret = generic_ptrace_peekdata(child, addr, data);
-		goto out;
+	if (!access_ok(VERIFY_WRITE, uregs, sizeof(xtensa_gregset_t)))
+		return -EIO;
 
-	/* Read the word at location addr in the USER area.  */
+	__put_user(regs->pc, &gregset->pc);
+	__put_user(regs->ps & ~(1 << PS_EXCM_BIT), &gregset->ps);
+	__put_user(regs->lbeg, &gregset->lbeg);
+	__put_user(regs->lend, &gregset->lend);
+	__put_user(regs->lcount, &gregset->lcount);
+	__put_user(regs->windowstart, &gregset->windowstart);
+	__put_user(regs->windowbase, &gregset->windowbase);
 
-	case PTRACE_PEEKUSR:
-		{
-		struct pt_regs *regs;
-		unsigned long tmp;
+	live = (wm & 2) ? 4 : (wm & 4) ? 8 : (wm & 8) ? 12 : 16;
 
-		regs = task_pt_regs(child);
-		tmp = 0;  /* Default return value. */
+	for (i = 0; i < live; i++)
+		__put_user(regs->areg[i],gregset->a+((wb*4+i)%XCHAL_NUM_AREGS));
+	for (i = XCHAL_NUM_AREGS - (wm >> 4) * 4; i < XCHAL_NUM_AREGS; i++)
+		__put_user(regs->areg[i],gregset->a+((wb*4+i)%XCHAL_NUM_AREGS));
 
-		switch(addr) {
+	return 0;
+}
+
+int ptrace_setregs(struct task_struct *child, void __user *uregs)
+{
+	struct pt_regs *regs = task_pt_regs(child);
+	xtensa_gregset_t *gregset = uregs;
+	const unsigned long ps_mask = PS_CALLINC_MASK | PS_OWB_MASK;
+	unsigned long ps;
+	unsigned long wb;
+
+	if (!access_ok(VERIFY_WRITE, uregs, sizeof(xtensa_gregset_t)))
+		return -EIO;
+
+	__get_user(regs->pc, &gregset->pc);
+	__get_user(ps, &gregset->ps);
+	__get_user(regs->lbeg, &gregset->lbeg);
+	__get_user(regs->lend, &gregset->lend);
+	__get_user(regs->lcount, &gregset->lcount);
+	__get_user(regs->windowstart, &gregset->windowstart);
+	__get_user(wb, &gregset->windowbase);
+
+	regs->ps = (regs->ps & ~ps_mask) | (ps & ps_mask) | (1 << PS_EXCM_BIT);
+
+	if (wb >= XCHAL_NUM_AREGS / 4)
+		return -EFAULT;
+
+	regs->windowbase = wb;
+
+	if (wb != 0 &&  __copy_from_user(regs->areg + XCHAL_NUM_AREGS - wb * 4,
+					 gregset->a, wb * 16))
+		return -EFAULT;
+
+	if (__copy_from_user(regs->areg, gregset->a + wb*4, (WSBITS-wb) * 16))
+		return -EFAULT;
+
+	return 0;
+}
+
+
+int ptrace_getxregs(struct task_struct *child, void __user *uregs)
+{
+	struct pt_regs *regs = task_pt_regs(child);
+	struct thread_info *ti = task_thread_info(child);
+	elf_xtregs_t __user *xtregs = uregs;
+	int ret = 0;
+
+	if (!access_ok(VERIFY_WRITE, uregs, sizeof(elf_xtregs_t)))
+		return -EIO;
+
+#if XTENSA_HAVE_COPROCESSORS
+	/* Flush all coprocessor registers to memory. */
+	coprocessor_flush_all(ti);
+	ret |= __copy_to_user(&xtregs->cp0, &ti->xtregs_cp,
+			      sizeof(xtregs_coprocessor_t));
+#endif
+	ret |= __copy_to_user(&xtregs->opt, &regs->xtregs_opt,
+			      sizeof(xtregs->opt));
+	ret |= __copy_to_user(&xtregs->user,&ti->xtregs_user,
+			      sizeof(xtregs->user));
+
+	return ret ? -EFAULT : 0;
+}
+
+int ptrace_setxregs(struct task_struct *child, void __user *uregs)
+{
+	struct thread_info *ti = task_thread_info(child);
+	struct pt_regs *regs = task_pt_regs(child);
+	elf_xtregs_t *xtregs = uregs;
+	int ret = 0;
+
+#if XTENSA_HAVE_COPROCESSORS
+	/* Flush all coprocessors before we overwrite them. */
+	coprocessor_flush_all(ti);
+	coprocessor_release_all(ti);
+
+	ret |= __copy_from_user(&ti->xtregs_cp, &xtregs->cp0, 
+				sizeof(xtregs_coprocessor_t));
+#endif
+	ret |= __copy_from_user(&regs->xtregs_opt, &xtregs->opt,
+				sizeof(xtregs->opt));
+	ret |= __copy_from_user(&ti->xtregs_user, &xtregs->user,
+				sizeof(xtregs->user));
+
+	return ret ? -EFAULT : 0;
+}
+
+int ptrace_peekusr(struct task_struct *child, long regno, long __user *ret)
+{
+	struct pt_regs *regs;
+	unsigned long tmp;
+
+	regs = task_pt_regs(child);
+	tmp = 0;  /* Default return value. */
+
+	switch(regno) {
 
 		case REG_AR_BASE ... REG_AR_BASE + XCHAL_NUM_AREGS - 1:
-			{
-			int ar = addr - REG_AR_BASE - regs->windowbase * 4;
-			ar &= (XCHAL_NUM_AREGS - 1);
-			if (ar < 16 && ar + (regs->wmask >> 4) * 4 >= 0)
-				tmp = regs->areg[ar];
-			else
-				ret = -EIO;
+			tmp = regs->areg[regno - REG_AR_BASE];
 			break;
-			}
+
 		case REG_A_BASE ... REG_A_BASE + 15:
-			tmp = regs->areg[addr - REG_A_BASE];
+			tmp = regs->areg[regno - REG_A_BASE];
 			break;
+
 		case REG_PC:
 			tmp = regs->pc;
 			break;
+
 		case REG_PS:
 			/* Note:  PS.EXCM is not set while user task is running;
 			 * its being set in regs is for exception handling
 			 * convenience.  */
 			tmp = (regs->ps & ~(1 << PS_EXCM_BIT));
 			break;
+
 		case REG_WB:
-			tmp = regs->windowbase;
-			break;
+			break;		/* tmp = 0 */
+
 		case REG_WS:
-			tmp = regs->windowstart;
+		{
+			unsigned long wb = regs->windowbase;
+			unsigned long ws = regs->windowstart;
+			tmp = ((ws>>wb) | (ws<<(WSBITS-wb))) & ((1<<WSBITS)-1);
 			break;
+		}
 		case REG_LBEG:
 			tmp = regs->lbeg;
 			break;
+
 		case REG_LEND:
 			tmp = regs->lend;
 			break;
+
 		case REG_LCOUNT:
 			tmp = regs->lcount;
 			break;
+
 		case REG_SAR:
 			tmp = regs->sar;
 			break;
-		case REG_DEPC:
-			tmp = regs->depc;
-			break;
-		case REG_EXCCAUSE:
-			tmp = regs->exccause;
-			break;
-		case REG_EXCVADDR:
-			tmp = regs->excvaddr;
-			break;
+
 		case SYSCALL_NR:
 			tmp = regs->syscall;
 			break;
-		default:
-			tmp = 0;
-			ret = -EIO;
-			goto out;
-		}
-		ret = put_user(tmp, (unsigned long *) data);
-		goto out;
-		}
 
-	case PTRACE_POKETEXT: /* write the word at location addr. */
+		default:
+			return -EIO;
+	}
+	return put_user(tmp, ret);
+}
+
+int ptrace_pokeusr(struct task_struct *child, long regno, long val)
+{
+	struct pt_regs *regs;
+	regs = task_pt_regs(child);
+
+	switch (regno) {
+		case REG_AR_BASE ... REG_AR_BASE + XCHAL_NUM_AREGS - 1:
+			regs->areg[regno - REG_AR_BASE] = val;
+			break;
+
+		case REG_A_BASE ... REG_A_BASE + 15:
+			regs->areg[regno - REG_A_BASE] = val;
+			break;
+
+		case REG_PC:
+			regs->pc = val;
+			break;
+
+		case SYSCALL_NR:
+			regs->syscall = val;
+			break;
+
+		default:
+			return -EIO;
+	}
+	return 0;
+}
+
+long arch_ptrace(struct task_struct *child, long request, long addr, long data)
+{
+	int ret = -EPERM;
+
+	switch (request) {
+	case PTRACE_PEEKTEXT:	/* read word at location addr. */
+	case PTRACE_PEEKDATA:
+		ret = generic_ptrace_peekdata(child, addr, data);
+		break;
+
+	case PTRACE_PEEKUSR:	/* read register specified by addr. */
+		ret = ptrace_peekusr(child, addr, (void __user *) data);
+		break;
+
+	case PTRACE_POKETEXT:	/* write the word at location addr. */
 	case PTRACE_POKEDATA:
 		ret = generic_ptrace_pokedata(child, addr, data);
-		goto out;
-
-	case PTRACE_POKEUSR:
-		{
-		struct pt_regs *regs;
-		regs = task_pt_regs(child);
-
-		switch (addr) {
-		case REG_AR_BASE ... REG_AR_BASE + XCHAL_NUM_AREGS - 1:
-			{
-			int ar = addr - REG_AR_BASE - regs->windowbase * 4;
-			if (ar < 16 && ar + (regs->wmask >> 4) * 4 >= 0)
-				regs->areg[ar & (XCHAL_NUM_AREGS - 1)] = data;
-			else
-				ret = -EIO;
-			break;
-			}
-		case REG_A_BASE ... REG_A_BASE + 15:
-			regs->areg[addr - REG_A_BASE] = data;
-			break;
-		case REG_PC:
-			regs->pc = data;
-			break;
-		case SYSCALL_NR:
-			regs->syscall = data;
-			break;
-#ifdef TEST_KERNEL
-		case REG_WB:
-			regs->windowbase = data;
-			break;
-		case REG_WS:
-			regs->windowstart = data;
-			break;
-#endif
-
-		default:
-			/* The rest are not allowed. */
-			ret = -EIO;
-			break;
-		}
 		break;
-		}
+
+	case PTRACE_POKEUSR:	/* write register specified by addr. */
+		ret = ptrace_pokeusr(child, addr, data);
+		break;
 
 	/* continue and stop at next (return from) syscall */
+
 	case PTRACE_SYSCALL:
 	case PTRACE_CONT: /* restart after signal. */
 	{
@@ -217,98 +314,26 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		break;
 
 	case PTRACE_GETREGS:
-	{
-		/* 'data' points to user memory in which to write.
-		 * Mainly due to the non-live register values, we
-		 * reformat the register values into something more
-		 * standard.  For convenience, we use the handy
-		 * elf_gregset_t format. */
-
-		xtensa_gregset_t format;
-		struct pt_regs *regs = task_pt_regs(child);
-
-		do_copy_regs (&format, regs, child);
-
-		/* Now, copy to user space nice and easy... */
-		ret = 0;
-		if (copy_to_user((void *)data, &format, sizeof(elf_gregset_t)))
-			ret = -EFAULT;
+		ret = ptrace_getregs(child, (void __user *) data);
 		break;
-	}
 
 	case PTRACE_SETREGS:
-	{
-		/* 'data' points to user memory that contains the new
-		 * values in the elf_gregset_t format. */
-
-		xtensa_gregset_t format;
-		struct pt_regs *regs = task_pt_regs(child);
-
-		if (copy_from_user(&format,(void *)data,sizeof(elf_gregset_t))){
-			ret = -EFAULT;
-			break;
-		}
-
-		/* FIXME: Perhaps we want some sanity checks on
-		 * these user-space values?  See ARM version.  Are
-		 * debuggers a security concern? */
-
-		do_restore_regs (&format, regs, child);
-
-		ret = 0;
+		ret = ptrace_setregs(child, (void __user *) data);
 		break;
-	}
 
-	case PTRACE_GETFPREGS:
-	{
-		/* 'data' points to user memory in which to write.
-		 * For convenience, we use the handy
-		 * elf_fpregset_t format. */
-
-		elf_fpregset_t fpregs;
-		struct pt_regs *regs = task_pt_regs(child);
-
-		do_save_fpregs (&fpregs, regs, child);
-
-		/* Now, copy to user space nice and easy... */
-		ret = 0;
-		if (copy_to_user((void *)data, &fpregs, sizeof(elf_fpregset_t)))
-			ret = -EFAULT;
-
+	case PTRACE_GETXTREGS:
+		ret = ptrace_getxregs(child, (void __user *) data);
 		break;
-	}
 
-	case PTRACE_SETFPREGS:
-	{
-		/* 'data' points to user memory that contains the new
-		 * values in the elf_fpregset_t format.
-		 */
-		elf_fpregset_t fpregs;
-		struct pt_regs *regs = task_pt_regs(child);
-
-		ret = 0;
-		if (copy_from_user(&fpregs, (void *)data, sizeof(elf_fpregset_t))) {
-			ret = -EFAULT;
-			break;
-		}
-
-		if (do_restore_fpregs (&fpregs, regs, child))
-			ret = -EIO;
-		break;
-	}
-
-	case PTRACE_GETFPREGSIZE:
-		/* 'data' points to 'unsigned long' set to the size
-		 * of elf_fpregset_t
-		 */
-		ret = put_user(sizeof(elf_fpregset_t), (unsigned long *) data);
+	case PTRACE_SETXTREGS:
+		ret = ptrace_setxregs(child, (void __user *) data);
 		break;
 
 	default:
 		ret = ptrace_request(child, request, addr, data);
-		goto out;
+		break;
 	}
- out:
+
 	return ret;
 }
 

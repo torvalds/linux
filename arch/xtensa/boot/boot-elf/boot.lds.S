@@ -1,4 +1,6 @@
+#include <asm/variant/core.h>
 OUTPUT_ARCH(xtensa)
+ENTRY(_ResetVector)
 
 SECTIONS
 {
@@ -61,7 +63,7 @@ SECTIONS
 	_end = .;
 	_param_start = .;
 
-	.ResetVector.text 0xfe000020 :
+	.ResetVector.text XCHAL_RESET_VECTOR_VADDR :
 	{
 		*(.ResetVector.text)
 	}

@@ -15,8 +15,10 @@
 
 struct mod_arch_specific
 {
-	/* Module support is not completely implemented. */
+	/* No special elements, yet. */
 };
+
+#define MODULE_ARCH_VERMAGIC "xtensa-" __stringify(XCHAL_CORE_ID) " "
 
 #define Elf_Shdr Elf32_Shdr
 #define Elf_Sym Elf32_Sym
