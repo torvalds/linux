@@ -52,6 +52,8 @@ int __init sh7780_pci_init(struct pci_channel *chan)
 
 	pr_debug("PCI: Starting intialization.\n");
 
+	chan->reg_base = 0xfe040000;
+
 	ctrl_outl(0x00000001, SH7780_PCI_VCR2); /* Enable PCIC */
 
 	/* check for SH7780/SH7780R hardware */

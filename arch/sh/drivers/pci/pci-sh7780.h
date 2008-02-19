@@ -35,7 +35,6 @@
 #define SH7780_PCI_IO_SIZE	0x00400000	/* Size of IO window */
 
 #define SH7780_PCIREG_BASE	0xFE040000	/* PCI regs base address */
-#define PCI_REG(n)		(SH7780_PCIREG_BASE+n)
 
 /* SH7780 PCI Config Registers */
 #define SH7780_PCIVID		0x000		/* Vendor ID */

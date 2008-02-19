@@ -121,8 +121,8 @@ int __init sh4_pci_check_direct(struct pci_channel *chan)
 		if (pci_read_reg(chan, SH4_PCIPAR) == P1SEG) {
 			pci_write_reg(chan, tmp, SH4_PCIPAR);
 			printk(KERN_INFO "PCI: Using configuration type 1\n");
-			request_region(PCI_REG(SH4_PCIPAR), 8, "PCI conf1");
-
+			request_region(chan->reg_base + SH4_PCIPAR, 8,
+				       "PCI conf1");
 			return 0;
 		}
 

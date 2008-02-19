@@ -24,6 +24,7 @@ struct pci_channel {
 	int first_devfn;
 	int last_devfn;
 	int enabled;
+	unsigned long reg_base;
 };
 
 /*

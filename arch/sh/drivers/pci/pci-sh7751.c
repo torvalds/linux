@@ -39,6 +39,8 @@ int __init sh7751_pci_init(struct pci_channel *chan)
 
 	pr_debug("PCI: Starting intialization.\n");
 
+	chan->reg_base = 0xfe200000;
+
 	/* check for SH7751/SH7751R hardware */
 	id = pci_read_reg(chan, SH7751_PCICONF0);
 	if (id != ((SH7751_DEVICE_ID << 16) | SH7751_VENDOR_ID) &&

@@ -26,7 +26,6 @@
 #define SH7751_PCI_IO_SIZE           0x40000     /* Size of IO window */
 
 #define SH7751_PCIREG_BASE           0xFE200000  /* PCI regs base address */
-#define PCI_REG(n)                  (SH7751_PCIREG_BASE+ n)
 
 #define SH7751_PCICONF0            0x0           /* PCI Config Reg 0 */
   #define SH7751_PCICONF0_DEVID      0xFFFF0000  /* Device ID */
