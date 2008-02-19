@@ -67,6 +67,7 @@ static struct pci_dev *fake_pci_dev(struct pci_channel *hose,
 	dev.devfn = devfn;
 	bus.number = busnr;
 	bus.ops = hose->pci_ops;
+	bus.sysdata = hose;
 
 	if(busnr != top_bus)
 		/* Fake a parent bus structure. */

@@ -26,6 +26,7 @@ static DEFINE_SPINLOCK(sh4_pci_lock);
 static int sh4_pci_read(struct pci_bus *bus, unsigned int devfn,
 			   int where, int size, u32 *val)
 {
+	struct pci_channel *chan = bus->sysdata;
 	unsigned long flags;
 	u32 data;
 
@@ -34,8 +35,8 @@ static int sh4_pci_read(struct pci_bus *bus, unsigned int devfn,
 	 * so we must do byte alignment by hand
 	 */
 	spin_lock_irqsave(&sh4_pci_lock, flags);
-	pci_write_reg(NULL, CONFIG_CMD(bus, devfn, where), SH4_PCIPAR);
-	data = pci_read_reg(NULL, SH4_PCIPDR);
+	pci_write_reg(chan, CONFIG_CMD(bus, devfn, where), SH4_PCIPAR);
+	data = pci_read_reg(chan, SH4_PCIPDR);
 	spin_unlock_irqrestore(&sh4_pci_lock, flags);
 
 	switch (size) {
@@ -63,13 +64,14 @@ static int sh4_pci_read(struct pci_bus *bus, unsigned int devfn,
 static int sh4_pci_write(struct pci_bus *bus, unsigned int devfn,
 			 int where, int size, u32 val)
 {
+	struct pci_channel *chan = bus->sysdata;
 	unsigned long flags;
 	int shift;
 	u32 data;
 
 	spin_lock_irqsave(&sh4_pci_lock, flags);
-	pci_write_reg(NULL, CONFIG_CMD(bus, devfn, where), SH4_PCIPAR);
-	data = pci_read_reg(NULL, SH4_PCIPDR);
+	pci_write_reg(chan, CONFIG_CMD(bus, devfn, where), SH4_PCIPAR);
+	data = pci_read_reg(chan, SH4_PCIPDR);
 	spin_unlock_irqrestore(&sh4_pci_lock, flags);
 
 	switch (size) {
@@ -90,7 +92,7 @@ static int sh4_pci_write(struct pci_bus *bus, unsigned int devfn,
 		return PCIBIOS_FUNC_NOT_SUPPORTED;
 	}
 
-	pci_write_reg(NULL, data, SH4_PCIPDR);
+	pci_write_reg(chan, data, SH4_PCIPDR);
 
 	return PCIBIOS_SUCCESSFUL;
 }

@@ -31,8 +31,10 @@ struct pci_channel {
  */
 extern struct pci_channel board_pci_channels[];
 
-#define PCIBIOS_MIN_IO		board_pci_channels->io_resource->start
-#define PCIBIOS_MIN_MEM		board_pci_channels->mem_resource->start
+/* ugly as hell, but makes drivers/pci/setup-res.c compile and work */
+#define __PCI_CHAN(bus)		((struct pci_channel *)bus->sysdata)
+#define PCIBIOS_MIN_IO		__PCI_CHAN(bus)->io_resource->start
+#define PCIBIOS_MIN_MEM		__PCI_CHAN(bus)->mem_resource->start
 
 /*
  * I/O routine helpers
