@@ -11,6 +11,7 @@
 #include <linux/ssb/ssb.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
+#include <linux/ssb/ssb_embedded.h>
 
 #include "ssb_private.h"
 
@@ -25,6 +26,18 @@ static inline
 void pcicore_write32(struct ssb_pcicore *pc, u16 offset, u32 value)
 {
 	ssb_write32(pc->dev, offset, value);
+}
+
+static inline
+u16 pcicore_read16(struct ssb_pcicore *pc, u16 offset)
+{
+	return ssb_read16(pc->dev, offset);
+}
+
+static inline
+void pcicore_write16(struct ssb_pcicore *pc, u16 offset, u16 value)
+{
+	ssb_write16(pc->dev, offset, value);
 }
 
 /**************************************************
@@ -117,8 +130,10 @@ static u32 get_cfgspace_addr(struct ssb_pcicore *pc,
 	u32 addr = 0;
 	u32 tmp;
 
-	if (unlikely(pc->cardbusmode && dev > 1))
+	/* We do only have one cardbus device behind the bridge. */
+	if (pc->cardbusmode && (dev >= 1))
 		goto out;
+
 	if (bus == 0) {
 		/* Type 0 transaction */
 		if (unlikely(dev >= SSB_PCI_SLOT_MAX))
@@ -318,7 +333,16 @@ static void ssb_pcicore_init_hostmode(struct ssb_pcicore *pc)
 	pcicore_write32(pc, SSB_PCICORE_ARBCTL, val);
 	udelay(1); /* Assertion time demanded by the PCI standard */
 
-	/*TODO cardbus mode */
+	if (pc->dev->bus->has_cardbus_slot) {
+		ssb_dprintk(KERN_INFO PFX "CardBus slot detected\n");
+		pc->cardbusmode = 1;
+		/* GPIO 1 resets the bridge */
+		ssb_gpio_out(pc->dev->bus, 1, 1);
+		ssb_gpio_outen(pc->dev->bus, 1, 1);
+		pcicore_write16(pc, SSB_PCICORE_SPROM(0),
+				pcicore_read16(pc, SSB_PCICORE_SPROM(0))
+				| 0x0400);
+	}
 
 	/* 64MB I/O window */
 	pcicore_write32(pc, SSB_PCICORE_SBTOPCI0,

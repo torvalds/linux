@@ -557,6 +557,7 @@ static int ssb_fetch_invariants(struct ssb_bus *bus,
 		goto out;
 	memcpy(&bus->boardinfo, &iv.boardinfo, sizeof(iv.boardinfo));
 	memcpy(&bus->sprom, &iv.sprom, sizeof(iv.sprom));
+	bus->has_cardbus_slot = iv.has_cardbus_slot;
 out:
 	return err;
 }
