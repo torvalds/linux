@@ -141,16 +141,12 @@ void cpu_idle(void)
 
 extern char reboot_command [];
 
-extern void (*prom_palette)(int);
-
 /* XXX cli/sti -> local_irq_xxx here, check this works once SMP is fixed. */
 void machine_halt(void)
 {
 	local_irq_enable();
 	mdelay(8);
 	local_irq_disable();
-	if (prom_palette)
-		prom_palette (1);
 	prom_halt();
 	panic("Halt failed!");
 }
@@ -165,8 +161,6 @@ void machine_restart(char * cmd)
 
 	p = strchr (reboot_command, '\n');
 	if (p) *p = 0;
-	if (prom_palette)
-		prom_palette (1);
 	if (cmd)
 		prom_reboot(cmd);
 	if (*reboot_command)

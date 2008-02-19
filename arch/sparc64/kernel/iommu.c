@@ -200,12 +200,11 @@ int iommu_table_init(struct iommu *iommu, int tsbsize,
 	/* Allocate and initialize the dummy page which we
 	 * set inactive IO PTEs to point to.
 	 */
-	iommu->dummy_page = __get_free_pages(GFP_KERNEL, 0);
+	iommu->dummy_page = get_zeroed_page(GFP_KERNEL);
 	if (!iommu->dummy_page) {
 		printk(KERN_ERR "IOMMU: Error, gfp(dummy_page) failed.\n");
 		goto out_free_map;
 	}
-	memset((void *)iommu->dummy_page, 0, PAGE_SIZE);
 	iommu->dummy_page_pa = (unsigned long) __pa(iommu->dummy_page);
 
 	/* Now allocate and setup the IOMMU page table itself.  */

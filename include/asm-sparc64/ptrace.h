@@ -102,6 +102,7 @@ do {	current_thread_info()->syscall_noerror = 1; \
 } while (0)
 #define user_mode(regs) (!((regs)->tstate & TSTATE_PRIV))
 #define instruction_pointer(regs) ((regs)->tpc)
+#define regs_return_value(regs) ((regs)->u_regs[UREG_I0])
 #ifdef CONFIG_SMP
 extern unsigned long profile_pc(struct pt_regs *);
 #else

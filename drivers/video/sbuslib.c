@@ -9,6 +9,7 @@
 #include <linux/string.h>
 #include <linux/fb.h>
 #include <linux/mm.h>
+#include <linux/uaccess.h>
 
 #include <asm/oplib.h>
 #include <asm/fbio.h>
