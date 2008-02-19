@@ -1083,32 +1083,32 @@ static void do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 	}
 	/* function 4 and 0xb have additional index. */
 	case 4: {
-		int index, cache_type;
+		int i, cache_type;
 
 		entry->flags |= KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
 		/* read more entries until cache_type is zero */
-		for (index = 1; *nent < maxnent; ++index) {
-			cache_type = entry[index - 1].eax & 0x1f;
+		for (i = 1; *nent < maxnent; ++i) {
+			cache_type = entry[i - 1].eax & 0x1f;
 			if (!cache_type)
 				break;
-			do_cpuid_1_ent(&entry[index], function, index);
-			entry[index].flags |=
+			do_cpuid_1_ent(&entry[i], function, i);
+			entry[i].flags |=
 			       KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
 			++*nent;
 		}
 		break;
 	}
 	case 0xb: {
-		int index, level_type;
+		int i, level_type;
 
 		entry->flags |= KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
 		/* read more entries until level_type is zero */
-		for (index = 1; *nent < maxnent; ++index) {
-			level_type = entry[index - 1].ecx & 0xff;
+		for (i = 1; *nent < maxnent; ++i) {
+			level_type = entry[i - 1].ecx & 0xff;
 			if (!level_type)
 				break;
-			do_cpuid_1_ent(&entry[index], function, index);
-			entry[index].flags |=
+			do_cpuid_1_ent(&entry[i], function, i);
+			entry[i].flags |=
 			       KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
 			++*nent;
 		}
@@ -1965,7 +1965,7 @@ void kvm_report_emulation_failure(struct kvm_vcpu *vcpu, const char *context)
 }
 EXPORT_SYMBOL_GPL(kvm_report_emulation_failure);
 
-struct x86_emulate_ops emulate_ops = {
+static struct x86_emulate_ops emulate_ops = {
 	.read_std            = emulator_read_std,
 	.read_emulated       = emulator_read_emulated,
 	.write_emulated      = emulator_write_emulated,
@@ -2899,7 +2899,7 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 static void get_segment(struct kvm_vcpu *vcpu,
 			struct kvm_segment *var, int seg)
 {
-	return kvm_x86_ops->get_segment(vcpu, var, seg);
+	kvm_x86_ops->get_segment(vcpu, var, seg);
 }
 
 void kvm_get_cs_db_l_bits(struct kvm_vcpu *vcpu, int *db, int *l)
@@ -2965,7 +2965,7 @@ int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
 static void set_segment(struct kvm_vcpu *vcpu,
 			struct kvm_segment *var, int seg)
 {
-	return kvm_x86_ops->set_segment(vcpu, var, seg);
+	kvm_x86_ops->set_segment(vcpu, var, seg);
 }
 
 int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
