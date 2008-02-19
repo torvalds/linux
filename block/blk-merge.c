@@ -221,6 +221,9 @@ new_segment:
 	} /* segments in rq */
 
 	if (q->dma_drain_size && q->dma_drain_needed(rq)) {
+		if (rq->cmd_flags & REQ_RW)
+			memset(q->dma_drain_buffer, 0, q->dma_drain_size);
+
 		sg->page_link &= ~0x02;
 		sg = sg_next(sg);
 		sg_set_page(sg, virt_to_page(q->dma_drain_buffer),
