@@ -973,7 +973,6 @@ void pci_device_add(struct pci_dev *dev, struct pci_bus *bus)
 	dev->dev.release = pci_release_dev;
 	pci_dev_get(dev);
 
-	set_dev_node(&dev->dev, pcibus_to_node(bus));
 	dev->dev.dma_mask = &dev->dma_mask;
 	dev->dev.dma_parms = &dev->dma_parms;
 	dev->dev.coherent_dma_mask = 0xffffffffull;
@@ -1127,6 +1126,9 @@ struct pci_bus * pci_create_bus(struct device *parent,
 	if (error)
 		goto dev_reg_err;
 	b->bridge = get_device(dev);
+
+	if (!parent)
+		set_dev_node(b->bridge, pcibus_to_node(b));
 
 	b->dev.class = &pcibus_class;
 	b->dev.parent = b->bridge;
