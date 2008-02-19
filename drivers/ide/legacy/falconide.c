@@ -84,7 +84,9 @@ static int __init falconide_init(void)
 		ide_init_port_data(hwif, index);
 		ide_init_port_hw(hwif, &hw);
 
+		ide_get_lock(NULL, NULL);
 		ide_device_add(idx, NULL);
+		ide_release_lock();
 	}
 
 	return 0;
