@@ -72,6 +72,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "irq_window", VCPU_STAT(irq_window_exits) },
 	{ "halt_exits", VCPU_STAT(halt_exits) },
 	{ "halt_wakeup", VCPU_STAT(halt_wakeup) },
+	{ "hypercalls", VCPU_STAT(hypercalls) },
 	{ "request_irq", VCPU_STAT(request_irq_exits) },
 	{ "irq_exits", VCPU_STAT(irq_exits) },
 	{ "host_state_reload", VCPU_STAT(host_state_reload) },
@@ -2405,6 +2406,7 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 	}
 	vcpu->arch.regs[VCPU_REGS_RAX] = ret;
 	kvm_x86_ops->decache_regs(vcpu);
+	++vcpu->stat.hypercalls;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_hypercall);
