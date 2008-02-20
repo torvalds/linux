@@ -811,6 +811,9 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_VAPIC:
 		r = !kvm_x86_ops->cpu_has_accelerated_tpr();
 		break;
+	case KVM_CAP_NR_VCPUS:
+		r = KVM_MAX_VCPUS;
+		break;
 	default:
 		r = 0;
 		break;
