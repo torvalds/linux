@@ -157,6 +157,13 @@ static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;
 static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
 
+module_param_array(index, int, NULL, 0444);
+MODULE_PARM_DESC(index, "Index value for Audiowerk2 soundcard.");
+module_param_array(id, charp, NULL, 0444);
+MODULE_PARM_DESC(id, "ID string for the Audiowerk2 soundcard.");
+module_param_array(enable, bool, NULL, 0444);
+MODULE_PARM_DESC(enable, "Enable Audiowerk2 soundcard.");
+
 static struct pci_device_id snd_aw2_ids[] = {
 	{PCI_VENDOR_ID_SAA7146, PCI_DEVICE_ID_SAA7146, PCI_ANY_ID, PCI_ANY_ID,
 	 0, 0, 0},
