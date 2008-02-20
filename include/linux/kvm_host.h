@@ -24,7 +24,7 @@
 
 #include <asm/kvm_host.h>
 
-#define KVM_MAX_VCPUS 4
+#define KVM_MAX_VCPUS 16
 #define KVM_MEMORY_SLOTS 8
 /* memory slots that does not exposed to userspace */
 #define KVM_PRIVATE_MEM_SLOTS 4
