@@ -283,8 +283,8 @@ static int
 ipq_mangle_ipv4(ipq_verdict_msg_t *v, struct nf_queue_entry *e)
 {
 	int diff;
-	int err;
 	struct iphdr *user_iph = (struct iphdr *)v->payload;
+	struct sk_buff *nskb;
 
 	if (v->data_len < sizeof(*user_iph))
 		return 0;
@@ -296,14 +296,16 @@ ipq_mangle_ipv4(ipq_verdict_msg_t *v, struct nf_queue_entry *e)
 		if (v->data_len > 0xFFFF)
 			return -EINVAL;
 		if (diff > skb_tailroom(e->skb)) {
-			err = pskb_expand_head(e->skb, 0,
+			nskb = skb_copy_expand(e->skb, 0,
 					       diff - skb_tailroom(e->skb),
 					       GFP_ATOMIC);
-			if (err) {
+			if (!nskb) {
 				printk(KERN_WARNING "ip_queue: error "
-				      "in mangle, dropping packet: %d\n", -err);
-				return err;
+				      "in mangle, dropping packet\n");
+				return -ENOMEM;
 			}
+			kfree_skb(e->skb);
+			e->skb = nskb;
 		}
 		skb_put(e->skb, diff);
 	}
