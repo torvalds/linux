@@ -47,6 +47,7 @@
 #include <asm/unistd.h>
 #include <asm/hypervisor.h>
 #include <asm/sstate.h>
+#include <asm/reboot.h>
 
 /* #define VERBOSE_SHOWREGS */
 
