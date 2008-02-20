@@ -172,6 +172,9 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_device *device, int do
 		set_mp_bus_to_node(busnum, node);
 	else
 		node = get_mp_bus_to_node(busnum);
+
+	if (node != -1 && !node_online(node))
+		node = -1;
 #endif
 
 	/* Allocate per-root-bus (not per bus) arch-specific data.
