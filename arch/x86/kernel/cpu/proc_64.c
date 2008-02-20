@@ -8,25 +8,48 @@
 /*
  *	Get CPU information for use by the procfs.
  */
+static void show_cpuinfo_core(struct seq_file *m, struct cpuinfo_x86 *c,
+			      unsigned int cpu)
+{
+#ifdef CONFIG_SMP
+	if (c->x86_max_cores * smp_num_siblings > 1) {
+		seq_printf(m, "physical id\t: %d\n", c->phys_proc_id);
+		seq_printf(m, "siblings\t: %d\n",
+			   cpus_weight(per_cpu(cpu_core_map, cpu)));
+		seq_printf(m, "core id\t\t: %d\n", c->cpu_core_id);
+		seq_printf(m, "cpu cores\t: %d\n", c->booted_cores);
+	}
+#endif
+}
+
+static void show_cpuinfo_misc(struct seq_file *m, struct cpuinfo_x86 *c)
+{
+	seq_printf(m,
+		   "fpu\t\t: yes\n"
+		   "fpu_exception\t: yes\n"
+		   "cpuid level\t: %d\n"
+		   "wp\t\t: yes\n",
+		   c->cpuid_level);
+}
 
 static int show_cpuinfo(struct seq_file *m, void *v)
 {
 	struct cpuinfo_x86 *c = v;
-	int cpu = 0, i;
+	unsigned int cpu = 0;
+	int i;
 
 #ifdef CONFIG_SMP
 	cpu = c->cpu_index;
 #endif
-
 	seq_printf(m, "processor\t: %u\n"
 		   "vendor_id\t: %s\n"
 		   "cpu family\t: %d\n"
-		   "model\t\t: %d\n"
+		   "model\t\t: %u\n"
 		   "model name\t: %s\n",
-		   (unsigned)cpu,
+		   cpu,
 		   c->x86_vendor_id[0] ? c->x86_vendor_id : "unknown",
 		   c->x86,
-		   (int)c->x86_model,
+		   c->x86_model,
 		   c->x86_model_id[0] ? c->x86_model_id : "unknown");
 
 	if (c->x86_mask || c->cpuid_level >= 0)
@@ -35,7 +58,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		seq_printf(m, "stepping\t: unknown\n");
 
 	if (cpu_has(c, X86_FEATURE_TSC)) {
-		unsigned int freq = cpufreq_quick_get((unsigned)cpu);
+		unsigned int freq = cpufreq_quick_get(cpu);
 
 		if (!freq)
 			freq = cpu_khz;
@@ -47,24 +70,10 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	if (c->x86_cache_size >= 0)
 		seq_printf(m, "cache size\t: %d KB\n", c->x86_cache_size);
 
-#ifdef CONFIG_SMP
-	if (smp_num_siblings * c->x86_max_cores > 1) {
-		seq_printf(m, "physical id\t: %d\n", c->phys_proc_id);
-		seq_printf(m, "siblings\t: %d\n",
-			       cpus_weight(per_cpu(cpu_core_map, cpu)));
-		seq_printf(m, "core id\t\t: %d\n", c->cpu_core_id);
-		seq_printf(m, "cpu cores\t: %d\n", c->booted_cores);
-	}
-#endif
+	show_cpuinfo_core(m, c, cpu);
+	show_cpuinfo_misc(m, c);
 
-	seq_printf(m,
-		   "fpu\t\t: yes\n"
-		   "fpu_exception\t: yes\n"
-		   "cpuid level\t: %d\n"
-		   "wp\t\t: yes\n"
-		   "flags\t\t:",
-		   c->cpuid_level);
-
+	seq_printf(m, "flags\t\t:");
 	for (i = 0; i < 32*NCAPINTS; i++)
 		if (cpu_has(c, i) && x86_cap_flags[i] != NULL)
 			seq_printf(m, " %s", x86_cap_flags[i]);
@@ -119,8 +128,8 @@ static void c_stop(struct seq_file *m, void *v)
 }
 
 const struct seq_operations cpuinfo_op = {
-	.start = c_start,
-	.next =	c_next,
-	.stop =	c_stop,
-	.show =	show_cpuinfo,
+	.start	= c_start,
+	.next	= c_next,
+	.stop	= c_stop,
+	.show	= show_cpuinfo,
 };
