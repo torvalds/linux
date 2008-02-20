@@ -161,7 +161,6 @@ int btrfs_csum_file_blocks(struct btrfs_trans_handle *trans,
 	unsigned long map_len;
 	unsigned long map_start;
 
-
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
 again:
@@ -315,8 +314,11 @@ next_bvec:
 	if (bio_index < bio->bi_vcnt) {
 		item = (struct btrfs_csum_item *)((char *)item +
 						  BTRFS_CRC32_SIZE);
-		if (item < item_end)
+		if (item < item_end && offset + PAGE_CACHE_SIZE ==
+		    page_offset(bvec->bv_page)) {
+			offset = page_offset(bvec->bv_page);
 			goto next_bvec;
+		}
 	}
 	if (eb_token) {
 		unmap_extent_buffer(leaf, eb_token, KM_IRQ1);
