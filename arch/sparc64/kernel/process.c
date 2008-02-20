@@ -212,62 +212,6 @@ static void show_regwindow(struct pt_regs *regs)
 		print_symbol("I7: <%s>\n", rwk->ins[7]);
 }
 
-void show_stackframe(struct sparc_stackf *sf)
-{
-	unsigned long size;
-	unsigned long *stk;
-	int i;
-
-	printk("l0: %016lx l1: %016lx l2: %016lx l3: %016lx\n"
-	       "l4: %016lx l5: %016lx l6: %016lx l7: %016lx\n",
-	       sf->locals[0], sf->locals[1], sf->locals[2], sf->locals[3],
-	       sf->locals[4], sf->locals[5], sf->locals[6], sf->locals[7]);
-	printk("i0: %016lx i1: %016lx i2: %016lx i3: %016lx\n"
-	       "i4: %016lx i5: %016lx fp: %016lx ret_pc: %016lx\n",
-	       sf->ins[0], sf->ins[1], sf->ins[2], sf->ins[3],
-	       sf->ins[4], sf->ins[5], (unsigned long)sf->fp, sf->callers_pc);
-	printk("sp: %016lx x0: %016lx x1: %016lx x2: %016lx\n"
-	       "x3: %016lx x4: %016lx x5: %016lx xx: %016lx\n",
-	       (unsigned long)sf->structptr, sf->xargs[0], sf->xargs[1],
-	       sf->xargs[2], sf->xargs[3], sf->xargs[4], sf->xargs[5],
-	       sf->xxargs[0]);
-	size = ((unsigned long)sf->fp) - ((unsigned long)sf);
-	size -= STACKFRAME_SZ;
-	stk = (unsigned long *)((unsigned long)sf + STACKFRAME_SZ);
-	i = 0;
-	do {
-		printk("s%d: %016lx\n", i++, *stk++);
-	} while ((size -= sizeof(unsigned long)));
-}
-
-void show_stackframe32(struct sparc_stackf32 *sf)
-{
-	unsigned long size;
-	unsigned *stk;
-	int i;
-
-	printk("l0: %08x l1: %08x l2: %08x l3: %08x\n",
-	       sf->locals[0], sf->locals[1], sf->locals[2], sf->locals[3]);
-	printk("l4: %08x l5: %08x l6: %08x l7: %08x\n",
-	       sf->locals[4], sf->locals[5], sf->locals[6], sf->locals[7]);
-	printk("i0: %08x i1: %08x i2: %08x i3: %08x\n",
-	       sf->ins[0], sf->ins[1], sf->ins[2], sf->ins[3]);
-	printk("i4: %08x i5: %08x fp: %08x ret_pc: %08x\n",
-	       sf->ins[4], sf->ins[5], sf->fp, sf->callers_pc);
-	printk("sp: %08x x0: %08x x1: %08x x2: %08x\n"
-	       "x3: %08x x4: %08x x5: %08x xx: %08x\n",
-	       sf->structptr, sf->xargs[0], sf->xargs[1],
-	       sf->xargs[2], sf->xargs[3], sf->xargs[4], sf->xargs[5],
-	       sf->xxargs[0]);
-	size = ((unsigned long)sf->fp) - ((unsigned long)sf);
-	size -= STACKFRAME32_SZ;
-	stk = (unsigned *)((unsigned long)sf + STACKFRAME32_SZ);
-	i = 0;
-	do {
-		printk("s%d: %08x\n", i++, *stk++);
-	} while ((size -= sizeof(unsigned)));
-}
-
 #ifdef CONFIG_SMP
 static DEFINE_SPINLOCK(regdump_lock);
 #endif
