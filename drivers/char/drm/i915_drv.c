@@ -238,7 +238,7 @@ static void i915_restore_vga(struct drm_device *dev)
 
 }
 
-static int i915_suspend(struct drm_device *dev)
+static int i915_suspend(struct drm_device *dev, pm_message_t state)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i;
@@ -248,6 +248,9 @@ static int i915_suspend(struct drm_device *dev)
 		printk(KERN_ERR "DRM not initialized, aborting suspend.\n");
 		return -ENODEV;
 	}
+
+	if (state.event == PM_EVENT_PRETHAW)
+		return 0;
 
 	pci_save_state(dev->pdev);
 	pci_read_config_byte(dev->pdev, LBB, &dev_priv->saveLBB);
@@ -363,9 +366,11 @@ static int i915_suspend(struct drm_device *dev)
 
 	i915_save_vga(dev);
 
-	/* Shut down the device */
-	pci_disable_device(dev->pdev);
-	pci_set_power_state(dev->pdev, PCI_D3hot);
+	if (state.event == PM_EVENT_SUSPEND) {
+		/* Shut down the device */
+		pci_disable_device(dev->pdev);
+		pci_set_power_state(dev->pdev, PCI_D3hot);
+	}
 
 	return 0;
 }
