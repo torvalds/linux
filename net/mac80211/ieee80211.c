@@ -1178,6 +1178,77 @@ no_key:
 	}
 }
 
+static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
+					    struct sta_info *sta,
+					    struct sk_buff *skb,
+					    struct ieee80211_tx_status *status)
+{
+	sta->tx_filtered_count++;
+
+	/*
+	 * Clear the TX filter mask for this STA when sending the next
+	 * packet. If the STA went to power save mode, this will happen
+	 * happen when it wakes up for the next time.
+	 */
+	sta->flags |= WLAN_STA_CLEAR_PS_FILT;
+
+	/*
+	 * This code races in the following way:
+	 *
+	 *  (1) STA sends frame indicating it will go to sleep and does so
+	 *  (2) hardware/firmware adds STA to filter list, passes frame up
+	 *  (3) hardware/firmware processes TX fifo and suppresses a frame
+	 *  (4) we get TX status before having processed the frame and
+	 *	knowing that the STA has gone to sleep.
+	 *
+	 * This is actually quite unlikely even when both those events are
+	 * processed from interrupts coming in quickly after one another or
+	 * even at the same time because we queue both TX status events and
+	 * RX frames to be processed by a tasklet and process them in the
+	 * same order that they were received or TX status last. Hence, there
+	 * is no race as long as the frame RX is processed before the next TX
+	 * status, which drivers can ensure, see below.
+	 *
+	 * Note that this can only happen if the hardware or firmware can
+	 * actually add STAs to the filter list, if this is done by the
+	 * driver in response to set_tim() (which will only reduce the race
+	 * this whole filtering tries to solve, not completely solve it)
+	 * this situation cannot happen.
+	 *
+	 * To completely solve this race drivers need to make sure that they
+	 *  (a) don't mix the irq-safe/not irq-safe TX status/RX processing
+	 *	functions and
+	 *  (b) always process RX events before TX status events if ordering
+	 *      can be unknown, for example with different interrupt status
+	 *	bits.
+	 */
+	if (sta->flags & WLAN_STA_PS &&
+	    skb_queue_len(&sta->tx_filtered) < STA_MAX_TX_BUFFER) {
+		ieee80211_remove_tx_extra(local, sta->key, skb,
+					  &status->control);
+		skb_queue_tail(&sta->tx_filtered, skb);
+		return;
+	}
+
+	if (!(sta->flags & WLAN_STA_PS) &&
+	    !(status->control.flags & IEEE80211_TXCTL_REQUEUE)) {
+		/* Software retry the packet once */
+		status->control.flags |= IEEE80211_TXCTL_REQUEUE;
+		ieee80211_remove_tx_extra(local, sta->key, skb,
+					  &status->control);
+		dev_queue_xmit(skb);
+		return;
+	}
+
+	if (net_ratelimit())
+		printk(KERN_DEBUG "%s: dropped TX filtered frame, "
+		       "queue_len=%d PS=%d @%lu\n",
+		       wiphy_name(local->hw.wiphy),
+		       skb_queue_len(&sta->tx_filtered),
+		       !!(sta->flags & WLAN_STA_PS), jiffies);
+	dev_kfree_skb(skb);
+}
+
 void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
 			 struct ieee80211_tx_status *status)
 {
@@ -1202,11 +1273,16 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
 		sta = sta_info_get(local, hdr->addr1);
 		if (sta) {
 			if (sta->flags & WLAN_STA_PS) {
-				/* The STA is in power save mode, so assume
+				/*
+				 * The STA is in power save mode, so assume
 				 * that this TX packet failed because of that.
 				 */
 				status->excessive_retries = 0;
 				status->flags |= IEEE80211_TX_STATUS_TX_FILTERED;
+				ieee80211_handle_filtered_frame(local, sta,
+								skb, status);
+				sta_info_put(sta);
+				return;
 			}
 			sta_info_put(sta);
 		}
@@ -1216,47 +1292,8 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
 		struct sta_info *sta;
 		sta = sta_info_get(local, hdr->addr1);
 		if (sta) {
-			sta->tx_filtered_count++;
-
-			/* Clear the TX filter mask for this STA when sending
-			 * the next packet. If the STA went to power save mode,
-			 * this will happen when it is waking up for the next
-			 * time. */
-			sta->clear_dst_mask = 1;
-
-			/* TODO: Is the WLAN_STA_PS flag always set here or is
-			 * the race between RX and TX status causing some
-			 * packets to be filtered out before 80211.o gets an
-			 * update for PS status? This seems to be the case, so
-			 * no changes are likely to be needed. */
-			if (sta->flags & WLAN_STA_PS &&
-			    skb_queue_len(&sta->tx_filtered) <
-			    STA_MAX_TX_BUFFER) {
-				ieee80211_remove_tx_extra(local, sta->key,
-							  skb,
-							  &status->control);
-				skb_queue_tail(&sta->tx_filtered, skb);
-			} else if (!(sta->flags & WLAN_STA_PS) &&
-				   !(status->control.flags & IEEE80211_TXCTL_REQUEUE)) {
-				/* Software retry the packet once */
-				status->control.flags |= IEEE80211_TXCTL_REQUEUE;
-				ieee80211_remove_tx_extra(local, sta->key,
-							  skb,
-							  &status->control);
-				dev_queue_xmit(skb);
-			} else {
-				if (net_ratelimit()) {
-					printk(KERN_DEBUG "%s: dropped TX "
-					       "filtered frame queue_len=%d "
-					       "PS=%d @%lu\n",
-					       wiphy_name(local->hw.wiphy),
-					       skb_queue_len(
-						       &sta->tx_filtered),
-					       !!(sta->flags & WLAN_STA_PS),
-					       jiffies);
-				}
-				dev_kfree_skb(skb);
-			}
+			ieee80211_handle_filtered_frame(local, sta, skb,
+							status);
 			sta_info_put(sta);
 			return;
 		}

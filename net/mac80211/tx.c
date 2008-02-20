@@ -1020,10 +1020,10 @@ __ieee80211_tx_prepare(struct ieee80211_txrx_data *tx,
 	}
 
 	if (!tx->sta)
-		control->flags |= IEEE80211_TXCTL_CLEAR_DST_MASK;
-	else if (tx->sta->clear_dst_mask) {
-		control->flags |= IEEE80211_TXCTL_CLEAR_DST_MASK;
-		tx->sta->clear_dst_mask = 0;
+		control->flags |= IEEE80211_TXCTL_CLEAR_PS_FILT;
+	else if (tx->sta->flags & WLAN_STA_CLEAR_PS_FILT) {
+		control->flags |= IEEE80211_TXCTL_CLEAR_PS_FILT;
+		tx->sta->flags &= ~WLAN_STA_CLEAR_PS_FILT;
 	}
 
 	hdrlen = ieee80211_get_hdrlen(tx->fc);
@@ -1084,7 +1084,7 @@ static int __ieee80211_tx(struct ieee80211_local *local, struct sk_buff *skb,
 	if (tx->u.tx.extra_frag) {
 		control->flags &= ~(IEEE80211_TXCTL_USE_RTS_CTS |
 				    IEEE80211_TXCTL_USE_CTS_PROTECT |
-				    IEEE80211_TXCTL_CLEAR_DST_MASK |
+				    IEEE80211_TXCTL_CLEAR_PS_FILT |
 				    IEEE80211_TXCTL_FIRST_FRAGMENT);
 		for (i = 0; i < tx->u.tx.num_extra_frag; i++) {
 			if (!tx->u.tx.extra_frag[i])
@@ -1806,7 +1806,7 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 		control->antenna_sel_tx = local->hw.conf.antenna_sel_tx;
 		control->flags |= IEEE80211_TXCTL_NO_ACK;
 		control->retry_limit = 1;
-		control->flags |= IEEE80211_TXCTL_CLEAR_DST_MASK;
+		control->flags |= IEEE80211_TXCTL_CLEAR_PS_FILT;
 	}
 
 	ap->num_beacons++;

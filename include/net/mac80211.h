@@ -228,7 +228,8 @@ struct ieee80211_tx_control {
 #define IEEE80211_TXCTL_NO_ACK		(1<<4) /* tell the low level not to
 						* wait for an ack */
 #define IEEE80211_TXCTL_RATE_CTRL_PROBE	(1<<5)
-#define IEEE80211_TXCTL_CLEAR_DST_MASK	(1<<6)
+#define IEEE80211_TXCTL_CLEAR_PS_FILT	(1<<6) /* clear powersave filter
+						* for destination station */
 #define IEEE80211_TXCTL_REQUEUE		(1<<7)
 #define IEEE80211_TXCTL_FIRST_FRAGMENT	(1<<8) /* this is a first fragment of
 						* the frame */

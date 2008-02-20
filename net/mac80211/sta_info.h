@@ -32,6 +32,9 @@
  * @WLAN_STA_WME: Station is a QoS-STA.
  * @WLAN_STA_WDS: Station is one of our WDS peers.
  * @WLAN_STA_PSPOLL: Station has just PS-polled us.
+ * @WLAN_STA_CLEAR_PS_FILT: Clear PS filter in hardware (using the
+ *	IEEE80211_TXCTL_CLEAR_PS_FILT control flag) when the next
+ *	frame to this station is transmitted.
  */
 enum ieee80211_sta_info_flags {
 	WLAN_STA_AUTH		= 1<<0,
@@ -43,6 +46,7 @@ enum ieee80211_sta_info_flags {
 	WLAN_STA_WME		= 1<<6,
 	WLAN_STA_WDS		= 1<<7,
 	WLAN_STA_PSPOLL		= 1<<8,
+	WLAN_STA_CLEAR_PS_FILT	= 1<<9,
 };
 
 #define STA_TID_NUM 16
@@ -136,8 +140,6 @@ struct sta_info {
 	struct sk_buff_head tx_filtered; /* buffer of TX frames that were
 					  * already given to low-level driver,
 					  * but were filtered */
-	int clear_dst_mask;
-
 	unsigned long rx_packets, tx_packets; /* number of RX/TX MSDUs */
 	unsigned long rx_bytes, tx_bytes;
 	unsigned long tx_retry_failed, tx_retry_count;
