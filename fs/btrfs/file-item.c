@@ -156,6 +156,11 @@ int btrfs_csum_file_blocks(struct btrfs_trans_handle *trans,
 	int bio_index = 0;
 	struct bio_vec *bvec = bio->bi_io_vec;
 	char *data;
+	char *eb_map;
+	char *eb_token;
+	unsigned long map_len;
+	unsigned long map_start;
+
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
@@ -272,6 +277,7 @@ found:
 	item_end = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_csum_item);
 	item_end = (struct btrfs_csum_item *)((unsigned char *)item_end +
 				      btrfs_item_size_nr(leaf, path->slots[0]));
+	eb_token = NULL;
 next_bvec:
 	data = kmap_atomic(bvec->bv_page, KM_IRQ0);
 	csum_result = ~(u32)0;
@@ -283,14 +289,38 @@ next_bvec:
 		printk("csum result is 0 for inode %lu offset %Lu\n", inode->i_ino, offset);
 	}
 
-	write_extent_buffer(leaf, &csum_result, (unsigned long)item,
-			    BTRFS_CRC32_SIZE);
+	if (!eb_token ||
+	   (unsigned long)item  + BTRFS_CRC32_SIZE >= map_start + map_len) {
+		int err;
+
+		if (eb_token)
+			unmap_extent_buffer(leaf, eb_token, KM_IRQ1);
+		eb_token = NULL;
+		err = map_private_extent_buffer(leaf, (unsigned long)item,
+						BTRFS_CRC32_SIZE,
+						&eb_token, &eb_map,
+						&map_start, &map_len, KM_IRQ1);
+		if (err)
+			eb_token = NULL;
+	}
+	if (eb_token) {
+		memcpy(eb_token + ((unsigned long)item & (PAGE_CACHE_SIZE - 1)),
+		       &csum_result, BTRFS_CRC32_SIZE);
+	} else {
+		write_extent_buffer(leaf, &csum_result, (unsigned long)item,
+				    BTRFS_CRC32_SIZE);
+	}
 	bio_index++;
 	bvec++;
 	if (bio_index < bio->bi_vcnt) {
-		item = (struct btrfs_csum_item *)((char *)item + BTRFS_CRC32_SIZE);
+		item = (struct btrfs_csum_item *)((char *)item +
+						  BTRFS_CRC32_SIZE);
 		if (item < item_end)
 			goto next_bvec;
+	}
+	if (eb_token) {
+		unmap_extent_buffer(leaf, eb_token, KM_IRQ1);
+		eb_token = NULL;
 	}
 	btrfs_mark_buffer_dirty(path->nodes[0]);
 	if (bio_index < bio->bi_vcnt) {
