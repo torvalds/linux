@@ -1021,14 +1021,17 @@ static int ti_tiocmget(struct usb_serial_port *port, struct file *file)
 	unsigned int result;
 	unsigned int msr;
 	unsigned int mcr;
+	unsigned long flags;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
 	if (tport == NULL)
 		return -ENODEV;
 
+	spin_lock_irqsave(&tport->tp_lock, flags);
 	msr = tport->tp_msr;
 	mcr = tport->tp_shadow_mcr;
+	spin_unlock_irqrestore(&tport->tp_lock, flags);
 
 	result = ((mcr & TI_MCR_DTR) ? TIOCM_DTR : 0)
 		| ((mcr & TI_MCR_RTS) ? TIOCM_RTS : 0)
@@ -1049,12 +1052,14 @@ static int ti_tiocmset(struct usb_serial_port *port, struct file *file,
 {
 	struct ti_port *tport = usb_get_serial_port_data(port);
 	unsigned int mcr;
+	unsigned long flags;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
 	if (tport == NULL)
 		return -ENODEV;
 
+	spin_lock_irqsave(&tport->tp_lock, flags);
 	mcr = tport->tp_shadow_mcr;
 
 	if (set & TIOCM_RTS)
@@ -1070,6 +1075,7 @@ static int ti_tiocmset(struct usb_serial_port *port, struct file *file,
 		mcr &= ~TI_MCR_DTR;
 	if (clear & TIOCM_LOOP)
 		mcr &= ~TI_MCR_LOOP;
+	spin_unlock_irqrestore(&tport->tp_lock, flags);
 
 	return ti_set_mcr(tport, mcr);
 }
@@ -1357,14 +1363,17 @@ static void ti_send(struct ti_port *tport)
 
 static int ti_set_mcr(struct ti_port *tport, unsigned int mcr)
 {
+	unsigned long flags;
 	int status;
 
 	status = ti_write_byte(tport->tp_tdev,
 		tport->tp_uart_base_addr + TI_UART_OFFSET_MCR,
 		TI_MCR_RTS | TI_MCR_DTR | TI_MCR_LOOP, mcr);
 
+	spin_lock_irqsave(&tport->tp_lock, flags);
 	if (!status)
 		tport->tp_shadow_mcr = mcr;
+	spin_unlock_irqrestore(&tport->tp_lock, flags);
 
 	return status;
 }
