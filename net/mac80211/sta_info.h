@@ -244,7 +244,9 @@ void sta_info_free(struct sta_info *sta);
 void sta_info_init(struct ieee80211_local *local);
 int sta_info_start(struct ieee80211_local *local);
 void sta_info_stop(struct ieee80211_local *local);
-void sta_info_remove_aid_ptr(struct sta_info *sta);
 void sta_info_flush(struct ieee80211_local *local, struct net_device *dev);
+
+void sta_info_set_tim_bit(struct sta_info *sta);
+void sta_info_clear_tim_bit(struct sta_info *sta);
 
 #endif /* STA_INFO_H */

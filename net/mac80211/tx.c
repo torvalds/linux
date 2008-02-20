@@ -416,14 +416,11 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_txrx_data *tx)
 			dev_kfree_skb(old);
 		} else
 			tx->local->total_ps_buffered++;
+
 		/* Queue frame to be sent after STA sends an PS Poll frame */
-		if (skb_queue_empty(&sta->ps_tx_buf)) {
-			if (tx->sdata->bss)
-				bss_tim_set(tx->local, tx->sdata->bss, sta->aid);
-			if (tx->local->ops->set_tim)
-				tx->local->ops->set_tim(local_to_hw(tx->local),
-						       sta->aid, 1);
-		}
+		if (skb_queue_empty(&sta->ps_tx_buf))
+			sta_info_set_tim_bit(sta);
+
 		pkt_data = (struct ieee80211_tx_packet_data *)tx->skb->cb;
 		pkt_data->jiffies = jiffies;
 		skb_queue_tail(&sta->ps_tx_buf, tx->skb);

@@ -207,7 +207,7 @@ struct ieee80211_if_ap {
 
 	/* yes, this looks ugly, but guarantees that we can later use
 	 * bitmap_empty :)
-	 * NB: don't ever use set_bit, use bss_tim_set/bss_tim_clear! */
+	 * NB: don't touch this bitmap, use sta_info_{set,clear}_tim_bit */
 	u8 tim[sizeof(unsigned long) * BITS_TO_LONGS(IEEE80211_MAX_AID + 1)];
 	atomic_t num_sta_ps; /* number of stations in PS mode */
 	struct sk_buff_head ps_bc_buf;
@@ -639,40 +639,6 @@ struct sta_attribute {
 	ssize_t (*show)(const struct sta_info *, char *buf);
 	ssize_t (*store)(struct sta_info *, const char *buf, size_t count);
 };
-
-static inline void __bss_tim_set(struct ieee80211_if_ap *bss, u16 aid)
-{
-	/*
-	 * This format has been mandated by the IEEE specifications,
-	 * so this line may not be changed to use the __set_bit() format.
-	 */
-	bss->tim[aid / 8] |= (1 << (aid % 8));
-}
-
-static inline void bss_tim_set(struct ieee80211_local *local,
-			       struct ieee80211_if_ap *bss, u16 aid)
-{
-	read_lock_bh(&local->sta_lock);
-	__bss_tim_set(bss, aid);
-	read_unlock_bh(&local->sta_lock);
-}
-
-static inline void __bss_tim_clear(struct ieee80211_if_ap *bss, u16 aid)
-{
-	/*
-	 * This format has been mandated by the IEEE specifications,
-	 * so this line may not be changed to use the __clear_bit() format.
-	 */
-	bss->tim[aid / 8] &= ~(1 << (aid % 8));
-}
-
-static inline void bss_tim_clear(struct ieee80211_local *local,
-				 struct ieee80211_if_ap *bss, u16 aid)
-{
-	read_lock_bh(&local->sta_lock);
-	__bss_tim_clear(bss, aid);
-	read_unlock_bh(&local->sta_lock);
-}
 
 static inline int ieee80211_bssid_match(const u8 *raddr, const u8 *addr)
 {

@@ -596,19 +596,20 @@ static int ap_sta_ps_end(struct net_device *dev, struct sta_info *sta)
 	DECLARE_MAC_BUF(mac);
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
+
 	if (sdata->bss)
 		atomic_dec(&sdata->bss->num_sta_ps);
+
 	sta->flags &= ~(WLAN_STA_PS | WLAN_STA_PSPOLL);
-	if (!skb_queue_empty(&sta->ps_tx_buf)) {
-		if (sdata->bss)
-			bss_tim_clear(local, sdata->bss, sta->aid);
-		if (local->ops->set_tim)
-			local->ops->set_tim(local_to_hw(local), sta->aid, 0);
-	}
+
+	if (!skb_queue_empty(&sta->ps_tx_buf))
+		sta_info_clear_tim_bit(sta);
+
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 	printk(KERN_DEBUG "%s: STA %s aid %d exits power save mode\n",
 	       dev->name, print_mac(mac, sta->addr), sta->aid);
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
+
 	/* Send all buffered frames to the station */
 	while ((skb = skb_dequeue(&sta->tx_filtered)) != NULL) {
 		pkt_data = (struct ieee80211_tx_packet_data *) skb->cb;
@@ -945,20 +946,20 @@ ieee80211_rx_h_ps_poll(struct ieee80211_txrx_data *rx)
 
 		dev_queue_xmit(skb);
 
-		if (no_pending_pkts) {
-			if (rx->sdata->bss)
-				bss_tim_clear(rx->local, rx->sdata->bss, rx->sta->aid);
-			if (rx->local->ops->set_tim)
-				rx->local->ops->set_tim(local_to_hw(rx->local),
-						       rx->sta->aid, 0);
-		}
+		if (no_pending_pkts)
+			sta_info_clear_tim_bit(rx->sta);
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 	} else if (!rx->u.rx.sent_ps_buffered) {
+		/*
+		 * FIXME: This can be the result of a race condition between
+		 *	  us expiring a frame and the station polling for it.
+		 *	  Should we send it a null-func frame indicating we
+		 *	  have nothing buffered for it?
+		 */
 		printk(KERN_DEBUG "%s: STA %s sent PS Poll even "
 		       "though there is no buffered frames for it\n",
 		       rx->dev->name, print_mac(mac, rx->sta->addr));
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
-
 	}
 
 	/* Free PS Poll skb here instead of returning RX_DROP that would
