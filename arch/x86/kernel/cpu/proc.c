@@ -8,6 +8,7 @@
 /*
  *	Get CPU information for use by the procfs.
  */
+#ifdef CONFIG_X86_32
 static void show_cpuinfo_core(struct seq_file *m, struct cpuinfo_x86 *c,
 			      unsigned int cpu)
 {
@@ -47,6 +48,31 @@ static void show_cpuinfo_misc(struct seq_file *m, struct cpuinfo_x86 *c)
 		   c->cpuid_level,
 		   c->wp_works_ok ? "yes" : "no");
 }
+#else
+static void show_cpuinfo_core(struct seq_file *m, struct cpuinfo_x86 *c,
+			      unsigned int cpu)
+{
+#ifdef CONFIG_SMP
+	if (c->x86_max_cores * smp_num_siblings > 1) {
+		seq_printf(m, "physical id\t: %d\n", c->phys_proc_id);
+		seq_printf(m, "siblings\t: %d\n",
+			   cpus_weight(per_cpu(cpu_core_map, cpu)));
+		seq_printf(m, "core id\t\t: %d\n", c->cpu_core_id);
+		seq_printf(m, "cpu cores\t: %d\n", c->booted_cores);
+	}
+#endif
+}
+
+static void show_cpuinfo_misc(struct seq_file *m, struct cpuinfo_x86 *c)
+{
+	seq_printf(m,
+		   "fpu\t\t: yes\n"
+		   "fpu_exception\t: yes\n"
+		   "cpuid level\t: %d\n"
+		   "wp\t\t: yes\n",
+		   c->cpuid_level);
+}
+#endif
 
 static int show_cpuinfo(struct seq_file *m, void *v)
 {
@@ -97,7 +123,17 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "\nbogomips\t: %lu.%02lu\n",
 		   c->loops_per_jiffy/(500000/HZ),
 		   (c->loops_per_jiffy/(5000/HZ)) % 100);
+
+#ifdef CONFIG_X86_64
+	if (c->x86_tlbsize > 0)
+		seq_printf(m, "TLB size\t: %d 4K pages\n", c->x86_tlbsize);
+#endif
 	seq_printf(m, "clflush size\t: %u\n", c->x86_clflush_size);
+#ifdef CONFIG_X86_64
+	seq_printf(m, "cache_alignment\t: %d\n", c->x86_cache_alignment);
+	seq_printf(m, "address sizes\t: %u bits physical, %u bits virtual\n",
+		   c->x86_phys_bits, c->x86_virt_bits);
+#endif
 
 	seq_printf(m, "power management:");
 	for (i = 0; i < 32; i++) {
