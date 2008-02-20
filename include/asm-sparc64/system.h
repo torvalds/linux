@@ -117,6 +117,7 @@ do {	__asm__ __volatile__("ba,pt	%%xcc, 1f\n\t" \
 extern void sun_do_break(void);
 extern int stop_a_enabled;
 
+extern void fault_in_user_windows(void);
 extern void synchronize_user_stack(void);
 
 extern void __flushw_user(void);
