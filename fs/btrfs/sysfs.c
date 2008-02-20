@@ -184,7 +184,8 @@ static struct kobj_type btrfs_super_ktype = {
 	.release	= btrfs_super_release,
 };
 
-static struct kset btrfs_kset;
+/* /sys/fs/btrfs/ entry */
+static struct kset *btrfs_kset;
 
 int btrfs_sysfs_add_super(struct btrfs_fs_info *fs)
 {
@@ -208,14 +209,9 @@ int btrfs_sysfs_add_super(struct btrfs_fs_info *fs)
 	}
 	name[len] = '\0';
 
-	fs->super_kobj.kset = &btrfs_kset;
-	fs->super_kobj.ktype = &btrfs_super_ktype;
-
-	error = kobject_set_name(&fs->super_kobj, "%s", name);
-	if (error)
-		goto fail;
-
-	error = kobject_register(&fs->super_kobj);
+	fs->super_kobj.kset = btrfs_kset;
+	error = kobject_init_and_add(&fs->super_kobj, &btrfs_super_ktype,
+				     NULL, "%s", name);
 	if (error)
 		goto fail;
 
@@ -232,15 +228,9 @@ int btrfs_sysfs_add_root(struct btrfs_root *root)
 {
 	int error;
 
-	root->root_kobj.ktype = &btrfs_root_ktype;
-	root->root_kobj.parent = &root->fs_info->super_kobj;
-
-	error = kobject_set_name(&root->root_kobj, "%s", root->name);
-	if (error) {
-		goto fail;
-	}
-
-	error = kobject_register(&root->root_kobj);
+	error = kobject_init_and_add(&root->root_kobj, &btrfs_root_ktype,
+				     &root->fs_info->super_kobj,
+				     "%s", root->name);
 	if (error)
 		goto fail;
 
@@ -253,24 +243,25 @@ fail:
 
 void btrfs_sysfs_del_root(struct btrfs_root *root)
 {
-	kobject_unregister(&root->root_kobj);
+	kobject_put(&root->root_kobj);
 	wait_for_completion(&root->kobj_unregister);
 }
 
 void btrfs_sysfs_del_super(struct btrfs_fs_info *fs)
 {
-	kobject_unregister(&fs->super_kobj);
+	kobject_put(&fs->super_kobj);
 	wait_for_completion(&fs->kobj_unregister);
 }
 
 int btrfs_init_sysfs()
 {
-	kobj_set_kset_s(&btrfs_kset, fs_subsys);
-	kobject_set_name(&btrfs_kset.kobj, "btrfs");
-	return kset_register(&btrfs_kset);
+	btrfs_kset = kset_create_and_add("btrfs", NULL, fs_kobj);
+	if (!btrfs_kset)
+		return -ENOMEM;
+	return 0;
 }
 
 void btrfs_exit_sysfs()
 {
-	kset_unregister(&btrfs_kset);
+	kset_unregister(btrfs_kset);
 }
