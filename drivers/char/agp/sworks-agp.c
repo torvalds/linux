@@ -53,7 +53,7 @@ static int serverworks_create_page_map(struct serverworks_page_map *page_map)
 		return -ENOMEM;
 	}
 
-	set_memory_uc(page_map->real, 1);
+	set_memory_uc((unsigned long)page_map->real, 1);
 	page_map->remapped = page_map->real;
 
 	for (i = 0; i < PAGE_SIZE / sizeof(unsigned long); i++)
@@ -65,7 +65,7 @@ static int serverworks_create_page_map(struct serverworks_page_map *page_map)
 
 static void serverworks_free_page_map(struct serverworks_page_map *page_map)
 {
-	set_memory_wb(page_map->real, 1);
+	set_memory_wb((unsigned long)page_map->real, 1);
 	free_page((unsigned long) page_map->real);
 }
 

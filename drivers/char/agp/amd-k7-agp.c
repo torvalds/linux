@@ -54,7 +54,7 @@ static int amd_create_page_map(struct amd_page_map *page_map)
 	}
 	global_cache_flush();
 #else
-	set_memory_uc(page_map->real, 1);
+	set_memory_uc((unsigned long)page_map->real, 1);
 	page_map->remapped = page_map->real;
 #endif
 
@@ -72,7 +72,7 @@ static void amd_free_page_map(struct amd_page_map *page_map)
 	iounmap(page_map->remapped);
 	ClearPageReserved(virt_to_page(page_map->real));
 #else
-	set_memory_wb(page_map->real, 1);
+	set_memory_wb((unsigned long)page_map->real, 1);
 #endif
 	free_page((unsigned long) page_map->real);
 }
