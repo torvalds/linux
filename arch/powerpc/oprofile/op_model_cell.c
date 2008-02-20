@@ -1151,7 +1151,7 @@ static void cell_handle_interrupt(struct pt_regs *regs,
 		for (i = 0; i < num_counters; ++i) {
 			if ((interrupt_mask & CBE_PM_CTR_OVERFLOW_INTR(i))
 			    && ctr[i].enabled) {
-				oprofile_add_pc(pc, is_kernel, i);
+				oprofile_add_ext_sample(pc, regs, i, is_kernel);
 				cbe_write_ctr(cpu, i, reset_value[i]);
 			}
 		}
