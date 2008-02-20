@@ -227,7 +227,7 @@ static struct scsi_host_template atiixp_sht = {
 	.queuecommand		= ata_scsi_queuecmd,
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
-	.sg_tablesize		= LIBATA_MAX_PRD,
+	.sg_tablesize		= LIBATA_DUMB_MAX_PRD,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
 	.emulated		= ATA_SHT_EMULATED,
 	.use_clustering		= ATA_SHT_USE_CLUSTERING,
@@ -259,7 +259,7 @@ static struct ata_port_operations atiixp_port_ops = {
 	.bmdma_stop	= atiixp_bmdma_stop,
 	.bmdma_status 	= ata_bmdma_status,
 
-	.qc_prep 	= ata_qc_prep,
+	.qc_prep 	= ata_dumb_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
 
 	.data_xfer	= ata_data_xfer,
