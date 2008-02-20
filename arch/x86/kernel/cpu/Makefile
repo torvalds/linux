@@ -13,6 +13,7 @@ obj-$(CONFIG_X86_32)	+= transmeta.o
 obj-$(CONFIG_X86_32)	+= intel.o
 obj-$(CONFIG_X86_32)	+= nexgen.o
 obj-$(CONFIG_X86_32)	+= umc.o
+obj-$(CONFIG_X86_64)	+= proc_64.o
 
 obj-$(CONFIG_X86_MCE)	+= mcheck/
 obj-$(CONFIG_MTRR)	+= mtrr/
