@@ -1722,6 +1722,7 @@ static int mos7840_tiocmset(struct usb_serial_port *port, struct file *file,
 	if (mos7840_port == NULL)
 		return -ENODEV;
 
+	/* FIXME: What locks the port registers ? */
 	mcr = mos7840_port->shadowMCR;
 	if (clear & TIOCM_RTS)
 		mcr &= ~MCR_RTS;

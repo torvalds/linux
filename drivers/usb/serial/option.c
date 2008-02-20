@@ -458,6 +458,7 @@ static int option_tiocmset(struct usb_serial_port *port, struct file *file,
 
 	portdata = usb_get_serial_port_data(port);
 
+	/* FIXME: what locks portdata fields ? */
 	if (set & TIOCM_RTS)
 		portdata->rts_state = 1;
 	if (set & TIOCM_DTR)
