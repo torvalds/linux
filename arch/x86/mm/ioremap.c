@@ -134,6 +134,8 @@ static void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 			return NULL;
 	}
 
+	WARN_ON_ONCE(page_is_ram(pfn));
+
 	switch (mode) {
 	case IOR_MODE_UNCACHED:
 	default:
