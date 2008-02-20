@@ -15,7 +15,6 @@
  */
 
 #include <linux/kvm_host.h>
-#include "segment_descriptor.h"
 #include "irq.h"
 #include "mmu.h"
 
@@ -29,6 +28,7 @@
 
 #include <asm/uaccess.h>
 #include <asm/msr.h>
+#include <asm/desc.h>
 
 #define MAX_IO_MSRS 256
 #define CR0_RESERVED_BITS						\
@@ -94,7 +94,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 unsigned long segment_base(u16 selector)
 {
 	struct descriptor_table gdt;
-	struct segment_descriptor *d;
+	struct desc_struct *d;
 	unsigned long table_base;
 	unsigned long v;
 
@@ -110,13 +110,12 @@ unsigned long segment_base(u16 selector)
 		asm("sldt %0" : "=g"(ldt_selector));
 		table_base = segment_base(ldt_selector);
 	}
-	d = (struct segment_descriptor *)(table_base + (selector & ~7));
-	v = d->base_low | ((unsigned long)d->base_mid << 16) |
-		((unsigned long)d->base_high << 24);
+	d = (struct desc_struct *)(table_base + (selector & ~7));
+	v = d->base0 | ((unsigned long)d->base1 << 16) |
+		((unsigned long)d->base2 << 24);
 #ifdef CONFIG_X86_64
-	if (d->system == 0 && (d->type == 2 || d->type == 9 || d->type == 11))
-		v |= ((unsigned long) \
-		      ((struct segment_descriptor_64 *)d)->base_higher) << 32;
+	if (d->s == 0 && (d->type == 2 || d->type == 9 || d->type == 11))
+		v |= ((unsigned long)((struct ldttss_desc64 *)d)->base3) << 32;
 #endif
 	return v;
 }

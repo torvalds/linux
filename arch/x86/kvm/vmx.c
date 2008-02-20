@@ -17,7 +17,6 @@
 
 #include "irq.h"
 #include "vmx.h"
-#include "segment_descriptor.h"
 #include "mmu.h"
 
 #include <linux/kvm_host.h>
@@ -388,7 +387,7 @@ static void reload_tss(void)
 	 * VT restores TR but not its size.  Useless.
 	 */
 	struct descriptor_table gdt;
-	struct segment_descriptor *descs;
+	struct desc_struct *descs;
 
 	get_gdt(&gdt);
 	descs = (void *)gdt.base;
