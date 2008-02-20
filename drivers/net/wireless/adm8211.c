@@ -1109,7 +1109,7 @@ static void adm8211_hw_init(struct ieee80211_hw *dev)
 	u32 reg;
 	u8 cline;
 
-	reg = le32_to_cpu(ADM8211_CSR_READ(PAR));
+	reg = ADM8211_CSR_READ(PAR);
 	reg |= ADM8211_PAR_MRLE | ADM8211_PAR_MRME;
 	reg &= ~(ADM8211_PAR_BAR | ADM8211_PAR_CAL);
 
@@ -1702,13 +1702,9 @@ static int adm8211_tx(struct ieee80211_hw *dev, struct sk_buff *skb,
 	int plcp, dur, len, plcp_signal, short_preamble;
 	struct ieee80211_hdr *hdr;
 
-	if (control->tx_rate < 0) {
-		short_preamble = 1;
-		plcp_signal = -control->tx_rate->bitrate;
-	} else {
-		short_preamble = 0;
-		plcp_signal = control->tx_rate->bitrate;
-	}
+	short_preamble = !!(control->tx_rate->flags &
+					IEEE80211_TXCTL_SHORT_PREAMBLE);
+	plcp_signal = control->tx_rate->bitrate;
 
 	hdr = (struct ieee80211_hdr *)skb->data;
 	fc = le16_to_cpu(hdr->frame_control) & ~IEEE80211_FCTL_PROTECTED;
