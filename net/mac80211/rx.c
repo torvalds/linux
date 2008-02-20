@@ -600,10 +600,10 @@ static int ap_sta_ps_end(struct net_device *dev, struct sta_info *sta)
 		atomic_dec(&sdata->bss->num_sta_ps);
 	sta->flags &= ~(WLAN_STA_PS | WLAN_STA_TIM | WLAN_STA_PSPOLL);
 	if (!skb_queue_empty(&sta->ps_tx_buf)) {
-		if (local->ops->set_tim)
-			local->ops->set_tim(local_to_hw(local), sta->aid, 0);
 		if (sdata->bss)
 			bss_tim_clear(local, sdata->bss, sta->aid);
+		if (local->ops->set_tim)
+			local->ops->set_tim(local_to_hw(local), sta->aid, 0);
 	}
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 	printk(KERN_DEBUG "%s: STA %s aid %d exits power save mode\n",
@@ -947,11 +947,11 @@ ieee80211_rx_h_ps_poll(struct ieee80211_txrx_data *rx)
 		dev_queue_xmit(skb);
 
 		if (no_pending_pkts) {
+			if (rx->sdata->bss)
+				bss_tim_clear(rx->local, rx->sdata->bss, rx->sta->aid);
 			if (rx->local->ops->set_tim)
 				rx->local->ops->set_tim(local_to_hw(rx->local),
 						       rx->sta->aid, 0);
-			if (rx->sdata->bss)
-				bss_tim_clear(rx->local, rx->sdata->bss, rx->sta->aid);
 		}
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 	} else if (!rx->u.rx.sent_ps_buffered) {

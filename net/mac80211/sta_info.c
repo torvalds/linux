@@ -396,11 +396,11 @@ void sta_info_remove_aid_ptr(struct sta_info *sta)
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
 
+	if (sdata->bss)
+		__bss_tim_clear(sdata->bss, sta->aid);
 	if (sdata->local->ops->set_tim)
 		sdata->local->ops->set_tim(local_to_hw(sdata->local),
 					  sta->aid, 0);
-	if (sdata->bss)
-		__bss_tim_clear(sdata->bss, sta->aid);
 }
 
 
