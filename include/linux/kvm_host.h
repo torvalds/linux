@@ -37,6 +37,7 @@
 #define KVM_REQ_TLB_FLUSH          0
 #define KVM_REQ_MIGRATE_TIMER      1
 #define KVM_REQ_REPORT_TPR_ACCESS  2
+#define KVM_REQ_MMU_RELOAD         3
 
 struct kvm_vcpu;
 extern struct kmem_cache *kvm_vcpu_cache;
@@ -190,6 +191,7 @@ void kvm_resched(struct kvm_vcpu *vcpu);
 void kvm_load_guest_fpu(struct kvm_vcpu *vcpu);
 void kvm_put_guest_fpu(struct kvm_vcpu *vcpu);
 void kvm_flush_remote_tlbs(struct kvm *kvm);
+void kvm_reload_remote_mmus(struct kvm *kvm);
 
 long kvm_arch_dev_ioctl(struct file *filp,
 			unsigned int ioctl, unsigned long arg);

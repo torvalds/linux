@@ -119,6 +119,29 @@ void kvm_flush_remote_tlbs(struct kvm *kvm)
 	smp_call_function_mask(cpus, ack_flush, NULL, 1);
 }
 
+void kvm_reload_remote_mmus(struct kvm *kvm)
+{
+	int i, cpu;
+	cpumask_t cpus;
+	struct kvm_vcpu *vcpu;
+
+	cpus_clear(cpus);
+	for (i = 0; i < KVM_MAX_VCPUS; ++i) {
+		vcpu = kvm->vcpus[i];
+		if (!vcpu)
+			continue;
+		if (test_and_set_bit(KVM_REQ_MMU_RELOAD, &vcpu->requests))
+			continue;
+		cpu = vcpu->cpu;
+		if (cpu != -1 && cpu != raw_smp_processor_id())
+			cpu_set(cpu, cpus);
+	}
+	if (cpus_empty(cpus))
+		return;
+	smp_call_function_mask(cpus, ack_flush, NULL, 1);
+}
+
+
 int kvm_vcpu_init(struct kvm_vcpu *vcpu, struct kvm *kvm, unsigned id)
 {
 	struct page *page;

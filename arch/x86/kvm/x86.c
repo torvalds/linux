@@ -2658,6 +2658,10 @@ preempted:
 		kvm_x86_ops->guest_debug_pre(vcpu);
 
 again:
+	if (vcpu->requests)
+		if (test_and_clear_bit(KVM_REQ_MMU_RELOAD, &vcpu->requests))
+			kvm_mmu_unload(vcpu);
+
 	r = kvm_mmu_reload(vcpu);
 	if (unlikely(r))
 		goto out;
@@ -2688,6 +2692,14 @@ again:
 		r = 1;
 		goto out;
 	}
+
+	if (vcpu->requests)
+		if (test_bit(KVM_REQ_MMU_RELOAD, &vcpu->requests)) {
+			local_irq_enable();
+			preempt_enable();
+			r = 1;
+			goto out;
+		}
 
 	if (signal_pending(current)) {
 		local_irq_enable();

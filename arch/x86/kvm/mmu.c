@@ -667,7 +667,8 @@ static struct kvm_mmu_page *kvm_mmu_lookup_page(struct kvm *kvm, gfn_t gfn)
 	index = kvm_page_table_hashfn(gfn);
 	bucket = &kvm->arch.mmu_page_hash[index];
 	hlist_for_each_entry(sp, node, bucket, hash_link)
-		if (sp->gfn == gfn && !sp->role.metaphysical) {
+		if (sp->gfn == gfn && !sp->role.metaphysical
+		    && !sp->role.invalid) {
 			pgprintk("%s: found role %x\n",
 				 __FUNCTION__, sp->role.word);
 			return sp;
@@ -792,8 +793,11 @@ static void kvm_mmu_zap_page(struct kvm *kvm, struct kvm_mmu_page *sp)
 	if (!sp->root_count) {
 		hlist_del(&sp->hash_link);
 		kvm_mmu_free_page(kvm, sp);
-	} else
+	} else {
 		list_move(&sp->link, &kvm->arch.active_mmu_pages);
+		sp->role.invalid = 1;
+		kvm_reload_remote_mmus(kvm);
+	}
 	kvm_mmu_reset_last_pte_updated(kvm);
 }
 
@@ -1073,6 +1077,8 @@ static void mmu_free_roots(struct kvm_vcpu *vcpu)
 
 		sp = page_header(root);
 		--sp->root_count;
+		if (!sp->root_count && sp->role.invalid)
+			kvm_mmu_zap_page(vcpu->kvm, sp);
 		vcpu->arch.mmu.root_hpa = INVALID_PAGE;
 		spin_unlock(&vcpu->kvm->mmu_lock);
 		return;
@@ -1085,6 +1091,8 @@ static void mmu_free_roots(struct kvm_vcpu *vcpu)
 			root &= PT64_BASE_ADDR_MASK;
 			sp = page_header(root);
 			--sp->root_count;
+			if (!sp->root_count && sp->role.invalid)
+				kvm_mmu_zap_page(vcpu->kvm, sp);
 		}
 		vcpu->arch.mmu.pae_root[i] = INVALID_PAGE;
 	}
