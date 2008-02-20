@@ -458,7 +458,7 @@ MODULE_VERSION(DRV_VERSION);
 
 
 /* Module Loadable parameters. */
-S2IO_PARM_INT(tx_fifo_num, 1);
+S2IO_PARM_INT(tx_fifo_num, FIFO_DEFAULT_NUM);
 S2IO_PARM_INT(rx_ring_num, 1);
 S2IO_PARM_INT(multiq, 0);
 S2IO_PARM_INT(rx_ring_mode, 1);
@@ -470,6 +470,8 @@ S2IO_PARM_INT(shared_splits, 0);
 S2IO_PARM_INT(tmac_util_period, 5);
 S2IO_PARM_INT(rmac_util_period, 5);
 S2IO_PARM_INT(l3l4hdr_size, 128);
+/* 0 is no steering, 1 is Priority steering, 2 is Default steering */
+S2IO_PARM_INT(tx_steering_type, TX_DEFAULT_STEERING);
 /* Frequency of Rx desc syncs expressed as power of 2 */
 S2IO_PARM_INT(rxsync_frequency, 3);
 /* Interrupt type. Values can be 0(INTA), 2(MSI_X) */
@@ -4114,7 +4116,9 @@ static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct fifo_info *fifo = NULL;
 	struct mac_info *mac_control;
 	struct config_param *config;
+	int do_spin_lock = 1;
 	int offload_type;
+	int enable_per_list_interrupt = 0;
 	struct swStat *stats = &sp->mac_control.stats_info->sw_stat;
 
 	mac_control = &sp->mac_control;
@@ -4136,15 +4140,52 @@ static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	queue = 0;
-	/* Get Fifo number to Transmit based on vlan priority */
 	if (sp->vlgrp && vlan_tx_tag_present(skb))
 		vlan_tag = vlan_tx_tag_get(skb);
+	if (sp->config.tx_steering_type == TX_DEFAULT_STEERING) {
+		if (skb->protocol == htons(ETH_P_IP)) {
+			struct iphdr *ip;
+			struct tcphdr *th;
+			ip = ip_hdr(skb);
 
-	/* get fifo number based on skb->priority value */
-	queue = config->fifo_mapping[skb->priority & (MAX_TX_FIFOS - 1)];
+			if ((ip->frag_off & htons(IP_OFFSET|IP_MF)) == 0) {
+				th = (struct tcphdr *)(((unsigned char *)ip) +
+						ip->ihl*4);
 
+				if (ip->protocol == IPPROTO_TCP) {
+					queue_len = sp->total_tcp_fifos;
+					queue = (ntohs(th->source) +
+							ntohs(th->dest)) &
+					    sp->fifo_selector[queue_len - 1];
+					if (queue >= queue_len)
+						queue = queue_len - 1;
+				} else if (ip->protocol == IPPROTO_UDP) {
+					queue_len = sp->total_udp_fifos;
+					queue = (ntohs(th->source) +
+							ntohs(th->dest)) &
+					    sp->fifo_selector[queue_len - 1];
+					if (queue >= queue_len)
+						queue = queue_len - 1;
+					queue += sp->udp_fifo_idx;
+					if (skb->len > 1024)
+						enable_per_list_interrupt = 1;
+					do_spin_lock = 0;
+				}
+			}
+		}
+	} else if (sp->config.tx_steering_type == TX_PRIORITY_STEERING)
+		/* get fifo number based on skb->priority value */
+		queue = config->fifo_mapping
+					[skb->priority & (MAX_TX_FIFOS - 1)];
 	fifo = &mac_control->fifos[queue];
-	spin_lock_irqsave(&fifo->tx_lock, flags);
+
+	if (do_spin_lock)
+		spin_lock_irqsave(&fifo->tx_lock, flags);
+	else {
+		if (unlikely(!spin_trylock_irqsave(&fifo->tx_lock, flags)))
+			return NETDEV_TX_LOCKED;
+	}
+
 #ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	if (sp->config.multiq) {
 		if (__netif_subqueue_stopped(dev, fifo->fifo_no)) {
@@ -4188,7 +4229,9 @@ static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	txdp->Control_1 |= TXD_GATHER_CODE_FIRST;
 	txdp->Control_1 |= TXD_LIST_OWN_XENA;
 	txdp->Control_2 |= TXD_INT_NUMBER(fifo->fifo_no);
-
+	if (enable_per_list_interrupt)
+		if (put_off & (queue_len >> 5))
+			txdp->Control_2 |= TXD_INT_TYPE_PER_LIST;
 	if (vlan_tag) {
 		txdp->Control_2 |= TXD_VLAN_ENABLE;
 		txdp->Control_2 |= TXD_VLAN_TAG(vlan_tag);
@@ -7622,13 +7665,15 @@ static int s2io_verify_parm(struct pci_dev *pdev, u8 *dev_intr_type,
 	u8 *dev_multiq)
 {
 	if ((tx_fifo_num > MAX_TX_FIFOS) ||
-		(tx_fifo_num < FIFO_DEFAULT_NUM)) {
+		(tx_fifo_num < 1)) {
 		DBG_PRINT(ERR_DBG, "s2io: Requested number of tx fifos "
 			"(%d) not supported\n", tx_fifo_num);
-		tx_fifo_num =
-			((tx_fifo_num > MAX_TX_FIFOS)? MAX_TX_FIFOS :
-			((tx_fifo_num < FIFO_DEFAULT_NUM) ? FIFO_DEFAULT_NUM :
-			tx_fifo_num));
+
+		if (tx_fifo_num < 1)
+			tx_fifo_num = 1;
+		else
+			tx_fifo_num = MAX_TX_FIFOS;
+
 		DBG_PRINT(ERR_DBG, "s2io: Default to %d ", tx_fifo_num);
 		DBG_PRINT(ERR_DBG, "tx fifos\n");
 	}
@@ -7639,10 +7684,23 @@ static int s2io_verify_parm(struct pci_dev *pdev, u8 *dev_intr_type,
 		multiq = 0;
 	}
 #endif
-	/* if multiqueue is enabled configure all fifos */
-	if (multiq) {
-		tx_fifo_num = MAX_TX_FIFOS;
+	if (multiq)
 		*dev_multiq = multiq;
+
+	if (tx_steering_type && (1 == tx_fifo_num)) {
+		if (tx_steering_type != TX_DEFAULT_STEERING)
+			DBG_PRINT(ERR_DBG,
+				"s2io: Tx steering is not supported with "
+				"one fifo. Disabling Tx steering.\n");
+		tx_steering_type = NO_STEERING;
+	}
+
+	if ((tx_steering_type < NO_STEERING) ||
+		(tx_steering_type > TX_DEFAULT_STEERING)) {
+		DBG_PRINT(ERR_DBG, "s2io: Requested transmit steering not "
+			 "supported\n");
+		DBG_PRINT(ERR_DBG, "s2io: Disabling transmit steering\n");
+		tx_steering_type = NO_STEERING;
 	}
 
 	if ( rx_ring_num > 8) {
@@ -7773,7 +7831,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	}
 #ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	if (dev_multiq)
-		dev = alloc_etherdev_mq(sizeof(struct s2io_nic), MAX_TX_FIFOS);
+		dev = alloc_etherdev_mq(sizeof(struct s2io_nic), tx_fifo_num);
 	else
 #endif
 	dev = alloc_etherdev(sizeof(struct s2io_nic));
@@ -7824,11 +7882,33 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	config = &sp->config;
 
 	config->napi = napi;
+	config->tx_steering_type = tx_steering_type;
 
 	/* Tx side parameters. */
-	config->tx_fifo_num = tx_fifo_num;
+	if (config->tx_steering_type == TX_PRIORITY_STEERING)
+		config->tx_fifo_num = MAX_TX_FIFOS;
+	else
+		config->tx_fifo_num = tx_fifo_num;
+
+	/* Initialize the fifos used for tx steering */
+	if (config->tx_fifo_num < 5) {
+			if (config->tx_fifo_num  == 1)
+				sp->total_tcp_fifos = 1;
+			else
+				sp->total_tcp_fifos = config->tx_fifo_num - 1;
+			sp->udp_fifo_idx = config->tx_fifo_num - 1;
+			sp->total_udp_fifos = 1;
+			sp->other_fifo_idx = sp->total_tcp_fifos - 1;
+	} else {
+		sp->total_tcp_fifos = (tx_fifo_num - FIFO_UDP_MAX_NUM -
+						FIFO_OTHER_MAX_NUM);
+		sp->udp_fifo_idx = sp->total_tcp_fifos;
+		sp->total_udp_fifos = FIFO_UDP_MAX_NUM;
+		sp->other_fifo_idx = sp->udp_fifo_idx + FIFO_UDP_MAX_NUM;
+	}
+
 	config->multiq = dev_multiq;
-	for (i = 0; i < MAX_TX_FIFOS; i++) {
+	for (i = 0; i < config->tx_fifo_num; i++) {
 		config->tx_cfg[i].fifo_len = tx_fifo_len[i];
 		config->tx_cfg[i].fifo_priority = i;
 	}
@@ -7836,6 +7916,11 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	/* mapping the QoS priority to the configured fifos */
 	for (i = 0; i < MAX_TX_FIFOS; i++)
 		config->fifo_mapping[i] = fifo_map[config->tx_fifo_num - 1][i];
+
+	/* map the hashing selector table to the configured fifos */
+	for (i = 0; i < config->tx_fifo_num; i++)
+		sp->fifo_selector[i] = fifo_selector[i];
+
 
 	config->tx_intr_type = TXD_INT_TYPE_UTILZ;
 	for (i = 0; i < config->tx_fifo_num; i++) {
@@ -8112,6 +8197,20 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	} else
 		DBG_PRINT(ERR_DBG, "%s: Multiqueue support disabled\n",
 			dev->name);
+
+	switch (sp->config.tx_steering_type) {
+	case NO_STEERING:
+		DBG_PRINT(ERR_DBG, "%s: No steering enabled for"
+			" transmit\n", dev->name);
+			break;
+	case TX_PRIORITY_STEERING:
+		DBG_PRINT(ERR_DBG, "%s: Priority steering enabled for"
+			" transmit\n", dev->name);
+		break;
+	case TX_DEFAULT_STEERING:
+		DBG_PRINT(ERR_DBG, "%s: Default steering enabled for"
+			" transmit\n", dev->name);
+	}
 
 	if (sp->lro)
 		DBG_PRINT(ERR_DBG, "%s: Large receive offload enabled\n",

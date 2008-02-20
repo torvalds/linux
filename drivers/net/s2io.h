@@ -360,7 +360,10 @@ struct stat_block {
 #define MAX_TX_FIFOS 8
 #define MAX_RX_RINGS 8
 
-#define FIFO_DEFAULT_NUM	1
+#define FIFO_DEFAULT_NUM	5
+#define FIFO_UDP_MAX_NUM			2 /* 0 - even, 1 -odd ports */
+#define FIFO_OTHER_MAX_NUM			1
+
 
 #define MAX_RX_DESC_1  (MAX_RX_RINGS * MAX_RX_BLOCKS_PER_RING * 127 )
 #define MAX_RX_DESC_2  (MAX_RX_RINGS * MAX_RX_BLOCKS_PER_RING * 85 )
@@ -378,6 +381,8 @@ static int fifo_map[][MAX_TX_FIFOS] = {
 	{0, 0, 1, 2, 3, 4, 5, 6},
 	{0, 1, 2, 3, 4, 5, 6, 7},
 };
+
+static u16 fifo_selector[MAX_TX_FIFOS] = {0, 1, 3, 3, 7, 7, 7, 7};
 
 /* Maintains Per FIFO related information. */
 struct tx_fifo_config {
@@ -430,6 +435,12 @@ struct rx_ring_config {
 struct config_param {
 /* Tx Side */
 	u32 tx_fifo_num;	/*Number of Tx FIFOs */
+
+	/* 0-No steering, 1-Priority steering, 2-Default fifo map */
+#define	NO_STEERING				0
+#define	TX_PRIORITY_STEERING			0x1
+#define TX_DEFAULT_STEERING 			0x2
+	u8 tx_steering_type;
 
 	u8 fifo_mapping[MAX_TX_FIFOS];
 	struct tx_fifo_config tx_cfg[MAX_TX_FIFOS];	/*Per-Tx FIFO config */
@@ -894,6 +905,27 @@ struct s2io_nic {
 	 * offload feature.
 	 */
 	int rx_csum;
+
+	/* Below variables are used for fifo selection to transmit a packet */
+	u16 fifo_selector[MAX_TX_FIFOS];
+
+	/* Total fifos for tcp packets */
+	u8 total_tcp_fifos;
+
+	/*
+	* Beginning index of udp for udp packets
+	* Value will be equal to
+	* (tx_fifo_num - FIFO_UDP_MAX_NUM - FIFO_OTHER_MAX_NUM)
+	*/
+	u8 udp_fifo_idx;
+
+	u8 total_udp_fifos;
+
+	/*
+	 * Beginning index of fifo for all other packets
+	 * Value will be equal to (tx_fifo_num - FIFO_OTHER_MAX_NUM)
+	*/
+	u8 other_fifo_idx;
 
 	/*  after blink, the adapter must be restored with original
 	 *  values.
