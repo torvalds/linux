@@ -59,7 +59,7 @@ static struct ieee80211_channel p54_channels[] = {
 	{ .center_freq = 2484, .hw_value = 14, },
 };
 
-struct ieee80211_supported_band band_2GHz = {
+static struct ieee80211_supported_band band_2GHz = {
 	.channels = p54_channels,
 	.n_channels = ARRAY_SIZE(p54_channels),
 	.bitrates = p54_rates,
@@ -389,7 +389,7 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 	while (entry != (struct sk_buff *)&priv->tx_queue) {
 		range = (struct memrecord *)&entry->cb;
 		if (range->start_addr == addr) {
-			struct ieee80211_tx_status status = {{0}};
+			struct ieee80211_tx_status status;
 			struct p54_control_hdr *entry_hdr;
 			struct p54_tx_control_allocdata *entry_data;
 			int pad = 0;
@@ -405,6 +405,7 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 				kfree_skb(entry);
 				break;
 			}
+			memset(&status, 0, sizeof(status));
 			memcpy(&status.control, range->control,
 			       sizeof(status.control));
 			kfree(range->control);
