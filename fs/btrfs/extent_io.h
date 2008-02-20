@@ -28,6 +28,7 @@ struct extent_state;
 struct extent_io_ops {
 	int (*fill_delalloc)(struct inode *inode, u64 start, u64 end);
 	int (*writepage_io_hook)(struct page *page, u64 start, u64 end);
+	int (*submit_bio_hook)(int rw, struct bio *bio);
 	int (*readpage_io_hook)(struct page *page, u64 start, u64 end);
 	int (*readpage_end_io_hook)(struct page *page, u64 start, u64 end,
 				    struct extent_state *state);

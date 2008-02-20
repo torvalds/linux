@@ -16,6 +16,7 @@
  * Boston, MA 021110-1307, USA.
  */
 
+#include <linux/bio.h>
 #include <linux/buffer_head.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
@@ -294,6 +295,32 @@ int btrfs_clear_bit_hook(struct inode *inode, u64 start, u64 end,
 	return 0;
 }
 
+int btrfs_submit_bio_hook(int rw, struct bio *bio)
+{
+	// struct bio_vec *bvec = bio->bi_io_vec + bio->bi_vcnt - 1;
+	struct bio_vec *bvec = bio->bi_io_vec;
+	struct inode *inode = bvec->bv_page->mapping->host;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_trans_handle *trans;
+	int ret = 0;
+
+	if (rw != WRITE)
+		return 0;
+
+	if (btrfs_test_opt(root, NODATASUM) ||
+	    btrfs_test_flag(inode, NODATASUM))
+		return 0;
+
+	mutex_lock(&root->fs_info->fs_mutex);
+	trans = btrfs_start_transaction(root, 1);
+	btrfs_set_trans_block_group(trans, inode);
+	btrfs_csum_file_blocks(trans, root, inode, bio);
+	ret = btrfs_end_transaction(trans, root);
+	BUG_ON(ret);
+	mutex_unlock(&root->fs_info->fs_mutex);
+	return ret;
+}
+#if 0
 int btrfs_writepage_io_hook(struct page *page, u64 start, u64 end)
 {
 	struct inode *inode = page->mapping->host;
@@ -318,7 +345,7 @@ int btrfs_writepage_io_hook(struct page *page, u64 start, u64 end)
 	mutex_unlock(&root->fs_info->fs_mutex);
 	return ret;
 }
-
+#endif
 int btrfs_readpage_io_hook(struct page *page, u64 start, u64 end)
 {
 	int ret = 0;
@@ -3022,7 +3049,8 @@ static struct file_operations btrfs_dir_file_operations = {
 
 static struct extent_io_ops btrfs_extent_io_ops = {
 	.fill_delalloc = run_delalloc_range,
-	.writepage_io_hook = btrfs_writepage_io_hook,
+	// .writepage_io_hook = btrfs_writepage_io_hook,
+	.submit_bio_hook = btrfs_submit_bio_hook,
 	.readpage_io_hook = btrfs_readpage_io_hook,
 	.readpage_end_io_hook = btrfs_readpage_end_io_hook,
 	.set_bit_hook = btrfs_set_bit_hook,

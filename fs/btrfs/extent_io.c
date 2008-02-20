@@ -1705,6 +1705,8 @@ static int submit_one_bio(int rw, struct bio *bio)
 			(unsigned long long)bio->bi_sector);
 		WARN_ON(1);
 	}
+	if (tree->ops && tree->ops->submit_bio_hook)
+		tree->ops->submit_bio_hook(rw, bio);
 
 	submit_bio(rw, bio);
 	if (bio_flagged(bio, BIO_EOPNOTSUPP))

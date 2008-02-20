@@ -16,6 +16,9 @@
  * Boston, MA 021110-1307, USA.
  */
 
+#include <linux/bio.h>
+#include <linux/pagemap.h>
+#include <linux/highmem.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -131,28 +134,35 @@ int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-int btrfs_csum_file_block(struct btrfs_trans_handle *trans,
-			  struct btrfs_root *root,
-			  struct inode *inode,
-			  u64 objectid, u64 offset,
-			  char *data, size_t len)
+int btrfs_csum_file_blocks(struct btrfs_trans_handle *trans,
+			   struct btrfs_root *root, struct inode *inode,
+			   struct bio *bio)
 {
+	u64 objectid = inode->i_ino;
+	u64 offset;
 	int ret;
 	struct btrfs_key file_key;
 	struct btrfs_key found_key;
-	u64 next_offset = (u64)-1;
-	int found_next = 0;
+	u64 next_offset;
+	int found_next;
 	struct btrfs_path *path;
 	struct btrfs_csum_item *item;
+	struct btrfs_csum_item *item_end;
 	struct extent_buffer *leaf = NULL;
 	u64 csum_offset;
-	u32 csum_result = ~(u32)0;
+	u32 csum_result;
 	u32 nritems;
 	u32 ins_size;
+	int bio_index = 0;
+	struct bio_vec *bvec = bio->bi_io_vec;
+	char *data;
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
-
+again:
+	next_offset = (u64)-1;
+	found_next = 0;
+	offset = page_offset(bvec->bv_page) + bvec->bv_offset;
 	file_key.objectid = objectid;
 	file_key.offset = offset;
 	btrfs_set_key_type(&file_key, BTRFS_CSUM_ITEM_KEY);
@@ -259,7 +269,15 @@ csum:
 	item = (struct btrfs_csum_item *)((unsigned char *)item +
 					  csum_offset * BTRFS_CRC32_SIZE);
 found:
-	csum_result = btrfs_csum_data(root, data, csum_result, len);
+	item_end = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_csum_item);
+	item_end = (struct btrfs_csum_item *)((unsigned char *)item_end +
+				      btrfs_item_size_nr(leaf, path->slots[0]));
+next_bvec:
+	data = kmap_atomic(bvec->bv_page, KM_IRQ0);
+	csum_result = ~(u32)0;
+	csum_result = btrfs_csum_data(root, data + bvec->bv_offset,
+				      csum_result, bvec->bv_len);
+	kunmap_atomic(data, KM_IRQ0);
 	btrfs_csum_final(csum_result, (char *)&csum_result);
 	if (csum_result == 0) {
 		printk("csum result is 0 for inode %lu offset %Lu\n", inode->i_ino, offset);
@@ -267,9 +285,19 @@ found:
 
 	write_extent_buffer(leaf, &csum_result, (unsigned long)item,
 			    BTRFS_CRC32_SIZE);
+	bio_index++;
+	bvec++;
+	if (bio_index < bio->bi_vcnt) {
+		item = (struct btrfs_csum_item *)((char *)item + BTRFS_CRC32_SIZE);
+		if (item < item_end)
+			goto next_bvec;
+	}
 	btrfs_mark_buffer_dirty(path->nodes[0]);
+	if (bio_index < bio->bi_vcnt) {
+		btrfs_release_path(root, path);
+		goto again;
+	}
 fail:
-	btrfs_release_path(root, path);
 	btrfs_free_path(path);
 	return ret;
 }
