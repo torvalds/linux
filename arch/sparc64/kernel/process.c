@@ -30,6 +30,7 @@
 #include <linux/tick.h>
 #include <linux/init.h>
 #include <linux/cpu.h>
+#include <linux/elfcore.h>
 
 #include <asm/oplib.h>
 #include <asm/uaccess.h>
@@ -48,6 +49,7 @@
 #include <asm/hypervisor.h>
 #include <asm/sstate.h>
 #include <asm/reboot.h>
+#include <asm/syscalls.h>
 
 /* #define VERBOSE_SHOWREGS */
 
