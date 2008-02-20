@@ -72,8 +72,10 @@ struct ssb_device;
 /* Lowlevel read/write operations on the device MMIO.
  * Internal, don't use that outside of ssb. */
 struct ssb_bus_ops {
+	u8 (*read8)(struct ssb_device *dev, u16 offset);
 	u16 (*read16)(struct ssb_device *dev, u16 offset);
 	u32 (*read32)(struct ssb_device *dev, u16 offset);
+	void (*write8)(struct ssb_device *dev, u16 offset, u8 value);
 	void (*write16)(struct ssb_device *dev, u16 offset, u16 value);
 	void (*write32)(struct ssb_device *dev, u16 offset, u32 value);
 };
@@ -344,6 +346,10 @@ void ssb_device_disable(struct ssb_device *dev, u32 core_specific_flags);
 
 
 /* Device MMIO register read/write functions. */
+static inline u8 ssb_read8(struct ssb_device *dev, u16 offset)
+{
+	return dev->ops->read8(dev, offset);
+}
 static inline u16 ssb_read16(struct ssb_device *dev, u16 offset)
 {
 	return dev->ops->read16(dev, offset);
@@ -351,6 +357,10 @@ static inline u16 ssb_read16(struct ssb_device *dev, u16 offset)
 static inline u32 ssb_read32(struct ssb_device *dev, u16 offset)
 {
 	return dev->ops->read32(dev, offset);
+}
+static inline void ssb_write8(struct ssb_device *dev, u16 offset, u8 value)
+{
+	dev->ops->write8(dev, offset, value);
 }
 static inline void ssb_write16(struct ssb_device *dev, u16 offset, u16 value)
 {
