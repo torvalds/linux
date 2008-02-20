@@ -26,6 +26,7 @@
 #include <linux/dlmconstants.h>
 
 #include "dlm/dlmapi.h"
+#include <linux/dlm.h>
 
 /*
  * dlmconstants.h does not have a LOCAL flag.  We hope to remove it
@@ -60,6 +61,17 @@ struct ocfs2_locking_protocol {
 	void (*lp_unlock_ast)(void *astarg, int error);
 };
 
+
+/*
+ * The dlm_lockstatus struct includes lvb space, but the dlm_lksb struct only
+ * has a pointer to separately allocated lvb space.  This struct exists only to
+ * include in the lksb union to make space for a combined dlm_lksb and lvb.
+ */
+struct fsdlm_lksb_plus_lvb {
+	struct dlm_lksb lksb;
+	char lvb[DLM_LVB_LEN];
+};
+
 /*
  * A union of all lock status structures.  We define it here so that the
  * size of the union is known.  Lock status structures are embedded in
@@ -67,6 +79,8 @@ struct ocfs2_locking_protocol {
  */
 union ocfs2_dlm_lksb {
 	struct dlm_lockstatus lksb_o2dlm;
+	struct dlm_lksb lksb_fsdlm;
+	struct fsdlm_lksb_plus_lvb padding;
 };
 
 /*
@@ -221,17 +235,18 @@ int ocfs2_cluster_disconnect(struct ocfs2_cluster_connection *conn,
 void ocfs2_cluster_hangup(const char *group, int grouplen);
 int ocfs2_cluster_this_node(unsigned int *node);
 
+struct ocfs2_lock_res;
 int ocfs2_dlm_lock(struct ocfs2_cluster_connection *conn,
 		   int mode,
 		   union ocfs2_dlm_lksb *lksb,
 		   u32 flags,
 		   void *name,
 		   unsigned int namelen,
-		   void *astarg);
+		   struct ocfs2_lock_res *astarg);
 int ocfs2_dlm_unlock(struct ocfs2_cluster_connection *conn,
 		     union ocfs2_dlm_lksb *lksb,
 		     u32 flags,
-		     void *astarg);
+		     struct ocfs2_lock_res *astarg);
 
 int ocfs2_dlm_lock_status(union ocfs2_dlm_lksb *lksb);
 void *ocfs2_dlm_lvb(union ocfs2_dlm_lksb *lksb);

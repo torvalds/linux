@@ -24,6 +24,7 @@
 #include <linux/reboot.h>
 #include <asm/uaccess.h>
 
+#include "ocfs2.h"  /* For struct ocfs2_lock_res */
 #include "stackglue.h"
 
 
@@ -151,6 +152,8 @@ union ocfs2_control_message {
 	struct ocfs2_control_message_setv	u_setv;
 	struct ocfs2_control_message_down	u_down;
 };
+
+static struct ocfs2_stack_plugin user_stack;
 
 static atomic_t ocfs2_control_opened;
 static int ocfs2_control_this_node = -1;
@@ -340,6 +343,20 @@ out_unlock:
 		ocfs2_control_set_handshake_state(file,
 					OCFS2_CONTROL_HANDSHAKE_VALID);
 	}
+
+	return rc;
+}
+
+static int ocfs2_control_get_this_node(void)
+{
+	int rc;
+
+	mutex_lock(&ocfs2_control_lock);
+	if (ocfs2_control_this_node < 0)
+		rc = -EINVAL;
+	else
+		rc = ocfs2_control_this_node;
+	mutex_unlock(&ocfs2_control_lock);
 
 	return rc;
 }
@@ -652,13 +669,210 @@ static void ocfs2_control_exit(void)
 		       -rc);
 }
 
+static struct dlm_lksb *fsdlm_astarg_to_lksb(void *astarg)
+{
+	struct ocfs2_lock_res *res = astarg;
+	return &res->l_lksb.lksb_fsdlm;
+}
+
+static void fsdlm_lock_ast_wrapper(void *astarg)
+{
+	struct dlm_lksb *lksb = fsdlm_astarg_to_lksb(astarg);
+	int status = lksb->sb_status;
+
+	BUG_ON(user_stack.sp_proto == NULL);
+
+	/*
+	 * For now we're punting on the issue of other non-standard errors
+	 * where we can't tell if the unlock_ast or lock_ast should be called.
+	 * The main "other error" that's possible is EINVAL which means the
+	 * function was called with invalid args, which shouldn't be possible
+	 * since the caller here is under our control.  Other non-standard
+	 * errors probably fall into the same category, or otherwise are fatal
+	 * which means we can't carry on anyway.
+	 */
+
+	if (status == -DLM_EUNLOCK || status == -DLM_ECANCEL)
+		user_stack.sp_proto->lp_unlock_ast(astarg, 0);
+	else
+		user_stack.sp_proto->lp_lock_ast(astarg);
+}
+
+static void fsdlm_blocking_ast_wrapper(void *astarg, int level)
+{
+	BUG_ON(user_stack.sp_proto == NULL);
+
+	user_stack.sp_proto->lp_blocking_ast(astarg, level);
+}
+
+static int user_dlm_lock(struct ocfs2_cluster_connection *conn,
+			 int mode,
+			 union ocfs2_dlm_lksb *lksb,
+			 u32 flags,
+			 void *name,
+			 unsigned int namelen,
+			 void *astarg)
+{
+	int ret;
+
+	if (!lksb->lksb_fsdlm.sb_lvbptr)
+		lksb->lksb_fsdlm.sb_lvbptr = (char *)lksb +
+					     sizeof(struct dlm_lksb);
+
+	ret = dlm_lock(conn->cc_lockspace, mode, &lksb->lksb_fsdlm,
+		       flags|DLM_LKF_NODLCKWT, name, namelen, 0,
+		       fsdlm_lock_ast_wrapper, astarg,
+		       fsdlm_blocking_ast_wrapper);
+	return ret;
+}
+
+static int user_dlm_unlock(struct ocfs2_cluster_connection *conn,
+			   union ocfs2_dlm_lksb *lksb,
+			   u32 flags,
+			   void *astarg)
+{
+	int ret;
+
+	ret = dlm_unlock(conn->cc_lockspace, lksb->lksb_fsdlm.sb_lkid,
+			 flags, &lksb->lksb_fsdlm, astarg);
+	return ret;
+}
+
+static int user_dlm_lock_status(union ocfs2_dlm_lksb *lksb)
+{
+	return lksb->lksb_fsdlm.sb_status;
+}
+
+static void *user_dlm_lvb(union ocfs2_dlm_lksb *lksb)
+{
+	return (void *)(lksb->lksb_fsdlm.sb_lvbptr);
+}
+
+static void user_dlm_dump_lksb(union ocfs2_dlm_lksb *lksb)
+{
+}
+
+/*
+ * Compare a requested locking protocol version against the current one.
+ *
+ * If the major numbers are different, they are incompatible.
+ * If the current minor is greater than the request, they are incompatible.
+ * If the current minor is less than or equal to the request, they are
+ * compatible, and the requester should run at the current minor version.
+ */
+static int fs_protocol_compare(struct ocfs2_protocol_version *existing,
+			       struct ocfs2_protocol_version *request)
+{
+	if (existing->pv_major != request->pv_major)
+		return 1;
+
+	if (existing->pv_minor > request->pv_minor)
+		return 1;
+
+	if (existing->pv_minor < request->pv_minor)
+		request->pv_minor = existing->pv_minor;
+
+	return 0;
+}
+
+static int user_cluster_connect(struct ocfs2_cluster_connection *conn)
+{
+	dlm_lockspace_t *fsdlm;
+	struct ocfs2_live_connection *control;
+	int rc = 0;
+
+	BUG_ON(conn == NULL);
+
+	rc = ocfs2_live_connection_new(conn, &control);
+	if (rc)
+		goto out;
+
+	/*
+	 * running_proto must have been set before we allowed any mounts
+	 * to proceed.
+	 */
+	if (fs_protocol_compare(&running_proto, &conn->cc_version)) {
+		printk(KERN_ERR
+		       "Unable to mount with fs locking protocol version "
+		       "%u.%u because the userspace control daemon has "
+		       "negotiated %u.%u\n",
+		       conn->cc_version.pv_major, conn->cc_version.pv_minor,
+		       running_proto.pv_major, running_proto.pv_minor);
+		rc = -EPROTO;
+		ocfs2_live_connection_drop(control);
+		goto out;
+	}
+
+	rc = dlm_new_lockspace(conn->cc_name, strlen(conn->cc_name),
+			       &fsdlm, DLM_LSFL_FS, DLM_LVB_LEN);
+	if (rc) {
+		ocfs2_live_connection_drop(control);
+		goto out;
+	}
+
+	conn->cc_private = control;
+	conn->cc_lockspace = fsdlm;
+out:
+	return rc;
+}
+
+static int user_cluster_disconnect(struct ocfs2_cluster_connection *conn,
+				   int hangup_pending)
+{
+	dlm_release_lockspace(conn->cc_lockspace, 2);
+	conn->cc_lockspace = NULL;
+	ocfs2_live_connection_drop(conn->cc_private);
+	conn->cc_private = NULL;
+	return 0;
+}
+
+static int user_cluster_this_node(unsigned int *this_node)
+{
+	int rc;
+
+	rc = ocfs2_control_get_this_node();
+	if (rc < 0)
+		return rc;
+
+	*this_node = rc;
+	return 0;
+}
+
+static struct ocfs2_stack_operations user_stack_ops = {
+	.connect	= user_cluster_connect,
+	.disconnect	= user_cluster_disconnect,
+	.this_node	= user_cluster_this_node,
+	.dlm_lock	= user_dlm_lock,
+	.dlm_unlock	= user_dlm_unlock,
+	.lock_status	= user_dlm_lock_status,
+	.lock_lvb	= user_dlm_lvb,
+	.dump_lksb	= user_dlm_dump_lksb,
+};
+
+static struct ocfs2_stack_plugin user_stack = {
+	.sp_name	= "user",
+	.sp_ops		= &user_stack_ops,
+	.sp_owner	= THIS_MODULE,
+};
+
+
 static int __init user_stack_init(void)
 {
-	return ocfs2_control_init();
+	int rc;
+
+	rc = ocfs2_control_init();
+	if (!rc) {
+		rc = ocfs2_stack_glue_register(&user_stack);
+		if (rc)
+			ocfs2_control_exit();
+	}
+
+	return rc;
 }
 
 static void __exit user_stack_exit(void)
 {
+	ocfs2_stack_glue_unregister(&user_stack);
 	ocfs2_control_exit();
 }
 

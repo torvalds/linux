@@ -228,13 +228,20 @@ void ocfs2_stack_glue_set_locking_protocol(struct ocfs2_locking_protocol *proto)
 EXPORT_SYMBOL_GPL(ocfs2_stack_glue_set_locking_protocol);
 
 
+/*
+ * The ocfs2_dlm_lock() and ocfs2_dlm_unlock() functions take
+ * "struct ocfs2_lock_res *astarg" instead of "void *astarg" because the
+ * underlying stack plugins need to pilfer the lksb off of the lock_res.
+ * If some other structure needs to be passed as an astarg, the plugins
+ * will need to be given a different avenue to the lksb.
+ */
 int ocfs2_dlm_lock(struct ocfs2_cluster_connection *conn,
 		   int mode,
 		   union ocfs2_dlm_lksb *lksb,
 		   u32 flags,
 		   void *name,
 		   unsigned int namelen,
-		   void *astarg)
+		   struct ocfs2_lock_res *astarg)
 {
 	BUG_ON(lproto == NULL);
 
@@ -246,7 +253,7 @@ EXPORT_SYMBOL_GPL(ocfs2_dlm_lock);
 int ocfs2_dlm_unlock(struct ocfs2_cluster_connection *conn,
 		     union ocfs2_dlm_lksb *lksb,
 		     u32 flags,
-		     void *astarg)
+		     struct ocfs2_lock_res *astarg)
 {
 	BUG_ON(lproto == NULL);
 
@@ -360,7 +367,8 @@ void ocfs2_cluster_hangup(const char *group, int grouplen)
 	BUG_ON(group == NULL);
 	BUG_ON(group[grouplen] != '\0');
 
-	active_stack->sp_ops->hangup(group, grouplen);
+	if (active_stack->sp_ops->hangup)
+		active_stack->sp_ops->hangup(group, grouplen);
 
 	/* cluster_disconnect() was called with hangup_pending==1 */
 	ocfs2_stack_driver_put();
