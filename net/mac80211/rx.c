@@ -598,7 +598,7 @@ static int ap_sta_ps_end(struct net_device *dev, struct sta_info *sta)
 	sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
 	if (sdata->bss)
 		atomic_dec(&sdata->bss->num_sta_ps);
-	sta->flags &= ~(WLAN_STA_PS | WLAN_STA_TIM | WLAN_STA_PSPOLL);
+	sta->flags &= ~(WLAN_STA_PS | WLAN_STA_PSPOLL);
 	if (!skb_queue_empty(&sta->ps_tx_buf)) {
 		if (sdata->bss)
 			bss_tim_clear(local, sdata->bss, sta->aid);
@@ -938,10 +938,9 @@ ieee80211_rx_h_ps_poll(struct ieee80211_txrx_data *rx)
 
 		/* Use MoreData flag to indicate whether there are more
 		 * buffered frames for this STA */
-		if (no_pending_pkts) {
+		if (no_pending_pkts)
 			hdr->frame_control &= cpu_to_le16(~IEEE80211_FCTL_MOREDATA);
-			rx->sta->flags &= ~WLAN_STA_TIM;
-		} else
+		else
 			hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_MOREDATA);
 
 		dev_queue_xmit(skb);

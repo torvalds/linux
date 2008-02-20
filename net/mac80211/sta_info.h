@@ -23,7 +23,6 @@
  * @WLAN_STA_AUTH: Station is authenticated.
  * @WLAN_STA_ASSOC: Station is associated.
  * @WLAN_STA_PS: Station is in power-save mode
- * @WLAN_STA_TIM: TIM bit is on for this PS station (traffic buffered)
  * @WLAN_STA_AUTHORIZED: Station is authorized to send/receive traffic.
  *	This bit is always checked so needs to be enabled for all stations
  *	when virtual port control is not in use.
@@ -38,13 +37,12 @@ enum ieee80211_sta_info_flags {
 	WLAN_STA_AUTH		= 1<<0,
 	WLAN_STA_ASSOC		= 1<<1,
 	WLAN_STA_PS		= 1<<2,
-	WLAN_STA_TIM		= 1<<3,
-	WLAN_STA_AUTHORIZED	= 1<<4,
-	WLAN_STA_SHORT_PREAMBLE	= 1<<5,
-	WLAN_STA_ASSOC_AP	= 1<<6,
-	WLAN_STA_WME		= 1<<7,
-	WLAN_STA_WDS		= 1<<8,
-	WLAN_STA_PSPOLL		= 1<<9,
+	WLAN_STA_AUTHORIZED	= 1<<3,
+	WLAN_STA_SHORT_PREAMBLE	= 1<<4,
+	WLAN_STA_ASSOC_AP	= 1<<5,
+	WLAN_STA_WME		= 1<<6,
+	WLAN_STA_WDS		= 1<<7,
+	WLAN_STA_PSPOLL		= 1<<8,
 };
 
 #define STA_TID_NUM 16

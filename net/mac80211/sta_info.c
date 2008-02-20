@@ -286,6 +286,7 @@ static void sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 {
 	unsigned long flags;
 	struct sk_buff *skb;
+	struct ieee80211_sub_if_data *sdata;
 	DECLARE_MAC_BUF(mac);
 
 	if (skb_queue_empty(&sta->ps_tx_buf))
@@ -294,21 +295,28 @@ static void sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 	for (;;) {
 		spin_lock_irqsave(&sta->ps_tx_buf.lock, flags);
 		skb = skb_peek(&sta->ps_tx_buf);
-		if (sta_info_buffer_expired(local, sta, skb)) {
+		if (sta_info_buffer_expired(local, sta, skb))
 			skb = __skb_dequeue(&sta->ps_tx_buf);
-			if (skb_queue_empty(&sta->ps_tx_buf))
-				sta->flags &= ~WLAN_STA_TIM;
-		} else
+		else
 			skb = NULL;
 		spin_unlock_irqrestore(&sta->ps_tx_buf.lock, flags);
 
-		if (skb) {
-			local->total_ps_buffered--;
-			printk(KERN_DEBUG "Buffered frame expired (STA "
-			       "%s)\n", print_mac(mac, sta->addr));
-			dev_kfree_skb(skb);
-		} else
+		if (!skb)
 			break;
+
+		sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
+		local->total_ps_buffered--;
+		printk(KERN_DEBUG "Buffered frame expired (STA "
+		       "%s)\n", print_mac(mac, sta->addr));
+		dev_kfree_skb(skb);
+
+		if (skb_queue_empty(&sta->ps_tx_buf)) {
+			if (sdata->bss)
+				bss_tim_set(sta->local, sdata->bss, sta->aid);
+			if (sta->local->ops->set_tim)
+				sta->local->ops->set_tim(local_to_hw(sta->local),
+							 sta->aid, 0);
+		}
 	}
 }
 

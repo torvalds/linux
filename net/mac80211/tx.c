@@ -404,7 +404,6 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_txrx_data *tx)
 		       print_mac(mac, sta->addr), sta->aid,
 		       skb_queue_len(&sta->ps_tx_buf));
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
-		sta->flags |= WLAN_STA_TIM;
 		if (tx->local->total_ps_buffered >= TOTAL_MAX_TX_BUFFER)
 			purge_old_ps_buffers(tx->local);
 		if (skb_queue_len(&sta->ps_tx_buf) >= STA_MAX_TX_BUFFER) {
