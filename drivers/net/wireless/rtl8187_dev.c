@@ -113,9 +113,11 @@ void rtl8187_write_phy(struct ieee80211_hw *dev, u8 addr, u32 data)
 
 static void rtl8187_tx_cb(struct urb *urb)
 {
-	struct ieee80211_tx_status status = { {0} };
+	struct ieee80211_tx_status status;
 	struct sk_buff *skb = (struct sk_buff *)urb->context;
 	struct rtl8187_tx_info *info = (struct rtl8187_tx_info *)skb->cb;
+
+	memset(&status, 0, sizeof(status));
 
 	usb_free_urb(info->urb);
 	if (info->control)
