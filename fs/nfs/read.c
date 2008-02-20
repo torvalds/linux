@@ -177,6 +177,7 @@ static void nfs_read_rpcsetup(struct nfs_page *req, struct nfs_read_data *data,
 		.rpc_message = &msg,
 		.callback_ops = call_ops,
 		.callback_data = data,
+		.workqueue = nfsiod_workqueue,
 		.flags = RPC_TASK_ASYNC | swap_flags,
 	};
 
