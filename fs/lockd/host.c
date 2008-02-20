@@ -529,12 +529,10 @@ nsm_release(struct nsm_handle *nsm)
 {
 	if (!nsm)
 		return;
+	mutex_lock(&nsm_mutex);
 	if (atomic_dec_and_test(&nsm->sm_count)) {
-		mutex_lock(&nsm_mutex);
-		if (atomic_read(&nsm->sm_count) == 0) {
-			list_del(&nsm->sm_link);
-			kfree(nsm);
-		}
-		mutex_unlock(&nsm_mutex);
+		list_del(&nsm->sm_link);
+		kfree(nsm);
 	}
+	mutex_unlock(&nsm_mutex);
 }
