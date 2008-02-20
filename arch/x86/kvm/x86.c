@@ -814,6 +814,9 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_NR_VCPUS:
 		r = KVM_MAX_VCPUS;
 		break;
+	case KVM_CAP_NR_MEMSLOTS:
+		r = KVM_MEMORY_SLOTS;
+		break;
 	default:
 		r = 0;
 		break;
