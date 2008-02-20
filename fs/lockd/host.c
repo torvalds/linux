@@ -465,7 +465,7 @@ __nsm_find(const struct sockaddr_in *sin,
 		int create)
 {
 	struct nsm_handle *nsm = NULL;
-	struct list_head *pos;
+	struct nsm_handle *pos;
 
 	if (!sin)
 		return NULL;
@@ -480,16 +480,16 @@ __nsm_find(const struct sockaddr_in *sin,
 	}
 
 	mutex_lock(&nsm_mutex);
-	list_for_each(pos, &nsm_handles) {
-		nsm = list_entry(pos, struct nsm_handle, sm_link);
+	list_for_each_entry(pos, &nsm_handles, sm_link) {
 
 		if (hostname && nsm_use_hostnames) {
-			if (strlen(nsm->sm_name) != hostname_len
-			 || memcmp(nsm->sm_name, hostname, hostname_len))
+			if (strlen(pos->sm_name) != hostname_len
+			 || memcmp(pos->sm_name, hostname, hostname_len))
 				continue;
-		} else if (!nlm_cmp_addr(&nsm->sm_addr, sin))
+		} else if (!nlm_cmp_addr(&pos->sm_addr, sin))
 			continue;
-		atomic_inc(&nsm->sm_count);
+		atomic_inc(&pos->sm_count);
+		nsm = pos;
 		goto out;
 	}
 
@@ -499,15 +499,15 @@ __nsm_find(const struct sockaddr_in *sin,
 	}
 
 	nsm = kzalloc(sizeof(*nsm) + hostname_len + 1, GFP_KERNEL);
-	if (nsm != NULL) {
-		nsm->sm_addr = *sin;
-		nsm->sm_name = (char *) (nsm + 1);
-		memcpy(nsm->sm_name, hostname, hostname_len);
-		nsm->sm_name[hostname_len] = '\0';
-		atomic_set(&nsm->sm_count, 1);
+	if (nsm == NULL)
+		goto out;
+	nsm->sm_addr = *sin;
+	nsm->sm_name = (char *) (nsm + 1);
+	memcpy(nsm->sm_name, hostname, hostname_len);
+	nsm->sm_name[hostname_len] = '\0';
+	atomic_set(&nsm->sm_count, 1);
 
-		list_add(&nsm->sm_link, &nsm_handles);
-	}
+	list_add(&nsm->sm_link, &nsm_handles);
 
 out:
 	mutex_unlock(&nsm_mutex);
