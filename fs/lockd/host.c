@@ -457,7 +457,7 @@ nlm_gc_hosts(void)
  * Manage NSM handles
  */
 static LIST_HEAD(nsm_handles);
-static DEFINE_MUTEX(nsm_mutex);
+static DEFINE_SPINLOCK(nsm_lock);
 
 static struct nsm_handle *
 __nsm_find(const struct sockaddr_in *sin,
@@ -479,7 +479,8 @@ __nsm_find(const struct sockaddr_in *sin,
 		return NULL;
 	}
 
-	mutex_lock(&nsm_mutex);
+retry:
+	spin_lock(&nsm_lock);
 	list_for_each_entry(pos, &nsm_handles, sm_link) {
 
 		if (hostname && nsm_use_hostnames) {
@@ -489,28 +490,32 @@ __nsm_find(const struct sockaddr_in *sin,
 		} else if (!nlm_cmp_addr(&pos->sm_addr, sin))
 			continue;
 		atomic_inc(&pos->sm_count);
+		kfree(nsm);
 		nsm = pos;
-		goto out;
+		goto found;
 	}
+	if (nsm) {
+		list_add(&nsm->sm_link, &nsm_handles);
+		goto found;
+	}
+	spin_unlock(&nsm_lock);
 
-	if (!create) {
-		nsm = NULL;
-		goto out;
-	}
+	if (!create)
+		return NULL;
 
 	nsm = kzalloc(sizeof(*nsm) + hostname_len + 1, GFP_KERNEL);
 	if (nsm == NULL)
-		goto out;
+		return NULL;
+
 	nsm->sm_addr = *sin;
 	nsm->sm_name = (char *) (nsm + 1);
 	memcpy(nsm->sm_name, hostname, hostname_len);
 	nsm->sm_name[hostname_len] = '\0';
 	atomic_set(&nsm->sm_count, 1);
+	goto retry;
 
-	list_add(&nsm->sm_link, &nsm_handles);
-
-out:
-	mutex_unlock(&nsm_mutex);
+found:
+	spin_unlock(&nsm_lock);
 	return nsm;
 }
 
@@ -529,10 +534,9 @@ nsm_release(struct nsm_handle *nsm)
 {
 	if (!nsm)
 		return;
-	mutex_lock(&nsm_mutex);
-	if (atomic_dec_and_test(&nsm->sm_count)) {
+	if (atomic_dec_and_lock(&nsm->sm_count, &nsm_lock)) {
 		list_del(&nsm->sm_link);
+		spin_unlock(&nsm_lock);
 		kfree(nsm);
 	}
-	mutex_unlock(&nsm_mutex);
 }
