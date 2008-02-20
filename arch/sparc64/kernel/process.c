@@ -299,24 +299,6 @@ void show_regs(struct pt_regs *regs)
 #endif
 }
 
-void show_regs32(struct pt_regs32 *regs)
-{
-	printk("PSR: %08x PC: %08x NPC: %08x Y: %08x    %s\n", regs->psr,
-	       regs->pc, regs->npc, regs->y, print_tainted());
-	printk("g0: %08x g1: %08x g2: %08x g3: %08x ",
-	       regs->u_regs[0], regs->u_regs[1], regs->u_regs[2],
-	       regs->u_regs[3]);
-	printk("g4: %08x g5: %08x g6: %08x g7: %08x\n",
-	       regs->u_regs[4], regs->u_regs[5], regs->u_regs[6],
-	       regs->u_regs[7]);
-	printk("o0: %08x o1: %08x o2: %08x o3: %08x ",
-	       regs->u_regs[8], regs->u_regs[9], regs->u_regs[10],
-	       regs->u_regs[11]);
-	printk("o4: %08x o5: %08x sp: %08x ret_pc: %08x\n",
-	       regs->u_regs[12], regs->u_regs[13], regs->u_regs[14],
-	       regs->u_regs[15]);
-}
-
 unsigned long thread_saved_pc(struct task_struct *tsk)
 {
 	struct thread_info *ti = task_thread_info(tsk);
