@@ -148,20 +148,21 @@ static int iuu_tiocmset(struct usb_serial_port *port, struct file *file,
 			unsigned int set, unsigned int clear)
 {
 	struct iuu_private *priv = usb_get_serial_port_data(port);
-	struct tty_struct *tty;
-	tty = port->tty;
+	unsigned long flags;
 
+	/* FIXME: locking on tiomstatus */
 	dbg("%s (%d) msg : SET = 0x%04x, CLEAR = 0x%04x ", __FUNCTION__,
 	    port->number, set, clear);
+
+	spin_lock_irqsave(&priv->lock, flags);
 	if (set & TIOCM_RTS)
 		priv->tiostatus = TIOCM_RTS;
 
 	if (!(set & TIOCM_RTS) && priv->tiostatus == TIOCM_RTS) {
 		dbg("%s TIOCMSET RESET called !!!", __FUNCTION__);
 		priv->reset = 1;
-		return 0;
 	}
-
+	spin_unlock_irqrestore(&priv->lock, flags);
 	return 0;
 }
 
@@ -173,7 +174,14 @@ static int iuu_tiocmset(struct usb_serial_port *port, struct file *file,
 static int iuu_tiocmget(struct usb_serial_port *port, struct file *file)
 {
 	struct iuu_private *priv = usb_get_serial_port_data(port);
-	return priv->tiostatus;
+	unsigned long flags;
+	int rc;
+
+	spin_lock_irqsave(&priv->lock, flags);
+	rc = priv->tiostatus;
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return rc;
 }
 
 static void iuu_rxcmd(struct urb *urb)
