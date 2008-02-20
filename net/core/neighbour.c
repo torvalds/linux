@@ -507,6 +507,7 @@ struct pneigh_entry * pneigh_lookup(struct neigh_table *tbl,
 	if (tbl->pconstructor && tbl->pconstructor(n)) {
 		if (dev)
 			dev_put(dev);
+		release_net(net);
 		kfree(n);
 		n = NULL;
 		goto out;
