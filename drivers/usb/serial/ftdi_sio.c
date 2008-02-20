@@ -533,9 +533,8 @@ static int update_mctrl(struct usb_serial_port *port, unsigned int set, unsigned
 	}
 
 	buf = kmalloc(1, GFP_NOIO);
-	if (!buf) {
+	if (!buf)
 		return -ENOMEM;
-	}
 
 	clear &= ~set;	/* 'set' takes precedence over 'clear' */
 	urb_value = 0;
@@ -568,6 +567,7 @@ static int update_mctrl(struct usb_serial_port *port, unsigned int set, unsigned
 				(clear & TIOCM_DTR) ? "LOW" : "unchanged",
 				(set & TIOCM_RTS) ? "HIGH" :
 				(clear & TIOCM_RTS) ? "LOW" : "unchanged");
+		/* FIXME: locking on last_dtr_rts */
 		priv->last_dtr_rts = (priv->last_dtr_rts & ~clear) | set;
 	}
 	return rv;
