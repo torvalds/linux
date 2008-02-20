@@ -1,53 +1,81 @@
 /*
- * linux/kernel/time/ntp.c
- *
  * NTP state machine interfaces and logic.
  *
  * This code was mainly moved from kernel/timer.c and kernel/time.c
  * Please see those files for relevant copyright info and historical
  * changelogs.
  */
-
-#include <linux/mm.h>
-#include <linux/time.h>
-#include <linux/timex.h>
-#include <linux/jiffies.h>
-#include <linux/hrtimer.h>
 #include <linux/capability.h>
-#include <linux/math64.h>
 #include <linux/clocksource.h>
 #include <linux/workqueue.h>
-#include <asm/timex.h>
+#include <linux/hrtimer.h>
+#include <linux/jiffies.h>
+#include <linux/math64.h>
+#include <linux/timex.h>
+#include <linux/time.h>
+#include <linux/mm.h>
 
 /*
- * Timekeeping variables
+ * NTP timekeeping variables:
  */
-unsigned long tick_usec = TICK_USEC; 		/* USER_HZ period (usec) */
-unsigned long tick_nsec;			/* ACTHZ period (nsec) */
-u64 tick_length;
-static u64 tick_length_base;
 
-static struct hrtimer leap_timer;
+/* USER_HZ period (usecs): */
+unsigned long			tick_usec = TICK_USEC;
 
-#define MAX_TICKADJ		500		/* microsecs */
-#define MAX_TICKADJ_SCALED	(((u64)(MAX_TICKADJ * NSEC_PER_USEC) << \
-				  NTP_SCALE_SHIFT) / NTP_INTERVAL_FREQ)
+/* ACTHZ period (nsecs): */
+unsigned long			tick_nsec;
+
+u64				tick_length;
+static u64			tick_length_base;
+
+static struct hrtimer		leap_timer;
+
+#define MAX_TICKADJ		500		/* usecs */
+#define MAX_TICKADJ_SCALED \
+  (((u64)(MAX_TICKADJ * NSEC_PER_USEC) << NTP_SCALE_SHIFT) / NTP_INTERVAL_FREQ)
 
 /*
  * phase-lock loop variables
  */
-/* TIME_ERROR prevents overwriting the CMOS clock */
-static int time_state = TIME_OK;	/* clock synchronization status	*/
-int time_status = STA_UNSYNC;		/* clock status bits		*/
-static long time_tai;			/* TAI offset (s)		*/
-static s64 time_offset;			/* time adjustment (ns)		*/
-static long time_constant = 2;		/* pll time constant		*/
-long time_maxerror = NTP_PHASE_LIMIT;	/* maximum error (us)		*/
-long time_esterror = NTP_PHASE_LIMIT;	/* estimated error (us)		*/
-static s64 time_freq;			/* frequency offset (scaled ns/s)*/
-static long time_reftime;		/* time at last adjustment (s)	*/
-long time_adjust;
-static long ntp_tick_adj;
+
+/*
+ * clock synchronization status
+ *
+ * (TIME_ERROR prevents overwriting the CMOS clock)
+ */
+static int			time_state = TIME_OK;
+
+/* clock status bits:							*/
+int				time_status = STA_UNSYNC;
+
+/* TAI offset (secs):							*/
+static long			time_tai;
+
+/* time adjustment (nsecs):						*/
+static s64			time_offset;
+
+/* pll time constant:							*/
+static long			time_constant = 2;
+
+/* maximum error (usecs):						*/
+long				time_maxerror = NTP_PHASE_LIMIT;
+
+/* estimated error (usecs):						*/
+long				time_esterror = NTP_PHASE_LIMIT;
+
+/* frequency offset (scaled nsecs/secs):				*/
+static s64			time_freq;
+
+/* time at last adjustment (secs):					*/
+static long			time_reftime;
+
+long				time_adjust;
+
+static long			ntp_tick_adj;
+
+/*
+ * NTP methods:
+ */
 
 static void ntp_update_frequency(void)
 {
@@ -118,15 +146,15 @@ static void ntp_update_offset(long offset)
  */
 void ntp_clear(void)
 {
-	time_adjust = 0;		/* stop active adjtime() */
-	time_status |= STA_UNSYNC;
-	time_maxerror = NTP_PHASE_LIMIT;
-	time_esterror = NTP_PHASE_LIMIT;
+	time_adjust	= 0;		/* stop active adjtime() */
+	time_status	|= STA_UNSYNC;
+	time_maxerror	= NTP_PHASE_LIMIT;
+	time_esterror	= NTP_PHASE_LIMIT;
 
 	ntp_update_frequency();
 
-	tick_length = tick_length_base;
-	time_offset = 0;
+	tick_length	= tick_length_base;
+	time_offset	= 0;
 }
 
 /*
@@ -147,8 +175,8 @@ static enum hrtimer_restart ntp_leap_second(struct hrtimer *timer)
 		xtime.tv_sec--;
 		wall_to_monotonic.tv_sec++;
 		time_state = TIME_OOP;
-		printk(KERN_NOTICE "Clock: "
-		       "inserting leap second 23:59:60 UTC\n");
+		printk(KERN_NOTICE
+			"Clock: inserting leap second 23:59:60 UTC\n");
 		hrtimer_add_expires_ns(&leap_timer, NSEC_PER_SEC);
 		res = HRTIMER_RESTART;
 		break;
@@ -157,8 +185,8 @@ static enum hrtimer_restart ntp_leap_second(struct hrtimer *timer)
 		time_tai--;
 		wall_to_monotonic.tv_sec--;
 		time_state = TIME_WAIT;
-		printk(KERN_NOTICE "Clock: "
-		       "deleting leap second 23:59:59 UTC\n");
+		printk(KERN_NOTICE
+			"Clock: deleting leap second 23:59:59 UTC\n");
 		break;
 	case TIME_OOP:
 		time_tai++;
@@ -199,10 +227,10 @@ void second_overflow(void)
 	 * Compute the phase adjustment for the next second. The offset is
 	 * reduced by a fixed factor times the time constant.
 	 */
-	tick_length = tick_length_base;
-	time_adj = shift_right(time_offset, SHIFT_PLL + time_constant);
-	time_offset -= time_adj;
-	tick_length += time_adj;
+	tick_length	= tick_length_base;
+	time_adj	= shift_right(time_offset, SHIFT_PLL + time_constant);
+	time_offset	-= time_adj;
+	tick_length	+= time_adj;
 
 	if (unlikely(time_adjust)) {
 		if (time_adjust > MAX_TICKADJ) {
@@ -240,12 +268,13 @@ static void sync_cmos_clock(struct work_struct *work)
 	 * This code is run on a timer.  If the clock is set, that timer
 	 * may not expire at the correct time.  Thus, we adjust...
 	 */
-	if (!ntp_synced())
+	if (!ntp_synced()) {
 		/*
 		 * Not synced, exit, do not restart a timer (if one is
 		 * running, let it run out).
 		 */
 		return;
+	}
 
 	getnstimeofday(&now);
 	if (abs(now.tv_nsec - (NSEC_PER_SEC / 2)) <= tick_nsec / 2)
@@ -277,7 +306,8 @@ static void notify_cmos_timer(void)
 static inline void notify_cmos_timer(void) { }
 #endif
 
-/* adjtimex mainly allows reading (and writing, if superuser) of
+/*
+ * adjtimex mainly allows reading (and writing, if superuser) of
  * kernel time-keeping variables. used by xntpd.
  */
 int do_adjtimex(struct timex *txc)
@@ -298,7 +328,10 @@ int do_adjtimex(struct timex *txc)
 		 if (txc->modes && !capable(CAP_SYS_TIME))
 			return -EPERM;
 
-		/* if the quartz is off by more than 10% something is VERY wrong! */
+		/*
+		 * if the quartz is off by more than 10% then
+		 * something is VERY wrong!
+		 */
 		if (txc->modes & ADJ_TICK &&
 		    (txc->tick <  900000/USER_HZ ||
 		     txc->tick > 1100000/USER_HZ))
