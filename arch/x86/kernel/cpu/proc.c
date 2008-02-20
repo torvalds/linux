@@ -94,7 +94,13 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		if (cpu_has(c, i) && x86_cap_flags[i] != NULL)
 			seq_printf(m, " %s", x86_cap_flags[i]);
 
-	for (i = 0; i < 32; i++)
+	seq_printf(m, "\nbogomips\t: %lu.%02lu\n",
+		   c->loops_per_jiffy/(500000/HZ),
+		   (c->loops_per_jiffy/(5000/HZ)) % 100);
+	seq_printf(m, "clflush size\t: %u\n", c->x86_clflush_size);
+
+	seq_printf(m, "power management:");
+	for (i = 0; i < 32; i++) {
 		if (c->x86_power & (1 << i)) {
 			if (i < ARRAY_SIZE(x86_power_flags) &&
 			    x86_power_flags[i])
@@ -104,11 +110,9 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 			else
 				seq_printf(m, " [%d]", i);
 		}
+	}
 
-	seq_printf(m, "\nbogomips\t: %lu.%02lu\n",
-		   c->loops_per_jiffy/(500000/HZ),
-		   (c->loops_per_jiffy/(5000/HZ)) % 100);
-	seq_printf(m, "clflush size\t: %u\n\n", c->x86_clflush_size);
+	seq_printf(m, "\n\n");
 
 	return 0;
 }
