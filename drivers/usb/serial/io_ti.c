@@ -2559,9 +2559,11 @@ static int edge_tiocmset (struct usb_serial_port *port, struct file *file, unsig
 {
 	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
 	unsigned int mcr;
+	unsigned long flags;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
+	spin_lock_irqsave(&edge_port->ep_lock, flags);
 	mcr = edge_port->shadow_mcr;
 	if (set & TIOCM_RTS)
 		mcr |= MCR_RTS;
@@ -2578,6 +2580,7 @@ static int edge_tiocmset (struct usb_serial_port *port, struct file *file, unsig
 		mcr &= ~MCR_LOOPBACK;
 
 	edge_port->shadow_mcr = mcr;
+	spin_unlock_irqrestore(&edge_port->ep_lock, flags);
 
 	TIRestoreMCR (edge_port, mcr);
 
@@ -2590,8 +2593,11 @@ static int edge_tiocmget(struct usb_serial_port *port, struct file *file)
 	unsigned int result = 0;
 	unsigned int msr;
 	unsigned int mcr;
+	unsigned long flags;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
+
+	spin_lock_irqsave(&edge_port->ep_lock, flags);
 
 	msr = edge_port->shadow_msr;
 	mcr = edge_port->shadow_mcr;
@@ -2604,6 +2610,7 @@ static int edge_tiocmget(struct usb_serial_port *port, struct file *file)
 
 
 	dbg("%s -- %x", __FUNCTION__, result);
+	spin_unlock_irqrestore(&edge_port->ep_lock, flags);
 
 	return result;
 }
