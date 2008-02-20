@@ -150,7 +150,6 @@ static const struct file_operations transaction_ops = {
 	.release	= simple_transaction_release,
 };
 
-extern struct seq_operations nfs_exports_op;
 static int exports_open(struct inode *inode, struct file *file)
 {
 	return seq_open(file, &nfs_exports_op);
@@ -358,8 +357,6 @@ static ssize_t write_filehandle(struct file *file, char *buf, size_t size)
 	return mesg - buf;	
 }
 
-extern int nfsd_nrthreads(void);
-
 static ssize_t write_threads(struct file *file, char *buf, size_t size)
 {
 	/* if size > 0, look for a number of threads and call nfsd_svc
@@ -381,10 +378,6 @@ static ssize_t write_threads(struct file *file, char *buf, size_t size)
 	sprintf(buf, "%d\n", nfsd_nrthreads());
 	return strlen(buf);
 }
-
-extern int nfsd_nrpools(void);
-extern int nfsd_get_nrthreads(int n, int *);
-extern int nfsd_set_nrthreads(int n, int *);
 
 static ssize_t write_pool_threads(struct file *file, char *buf, size_t size)
 {

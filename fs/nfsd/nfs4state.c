@@ -1763,10 +1763,6 @@ out:
 	return status;
 }
 
-static struct workqueue_struct *laundry_wq;
-static void laundromat_main(struct work_struct *);
-static DECLARE_DELAYED_WORK(laundromat_work, laundromat_main);
-
 __be32
 nfsd4_renew(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	    clientid_t *clid)
@@ -1874,7 +1870,11 @@ nfs4_laundromat(void)
 	return clientid_val;
 }
 
-void
+static struct workqueue_struct *laundry_wq;
+static void laundromat_main(struct work_struct *);
+static DECLARE_DELAYED_WORK(laundromat_work, laundromat_main);
+
+static void
 laundromat_main(struct work_struct *not_used)
 {
 	time_t t;

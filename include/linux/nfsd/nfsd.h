@@ -56,11 +56,19 @@ extern struct svc_program	nfsd_program;
 extern struct svc_version	nfsd_version2, nfsd_version3,
 				nfsd_version4;
 extern struct svc_serv		*nfsd_serv;
+
+extern struct seq_operations nfs_exports_op;
+
 /*
  * Function prototypes.
  */
 int		nfsd_svc(unsigned short port, int nrservs);
 int		nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp);
+
+int		nfsd_nrthreads(void);
+int		nfsd_nrpools(void);
+int		nfsd_get_nrthreads(int n, int *);
+int		nfsd_set_nrthreads(int n, int *);
 
 /* nfsd/vfs.c */
 int		fh_lock_parent(struct svc_fh *, struct dentry *);

@@ -202,7 +202,7 @@ static struct cache_detail idtoname_cache = {
 	.alloc		= ent_alloc,
 };
 
-int
+static int
 idtoname_parse(struct cache_detail *cd, char *buf, int buflen)
 {
 	struct ent ent, *res;
