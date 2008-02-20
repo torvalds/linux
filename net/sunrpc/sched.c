@@ -326,7 +326,7 @@ static void rpc_make_runnable(struct rpc_task *task)
 		int status;
 
 		INIT_WORK(&task->u.tk_work, rpc_async_schedule);
-		status = queue_work(task->tk_workqueue, &task->u.tk_work);
+		status = queue_work(rpciod_workqueue, &task->u.tk_work);
 		if (status < 0) {
 			printk(KERN_WARNING "RPC: failed to add task to queue: error: %d!\n", status);
 			task->tk_status = status;
@@ -832,7 +832,7 @@ static void rpc_init_task(struct rpc_task *task, const struct rpc_task_setup *ta
 	task->tk_owner = current->tgid;
 
 	/* Initialize workqueue for async tasks */
-	task->tk_workqueue = rpciod_workqueue;
+	task->tk_workqueue = task_setup_data->workqueue;
 
 	task->tk_client = task_setup_data->rpc_client;
 	if (task->tk_client != NULL) {
@@ -868,7 +868,7 @@ rpc_alloc_task(void)
 	return (struct rpc_task *)mempool_alloc(rpc_task_mempool, GFP_NOFS);
 }
 
-static void rpc_free_task(struct rcu_head *rcu)
+static void rpc_free_task_rcu(struct rcu_head *rcu)
 {
 	struct rpc_task *task = container_of(rcu, struct rpc_task, u.tk_rcu);
 	dprintk("RPC: %5u freeing task\n", task->tk_pid);
@@ -898,12 +898,23 @@ out:
 	return task;
 }
 
-
-void rpc_put_task(struct rpc_task *task)
+static void rpc_free_task(struct rpc_task *task)
 {
 	const struct rpc_call_ops *tk_ops = task->tk_ops;
 	void *calldata = task->tk_calldata;
 
+	if (task->tk_flags & RPC_TASK_DYNAMIC)
+		call_rcu_bh(&task->u.tk_rcu, rpc_free_task_rcu);
+	rpc_release_calldata(tk_ops, calldata);
+}
+
+static void rpc_async_release(struct work_struct *work)
+{
+	rpc_free_task(container_of(work, struct rpc_task, u.tk_work));
+}
+
+void rpc_put_task(struct rpc_task *task)
+{
 	if (!atomic_dec_and_test(&task->tk_count))
 		return;
 	/* Release resources */
@@ -915,9 +926,11 @@ void rpc_put_task(struct rpc_task *task)
 		rpc_release_client(task->tk_client);
 		task->tk_client = NULL;
 	}
-	if (task->tk_flags & RPC_TASK_DYNAMIC)
-		call_rcu_bh(&task->u.tk_rcu, rpc_free_task);
-	rpc_release_calldata(tk_ops, calldata);
+	if (task->tk_workqueue != NULL) {
+		INIT_WORK(&task->u.tk_work, rpc_async_release);
+		queue_work(task->tk_workqueue, &task->u.tk_work);
+	} else
+		rpc_free_task(task);
 }
 EXPORT_SYMBOL_GPL(rpc_put_task);
 

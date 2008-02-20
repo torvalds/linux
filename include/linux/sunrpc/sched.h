@@ -123,6 +123,7 @@ struct rpc_task_setup {
 	const struct rpc_message *rpc_message;
 	const struct rpc_call_ops *callback_ops;
 	void *callback_data;
+	struct workqueue_struct *workqueue;
 	unsigned short flags;
 	signed char priority;
 };
