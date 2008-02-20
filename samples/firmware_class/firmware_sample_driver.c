@@ -40,7 +40,7 @@ static void sample_probe_default(void)
 		       "firmware_sample_driver: Firmware not available\n");
 		return;
 	}
-	
+
 	sample_firmware_load(fw_entry->data, fw_entry->size);
 
 	release_firmware(fw_entry);
@@ -62,7 +62,7 @@ static void sample_probe_specific(void)
 		       "firmware_sample_driver: Firmware load failed\n");
 		return;
 	}
-	
+
 	/* request_firmware blocks until userspace finished, so at
 	 * this point the firmware should be already in the device */
 
@@ -89,7 +89,7 @@ static void sample_probe_async(void)
 					 "my device pointer",
 					 sample_probe_async_cont);
 	if(error){
-		printk(KERN_ERR 
+		printk(KERN_ERR
 		       "firmware_sample_driver:"
 		       " request_firmware_nowait failed\n");
 	}

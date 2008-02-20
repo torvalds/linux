@@ -56,7 +56,7 @@ static ssize_t firmware_loading_store(struct class_device *class_dev,
 	int prev_loading = fw_priv->loading;
 
 	fw_priv->loading = simple_strtol(buf, NULL, 10);
-	
+
 	switch(fw_priv->loading){
 	case -1:
 		/* abort load an panic */
@@ -152,7 +152,7 @@ static int fw_setup_class_device(struct class_device *class_dev,
 	}
 
 	goto out;
-	
+
 error_remove_data:
 	sysfs_remove_bin_file(&class_dev->kobj, &firmware_attr_data);
 error_unreg_class_dev:
@@ -202,6 +202,6 @@ static void __exit firmware_sample_exit(void)
 	kfree(fw_priv);
 	kfree(class_dev);
 }
+
 module_init(firmware_sample_init);
 module_exit(firmware_sample_exit);
-
