@@ -200,6 +200,17 @@ int __weak kgdb_arch_init(void)
 	return 0;
 }
 
+int __weak kgdb_skipexception(int exception, struct pt_regs *regs)
+{
+	return 0;
+}
+
+void __weak
+kgdb_post_primary_code(struct pt_regs *regs, int e_vector, int err_code)
+{
+	return;
+}
+
 /**
  *	kgdb_disable_hw_debug - Disable hardware debugging while we in kgdb.
  *	@regs: Current &struct pt_regs.
