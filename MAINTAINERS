@@ -266,6 +266,15 @@ L:      linux-acpi@vger.kernel.org
 W:      http://www.lesswatts.org/projects/acpi/
 S:      Maintained
 
+AD1889 ALSA SOUND DRIVER
+P:     Kyle McMartin
+M:     kyle@parisc-linux.org
+P:     Thibaut Varene
+M:     T-Bone@parisc-linux.org
+W:     http://wiki.parisc-linux.org/AD1889
+L:     linux-parisc@vger.kernel.org
+S:     Maintained
+
 ADM1025 HARDWARE MONITOR DRIVER
 P:	Jean Delvare
 M:	khali@linux-fr.org
