@@ -1500,6 +1500,15 @@ UNUSUAL_DEV(  0x1019, 0x0c55, 0x0000, 0x0110,
 		US_SC_DEVICE, US_PR_DEVICE, usb_stor_ucr61s2b_init,
 		0 ),
 
+/* Reported by Fabio Venturi <f.venturi@tdnet.it>
+ * The device reports a vendor-specific bDeviceClass.
+ */
+UNUSUAL_DEV(  0x10d6, 0x2200, 0x0100, 0x0100,
+		"Actions Semiconductor",
+		"Mtp device",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		0),
+
 /* Reported by Kevin Lloyd <linux@sierrawireless.com>
  * Entry is needed for the initializer function override,
  * which instructs the device to load as a modem
