@@ -14,6 +14,9 @@
 #define SIS_TLBCNTRL	0x97
 #define SIS_TLBFLUSH	0x98
 
+#define PCI_DEVICE_ID_SI_662	0x0662
+#define PCI_DEVICE_ID_SI_671	0x0671
+
 static int __devinitdata agp_sis_force_delay = 0;
 static int __devinitdata agp_sis_agp_spec = -1;
 
@@ -344,6 +347,22 @@ static struct pci_device_id agp_sis_pci_table[] = {
 		.class_mask	= ~0,
 		.vendor		= PCI_VENDOR_ID_SI,
 		.device		= PCI_DEVICE_ID_SI_661,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+	},
+	{
+		.class		= (PCI_CLASS_BRIDGE_HOST << 8),
+		.class_mask	= ~0,
+		.vendor		= PCI_VENDOR_ID_SI,
+		.device		= PCI_DEVICE_ID_SI_662,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+	},
+	{
+		.class		= (PCI_CLASS_BRIDGE_HOST << 8),
+		.class_mask	= ~0,
+		.vendor		= PCI_VENDOR_ID_SI,
+		.device		= PCI_DEVICE_ID_SI_671,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
 	},
