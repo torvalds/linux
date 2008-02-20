@@ -284,6 +284,13 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
            control correctly. If you have problems regarding this, try
            another ALSA compliant mixer (alsamixer works).
 
+  Module snd-aw2
+  --------------
+
+    Module for Audiowerk2 sound card
+
+    This module supports multiple cards.
+
   Module snd-azt2320
   ------------------
 
