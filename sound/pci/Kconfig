@@ -122,6 +122,21 @@ config SND_AU8830
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-au8830.
 
+config SND_AW2
+	tristate "Emagic Audiowerk 2"
+	depends on SND
+	help
+	  Say Y here to include support for Emagic Audiowerk 2 soundcards.
+
+	  Supported features: Analog and SPDIF output. Analog or SPDIF input.
+	  Note: Switch between analog and digital input does not always work.
+	  It can produce continuous noise. The workaround is to switch again
+	  (and again) between digital and analog input until it works.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-aw2.
+
+
 config SND_AZT3328
 	tristate "Aztech AZF3328 / PCI168 (EXPERIMENTAL)"
 	depends on SND && EXPERIMENTAL
