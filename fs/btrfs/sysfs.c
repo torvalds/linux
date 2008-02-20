@@ -28,6 +28,7 @@
 #include "disk-io.h"
 #include "transaction.h"
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,25)
 static ssize_t root_blocks_used_show(struct btrfs_root *root, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%llu\n",
@@ -265,3 +266,36 @@ void btrfs_exit_sysfs()
 {
 	kset_unregister(btrfs_kset);
 }
+
+#else
+
+int btrfs_sysfs_add_super(struct btrfs_fs_info *fs)
+{
+	return 0;
+}
+
+int btrfs_sysfs_add_root(struct btrfs_root *root)
+{
+	return 0;
+}
+
+void btrfs_sysfs_del_root(struct btrfs_root *root)
+{
+	return;
+}
+
+void btrfs_sysfs_del_super(struct btrfs_fs_info *fs)
+{
+	return;
+}
+
+int btrfs_init_sysfs()
+{
+	return 0;
+}
+
+void btrfs_exit_sysfs()
+{
+	return;
+}
+#endif
