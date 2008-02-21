@@ -370,11 +370,11 @@ int schedule_nes_timer(struct nes_cm_node *cm_node, struct sk_buff *skb,
 	int ret = 0;
 	u32 was_timer_set;
 
+	if (!cm_node)
+		return -EINVAL;
 	new_send = kzalloc(sizeof(*new_send), GFP_ATOMIC);
 	if (!new_send)
 		return -1;
-	if (!cm_node)
-		return -EINVAL;
 
 	/* new_send->timetosend = currenttime */
 	new_send->retrycount = NES_DEFAULT_RETRYS;
