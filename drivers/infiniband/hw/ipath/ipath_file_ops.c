@@ -2434,11 +2434,11 @@ static ssize_t ipath_writev(struct kiocb *iocb, const struct iovec *iov,
 static struct class *ipath_class;
 
 static int init_cdev(int minor, char *name, const struct file_operations *fops,
-		     struct cdev **cdevp, struct class_device **class_devp)
+		     struct cdev **cdevp, struct device **devp)
 {
 	const dev_t dev = MKDEV(IPATH_MAJOR, minor);
 	struct cdev *cdev = NULL;
-	struct class_device *class_dev = NULL;
+	struct device *device = NULL;
 	int ret;
 
 	cdev = cdev_alloc();
@@ -2462,12 +2462,12 @@ static int init_cdev(int minor, char *name, const struct file_operations *fops,
 		goto err_cdev;
 	}
 
-	class_dev = class_device_create(ipath_class, NULL, dev, NULL, name);
+	device = device_create(ipath_class, NULL, dev, name);
 
-	if (IS_ERR(class_dev)) {
-		ret = PTR_ERR(class_dev);
+	if (IS_ERR(device)) {
+		ret = PTR_ERR(device);
 		printk(KERN_ERR IPATH_DRV_NAME ": Could not create "
-		       "class_dev for minor %d, %s (err %d)\n",
+		       "device for minor %d, %s (err %d)\n",
 		       minor, name, -ret);
 		goto err_cdev;
 	}
@@ -2481,29 +2481,29 @@ err_cdev:
 done:
 	if (ret >= 0) {
 		*cdevp = cdev;
-		*class_devp = class_dev;
+		*devp = device;
 	} else {
 		*cdevp = NULL;
-		*class_devp = NULL;
+		*devp = NULL;
 	}
 
 	return ret;
 }
 
 int ipath_cdev_init(int minor, char *name, const struct file_operations *fops,
-		    struct cdev **cdevp, struct class_device **class_devp)
+		    struct cdev **cdevp, struct device **devp)
 {
-	return init_cdev(minor, name, fops, cdevp, class_devp);
+	return init_cdev(minor, name, fops, cdevp, devp);
 }
 
 static void cleanup_cdev(struct cdev **cdevp,
-			 struct class_device **class_devp)
+			 struct device **devp)
 {
-	struct class_device *class_dev = *class_devp;
+	struct device *dev = *devp;
 
-	if (class_dev) {
-		class_device_unregister(class_dev);
-		*class_devp = NULL;
+	if (dev) {
+		device_unregister(dev);
+		*devp = NULL;
 	}
 
 	if (*cdevp) {
@@ -2513,13 +2513,13 @@ static void cleanup_cdev(struct cdev **cdevp,
 }
 
 void ipath_cdev_cleanup(struct cdev **cdevp,
-			struct class_device **class_devp)
+			struct device **devp)
 {
-	cleanup_cdev(cdevp, class_devp);
+	cleanup_cdev(cdevp, devp);
 }
 
 static struct cdev *wildcard_cdev;
-static struct class_device *wildcard_class_dev;
+static struct device *wildcard_dev;
 
 static const dev_t dev = MKDEV(IPATH_MAJOR, 0);
 
@@ -2576,7 +2576,7 @@ int ipath_user_add(struct ipath_devdata *dd)
 			goto bail;
 		}
 		ret = init_cdev(0, "ipath", &ipath_file_ops, &wildcard_cdev,
-				&wildcard_class_dev);
+				&wildcard_dev);
 		if (ret < 0) {
 			ipath_dev_err(dd, "Could not create wildcard "
 				      "minor: error %d\n", -ret);
@@ -2589,7 +2589,7 @@ int ipath_user_add(struct ipath_devdata *dd)
 	snprintf(name, sizeof(name), "ipath%d", dd->ipath_unit);
 
 	ret = init_cdev(dd->ipath_unit + 1, name, &ipath_file_ops,
-			&dd->user_cdev, &dd->user_class_dev);
+			&dd->user_cdev, &dd->user_dev);
 	if (ret < 0)
 		ipath_dev_err(dd, "Could not create user minor %d, %s\n",
 			      dd->ipath_unit + 1, name);
@@ -2604,13 +2604,13 @@ bail:
 
 void ipath_user_remove(struct ipath_devdata *dd)
 {
-	cleanup_cdev(&dd->user_cdev, &dd->user_class_dev);
+	cleanup_cdev(&dd->user_cdev, &dd->user_dev);
 
 	if (atomic_dec_return(&user_count) == 0) {
 		if (atomic_read(&user_setup) == 0)
 			goto bail;
 
-		cleanup_cdev(&wildcard_cdev, &wildcard_class_dev);
+		cleanup_cdev(&wildcard_cdev, &wildcard_dev);
 		user_cleanup();
 
 		atomic_set(&user_setup, 0);

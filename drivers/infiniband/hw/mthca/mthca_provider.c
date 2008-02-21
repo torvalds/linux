@@ -1170,23 +1170,29 @@ static int mthca_unmap_fmr(struct list_head *fmr_list)
 	return 0;
 }
 
-static ssize_t show_rev(struct class_device *cdev, char *buf)
+static ssize_t show_rev(struct device *device, struct device_attribute *attr,
+			char *buf)
 {
-	struct mthca_dev *dev = container_of(cdev, struct mthca_dev, ib_dev.class_dev);
+	struct mthca_dev *dev =
+		container_of(device, struct mthca_dev, ib_dev.dev);
 	return sprintf(buf, "%x\n", dev->rev_id);
 }
 
-static ssize_t show_fw_ver(struct class_device *cdev, char *buf)
+static ssize_t show_fw_ver(struct device *device, struct device_attribute *attr,
+			   char *buf)
 {
-	struct mthca_dev *dev = container_of(cdev, struct mthca_dev, ib_dev.class_dev);
+	struct mthca_dev *dev =
+		container_of(device, struct mthca_dev, ib_dev.dev);
 	return sprintf(buf, "%d.%d.%d\n", (int) (dev->fw_ver >> 32),
 		       (int) (dev->fw_ver >> 16) & 0xffff,
 		       (int) dev->fw_ver & 0xffff);
 }
 
-static ssize_t show_hca(struct class_device *cdev, char *buf)
+static ssize_t show_hca(struct device *device, struct device_attribute *attr,
+			char *buf)
 {
-	struct mthca_dev *dev = container_of(cdev, struct mthca_dev, ib_dev.class_dev);
+	struct mthca_dev *dev =
+		container_of(device, struct mthca_dev, ib_dev.dev);
 	switch (dev->pdev->device) {
 	case PCI_DEVICE_ID_MELLANOX_TAVOR:
 		return sprintf(buf, "MT23108\n");
@@ -1202,22 +1208,24 @@ static ssize_t show_hca(struct class_device *cdev, char *buf)
 	}
 }
 
-static ssize_t show_board(struct class_device *cdev, char *buf)
+static ssize_t show_board(struct device *device, struct device_attribute *attr,
+			  char *buf)
 {
-	struct mthca_dev *dev = container_of(cdev, struct mthca_dev, ib_dev.class_dev);
+	struct mthca_dev *dev =
+		container_of(device, struct mthca_dev, ib_dev.dev);
 	return sprintf(buf, "%.*s\n", MTHCA_BOARD_ID_LEN, dev->board_id);
 }
 
-static CLASS_DEVICE_ATTR(hw_rev,   S_IRUGO, show_rev,    NULL);
-static CLASS_DEVICE_ATTR(fw_ver,   S_IRUGO, show_fw_ver, NULL);
-static CLASS_DEVICE_ATTR(hca_type, S_IRUGO, show_hca,    NULL);
-static CLASS_DEVICE_ATTR(board_id, S_IRUGO, show_board,  NULL);
+static DEVICE_ATTR(hw_rev,   S_IRUGO, show_rev,    NULL);
+static DEVICE_ATTR(fw_ver,   S_IRUGO, show_fw_ver, NULL);
+static DEVICE_ATTR(hca_type, S_IRUGO, show_hca,    NULL);
+static DEVICE_ATTR(board_id, S_IRUGO, show_board,  NULL);
 
-static struct class_device_attribute *mthca_class_attributes[] = {
-	&class_device_attr_hw_rev,
-	&class_device_attr_fw_ver,
-	&class_device_attr_hca_type,
-	&class_device_attr_board_id
+static struct device_attribute *mthca_dev_attributes[] = {
+	&dev_attr_hw_rev,
+	&dev_attr_fw_ver,
+	&dev_attr_hca_type,
+	&dev_attr_board_id
 };
 
 static int mthca_init_node_data(struct mthca_dev *dev)
@@ -1379,9 +1387,9 @@ int mthca_register_device(struct mthca_dev *dev)
 	if (ret)
 		return ret;
 
-	for (i = 0; i < ARRAY_SIZE(mthca_class_attributes); ++i) {
-		ret = class_device_create_file(&dev->ib_dev.class_dev,
-					       mthca_class_attributes[i]);
+	for (i = 0; i < ARRAY_SIZE(mthca_dev_attributes); ++i) {
+		ret = device_create_file(&dev->ib_dev.dev,
+					 mthca_dev_attributes[i]);
 		if (ret) {
 			ib_unregister_device(&dev->ib_dev);
 			return ret;

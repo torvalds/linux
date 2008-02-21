@@ -466,8 +466,8 @@ struct ipath_devdata {
 	struct pci_dev *pcidev;
 	struct cdev *user_cdev;
 	struct cdev *diag_cdev;
-	struct class_device *user_class_dev;
-	struct class_device *diag_class_dev;
+	struct device *user_dev;
+	struct device *diag_dev;
 	/* timer used to prevent stats overflow, error throttling, etc. */
 	struct timer_list ipath_stats_timer;
 	/* timer to verify interrupts work, and fallback if possible */
@@ -854,9 +854,9 @@ void ipath_clear_freeze(struct ipath_devdata *);
 
 struct file_operations;
 int ipath_cdev_init(int minor, char *name, const struct file_operations *fops,
-		    struct cdev **cdevp, struct class_device **class_devp);
+		    struct cdev **cdevp, struct device **devp);
 void ipath_cdev_cleanup(struct cdev **cdevp,
-			struct class_device **class_devp);
+			struct device **devp);
 
 int ipath_diag_add(struct ipath_devdata *);
 void ipath_diag_remove(struct ipath_devdata *);

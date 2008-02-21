@@ -1051,7 +1051,7 @@ struct ib_device {
 	struct ib_dma_mapping_ops   *dma_ops;
 
 	struct module               *owner;
-	struct class_device          class_dev;
+	struct device                dev;
 	struct kobject               *ports_parent;
 	struct list_head             port_list;
 

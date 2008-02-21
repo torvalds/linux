@@ -79,7 +79,7 @@ static const struct file_operations diagpkt_file_ops = {
 
 static atomic_t diagpkt_count = ATOMIC_INIT(0);
 static struct cdev *diagpkt_cdev;
-static struct class_device *diagpkt_class_dev;
+static struct device *diagpkt_dev;
 
 int ipath_diag_add(struct ipath_devdata *dd)
 {
@@ -89,7 +89,7 @@ int ipath_diag_add(struct ipath_devdata *dd)
 	if (atomic_inc_return(&diagpkt_count) == 1) {
 		ret = ipath_cdev_init(IPATH_DIAGPKT_MINOR,
 				      "ipath_diagpkt", &diagpkt_file_ops,
-				      &diagpkt_cdev, &diagpkt_class_dev);
+				      &diagpkt_cdev, &diagpkt_dev);
 
 		if (ret) {
 			ipath_dev_err(dd, "Couldn't create ipath_diagpkt "
@@ -102,7 +102,7 @@ int ipath_diag_add(struct ipath_devdata *dd)
 
 	ret = ipath_cdev_init(IPATH_DIAG_MINOR_BASE + dd->ipath_unit, name,
 			      &diag_file_ops, &dd->diag_cdev,
-			      &dd->diag_class_dev);
+			      &dd->diag_dev);
 	if (ret)
 		ipath_dev_err(dd, "Couldn't create %s device: %d",
 			      name, ret);
@@ -114,9 +114,9 @@ done:
 void ipath_diag_remove(struct ipath_devdata *dd)
 {
 	if (atomic_dec_and_test(&diagpkt_count))
-		ipath_cdev_cleanup(&diagpkt_cdev, &diagpkt_class_dev);
+		ipath_cdev_cleanup(&diagpkt_cdev, &diagpkt_dev);
 
-	ipath_cdev_cleanup(&dd->diag_cdev, &dd->diag_class_dev);
+	ipath_cdev_cleanup(&dd->diag_cdev, &dd->diag_dev);
 }
 
 /**

@@ -2800,10 +2800,11 @@ static int nes_dereg_mr(struct ib_mr *ib_mr)
 /**
  * show_rev
  */
-static ssize_t show_rev(struct class_device *cdev, char *buf)
+static ssize_t show_rev(struct device *dev, struct device_attribute *attr,
+			char *buf)
 {
 	struct nes_ib_device *nesibdev =
-			container_of(cdev, struct nes_ib_device, ibdev.class_dev);
+			container_of(dev, struct nes_ib_device, ibdev.dev);
 	struct nes_vnic *nesvnic = nesibdev->nesvnic;
 
 	nes_debug(NES_DBG_INIT, "\n");
@@ -2814,10 +2815,11 @@ static ssize_t show_rev(struct class_device *cdev, char *buf)
 /**
  * show_fw_ver
  */
-static ssize_t show_fw_ver(struct class_device *cdev, char *buf)
+static ssize_t show_fw_ver(struct device *dev, struct device_attribute *attr,
+			   char *buf)
 {
 	struct nes_ib_device *nesibdev =
-			container_of(cdev, struct nes_ib_device, ibdev.class_dev);
+			container_of(dev, struct nes_ib_device, ibdev.dev);
 	struct nes_vnic *nesvnic = nesibdev->nesvnic;
 
 	nes_debug(NES_DBG_INIT, "\n");
@@ -2831,7 +2833,8 @@ static ssize_t show_fw_ver(struct class_device *cdev, char *buf)
 /**
  * show_hca
  */
-static ssize_t show_hca(struct class_device *cdev, char *buf)
+static ssize_t show_hca(struct device *dev, struct device_attribute *attr,
+		        char *buf)
 {
 	nes_debug(NES_DBG_INIT, "\n");
 	return sprintf(buf, "NES020\n");
@@ -2841,23 +2844,24 @@ static ssize_t show_hca(struct class_device *cdev, char *buf)
 /**
  * show_board
  */
-static ssize_t show_board(struct class_device *cdev, char *buf)
+static ssize_t show_board(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
 	nes_debug(NES_DBG_INIT, "\n");
 	return sprintf(buf, "%.*s\n", 32, "NES020 Board ID");
 }
 
 
-static CLASS_DEVICE_ATTR(hw_rev, S_IRUGO, show_rev, NULL);
-static CLASS_DEVICE_ATTR(fw_ver, S_IRUGO, show_fw_ver, NULL);
-static CLASS_DEVICE_ATTR(hca_type, S_IRUGO, show_hca, NULL);
-static CLASS_DEVICE_ATTR(board_id, S_IRUGO, show_board, NULL);
+static DEVICE_ATTR(hw_rev, S_IRUGO, show_rev, NULL);
+static DEVICE_ATTR(fw_ver, S_IRUGO, show_fw_ver, NULL);
+static DEVICE_ATTR(hca_type, S_IRUGO, show_hca, NULL);
+static DEVICE_ATTR(board_id, S_IRUGO, show_board, NULL);
 
-static struct class_device_attribute *nes_class_attributes[] = {
-	&class_device_attr_hw_rev,
-	&class_device_attr_fw_ver,
-	&class_device_attr_hca_type,
-	&class_device_attr_board_id
+static struct device_attribute *nes_dev_attributes[] = {
+	&dev_attr_hw_rev,
+	&dev_attr_fw_ver,
+	&dev_attr_hca_type,
+	&dev_attr_board_id
 };
 
 
@@ -3782,7 +3786,7 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 	nesibdev->ibdev.phys_port_cnt = 1;
 	nesibdev->ibdev.num_comp_vectors = 1;
 	nesibdev->ibdev.dma_device = &nesdev->pcidev->dev;
-	nesibdev->ibdev.class_dev.dev = &nesdev->pcidev->dev;
+	nesibdev->ibdev.dev.parent = &nesdev->pcidev->dev;
 	nesibdev->ibdev.query_device = nes_query_device;
 	nesibdev->ibdev.query_port = nes_query_port;
 	nesibdev->ibdev.modify_port = nes_modify_port;
@@ -3877,13 +3881,13 @@ int nes_register_ofa_device(struct nes_ib_device *nesibdev)
 	nesibdev->max_qp = (nesadapter->max_qp-NES_FIRST_QPN) / nesadapter->port_count;
 	nesibdev->max_pd = nesadapter->max_pd / nesadapter->port_count;
 
-	for (i = 0; i < ARRAY_SIZE(nes_class_attributes); ++i) {
-		ret = class_device_create_file(&nesibdev->ibdev.class_dev, nes_class_attributes[i]);
+	for (i = 0; i < ARRAY_SIZE(nes_dev_attributes); ++i) {
+		ret = device_create_file(&nesibdev->ibdev.dev, nes_dev_attributes[i]);
 		if (ret) {
 			while (i > 0) {
 				i--;
-				class_device_remove_file(&nesibdev->ibdev.class_dev,
-						nes_class_attributes[i]);
+				device_remove_file(&nesibdev->ibdev.dev,
+						   nes_dev_attributes[i]);
 			}
 			ib_unregister_device(&nesibdev->ibdev);
 			return ret;
@@ -3904,8 +3908,8 @@ static void nes_unregister_ofa_device(struct nes_ib_device *nesibdev)
 	struct nes_vnic *nesvnic = nesibdev->nesvnic;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(nes_class_attributes); ++i) {
-		class_device_remove_file(&nesibdev->ibdev.class_dev, nes_class_attributes[i]);
+	for (i = 0; i < ARRAY_SIZE(nes_dev_attributes); ++i) {
+		device_remove_file(&nesibdev->ibdev.dev, nes_dev_attributes[i]);
 	}
 
 	if (nesvnic->of_device_registered) {

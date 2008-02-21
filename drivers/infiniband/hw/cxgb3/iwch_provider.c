@@ -1041,61 +1041,60 @@ static int iwch_query_port(struct ib_device *ibdev,
 	return 0;
 }
 
-static ssize_t show_rev(struct class_device *cdev, char *buf)
+static ssize_t show_rev(struct device *dev, struct device_attribute *attr,
+			char *buf)
 {
-	struct iwch_dev *dev = container_of(cdev, struct iwch_dev,
-					    ibdev.class_dev);
-	PDBG("%s class dev 0x%p\n", __func__, cdev);
-	return sprintf(buf, "%d\n", dev->rdev.t3cdev_p->type);
+	struct iwch_dev *iwch_dev = container_of(dev, struct iwch_dev,
+						 ibdev.dev);
+	PDBG("%s dev 0x%p\n", __func__, dev);
+	return sprintf(buf, "%d\n", iwch_dev->rdev.t3cdev_p->type);
 }
 
-static ssize_t show_fw_ver(struct class_device *cdev, char *buf)
+static ssize_t show_fw_ver(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct iwch_dev *dev = container_of(cdev, struct iwch_dev,
-					    ibdev.class_dev);
+	struct iwch_dev *iwch_dev = container_of(dev, struct iwch_dev,
+						 ibdev.dev);
 	struct ethtool_drvinfo info;
-	struct net_device *lldev = dev->rdev.t3cdev_p->lldev;
+	struct net_device *lldev = iwch_dev->rdev.t3cdev_p->lldev;
 
-	PDBG("%s class dev 0x%p\n", __func__, cdev);
-	rtnl_lock();
+	PDBG("%s dev 0x%p\n", __func__, dev);
 	lldev->ethtool_ops->get_drvinfo(lldev, &info);
-	rtnl_unlock();
 	return sprintf(buf, "%s\n", info.fw_version);
 }
 
-static ssize_t show_hca(struct class_device *cdev, char *buf)
+static ssize_t show_hca(struct device *dev, struct device_attribute *attr,
+			char *buf)
 {
-	struct iwch_dev *dev = container_of(cdev, struct iwch_dev,
-					    ibdev.class_dev);
+	struct iwch_dev *iwch_dev = container_of(dev, struct iwch_dev,
+						 ibdev.dev);
 	struct ethtool_drvinfo info;
-	struct net_device *lldev = dev->rdev.t3cdev_p->lldev;
+	struct net_device *lldev = iwch_dev->rdev.t3cdev_p->lldev;
 
-	PDBG("%s class dev 0x%p\n", __func__, cdev);
-	rtnl_lock();
+	PDBG("%s dev 0x%p\n", __func__, dev);
 	lldev->ethtool_ops->get_drvinfo(lldev, &info);
-	rtnl_unlock();
 	return sprintf(buf, "%s\n", info.driver);
 }
 
-static ssize_t show_board(struct class_device *cdev, char *buf)
+static ssize_t show_board(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
-	struct iwch_dev *dev = container_of(cdev, struct iwch_dev,
-					    ibdev.class_dev);
-	PDBG("%s class dev 0x%p\n", __func__, dev);
-	return sprintf(buf, "%x.%x\n", dev->rdev.rnic_info.pdev->vendor,
-		                       dev->rdev.rnic_info.pdev->device);
+	struct iwch_dev *iwch_dev = container_of(dev, struct iwch_dev,
+						 ibdev.dev);
+	PDBG("%s dev 0x%p\n", __func__, dev);
+	return sprintf(buf, "%x.%x\n", iwch_dev->rdev.rnic_info.pdev->vendor,
+		       iwch_dev->rdev.rnic_info.pdev->device);
 }
 
-static CLASS_DEVICE_ATTR(hw_rev, S_IRUGO, show_rev, NULL);
-static CLASS_DEVICE_ATTR(fw_ver, S_IRUGO, show_fw_ver, NULL);
-static CLASS_DEVICE_ATTR(hca_type, S_IRUGO, show_hca, NULL);
-static CLASS_DEVICE_ATTR(board_id, S_IRUGO, show_board, NULL);
+static DEVICE_ATTR(hw_rev, S_IRUGO, show_rev, NULL);
+static DEVICE_ATTR(fw_ver, S_IRUGO, show_fw_ver, NULL);
+static DEVICE_ATTR(hca_type, S_IRUGO, show_hca, NULL);
+static DEVICE_ATTR(board_id, S_IRUGO, show_board, NULL);
 
-static struct class_device_attribute *iwch_class_attributes[] = {
-	&class_device_attr_hw_rev,
-	&class_device_attr_fw_ver,
-	&class_device_attr_hca_type,
-	&class_device_attr_board_id
+static struct device_attribute *iwch_class_attributes[] = {
+	&dev_attr_hw_rev,
+	&dev_attr_fw_ver,
+	&dev_attr_hca_type,
+	&dev_attr_board_id
 };
 
 int iwch_register_device(struct iwch_dev *dev)
@@ -1189,8 +1188,8 @@ int iwch_register_device(struct iwch_dev *dev)
 		goto bail1;
 
 	for (i = 0; i < ARRAY_SIZE(iwch_class_attributes); ++i) {
-		ret = class_device_create_file(&dev->ibdev.class_dev,
-					       iwch_class_attributes[i]);
+		ret = device_create_file(&dev->ibdev.dev,
+					 iwch_class_attributes[i]);
 		if (ret) {
 			goto bail2;
 		}
@@ -1208,8 +1207,8 @@ void iwch_unregister_device(struct iwch_dev *dev)
 
 	PDBG("%s iwch_dev %p\n", __func__, dev);
 	for (i = 0; i < ARRAY_SIZE(iwch_class_attributes); ++i)
-		class_device_remove_file(&dev->ibdev.class_dev,
-					 iwch_class_attributes[i]);
+		device_remove_file(&dev->ibdev.dev,
+				   iwch_class_attributes[i]);
 	ib_unregister_device(&dev->ibdev);
 	return;
 }
