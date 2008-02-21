@@ -247,3 +247,9 @@ SECTIONS
 
   DWARF_DEBUG
 }
+
+/*
+ * Build-time check on the image size:
+ */
+ASSERT((_end - _text <= KERNEL_IMAGE_SIZE),
+	"kernel image bigger than KERNEL_IMAGE_SIZE")

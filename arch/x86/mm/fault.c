@@ -976,9 +976,5 @@ void vmalloc_sync_all(void)
 		if (address == start)
 			start = address + PGDIR_SIZE;
 	}
-	/* Check that there is no need to do the same for the modules area. */
-	BUILD_BUG_ON(!(MODULES_VADDR > __START_KERNEL));
-	BUILD_BUG_ON(!(((MODULES_END - 1) & PGDIR_MASK) ==
-				(__START_KERNEL & PGDIR_MASK)));
 #endif
 }
