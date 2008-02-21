@@ -316,18 +316,6 @@ static void __init pci_mmcfg_reject_broken(int type, int early)
 
 	cfg = &pci_mmcfg_config[0];
 
-	/*
-	 * Handle more broken MCFG tables on Asus etc.
-	 * They only contain a single entry for bus 0-0.
-	 */
-	if (pci_mmcfg_config_num == 1 &&
-	    cfg->pci_segment == 0 &&
-	    (cfg->start_bus_number | cfg->end_bus_number) == 0) {
-		printk(KERN_ERR "PCI: start and end of bus number is 0. "
-		       "Rejected as broken MCFG.\n");
-		goto reject;
-	}
-
 	for (i = 0; i < pci_mmcfg_config_num; i++) {
 		int valid = 0;
 		u32 size = (cfg->end_bus_number + 1) << 20;
