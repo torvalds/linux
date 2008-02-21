@@ -1196,6 +1196,10 @@ static inline void ipath_rc_rcv_resp(struct ipath_ibdev *dev,
 			list_move_tail(&qp->timerwait,
 				       &dev->pending[dev->pending_index]);
 		spin_unlock(&dev->pending_lock);
+
+		if (opcode == OP(RDMA_READ_RESPONSE_MIDDLE))
+			qp->s_retry = qp->s_retry_cnt;
+
 		/*
 		 * Update the RDMA receive state but do the copy w/o
 		 * holding the locks and blocking interrupts.
