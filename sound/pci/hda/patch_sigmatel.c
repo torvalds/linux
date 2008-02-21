@@ -3631,7 +3631,7 @@ static int patch_stac927x(struct hda_codec *codec)
 		break;
 	case STAC_DELL_BIOS:
 		/* correct the front output jack as a hp out */
-		stac92xx_set_config_reg(codec, 0x0f, 0x02270110);
+		stac92xx_set_config_reg(codec, 0x0f, 0x0227011f);
 		/* correct the front input jack as a mic */
 		stac92xx_set_config_reg(codec, 0x0e, 0x02a79130);
 		/* fallthru */
