@@ -997,7 +997,7 @@ static int ocfs2_rename(struct inode *old_dir,
 	 *
 	 * And that's why, just like the VFS, we need a file system
 	 * rename lock. */
-	if (old_dentry != new_dentry) {
+	if (old_dir != new_dir && S_ISDIR(old_inode->i_mode)) {
 		status = ocfs2_rename_lock(osb);
 		if (status < 0) {
 			mlog_errno(status);
