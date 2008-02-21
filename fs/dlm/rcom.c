@@ -215,6 +215,8 @@ int dlm_rcom_names(struct dlm_ls *ls, int nodeid, char *last_name, int last_len)
 	ls->ls_recover_nodeid = nodeid;
 
 	if (nodeid == dlm_our_nodeid()) {
+		ls->ls_recover_buf->rc_header.h_length =
+			dlm_config.ci_buffer_size;
 		dlm_copy_master_names(ls, last_name, last_len,
 		                      ls->ls_recover_buf->rc_buf,
 		                      max_size, nodeid);
