@@ -86,7 +86,7 @@ extern void setup_sparc64_timer(void);
 
 static volatile unsigned long callin_flag = 0;
 
-void __devinit smp_callin(void)
+void __cpuinit smp_callin(void)
 {
 	int cpuid = hard_smp_processor_id();
 
