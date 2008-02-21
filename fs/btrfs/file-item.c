@@ -278,11 +278,11 @@ found:
 				      btrfs_item_size_nr(leaf, path->slots[0]));
 	eb_token = NULL;
 next_bvec:
-	data = kmap_atomic(bvec->bv_page, KM_IRQ0);
+	data = kmap_atomic(bvec->bv_page, KM_USER0);
 	csum_result = ~(u32)0;
 	csum_result = btrfs_csum_data(root, data + bvec->bv_offset,
 				      csum_result, bvec->bv_len);
-	kunmap_atomic(data, KM_IRQ0);
+	kunmap_atomic(data, KM_USER0);
 	btrfs_csum_final(csum_result, (char *)&csum_result);
 	if (csum_result == 0) {
 		printk("csum result is 0 for inode %lu offset %Lu\n", inode->i_ino, offset);
@@ -293,12 +293,12 @@ next_bvec:
 		int err;
 
 		if (eb_token)
-			unmap_extent_buffer(leaf, eb_token, KM_IRQ1);
+			unmap_extent_buffer(leaf, eb_token, KM_USER1);
 		eb_token = NULL;
 		err = map_private_extent_buffer(leaf, (unsigned long)item,
 						BTRFS_CRC32_SIZE,
 						&eb_token, &eb_map,
-						&map_start, &map_len, KM_IRQ1);
+						&map_start, &map_len, KM_USER1);
 		if (err)
 			eb_token = NULL;
 	}
@@ -321,7 +321,7 @@ next_bvec:
 		}
 	}
 	if (eb_token) {
-		unmap_extent_buffer(leaf, eb_token, KM_IRQ1);
+		unmap_extent_buffer(leaf, eb_token, KM_USER1);
 		eb_token = NULL;
 	}
 	btrfs_mark_buffer_dirty(path->nodes[0]);
