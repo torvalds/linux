@@ -1353,17 +1353,19 @@ void audit_log_end(struct audit_buffer *ab)
 	if (!audit_rate_check()) {
 		audit_log_lost("rate limit exceeded");
 	} else {
+		struct nlmsghdr *nlh = nlmsg_hdr(ab->skb);
 		if (audit_pid) {
-			struct nlmsghdr *nlh = nlmsg_hdr(ab->skb);
 			nlh->nlmsg_len = ab->skb->len - NLMSG_SPACE(0);
 			skb_queue_tail(&audit_skb_queue, ab->skb);
 			ab->skb = NULL;
 			wake_up_interruptible(&kauditd_wait);
-		} else if (printk_ratelimit()) {
-			struct nlmsghdr *nlh = nlmsg_hdr(ab->skb);
-			printk(KERN_NOTICE "type=%d %s\n", nlh->nlmsg_type, ab->skb->data + NLMSG_SPACE(0));
-		} else {
-			audit_log_lost("printk limit exceeded\n");
+		} else if (nlh->nlmsg_type != AUDIT_EOE) {
+			if (printk_ratelimit()) {
+				printk(KERN_NOTICE "type=%d %s\n",
+					nlh->nlmsg_type,
+					ab->skb->data + NLMSG_SPACE(0));
+			} else
+				audit_log_lost("printk limit exceeded\n");
 		}
 	}
 	audit_buffer_free(ab);
