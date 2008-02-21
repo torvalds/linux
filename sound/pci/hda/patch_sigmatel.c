@@ -3721,6 +3721,8 @@ static int patch_stac927x(struct hda_codec *codec)
 		spec->mixer = stac927x_mixer;
 		break;
 	case STAC_DELL_BIOS:
+		/* configure the analog microphone on some laptops */
+		stac92xx_set_config_reg(codec, 0x0c, 0x90a79130);
 		/* correct the front output jack as a hp out */
 		stac92xx_set_config_reg(codec, 0x0f, 0x0227011f);
 		/* correct the front input jack as a mic */
