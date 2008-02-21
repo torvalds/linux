@@ -172,8 +172,9 @@ set_pte_phys(unsigned long vaddr, unsigned long phys, pgprot_t prot)
 }
 
 /*
- * The head.S code sets up the kernel high mapping from:
- * __START_KERNEL_map to __START_KERNEL_map + KERNEL_TEXT_SIZE
+ * The head.S code sets up the kernel high mapping:
+ *
+ *   from __START_KERNEL_map to __START_KERNEL_map + size (== _end-_text)
  *
  * phys_addr holds the negative offset to the kernel, which is added
  * to the compile time generated pmds. This results in invalid pmds up
