@@ -183,8 +183,52 @@ static int ieee80211_open(struct net_device *dev)
 	list_for_each_entry(nsdata, &local->interfaces, list) {
 		struct net_device *ndev = nsdata->dev;
 
-		if (ndev != dev && ndev != local->mdev && netif_running(ndev) &&
-		    compare_ether_addr(dev->dev_addr, ndev->dev_addr) == 0) {
+		if (ndev != dev && ndev != local->mdev && netif_running(ndev)) {
+			/*
+			 * Allow only a single IBSS interface to be up at any
+			 * time. This is restricted because beacon distribution
+			 * cannot work properly if both are in the same IBSS.
+			 *
+			 * To remove this restriction we'd have to disallow them
+			 * from setting the same SSID on different IBSS interfaces
+			 * belonging to the same hardware. Then, however, we're
+			 * faced with having to adopt two different TSF timers...
+			 */
+			if (sdata->vif.type == IEEE80211_IF_TYPE_IBSS &&
+			    nsdata->vif.type == IEEE80211_IF_TYPE_IBSS)
+				return -EBUSY;
+
+			/*
+			 * Disallow multiple IBSS/STA mode interfaces.
+			 *
+			 * This is a technical restriction, it is possible although
+			 * most likely not IEEE 802.11 compliant to have multiple
+			 * STAs with just a single hardware (the TSF timer will not
+			 * be adjusted properly.)
+			 *
+			 * However, because mac80211 uses the master device's BSS
+			 * information for each STA/IBSS interface, doing this will
+			 * currently corrupt that BSS information completely, unless,
+			 * a not very useful case, both STAs are associated to the
+			 * same BSS.
+			 *
+			 * To remove this restriction, the BSS information needs to
+			 * be embedded in the STA/IBSS mode sdata instead of using
+			 * the master device's BSS structure.
+			 */
+			if ((sdata->vif.type == IEEE80211_IF_TYPE_STA ||
+			     sdata->vif.type == IEEE80211_IF_TYPE_IBSS) &&
+			    (nsdata->vif.type == IEEE80211_IF_TYPE_STA ||
+			     nsdata->vif.type == IEEE80211_IF_TYPE_IBSS))
+				return -EBUSY;
+
+			/*
+			 * The remaining checks are only performed for interfaces
+			 * with the same MAC address.
+			 */
+			if (compare_ether_addr(dev->dev_addr, ndev->dev_addr))
+				continue;
+
 			/*
 			 * check whether it may have the same address
 			 */
@@ -196,8 +240,7 @@ static int ieee80211_open(struct net_device *dev)
 			 * can only add VLANs to enabled APs
 			 */
 			if (sdata->vif.type == IEEE80211_IF_TYPE_VLAN &&
-			    nsdata->vif.type == IEEE80211_IF_TYPE_AP &&
-			    netif_running(nsdata->dev))
+			    nsdata->vif.type == IEEE80211_IF_TYPE_AP)
 				sdata->u.vlan.ap = nsdata;
 		}
 	}
