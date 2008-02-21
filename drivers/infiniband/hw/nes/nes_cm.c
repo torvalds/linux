@@ -2320,6 +2320,7 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	struct iw_cm_event cm_event;
 	struct nes_hw_qp_wqe *wqe;
 	struct nes_v4_quad nes_quad;
+	u32 crc_value;
 	int ret;
 
 	ibqp = nes_get_qp(cm_id->device, conn_param->qpn);
@@ -2436,8 +2437,8 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	nes_quad.TcpPorts[1]   = cm_id->local_addr.sin_port;
 
 	/* Produce hash key */
-	nesqp->hte_index = cpu_to_be32(
-			crc32c(~0, (void *)&nes_quad, sizeof(nes_quad)) ^ 0xffffffff);
+	crc_value = get_crc_value(&nes_quad);
+	nesqp->hte_index = cpu_to_be32(crc_value ^ 0xffffffff);
 	nes_debug(NES_DBG_CM, "HTE Index = 0x%08X, CRC = 0x%08X\n",
 			nesqp->hte_index, nesqp->hte_index & adapter->hte_index_mask);
 
@@ -2751,6 +2752,7 @@ void cm_event_connected(struct nes_cm_event *event)
 	struct iw_cm_event cm_event;
 	struct nes_hw_qp_wqe *wqe;
 	struct nes_v4_quad nes_quad;
+	u32 crc_value;
 	int ret;
 
 	/* get all our handles */
@@ -2828,8 +2830,8 @@ void cm_event_connected(struct nes_cm_event *event)
 	nes_quad.TcpPorts[1] = cm_id->local_addr.sin_port;
 
 	/* Produce hash key */
-	nesqp->hte_index = cpu_to_be32(
-			crc32c(~0, (void *)&nes_quad, sizeof(nes_quad)) ^ 0xffffffff);
+	crc_value = get_crc_value(&nes_quad);
+	nesqp->hte_index = cpu_to_be32(crc_value ^ 0xffffffff);
 	nes_debug(NES_DBG_CM, "HTE Index = 0x%08X, After CRC = 0x%08X\n",
 			nesqp->hte_index, nesqp->hte_index & nesadapter->hte_index_mask);
 
