@@ -947,6 +947,7 @@ static int mini_cm_dec_refcnt_listen(struct nes_cm_core *cm_core,
 		nes_debug(NES_DBG_CM, "destroying listener (%p)\n", listener);
 
 		kfree(listener);
+		listener = NULL;
 		ret = 0;
 		cm_listens_destroyed++;
 	} else {
