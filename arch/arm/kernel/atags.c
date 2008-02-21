@@ -1,5 +1,4 @@
 #include <linux/slab.h>
-#include <linux/kexec.h>
 #include <linux/proc_fs.h>
 #include <asm/setup.h>
 #include <asm/types.h>
@@ -42,14 +41,14 @@ create_proc_entries(void)
 	return 0;
 }
 
-
-static char __initdata atags_copy_buf[KEXEC_BOOT_PARAMS_SIZE];
+#define BOOT_PARAMS_SIZE 1536
+static char __initdata atags_copy_buf[BOOT_PARAMS_SIZE];
 static char __initdata *atags_copy;
 
 void __init save_atags(const struct tag *tags)
 {
 	atags_copy = atags_copy_buf;
-	memcpy(atags_copy, tags, KEXEC_BOOT_PARAMS_SIZE);
+	memcpy(atags_copy, tags, sizeof(atags_copy_buf));
 }
 
 
