@@ -55,19 +55,29 @@ static int sta_info_hash_del(struct ieee80211_local *local,
 	return -ENOENT;
 }
 
+/* must hold local->sta_lock */
+static struct sta_info *__sta_info_find(struct ieee80211_local *local,
+					u8 *addr)
+{
+	struct sta_info *sta;
+
+	sta = local->sta_hash[STA_HASH(addr)];
+	while (sta) {
+		if (compare_ether_addr(sta->addr, addr) == 0)
+			break;
+		sta = sta->hnext;
+	}
+	return sta;
+}
+
 struct sta_info *sta_info_get(struct ieee80211_local *local, u8 *addr)
 {
 	struct sta_info *sta;
 
 	read_lock_bh(&local->sta_lock);
-	sta = local->sta_hash[STA_HASH(addr)];
-	while (sta) {
-		if (memcmp(sta->addr, addr, ETH_ALEN) == 0) {
-			__sta_info_get(sta);
-			break;
-		}
-		sta = sta->hnext;
-	}
+	sta = __sta_info_find(local, addr);
+	if (sta)
+		__sta_info_get(sta);
 	read_unlock_bh(&local->sta_lock);
 
 	return sta;
@@ -110,8 +120,8 @@ void sta_info_put(struct sta_info *sta)
 EXPORT_SYMBOL(sta_info_put);
 
 
-struct sta_info * sta_info_add(struct ieee80211_local *local,
-			       struct net_device *dev, u8 *addr, gfp_t gfp)
+struct sta_info *sta_info_add(struct ieee80211_local *local,
+			      struct net_device *dev, u8 *addr, gfp_t gfp)
 {
 	struct sta_info *sta;
 	int i;
@@ -119,7 +129,7 @@ struct sta_info * sta_info_add(struct ieee80211_local *local,
 
 	sta = kzalloc(sizeof(*sta), gfp);
 	if (!sta)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	kref_init(&sta->kref);
 
@@ -128,7 +138,7 @@ struct sta_info * sta_info_add(struct ieee80211_local *local,
 	if (!sta->rate_ctrl_priv) {
 		rate_control_put(sta->rate_ctrl);
 		kfree(sta);
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	memcpy(sta->addr, addr, ETH_ALEN);
@@ -158,9 +168,15 @@ struct sta_info * sta_info_add(struct ieee80211_local *local,
 	}
 	skb_queue_head_init(&sta->ps_tx_buf);
 	skb_queue_head_init(&sta->tx_filtered);
-	__sta_info_get(sta);	/* sta used by caller, decremented by
-				 * sta_info_put() */
 	write_lock_bh(&local->sta_lock);
+	/* mark sta as used (by caller) */
+	__sta_info_get(sta);
+	/* check if STA exists already */
+	if (__sta_info_find(local, addr)) {
+		write_unlock_bh(&local->sta_lock);
+		sta_info_put(sta);
+		return ERR_PTR(-EEXIST);
+	}
 	list_add(&sta->list, &local->sta_list);
 	local->num_sta++;
 	sta_info_hash_add(local, sta);

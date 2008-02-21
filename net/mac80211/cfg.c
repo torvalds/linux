@@ -562,13 +562,6 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 	if (!netif_running(dev))
 		return -ENETDOWN;
 
-	/* XXX: get sta belonging to dev */
-	sta = sta_info_get(local, mac);
-	if (sta) {
-		sta_info_put(sta);
-		return -EEXIST;
-	}
-
 	if (params->vlan) {
 		sdata = IEEE80211_DEV_TO_SUB_IF(params->vlan);
 
@@ -579,8 +572,8 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 		sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
 	sta = sta_info_add(local, dev, mac, GFP_KERNEL);
-	if (!sta)
-		return -ENOMEM;
+	if (IS_ERR(sta))
+		return PTR_ERR(sta);
 
 	sta->dev = sdata->dev;
 	if (sdata->vif.type == IEEE80211_IF_TYPE_VLAN ||

@@ -838,8 +838,8 @@ int ieee80211_if_update_wds(struct net_device *dev, u8 *remote_addr)
 
 	/* Create STA entry for the new peer */
 	sta = sta_info_add(local, dev, remote_addr, GFP_KERNEL);
-	if (!sta)
-		return -ENOMEM;
+	if (IS_ERR(sta))
+		return PTR_ERR(sta);
 
 	sta->flags |= WLAN_STA_AUTHORIZED;
 
