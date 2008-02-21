@@ -515,14 +515,6 @@ void __init mem_init(void)
 
 	/* clear_bss() already clear the empty_zero_page */
 
-	/* temporary debugging - double check it's true: */
-	{
-		int i;
-
-		for (i = 0; i < 1024; i++)
-			WARN_ON_ONCE(empty_zero_page[i]);
-	}
-
 	reservedpages = 0;
 
 	/* this will put all low memory onto the freelists */
