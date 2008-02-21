@@ -1030,6 +1030,16 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  3stack	D965 3stack
 	  5stack	D965 5stack + SPDIF
 	  dell-3stack	Dell Dimension E520
+	  dell-bios	Fixes with Dell BIOS setup
+
+	STAC92HD71B*
+	  ref		Reference board
+	  dell-m4-1	Dell desktops
+	  dell-m4-2	Dell desktops
+
+	STAC92HD73*
+	  ref		Reference board
+	  dell-m6	Dell desktops
 
 	STAC9872
 	  vaio		Setup for VAIO FE550G/SZ110
