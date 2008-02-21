@@ -1956,8 +1956,7 @@ static void confirm_master(struct dlm_rsb *r, int error)
 			list_del_init(&lkb->lkb_rsb_lookup);
 			r->res_first_lkid = lkb->lkb_id;
 			_request_lock(r, lkb);
-		} else
-			r->res_nodeid = -1;
+		}
 		break;
 
 	default:
