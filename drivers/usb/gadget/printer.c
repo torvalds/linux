@@ -92,7 +92,6 @@ struct printer_dev {
 	u8			*current_rx_buf;
 	u8			printer_status;
 	u8			reset_printer;
-	struct class_device	*printer_class_dev;
 	struct cdev		printer_cdev;
 	struct device		*pdev;
 	u8			printer_cdev_open;
