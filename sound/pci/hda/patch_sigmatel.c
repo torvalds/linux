@@ -2893,7 +2893,8 @@ static void stac92xx_power_down(struct hda_codec *codec)
 	/* power down inactive DACs */
 	hda_nid_t *dac;
 	for (dac = spec->dac_list; *dac; dac++)
-		if (!is_in_dac_nids(spec, *dac))
+		if (!is_in_dac_nids(spec, *dac) &&
+			spec->multiout.hp_nid != *dac)
 			snd_hda_codec_write_cache(codec, *dac, 0,
 					AC_VERB_SET_POWER_STATE, AC_PWRST_D3);
 }
