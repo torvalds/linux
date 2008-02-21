@@ -55,12 +55,6 @@
  * - Multiqueue RX/TX
  */
 
-
-/* Must be a power of two */
-#define RX_RING_SIZE 2048
-#define TX_RING_SIZE 4096
-#define CS_RING_SIZE (TX_RING_SIZE*2)
-
 #define LRO_MAX_AGGR 64
 
 #define PE_MIN_MTU	64
@@ -77,17 +71,6 @@
 	 NETIF_MSG_RX_ERR	| \
 	 NETIF_MSG_TX_ERR)
 
-#define TX_DESC(tx, num)	((tx)->chan.ring_virt[(num) & (TX_RING_SIZE-1)])
-#define TX_DESC_INFO(tx, num)	((tx)->ring_info[(num) & (TX_RING_SIZE-1)])
-#define RX_DESC(rx, num)	((rx)->chan.ring_virt[(num) & (RX_RING_SIZE-1)])
-#define RX_DESC_INFO(rx, num)	((rx)->ring_info[(num) & (RX_RING_SIZE-1)])
-#define RX_BUFF(rx, num)	((rx)->buffers[(num) & (RX_RING_SIZE-1)])
-#define CS_DESC(cs, num)	((cs)->chan.ring_virt[(num) & (CS_RING_SIZE-1)])
-
-#define RING_USED(ring)		(((ring)->next_to_fill - (ring)->next_to_clean) \
-				 & ((ring)->size - 1))
-#define RING_AVAIL(ring)	((ring->size) - RING_USED(ring))
-
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR ("Olof Johansson <olof@lixom.net>");
 MODULE_DESCRIPTION("PA Semi PWRficient Ethernet driver");
@@ -95,6 +78,8 @@ MODULE_DESCRIPTION("PA Semi PWRficient Ethernet driver");
 static int debug = -1;	/* -1 == use DEFAULT_MSG_ENABLE as value */
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "PA Semi MAC bitmapped debugging message enable value");
+
+extern const struct ethtool_ops pasemi_mac_ethtool_ops;
 
 static int translation_enabled(void)
 {
@@ -1148,7 +1133,7 @@ static int pasemi_mac_open(struct net_device *dev)
 {
 	struct pasemi_mac *mac = netdev_priv(dev);
 	unsigned int flags;
-	int ret;
+	int i, ret;
 
 	flags = PAS_MAC_CFG_TXP_FCE | PAS_MAC_CFG_TXP_FPC(3) |
 		PAS_MAC_CFG_TXP_SL(3) | PAS_MAC_CFG_TXP_COB(0xf) |
@@ -1170,6 +1155,10 @@ static int pasemi_mac_open(struct net_device *dev)
 		if (!mac->num_cs)
 			goto out_tx_ring;
 	}
+
+	/* Zero out rmon counters */
+	for (i = 0; i < 32; i++)
+		write_mac_reg(mac, PAS_MAC_RMON(i), 0);
 
 	/* 0x3ff with 33MHz clock is about 31us */
 	write_iob_reg(PAS_IOB_DMA_COM_TIMEOUTCFG,
@@ -1812,6 +1801,7 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	mac->bufsz = dev->mtu + ETH_HLEN + ETH_FCS_LEN + LOCAL_SKB_ALIGN + 128;
 
 	dev->change_mtu = pasemi_mac_change_mtu;
+	dev->ethtool_ops = &pasemi_mac_ethtool_ops;
 
 	if (err)
 		goto out;
