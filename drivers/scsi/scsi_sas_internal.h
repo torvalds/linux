@@ -13,12 +13,12 @@ struct sas_internal {
 	struct sas_function_template *f;
 	struct sas_domain_function_template *dft;
 
-	struct class_device_attribute private_host_attrs[SAS_HOST_ATTRS];
-	struct class_device_attribute private_phy_attrs[SAS_PHY_ATTRS];
-	struct class_device_attribute private_port_attrs[SAS_PORT_ATTRS];
-	struct class_device_attribute private_rphy_attrs[SAS_RPORT_ATTRS];
-	struct class_device_attribute private_end_dev_attrs[SAS_END_DEV_ATTRS];
-	struct class_device_attribute private_expander_attrs[SAS_EXPANDER_ATTRS];
+	struct device_attribute private_host_attrs[SAS_HOST_ATTRS];
+	struct device_attribute private_phy_attrs[SAS_PHY_ATTRS];
+	struct device_attribute private_port_attrs[SAS_PORT_ATTRS];
+	struct device_attribute private_rphy_attrs[SAS_RPORT_ATTRS];
+	struct device_attribute private_end_dev_attrs[SAS_END_DEV_ATTRS];
+	struct device_attribute private_expander_attrs[SAS_EXPANDER_ATTRS];
 
 	struct transport_container phy_attr_cont;
 	struct transport_container port_attr_cont;
@@ -30,12 +30,12 @@ struct sas_internal {
 	 * The array of null terminated pointers to attributes
 	 * needed by scsi_sysfs.c
 	 */
-	struct class_device_attribute *host_attrs[SAS_HOST_ATTRS + 1];
-	struct class_device_attribute *phy_attrs[SAS_PHY_ATTRS + 1];
-	struct class_device_attribute *port_attrs[SAS_PORT_ATTRS + 1];
-	struct class_device_attribute *rphy_attrs[SAS_RPORT_ATTRS + 1];
-	struct class_device_attribute *end_dev_attrs[SAS_END_DEV_ATTRS + 1];
-	struct class_device_attribute *expander_attrs[SAS_EXPANDER_ATTRS + 1];
+	struct device_attribute *host_attrs[SAS_HOST_ATTRS + 1];
+	struct device_attribute *phy_attrs[SAS_PHY_ATTRS + 1];
+	struct device_attribute *port_attrs[SAS_PORT_ATTRS + 1];
+	struct device_attribute *rphy_attrs[SAS_RPORT_ATTRS + 1];
+	struct device_attribute *end_dev_attrs[SAS_END_DEV_ATTRS + 1];
+	struct device_attribute *expander_attrs[SAS_EXPANDER_ATTRS + 1];
 };
 #define to_sas_internal(tmpl)	container_of(tmpl, struct sas_internal, t)
 

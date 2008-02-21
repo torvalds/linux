@@ -131,10 +131,11 @@ static const char *ata_scsi_lpm_get(enum link_pm policy)
 	return NULL;
 }
 
-static ssize_t ata_scsi_lpm_put(struct class_device *class_dev,
-	const char *buf, size_t count)
+static ssize_t ata_scsi_lpm_put(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
 {
-	struct Scsi_Host *shost = class_to_shost(class_dev);
+	struct Scsi_Host *shost = class_to_shost(dev);
 	struct ata_port *ap = ata_shost_to_port(shost);
 	enum link_pm policy = 0;
 	int i;
@@ -162,9 +163,9 @@ static ssize_t ata_scsi_lpm_put(struct class_device *class_dev,
 }
 
 static ssize_t
-ata_scsi_lpm_show(struct class_device *class_dev, char *buf)
+ata_scsi_lpm_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct Scsi_Host *shost = class_to_shost(class_dev);
+	struct Scsi_Host *shost = class_to_shost(dev);
 	struct ata_port *ap = ata_shost_to_port(shost);
 	const char *policy =
 		ata_scsi_lpm_get(ap->pm_policy);
@@ -174,9 +175,9 @@ ata_scsi_lpm_show(struct class_device *class_dev, char *buf)
 
 	return snprintf(buf, 23, "%s\n", policy);
 }
-CLASS_DEVICE_ATTR(link_power_management_policy, S_IRUGO | S_IWUSR,
+DEVICE_ATTR(link_power_management_policy, S_IRUGO | S_IWUSR,
 		ata_scsi_lpm_show, ata_scsi_lpm_put);
-EXPORT_SYMBOL_GPL(class_device_attr_link_power_management_policy);
+EXPORT_SYMBOL_GPL(dev_attr_link_power_management_policy);
 
 static void ata_scsi_invalid_field(struct scsi_cmnd *cmd,
 				   void (*done)(struct scsi_cmnd *))

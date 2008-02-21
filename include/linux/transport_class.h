@@ -17,11 +17,11 @@ struct transport_container;
 struct transport_class {
 	struct class class;
 	int (*setup)(struct transport_container *, struct device *,
-		     struct class_device *);
+		     struct device *);
 	int (*configure)(struct transport_container *, struct device *,
-			 struct class_device *);
+			 struct device *);
 	int (*remove)(struct transport_container *, struct device *,
-		      struct class_device *);
+		      struct device *);
 };
 
 #define DECLARE_TRANSPORT_CLASS(cls, nm, su, rm, cfg)			\

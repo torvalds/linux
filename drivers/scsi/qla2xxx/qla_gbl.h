@@ -347,8 +347,8 @@ extern void qla2x00_get_sym_node_name(scsi_qla_host_t *, uint8_t *);
 /*
  * Global Function Prototypes in qla_attr.c source file.
  */
-struct class_device_attribute;
-extern struct class_device_attribute *qla2x00_host_attrs[];
+struct device_attribute;
+extern struct device_attribute *qla2x00_host_attrs[];
 struct fc_function_template;
 extern struct fc_function_template qla2xxx_transport_functions;
 extern struct fc_function_template qla2xxx_transport_vport_functions;

@@ -1458,9 +1458,10 @@ static int srp_reset_host(struct scsi_cmnd *scmnd)
 	return ret;
 }
 
-static ssize_t show_id_ext(struct class_device *cdev, char *buf)
+static ssize_t show_id_ext(struct device *dev, struct device_attribute *attr,
+			   char *buf)
 {
-	struct srp_target_port *target = host_to_target(class_to_shost(cdev));
+	struct srp_target_port *target = host_to_target(class_to_shost(dev));
 
 	if (target->state == SRP_TARGET_DEAD ||
 	    target->state == SRP_TARGET_REMOVED)
@@ -1470,9 +1471,10 @@ static ssize_t show_id_ext(struct class_device *cdev, char *buf)
 		       (unsigned long long) be64_to_cpu(target->id_ext));
 }
 
-static ssize_t show_ioc_guid(struct class_device *cdev, char *buf)
+static ssize_t show_ioc_guid(struct device *dev, struct device_attribute *attr,
+			     char *buf)
 {
-	struct srp_target_port *target = host_to_target(class_to_shost(cdev));
+	struct srp_target_port *target = host_to_target(class_to_shost(dev));
 
 	if (target->state == SRP_TARGET_DEAD ||
 	    target->state == SRP_TARGET_REMOVED)
@@ -1482,9 +1484,10 @@ static ssize_t show_ioc_guid(struct class_device *cdev, char *buf)
 		       (unsigned long long) be64_to_cpu(target->ioc_guid));
 }
 
-static ssize_t show_service_id(struct class_device *cdev, char *buf)
+static ssize_t show_service_id(struct device *dev,
+			       struct device_attribute *attr, char *buf)
 {
-	struct srp_target_port *target = host_to_target(class_to_shost(cdev));
+	struct srp_target_port *target = host_to_target(class_to_shost(dev));
 
 	if (target->state == SRP_TARGET_DEAD ||
 	    target->state == SRP_TARGET_REMOVED)
@@ -1494,9 +1497,10 @@ static ssize_t show_service_id(struct class_device *cdev, char *buf)
 		       (unsigned long long) be64_to_cpu(target->service_id));
 }
 
-static ssize_t show_pkey(struct class_device *cdev, char *buf)
+static ssize_t show_pkey(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
-	struct srp_target_port *target = host_to_target(class_to_shost(cdev));
+	struct srp_target_port *target = host_to_target(class_to_shost(dev));
 
 	if (target->state == SRP_TARGET_DEAD ||
 	    target->state == SRP_TARGET_REMOVED)
@@ -1505,9 +1509,10 @@ static ssize_t show_pkey(struct class_device *cdev, char *buf)
 	return sprintf(buf, "0x%04x\n", be16_to_cpu(target->path.pkey));
 }
 
-static ssize_t show_dgid(struct class_device *cdev, char *buf)
+static ssize_t show_dgid(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
-	struct srp_target_port *target = host_to_target(class_to_shost(cdev));
+	struct srp_target_port *target = host_to_target(class_to_shost(dev));
 
 	if (target->state == SRP_TARGET_DEAD ||
 	    target->state == SRP_TARGET_REMOVED)
@@ -1524,9 +1529,10 @@ static ssize_t show_dgid(struct class_device *cdev, char *buf)
 		       be16_to_cpu(((__be16 *) target->path.dgid.raw)[7]));
 }
 
-static ssize_t show_orig_dgid(struct class_device *cdev, char *buf)
+static ssize_t show_orig_dgid(struct device *dev,
+			      struct device_attribute *attr, char *buf)
 {
-	struct srp_target_port *target = host_to_target(class_to_shost(cdev));
+	struct srp_target_port *target = host_to_target(class_to_shost(dev));
 
 	if (target->state == SRP_TARGET_DEAD ||
 	    target->state == SRP_TARGET_REMOVED)
@@ -1543,9 +1549,10 @@ static ssize_t show_orig_dgid(struct class_device *cdev, char *buf)
 		       be16_to_cpu(target->orig_dgid[7]));
 }
 
-static ssize_t show_zero_req_lim(struct class_device *cdev, char *buf)
+static ssize_t show_zero_req_lim(struct device *dev,
+				 struct device_attribute *attr, char *buf)
 {
-	struct srp_target_port *target = host_to_target(class_to_shost(cdev));
+	struct srp_target_port *target = host_to_target(class_to_shost(dev));
 
 	if (target->state == SRP_TARGET_DEAD ||
 	    target->state == SRP_TARGET_REMOVED)
@@ -1554,40 +1561,42 @@ static ssize_t show_zero_req_lim(struct class_device *cdev, char *buf)
 	return sprintf(buf, "%d\n", target->zero_req_lim);
 }
 
-static ssize_t show_local_ib_port(struct class_device *cdev, char *buf)
+static ssize_t show_local_ib_port(struct device *dev,
+				  struct device_attribute *attr, char *buf)
 {
-	struct srp_target_port *target = host_to_target(class_to_shost(cdev));
+	struct srp_target_port *target = host_to_target(class_to_shost(dev));
 
 	return sprintf(buf, "%d\n", target->srp_host->port);
 }
 
-static ssize_t show_local_ib_device(struct class_device *cdev, char *buf)
+static ssize_t show_local_ib_device(struct device *dev,
+				    struct device_attribute *attr, char *buf)
 {
-	struct srp_target_port *target = host_to_target(class_to_shost(cdev));
+	struct srp_target_port *target = host_to_target(class_to_shost(dev));
 
 	return sprintf(buf, "%s\n", target->srp_host->srp_dev->dev->name);
 }
 
-static CLASS_DEVICE_ATTR(id_ext,	  S_IRUGO, show_id_ext,		 NULL);
-static CLASS_DEVICE_ATTR(ioc_guid,	  S_IRUGO, show_ioc_guid,	 NULL);
-static CLASS_DEVICE_ATTR(service_id,	  S_IRUGO, show_service_id,	 NULL);
-static CLASS_DEVICE_ATTR(pkey,		  S_IRUGO, show_pkey,		 NULL);
-static CLASS_DEVICE_ATTR(dgid,		  S_IRUGO, show_dgid,		 NULL);
-static CLASS_DEVICE_ATTR(orig_dgid,	  S_IRUGO, show_orig_dgid,	 NULL);
-static CLASS_DEVICE_ATTR(zero_req_lim,	  S_IRUGO, show_zero_req_lim,	 NULL);
-static CLASS_DEVICE_ATTR(local_ib_port,   S_IRUGO, show_local_ib_port,	 NULL);
-static CLASS_DEVICE_ATTR(local_ib_device, S_IRUGO, show_local_ib_device, NULL);
+static DEVICE_ATTR(id_ext,	    S_IRUGO, show_id_ext,	   NULL);
+static DEVICE_ATTR(ioc_guid,	    S_IRUGO, show_ioc_guid,	   NULL);
+static DEVICE_ATTR(service_id,	    S_IRUGO, show_service_id,	   NULL);
+static DEVICE_ATTR(pkey,	    S_IRUGO, show_pkey,		   NULL);
+static DEVICE_ATTR(dgid,	    S_IRUGO, show_dgid,		   NULL);
+static DEVICE_ATTR(orig_dgid,	    S_IRUGO, show_orig_dgid,	   NULL);
+static DEVICE_ATTR(zero_req_lim,    S_IRUGO, show_zero_req_lim,	   NULL);
+static DEVICE_ATTR(local_ib_port,   S_IRUGO, show_local_ib_port,   NULL);
+static DEVICE_ATTR(local_ib_device, S_IRUGO, show_local_ib_device, NULL);
 
-static struct class_device_attribute *srp_host_attrs[] = {
-	&class_device_attr_id_ext,
-	&class_device_attr_ioc_guid,
-	&class_device_attr_service_id,
-	&class_device_attr_pkey,
-	&class_device_attr_dgid,
-	&class_device_attr_orig_dgid,
-	&class_device_attr_zero_req_lim,
-	&class_device_attr_local_ib_port,
-	&class_device_attr_local_ib_device,
+static struct device_attribute *srp_host_attrs[] = {
+	&dev_attr_id_ext,
+	&dev_attr_ioc_guid,
+	&dev_attr_service_id,
+	&dev_attr_pkey,
+	&dev_attr_dgid,
+	&dev_attr_orig_dgid,
+	&dev_attr_zero_req_lim,
+	&dev_attr_local_ib_port,
+	&dev_attr_local_ib_device,
 	NULL
 };
 
@@ -1639,17 +1648,17 @@ static int srp_add_target(struct srp_host *host, struct srp_target_port *target)
 	return 0;
 }
 
-static void srp_release_class_dev(struct class_device *class_dev)
+static void srp_release_dev(struct device *dev)
 {
 	struct srp_host *host =
-		container_of(class_dev, struct srp_host, class_dev);
+		container_of(dev, struct srp_host, dev);
 
 	complete(&host->released);
 }
 
 static struct class srp_class = {
 	.name    = "infiniband_srp",
-	.release = srp_release_class_dev
+	.dev_release = srp_release_dev
 };
 
 /*
@@ -1837,11 +1846,12 @@ out:
 	return ret;
 }
 
-static ssize_t srp_create_target(struct class_device *class_dev,
+static ssize_t srp_create_target(struct device *dev,
+				 struct device_attribute *attr,
 				 const char *buf, size_t count)
 {
 	struct srp_host *host =
-		container_of(class_dev, struct srp_host, class_dev);
+		container_of(dev, struct srp_host, dev);
 	struct Scsi_Host *target_host;
 	struct srp_target_port *target;
 	int ret;
@@ -1929,27 +1939,27 @@ err:
 	return ret;
 }
 
-static CLASS_DEVICE_ATTR(add_target, S_IWUSR, NULL, srp_create_target);
+static DEVICE_ATTR(add_target, S_IWUSR, NULL, srp_create_target);
 
-static ssize_t show_ibdev(struct class_device *class_dev, char *buf)
+static ssize_t show_ibdev(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
-	struct srp_host *host =
-		container_of(class_dev, struct srp_host, class_dev);
+	struct srp_host *host = container_of(dev, struct srp_host, dev);
 
 	return sprintf(buf, "%s\n", host->srp_dev->dev->name);
 }
 
-static CLASS_DEVICE_ATTR(ibdev, S_IRUGO, show_ibdev, NULL);
+static DEVICE_ATTR(ibdev, S_IRUGO, show_ibdev, NULL);
 
-static ssize_t show_port(struct class_device *class_dev, char *buf)
+static ssize_t show_port(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
-	struct srp_host *host =
-		container_of(class_dev, struct srp_host, class_dev);
+	struct srp_host *host = container_of(dev, struct srp_host, dev);
 
 	return sprintf(buf, "%d\n", host->port);
 }
 
-static CLASS_DEVICE_ATTR(port, S_IRUGO, show_port, NULL);
+static DEVICE_ATTR(port, S_IRUGO, show_port, NULL);
 
 static struct srp_host *srp_add_port(struct srp_device *device, u8 port)
 {
@@ -1965,24 +1975,24 @@ static struct srp_host *srp_add_port(struct srp_device *device, u8 port)
 	host->srp_dev = device;
 	host->port = port;
 
-	host->class_dev.class = &srp_class;
-	host->class_dev.dev   = device->dev->dma_device;
-	snprintf(host->class_dev.class_id, BUS_ID_SIZE, "srp-%s-%d",
+	host->dev.class = &srp_class;
+	host->dev.parent = device->dev->dma_device;
+	snprintf(host->dev.bus_id, BUS_ID_SIZE, "srp-%s-%d",
 		 device->dev->name, port);
 
-	if (class_device_register(&host->class_dev))
+	if (device_register(&host->dev))
 		goto free_host;
-	if (class_device_create_file(&host->class_dev, &class_device_attr_add_target))
+	if (device_create_file(&host->dev, &dev_attr_add_target))
 		goto err_class;
-	if (class_device_create_file(&host->class_dev, &class_device_attr_ibdev))
+	if (device_create_file(&host->dev, &dev_attr_ibdev))
 		goto err_class;
-	if (class_device_create_file(&host->class_dev, &class_device_attr_port))
+	if (device_create_file(&host->dev, &dev_attr_port))
 		goto err_class;
 
 	return host;
 
 err_class:
-	class_device_unregister(&host->class_dev);
+	device_unregister(&host->dev);
 
 free_host:
 	kfree(host);
@@ -2087,7 +2097,7 @@ static void srp_remove_one(struct ib_device *device)
 	srp_dev = ib_get_client_data(device, &srp_client);
 
 	list_for_each_entry_safe(host, tmp_host, &srp_dev->dev_list, list) {
-		class_device_unregister(&host->class_dev);
+		device_unregister(&host->dev);
 		/*
 		 * Wait for the sysfs entry to go away, so that no new
 		 * target ports can be created.

@@ -530,15 +530,17 @@ qla2x00_free_sysfs_attr(scsi_qla_host_t *ha)
 /* Scsi_Host attributes. */
 
 static ssize_t
-qla2x00_drvr_version_show(struct class_device *cdev, char *buf)
+qla2x00_drvr_version_show(struct device *dev,
+			  struct device_attribute *attr, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%s\n", qla2x00_version_str);
 }
 
 static ssize_t
-qla2x00_fw_version_show(struct class_device *cdev, char *buf)
+qla2x00_fw_version_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
 {
-	scsi_qla_host_t *ha = shost_priv(class_to_shost(cdev));
+	scsi_qla_host_t *ha = shost_priv(class_to_shost(dev));
 	char fw_str[30];
 
 	return snprintf(buf, PAGE_SIZE, "%s\n",
@@ -546,9 +548,10 @@ qla2x00_fw_version_show(struct class_device *cdev, char *buf)
 }
 
 static ssize_t
-qla2x00_serial_num_show(struct class_device *cdev, char *buf)
+qla2x00_serial_num_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
 {
-	scsi_qla_host_t *ha = shost_priv(class_to_shost(cdev));
+	scsi_qla_host_t *ha = shost_priv(class_to_shost(dev));
 	uint32_t sn;
 
 	if (IS_FWI2_CAPABLE(ha))
@@ -560,40 +563,45 @@ qla2x00_serial_num_show(struct class_device *cdev, char *buf)
 }
 
 static ssize_t
-qla2x00_isp_name_show(struct class_device *cdev, char *buf)
+qla2x00_isp_name_show(struct device *dev, struct device_attribute *attr,
+		      char *buf)
 {
-	scsi_qla_host_t *ha = shost_priv(class_to_shost(cdev));
+	scsi_qla_host_t *ha = shost_priv(class_to_shost(dev));
 	return snprintf(buf, PAGE_SIZE, "ISP%04X\n", ha->pdev->device);
 }
 
 static ssize_t
-qla2x00_isp_id_show(struct class_device *cdev, char *buf)
+qla2x00_isp_id_show(struct device *dev, struct device_attribute *attr,
+		    char *buf)
 {
-	scsi_qla_host_t *ha = shost_priv(class_to_shost(cdev));
+	scsi_qla_host_t *ha = shost_priv(class_to_shost(dev));
 	return snprintf(buf, PAGE_SIZE, "%04x %04x %04x %04x\n",
 	    ha->product_id[0], ha->product_id[1], ha->product_id[2],
 	    ha->product_id[3]);
 }
 
 static ssize_t
-qla2x00_model_name_show(struct class_device *cdev, char *buf)
+qla2x00_model_name_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
 {
-	scsi_qla_host_t *ha = shost_priv(class_to_shost(cdev));
+	scsi_qla_host_t *ha = shost_priv(class_to_shost(dev));
 	return snprintf(buf, PAGE_SIZE, "%s\n", ha->model_number);
 }
 
 static ssize_t
-qla2x00_model_desc_show(struct class_device *cdev, char *buf)
+qla2x00_model_desc_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
 {
-	scsi_qla_host_t *ha = shost_priv(class_to_shost(cdev));
+	scsi_qla_host_t *ha = shost_priv(class_to_shost(dev));
 	return snprintf(buf, PAGE_SIZE, "%s\n",
 	    ha->model_desc ? ha->model_desc: "");
 }
 
 static ssize_t
-qla2x00_pci_info_show(struct class_device *cdev, char *buf)
+qla2x00_pci_info_show(struct device *dev, struct device_attribute *attr,
+		      char *buf)
 {
-	scsi_qla_host_t *ha = shost_priv(class_to_shost(cdev));
+	scsi_qla_host_t *ha = shost_priv(class_to_shost(dev));
 	char pci_info[30];
 
 	return snprintf(buf, PAGE_SIZE, "%s\n",
@@ -601,9 +609,10 @@ qla2x00_pci_info_show(struct class_device *cdev, char *buf)
 }
 
 static ssize_t
-qla2x00_state_show(struct class_device *cdev, char *buf)
+qla2x00_state_show(struct device *dev, struct device_attribute *attr,
+		   char *buf)
 {
-	scsi_qla_host_t *ha = shost_priv(class_to_shost(cdev));
+	scsi_qla_host_t *ha = shost_priv(class_to_shost(dev));
 	int len = 0;
 
 	if (atomic_read(&ha->loop_state) == LOOP_DOWN ||
@@ -639,9 +648,10 @@ qla2x00_state_show(struct class_device *cdev, char *buf)
 }
 
 static ssize_t
-qla2x00_zio_show(struct class_device *cdev, char *buf)
+qla2x00_zio_show(struct device *dev, struct device_attribute *attr,
+		 char *buf)
 {
-	scsi_qla_host_t *ha = shost_priv(class_to_shost(cdev));
+	scsi_qla_host_t *ha = shost_priv(class_to_shost(dev));
 	int len = 0;
 
 	switch (ha->zio_mode) {
@@ -656,9 +666,10 @@ qla2x00_zio_show(struct class_device *cdev, char *buf)
 }
 
 static ssize_t
-qla2x00_zio_store(struct class_device *cdev, const char *buf, size_t count)
+qla2x00_zio_store(struct device *dev, struct device_attribute *attr,
+		  const char *buf, size_t count)
 {
-	scsi_qla_host_t *ha = shost_priv(class_to_shost(cdev));
+	scsi_qla_host_t *ha = shost_priv(class_to_shost(dev));
 	int val = 0;
 	uint16_t zio_mode;
 
@@ -682,18 +693,19 @@ qla2x00_zio_store(struct class_device *cdev, const char *buf, size_t count)
 }
 
 static ssize_t
-qla2x00_zio_timer_show(struct class_device *cdev, char *buf)
+qla2x00_zio_timer_show(struct device *dev, struct device_attribute *attr,
+		       char *buf)
 {
-	scsi_qla_host_t *ha = shost_priv(class_to_shost(cdev));
+	scsi_qla_host_t *ha = shost_priv(class_to_shost(dev));
 
 	return snprintf(buf, PAGE_SIZE, "%d us\n", ha->zio_timer * 100);
 }
 
 static ssize_t
-qla2x00_zio_timer_store(struct class_device *cdev, const char *buf,
-    size_t count)
+qla2x00_zio_timer_store(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
 {
-	scsi_qla_host_t *ha = shost_priv(class_to_shost(cdev));
+	scsi_qla_host_t *ha = shost_priv(class_to_shost(dev));
 	int val = 0;
 	uint16_t zio_timer;
 
@@ -709,9 +721,10 @@ qla2x00_zio_timer_store(struct class_device *cdev, const char *buf,
 }
 
 static ssize_t
-qla2x00_beacon_show(struct class_device *cdev, char *buf)
+qla2x00_beacon_show(struct device *dev, struct device_attribute *attr,
+		    char *buf)
 {
-	scsi_qla_host_t *ha = shost_priv(class_to_shost(cdev));
+	scsi_qla_host_t *ha = shost_priv(class_to_shost(dev));
 	int len = 0;
 
 	if (ha->beacon_blink_led)
@@ -722,10 +735,10 @@ qla2x00_beacon_show(struct class_device *cdev, char *buf)
 }
 
 static ssize_t
-qla2x00_beacon_store(struct class_device *cdev, const char *buf,
-    size_t count)
+qla2x00_beacon_store(struct device *dev, struct device_attribute *attr,
+		     const char *buf, size_t count)
 {
-	scsi_qla_host_t *ha = shost_priv(class_to_shost(cdev));
+	scsi_qla_host_t *ha = shost_priv(class_to_shost(dev));
 	int val = 0;
 	int rval;
 
@@ -753,84 +766,86 @@ qla2x00_beacon_store(struct class_device *cdev, const char *buf,
 }
 
 static ssize_t
-qla2x00_optrom_bios_version_show(struct class_device *cdev, char *buf)
+qla2x00_optrom_bios_version_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
 {
-	scsi_qla_host_t *ha = shost_priv(class_to_shost(cdev));
+	scsi_qla_host_t *ha = shost_priv(class_to_shost(dev));
 
 	return snprintf(buf, PAGE_SIZE, "%d.%02d\n", ha->bios_revision[1],
 	    ha->bios_revision[0]);
 }
 
 static ssize_t
-qla2x00_optrom_efi_version_show(struct class_device *cdev, char *buf)
+qla2x00_optrom_efi_version_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
-	scsi_qla_host_t *ha = shost_priv(class_to_shost(cdev));
+	scsi_qla_host_t *ha = shost_priv(class_to_shost(dev));
 
 	return snprintf(buf, PAGE_SIZE, "%d.%02d\n", ha->efi_revision[1],
 	    ha->efi_revision[0]);
 }
 
 static ssize_t
-qla2x00_optrom_fcode_version_show(struct class_device *cdev, char *buf)
+qla2x00_optrom_fcode_version_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
 {
-	scsi_qla_host_t *ha = shost_priv(class_to_shost(cdev));
+	scsi_qla_host_t *ha = shost_priv(class_to_shost(dev));
 
 	return snprintf(buf, PAGE_SIZE, "%d.%02d\n", ha->fcode_revision[1],
 	    ha->fcode_revision[0]);
 }
 
 static ssize_t
-qla2x00_optrom_fw_version_show(struct class_device *cdev, char *buf)
+qla2x00_optrom_fw_version_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
 {
-	scsi_qla_host_t *ha = shost_priv(class_to_shost(cdev));
+	scsi_qla_host_t *ha = shost_priv(class_to_shost(dev));
 
 	return snprintf(buf, PAGE_SIZE, "%d.%02d.%02d %d\n",
 	    ha->fw_revision[0], ha->fw_revision[1], ha->fw_revision[2],
 	    ha->fw_revision[3]);
 }
 
-static CLASS_DEVICE_ATTR(driver_version, S_IRUGO, qla2x00_drvr_version_show,
-	NULL);
-static CLASS_DEVICE_ATTR(fw_version, S_IRUGO, qla2x00_fw_version_show, NULL);
-static CLASS_DEVICE_ATTR(serial_num, S_IRUGO, qla2x00_serial_num_show, NULL);
-static CLASS_DEVICE_ATTR(isp_name, S_IRUGO, qla2x00_isp_name_show, NULL);
-static CLASS_DEVICE_ATTR(isp_id, S_IRUGO, qla2x00_isp_id_show, NULL);
-static CLASS_DEVICE_ATTR(model_name, S_IRUGO, qla2x00_model_name_show, NULL);
-static CLASS_DEVICE_ATTR(model_desc, S_IRUGO, qla2x00_model_desc_show, NULL);
-static CLASS_DEVICE_ATTR(pci_info, S_IRUGO, qla2x00_pci_info_show, NULL);
-static CLASS_DEVICE_ATTR(state, S_IRUGO, qla2x00_state_show, NULL);
-static CLASS_DEVICE_ATTR(zio, S_IRUGO | S_IWUSR, qla2x00_zio_show,
-    qla2x00_zio_store);
-static CLASS_DEVICE_ATTR(zio_timer, S_IRUGO | S_IWUSR, qla2x00_zio_timer_show,
-    qla2x00_zio_timer_store);
-static CLASS_DEVICE_ATTR(beacon, S_IRUGO | S_IWUSR, qla2x00_beacon_show,
-    qla2x00_beacon_store);
-static CLASS_DEVICE_ATTR(optrom_bios_version, S_IRUGO,
-    qla2x00_optrom_bios_version_show, NULL);
-static CLASS_DEVICE_ATTR(optrom_efi_version, S_IRUGO,
-    qla2x00_optrom_efi_version_show, NULL);
-static CLASS_DEVICE_ATTR(optrom_fcode_version, S_IRUGO,
-    qla2x00_optrom_fcode_version_show, NULL);
-static CLASS_DEVICE_ATTR(optrom_fw_version, S_IRUGO,
-    qla2x00_optrom_fw_version_show, NULL);
+static DEVICE_ATTR(driver_version, S_IRUGO, qla2x00_drvr_version_show, NULL);
+static DEVICE_ATTR(fw_version, S_IRUGO, qla2x00_fw_version_show, NULL);
+static DEVICE_ATTR(serial_num, S_IRUGO, qla2x00_serial_num_show, NULL);
+static DEVICE_ATTR(isp_name, S_IRUGO, qla2x00_isp_name_show, NULL);
+static DEVICE_ATTR(isp_id, S_IRUGO, qla2x00_isp_id_show, NULL);
+static DEVICE_ATTR(model_name, S_IRUGO, qla2x00_model_name_show, NULL);
+static DEVICE_ATTR(model_desc, S_IRUGO, qla2x00_model_desc_show, NULL);
+static DEVICE_ATTR(pci_info, S_IRUGO, qla2x00_pci_info_show, NULL);
+static DEVICE_ATTR(state, S_IRUGO, qla2x00_state_show, NULL);
+static DEVICE_ATTR(zio, S_IRUGO | S_IWUSR, qla2x00_zio_show, qla2x00_zio_store);
+static DEVICE_ATTR(zio_timer, S_IRUGO | S_IWUSR, qla2x00_zio_timer_show,
+		   qla2x00_zio_timer_store);
+static DEVICE_ATTR(beacon, S_IRUGO | S_IWUSR, qla2x00_beacon_show,
+		   qla2x00_beacon_store);
+static DEVICE_ATTR(optrom_bios_version, S_IRUGO,
+		   qla2x00_optrom_bios_version_show, NULL);
+static DEVICE_ATTR(optrom_efi_version, S_IRUGO,
+		   qla2x00_optrom_efi_version_show, NULL);
+static DEVICE_ATTR(optrom_fcode_version, S_IRUGO,
+		   qla2x00_optrom_fcode_version_show, NULL);
+static DEVICE_ATTR(optrom_fw_version, S_IRUGO, qla2x00_optrom_fw_version_show,
+		   NULL);
 
-struct class_device_attribute *qla2x00_host_attrs[] = {
-	&class_device_attr_driver_version,
-	&class_device_attr_fw_version,
-	&class_device_attr_serial_num,
-	&class_device_attr_isp_name,
-	&class_device_attr_isp_id,
-	&class_device_attr_model_name,
-	&class_device_attr_model_desc,
-	&class_device_attr_pci_info,
-	&class_device_attr_state,
-	&class_device_attr_zio,
-	&class_device_attr_zio_timer,
-	&class_device_attr_beacon,
-	&class_device_attr_optrom_bios_version,
-	&class_device_attr_optrom_efi_version,
-	&class_device_attr_optrom_fcode_version,
-	&class_device_attr_optrom_fw_version,
+struct device_attribute *qla2x00_host_attrs[] = {
+	&dev_attr_driver_version,
+	&dev_attr_fw_version,
+	&dev_attr_serial_num,
+	&dev_attr_isp_name,
+	&dev_attr_isp_id,
+	&dev_attr_model_name,
+	&dev_attr_model_desc,
+	&dev_attr_pci_info,
+	&dev_attr_state,
+	&dev_attr_zio,
+	&dev_attr_zio_timer,
+	&dev_attr_beacon,
+	&dev_attr_optrom_bios_version,
+	&dev_attr_optrom_efi_version,
+	&dev_attr_optrom_fcode_version,
+	&dev_attr_optrom_fw_version,
 	NULL,
 };
 

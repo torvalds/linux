@@ -55,7 +55,7 @@ struct sg_io_v4 {
 
 #if defined(CONFIG_BLK_DEV_BSG)
 struct bsg_class_device {
-	struct class_device *class_dev;
+	struct device *class_dev;
 	struct device *dev;
 	int minor;
 	struct request_queue *queue;
