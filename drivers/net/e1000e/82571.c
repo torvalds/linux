@@ -1281,16 +1281,6 @@ static struct e1000_phy_operations e82_phy_ops_m88 = {
 
 static struct e1000_nvm_operations e82571_nvm_ops = {
 	.acquire_nvm		= e1000_acquire_nvm_82571,
-	.read_nvm		= e1000e_read_nvm_spi,
-	.release_nvm		= e1000_release_nvm_82571,
-	.update_nvm		= e1000_update_nvm_checksum_82571,
-	.valid_led_default	= e1000_valid_led_default_82571,
-	.validate_nvm		= e1000_validate_nvm_checksum_82571,
-	.write_nvm		= e1000_write_nvm_82571,
-};
-
-static struct e1000_nvm_operations e82573_nvm_ops = {
-	.acquire_nvm		= e1000_acquire_nvm_82571,
 	.read_nvm		= e1000e_read_nvm_eerd,
 	.release_nvm		= e1000_release_nvm_82571,
 	.update_nvm		= e1000_update_nvm_checksum_82571,
@@ -1355,6 +1345,6 @@ struct e1000_info e1000_82573_info = {
 	.get_invariants		= e1000_get_invariants_82571,
 	.mac_ops		= &e82571_mac_ops,
 	.phy_ops		= &e82_phy_ops_m88,
-	.nvm_ops		= &e82573_nvm_ops,
+	.nvm_ops		= &e82571_nvm_ops,
 };
 
