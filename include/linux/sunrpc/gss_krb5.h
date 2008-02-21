@@ -70,8 +70,6 @@ enum seal_alg {
 	SEAL_ALG_DES3KD = 0x0002
 };
 
-#define KRB5_CKSUM_LENGTH 8
-
 #define CKSUMTYPE_CRC32			0x0001
 #define CKSUMTYPE_RSA_MD4		0x0002
 #define CKSUMTYPE_RSA_MD4_DES		0x0003

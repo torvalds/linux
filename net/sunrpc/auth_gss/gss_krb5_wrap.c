@@ -176,9 +176,7 @@ gss_wrap_kerberos(struct gss_ctx *ctx, int offset,
 	if (krb5_encrypt(kctx->seq, NULL, md5cksum.data,
 			  md5cksum.data, md5cksum.len))
 		return GSS_S_FAILURE;
-	memcpy(krb5_hdr + 16,
-	       md5cksum.data + md5cksum.len - KRB5_CKSUM_LENGTH,
-	       KRB5_CKSUM_LENGTH);
+	memcpy(krb5_hdr + 16, md5cksum.data + md5cksum.len - 8, 8);
 
 	spin_lock(&krb5_seq_lock);
 	seq_send = kctx->seq_send++;
