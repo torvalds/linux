@@ -589,9 +589,6 @@ static s32 e1000_set_default_fc_generic(struct e1000_hw *hw)
 	s32 ret_val;
 	u16 nvm_data;
 
-	if (mac->fc != e1000_fc_default)
-		return 0;
-
 	/* Read and store word 0x0F of the EEPROM. This word contains bits
 	 * that determine the hardware's default PAUSE (flow control) mode,
 	 * a bit that determines whether the HW defaults to enabling or
