@@ -1327,7 +1327,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 								  (long long unsigned int)req.user_wqe_buffers);
 							nes_free_resource(nesadapter, nesadapter->allocated_qps, qp_num);
 							kfree(nesqp->allocated_buffer);
-							return ERR_PTR(-ENOMEM);
+							return ERR_PTR(-EFAULT);
 						}
 					}
 
@@ -1674,6 +1674,7 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev, int entries,
 		}
 		nes_debug(NES_DBG_CQ, "CQ Virtual Address = %08lX, size = %u.\n",
 				(unsigned long)req.user_cq_buffer, entries);
+		err = 1;
 		list_for_each_entry(nespbl, &nes_ucontext->cq_reg_mem_list, list) {
 			if (nespbl->user_base == (unsigned long )req.user_cq_buffer) {
 				list_del(&nespbl->list);
@@ -1686,7 +1687,7 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev, int entries,
 		if (err) {
 			nes_free_resource(nesadapter, nesadapter->allocated_cqs, cq_num);
 			kfree(nescq);
-			return ERR_PTR(err);
+			return ERR_PTR(-EFAULT);
 		}
 
 		pbl_entries = nespbl->pbl_size >> 3;
