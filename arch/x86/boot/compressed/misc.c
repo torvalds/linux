@@ -58,8 +58,8 @@
  * 1 bit (last block flag)
  * 2 bits (block type)
  *
- * 1 block occurs every 32K -1 bytes or when there 50% compression has been achieved.
- * The smallest block type encoding is always used.
+ * 1 block occurs every 32K -1 bytes or when there 50% compression
+ * has been achieved. The smallest block type encoding is always used.
  *
  * stored:
  *    32 bits length in bytes.
@@ -95,9 +95,9 @@
  *
  * All of which is enough to compute an amount of extra data that is required
  * to be safe.  To avoid problems at the block level allocating 5 extra bytes
- * per 32767 bytes of data is sufficient.  To avoind problems internal to a block
- * adding an extra 32767 bytes (the worst case uncompressed block size) is
- * sufficient, to ensure that in the worst case the decompressed data for
+ * per 32767 bytes of data is sufficient.  To avoind problems internal to a
+ * block adding an extra 32767 bytes (the worst case uncompressed block size)
+ * is sufficient, to ensure that in the worst case the decompressed data for
  * block will stop the byte before the compressed data for a block begins.
  * To avoid problems with the compressed data's meta information an extra 18
  * bytes are needed.  Leading to the formula:
@@ -116,52 +116,59 @@
  * gzip declarations
  */
 
-#define OF(args)  args
-#define STATIC static
+#define OF(args)	args
+#define STATIC		static
 
 #undef memset
 #undef memcpy
-#define memzero(s, n)     memset ((s), 0, (n))
+#define memzero(s, n)	memset((s), 0, (n))
 
-typedef unsigned char  uch;
-typedef unsigned short ush;
-typedef unsigned long  ulg;
+typedef unsigned char	uch;
+typedef unsigned short	ush;
+typedef unsigned long	ulg;
 
-#define WSIZE 0x80000000	/*
-				 * Window size must be at least 32k,
-				 * and a power of two
-				 * We don't actually have a window just
-				 * a huge output buffer so I report
-				 * a 2G windows size, as that should
-				 * always be larger than our output buffer.
-				 */
+/*
+ * Window size must be at least 32k, and a power of two.
+ * We don't actually have a window just a huge output buffer,
+ * so we report a 2G window size, as that should always be
+ * larger than our output buffer:
+ */
+#define WSIZE		0x80000000
 
-static uch *inbuf;	/* input buffer */
-static uch *window;	/* Sliding window buffer, (and final output buffer) */
+/* Input buffer: */
+static unsigned char	*inbuf;
 
-static unsigned insize;  /* valid bytes in inbuf */
-static unsigned inptr;   /* index of next byte to be processed in inbuf */
-static unsigned outcnt;  /* bytes in output buffer */
+/* Sliding window buffer (and final output buffer): */
+static unsigned char	*window;
+
+/* Valid bytes in inbuf: */
+static unsigned		insize;
+
+/* Index of next byte to be processed in inbuf: */
+static unsigned		inptr;
+
+/* Bytes in output buffer: */
+static unsigned		outcnt;
 
 /* gzip flag byte */
-#define ASCII_FLAG   0x01 /* bit 0 set: file probably ASCII text */
-#define CONTINUATION 0x02 /* bit 1 set: continuation of multi-part gzip file */
-#define EXTRA_FIELD  0x04 /* bit 2 set: extra field present */
-#define ORIG_NAME    0x08 /* bit 3 set: original file name present */
-#define COMMENT      0x10 /* bit 4 set: file comment present */
-#define ENCRYPTED    0x20 /* bit 5 set: file is encrypted */
-#define RESERVED     0xC0 /* bit 6,7:   reserved */
+#define ASCII_FLAG	0x01 /* bit 0 set: file probably ASCII text */
+#define CONTINUATION	0x02 /* bit 1 set: continuation of multi-part gz file */
+#define EXTRA_FIELD	0x04 /* bit 2 set: extra field present */
+#define ORIG_NAM	0x08 /* bit 3 set: original file name present */
+#define COMMENT		0x10 /* bit 4 set: file comment present */
+#define ENCRYPTED	0x20 /* bit 5 set: file is encrypted */
+#define RESERVED	0xC0 /* bit 6, 7:  reserved */
 
-#define get_byte()  (inptr < insize ? inbuf[inptr++] : fill_inbuf())
+#define get_byte()	(inptr < insize ? inbuf[inptr++] : fill_inbuf())
 
 /* Diagnostic functions */
 #ifdef DEBUG
-#  define Assert(cond, msg) {if(!(cond)) error(msg); }
-#  define Trace(x) fprintf x
-#  define Tracev(x) {if (verbose) fprintf x ; }
-#  define Tracevv(x) {if (verbose > 1) fprintf x ; }
-#  define Tracec(c, x) {if (verbose && (c)) fprintf x ; }
-#  define Tracecv(c, x) {if (verbose > 1 && (c)) fprintf x ; }
+#  define Assert(cond, msg) do { if (!(cond)) error(msg); } while (0)
+#  define Trace(x)	do { fprintf x; } while (0)
+#  define Tracev(x)	do { if (verbose) fprintf x ; } while (0)
+#  define Tracevv(x)	do { if (verbose > 1) fprintf x ; } while (0)
+#  define Tracec(c, x)	do { if (verbose && (c)) fprintf x ; } while (0)
+#  define Tracecv(c, x)	do { if (verbose > 1 && (c)) fprintf x ; } while (0)
 #else
 #  define Assert(cond, msg)
 #  define Trace(x)
@@ -349,9 +356,9 @@ static void flush_window(void)
 	/* With my window equal to my output buffer
 	 * I only need to compute the crc here.
 	 */
-	ulg c = crc;         /* temporary variable */
+	unsigned long c = crc;         /* temporary variable */
 	unsigned n;
-	uch *in, ch;
+	unsigned char *in, ch;
 
 	in = window;
 	for (n = 0; n < outcnt; n++) {
@@ -359,7 +366,7 @@ static void flush_window(void)
 		c = crc_32_tab[((int)c ^ ch) & 0xff] ^ (c >> 8);
 	}
 	crc = c;
-	bytes_out += (ulg)outcnt;
+	bytes_out += (unsigned long)outcnt;
 	outcnt = 0;
 }
 
@@ -423,8 +430,9 @@ static void parse_elf(void *output)
 }
 
 asmlinkage void decompress_kernel(void *rmode, memptr heap,
-				  uch *input_data, unsigned long input_len,
-				  uch *output)
+				  unsigned char *input_data,
+				  unsigned long input_len,
+				  unsigned char *output)
 {
 	real_mode = rmode;
 
@@ -447,12 +455,12 @@ asmlinkage void decompress_kernel(void *rmode, memptr heap,
 	inptr  = 0;
 
 #ifdef CONFIG_X86_64
-	if ((ulg)output & (__KERNEL_ALIGN - 1))
+	if ((unsigned long)output & (__KERNEL_ALIGN - 1))
 		error("Destination address not 2M aligned");
-	if ((ulg)output >= 0xffffffffffUL)
+	if ((unsigned long)output >= 0xffffffffffUL)
 		error("Destination address too large");
 #else
-	if ((u32)output & (CONFIG_PHYSICAL_ALIGN -1))
+	if ((u32)output & (CONFIG_PHYSICAL_ALIGN - 1))
 		error("Destination address not CONFIG_PHYSICAL_ALIGN aligned");
 	if (heap > ((-__PAGE_OFFSET-(512<<20)-1) & 0x7fffffff))
 		error("Destination address too large");
