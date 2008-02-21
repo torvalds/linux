@@ -426,6 +426,7 @@ static u32 msrs_to_save[] = {
 	MSR_CSTAR, MSR_KERNEL_GS_BASE, MSR_SYSCALL_MASK, MSR_LSTAR,
 #endif
 	MSR_IA32_TIME_STAMP_COUNTER, MSR_KVM_SYSTEM_TIME, MSR_KVM_WALL_CLOCK,
+	MSR_IA32_PERF_STATUS,
 };
 
 static unsigned num_msrs_to_save;
@@ -653,7 +654,6 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 	case MSR_IA32_MC0_MISC+12:
 	case MSR_IA32_MC0_MISC+16:
 	case MSR_IA32_UCODE_REV:
-	case MSR_IA32_PERF_STATUS:
 	case MSR_IA32_EBL_CR_POWERON:
 		/* MTRR registers */
 	case 0xfe:
@@ -668,6 +668,12 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 		break;
 	case MSR_IA32_MISC_ENABLE:
 		data = vcpu->arch.ia32_misc_enable_msr;
+		break;
+	case MSR_IA32_PERF_STATUS:
+		/* TSC increment by tick */
+		data = 1000ULL;
+		/* CPU multiplier */
+		data |= (((uint64_t)4ULL) << 40);
 		break;
 	case MSR_EFER:
 		data = vcpu->arch.shadow_efer;
