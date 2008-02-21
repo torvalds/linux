@@ -2453,10 +2453,12 @@ static void ieee80211_rx_bss_info(struct net_device *dev,
 		       jiffies);
 #endif /* CONFIG_MAC80211_IBSS_DEBUG */
 		if (beacon_timestamp > rx_timestamp) {
-			if (CONFIG_MAC80211_IBSS_DEBUG || net_ratelimit())
+#ifdef CONFIG_MAC80211_IBSS_DEBUG
+			if (net_ratelimit())
 				printk(KERN_DEBUG "%s: beacon TSF higher than "
 				       "local TSF - IBSS merge with BSSID %s\n",
 				       dev->name, print_mac(mac, mgmt->bssid));
+#endif /* CONFIG_MAC80211_IBSS_DEBUG */
 			ieee80211_sta_join_ibss(dev, &sdata->u.sta, bss);
 			ieee80211_ibss_add_sta(dev, NULL,
 					       mgmt->bssid, mgmt->sa);
