@@ -2413,7 +2413,7 @@ static void ieee80211_rx_bss_info(struct net_device *dev,
 	/* check if we need to merge IBSS */
 	if (sdata->vif.type == IEEE80211_IF_TYPE_IBSS && beacon &&
 	    !local->sta_sw_scanning && !local->sta_hw_scanning &&
-	    mgmt->u.beacon.capab_info & WLAN_CAPABILITY_IBSS &&
+	    bss->capability & WLAN_CAPABILITY_IBSS &&
 	    bss->freq == local->oper_channel->center_freq &&
 	    elems.ssid_len == sdata->u.sta.ssid_len &&
 	    memcmp(elems.ssid, sdata->u.sta.ssid, sdata->u.sta.ssid_len) == 0) {
@@ -2453,12 +2453,12 @@ static void ieee80211_rx_bss_info(struct net_device *dev,
 		       jiffies);
 #endif /* CONFIG_MAC80211_IBSS_DEBUG */
 		if (beacon_timestamp > rx_timestamp) {
-#ifdef CONFIG_MAC80211_IBSS_DEBUG
+#ifndef CONFIG_MAC80211_IBSS_DEBUG
 			if (net_ratelimit())
+#endif
 				printk(KERN_DEBUG "%s: beacon TSF higher than "
 				       "local TSF - IBSS merge with BSSID %s\n",
 				       dev->name, print_mac(mac, mgmt->bssid));
-#endif /* CONFIG_MAC80211_IBSS_DEBUG */
 			ieee80211_sta_join_ibss(dev, &sdata->u.sta, bss);
 			ieee80211_ibss_add_sta(dev, NULL,
 					       mgmt->bssid, mgmt->sa);
