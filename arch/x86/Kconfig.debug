@@ -156,7 +156,7 @@ config IO_DELAY_TYPE_NONE
 
 choice
 	prompt "IO delay type"
-	default IO_DELAY_0XED
+	default IO_DELAY_0X80
 
 config IO_DELAY_0X80
 	bool "port 0x80 based port-IO delay [recommended]"

@@ -1,253 +1,259 @@
-/*#************************************************************************#*/
-/*#-------------------------------------------------------------------------*/
-/*#                                                                         */
-/*# FUNCTION NAME: memset()                                                 */
-/*#                                                                         */
-/*# PARAMETERS:  void* dst;   Destination address.                          */
-/*#              int     c;   Value of byte to write.                       */
-/*#              int   len;   Number of bytes to write.                     */
-/*#                                                                         */
-/*# RETURNS:     dst.                                                       */
-/*#                                                                         */
-/*# DESCRIPTION: Sets the memory dst of length len bytes to c, as standard. */
-/*#              Framework taken from memcpy.  This routine is              */
-/*#              very sensitive to compiler changes in register allocation. */
-/*#              Should really be rewritten to avoid this problem.          */
-/*#                                                                         */
-/*#-------------------------------------------------------------------------*/
-/*#                                                                         */
-/*# HISTORY                                                                 */
-/*#                                                                         */
-/*# DATE      NAME            CHANGES                                       */
-/*# ----      ----            -------                                       */
-/*# 990713    HP              Tired of watching this function (or           */
-/*#                           really, the nonoptimized generic              */
-/*#                           implementation) take up 90% of simulator      */
-/*#                           output.  Measurements needed.                 */
-/*#                                                                         */
-/*#-------------------------------------------------------------------------*/
+/* A memset for CRIS.
+   Copyright (C) 1999-2005 Axis Communications.
+   All rights reserved.
 
-#include <linux/types.h>
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions
+   are met:
 
-/* No, there's no macro saying 12*4, since it is "hard" to get it into
-   the asm in a good way.  Thus better to expose the problem everywhere.
-   */
+   1. Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
 
-/* Assuming 1 cycle per dword written or read (ok, not really true), and
-   one per instruction, then 43+3*(n/48-1) <= 24+24*(n/48-1)
-   so n >= 45.7; n >= 0.9; we win on the first full 48-byte block to set. */
+   2. Neither the name of Axis Communications nor the names of its
+      contributors may be used to endorse or promote products derived
+      from this software without specific prior written permission.
 
-#define ZERO_BLOCK_SIZE (1*12*4)
+   THIS SOFTWARE IS PROVIDED BY AXIS COMMUNICATIONS AND ITS CONTRIBUTORS
+   ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL AXIS
+   COMMUNICATIONS OR ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+   INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+   (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+   SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+   HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+   STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+   IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+   POSSIBILITY OF SUCH DAMAGE.  */
 
-void *memset(void *pdst,
-             int c,
-             size_t plen)
+/* FIXME: This file should really only be used for reference, as the
+   result is somewhat depending on gcc generating what we expect rather
+   than what we describe.  An assembly file should be used instead.  */
+
+/* Note the multiple occurrence of the expression "12*4", including the
+   asm.  It is hard to get it into the asm in a good way.  Thus better to
+   expose the problem everywhere: no macro.  */
+
+/* Assuming one cycle per dword written or read (ok, not really true; the
+   world is not ideal), and one cycle per instruction, then 43+3*(n/48-1)
+   <= 24+24*(n/48-1) so n >= 45.7; n >= 0.9; we win on the first full
+   48-byte block to set.  */
+
+#define MEMSET_BY_BLOCK_THRESHOLD (1 * 48)
+
+/* No name ambiguities in this file.  */
+__asm__ (".syntax no_register_prefix");
+
+void *memset(void *pdst, int c, unsigned int plen)
 {
-  /* Ok.  Now we want the parameters put in special registers.
-     Make sure the compiler is able to make something useful of this. */
+  /* Now we want the parameters in special registers.  Make sure the
+     compiler does something usable with this.  */
 
   register char *return_dst __asm__ ("r10") = pdst;
   register int n __asm__ ("r12") = plen;
   register int lc __asm__ ("r11") = c;
 
-  /* Most apps use memset sanely.  Only those memsetting about 3..4
-     bytes or less get penalized compared to the generic implementation
-     - and that's not really sane use. */
+  /* Most apps use memset sanely.  Memsetting about 3..4 bytes or less get
+     penalized here compared to the generic implementation.  */
 
-  /* Ugh.  This is fragile at best.  Check with newer GCC releases, if
-     they compile cascaded "x |= x << 8" sanely! */
-  __asm__("movu.b %0,$r13	\n\
-           lslq 8,$r13		\n\
-	   move.b %0,$r13	\n\
-	   move.d $r13,%0	\n\
-	   lslq 16,$r13		\n\
-	   or.d $r13,%0"
-          : "=r" (lc) : "0" (lc) : "r13");
+  /* This is fragile performancewise at best.  Check with newer GCC
+     releases, if they compile cascaded "x |= x << 8" to sane code.  */
+  __asm__("movu.b %0,r13						\n\
+	   lslq 8,r13							\n\
+	   move.b %0,r13						\n\
+	   move.d r13,%0						\n\
+	   lslq 16,r13							\n\
+	   or.d r13,%0"
+          : "=r" (lc)		/* Inputs.  */
+	  : "0" (lc)		/* Outputs.  */
+	  : "r13");		/* Trash.  */
 
   {
     register char *dst __asm__ ("r13") = pdst;
 
-  /* This is NONPORTABLE, but since this whole routine is     */
-  /* grossly nonportable that doesn't matter.                 */
+    if (((unsigned long) pdst & 3) != 0
+	/* Oops! n = 0 must be a valid call, regardless of alignment.  */
+	&& n >= 3)
+      {
+	if ((unsigned long) dst & 1)
+	  {
+	    *dst = (char) lc;
+	    n--;
+	    dst++;
+	  }
 
-  if (((unsigned long) pdst & 3) != 0
-     /* Oops! n=0 must be a legal call, regardless of alignment. */
-      && n >= 3)
-  {
-    if ((unsigned long)dst & 1)
-    {
-      *dst = (char) lc;
-      n--;
-      dst++;
-    }
+	if ((unsigned long) dst & 2)
+	  {
+	    *(short *) dst = lc;
+	    n -= 2;
+	    dst += 2;
+	  }
+      }
 
-    if ((unsigned long)dst & 2)
-    {
-      *(short *)dst = lc;
-      n -= 2;
-      dst += 2;
-    }
-  }
-
-  /* Now the fun part.  For the threshold value of this, check the equation
-     above. */
-  /* Decide which copying method to use. */
-  if (n >= ZERO_BLOCK_SIZE)
-  {
-    /* For large copies we use 'movem' */
-
-  /* It is not optimal to tell the compiler about clobbering any
-     registers; that will move the saving/restoring of those registers
-     to the function prologue/epilogue, and make non-movem sizes
-     suboptimal.
-
-      This method is not foolproof; it assumes that the "asm reg"
-     declarations at the beginning of the function really are used
-     here (beware: they may be moved to temporary registers).
-      This way, we do not have to save/move the registers around into
-     temporaries; we can safely use them straight away.
-
-      If you want to check that the allocation was right; then
-      check the equalities in the first comment.  It should say
-      "r13=r13, r12=r12, r11=r11" */
-    __asm__ volatile ("							\n\
-        ;; Check that the register asm declaration got right.		\n\
-        ;; The GCC manual says it will work, but there *has* been bugs.	\n\
-	.ifnc %0-%1-%4,$r13-$r12-$r11					\n\
-	.err								\n\
-	.endif								\n\
+    /* Decide which setting method to use.  */
+    if (n >= MEMSET_BY_BLOCK_THRESHOLD)
+      {
+	/* It is not optimal to tell the compiler about clobbering any
+	   registers; that will move the saving/restoring of those registers
+	   to the function prologue/epilogue, and make non-block sizes
+	   suboptimal.  */
+	__asm__ volatile
+	  ("\
+	   ;; GCC does promise correct register allocations, but let's	\n\
+	   ;; make sure it keeps its promises.				\n\
+	   .ifnc %0-%1-%4,$r13-$r12-$r11				\n\
+	   .error \"GCC reg alloc bug: %0-%1-%4 != $r13-$r12-$r11\"	\n\
+	   .endif							\n\
 									\n\
-	;; Save the registers we'll clobber in the movem process	\n\
-	;; on the stack.  Don't mention them to gcc, it will only be	\n\
-	;; upset.							\n\
-	subq 	11*4,$sp						\n\
-        movem   $r10,[$sp]						\n\
+	   ;; Save the registers we'll clobber in the movem process	\n\
+	   ;; on the stack.  Don't mention them to gcc, it will only be	\n\
+	   ;; upset.							\n\
+	   subq	   11*4,sp						\n\
+	   movem   r10,[sp]						\n\
 									\n\
-        move.d  $r11,$r0						\n\
-        move.d  $r11,$r1						\n\
-        move.d  $r11,$r2						\n\
-        move.d  $r11,$r3						\n\
-        move.d  $r11,$r4						\n\
-        move.d  $r11,$r5						\n\
-        move.d  $r11,$r6						\n\
-        move.d  $r11,$r7						\n\
-        move.d  $r11,$r8						\n\
-        move.d  $r11,$r9						\n\
-        move.d  $r11,$r10						\n\
+	   move.d  r11,r0						\n\
+	   move.d  r11,r1						\n\
+	   move.d  r11,r2						\n\
+	   move.d  r11,r3						\n\
+	   move.d  r11,r4						\n\
+	   move.d  r11,r5						\n\
+	   move.d  r11,r6						\n\
+	   move.d  r11,r7						\n\
+	   move.d  r11,r8						\n\
+	   move.d  r11,r9						\n\
+	   move.d  r11,r10						\n\
 									\n\
-        ;; Now we've got this:						\n\
-	;; r13 - dst							\n\
-	;; r12 - n							\n\
+	   ;; Now we've got this:					\n\
+	   ;; r13 - dst							\n\
+	   ;; r12 - n							\n\
 									\n\
-        ;; Update n for the first loop					\n\
-        subq    12*4,$r12						\n\
+	   ;; Update n for the first loop				\n\
+	   subq	   12*4,r12						\n\
 0:									\n\
-        subq   12*4,$r12						\n\
-        bge     0b							\n\
-	movem	$r11,[$r13+]						\n\
+"
+#ifdef __arch_common_v10_v32
+	   /* Cater to branch offset difference between v32 and v10.  We
+	      assume the branch below has an 8-bit offset.  */
+"	   setf\n"
+#endif
+"	   subq	  12*4,r12						\n\
+	   bge	   0b							\n\
+	   movem	r11,[r13+]					\n\
 									\n\
-        addq   12*4,$r12  ;; compensate for last loop underflowing n	\n\
+	   ;; Compensate for last loop underflowing n.			\n\
+	   addq	  12*4,r12						\n\
 									\n\
-	;; Restore registers from stack					\n\
-        movem [$sp+],$r10"
+	   ;; Restore registers from stack.				\n\
+	   movem [sp+],r10"
 
-     /* Outputs */ : "=r" (dst), "=r" (n)
-     /* Inputs */ : "0" (dst), "1" (n), "r" (lc));
-  }
+	   /* Outputs.	*/
+	   : "=r" (dst), "=r" (n)
 
-    /* Either we directly starts copying, using dword copying
-       in a loop, or we copy as much as possible with 'movem'
-       and then the last block (<44 bytes) is copied here.
-       This will work since 'movem' will have updated src,dst,n. */
+	   /* Inputs.  */
+	   : "0" (dst), "1" (n), "r" (lc));
+      }
 
-    while ( n >= 16 )
-    {
-      *((long*)dst)++ = lc;
-      *((long*)dst)++ = lc;
-      *((long*)dst)++ = lc;
-      *((long*)dst)++ = lc;
-      n -= 16;
-    }
+    /* An ad-hoc unroll, used for 4*12-1..16 bytes. */
+    while (n >= 16)
+      {
+	*(long *) dst = lc; dst += 4;
+	*(long *) dst = lc; dst += 4;
+	*(long *) dst = lc; dst += 4;
+	*(long *) dst = lc; dst += 4;
+	n -= 16;
+      }
 
-    /* A switch() is definitely the fastest although it takes a LOT of code.
-     * Particularly if you inline code this.
-     */
     switch (n)
-    {
+      {
       case 0:
         break;
+
       case 1:
-        *(char*)dst = (char) lc;
+        *dst = (char) lc;
         break;
+
       case 2:
-        *(short*)dst = (short) lc;
+        *(short *) dst = (short) lc;
         break;
+
       case 3:
-        *((short*)dst)++ = (short) lc;
-        *(char*)dst = (char) lc;
+        *(short *) dst = (short) lc; dst += 2;
+        *dst = (char) lc;
         break;
+
       case 4:
-        *((long*)dst)++ = lc;
+        *(long *) dst = lc;
         break;
+
       case 5:
-        *((long*)dst)++ = lc;
-        *(char*)dst = (char) lc;
+        *(long *) dst = lc; dst += 4;
+        *dst = (char) lc;
         break;
+
       case 6:
-        *((long*)dst)++ = lc;
-        *(short*)dst = (short) lc;
+        *(long *) dst = lc; dst += 4;
+        *(short *) dst = (short) lc;
         break;
+
       case 7:
-        *((long*)dst)++ = lc;
-        *((short*)dst)++ = (short) lc;
-        *(char*)dst = (char) lc;
+        *(long *) dst = lc; dst += 4;
+        *(short *) dst = (short) lc; dst += 2;
+        *dst = (char) lc;
         break;
+
       case 8:
-        *((long*)dst)++ = lc;
-        *((long*)dst)++ = lc;
+        *(long *) dst = lc; dst += 4;
+        *(long *) dst = lc;
         break;
+
       case 9:
-        *((long*)dst)++ = lc;
-        *((long*)dst)++ = lc;
-        *(char*)dst = (char) lc;
+        *(long *) dst = lc; dst += 4;
+        *(long *) dst = lc; dst += 4;
+        *dst = (char) lc;
         break;
+
       case 10:
-        *((long*)dst)++ = lc;
-        *((long*)dst)++ = lc;
-        *(short*)dst = (short) lc;
+        *(long *) dst = lc; dst += 4;
+        *(long *) dst = lc; dst += 4;
+        *(short *) dst = (short) lc;
         break;
+
       case 11:
-        *((long*)dst)++ = lc;
-        *((long*)dst)++ = lc;
-        *((short*)dst)++ = (short) lc;
-        *(char*)dst = (char) lc;
+        *(long *) dst = lc; dst += 4;
+        *(long *) dst = lc; dst += 4;
+        *(short *) dst = (short) lc; dst += 2;
+        *dst = (char) lc;
         break;
+
       case 12:
-        *((long*)dst)++ = lc;
-        *((long*)dst)++ = lc;
-        *((long*)dst)++ = lc;
+        *(long *) dst = lc; dst += 4;
+        *(long *) dst = lc; dst += 4;
+        *(long *) dst = lc;
         break;
+
       case 13:
-        *((long*)dst)++ = lc;
-        *((long*)dst)++ = lc;
-        *((long*)dst)++ = lc;
-        *(char*)dst = (char) lc;
+        *(long *) dst = lc; dst += 4;
+        *(long *) dst = lc; dst += 4;
+        *(long *) dst = lc; dst += 4;
+        *dst = (char) lc;
         break;
+
       case 14:
-        *((long*)dst)++ = lc;
-        *((long*)dst)++ = lc;
-        *((long*)dst)++ = lc;
-        *(short*)dst = (short) lc;
+        *(long *) dst = lc; dst += 4;
+        *(long *) dst = lc; dst += 4;
+        *(long *) dst = lc; dst += 4;
+        *(short *) dst = (short) lc;
         break;
+
       case 15:
-        *((long*)dst)++ = lc;
-        *((long*)dst)++ = lc;
-        *((long*)dst)++ = lc;
-        *((short*)dst)++ = (short) lc;
-        *(char*)dst = (char) lc;
+        *(long *) dst = lc; dst += 4;
+        *(long *) dst = lc; dst += 4;
+        *(long *) dst = lc; dst += 4;
+        *(short *) dst = (short) lc; dst += 2;
+        *dst = (char) lc;
         break;
-    }
+      }
   }
 
-  return return_dst; /* destination pointer. */
-} /* memset() */
+  return return_dst;
+}

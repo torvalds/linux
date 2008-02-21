@@ -35,6 +35,7 @@
 #include <linux/skbuff.h>
 #include <linux/timer.h>
 #include <linux/notifier.h>
+#include <linux/inetdevice.h>
 
 #include <net/neighbour.h>
 #include <net/netevent.h>
@@ -1784,12 +1785,28 @@ err:
 	return err;
 }
 
+static int is_loopback_dst(struct iw_cm_id *cm_id)
+{
+	struct net_device *dev;
+
+	dev = ip_dev_find(&init_net, cm_id->remote_addr.sin_addr.s_addr);
+	if (!dev)
+		return 0;
+	dev_put(dev);
+	return 1;
+}
+
 int iwch_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 {
 	int err = 0;
 	struct iwch_dev *h = to_iwch_dev(cm_id->device);
 	struct iwch_ep *ep;
 	struct rtable *rt;
+
+	if (is_loopback_dst(cm_id)) {
+		err = -ENOSYS;
+		goto out;
+	}
 
 	ep = alloc_ep(sizeof(*ep), GFP_KERNEL);
 	if (!ep) {

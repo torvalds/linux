@@ -434,9 +434,9 @@ asmlinkage int solaris_statvfs(u32 path, u32 buf)
 
 	error = user_path_walk(A(path),&nd);
 	if (!error) {
-		struct inode * inode = nd.dentry->d_inode;
-		error = report_statvfs(nd.mnt, inode, buf);
-		path_release(&nd);
+		struct inode *inode = nd.path.dentry->d_inode;
+		error = report_statvfs(nd.path.mnt, inode, buf);
+		path_put(&nd.path);
 	}
 	return error;
 }
@@ -464,9 +464,9 @@ asmlinkage int solaris_statvfs64(u32 path, u32 buf)
 	lock_kernel();
 	error = user_path_walk(A(path), &nd);
 	if (!error) {
-		struct inode * inode = nd.dentry->d_inode;
-		error = report_statvfs64(nd.mnt, inode, buf);
-		path_release(&nd);
+		struct inode *inode = nd.path.dentry->d_inode;
+		error = report_statvfs64(nd.path.mnt, inode, buf);
+		path_put(&nd.path);
 	}
 	unlock_kernel();
 	return error;

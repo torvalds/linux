@@ -74,6 +74,7 @@ config CRYPTO_XCBC
 config CRYPTO_NULL
 	tristate "Null algorithms"
 	select CRYPTO_ALGAPI
+	select CRYPTO_BLKCIPHER
 	help
 	  These are 'Null' algorithms, used by IPsec, which do nothing.
 
@@ -567,6 +568,7 @@ config CRYPTO_TEST
 	depends on m
 	select CRYPTO_ALGAPI
 	select CRYPTO_AEAD
+	select CRYPTO_BLKCIPHER
 	help
 	  Quick & dirty crypto test module.
 

@@ -4,12 +4,12 @@
 
 menuconfig RADIO_ADAPTERS
 	bool "Radio Adapters"
-	depends on VIDEO_DEV
+	depends on VIDEO_V4L2
 	default y
 	---help---
 	  Say Y here to enable selecting AM/FM radio adapters.
 
-if RADIO_ADAPTERS && VIDEO_DEV
+if RADIO_ADAPTERS && VIDEO_V4L2
 
 config RADIO_CADET
 	tristate "ADS Cadet AM/FM Tuner"

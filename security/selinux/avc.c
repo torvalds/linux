@@ -568,10 +568,11 @@ void avc_audit(u32 ssid, u32 tsid,
 			audit_log_format(ab, " capability=%d", a->u.cap);
 			break;
 		case AVC_AUDIT_DATA_FS:
-			if (a->u.fs.dentry) {
-				struct dentry *dentry = a->u.fs.dentry;
-				if (a->u.fs.mnt) {
-					audit_log_d_path(ab, "path=", dentry, a->u.fs.mnt);
+			if (a->u.fs.path.dentry) {
+				struct dentry *dentry = a->u.fs.path.dentry;
+				if (a->u.fs.path.mnt) {
+					audit_log_d_path(ab, "path=",
+							 &a->u.fs.path);
 				} else {
 					audit_log_format(ab, " name=");
 					audit_log_untrustedstring(ab, dentry->d_name.name);
@@ -626,8 +627,12 @@ void avc_audit(u32 ssid, u32 tsid,
 				case AF_UNIX:
 					u = unix_sk(sk);
 					if (u->dentry) {
+						struct path path = {
+							.dentry = u->dentry,
+							.mnt = u->mnt
+						};
 						audit_log_d_path(ab, "path=",
-								 u->dentry, u->mnt);
+								 &path);
 						break;
 					}
 					if (!u->addr)

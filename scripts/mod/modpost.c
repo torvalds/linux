@@ -1200,7 +1200,7 @@ static void report_sec_mismatch(const char *modname, enum mismatch mismatch,
 		"annotate %s with a matching annotation.\n",
 		from, sec2annotation(fromsec), fromsym, from_p,
 		to, sec2annotation(tosec), tosym, to_p,
-		fromsym, tosym, fromsym);
+		tosym, fromsym, tosym);
 		break;
 	case INIT_TO_EXIT:
 		fprintf(stderr,

@@ -84,7 +84,7 @@ long do_utimes(int dfd, char __user *filename, struct timespec *times, int flags
 		if (error)
 			goto out;
 
-		dentry = nd.dentry;
+		dentry = nd.path.dentry;
 	}
 
 	inode = dentry->d_inode;
@@ -138,7 +138,7 @@ dput_and_out:
 	if (f)
 		fput(f);
 	else
-		path_release(&nd);
+		path_put(&nd.path);
 out:
 	return error;
 }

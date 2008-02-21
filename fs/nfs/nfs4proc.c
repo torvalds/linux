@@ -1384,11 +1384,11 @@ out_close:
 struct dentry *
 nfs4_atomic_open(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 {
-	struct dentry *parent;
 	struct path path = {
-		.mnt = nd->mnt,
+		.mnt = nd->path.mnt,
 		.dentry = dentry,
 	};
+	struct dentry *parent;
 	struct iattr attr;
 	struct rpc_cred *cred;
 	struct nfs4_state *state;
@@ -1433,7 +1433,7 @@ int
 nfs4_open_revalidate(struct inode *dir, struct dentry *dentry, int openflags, struct nameidata *nd)
 {
 	struct path path = {
-		.mnt = nd->mnt,
+		.mnt = nd->path.mnt,
 		.dentry = dentry,
 	};
 	struct rpc_cred *cred;
@@ -1885,7 +1885,7 @@ nfs4_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
                  int flags, struct nameidata *nd)
 {
 	struct path path = {
-		.mnt = nd->mnt,
+		.mnt = nd->path.mnt,
 		.dentry = dentry,
 	};
 	struct nfs4_state *state;

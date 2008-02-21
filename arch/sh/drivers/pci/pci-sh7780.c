@@ -52,7 +52,7 @@ static int __init sh7780_pci_init(void)
 
 	pr_debug("PCI: Starting intialization.\n");
 
-	outl(0x00000001, SH7780_PCI_VCR2); /* Enable PCIC */
+	ctrl_outl(0x00000001, SH7780_PCI_VCR2); /* Enable PCIC */
 
 	/* check for SH7780/SH7780R hardware */
 	id = pci_read_reg(SH7780_PCIVID);

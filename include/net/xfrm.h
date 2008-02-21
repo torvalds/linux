@@ -508,7 +508,10 @@ struct xfrm_skb_cb {
         } header;
 
         /* Sequence number for replay protection. */
-        u64 seq;
+	union {
+		u64 output;
+		__be32 input;
+	} seq;
 };
 
 #define XFRM_SKB_CB(__skb) ((struct xfrm_skb_cb *)&((__skb)->cb[0]))

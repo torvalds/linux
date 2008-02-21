@@ -149,7 +149,7 @@ struct videobuf_qtype_ops {
 };
 
 struct videobuf_queue {
-	struct mutex               lock;
+	struct mutex               vb_lock;
 	spinlock_t                 *irqlock;
 	void			   *dev; /* on pci, points to struct pci_dev */
 

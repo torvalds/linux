@@ -24,6 +24,7 @@
 #include <net/cipso_ipv4.h>
 #include <linux/seq_file.h>
 #include <linux/ctype.h>
+#include <linux/audit.h>
 #include "smack.h"
 
 /*
@@ -45,6 +46,7 @@ enum smk_inos {
  */
 static DEFINE_MUTEX(smack_list_lock);
 static DEFINE_MUTEX(smack_cipso_lock);
+static DEFINE_MUTEX(smack_ambient_lock);
 
 /*
  * This is the "ambient" label for network traffic.
@@ -342,6 +344,9 @@ void smk_cipso_doi(void)
 	struct cipso_v4_doi *doip;
 	struct netlbl_audit audit_info;
 
+	audit_info.loginuid = audit_get_loginuid(current);
+	audit_info.secid = smack_to_secid(current->security);
+
 	rc = netlbl_cfg_map_del(NULL, &audit_info);
 	if (rc != 0)
 		printk(KERN_WARNING "%s:%d remove rc = %d\n",
@@ -358,6 +363,30 @@ void smk_cipso_doi(void)
 		doip->tags[rc] = CIPSO_V4_TAG_INVALID;
 
 	rc = netlbl_cfg_cipsov4_add_map(doip, NULL, &audit_info);
+	if (rc != 0)
+		printk(KERN_WARNING "%s:%d add rc = %d\n",
+		       __func__, __LINE__, rc);
+}
+
+/**
+ * smk_unlbl_ambient - initialize the unlabeled domain
+ */
+void smk_unlbl_ambient(char *oldambient)
+{
+	int rc;
+	struct netlbl_audit audit_info;
+
+	audit_info.loginuid = audit_get_loginuid(current);
+	audit_info.secid = smack_to_secid(current->security);
+
+	if (oldambient != NULL) {
+		rc = netlbl_cfg_map_del(oldambient, &audit_info);
+		if (rc != 0)
+			printk(KERN_WARNING "%s:%d remove rc = %d\n",
+			       __func__, __LINE__, rc);
+	}
+
+	rc = netlbl_cfg_unlbl_add_map(smack_net_ambient, &audit_info);
 	if (rc != 0)
 		printk(KERN_WARNING "%s:%d add rc = %d\n",
 		       __func__, __LINE__, rc);
@@ -709,7 +738,6 @@ static ssize_t smk_read_ambient(struct file *filp, char __user *buf,
 				size_t cn, loff_t *ppos)
 {
 	ssize_t rc;
-	char out[SMK_LABELLEN];
 	int asize;
 
 	if (*ppos != 0)
@@ -717,23 +745,18 @@ static ssize_t smk_read_ambient(struct file *filp, char __user *buf,
 	/*
 	 * Being careful to avoid a problem in the case where
 	 * smack_net_ambient gets changed in midstream.
-	 * Since smack_net_ambient is always set with a value
-	 * from the label list, including initially, and those
-	 * never get freed, the worst case is that the pointer
-	 * gets changed just after this strncpy, in which case
-	 * the value passed up is incorrect. Locking around
-	 * smack_net_ambient wouldn't be any better than this
-	 * copy scheme as by the time the caller got to look
-	 * at the ambient value it would have cleared the lock
-	 * and been changed.
 	 */
-	strncpy(out, smack_net_ambient, SMK_LABELLEN);
-	asize = strlen(out) + 1;
+	mutex_lock(&smack_ambient_lock);
 
-	if (cn < asize)
-		return -EINVAL;
+	asize = strlen(smack_net_ambient) + 1;
 
-	rc = simple_read_from_buffer(buf, cn, ppos, out, asize);
+	if (cn >= asize)
+		rc = simple_read_from_buffer(buf, cn, ppos,
+					     smack_net_ambient, asize);
+	else
+		rc = -EINVAL;
+
+	mutex_unlock(&smack_ambient_lock);
 
 	return rc;
 }
@@ -751,6 +774,7 @@ static ssize_t smk_write_ambient(struct file *file, const char __user *buf,
 				 size_t count, loff_t *ppos)
 {
 	char in[SMK_LABELLEN];
+	char *oldambient;
 	char *smack;
 
 	if (!capable(CAP_MAC_ADMIN))
@@ -766,7 +790,13 @@ static ssize_t smk_write_ambient(struct file *file, const char __user *buf,
 	if (smack == NULL)
 		return -EINVAL;
 
+	mutex_lock(&smack_ambient_lock);
+
+	oldambient = smack_net_ambient;
 	smack_net_ambient = smack;
+	smk_unlbl_ambient(oldambient);
+
+	mutex_unlock(&smack_ambient_lock);
 
 	return count;
 }
@@ -974,6 +1004,7 @@ static int __init init_smk_fs(void)
 
 	sema_init(&smack_write_sem, 1);
 	smk_cipso_doi();
+	smk_unlbl_ambient(NULL);
 
 	return err;
 }

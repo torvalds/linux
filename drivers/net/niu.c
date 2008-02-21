@@ -33,8 +33,8 @@
 
 #define DRV_MODULE_NAME		"niu"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"0.6"
-#define DRV_MODULE_RELDATE	"January 5, 2008"
+#define DRV_MODULE_VERSION	"0.7"
+#define DRV_MODULE_RELDATE	"February 18, 2008"
 
 static char version[] __devinitdata =
 	DRV_MODULE_NAME ".c:v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
@@ -5147,7 +5147,12 @@ static void niu_set_rx_mode(struct net_device *dev)
 			index++;
 		}
 	} else {
-		for (i = 0; i < niu_num_alt_addr(np); i++) {
+		int alt_start;
+		if (np->flags & NIU_FLAGS_XMAC)
+			alt_start = 0;
+		else
+			alt_start = 1;
+		for (i = alt_start; i < niu_num_alt_addr(np); i++) {
 			err = niu_enable_alt_mac(np, i, 0);
 			if (err)
 				printk(KERN_WARNING PFX "%s: Error %d "

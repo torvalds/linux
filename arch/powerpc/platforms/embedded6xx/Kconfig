@@ -24,7 +24,6 @@ config STORCENTER
 	select MPIC
 	select FSL_SOC
 	select PPC_UDBG_16550 if SERIAL_8250
-	select WANT_DEVICE_TREE
 	select MPC10X_OPENPIC
 	select MPC10X_BRIDGE
 	help
@@ -37,7 +36,6 @@ config MPC7448HPC2
 	select TSI108_BRIDGE
 	select DEFAULT_UIMAGE
 	select PPC_UDBG_16550
-	select WANT_DEVICE_TREE
 	select TSI108_BRIDGE
 	help
 	  Select MPC7448HPC2 if configuring for Freescale MPC7448HPC2 (Taiga)
@@ -48,7 +46,6 @@ config PPC_HOLLY
 	depends on EMBEDDED6xx
 	select TSI108_BRIDGE
 	select PPC_UDBG_16550
-	select WANT_DEVICE_TREE
 	select TSI108_BRIDGE
 	help
 	  Select PPC_HOLLY if configuring for an IBM 750GX/CL Eval
@@ -59,7 +56,6 @@ config PPC_PRPMC2800
 	depends on EMBEDDED6xx
 	select MV64X60
 	select NOT_COHERENT_CACHE
-	select WANT_DEVICE_TREE
 	help
 	  This option enables support for the Motorola PrPMC2800 board
 

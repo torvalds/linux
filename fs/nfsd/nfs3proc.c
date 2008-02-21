@@ -67,7 +67,7 @@ nfsd3_proc_getattr(struct svc_rqst *rqstp, struct nfsd_fhandle  *argp,
 	if (nfserr)
 		RETURN_STATUS(nfserr);
 
-	err = vfs_getattr(resp->fh.fh_export->ex_mnt,
+	err = vfs_getattr(resp->fh.fh_export->ex_path.mnt,
 			  resp->fh.fh_dentry, &resp->stat);
 	nfserr = nfserrno(err);
 

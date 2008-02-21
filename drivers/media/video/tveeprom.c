@@ -242,7 +242,7 @@ hauppauge_tuner[] =
 	{ TUNER_ABSENT,        		"TCL M2523_3DBH_E"},
 	{ TUNER_ABSENT,        		"TCL M2523_3DIH_E"},
 	{ TUNER_ABSENT,        		"TCL MFPE05_2_U"},
-	{ TUNER_ABSENT,        		"Philips FMD1216MEX"},
+	{ TUNER_PHILIPS_FMD1216ME_MK3,	"Philips FMD1216MEX"},
 	{ TUNER_ABSENT,        		"Philips FRH2036B"},
 	{ TUNER_ABSENT,        		"Panasonic ENGF75_01GF"},
 	{ TUNER_ABSENT,        		"MaxLinear MXL5005"},

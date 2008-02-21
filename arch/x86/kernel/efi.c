@@ -54,7 +54,7 @@ EXPORT_SYMBOL(efi);
 
 struct efi_memory_map memmap;
 
-struct efi efi_phys __initdata;
+static struct efi efi_phys __initdata;
 static efi_system_table_t efi_systab __initdata;
 
 static int __init setup_noefi(char *arg)
@@ -391,7 +391,7 @@ static void __init runtime_code_page_mkexec(void)
 		if (md->type != EFI_RUNTIME_SERVICES_CODE)
 			continue;
 
-		set_memory_x(md->virt_addr, md->num_pages << EFI_PAGE_SHIFT);
+		set_memory_x(md->virt_addr, md->num_pages);
 	}
 }
 
@@ -434,7 +434,7 @@ void __init efi_enter_virtual_mode(void)
 		}
 
 		if (!(md->attribute & EFI_MEMORY_WB))
-			set_memory_uc(md->virt_addr, size);
+			set_memory_uc(md->virt_addr, md->num_pages);
 
 		systab = (u64) (unsigned long) efi_phys.systab;
 		if (md->phys_addr <= systab && systab < end) {

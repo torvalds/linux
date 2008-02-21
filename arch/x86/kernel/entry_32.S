@@ -409,7 +409,7 @@ restore_nocheck_notrace:
 	RESTORE_REGS
 	addl $4, %esp			# skip orig_eax/error_code
 	CFI_ADJUST_CFA_OFFSET -4
-ENTRY(irq_return)
+irq_return:
 	INTERRUPT_RETURN
 .section .fixup,"ax"
 iret_exc:

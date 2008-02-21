@@ -19,6 +19,8 @@
 #define DM9000_PLATF_8BITONLY	(0x0001)
 #define DM9000_PLATF_16BITONLY	(0x0002)
 #define DM9000_PLATF_32BITONLY	(0x0004)
+#define DM9000_PLATF_EXT_PHY	(0x0008)
+#define DM9000_PLATF_NO_EEPROM	(0x0010)
 
 /* platfrom data for platfrom device structure's platfrom_data field */
 

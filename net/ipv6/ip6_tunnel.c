@@ -550,6 +550,7 @@ ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 			ip_rt_put(rt);
 			goto out;
 		}
+		skb2->dst = (struct dst_entry *)rt;
 	} else {
 		ip_rt_put(rt);
 		if (ip_route_input(skb2, eiph->daddr, eiph->saddr, eiph->tos,

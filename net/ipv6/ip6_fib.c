@@ -1151,7 +1151,7 @@ static void fib6_del_route(struct fib6_node *fn, struct rt6_info **rtp,
 			fn = fn->parent;
 		}
 		/* No more references are possible at this point. */
-		if (atomic_read(&rt->rt6i_ref) != 1) BUG();
+		BUG_ON(atomic_read(&rt->rt6i_ref) != 1);
 	}
 
 	inet6_rt_notify(RTM_DELROUTE, rt, info);

@@ -40,13 +40,10 @@ static void ax25_ds_timeout(unsigned long);
  *	1/10th of a second.
  */
 
-static void ax25_ds_add_timer(ax25_dev *ax25_dev)
+void ax25_ds_setup_timer(ax25_dev *ax25_dev)
 {
-	struct timer_list *t = &ax25_dev->dama.slave_timer;
-	t->data		= (unsigned long) ax25_dev;
-	t->function	= &ax25_ds_timeout;
-	t->expires	= jiffies + HZ;
-	add_timer(t);
+	setup_timer(&ax25_dev->dama.slave_timer, ax25_ds_timeout,
+		    (unsigned long)ax25_dev);
 }
 
 void ax25_ds_del_timer(ax25_dev *ax25_dev)
@@ -60,10 +57,9 @@ void ax25_ds_set_timer(ax25_dev *ax25_dev)
 	if (ax25_dev == NULL)		/* paranoia */
 		return;
 
-	del_timer(&ax25_dev->dama.slave_timer);
 	ax25_dev->dama.slave_timeout =
 		msecs_to_jiffies(ax25_dev->values[AX25_VALUES_DS_TIMEOUT]) / 10;
-	ax25_ds_add_timer(ax25_dev);
+	mod_timer(&ax25_dev->dama.slave_timer, jiffies + HZ);
 }
 
 /*

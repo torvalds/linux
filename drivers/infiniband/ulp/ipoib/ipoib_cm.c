@@ -824,7 +824,6 @@ void ipoib_cm_dev_stop(struct net_device *dev)
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_cm_rx *p;
 	unsigned long begin;
-	LIST_HEAD(list);
 	int ret;
 
 	if (!IPOIB_CM_SUPPORTED(dev->dev_addr) || !priv->cm.id)
@@ -857,9 +856,12 @@ void ipoib_cm_dev_stop(struct net_device *dev)
 			/*
 			 * assume the HW is wedged and just free up everything.
 			 */
-			list_splice_init(&priv->cm.rx_flush_list, &list);
-			list_splice_init(&priv->cm.rx_error_list, &list);
-			list_splice_init(&priv->cm.rx_drain_list, &list);
+			list_splice_init(&priv->cm.rx_flush_list,
+					 &priv->cm.rx_reap_list);
+			list_splice_init(&priv->cm.rx_error_list,
+					 &priv->cm.rx_reap_list);
+			list_splice_init(&priv->cm.rx_drain_list,
+					 &priv->cm.rx_reap_list);
 			break;
 		}
 		spin_unlock_irq(&priv->lock);
