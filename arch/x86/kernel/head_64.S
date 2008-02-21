@@ -393,7 +393,7 @@ NEXT_PAGE(level2_kernel_pgt)
 	 *  too.)
 	 */
 	PMDS(0, __PAGE_KERNEL_LARGE_EXEC|_PAGE_GLOBAL,
-		KERNEL_TEXT_SIZE/PMD_SIZE)
+		KERNEL_IMAGE_SIZE/PMD_SIZE)
 
 NEXT_PAGE(level2_spare_pgt)
 	.fill   512, 8, 0

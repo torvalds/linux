@@ -51,8 +51,8 @@
  * Kernel image size is limited to 128 MB (see level2_kernel_pgt in
  * arch/x86/kernel/head_64.S), and it is mapped here:
  */
-#define KERNEL_TEXT_SIZE	(128*1024*1024)
-#define KERNEL_TEXT_START	_AC(0xffffffff80000000, UL)
+#define KERNEL_IMAGE_SIZE	(128*1024*1024)
+#define KERNEL_IMAGE_START	_AC(0xffffffff80000000, UL)
 
 #ifndef __ASSEMBLY__
 void clear_page(void *page);
