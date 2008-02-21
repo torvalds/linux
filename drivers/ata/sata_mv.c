@@ -870,7 +870,7 @@ static void mv_start_dma(struct ata_port *ap, void __iomem *port_mmio,
 		struct mv_host_priv *hpriv = ap->host->private_data;
 		int hard_port = mv_hardport_from_port(ap->port_no);
 		void __iomem *hc_mmio = mv_hc_base_from_port(
-				ap->host->iomap[MV_PRIMARY_BAR], hard_port);
+					mv_host_base(ap->host), hard_port);
 		u32 hc_irq_cause, ipending;
 
 		/* clear EDMA event indicators, if any */
@@ -2947,7 +2947,8 @@ static int mv_platform_probe(struct platform_device *pdev)
 	hpriv->n_ports = n_ports;
 
 	host->iomap = NULL;
-	hpriv->base = ioremap(res->start, res->end - res->start + 1);
+	hpriv->base = devm_ioremap(&pdev->dev, res->start,
+				   res->end - res->start + 1);
 	hpriv->base -= MV_SATAHC0_REG_BASE;
 
 	rc = mv_create_dma_pools(hpriv, &pdev->dev);
@@ -2979,11 +2980,8 @@ static int __devexit mv_platform_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ata_host *host = dev_get_drvdata(dev);
-	struct mv_host_priv *hpriv = host->private_data;
-	void __iomem *base = hpriv->base;
 
 	ata_host_detach(host);
-	iounmap(base);
 	return 0;
 }
 
@@ -3194,6 +3192,7 @@ MODULE_DESCRIPTION("SCSI low-level driver for Marvell SATA controllers");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, mv_pci_tbl);
 MODULE_VERSION(DRV_VERSION);
+MODULE_ALIAS("platform:sata_mv");
 
 #ifdef CONFIG_PCI
 module_param(msi, int, 0444);
