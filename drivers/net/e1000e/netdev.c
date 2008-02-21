@@ -3490,7 +3490,6 @@ static int e1000_suspend(struct pci_dev *pdev, pm_message_t state)
 static void e1000e_disable_l1aspm(struct pci_dev *pdev)
 {
 	int pos;
-	u32 cap;
 	u16 val;
 
 	/*
@@ -3505,7 +3504,6 @@ static void e1000e_disable_l1aspm(struct pci_dev *pdev)
 	 * active.
 	 */
 	pos = pci_find_capability(pdev, PCI_CAP_ID_EXP);
-	pci_read_config_dword(pdev, pos + PCI_EXP_LNKCAP, &cap);
 	pci_read_config_word(pdev, pos + PCI_EXP_LNKCTL, &val);
 	if (val & 0x2) {
 		dev_warn(&pdev->dev, "Disabling L1 ASPM\n");
