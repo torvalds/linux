@@ -512,6 +512,21 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 	return err;
 }
 
+void
+start_thread(struct pt_regs *regs, unsigned long new_ip, unsigned long new_sp)
+{
+	__asm__("movl %0, %%gs" :: "r"(0));
+	regs->fs		= 0;
+	set_fs(USER_DS);
+	regs->ds		= __USER_DS;
+	regs->es		= __USER_DS;
+	regs->ss		= __USER_DS;
+	regs->cs		= __USER_CS;
+	regs->ip		= new_ip;
+	regs->sp		= new_sp;
+}
+EXPORT_SYMBOL_GPL(start_thread);
+
 #ifdef CONFIG_SECCOMP
 static void hard_disable_TSC(void)
 {

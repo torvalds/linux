@@ -817,20 +817,6 @@ static inline void spin_lock_prefetch(const void *x)
 	.io_bitmap		= { [0 ... IO_BITMAP_LONGS] = ~0 },	  \
 }
 
-#define start_thread(regs, new_eip, new_esp)			\
-do {								\
-	__asm__("movl %0,%%gs": :"r" (0));			\
-	regs->fs		= 0;				\
-	set_fs(USER_DS);					\
-	regs->ds		= __USER_DS;			\
-	regs->es		= __USER_DS;			\
-	regs->ss		= __USER_DS;			\
-	regs->cs		= __USER_CS;			\
-	regs->ip		= new_eip;			\
-	regs->sp		= new_esp;			\
-} while (0)
-
-
 extern unsigned long thread_saved_pc(struct task_struct *tsk);
 
 #define THREAD_SIZE_LONGS      (THREAD_SIZE/sizeof(unsigned long))
@@ -887,18 +873,6 @@ extern unsigned long thread_saved_pc(struct task_struct *tsk);
 	.x86_tss.sp0 = (unsigned long)&init_stack + sizeof(init_stack) \
 }
 
-#define start_thread(regs, new_rip, new_rsp) do { 			     \
-	asm volatile("movl %0,%%fs; movl %0,%%es; movl %0,%%ds": :"r" (0));  \
-	load_gs_index(0);						     \
-	(regs)->ip		= (new_rip);				     \
-	(regs)->sp		= (new_rsp);				     \
-	write_pda(oldrsp, (new_rsp));					     \
-	(regs)->cs		= __USER_CS;				     \
-	(regs)->ss		= __USER_DS;				     \
-	(regs)->flags		= 0x200;				     \
-	set_fs(USER_DS);						     \
-} while (0)
-
 /*
  * Return saved PC of a blocked thread.
  * What is this good for? it will be always the scheduler or ret_from_fork.
@@ -908,6 +882,9 @@ extern unsigned long thread_saved_pc(struct task_struct *tsk);
 #define task_pt_regs(tsk)	((struct pt_regs *)(tsk)->thread.sp0 - 1)
 #define KSTK_ESP(tsk)		-1 /* sorry. doesn't work for syscall. */
 #endif /* CONFIG_X86_64 */
+
+extern void start_thread(struct pt_regs *regs, unsigned long new_ip,
+					       unsigned long new_sp);
 
 /*
  * This decides where the kernel will search for a free chunk of vm

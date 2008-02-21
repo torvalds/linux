@@ -528,6 +528,21 @@ out:
 	return err;
 }
 
+void
+start_thread(struct pt_regs *regs, unsigned long new_ip, unsigned long new_sp)
+{
+	asm volatile("movl %0, %%fs; movl %0, %%es; movl %0, %%ds" :: "r"(0));
+	load_gs_index(0);
+	regs->ip		= new_ip;
+	regs->sp		= new_sp;
+	write_pda(oldrsp, new_sp);
+	regs->cs		= __USER_CS;
+	regs->ss		= __USER_DS;
+	regs->flags		= 0x200;
+	set_fs(USER_DS);
+}
+EXPORT_SYMBOL_GPL(start_thread);
+
 /*
  * This special macro can be used to load a debugging register
  */
