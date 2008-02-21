@@ -314,9 +314,12 @@ static int proc_pid_schedstat(struct task_struct *task, char *buffer)
 static int lstats_show_proc(struct seq_file *m, void *v)
 {
 	int i;
-	struct task_struct *task = m->private;
-	seq_puts(m, "Latency Top version : v0.1\n");
+	struct inode *inode = m->private;
+	struct task_struct *task = get_proc_task(inode);
 
+	if (!task)
+		return -ESRCH;
+	seq_puts(m, "Latency Top version : v0.1\n");
 	for (i = 0; i < 32; i++) {
 		if (task->latency_record[i].backtrace[0]) {
 			int q;
@@ -341,43 +344,24 @@ static int lstats_show_proc(struct seq_file *m, void *v)
 		}
 
 	}
+	put_task_struct(task);
 	return 0;
 }
 
 static int lstats_open(struct inode *inode, struct file *file)
 {
-	int ret;
-	struct seq_file *m;
-	struct task_struct *task = get_proc_task(inode);
-
-	if (!task)
-		return -ENOENT;
-	ret = single_open(file, lstats_show_proc, NULL);
-	if (!ret) {
-		m = file->private_data;
-		m->private = task;
-	}
-	return ret;
-}
-
-static int lstats_release(struct inode *inode, struct file *file)
-{
-	struct seq_file *m = file->private_data;
-	struct task_struct *task = m->private;
-
-	put_task_struct(task);
-	return single_release(inode, file);
+	return single_open(file, lstats_show_proc, inode);
 }
 
 static ssize_t lstats_write(struct file *file, const char __user *buf,
 			    size_t count, loff_t *offs)
 {
-	struct seq_file *m;
-	struct task_struct *task;
+	struct task_struct *task = get_proc_task(file->f_dentry->d_inode);
 
-	m = file->private_data;
-	task = m->private;
+	if (!task)
+		return -ESRCH;
 	clear_all_latency_tracing(task);
+	put_task_struct(task);
 
 	return count;
 }
@@ -387,7 +371,7 @@ static const struct file_operations proc_lstats_operations = {
 	.read		= seq_read,
 	.write		= lstats_write,
 	.llseek		= seq_lseek,
-	.release	= lstats_release,
+	.release	= single_release,
 };
 
 #endif
