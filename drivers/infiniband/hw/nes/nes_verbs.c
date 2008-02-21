@@ -929,7 +929,7 @@ static struct ib_pd *nes_alloc_pd(struct ib_device *ibdev,
 				NES_MAX_USER_DB_REGIONS, nesucontext->first_free_db);
 		nes_debug(NES_DBG_PD, "find_first_zero_biton doorbells returned %u, mapping pd_id %u.\n",
 				nespd->mmap_db_index, nespd->pd_id);
-		if (nespd->mmap_db_index > NES_MAX_USER_DB_REGIONS) {
+		if (nespd->mmap_db_index >= NES_MAX_USER_DB_REGIONS) {
 			nes_debug(NES_DBG_PD, "mmap_db_index > MAX\n");
 			nes_free_resource(nesadapter, nesadapter->allocated_pds, pd_num);
 			kfree(nespd);
