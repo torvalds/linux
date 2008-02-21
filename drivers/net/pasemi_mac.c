@@ -1750,7 +1750,7 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netif_napi_add(dev, &mac->napi, pasemi_mac_poll, 64);
 
 	dev->features = NETIF_F_IP_CSUM | NETIF_F_LLTX | NETIF_F_SG |
-			NETIF_F_HIGHDMA;
+			NETIF_F_HIGHDMA | NETIF_F_GSO;
 
 	mac->lro_mgr.max_aggr = LRO_MAX_AGGR;
 	mac->lro_mgr.max_desc = MAX_LRO_DESCRIPTORS;
