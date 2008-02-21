@@ -2744,6 +2744,8 @@ S:	Maintained
 NETEFFECT IWARP RNIC DRIVER (IW_NES)
 P:	Faisal Latif
 M:	flatif@neteffect.com
+P:	Nishi Gupta
+M:	ngupta@neteffect.com
 P:	Glenn Streiff
 M:	gstreiff@neteffect.com
 L:	general@lists.openfabrics.org
