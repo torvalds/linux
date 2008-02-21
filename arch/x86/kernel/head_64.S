@@ -383,12 +383,12 @@ NEXT_PAGE(level2_ident_pgt)
 
 NEXT_PAGE(level2_kernel_pgt)
 	/*
-	 * 128 MB kernel mapping. We spend a full page on this pagetable
+	 * 512 MB kernel mapping. We spend a full page on this pagetable
 	 * anyway.
 	 *
 	 * The kernel code+data+bss must not be bigger than that.
 	 *
-	 * (NOTE: at +128MB starts the module area, see MODULES_VADDR.
+	 * (NOTE: at +512MB starts the module area, see MODULES_VADDR.
 	 *  If you want to increase this then increase MODULES_VADDR
 	 *  too.)
 	 */

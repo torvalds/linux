@@ -48,10 +48,10 @@
 #define __VIRTUAL_MASK_SHIFT	48
 
 /*
- * Kernel image size is limited to 128 MB (see level2_kernel_pgt in
+ * Kernel image size is limited to 512 MB (see level2_kernel_pgt in
  * arch/x86/kernel/head_64.S), and it is mapped here:
  */
-#define KERNEL_IMAGE_SIZE	(128*1024*1024)
+#define KERNEL_IMAGE_SIZE	(512*1024*1024)
 #define KERNEL_IMAGE_START	_AC(0xffffffff80000000, UL)
 
 #ifndef __ASSEMBLY__
