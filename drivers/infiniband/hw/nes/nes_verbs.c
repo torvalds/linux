@@ -1832,9 +1832,6 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev, int entries,
 				spin_unlock_irqrestore(&nesdev->cqp.lock, flags);
 			}
 		}
-		nes_debug(NES_DBG_CQ, "iWARP CQ%u create timeout expired, major code = 0x%04X,"
-				" minor code = 0x%04X\n",
-				nescq->hw_cq.cq_number, cqp_request->major_code, cqp_request->minor_code);
 		if (!context)
 			pci_free_consistent(nesdev->pcidev, nescq->cq_mem_size, mem,
 					nescq->hw_cq.cq_pbase);
