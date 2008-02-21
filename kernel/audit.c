@@ -170,7 +170,9 @@ void audit_panic(const char *message)
 			printk(KERN_ERR "audit: %s\n", message);
 		break;
 	case AUDIT_FAIL_PANIC:
-		panic("audit: %s\n", message);
+		/* test audit_pid since printk is always losey, why bother? */
+		if (audit_pid)
+			panic("audit: %s\n", message);
 		break;
 	}
 }
@@ -352,6 +354,7 @@ static int kauditd_thread(void *dummy)
 				if (err < 0) {
 					BUG_ON(err != -ECONNREFUSED); /* Shoudn't happen */
 					printk(KERN_ERR "audit: *NO* daemon at audit_pid=%d\n", audit_pid);
+					audit_log_lost("auditd dissapeared\n");
 					audit_pid = 0;
 				}
 			} else {
