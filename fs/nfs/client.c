@@ -170,6 +170,8 @@ static void nfs4_shutdown_client(struct nfs_client *clp)
 	BUG_ON(!RB_EMPTY_ROOT(&clp->cl_state_owners));
 	if (__test_and_clear_bit(NFS_CS_IDMAP, &clp->cl_res_state))
 		nfs_idmap_delete(clp);
+
+	rpc_destroy_wait_queue(&clp->cl_rpcwaitq);
 #endif
 }
 

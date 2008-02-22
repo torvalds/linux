@@ -292,8 +292,10 @@ struct nfs4_state_owner *nfs4_get_state_owner(struct nfs_server *server, struct 
 	spin_unlock(&clp->cl_lock);
 	if (sp == new)
 		get_rpccred(cred);
-	else
+	else {
+		rpc_destroy_wait_queue(&new->so_sequence.wait);
 		kfree(new);
+	}
 	return sp;
 }
 
@@ -310,6 +312,7 @@ void nfs4_put_state_owner(struct nfs4_state_owner *sp)
 		return;
 	nfs4_remove_state_owner(clp, sp);
 	spin_unlock(&clp->cl_lock);
+	rpc_destroy_wait_queue(&sp->so_sequence.wait);
 	put_rpccred(cred);
 	kfree(sp);
 }
@@ -529,6 +532,7 @@ static void nfs4_free_lock_state(struct nfs4_lock_state *lsp)
 	spin_lock(&clp->cl_lock);
 	nfs_free_unique_id(&clp->cl_lockowner_id, &lsp->ls_id);
 	spin_unlock(&clp->cl_lock);
+	rpc_destroy_wait_queue(&lsp->ls_sequence.wait);
 	kfree(lsp);
 }
 

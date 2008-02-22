@@ -214,6 +214,11 @@ void rpc_init_wait_queue(struct rpc_wait_queue *queue, const char *qname)
 }
 EXPORT_SYMBOL_GPL(rpc_init_wait_queue);
 
+void rpc_destroy_wait_queue(struct rpc_wait_queue *queue)
+{
+}
+EXPORT_SYMBOL_GPL(rpc_destroy_wait_queue);
+
 static int rpc_wait_bit_killable(void *word)
 {
 	if (fatal_signal_pending(current))
@@ -1020,11 +1025,20 @@ rpc_destroy_mempool(void)
 		kmem_cache_destroy(rpc_task_slabp);
 	if (rpc_buffer_slabp)
 		kmem_cache_destroy(rpc_buffer_slabp);
+	rpc_destroy_wait_queue(&delay_queue);
 }
 
 int
 rpc_init_mempool(void)
 {
+	/*
+	 * The following is not strictly a mempool initialisation,
+	 * but there is no harm in doing it here
+	 */
+	rpc_init_wait_queue(&delay_queue, "delayq");
+	if (!rpciod_start())
+		goto err_nomem;
+
 	rpc_task_slabp = kmem_cache_create("rpc_tasks",
 					     sizeof(struct rpc_task),
 					     0, SLAB_HWCACHE_ALIGN,
@@ -1045,13 +1059,6 @@ rpc_init_mempool(void)
 						      rpc_buffer_slabp);
 	if (!rpc_buffer_mempool)
 		goto err_nomem;
-	if (!rpciod_start())
-		goto err_nomem;
-	/*
-	 * The following is not strictly a mempool initialisation,
-	 * but there is no harm in doing it here
-	 */
-	rpc_init_wait_queue(&delay_queue, "delayq");
 	return 0;
 err_nomem:
 	rpc_destroy_mempool();
