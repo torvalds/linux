@@ -98,6 +98,7 @@ drivers-$(CONFIG_OPROFILE) += arch/$(ARCH)/oprofile/
 #	them changed.  We use .mach to indicate when they were updated
 #	last, otherwise make uses the target directory mtime.
 
+       show_mach_symlink = :
  quiet_show_mach_symlink = echo '  SYMLINK include/asm-$(ARCH)/mach-$(MACHINE) -> include/asm-$(ARCH)/mach'
 silent_show_mach_symlink = :
 include/asm-blackfin/.mach: $(wildcard include/config/arch/*.h) include/config/auto.conf
