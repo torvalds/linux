@@ -1357,16 +1357,18 @@ static u32 rgblk_search(struct gfs2_rgrpd *rgd, u32 goal,
 		gfs2_trans_add_bh(rgd->rd_gl, bi->bi_bh, 1);
 		gfs2_setbit(rgd, bi->bi_bh->b_data, bi->bi_clone, bi->bi_offset,
 			    bi->bi_len, blk, new_state);
-		while(*n < elen) {
+		goal = blk;
+		while (*n < elen) {
 			goal++;
-			if (goal >= (bi->bi_len / GFS2_NBBY))
+			if (goal >= (bi->bi_len * GFS2_NBBY))
 				break;
 			if (gfs2_testbit(rgd, buffer, bi->bi_len, goal) !=
 			    GFS2_BLKST_FREE)
 				break;
-			(*n)++;
 			gfs2_setbit(rgd, bi->bi_bh->b_data, bi->bi_clone,
-				    bi->bi_offset, bi->bi_len, blk, new_state);
+				    bi->bi_offset, bi->bi_len, goal,
+				    new_state);
+			(*n)++;
 		}
 	}
 
