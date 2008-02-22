@@ -6457,7 +6457,7 @@ static int alc883_mux_enum_put(struct snd_kcontrol *kcontrol,
 	struct alc_spec *spec = codec->spec;
 	const struct hda_input_mux *imux = spec->input_mux;
 	unsigned int adc_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
-	static hda_nid_t capture_mixers[3] = { 0x24, 0x23, 0x22 };
+	static hda_nid_t capture_mixers[2] = { 0x23, 0x22 };
 	hda_nid_t nid = capture_mixers[adc_idx];
 	unsigned int *cur_val = &spec->cur_mux[adc_idx];
 	unsigned int i, idx;
