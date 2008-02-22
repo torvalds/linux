@@ -153,7 +153,7 @@ MODULE_VERSION(DRV_VERSION);
 
 /**
  *	ata_force_cbl - force cable type according to libata.force
- *	@link: ATA link of interest
+ *	@ap: ATA port of interest
  *
  *	Force cable type according to libata.force and whine about it.
  *	The last entry which has matching port number is used, so it
