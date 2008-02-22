@@ -1804,12 +1804,8 @@ retry:
 	inode->i_fop = &ext4_dir_operations;
 	inode->i_size = EXT4_I(inode)->i_disksize = inode->i_sb->s_blocksize;
 	dir_block = ext4_bread (handle, inode, 0, 1, &err);
-	if (!dir_block) {
-		ext4_dec_count(handle, inode); /* is this nlink == 0? */
-		ext4_mark_inode_dirty(handle, inode);
-		iput (inode);
-		goto out_stop;
-	}
+	if (!dir_block)
+		goto out_clear_inode;
 	BUFFER_TRACE(dir_block, "get_write_access");
 	ext4_journal_get_write_access(handle, dir_block);
 	de = (struct ext4_dir_entry_2 *) dir_block->b_data;
@@ -1832,7 +1828,8 @@ retry:
 	ext4_mark_inode_dirty(handle, inode);
 	err = ext4_add_entry (handle, dentry, inode);
 	if (err) {
-		inode->i_nlink = 0;
+out_clear_inode:
+		clear_nlink(inode);
 		ext4_mark_inode_dirty(handle, inode);
 		iput (inode);
 		goto out_stop;
