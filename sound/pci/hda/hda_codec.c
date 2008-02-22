@@ -1197,8 +1197,8 @@ int snd_hda_mixer_bind_ctls_info(struct snd_kcontrol *kcontrol,
 	struct hda_bind_ctls *c;
 	int err;
 
-	c = (struct hda_bind_ctls *)kcontrol->private_value;
 	mutex_lock(&codec->spdif_mutex); /* reuse spdif_mutex */
+	c = (struct hda_bind_ctls *)kcontrol->private_value;
 	kcontrol->private_value = *c->values;
 	err = c->ops->info(kcontrol, uinfo);
 	kcontrol->private_value = (long)c;
@@ -1213,8 +1213,8 @@ int snd_hda_mixer_bind_ctls_get(struct snd_kcontrol *kcontrol,
 	struct hda_bind_ctls *c;
 	int err;
 
-	c = (struct hda_bind_ctls *)kcontrol->private_value;
 	mutex_lock(&codec->spdif_mutex); /* reuse spdif_mutex */
+	c = (struct hda_bind_ctls *)kcontrol->private_value;
 	kcontrol->private_value = *c->values;
 	err = c->ops->get(kcontrol, ucontrol);
 	kcontrol->private_value = (long)c;
@@ -1230,8 +1230,8 @@ int snd_hda_mixer_bind_ctls_put(struct snd_kcontrol *kcontrol,
 	unsigned long *vals;
 	int err = 0, change = 0;
 
-	c = (struct hda_bind_ctls *)kcontrol->private_value;
 	mutex_lock(&codec->spdif_mutex); /* reuse spdif_mutex */
+	c = (struct hda_bind_ctls *)kcontrol->private_value;
 	for (vals = c->values; *vals; vals++) {
 		kcontrol->private_value = *vals;
 		err = c->ops->put(kcontrol, ucontrol);
@@ -1251,8 +1251,8 @@ int snd_hda_mixer_bind_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 	struct hda_bind_ctls *c;
 	int err;
 
-	c = (struct hda_bind_ctls *)kcontrol->private_value;
 	mutex_lock(&codec->spdif_mutex); /* reuse spdif_mutex */
+	c = (struct hda_bind_ctls *)kcontrol->private_value;
 	kcontrol->private_value = *c->values;
 	err = c->ops->tlv(kcontrol, op_flag, size, tlv);
 	kcontrol->private_value = (long)c;
