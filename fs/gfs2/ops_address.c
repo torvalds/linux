@@ -508,23 +508,26 @@ static int __gfs2_readpage(void *file, struct page *page)
 static int gfs2_readpage(struct file *file, struct page *page)
 {
 	struct gfs2_inode *ip = GFS2_I(page->mapping->host);
-	struct gfs2_holder gh;
+	struct gfs2_holder *gh;
 	int error;
 
-	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME|LM_FLAG_TRY_1CB, &gh);
-	error = gfs2_glock_nq_atime(&gh);
-	if (unlikely(error)) {
+	gh = gfs2_glock_is_locked_by_me(ip->i_gl);
+	if (!gh) {
+		gh = kmalloc(sizeof(struct gfs2_holder), GFP_NOFS);
+		if (!gh)
+			return -ENOBUFS;
+		gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME, gh);
 		unlock_page(page);
-		goto out;
-	}
-	error = __gfs2_readpage(file, page);
-	gfs2_glock_dq(&gh);
-out:
-	gfs2_holder_uninit(&gh);
-	if (error == GLR_TRYFAILED) {
-		yield();
+		error = gfs2_glock_nq_atime(gh);
+		if (likely(error != 0))
+			goto out;
 		return AOP_TRUNCATED_PAGE;
 	}
+	error = __gfs2_readpage(file, page);
+	gfs2_glock_dq(gh);
+out:
+	gfs2_holder_uninit(gh);
+	kfree(gh);
 	return error;
 }
 
@@ -826,7 +829,7 @@ static int gfs2_write_end(struct file *file, struct address_space *mapping,
 	unsigned int to = from + len;
 	int ret;
 
-	BUG_ON(gfs2_glock_is_locked_by_me(ip->i_gl) == 0);
+	BUG_ON(gfs2_glock_is_locked_by_me(ip->i_gl) == NULL);
 
 	ret = gfs2_meta_inode_buffer(ip, &dibh);
 	if (unlikely(ret)) {

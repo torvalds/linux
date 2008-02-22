@@ -898,7 +898,7 @@ static int gfs2_permission(struct inode *inode, int mask, struct nameidata *nd)
 	int error;
 	int unlock = 0;
 
-	if (gfs2_glock_is_locked_by_me(ip->i_gl) == 0) {
+	if (gfs2_glock_is_locked_by_me(ip->i_gl) == NULL) {
 		error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY, &i_gh);
 		if (error)
 			return error;
@@ -1065,7 +1065,7 @@ static int gfs2_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	int error;
 	int unlock = 0;
 
-	if (gfs2_glock_is_locked_by_me(ip->i_gl) == 0) {
+	if (gfs2_glock_is_locked_by_me(ip->i_gl) == NULL) {
 		error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY, &gh);
 		if (error)
 			return error;
