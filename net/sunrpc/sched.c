@@ -417,11 +417,10 @@ EXPORT_SYMBOL_GPL(rpc_wake_up_queued_task);
 /*
  * Wake up the specified task
  */
-void rpc_wake_up_task(struct rpc_task *task)
+static void rpc_wake_up_task(struct rpc_task *task)
 {
 	rpc_wake_up_queued_task(task->tk_waitqueue, task);
 }
-EXPORT_SYMBOL_GPL(rpc_wake_up_task);
 
 /*
  * Wake up the next task on a priority queue.
