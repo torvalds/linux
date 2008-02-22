@@ -1818,7 +1818,7 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 		 */
 		chip->playback_streams = (gcap & (0xF << 12)) >> 12;
 		chip->capture_streams = (gcap & (0xF << 8)) >> 8;
-		chip->playback_index_offset = (gcap & (0xF << 12)) >> 12;
+		chip->playback_index_offset = chip->capture_streams;
 		chip->capture_index_offset = 0;
 	} else {
 		/* gcap didn't give any info, switching to old method */
