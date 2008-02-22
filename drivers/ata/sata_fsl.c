@@ -335,7 +335,7 @@ static unsigned int sata_fsl_fill_sg(struct ata_queued_cmd *qc, void *cmd_desc,
 	dma_addr_t indirect_ext_segment_paddr;
 	unsigned int si;
 
-	VPRINTK("SATA FSL : cd = 0x%x, prd = 0x%x\n", cmd_desc, prd);
+	VPRINTK("SATA FSL : cd = 0x%p, prd = 0x%p\n", cmd_desc, prd);
 
 	indirect_ext_segment_paddr = cmd_desc_paddr +
 	    SATA_FSL_CMD_DESC_OFFSET_TO_PRDT + SATA_FSL_MAX_PRD_DIRECT * 16;
@@ -459,7 +459,8 @@ static unsigned int sata_fsl_qc_issue(struct ata_queued_cmd *qc)
 	VPRINTK("CE=0x%x, DE=0x%x, CC=0x%x, CmdStat = 0x%x\n",
 		ioread32(CE + hcr_base),
 		ioread32(DE + hcr_base),
-		ioread32(CC + hcr_base), ioread32(COMMANDSTAT + csr_base));
+		ioread32(CC + hcr_base),
+		ioread32(COMMANDSTAT + host_priv->csr_base));
 
 	return 0;
 }
@@ -522,7 +523,8 @@ static void sata_fsl_freeze(struct ata_port *ap)
 		ioread32(CQ + hcr_base),
 		ioread32(CA + hcr_base),
 		ioread32(CE + hcr_base), ioread32(DE + hcr_base));
-	VPRINTK("CmdStat = 0x%x\n", ioread32(csr_base + COMMANDSTAT));
+	VPRINTK("CmdStat = 0x%x\n",
+		ioread32(host_priv->csr_base + COMMANDSTAT));
 
 	/* disable interrupts on the controller/port */
 	temp = ioread32(hcr_base + HCONTROL);
