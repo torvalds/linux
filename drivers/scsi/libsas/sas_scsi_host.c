@@ -280,7 +280,8 @@ static void sas_scsi_clear_queue_lu(struct list_head *error_q, struct scsi_cmnd 
 	struct scsi_cmnd *cmd, *n;
 
 	list_for_each_entry_safe(cmd, n, error_q, eh_entry) {
-		if (cmd == my_cmd)
+		if (cmd->device->sdev_target == my_cmd->device->sdev_target &&
+		    cmd->device->lun == my_cmd->device->lun)
 			sas_eh_finish_cmd(cmd);
 	}
 }
