@@ -587,44 +587,6 @@ static int udf_remount_fs(struct super_block *sb, int *flags, char *options)
 	return 0;
 }
 
-/*
- * udf_set_blocksize
- *
- * PURPOSE
- *	Set the block size to be used in all transfers.
- *
- * DESCRIPTION
- *	To allow room for a DMA transfer, it is best to guess big when unsure.
- *	This routine picks 2048 bytes as the blocksize when guessing. This
- *	should be adequate until devices with larger block sizes become common.
- *
- *	Note that the Linux kernel can currently only deal with blocksizes of
- *	512, 1024, 2048, 4096, and 8192 bytes.
- *
- * PRE-CONDITIONS
- *	sb			Pointer to _locked_ superblock.
- *
- * POST-CONDITIONS
- *	sb->s_blocksize		Blocksize.
- *	sb->s_blocksize_bits	log2 of blocksize.
- *	<return>	0	Blocksize is valid.
- *	<return>	1	Blocksize is invalid.
- *
- * HISTORY
- *	July 1, 1997 - Andrew E. Mileski
- *	Written, tested, and released.
- */
-static int udf_set_blocksize(struct super_block *sb, int bsize)
-{
-	if (!sb_min_blocksize(sb, bsize)) {
-		udf_debug("Bad block size (%d)\n", bsize);
-		printk(KERN_ERR "udf: bad block size (%d)\n", bsize);
-		return 0;
-	}
-
-	return sb->s_blocksize;
-}
-
 static int udf_vrs(struct super_block *sb, int silent)
 {
 	struct volStructDesc *vsd = NULL;
@@ -1776,8 +1738,11 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	sbi->s_nls_map = uopt.nls_map;
 
 	/* Set the block size for all transfers */
-	if (!udf_set_blocksize(sb, uopt.blocksize))
+	if (!sb_min_blocksize(sb, uopt.blocksize)) {
+		udf_debug("Bad block size (%d)\n", uopt.blocksize);
+		printk(KERN_ERR "udf: bad block size (%d)\n", uopt.blocksize);
 		goto error_out;
+	}
 
 	if (uopt.session == 0xFFFFFFFF)
 		sbi->s_session = udf_get_last_session(sb);
