@@ -10,20 +10,20 @@
 #include <linux/smp.h>
 #include <linux/thread_info.h>
 
-#include <asm/processor.h> 
+#include <asm/processor.h>
 #include <asm/system.h>
 #include <asm/mce.h>
 
 #include "mce.h"
 
-int mce_disabled = 0;
+int mce_disabled;
 int nr_mce_banks;
 
 EXPORT_SYMBOL_GPL(nr_mce_banks);	/* non-fatal.o */
 
 /* Handle unconfigured int18 (should never happen) */
-static void unexpected_machine_check(struct pt_regs * regs, long error_code)
-{	
+static void unexpected_machine_check(struct pt_regs *regs, long error_code)
+{
 	printk(KERN_ERR "CPU#%d: Unexpected int18 (Machine Check).\n", smp_processor_id());
 }
 
@@ -33,30 +33,30 @@ void (*machine_check_vector)(struct pt_regs *, long error_code) = unexpected_mac
 /* This has to be run for each processor */
 void mcheck_init(struct cpuinfo_x86 *c)
 {
-	if (mce_disabled==1)
+	if (mce_disabled == 1)
 		return;
 
 	switch (c->x86_vendor) {
-		case X86_VENDOR_AMD:
-			amd_mcheck_init(c);
-			break;
+	case X86_VENDOR_AMD:
+		amd_mcheck_init(c);
+		break;
 
-		case X86_VENDOR_INTEL:
-			if (c->x86==5)
-				intel_p5_mcheck_init(c);
-			if (c->x86==6)
-				intel_p6_mcheck_init(c);
-			if (c->x86==15)
-				intel_p4_mcheck_init(c);
-			break;
+	case X86_VENDOR_INTEL:
+		if (c->x86 == 5)
+			intel_p5_mcheck_init(c);
+		if (c->x86 == 6)
+			intel_p6_mcheck_init(c);
+		if (c->x86 == 15)
+			intel_p4_mcheck_init(c);
+		break;
 
-		case X86_VENDOR_CENTAUR:
-			if (c->x86==5)
-				winchip_mcheck_init(c);
-			break;
+	case X86_VENDOR_CENTAUR:
+		if (c->x86 == 5)
+			winchip_mcheck_init(c);
+		break;
 
-		default:
-			break;
+	default:
+		break;
 	}
 }
 
