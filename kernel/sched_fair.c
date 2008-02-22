@@ -202,14 +202,12 @@ static struct sched_entity *__pick_next_entity(struct cfs_rq *cfs_rq)
 
 static inline struct sched_entity *__pick_last_entity(struct cfs_rq *cfs_rq)
 {
-	struct rb_node *last;
-	struct sched_entity *se;
+	struct rb_node *last = rb_last(&cfs_rq->tasks_timeline);
 
-	last = rb_last(&cfs_rq->tasks_timeline);
 	if (!last)
 		return NULL;
-	se = rb_entry(last, struct sched_entity, run_node);
-	return se;
+
+	return rb_entry(last, struct sched_entity, run_node);
 }
 
 /**************************************************************
