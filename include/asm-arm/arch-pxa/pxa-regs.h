@@ -1604,62 +1604,6 @@
 
 #ifdef CONFIG_PXA27x
 
-/*
- * Keypad
- */
-#define KPC             __REG(0x41500000) /* Keypad Interface Control register */
-#define KPDK            __REG(0x41500008) /* Keypad Interface Direct Key register */
-#define KPREC           __REG(0x41500010) /* Keypad Interface Rotary Encoder register */
-#define KPMK            __REG(0x41500018) /* Keypad Interface Matrix Key register */
-#define KPAS            __REG(0x41500020) /* Keypad Interface Automatic Scan register */
-#define KPASMKP0        __REG(0x41500028) /* Keypad Interface Automatic Scan Multiple Key Presser register 0 */
-#define KPASMKP1        __REG(0x41500030) /* Keypad Interface Automatic Scan Multiple Key Presser register 1 */
-#define KPASMKP2        __REG(0x41500038) /* Keypad Interface Automatic Scan Multiple Key Presser register 2 */
-#define KPASMKP3        __REG(0x41500040) /* Keypad Interface Automatic Scan Multiple Key Presser register 3 */
-#define KPKDI           __REG(0x41500048) /* Keypad Interface Key Debounce Interval register */
-
-#define KPC_AS          (0x1 << 30)  /* Automatic Scan bit */
-#define KPC_ASACT       (0x1 << 29)  /* Automatic Scan on Activity */
-#define KPC_MI          (0x1 << 22)  /* Matrix interrupt bit */
-#define KPC_IMKP        (0x1 << 21)  /* Ignore Multiple Key Press */
-#define KPC_MS7         (0x1 << 20)  /* Matrix scan line 7 */
-#define KPC_MS6         (0x1 << 19)  /* Matrix scan line 6 */
-#define KPC_MS5         (0x1 << 18)  /* Matrix scan line 5 */
-#define KPC_MS4         (0x1 << 17)  /* Matrix scan line 4 */
-#define KPC_MS3         (0x1 << 16)  /* Matrix scan line 3 */
-#define KPC_MS2         (0x1 << 15)  /* Matrix scan line 2 */
-#define KPC_MS1         (0x1 << 14)  /* Matrix scan line 1 */
-#define KPC_MS0         (0x1 << 13)  /* Matrix scan line 0 */
-#define KPC_MS_ALL      (KPC_MS0 | KPC_MS1 | KPC_MS2 | KPC_MS3 | KPC_MS4 | KPC_MS5 | KPC_MS6 | KPC_MS7)
-#define KPC_ME          (0x1 << 12)  /* Matrix Keypad Enable */
-#define KPC_MIE         (0x1 << 11)  /* Matrix Interrupt Enable */
-#define KPC_DK_DEB_SEL	(0x1 <<  9)  /* Direct Keypad Debounce Select */
-#define KPC_DI          (0x1 <<  5)  /* Direct key interrupt bit */
-#define KPC_RE_ZERO_DEB (0x1 <<  4)  /* Rotary Encoder Zero Debounce */
-#define KPC_REE1        (0x1 <<  3)  /* Rotary Encoder1 Enable */
-#define KPC_REE0        (0x1 <<  2)  /* Rotary Encoder0 Enable */
-#define KPC_DE          (0x1 <<  1)  /* Direct Keypad Enable */
-#define KPC_DIE         (0x1 <<  0)  /* Direct Keypad interrupt Enable */
-
-#define KPDK_DKP        (0x1 << 31)
-#define KPDK_DK7        (0x1 <<  7)
-#define KPDK_DK6        (0x1 <<  6)
-#define KPDK_DK5        (0x1 <<  5)
-#define KPDK_DK4        (0x1 <<  4)
-#define KPDK_DK3        (0x1 <<  3)
-#define KPDK_DK2        (0x1 <<  2)
-#define KPDK_DK1        (0x1 <<  1)
-#define KPDK_DK0        (0x1 <<  0)
-
-#define KPREC_OF1       (0x1 << 31)
-#define kPREC_UF1       (0x1 << 30)
-#define KPREC_OF0       (0x1 << 15)
-#define KPREC_UF0       (0x1 << 14)
-
-#define KPMK_MKP        (0x1 << 31)
-#define KPAS_SO         (0x1 << 31)
-#define KPASMKPx_SO     (0x1 << 31)
-
 /* Camera Interface */
 #define CICR0		__REG(0x50000000)
 #define CICR1		__REG(0x50000004)
