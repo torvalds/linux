@@ -128,6 +128,19 @@ static struct platform_device bfin_device_gpiokeys = {
 };
 #endif
 
+static struct resource bfin_gpios_resources = {
+	.start = 0,
+	.end   = MAX_BLACKFIN_GPIOS - 1,
+	.flags = IORESOURCE_IRQ,
+};
+
+static struct platform_device bfin_gpios_device = {
+	.name = "simple-gpio",
+	.id = -1,
+	.num_resources = 1,
+	.resource = &bfin_gpios_resources,
+};
+
 #if defined(CONFIG_BFIN_CFPCMCIA) || defined(CONFIG_BFIN_CFPCMCIA_MODULE)
 static struct resource bfin_pcmcia_cf_resources[] = {
 	{
@@ -821,6 +834,8 @@ static struct platform_device *stamp_devices[] __initdata = {
 #if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
 	&bfin_device_gpiokeys,
 #endif
+
+	&bfin_gpios_device,
 	&stamp_flash_device,
 };
 

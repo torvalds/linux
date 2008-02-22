@@ -457,6 +457,19 @@ static struct platform_device bfin_device_gpiokeys = {
 };
 #endif
 
+static struct resource bfin_gpios_resources = {
+	.start = 0,
+	.end   = MAX_BLACKFIN_GPIOS - 1,
+	.flags = IORESOURCE_IRQ,
+};
+
+static struct platform_device bfin_gpios_device = {
+	.name = "simple-gpio",
+	.id = -1,
+	.num_resources = 1,
+	.resource = &bfin_gpios_resources,
+};
+
 #if defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE)
 #include <linux/i2c-gpio.h>
 
@@ -518,6 +531,8 @@ static struct platform_device *stamp_devices[] __initdata = {
 #if defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE)
 	&i2c_gpio_device,
 #endif
+
+	&bfin_gpios_device,
 	&stamp_flash_device,
 };
 
