@@ -353,6 +353,16 @@ void ssb_chipco_watchdog_timer_set(struct ssb_chipcommon *cc, u32 ticks)
 	chipco_write32(cc, SSB_CHIPCO_WATCHDOG, ticks);
 }
 
+void ssb_chipco_irq_mask(struct ssb_chipcommon *cc, u32 mask, u32 value)
+{
+	chipco_write32_masked(cc, SSB_CHIPCO_IRQMASK, mask, value);
+}
+
+u32 ssb_chipco_irq_status(struct ssb_chipcommon *cc, u32 mask)
+{
+	return chipco_read32(cc, SSB_CHIPCO_IRQSTAT) & mask;
+}
+
 u32 ssb_chipco_gpio_in(struct ssb_chipcommon *cc, u32 mask)
 {
 	return chipco_read32(cc, SSB_CHIPCO_GPIOIN) & mask;

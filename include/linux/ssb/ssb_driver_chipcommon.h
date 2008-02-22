@@ -390,6 +390,10 @@ extern void ssb_chipco_set_clockmode(struct ssb_chipcommon *cc,
 extern void ssb_chipco_watchdog_timer_set(struct ssb_chipcommon *cc,
 					  u32 ticks);
 
+void ssb_chipco_irq_mask(struct ssb_chipcommon *cc, u32 mask, u32 value);
+
+u32 ssb_chipco_irq_status(struct ssb_chipcommon *cc, u32 mask);
+
 /* Chipcommon GPIO pin access. */
 u32 ssb_chipco_gpio_in(struct ssb_chipcommon *cc, u32 mask);
 u32 ssb_chipco_gpio_out(struct ssb_chipcommon *cc, u32 mask, u32 value);
