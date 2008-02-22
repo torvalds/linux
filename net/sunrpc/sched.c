@@ -148,7 +148,7 @@ static void __rpc_add_wait_queue(struct rpc_wait_queue *queue, struct rpc_task *
 		list_add(&task->u.tk_wait.list, &queue->tasks[0]);
 	else
 		list_add_tail(&task->u.tk_wait.list, &queue->tasks[0]);
-	task->u.tk_wait.rpc_waitq = queue;
+	task->tk_waitqueue = queue;
 	queue->qlen++;
 	rpc_set_queued(task);
 
@@ -175,11 +175,8 @@ static void __rpc_remove_wait_queue_priority(struct rpc_task *task)
  * Remove request from queue.
  * Note: must be called with spin lock held.
  */
-static void __rpc_remove_wait_queue(struct rpc_task *task)
+static void __rpc_remove_wait_queue(struct rpc_wait_queue *queue, struct rpc_task *task)
 {
-	struct rpc_wait_queue *queue;
-	queue = task->u.tk_wait.rpc_waitq;
-
 	if (RPC_IS_PRIORITY(queue))
 		__rpc_remove_wait_queue_priority(task);
 	else
@@ -364,11 +361,12 @@ EXPORT_SYMBOL_GPL(rpc_sleep_on);
 
 /**
  * __rpc_do_wake_up_task - wake up a single rpc_task
+ * @queue: wait queue
  * @task: task to be woken up
  *
  * Caller must hold queue->lock, and have cleared the task queued flag.
  */
-static void __rpc_do_wake_up_task(struct rpc_task *task)
+static void __rpc_do_wake_up_task(struct rpc_wait_queue *queue, struct rpc_task *task)
 {
 	dprintk("RPC: %5u __rpc_wake_up_task (now %lu)\n",
 			task->tk_pid, jiffies);
@@ -383,7 +381,7 @@ static void __rpc_do_wake_up_task(struct rpc_task *task)
 	}
 
 	__rpc_disable_timer(task);
-	__rpc_remove_wait_queue(task);
+	__rpc_remove_wait_queue(queue, task);
 
 	rpc_make_runnable(task);
 
@@ -391,35 +389,37 @@ static void __rpc_do_wake_up_task(struct rpc_task *task)
 }
 
 /*
- * Wake up the specified task
+ * Wake up a queued task while the queue lock is being held
  */
-static void __rpc_wake_up_task(struct rpc_task *task)
+static void rpc_wake_up_task_queue_locked(struct rpc_wait_queue *queue, struct rpc_task *task)
 {
+	if (!RPC_IS_QUEUED(task) || task->tk_waitqueue != queue)
+		return;
 	if (rpc_start_wakeup(task)) {
-		if (RPC_IS_QUEUED(task))
-			__rpc_do_wake_up_task(task);
+			__rpc_do_wake_up_task(queue, task);
 		rpc_finish_wakeup(task);
 	}
 }
+
+/*
+ * Wake up a task on a specific queue
+ */
+void rpc_wake_up_queued_task(struct rpc_wait_queue *queue, struct rpc_task *task)
+{
+	rcu_read_lock_bh();
+	spin_lock(&queue->lock);
+	rpc_wake_up_task_queue_locked(queue, task);
+	spin_unlock(&queue->lock);
+	rcu_read_unlock_bh();
+}
+EXPORT_SYMBOL_GPL(rpc_wake_up_queued_task);
 
 /*
  * Wake up the specified task
  */
 void rpc_wake_up_task(struct rpc_task *task)
 {
-	rcu_read_lock_bh();
-	if (rpc_start_wakeup(task)) {
-		if (RPC_IS_QUEUED(task)) {
-			struct rpc_wait_queue *queue = task->u.tk_wait.rpc_waitq;
-
-			/* Note: we're already in a bh-safe context */
-			spin_lock(&queue->lock);
-			__rpc_do_wake_up_task(task);
-			spin_unlock(&queue->lock);
-		}
-		rpc_finish_wakeup(task);
-	}
-	rcu_read_unlock_bh();
+	rpc_wake_up_queued_task(task->tk_waitqueue, task);
 }
 EXPORT_SYMBOL_GPL(rpc_wake_up_task);
 
@@ -471,7 +471,7 @@ new_queue:
 new_owner:
 	rpc_set_waitqueue_owner(queue, task->tk_owner);
 out:
-	__rpc_wake_up_task(task);
+	rpc_wake_up_task_queue_locked(queue, task);
 	return task;
 }
 
@@ -490,7 +490,7 @@ struct rpc_task * rpc_wake_up_next(struct rpc_wait_queue *queue)
 		task = __rpc_wake_up_next_priority(queue);
 	else {
 		task_for_first(task, &queue->tasks[0])
-			__rpc_wake_up_task(task);
+			rpc_wake_up_task_queue_locked(queue, task);
 	}
 	spin_unlock(&queue->lock);
 	rcu_read_unlock_bh();
@@ -515,7 +515,7 @@ void rpc_wake_up(struct rpc_wait_queue *queue)
 	head = &queue->tasks[queue->maxpriority];
 	for (;;) {
 		list_for_each_entry_safe(task, next, head, u.tk_wait.list)
-			__rpc_wake_up_task(task);
+			rpc_wake_up_task_queue_locked(queue, task);
 		if (head == &queue->tasks[0])
 			break;
 		head--;
@@ -543,7 +543,7 @@ void rpc_wake_up_status(struct rpc_wait_queue *queue, int status)
 	for (;;) {
 		list_for_each_entry_safe(task, next, head, u.tk_wait.list) {
 			task->tk_status = status;
-			__rpc_wake_up_task(task);
+			rpc_wake_up_task_queue_locked(queue, task);
 		}
 		if (head == &queue->tasks[0])
 			break;
@@ -562,10 +562,8 @@ static void rpc_run_timer(unsigned long ptr)
 	struct rpc_task *task = (struct rpc_task *)ptr;
 	void (*callback)(struct rpc_task *);
 
-	if (!rpc_start_wakeup(task))
-		goto out;
 	if (RPC_IS_QUEUED(task)) {
-		struct rpc_wait_queue *queue = task->u.tk_wait.rpc_waitq;
+		struct rpc_wait_queue *queue = task->tk_waitqueue;
 		callback = task->tk_timeout_fn;
 
 		dprintk("RPC: %5u running timer\n", task->tk_pid);
@@ -573,11 +571,9 @@ static void rpc_run_timer(unsigned long ptr)
 			callback(task);
 		/* Note: we're already in a bh-safe context */
 		spin_lock(&queue->lock);
-		__rpc_do_wake_up_task(task);
+		rpc_wake_up_task_queue_locked(queue, task);
 		spin_unlock(&queue->lock);
 	}
-	rpc_finish_wakeup(task);
-out:
 	smp_mb__before_clear_bit();
 	clear_bit(RPC_TASK_HAS_TIMER, &task->tk_runstate);
 	smp_mb__after_clear_bit();
