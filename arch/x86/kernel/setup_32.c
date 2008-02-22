@@ -832,6 +832,7 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	vmi_init();
 #endif
+	kvm_guest_init();
 
 	/*
 	 * NOTE: before this point _nobody_ is allowed to allocate

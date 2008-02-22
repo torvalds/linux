@@ -384,6 +384,14 @@ config KVM_CLOCK
 	  provides the guest with timing infrastructure such as time of day, and
 	  system time
 
+config KVM_GUEST
+	bool "KVM Guest support"
+	select PARAVIRT
+	depends on !(X86_VISWS || X86_VOYAGER)
+	help
+	 This option enables various optimizations for running under the KVM
+	 hypervisor.
+
 source "arch/x86/lguest/Kconfig"
 
 config PARAVIRT

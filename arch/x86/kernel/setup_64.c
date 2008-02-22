@@ -493,6 +493,8 @@ void __init setup_arch(char **cmdline_p)
 	init_apic_mappings();
 	ioapic_init_mappings();
 
+	kvm_guest_init();
+
 	/*
 	 * We trust e820 completely. No explicit ROM probing in memory.
 	 */
