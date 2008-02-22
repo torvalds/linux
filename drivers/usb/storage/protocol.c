@@ -150,13 +150,14 @@ void usb_stor_transparent_scsi_command(struct scsi_cmnd *srb,
 
 /* Copy a buffer of length buflen to/from the srb's transfer buffer.
  * Update the **sgptr and *offset variables so that the next copy will
- * pick up from where this one left off. */
-
+ * pick up from where this one left off.
+ */
 unsigned int usb_stor_access_xfer_buf(unsigned char *buffer,
 	unsigned int buflen, struct scsi_cmnd *srb, struct scatterlist **sgptr,
 	unsigned int *offset, enum xfer_buf_dir dir)
 {
 	unsigned int cnt;
+	struct scatterlist *sg = *sgptr;
 
 	/* We have to go through the list one entry
 	 * at a time.  Each s-g entry contains some number of pages, and
@@ -164,22 +165,23 @@ unsigned int usb_stor_access_xfer_buf(unsigned char *buffer,
 	 * in kernel-addressable memory then kmap() will return its address.
 	 * If the page is not directly accessible -- such as a user buffer
 	 * located in high memory -- then kmap() will map it to a temporary
-	 * position in the kernel's virtual address space. */
-	struct scatterlist *sg = *sgptr;
+	 * position in the kernel's virtual address space.
+	 */
 
 	if (!sg)
 		sg = scsi_sglist(srb);
+	buflen = min(buflen, scsi_bufflen(srb));
 
 	/* This loop handles a single s-g list entry, which may
-		* include multiple pages.  Find the initial page structure
-		* and the starting offset within the page, and update
-		* the *offset and **sgptr values for the next loop. */
+	 * include multiple pages.  Find the initial page structure
+	 * and the starting offset within the page, and update
+	 * the *offset and **sgptr values for the next loop.
+	 */
 	cnt = 0;
-	while (cnt < buflen) {
+	while (cnt < buflen && sg) {
 		struct page *page = sg_page(sg) +
 				((sg->offset + *offset) >> PAGE_SHIFT);
-		unsigned int poff =
-				(sg->offset + *offset) & (PAGE_SIZE-1);
+		unsigned int poff = (sg->offset + *offset) & (PAGE_SIZE-1);
 		unsigned int sglen = sg->length - *offset;
 
 		if (sglen > buflen - cnt) {
@@ -222,14 +224,15 @@ unsigned int usb_stor_access_xfer_buf(unsigned char *buffer,
 }
 
 /* Store the contents of buffer into srb's transfer buffer and set the
- * SCSI residue. */
+ * SCSI residue.
+ */
 void usb_stor_set_xfer_buf(unsigned char *buffer,
 	unsigned int buflen, struct scsi_cmnd *srb)
 {
 	unsigned int offset = 0;
 	struct scatterlist *sg = NULL;
 
-	usb_stor_access_xfer_buf(buffer, buflen, srb, &sg, &offset,
+	buflen = usb_stor_access_xfer_buf(buffer, buflen, srb, &sg, &offset,
 			TO_XFER_BUF);
 	if (buflen < scsi_bufflen(srb))
 		scsi_set_resid(srb, scsi_bufflen(srb) - buflen);

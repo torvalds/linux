@@ -891,17 +891,6 @@ int usb_stor_Bulk_max_lun(struct us_data *us)
 	if (result > 0)
 		return us->iobuf[0];
 
-	/* 
-	 * Some devices (i.e. Iomega Zip100) need this -- apparently
-	 * the bulk pipes get STALLed when the GetMaxLUN request is
-	 * processed.   This is, in theory, harmless to all other devices
-	 * (regardless of if they stall or not).
-	 */
-	if (result == -EPIPE) {
-		usb_stor_clear_halt(us, us->recv_bulk_pipe);
-		usb_stor_clear_halt(us, us->send_bulk_pipe);
-	}
-
 	/*
 	 * Some devices don't like GetMaxLUN.  They may STALL the control
 	 * pipe, they may return a zero-length result, they may do nothing at
