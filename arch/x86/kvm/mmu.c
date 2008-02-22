@@ -28,6 +28,7 @@
 #include <linux/module.h>
 #include <linux/swap.h>
 #include <linux/hugetlb.h>
+#include <linux/compiler.h>
 
 #include <asm/page.h>
 #include <asm/cmpxchg.h>
@@ -40,7 +41,7 @@
  * 2. while doing 1. it walks guest-physical to host-physical
  * If the hardware supports that we don't need to do shadow paging.
  */
-static bool tdp_enabled = false;
+bool tdp_enabled = false;
 
 #undef MMU_DEBUG
 
@@ -166,6 +167,13 @@ static int dbg = 1;
 #define ACC_WRITE_MASK   PT_WRITABLE_MASK
 #define ACC_USER_MASK    PT_USER_MASK
 #define ACC_ALL          (ACC_EXEC_MASK | ACC_WRITE_MASK | ACC_USER_MASK)
+
+struct kvm_pv_mmu_op_buffer {
+	void *ptr;
+	unsigned len;
+	unsigned processed;
+	char buf[512] __aligned(sizeof(long));
+};
 
 struct kvm_rmap_desc {
 	u64 *shadow_ptes[RMAP_EXT];
@@ -2001,6 +2009,132 @@ unsigned int kvm_mmu_calculate_mmu_pages(struct kvm *kvm)
 			(unsigned int) KVM_MIN_ALLOC_MMU_PAGES);
 
 	return nr_mmu_pages;
+}
+
+static void *pv_mmu_peek_buffer(struct kvm_pv_mmu_op_buffer *buffer,
+				unsigned len)
+{
+	if (len > buffer->len)
+		return NULL;
+	return buffer->ptr;
+}
+
+static void *pv_mmu_read_buffer(struct kvm_pv_mmu_op_buffer *buffer,
+				unsigned len)
+{
+	void *ret;
+
+	ret = pv_mmu_peek_buffer(buffer, len);
+	if (!ret)
+		return ret;
+	buffer->ptr += len;
+	buffer->len -= len;
+	buffer->processed += len;
+	return ret;
+}
+
+static int kvm_pv_mmu_write(struct kvm_vcpu *vcpu,
+			     gpa_t addr, gpa_t value)
+{
+	int bytes = 8;
+	int r;
+
+	if (!is_long_mode(vcpu) && !is_pae(vcpu))
+		bytes = 4;
+
+	r = mmu_topup_memory_caches(vcpu);
+	if (r)
+		return r;
+
+	if (!__emulator_write_phys(vcpu, addr, &value, bytes))
+		return -EFAULT;
+
+	return 1;
+}
+
+static int kvm_pv_mmu_flush_tlb(struct kvm_vcpu *vcpu)
+{
+	kvm_x86_ops->tlb_flush(vcpu);
+	return 1;
+}
+
+static int kvm_pv_mmu_release_pt(struct kvm_vcpu *vcpu, gpa_t addr)
+{
+	spin_lock(&vcpu->kvm->mmu_lock);
+	mmu_unshadow(vcpu->kvm, addr >> PAGE_SHIFT);
+	spin_unlock(&vcpu->kvm->mmu_lock);
+	return 1;
+}
+
+static int kvm_pv_mmu_op_one(struct kvm_vcpu *vcpu,
+			     struct kvm_pv_mmu_op_buffer *buffer)
+{
+	struct kvm_mmu_op_header *header;
+
+	header = pv_mmu_peek_buffer(buffer, sizeof *header);
+	if (!header)
+		return 0;
+	switch (header->op) {
+	case KVM_MMU_OP_WRITE_PTE: {
+		struct kvm_mmu_op_write_pte *wpte;
+
+		wpte = pv_mmu_read_buffer(buffer, sizeof *wpte);
+		if (!wpte)
+			return 0;
+		return kvm_pv_mmu_write(vcpu, wpte->pte_phys,
+					wpte->pte_val);
+	}
+	case KVM_MMU_OP_FLUSH_TLB: {
+		struct kvm_mmu_op_flush_tlb *ftlb;
+
+		ftlb = pv_mmu_read_buffer(buffer, sizeof *ftlb);
+		if (!ftlb)
+			return 0;
+		return kvm_pv_mmu_flush_tlb(vcpu);
+	}
+	case KVM_MMU_OP_RELEASE_PT: {
+		struct kvm_mmu_op_release_pt *rpt;
+
+		rpt = pv_mmu_read_buffer(buffer, sizeof *rpt);
+		if (!rpt)
+			return 0;
+		return kvm_pv_mmu_release_pt(vcpu, rpt->pt_phys);
+	}
+	default: return 0;
+	}
+}
+
+int kvm_pv_mmu_op(struct kvm_vcpu *vcpu, unsigned long bytes,
+		  gpa_t addr, unsigned long *ret)
+{
+	int r;
+	struct kvm_pv_mmu_op_buffer buffer;
+
+	down_read(&vcpu->kvm->slots_lock);
+	down_read(&current->mm->mmap_sem);
+
+	buffer.ptr = buffer.buf;
+	buffer.len = min_t(unsigned long, bytes, sizeof buffer.buf);
+	buffer.processed = 0;
+
+	r = kvm_read_guest(vcpu->kvm, addr, buffer.buf, buffer.len);
+	if (r)
+		goto out;
+
+	while (buffer.len) {
+		r = kvm_pv_mmu_op_one(vcpu, &buffer);
+		if (r < 0)
+			goto out;
+		if (r == 0)
+			break;
+	}
+
+	r = 1;
+out:
+	*ret = buffer.processed;
+	up_read(&current->mm->mmap_sem);
+	up_read(&vcpu->kvm->slots_lock);
+	return r;
 }
 
 #ifdef AUDIT

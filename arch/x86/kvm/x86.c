@@ -832,6 +832,9 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_NR_MEMSLOTS:
 		r = KVM_MEMORY_SLOTS;
 		break;
+	case KVM_CAP_PV_MMU:
+		r = !tdp_enabled;
+		break;
 	default:
 		r = 0;
 		break;
@@ -2452,9 +2455,19 @@ int kvm_emulate_halt(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_halt);
 
+static inline gpa_t hc_gpa(struct kvm_vcpu *vcpu, unsigned long a0,
+			   unsigned long a1)
+{
+	if (is_long_mode(vcpu))
+		return a0;
+	else
+		return a0 | ((gpa_t)a1 << 32);
+}
+
 int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 {
 	unsigned long nr, a0, a1, a2, a3, ret;
+	int r = 1;
 
 	kvm_x86_ops->cache_regs(vcpu);
 
@@ -2476,6 +2489,9 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 	case KVM_HC_VAPIC_POLL_IRQ:
 		ret = 0;
 		break;
+	case KVM_HC_MMU_OP:
+		r = kvm_pv_mmu_op(vcpu, a0, hc_gpa(vcpu, a1, a2), &ret);
+		break;
 	default:
 		ret = -KVM_ENOSYS;
 		break;
@@ -2483,7 +2499,7 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 	vcpu->arch.regs[VCPU_REGS_RAX] = ret;
 	kvm_x86_ops->decache_regs(vcpu);
 	++vcpu->stat.hypercalls;
-	return 0;
+	return r;
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_hypercall);
 

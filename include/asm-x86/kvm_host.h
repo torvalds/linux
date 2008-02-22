@@ -434,6 +434,10 @@ int load_pdptrs(struct kvm_vcpu *vcpu, unsigned long cr3);
 
 int __emulator_write_phys(struct kvm_vcpu *vcpu, gpa_t gpa,
 			  const void *val, int bytes);
+int kvm_pv_mmu_op(struct kvm_vcpu *vcpu, unsigned long bytes,
+		  gpa_t addr, unsigned long *ret);
+
+extern bool tdp_enabled;
 
 enum emulation_result {
 	EMULATE_DONE,       /* no further processing */
