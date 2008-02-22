@@ -820,6 +820,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_EXT_CPUID:
 	case KVM_CAP_CLOCKSOURCE:
 	case KVM_CAP_PIT:
+	case KVM_CAP_NOP_IO_DELAY:
 		r = 1;
 		break;
 	case KVM_CAP_VAPIC:

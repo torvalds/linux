@@ -237,6 +237,7 @@ struct kvm_vapic_addr {
 #define KVM_CAP_NR_VCPUS 9       /* returns max vcpus per vm */
 #define KVM_CAP_NR_MEMSLOTS 10   /* returns max memory slots per vm */
 #define KVM_CAP_PIT 11
+#define KVM_CAP_NOP_IO_DELAY 12
 
 /*
  * ioctls for VM fds
