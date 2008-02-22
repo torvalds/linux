@@ -670,21 +670,26 @@ static int __cpuinit acpi_processor_start(struct acpi_device *device)
 
 	pr->cdev = thermal_cooling_device_register("Processor", device,
 						&processor_cooling_ops);
-	if (pr->cdev)
+	if (IS_ERR(pr->cdev)) {
+		result = PTR_ERR(pr->cdev);
+		goto end;
+	}
+	if (pr->cdev) {
 		printk(KERN_INFO PREFIX
 			"%s is registered as cooling_device%d\n",
 			device->dev.bus_id, pr->cdev->id);
-	else
-		goto end;
 
-	result = sysfs_create_link(&device->dev.kobj, &pr->cdev->device.kobj,
-					"thermal_cooling");
-	if (result)
-		return result;
-	result = sysfs_create_link(&pr->cdev->device.kobj, &device->dev.kobj,
-					"device");
-	if (result)
-		return result;
+		result = sysfs_create_link(&device->dev.kobj,
+					   &pr->cdev->device.kobj,
+					   "thermal_cooling");
+		if (result)
+			return result;
+		result = sysfs_create_link(&pr->cdev->device.kobj,
+					   &device->dev.kobj,
+					   "device");
+		if (result)
+			return result;
+	}
 
 	if (pr->flags.throttling) {
 		printk(KERN_INFO PREFIX "%s [%s] (supports",
@@ -809,10 +814,12 @@ static int acpi_processor_remove(struct acpi_device *device, int type)
 
 	acpi_processor_remove_fs(device);
 
-	sysfs_remove_link(&device->dev.kobj, "thermal_cooling");
-	sysfs_remove_link(&pr->cdev->device.kobj, "device");
-	thermal_cooling_device_unregister(pr->cdev);
-	pr->cdev = NULL;
+	if (pr->cdev) {
+		sysfs_remove_link(&device->dev.kobj, "thermal_cooling");
+		sysfs_remove_link(&pr->cdev->device.kobj, "device");
+		thermal_cooling_device_unregister(pr->cdev);
+		pr->cdev = NULL;
+	}
 
 	processors[pr->id] = NULL;
 
@@ -825,8 +832,6 @@ static int acpi_processor_remove(struct acpi_device *device, int type)
 /****************************************************************************
  * 	Acpi processor hotplug support 				       	    *
  ****************************************************************************/
-
-static int is_processor_present(acpi_handle handle);
 
 static int is_processor_present(acpi_handle handle)
 {

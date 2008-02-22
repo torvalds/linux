@@ -899,7 +899,24 @@ void kernel_map_pages(struct page *page, int numpages, int enable)
 	 */
 	cpa_fill_pool();
 }
-#endif
+
+#ifdef CONFIG_HIBERNATION
+
+bool kernel_page_present(struct page *page)
+{
+	unsigned int level;
+	pte_t *pte;
+
+	if (PageHighMem(page))
+		return false;
+
+	pte = lookup_address((unsigned long)page_address(page), &level);
+	return (pte_val(*pte) & _PAGE_PRESENT);
+}
+
+#endif /* CONFIG_HIBERNATION */
+
+#endif /* CONFIG_DEBUG_PAGEALLOC */
 
 /*
  * The testcases use internal knowledge of the implementation that shouldn't
