@@ -507,6 +507,10 @@ else
 KBUILD_CFLAGS	+= -O2
 endif
 
+ifneq (CONFIG_FRAME_WARN,0)
+KBUILD_CFLAGS += $(call cc-option,-Wframe-larger-than=${CONFIG_FRAME_WARN})
+endif
+
 # Force gcc to behave correct even for buggy distributions
 # Arch Makefiles may override this setting
 KBUILD_CFLAGS += $(call cc-option, -fno-stack-protector)

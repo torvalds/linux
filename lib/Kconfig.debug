@@ -25,6 +25,17 @@ config ENABLE_MUST_CHECK
 	  suppress the "warning: ignoring return value of 'foo', declared with
 	  attribute warn_unused_result" messages.
 
+config FRAME_WARN
+	int "Warn for stack frames larger than (needs gcc 4.4)"
+	range 0 8192
+	default 1024 if !64BIT
+	default 2048 if 64BIT
+	help
+	  Tell gcc to warn at build time for stack frames larger than this.
+	  Setting this too low will cause a lot of warnings.
+	  Setting it to 0 disables the warning.
+	  Requires gcc 4.4
+
 config MAGIC_SYSRQ
 	bool "Magic SysRq key"
 	depends on !UML
