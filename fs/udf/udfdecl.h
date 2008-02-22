@@ -1,17 +1,36 @@
 #ifndef __UDF_DECL_H
 #define __UDF_DECL_H
 
-#include <linux/udf_fs.h>
 #include "ecma_167.h"
 #include "osta_udf.h"
 
 #include <linux/fs.h>
 #include <linux/types.h>
-#include <linux/udf_fs_i.h>
-#include <linux/udf_fs_sb.h>
 #include <linux/buffer_head.h>
+#include <linux/udf_fs_i.h>
 
+#include "udf_sb.h"
 #include "udfend.h"
+
+#define UDF_PREALLOCATE
+#define UDF_DEFAULT_PREALLOC_BLOCKS	8
+
+#undef UDFFS_DEBUG
+
+#ifdef UDFFS_DEBUG
+#define udf_debug(f, a...) \
+do { \
+	printk(KERN_DEBUG "UDF-fs DEBUG %s:%d:%s: ", \
+		__FILE__, __LINE__, __func__); \
+	printk(f, ##a); \
+} while (0)
+#else
+#define udf_debug(f, a...) /**/
+#endif
+
+#define udf_info(f, a...) \
+	printk(KERN_INFO "UDF-fs INFO " f, ##a);
+
 
 #define udf_fixed_to_variable(x) ( ( ( (x) >> 5 ) * 39 ) + ( (x) & 0x0000001F ) )
 #define udf_variable_to_fixed(x) ( ( ( (x) / 39 ) << 5 ) + ( (x) % 39 ) )

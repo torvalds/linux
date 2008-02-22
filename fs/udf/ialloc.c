@@ -21,7 +21,6 @@
 #include "udfdecl.h"
 #include <linux/fs.h>
 #include <linux/quotaops.h>
-#include <linux/udf_fs.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 

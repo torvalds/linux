@@ -57,7 +57,6 @@
 #include <linux/seq_file.h>
 #include <asm/byteorder.h>
 
-#include <linux/udf_fs.h>
 #include "udf_sb.h"
 #include "udf_i.h"
 

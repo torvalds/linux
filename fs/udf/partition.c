@@ -24,7 +24,6 @@
 
 #include <linux/fs.h>
 #include <linux/string.h>
-#include <linux/udf_fs.h>
 #include <linux/slab.h>
 #include <linux/buffer_head.h>
 

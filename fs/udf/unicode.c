@@ -23,7 +23,6 @@
 #include <linux/kernel.h>
 #include <linux/string.h>	/* for memset */
 #include <linux/nls.h>
-#include <linux/udf_fs.h>
 
 #include "udf_sb.h"
 
