@@ -67,12 +67,6 @@ struct rpc_task {
 	const struct rpc_call_ops *tk_ops;
 	void *			tk_calldata;
 
-	/*
-	 * tk_timer is used for async processing by the RPC scheduling
-	 * primitives. You should not access this directly unless
-	 * you have a pathological interest in kernel oopses.
-	 */
-	struct timer_list	tk_timer;	/* kernel timer */
 	unsigned long		tk_timeout;	/* timeout for rpc_sleep() */
 	unsigned short		tk_flags;	/* misc flags */
 	unsigned long		tk_runstate;	/* Task run status */
@@ -149,8 +143,7 @@ struct rpc_task_setup {
 #define RPC_TASK_RUNNING	0
 #define RPC_TASK_QUEUED		1
 #define RPC_TASK_WAKEUP		2
-#define RPC_TASK_HAS_TIMER	3
-#define RPC_TASK_ACTIVE		4
+#define RPC_TASK_ACTIVE		3
 
 #define RPC_IS_RUNNING(t)	test_bit(RPC_TASK_RUNNING, &(t)->tk_runstate)
 #define rpc_set_running(t)	set_bit(RPC_TASK_RUNNING, &(t)->tk_runstate)

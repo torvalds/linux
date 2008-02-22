@@ -58,13 +58,15 @@ struct workqueue_struct *rpciod_workqueue;
  * rpc_run_timer().
  */
 static void
-__rpc_disable_timer(struct rpc_task *task)
+__rpc_disable_timer(struct rpc_wait_queue *queue, struct rpc_task *task)
 {
 	if (task->tk_timeout == 0)
 		return;
 	dprintk("RPC: %5u disabling timer\n", task->tk_pid);
 	task->tk_timeout = 0;
 	list_del(&task->u.tk_wait.timer_list);
+	if (list_empty(&queue->timer_list.list))
+		del_timer(&queue->timer_list.timer);
 }
 
 static void
@@ -78,7 +80,7 @@ rpc_set_queue_timer(struct rpc_wait_queue *queue, unsigned long expires)
  * Set up a timer for the current task.
  */
 static void
-__rpc_add_timer(struct rpc_task *task)
+__rpc_add_timer(struct rpc_wait_queue *queue, struct rpc_task *task)
 {
 	if (!task->tk_timeout)
 		return;
@@ -86,23 +88,10 @@ __rpc_add_timer(struct rpc_task *task)
 	dprintk("RPC: %5u setting alarm for %lu ms\n",
 			task->tk_pid, task->tk_timeout * 1000 / HZ);
 
-	set_bit(RPC_TASK_HAS_TIMER, &task->tk_runstate);
-	mod_timer(&task->tk_timer, jiffies + task->tk_timeout);
-}
-
-/*
- * Delete any timer for the current task. Because we use del_timer_sync(),
- * this function should never be called while holding queue->lock.
- */
-static void
-rpc_delete_timer(struct rpc_task *task)
-{
-	if (RPC_IS_QUEUED(task))
-		return;
-	if (test_and_clear_bit(RPC_TASK_HAS_TIMER, &task->tk_runstate)) {
-		del_singleshot_timer_sync(&task->tk_timer);
-		dprintk("RPC: %5u deleting timer\n", task->tk_pid);
-	}
+	task->u.tk_wait.expires = jiffies + task->tk_timeout;
+	if (list_empty(&queue->timer_list.list) || time_before(task->u.tk_wait.expires, queue->timer_list.expires))
+		rpc_set_queue_timer(queue, task->u.tk_wait.expires);
+	list_add(&task->u.tk_wait.timer_list, &queue->timer_list.list);
 }
 
 /*
@@ -172,7 +161,7 @@ static void __rpc_remove_wait_queue_priority(struct rpc_task *task)
  */
 static void __rpc_remove_wait_queue(struct rpc_wait_queue *queue, struct rpc_task *task)
 {
-	__rpc_disable_timer(task);
+	__rpc_disable_timer(queue, task);
 	if (RPC_IS_PRIORITY(queue))
 		__rpc_remove_wait_queue_priority(task);
 	list_del(&task->u.tk_wait.list);
@@ -344,7 +333,7 @@ static void __rpc_sleep_on(struct rpc_wait_queue *q, struct rpc_task *task,
 
 	BUG_ON(task->tk_callback != NULL);
 	task->tk_callback = action;
-	__rpc_add_timer(task);
+	__rpc_add_timer(q, task);
 }
 
 void rpc_sleep_on(struct rpc_wait_queue *q, struct rpc_task *task,
@@ -555,26 +544,6 @@ void rpc_wake_up_status(struct rpc_wait_queue *queue, int status)
 }
 EXPORT_SYMBOL_GPL(rpc_wake_up_status);
 
-/*
- * Run a timeout function.
- */
-static void rpc_run_timer(unsigned long ptr)
-{
-	struct rpc_task *task = (struct rpc_task *)ptr;
-	struct rpc_wait_queue *queue = task->tk_waitqueue;
-
-	spin_lock(&queue->lock);
-	if (RPC_IS_QUEUED(task) && task->tk_waitqueue == queue) {
-		dprintk("RPC: %5u timeout\n", task->tk_pid);
-		task->tk_status = -ETIMEDOUT;
-		rpc_wake_up_task_queue_locked(queue, task);
-	}
-	spin_unlock(&queue->lock);
-	smp_mb__before_clear_bit();
-	clear_bit(RPC_TASK_HAS_TIMER, &task->tk_runstate);
-	smp_mb__after_clear_bit();
-}
-
 static void __rpc_queue_timer_fn(unsigned long ptr)
 {
 	struct rpc_wait_queue *queue = (struct rpc_wait_queue *)ptr;
@@ -586,7 +555,6 @@ static void __rpc_queue_timer_fn(unsigned long ptr)
 	list_for_each_entry_safe(task, n, &queue->timer_list.list, u.tk_wait.timer_list) {
 		timeo = task->u.tk_wait.expires;
 		if (time_after_eq(now, timeo)) {
-			list_del_init(&task->u.tk_wait.timer_list);
 			dprintk("RPC: %5u timeout\n", task->tk_pid);
 			task->tk_status = -ETIMEDOUT;
 			rpc_wake_up_task_queue_locked(queue, task);
@@ -666,10 +634,6 @@ static void __rpc_execute(struct rpc_task *task)
 	BUG_ON(RPC_IS_QUEUED(task));
 
 	for (;;) {
-		/*
-		 * Garbage collection of pending timers...
-		 */
-		rpc_delete_timer(task);
 
 		/*
 		 * Execute any pending callback.
@@ -838,7 +802,6 @@ EXPORT_SYMBOL_GPL(rpc_free);
 static void rpc_init_task(struct rpc_task *task, const struct rpc_task_setup *task_setup_data)
 {
 	memset(task, 0, sizeof(*task));
-	setup_timer(&task->tk_timer, rpc_run_timer, (unsigned long)task);
 	atomic_set(&task->tk_count, 1);
 	task->tk_flags  = task_setup_data->flags;
 	task->tk_ops = task_setup_data->callback_ops;
@@ -970,9 +933,6 @@ static void rpc_release_task(struct rpc_task *task)
 		spin_unlock(&clnt->cl_lock);
 	}
 	BUG_ON (RPC_IS_QUEUED(task));
-
-	/* Synchronously delete any running timer */
-	rpc_delete_timer(task);
 
 #ifdef RPC_DEBUG
 	task->tk_magic = 0;
