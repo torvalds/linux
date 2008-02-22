@@ -1670,22 +1670,6 @@ static void udf_sb_free_bitmap(struct udf_bitmap *bitmap)
 		vfree(bitmap);
 }
 
-/*
- * udf_read_super
- *
- * PURPOSE
- *	Complete the specified super block.
- *
- * PRE-CONDITIONS
- *	sb			Pointer to superblock to complete - never NULL.
- *	sb->s_dev		Device to read suberblock from.
- *	options			Pointer to mount options.
- *	silent			Silent flag.
- *
- * HISTORY
- *	July 1, 1997 - Andrew E. Mileski
- *	Written, tested, and released.
- */
 static int udf_fill_super(struct super_block *sb, void *options, int silent)
 {
 	int i;
@@ -1913,19 +1897,6 @@ void udf_warning(struct super_block *sb, const char *function,
 	       sb->s_id, function, error_buf);
 }
 
-/*
- * udf_put_super
- *
- * PURPOSE
- *	Prepare for destruction of the superblock.
- *
- * DESCRIPTION
- *	Called before the filesystem is unmounted.
- *
- * HISTORY
- *	July 1, 1997 - Andrew E. Mileski
- *	Written, tested, and released.
- */
 static void udf_put_super(struct super_block *sb)
 {
 	int i;
@@ -1961,19 +1932,6 @@ static void udf_put_super(struct super_block *sb)
 	sb->s_fs_info = NULL;
 }
 
-/*
- * udf_stat_fs
- *
- * PURPOSE
- *	Return info about the filesystem.
- *
- * DESCRIPTION
- *	Called by sys_statfs()
- *
- * HISTORY
- *	July 1, 1997 - Andrew E. Mileski
- *	Written, tested, and released.
- */
 static int udf_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct super_block *sb = dentry->d_sb;

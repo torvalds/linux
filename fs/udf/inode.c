@@ -66,22 +66,7 @@ static void udf_update_extents(struct inode *,
 			       struct extent_position *);
 static int udf_get_block(struct inode *, sector_t, struct buffer_head *, int);
 
-/*
- * udf_delete_inode
- *
- * PURPOSE
- *	Clean-up before the specified inode is destroyed.
- *
- * DESCRIPTION
- *	This routine is called when the kernel destroys an inode structure
- *	ie. when iput() finds i_count == 0.
- *
- * HISTORY
- *	July 1, 1997 - Andrew E. Mileski
- *	Written, tested, and released.
- *
- *  Called at the last iput() if i_nlink is zero.
- */
+
 void udf_delete_inode(struct inode *inode)
 {
 	truncate_inode_pages(&inode->i_data, 0);
@@ -1415,21 +1400,6 @@ static mode_t udf_convert_permissions(struct fileEntry *fe)
 
 	return mode;
 }
-
-/*
- * udf_write_inode
- *
- * PURPOSE
- *	Write out the specified inode.
- *
- * DESCRIPTION
- *	This routine is called whenever an inode is synced.
- *	Currently this routine is just a placeholder.
- *
- * HISTORY
- *	July 1, 1997 - Andrew E. Mileski
- *	Written, tested, and released.
- */
 
 int udf_write_inode(struct inode *inode, int sync)
 {

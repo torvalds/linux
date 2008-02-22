@@ -251,39 +251,6 @@ static struct fileIdentDesc *udf_find_entry(struct inode *dir,
 	return NULL;
 }
 
-/*
- * udf_lookup
- *
- * PURPOSE
- *	Look-up the inode for a given name.
- *
- * DESCRIPTION
- *	Required - lookup_dentry() will return -ENOTDIR if this routine is not
- *	available for a directory. The filesystem is useless if this routine is
- *	not available for at least the filesystem's root directory.
- *
- *	This routine is passed an incomplete dentry - it must be completed by
- *	calling d_add(dentry, inode). If the name does not exist, then the
- *	specified inode must be set to null. An error should only be returned
- *	when the lookup fails for a reason other than the name not existing.
- *	Note that the directory inode semaphore is held during the call.
- *
- *	Refer to lookup_dentry() in fs/namei.c
- *	lookup_dentry() -> lookup() -> real_lookup() -> .
- *
- * PRE-CONDITIONS
- *	dir			Pointer to inode of parent directory.
- *	dentry			Pointer to dentry to complete.
- *	nd			Pointer to lookup nameidata
- *
- * POST-CONDITIONS
- *	<return>		Zero on success.
- *
- * HISTORY
- *	July 1, 1997 - Andrew E. Mileski
- *	Written, tested, and released.
- */
-
 static struct dentry *udf_lookup(struct inode *dir, struct dentry *dentry,
 				 struct nameidata *nd)
 {
