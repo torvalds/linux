@@ -2168,6 +2168,10 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 	newblock = iblock - ee_block + ext_pblock(ex);
 	ex2 = ex;
 
+	err = ext4_ext_get_access(handle, inode, path + depth);
+	if (err)
+		goto out;
+
 	/* ex1: ee_block to iblock - 1 : uninitialized */
 	if (iblock > ee_block) {
 		ex1 = ex;
@@ -2210,6 +2214,10 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 			ex = path[depth].p_ext;
 			if (ex2 != &newex)
 				ex2 = ex;
+
+			err = ext4_ext_get_access(handle, inode, path + depth);
+			if (err)
+				goto out;
 		}
 		allocated = max_blocks;
 	}
@@ -2230,9 +2238,6 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 	ex2->ee_len = cpu_to_le16(allocated);
 	if (ex2 != ex)
 		goto insert;
-	err = ext4_ext_get_access(handle, inode, path + depth);
-	if (err)
-		goto out;
 	/*
 	 * New (initialized) extent starts from the first block
 	 * in the current extent. i.e., ex2 == ex
