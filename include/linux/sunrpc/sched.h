@@ -56,12 +56,10 @@ struct rpc_task {
 	__u8			tk_cred_retry;
 
 	/*
-	 * timeout_fn   to be executed by timer bottom half
 	 * callback	to be executed after waking up
 	 * action	next procedure for async tasks
 	 * tk_ops	caller callbacks
 	 */
-	void			(*tk_timeout_fn)(struct rpc_task *);
 	void			(*tk_callback)(struct rpc_task *);
 	void			(*tk_action)(struct rpc_task *);
 	const struct rpc_call_ops *tk_ops;
@@ -231,7 +229,7 @@ void		rpc_execute(struct rpc_task *);
 void		rpc_init_priority_wait_queue(struct rpc_wait_queue *, const char *);
 void		rpc_init_wait_queue(struct rpc_wait_queue *, const char *);
 void		rpc_sleep_on(struct rpc_wait_queue *, struct rpc_task *,
-					rpc_action action, rpc_action timer);
+					rpc_action action);
 void		rpc_wake_up_queued_task(struct rpc_wait_queue *,
 					struct rpc_task *);
 void		rpc_wake_up(struct rpc_wait_queue *);

@@ -731,7 +731,7 @@ int nfs_wait_on_sequence(struct nfs_seqid *seqid, struct rpc_task *task)
 		list_add_tail(&seqid->list, &sequence->list);
 	if (list_first_entry(&sequence->list, struct nfs_seqid, list) == seqid)
 		goto unlock;
-	rpc_sleep_on(&sequence->wait, task, NULL, NULL);
+	rpc_sleep_on(&sequence->wait, task, NULL);
 	status = -EAGAIN;
 unlock:
 	spin_unlock(&sequence->lock);

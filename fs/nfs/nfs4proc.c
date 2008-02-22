@@ -2765,7 +2765,7 @@ nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server)
 		case -NFS4ERR_STALE_CLIENTID:
 		case -NFS4ERR_STALE_STATEID:
 		case -NFS4ERR_EXPIRED:
-			rpc_sleep_on(&clp->cl_rpcwaitq, task, NULL, NULL);
+			rpc_sleep_on(&clp->cl_rpcwaitq, task, NULL);
 			nfs4_schedule_state_recovery(clp);
 			if (test_bit(NFS4CLNT_STATE_RECOVER, &clp->cl_state) == 0)
 				rpc_wake_up_queued_task(&clp->cl_rpcwaitq, task);

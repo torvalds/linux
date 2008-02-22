@@ -56,29 +56,18 @@ struct workqueue_struct *rpciod_workqueue;
  * queue->lock and bh_disabled in order to avoid races within
  * rpc_run_timer().
  */
-static inline void
+static void
 __rpc_disable_timer(struct rpc_task *task)
 {
 	dprintk("RPC: %5u disabling timer\n", task->tk_pid);
-	task->tk_timeout_fn = NULL;
 	task->tk_timeout = 0;
-}
-
-/*
- * Default timeout handler if none specified by user
- */
-static void
-__rpc_default_timer(struct rpc_task *task)
-{
-	dprintk("RPC: %5u timeout (default timer)\n", task->tk_pid);
-	task->tk_status = -ETIMEDOUT;
 }
 
 /*
  * Set up a timer for the current task.
  */
-static inline void
-__rpc_add_timer(struct rpc_task *task, rpc_action timer)
+static void
+__rpc_add_timer(struct rpc_task *task)
 {
 	if (!task->tk_timeout)
 		return;
@@ -86,10 +75,6 @@ __rpc_add_timer(struct rpc_task *task, rpc_action timer)
 	dprintk("RPC: %5u setting alarm for %lu ms\n",
 			task->tk_pid, task->tk_timeout * 1000 / HZ);
 
-	if (timer)
-		task->tk_timeout_fn = timer;
-	else
-		task->tk_timeout_fn = __rpc_default_timer;
 	set_bit(RPC_TASK_HAS_TIMER, &task->tk_runstate);
 	mod_timer(&task->tk_timer, jiffies + task->tk_timeout);
 }
@@ -297,7 +282,6 @@ EXPORT_SYMBOL_GPL(__rpc_wait_for_completion_task);
  */
 static void rpc_make_runnable(struct rpc_task *task)
 {
-	BUG_ON(task->tk_timeout_fn);
 	rpc_clear_queued(task);
 	if (rpc_test_and_set_running(task))
 		return;
@@ -327,7 +311,7 @@ static void rpc_make_runnable(struct rpc_task *task)
  * as it's on a wait queue.
  */
 static void __rpc_sleep_on(struct rpc_wait_queue *q, struct rpc_task *task,
-			rpc_action action, rpc_action timer)
+			rpc_action action)
 {
 	dprintk("RPC: %5u sleep_on(queue \"%s\" time %lu)\n",
 			task->tk_pid, rpc_qname(q), jiffies);
@@ -341,11 +325,11 @@ static void __rpc_sleep_on(struct rpc_wait_queue *q, struct rpc_task *task,
 
 	BUG_ON(task->tk_callback != NULL);
 	task->tk_callback = action;
-	__rpc_add_timer(task, timer);
+	__rpc_add_timer(task);
 }
 
 void rpc_sleep_on(struct rpc_wait_queue *q, struct rpc_task *task,
-				rpc_action action, rpc_action timer)
+				rpc_action action)
 {
 	/* Mark the task as being activated if so needed */
 	rpc_set_active(task);
@@ -354,7 +338,7 @@ void rpc_sleep_on(struct rpc_wait_queue *q, struct rpc_task *task,
 	 * Protect the queue operations.
 	 */
 	spin_lock_bh(&q->lock);
-	__rpc_sleep_on(q, task, action, timer);
+	__rpc_sleep_on(q, task, action);
 	spin_unlock_bh(&q->lock);
 }
 EXPORT_SYMBOL_GPL(rpc_sleep_on);
@@ -559,20 +543,15 @@ EXPORT_SYMBOL_GPL(rpc_wake_up_status);
 static void rpc_run_timer(unsigned long ptr)
 {
 	struct rpc_task *task = (struct rpc_task *)ptr;
-	void (*callback)(struct rpc_task *);
+	struct rpc_wait_queue *queue = task->tk_waitqueue;
 
-	if (RPC_IS_QUEUED(task)) {
-		struct rpc_wait_queue *queue = task->tk_waitqueue;
-		callback = task->tk_timeout_fn;
-
-		dprintk("RPC: %5u running timer\n", task->tk_pid);
-		if (callback != NULL)
-			callback(task);
-		/* Note: we're already in a bh-safe context */
-		spin_lock(&queue->lock);
+	spin_lock(&queue->lock);
+	if (RPC_IS_QUEUED(task) && task->tk_waitqueue == queue) {
+		dprintk("RPC: %5u timeout\n", task->tk_pid);
+		task->tk_status = -ETIMEDOUT;
 		rpc_wake_up_task_queue_locked(queue, task);
-		spin_unlock(&queue->lock);
 	}
+	spin_unlock(&queue->lock);
 	smp_mb__before_clear_bit();
 	clear_bit(RPC_TASK_HAS_TIMER, &task->tk_runstate);
 	smp_mb__after_clear_bit();
@@ -580,6 +559,7 @@ static void rpc_run_timer(unsigned long ptr)
 
 static void __rpc_atrun(struct rpc_task *task)
 {
+	task->tk_status = 0;
 }
 
 /*
@@ -588,7 +568,7 @@ static void __rpc_atrun(struct rpc_task *task)
 void rpc_delay(struct rpc_task *task, unsigned long delay)
 {
 	task->tk_timeout = delay;
-	rpc_sleep_on(&delay_queue, task, NULL, __rpc_atrun);
+	rpc_sleep_on(&delay_queue, task, __rpc_atrun);
 }
 EXPORT_SYMBOL_GPL(rpc_delay);
 

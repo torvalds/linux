@@ -298,7 +298,7 @@ void rpcb_getport_async(struct rpc_task *task)
 
 	/* Put self on queue before sending rpcbind request, in case
 	 * rpcb_getport_done completes before we return from rpc_run_task */
-	rpc_sleep_on(&xprt->binding, task, NULL, NULL);
+	rpc_sleep_on(&xprt->binding, task, NULL);
 
 	/* Someone else may have bound if we slept */
 	if (xprt_bound(xprt)) {
