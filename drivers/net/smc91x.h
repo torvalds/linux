@@ -34,6 +34,7 @@
 #ifndef _SMC91X_H_
 #define _SMC91X_H_
 
+#include <linux/smc91x.h>
 
 /*
  * Define your architecture specific bus configuration parameters here.
@@ -481,6 +482,7 @@ static inline void LPD7_SMC_outsw (unsigned char* a, int r,
 #define RPC_LSA_DEFAULT		RPC_LED_100_10
 #define RPC_LSB_DEFAULT		RPC_LED_TX_RX
 
+#define SMC_DYNAMIC_BUS_CONFIG
 #endif
 
 
@@ -526,8 +528,19 @@ struct smc_local {
 #endif
 	void __iomem *base;
 	void __iomem *datacs;
+
+	struct smc91x_platdata cfg;
 };
 
+#ifdef SMC_DYNAMIC_BUS_CONFIG
+#define SMC_8BIT(p) (((p)->cfg.flags & SMC91X_USE_8BIT) && SMC_CAN_USE_8BIT)
+#define SMC_16BIT(p) (((p)->cfg.flags & SMC91X_USE_16BIT) && SMC_CAN_USE_16BIT)
+#define SMC_32BIT(p) (((p)->cfg.flags & SMC91X_USE_32BIT) && SMC_CAN_USE_32BIT)
+#else
+#define SMC_8BIT(p) SMC_CAN_USE_8BIT
+#define SMC_16BIT(p) SMC_CAN_USE_16BIT
+#define SMC_32BIT(p) SMC_CAN_USE_32BIT
+#endif
 
 #ifdef SMC_USE_PXA_DMA
 /*
@@ -1108,41 +1121,41 @@ static const char * chip_ids[ 16 ] =  {
  *
  * Enforce it on any 32-bit capable setup for now.
  */
-#define SMC_MUST_ALIGN_WRITE	SMC_CAN_USE_32BIT
+#define SMC_MUST_ALIGN_WRITE(lp)	SMC_32BIT(lp)
 
 #define SMC_GET_PN(lp)						\
-	(SMC_CAN_USE_8BIT	? (SMC_inb(ioaddr, PN_REG(lp)))	\
+	(SMC_8BIT(lp)	? (SMC_inb(ioaddr, PN_REG(lp)))	\
 				: (SMC_inw(ioaddr, PN_REG(lp)) & 0xFF))
 
 #define SMC_SET_PN(lp, x)						\
 	do {								\
-		if (SMC_MUST_ALIGN_WRITE)				\
+		if (SMC_MUST_ALIGN_WRITE(lp))				\
 			SMC_outl((x)<<16, ioaddr, SMC_REG(lp, 0, 2));	\
-		else if (SMC_CAN_USE_8BIT)				\
+		else if (SMC_8BIT(lp))				\
 			SMC_outb(x, ioaddr, PN_REG(lp));		\
 		else							\
 			SMC_outw(x, ioaddr, PN_REG(lp));		\
 	} while (0)
 
 #define SMC_GET_AR(lp)						\
-	(SMC_CAN_USE_8BIT	? (SMC_inb(ioaddr, AR_REG(lp)))	\
+	(SMC_8BIT(lp)	? (SMC_inb(ioaddr, AR_REG(lp)))	\
 				: (SMC_inw(ioaddr, PN_REG(lp)) >> 8))
 
 #define SMC_GET_TXFIFO(lp)						\
-	(SMC_CAN_USE_8BIT	? (SMC_inb(ioaddr, TXFIFO_REG(lp)))	\
+	(SMC_8BIT(lp)	? (SMC_inb(ioaddr, TXFIFO_REG(lp)))	\
 				: (SMC_inw(ioaddr, TXFIFO_REG(lp)) & 0xFF))
 
 #define SMC_GET_RXFIFO(lp)						\
-	(SMC_CAN_USE_8BIT	? (SMC_inb(ioaddr, RXFIFO_REG(lp)))	\
+	(SMC_8BIT(lp)	? (SMC_inb(ioaddr, RXFIFO_REG(lp)))	\
 				: (SMC_inw(ioaddr, TXFIFO_REG(lp)) >> 8))
 
 #define SMC_GET_INT(lp)						\
-	(SMC_CAN_USE_8BIT	? (SMC_inb(ioaddr, INT_REG(lp)))	\
+	(SMC_8BIT(lp)	? (SMC_inb(ioaddr, INT_REG(lp)))	\
 				: (SMC_inw(ioaddr, INT_REG(lp)) & 0xFF))
 
 #define SMC_ACK_INT(lp, x)						\
 	do {								\
-		if (SMC_CAN_USE_8BIT)					\
+		if (SMC_8BIT(lp))					\
 			SMC_outb(x, ioaddr, INT_REG(lp));		\
 		else {							\
 			unsigned long __flags;				\
@@ -1155,12 +1168,12 @@ static const char * chip_ids[ 16 ] =  {
 	} while (0)
 
 #define SMC_GET_INT_MASK(lp)						\
-	(SMC_CAN_USE_8BIT	? (SMC_inb(ioaddr, IM_REG(lp)))	\
+	(SMC_8BIT(lp)	? (SMC_inb(ioaddr, IM_REG(lp)))	\
 				: (SMC_inw(ioaddr, INT_REG(lp)) >> 8))
 
 #define SMC_SET_INT_MASK(lp, x)					\
 	do {								\
-		if (SMC_CAN_USE_8BIT)					\
+		if (SMC_8BIT(lp))					\
 			SMC_outb(x, ioaddr, IM_REG(lp));		\
 		else							\
 			SMC_outw((x) << 8, ioaddr, INT_REG(lp));	\
@@ -1170,7 +1183,7 @@ static const char * chip_ids[ 16 ] =  {
 
 #define SMC_SELECT_BANK(lp, x)					\
 	do {								\
-		if (SMC_MUST_ALIGN_WRITE)				\
+		if (SMC_MUST_ALIGN_WRITE(lp))				\
 			SMC_outl((x)<<16, ioaddr, 12<<SMC_IO_SHIFT);	\
 		else							\
 			SMC_outw(x, ioaddr, BANK_SELECT);		\
@@ -1208,7 +1221,7 @@ static const char * chip_ids[ 16 ] =  {
 
 #define SMC_SET_PTR(lp, x)						\
 	do {								\
-		if (SMC_MUST_ALIGN_WRITE)				\
+		if (SMC_MUST_ALIGN_WRITE(lp))				\
 			SMC_outl((x)<<16, ioaddr, SMC_REG(lp, 4, 2));	\
 		else							\
 			SMC_outw(x, ioaddr, PTR_REG(lp));		\
@@ -1226,7 +1239,7 @@ static const char * chip_ids[ 16 ] =  {
 
 #define SMC_SET_RPC(lp, x)						\
 	do {								\
-		if (SMC_MUST_ALIGN_WRITE)				\
+		if (SMC_MUST_ALIGN_WRITE(lp))				\
 			SMC_outl((x)<<16, ioaddr, SMC_REG(lp, 8, 0));	\
 		else							\
 			SMC_outw(x, ioaddr, RPC_REG(lp));		\
@@ -1267,7 +1280,7 @@ static const char * chip_ids[ 16 ] =  {
 
 #define SMC_PUT_PKT_HDR(lp, status, length)				\
 	do {								\
-		if (SMC_CAN_USE_32BIT)					\
+		if (SMC_32BIT(lp))					\
 			SMC_outl((status) | (length)<<16, ioaddr,	\
 				 DATA_REG(lp));			\
 		else {							\
@@ -1278,7 +1291,7 @@ static const char * chip_ids[ 16 ] =  {
 
 #define SMC_GET_PKT_HDR(lp, status, length)				\
 	do {								\
-		if (SMC_CAN_USE_32BIT) {				\
+		if (SMC_32BIT(lp)) {				\
 			unsigned int __val = SMC_inl(ioaddr, DATA_REG(lp)); \
 			(status) = __val & 0xffff;			\
 			(length) = __val >> 16;				\
@@ -1290,7 +1303,7 @@ static const char * chip_ids[ 16 ] =  {
 
 #define SMC_PUSH_DATA(lp, p, l)					\
 	do {								\
-		if (SMC_CAN_USE_32BIT) {				\
+		if (SMC_32BIT(lp)) {				\
 			void *__ptr = (p);				\
 			int __len = (l);				\
 			void __iomem *__ioaddr = ioaddr;		\
@@ -1308,15 +1321,15 @@ static const char * chip_ids[ 16 ] =  {
 				SMC_outw(*((u16 *)__ptr), ioaddr,	\
 					 DATA_REG(lp));		\
 			}						\
-		} else if (SMC_CAN_USE_16BIT)				\
+		} else if (SMC_16BIT(lp))				\
 			SMC_outsw(ioaddr, DATA_REG(lp), p, (l) >> 1);	\
-		else if (SMC_CAN_USE_8BIT)				\
+		else if (SMC_8BIT(lp))				\
 			SMC_outsb(ioaddr, DATA_REG(lp), p, l);	\
 	} while (0)
 
 #define SMC_PULL_DATA(lp, p, l)					\
 	do {								\
-		if (SMC_CAN_USE_32BIT) {				\
+		if (SMC_32BIT(lp)) {				\
 			void *__ptr = (p);				\
 			int __len = (l);				\
 			void __iomem *__ioaddr = ioaddr;		\
@@ -1343,9 +1356,9 @@ static const char * chip_ids[ 16 ] =  {
 				__ioaddr = lp->datacs;			\
 			__len += 2;					\
 			SMC_insl(__ioaddr, DATA_REG(lp), __ptr, __len>>2); \
-		} else if (SMC_CAN_USE_16BIT)				\
+		} else if (SMC_16BIT(lp))				\
 			SMC_insw(ioaddr, DATA_REG(lp), p, (l) >> 1);	\
-		else if (SMC_CAN_USE_8BIT)				\
+		else if (SMC_8BIT(lp))				\
 			SMC_insb(ioaddr, DATA_REG(lp), p, l);		\
 	} while (0)
 

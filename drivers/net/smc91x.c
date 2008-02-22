@@ -1997,6 +1997,8 @@ err_out:
 
 static int smc_enable_device(struct platform_device *pdev)
 {
+	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct smc_local *lp = netdev_priv(ndev);
 	unsigned long flags;
 	unsigned char ecor, ecsr;
 	void __iomem *addr;
@@ -2039,7 +2041,7 @@ static int smc_enable_device(struct platform_device *pdev)
 	 * Set the appropriate byte/word mode.
 	 */
 	ecsr = readb(addr + (ECSR << SMC_IO_SHIFT)) & ~ECSR_IOIS8;
-	if (!SMC_CAN_USE_16BIT)
+	if (!SMC_16BIT(lp))
 		ecsr |= ECSR_IOIS8;
 	writeb(ecsr, addr + (ECSR << SMC_IO_SHIFT));
 	local_irq_restore(flags);
@@ -2124,10 +2126,11 @@ static void smc_release_datacs(struct platform_device *pdev, struct net_device *
  */
 static int smc_drv_probe(struct platform_device *pdev)
 {
+	struct smc91x_platdata *pd = pdev->dev.platform_data;
+	struct smc_local *lp;
 	struct net_device *ndev;
 	struct resource *res, *ires;
 	unsigned int __iomem *addr;
-	unsigned long irq_flags = SMC_IRQ_FLAGS;
 	int ret;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "smc91x-regs");
@@ -2152,6 +2155,27 @@ static int smc_drv_probe(struct platform_device *pdev)
 	}
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
+	/* get configuration from platform data, only allow use of
+	 * bus width if both SMC_CAN_USE_xxx and SMC91X_USE_xxx are set.
+	 */
+
+	lp = netdev_priv(ndev);
+	lp->cfg.irq_flags = SMC_IRQ_FLAGS;
+
+#ifdef SMC_DYNAMIC_BUS_CONFIG
+	if (pd)
+		memcpy(&lp->cfg, pd, sizeof(lp->cfg));
+	else {
+		lp->cfg.flags = SMC91X_USE_8BIT;
+		lp->cfg.flags |= SMC91X_USE_16BIT;
+		lp->cfg.flags |= SMC91X_USE_32BIT;
+	}
+
+	lp->cfg.flags &= ~(SMC_CAN_USE_8BIT ? 0 : SMC91X_USE_8BIT);
+	lp->cfg.flags &= ~(SMC_CAN_USE_16BIT ? 0 : SMC91X_USE_16BIT);
+	lp->cfg.flags &= ~(SMC_CAN_USE_32BIT ? 0 : SMC91X_USE_32BIT);
+#endif
+
 	ndev->dma = (unsigned char)-1;
 
 	ires = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
@@ -2162,7 +2186,7 @@ static int smc_drv_probe(struct platform_device *pdev)
 
 	ndev->irq = ires->start;
 	if (SMC_IRQ_FLAGS == -1)
-		irq_flags = ires->flags & IRQF_TRIGGER_MASK;
+		lp->cfg.irq_flags = ires->flags & IRQF_TRIGGER_MASK;
 
 	ret = smc_request_attrib(pdev);
 	if (ret)
@@ -2170,6 +2194,7 @@ static int smc_drv_probe(struct platform_device *pdev)
 #if defined(CONFIG_SA1100_ASSABET)
 	NCR_0 |= NCR_ENET_OSC_EN;
 #endif
+	platform_set_drvdata(pdev, ndev);
 	ret = smc_enable_device(pdev);
 	if (ret)
 		goto out_release_attrib;
@@ -2188,8 +2213,7 @@ static int smc_drv_probe(struct platform_device *pdev)
 	}
 #endif
 
-	platform_set_drvdata(pdev, ndev);
-	ret = smc_probe(ndev, addr, irq_flags);
+	ret = smc_probe(ndev, addr, lp->cfg.irq_flags);
 	if (ret != 0)
 		goto out_iounmap;
 
