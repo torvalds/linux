@@ -158,6 +158,7 @@ run_osc_out:
 /**
  * __pci_osc_support_set - register OS support to Firmware
  * @flags: OS support bits
+ * @hid: hardware ID
  *
  * Update OS support fields and doing a _OSC Query to obtain an update
  * from Firmware on supported control bits.
