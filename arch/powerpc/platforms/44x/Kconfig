@@ -61,7 +61,7 @@ config WARP
 	select 440EP
 	help
 	  This option enables support for the PIKA Warp(tm) Appliance. The Warp
-          is a small computer replacement with up to 9 ports of FXO/FXS plus VOIP
+	  is a small computer replacement with up to 9 ports of FXO/FXS plus VOIP
 	  stations and trunks.
 
 	  See http://www.pikatechnologies.com/ and follow the "PIKA for Computer
@@ -110,17 +110,17 @@ config 440GP
 
 config 440GX
 	bool
-        select IBM_NEW_EMAC_EMAC4
+	select IBM_NEW_EMAC_EMAC4
 	select IBM_NEW_EMAC_RGMII
-        select IBM_NEW_EMAC_ZMII #test only
-        select IBM_NEW_EMAC_TAH  #test only
+	select IBM_NEW_EMAC_ZMII #test only
+	select IBM_NEW_EMAC_TAH  #test only
 
 config 440SP
 	bool
 
 config 440SPe
-        select IBM_NEW_EMAC_EMAC4
 	bool
+	select IBM_NEW_EMAC_EMAC4
 
 # 44x errata/workaround config symbols, selected by the CPU models above
 config IBM440EP_ERR42

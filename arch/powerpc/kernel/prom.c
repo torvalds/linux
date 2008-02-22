@@ -865,12 +865,12 @@ static int __init early_init_dt_scan_root(unsigned long node,
 	return 1;
 }
 
-static unsigned long __init dt_mem_next_cell(int s, cell_t **cellp)
+static u64 __init dt_mem_next_cell(int s, cell_t **cellp)
 {
 	cell_t *p = *cellp;
 
 	*cellp = p + s;
-	return of_read_ulong(p, s);
+	return of_read_number(p, s);
 }
 
 #ifdef CONFIG_PPC_PSERIES
@@ -883,8 +883,8 @@ static unsigned long __init dt_mem_next_cell(int s, cell_t **cellp)
 static int __init early_init_dt_scan_drconf_memory(unsigned long node)
 {
 	cell_t *dm, *ls;
-	unsigned long l, n;
-	unsigned long base, size, lmb_size, flags;
+	unsigned long l, n, flags;
+	u64 base, size, lmb_size;
 
 	ls = (cell_t *)of_get_flat_dt_prop(node, "ibm,lmb-size", &l);
 	if (ls == NULL || l < dt_root_size_cells * sizeof(cell_t))
@@ -959,14 +959,15 @@ static int __init early_init_dt_scan_memory(unsigned long node,
 	    uname, l, reg[0], reg[1], reg[2], reg[3]);
 
 	while ((endp - reg) >= (dt_root_addr_cells + dt_root_size_cells)) {
-		unsigned long base, size;
+		u64 base, size;
 
 		base = dt_mem_next_cell(dt_root_addr_cells, &reg);
 		size = dt_mem_next_cell(dt_root_size_cells, &reg);
 
 		if (size == 0)
 			continue;
-		DBG(" - %lx ,  %lx\n", base, size);
+		DBG(" - %llx ,  %llx\n", (unsigned long long)base,
+		    (unsigned long long)size);
 #ifdef CONFIG_PPC64
 		if (iommu_is_off) {
 			if (base >= 0x80000000ul)

@@ -302,7 +302,6 @@ static int __devexit rgmii_remove(struct of_device *ofdev)
 static struct of_device_id rgmii_match[] =
 {
 	{
-		.type		= "rgmii-interface",
 		.compatible	= "ibm,rgmii",
 	},
 	{

@@ -172,11 +172,11 @@ struct ocp_def core_ocp[] = {
 /* Polarity and triggering settings for internal interrupt sources */
 struct ppc4xx_uic_settings ppc4xx_core_uic_cfg[] __initdata = {
 	{ .polarity	= 0xffbffe03,
-	  .triggering   = 0xfffffe00,
+	  .triggering   = 0x00000000,
 	  .ext_irq_mask = 0x000001fc,	/* IRQ0 - IRQ6 */
 	},
-	{ .polarity	= 0xffffc6ef,
-	  .triggering	= 0xffffc7ff,
+	{ .polarity	= 0xffffc6af,
+	  .triggering	= 0x06000140,
 	  .ext_irq_mask = 0x00003800,	/* IRQ7 - IRQ9 */
 	},
 };
