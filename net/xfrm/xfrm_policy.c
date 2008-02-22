@@ -97,25 +97,52 @@ int xfrm_selector_match(struct xfrm_selector *sel, struct flowi *fl,
 	return 0;
 }
 
-static inline struct dst_entry *xfrm_dst_lookup(struct xfrm_state *x, int tos,
-						int family)
+static inline struct dst_entry *__xfrm_dst_lookup(int tos,
+						  xfrm_address_t *saddr,
+						  xfrm_address_t *daddr,
+						  int family)
 {
-	xfrm_address_t *saddr = &x->props.saddr;
-	xfrm_address_t *daddr = &x->id.daddr;
 	struct xfrm_policy_afinfo *afinfo;
 	struct dst_entry *dst;
-
-	if (x->type->flags & XFRM_TYPE_LOCAL_COADDR)
-		saddr = x->coaddr;
-	if (x->type->flags & XFRM_TYPE_REMOTE_COADDR)
-		daddr = x->coaddr;
 
 	afinfo = xfrm_policy_get_afinfo(family);
 	if (unlikely(afinfo == NULL))
 		return ERR_PTR(-EAFNOSUPPORT);
 
 	dst = afinfo->dst_lookup(tos, saddr, daddr);
+
 	xfrm_policy_put_afinfo(afinfo);
+
+	return dst;
+}
+
+static inline struct dst_entry *xfrm_dst_lookup(struct xfrm_state *x, int tos,
+						xfrm_address_t *prev_saddr,
+						xfrm_address_t *prev_daddr,
+						int family)
+{
+	xfrm_address_t *saddr = &x->props.saddr;
+	xfrm_address_t *daddr = &x->id.daddr;
+	struct dst_entry *dst;
+
+	if (x->type->flags & XFRM_TYPE_LOCAL_COADDR) {
+		saddr = x->coaddr;
+		daddr = prev_daddr;
+	}
+	if (x->type->flags & XFRM_TYPE_REMOTE_COADDR) {
+		saddr = prev_saddr;
+		daddr = x->coaddr;
+	}
+
+	dst = __xfrm_dst_lookup(tos, saddr, daddr, family);
+
+	if (!IS_ERR(dst)) {
+		if (prev_saddr != saddr)
+			memcpy(prev_saddr, saddr,  sizeof(*prev_saddr));
+		if (prev_daddr != daddr)
+			memcpy(prev_daddr, daddr,  sizeof(*prev_daddr));
+	}
+
 	return dst;
 }
 
@@ -1354,6 +1381,9 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 	int trailer_len = 0;
 	int tos;
 	int family = policy->selector.family;
+	xfrm_address_t saddr, daddr;
+
+	xfrm_flowi_addr_get(fl, &saddr, &daddr, family);
 
 	tos = xfrm_get_tos(fl, family);
 	err = tos;
@@ -1384,7 +1414,8 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 
 		if (xfrm[i]->props.mode != XFRM_MODE_TRANSPORT) {
 			family = xfrm[i]->props.family;
-			dst = xfrm_dst_lookup(xfrm[i], tos, family);
+			dst = xfrm_dst_lookup(xfrm[i], tos, &saddr, &daddr,
+					      family);
 			err = PTR_ERR(dst);
 			if (IS_ERR(dst))
 				goto put_states;

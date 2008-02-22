@@ -1045,6 +1045,23 @@ xfrm_address_t *xfrm_flowi_saddr(struct flowi *fl, unsigned short family)
 	return NULL;
 }
 
+static __inline__
+void xfrm_flowi_addr_get(struct flowi *fl,
+			 xfrm_address_t *saddr, xfrm_address_t *daddr,
+			 unsigned short family)
+{
+	switch(family) {
+	case AF_INET:
+		memcpy(&saddr->a4, &fl->fl4_src, sizeof(saddr->a4));
+		memcpy(&daddr->a4, &fl->fl4_dst, sizeof(daddr->a4));
+		break;
+	case AF_INET6:
+		ipv6_addr_copy((struct in6_addr *)&saddr->a6, &fl->fl6_src);
+		ipv6_addr_copy((struct in6_addr *)&daddr->a6, &fl->fl6_dst);
+		break;
+	}
+}
+
 static __inline__ int
 __xfrm4_state_addr_check(struct xfrm_state *x,
 			 xfrm_address_t *daddr, xfrm_address_t *saddr)
