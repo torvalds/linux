@@ -881,11 +881,6 @@ void __init init_apic_mappings(void)
 	apic_printk(APIC_VERBOSE, "mapped APIC to %16lx (%16lx)\n",
 				APIC_BASE, apic_phys);
 
-	/* Put local APIC into the resource map. */
-	lapic_resource.start = apic_phys;
-	lapic_resource.end = lapic_resource.start + PAGE_SIZE - 1;
-	insert_resource(&iomem_resource, &lapic_resource);
-
 	/*
 	 * Fetch the APIC ID of the BSP in case we have a
 	 * default configuration (or the MP table is broken).
@@ -1300,3 +1295,21 @@ static __init int setup_apicpmtimer(char *s)
 }
 __setup("apicpmtimer", setup_apicpmtimer);
 
+static int __init lapic_insert_resource(void)
+{
+	if (!apic_phys)
+		return -1;
+
+	/* Put local APIC into the resource map. */
+	lapic_resource.start = apic_phys;
+	lapic_resource.end = lapic_resource.start + PAGE_SIZE - 1;
+	insert_resource(&iomem_resource, &lapic_resource);
+
+	return 0;
+}
+
+/*
+ * need call insert after e820_reserve_resources()
+ * that is using request_resource
+ */
+late_initcall(lapic_insert_resource);
