@@ -192,9 +192,13 @@ static struct mv643xx_eth_platform_data qnap_ts209_eth_data = {
 /*****************************************************************************
  * RTC S35390A on I2C bus
  ****************************************************************************/
+
+#define TS209_RTC_GPIO	3
+
 static struct i2c_board_info __initdata qnap_ts209_i2c_rtc = {
        .driver_name = "rtc-s35390a",
        .addr        = 0x30,
+       .irq         = 0,
 };
 
 /****************************************************************************
@@ -328,7 +332,18 @@ static void __init qnap_ts209_init(void)
 
 	platform_add_devices(qnap_ts209_devices,
 				ARRAY_SIZE(qnap_ts209_devices));
+
+	/* Get RTC IRQ and register the chip */
+	if (gpio_request(TS209_RTC_GPIO, "rtc") == 0) {
+		if (gpio_direction_input(TS209_RTC_GPIO) == 0)
+			qnap_ts209_i2c_rtc.irq = gpio_to_irq(TS209_RTC_GPIO);
+		else
+			gpio_free(TS209_RTC_GPIO);
+	}
+	if (qnap_ts209_i2c_rtc.irq == 0)
+		pr_warning("qnap_ts209_init: failed to get RTC IRQ\n");
 	i2c_register_board_info(0, &qnap_ts209_i2c_rtc, 1);
+
 	orion_eth_init(&qnap_ts209_eth_data);
 	orion_sata_init(&qnap_ts209_sata_data);
 }
