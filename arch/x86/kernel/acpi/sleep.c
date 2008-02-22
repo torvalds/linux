@@ -13,7 +13,7 @@
 #include <asm/smp.h>
 
 /* address in low memory of the wakeup routine. */
-unsigned long acpi_wakeup_address = 0;
+unsigned long acpi_wakeup_address;
 unsigned long acpi_realmode_flags;
 extern char wakeup_start, wakeup_end;
 
