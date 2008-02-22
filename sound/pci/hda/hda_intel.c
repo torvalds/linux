@@ -275,6 +275,11 @@ enum {
 #define NVIDIA_HDA_TRANSREG_ADDR      0x4e
 #define NVIDIA_HDA_ENABLE_COHBITS     0x0f
 
+/* Defines for Intel SCH HDA snoop control */
+#define INTEL_SCH_HDA_DEVC      0x78
+#define INTEL_SCH_HDA_DEVC_NOSNOOP       (0x1<<11)
+
+
 /*
  */
 
@@ -868,6 +873,8 @@ static void update_pci_byte(struct pci_dev *pci, unsigned int reg,
 
 static void azx_init_pci(struct azx *chip)
 {
+	unsigned short snoop;
+
 	/* Clear bits 0-2 of PCI register TCSEL (at offset 0x44)
 	 * TCSEL == Traffic Class Select Register, which sets PCI express QOS
 	 * Ensuring these bits are 0 clears playback static on some HD Audio
@@ -888,6 +895,19 @@ static void azx_init_pci(struct azx *chip)
 				NVIDIA_HDA_TRANSREG_ADDR,
 				0x0f, NVIDIA_HDA_ENABLE_COHBITS);
 		break;
+	case AZX_DRIVER_SCH:
+		pci_read_config_word(chip->pci, INTEL_SCH_HDA_DEVC, &snoop);
+		if (snoop & INTEL_SCH_HDA_DEVC_NOSNOOP) {
+			pci_write_config_word(chip->pci, INTEL_SCH_HDA_DEVC, \
+				snoop & (~INTEL_SCH_HDA_DEVC_NOSNOOP));
+			pci_read_config_word(chip->pci,
+				INTEL_SCH_HDA_DEVC, &snoop);
+			snd_printdd("HDA snoop disabled, enabling ... %s\n",\
+				(snoop & INTEL_SCH_HDA_DEVC_NOSNOOP) \
+				? "Failed" : "OK");
+		}
+		break;
+
         }
 }
 
@@ -1040,6 +1060,7 @@ static int azx_setup_controller(struct azx *chip, struct azx_dev *azx_dev)
 
 static unsigned int azx_max_codecs[] __devinitdata = {
 	[AZX_DRIVER_ICH] = 3,
+	[AZX_DRIVER_SCH] = 3,
 	[AZX_DRIVER_ATI] = 4,
 	[AZX_DRIVER_ATIHDMI] = 4,
 	[AZX_DRIVER_VIA] = 3,		/* FIXME: correct? */
