@@ -777,8 +777,6 @@ static void xprt_timer(struct rpc_task *task)
 			xprt->ops->timer(task);
 		task->tk_status = -ETIMEDOUT;
 	}
-	task->tk_timeout = 0;
-	rpc_wake_up_task(task);
 	spin_unlock(&xprt->transport_lock);
 }
 

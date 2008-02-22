@@ -38,7 +38,6 @@ static struct kmem_cache	*rpc_buffer_slabp __read_mostly;
 static mempool_t	*rpc_task_mempool __read_mostly;
 static mempool_t	*rpc_buffer_mempool __read_mostly;
 
-static void			__rpc_default_timer(struct rpc_task *task);
 static void			rpc_async_schedule(struct work_struct *);
 static void			 rpc_release_task(struct rpc_task *task);
 
@@ -66,25 +65,13 @@ __rpc_disable_timer(struct rpc_task *task)
 }
 
 /*
- * Run a timeout function.
- * We use the callback in order to allow __rpc_wake_up_task()
- * and friends to disable the timer synchronously on SMP systems
- * without calling del_timer_sync(). The latter could cause a
- * deadlock if called while we're holding spinlocks...
+ * Default timeout handler if none specified by user
  */
-static void rpc_run_timer(struct rpc_task *task)
+static void
+__rpc_default_timer(struct rpc_task *task)
 {
-	void (*callback)(struct rpc_task *);
-
-	callback = task->tk_timeout_fn;
-	task->tk_timeout_fn = NULL;
-	if (callback && RPC_IS_QUEUED(task)) {
-		dprintk("RPC: %5u running timer\n", task->tk_pid);
-		callback(task);
-	}
-	smp_mb__before_clear_bit();
-	clear_bit(RPC_TASK_HAS_TIMER, &task->tk_runstate);
-	smp_mb__after_clear_bit();
+	dprintk("RPC: %5u timeout (default timer)\n", task->tk_pid);
+	task->tk_status = -ETIMEDOUT;
 }
 
 /*
@@ -416,17 +403,6 @@ static void __rpc_wake_up_task(struct rpc_task *task)
 }
 
 /*
- * Default timeout handler if none specified by user
- */
-static void
-__rpc_default_timer(struct rpc_task *task)
-{
-	dprintk("RPC: %5u timeout (default timer)\n", task->tk_pid);
-	task->tk_status = -ETIMEDOUT;
-	rpc_wake_up_task(task);
-}
-
-/*
  * Wake up the specified task
  */
 void rpc_wake_up_task(struct rpc_task *task)
@@ -578,9 +554,37 @@ void rpc_wake_up_status(struct rpc_wait_queue *queue, int status)
 }
 EXPORT_SYMBOL_GPL(rpc_wake_up_status);
 
+/*
+ * Run a timeout function.
+ */
+static void rpc_run_timer(unsigned long ptr)
+{
+	struct rpc_task *task = (struct rpc_task *)ptr;
+	void (*callback)(struct rpc_task *);
+
+	if (!rpc_start_wakeup(task))
+		goto out;
+	if (RPC_IS_QUEUED(task)) {
+		struct rpc_wait_queue *queue = task->u.tk_wait.rpc_waitq;
+		callback = task->tk_timeout_fn;
+
+		dprintk("RPC: %5u running timer\n", task->tk_pid);
+		if (callback != NULL)
+			callback(task);
+		/* Note: we're already in a bh-safe context */
+		spin_lock(&queue->lock);
+		__rpc_do_wake_up_task(task);
+		spin_unlock(&queue->lock);
+	}
+	rpc_finish_wakeup(task);
+out:
+	smp_mb__before_clear_bit();
+	clear_bit(RPC_TASK_HAS_TIMER, &task->tk_runstate);
+	smp_mb__after_clear_bit();
+}
+
 static void __rpc_atrun(struct rpc_task *task)
 {
-	rpc_wake_up_task(task);
 }
 
 /*
@@ -816,8 +820,7 @@ EXPORT_SYMBOL_GPL(rpc_free);
 static void rpc_init_task(struct rpc_task *task, const struct rpc_task_setup *task_setup_data)
 {
 	memset(task, 0, sizeof(*task));
-	setup_timer(&task->tk_timer, (void (*)(unsigned long))rpc_run_timer,
-			(unsigned long)task);
+	setup_timer(&task->tk_timer, rpc_run_timer, (unsigned long)task);
 	atomic_set(&task->tk_count, 1);
 	task->tk_flags  = task_setup_data->flags;
 	task->tk_ops = task_setup_data->callback_ops;
