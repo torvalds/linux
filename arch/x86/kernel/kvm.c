@@ -26,6 +26,22 @@
 #include <linux/cpu.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
+#include <linux/hardirq.h>
+
+#define MMU_QUEUE_SIZE 1024
+
+struct kvm_para_state {
+	u8 mmu_queue[MMU_QUEUE_SIZE];
+	int mmu_queue_len;
+	enum paravirt_lazy_mode mode;
+};
+
+static DEFINE_PER_CPU(struct kvm_para_state, para_state);
+
+static struct kvm_para_state *kvm_para_state(void)
+{
+	return &per_cpu(para_state, raw_smp_processor_id());
+}
 
 /*
  * No need for any "IO delay" on KVM
@@ -48,6 +64,28 @@ static void kvm_mmu_op(void *buffer, unsigned len)
 	} while (len);
 }
 
+static void mmu_queue_flush(struct kvm_para_state *state)
+{
+	if (state->mmu_queue_len) {
+		kvm_mmu_op(state->mmu_queue, state->mmu_queue_len);
+		state->mmu_queue_len = 0;
+	}
+}
+
+static void kvm_deferred_mmu_op(void *buffer, int len)
+{
+	struct kvm_para_state *state = kvm_para_state();
+
+	if (state->mode != PARAVIRT_LAZY_MMU) {
+		kvm_mmu_op(buffer, len);
+		return;
+	}
+	if (state->mmu_queue_len + len > sizeof state->mmu_queue)
+		mmu_queue_flush(state);
+	memcpy(state->mmu_queue + state->mmu_queue_len, buffer, len);
+	state->mmu_queue_len += len;
+}
+
 static void kvm_mmu_write(void *dest, u64 val)
 {
 	__u64 pte_phys;
@@ -68,7 +106,7 @@ static void kvm_mmu_write(void *dest, u64 val)
 	wpte.pte_val = val;
 	wpte.pte_phys = pte_phys;
 
-	kvm_mmu_op(&wpte, sizeof wpte);
+	kvm_deferred_mmu_op(&wpte, sizeof wpte);
 }
 
 /*
@@ -137,7 +175,7 @@ static void kvm_flush_tlb(void)
 		.header.op = KVM_MMU_OP_FLUSH_TLB,
 	};
 
-	kvm_mmu_op(&ftlb, sizeof ftlb);
+	kvm_deferred_mmu_op(&ftlb, sizeof ftlb);
 }
 
 static void kvm_release_pt(u32 pfn)
@@ -148,6 +186,23 @@ static void kvm_release_pt(u32 pfn)
 	};
 
 	kvm_mmu_op(&rpt, sizeof rpt);
+}
+
+static void kvm_enter_lazy_mmu(void)
+{
+	struct kvm_para_state *state = kvm_para_state();
+
+	paravirt_enter_lazy_mmu();
+	state->mode = paravirt_get_lazy_mode();
+}
+
+static void kvm_leave_lazy_mmu(void)
+{
+	struct kvm_para_state *state = kvm_para_state();
+
+	mmu_queue_flush(state);
+	paravirt_leave_lazy(paravirt_get_lazy_mode());
+	state->mode = paravirt_get_lazy_mode();
 }
 
 static void paravirt_ops_setup(void)
@@ -178,6 +233,9 @@ static void paravirt_ops_setup(void)
 		pv_mmu_ops.release_pte = kvm_release_pt;
 		pv_mmu_ops.release_pmd = kvm_release_pt;
 		pv_mmu_ops.release_pud = kvm_release_pt;
+
+		pv_mmu_ops.lazy_mode.enter = kvm_enter_lazy_mmu;
+		pv_mmu_ops.lazy_mode.leave = kvm_leave_lazy_mmu;
 	}
 }
 
