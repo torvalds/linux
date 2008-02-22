@@ -1054,7 +1054,7 @@ config SECCOMP
 
 config CC_STACKPROTECTOR
 	bool "Enable -fstack-protector buffer overflow detection (EXPERIMENTAL)"
-	depends on X86_64 && EXPERIMENTAL
+	depends on X86_64 && EXPERIMENTAL && BROKEN
 	help
          This option turns on the -fstack-protector GCC feature. This
 	  feature puts, at the beginning of critical functions, a canary
