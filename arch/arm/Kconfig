@@ -939,7 +939,8 @@ config KEXEC
 
 config ATAGS_PROC
 	bool "Export atags in procfs"
-	default n
+	depends on KEXEC
+	default y
 	help
 	  Should the atags used to boot the kernel be exported in an "atags"
 	  file in procfs. Useful with kexec.
