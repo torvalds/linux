@@ -428,7 +428,7 @@ nfs_xdr_readdirres(struct rpc_rqst *req, __be32 *p, void *dummy)
 	size_t hdrlen;
 	unsigned int pglen, recvd;
 	u32 len;
-	int status, nr;
+	int status, nr = 0;
 	__be32 *end, *entry, *kaddr;
 
 	if ((status = ntohl(*p++)))
@@ -452,7 +452,12 @@ nfs_xdr_readdirres(struct rpc_rqst *req, __be32 *p, void *dummy)
 	kaddr = p = kmap_atomic(*page, KM_USER0);
 	end = (__be32 *)((char *)p + pglen);
 	entry = p;
-	for (nr = 0; *p++; nr++) {
+
+	/* Make sure the packet actually has a value_follows and EOF entry */
+	if ((entry + 1) > end)
+		goto short_pkt;
+
+	for (; *p++; nr++) {
 		if (p + 2 > end)
 			goto short_pkt;
 		p++; /* fileid */
@@ -467,18 +472,32 @@ nfs_xdr_readdirres(struct rpc_rqst *req, __be32 *p, void *dummy)
 			goto short_pkt;
 		entry = p;
 	}
-	if (!nr && (entry[0] != 0 || entry[1] == 0))
-		goto short_pkt;
+
+	/*
+	 * Apparently some server sends responses that are a valid size, but
+	 * contain no entries, and have value_follows==0 and EOF==0. For
+	 * those, just set the EOF marker.
+	 */
+	if (!nr && entry[1] == 0) {
+		dprintk("NFS: readdir reply truncated!\n");
+		entry[1] = 1;
+	}
  out:
 	kunmap_atomic(kaddr, KM_USER0);
 	return nr;
  short_pkt:
+	/*
+	 * When we get a short packet there are 2 possibilities. We can
+	 * return an error, or fix up the response to look like a valid
+	 * response and return what we have so far. If there are no
+	 * entries and the packet was short, then return -EIO. If there
+	 * are valid entries in the response, return them and pretend that
+	 * the call was successful, but incomplete. The caller can retry the
+	 * readdir starting at the last cookie.
+	 */
 	entry[0] = entry[1] = 0;
-	/* truncate listing ? */
-	if (!nr) {
-		dprintk("NFS: readdir reply truncated!\n");
-		entry[1] = 1;
-	}
+	if (!nr)
+		nr = -errno_NFSERR_IO;
 	goto out;
 err_unmap:
 	nr = -errno_NFSERR_IO;
