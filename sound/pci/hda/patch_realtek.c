@@ -5227,10 +5227,14 @@ static int alc882_mux_enum_put(struct snd_kcontrol *kcontrol,
 	const struct hda_input_mux *imux = spec->input_mux;
 	unsigned int adc_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
 	static hda_nid_t capture_mixers[3] = { 0x24, 0x23, 0x22 };
-	hda_nid_t nid = capture_mixers[adc_idx];
+	hda_nid_t nid;
 	unsigned int *cur_val = &spec->cur_mux[adc_idx];
 	unsigned int i, idx;
 
+	if (spec->num_adc_nids < 3)
+		nid = capture_mixers[adc_idx + 1];
+	else
+		nid = capture_mixers[adc_idx];
 	idx = ucontrol->value.enumerated.item[0];
 	if (idx >= imux->num_items)
 		idx = imux->num_items - 1;
