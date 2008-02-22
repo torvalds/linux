@@ -65,8 +65,8 @@ static loff_t msr_seek(struct file *file, loff_t offset, int orig)
 	return ret;
 }
 
-static ssize_t msr_read(struct file *file, char __user * buf,
-			size_t count, loff_t * ppos)
+static ssize_t msr_read(struct file *file, char __user *buf,
+			size_t count, loff_t *ppos)
 {
 	u32 __user *tmp = (u32 __user *) buf;
 	u32 data[2];
