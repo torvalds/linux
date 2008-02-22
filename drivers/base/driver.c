@@ -120,6 +120,9 @@ EXPORT_SYMBOL_GPL(driver_remove_file);
 
 /**
  * driver_add_kobj - add a kobject below the specified driver
+ * @drv: requesting device driver
+ * @kobj: kobject to add below this driver
+ * @fmt: format string that names the kobject
  *
  * You really don't want to do this, this is only here due to one looney
  * iseries driver, go poke those developers if you are annoyed about

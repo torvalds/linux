@@ -1229,7 +1229,7 @@ static int __init ide_setup(char *s)
 	if (!strcmp(s, "ide=reverse")) {
 		ide_scan_direction = 1;
 		printk(" : Enabled support for IDE inverse scan order.\n");
-		return 1;
+		goto obsolete_option;
 	}
 #endif
 
