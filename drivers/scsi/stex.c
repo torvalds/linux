@@ -467,7 +467,8 @@ static void stex_controller_info(struct st_hba *hba, struct st_ccb *ccb)
 	size_t count = sizeof(struct st_frame);
 
 	p = hba->copy_buffer;
-	stex_internal_copy(ccb->cmd, p, &count, ccb->sg_count, ST_FROM_CMD);
+	stex_internal_copy(ccb->cmd, p, &count, scsi_sg_count(ccb->cmd),
+			   ST_FROM_CMD);
 	memset(p->base, 0, sizeof(u32)*6);
 	*(unsigned long *)(p->base) = pci_resource_start(hba->pdev, 0);
 	p->rom_addr = 0;
@@ -485,7 +486,8 @@ static void stex_controller_info(struct st_hba *hba, struct st_ccb *ccb)
 	p->subid =
 		hba->pdev->subsystem_vendor << 16 | hba->pdev->subsystem_device;
 
-	stex_internal_copy(ccb->cmd, p, &count, ccb->sg_count, ST_TO_CMD);
+	stex_internal_copy(ccb->cmd, p, &count, scsi_sg_count(ccb->cmd),
+			   ST_TO_CMD);
 }
 
 static void
@@ -699,7 +701,7 @@ static void stex_copy_data(struct st_ccb *ccb,
 	if (ccb->cmd == NULL)
 		return;
 	stex_internal_copy(ccb->cmd,
-		resp->variable, &count, ccb->sg_count, ST_TO_CMD);
+		resp->variable, &count, scsi_sg_count(ccb->cmd), ST_TO_CMD);
 }
 
 static void stex_ys_commands(struct st_hba *hba,
@@ -724,7 +726,7 @@ static void stex_ys_commands(struct st_hba *hba,
 
 		count = STEX_EXTRA_SIZE;
 		stex_internal_copy(ccb->cmd, hba->copy_buffer,
-			&count, ccb->sg_count, ST_FROM_CMD);
+			&count, scsi_sg_count(ccb->cmd), ST_FROM_CMD);
 		inq_data = (ST_INQ *)hba->copy_buffer;
 		if (inq_data->DeviceTypeQualifier != 0)
 			ccb->srb_status = SRB_STATUS_SELECTION_TIMEOUT;
