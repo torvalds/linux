@@ -1,9 +1,9 @@
 #include <linux/string.h>
 
-char * strstr(const char * cs,const char * ct)
+char *strstr(const char *cs, const char *ct)
 {
 int	d0, d1;
-register char * __res;
+register char *__res;
 __asm__ __volatile__(
 	"movl %6,%%edi\n\t"
 	"repne\n\t"
