@@ -202,16 +202,13 @@ static struct sched_entity *__pick_next_entity(struct cfs_rq *cfs_rq)
 
 static inline struct sched_entity *__pick_last_entity(struct cfs_rq *cfs_rq)
 {
-	struct rb_node **link = &cfs_rq->tasks_timeline.rb_node;
-	struct sched_entity *se = NULL;
-	struct rb_node *parent;
+	struct rb_node *last;
+	struct sched_entity *se;
 
-	while (*link) {
-		parent = *link;
-		se = rb_entry(parent, struct sched_entity, run_node);
-		link = &parent->rb_right;
-	}
-
+	last = rb_last(&cfs_rq->tasks_timeline);
+	if (!last)
+		return NULL;
+	se = rb_entry(last, struct sched_entity, run_node);
 	return se;
 }
 
