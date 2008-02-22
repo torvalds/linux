@@ -222,6 +222,7 @@ static void i915_restore_vga(struct drm_device *dev)
 			   dev_priv->saveGR[0x18]);
 
 	/* Attribute controller registers */
+	inb(st01);
 	for (i = 0; i < 20; i++)
 		i915_write_ar(st01, i, dev_priv->saveAR[i], 0);
 	inb(st01); /* switch back to index mode */
