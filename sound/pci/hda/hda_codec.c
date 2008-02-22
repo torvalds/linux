@@ -1055,6 +1055,12 @@ int snd_hda_add_vmaster(struct hda_codec *codec, char *name,
 	const char **s;
 	int err;
 
+	for (s = slaves; *s && !snd_hda_find_mixer_ctl(codec, *s); s++)
+		;
+	if (!*s) {
+		snd_printdd("No slave found for %s\n", name);
+		return 0;
+	}
 	kctl = snd_ctl_make_virtual_master(name, tlv);
 	if (!kctl)
 		return -ENOMEM;
