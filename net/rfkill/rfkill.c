@@ -232,7 +232,7 @@ static int rfkill_suspend(struct device *dev, pm_message_t state)
 	struct rfkill *rfkill = to_rfkill(dev);
 
 	if (dev->power.power_state.event != state.event) {
-		if (state.event == PM_EVENT_SUSPEND) {
+		if (state.event & PM_EVENT_SLEEP) {
 			mutex_lock(&rfkill->mutex);
 
 			if (rfkill->state == RFKILL_STATE_ON)

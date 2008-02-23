@@ -1932,7 +1932,7 @@ static int ahci_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg)
 	void __iomem *mmio = host->iomap[AHCI_PCI_BAR];
 	u32 ctl;
 
-	if (mesg.event == PM_EVENT_SUSPEND) {
+	if (mesg.event & PM_EVENT_SLEEP) {
 		/* AHCI spec rev1.1 section 8.3.3:
 		 * Software must disable interrupts prior to requesting a
 		 * transition of the HBA to D3 state.

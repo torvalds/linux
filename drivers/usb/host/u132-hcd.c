@@ -3214,14 +3214,19 @@ static int u132_suspend(struct platform_device *pdev, pm_message_t state)
                 return -ESHUTDOWN;
         } else {
                 int retval = 0;
-                if (state.event == PM_EVENT_FREEZE) {
+
+		switch (state.event) {
+		case PM_EVENT_FREEZE:
                         retval = u132_bus_suspend(hcd);
-                } else if (state.event == PM_EVENT_SUSPEND) {
+			break;
+		case PM_EVENT_SUSPEND:
+		case PM_EVENT_HIBERNATE:
                         int ports = MAX_U132_PORTS;
                         while (ports-- > 0) {
                                 port_power(u132, ports, 0);
                         }
-                }
+			break;
+		}
                 if (retval == 0)
                         pdev->dev.power.power_state = state;
                 return retval;

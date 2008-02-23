@@ -1339,7 +1339,7 @@ static int piix_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg)
 	 * cycles and power trying to do something to the sleeping
 	 * beauty.
 	 */
-	if (piix_broken_suspend() && mesg.event == PM_EVENT_SUSPEND) {
+	if (piix_broken_suspend() && (mesg.event & PM_EVENT_SLEEP)) {
 		pci_save_state(pdev);
 
 		/* mark its power state as "unknown", since we don't

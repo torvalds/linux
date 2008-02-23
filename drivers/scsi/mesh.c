@@ -1759,6 +1759,7 @@ static int mesh_suspend(struct macio_dev *mdev, pm_message_t mesg)
 
 	switch (mesg.event) {
 	case PM_EVENT_SUSPEND:
+	case PM_EVENT_HIBERNATE:
 	case PM_EVENT_FREEZE:
 		break;
 	default:
