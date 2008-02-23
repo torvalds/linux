@@ -35,6 +35,7 @@
 #include <linux/spinlock.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
+#include <linux/ctype.h>
 #include <scsi/libsas.h>
 #include <asm/io.h>
 
@@ -632,15 +633,6 @@ static int mvs_phy_control(struct asd_sas_phy *sas_phy, enum phy_func func,
 			   void *funcdata);
 static u32 mvs_read_phy_ctl(struct mvs_info *mvi, u32 port);
 static void mvs_write_phy_ctl(struct mvs_info *mvi, u32 port, u32 val);
-static u32 mvs_read_port(struct mvs_info *mvi, u32 off, u32 off2, u32 port);
-static void mvs_write_port(struct mvs_info *mvi, u32 off, u32 off2,
-				u32 port, u32 val);
-static u32 mvs_read_port_cfg_data(struct mvs_info *mvi, u32 port);
-static void mvs_write_port_cfg_data(struct mvs_info *mvi, u32 port, u32 val);
-static void mvs_write_port_cfg_addr(struct mvs_info *mvi, u32 port, u32 addr);
-static u32 mvs_read_port_vsr_data(struct mvs_info *mvi, u32 port);
-static void mvs_write_port_vsr_data(struct mvs_info *mvi, u32 port, u32 val);
-static void mvs_write_port_vsr_addr(struct mvs_info *mvi, u32 port, u32 addr);
 static u32 mvs_read_port_irq_stat(struct mvs_info *mvi, u32 port);
 static void mvs_write_port_irq_stat(struct mvs_info *mvi, u32 port, u32 val);
 static void mvs_write_port_irq_mask(struct mvs_info *mvi, u32 port, u32 val);
@@ -649,9 +641,6 @@ static u32 mvs_read_port_irq_mask(struct mvs_info *mvi, u32 port);
 static u32 mvs_is_phy_ready(struct mvs_info *mvi, int i);
 static void mvs_detect_porttype(struct mvs_info *mvi, int i);
 static void mvs_update_phyinfo(struct mvs_info *mvi, int i, int get_st);
-static void mvs_free_reg_set(struct mvs_info *mvi, struct mvs_port *port);
-static u8 mvs_assign_reg_set(struct mvs_info *mvi, struct mvs_port *port);
-static u32 mvs_is_sig_fis_received(u32 irq_status);
 
 static int mvs_scan_finished(struct Scsi_Host *, unsigned long);
 static void mvs_scan_start(struct Scsi_Host *);
