@@ -40,3 +40,13 @@ unsigned long get_thread_reg(int reg, jmp_buf *buf)
 		return 0;
 	}
 }
+
+int get_fp_registers(int pid, unsigned long *regs)
+{
+	return save_fp_registers(pid, regs);
+}
+
+int put_fp_registers(int pid, unsigned long *regs)
+{
+	return restore_fp_registers(pid, regs);
+}
