@@ -26,9 +26,7 @@
 
 #include "ieee80211_i.h"
 #include "ieee80211_rate.h"
-#ifdef CONFIG_MAC80211_MESH
 #include "mesh.h"
-#endif
 #include "wme.h"
 
 /* privid for wiphys to determine whether they belong to us or not */
@@ -149,7 +147,6 @@ int ieee80211_get_hdrlen_from_skb(const struct sk_buff *skb)
 }
 EXPORT_SYMBOL(ieee80211_get_hdrlen_from_skb);
 
-#ifdef CONFIG_MAC80211_MESH
 int ieee80211_get_mesh_hdrlen(struct ieee80211s_hdr *meshhdr)
 {
 	int ae = meshhdr->flags & IEEE80211S_FLAGS_AE;
@@ -167,7 +164,6 @@ int ieee80211_get_mesh_hdrlen(struct ieee80211s_hdr *meshhdr)
 		return 5;
 	}
 }
-#endif
 
 void ieee80211_tx_set_iswep(struct ieee80211_txrx_data *tx)
 {
@@ -418,31 +414,3 @@ void ieee80211_iterate_active_interfaces(
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(ieee80211_iterate_active_interfaces);
-
-#ifdef CONFIG_MAC80211_MESH
-/**
- * ieee80211_new_mesh_header - create a new mesh header
- * @meshhdr:    uninitialized mesh header
- * @sdata:	mesh interface to be used
- *
- * Return the header length.
- */
-int ieee80211_new_mesh_header(struct ieee80211s_hdr *meshhdr,
-		struct ieee80211_sub_if_data *sdata)
-{
-	meshhdr->flags = 0;
-	meshhdr->ttl = sdata->u.sta.mshcfg.dot11MeshTTL;
-
-	meshhdr->seqnum[0] = sdata->u.sta.mesh_seqnum[0]++;
-	meshhdr->seqnum[1] = sdata->u.sta.mesh_seqnum[1];
-	meshhdr->seqnum[2] = sdata->u.sta.mesh_seqnum[2];
-
-	if (sdata->u.sta.mesh_seqnum[0] == 0) {
-		sdata->u.sta.mesh_seqnum[1]++;
-		if (sdata->u.sta.mesh_seqnum[1] == 0)
-			sdata->u.sta.mesh_seqnum[2]++;
-	}
-
-	return 5;
-}
-#endif

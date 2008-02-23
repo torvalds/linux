@@ -11,10 +11,10 @@
 #ifndef IEEE80211S_H
 #define IEEE80211S_H
 
-#include "ieee80211_i.h"
+#include <linux/types.h>
 #include <linux/jhash.h>
+#include "ieee80211_i.h"
 
-extern int mesh_allocated;
 
 /* Data structures */
 
@@ -211,6 +211,8 @@ void mesh_rmc_free(struct net_device *dev);
 int mesh_rmc_init(struct net_device *dev);
 void ieee80211s_init(void);
 void ieee80211s_stop(void);
+void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata);
+
 /* Mesh paths */
 int mesh_nexthop_lookup(u8 *next_hop, struct sk_buff *skb,
 		struct net_device *dev);
@@ -257,6 +259,9 @@ void mesh_path_timer(unsigned long data);
 void mesh_path_flush_by_nexthop(struct sta_info *sta);
 void mesh_path_discard_frame(struct sk_buff *skb, struct net_device *dev);
 
+#ifdef CONFIG_MAC80211_MESH
+extern int mesh_allocated;
+
 static inline int mesh_plink_free_count(struct ieee80211_sub_if_data *sdata)
 {
 	return sdata->u.sta.mshcfg.dot11MeshMaxPeerLinks -
@@ -277,6 +282,10 @@ static inline void mesh_path_activate(struct mesh_path *mpath)
 #define for_each_mesh_entry(x, p, node, i) \
 	for (i = 0; i <= x->hash_mask; i++) \
 		hlist_for_each_entry_rcu(node, p, &x->hash_buckets[i], list)
+
+#else
+#define mesh_allocated	0
+#endif
 
 #define MESH_PREQ(skb)	(skb->cb + 30)
 

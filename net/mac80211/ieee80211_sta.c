@@ -31,9 +31,7 @@
 #include "ieee80211_i.h"
 #include "ieee80211_rate.h"
 #include "ieee80211_led.h"
-#ifdef CONFIG_MAC80211_MESH
 #include "mesh.h"
-#endif
 
 #define IEEE80211_AUTH_TIMEOUT (HZ / 5)
 #define IEEE80211_AUTH_MAX_TRIES 3
@@ -1897,12 +1895,13 @@ static void __ieee80211_rx_bss_hash_add(struct net_device *dev,
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	u8 hash_idx;
-#ifdef CONFIG_MAC80211_MESH
-	if (bss->mesh_cfg)
-		hash_idx = mesh_id_hash(bss->mesh_id, bss->mesh_id_len);
+
+	if (bss_mesh_cfg(bss))
+		hash_idx = mesh_id_hash(bss_mesh_id(bss),
+					bss_mesh_id_len(bss));
 	else
-#endif
 		hash_idx = STA_HASH(bss->bssid);
+
 	bss->hnext = local->sta_bss_hash[hash_idx];
 	local->sta_bss_hash[hash_idx] = bss;
 }
@@ -1967,7 +1966,8 @@ ieee80211_rx_bss_get(struct net_device *dev, u8 *bssid, int freq,
 	spin_lock_bh(&local->sta_bss_lock);
 	bss = local->sta_bss_hash[STA_HASH(bssid)];
 	while (bss) {
-		if (!bss->mesh_cfg && !memcmp(bss->bssid, bssid, ETH_ALEN) &&
+		if (!bss_mesh_cfg(bss) &&
+		    !memcmp(bss->bssid, bssid, ETH_ALEN) &&
 		    bss->freq == freq &&
 		    bss->ssid_len == ssid_len &&
 		    (ssid_len == 0 || !memcmp(bss->ssid, ssid, ssid_len))) {
@@ -1991,8 +1991,8 @@ ieee80211_rx_mesh_bss_get(struct net_device *dev, u8 *mesh_id, int mesh_id_len,
 	spin_lock_bh(&local->sta_bss_lock);
 	bss = local->sta_bss_hash[mesh_id_hash(mesh_id, mesh_id_len)];
 	while (bss) {
-		if (bss->mesh_cfg &&
-		    !memcmp(bss->mesh_cfg, mesh_cfg, MESH_CFG_CMP_LEN) &&
+		if (bss_mesh_cfg(bss) &&
+		    !memcmp(bss_mesh_cfg(bss), mesh_cfg, MESH_CFG_CMP_LEN) &&
 		    bss->freq == freq &&
 		    mesh_id_len == bss->mesh_id_len &&
 		    (mesh_id_len == 0 || !memcmp(bss->mesh_id, mesh_id,
@@ -2053,10 +2053,8 @@ static void ieee80211_rx_bss_free(struct ieee80211_sta_bss *bss)
 	kfree(bss->rsn_ie);
 	kfree(bss->wmm_ie);
 	kfree(bss->ht_ie);
-#ifdef CONFIG_MAC80211_MESH
-	kfree(bss->mesh_id);
-	kfree(bss->mesh_cfg);
-#endif
+	kfree(bss_mesh_id(bss));
+	kfree(bss_mesh_cfg(bss));
 	kfree(bss);
 }
 
@@ -2322,16 +2320,14 @@ static void ieee80211_rx_bss_info(struct net_device *dev,
 	beacon_timestamp = le64_to_cpu(mgmt->u.beacon.timestamp);
 	ieee802_11_parse_elems(mgmt->u.beacon.variable, len - baselen, &elems);
 
-#ifdef CONFIG_MAC80211_MESH
-	if (sdata->vif.type == IEEE80211_IF_TYPE_MESH_POINT && elems.mesh_id
-			&& elems.mesh_config)
-		if (mesh_matches_local(&elems, dev)) {
-			u64 rates = ieee80211_sta_get_rates(local, &elems,
-							rx_status->band);
-			mesh_neighbour_update(mgmt->sa, rates, dev,
-				mesh_peer_accepts_plinks(&elems, dev));
-		}
-#endif
+	if (ieee80211_vif_is_mesh(&sdata->vif) && elems.mesh_id &&
+	    elems.mesh_config && mesh_matches_local(&elems, dev)) {
+		u64 rates = ieee80211_sta_get_rates(local, &elems,
+						rx_status->band);
+
+		mesh_neighbour_update(mgmt->sa, rates, dev,
+				      mesh_peer_accepts_plinks(&elems, dev));
+	}
 
 	if (sdata->vif.type == IEEE80211_IF_TYPE_IBSS && elems.supp_rates &&
 	    memcmp(mgmt->bssid, sdata->u.sta.bssid, ETH_ALEN) == 0 &&
@@ -2712,9 +2708,7 @@ static void ieee80211_rx_mgmt_action(struct net_device *dev,
 				     size_t len,
 				     struct ieee80211_rx_status *rx_status)
 {
-#ifdef CONFIG_MAC80211_MESH
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-#endif
 
 	if (len < IEEE80211_MIN_ACTION_SIZE)
 		return;
@@ -2747,17 +2741,14 @@ static void ieee80211_rx_mgmt_action(struct net_device *dev,
 			break;
 		}
 		break;
-#ifdef CONFIG_MAC80211_MESH
 	case PLINK_CATEGORY:
-		if (sdata->vif.type == IEEE80211_IF_TYPE_MESH_POINT)
+		if (ieee80211_vif_is_mesh(&sdata->vif))
 			mesh_rx_plink_frame(dev, mgmt, len, rx_status);
 		break;
-
 	case MESH_PATH_SEL_CATEGORY:
-		if (sdata->vif.type == IEEE80211_IF_TYPE_MESH_POINT)
+		if (ieee80211_vif_is_mesh(&sdata->vif))
 			mesh_rx_path_sel_frame(dev, mgmt, len);
 		break;
-#endif
 	default:
 		if (net_ratelimit())
 			printk(KERN_DEBUG "%s: Rx unknown action frame - "
@@ -3027,8 +3018,9 @@ void ieee80211_sta_work(struct work_struct *work)
 		ieee80211_sta_rx_queued_mgmt(dev, skb);
 
 #ifdef CONFIG_MAC80211_MESH
-	if (ifsta->preq_queue_len && time_after(jiffies, ifsta->last_preq +
-		msecs_to_jiffies(ifsta->mshcfg.dot11MeshHWMPpreqMinInterval)))
+	if (ifsta->preq_queue_len &&
+	    time_after(jiffies,
+		       ifsta->last_preq + msecs_to_jiffies(ifsta->mshcfg.dot11MeshHWMPpreqMinInterval)))
 		mesh_path_start_discovery(dev);
 #endif
 
@@ -3810,13 +3802,11 @@ ieee80211_sta_scan_result(struct net_device *dev,
 
 	memset(&iwe, 0, sizeof(iwe));
 	iwe.cmd = SIOCGIWESSID;
-	if (bss->mesh_cfg) {
-#ifdef CONFIG_MAC80211_MESH
-		iwe.u.data.length = bss->mesh_id_len;
+	if (bss_mesh_cfg(bss)) {
+		iwe.u.data.length = bss_mesh_id_len(bss);
 		iwe.u.data.flags = 1;
 		current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe,
-						  bss->mesh_id);
-#endif
+						  bss_mesh_id(bss));
 	} else {
 		iwe.u.data.length = bss->ssid_len;
 		iwe.u.data.flags = 1;
@@ -3825,10 +3815,10 @@ ieee80211_sta_scan_result(struct net_device *dev,
 	}
 
 	if (bss->capability & (WLAN_CAPABILITY_ESS | WLAN_CAPABILITY_IBSS
-	    || bss->mesh_cfg)) {
+	    || bss_mesh_cfg(bss))) {
 		memset(&iwe, 0, sizeof(iwe));
 		iwe.cmd = SIOCGIWMODE;
-		if (bss->mesh_cfg)
+		if (bss_mesh_cfg(bss))
 			iwe.u.mode = IW_MODE_MESH;
 		else if (bss->capability & WLAN_CAPABILITY_ESS)
 			iwe.u.mode = IW_MODE_MASTER;
@@ -3919,9 +3909,9 @@ ieee80211_sta_scan_result(struct net_device *dev,
 		}
 	}
 
-	if (bss->mesh_cfg) {
+	if (bss_mesh_cfg(bss)) {
 		char *buf;
-		u8 *cfg = bss->mesh_cfg;
+		u8 *cfg = bss_mesh_cfg(bss);
 		buf = kmalloc(200, GFP_ATOMIC);
 		if (buf) {
 			memset(&iwe, 0, sizeof(iwe));

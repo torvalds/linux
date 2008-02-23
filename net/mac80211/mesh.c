@@ -381,3 +381,70 @@ endgrow:
 	else
 		return newtbl;
 }
+
+/**
+ * ieee80211_new_mesh_header - create a new mesh header
+ * @meshhdr:    uninitialized mesh header
+ * @sdata:	mesh interface to be used
+ *
+ * Return the header length.
+ */
+int ieee80211_new_mesh_header(struct ieee80211s_hdr *meshhdr,
+		struct ieee80211_sub_if_data *sdata)
+{
+	meshhdr->flags = 0;
+	meshhdr->ttl = sdata->u.sta.mshcfg.dot11MeshTTL;
+
+	meshhdr->seqnum[0] = sdata->u.sta.mesh_seqnum[0]++;
+	meshhdr->seqnum[1] = sdata->u.sta.mesh_seqnum[1];
+	meshhdr->seqnum[2] = sdata->u.sta.mesh_seqnum[2];
+
+	if (sdata->u.sta.mesh_seqnum[0] == 0) {
+		sdata->u.sta.mesh_seqnum[1]++;
+		if (sdata->u.sta.mesh_seqnum[1] == 0)
+			sdata->u.sta.mesh_seqnum[2]++;
+	}
+
+	return 5;
+}
+
+void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_if_sta *ifsta = &sdata->u.sta;
+
+	ifsta->mshcfg.dot11MeshRetryTimeout = MESH_RET_T;
+	ifsta->mshcfg.dot11MeshConfirmTimeout = MESH_CONF_T;
+	ifsta->mshcfg.dot11MeshHoldingTimeout = MESH_HOLD_T;
+	ifsta->mshcfg.dot11MeshMaxRetries = MESH_MAX_RETR;
+	ifsta->mshcfg.dot11MeshTTL = MESH_TTL;
+	ifsta->mshcfg.auto_open_plinks = true;
+	ifsta->mshcfg.dot11MeshMaxPeerLinks =
+		MESH_MAX_ESTAB_PLINKS;
+	ifsta->mshcfg.dot11MeshHWMPactivePathTimeout =
+		MESH_PATH_TIMEOUT;
+	ifsta->mshcfg.dot11MeshHWMPpreqMinInterval =
+		MESH_PREQ_MIN_INT;
+	ifsta->mshcfg.dot11MeshHWMPnetDiameterTraversalTime =
+		MESH_DIAM_TRAVERSAL_TIME;
+	ifsta->mshcfg.dot11MeshHWMPmaxPREQretries =
+		MESH_MAX_PREQ_RETRIES;
+	ifsta->mshcfg.path_refresh_time =
+		MESH_PATH_REFRESH_TIME;
+	ifsta->mshcfg.min_discovery_timeout =
+		MESH_MIN_DISCOVERY_TIMEOUT;
+	ifsta->accepting_plinks = true;
+	ifsta->preq_id = 0;
+	ifsta->dsn = 0;
+	atomic_set(&ifsta->mpaths, 0);
+	mesh_rmc_init(sdata->dev);
+	ifsta->last_preq = jiffies;
+	/* Allocate all mesh structures when creating the first mesh interface. */
+	if (!mesh_allocated)
+		ieee80211s_init();
+	mesh_ids_set_default(ifsta);
+	setup_timer(&ifsta->mesh_path_timer,
+		    ieee80211_mesh_path_timer,
+		    (unsigned long) sdata);
+	INIT_LIST_HEAD(&ifsta->preq_queue.list);
+	spin_lock_init(&ifsta->mesh_preq_queue_lock);
+}

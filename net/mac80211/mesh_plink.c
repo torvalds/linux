@@ -6,11 +6,11 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#include <linux/kernel.h>
+#include <linux/random.h>
 #include "ieee80211_i.h"
 #include "ieee80211_rate.h"
 #include "mesh.h"
-#include <linux/random.h>
 
 #ifdef CONFIG_MAC80211_VERBOSE_MPL_DEBUG
 #define mpl_dbg(fmt, args...)	printk(KERN_DEBUG fmt, ##args)
@@ -131,7 +131,7 @@ struct sta_info *mesh_plink_add(u8 *hw_addr, u64 rates, struct net_device *dev)
 }
 
 /**
- * mesh_plink_deactivate - deactivate mesh peer link
+ * __mesh_plink_deactivate - deactivate mesh peer link
  *
  * @sta: mesh peer link to deactivate
  *
@@ -139,13 +139,27 @@ struct sta_info *mesh_plink_add(u8 *hw_addr, u64 rates, struct net_device *dev)
  *
  * Locking: the caller must hold sta->plink_lock
  */
-void mesh_plink_deactivate(struct sta_info *sta)
+static void __mesh_plink_deactivate(struct sta_info *sta)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
 	if (sta->plink_state == ESTAB)
 		mesh_plink_dec_estab_count(sdata);
 	sta->plink_state = BLOCKED;
 	mesh_path_flush_by_nexthop(sta);
+}
+
+/**
+ * __mesh_plink_deactivate - deactivate mesh peer link
+ *
+ * @sta: mesh peer link to deactivate
+ *
+ * All mesh paths with this peer as next hop will be flushed
+ */
+void mesh_plink_deactivate(struct sta_info *sta)
+{
+	spin_lock_bh(&sta->plink_lock);
+	__mesh_plink_deactivate(sta);
+	spin_unlock_bh(&sta->plink_lock);
 }
 
 static int mesh_plink_frame_tx(struct net_device *dev,
@@ -365,7 +379,7 @@ void mesh_plink_block(struct sta_info *sta)
 #endif
 
 	spin_lock_bh(&sta->plink_lock);
-	mesh_plink_deactivate(sta);
+	__mesh_plink_deactivate(sta);
 	sta->plink_state = BLOCKED;
 	spin_unlock_bh(&sta->plink_lock);
 }
@@ -390,7 +404,7 @@ int mesh_plink_close(struct sta_info *sta)
 		sta_info_put(sta);
 		return 0;
 	} else if (sta->plink_state == ESTAB) {
-		mesh_plink_deactivate(sta);
+		__mesh_plink_deactivate(sta);
 		/* The timer should not be running */
 		if (!mod_plink_timer(sta, dot11MeshHoldingTimeout(sdata)))
 			__sta_info_get(sta);
@@ -699,7 +713,7 @@ void mesh_rx_plink_frame(struct net_device *dev, struct ieee80211_mgmt *mgmt,
 		case CLS_ACPT:
 			reason = cpu_to_le16(MESH_CLOSE_RCVD);
 			sta->reason = reason;
-			mesh_plink_deactivate(sta);
+			__mesh_plink_deactivate(sta);
 			sta->plink_state = HOLDING;
 			llid = sta->llid;
 			if (!mod_plink_timer(sta,

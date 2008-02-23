@@ -21,9 +21,7 @@
 #include "ieee80211_rate.h"
 #include "sta_info.h"
 #include "debugfs_sta.h"
-#ifdef CONFIG_MAC80211_MESH
 #include "mesh.h"
-#endif
 
 /* Caller must hold local->sta_lock */
 static void sta_info_hash_add(struct ieee80211_local *local,
@@ -309,10 +307,8 @@ void sta_info_remove(struct sta_info *sta)
 	}
 	local->num_sta--;
 
-#ifdef CONFIG_MAC80211_MESH
-	if (sdata->vif.type == IEEE80211_IF_TYPE_MESH_POINT)
+	if (ieee80211_vif_is_mesh(&sdata->vif))
 		mesh_accept_plinks_update(sdata->dev);
-#endif
 }
 
 void sta_info_free(struct sta_info *sta)
@@ -329,13 +325,8 @@ void sta_info_free(struct sta_info *sta)
 	sta_info_remove(sta);
 	write_unlock_bh(&local->sta_lock);
 
-#ifdef CONFIG_MAC80211_MESH
-	if (sdata->vif.type == IEEE80211_IF_TYPE_MESH_POINT) {
-		spin_lock_bh(&sta->plink_lock);
+	if (ieee80211_vif_is_mesh(&sdata->vif))
 		mesh_plink_deactivate(sta);
-		spin_unlock_bh(&sta->plink_lock);
-	}
-#endif
 
 	while ((skb = skb_dequeue(&sta->ps_tx_buf)) != NULL) {
 		local->total_ps_buffered--;

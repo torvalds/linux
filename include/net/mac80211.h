@@ -465,6 +465,14 @@ struct ieee80211_vif {
 	u8 drv_priv[0] __attribute__((__aligned__(sizeof(void *))));
 };
 
+static inline bool ieee80211_vif_is_mesh(struct ieee80211_vif *vif)
+{
+#ifdef CONFIG_MAC80211_MESH
+	return vif->type == IEEE80211_IF_TYPE_MESH_POINT;
+#endif
+	return false;
+}
+
 /**
  * struct ieee80211_if_init_conf - initial configuration of an interface
  *

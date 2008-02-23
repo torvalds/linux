@@ -26,9 +26,7 @@
 
 #include "ieee80211_i.h"
 #include "ieee80211_rate.h"
-#ifdef CONFIG_MAC80211_MESH
 #include "mesh.h"
-#endif
 #include "wep.h"
 #include "wme.h"
 #include "aes_ccm.h"
@@ -938,11 +936,9 @@ static int __ieee80211_if_config(struct net_device *dev,
 		conf.bssid = sdata->u.sta.bssid;
 		conf.ssid = sdata->u.sta.ssid;
 		conf.ssid_len = sdata->u.sta.ssid_len;
-#ifdef CONFIG_MAC80211_MESH
-	} else if (sdata->vif.type == IEEE80211_IF_TYPE_MESH_POINT) {
+	} else if (ieee80211_vif_is_mesh(&sdata->vif)) {
 		conf.beacon = beacon;
 		ieee80211_start_mesh(dev);
-#endif
 	} else if (sdata->vif.type == IEEE80211_IF_TYPE_AP) {
 		conf.ssid = sdata->u.ap.ssid;
 		conf.ssid_len = sdata->u.ap.ssid_len;
@@ -1824,10 +1820,9 @@ static void __exit ieee80211_exit(void)
 	rc80211_simple_exit();
 	rc80211_pid_exit();
 
-#ifdef CONFIG_MAC80211_MESH
 	if (mesh_allocated)
 		ieee80211s_stop();
-#endif
+
 	ieee80211_wme_unregister();
 	ieee80211_debugfs_netdev_exit();
 }

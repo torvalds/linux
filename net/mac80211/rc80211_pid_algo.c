@@ -15,10 +15,7 @@
 #include <linux/debugfs.h>
 #include <net/mac80211.h>
 #include "ieee80211_rate.h"
-#ifdef CONFIG_MAC80211_MESH
 #include "mesh.h"
-#endif
-
 #include "rc80211_pid.h"
 
 

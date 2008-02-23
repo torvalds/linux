@@ -93,9 +93,8 @@ struct ieee80211_sta_bss {
 #ifdef CONFIG_MAC80211_MESH
 	u8 *mesh_id;
 	size_t mesh_id_len;
-#endif
-	/* mesh_cfg left out the ifdef to reduce clutter on bss handling */
 	u8 *mesh_cfg;
+#endif
 #define IEEE80211_MAX_SUPP_RATES 32
 	u8 supp_rates[IEEE80211_MAX_SUPP_RATES];
 	size_t supp_rates_len;
@@ -112,6 +111,30 @@ struct ieee80211_sta_bss {
 	int has_erp_value;
 	u8 erp_value;
 };
+
+static inline u8 *bss_mesh_cfg(struct ieee80211_sta_bss *bss)
+{
+#ifdef CONFIG_MAC80211_MESH
+	return bss->mesh_cfg;
+#endif
+	return NULL;
+}
+
+static inline u8 *bss_mesh_id(struct ieee80211_sta_bss *bss)
+{
+#ifdef CONFIG_MAC80211_MESH
+	return bss->mesh_id;
+#endif
+	return NULL;
+}
+
+static inline u8 bss_mesh_id_len(struct ieee80211_sta_bss *bss)
+{
+#ifdef CONFIG_MAC80211_MESH
+	return bss->mesh_id_len;
+#endif
+	return 0;
+}
 
 
 typedef unsigned __bitwise__ ieee80211_tx_result;
@@ -233,7 +256,6 @@ struct ieee80211_if_vlan {
 	struct list_head list;
 };
 
-#ifdef CONFIG_MAC80211_MESH
 struct mesh_stats {
 	__u32 fwded_frames;		/* Mesh forwarded frames */
 	__u32 dropped_frames_ttl;	/* Not transmitted since mesh_ttl == 0*/
@@ -248,7 +270,6 @@ struct mesh_preq_queue {
 	u8 dst[ETH_ALEN];
 	u8 flags;
 };
-
 
 struct mesh_config {
 	/* Timeouts in ms */
@@ -268,7 +289,7 @@ struct mesh_config {
 	u32 path_refresh_time;
 	u16 min_discovery_timeout;
 };
-#endif
+
 
 /* flags used in struct ieee80211_if_sta.flags */
 #define IEEE80211_STA_SSID_SET		BIT(0)
@@ -361,6 +382,22 @@ struct ieee80211_if_sta {
 	int num_beacons; /* number of TXed beacon frames by this STA */
 };
 
+static inline void ieee80211_if_sta_set_mesh_id(struct ieee80211_if_sta *ifsta,
+						u8 mesh_id_len, u8 *mesh_id)
+{
+#ifdef CONFIG_MAC80211_MESH
+	ifsta->mesh_id_len = mesh_id_len;
+	memcpy(ifsta->mesh_id, mesh_id, mesh_id_len);
+#endif
+}
+
+#ifdef CONFIG_MAC80211_MESH
+#define IEEE80211_IFSTA_MESH_CTR_INC(sta, name)	\
+	do { (sta)->mshstats.name++; } while (0)
+#else
+#define IEEE80211_IFSTA_MESH_CTR_INC(sta, name) \
+	do { } while (0)
+#endif
 
 /* flags used in struct ieee80211_sub_if_data.flags */
 #define IEEE80211_SDATA_ALLMULTI	BIT(0)
@@ -472,7 +509,7 @@ struct ieee80211_sub_if_data {
 		struct dentry *dropped_frames_ttl;
 		struct dentry *dropped_frames_no_route;
 		struct dentry *estab_plinks;
-	struct timer_list mesh_path_timer;
+		struct timer_list mesh_path_timer;
 	} mesh_stats;
 
 	struct dentry *mesh_config_dir;
@@ -884,12 +921,17 @@ void sta_addba_resp_timer_expired(unsigned long data);
 u64 ieee80211_sta_get_rates(struct ieee80211_local *local,
 			    struct ieee802_11_elems *elems,
 			    enum ieee80211_band band);
-void ieee80211_start_mesh(struct net_device *dev);
 void ieee80211_sta_tx(struct net_device *dev, struct sk_buff *skb,
 		int encrypt);
 void ieee802_11_parse_elems(u8 *start, size_t len,
 				   struct ieee802_11_elems *elems);
 
+#ifdef CONFIG_MAC80211_MESH
+void ieee80211_start_mesh(struct net_device *dev);
+#else
+static inline void ieee80211_start_mesh(struct net_device *dev)
+{}
+#endif
 
 /* ieee80211_iface.c */
 int ieee80211_if_add(struct net_device *dev, const char *name,
