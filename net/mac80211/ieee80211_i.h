@@ -90,6 +90,12 @@ struct ieee80211_sta_bss {
 	size_t wmm_ie_len;
 	u8 *ht_ie;
 	size_t ht_ie_len;
+#ifdef CONFIG_MAC80211_MESH
+	u8 *mesh_id;
+	size_t mesh_id_len;
+#endif
+	/* mesh_cfg left out the ifdef to reduce clutter on bss handling */
+	u8 *mesh_cfg;
 #define IEEE80211_MAX_SUPP_RATES 32
 	u8 supp_rates[IEEE80211_MAX_SUPP_RATES];
 	size_t supp_rates_len;
@@ -227,6 +233,43 @@ struct ieee80211_if_vlan {
 	struct list_head list;
 };
 
+#ifdef CONFIG_MAC80211_MESH
+struct mesh_stats {
+	__u32 fwded_frames;		/* Mesh forwarded frames */
+	__u32 dropped_frames_ttl;	/* Not transmitted since mesh_ttl == 0*/
+	__u32 dropped_frames_no_route;	/* Not transmitted, no route found */
+	atomic_t estab_plinks;
+};
+
+#define PREQ_Q_F_START		0x1
+#define PREQ_Q_F_REFRESH	0x2
+struct mesh_preq_queue {
+	struct list_head list;
+	u8 dst[ETH_ALEN];
+	u8 flags;
+};
+
+
+struct mesh_config {
+	/* Timeouts in ms */
+	/* Mesh plink management parameters */
+	u16 dot11MeshRetryTimeout;
+	u16 dot11MeshConfirmTimeout;
+	u16 dot11MeshHoldingTimeout;
+	u16 dot11MeshMaxPeerLinks;
+	u8  dot11MeshMaxRetries;
+	u8  dot11MeshTTL;
+	bool auto_open_plinks;
+	/* HWMP parameters */
+	u32 dot11MeshHWMPactivePathTimeout;
+	u16 dot11MeshHWMPpreqMinInterval;
+	u16 dot11MeshHWMPnetDiameterTraversalTime;
+	u8  dot11MeshHWMPmaxPREQretries;
+	u32 path_refresh_time;
+	u16 min_discovery_timeout;
+};
+#endif
+
 /* flags used in struct ieee80211_if_sta.flags */
 #define IEEE80211_STA_SSID_SET		BIT(0)
 #define IEEE80211_STA_BSSID_SET		BIT(1)
@@ -245,7 +288,8 @@ struct ieee80211_if_sta {
 	enum {
 		IEEE80211_DISABLED, IEEE80211_AUTHENTICATE,
 		IEEE80211_ASSOCIATE, IEEE80211_ASSOCIATED,
-		IEEE80211_IBSS_SEARCH, IEEE80211_IBSS_JOINED
+		IEEE80211_IBSS_SEARCH, IEEE80211_IBSS_JOINED,
+		IEEE80211_MESH_UP
 	} state;
 	struct timer_list timer;
 	struct work_struct work;
@@ -254,6 +298,34 @@ struct ieee80211_if_sta {
 	size_t ssid_len;
 	u8 scan_ssid[IEEE80211_MAX_SSID_LEN];
 	size_t scan_ssid_len;
+#ifdef CONFIG_MAC80211_MESH
+	struct timer_list mesh_path_timer;
+	u8 mesh_id[IEEE80211_MAX_MESH_ID_LEN];
+	bool accepting_plinks;
+	size_t mesh_id_len;
+	/* Active Path Selection Protocol Identifier */
+	u8 mesh_pp_id[4];
+	/* Active Path Selection Metric Identifier */
+	u8 mesh_pm_id[4];
+	/* Congestion Control Mode Identifier */
+	u8 mesh_cc_id[4];
+	/* Local mesh Destination Sequence Number */
+	u32 dsn;
+	/* Last used PREQ ID */
+	u32 preq_id;
+	atomic_t mpaths;
+	/* Timestamp of last DSN update */
+	unsigned long last_dsn_update;
+	/* Timestamp of last DSN sent */
+	unsigned long last_preq;
+	struct mesh_rmc *rmc;
+	spinlock_t mesh_preq_queue_lock;
+	struct mesh_preq_queue preq_queue;
+	int preq_queue_len;
+	struct mesh_stats mshstats;
+	struct mesh_config mshcfg;
+	u8 mesh_seqnum[3];
+#endif
 	u16 aid;
 	u16 ap_capab, capab;
 	u8 *extra_ie; /* to be added to the end of AssocReq */
@@ -286,6 +358,7 @@ struct ieee80211_if_sta {
 	u32 supp_rates_bits[IEEE80211_NUM_BANDS];
 
 	int wmm_last_param_set;
+	int num_beacons; /* number of TXed beacon frames by this STA */
 };
 
 
@@ -365,6 +438,7 @@ struct ieee80211_sub_if_data {
 			struct dentry *auth_alg;
 			struct dentry *auth_transaction;
 			struct dentry *flags;
+			struct dentry *num_beacons_sta;
 		} sta;
 		struct {
 			struct dentry *channel_use;
@@ -390,6 +464,35 @@ struct ieee80211_sub_if_data {
 		} monitor;
 		struct dentry *default_key;
 	} debugfs;
+
+#ifdef CONFIG_MAC80211_MESH
+	struct dentry *mesh_stats_dir;
+	struct {
+		struct dentry *fwded_frames;
+		struct dentry *dropped_frames_ttl;
+		struct dentry *dropped_frames_no_route;
+		struct dentry *estab_plinks;
+	struct timer_list mesh_path_timer;
+	} mesh_stats;
+
+	struct dentry *mesh_config_dir;
+	struct {
+		struct dentry *dot11MeshRetryTimeout;
+		struct dentry *dot11MeshConfirmTimeout;
+		struct dentry *dot11MeshHoldingTimeout;
+		struct dentry *dot11MeshMaxRetries;
+		struct dentry *dot11MeshTTL;
+		struct dentry *auto_open_plinks;
+		struct dentry *dot11MeshMaxPeerLinks;
+		struct dentry *dot11MeshHWMPactivePathTimeout;
+		struct dentry *dot11MeshHWMPpreqMinInterval;
+		struct dentry *dot11MeshHWMPnetDiameterTraversalTime;
+		struct dentry *dot11MeshHWMPmaxPREQretries;
+		struct dentry *path_refresh_time;
+		struct dentry *min_discovery_timeout;
+	} mesh_config;
+#endif
+
 #endif
 	/* must be last, dynamically sized area in this! */
 	struct ieee80211_vif vif;
@@ -617,6 +720,57 @@ struct ieee80211_ra_tid {
 	u16 tid;
 };
 
+/* Parsed Information Elements */
+struct ieee802_11_elems {
+	/* pointers to IEs */
+	u8 *ssid;
+	u8 *supp_rates;
+	u8 *fh_params;
+	u8 *ds_params;
+	u8 *cf_params;
+	u8 *tim;
+	u8 *ibss_params;
+	u8 *challenge;
+	u8 *wpa;
+	u8 *rsn;
+	u8 *erp_info;
+	u8 *ext_supp_rates;
+	u8 *wmm_info;
+	u8 *wmm_param;
+	u8 *ht_cap_elem;
+	u8 *ht_info_elem;
+	u8 *mesh_config;
+	u8 *mesh_id;
+	u8 *peer_link;
+	u8 *preq;
+	u8 *prep;
+	u8 *perr;
+
+	/* length of them, respectively */
+	u8 ssid_len;
+	u8 supp_rates_len;
+	u8 fh_params_len;
+	u8 ds_params_len;
+	u8 cf_params_len;
+	u8 tim_len;
+	u8 ibss_params_len;
+	u8 challenge_len;
+	u8 wpa_len;
+	u8 rsn_len;
+	u8 erp_info_len;
+	u8 ext_supp_rates_len;
+	u8 wmm_info_len;
+	u8 wmm_param_len;
+	u8 ht_cap_elem_len;
+	u8 ht_info_elem_len;
+	u8 mesh_config_len;
+	u8 mesh_id_len;
+	u8 peer_link_len;
+	u8 preq_len;
+	u8 prep_len;
+	u8 perr_len;
+};
+
 static inline struct ieee80211_local *hw_to_local(
 	struct ieee80211_hw *hw)
 {
@@ -686,6 +840,7 @@ int ieee80211_set_compression(struct ieee80211_local *local,
 			      struct net_device *dev, struct sta_info *sta);
 int ieee80211_set_freq(struct ieee80211_local *local, int freq);
 /* ieee80211_sta.c */
+#define IEEE80211_FC(type, stype) cpu_to_le16(type | stype)
 void ieee80211_sta_timer(unsigned long data);
 void ieee80211_sta_work(struct work_struct *work);
 void ieee80211_sta_scan_work(struct work_struct *work);
@@ -726,9 +881,20 @@ void ieee80211_sta_stop_rx_ba_session(struct net_device *dev, u8 *da,
 				u16 tid, u16 initiator, u16 reason);
 void sta_rx_agg_session_timer_expired(unsigned long data);
 void sta_addba_resp_timer_expired(unsigned long data);
+u64 ieee80211_sta_get_rates(struct ieee80211_local *local,
+			    struct ieee802_11_elems *elems,
+			    enum ieee80211_band band);
+void ieee80211_start_mesh(struct net_device *dev);
+void ieee80211_sta_tx(struct net_device *dev, struct sk_buff *skb,
+		int encrypt);
+void ieee802_11_parse_elems(u8 *start, size_t len,
+				   struct ieee802_11_elems *elems);
+
+
 /* ieee80211_iface.c */
 int ieee80211_if_add(struct net_device *dev, const char *name,
-		     struct net_device **new_dev, int type);
+		     struct net_device **new_dev, int type,
+		     struct vif_params *params);
 void ieee80211_if_set_type(struct net_device *dev, int type);
 void ieee80211_if_reinit(struct net_device *dev);
 void __ieee80211_if_del(struct ieee80211_local *local,

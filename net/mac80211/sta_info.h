@@ -107,6 +107,18 @@ struct tid_ampdu_rx {
 	struct timer_list session_timer;
 };
 
+#ifdef CONFIG_MAC80211_MESH
+enum plink_state {
+	LISTEN,
+	OPN_SNT,
+	OPN_RCVD,
+	CNF_RCVD,
+	ESTAB,
+	HOLDING,
+	BLOCKED
+};
+#endif
+
 /**
  * struct sta_ampdu_mlme - STA aggregation information.
  *
@@ -144,6 +156,8 @@ struct sta_info {
 	unsigned long rx_bytes, tx_bytes;
 	unsigned long tx_retry_failed, tx_retry_count;
 	unsigned long tx_filtered_count;
+	/* moving percentage of failed MSDUs */
+	unsigned int fail_avg;
 
 	unsigned int wep_weak_iv_count; /* number of RX frames with weak IV */
 
@@ -192,6 +206,20 @@ struct sta_info {
 	struct sta_ampdu_mlme ampdu_mlme;
 	u8 timer_to_tid[STA_TID_NUM];	/* convert timer id to tid */
 	u8 tid_to_tx_q[STA_TID_NUM];	/* map tid to tx queue */
+#ifdef CONFIG_MAC80211_MESH
+	/* mesh peer link attributes */
+	__le16 llid;		/* Local link ID */
+	__le16 plid;		/* Peer link ID */
+	__le16 reason;		/* Buffer for cancel reason on HOLDING state */
+	enum plink_state plink_state;
+	u32 plink_timeout;
+	struct timer_list plink_timer;
+	u8 plink_retries;	/* Retries in establishment */
+	bool ignore_plink_timer;
+	spinlock_t plink_lock;	/* For peer_state reads / updates and other
+				   updates in the structure. Ensures robust
+				   transitions for the peerlink FSM */
+#endif
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct sta_info_debugfsdentries {
@@ -234,6 +262,8 @@ static inline void __sta_info_get(struct sta_info *sta)
 }
 
 struct sta_info * sta_info_get(struct ieee80211_local *local, u8 *addr);
+struct sta_info *sta_info_get_by_idx(struct ieee80211_local *local, int idx,
+				      struct net_device *dev);
 void sta_info_put(struct sta_info *sta);
 struct sta_info *sta_info_add(struct ieee80211_local *local,
 			      struct net_device *dev, u8 *addr, gfp_t gfp);

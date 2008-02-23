@@ -15,6 +15,9 @@
 #include <linux/debugfs.h>
 #include <net/mac80211.h>
 #include "ieee80211_rate.h"
+#ifdef CONFIG_MAC80211_MESH
+#include "mesh.h"
+#endif
 
 #include "rc80211_pid.h"
 
@@ -148,6 +151,9 @@ static void rate_control_pid_sample(struct rc_pid_info *pinfo,
 				    struct ieee80211_local *local,
 				    struct sta_info *sta)
 {
+#ifdef CONFIG_MAC80211_MESH
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
+#endif
 	struct rc_pid_sta_info *spinfo = sta->rate_ctrl_priv;
 	struct rc_pid_rateinfo *rinfo = pinfo->rinfo;
 	struct ieee80211_supported_band *sband;
@@ -178,7 +184,14 @@ static void rate_control_pid_sample(struct rc_pid_info *pinfo,
 		pf = spinfo->last_pf;
 	else {
 		pf = spinfo->tx_num_failed * 100 / spinfo->tx_num_xmit;
+#ifdef CONFIG_MAC80211_MESH
+		if (pf == 100 &&
+		    sdata->vif.type == IEEE80211_IF_TYPE_MESH_POINT)
+			mesh_plink_broken(sta);
+#endif
 		pf <<= RC_PID_ARITH_SHIFT;
+		sta->fail_avg = ((pf + (spinfo->last_pf << 3)) / 9)
+					>> RC_PID_ARITH_SHIFT;
 	}
 
 	spinfo->tx_num_xmit = 0;
@@ -357,6 +370,7 @@ static void rate_control_pid_rate_init(void *priv, void *priv_sta,
 
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 	sta->txrate_idx = rate_lowest_index(local, sband, sta);
+	sta->fail_avg = 0;
 }
 
 static void *rate_control_pid_alloc(struct ieee80211_local *local)

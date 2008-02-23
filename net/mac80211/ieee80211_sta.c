@@ -87,46 +87,8 @@ static int ieee80211_sta_config_auth(struct net_device *dev,
 				     struct ieee80211_if_sta *ifsta);
 
 
-/* Parsed Information Elements */
-struct ieee802_11_elems {
-	/* pointers to IEs */
-	u8 *ssid;
-	u8 *supp_rates;
-	u8 *fh_params;
-	u8 *ds_params;
-	u8 *cf_params;
-	u8 *tim;
-	u8 *ibss_params;
-	u8 *challenge;
-	u8 *wpa;
-	u8 *rsn;
-	u8 *erp_info;
-	u8 *ext_supp_rates;
-	u8 *wmm_info;
-	u8 *wmm_param;
-	u8 *ht_cap_elem;
-	u8 *ht_info_elem;
-	/* length of them, respectively */
-	u8 ssid_len;
-	u8 supp_rates_len;
-	u8 fh_params_len;
-	u8 ds_params_len;
-	u8 cf_params_len;
-	u8 tim_len;
-	u8 ibss_params_len;
-	u8 challenge_len;
-	u8 wpa_len;
-	u8 rsn_len;
-	u8 erp_info_len;
-	u8 ext_supp_rates_len;
-	u8 wmm_info_len;
-	u8 wmm_param_len;
-	u8 ht_cap_elem_len;
-	u8 ht_info_elem_len;
-};
-
-static void ieee802_11_parse_elems(u8 *start, size_t len,
-				   struct ieee802_11_elems *elems)
+void ieee802_11_parse_elems(u8 *start, size_t len,
+			    struct ieee802_11_elems *elems)
 {
 	size_t left = len;
 	u8 *pos = start;
@@ -214,6 +176,30 @@ static void ieee802_11_parse_elems(u8 *start, size_t len,
 		case WLAN_EID_HT_EXTRA_INFO:
 			elems->ht_info_elem = pos;
 			elems->ht_info_elem_len = elen;
+			break;
+		case WLAN_EID_MESH_ID:
+			elems->mesh_id = pos;
+			elems->mesh_id_len = elen;
+			break;
+		case WLAN_EID_MESH_CONFIG:
+			elems->mesh_config = pos;
+			elems->mesh_config_len = elen;
+			break;
+		case WLAN_EID_PEER_LINK:
+			elems->peer_link = pos;
+			elems->peer_link_len = elen;
+			break;
+		case WLAN_EID_PREQ:
+			elems->preq = pos;
+			elems->preq_len = elen;
+			break;
+		case WLAN_EID_PREP:
+			elems->prep = pos;
+			elems->prep_len = elen;
+			break;
+		case WLAN_EID_PERR:
+			elems->perr = pos;
+			elems->perr_len = elen;
 			break;
 		default:
 			break;
@@ -501,8 +487,8 @@ static void ieee80211_set_disassoc(struct net_device *dev,
 	ieee80211_set_associated(dev, ifsta, 0);
 }
 
-static void ieee80211_sta_tx(struct net_device *dev, struct sk_buff *skb,
-			     int encrypt)
+void ieee80211_sta_tx(struct net_device *dev, struct sk_buff *skb,
+		      int encrypt)
 {
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_tx_packet_data *pkt_data;

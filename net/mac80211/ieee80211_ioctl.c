@@ -525,6 +525,7 @@ static int ieee80211_ioctl_siwscan(struct net_device *dev,
 
 	if (sdata->vif.type != IEEE80211_IF_TYPE_STA &&
 	    sdata->vif.type != IEEE80211_IF_TYPE_IBSS &&
+	    sdata->vif.type != IEEE80211_IF_TYPE_MESH_POINT &&
 	    sdata->vif.type != IEEE80211_IF_TYPE_AP)
 		return -EOPNOTSUPP;
 

@@ -15,6 +15,9 @@
 #include "ieee80211_i.h"
 #include "sta_info.h"
 #include "debugfs_netdev.h"
+#ifdef CONFIG_MAC80211_MESH
+#include "mesh.h"
+#endif
 
 void ieee80211_if_sdata_init(struct ieee80211_sub_if_data *sdata)
 {
@@ -39,7 +42,8 @@ static void ieee80211_if_sdata_deinit(struct ieee80211_sub_if_data *sdata)
 
 /* Must be called with rtnl lock held. */
 int ieee80211_if_add(struct net_device *dev, const char *name,
-		     struct net_device **new_dev, int type)
+		     struct net_device **new_dev, int type,
+		     struct vif_params *params)
 {
 	struct net_device *ndev;
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
@@ -77,6 +81,15 @@ int ieee80211_if_add(struct net_device *dev, const char *name,
 
 	ieee80211_debugfs_add_netdev(sdata);
 	ieee80211_if_set_type(ndev, type);
+
+#ifdef CONFIG_MAC80211_MESH
+	if (sdata->vif.type == IEEE80211_IF_TYPE_MESH_POINT &&
+	    params && params->mesh_id_len) {
+		sdata->u.sta.mesh_id_len = params->mesh_id_len;
+		memcpy(sdata->u.sta.mesh_id, params->mesh_id,
+		       params->mesh_id_len);
+	}
+#endif
 
 	/* we're under RTNL so all this is fine */
 	if (unlikely(local->reg_state == IEEE80211_DEV_UNREGISTERED)) {
@@ -134,6 +147,7 @@ void ieee80211_if_set_type(struct net_device *dev, int type)
 		sdata->bss = &sdata->u.ap;
 		INIT_LIST_HEAD(&sdata->u.ap.vlans);
 		break;
+	case IEEE80211_IF_TYPE_MESH_POINT:
 	case IEEE80211_IF_TYPE_STA:
 	case IEEE80211_IF_TYPE_IBSS: {
 		struct ieee80211_sub_if_data *msdata;
@@ -155,6 +169,48 @@ void ieee80211_if_set_type(struct net_device *dev, int type)
 
 		msdata = IEEE80211_DEV_TO_SUB_IF(sdata->local->mdev);
 		sdata->bss = &msdata->u.ap;
+
+#ifdef CONFIG_MAC80211_MESH
+		if (type == IEEE80211_IF_TYPE_MESH_POINT) {
+			ifsta->mshcfg.dot11MeshRetryTimeout = MESH_RET_T;
+			ifsta->mshcfg.dot11MeshConfirmTimeout = MESH_CONF_T;
+			ifsta->mshcfg.dot11MeshHoldingTimeout = MESH_HOLD_T;
+			ifsta->mshcfg.dot11MeshMaxRetries = MESH_MAX_RETR;
+			ifsta->mshcfg.dot11MeshTTL = MESH_TTL;
+			ifsta->mshcfg.auto_open_plinks = true;
+			ifsta->mshcfg.dot11MeshMaxPeerLinks =
+				MESH_MAX_ESTAB_PLINKS;
+			ifsta->mshcfg.dot11MeshHWMPactivePathTimeout =
+				MESH_PATH_TIMEOUT;
+			ifsta->mshcfg.dot11MeshHWMPpreqMinInterval =
+				MESH_PREQ_MIN_INT;
+			ifsta->mshcfg.dot11MeshHWMPnetDiameterTraversalTime =
+				MESH_DIAM_TRAVERSAL_TIME;
+			ifsta->mshcfg.dot11MeshHWMPmaxPREQretries =
+				MESH_MAX_PREQ_RETRIES;
+			ifsta->mshcfg.path_refresh_time =
+				MESH_PATH_REFRESH_TIME;
+			ifsta->mshcfg.min_discovery_timeout =
+				MESH_MIN_DISCOVERY_TIMEOUT;
+			ifsta->accepting_plinks = true;
+			ifsta->preq_id = 0;
+			ifsta->dsn = 0;
+			atomic_set(&ifsta->mpaths, 0);
+			mesh_rmc_init(dev);
+			ifsta->last_preq = jiffies;
+			/* Allocate all mesh structures when creating the first
+			 * mesh interface.
+			 */
+			if (!mesh_allocated)
+				ieee80211s_init();
+			mesh_ids_set_default(ifsta);
+			setup_timer(&ifsta->mesh_path_timer,
+				    ieee80211_mesh_path_timer,
+				    (unsigned long) sdata);
+			INIT_LIST_HEAD(&ifsta->preq_queue.list);
+			spin_lock_init(&ifsta->mesh_preq_queue_lock);
+		}
+#endif
 		break;
 	}
 	case IEEE80211_IF_TYPE_MNTR:
@@ -236,6 +292,10 @@ void ieee80211_if_reinit(struct net_device *dev)
 		}
 		break;
 	case IEEE80211_IF_TYPE_MESH_POINT:
+#ifdef CONFIG_MAC80211_MESH
+		mesh_rmc_free(dev);
+#endif
+		/* fall through */
 	case IEEE80211_IF_TYPE_STA:
 	case IEEE80211_IF_TYPE_IBSS:
 		kfree(sdata->u.sta.extra_ie);

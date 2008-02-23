@@ -21,6 +21,9 @@
 #include "ieee80211_rate.h"
 #include "sta_info.h"
 #include "debugfs_sta.h"
+#ifdef CONFIG_MAC80211_MESH
+#include "mesh.h"
+#endif
 
 /* Caller must hold local->sta_lock */
 static void sta_info_hash_add(struct ieee80211_local *local,
@@ -84,6 +87,27 @@ struct sta_info *sta_info_get(struct ieee80211_local *local, u8 *addr)
 }
 EXPORT_SYMBOL(sta_info_get);
 
+struct sta_info *sta_info_get_by_idx(struct ieee80211_local *local, int idx,
+				     struct net_device *dev)
+{
+	struct sta_info *sta;
+	int i = 0;
+
+	read_lock_bh(&local->sta_lock);
+	list_for_each_entry(sta, &local->sta_list, list) {
+		if (i < idx) {
+			++i;
+			continue;
+		} else if (!dev || dev == sta->dev) {
+			__sta_info_get(sta);
+			read_unlock_bh(&local->sta_lock);
+			return sta;
+		}
+	}
+	read_unlock_bh(&local->sta_lock);
+
+	return NULL;
+}
 
 static void sta_info_release(struct kref *kref)
 {
@@ -284,12 +308,19 @@ void sta_info_remove(struct sta_info *sta)
 		__sta_info_clear_tim_bit(sdata->bss, sta);
 	}
 	local->num_sta--;
+
+#ifdef CONFIG_MAC80211_MESH
+	if (sdata->vif.type == IEEE80211_IF_TYPE_MESH_POINT)
+		mesh_accept_plinks_update(sdata->dev);
+#endif
 }
 
 void sta_info_free(struct sta_info *sta)
 {
 	struct sk_buff *skb;
 	struct ieee80211_local *local = sta->local;
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
+
 	DECLARE_MAC_BUF(mac);
 
 	might_sleep();
@@ -297,6 +328,14 @@ void sta_info_free(struct sta_info *sta)
 	write_lock_bh(&local->sta_lock);
 	sta_info_remove(sta);
 	write_unlock_bh(&local->sta_lock);
+
+#ifdef CONFIG_MAC80211_MESH
+	if (sdata->vif.type == IEEE80211_IF_TYPE_MESH_POINT) {
+		spin_lock_bh(&sta->plink_lock);
+		mesh_plink_deactivate(sta);
+		spin_unlock_bh(&sta->plink_lock);
+	}
+#endif
 
 	while ((skb = skb_dequeue(&sta->ps_tx_buf)) != NULL) {
 		local->total_ps_buffered--;
@@ -315,9 +354,6 @@ void sta_info_free(struct sta_info *sta)
 	WARN_ON(sta->key);
 
 	if (local->ops->sta_notify) {
-		struct ieee80211_sub_if_data *sdata;
-
-		sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
 
 		if (sdata->vif.type == IEEE80211_IF_TYPE_VLAN)
 			sdata = sdata->u.vlan.ap;
