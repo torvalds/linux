@@ -954,8 +954,11 @@ static int cgroup_get_sb(struct file_system_type *fs_type,
 	}
 
 	root = kzalloc(sizeof(*root), GFP_KERNEL);
-	if (!root)
+	if (!root) {
+		if (opts.release_agent)
+			kfree(opts.release_agent);
 		return -ENOMEM;
+	}
 
 	init_cgroup_root(root);
 	root->subsys_bits = opts.subsys_bits;
