@@ -8,9 +8,9 @@
 
 #include <linux/buffer_head.h>
 #include <linux/string.h>
-#include <linux/efs_fs.h>
 #include <linux/smp_lock.h>
 #include <linux/exportfs.h>
+#include "efs.h"
 
 
 static efs_ino_t efs_find_entry(struct inode *inode, const char *name, int len) {
