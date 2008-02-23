@@ -1100,7 +1100,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
 		mem = kzalloc(sizeof(struct mem_cgroup), GFP_KERNEL);
 
 	if (mem == NULL)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	res_counter_init(&mem->res);
 
@@ -1116,7 +1116,7 @@ free_out:
 		free_mem_cgroup_per_zone_info(mem, node);
 	if (cont->parent != NULL)
 		kfree(mem);
-	return NULL;
+	return ERR_PTR(-ENOMEM);
 }
 
 static void mem_cgroup_pre_destroy(struct cgroup_subsys *ss,
