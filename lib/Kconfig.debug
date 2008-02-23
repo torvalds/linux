@@ -527,6 +527,7 @@ config LKDTM
 	tristate "Linux Kernel Dump Test Tool Module"
 	depends on DEBUG_KERNEL
 	depends on KPROBES
+	depends on BLOCK
 	default n
 	help
 	This module enables testing of the different dumping mechanisms by
