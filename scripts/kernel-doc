@@ -1512,13 +1512,13 @@ sub create_parameterlist($$$) {
 	    # corresponding data structures "correctly". Catch it later in
 	    # output_* subs.
 	    push_parameter($arg, "", $file);
-	} elsif ($arg =~ m/\(.*\*/) {
+	} elsif ($arg =~ m/\(.+\)\s*\(/) {
 	    # pointer-to-function
 	    $arg =~ tr/#/,/;
-	    $arg =~ m/[^\(]+\(\*\s*([^\)]+)\)/;
+	    $arg =~ m/[^\(]+\(\*?\s*(\w*)\s*\)/;
 	    $param = $1;
 	    $type = $arg;
-	    $type =~ s/([^\(]+\(\*)$param/$1/;
+	    $type =~ s/([^\(]+\(\*?)\s*$param/$1/;
 	    push_parameter($param, $type, $file);
 	} elsif ($arg) {
 	    $arg =~ s/\s*:\s*/:/g;
