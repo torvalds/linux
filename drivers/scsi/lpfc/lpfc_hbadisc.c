@@ -1694,7 +1694,7 @@ lpfc_dequeue_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 				NLP_STE_UNUSED_NODE);
 }
 
-void
+static void
 lpfc_disable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 {
 	if ((ndlp->nlp_flag & NLP_DELAY_TMO) != 0)

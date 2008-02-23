@@ -1481,15 +1481,15 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	ioc->bars = pci_select_bars(pdev, IORESOURCE_MEM);
 	if (pci_enable_device_mem(pdev)) {
-		kfree(ioc);
 		printk(MYIOC_s_ERR_FMT "pci_enable_device_mem() "
 		       "failed\n", ioc->name);
+		kfree(ioc);
 		return r;
 	}
 	if (pci_request_selected_regions(pdev, ioc->bars, "mpt")) {
-		kfree(ioc);
 		printk(MYIOC_s_ERR_FMT "pci_request_selected_regions() with "
 		       "MEM failed\n", ioc->name);
+		kfree(ioc);
 		return r;
 	}
 

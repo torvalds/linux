@@ -648,28 +648,24 @@ lpfc_sli_hbqbuf_fill_hbqs(struct lpfc_hba *phba, uint32_t hbqno, uint32_t count)
 	unsigned long flags;
 	struct hbq_dmabuf *hbq_buffer;
 
-	if (!phba->hbqs[hbqno].hbq_alloc_buffer) {
+	if (!phba->hbqs[hbqno].hbq_alloc_buffer)
 		return 0;
-	}
 
 	start = phba->hbqs[hbqno].buffer_count;
 	end = count + start;
-	if (end > lpfc_hbq_defs[hbqno]->entry_count) {
+	if (end > lpfc_hbq_defs[hbqno]->entry_count)
 		end = lpfc_hbq_defs[hbqno]->entry_count;
-	}
 
 	/* Check whether HBQ is still in use */
 	spin_lock_irqsave(&phba->hbalock, flags);
-	if (!phba->hbq_in_use) {
-		spin_unlock_irqrestore(&phba->hbalock, flags);
-		return 0;
-	}
+	if (!phba->hbq_in_use)
+		goto out;
 
 	/* Populate HBQ entries */
 	for (i = start; i < end; i++) {
 		hbq_buffer = (phba->hbqs[hbqno].hbq_alloc_buffer)(phba);
 		if (!hbq_buffer)
-			return 1;
+			goto err;
 		hbq_buffer->tag = (i | (hbqno << 16));
 		if (lpfc_sli_hbq_to_firmware(phba, hbqno, hbq_buffer))
 			phba->hbqs[hbqno].buffer_count++;
@@ -677,8 +673,12 @@ lpfc_sli_hbqbuf_fill_hbqs(struct lpfc_hba *phba, uint32_t hbqno, uint32_t count)
 			(phba->hbqs[hbqno].hbq_free_buffer)(phba, hbq_buffer);
 	}
 
+ out:
 	spin_unlock_irqrestore(&phba->hbalock, flags);
 	return 0;
+ err:
+	spin_unlock_irqrestore(&phba->hbalock, flags);
+	return 1;
 }
 
 int
