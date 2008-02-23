@@ -655,6 +655,7 @@ static int __init nbd_init(void)
 
 	for (i = 0; i < nbds_max; i++) {
 		struct gendisk *disk = alloc_disk(1);
+		elevator_t *old_e;
 		if (!disk)
 			goto out;
 		nbd_dev[i].disk = disk;
@@ -667,6 +668,11 @@ static int __init nbd_init(void)
 		if (!disk->queue) {
 			put_disk(disk);
 			goto out;
+		}
+		old_e = disk->queue->elevator;
+		if (elevator_init(disk->queue, "deadline") == 0 ||
+			elevator_init(disk->queue, "noop") == 0) {
+				elevator_exit(old_e);
 		}
 	}
 
