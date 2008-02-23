@@ -26,6 +26,7 @@ struct cpa_data {
 	pgprot_t	mask_set;
 	pgprot_t	mask_clr;
 	int		numpages;
+	int		processed;
 	int		flushtlb;
 	unsigned long	pfn;
 };
@@ -290,8 +291,8 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
 	 */
 	nextpage_addr = (address + psize) & pmask;
 	numpages = (nextpage_addr - address) >> PAGE_SHIFT;
-	if (numpages < cpa->numpages)
-		cpa->numpages = numpages;
+	if (numpages < cpa->processed)
+		cpa->processed = numpages;
 
 	/*
 	 * We are safe now. Check whether the new pgprot is the same:
@@ -318,7 +319,7 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
 	 */
 	addr = address + PAGE_SIZE;
 	pfn++;
-	for (i = 1; i < cpa->numpages; i++, addr += PAGE_SIZE, pfn++) {
+	for (i = 1; i < cpa->processed; i++, addr += PAGE_SIZE, pfn++) {
 		pgprot_t chk_prot = static_protections(new_prot, addr, pfn);
 
 		if (pgprot_val(chk_prot) != pgprot_val(new_prot))
@@ -342,7 +343,7 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
 	 * that we limited the number of possible pages already to
 	 * the number of pages in the large page.
 	 */
-	if (address == (nextpage_addr - psize) && cpa->numpages == numpages) {
+	if (address == (nextpage_addr - psize) && cpa->processed == numpages) {
 		/*
 		 * The address is aligned and the number of pages
 		 * covers the full page.
@@ -572,7 +573,7 @@ repeat:
 			set_pte_atomic(kpte, new_pte);
 			cpa->flushtlb = 1;
 		}
-		cpa->numpages = 1;
+		cpa->processed = 1;
 		return 0;
 	}
 
@@ -583,7 +584,7 @@ repeat:
 	do_split = try_preserve_large_page(kpte, address, cpa);
 	/*
 	 * When the range fits into the existing large page,
-	 * return. cp->numpages and cpa->tlbflush have been updated in
+	 * return. cp->processed and cpa->tlbflush have been updated in
 	 * try_large_page:
 	 */
 	if (do_split <= 0)
@@ -662,7 +663,7 @@ static int __change_page_attr_set_clr(struct cpa_data *cpa, int checkalias)
 		 * Store the remaining nr of pages for the large page
 		 * preservation check.
 		 */
-		cpa->numpages = numpages;
+		cpa->numpages = cpa->processed = numpages;
 
 		ret = __change_page_attr(cpa, checkalias);
 		if (ret)
@@ -679,9 +680,9 @@ static int __change_page_attr_set_clr(struct cpa_data *cpa, int checkalias)
 		 * CPA operation. Either a large page has been
 		 * preserved or a single page update happened.
 		 */
-		BUG_ON(cpa->numpages > numpages);
-		numpages -= cpa->numpages;
-		cpa->vaddr += cpa->numpages * PAGE_SIZE;
+		BUG_ON(cpa->processed > numpages);
+		numpages -= cpa->processed;
+		cpa->vaddr += cpa->processed * PAGE_SIZE;
 	}
 	return 0;
 }
