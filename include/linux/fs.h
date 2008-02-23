@@ -1157,6 +1157,7 @@ struct super_block {
 	char s_id[32];				/* Informational name */
 
 	void 			*s_fs_info;	/* Filesystem private info */
+	fmode_t			s_mode;
 
 	/*
 	 * The next field is for VFS *only*. No filesystems have any business
@@ -1753,9 +1754,10 @@ extern void chrdev_show(struct seq_file *,off_t);
 extern const char *__bdevname(dev_t, char *buffer);
 extern const char *bdevname(struct block_device *bdev, char *buffer);
 extern struct block_device *lookup_bdev(const char *);
-extern struct block_device *open_bdev_excl(const char *, int, void *);
-extern void close_bdev_excl(struct block_device *);
+extern struct block_device *open_bdev_exclusive(const char *, fmode_t, void *);
+extern void close_bdev_exclusive(struct block_device *, fmode_t);
 extern void blkdev_show(struct seq_file *,off_t);
+
 #else
 #define BLKDEV_MAJOR_HASH_SIZE	0
 #endif

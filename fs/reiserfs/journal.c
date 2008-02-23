@@ -2628,7 +2628,8 @@ static int journal_init_dev(struct super_block *super,
 		return 0;
 	}
 
-	journal->j_dev_bd = open_bdev_excl(jdev_name, 0, journal);
+	journal->j_dev_bd = open_bdev_exclusive(jdev_name,
+						FMODE_READ|FMODE_WRITE, journal);
 	if (IS_ERR(journal->j_dev_bd)) {
 		result = PTR_ERR(journal->j_dev_bd);
 		journal->j_dev_bd = NULL;

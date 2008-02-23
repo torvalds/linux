@@ -1309,32 +1309,29 @@ fail:
 EXPORT_SYMBOL(lookup_bdev);
 
 /**
- * open_bdev_excl  -  open a block device by name and set it up for use
+ * open_bdev_exclusive  -  open a block device by name and set it up for use
  *
  * @path:	special file representing the block device
- * @flags:	%MS_RDONLY for opening read-only
+ * @mode:	FMODE_... combination to pass be used
  * @holder:	owner for exclusion
  *
  * Open the blockdevice described by the special file at @path, claim it
  * for the @holder.
  */
-struct block_device *open_bdev_excl(const char *path, int flags, void *holder)
+struct block_device *open_bdev_exclusive(const char *path, fmode_t mode, void *holder)
 {
 	struct block_device *bdev;
-	fmode_t mode = FMODE_READ;
 	int error = 0;
 
 	bdev = lookup_bdev(path);
 	if (IS_ERR(bdev))
 		return bdev;
 
-	if (!(flags & MS_RDONLY))
-		mode |= FMODE_WRITE;
 	error = blkdev_get(bdev, mode, 0);
 	if (error)
 		return ERR_PTR(error);
 	error = -EACCES;
-	if (!(flags & MS_RDONLY) && bdev_read_only(bdev))
+	if ((mode & FMODE_WRITE) && bdev_read_only(bdev))
 		goto blkdev_put;
 	error = bd_claim(bdev, holder);
 	if (error)
@@ -1347,22 +1344,23 @@ blkdev_put:
 	return ERR_PTR(error);
 }
 
-EXPORT_SYMBOL(open_bdev_excl);
+EXPORT_SYMBOL(open_bdev_exclusive);
 
 /**
- * close_bdev_excl  -  release a blockdevice openen by open_bdev_excl()
+ * close_bdev_exclusive  -  close a blockdevice opened by open_bdev_exclusive()
  *
  * @bdev:	blockdevice to close
+ * @mode:	mode, must match that used to open.
  *
- * This is the counterpart to open_bdev_excl().
+ * This is the counterpart to open_bdev_exclusive().
  */
-void close_bdev_excl(struct block_device *bdev)
+void close_bdev_exclusive(struct block_device *bdev, fmode_t mode)
 {
 	bd_release(bdev);
-	blkdev_put(bdev, 0);	/* move up in the next patches */
+	blkdev_put(bdev, mode);
 }
 
-EXPORT_SYMBOL(close_bdev_excl);
+EXPORT_SYMBOL(close_bdev_exclusive);
 
 int __invalidate_device(struct block_device *bdev)
 {

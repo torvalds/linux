@@ -760,9 +760,13 @@ int get_sb_bdev(struct file_system_type *fs_type,
 {
 	struct block_device *bdev;
 	struct super_block *s;
+	fmode_t mode = FMODE_READ;
 	int error = 0;
 
-	bdev = open_bdev_excl(dev_name, flags, fs_type);
+	if (!(flags & MS_RDONLY))
+		mode |= FMODE_WRITE;
+
+	bdev = open_bdev_exclusive(dev_name, mode, fs_type);
 	if (IS_ERR(bdev))
 		return PTR_ERR(bdev);
 
@@ -785,11 +789,12 @@ int get_sb_bdev(struct file_system_type *fs_type,
 			goto error_bdev;
 		}
 
-		close_bdev_excl(bdev);
+		close_bdev_exclusive(bdev, mode);
 	} else {
 		char b[BDEVNAME_SIZE];
 
 		s->s_flags = flags;
+		s->s_mode = mode;
 		strlcpy(s->s_id, bdevname(bdev, b), sizeof(s->s_id));
 		sb_set_blocksize(s, block_size(bdev));
 		error = fill_super(s, data, flags & MS_SILENT ? 1 : 0);
@@ -807,7 +812,7 @@ int get_sb_bdev(struct file_system_type *fs_type,
 error_s:
 	error = PTR_ERR(s);
 error_bdev:
-	close_bdev_excl(bdev);
+	close_bdev_exclusive(bdev, mode);
 error:
 	return error;
 }
@@ -817,10 +822,11 @@ EXPORT_SYMBOL(get_sb_bdev);
 void kill_block_super(struct super_block *sb)
 {
 	struct block_device *bdev = sb->s_bdev;
+	fmode_t mode = sb->s_mode;
 
 	generic_shutdown_super(sb);
 	sync_blockdev(bdev);
-	close_bdev_excl(bdev);
+	close_bdev_exclusive(bdev, mode);
 }
 
 EXPORT_SYMBOL(kill_block_super);
