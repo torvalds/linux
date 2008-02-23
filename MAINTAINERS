@@ -1712,9 +1712,7 @@ T:	git lm-sensors.org:/kernel/mhoffman/hwmon-2.6.git release
 S:	Maintained
 
 HARDWARE RANDOM NUMBER GENERATOR CORE
-P:	Michael Buesch
-M:	mb@bu3sch.de
-S:	Maintained
+S:	Orphaned
 
 HARD DRIVE ACTIVE PROTECTION SYSTEM (HDAPS) DRIVER
 P:	Robert Love
