@@ -1487,7 +1487,7 @@ static int handle_ir_dualbuffer_packet(struct context *context,
 	void *p, *end;
 	int i;
 
-	if (db->first_res_count > 0 && db->second_res_count > 0) {
+	if (db->first_res_count != 0 && db->second_res_count != 0) {
 		if (ctx->excess_bytes <= le16_to_cpu(db->second_req_count)) {
 			/* This descriptor isn't done yet, stop iteration. */
 			return 0;
@@ -1513,7 +1513,7 @@ static int handle_ir_dualbuffer_packet(struct context *context,
 		memcpy(ctx->header + i + 4, p + 8, ctx->base.header_size - 4);
 		i += ctx->base.header_size;
 		ctx->excess_bytes +=
-			(le32_to_cpu(*(u32 *)(p + 4)) >> 16) & 0xffff;
+			(le32_to_cpu(*(__le32 *)(p + 4)) >> 16) & 0xffff;
 		p += ctx->base.header_size + 4;
 	}
 	ctx->header_length = i;
