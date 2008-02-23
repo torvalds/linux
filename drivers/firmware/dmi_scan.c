@@ -217,10 +217,6 @@ static void __init dmi_save_devices(const struct dmi_header *dm)
 	}
 }
 
-static struct dmi_device empty_oem_string_dev = {
-	.name = dmi_empty_string,
-};
-
 static void __init dmi_save_oem_strings_devices(const struct dmi_header *dm)
 {
 	int i, count = *(u8 *)(dm + 1);
@@ -229,10 +225,8 @@ static void __init dmi_save_oem_strings_devices(const struct dmi_header *dm)
 	for (i = 1; i <= count; i++) {
 		char *devname = dmi_string(dm, i);
 
-		if (!strcmp(devname, dmi_empty_string)) {
-			list_add(&empty_oem_string_dev.list, &dmi_devices);
+		if (devname == dmi_empty_string)
 			continue;
-		}
 
 		dev = dmi_alloc(sizeof(*dev));
 		if (!dev) {
