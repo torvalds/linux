@@ -235,6 +235,7 @@ void ieee80211_if_reinit(struct net_device *dev)
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 		}
 		break;
+	case IEEE80211_IF_TYPE_MESH_POINT:
 	case IEEE80211_IF_TYPE_STA:
 	case IEEE80211_IF_TYPE_IBSS:
 		kfree(sdata->u.sta.extra_ie);

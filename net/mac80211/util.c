@@ -382,6 +382,7 @@ void ieee80211_iterate_active_interfaces(
 		case IEEE80211_IF_TYPE_STA:
 		case IEEE80211_IF_TYPE_IBSS:
 		case IEEE80211_IF_TYPE_WDS:
+		case IEEE80211_IF_TYPE_MESH_POINT:
 			break;
 		}
 		if (sdata->dev == local->mdev)

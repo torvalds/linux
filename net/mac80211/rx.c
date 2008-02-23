@@ -1713,6 +1713,16 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 			rx->sta = ieee80211_ibss_add_sta(sdata->dev, rx->skb,
 							 bssid, hdr->addr2);
 		break;
+	case IEEE80211_IF_TYPE_MESH_POINT:
+		if (!multicast &&
+		    compare_ether_addr(sdata->dev->dev_addr,
+				       hdr->addr1) != 0) {
+			if (!(sdata->dev->flags & IFF_PROMISC))
+				return 0;
+
+			rx->flags &= ~IEEE80211_TXRXD_RXRA_MATCH;
+		}
+		break;
 	case IEEE80211_IF_TYPE_VLAN:
 	case IEEE80211_IF_TYPE_AP:
 		if (!bssid) {
