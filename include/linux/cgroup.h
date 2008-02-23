@@ -175,7 +175,7 @@ struct css_set {
  *
  *
  * When reading/writing to a file:
- *	- the cgroup to use in file->f_dentry->d_parent->d_fsdata
+ *	- the cgroup to use is file->f_dentry->d_parent->d_fsdata
  *	- the 'cftype' of the file is file->f_dentry->d_fsdata
  */
 
