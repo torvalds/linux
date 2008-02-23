@@ -146,7 +146,9 @@ static void stb0899_first_subrange(struct stb0899_state *state)
 	u32 bandwidth = 0;
 
 	if (config->tuner_get_bandwidth) {
+		stb0899_i2c_gate_ctrl(&state->frontend, 1);
 		config->tuner_get_bandwidth(&state->frontend, &bandwidth);
+		stb0899_i2c_gate_ctrl(&state->frontend, 0);
 		range = bandwidth - stb0899_carr_width(state) / 2;
 	}
 
