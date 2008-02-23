@@ -488,7 +488,7 @@ void register_disk(struct gendisk *disk)
 	err = blkdev_get(bdev, FMODE_READ, 0);
 	if (err < 0)
 		goto exit;
-	blkdev_put(bdev);
+	blkdev_put(bdev, FMODE_READ);
 
 exit:
 	/* announce disk after possible partitions are created */

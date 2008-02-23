@@ -977,7 +977,7 @@ EXPORT_SYMBOL(bd_set_size);
 
 static int __blkdev_get(struct block_device *bdev, fmode_t mode, unsigned flags,
 			int for_part);
-static int __blkdev_put(struct block_device *bdev, int for_part);
+static int __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part);
 
 /*
  * bd_mutex locking:
@@ -1095,7 +1095,7 @@ static int do_open(struct block_device *bdev, struct file *file, int for_part)
 	bdev->bd_part = NULL;
 	bdev->bd_inode->i_data.backing_dev_info = &default_backing_dev_info;
 	if (bdev != bdev->bd_contains)
-		__blkdev_put(bdev->bd_contains, 1);
+		__blkdev_put(bdev->bd_contains, file->f_mode, 1);
 	bdev->bd_contains = NULL;
  out_unlock_bdev:
 	mutex_unlock(&bdev->bd_mutex);
@@ -1163,11 +1163,11 @@ static int blkdev_open(struct inode * inode, struct file * filp)
 	if (!(res = bd_claim(bdev, filp)))
 		return 0;
 
-	blkdev_put(bdev);
+	blkdev_put(bdev, filp->f_mode);
 	return res;
 }
 
-static int __blkdev_put(struct block_device *bdev, int for_part)
+static int __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part)
 {
 	int ret = 0;
 	struct gendisk *disk = bdev->bd_disk;
@@ -1184,7 +1184,7 @@ static int __blkdev_put(struct block_device *bdev, int for_part)
 	}
 	if (bdev->bd_contains == bdev) {
 		if (disk->fops->release)
-			ret = disk->fops->release(disk, 0);
+			ret = disk->fops->release(disk, mode);
 	}
 	if (!bdev->bd_openers) {
 		struct module *owner = disk->fops->owner;
@@ -1203,13 +1203,13 @@ static int __blkdev_put(struct block_device *bdev, int for_part)
 	mutex_unlock(&bdev->bd_mutex);
 	bdput(bdev);
 	if (victim)
-		__blkdev_put(victim, 1);
+		__blkdev_put(victim, mode, 1);
 	return ret;
 }
 
-int blkdev_put(struct block_device *bdev)
+int blkdev_put(struct block_device *bdev, fmode_t mode)
 {
-	return __blkdev_put(bdev, 0);
+	return __blkdev_put(bdev, mode, 0);
 }
 EXPORT_SYMBOL(blkdev_put);
 
@@ -1218,7 +1218,7 @@ static int blkdev_close(struct inode * inode, struct file * filp)
 	struct block_device *bdev = I_BDEV(filp->f_mapping->host);
 	if (bdev->bd_holder == filp)
 		bd_release(bdev);
-	return blkdev_put(bdev);
+	return blkdev_put(bdev, filp->f_mode);
 }
 
 static long block_ioctl(struct file *file, unsigned cmd, unsigned long arg)
@@ -1343,7 +1343,7 @@ struct block_device *open_bdev_excl(const char *path, int flags, void *holder)
 	return bdev;
 	
 blkdev_put:
-	blkdev_put(bdev);
+	blkdev_put(bdev, mode);
 	return ERR_PTR(error);
 }
 
@@ -1359,7 +1359,7 @@ EXPORT_SYMBOL(open_bdev_excl);
 void close_bdev_excl(struct block_device *bdev)
 {
 	bd_release(bdev);
-	blkdev_put(bdev);
+	blkdev_put(bdev, 0);	/* move up in the next patches */
 }
 
 EXPORT_SYMBOL(close_bdev_excl);

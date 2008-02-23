@@ -87,7 +87,7 @@ static int raw_open(struct inode *inode, struct file *filp)
 out2:
 	bd_release(bdev);
 out1:
-	blkdev_put(bdev);
+	blkdev_put(bdev, filp->f_mode);
 out:
 	mutex_unlock(&raw_mutex);
 	return err;
@@ -112,7 +112,7 @@ static int raw_release(struct inode *inode, struct file *filp)
 	mutex_unlock(&raw_mutex);
 
 	bd_release(bdev);
-	blkdev_put(bdev);
+	blkdev_put(bdev, filp->f_mode);
 	return 0;
 }
 

@@ -399,7 +399,7 @@ fail:
 static int ext4_blkdev_put(struct block_device *bdev)
 {
 	bd_release(bdev);
-	return blkdev_put(bdev);
+	return blkdev_put(bdev, FMODE_READ|FMODE_WRITE);
 }
 
 static int ext4_blkdev_remove(struct ext4_sb_info *sbi)
@@ -2553,7 +2553,7 @@ static journal_t *ext4_get_dev_journal(struct super_block *sb,
 	if (bd_claim(bdev, sb)) {
 		printk(KERN_ERR
 			"EXT4: failed to claim external journal device.\n");
-		blkdev_put(bdev);
+		blkdev_put(bdev, FMODE_READ|FMODE_WRITE);
 		return NULL;
 	}
 

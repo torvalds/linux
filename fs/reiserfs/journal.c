@@ -2575,7 +2575,7 @@ static int release_journal_dev(struct super_block *super,
 	if (journal->j_dev_bd != NULL) {
 		if (journal->j_dev_bd->bd_dev != super->s_dev)
 			bd_release(journal->j_dev_bd);
-		result = blkdev_put(journal->j_dev_bd);
+		result = blkdev_put(journal->j_dev_bd, 0); /* move up */
 		journal->j_dev_bd = NULL;
 	}
 
@@ -2618,7 +2618,7 @@ static int journal_init_dev(struct super_block *super,
 		} else if (jdev != super->s_dev) {
 			result = bd_claim(journal->j_dev_bd, journal);
 			if (result) {
-				blkdev_put(journal->j_dev_bd);
+				blkdev_put(journal->j_dev_bd, blkdev_mode);
 				return result;
 			}
 

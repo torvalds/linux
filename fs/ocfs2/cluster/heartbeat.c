@@ -976,7 +976,7 @@ static void o2hb_region_release(struct config_item *item)
 	}
 
 	if (reg->hr_bdev)
-		blkdev_put(reg->hr_bdev);
+		blkdev_put(reg->hr_bdev, FMODE_READ|FMODE_WRITE);
 
 	if (reg->hr_slots)
 		kfree(reg->hr_slots);
@@ -1358,7 +1358,7 @@ out:
 		iput(inode);
 	if (ret < 0) {
 		if (reg->hr_bdev) {
-			blkdev_put(reg->hr_bdev);
+			blkdev_put(reg->hr_bdev, FMODE_READ|FMODE_WRITE);
 			reg->hr_bdev = NULL;
 		}
 	}

@@ -1520,7 +1520,7 @@ static int lock_rdev(mdk_rdev_t *rdev, dev_t dev, int shared)
 	if (err) {
 		printk(KERN_ERR "md: could not bd_claim %s.\n",
 			bdevname(bdev, b));
-		blkdev_put(bdev);
+		blkdev_put(bdev, FMODE_READ|FMODE_WRITE);
 		return err;
 	}
 	if (!shared)
@@ -1536,7 +1536,7 @@ static void unlock_rdev(mdk_rdev_t *rdev)
 	if (!bdev)
 		MD_BUG();
 	bd_release(bdev);
-	blkdev_put(bdev);
+	blkdev_put(bdev, FMODE_READ|FMODE_WRITE);
 }
 
 void md_autodetect_dev(dev_t dev);

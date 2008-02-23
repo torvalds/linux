@@ -178,7 +178,7 @@ static int swsusp_swap_check(void) /* This is called before saving image */
 
 	res = set_blocksize(resume_bdev, PAGE_SIZE);
 	if (res < 0)
-		blkdev_put(resume_bdev);
+		blkdev_put(resume_bdev, FMODE_WRITE);
 
 	return res;
 }
@@ -574,7 +574,7 @@ int swsusp_read(unsigned int *flags_p)
 		error = load_image(&handle, &snapshot, header->pages - 1);
 	release_swap_reader(&handle);
 
-	blkdev_put(resume_bdev);
+	blkdev_put(resume_bdev, FMODE_READ);
 
 	if (!error)
 		pr_debug("PM: Image successfully loaded\n");
@@ -609,7 +609,7 @@ int swsusp_check(void)
 			return -EINVAL;
 		}
 		if (error)
-			blkdev_put(resume_bdev);
+			blkdev_put(resume_bdev, FMODE_READ);
 		else
 			pr_debug("PM: Signature found, resuming\n");
 	} else {
@@ -633,7 +633,7 @@ void swsusp_close(void)
 		return;
 	}
 
-	blkdev_put(resume_bdev);
+	blkdev_put(resume_bdev, 0); /* move up */
 }
 
 static int swsusp_header_init(void)

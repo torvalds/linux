@@ -2381,7 +2381,7 @@ static int pkt_open_dev(struct pktcdvd_device *pd, fmode_t write)
 out_unclaim:
 	bd_release(pd->bdev);
 out_putdev:
-	blkdev_put(pd->bdev);
+	blkdev_put(pd->bdev, FMODE_READ);
 out:
 	return ret;
 }
@@ -2399,7 +2399,7 @@ static void pkt_release_dev(struct pktcdvd_device *pd, int flush)
 
 	pkt_set_speed(pd, MAX_SPEED, MAX_SPEED);
 	bd_release(pd->bdev);
-	blkdev_put(pd->bdev);
+	blkdev_put(pd->bdev, FMODE_READ);
 
 	pkt_shrink_pktlist(pd);
 }
@@ -2790,7 +2790,7 @@ static int pkt_new_dev(struct pktcdvd_device *pd, dev_t dev)
 	return 0;
 
 out_mem:
-	blkdev_put(bdev);
+	blkdev_put(bdev, FMODE_READ|FMODE_WRITE);
 	/* This is safe: open() is still holding a reference. */
 	module_put(THIS_MODULE);
 	return ret;
@@ -2975,7 +2975,7 @@ static int pkt_remove_dev(dev_t pkt_dev)
 	pkt_debugfs_dev_remove(pd);
 	pkt_sysfs_dev_remove(pd);
 
-	blkdev_put(pd->bdev);
+	blkdev_put(pd->bdev, FMODE_READ|FMODE_WRITE);
 
 	remove_proc_entry(pd->name, pkt_proc);
 	DPRINTK(DRIVER_NAME": writer %s unmapped\n", pd->name);
