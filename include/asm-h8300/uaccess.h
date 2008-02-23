@@ -91,7 +91,7 @@ extern int __put_user_bad(void);
 #define get_user(x, ptr)					\
 ({								\
     int __gu_err = 0;						\
-    typeof(*(ptr)) __gu_val = 0;				\
+    uint32_t __gu_val = 0;				\
     switch (sizeof(*(ptr))) {					\
     case 1:							\
     case 2:							\
@@ -106,7 +106,7 @@ extern int __put_user_bad(void);
 	__gu_err = __get_user_bad();				\
 	break;							\
     }								\
-    (x) = __gu_val;						\
+    (x) = (typeof(*(ptr)))__gu_val;				\
     __gu_err;							\
 })
 #define __get_user(x, ptr) get_user(x, ptr)
