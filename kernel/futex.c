@@ -2145,8 +2145,14 @@ static struct file_system_type futex_fs_type = {
 
 static int __init init(void)
 {
-	int i = register_filesystem(&futex_fs_type);
+	int i;
 
+	for (i = 0; i < ARRAY_SIZE(futex_queues); i++) {
+		plist_head_init(&futex_queues[i].chain, &futex_queues[i].lock);
+		spin_lock_init(&futex_queues[i].lock);
+	}
+
+	i = register_filesystem(&futex_fs_type);
 	if (i)
 		return i;
 
@@ -2156,10 +2162,6 @@ static int __init init(void)
 		return PTR_ERR(futex_mnt);
 	}
 
-	for (i = 0; i < ARRAY_SIZE(futex_queues); i++) {
-		plist_head_init(&futex_queues[i].chain, &futex_queues[i].lock);
-		spin_lock_init(&futex_queues[i].lock);
-	}
 	return 0;
 }
 __initcall(init);
