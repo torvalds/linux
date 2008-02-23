@@ -159,9 +159,9 @@ KBUILD_AFLAGS += $(mflags-y)
 ###
 # Kernel objects
 
-head-y                := arch/x86/kernel/head_$(BITS).o
-head-$(CONFIG_X86_64) += arch/x86/kernel/head64.o
-head-y                += arch/x86/kernel/init_task.o
+head-y := arch/x86/kernel/head_$(BITS).o
+head-y += arch/x86/kernel/head$(BITS).o
+head-y += arch/x86/kernel/init_task.o
 
 libs-y  += arch/x86/lib/
 
