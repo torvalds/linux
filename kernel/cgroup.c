@@ -470,7 +470,6 @@ static struct css_set *find_css_set(
 	/* Link this cgroup group into the list */
 	list_add(&res->list, &init_css_set.list);
 	css_set_count++;
-	INIT_LIST_HEAD(&res->tasks);
 	write_unlock(&css_set_lock);
 
 	return res;
