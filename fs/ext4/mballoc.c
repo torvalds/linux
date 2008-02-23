@@ -627,21 +627,19 @@ static ext4_fsblk_t ext4_grp_offs_to_block(struct super_block *sb,
 	return block;
 }
 
+static inline void *mb_correct_addr_and_bit(int *bit, void *addr)
+{
 #if BITS_PER_LONG == 64
-#define mb_correct_addr_and_bit(bit, addr)		\
-{							\
-	bit += ((unsigned long) addr & 7UL) << 3;	\
-	addr = (void *) ((unsigned long) addr & ~7UL);	\
-}
+	*bit += ((unsigned long) addr & 7UL) << 3;
+	addr = (void *) ((unsigned long) addr & ~7UL);
 #elif BITS_PER_LONG == 32
-#define mb_correct_addr_and_bit(bit, addr)		\
-{							\
-	bit += ((unsigned long) addr & 3UL) << 3;	\
-	addr = (void *) ((unsigned long) addr & ~3UL);	\
-}
+	*bit += ((unsigned long) addr & 3UL) << 3;
+	addr = (void *) ((unsigned long) addr & ~3UL);
 #else
 #error "how many bits you are?!"
 #endif
+	return addr;
+}
 
 static inline int mb_test_bit(int bit, void *addr)
 {
@@ -649,32 +647,52 @@ static inline int mb_test_bit(int bit, void *addr)
 	 * ext4_test_bit on architecture like powerpc
 	 * needs unsigned long aligned address
 	 */
-	mb_correct_addr_and_bit(bit, addr);
+	addr = mb_correct_addr_and_bit(&bit, addr);
 	return ext4_test_bit(bit, addr);
 }
 
 static inline void mb_set_bit(int bit, void *addr)
 {
-	mb_correct_addr_and_bit(bit, addr);
+	addr = mb_correct_addr_and_bit(&bit, addr);
 	ext4_set_bit(bit, addr);
 }
 
 static inline void mb_set_bit_atomic(spinlock_t *lock, int bit, void *addr)
 {
-	mb_correct_addr_and_bit(bit, addr);
+	addr = mb_correct_addr_and_bit(&bit, addr);
 	ext4_set_bit_atomic(lock, bit, addr);
 }
 
 static inline void mb_clear_bit(int bit, void *addr)
 {
-	mb_correct_addr_and_bit(bit, addr);
+	addr = mb_correct_addr_and_bit(&bit, addr);
 	ext4_clear_bit(bit, addr);
 }
 
 static inline void mb_clear_bit_atomic(spinlock_t *lock, int bit, void *addr)
 {
-	mb_correct_addr_and_bit(bit, addr);
+	addr = mb_correct_addr_and_bit(&bit, addr);
 	ext4_clear_bit_atomic(lock, bit, addr);
+}
+
+static inline int mb_find_next_zero_bit(void *addr, int max, int start)
+{
+	int fix = 0;
+	addr = mb_correct_addr_and_bit(&fix, addr);
+	max += fix;
+	start += fix;
+
+	return ext4_find_next_zero_bit(addr, max, start) - fix;
+}
+
+static inline int mb_find_next_bit(void *addr, int max, int start)
+{
+	int fix = 0;
+	addr = mb_correct_addr_and_bit(&fix, addr);
+	max += fix;
+	start += fix;
+
+	return ext4_find_next_bit(addr, max, start) - fix;
 }
 
 static void *mb_find_buddy(struct ext4_buddy *e4b, int order, int *max)
@@ -946,12 +964,12 @@ static void ext4_mb_generate_buddy(struct super_block *sb,
 
 	/* initialize buddy from bitmap which is aggregation
 	 * of on-disk bitmap and preallocations */
-	i = ext4_find_next_zero_bit(bitmap, max, 0);
+	i = mb_find_next_zero_bit(bitmap, max, 0);
 	grp->bb_first_free = i;
 	while (i < max) {
 		fragments++;
 		first = i;
-		i = ext4_find_next_bit(bitmap, max, i);
+		i = mb_find_next_bit(bitmap, max, i);
 		len = i - first;
 		free += len;
 		if (len > 1)
@@ -959,7 +977,7 @@ static void ext4_mb_generate_buddy(struct super_block *sb,
 		else
 			grp->bb_counters[0]++;
 		if (i < max)
-			i = ext4_find_next_zero_bit(bitmap, max, i);
+			i = mb_find_next_zero_bit(bitmap, max, i);
 	}
 	grp->bb_fragments = fragments;
 
@@ -1782,7 +1800,7 @@ static void ext4_mb_simple_scan_group(struct ext4_allocation_context *ac,
 		buddy = mb_find_buddy(e4b, i, &max);
 		BUG_ON(buddy == NULL);
 
-		k = ext4_find_next_zero_bit(buddy, max, 0);
+		k = mb_find_next_zero_bit(buddy, max, 0);
 		BUG_ON(k >= max);
 
 		ac->ac_found++;
@@ -1822,7 +1840,7 @@ static void ext4_mb_complex_scan_group(struct ext4_allocation_context *ac,
 	i = e4b->bd_info->bb_first_free;
 
 	while (free && ac->ac_status == AC_STATUS_CONTINUE) {
-		i = ext4_find_next_zero_bit(bitmap,
+		i = mb_find_next_zero_bit(bitmap,
 						EXT4_BLOCKS_PER_GROUP(sb), i);
 		if (i >= EXT4_BLOCKS_PER_GROUP(sb)) {
 			/*
@@ -3750,10 +3768,10 @@ static int ext4_mb_release_inode_pa(struct ext4_buddy *e4b,
 	}
 
 	while (bit < end) {
-		bit = ext4_find_next_zero_bit(bitmap_bh->b_data, end, bit);
+		bit = mb_find_next_zero_bit(bitmap_bh->b_data, end, bit);
 		if (bit >= end)
 			break;
-		next = ext4_find_next_bit(bitmap_bh->b_data, end, bit);
+		next = mb_find_next_bit(bitmap_bh->b_data, end, bit);
 		if (next > end)
 			next = end;
 		start = group * EXT4_BLOCKS_PER_GROUP(sb) + bit +
