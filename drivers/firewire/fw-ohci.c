@@ -375,7 +375,7 @@ static __le32 *handle_ar_packet(struct ar_context *ctx, __le32 *buffer)
 	 */
 
 	if (p.ack + 16 == 0x09)
-		ohci->request_generation = (buffer[2] >> 16) & 0xff;
+		ohci->request_generation = (p.header[2] >> 16) & 0xff;
 	else if (ctx == &ohci->ar_request_ctx)
 		fw_core_handle_request(&ohci->card, &p);
 	else
