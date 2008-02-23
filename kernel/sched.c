@@ -3766,7 +3766,7 @@ void scheduler_tick(void)
 
 #if defined(CONFIG_PREEMPT) && defined(CONFIG_DEBUG_PREEMPT)
 
-void add_preempt_count(int val)
+void __kprobes add_preempt_count(int val)
 {
 	/*
 	 * Underflow?
@@ -3782,7 +3782,7 @@ void add_preempt_count(int val)
 }
 EXPORT_SYMBOL(add_preempt_count);
 
-void sub_preempt_count(int val)
+void __kprobes sub_preempt_count(int val)
 {
 	/*
 	 * Underflow?
