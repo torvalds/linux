@@ -20,6 +20,9 @@
 
 #include "ieee80211_i.h"
 #include "ieee80211_led.h"
+#ifdef CONFIG_MAC80211_MESH
+#include "mesh.h"
+#endif
 #include "wep.h"
 #include "wpa.h"
 #include "tkip.h"
@@ -390,10 +393,60 @@ ieee80211_rx_h_passive_scan(struct ieee80211_txrx_data *rx)
 	return RX_CONTINUE;
 }
 
+#ifdef CONFIG_MAC80211_MESH
+#define msh_h_get(h, l) ((struct ieee80211s_hdr *) ((u8 *)h + l))
+static ieee80211_rx_result
+ieee80211_rx_mesh_check(struct ieee80211_txrx_data *rx)
+{
+	int hdrlen = ieee80211_get_hdrlen(rx->fc);
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) rx->skb->data;
+	if ((rx->fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA) {
+		if (!((rx->fc & IEEE80211_FCTL_FROMDS) &&
+		      (rx->fc & IEEE80211_FCTL_TODS)))
+			return RX_DROP_MONITOR;
+		if (memcmp(hdr->addr4, rx->dev->dev_addr, ETH_ALEN) == 0)
+			return RX_DROP_MONITOR;
+	}
+
+	/* If there is not an established peer link and this is not a peer link
+	 * establisment frame, beacon or probe, drop the frame.
+	 */
+
+	if (!rx->sta || rx->sta->plink_state != ESTAB) {
+		struct ieee80211_mgmt *mgmt;
+		if ((rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_MGMT)
+			return RX_DROP_MONITOR;
+
+		switch (rx->fc & IEEE80211_FCTL_STYPE) {
+		case IEEE80211_STYPE_ACTION:
+			mgmt = (struct ieee80211_mgmt *)hdr;
+			if (mgmt->u.action.category != PLINK_CATEGORY)
+				return RX_DROP_MONITOR;
+			/* fall through on else */
+		case IEEE80211_STYPE_PROBE_REQ:
+		case IEEE80211_STYPE_PROBE_RESP:
+		case IEEE80211_STYPE_BEACON:
+			return RX_CONTINUE;
+			break;
+		default:
+			return RX_DROP_MONITOR;
+		}
+
+	 } else if ((rx->fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA &&
+		    is_broadcast_ether_addr(hdr->addr1) &&
+		    mesh_rmc_check(hdr->addr4, msh_h_get(hdr, hdrlen), rx->dev))
+		return RX_DROP_MONITOR;
+	else
+		return RX_CONTINUE;
+}
+#endif
+
+
 static ieee80211_rx_result
 ieee80211_rx_h_check(struct ieee80211_txrx_data *rx)
 {
 	struct ieee80211_hdr *hdr;
+
 	hdr = (struct ieee80211_hdr *) rx->skb->data;
 
 	/* Drop duplicate 802.11 retransmissions (IEEE 802.11 Chap. 9.2.9) */
@@ -423,6 +476,12 @@ ieee80211_rx_h_check(struct ieee80211_txrx_data *rx)
 	 * deauth/disassoc frames when needed. In addition, hostapd is
 	 * responsible for filtering on both auth and assoc states.
 	 */
+
+#ifdef CONFIG_MAC80211_MESH
+	if (rx->sdata->vif.type == IEEE80211_IF_TYPE_MESH_POINT)
+		return ieee80211_rx_mesh_check(rx);
+#endif
+
 	if (unlikely(((rx->fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA ||
 		      ((rx->fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_CTL &&
 		       (rx->fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_PSPOLL)) &&
@@ -657,6 +716,8 @@ ieee80211_rx_h_sta_process(struct ieee80211_txrx_data *rx)
 		/* Update last_rx only for unicast frames in order to prevent
 		 * the Probe Request frames (the only broadcast frames from a
 		 * STA in infrastructure mode) from keeping a connection alive.
+		 * Mesh beacons will update last_rx when if they are found to
+		 * match the current local configuration when processed.
 		 */
 		sta->last_rx = jiffies;
 	}
@@ -1050,6 +1111,23 @@ ieee80211_data_to_8023(struct ieee80211_txrx_data *rx)
 
 	hdrlen = ieee80211_get_hdrlen(fc);
 
+#ifdef CONFIG_MAC80211_MESH
+	if (sdata->vif.type == IEEE80211_IF_TYPE_MESH_POINT) {
+		int meshhdrlen = ieee80211_get_mesh_hdrlen(
+				(struct ieee80211s_hdr *) (skb->data + hdrlen));
+		/* Copy on cb:
+		 *  - mesh header: to be used for mesh forwarding
+		 * decision. It will also be used as mesh header template at
+		 * tx.c:ieee80211_subif_start_xmit() if interface
+		 * type is mesh and skb->pkt_type == PACKET_OTHERHOST
+		 *  - ta: to be used if a RERR needs to be sent.
+		 */
+		memcpy(skb->cb, skb->data + hdrlen, meshhdrlen);
+		memcpy(MESH_PREQ(skb), hdr->addr2, ETH_ALEN);
+		hdrlen += meshhdrlen;
+	}
+#endif
+
 	/* convert IEEE 802.11 header + possible LLC headers into Ethernet
 	 * header
 	 * IEEE 802.11 address fields:
@@ -1083,9 +1161,10 @@ ieee80211_data_to_8023(struct ieee80211_txrx_data *rx)
 		memcpy(dst, hdr->addr3, ETH_ALEN);
 		memcpy(src, hdr->addr4, ETH_ALEN);
 
-		if (unlikely(sdata->vif.type != IEEE80211_IF_TYPE_WDS)) {
-			if (net_ratelimit())
-				printk(KERN_DEBUG "%s: dropped FromDS&ToDS "
+		 if (unlikely(sdata->vif.type != IEEE80211_IF_TYPE_WDS &&
+			     sdata->vif.type != IEEE80211_IF_TYPE_MESH_POINT)) {
+			 if (net_ratelimit())
+				 printk(KERN_DEBUG "%s: dropped FromDS&ToDS "
 				       "frame (RA=%s TA=%s DA=%s SA=%s)\n",
 				       rx->dev->name,
 				       print_mac(mac, hdr->addr1),
@@ -1226,6 +1305,39 @@ ieee80211_deliver_skb(struct ieee80211_txrx_data *rx)
 				sta_info_put(dsta);
 		}
 	}
+
+#ifdef CONFIG_MAC80211_MESH
+	/* Mesh forwarding */
+	if (sdata->vif.type == IEEE80211_IF_TYPE_MESH_POINT) {
+		u8 *mesh_ttl = &((struct ieee80211s_hdr *)skb->cb)->ttl;
+		(*mesh_ttl)--;
+
+		if (is_multicast_ether_addr(skb->data)) {
+			if (*mesh_ttl > 0) {
+				xmit_skb = skb_copy(skb, GFP_ATOMIC);
+				if (!xmit_skb && net_ratelimit())
+					printk(KERN_DEBUG "%s: failed to clone "
+					       "multicast frame\n", dev->name);
+				else
+					xmit_skb->pkt_type = PACKET_OTHERHOST;
+			} else
+				sdata->u.sta.mshstats.dropped_frames_ttl++;
+
+		} else if (skb->pkt_type != PACKET_OTHERHOST &&
+			compare_ether_addr(dev->dev_addr, skb->data) != 0) {
+			if (*mesh_ttl == 0) {
+				sdata->u.sta.mshstats.dropped_frames_ttl++;
+				dev_kfree_skb(skb);
+				skb = NULL;
+			} else {
+				xmit_skb = skb;
+				xmit_skb->pkt_type = PACKET_OTHERHOST;
+				if (!(dev->flags & IFF_PROMISC))
+					skb  = NULL;
+			}
+		}
+	}
+#endif
 
 	if (skb) {
 		/* deliver to local stack */
@@ -1444,7 +1556,8 @@ ieee80211_rx_h_mgmt(struct ieee80211_txrx_data *rx)
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(rx->dev);
 	if ((sdata->vif.type == IEEE80211_IF_TYPE_STA ||
-	     sdata->vif.type == IEEE80211_IF_TYPE_IBSS) &&
+	     sdata->vif.type == IEEE80211_IF_TYPE_IBSS ||
+	     sdata->vif.type == IEEE80211_IF_TYPE_MESH_POINT) &&
 	    !(sdata->flags & IEEE80211_SDATA_USERSPACE_MLME))
 		ieee80211_sta_rx_mgmt(rx->dev, rx->skb, rx->u.rx.status);
 	else

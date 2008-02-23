@@ -26,6 +26,9 @@
 
 #include "ieee80211_i.h"
 #include "ieee80211_led.h"
+#ifdef CONFIG_MAC80211_MESH
+#include "mesh.h"
+#endif
 #include "wep.h"
 #include "wpa.h"
 #include "wme.h"
@@ -248,6 +251,9 @@ ieee80211_tx_h_check_assoc(struct ieee80211_txrx_data *tx)
 	    ((tx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_MGMT ||
 	     (tx->fc & IEEE80211_FCTL_STYPE) != IEEE80211_STYPE_PROBE_REQ))
 		return TX_DROP;
+
+	if (tx->sdata->vif.type == IEEE80211_IF_TYPE_MESH_POINT)
+		return TX_CONTINUE;
 
 	if (tx->flags & IEEE80211_TXRXD_TXPS_BUFFERED)
 		return TX_CONTINUE;
@@ -1384,8 +1390,9 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 	struct ieee80211_tx_packet_data *pkt_data;
 	struct ieee80211_sub_if_data *sdata;
 	int ret = 1, head_need;
-	u16 ethertype, hdrlen, fc;
+	u16 ethertype, hdrlen,  meshhdrlen = 0, fc;
 	struct ieee80211_hdr hdr;
+	struct ieee80211s_hdr mesh_hdr;
 	const u8 *encaps_data;
 	int encaps_len, skip_header_bytes;
 	int nh_pos, h_pos;
@@ -1427,6 +1434,37 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 		memcpy(hdr.addr4, skb->data + ETH_ALEN, ETH_ALEN);
 		hdrlen = 30;
 		break;
+#ifdef CONFIG_MAC80211_MESH
+	case IEEE80211_IF_TYPE_MESH_POINT:
+		fc |= IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS;
+		/* RA TA DA SA */
+		if (is_multicast_ether_addr(skb->data))
+			memcpy(hdr.addr1, skb->data, ETH_ALEN);
+		else if (mesh_nexthop_lookup(hdr.addr1, skb, dev))
+				return 0;
+		memcpy(hdr.addr2, dev->dev_addr, ETH_ALEN);
+		memcpy(hdr.addr3, skb->data, ETH_ALEN);
+		memcpy(hdr.addr4, skb->data + ETH_ALEN, ETH_ALEN);
+		if (skb->pkt_type == PACKET_OTHERHOST) {
+			/* Forwarded frame, keep mesh ttl and seqnum */
+			struct ieee80211s_hdr *prev_meshhdr;
+			prev_meshhdr = ((struct ieee80211s_hdr *)skb->cb);
+			meshhdrlen = ieee80211_get_mesh_hdrlen(prev_meshhdr);
+			memcpy(&mesh_hdr, prev_meshhdr, meshhdrlen);
+			sdata->u.sta.mshstats.fwded_frames++;
+		} else {
+			if (!sdata->u.sta.mshcfg.dot11MeshTTL) {
+				/* Do not send frames with mesh_ttl == 0 */
+				sdata->u.sta.mshstats.dropped_frames_ttl++;
+				ret = 0;
+				goto fail;
+			}
+			meshhdrlen = ieee80211_new_mesh_header(&mesh_hdr,
+					sdata);
+		}
+		hdrlen = 30;
+		break;
+#endif
 	case IEEE80211_IF_TYPE_STA:
 		fc |= IEEE80211_FCTL_TODS;
 		/* BSSID SA DA */
@@ -1471,8 +1509,8 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 	 * EAPOL frames from the local station.
 	 */
 	if (unlikely(!is_multicast_ether_addr(hdr.addr1) &&
-		     !(sta_flags & WLAN_STA_AUTHORIZED) &&
-		     !(ethertype == ETH_P_PAE &&
+		      !(sta_flags & WLAN_STA_AUTHORIZED) &&
+		      !(ethertype == ETH_P_PAE &&
 		       compare_ether_addr(dev->dev_addr,
 					  skb->data + ETH_ALEN) == 0))) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
@@ -1525,7 +1563,7 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 	 * build in headroom in __dev_alloc_skb() (linux/skbuff.h) and
 	 * alloc_skb() (net/core/skbuff.c)
 	 */
-	head_need = hdrlen + encaps_len + local->tx_headroom;
+	head_need = hdrlen + encaps_len + meshhdrlen + local->tx_headroom;
 	head_need -= skb_headroom(skb);
 
 	/* We are going to modify skb data, so make a copy of it if happens to
@@ -1557,6 +1595,12 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 		memcpy(skb_push(skb, encaps_len), encaps_data, encaps_len);
 		nh_pos += encaps_len;
 		h_pos += encaps_len;
+	}
+
+	if (meshhdrlen > 0) {
+		memcpy(skb_push(skb, meshhdrlen), &mesh_hdr, meshhdrlen);
+		nh_pos += meshhdrlen;
+		h_pos += meshhdrlen;
 	}
 
 	if (fc & IEEE80211_STYPE_QOS_DATA) {
@@ -1734,6 +1778,40 @@ static void ieee80211_beacon_add_tim(struct ieee80211_local *local,
 	read_unlock_bh(&local->sta_lock);
 }
 
+#ifdef CONFIG_MAC80211_MESH
+static struct sk_buff *ieee80211_mesh_beacon_get(struct net_device *dev)
+{
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct sk_buff *skb = dev_alloc_skb(local->hw.extra_tx_headroom + 400);
+	struct ieee80211_mgmt *mgmt;
+	u8 *pos;
+
+	if (!skb)
+		return NULL;
+	skb_reserve(skb, local->hw.extra_tx_headroom);
+	mgmt = (struct ieee80211_mgmt *)
+		skb_put(skb, 24 + sizeof(mgmt->u.beacon));
+	memset(mgmt, 0, 24 + sizeof(mgmt->u.beacon));
+	mgmt->frame_control = IEEE80211_FC(IEEE80211_FTYPE_MGMT,
+					   IEEE80211_STYPE_BEACON);
+	memset(mgmt->da, 0xff, ETH_ALEN);
+	memcpy(mgmt->sa, dev->dev_addr, ETH_ALEN);
+	/* BSSID is left zeroed, wildcard value */
+	mgmt->u.beacon.beacon_int =
+		cpu_to_le16(local->hw.conf.beacon_int);
+	mgmt->u.beacon.capab_info = 0x0; /* 0x0 for MPs */
+
+	pos = skb_put(skb, 2);
+	*pos++ = WLAN_EID_SSID;
+	*pos++ = 0x0;
+
+	mesh_mgmt_ies_add(skb, dev);
+
+	return skb;
+}
+#endif
+
+
 struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif,
 				     struct ieee80211_tx_control *control)
@@ -1746,6 +1824,8 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 	struct rate_selection rsel;
 	struct beacon_data *beacon;
 	struct ieee80211_supported_band *sband;
+	int *num_beacons;
+	int err = 0;
 
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 
@@ -1753,11 +1833,51 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 
 	sdata = vif_to_sdata(vif);
 	bdev = sdata->dev;
-	ap = &sdata->u.ap;
 
-	beacon = rcu_dereference(ap->beacon);
+	switch (sdata->vif.type) {
+	case IEEE80211_IF_TYPE_AP:
+		ap = &sdata->u.ap;
+		beacon = rcu_dereference(ap->beacon);
+		if (!ap || !beacon) {
+			err = -1;
+			break;
+		}
 
-	if (!ap || sdata->vif.type != IEEE80211_IF_TYPE_AP || !beacon) {
+		/* headroom, head length, tail length and maximum TIM length */
+		skb = dev_alloc_skb(local->tx_headroom + beacon->head_len +
+				    beacon->tail_len + 256);
+		if (!skb)
+			goto out;
+
+		skb_reserve(skb, local->tx_headroom);
+		memcpy(skb_put(skb, beacon->head_len), beacon->head,
+		       beacon->head_len);
+
+		ieee80211_include_sequence(sdata,
+					   (struct ieee80211_hdr *)skb->data);
+
+		ieee80211_beacon_add_tim(local, ap, skb, beacon);
+
+		if (beacon->tail)
+			memcpy(skb_put(skb, beacon->tail_len), beacon->tail,
+			       beacon->tail_len);
+
+		num_beacons = &ap->num_beacons;
+		break;
+
+#ifdef CONFIG_MAC80211_MESH
+	case IEEE80211_IF_TYPE_MESH_POINT:
+		skb = ieee80211_mesh_beacon_get(bdev);
+		num_beacons = &sdata->u.sta.num_beacons;
+		break;
+#endif
+
+	default:
+		err = -1;
+		break;
+	}
+
+	if (err) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 		if (net_ratelimit())
 			printk(KERN_DEBUG "no beacon data avail for %s\n",
@@ -1766,24 +1886,6 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 		skb = NULL;
 		goto out;
 	}
-
-	/* headroom, head length, tail length and maximum TIM length */
-	skb = dev_alloc_skb(local->tx_headroom + beacon->head_len +
-			    beacon->tail_len + 256);
-	if (!skb)
-		goto out;
-
-	skb_reserve(skb, local->tx_headroom);
-	memcpy(skb_put(skb, beacon->head_len), beacon->head,
-	       beacon->head_len);
-
-	ieee80211_include_sequence(sdata, (struct ieee80211_hdr *)skb->data);
-
-	ieee80211_beacon_add_tim(local, ap, skb, beacon);
-
-	if (beacon->tail)
-		memcpy(skb_put(skb, beacon->tail_len), beacon->tail,
-		       beacon->tail_len);
 
 	if (control) {
 		rate_control_get_rate(local->mdev, sband, skb, &rsel);
@@ -1808,10 +1910,8 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 		control->retry_limit = 1;
 		control->flags |= IEEE80211_TXCTL_CLEAR_PS_FILT;
 	}
-
-	ap->num_beacons++;
-
- out:
+	(*num_beacons)++;
+out:
 	rcu_read_unlock();
 	return skb;
 }
