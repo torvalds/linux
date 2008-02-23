@@ -14,6 +14,6 @@ ssb-$(CONFIG_SSB_DRIVER_PCICORE)	+= driver_pcicore.o
 
 # b43 pci-ssb-bridge driver
 # Not strictly a part of SSB, but kept here for convenience
-ssb-$(CONFIG_SSB_PCIHOST)		+= b43_pci_bridge.o
+ssb-$(CONFIG_SSB_B43_PCI_BRIDGE)	+= b43_pci_bridge.o
 
 obj-$(CONFIG_SSB)			+= ssb.o
