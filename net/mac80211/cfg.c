@@ -34,7 +34,8 @@ nl80211_type_to_mac80211_type(enum nl80211_iftype type)
 }
 
 static int ieee80211_add_iface(struct wiphy *wiphy, char *name,
-			       enum nl80211_iftype type, u32 *flags)
+			       enum nl80211_iftype type, u32 *flags,
+			       struct vif_params *params)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 	enum ieee80211_if_types itype;
@@ -78,7 +79,8 @@ static int ieee80211_del_iface(struct wiphy *wiphy, int ifindex)
 }
 
 static int ieee80211_change_iface(struct wiphy *wiphy, int ifindex,
-				  enum nl80211_iftype type, u32 *flags)
+				  enum nl80211_iftype type, u32 *flags,
+				  struct vif_params *params)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 	struct net_device *dev;
@@ -296,7 +298,7 @@ static int ieee80211_config_default_key(struct wiphy *wiphy,
 }
 
 static int ieee80211_get_station(struct wiphy *wiphy, struct net_device *dev,
-				 u8 *mac, struct station_stats *stats)
+				 u8 *mac, struct station_info *sinfo)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct sta_info *sta;
@@ -307,13 +309,13 @@ static int ieee80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 
 	/* XXX: verify sta->dev == dev */
 
-	stats->filled = STATION_STAT_INACTIVE_TIME |
-			STATION_STAT_RX_BYTES |
-			STATION_STAT_TX_BYTES;
+	sinfo->filled = STATION_INFO_INACTIVE_TIME |
+			STATION_INFO_RX_BYTES |
+			STATION_INFO_TX_BYTES;
 
-	stats->inactive_time = jiffies_to_msecs(jiffies - sta->last_rx);
-	stats->rx_bytes = sta->rx_bytes;
-	stats->tx_bytes = sta->tx_bytes;
+	sinfo->inactive_time = jiffies_to_msecs(jiffies - sta->last_rx);
+	sinfo->rx_bytes = sta->rx_bytes;
+	sinfo->tx_bytes = sta->tx_bytes;
 
 	sta_info_put(sta);
 

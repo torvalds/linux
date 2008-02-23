@@ -78,6 +78,18 @@
  *	or, if no MAC address given, all stations, on the interface identified
  *	by %NL80211_ATTR_IFINDEX.
  *
+ * @NL80211_CMD_GET_MPATH: Get mesh path attributes for mesh path to
+ * 	destination %NL80211_ATTR_MAC on the interface identified by
+ * 	%NL80211_ATTR_IFINDEX.
+ * @NL80211_CMD_SET_MPATH:  Set mesh path attributes for mesh path to
+ * 	destination %NL80211_ATTR_MAC on the interface identified by
+ * 	%NL80211_ATTR_IFINDEX.
+ * @NL80211_CMD_NEW_PATH: Add a mesh path with given attributes to the
+ *	the interface identified by %NL80211_ATTR_IFINDEX.
+ * @NL80211_CMD_DEL_PATH: Remove a mesh path identified by %NL80211_ATTR_MAC
+ *	or, if no MAC address given, all mesh paths, on the interface identified
+ *	by %NL80211_ATTR_IFINDEX.
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -111,6 +123,11 @@ enum nl80211_commands {
 	NL80211_CMD_DEL_STATION,
 
 	/* add commands here */
+
+	NL80211_CMD_GET_MPATH,
+	NL80211_CMD_SET_MPATH,
+	NL80211_CMD_NEW_MPATH,
+	NL80211_CMD_DEL_MPATH,
 
 	/* used to define NL80211_CMD_MAX below */
 	__NL80211_CMD_AFTER_LAST,
@@ -157,12 +174,20 @@ enum nl80211_commands {
  *	restriction (at most %NL80211_MAX_SUPP_RATES).
  * @NL80211_ATTR_STA_VLAN: interface index of VLAN interface to move station
  *	to, or the AP interface the station was originally added to to.
- * @NL80211_ATTR_STA_STATS: statistics for a station, part of station info
+ * @NL80211_ATTR_STA_INFO: information about a station, part of station info
  *	given for %NL80211_CMD_GET_STATION, nested attribute containing
- *	info as possible, see &enum nl80211_sta_stats.
+ *	info as possible, see &enum nl80211_sta_info.
  *
  * @NL80211_ATTR_WIPHY_BANDS: Information about an operating bands,
  *	consisting of a nested array.
+ *
+ * @NL80211_ATTR_MESH_ID: mesh id (1-32 bytes).
+ * @NL80211_ATTR_PLINK_ACTION: action to perform on the mesh peer link.
+ * @NL80211_ATTR_MPATH_NEXT_HOP: MAC address of the next hop for a mesh path.
+ * @NL80211_ATTR_MPATH_INFO: information about a mesh_path, part of mesh path
+ * 	info given for %NL80211_CMD_GET_MPATH, nested attribute described at
+ *	&enum nl80211_mpath_info.
+ *
  *
  * @NL80211_ATTR_MNTR_FLAGS: flags, nested element with NLA_FLAG attributes of
  *      &enum nl80211_mntr_flags.
@@ -199,13 +224,18 @@ enum nl80211_attrs {
 	NL80211_ATTR_STA_LISTEN_INTERVAL,
 	NL80211_ATTR_STA_SUPPORTED_RATES,
 	NL80211_ATTR_STA_VLAN,
-	NL80211_ATTR_STA_STATS,
+	NL80211_ATTR_STA_INFO,
 
 	NL80211_ATTR_WIPHY_BANDS,
 
 	NL80211_ATTR_MNTR_FLAGS,
 
 	/* add attributes here, update the policy in nl80211.c */
+
+	NL80211_ATTR_MESH_ID,
+	NL80211_ATTR_STA_PLINK_ACTION,
+	NL80211_ATTR_MPATH_NEXT_HOP,
+	NL80211_ATTR_MPATH_INFO,
 
 	__NL80211_ATTR_AFTER_LAST,
 	NL80211_ATTR_MAX = __NL80211_ATTR_AFTER_LAST - 1
@@ -223,6 +253,7 @@ enum nl80211_attrs {
  * @NL80211_IFTYPE_AP_VLAN: VLAN interface for access points
  * @NL80211_IFTYPE_WDS: wireless distribution interface
  * @NL80211_IFTYPE_MONITOR: monitor interface receiving all frames
+ * @NL80211_IFTYPE_MESH_POINT: mesh point
  * @NL80211_IFTYPE_MAX: highest interface type number currently defined
  * @__NL80211_IFTYPE_AFTER_LAST: internal use
  *
@@ -238,6 +269,7 @@ enum nl80211_iftype {
 	NL80211_IFTYPE_AP_VLAN,
 	NL80211_IFTYPE_WDS,
 	NL80211_IFTYPE_MONITOR,
+	NL80211_IFTYPE_MESH_POINT,
 
 	/* keep last */
 	__NL80211_IFTYPE_AFTER_LAST,
@@ -267,27 +299,78 @@ enum nl80211_sta_flags {
 };
 
 /**
- * enum nl80211_sta_stats - station statistics
+ * enum nl80211_sta_info - station information
  *
- * These attribute types are used with %NL80211_ATTR_STA_STATS
+ * These attribute types are used with %NL80211_ATTR_STA_INFO
  * when getting information about a station.
  *
- * @__NL80211_STA_STAT_INVALID: attribute number 0 is reserved
- * @NL80211_STA_STAT_INACTIVE_TIME: time since last activity (u32, msecs)
- * @NL80211_STA_STAT_RX_BYTES: total received bytes (u32, from this station)
- * @NL80211_STA_STAT_TX_BYTES: total transmitted bytes (u32, to this station)
- * @__NL80211_STA_STAT_AFTER_LAST: internal
- * @NL80211_STA_STAT_MAX: highest possible station stats attribute
+ * @__NL80211_STA_INFO_INVALID: attribute number 0 is reserved
+ * @NL80211_STA_INFO_INACTIVE_TIME: time since last activity (u32, msecs)
+ * @NL80211_STA_INFO_RX_BYTES: total received bytes (u32, from this station)
+ * @NL80211_STA_INFO_TX_BYTES: total transmitted bytes (u32, to this station)
+ * @__NL80211_STA_INFO_AFTER_LAST: internal
+ * @NL80211_STA_INFO_MAX: highest possible station info attribute
  */
-enum nl80211_sta_stats {
-	__NL80211_STA_STAT_INVALID,
-	NL80211_STA_STAT_INACTIVE_TIME,
-	NL80211_STA_STAT_RX_BYTES,
-	NL80211_STA_STAT_TX_BYTES,
+enum nl80211_sta_info {
+	__NL80211_STA_INFO_INVALID,
+	NL80211_STA_INFO_INACTIVE_TIME,
+	NL80211_STA_INFO_RX_BYTES,
+	NL80211_STA_INFO_TX_BYTES,
+	NL80211_STA_INFO_LLID,
+	NL80211_STA_INFO_PLID,
+	NL80211_STA_INFO_PLINK_STATE,
 
 	/* keep last */
-	__NL80211_STA_STAT_AFTER_LAST,
-	NL80211_STA_STAT_MAX = __NL80211_STA_STAT_AFTER_LAST - 1
+	__NL80211_STA_INFO_AFTER_LAST,
+	NL80211_STA_INFO_MAX = __NL80211_STA_INFO_AFTER_LAST - 1
+};
+
+/**
+ * enum nl80211_mpath_flags - nl80211 mesh path flags
+ *
+ * @NL80211_MPATH_FLAG_ACTIVE: the mesh path is active
+ * @NL80211_MPATH_FLAG_RESOLVING: the mesh path discovery process is running
+ * @NL80211_MPATH_FLAG_DSN_VALID: the mesh path contains a valid DSN
+ * @NL80211_MPATH_FLAG_FIXED: the mesh path has been manually set
+ * @NL80211_MPATH_FLAG_RESOLVED: the mesh path discovery process succeeded
+ */
+enum nl80211_mpath_flags {
+	NL80211_MPATH_FLAG_ACTIVE =	1<<0,
+	NL80211_MPATH_FLAG_RESOLVING =	1<<1,
+	NL80211_MPATH_FLAG_DSN_VALID =	1<<2,
+	NL80211_MPATH_FLAG_FIXED =	1<<3,
+	NL80211_MPATH_FLAG_RESOLVED =	1<<4,
+};
+
+/**
+ * enum nl80211_mpath_info - mesh path information
+ *
+ * These attribute types are used with %NL80211_ATTR_MPATH_INFO when getting
+ * information about a mesh path.
+ *
+ * @__NL80211_MPATH_INFO_INVALID: attribute number 0 is reserved
+ * @NL80211_ATTR_MPATH_FRAME_QLEN: number of queued frames for this destination
+ * @NL80211_ATTR_MPATH_DSN: destination sequence number
+ * @NL80211_ATTR_MPATH_METRIC: metric (cost) of this mesh path
+ * @NL80211_ATTR_MPATH_EXPTIME: expiration time for the path, in msec from now
+ * @NL80211_ATTR_MPATH_FLAGS: mesh path flags, enumerated in
+ * 	&enum nl80211_mpath_flags;
+ * @NL80211_ATTR_MPATH_DISCOVERY_TIMEOUT: total path discovery timeout, in msec
+ * @NL80211_ATTR_MPATH_DISCOVERY_RETRIES: mesh path discovery retries
+ */
+enum nl80211_mpath_info {
+	__NL80211_MPATH_INFO_INVALID,
+	NL80211_MPATH_INFO_FRAME_QLEN,
+	NL80211_MPATH_INFO_DSN,
+	NL80211_MPATH_INFO_METRIC,
+	NL80211_MPATH_INFO_EXPTIME,
+	NL80211_MPATH_INFO_FLAGS,
+	NL80211_MPATH_INFO_DISCOVERY_TIMEOUT,
+	NL80211_MPATH_INFO_DISCOVERY_RETRIES,
+
+	/* keep last */
+	__NL80211_MPATH_INFO_AFTER_LAST,
+	NL80211_MPATH_INFO_MAX = __NL80211_MPATH_INFO_AFTER_LAST - 1
 };
 
 /**
