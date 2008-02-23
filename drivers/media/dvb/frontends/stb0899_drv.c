@@ -31,7 +31,7 @@
 #include "stb0899_priv.h"
 #include "stb0899_reg.h"
 
-static unsigned int verbose = 5;
+static unsigned int verbose = 1;
 module_param(verbose, int, 0644);
 
 /* C/N in dB/10, NIRM/NIRL */
