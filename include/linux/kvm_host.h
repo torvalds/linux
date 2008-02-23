@@ -103,6 +103,10 @@ struct kvm_memory_slot {
 	unsigned long flags;
 	unsigned long *rmap;
 	unsigned long *dirty_bitmap;
+	struct {
+		unsigned long rmap_pde;
+		int write_count;
+	} *lpage_info;
 	unsigned long userspace_addr;
 	int user_alloc;
 };
@@ -169,6 +173,7 @@ int kvm_arch_set_memory_region(struct kvm *kvm,
 				int user_alloc);
 gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn);
 struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn);
+unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn);
 void kvm_release_page_clean(struct page *page);
 void kvm_release_page_dirty(struct page *page);
 int kvm_read_guest_page(struct kvm *kvm, gfn_t gfn, void *data, int offset,

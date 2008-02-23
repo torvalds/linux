@@ -212,9 +212,13 @@ static void kvm_free_physmem_slot(struct kvm_memory_slot *free,
 	if (!dont || free->dirty_bitmap != dont->dirty_bitmap)
 		vfree(free->dirty_bitmap);
 
+	if (!dont || free->lpage_info != dont->lpage_info)
+		vfree(free->lpage_info);
+
 	free->npages = 0;
 	free->dirty_bitmap = NULL;
 	free->rmap = NULL;
+	free->lpage_info = NULL;
 }
 
 void kvm_free_physmem(struct kvm *kvm)
@@ -323,6 +327,25 @@ int __kvm_set_memory_region(struct kvm *kvm,
 
 		new.user_alloc = user_alloc;
 		new.userspace_addr = mem->userspace_addr;
+	}
+	if (npages && !new.lpage_info) {
+		int largepages = npages / KVM_PAGES_PER_HPAGE;
+		if (npages % KVM_PAGES_PER_HPAGE)
+			largepages++;
+		if (base_gfn % KVM_PAGES_PER_HPAGE)
+			largepages++;
+
+		new.lpage_info = vmalloc(largepages * sizeof(*new.lpage_info));
+
+		if (!new.lpage_info)
+			goto out_free;
+
+		memset(new.lpage_info, 0, largepages * sizeof(*new.lpage_info));
+
+		if (base_gfn % KVM_PAGES_PER_HPAGE)
+			new.lpage_info[0].write_count = 1;
+		if ((base_gfn+npages) % KVM_PAGES_PER_HPAGE)
+			new.lpage_info[largepages-1].write_count = 1;
 	}
 
 	/* Allocate page dirty bitmap if needed */
@@ -467,7 +490,7 @@ int kvm_is_visible_gfn(struct kvm *kvm, gfn_t gfn)
 }
 EXPORT_SYMBOL_GPL(kvm_is_visible_gfn);
 
-static unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn)
+unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn)
 {
 	struct kvm_memory_slot *slot;
 

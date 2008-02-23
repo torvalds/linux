@@ -39,6 +39,13 @@
 #define INVALID_PAGE (~(hpa_t)0)
 #define UNMAPPED_GVA (~(gpa_t)0)
 
+/* shadow tables are PAE even on non-PAE hosts */
+#define KVM_HPAGE_SHIFT 21
+#define KVM_HPAGE_SIZE (1UL << KVM_HPAGE_SHIFT)
+#define KVM_HPAGE_MASK (~(KVM_HPAGE_SIZE - 1))
+
+#define KVM_PAGES_PER_HPAGE (KVM_HPAGE_SIZE / PAGE_SIZE)
+
 #define DE_VECTOR 0
 #define UD_VECTOR 6
 #define NM_VECTOR 7
@@ -230,6 +237,7 @@ struct kvm_vcpu_arch {
 	struct {
 		gfn_t gfn;          /* presumed gfn during guest pte update */
 		struct page *page;  /* page corresponding to that gfn */
+		int largepage;
 	} update_pte;
 
 	struct i387_fxsave_struct host_fx_image;
@@ -307,6 +315,7 @@ struct kvm_vm_stat {
 	u32 mmu_recycled;
 	u32 mmu_cache_miss;
 	u32 remote_tlb_flush;
+	u32 lpages;
 };
 
 struct kvm_vcpu_stat {

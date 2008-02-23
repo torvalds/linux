@@ -88,6 +88,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "mmu_recycled", VM_STAT(mmu_recycled) },
 	{ "mmu_cache_miss", VM_STAT(mmu_cache_miss) },
 	{ "remote_tlb_flush", VM_STAT(remote_tlb_flush) },
+	{ "largepages", VM_STAT(lpages) },
 	{ NULL }
 };
 
