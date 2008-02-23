@@ -341,6 +341,3 @@ err:
 	return ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_ablkcipher);
-
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Asynchronous block chaining cipher type");
