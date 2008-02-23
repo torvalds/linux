@@ -61,8 +61,8 @@ struct marker_entry {
 	int refcount;	/* Number of times armed. 0 if disarmed. */
 	struct rcu_head rcu;
 	void *oldptr;
-	char rcu_pending:1;
-	char ptype:1;
+	unsigned char rcu_pending:1;
+	unsigned char ptype:1;
 	char name[0];	/* Contains name'\0'format'\0' */
 };
 
