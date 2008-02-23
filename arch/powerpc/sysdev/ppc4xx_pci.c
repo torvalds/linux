@@ -527,6 +527,7 @@ static void __init ppc4xx_probe_pcix_bridge(struct device_node *np)
  *
  * ibm,plb-pciex-440spe
  * ibm,plb-pciex-405ex
+ * ibm,plb-pciex-460ex
  *
  * Anything else will be rejected for now as they are all subtly
  * different unfortunately.
@@ -775,6 +776,117 @@ static struct ppc4xx_pciex_hwops ppc440speB_pcie_hwops __initdata =
 	.setup_utl	= ppc440speB_pciex_init_utl,
 };
 
+static int __init ppc460ex_pciex_core_init(struct device_node *np)
+{
+	/* Nothing to do, return 2 ports */
+	return 2;
+}
+
+static int ppc460ex_pciex_init_port_hw(struct ppc4xx_pciex_port *port)
+{
+	u32 val;
+	u32 utlset1;
+
+	if (port->endpoint) {
+		val = PTYPE_LEGACY_ENDPOINT << 20;
+		utlset1 = 0x20222222;
+	} else {
+		val = PTYPE_ROOT_PORT << 20;
+		utlset1 = 0x21222222;
+	}
+
+	if (port->index == 0) {
+		val |= LNKW_X1 << 12;
+	} else {
+		val |= LNKW_X4 << 12;
+		utlset1 |= 0x00101101;
+	}
+
+	mtdcri(SDR0, port->sdr_base + PESDRn_DLPSET, val);
+	mtdcri(SDR0, port->sdr_base + PESDRn_UTLSET1, utlset1);
+	mtdcri(SDR0, port->sdr_base + PESDRn_UTLSET2, 0x01210000);
+
+	switch (port->index) {
+	case 0:
+		mtdcri(SDR0, PESDR0_460EX_L0CDRCTL, 0x00003230);
+		mtdcri(SDR0, PESDR0_460EX_L0DRV, 0x00000136);
+		mtdcri(SDR0, PESDR0_460EX_L0CLK, 0x00000006);
+
+		mtdcri(SDR0, PESDR0_460EX_PHY_CTL_RST,0x10000000);
+		break;
+
+	case 1:
+		mtdcri(SDR0, PESDR1_460EX_L0CDRCTL, 0x00003230);
+		mtdcri(SDR0, PESDR1_460EX_L1CDRCTL, 0x00003230);
+		mtdcri(SDR0, PESDR1_460EX_L2CDRCTL, 0x00003230);
+		mtdcri(SDR0, PESDR1_460EX_L3CDRCTL, 0x00003230);
+		mtdcri(SDR0, PESDR1_460EX_L0DRV, 0x00000136);
+		mtdcri(SDR0, PESDR1_460EX_L1DRV, 0x00000136);
+		mtdcri(SDR0, PESDR1_460EX_L2DRV, 0x00000136);
+		mtdcri(SDR0, PESDR1_460EX_L3DRV, 0x00000136);
+		mtdcri(SDR0, PESDR1_460EX_L0CLK, 0x00000006);
+		mtdcri(SDR0, PESDR1_460EX_L1CLK, 0x00000006);
+		mtdcri(SDR0, PESDR1_460EX_L2CLK, 0x00000006);
+		mtdcri(SDR0, PESDR1_460EX_L3CLK, 0x00000006);
+
+		mtdcri(SDR0, PESDR1_460EX_PHY_CTL_RST,0x10000000);
+		break;
+	}
+
+	mtdcri(SDR0, port->sdr_base + PESDRn_RCSSET,
+	       mfdcri(SDR0, port->sdr_base + PESDRn_RCSSET) |
+	       (PESDRx_RCSSET_RSTGU | PESDRx_RCSSET_RSTPYN));
+
+	/* Poll for PHY reset */
+	/* XXX FIXME add timeout */
+	switch (port->index) {
+	case 0:
+		while (!(mfdcri(SDR0, PESDR0_460EX_RSTSTA) & 0x1))
+			udelay(10);
+		break;
+	case 1:
+		while (!(mfdcri(SDR0, PESDR1_460EX_RSTSTA) & 0x1))
+			udelay(10);
+		break;
+	}
+
+	mtdcri(SDR0, port->sdr_base + PESDRn_RCSSET,
+	       (mfdcri(SDR0, port->sdr_base + PESDRn_RCSSET) &
+		~(PESDRx_RCSSET_RSTGU | PESDRx_RCSSET_RSTDL)) |
+	       PESDRx_RCSSET_RSTPYN);
+
+	port->has_ibpre = 1;
+
+	return 0;
+}
+
+static int ppc460ex_pciex_init_utl(struct ppc4xx_pciex_port *port)
+{
+	dcr_write(port->dcrs, DCRO_PEGPL_SPECIAL, 0x0);
+
+	/*
+	 * Set buffer allocations and then assert VRB and TXE.
+	 */
+	out_be32(port->utl_base + PEUTL_PBCTL,	0x0800000c);
+	out_be32(port->utl_base + PEUTL_OUTTR,	0x08000000);
+	out_be32(port->utl_base + PEUTL_INTR,	0x02000000);
+	out_be32(port->utl_base + PEUTL_OPDBSZ,	0x04000000);
+	out_be32(port->utl_base + PEUTL_PBBSZ,	0x00000000);
+	out_be32(port->utl_base + PEUTL_IPHBSZ,	0x02000000);
+	out_be32(port->utl_base + PEUTL_IPDBSZ,	0x04000000);
+	out_be32(port->utl_base + PEUTL_RCIRQEN,0x00f00000);
+	out_be32(port->utl_base + PEUTL_PCTL,	0x80800066);
+
+	return 0;
+}
+
+static struct ppc4xx_pciex_hwops ppc460ex_pcie_hwops __initdata =
+{
+	.core_init	= ppc460ex_pciex_core_init,
+	.port_init_hw	= ppc460ex_pciex_init_port_hw,
+	.setup_utl	= ppc460ex_pciex_init_utl,
+};
+
 #endif /* CONFIG_44x */
 
 #ifdef CONFIG_40x
@@ -896,6 +1008,8 @@ static int __init ppc4xx_pciex_check_core_init(struct device_node *np)
 		else
 			ppc4xx_pciex_hwops = &ppc440speB_pcie_hwops;
 	}
+	if (of_device_is_compatible(np, "ibm,plb-pciex-460ex"))
+		ppc4xx_pciex_hwops = &ppc460ex_pcie_hwops;
 #endif /* CONFIG_44x    */
 #ifdef CONFIG_40x
 	if (of_device_is_compatible(np, "ibm,plb-pciex-405ex"))
