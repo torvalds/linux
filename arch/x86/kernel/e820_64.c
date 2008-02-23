@@ -229,8 +229,7 @@ unsigned long __init e820_end_of_ram(void)
 /*
  * Mark e820 reserved areas as busy for the resource manager.
  */
-void __init e820_reserve_resources(struct resource *code_resource,
-		struct resource *data_resource, struct resource *bss_resource)
+void __init e820_reserve_resources(void)
 {
 	int i;
 	for (i = 0; i < e820.nr_map; i++) {
@@ -245,21 +244,7 @@ void __init e820_reserve_resources(struct resource *code_resource,
 		res->start = e820.map[i].addr;
 		res->end = res->start + e820.map[i].size - 1;
 		res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-		request_resource(&iomem_resource, res);
-		if (e820.map[i].type == E820_RAM) {
-			/*
-			 * We don't know which RAM region contains kernel data,
-			 * so we try it repeatedly and let the resource manager
-			 * test it.
-			 */
-			request_resource(res, code_resource);
-			request_resource(res, data_resource);
-			request_resource(res, bss_resource);
-#ifdef CONFIG_KEXEC
-			if (crashk_res.start != crashk_res.end)
-				request_resource(res, &crashk_res);
-#endif
-		}
+		insert_resource(&iomem_resource, res);
 	}
 }
 

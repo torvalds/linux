@@ -23,8 +23,7 @@ extern void update_memory_range(u64 start, u64 size, unsigned old_type,
 extern void setup_memory_region(void);
 extern void contig_e820_setup(void); 
 extern unsigned long e820_end_of_ram(void);
-extern void e820_reserve_resources(struct resource *code_resource,
-		struct resource *data_resource, struct resource *bss_resource);
+extern void e820_reserve_resources(void);
 extern void e820_mark_nosave_regions(void);
 extern int e820_any_mapped(unsigned long start, unsigned long end, unsigned type);
 extern int e820_all_mapped(unsigned long start, unsigned long end, unsigned type);

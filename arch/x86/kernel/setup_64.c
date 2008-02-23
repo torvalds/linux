@@ -248,6 +248,7 @@ static void __init reserve_crashkernel(void)
 				(unsigned long)(total_mem >> 20));
 		crashk_res.start = crash_base;
 		crashk_res.end   = crash_base + crash_size - 1;
+		insert_resource(&iomem_resource, &crashk_res);
 	}
 }
 #else
@@ -321,6 +322,11 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	finish_e820_parsing();
+
+	/* after parse_early_param, so could debug it */
+	insert_resource(&iomem_resource, &code_resource);
+	insert_resource(&iomem_resource, &data_resource);
+	insert_resource(&iomem_resource, &bss_resource);
 
 	early_gart_iommu_check();
 
@@ -454,7 +460,7 @@ void __init setup_arch(char **cmdline_p)
 	/*
 	 * We trust e820 completely. No explicit ROM probing in memory.
 	 */
-	e820_reserve_resources(&code_resource, &data_resource, &bss_resource);
+	e820_reserve_resources();
 	e820_mark_nosave_regions();
 
 	/* request I/O space for devices used on all i[345]86 PCs */
