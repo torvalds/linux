@@ -81,6 +81,14 @@ config MAC80211_RC_SIMPLE
 	  Say N unless you know what you are doing.
 endmenu
 
+config MAC80211_MESH
+	bool "Enable mac80211 mesh networking (pre-802.11s) support"
+	depends on MAC80211 && EXPERIMENTAL && BROKEN
+	---help---
+	 This options enables support of pre-802.11s mesh interfaces.
+	 For more information visit http://o11s.org
+
+
 config MAC80211_LEDS
 	bool "Enable LED triggers"
 	depends on MAC80211 && LEDS_TRIGGERS
@@ -166,3 +174,10 @@ config MAC80211_VERBOSE_PS_DEBUG
 	---help---
 	  Say Y here to print out verbose powersave
 	  mode debug messages.
+
+config MAC80211_VERBOSE_MPL_DEBUG
+	bool "Verbose mesh peer link debugging"
+	depends on MAC80211_DEBUG && MAC80211_MESH
+	---help---
+	  Say Y here to print out verbose mesh peer link
+	  debug messages.

@@ -36,6 +36,12 @@ mac80211-$(CONFIG_MAC80211_DEBUGFS) += \
 	debugfs_netdev.o \
 	debugfs_key.o
 
+mac80211-$(CONFIG_MAC80211_MESH) += \
+	mesh.o \
+	mesh_pathtbl.o \
+	mesh_plink.o \
+	mesh_hwmp.o
+
 
 # Build rate control algorithm(s)
 CFLAGS_rc80211_simple.o += -DRC80211_SIMPLE_COMPILE
