@@ -481,7 +481,7 @@ static void lguest_set_pmd(pmd_t *pmdp, pmd_t pmdval)
 {
 	*pmdp = pmdval;
 	lazy_hcall(LHCALL_SET_PMD, __pa(pmdp)&PAGE_MASK,
-		   (__pa(pmdp)&(PAGE_SIZE-1))/4, 0);
+		   (__pa(pmdp)&(PAGE_SIZE-1)), 0);
 }
 
 /* There are a couple of legacy places where the kernel sets a PTE, but we
