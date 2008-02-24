@@ -2,7 +2,7 @@ This file contains brief information about the SCSI tape driver.
 The driver is currently maintained by Kai Mäkisara (email
 Kai.Makisara@kolumbus.fi)
 
-Last modified: Mon Mar  7 21:14:44 2005 by kai.makisara
+Last modified: Thu Feb 21 21:54:16 2008 by kai.makisara
 
 
 BASICS
@@ -372,6 +372,11 @@ MTSETDRVBUFFER
 	     MT_ST_SYSV sets the SYSV semantics (mode)
 	     MT_ST_NOWAIT enables immediate mode (i.e., don't wait for
 	        the command to finish) for some commands (e.g., rewind)
+	     MT_ST_SILI enables setting the SILI bit in SCSI commands when
+		reading in variable block mode to enhance performance when
+		reading blocks shorter than the byte count; set this only
+		if you are sure that the drive supports SILI and the HBA
+		correctly returns transfer residuals
 	     MT_ST_DEBUGGING debugging (global; debugging must be
 		compiled into the driver)
 	MT_ST_SETBOOLEANS
