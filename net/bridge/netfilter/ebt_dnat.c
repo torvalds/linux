@@ -21,7 +21,7 @@ static int ebt_target_dnat(struct sk_buff *skb, unsigned int hooknr,
 	const struct ebt_nat_info *info = data;
 
 	if (!skb_make_writable(skb, 0))
-		return NF_DROP;
+		return EBT_DROP;
 
 	memcpy(eth_hdr(skb)->h_dest, info->mac, ETH_ALEN);
 	return info->target;
