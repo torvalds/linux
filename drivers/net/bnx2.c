@@ -5362,10 +5362,14 @@ bnx2_test_intr(struct bnx2 *bp)
 	return -ENODEV;
 }
 
+/* Determining link for parallel detection. */
 static int
 bnx2_5706_serdes_has_link(struct bnx2 *bp)
 {
 	u32 mode_ctl, an_dbg, exp;
+
+	if (bp->phy_flags & BNX2_PHY_FLAG_NO_PARALLEL)
+		return 0;
 
 	bnx2_write_phy(bp, MII_BNX2_MISC_SHADOW, MISC_SHDW_MODE_CTL);
 	bnx2_read_phy(bp, MII_BNX2_MISC_SHADOW, &mode_ctl);
@@ -7328,7 +7332,15 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 			bp->flags |= BNX2_FLAG_NO_WOL;
 			bp->wol = 0;
 		}
-		if (CHIP_NUM(bp) != CHIP_NUM_5706) {
+		if (CHIP_NUM(bp) == CHIP_NUM_5706) {
+			/* Don't do parallel detect on this board because of
+			 * some board problems.  The link will not go down
+			 * if we do parallel detect.
+			 */
+			if (pdev->subsystem_vendor == PCI_VENDOR_ID_HP &&
+			    pdev->subsystem_device == 0x310c)
+				bp->phy_flags |= BNX2_PHY_FLAG_NO_PARALLEL;
+		} else {
 			bp->phy_addr = 2;
 			if (reg & BNX2_SHARED_HW_CFG_PHY_2_5G)
 				bp->phy_flags |= BNX2_PHY_FLAG_2_5G_CAPABLE;
