@@ -237,7 +237,7 @@ out:
 	return changed;
 }
 
-void set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
+void kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 {
 	if (cr0 & CR0_RESERVED_BITS) {
 		printk(KERN_DEBUG "set_cr0: 0x%lx #GP, reserved bits 0x%lx\n",
@@ -295,15 +295,15 @@ void set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 	kvm_mmu_reset_context(vcpu);
 	return;
 }
-EXPORT_SYMBOL_GPL(set_cr0);
+EXPORT_SYMBOL_GPL(kvm_set_cr0);
 
-void lmsw(struct kvm_vcpu *vcpu, unsigned long msw)
+void kvm_lmsw(struct kvm_vcpu *vcpu, unsigned long msw)
 {
-	set_cr0(vcpu, (vcpu->arch.cr0 & ~0x0ful) | (msw & 0x0f));
+	kvm_set_cr0(vcpu, (vcpu->arch.cr0 & ~0x0ful) | (msw & 0x0f));
 }
-EXPORT_SYMBOL_GPL(lmsw);
+EXPORT_SYMBOL_GPL(kvm_lmsw);
 
-void set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
+void kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 {
 	if (cr4 & CR4_RESERVED_BITS) {
 		printk(KERN_DEBUG "set_cr4: #GP, reserved bits\n");
@@ -334,9 +334,9 @@ void set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 	vcpu->arch.cr4 = cr4;
 	kvm_mmu_reset_context(vcpu);
 }
-EXPORT_SYMBOL_GPL(set_cr4);
+EXPORT_SYMBOL_GPL(kvm_set_cr4);
 
-void set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
+void kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 {
 	if (cr3 == vcpu->arch.cr3 && !pdptrs_changed(vcpu)) {
 		kvm_mmu_flush_tlb(vcpu);
@@ -388,9 +388,9 @@ void set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 	}
 	up_read(&vcpu->kvm->slots_lock);
 }
-EXPORT_SYMBOL_GPL(set_cr3);
+EXPORT_SYMBOL_GPL(kvm_set_cr3);
 
-void set_cr8(struct kvm_vcpu *vcpu, unsigned long cr8)
+void kvm_set_cr8(struct kvm_vcpu *vcpu, unsigned long cr8)
 {
 	if (cr8 & CR8_RESERVED_BITS) {
 		printk(KERN_DEBUG "set_cr8: #GP, reserved bits 0x%lx\n", cr8);
@@ -402,16 +402,16 @@ void set_cr8(struct kvm_vcpu *vcpu, unsigned long cr8)
 	else
 		vcpu->arch.cr8 = cr8;
 }
-EXPORT_SYMBOL_GPL(set_cr8);
+EXPORT_SYMBOL_GPL(kvm_set_cr8);
 
-unsigned long get_cr8(struct kvm_vcpu *vcpu)
+unsigned long kvm_get_cr8(struct kvm_vcpu *vcpu)
 {
 	if (irqchip_in_kernel(vcpu->kvm))
 		return kvm_lapic_get_cr8(vcpu);
 	else
 		return vcpu->arch.cr8;
 }
-EXPORT_SYMBOL_GPL(get_cr8);
+EXPORT_SYMBOL_GPL(kvm_get_cr8);
 
 /*
  * List of msr numbers which we expose to userspace through KVM_GET_MSRS
@@ -2462,7 +2462,7 @@ void realmode_lidt(struct kvm_vcpu *vcpu, u16 limit, unsigned long base)
 void realmode_lmsw(struct kvm_vcpu *vcpu, unsigned long msw,
 		   unsigned long *rflags)
 {
-	lmsw(vcpu, msw);
+	kvm_lmsw(vcpu, msw);
 	*rflags = kvm_x86_ops->get_rflags(vcpu);
 }
 
@@ -2479,7 +2479,7 @@ unsigned long realmode_get_cr(struct kvm_vcpu *vcpu, int cr)
 	case 4:
 		return vcpu->arch.cr4;
 	case 8:
-		return get_cr8(vcpu);
+		return kvm_get_cr8(vcpu);
 	default:
 		vcpu_printf(vcpu, "%s: unexpected cr %u\n", __FUNCTION__, cr);
 		return 0;
@@ -2491,20 +2491,20 @@ void realmode_set_cr(struct kvm_vcpu *vcpu, int cr, unsigned long val,
 {
 	switch (cr) {
 	case 0:
-		set_cr0(vcpu, mk_cr_64(vcpu->arch.cr0, val));
+		kvm_set_cr0(vcpu, mk_cr_64(vcpu->arch.cr0, val));
 		*rflags = kvm_x86_ops->get_rflags(vcpu);
 		break;
 	case 2:
 		vcpu->arch.cr2 = val;
 		break;
 	case 3:
-		set_cr3(vcpu, val);
+		kvm_set_cr3(vcpu, val);
 		break;
 	case 4:
-		set_cr4(vcpu, mk_cr_64(vcpu->arch.cr4, val));
+		kvm_set_cr4(vcpu, mk_cr_64(vcpu->arch.cr4, val));
 		break;
 	case 8:
-		set_cr8(vcpu, val & 0xfUL);
+		kvm_set_cr8(vcpu, val & 0xfUL);
 		break;
 	default:
 		vcpu_printf(vcpu, "%s: unexpected cr %u\n", __FUNCTION__, cr);
@@ -2602,7 +2602,7 @@ static void post_kvm_run_save(struct kvm_vcpu *vcpu,
 			      struct kvm_run *kvm_run)
 {
 	kvm_run->if_flag = (kvm_x86_ops->get_rflags(vcpu) & X86_EFLAGS_IF) != 0;
-	kvm_run->cr8 = get_cr8(vcpu);
+	kvm_run->cr8 = kvm_get_cr8(vcpu);
 	kvm_run->apic_base = kvm_get_apic_base(vcpu);
 	if (irqchip_in_kernel(vcpu->kvm))
 		kvm_run->ready_for_interrupt_injection = 1;
@@ -2803,7 +2803,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	/* re-sync apic's tpr */
 	if (!irqchip_in_kernel(vcpu->kvm))
-		set_cr8(vcpu, kvm_run->cr8);
+		kvm_set_cr8(vcpu, kvm_run->cr8);
 
 	if (vcpu->arch.pio.cur_count) {
 		r = complete_pio(vcpu);
@@ -2961,7 +2961,7 @@ int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
 	sregs->cr2 = vcpu->arch.cr2;
 	sregs->cr3 = vcpu->arch.cr3;
 	sregs->cr4 = vcpu->arch.cr4;
-	sregs->cr8 = get_cr8(vcpu);
+	sregs->cr8 = kvm_get_cr8(vcpu);
 	sregs->efer = vcpu->arch.shadow_efer;
 	sregs->apic_base = kvm_get_apic_base(vcpu);
 
@@ -3007,7 +3007,7 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 	mmu_reset_needed |= vcpu->arch.cr3 != sregs->cr3;
 	vcpu->arch.cr3 = sregs->cr3;
 
-	set_cr8(vcpu, sregs->cr8);
+	kvm_set_cr8(vcpu, sregs->cr8);
 
 	mmu_reset_needed |= vcpu->arch.shadow_efer != sregs->efer;
 	kvm_x86_ops->set_efer(vcpu, sregs->efer);

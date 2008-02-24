@@ -1683,7 +1683,7 @@ static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 	vmx->vcpu.arch.rmode.active = 0;
 
 	vmx->vcpu.arch.regs[VCPU_REGS_RDX] = get_rdx_init_val();
-	set_cr8(&vmx->vcpu, 0);
+	kvm_set_cr8(&vmx->vcpu, 0);
 	msr = 0xfee00000 | MSR_IA32_APICBASE_ENABLE;
 	if (vmx->vcpu.vcpu_id == 0)
 		msr |= MSR_IA32_APICBASE_BSP;
@@ -2026,22 +2026,22 @@ static int handle_cr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		switch (cr) {
 		case 0:
 			vcpu_load_rsp_rip(vcpu);
-			set_cr0(vcpu, vcpu->arch.regs[reg]);
+			kvm_set_cr0(vcpu, vcpu->arch.regs[reg]);
 			skip_emulated_instruction(vcpu);
 			return 1;
 		case 3:
 			vcpu_load_rsp_rip(vcpu);
-			set_cr3(vcpu, vcpu->arch.regs[reg]);
+			kvm_set_cr3(vcpu, vcpu->arch.regs[reg]);
 			skip_emulated_instruction(vcpu);
 			return 1;
 		case 4:
 			vcpu_load_rsp_rip(vcpu);
-			set_cr4(vcpu, vcpu->arch.regs[reg]);
+			kvm_set_cr4(vcpu, vcpu->arch.regs[reg]);
 			skip_emulated_instruction(vcpu);
 			return 1;
 		case 8:
 			vcpu_load_rsp_rip(vcpu);
-			set_cr8(vcpu, vcpu->arch.regs[reg]);
+			kvm_set_cr8(vcpu, vcpu->arch.regs[reg]);
 			skip_emulated_instruction(vcpu);
 			if (irqchip_in_kernel(vcpu->kvm))
 				return 1;
@@ -2067,14 +2067,14 @@ static int handle_cr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 			return 1;
 		case 8:
 			vcpu_load_rsp_rip(vcpu);
-			vcpu->arch.regs[reg] = get_cr8(vcpu);
+			vcpu->arch.regs[reg] = kvm_get_cr8(vcpu);
 			vcpu_put_rsp_rip(vcpu);
 			skip_emulated_instruction(vcpu);
 			return 1;
 		}
 		break;
 	case 3: /* lmsw */
-		lmsw(vcpu, (exit_qualification >> LMSW_SOURCE_DATA_SHIFT) & 0x0f);
+		kvm_lmsw(vcpu, (exit_qualification >> LMSW_SOURCE_DATA_SHIFT) & 0x0f);
 
 		skip_emulated_instruction(vcpu);
 		return 1;
