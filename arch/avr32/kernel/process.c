@@ -18,10 +18,10 @@
 #include <asm/sysreg.h>
 #include <asm/ocd.h>
 
+#include <asm/arch/pm.h>
+
 void (*pm_power_off)(void) = NULL;
 EXPORT_SYMBOL(pm_power_off);
-
-extern void cpu_idle_sleep(void);
 
 /*
  * This file handles the architecture-dependent parts of process handling..
