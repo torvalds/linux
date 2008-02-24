@@ -999,7 +999,14 @@ static int i2c_pxa_probe(struct platform_device *dev)
 	spin_lock_init(&i2c->lock);
 	init_waitqueue_head(&i2c->wait);
 
-	sprintf(i2c->adap.name, "pxa_i2c-i2c.%u", dev->id);
+	/*
+	 * If "dev->id" is negative we consider it as zero.
+	 * The reason to do so is to avoid sysfs names that only make
+	 * sense when there are multiple adapters.
+	 */
+	i2c->adap.nr = dev->id != -1 ? dev->id : 0;
+	snprintf(i2c->adap.name, sizeof(i2c->adap.name), "pxa_i2c-i2c.%u",
+		 i2c->adap.nr);
 
 	i2c->clk = clk_get(&dev->dev, "I2CCLK");
 	if (IS_ERR(i2c->clk)) {
@@ -1050,13 +1057,6 @@ static int i2c_pxa_probe(struct platform_device *dev)
 	i2c->adap.algo_data = i2c;
 	i2c->adap.dev.parent = &dev->dev;
 
-	/*
-	 * If "dev->id" is negative we consider it as zero.
-	 * The reason to do so is to avoid sysfs names that only make
-	 * sense when there are multiple adapters.
-	 */
-	i2c->adap.nr = dev->id != -1 ? dev->id : 0;
-
 	ret = i2c_add_numbered_adapter(&i2c->adap);
 	if (ret < 0) {
 		printk(KERN_INFO "I2C: Failed to add bus\n");
@@ -1080,6 +1080,7 @@ eadapt:
 ereqirq:
 	clk_disable(i2c->clk);
 	i2c_pxa_disable(dev);
+	iounmap(i2c->reg_base);
 eremap:
 	clk_put(i2c->clk);
 eclk:
@@ -1089,7 +1090,7 @@ emalloc:
 	return ret;
 }
 
-static int i2c_pxa_remove(struct platform_device *dev)
+static int __exit i2c_pxa_remove(struct platform_device *dev)
 {
 	struct pxa_i2c *i2c = platform_get_drvdata(dev);
 
@@ -1103,6 +1104,7 @@ static int i2c_pxa_remove(struct platform_device *dev)
 	clk_put(i2c->clk);
 	i2c_pxa_disable(dev);
 
+	iounmap(i2c->reg_base);
 	release_mem_region(i2c->iobase, i2c->iosize);
 	kfree(i2c);
 
@@ -1111,9 +1113,10 @@ static int i2c_pxa_remove(struct platform_device *dev)
 
 static struct platform_driver i2c_pxa_driver = {
 	.probe		= i2c_pxa_probe,
-	.remove		= i2c_pxa_remove,
+	.remove		= __exit_p(i2c_pxa_remove),
 	.driver		= {
 		.name	= "pxa2xx-i2c",
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -1122,7 +1125,7 @@ static int __init i2c_adap_pxa_init(void)
 	return platform_driver_register(&i2c_pxa_driver);
 }
 
-static void i2c_adap_pxa_exit(void)
+static void __exit i2c_adap_pxa_exit(void)
 {
 	platform_driver_unregister(&i2c_pxa_driver);
 }
