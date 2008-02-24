@@ -770,13 +770,6 @@ int device_add(struct device *dev)
 	struct class_interface *class_intf;
 	int error;
 
-	error = pm_sleep_lock();
-	if (error) {
-		dev_warn(dev, "Suspicious %s during suspend\n", __FUNCTION__);
-		dump_stack();
-		return error;
-	}
-
 	dev = get_device(dev);
 	if (!dev || !strlen(dev->bus_id)) {
 		error = -EINVAL;
@@ -843,7 +836,6 @@ int device_add(struct device *dev)
 	}
  Done:
 	put_device(dev);
-	pm_sleep_unlock();
 	return error;
  BusError:
 	device_pm_remove(dev);
