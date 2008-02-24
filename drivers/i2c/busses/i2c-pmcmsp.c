@@ -122,7 +122,7 @@ struct pmcmsptwi_data {
 };
 
 /* The default settings */
-const static struct pmcmsptwi_clockcfg pmcmsptwi_defclockcfg = {
+static const struct pmcmsptwi_clockcfg pmcmsptwi_defclockcfg = {
 	.standard = {
 		.filter	= 0x3,
 		.clock	= 0x1f,
@@ -133,7 +133,7 @@ const static struct pmcmsptwi_clockcfg pmcmsptwi_defclockcfg = {
 	},
 };
 
-const static struct pmcmsptwi_cfg pmcmsptwi_defcfg = {
+static const struct pmcmsptwi_cfg pmcmsptwi_defcfg = {
 	.arbf		= 0x03,
 	.nak		= 0x03,
 	.add10		= 0x00,

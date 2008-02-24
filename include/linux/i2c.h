@@ -598,7 +598,7 @@ I2C_CLIENT_MODULE_PARM(probe, "List of adapter,address pairs to scan "	\
 		       "additionally");					\
 I2C_CLIENT_MODULE_PARM(ignore, "List of adapter,address pairs not to "	\
 		       "scan");						\
-const static struct i2c_client_address_data addr_data = {		\
+static const struct i2c_client_address_data addr_data = {		\
 	.normal_i2c	= normal_i2c,					\
 	.probe		= probe,					\
 	.ignore		= ignore,					\
