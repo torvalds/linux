@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006 Atmel Corporation
+ * Copyright (C) 2006, 2008 Atmel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -12,14 +12,16 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/platform_device.h>
+#include <linux/sysdev.h>
 
 #include <asm/io.h>
 
 #include "intc.h"
 
 struct intc {
-	void __iomem	*regs;
-	struct irq_chip	chip;
+	void __iomem		*regs;
+	struct irq_chip		chip;
+	struct sys_device	sysdev;
 };
 
 extern struct platform_device at32_intc0_device;
@@ -135,6 +137,26 @@ void __init init_IRQ(void)
 fail:
 	panic("Interrupt controller initialization failed!\n");
 }
+
+static struct sysdev_class intc_class = {
+	.name	= "intc",
+};
+
+static int __init intc_init_sysdev(void)
+{
+	int ret;
+
+	ret = sysdev_class_register(&intc_class);
+	if (ret)
+		return ret;
+
+	intc0.sysdev.id = 0;
+	intc0.sysdev.cls = &intc_class;
+	ret = sysdev_register(&intc0.sysdev);
+
+	return ret;
+}
+device_initcall(intc_init_sysdev);
 
 unsigned long intc_get_pending(unsigned int group)
 {
