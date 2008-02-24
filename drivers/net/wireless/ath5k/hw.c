@@ -45,7 +45,7 @@ static int ath5k_hw_setup_4word_tx_desc(struct ath5k_hw *, struct ath5k_desc *,
 	unsigned int, unsigned int, enum ath5k_pkt_type, unsigned int,
 	unsigned int, unsigned int, unsigned int, unsigned int, unsigned int,
 	unsigned int, unsigned int);
-static bool ath5k_hw_setup_xr_tx_desc(struct ath5k_hw *, struct ath5k_desc *,
+static int ath5k_hw_setup_xr_tx_desc(struct ath5k_hw *, struct ath5k_desc *,
 	unsigned int, unsigned int, unsigned int, unsigned int, unsigned int,
 	unsigned int);
 static int ath5k_hw_proc_4word_tx_status(struct ath5k_hw *, struct ath5k_desc *);
@@ -3743,7 +3743,7 @@ static int ath5k_hw_setup_4word_tx_desc(struct ath5k_hw *ah,
 /*
  * Initialize a 4-word multirate tx descriptor on 5212
  */
-static bool
+static int
 ath5k_hw_setup_xr_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 	unsigned int tx_rate1, u_int tx_tries1, u_int tx_rate2, u_int tx_tries2,
 	unsigned int tx_rate3, u_int tx_tries3)
@@ -3783,10 +3783,10 @@ ath5k_hw_setup_xr_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 
 #undef _XTX_TRIES
 
-		return true;
+		return 1;
 	}
 
-	return false;
+	return 0;
 }
 
 /*

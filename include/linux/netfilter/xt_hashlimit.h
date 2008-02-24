@@ -61,7 +61,6 @@ struct xt_hashlimit_mtinfo1 {
 
 	/* Used internally by the kernel */
 	struct xt_hashlimit_htable *hinfo __attribute__((aligned(8)));
-	struct xt_hashlimit_mtinfo1 *master __attribute__((aligned(8)));
 };
 
 #endif /*_XT_HASHLIMIT_H*/

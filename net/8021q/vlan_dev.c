@@ -366,8 +366,7 @@ static int vlan_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct net_device_stats *stats = &dev->stats;
 	struct vlan_ethhdr *veth = (struct vlan_ethhdr *)(skb->data);
-	DECLARE_MAC_BUF(mac);
-	DECLARE_MAC_BUF(mac2);
+
 	/* Handle non-VLAN frames if they are sent to us, for example by DHCP.
 	 *
 	 * NOTE: THIS ASSUMES DIX ETHERNET, SPECIFICALLY NOT SUPPORTING
@@ -405,8 +404,11 @@ static int vlan_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	pr_debug("%s: about to send skb: %p to dev: %s\n",
 		__FUNCTION__, skb, skb->dev->name);
-	pr_debug("  %s %s %4hx %4hx %4hx\n",
-		 print_mac(mac, veth->h_dest), print_mac(mac2, veth->h_source),
+	pr_debug("  " MAC_FMT " " MAC_FMT " %4hx %4hx %4hx\n",
+		 veth->h_dest[0], veth->h_dest[1], veth->h_dest[2],
+		 veth->h_dest[3], veth->h_dest[4], veth->h_dest[5],
+		 veth->h_source[0], veth->h_source[1], veth->h_source[2],
+		 veth->h_source[3], veth->h_source[4], veth->h_source[5],
 		 veth->h_vlan_proto, veth->h_vlan_TCI,
 		 veth->h_vlan_encapsulated_proto);
 

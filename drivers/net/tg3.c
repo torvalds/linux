@@ -8781,7 +8781,7 @@ static int tg3_phys_id(struct net_device *dev, u32 data)
 		return -EAGAIN;
 
 	if (data == 0)
-		data = 2;
+		data = UINT_MAX / 2;
 
 	for (i = 0; i < (data * 2); i++) {
 		if ((i % 2) == 0)

@@ -164,16 +164,8 @@ static struct ip_tunnel * ipip6_tunnel_locate(struct ip_tunnel_parm *parms, int 
 
 	if (parms->name[0])
 		strlcpy(name, parms->name, IFNAMSIZ);
-	else {
-		int i;
-		for (i=1; i<100; i++) {
-			sprintf(name, "sit%d", i);
-			if (__dev_get_by_name(&init_net, name) == NULL)
-				break;
-		}
-		if (i==100)
-			goto failed;
-	}
+	else
+		sprintf(name, "sit%%d");
 
 	dev = alloc_netdev(sizeof(*t), name, ipip6_tunnel_setup);
 	if (dev == NULL)

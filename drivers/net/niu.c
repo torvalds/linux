@@ -1616,12 +1616,13 @@ static int niu_enable_alt_mac(struct niu *np, int index, int on)
 	if (index >= niu_num_alt_addr(np))
 		return -EINVAL;
 
-	if (np->flags & NIU_FLAGS_XMAC)
+	if (np->flags & NIU_FLAGS_XMAC) {
 		reg = XMAC_ADDR_CMPEN;
-	else
+		mask = 1 << index;
+	} else {
 		reg = BMAC_ADDR_CMPEN;
-
-	mask = 1 << index;
+		mask = 1 << (index + 1);
+	}
 
 	val = nr64_mac(reg);
 	if (on)
