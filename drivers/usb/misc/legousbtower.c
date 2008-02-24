@@ -753,7 +753,7 @@ exit:
  */
 static void tower_interrupt_in_callback (struct urb *urb)
 {
-	struct lego_usb_tower *dev = (struct lego_usb_tower *)urb->context;
+	struct lego_usb_tower *dev = urb->context;
 	int status = urb->status;
 	int retval;
 
@@ -810,7 +810,7 @@ exit:
  */
 static void tower_interrupt_out_callback (struct urb *urb)
 {
-	struct lego_usb_tower *dev = (struct lego_usb_tower *)urb->context;
+	struct lego_usb_tower *dev = urb->context;
 	int status = urb->status;
 
 	dbg(4, "%s: enter, status %d", __func__, status);

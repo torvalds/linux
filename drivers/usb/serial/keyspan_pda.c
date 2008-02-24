@@ -214,7 +214,7 @@ static void keyspan_pda_request_unthrottle(struct work_struct *work)
 
 static void keyspan_pda_rx_interrupt (struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
        	struct tty_struct *tty = port->tty;
 	unsigned char *data = urb->transfer_buffer;
 	int i;
@@ -608,7 +608,7 @@ exit:
 
 static void keyspan_pda_write_bulk_callback (struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
 	struct keyspan_pda_private *priv;
 
 	port->write_urb_busy = 0;

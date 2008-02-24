@@ -478,7 +478,7 @@ static int visor_chars_in_buffer (struct usb_serial_port *port)
 
 static void visor_write_bulk_callback (struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
 	struct visor_private *priv = usb_get_serial_port_data(port);
 	int status = urb->status;
 	unsigned long flags;
@@ -502,7 +502,7 @@ static void visor_write_bulk_callback (struct urb *urb)
 
 static void visor_read_bulk_callback (struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
 	struct visor_private *priv = usb_get_serial_port_data(port);
 	unsigned char *data = urb->transfer_buffer;
 	int status = urb->status;
@@ -553,7 +553,7 @@ static void visor_read_bulk_callback (struct urb *urb)
 
 static void visor_read_int_callback (struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
 	int status = urb->status;
 	int result;
 

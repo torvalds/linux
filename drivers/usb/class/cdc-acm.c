@@ -443,7 +443,7 @@ urbs:
 static void acm_write_bulk(struct urb *urb)
 {
 	struct acm *acm;
-	struct acm_wb *wb = (struct acm_wb *)urb->context;
+	struct acm_wb *wb = urb->context;
 
 	dbg("Entering acm_write_bulk with status %d", urb->status);
 

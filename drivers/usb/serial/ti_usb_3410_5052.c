@@ -1098,7 +1098,7 @@ static void ti_break(struct usb_serial_port *port, int break_state)
 
 static void ti_interrupt_callback(struct urb *urb)
 {
-	struct ti_device *tdev = (struct ti_device *)urb->context;
+	struct ti_device *tdev = urb->context;
 	struct usb_serial_port *port;
 	struct usb_serial *serial = tdev->td_serial;
 	struct ti_port *tport;
@@ -1181,7 +1181,7 @@ exit:
 
 static void ti_bulk_in_callback(struct urb *urb)
 {
-	struct ti_port *tport = (struct ti_port *)urb->context;
+	struct ti_port *tport = urb->context;
 	struct usb_serial_port *port = tport->tp_port;
 	struct device *dev = &urb->dev->dev;
 	int status = urb->status;
@@ -1247,7 +1247,7 @@ exit:
 
 static void ti_bulk_out_callback(struct urb *urb)
 {
-	struct ti_port *tport = (struct ti_port *)urb->context;
+	struct ti_port *tport = urb->context;
 	struct usb_serial_port *port = tport->tp_port;
 	struct device *dev = &urb->dev->dev;
 	int status = urb->status;

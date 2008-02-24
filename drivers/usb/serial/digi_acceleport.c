@@ -1227,7 +1227,7 @@ static int digi_write(struct usb_serial_port *port, const unsigned char *buf, in
 static void digi_write_bulk_callback(struct urb *urb)
 {
 
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
 	struct usb_serial *serial;
 	struct digi_port *priv;
 	struct digi_serial *serial_priv;
@@ -1605,7 +1605,7 @@ static void digi_shutdown(struct usb_serial *serial)
 
 static void digi_read_bulk_callback(struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
 	struct digi_port *priv;
 	struct digi_serial *serial_priv;
 	int ret;
@@ -1664,7 +1664,7 @@ static void digi_read_bulk_callback(struct urb *urb)
 static int digi_read_inb_callback(struct urb *urb)
 {
 
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
 	struct tty_struct *tty = port->tty;
 	struct digi_port *priv = usb_get_serial_port_data(port);
 	int opcode = ((unsigned char *)urb->transfer_buffer)[0];
@@ -1754,7 +1754,7 @@ static int digi_read_inb_callback(struct urb *urb)
 static int digi_read_oob_callback(struct urb *urb)
 {
 
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
 	struct usb_serial *serial = port->serial;
 	struct digi_port *priv = usb_get_serial_port_data(port);
 	int opcode, line, status, val;

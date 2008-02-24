@@ -186,7 +186,7 @@ static int iuu_tiocmget(struct usb_serial_port *port, struct file *file)
 
 static void iuu_rxcmd(struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
 	int result;
 	dbg("%s - enter", __func__);
 
@@ -240,7 +240,7 @@ static int iuu_reset(struct usb_serial_port *port, u8 wt)
  */
 static void iuu_update_status_callback(struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
 	struct iuu_private *priv = usb_get_serial_port_data(port);
 	u8 *st;
 	dbg("%s - enter", __func__);
@@ -270,7 +270,7 @@ static void iuu_update_status_callback(struct urb *urb)
 
 static void iuu_status_callback(struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
 	int result;
 	dbg("%s - enter", __func__);
 
@@ -392,7 +392,7 @@ static void iuu_rgbf_fill_buffer(u8 *buf, u8 r1, u8 r2, u8 g1, u8 g2, u8 b1,
 
 static void iuu_led_activity_on(struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
 	int result;
 	char *buf_ptr = port->write_urb->transfer_buffer;
 	*buf_ptr++ = IUU_SET_LED;
@@ -413,7 +413,7 @@ static void iuu_led_activity_on(struct urb *urb)
 
 static void iuu_led_activity_off(struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
 	int result;
 	char *buf_ptr = port->write_urb->transfer_buffer;
 	if (xmas == 1) {
@@ -616,7 +616,7 @@ static int iuu_uart_flush(struct usb_serial_port *port)
 
 static void read_buf_callback(struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
 	unsigned char *data = urb->transfer_buffer;
 	struct tty_struct *tty;
 	dbg("%s - urb->status = %d", __func__, urb->status);
@@ -692,7 +692,7 @@ static int iuu_read_buf(struct usb_serial_port *port, int len)
 
 static void iuu_uart_read_callback(struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
 	struct iuu_private *priv = usb_get_serial_port_data(port);
 	unsigned int flags;
 	int status;
@@ -781,7 +781,7 @@ static int iuu_uart_write(struct usb_serial_port *port, const u8 *buf,
 
 static void read_rxcmd_callback(struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
 	int result;
 	dbg("%s - enter", __func__);
 

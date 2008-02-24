@@ -195,7 +195,7 @@ static __u16 __inline__ fcs_compute10 (unsigned char *sp, int len, __u16 fcs)
 
 static void safe_read_bulk_callback (struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *) urb->context;
+	struct usb_serial_port *port =  urb->context;
 	unsigned char *data = urb->transfer_buffer;
 	unsigned char length = urb->actual_length;
 	int result;

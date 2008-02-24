@@ -871,7 +871,7 @@ static void oti6858_shutdown(struct usb_serial *serial)
 
 static void oti6858_read_int_callback(struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *) urb->context;
+	struct usb_serial_port *port =  urb->context;
 	struct oti6858_private *priv = usb_get_serial_port_data(port);
 	int transient = 0, can_recv = 0, resubmit = 1;
 	int status = urb->status;
@@ -985,7 +985,7 @@ static void oti6858_read_int_callback(struct urb *urb)
 
 static void oti6858_read_bulk_callback(struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *) urb->context;
+	struct usb_serial_port *port =  urb->context;
 	struct oti6858_private *priv = usb_get_serial_port_data(port);
 	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
@@ -1038,7 +1038,7 @@ static void oti6858_read_bulk_callback(struct urb *urb)
 
 static void oti6858_write_bulk_callback(struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *) urb->context;
+	struct usb_serial_port *port =  urb->context;
 	struct oti6858_private *priv = usb_get_serial_port_data(port);
 	int status = urb->status;
 	int result;

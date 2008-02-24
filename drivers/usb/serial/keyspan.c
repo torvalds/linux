@@ -445,7 +445,7 @@ static void	usa26_indat_callback(struct urb *urb)
 		return;
 	}
 
-	port = (struct usb_serial_port *) urb->context;
+	port =  urb->context;
 	tty = port->tty;
 	if (tty && urb->actual_length) {
 		/* 0x80 bit is error flag */
@@ -490,7 +490,7 @@ static void	usa2x_outdat_callback(struct urb *urb)
 	struct usb_serial_port *port;
 	struct keyspan_port_private *p_priv;
 
-	port = (struct usb_serial_port *) urb->context;
+	port =  urb->context;
 	p_priv = usb_get_serial_port_data(port);
 	dbg ("%s - urb %d", __func__, urb == p_priv->out_urbs[1]);
 
@@ -509,7 +509,7 @@ static void	usa26_outcont_callback(struct urb *urb)
 	struct usb_serial_port *port;
 	struct keyspan_port_private *p_priv;
 
-	port = (struct usb_serial_port *) urb->context;
+	port =  urb->context;
 	p_priv = usb_get_serial_port_data(port);
 
 	if (p_priv->resend_cont) {
@@ -528,7 +528,7 @@ static void	usa26_instat_callback(struct urb *urb)
 	int old_dcd_state, err;
 	int status = urb->status;
 
-	serial = (struct usb_serial *) urb->context;
+	serial =  urb->context;
 
 	if (status) {
 		dbg("%s - nonzero status: %x", __func__, status);
@@ -599,7 +599,7 @@ static void usa28_indat_callback(struct urb *urb)
 
 	dbg ("%s", __func__);
 
-	port = (struct usb_serial_port *) urb->context;
+	port =  urb->context;
 	p_priv = usb_get_serial_port_data(port);
 	data = urb->transfer_buffer;
 
@@ -613,7 +613,7 @@ static void usa28_indat_callback(struct urb *urb)
 			return;
 		}
 
-		port = (struct usb_serial_port *) urb->context;
+		port =  urb->context;
 		p_priv = usb_get_serial_port_data(port);
 		data = urb->transfer_buffer;
 
@@ -647,7 +647,7 @@ static void	usa28_outcont_callback(struct urb *urb)
 	struct usb_serial_port *port;
 	struct keyspan_port_private *p_priv;
 
-	port = (struct usb_serial_port *) urb->context;
+	port =  urb->context;
 	p_priv = usb_get_serial_port_data(port);
 
 	if (p_priv->resend_cont) {
@@ -667,7 +667,7 @@ static void	usa28_instat_callback(struct urb *urb)
 	int old_dcd_state;
 	int status = urb->status;
 
-	serial = (struct usb_serial *) urb->context;
+	serial =  urb->context;
 
 	if (status) {
 		dbg("%s - nonzero status: %x", __func__, status);
@@ -733,7 +733,7 @@ static void	usa49_glocont_callback(struct urb *urb)
 
 	dbg ("%s", __func__);
 
-	serial = (struct usb_serial *) urb->context;
+	serial =  urb->context;
 	for (i = 0; i < serial->num_ports; ++i) {
 		port = serial->port[i];
 		p_priv = usb_get_serial_port_data(port);
@@ -761,7 +761,7 @@ static void	usa49_instat_callback(struct urb *urb)
 
 	dbg ("%s", __func__);
 
-	serial = (struct usb_serial *) urb->context;
+	serial =  urb->context;
 
 	if (status) {
 		dbg("%s - nonzero status: %x", __func__, status);
@@ -836,7 +836,7 @@ static void	usa49_indat_callback(struct urb *urb)
 		return;
 	}
 
-	port = (struct usb_serial_port *) urb->context;
+	port =  urb->context;
 	tty = port->tty;
 	if (tty && urb->actual_length) {
 		/* 0x80 bit is error flag */
@@ -973,7 +973,7 @@ static void usa90_indat_callback(struct urb *urb)
 		return;
 	}
 
-	port = (struct usb_serial_port *) urb->context;
+	port =  urb->context;
 	p_priv = usb_get_serial_port_data(port);
 
 	tty = port->tty;
@@ -1037,7 +1037,7 @@ static void	usa90_instat_callback(struct urb *urb)
 	int old_dcd_state, err;
 	int status = urb->status;
 
-	serial = (struct usb_serial *) urb->context;
+	serial =  urb->context;
 
 	if (status) {
 		dbg("%s - nonzero status: %x", __func__, status);
@@ -1084,7 +1084,7 @@ static void	usa90_outcont_callback(struct urb *urb)
 	struct usb_serial_port *port;
 	struct keyspan_port_private *p_priv;
 
-	port = (struct usb_serial_port *) urb->context;
+	port =  urb->context;
 	p_priv = usb_get_serial_port_data(port);
 
 	if (p_priv->resend_cont) {

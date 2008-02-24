@@ -514,7 +514,7 @@ static void mct_u232_close (struct usb_serial_port *port, struct file *filp)
 
 static void mct_u232_read_int_callback (struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
 	struct mct_u232_private *priv = usb_get_serial_port_data(port);
 	struct usb_serial *serial = port->serial;
 	struct tty_struct *tty;

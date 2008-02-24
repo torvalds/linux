@@ -201,7 +201,7 @@ found:
 
 static void simple_callback (struct urb *urb)
 {
-	complete ((struct completion *) urb->context);
+	complete(urb->context);
 }
 
 static struct urb *simple_alloc_urb (
@@ -1046,7 +1046,7 @@ static void unlink1_callback (struct urb *urb)
 		status = usb_submit_urb (urb, GFP_ATOMIC);
 	if (status) {
 		urb->status = status;
-		complete ((struct completion *) urb->context);
+		complete(urb->context);
 	}
 }
 

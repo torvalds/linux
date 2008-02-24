@@ -154,7 +154,7 @@ MODULE_DEVICE_TABLE(usb, iowarrior_ids);
  */
 static void iowarrior_callback(struct urb *urb)
 {
-	struct iowarrior *dev = (struct iowarrior *)urb->context;
+	struct iowarrior *dev = urb->context;
 	int intr_idx;
 	int read_idx;
 	int aux_idx;
@@ -230,7 +230,7 @@ static void iowarrior_write_callback(struct urb *urb)
 	struct iowarrior *dev;
 	int status = urb->status;
 
-	dev = (struct iowarrior *)urb->context;
+	dev = urb->context;
 	/* sync/async unlink faults aren't errors */
 	if (status &&
 	    !(status == -ENOENT ||

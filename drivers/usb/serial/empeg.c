@@ -340,7 +340,7 @@ static void empeg_write_bulk_callback (struct urb *urb)
 
 static void empeg_read_bulk_callback (struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
 	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
 	int result;

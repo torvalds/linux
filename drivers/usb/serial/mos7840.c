@@ -449,7 +449,7 @@ static void mos7840_control_callback(struct urb *urb)
 	int result = 0;
 	int status = urb->status;
 
-	mos7840_port = (struct moschip_port *)urb->context;
+	mos7840_port = urb->context;
 
 	switch (status) {
 	case 0:
@@ -554,7 +554,7 @@ static void mos7840_interrupt_callback(struct urb *urb)
 	length = urb->actual_length;
 	data = urb->transfer_buffer;
 
-	serial = (struct usb_serial *)urb->context;
+	serial = urb->context;
 
 	/* Moschip get 5 bytes
 	 * Byte 1 IIR Port 1 (port.number is 0)
@@ -685,7 +685,7 @@ static void mos7840_bulk_in_callback(struct urb *urb)
 		return;
 	}
 
-	mos7840_port = (struct moschip_port *)urb->context;
+	mos7840_port = urb->context;
 	if (!mos7840_port) {
 		dbg("%s", "NULL mos7840_port pointer \n");
 		return;
@@ -752,7 +752,7 @@ static void mos7840_bulk_out_data_callback(struct urb *urb)
 	int status = urb->status;
 	int i;
 
-	mos7840_port = (struct moschip_port *)urb->context;
+	mos7840_port = urb->context;
 	spin_lock(&mos7840_port->pool_lock);
 	for (i = 0; i < NUM_URBS; i++) {
 		if (urb == mos7840_port->write_urb_pool[i]) {

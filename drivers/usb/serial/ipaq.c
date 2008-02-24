@@ -729,7 +729,7 @@ static void ipaq_close(struct usb_serial_port *port, struct file *filp)
 
 static void ipaq_read_bulk_callback(struct urb *urb)
 {
-	struct usb_serial_port	*port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port	*port = urb->context;
 	struct tty_struct	*tty;
 	unsigned char		*data = urb->transfer_buffer;
 	int			result;
@@ -869,7 +869,7 @@ static void ipaq_write_gather(struct usb_serial_port *port)
 
 static void ipaq_write_bulk_callback(struct urb *urb)
 {
-	struct usb_serial_port	*port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port	*port = urb->context;
 	struct ipaq_private	*priv = usb_get_serial_port_data(port);
 	unsigned long		flags;
 	int			result;

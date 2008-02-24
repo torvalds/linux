@@ -457,7 +457,7 @@ static void sierra_indat_callback(struct urb *urb)
 	dbg("%s: %p", __func__, urb);
 
 	endpoint = usb_pipeendpoint(urb->pipe);
-	port = (struct usb_serial_port *) urb->context;
+	port =  urb->context;
 
 	if (status) {
 		dbg("%s: nonzero status: %d on endpoint %02x.",
@@ -487,7 +487,7 @@ static void sierra_instat_callback(struct urb *urb)
 {
 	int err;
 	int status = urb->status;
-	struct usb_serial_port *port = (struct usb_serial_port *) urb->context;
+	struct usb_serial_port *port =  urb->context;
 	struct sierra_port_private *portdata = usb_get_serial_port_data(port);
 	struct usb_serial *serial = port->serial;
 

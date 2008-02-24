@@ -393,7 +393,7 @@ static int ir_write (struct usb_serial_port *port, const unsigned char *buf, int
 
 static void ir_write_bulk_callback (struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
 	int status = urb->status;
 
 	dbg("%s - port %d", __func__, port->number);
@@ -417,7 +417,7 @@ static void ir_write_bulk_callback (struct urb *urb)
 
 static void ir_read_bulk_callback (struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
 	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
 	int result;

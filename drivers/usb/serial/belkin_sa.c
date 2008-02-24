@@ -248,7 +248,7 @@ static void belkin_sa_close (struct usb_serial_port *port, struct file *filp)
 
 static void belkin_sa_read_int_callback (struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
 	struct belkin_sa_private *priv;
 	unsigned char *data = urb->transfer_buffer;
 	int retval;

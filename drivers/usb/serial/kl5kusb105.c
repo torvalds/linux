@@ -567,7 +567,7 @@ exit:
 
 static void klsi_105_write_bulk_callback ( struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
 	int status = urb->status;
 
 	dbg("%s - port %d", __func__, port->number);
@@ -628,7 +628,7 @@ static int klsi_105_write_room (struct usb_serial_port *port)
 
 static void klsi_105_read_bulk_callback (struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
 	struct klsi_105_private *priv = usb_get_serial_port_data(port);
 	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;

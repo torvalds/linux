@@ -194,7 +194,7 @@ static void omninet_close (struct usb_serial_port *port, struct file * filp)
 
 static void omninet_read_bulk_callback (struct urb *urb)
 {
-	struct usb_serial_port 	*port 	= (struct usb_serial_port *)urb->context;
+	struct usb_serial_port 	*port 	= urb->context;
 	unsigned char 		*data 	= urb->transfer_buffer;
 	struct omninet_header 	*header = (struct omninet_header *) &data[0];
 	int status = urb->status;
@@ -309,7 +309,7 @@ static int omninet_write_room (struct usb_serial_port *port)
 static void omninet_write_bulk_callback (struct urb *urb)
 {
 /*	struct omninet_header	*header = (struct omninet_header  *) urb->transfer_buffer; */
-	struct usb_serial_port 	*port   = (struct usb_serial_port *) urb->context;
+	struct usb_serial_port 	*port   =  urb->context;
 	int status = urb->status;
 
 	dbg("%s - port %0x\n", __func__, port->number);

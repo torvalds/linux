@@ -284,7 +284,7 @@ static void auerchain_complete (struct urb * urb)
         int result;
 
         /* get pointer to element and to chain */
-        pauerchainelement_t acep = (pauerchainelement_t) urb->context;
+	pauerchainelement_t acep = urb->context;
         pauerchain_t         acp = acep->chain;
 
         /* restore original entries in urb */
@@ -594,7 +594,7 @@ ac_fail:/* free the elements */
 /* completion handler for synchronous chained URBs */
 static void auerchain_blocking_completion (struct urb *urb)
 {
-	pauerchain_chs_t pchs = (pauerchain_chs_t)urb->context;
+	pauerchain_chs_t pchs = urb->context;
 	pchs->done = 1;
 	wmb();
 	wake_up (&pchs->wqh);
@@ -847,7 +847,7 @@ static int auerswald_status_retry (int status)
 /* Completion of asynchronous write block */
 static void auerchar_ctrlwrite_complete (struct urb * urb)
 {
-	pauerbuf_t bp = (pauerbuf_t) urb->context;
+	pauerbuf_t bp =  urb->context;
 	pauerswald_t cp = ((pauerswald_t)((char *)(bp->list)-(unsigned long)(&((pauerswald_t)0)->bufctl)));
 	dbg ("auerchar_ctrlwrite_complete called");
 
@@ -860,7 +860,7 @@ static void auerchar_ctrlwrite_complete (struct urb * urb)
 /* Completion handler for dummy retry packet */
 static void auerswald_ctrlread_wretcomplete (struct urb * urb)
 {
-        pauerbuf_t bp = (pauerbuf_t) urb->context;
+	pauerbuf_t bp = urb->context;
         pauerswald_t cp;
 	int ret;
 	int status = urb->status;
@@ -904,7 +904,7 @@ static void auerswald_ctrlread_complete (struct urb * urb)
         unsigned int  serviceid;
         pauerswald_t  cp;
         pauerscon_t   scp;
-        pauerbuf_t    bp  = (pauerbuf_t) urb->context;
+	pauerbuf_t bp = urb->context;
 	int status = urb->status;
 	int ret;
 
@@ -981,7 +981,7 @@ static void auerswald_int_complete (struct urb * urb)
         int ret;
 	int status = urb->status;
         pauerbuf_t   bp = NULL;
-        pauerswald_t cp = (pauerswald_t) urb->context;
+	pauerswald_t cp = urb->context;
 
         dbg ("%s called", __func__);
 

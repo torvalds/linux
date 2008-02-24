@@ -212,7 +212,7 @@ static void skel_write_bulk_callback(struct urb *urb)
 {
 	struct usb_skel *dev;
 
-	dev = (struct usb_skel *)urb->context;
+	dev = urb->context;
 
 	/* sync/async unlink faults aren't errors */
 	if (urb->status) {

@@ -1710,7 +1710,7 @@ static void handle_new_lsr (struct edgeport_port *edge_port, int lsr_data, __u8 
 
 static void edge_interrupt_callback (struct urb *urb)
 {
-	struct edgeport_serial *edge_serial = (struct edgeport_serial *)urb->context;
+	struct edgeport_serial *edge_serial = urb->context;
 	struct usb_serial_port *port;
 	struct edgeport_port *edge_port;
 	unsigned char *data = urb->transfer_buffer;
@@ -1803,7 +1803,7 @@ exit:
 
 static void edge_bulk_in_callback (struct urb *urb)
 {
-	struct edgeport_port *edge_port = (struct edgeport_port *)urb->context;
+	struct edgeport_port *edge_port = urb->context;
 	unsigned char *data = urb->transfer_buffer;
 	struct tty_struct *tty;
 	int retval = 0;
@@ -1897,7 +1897,7 @@ static void edge_tty_recv(struct device *dev, struct tty_struct *tty, unsigned c
 
 static void edge_bulk_out_callback (struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
 	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
 	int status = urb->status;
 

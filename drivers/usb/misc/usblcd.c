@@ -185,7 +185,7 @@ static void lcd_write_bulk_callback(struct urb *urb)
 	struct usb_lcd *dev;
 	int status = urb->status;
 
-	dev = (struct usb_lcd *)urb->context;
+	dev = urb->context;
 
 	/* sync/async unlink faults aren't errors */
 	if (status &&
