@@ -592,7 +592,6 @@ static struct scsi_host_template driver_template = {
 	.this_id			= 7,
 	.sg_tablesize			= SG_ALL,
 	.cmd_per_lun			= CMD_PER_LUN,
-	.unchecked_isa_dma		= 0,
 	.use_clustering			= DISABLE_CLUSTERING
 };
 

@@ -221,7 +221,6 @@ static struct scsi_host_template sdebug_driver_template = {
 	.sg_tablesize =		256,
 	.cmd_per_lun =		16,
 	.max_sectors =		0xffff,
-	.unchecked_isa_dma = 	0,
 	.use_clustering = 	DISABLE_CLUSTERING,
 	.module =		THIS_MODULE,
 };

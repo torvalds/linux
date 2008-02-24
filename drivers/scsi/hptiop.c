@@ -903,7 +903,6 @@ static struct scsi_host_template driver_template = {
 	.eh_device_reset_handler    = hptiop_reset,
 	.eh_bus_reset_handler       = hptiop_reset,
 	.info                       = hptiop_info,
-	.unchecked_isa_dma          = 0,
 	.emulated                   = 0,
 	.use_clustering             = ENABLE_CLUSTERING,
 	.proc_name                  = driver_name,
