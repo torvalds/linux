@@ -134,7 +134,8 @@ unsigned long iommu_range_alloc(struct device *dev,
 	else
 		boundary_size = ALIGN(1UL << 32, 1 << IO_PAGE_SHIFT);
 
-	n = iommu_area_alloc(arena->map, limit, start, npages, 0,
+	n = iommu_area_alloc(arena->map, limit, start, npages,
+			     iommu->page_table_map_base >> IO_PAGE_SHIFT,
 			     boundary_size >> IO_PAGE_SHIFT, 0);
 	if (n == -1) {
 		if (likely(pass < 1)) {
