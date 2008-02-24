@@ -271,9 +271,16 @@ extern void i2c_unregister_device(struct i2c_client *);
  * This is done at arch_initcall time, before declaring any i2c adapters.
  * Modules for add-on boards must use other calls.
  */
+#ifdef CONFIG_I2C_BOARDINFO
 extern int
 i2c_register_board_info(int busnum, struct i2c_board_info const *info, unsigned n);
-
+#else
+static inline int
+i2c_register_board_info(int busnum, struct i2c_board_info const *info, unsigned n)
+{
+	return 0;
+}
+#endif
 
 /*
  * The following structs are for those who like to implement new bus drivers:
