@@ -647,6 +647,10 @@ static void start_apic_timer(struct kvm_lapic *apic)
 	apic->timer.period = apic_get_reg(apic, APIC_TMICT) *
 		    APIC_BUS_CYCLE_NS * apic->timer.divide_count;
 	atomic_set(&apic->timer.pending, 0);
+
+	if (!apic->timer.period)
+		return;
+
 	hrtimer_start(&apic->timer.dev,
 		      ktime_add_ns(now, apic->timer.period),
 		      HRTIMER_MODE_ABS);
