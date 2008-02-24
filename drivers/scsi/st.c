@@ -4365,6 +4365,46 @@ static ssize_t st_defcompression_show(struct class_device *class_dev, char *buf)
 
 CLASS_DEVICE_ATTR(default_compression, S_IRUGO, st_defcompression_show, NULL);
 
+static ssize_t st_options_show(struct class_device *class_dev, char *buf)
+{
+	struct st_modedef *STm = (struct st_modedef *)class_get_devdata(class_dev);
+	struct scsi_tape *STp;
+	int i, j, options;
+	ssize_t l = 0;
+
+	for (i=0; i < st_dev_max; i++) {
+		for (j=0; j < ST_NBR_MODES; j++)
+			if (&scsi_tapes[i]->modes[j] == STm)
+				break;
+		if (j < ST_NBR_MODES)
+			break;
+	}
+	if (i == st_dev_max)
+		return 0;  /* should never happen */
+
+	STp = scsi_tapes[i];
+
+	options = STm->do_buffer_writes ? MT_ST_BUFFER_WRITES : 0;
+	options |= STm->do_async_writes ? MT_ST_ASYNC_WRITES : 0;
+	options |= STm->do_read_ahead ? MT_ST_READ_AHEAD : 0;
+	DEB( options |= debugging ? MT_ST_DEBUGGING : 0 );
+	options |= STp->two_fm ? MT_ST_TWO_FM : 0;
+	options |= STp->fast_mteom ? MT_ST_FAST_MTEOM : 0;
+	options |= STm->defaults_for_writes ? MT_ST_DEF_WRITES : 0;
+	options |= STp->can_bsr ? MT_ST_CAN_BSR : 0;
+	options |= STp->omit_blklims ? MT_ST_NO_BLKLIMS : 0;
+	options |= STp->can_partitions ? MT_ST_CAN_PARTITIONS : 0;
+	options |= STp->scsi2_logical ? MT_ST_SCSI2LOGICAL : 0;
+	options |= STm->sysv ? MT_ST_SYSV : 0;
+	options |= STp->immediate ? MT_ST_NOWAIT : 0;
+	options |= STp->sili ? MT_ST_SILI : 0;
+
+	l = snprintf(buf, PAGE_SIZE, "0x%08x\n", options);
+	return l;
+}
+
+CLASS_DEVICE_ATTR(options, S_IRUGO, st_options_show, NULL);
+
 static int do_create_class_files(struct scsi_tape *STp, int dev_num, int mode)
 {
 	int i, rew, error;
@@ -4401,6 +4441,9 @@ static int do_create_class_files(struct scsi_tape *STp, int dev_num, int mode)
 		if (error) goto out;
 		error = class_device_create_file(st_class_member,
 				        &class_device_attr_default_compression);
+		if (error) goto out;
+		error = class_device_create_file(st_class_member,
+				        &class_device_attr_options);
 		if (error) goto out;
 
 		if (mode == 0 && rew == 0) {
