@@ -1069,10 +1069,8 @@ static int __init acer_wmi_init(void)
 		}
 	}
 
-	if (wmi_has_guid(AMW0_GUID1)) {
-		if (ACPI_FAILURE(AMW0_find_mailled()))
-			printk(ACER_ERR "Unable to detect mail LED\n");
-	}
+	if (wmi_has_guid(AMW0_GUID1))
+		AMW0_find_mailled();
 
 	find_quirks();
 
