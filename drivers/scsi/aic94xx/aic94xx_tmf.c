@@ -140,8 +140,14 @@ int asd_clear_nexus_port(struct asd_sas_port *port)
 	CLEAR_NEXUS_POST;
 }
 
-#if 0
-static int asd_clear_nexus_I_T(struct domain_device *dev)
+enum clear_nexus_phase {
+	NEXUS_PHASE_PRE,
+	NEXUS_PHASE_POST,
+	NEXUS_PHASE_RESUME,
+};
+
+static int asd_clear_nexus_I_T(struct domain_device *dev,
+			       enum clear_nexus_phase phase)
 {
 	struct asd_ha_struct *asd_ha = dev->port->ha->lldd_ha;
 	struct asd_ascb *ascb;
@@ -150,12 +156,56 @@ static int asd_clear_nexus_I_T(struct domain_device *dev)
 
 	CLEAR_NEXUS_PRE;
 	scb->clear_nexus.nexus = NEXUS_I_T;
-	scb->clear_nexus.flags = SEND_Q | EXEC_Q | NOTINQ;
+	switch (phase) {
+	case NEXUS_PHASE_PRE:
+		scb->clear_nexus.flags = EXEC_Q | SUSPEND_TX;
+		break;
+	case NEXUS_PHASE_POST:
+		scb->clear_nexus.flags = SEND_Q | NOTINQ;
+		break;
+	case NEXUS_PHASE_RESUME:
+		scb->clear_nexus.flags = RESUME_TX;
+	}
 	scb->clear_nexus.conn_handle = cpu_to_le16((u16)(unsigned long)
 						   dev->lldd_dev);
 	CLEAR_NEXUS_POST;
 }
-#endif
+
+int asd_I_T_nexus_reset(struct domain_device *dev)
+{
+	int res, tmp_res, i;
+	struct sas_phy *phy = sas_find_local_phy(dev);
+	/* Standard mandates link reset for ATA  (type 0) and
+	 * hard reset for SSP (type 1) */
+	int reset_type = (dev->dev_type == SATA_DEV ||
+			  (dev->tproto & SAS_PROTOCOL_STP)) ? 0 : 1;
+
+	asd_clear_nexus_I_T(dev, NEXUS_PHASE_PRE);
+	/* send a hard reset */
+	ASD_DPRINTK("sending %s reset to %s\n",
+		    reset_type ? "hard" : "soft", phy->dev.bus_id);
+	res = sas_phy_reset(phy, reset_type);
+	if (res == TMF_RESP_FUNC_COMPLETE) {
+		/* wait for the maximum settle time */
+		msleep(500);
+		/* clear all outstanding commands (keep nexus suspended) */
+		asd_clear_nexus_I_T(dev, NEXUS_PHASE_POST);
+	}
+	for (i = 0 ; i < 3; i++) {
+		tmp_res = asd_clear_nexus_I_T(dev, NEXUS_PHASE_RESUME);
+		if (tmp_res == TC_RESUME)
+			return res;
+		msleep(500);
+	}
+
+	/* This is a bit of a problem:  the sequencer is still suspended
+	 * and is refusing to resume.  Hope it will resume on a bigger hammer
+	 * or the disk is lost */
+	dev_printk(KERN_ERR, &phy->dev,
+		   "Failed to resume nexus after reset 0x%x\n", tmp_res);
+
+	return TMF_RESP_FUNC_FAILED;
+}
 
 static int asd_clear_nexus_I_T_L(struct domain_device *dev, u8 *lun)
 {
