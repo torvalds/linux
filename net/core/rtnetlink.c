@@ -722,6 +722,21 @@ static struct net *get_net_ns_by_pid(pid_t pid)
 	return net;
 }
 
+static int validate_linkmsg(struct net_device *dev, struct nlattr *tb[])
+{
+	if (dev) {
+		if (tb[IFLA_ADDRESS] &&
+		    nla_len(tb[IFLA_ADDRESS]) < dev->addr_len)
+			return -EINVAL;
+
+		if (tb[IFLA_BROADCAST] &&
+		    nla_len(tb[IFLA_BROADCAST]) < dev->addr_len)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
 		      struct nlattr **tb, char *ifname, int modified)
 {
@@ -894,12 +909,7 @@ static int rtnl_setlink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 		goto errout;
 	}
 
-	if (tb[IFLA_ADDRESS] &&
-	    nla_len(tb[IFLA_ADDRESS]) < dev->addr_len)
-		goto errout_dev;
-
-	if (tb[IFLA_BROADCAST] &&
-	    nla_len(tb[IFLA_BROADCAST]) < dev->addr_len)
+	if ((err = validate_linkmsg(dev, tb)) < 0)
 		goto errout_dev;
 
 	err = do_setlink(dev, ifm, tb, ifname, 0);
@@ -1019,6 +1029,9 @@ replay:
 		dev = __dev_get_by_name(net, ifname);
 	else
 		dev = NULL;
+
+	if ((err = validate_linkmsg(dev, tb)) < 0)
+		return err;
 
 	if (tb[IFLA_LINKINFO]) {
 		err = nla_parse_nested(linkinfo, IFLA_INFO_MAX,
