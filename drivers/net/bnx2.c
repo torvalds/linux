@@ -56,8 +56,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.7.3"
-#define DRV_MODULE_RELDATE	"January 29, 2008"
+#define DRV_MODULE_VERSION	"1.7.4"
+#define DRV_MODULE_RELDATE	"February 18, 2008"
 
 #define RUN_AT(x) (jiffies + (x))
 
