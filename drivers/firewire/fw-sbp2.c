@@ -796,7 +796,7 @@ static void sbp2_release_target(struct kref *kref)
 	scsi_remove_host(shost);
 	fw_notify("released %s\n", tgt->bus_id);
 
-	put_device(&tgt->unit->device);
+	fw_unit_put(tgt->unit);
 	scsi_host_put(shost);
 	fw_device_put(device);
 }
@@ -1119,7 +1119,7 @@ static int sbp2_probe(struct device *dev)
 		goto fail_shost_put;
 
 	fw_device_get(device);
-	get_device(&unit->device);
+	fw_unit_get(unit);
 
 	/* Initialize to values that won't match anything in our table. */
 	firmware_revision = 0xff000000;

@@ -64,28 +64,24 @@ struct fw_device {
 	struct fw_attribute_group attribute_group;
 };
 
-static inline struct fw_device *
-fw_device(struct device *dev)
+static inline struct fw_device *fw_device(struct device *dev)
 {
 	return container_of(dev, struct fw_device, device);
 }
 
-static inline int
-fw_device_is_shutdown(struct fw_device *device)
+static inline int fw_device_is_shutdown(struct fw_device *device)
 {
 	return atomic_read(&device->state) == FW_DEVICE_SHUTDOWN;
 }
 
-static inline struct fw_device *
-fw_device_get(struct fw_device *device)
+static inline struct fw_device *fw_device_get(struct fw_device *device)
 {
 	get_device(&device->device);
 
 	return device;
 }
 
-static inline void
-fw_device_put(struct fw_device *device)
+static inline void fw_device_put(struct fw_device *device)
 {
 	put_device(&device->device);
 }
@@ -104,10 +100,21 @@ struct fw_unit {
 	struct fw_attribute_group attribute_group;
 };
 
-static inline struct fw_unit *
-fw_unit(struct device *dev)
+static inline struct fw_unit *fw_unit(struct device *dev)
 {
 	return container_of(dev, struct fw_unit, device);
+}
+
+static inline struct fw_unit *fw_unit_get(struct fw_unit *unit)
+{
+	get_device(&unit->device);
+
+	return unit;
+}
+
+static inline void fw_unit_put(struct fw_unit *unit)
+{
+	put_device(&unit->device);
 }
 
 #define CSR_OFFSET	0x40
