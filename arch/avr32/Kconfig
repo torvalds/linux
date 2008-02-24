@@ -205,6 +205,11 @@ endmenu
 
 menu "Power management options"
 
+source "kernel/power/Kconfig"
+
+config ARCH_SUSPEND_POSSIBLE
+	def_bool y
+
 menu "CPU Frequency scaling"
 
 source "drivers/cpufreq/Kconfig"
