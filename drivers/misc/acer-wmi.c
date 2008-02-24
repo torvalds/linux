@@ -761,7 +761,7 @@ enum led_brightness value)
 }
 
 static struct led_classdev mail_led = {
-	.name = "acer-mail:green",
+	.name = "acer-wmi::mail",
 	.brightness_set = mail_led_set,
 };
 

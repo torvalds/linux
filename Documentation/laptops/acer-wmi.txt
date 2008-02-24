@@ -169,7 +169,7 @@ can be added to acer-wmi.
 
 The LED is exposed through the LED subsystem, and can be found in:
 
-/sys/devices/platform/acer-wmi/leds/acer-mail:green/
+/sys/devices/platform/acer-wmi/leds/acer-wmi::mail/
 
 The mail LED is autodetected, so if you don't have one, the LED device won't
 be registered.
