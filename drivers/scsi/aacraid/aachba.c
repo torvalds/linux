@@ -2047,6 +2047,7 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 	{
 		u64 capacity;
 		char cp[13];
+		unsigned int alloc_len;
 
 		dprintk((KERN_DEBUG "READ CAPACITY_16 command.\n"));
 		capacity = fsa_dev_ptr[cid].size - 1;
@@ -2063,18 +2064,17 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 		cp[10] = 2;
 		cp[11] = 0;
 		cp[12] = 0;
-		aac_internal_transfer(scsicmd, cp, 0,
-		  min_t(size_t, scsicmd->cmnd[13], sizeof(cp)));
-		if (sizeof(cp) < scsicmd->cmnd[13]) {
-			unsigned int len, offset = sizeof(cp);
 
-			memset(cp, 0, offset);
-			do {
-				len = min_t(size_t, scsicmd->cmnd[13] - offset,
-						sizeof(cp));
-				aac_internal_transfer(scsicmd, cp, offset, len);
-			} while ((offset += len) < scsicmd->cmnd[13]);
-		}
+		alloc_len = ((scsicmd->cmnd[10] << 24)
+			     + (scsicmd->cmnd[11] << 16)
+			     + (scsicmd->cmnd[12] << 8) + scsicmd->cmnd[13]);
+
+		alloc_len = min_t(size_t, alloc_len, sizeof(cp));
+		aac_internal_transfer(scsicmd, cp, 0, alloc_len);
+
+		if (alloc_len < scsi_bufflen(scsicmd))
+			scsi_set_resid(scsicmd,
+				       scsi_bufflen(scsicmd) - alloc_len);
 
 		/* Do not cache partition table for arrays */
 		scsicmd->device->removable = 1;
