@@ -2077,7 +2077,7 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	err = pci_enable_device(dev);
 	if (err) {
 		fw_error("Failed to enable OHCI hardware.\n");
-		goto fail_put_card;
+		goto fail_free;
 	}
 
 	pci_set_master(dev);
@@ -2173,8 +2173,8 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	pci_release_region(dev, 0);
  fail_disable:
 	pci_disable_device(dev);
- fail_put_card:
-	fw_card_put(&ohci->card);
+ fail_free:
+	kfree(&ohci->card);
 
 	return err;
 }
@@ -2202,7 +2202,7 @@ static void pci_remove(struct pci_dev *dev)
 	pci_iounmap(dev, ohci->registers);
 	pci_release_region(dev, 0);
 	pci_disable_device(dev);
-	fw_card_put(&ohci->card);
+	kfree(&ohci->card);
 
 #ifdef CONFIG_PPC_PMAC
 	/* On UniNorth, power down the cable and turn off the chip clock

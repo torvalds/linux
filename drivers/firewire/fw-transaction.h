@@ -221,7 +221,6 @@ struct fw_card {
 	const struct fw_card_driver *driver;
 	struct device *device;
 	atomic_t device_count;
-	struct kref kref;
 
 	int node_id;
 	int generation;
@@ -262,9 +261,6 @@ struct fw_card {
 	int bm_retries;
 	int bm_generation;
 };
-
-struct fw_card *fw_card_get(struct fw_card *card);
-void fw_card_put(struct fw_card *card);
 
 /*
  * The iso packet format allows for an immediate header/payload part
