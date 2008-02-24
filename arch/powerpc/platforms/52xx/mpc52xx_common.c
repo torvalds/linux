@@ -199,6 +199,7 @@ int mpc52xx_set_psc_clkdiv(int psc_id, int clkdiv)
 
 	return 0;
 }
+EXPORT_SYMBOL(mpc52xx_set_psc_clkdiv);
 
 /**
  * mpc52xx_restart: ppc_md->restart hook for mpc5200 using the watchdog timer
