@@ -1180,9 +1180,19 @@ __cpuinit int apic_is_clustered_box(void)
 {
 	int i, clusters, zeros;
 	unsigned id;
-	u16 *bios_cpu_apicid = x86_bios_cpu_apicid_early_ptr;
+	u16 *bios_cpu_apicid;
 	DECLARE_BITMAP(clustermap, NUM_APIC_CLUSTERS);
 
+	/*
+	 * there is not this kind of box with AMD CPU yet.
+	 * Some AMD box with quadcore cpu and 8 sockets apicid
+	 * will be [4, 0x23] or [8, 0x27] could be thought to
+	 * have three apic_clusters. So go out early.
+	 */
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
+		return 0;
+
+	bios_cpu_apicid = x86_bios_cpu_apicid_early_ptr;
 	bitmap_zero(clustermap, NUM_APIC_CLUSTERS);
 
 	for (i = 0; i < NR_CPUS; i++) {
