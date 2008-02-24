@@ -203,6 +203,7 @@ void __init paging_init(void)
 
 	free_area_init_nodes(max_zone_pfns);
 
+#ifdef CONFIG_SUPERH32
 	/* Set up the uncached fixmap */
 	set_fixmap_nocache(FIX_UNCACHED, __pa(&__uncached_start));
 
@@ -213,6 +214,7 @@ void __init paging_init(void)
 	 * 512MB lowmem.
 	 */
 	cached_to_uncached = P2SEG - P1SEG;
+#endif
 #endif
 }
 

@@ -48,12 +48,15 @@ void cpa_init(void);
 
 #ifdef CONFIG_DEBUG_RODATA
 void mark_rodata_ro(void);
+extern const int rodata_test_data;
 #endif
+
 #ifdef CONFIG_DEBUG_RODATA_TEST
-void rodata_test(void);
+int rodata_test(void);
 #else
-static inline void rodata_test(void)
+static inline int rodata_test(void)
 {
+	return 0;
 }
 #endif
 

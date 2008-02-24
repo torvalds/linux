@@ -124,7 +124,7 @@ enum dm_raid1_error {
 struct mirror {
 	struct mirror_set *ms;
 	atomic_t error_count;
-	uint32_t error_type;
+	unsigned long error_type;
 	struct dm_dev *dev;
 	sector_t offset;
 };
@@ -1695,14 +1695,15 @@ static int mirror_end_io(struct dm_target *ti, struct bio *bio,
 			 * information for a retry or there was no other
 			 * mirror in-sync.
 			 */
-			DMERR_LIMIT("Mirror read failed from %s.",
-				    m->dev->name);
+			DMERR_LIMIT("Mirror read failed.");
 			return -EIO;
 		}
+
+		m = read_record->m;
+
 		DMERR("Mirror read failed from %s. Trying alternative device.",
 		      m->dev->name);
 
-		m = read_record->m;
 		fail_mirror(m, DM_RAID1_READ_ERROR);
 
 		/*

@@ -248,9 +248,6 @@ asmlinkage void do_softirq(void)
 
 void __init init_IRQ(void)
 {
-#ifdef CONFIG_CPU_HAS_PINT_IRQ
-	init_IRQ_pint();
-#endif
 	plat_irq_setup();
 
 	/* Perform the machine specific initialisation */

@@ -35,10 +35,10 @@ endif
 
 BOOTCFLAGS	+= -I$(obj) -I$(srctree)/$(obj) -I$(srctree)/$(src)/libfdt
 
-$(obj)/4xx.o: BOOTCFLAGS += -mcpu=440
-$(obj)/ebony.o: BOOTCFLAGS += -mcpu=440
-$(obj)/cuboot-taishan.o: BOOTCFLAGS += -mcpu=440
-$(obj)/cuboot-katmai.o: BOOTCFLAGS += -mcpu=440
+$(obj)/4xx.o: BOOTCFLAGS += -mcpu=405
+$(obj)/ebony.o: BOOTCFLAGS += -mcpu=405
+$(obj)/cuboot-taishan.o: BOOTCFLAGS += -mcpu=405
+$(obj)/cuboot-katmai.o: BOOTCFLAGS += -mcpu=405
 $(obj)/treeboot-walnut.o: BOOTCFLAGS += -mcpu=405
 
 
@@ -146,6 +146,8 @@ HOSTCFLAGS += -I$(src)/dtc-src/ -I$(src)/libfdt/
 
 targets += dtc-src/dtc-parser.tab.c
 targets += dtc-src/dtc-lexer.lex.c
+
+clean-files += dtc-src/dtc-parser.tab.h
 
 ifdef DTC_GENPARSER
 BISON = bison

@@ -17,7 +17,7 @@ struct sys_timer;
 struct machine_desc {
 	/*
 	 * Note! The first four elements are used
-	 * by assembler code in head-armv.S
+	 * by assembler code in head.S, head-common.S
 	 */
 	unsigned int		nr;		/* architecture number	*/
 	unsigned int		phys_io;	/* start of physical io	*/

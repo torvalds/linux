@@ -116,6 +116,7 @@ machdir-$(CONFIG_SH_RTS7751R2D)			+= renesas/rts7751r2d
 machdir-$(CONFIG_SH_7751_SYSTEMH)		+= renesas/systemh
 machdir-$(CONFIG_SH_EDOSK7705)			+= renesas/edosk7705
 machdir-$(CONFIG_SH_HIGHLANDER)			+= renesas/r7780rp
+machdir-$(CONFIG_SH_MIGOR)			+= renesas/migor
 machdir-$(CONFIG_SH_SDK7780)			+= renesas/sdk7780
 machdir-$(CONFIG_SH_7710VOIPGW)			+= renesas/sh7710voipgw
 machdir-$(CONFIG_SH_X3PROTO)			+= renesas/x3proto

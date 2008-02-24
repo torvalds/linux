@@ -164,7 +164,6 @@ struct scsi_tape {
 	int nbr_requests;
 	int nbr_dio;
 	int nbr_pages;
-	int nbr_combinable;
 	unsigned char last_cmnd[6];
 	unsigned char last_sense[16];
 #endif

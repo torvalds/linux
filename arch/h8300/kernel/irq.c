@@ -26,7 +26,7 @@
 
 extern unsigned long *interrupt_redirect_table;
 extern const int h8300_saved_vectors[];
-extern const unsigned long h8300_trap_table[];
+extern const h8300_vector h8300_trap_table[];
 int h8300_enable_irq_pin(unsigned int irq);
 void h8300_disable_irq_pin(unsigned int irq);
 
@@ -116,7 +116,7 @@ static void __init setup_vector(void)
 {
 	int i;
 	unsigned long *ramvec,*ramvec_p;
-	const unsigned long *trap_entry;
+	const h8300_vector *trap_entry;
 	const int *saved_vector;
 
 	ramvec = get_vector_address();

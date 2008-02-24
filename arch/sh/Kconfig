@@ -93,6 +93,9 @@ config ARCH_NO_VIRT_TO_BUS
 config ARCH_SUPPORTS_AOUT
 	def_bool y
 
+config IO_TRAPPED
+	bool
+
 source "init/Kconfig"
 
 menu "System type"
@@ -312,6 +315,13 @@ config CPU_SUBTYPE_SH7722
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_NUMA
 
+config CPU_SUBTYPE_SH7366
+	bool "Support SH7366 processor"
+	select CPU_SH4AL_DSP
+	select CPU_SHX2
+	select ARCH_SPARSEMEM_ENABLE
+	select SYS_SUPPORTS_NUMA
+
 # SH-5 Processor Support
 
 config CPU_SUBTYPE_SH5_101
@@ -456,6 +466,7 @@ config SH_RTS7751R2D
 	bool "RTS7751R2D"
 	depends on CPU_SUBTYPE_SH7751R
 	select SYS_SUPPORTS_PCI
+	select IO_TRAPPED
 	help
 	  Select RTS7751R2D if configuring for a Renesas Technology
 	  Sales SH-Graphics board.
@@ -472,6 +483,14 @@ config SH_HIGHLANDER
 	bool "Highlander"
 	depends on CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785
 	select SYS_SUPPORTS_PCI
+	select IO_TRAPPED
+
+config SH_MIGOR
+	bool "Migo-R"
+	depends on CPU_SUBTYPE_SH7722
+	help
+	  Select Migo-R if configuring for the SH7722 Migo-R platform
+          by Renesas System Solutions Asia Pte. Ltd.
 
 config SH_EDOSK7705
 	bool "EDOSK7705"

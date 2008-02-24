@@ -103,10 +103,6 @@ struct thread_struct {
 	unsigned long dbreaka[XCHAL_NUM_DBREAK];
 	unsigned long dbreakc[XCHAL_NUM_DBREAK];
 
-	/* Allocate storage for extra state and coprocessor state. */
-	unsigned char cp_save[XTENSA_CP_EXTRA_SIZE]
-		__attribute__ ((aligned(XTENSA_CP_EXTRA_ALIGN)));
-
 	/* Make structure 16 bytes aligned. */
 	int align[0] __attribute__ ((aligned(16)));
 };
@@ -162,21 +158,16 @@ struct thread_struct {
 struct task_struct;
 struct mm_struct;
 
-// FIXME: do we need release_thread for CP??
 /* Free all resources held by a thread. */
 #define release_thread(thread) do { } while(0)
 
-// FIXME: do we need prepare_to_copy (lazy status) for CP??
 /* Prepare to copy thread state - unlazy all lazy status */
-#define prepare_to_copy(tsk)	do { } while (0)
+extern void prepare_to_copy(struct task_struct*);
 
-/*
- * create a kernel thread without removing it from tasklists
- */
+/* Create a kernel thread without removing it from tasklists */
 extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
 
 /* Copy and release all segment info associated with a VM */
-
 #define copy_segments(p, mm)	do { } while(0)
 #define release_segments(mm)	do { } while(0)
 #define forget_segments()	do { } while (0)

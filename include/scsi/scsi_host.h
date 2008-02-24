@@ -6,6 +6,7 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
+#include <scsi/scsi.h>
 
 struct request_queue;
 struct block_device;
@@ -25,12 +26,15 @@ struct blk_queue_tags;
  * NONE: Self evident.	Host adapter is not capable of scatter-gather.
  * ALL:	 Means that the host adapter module can do scatter-gather,
  *	 and that there is no limit to the size of the table to which
- *	 we scatter/gather data.
+ *	 we scatter/gather data.  The value we set here is the maximum
+ *	 single element sglist.  To use chained sglists, the adapter
+ *	 has to set a value beyond ALL (and correctly use the chain
+ *	 handling API.
  * Anything else:  Indicates the maximum number of chains that can be
  *	 used in one scatter-gather request.
  */
 #define SG_NONE 0
-#define SG_ALL 0xff
+#define SG_ALL	SCSI_MAX_SG_SEGMENTS
 
 #define MODE_UNKNOWN 0x00
 #define MODE_INITIATOR 0x01

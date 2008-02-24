@@ -90,7 +90,7 @@
 #define __NR_sigpending		 73
 #define __NR_sethostname	 74
 #define __NR_setrlimit		 75
-#define __NR_getrlimit	 	 76	/* Back compatible 2Gig limited rlimit */
+#define __NR_getrlimit		 76	/* Back compatible 2Gig limited rlimit */
 #define __NR_getrusage		 77
 #define __NR_gettimeofday	 78
 #define __NR_settimeofday	 79
@@ -370,9 +370,11 @@
 #define __NR_epoll_pwait	347
 #define __NR_utimensat		348
 #define __NR_signalfd		349
-/* #define __NR_timerfd		350 removed */
+#define __NR_timerfd_create	350
 #define __NR_eventfd		351
 #define __NR_fallocate		352
+#define __NR_timerfd_settime	353
+#define __NR_timerfd_gettime	354
 
 #ifdef __KERNEL__
 

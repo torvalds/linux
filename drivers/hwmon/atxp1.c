@@ -42,7 +42,7 @@ MODULE_AUTHOR("Sebastian Witt <se.witt@gmx.net>");
 #define ATXP1_VIDMASK	0x1f
 #define ATXP1_GPIO1MASK	0x0f
 
-static unsigned short normal_i2c[] = { 0x37, 0x4e, I2C_CLIENT_END };
+static const unsigned short normal_i2c[] = { 0x37, 0x4e, I2C_CLIENT_END };
 
 I2C_CLIENT_INSMOD_1(atxp1);
 

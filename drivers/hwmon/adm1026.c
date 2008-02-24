@@ -35,7 +35,7 @@
 #include <linux/mutex.h>
 
 /* Addresses to scan */
-static unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
+static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
 /* Insmod parameters */
 I2C_CLIENT_INSMOD_1(adm1026);
@@ -1624,6 +1624,7 @@ static struct attribute *adm1026_attributes_temp3[] = {
 	&dev_attr_temp3_crit_enable.attr,
 	&dev_attr_temp3_auto_point1_pwm.attr,
 	&dev_attr_temp3_auto_point2_pwm.attr,
+	NULL
 };
 
 static const struct attribute_group adm1026_group_temp3 = {
@@ -1639,6 +1640,7 @@ static struct attribute *adm1026_attributes_in8_9[] = {
 	&sensor_dev_attr_in9_max.dev_attr.attr,
 	&sensor_dev_attr_in9_min.dev_attr.attr,
 	&sensor_dev_attr_in9_alarm.dev_attr.attr,
+	NULL
 };
 
 static const struct attribute_group adm1026_group_in8_9 = {

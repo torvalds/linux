@@ -24,14 +24,15 @@
 const unsigned long hugetlb_zero = 0, hugetlb_infinity = ~0UL;
 static unsigned long nr_huge_pages, free_huge_pages, resv_huge_pages;
 static unsigned long surplus_huge_pages;
+static unsigned long nr_overcommit_huge_pages;
 unsigned long max_huge_pages;
+unsigned long sysctl_overcommit_huge_pages;
 static struct list_head hugepage_freelists[MAX_NUMNODES];
 static unsigned int nr_huge_pages_node[MAX_NUMNODES];
 static unsigned int free_huge_pages_node[MAX_NUMNODES];
 static unsigned int surplus_huge_pages_node[MAX_NUMNODES];
 static gfp_t htlb_alloc_mask = GFP_HIGHUSER;
 unsigned long hugepages_treat_as_movable;
-unsigned long nr_overcommit_huge_pages;
 static int hugetlb_next_nid;
 
 /*
@@ -119,6 +120,7 @@ static void free_huge_page(struct page *page)
 	struct address_space *mapping;
 
 	mapping = (struct address_space *) page_private(page);
+	set_page_private(page, 0);
 	BUG_ON(page_count(page));
 	INIT_LIST_HEAD(&page->lru);
 
@@ -133,7 +135,6 @@ static void free_huge_page(struct page *page)
 	spin_unlock(&hugetlb_lock);
 	if (mapping)
 		hugetlb_put_quota(mapping, 1);
-	set_page_private(page, 0);
 }
 
 /*
@@ -609,8 +610,9 @@ int hugetlb_overcommit_handler(struct ctl_table *table, int write,
 			struct file *file, void __user *buffer,
 			size_t *length, loff_t *ppos)
 {
-	spin_lock(&hugetlb_lock);
 	proc_doulongvec_minmax(table, write, file, buffer, length, ppos);
+	spin_lock(&hugetlb_lock);
+	nr_overcommit_huge_pages = sysctl_overcommit_huge_pages;
 	spin_unlock(&hugetlb_lock);
 	return 0;
 }

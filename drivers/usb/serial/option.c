@@ -113,6 +113,9 @@ static int  option_send_setup(struct usb_serial_port *port);
 #define NOVATELWIRELESS_VENDOR_ID		0x1410
 #define DELL_VENDOR_ID				0x413C
 
+#define KYOCERA_VENDOR_ID			0x0c88
+#define KYOCERA_PRODUCT_KPC680			0x180a
+
 #define ANYDATA_VENDOR_ID			0x16d5
 #define ANYDATA_PRODUCT_ADU_E100A		0x6501
 #define ANYDATA_PRODUCT_ADU_500A		0x6502
@@ -120,6 +123,8 @@ static int  option_send_setup(struct usb_serial_port *port);
 #define BANDRICH_VENDOR_ID			0x1A8D
 #define BANDRICH_PRODUCT_C100_1			0x1002
 #define BANDRICH_PRODUCT_C100_2			0x1003
+
+#define QUALCOMM_VENDOR_ID			0x05C6
 
 static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_COLT) },
@@ -174,18 +179,23 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID, 0x2410) }, /* Novatel EU740 */
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID, 0x4100) }, /* Novatel U727 */
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID, 0x4400) }, /* Novatel MC950 */
+	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID, 0x5010) }, /* Novatel U727 */
 	{ USB_DEVICE(DELL_VENDOR_ID, 0x8114) },	/* Dell Wireless 5700 Mobile Broadband CDMA/EVDO Mini-Card == Novatel Expedite EV620 CDMA/EV-DO */
 	{ USB_DEVICE(DELL_VENDOR_ID, 0x8115) },	/* Dell Wireless 5500 Mobile Broadband HSDPA Mini-Card == Novatel Expedite EU740 HSDPA/3G */
 	{ USB_DEVICE(DELL_VENDOR_ID, 0x8116) },	/* Dell Wireless 5505 Mobile Broadband HSDPA Mini-Card == Novatel Expedite EU740 HSDPA/3G */
 	{ USB_DEVICE(DELL_VENDOR_ID, 0x8117) },	/* Dell Wireless 5700 Mobile Broadband CDMA/EVDO ExpressCard == Novatel Merlin XV620 CDMA/EV-DO */
 	{ USB_DEVICE(DELL_VENDOR_ID, 0x8118) },	/* Dell Wireless 5510 Mobile Broadband HSDPA ExpressCard == Novatel Merlin XU870 HSDPA/3G */
 	{ USB_DEVICE(DELL_VENDOR_ID, 0x8128) },	/* Dell Wireless 5700 Mobile Broadband CDMA/EVDO Mini-Card == Novatel Expedite E720 CDMA/EV-DO */
+	{ USB_DEVICE(DELL_VENDOR_ID, 0x8129) },	/* Dell Wireless 5700 Mobile Broadband CDMA/EVDO Mini-Card == Novatel Expedite ET620 CDMA/EV-DO */
+	{ USB_DEVICE(DELL_VENDOR_ID, 0x8133) }, /* Dell Wireless 5720 == Novatel EV620 CDMA/EV-DO */
 	{ USB_DEVICE(DELL_VENDOR_ID, 0x8136) },	/* Dell Wireless HSDPA 5520 == Novatel Expedite EU860D */
 	{ USB_DEVICE(DELL_VENDOR_ID, 0x8137) },	/* Dell Wireless HSDPA 5520 */
 	{ USB_DEVICE(ANYDATA_VENDOR_ID, ANYDATA_PRODUCT_ADU_E100A) },
 	{ USB_DEVICE(ANYDATA_VENDOR_ID, ANYDATA_PRODUCT_ADU_500A) },
 	{ USB_DEVICE(BANDRICH_VENDOR_ID, BANDRICH_PRODUCT_C100_1) },
 	{ USB_DEVICE(BANDRICH_VENDOR_ID, BANDRICH_PRODUCT_C100_2) },
+	{ USB_DEVICE(KYOCERA_VENDOR_ID, KYOCERA_PRODUCT_KPC680) },
+	{ USB_DEVICE(QUALCOMM_VENDOR_ID, 0x6613)}, /* Onda H600/ZTE MF330 */
 	{ } /* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, option_ids);
@@ -247,10 +257,10 @@ static int debug;
 struct option_port_private {
 	/* Input endpoints and buffer for this port */
 	struct urb *in_urbs[N_IN_URB];
-	char in_buffer[N_IN_URB][IN_BUFLEN];
+	u8 *in_buffer[N_IN_URB];
 	/* Output endpoints and buffer for this port */
 	struct urb *out_urbs[N_OUT_URB];
-	char out_buffer[N_OUT_URB][OUT_BUFLEN];
+	u8 *out_buffer[N_OUT_URB];
 	unsigned long out_busy;		/* Bit vector of URBs in use */
 
 	/* Settings for the port */
@@ -737,9 +747,10 @@ static int option_send_setup(struct usb_serial_port *port)
 
 static int option_startup(struct usb_serial *serial)
 {
-	int i, err;
+	int i, j, err;
 	struct usb_serial_port *port;
 	struct option_port_private *portdata;
+	u8 *buffer;
 
 	dbg("%s", __FUNCTION__);
 
@@ -751,6 +762,20 @@ static int option_startup(struct usb_serial *serial)
 			dbg("%s: kmalloc for option_port_private (%d) failed!.",
 					__FUNCTION__, i);
 			return (1);
+		}
+
+		for (j = 0; j < N_IN_URB; j++) {
+			buffer = (u8 *)__get_free_page(GFP_KERNEL);
+			if (!buffer)
+				goto bail_out_error;
+			portdata->in_buffer[j] = buffer;
+		}
+
+		for (j = 0; j < N_OUT_URB; j++) {
+			buffer = kmalloc(OUT_BUFLEN, GFP_KERNEL);
+			if (!buffer)
+				goto bail_out_error2;
+			portdata->out_buffer[j] = buffer;
 		}
 
 		usb_set_serial_port_data(port, portdata);
@@ -766,6 +791,16 @@ static int option_startup(struct usb_serial *serial)
 	option_setup_urbs(serial);
 
 	return (0);
+
+bail_out_error2:
+	for (j = 0; j < N_OUT_URB; j++)
+		kfree(portdata->out_buffer[j]);
+bail_out_error:
+	for (j = 0; j < N_IN_URB; j++)
+		if (portdata->in_buffer[j])
+			free_page((unsigned long)portdata->in_buffer[j]);
+	kfree(portdata);
+	return 1;
 }
 
 static void option_shutdown(struct usb_serial *serial)
@@ -794,12 +829,14 @@ static void option_shutdown(struct usb_serial *serial)
 		for (j = 0; j < N_IN_URB; j++) {
 			if (portdata->in_urbs[j]) {
 				usb_free_urb(portdata->in_urbs[j]);
+				free_page((unsigned long)portdata->in_buffer[j]);
 				portdata->in_urbs[j] = NULL;
 			}
 		}
 		for (j = 0; j < N_OUT_URB; j++) {
 			if (portdata->out_urbs[j]) {
 				usb_free_urb(portdata->out_urbs[j]);
+				kfree(portdata->out_buffer[j]);
 				portdata->out_urbs[j] = NULL;
 			}
 		}

@@ -32,7 +32,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
-
+#include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/proc_fs.h>
@@ -1215,9 +1215,6 @@ tiqdio_is_inbound_q_done(struct qdio_q *q)
 
 	if (!no_used)
 		return 1;
-	if (!q->siga_sync && !irq->is_qebsm)
-		/* we'll check for more primed buffers in qeth_stop_polling */
-		return 0;
 	if (irq->is_qebsm) {
 		count = 1;
 		start_buf = q->first_to_check;
@@ -3332,13 +3329,7 @@ qdio_activate(struct ccw_device *cdev, int flags)
 		}
 	}
 
-	wait_event_interruptible_timeout(cdev->private->wait_q,
-					 ((irq_ptr->state ==
-					  QDIO_IRQ_STATE_STOPPED) ||
-					  (irq_ptr->state ==
-					   QDIO_IRQ_STATE_ERR)),
-					 QDIO_ACTIVATE_TIMEOUT);
-
+	msleep(QDIO_ACTIVATE_TIMEOUT);
 	switch (irq_ptr->state) {
 	case QDIO_IRQ_STATE_STOPPED:
 	case QDIO_IRQ_STATE_ERR:

@@ -511,12 +511,12 @@ xfs_da_node_rebalance(xfs_da_state_t *state, xfs_da_state_blk_t *blk1,
 		 * Move the req'd B-tree elements from high in node1 to
 		 * low in node2.
 		 */
-		be16_add(&node2->hdr.count, count);
+		be16_add_cpu(&node2->hdr.count, count);
 		tmp = count * (uint)sizeof(xfs_da_node_entry_t);
 		btree_s = &node1->btree[be16_to_cpu(node1->hdr.count) - count];
 		btree_d = &node2->btree[0];
 		memcpy(btree_d, btree_s, tmp);
-		be16_add(&node1->hdr.count, -count);
+		be16_add_cpu(&node1->hdr.count, -count);
 	} else {
 		/*
 		 * Move the req'd B-tree elements from low in node2 to
@@ -527,7 +527,7 @@ xfs_da_node_rebalance(xfs_da_state_t *state, xfs_da_state_blk_t *blk1,
 		btree_s = &node2->btree[0];
 		btree_d = &node1->btree[be16_to_cpu(node1->hdr.count)];
 		memcpy(btree_d, btree_s, tmp);
-		be16_add(&node1->hdr.count, count);
+		be16_add_cpu(&node1->hdr.count, count);
 		xfs_da_log_buf(tp, blk1->bp,
 			XFS_DA_LOGRANGE(node1, btree_d, tmp));
 
@@ -539,7 +539,7 @@ xfs_da_node_rebalance(xfs_da_state_t *state, xfs_da_state_blk_t *blk1,
 		btree_s = &node2->btree[count];
 		btree_d = &node2->btree[0];
 		memmove(btree_d, btree_s, tmp);
-		be16_add(&node2->hdr.count, -count);
+		be16_add_cpu(&node2->hdr.count, -count);
 	}
 
 	/*
@@ -604,7 +604,7 @@ xfs_da_node_add(xfs_da_state_t *state, xfs_da_state_blk_t *oldblk,
 	btree->before = cpu_to_be32(newblk->blkno);
 	xfs_da_log_buf(state->args->trans, oldblk->bp,
 		XFS_DA_LOGRANGE(node, btree, tmp + sizeof(*btree)));
-	be16_add(&node->hdr.count, 1);
+	be16_add_cpu(&node->hdr.count, 1);
 	xfs_da_log_buf(state->args->trans, oldblk->bp,
 		XFS_DA_LOGRANGE(node, &node->hdr, sizeof(node->hdr)));
 
@@ -959,7 +959,7 @@ xfs_da_node_remove(xfs_da_state_t *state, xfs_da_state_blk_t *drop_blk)
 	memset((char *)btree, 0, sizeof(xfs_da_node_entry_t));
 	xfs_da_log_buf(state->args->trans, drop_blk->bp,
 	    XFS_DA_LOGRANGE(node, btree, sizeof(*btree)));
-	be16_add(&node->hdr.count, -1);
+	be16_add_cpu(&node->hdr.count, -1);
 	xfs_da_log_buf(state->args->trans, drop_blk->bp,
 	    XFS_DA_LOGRANGE(node, &node->hdr, sizeof(node->hdr)));
 
@@ -1018,7 +1018,7 @@ xfs_da_node_unbalance(xfs_da_state_t *state, xfs_da_state_blk_t *drop_blk,
 	 */
 	tmp = be16_to_cpu(drop_node->hdr.count) * (uint)sizeof(xfs_da_node_entry_t);
 	memcpy(btree, &drop_node->btree[0], tmp);
-	be16_add(&save_node->hdr.count, be16_to_cpu(drop_node->hdr.count));
+	be16_add_cpu(&save_node->hdr.count, be16_to_cpu(drop_node->hdr.count));
 
 	xfs_da_log_buf(tp, save_blk->bp,
 		XFS_DA_LOGRANGE(save_node, &save_node->hdr,

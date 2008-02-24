@@ -72,7 +72,8 @@ u32 em28xx_request_buffers(struct em28xx *dev, u32 count)
 	const size_t imagesize = PAGE_ALIGN(dev->frame_size);	/*needs to be page aligned cause the buffers can be mapped individually! */
 	void *buff = NULL;
 	u32 i;
-	em28xx_coredbg("requested %i buffers with size %zi", count, imagesize);
+	em28xx_coredbg("requested %i buffers with size %zi\n",
+			count, imagesize);
 	if (count > EM28XX_NUM_FRAMES)
 		count = EM28XX_NUM_FRAMES;
 
@@ -150,7 +151,7 @@ int em28xx_read_reg_req_len(struct em28xx *dev, u8 req, u16 reg,
 	if (reg_debug){
 		printk(ret < 0 ? " failed!\n" : "%02x values: ", ret);
 		for (byte = 0; byte < len; byte++) {
-			printk(" %02x", buf[byte]);
+			printk(" %02x", (unsigned char)buf[byte]);
 		}
 		printk("\n");
 	}
@@ -177,7 +178,8 @@ int em28xx_read_reg_req(struct em28xx *dev, u8 req, u16 reg)
 			      0x0000, reg, &val, 1, HZ);
 
 	if (reg_debug)
-		printk(ret < 0 ? " failed!\n" : "%02x\n", val);
+		printk(ret < 0 ? " failed!\n" :
+				 "%02x\n", (unsigned char) val);
 
 	if (ret < 0)
 		return ret;
@@ -237,7 +239,7 @@ int em28xx_write_regs(struct em28xx *dev, u16 reg, char *buf, int len)
  * sets only some bits (specified by bitmask) of a register, by first reading
  * the actual value
  */
-int em28xx_write_reg_bits(struct em28xx *dev, u16 reg, u8 val,
+static int em28xx_write_reg_bits(struct em28xx *dev, u16 reg, u8 val,
 				 u8 bitmask)
 {
 	int oldval;
@@ -254,26 +256,31 @@ int em28xx_write_reg_bits(struct em28xx *dev, u16 reg, u8 val,
  */
 static int em28xx_write_ac97(struct em28xx *dev, u8 reg, u8 *val)
 {
-	int ret;
+	int ret, i;
 	u8 addr = reg & 0x7f;
 	if ((ret = em28xx_write_regs(dev, AC97LSB_REG, val, 2)) < 0)
 		return ret;
 	if ((ret = em28xx_write_regs(dev, AC97ADDR_REG, &addr, 1)) < 0)
 		return ret;
-	if ((ret = em28xx_read_reg(dev, AC97BUSY_REG)) < 0)
-		return ret;
-	else if (((u8) ret) & 0x01) {
-		em28xx_warn ("AC97 command still being executed: not handled properly!\n");
+
+	/* Wait up to 50 ms for AC97 command to complete */
+	for (i = 0; i < 10; i++) {
+		if ((ret = em28xx_read_reg(dev, AC97BUSY_REG)) < 0)
+			return ret;
+		if (!((u8) ret) & 0x01)
+			return 0;
+		msleep(5);
 	}
+	em28xx_warn ("AC97 command still being executed: not handled properly!\n");
 	return 0;
 }
 
-int em28xx_set_audio_source(struct em28xx *dev)
+static int em28xx_set_audio_source(struct em28xx *dev)
 {
 	static char *enable  = "\x08\x08";
 	static char *disable = "\x08\x88";
 	char *video = enable, *line = disable;
-	int ret, no_ac97;
+	int ret;
 	u8 input;
 
 	if (dev->is_em2800) {
@@ -293,11 +300,9 @@ int em28xx_set_audio_source(struct em28xx *dev)
 		switch (dev->ctl_ainput) {
 		case EM28XX_AMUX_VIDEO:
 			input = EM28XX_AUDIO_SRC_TUNER;
-			no_ac97 = 1;
 			break;
 		case EM28XX_AMUX_LINE_IN:
 			input = EM28XX_AUDIO_SRC_LINE;
-			no_ac97 = 1;
 			break;
 		case EM28XX_AMUX_AC97_VIDEO:
 			input = EM28XX_AUDIO_SRC_LINE;
@@ -313,12 +318,11 @@ int em28xx_set_audio_source(struct em28xx *dev)
 	ret = em28xx_write_reg_bits(dev, AUDIOSRC_REG, input, 0xc0);
 	if (ret < 0)
 		return ret;
+	msleep(5);
 
-	if (no_ac97)
-		return 0;
-
-	/* Sets AC97 mixer registers */
-
+	/* Sets AC97 mixer registers
+	   This is seems to be needed, even for non-ac97 configs
+	 */
 	ret = em28xx_write_ac97(dev, VIDEO_AC97, video);
 	if (ret < 0)
 		return ret;
@@ -337,9 +341,10 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 	s[0] |= 0x1f - dev->volume;
 	s[1] |= 0x1f - dev->volume;
 
-	if (dev->mute)
-		s[1] |= 0x80;
+	/* Mute */
+	s[1] |= 0x80;
 	ret = em28xx_write_ac97(dev, MASTER_AC97, s);
+
 	if (ret < 0)
 		return ret;
 
@@ -356,6 +361,11 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 
 	/* Selects the proper audio input */
 	ret = em28xx_set_audio_source(dev);
+
+	/* Unmute device */
+	if (!dev->mute)
+		s[1] &= ~0x80;
+	ret = em28xx_write_ac97(dev, MASTER_AC97, s);
 
 	return ret;
 }
@@ -667,7 +677,7 @@ static void em28xx_isocIrq(struct urb *urb)
 				continue;
 			}
 			if (urb->iso_frame_desc[i].actual_length >
-						 dev->max_pkt_size) {
+			    urb->iso_frame_desc[i].length) {
 				em28xx_isocdbg("packet bigger than packet size");
 				continue;
 			}
@@ -713,8 +723,11 @@ void em28xx_uninit_isoc(struct em28xx *dev)
 	for (i = 0; i < EM28XX_NUM_BUFS; i++) {
 		if (dev->urb[i]) {
 			usb_kill_urb(dev->urb[i]);
-			if (dev->transfer_buffer[i]){
-				usb_buffer_free(dev->udev,(EM28XX_NUM_PACKETS*dev->max_pkt_size),dev->transfer_buffer[i],dev->urb[i]->transfer_dma);
+			if (dev->transfer_buffer[i]) {
+				usb_buffer_free(dev->udev,
+						dev->urb[i]->transfer_buffer_length,
+						dev->transfer_buffer[i],
+						dev->urb[i]->transfer_dma);
 			}
 			usb_free_urb(dev->urb[i]);
 		}
@@ -732,7 +745,10 @@ int em28xx_init_isoc(struct em28xx *dev)
 {
 	/* change interface to 3 which allows the biggest packet sizes */
 	int i, errCode;
-	const int sb_size = EM28XX_NUM_PACKETS * dev->max_pkt_size;
+	int sb_size;
+
+	em28xx_set_alternate(dev);
+	sb_size = EM28XX_NUM_PACKETS * dev->max_pkt_size;
 
 	/* reset streaming vars */
 	dev->frame_current = NULL;
@@ -741,7 +757,7 @@ int em28xx_init_isoc(struct em28xx *dev)
 	/* allocate urbs */
 	for (i = 0; i < EM28XX_NUM_BUFS; i++) {
 		struct urb *urb;
-		int j, k;
+		int j;
 		/* allocate transfer buffer */
 		urb = usb_alloc_urb(EM28XX_NUM_PACKETS, GFP_KERNEL);
 		if (!urb){
@@ -749,7 +765,9 @@ int em28xx_init_isoc(struct em28xx *dev)
 			em28xx_uninit_isoc(dev);
 			return -ENOMEM;
 		}
-		dev->transfer_buffer[i] = usb_buffer_alloc(dev->udev, sb_size, GFP_KERNEL,&urb->transfer_dma);
+		dev->transfer_buffer[i] = usb_buffer_alloc(dev->udev, sb_size,
+							   GFP_KERNEL,
+							   &urb->transfer_dma);
 		if (!dev->transfer_buffer[i]) {
 			em28xx_errdev
 					("unable to allocate %i bytes for transfer buffer %i\n",
@@ -762,22 +780,22 @@ int em28xx_init_isoc(struct em28xx *dev)
 		urb->dev = dev->udev;
 		urb->context = dev;
 		urb->pipe = usb_rcvisocpipe(dev->udev, 0x82);
-		urb->transfer_flags = URB_ISO_ASAP;
+		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
 		urb->interval = 1;
 		urb->transfer_buffer = dev->transfer_buffer[i];
 		urb->complete = em28xx_isocIrq;
 		urb->number_of_packets = EM28XX_NUM_PACKETS;
 		urb->transfer_buffer_length = sb_size;
-		for (j = k = 0; j < EM28XX_NUM_PACKETS;
-				j++, k += dev->max_pkt_size) {
-			urb->iso_frame_desc[j].offset = k;
-			urb->iso_frame_desc[j].length =
-				dev->max_pkt_size;
+		for (j = 0; j < EM28XX_NUM_PACKETS; j++) {
+			urb->iso_frame_desc[j].offset = j * dev->max_pkt_size;
+			urb->iso_frame_desc[j].length = dev->max_pkt_size;
 		}
 		dev->urb[i] = urb;
 	}
 
 	/* submit urbs */
+	em28xx_coredbg("Submitting %d urbs of %d packets (%d each)\n",
+		       EM28XX_NUM_BUFS, EM28XX_NUM_PACKETS, dev->max_pkt_size);
 	for (i = 0; i < EM28XX_NUM_BUFS; i++) {
 		errCode = usb_submit_urb(dev->urb[i], GFP_KERNEL);
 		if (errCode) {
@@ -794,22 +812,31 @@ int em28xx_init_isoc(struct em28xx *dev)
 int em28xx_set_alternate(struct em28xx *dev)
 {
 	int errCode, prev_alt = dev->alt;
-	dev->alt = alt;
-	if (dev->alt == 0) {
-		int i;
-		for(i=0;i< dev->num_alt; i++)
-			if(dev->alt_max_pkt_size[i]>dev->alt_max_pkt_size[dev->alt])
-				dev->alt=i;
-	}
+	int i;
+	unsigned int min_pkt_size = dev->bytesperline+4;
+
+	/* When image size is bigger than a ceirtain value,
+	   the frame size should be increased, otherwise, only
+	   green screen will be received.
+	 */
+	if (dev->frame_size > 720*240*2)
+		min_pkt_size *= 2;
+
+	for (i = 0; i < dev->num_alt; i++)
+		if (dev->alt_max_pkt_size[i] >= min_pkt_size)
+			break;
+	dev->alt = i;
 
 	if (dev->alt != prev_alt) {
+		em28xx_coredbg("minimum isoc packet size: %u (alt=%d)\n",
+				min_pkt_size, dev->alt);
 		dev->max_pkt_size = dev->alt_max_pkt_size[dev->alt];
-		em28xx_coredbg("setting alternate %d with wMaxPacketSize=%u\n", dev->alt,
-		       dev->max_pkt_size);
+		em28xx_coredbg("setting alternate %d with wMaxPacketSize=%u\n",
+			       dev->alt, dev->max_pkt_size);
 		errCode = usb_set_interface(dev->udev, 0, dev->alt);
 		if (errCode < 0) {
 			em28xx_errdev ("cannot change alternate number to %d (error=%i)\n",
-							dev->alt, errCode);
+					dev->alt, errCode);
 			return errCode;
 		}
 	}

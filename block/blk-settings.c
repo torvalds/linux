@@ -296,6 +296,7 @@ EXPORT_SYMBOL(blk_queue_stack_limits);
  * blk_queue_dma_drain - Set up a drain buffer for excess dma.
  *
  * @q:  the request queue for the device
+ * @dma_drain_needed: fn which returns non-zero if drain is necessary
  * @buf:	physically contiguous buffer
  * @size:	size of the buffer in bytes
  *
@@ -315,14 +316,16 @@ EXPORT_SYMBOL(blk_queue_stack_limits);
  * device can support otherwise there won't be room for the drain
  * buffer.
  */
-int blk_queue_dma_drain(struct request_queue *q, void *buf,
-				unsigned int size)
+extern int blk_queue_dma_drain(struct request_queue *q,
+			       dma_drain_needed_fn *dma_drain_needed,
+			       void *buf, unsigned int size)
 {
 	if (q->max_hw_segments < 2 || q->max_phys_segments < 2)
 		return -EINVAL;
 	/* make room for appending the drain */
 	--q->max_hw_segments;
 	--q->max_phys_segments;
+	q->dma_drain_needed = dma_drain_needed;
 	q->dma_drain_buffer = buf;
 	q->dma_drain_size = size;
 
@@ -386,7 +389,7 @@ void blk_queue_update_dma_alignment(struct request_queue *q, int mask)
 }
 EXPORT_SYMBOL(blk_queue_update_dma_alignment);
 
-int __init blk_settings_init(void)
+static int __init blk_settings_init(void)
 {
 	blk_max_low_pfn = max_low_pfn - 1;
 	blk_max_pfn = max_pfn - 1;

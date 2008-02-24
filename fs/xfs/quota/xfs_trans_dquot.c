@@ -421,13 +421,13 @@ xfs_trans_apply_dquot_deltas(
 				       (xfs_qcnt_t) -qtrx->qt_icount_delta);
 #endif
 			if (totalbdelta)
-				be64_add(&d->d_bcount, (xfs_qcnt_t)totalbdelta);
+				be64_add_cpu(&d->d_bcount, (xfs_qcnt_t)totalbdelta);
 
 			if (qtrx->qt_icount_delta)
-				be64_add(&d->d_icount, (xfs_qcnt_t)qtrx->qt_icount_delta);
+				be64_add_cpu(&d->d_icount, (xfs_qcnt_t)qtrx->qt_icount_delta);
 
 			if (totalrtbdelta)
-				be64_add(&d->d_rtbcount, (xfs_qcnt_t)totalrtbdelta);
+				be64_add_cpu(&d->d_rtbcount, (xfs_qcnt_t)totalrtbdelta);
 
 			/*
 			 * Get any default limits in use.

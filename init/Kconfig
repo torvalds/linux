@@ -311,25 +311,36 @@ config CPUSETS
 
 	  Say N if unsure.
 
-config FAIR_GROUP_SCHED
-	bool "Fair group CPU scheduler"
+config GROUP_SCHED
+	bool "Group CPU scheduler"
 	default y
 	help
 	  This feature lets CPU scheduler recognize task groups and control CPU
 	  bandwidth allocation to such task groups.
 
-choice
-	depends on FAIR_GROUP_SCHED
-	prompt "Basis for grouping tasks"
-	default FAIR_USER_SCHED
+config FAIR_GROUP_SCHED
+	bool "Group scheduling for SCHED_OTHER"
+	depends on GROUP_SCHED
+	default y
 
-config FAIR_USER_SCHED
+config RT_GROUP_SCHED
+	bool "Group scheduling for SCHED_RR/FIFO"
+	depends on EXPERIMENTAL
+	depends on GROUP_SCHED
+	default n
+
+choice
+	depends on GROUP_SCHED
+	prompt "Basis for grouping tasks"
+	default USER_SCHED
+
+config USER_SCHED
 	bool "user id"
 	help
 	  This option will choose userid as the basis for grouping
 	  tasks, thus providing equal CPU bandwidth to each user.
 
-config FAIR_CGROUP_SCHED
+config CGROUP_SCHED
 	bool "Control groups"
  	depends on CGROUPS
  	help
@@ -382,6 +393,14 @@ config CGROUP_MEM_CONT
 	help
 	  Provides a memory controller that manages both page cache and
 	  RSS memory.
+
+	  Note that setting this option increases fixed memory overhead
+	  associated with each page of memory in the system by 4/8 bytes
+	  and also increases cache misses because struct page on many 64bit
+	  systems will not fit into a single cache line anymore.
+
+	  Only enable when you're ok with these trade offs and really
+	  sure you need the memory controller.
 
 config PROC_PID_CPUSET
 	bool "Include legacy /proc/<pid>/cpuset file"

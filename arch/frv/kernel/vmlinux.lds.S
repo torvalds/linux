@@ -76,9 +76,6 @@ SECTIONS
 	  *(.data.init_task)
   }
 
-  . = ALIGN(4096);
-  .data.page_aligned : { *(.data.idt) }
-
   . = ALIGN(L1_CACHE_BYTES);
   .data.cacheline_aligned : { *(.data.cacheline_aligned) }
 
@@ -105,11 +102,9 @@ SECTIONS
 	SCHED_TEXT
 	LOCK_TEXT
 #ifdef CONFIG_DEBUG_INFO
-	*(
 	INIT_TEXT
 	EXIT_TEXT
-	.exitcall.exit
-	)
+	*(.exitcall.exit)
 #endif
 	*(.fixup)
 	*(.gnu.warning)

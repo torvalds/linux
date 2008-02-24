@@ -1,7 +1,7 @@
 /*
  * arch/sh/kernel/cpu/sh4a/clock-sh7722.c
  *
- * SH7722 support for the clock framework
+ * SH7722 & SH7366 support for the clock framework
  *
  * Copyright (c) 2006-2007 Nomad Global Solutions Inc
  * Based on code for sh7343 by Paul Mundt
@@ -417,15 +417,19 @@ static int sh7722_siu_which(struct clk *clk)
 		return 0;
 	if (!strcmp(clk->name, "siu_b_clk"))
 		return 1;
+#if defined(CONFIG_CPU_SUBTYPE_SH7722)
 	if (!strcmp(clk->name, "irda_clk"))
 		return 2;
+#endif
 	return -EINVAL;
 }
 
 static unsigned long sh7722_siu_regs[] = {
 	[0] = SCLKACR,
 	[1] = SCLKBCR,
+#if defined(CONFIG_CPU_SUBTYPE_SH7722)
 	[2] = IrDACLKCR,
+#endif
 };
 
 static int sh7722_siu_start_stop(struct clk *clk, int enable)
@@ -571,10 +575,12 @@ static struct clk sh7722_siu_b_clock = {
 	.ops = &sh7722_siu_clk_ops,
 };
 
+#if defined(CONFIG_CPU_SUBTYPE_SH7722)
 static struct clk sh7722_irda_clock = {
 	.name = "irda_clk",
 	.ops = &sh7722_siu_clk_ops,
 };
+#endif
 
 static struct clk sh7722_video_clock = {
 	.name = "video_clk",
@@ -588,7 +594,9 @@ static struct clk *sh7722_clocks[] = {
 	&sh7722_sdram_clock,
 	&sh7722_siu_a_clock,
 	&sh7722_siu_b_clock,
+#if defined(CONFIG_CPU_SUBTYPE_SH7722)
 	&sh7722_irda_clock,
+#endif
 	&sh7722_video_clock,
 };
 

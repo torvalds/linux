@@ -75,7 +75,7 @@ core_initcall(pm_init);
 #else
 static int __init apo_pm_init(void)
 {
-	return (sysfs_create_file(power_kobj, &auto_poweron_attr));
+	return (sysfs_create_file(power_kobj, &auto_poweron_attr.attr));
 }
 __initcall(apo_pm_init);
 #endif

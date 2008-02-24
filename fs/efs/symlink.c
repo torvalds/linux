@@ -7,10 +7,10 @@
  */
 
 #include <linux/string.h>
-#include <linux/efs_fs.h>
 #include <linux/pagemap.h>
 #include <linux/buffer_head.h>
 #include <linux/smp_lock.h>
+#include "efs.h"
 
 static int efs_symlink_readpage(struct file *file, struct page *page)
 {

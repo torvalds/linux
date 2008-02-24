@@ -458,13 +458,19 @@ static void escb_tasklet_complete(struct asd_ascb *ascb,
 		tc_abort = le16_to_cpu(tc_abort);
 
 		list_for_each_entry_safe(a, b, &asd_ha->seq.pend_q, list) {
-			struct sas_task *task = ascb->uldd_task;
+			struct sas_task *task = a->uldd_task;
 
-			if (task && a->tc_index == tc_abort) {
+			if (a->tc_index != tc_abort)
+				continue;
+
+			if (task) {
 				failed_dev = task->dev;
 				sas_task_abort(task);
-				break;
+			} else {
+				ASD_DPRINTK("R_T_A for non TASK scb 0x%x\n",
+					    a->scb->header.opcode);
 			}
+			break;
 		}
 
 		if (!failed_dev) {
@@ -478,7 +484,7 @@ static void escb_tasklet_complete(struct asd_ascb *ascb,
 		 * that the EH will wake up and do something.
 		 */
 		list_for_each_entry_safe(a, b, &asd_ha->seq.pend_q, list) {
-			struct sas_task *task = ascb->uldd_task;
+			struct sas_task *task = a->uldd_task;
 
 			if (task &&
 			    task->dev == failed_dev &&

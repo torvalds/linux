@@ -153,7 +153,7 @@ lockd(struct svc_rqst *rqstp)
 	 */
 	while ((nlmsvc_users || !signalled()) && nlmsvc_pid == current->pid) {
 		long timeout = MAX_SCHEDULE_TIMEOUT;
-		char buf[RPC_MAX_ADDRBUFLEN];
+		RPC_IFDEBUG(char buf[RPC_MAX_ADDRBUFLEN]);
 
 		if (signalled()) {
 			flush_signals(current);

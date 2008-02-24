@@ -393,7 +393,7 @@ static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
 	if (cflag & CRTSCTS) {
 		fcr_val |= SCFCR_MCE;
 	} else {
-#ifdef CONFIG_CPU_SUBTYPE_SH7343
+#if defined(CONFIG_CPU_SUBTYPE_SH7343) || defined(CONFIG_CPU_SUBTYPE_SH7366)
 		/* Nothing */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7763) || \
       defined(CONFIG_CPU_SUBTYPE_SH7780) || \

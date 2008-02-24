@@ -330,11 +330,13 @@
 #define __NR_epoll_pwait	319
 #define __NR_utimensat		320
 #define __NR_signalfd		321
-/* #define __NR_timerfd		322 removed */
+#define __NR_timerfd_create	322
 #define __NR_eventfd		323
 #define __NR_fallocate		324
+#define __NR_timerfd_settime	325
+#define __NR_timerfd_gettime	326
 
-#define NR_syscalls 325
+#define NR_syscalls 327
 
 #ifdef __KERNEL__
 

@@ -1,0 +1,59 @@
+
+
+Real-Time group scheduling.
+
+The problem space:
+
+In order to schedule multiple groups of realtime tasks each group must
+be assigned a fixed portion of the CPU time available. Without a minimum
+guarantee a realtime group can obviously fall short. A fuzzy upper limit
+is of no use since it cannot be relied upon. Which leaves us with just
+the single fixed portion.
+
+CPU time is divided by means of specifying how much time can be spent
+running in a given period. Say a frame fixed realtime renderer must
+deliver 25 frames a second, which yields a period of 0.04s. Now say
+it will also have to play some music and respond to input, leaving it
+with around 80% for the graphics. We can then give this group a runtime
+of 0.8 * 0.04s = 0.032s.
+
+This way the graphics group will have a 0.04s period with a 0.032s runtime
+limit.
+
+Now if the audio thread needs to refill the DMA buffer every 0.005s, but
+needs only about 3% CPU time to do so, it can do with a 0.03 * 0.005s
+= 0.00015s.
+
+
+The Interface:
+
+system wide:
+
+/proc/sys/kernel/sched_rt_period_ms
+/proc/sys/kernel/sched_rt_runtime_us
+
+CONFIG_FAIR_USER_SCHED
+
+/sys/kernel/uids/<uid>/cpu_rt_runtime_us
+
+or
+
+CONFIG_FAIR_CGROUP_SCHED
+
+/cgroup/<cgroup>/cpu.rt_runtime_us
+
+[ time is specified in us because the interface is s32; this gives an
+  operating range of ~35m to 1us ]
+
+The period takes values in [ 1, INT_MAX ], runtime in [ -1, INT_MAX - 1 ].
+
+A runtime of -1 specifies runtime == period, ie. no limit.
+
+New groups get the period from /proc/sys/kernel/sched_rt_period_us and
+a runtime of 0.
+
+Settings are constrained to:
+
+   \Sum_{i} runtime_{i} / global_period <= global_runtime / global_period
+
+in order to keep the configuration schedulable.

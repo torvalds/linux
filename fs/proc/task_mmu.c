@@ -75,7 +75,7 @@ int task_statm(struct mm_struct *mm, int *shared, int *text,
 	return mm->total_vm;
 }
 
-int proc_exe_link(struct inode *inode, struct dentry **dentry, struct vfsmount **mnt)
+int proc_exe_link(struct inode *inode, struct path *path)
 {
 	struct vm_area_struct * vma;
 	int result = -ENOENT;
@@ -98,8 +98,8 @@ int proc_exe_link(struct inode *inode, struct dentry **dentry, struct vfsmount *
 	}
 
 	if (vma) {
-		*mnt = mntget(vma->vm_file->f_path.mnt);
-		*dentry = dget(vma->vm_file->f_path.dentry);
+		*path = vma->vm_file->f_path;
+		path_get(&vma->vm_file->f_path);
 		result = 0;
 	}
 
@@ -271,7 +271,7 @@ static int show_map(struct seq_file *m, void *v)
 	 */
 	if (file) {
 		pad_len_spaces(m, len);
-		seq_path(m, file->f_path.mnt, file->f_path.dentry, "\n");
+		seq_path(m, &file->f_path, "\n");
 	} else {
 		const char *name = arch_vma_name(vma);
 		if (!name) {
@@ -531,7 +531,7 @@ struct pagemapread {
 #define PM_RESERVED_BITS    3
 #define PM_RESERVED_OFFSET  (64 - PM_RESERVED_BITS)
 #define PM_RESERVED_MASK    (((1LL<<PM_RESERVED_BITS)-1) << PM_RESERVED_OFFSET)
-#define PM_SPECIAL(nr)      (((nr) << PM_RESERVED_OFFSET) | PM_RESERVED_MASK)
+#define PM_SPECIAL(nr)      (((nr) << PM_RESERVED_OFFSET) & PM_RESERVED_MASK)
 #define PM_NOT_PRESENT      PM_SPECIAL(1LL)
 #define PM_SWAP             PM_SPECIAL(2LL)
 #define PM_END_OF_BUFFER    1

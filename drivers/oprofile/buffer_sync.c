@@ -187,23 +187,22 @@ void sync_stop(void)
 	end_sync();
 }
 
- 
+
 /* Optimisation. We can manage without taking the dcookie sem
  * because we cannot reach this code without at least one
  * dcookie user still being registered (namely, the reader
  * of the event buffer). */
-static inline unsigned long fast_get_dcookie(struct dentry * dentry,
-	struct vfsmount * vfsmnt)
+static inline unsigned long fast_get_dcookie(struct path *path)
 {
 	unsigned long cookie;
- 
-	if (dentry->d_cookie)
-		return (unsigned long)dentry;
-	get_dcookie(dentry, vfsmnt, &cookie);
+
+	if (path->dentry->d_cookie)
+		return (unsigned long)path->dentry;
+	get_dcookie(path, &cookie);
 	return cookie;
 }
 
- 
+
 /* Look up the dcookie for the task's first VM_EXECUTABLE mapping,
  * which corresponds loosely to "application name". This is
  * not strictly necessary but allows oprofile to associate
@@ -222,8 +221,7 @@ static unsigned long get_exec_dcookie(struct mm_struct * mm)
 			continue;
 		if (!(vma->vm_flags & VM_EXECUTABLE))
 			continue;
-		cookie = fast_get_dcookie(vma->vm_file->f_path.dentry,
-			vma->vm_file->f_path.mnt);
+		cookie = fast_get_dcookie(&vma->vm_file->f_path);
 		break;
 	}
 
@@ -248,8 +246,7 @@ static unsigned long lookup_dcookie(struct mm_struct * mm, unsigned long addr, o
 			continue;
 
 		if (vma->vm_file) {
-			cookie = fast_get_dcookie(vma->vm_file->f_path.dentry,
-				vma->vm_file->f_path.mnt);
+			cookie = fast_get_dcookie(&vma->vm_file->f_path);
 			*offset = (vma->vm_pgoff << PAGE_SHIFT) + addr -
 				vma->vm_start;
 		} else {

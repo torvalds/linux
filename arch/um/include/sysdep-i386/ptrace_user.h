@@ -9,6 +9,7 @@
 #include <sys/ptrace.h>
 #include <linux/ptrace.h>
 #include <asm/ptrace.h>
+#include "user_constants.h"
 
 #define PT_OFFSET(r) ((r) * sizeof(long))
 
@@ -39,6 +40,8 @@
 #define PT_IP(regs) ((regs)[EIP])
 #define PT_SP_OFFSET PT_OFFSET(UESP)
 #define PT_SP(regs) ((regs)[UESP])
+
+#define FP_SIZE ((HOST_XFP_SIZE > HOST_FP_SIZE) ? HOST_XFP_SIZE : HOST_FP_SIZE)
 
 #ifndef FRAME_SIZE
 #define FRAME_SIZE (17)

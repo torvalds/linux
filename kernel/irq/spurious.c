@@ -6,6 +6,7 @@
  * This file contains spurious interrupt handling.
  */
 
+#include <linux/jiffies.h>
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/kallsyms.h>
@@ -179,7 +180,7 @@ void note_interrupt(unsigned int irq, struct irq_desc *desc,
 		 * otherwise the couter becomes a doomsday timer for otherwise
 		 * working systems
 		 */
-		if (jiffies - desc->last_unhandled > HZ/10)
+		if (time_after(jiffies, desc->last_unhandled + HZ/10))
 			desc->irqs_unhandled = 1;
 		else
 			desc->irqs_unhandled++;

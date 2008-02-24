@@ -1234,7 +1234,6 @@ static int sil24_port_start(struct ata_port *ap)
 	union sil24_cmd_block *cb;
 	size_t cb_size = sizeof(*cb) * SIL24_MAX_CMDS;
 	dma_addr_t cb_dma;
-	int rc;
 
 	pp = devm_kzalloc(dev, sizeof(*pp), GFP_KERNEL);
 	if (!pp)
@@ -1246,10 +1245,6 @@ static int sil24_port_start(struct ata_port *ap)
 	if (!cb)
 		return -ENOMEM;
 	memset(cb, 0, cb_size);
-
-	rc = ata_pad_alloc(ap, dev);
-	if (rc)
-		return rc;
 
 	pp->cmd_block = cb;
 	pp->cmd_block_dma = cb_dma;

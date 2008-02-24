@@ -2393,9 +2393,11 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 	}
 
 	/* PDIAG- should have been released, ask cable type if post-reset */
-	if (ata_is_host_link(link) && ap->ops->cable_detect &&
-	    (ehc->i.flags & ATA_EHI_DID_RESET))
-		ap->cbl = ap->ops->cable_detect(ap);
+	if ((ehc->i.flags & ATA_EHI_DID_RESET) && ata_is_host_link(link)) {
+		if (ap->ops->cable_detect)
+			ap->cbl = ap->ops->cable_detect(ap);
+		ata_force_cbl(ap);
+	}
 
 	/* Configure new devices forward such that user doesn't see
 	 * device detection messages backwards.

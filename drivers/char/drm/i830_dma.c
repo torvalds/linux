@@ -36,7 +36,7 @@
 #include "i830_drm.h"
 #include "i830_drv.h"
 #include <linux/interrupt.h>	/* For task queue support */
-#include <linux/pagemap.h>	/* For FASTCALL on unlock_page() */
+#include <linux/pagemap.h>
 #include <linux/delay.h>
 #include <asm/uaccess.h>
 

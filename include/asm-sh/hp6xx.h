@@ -10,9 +10,9 @@
  *
  */
 
-#define HP680_BTN_IRQ		32            /* IRQ0_IRQ */
-#define HP680_TS_IRQ		35            /* IRQ3_IRQ */
-#define HP680_HD64461_IRQ	36            /* IRQ4_IRQ */
+#define HP680_BTN_IRQ		32	/* IRQ0_IRQ */
+#define HP680_TS_IRQ		35	/* IRQ3_IRQ */
+#define HP680_HD64461_IRQ	36	/* IRQ4_IRQ */
 
 #define DAC_LCD_BRIGHTNESS	0
 #define DAC_SPEAKER_VOLUME	1
@@ -54,27 +54,5 @@
 
 #define PJDR	0xa4000130
 #define PKDR	0xa4000132
-
-static inline void hp6xx_led_red(int on)
-{
-	u16 v16;
-	v16 = ctrl_inw(CONFIG_HD64461_IOBASE + HD64461_GPBDR - 0x10000);
-	if (on)
-	    ctrl_outw(v16 & (~HD64461_GPBDR_LED_RED), CONFIG_HD64461_IOBASE + HD64461_GPBDR - 0x10000);
-	else
-	    ctrl_outw(v16 | HD64461_GPBDR_LED_RED, CONFIG_HD64461_IOBASE + HD64461_GPBDR - 0x10000);
-}
-
-static inline void hp6xx_led_green(int on)
-{
-	u8 v8;
-
-	v8 = ctrl_inb(PKDR);
-	if (on)
-	    ctrl_outb(v8 & (~PKDR_LED_GREEN), PKDR);
-	else
-	    ctrl_outb(v8 | PKDR_LED_GREEN, PKDR);
-}
-
 
 #endif /* __ASM_SH_HP6XX_H */

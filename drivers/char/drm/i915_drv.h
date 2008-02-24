@@ -134,6 +134,7 @@ typedef struct drm_i915_private {
 	u32 saveVBLANK_A;
 	u32 saveVSYNC_A;
 	u32 saveBCLRPAT_A;
+	u32 savePIPEASTAT;
 	u32 saveDSPASTRIDE;
 	u32 saveDSPASIZE;
 	u32 saveDSPAPOS;
@@ -154,6 +155,7 @@ typedef struct drm_i915_private {
 	u32 saveVBLANK_B;
 	u32 saveVSYNC_B;
 	u32 saveBCLRPAT_B;
+	u32 savePIPEBSTAT;
 	u32 saveDSPBSTRIDE;
 	u32 saveDSPBSIZE;
 	u32 saveDSPBPOS;
@@ -182,6 +184,12 @@ typedef struct drm_i915_private {
 	u32 saveFBC_LL_BASE;
 	u32 saveFBC_CONTROL;
 	u32 saveFBC_CONTROL2;
+	u32 saveIER;
+	u32 saveIIR;
+	u32 saveIMR;
+	u32 saveCACHE_MODE_0;
+	u32 saveDSPCLK_GATE_D;
+	u32 saveMI_ARB_STATE;
 	u32 saveSWF0[16];
 	u32 saveSWF1[16];
 	u32 saveSWF2[3];
@@ -450,6 +458,10 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
  */
 #define DMA_FADD_S		0x20d4
 
+/* Memory Interface Arbitration State
+ */
+#define MI_ARB_STATE		0x20e4
+
 /* Cache mode 0 reg.
  *  - Manipulating render cache behaviour is central
  *    to the concept of zone rendering, tuning this reg can help avoid
@@ -460,6 +472,7 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
  * bit of interest either set or cleared.  EG: (BIT<<16) | BIT to set.
  */
 #define Cache_Mode_0		0x2120
+#define CACHE_MODE_0		0x2120
 #define CM0_MASK_SHIFT          16
 #define CM0_IZ_OPT_DISABLE      (1<<6)
 #define CM0_ZR_OPT_DISABLE      (1<<5)
@@ -654,6 +667,8 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 # define VGA0_PD_P1_SHIFT	0
 /** P1 value is 2 greater than this field */
 # define VGA0_PD_P1_MASK	(0x1f << 0)
+
+#define DSPCLK_GATE_D	0x6200
 
 /* I830 CRTC registers */
 #define HTOTAL_A	0x60000
@@ -1100,6 +1115,8 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 
 #define IS_MOBILE(dev) (IS_I830(dev) || IS_I85X(dev) || IS_I915GM(dev) || \
 			IS_I945GM(dev) || IS_I965GM(dev) || IS_IGD_GM(dev))
+
+#define I915_NEED_GFX_HWS(dev) (IS_G33(dev) || IS_IGD_GM(dev))
 
 #define PRIMARY_RINGBUFFER_SIZE         (128*1024)
 

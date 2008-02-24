@@ -172,8 +172,7 @@ static inline void arch_free_page(struct page *page, int order) { }
 static inline void arch_alloc_page(struct page *page, int order) { }
 #endif
 
-extern struct page *
-FASTCALL(__alloc_pages(gfp_t, unsigned int, struct zonelist *));
+extern struct page *__alloc_pages(gfp_t, unsigned int, struct zonelist *);
 
 static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
 						unsigned int order)
@@ -209,8 +208,8 @@ extern struct page *alloc_page_vma(gfp_t gfp_mask,
 #endif
 #define alloc_page(gfp_mask) alloc_pages(gfp_mask, 0)
 
-extern unsigned long FASTCALL(__get_free_pages(gfp_t gfp_mask, unsigned int order));
-extern unsigned long FASTCALL(get_zeroed_page(gfp_t gfp_mask));
+extern unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order);
+extern unsigned long get_zeroed_page(gfp_t gfp_mask);
 
 #define __get_free_page(gfp_mask) \
 		__get_free_pages((gfp_mask),0)
@@ -218,10 +217,10 @@ extern unsigned long FASTCALL(get_zeroed_page(gfp_t gfp_mask));
 #define __get_dma_pages(gfp_mask, order) \
 		__get_free_pages((gfp_mask) | GFP_DMA,(order))
 
-extern void FASTCALL(__free_pages(struct page *page, unsigned int order));
-extern void FASTCALL(free_pages(unsigned long addr, unsigned int order));
-extern void FASTCALL(free_hot_page(struct page *page));
-extern void FASTCALL(free_cold_page(struct page *page));
+extern void __free_pages(struct page *page, unsigned int order);
+extern void free_pages(unsigned long addr, unsigned int order);
+extern void free_hot_page(struct page *page);
+extern void free_cold_page(struct page *page);
 
 #define __free_page(page) __free_pages((page), 0)
 #define free_page(addr) free_pages((addr),0)

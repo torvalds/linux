@@ -1160,7 +1160,7 @@ static int genregs32_set(struct task_struct *target,
 	if (kbuf) {
 		const compat_ulong_t *k = kbuf;
 		while (count > 0 && !ret) {
-			ret = putreg(target, pos, *k++);
+			ret = putreg32(target, pos, *k++);
 			count -= sizeof(*k);
 			pos += sizeof(*k);
 		}
@@ -1171,7 +1171,7 @@ static int genregs32_set(struct task_struct *target,
 			ret = __get_user(word, u++);
 			if (ret)
 				break;
-			ret = putreg(target, pos, word);
+			ret = putreg32(target, pos, word);
 			count -= sizeof(*u);
 			pos += sizeof(*u);
 		}

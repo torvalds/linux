@@ -264,19 +264,30 @@ void
 lpfc_in_buf_free(struct lpfc_hba *phba, struct lpfc_dmabuf *mp)
 {
 	struct hbq_dmabuf *hbq_entry;
+	unsigned long flags;
+
+	if (!mp)
+		return;
 
 	if (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED) {
+		/* Check whether HBQ is still in use */
+		spin_lock_irqsave(&phba->hbalock, flags);
+		if (!phba->hbq_in_use) {
+			spin_unlock_irqrestore(&phba->hbalock, flags);
+			return;
+		}
 		hbq_entry = container_of(mp, struct hbq_dmabuf, dbuf);
+		list_del(&hbq_entry->dbuf.list);
 		if (hbq_entry->tag == -1) {
 			(phba->hbqs[LPFC_ELS_HBQ].hbq_free_buffer)
 				(phba, hbq_entry);
 		} else {
 			lpfc_sli_free_hbq(phba, hbq_entry);
 		}
+		spin_unlock_irqrestore(&phba->hbalock, flags);
 	} else {
 		lpfc_mbuf_free(phba, mp->virt, mp->phys);
 		kfree(mp);
 	}
 	return;
 }
-

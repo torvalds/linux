@@ -110,7 +110,7 @@ static const struct file_operations acpi_system_event_ops = {
 #endif	/* CONFIG_ACPI_PROC_EVENT */
 
 /* ACPI notifier chain */
-BLOCKING_NOTIFIER_HEAD(acpi_chain_head);
+static BLOCKING_NOTIFIER_HEAD(acpi_chain_head);
 
 int acpi_notifier_call_chain(struct acpi_device *dev, u32 type, u32 data)
 {

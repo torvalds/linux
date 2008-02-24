@@ -987,12 +987,11 @@ static unsigned long resolve_symbol(Elf_Shdr *sechdrs,
 	return ret;
 }
 
-
 /*
  * /sys/module/foo/sections stuff
  * J. Corbet <corbet@lwn.net>
  */
-#ifdef CONFIG_KALLSYMS
+#if defined(CONFIG_KALLSYMS) && defined(CONFIG_SYSFS)
 static ssize_t module_sect_show(struct module_attribute *mattr,
 				struct module *mod, char *buf)
 {
@@ -1188,7 +1187,7 @@ static inline void add_notes_attrs(struct module *mod, unsigned int nsect,
 static inline void remove_notes_attrs(struct module *mod)
 {
 }
-#endif /* CONFIG_KALLSYMS */
+#endif
 
 #ifdef CONFIG_SYSFS
 int module_add_modinfo_attrs(struct module *mod)
@@ -1231,9 +1230,7 @@ void module_remove_modinfo_attrs(struct module *mod)
 	}
 	kfree(mod->modinfo_attrs);
 }
-#endif
 
-#ifdef CONFIG_SYSFS
 int mod_sysfs_init(struct module *mod)
 {
 	int err;
@@ -2038,7 +2035,7 @@ static struct module *load_module(void __user *umod,
 #ifdef CONFIG_MARKERS
 	if (!mod->taints)
 		marker_update_probe_range(mod->markers,
-			mod->markers + mod->num_markers, NULL, NULL);
+			mod->markers + mod->num_markers);
 #endif
 	err = module_finalize(hdr, sechdrs, mod);
 	if (err < 0)
@@ -2564,7 +2561,7 @@ EXPORT_SYMBOL(struct_module);
 #endif
 
 #ifdef CONFIG_MARKERS
-void module_update_markers(struct module *probe_module, int *refcount)
+void module_update_markers(void)
 {
 	struct module *mod;
 
@@ -2572,8 +2569,7 @@ void module_update_markers(struct module *probe_module, int *refcount)
 	list_for_each_entry(mod, &modules, list)
 		if (!mod->taints)
 			marker_update_probe_range(mod->markers,
-				mod->markers + mod->num_markers,
-				probe_module, refcount);
+				mod->markers + mod->num_markers);
 	mutex_unlock(&module_mutex);
 }
 #endif

@@ -44,7 +44,8 @@
  * Addresses to scan. There are four disjoint possibilities, by pin config.
  */
 
-static unsigned short normal_i2c[] = {0x1b, 0x1f, 0x48, 0x4b, I2C_CLIENT_END};
+static const unsigned short normal_i2c[] = {0x1b, 0x1f, 0x48, 0x4b,
+						I2C_CLIENT_END};
 
 /*
  * Insmod parameters

@@ -113,16 +113,9 @@ void cpu_idle(void)
 
 extern char reboot_command [];
 
-extern void (*prom_palette)(int);
-extern void (*prom_keyboard)(void);
-
 void machine_halt(void)
 {
 	sstate_halt();
-	if (prom_palette)
-		prom_palette (1);
-	if (prom_keyboard)
-		prom_keyboard();
 	prom_halt();
 	panic("Halt failed!");
 }
@@ -130,10 +123,6 @@ void machine_halt(void)
 void machine_alt_power_off(void)
 {
 	sstate_poweroff();
-	if (prom_palette)
-		prom_palette(1);
-	if (prom_keyboard)
-		prom_keyboard();
 	prom_halt_power_off();
 	panic("Power-off failed!");
 }
@@ -145,10 +134,6 @@ void machine_restart(char * cmd)
 	sstate_reboot();
 	p = strchr (reboot_command, '\n');
 	if (p) *p = 0;
-	if (prom_palette)
-		prom_palette (1);
-	if (prom_keyboard)
-		prom_keyboard();
 	if (cmd)
 		prom_reboot(cmd);
 	if (*reboot_command)

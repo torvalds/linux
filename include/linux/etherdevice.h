@@ -70,8 +70,7 @@ static inline int is_multicast_ether_addr(const u8 *addr)
 }
 
 /**
- * is_local_ether_addr - Determine if the Ethernet address is locally-assigned
- * one (IEEE 802).
+ * is_local_ether_addr - Determine if the Ethernet address is locally-assigned one (IEEE 802).
  * @addr: Pointer to a six-byte array containing the Ethernet address
  *
  * Return true if the address is a local address.

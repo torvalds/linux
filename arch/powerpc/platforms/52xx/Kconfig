@@ -8,7 +8,6 @@ config PPC_MPC5200_SIMPLE
 	bool "Generic support for simple MPC5200 based boards"
 	depends on PPC_MPC52xx
 	select DEFAULT_UIMAGE
-	select WANT_DEVICE_TREE
 	help
 	  This option enables support for a simple MPC52xx based boards which
 	  do not need a custom platform specific setup. Such boards are
@@ -35,7 +34,6 @@ config PPC_LITE5200
 	bool "Freescale Lite5200 Eval Board"
 	depends on PPC_MPC52xx
 	select DEFAULT_UIMAGE
-	select WANT_DEVICE_TREE
 
 config PPC_MPC5200_BUGFIX
 	bool "MPC5200 (L25R) bugfix support"

@@ -388,6 +388,7 @@ static int cmos_procfs(struct device *dev, struct seq_file *seq)
 	return seq_printf(seq,
 			"periodic_IRQ\t: %s\n"
 			"update_IRQ\t: %s\n"
+			"HPET_emulated\t: %s\n"
 			// "square_wave\t: %s\n"
 			// "BCD\t\t: %s\n"
 			"DST_enable\t: %s\n"
@@ -395,6 +396,7 @@ static int cmos_procfs(struct device *dev, struct seq_file *seq)
 			"batt_status\t: %s\n",
 			(rtc_control & RTC_PIE) ? "yes" : "no",
 			(rtc_control & RTC_UIE) ? "yes" : "no",
+			is_hpet_enabled() ? "yes" : "no",
 			// (rtc_control & RTC_SQWE) ? "yes" : "no",
 			// (rtc_control & RTC_DM_BINARY) ? "no" : "yes",
 			(rtc_control & RTC_DST_EN) ? "yes" : "no",

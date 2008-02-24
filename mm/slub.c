@@ -149,13 +149,6 @@ static inline void ClearSlabDebug(struct page *page)
 /* Enable to test recovery from slab corruption on boot */
 #undef SLUB_RESILIENCY_TEST
 
-/*
- * Currently fastpath is not supported if preemption is enabled.
- */
-#if defined(CONFIG_FAST_CMPXCHG_LOCAL) && !defined(CONFIG_PREEMPT)
-#define SLUB_FASTPATH
-#endif
-
 #if PAGE_SHIFT <= 12
 
 /*
@@ -211,6 +204,8 @@ static inline void ClearSlabDebug(struct page *page)
 /* Internal SLUB flags */
 #define __OBJECT_POISON		0x80000000 /* Poison object */
 #define __SYSFS_ADD_DEFERRED	0x40000000 /* Not yet visible via sysfs */
+#define __KMALLOC_CACHE		0x20000000 /* objects freed using kfree */
+#define __PAGE_ALLOC_FALLBACK	0x10000000 /* Allow fallback to page alloc */
 
 /* Not all arches define cache_line_size */
 #ifndef cache_line_size
@@ -308,7 +303,7 @@ static inline int is_end(void *addr)
 	return (unsigned long)addr & PAGE_MAPPING_ANON;
 }
 
-void *slab_address(struct page *page)
+static void *slab_address(struct page *page)
 {
 	return page->end - PAGE_MAPPING_ANON;
 }
@@ -1078,14 +1073,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
 	struct page *page;
 	int pages = 1 << s->order;
 
-	if (s->order)
-		flags |= __GFP_COMP;
-
-	if (s->flags & SLAB_CACHE_DMA)
-		flags |= SLUB_DMA;
-
-	if (s->flags & SLAB_RECLAIM_ACCOUNT)
-		flags |= __GFP_RECLAIMABLE;
+	flags |= s->allocflags;
 
 	if (node == -1)
 		page = alloc_pages(flags, s->order);
@@ -1519,11 +1507,7 @@ static void *__slab_alloc(struct kmem_cache *s,
 {
 	void **object;
 	struct page *new;
-#ifdef SLUB_FASTPATH
-	unsigned long flags;
 
-	local_irq_save(flags);
-#endif
 	if (!c->page)
 		goto new_slab;
 
@@ -1546,10 +1530,6 @@ load_freelist:
 unlock_out:
 	slab_unlock(c->page);
 	stat(c, ALLOC_SLOWPATH);
-out:
-#ifdef SLUB_FASTPATH
-	local_irq_restore(flags);
-#endif
 	return object;
 
 another_slab:
@@ -1581,8 +1561,22 @@ new_slab:
 		c->page = new;
 		goto load_freelist;
 	}
-	object = NULL;
-	goto out;
+
+	/*
+	 * No memory available.
+	 *
+	 * If the slab uses higher order allocs but the object is
+	 * smaller than a page size then we can fallback in emergencies
+	 * to the page allocator via kmalloc_large. The page allocator may
+	 * have failed to obtain a higher order page and we can try to
+	 * allocate a single page if the object fits into a single page.
+	 * That is only possible if certain conditions are met that are being
+	 * checked when a slab is created.
+	 */
+	if (!(gfpflags & __GFP_NORETRY) && (s->flags & __PAGE_ALLOC_FALLBACK))
+		return kmalloc_large(s->objsize, gfpflags);
+
+	return NULL;
 debug:
 	object = c->page->freelist;
 	if (!alloc_debug_processing(s, c->page, object, addr))
@@ -1609,34 +1603,6 @@ static __always_inline void *slab_alloc(struct kmem_cache *s,
 {
 	void **object;
 	struct kmem_cache_cpu *c;
-
-/*
- * The SLUB_FASTPATH path is provisional and is currently disabled if the
- * kernel is compiled with preemption or if the arch does not support
- * fast cmpxchg operations. There are a couple of coming changes that will
- * simplify matters and allow preemption. Ultimately we may end up making
- * SLUB_FASTPATH the default.
- *
- * 1. The introduction of the per cpu allocator will avoid array lookups
- *    through get_cpu_slab(). A special register can be used instead.
- *
- * 2. The introduction of per cpu atomic operations (cpu_ops) means that
- *    we can realize the logic here entirely with per cpu atomics. The
- *    per cpu atomic ops will take care of the preemption issues.
- */
-
-#ifdef SLUB_FASTPATH
-	c = get_cpu_slab(s, raw_smp_processor_id());
-	do {
-		object = c->freelist;
-		if (unlikely(is_end(object) || !node_match(c, node))) {
-			object = __slab_alloc(s, gfpflags, node, addr, c);
-			break;
-		}
-		stat(c, ALLOC_FASTPATH);
-	} while (cmpxchg_local(&c->freelist, object, object[c->offset])
-								!= object);
-#else
 	unsigned long flags;
 
 	local_irq_save(flags);
@@ -1651,7 +1617,6 @@ static __always_inline void *slab_alloc(struct kmem_cache *s,
 		stat(c, ALLOC_FASTPATH);
 	}
 	local_irq_restore(flags);
-#endif
 
 	if (unlikely((gfpflags & __GFP_ZERO) && object))
 		memset(object, 0, c->objsize);
@@ -1688,11 +1653,6 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
 	void **object = (void *)x;
 	struct kmem_cache_cpu *c;
 
-#ifdef SLUB_FASTPATH
-	unsigned long flags;
-
-	local_irq_save(flags);
-#endif
 	c = get_cpu_slab(s, raw_smp_processor_id());
 	stat(c, FREE_SLOWPATH);
 	slab_lock(page);
@@ -1724,9 +1684,6 @@ checks_ok:
 
 out_unlock:
 	slab_unlock(page);
-#ifdef SLUB_FASTPATH
-	local_irq_restore(flags);
-#endif
 	return;
 
 slab_empty:
@@ -1739,9 +1696,6 @@ slab_empty:
 	}
 	slab_unlock(page);
 	stat(c, FREE_SLAB);
-#ifdef SLUB_FASTPATH
-	local_irq_restore(flags);
-#endif
 	discard_slab(s, page);
 	return;
 
@@ -1767,34 +1721,6 @@ static __always_inline void slab_free(struct kmem_cache *s,
 {
 	void **object = (void *)x;
 	struct kmem_cache_cpu *c;
-
-#ifdef SLUB_FASTPATH
-	void **freelist;
-
-	c = get_cpu_slab(s, raw_smp_processor_id());
-	debug_check_no_locks_freed(object, s->objsize);
-	do {
-		freelist = c->freelist;
-		barrier();
-		/*
-		 * If the compiler would reorder the retrieval of c->page to
-		 * come before c->freelist then an interrupt could
-		 * change the cpu slab before we retrieve c->freelist. We
-		 * could be matching on a page no longer active and put the
-		 * object onto the freelist of the wrong slab.
-		 *
-		 * On the other hand: If we already have the freelist pointer
-		 * then any change of cpu_slab will cause the cmpxchg to fail
-		 * since the freelist pointers are unique per slab.
-		 */
-		if (unlikely(page != c->page || c->node < 0)) {
-			__slab_free(s, page, x, addr, c->offset);
-			break;
-		}
-		object[c->offset] = freelist;
-		stat(c, FREE_FASTPATH);
-	} while (cmpxchg_local(&c->freelist, freelist, object) != freelist);
-#else
 	unsigned long flags;
 
 	local_irq_save(flags);
@@ -1808,7 +1734,6 @@ static __always_inline void slab_free(struct kmem_cache *s,
 		__slab_free(s, page, x, addr, c->offset);
 
 	local_irq_restore(flags);
-#endif
 }
 
 void kmem_cache_free(struct kmem_cache *s, void *x)
@@ -2329,9 +2254,32 @@ static int calculate_sizes(struct kmem_cache *s)
 	size = ALIGN(size, align);
 	s->size = size;
 
-	s->order = calculate_order(size);
+	if ((flags & __KMALLOC_CACHE) &&
+			PAGE_SIZE / size < slub_min_objects) {
+		/*
+		 * Kmalloc cache that would not have enough objects in
+		 * an order 0 page. Kmalloc slabs can fallback to
+		 * page allocator order 0 allocs so take a reasonably large
+		 * order that will allows us a good number of objects.
+		 */
+		s->order = max(slub_max_order, PAGE_ALLOC_COSTLY_ORDER);
+		s->flags |= __PAGE_ALLOC_FALLBACK;
+		s->allocflags |= __GFP_NOWARN;
+	} else
+		s->order = calculate_order(size);
+
 	if (s->order < 0)
 		return 0;
+
+	s->allocflags = 0;
+	if (s->order)
+		s->allocflags |= __GFP_COMP;
+
+	if (s->flags & SLAB_CACHE_DMA)
+		s->allocflags |= SLUB_DMA;
+
+	if (s->flags & SLAB_RECLAIM_ACCOUNT)
+		s->allocflags |= __GFP_RECLAIMABLE;
 
 	/*
 	 * Determine the number of objects per slab
@@ -2484,11 +2432,11 @@ EXPORT_SYMBOL(kmem_cache_destroy);
  *		Kmalloc subsystem
  *******************************************************************/
 
-struct kmem_cache kmalloc_caches[PAGE_SHIFT] __cacheline_aligned;
+struct kmem_cache kmalloc_caches[PAGE_SHIFT + 1] __cacheline_aligned;
 EXPORT_SYMBOL(kmalloc_caches);
 
 #ifdef CONFIG_ZONE_DMA
-static struct kmem_cache *kmalloc_caches_dma[PAGE_SHIFT];
+static struct kmem_cache *kmalloc_caches_dma[PAGE_SHIFT + 1];
 #endif
 
 static int __init setup_slub_min_order(char *str)
@@ -2536,7 +2484,7 @@ static struct kmem_cache *create_kmalloc_cache(struct kmem_cache *s,
 
 	down_write(&slub_lock);
 	if (!kmem_cache_open(s, gfp_flags, name, size, ARCH_KMALLOC_MINALIGN,
-			flags, NULL))
+			flags | __KMALLOC_CACHE, NULL))
 		goto panic;
 
 	list_add(&s->list, &slab_caches);
@@ -2670,9 +2618,8 @@ void *__kmalloc(size_t size, gfp_t flags)
 {
 	struct kmem_cache *s;
 
-	if (unlikely(size > PAGE_SIZE / 2))
-		return (void *)__get_free_pages(flags | __GFP_COMP,
-							get_order(size));
+	if (unlikely(size > PAGE_SIZE))
+		return kmalloc_large(size, flags);
 
 	s = get_slab(size, flags);
 
@@ -2688,9 +2635,8 @@ void *__kmalloc_node(size_t size, gfp_t flags, int node)
 {
 	struct kmem_cache *s;
 
-	if (unlikely(size > PAGE_SIZE / 2))
-		return (void *)__get_free_pages(flags | __GFP_COMP,
-							get_order(size));
+	if (unlikely(size > PAGE_SIZE))
+		return kmalloc_large(size, flags);
 
 	s = get_slab(size, flags);
 
@@ -3001,7 +2947,7 @@ void __init kmem_cache_init(void)
 		caches++;
 	}
 
-	for (i = KMALLOC_SHIFT_LOW; i < PAGE_SHIFT; i++) {
+	for (i = KMALLOC_SHIFT_LOW; i <= PAGE_SHIFT; i++) {
 		create_kmalloc_cache(&kmalloc_caches[i],
 			"kmalloc", 1 << i, GFP_KERNEL);
 		caches++;
@@ -3028,7 +2974,7 @@ void __init kmem_cache_init(void)
 	slab_state = UP;
 
 	/* Provide the correct kmalloc names now that the caches are up */
-	for (i = KMALLOC_SHIFT_LOW; i < PAGE_SHIFT; i++)
+	for (i = KMALLOC_SHIFT_LOW; i <= PAGE_SHIFT; i++)
 		kmalloc_caches[i]. name =
 			kasprintf(GFP_KERNEL, "kmalloc-%d", 1 << i);
 
@@ -3055,6 +3001,9 @@ void __init kmem_cache_init(void)
 static int slab_unmergeable(struct kmem_cache *s)
 {
 	if (slub_nomerge || (s->flags & SLUB_NEVER_MERGE))
+		return 1;
+
+	if ((s->flags & __PAGE_ALLOC_FALLBACK))
 		return 1;
 
 	if (s->ctor)
@@ -3218,9 +3167,9 @@ void *__kmalloc_track_caller(size_t size, gfp_t gfpflags, void *caller)
 {
 	struct kmem_cache *s;
 
-	if (unlikely(size > PAGE_SIZE / 2))
-		return (void *)__get_free_pages(gfpflags | __GFP_COMP,
-							get_order(size));
+	if (unlikely(size > PAGE_SIZE))
+		return kmalloc_large(size, gfpflags);
+
 	s = get_slab(size, gfpflags);
 
 	if (unlikely(ZERO_OR_NULL_PTR(s)))
@@ -3234,9 +3183,9 @@ void *__kmalloc_node_track_caller(size_t size, gfp_t gfpflags,
 {
 	struct kmem_cache *s;
 
-	if (unlikely(size > PAGE_SIZE / 2))
-		return (void *)__get_free_pages(gfpflags | __GFP_COMP,
-							get_order(size));
+	if (unlikely(size > PAGE_SIZE))
+		return kmalloc_large(size, gfpflags);
+
 	s = get_slab(size, gfpflags);
 
 	if (unlikely(ZERO_OR_NULL_PTR(s)))

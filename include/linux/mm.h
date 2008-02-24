@@ -235,6 +235,7 @@ static inline int get_page_unless_zero(struct page *page)
 struct page *vmalloc_to_page(const void *addr);
 unsigned long vmalloc_to_pfn(const void *addr);
 
+#ifdef CONFIG_MMU
 /* Determine if an address is within the vmalloc range */
 static inline int is_vmalloc_addr(const void *x)
 {
@@ -242,6 +243,7 @@ static inline int is_vmalloc_addr(const void *x)
 
 	return addr >= VMALLOC_START && addr < VMALLOC_END;
 }
+#endif
 
 static inline struct page *compound_head(struct page *page)
 {
@@ -786,7 +788,7 @@ int __set_page_dirty_nobuffers(struct page *page);
 int __set_page_dirty_no_writeback(struct page *page);
 int redirty_page_for_writepage(struct writeback_control *wbc,
 				struct page *page);
-int FASTCALL(set_page_dirty(struct page *page));
+int set_page_dirty(struct page *page);
 int set_page_dirty_lock(struct page *page);
 int clear_page_dirty_for_io(struct page *page);
 
@@ -829,7 +831,7 @@ extern void unregister_shrinker(struct shrinker *);
 
 int vma_wants_writenotify(struct vm_area_struct *vma);
 
-extern pte_t *FASTCALL(get_locked_pte(struct mm_struct *mm, unsigned long addr, spinlock_t **ptl));
+extern pte_t *get_locked_pte(struct mm_struct *mm, unsigned long addr, spinlock_t **ptl);
 
 #ifdef __PAGETABLE_PUD_FOLDED
 static inline int __pud_alloc(struct mm_struct *mm, pgd_t *pgd,
@@ -1171,12 +1173,18 @@ static inline void enable_debug_pagealloc(void)
 {
 	debug_pagealloc_enabled = 1;
 }
+#ifdef CONFIG_HIBERNATION
+extern bool kernel_page_present(struct page *page);
+#endif /* CONFIG_HIBERNATION */
 #else
 static inline void
 kernel_map_pages(struct page *page, int numpages, int enable) {}
 static inline void enable_debug_pagealloc(void)
 {
 }
+#ifdef CONFIG_HIBERNATION
+static inline bool kernel_page_present(struct page *page) { return true; }
+#endif /* CONFIG_HIBERNATION */
 #endif
 
 extern struct vm_area_struct *get_gate_vma(struct task_struct *tsk);

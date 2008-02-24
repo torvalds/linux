@@ -188,6 +188,7 @@ static inline unsigned long pmd_bad(pmd_t pmd)
 #define pgd_offset(mm, addr) ((mm)->pgd + pgd_index(addr))
 #define pgd_offset_k(address) (init_level4_pgt + pgd_index(address))
 #define pgd_present(pgd) (pgd_val(pgd) & _PAGE_PRESENT)
+static inline int pgd_large(pgd_t pgd) { return 0; }
 #define mk_kernel_pgd(address) ((pgd_t){ (address) | _KERNPG_TABLE })
 
 /* PUD - Level3 access */
@@ -246,6 +247,7 @@ static inline int pud_large(pud_t pte)
 #define __swp_entry_to_pte(x)		((pte_t) { .pte = (x).val })
 
 extern int kern_addr_valid(unsigned long addr); 
+extern void cleanup_highmap(void);
 
 #define io_remap_pfn_range(vma, vaddr, pfn, size, prot)		\
 		remap_pfn_range(vma, vaddr, pfn, size, prot)

@@ -1107,7 +1107,6 @@ static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 		event.param.ud.private_data_len =
 				IB_CM_SIDR_REQ_PRIVATE_DATA_SIZE - offset;
 	} else {
-		ib_send_cm_mra(cm_id, CMA_CM_MRA_SETTING, NULL, 0);
 		conn_id = cma_new_conn_id(&listen_id->id, ib_event);
 		cma_set_req_event_data(&event, &ib_event->param.req_rcvd,
 				       ib_event->private_data, offset);
@@ -1130,6 +1129,15 @@ static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 
 	ret = conn_id->id.event_handler(&conn_id->id, &event);
 	if (!ret) {
+		/*
+		 * Acquire mutex to prevent user executing rdma_destroy_id()
+		 * while we're accessing the cm_id.
+		 */
+		mutex_lock(&lock);
+		if (cma_comp(conn_id, CMA_CONNECT) &&
+		    !cma_is_ud_ps(conn_id->id.ps))
+			ib_send_cm_mra(cm_id, CMA_CM_MRA_SETTING, NULL, 0);
+		mutex_unlock(&lock);
 		cma_enable_remove(conn_id);
 		goto out;
 	}

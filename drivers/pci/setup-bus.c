@@ -206,10 +206,8 @@ pci_setup_bridge(struct pci_bus *bus)
 	if (bus->resource[2]->flags & IORESOURCE_PREFETCH) {
 		l = (region.start >> 16) & 0xfff0;
 		l |= region.end & 0xfff00000;
-#ifdef CONFIG_RESOURCES_64BIT
-		bu = region.start >> 32;
-		lu = region.end >> 32;
-#endif
+		bu = upper_32_bits(region.start);
+		lu = upper_32_bits(region.end);
 		DBG(KERN_INFO "  PREFETCH window: 0x%016llx-0x%016llx\n",
 		    (unsigned long long)region.start,
 		    (unsigned long long)region.end);

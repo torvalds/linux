@@ -138,11 +138,13 @@ static const struct bits icr_bits[] = {
 	PXA_BIT(ICR_UR,     "UR",		"ur"),
 };
 
+#ifdef CONFIG_I2C_PXA_SLAVE
 static void decode_ICR(unsigned int val)
 {
 	decode_bits(KERN_DEBUG "ICR", icr_bits, ARRAY_SIZE(icr_bits), val);
 	printk("\n");
 }
+#endif
 
 static unsigned int i2c_debug = DEBUG;
 
@@ -1122,7 +1124,7 @@ static int __init i2c_adap_pxa_init(void)
 
 static void i2c_adap_pxa_exit(void)
 {
-	return platform_driver_unregister(&i2c_pxa_driver);
+	platform_driver_unregister(&i2c_pxa_driver);
 }
 
 MODULE_LICENSE("GPL");

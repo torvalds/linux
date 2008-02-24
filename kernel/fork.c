@@ -600,16 +600,16 @@ static struct fs_struct *__copy_fs_struct(struct fs_struct *old)
 		rwlock_init(&fs->lock);
 		fs->umask = old->umask;
 		read_lock(&old->lock);
-		fs->rootmnt = mntget(old->rootmnt);
-		fs->root = dget(old->root);
-		fs->pwdmnt = mntget(old->pwdmnt);
-		fs->pwd = dget(old->pwd);
-		if (old->altroot) {
-			fs->altrootmnt = mntget(old->altrootmnt);
-			fs->altroot = dget(old->altroot);
+		fs->root = old->root;
+		path_get(&old->root);
+		fs->pwd = old->pwd;
+		path_get(&old->pwd);
+		if (old->altroot.dentry) {
+			fs->altroot = old->altroot;
+			path_get(&old->altroot);
 		} else {
-			fs->altrootmnt = NULL;
-			fs->altroot = NULL;
+			fs->altroot.mnt = NULL;
+			fs->altroot.dentry = NULL;
 		}
 		read_unlock(&old->lock);
 	}

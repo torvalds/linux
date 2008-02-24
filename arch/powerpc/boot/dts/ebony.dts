@@ -216,7 +216,6 @@
 
 			IIC0: i2c@40000400 {
 				/* FIXME */
-				device_type = "i2c";
 				compatible = "ibm,iic-440gp", "ibm,iic";
 				reg = <40000400 14>;
 				interrupt-parent = <&UIC0>;
@@ -224,7 +223,6 @@
 			};
 			IIC1: i2c@40000500 {
 				/* FIXME */
-				device_type = "i2c";
 				compatible = "ibm,iic-440gp", "ibm,iic";
 				reg = <40000500 14>;
 				interrupt-parent = <&UIC0>;

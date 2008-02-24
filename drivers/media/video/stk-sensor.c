@@ -225,7 +225,7 @@
 
 
 /* Returns 0 if OK */
-int stk_sensor_outb(struct stk_camera *dev, u8 reg, u8 val)
+static int stk_sensor_outb(struct stk_camera *dev, u8 reg, u8 val)
 {
 	int i = 0;
 	int tmpval = 0;
@@ -250,7 +250,7 @@ int stk_sensor_outb(struct stk_camera *dev, u8 reg, u8 val)
 		return 0;
 }
 
-int stk_sensor_inb(struct stk_camera *dev, u8 reg, u8 *val)
+static int stk_sensor_inb(struct stk_camera *dev, u8 reg, u8 *val)
 {
 	int i = 0;
 	int tmpval = 0;
@@ -380,7 +380,7 @@ int stk_sensor_init(struct stk_camera *dev)
 		STK_ERROR("Strange error reading sensor ID\n");
 		return -ENODEV;
 	}
-	if (idh != 0x7F || idl != 0xA2) {
+	if (idh != 0x7f || idl != 0xa2) {
 		STK_ERROR("Huh? you don't have a sensor from ovt\n");
 		return -ENODEV;
 	}
@@ -399,6 +399,19 @@ int stk_sensor_init(struct stk_camera *dev)
 /* V4L2_PIX_FMT_UYVY */
 static struct regval ov_fmt_uyvy[] = {
 	{REG_TSLB, TSLB_YLAST|0x08 },
+	{ 0x4f, 0x80 }, 	/* "matrix coefficient 1" */
+	{ 0x50, 0x80 }, 	/* "matrix coefficient 2" */
+	{ 0x51, 0    },		/* vb */
+	{ 0x52, 0x22 }, 	/* "matrix coefficient 4" */
+	{ 0x53, 0x5e }, 	/* "matrix coefficient 5" */
+	{ 0x54, 0x80 }, 	/* "matrix coefficient 6" */
+	{REG_COM13, COM13_UVSAT|COM13_CMATRIX},
+	{REG_COM15, COM15_R00FF },
+	{0xff, 0xff}, /* END MARKER */
+};
+/* V4L2_PIX_FMT_YUYV */
+static struct regval ov_fmt_yuyv[] = {
+	{REG_TSLB, 0 },
 	{ 0x4f, 0x80 }, 	/* "matrix coefficient 1" */
 	{ 0x50, 0x80 }, 	/* "matrix coefficient 2" */
 	{ 0x51, 0    },		/* vb */
@@ -518,6 +531,10 @@ int stk_sensor_configure(struct stk_camera *dev)
 	case V4L2_PIX_FMT_UYVY:
 		com7 |= COM7_YUV;
 		rv = ov_fmt_uyvy;
+		break;
+	case V4L2_PIX_FMT_YUYV:
+		com7 |= COM7_YUV;
+		rv = ov_fmt_yuyv;
 		break;
 	case V4L2_PIX_FMT_RGB565:
 		com7 |= COM7_RGB;

@@ -285,7 +285,6 @@ extern void handle_bad_irq(unsigned int irq, struct irq_desc *desc);
 
 /*
  * Monolithic do_IRQ implementation.
- * (is an explicit fastcall, because i386 4KSTACKS calls it from assembly)
  */
 #ifndef CONFIG_GENERIC_HARDIRQS_NO__DO_IRQ
 extern unsigned int __do_IRQ(unsigned int irq);

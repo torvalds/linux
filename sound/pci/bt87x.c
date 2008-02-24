@@ -681,15 +681,12 @@ static struct snd_kcontrol_new snd_bt87x_capture_source = {
 
 static int snd_bt87x_free(struct snd_bt87x *chip)
 {
-	if (chip->mmio) {
+	if (chip->mmio)
 		snd_bt87x_stop(chip);
-		if (chip->irq >= 0)
-			synchronize_irq(chip->irq);
-
-		iounmap(chip->mmio);
-	}
 	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
+	if (chip->mmio)
+		iounmap(chip->mmio);
 	pci_release_regions(chip->pci);
 	pci_disable_device(chip->pci);
 	kfree(chip);

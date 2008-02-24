@@ -443,12 +443,12 @@ static int load_flat_file(struct linux_binprm * bprm,
 
 	if (strncmp(hdr->magic, "bFLT", 4)) {
 		/*
+		 * Previously, here was a printk to tell people
+		 *   "BINFMT_FLAT: bad header magic".
+		 * But for the kernel which also use ELF FD-PIC format, this
+		 * error message is confusing.
 		 * because a lot of people do not manage to produce good
-		 * flat binaries,  we leave this printk to help them realise
-		 * the problem.  We only print the error if its not a script file
 		 */
-		if (strncmp(hdr->magic, "#!", 2))
-			printk("BINFMT_FLAT: bad header magic\n");
 		ret = -ENOEXEC;
 		goto err;
 	}

@@ -74,7 +74,7 @@ static void __init macide_setup_ports(hw_regs_t *hw, unsigned long base,
 	for (i = 0; i < 8; i++)
 		hw->io_ports[i] = base + i * 4;
 
-	hw->io_ports[IDE_CONTROL_OFFSET] = IDE_CONTROL;
+	hw->io_ports[IDE_CONTROL_OFFSET] = base + IDE_CONTROL;
 
 	hw->irq = irq;
 	hw->ack_intr = ack_intr;

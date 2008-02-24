@@ -552,7 +552,7 @@ int cap_task_kill(struct task_struct *p, struct siginfo *info,
 	 * allowed.
 	 * We must preserve legacy signal behavior in this case.
 	 */
-	if (p->euid == 0 && p->uid == current->uid)
+	if (p->uid == current->uid)
 		return 0;
 
 	/* sigcont is permitted within same session */
